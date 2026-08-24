@@ -1,9 +1,11 @@
 # Tutorial: your first unifications
 
 This is a hands-on introduction. By the end you will have installed
-Aontu, run it from both TypeScript and Go, and used every core feature
-to build up a small service configuration that is part schema, part
-default, and part data — all in one document.
+Aontu, run it from both TypeScript and Go, used every core feature to
+build up a small service configuration that is part schema, part
+default, and part data — all in one document — and then turned the
+`aontu` command on what you built: validating data against it,
+querying it, and asking it where a value came from.
 
 You do not need to understand *why* unification works yet (that is the
 [Explanation](explanation.md)); just follow along and watch what each
@@ -65,8 +67,10 @@ it in whichever language you prefer.
 
 > **Tip — try snippets instantly.** Both implementations also ship an
 > `aontu` command. From a clone you can pipe any example straight in:
-> `echo 'a:1 b:$.a' | node ts/dist/cli.js` (or `go run ./cmd/aontu`
-> inside `go/`). Running `aontu` with no file starts a REPL. See the
+> `echo 'a:1 b:$.a' | node ts/bin/aontu.js` (or `go run ./cmd/aontu`
+> inside `go/`). Installed from npm (`npm i -g aontu`) the command is
+> just `aontu`, which is how the last two sections write it. Running
+> `aontu` with no file starts a REPL. See the
 > [API reference](reference-api.md#command-line-interface).
 
 ## 2. Objects are just keys and values
@@ -234,7 +238,9 @@ more specific is supplied:
 port: *8080 | integer
 ```
 
-Read `*8080 | integer` as "an integer, defaulting to 8080". On its own:
+The `|` here is **disjunction** — a choice between alternatives
+(`8080` *or* any `integer`). The `*` picks which branch is preferred when
+the choice is otherwise unforced. On its own:
 
 → `{ "port": 8080 }`
 
@@ -247,9 +253,46 @@ port: 9090
 
 → `{ "port": 9090 }`
 
-The `|` here is **disjunction** — a choice between alternatives
-(`8080` *or* any `integer`). The `*` picks which branch is preferred when
-the choice is otherwise unforced.
+### The default does not carry the type
+
+It is tempting to read `*8080 | integer` as "an integer, defaulting to
+8080". It is not — and this is the one place a beginner reliably gets
+burned, so run it rather than take it on trust:
+
+```aontu
+port: *8080 | integer
+port: 1.5
+```
+
+→ `{ "port": 1.5 }`
+
+No error. A preferred value is overridden by *family*, not by leaf, and
+the family of every numeric leaf is `number` — so once `8080` is marked
+preferred, the branch admits any number at all. `*8080 | integer` is a
+default, not a constraint. (Only the numeric leaves have a family above
+them, so `*true | boolean` does still refuse a number. Writing the kind
+out anyway costs nothing and never surprises you.)
+
+State the constraint yourself, alongside the default:
+
+```aontu
+port: integer & (*8080 | integer)
+```
+
+Now all three things you wanted are true at once. On its own it still
+gives `{ "port": 8080 }`; `port: 9090` still overrides it to
+`{ "port": 9090 }`; and `port: 1.5` is now refused, the report opening:
+
+```
+[aontu/|:empty]: Cannot unify values at path $.port
+
+Empty disjunction. The disjunction has no valid alternatives.
+```
+
+`kind & (*value | kind)` is the shape to remember whenever you want a
+default that is *also* a type. The family rule behind it is spelled out
+in the
+[language reference](reference-language.md#preference--default-).
 
 ## 7. References
 
@@ -298,8 +341,8 @@ servers: {
 ```json
 {
   "servers": {
-    "web": { "region": "eu-west", "active": true },
-    "db":  { "region": "us-east", "active": true }
+    "db":  { "active": true, "region": "us-east" },
+    "web": { "active": true, "region": "eu-west" }
   }
 }
 ```
@@ -321,13 +364,10 @@ round: upper(0d1.1)        # -> 2.0        (exact ceiling, kind kept)
 copy:  copy($.web)         # deep copy of another node
 ```
 
-Those are drawn from the twelve original functions — `upper`,
-`lower`, `copy`, `key`, `pref`, `super`, `type`, `hide`, `close`,
-`open`, `move`, `path`. The full roster is 28 today: the constraint
-atoms (`min`, `max`, `above`, `below`, `neq`, `re`, `length`,
-`unique`, `must`), `deprecate`, the identity pair (`id`, `refer`)
-and the generators (`pack`, `each`, `filter`, `match`) joined them.
-Every one is in the
+There are twenty-eight built-ins in all — bounds like `min` and `max`,
+pattern and length constraints, generators that build children, and the
+marks you meet in the next section. You need none of them today. When
+you do, they are tabulated with examples in the
 [language reference](reference-language.md#functions).
 
 ## 10. Sealing a shape with `close`
@@ -345,16 +385,17 @@ point: { x: 1, y: 2 }
 
 ## 11. Putting it together
 
-Here is a single document that is schema, defaults, and data at once:
+Here is a single document that is schema, defaults, and data at once.
+Save it as `config.aon`; the last two sections use it:
 
 ```aontu
 # --- schema + defaults (could live in its own file) ---
 service: close({
   name:    string
-  host:    *localhost | string
-  port:    *8080 | integer
-  rate:    *0d0.01 | bigdecimal
-  tags:    [string]
+  host:    string     & (*localhost | string)
+  port:    integer    & (*8080 | integer)
+  rate:    bigdecimal & (*0d0.01 | bigdecimal)
+  tags:    [&: string]
 })
 
 # --- environment data merged on top ---
@@ -366,29 +407,226 @@ service: {
 }
 ```
 
+```sh
+aontu config.aon
+```
+
 →
 
 ```json
 {
   "service": {
-    "name": "api",
     "host": "localhost",
+    "name": "api",
     "port": 9090,
     "rate": 0.025,
-    "tags": ["public", "http"]
+    "tags": [
+      "public",
+      "http"
+    ]
   }
 }
 ```
 
-The schema constrained every field, defaults filled `host`, the data
-supplied `name`/`port`/`rate`/`tags`, `rate` stayed exact all the way
-to the output, `close` guaranteed no stray keys slipped in, and
-unification combined it all into one answer — failing loudly if
-anything had conflicted.
+Two things in that schema are worth a second look, because the obvious
+spelling of each is weaker than it looks.
+
+Every default is written as `kind & (*value | kind)`, the shape from
+§6 — so `port: 9090.5` is refused rather than quietly accepted.
+
+`tags` uses the spread from §8. `[&: string]` says *every* element is a
+string. The shorter `[string]` would not: a list literal is
+**positional** with an open tail, so it constrains element 0 and lets
+anything follow — `tags: [public, 7]` sails straight through it. Reach
+for the spread whenever you mean "a list of these".
+
+With those two in place the schema really does constrain every field.
+Defaults filled `host`, the data supplied `name`/`port`/`rate`/`tags`,
+`rate` stayed exact all the way to the output, `close` guaranteed no
+stray keys slipped in, and unification combined it all into one answer
+— failing loudly if anything had conflicted.
+
+## 12. Asking the document questions
+
+You have written something that says quite a lot. From here on, stop
+reading it and start asking it. The `aontu` command has a verb for each
+question; from a clone, prefix them with `node ts/bin/aontu.js` or
+`go run ./cmd/aontu` as in §1.
+
+`get` prints one slice of the answer:
+
+```sh
+aontu get '$.service.tags' config.aon
+```
+
+```json
+[
+  "public",
+  "http"
+]
+```
+
+The path is the same `$.`-rooted path you wrote in §7 — quote it so the
+shell leaves the `$` alone.
+
+`why` is the one to reach for when a value surprises you. It names
+every statement that contributed to a path, in source order:
+
+```sh
+aontu why '$.service.port' config.aon
+```
+
+```
+$.service.port = 9090
+  1. integer  config.aon:5:12
+  2. *8080|integer  config.aon:5:25
+  3. 9090  config.aon:13:9
+```
+
+Three contributions, and you wrote all three: the constraint, the
+default, and the data that beat it — each with the line and column it
+came from. Ask the same of `$.service.host`, which nothing overrode,
+and only two come back: the constraint and the default.
+
+`get` has `--keys`, `--types` and `--canon` views as well, and there
+are eleven verbs in all. The
+[API reference](reference-api.md#command-line-interface) lists them;
+the [how-to guides](how-to.md) show the tasks they are for.
+
+## 13. Validating data with `aontu vet`
+
+Configuration rarely stays in one file: the schema is yours, the data
+arrives from somewhere else. Split `config.aon` at its comment. The
+schema half becomes `service.aon`:
+
+```aontu
+service: close({
+  name:    string
+  host:    string     & (*localhost | string)
+  port:    integer    & (*8080 | integer)
+  rate:    bigdecimal & (*0d0.01 | bigdecimal)
+  tags:    [&: string]
+})
+```
+
+and the data half becomes `prod.aon`:
+
+```aontu
+service: {
+  name: api
+  port: 9090
+  rate: 0d0.025
+  tags: [public, http]
+}
+```
+
+`vet` asks whether a data document holds against a schema document:
+
+```sh
+aontu vet service.aon prod.aon
+```
+
+```
+verdict: valid
+```
+
+Now a second environment arrives, `staging.aon`, written by someone
+else:
+
+```aontu
+service: {
+  name: search
+  port: 8100
+  tags: [internal, 3]
+}
+```
+
+```sh
+aontu vet service.aon staging.aon
+```
+
+```
+verdict: invalid
+
+$.service.tags.1: no_scalar_unify [conflict]
+  [aontu/no_scalar_unify]: Cannot unify values at path $.service.tags.1
+  data: staging.aon:4:20 (3)
+  schema: service.aon:6:16 (string)
+```
+
+Read that from the top. The path `$.service.tags.1` is exactly where
+the trouble is — element 1 of the list, the `3`. Then **two sites**,
+because a conflict is always between two statements and neither one is
+"the error": `data` is what arrived, `3` at line 4 column 20 of
+`staging.aon`; `schema` is what it had to meet, `string` at line 6
+column 16 of `service.aon`. Every finding is sited on both sides like
+this, so you never have to guess which file to open.
+
+The `3` was meant to be a tier name; write it as one, and vet agrees:
+
+```aontu
+  tags: [internal, tier3]
+```
+
+```sh
+aontu vet service.aon staging.aon
+```
+
+```
+verdict: valid
+```
+
+Notice that `staging.aon` never mentions `host` or `rate` and passes
+anyway: the schema's defaults supply them. Unify the two files to see
+what the service actually gets —
+
+```sh
+cat service.aon staging.aon | aontu
+```
+
+```json
+{
+  "service": {
+    "host": "localhost",
+    "name": "search",
+    "port": 8100,
+    "rate": 0.01,
+    "tags": [
+      "internal",
+      "tier3"
+    ]
+  }
+}
+```
+
+— and one more verdict is worth meeting. Delete `name: search` from
+`staging.aon` and run vet again:
+
+```
+verdict: incomplete
+
+$.service.name: mapval_required [incomplete]
+  [aontu/mapval_required]: Cannot resolve value at path $.service.name
+  schema: service.aon:2:12 (string)
+```
+
+Nothing contradicts anything; the document is simply not finished yet.
+Aontu has kept those two apart all through this tutorial, and `vet`
+keeps them apart in its exit code too: `0` valid, `1` invalid, `3`
+incomplete, `4` the schema itself does not stand up. That is what makes
+it usable as a gate — see [`aontu vet`](reference-api.md#aontu-vet) for
+the JSON and SARIF report forms, `--watch`, and the rest.
+
+And that is the loop the whole command surface exists for: **emit** a
+document, **vet** it against the truth it has to satisfy, and when it
+fails let the two sites and `aontu why` tell you where to **repair**
+it. You have now done it once by hand.
 
 ## Where to go next
 
 - Have a concrete task? → [How-to guides](how-to.md)
 - Want every rule and edge case? → [Language reference](reference-language.md)
-- Calling Aontu from code? → [API reference](reference-api.md)
+- Calling Aontu from code, or after the other eight verbs and the MCP
+  server? → [API reference](reference-api.md)
+- Wiring the editor integration? → [Language Server](lsp.md)
 - Curious *how* it works? → [Explanation](explanation.md)
