@@ -16,7 +16,7 @@ import { diff } from './diff';
 import { agentsMd } from './agentsmd';
 import { graphOf } from './graph';
 import { relationCheck } from './relation';
-declare const VERSION = "0.52.1";
+declare const VERSION = "0.53.0";
 declare class Aontu {
     opts: AontuOptions;
     lang: Lang;

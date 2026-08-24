@@ -1,6 +1,6 @@
 {
   "name": "aontu",
-  "version": "0.52.1",
+  "version": "0.53.0",
   "main": "dist/aontu.js",
   "type": "commonjs",
   "types": "dist/aontu.d.ts",
@@ -26,6 +26,7 @@
     "test-some": "node --enable-source-maps --test-name-pattern=\"$TEST_PATTERN\" --test \"dist-test/**/*.test.js\"",
     "watch": "tsc --build src test -w",
     "build": "tsc --build src test",
+    "prepack": "node -e \"const fs=require('fs');for(const [from,to] of [['../grammar','grammar'],['../docs/skill','skill']]){fs.rmSync(to,{recursive:true,force:true});fs.cpSync(from,to,{recursive:true})}\"",
     "clean": "rm -rf dist dist-test node_modules yarn.lock package-lock.json",
     "reset": "npm run clean && npm i && npm run build && npm test",
     "version": "node -e \"const fs=require('fs');const v=require('./package.json').version;const f='./src/aontu.ts';const s=fs.readFileSync(f,'utf8');const re=/^const VERSION = '.*?'/m;if(!re.test(s)){console.error('version: no VERSION constant in '+f);process.exit(1)}const n=s.replace(re,'const VERSION = \\''+v+'\\'');if(n!==s){fs.writeFileSync(f,n);console.log('version: src/aontu.ts VERSION -> '+v)}\"",
@@ -47,6 +48,8 @@
     "bin",
     "src",
     "dist",
+    "grammar",
+    "skill",
     "LICENSE"
   ],
   "dependencies": {

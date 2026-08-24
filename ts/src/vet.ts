@@ -24,7 +24,7 @@
 //     `incomplete`-class errors out of it. The two verdicts the report
 //     distinguishes therefore come from two different mechanisms.
 
-import type { Val } from './type'
+import type { TrustOptions, Val } from './type'
 
 import { Aontu } from './aontu'
 import { descErr } from './err'
@@ -83,6 +83,14 @@ export type VetOptions = {
   // same place.
   schemaPath?: string
   dataPath?: string
+
+  // The trust profile this run evaluates under (G5, docs/trust.md).
+  // Vet's whole job is to evaluate a document its caller did not
+  // write, so the caller must be able to say what that document is
+  // allowed to reach: without this the include chain is the default
+  // one, and `@"x.js"` in hostile data is arbitrary code execution in
+  // the validating process. A server passes `{include:'none'}`.
+  trust?: TrustOptions
 }
 
 
@@ -346,7 +354,8 @@ export function vet(
   // ONE instance, two bases: the path rides on each CALL rather than on
   // the constructor, because the schema and the data may live in
   // different directories (Lang.parse takes `opts.path` per parse).
-  const aontu = new Aontu()
+  const aontu = new Aontu(
+    null == options.trust ? undefined : { trust: options.trust })
   const schemaOpts = null == options.schemaPath ?
     undefined : { path: options.schemaPath }
   const dataOpts = null == options.dataPath ?

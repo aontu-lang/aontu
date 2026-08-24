@@ -9,6 +9,10 @@
 import { describe, test } from 'node:test'
 import * as Assert from 'node:assert'
 import { PassThrough } from 'node:stream'
+import { execFileSync } from 'node:child_process'
+import * as Fs from 'node:fs'
+import * as Os from 'node:os'
+import * as Path from 'node:path'
 
 import { handle, callTool, toolList, parseError, MCP_PROTOCOL } from '../dist/mcp'
 import { main as mcpMain, LineCodec } from '../dist/mcp-server'
@@ -130,6 +134,110 @@ describe('mcp', () => {
     const r = payload(callTool('canon', { src: 'a: @"/etc/passwd"' }))
     Assert.equal(r.ok, false)
     Assert.equal(r.findings[0].code, 'include_denied')
+  })
+
+
+  // EVERY tool, not one of them. This test exists because the version
+  // above it -- which asserted `canon` alone -- passed for weeks while
+  // four of the six tools evaluated caller source with NO trust
+  // profile, so `@"x.js"` was require()d in the server process. One
+  // tool proving itself confined says nothing about its siblings.
+  //
+  // The table is derived from the LIVE tool list rather than written
+  // out, so a tool added later is covered the day it is added, and the
+  // assertion is on the security property itself (the module was not
+  // executed) rather than on any one report's wording, which differs
+  // per tool: vet answers a broken schema with verdict `error` and no
+  // findings, where canon names `include_denied`.
+  test('every-tool-is-confined', () => {
+    const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-mcp-trust-'))
+    const canary = Path.join(dir, 'canary.txt')
+    const mod = Path.join(dir, 'mod.js')
+    Fs.writeFileSync(mod,
+      `require('fs').writeFileSync(${JSON.stringify(canary)},'x')\n` +
+      'module.exports = {a:1}\n')
+    const hostile = `a: @"${mod.replace(/\\/g, '/')}"`
+
+    for (const t of toolList()) {
+      const args: any = {}
+      for (const req of t.inputSchema.required) {
+        // A path argument must stay a path; every other required
+        // string is a document, and gets the hostile one.
+        args[req] = 'path' === req ? '$' : hostile
+      }
+      if (Fs.existsSync(canary)) Fs.unlinkSync(canary)
+
+      const r: any = callTool(t.name, args)
+
+      Assert.equal(Fs.existsSync(canary), false,
+        `tool ${t.name} EXECUTED a caller-supplied module`)
+      // And it answered rather than throwing the call away.
+      Assert.equal(r.isError, false, `tool ${t.name} failed to answer`)
+    }
+  })
+
+
+  // The SHIPPED binary, spawned as a client would run it. The
+  // in-process tests above prove the library confines; this proves the
+  // thing in `bin/` does, which is what an operator actually runs and
+  // what the npm package installs.
+  test('spawned-server-is-confined', () => {
+    const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-mcp-spawn-'))
+    const canary = Path.join(dir, 'canary.txt')
+    const mod = Path.join(dir, 'mod.js')
+    Fs.writeFileSync(mod,
+      `require('fs').writeFileSync(${JSON.stringify(canary)},'x')\n` +
+      'module.exports = {a:1}\n')
+    const hostile = `a: @"${mod.replace(/\\/g, '/')}"`
+
+    const bin = Path.join(__dirname, '..', 'bin', 'aontu-mcp.js')
+    const lines = [
+      { jsonrpc: '2.0', id: 1, method: 'initialize', params: {} },
+      {
+        jsonrpc: '2.0', id: 2, method: 'tools/call',
+        params: { name: 'canon', arguments: { src: hostile } },
+      },
+    ].map((m) => JSON.stringify(m)).join('\n') + '\n'
+
+    const out = execFileSync('node', [bin], {
+      input: lines, encoding: 'utf8',
+    })
+
+    Assert.equal(Fs.existsSync(canary), false,
+      'the spawned server EXECUTED a caller-supplied module')
+    // It still answered both messages.
+    const answers = out.trim().split('\n').map((l) => JSON.parse(l))
+    Assert.equal(answers.length, 2)
+    Assert.equal(answers[1].id, 2)
+    Assert.ok(JSON.stringify(answers[1]).includes('include_denied'))
+  })
+
+
+  test('a-throwing-tool-does-not-take-the-server-down', () => {
+    // A stdio server serves one client for a whole session, so an
+    // unhandled throw inside a tool loses every later call as well.
+    // isError is the contract for "this call could not be made".
+    //
+    // No document reaches this path -- every verb answers with a
+    // report rather than throwing -- so the tool table is injected,
+    // the way the watch loop injects its waiter.
+    const boom: any = [{
+      name: 'boom',
+      description: 'throws',
+      properties: { src: { type: 'string', description: 'x' } },
+      required: ['src'],
+      run: () => { throw new Error('bang') },
+    }]
+    const r: any = callTool('boom', { src: 'a:1' }, boom)
+    Assert.equal(r.isError, true)
+    Assert.match(r.content[0].text, /tool boom failed: bang/)
+
+    // A thrown non-Error still answers, rather than printing
+    // "undefined" from a missing .message.
+    const odd: any = [{ ...boom[0], run: () => { throw 'plain' } }]
+    const r2: any = callTool('boom', { src: 'a:1' }, odd)
+    Assert.equal(r2.isError, true)
+    Assert.match(r2.content[0].text, /tool boom failed: plain/)
   })
 
   // main() with no stream arguments uses the real stdout/exit

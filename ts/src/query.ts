@@ -28,6 +28,7 @@
 // which is why they are named views rather than spellings of --canon.
 
 import { Aontu } from './aontu'
+import type { TrustOptions } from './type'
 import { exactJSON } from './exactjson'
 import { anchorAt } from './vet'
 import type { VetFinding } from './vet'
@@ -46,6 +47,13 @@ export type QueryOptions = {
   // Where the document CAME FROM, so a relative `@"file"` load inside
   // it resolves from its own directory (vet's schemaPath precedent).
   path?: string
+
+  // The trust profile this run evaluates under (G5, docs/trust.md).
+  // The source arrives from a caller, so the caller must be able to
+  // say what it may reach: without this the include chain is the
+  // default one, and `@"x.js"` is arbitrary code execution in the
+  // evaluating process. A server passes `{include:'none'}`.
+  trust?: TrustOptions
 }
 
 export type QueryReport = {
@@ -261,7 +269,8 @@ export function get(
   const options = opts ?? {}
   const view: QueryView = options.view ?? 'json'
 
-  const aontu = new Aontu()
+  const aontu = new Aontu(
+    null == options.trust ? undefined : { trust: options.trust })
   const ctx = aontu.ctx({ collect: true })
   const parseOpts = null == options.path ? undefined : { path: options.path }
   const root: any = aontu.unify(src, parseOpts, ctx)
@@ -325,7 +334,8 @@ export type WhyReport = {
 export function why(
   src: string, path: string, opts?: QueryOptions): WhyReport {
   const options = opts ?? {}
-  const aontu = new Aontu()
+  const aontu = new Aontu(
+    null == options.trust ? undefined : { trust: options.trust })
   const prov = new Provenance()
   const ctx = aontu.ctx({ collect: true, prov })
   const parseOpts = null == options.path ? undefined : { path: options.path }

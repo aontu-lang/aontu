@@ -1754,7 +1754,19 @@ func evaluate(r *jsonic.Rule, ctx *jsonic.Context, op *expr.Op, terms []interfac
 			if name, ok := terms[0].(string); ok {
 				return buildCall(r, name, terms[1:])
 			}
-			return asVal(terms[len(terms)-1])
+			// A NON-string term[0] with more terms after it is a CALL
+			// whose target is not a name — `f(1)(2)`, `(1)(2)`,
+			// `upper("x")(2)`. There is nothing to call, so it is the
+			// same refusal an unrecognised name gets. This arm used to
+			// return the LAST term, which silently discarded the call
+			// and answered `2`, while TypeScript refused with
+			// `unknown_function`: a schema constrained only by such a
+			// construct went unchecked in Go, in both the schema and
+			// the data direction (status-2026-08-21.md section 4).
+			if len(terms) > 1 {
+				return newNil("unknown_function")
+			}
+			return asVal(terms[0])
 		}
 		// `a:()` — grouping parens with nothing inside.
 		return incompleteNil(r)

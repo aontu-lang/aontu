@@ -73,6 +73,17 @@ const numcmp_1 = require("./numcmp");
 // This function is mirrored statement for statement in go/constraint.go,
 // and `test/spec/files/regex-corpus.txt` pins that the two produce
 // byte-identical output for every pattern in a generated corpus.
+// The largest repeat count Aontu's pattern language admits. RE2 caps a
+// repeat at 1000 and refuses to compile past it, where JavaScript's
+// backtracking engine accepts any count -- so `re("^a{1001}$")` was
+// VALID in TypeScript and an `error` verdict in Go, a cross-port
+// verdict flip on a schema an agent could be handed
+// (status-2026-08-21.md section 4). Under ADR-003 the host's own
+// compile failure must never be what a user sees, so the bound is
+// Aontu's: at most RE_REPEAT_MAX, refused identically in both ports
+// before either engine compiles. Nested products beyond the cap were
+// already refused, by the quantified-group rule below.
+const RE_REPEAT_MAX = 1000;
 // The normative expansions. These are Aontu's definitions, not either
 // host's; both hosts are rewritten to them.
 const RE_CLASS_DIGIT = '0-9';
@@ -86,6 +97,64 @@ const RE_ESCAPE_PUNCT = '\\.+*?()[]{}|^$/';
 // Escapes passed through unchanged: the control characters, the ASCII
 // word boundary, and `\xHH`. Each was probed in both engines.
 const RE_ESCAPE_PASS = 'tnrfv';
+// A counted quantifier `{n}`, `{n,}` or `{n,m}` starting at `src[at]`.
+// Two rules, both about what the hosts do NOT share:
+//
+//  - A bound above RE_REPEAT_MAX: RE2 refuses to compile it, JavaScript
+//    accepts it.
+//  - A brace that does not open a well-formed counted quantifier at
+//    all (`x{y}`, `a{`, `{,5}`): JavaScript compiled with the `u` flag
+//    makes it a SYNTAX ERROR, while RE2 reads it as a literal brace, so
+//    `re("^x{y}$")` was `constraint_pattern` in TypeScript and a plain
+//    unresolved value in Go -- the same class of verdict flip as the
+//    repeat cap, found by sweeping around it. A literal brace is
+//    written escaped (`a\\{1001\\}`), which both engines share.
+function repeatWhy(src, at) {
+    const bad = (what) => 'a ' + what +
+        ', which the two engines do not read the same way';
+    let i = at + 1;
+    let digits = '';
+    const bounds = [];
+    let commas = 0;
+    for (; i < src.length; i++) {
+        const c = src[i];
+        if ('0' <= c && c <= '9') {
+            digits += c;
+            continue;
+        }
+        if (',' === c) {
+            if ('' === digits || 0 < commas) {
+                return bad('{ that does not open a counted quantifier');
+            }
+            bounds.push(parseInt(digits, 10));
+            digits = '';
+            commas++;
+            continue;
+        }
+        if ('}' === c) {
+            if ('' !== digits) {
+                bounds.push(parseInt(digits, 10));
+            }
+            else if (0 === commas) {
+                return bad('{ that does not open a counted quantifier');
+            }
+            break;
+        }
+        return bad('{ that does not open a counted quantifier');
+    }
+    if (i >= src.length) {
+        return bad('{ that does not open a counted quantifier');
+    }
+    for (const b of bounds) {
+        if (RE_REPEAT_MAX < b) {
+            return 'a repeat count above ' + RE_REPEAT_MAX +
+                ', which RE2 refuses to compile';
+        }
+    }
+    // A descending range (`{5,2}`) is refused by both engines' own
+    // compilers, so it needs no rule here.
+    return '';
+}
 function isHexDigit(c) {
     return null != c && (('0' <= c && c <= '9') || ('a' <= c && c <= 'f') || ('A' <= c && c <= 'F'));
 }
@@ -258,6 +327,12 @@ function normaliseRe(src) {
             continue;
         }
         if ('*' === c || '+' === c || '?' === c || '{' === c) {
+            if ('{' === c) {
+                const why = repeatWhy(src, i);
+                if ('' !== why) {
+                    return ['', why];
+                }
+            }
             mark('q');
             out.push(c);
             continue;

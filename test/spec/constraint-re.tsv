@@ -173,3 +173,39 @@ re-host-refuses	errc	a:re("*")&"x"	constraint_pattern
 re-invalid-arg	errc	a:re(1)&"x"	invalid-arg
 re-arity	errc	a:re("a","b")&"x"	func_arity
 re-invalid-atom-residual	errc	a:re("(?=x)y")	mapval_no_gen
+#
+# The REPEAT CAP, and the braces that are not repeats at all
+# (status-2026-08-21.md §4). RE2 refuses a repeat above 1000 where
+# JavaScript accepts any count, so `re("^a{1001}$")` was VALID in
+# TypeScript and an `error` verdict in Go -- the host's own compile
+# failure reaching the user, which is exactly what ADR-003 exists to
+# prevent. The bound is Aontu's now, checked before either engine
+# compiles. 1000 is still accepted, so the cap is a boundary, not a
+# retreat.
+# At the cap the pattern COMPILES, so a mismatch is an ordinary
+# `constraint` failure. Above it the PATTERN is refused
+# (`constraint_pattern`). The two codes are what make the boundary
+# observable in a row.
+re-repeat-at-cap	errc	a:re("^a{1000}$")&"x"	constraint
+re-repeat-over-cap	errc	a:re("^a{1001}$")&"x"	constraint_pattern
+re-repeat-over-cap-max	errc	a:re("^a{2,1001}$")&"x"	constraint_pattern
+re-repeat-over-cap-open	errc	a:re("^a{1001,}$")&"x"	constraint_pattern
+# A brace that opens no counted quantifier is a SYNTAX ERROR in
+# JavaScript under the `u` flag and a literal brace in RE2 -- the same
+# class of flip, found by sweeping around the cap rather than by the
+# report that named it.
+re-brace-not-a-repeat	errc	a:re("^x{y}$")&"x"	constraint_pattern
+re-brace-unterminated	errc	a:re("^a{$")&"x"	constraint_pattern
+re-brace-empty	errc	a:re("^a{}$")&"x"	constraint_pattern
+re-brace-no-low	errc	a:re("^a{,5}$")&"x"	constraint_pattern
+re-brace-three-bounds	errc	a:re("^a{1,2,3}$")&"x"	constraint_pattern
+# A count with more digits than an integer holds is certainly above the
+# cap, and says so rather than calling a well-formed quantifier
+# malformed: Go's Atoi overflows where JavaScript's parseInt yields a
+# float far above the bound, and both must refuse for the same reason.
+re-repeat-overflow	errc	a:re("^a{99999999999999999999}$")&"x"	constraint_pattern
+re-repeat-overflow-max	errc	a:re("^a{2,99999999999999999999}$")&"x"	constraint_pattern
+re-repeat-overflow-low	errc	a:re("^a{99999999999999999999,5}$")&"x"	constraint_pattern
+# A pattern that ENDS in the brace: the scan runs off the end rather
+# than meeting a closing `}`.
+re-brace-at-end	errc	a:re("a{")&"x"	constraint_pattern

@@ -1,3 +1,4 @@
+import type { TrustOptions } from './type';
 import type { VetFinding } from './vet';
 import type { WhyRecord } from './provenance';
 export type QueryView = 'json' | 'canon' | 'types' | 'keys';
@@ -5,6 +6,7 @@ export type QueryOptions = {
     view?: QueryView;
     depth?: number;
     path?: string;
+    trust?: TrustOptions;
 };
 export type QueryReport = {
     ok: boolean;

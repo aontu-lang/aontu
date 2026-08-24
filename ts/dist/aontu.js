@@ -48,7 +48,7 @@ Object.defineProperty(exports, "relationCheck", { enumerable: true, get: functio
 // Kept in step with package.json by the `version` npm lifecycle script,
 // which runs on `npm version` / `npm run repo-bump`. version.test.ts
 // fails if the two ever drift.
-const VERSION = '0.52.1';
+const VERSION = '0.53.0';
 exports.VERSION = VERSION;
 // A module file's VALUE, as far as it goes. COLLECTED, not raised: a
 // module file that does not stand up has no `mod.main` to read, and

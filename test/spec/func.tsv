@@ -186,3 +186,29 @@ func-arity-list-is-one	errc	a:upper(["a","b"])	invalid-arg
 func-lower-boolean-arg	errc	a:lower(true)	invalid-arg
 func-lower-list-arg	errc	a:lower([1])	invalid-arg
 func-lower-map-arg	errc	a:lower({})	invalid-arg
+# --- a call whose target is not a name (status-2026-08-21.md §4) ---
+# `f(1)(2)` and its siblings are calls on something that is not a
+# function name. TypeScript refused them; the Go port returned the LAST
+# term, so `a: f(1)(2)` GENERATED 2 and a schema constrained only by
+# such a construct went unchecked -- a cross-port vet verdict flip, in
+# both the schema and the data direction. Grouping is unaffected: one
+# term inside the parens is still the grouped value.
+func-call-on-call	errc	a:f(1)(2)	unknown_function
+func-call-on-group	errc	a:(1)(2)	unknown_function
+func-call-on-known-call	errc	a:upper("x")(2)	unknown_function
+func-group-single-term	gen	a:(1+2)	{"a":3}
+func-group-scalar	gen	a:(1)	{"a":1}
+func-group-map	gen	a:({b:1})	{"a":{"b":1}}
+# --- path() argument KIND (issues #60, #67) ---
+# An argument that is neither a scalar segment name nor a ref is not a
+# path. The Go port used to hand it straight back, so `path([1,2])`
+# generated the list. The refusal is at the argument's KIND, which is
+# why every spelling of a `-0` segment is covered by it rather than by
+# a guard against particular texts -- the guard that missed `-00`,
+# `- 0` and `-0.0` the first time.
+path-list-arg	errc	a:path([1,2])	invalid-arg
+path-map-arg	errc	a:path({b:1})	invalid-arg
+path-neg-zero-arg	errc	a:path([-0])	invalid-arg
+path-neg-zero-string	errc	a:path(["-0"])	invalid-arg
+path-neg-zero-double	errc	a:path([-00])	invalid-arg
+path-neg-zero-float	errc	a:path([-0.0])	invalid-arg

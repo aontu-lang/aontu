@@ -236,7 +236,7 @@ function vet(schemaSrc, dataSrc, opts) {
     // ONE instance, two bases: the path rides on each CALL rather than on
     // the constructor, because the schema and the data may live in
     // different directories (Lang.parse takes `opts.path` per parse).
-    const aontu = new aontu_1.Aontu();
+    const aontu = new aontu_1.Aontu(null == options.trust ? undefined : { trust: options.trust });
     const schemaOpts = null == options.schemaPath ?
         undefined : { path: options.schemaPath };
     const dataOpts = null == options.dataPath ?

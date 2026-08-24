@@ -1104,21 +1104,43 @@ hcanon         // the HASH FORM of an evaluated Val (see `aontu hash`
 canonHash      // the canon-hash pin over that form,
                // "aon1-"+base64url(SHA-256(...)); Go: aontu.CanonHash
 get            // the query surface (see `aontu get` above):
-               // get(src, path, {view?, depth?, path?}) ->
+               // get(src, path, {view?, depth?, path?, trust?}) ->
                // {ok, out, findings}; Go: aontu.New().Get(src, path, opts)
 why            // provenance (see `aontu why` above):
-               // why(src, path, {path?}) -> {ok, record, findings},
+               // why(src, path, {path?, trust?}) -> {ok, record, findings},
                // record = {path, value, conjuncts}; Go: (*Aontu).Why
 patch          // the overlay patch (see `aontu set` above):
                // patch(entry, overlay, ["$.a.b=1"], opts?) ->
                // {overlay, appended, verdict, findings}; Go: aontu.Patch
 diff           // what changed at which paths between two documents:
-               // diff(left, right, {at?}) -> {changes, same, findings};
+               // diff(left, right, {at?, trust?}) -> {changes, same, findings};
                // Go: aontu.Diff
 agentsMd       // the generated AGENTS.md stanza (see `aontu agentsmd`
                // above): agentsMd(src, {name?}) -> {stanza, ok};
                // Go: (*Aontu).AgentsMd
 ```
+
+#### Evaluating a document you did not write
+
+`vet`, `get`, `why` and `diff` each take a **`trust`** option, the same
+profile [`AontuOptions.trust`](#aontuoptions) takes, and it means the
+same thing: what the document being evaluated may reach.
+
+These four verbs exist to be pointed at source from somewhere else — a
+candidate an agent emitted, a live system dump, the other side of a
+diff — and without a profile they resolve `@"…"` through the default
+chain, which reaches the filesystem and `require()`s a `.js` path.
+**Opening an untrusted source is running it**, so pass a profile
+whenever the source is not yours:
+
+```ts
+vet(schemaSrc, candidateSrc, { trust: { include: 'none' } })
+```
+
+The [MCP server](#the-mcp-server) supplies `{ include: 'none' }` to
+every tool from a single place, rather than each tool applying it for
+itself: a tool that must remember to confine itself is one that
+eventually forgets, and the forgetting is silent.
 
 ---
 

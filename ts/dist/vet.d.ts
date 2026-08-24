@@ -1,4 +1,4 @@
-import type { Val } from './type';
+import type { TrustOptions, Val } from './type';
 export type VetVerdict = 'valid' | 'invalid' | 'incomplete' | 'error';
 export type VetRole = 'data' | 'schema';
 export type VetSite = {
@@ -33,6 +33,7 @@ export type VetOptions = {
     dataUrl?: string;
     schemaPath?: string;
     dataPath?: string;
+    trust?: TrustOptions;
 };
 export declare const VET_MAX_ERRORS = 20;
 export declare function anchorAt(root: any, at: string): Val | undefined;

@@ -21,6 +21,7 @@
 // question at all.
 
 import { Aontu } from './aontu'
+import type { TrustOptions } from './type'
 import { anchorAt } from './vet'
 import type { VetFinding } from './vet'
 import { cmpCodePoint } from './keyorder'
@@ -51,6 +52,13 @@ export type DiffOptions = {
   rightPath?: string
   // Compare at this path of both documents, rather than at the root.
   at?: string
+
+  // The trust profile this run evaluates under (G5, docs/trust.md).
+  // The source arrives from a caller, so the caller must be able to
+  // say what it may reach: without this the include chain is the
+  // default one, and `@"x.js"` is arbitrary code execution in the
+  // evaluating process. A server passes `{include:'none'}`.
+  trust?: TrustOptions
 }
 
 
@@ -172,7 +180,8 @@ function evalSide(
 export function diff(
   leftSrc: string, rightSrc: string, opts?: DiffOptions): DiffReport {
   const options = opts ?? {}
-  const aontu = new Aontu()
+  const aontu = new Aontu(
+    null == options.trust ? undefined : { trust: options.trust })
 
   const l = evalSide(aontu, leftSrc, options.leftPath, options.at)
   const r = evalSide(aontu, rightSrc, options.rightPath, options.at)

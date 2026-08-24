@@ -205,7 +205,7 @@ function noPathFinding(root, path) {
 function get(src, path, opts) {
     const options = opts ?? {};
     const view = options.view ?? 'json';
-    const aontu = new aontu_1.Aontu();
+    const aontu = new aontu_1.Aontu(null == options.trust ? undefined : { trust: options.trust });
     const ctx = aontu.ctx({ collect: true });
     const parseOpts = null == options.path ? undefined : { path: options.path };
     const root = aontu.unify(src, parseOpts, ctx);
@@ -253,7 +253,7 @@ function get(src, path, opts) {
 // per path met, which an instrumented run pays knowingly.
 function why(src, path, opts) {
     const options = opts ?? {};
-    const aontu = new aontu_1.Aontu();
+    const aontu = new aontu_1.Aontu(null == options.trust ? undefined : { trust: options.trust });
     const prov = new provenance_1.Provenance();
     const ctx = aontu.ctx({ collect: true, prov });
     const parseOpts = null == options.path ? undefined : { path: options.path };
