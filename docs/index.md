@@ -31,9 +31,23 @@ open it. Reach for the part that matches your need:
 
 Tooling:
 
+- [The `aontu` command](reference-api.md#command-line-interface) — one
+  binary and eleven verbs, in both implementations. `vet` validates
+  data documents against a schema (and ships wrapped for CI as a
+  [GitHub Action](../vet-action/README.md)); `subsume` and `breaking`
+  gate schema evolution; `get` and `why` ask an evaluated document what
+  it says and what contributed to it; `set` changes one through an
+  overlay; `trim` reports redundant entries; `relations` runs the
+  declared identity checks; `hash` pins what a document *means*; `mod`
+  maintains a dependency closure; `agentsmd` writes the prose stanza
+  for a definition. With no file, `aontu` starts a REPL.
 - [Language Server (LSP)](lsp.md) — the `aontu-lsp` diagnostics server
   (TypeScript and Go), how to wire it into an editor, and the reusable
   LSP library API.
+- [The MCP server](reference-api.md#the-mcp-server) — `aontu-mcp`, a
+  Model Context Protocol server over stdio (TypeScript; the Go port
+  offers the same calls as library API) answering with the identical
+  reports the CLI prints.
 
 For agents:
 
@@ -42,6 +56,11 @@ For agents:
   [worked example ladder](skill/examples.md) whose documents the test
   suite executes, and the [error-code index](skill/error-codes.md).
   The `aontu agentsmd` verb generates the matching AGENTS.md stanza.
+- [The published grammar](reference-api.md#the-published-grammar) —
+  [`grammar/aontu.gbnf`](../grammar/aontu.gbnf) and
+  [`grammar/aontu.lark`](../grammar/aontu.lark), the emission surface
+  for constrained decoding, held by a test to accept every canonical
+  form the shared suite produces.
 
 Contract:
 
@@ -75,15 +94,16 @@ live in [`design/`](design/):
   and where a unification lattice forces
   deviations from boru.
 
-Forward-looking design work lives in
-[`capability-review/`](capability-review/index.md): a survey of what
-Aontu lacks to serve as a systems-definition ground truth for agents,
-with eight companion design documents (G1–G8) covering the constraint
-algebra, the validation verb, subsumption and schema evolution,
-identity and relations, the trust contract, distribution, the
-machine-facing access surface, and generation. Those documents are
-design; what has actually been built from them is recorded phase by
-phase in the
+The design behind the verb surface lives in
+[`capability-review/`](capability-review/index.md): the survey that
+asked what Aontu lacked in order to serve as a systems-definition
+ground truth for agents, with eight companion design documents (G1–G8)
+covering the constraint algebra, the validation verb, subsumption and
+schema evolution, identity and relations, the trust contract,
+distribution, the machine-facing access surface, and generation. Those
+documents argue and specify; what each verb actually does is in the
+[API reference](reference-api.md#command-line-interface), and what has
+been built phase by phase is recorded in the
 [progress register](capability-review/progress.md).
 
 ### Why the split?
@@ -96,6 +116,13 @@ truth; an explanation is discursive and is the only place that argues
 about trade-offs. Mixing them — a reference that teaches, a tutorial that
 digresses into design rationale — serves none of those needs well, so
 each lives in its own file.
+
+The rule applies to the toolkit as much as to the language, which is
+why a verb can appear in all four without any of them repeating
+another: met once, in passing, while the tutorial builds something;
+given as a recipe for one goal in the how-to guides; specified
+exhaustively — every flag, every exit code — in the API reference; and
+argued for, never merely listed, in the explanation.
 
 ## A 30-second taste
 
@@ -117,7 +144,9 @@ The `port` is constrained to be an `integer`, defaults to `8080`, and —
 because nothing overrode the default — `8080` is what comes out. `host`
 is constrained to a `string` and pinned to `"localhost"`. Conflicting
 facts (e.g. a second `port: "high"`) would instead produce a precise
-unification error rather than a silent wrong answer.
+unification error rather than a silent wrong answer. The separate
+`port: integer` line is load-bearing, and the reason is
+[argued in the explanation](explanation.md#a-preference-is-gated-by-family-not-by-leaf).
 
 Try it without writing any code — both implementations ship an `aontu`
 command that evaluates a file or starts a REPL:

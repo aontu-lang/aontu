@@ -61,7 +61,8 @@ Both implementations share the same three-stage pipeline:
 
 ```
 source text ──parse──▶ Val AST ──unify (fixpoint)──▶ unified Val ──generate──▶ native value
-                                                              └──canon──▶ source-like text
+                                                              ├──canon──▶ source-like text
+                                                              └──ask────▶ vet · get · why · subsume · hash
 ```
 
 1. **Parse.** [`@tabnas/jsonic`](https://github.com/tabnas/jsonic) plus
@@ -78,6 +79,13 @@ source text ──parse──▶ Val AST ──unify (fixpoint)──▶ unified
 
 3. **Generate / canon.** A converged tree is either emitted as a native
    value (`gen`) or rendered as canonical source (`canon`).
+
+The third arrow is not a fourth stage but a fan-out. `vet`, `get`,
+`why`, `subsume` and `hash` all interrogate the *same* converged tree
+that `generate` renders, which is why they agree with one another by
+construction rather than by care, and why none of them can be a partial
+evaluation. What they are *for* is argued below, in
+[Why there is a verb surface](#why-there-is-a-verb-surface).
 
 ### Why a *fixpoint*, not a single pass
 
@@ -150,6 +158,150 @@ carry its own schema inline without that schema leaking into the output,
 and why `copy()` (which clears the marks) is the way to turn a schema
 node back into emittable data.
 
+## Why there is a verb surface
+
+A definition that can only be *evaluated* answers exactly one question:
+what is the value? That is enough when a person reads the answer and a
+program consumes it. It stops being enough when the thing on the other
+end is writing the document as well as reading it, because then the
+interesting questions are all the other ones. Does this data hold
+against that definition, and *where* does it not? What does it say at
+this one path? Why does it say that — who wrote the value that made it
+so? Has its meaning changed since the pin I recorded? Can I change it
+without breaking somebody downstream?
+
+Every one of those is already answerable from the converged tree. The
+source sites are on the nodes, the contributions met at known paths,
+the canon is a deterministic rendering. Not exposing them does not make
+the questions go away; it makes every consumer re-derive them from
+generated JSON, badly and out of band. A definition that can validate,
+be queried, explain itself and be diffed is not really a document any
+more — it is ground truth that something else can act on, and the verbs
+are what turn one into the other. The roster is in the
+[API reference](reference-api.md#command-line-interface); what follows
+is why it has the shape it has.
+
+### The emit → validate → repair loop
+
+One loop explains most of the surface. Something writes a document,
+[`vet`](reference-api.md#aontu-vet) says what does not hold and where,
+the author — human or otherwise — repairs it and goes round again.
+Taking that loop seriously decides several things that would otherwise
+be arbitrary.
+
+**Exit codes are verdict classes, not a pass/fail bit**, because the
+three ways to fail call for three different next moves. A contradiction
+(`invalid`) means repair what you emitted. An unsatisfied truth
+(`incomplete`) means keep writing — nothing is wrong yet, the document
+is merely unfinished. An unusable schema (`error`) means stop: the
+fault is not the data's, and another round of repair cannot reach it.
+Collapsing those into "failed" discards exactly the bit the repairing
+end needs in order to choose. For the same reason a finding labels its
+two sites by provenance instead of by source order, and puts the data's
+site first: that is the one you are meant to edit.
+
+**[`why`](reference-api.md#aontu-why) is the positive twin of a failure
+report.** An error explains what did not unify; `why` explains what
+did, listing the values that met at a path with the site each was
+written at, in source order. It exists because "the value is 3" is not
+actionable and "a spread offered `*1|integer` here, and this line
+pinned `3`" is. The same record is what the language server can append
+to a hover and what the MCP tool of that name returns: one answer,
+three ways in.
+
+**[`get`](reference-api.md#aontu-get) buys the size of the answer, not
+the cost of it.** Unification has no partial mode — the whole document
+converges or none of it does — so a query verb cannot be an
+optimisation, and it would be dishonest to present it as one. What it
+is instead is a way for a reader with a small question to receive a
+small answer, which for a consumer paying by the token is not a small
+thing. Its shape views are held to a stronger claim than "a summary":
+each is itself a valid document that *subsumes* the truth, so a
+projection may generalise but may never mislead.
+
+**[`set`](reference-api.md#aontu-set) appends rather than rewrites**,
+and that follows from the lattice rather than from a gap in the
+tooling. Because unification is order-independent, a change written
+into a second file is the same value as the same change written into
+the first — so an overlay needs no format-preserving rewriter, and
+cannot damage the document it is changing. What it cannot do is
+override a value that is already pinned: the lattice refuses, and the
+loop becomes `set` → conflict → `why` → edit the site that did the
+pinning. That is a slower answer than a silent overwrite, and a much
+better one.
+
+### Meaning, not bytes
+
+[`hash`](reference-api.md#aontu-hash) answers "has this changed?" over
+what a document *means* rather than over the bytes it is stored in.
+Reformat it, reorder its keys, split it into three files pulled back
+together by `@"…"` includes, and the pin holds; flip one default and it
+moves. That is only possible because canon renders the converged tree
+rather than the source text.
+
+The trade is real and taken deliberately. Canon is deterministic
+syntax, not a unique normal form, so two documents that denote the same
+set of values can still hash differently — `number|integer` and
+`number` are the standing example. The failure direction is the safe
+one: a spurious "changed" costs somebody a second look, whereas a
+spurious "unchanged" would ship the break — and the extra spellings the
+hash form carries over ordinary canon are there precisely to keep that
+second failure out of reach. Trading cheap false alarms for an
+assurance that cannot fail in the dangerous direction is a good
+bargain, and it is the same bargain
+[`subsume`](reference-api.md#aontu-subsume) and
+[`breaking`](reference-api.md#aontu-breaking) make one level up, where
+the question is not "did the meaning change?" but "did it change in a
+direction that hurts anyone downstream?" A check that answers
+`undecided`, and fails the gate for saying so, is honest; one that
+guesses "compatible" ships the break it was installed to catch.
+
+### The same answers, through other transports
+
+The MCP server, the language server, the published grammar and the
+agent skill are not four more features; they are the argument above
+carried to callers that do not run a shell. The MCP tools return the
+identical JSON contract the CLI prints, and a tool that *refuses* — an
+invalid document, a path naming nothing — answers with its own report
+rather than a protocol error, because the report is the answer. The
+grammar published for constrained decoding accepts less than the parser
+does and never more, and leaves out `@"…"` includes entirely, on the
+view that a generated document should describe values rather than reach
+for files. Served evaluation is confined for the same reason rather
+than as a deployment option: a tool that has to remember to restrict
+itself is one that will eventually forget, silently. And the skill's
+example documents are executed by the test suite, on the same principle
+that governs the rest of this repository — a teaching pack that taught
+something the engine no longer did would fail the build rather than
+mislead a reader quietly.
+
+## Closed-world validation is a dial
+
+Schema languages usually take a global stance on unknown keys: JSON
+Schema is open until you write `additionalProperties: false`, protobuf
+is closed and you work around it. Aontu cannot take a global stance,
+because the same tree is schema and data at once and at different
+stages of completion. A half-written definition has to be allowed to be
+incomplete while the finished one beside it is allowed to be strict,
+and no single default serves both.
+
+So closedness is a property of a **node**. `close()` seals one map or
+one list and `open()` lifts that seal, and the seal covers the node it
+was written on rather than everything beneath it: a map nested inside a
+closed map is still open, and so is a list. That is deliberate, and the
+alternative — a mark that travels further than it was written — is
+worse in a language where a subtree is routinely a template someone
+else will extend. `aontu vet --closed` is the same dial at the command
+line: it closes the anchor being validated, not the whole document, so
+"no keys I did not declare *here*" is a question you can ask without
+sealing everything else.
+
+The cost is that closedness has to be written rather than assumed. An
+author who never reaches for `close()` is never told about a typo in a
+key, and the sealing has to be repeated at each tier that wants it.
+That is the bill for letting one notation carry both a finished
+definition and the half-written one beside it.
+
 ## Two implementations, one behaviour
 
 TypeScript is canonical; Go is a port kept in lock-step. Parity is not
@@ -182,6 +334,59 @@ architecture closely — the same `Val` interface, the same `unite` ladder,
 the same fixpoint loop — so that a change on one side has an obvious
 counterpart on the other.
 
+What the arrangement costs is worth naming, because it is paid on every
+change. A language feature is written twice, and a row is only
+committed once both engines produce it, so the cheapest possible change
+to behaviour is still two ports and a spec row in one commit; features
+are designed knowing that. What it buys is a claim no single
+implementation can make. Two independently written engines agreeing
+byte for byte across the whole shared suite is evidence about the
+*specification*, not about one codebase's tests — and the suite becomes
+an unusually good detector of accidents, because an optimisation that
+quietly reorders a fold shows up as failing rows on whichever side
+moved. That friction is the mechanism working.
+
+## Where the meaning is ours
+
+Parity is enforceable only while everything either port does is ours to
+fix. `re()` broke that assumption. A pattern is handed to a *host*
+subsystem — JavaScript's `RegExp` on one side, RE2 on the other — and
+those are not two implementations of one specification; they are
+different languages, in different complexity classes, over different
+alphabets. `\A` is an anchor in one and a literal `A` in the other;
+`\s` is Unicode whitespace in one and ASCII in the other; one matches
+UTF-16 code units where the other matches code points. None of it can
+be fixed from this repository.
+
+The first attempt was a blacklist — enumerate the constructs known to
+differ, refuse those, pass the rest through — and it leaked three times
+in a day. The instructive part is not that the list was short. It is
+that a blacklist's correctness is a claim about the *author's
+knowledge* of two large external systems: it decays silently as those
+systems evolve, and no test can falsify it. Two of the three leaks were
+found by reading and one while writing documentation. None by the
+suite.
+
+So [ADR-003](../ADR.md#adr-003--host-provided-semantics-are-normalised-not-trusted)
+inverts it: **where a host subsystem supplies semantics, Aontu defines
+the meaning and rewrites the input**, and the host is given only
+constructs it cannot read two ways. `\d` is `[0-9]` because the ADR
+says so, not because the hosts happen to agree. What that costs is
+paid at the point of use — `\s` no longer means what a regex habit
+expects in *either* language, and an author has one more small thing to
+learn. The gain is that the guarantee stops depending on what the
+implementer happens to know, and becomes checkable instead: a committed corpus pins
+both normalisers, so a drift fails in whichever port drifted.
+
+The rule is stated generally on purpose, because a date parser, a
+collation order or a number formatter would each inherit it. It also
+admits what it cannot close. Complexity is not a property of the
+pattern language — backtracking makes some patterns exponential where
+an automaton is linear — so no rewriting reaches it, and that axis is
+held by a syntactic restriction instead. The principled end state is to
+own the matcher, at which point there is no host subsystem left to
+normalise; that is recorded as the direction, not as a plan.
+
 ## Performance shape
 
 Unification is pointer-chasing over many small immutable nodes, run for
@@ -209,6 +414,116 @@ are why the engine stays usable on realistically large models. The Go
 port keeps the same overall structure but, lacking references-with-cycles
 in its hottest paths, uses a simpler depth guard in place of the
 TypeScript seen-map.
+
+## Two rules that surprise readers
+
+Both of the rules below are specified, pinned by shared rows, and —
+judging by how often they are written wrong — surprising. They belong
+here rather than in a bug list, because in each case the rule is
+defensible *and* the surprise is real, which is the shape of a
+trade-off rather than of a defect.
+
+### A preference is gated by family, not by leaf
+
+Overriding is judged by *family*: a numeric default is overridden by a
+concrete peer from any numeric leaf, so `*2` meeting `3.0` yields the
+float and `*2.2` meeting `3` yields the integer. The rule is stated
+plainly in the
+[language reference](reference-language.md#preference--default-), and
+it is what makes defaults usable at all — a default of `2` that refused
+`3.0` would force every author to know which numeric leaf they had
+happened to write their default in.
+
+The consequence bites when the default is written *inside* a
+disjunction with its own type, which is the idiom that looks most like
+"a typed default":
+
+```
+port: *8080 | integer   with a later  port: 9090  → generates {"port":9090}
+port: *8080 | integer   with a later  port: 1.5   → generates {"port":1.5}
+```
+
+The second line is the surprise. The preference widens its branch to
+the base kind — `number` — so the `integer` the author believes they
+wrote is not the constraint that survives. Nothing was overridden that
+the family rule does not allow; the branch simply admits the whole
+family. Only the numeric leaves are affected, because only they sit
+under a common supertype: `*"us-east" | string` meeting a later `42` is
+still an empty disjunction.
+
+What to write instead is the constraint stated *outside* the branch the
+preference widens, so that the two facts do not travel together:
+
+```
+port: integer & (*8080 | integer)
+    alone                          → generates {"port":8080}
+    with a later  port: 9090       → generates {"port":9090}
+    with a later  port: 1.5        → refused: [aontu/|:empty] at $.port
+```
+
+`port: *8080 & integer` is not the fix, tempting though it reads: it
+refuses `1.5`, and it refuses `9090` as well, because a conjunction is
+not a choice — the value is pinned at `8080` and is not a default at
+all.
+
+Whether the fold *ought* to work this way where a preference meets a
+bare kind is an open question, and not one a documentation pass may
+settle. It is the specified behaviour today. The rule it follows from is
+written down in [`test/spec/pref.tsv`](../test/spec/pref.tsv) — a
+concrete peer replaces a preference, but only within the preferred
+value's *family*, the gate being `familypeg` — and the suite pins both
+of its directions: the `pref-family-gate-*` rows pin the cross-family
+REFUSAL (`*1` against a map, a string, a boolean, a list), and
+`pref-override-within-family-gens` pins the within-family override that
+is the same rule seen from the other side. What the widening across
+numeric *leaves* costs a schema author is what this section is about,
+and both ports agree on it byte for byte. The case for changing it is that the widening idiom
+is the one everybody writes. The case against is that the family rule
+is *one* rule, and special-casing it inside disjunctions would buy a
+nicer-looking default at the price of `*` meaning two different things
+depending on where it was written. Until that is decided, the honest
+thing is to say which idiom does what.
+
+### A list literal is positional
+
+`tags: [string]` reads as "a list of strings" and is not one. A list
+literal is **positional with an open tail**: it constrains element 0
+and says nothing about anything after it.
+
+```
+tags: [string]     with a later  tags: [core, 7]  → generates {"tags":["core",7]}
+tags: [&: string]  with a later  tags: [core, 7]  → refused: [aontu/no_scalar_unify] at $.tags.1
+```
+
+The homogeneous form is the spread, `[&: string]`, which applies its
+template to every element — the same `&:` that templates a map. That
+consistency is the defence: a list is a value like any other, so `[a,
+b]` meeting `[c, d]` element-wise is the reading that keeps `&` meaning
+one thing everywhere, and a bracket that silently meant "and all the
+rest, too" would be the exception. Closing the enclosing map does not
+close the tail either, because closedness is a mark on the node the
+author closed; `close([string])` does close it, and refuses element 1
+outright.
+
+The surprise is nonetheless worth naming, because the two spellings
+differ by three characters and fail in opposite directions: the
+positional one accepts what it looks like it should refuse.
+
+## Termination is part of the offer
+
+The surface argued above is meant to be driven by something that is not
+watching: a CI gate, a tool call, a repair loop several steps from
+anyone's attention. For that caller, "usually finishes" is not a weaker
+version of "finishes" — it is a different product. A definition
+language that can loop is one you have to supervise, and a definition
+you have to supervise is not ground truth; it is a program you are
+running on faith.
+
+That is the reason for the refusals listed below, rather than the other
+way round: they are not concessions to implementation difficulty, they
+are what the guarantee is made of. The trust contract
+([trust.md](trust.md)) states the guarantee formally and is candid
+about the clauses that are conditional today.
 
 ## Limitations and trade-offs
 
