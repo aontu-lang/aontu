@@ -7,6 +7,48 @@ which implementation each change affects.
 
 ## Unreleased — TypeScript 0.53.0 line
 
+### Fixed — the two release blockers (security, and cross-port parity)
+
+Both were found by driving the delivered surface end to end
+(`docs/capability-review/status-2026-08-21.md`) and had to be closed
+before this line could be published.
+
+- **A served evaluation no longer executes caller-supplied code.**
+  `vet`, `get`, `why` and `diff` took no trust profile at all, so a
+  document containing `@"x.js"` was `require()`d in the evaluating
+  process — and four of the MCP server's six tools ran that way while
+  the module and the API reference both claimed confinement. The
+  library entry points now take a `trust` option, and the MCP server
+  INJECTS the confined profile into every tool from one place, so a
+  tool cannot run unconfined without visibly discarding it. Covered
+  per tool from the live tool list, and against the spawned
+  `bin/aontu-mcp.js`.
+- **The two ports no longer disagree about `vet`'s verdict.** Five
+  constructs flipped, in both directions:
+  a call whose target is not a name (`f(1)(2)`, `(1)(2)`,
+  `upper("x")(2)`) — Go returned the last term and answered `valid`
+  where TypeScript refused; `path()` given something that is not a
+  path (`path([1,2])`, and every spelling of a `-0` segment) — Go
+  handed the argument back; and two regex cases where RE2's own
+  compile failure reached the user, contrary to ADR-003 — a repeat
+  count above 1000, and a brace that opens no counted quantifier
+  (`x{y}`), which JavaScript's `u` flag calls a syntax error and RE2
+  reads as a literal. The repeat bound is now Aontu's, checked in the
+  normaliser before either engine compiles. Two more of the same
+  family, found by sweeping around it: a quantifier applied to `^` or
+  `$`, and a `}` that closes no counted quantifier — JavaScript's `u`
+  flag calls each a syntax error where RE2 accepts it. Shared rows pin
+  all of it, in both runners (counts live in the register).
+- **A refused call keeps its position and its code.** The non-name
+  refusal is sited where TypeScript sites it, rather than rendering
+  `<no-file>:-1:-1`, and survives a pipe (`0 |> f(1)(2)`) as
+  `unknown_function` instead of being reclassified `pipe_target`.
+
+One related divergence is recorded rather than fixed: under an
+`@"…"` include the Go port names the entry file on a schema-role
+site where TypeScript names the included file (row and column agree)
+— OPEN #66 in `test/spec/divergent.tsv`.
+
 ### Added — the rest of the capability review (G1 completion, G3–G8)
 
 Everything after `re()` below landed in this line too; this heading

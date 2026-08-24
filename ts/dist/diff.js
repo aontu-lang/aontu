@@ -127,7 +127,7 @@ function evalSide(aontu, src, path, at) {
 // rather than diffing a wreck.
 function diff(leftSrc, rightSrc, opts) {
     const options = opts ?? {};
-    const aontu = new aontu_1.Aontu();
+    const aontu = new aontu_1.Aontu(null == options.trust ? undefined : { trust: options.trust });
     const l = evalSide(aontu, leftSrc, options.leftPath, options.at);
     const r = evalSide(aontu, rightSrc, options.rightPath, options.at);
     const findings = [l.finding, r.finding].filter(Boolean);

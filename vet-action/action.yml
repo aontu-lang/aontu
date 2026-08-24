@@ -36,15 +36,12 @@ inputs:
   version:
     description: >-
       aontu npm package version to run. Must be a release that carries
-      the `vet` verb; NO PUBLISHED npm RELEASE DOES YET (the default,
-      0.52.1, is the newest published version and predates the verb),
-      so until the first post-verb release ships, this Action cannot
-      run from npm — see README. The pinning intent stands: once such
-      a release exists the default is kept in step by the repo's
-      version bump, so a workflow pinning the Action by ref cannot
-      silently acquire a newer CLI.
+      the `vet` verb: 0.53.0 is the first, and is the default here,
+      kept in step by the repo's version bump so a workflow pinning
+      the Action by ref cannot silently acquire a newer CLI. (0.52.1
+      and earlier have no `vet` verb at all.)
     required: false
-    default: '0.52.1'
+    default: '0.53.0'
 
 outputs:
   exit-code:

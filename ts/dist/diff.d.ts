@@ -1,3 +1,4 @@
+import type { TrustOptions } from './type';
 import type { VetFinding } from './vet';
 export type DiffKind = 'added' | 'removed' | 'changed';
 export type DiffChange = {
@@ -16,5 +17,6 @@ export type DiffOptions = {
     leftPath?: string;
     rightPath?: string;
     at?: string;
+    trust?: TrustOptions;
 };
 export declare function diff(leftSrc: string, rightSrc: string, opts?: DiffOptions): DiffReport;

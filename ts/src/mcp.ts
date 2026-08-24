@@ -19,6 +19,7 @@
 // package-resolver leg is never enabled here.
 
 import { Aontu } from './aontu'
+import type { TrustOptions } from './type'
 import { vet } from './vet'
 import { get, why } from './query'
 import { diff } from './diff'
@@ -51,20 +52,31 @@ const METHOD_NOT_FOUND = -32601
 const INVALID_PARAMS = -32602
 
 
-type ToolDef = {
+export type ToolDef = {
   name: string
   description: string
   properties: Record<string, { type: string, description: string }>
   required: string[]
-  run: (args: any) => any
+  run: (args: any, trust: TrustOptions) => any
 }
 
 
 // The trust profile a served evaluation runs under: no includes at
 // all. A caller who wants an include closure evaluated should use the
 // library or the CLI, where the profile is theirs to choose.
-function served(): Aontu {
-  return new Aontu({ trust: { include: 'none' } } as any)
+//
+// The profile is INJECTED into every tool by callTool rather than
+// applied by each tool for itself. That is deliberate: four of the six
+// tools once called the library with no profile at all, so a served
+// `@"x.js"` was require()d in the server process, while the module
+// header claimed confinement. A tool that must remember to confine
+// itself is a tool that eventually forgets, and the forgetting is
+// silent. With the profile arriving as an argument, a tool cannot run
+// unconfined without visibly discarding it.
+const SERVED_TRUST: TrustOptions = { include: 'none' }
+
+function served(trust: TrustOptions): Aontu {
+  return new Aontu({ trust } as any)
 }
 
 
@@ -81,8 +93,8 @@ const TOOLS: ToolDef[] = [
       at: { type: 'string', description: 'Validate at this path ($.a.b)' },
     },
     required: ['schema', 'data'],
-    run: (a) => vet(str(a.schema), str(a.data),
-      null == a.at ? undefined : { at: str(a.at) }),
+    run: (a, trust) => vet(str(a.schema), str(a.data),
+      null == a.at ? { trust } : { at: str(a.at), trust }),
   },
   {
     name: 'get',
@@ -104,9 +116,10 @@ const TOOLS: ToolDef[] = [
       },
     },
     required: ['src', 'path'],
-    run: (a) => get(str(a.src), str(a.path), {
+    run: (a, trust) => get(str(a.src), str(a.path), {
       view: a.view,
       depth: 'number' === typeof a.depth ? a.depth : undefined,
+      trust,
     }),
   },
   {
@@ -120,7 +133,7 @@ const TOOLS: ToolDef[] = [
       path: { type: 'string', description: 'The path ($.a.b)' },
     },
     required: ['src', 'path'],
-    run: (a) => why(str(a.src), str(a.path)),
+    run: (a, trust) => why(str(a.src), str(a.path), { trust }),
   },
   {
     name: 'diff',
@@ -135,8 +148,8 @@ const TOOLS: ToolDef[] = [
       at: { type: 'string', description: 'Compare at this path ($.a.b)' },
     },
     required: ['left', 'right'],
-    run: (a) => diff(str(a.left), str(a.right),
-      null == a.at ? undefined : { at: str(a.at) }),
+    run: (a, trust) => diff(str(a.left), str(a.right),
+      null == a.at ? { trust } : { at: str(a.at), trust }),
   },
   {
     name: 'canon',
@@ -147,7 +160,7 @@ const TOOLS: ToolDef[] = [
       src: { type: 'string', description: 'The document' },
     },
     required: ['src'],
-    run: (a) => canonOf(str(a.src)),
+    run: (a, trust) => canonOf(str(a.src), trust),
   },
   {
     name: 'summary',
@@ -159,7 +172,7 @@ const TOOLS: ToolDef[] = [
       src: { type: 'string', description: 'The document' },
     },
     required: ['src'],
-    run: (a) => summaryOf(str(a.src)),
+    run: (a, trust) => summaryOf(str(a.src), trust),
   },
 ]
 
@@ -169,8 +182,8 @@ function str(v: any): string {
 }
 
 
-function canonOf(src: string): any {
-  const aontu = served()
+function canonOf(src: string, trust: TrustOptions): any {
+  const aontu = served(trust)
   const ctx = aontu.ctx({ collect: true })
   const v: any = aontu.unify(src, undefined, ctx)
   if (0 < ctx.err.length) {
@@ -180,8 +193,8 @@ function canonOf(src: string): any {
 }
 
 
-function summaryOf(src: string): any {
-  const aontu = served()
+function summaryOf(src: string, trust: TrustOptions): any {
+  const aontu = served(trust)
   const ctx = aontu.ctx({ collect: true })
   const v: any = aontu.unify(src, undefined, ctx)
   if (0 < ctx.err.length) {
@@ -195,7 +208,7 @@ function summaryOf(src: string): any {
     hash: canonHash(v),
     keys,
     // The top tier only: every key, with its subtree elided to `top`.
-    shape: get(src, '$', { view: 'types', depth: 2 }).out,
+    shape: get(src, '$', { view: 'types', depth: 2, trust }).out,
     findings: [],
   }
 }
@@ -221,8 +234,13 @@ export function toolList(): any[] {
 // report and `isError` false, because the report IS the answer the
 // agent asked for. `isError` is reserved for a call that could not be
 // made at all.
-export function callTool(name: string, args: any): any {
-  const tool = TOOLS.find((t) => t.name === name)
+// `tools` is injectable for the same reason the watch loop's waiter
+// is: the catch below is defensive code no document reaches -- every
+// verb answers with a report rather than throwing -- and code the
+// suite cannot execute is code the ADR-002 floor cannot hold.
+export function callTool(
+  name: string, args: any, tools: ToolDef[] = TOOLS): any {
+  const tool = tools.find((t) => t.name === name)
   if (null == tool) {
     return {
       content: [{ type: 'text', text: `no such tool: ${name}` }],
@@ -240,8 +258,28 @@ export function callTool(name: string, args: any): any {
       }
     }
   }
+  // The served profile is supplied HERE, once, for every tool.
+  // A tool never chooses its own confinement.
+  let out: any
+  try {
+    out = tool.run(args, SERVED_TRUST)
+  }
+  catch (e: any) {
+    // A tool that throws is a call that could not be made, which is
+    // what isError means -- and it must not take the server process
+    // down with it: a stdio server serves one client for a whole
+    // session, so an unhandled throw on one document loses every
+    // later call too.
+    return {
+      content: [{
+        type: 'text',
+        text: `tool ${name} failed: ${e?.message ?? e}`,
+      }],
+      isError: true,
+    }
+  }
   return {
-    content: [{ type: 'text', text: JSON.stringify(tool.run(args), null, 2) }],
+    content: [{ type: 'text', text: JSON.stringify(out, null, 2) }],
     isError: false,
   }
 }

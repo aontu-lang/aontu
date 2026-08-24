@@ -291,6 +291,23 @@ func (f *FuncVal) Unify(peer Val, ctx *Ctx) Val {
 	if f.name == "path" && !f.prepared {
 		f.prepared = true
 		for i, arg := range f.peg {
+			// An argument that is neither a scalar (a computed segment
+			// name) nor a ref (a path already) is not a path at all —
+			// `path([1,2])`, `path({a:1})`. TypeScript refuses these
+			// with invalid-arg; this port used to hand the argument
+			// straight back, so `a: path([1,2])` GENERATED the list and
+			// a schema constrained only by it went unchecked
+			// (status-2026-08-21.md section 4, issues #60 and #67 —
+			// #67's `-0` segment reaches this arm through every one of
+			// its spellings, which is why the refusal belongs here at
+			// the argument's KIND rather than in a guard against
+			// particular texts).
+			if _, isRef := arg.(*RefVal); !isRef {
+				if _, isScalar := arg.(*ScalarVal); !isScalar {
+					f.peg[i] = makeNilErr(ctx, "invalid-arg", f, nil)
+					continue
+				}
+			}
 			if sv, ok := arg.(*ScalarVal); ok {
 				rv := newRef([]any{sv}, false)
 				// FROM THE ROOT. TS builds this ref with absolute:false but

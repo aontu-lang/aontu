@@ -18,6 +18,7 @@ import (
 	"math"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 )
@@ -73,6 +74,17 @@ type constraintRe struct {
 // -- the last about TIME rather than meaning, since normalisation cannot
 // fix a complexity difference (docs/trust.md clause 2).
 
+// reRepeatMax is the largest repeat count Aontu's pattern language
+// admits. RE2 caps a repeat at 1000 and refuses to compile past it,
+// where JavaScript's backtracking engine accepts any count -- so
+// `re("^a{1001}$")` was VALID in TypeScript and an `error` verdict
+// here, a cross-port verdict flip on a schema an agent could be handed
+// (status-2026-08-21.md section 4). Under ADR-003 the host's own
+// compile failure must never be what a user sees, so the bound is
+// Aontu's: refused identically in both ports before either engine
+// compiles. Mirrors RE_REPEAT_MAX in ts/src/val/ConstraintVal.ts.
+const reRepeatMax = 1000
+
 // The normative expansions. These are Aontu's definitions, not either
 // host's; both hosts are rewritten to them.
 const reClassDigit = "0-9"
@@ -87,6 +99,80 @@ const reEscapePunct = `\.+*?()[]{}|^$/`
 // reEscapePass are escapes passed through unchanged: the control
 // characters. Each was probed in both engines.
 const reEscapePass = "tnrfv"
+
+// repeatWhy checks a counted quantifier `{n}`, `{n,}` or `{n,m}`
+// starting at src[at]. Two rules, both about what the hosts do NOT
+// share:
+//
+//   - A bound above reRepeatMax: RE2 refuses to compile it, JavaScript
+//     accepts it.
+//   - A brace that does not open a well-formed counted quantifier at
+//     all (`x{y}`, `a{`, `{,5}`): JavaScript compiled with the `u` flag
+//     makes it a SYNTAX ERROR, while RE2 reads it as a literal brace.
+//     A literal brace is written escaped, which both engines share.
+//
+// Mirrors repeatWhy in ts/src/val/ConstraintVal.ts.
+func repeatWhy(src []rune, at int) (string, int) {
+	bad := func(what string) (string, int) {
+		return "a " + what +
+			", which the two engines do not read the same way", -1
+	}
+	notCounted := "{ that does not open a counted quantifier"
+	overCap := "a repeat count above " + strconv.Itoa(reRepeatMax) +
+		", which RE2 refuses to compile"
+
+	i := at + 1
+	digits := ""
+	bounds := []int{}
+	commas := 0
+	for ; i < len(src); i++ {
+		c := src[i]
+		if '0' <= c && c <= '9' {
+			digits += string(c)
+			continue
+		}
+		if ',' == c {
+			if "" == digits || 0 < commas {
+				return bad(notCounted)
+			}
+			n, err := strconv.Atoi(digits)
+			if nil != err {
+				// Too many digits to be an int at all, so certainly
+				// above the cap -- TypeScript's parseInt yields a float
+				// far above it and refuses for the same reason.
+				return overCap, -1
+			}
+			bounds = append(bounds, n)
+			digits = ""
+			commas++
+			continue
+		}
+		if '}' == c {
+			if "" != digits {
+				n, err := strconv.Atoi(digits)
+				if nil != err {
+					return overCap, -1
+				}
+				bounds = append(bounds, n)
+			} else if 0 == commas {
+				return bad(notCounted)
+			}
+			break
+		}
+		return bad(notCounted)
+	}
+	if i >= len(src) {
+		return bad(notCounted)
+	}
+	for _, b := range bounds {
+		if reRepeatMax < b {
+			return overCap, -1
+		}
+	}
+	// A descending range (`{5,2}`) is refused by both engines' own
+	// compilers, so it needs no rule here.
+	return "", i
+}
 
 func isHexDigit(c rune) bool {
 	return ('0' <= c && c <= '9') || ('a' <= c && c <= 'f') || ('A' <= c && c <= 'F')
@@ -199,6 +285,11 @@ type reGroup struct {
 // outside the subset and names the construct.
 func normaliseRe(src string) (string, string) {
 	inClass := false
+	// Where the counted quantifier validated below closes, so its own
+	// `}` is told apart from a stray one; and whether the atom just
+	// emitted was `^` or `$`, which cannot be quantified.
+	repeatEnd := -1
+	anchorPrev := false
 	r := []rune(src)
 	var out strings.Builder
 
@@ -226,6 +317,8 @@ func normaliseRe(src string) (string, string) {
 
 	for i := 0; i < len(r); i++ {
 		c := r[i]
+		afterAnchor := anchorPrev
+		anchorPrev = false
 
 		if '\\' == c {
 			emit, why, extra := normaliseEscape(at(i+1), at, i, inClass)
@@ -319,12 +412,43 @@ func normaliseRe(src string) (string, string) {
 		}
 
 		if '*' == c || '+' == c || '?' == c || '{' == c {
+			// Nothing to repeat. JavaScript under the `u` flag makes
+			// this a SYNTAX ERROR, where RE2 quantifies the assertion
+			// happily and matches, so `re("^{1}")` was
+			// `constraint_pattern` in TypeScript and an accepted
+			// schema here. (`\b` and `\B` quantify identically in
+			// both and are left alone.)
+			if afterAnchor {
+				return "", "a quantifier applied to `^` or `$`, which has " +
+					"nothing to repeat"
+			}
+			if '{' == c {
+				why, end := repeatWhy(r, i)
+				if "" != why {
+					return "", why
+				}
+				repeatEnd = end
+			}
 			mark(true)
 			out.WriteRune(c)
 			continue
 		}
 
+		// A `}` that closes no counted quantifier: JavaScript under
+		// `u` refuses it as a lone quantifier bracket, RE2 reads it as
+		// a literal. Written inside a class (`[}]`) it is a literal in
+		// both, which is the spelling that survives.
+		if '}' == c {
+			if i != repeatEnd {
+				return "", "a `}` that closes no counted quantifier, which " +
+					"the two engines do not read the same way"
+			}
+			out.WriteRune(c)
+			continue
+		}
+
 		out.WriteRune(c)
+		anchorPrev = ('^' == c || '$' == c)
 	}
 
 	if inClass {

@@ -38,8 +38,18 @@ const INVALID_PARAMS = -32602;
 // The trust profile a served evaluation runs under: no includes at
 // all. A caller who wants an include closure evaluated should use the
 // library or the CLI, where the profile is theirs to choose.
-function served() {
-    return new aontu_1.Aontu({ trust: { include: 'none' } });
+//
+// The profile is INJECTED into every tool by callTool rather than
+// applied by each tool for itself. That is deliberate: four of the six
+// tools once called the library with no profile at all, so a served
+// `@"x.js"` was require()d in the server process, while the module
+// header claimed confinement. A tool that must remember to confine
+// itself is a tool that eventually forgets, and the forgetting is
+// silent. With the profile arriving as an argument, a tool cannot run
+// unconfined without visibly discarding it.
+const SERVED_TRUST = { include: 'none' };
+function served(trust) {
+    return new aontu_1.Aontu({ trust });
 }
 const TOOLS = [
     {
@@ -53,7 +63,7 @@ const TOOLS = [
             at: { type: 'string', description: 'Validate at this path ($.a.b)' },
         },
         required: ['schema', 'data'],
-        run: (a) => (0, vet_1.vet)(str(a.schema), str(a.data), null == a.at ? undefined : { at: str(a.at) }),
+        run: (a, trust) => (0, vet_1.vet)(str(a.schema), str(a.data), null == a.at ? { trust } : { at: str(a.at), trust }),
     },
     {
         name: 'get',
@@ -74,9 +84,10 @@ const TOOLS = [
             },
         },
         required: ['src', 'path'],
-        run: (a) => (0, query_1.get)(str(a.src), str(a.path), {
+        run: (a, trust) => (0, query_1.get)(str(a.src), str(a.path), {
             view: a.view,
             depth: 'number' === typeof a.depth ? a.depth : undefined,
+            trust,
         }),
     },
     {
@@ -89,7 +100,7 @@ const TOOLS = [
             path: { type: 'string', description: 'The path ($.a.b)' },
         },
         required: ['src', 'path'],
-        run: (a) => (0, query_1.why)(str(a.src), str(a.path)),
+        run: (a, trust) => (0, query_1.why)(str(a.src), str(a.path), { trust }),
     },
     {
         name: 'diff',
@@ -103,7 +114,7 @@ const TOOLS = [
             at: { type: 'string', description: 'Compare at this path ($.a.b)' },
         },
         required: ['left', 'right'],
-        run: (a) => (0, diff_1.diff)(str(a.left), str(a.right), null == a.at ? undefined : { at: str(a.at) }),
+        run: (a, trust) => (0, diff_1.diff)(str(a.left), str(a.right), null == a.at ? { trust } : { at: str(a.at), trust }),
     },
     {
         name: 'canon',
@@ -113,7 +124,7 @@ const TOOLS = [
             src: { type: 'string', description: 'The document' },
         },
         required: ['src'],
-        run: (a) => canonOf(str(a.src)),
+        run: (a, trust) => canonOf(str(a.src), trust),
     },
     {
         name: 'summary',
@@ -124,14 +135,14 @@ const TOOLS = [
             src: { type: 'string', description: 'The document' },
         },
         required: ['src'],
-        run: (a) => summaryOf(str(a.src)),
+        run: (a, trust) => summaryOf(str(a.src), trust),
     },
 ];
 function str(v) {
     return 'string' === typeof v ? v : '';
 }
-function canonOf(src) {
-    const aontu = served();
+function canonOf(src, trust) {
+    const aontu = served(trust);
     const ctx = aontu.ctx({ collect: true });
     const v = aontu.unify(src, undefined, ctx);
     if (0 < ctx.err.length) {
@@ -139,8 +150,8 @@ function canonOf(src) {
     }
     return { ok: true, canon: v.canon, findings: [] };
 }
-function summaryOf(src) {
-    const aontu = served();
+function summaryOf(src, trust) {
+    const aontu = served(trust);
     const ctx = aontu.ctx({ collect: true });
     const v = aontu.unify(src, undefined, ctx);
     if (0 < ctx.err.length) {
@@ -154,7 +165,7 @@ function summaryOf(src) {
         hash: (0, hcanon_1.canonHash)(v),
         keys,
         // The top tier only: every key, with its subtree elided to `top`.
-        shape: (0, query_1.get)(src, '$', { view: 'types', depth: 2 }).out,
+        shape: (0, query_1.get)(src, '$', { view: 'types', depth: 2, trust }).out,
         findings: [],
     };
 }
@@ -176,8 +187,12 @@ function toolList() {
 // report and `isError` false, because the report IS the answer the
 // agent asked for. `isError` is reserved for a call that could not be
 // made at all.
-function callTool(name, args) {
-    const tool = TOOLS.find((t) => t.name === name);
+// `tools` is injectable for the same reason the watch loop's waiter
+// is: the catch below is defensive code no document reaches -- every
+// verb answers with a report rather than throwing -- and code the
+// suite cannot execute is code the ADR-002 floor cannot hold.
+function callTool(name, args, tools = TOOLS) {
+    const tool = tools.find((t) => t.name === name);
     if (null == tool) {
         return {
             content: [{ type: 'text', text: `no such tool: ${name}` }],
@@ -195,8 +210,28 @@ function callTool(name, args) {
             };
         }
     }
+    // The served profile is supplied HERE, once, for every tool.
+    // A tool never chooses its own confinement.
+    let out;
+    try {
+        out = tool.run(args, SERVED_TRUST);
+    }
+    catch (e) {
+        // A tool that throws is a call that could not be made, which is
+        // what isError means -- and it must not take the server process
+        // down with it: a stdio server serves one client for a whole
+        // session, so an unhandled throw on one document loses every
+        // later call too.
+        return {
+            content: [{
+                    type: 'text',
+                    text: `tool ${name} failed: ${e?.message ?? e}`,
+                }],
+            isError: true,
+        };
+    }
     return {
-        content: [{ type: 'text', text: JSON.stringify(tool.run(args), null, 2) }],
+        content: [{ type: 'text', text: JSON.stringify(out, null, 2) }],
         isError: false,
     };
 }
