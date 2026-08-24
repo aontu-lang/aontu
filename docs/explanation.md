@@ -212,11 +212,15 @@ TypeScript seen-map.
 
 ## Limitations and trade-offs
 
-- **No user-defined functions.** The function set is fixed (twelve
-  built-ins). This keeps the language total and analysable; the
-  [`IDEAS.md`](../IDEAS.md) file sketches what custom functions, piping,
-  and placeholder arguments might look like, but they are not
-  implemented.
+- **No user-defined functions.** The function set is fixed (28
+  built-ins today — the original twelve plus the constraint atoms,
+  `deprecate`, `id`/`refer` and the generator combinators). This
+  keeps the language total and analysable. Of the
+  [`IDEAS.md`](../IDEAS.md) sketches, piping (`|>`) and the
+  placeholder `_` ARE now implemented — as fixed syntax, via the
+  [G8 design](capability-review/g8-generation.md) — while custom
+  functions were considered there and refused: recursion would trade
+  away the termination guarantee.
 - **The fixpoint is bounded.** Extremely self-referential models hit the
   pass/cycle limits and surface a cycle error rather than diverging —
   correct, but it means some legal-looking models are rejected for

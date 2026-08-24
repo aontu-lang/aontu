@@ -1,10 +1,13 @@
 # G7: A machine-facing access surface
 
-*Status: design proposal — all seven phases are implemented (`get` and
-its projections, `why` with its provenance recorder, the overlay
-`set`, the delivery skin, and the REPL inspection mode with hover
-provenance). What remains is phase 5's STAGE 2, the
-format-preserving in-place edit, which the phase itself defers. Per-phase status and the
+*Status: implemented, one phase partial — phases 1–6 landed in both
+ports (`get` and its projections, `why` with its provenance
+recorder, the overlay `set`, and the delivery skin), and phase 7
+stands PARTIAL: the REPL inspection mode landed, but its `--jsonl`
+session mode is unreachable in the Go CLI and TTY-gated in the
+TypeScript one (register, 2026-08-21). Phase 5's STAGE 2, the
+format-preserving in-place edit, remains deferred by the phase
+itself. Per-phase status and the
 corrections this document needs are in the
 [progress register](progress.md), which is authoritative for status;
 this document is authoritative for design. Part of the
@@ -100,7 +103,11 @@ published, so constrained decoding — now production infrastructure
 — cannot guarantee syntactically valid Aontu emission. Aontu is a
 low-resource language for every model, and the llms.txt post-mortem
 shows a file sitting in a repo is advisory unless tools actively
-pull it into agent loops.
+pull it into agent loops. *(Every delivery gap this paragraph names
+is now closed by phase 6 — the `aontu-mcp` server, the published
+grammar under `grammar/`, and the executed skill — and the register
+has the pins; the paragraph stands as the problem statement it
+was.)*
 
 ## Current state
 
@@ -108,8 +115,9 @@ What exists and is reusable:
 
 - **Path lookup.** `ctx.find(path: string[])` (ts/src/ctx.ts) walks
   the unified root through `MapVal`/`ListVal` pegs — the seed of
-  `get`. TS only: go/ctx.go has no equivalent; it is also not
-  exposed on any CLI.
+  `get`. TS only: go/ctx.go has no equivalent; at review time it was
+  also not exposed on any CLI. *(The landed `get` took a different
+  seed — see the query section's as-landed note.)*
 - **Per-node canonical form.** `Val.canon` renders any node, not
   just the root, as deterministic reparseable text
   (docs/reference-language.md). A path-scoped slice is therefore
@@ -291,8 +299,11 @@ aontu get <path> [file] [options]
 
 Semantics: evaluate the whole document (stated plainly: unification
 is global, so there is no partial evaluation to sell), select the
-node with the `ctx.find` walk promoted to parse `$.a.b` path syntax
-(escaped keys, numeric list indices), and render:
+node, and render. *(As landed, selection is not "the `ctx.find`
+walk promoted" — it REUSES `anchorAt`, vet's `--at` walk, already
+type-directed and already in parity, so a path means exactly what a
+reference means by `$.a.b`, down to the canonical-decimal index
+rule; the register's G7.1 row records it.)* The renderings:
 
 - default: generated JSON of the fragment — which inherits `gen`
   semantics, including the known `DisjunctVal.gen` fold defect
@@ -346,18 +357,21 @@ $.services.auth.replicas = 3
 resolved: 3 — literal overrides preference *1
 ```
 
-Mechanism: `why` re-runs the evaluator with a provenance recorder
-on the context — the explain pattern, but recording a *contract*,
-not a debug trace. The recorder is keyed by `ctx._pathidx` (the
-path trie in ts/src/ctx.ts already assigns stable per-path
-indices) and captures an ordered entry at each point where
-information currently vanishes: the `update()` site-drop in
-ts/src/unify.ts, the `ConjunctVal` fold, spread application in
-`MapVal`/`ListVal`, `PrefVal` resolution (chosen versus
-overridden), and `RefVal` resolution (ref site plus target path).
-Entries are deduplicated by (pathidx, contributing val id) — ids
-are unique per run (ts/src/val/Val.ts) — so fixpoint revisits
-across up to `maxcc = 9` passes do not multiply the record.
+Mechanism: a provenance recorder on the context — the explain
+pattern, but recording a *contract*, not a debug trace. *(As
+landed, simpler on every axis than the design below, and the
+register's G7.3 departures carry the reasoning. This text named
+five instrumentation points — the `update()` site-drop, the
+`ConjunctVal` fold, spread application, `PrefVal` and `RefVal`
+resolution — and a `ctx._pathidx` key; the landed recorder hooks
+`unite` ALONE, the one place every meet passes through, plus a mark
+at the spread clone, because a ref is still a `RefVal` and a pref
+still a `PrefVal` when each meets its peer. A contribution must be
+a value the author WROTE — engine-minted intermediates are dropped.
+Deduplication is by (path, val id) as designed, keyed on the path
+STRING rather than `ctx._pathidx` — the string is what the report
+prints. And `why` is NOT two evaluations: the recorder rides the
+one run the call already makes, off by default.)*
 
 The record shape (the part designed now for a later always-on
 mode):
@@ -394,8 +408,14 @@ aontu set $.services.auth.owner=\"identity-2\" \
 
 Appends a path-flattened conjunct
 (`services: auth: owner: "identity-2"`) to the overlay file
-(creating it if absent), then re-evaluates entry + overlay and
-reports a [G2](g2-validation-verb.md)-shaped verdict. This is
+(creating it if absent) and reports a
+[G2](g2-validation-verb.md)-shaped verdict. *(As landed the order
+is reversed from this text's "appends, then re-evaluates": the verb
+evaluates first and writes the overlay ONLY when the change holds —
+a refusal leaves the file exactly as it was, because a broken
+overlay with only an exit code saying so is what the design's order
+would have left behind. The register's G7.5 departures record it.)*
+This is
 semantically clean: an overlay entry is just another conjunct, and
 unification is order-independent — no parsing of the target file,
 no comment or layout damage, nothing to preserve. It refines open
@@ -425,22 +445,32 @@ three-layer template (docs/lsp.md): a transport-free tool library
 as a bin (`aontu-mcp`). Tools, all returning the same JSON
 contracts as the CLI:
 
-| Tool    | Backed by                                            |
-|---------|------------------------------------------------------|
-| `vet`   | [G2](g2-validation-verb.md)'s verb and report        |
-| `get`   | the query surface above (path + projection)          |
-| `why`   | the provenance recorder                              |
-| `diff`  | path-addressed diff of two evaluations' canon        |
-| `canon` | normalise a source text to canonical form            |
+| Tool      | Backed by                                            |
+|-----------|------------------------------------------------------|
+| `vet`     | [G2](g2-validation-verb.md)'s verb and report        |
+| `get`     | the query surface above (path + projection)          |
+| `why`     | the provenance recorder                              |
+| `diff`    | path-addressed diff of two evaluations               |
+| `canon`   | normalise a source text to canonical form            |
+| `summary` | a document summary: root keys + [G6](g6-distribution.md) hash |
 
-`diff` is dyff-style — deterministic canon on both sides means no
-phantom noise — and reports *what changed at which paths*; whether
+`diff` is dyff-style — deterministic rendering on both sides means
+no phantom noise — and reports *what changed at which paths*.
+*(As landed it compares the [G6](g6-distribution.md) HASH FORM, not
+the plain canon this text named: canon drops closedness and the
+marks, so a canon diff would call `close({a:1})` and `{a:1}`
+identical — the dangerous direction. G6 landing first is what made
+the stronger form available; the register's G7.6 departures record
+it.)* Whether
 a change is breaking is [G3](g3-subsumption-evolution.md)'s
 question, exposed later as G3's tool on this same server.
-Resources implement progressive disclosure: a document summary
-(root keys + G6 hash) with resource links to path-scoped slices.
-The server runs with a confined resolver (memory/filesystem
-allowlist) per [G5](g5-trust-contract.md); the package resolver
+*(A second departure: MCP RESOURCES are not implemented — the
+progressive disclosure this design wanted from them is the
+`summary` TOOL plus `get`, the same disclosure without a second
+protocol surface to keep in parity.)*
+The server runs with a confined resolver
+per [G5](g5-trust-contract.md) — as landed, served evaluation is
+confined to no includes at all; the package resolver
 leg is never enabled under a server. The Go port ships no separate
 MCP server: its role is gateway/sidecar embedding of the same
 library calls (`get`/`why` land in the Go API for parity), and
@@ -467,12 +497,18 @@ any Go MCP wrapper is left to hosts.
 
 ### REPL as inspection tool
 
-The existing REPL (ts/src/cli.ts) gains `:load <file>` (evaluate
-once and hold the *rendered* document — canon text plus JSON,
-respecting single-use trees), `:get`, `:keys`, `:why`, and a
-`--json` session mode in which every command answers in one JSON
-line, making the REPL drivable by a harness. Human-readable output
-stays the default.
+The existing REPL (ts/src/cli.ts) gains `:load <file>`, `:get`,
+`:keys`, `:why`, and a JSONL session mode in which every command
+answers in one JSON line, making the REPL drivable by a harness.
+Human-readable output stays the default. *(Two departures as
+landed: `:load` holds the SOURCE, not the rendered document this
+text specified — every later question re-evaluates, which is what
+single-use trees require — and the session flag is `--jsonl`, not
+`--json`, which would read as the `:json` output mode the REPL
+already has. And the phase is PARTIAL: the `--jsonl` flag is
+unreachable in the Go CLI and TTY-gated in TypeScript — the
+register's G7.7 row, recorded 2026-08-21, says exactly what is
+missing.)*
 
 ## Boundary: what we will not do
 
@@ -511,7 +547,7 @@ stays the default.
 | Risk | Likelihood | Impact | Mitigation |
 |------|------------|--------|------------|
 | Provenance instrumentation slows the uninstrumented hot path | Medium | High | Explain-style `ctx` guards (already proven zero-cost when off); benchmark gate in CI before/after Phase 3; lazy-site getter untouched on the normal path |
-| TS/Go divergence: Go has no `find`, no explain, no collect surface | High | High | `get`/`why` land as shared spec rows (query.tsv, provenance.tsv) run by both suites with no skip list; Go port is a dedicated phase, not an afterthought |
+| TS/Go divergence: Go has no `find`, no explain, no collect surface | High | High | `get`/`why` land as shared spec rows (query.tsv; why.tsv as landed) run by both suites with no skip list; Go port is a dedicated phase, not an afterthought |
 | Resident server misuses single-use trees (stale or corrupted Vals) | Medium | High | Server caches rendered artifacts only, keyed by G6 content hash; a test asserts no `Val` outlives its evaluation |
 | Why-chains explode on large conjunct fan-in (CUE's 30-site pile-up) | Medium | Medium | Dedupe by (pathidx, val id); default chain cap with `--all`; order entries by application, not discovery |
 | Published grammar drifts from the real parsers | Medium | High | CI parity test: all spec-suite canon outputs parse under the grammar; sampled grammar strings accepted by both parsers; grammar versioned with the language |
@@ -544,11 +580,14 @@ Code: new go/query.go; go/ctx.go (find); go/cmd/aontu.
 go/spec_test.go runs query.tsv with no skip list.
 
 **Phase 3 — provenance recorder and `why`, TypeScript (L).**
-Spec: new `test/spec/provenance.tsv` — name, sources (multi-file
-via the memory resolver so file/line assertions are stable), path,
-ordered chain (`canon@file:row:col` entries with roles). Code: new
+Spec: a new provenance spec file (landed as `test/spec/why.tsv`,
+in the five-column mode, not the bespoke `provenance.tsv` columns
+sketched here) — sources multi-file
+via the memory resolver so file/line assertions are stable, path,
+ordered chain entries with roles. Code: new
 ts/src/provenance.ts (recorder, record shape, JSON rendering);
-ts/src/unify.ts (the `update()` site-drop and unite hooks);
+ts/src/unify.ts (as landed, the `unite` hook alone — see the
+provenance section's as-landed note);
 ts/src/val/ConjunctVal.ts, ts/src/val/PrefVal.ts,
 ts/src/val/MapVal.ts, ts/src/val/ListVal.ts, ts/src/val/RefVal.ts
 (record points); ts/src/cli.ts (`why`). Benchmark gate on the
@@ -557,7 +596,8 @@ uninstrumented path.
 **Phase 4 — `why`, Go port (L).**
 Code: go/provenance.go (new); go/unify.go, go/conjunct.go,
 go/pref.go, go/mapval.go, go/listval.go, go/ref.go; go/cmd/aontu.
-Byte-identical `--format json` output pinned by provenance.tsv.
+Byte-identical `--format json` output pinned by the shared rows
+(why.tsv as landed).
 
 **Phase 5 — overlay `set` (M).**
 Spec: new `test/spec/patch.tsv` — source, set expression, overlay
@@ -570,32 +610,47 @@ Code: new ts/src/patch.ts; ts/src/cli.ts; Go twin go/patch.go
 Code: new ts/src/mcp.ts (transport-free tool library) and
 ts/src/mcp-server.ts (stdio), mirroring the LSP split; `agentsmd`
 verb in ts/src/cli.ts; new grammar/aontu.lark and
-grammar/aontu.gbnf with parity tests (ts/test/grammar.test.ts, a
-Go acceptance twin driven by the same sampled corpus); skill
+grammar/aontu.gbnf with a parity test (ts/test/grammar.test.ts —
+as landed it interprets the gbnf file itself as an ordered-choice
+PEG over the suite's whole canon corpus; the "Go acceptance twin"
+sketched here was not built, the register's G7.6 departures
+recording that the discipline arrived without a toolchain the CI
+does not have); skill
 sources under docs/. The server ships with the memory/filesystem
 resolver only.
 
 **Phase 7 — REPL inspection mode and hover-provenance (S).**
-Code: ts/src/cli.ts (`:load`, `:get`, `:why`, `--json` JSONL
-mode); ts/src/lsp.ts and go/lsp (config-gated provenance in hover
+Code: ts/src/cli.ts (`:load`, `:get`, `:why`, the JSONL session
+mode — landed as `--jsonl`, and PARTIAL per the register's G7.7
+row); ts/src/lsp.ts and go/lsp (config-gated provenance in hover
 markdown). LSP diagnostic text is unchanged.
 
 ## Open questions
 
-- **Path syntax details.** Escaping for keys containing dots, and
-  list indices (`$.a.0` versus `$.a[0]`); align with reference
-  syntax and [G4](g4-identity-relations.md)'s identity paths before
-  query.tsv freezes the spelling.
-- **Provenance granularity.** Leaf scalars only, or container-level
-  events too (one entry for a spread over `$.services` versus one
-  per child)? Container events are cheaper and often what a
-  reviewer wants; leaf events are what patch stage 2 needs. The
-  recorder likely wants both behind a filter; spec rows decide the
-  default.
-- **One evaluation or two in the server.** A resident server could
-  evaluate with the recorder always on, making `why` free at query
-  time at the cost of memory per document version. Measure on
-  realistic models; the CLI keeps the two-run model regardless.
+- ~~**Path syntax details.**~~ **Settled by the `anchorAt` reuse:**
+  a `get` path means exactly what a reference means — `$.a.0`
+  spelling, the canonical-decimal index rule included — because the
+  landed selection IS the reference walk, so there was no second
+  syntax to align. query.tsv froze that spelling. (The question as
+  posed: escaping for keys containing dots, `$.a.0` versus
+  `$.a[0]`.)
+- ~~**Provenance granularity.**~~ **Settled by the landed
+  contribution rule, which dissolved the leaf-versus-container
+  framing:** a contribution is a value the author WROTE at the
+  queried path — a conjunct expands into its terms, engine-minted
+  intermediates and structurally-inside values are dropped, and the
+  spread clone carries its own mark (the register's G7.3
+  departures). No filter shipped; patch stage 2 can revisit if it
+  needs more. (The question as posed: leaf scalars only, or
+  container-level events too, both behind a filter?)
+- ~~**One evaluation or two in the server.**~~ **Dissolved: it is
+  one evaluation everywhere.** The landed recorder rides the single
+  run the call already makes (`why` was never two evaluations as
+  the design assumed), so there is no resident-recorder trade to
+  measure; only LSP hover provenance pays a second evaluation, for
+  reasons the register's G7.7 departures record. (The question as
+  posed: a resident server could keep the recorder always on at the
+  cost of memory per document version.)
 - **Fragment canon as a stable contract.** Is the canon of a slice
   stable across engine versions (making slice and prompt caches
   durable), or only within a version? Interacts with
@@ -605,7 +660,10 @@ markdown). LSP diagnostic text is unchanged.
   grammar also exclude rarely-emitted forms (custom marks, `@`
   directives) to shrink the constrained-decoding surface, with the
   skill teaching the full language? Small grammars are cheaper to
-  learn; the risk is agents acquiring a dialect.
+  learn; the risk is agents acquiring a dialect. *(The landed
+  grammar took the first step: it refuses the include directive
+  while accepting every canon in the suite. How much further to
+  shrink stays open.)*
 - **Overlay conventions.** One well-known overlay per entry
   document versus per-agent overlays; declared in the entry file
   (`@"changes.aon"`) or composed by the tool at evaluation time.

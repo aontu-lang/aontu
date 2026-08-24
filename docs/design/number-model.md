@@ -1,11 +1,15 @@
 # Design note: the number model
 
-Status: **implemented** in both ports. The rules below are pinned by
-the 101 rows of
+Status: **implemented** in both ports — and since **amended by the
+number tower** ([number-tower.md](number-tower.md)), whose D7
+reversed this note's rounding edges: literals this model let round
+silently are now located `lossy_integer_literal` errors, and the
+passages below that describe the old behaviour carry inline
+corrections. The rules are pinned by
 [`test/spec/number-model.tsv`](../../test/spec/number-model.tsv), run
-by `ts/test/spec.test.ts` and `go/spec_test.go`, plus two canon rows in
+by `ts/test/spec.test.ts` and `go/spec_test.go`, plus canon rows in
 [`test/spec/scalar.tsv`](../../test/spec/scalar.tsv)
-(`big-fixed-canon`, `hex-big-canon`) that changed with rule R4.
+that changed with rule R4.
 
 This note is the record of *why* Aontu's numbers behave as they do. It
 states the model, then the six rules that make it well defined, each
@@ -91,9 +95,11 @@ over a `float64`, which is what makes them portable — and what makes
 
 **What it costs.** R1's int64 window is a *classification* boundary,
 not a storage guarantee: a literal above 2^53 is already rounded
-before any rule sees it
-(`x:9007199254740993` generates `9007199254740992` in both ports, and
-that agreement is pinned as `lossy-above-pow53`). Exact decimal
+before any rule sees it. *(When this was written,
+`x:9007199254740993` generated `9007199254740992` in both ports, the
+agreement pinned as `lossy-above-pow53`; the tower's D7 flipped that
+row to `lossy-above-pow53-err` — the rounding is now a located
+refusal.)* Exact decimal
 arithmetic is not available at all. Both costs are taken deliberately;
 see [Known edges](#known-edges) and
 [Comparison: boru](#comparison-boru).
@@ -107,10 +113,11 @@ numeric literal can look like. All of the following are pinned in
 - **Decimal, with optional exponent.** The exponent marker may be
   upper or lower case and its sign is optional: `1e3`, `1E3`, `1e+3`,
   `1e-7`.
-- **Base prefixes, lower case only:** `0x1f`, `0o17`, `0b1010`. The
-  upper-case forms are a live TypeScript/Go divergence and are
-  recorded in [`test/spec/divergent.tsv`](../../test/spec/divergent.tsv),
-  not here.
+- **Base prefixes:** `0x1f`, `0o17`, `0b1010`. *(The upper-case
+  forms were a live TypeScript/Go divergence when this was written;
+  the divergence is fixed — `0X1F` is 31 in both ports, pinned by
+  `number-model.tsv`'s `base-upper-*` rows — and the ledger entry is
+  closed.)*
 - **Leading zeros are decimal, never octal:** `08` is 8, not an error.
 - **A leading dot is not a number.** `.5` is a relative path
   reference, so it is an unresolvable ref rather than `0.5`.
@@ -177,7 +184,13 @@ cannot drift across the two ports.
 | `1e400` | ∞ | — | — | — | `not_number` nil |
 
 So `x:1e3 & integer` succeeds and `x:1e21 & integer` is an error, in
-both ports.
+both ports. *(Two rows of this table no longer produce values at
+all: the tower's D7 checks integer-source literals for exactness,
+so `0x7fffffffffffffff` (2^63−1) and `0xffffffffffffffff` (2^64−1) —
+whose "Value" column above already shows the rounding — are now
+located `lossy_integer_literal` errors rather than number-kind
+values. `1e21` and `100000000000000000000` stand: each is exactly
+representable.)*
 
 **The defect it fixes.** The two implementations classified the same
 literal differently. TypeScript tested
@@ -406,35 +419,34 @@ above is the one both ports implement.
 These are real limitations, not oversights. Each is listed with what a
 future change would have to look like.
 
-**1. Literals above 2^53 are inexact, and both ports agree on the
-rounded value.** A binary64 mantissa is 53 bits, so `9007199254740993`
-becomes `9007199254740992` before any rule runs — with integer kind
-and no signal. The two ports agree exactly (pinned as
-`lossy-above-pow53`), so this is a *shared* limit rather than a parity
-bug, but it is still a wrong answer for anything that uses large
-integer identifiers.
+**1. Literals above 2^53 are inexact.** *(Resolved — the tower's D7
+took exactly the "future change" this edge described.)* A binary64
+mantissa is 53 bits, so at this model's landing `9007199254740993`
+became `9007199254740992` before any rule ran — with integer kind
+and no signal, the shared limit pinned as `lossy-above-pow53`.
 
-*A future change* would have to carry the literal's source digits
-through the lexer and parse a plain decimal or base-prefixed integer
-exactly (`strconv.ParseInt` in Go, `BigInt` in TypeScript) rather than
-deriving the value from a `float64`, with a loud error for a literal
-that is out of range. That is precisely what boru did — see
-[Comparison: boru](#comparison-boru) — and it is a change to the
-canonical TypeScript implementation first, because TypeScript has no
-`int64` at all today.
+*The future change happened*: the lexer now carries the literal's
+source digits, exactness is checked wherever the source is
+integer-shaped, and a literal whose value is not exactly
+representable is the located `lossy_integer_literal` error
+(`lossy-above-pow53-err`, `hex-max-int64-lossy-err`), with the `0d`
+exact leaves for values that need more — see
+[number-tower.md](number-tower.md) and
+[Comparison: boru](#comparison-boru).
 
-**2. Integer-kind canon diverges between the ports above 2^53, for
-values needing more than 17 significant digits.** This is the same
-storage difference seen from the formatting side, and it is recorded
-as entry 2 of
-[`test/spec/divergent.tsv`](../../test/spec/divergent.tsv):
-`x:4611686018427387904` canons to `4611686018427387904` in Go
+**2. Integer-kind canon diverged between the ports above 2^53, for
+values needing more than 17 significant digits.** *(Resolved — the
+divergence dissolved when D7 made the triggering literals errors,
+and the ledger entry is closed.)* At this model's landing it was the
+same storage difference seen from the formatting side:
+`x:4611686018427387904` canoned to `4611686018427387904` in Go
 (`strconv.FormatInt` on the `int64`) and to `4611686018427388000` in
-TypeScript (`Number.toString`, which emits the shortest decimal that
-round-trips, at most 17 significant digits). Both denote the same
-`float64`, and values whose exact digits fit in 17 significant digits
-agree. Number-kind values are unaffected — they go through the shared
-JS-style formatter in both ports.
+TypeScript (`Number.toString`, at most 17 significant digits). Both
+denoted the same `float64`. Under the tower a lossy integer-source
+literal no longer produces a value at all, so there is nothing left
+to render two ways; an exact value that size is written `0d` and
+renders identically in both ports. Number-kind values were always
+unaffected — they go through the shared JS-style formatter.
 
 *A future change* means choosing a single rendering for the whole
 (2^53, 2^63) window, which is a language decision about what an
@@ -573,8 +585,11 @@ written keeps its kind, its value and its canon. That property is what
 makes the change affordable later, and it is the reason not to
 pre-emptively build the tower now.
 
-*Update: the door is being walked through. The decision to mirror
+*Update: the door has been walked through. The decision to mirror
 boru's structure — and the full design, including the places where
-unification forces deviations from boru — is worked out in
-[number-tower.md](number-tower.md). The rules in this document stand;
-the tower extends them.*
+unification forces deviations from boru — is worked out and LANDED
+in [number-tower.md](number-tower.md). The classification rules in
+this document stand; the tower extends them, and its D7 reverses the
+rounding edges recorded above — silent rounding of integer-source
+literals is now a located error, as each corrected passage notes in
+place.*

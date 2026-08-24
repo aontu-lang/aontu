@@ -103,9 +103,12 @@ What exists and is reusable:
   throwing; `AontuError.errs()` (ts/src/err.ts) exposes the raw
   `NilVal` list. The LSP already builds a structured surface on
   exactly this: `computeDiagnostics` (ts/src/lsp.ts) unifies with
-  `{collect: true}`, walks the tree collecting every `NilVal`
-  (`walkNils`), and maps `nil.why` to a diagnostic `code` with LSP
-  severity constants. This walk is the embryo of the vet report.
+  `{collect: true}`, walks the tree collecting every `NilVal`, and
+  maps `nil.why` to a diagnostic `code` with LSP severity constants.
+  This walk is the embryo of the vet report. *(When this was written
+  it was the LSP's private `walkNils`; phase 2 generalised it into
+  ts/src/walk.ts, whose landed exports are `walkVals` and
+  `collectNils` — the LSP now imports the latter.)*
 - **A why-code vocabulary.** ts/src/hints.ts holds some forty
   why-code strings (`scalar_kind`, `closed`, `no_path`,
   `mapval_required`, …) plus five dynamic prefix patterns (`func:`,
@@ -120,27 +123,31 @@ What exists and is reusable:
 - **Exit codes.** docs/reference-api.md documents 1 for an evaluation
   error, 2 for a bad option — a two-way split, no verdict classes.
 
-What structurally blocks the capability:
+What structurally blocked the capability, at the time of writing —
+every item below has since been removed by this plan's own phases,
+and the [progress register](progress.md) holds the pins:
 
-- **Single-document CLI.** ts/src/cli.ts accepts one file and two
+- **Single-document CLI.** ts/src/cli.ts accepted one file and two
   output modes (`json`/`canon`); no (schema, data) pairing, no
   anchor concept.
 - **First-error fixpoint break.** The pass loop in ts/src/unify.ts
-  (bounded at `maxcc = 9`) breaks as soon as `uctx.err` is non-empty;
-  go/unify.go does the same. Errors raised within one pass all
-  collect, but no later pass ever runs — multi-error reporting is
-  inherently truncated today.
-- **Prose-only rendering.** `descErr` produces ANSI-coloured terminal
-  text; no JSON serialisation of a `NilVal` exists outside the LSP's
+  (bounded by what is now [G5](g5-trust-contract.md)'s pass budget,
+  `uctx.budget.passes`, default 9) broke as soon as `uctx.err` was
+  non-empty; go/unify.go did the same. Errors raised within one pass
+  all collected, but no later pass ever ran — multi-error reporting
+  was inherently truncated until phase 6 removed the break.
+- **Prose-only rendering.** `descErr` produced ANSI-coloured terminal
+  text; no JSON serialisation of a `NilVal` existed outside the LSP's
   partial mapping.
 - **No incomplete/contradiction distinction.** Residual `top`/kind
-  values become `nil_gen`/`no_gen`-family errors only at generate
-  time; test/spec/error.tsv and incomplete.tsv pin both as generic
+  values became `nil_gen`/`no_gen`-family errors only at generate
+  time; test/spec/error.tsv and incomplete.tsv pinned both as generic
   `err` rows.
-- **Go has no public collect surface.** The Go API returns
+- **Go had no public collect surface.** The Go API returned
   `(Val, error)` with one wrapped message; `Ctx.collect` (go/ctx.go)
-  is internal optional-subtree machinery. A structured multi-finding
-  report is a genuinely new surface on the Go side.
+  was internal optional-subtree machinery. A structured multi-finding
+  report was a genuinely new surface on the Go side — `aontu.Vet` is
+  now that surface.
 
 ## Prior art
 
@@ -240,10 +247,15 @@ aontu vet [options] <schema.aon> <data.json|data.aon> [more-data...]
   --format <f>       text | json | sarif        (default: text)
   --closed           close() the anchor value for this run
   --partial          incomplete residue is not a failure
-  --surplus          report unconstrained data keys (info severity)
   --max-errors <n>   cap findings in the report (default 20)
   --watch            re-run on file change, streaming reports
 ```
+
+*(One designed flag is not in this synopsis as landed: `--surplus` —
+report unconstrained data keys, at `info` severity — has no engine
+support yet, and neither CLI accepts it. The register's phase-3 note
+records the omission; the flag remains additive if the engine ever
+grows the support.)*
 
 Semantics, in order:
 
@@ -273,10 +285,18 @@ Semantics, in order:
 4. Unify anchor & data under `{collect: true}`, then generate-check.
    Parsed trees are single-use, so each data file gets a fresh
    evaluation of the schema — the documented mutation caveat.
-5. Walk the result (the ts/src/lsp.ts `walkNils` pattern,
-   generalised): every `NilVal` is a finding; every residual
-   non-generable value (`top`, scalar kinds, unresolved required
-   keys) is an *incomplete* finding, a distinct class.
+5. Walk the result (the LSP's nil walk, generalised into
+   `walkVals`/`collectNils` in ts/src/walk.ts and go/walk.go): every
+   `NilVal` is a finding; every residual non-generable value (`top`,
+   scalar kinds, unresolved required keys) is an *incomplete*
+   finding, a distinct class. Two things the landed collection does
+   that this step did not say (the register's phase-2 departures):
+   findings that never reach the tree are collected from the context
+   as well — a parent collapsing to a nil takes its subtree with it,
+   so the walk alone reported half of what the verb's own motivating
+   example found — and a conflict inside a `&:` template reports the
+   template's path, not the instance's, the data site still pointing
+   at the offending value.
 6. Render the report in the chosen format; exit by verdict class.
 
 ### Verdicts and exit codes
@@ -299,25 +319,33 @@ default); layered drift checks over partial dumps want `--partial`.
 ### The finding object
 
 `--format json` emits one object (stable field order, canonical value
-rendering, no ANSI):
+rendering, no ANSI). As landed the field order is `exactJSON`'s
+lexicographic order — the one serialiser the suite already holds to
+byte parity with Go's, which is why the Go report structs declare
+their fields in sorted order; the register's phase-3 note records the
+departure from the illustrative order this section first sketched.
+This is the verb's own answer to the Problem section's example, keys
+absent where the engine has nothing to say:
 
 ```json
-{ "aontu": { "version": "0.49.0", "verb": "vet" },
-  "verdict": "invalid", "truncated": false,
+{ "aontu": { "verb": "vet", "version": "0.52.1" },
   "findings": [
-    { "code": "no_scalar_unify", "class": "conflict",
-      "severity": "error", "path": "$.service.replicas",
-      "message": "Cannot unify value: \"3\" with value: integer",
+    { "class": "conflict", "code": "closed",
+      "message":
+        "[aontu/closed]: Cannot resolve value at path $.service.prot",
+      "path": "$.service.prot", "severity": "error",
       "sites": [
-        { "file": "deploy.json", "row": 2, "col": 28,
-          "role": "data",   "value": "\"3\"" },
-        { "file": "service.aon", "row": 5, "col": 13,
-          "role": "schema", "value": "integer" } ],
-      "expected": "integer", "actual": "\"3\"",
-      "alternatives": ["integer"], "note": null },
-    { "code": "closed", "path": "$.service.prot",
-      "allowed": ["name", "owner", "port", "replicas"],
-      "nearest": "port", "...": "..." } ] }
+        { "col": 40, "file": "deploy.json", "role": "data",
+          "row": 1, "value": "8080" } ] },
+    { "class": "conflict", "code": "no_scalar_unify",
+      "message": "[aontu/no_scalar_unify]: …",
+      "path": "$.service.replicas", "severity": "error",
+      "sites": [
+        { "col": 28, "file": "deploy.json", "role": "data",
+          "row": 2, "value": "\"3\"" },
+        { "col": 13, "file": "service.aon", "role": "schema",
+          "row": 5, "value": "integer" } ] } ],
+  "truncated": false, "verdict": "invalid" }
 ```
 
 Field semantics:
@@ -336,21 +364,33 @@ Field semantics:
   incomplete findings are errors; `warning` is reserved for the
   [G3](g3-subsumption-evolution.md) deprecation mark and
   [G1](g1-constraint-algebra.md)'s evaluate-only advisories; `info`
-  for `--surplus`. Maps one-to-one onto the LSP severity constants in
-  ts/src/lsp.ts and onto SARIF levels.
-- **`expected` / `actual` / `alternatives`** — the
-  admissible-alternatives contract, all rendered in canonical form
-  (deterministic and byte-identical across TS and Go, so reports are
-  diffable and cacheable). For a kind conflict, `expected` is the
-  kind's canon; for a failed disjunction, `alternatives` lists the
-  member canons a corrected value could still satisfy — rendered from
-  member canons, *not* via `DisjunctVal.gen`, which has a known fold
-  defect (ts/src/val/DisjunctVal.ts:263); for a closed struct,
-  `allowed` lists the key set and `nearest` gives an edit-distance-≤2
-  suggestion. When G1's bounds land, `expected` renders via G1's
-  canonical bound syntax — consumed here, defined there.
+  for the designed surplus reporting (`--surplus`, not landed — see
+  the synopsis note above). Maps one-to-one onto the LSP severity
+  constants in ts/src/lsp.ts and onto SARIF levels.
+- **`expected` / `actual`** — the admissible-alternatives contract as
+  landed, rendered in canonical form (deterministic and
+  byte-identical across TS and Go, so reports are diffable and
+  cacheable). They appear where the engine hands the content over:
+  G1's constraint atoms attach the normalised residual and the
+  offending value (`port: min(1024)` against `80` reports
+  `"expected": "min(1024)", "actual": "80"`), so `expected` renders
+  via G1's canonical bound syntax — consumed here, defined there. A
+  bare kind conflict carries neither, as the example above shows.
+- **`alternatives`, `allowed`, `nearest`** — designed, NOT landed;
+  the register's phase-2 note records the omission. For a failed
+  disjunction, `alternatives` would list the member canons a
+  corrected value could still satisfy — rendered from member canons,
+  *not* via `DisjunctVal.gen`, whose fold has a known
+  over-unification defect (ts/src/val/DisjunctVal.ts); for a closed
+  struct, `allowed` would list the key set and `nearest` give an
+  edit-distance-≤2 suggestion. Each needs something the engine does
+  not yet hand over, and none of the three changes the report's shape
+  when it lands — which is why the omission is a gap rather than a
+  departure from the contract.
 - **`note`** — the author-attached message carried by G1's
-  message-bearing constraint wrappers. Reserved here; designed there.
+  message-bearing constraint wrapper, which landed as `must`; the
+  finding carries it when the failing constraint has one, and omits
+  the key otherwise. Designed there; consumed here.
 
 ### The two-site model with external data
 
@@ -451,7 +491,8 @@ byte-identical JSON for the same inputs, pinned by spec rows.
 - **Watch mode**: `--watch` re-runs on file mtime change, one report
   per run. Honestly non-incremental: parsed trees are single-use, so
   every run is a full re-parse and re-unify — acceptable at current
-  model sizes and bounded by the `maxcc = 9` fixpoint. Incremental
+  model sizes and bounded by the fixpoint's pass budget
+  (`uctx.budget.passes`, default 9). Incremental
   re-validation is future engine work; evaluation budgets belong to
   [G5](g5-trust-contract.md).
 - **Resolver posture**: vet inherits the include resolver chain
@@ -491,12 +532,12 @@ byte-identical JSON for the same inputs, pinned by spec rows.
 
 | Risk | Likelihood | Impact | Mitigation |
 |------|------------|--------|------------|
-| TS/Go report divergence (Go has no collect surface today) | Medium | High | Report JSON pinned byte-for-byte by shared vet spec rows; Go builds on the existing internal error list, not new semantics |
+| TS/Go report divergence (Go had no collect surface when this was written) | Medium | High | Report JSON pinned byte-for-byte by shared vet spec rows; Go builds on the existing internal error list, not new semantics |
 | First-error truncation makes "multi-error report" oversell | High | Medium | `truncated: true` in the contract from day one; phased engine work (Phase 6) removes it; docs state the limit plainly |
 | Error-tolerant fixpoint causes cascading spurious findings (CUE's stacked-error pathology) | Medium | High | Gate Phase 6 behind spec rows for nil-localisation; `--max-errors` cap; findings deduplicated by (code, path) |
 | Freezing today's why-codes bakes in bad names | Medium | Low | Append-only registry with an alias/deprecation column; codes are contracts, hint text is not |
 | Alternatives enumeration touches the known DisjunctVal.gen fold defect | Medium | Medium | Render alternatives from member canons only; never call `gen` on a disjunct to enumerate; add regression spec rows |
-| Per-data-file schema re-evaluation is slow in watch/CI loops (single-use trees) | Medium | Medium | Acceptable now (`maxcc = 9` bounds passes); measure; incrementality is explicitly deferred, budgets are G5's |
+| Per-data-file schema re-evaluation is slow in watch/CI loops (single-use trees) | Medium | Medium | Acceptable now (the pass budget, default 9, bounds passes); measure; incrementality is explicitly deferred, budgets are G5's |
 | Canon round-trip or existing error text regresses while adding classes | Low | High | `class` is additive on `NilVal`; error.tsv substrings and canon convergence stay green throughout (the enforced property is CONVERGENCE, not the stronger round-trip this line states — see the correction in [G1](g1-constraint-algebra.md#implementation-plan)) |
 | Exit-class numbering collides with scripts assuming 0/1 | Low | Low | Non-zero on any failure is preserved; classes are refinements; documented in reference-api.md |
 | Adoption risk: agents default to JSON Schema validators | Medium | High | Ship the Action + SARIF so vet drops into existing CI; lead with what JSON Schema cannot do (two-site conflicts, merge-as-unification) |
@@ -514,7 +555,11 @@ every phase. (This document originally stated that guard as
 property is convergence, asserted by both spec runners for every canon
 row.)
 
-**Phase 1 — error taxonomy groundwork (M).**
+**Phase 1 — error taxonomy groundwork (M).** LANDED, in both ports —
+and without touching ts/src/err.ts, which the deliverable list below
+names: nothing was needed there, because the `[aontu/<code>]` message
+marker predates the review (pinned by error.tsv
+`errm-marker-headline`).
 Spec: new `test/spec/errcodes.tsv` (code, class, since-version); new
 error.tsv rows distinguishing incomplete from conflict (existing rows
 untouched). Code: ts/src/hints.ts (registry export),
@@ -526,8 +571,11 @@ assert codes.
 "TypeScript" qualifier is gone: the engine exists in both ports
 (`ts/src/vet.ts`, `go/vet.go`), because phase 4 is what makes the
 shared rows executable.
-Spec: [`test/spec/vet.tsv`](../../test/spec/vet.tsv) — 42 rows, run by
-both runners. **The row encoding was settled by probing.** `code@path`
+Spec: [`test/spec/vet.tsv`](../../test/spec/vet.tsv), run by both
+runners — its row count, which phase 6 grew, lives with the suite
+counts in [the register's protocol rule
+5](progress.md#the-update-protocol). **The row encoding was settled by
+probing.** `code@path`
 lists, written here before the reconnaissance below, are ruled out by
 its first constraint: no punctuation is safe as a separator, because
 every candidate is legal inside a quoted map key. The surviving shape
@@ -541,8 +589,10 @@ in cross-port parity; and options (`at`, `closed`, `partial`,
 was the one piece the phase-2 draft could not probe, since no runner
 passed options then; it survived phase 4's probe unchanged.
 Code: ts/src/vet.ts and go/vet.go (anchor selection, data parse,
-unify-with-collect, residue walk generalising ts/src/lsp.ts
-`walkNils` into ts/src/walk.ts and go/walk.go, finding construction);
+unify-with-collect, residue walk generalising the LSP's nil walk into
+ts/src/walk.ts and go/walk.go — the landed exports are `walkVals` and
+`collectNils`, and the lsp.ts-private `walkNils` this phase set out
+from is gone — finding construction);
 exported from ts/src/aontu.ts and as `aontu.Vet`.
 
 **Phase 3 — CLI verb and JSON format (M).** LANDED, in both ports.
@@ -625,7 +675,9 @@ implementation.
   lands them.
 - **YAML ingestion.** Live dumps are often YAML. Accepting it means a
   site-accurate YAML parser in *both* implementations, or a
-  documented `yq`-style conversion step; parser cost decides.
+  documented `yq`-style conversion step; parser cost decides. *(All
+  six phases landed without it: vet ingests Aontu source — and so
+  any JSON — only. Still open, and still additive.)*
 - ~~**Relaxed versus strict data parsing.**~~ **Decided: full
   grammar.** A data file is ordinary Aontu source, so a candidate may
   refine the truth (`replicas: min(2)`) rather than only satisfy it —
@@ -650,7 +702,8 @@ implementation.
 - **Anchor convention beyond `--at`.** A schema could name its own
   validation entrypoints (an in-file mark), which travels better than
   a flag once schemas are distributed ([G6](g6-distribution.md)) but
-  adds language surface; the flag ships first.
+  adds language surface; the flag ships first. *(It did: the landed
+  verb has `--at` only. The in-file mark stays open.)*
 - ~~**Finding ordering.**~~ **Decided: vet sorts, by data site then
   code** — then path, then the walk index, the last field making every
   key unique so a tie cannot fall to the sort algorithm. Not a
@@ -660,4 +713,5 @@ implementation.
   a shared row at all. Data-site document order is also what agent
   loops want, so the forced answer is the wanted one. The **cap**
   remains open: CUE's thirty-site pile-ups argue for a low default,
-  and it only starts to bite once phase 6 lands.
+  and now that phase 6 has landed multi-error collection, the
+  default (20) is live and adoption data can move it.

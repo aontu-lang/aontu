@@ -1,6 +1,7 @@
 # G4: Identity and typed relations
 
-*Status: ALL SIX PHASES have LANDED in both ports. Per-phase status and the corrections this
+*Status: implemented — all six phases landed in both ports.
+Per-phase status and the corrections this
 document needs are in the
 [progress register](progress.md), which is authoritative for status;
 this document is authoritative for design. Part of the
@@ -115,12 +116,13 @@ several reusable precedents:
   every child of a map or list — the delivery mechanism for a
   vocabulary.
 - **Resolver chain.** Includes resolve memory → filesystem →
-  package (`ts/src/lang.ts`, `makeModelResolver`, ~line 757;
-  security comment ~750). The memory resolver can serve
+  package (`ts/src/lang.ts`, `makeModelResolver`, beside its
+  security comment). The memory resolver can serve
   `@"std/system"` before the [G6](g6-distribution.md) module layer
   exists.
-- **Fixpoint.** `maxcc = 9` passes (`ts/src/unify.ts`); anything
-  that converges like references must converge within that bound.
+- **Fixpoint.** A bounded pass loop (`ts/src/unify.ts` — since G5,
+  the configurable `budget.passes`, default 9); anything that
+  converges like references must converge within that bound.
 
 Structurally blocking: (1) the only in-language names are tree
 paths, so nothing can denote an entity independent of its location;
@@ -365,9 +367,15 @@ Semantics:
   may be introduced by a later conjunct, include, or spread, so the
   constraint retries each fixpoint pass, as forward references do
   today. Within one evaluation the document-set is fixed, so
-  existence *is* decidable: a `refer` still unresolved when the
-  fixpoint ends is an error at generation, mirroring an unresolved
-  reference. Integrity is a unification-time property, per the
+  existence *is* decidable. *(As landed, the refusal comes at the
+  LAST fixpoint pass, not "at generation" as this bullet first said:
+  a generation-time refusal would arrive as the bag's generic
+  `*_no_gen`, naming the map rather than the link, so a pending
+  refer keeps the tree not-done until the final pass, where the
+  refusal is a located nil naming the address. A `refer()` that
+  never met an address at all is an ordinary unresolved constraint,
+  like a bare `min(1)`. The register's G4.2 departure records it.)*
+  Integrity is a unification-time property, per the
   review index — there is no vet-time deferral.
 - **Canon** renders the residual reparseably:
   `"dependsOn":[refer($.std.Service)&"svc/auth", …]`. (As built, a
@@ -550,8 +558,10 @@ for the new forms.
    `go/ref.go`, `go/unify.go`, `go/hints.go`.
 3. **Phase 2 — `refer()` (M).** New `ts/src/val/ReferFuncVal.ts`
    using the `FuncBaseVal` defer branch; address parsing;
-   constraint flow into registry targets; generation-time
-   unresolved errors. Go: `go/func.go`, `go/unify.go`.
+   constraint flow into registry targets; unresolved-target errors
+   (landed at the last fixpoint pass, not at generation — see the
+   Timing bullet above and the register's G4.2 departure). Go:
+   `go/func.go`, `go/unify.go`.
 4. **Phase 3 — derived structures (S).** Entity index and edge-set
    extraction exposed through the evaluation result
    (`ts/src/aontu.ts`, `go/aontu.go`; `docs/reference-api.md`) for
@@ -562,22 +572,25 @@ for the new forms.
    `go/source.go`); `test/spec/std-system.tsv` rows exercising
    Component/Port/Connection/Relation purely through unification;
    experimental status noted in `docs/reference-language.md`.
-6. **Phase 5 — relation graph checks (L).** The vet-time pass:
-   edge extraction, acyclicity, inverse validation, deterministic
-   cycle reports — delivered alongside G2's verb and reported via
-   the G2 contract; err-mode spec rows where the TSV format can
-   express them, G2 report fixtures otherwise.
+6. **Phase 5 — relation graph checks (L).** The post-unification
+   pass: edge extraction, acyclicity, inverse validation,
+   deterministic cycle reports. *(Landed as its own verb, not
+   "alongside G2's" as designed: `aontu relations` in both CLIs,
+   `relationCheck`/`Aontu.RelationCheck` in the APIs, codes
+   `relation_cycle` and `relation_inverse_missing`, goldens in the
+   `relation` spec mode — the register's G4.5 row records it.)*
 
 Phases 1–3 are self-contained language work; Phases 4–5 can trail
 into the review's Phase C sequencing without blocking G1/G2.
 
 ## Open questions
 
-- **Naming.** `id()` collides with a common data key name only as a
-  function, but `entity()`/`refer()` versus `id()`/`refers()` should
-  be settled once against the final builtin roster (G1 adds nine,
-  [G3](g3-subsumption-evolution.md)'s `deprecate()` one; the
-  combined surface is 24) — one naming pass, not two. Note also
+- ~~**Naming.**~~ **Settled by what landed: `id()` and `refer()`**,
+  in a roster that ended at 28 builtins once G8's four combinators
+  joined. (The question as posed: `id()` collides with a common data
+  key name only as a function, but `entity()`/`refer()` versus
+  `id()`/`refers()` should be settled once against the final builtin
+  roster — one naming pass, not two.) Note also
   that id arguments containing `-` must be quoted
   (`id("team-pay")`): `-` is an invalid bare-text character today
   (test/spec/op-chars.tsv pins `a:6-2` as a parse error), while `/`
@@ -600,9 +613,10 @@ into the review's Phase C sequencing without blocking G1/G2.
   scalar-like semantics suggest narrowing; the annotation reading
   matches author intent. G3 owns the answer; the semantics here
   must not foreclose it.
-- **Edge extraction from plain strings.** Should the vet pass
-  treat an unadorned string under a declared relation key as an
-  edge, or only `refer`-constrained values? Permissive extraction
-  catches more real systems; strict extraction never guesses.
-  Decide jointly with G2's severity vocabulary — unconstrained
-  edges can carry a distinct severity.
+- ~~**Edge extraction from plain strings.**~~ **Settled strict, by
+  construction:** the landed edge set is exactly the set of STAMPED
+  links — a resolved `refer` stamps the address on the value it
+  answers (the register's G4.3 departure) — so an unadorned string
+  is never guessed into an edge. (The question as posed: permissive
+  extraction catches more real systems; strict extraction never
+  guesses.)

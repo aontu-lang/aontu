@@ -58,6 +58,18 @@ echo 'a:1 b:$.a' | aontu      # read from stdin
 aontu                         # no file on a terminal -> REPL
 ```
 
+The repository's CLI has grown a verb surface beyond evaluation —
+`vet` (validate data against a schema), `get`/`why` (query and
+provenance), `set`, `subsume`/`breaking`, `hash`,
+`relations`, `trim`, `mod` tooling, `agentsmd`, a path-addressed
+`diff` in the API, and an MCP server —
+documented in [docs/reference-api.md](docs/reference-api.md).
+**These verbs are not yet in a published release**: npm `aontu@0.52.1`
+and the Go module tag predate them, so today they require running
+from a clone; see the
+[progress register](docs/capability-review/progress.md) for exactly
+what has landed.
+
 Install with `npm i -g aontu` (Node) or
 `go install github.com/rjrodger/aontu/go/cmd/aontu@latest` (Go). From a
 clone: `node ts/dist/cli.js …` or, inside `go/`, `go run ./cmd/aontu …`.

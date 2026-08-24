@@ -1,5 +1,20 @@
 # Aon2 Language Design Notes
 
+*Status: **historical** (marked 2026-08-24; the notes themselves are
+undated and predate the capability review). Each of the three
+territories sketched below has since been designed and largely
+shipped, under different decisions, by the review's gap documents:
+collection primitives landed as
+[G8](capability-review/g8-generation.md)'s total combinators
+(`pack`/`each`/`filter` rather than `iota`/`map`, and user-defined
+functions were explicitly refused); pattern matching landed as G8
+phase 2's `match()`, selecting by unifiability rather than by a
+predicate language; and modules/versioning are
+[G6](capability-review/g6-distribution.md)'s design, with identity,
+local resolution, `tidy`/`vendor` and the publish boundary landed.
+These notes are kept as the earliest sketch of those directions, not
+as a plan.*
+
 ## 1. Functional Collection Primitives
 
 ### Goal
