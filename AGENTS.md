@@ -138,9 +138,12 @@ Tab-separated columns: `name <TAB> mode <TAB> src <TAB> expect`
 | `errcode` | registry row: code / class / since — asserted against the engine's code→class table (see below) |
 | `vet`   | FIVE columns — `name <TAB> vet <TAB> schema <TAB> data <TAB> expect` — the report of `vet(schema, data)` equals `expect`, minus each finding's message |
 
-`vet` is the one mode with a fifth column, because the validation verb
-takes two documents. Every other mode reads the first four and ignores
-anything after them, which is what made the column additive.
+`vet` introduced the fifth column, because the validation verb takes
+two documents; the review's later modes that need a second input or
+options (`subsume`, `query`, `why`, `diff`, `patch`, `agentsmd`)
+reuse the same five-column shape. Every mode reads the columns it
+needs and ignores anything after them, which is what made the column
+additive.
 
 Escapes in `src`/`expect`: `\n` → newline, `\t` → tab, `\\` → backslash.
 Lines starting with `#` and blank lines are ignored. See
@@ -290,8 +293,9 @@ before you write a phase entry:
   the design specified, and more rows changed than the design sanctioned.
 
 Suite-size figures ("all N rows must not regress") belong in the
-register and nowhere else; all eight gap documents froze their own and
-all eight are now wrong.
+register and nowhere else; all eight gap documents once froze their
+own, all eight went wrong within weeks, and each now links the
+register's rule 5 instead.
 
 ## Implementation parity & Go coverage
 

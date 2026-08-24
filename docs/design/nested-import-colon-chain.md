@@ -1,7 +1,8 @@
 # Design note: colon-chain nested `@"file"` import drops the import (Go port)
 
 Status: **resolved** — fixed upstream in `@tabnas/multisource/go` v0.3.1
-(pinned in `go/go.mod`). Covered by the shared-spec regression
+(pinned in `go/go.mod` at the time; today's pin is v0.5.2, which
+carries the fix). Covered by the shared-spec regression
 `file.tsv:load-colon-chain`. The analysis below is kept as a record of
 the defect and its root cause.
 
@@ -129,7 +130,8 @@ post-parse repair inside aontu.
 
 The fix landed **upstream in `@tabnas/multisource/go` v0.3.1**, which
 makes the bare-`@` injection / colon-chain value handling work at
-arbitrary depth. aontu's `go/go.mod` pins that version, and the change was
+arbitrary depth. aontu's `go/go.mod` pinned that version (it pins
+v0.5.2 today, which carries the fix), and the change was
 validated against the full shared spec plus the new regression row
 `test/spec/file.tsv:load-colon-chain` (`a:b:@"…/foo.aon"` →
 `{"a":{"b":{"f":11}}}`), which passes in both implementations.

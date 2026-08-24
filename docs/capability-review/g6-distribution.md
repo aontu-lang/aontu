@@ -1,10 +1,11 @@
 # G6: A distribution layer — versioned, integrity-hashed, pinnable modules
 
-*Status: design proposal — phases 0-2 (the hash form, the canon-hash
-with `aontu hash` on both command lines, and module identity with
-local resolution) are implemented; phases 3-4 (fetch/publish tooling,
-registry hooks) are not. Per-phase status and the corrections this document needs (one
-current-state claim is now false) are in the
+*Status: implemented — all five phases landed in both ports: the
+hash form, the canon-hash with `aontu hash` on both command lines,
+module identity with local resolution, the `tidy`/`vendor` tooling,
+and the publish boundary. Only the two network verbs (`mod get`,
+`mod publish`) are absent — the parts that carry no semantics.
+Per-phase status and the corrections this document needs are in the
 [progress register](progress.md), which is authoritative for status;
 this document is authoritative for design. Part of the
 [capability review](index.md) (August 2026). This document expands gap
@@ -118,11 +119,12 @@ bones, and both fall short in specific, enumerable ways.
   (`options.resolver.mem`) is the sandbox-friendly entry point the
   review counts as an asset; the package resolver calls
   `require()`, with the consequences the security comment above
-  the function documents. The Go port wires only the file leg
-  (`go/source.go`, over `github.com/tabnas/multisource/go`) — no
-  memory or package resolver, an asymmetry
-  [G5](g5-trust-contract.md) records.
-- **Spec coverage.** `test/spec/file.tsv` (11 rows) pins loading,
+  the function documents. At review time the Go port wired only the
+  file leg (`go/source.go`, over `github.com/tabnas/multisource/go`);
+  the landed chain in both ports is memory → module (this design's
+  phase 2) → filesystem, and only the package leg remains
+  TypeScript's, an asymmetry [G5](g5-trust-contract.md) records.
+- **Spec coverage.** `test/spec/file.tsv` pins loading,
   merging, nested and colon-chain imports, relative chains,
   conflict errors, and the not-found error text, against fixtures
   in `test/spec/files/` (`__FIXTURES__` keeps rows hermetic).
@@ -141,8 +143,9 @@ Four things structurally block the capability:
 1. **No identity or version anywhere.** The resolver interface is
    find-by-path; nothing models "module", "version", or "the same
    truth in two places". There is no lockfile and no verb to fetch,
-   pin, or publish (`ts/src/cli.ts` accepts one file and
-   `-c/--canon`, plus help/version flags; nothing else).
+   pin, or publish (at review time `ts/src/cli.ts` accepted one file
+   and `-c/--canon`, plus help/version flags; nothing else — the
+   review's own verbs have since multiplied that surface).
 2. **Canon is not semantically complete.** Closedness is not
    rendered — `MapVal.canon` and `ListVal.canon` emit `{…}`/`[…]`
    with no `close(…)` wrapper, so `close({x:1})` and `{x:1}`
@@ -150,11 +153,14 @@ Four things structurally block the capability:
    further unification; `hide`/`type` marks are likewise invisible.
    A hash over today's canon could report "unchanged" for a real
    semantic change — the dangerous direction.
-3. **Parse-level canon is not in parity.** AGENTS.md records that
-   `parse(src).canon` parenthesises nested `&`/`|` in TS but not
-   in Go; only `unify(src).canon` is contractual. A hash must be
-   scoped to post-unification canon or it diverges by
-   implementation.
+3. **Parse-level canon is outside the shared contract.** *(As first
+   written this blocker said parse-level canon was not in TS/Go
+   parity, citing an AGENTS.md divergence entry. That divergence
+   (#30) is fixed and the entry deleted; parity is pinned by twin
+   tests in both ports.)* The conclusion stands on a corrected
+   footing: no shared spec mode *observes* `parse(src).canon`, so
+   only `unify(src).canon` is contractual, and a hash must be scoped
+   to post-unification canon.
 4. **Evaluation and fetching are fused.** The resolver reads at
    parse time, inside evaluation; a network-fetching resolver
    there would break the hermeticity contract
@@ -465,7 +471,7 @@ is required for v1. Two hooks make the registry more than storage:
 | Hash form misses a semantic feature (as canon misses closedness today) | Medium | High — false "unchanged", the unsafe direction | Per-Val completeness audit as a spec-writing step; scheme id (`aon1-`) so a discovered gap ships as `aon2-` rather than silently re-pinning |
 | G1's new constraint syntax changes canon, invalidating all pins | High | Medium — one-time ecosystem re-pin | Coordinate: hash GA after [G1](g1-constraint-algebra.md)'s canon settles, or bump the scheme id with G1's landing |
 | Single-use trees force an extra evaluation per hash; large closures are slow | Medium | Medium | Content-address the cache by source-byte digest so unchanged inputs never re-evaluate; hash at fetch/publish time, not per eval |
-| Canon round-trip regression from `hcanon` work leaking into `canon` | Low | High — breaks ~426-row contract | `hcanon` is a separate rendering; existing canon/gen/err rows are the regression gate |
+| Canon round-trip regression from `hcanon` work leaking into `canon` | Low | High — breaks the shared-suite contract ([counts: register rule 5](progress.md#the-update-protocol)) | `hcanon` is a separate rendering; existing canon/gen/err rows are the regression gate |
 | Registry/tooling surface overwhelms a small project (CUE's floor-raising lesson) | Medium | Medium | Phase strictly: hash first (useful alone, zero infrastructure), registry later; vendoring works with no registry at all |
 | Dependency confusion / name squatting on domain paths | Low | Medium | Domain-based identity ties names to DNS control; first-segment host mapping; lockfile pins make substitution detectable |
 | Adoption: nobody publishes modules for a small ecosystem | Medium | Medium | The hash is valuable with zero publishers (vendored-copy drift detection, cache keys); inline pins work on gists and single files |
@@ -550,26 +556,30 @@ built is already keyed by the hash the annotation carries. See the
   declare required bindings so the hash covers a closed interface?
   Decided by: how common context-dependent modules prove to be,
   and G5's ruling on `$` bindings as evaluation inputs.
-- **Text versus binary hash encoding.** Hashing UTF-8 canon text is
-  simple and debuggable; Dhall hashes a CBOR encoding to dodge
-  text-escaping ambiguity. The parity suite already forces
-  byte-identical canon text, which argues text is safe — but
-  `JSON.stringify` escaping edge cases (lone surrogates,
-  non-characters) need pinning before the scheme freezes. Decided
-  by: fuzzing the escape space across both implementations in
-  Phase 0.
-- **New spec modes versus native-only tests.** Adding
-  `hcanon`/`hash` modes touches both runners and
-  `docs/shared-spec.md`; testing the rendering only natively would
-  leave the hash outside the cross-language contract — wrong for a
-  feature whose whole point is cross-implementation identity.
-  Decided by: whether the suite format is frozen or versioned.
+- ~~**Text versus binary hash encoding.**~~ **Settled: text.** The
+  landed hash is computed over UTF-8 hash-canon text, with the
+  `aon1-` scheme id in the string and cross-implementation identity
+  pinned by the `hash` spec mode. The one escaping edge the fuzz
+  concern predicted is real and tracked: lone surrogates are
+  DIVERGENCE.md's open entry #24. (The question as posed: Dhall
+  hashes CBOR to dodge text-escaping ambiguity; the parity suite's
+  byte-identical canon argued text is safe.)
+- ~~**New spec modes versus native-only tests.**~~ **Settled: new
+  modes.** `hcanon` and `hash` are shared spec modes run by both
+  runners (their counts live in the register's rule 5), so
+  cross-implementation identity is contractual, as this question
+  said it had to be. (The question as posed: native-only testing
+  would leave the hash outside the cross-language contract.)
 - **Scheme-bump policy when canon evolves.** G1 will extend canon
   with constraint-atom syntax; later features will too. Options: a
   scheme id bump per canon-affecting release, or freezing hash
   scope to a language-version tag recorded in the lockfile.
   Decided by: how often canon actually changes once G1 lands, and
-  registry migration cost per bump.
+  registry migration cost per bump. *(Half settled by landing order:
+  the hash shipped AFTER G1's canon settled, with the scheme id
+  (`aon1`) in the string as the bump mechanism — the register's G6
+  notes record that its own risk row materialised on schedule. The
+  bump cadence itself stays open.)*
 - **Lockfile granularity in monorepos.** One `mod.aon` per
   repository versus per directory-module (CUE allows nesting);
   affects vendoring layout and the resolver's search rules.

@@ -1,7 +1,8 @@
 # Design: the number tower
 
 *Status: **IMPLEMENTED** (August 2026), in both ports, through the
-Phases 0–6 planned below. Direction decided — Aontu mirrors boru's
+phases below — Phases 0–7 as planned plus the unplanned Phase 8,
+which closed #21. Direction decided — Aontu mirrors boru's
 number type structure; this document works out how, and records the
 implications and the places where Aontu must deviate. It builds on
 [number-model.md](number-model.md), whose six rules (R1–R6) each
@@ -141,7 +142,11 @@ biginteger.
 Two boru edges are deliberately not mirrored: `0d-5` evaluates in
 boru only through a text-fallback accident (its own matcher rejects
 it) — Aontu rejects it cleanly, the sign belongs before the prefix
-(`-0d5`); and `0d.5` / bare `0d` are syntax errors in both.
+(`-0d5`); and `0d.5` / bare `0d` are not literals at all. *(As
+landed — and as `docs/reference-language.md` documents — they are
+not syntax ERRORS either: a marker with no digit after it falls
+back to the grammar it always had, so bare `0d` is the string
+`"0d"` and `0d.5` reads as member access on it.)*
 
 Baseline change to pin first: today `0d12` is the bare string
 `"0d12"` in both ports, `0d1.5` is a path-ref error (the `.` splits
@@ -394,7 +399,9 @@ is exact), in canon **and** in the Phase 5 exact-JSON emitter alike,
 since `JSON.stringify` of the same JS number reproduces the 17-digit
 form. That is an engine change, and it is not this phase's.
 
-**RESOLVED — #21 is closed, and the parity ledger is empty.** That
+**RESOLVED — #21 is closed, and this closed the ledger's last
+number entry** (the ledger itself is not empty today: #24, lone
+surrogates, was reopened the same day this landed). That
 engine change landed: `IntegerVal.canon` renders `BigInt(peg).toString()`,
 and `IntegerVal.gen` returns a **`bigint`** for a value past
 `Number.MAX_SAFE_INTEGER` so the exact-JSON emitter writes the exact
@@ -682,7 +689,9 @@ were written in; the amendments record where the plan met the code.
   `Number.MAX_SAFE_INTEGER`, since the emitter cannot recover the kind
   from a JS number). Ten new rows in `number-tower.tsv` pin both routes
   into the window and the values beneath it; `pow53-integer` moves from
-  `gen` to `gens`. This closes #21, **empties the parity ledger**, and
+  `gen` to `gens`. This closes #21 — the ledger's last NUMBER entry,
+  though not its last entry outright (#24, lone surrogates, was
+  reopened the same day) — and
   with D8's `NewInteger` clause landing alongside it, completes the
   tower.
 - **Phase 7 — docs (M).** number-model.md successor section;
@@ -715,7 +724,9 @@ were written in; the amendments record where the plan met the code.
   identity), the endpoint-leaf canon rule, and the lazy-endpoint /
   eager-emptiness ruling are in
   [`docs/reference-language.md`](../reference-language.md#the-constraint-algebra-specified),
-  "The constraint algebra"; draft rows in `test/spec/draft/`.
+  "The constraint algebra"; the once-drafted rows are promoted —
+  `test/spec/constraint-*.tsv` (the draft directory now holds only
+  its README).
 - **Conversion functions.** With cross-leaf unification refused,
   deliberate conversion (`0d5` to integer 5) has no spelling. Boru's
   `convert` + accuracy-mode design is the reference; in Aontu this

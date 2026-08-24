@@ -7,7 +7,16 @@ report can be emitted as SARIF for GitHub code scanning.
 This action lives in the `aontu` repository itself (G2 phase 5 landed
 it here rather than in the separate `aontu-vet-action` repository the
 design sketched, so the action versions in lock-step with the CLI it
-runs). Reference it by subdirectory:
+runs).
+
+> **Not yet runnable from npm.** The action executes
+> `npx aontu@<version> vet`, and no published npm release carries the
+> `vet` verb yet — the newest, `0.52.1` (the default `version`),
+> predates it. The examples below are the intended usage and will
+> work as written once the first post-verb release ships; until then
+> every run, default or pinned, fails at the `vet` invocation.
+
+Reference it by subdirectory:
 
 ```yaml
 jobs:
@@ -48,7 +57,9 @@ jobs:
 Inputs: `schema` (required), `data` (required, whitespace-separated),
 `format` (`text`/`json`/`sarif`), `output-file`, `args` (extra flags,
 e.g. `--at $.services --closed --partial`), `version` (npm version of
-`aontu` to run; the default is pinned to the CLI release this Action
-revision shipped with, so a pinned Action cannot silently acquire a
+`aontu` to run; it must carry the `vet` verb, which no published
+release does yet — see the note above. The pinning intent: the
+default tracks the CLI release this Action revision ships with, so a
+pinned Action cannot silently acquire a
 newer CLI). Output: `exit-code`, the verdict class (0 valid, 1
 invalid, 2 usage, 3 incomplete, 4 schema error).

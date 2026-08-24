@@ -7,6 +7,42 @@ which implementation each change affects.
 
 ## Unreleased — TypeScript 0.53.0 line
 
+### Added — the rest of the capability review (G1 completion, G3–G8)
+
+Everything after `re()` below landed in this line too; this heading
+summarises rather than itemises, and the
+[progress register](docs/capability-review/progress.md) is the
+per-phase record with pins. In both implementations unless noted:
+
+- **Constraint algebra completed** (G1 phases 3–6): `length` and
+  `unique`, cross-field arguments with residuation, the `must`
+  evaluate-only check, and the `lossy_integer_literal` exactness
+  rule.
+- **`aontu vet` completed** (G2 phases 3–6): the CLI verb, the Go
+  port, SARIF and `--watch`, the in-repo `vet-action/`, and
+  multi-error collection.
+- **Subsumption and evolution** (G3): the `subsume` and `breaking`
+  verbs, `$.aontu_policy.compat`, `deprecate()`, the
+  default-validity lint, and `trim --check`.
+- **Identity and relations** (G4): `id()`, `refer()`, the derived
+  entity/edge graph, the bundled `std/system` vocabulary, and
+  `aontu relations`.
+- **The trust profile** (G5): include capability, deterministic
+  `passes`/`depth` budgets, and the include manifest — the
+  capability default flip is still staged for the next major.
+- **Distribution, local half** (G6): the hash form and
+  `aontu hash`, module identity and resolution,
+  `mod tidy`/`mod vendor`/`mod manifest`,
+  and the publish boundary; the two network verbs are not built.
+- **Machine access** (G7): `aontu get`, `why` with the provenance
+  recorder, the overlay `set`, the path-addressed `diff` (API and
+  MCP), the MCP server
+  (TypeScript), the published grammars, `agentsmd`, the skill, and
+  the REPL inspection mode (`--jsonl` still unreachable in the Go
+  CLI — the register's G7.7 records it).
+- **Generation** (G8): `pack`, `each`, `filter`, `match`, the
+  placeholder `_`, and the `|>` pipe.
+
 ### Added — `re()`, pattern membership in the constraint algebra
 
 The constraint algebra gains its sixth atom (capability G1 phase 2).

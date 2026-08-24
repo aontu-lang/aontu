@@ -321,8 +321,13 @@ round: upper(0d1.1)        # -> 2.0        (exact ceiling, kind kept)
 copy:  copy($.web)         # deep copy of another node
 ```
 
-The complete list — `upper`, `lower`, `copy`, `key`, `pref`, `super`,
-`type`, `hide`, `close`, `open`, `move`, `path` — is in the
+Those are drawn from the twelve original functions — `upper`,
+`lower`, `copy`, `key`, `pref`, `super`, `type`, `hide`, `close`,
+`open`, `move`, `path`. The full roster is 28 today: the constraint
+atoms (`min`, `max`, `above`, `below`, `neq`, `re`, `length`,
+`unique`, `must`), `deprecate`, the identity pair (`id`, `refer`)
+and the generators (`pack`, `each`, `filter`, `match`) joined them.
+Every one is in the
 [language reference](reference-language.md#functions).
 
 ## 10. Sealing a shape with `close`

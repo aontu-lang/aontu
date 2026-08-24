@@ -60,10 +60,13 @@ resolves to: e.g. hovering `8080` in `port: 8080` shows `8080` with kind
 concrete values (scalars, kinds, references), not containers.
 
 **Completion** offers a context-free list (clients filter by the typed
-prefix): the twelve built-in functions (`upper`, `lower`, `copy`, `key`,
-`pref`, `super`, `type`, `hide`, `move`, `path`, `close`, `open`), the
-scalar-kind keywords (`string`, `number`, `integer`, `boolean`) and the
-literals (`true`, `false`, `null`, `top`).
+prefix): the built-in functions — the engine's full roster, 28 today,
+the constraint atoms (`min`, `re`, `length`, …), `deprecate`,
+`id`/`refer` and `pack`/`each`/`filter`/`match` included alongside
+the original twelve — the
+scalar-kind keywords (`string`, `number`, `integer`, `float`,
+`biginteger`, `bigdecimal`, `boolean`) and the
+literals (`_`, `true`, `false`, `null`, `top`).
 
 
 ## Architecture: library vs. server

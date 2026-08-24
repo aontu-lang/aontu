@@ -1,4 +1,19 @@
 
+> **Where these sketches went** (marked 2026-08-24; the sketches are
+> older). Several landed via the capability review's
+> [G8](docs/capability-review/g8-generation.md), decided there
+> rather than here: the placeholder `_` ships (`PlaceVal`, in both
+> ports), and `each`/`pack`/`filter`/`match` ship as total
+> combinators. The pipe `|>` ships too, but data-FIRST
+> (`a |> f` is `f(a, ...)`), deliberately deviating from the
+> data-last sketch at the bottom of this file. Custom functions
+> (`def()`, recursion) were explicitly REFUSED by G8's design —
+> termination by construction won. Maths-as-functions and `replace`
+> remain unbuilt sketches; G8 pre-registers the arithmetic
+> semantics without designing them. The function-over-new-tokens
+> principle stated here is cited by the G1 and G4 designs as the
+> rule they followed.
+
 # placeholder argument for functions
 
 allows unification peer to be argument

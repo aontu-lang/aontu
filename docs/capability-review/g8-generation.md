@@ -1,8 +1,8 @@
 # G8: Generation and abstraction, on the total side of the fork
 
-*Status: design proposal — phases 0–3 **landed** (`pack`, `each`,
-`filter`, `match` and the placeholder `_` ship; phase 0's
-defect-fencing half went with G1 phase 0), phase 4 outstanding. Per-phase status is in
+*Status: implemented — all five phases landed in both ports: `pack`,
+`each`, `filter`, `match`, the placeholder `_`, and phase 4's `|>`
+pipe (phase 0's defect-fencing half went with G1 phase 0). Per-phase status is in
 the [progress register](progress.md), which is authoritative for status;
 this document is authoritative for design. Part of the
 [capability review](index.md) (August 2026). This document expands gap
@@ -82,8 +82,9 @@ disagree with itself without any conflict being detected.
 
 What exists is a solid substrate, and most of it is reusable:
 
-- **Twelve builtins, hard-wired.** The parser's `funcMap`
-  (ts/src/lang.ts, ~line 219) maps `upper`, `lower`, `copy`, `key`,
+- **Twelve builtins, hard-wired** — at review time; the roster is 28
+  now, this design's four included. The parser's `funcMap`
+  (ts/src/lang.ts) mapped `upper`, `lower`, `copy`, `key`,
   `type`, `hide`, `move`, `path`, `pref`, `close`, `open`, `super` to
   Val classes. There are no user-defined functions
   (docs/reference-language.md). Adding a combinator is adding a class
@@ -101,9 +102,10 @@ What exists is a solid substrate, and most of it is reusable:
   `spreadClone`, and snapshots path-dependent ref templates
   (`snapshotRefSpread`) so `key()`/`path()` resolve at the
   destination, not the source. This is the most intricate part of the
-  engine, and the most heavily pinned: spread.tsv plus 24
-  spread-*.tsv files — over half of the shared spec suite — are
-  spread variants. Generated children must flow through exactly this
+  engine, and the most heavily pinned: spread.tsv plus its
+  `spread-*.tsv` variant files — over half of the shared spec suite
+  when this was written, still its largest single family. Generated
+  children must flow through exactly this
   machinery.
 - **The strain is visible.** `KeyFuncVal.unify`
   (ts/src/val/KeyFuncVal.ts) special-cased `ctx.cc < 3` to delay
@@ -113,8 +115,10 @@ What exists is a solid substrate, and most of it is reusable:
   replaced it with the staging rule below. Generation will
   multiply the situations where a value must wait for its
   surroundings; an ad-hoc pass-count check does not scale to them.
-- **Bounded fixpoint.** The unify loop runs at most `maxcc = 9`
-  passes (ts/src/unify.ts, with `MAXCYCLE = 999` guarding repeated
+- **Bounded fixpoint.** The unify loop runs a bounded number of
+  passes (ts/src/unify.ts — at review time the constant `maxcc = 9`,
+  since G5 the configurable `budget.passes` defaulting to 9, with
+  `MAXCYCLE = 999` guarding repeated
   node visits). Generators consume passes; the interaction with the
   bound is a design obligation, and the budget story is owned by
   [G5](g5-trust-contract.md).
@@ -253,7 +257,12 @@ on complexity-clock grounds, E on staging grounds.
 Four combinators join `funcMap`. Signatures are data-first (the
 subject reads first, as in `close(x)` and `copy(x)` today), and the
 pipe — if adopted — inserts the piped value as *first* argument,
-Elixir-style. This deviates from the IDEAS.md sketch (data-last,
+Elixir-style. *(One landed exception, the register's G8.4 departure:
+a constraint atom that already BUILT cannot be piped into — an atom
+with a complete argument list folds into a residual at
+construction, and the Go residual keeps no atom to rebuild; the
+refusal is `pipe_target`, pinned by `pipe.tsv:pipe-into-built-atom`.)*
+This deviates from the IDEAS.md sketch (data-last,
 F#-style); the deviation is deliberate: without pipes, data-first
 calls read as "pack these names into this template", and pipes must
 follow the calls, not the reverse.
@@ -585,7 +594,9 @@ published grammars and both LSP literal lists carry it too.
 
 **Phase 4 — `|>` sugar (S, optional). LANDED.** Parse-time
 desugaring only; pipe.tsv's canon rows all show call forms, proving
-canon never emits the token. Files: ts/src/lang.ts, go/lang.go. The
+canon never emits the token. One departure, recorded in the
+register and in the pipe rule above: a built constraint atom cannot
+be piped into (`pipe_target`). Files: ts/src/lang.ts, go/lang.go. The
 drop clause was not exercised: it asked for adoption evidence that
 call nesting is acceptable, and there is none either way for a
 capability that shipped in the same series. What landing it cost was
@@ -601,20 +612,22 @@ combinators.
 
 ## Open questions
 
-- **Keying `pack` over lists of maps.** A list of service *records*
-  (not strings) has no evident key. Options: require a key field by
-  convention (`pack(data, tmpl)` errors unless children carry a
-  designated field), a key-selector argument
-  (`pack(data, keytmpl, tmpl)`), or refuse list-of-maps data and
-  make authors `pack` over the extracted names. Decided by: the
-  Terraform stable-keys lesson (keys must be data, not position)
-  versus keeping the arity small; real model corpora should pick.
+- ~~**Keying `pack` over lists of maps.**~~ **Settled by phase 1:
+  the third option.** A packed list element that is not a string is
+  refused with the registered `pack_key` error, so authors `pack`
+  over extracted names and keys stay data. (The question as posed:
+  a list of service *records* has no evident key — require a key
+  field by convention, add a key-selector argument, or refuse
+  list-of-maps data; the Terraform stable-keys lesson versus arity.)
 - **`_` scoping under nesting.** When a `pack` template contains an
   `each`, which generator's child does an inner `_` bind? Innermost-
   binder lexical scoping is the presumption, but the alternative
   (an explicit depth argument mirroring `key(n)`) is more
-  Aontu-like. Decided by: whether nested-generator models occur in
-  practice before Phase 3 lands.
+  Aontu-like. *(The stated decision criterion — nested-generator
+  models occurring in practice before Phase 3 — expired: Phase 3
+  landed without such models forcing the question, so
+  innermost-binder stands as the shipped presumption and the depth
+  argument remains an open, additive option.)*
 - **What `filter`'s trial observes.** Does `{replicas: *2|integer}`
   in a candidate satisfy `cond` `{replicas: 2}` (default considered)
   or not (only asserted structure counts)? Same question for
@@ -624,13 +637,17 @@ combinators.
 - **Whether generator firings share `maxcc` or get their own budget
   dimension.** Owned by G5; G8's need is only that exhaustion is a
   distinct error. Decided by: measurement on nested-generation
-  fixtures once Phase 1 exists.
-- **`match` result shape.** Is the selected result `v & p_i & r_i`
-  (scrutinee flows into the result, as proposed) or `r_i` alone
-  (pure selection)? The former is more lattice-natural and keeps
-  observed-value guarantees; the latter is easier to explain.
-  Decided by: which one composes with `pack` templates without
-  surprises in the Phase 2 spec drafts.
+  fixtures once Phase 1 exists. *(As landed, G5's budgets are
+  `passes` and `depth`, shared by generator firings, and exhaustion
+  IS the distinct `budget_passes` error — G8's need is met; a
+  dedicated generator dimension remains open on measurement.)*
+- ~~**`match` result shape.**~~ **Settled by phase 2: the result
+  alone.** Exactly as this question's decision criterion predicted,
+  the Phase 2 drafts decided it — under `v & p_i & r_i` every arm
+  whose result is not itself a `v` is a contradiction — and the
+  match section above records the correction in place. (The
+  question as posed: scrutinee-flows-into-result is more
+  lattice-natural; pure selection is easier to explain.)
 - **`def()` revisit criteria.** Reopen only if (a) real models show
   named templates plus `_` failing to express a recurring
   abstraction, and (b) the proposed `def()` remains checkably

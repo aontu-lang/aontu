@@ -35,6 +35,14 @@ Tooling:
   (TypeScript and Go), how to wire it into an editor, and the reusable
   LSP library API.
 
+For agents:
+
+- [The Aontu skill](skill/SKILL.md) — an agent-facing teaching pack:
+  the [grammar card](skill/grammar-card.md), a
+  [worked example ladder](skill/examples.md) whose documents the test
+  suite executes, and the [error-code index](skill/error-codes.md).
+  The `aontu agentsmd` verb generates the matching AGENTS.md stanza.
+
 Contract:
 
 - [The trust contract](trust.md) — hermeticity, termination,
@@ -53,15 +61,18 @@ Design notes (deeper analyses of specific behaviours and known defects)
 live in [`design/`](design/):
 
 - [Colon-chain nested `@"file"` import](design/nested-import-colon-chain.md)
-  — a Go-port parity defect (and its workaround) where a colon-chain
-  imported value is dropped.
-- [The number model](design/number-model.md) — two numeric kinds over
-  one IEEE-754 representation: how a literal is classified, how kind
-  travels through operators and canon, and the edges that remain.
-- [The number tower](design/number-tower.md) — *design proposal*:
-  mirroring boru's four-leaf number structure (`integer`, `float`,
+  — a since-resolved Go-port parity defect (fixed upstream in
+  `@tabnas/multisource/go`) where a colon-chain imported value was
+  dropped.
+- [The number model](design/number-model.md) — how a numeric literal
+  is classified and how kind travels through operators and canon:
+  the pre-tower record, its rounding edges since reversed by the
+  tower's exactness rule.
+- [The number tower](design/number-tower.md) — *implemented*:
+  boru's four-leaf number structure mirrored (`integer`, `float`,
   `biginteger`, `bigdecimal` under a pure-supertype `number`), the
-  `0d` exact literals, and where a unification lattice forces
+  `0d` exact literals, the `lossy_integer_literal` exactness error,
+  and where a unification lattice forces
   deviations from boru.
 
 Forward-looking design work lives in

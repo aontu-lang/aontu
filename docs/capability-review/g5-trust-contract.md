@@ -362,17 +362,24 @@ const aontu = new Aontu({
     include: { root: '/models' },
     budget: {
       passes: 9,        // fixpoint passes (today's maxcc, reified)
-      revisits: 999,    // per-pair revisit bound (today's MAXCYCLE)
-      depth: 512,       // structural recursion depth
+      depth: 1000,      // structural recursion depth
+      // (revisits — today's MAXCYCLE — stayed INTERNAL as landed,
+      // fixed at its spec constant: the Go port has no revisit
+      // counter to configure, so exposing it would be one-port
+      // surface. Depth landed at 1000, not this sketch's 512; the
+      // register records both departures.)
     },
   },
 })
 ```
 
 Go mirrors this on `aontu.Options` (go/aontu.go), with the honest
-parity note made explicit: Go's `system` capability is file-only
-today (go/source.go has no package leg), so `system` in Go equals
-`root: '/'` semantics. The profile makes the asymmetry visible
+parity note made explicit: at review time Go's `system` capability
+was file-only; the landed chain in both ports is memory → module
+([G6](g6-distribution.md)) → filesystem, and the package leg —
+`require()` resolution — remains TypeScript's alone, so `system` in
+Go still ends at the filesystem. The profile makes the asymmetry
+visible
 instead of accidental.
 
 Budgets are configurable-but-deterministic: integer counts of engine
@@ -416,10 +423,13 @@ semantic reference error. An agent can therefore branch: class
 `budget` → retry with a raised budget or restructure; `path_cycle` →
 the model is wrong; `no_path` → the model is incomplete.
 
-`budget.passes` keeps its default of 9 initially: the value is
-load-bearing (ts/src/val/KeyFuncVal.ts defers until `ctx.cc >= 3`),
-so reifying the bound and erroring distinctly is Phase 2; raising
-the default is a separate, spec-guarded decision (Open questions).
+`budget.passes` keeps its default of 9 initially: the value was
+load-bearing when this was written (ts/src/val/KeyFuncVal.ts
+deferred until `ctx.cc >= 3` — a pass-count hack
+[G8](g8-generation.md)'s phase 0 has since replaced with the staging
+rule, so the pass INDEX is no longer semantic), so reifying the
+bound and erroring distinctly is Phase 2; raising the default is a
+separate, spec-guarded decision (Open questions).
 
 ### Determinism, pinned
 
@@ -471,17 +481,22 @@ is currently empty.
   runners by definition), and each entry must name a tracking issue,
   a reason it is not simply fixed, and both engines' outputs. Its
   normal state is empty; a non-empty ledger is a standing review
-  item, not a settled fact. Its two current entries — upper-case
-  base prefixes, and integer-kind rendering above 2^53 — are each a
-  tracked bug. The ledger's value is negative: it stops a divergence
+  item, not a settled fact. *(The two entries it carried at review
+  time — upper-case base prefixes, and integer-kind rendering above
+  2^53 — were both fixed by the number tower; today it carries one
+  OPEN entry, #24, lone surrogates.)* The ledger's value is
+  negative: it stops a divergence
   being rediscovered, and stops anyone baselining one engine's
   output as the shared contract by accident.
 - **Single-use trees as API contract**: the mutation caveat moves
   from code comment to docs/reference-api.md as a named rule
-  ("evaluation consumes the tree"), with a debug-mode guard (a
-  consumed flag checked at `unify` entry, raising `reused_tree`) so
-  violations fail loudly instead of nondeterministically. Debug-only
-  keeps it off the measured hot path.
+  ("evaluation consumes the tree"). *(Half landed. The named rule is
+  in docs/reference-api.md; the debug-mode guard this bullet also
+  designed — a consumed flag checked at `unify` entry, raising
+  `reused_tree` — was NOT built: no such flag or error code exists
+  in either port, and the register's G5 notes record the gap as
+  deliberate rather than silently dropped. Single-use discipline
+  remains a documented caveat only.)*
 
 ### Hermeticity, tested
 
@@ -586,7 +601,7 @@ remote resolver — so the ecosystem never has a permissive interlude:
 | Risk | Likelihood | Impact | Mitigation |
 |------|------------|--------|------------|
 | Default flip breaks CLI/library users relying on `@"pkg"` or parent-relative includes | High | Medium | Warning window that prints the exact future-required flag on every escaping resolution; entry-root default keeps relative-include projects working; `--trust system` remains |
-| Reifying the pass budget perturbs existing models (pass index is semantic: KeyFuncVal `cc >= 3` hack) | Medium | High | `budget.passes` default stays 9; all 527 shared spec rows must pass unchanged before and after; KeyFuncVal behaviour pinned by spec rows prior to any change |
+| Reifying the pass budget perturbs existing models (the pass index was semantic until G8.0 replaced KeyFuncVal's `cc >= 3` hack with staging) | Medium | High | `budget.passes` default stays 9; every shared spec row (counts: [register rule 5](progress.md#the-update-protocol)) must pass unchanged before and after; KeyFuncVal behaviour pinned by spec rows prior to any change |
 | `unify_cycle` false-positive fix changes which large models error | Medium | Medium | Fix lands behind the distinct code with a generated-SDK-scale row corpus; both implementations run the corpus with no skip list |
 | Byte-pinning `gens` exposes latent TS/Go serialisation divergence (numbers, escaping) | Medium | Medium | Go already mirrors `Number.toString` (go/scalar_format_test.go); introduce `gens` rows incrementally, numbers first; divergences become fixes, not suite carve-outs |
 | Root-confinement path handling diverges across OS/implementations (symlinks, case, realpath) | Medium | High | Confinement = realpath then prefix check, specified in docs/trust.md; include-trust.tsv exercises traversal and symlink escapes; Windows caveats documented |
@@ -670,9 +685,10 @@ in the implementation, never carved out of the suite. `deps` manifest
 wired (ts/src/lang.ts → ts/src/aontu.ts; go/lang.go) and documented.
 
 *(As landed, with two deliberate departures from the text above.
-**No `gens.tsv`**: the 257 byte-exact rows live beside the behaviour
-they pin — 125 in `edge.tsv`, 60 in `number-tower.tsv`, the rest
-across ten more topic files — because a single bucket separates a
+**No `gens.tsv`**: the byte-exact rows — 257 at landing, 125 of them
+in `edge.tsv` and 60 in `number-tower.tsv`, with the current count
+in [the register's rule 5](progress.md#the-update-protocol) — live
+beside the behaviour they pin, because a single bucket separates a
 serialisation expectation from the semantics it belongs to, and the
 number tower's exactness rows are unreadable apart from their
 `canon` twins. **Repeatability is a runner property, not rows**: both
@@ -698,18 +714,22 @@ implementation.
   versus process cwd (broader, but surprising when invoked from
   elsewhere). The warning-window feedback decides; the flag names
   must not change afterwards.
-- **Whether `budget_passes` advice names the remedy.** An error that
-  says "raise `--budget-passes`" repairs agent loops faster (G2's
-  admissible-alternatives finding) but invites cargo-cult budget
-  inflation that hides genuine non-convergence. Possibly: name the
-  flag only when the residue shrank on the final pass (still
-  converging), not when it was stable (likely a true cycle).
+- ~~**Whether `budget_passes` advice names the remedy.**~~
+  **Settled by the landed hint text: explain, never prescribe.** The
+  shipped message states the semantics unconditionally — "raising
+  the budget helps only a model that is still converging — a genuine
+  cycle never converges at any budget" — and names no flag, so the
+  cargo-cult risk is answered without the residue-shrink conditional
+  this question floated. (The question as posed: an error that says
+  "raise `--budget-passes`" repairs agent loops faster but invites
+  budget inflation that hides genuine non-convergence.)
 - **Raising the default pass budget.** 9 is historical
   (`maxcc = 9 // 99` in ts/src/unify.ts suggests it was once
   higher); a larger default plus the distinct error may serve big
-  models better. Requires the Phase 2 corpus first, and a decision
-  on whether KeyFuncVal's `cc >= 3` hack is replaced (residuation,
-  per the survey) or preserved bit-for-bit.
+  models better. Requires the Phase 2 corpus first. *(Half of the
+  question is gone: KeyFuncVal's `cc >= 3` hack WAS replaced, by
+  G8.0's staging rule, so the pass index is no longer semantic and a
+  raise is now purely a budget decision — still open.)*
 - **Does the hermeticity tuple include evaluator version?** Clause 1
   currently says yes (canon can legitimately change between
   versions), which makes cross-version caching unsound by contract.

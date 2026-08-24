@@ -16,7 +16,10 @@ defect. Sibling documents own adjacent surfaces — see
 ## Problem
 
 Today "type safety through unification" cashes out as five scalar
-kinds (`string`, `number`, `integer`, `boolean`, `top`), literal
+kinds (`string`, `number`, `integer`, `boolean`, `top` — five at
+review time; the number tower has since made `number` a pure
+supertype over four leaves, adding `float`, `biginteger` and
+`bigdecimal` — `docs/design/number-tower.md`), literal
 equality, disjunction-enums, and closedness. That is not enough to
 reject the most common class of wrong output an agent produces:
 values that are *type-safe but wrong*. Consider the best a
@@ -75,7 +78,9 @@ implementations use IEEE-754 double number semantics, so
 value is 18446744073709551615. An int64-scale quantity (memory
 bytes, a large ID) is silently corrupted by the ground truth that
 is supposed to guarantee it. This document decides and bounds that
-defect.
+defect. *(Phase 6 has since removed it: that row is now
+`hex-big-err`, and the silent corruption is a located refusal —
+see [Numbers](#numbers-decide-and-bound-the-defect).)*
 
 Finally, the deepest reason this gap leads the review's sequencing:
 only a *symbolic* algebra can detect that a composed schema is
@@ -118,12 +123,14 @@ missing:
   `OpBaseVal` (`ts/src/val/PlusOpVal.ts`, `ts/src/val/OpBaseVal.ts`)
   computes only when both operands are concrete; otherwise it
   re-wraps itself in a conjunct and is retried on later fixpoint
-  passes (bounded by `maxcc = 9` in `ts/src/unify.ts`).
+  passes (bounded at review time by `maxcc = 9` in `ts/src/unify.ts`;
+  the bound is now G5's `budget.passes`, default 9).
   `FuncBaseVal` (`ts/src/val/FuncBaseVal.ts`) has the same defer
   branch. These are embryonic, ad-hoc residuation — the design
   below formalises them.
 - **Functions as the extension idiom.** *(Written before this gap's
-  own work; the count is now 21. At review time)* the parser's
+  own work; the count is now 28 — the nine atoms below plus seven
+  that G3, G4 and G8 added after them. At review time)* the parser's
   `funcMap` (`ts/src/lang.ts`) held exactly 12 builtins — `upper`,
   `lower`, `copy`, `key`, `type`, `hide`, `move`, `path`, `pref`,
   `close`, `open`, `super` — mirrored in `go/func.go`. The nine atoms
@@ -145,7 +152,7 @@ missing:
   canon path adds a `.0` suffix to number-kind values so canon
   round-trips kind. The model and the six rules that make it well
   defined are recorded in `docs/design/number-model.md` and pinned by
-  the 101 rows of `test/spec/number-model.tsv`.
+  `test/spec/number-model.tsv`.
 
 Structurally blocking: there is no `Val` kind that can represent a
 residual scalar predicate; there is no regex anywhere in the
@@ -341,7 +348,9 @@ a: integer & max(10) & min(0) & min(2)
 after `ConjunctVal` (40000) so flattening happens first, before the
 default band (99999) where concrete values live. Constraint atoms
 therefore cluster adjacently in `ConjunctVal.norm` and fold into a
-single normalised residual before meeting the concrete term. Ties
+single normalised residual before meeting the concrete term. *(As
+landed, three atoms are exceptions: `length`, `unique` and `must`
+fold LAST, at `LATE_CJO` = 150000 — see phases 3 and 5 below.)* Ties
 never depend on sort stability: normalisation, not ordering, defines
 the result — but the Go port must still use a stable sort
 (`sort.SliceStable`) in `go/conjunct.go` to keep canon output
@@ -356,7 +365,12 @@ constraints stay symbolic until data arrives. The known
 must not be worsened: spec rows pin generation for
 constraint-bearing disjuncts (`*8080 | min(1024)` generates `8080`)
 before any code lands, and the fold is guarded against conjoining a
-residual constraint into a chosen branch.
+residual constraint into a chosen branch. *(A known limit of
+phase 1, recorded in the register: only that disjunct form resolves
+a preference against a constraint — the conjunct form
+`min(1024) & *8080` does NOT yet resolve to the default. The
+comment above `constraint-bound.tsv:bound-pref-disjunct` keeps the
+note.)*
 
 ### Residuation and cross-field bounds
 
@@ -369,9 +383,11 @@ ever suspend or intersect (never force evaluation), evaluation
 order cannot change results. In the `scaling.aon` example from the
 [Problem](#problem) section, `target` residuates until `floor` and
 `ceiling` are concrete, then normalises to `integer&min(2)&max(10)`.
-The pass bound remains `maxcc = 9` (`ts/src/unify.ts`); whether
-exhaustion with live residuals becomes a distinct semantic error is
-owned by [G5](g5-trust-contract.md). A residual that survives to
+The pass bound is now [G5](g5-trust-contract.md)'s budget
+(`uctx.budget.passes`, default 9 — `ts/src/ctx.ts`), and the
+question this text once deferred to G5 is settled: exhaustion with
+live residuals raises the registered `budget_passes` error, in both
+ports. A residual that survives to
 generation is an error, exactly like an unresolved kind today.
 
 ### Band B: `must`
@@ -410,25 +426,30 @@ residual's canon, which IS the admissible interval/exclusion set — and
 `actual`, the peer's canon, byte-identical in both ports. Per-atom
 attribution ("which atom rejected it") is **not** carried: when several
 atoms are unsatisfied there is no single failing one, and picking a
-representative is a report-shaping decision. It is therefore deferred
-to G2 phase 2, where the finding object is designed and the choice can
-be made once for every code rather than guessed here. `must` messages
-arrive with phase 5.)*
+representative is a report-shaping decision. It was therefore deferred
+to G2 phase 2, whose finding object has since landed carrying
+`expected`, `actual` and `note` — and still no per-atom attribution;
+the register's G2 phase-2 departures record the choice. `must`
+messages arrived with phase 5.)*
 
 ### Numbers: decide and bound the defect
 
 Decision: Aontu **keeps IEEE-754 double semantics** — and removes
-the *silent* part of the defect. An integer-kind literal whose
+the *silent* part of the defect. An integer-source literal whose
 double representation is not exact becomes a located parse-time
-error (`lossy integer literal`) instead of rounding. Number-kind
-literals are untouched: approximation is expected of `number`. The
+error (`lossy_integer_literal`) instead of rounding. As landed the
+check binds integer-SOURCE literals of any kind — plain digits, a
+base-prefixed run, a non-negative exponent — not integer-kind
+literals only, which is broader than this paragraph first said;
+float-source literals (a `.` or a negative exponent in the text)
+are untouched, because approximation is what they ask for. The
 language contract becomes explicit: integers are exact in
 [−2^53, 2^53]; the bounds algebra compares exactly within that
 range; outside it, the definition refuses to pretend.
 
 **The contract is now welded to the kind rule, not advisory.** Since
 this document was drafted the number model has landed
-(`docs/design/number-model.md`, pinned by the 101 rows of
+(`docs/design/number-model.md`, pinned by
 `test/spec/number-model.tsv`), and its first rule decides exactly
 which literals the exactness contract binds. A numeric literal is
 integer kind if and only if its source text contains no `.`, its
@@ -445,18 +466,24 @@ before the rule landed, `a: 1e21 & integer` succeeded in TypeScript
 and failed in Go — a silent, magnitude-dependent parity break in the
 very stratum the bounds algebra will compare over.
 
-The rule also relocates this design's remaining work.
+The rule was expected to bound this design's remaining work, and
+phase 6 landed past that bound — the plan's phase-6 entry records
+the departure. This paragraph originally reasoned that
 `0xffffffffffffffff`, `0x10000000000000000000000000000000` and
-`100000000000000000000` all sit outside the int64 window, so they
-are *number* kind, and the lossy-literal error does not reach them
-at all — approximation is what `number` promises, and their
-`test/spec/scalar.tsv` rows stand. What is left for Phase 6 is the
-band the kind rule deliberately admits: integer-kind literals in
+`100000000000000000000` sit outside the int64 window, are therefore
+*number* kind, and stay untouched — approximation being what
+`number` promises. As landed, exactness is checked wherever the
+SOURCE is integer-shaped, whatever the kind: `0xffffffffffffffff`
+(2^64−1, not exactly representable) is now the located error pinned
+by `scalar.tsv:hex-big-err`, while the other two literals stand as
+values only because each happens to be exactly representable in
+binary64. The band the kind rule admits — integer-kind literals in
 (2^53, 2^63), in range yet already rounded before any rule sees
-them. The suite pins that band as agreed-but-wrong behaviour in one
-row — `number-model.tsv`, `lossy-above-pow53`, where
-`x:9007199254740993` generates `9007199254740992` in both ports.
-Phase 6 is what turns that row loud.
+them — was the motivating case: the suite pinned it as
+agreed-but-wrong behaviour in `number-model.tsv:lossy-above-pow53`,
+where `x:9007199254740993` generated `9007199254740992` in both
+ports. That row is now `lossy-above-pow53-err`: phase 6 turned it
+loud, exactly as intended here, just over a wider band.
 
 **Canon now round-trips kind, which this design depends on more than
 the original text admitted.** Residual constraint atoms must survive
@@ -518,12 +545,12 @@ something worth exposing.
   changing the meaning, the value, or the canon of any literal
   already written. That property is why refusing the migration now
   costs nothing later — the refusal is a decision not to widen the
-  default number, not a decision against exactness. *(Since decided:
-  the opt-in tower is being adopted —
-  `docs/design/number-tower.md`. The boundary holds as stated: the
-  default kinds are not migrated, exactness arrives as new opt-in
-  leaves, and this document's bound atoms gain a cross-leaf ordering
-  question recorded in that proposal's open questions.)*
+  default number, not a decision against exactness. *(Since landed:
+  the opt-in tower shipped — `docs/design/number-tower.md`. The
+  boundary holds as stated: the default kinds are not migrated and
+  exactness arrives as new opt-in leaves; the cross-leaf ordering
+  this document's bound atoms needed is ruled in
+  `docs/reference-language.md`, "Bounds and the number tower".)*
 - **No time/format/net validator library.** That is the later
   stdlib stratum in CUE's demand ordering, and its hermeticity
   questions belong to [G5](g5-trust-contract.md).
@@ -556,9 +583,11 @@ something worth exposing.
 
 Every phase is spec-first: TSV rows are authored and reviewed before
 any implementation, TypeScript (canonical) lands first, the Go port
-follows, and `make test` runs both. Nothing may regress: all 527
-rows of the shared suite (46 row-bearing files;
-`test/spec/divergent.tsv` is the parity ledger and carries none)
+follows, and `make test` runs both. Nothing may regress: every row
+of the shared suite — its size lives with the suite counts in the
+register's [protocol rule 5](progress.md#the-update-protocol);
+`test/spec/divergent.tsv` is the parity-debt ledger, empty at this
+writing and carrying one OPEN entry (#24, lone surrogates) today —
 except the single row Phase 6 deliberately amends, and the canon
 round-trip property throughout.
 
@@ -567,7 +596,8 @@ and in G2/G5 as `parse(canon(v)) == v`, which is too strong and was
 enforced by nothing. Canon deliberately preserves unevaluated ghost
 applications — `key()`, `pref(…)`, an unexpanded `&:` template — so
 reparsing a canon runs one more evaluation round and legitimately
-resolves them; 15 of the 491 canon rows move on that first reparse.
+resolves them; at the time of this correction, 15 of the suite's
+canon rows moved on that first reparse.
 The property that does hold for every row, and is now asserted by both
 spec runners, is CONVERGENCE: canon reaches a fixpoint immediately
 after that round, so it can never oscillate or drift. Constraint
@@ -616,12 +646,20 @@ which is fixed: it now canons as `top`, and no row is exempt.)*
    in Go": Go's RE2 refuses some non-portable constructs but ACCEPTS
    others JavaScript reads differently — `(?P<n>` versus `(?<n>`,
    `\x{41}` versus `A`, `\p{L}` which JavaScript silently reads
-   as a literal `p` without the `u` flag. So the subset is one shared
-   syntactic scanner (`nonPortableRe`) mirrored in both ports and run
-   BEFORE either host engine compiles, with the host's own compile
-   failure folded into the same refusal. It is a whitelist where the
-   spellings diverge — `(?` opens only `(?:` — because a blacklist
-   admits the next divergence silently. Second, refusal needed its own
+   as a literal `p` without the `u` flag. So the subset became one
+   shared syntactic scanner mirrored in both ports and run BEFORE
+   either host engine compiles, with the host's own compile failure
+   folded into the same refusal — first as a whitelist, then, after
+   three leaks in one day proved that any blacklisted axis admits
+   the next divergence by construction, replaced outright by
+   normalisation under
+   [ADR-003](../../ADR.md#adr-003--host-provided-semantics-are-normalised-not-trusted):
+   `normaliseRe`, statement-for-statement identical in both ports,
+   rewrites the constructs the hosts read differently (`\d`, `\s`,
+   `.`, `\A`, `\z`, …) before either engine compiles, and refusal is
+   reserved for what has no rewrite (backreferences, lookaround) and
+   for complexity. The register's phase-2 notes carry the full
+   story. Second, refusal needed its own
    registered code, `constraint_pattern` (class conflict): phase 1's
    one-code-for-the-family rule would have given the atom's most likely
    authoring mistake a generic message. The reason text is a fixed
@@ -683,9 +721,27 @@ which is fixed: it now canons as `top`, and no row is exempt.)*
    forward references and spread interplay (`&:` templates carrying
    bounds onto children — the existing `spread-*.tsv` files must
    pass unchanged); fixpoint behaviour rows at the `maxcc` boundary.
+   *(Since done — by first unblocking itself. Writing the rows
+   unmasked a family of func-paren comma-group parser defects across
+   both ports, fixed here and upstream in `@tabnas/expr` 0.5.4
+   (PR #56) and pinned by the `neq-comma-*`, `min-expr-arg-*` and
+   `neq-ref-*` rows in `constraint-bound.tsv`; and the probe found
+   two Go-only siting defects — `setPaths` had no `ConstraintVal`
+   arm, and the fold's re-wrap was pathless — now pinned by the
+   `-sited` rows in `constraint-cross.tsv`. The register's phase-4
+   row carries the detail.)*
 6. **Phase 5 — `must` (S).** Wrapper Val, message plumbed into
    `NilVal.details`; rows asserting evaluate-only reporting; the
    report rendering itself waits for G2.
+   *(Since done, with two departures the register records: `must`
+   joined — and generalised — the sizing atoms' late fold
+   (`LATE_CJO`), checking the FINISHED value against a clone so the
+   check reports without contributing; Go's fold was missing the
+   `must` arm entirely, which the `must-folds-last` rows in
+   `constraint-must.tsv` now pin. And an effectful argument —
+   `move()` resolves against the live root — is refused at
+   construction, a policy the sibling atoms already had;
+   `must-move-arg*` pins it.)*
 7. **Phase 6 — number exactness (S).** Lossy-integer-literal error
    beside `isIntegerKind` in `ts/src/lang.ts` and `go/lang.go`: a
    literal that passes the integer-kind test but whose value is not
@@ -712,7 +768,9 @@ applied to the language itself.
   agent emissions observed in the wild. Against: grammar budget,
   two spellings, the op-chars reservation policy. Decide after G7
   publishes the grammar and real usage shows how often the hint
-  fires.
+  fires. *(G7 has since published the grammar — `grammar/aontu.gbnf`,
+  `grammar/aontu.lark` — so the first precondition is met; the
+  question stays open on the second, real usage data.)*
 - ~~**String length semantics.**~~ **Decided by phase 0, and
   implemented: Unicode code points**, in both ports, pinned by the
   astral-plane rows in `test/spec/constraint-length.tsv`.
@@ -734,9 +792,17 @@ applied to the language itself.
   `docs/reference-language.md`, "`unique` semantics". What remains open
   is uniqueness by KEY ("no two services share a port"), which needs a
   projection and so drags in G8's combinator questions. Deferred, arity
-  reserved.
-- **How much admissible-set detail travels in `NilVal.details`.**
-  Repair-loop evidence says admissible alternatives drive agent
-  self-correction; the exact shape (interval endpoints? nearest
-  admissible value?) should be settled jointly with G2's report
-  schema so the data is produced once, correctly.
+  reserved. *(G8's combinators have since landed — `pack`, `each`,
+  `filter`, `match` — without a projection form, so the deferral
+  stands on its own terms: still open, arity still reserved.)*
+- ~~**How much admissible-set detail travels in `NilVal.details`.**~~
+  **Settled with G2 phase 2, as this question asked it to be:** the
+  finding object carries `expected` (the residual's canon — which IS
+  the admissible set) and `actual` (the peer's canon), plus `note`
+  for `must` messages; per-atom attribution and nearest-value
+  suggestions were considered and not carried — the register's G2
+  phase-2 departures record the choice.
+  (The question as posed: repair-loop evidence says admissible
+  alternatives drive agent self-correction; the exact shape should
+  be settled jointly with G2's report schema so the data is produced
+  once, correctly.)

@@ -99,8 +99,10 @@ equivalent in CUE:
   research upgrades this from a convenience to an economic asset: it is
   the seed of semantic hashing (G6), semantic diff, and
   prompt-cache-stable serialisation.
-- **Dual TS + Go implementations with the TSV spec contract** — 45 spec
-  files, ~426 rows, run identically by both. The suite is itself a
+- **Dual TS + Go implementations with the TSV spec contract** — a
+  shared suite (45 files, ~426 rows at review time; current counts
+  live in the [progress register](progress.md#the-update-protocol),
+  rule 5) run identically by both. The suite is itself a
   machine-readable ground truth an LLM can be taught from, and the
   parity method (spec rows first, both implementations follow) is
   exactly how every capability below should land.
@@ -329,29 +331,37 @@ delivered surface found.
 ## Verified codebase facts referenced by the design documents
 
 Checked against this repository at review time (TS v0.49.0 line).
-**Four of these have since moved — the review's own work changed them
+**Several have since moved — the review's own work changed them
 — and are marked inline; the rest still hold as written.**
 
-- ~~Exactly 12 builtin functions~~ **now 17**, hard-wired in the
-  parser's `funcMap` (`ts/src/lang.ts`): `upper`, `lower`, `copy`,
-  `key`, `type`, `hide`, `move`, `path`, `pref`, `close`, `open`,
-  `super`, plus G1 phase 1's Band A atoms `min`, `max`, `above`,
-  `below`, `neq`. (`ExpectVal` is internal spread-required machinery,
-  not a user-callable function.)
+- ~~Exactly 12 builtin functions~~ **now 28** — this correction
+  itself rotted once, reading "17" for three days after G1's later
+  atoms, G3's `deprecate`, G4's `id`/`refer` and G8's four
+  combinators had landed. Hard-wired in the parser's `funcMap`
+  (`ts/src/lang.ts`): the original twelve — `upper`, `lower`,
+  `copy`, `key`, `type`, `hide`, `move`, `path`, `pref`, `close`,
+  `open`, `super` — plus G1's nine constraint atoms, `deprecate`,
+  `id`, `refer`, and `pack`/`each`/`filter`/`match`. (`ExpectVal` is
+  internal spread-required machinery, not a user-callable function.)
 - Scalar constraints are kind-only; `a: number > 0` fails to parse
   (verified by running the CLI). **Still true as written — there is no
   operator sugar — but bounds themselves now exist in function form
   (`a: number & min(0)`), so the underlying gap is partly closed.**
 - ~~45 shared spec files (~426 rows; modes `canon`/`gen`/`err`)~~
-  **the suite has grown by roughly 4.5× and gained three modes**; the
+  **the suite has grown roughly sevenfold and its three modes are
+  eighteen**; the
   Go runner executes every row with no skip list. Counts move with
   every capability phase, so they are kept in one place with their
   reproduction commands — see the
-  [progress register](progress.md#the-update-protocol), rule 5. Several
-  gap documents froze a count into a "nothing may regress" clause and
-  are now stale by 1,400-odd rows.
-- The fixpoint is bounded at `maxcc = 9` passes (`ts/src/unify.ts`);
-  `MAXCYCLE = 999`.
+  [progress register](progress.md#the-update-protocol), rule 5. (All
+  eight gap documents once froze a count into a "nothing may
+  regress" clause; each now links rule 5 instead.)
+- ~~The fixpoint is bounded at `maxcc = 9` passes
+  (`ts/src/unify.ts`); `MAXCYCLE = 999`.~~ **Both constants are now
+  G5 budgets**: the pass bound is the configurable `budget.passes`
+  (default 9) and the revisit bound stays an internal spec constant,
+  with a `depth` budget (default 1000) beside them — see
+  `docs/trust.md`.
 - The resolver security posture is documented in code
   (`ts/src/lang.ts`, "treat opening an untrusted source as running
   it").

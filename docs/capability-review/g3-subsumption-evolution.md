@@ -1,8 +1,8 @@
 # G3: Subsumption as a first-class query; schema evolution
 
-*Status: design proposal — all seven phases (the rules, the recursion,
+*Status: implemented — all seven phases (the rules, the recursion,
 the Go port, the CLI verbs, the deprecation mark, the default-validity
-lint, the trim reporter) are implemented. Per-phase status and the
+lint, the trim reporter) landed in both ports. Per-phase status and the
 corrections this document needs are in the
 [progress register](progress.md), which is authoritative for status;
 this document is authoritative for design. Part of the
@@ -132,14 +132,20 @@ The ordering exists operationally; the relation does not.
   already reasons with it: `superpeg = this.peg.superior()`
   (`ts/src/val/PrefVal.ts`), so a preference admits any peer that is
   an instance of the preferred value's generalisation — one place
-  where the engine natively asks an instance-of question.
-- **The `super()` builtin is degenerate and unpinned.**
-  `docs/reference-language.md` documents `super(1)` → `number`, but
-  `SuperFuncVal.resolve` (`ts/src/val/SuperFuncVal.ts`) returns
-  `this.superior()`, which falls through to `FeatureVal`'s `top`;
-  verified live, `a:super(1)` canonicalises to `{"a":top}` in Go, and
-  the TS code path is the same. No spec row mentions `super` at all.
-  The builtin is reserved surface this design can re-found.
+  where the engine natively asks an instance-of question. *(Since
+  the number tower, `PrefVal` carries two yardsticks — `superpeg`
+  and `familypeg`, assigned by `resuper()` — the register's G3 notes
+  record why.)*
+- **The `super()` builtin was degenerate and unpinned** — at review
+  time. `docs/reference-language.md` documented `super(1)` → `number`,
+  but `SuperFuncVal.resolve` returned `this.superior()`, which fell
+  through to `FeatureVal`'s `top`; no spec row mentioned `super` at
+  all. The builtin was reserved surface this design could re-found —
+  and phase 1 re-founded it: `super(x)` now computes the kind
+  generalisation the reference always promised, spec rows pin it,
+  and the register's G3 notes record the correction (the claim above
+  is kept for the design history it motivates, and is no longer
+  true).
 - **Defaults are rich and fragile.** `PrefVal` carries an integer
   `rank` (`**` outranks `*`); `DisjunctVal.rankPrefs` merges
   equal-rank preferences and drops outranked ones; `test/spec/pref.tsv`
@@ -304,11 +310,14 @@ deliverable in `docs/reference-language.md`):
   the witness, else `undecided` (`sub_disjunct_distribution`).
 - **Preferences.** Under `values`, a preference is its superior for
   admission (the existing `PrefVal.superpeg` semantics). Under
-  `defaults`, the *effective default* of each side — computed by the
-  existing `rankPrefs` merge, not reimplemented — must additionally
+  `defaults`, the *effective default* of each side must additionally
   agree: adding a default where none existed is compatible; changing
   or removing one is not (removal turns previously generable
-  documents incomplete).
+  documents incomplete). *(As landed the extraction is
+  `effectiveDefault` in `ts/src/subsume.ts` — its own walk, not the
+  `rankPrefs` reuse this bullet designed; the register records the
+  departure. A side whose effective default cannot be determined is
+  `undecided` with reason `sub_default_indeterminate`.)*
 - **Marks.** Ignored under `values` and `defaults`. Under `gen`,
   changing `type`/`hide` on a field the old version emitted is a
   finding, because generated output changes.
@@ -318,10 +327,16 @@ deliverable in `docs/reference-language.md`):
   equality only); G1's evaluate-only residue (`must`) surfaces here
   as `undecided` (`sub_evaluate_only`).
 - **Unresolved residue.** References, functions, conjuncts, or
-  operators surviving evaluation are `undecided` with the specific
-  reason (`sub_unresolved_ref`, `sub_unresolved_func`); budget
-  exhaustion is `undecided` (`sub_budget`), with budget semantics
-  owned by [G5](g5-trust-contract.md).
+  operators surviving evaluation are `undecided`. *(As landed there
+  is one code for the family, `sub_unresolved` — not the
+  `sub_unresolved_ref`/`sub_unresolved_func` split designed here —
+  and no `sub_budget`: exhaustion surfaces as the evaluation's own
+  `budget_passes` error before the recursion runs, budget semantics
+  being [G5](g5-trust-contract.md)'s. The registered undecided
+  reasons are `sub_unresolved`, `sub_disjunct_distribution`,
+  `sub_path_dependent_spread`, `sub_evaluate_only` and
+  `sub_default_indeterminate` — `test/spec/errcodes.tsv` is the
+  contract.)*
 
 The recursion is bounded by the structure of the two values, carries
 no fixpoint, and never mutates its inputs — it runs after evaluation,
@@ -389,7 +404,8 @@ variants as registry-enforced policy, are G6 decisions.
 
 ### The deprecation mark
 
-A thirteenth builtin, function-form per the G1 precedent:
+A new builtin (the registry's twenty-second, as it landed),
+function-form per the G1 precedent:
 
 ```aon
 port: deprecate(*8080 | integer, {
@@ -399,9 +415,14 @@ port: deprecate(*8080 | integer, {
 - **Unification-transparent:** `deprecate(x, m)` unifies exactly as
   `x`; the record (all keys optional; `use` is a path spelled as a
   string — a live reference would resolve and unify, which is not
-  wanted) rides on the result through meets, alongside the existing
-  mark propagation. Boolean `ValMark`s cannot hold it, so the Val
-  gains one optional record field.
+  wanted) rides on the result through meets. *(As landed it rides as
+  a rider at the tail of `unite` — the one place every meet passes —
+  not "alongside the existing mark propagation" as designed: the
+  boolean-mark sweeps are order-sensitive by construction, and a
+  record lost in one meet shape is a use the tooling never warns
+  about. The register's phase-4 departures record it.)* Boolean
+  `ValMark`s cannot hold it, so the Val gains one optional record
+  field.
 - **Canonical form:** renders reparseably as the call,
   `deprecate(*8080|integer,{"msg":"renamed",...})`, in the existing
   function-canon style; canon convergence holds (the enforced property is CONVERGENCE, not the stronger round-trip this line states — see the correction in [G1](g1-constraint-algebra.md#implementation-plan)).
@@ -445,8 +466,11 @@ verb; G3 guarantees the engine call exists and is three-valued.
 
 `aontu trim --check <file.aon>` reports redundant entries — implied
 by a spread template, or leaving the evaluated result unchanged when
-removed — as paths, report-only. The test is subsumption against the
-governing template plus evaluate-and-compare. *Rewriting* the file
+removed — as paths, report-only. The test, as landed, is
+evaluate-and-compare alone (`ts/src/trim.ts`): delete the candidate,
+re-evaluate, compare canons — which subsumes the spread case this
+sentence originally listed separately, and is honest about
+everything the fixpoint can see. *Rewriting* the file
 is excluded: canon discards comments and layout, so deletion needs
 [G7](g7-machine-access.md)'s format-preserving patch surface. Trim
 ships as a reporter here and becomes an editor there.
@@ -490,7 +514,7 @@ ships as a reporter here and becomes an editor there.
 | Single-use trees force re-evaluation per comparison; CI loops re-evaluate both versions every run | High | Low | Accept now (`maxcc = 9` bounds evaluation); incrementality is an engine project outside G3; budgets are G5's |
 | Canon blindness to closedness/marks leaks into golden reports | Medium | Medium | The recursion walks Vals, never canon; report goldens render closedness/marks via finding fields, not canon strings; flag the canon-fidelity gap to G6 |
 | `deprecate()` record breaks canon round-trip or mark propagation | Low | High | Round-trip and propagation spec rows land before the builtin; record piggybacks on the existing propagation path |
-| Surface creep: 13th builtin plus two CLI verbs | Low | Medium | One builtin, function-form, zero grammar change; verbs mirror G2's established shape |
+| Surface creep: one new builtin plus two CLI verbs | Low | Medium | One builtin, function-form, zero grammar change; verbs mirror G2's established shape |
 | `git#rev` resolution varies across environments | Medium | Low | Shell out to `git show`, document it, and always accept a plain file path; the Action pins its own git |
 | Adoption: teams already wire buf/JSON-Schema diff tools | Medium | Medium | Ship exit classes + G2 SARIF so `breaking` drops into existing CI; lead with what rule lists cannot do (computed relation, located witnesses, default-awareness) |
 
@@ -507,18 +531,21 @@ through `breaking` itself).
 1. **Phase 0 — rules on paper (M).** Write the per-former subsumption
    table (all three profiles, including the `*` × `close()` × `&:` ×
    `?` interaction cells) into a new section of
-   `docs/reference-language.md`. Author `test/spec/subsume.tsv` with
-   its own columns — name, profile, general, specific, verdict,
-   detail — following the precedent that G2's `vet.tsv` sets for
-   non-canon/gen/err shapes; extend `ts/test/spec.test.ts` and
+   `docs/reference-language.md`. Author `test/spec/subsume.tsv` —
+   as landed, in vet.tsv's five-column encoding (name, mode,
+   general, specific, expected report) with options carried on an
+   `opts` key rather than the six bespoke columns designed here (the
+   register records the departure: one encoding, one parser, in both
+   runners); extend `ts/test/spec.test.ts` and
    `go/spec_test.go` to run it. Include rows for every probe in the
    [Problem](#problem) section and for each `undecided` reason.
 2. **Phase 1 — the recursion, TypeScript (L).** New
    `ts/src/subsume.ts` (a single visitor with a per-former dispatch
    table, so the Val zoo stays untouched); effective-default
-   extraction reusing `rankPrefs`; witness construction from member
-   canons; export via `ts/src/aontu.ts`; rebuild the committed dist
-   (`make build-ts`).
+   extraction (landed as the walk's own `effectiveDefault`, not the
+   `rankPrefs` reuse designed here — see the register); witness
+   construction from member canons; export via `ts/src/aontu.ts`;
+   rebuild the committed dist (`make build-ts`).
 3. **Phase 2 — Go port (L).** `go/subsume.go`, mirroring the
    dispatch table; `go/spec_test.go` runs every subsume row with no
    skip list.
@@ -549,18 +576,20 @@ lightweight-formal-methods pattern the review adopts throughout.
 
 ## Open questions
 
-- **Is a default change backward-breaking by default?** Confluent's
-  BACKWARD ignores defaults (value sets only); this design's
-  `defaults` profile flags them, because materialised configs change
-  under agents' feet. Whether `breaking --mode backward` uses
-  `defaults` (proposed) or `values` should be settled by dogfooding
-  on this repository's own spec evolution before the exit classes are
-  documented as stable.
+- ~~**Is a default change backward-breaking by default?**~~
+  **Settled as proposed: yes.** The landed engine's default profile
+  is `defaults` (`ts/src/subsume.ts`), so `breaking --mode backward`
+  flags default changes, and the exit classes shipped documented on
+  that footing. (The question as posed: Confluent's BACKWARD ignores
+  defaults; this design flags them, because materialised configs
+  change under agents' feet.)
 - **The policy key.** `aontu_policy` is a plain reserved-by-convention
   name and could collide with user data; alternatives (a mark, a G6
   module-metadata field once modules exist) each move the
   declaration further from the document. G6's module design should
-  get a veto before the name ships.
+  get a veto before the name ships. *(It shipped as
+  `$.aontu_policy.compat` — phase 3 — and G6's landed module design
+  raised no veto; the collision concern stands as a known cost.)*
 - **Witness search budget.** How hard the disjunct fallback tries
   (branch enumeration depth, instance count) trades undecided-rate
   against runtime; the budget must be deterministic and spec-stated,
@@ -572,9 +601,10 @@ lightweight-formal-methods pattern the review adopts throughout.
   open question is whether the engine records the derivation from day
   one (cheap now, hard to retrofit — the site-tracking lesson) or
   waits for G7's format.
-- **Re-founding `super()`.** The builtin is documented as kind-lift,
-  implemented as top-lift, and spec-tested as neither. Once
-  `superior()` matters to subsumption, should `super(x)` be pinned to
-  the documented kind-lift (useful, breaking for nobody observable),
-  or deprecated with the new mark as reserved surface? A Phase 0 row
-  must pick one — leaving it unpinned is the one indefensible option.
+- ~~**Re-founding `super()`.**~~ **Settled: pinned to the documented
+  kind-lift.** Both ports now resolve the argument's superior, spec
+  rows pin it (`edge.tsv`'s `edge-super-*` among them), and the
+  register's G3 notes record the correction. (The question as posed:
+  the builtin was documented as kind-lift, implemented as top-lift,
+  and spec-tested as neither — leaving it unpinned was the one
+  indefensible option.)
