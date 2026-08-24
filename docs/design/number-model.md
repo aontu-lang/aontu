@@ -435,17 +435,22 @@ exact leaves for values that need more — see
 [Comparison: boru](#comparison-boru).
 
 **2. Integer-kind canon diverged between the ports above 2^53, for
-values needing more than 17 significant digits.** *(Resolved — the
-divergence dissolved when D7 made the triggering literals errors,
-and the ledger entry is closed.)* At this model's landing it was the
-same storage difference seen from the formatting side:
-`x:4611686018427387904` canoned to `4611686018427387904` in Go
+values needing more than 17 significant digits.** *(Resolved — by
+the tower's unplanned Phase 8, the exact-integer rendering, which
+closed #21.)* At this model's landing it was the same storage
+difference seen from the formatting side: `x:4611686018427387904`
+(2^62 — exactly representable, so a valid plain integer literal
+that D7 does not touch) canoned to `4611686018427387904` in Go
 (`strconv.FormatInt` on the `int64`) and to `4611686018427388000` in
 TypeScript (`Number.toString`, at most 17 significant digits). Both
-denoted the same `float64`. Under the tower a lossy integer-source
-literal no longer produces a value at all, so there is nothing left
-to render two ways; an exact value that size is written `0d` and
-renders identically in both ports. Number-kind values were always
+denoted the same `float64`. Phase 8 made TypeScript render the
+exact digits too (`IntegerVal.canon` via `integerDigits`,
+BigInt-backed — see
+[number-tower.md](number-tower.md)), so an exact plain integer
+above 2^53 remains valid source and now canons identically in both
+ports; D7 separately turned the INEXACT integer-source literals
+into located errors, so neither exact nor lossy literals can render
+two ways any more. Number-kind values were always
 unaffected — they go through the shared JS-style formatter.
 
 *A future change* means choosing a single rendering for the whole
