@@ -212,9 +212,10 @@ carries the same correction.)
 **The 0.53.0 release is prepared but not published** (2026-08-24). The
 two defects `status-2026-08-21.md` named as blocking it are closed —
 the served-evaluation confinement hole, and the five cross-port `vet`
-verdict flips, four of them named in that report and a fifth
-(`re("x{y}")`) found by sweeping around them — with 29 shared rows
-pinning the agreement and both coverage gates back at 100%. The
+verdict flips, four of them named in that report and the rest found by
+sweeping around them (`re("x{y}")`, a quantified `^`/`$`, and a `}`
+closing no quantifier) — with 37 shared rows pinning the agreement and
+both coverage gates back at 100%. The
 version is bumped and the package now carries a README, the published
 grammar and the skill. What remains is the publishing act itself:
 `npm publish` from `ts/`, and `make publish-go V=…`, which commits,

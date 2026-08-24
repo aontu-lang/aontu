@@ -110,8 +110,9 @@ const RE_ESCAPE_PASS = 'tnrfv';
 //    repeat cap, found by sweeping around it. A literal brace is
 //    written escaped (`a\\{1001\\}`), which both engines share.
 function repeatWhy(src, at) {
-    const bad = (what) => 'a ' + what +
-        ', which the two engines do not read the same way';
+    const bad = (what) => [
+        'a ' + what + ', which the two engines do not read the same way', -1
+    ];
     let i = at + 1;
     let digits = '';
     const bounds = [];
@@ -147,13 +148,13 @@ function repeatWhy(src, at) {
     }
     for (const b of bounds) {
         if (RE_REPEAT_MAX < b) {
-            return 'a repeat count above ' + RE_REPEAT_MAX +
-                ', which RE2 refuses to compile';
+            return ['a repeat count above ' + RE_REPEAT_MAX +
+                    ', which RE2 refuses to compile', -1];
         }
     }
     // A descending range (`{5,2}`) is refused by both engines' own
     // compilers, so it needs no rule here.
-    return '';
+    return ['', i];
 }
 function isHexDigit(c) {
     return null != c && (('0' <= c && c <= '9') || ('a' <= c && c <= 'f') || ('A' <= c && c <= 'F'));
@@ -249,8 +250,15 @@ function normaliseRe(src) {
             groups[groups.length - 1][k] = true;
         }
     };
+    // Where the counted quantifier validated below closes, so its own
+    // `}` is told apart from a stray one; and whether the atom just
+    // emitted was `^` or `$`, which cannot be quantified.
+    let repeatEnd = -1;
+    let anchorPrev = false;
     for (let i = 0; i < src.length; i++) {
         const c = src[i];
+        const afterAnchor = anchorPrev;
+        anchorPrev = false;
         if ('\\' === c) {
             const [emit, why, extra] = normaliseEscape(src[i + 1], src, i, inClass);
             if ('' !== why) {
@@ -327,17 +335,40 @@ function normaliseRe(src) {
             continue;
         }
         if ('*' === c || '+' === c || '?' === c || '{' === c) {
+            // Nothing to repeat. JavaScript under the `u` flag makes this a
+            // SYNTAX ERROR, where RE2 quantifies the assertion happily and
+            // matches, so `re("^{1}")` was `constraint_pattern` in
+            // TypeScript and an accepted schema in Go. (`\b` and `\B`
+            // quantify identically in both and are left alone.)
+            if (afterAnchor) {
+                return ['', 'a quantifier applied to `^` or `$`, which has ' +
+                        'nothing to repeat'];
+            }
             if ('{' === c) {
-                const why = repeatWhy(src, i);
+                const [why, end] = repeatWhy(src, i);
                 if ('' !== why) {
                     return ['', why];
                 }
+                repeatEnd = end;
             }
             mark('q');
             out.push(c);
             continue;
         }
+        // A `}` that closes no counted quantifier: JavaScript under `u`
+        // refuses it as a lone quantifier bracket, RE2 reads it as a
+        // literal. Written escaped inside a class (`[}]`) it is a literal
+        // in both, which is the spelling that survives.
+        if ('}' === c) {
+            if (i !== repeatEnd) {
+                return ['', 'a `}` that closes no counted quantifier, which ' +
+                        'the two engines do not read the same way'];
+            }
+            out.push(c);
+            continue;
+        }
         out.push(c);
+        anchorPrev = ('^' === c || '$' === c);
     }
     if (inClass) {
         return ['', 'an unterminated character class'];

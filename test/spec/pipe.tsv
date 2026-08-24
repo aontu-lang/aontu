@@ -44,3 +44,10 @@ pipe-into-deprecate	gens	x: 1 |> deprecate({msg:"m"})\n	{"x":1}
 # comma group the author wrote is reopened and the piped value joins
 # it. `1 |> match(integer,small)` is `match(1,integer,small)`.
 pipe-satisfies-arity	gens	x: 1 |> match(integer,small)\n	{"x":"small"}
+# A call that could not be BUILT — its target is not a function name —
+# is already refused when the pipe sees it, and keeps its own code:
+# `pipe_target` would say "the right-hand side is not a call", where
+# the truth is that it is a call spelling with no function to call.
+# TypeScript keeps unknown_function through the pipe; so does Go.
+pipe-into-non-name-call	errc	x: 0 |> f(1)(2)\n	unknown_function
+pipe-into-group-call	errc	x: 0 |> (1)(2)\n	unknown_function

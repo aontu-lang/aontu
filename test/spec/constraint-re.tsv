@@ -209,3 +209,24 @@ re-repeat-overflow-low	errc	a:re("^a{99999999999999999999,5}$")&"x"	constraint_p
 # A pattern that ENDS in the brace: the scan runs off the end rather
 # than meeting a closing `}`.
 re-brace-at-end	errc	a:re("a{")&"x"	constraint_pattern
+# A quantifier applied to `^` or `$` has nothing to repeat: JavaScript
+# under the `u` flag makes it a syntax error, RE2 quantifies the
+# assertion and matches, so Go accepted a schema TypeScript refused.
+# `\b` and `\B` quantify identically in both and stay accepted.
+re-quantified-caret	errc	a:re("^{1}")&"x"	constraint_pattern
+re-quantified-dollar	errc	a:re("${1}")&"x"	constraint_pattern
+re-quantified-caret-star	errc	a:re("^*")&"x"	constraint_pattern
+re-quantified-caret-mid	errc	a:re("x^{1}")&"x"	constraint_pattern
+re-quantified-boundary-ok	errc	a:re("\\b{1}x")&"y"	constraint
+# A `}` closing no counted quantifier is a lone quantifier bracket in
+# JavaScript and a literal in RE2. Inside a class it is a literal in
+# both, which is the spelling that survives.
+re-stray-close-brace	errc	a:re("x}")&"x"	constraint_pattern
+re-stray-close-brace-lead	errc	a:re("}x")&"x"	constraint_pattern
+re-stray-close-after-repeat	errc	a:re("a{2}}")&"x"	constraint_pattern
+re-close-brace-in-class	errc	a:re("[}]x")&"y"	constraint
+# Anchors and quantifiers that DO compose stay accepted, so the two
+# rules above are boundaries rather than a retreat from the subset.
+re-anchored-class-star	errc	a:re("^[a]*$")&"b"	constraint
+re-anchored-group-star	errc	a:re("^(a)*$")&"b"	constraint
+re-anchored-repeat	errc	a:re("^a{2}$")&"b"	constraint

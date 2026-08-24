@@ -34,8 +34,15 @@ before this line could be published.
   count above 1000, and a brace that opens no counted quantifier
   (`x{y}`), which JavaScript's `u` flag calls a syntax error and RE2
   reads as a literal. The repeat bound is now Aontu's, checked in the
-  normaliser before either engine compiles. 29 shared rows pin all of
-  it, in both runners.
+  normaliser before either engine compiles. Two more of the same
+  family, found by sweeping around it: a quantifier applied to `^` or
+  `$`, and a `}` that closes no counted quantifier — JavaScript's `u`
+  flag calls each a syntax error where RE2 accepts it. Shared rows pin
+  all of it, in both runners (counts live in the register).
+- **A refused call keeps its position and its code.** The non-name
+  refusal is sited where TypeScript sites it, rather than rendering
+  `<no-file>:-1:-1`, and survives a pipe (`0 |> f(1)(2)`) as
+  `unknown_function` instead of being reclassified `pipe_target`.
 
 One related divergence is recorded rather than fixed: under an
 `@"…"` include the Go port names the entry file on a schema-role

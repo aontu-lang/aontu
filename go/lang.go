@@ -1764,7 +1764,15 @@ func evaluate(r *jsonic.Rule, ctx *jsonic.Context, op *expr.Op, terms []interfac
 			// construct went unchecked in Go, in both the schema and
 			// the data direction (status-2026-08-21.md section 4).
 			if len(terms) > 1 {
-				return newNil("unknown_function")
+				// Sited exactly as buildCall sites an unrecognised
+				// NAME: a located refusal is the whole product here,
+				// and an unsited nil renders `<no-file>:-1:-1` where
+				// TypeScript names the call's row and column.
+				n := newNil("unknown_function")
+				if r.ON > 0 {
+					n.sp = r.O0.SI
+				}
+				return n
 			}
 			return asVal(terms[0])
 		}
@@ -2391,6 +2399,15 @@ func pipeCall(r *jsonic.Rule, val any, call any) Val {
 		// about to satisfy. Both carry what they were written as.
 		if "func_arity" == c.why {
 			return buildCall(r, c.details["func"], pipeTerms(c.details["func"], c.callterms, val))
+		}
+		// A call that could not be built at all -- `0 |> f(1)(2)`,
+		// whose target is not a name -- is already refused, and the
+		// pipe must not reclassify it: `pipe_target` says "the thing
+		// on the right is not a call", where the truth is that it IS a
+		// call spelling with no function to call. TypeScript keeps its
+		// unknown_function through the pipe; so does this now.
+		if "unknown_function" == c.why {
+			return c
 		}
 	case *ScalarVal:
 		// ... or a bare NAME, which is the whole point of the short
