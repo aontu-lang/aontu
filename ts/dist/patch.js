@@ -171,7 +171,7 @@ function editableLiteral(overlaySrc, path, overlayPath) {
     // site's `file` cannot establish it. Two ways it fails: a caller of
     // the library API need not pass `overlayPath`, leaving nothing to
     // compare against; and the Go port names the ENTRY document for an
-    // included value anyway (issue #76), so the comparison is the overlay
+    // included value anyway (issue #66), so the comparison is the overlay
     // against itself. Either way an included literal's (row, col, len,
     // src) can COINCIDE with different text at the same coordinates here
     // — an include holding `a: 42` at 1:4 and an overlay holding `x: 42`
@@ -185,7 +185,7 @@ function editableLiteral(overlaySrc, path, overlayPath) {
     // place at all — the conservative answer, and the assignment still
     // appends. It costs nothing in the shape `set` is for, an overlay it
     // owns and appends to, and it does not depend on file attribution, so
-    // both ports agree without waiting on #76.
+    // both ports agree without waiting on #66.
     const alone = (0, query_1.why)(overlaySrc, path, {
         trust: { include: 'none' },
         ...(null == overlayPath ? {} : { path: overlayPath }),

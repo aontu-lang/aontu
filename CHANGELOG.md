@@ -76,11 +76,11 @@ PASSES — and a splice that trusted it rewrites `x` while reporting a
 replacement of `$.a`, with a valid verdict and no findings. The site's
 `file` cannot save it: a library caller need not pass `overlayPath`, and
 the Go port names the entry document for an included value anyway (issue
-#76). So the evaluation that decides what to edit **denies loads**, and
+#66). So the evaluation that decides what to edit **denies loads**, and
 what resolves is what the overlay says by itself. That removes the
 ambiguity at its source rather than detecting it, costs nothing in the
 shape `set` is for — an overlay it owns and appends to — and makes both
-ports agree without waiting on #76.
+ports agree without waiting on #66.
 
 The span verification and the no-extent guard **merged into one
 condition** on the way: they read as two guards and were one question
@@ -135,15 +135,33 @@ Found by the parity probe for the above, and fixed rather than recorded:
   the written path sites it afterwards. Pinned by
   `why-piped-call-is-unsited` and `why-written-call-sites-its-name`.
 
-A third divergence in the same machinery is **recorded, not fixed**
-(issue #76, `test/spec/divergent.tsv`): Go names the entry document for
-values TypeScript names none for — a literal in an `@"included"` file,
-and a value minted during unification. Go's loader stamps no
-per-document url for a guard to preserve, and Go does not track whether
-a value was parsed or minted, so neither is a one-line fix. Safety in
-`set --in-place` is unaffected: the span verification catches what the
-file check cannot, both ports refuse to write, and they differ only in
-which reason they give.
+Two more in the same machinery are **recorded, not fixed**
+(`test/spec/divergent.tsv`), and they are two rather than one because
+**they fail in opposite directions**:
+
+- **#66** — a literal in an `@"included"` file. TypeScript names the
+  INCLUDED document, correctly; Go names the ENTRY document. The value
+  has a home and is attributed to the wrong one, so the fix is to
+  PROPAGATE the loaded document's url — Go's loader stamps none for a
+  guard to preserve. Recorded a week before this work and rediscovered
+  by its parity probe, which is the ledger's own failure mode and is
+  left visible in the entry rather than tidied away.
+- **#76** — a value minted during unification. TypeScript names NO
+  document, correctly; Go names the entry document. The value has no
+  home and is attributed to one anyway, so the fix is the opposite:
+  withhold attribution. Go does not track whether a value was parsed or
+  minted, and guarding `stampURL` on the `unsited` sentinel was tried
+  and breaks `vet-unsited-junction`, which is the correct row.
+
+Stating them as one defect — "Go names a file TypeScript does not" — is
+true only of the second, and would point a fixer at clearing
+attribution where #66 needs it carried further. Knowing WHICH file a
+value came from is not the same as knowing whether it came from a file
+at all.
+
+Safety in `set --in-place` is unaffected by either: the overlay-alone
+evaluation refuses to edit a document that loads anything, so no
+attribution question arises before a write.
 
 ### Breaking — a preference is gated by kind, not by family
 

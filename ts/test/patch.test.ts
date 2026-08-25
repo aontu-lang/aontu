@@ -61,7 +61,7 @@ describe('patch', () => {
   // replacement of `$.a`, with a valid verdict and no findings. The
   // site's `file` cannot save it: a library caller need not pass
   // `overlayPath`, and the Go port names the entry document for an
-  // included value anyway (issue #76).
+  // included value anyway (issue #66).
   //
   // Denying includes removes the ambiguity at its source: what resolves
   // is what this text says by itself.

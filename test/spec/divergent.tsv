@@ -95,6 +95,21 @@
 #   divergence is confined to the file NAME on a schema-role site, and
 #   `progress.md` carries the carve-out on its byte-identical claim.
 #
+#   SEE ALSO the #76 entry below: the same machinery seen from the other
+#   side. This entry is a value that HAS a document and is attributed to
+#   the wrong one; that one is a value that has NO document and is
+#   attributed to one anyway. Same cause -- Go keeps the entry URL on
+#   the context and stamps it at finding time -- and fixing this one
+#   does not settle that one.
+#
+#   THE FIXES POINT IN OPPOSITE DIRECTIONS, which is why flattening the
+#   two into "Go names a file TypeScript does not" is worse than not
+#   summarising them at all: THIS entry needs the loaded document's url
+#   CARRIED FURTHER, onto every Val parsed from it, while #76 needs
+#   attribution WITHHELD. A reader who took the flattened form would
+#   fix this one by clearing the file, which is precisely wrong --
+#   TypeScript names part.aon here, and is right to.
+#
 # ---------------------------------------------------------------------
 #
 # CLOSED -- malformed-input acceptance edges and invalid-UTF-8
@@ -227,42 +242,18 @@
 #
 # ---------------------------------------------------------------------
 #
-# OPEN -- Go names the INCLUDING file, not the included one, for a value
-#   loaded by @"...".
+# OPEN -- Go names a document for a value NOBODY WROTE.
 #
 #   issue: #76 (2026-08-25). Found by the parity probe for
-#   `aontu set --in-place`. Row, column and src agree; only the file
-#   attribution differs -- which makes it worse rather than better,
-#   because the coordinates are correct FOR A DOCUMENT GO HAS
-#   MISIDENTIFIED, so a consumer that trusts the pair gets a well-formed
-#   pointer into the wrong file.
+#   `aontu set --in-place`. THE INCLUDED-FILE HALF OF THIS IS #66 ABOVE,
+#   recorded a week earlier and rediscovered here -- which is the exact
+#   failure this ledger exists to prevent, and is left visible rather
+#   than tidied away. What follows is the half #66 does not cover.
 #
-#   Divergent input:  ov.aon holding `@"inc/inc.aon"`,
-#                     inc/inc.aon holding `shared: 42`,
-#                     then `why '$.shared' ov.aon`
-#   TypeScript: site file = <abs>/inc/inc.aon  (where 42 is written)
-#   Go:         site file = ov.aon             (where the include is)
-#
-#   Not simply fixed because there is no per-document url for a guard to
-#   preserve: Aontu.Why stamps the whole tree with the entry document's
-#   url, and stampURL (go/walk.go) says so in its own contract -- "Values
-#   carry no url of their own". Go's include machinery, the multisource
-#   plugin binding, never stamps one. The fix is for the LOADER to learn
-#   which file each rule came from and stamp it at load time, reaching
-#   into go/lang.go and go/source.go, with its own design question about
-#   how nested loads rebase. TypeScript gets this free by passing the
-#   path as a parse option, which multisource applies per loaded file.
-#
-#   SECOND FACET, same machinery: a value MINTED during unification --
-#   `x |> upper` resolving to "HELLO" -- is unsited in both ports now
-#   (row, col, len and src all agree at -1/-1/-1/""), but Go names the
-#   entry document for it where TypeScript names none. TypeScript's
-#   distinction is "stamped BEFORE the fixpoint" (a parsed value, which
-#   belongs to its document even when it has no position within it --
-#   vet-unsited-junction pins exactly that) versus "minted DURING it".
-#   Go does not track when a value came into being, so stampURL cannot
-#   draw the line: guarding it on `unsited` was tried and broke
-#   vet-unsited-junction, which is the correct row.
+#   A value MINTED during unification -- `x |> upper` resolving to
+#   "HELLO", `1+2` resolving to 3 -- is unsited in both ports (row, col,
+#   len and src all agree at -1/-1/-1/empty), but Go names the entry
+#   document for it where TypeScript names none.
 #
 #   Divergent input:  entry `x: string`, overlay `x: hello |> upper`,
 #                     then `set '$.x="BYE"' --in-place --format json`
@@ -271,12 +262,21 @@
 #   Everything else about the run agrees byte for byte, the written
 #   file included.
 #
-#   Reaches: any report naming a site for an included value -- `why`
-#   conjunct sites, `vet` finding sites, and `set --in-place`, whose
-#   foreign-file refusal compares a site's file against the overlay's
-#   path and therefore cannot fire in Go. SAFETY IS UNAFFECTED THERE:
-#   the span verification catches what the file check cannot, since an
-#   include's coordinates do not describe the overlay's text. Both ports
-#   refuse to write; they differ in which reason they give
-#   (patch_not_editable vs patch_span_mismatch), and go/patch_test.go
-#   asserts the refusal rather than the code, saying why.
+#   Not simply fixed, and NOT SETTLED BY FIXING #66. TypeScript's
+#   distinction is "stamped BEFORE the fixpoint" -- a parsed value,
+#   which belongs to its document even when it has no position within it
+#   (vet-unsited-junction pins exactly that, and is correct) -- versus
+#   "minted DURING it". Go does not track when a value came into being,
+#   so stampURL cannot draw the line: guarding it on the `unsited`
+#   sentinel was tried and breaks vet-unsited-junction. Knowing WHICH
+#   file a value came from, which is what #66 needs, is not the same as
+#   knowing whether it came from a file AT ALL -- and the two fixes
+#   point in OPPOSITE directions: #66 carries a url further, this one
+#   withholds one. TypeScript names a file for #66's value (the right
+#   one) and no file for this one; only THIS entry is a case of
+#   "TypeScript names none".
+#
+#   Reaches `set --in-place` among other reports, and SAFETY IS
+#   UNAFFECTED there: the overlay-alone evaluation refuses to edit a
+#   document that loads anything, so no attribution question arises
+#   before a write.
