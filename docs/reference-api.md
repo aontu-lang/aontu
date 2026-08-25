@@ -315,10 +315,15 @@ $ echo $?
 1
 ```
 
-- Relations are read from the **`relations` key of the document root**,
-  each one a `$.std.Relation` carrying `acyclic` and/or `inverse`. That
-  key is the vocabulary's convention, not the engine's: nothing in the
-  language knows the name, the checking pass does.
+- Relations are read from the **`relations` key of the document root**:
+  every map under it is a declaration, and its `acyclic` and `inverse`
+  fields are read directly. Unifying one with the bundled
+  `$.std.Relation` documents what it is and is the vocabulary's
+  convention — **not a requirement**. A bare
+  `{ inverse: usedBy, acyclic: true }` declares the same relation with
+  no `@"std/system"` at all, so the checks are available under every
+  include capability, `'none'` included. The key name is convention
+  too: nothing in the language knows it, the checking pass does.
 - **These are not lattice constraints, deliberately.** Both properties
   are global and non-monotone — one more edge makes an acyclic graph
   cyclic — so they are facts about a finished model rather than
@@ -445,7 +450,10 @@ $.services.auth.replicas = 3
 
 ### `aontu set`
 
-Change a document by **appending to an overlay**, not by rewriting it.
+Change a document by **appending to an overlay** — or, with
+`--in-place`, by rewriting the literal inside that same overlay.
+`--overlay` is required either way, and the entry document is never
+written.
 
 ```
 aontu set <path>=<value>... --entry <file> --overlay <file>

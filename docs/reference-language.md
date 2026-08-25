@@ -1182,6 +1182,13 @@ b: id(b) & { usedBy:    [&: refer(), a] }
 - **`inverse: <name>`** — for each `a --dependsOn--> b`, `b` must carry
   `a` under `<name>`. The report names the exact missing entry.
 
+The `$.std.Relation` conjunct **documents** the declaration; it is not
+what makes it one. The checking pass reads every map under `relations`
+and takes its `acyclic` and `inverse` fields directly, so a bare
+`dependsOn: { inverse: usedBy, acyclic: true }` declares the same
+relation with no `@"std/system"` — which is what keeps the checks
+available under the `'none'` include capability.
+
 `aontu relations <file>` runs them, and the library exposes
 `relationCheck(src)`. **Neither is a lattice constraint, deliberately.**
 Both properties are global and non-monotone: an acyclic graph becomes

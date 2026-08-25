@@ -44,6 +44,17 @@ recipe, a reference is exhaustive, and only the explanation argues.
   which blank line went with it. `AGENTS.md` described a CI tree under
   `ci/` that does not exist; the workflow is live in
   `.github/workflows/build.yml`.
+- **Two overstatements corrected, both found in review.** A relation
+  declaration does **not** have to unify with the bundled
+  `$.std.Relation`: both checkers read every map under the root
+  `relations` key and take its `acyclic` and `inverse` fields directly,
+  so a bare `{ inverse: usedBy, acyclic: true }` declares the same
+  relation — which is what keeps `relations` usable under the `'none'`
+  include capability, where `@"std/system"` does not resolve. And
+  `--in-place` is not an alternative to `--overlay`: `set` requires an
+  overlay either way, `--in-place` only decides whether the assignment
+  is appended to that file or rewritten inside it, and the entry
+  document is never written.
 - **Smaller repairs.** Two internal links pointed at nothing
   (`reference-api.md#options`, now `#aontuoptions`), the how-to's
   contents list was missing its newest section, a REPL transcript still
