@@ -80,6 +80,25 @@ describe('lsp-hover', () => {
     Assert.deepEqual(h!.range!.end, { line: 0, character: 10 })
   })
 
+  // A LITERAL WHOSE CANON IS NOT ITS SOURCE TEXT. `0x1F` renders as
+  // canon `31`, and sizing the hover by canon underlined two characters
+  // of a four-character literal: hovering the `0x` answered 6..8 and
+  // hovering the `1F` answered NOTHING, because the span stopped before
+  // the cursor. Measured on the code this replaces, at every column.
+  //
+  // Twin: TestHoverSpansTheWholeLiteral in go/lsp/hover_test.go. The
+  // defect is status report §5's "Site is a point with no extent".
+  test('hover-over-a-literal-whose-canon-is-shorter', () => {
+    const src = 'port: 0x1F'
+    for (const character of [6, 7, 8, 9]) {
+      const h = computeHover(src, { line: 0, character })
+      Assert.ok(h, `no hover at column ${character}`)
+      Assert.deepEqual(
+        [h!.range!.start.character, h!.range!.end.character], [6, 10],
+        `column ${character}`)
+    }
+  })
+
   test('hover-exact-leaves-show-their-own-kind', () => {
     // The `0d` leaves are their own kinds, not `integer`/`float`, and
     // the hover canon is the normalised one-rendering-per-value form.

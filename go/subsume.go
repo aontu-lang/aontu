@@ -73,9 +73,14 @@ func subPathText(path []string) string {
 // in this query, so a general value always locates in the general
 // source and a specific one in the specific source.
 func subSiteOf(v Val, role, url, src string) VetSite {
-	site := VetSite{File: url, Row: -1, Col: -1, Role: role, Value: "nil"}
+	// Len starts at -1, the "unknown" the other coordinates use: Go's
+	// zero value for an int is 0, which would claim an empty span for
+	// every value that has none.
+	site := VetSite{File: url, Row: -1, Col: -1, Len: -1, Role: role, Value: "nil"}
 	if nil != v {
 		site.Value = v.Canon()
+		site.Len = v.srclen()
+		site.Src = v.srctext()
 		if 0 <= v.pos() {
 			site.Row, site.Col = rowCol(src, v.pos())
 		}

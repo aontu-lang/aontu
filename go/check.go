@@ -18,8 +18,18 @@ type Problem struct {
 	// -1 when no position is known.
 	Pos int
 
-	// Len is the byte length of the offending value's canonical form
-	// (always >= 1), used to size the diagnostic range.
+	// Len is the byte length of the offending value's SOURCE TEXT
+	// (always >= 1), used to size the diagnostic range. Bytes, not
+	// UTF-16 units, because it is added to the byte offset Pos before
+	// the pair is converted (go/lsp/lsp.go idx.position).
+	//
+	// The canonical form is the FALLBACK, not the measure: canon is not
+	// source text, so sizing `0x1F` (canon `31`) by canon underlines two
+	// characters of a four-character literal. Where a value carries no
+	// stamped source text -- one propagated onto a result rather than
+	// written by a document -- canon is all there is, and an approximate
+	// underline still beats none. A REPORT never guesses this way; see
+	// the note on VetSite.Len.
 	Len int
 
 	// Why is the engine error code (e.g. "scalar_value", "no_path",
@@ -87,7 +97,9 @@ func (a *Aontu) CheckVars(src string, vars map[string]Val) []Problem {
 			p.Pos = -1
 		}
 		if n.primary != nil {
-			if c := n.primary.Canon(); len(c) > 0 {
+			if t := n.primary.srctext(); "" != t {
+				p.Len = len(t)
+			} else if c := n.primary.Canon(); len(c) > 0 {
 				p.Len = len(c)
 			}
 		}
@@ -97,7 +109,7 @@ func (a *Aontu) CheckVars(src string, vars map[string]Val) []Problem {
 }
 
 // ValueSpan locates a concrete value in source: the byte offset and the
-// byte length of its canonical form, plus that canon and a short kind
+// byte length of its source text, plus its canon and a short kind
 // label. Containers (maps/lists) are excluded — their source span is not
 // reliably reconstructable from a single position — so spans describe
 // scalars, scalar kinds, references, etc. Used for LSP hover (go/lsp).
@@ -165,8 +177,16 @@ func collectSpans(v Val, out *[]ValueSpan, seen map[Val]bool) {
 	if p := v.pos(); p >= 0 {
 		c := v.Canon()
 		if len(c) > 0 {
+			// The SOURCE TEXT's byte length, with canon as the fallback
+			// for a value carrying no stamped span. Sizing a hover by
+			// canon is what made hovering `0x1F` highlight `0x` and
+			// hovering `1F` answer nothing at all.
+			n := len(c)
+			if t := v.srctext(); "" != t {
+				n = len(t)
+			}
 			*out = append(*out, ValueSpan{
-				Pos: p, Len: len(c), Canon: c, Kind: valKind(v),
+				Pos: p, Len: n, Canon: c, Kind: valKind(v),
 				Path: v.vpath(),
 			})
 		}

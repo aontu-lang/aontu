@@ -5,7 +5,9 @@ export type VetSite = {
     file: string;
     row: number;
     col: number;
+    len: number;
     role: VetRole;
+    src?: string;
     value?: string;
 };
 export type VetFinding = {

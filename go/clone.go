@@ -167,6 +167,13 @@ func clonePathRec(v Val, path []string) Val {
 	// because a kind that forgot it would mislabel a report site --
 	// silently, and only in the two-document vet run.
 	out.setSrcurl(v.srcurl())
+	// AND THE SOURCE SPAN, for the same reason and in the same place:
+	// TS's Val.clone copies the whole site, so a clone keeps the extent
+	// along with the row and column it already keeps. Only the CLONE
+	// carries it -- a wrapper that returns a new value built around
+	// another (close, type, deprecate) must not push its own text onto
+	// what it wraps, which would claim source the value never occupied.
+	out.setSrctext(v.srctext())
 	return out
 }
 

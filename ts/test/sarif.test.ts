@@ -68,7 +68,7 @@ describe('sarif', () => {
         severity,
         path: '$',
         message: 'm',
-        sites: [{ file: 'f', row: 1, col: 1, role: 'data' as const }],
+        sites: [{ file: 'f', row: 1, col: 1, len: -1, role: 'data' as const }],
       })),
     }
     const log = JSON.parse(sarifReport(report, 'x'))
@@ -91,7 +91,7 @@ describe('sarif', () => {
         severity: 'error',
         path: '$',
         message: 'm',
-        sites: [{ file: 'data.aon', row: -1, col: -1, role: 'data' }],
+        sites: [{ file: 'data.aon', row: -1, col: -1, len: -1, role: 'data' }],
       }],
     }
     const log = JSON.parse(sarifReport(report, 'x'))
@@ -138,7 +138,7 @@ describe('sarif', () => {
         severity: 'error',
         path: '$',
         message: 'm',
-        sites: [{ file: 'a b#c%.aon', row: 1, col: 1, role: 'data' }],
+        sites: [{ file: 'a b#c%.aon', row: 1, col: 1, len: -1, role: 'data' }],
       }],
     }
     const log = JSON.parse(sarifReport(report, 'x'))

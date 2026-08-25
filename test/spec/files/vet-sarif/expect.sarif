@@ -36,8 +36,10 @@
               {
                 "col": 32,
                 "file": "data.aon",
+                "len": 4,
                 "role": "data",
                 "row": 1,
+                "src": "8080",
                 "value": "8080"
               }
             ]
@@ -74,15 +76,19 @@
               {
                 "col": 44,
                 "file": "data.aon",
+                "len": 2,
                 "role": "data",
                 "row": 1,
+                "src": "80",
                 "value": "80"
               },
               {
                 "col": 19,
                 "file": "schema.aon",
+                "len": -1,
                 "role": "schema",
                 "row": 3,
+                "src": "",
                 "value": "integer&min(1024)"
               }
             ]
@@ -133,15 +139,19 @@
               {
                 "col": 54,
                 "file": "data.aon",
+                "len": 6,
                 "role": "data",
                 "row": 1,
+                "src": "\"lead\"",
                 "value": "\"lead\""
               },
               {
                 "col": 9,
                 "file": "schema.aon",
+                "len": -1,
                 "role": "schema",
                 "row": 4,
+                "src": "",
                 "value": "must(\"gold\"|\"silver\",\"tier must be supported\")"
               }
             ]

@@ -67,7 +67,9 @@ function siteOf(v, dataUrl) {
         file,
         row: v.site.row,
         col: v.site.col,
+        len: v.site.len,
         role: dataUrl === file ? 'data' : 'schema',
+        src: v.site.src,
         value: v.canon,
     };
 }
@@ -372,7 +374,9 @@ function vet(schemaSrc, dataSrc, opts) {
                                 file: schemaUrl,
                                 row: d.site?.row ?? -1,
                                 col: d.site?.col ?? -1,
+                                len: d.site?.len ?? -1,
                                 role: 'schema',
+                                src: d.site?.src ?? '',
                                 value: d.canon,
                             }],
                     });
@@ -453,7 +457,9 @@ function vet(schemaSrc, dataSrc, opts) {
                     file,
                     row: v.site.row ?? -1,
                     col: v.site.col ?? -1,
+                    len: v.site.len ?? -1,
                     role: (dataUrl === file ? 'data' : 'schema'),
+                    src: v.site.src ?? '',
                     value: v.canon,
                 }],
         });

@@ -922,7 +922,14 @@ What remains of G7 is G7.5's STAGE 2, the format-preserving in-place
 edit, which is what [G2](g2-validation-verb.md) and
 [G3](g3-subsumption-evolution.md) defer "applying a fix" to. It is
 not a phase of this plan — phase 5 names it as deferred — and it needs
-a comment-and-layout-preserving CST the parser stack does not have. The design's load-bearing premises for them were
+a comment-and-layout-preserving CST the parser stack does not have.
+**Its cheap half landed on 2026-08-25**: a site now carries `len` (the
+span in UTF-16 code units) and `src` (the text that span covers), in
+`vet`'s findings and `why`'s record in both ports, so a single-value
+replacement is exact and verifiable where it used to be sized by the
+canon and corrupt the document. That is not the CST — a whole-document
+rewrite still needs one — but it is the part a repair loop needs, and
+none of it is thrown away when the CST arrives. The design's load-bearing premises for them were
 re-verified and all still hold — `maxcc = 9`, the `DisjunctVal.gen`
 fold defect, and per-request re-unification in hover, which is what
 would make LSP hover-provenance a config-gated increment rather than a

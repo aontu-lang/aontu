@@ -449,6 +449,26 @@ func (f *FuncVal) Unify(peer Val, ctx *Ctx) Val {
 			out.setPos(f.sp)
 			out.setPosu(f.spu)
 			out.setSrcurl(f.surl)
+			// The SPAN comes with the position, but ONLY FOR A FRESH
+			// VALUE. The canonical port does not copy a site here at
+			// all; it calls place() in the handful of spots that mint a
+			// new value (LowerFuncVal, PathFuncVal, ScalarKindVal, ...),
+			// and this branch is broader than that. A value that already
+			// carries a span brought it from its own source -- the map
+			// inside `close({...})`, the literal inside `type(1)` -- and
+			// overwriting it would claim the WRAPPER's text for the
+			// thing wrapped, which is the same lie as sizing by canon.
+			//
+			// Having no span of its own is exactly what makes a value
+			// fresh, so the data answers the question the port structure
+			// does not: `upper("x")` resolves to a new string that
+			// stands at the call and inherits `upper`; the wrapped
+			// values keep `{` and `1`. Measured against the shared
+			// subsume and deprecate rows, which disagree loudly in both
+			// directions.
+			if "" == out.srctext() {
+				out.setSrctext(f.srctext())
+			}
 		}
 	} else if isTop(peer) {
 		f.notdone()

@@ -43,8 +43,8 @@ dep-arity-three	errc	a:deprecate(1,{msg:"m"},2)	func_arity
 # The point-of-use warning (severity `warning`, class compat, the slot
 # G2 reserved): the verdict is UNTOUCHED -- a deprecated use is valid,
 # and the report says so while saying it is deprecated.
-dep-vet-warning	vet	p:deprecate(integer,{msg:"old port",use:"$.listen",since:"2.0.0"}) listen:integer	p:8080 listen:9090	{"findings":[{"class":"compat","code":"deprecated","path":"$.p","severity":"warning","sites":[{"col":3,"file":"data","role":"data","row":1,"value":"8080"}]}],"truncated":false,"verdict":"valid"}
-dep-vet-warning-bare	vet	p:deprecate(integer)	p:1	{"findings":[{"class":"compat","code":"deprecated","path":"$.p","severity":"warning","sites":[{"col":3,"file":"data","role":"data","row":1,"value":"1"}]}],"truncated":false,"verdict":"valid"}
+dep-vet-warning	vet	p:deprecate(integer,{msg:"old port",use:"$.listen",since:"2.0.0"}) listen:integer	p:8080 listen:9090	{"findings":[{"class":"compat","code":"deprecated","path":"$.p","severity":"warning","sites":[{"col":3,"file":"data","len":4,"role":"data","row":1,"src":"8080","value":"8080"}]}],"truncated":false,"verdict":"valid"}
+dep-vet-warning-bare	vet	p:deprecate(integer)	p:1	{"findings":[{"class":"compat","code":"deprecated","path":"$.p","severity":"warning","sites":[{"col":3,"file":"data","len":1,"role":"data","row":1,"src":"1","value":"1"}]}],"truncated":false,"verdict":"valid"}
 # A conflict on a deprecated value reports the CONFLICT: the nil
 # replaced the value, so there is no deprecated survivor to warn about.
-dep-vet-still-invalid	vet	p:deprecate(integer,{msg:"m"})	p:hello	{"findings":[{"class":"conflict","code":"no_scalar_unify","path":"$.p","severity":"error","sites":[{"col":3,"file":"data","role":"data","row":1,"value":"\\"hello\\""},{"col":3,"file":"schema","role":"schema","row":1,"value":"integer"}]}],"truncated":false,"verdict":"invalid"}
+dep-vet-still-invalid	vet	p:deprecate(integer,{msg:"m"})	p:hello	{"findings":[{"class":"conflict","code":"no_scalar_unify","path":"$.p","severity":"error","sites":[{"col":3,"file":"data","len":5,"role":"data","row":1,"src":"hello","value":"\\"hello\\""},{"col":3,"file":"schema","len":7,"role":"schema","row":1,"src":"integer","value":"integer"}]}],"truncated":false,"verdict":"invalid"}

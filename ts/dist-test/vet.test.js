@@ -42,6 +42,53 @@ const Path = __importStar(require("node:path"));
 const vet_1 = require("../dist/vet");
 const aontu_1 = require("../dist/aontu");
 const SCHEMA = 'service: { name: string, port: integer }';
+// THE REPAIR THE REPORT SAYS IS UNSAFE, made safe. A finding's site
+// used to carry a point and no extent, so the only length available to
+// a consumer was the CANON — and canon is not source text. Both halves
+// are asserted here: the span-driven edit is exact, and the
+// canon-driven one corrupts, so the test states what it prevents rather
+// than only that it passes.
+//
+// Status report 2026-08-21 §5, "the manual fallback corrupts files".
+// Twin: TestVetSiteSpanIsSafeToReplace in go/vet_test.go.
+(0, node_test_1.describe)('vet-site-span', () => {
+    const DATA = 'port: 0x1F\n';
+    const siteOfFirstDataFinding = () => {
+        const report = (0, vet_1.vet)('port: integer & min(9000)', DATA);
+        Assert.equal(report.verdict, 'invalid');
+        const site = report.findings[0].sites.find((s) => 'data' === s.role);
+        Assert.ok(site, 'no data site');
+        return site;
+    };
+    const replaceAt = (col, len, text) => DATA.slice(0, col - 1) + text + DATA.slice(col - 1 + len);
+    (0, node_test_1.test)('the-span-covers-the-whole-literal', () => {
+        const site = siteOfFirstDataFinding();
+        Assert.equal(site.row, 1);
+        Assert.equal(site.col, 7);
+        // The canon is `31`; the source is `0x1F`. That gap IS the defect.
+        Assert.equal(site.value, '31');
+        Assert.equal(site.src, '0x1F');
+        Assert.equal(site.len, 4);
+    });
+    (0, node_test_1.test)('replacing-by-the-span-is-exact', () => {
+        const site = siteOfFirstDataFinding();
+        Assert.equal(replaceAt(site.col, site.len, '9000'), 'port: 9000\n');
+    });
+    (0, node_test_1.test)('replacing-by-the-canon-length-corrupts', () => {
+        // What a consumer had to do before, and what it produced: the canon
+        // is two characters long, so the edit lands inside the literal and
+        // leaves the rest of it behind.
+        const site = siteOfFirstDataFinding();
+        Assert.equal(replaceAt(site.col, String(site.value).length, '9000'), 'port: 90001F\n');
+    });
+    (0, node_test_1.test)('the-span-is-verifiable-against-the-document', () => {
+        // The reason `src` is carried and not just `len`: a consumer can
+        // check that the span still describes what it is about to replace.
+        const site = siteOfFirstDataFinding();
+        const line = DATA.split('\n')[site.row - 1];
+        Assert.equal(line.substr(site.col - 1, site.len), site.src);
+    });
+});
 (0, node_test_1.describe)('vet-verdicts', () => {
     (0, node_test_1.test)('valid-data-is-valid', () => {
         const r = (0, vet_1.vet)(SCHEMA, 'service: { name: "auth", port: 8080 }');

@@ -20,6 +20,59 @@ func vetRun(schema, data string, opts *VetOptions) VetReport {
 	return Vet(schema, data, opts)
 }
 
+// THE REPAIR THE REPORT SAYS IS UNSAFE, made safe. A finding's site
+// used to carry a point and no extent, so the only length available to
+// a consumer was the CANON -- and canon is not source text. Both halves
+// are asserted here: the span-driven edit is exact, and the
+// canon-driven one corrupts, so the test states what it prevents rather
+// than only that it passes.
+//
+// Status report 2026-08-21 §5, "the manual fallback corrupts files".
+// Twin: describe('vet-site-span') in ts/test/vet.test.ts.
+func TestVetSiteSpanIsSafeToReplace(t *testing.T) {
+	const data = "port: 0x1F\n"
+
+	report := Vet("port: integer & min(9000)", data, nil)
+	if VetInvalid != report.Verdict {
+		t.Fatalf("verdict: %s", report.Verdict)
+	}
+	var site *VetSite
+	for i := range report.Findings[0].Sites {
+		if VetRoleData == report.Findings[0].Sites[i].Role {
+			site = &report.Findings[0].Sites[i]
+		}
+	}
+	if nil == site {
+		t.Fatal("no data site")
+	}
+
+	// The canon is `31`; the source is `0x1F`. That gap IS the defect.
+	if 1 != site.Row || 7 != site.Col || 4 != site.Len ||
+		"31" != site.Value || "0x1F" != site.Src {
+		t.Fatalf("site: %+v", *site)
+	}
+
+	replaceAt := func(col, length int, text string) string {
+		return data[:col-1] + text + data[col-1+length:]
+	}
+
+	if got := replaceAt(site.Col, site.Len, "9000"); "port: 9000\n" != got {
+		t.Errorf("span replacement: %q", got)
+	}
+
+	// What a consumer had to do before, and what it produced.
+	if got := replaceAt(site.Col, len(site.Value), "9000"); "port: 90001F\n" != got {
+		t.Errorf("canon replacement: %q", got)
+	}
+
+	// The reason Src is carried and not just Len: a consumer can check
+	// that the span still describes what it is about to replace.
+	line := strings.Split(data, "\n")[site.Row-1]
+	if got := line[site.Col-1 : site.Col-1+site.Len]; site.Src != got {
+		t.Errorf("span text %q != site.Src %q", got, site.Src)
+	}
+}
+
 func TestVetValidDataIsValid(t *testing.T) {
 	r := vetRun(vetSchema, `service: { name: "auth", port: 8080 }`, nil)
 	if VetValid != r.Verdict || r.Truncated || 0 != len(r.Findings) {

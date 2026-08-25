@@ -130,6 +130,35 @@ own row and column, 1-based — the same position the human renderer
 draws its caret under. A document whose second line is `b: ]` reports
 `row: 2, col: 4`, in both ports.
 
+**A site has an extent, so a finding can be repaired.** Beside `row`
+and `col` a site carries `len` — the span in UTF-16 code units, the
+units `col` is already counted in — and `src`, the source text that
+span covers. Both are `-1` and `""` when unknown, and a consumer must
+not edit a site that says so.
+
+The extent is not optional detail, because **`value` is the canon and
+not the source text**. Vetting `port: 0x1F` reports `value: "31"` at
+column 7, so replacing `(col, value.length)` writes `port: 90001F`.
+With the span the edit is `(col, len)` — `(7, 4)` — and lands exactly
+on `0x1F`.
+
+`src` is what makes the span **verifiable**: read the document at
+`(row, col, len)`, compare it to `src`, and refuse if they differ. That
+check matters most where the span is honest but partial. A site names
+the token it points at, exactly as `row` and `col` always have, so a
+scalar reports its whole literal while a compound reports its opening
+token — `min(1)` reports `src: "min"`, a map reports `src: "{"`. Seeing
+`min` where it expected `min(1)`, a consumer refuses rather than
+replacing the name and orphaning the arguments.
+
+```json
+{ "col": 7, "file": "data.aon", "len": 4, "role": "data",
+  "src": "0x1F", "row": 1, "value": "31" }
+```
+
+`aontu why` carries the same pair: each conjunct in the record has the
+`len` on its site and the contribution's own `src` beside its `canon`.
+
 **Every verdict carries its finding, `error` included.** A schema that
 does not stand up — a contradiction inside it, a document that will not
 parse, a merge marker — reports what failed and where, while the

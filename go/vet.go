@@ -80,9 +80,39 @@ type VetSite struct {
 	// neither document -- one unification minted, rather than one
 	// either document wrote. A consumer reads `file` without a presence
 	// check; the canonical port coerces the same way.
-	File  string `json:"file"`
-	Role  string `json:"role"`
-	Row   int    `json:"row"`
+	File string `json:"file"`
+	// Len is the extent in UTF-16 code units, or -1 when unknown -- the
+	// same "unknown" Row and Col already use.
+	//
+	// THIS IS WHAT MAKES A FINDING REPAIRABLE. Value is the CANON, not
+	// the source text: `port: 0x1F` reports canon `31` at column 7, so a
+	// consumer replacing (col, len(value)) writes `port: 5x1F` and
+	// corrupts the document. With Len the span is (col, 4) and the
+	// replacement is exact.
+	//
+	// NEVER GUESSED. Where the span is unknown this is -1 and a consumer
+	// must not edit -- unlike the LSP, which falls back to canon because
+	// a wonky highlight is cosmetic while a wrong edit is a lost file
+	// (Problem.Len, go/check.go). See ts/src/site.ts for what the extent
+	// covers, and note the LEXICOGRAPHIC field order this sits in.
+	Len  int    `json:"len"`
+	Role string `json:"role"`
+	Row  int    `json:"row"`
+	// Src is the SOURCE TEXT the span covers, empty when unknown.
+	//
+	// This is what makes the span SELF-VERIFYING, and it is not the same
+	// as Value. For a scalar the two differ by normalisation -- `0x1F`
+	// has Src `0x1F` and Value (canon) `31`. For a COMPOUND the span
+	// names the opening token only, exactly as Row and Col always have:
+	// a constraint `min(1)` reports Src `min`, and a reference `$.b`
+	// reports Src `$`.
+	//
+	// So a consumer must read the document at (Row, Col, Len), compare
+	// it to Src, and REFUSE when they differ -- and, seeing `min` where
+	// it expected `min(1)`, refuse rather than replace the name and
+	// orphan the arguments. Without this field that mistake is
+	// undetectable.
+	Src   string `json:"src"`
 	Value string `json:"value"`
 }
 
@@ -191,7 +221,10 @@ func siteOf(v Val, dataURL string, sources vetSources) *VetSite {
 	if 0 <= v.pos() {
 		row, col = rowCol(src, v.pos())
 	}
-	return &VetSite{Col: col, File: file, Role: role, Row: row, Value: v.Canon()}
+	return &VetSite{
+		Col: col, File: file, Len: v.srclen(), Role: role, Row: row,
+		Src: v.srctext(), Value: v.Canon(),
+	}
 }
 
 // sitesOf lists the data site first — it is the thing to fix — then the
@@ -372,8 +405,11 @@ func parseFinding(url, role string, err error) VetFinding {
 		Path:     "$",
 		Severity: "error",
 		Sites: []VetSite{{
-			Col:   col,
-			File:  url,
+			Col:  col,
+			File: url,
+			// No value, so no span: this site names a document that did
+			// not parse, not a value inside one.
+			Len:   -1,
 			Role:  role,
 			Row:   row,
 			Value: "nil",
@@ -544,7 +580,8 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 						row, col = rowCol(schemaSrc, def.pos())
 					}
 					site := &VetSite{Col: col, File: schemaURL,
-						Role: VetRoleSchema, Row: row, Value: def.Canon()}
+						Len: def.srclen(), Role: VetRoleSchema, Row: row,
+						Src: def.srctext(), Value: def.Canon()}
 					lintFindings = append(lintFindings, VetFinding{
 						Code:     "pref_not_instance",
 						Class:    "compat",

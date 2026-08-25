@@ -7,6 +7,45 @@ which implementation each change affects.
 
 ## Unreleased — TypeScript 0.53.0 line
 
+### Added — a site has an extent
+
+A finding's site was a point: `row` and `col` and nothing else. The only
+length a consumer could reach for was the **canon**, and canon is not
+source text — vetting `port: 0x1F` reports `value: "31"` at column 7, so
+replacing `(col, value.length)` writes `port: 90001F` and corrupts the
+document. The same arithmetic already shipped in the language server,
+where hovering `0x1F` highlighted `0x` and hovering `1F` answered
+nothing at all.
+
+Sites now carry **`len`**, the span in UTF-16 code units — the units
+`col` is already counted in — and **`src`**, the source text that span
+covers, in both implementations:
+
+- `aontu vet` findings: every site gains both.
+- `aontu why`: each conjunct's site gains `len`, and the conjunct gains
+  `src` beside its `canon`, so the value and its spelling are both on
+  the page.
+- The language server sizes hovers and diagnostic ranges by the real
+  span, falling back to canon only where a value carries none.
+
+Both are `-1` and `""` when unknown, and a report **never guesses**: a
+consumer must not edit a site that says so. The parser had the extent
+all along — the token that supplies `row` and `col` also carries its
+text — so this reads what was already there rather than computing
+anything new.
+
+`src` is what makes a span **verifiable**, and that turned out to
+matter. A site names the TOKEN it points at, exactly as `row` and `col`
+always have, so a scalar reports its whole literal while a compound
+reports its opening token: `min(1)` reports `src: "min"`, a map reports
+`src: "{"`. Read the document at `(row, col, len)`, compare it to
+`src`, and refuse when they differ — which turns "replace the name and
+orphan the arguments" from an undetectable mistake into a caught one.
+
+**Compatibility:** both fields are additive. Existing consumers of
+`row`, `col`, `value` and `canon` are unaffected; the JSON simply
+carries two more keys.
+
 ### Fixed — what happened when the gates that never ran, ran
 
 Making the Go CI matrix real and adding a coverage job turned two

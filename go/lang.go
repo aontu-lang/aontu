@@ -50,6 +50,11 @@ const spreadKey = reservedKeyPrefix + "spread"
 const optionalKey = reservedKeyPrefix + "optional"
 const posKey = reservedKeyPrefix + "pos"
 
+// srcKey rides beside posKey: the map rule's open-token SOURCE TEXT,
+// lifted onto the MapVal by asValDepth. The position alone locates the
+// `{`; the text is what gives it an extent (base.srclen, ts/src/site.ts).
+const srcKey = reservedKeyPrefix + "src"
+
 // elidedSpreadKey marks a map whose `&:` spread was written with no
 // value (issue #48). A bool rather than a Val: nothing can be stored
 // under spreadKey to carry it, since a spread with no value is exactly
@@ -620,6 +625,7 @@ func recordMapPos(r *jsonic.Rule, _ *jsonic.Context) {
 	// TS bc runs once per map rule (a multisource load may have injected
 	// a loaded file's stamp; the host position wins, as in TS).
 	m[posKey] = r.O0.SI
+	m[srcKey] = r.O0.Src
 }
 
 // wrapList converts a completed raw list into a ListVal carrying the
@@ -641,6 +647,7 @@ func wrapList(r *jsonic.Rule, _ *jsonic.Context) {
 	}
 	lv := listOfRawAt(n, 0, sp)
 	lv.sp = sp
+	stampSrc(lv, r)
 	r.Node = lv
 }
 
@@ -650,8 +657,28 @@ func kindDef(k Kind) *jsonic.ValueDef {
 		if r.ON > 0 {
 			v.sp = r.O0.SI
 		}
+		stampSrc(v, r)
 		return v
 	})}
+}
+
+// stampSrc records the open token's SOURCE TEXT on a parsed value, the
+// other half of the byte offset every caller here already reads. The
+// extent a site reports is derived from it (base.srclen), so this one
+// call is what makes a site editable rather than merely locatable --
+// see ts/src/site.ts for the full note and the corruption it prevents.
+//
+// NOT ScalarVal.src, which is a different field for a different job:
+// that one is the literal's SPELLING, kept so `$.a.0x0` addresses the
+// key `0x0`, and it is deliberately carried through operations that
+// produce new values. A site span must NOT travel that way -- a value
+// minted by unification occupies no source text -- so the two are
+// stored apart even where a scalar literal makes them equal.
+func stampSrc(v Val, r *jsonic.Rule) {
+	if nil == v || 0 >= r.ON {
+		return
+	}
+	v.setSrctext(r.O0.Src)
 }
 
 func valDef(mk func(sp int) Val) *jsonic.ValueDef {
@@ -660,7 +687,9 @@ func valDef(mk func(sp int) Val) *jsonic.ValueDef {
 		if r.ON > 0 {
 			sp = r.O0.SI
 		}
-		return mk(sp)
+		v := mk(sp)
+		stampSrc(v, r)
+		return v
 	})}
 }
 
@@ -692,7 +721,9 @@ func wrapLeaf(r *jsonic.Rule, _ *jsonic.Context) {
 			r.Node = e
 			return
 		}
-		r.Node = numberVal(n, src, sp)
+		nv := numberVal(n, src, sp)
+		stampSrc(nv, r)
+		r.Node = nv
 	case string:
 		// An overflowing numeric literal (1e999) fails Go's float
 		// parsing and falls back to text; in TS it lexes to Infinity,
@@ -706,10 +737,12 @@ func wrapLeaf(r *jsonic.Rule, _ *jsonic.Context) {
 		}
 		v := newString(n)
 		v.sp = sp
+		stampSrc(v, r)
 		r.Node = v
 	case bool:
 		v := newBoolean(n)
 		v.sp = sp
+		stampSrc(v, r)
 		r.Node = v
 	}
 }
@@ -998,6 +1031,10 @@ func exactLiteral(m []string) func(int) Val {
 			v := newBigInteger(new(big.Int).Set(n))
 			v.sp = sp
 			v.src = src
+			// The SPAN too. No rule is in scope here to call stampSrc
+			// with, but src IS the whole matched literal, which is
+			// exactly the token text the site's extent describes.
+			v.stext = src
 			return v
 		}
 	}
@@ -1010,6 +1047,7 @@ func exactLiteral(m []string) func(int) Val {
 		v := newBigDecimal(d)
 		v.sp = sp
 		v.src = src
+		v.stext = src
 		return v
 	}
 }
@@ -1627,7 +1665,12 @@ func evaluate(r *jsonic.Rule, ctx *jsonic.Context, op *expr.Op, terms []interfac
 		vals := toVals(terms)
 		c := newConjunct(vals)
 		if len(vals) > 0 {
+			// Site AND span from the first term, which is the rule the
+			// canonical port states: a conjunct takes its site from its
+			// first term. Taking the position without the extent left a
+			// site that named a place and denied it had any width.
 			c.sp = vals[0].pos()
+			c.setSrctext(vals[0].srctext())
 		}
 		return c
 	case "disjunct-infix":
@@ -1635,6 +1678,7 @@ func evaluate(r *jsonic.Rule, ctx *jsonic.Context, op *expr.Op, terms []interfac
 		d := newDisjunct(vals)
 		if len(vals) > 0 {
 			d.sp = vals[0].pos()
+			d.setSrctext(vals[0].srctext())
 		}
 		return d
 	case "star-prefix":
@@ -1649,6 +1693,7 @@ func evaluate(r *jsonic.Rule, ctx *jsonic.Context, op *expr.Op, terms []interfac
 		if r.ON > 0 {
 			pv.sp = r.O0.SI
 		}
+		stampSrc(pv, r)
 		return pv
 	case "negative-prefix":
 		if len(terms) < 1 {
@@ -1662,6 +1707,7 @@ func evaluate(r *jsonic.Rule, ctx *jsonic.Context, op *expr.Op, terms []interfac
 		// way to be told apart from the root (issue #39).
 		if nl, ok := nv.(*NilVal); ok && r.ON > 0 {
 			nl.sp = r.O0.SI
+			stampSrc(nl, r)
 		}
 		return nv
 	case "positive-prefix":
@@ -1677,6 +1723,7 @@ func evaluate(r *jsonic.Rule, ctx *jsonic.Context, op *expr.Op, terms []interfac
 		if r.ON > 0 {
 			rv.sp = r.O0.SI
 		}
+		stampSrc(rv, r)
 		return rv
 	case "dot-infix":
 		if len(terms) < 1 {
@@ -1686,6 +1733,7 @@ func evaluate(r *jsonic.Rule, ctx *jsonic.Context, op *expr.Op, terms []interfac
 		if r.ON > 0 {
 			rv.sp = r.O0.SI
 		}
+		stampSrc(rv, r)
 		return rv
 	case "dollar-prefix":
 		if len(terms) < 1 {
@@ -1698,6 +1746,7 @@ func evaluate(r *jsonic.Rule, ctx *jsonic.Context, op *expr.Op, terms []interfac
 			if r.ON > 0 {
 				r0.sp = r.O0.SI
 			}
+			stampSrc(r0, r)
 			return r0
 		}
 		vv := newVar(asVal(terms[0]))
@@ -1709,6 +1758,7 @@ func evaluate(r *jsonic.Rule, ctx *jsonic.Context, op *expr.Op, terms []interfac
 		if r.ON > 0 {
 			vv.sp = r.O0.SI
 		}
+		stampSrc(vv, r)
 		return vv
 	case "addition-infix":
 		if len(terms) < 2 {
@@ -1728,6 +1778,7 @@ func evaluate(r *jsonic.Rule, ctx *jsonic.Context, op *expr.Op, terms []interfac
 		if r.ON > 0 {
 			ov.sp = r.O0.SI
 		}
+		stampSrc(ov, r)
 		return ov
 	case "pipe-infix":
 		// THE PIPE `|>` (G8 phase 4): parse-time sugar and nothing else.
@@ -1772,6 +1823,7 @@ func evaluate(r *jsonic.Rule, ctx *jsonic.Context, op *expr.Op, terms []interfac
 				if r.ON > 0 {
 					n.sp = r.O0.SI
 				}
+				stampSrc(n, r)
 				return n
 			}
 			return asVal(terms[0])
@@ -1996,6 +2048,9 @@ func asValDepth(node any, depth int) Val {
 		}
 		if p, ok := n[posKey].(int); ok {
 			mv.sp = p
+		}
+		if t, ok := n[srcKey].(string); ok {
+			mv.setSrctext(t)
 		}
 		if n[elidedSpreadKey] == true {
 			en := newNil("elided_value")
@@ -2308,6 +2363,7 @@ func buildCall(r *jsonic.Rule, name string, argterms []any) Val {
 		if r.ON > 0 {
 			n.sp = r.O0.SI
 		}
+		stampSrc(n, r)
 		return n
 	}
 
@@ -2333,6 +2389,7 @@ func buildCall(r *jsonic.Rule, name string, argterms []any) Val {
 			if r.ON > 0 {
 				n.sp = r.O0.SI
 			}
+			stampSrc(n, r)
 			return n
 		}
 	}
@@ -2361,7 +2418,14 @@ func buildCall(r *jsonic.Rule, name string, argterms []any) Val {
 	}
 
 	if constraintAtoms[name] {
-		return newConstraint(name, args, sp)
+		cv := newConstraint(name, args, sp)
+		// The span too, as the canonical port does: a constraint's site
+		// names its OPENING TOKEN -- `min` for `min(1)` -- which is
+		// exactly what the row and column above already point at. Left
+		// unstamped, Go reported -1 where TypeScript reported 3, and the
+		// shared subsume rows caught it.
+		stampSrc(cv, r)
+		return cv
 	}
 
 	fv := newFunc(name, args)
@@ -2374,6 +2438,7 @@ func buildCall(r *jsonic.Rule, name string, argterms []any) Val {
 	if r.ON > 0 {
 		fv.sp = r.O0.SI
 	}
+	stampSrc(fv, r)
 	return fv
 }
 
@@ -2448,5 +2513,6 @@ func pipeCall(r *jsonic.Rule, val any, call any) Val {
 	if r.ON > 0 {
 		n.sp = r.O0.SI
 	}
+	stampSrc(n, r)
 	return n
 }

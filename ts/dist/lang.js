@@ -217,6 +217,16 @@ let AontuJsonic = function AontuLang(jsonic) {
         v.site.row = null == r.o0 ? -1 : r.o0.rI;
         v.site.col = null == r.o0 ? -1 : r.o0.cI;
         v.site.url = ctx.meta.multisource ? ctx.meta.multisource.path : '';
+        // The source text, from the SAME token the row and column above
+        // come from. jsonic has carried it all along; not reading it is
+        // what left a site uneditable (ts/src/site.ts).
+        //
+        // A TOKEN WITH NO TEXT IS NO SPAN, in both ports, and the extent is
+        // DERIVED from the text rather than read from the token's own `len`
+        // — so the Go twin, whose token has no len field, computes the
+        // identical number with utf16Len and nothing has to be kept in step.
+        v.site.src = null == r.o0 ? '' : r.o0.src;
+        v.site.len = '' === v.site.src ? -1 : v.site.src.length;
         // A keyed rule always carries a path array; a keyless one has none.
         v.path = r.k ? [...r.k.path] : [];
         return v;
@@ -803,6 +813,13 @@ help isolate the syntax error.`,
                 valnode.site.row = st.rI;
                 valnode.site.col = st.cI;
                 valnode.site.url = ctx.meta.multisource && ctx.meta.multisource.path;
+                // No `?? ''` and no empty-text arm here: this branch runs only
+                // for a rule that HAS an open token, and a token that opens a
+                // value always carries text — the coverage gate refuses both
+                // guards as dead. The unset case is the one above, where r.o0
+                // itself can be absent.
+                valnode.site.src = st.src;
+                valnode.site.len = st.src.length;
             }
             // else { ERROR? }
             r.node = valnode;

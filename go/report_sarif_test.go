@@ -89,7 +89,7 @@ func TestSarifLevels(t *testing.T) {
 			Severity: severity,
 			Path:     "$",
 			Message:  "m",
-			Sites:    []VetSite{{File: "f", Row: 1, Col: 1, Role: "data"}},
+			Sites:    []VetSite{{File: "f", Row: 1, Col: 1, Len: -1, Role: "data"}},
 		})
 	}
 	report := VetReport{Verdict: "invalid", Truncated: false, Findings: findings}
@@ -122,7 +122,7 @@ func TestSarifNoPositionNoRegion(t *testing.T) {
 		Severity: "error",
 		Path:     "$",
 		Message:  "m",
-		Sites:    []VetSite{{File: "data.aon", Row: -1, Col: -1, Role: "data"}},
+		Sites:    []VetSite{{File: "data.aon", Row: -1, Col: -1, Len: -1, Role: "data"}},
 	}}}
 	sarif := SarifReport(report, "x")
 
