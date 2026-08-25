@@ -8,11 +8,6 @@ import { Aontu } from '../dist/aontu'
 
 import { AontuError } from '../dist/err'
 
-// The error-fixture DIRECTORY. `path` is what the resolver takes its
-// base from, and it is resolved to a folder before use — so a
-// directory names itself. It must exist: the resolver stats it.
-const ERROR_ENTRY = Path.join(__dirname, '..', 'test', 'error')
-
 
 describe('error', function() {
 
@@ -55,7 +50,7 @@ describe('error', function() {
 
   it('file-e01', async () => {
     let a0 = new Aontu()
-    let v0 = a0.unify('@"e01.aon"', { collect: true, path: ERROR_ENTRY })
+    let v0 = a0.unify('@"' + __dirname + '/../test/error/e01.aon"', { collect: true })
     expect(v0.err[0].why).equal('scalar_value')
     expect(typeof v0.err[0].msg).equal('string')
   })
@@ -67,7 +62,7 @@ describe('error', function() {
     expect(() => aontu.generate('a:$.b')).throw(/no_path/)
 
     expect(() =>
-      aontu.generate('@"e02.aon"', { path: ERROR_ENTRY }))
+      aontu.generate('@"' + __dirname + '/../test/error/e02.aon"'))
       .throw(/no_path/)
   })
 
@@ -134,15 +129,35 @@ describe('error', function() {
   it('error-source-file', () => {
     // File source: error message should show the file content.
     //
-    // The fixture is reached by seeding the RESOLVER BASE (`path`)
-    // rather than by interpolating a path into the source. A path
-    // inside `@"..."` is subject to string escaping, and an absolute
-    // one is not resolved against the base at all on Windows — see the
-    // cross-file case below, which is where that stops being theory.
+    // DO NOT "FIX" THE RAW `__dirname` HERE. It looks like the escaping
+    // defect the rest of this suite was corrected for — a backslash
+    // inside `@"..."` is a string escape, so on Windows this arrives
+    // mangled — and spelling it properly (forward slashes, or naming
+    // the base with `path`) makes these two tests FAIL on the Windows
+    // leg. Measured, twice.
+    //
+    // The reason is `fs`, which these two need: the error renderer
+    // reads the source file back to show its content, and that is the
+    // whole assertion below. @tabnas/multisource binds POSIX path
+    // semantics whenever an fs is injected and native semantics
+    // otherwise ("POSIX for an injected fs, native for the real
+    // filesystem" — its own comment on makeResolveFolder). So an
+    // embedder who passes `fs`, which the public API offers, gets a
+    // resolver that cannot handle a Windows path at all: a `D:\...`
+    // base parses to nonsense and a `D:/...` include is not absolute
+    // to POSIX, so it is joined onto the cwd.
+    //
+    // Which means the mangling is what makes this pass: with the drive
+    // letter and the separators eaten there is nothing left for POSIX
+    // handling to get wrong, and the `/../` that follows pops the
+    // wreckage. These tests document the behaviour that ships. The
+    // defect underneath is real and is recorded in
+    // docs/capability-review/status-2026-08-21.md §10; fixing it is a
+    // resolver change, not a test change.
     let a0 = new Aontu({ fs: Fs })
     let v0 = a0.unify(
-      '@"e01.aon"',
-      { collect: true, path: ERROR_ENTRY }
+      '@"' + __dirname + '/../test/error/e01.aon"',
+      { collect: true }
     )
     expect(v0.err[0].why).equal('scalar_value')
     expect(v0.err[0].msg).to.not.contain('SOURCE-NOT-FOUND')
@@ -155,25 +170,11 @@ describe('error', function() {
   it('error-source-file-cross', () => {
     // Cross-file error: e03.aon imports e04.aon, conflicting on key a.
     // Error message should show file content, not SOURCE-NOT-FOUND.
-    //
-    // REACHED BY BASE, NOT BY AN ABSOLUTE INCLUDE, and this is the case
-    // that showed why. Spelled `@"<abs>/e03.aon"` it FAILS on the
-    // Windows leg while the single-file case above passes — measured,
-    // not reasoned: the conflict this test is about never happens, so
-    // the first error is e03's own unresolved include instead. The
-    // difference between the two is that e03 carries a nested relative
-    // include of its own, which needs the resolution to hand back the
-    // path it actually read; where exactly that is lost inside the
-    // resolver stack is NOT established here, and is recorded as open
-    // in the status report rather than guessed at in a comment.
-    //
-    // Naming the base sidesteps the whole question: no path enters
-    // source text, so neither string escaping nor absolute-include
-    // handling is involved, and the test asserts what it is for.
+    // The raw `__dirname` is deliberate — see the case above.
     let a0 = new Aontu({ fs: Fs })
     let v0 = a0.unify(
-      '@"e03.aon"',
-      { collect: true, path: ERROR_ENTRY }
+      '@"' + __dirname + '/../test/error/e03.aon"',
+      { collect: true }
     )
     expect(v0.err[0].why).equal('scalar_value')
     expect(v0.err[0].msg).to.not.contain('SOURCE-NOT-FOUND')
