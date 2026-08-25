@@ -117,9 +117,37 @@ func fileResolver(spec multisource.PathSpec, opts *multisource.MultiSourceOption
 		return res
 	}
 
+	// AN ABSOLUTE INCLUDE IGNORES THE BASE, and on Windows that has to
+	// be said here. Upstream ResolvePathSpec calls a path absolute only
+	// when it starts with a slash or a backslash, so a drive-lettered
+	// `@"C:/x.aon"` is not recognised: it is joined to the base
+	// (`D:\proj` + `/` + `C:/x.aon`) and never found.
+	//
+	// The canonical port has the SAME library defect and survives it by
+	// ACCIDENT, which is worth recording so this is not mistaken for a
+	// Go-only invention. multisource's TypeScript file resolver appends
+	// `resolve(base, 'node_modules', path)` as a fallback potential, and
+	// win32 `path.resolve` discards everything left of an absolute final
+	// argument -- so the package leg, meant for `node_modules`, hands
+	// back the drive-lettered path unchanged and the include resolves.
+	// Go's leg has no such fallback. Equal behaviour, reached
+	// deliberately on this side (ADR-001).
+	//
+	// filepath.IsAbs IS THE PLATFORM'S OWN RULE, and it must be: a plain
+	// string test for `X:` would be a Linux REGRESSION, because there
+	// `C:` is a legal directory name and `@"C:/x.aon"` resolves against
+	// the base today. On POSIX this branch still runs -- for a leading
+	// slash, where spec.Full already equals spec.Path -- so it decides
+	// the same thing it decided before, and the suite that runs there
+	// covers it.
+	from := spec.Full
+	if filepath.IsAbs(spec.Path) {
+		from = spec.Path
+	}
+
 	var potentials []string
-	if spec.Full != "" {
-		full, _ := filepath.Abs(spec.Full)
+	if from != "" {
+		full, _ := filepath.Abs(from)
 		potentials = append(potentials, full)
 		if filepath.Ext(full) == "" {
 			for _, ext := range opts.ImplicitExt {
