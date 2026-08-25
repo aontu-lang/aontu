@@ -61,6 +61,7 @@ declare const COMPLETION_FUNCTION = 3;
 declare const COMPLETION_KEYWORD = 14;
 declare const BUILTIN_FUNCS: string[];
 declare function computeCompletions(): CompletionItem[];
+export declare function uriToPath(uri: unknown): string | undefined;
 declare class LspHandler {
     private docs;
     private shutdownOK;

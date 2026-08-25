@@ -17,6 +17,16 @@ import { Aontu } from '../dist/aontu'
 const SKILL_DIR = Path.join(__dirname, '..', '..', 'docs', 'skill')
 
 
+// LINE ENDINGS ARE THE CHECKOUT'S BUSINESS, not this file's -- the same
+// rule ts/test/docs.test.ts and ts/test/grammar.test.ts state at
+// length. .gitattributes pins .md to LF; this is what still holds for a
+// file that did not come from a checkout.
+function readText(...parts: string[]): string {
+  return Fs.readFileSync(Path.join(...parts), 'utf8')
+    .replaceAll('\r\n', '\n').replaceAll('\r', '\n')
+}
+
+
 // Fenced blocks, with the two kinds that are not documents left out:
 // a shell transcript, and a multi-file example whose `@"..."` include
 // only resolves beside its sibling.
@@ -36,7 +46,7 @@ function documents(md: string): string[] {
 describe('skill', () => {
 
   test('every-example-document-evaluates', () => {
-    const md = Fs.readFileSync(Path.join(SKILL_DIR, 'examples.md'), 'utf8')
+    const md = readText(SKILL_DIR, 'examples.md')
     const docs = documents(md)
     Assert.ok(4 < docs.length, `too few example documents: ${docs.length}`)
 
@@ -82,7 +92,7 @@ describe('skill', () => {
       if (!file.endsWith('.md')) {
         continue
       }
-      const md = Fs.readFileSync(Path.join(SKILL_DIR, file), 'utf8')
+      const md = readText(SKILL_DIR, file)
       for (const link of md.match(/\]\(\.\.\/\.\.\/[^)]*\)/g) ?? []) {
         checked++
         Assert.ok(prepack.includes(link),
@@ -99,7 +109,7 @@ describe('skill', () => {
   // worse than no pointer.
   test('every-linked-file-exists', () => {
     for (const file of Fs.readdirSync(SKILL_DIR)) {
-      const md = Fs.readFileSync(Path.join(SKILL_DIR, file), 'utf8')
+      const md = readText(SKILL_DIR, file)
       for (const m of md.matchAll(/\]\(([^)#][^)]*)\)/g)) {
         const target = Path.resolve(SKILL_DIR, m[1])
         Assert.ok(Fs.existsSync(target), `${file}: broken link ${m[1]}`)

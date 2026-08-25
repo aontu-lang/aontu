@@ -7,6 +7,95 @@ which implementation each change affects.
 
 ## Unreleased — TypeScript 0.53.0 line
 
+### Fixed — what happened when the gates that never ran, ran
+
+Making the Go CI matrix real and adding a coverage job turned two
+long-dormant gates on. Both failed immediately, and neither failure was
+a flake.
+
+One Windows defect is recorded rather than fixed: the resolver stack
+tests absoluteness with a leading `/` or `\`, so a drive-letter path
+(`C:/Users/me/x.aon` — an absolute include on Windows) is joined onto
+the base as though it were relative. **Both implementations do this
+identically**, so it is a shared gap and not a divergence; the fix
+belongs in each port's own resolver and needs a Windows machine to
+verify, which is why it is not in this change.
+
+- **The Go port had never been tested on Windows.** `build-go` declared
+  three operating systems while hardcoding `runs-on: ubuntu-latest`, so
+  the Windows job had never once run on Windows — and fifteen tests
+  failed there the moment it did. Every one interpolated a native path
+  into Aontu SOURCE, where a backslash is a string escape: the resolver
+  received `C:UsersRUNNER~1...oot` for `C:\Users\RUNNER~1\...\root`,
+  `\r` arriving as a literal carriage return. The canonical port has
+  guarded this since it was written; the Go twin never got the guard.
+  It has it now, spelled as an unconditional replace rather than
+  `filepath.ToSlash`, so the behaviour is testable off Windows — and it
+  is tested there, on a path carrying real backslashes.
+- **The coverage gate broke on a newer toolchain than contributors
+  run.** `go tool cover` moved where an if-body's coverage block
+  begins — go1.24 opened it at the `{`, on the `if` line; a later
+  release opens it at the body's first line — and `covmerge` matched a
+  `//coverage:ignore` against that one line. Forty-two justified
+  exclusions stopped applying at once, reporting as ADR-002 failures.
+  A line marker now reaches its statement's **body**, brace to brace,
+  compared by position rather than by line: widening to the whole
+  statement instead would reach past the body into the `else` chain —
+  a sibling arm the author never marked — and excuse genuinely
+  untested code, silently, with the gate green. Both directions are
+  pinned by tests. And a marker that matches **no** block is now
+  reported by source position, because the original incident announced
+  itself only as forty-two unrelated coverage failures when what had
+  happened was that every marker stopped working.
+- **The coverage job measured a build it never made.** It ran the
+  committed `dist-test/**` from a fresh checkout without building, so
+  a change to `ts/src` that forgot to rebuild would have been graded
+  against the old code and kept its old 100 %. It now builds first,
+  and fails if the committed `ts/dist` differs from what the build
+  produces — a stale artifact means every other CI job just tested
+  code the branch does not ship.
+- **`vet-action` expanded globs in its inputs.** The unquoted
+  expansion that splits whitespace also performs pathname expansion,
+  so a data path of `[ab].json` became `a.json b.json`: the action
+  validated two files nobody asked for and went green over the one
+  they did. Split with `set -f`.
+- **`vet`'s schema-side findings repeated once per data file.** A
+  broken schema is one fault however many candidates are named, and
+  `error` means exactly that — the run could not be set up from the
+  truth's side. Concatenating the per-file reports emitted the
+  identical finding N times and, past the cap, called the report
+  `truncated` over a single underlying problem. Invisible until the
+  `error` verdict started carrying findings at all.
+- **`--jsonl` ended its stream with a record that was not JSON.** The
+  REPL's closing newline is for a human leaving a prompt line; in a
+  protocol whose whole contract is one JSON object per line it added a
+  bare empty line, and a harness parsing every line failed after every
+  command had succeeded. Both ports' tests had trimmed it away; they
+  now assert every line.
+- **The LSP mishandled a real Windows workspace root**, in both
+  implementations. `file:///C:/Users/me/project` — three slashes, the
+  shape every editor sends — became `/C:/Users/me/project`, so the
+  workspace-root confinement compared real paths against nonsense and
+  an editor on Windows got no confinement it could rely on. Neither
+  port's tests caught it because both built `'file://' + path`, two
+  slashes, which no client sends. The leading slash is now dropped
+  before a drive letter and nowhere else, so a POSIX path keeps its
+  root; the tests send what a client sends. Three more divergences in
+  the same function fell out of fixing it, all now closed: a malformed
+  percent-escape **threw** in TypeScript where Go swallowed it; a
+  well-formed escape naming a raw byte (`%FF`, a legal Linux filename)
+  decoded in Go and could not in JavaScript, so the two derived
+  different workspace roots for a uri neovim really sends; and `file://`
+  alone yielded `''`, which is not nullish and therefore survived
+  TypeScript's `??` chain to become a confinement root of `''`. All
+  nineteen uri shapes now agree between the ports, byte for byte.
+- **One malformed field discarded the whole LSP trust configuration**
+  in the Go port. The `initialize` params were decoded into typed
+  fields on one struct, so `"rootUri": 42` failed the unmarshal and the
+  session opened **unconfined** — failing open on the one surface that
+  must not. Each field is read on its own now, as the canonical port
+  already did.
+
 ### Fixed — a sixth verdict flip, and two costs on the refusal path
 
 Raised by the automated review on #72 and confirmed by measurement.

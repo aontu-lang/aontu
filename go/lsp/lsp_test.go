@@ -226,6 +226,43 @@ func trustLspWorld(t *testing.T) (dir, root string) {
 	return dir, root
 }
 
+// srcPath spells a path for EMBEDDING IN SOURCE text: inside an @"..."
+// include a backslash is an ESCAPE character, so a native Windows path
+// interpolated raw is eaten by the lexer. The full note is on the twin
+// helper in go/trust_test.go.
+func srcPath(p string) string {
+	return strings.ReplaceAll(p, "\\", "/")
+}
+
+// fileURI is the uri a real editor sends for a directory: file://,
+// then the ABSOLUTE PATH with its own leading slash. On Windows that
+// makes three slashes before the drive letter
+// (file:///C:/Users/me/project), which is the shape uriToPath has to
+// undo. These tests used to build "file://" + path -- two slashes --
+// which is not what any client sends and which quietly hid the
+// drive-letter defect uriToPath now handles.
+func fileURI(p string) string {
+	p = srcPath(p)
+	if !strings.HasPrefix(p, "/") {
+		p = "/" + p
+	}
+	return "file://" + p
+}
+
+// trustParams marshals the initialize params rather than concatenating
+// them: a native Windows path pasted into a JSON string literal carries
+// \U and \r, which are not valid JSON escapes, so the whole params
+// object failed to unmarshal and the handler fell back to unconfined --
+// a test that asserted confinement while silently testing its absence.
+func trustParams(t *testing.T, params map[string]any) string {
+	t.Helper()
+	raw, err := json.Marshal(params)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(raw)
+}
+
 func trustInit(t *testing.T, params string) *Handler {
 	t.Helper()
 	h := NewHandler()
@@ -264,28 +301,30 @@ func hasCode(diags []Diagnostic, code string) bool {
 
 func TestTrustLspWorkspaceRootConfines(t *testing.T) {
 	_, root := trustLspWorld(t)
-	h := trustInit(t, `{"rootUri":"file://`+root+`"}`)
-	if !hasCode(trustDiags(t, h, `a:@"`+root+`/../secret.aon"`), "include_denied") {
+	h := trustInit(t, trustParams(t, map[string]any{"rootUri": fileURI(root)}))
+	if !hasCode(trustDiags(t, h, `a:@"`+srcPath(root)+`/../secret.aon"`), "include_denied") {
 		t.Fatal("escape not denied")
 	}
-	if 0 != len(trustDiags(t, h, `a:@"`+root+`/in.aon"`)) {
+	if 0 != len(trustDiags(t, h, `a:@"`+srcPath(root)+`/in.aon"`)) {
 		t.Fatal("in-root include should resolve")
 	}
 }
 
 func TestTrustLspWorkspaceFoldersOutrankRootURI(t *testing.T) {
 	_, root := trustLspWorld(t)
-	h := trustInit(t, `{"rootUri":"file:///nowhere",`+
-		`"workspaceFolders":[{"uri":"file://`+root+`"}]}`)
-	if 0 != len(trustDiags(t, h, `a:@"`+root+`/in.aon"`)) {
+	h := trustInit(t, trustParams(t, map[string]any{
+		"rootUri":          "file:///nowhere",
+		"workspaceFolders": []any{map[string]any{"uri": fileURI(root)}},
+	}))
+	if 0 != len(trustDiags(t, h, `a:@"`+srcPath(root)+`/in.aon"`)) {
 		t.Fatal("in-root include should resolve under the folder root")
 	}
 }
 
 func TestTrustLspRootPathFallback(t *testing.T) {
 	_, root := trustLspWorld(t)
-	h := trustInit(t, `{"rootPath":"`+root+`"}`)
-	if !hasCode(trustDiags(t, h, `a:@"`+root+`/../secret.aon"`), "include_denied") {
+	h := trustInit(t, trustParams(t, map[string]any{"rootPath": root}))
+	if !hasCode(trustDiags(t, h, `a:@"`+srcPath(root)+`/../secret.aon"`), "include_denied") {
 		t.Fatal("escape not denied under rootPath")
 	}
 }
@@ -294,23 +333,29 @@ func TestTrustLspExplicitOptionWins(t *testing.T) {
 	dir, root := trustLspWorld(t)
 
 	// "system" widens even when a workspace root exists.
-	wide := trustInit(t, `{"rootUri":"file://`+root+`",`+
-		`"initializationOptions":{"aontu":{"trust":{"include":"system"}}}}`)
-	if 0 != len(trustDiags(t, wide, `a:@"`+dir+`/secret.aon"`)) {
+	wide := trustInit(t, trustParams(t, map[string]any{
+		"rootUri": fileURI(root),
+		"initializationOptions": map[string]any{
+			"aontu": map[string]any{"trust": map[string]any{"include": "system"}}},
+	}))
+	if 0 != len(trustDiags(t, wide, `a:@"`+srcPath(dir)+`/secret.aon"`)) {
 		t.Fatal("explicit system should widen")
 	}
 
 	// "none" narrows to nothing.
 	none := trustInit(t,
 		`{"initializationOptions":{"aontu":{"trust":{"include":"none"}}}}`)
-	if !hasCode(trustDiags(t, none, `a:@"`+root+`/in.aon"`), "include_denied") {
+	if !hasCode(trustDiags(t, none, `a:@"`+srcPath(root)+`/in.aon"`), "include_denied") {
 		t.Fatal("explicit none should deny")
 	}
 
 	// {root} names its own directory.
-	rooted := trustInit(t, `{"initializationOptions":`+
-		`{"aontu":{"trust":{"include":{"root":"`+root+`"}}}}}`)
-	if 0 != len(trustDiags(t, rooted, `a:@"`+root+`/in.aon"`)) {
+	rooted := trustInit(t, trustParams(t, map[string]any{
+		"initializationOptions": map[string]any{"aontu": map[string]any{
+			"trust": map[string]any{
+				"include": map[string]any{"root": root}}}},
+	}))
+	if 0 != len(trustDiags(t, rooted, `a:@"`+srcPath(root)+`/in.aon"`)) {
 		t.Fatal("explicit root should allow in-root")
 	}
 
@@ -318,23 +363,111 @@ func TestTrustLspExplicitOptionWins(t *testing.T) {
 	// silently widening.
 	unknown := trustInit(t, `{"initializationOptions":`+
 		`{"aontu":{"trust":{"include":{"bogus":1}}}}}`)
-	if !hasCode(trustDiags(t, unknown, `a:@"`+root+`/in.aon"`), "include_denied") {
+	if !hasCode(trustDiags(t, unknown, `a:@"`+srcPath(root)+`/in.aon"`), "include_denied") {
 		t.Fatal("unknown explicit value should deny")
+	}
+}
+
+// A REAL CLIENT'S URI, on both platforms. The three-slash form is what
+// every editor sends: file:// then the absolute path, whose own leading
+// slash makes the third. On Windows that slash sits before the drive
+// letter and is uri syntax, not path -- and stripping only "file://"
+// left "/C:/Users/..." for the confinement to compare real paths
+// against. The two-slash form these tests used to build kept working
+// by accident and is kept here so the accident stays covered.
+// The twin is lsp-uri-to-path in ts/test/lsp.test.ts.
+func TestUriToPathHandlesDriveLetters(t *testing.T) {
+	for _, c := range []struct{ uri, want string }{
+		{"file:///tmp/proj", "/tmp/proj"},
+		{"file:///C:/Users/me/proj", "C:/Users/me/proj"},
+		{"file:///c%3A/Users/me/proj", "c:/Users/me/proj"},
+		{"file://C:/Users/me/proj", "C:/Users/me/proj"},
+		{"file:///", "/"},
+		// NOT a drive letter: the slash stays, because a single-letter
+		// directory is an ordinary POSIX path.
+		{"file:///C/Users", "/C/Users"},
+		{"file:///1:/x", "/1:/x"},
+		{"http://example.com/x", ""},
+		{"", ""},
+		// `file://` alone is no path at all. This port answers "" and
+		// trustFromInitialize tests for it; the canonical port has to
+		// answer undefined, because its chain uses `??` and '' would
+		// survive it (ts/src/lsp.ts).
+		{"file://", ""},
+		// AN ESCAPE THAT DOES NOT DECODE TO TEXT IS LEFT ALONE, and
+		// there are two ways to fail. `%ZZ` is malformed and
+		// url.PathUnescape rejects it, where the canonical port's
+		// decodeURIComponent THREW a URIError until it was made to
+		// swallow it (ts/src/lsp.ts, percentDecode). `%FF` is
+		// well-formed and decodes to a raw byte -- a perfectly good
+		// Linux filename that a JavaScript string cannot hold, so
+		// TypeScript refuses it and this port used to accept it. Two
+		// ports, two workspace roots, for a uri a byte-oriented client
+		// really sends. They agree on BOTH classes now, and both
+		// classes are pinned here so neither can drift back.
+		{"file:///%ZZ/x", "/%ZZ/x"},
+		{"file:///C:/%ZZ", "C:/%ZZ"},
+		{"file:///tmp/%FF", "/tmp/%FF"},
+		{"file:///tmp/%e9", "/tmp/%e9"},
+		// A well-formed escape that IS text still decodes.
+		{"file:///tmp/%C3%A9", "/tmp/é"},
+		{"file:///C%3A/x", "C:/x"},
+	} {
+		if got := uriToPath(c.uri); c.want != got {
+			t.Errorf("uriToPath(%q) = %q, want %q", c.uri, got, c.want)
+		}
 	}
 }
 
 func TestTrustLspNoRootStaysUnconfined(t *testing.T) {
 	_, root := trustLspWorld(t)
 	h := trustInit(t, `{}`)
-	if 0 != len(trustDiags(t, h, `a:@"`+root+`/in.aon"`)) {
+	if 0 != len(trustDiags(t, h, `a:@"`+srcPath(root)+`/in.aon"`)) {
 		t.Fatal("no root, no option: unconfined")
+	}
+}
+
+// ONE BAD FIELD COSTS THAT FIELD, not the whole trust configuration.
+// The params were decoded into typed fields on a single struct, so a
+// client sending `"rootUri": 42` failed the Unmarshal outright and the
+// session opened UNCONFINED -- failing open on the one surface that
+// must not. The canonical port reads each field through its own
+// `typeof` guard and confines to rootPath regardless; the twin is
+// trust-lsp's malformed-field case in ts/test/trust.test.ts.
+func TestTrustLspOneBadFieldDoesNotDiscardTheRest(t *testing.T) {
+	_, root := trustLspWorld(t)
+
+	// A rootUri of the wrong TYPE, with a usable rootPath beside it.
+	// Marshalled, not spliced: the path is the one part that has to be
+	// a correctly escaped JSON string here, and the wrong-typed field
+	// is the one part that must not be.
+	rootJSON, err := json.Marshal(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	h := trustInit(t, `{"rootUri":42,"rootPath":`+string(rootJSON)+`}`)
+	if !hasCode(trustDiags(t, h, `a:@"`+srcPath(root)+`/../secret.aon"`),
+		"include_denied") {
+		t.Fatal("a bad rootUri must not discard rootPath: escape not denied")
+	}
+
+	// And initializationOptions this server cannot read costs only
+	// itself: the workspace root still confines.
+	opt := trustInit(t, `{"rootUri":"`+fileURI(root)+
+		`","initializationOptions":"not an object"}`)
+	if !hasCode(trustDiags(t, opt, `a:@"`+srcPath(root)+`/../secret.aon"`),
+		"include_denied") {
+		t.Fatal("unreadable initializationOptions must not discard the root")
+	}
+	if 0 != len(trustDiags(t, opt, `a:@"`+srcPath(root)+`/in.aon"`)) {
+		t.Fatal("in-root include should still resolve")
 	}
 }
 
 func TestTrustLspMalformedInitializeParams(t *testing.T) {
 	_, root := trustLspWorld(t)
 	h := trustInit(t, `not json`)
-	if 0 != len(trustDiags(t, h, `a:@"`+root+`/in.aon"`)) {
+	if 0 != len(trustDiags(t, h, `a:@"`+srcPath(root)+`/in.aon"`)) {
 		t.Fatal("malformed params fall back to unconfined")
 	}
 }

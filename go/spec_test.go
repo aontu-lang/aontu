@@ -100,7 +100,10 @@ func TestSpec(t *testing.T) {
 	// Use forward slashes even on Windows: this path is spliced into Aontu
 	// source as a quoted @"..." load target, where backslashes would be parsed
 	// as string escapes (\t -> tab, \a -> a, ...) and corrupt the path.
-	fixturesDir = filepath.ToSlash(fixturesDir)
+	// srcPath rather than filepath.ToSlash, so the package has one
+	// spelling of the rule and one that is exercised off Windows too
+	// (trust_test.go, where the full note lives).
+	fixturesDir = srcPath(fixturesDir)
 
 	var files []string
 	for _, e := range entries {

@@ -29,6 +29,18 @@ import { main as cliMain } from '../dist/cli'
 // sources spell paths that way; filesystem calls keep native paths.
 const sp = (p: string): string => p.split('\\').join('/')
 
+// The uri a real editor sends for a directory: `file://`, then the
+// ABSOLUTE PATH with its own leading slash. On Windows that makes three
+// slashes before the drive letter (file:///C:/Users/me/project), which
+// is the shape uriToPath has to undo. These tests used to build
+// `'file://' + path` — two slashes — which is not what any client sends
+// and which quietly hid the drive-letter defect. Twin: fileURI in
+// go/lsp/lsp_test.go.
+const fileURI = (p: string): string => {
+  const s = sp(p)
+  return 'file://' + (s.startsWith('/') ? s : '/' + s)
+}
+
 function world(): { dir: string, root: string } {
   const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-trust-'))
   const root = Path.join(dir, 'root')
@@ -222,7 +234,7 @@ describe('trust-lsp', () => {
 
   test('workspace-root-confines-diagnostics', () => {
     const w = world()
-    const h = init({ rootUri: 'file://' + w.root })
+    const h = init({ rootUri: fileURI(w.root) })
     // Two diagnostics, matching the syntax-failure precedent: the
     // outer parse nil and the inner denial carrying the code.
     const diags = diagsFor(h, `a:@"${sp(w.root)}/../secret.aon"`)
@@ -237,7 +249,7 @@ describe('trust-lsp', () => {
     const w = world()
     const h = init({
       rootUri: 'file:///nowhere',
-      workspaceFolders: [{ uri: 'file://' + w.root }],
+      workspaceFolders: [{ uri: fileURI(w.root) }],
     })
     Assert.deepEqual(diagsFor(h, `a:@"${sp(w.root)}/in.aon"`), [])
   })
@@ -254,7 +266,7 @@ describe('trust-lsp', () => {
 
     // 'system' widens even when a workspace root exists.
     const wide = init({
-      rootUri: 'file://' + w.root,
+      rootUri: fileURI(w.root),
       initializationOptions: { aontu: { trust: { include: 'system' } } },
     })
     Assert.deepEqual(diagsFor(wide, `a:@"${sp(w.dir)}/secret.aon"`), [])

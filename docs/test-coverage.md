@@ -236,6 +236,30 @@ rule 3).
 not this page, is the figure of record. The site list below is
 regenerated, never patched.
 
+**A line marker reaches its statement's BODY, brace to brace**, and the
+precision has been wrong in both directions.
+
+*Too short.* `go tool cover` decides where an if-body's coverage block
+begins and it has moved: go1.24 opened it at the `{`, on the `if` line;
+a later release opens it at the body's first statement. While `covmerge`
+matched a marker against its own line alone, the first run of the
+coverage gate — on a newer toolchain than any contributor had installed
+— reported **forty-two** justified exclusions as failures at once.
+
+*Too long.* Widening to the whole statement instead reached past the
+body into the `else` chain, which is a **sibling arm the author never
+marked**, and excused genuinely untested code. That failure is silent:
+the gate goes green. So the reach stops at the body's closing brace,
+and is compared by **position** rather than line — a closing brace
+shares its line with the `else if` that follows it.
+
+`go/scripts/covmerge/main_test.go` pins both directions, naming lines
+by marker rather than by number so the assertions cannot drift. And a
+marker that matches no block is now **reported by source position**:
+the original incident announced itself only as forty-two unrelated
+coverage failures, when what had actually happened was that every
+marker stopped working.
+
 ### Go — 48 marked sites
 
 | Site | Why it cannot be reached |

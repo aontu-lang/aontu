@@ -39,7 +39,15 @@ type Row = { pattern: string, verdict: string, line: number }
 
 function loadCorpus(): Row[] {
   const rows: Row[] = []
+  // Line endings normalised on read, as ts/test/docs.test.ts and
+  // ts/test/grammar.test.ts do: .gitattributes pins .tsv to LF twice
+  // over, and a reader that only works under one git configuration is
+  // still a reader that only works under one git configuration. Here it
+  // would be silent rather than loud -- the verdict is sliced with
+  // `raw.slice(tab + 1)`, so a trailing \r rides into every expected
+  // pattern.
   const text = Fs.readFileSync(CORPUS, 'utf8')
+    .replaceAll('\r\n', '\n').replaceAll('\r', '\n')
   let line = 0
   for (const raw of text.split('\n')) {
     line++

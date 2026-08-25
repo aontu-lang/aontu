@@ -57,6 +57,25 @@ const SOURCE_TAGS = new Set(['aon', 'aontu'])
 
 type Block = { lang: string; body: string }
 
+
+// LINE ENDINGS ARE THE CHECKOUT'S BUSINESS, not this file's. git on
+// Windows checks out with CRLF by default, and every pattern below
+// anchors on "\n" -- so on a Windows runner the extractor matched
+// ZERO blocks and the suite reported a documentation file with no
+// examples in it rather than a failure. (.gitattributes now pins these
+// files to LF as well, which is the systemic half; this is the half
+// that still holds when the file arrives from a source tarball, an
+// editor that rewrote it, or a copy-paste.)
+//
+// A lone CR is normalised too: it is not a line ending any tool in
+// this repository emits, but a file that has been through a Classic
+// Mac era conversion is exactly the kind of input that should fail
+// loudly on its CONTENT rather than silently on its whitespace.
+function lf(text: string): string {
+  return text.replaceAll('\r\n', '\n').replaceAll('\r', '\n')
+}
+
+
 function blocks(md: string): Block[] {
   const out: Block[] = []
   const re = /^```([a-z]*)\n([\s\S]*?)^```[ \t]*$/gm
@@ -71,7 +90,7 @@ function blocks(md: string): Block[] {
 function pages(): { file: string; blocks: Block[] }[] {
   return PAGES.map((file) => ({
     file,
-    blocks: blocks(Fs.readFileSync(Path.join(DOCS_DIR, file), 'utf8')),
+    blocks: blocks(lf(Fs.readFileSync(Path.join(DOCS_DIR, file), 'utf8'))),
   }))
 }
 

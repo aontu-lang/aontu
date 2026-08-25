@@ -86,10 +86,22 @@ runs:
         # silently validated a.json alone and the job went GREEN on a
         # document nothing had checked. Both inputs document themselves
         # as whitespace-separated, and this is what that means.
+        #
+        # WITH GLOBBING OFF, though. Unquoted expansion performs
+        # pathname expansion as well as word splitting, so a path
+        # carrying a glob metacharacter was matched against the
+        # workspace: `[ab].json` became `a.json b.json`, and the action
+        # validated two files nobody asked for and reported green over
+        # the one they did. `set -f` leaves the IFS splitting this needs
+        # and removes the expansion it does not; it is restored
+        # immediately, because the rest of the script has no reason to
+        # run without it.
+        set -f
         # shellcheck disable=SC2206
         extra_args=($AONTU_ARGS)
         # shellcheck disable=SC2206
         data_files=($AONTU_DATA)
+        set +f
         code=0
         if [ -n "$AONTU_OUTPUT" ]; then
           npx --yes "aontu@$AONTU_VERSION" vet --format "$AONTU_FORMAT" \

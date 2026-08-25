@@ -79,7 +79,10 @@ func TestAbsoluteSourceLoadIgnoresBase(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	out, err := NewWithBase("/nonexistent/base").Generate("v: @\"" + childAbs + "\"\n")
+	// sp: a native Windows path inside an @"..." include is eaten by the
+	// lexer, because a backslash there is a string escape (see sp's own
+	// note in trust_test.go).
+	out, err := NewWithBase("/nonexistent/base").Generate("v: @\"" + srcPath(childAbs) + "\"\n")
 	if err != nil {
 		t.Fatalf("generate absolute load: %v", err)
 	}

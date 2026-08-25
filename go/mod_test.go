@@ -58,7 +58,9 @@ func write(t *testing.T, file, src string) {
 
 func modGen(t *testing.T, a *Aontu, main string) (any, error) {
 	t.Helper()
-	return a.Generate("x: @\"" + filepath.ToSlash(main) + "\"\n")
+	// srcPath, not filepath.ToSlash: one spelling of the rule in this
+	// package, and one that is exercised off Windows too (trust_test.go).
+	return a.Generate("x: @\"" + srcPath(main) + "\"\n")
 }
 
 func TestModCacheIsContentAddressed(t *testing.T) {

@@ -389,7 +389,17 @@ function runRepl(initialMode, jsonl) {
         rl.prompt();
     });
     rl.on('close', () => {
-        process.stdout.write('\n');
+        // The closing newline is for a HUMAN, so it is written only for
+        // one: it moves the terminal off the prompt line that `rl` left
+        // hanging. In `--jsonl` there is no prompt, every answer already
+        // ends in its own newline, and this one appended a bare empty line
+        // to the stream -- a record that is not JSON, at the end of a
+        // protocol whose whole contract is one JSON object per line. A
+        // harness parsing every line it receives failed on it, after the
+        // commands had all succeeded. Mirrors go/cmd/aontu/repl.go.
+        if (!jsonl) {
+            process.stdout.write('\n');
+        }
         // Same reason as finish(): the REPL requires a TTY stdin, but stdout
         // can still be a pipe (`aontu | cat`), so exiting outright could
         // discard queued output here too.
@@ -596,6 +606,19 @@ function vetOnce(args) {
         }
         truncated = truncated || report.truncated;
         findings.push(...report.findings);
+        // A SCHEMA-SIDE FAULT IS THE SAME FAULT FOR EVERY DATA FILE, so it
+        // is reported ONCE. `error` means exactly that -- the run could not
+        // be set up from the truth's side, never the data's (the exit table
+        // in docs/reference-api.md) -- so the report the first file
+        // produced is the report every later file would produce, character
+        // for character. Concatenating them repeated one broken schema N
+        // times and, past the cap, marked the report `truncated` over a
+        // single underlying fault. It only became visible once the `error`
+        // verdict started carrying findings at all: while the list was
+        // empty there was nothing to duplicate.
+        if ('error' === report.verdict) {
+            break;
+        }
     }
     // The cap is on the REPORT, not on each file. Capping every file's
     // list and then concatenating them let `--max-errors 1` emit one

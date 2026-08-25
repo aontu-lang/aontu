@@ -438,6 +438,65 @@ trap is now written into `constraint-re.tsv`'s own comment: a row
 about an escape must say which layer it is escaping at, because the
 mistake is invisible in a green suite.
 
+**And the gates that had never run.** Making the Go CI matrix real
+(`runs-on` was hardcoded to ubuntu while the matrix named three
+platforms) and adding a coverage job turned two dormant gates on; both
+failed on their first real run, and each failure was a defect that had
+been sitting behind the gate rather than a flake.
+
+The Go port had never been tested on Windows, and fifteen tests failed
+there at once: every one interpolated a native path into Aontu SOURCE,
+where a backslash is a string ESCAPE, so `C:\Users\RUNNER~1\…\root`
+reached the resolver as `C:UsersRUNNER~1…oot` — `\r` arriving as a
+literal carriage return. **The canonical port has guarded this since it
+was written** (`sp` in `ts/test/trust.test.ts`, with a comment naming
+the exact failure) and the twin `go/trust_test.go` never got it. That
+is the ADR-001 parity discipline failing in the one place it is not
+mechanised: the shared spec pins BEHAVIOUR, and a guard that lives in a
+test harness is not behaviour. The Go helper is deliberately an
+unconditional replace rather than `filepath.ToSlash`, because ToSlash
+is a no-op wherever the separator is already `/` — a fix only
+exercisable on the platform nobody can run is a fix shipped blind.
+
+The coverage gate failed for an unrelated reason and a more interesting
+one: `go tool cover` moved where an if-body's block begins between
+releases, and `covmerge` matched a `//coverage:ignore` against its own
+line alone, so forty-two justified exclusions stopped applying on a
+toolchain newer than any contributor's. The marker now covers the whole
+statement it sits on — what `ignore-block` always did — and
+`go/scripts/covmerge/main_test.go` asserts both block spellings, so the
+gate cannot pass merely because of which Go is installed.
+
+A third defect fell out of fixing them, caught by neither job:
+`uriToPath` mishandled the standards-shaped Windows file uri
+(`file:///C:/…` → `/C:/…`), so the LSP's workspace-root confinement
+compared real paths against nonsense. **Both ports carried it
+identically** and both ports' tests hid it the same way, by building
+`'file://' + path` — two slashes, which no editor sends. Fixed in both,
+with the tests rewritten to send what a client actually sends.
+
+Pulling on that one found three more divergences in the same eight
+lines, each of which decided a confinement: a malformed percent-escape
+THREW in TypeScript where Go swallowed it; a well-formed escape naming
+a raw byte (`%FF` — a legal Linux filename, and something a JavaScript
+string cannot hold) decoded in Go and not in TypeScript, so the two
+derived DIFFERENT workspace roots for a uri neovim really sends; and
+`file://` alone yielded `''`, which is not nullish and so survived
+TypeScript's `??` chain to become a confinement root of `''` resolved
+against the process working directory. All nineteen uri shapes now
+agree between the ports. Next to them, one more: the Go port decoded
+the whole `initialize` params into typed fields, so a single
+wrong-typed value (`"rootUri": 42`) failed the unmarshal and left the
+session UNCONFINED — failing open, where the canonical port's per-field
+`typeof` guards cost it only that field.
+
+**None of these were reachable from the shared spec**, which is the
+observation worth keeping: `test/spec/*.tsv` pins what the ENGINE
+computes, and every defect in this round lived in a harness, a build
+tool, a CLI aggregation or a transport adapter. ADR-001 parity is
+mechanised exactly where the spec reaches and nowhere else, and the
+places it does not reach are where the two ports drifted.
+
 **And a dead branch the two-port discipline caught.** Removing the
 empty-finding return left a guard whose condition the branch above
 makes impossible. TypeScript's line coverage called it COVERED — the

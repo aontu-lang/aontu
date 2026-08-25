@@ -57,6 +57,17 @@ const cli_1 = require("../dist/cli");
 // as C:Users...). Node accepts forward slashes on every platform, so
 // sources spell paths that way; filesystem calls keep native paths.
 const sp = (p) => p.split('\\').join('/');
+// The uri a real editor sends for a directory: `file://`, then the
+// ABSOLUTE PATH with its own leading slash. On Windows that makes three
+// slashes before the drive letter (file:///C:/Users/me/project), which
+// is the shape uriToPath has to undo. These tests used to build
+// `'file://' + path` — two slashes — which is not what any client sends
+// and which quietly hid the drive-letter defect. Twin: fileURI in
+// go/lsp/lsp_test.go.
+const fileURI = (p) => {
+    const s = sp(p);
+    return 'file://' + (s.startsWith('/') ? s : '/' + s);
+};
 function world() {
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-trust-'));
     const root = Path.join(dir, 'root');
@@ -202,7 +213,7 @@ function firstCode(fn) {
     };
     (0, node_test_1.test)('workspace-root-confines-diagnostics', () => {
         const w = world();
-        const h = init({ rootUri: 'file://' + w.root });
+        const h = init({ rootUri: fileURI(w.root) });
         // Two diagnostics, matching the syntax-failure precedent: the
         // outer parse nil and the inner denial carrying the code.
         const diags = diagsFor(h, `a:@"${sp(w.root)}/../secret.aon"`);
@@ -214,7 +225,7 @@ function firstCode(fn) {
         const w = world();
         const h = init({
             rootUri: 'file:///nowhere',
-            workspaceFolders: [{ uri: 'file://' + w.root }],
+            workspaceFolders: [{ uri: fileURI(w.root) }],
         });
         Assert.deepEqual(diagsFor(h, `a:@"${sp(w.root)}/in.aon"`), []);
     });
@@ -228,7 +239,7 @@ function firstCode(fn) {
         const w = world();
         // 'system' widens even when a workspace root exists.
         const wide = init({
-            rootUri: 'file://' + w.root,
+            rootUri: fileURI(w.root),
             initializationOptions: { aontu: { trust: { include: 'system' } } },
         });
         Assert.deepEqual(diagsFor(wide, `a:@"${sp(w.dir)}/secret.aon"`), []);

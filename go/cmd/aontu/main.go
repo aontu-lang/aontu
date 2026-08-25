@@ -321,6 +321,19 @@ func repl(mode string, jsonl bool, in io.Reader, out io.Writer) {
 		fmt.Fprintf(out,
 			"Aontu v%s REPL — :help for commands, :quit to exit\n", aontu.VERSION)
 	}
+	// The closing newline is for a HUMAN, so it is written only for
+	// one: it moves the terminal off the prompt line the loop left
+	// hanging. In --jsonl there is no prompt, every answer already ends
+	// in its own newline, and this one appended a bare empty line to
+	// the stream -- a record that is not JSON, at the end of a protocol
+	// whose whole contract is one JSON object per line. A harness
+	// parsing every line it receives failed on it, after the commands
+	// had all succeeded. Mirrors runRepl in ts/src/cli.ts.
+	closing := func() {
+		if !jsonl {
+			fmt.Fprintln(out)
+		}
+	}
 	state := replState{Mode: mode, JSONL: jsonl}
 	sc := bufio.NewScanner(in)
 	// Raise the line cap well above bufio's 64KB default so a long
@@ -334,7 +347,7 @@ func repl(mode string, jsonl bool, in io.Reader, out io.Writer) {
 		})
 		state = res.State
 		if res.Close {
-			fmt.Fprintln(out)
+			closing()
 			return
 		}
 		if "" != res.Out {
@@ -345,7 +358,7 @@ func repl(mode string, jsonl bool, in io.Reader, out io.Writer) {
 	if err := sc.Err(); err != nil {
 		fmt.Fprintln(out, "aontu: input error:", err)
 	}
-	fmt.Fprintln(out)
+	closing()
 }
 
 func main() { //coverage:ignore run under GOCOVERDIR by `make cov-go`

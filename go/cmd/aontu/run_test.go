@@ -201,14 +201,28 @@ func TestReplJSONLIsReachableOverAPipe(t *testing.T) {
 	}
 
 	var out, errw bytes.Buffer
+	// The path is NOT source here: `:load` hands its argument straight
+	// to the file reader (repl.go), so a native separator is correct
+	// and the sp() rule the trust suites need does not apply.
 	in := strings.NewReader(":load " + file + "\n:get $.a\n")
 	if code := run([]string{"--jsonl"}, in, &out, &errw, false); 0 != code {
 		t.Fatalf("exit %d, stderr %q", code, errw.String())
 	}
 
-	lines := strings.Split(strings.TrimSpace(out.String()), "\n")
+	// NO TrimSpace. The contract is one JSON object per line, so EVERY
+	// line the stream produced has to be one -- and trimming first is
+	// exactly what let a bare closing newline sit at the end of the
+	// stream unnoticed, where a harness parsing each line as it arrived
+	// would fail after every command had succeeded. The final newline
+	// terminates the last record and is not a record itself, so it is
+	// stripped once, deliberately, and nothing else is.
+	text := out.String()
+	if !strings.HasSuffix(text, "\n") {
+		t.Fatalf("stream does not end in a newline: %q", text)
+	}
+	lines := strings.Split(strings.TrimSuffix(text, "\n"), "\n")
 	if 2 != len(lines) {
-		t.Fatalf("want one JSON line per command, got %d: %q", len(lines), out.String())
+		t.Fatalf("want one JSON line per command, got %d: %q", len(lines), text)
 	}
 	for _, line := range lines {
 		var m map[string]any

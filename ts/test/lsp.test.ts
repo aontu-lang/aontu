@@ -8,6 +8,7 @@ import {
   computeHover,
   contributionsMarkdown,
   computeCompletions,
+  uriToPath,
   LspHandler,
   BUILTIN_FUNCS,
   SEVERITY_ERROR,
@@ -152,6 +153,67 @@ describe('lsp-completion', () => {
     const bogus = computeDiagnostics('x:notafunc(1)')
       .filter(d => d.code === 'unknown_function')
     Assert.equal(bogus.length, 1, 'bogus function should be unknown')
+  })
+
+})
+
+
+// A REAL CLIENT'S URI, on both platforms. The three-slash form is what
+// every editor sends: `file://` then the absolute path, whose own
+// leading slash makes the third. On Windows that slash sits before the
+// drive letter and is uri syntax, not path — and stripping only
+// `file://` left `/C:/Users/…` for the workspace-root confinement to
+// compare real paths against, so the confinement an editor on Windows
+// relied on was never applied. Both ports carried it identically; both
+// ports' tests hid it by building `'file://' + path`, two slashes,
+// which no client sends and which happened to work. That two-slash
+// form is kept below so the accident stays covered.
+// The twin is TestUriToPathHandlesDriveLetters in go/lsp/lsp_test.go.
+describe('lsp-uri-to-path', () => {
+
+  test('lsp-uri-to-path-handles-drive-letters', () => {
+    const cases: [string, string | undefined][] = [
+      ['file:///tmp/proj', '/tmp/proj'],
+      ['file:///C:/Users/me/proj', 'C:/Users/me/proj'],
+      ['file:///c%3A/Users/me/proj', 'c:/Users/me/proj'],
+      ['file://C:/Users/me/proj', 'C:/Users/me/proj'],
+      ['file:///', '/'],
+      // NOT a drive letter: the slash stays, because a single-letter
+      // directory is an ordinary POSIX path.
+      ['file:///C/Users', '/C/Users'],
+      ['file:///1:/x', '/1:/x'],
+      ['http://example.com/x', undefined],
+      ['', undefined],
+      // `file://` alone is no path at all, and must not become a
+      // confinement root of '' — see uriToPath's own note. The Go twin
+      // answers "" and its caller tests for it; here the caller chains
+      // with `??`, which '' would survive.
+      ['file://', undefined],
+      // AN ESCAPE THAT DOES NOT DECODE TO TEXT IS LEFT ALONE, and
+      // there are two ways to fail. `%ZZ` is malformed, and
+      // decodeURIComponent THREW a URIError on it — out of the
+      // initialize handler, on a uri the CLIENT chose — where the Go
+      // twin swallowed the failure and used the raw text. `%FF` is
+      // well-formed and decodes to a raw byte: a perfectly good Linux
+      // filename that a JavaScript string cannot hold, so this port
+      // refuses it while Go used to accept it, and the two derived
+      // DIFFERENT workspace roots for a uri a byte-oriented client
+      // really sends (neovim percent-encodes path bytes). They agree
+      // on both classes now, and both are pinned so neither drifts.
+      ['file:///%ZZ/x', '/%ZZ/x'],
+      ['file:///C:/%ZZ', 'C:/%ZZ'],
+      ['file:///tmp/%FF', '/tmp/%FF'],
+      ['file:///tmp/%e9', '/tmp/%e9'],
+      // A well-formed escape that IS text still decodes.
+      ['file:///tmp/%C3%A9', '/tmp/\u00e9'],
+      ['file:///C%3A/x', 'C:/x'],
+    ]
+    for (const [uri, want] of cases) {
+      Assert.equal(uriToPath(uri), want, uri)
+    }
+    // Not a string at all: the handler passes whatever the client sent.
+    Assert.equal(uriToPath(undefined), undefined)
+    Assert.equal(uriToPath(42), undefined)
   })
 
 })

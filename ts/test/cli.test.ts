@@ -328,6 +328,39 @@ describe('cli-vet', () => {
   })
 
 
+  // …BUT A SCHEMA-SIDE FAULT IS ONE FAULT, however many data files are
+  // named. `error` means the run could not be set up from the TRUTH's
+  // side, so every data file would produce the identical finding;
+  // concatenating them repeated one broken schema per file and, past
+  // the cap, called the report `truncated` over a single underlying
+  // problem. Invisible until the `error` verdict started carrying
+  // findings at all. The twin is TestVetSchemaErrorReportsOnce in
+  // go/cmd/aontu/vet_test.go.
+  test('vet-schema-error-reports-once', () => {
+    const f = vetFiles(VET_SCHEMA, 'service: { name: "auth" }')
+    const broken = Path.join(f.dir, 'broken.aon')
+    Fs.writeFileSync(broken, 'a: 1\na: 2\n')
+    const second = Path.join(f.dir, 'second.json')
+    Fs.writeFileSync(second, '{"a":1}')
+
+    const r = vetCapture(() => Assert.equal(
+      runVet(['--format', 'json', broken,
+        f.data, second, f.data, second]), 4))
+    const report = JSON.parse(r.out)
+    Assert.equal(report.verdict, 'error')
+    Assert.equal(report.findings.length, 1, r.out)
+    Assert.equal(report.truncated, false)
+
+    // The same for an anchor that names nothing: also data-independent.
+    const at = vetCapture(() => Assert.equal(
+      runVet(['--format', 'json', '--at', '$.nope', f.schema,
+        f.data, second, f.data]), 4))
+    const atReport = JSON.parse(at.out)
+    Assert.equal(atReport.findings.length, 1, at.out)
+    Assert.equal(atReport.findings[0].code, 'no_path')
+  })
+
+
   // The usage errors all end with "(try --help)", so the verb answers
   // to it: same text as `aontu --help`, exit 0.
   test('vet-help-is-help-not-an-unknown-option', () => {
@@ -967,8 +1000,16 @@ describe('cli-subsume', () => {
     const r = run(["--jsonl"], `:load ${file}\n:get $.a\n`)
     Assert.equal(r.code, 0, r.out)
 
-    const lines = r.out.trim().split('\n')
-    Assert.equal(lines.length, 2, r.out)
+    // NO trim(). The contract is one JSON object per line, so EVERY
+    // line the stream produced has to be one -- and trimming first is
+    // exactly what let a bare closing newline sit at the end of the
+    // stream unnoticed, where a harness parsing each line as it
+    // arrived would fail after every command had succeeded. The final
+    // newline terminates the last record and is not a record itself,
+    // so it is stripped once, deliberately, and nothing else is.
+    Assert.ok(r.out.endsWith('\n'), JSON.stringify(r.out))
+    const lines = r.out.slice(0, -1).split('\n')
+    Assert.equal(lines.length, 2, JSON.stringify(r.out))
     for (const line of lines) {
       const m = JSON.parse(line)
       Assert.equal(m.ok, true, line)
