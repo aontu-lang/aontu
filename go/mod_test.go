@@ -150,16 +150,26 @@ func TestModCacheDirRule(t *testing.T) {
 			map[string]string{"XDG_CACHE_HOME": "/x", "LOCALAPPDATA": "C:/L"},
 			filepath.Join("/x", "aontu", "mod")},
 
-		// Below it the platforms differ, which is the point.
-		{"windows takes LOCALAPPDATA", "windows",
+		// HOME is next, and is honoured ON WINDOWS TOO. This is the
+		// case CI caught: LOCALAPPDATA above HOME made an explicitly
+		// set HOME unreachable there, and the platform default silently
+		// won over what the environment was told.
+		{"windows honours HOME over LOCALAPPDATA", "windows",
 			map[string]string{"LOCALAPPDATA": "C:/L", "HOME": "/h"},
-			filepath.Join("C:/L", "aontu", "mod")},
+			filepath.Join("/h", ".cache", "aontu", "mod")},
 		{"posix ignores LOCALAPPDATA", "linux",
 			map[string]string{"LOCALAPPDATA": "C:/L", "HOME": "/h"},
 			filepath.Join("/h", ".cache", "aontu", "mod")},
-		{"windows without one falls back", "windows",
-			map[string]string{"HOME": "/h"},
-			filepath.Join("/h", ".cache", "aontu", "mod")},
+
+		// And LOCALAPPDATA is the platform default BENEATH both, which
+		// is the whole addition: Windows sets neither of the two above
+		// by default.
+		{"windows falls back to LOCALAPPDATA", "windows",
+			map[string]string{"LOCALAPPDATA": "C:/L"},
+			filepath.Join("C:/L", "aontu", "mod")},
+		{"posix has no such fallback", "linux",
+			map[string]string{"LOCALAPPDATA": "C:/L"},
+			""},
 
 		// Nowhere to put one is a MISS, not a failure.
 		{"nowhere", "windows", map[string]string{}, ""},

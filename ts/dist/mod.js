@@ -108,19 +108,30 @@ function modCacheDir() {
 // a platform nobody here runs gets tested at all. The Go port splits
 // the same way (modCacheDirFor, go/aontu.go).
 //
-// XDG_CACHE_HOME WINS EVERYWHERE, including on Windows: it is the
-// explicit override, and a caller who names a cache directory means it.
-// Below that the platforms differ, and the rule has to say so. Windows
-// sets neither XDG_CACHE_HOME nor HOME by default — it supplies
-// USERPROFILE and LOCALAPPDATA, and LOCALAPPDATA is what a cache
-// directory means there — so a rule that knew only the first two left
-// every Windows user with NO cache: `aontu mod get` had nowhere to
-// write, and a module fetched a moment earlier came back "not fetched",
-// resolvable only from a project-local aon_vendor/.
+// THE ORDER IS EXPLICIT BEFORE IMPLICIT, and LOCALAPPDATA is LAST.
+// XDG_CACHE_HOME is the override and wins everywhere, Windows included:
+// a caller who names a cache directory means it. HOME comes next and is
+// also honoured on Windows, where it is not standard but IS set by Git
+// Bash and by most development shells — a user who has one expects
+// their tools to agree about where home is.
+//
+// LOCALAPPDATA is the PLATFORM DEFAULT beneath both, which is the whole
+// addition: Windows sets neither XDG_CACHE_HOME nor HOME by default —
+// it supplies USERPROFILE and LOCALAPPDATA, and LOCALAPPDATA is what a
+// cache directory means there — so a rule that knew only the first two
+// left every Windows user with NO cache. Putting it ABOVE HOME was the
+// first attempt and was wrong: it made an explicitly set HOME
+// unreachable on Windows, which broke the existing fallback test the
+// moment CI ran it. A platform default that overrides what the
+// environment was told is not a default.
 function modCacheDirFor(platform, env) {
     const xdg = env.XDG_CACHE_HOME;
     if ('string' === typeof xdg && '' !== xdg) {
         return (0, node_path_1.join)(xdg, 'aontu', 'mod');
+    }
+    const home = env.HOME;
+    if ('string' === typeof home && '' !== home) {
+        return (0, node_path_1.join)(home, '.cache', 'aontu', 'mod');
     }
     if ('win32' === platform) {
         const local = env.LOCALAPPDATA;
@@ -128,9 +139,7 @@ function modCacheDirFor(platform, env) {
             return (0, node_path_1.join)(local, 'aontu', 'mod');
         }
     }
-    const home = env.HOME;
-    return 'string' === typeof home && '' !== home ?
-        (0, node_path_1.join)(home, '.cache', 'aontu', 'mod') : undefined;
+    return undefined;
 }
 function lockHash(root, ref, fs) {
     const file = (0, node_path_1.join)(root, 'mod-lock.aon');

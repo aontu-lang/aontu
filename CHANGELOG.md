@@ -44,9 +44,11 @@ halves of that were wrong, and it is fixed below.
   `XDG_CACHE_HOME` then `HOME`, neither of which Windows sets by
   default, so `aontu mod get` had nowhere to write and a module fetched
   a moment earlier came back `module not fetched`. Both implementations
-  now take `LOCALAPPDATA` on Windows, below `XDG_CACHE_HOME`, which
-  remains the explicit override everywhere. The rule takes the platform
-  as an argument so the Windows arm is tested from Linux.
+  now take `LOCALAPPDATA` on Windows, beneath `XDG_CACHE_HOME` and
+  `HOME`, both of which remain honoured everywhere: the order is
+  explicit before implicit, because a platform default that overrides
+  what the environment was told is not a default. The rule takes the
+  platform as an argument so the Windows arm is tested from Linux.
 - **The VS Code extension never started its server on Windows.** npm
   installs the entry point as the shim `aontu-lsp.cmd`, and
   `CreateProcess` will not execute a `.cmd` without a shell — so the

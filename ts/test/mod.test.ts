@@ -161,16 +161,24 @@ describe('mod', () => {
       modCacheDirFor('win32', { XDG_CACHE_HOME: '/x', LOCALAPPDATA: 'C:/L' }),
       at('/x', 'aontu', 'mod'))
 
-    // Below it the platforms differ, which is the point.
+    // HOME is next, and is honoured ON WINDOWS TOO. This is the case
+    // CI caught: LOCALAPPDATA above HOME made an explicitly set HOME
+    // unreachable there, and the platform default silently won over
+    // what the environment was told.
     Assert.equal(
       modCacheDirFor('win32', { LOCALAPPDATA: 'C:/L', HOME: '/h' }),
-      at('C:/L', 'aontu', 'mod'))
+      at('/h', '.cache', 'aontu', 'mod'))
     Assert.equal(
       modCacheDirFor('linux', { LOCALAPPDATA: 'C:/L', HOME: '/h' }),
       at('/h', '.cache', 'aontu', 'mod'))
+
+    // And LOCALAPPDATA is the platform default BENEATH both, which is
+    // the whole addition: Windows sets neither of the two above by
+    // default.
     Assert.equal(
-      modCacheDirFor('win32', { HOME: '/h' }),
-      at('/h', '.cache', 'aontu', 'mod'))
+      modCacheDirFor('win32', { LOCALAPPDATA: 'C:/L' }),
+      at('C:/L', 'aontu', 'mod'))
+    Assert.equal(modCacheDirFor('linux', { LOCALAPPDATA: 'C:/L' }), undefined)
 
     // An empty variable is not a location, and nowhere to put one is a
     // MISS rather than a failure.
