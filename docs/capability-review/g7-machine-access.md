@@ -6,8 +6,10 @@ and its projections, `why` with its provenance recorder, the overlay
 PARTIAL from 2026-08-21 until 2026-08-24, while its `--jsonl` session
 mode was unreachable in the Go CLI and TTY-gated in the TypeScript
 one; the register records what closed it. Phase 5's STAGE 2, the
-format-preserving in-place edit, remains deferred by the phase
-itself. Per-phase status and the
+format-preserving in-place edit, was deferred by the phase itself and
+**landed 2026-08-25** — see the superseding note on that phase below,
+including why the CST it was deferred behind turned out not to be
+needed. Per-phase status and the
 corrections this document needs are in the
 [progress register](progress.md), which is authoritative for status;
 this document is authoritative for design. Part of the
@@ -423,7 +425,9 @@ values and fills unpinned fields. What it *cannot* do is change a
 pinned value: the lattice correctly rejects `5` against `3`, and
 the verdict says so with the pinning site — which `why` locates.
 The loop "set → conflict → why → edit the pinning site" is
-coherent even before stage 2, with the last step manual.
+coherent even before stage 2, with the last step manual. *(Stage 2
+landed 2026-08-25; the last step is `--in-place` and is no longer
+manual. See the superseding note below.)*
 
 **Stage 2 — format-preserving in-place edit (deferred, L).**
 Requires two missing assets: an evaluated-path →
@@ -542,6 +546,10 @@ missing.)*
 - **No format-preserving rewriting in stage 1.** Overlay-append
   ships first precisely because it needs no rewriter; in-place
   editing waits for the CST and the source map.
+  *(Half right, 2026-08-25. The source map arrived and is what
+  `--in-place` runs on. The CST never did and never had to: it is
+  what a whole-document REWRITE needs, and a targeted span splice
+  rewrites nothing it does not replace.)*
 - **No error-format invention.** Every failure across get/why/set
   and the MCP tools is reported via the
   [G2](g2-validation-verb.md) contract.
