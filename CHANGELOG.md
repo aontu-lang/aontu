@@ -7,6 +7,49 @@ which implementation each change affects.
 
 ## Unreleased — TypeScript 0.53.0 line
 
+### Breaking — a preference is gated by kind, not by family
+
+`port: *8080 | integer` — the default idiom this project's own
+documentation and agent skill card teach — accepted `port: 1.5`, in both
+implementations, and generated `{"port":1.5}`. The preference widened
+its branch to the base kind `number`, so the `integer` the author wrote
+was not the constraint that survived: every key written that way was
+quietly a `number` key.
+
+The gate a concrete peer had to pass to override a default was the
+preferred value's **family**. That let `*2.2 & 3` through, which reads
+as a kindness, and `*8080 & 3.5` through, which is the same rule seen
+from the other end. No kind-based gate can keep the first and refuse the
+second. The gate is now the preferred value's own **kind**
+(`superpeg`), and both are refused.
+
+What changes:
+
+```
+*8080 | integer   with  1.5      was {"port":1.5}    now [aontu/|:empty]
+*2.2 & 3                         was 3               now a conflict
+*2 & 3.0                         was 3.0             now a conflict
+*1.5 & integer                   was integer         now a conflict
+```
+
+What does not change: the same-kind override that is the point of a
+preference (`*1 & 2` is `2`, `*1.5 & 2.5` is `2.5`), a kind peer the
+default already satisfies (`*1.5 & float` and `*1.5 & number` are both
+`1.5`), the cross-kind refusal (`*1 & {}`), and every non-numeric
+default — only the numeric leaves ever had a family to widen into.
+
+An author who wants the whole numeric family now writes it, in the
+branch, where a reader can see it: `*8080 | number` still admits `1.5`.
+The `kind & (*value | kind)` shape the documentation used to prescribe
+as a workaround keeps working and now says nothing the inner branch does
+not; `docs/tutorial.md`, `docs/how-to.md`, `docs/explanation.md`,
+`docs/reference-language.md` and the skill card teach the direct form.
+
+Pinned by `test/spec/number-tower.tsv` (the `pref-*-leaf-*` and
+`pref-idiom-*` rows) and `test/spec/pref.tsv` (the cross-kind gate rows,
+renamed `pref-family-gate-*` → `pref-kind-gate-*`). Closes §6 of the
+2026-08-21 status report. TypeScript and Go move together.
+
 ### Added — a site has an extent
 
 A finding's site was a point: `row` and `col` and nothing else. The only

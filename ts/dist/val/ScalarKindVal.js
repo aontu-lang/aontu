@@ -2,7 +2,6 @@
 /* Copyright (c) 2021-2025 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ScalarKindVal = exports.Null = exports.Integer = exports.Float = exports.BigInteger = exports.BigDecimal = void 0;
-exports.kindFamily = kindFamily;
 exports.kindParent = kindParent;
 exports.kindSubsumes = kindSubsumes;
 const type_1 = require("../type");
@@ -69,16 +68,6 @@ const KIND_PARENT = new Map([
 // marker's superior is top.
 function kindParent(kind) {
     return KIND_PARENT.get(kind);
-}
-// The root of a kind marker's family: the highest ancestor below top.
-// Every numeric leaf answers `number`; a kind with no parent is its own
-// family root (string, boolean, null).
-function kindFamily(kind) {
-    let root = kind;
-    for (let k = KIND_PARENT.get(kind); null != k; k = KIND_PARENT.get(k)) {
-        root = k;
-    }
-    return root;
 }
 // True when `sub` is `sup`, or sits anywhere below it. The numeric
 // lattice is two deep today; walking the chain keeps this correct if it

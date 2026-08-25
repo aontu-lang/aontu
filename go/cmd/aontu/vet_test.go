@@ -403,7 +403,10 @@ func TestVetNoteAndAlternativesReachTheTextReport(t *testing.T) {
 func TestVetSiteOffPegStillNamesItsDocument(t *testing.T) {
 	_, s, d := vetFiles(t, "a: *1", "a: {}")
 	out, _, _ := vetRun(s, d)
-	vetMatch(t, out, `schema: .*schema\.aon:1:\d+ \(number\)`)
+	// `integer`, not `number`: the yardstick a preference reports is its
+	// own kind. It read `number` while the override gate widened to the
+	// numeric family (removed 2026-08-25, status report §6).
+	vetMatch(t, out, `schema: .*schema\.aon:1:\d+ \(integer\)`)
 }
 
 // The verb dispatches only as the FIRST argument, so a file argument is

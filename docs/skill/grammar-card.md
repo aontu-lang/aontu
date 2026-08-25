@@ -22,6 +22,7 @@ grammar is [`grammar/aontu.gbnf`](../../grammar/aontu.gbnf) (and
 | `a & b` | both must hold — the meet |
 | `a \| b` | either may hold — the join |
 | `*1 \| integer` | either, with `1` the DEFAULT a generation picks |
+| | the branch keeps its kind: a later `1.5` is refused, not admitted |
 | `x: 1` twice | the two meet; `1 & 2` is an error, `1 & integer` is `1` |
 | `$.a.b` | the value at that path of this document |
 | `1 + 2` | arithmetic on concrete numbers |

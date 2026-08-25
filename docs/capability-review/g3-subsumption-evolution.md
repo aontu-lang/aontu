@@ -132,10 +132,10 @@ The ordering exists operationally; the relation does not.
   already reasons with it: `superpeg = this.peg.superior()`
   (`ts/src/val/PrefVal.ts`), so a preference admits any peer that is
   an instance of the preferred value's generalisation — one place
-  where the engine natively asks an instance-of question. *(Since
-  the number tower, `PrefVal` carries two yardsticks — `superpeg`
-  and `familypeg`, assigned by `resuper()` — the register's G3 notes
-  record why.)*
+  where the engine natively asks an instance-of question. *(The number tower briefly
+  gave `PrefVal` a second yardstick, `familypeg`; it was removed on
+  2026-08-25 and `superpeg` is once again both the reported type and
+  the override gate — the register's G3 notes record why.)*
 - **The `super()` builtin was degenerate and unpinned** — at review
   time. `docs/reference-language.md` documented `super(1)` → `number`,
   but `SuperFuncVal.resolve` returned `this.superior()`, which fell

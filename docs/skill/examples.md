@@ -44,6 +44,11 @@ Now it generates: `{"service":{"name":…,"port":8080,"replicas":1}}` —
 except `name`, which nothing has supplied. Defaults are picked at
 generation; they do not stop a caller from choosing something else.
 
+`*8080 | integer` means what it reads as: a caller's `9090` overrides
+it, and a caller's `1.5` is refused, because the branch admits only the
+kind it names. Write `*8080 | number` if any numeric value should be
+allowed to win.
+
 ## 4. Say it once, for every key
 
 ```

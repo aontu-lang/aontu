@@ -17,11 +17,13 @@ pref-dangling-err	err	y:[*]	Cannot resolve value
 pref-disjunct-rank	gen	x:pref(*1e3|hello)	{"x":"hello"}
 pref-disjunct-rank-canon	canon	x:pref(*1e3|hello)	{"x":**1000|*"hello"}
 pref-kind-disjunct	gen	x:pref(boolean|11)	{"x":11}
-# THE FAMILY GATE MUST SURVIVE A CLONE.
+# THE KIND GATE MUST SURVIVE A CLONE.
 #
 # A preference is a default, so a concrete peer replaces it -- but only
-# within the preferred value's FAMILY (`*1 & 2` is 2; `*1 & {}` is an
-# error). The gate is `familypeg`, added by the number tower.
+# where the peer is the same KIND of thing (`*1 & 2` is 2; `*1 & {}` is an
+# error). The gate is the preferred value's own `superpeg`. It once widened
+# to the numeric FAMILY, which also let `*8080 & 3.5` through; see
+# test/spec/number-tower.tsv for the rows that pin the narrower rule.
 #
 # Uncloned, both ports already refused: `x:*1&{}` errors in both. Every row
 # below reaches the PrefVal through a clone -- a spread template, a $ref, a
@@ -30,15 +32,15 @@ pref-kind-disjunct	gen	x:pref(boolean|11)	{"x":11}
 #
 # The last two rows are the ones that must NOT move. A gate that rejects
 # everything would pass all the error rows above and break the language.
-pref-family-gate-spread-map-err	err	a:{&:*1, b:{}}	Cannot unify value
-pref-family-gate-spread-string-err	err	a:{&:*1, b:"s"}	Cannot unify value
-pref-family-gate-spread-bool-err	err	a:{&:*1, b:true}	Cannot unify value
-pref-family-gate-spread-list-err	err	a:{&:*1, b:[]}	Cannot unify value
-pref-family-gate-ref-clone-err	err	x:*1 y:$.x&{}	Cannot unify value
-pref-family-gate-copy-clone-err	err	x:*1 y:copy($.x)&"s"	Cannot unify value
-pref-family-gate-copy-string-err	err	x:*"a" y:copy($.x)&1	Cannot unify value
-pref-family-gate-disjunct-spread-err	err	a:{&:*1|number, b:{}}	Cannot unify value
-pref-override-within-family-gens	gens	a:{&:*1, b:2}	{"a":{"b":2}}
+pref-kind-gate-spread-map-err	err	a:{&:*1, b:{}}	Cannot unify value
+pref-kind-gate-spread-string-err	err	a:{&:*1, b:"s"}	Cannot unify value
+pref-kind-gate-spread-bool-err	err	a:{&:*1, b:true}	Cannot unify value
+pref-kind-gate-spread-list-err	err	a:{&:*1, b:[]}	Cannot unify value
+pref-kind-gate-ref-clone-err	err	x:*1 y:$.x&{}	Cannot unify value
+pref-kind-gate-copy-clone-err	err	x:*1 y:copy($.x)&"s"	Cannot unify value
+pref-kind-gate-copy-string-err	err	x:*"a" y:copy($.x)&1	Cannot unify value
+pref-kind-gate-disjunct-spread-err	err	a:{&:*1|number, b:{}}	Cannot unify value
+pref-override-within-kind-gens	gens	a:{&:*1, b:2}	{"a":{"b":2}}
 pref-override-ref-clone-gens	gens	x:*1 y:$.x&2	{"x":1,"y":2}
 # A preference inside a COLON-CHAIN nested map (issue #1). The report was
 # that `bar: kind: *'led' | 'custom'` raised a model error naming both

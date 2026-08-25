@@ -85,18 +85,6 @@ function kindParent(kind: any): any {
 }
 
 
-// The root of a kind marker's family: the highest ancestor below top.
-// Every numeric leaf answers `number`; a kind with no parent is its own
-// family root (string, boolean, null).
-function kindFamily(kind: any): any {
-  let root = kind
-  for (let k = KIND_PARENT.get(kind); null != k; k = KIND_PARENT.get(k)) {
-    root = k
-  }
-  return root
-}
-
-
 // True when `sub` is `sup`, or sits anywhere below it. The numeric
 // lattice is two deep today; walking the chain keeps this correct if it
 // ever deepens.
@@ -230,7 +218,6 @@ export {
   Null,
   ScalarConstructor,
   ScalarKindVal,
-  kindFamily,
   kindParent,
   kindSubsumes,
 }

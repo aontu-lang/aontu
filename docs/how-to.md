@@ -435,10 +435,10 @@ the document did not evaluate at all.
 
 ## Provide defaults that callers can override
 
-Write the type *outside* the disjunction as well as inside it:
+Write the default in a disjunction with the type it must stay inside:
 
 ```aontu
-timeout: integer & (*30 | integer)      # 30 unless overridden
+timeout: *30 | integer      # 30 unless overridden
 ```
 
 ```sh
@@ -457,19 +457,17 @@ $ aontu timeout.aon        # with `timeout: 1.5` appended
 
 Empty disjunction. The disjunction has no valid alternatives.
 
- Cannot unify value: 30|integer with value: 1.5
+ Cannot unify value: *30|integer with value: 1.5
 (the two annotated source sites follow)
 $ echo $?
 1
 ```
 
-**The outer `integer` is not redundant.** A preference widens its own
-branch to the base kind of the value it prefers, so the bare
-`*30 | integer` form constrains to `number`, not to `integer`, and
-accepts a float without complaint:
+The branch admits exactly what its type says, so `*30 | number` is how
+you ask for a default that any number may override:
 
 ```sh
-$ aontu loose.aon          # `timeout: *30 | integer` and `timeout: 1.5`
+$ aontu loose.aon          # `timeout: *30 | number` and `timeout: 1.5`
 {
   "timeout": 1.5
 }
@@ -477,16 +475,16 @@ $ echo $?
 0
 ```
 
-This is [specified
-behaviour](reference-language.md#preference--default-), not a bug, and
-it bites numbers only — `*"us-east" | string` and
-`*true | boolean` have no narrower leaf to widen away from. Stating the
-type as its own statement works just as well as the parenthesised form:
+Repeating the type outside the disjunction — `timeout: integer & (*30 |
+integer)` — is still valid and still means the same thing, but it is no
+longer needed to keep the leaf: before 0.53.0 the preference widened its
+own branch to `number`, and the outer `integer` was the only way to say
+what the inner one already said. Existing documents that spell it out
+keep working unchanged.
 
-```aontu
-timeout: integer
-timeout: *30 | integer
-```
+What does *not* work is `timeout: *30 & integer`: a conjunction is not a
+choice, so that pins the value at `30` and refuses `60` along with
+`1.5`.
 
 A lone `*5` (no `|`) is just a default `5`, and needs none of this.
 

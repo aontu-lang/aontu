@@ -6,7 +6,6 @@ declare class PrefVal extends FeatureVal {
     isGenable: boolean;
     cjo: number;
     superpeg: Val;
-    familypeg: Val;
     rank: number;
     constructor(spec: ValSpec, ctx?: AontuContext);
     private resuper;

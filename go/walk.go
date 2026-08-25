@@ -62,7 +62,6 @@ func walkVals(v Val, visit func(Val) bool, seen map[Val]bool) {
 		// (vet.go) has to reach them or the report cannot say which
 		// document they came from (ts/src/walk.ts does the same).
 		walkVals(n.superpeg, visit, seen)
-		walkVals(n.familypeg, visit, seen)
 	case *PlusOpVal:
 		for _, t := range n.peg {
 			walkVals(t, visit, seen)

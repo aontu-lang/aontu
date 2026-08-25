@@ -103,13 +103,15 @@ vet-spread-template	vet	services:&:{port:integer}	services:{auth:{port:"80"}}	{"
 # no position by either parser, so its site is -1:-1 rather than a
 # coordinate it does not have. A preference's synthesised type yardstick
 # lives OFF-PEG, so provenance reaches it only because the stamp walk
-# follows superpeg/familypeg deliberately -- without that it belonged to
-# neither document, and the two ports disagreed about which. Columns
+# follows superpeg deliberately -- without that it belonged to neither
+# document, and the two ports disagreed about which. The yardstick it
+# reports is the preferred value's own KIND (`integer` for `*1`); it
+# read `number` until the family gate was removed on 2026-08-25. Columns
 # count UTF-16 code units, as the canonical port's sites do.
 vet-operandless-nil	vet	a:integer	a:9007199254740993	{"findings":[{"class":"conflict","code":"lossy_integer_literal","path":"$.a","severity":"error","sites":[{"col":3,"file":"data","len":16,"role":"data","row":1,"src":"9007199254740993","value":"nil"}]}],"truncated":false,"verdict":"invalid"}
 vet-refused-construct	vet	a:integer	a:-0x_1	{"findings":[{"class":"parse","code":"negative","path":"$.a","severity":"error","sites":[{"col":3,"file":"data","len":1,"role":"data","row":1,"src":"-","value":"nil"}]}],"truncated":false,"verdict":"invalid"}
 vet-unsited-junction	vet	a:1|2	a:3	{"findings":[{"class":"conflict","code":"|:empty","path":"$.a","severity":"error","sites":[{"col":3,"file":"data","len":1,"role":"data","row":1,"src":"3","value":"3"},{"col":-1,"file":"schema","len":-1,"role":"schema","row":-1,"src":"","value":"1|2"}]}],"truncated":false,"verdict":"invalid"}
-vet-pref-yardstick	vet	a:*1	a:{}	{"findings":[{"class":"conflict","code":"not-scalar-type","path":"$","severity":"error","sites":[{"col":3,"file":"data","len":1,"role":"data","row":1,"src":"{","value":"{}"},{"col":4,"file":"schema","len":1,"role":"schema","row":1,"src":"1","value":"number"}]}],"truncated":false,"verdict":"invalid"}
+vet-pref-yardstick	vet	a:*1	a:{}	{"findings":[{"class":"conflict","code":"not-scalar-type","path":"$","severity":"error","sites":[{"col":3,"file":"data","len":1,"role":"data","row":1,"src":"{","value":"{}"},{"col":4,"file":"schema","len":1,"role":"schema","row":1,"src":"1","value":"integer"}]}],"truncated":false,"verdict":"invalid"}
 # A value the engine mints for ITSELF belongs to neither document, and
 # says so with an empty file rather than borrowing one: an unknown var
 # meets `top`, which no parser sited and no stamp walk reached. Both

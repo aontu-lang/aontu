@@ -418,7 +418,10 @@ describe('cli-vet', () => {
   test('vet-site-off-peg-still-names-its-document', () => {
     const f = vetFiles('a: *1', 'a: {}')
     const r = vetCapture(() => runVet([f.schema, f.data]))
-    Assert.match(r.out, /schema: .*schema\.aon:1:\d+ \(number\)/)
+    // `integer`, not `number`: the yardstick a preference reports is its
+    // own kind. It read `number` while the override gate widened to the
+    // numeric family (removed 2026-08-25, status report §6).
+    Assert.match(r.out, /schema: .*schema\.aon:1:\d+ \(integer\)/)
   })
 
 
