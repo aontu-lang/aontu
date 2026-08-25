@@ -79,11 +79,6 @@ func TestKindLattice(t *testing.T) {
 				t.Errorf("%s must not subsume %s: the numeric leaves are disjoint", a, b)
 			}
 		}
-		// Every leaf's family root is `number`, so a preference of any
-		// leaf is overridable by a peer of any other (PrefVal.familypeg).
-		if fam := kindFamily(a); fam != KindNumber {
-			t.Errorf("kindFamily(%s) = %s, want number", a, fam)
-		}
 	}
 }
 

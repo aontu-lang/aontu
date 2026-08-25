@@ -281,20 +281,18 @@ func clonePathKind(v Val, path []string) Val {
 		// `.K` ref inside `&:*[$obj,.K,0]` resolves (and errors) against
 		// the template location, exactly as in TS.
 		//
-		// familypeg IS CARRIED. It is the override GATE (see pref.go): a
-		// concrete peer replaces a preference only within the preferred
-		// value's family, so `*1 & 2` is 2 while `*1 & {}` is an error.
-		// Dropping it here did not weaken the gate, it REMOVED it --
-		// unite(ctx, nil, peer) returns the peer verbatim, so every peer
-		// overrode, and a cloned `*1` silently accepted a map, a string, a
-		// boolean or a list.
+		// superpeg IS CARRIED. It is the override GATE (see pref.go): a
+		// concrete peer replaces a preference only where it is the same
+		// KIND, so `*1 & 2` is 2 while `*1 & {}` is an error. Dropping it
+		// here did not weaken the gate, it REMOVED it -- unite(ctx, nil,
+		// peer) returns the peer verbatim, so every peer overrode, and a
+		// cloned `*1` silently accepted a map, a string, a boolean or a
+		// list.
 		//
 		// Uncloned prefs were unaffected, which is why the suite stayed
-		// green: the field was added by the number tower and this case
-		// predates it, so only values reaching a PrefVal through a spread
+		// green: only values reaching a PrefVal through a spread
 		// template, a $ref or a copy() lost the gate.
-		out := &PrefVal{
-			peg: n.peg, superpeg: n.superpeg, familypeg: n.familypeg, rank: n.rank}
+		out := &PrefVal{peg: n.peg, superpeg: n.superpeg, rank: n.rank}
 		out.dc = n.dc
 		out.sp = n.sp
 		out.path = overlayPath(path, n.path)

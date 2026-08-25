@@ -96,8 +96,13 @@ describe('func', function() {
 
   test('lower-numbers-pref', () => {
     expect(G('x:*lower(1.1)')).equal({ x: 1 })
-    expect(G('x:*lower(2.2),x:3')).equal({ x: 3 })
+    // `lower` answers a FLOAT (`lower(2.2)` is `2.0`), so a float peer
+    // overrides the preference and an integer one conflicts with it —
+    // the numeric leaves are disjoint kinds, and the preference gate is
+    // the preferred value's own kind (ts/src/val/PrefVal.ts).
     expect(G('x:*lower(2.2),x:lower(4.4)')).equal({ x: 4 })
+    expect(G('x:*lower(2.2),x:3.5')).equal({ x: 3.5 })
+    expect(() => G('x:*lower(2.2),x:3')).throws(/Cannot unify/)
   })
 
 

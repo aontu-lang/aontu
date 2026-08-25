@@ -12,7 +12,6 @@ declare class BigDecimal {
 declare class Null {
 }
 declare function kindParent(kind: any): any;
-declare function kindFamily(kind: any): any;
 declare function kindSubsumes(sup: any, sub: any): boolean;
 type ScalarConstructor = StringConstructor | NumberConstructor | BooleanConstructor | (typeof Integer) | (typeof Float) | (typeof BigInteger) | (typeof BigDecimal) | (typeof Null) | (typeof Integer.constructor);
 declare class ScalarKindVal extends FeatureVal {
@@ -23,4 +22,4 @@ declare class ScalarKindVal extends FeatureVal {
     superior(): Val;
     same(peer: any): boolean;
 }
-export { BigDecimal, BigInteger, Float, Integer, Null, ScalarConstructor, ScalarKindVal, kindFamily, kindParent, kindSubsumes, };
+export { BigDecimal, BigInteger, Float, Integer, Null, ScalarConstructor, ScalarKindVal, kindParent, kindSubsumes, };

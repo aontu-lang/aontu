@@ -217,22 +217,60 @@ float-key-and-kind-canon	canon	x:float\nfloat:1	{"float":1,"x":float}
 float-list-quoted-vs-kind-canon	canon	a:["float",float]	{"a":["float",float]}
 #
 # Preference (*) against the split leaves. A preference is a DEFAULT, so
-# a concrete peer of the same FAMILY overrides it -- the tower must not
-# turn "a float default overridden by an integer" into a conflict just
-# because the two leaves stopped being comparable. (Phase 1 broke
-# exactly this in the Go port; these rows are the guard.)
-pref-float-overridden-by-integer	gen	a:*2.2 & 3	{"a":3}
-pref-integer-overridden-by-float	gen	a:*2 & 3.0	{"a":3}
-pref-integer-overridden-by-float-canon	canon	a:*2 & 3.0	{"a":3.0}
-pref-func-float-overridden-by-integer	gen	a:*lower(2.2) & 3	{"a":3}
-pref-func-float-overridden-by-integer-upper	gen	a:*upper(1.1) & 3	{"a":3}
+# a concrete peer OF THE SAME KIND overrides it -- and the numeric leaves
+# are kinds, so mixing them around a preference is a conflict.
+#
+# CHANGED 2026-08-25, and these rows moved with it. The gate used to
+# widen to the FAMILY, so a float default took an integer override and
+# an integer default took a float one. Those are one rule in two
+# directions, and the second is what made `port: *8080 | integer` --
+# the default idiom docs/skill/examples.md teaches -- accept 3.5, in
+# both ports, silently widening every key written that way from integer
+# to number. No kind-based gate can keep the first and refuse the
+# second; refusing both is the choice, because the second reaches every
+# agent that learns the idiom. See status-2026-08-21.md §6.
+#
+# What it costs is here rather than hidden: the four rows below were
+# `gen` rows answering the override, and are now conflicts. A document
+# that means "either" still says so -- `*8080 | number` admits 3.5, and
+# `*8080 | integer` no longer pretends to.
+#
+# THESE ARE errc ROWS, NOT err ROWS, and deliberately: message text is
+# not in cross-port parity but codes are (AGENTS.md, "Error codes"), so
+# an `err` row on a NEW failure pins the weaker half -- it would pass
+# while the two ports named the failure differently. The docs promise
+# these codes to a reader by name (docs/tutorial.md, docs/how-to.md),
+# which makes them public surface. Probed in both engines before they
+# were written; both answer the same code for every row here.
+pref-float-overridden-by-integer-err	errc	a:*2.2 & 3	no_scalar_unify
+pref-integer-overridden-by-float-err	errc	a:*2 & 3.0	no_scalar_unify
+pref-func-float-overridden-by-integer-err	errc	a:*lower(2.2) & 3	no_scalar_unify
+pref-func-float-overridden-by-integer-upper-err	errc	a:*upper(1.1) & 3	no_scalar_unify
+# The SAME-kind override is untouched, which is the point of a
+# preference: plain `1 & 2` is a conflict and `*1 & 2` is 2.
+pref-same-leaf-override-integer	gen	a:*1 & 2	{"a":2}
+pref-same-leaf-override-float	gen	a:*1.5 & 2.5	{"a":2.5}
+# And the idiom that started it: the preferred branch no longer widens
+# past the kind its sibling states.
+pref-idiom-refuses-other-leaf	errc	a:(*8080|integer) & 3.5	|:empty
+pref-idiom-admits-own-leaf	gen	a:(*8080|integer) & 9090	{"a":9090}
+pref-idiom-number-still-admits	gen	a:(*8080|number) & 3.5	{"a":3.5}
+# The idiom AS WRITTEN -- two statements, not one parenthesised meet --
+# because that is the shape docs/tutorial.md and the skill card teach
+# and the shape a later fragment or a merged file actually produces.
+pref-idiom-two-statement-refuses	errc	a:*8080|integer\na:1.5	|:empty
+pref-idiom-two-statement-admits	gen	a:*8080|integer\na:9090	{"a":9090}
+pref-idiom-two-statement-number	gen	a:*8080|number\na:1.5	{"a":1.5}
 # A kind peer that the default already satisfies leaves it standing...
 pref-float-kept-by-number	gen	a:*1.5 & number	{"a":1.5}
 pref-float-kept-by-float	gen	a:*1.5 & float	{"a":1.5}
 pref-integer-kept-by-number	gen	a:*1 & number	{"a":1}
-# ...and a kind peer from the other leaf replaces it with the constraint.
-pref-float-narrowed-by-integer-canon	canon	a:*1.5 & integer	{"a":integer}
-pref-integer-narrowed-by-float-canon	canon	a:*1 & float	{"a":float}
+# ...and a kind peer from the OTHER leaf is now a conflict, where it
+# used to replace the default with the constraint. It had to: a default
+# the constraint can never admit is an authoring mistake, and answering
+# `integer` silently discarded the `1.5` the author wrote.
+pref-float-narrowed-by-integer-err	errc	a:*1.5 & integer	scalar-type
+pref-integer-narrowed-by-float-err	errc	a:*1 & float	scalar-type
 # A preference whose peg is itself a kind constrains nothing.
 pref-float-kind-peg-yields-peer	gen	a:*float & "hello"	{"a":"hello"}
 # Outside the family it is a conflict, not an override.

@@ -423,66 +423,84 @@ here rather than in a bug list, because in each case the rule is
 defensible *and* the surprise is real, which is the shape of a
 trade-off rather than of a defect.
 
-### A preference is gated by family, not by leaf
+### A preference is gated by kind, not by family
 
-Overriding is judged by *family*: a numeric default is overridden by a
-concrete peer from any numeric leaf, so `*2` meeting `3.0` yields the
-float and `*2.2` meeting `3` yields the integer. The rule is stated
-plainly in the
-[language reference](reference-language.md#preference--default-), and
-it is what makes defaults usable at all — a default of `2` that refused
-`3.0` would force every author to know which numeric leaf they had
-happened to write their default in.
+Overriding a scalar default is judged by the preferred value's own
+**kind**: a concrete peer replaces it only where the peer is the same
+kind of thing. `*8080` meeting `9090` yields `9090`; `*8080` meeting
+`3.5` is a conflict, and so is `*2.2` meeting `3`. A peer that merely
+*constrains* the default rather than replacing it — `*1 & integer`,
+`*1 & number` — leaves the preference standing, because it said nothing
+the preferred value did not already satisfy. The rule is stated plainly
+in the [language reference](reference-language.md#preference--default-),
+which also records the case it does **not** cover: a preferred map or
+list has no kind yardstick (`superior()` is `top`), so any peer
+overrides one. The gate is a scalar gate, and the reference says so
+rather than letting the general phrasing stand for it.
 
-The consequence bites when the default is written *inside* a
-disjunction with its own type, which is the idiom that looks most like
-"a typed default":
-
-```
-port: *8080 | integer   with a later  port: 9090  → generates {"port":9090}
-port: *8080 | integer   with a later  port: 1.5   → generates {"port":1.5}
-```
-
-The second line is the surprise. The preference widens its branch to
-the base kind — `number` — so the `integer` the author believes they
-wrote is not the constraint that survives. Nothing was overridden that
-the family rule does not allow; the branch simply admits the whole
-family. Only the numeric leaves are affected, because only they sit
-under a common supertype: `*"us-east" | string` meeting a later `42` is
-still an empty disjunction.
-
-What to write instead is the constraint stated *outside* the branch the
-preference widens, so that the two facts do not travel together:
+The surprise is that the two numeric leaves do not mix around a
+preference, even though they share a supertype:
 
 ```
-port: integer & (*8080 | integer)
+a: *2.2 & 3         → refused: [aontu/no_scalar_unify] at $.a
+a: *1.5 & integer   → refused: [aontu/scalar-type] at $.a
+```
+
+This is a choice, and the other one shipped for a while. A gate that
+widens to the numeric *family* lets `*2.2 & 3` through, which reads as a
+kindness — an author should not have to know which numeric leaf they
+happened to write their default in. But that is one rule seen in one
+direction, and the other direction is the idiom that looks most like "a
+typed default":
+
+```
+port: *8080 | integer   with a later  port: 1.5
+```
+
+Under a family gate that generates `{"port":1.5}`. The preference widens
+its branch to the base kind — `number` — so the `integer` the author
+believes they wrote is not the constraint that survives, and every key
+written the way [the agent skill](skill/examples.md) teaches it is
+quietly a `number` key. No kind-based gate can keep the convenience and
+refuse that; the leaf gate refuses both.
+
+So the idiom now means what it looks like:
+
+```
+port: *8080 | integer
     alone                          → generates {"port":8080}
     with a later  port: 9090       → generates {"port":9090}
     with a later  port: 1.5        → refused: [aontu/|:empty] at $.port
 ```
 
-`port: *8080 & integer` is not the fix, tempting though it reads: it
-refuses `1.5`, and it refuses `9090` as well, because a conjunction is
-not a choice — the value is pinned at `8080` and is not a default at
-all.
+and an author who *wants* the whole family writes it in the branch,
+where a reader can see it:
 
-Whether the fold *ought* to work this way where a preference meets a
-bare kind is an open question, and not one a documentation pass may
-settle. It is the specified behaviour today. The rule it follows from is
-written down in [`test/spec/pref.tsv`](../test/spec/pref.tsv) — a
-concrete peer replaces a preference, but only within the preferred
-value's *family*, the gate being `familypeg` — and the suite pins both
-of its directions: the `pref-family-gate-*` rows pin the cross-family
-REFUSAL (`*1` against a map, a string, a boolean, a list), and
-`pref-override-within-family-gens` pins the within-family override that
-is the same rule seen from the other side. What the widening across
-numeric *leaves* costs a schema author is what this section is about,
-and both ports agree on it byte for byte. The case for changing it is that the widening idiom
-is the one everybody writes. The case against is that the family rule
-is *one* rule, and special-casing it inside disjunctions would buy a
-nicer-looking default at the price of `*` meaning two different things
-depending on where it was written. Until that is decided, the honest
-thing is to say which idiom does what.
+```
+port: *8080 | number    with a later  port: 1.5  → generates {"port":1.5}
+```
+
+`port: *8080 & integer` is still not the way to write a default,
+tempting though it reads: a conjunction is not a choice, so the value is
+pinned at `8080` and `9090` is refused along with `1.5`.
+
+What the tightening costs is named rather than hidden: mixing the
+numeric leaves around a preference is now an error instead of a silent
+widening. `*1.5 & integer` used to answer `integer` and discard a
+default that could never apply; it now says so, and names the line that
+has to change. Only the numeric leaves were ever affected, because only
+they sit under a common supertype — `*"us-east" | string` meeting a
+later `42` was always an empty disjunction.
+
+The rule is written down in [`test/spec/pref.tsv`](../test/spec/pref.tsv)
+and [`test/spec/number-tower.tsv`](../test/spec/number-tower.tsv), and
+the suite pins both of its directions: the `pref-kind-gate-*` rows pin
+the cross-kind REFUSAL (`*1` against a map, a string, a boolean, a
+list), `pref-override-within-kind-gens` pins the same-kind override that
+is the same rule from the other side, and the tower's
+`pref-idiom-refuses-other-leaf` / `pref-idiom-number-still-admits` pair
+pins the numeric case that used to be the exception. Both ports agree on
+it byte for byte.
 
 ### A list literal is positional
 

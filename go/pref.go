@@ -12,18 +12,13 @@ type PrefVal struct {
 	// The preferred value's own type: the yardstick for "did the peer
 	// say anything I did not already say?".
 	superpeg Val
-	// The gate an overriding peer must pass. A preference is a DEFAULT,
-	// so a concrete peer replaces it — but only within the preferred
-	// value's FAMILY: `*lower(1.1) & a` is a conflict, not an override.
-	//
-	// Family and not leaf, because the number tower made `integer` and
-	// `float` disjoint siblings under `number`. Gating on the leaf would
-	// turn `*2.2 & 3` (a float default overridden by an integer) into an
-	// error, which is a tightening no document asked for. For every
-	// non-numeric value the family root IS the leaf, so this is the
-	// preferred value's type as before. Mirrors TS PrefVal.familypeg.
-	familypeg Val
-	rank      int
+	// THE GATE AN OVERRIDING PEER MUST PASS IS superpeg ITSELF — the
+	// preferred value's own KIND, not its family. The full note is on
+	// the canonical port (ts/src/val/PrefVal.ts): a family gate made
+	// `*2.2 & 3` and `*8080 & 3.5` one rule in two directions, and the
+	// second silently widened every key written with the documented
+	// default idiom `*8080 | integer` from integer to number.
+	rank int
 }
 
 func newPref(v Val) *PrefVal {
@@ -38,19 +33,7 @@ func newPref(v Val) *PrefVal {
 // resuper recomputes the type yardstick and the override gate from the
 // current peg. Called again whenever the peg resolves (e.g. a func).
 func (p *PrefVal) resuper() {
-	sup := p.peg.superior()
-	p.superpeg = sup
-	p.familypeg = sup
-	if sk, ok := sup.(*ScalarKindVal); ok {
-		if fam := kindFamily(sk.kind); fam != sk.kind {
-			f := newScalarKind(fam)
-			// Placed at the yardstick it widens, as TS's
-			// `sup.place(new ScalarKindVal({peg: family}))` does.
-			f.sp, f.spu, f.surl = sk.sp, sk.spu, sk.surl
-			f.stext = sk.stext
-			p.familypeg = f
-		}
-	}
+	p.superpeg = p.peg.superior()
 }
 
 func (p *PrefVal) cjo() int { return 30000 }
@@ -100,17 +83,16 @@ func (p *PrefVal) Unify(peer Val, ctx *Ctx) Val {
 			// else is a concrete override and wins.
 			// Recompute a missing gate rather than proceed without one.
 			// unite(ctx, nil, peer) returns the peer verbatim, so a nil
-			// familypeg does not weaken this test, it deletes it -- and
+			// superpeg does not weaken this test, it deletes it -- and
 			// silently, which is how a dropped field in one clone case
 			// disabled the gate everywhere without a single test failing.
-			// Belt and braces: clone.go now carries the field, and this
-			// makes the whole class of bug unreachable rather than fixed
-			// once.
-			if nil == p.familypeg {
+			// Belt and braces: clone.go carries the field, and this makes
+			// the whole class of bug unreachable rather than fixed once.
+			if nil == p.superpeg {
 				p.resuper()
 			}
-			out = unite(ctx, p.familypeg, peer)
-			if valSame(out, p.superpeg) || valSame(out, p.familypeg) {
+			out = unite(ctx, p.superpeg, peer)
+			if valSame(out, p.superpeg) {
 				out = p.peg
 			}
 		}

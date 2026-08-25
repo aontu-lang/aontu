@@ -8,13 +8,34 @@ const err_1 = require("../err");
 const utility_1 = require("../utility");
 const top_1 = require("./top");
 const FeatureVal_1 = require("./FeatureVal");
-const ScalarKindVal_1 = require("./ScalarKindVal");
 class PrefVal extends FeatureVal_1.FeatureVal {
     constructor(spec, ctx) {
         super(spec, ctx);
         this.isPref = true;
         this.isGenable = true;
         this.cjo = 30000;
+        // THE GATE AN OVERRIDING PEER MUST PASS IS `superpeg` ITSELF — the
+        // preferred value's own KIND, not its family.
+        //
+        // A preference is a DEFAULT, so a concrete peer replaces it, but only
+        // where the peer is the same kind of thing: `*lower(1.1) & a` is a
+        // conflict, not an override. The number tower made `integer` and
+        // `float` disjoint siblings under `number`, and this gate used to
+        // widen to that family — so `*2.2 & 3` worked, and so did
+        // `*8080 & 3.5`. Those are ONE rule in two directions; no kind-based
+        // gate can keep the first and refuse the second.
+        //
+        // Refusing both is the choice, because the second is the documented
+        // default idiom: `port: *8080 | integer` accepted 3.5 in both ports,
+        // silently widening every key written that way from integer to
+        // number — the finding §6 of the 2026-08-21 status report calls the
+        // most consequential, precisely because docs/skill/examples.md
+        // teaches the idiom to agents.
+        //
+        // What the tightening costs is named rather than hidden: mixing the
+        // numeric leaves around a preference is now an error instead of a
+        // silent widening. `*1.5 & integer` used to answer `integer` and
+        // DISCARD a default that could never apply; it now says so.
         this.rank = 0;
         // this.pref = spec.pref || spec.peg
         // this.superpeg = makeSuper(spec.peg)
@@ -35,26 +56,12 @@ class PrefVal extends FeatureVal_1.FeatureVal {
         // now that a leaf kind lifts to `number`, it has to be said.)
         if (true === peg.isScalarKind) {
             this.superpeg = (0, top_1.top)();
-            this.familypeg = this.superpeg;
             return;
         }
-        const sup = peg.superior();
-        this.superpeg = sup;
         // No optional chain: superior() is contractually non-null (every
         // Val returns one, a NilVal returning itself), so guarding against
         // nullish here would claim a possibility the type does not have.
-        if (true === sup.isScalarKind) {
-            const family = (0, ScalarKindVal_1.kindFamily)(sup.peg);
-            // The gate stands in for the preferred value in any conflict it
-            // reports, so it must carry the same site and path as the type it
-            // widens -- otherwise NilVal.make picks a different primary and
-            // the error moves to the wrong path.
-            this.familypeg = family === sup.peg ?
-                sup : sup.place(new ScalarKindVal_1.ScalarKindVal({ peg: family, path: sup.path }));
-        }
-        else {
-            this.familypeg = sup;
-        }
+        this.superpeg = peg.superior();
     }
     // PrefVal unify always returns a PrefVal
     // PrefVals can only be removed by becoming Nil in a Disjunct
@@ -101,11 +108,11 @@ class PrefVal extends FeatureVal_1.FeatureVal {
         }
         else if (!peer.isTop) {
             why += 'super-';
-            out = (0, unify_1.unite)(te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'SUPER') }) : ctx, this.familypeg, peer, 'pref-super/' + this.id);
+            out = (0, unify_1.unite)(te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'SUPER') }) : ctx, this.superpeg, peer, 'pref-super/' + this.id);
             // The peer added nothing beyond a type the preferred value already
             // satisfies (`*1 & integer`, `*1 & number`), so the preference
             // stands. Anything else is a concrete override and wins.
-            if (out.same(this.superpeg) || out.same(this.familypeg)) {
+            if (out.same(this.superpeg)) {
                 out = this.peg;
                 why += 'same';
             }

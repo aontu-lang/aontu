@@ -46,16 +46,15 @@ function walkVals(v, visit, seen) {
     if (spread) {
         walkVals(spread, visit, seen);
     }
-    // OFF-PEG VALUES THAT CAN BE REPORTED. A preference carries a type
-    // yardstick and a family gate it derived from its own value, and a
-    // `must` carries the value it checks against; none of them is a peg
-    // entry, and all three can end up as an operand of a failure — the
-    // preference's yardstick is what `*1 & {}` conflicts with. A caller
+    // OFF-PEG VALUES THAT CAN BE REPORTED. A preference carries the type
+    // yardstick it derived from its own value, and a `must` carries the
+    // value it checks against; neither is a peg entry, and both can end
+    // up as an operand of a failure — the preference's yardstick is what
+    // `*1 & {}` conflicts with. A caller
     // that stamps provenance (ts/src/vet.ts) has to reach them, or a
     // report names the document such a value came from as "unknown",
     // and the two ports disagree about it (go/walk.go does the same).
     walkVals(v.superpeg, visit, seen);
-    walkVals(v.familypeg, visit, seen);
     for (const must of (v.musts ?? [])) {
         walkVals(must?.v, visit, seen);
     }

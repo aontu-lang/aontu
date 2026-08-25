@@ -253,35 +253,18 @@ port: 9090
 
 → `{ "port": 9090 }`
 
-### The default does not carry the type
+### The default carries its own kind
 
 It is tempting to read `*8080 | integer` as "an integer, defaulting to
-8080". It is not — and this is the one place a beginner reliably gets
-burned, so run it rather than take it on trust:
+8080". That is exactly what it is — the branch admits what its type
+says, and nothing wider:
 
 ```aontu
 port: *8080 | integer
 port: 1.5
 ```
 
-→ `{ "port": 1.5 }`
-
-No error. A preferred value is overridden by *family*, not by leaf, and
-the family of every numeric leaf is `number` — so once `8080` is marked
-preferred, the branch admits any number at all. `*8080 | integer` is a
-default, not a constraint. (Only the numeric leaves have a family above
-them, so `*true | boolean` does still refuse a number. Writing the kind
-out anyway costs nothing and never surprises you.)
-
-State the constraint yourself, alongside the default:
-
-```aontu
-port: integer & (*8080 | integer)
-```
-
-Now all three things you wanted are true at once. On its own it still
-gives `{ "port": 8080 }`; `port: 9090` still overrides it to
-`{ "port": 9090 }`; and `port: 1.5` is now refused, the report opening:
+→ refused:
 
 ```
 [aontu/|:empty]: Cannot unify values at path $.port
@@ -289,9 +272,25 @@ gives `{ "port": 8080 }`; `port: 9090` still overrides it to
 Empty disjunction. The disjunction has no valid alternatives.
 ```
 
-`kind & (*value | kind)` is the shape to remember whenever you want a
-default that is *also* a type. The family rule behind it is spelled out
-in the
+A concrete value overrides a default only where it is the *same kind* of
+thing. `integer` and `float` are separate leaves under `number`, so
+`1.5` is not an override of `8080` — it is a different kind of number,
+and the disjunction has no branch left.
+
+When you want a default that anything numeric may override, say so in
+the branch:
+
+```aontu
+port: *8080 | number
+port: 1.5
+```
+
+→ `{ "port": 1.5 }`
+
+`*value | kind` is the shape to remember: the kind you write is the kind
+you get. What does *not* work is `port: *8080 & integer` — a conjunction
+is not a choice, so that pins the value at `8080` and refuses `9090` as
+well as `1.5`. The rule is spelled out in the
 [language reference](reference-language.md#preference--default-).
 
 ## 7. References
@@ -392,9 +391,9 @@ Save it as `config.aon`; the last two sections use it:
 # --- schema + defaults (could live in its own file) ---
 service: close({
   name:    string
-  host:    string     & (*localhost | string)
-  port:    integer    & (*8080 | integer)
-  rate:    bigdecimal & (*0d0.01 | bigdecimal)
+  host:    *localhost | string
+  port:    *8080      | integer
+  rate:    *0d0.01    | bigdecimal
   tags:    [&: string]
 })
 
@@ -431,8 +430,9 @@ aontu config.aon
 Two things in that schema are worth a second look, because the obvious
 spelling of each is weaker than it looks.
 
-Every default is written as `kind & (*value | kind)`, the shape from
-§6 — so `port: 9090.5` is refused rather than quietly accepted.
+Every default is written as `*value | kind`, the shape from §6 — so
+`port: 9090.5` is refused rather than quietly accepted. The kind in the
+branch is the kind you get; nothing has to be repeated outside it.
 
 `tags` uses the spread from §8. `[&: string]` says *every* element is a
 string. The shorter `[string]` would not: a list literal is
@@ -502,9 +502,9 @@ schema half becomes `service.aon`:
 ```aontu
 service: close({
   name:    string
-  host:    string     & (*localhost | string)
-  port:    integer    & (*8080 | integer)
-  rate:    bigdecimal & (*0d0.01 | bigdecimal)
+  host:    *localhost | string
+  port:    *8080      | integer
+  rate:    *0d0.01    | bigdecimal
   tags:    [&: string]
 })
 ```

@@ -541,10 +541,18 @@ longer "degenerate and unpinned" — `ts/src/val/SuperFuncVal.ts` and
 `number-model.tsv`, `number-tower.tsv` and `edge.tsv`. That also
 settles G3's fifth open question ("re-founding `super()`") in favour of
 the kind-lift, though it was the number-tower work that settled it.
-And `PrefVal` now carries **two** yardsticks — `superpeg` and
-`familypeg`, computed by `resuper()` — because the tower made `integer`
-and `float` disjoint; a `defaults`-profile subsumption rule written to
-the doc's one-yardstick text would be wrong.
+And `PrefVal`'s single yardstick — `superpeg`, computed by
+`resuper()` — is both the type it reports and the gate an overriding
+peer must pass. It briefly carried a second, `familypeg`, added when
+the tower made `integer` and `float` disjoint and removed on
+2026-08-25 when §6 of the 2026-08-21 status report settled: the family
+gate let `*8080 | integer` admit `3.5`, silently widening the
+documented default idiom, and the two directions of that one rule
+could not be separated. A `defaults`-profile subsumption rule must be
+written against `superpeg` alone — and must account for the gate being
+a SCALAR gate: a preferred map or list has `top` for a superior, so it
+admits any peer at all (`pref-struct-*` in `test/spec/pref.tsv` pins
+this; it predates the kind gate and was not changed by it).
 
 ## G4 — identity and typed relations
 

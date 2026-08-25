@@ -99,23 +99,6 @@ func kindParent(k Kind) (Kind, bool) {
 	return KindTop, false
 }
 
-// kindFamily returns the root of a kind's family: its highest ancestor
-// below top. Every numeric leaf answers `number`; a kind with no parent
-// (string, boolean, null — and `number` itself) is its own family root.
-//
-// Used by PrefVal, which gates an override on the preferred value's
-// FAMILY rather than its leaf, so that a float default can still be
-// overridden by an integer (`*2.2 & 3`). Mirrors TS kindFamily.
-func kindFamily(k Kind) Kind {
-	for {
-		p, ok := kindParent(k)
-		if !ok {
-			return k
-		}
-		k = p
-	}
-}
-
 // ScalarVal is a concrete scalar literal: a native value tagged with
 // its Kind. peg holds string | int64 | float64 | bool | nil, or one of
 // the tower's exact pegs: *big.Int (biginteger) and *Decimal

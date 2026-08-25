@@ -455,11 +455,35 @@ function form of `*x` (canon `*x`). Preferences can be ranked (a `*` of a
 `*` outranks a single `*`); the lowest rank wins when two preferred
 values meet.
 
-Overriding is judged by *family*, not by leaf: a numeric default is
-overridden by a concrete peer from any numeric leaf, so `a:*2 & 3.0`
-is `3.0` and `a:*2.2 & 3` is `3`. A peer from outside the family is
-still a conflict, and a bare kind peer constrains the default rather
-than replacing it (`a:*1.5 & integer` is `integer`).
+Overriding a **scalar** default is judged by *kind*, not by family: a
+concrete peer replaces the default only where it is the same kind of
+thing. A peer of another kind is a conflict, and that includes the other
+numeric leaf — `a:*2 & 3.0` and `a:*2.2 & 3` are both errors, as is
+`a:*1.5 & integer`. A kind peer the default already satisfies leaves the
+preference standing (`a:*1.5 & float` and `a:*1.5 & number` are both
+`1.5`).
+
+```
+a:*8080|integer  a:9090  → {"a":9090}     (same leaf: override)
+a:*8080|integer  a:1.5   → refused        (other leaf: [aontu/|:empty])
+a:*8080|number   a:1.5   → {"a":1.5}      (the branch admits the family)
+```
+
+**A structural default is not gated.** The yardstick is the preferred
+value's `superior()`, and a map or a list has none — it is `top` — so
+*any* peer overrides a preferred map or list, including one of another
+kind, and it REPLACES rather than merges:
+
+```
+a:*1      a:"s"    → refused        (scalar: the gate applies)
+a:*{x:1}  a:"s"    → {"a":"s"}      (structural: no gate)
+a:*{x:1}  a:{y:2}  → {"a":{"y":2}}  (replaced, not merged)
+```
+
+Write `a:{x:*1}` rather than `a:*{x:1}` when you mean "a map whose `x`
+defaults to 1" — the preference belongs on the scalar that has a kind to
+defend. Pinned by the `pref-struct-*` rows in
+[`test/spec/pref.tsv`](../test/spec/pref.tsv).
 
 ## Optional keys `?`
 

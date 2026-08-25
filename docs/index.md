@@ -128,13 +128,12 @@ argued for, never merely listed, in the explanation.
 
 ```aontu
 # A schema, a default, and data — unified into one result.
-port:    integer
 port:    *8080 | integer
 host:    string
 host:    "localhost"
 ```
 
-Unifying the four lines above yields:
+Unifying the three lines above yields:
 
 ```json
 { "host": "localhost", "port": 8080 }
@@ -143,10 +142,10 @@ Unifying the four lines above yields:
 The `port` is constrained to be an `integer`, defaults to `8080`, and —
 because nothing overrode the default — `8080` is what comes out. `host`
 is constrained to a `string` and pinned to `"localhost"`. Conflicting
-facts (e.g. a second `port: "high"`) would instead produce a precise
-unification error rather than a silent wrong answer. The separate
-`port: integer` line is load-bearing, and the reason is
-[argued in the explanation](explanation.md#a-preference-is-gated-by-family-not-by-leaf).
+facts (e.g. a second `port: "high"`, or a `port: 1.5`) would instead
+produce a precise unification error rather than a silent wrong answer:
+the preferred branch keeps the kind it names, which is
+[argued in the explanation](explanation.md#a-preference-is-gated-by-kind-not-by-family).
 
 Try it without writing any code — both implementations ship an `aontu`
 command that evaluates a file or starts a REPL:
