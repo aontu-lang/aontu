@@ -60,7 +60,8 @@ aontu                         # no file on a terminal -> REPL
 
 The repository's CLI has grown a verb surface beyond evaluation —
 `vet` (validate data against a schema), `get`/`why` (query and
-provenance), `set`, `subsume`/`breaking`, `hash`,
+provenance), `set` (change a value in an overlay, by appending or in
+place), `subsume`/`breaking`, `hash`,
 `relations`, `trim`, `mod` tooling, `agentsmd`, a path-addressed
 `diff` in the API, and an MCP server —
 documented in [docs/reference-api.md](docs/reference-api.md).

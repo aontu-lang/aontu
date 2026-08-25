@@ -1182,6 +1182,13 @@ b: id(b) & { usedBy:    [&: refer(), a] }
 - **`inverse: <name>`** — for each `a --dependsOn--> b`, `b` must carry
   `a` under `<name>`. The report names the exact missing entry.
 
+The `$.std.Relation` conjunct **documents** the declaration; it is not
+what makes it one. The checking pass reads every map under `relations`
+and takes its `acyclic` and `inverse` fields directly, so a bare
+`dependsOn: { inverse: usedBy, acyclic: true }` declares the same
+relation with no `@"std/system"` — which is what keeps the checks
+available under the `'none'` include capability.
+
 `aontu relations <file>` runs them, and the library exposes
 `relationCheck(src)`. **Neither is a lattice constraint, deliberately.**
 Both properties are global and non-monotone: an acyclic graph becomes
@@ -1252,7 +1259,7 @@ directory**, so a chain of files (a → b → c) each resolves relative to
 itself. Absolute paths ignore the base. Resolution tries, in order, an
 in-memory resolver,
 the filesystem, then package resolution (see
-[API reference](reference-api.md#options)). A conflict between a loaded
+[API reference](reference-api.md#aontuoptions)). A conflict between a loaded
 value and a local one is a normal unification
 error.
 

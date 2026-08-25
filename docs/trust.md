@@ -1,6 +1,6 @@
 # The Aontu trust contract
 
-*Status: normative (v0.51 line). This document states the guarantees an
+*Status: normative (v0.53 line). This document states the guarantees an
 agent harness — or any host — may rely on when evaluating an Aontu
 document, and exactly where each guarantee is conditional today. It is
 the written half of capability G5

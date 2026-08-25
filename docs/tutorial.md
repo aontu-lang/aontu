@@ -620,7 +620,14 @@ the JSON and SARIF report forms, `--watch`, and the rest.
 And that is the loop the whole command surface exists for: **emit** a
 document, **vet** it against the truth it has to satisfy, and when it
 fails let the two sites and `aontu why` tell you where to **repair**
-it. You have now done it once by hand.
+it. You have now done it once by hand — which is the point of doing it
+here, because the last step is the one you have to understand before
+you let a command do it for you.
+
+`aontu set '$.service.port=8080' --entry service.aon --overlay prod.aon
+--in-place` is that command; the
+[how-to guides](how-to.md#change-a-value-that-is-already-pinned) show
+what it will and will not rewrite, and why.
 
 ## Where to go next
 
