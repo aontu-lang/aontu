@@ -102,6 +102,14 @@
 #   the context and stamps it at finding time -- and fixing this one
 #   does not settle that one.
 #
+#   THE FIXES POINT IN OPPOSITE DIRECTIONS, which is why flattening the
+#   two into "Go names a file TypeScript does not" is worse than not
+#   summarising them at all: THIS entry needs the loaded document's url
+#   CARRIED FURTHER, onto every Val parsed from it, while #76 needs
+#   attribution WITHHELD. A reader who took the flattened form would
+#   fix this one by clearing the file, which is precisely wrong --
+#   TypeScript names part.aon here, and is right to.
+#
 # ---------------------------------------------------------------------
 #
 # CLOSED -- malformed-input acceptance edges and invalid-UTF-8
@@ -262,7 +270,11 @@
 #   so stampURL cannot draw the line: guarding it on the `unsited`
 #   sentinel was tried and breaks vet-unsited-junction. Knowing WHICH
 #   file a value came from, which is what #66 needs, is not the same as
-#   knowing whether it came from a file AT ALL.
+#   knowing whether it came from a file AT ALL -- and the two fixes
+#   point in OPPOSITE directions: #66 carries a url further, this one
+#   withholds one. TypeScript names a file for #66's value (the right
+#   one) and no file for this one; only THIS entry is a case of
+#   "TypeScript names none".
 #
 #   Reaches `set --in-place` among other reports, and SAFETY IS
 #   UNAFFECTED there: the overlay-alone evaluation refuses to edit a
