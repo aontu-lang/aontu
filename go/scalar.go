@@ -128,35 +128,41 @@ type ScalarVal struct {
 	src string
 }
 
-func newString(s string) *ScalarVal { v := &ScalarVal{kind: KindString, peg: s}; v.dc = DONE; return v }
-func newInteger(i int64) *ScalarVal {
-	v := &ScalarVal{kind: KindInteger, peg: i}
+// A FRESH SCALAR IS UNSITED UNTIL THE PARSER SAYS OTHERWISE, and `sp`
+// therefore starts at -1 rather than at its zero value.
+//
+// Zero is a POSITION -- the first byte of the document -- so a value
+// minted by unification rather than written by an author read as
+// "row 1, column 1" everywhere a site is built. The canonical port has
+// no such ambiguity: a TS site starts at -1 and only the parser moves
+// it (ts/src/site.ts). Go's junctions already said this out loud
+// (`c.sp = -1` in conjunct.go, `d.sp = -1` in disjunct.go, both for the
+// same reason); the scalar minters simply never did, so `a: 1+2` met
+// against `a: 5` reported its arithmetic RESULT at 1:1 in Go and at
+// -1:-1 in TypeScript.
+//
+// siteOf (go/vet.go) already guards on `0 <= v.pos()` and needed no
+// change: it was being handed a position that looked real.
+func newScalar(kind Kind, peg any) *ScalarVal {
+	v := &ScalarVal{kind: kind, peg: peg}
 	v.dc = DONE
+	v.sp = -1
 	return v
 }
-func newFloat(f float64) *ScalarVal {
-	v := &ScalarVal{kind: KindFloat, peg: f}
-	v.dc = DONE
-	return v
-}
+
+func newString(s string) *ScalarVal { return newScalar(KindString, s) }
+func newInteger(i int64) *ScalarVal { return newScalar(KindInteger, i) }
+func newFloat(f float64) *ScalarVal { return newScalar(KindFloat, f) }
 
 // newBigInteger takes ownership of n (callers pass a freshly built
 // big.Int; the peg is never mutated afterwards).
-func newBigInteger(n *big.Int) *ScalarVal {
-	v := &ScalarVal{kind: KindBigInteger, peg: n}
-	v.dc = DONE
-	return v
-}
+func newBigInteger(n *big.Int) *ScalarVal { return newScalar(KindBigInteger, n) }
 
 // newBigDecimal takes a Decimal already in normal form (newDecimal).
-func newBigDecimal(d *Decimal) *ScalarVal {
-	v := &ScalarVal{kind: KindBigDecimal, peg: d}
-	v.dc = DONE
-	return v
-}
+func newBigDecimal(d *Decimal) *ScalarVal { return newScalar(KindBigDecimal, d) }
 
-func newBoolean(b bool) *ScalarVal { v := &ScalarVal{kind: KindBoolean, peg: b}; v.dc = DONE; return v }
-func newNull() *ScalarVal          { v := &ScalarVal{kind: KindNull, peg: nil}; v.dc = DONE; return v }
+func newBoolean(b bool) *ScalarVal { return newScalar(KindBoolean, b) }
+func newNull() *ScalarVal          { return newScalar(KindNull, nil) }
 
 // scalarPegSame reports whether two scalars of the SAME kind hold the
 // same VALUE (D2: identity is kind and value).
@@ -307,6 +313,7 @@ type ScalarKindVal struct {
 
 func newScalarKind(k Kind) *ScalarKindVal {
 	v := &ScalarKindVal{kind: k}
+	v.sp = unsited
 	v.dc = DONE
 	return v
 }

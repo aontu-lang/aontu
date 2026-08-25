@@ -210,6 +210,9 @@ var codeClasses = map[string]string{
 	"relation_inverse_missing": "conflict",
 
 	"patch_assignment":      "parse",
+	"patch_not_editable":    "reference",
+	"patch_ambiguous":       "reference",
+	"patch_span_mismatch":   "internal",
 	"func_arity":            "parse",
 	"elided_value":          "parse",
 	"unify_no_src":          "parse",

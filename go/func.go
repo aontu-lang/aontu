@@ -165,7 +165,9 @@ type FuncVal struct {
 }
 
 func newFunc(name string, args []Val) *FuncVal {
-	return &FuncVal{name: name, peg: args}
+	f := &FuncVal{name: name, peg: args}
+	f.sp = unsited
+	return f
 }
 
 func (f *FuncVal) superior() Val {

@@ -187,3 +187,18 @@ multi-cycle-one-finding	vet	top	a:$.b b:$.c c:$.a	{"findings":[{"class":"referen
 # exactly what a shared row is for.
 vet-negative-literal	vet	a: integer & min(0)	a: -1	{"findings":[{"actual":"-1","class":"conflict","code":"constraint","expected":"integer&min(0)","path":"$.a","severity":"error","sites":[{"col":4,"file":"data","len":1,"role":"data","row":1,"src":"-","value":"-1"},{"col":14,"file":"schema","len":-1,"role":"schema","row":1,"src":"","value":"integer&min(0)"}]}],"truncated":false,"verdict":"invalid"}
 vet-overflow-literal	vet	a: integer	a: 1e999	{"findings":[{"class":"parse","code":"not_number","path":"$.a","severity":"error","sites":[{"col":4,"file":"data","len":5,"role":"data","row":1,"src":"1e999","value":"nil"}]}],"truncated":false,"verdict":"invalid"}
+#
+# A VALUE UNIFICATION MINTED IS UNSITED, and says so with -1 rather than
+# claiming a position. `a: 1+2` contributes the RESULT 3, which no
+# author wrote and which is therefore nowhere in particular.
+#
+# Found by the parity probe for `set --in-place` and fixed rather than
+# recorded, the G2 phase-4 pattern: Go reported these at row 1 column 1
+# -- a real place, and the wrong one -- because `sp`'s zero value IS a
+# position (the first byte), so an unstamped value was indistinguishable
+# from one written at the very start of the document. Go's junctions had
+# always set `sp = -1` explicitly for exactly this reason; the scalar
+# minters never did. siteOf already guarded on `0 <= v.pos()` and needed
+# no change: it was being handed a position that looked real.
+vet-minted-arith-operand-unsited	vet	a: integer	a: 1+2\n"a": 5\n	{"findings":[{"class":"conflict","code":"scalar_value","path":"$","severity":"error","sites":[{"col":6,"file":"data","len":1,"role":"data","row":2,"src":"5","value":"5"},{"col":-1,"file":"","len":-1,"role":"schema","row":-1,"src":"","value":"3"}]}],"truncated":false,"verdict":"invalid"}
+vet-minted-concat-operand-unsited	vet	a: string	a: "x"+"y"\n"a": "z"\n	{"findings":[{"class":"conflict","code":"scalar_value","path":"$","severity":"error","sites":[{"col":6,"file":"data","len":3,"role":"data","row":2,"src":"\\"z\\"","value":"\\"z\\""},{"col":-1,"file":"","len":-1,"role":"schema","row":-1,"src":"","value":"\\"xy\\""}]}],"truncated":false,"verdict":"invalid"}

@@ -888,6 +888,44 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
     // G7 phase 5: the overlay patch verb. What the two ports must agree
     // on (the report) is pinned by test/spec/patch.tsv; these cases hold
     // the command line and, above all, WHEN THE FILE IS WRITTEN.
+    // `--in-place` at the COMMAND LINE, closing the loop the status
+    // report says `set` could not: the data pins the wrong value, and
+    // appending can only contradict it. The report shape is pinned by
+    // test/spec/patch.tsv; what this holds is the flag, the `replaced:`
+    // line, and the bytes that end up on disk — comments included.
+    (0, node_test_1.test)('set-in-place-rewrites-the-pinned-literal', () => {
+        const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-set-'));
+        const entry = Path.join(dir, 'schema.aon');
+        const overlay = Path.join(dir, 'deploy.aon');
+        Fs.writeFileSync(entry, 'replicas: integer & above(0) & below(10)\n');
+        Fs.writeFileSync(overlay, '# the deployment\nreplicas: 42   # too many\n');
+        // WITHOUT the flag this is the defect: nothing written, exit 1.
+        const before = vetCapture(() => Assert.equal((0, cli_1.runSet)(['$.replicas=5', '--entry', entry, '--overlay', overlay]), 1));
+        Assert.match(before.err, /verdict: invalid/);
+        Assert.equal(Fs.readFileSync(overlay, 'utf8'), '# the deployment\nreplicas: 42   # too many\n', 'untouched');
+        // WITH it, the literal is rewritten where it was written.
+        const r = vetCapture(() => Assert.equal((0, cli_1.runSet)(['$.replicas=5', '--entry', entry, '--overlay', overlay,
+            '--in-place']), 0));
+        Assert.match(r.out, /verdict: valid/);
+        Assert.match(r.out, /replaced: .*deploy\.aon:2:11 42 -> 5/);
+        Assert.match(r.out, /wrote:/);
+        // BOTH COMMENTS SURVIVE, the one on the edited line included.
+        Assert.equal(Fs.readFileSync(overlay, 'utf8'), '# the deployment\nreplicas: 5   # too many\n');
+    });
+    // Where it cannot rewrite it APPENDS, exactly as plain set would, and
+    // says why. --dry-run still writes nothing.
+    (0, node_test_1.test)('set-in-place-appends-and-explains-when-it-cannot-rewrite', () => {
+        const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-set-'));
+        const entry = Path.join(dir, 'schema.aon');
+        const overlay = Path.join(dir, 'ov.aon');
+        Fs.writeFileSync(entry, 'a: integer\n');
+        Fs.writeFileSync(overlay, 'a: 1+2\n');
+        const r = vetCapture(() => Assert.equal((0, cli_1.runSet)(['$.a=5', '--entry', entry, '--overlay', overlay,
+            '--in-place', '--dry-run']), 1));
+        Assert.match(r.err, /patch_not_editable/);
+        Assert.match(r.err, /opening token/);
+        Assert.equal(Fs.readFileSync(overlay, 'utf8'), 'a: 1+2\n', 'dry run');
+    });
     (0, node_test_1.test)('set-appends-to-the-overlay-when-the-change-holds', () => {
         const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-set-'));
         const entry = Path.join(dir, 'sys.aon');

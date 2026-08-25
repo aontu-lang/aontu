@@ -3,6 +3,8 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.parseAssignment = parseAssignment;
 exports.overlayLine = overlayLine;
+exports.offsetAt = offsetAt;
+exports.spanValue = spanValue;
 exports.patch = patch;
 // OVERLAY PATCH (G7 phase 5,
 // docs/capability-review/g7-machine-access.md): change a document by
@@ -18,16 +20,48 @@ exports.patch = patch;
 //
 // What an overlay CANNOT do is change a PINNED value: the lattice
 // refuses 5 against 3, and the report says so with the pinning site,
-// which `why` then locates. The loop "set → conflict → why → edit the
-// pinning site" is coherent with that last step manual; the
-// format-preserving in-place edit is stage 2, and needs a
-// comment-preserving CST the parser stack does not have.
+// which `why` then locates. That left the loop "set → conflict → why →
+// edit the pinning site" with its last step manual — and since the
+// commonest vet failure of all is "the data pins the wrong value",
+// `set` was unable to repair the very case it existed for.
+//
+// IN-PLACE REPLACE (`--in-place`) closes that. The G7 design deferred
+// it behind two prerequisites: an evaluated-path → contributing-span
+// map, and a comment-and-layout-preserving CST. The first now exists —
+// `why` is that map, and sites carry `len` and `src` since a site was
+// given an extent. The second turns out NOT to be needed for the case
+// that matters, and the reason is worth stating: a CST is what you need
+// to RE-SERIALISE a document, and a targeted span splice serialises
+// nothing. It replaces `len` code units at one offset and leaves every
+// other byte — every comment, every blank line, every alignment space —
+// exactly as the author left it, because it never looks at them.
+//
+// What makes the splice safe rather than merely plausible is that the
+// site carries `src`, the text it claims to cover. The span is VERIFIED
+// against it before a byte is written, so the corrupting arithmetic
+// this repository has already shipped once — `port: 0x1F` reporting
+// canon `"31"` at column 7, and `(col, canon.length)` writing
+// `port: 5x1F` — cannot be reached: `0x1F` is four code units and says
+// so, and if the text at the span is anything else the edit is refused
+// rather than guessed.
+//
+// Replace is never WORSE than append. Where the value is not a single
+// editable literal in this overlay — a spread template governing other
+// keys, a reference whose site is the `$` and not the target, two
+// statements pinning the same path, a literal in an included file — the
+// splice is refused and the assignment is APPENDED exactly as it would
+// have been without the flag, plus one `warning` finding naming the
+// case and the site it came from. Warnings never move a verdict, so
+// `--in-place` cannot turn a run that would have succeeded into one
+// that fails; it can only rewrite where rewriting is safe, and explain
+// itself where it is not.
 //
 // The verdict is G2's, unchanged: `vet(entry, overlay)` already asks
 // exactly the right question — does this document hold against that
 // truth, and if not, where — so `set` adds a writer, not a report.
 const vet_1 = require("./vet");
 const query_1 = require("./query");
+const aontu_1 = require("./aontu");
 // An assignment is `<path>=<value>`, split at the FIRST `=`: a path
 // segment is a name, and the value is arbitrary Aontu source, which
 // may itself contain `=` (`a: min(1)` does not, but a string can).
@@ -52,6 +86,236 @@ function overlayLine(path, value) {
     return (0, query_1.pathParts)(path).map((p) => JSON.stringify(p)).join(': ') +
         ': ' + value;
 }
+// The character offset of a 1-based (row, col) in `src`, or -1 when the
+// text has no such position. Columns are UTF-16 code units, which is
+// what a site carries and what a JavaScript string index already is —
+// so this is the inverse of the site arithmetic, not a reinterpretation
+// of it (go/patch.go converts to a byte offset, because Go strings are
+// bytes; both address the same character).
+function offsetAt(src, row, col) {
+    if (row < 1 || col < 1) {
+        return -1;
+    }
+    let off = 0;
+    for (let r = 1; r < row; r++) {
+        const nl = src.indexOf('\n', off);
+        if (nl < 0) {
+            return -1;
+        }
+        off = nl + 1;
+    }
+    const at = off + (col - 1);
+    return at <= src.length ? at : -1;
+}
+// WHY IS THE VALUE AT THIS PATH WHAT IT IS, and is exactly one of the
+// answers a literal this overlay can edit in place?
+//
+// The four refusals below are not defensive padding; each is a real
+// document shape that the probe corpus produced, and each would corrupt
+// something different if the splice ran anyway:
+//
+//   - a SPREAD contribution's site is inside the template, which
+//     governs every other key too, so rewriting it there changes keys
+//     the author did not name;
+//   - a REFERENCE's site is the `$` that starts the path and has length
+//     1, so splicing over it writes the new value INTO the path
+//     expression (`$.base` becomes `5.base`) — and the value the author
+//     wants changed lives at the target anyway;
+//   - TWO literals at one path (a duplicate key, two files merged) give
+//     no single place to edit, and picking either silently is picking
+//     for the author;
+//   - a literal in an INCLUDED file is editable, but not by
+//     `--overlay <this file>`: the write would land in a document the
+//     caller did not name.
+//
+// A PREFERENCE is not refused here for the same reason it is not
+// replaced: appending already overrides a default correctly, so the
+// caller loses nothing by falling through to it.
+function editableLiteral(overlaySrc, path, overlayPath) {
+    const report = (0, query_1.why)(overlaySrc, path, null == overlayPath ? undefined : { path: overlayPath });
+    // The overlay says NOTHING at this path. There is nothing to replace
+    // and nothing has gone wrong: appending is the whole of the answer.
+    if (true !== report.ok || null == report.record) {
+        return { site: undefined, finding: undefined };
+    }
+    // No `?? []`: WhyRecord.conjuncts is a non-optional array and the
+    // record's own presence was just established, so a fallback here
+    // would claim a possibility the type does not have — and the
+    // coverage gate says so, an arm nothing can take.
+    const conjuncts = report.record.conjuncts;
+    const literals = conjuncts.filter((c) => 'literal' === c.role);
+    if (1 < literals.length) {
+        return {
+            site: undefined,
+            finding: notEditable('patch_ambiguous', path, 'two or more statements pin this path, so there is no single ' +
+                'place to edit; the sites below are all of them', literals),
+        };
+    }
+    // Only indirect contributions. A pref is the benign case — append
+    // overrides a default — so it earns no finding; the others do.
+    if (0 === literals.length) {
+        const indirect = conjuncts.filter((c) => 'pref' !== c.role);
+        if (0 === indirect.length) {
+            return { site: undefined, finding: undefined };
+        }
+        return {
+            site: undefined,
+            finding: notEditable('patch_not_editable', path, 'the value here is not written as a literal (' +
+                indirect.map((c) => c.role).join(', ') +
+                '), so there is no literal to rewrite; edit where it comes from', indirect),
+        };
+    }
+    const one = literals[0];
+    // An included file is somebody else's document as far as
+    // `--overlay` is concerned.
+    if (null != overlayPath && '' !== one.site.file &&
+        one.site.file !== overlayPath) {
+        return {
+            site: undefined,
+            finding: notEditable('patch_not_editable', path, 'the literal is in ' + one.site.file +
+                ', not the overlay; run set with that file as the overlay', [one]),
+        };
+    }
+    // A site with no extent cannot be spliced, and guessing one is the
+    // defect this whole mode exists to avoid.
+    if (one.site.len < 0 || '' === one.src) {
+        return {
+            site: undefined,
+            finding: notEditable('patch_span_mismatch', path, 'the contribution carries no source extent, so its span cannot ' +
+                'be verified before writing', [one]),
+        };
+    }
+    // DOES THE SPAN MEAN THE WHOLE CONTRIBUTION?
+    //
+    // This is the check that `role === 'literal'` looks like it makes and
+    // does not. A site names the TOKEN it points at, so a COMPOUND value
+    // reports its OPENING token while its canon is the whole thing:
+    // `min(1)` is a literal-role contribution whose src is `min`, `1+2`
+    // reports `1`, `$.k+1` reports `$`, `{b:1}` reports `{` and `[1,2]`
+    // reports `[`. Splicing over any of those writes the new value INTO
+    // the expression — `a: 5(1)`, `a: 5+2`, `a: 5.k+1` — which is the
+    // same class of corruption as the canon-length arithmetic, reached by
+    // a different route.
+    //
+    // Rather than enumerate the shapes (a list is a thing to be
+    // incomplete about), ASK THE ENGINE: parse `src` on its own and
+    // require the value it means to be the value the contribution
+    // contributed. That is exactly the property a splice needs — this
+    // text, alone, is this value — and it is decided by the same unifier
+    // that produced the contribution, so it cannot drift from it.
+    //
+    // It also gets the interesting case right without special-casing it:
+    // `0x1F` canons to `31`, which is not its own spelling, but IS the
+    // contribution's canon, so a hex literal is editable while `min` is
+    // not.
+    const span = spanValue(one.src);
+    if (null == span || span.canon !== one.canon) {
+        return {
+            site: undefined,
+            finding: notEditable('patch_not_editable', path, 'the site names ' + JSON.stringify(one.src) + ', which is the ' +
+                'opening token of ' + one.canon + ' rather than the whole of ' +
+                'it; rewriting that span would edit the expression, not the ' +
+                'value', [one]),
+        };
+    }
+    // AN ABSTRACT CONTRIBUTION IS NOT A PIN. `a: integer` and
+    // `a: above(0)` state a constraint, and appending already narrows
+    // them — that is the one case the status report notes `set` could
+    // always repair. Replacing them would silently DISCARD a constraint
+    // the author wrote, to no benefit, so this falls through to append.
+    if (true !== span.concrete) {
+        return {
+            site: undefined,
+            finding: notEditable('patch_not_editable', path, one.canon + ' is a constraint here, not a pinned value; ' +
+                'appending narrows it without discarding what it says', [one]),
+        };
+    }
+    // THE VERIFICATION. Everything above decides WHETHER to edit; this
+    // decides whether the engine's idea of the file matches the file.
+    const off = offsetAt(overlaySrc, one.site.row, one.site.col);
+    const found = off < 0 ? undefined : overlaySrc.slice(off, off + one.site.len);
+    if (found !== one.src) {
+        return {
+            site: undefined,
+            finding: notEditable('patch_span_mismatch', path, 'the overlay holds ' + JSON.stringify(found ?? '') +
+                ' where the contribution says ' + JSON.stringify(one.src) +
+                '; refusing to write over text this run cannot account for', [one]),
+        };
+    }
+    return {
+        site: {
+            col: one.site.col,
+            file: one.site.file,
+            from: one.src,
+            path,
+            row: one.site.row,
+            to: '',
+        },
+        finding: undefined,
+    };
+}
+// What does this source text mean ON ITS OWN, and is it a value rather
+// than a constraint? Undefined when it does not stand alone at all
+// (`$` from a path, an unbalanced `{`).
+//
+// The wrapper key is arbitrary and the document it makes is thrown
+// away; what is wanted is the unifier's own reading of the fragment.
+function spanValue(src) {
+    // NO COLLECTING CONTEXT: `unify` THROWS on a source it cannot read,
+    // so a ctx.err check here is a branch nothing can reach — the catch
+    // below is the only path a bad fragment takes. (A first draft had
+    // both, and the coverage gate called the pair what it was.) What the
+    // nil test still earns is the fragment that PARSES and means nothing:
+    // `$` is a path with no target, and answers a nil rather than
+    // throwing.
+    let canon;
+    try {
+        const root = new aontu_1.Aontu().unify('v: ' + src);
+        const node = root?.peg?.['v'];
+        if (null == node || true === node.isNil) {
+            return undefined;
+        }
+        canon = node.canon;
+    }
+    catch (e) {
+        return undefined;
+    }
+    // Generability is the concreteness test, and it is the engine's own:
+    // a kind, a constraint and an unresolved disjunction all refuse to
+    // generate, which is precisely the line this needs drawn.
+    try {
+        new aontu_1.Aontu().generate('v: ' + src);
+    }
+    catch (e) {
+        return { canon, concrete: false };
+    }
+    return { canon, concrete: true };
+}
+// A refusal to replace, as a WARNING: the assignment still appends, so
+// nothing about the run got worse and the verdict must not move
+// (ts/src/vet.ts, "warnings never touch the verdict"). What the finding
+// adds is the reason, which is the whole value of asking for --in-place
+// over plain set.
+function notEditable(code, path, why, from) {
+    return {
+        code,
+        class: 'patch_span_mismatch' === code ? 'internal' : 'reference',
+        severity: 'warning',
+        path,
+        // No separate `note`: the renderer prints both, and a note that
+        // restates its own message is noise wearing a second label.
+        message: 'cannot rewrite ' + path + ' in place: ' + why,
+        sites: from.map((c) => ({
+            file: c.site.file,
+            row: c.site.row,
+            col: c.site.col,
+            len: c.site.len,
+            src: c.src,
+            role: 'data',
+            value: c.canon,
+        })),
+    };
+}
 // Append the assignments to the overlay and answer what the result
 // holds. The report's verdict is the vet verdict of the ENTRY against
 // the new overlay: `valid` when it holds and is concrete, `incomplete`
@@ -61,12 +325,19 @@ function overlayLine(path, value) {
 function patch(entrySrc, overlaySrc, assignments, opts) {
     const options = opts ?? {};
     const appended = [];
+    const replaced = [];
+    const notes = [];
+    // Each pending edit as (offset, length, text). Collected first and
+    // applied last, back to front: a splice shifts every offset after it,
+    // and recomputing them per edit is a way to be subtly wrong for free.
+    const edits = [];
     for (const text of assignments) {
         const a = parseAssignment(text);
         if (null == a) {
             return {
                 overlay: overlaySrc,
                 appended: [],
+                replaced: [],
                 verdict: 'error',
                 findings: [{
                         code: 'patch_assignment',
@@ -78,9 +349,32 @@ function patch(entrySrc, overlaySrc, assignments, opts) {
                     }],
             };
         }
+        if (true === options.inPlace) {
+            const found = editableLiteral(overlaySrc, a.path, options.overlayPath);
+            if (null != found.finding) {
+                notes.push(found.finding);
+            }
+            if (null != found.site) {
+                // Two assignments naming the same path would splice the same
+                // span twice. The second is the one the author wrote last, so
+                // it wins — and the first is dropped rather than layered.
+                const at = offsetAt(overlaySrc, found.site.row, found.site.col);
+                const dup = edits.findIndex((e) => e.at === at);
+                const edit = { at, len: found.site.from.length, to: a.value };
+                if (dup < 0) {
+                    edits.push(edit);
+                    replaced.push({ ...found.site, to: a.value });
+                }
+                else {
+                    edits[dup] = edit;
+                    replaced[dup] = { ...found.site, to: a.value };
+                }
+                continue;
+            }
+        }
         appended.push(overlayLine(a.path, a.value));
     }
-    const overlay = joinOverlay(overlaySrc, appended);
+    const overlay = joinOverlay(applyEdits(overlaySrc, edits), appended);
     // The file names ride as URLs as well as base paths, so a finding
     // names the entry and the overlay rather than vet's generic
     // `schema`/`data` labels — with two documents that both belong to
@@ -94,9 +388,25 @@ function patch(entrySrc, overlaySrc, assignments, opts) {
     return {
         overlay,
         appended,
+        replaced,
         verdict: report.verdict,
-        findings: report.findings,
+        // The refusals come FIRST: they explain why the run took the shape
+        // it did, and a reader who stops after the first finding should
+        // read that rather than a conflict it predicted.
+        findings: notes.concat(report.findings),
     };
+}
+// Apply the collected splices back to front, so an earlier edit's
+// offset is never invalidated by a later one having already run.
+function applyEdits(src, edits) {
+    if (0 === edits.length) {
+        return src;
+    }
+    let out = src;
+    for (const e of [...edits].sort((x, y) => y.at - x.at)) {
+        out = out.slice(0, e.at) + e.to + out.slice(e.at + e.len);
+    }
+    return out;
 }
 // One line per assignment, after whatever the overlay already said. A
 // trailing newline is kept when the file had one and added when it

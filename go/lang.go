@@ -1821,7 +1821,7 @@ func evaluate(r *jsonic.Rule, ctx *jsonic.Context, op *expr.Op, terms []interfac
 		// `unknown_function` NilVal in ts/src/lang.ts func-paren).
 		if len(terms) > 0 {
 			if name, ok := terms[0].(string); ok {
-				return buildCall(r, name, terms[1:])
+				return buildCall(r, name, terms[1:], false)
 			}
 			// A NON-string term[0] with more terms after it is a CALL
 			// whose target is not a name — `f(1)(2)`, `(1)(2)`,
@@ -2375,7 +2375,27 @@ func opCharHint(src string) string {
 // arity check, the comma-group rule and the raw-value conversion are
 // stated once and both spellings get all three. Mirrors buildCall in
 // ts/src/lang.ts.
-func buildCall(r *jsonic.Rule, name string, argterms []any) Val {
+// buildCall builds a call from a name and its argument terms.
+//
+// `piped` says whether the call was WRITTEN or SYNTHESISED. A written
+// call takes its position from the rule's opening token, which is the
+// function name -- `min` for `min(1)` -- and that is what a site should
+// point at. A PIPED call has no opening token of its own: `x |> upper`
+// reaches here with the PIPE's rule, whose first token is the pipe's
+// LEFT OPERAND, so taking the position from it sites the synthesised
+// call at `x`. The canonical port never had the choice to get wrong --
+// its buildCall does not site the success value at all, and the written
+// path sites it afterwards (ts/src/lang.ts) -- and Go reported
+// `x: hello |> upper` at 1:4 with src "hello" where TypeScript reported
+// it unsited, which is the same "a minted value is nowhere in
+// particular" rule the arithmetic result rows pin (test/spec/vet.tsv,
+// vet-minted-*). Caught by patch-inplace-no-extent-refused, which needs
+// the two ports to agree on which refusal a spanless contribution earns.
+//
+// The NIL paths keep their site under a pipe in BOTH ports: an
+// unknown function and a bad arity are mistakes in source the author
+// wrote, and the pipe is where they wrote it.
+func buildCall(r *jsonic.Rule, name string, argterms []any, piped bool) Val {
 	if !funcSet[name] {
 		n := newNil("unknown_function")
 		if r.ON > 0 {
@@ -2431,7 +2451,7 @@ func buildCall(r *jsonic.Rule, name string, argterms []any) Val {
 	}
 
 	sp := -1
-	if r.ON > 0 {
+	if r.ON > 0 && !piped {
 		sp = r.O0.SI
 	}
 
@@ -2442,7 +2462,9 @@ func buildCall(r *jsonic.Rule, name string, argterms []any) Val {
 		// exactly what the row and column above already point at. Left
 		// unstamped, Go reported -1 where TypeScript reported 3, and the
 		// shared subsume rows caught it.
-		stampSrc(cv, r)
+		if !piped {
+			stampSrc(cv, r)
+		}
 		return cv
 	}
 
@@ -2453,10 +2475,10 @@ func buildCall(r *jsonic.Rule, name string, argterms []any) Val {
 	// conjunct built over it (newConjunct takes its site from its first
 	// term), so `a:super(1)&integer` drew its frame at the key rather
 	// than at the value (issue #41).
-	if r.ON > 0 {
+	if r.ON > 0 && !piped {
 		fv.sp = r.O0.SI
+		stampSrc(fv, r)
 	}
-	stampSrc(fv, r)
 	return fv
 }
 
@@ -2494,12 +2516,12 @@ func pipeCall(r *jsonic.Rule, val any, call any) Val {
 		for _, a := range c.peg {
 			written = append(written, a)
 		}
-		return buildCall(r, c.name, pipeTerms(c.name, written, val))
+		return buildCall(r, c.name, pipeTerms(c.name, written, val), true)
 	case *NilVal:
 		// ... or one the arity check refused for an arity the pipe is
 		// about to satisfy. Both carry what they were written as.
 		if "func_arity" == c.why {
-			return buildCall(r, c.details["func"], pipeTerms(c.details["func"], c.callterms, val))
+			return buildCall(r, c.details["func"], pipeTerms(c.details["func"], c.callterms, val), true)
 		}
 		// A call that could not be built at all -- `0 |> f(1)(2)`,
 		// whose target is not a name -- is already refused, and the
@@ -2517,7 +2539,7 @@ func pipeCall(r *jsonic.Rule, val any, call any) Val {
 		// so this is where a string becomes a call.
 		if KindString == c.kind {
 			if name, ok := c.peg.(string); ok && funcSet[name] {
-				return buildCall(r, name, []any{val})
+				return buildCall(r, name, []any{val}, true)
 			}
 		}
 	}

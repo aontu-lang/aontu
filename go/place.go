@@ -17,7 +17,11 @@ package aontu
 // PlaceVal is the hole.
 type PlaceVal struct{ base }
 
-func newPlace() *PlaceVal { return &PlaceVal{} }
+func newPlace() *PlaceVal {
+	p := &PlaceVal{}
+	p.sp = unsited
+	return p
+}
 
 func (p *PlaceVal) Canon() string { return "_" }
 

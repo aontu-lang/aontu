@@ -266,6 +266,9 @@ const codeClasses = {
     // <path>=<value>. Class `parse`, because what is malformed IS
     // source text; report-layer, so no NilVal carries it.
     patch_assignment: 'parse',
+    patch_not_editable: 'reference',
+    patch_ambiguous: 'reference',
+    patch_span_mismatch: 'internal',
     // G4 phase 1 -- the identity mark: a name that is not one, and two
     // different names on one node. `id_name` is a parse-class refusal
     // of the argument; `id_conflict` is a conflict like any other

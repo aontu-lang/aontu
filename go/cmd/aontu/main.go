@@ -144,13 +144,21 @@ Set options:
   --entry <file>    The document the change is checked against
   --overlay <file>  The file the change is appended to (created if
                     absent; not written when the change does not hold)
+  --in-place        Rewrite a pinned literal where it was written,
+                    instead of appending a line that contradicts it.
+                    The span is verified against the source text
+                    before writing, and where the value is not a
+                    single editable literal in this overlay the
+                    assignment is appended as usual with a warning
+                    saying why
   --dry-run         Print the overlay that would be written, write
                     nothing
   --format <f>      text (default) or json
 
 Set exit codes are vet's verdict classes: 0 valid, 1 invalid (the
-change contradicts a pinned value -- aontu why locates it),
-2 usage, 3 incomplete, 4 the entry does not stand up on its own.
+change contradicts a pinned value -- aontu why locates it, and
+--in-place rewrites it), 2 usage, 3 incomplete, 4 the entry does not
+stand up on its own.
 
 Agentsmd options:
   --write <file>  Splice the stanza into this file between the

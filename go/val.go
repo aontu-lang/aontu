@@ -96,6 +96,23 @@ type Val interface {
 // base provides the shared, defaulted Val state. Concrete Val types
 // embed it and override Canon/Gen/Unify/superior (and cjo/Nil where
 // they differ).
+// unsited is the source position of a value NO AUTHOR WROTE.
+//
+// Zero cannot mean "unset" here: it is a real position, the first byte
+// of the document, so a value minted by unification was indistinguishable
+// from one written at the very start and every site built from it read
+// "row 1, column 1". The canonical port has no such ambiguity -- a TS
+// site starts at -1 and only the parser moves it (ts/src/site.ts) -- and
+// this makes Go say the same thing structurally: EVERY constructor
+// starts here and the parser moves it with setPos.
+//
+// Established one divergence at a time before it was made an invariant:
+// conjuncts, disjuncts, tops and nils each set it for their own reason,
+// and scalars, funcs, maps, lists, refs and the rest were found reporting
+// 1:1 for arithmetic results and piped calls. Pinned by the vet-minted-*
+// rows (test/spec/vet.tsv) and why-piped-call-is-unsited (why.tsv).
+const unsited = -1
+
 type base struct {
 	dc   int
 	sp   int      // source position (byte offset), used to order error operands

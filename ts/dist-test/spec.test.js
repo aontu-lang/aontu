@@ -405,20 +405,63 @@ function runRow(row) {
     else if ('patch' === row.mode) {
         const input = JSON.parse(row.data);
         const golden = JSON.parse(row.expect);
-        const report = (0, aontu_1.patch)(row.src, input.overlay, input.set);
+        // `inPlace` rides the input object, as `opts` does for the
+        // five-column modes: the overlay and the assignments are the same
+        // two inputs either way, and the flag is the third.
+        const report = (0, aontu_1.patch)(row.src, input.overlay, input.set, true === input.inPlace ? { inPlace: true } : undefined);
         Assert.strictEqual((0, aontu_1.exactJSON)({
             appended: report.appended,
             overlay: report.overlay,
             verdict: report.verdict,
+            ...(0 === report.replaced.length
+                ? {} : { replaced: report.replaced }),
             ...(0 === report.findings.length
                 ? {} : { codes: report.findings.map((f) => f.code) }),
         }), (0, aontu_1.exactJSON)(golden), `patch report mismatch: ${row.name}`);
+        // IN-PLACE IS NEVER WORSE THAN APPEND. Every in-place row is run
+        // again WITHOUT the flag and must reach a verdict at least as good
+        // -- the whole safety claim of the mode is that asking for it
+        // cannot turn a run that would have held into one that does not.
+        if (true === input.inPlace) {
+            const plain = (0, aontu_1.patch)(row.src, input.overlay, input.set);
+            const rank = { valid: 0, incomplete: 1, invalid: 2, error: 3 };
+            Assert.ok(rank[report.verdict] <= rank[plain.verdict], `in-place is worse than append: ${row.name} ` +
+                `(${report.verdict} vs ${plain.verdict})`);
+        }
         // ORDER-INDEPENDENCE, the property the whole verb rests on: an
         // overlay entry is just another conjunct, so evaluating the entry
         // against the overlay is the same as evaluating the overlay
-        // against the entry. Asserted for every row that stands up.
-        if ('error' !== report.verdict) {
+        // against the entry.
+        //
+        // IT IS CONDITIONAL ON THE OVERLAY STANDING UP ON ITS OWN, and the
+        // guard used to be `verdict !== error`, which is not the same test
+        // and passed only because no row had reached the difference.
+        // APPENDING A CONFLICTING VALUE MAKES THE OVERLAY SELF-
+        // CONTRADICTORY -- `a: 1` plus an appended `"a": 5` is a document
+        // that contradicts itself -- and vet reports a schema that does not
+        // stand up as `error` whatever the data says. So the reverse run
+        // answers `error` where the forward run answered `invalid`, and
+        // that is not a disagreement about the value: it is the overlay no
+        // longer being a document you could hand to vet as a truth. The
+        // property is asserted where it is meaningful and skipped where the
+        // input to the reverse direction is not a coherent document.
+        let overlayStandsAlone = true;
+        try {
+            new aontu_1.Aontu().generate(report.overlay);
+        }
+        catch (e) {
+            overlayStandsAlone = false;
+        }
+        if ('error' !== report.verdict && overlayStandsAlone) {
             Assert.strictEqual((0, aontu_1.vet)(report.overlay, row.src).verdict, report.verdict, `patch is not order-independent: ${row.name}`);
+        }
+        // AND THE STRONGER PROPERTY IN-PLACE BUYS: a replacement leaves an
+        // overlay that still stands up, where appending the same value
+        // leaves one that contradicts itself. This is the difference
+        // between repairing a document and layering a correction over it,
+        // and it is why the mode exists rather than a side effect of it.
+        if (0 < report.replaced.length) {
+            Assert.ok(overlayStandsAlone, `in-place left a self-contradicting overlay: ${row.name}`);
         }
     }
     else if ('why' === row.mode) {

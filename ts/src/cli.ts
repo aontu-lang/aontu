@@ -162,13 +162,21 @@ Set options:
   --entry <file>    The document the change is checked against
   --overlay <file>  The file the change is appended to (created if
                     absent; not written when the change does not hold)
+  --in-place        Rewrite a pinned literal where it was written,
+                    instead of appending a line that contradicts it.
+                    The span is verified against the source text
+                    before writing, and where the value is not a
+                    single editable literal in this overlay the
+                    assignment is appended as usual with a warning
+                    saying why
   --dry-run         Print the overlay that would be written, write
                     nothing
   --format <f>      text (default) or json
 
 Set exit codes are vet's verdict classes: 0 valid, 1 invalid (the
-change contradicts a pinned value -- aontu why locates it),
-2 usage, 3 incomplete, 4 the entry does not stand up on its own.
+change contradicts a pinned value -- aontu why locates it, and
+--in-place rewrites it), 2 usage, 3 incomplete, 4 the entry does not
+stand up on its own.
 
 Agentsmd options:
   --write <file>  Splice the stanza into this file between the
@@ -1968,6 +1976,7 @@ function runSet(argv: string[]): number {
   let entry: string | undefined
   let overlayFile: string | undefined
   let dryRun = false
+  let inPlace = false
   let format: SubsumeFormat = 'text'
 
   for (let i = 0; i < argv.length; i++) {
@@ -1984,6 +1993,9 @@ function runSet(argv: string[]): number {
     }
     else if ('--dry-run' === arg) {
       dryRun = true
+    }
+    else if ('--in-place' === arg) {
+      inPlace = true
     }
     else if ('--format' === arg) {
       const f = argv[++i]
@@ -2034,6 +2046,7 @@ function runSet(argv: string[]): number {
   const report = patch(entrySrc, overlaySrc, assignments, {
     entryPath: entry,
     overlayPath: overlayFile,
+    inPlace,
   })
 
   // WRITTEN ONLY WHEN IT HOLDS. A change that contradicts a pinned
@@ -2058,12 +2071,18 @@ function runSet(argv: string[]): number {
       appended: report.appended,
       findings: report.findings,
       overlay: report.overlay,
+      replaced: report.replaced,
       verdict: report.verdict,
       written: wrote,
     }, 2) + '\n')
   }
   else {
-    const head = `verdict: ${report.verdict}` +
+    // A replacement is REPORTED as the edit it is, not left for the
+    // reader to infer from a changed file: `where: what -> what`, in
+    // source spelling, because the spelling is what changed.
+    const edits = report.replaced.map((r) =>
+      `replaced: ${r.file}:${r.row}:${r.col} ${r.from} -> ${r.to}`)
+    const head = [`verdict: ${report.verdict}`].concat(edits).join('\n') +
       (wrote ? `\nwrote: ${overlayFile}` : dryRun ? '\n(dry run)' : '')
     const body = 0 === report.findings.length
       ? [head]

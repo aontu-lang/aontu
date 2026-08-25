@@ -14,6 +14,7 @@ import (
 	"encoding/json"
 	"io"
 	"os"
+	"strconv"
 	"strings"
 
 	aontu "github.com/rjrodger/aontu/go"
@@ -26,6 +27,7 @@ func runSet(argv []string, stdout, stderr io.Writer) int {
 	entry := ""
 	overlayFile := ""
 	dryRun := false
+	inPlace := false
 	format := "text"
 
 	for i := 0; i < len(argv); i++ {
@@ -46,6 +48,8 @@ func runSet(argv []string, stdout, stderr io.Writer) int {
 			}
 		case "--dry-run" == arg:
 			dryRun = true
+		case "--in-place" == arg:
+			inPlace = true
 		case "--format" == arg:
 			i++
 			if len(argv) <= i || ("text" != argv[i] && "json" != argv[i]) {
@@ -87,7 +91,8 @@ func runSet(argv []string, stdout, stderr io.Writer) int {
 
 	report := aontu.Patch(
 		string(entrySrc), string(overlaySrc), assignments,
-		&aontu.PatchOptions{EntryPath: entry, OverlayPath: overlayFile})
+		&aontu.PatchOptions{
+			EntryPath: entry, InPlace: inPlace, OverlayPath: overlayFile})
 
 	// WRITTEN ONLY WHEN IT HOLDS. A change that contradicts a pinned
 	// value is a question the author has to answer at the pinning
@@ -109,6 +114,14 @@ func runSet(argv []string, stdout, stderr io.Writer) int {
 		io.WriteString(stdout, renderSetJSON(report, wrote)+"\n")
 	} else {
 		head := "verdict: " + report.Verdict
+		// A replacement is REPORTED as the edit it is, not left for the
+		// reader to infer from a changed file: `where: what -> what`, in
+		// source spelling, because the spelling is what changed.
+		for _, r := range report.Replaced {
+			head += "\nreplaced: " + r.File + ":" +
+				strconv.Itoa(r.Row) + ":" + strconv.Itoa(r.Col) +
+				" " + r.From + " -> " + r.To
+		}
 		if wrote {
 			head += "\nwrote: " + overlayFile
 		} else if dryRun {
@@ -132,12 +145,13 @@ func runSet(argv []string, stdout, stderr io.Writer) int {
 // The machine-readable form. Field order is LEXICOGRAPHIC, the
 // canonical emitter's order (see vetReportJSON).
 type setReportJSON struct {
-	Aontu    subsumeProducerJSON `json:"aontu"`
-	Appended []string            `json:"appended"`
-	Findings []aontu.VetFinding  `json:"findings"`
-	Overlay  string              `json:"overlay"`
-	Verdict  string              `json:"verdict"`
-	Written  bool                `json:"written"`
+	Aontu    subsumeProducerJSON      `json:"aontu"`
+	Appended []string                 `json:"appended"`
+	Findings []aontu.VetFinding       `json:"findings"`
+	Overlay  string                   `json:"overlay"`
+	Replaced []aontu.PatchReplacement `json:"replaced"`
+	Verdict  string                   `json:"verdict"`
+	Written  bool                     `json:"written"`
 }
 
 func renderSetJSON(report aontu.PatchReport, wrote bool) string {
@@ -150,6 +164,7 @@ func renderSetJSON(report aontu.PatchReport, wrote bool) string {
 		Appended: report.Appended,
 		Findings: report.Findings,
 		Overlay:  report.Overlay,
+		Replaced: report.Replaced,
 		Verdict:  report.Verdict,
 		Written:  wrote,
 	})

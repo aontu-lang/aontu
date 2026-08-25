@@ -224,3 +224,59 @@
 # storage, not chosen. It is pinned per-port instead: ts/test/
 # exactjson.test.ts and go/generate_test.go.
 #
+#
+# ---------------------------------------------------------------------
+#
+# OPEN -- Go names the INCLUDING file, not the included one, for a value
+#   loaded by @"...".
+#
+#   issue: #76 (2026-08-25). Found by the parity probe for
+#   `aontu set --in-place`. Row, column and src agree; only the file
+#   attribution differs -- which makes it worse rather than better,
+#   because the coordinates are correct FOR A DOCUMENT GO HAS
+#   MISIDENTIFIED, so a consumer that trusts the pair gets a well-formed
+#   pointer into the wrong file.
+#
+#   Divergent input:  ov.aon holding `@"inc/inc.aon"`,
+#                     inc/inc.aon holding `shared: 42`,
+#                     then `why '$.shared' ov.aon`
+#   TypeScript: site file = <abs>/inc/inc.aon  (where 42 is written)
+#   Go:         site file = ov.aon             (where the include is)
+#
+#   Not simply fixed because there is no per-document url for a guard to
+#   preserve: Aontu.Why stamps the whole tree with the entry document's
+#   url, and stampURL (go/walk.go) says so in its own contract -- "Values
+#   carry no url of their own". Go's include machinery, the multisource
+#   plugin binding, never stamps one. The fix is for the LOADER to learn
+#   which file each rule came from and stamp it at load time, reaching
+#   into go/lang.go and go/source.go, with its own design question about
+#   how nested loads rebase. TypeScript gets this free by passing the
+#   path as a parse option, which multisource applies per loaded file.
+#
+#   SECOND FACET, same machinery: a value MINTED during unification --
+#   `x |> upper` resolving to "HELLO" -- is unsited in both ports now
+#   (row, col, len and src all agree at -1/-1/-1/""), but Go names the
+#   entry document for it where TypeScript names none. TypeScript's
+#   distinction is "stamped BEFORE the fixpoint" (a parsed value, which
+#   belongs to its document even when it has no position within it --
+#   vet-unsited-junction pins exactly that) versus "minted DURING it".
+#   Go does not track when a value came into being, so stampURL cannot
+#   draw the line: guarding it on `unsited` was tried and broke
+#   vet-unsited-junction, which is the correct row.
+#
+#   Divergent input:  entry `x: string`, overlay `x: hello |> upper`,
+#                     then `set '$.x="BYE"' --in-place --format json`
+#   TypeScript: site file = ""        (nobody wrote this value)
+#   Go:         site file = <overlay> (the document being stamped)
+#   Everything else about the run agrees byte for byte, the written
+#   file included.
+#
+#   Reaches: any report naming a site for an included value -- `why`
+#   conjunct sites, `vet` finding sites, and `set --in-place`, whose
+#   foreign-file refusal compares a site's file against the overlay's
+#   path and therefore cannot fire in Go. SAFETY IS UNAFFECTED THERE:
+#   the span verification catches what the file check cannot, since an
+#   include's coordinates do not describe the overlay's text. Both ports
+#   refuse to write; they differ in which reason they give
+#   (patch_not_editable vs patch_span_mismatch), and go/patch_test.go
+#   asserts the refusal rather than the code, saying why.

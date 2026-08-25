@@ -166,3 +166,62 @@ func TestSetUsageErrorsExit2(t *testing.T) {
 		t.Fatalf("want help, got %d", code)
 	}
 }
+
+// `--in-place` at the COMMAND LINE, closing the loop the status report
+// says `set` could not: the data pins the wrong value, and appending can
+// only contradict it. The report shape is pinned by test/spec/patch.tsv;
+// what this holds is the flag, the `replaced:` line, and the bytes that
+// end up on disk -- comments included. The TS twin is
+// set-in-place-rewrites-the-pinned-literal in ts/test/cli.test.ts.
+func TestSetInPlaceRewritesThePinnedLiteral(t *testing.T) {
+	dir := t.TempDir()
+	entry := filepath.Join(dir, "schema.aon")
+	overlay := filepath.Join(dir, "deploy.aon")
+	writeAt(t, entry, "replicas: integer & above(0) & below(10)\n")
+	writeAt(t, overlay, "# the deployment\nreplicas: 42   # too many\n")
+
+	// WITHOUT the flag this is the defect: nothing written, exit 1.
+	_, errOut, code := setRun("$.replicas=5", "--entry", entry, "--overlay", overlay)
+	if 1 != code {
+		t.Fatalf("want 1 without --in-place, got %d", code)
+	}
+	vetMatch(t, errOut, `verdict: invalid`)
+	if want := "# the deployment\nreplicas: 42   # too many\n"; want != readAt(t, overlay) {
+		t.Fatalf("overlay moved without the flag: %q", readAt(t, overlay))
+	}
+
+	// WITH it, the literal is rewritten where it was written.
+	out, _, code := setRun("$.replicas=5",
+		"--entry", entry, "--overlay", overlay, "--in-place")
+	if 0 != code {
+		t.Fatalf("want 0, got %d: %s", code, out)
+	}
+	vetMatch(t, out, `verdict: valid`)
+	vetMatch(t, out, `replaced: .*deploy\.aon:2:11 42 -> 5`)
+	vetMatch(t, out, `wrote:`)
+	// BOTH COMMENTS SURVIVE, the one on the edited line included.
+	if want := "# the deployment\nreplicas: 5   # too many\n"; want != readAt(t, overlay) {
+		t.Fatalf("overlay: %q", readAt(t, overlay))
+	}
+}
+
+// Where it cannot rewrite it APPENDS, exactly as plain set would, and
+// says why. --dry-run still writes nothing.
+func TestSetInPlaceAppendsAndExplainsWhenItCannotRewrite(t *testing.T) {
+	dir := t.TempDir()
+	entry := filepath.Join(dir, "schema.aon")
+	overlay := filepath.Join(dir, "ov.aon")
+	writeAt(t, entry, "a: integer\n")
+	writeAt(t, overlay, "a: 1+2\n")
+
+	_, errOut, code := setRun("$.a=5",
+		"--entry", entry, "--overlay", overlay, "--in-place", "--dry-run")
+	if 1 != code {
+		t.Fatalf("want 1, got %d: %s", code, errOut)
+	}
+	vetMatch(t, errOut, `patch_not_editable`)
+	vetMatch(t, errOut, `opening token`)
+	if "a: 1+2\n" != readAt(t, overlay) {
+		t.Fatalf("dry run wrote: %q", readAt(t, overlay))
+	}
+}

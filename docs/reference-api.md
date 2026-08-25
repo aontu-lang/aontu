@@ -43,7 +43,7 @@ Usage: aontu [options] [file]
        aontu mod tidy|vendor|manifest [options] [dir]
        aontu get <path> [options] <file>
        aontu why <path> [options] <file>
-       aontu set <path>=<value>... --entry <file> --overlay <file>
+       aontu set <path>=<value>... --entry <file> --overlay <file> [--in-place]
        aontu agentsmd [--write <AGENTS.md>] <file>
 
 Evaluate an Aontu source file and print the result as JSON.
@@ -396,7 +396,7 @@ Change a document by **appending to an overlay**, not by rewriting it.
 
 ```
 aontu set <path>=<value>... --entry <file> --overlay <file>
-         [--dry-run] [--format text|json]
+         [--in-place] [--dry-run] [--format text|json]
 ```
 
 ```
@@ -416,13 +416,36 @@ wrote: changes.aon
   appending to a second file is the same value as writing into the
   first. The shared suite asserts that equivalence for every row
   rather than claiming it.
-- **What it cannot do is change a pinned value.** The lattice refuses
-  `5` against `3`, the verdict is `invalid`, and the finding names the
-  pinning site — which [`aontu why`](#aontu-why) then explains. The
-  loop is *set → conflict → why → edit the pinning site*, with that
-  last step manual until the format-preserving in-place edit lands
-  (stage 2; it needs a comment-preserving CST the parser stack does
-  not have yet).
+- **Appending cannot change a pinned value.** The lattice refuses `5`
+  against `3`, the verdict is `invalid`, and the finding names the
+  pinning site — which [`aontu why`](#aontu-why) then explains.
+  `--in-place` closes that loop.
+- **`--in-place` rewrites the literal where the author wrote it.** The
+  span at `(row, col, len)` is replaced and nothing else is touched, so
+  comments and layout survive — including a comment on the edited line.
+  Nothing is re-serialised, which is why no CST is needed: a targeted
+  splice never reads the bytes it does not replace.
+- **The span is verified before a byte is written.** A site carries
+  `src`, the source text it claims to cover, and the text at the span
+  must equal it. That is what makes `port: 0x1F` safe to rewrite even
+  though its value is `31` — the span is four code units and says so.
+- **It rewrites only a single editable literal, and appends otherwise.**
+  The contribution must be one `literal`-role conjunct in *this*
+  overlay whose `src`, parsed alone, means the contribution's own canon
+  — which refuses a compound, because a site names a compound's
+  *opening token* (`min` for `min(1)`, `1` for `1+2`, `{` for a map).
+  It must also be concrete: `a: integer` is a constraint, not a pin,
+  and appending narrows it without discarding what it says. Anything
+  else appends exactly as plain `set` would, plus one **warning**
+  naming the case — `patch_not_editable`, `patch_ambiguous` or
+  `patch_span_mismatch`. Warnings never move a verdict, so `--in-place`
+  cannot turn a run that would have held into one that does not.
+- A default (`a: *1`) is left alone with no warning: appending already
+  overrides a default correctly.
+- The report gains `replaced`, one entry per rewrite, carrying the path,
+  the site, and `from`/`to` as **source text** — replacing `0x1F` with
+  `31` is a different edit from replacing it with `0x1F`, and only the
+  spelling says which.
 - **The overlay is written only when the change holds.** An `invalid`
   or `error` verdict leaves the file exactly as it was: a change the
   author still has to think about should not sit in their

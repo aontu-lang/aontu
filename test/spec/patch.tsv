@@ -48,3 +48,67 @@ patch-overlay-trailing-newline	patch	a: {}	{"overlay": "y: 2\\n", "set": ["$.a.k
 patch-entry-unparseable	patch	a:]	{"overlay": "", "set": ["$.a=1"]}	{"appended": ["\\"a\\": 1"], "codes": ["syntax"], "overlay": "\\"a\\": 1\\n", "verdict": "error"}
 patch-no-assignments	patch	a: {b: 1}	{"overlay": "", "set": []}	{"appended": [], "overlay": "", "verdict": "valid"}
 patch-closed-map-refuses	patch	a: close({b:integer})	{"overlay": "", "set": ["$.a.c=1"]}	{"appended": ["\\"a\\": \\"c\\": 1"], "codes": ["closed"], "overlay": "\\"a\\": \\"c\\": 1\\n", "verdict": "invalid"}
+#
+# IN-PLACE REPLACE (`aontu set --in-place`), riding `inPlace` on the
+# input object. G7 deferred this behind a comment-preserving CST; it
+# needs none, because a targeted span splice SERIALISES NOTHING -- it
+# replaces `len` code units at one offset and every other byte, comment
+# and blank line included, is untouched because it is never read
+# (patch-inplace-keeps-comments pins exactly that).
+#
+# WHAT MAKES IT SAFE IS THE ROUND TRIP, not the `literal` role. A site
+# names the TOKEN it points at, so a COMPOUND value reports its OPENING
+# token while its canon is the whole thing: `min(1)` is a literal-role
+# contribution whose src is `min`, `1+2` reports `1`, `{b:1}` reports
+# `{`, `[1,2]` reports `[`, `1|2` reports `1`. Splicing any of those
+# writes the new value INTO the expression -- `a: 5(1)`, `a: 5+2` --
+# which is the canon-length corruption class reached by another route.
+# So the src is parsed ALONE and required to mean the contribution's
+# own canon. That is decided by the same unifier that made the
+# contribution, so it cannot drift from it, and it gets the interesting
+# case right without naming it: `0x1F` canons to `31`, which is not its
+# own spelling but IS the contribution's canon, so a hex literal is
+# editable (patch-inplace-hex-literal) while `min` is not
+# (patch-inplace-call-refused).
+#
+# NEVER WORSE THAN APPEND. Where the value is not a single editable
+# literal in this overlay, the assignment is APPENDED exactly as it
+# would have been without the flag, plus one WARNING naming the case --
+# and warnings never move a verdict. Both runners assert this for every
+# row here by re-running it without the flag and requiring a verdict at
+# least as good, so the claim is measured rather than stated.
+#
+# An ABSTRACT contribution (`a: integer`, `a: above(0)`) is refused for
+# a different reason than a compound: it would not corrupt anything, it
+# would DISCARD a constraint the author wrote, and appending already
+# narrows it. A PREFERENCE is refused with no finding at all, because
+# appending overrides a default correctly and nothing went wrong.
+#
+# Every expectation was obtained by the parity probe (AGENTS.md).
+patch-inplace-pinned-literal	patch	replicas: integer & above(0) & below(10)	{"inPlace":true,"overlay":"# the deployment\\nreplicas: 42   # too many\\n","set":["$.replicas=5"]}	{"appended":[],"overlay":"# the deployment\\nreplicas: 5   # too many\\n","replaced":[{"col":11,"file":"","from":"42","path":"$.replicas","row":2,"to":"5"}],"verdict":"valid"}
+patch-inplace-keeps-comments	patch	a: integer	{"inPlace":true,"overlay":"# head\\na: 42  # tail\\n# foot\\n","set":["$.a=5"]}	{"appended":[],"overlay":"# head\\na: 5  # tail\\n# foot\\n","replaced":[{"col":4,"file":"","from":"42","path":"$.a","row":2,"to":"5"}],"verdict":"valid"}
+patch-inplace-hex-literal	patch	port: integer	{"inPlace":true,"overlay":"port: 0x1F\\n","set":["$.port=80"]}	{"appended":[],"overlay":"port: 80\\n","replaced":[{"col":7,"file":"","from":"0x1F","path":"$.port","row":1,"to":"80"}],"verdict":"valid"}
+patch-inplace-string-literal	patch	n: string	{"inPlace":true,"overlay":"n: \\"old name\\"\\n","set":["$.n=\\"new name\\""]}	{"appended":[],"overlay":"n: \\"new name\\"\\n","replaced":[{"col":4,"file":"","from":"\\"old name\\"","path":"$.n","row":1,"to":"\\"new name\\""}],"verdict":"valid"}
+patch-inplace-nested-path	patch	a: { b: { c: integer } }	{"inPlace":true,"overlay":"a: { b: { c: 9 } }\\n","set":["$.a.b.c=3"]}	{"appended":[],"overlay":"a: { b: { c: 3 } }\\n","replaced":[{"col":14,"file":"","from":"9","path":"$.a.b.c","row":1,"to":"3"}],"verdict":"valid"}
+patch-inplace-two-literals	patch	x: integer\ny: integer	{"inPlace":true,"overlay":"x: 1\\ny: 2\\n","set":["$.x=10","$.y=20"]}	{"appended":[],"overlay":"x: 10\\ny: 20\\n","replaced":[{"col":4,"file":"","from":"1","path":"$.x","row":1,"to":"10"},{"col":4,"file":"","from":"2","path":"$.y","row":2,"to":"20"}],"verdict":"valid"}
+patch-inplace-utf16-column	patch	"a🎉b": string	{"inPlace":true,"overlay":"\\"a🎉b\\": \\"old\\"  # tail\\n","set":["$.a🎉b=\\"new\\""]}	{"appended":[],"overlay":"\\"a🎉b\\": \\"new\\"  # tail\\n","replaced":[{"col":9,"file":"","from":"\\"old\\"","path":"$.a🎉b","row":1,"to":"\\"new\\""}],"verdict":"valid"}
+patch-inplace-absent-path-appends	patch	a: integer\nb: integer	{"inPlace":true,"overlay":"a: 1\\n","set":["$.b=2"]}	{"appended":["\\"b\\": 2"],"overlay":"a: 1\\n\\"b\\": 2\\n","verdict":"valid"}
+patch-inplace-kind-appends	patch	a: integer	{"inPlace":true,"overlay":"a: integer\\n","set":["$.a=5"]}	{"appended":["\\"a\\": 5"],"codes":["patch_not_editable"],"overlay":"a: integer\\n\\"a\\": 5\\n","verdict":"valid"}
+patch-inplace-pref-appends	patch	a: integer	{"inPlace":true,"overlay":"a: *1\\n","set":["$.a=5"]}	{"appended":["\\"a\\": 5"],"overlay":"a: *1\\n\\"a\\": 5\\n","verdict":"valid"}
+patch-inplace-call-refused	patch	a: integer	{"inPlace":true,"overlay":"a: min(1)\\n","set":["$.a=5"]}	{"appended":["\\"a\\": 5"],"codes":["patch_not_editable"],"overlay":"a: min(1)\\n\\"a\\": 5\\n","verdict":"valid"}
+patch-inplace-expression-refused	patch	a: integer	{"inPlace":true,"overlay":"a: 1+2\\n","set":["$.a=5"]}	{"appended":["\\"a\\": 5"],"codes":["patch_not_editable","scalar_value"],"overlay":"a: 1+2\\n\\"a\\": 5\\n","verdict":"invalid"}
+patch-inplace-map-refused	patch	a: { b: integer }	{"inPlace":true,"overlay":"a: {b:1}\\n","set":["$.a=5"]}	{"appended":["\\"a\\": 5"],"codes":["patch_not_editable","map"],"overlay":"a: {b:1}\\n\\"a\\": 5\\n","verdict":"invalid"}
+patch-inplace-list-refused	patch	a: [integer]	{"inPlace":true,"overlay":"a: [1,2]\\n","set":["$.a=5"]}	{"appended":["\\"a\\": 5"],"codes":["patch_not_editable","list"],"overlay":"a: [1,2]\\n\\"a\\": 5\\n","verdict":"invalid"}
+patch-inplace-disjunct-refused	patch	a: integer	{"inPlace":true,"overlay":"a: 1|2\\n","set":["$.a=5"]}	{"appended":["\\"a\\": 5"],"codes":["patch_not_editable","|:empty"],"overlay":"a: 1|2\\n\\"a\\": 5\\n","verdict":"invalid"}
+patch-inplace-ambiguous-refused	patch	a: integer	{"inPlace":true,"overlay":"a: 1\\na: 1\\n","set":["$.a=5"]}	{"appended":["\\"a\\": 5"],"codes":["patch_ambiguous","scalar_value"],"overlay":"a: 1\\na: 1\\n\\"a\\": 5\\n","verdict":"invalid"}
+patch-inplace-spread-refused	patch	svc: { a: { r: integer } }	{"inPlace":true,"overlay":"svc: {\\n  &: { r: 3 }\\n  a: {}\\n}\\n","set":["$.svc.a.r=5"]}	{"appended":["\\"svc\\": \\"a\\": \\"r\\": 5"],"codes":["patch_not_editable","scalar_value"],"overlay":"svc: {\\n  &: { r: 3 }\\n  a: {}\\n}\\n\\"svc\\": \\"a\\": \\"r\\": 5\\n","verdict":"invalid"}
+patch-inplace-ref-refused	patch	base: integer\nn: integer	{"inPlace":true,"overlay":"base: 7\\nn: $.base\\n","set":["$.n=5"]}	{"appended":["\\"n\\": 5"],"codes":["patch_not_editable","scalar_value"],"overlay":"base: 7\\nn: $.base\\n\\"n\\": 5\\n","verdict":"invalid"}
+# A contribution with NO EXTENT AT ALL, which the pipe operator makes:
+# `x: hello |> upper` rewrites into a call the parser never sited, so the
+# contribution is literal-role with row, col and len all -1 and an empty
+# src. The guard is load-bearing rather than defensive -- an empty src
+# would PASS the span verification below it (the slice is empty and so is
+# the text it is compared to) and then splice zero characters, INSERTING
+# the new value into the middle of the line instead of replacing
+# anything.
+patch-inplace-no-extent-refused	patch	x: string	{"inPlace":true,"overlay":"x: hello |> upper\\n","set":["$.x=\\"BYE\\""]}	{"appended":["\\"x\\": \\"BYE\\""],"codes":["patch_span_mismatch","scalar_value"],"overlay":"x: hello |> upper\\n\\"x\\": \\"BYE\\"\\n","verdict":"invalid"}

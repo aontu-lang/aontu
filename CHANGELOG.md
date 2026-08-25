@@ -7,6 +7,107 @@ which implementation each change affects.
 
 ## Unreleased — TypeScript 0.53.0 line
 
+### Added — `set --in-place`, so the repair loop closes
+
+`aontu set` could not repair the commonest failure it exists for.
+Unification only narrows, so where the data **pins the wrong value** —
+`replicas: 42` against `integer & above(0) & below(10)` — appending
+`replicas: 5` produced a document contradicting itself: `verdict:
+invalid`, `written: false`, exit 1. It succeeded only where the document
+had left a hole. That is the first bullet of §5 of the 2026-08-21 status
+report, and the whole of what remained of the repair-half finding.
+
+`--in-place` rewrites the pinned literal **where the author wrote it**:
+
+```
+$ aontu set '$.replicas=5' --entry schema.aon --overlay deploy.aon --in-place
+verdict: valid
+replaced: deploy.aon:2:11 42 -> 5
+wrote: deploy.aon
+```
+
+The G7 design deferred this behind two prerequisites. The first now
+exists — `why` is the evaluated-path → contributing-span map, and sites
+carry `len` and `src` since a site was given an extent. **The second, a
+comment-preserving CST, turns out not to be needed**, and the reason is
+worth stating: a CST is what you need to RE-SERIALISE a document, and a
+targeted span splice serialises nothing. It replaces `len` code units at
+one offset and leaves every other byte — every comment, every blank
+line, every alignment space — exactly as the author left it, because it
+never reads them. A comment on the edited line survives.
+
+**The edit is verified, not assumed.** The site carries the text it
+claims to cover, so the span is checked against `src` before a byte is
+written. The corrupting arithmetic this repository already shipped once
+— `port: 0x1F` reporting canon `"31"` at column 7, so `(col,
+canon.length)` writes `port: 5x1F` — is unreachable: `0x1F` is four code
+units and says so, and a span that does not match is refused rather than
+guessed.
+
+**`role === 'literal'` is not the test, and that matters.** A site names
+the TOKEN it points at, so a compound value reports its OPENING token
+while its canon is the whole thing: `min(1)` is a literal-role
+contribution whose `src` is `min`, `1+2` reports `1`, `{b:1}` reports
+`{`. Splicing any of those writes the new value *into* the expression
+(`a: 5(1)`, `a: 5+2`) — the same corruption class by another route.
+Rather than enumerate the shapes, the `src` is parsed ALONE and required
+to mean the contribution's own canon. That is decided by the same
+unifier that produced the contribution, so it cannot drift from it, and
+it gets the interesting case right without naming it: `0x1F` canons to
+`31`, which is not its own spelling but IS the contribution's canon.
+
+**Never worse than appending.** Where the value is not a single editable
+literal in this overlay — a spread template governing other keys, a
+reference whose site is the `$`, two statements pinning one path, a
+literal in an included file, a constraint rather than a pin — the
+assignment is appended exactly as it would have been without the flag,
+plus one **warning** naming the case: `patch_not_editable`,
+`patch_ambiguous` or `patch_span_mismatch` (registered in
+`errcodes.tsv`). Warnings never move a verdict. Both runners assert this
+for every in-place row by re-running it without the flag and requiring a
+verdict at least as good. A default (`a: *1`) earns no warning at all —
+appending already overrides a default correctly.
+
+The report gains `replaced`, carrying `from`/`to` as **source text**:
+replacing `0x1F` with `31` is a different edit from replacing it with
+`0x1F`, and only the spelling says which. 19 rows in
+`test/spec/patch.tsv`, executed by both runners; `ts/test/patch.test.ts`
+and `go/patch_test.go` cover what a row cannot reach, the file paths.
+
+### Fixed — a value nobody wrote is nowhere in particular (Go)
+
+Found by the parity probe for the above, and fixed rather than recorded:
+
+- **A minted value claimed row 1, column 1.** Go's `sp` zero value IS a
+  position — the first byte — so a value unification produced was
+  indistinguishable from one written at the very start of the document.
+  `a: 1+2` met against `a: 5` reported its arithmetic RESULT at 1:1 in
+  Go and at -1:-1 in TypeScript. Every constructor now starts at an
+  `unsited` sentinel and the parser moves it; conjuncts, disjuncts, tops
+  and nils each already did this for their own reason, and this makes it
+  the invariant TypeScript has structurally. `siteOf` already guarded on
+  `0 <= v.pos()` and needed no change — it was being handed a position
+  that looked real. Pinned by `vet-minted-arith-operand-unsited` and
+  `vet-minted-concat-operand-unsited`.
+- **A piped call was sited at its left operand.** `x |> upper`
+  synthesises `upper(x)`, and Go's `buildCall` took its position from
+  the rule's opening token — which for a pipe is the pipe's LEFT
+  OPERAND. So the synthesised call reported at `x` with src `"hello"`
+  where TypeScript reported it unsited. The canonical port never had the
+  choice: its `buildCall` does not site the success value at all, and
+  the written path sites it afterwards. Pinned by
+  `why-piped-call-is-unsited` and `why-written-call-sites-its-name`.
+
+A third divergence in the same machinery is **recorded, not fixed**
+(issue #76, `test/spec/divergent.tsv`): Go names the entry document for
+values TypeScript names none for — a literal in an `@"included"` file,
+and a value minted during unification. Go's loader stamps no
+per-document url for a guard to preserve, and Go does not track whether
+a value was parsed or minted, so neither is a one-line fix. Safety in
+`set --in-place` is unaffected: the span verification catches what the
+file check cannot, both ports refuse to write, and they differ only in
+which reason they give.
+
 ### Breaking — a preference is gated by kind, not by family
 
 `port: *8080 | integer` — the default idiom this project's own

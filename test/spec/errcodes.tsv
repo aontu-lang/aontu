@@ -190,6 +190,28 @@ pref_not_instance	errcode	compat	0.53.0
 # not <path>=<value>. Class `parse` -- what is malformed is source
 # text -- and report-layer, so no NilVal ever carries it.
 patch_assignment	errcode	parse	0.53.0
+# `set --in-place` refusing to rewrite, as WARNINGS: the assignment
+# still appends, so the run is no worse than it would have been and the
+# verdict must not move. What they add is the reason, which is the whole
+# value of asking for --in-place over plain set.
+#
+# `patch_not_editable` is class `reference` because it is a LOCATING
+# failure -- the path names no single literal this overlay can edit,
+# whether because the value comes from a spread or a ref, because the
+# site names a compound's opening token rather than the whole value,
+# because the literal is in an included file, or because it is a
+# constraint rather than a pin. `patch_ambiguous` is the same class and
+# split out because the remedy differs: two statements pin the path and
+# the author must say which one they meant.
+#
+# `patch_span_mismatch` is class `internal` deliberately. Both the site
+# and the text come from the same source this run just parsed, so a
+# disagreement between them is a state the engine should not reach --
+# and it is checked anyway, because the alternative to checking is
+# writing over bytes nothing can account for.
+patch_not_editable	errcode	reference	0.53.0
+patch_ambiguous	errcode	reference	0.53.0
+patch_span_mismatch	errcode	internal	0.53.0
 # THE IDENTITY MARK (G4 phase 1, `id(name)`). Three codes, three
 # classes, because three different things go wrong. `id_name` is the
 # argument refused: a name that is not one (a number, a map, a dotted

@@ -431,7 +431,25 @@ contributing-source-spans map (a by-product of the provenance
 recorder) and a comment-and-layout-preserving CST for the parser
 stack, which today discards comments. Only then can
 `aontu set --in-place` rewrite the pinning literal where the
-author wrote it. Sibling documents deferring "applying a fix" to
+author wrote it.
+
+> **LANDED 2026-08-25, and the second prerequisite was wrong.** The
+> first was met as described: `why` IS that map, and sites gained
+> `len` and `src` when a site was given an extent. The CST was not
+> needed at all, and the reason generalises — a CST is what you need
+> to RE-SERIALISE a document, and a targeted span splice serialises
+> nothing. It replaces `len` code units at one offset and leaves every
+> other byte, comments and layout included, untouched because it never
+> reads them.
+>
+> What the estimate missed in the other direction: the `literal` role
+> is NOT sufficient to identify an editable span. A site names the
+> TOKEN it points at, so a compound reports its opening token
+> (`min(1)` reports `min`) while its canon is the whole call, and
+> splicing there edits the expression rather than the value. The
+> shipped check parses the `src` alone and requires it to mean the
+> contribution's own canon — the unifier deciding, rather than a list
+> of shapes to be incomplete about. Sibling documents deferring "applying a fix" to
 G7's format-preserving patch surface ([G2](g2-validation-verb.md),
 [G3](g3-subsumption-evolution.md)) are deferring to this stage;
 until it lands, overlay-append is the only patch verb, and the
