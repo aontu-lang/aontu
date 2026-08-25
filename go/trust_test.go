@@ -15,9 +15,41 @@ import (
 	"testing"
 )
 
+// srcPath spells a path for EMBEDDING IN SOURCE text. Inside an @"..."
+// include a backslash is an ESCAPE character, so a native Windows path
+// interpolated raw is eaten by the lexer: C:\Users\RUNNER\...\root
+// arrives as C:UsersRUNNER...oot, because \U, \A and \r are string
+// escapes and \r is a carriage return. Go accepts forward slashes on
+// every platform, so sources spell paths that way; filesystem calls
+// keep native paths.
+//
+// The canonical port has had this since it was written
+// (ts/test/trust.test.ts, `sp`) and this twin never got it, which
+// nothing noticed because the Go CI matrix declared windows-latest
+// while hardcoding runs-on: ubuntu-latest -- so the Windows job had
+// never once run on Windows. Fixing the matrix is what surfaced it.
+//
+// An unconditional replace, NOT filepath.ToSlash, and deliberately:
+// ToSlash is a no-op wherever the separator is already '/', so the
+// behaviour this helper exists for would be exercised on Windows
+// alone -- the one platform a contributor cannot run. Spelling the
+// rule outright makes it the same code everywhere, testable here, and
+// character-for-character the rule the canonical twin applies.
+//
+// NOT named `sp`, which is what the canonical twin calls it: in this
+// package `sp` is a domain term -- the SOURCE POSITION carried on every
+// Val (`base.sp`, and `func(sp int) Val` throughout lang.go) -- so a
+// package-level `sp(string) string` would be shadowed by dozens of
+// locals and read as the wrong thing at every call site.
+func srcPath(p string) string {
+	return strings.ReplaceAll(p, "\\", "/")
+}
+
 // trustWorld builds a little world to confine: root/{in.aon, nest.aon,
 // sub/deep.aon}, with secret.aon OUTSIDE the root and a symlink inside
-// pointing at it.
+// pointing at it. The symlink is best-effort: Windows refuses one
+// without Developer Mode or elevation, and the single test that needs
+// it skips rather than failing for a reason that is not about Aontu.
 func trustWorld(t *testing.T) (dir, root string) {
 	t.Helper()
 	dir = t.TempDir()
@@ -38,9 +70,20 @@ func trustWorld(t *testing.T) (dir, root string) {
 	}
 	if err := os.Symlink(filepath.Join(dir, "secret.aon"),
 		filepath.Join(root, "link.aon")); err != nil {
-		t.Fatal(err)
+		// Not fatal: see the note above. trustSymlink reports it.
+		t.Logf("symlink unavailable on this platform: %v", err)
 	}
 	return dir, root
+}
+
+// trustSymlink skips the calling test when the world's symlink could
+// not be created, which on Windows is a privilege question rather than
+// a defect in anything this suite is testing.
+func trustSymlink(t *testing.T, root string) {
+	t.Helper()
+	if _, err := os.Lstat(filepath.Join(root, "link.aon")); err != nil {
+		t.Skip("symlink not available on this platform")
+	}
 }
 
 func trustCode(t *testing.T, trust *TrustOptions, src string) string {
@@ -61,7 +104,7 @@ func trustCode(t *testing.T, trust *TrustOptions, src string) string {
 func TestTrustNoneDeniesEveryInclude(t *testing.T) {
 	_, root := trustWorld(t)
 	code := trustCode(t, &TrustOptions{IncludeNone: true},
-		`a:@"`+root+`/in.aon"`)
+		`a:@"`+srcPath(root)+`/in.aon"`)
 	if "include_denied" != code {
 		t.Fatalf("code: %q", code)
 	}
@@ -94,7 +137,7 @@ func TestTrustRootConfinesBelowTheRoot(t *testing.T) {
 
 	a := New()
 	a.Trust = &TrustOptions{IncludeRoot: root}
-	out, err := a.Generate(`a:@"` + root + `/sub/deep.aon"`)
+	out, err := a.Generate(`a:@"` + srcPath(root) + `/sub/deep.aon"`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -103,7 +146,7 @@ func TestTrustRootConfinesBelowTheRoot(t *testing.T) {
 	}
 
 	code := trustCode(t, &TrustOptions{IncludeRoot: root},
-		`a:@"`+root+`/../secret.aon"`)
+		`a:@"`+srcPath(root)+`/../secret.aon"`)
 	if "include_denied" != code {
 		t.Fatalf("escape code: %q", code)
 	}
@@ -113,8 +156,9 @@ func TestTrustRootConfinesBelowTheRoot(t *testing.T) {
 // pointing outside it is an escape, not a loophole.
 func TestTrustRootDeniesASymlinkEscape(t *testing.T) {
 	_, root := trustWorld(t)
+	trustSymlink(t, root)
 	code := trustCode(t, &TrustOptions{IncludeRoot: root},
-		`a:@"`+root+`/link.aon"`)
+		`a:@"`+srcPath(root)+`/link.aon"`)
 	if "include_denied" != code {
 		t.Fatalf("symlink code: %q", code)
 	}
@@ -124,7 +168,7 @@ func TestTrustRootMissIsNotFoundNotDenied(t *testing.T) {
 	_, root := trustWorld(t)
 	a := New()
 	a.Trust = &TrustOptions{IncludeRoot: root}
-	if _, err := a.Generate(`a:@"` + root + `/nope.aon"`); err == nil ||
+	if _, err := a.Generate(`a:@"` + srcPath(root) + `/nope.aon"`); err == nil ||
 		!strings.Contains(err.Error(), "not found") {
 		t.Fatalf("root miss: %v", err)
 	}
@@ -138,7 +182,7 @@ func TestTrustDepsListsTheSortedDedupedClosure(t *testing.T) {
 	a := New()
 	a.Trust = &TrustOptions{IncludeRoot: root}
 	if _, err := a.Parse(
-		`a:@"` + root + `/nest.aon" b:@"` + root + `/in.aon" c:@"` + root + `/in.aon"`,
+		`a:@"` + srcPath(root) + `/nest.aon" b:@"` + srcPath(root) + `/in.aon" c:@"` + srcPath(root) + `/in.aon"`,
 	); err != nil {
 		t.Fatal(err)
 	}
@@ -215,7 +259,7 @@ func TestTrustWarnOnEscape(t *testing.T) {
 	a.TrustWarn = func(kind, path string) { warned = append(warned, kind+" "+path) }
 	a.TrustWarnRoot = root
 	if _, err := a.Generate(
-		`a:@"` + dir + `/secret.aon" b:@"in.aon"`); err != nil {
+		`a:@"` + srcPath(dir) + `/secret.aon" b:@"in.aon"`); err != nil {
 		t.Fatal(err)
 	}
 	if 1 != len(warned) || !strings.HasPrefix(warned[0], "escape ") {
@@ -230,7 +274,7 @@ func TestTrustNonexistentRootStillConfines(t *testing.T) {
 	_, root := trustWorld(t)
 	code := trustCode(t,
 		&TrustOptions{IncludeRoot: filepath.Join(root, "no-such-root")},
-		`a:@"`+root+`/in.aon"`)
+		`a:@"`+srcPath(root)+`/in.aon"`)
 	if "include_denied" != code {
 		t.Fatalf("code: %q", code)
 	}

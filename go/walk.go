@@ -71,6 +71,18 @@ func walkVals(v Val, visit func(Val) bool, seen map[Val]bool) {
 		for _, a := range n.peg {
 			walkVals(a, visit, seen)
 		}
+	case *NilVal:
+		// A FAILURE'S OPERANDS. They are not peg entries, and they are
+		// exactly what a report names: a finding's sites are the nil's
+		// primary and secondary (vet.go, siteOf). A visitor that PRUNES
+		// at a nil never reaches them -- collectNils returns false and
+		// this switch is behind that gate -- so a nil collector is
+		// unaffected. A visitor that does not prune, and stamping
+		// provenance is the one that does not, must reach them or a
+		// broken schema's finding names no file at all. Mirrors the
+		// same arm in ts/src/walk.ts.
+		walkVals(n.primary, visit, seen)
+		walkVals(n.secondary, visit, seen)
 	case *ConstraintVal:
 		// A pending atom's arguments are its peg in TypeScript
 		// (`new ConstraintVal({peg: args})`), so the generic walk there

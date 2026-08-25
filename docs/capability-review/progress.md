@@ -90,9 +90,9 @@ the divergence ledger, `Accepted`/`Superseded` in the ADR register).
    all eight are now wrong, by roughly 1,400 to 1,500 rows. A gap
    document should link this line instead: as of this
    register's last update the suite is **86 `.tsv` files, 85
-   row-bearing, 3,054 rows**, in eighteen modes — `canon` 715, `gen`
-   541, `errc` 506, `gens` 491, `err` 246, `errcode` 100, `subsume` 94,
-   `query` 92, `vet` 53, `why` 43, `hcanon` 43, `graph` 28,
+   row-bearing, 3,099 rows**, in eighteen modes — `canon` 715, `gen`
+   545, `errc` 545, `gens` 491, `err` 246, `errcode` 100, `subsume` 94,
+   `query` 92, `vet` 55, `why` 43, `hcanon` 43, `graph` 28,
    `diff` 28, `patch` 23, `relation` 21, `hash` 12, `trim` 11,
    `agentsmd` 7.
    Reproduce with
@@ -101,11 +101,13 @@ the divergence ledger, `Accepted`/`Superseded` in the ADR register).
 
 ## Summary
 
-Forty-nine of forty-nine phases have moved; forty-seven of those are
-complete. Two are not. G5 phase 6 is deliberately held for the next
-major release. G7 phase 7 was found partial on 2026-08-21 — its
-`--jsonl` flag is unreachable in the Go port — and its row says what is
-missing.
+Forty-nine of forty-nine phases have moved; forty-eight of those are
+complete. One is not: G5 phase 6 is deliberately held for the next
+major release, a release act rather than an engineering one. G7 phase 7
+was found partial on 2026-08-21 — its `--jsonl` flag was unreachable in
+the Go port and TTY-gated in the TypeScript one — and was closed on
+2026-08-24; its row records what the fix was and why the earlier tests
+could not see the defect.
 
 | Gap | Capability | Review phase | Landed | Partial | Not started |
 |-----|-----------|--------------|--------|---------|-------------|
@@ -115,9 +117,9 @@ missing.
 | [G4](g4-identity-relations.md) | Identity, relations | C | 6 | 0 | 0 |
 | [G5](g5-trust-contract.md) | Trust contract | A | 5 | 1 | 0 |
 | [G6](g6-distribution.md) | Distribution | B/C | 5 | 0 | 0 |
-| [G7](g7-machine-access.md) | Machine access | B | 6 | 1 | 0 |
+| [G7](g7-machine-access.md) | Machine access | B | 7 | 0 | 0 |
 | [G8](g8-generation.md) | Generation | C | 5 | 0 | 0 |
-| | | **total** | **47** | **2** | **0** |
+| | | **total** | **48** | **1** | **0** |
 
 Against the review's own [sequencing](index.md#sequencing):
 
@@ -165,7 +167,7 @@ Against the review's own [sequencing](index.md#sequencing):
   an MCP server over the same contracts the CLI prints, a path-
   addressed `diff`, a published grammar the suite's own canon corpus
   is run against, a generated AGENTS.md stanza, and a skill whose
-  examples are executed. **G7 is complete but for one flag** (G7.7):
+  examples are executed. **G7 is complete** (G7.7):
   the REPL loads a document and answers `:get`, `:keys` and `:why`
   about it in both ports, and LSP hover can carry the provenance record
   behind a config gate — but the `--jsonl` session mode that makes it
@@ -187,13 +189,15 @@ Against the review's own [sequencing](index.md#sequencing):
   description gated on the breaking check. Only the two network verbs
   are absent, and they are the parts that carry no semantics.
 
-**Every phase of the review has now landed but two.** G5.6 — the
+**Every phase of the review has now landed but one.** G5.6 — the
 include-capability default flip — is deliberately held: it is a
 release act rather than an engineering one, and its warning window is
-already shipping. G7.7 is partial for a different reason: it was
-graded LANDED on the strength of artifacts that exist, and running the
-two CLIs side by side found one of them unreachable. Existence is not
-reachability, and a pin sweep cannot tell the difference.
+already shipping. G7.7 was partial for a different reason, and is now
+closed: it had been graded LANDED on the strength of artifacts that
+exist, and running the two CLIs side by side found one of them
+unreachable. Existence is not reachability, and a pin sweep cannot tell
+the difference — which is why its closing tests drive the real entry
+points rather than a hand-built state.
 
 A separate readiness caveat, which this register does not otherwise
 carry: **most of the work below is not in a released artifact — but
@@ -386,6 +390,125 @@ a test rather than an exclusion, and the third by a shared row
 (`vet-unstamped-operand`): an unknown var meets `top`, which no parser
 sited, and BOTH ports leave its site's `file` empty rather than
 borrowing a document name, so the emptiness is now contractual.
+
+**A later round closed the report's two blind spots**, both raised by
+the 2026-08-21 status report's repair-loop walkthrough
+([status-2026-08-21.md](status-2026-08-21.md) §5) and both fixed in
+both ports. (1) The `error` verdict carried NO finding: a schema that
+did not stand up answered `findings: []` with exit 4, so a caller was
+told the truth was unusable and never what or where — while
+`aontu <schema>` rendered the same fault in full. Two causes, and the
+second is the interesting one: vet threw the collected failure away,
+and the provenance walk stopped AT a nil, so even once the failure
+travelled, its operands named no file. Both walks now descend into a
+nil's `primary`/`secondary` (`ts/src/walk.ts`, `go/walk.go`) — safe
+because every nil COLLECTOR prunes at the nil and never reaches the
+new arm, and the stamping visitor is the only one that does not prune.
+Go was two verdicts short besides: an unparseable schema and a merge
+marker in a schema both returned bare, where the canonical port
+reported. Four rows pin it (`vet-schema-error`, `-error-nested`,
+`-unparseable`, `-merge-conflict`), plus unit tests in both ports; the
+overlay verb inherits the finding through vet
+(`patch-entry-unparseable`). (2) A parse failure lost its POSITION on
+the machine-readable path — `row: -1, col: -1` for a fault the human
+renderer drew a caret under. The parser knew all along; the rendered
+message held the only copy. Both ports now put it on the site
+(`ts/src/lang.ts`, `go/lang.go`), and `go/val.go`'s `AontuError`
+carries `Row`/`Col` for the syntax failure as it already did for the
+merge marker.
+
+**A sixth verdict flip, and where the row that should have caught it
+went wrong.** The rule refusing a quantifier on `^` or `$` — nothing
+to repeat, a syntax error under JavaScript's `u` flag and an accepted
+assertion under RE2 — shipped covering the two ANCHORS only, on a
+comment asserting that `\b` and `\B` "quantify identically in both".
+Measured, they do not: `re("\\b{1}x")` was `constraint_pattern` in
+TypeScript and an accepted schema in Go. All four assertions now take
+the same rule (ADR-003: the refusal is Aontu's, in the normaliser,
+before either engine compiles). Raised by the automated review on
+PR #72.
+
+The row named `re-quantified-boundary-ok` was supposed to pin exactly
+this, and it passed the whole time — because its source cell has ONE
+backslash, which in a string is the escape for a BACKSPACE, where a
+regex needs two to mean a word boundary. So it tested a quantified
+backspace under a name that claimed otherwise. It is renamed for what
+it tests, the boundary rows it was standing in for are added, and the
+trap is now written into `constraint-re.tsv`'s own comment: a row
+about an escape must say which layer it is escaping at, because the
+mistake is invisible in a green suite.
+
+**And the gates that had never run.** Making the Go CI matrix real
+(`runs-on` was hardcoded to ubuntu while the matrix named three
+platforms) and adding a coverage job turned two dormant gates on; both
+failed on their first real run, and each failure was a defect that had
+been sitting behind the gate rather than a flake.
+
+The Go port had never been tested on Windows, and fifteen tests failed
+there at once: every one interpolated a native path into Aontu SOURCE,
+where a backslash is a string ESCAPE, so `C:\Users\RUNNER~1\…\root`
+reached the resolver as `C:UsersRUNNER~1…oot` — `\r` arriving as a
+literal carriage return. **The canonical port has guarded this since it
+was written** (`sp` in `ts/test/trust.test.ts`, with a comment naming
+the exact failure) and the twin `go/trust_test.go` never got it. That
+is the ADR-001 parity discipline failing in the one place it is not
+mechanised: the shared spec pins BEHAVIOUR, and a guard that lives in a
+test harness is not behaviour. The Go helper is deliberately an
+unconditional replace rather than `filepath.ToSlash`, because ToSlash
+is a no-op wherever the separator is already `/` — a fix only
+exercisable on the platform nobody can run is a fix shipped blind.
+
+The coverage gate failed for an unrelated reason and a more interesting
+one: `go tool cover` moved where an if-body's block begins between
+releases, and `covmerge` matched a `//coverage:ignore` against its own
+line alone, so forty-two justified exclusions stopped applying on a
+toolchain newer than any contributor's. The marker now covers the whole
+statement it sits on — what `ignore-block` always did — and
+`go/scripts/covmerge/main_test.go` asserts both block spellings, so the
+gate cannot pass merely because of which Go is installed.
+
+A third defect fell out of fixing them, caught by neither job:
+`uriToPath` mishandled the standards-shaped Windows file uri
+(`file:///C:/…` → `/C:/…`), so the LSP's workspace-root confinement
+compared real paths against nonsense. **Both ports carried it
+identically** and both ports' tests hid it the same way, by building
+`'file://' + path` — two slashes, which no editor sends. Fixed in both,
+with the tests rewritten to send what a client actually sends.
+
+Pulling on that one found three more divergences in the same eight
+lines, each of which decided a confinement: a malformed percent-escape
+THREW in TypeScript where Go swallowed it; a well-formed escape naming
+a raw byte (`%FF` — a legal Linux filename, and something a JavaScript
+string cannot hold) decoded in Go and not in TypeScript, so the two
+derived DIFFERENT workspace roots for a uri neovim really sends; and
+`file://` alone yielded `''`, which is not nullish and so survived
+TypeScript's `??` chain to become a confinement root of `''` resolved
+against the process working directory. All nineteen uri shapes now
+agree between the ports. Next to them, one more: the Go port decoded
+the whole `initialize` params into typed fields, so a single
+wrong-typed value (`"rootUri": 42`) failed the unmarshal and left the
+session UNCONFINED — failing open, where the canonical port's per-field
+`typeof` guards cost it only that field.
+
+**None of these were reachable from the shared spec**, which is the
+observation worth keeping: `test/spec/*.tsv` pins what the ENGINE
+computes, and every defect in this round lived in a harness, a build
+tool, a CLI aggregation or a transport adapter. ADR-001 parity is
+mechanised exactly where the spec reaches and nowhere else, and the
+places it does not reach are where the two ports drifted.
+
+**And a dead branch the two-port discipline caught.** Removing the
+empty-finding return left a guard whose condition the branch above
+makes impossible. TypeScript's line coverage called it COVERED — the
+`const`, the `if`, the `return` and the closing brace all read the
+same hit count in the lcov — and appending to a file from inside the
+branch proved the `return` never executed in the whole suite. The Go
+gate, which counts coverage BLOCKS, refused the twin as three
+uncovered blocks. Both guards are gone. It is the second-order
+argument for ADR-001 that no design document makes: the ports are held
+to each other for BEHAVIOUR, and the by-product is that each one's
+instruments check the other's. Recorded in
+[`docs/test-coverage.md`](../test-coverage.md).
 
 **Phase 1 landed without touching `ts/src/err.ts`**, which its
 deliverable list names. Nothing was needed: the `[aontu/<code>]`
@@ -793,7 +916,7 @@ the corrected footing the doc now states — no shared spec mode
 | **4** — `why`, Go port | L | **LANDED** | `go/provenance.go` and `(*Aontu).Why` in `go/query.go`, plus `go/cmd/aontu/why.go`; the recorder hangs off `Ctx.prov` and hooks the `unite` wrapper that already carries G3's deprecation rider. Both runners execute every `why.tsv` row with no skip list, expectations parity-probed (39 cases diffed field by field, records and refusals) before any row was written. `go/provenance_test.go` holds the ordering's last tiebreaks and the entry-file/trust wiring; the two CLIs diffed byte-identical over an 11-case corpus — the version series and the host's file-error wording excepted. **What the probe cost the engine:** three shapes where a value was never met at all (a lone leaf, a nested leaf, a ref target) recorded nothing in TypeScript and one contribution in Go, because the TS bags SKIP the identity meet as an optimisation; the skip now yields while recording, so both ports see the same meets. Go additionally stamps the entry document's file name (`stampURL`, vet's precedent) — the TypeScript side gets it from the parse `path` option — so a site names its file in both. **Carve-out (2026-08-24):** "its file" is the ENTRY document's, and under an `@"…"` include that is the wrong one — Go names the entry where TypeScript names the included file the value was written in, with the row and column right in both. Recorded as OPEN #66 in [`test/spec/divergent.tsv`](../../test/spec/divergent.tsv); verdicts, codes and positions are unaffected. **Observed, not fixed:** Go has no per-Val id, so the recorder keys on pointer identity, which says the same thing. |
 | **5** — overlay `set` | M | **LANDED** | `ts/src/patch.ts` (`patch`, exported from `ts/src/aontu.ts`) and `go/patch.go` (`aontu.Patch`), with `aontu set <path>=<value>... --entry <file> --overlay <file> [--dry-run] [--format text\|json]` in both CLIs: an assignment becomes a path-flattened conjunct (`$.a.b=1` → `"a": "b": 1`, keys quoted so a segment may be a keyword, a number, or hold a space) appended to the overlay, and the verdict is G2's, unchanged — `vet(entry, overlay)` already asks exactly the right question, so the verb adds a writer, not a report. Exit codes are vet's verdict classes. `test/spec/patch.tsv` — 23 rows, parity-probed; `patch_assignment` registered in errcodes.tsv (class `parse`: what is malformed is source text). **The order-independence the whole verb rests on is ASSERTED, not claimed**: every row that stands up additionally runs the vet the other way round in both runners and requires the same verdict. **Departures:** (1) the engine returns the overlay TEXT and the CLI writes it — an engine that touched the filesystem could not be used by a server, and the CLI is the one place that knows about files. (2) The overlay is written ONLY when the change holds: an `invalid` or `error` verdict leaves the file exactly as it was, because a change the author still has to think about should not sit in their configuration while they do (the design said "appends, then re-evaluates"; on a refusal that would leave a broken overlay behind and the exit code is the only thing saying so). `--dry-run` writes nothing either way. (3) A missing overlay file is the empty overlay and is created, so "append to the overlay" does not require having made one first. (4) The entry and overlay file names ride as vet URLs as well as base paths, so a finding names the two files rather than the generic `schema`/`data` labels. **Stage 2 — the format-preserving in-place edit — is NOT started and is what other gap documents defer "applying a fix" to**; it needs a comment-and-layout-preserving CST the parser stack does not have. |
 | **6** — delivery: MCP server, grammar, skill, `agentsmd` | M | **LANDED** | Four deliverables. **The MCP server**: `ts/src/mcp.ts` (tools and protocol, transport-free) and `ts/src/mcp-server.ts` (NDJSON stdio), published as the `aontu-mcp` bin — the LSP's three-layer split. Six tools — `vet`, `get`, `why`, `diff`, `canon`, `summary` — each returning the SAME JSON contract the CLI prints; a tool that REFUSES answers with its own report and `isError: false`, which is reserved for a call that could not be made. Served evaluation is confined to no includes at all (G5). **`diff`**: `ts/src/diff.ts` and `go/diff.go`, path-addressed, with `test/spec/diff.tsv` (28 rows) asserting SYMMETRY in both runners. **The published grammar**: `grammar/aontu.gbnf` and `grammar/aontu.lark`, and `ts/test/grammar.test.ts`, which READS the gbnf file, interprets it as an ordered-choice PEG, and requires it to accept every canonical-form output in the shared suite (673 canon rows at landing; the corpus is the suite's live canon rows, so it grows with rule 5) while refusing the include directive and the over-approximations. **`aontu agentsmd`** in both CLIs, over `agentsMd`/`(*Aontu).AgentsMd`, with `test/spec/agentsmd.tsv` pinning the stanza BYTE FOR BYTE across ports; `--write` splices between markers and leaves the rest of the file alone. **The skill**: `docs/skill/` — trigger stub, grammar card, JSON-first example ladder, error-code index — with `ts/test/skill.test.ts` evaluating every example document, so a skill that teaches what the engine no longer does fails the build. **Departures:** (1) `diff` compares the HASH FORM, not the plain canon: canon drops closedness and the marks, so a canon diff would call `close({a:1})` and `{a:1}` identical, and a bag's own attributes diff at the `&`, `&closed`, `&type` and `&hide` pseudo-keys. G6 landing first is what made that available. (2) MCP RESOURCES are not implemented; the progressive disclosure the design wanted from them is the `summary` TOOL plus `get`, which is the same disclosure without a second protocol surface to keep in parity. (3) `diff` and `agentsMd` are in BOTH ports with shared rows, though only TypeScript serves MCP — behaviour belongs to the spec suite (ADR-001), and the Go API is what a gateway embeds. (4) The grammar's parity test interprets the gbnf file rather than shelling out to lark or llama.cpp: the discipline the design asked for, without a toolchain the CI does not have. |
-| **7** — REPL inspection mode and hover-provenance | S | **PARTIAL** | The REPL gains `:load`, `:get`, `:keys` and `:why` in BOTH ports, over the query and provenance surfaces, plus a `--jsonl` session mode with no banner, no prompt and one JSON line per answer. **What is missing:** the `--jsonl` FLAG does not exist in the Go CLI — `jsonl := false` at `go/cmd/aontu/main.go:399` is never reassigned because the argument switch has no case for it, so `aontu --jsonl` answers `unknown option --jsonl` and exits 2 while `helpText` at `:52` advertises it and `go/cmd/aontu/repl.go` carries the whole machinery behind it. `repl_test.go`'s `TestReplJSONLAnswersInOneLine` passes because it constructs `replState{JSONL: true}` directly, bypassing the parser, so the suite is green over unreachable code. By ADR-001 that makes the phase partial, not landed. In TypeScript the flag exists but the REPL is gated on `process.stdin.isTTY` (`ts/src/cli.ts:2285`), so piped commands are parsed as Aontu source and the mode is reachable only through a pty. The phase's other deliverables hold in both ports: `:load`, `:keys`, `:get` and `:why` all answer correctly in the Go REPL. Recorded 2026-08-21; see [`status-2026-08-21.md`](status-2026-08-21.md#9-the-register-is-accurate-its-siblings-are-not). The command handler is a PURE FUNCTION of (state, line) in both ports (`replCommand`, `ts/src/cli.ts` and `go/cmd/aontu/repl.go`) with file reading injected: a read loop is untestable, and every answer this REPL gives has to be as checkable as the CLI's. The two handlers were diffed line by line over a 24-line scripted session, in both output modes, before either was tested. **Hover provenance** in both language servers (`ts/src/lsp.ts`, `go/lsp/lsp.go`), config-gated by `initializationOptions.aontu.provenance` and off by default; `ValueSpan` gained the path the record is keyed by, and the markdown was diffed byte for byte. Diagnostics are unchanged. **Departures:** (1) the session flag is `--jsonl`, not the design's `--json`, which would read as the `:json` output mode the REPL already has. (2) `:load` holds the SOURCE, not the rendered document: every later question re-evaluates, which is what single-use trees require, and holding both texts would have made `:get`'s view flags answer from the wrong one. (3) Hover provenance costs a SECOND evaluation rather than instrumenting the hover's own: the recorder needs the parsed tree stamped before the fixpoint, which hover's evaluation has already passed by the time a candidate is chosen. It is gated for exactly that reason. |
+| **7** — REPL inspection mode and hover-provenance | S | **LANDED** | The REPL gains `:load`, `:get`, `:keys` and `:why` in BOTH ports, over the query and provenance surfaces, plus a `--jsonl` session mode with no banner, no prompt and one JSON line per answer. **Closed 2026-08-24.** Both halves were fixed and are now driven by tests that go through the REAL entry points — `run()` in Go (`TestReplJSONLIsReachableOverAPipe`) and the SPAWNED binary in TypeScript (`repl-jsonl-is-reachable-over-a-pipe`), with `tty` false in both, since the whole reason the defect survived a green suite is that the old tests built the REPL state by hand. The Go switch gained its `--jsonl` case; and in BOTH ports the flag now overrides the TTY gate, which had read piped stdin as Aontu SOURCE — so the mode a harness drives was reachable only through a pty. The two CLIs were diffed byte-identical over a four-command scripted session. **What was missing:** the `--jsonl` FLAG does not exist in the Go CLI — `jsonl := false` at `go/cmd/aontu/main.go:399` is never reassigned because the argument switch has no case for it, so `aontu --jsonl` answers `unknown option --jsonl` and exits 2 while `helpText` at `:52` advertises it and `go/cmd/aontu/repl.go` carries the whole machinery behind it. `repl_test.go`'s `TestReplJSONLAnswersInOneLine` passes because it constructs `replState{JSONL: true}` directly, bypassing the parser, so the suite is green over unreachable code. By ADR-001 that makes the phase partial, not landed. In TypeScript the flag exists but the REPL is gated on `process.stdin.isTTY` (`ts/src/cli.ts:2285`), so piped commands are parsed as Aontu source and the mode is reachable only through a pty. The phase's other deliverables hold in both ports: `:load`, `:keys`, `:get` and `:why` all answer correctly in the Go REPL. Recorded 2026-08-21; see [`status-2026-08-21.md`](status-2026-08-21.md#9-the-register-is-accurate-its-siblings-are-not). The command handler is a PURE FUNCTION of (state, line) in both ports (`replCommand`, `ts/src/cli.ts` and `go/cmd/aontu/repl.go`) with file reading injected: a read loop is untestable, and every answer this REPL gives has to be as checkable as the CLI's. The two handlers were diffed line by line over a 24-line scripted session, in both output modes, before either was tested. **Hover provenance** in both language servers (`ts/src/lsp.ts`, `go/lsp/lsp.go`), config-gated by `initializationOptions.aontu.provenance` and off by default; `ValueSpan` gained the path the record is keyed by, and the markdown was diffed byte for byte. Diagnostics are unchanged. **Departures:** (1) the session flag is `--jsonl`, not the design's `--json`, which would read as the `:json` output mode the REPL already has. (2) `:load` holds the SOURCE, not the rendered document: every later question re-evaluates, which is what single-use trees require, and holding both texts would have made `:get`'s view flags answer from the wrong one. (3) Hover provenance costs a SECOND evaluation rather than instrumenting the hover's own: the recorder needs the parsed tree stamped before the fixpoint, which hover's evaluation has already passed by the time a candidate is chosen. It is gated for exactly that reason. |
 
 What remains of G7 is G7.5's STAGE 2, the format-preserving in-place
 edit, which is what [G2](g2-validation-verb.md) and
@@ -813,6 +936,44 @@ Two smaller corrections stand: the `no_path` code G7.1 proposed
 already existed (`errcodes.tsv`, landed by G2.1) and is what `get`
 reports, and `ctx.find`/`explain` — which design option A proposes
 documenting — are already documented in `docs/reference-api.md`.
+
+**One CLI-wide hazard the verb surface created, closed later.** Every
+verb dispatches on the FIRST argument only, and anything that matched
+no verb fell through to the bare form as a file name — where the last
+name won. So a mistyped or nonexistent verb was a SILENT SUCCESS:
+`aontu vet2 schema.aon good.json` printed `good.json` and exited 0,
+which in a tool loop reads as a passing validation of the data. `diff`
+is library API in both ports and not a CLI verb, so it failed exactly
+this way. The bare form now takes exactly one document — it was always
+documented as `aontu [options] [file]`, singular — and a second file
+name is a usage error, exit 2, naming the likely cause. A file
+genuinely named like a verb is still reachable as `./vet`. Raised by
+the 2026-08-21 status report ([status-2026-08-21.md](status-2026-08-21.md) §5);
+pinned in both ports by `cli-mistyped-verb-is-a-usage-error` /
+`TestRunMistypedVerbIsAUsageError` and their two-file twins.
+
+**The loop the verbs exist for is now executed end to end**, which
+until 2026-08-25 nothing did: the shared suite pins each verb in
+ISOLATION, so every verb could be right and the loop still not close —
+and walking it by hand is what found both defects §5 of the status
+report opens with. `cli-repair-loop` (`ts/test/cli.test.ts`) and
+`go/cmd/aontu/repairloop_test.go` drive emit → vet → why → set →
+re-vet through the whole command in both ports, asserting the EXIT
+CODE at every step, because a harness reads nothing else between them.
+Three arms: the loop that closes (3 → 0 → 0 → 0, ending `valid`), the
+pinned value that refuses the repair and leaves both files untouched
+(1), and the schema that does not stand up (4, now with the finding
+that says why). The second arm is the one G7.5 stage 2 exists to
+change; it is pinned here so that change is visible when it comes.
+
+**And the teaching documents are executed too** (`ts/test/docs.test.ts`,
+the same date): every `aontu`/`aon` example in `index.md`,
+`tutorial.md`, `how-to.md` and `reference-language.md` must parse, and
+every one that states its result — an `aontu` fence immediately
+followed by a `json` fence — must generate exactly that. The skill
+sources have been held this way since G7.6; the prose documentation
+was not, and a Diátaxis review found two idioms it taught that did not
+do what the prose said.
 
 One open question the phases just landed did NOT settle, deliberately:
 the escape spelling for a key containing a dot. `get` splits paths

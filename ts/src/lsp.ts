@@ -18,7 +18,7 @@
 
 import type { Val } from './type'
 
-import { Aontu } from './aontu'
+import { Aontu, VERSION } from './aontu'
 import { getHint } from './err'
 import { collectNils } from './walk'
 import { collectDeprecations, deprecationMessage } from './utility'
@@ -32,8 +32,12 @@ const SEVERITY_WARNING = 2
 const SEVERITY_INFORMATION = 3
 const SEVERITY_HINT = 4
 
-// Reported to the client in the initialize response.
-const LSP_VERSION = '0.1.0'
+// Reported to the client in the initialize response. It is the
+// ENGINE's version, not a number of the server's own: a separately
+// maintained one drifts, and had -- the server answered 0.1.0 against
+// a package at 0.52.1, so a client could not tell which engine it was
+// talking to (status-2026-08-21.md section 10).
+const LSP_VERSION = VERSION
 
 
 // Zero-based line / UTF-16 character offset (LSP Position).
@@ -456,11 +460,80 @@ function computeCompletions(): CompletionItem[] {
 // concurrent use; drive it from a single loop (as the stdio server does).
 // A file:// uri's filesystem path, for the workspace-root confinement.
 // Percent-decoded; a non-file uri (or none) yields undefined.
-function uriToPath(uri: unknown): string | undefined {
+//
+// EXPORTED, inline as contributionsMarkdown is: part of the reusable
+// LSP library surface, and the twin of the package-visible uriToPath in
+// go/lsp/handler.go. Anything driving this module with its own
+// transport has to turn a client's uri into a path the same way the
+// confinement does, and the rules below are not guessable from outside.
+//
+// THE DRIVE-LETTER SLASH. A file uri names an absolute path after the
+// authority, so on Windows the standard spelling every editor sends is
+// file:///C:/Users/me/project — three slashes, and the third belongs to
+// the PATH. Stripping only `file://` leaves `/C:/Users/me/project`,
+// which is not a Windows path at all, so the workspace-root
+// confinement below compared real paths against nonsense and an editor
+// on Windows got no confinement it could rely on. Both ports carried
+// the defect identically (go/lsp/handler.go uriToPath), and no test
+// caught it because both ports' tests built the uri as `'file://' +
+// path` — two slashes, which is not what a client sends and which
+// accidentally produced a usable path.
+//
+// The leading slash is dropped only before a DRIVE LETTER, so a POSIX
+// path keeps the root it needs: file:///tmp/x stays /tmp/x.
+export function uriToPath(uri: unknown): string | undefined {
   if ('string' !== typeof uri || !uri.startsWith('file://')) {
     return undefined
   }
-  return decodeURIComponent(uri.slice('file://'.length))
+  const path = percentDecode(uri.slice('file://'.length))
+  // AN EMPTY PATH IS NOT A ROOT. `file://` on its own yields '', and
+  // '' is not nullish — so it won the `??` chain below and arrived as
+  // `{ include: { root: '' } }`, a confinement root that then resolves
+  // against the process working directory: the same client params made
+  // the server allow or deny an include depending on where it was
+  // started from. The Go twin never had it, because its chain tests
+  // `"" != folder` explicitly (go/lsp/handler.go). Answering undefined
+  // is what makes the two chains agree.
+  if ('' === path) {
+    return undefined
+  }
+  return driveLetterPath(path) ? path.slice(1) : path
+}
+
+
+// Percent-decoding that CANNOT THROW. `decodeURIComponent` raises a
+// URIError on a malformed escape (`%ZZ`), and this runs on a uri a
+// CLIENT sent — so a stray percent in a workspace path took the
+// exception straight out of the initialize handler, where the Go twin
+// swallowed the same failure and used the raw text
+// (go/lsp/handler.go). Two ports, two behaviours, for an input neither
+// of them controls.
+//
+// The agreement runs the other way for the SECOND way an escape can
+// fail to decode. `%FF` is well-formed and names a raw byte — a
+// perfectly good Linux filename — which Go produced and a JavaScript
+// string cannot hold at all, so the ports derived different workspace
+// roots for a uri a byte-oriented client really sends. Only one
+// direction is reachable from both languages, so Go now declines to
+// unescape a result that is not valid UTF-8 and both ports keep the
+// raw text. An undecodable path is still a path, and refusing to serve
+// a session over it helps nobody.
+function percentDecode(text: string): string {
+  try {
+    return decodeURIComponent(text)
+  }
+  catch {
+    return text
+  }
+}
+
+
+// Whether p is `/X:…` for a drive letter X — the one shape whose
+// leading slash is uri syntax rather than path. Mirrors the same
+// predicate in go/lsp/handler.go.
+function driveLetterPath(p: string): boolean {
+  return 3 <= p.length && '/' === p[0] && ':' === p[2] &&
+    /[A-Za-z]/.test(p[1])
 }
 
 

@@ -7,15 +7,17 @@
     "noImplicitReturns": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "outDir":"../dist",
-    "rootDir":".",
+    "outDir": "../dist",
+    "rootDir": ".",
     "resolveJsonModule": true,
     "sourceMap": true,
     "strict": true,
     "target": "es2021",
     "declaration": true,
     "declarationDir": "../dist",
-    "types": ["node"]
+    "types": [
+      "node"
+    ],
+    "composite": true
   }
 }
-

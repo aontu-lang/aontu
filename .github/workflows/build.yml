@@ -34,17 +34,71 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        go-version: [1.24, latest]    
-    runs-on: ubuntu-latest
+        go-version: ['1.24', 'stable']
+    runs-on: ${{ matrix.os }}
     defaults:
       run:
         working-directory: go
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Go
+      - name: Set up Go ${{ matrix.go-version }}
         uses: actions/setup-go@v5
-      #  with:
-      #    go-version: '1.24'
+        with:
+          go-version: ${{ matrix.go-version }}
       - run: go build ./...
       - run: go vet ./...
       - run: go test ./...
+
+  # ADR-002 requires 100% coverage in BOTH ports, and until now that
+  # floor was enforced only on a contributor's machine: CI ran the
+  # suites but never the gate, so a drop reached main unremarked. One
+  # job, on ubuntu -- the gate is a property of the code, not of the
+  # platform the suites already cover above.
+  coverage:
+    name: Coverage gate (ADR-002)
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.x
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+      - run: npm install
+        working-directory: ts
+      # BUILD BEFORE MEASURING. `make cov` runs the COMMITTED
+      # dist-test/**, so a job that does not build measures whatever
+      # compiled artifacts the branch happens to carry -- and a change
+      # to ts/src that forgot to rebuild would be graded against the old
+      # code and keep its old 100%. The build matrix above builds
+      # because it must run the suite; this job has to say so itself.
+      - run: npm run build
+        working-directory: ts
+      # AND THE COMMITTED BUILD MUST BE THE BUILD. ts/dist and
+      # ts/dist-test are checked in (AGENTS.md), so if the step above
+      # changed anything, the tree's artifacts were stale: the suites
+      # everywhere else in CI just tested code that is not what this
+      # branch ships. Fail loudly rather than measure the right thing
+      # while the repository holds the wrong one.
+      #
+      # tsconfig.tsbuildinfo is EXCLUDED, and only it. That file is
+      # tsc's incremental cache, and its bytes record how the build was
+      # reached rather than what it produced -- a clean build and an
+      # incremental one emit identical .js, .d.ts and .map (322 files,
+      # checked) and different buildinfo. Comparing it would fail this
+      # job for the shape of the runner's cache, which is not a fact
+      # about the branch.
+      - name: Committed build is up to date
+        run: |
+          if ! git diff --quiet -- ts/dist ts/dist-test \
+              ':(exclude)ts/dist/tsconfig.tsbuildinfo' \
+              ':(exclude)ts/dist-test/tsconfig.tsbuildinfo'; then
+            echo "ts/dist or ts/dist-test is stale -- run 'make build-ts' and commit:"
+            git diff --stat -- ts/dist ts/dist-test \
+              ':(exclude)ts/dist/tsconfig.tsbuildinfo' \
+              ':(exclude)ts/dist-test/tsconfig.tsbuildinfo'
+            exit 1
+          fi
+      - run: make cov

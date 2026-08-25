@@ -389,7 +389,17 @@ function runRepl(initialMode, jsonl) {
         rl.prompt();
     });
     rl.on('close', () => {
-        process.stdout.write('\n');
+        // The closing newline is for a HUMAN, so it is written only for
+        // one: it moves the terminal off the prompt line that `rl` left
+        // hanging. In `--jsonl` there is no prompt, every answer already
+        // ends in its own newline, and this one appended a bare empty line
+        // to the stream -- a record that is not JSON, at the end of a
+        // protocol whose whole contract is one JSON object per line. A
+        // harness parsing every line it receives failed on it, after the
+        // commands had all succeeded. Mirrors go/cmd/aontu/repl.go.
+        if (!jsonl) {
+            process.stdout.write('\n');
+        }
         // Same reason as finish(): the REPL requires a TTY stdin, but stdout
         // can still be a pipe (`aontu | cat`), so exiting outright could
         // discard queued output here too.
@@ -596,6 +606,19 @@ function vetOnce(args) {
         }
         truncated = truncated || report.truncated;
         findings.push(...report.findings);
+        // A SCHEMA-SIDE FAULT IS THE SAME FAULT FOR EVERY DATA FILE, so it
+        // is reported ONCE. `error` means exactly that -- the run could not
+        // be set up from the truth's side, never the data's (the exit table
+        // in docs/reference-api.md) -- so the report the first file
+        // produced is the report every later file would produce, character
+        // for character. Concatenating them repeated one broken schema N
+        // times and, past the cap, marked the report `truncated` over a
+        // single underlying fault. It only became visible once the `error`
+        // verdict started carrying findings at all: while the list was
+        // empty there was nothing to duplicate.
+        if ('error' === report.verdict) {
+            break;
+        }
     }
     // The cap is on the REPORT, not on each file. Capping every file's
     // list and then concatenating them let `--max-errors 1` emit one
@@ -1832,7 +1855,14 @@ function parseTrustArg(value) {
 }
 function main(argv) {
     let mode = 'json';
-    let file;
+    // A LIST, though the bare command evaluates exactly one document.
+    // It used to be one variable and the last argument won, which made a
+    // MISTYPED VERB a silent success: `aontu vet2 schema.aon good.json`
+    // printed good.json and exited 0, because `vet2` matched no
+    // subcommand, fell through to this loop as a file name, and was
+    // overwritten twice. In a tool loop that reads as a passing
+    // validation. Counting them is what lets the refusal below happen.
+    const files = [];
     let trust = { kind: 'system-warn' };
     // The REPL's SESSION protocol (G7 phase 7): one JSON line per
     // answer, so a harness can drive the session. Named --jsonl rather
@@ -1919,13 +1949,32 @@ function main(argv) {
             return finish(2);
         }
         else {
-            file = arg;
+            files.push(arg);
         }
     }
+    // ONE DOCUMENT. The bare form has always been `aontu [options]
+    // [file]`, singular, and anything past the first was silently
+    // discarded rather than refused -- so every way of getting the verb
+    // wrong (a typo, a verb this port does not have, a verb spelled for
+    // another tool) ended in a plausible answer about the wrong file.
+    // Exit 2, the usage class, and the message names the cause rather
+    // than the symptom: nothing here can tell a mistyped verb from a
+    // second file, but the reader can.
+    if (1 < files.length) {
+        process.stderr.write(`aontu: the bare command evaluates one document, and ${files.length}` +
+            ' were given\naontu: a mistyped verb reads as a file name' +
+            ' (try --help)\n');
+        return finish(2);
+    }
+    const file = files[0];
     if (null != file) {
         finish(runFile(file, mode, trust));
     }
-    else if (process.stdin.isTTY) {
+    // `--jsonl` overrides the TTY gate: the mode exists to be DRIVEN by
+    // a harness over a pipe, so gating it on an interactive terminal
+    // made it reachable only through a pty -- which is to say, not
+    // reachable by the thing it was built for. Mirrors go/cmd/aontu.
+    else if (jsonl || process.stdin.isTTY) {
         runRepl(mode, jsonl);
     }
     else {

@@ -17,6 +17,7 @@ export declare function nearestKey(want: string, have: string[]): string | undef
 export declare function pathParts(path: string): string[];
 export declare function projectFor(v: any, view: QueryView, depth: number): string;
 export declare function evalFailure(ctx: any): VetFinding;
+export declare function noPathFinding(root: any, path: string): VetFinding;
 export declare function get(src: string, path: string, opts?: QueryOptions): QueryReport;
 export type WhyReport = {
     ok: boolean;

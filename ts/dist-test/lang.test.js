@@ -9,6 +9,7 @@ const top_1 = require("../dist/val/top");
 const TOP = (0, top_1.top)();
 const expect_1 = require("./expect");
 const MapVal_1 = require("../dist/val/MapVal");
+const srcpath_1 = require("./srcpath");
 let lang = new lang_1.Lang();
 let P = lang.parse.bind(lang);
 (0, node_test_1.describe)('lang', function () {
@@ -96,64 +97,64 @@ let P = lang.parse.bind(lang);
         // debug: true,
         // trace: true,
         });
-        let t00x = g0.parse('x:@"' + __dirname + '/../test/t00.aon"');
+        let t00x = g0.parse('x:@"' + (0, srcpath_1.srcPath)(__dirname) + '/../test/t00.aon"');
         (0, expect_1.expect)(t00x.canon).equal('{"x":{"a":1}}');
-        let t00xA = g0.parse('A:11,x:@"' + __dirname + '/../test/t00.aon"');
+        let t00xA = g0.parse('A:11,x:@"' + (0, srcpath_1.srcPath)(__dirname) + '/../test/t00.aon"');
         (0, expect_1.expect)(t00xA.canon).equal('{"A":11,"x":{"a":1}}');
-        let t00xB = g0.parse('x:@"' + __dirname + '/../test/t00.aon",B:22');
+        let t00xB = g0.parse('x:@"' + (0, srcpath_1.srcPath)(__dirname) + '/../test/t00.aon",B:22');
         (0, expect_1.expect)(t00xB.canon).equal('{"B":22,"x":{"a":1}}');
-        let t00xAB = g0.parse('A:11,x:@"' + __dirname + '/../test/t00.aon",B:22');
+        let t00xAB = g0.parse('A:11,x:@"' + (0, srcpath_1.srcPath)(__dirname) + '/../test/t00.aon",B:22');
         (0, expect_1.expect)(t00xAB.canon).equal('{"A":11,"B":22,"x":{"a":1}}');
-        let t00xAs = g0.parse('A:11 x:@"' + __dirname + '/../test/t00.aon"');
+        let t00xAs = g0.parse('A:11 x:@"' + (0, srcpath_1.srcPath)(__dirname) + '/../test/t00.aon"');
         (0, expect_1.expect)(t00xAs.canon).equal('{"A":11,"x":{"a":1}}');
-        let t00xBs = g0.parse('x:@"' + __dirname + '/../test/t00.aon" B:22');
+        let t00xBs = g0.parse('x:@"' + (0, srcpath_1.srcPath)(__dirname) + '/../test/t00.aon" B:22');
         (0, expect_1.expect)(t00xBs.canon).equal('{"B":22,"x":{"a":1}}');
-        let t00xABs = g0.parse('A:11 x:@"' + __dirname + '/../test/t00.aon" B:22');
+        let t00xABs = g0.parse('A:11 x:@"' + (0, srcpath_1.srcPath)(__dirname) + '/../test/t00.aon" B:22');
         (0, expect_1.expect)(t00xABs.canon).equal('{"A":11,"B":22,"x":{"a":1}}');
-        let t00v = g0.parse('@"' + __dirname + '/../test/t00.aon"');
+        let t00v = g0.parse('@"' + (0, srcpath_1.srcPath)(__dirname) + '/../test/t00.aon"');
         (0, expect_1.expect)(t00v.canon).equal('{}&{"a":1}');
         let t00 = new unify_1.Unify(t00v);
         (0, expect_1.expect)(t00.res.canon).equal('{"a":1}');
         (0, expect_1.expect)(t00.res.gen(ctx)).equal({ a: 1 });
-        let t00vX = g0.parse(' X:11 @"' + __dirname + '/../test/t00.aon"');
+        let t00vX = g0.parse(' X:11 @"' + (0, srcpath_1.srcPath)(__dirname) + '/../test/t00.aon"');
         (0, expect_1.expect)(t00vX.canon).equal('{"X":11}&{"a":1}');
         let t00X = new unify_1.Unify(t00vX);
         (0, expect_1.expect)(t00X.res.canon).equal('{"X":11,"a":1}');
         (0, expect_1.expect)(t00X.res.gen(ctx)).equal({ X: 11, a: 1 });
-        let t00vY = g0.parse('@"' + __dirname + '/../test/t00.aon" Y:22 ');
+        let t00vY = g0.parse('@"' + (0, srcpath_1.srcPath)(__dirname) + '/../test/t00.aon" Y:22 ');
         (0, expect_1.expect)(t00vY.canon).equal('{"Y":22}&{"a":1}');
         let t00Y = new unify_1.Unify(t00vY);
         (0, expect_1.expect)(t00Y.res.canon).equal('{"Y":22,"a":1}');
         (0, expect_1.expect)(t00Y.res.gen(ctx)).equal({ Y: 22, a: 1 });
-        let t00dv = g0.parse('D:{@"' + __dirname + '/../test/t00.aon"}');
+        let t00dv = g0.parse('D:{@"' + (0, srcpath_1.srcPath)(__dirname) + '/../test/t00.aon"}');
         (0, expect_1.expect)(t00dv.canon).equal('{"D":{}&{"a":1}}');
         let t00d = new unify_1.Unify(t00dv);
         (0, expect_1.expect)(t00d.res.canon).equal('{"D":{"a":1}}');
         (0, expect_1.expect)(t00d.res.gen(ctx)).equal({ D: { a: 1 } });
-        let t01v = g0.parse('@"' + __dirname + '/../test/t01.aontu"');
+        let t01v = g0.parse('@"' + (0, srcpath_1.srcPath)(__dirname) + '/../test/t01.aontu"');
         (0, expect_1.expect)(t01v.canon).equal('{}&{"a":1,"b":{"d":2},"c":3}');
-        let t02v = g0.parse('@"' + __dirname + '/../test/t02.aon"');
+        let t02v = g0.parse('@"' + (0, srcpath_1.srcPath)(__dirname) + '/../test/t02.aon"');
         (0, expect_1.expect)(t02v.canon).equal('{}&({"x":1}&{"y":2})');
         let t00m = g0.parse(`
-    @"` + __dirname + `/../test/t00.aon"
+    @"` + (0, srcpath_1.srcPath)(__dirname) + `/../test/t00.aon"
     `);
         (0, expect_1.expect)(t00m.canon).equal('{}&{"a":1}');
         let t01m = g0.parse(`
-    @"` + __dirname + `/../test/t00.aon"
-    @"` + __dirname + `/../test/t04.aon"
+    @"` + (0, srcpath_1.srcPath)(__dirname) + `/../test/t00.aon"
+    @"` + (0, srcpath_1.srcPath)(__dirname) + `/../test/t04.aon"
     `);
         (0, expect_1.expect)(t01m.canon).equal('{}&{"a":1}&{"b":2}');
         let t02m = g0.parse(`
     x: 11
-    @"` + __dirname + `/../test/t00.aon"
+    @"` + (0, srcpath_1.srcPath)(__dirname) + `/../test/t00.aon"
     y: 22
-    @"` + __dirname + `/../test/t04.aon"
+    @"` + (0, srcpath_1.srcPath)(__dirname) + `/../test/t04.aon"
     z: 33
     `);
         (0, expect_1.expect)(t02m.canon).equal('{"x":11,"y":22,"z":33}&{"a":1}&{"b":2}');
         let t03m = g0.parse(`
     x:y:{}
-    @"` + __dirname + `/../test/t00.aon"
+    @"` + (0, srcpath_1.srcPath)(__dirname) + `/../test/t00.aon"
     `);
         (0, expect_1.expect)(t03m.canon).equal('{"x":{"y":{}}}&{"a":1}');
     });

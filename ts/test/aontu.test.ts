@@ -8,6 +8,7 @@ import { expect } from './expect'
 import { MapVal } from '../dist/val/MapVal'
 
 import { Lang, Aontu, AontuContext } from '../dist/aontu'
+import { srcPath } from './srcpath'
 
 type FST = typeof Fs
 
@@ -122,7 +123,7 @@ w1: b: {y:2,z:3} & $.q.a
     let ctx = makeCtx()
     let a0 = new Aontu()
 
-    let v0 = a0.unify('@"' + __dirname + '/../test/t02sys.aon"') as any
+    let v0 = a0.unify('@"' + srcPath(__dirname) + '/../test/t02sys.aon"') as any
 
     expect(v0.canon).equal(
       '{"ent":{"bar":{"fields":{"f0":{"kind":"Number"}},"name":"bar"},"foo":{"fields":{"f0":{"kind":"String"}},"name":"foo"}},"sys":{"ent":{"name":string}}}'
@@ -156,7 +157,7 @@ w1: b: {y:2,z:3} & $.q.a
     let a0 = new Aontu()
 
     try {
-      a0.unify('@"' + __dirname + '/../test/t03uxc.aon"', {
+      a0.unify('@"' + srcPath(__dirname) + '/../test/t03uxc.aon"', {
         base: __dirname,
       })
     }

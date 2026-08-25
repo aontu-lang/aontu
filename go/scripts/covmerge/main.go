@@ -76,17 +76,26 @@ func main() {
 	defer out.Flush()
 	fmt.Fprintln(out, "mode: set")
 	for _, key := range order {
-		// A marker only ever excuses UNCOVERED code. A covered block is
-		// always emitted, even inside a marked region: markers are
-		// coarse (a whole if/else chain, say), and dropping executed
-		// statements would shrink the denominator on real, tested code
-		// and quietly overstate the figure.
-		if counts[key] == 0 {
-			if n, ok := ig.skip(key); ok {
-				dropped++
-				stmts += n
-				continue
-			}
+		// EVERY block is offered to the markers, covered or not, but
+		// only an UNCOVERED one is dropped. The two halves are separate
+		// on purpose:
+		//
+		// Dropping is for uncovered code alone -- markers are coarse (a
+		// whole guard body), and dropping executed statements would
+		// shrink the denominator on real, tested code and quietly
+		// overstate the figure.
+		//
+		// Offering is for the stale-marker report below. Ask only about
+		// uncovered blocks and every marker over code that turned out
+		// to be COVERED looks unmatched -- `main()` is exactly that: it
+		// carries a marker because `go test` cannot execute it, and the
+		// GOCOVERDIR leg then executes it for real. Reporting that as
+		// stale would cry wolf on the one marker doing its job.
+		n, ok := ig.skip(key)
+		if ok && 0 == counts[key] {
+			dropped++
+			stmts += n
+			continue
 		}
 		fmt.Fprintf(out, "%s %d\n", key, counts[key])
 	}
@@ -94,6 +103,22 @@ func main() {
 		fmt.Fprintf(os.Stderr,
 			"covmerge: dropped %d marked block(s), %d statement(s)\n",
 			dropped, stmts)
+	}
+	// A MARKER THAT NAMED NOTHING IS REPORTED, because the alternative
+	// is what happened once: a toolchain moved where it opens a
+	// coverage block, every marker on an `if` line quietly stopped
+	// matching, and the only symptom was forty-two coverage failures
+	// somewhere else with nothing to connect them. This is not an
+	// error -- a marker can legitimately outlive the branch it
+	// excused, and the gate below will simply pass -- but it is never
+	// what the author meant, and it should not have to be deduced.
+	if stale := ig.unmatched(); 0 < len(stale) {
+		fmt.Fprintf(os.Stderr,
+			"covmerge: %d marker(s) matched no block -- stale, or the "+
+				"toolchain moved the block boundary:\n", len(stale))
+		for _, at := range stale {
+			fmt.Fprintf(os.Stderr, "  %s\n", at)
+		}
 	}
 }
 
@@ -114,10 +139,14 @@ func main() {
 //		return false
 //	}
 //
-// marks the LINE the comment sits on. `go tool cover` opens an if-body
-// block at the `{` — i.e. ON the `if` line — so a marker there drops
-// the body. A reason may follow the marker and is ignored by the
-// matcher, but not by review: a marker without one is a defect.
+// marks the STATEMENT that starts on the line the comment sits on --
+// here the whole `if`, from its first line to its closing brace -- so
+// the body is dropped wherever the toolchain chooses to open the
+// block. It deliberately does NOT mark the line alone: go1.24 opened
+// an if-body block at the `{`, on the `if` line, and a later release
+// moved it to the body's first line, which silently unmarked every
+// guard in the tree. A reason may follow the marker and is ignored by
+// the matcher, but not by review: a marker without one is a defect.
 //
 //	//coverage:ignore-block plugin registration cannot fail here
 //	if err := j.Use(path.Path, nil); err != nil {
@@ -135,18 +164,47 @@ const (
 	markLine  = "coverage:ignore"
 )
 
-type lineSpan struct{ lo, hi int }
+// A marked region, as POSITIONS rather than lines. Lines are not fine
+// enough: a closing brace shares its line with the `else if` that
+// follows it, so a line-wide region reaching the end of an if-body also
+// swallowed the sibling arm beginning further along the SAME line --
+// excusing code the author never marked, which is the one thing this
+// tool must not do. Columns separate them.
+type pos struct{ line, col int }
+
+func (a pos) before(b pos) bool {
+	return a.line < b.line || (a.line == b.line && a.col <= b.col)
+}
+
+type span struct{ lo, hi pos }
+
+func (s span) holds(p pos) bool {
+	return s.lo.before(p) && p.before(s.hi)
+}
 
 type ignorer struct {
 	modPath string // module path from the nearest go.mod
 	modDir  string // directory that go.mod lives in
-	cache   map[string][]lineSpan
+	cache   map[string][]span
+	// matched records which regions actually named a block. A marker
+	// that stops matching is INVISIBLE otherwise -- it simply stops
+	// excusing, and the gate then fails somewhere else entirely, which
+	// is exactly how a toolchain moving its block boundaries surfaced
+	// as forty-two unrelated-looking coverage failures rather than as
+	// "your markers stopped working". Reported at the end of a run.
+	matched map[string]bool
+	// where remembers each region's source position, for that report.
+	where map[string]string
 }
 
 // newIgnorer locates the enclosing module so that profile names
 // (import path + "/" + file) can be mapped back to files on disk.
 func newIgnorer() *ignorer {
-	ig := &ignorer{cache: map[string][]lineSpan{}}
+	ig := &ignorer{
+		cache:   map[string][]span{},
+		matched: map[string]bool{},
+		where:   map[string]string{},
+	}
 	dir, err := os.Getwd()
 	if err != nil {
 		return ig
@@ -171,24 +229,58 @@ func newIgnorer() *ignorer {
 	return ig
 }
 
+// add records one marked region and remembers where it was written, so
+// a marker that ends up naming no block can be reported by name at the
+// end of the run rather than vanishing.
+func (ig *ignorer) add(name string, spans *[]span, sp span, at string) {
+	key := name + "#" + strconv.Itoa(len(*spans))
+	*spans = append(*spans, sp)
+	ig.where[key] = at
+}
+
+// unmatched lists the source positions of every marker that named no
+// block, in file order.
+func (ig *ignorer) unmatched() []string {
+	out := []string{}
+	for name, spans := range ig.cache {
+		for i := range spans {
+			key := name + "#" + strconv.Itoa(i)
+			if !ig.matched[key] {
+				out = append(out, ig.where[key])
+			}
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
 // skip reports whether a profile key ("FILE:sl.sc,el.ec NUMSTMTS")
 // names a marked block, and how many statements it carries.
+//
+// A block belongs to a region when it BEGINS inside it. One rule, not
+// two: a block never ends before it starts, so "the whole span is
+// inside" can never hold without "the start is inside" holding too --
+// the second clause this once carried was unreachable, and reading as
+// though it were a separate case only made the reach harder to reason
+// about.
 func (ig *ignorer) skip(key string) (int, bool) {
-	name, start, end, stmts, ok := parseKey(key)
+	name, start, stmts, ok := parseKey(key)
 	if !ok {
 		return 0, false
 	}
-	for _, s := range ig.spans(name) {
-		if (s.lo <= start && start <= s.hi) ||
-			(s.lo <= start && end <= s.hi) {
+	for i, s := range ig.spans(name) {
+		if s.holds(start) {
+			ig.matched[name+"#"+strconv.Itoa(i)] = true
 			return stmts, true
 		}
 	}
 	return 0, false
 }
 
-// parseKey splits "path/to/file.go:12.34,56.7 2" into its parts.
-func parseKey(key string) (name string, start, end, stmts int, ok bool) {
+// parseKey splits "path/to/file.go:12.34,56.7 2" into its parts. Only
+// the START position is returned: a block belongs to the region it
+// begins in (see skip).
+func parseKey(key string) (name string, start pos, stmts int, ok bool) {
 	sp := strings.LastIndexByte(key, ' ')
 	if sp < 0 {
 		return
@@ -207,44 +299,90 @@ func parseKey(key string) (name string, start, end, stmts int, ok bool) {
 	if comma < 0 {
 		return
 	}
-	lineOf := func(s string) (int, bool) {
-		if dot := strings.IndexByte(s, '.'); dot >= 0 {
-			s = s[:dot]
+	posOf := func(s string) (pos, bool) {
+		dot := strings.IndexByte(s, '.')
+		if dot < 0 {
+			return pos{}, false
 		}
-		n, err := strconv.Atoi(s)
-		return n, err == nil
+		line, lerr := strconv.Atoi(s[:dot])
+		col, cerr := strconv.Atoi(s[dot+1:])
+		if nil != lerr || nil != cerr {
+			return pos{}, false
+		}
+		return pos{line, col}, true
 	}
-	var ok1, ok2 bool
-	if start, ok1 = lineOf(rng[:comma]); !ok1 {
+	var okStart bool
+	if start, okStart = posOf(rng[:comma]); !okStart {
 		return
 	}
-	if end, ok2 = lineOf(rng[comma+1:]); !ok2 {
-		return
-	}
-	return name, start, end, stmts, true
+	return name, start, stmts, true
 }
 
 // spans parses one source file and returns its marked line regions.
 // A file that cannot be found or parsed simply has no markers, so the
 // merge degrades to the plain union.
-func (ig *ignorer) spans(name string) []lineSpan {
+func (ig *ignorer) spans(name string) []span {
 	if s, hit := ig.cache[name]; hit {
 		return s
 	}
-	var spans []lineSpan
+	var spans []span
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, ig.source(name), nil, parser.ParseComments)
+	at := func(p token.Pos) pos {
+		q := fset.Position(p)
+		return pos{q.Line, q.Column}
+	}
 	if err == nil {
-		// Widest statement or declaration beginning on each line, so a
-		// block marker above `if ... {` covers the whole if.
-		starts := map[int]lineSpan{}
+		// What a marker on a line REACHES. Not the statement's whole
+		// extent: an `if` ends after its `else` chain, and an else arm
+		// is a SIBLING the author did not mark -- widening to it
+		// excused genuinely untested code, which is the one failure
+		// this tool must never have. So a statement that owns exactly
+		// one body reaches THAT body, brace to brace, and nothing that
+		// begins after its closing brace on the same line.
+		//
+		// Brace to brace covers the block under either toolchain: go1.24
+		// opened an if-body block AT the `{`, and a later release opens
+		// it at the body's first statement. Both are inside.
+		//
+		// A statement with SIBLING arms -- switch, type switch, select --
+		// reaches nothing but its own line: a marker on the header
+		// guards none of the cases, and pretending otherwise would
+		// excuse the whole construct.
+		reach := map[int]span{}
+		note := map[int]string{}
+		record := func(n ast.Node, sp span) {
+			lo := at(n.Pos()).line
+			if cur, seen := reach[lo]; !seen || cur.hi.before(sp.hi) {
+				reach[lo] = sp
+				note[lo] = fset.Position(n.Pos()).String()
+			}
+		}
 		ast.Inspect(f, func(n ast.Node) bool {
-			switch n.(type) {
-			case ast.Stmt, ast.Decl:
-				lo := fset.Position(n.Pos()).Line
-				hi := fset.Position(n.End()).Line
-				if cur, seen := starts[lo]; !seen || hi > cur.hi {
-					starts[lo] = lineSpan{lo, hi}
+			switch t := n.(type) {
+			case *ast.IfStmt:
+				record(n, span{at(n.Pos()), at(t.Body.Rbrace)})
+			case *ast.ForStmt:
+				record(n, span{at(n.Pos()), at(t.Body.Rbrace)})
+			case *ast.RangeStmt:
+				record(n, span{at(n.Pos()), at(t.Body.Rbrace)})
+			case *ast.FuncDecl:
+				if nil != t.Body {
+					record(n, span{at(n.Pos()), at(t.Body.Rbrace)})
+				}
+			case *ast.SwitchStmt, *ast.TypeSwitchStmt, *ast.SelectStmt:
+				p := at(n.Pos())
+				record(n, span{p, pos{p.line, 1 << 30}})
+			default:
+				// Everything else reaches its own extent, which for a
+				// simple statement is the statement. Declarations are
+				// here too, as they were before the kinds above were
+				// named: a marker on one reaches nothing in practice
+				// (no coverage block opens on a package-level `var`),
+				// and the stale-marker report says so if one ever does.
+				switch n.(type) {
+				case ast.Stmt, ast.Decl:
+					record(n, span{at(n.Pos()), at(n.End())})
 				}
 			}
 			return true
@@ -252,21 +390,31 @@ func (ig *ignorer) spans(name string) []lineSpan {
 		for _, cg := range f.Comments {
 			for _, c := range cg.List {
 				txt := strings.TrimSpace(strings.TrimPrefix(c.Text, "//"))
-				line := fset.Position(c.Pos()).Line
+				line := at(c.Pos()).line
 				switch {
 				case marked(txt, markBlock):
-					// The statement starting on the nearest line below.
-					best := lineSpan{-1, -1}
-					for lo, s := range starts {
-						if lo > line && (best.lo < 0 || lo < best.lo) {
-							best = s
+					// The statement starting on the nearest line below,
+					// taken WHOLE -- else chain included. That is what
+					// this marker is for: it is written above a
+					// construct precisely to take it as a unit.
+					best := -1
+					for lo := range reach {
+						if lo > line && (best < 0 || lo < best) {
+							best = lo
 						}
 					}
-					if best.lo > 0 {
-						spans = append(spans, best)
+					if best > 0 {
+						ig.add(name, &spans, reach[best], note[best])
 					}
 				case marked(txt, markLine):
-					spans = append(spans, lineSpan{line, line})
+					// A marker that sits on no statement reaches
+					// nothing, and says so at the end of the run rather
+					// than silently excusing nothing.
+					if sp, hit := reach[line]; hit {
+						ig.add(name, &spans, sp, note[line])
+					} else {
+						ig.add(name, &spans, span{}, fset.Position(c.Pos()).String())
+					}
 				}
 			}
 		}

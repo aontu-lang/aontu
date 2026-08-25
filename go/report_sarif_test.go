@@ -14,6 +14,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -63,7 +64,14 @@ func TestSarifGolden(t *testing.T) {
 	report := Vet(string(schema), string(data),
 		&VetOptions{SchemaURL: "schema.aon", DataURL: "data.aon"})
 	got := sarifRedact(t, SarifReport(report, "x"))
-	if string(expect) != got {
+	// Normalised on read: the golden is compared BYTE FOR BYTE against a
+	// generated string that always uses \n, so a CRLF checkout could
+	// never match. .gitattributes pins test/spec/files/** to LF, and
+	// this is the half that holds when the file did not come from a
+	// checkout. The twin is sarif.test.ts in the canonical port.
+	want := strings.ReplaceAll(
+		strings.ReplaceAll(string(expect), "\r\n", "\n"), "\r", "\n")
+	if want != got {
 		t.Fatalf("golden mismatch:\nwant:\n%s\ngot:\n%s", expect, got)
 	}
 }

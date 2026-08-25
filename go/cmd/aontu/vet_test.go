@@ -121,7 +121,7 @@ func TestVetUnparseableDataExits1AndNamesTheFile(t *testing.T) {
 	}
 	vetMatch(t, out, `verdict: invalid`)
 	vetMatch(t, out, `\$: syntax \[parse\]`)
-	vetMatch(t, out, `data: .*data\.json:-1:-1 \(nil\)`)
+	vetMatch(t, out, `data: .*data\.json:1:10 \(nil\)`)
 
 	good := filepath.Join(dir, "good.json")
 	if err := os.WriteFile(good,
@@ -272,6 +272,66 @@ func TestVetTakesMoreThanOneDataFile(t *testing.T) {
 	}
 	vetMatch(t, out, `verdict: invalid`)
 	vetMatch(t, out, `bad\.json`)
+}
+
+// ...BUT A SCHEMA-SIDE FAULT IS ONE FAULT, however many data files are
+// named. `error` means the run could not be set up from the TRUTH's
+// side, so every data file would produce the identical finding;
+// concatenating them repeated one broken schema per file and, past the
+// cap, called the report `truncated` over a single underlying problem.
+// Invisible until the `error` verdict started carrying findings at all.
+// The twin is vet-schema-error-reports-once in ts/test/cli.test.ts.
+func TestVetSchemaErrorReportsOnce(t *testing.T) {
+	dir, _, d := vetFiles(t, vetSchemaSrc, `service: { name: "auth" }`)
+	broken := filepath.Join(dir, "broken.aon")
+	if err := os.WriteFile(broken, []byte("a: 1\na: 2\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	second := filepath.Join(dir, "second.json")
+	if err := os.WriteFile(second, []byte(`{"a":1}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	out, _, code := vetRun("--format", "json", broken, d, second, d, second)
+	if 4 != code {
+		t.Fatalf("code: %d\n%s", code, out)
+	}
+	var report struct {
+		Verdict   string           `json:"verdict"`
+		Truncated bool             `json:"truncated"`
+		Findings  []map[string]any `json:"findings"`
+	}
+	if err := json.Unmarshal([]byte(out), &report); err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	if "error" != report.Verdict || 1 != len(report.Findings) ||
+		report.Truncated {
+		t.Fatalf("five data files, one broken schema: %+v", report)
+	}
+
+	// The same for an anchor that names nothing: also data-independent.
+	out, _, code = vetRun("--format", "json", "--at", "$.nope",
+		vetFilesSchema(t, dir), d, second, d)
+	if 4 != code {
+		t.Fatalf("at: code %d\n%s", code, out)
+	}
+	if err := json.Unmarshal([]byte(out), &report); err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	if 1 != len(report.Findings) || "no_path" != report.Findings[0]["code"] {
+		t.Fatalf("at: %+v", report)
+	}
+}
+
+// vetFilesSchema writes a schema that stands up, for the --at half of
+// the case above.
+func vetFilesSchema(t *testing.T, dir string) string {
+	t.Helper()
+	path := filepath.Join(dir, "ok-schema.aon")
+	if err := os.WriteFile(path, []byte(vetSchemaSrc), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return path
 }
 
 // The usage errors all end with "(try --help)", so the verb answers to

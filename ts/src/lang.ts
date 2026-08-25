@@ -1855,14 +1855,26 @@ class Lang {
         })
       }
       else if (e instanceof JsonicError || 'JsonicError' === e.constructor.name) {
-        val = new NilVal({
-          why: 'parse',
-          err: new NilVal({
-            why: 'syntax',
-            msg: e.message + opCharHint(src),
-            err: e,
-          })
+        const syntax: any = new NilVal({
+          why: 'syntax',
+          msg: e.message + opCharHint(src),
+          err: e,
         })
+        // THE POSITION TRAVELS WITH IT. The parser knows exactly where
+        // it stopped -- it draws a caret there -- and the rendered
+        // message carried the only copy, so `vet --format json`
+        // reported row -1, col -1 for a document whose fault the human
+        // renderer located to the character. A machine-readable report
+        // that says "somewhere in this file" is the one a repair loop
+        // can do nothing with. Both numbers are already 1-based here,
+        // which is the base a site uses (go/lang.go does the same).
+        if ('number' === typeof e.lineNumber) {
+          syntax.site.row = e.lineNumber
+        }
+        if ('number' === typeof e.columnNumber) {
+          syntax.site.col = e.columnNumber
+        }
+        val = new NilVal({ why: 'parse', err: syntax })
       }
       else {
         throw e

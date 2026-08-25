@@ -349,6 +349,21 @@ func vetOnce(args *vetArgs, stdout, stderr io.Writer) int {
 		}
 		truncated = truncated || report.Truncated
 		findings = append(findings, report.Findings...)
+
+		// A SCHEMA-SIDE FAULT IS THE SAME FAULT FOR EVERY DATA FILE, so
+		// it is reported ONCE. `error` means exactly that -- the run
+		// could not be set up from the truth's side, never the data's
+		// (the exit table in docs/reference-api.md) -- so the report the
+		// first file produced is the report every later file would
+		// produce, character for character. Concatenating them repeated
+		// one broken schema N times and, past the cap, marked the report
+		// `truncated` over a single underlying fault. It only became
+		// visible once the `error` verdict started carrying findings at
+		// all: while the list was empty there was nothing to duplicate.
+		// Mirrors the same break in ts/src/cli.ts.
+		if aontu.VetError == report.Verdict {
+			break
+		}
 	}
 
 	// The cap is on the REPORT, not on each file. Capping every file's

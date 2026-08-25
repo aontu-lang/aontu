@@ -5,6 +5,7 @@ exports.nearestKey = nearestKey;
 exports.pathParts = pathParts;
 exports.projectFor = projectFor;
 exports.evalFailure = evalFailure;
+exports.noPathFinding = noPathFinding;
 exports.get = get;
 exports.why = why;
 // THE QUERY SURFACE (G7 phase 1,

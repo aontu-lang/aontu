@@ -62,13 +62,15 @@ name: "above" | "below" | "close" | "copy" | "deprecate" | "each" | "filter"
     | "id" | "key"
     | "length" | "lower" | "match" | "max" | "min" | "move" | "must"
     | "neq"
-    | "open" | "pack" | "path" | "pref" | "refer" | "re" | "same" | "super"
+    | "open" | "pack" | "path" | "pref" | "refer" | "re" | "super"
     | "type"
     | "unique" | "upper"
 
-ref: "$" ("." segment)*
+// At least one segment: a bare `$` is an incomplete expression.
+ref: "$" ("." segment)+
 
-segment: /[a-zA-Z0-9_-]+/
+// No `-`: not a bare-text character (test/spec/op-chars.tsv).
+segment: /[a-zA-Z0-9_]+/
 
 // placeholder
 place: "_"

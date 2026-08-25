@@ -6,12 +6,17 @@ import (
 	"encoding/json"
 	"net/url"
 	"strings"
+	"unicode/utf8"
 
 	aontu "github.com/rjrodger/aontu/go"
 )
 
-// Version is reported to the client in the initialize response.
-const Version = "0.1.0"
+// Version is reported to the client in the initialize response. It is
+// the ENGINE's version, not a number of the server's own: a separately
+// maintained one drifts, and had -- the server answered 0.1.0 against
+// a module at 0.1.10, so a client could not tell which engine it was
+// talking to (status-2026-08-21.md section 10).
+const Version = aontu.VERSION
 
 // Message is an incoming JSON-RPC message (request or notification). ID
 // is kept raw because JSON-RPC ids may be either a number or a string;
@@ -234,25 +239,38 @@ func provenanceFromInitialize(params json.RawMessage) bool {
 // otherwise the workspace root (workspaceFolders[0], rootUri, rootPath,
 // in that order) confines evaluation below it; otherwise nil.
 func trustFromInitialize(raw json.RawMessage) *aontu.TrustOptions {
+	// EVERY FIELD IS READ ON ITS OWN, and that is the point. These were
+	// typed fields on one struct, so a single value of the wrong shape
+	// -- `"rootUri": 42` from a client that should know better --
+	// failed the whole Unmarshal and returned nil, which means
+	// UNCONFINED: one malformed field silently discarded the trust
+	// configuration and the session opened wider than the client asked
+	// for. The canonical port never had it, because it reads each field
+	// through an optional chain and a `typeof` guard, so a bad rootUri
+	// costs the rootUri and nothing else (ts/src/lsp.ts). Failing OPEN
+	// is the wrong direction for this surface in any case.
 	var p struct {
-		RootURI  string `json:"rootUri"`
-		RootPath string `json:"rootPath"`
-		Folders  []struct {
-			URI string `json:"uri"`
-		} `json:"workspaceFolders"`
-		InitializationOptions struct {
-			Aontu struct {
-				Trust struct {
-					Include json.RawMessage `json:"include"`
-				} `json:"trust"`
-			} `json:"aontu"`
-		} `json:"initializationOptions"`
+		RootURI               json.RawMessage `json:"rootUri"`
+		RootPath              json.RawMessage `json:"rootPath"`
+		Folders               json.RawMessage `json:"workspaceFolders"`
+		InitializationOptions json.RawMessage `json:"initializationOptions"`
 	}
 	if err := json.Unmarshal(raw, &p); err != nil {
 		return nil
 	}
 
-	if explicit := p.InitializationOptions.Aontu.Trust.Include; 0 < len(explicit) {
+	var opts struct {
+		Aontu struct {
+			Trust struct {
+				Include json.RawMessage `json:"include"`
+			} `json:"trust"`
+		} `json:"aontu"`
+	}
+	// Ignored deliberately: options this server does not understand are
+	// not this server's business, and must not cost the workspace root.
+	_ = json.Unmarshal(p.InitializationOptions, &opts)
+
+	if explicit := opts.Aontu.Trust.Include; 0 < len(explicit) {
 		var name string
 		if nil == json.Unmarshal(explicit, &name) {
 			switch name {
@@ -274,14 +292,17 @@ func trustFromInitialize(raw json.RawMessage) *aontu.TrustOptions {
 		return &aontu.TrustOptions{IncludeNone: true}
 	}
 
-	root := uriToPath(p.RootURI)
-	if 0 < len(p.Folders) {
-		if folder := uriToPath(p.Folders[0].URI); "" != folder {
+	root := uriToPath(jsonString(p.RootURI))
+	var folders []struct {
+		URI json.RawMessage `json:"uri"`
+	}
+	if nil == json.Unmarshal(p.Folders, &folders) && 0 < len(folders) {
+		if folder := uriToPath(jsonString(folders[0].URI)); "" != folder {
 			root = folder
 		}
 	}
-	if "" == root && "" != p.RootPath {
-		root = p.RootPath
+	if rootPath := jsonString(p.RootPath); "" == root && "" != rootPath {
+		root = rootPath
 	}
 	if "" != root {
 		return &aontu.TrustOptions{IncludeRoot: root}
@@ -289,17 +310,72 @@ func trustFromInitialize(raw json.RawMessage) *aontu.TrustOptions {
 	return nil
 }
 
+// jsonString is raw decoded as a JSON string, or "" for absent, null,
+// or anything that is not a string. The canonical port spells the same
+// rule as `'string' !== typeof uri` (ts/src/lsp.ts).
+func jsonString(raw json.RawMessage) string {
+	var s string
+	if 0 == len(raw) || nil != json.Unmarshal(raw, &s) {
+		return ""
+	}
+	return s
+}
+
 // uriToPath is a file:// uri's filesystem path, percent-decoded; a
 // non-file uri (or none) yields "".
+//
+// THE DRIVE-LETTER SLASH. A file uri names an absolute path after the
+// authority, so on Windows the standard spelling every editor sends is
+// file:///C:/Users/me/project -- three slashes, and the third belongs
+// to the PATH. Stripping only "file://" leaves "/C:/Users/me/project",
+// which is not a Windows path at all: filepath.Abs turns it into
+// nonsense and the workspace-root confinement below then compares
+// real paths against that nonsense, so an editor on Windows got no
+// confinement it could rely on. Both ports carried the defect
+// identically (ts/src/lsp.ts uriToPath), and no test caught it because
+// both ports' tests built the uri as "file://" + path -- two slashes,
+// which is not what a client sends and which accidentally produced a
+// usable path.
+//
+// The leading slash is dropped only before a DRIVE LETTER, so a POSIX
+// path keeps the root it needs: file:///tmp/x stays /tmp/x.
 func uriToPath(uri string) string {
 	if !strings.HasPrefix(uri, "file://") {
 		return ""
 	}
 	path := uri[len("file://"):]
-	if decoded, err := url.PathUnescape(path); err == nil {
+	// DECODED ONLY IF THE RESULT IS TEXT. url.PathUnescape validates
+	// the two hex digits and nothing else, so `%FF` yields the raw byte
+	// 0xFF -- a perfectly good Linux filename, and something the
+	// canonical port CANNOT produce: a JavaScript string holds UTF-16
+	// code units, decodeURIComponent refuses a sequence that is not
+	// valid UTF-8, and ts/src/lsp.ts then keeps the text undecoded. So
+	// the two ports answered differently for a uri a byte-oriented
+	// client really sends (neovim percent-encodes path BYTES): Go
+	// derived a workspace root that exists and TypeScript one that does
+	// not, which is a confinement decision differing across the ports.
+	// ADR-001 does not allow that, and only one direction is reachable
+	// from both languages -- so an escape that does not decode to text
+	// is left alone HERE too, and both ports keep the raw form.
+	if decoded, err := url.PathUnescape(path); err == nil &&
+		utf8.ValidString(decoded) {
 		path = decoded
 	}
+	if driveLetterPath(path) {
+		path = path[1:]
+	}
 	return path
+}
+
+// driveLetterPath reports whether p is "/X:..." for a drive letter X --
+// the one shape whose leading slash is uri syntax rather than path.
+// Mirrors the same predicate in ts/src/lsp.ts.
+func driveLetterPath(p string) bool {
+	if len(p) < 3 || '/' != p[0] || ':' != p[2] {
+		return false
+	}
+	c := p[1]
+	return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z')
 }
 
 func publishDiagnosticsMsg(uri string, diags []Diagnostic) Out {

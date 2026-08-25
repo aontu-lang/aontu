@@ -2,3 +2,28 @@
 # data-driven test suite parses identically on Windows checkouts.
 *.tsv text eol=lf
 test/spec/files/** text eol=lf
+
+# The same rule, for the same reason, over every other file the suite
+# READS AS DATA rather than compiles: the documentation is executed
+# (ts/test/docs.test.ts extracts fenced examples and runs them), and the
+# published grammars are parsed to check their rule and builtin sets
+# against the engine (ts/test/grammar.test.ts). Both broke on a CRLF
+# checkout, and both broke QUIETLY -- the example extractor matched zero
+# blocks and reported a documentation file with nothing in it, and the
+# grammar's rule slice ran past a terminator it could no longer find,
+# swallowing every later rule.
+#
+# docs/skill/ is covered here as well, though its reader happened to
+# survive: examples.md fences carry no language tag, so the strip that
+# would have been line-ending sensitive is a no-op there. Covered
+# because that is a property of how the file is written today, not a
+# property anyone maintains.
+#
+# This is belt to the readers' braces, not a substitute for them: the
+# extractors also normalise line endings themselves, because a file can
+# reach them from a source tarball or an editor rather than a checkout,
+# and a test that only works under one git configuration is a test that
+# does not work.
+*.md text eol=lf
+*.gbnf text eol=lf
+*.lark text eol=lf

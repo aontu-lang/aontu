@@ -45,6 +45,13 @@ installing the binary:
 To use the Go server, set `aontu.server.command` to the built `aontu-lsp`
 binary's absolute path.
 
+**On Windows the server is spawned through a shell**, because npm
+installs the entry point as the shim `aontu-lsp.cmd` and `CreateProcess`
+will not execute a `.cmd` directly. Nothing changes on macOS or Linux.
+One consequence worth knowing if you set `aontu.server.args`: on Windows
+those arguments pass through `cmd.exe`, so an argument containing spaces
+needs quoting the way `cmd.exe` expects.
+
 ## Packaging (.vsix)
 
 A `.vsix` is the single installable bundle for a VS Code extension (a ZIP

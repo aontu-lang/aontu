@@ -128,6 +128,32 @@ describe('error', function() {
 
   it('error-source-file', () => {
     // File source: error message should show the file content.
+    //
+    // DO NOT "FIX" THE RAW `__dirname` HERE. It looks like the escaping
+    // defect the rest of this suite was corrected for — a backslash
+    // inside `@"..."` is a string escape, so on Windows this arrives
+    // mangled — and spelling it properly (forward slashes, or naming
+    // the base with `path`) makes these two tests FAIL on the Windows
+    // leg. Measured, twice.
+    //
+    // The reason is `fs`, which these two need: the error renderer
+    // reads the source file back to show its content, and that is the
+    // whole assertion below. @tabnas/multisource binds POSIX path
+    // semantics whenever an fs is injected and native semantics
+    // otherwise ("POSIX for an injected fs, native for the real
+    // filesystem" — its own comment on makeResolveFolder). So an
+    // embedder who passes `fs`, which the public API offers, gets a
+    // resolver that cannot handle a Windows path at all: a `D:\...`
+    // base parses to nonsense and a `D:/...` include is not absolute
+    // to POSIX, so it is joined onto the cwd.
+    //
+    // Which means the mangling is what makes this pass: with the drive
+    // letter and the separators eaten there is nothing left for POSIX
+    // handling to get wrong, and the `/../` that follows pops the
+    // wreckage. These tests document the behaviour that ships. The
+    // defect underneath is real and is recorded in
+    // docs/capability-review/status-2026-08-21.md §10; fixing it is a
+    // resolver change, not a test change.
     let a0 = new Aontu({ fs: Fs })
     let v0 = a0.unify(
       '@"' + __dirname + '/../test/error/e01.aon"',
@@ -144,6 +170,7 @@ describe('error', function() {
   it('error-source-file-cross', () => {
     // Cross-file error: e03.aon imports e04.aon, conflicting on key a.
     // Error message should show file content, not SOURCE-NOT-FOUND.
+    // The raw `__dirname` is deliberate — see the case above.
     let a0 = new Aontu({ fs: Fs })
     let v0 = a0.unify(
       '@"' + __dirname + '/../test/error/e03.aon"',

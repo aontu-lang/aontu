@@ -40,7 +40,13 @@ describe('sarif', () => {
   test('sarif-golden', () => {
     const schema = Fs.readFileSync(Path.join(GOLDEN_DIR, 'schema.aon'), 'utf8')
     const data = Fs.readFileSync(Path.join(GOLDEN_DIR, 'data.aon'), 'utf8')
+    // Normalised on read: the golden is compared BYTE FOR BYTE against
+    // a generated string that always uses \n, so a CRLF checkout could
+    // never match. .gitattributes pins test/spec/files/** to LF, and
+    // this is the half that holds when the file did not come from a
+    // checkout. The Go twin does the same (go/report_sarif_test.go).
     const expect = Fs.readFileSync(Path.join(GOLDEN_DIR, 'expect.sarif'), 'utf8')
+      .replaceAll('\r\n', '\n').replaceAll('\r', '\n')
 
     const report = vet(schema, data, {
       schemaUrl: 'schema.aon', dataUrl: 'data.aon',

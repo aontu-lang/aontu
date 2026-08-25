@@ -7,6 +7,209 @@ which implementation each change affects.
 
 ## Unreleased — TypeScript 0.53.0 line
 
+### Fixed — what happened when the gates that never ran, ran
+
+Making the Go CI matrix real and adding a coverage job turned two
+long-dormant gates on. Both failed immediately, and neither failure was
+a flake.
+
+An earlier draft of this entry recorded the Windows absolute include as
+a shared gap that could not be fixed without a Windows machine. Both
+halves of that were wrong, and it is fixed below.
+
+- **An absolute include was resolved against the base on Windows.**
+  The resolver stack tests absoluteness with a leading `/` or `\`
+  (`multisource.ResolvePathSpec`), which no drive-letter path passes,
+  so `@"C:/other/schema.aon"` was joined onto the entry's directory and
+  never found — and because the confinement check sits inside the
+  successful-read branch, a rooted profile answered "source not found"
+  where it should have answered "include denied". This was a **Go-only
+  divergence**, not the shared gap first recorded: the TypeScript
+  package survives the same library rule by accident, its file resolver
+  appending `resolve(base, 'node_modules', path)` as a fallback that
+  win32 `path.resolve` collapses to the absolute path. Fixed with
+  `filepath.IsAbs`, which is the platform's own rule — false for `C:/x`
+  on Linux, where `C:` is a legal directory name and the include must
+  keep resolving against the base, and true on Windows. No hand-written
+  platform branch, and the POSIX arm is covered by the suite that runs
+  there.
+- **`aontu agentsmd --write` cut one byte after its end marker**,
+  assuming the LF of that line. On a CRLF document it took the CR and
+  left the LF, so every regeneration of an `AGENTS.md` gained a blank
+  line. Where the marker is the document's last content it indexed past
+  the end: **Go panicked while TypeScript returned cleanly** — a crash
+  on one port and a result on the other. Both now skip an optional CR
+  then an optional LF, bounded by the length.
+- **Windows had no user module cache.** The location rule read
+  `XDG_CACHE_HOME` then `HOME`, neither of which Windows sets by
+  default, so `aontu mod get` had nowhere to write and a module fetched
+  a moment earlier came back `module not fetched`. Both implementations
+  now take `LOCALAPPDATA` on Windows, beneath `XDG_CACHE_HOME` and
+  `HOME`, both of which remain honoured everywhere: the order is
+  explicit before implicit, because a platform default that overrides
+  what the environment was told is not a default. The rule takes the
+  platform as an argument so the Windows arm is tested from Linux.
+- **The VS Code extension never started its server on Windows.** npm
+  installs the entry point as the shim `aontu-lsp.cmd`, and
+  `CreateProcess` will not execute a `.cmd` without a shell — so the
+  extension's own default command failed on the path the docs describe.
+  Spawned through a shell on win32 only.
+- **The Go port had never been tested on Windows.** `build-go` declared
+  three operating systems while hardcoding `runs-on: ubuntu-latest`, so
+  the Windows job had never once run on Windows — and fifteen tests
+  failed there the moment it did. Every one interpolated a native path
+  into Aontu SOURCE, where a backslash is a string escape: the resolver
+  received `C:UsersRUNNER~1...oot` for `C:\Users\RUNNER~1\...\root`,
+  `\r` arriving as a literal carriage return. The canonical port has
+  guarded this since it was written; the Go twin never got the guard.
+  It has it now, spelled as an unconditional replace rather than
+  `filepath.ToSlash`, so the behaviour is testable off Windows — and it
+  is tested there, on a path carrying real backslashes.
+- **The coverage gate broke on a newer toolchain than contributors
+  run.** `go tool cover` moved where an if-body's coverage block
+  begins — go1.24 opened it at the `{`, on the `if` line; a later
+  release opens it at the body's first line — and `covmerge` matched a
+  `//coverage:ignore` against that one line. Forty-two justified
+  exclusions stopped applying at once, reporting as ADR-002 failures.
+  A line marker now reaches its statement's **body**, brace to brace,
+  compared by position rather than by line: widening to the whole
+  statement instead would reach past the body into the `else` chain —
+  a sibling arm the author never marked — and excuse genuinely
+  untested code, silently, with the gate green. Both directions are
+  pinned by tests. And a marker that matches **no** block is now
+  reported by source position, because the original incident announced
+  itself only as forty-two unrelated coverage failures when what had
+  happened was that every marker stopped working.
+- **The coverage job measured a build it never made.** It ran the
+  committed `dist-test/**` from a fresh checkout without building, so
+  a change to `ts/src` that forgot to rebuild would have been graded
+  against the old code and kept its old 100 %. It now builds first,
+  and fails if the committed `ts/dist` differs from what the build
+  produces — a stale artifact means every other CI job just tested
+  code the branch does not ship.
+- **`vet-action` expanded globs in its inputs.** The unquoted
+  expansion that splits whitespace also performs pathname expansion,
+  so a data path of `[ab].json` became `a.json b.json`: the action
+  validated two files nobody asked for and went green over the one
+  they did. Split with `set -f`.
+- **`vet`'s schema-side findings repeated once per data file.** A
+  broken schema is one fault however many candidates are named, and
+  `error` means exactly that — the run could not be set up from the
+  truth's side. Concatenating the per-file reports emitted the
+  identical finding N times and, past the cap, called the report
+  `truncated` over a single underlying problem. Invisible until the
+  `error` verdict started carrying findings at all.
+- **`--jsonl` ended its stream with a record that was not JSON.** The
+  REPL's closing newline is for a human leaving a prompt line; in a
+  protocol whose whole contract is one JSON object per line it added a
+  bare empty line, and a harness parsing every line failed after every
+  command had succeeded. Both ports' tests had trimmed it away; they
+  now assert every line.
+- **The LSP mishandled a real Windows workspace root**, in both
+  implementations. `file:///C:/Users/me/project` — three slashes, the
+  shape every editor sends — became `/C:/Users/me/project`, so the
+  workspace-root confinement compared real paths against nonsense and
+  an editor on Windows got no confinement it could rely on. Neither
+  port's tests caught it because both built `'file://' + path`, two
+  slashes, which no client sends. The leading slash is now dropped
+  before a drive letter and nowhere else, so a POSIX path keeps its
+  root; the tests send what a client sends. Three more divergences in
+  the same function fell out of fixing it, all now closed: a malformed
+  percent-escape **threw** in TypeScript where Go swallowed it; a
+  well-formed escape naming a raw byte (`%FF`, a legal Linux filename)
+  decoded in Go and could not in JavaScript, so the two derived
+  different workspace roots for a uri neovim really sends; and `file://`
+  alone yielded `''`, which is not nullish and therefore survived
+  TypeScript's `??` chain to become a confinement root of `''`. All
+  nineteen uri shapes now agree between the ports, byte for byte.
+- **One malformed field discarded the whole LSP trust configuration**
+  in the Go port. The `initialize` params were decoded into typed
+  fields on one struct, so `"rootUri": 42` failed the unmarshal and the
+  session opened **unconfined** — failing open on the one surface that
+  must not. Each field is read on its own now, as the canonical port
+  already did.
+
+### Fixed — a sixth verdict flip, and two costs on the refusal path
+
+Raised by the automated review on #72 and confirmed by measurement.
+
+- **A quantifier on `\b` or `\B` flipped the verdict.** The rule that
+  refuses `^{1}` and `${1}` — nothing to repeat, a syntax error under
+  JavaScript's `u` flag and an accepted assertion under RE2 — shipped
+  covering the two anchors only, on a comment asserting that the word
+  boundaries "quantify identically in both". They do not:
+  `re("\\b{1}x")` was `constraint_pattern` in TypeScript and an
+  accepted schema in Go. All four assertions now take the same rule,
+  refused in the normaliser before either engine compiles
+  ([ADR-003](ADR.md)). The shared row that claimed to pin this tested
+  a quantified **backspace** — one backslash where the regex needs two
+  — so it passed while the real case diverged; it is renamed for what
+  it tests, and the boundary rows it was standing in for are added.
+- **Rejecting a long repeat bound was quadratic in Go.** The scan
+  built the digit run into a string one character at a time, rebuilding
+  the whole immutable string per digit, so `x{111…1}` with 200 000
+  digits took **8.0 s** and gigabytes of transient copying before the
+  overflow was ever detected — on a path that runs over a
+  caller-supplied pattern and is counted by no evaluator budget. The
+  digits are folded as they are read: the same input now takes 8 ms.
+  Every verdict, and the order the two failures are detected in, is
+  unchanged.
+- **The packaged skill shipped two broken links.** `prepack` copies
+  `docs/skill/` to the package root, two levels closer to it, so
+  `../../grammar/aontu.gbnf` resolved outside the tarball and
+  `../../test/spec/errcodes.tsv` named a tree the tarball does not ship
+  at all. Staging now rewrites both and refuses to pack if a rewrite
+  stops matching; a test fails in CI if a new escaping link is added.
+
+### Fixed — the report says WHAT, not only whose fault it is
+
+Four defects the 2026-08-21 status report's repair-loop walkthrough
+turned up, all of them in the part an agent loop reads. Fixed in both
+implementations.
+
+- **`vet`'s `error` verdict now carries its finding.** A schema that
+  does not stand up — a contradiction inside it, a document that will
+  not parse, a merge marker — used to answer `findings: []` with exit
+  4, so a caller was told the truth was unusable and never what or
+  where, while `aontu <schema>` rendered the same fault in full. The
+  finding now travels with the verdict, every site in the schema. Two
+  causes, and the second is the general one: the provenance walk
+  stopped AT a nil, so a failure's OPERANDS — which are what a
+  finding's sites are — went unstamped and named no file. Both walks
+  now descend into them. `aontu set` inherits the finding: an entry
+  that will not parse names the parser's code.
+- **A parse failure keeps its position.** The machine-readable path
+  reported `row: -1, col: -1` for a fault the human renderer draws a
+  caret under; the parser knew all along and the rendered message held
+  the only copy. Sites now carry the real 1-based row and column.
+- **`vet --at` naming nothing reports too**, with the same `no_path`
+  finding `get` and `why` give — "did you mean" included — instead of
+  exit 4 and an empty list.
+- **A mistyped verb is a usage error, not a silent success.** Verb
+  dispatch reads the first argument only, and anything matching no
+  verb fell through to the bare form as a file name, last one winning
+  — so `aontu vet2 schema.aon good.json` printed `good.json` and
+  **exited 0**, which in a tool loop reads as a passing validation.
+  The bare form has always been documented as `aontu [options]
+  [file]`, singular; a second file name is now exit 2, naming the
+  likely cause. A file genuinely named like a verb is still reachable
+  as `./vet`.
+
+### Added — the loop, and the documentation, are executed
+
+- **An end-to-end repair-loop test**, in both implementations:
+  emit → vet → why → set → re-vet through the whole command, with the
+  exit code asserted at every step. The shared suite pins each verb in
+  isolation, so every verb could be right and the loop still not
+  close. Three arms — the loop that closes, the pinned value that
+  refuses the repair and leaves both files untouched, and the schema
+  that does not stand up.
+- **The teaching documents are held to the engine.** Every
+  `aontu`/`aon` example in `index.md`, `tutorial.md`, `how-to.md` and
+  `reference-language.md` must parse, and every one that states its
+  result must generate exactly that. The skill sources were already
+  executed this way; the prose documentation was not.
+
 ### Fixed — the two release blockers (security, and cross-port parity)
 
 Both were found by driving the delivered surface end to end
@@ -38,7 +241,9 @@ before this line could be published.
   family, found by sweeping around it: a quantifier applied to `^` or
   `$`, and a `}` that closes no counted quantifier — JavaScript's `u`
   flag calls each a syntax error where RE2 accepts it. Shared rows pin
-  all of it, in both runners (counts live in the register).
+  all of it, in both runners (counts live in the register). The sweep
+  stopped one construct short: `\b` and `\B` are assertions too, and
+  the entry above closes them.
 - **A refused call keeps its position and its code.** The non-name
   refusal is sited where TypeScript sites it, rather than rendering
   `<no-file>:-1:-1`, and survives a pipe (`0 |> f(1)(2)`) as

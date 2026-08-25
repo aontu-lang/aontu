@@ -1,11 +1,11 @@
 # G7: A machine-facing access surface
 
-*Status: implemented, one phase partial — phases 1–6 landed in both
-ports (`get` and its projections, `why` with its provenance
-recorder, the overlay `set`, and the delivery skin), and phase 7
-stands PARTIAL: the REPL inspection mode landed, but its `--jsonl`
-session mode is unreachable in the Go CLI and TTY-gated in the
-TypeScript one (register, 2026-08-21). Phase 5's STAGE 2, the
+*Status: implemented — all seven phases landed in both ports (`get`
+and its projections, `why` with its provenance recorder, the overlay
+`set`, the delivery skin, and the REPL inspection mode). Phase 7 stood
+PARTIAL from 2026-08-21 until 2026-08-24, while its `--jsonl` session
+mode was unreachable in the Go CLI and TTY-gated in the TypeScript
+one; the register records what closed it. Phase 5's STAGE 2, the
 format-preserving in-place edit, remains deferred by the phase
 itself. Per-phase status and the
 corrections this document needs are in the

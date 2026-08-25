@@ -6,6 +6,7 @@ const memfs_1 = require("memfs");
 const expect_1 = require("./expect");
 const MapVal_1 = require("../dist/val/MapVal");
 const aontu_1 = require("../dist/aontu");
+const srcpath_1 = require("./srcpath");
 (0, node_test_1.describe)('aontu', function () {
     (0, node_test_1.test)('basic-api', async () => {
         let a0 = new aontu_1.Aontu();
@@ -80,7 +81,7 @@ w1: b: {y:2,z:3} & $.q.a
     (0, node_test_1.test)('file', async () => {
         let ctx = makeCtx();
         let a0 = new aontu_1.Aontu();
-        let v0 = a0.unify('@"' + __dirname + '/../test/t02sys.aon"');
+        let v0 = a0.unify('@"' + (0, srcpath_1.srcPath)(__dirname) + '/../test/t02sys.aon"');
         (0, expect_1.expect)(v0.canon).equal('{"ent":{"bar":{"fields":{"f0":{"kind":"Number"}},"name":"bar"},"foo":{"fields":{"f0":{"kind":"String"}},"name":"foo"}},"sys":{"ent":{"name":string}}}');
         (0, expect_1.expect)(v0.gen(ctx)).equal({
             // sys: { ent: { name: undefined } },
@@ -107,7 +108,7 @@ w1: b: {y:2,z:3} & $.q.a
     (0, node_test_1.test)('pref', async () => {
         let a0 = new aontu_1.Aontu();
         try {
-            a0.unify('@"' + __dirname + '/../test/t03uxc.aon"', {
+            a0.unify('@"' + (0, srcpath_1.srcPath)(__dirname) + '/../test/t03uxc.aon"', {
                 base: __dirname,
             });
         }

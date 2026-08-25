@@ -21,6 +21,23 @@ import * as Assert from 'node:assert'
 import * as Fs from 'node:fs'
 import * as Path from 'node:path'
 
+import { BUILTIN_FUNCS } from '../dist/lsp'
+
+
+// LINE ENDINGS ARE THE CHECKOUT'S BUSINESS, not this file's. git on
+// Windows checks out with CRLF by default, and every reader below
+// anchors on "\n": the rule slice below terminates on a blank line
+// spelled "\n\n", which under CRLF is "\r\n\r\n" and never found, so
+// indexOf returned -1, slice(start, -1) ran to the end of the file, and
+// the builtin set silently absorbed every later rule -- reporting
+// `biginteger`, a KIND, as a function the engine does not have.
+// (.gitattributes now pins .gbnf and .lark to LF as well; this is the
+// half that still holds for a file that did not come from a checkout.)
+function readText(...parts: string[]): string {
+  return Fs.readFileSync(Path.join(...parts), 'utf8')
+    .replaceAll('\r\n', '\n').replaceAll('\r', '\n')
+}
+
 
 const GRAMMAR_DIR = Path.join(__dirname, '..', '..', 'grammar')
 const SPEC_DIR = Path.join(__dirname, '..', '..', 'test', 'spec')
@@ -307,7 +324,7 @@ function unescape(s: string): string {
 function canonCorpus(): { file: string, name: string, canon: string }[] {
   const out: { file: string, name: string, canon: string }[] = []
   for (const file of Fs.readdirSync(SPEC_DIR).filter((f) => f.endsWith('.tsv'))) {
-    const text = Fs.readFileSync(Path.join(SPEC_DIR, file), 'utf8')
+    const text = readText(SPEC_DIR, file)
     for (const line of text.split('\n')) {
       if ('' === line || line.startsWith('#')) {
         continue
@@ -330,7 +347,7 @@ function canonCorpus(): { file: string, name: string, canon: string }[] {
 describe('grammar', () => {
 
   const rules = new GbnfParser(
-    Fs.readFileSync(Path.join(GRAMMAR_DIR, 'aontu.gbnf'), 'utf8')).rules()
+    readText(GRAMMAR_DIR, 'aontu.gbnf')).rules()
 
   test('the-published-grammar-parses', () => {
     Assert.ok(rules.has('root'), 'no root rule')
@@ -423,8 +440,55 @@ describe('grammar', () => {
   // The lark file is the same grammar for a different consumer, and
   // the two drift the moment one is edited alone. Rule NAMES are the
   // drift guard a test can check without a second interpreter.
+  // The grammar's function-name list is a HAND-WRITTEN copy of the
+  // engine's registry, and a copy drifts: it carried `same`, which is
+  // not a builtin and never has been, so a constrained decoder was
+  // free to emit a call the engine refuses (status-2026-08-21.md
+  // item 8). Asserting the two sets against each other is what stops
+  // the next divergence -- in EITHER direction, since a builtin added
+  // without its grammar entry is the same defect reversed.
+  test('the-grammar-names-exactly-the-engine-builtins', () => {
+    const gbnf = readText(GRAMMAR_DIR, 'aontu.gbnf')
+    const start = gbnf.indexOf('\nname ::=')
+    Assert.ok(-1 < start, 'no name rule in aontu.gbnf')
+    // The rule ends at the next blank line, or at the end of the file
+    // if it is the last one. NOT `indexOf(...)` used raw: a miss is -1,
+    // and `slice(start, -1)` is not "to the end" but "everything bar
+    // the last character" -- so a terminator that stopped matching
+    // silently widened the set to the whole rest of the grammar instead
+    // of failing. That is exactly how a CRLF checkout reported
+    // `biginteger` as a missing builtin.
+    const blank = gbnf.indexOf('\n\n', start)
+    const end = -1 === blank ? gbnf.length : blank
+    const named = new Set(
+      [...gbnf.slice(start, end).matchAll(/"([a-z]+)"/g)].map((m) => m[1]))
+    // A guard on what was sliced, so a terminator that moves cannot
+    // quietly hand this assertion the whole file again. It asserts the
+    // INVARIANT rather than a threshold: the slice is ONE rule, so it
+    // holds exactly one `::=`. A size guard was the first attempt and
+    // was far too close to run -- the real slice carries 28 names and
+    // the runaway slice 41, so `< 40` separated them by a single name,
+    // and two literals leaving any later rule would have restored the
+    // silence it was added to end. By rule count the margin is 14.
+    const rules = (gbnf.slice(start, end).match(/::=/g) ?? []).length
+    Assert.equal(rules, 1,
+      `the name rule slice spans ${rules} rules (${named.size} names) -- ` +
+      'the terminator probably stopped matching')
+
+    const engine = new Set(BUILTIN_FUNCS)
+    for (const name of engine) {
+      Assert.ok(named.has(name),
+        `builtin missing from aontu.gbnf: ${name}`)
+    }
+    for (const name of named) {
+      Assert.ok(engine.has(name),
+        `aontu.gbnf names a function the engine does not have: ${name}`)
+    }
+  })
+
+
   test('the-lark-grammar-names-the-same-rules', () => {
-    const lark = Fs.readFileSync(Path.join(GRAMMAR_DIR, 'aontu.lark'), 'utf8')
+    const lark = readText(GRAMMAR_DIR, 'aontu.lark')
     const larkRules = new Set(
       [...lark.matchAll(/^(?:\?)?([a-z_][a-z0-9_]*)\s*:/gm)].map((m) => m[1]))
     for (const name of rules.keys()) {

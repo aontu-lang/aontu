@@ -131,5 +131,25 @@ func AgentsMdSplice(existing, stanza string) string {
 		}
 		return head + stanza
 	}
-	return existing[:from] + stanza + existing[to+len(AgentsMdEnd)+1:]
+	// SKIP THE END MARKER'S LINE TERMINATOR, whatever it is, and only
+	// if it is there. This was `+1` -- one byte, assumed to be the LF
+	// of the marker's own line -- and that assumption is wrong twice.
+	//
+	// On a CRLF document the byte after the marker is the CR, so the
+	// retained tail began with the LF the stanza had already supplied
+	// and every regeneration gained a blank line. Worse, a document
+	// whose end marker is the LAST thing in it, with no trailing
+	// newline, made `+1` index PAST THE END: Go panics on the slice,
+	// while the canonical port's slice() clamps and returns cleanly
+	// (ts/src/agentsmd.ts). A crash on one port and a result on the
+	// other is exactly what ADR-001 forbids, so both now skip an
+	// optional CR then an optional LF, bounded by the length.
+	end := to + len(AgentsMdEnd)
+	if end < len(existing) && '\r' == existing[end] {
+		end++
+	}
+	if end < len(existing) && '\n' == existing[end] {
+		end++
+	}
+	return existing[:from] + stanza + existing[end:]
 }

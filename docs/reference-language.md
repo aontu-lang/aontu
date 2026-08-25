@@ -1250,14 +1250,19 @@ somewhere new.
 
 **Evaluation never touches the network.** A module resolves from local
 stores only — `aon_vendor/` beside the project's `mod.aon`, then a
-content-addressed user cache (`$XDG_CACHE_HOME/aontu/mod`, else
-`~/.cache/aontu/mod`) — and the cache is consulted only when the
+content-addressed user cache — and the cache is consulted only when the
 expected hash is known, because that hash is its key. A module in
 neither store is an error that names the step that fixes it:
 
 ```
 module not fetched: corp.example/schemas/service@1 (run: aontu mod get)
 ```
+
+The user cache is `$XDG_CACHE_HOME/aontu/mod` where that is set — an
+explicit override wins on every platform — and otherwise the platform's
+own cache location: `%LOCALAPPDATA%\aontu\mod` on Windows,
+`~/.cache/aontu/mod` elsewhere. A host that offers none of those has no
+user cache, and a module then resolves from `aon_vendor/` alone.
 
 **The module file and the lockfile are ordinary Aontu.** `mod.aon`
 declares the module's own path and entry file; the entry defaults to
@@ -1838,7 +1843,7 @@ Only the rewritten form reaches a host engine.
 | literals | `a`, and `\` before any of `. \ + * ? ( ) [ ] { } \| ^ $ /` to mean it literally; `\xHH` |
 | classes | `[abc]`, `[^abc]`, `[a-z]`; `\-` inside a class for a literal hyphen |
 | abbreviations | `\d \D \w \W \s \S` and `.` |
-| repetition | `*` `+` `?` `{n}` `{n,}` `{n,m}`, and the lazy forms `*?` `+?` `??` |
+| repetition | `*` `+` `?` `{n}` `{n,}` `{n,m}` with every count **1000 or less**, and the lazy forms `*?` `+?` `??` |
 | grouping | `(…)`, `(?:…)`, alternation `a|b` |
 | anchors | `^` `$` `\A` `\z` `\b` `\B` |
 | control | `\t \n \r \f \v` |
@@ -1870,6 +1875,9 @@ units, in both implementations.
 | `\p{…}`, `\x{…}`, `\u`, `\Z` | spelled differently, or read as a literal by one engine |
 | POSIX classes `[[:alpha:]]` | RE2 only |
 | empty classes `[]`, `[^]` | a never-matching class in JavaScript, a parse error in RE2 |
+| a repeat count above **1000** (`a{1001}`, `a{2,1001}`) | RE2 refuses to compile it and JavaScript accepts it, so the same schema was valid in one implementation and not the other. The bound is **Aontu's**, checked in the normaliser before either engine sees the pattern, which is why the refusal is the same in both ([ADR-003](../ADR.md#adr-003--host-provided-semantics-are-normalised-not-trusted)) |
+| a quantifier applied to `^`, `$`, `\b` or `\B` | there is nothing to repeat: JavaScript under the `u` flag calls it a syntax error, RE2 quantifies the assertion and matches |
+| a `{` that opens no counted quantifier (`x{y}`), or a `}` that closes none | JavaScript reads each as a lone quantifier bracket and refuses; RE2 reads both as literals |
 | a quantifier on a group containing a quantifier or an alternation | **cost, not meaning** — see below |
 
 The last one is different in kind. `(a+)+$` against twenty-nine `a`s and

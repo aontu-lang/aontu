@@ -71,10 +71,64 @@ func TestVetContradictionOutranksResidue(t *testing.T) {
 	}
 }
 
+// A broken schema is never blamed on the data -- verdict `error`, not
+// `invalid` -- and it is not a bare verdict either: the finding says
+// what did not stand up and where, and BOTH sites name the schema.
+// The sites are the failure's operands, which the provenance walk
+// reaches only because it descends into a nil (walk.go); without that
+// the report named no file at all.
 func TestVetBrokenSchemaIsNeverBlamedOnData(t *testing.T) {
 	r := vetRun("a: 1\na: 2", "a: 1", nil)
-	if VetError != r.Verdict || 0 != len(r.Findings) {
-		t.Fatalf("want a bare error verdict, got %+v", r)
+	if VetError != r.Verdict || 1 != len(r.Findings) {
+		t.Fatalf("want an error verdict with one finding, got %+v", r)
+	}
+	f := r.Findings[0]
+	if "scalar_value" != f.Code || "conflict" != f.Class || "$.a" != f.Path {
+		t.Fatalf("finding: %+v", f)
+	}
+	if 2 != len(f.Sites) {
+		t.Fatalf("sites: %+v", f.Sites)
+	}
+	for _, s := range f.Sites {
+		if VetRoleSchema != s.Role || vetSchemaURL != s.File {
+			t.Fatalf("site: %+v", s)
+		}
+	}
+	// Source order, and the columns are the SCALARS' -- an operand that
+	// went unstamped fell back to the entry's own position.
+	if 2 != f.Sites[0].Row || 4 != f.Sites[0].Col ||
+		1 != f.Sites[1].Row || 4 != f.Sites[1].Col {
+		t.Fatalf("positions: %+v", f.Sites)
+	}
+}
+
+// A SCHEMA that will not parse is the schema's fault -- verdict
+// `error` -- and reports through the same projection unparseable data
+// does, with the role and the verdict as the only difference.
+func TestVetUnparseableSchemaReports(t *testing.T) {
+	r := vetRun("a: ]", "a: 1", nil)
+	if VetError != r.Verdict || 1 != len(r.Findings) {
+		t.Fatalf("report: %+v", r)
+	}
+	f := r.Findings[0]
+	if "syntax" != f.Code || "parse" != f.Class || "$" != f.Path {
+		t.Fatalf("finding: %+v", f)
+	}
+	if 1 != len(f.Sites) || VetRoleSchema != f.Sites[0].Role ||
+		vetSchemaURL != f.Sites[0].File {
+		t.Fatalf("site: %+v", f.Sites)
+	}
+}
+
+// And a merge marker in the schema knows where it is, exactly as one
+// in the data does.
+func TestVetConflictMarkerInSchemaIsLocated(t *testing.T) {
+	r := vetRun("a: 1\n<<<<<<< HEAD\nb: 2", "a: 1", nil)
+	if VetError != r.Verdict || "merge_conflict" != r.Findings[0].Code {
+		t.Fatalf("report: %+v", r)
+	}
+	if 2 != r.Findings[0].Sites[0].Row || 1 != r.Findings[0].Sites[0].Col {
+		t.Fatalf("site: %+v", r.Findings[0].Sites[0])
 	}
 }
 
@@ -90,8 +144,12 @@ func TestVetUnparseableDataIsInvalid(t *testing.T) {
 	if "syntax" != f.Code || "parse" != f.Class || "$" != f.Path {
 		t.Fatalf("finding: %+v", f)
 	}
+	// LOCATED. The parser knows where it stopped and the site says so;
+	// it used to read -1:-1 while the human renderer drew a caret under
+	// the exact character.
 	if 1 != len(f.Sites) || VetRoleData != f.Sites[0].Role ||
-		"nil" != f.Sites[0].Value || -1 != f.Sites[0].Row {
+		"nil" != f.Sites[0].Value ||
+		1 != f.Sites[0].Row || 4 != f.Sites[0].Col {
 		t.Fatalf("site: %+v", f.Sites)
 	}
 	// No terminal escapes in a machine-readable report: the parser
@@ -281,9 +339,26 @@ func TestVetAtRootIsTheWholeSchema(t *testing.T) {
 	}
 }
 
+// ...AND IT SAYS WHICH SEGMENT. The verdict alone left a caller holding
+// exit 4 and an empty finding list, which is nothing to act on; the
+// refusal is the one Get and Why already give for a path that names
+// nothing, "did you mean" included.
 func TestVetAnAnchorThatDoesNotExistIsAnErrorVerdict(t *testing.T) {
-	if r := vetRun(vetSchema, "a: 1", &VetOptions{At: "$.nope"}); VetError != r.Verdict {
-		t.Fatalf("verdict: %s", r.Verdict)
+	r := vetRun(vetSchema, "a: 1", &VetOptions{At: "$.nope"})
+	if VetError != r.Verdict || 1 != len(r.Findings) {
+		t.Fatalf("report: %+v", r)
+	}
+	f := r.Findings[0]
+	if "no_path" != f.Code || "reference" != f.Class || "$.nope" != f.Path ||
+		0 != len(f.Sites) {
+		t.Fatalf("finding: %+v", f)
+	}
+}
+
+func TestVetAnAnchorRefusalSuggestsTheNearestKey(t *testing.T) {
+	r := vetRun(vetSchema, "a: 1", &VetOptions{At: "$.servce"})
+	if nil == r.Findings[0].Note || "did you mean service?" != *r.Findings[0].Note {
+		t.Fatalf("note: %+v", r.Findings[0])
 	}
 }
 

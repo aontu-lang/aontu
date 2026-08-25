@@ -7,6 +7,7 @@ exports.moduleDir = moduleDir;
 exports.projectRoot = projectRoot;
 exports.lockJson = lockJson;
 exports.modCacheDir = modCacheDir;
+exports.modCacheDirFor = modCacheDirFor;
 exports.lockHash = lockHash;
 exports.resolveModule = resolveModule;
 // MODULE IDENTITY AND LOCAL RESOLUTION (G6 phase 2,
@@ -93,20 +94,52 @@ function lockJson(text) {
         .filter((line) => !line.trimStart().startsWith('#'))
         .join('\n');
 }
-// The user cache: `~/.cache/aontu/mod` unless the host names another,
-// and honouring XDG_CACHE_HOME because that is what a cache directory
-// on this platform means. A host that gives no home has no cache,
-// which is a miss rather than a failure. One rule, in one place: the
-// resolver reads this cache during evaluation and `aontu mod` writes
-// into it, and two spellings of "where the cache is" is one bug.
+// The user cache: `$XDG_CACHE_HOME/aontu/mod` unless the host names
+// another, else the platform's own cache location. A host with nowhere
+// to put one has no cache, which is a miss rather than a failure. One
+// rule, in one place: the resolver reads this cache during evaluation
+// and `aontu mod` writes into it, and two spellings of "where the cache
+// is" is one bug.
 function modCacheDir() {
-    const xdg = process.env.XDG_CACHE_HOME;
+    return modCacheDirFor(process.platform, process.env);
+}
+// That rule with the platform and the environment PASSED IN, so the
+// Windows arm can be exercised off Windows — the only way a rule about
+// a platform nobody here runs gets tested at all. The Go port splits
+// the same way (modCacheDirFor, go/aontu.go).
+//
+// THE ORDER IS EXPLICIT BEFORE IMPLICIT, and LOCALAPPDATA is LAST.
+// XDG_CACHE_HOME is the override and wins everywhere, Windows included:
+// a caller who names a cache directory means it. HOME comes next and is
+// also honoured on Windows, where it is not standard but IS set by Git
+// Bash and by most development shells — a user who has one expects
+// their tools to agree about where home is.
+//
+// LOCALAPPDATA is the PLATFORM DEFAULT beneath both, which is the whole
+// addition: Windows sets neither XDG_CACHE_HOME nor HOME by default —
+// it supplies USERPROFILE and LOCALAPPDATA, and LOCALAPPDATA is what a
+// cache directory means there — so a rule that knew only the first two
+// left every Windows user with NO cache. Putting it ABOVE HOME was the
+// first attempt and was wrong: it made an explicitly set HOME
+// unreachable on Windows, which broke the existing fallback test the
+// moment CI ran it. A platform default that overrides what the
+// environment was told is not a default.
+function modCacheDirFor(platform, env) {
+    const xdg = env.XDG_CACHE_HOME;
     if ('string' === typeof xdg && '' !== xdg) {
         return (0, node_path_1.join)(xdg, 'aontu', 'mod');
     }
-    const home = process.env.HOME;
-    return 'string' === typeof home && '' !== home ?
-        (0, node_path_1.join)(home, '.cache', 'aontu', 'mod') : undefined;
+    const home = env.HOME;
+    if ('string' === typeof home && '' !== home) {
+        return (0, node_path_1.join)(home, '.cache', 'aontu', 'mod');
+    }
+    if ('win32' === platform) {
+        const local = env.LOCALAPPDATA;
+        if ('string' === typeof local && '' !== local) {
+            return (0, node_path_1.join)(local, 'aontu', 'mod');
+        }
+    }
+    return undefined;
 }
 function lockHash(root, ref, fs) {
     const file = (0, node_path_1.join)(root, 'mod-lock.aon');

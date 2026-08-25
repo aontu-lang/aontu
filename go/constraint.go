@@ -121,39 +121,71 @@ func repeatWhy(src []rune, at int) (string, int) {
 	overCap := "a repeat count above " + strconv.Itoa(reRepeatMax) +
 		", which RE2 refuses to compile"
 
+	// THE DIGIT RUN IS FOLDED AS IT IS READ, never accumulated into a
+	// string. The scan runs over a pattern the caller supplies and is
+	// counted by no evaluator budget (docs/trust.md, clause 2), so
+	// `digits += string(c)` -- which rebuilds an immutable Go string on
+	// every digit -- made rejecting `a{111...1}` quadratic in the
+	// number of digits, with the whole run allocated again per
+	// character before Atoi ever saw it. A caller with a megabyte of
+	// digits could hold the process on the refusal path.
+	//
+	// This is where the two ports part company on SHAPE, not on
+	// answers: `digits += c` costs nothing in V8, which appends with a
+	// cons-string, so ts/src/val/ConstraintVal.ts keeps the readable
+	// form. Every verdict and every boundary between them is the same,
+	// including the order the two failures are detected in — a run too
+	// long to be an int is refused where Atoi used to fail, and a value
+	// merely above the cap still waits for the post-loop check, so
+	// `a{2000x}` is a malformed brace rather than an over-cap count in
+	// both ports.
 	i := at + 1
-	digits := ""
+	val := 0
+	digitCount := 0
+	tooBig := false
 	bounds := []int{}
 	commas := 0
+	reset := func() {
+		val, digitCount, tooBig = 0, 0, false
+	}
 	for ; i < len(src); i++ {
 		c := src[i]
 		if '0' <= c && c <= '9' {
-			digits += string(c)
+			digitCount++
+			d := int(c - '0')
+			if tooBig {
+				continue
+			}
+			if val > (math.MaxInt-d)/10 {
+				// Saturate rather than wrap. Leading zeros cannot get
+				// here, so this is the same set Atoi rejected.
+				tooBig = true
+				continue
+			}
+			val = val*10 + d
 			continue
 		}
 		if ',' == c {
-			if "" == digits || 0 < commas {
+			if 0 == digitCount || 0 < commas {
 				return bad(notCounted)
 			}
-			n, err := strconv.Atoi(digits)
-			if nil != err {
+			if tooBig {
 				// Too many digits to be an int at all, so certainly
 				// above the cap -- TypeScript's parseInt yields a float
 				// far above it and refuses for the same reason.
 				return overCap, -1
 			}
-			bounds = append(bounds, n)
-			digits = ""
+			bounds = append(bounds, val)
+			reset()
 			commas++
 			continue
 		}
 		if '}' == c {
-			if "" != digits {
-				n, err := strconv.Atoi(digits)
-				if nil != err {
+			if 0 < digitCount {
+				if tooBig {
 					return overCap, -1
 				}
-				bounds = append(bounds, n)
+				bounds = append(bounds, val)
 			} else if 0 == commas {
 				return bad(notCounted)
 			}
@@ -326,6 +358,18 @@ func normaliseRe(src string) (string, string) {
 				return "", why
 			}
 			out.WriteString(emit)
+			// `\b` AND `\B` ARE ASSERTIONS TOO, and quantifying one is
+			// the same disagreement `^{1}` is: JavaScript under `u`
+			// calls it a syntax error, RE2 quantifies the assertion
+			// happily. The rule said "`\b` and `\B` quantify
+			// identically in both and are left alone" and that was
+			// measured wrong -- `re("\\b{1}x")` is `constraint_pattern`
+			// in TypeScript and an accepted schema here. Only OUTSIDE a
+			// class: inside one, `\b` is a backspace in both engines and
+			// repeats like any other character.
+			if !inClass && ('b' == at(i+1) || 'B' == at(i+1)) {
+				anchorPrev = true
+			}
 			i += 1 + extra
 			continue
 		}
@@ -416,11 +460,11 @@ func normaliseRe(src string) (string, string) {
 			// this a SYNTAX ERROR, where RE2 quantifies the assertion
 			// happily and matches, so `re("^{1}")` was
 			// `constraint_pattern` in TypeScript and an accepted
-			// schema here. (`\b` and `\B` quantify identically in
-			// both and are left alone.)
+			// schema here. The four assertions behave alike -- `^`,
+			// `$`, `\b` and `\B` -- so the rule names all four.
 			if afterAnchor {
-				return "", "a quantifier applied to `^` or `$`, which has " +
-					"nothing to repeat"
+				return "", "a quantifier applied to `^`, `$`, `\\b` or " +
+					"`\\B`, which has nothing to repeat"
 			}
 			if '{' == c {
 				why, end := repeatWhy(r, i)

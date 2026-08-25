@@ -48,9 +48,8 @@ const Path = __importStar(require("node:path"));
 const aontu_1 = require("../dist/aontu");
 const cli_1 = require("../dist/cli");
 const mod_tool_1 = require("../dist/mod-tool");
-// Forward slashes for paths EMBEDDED IN SOURCE text: inside an @"..."
-// include a backslash is an ESCAPE character (trust.test.ts's `sp`).
-const sp = (p) => p.split('\\').join('/');
+const mod_1 = require("../dist/mod");
+const srcpath_1 = require("./srcpath");
 const MODULE = 'name: string\nport: *8080 | integer\n';
 // A project whose main.aon imports one module, and the module itself,
 // placed wherever the caller says. Answers the paths and the module's
@@ -79,7 +78,7 @@ function world(store) {
         // is also why the cache is consulted only when a pin is known.
         const w = world('cache');
         const a0 = new aontu_1.Aontu({ mod: { cache: w.cache } });
-        Assert.deepEqual(a0.generate('x: @"' + sp(w.main) + '"'), { x: { svc: { name: 'auth', port: 8080 } } });
+        Assert.deepEqual(a0.generate('x: @"' + (0, srcpath_1.srcPath)(w.main) + '"'), { x: { svc: { name: 'auth', port: 8080 } } });
     });
     (0, node_test_1.test)('cache-is-not-consulted-under-a-root', () => {
         // A confined evaluation sees the project's own aon_vendor/ and
@@ -91,7 +90,7 @@ function world(store) {
             mod: { cache: w.cache },
             trust: { include: { root: w.dir } },
         });
-        Assert.throws(() => a0.generate('x: @"' + sp(w.main) + '"'), (err) => String(err.message).includes('module not fetched:'));
+        Assert.throws(() => a0.generate('x: @"' + (0, srcpath_1.srcPath)(w.main) + '"'), (err) => String(err.message).includes('module not fetched:'));
     });
     (0, node_test_1.test)('cache-defaults-to-the-platform-location', () => {
         // With no host-named cache the platform's own is used. Pointed at a
@@ -105,7 +104,7 @@ function world(store) {
         const saved = process.env.XDG_CACHE_HOME;
         process.env.XDG_CACHE_HOME = xdg;
         try {
-            Assert.deepEqual(new aontu_1.Aontu().generate('x: @"' + sp(w.main) + '"'), { x: { svc: { name: 'auth', port: 8080 } } });
+            Assert.deepEqual(new aontu_1.Aontu().generate('x: @"' + (0, srcpath_1.srcPath)(w.main) + '"'), { x: { svc: { name: 'auth', port: 8080 } } });
         }
         finally {
             if (undefined === saved) {
@@ -129,7 +128,7 @@ function world(store) {
         delete process.env.XDG_CACHE_HOME;
         process.env.HOME = home;
         try {
-            Assert.deepEqual(new aontu_1.Aontu().generate('x: @"' + sp(w.main) + '"'), { x: { svc: { name: 'auth', port: 8080 } } });
+            Assert.deepEqual(new aontu_1.Aontu().generate('x: @"' + (0, srcpath_1.srcPath)(w.main) + '"'), { x: { svc: { name: 'auth', port: 8080 } } });
         }
         finally {
             if (undefined !== savedXdg) {
@@ -143,6 +142,33 @@ function world(store) {
             }
         }
     });
+    // THE PLATFORM RULE, WITH THE PLATFORM PASSED IN. A Windows arm
+    // cannot be reached from a suite that never runs on Windows, so it is
+    // exercised here rather than trusted — which is the whole reason
+    // modCacheDir splits into modCacheDirFor. Twin: TestModCacheDirRule
+    // in go/mod_test.go.
+    (0, node_test_1.test)('cache-dir-rule', () => {
+        const at = (...p) => Path.join(...p);
+        // The explicit override wins on every platform.
+        Assert.equal((0, mod_1.modCacheDirFor)('linux', { XDG_CACHE_HOME: '/x', HOME: '/h' }), at('/x', 'aontu', 'mod'));
+        Assert.equal((0, mod_1.modCacheDirFor)('win32', { XDG_CACHE_HOME: '/x', LOCALAPPDATA: 'C:/L' }), at('/x', 'aontu', 'mod'));
+        // HOME is next, and is honoured ON WINDOWS TOO. This is the case
+        // CI caught: LOCALAPPDATA above HOME made an explicitly set HOME
+        // unreachable there, and the platform default silently won over
+        // what the environment was told.
+        Assert.equal((0, mod_1.modCacheDirFor)('win32', { LOCALAPPDATA: 'C:/L', HOME: '/h' }), at('/h', '.cache', 'aontu', 'mod'));
+        Assert.equal((0, mod_1.modCacheDirFor)('linux', { LOCALAPPDATA: 'C:/L', HOME: '/h' }), at('/h', '.cache', 'aontu', 'mod'));
+        // And LOCALAPPDATA is the platform default BENEATH both, which is
+        // the whole addition: Windows sets neither of the two above by
+        // default.
+        Assert.equal((0, mod_1.modCacheDirFor)('win32', { LOCALAPPDATA: 'C:/L' }), at('C:/L', 'aontu', 'mod'));
+        Assert.equal((0, mod_1.modCacheDirFor)('linux', { LOCALAPPDATA: 'C:/L' }), undefined);
+        // An empty variable is not a location, and nowhere to put one is a
+        // MISS rather than a failure.
+        Assert.equal((0, mod_1.modCacheDirFor)('win32', { LOCALAPPDATA: '', HOME: '' }), undefined);
+        Assert.equal((0, mod_1.modCacheDirFor)('win32', {}), undefined);
+        Assert.equal((0, mod_1.modCacheDirFor)('linux', { XDG_CACHE_HOME: '' }), undefined);
+    });
     (0, node_test_1.test)('no-home-means-no-cache', () => {
         // A host with no home directory has no cache, and that is a MISS
         // rather than a failure: the module is simply not in any store this
@@ -153,7 +179,7 @@ function world(store) {
         delete process.env.XDG_CACHE_HOME;
         delete process.env.HOME;
         try {
-            Assert.throws(() => new aontu_1.Aontu().generate('x: @"' + sp(w.main) + '"'), (err) => String(err.message).includes('module not fetched:'));
+            Assert.throws(() => new aontu_1.Aontu().generate('x: @"' + (0, srcpath_1.srcPath)(w.main) + '"'), (err) => String(err.message).includes('module not fetched:'));
         }
         finally {
             if (undefined !== savedXdg) {
@@ -170,7 +196,7 @@ function world(store) {
         const w = world('vendor');
         Fs.rmSync(Path.join(w.dir, 'aon_vendor'), { recursive: true });
         const a0 = new aontu_1.Aontu({ fs: Fs });
-        Assert.throws(() => a0.generate('x: @"' + sp(w.main) + '"'), (err) => String(err.message).includes('module not fetched:'));
+        Assert.throws(() => a0.generate('x: @"' + (0, srcpath_1.srcPath)(w.main) + '"'), (err) => String(err.message).includes('module not fetched:'));
     });
     (0, node_test_1.test)('host-filesystem-is-the-one-modules-are-read-from', () => {
         // An injected `fs` is the filesystem the host gave this evaluation,
@@ -179,7 +205,7 @@ function world(store) {
         // through the host's handle rather than importing its own.
         const w = world('vendor');
         const a0 = new aontu_1.Aontu({ fs: Fs });
-        Assert.deepEqual(a0.generate('x: @"' + sp(w.main) + '"'), { x: { svc: { name: 'auth', port: 8080 } } });
+        Assert.deepEqual(a0.generate('x: @"' + (0, srcpath_1.srcPath)(w.main) + '"'), { x: { svc: { name: 'auth', port: 8080 } } });
     });
     (0, node_test_1.test)('a-vendor-store-outside-the-root-is-denied', () => {
         // Confinement is about what may be READ (docs/trust.md), and a
@@ -192,7 +218,7 @@ function world(store) {
         const main = Path.join(sub, 'main.aon');
         Fs.copyFileSync(w.main, main);
         const a0 = new aontu_1.Aontu({ trust: { include: { root: sub } } });
-        Assert.throws(() => a0.generate('x: @"' + sp(main) + '"'), (err) => String(err.message).includes('include denied:'));
+        Assert.throws(() => a0.generate('x: @"' + (0, srcpath_1.srcPath)(main) + '"'), (err) => String(err.message).includes('include denied:'));
     });
     (0, node_test_1.test)('verification-depth-is-bounded', () => {
         // A pinned module is verified by EVALUATING it, and that evaluation
@@ -205,7 +231,7 @@ function world(store) {
         // more.
         const w = world('vendor');
         const a0 = new aontu_1.Aontu({ mod: { depth: 16 } });
-        Assert.throws(() => a0.generate('x: @"' + sp(w.main) + '"'), (err) => String(err.message).includes('module depth:'));
+        Assert.throws(() => a0.generate('x: @"' + (0, srcpath_1.srcPath)(w.main) + '"'), (err) => String(err.message).includes('module depth:'));
     });
 });
 // THE MODULE TOOLING (G6 phase 3, ts/src/mod-tool.ts). Both

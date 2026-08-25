@@ -79,7 +79,12 @@ can reuse it with their own transport. Editor plugins live in
 [`editors/`](editors/). Full reference: [`docs/lsp.md`](docs/lsp.md).
 Long-form documentation lives under [`docs/`](docs/) (start at
 `docs/index.md`); measure coverage with `make cov` (see
-`docs/test-coverage.md`). The trust contract —
+`docs/test-coverage.md`). **Documented examples are executed**:
+`ts/test/docs.test.ts` requires every `aontu`/`aon` fenced block in
+`index.md`, `tutorial.md`, `how-to.md` and `reference-language.md` to
+parse, and every one immediately followed by a `json` fence to
+generate exactly that — so a page that states a result states the
+engine's. `ts/test/skill.test.ts` does the same for `docs/skill/`. The trust contract —
 hermeticity, termination, determinism, sandboxing, and exactly where
 each is conditional today — is [`docs/trust.md`](docs/trust.md); the
 budget/cycle error taxonomy it defines is pinned by

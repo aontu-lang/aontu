@@ -58,7 +58,9 @@ func write(t *testing.T, file, src string) {
 
 func modGen(t *testing.T, a *Aontu, main string) (any, error) {
 	t.Helper()
-	return a.Generate("x: @\"" + filepath.ToSlash(main) + "\"\n")
+	// srcPath, not filepath.ToSlash: one spelling of the rule in this
+	// package, and one that is exercised off Windows too (trust_test.go).
+	return a.Generate("x: @\"" + srcPath(main) + "\"\n")
 }
 
 func TestModCacheIsContentAddressed(t *testing.T) {
@@ -123,6 +125,65 @@ func TestModCacheDefaults(t *testing.T) {
 	if _, err := modGen(t, New(), main); nil == err ||
 		!strings.Contains(err.Error(), "module not fetched:") {
 		t.Fatalf("want module not fetched, got %v", err)
+	}
+}
+
+// THE PLATFORM RULE, WITH THE PLATFORM PASSED IN. A Windows arm cannot
+// be reached from a suite that never runs on Windows, so it is
+// exercised here rather than trusted -- which is the whole reason
+// ModCacheDir splits into modCacheDirFor. Twin: cache-dir-rule in
+// ts/test/mod.test.ts.
+func TestModCacheDirRule(t *testing.T) {
+	env := func(vars map[string]string) func(string) string {
+		return func(key string) string { return vars[key] }
+	}
+	for _, c := range []struct {
+		name, goos string
+		vars       map[string]string
+		want       string
+	}{
+		// The explicit override wins on every platform.
+		{"xdg on posix", "linux",
+			map[string]string{"XDG_CACHE_HOME": "/x", "HOME": "/h"},
+			filepath.Join("/x", "aontu", "mod")},
+		{"xdg on windows", "windows",
+			map[string]string{"XDG_CACHE_HOME": "/x", "LOCALAPPDATA": "C:/L"},
+			filepath.Join("/x", "aontu", "mod")},
+
+		// HOME is next, and is honoured ON WINDOWS TOO. This is the
+		// case CI caught: LOCALAPPDATA above HOME made an explicitly
+		// set HOME unreachable there, and the platform default silently
+		// won over what the environment was told.
+		{"windows honours HOME over LOCALAPPDATA", "windows",
+			map[string]string{"LOCALAPPDATA": "C:/L", "HOME": "/h"},
+			filepath.Join("/h", ".cache", "aontu", "mod")},
+		{"posix ignores LOCALAPPDATA", "linux",
+			map[string]string{"LOCALAPPDATA": "C:/L", "HOME": "/h"},
+			filepath.Join("/h", ".cache", "aontu", "mod")},
+
+		// And LOCALAPPDATA is the platform default BENEATH both, which
+		// is the whole addition: Windows sets neither of the two above
+		// by default.
+		{"windows falls back to LOCALAPPDATA", "windows",
+			map[string]string{"LOCALAPPDATA": "C:/L"},
+			filepath.Join("C:/L", "aontu", "mod")},
+		{"posix has no such fallback", "linux",
+			map[string]string{"LOCALAPPDATA": "C:/L"},
+			""},
+
+		// Nowhere to put one is a MISS, not a failure.
+		{"nowhere", "windows", map[string]string{}, ""},
+	} {
+		if got := modCacheDirFor(c.goos, env(c.vars)); c.want != got {
+			t.Fatalf("%s: want %q, got %q", c.name, c.want, got)
+		}
+	}
+
+	// And the exported entry point is that rule on THIS host, not a
+	// second spelling of it.
+	t.Setenv("XDG_CACHE_HOME", "/x")
+	if want := filepath.Join("/x", "aontu", "mod"); want != ModCacheDir() {
+		t.Fatalf("ModCacheDir: %q", ModCacheDir())
 	}
 }
 

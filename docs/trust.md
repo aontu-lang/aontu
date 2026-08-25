@@ -209,7 +209,18 @@ implementations, at every surface:
   `'system'`, `'none'`, `{root}` or `{mem}` widens or narrows it, and
   an unrecognised value confines to nothing rather than silently
   widening. A session with no workspace root and no explicit option
-  stays unconfined, which single-file sessions rely on.
+  stays unconfined, which single-file sessions rely on. A `file://`
+  uri's path is everything after the literal `file://`, and the leading
+  slash of a **drive-letter** path is uri syntax rather than path — so
+  `file:///C:/Users/me/project` is the root `C:/Users/me/project`, not
+  `/C:/Users/me/project`. Both ports read it that way; until 2026-08-25
+  neither did, and the confinement an editor on Windows relied on was
+  therefore never applied. **A non-empty authority is not handled**:
+  `file://server/share/x` yields `server/share/x`, a relative string,
+  so a UNC root or a VS Code `wsl.localhost` remote root confines to
+  nothing usable. Both ports do the same thing with it, so this is a
+  gap rather than a divergence, and closing it needs a spelling for the
+  UNC form (`\\server\share`) that neither port has yet.
 - **CLI**: `--trust <system|none|root[:dir]>` and
   `--include-root <dir>`. The default remains `'system'` **with the
   warning window** (G5 phase 6, the staged flip): every resolution

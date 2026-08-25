@@ -14,6 +14,15 @@ import (
 	"testing"
 )
 
+// srcPath spells a path for EMBEDDING IN SOURCE text: inside an @"..."
+// include a backslash is an ESCAPE character, so a native Windows path
+// interpolated raw is eaten by the lexer. The full note is on the twin
+// helper in go/trust_test.go; the canonical port has had it since it
+// was written (ts/test/trust.test.ts).
+func srcPath(p string) string {
+	return strings.ReplaceAll(p, "\\", "/")
+}
+
 // trustWorld: root/{in.aon, main.aon}, secret.aon OUTSIDE the root.
 func trustCliWorld(t *testing.T) (dir, root, entry string) {
 	t.Helper()
@@ -53,7 +62,7 @@ func TestTrustCliNoneDenies(t *testing.T) {
 func TestTrustCliIncludeRootConfines(t *testing.T) {
 	dir, root, entry := trustCliWorld(t)
 	if err := os.WriteFile(entry,
-		[]byte(`a:@"`+dir+`/secret.aon"`), 0o600); err != nil {
+		[]byte(`a:@"`+srcPath(dir)+`/secret.aon"`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	_, errText, code := trustRun("--include-root", root, entry)
@@ -78,7 +87,7 @@ func TestTrustCliRootDefaultsToTheEntryDirectory(t *testing.T) {
 	}
 
 	if err := os.WriteFile(entry,
-		[]byte(`a:@"`+dir+`/secret.aon"`), 0o600); err != nil {
+		[]byte(`a:@"`+srcPath(dir)+`/secret.aon"`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if _, _, code := trustRun("--trust", "root", entry); 1 != code {
@@ -95,7 +104,7 @@ func TestTrustCliRootDefaultsToTheEntryDirectory(t *testing.T) {
 func TestTrustCliDefaultWarnsOnEscape(t *testing.T) {
 	dir, _, entry := trustCliWorld(t)
 	if err := os.WriteFile(entry, []byte(
-		`a:@"`+dir+`/secret.aon" b:@"`+dir+`/secret.aon" c:@"in.aon"`,
+		`a:@"`+srcPath(dir)+`/secret.aon" b:@"`+srcPath(dir)+`/secret.aon" c:@"in.aon"`,
 	), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -118,7 +127,7 @@ func TestTrustCliStdinNone(t *testing.T) {
 	dir, _, _ := trustCliWorld(t)
 	var out, errw bytes.Buffer
 	code := run([]string{"--trust", "none"},
-		strings.NewReader(`a:@"`+dir+`/secret.aon"`), &out, &errw, false)
+		strings.NewReader(`a:@"`+srcPath(dir)+`/secret.aon"`), &out, &errw, false)
 	if 1 != code || !strings.Contains(errw.String(), "include denied") {
 		t.Fatalf("code %d: %s", code, errw.String())
 	}

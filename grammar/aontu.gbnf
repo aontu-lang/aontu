@@ -76,14 +76,18 @@ name ::=
   | "id" | "key"
   | "length" | "lower" | "match" | "max" | "min" | "move" | "must"
   | "neq"
-  | "open" | "pack" | "path" | "pref" | "refer" | "re" | "same" | "super"
+  | "open" | "pack" | "path" | "pref" | "refer" | "re" | "super"
   | "type"
   | "unique" | "upper"
 
 # A path reference, absolute from the document root.
-ref ::= "$" ( "." segment )*
+# At least one segment: a bare `$` is an incomplete expression, not a
+# reference, so `*` here admitted a form the engine refuses.
+ref ::= "$" ( "." segment )+
 
-segment ::= ( [a-zA-Z0-9_-] )+
+# No `-`: it is not a bare-text character (test/spec/op-chars.tsv pins
+# `a:6-2` as a parse error), so admitting it over-approximated.
+segment ::= ( [a-zA-Z0-9_] )+
 
 # The placeholder: a hole a call is filled through (G8 phase 3). BARE
 # only -- `"_"` is an ordinary string, and a longer bare word

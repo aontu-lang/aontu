@@ -59,6 +59,17 @@ function walkVals(v, visit, seen) {
     for (const must of (v.musts ?? [])) {
         walkVals(must?.v, visit, seen);
     }
+    // A FAILURE'S OPERANDS, for the same reason and with the same
+    // safety. They are not peg entries, and they are exactly what a
+    // report names: a finding's sites are the nil's primary and
+    // secondary (ts/src/vet.ts, siteOf). A visitor that PRUNES at a nil
+    // never gets here -- collectNils returns false and this line is
+    // behind that gate -- so a nil collector is unaffected. A visitor
+    // that does not prune, and stamping provenance is the one that does
+    // not, must reach them or a broken schema's finding names no file at
+    // all (go/walk.go does the same).
+    walkVals(v.primary, visit, seen);
+    walkVals(v.secondary, visit, seen);
 }
 // Every NilVal in the tree, in walk order. Callers that need a stable
 // order across the two ports must sort — the walk follows raw key

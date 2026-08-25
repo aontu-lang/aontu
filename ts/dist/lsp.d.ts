@@ -4,7 +4,7 @@ declare const SEVERITY_ERROR = 1;
 declare const SEVERITY_WARNING = 2;
 declare const SEVERITY_INFORMATION = 3;
 declare const SEVERITY_HINT = 4;
-declare const LSP_VERSION = "0.1.0";
+declare const LSP_VERSION = "0.53.0";
 type Position = {
     line: number;
     character: number;
@@ -61,6 +61,7 @@ declare const COMPLETION_FUNCTION = 3;
 declare const COMPLETION_KEYWORD = 14;
 declare const BUILTIN_FUNCS: string[];
 declare function computeCompletions(): CompletionItem[];
+export declare function uriToPath(uri: unknown): string | undefined;
 declare class LspHandler {
     private docs;
     private shutdownOK;
