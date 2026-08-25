@@ -36,11 +36,11 @@ Tooling:
   data documents against a schema (and ships wrapped for CI as a
   [GitHub Action](../vet-action/README.md)); `subsume` and `breaking`
   gate schema evolution; `get` and `why` ask an evaluated document what
-  it says and what contributed to it; `set` changes one through an
-  overlay; `trim` reports redundant entries; `relations` runs the
-  declared identity checks; `hash` pins what a document *means*; `mod`
-  maintains a dependency closure; `agentsmd` writes the prose stanza
-  for a definition. With no file, `aontu` starts a REPL.
+  it says and what contributed to it; `set` changes one, through an
+  overlay or in place; `trim` reports redundant entries; `relations`
+  runs the declared identity checks; `hash` pins what a document
+  *means*; `mod` maintains a dependency closure; `agentsmd` writes the
+  prose stanza for a definition. With no file, `aontu` starts a REPL.
 - [Language Server (LSP)](lsp.md) — the `aontu-lsp` diagnostics server
   (TypeScript and Go), how to wire it into an editor, and the reusable
   LSP library API.

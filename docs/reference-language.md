@@ -1252,7 +1252,7 @@ directory**, so a chain of files (a → b → c) each resolves relative to
 itself. Absolute paths ignore the base. Resolution tries, in order, an
 in-memory resolver,
 the filesystem, then package resolution (see
-[API reference](reference-api.md#options)). A conflict between a loaded
+[API reference](reference-api.md#aontuoptions)). A conflict between a loaded
 value and a local one is a normal unification
 error.
 

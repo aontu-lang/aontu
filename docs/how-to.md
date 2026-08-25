@@ -14,6 +14,7 @@ basics from the [Tutorial](tutorial.md); for exhaustive rules see the
 - [Ask what a document says at one path](#ask-what-a-document-says-at-one-path)
 - [Find out why a value came out the way it did](#find-out-why-a-value-came-out-the-way-it-did)
 - [Change a value without editing the file](#change-a-value-without-editing-the-file)
+- [Change a value that is already pinned](#change-a-value-that-is-already-pinned)
 - [Find entries that are doing nothing](#find-entries-that-are-doing-nothing)
 - [Check that components agree about their relations](#check-that-components-agree-about-their-relations)
 - [Provide defaults that callers can override](#provide-defaults-that-callers-can-override)
@@ -411,20 +412,35 @@ verdict:
 A default (`a: *1`) is not in the table: appending already overrides it
 correctly, so `--in-place` leaves it alone and says nothing.
 
-**An overlay that loads another document cannot be edited in place at
-all.** That looks strict until you see what it prevents: an include
-holding `a: 42` at row 1 column 4, and the overlay holding `x: 42` at
-row 1 column 4. The site is real and the text at the span really is
-`42`, so the verification passes — and a splice that trusted it would
-rewrite `x` while reporting a replacement of `$.a`. Denying loads
-removes the ambiguity at its source rather than trying to detect it:
-what resolves is what the overlay says by itself.
+**Keep the overlay a file that stands on its own.** That is the last
+row of the table: an overlay which `@"includes"` another document is
+never edited in place, because a position in a loaded file cannot be
+told apart from a position in this one. ([Why the tool refuses the
+shape instead of detecting the
+collision](explanation.md#the-emit--validate--repair-loop).)
 
-Rewriting a file is not reversible the way appending to one is, which
-is why it is opt-in. Pair it with `--dry-run` to see the rewritten
-overlay without writing it — and note that when a run is refused as a
-whole, any edit it *could* have made is reported as `would replace:`
-rather than `replaced:`, because the file was not touched.
+**To change a value that lives in an include, edit the file that holds
+it** — name that file as the overlay, and give `--entry` something that
+*constrains* the value without also pulling the file in:
+
+```sh
+$ cat inc.aon
+a: 42  # keep me
+$ aontu set '$.a=5' --entry schema.aon --overlay inc.aon --in-place
+verdict: valid
+replaced: inc.aon:1:4 42 -> 5
+wrote: inc.aon
+```
+
+Passing an entry that `@"includes"` the overlay is the trap: the value
+then meets *itself*, the verdict is `invalid`, and nothing is written —
+the report says `would replace:` to tell you the edit was possible and
+the conflict was elsewhere.
+
+Pair `--in-place` with `--dry-run` to see the rewritten overlay without
+writing it. When a run is refused as a whole, any edit it *could* have
+made is reported as `would replace:` rather than `replaced:`, because
+the file was not touched.
 
 ## Find entries that are doing nothing
 

@@ -284,12 +284,65 @@ aontu trim --check [--format text|json] <file.aon>
   candidates** (removing one shifts every later index — a different
   document, not the same one minus a redundancy). A child of a
   redundant parent is skipped: removing the parent already covers it.
-- `--check` is **required**: trim only reports for now — rewriting the
-  file in place needs a format-preserving editor (G7) — and
-  `aontu trim f.aon` doing something other than trimming silently
-  would be worse than saying so.
+- `--check` is **required**: trim only reports, and `aontu trim f.aon`
+  doing something other than trimming silently would be worse than
+  saying so. It is not blocked on the machinery
+  [`set --in-place`](#aontu-set) now has — a splice needs no
+  format-preserving editor — but deleting an entry is a different
+  edit from replacing one: a statement's span does not say which
+  surrounding blank line or trailing comment went with it, and
+  guessing wrong silently rewrites the file's shape.
 - Exit codes: `0` clean, `1` redundant entries found, `4` the document
   itself does not evaluate, `2` usage.
+
+### `aontu relations`
+
+Run the [declared-relation](reference-language.md#declared-relations)
+checks — acyclicity and inverse consistency — over one finished model.
+
+```
+aontu relations [--format text|json] <file.aon>
+```
+
+```
+$ aontu relations system.aon
+verdict: fail
+
+$.auth.dependsOn.0  dependsOn: cycle auth -> billing -> auth
+$.auth.dependsOn.0  dependsOn: billing does not list auth under usedBy
+$.billing.dependsOn.0  dependsOn: auth does not list billing under usedBy
+$ echo $?
+1
+```
+
+- Relations are read from the **`relations` key of the document root**,
+  each one a `$.std.Relation` carrying `acyclic` and/or `inverse`. That
+  key is the vocabulary's convention, not the engine's: nothing in the
+  language knows the name, the checking pass does.
+- **These are not lattice constraints, deliberately.** Both properties
+  are global and non-monotone — one more edge makes an acyclic graph
+  cyclic — so they are facts about a finished model rather than
+  something unification may hold. The
+  [language reference](reference-language.md#declared-relations) states
+  the rule; the [explanation](explanation.md#why-there-is-a-verb-surface)
+  argues it.
+- A finding carries `at` (the position of the offending edge), `code`
+  (`relation_cycle` or `relation_inverse_missing`), `relation`, and
+  `detail` — for a cycle, the entities it runs through in order; for a
+  missing inverse, `[from, to, inverseName]`. Findings are **sorted by
+  `at`**, so the report diffs cleanly.
+- `--format json` wraps the same findings with the `aontu` producer
+  block (`verb`, `version`) that every machine-readable report carries.
+- Exit codes: `0` `pass`, `1` `fail`, `4` `error` (the document does
+  not evaluate), `2` usage. Note these are the verb's own three
+  verdicts, not [`vet`](#aontu-vet)'s five classes — there is no
+  schema on the other side of this question, so `incomplete` has
+  nothing to mean.
+- The library form is `relationCheck(src)` in TypeScript and
+  `Aontu.RelationCheck(src)` in Go, returning the identical
+  `{verdict, findings}` record; the derived graph the checks run over
+  is `result.graph` / `Aontu.Graph`, described under
+  [the TypeScript API](#class-aontu).
 
 ### `aontu get`
 
@@ -695,7 +748,7 @@ drives the CLI. Human-readable output stays the default.
 
 ```
 $ aontu
-Aontu v0.50.1 REPL — :help for commands, :quit to exit
+Aontu v0.53.0 REPL — :help for commands, :quit to exit
 aontu> port: *8080 | integer
 {
   "port": 8080
@@ -914,13 +967,10 @@ under its own name; the bundled one is engine-owned.
 
 **Relation checks.** `relationCheck(src)` in TypeScript and
 `Aontu.RelationCheck(src)` in Go run the
-[declared-relation](reference-language.md#declared-relations) checks —
-acyclicity and inverse consistency — over the derived edge set, and
-return `{verdict, findings}` with `verdict` one of `pass`, `fail` or
-`error`. `aontu relations <file>` is the same report from the command
-line (`--format json` for the machine-readable form). Findings are
-sorted by the position of the offending edge, so the report diffs
-cleanly.
+[declared-relation](reference-language.md#declared-relations) checks
+over the derived edge set, returning the `{verdict, findings}` record
+that [`aontu relations`](#aontu-relations) prints — that section has
+the verdicts, the finding fields, and the exit codes.
 
 **The derived graph.** After a unification, an evaluated document's
 identity structure is observable too (G4):

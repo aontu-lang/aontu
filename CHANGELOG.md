@@ -7,6 +7,48 @@ which implementation each change affects.
 
 ## Unreleased — TypeScript 0.53.0 line
 
+### Documentation — the four quadrants brought back level
+
+A pass over `docs/` after the last four changes landed, against the
+split `docs/index.md` declares: a tutorial teaches, a how-to gives the
+recipe, a reference is exhaustive, and only the explanation argues.
+
+- **The reference documented ten of the eleven verbs.**
+  `aontu relations` had a line in the synopsis and a paragraph under the
+  library API, but no section of its own — so the one page that promises
+  to be exhaustive was the one place the verb could not be looked up. It
+  now has one, with the finding fields, the `--format json` shape, and
+  its three verdicts (`pass`/`fail`/`error` — not `vet`'s five, because
+  there is no schema on the other side of the question). The library
+  paragraph points at it instead of restating half of it.
+- **`--in-place` had reached two quadrants of four.** It is now in the
+  tutorial's closing (as the command that does by hand what §13 just
+  did), the index's verb map, and the agent skill's repair loop, which
+  stopped at diagnosis and now ends with the fix.
+- **The explanation gained the argument.** Why appending is the default,
+  why the deferred CST turned out to be for a different job, why a site
+  names a *token* and what that does to `min(1)`, why the candidate text
+  is parsed alone rather than checked against a list of safe shapes, and
+  why a load in the overlay is refused rather than detected — all of it
+  previously lived only in commit messages and design notes.
+- **The how-to gave up arguing and gained a recipe.** The eight lines
+  reasoning about the include collision moved to the explanation; in
+  their place is the thing a reader actually needs — how to edit a value
+  that lives in an include, and the trap of naming an entry that pulls
+  the same file in (the value meets itself, verdict `invalid`, nothing
+  written). Both ports were measured; they agree.
+- **Two claims had outlived their premise.** `trim --check`'s
+  justification was that rewriting needs a format-preserving editor —
+  which `set --in-place` disproved; the real reason is that deleting an
+  entry is a different edit from replacing one, and a span does not say
+  which blank line went with it. `AGENTS.md` described a CI tree under
+  `ci/` that does not exist; the workflow is live in
+  `.github/workflows/build.yml`.
+- **Smaller repairs.** Two internal links pointed at nothing
+  (`reference-api.md#options`, now `#aontuoptions`), the how-to's
+  contents list was missing its newest section, a REPL transcript still
+  showed `v0.50.1`, and the trust contract was still stamped `v0.51`.
+
 ### Added — `set --in-place`, so the repair loop closes
 
 `aontu set` could not repair the commonest failure it exists for.

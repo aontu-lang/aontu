@@ -219,16 +219,68 @@ thing. Its shape views are held to a stronger claim than "a summary":
 each is itself a valid document that *subsumes* the truth, so a
 projection may generalise but may never mislead.
 
-**[`set`](reference-api.md#aontu-set) appends rather than rewrites**,
-and that follows from the lattice rather than from a gap in the
-tooling. Because unification is order-independent, a change written
-into a second file is the same value as the same change written into
-the first — so an overlay needs no format-preserving rewriter, and
-cannot damage the document it is changing. What it cannot do is
-override a value that is already pinned: the lattice refuses, and the
-loop becomes `set` → conflict → `why` → edit the site that did the
-pinning. That is a slower answer than a silent overwrite, and a much
-better one.
+**[`set`](reference-api.md#aontu-set) appends by default**, and that
+follows from the lattice rather than from a gap in the tooling. Because
+unification is order-independent, a change written into a second file
+is the same value as the same change written into the first — so an
+overlay needs no format-preserving rewriter, and cannot damage the
+document it is changing.
+
+What appending cannot do is override a value that is already **pinned**:
+the lattice refuses, because unification only narrows. That was a real
+hole rather than a principled refusal, and an embarrassing one — the
+commonest validation failure of all is "the data says the wrong thing",
+and the verb built for repair could only fill holes.
+
+`--in-place` closes it, and the interesting part is what it turned out
+*not* to need. The rewriter was deferred for a long time behind a
+comment-preserving CST, on the reasonable-sounding grounds that you
+cannot put a document back together without one. But a CST is what you
+need to **re-serialise** a document, and replacing one value serialises
+nothing: it writes new text over a known span and leaves every other
+byte alone — every comment, every blank line, every alignment space —
+because it never reads them. The prerequisite was for a different job
+than the one that had to be done.
+
+What it *does* need is the ability to say **which bytes**, and to be
+right. That is the second thing this cost more than expected. A site
+names the **token** it points at, not the value it belongs to, and for
+anything compound those are different: `min(1)` reports `min`, `1+2`
+reports `1`, `{b:1}` reports `{`. Writing over those spans produces
+`a: 5(1)` and `a: 5+2` — a corruption with the same shape as the one
+this whole line of work started from, arrived at by a different route.
+
+The fix is worth stating because it generalises past this verb: rather
+than enumerate which shapes are safe — a list is a thing to be
+incomplete about — the candidate text is parsed **on its own** and
+required to mean what the contribution meant. The same unifier that
+produced the value decides whether the text is the whole of it, so the
+answer cannot drift from the engine, and the awkward case falls out
+without being named: `0x1F` canons to `31`, which is not its own
+spelling but *is* the contribution's canon, so a hex literal is
+editable while `min` is not.
+
+One case shows why that check is not the whole of the answer.
+Verification asks whether the text at the span is what the site claims,
+and there is a shape where it says yes and is still wrong: an included
+document holding `a: 42` at row 1 column 4, and the overlay holding
+`x: 42` at row 1 column 4. Same position, same text, so the check
+passes — and the splice rewrites `x` while reporting a replacement of
+`$.a`. What fails there is not the verification but the premise
+underneath it, that a position identifies a place in *this* file. So
+the evaluation that decides what to edit refuses to load at all, and
+the ambiguity never arises: what resolves is what the overlay says by
+itself. Denying the shape is worth more than detecting the collision,
+because a detector is a list of shapes, and the argument here is about
+what happens when the list turns out to be incomplete.
+
+Rewriting is **opt-in** for the reason appending was preferred in the
+first place: appending is reversible in a way that overwriting is not,
+and the two failure modes are not symmetric. So the flag is asked for,
+never inferred; where the span cannot be established the assignment
+appends exactly as it would have without it, and says why. Refusing to
+edit is always available, and always safe. Editing the wrong bytes is
+neither.
 
 ### Meaning, not bytes
 

@@ -32,3 +32,23 @@ because that is the one to edit.
 For a conflict, `aontu why <path> mine.aon` lists every contribution
 to that path with its role and source line, which turns "these
 disagree" into "these two lines disagree".
+
+Then fix it:
+
+```
+aontu set '$.replicas=5' --entry schema.aon --overlay mine.aon --in-place
+```
+
+`--in-place` rewrites the pinned literal **where it was written**, so
+comments and layout survive. Without it, `set` APPENDS — which is the
+right thing when the document left a hole, and cannot work when it
+pinned the wrong value, because unification only narrows.
+
+The edit is verified before a byte is written: a site carries the
+source text it covers, and the text at the span must match it. Where
+that cannot be established — the value comes from a `&:` template or a
+`$ref`, two statements pin the path, the site names the opening token
+of a compound like `min(1)`, or the overlay `@"includes"` another
+document — the assignment is appended as usual and a **warning** says
+which case it hit. A warning never changes the verdict, so asking for
+`--in-place` cannot make a run fail that would have succeeded.

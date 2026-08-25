@@ -22,12 +22,12 @@ top-level `ts/` and `go/` siblings and a fan-out `Makefile`. On top of
 that, this repo adds a **shared, data-driven test suite** so both
 implementations are checked against the same cases.
 
-> **CI note:** the intended two-job (TypeScript + Go) GitHub Actions
-> workflow is provided as a full `.github` tree under
-> [`ci/`](ci/) (`ci/.github/workflows/build.yml`). Updating
-> `.github/workflows/` requires the GitHub `workflow` OAuth scope, so
-> copy `ci/.github` over the repo's `.github` and push from an account
-> that has the scope to enable it.
+> **CI note:** the workflow lives at
+> [`.github/workflows/build.yml`](.github/workflows/build.yml) and runs
+> three jobs — `build-ts`, `build-go`, and `coverage` (the ADR-002
+> floor). Editing anything under `.github/workflows/` needs the GitHub
+> `workflow` OAuth scope, so a push that touches it must come from an
+> account that has the scope.
 
 ## Repository layout
 
