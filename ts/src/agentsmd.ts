@@ -113,6 +113,18 @@ export function agentsMdSplice(existing: string, stanza: string): string {
       ? existing : existing + '\n'
     return head + ('' === existing ? '' : '\n') + stanza
   }
-  return existing.slice(0, from) + stanza +
-    existing.slice(to + AGENTSMD_END.length + 1)
+  // Skip the end marker's line terminator, whatever it is, and only if
+  // it is there. The full note is on the Go twin (go/agentsmd.go): `+1`
+  // assumed one byte and got the CR of a CRLF document, leaving the LF
+  // to become a blank line on every regeneration -- and past the end of
+  // a document whose marker is its last content, where Go panicked and
+  // this side quietly did not.
+  let end = to + AGENTSMD_END.length
+  if ('\r' === existing[end]) {
+    end++
+  }
+  if ('\n' === existing[end]) {
+    end++
+  }
+  return existing.slice(0, from) + stanza + existing.slice(end)
 }

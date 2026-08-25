@@ -1069,6 +1069,31 @@ describe('cli-subsume', () => {
     Assert.match(Fs.readFileSync(bare, 'utf8'),
       /^no trailing newline\n\n<!-- aontu:begin -->/)
 
+    // A CRLF TARGET keeps its own endings outside the markers, and
+    // gains nothing between the end marker and the text after it. The
+    // splice used to skip one byte after the marker, which on CRLF is
+    // the CR -- the LF then survived as a blank line that grew on
+    // every regeneration. Twin: TestAgentsMdSplice in
+    // go/agentsmd_test.go, where the same one byte also ran PAST THE
+    // END of the case below and panicked.
+    const crlf = Path.join(dir, 'CRLF.md')
+    Fs.writeFileSync(crlf,
+      'head\r\n\r\n<!-- aontu:begin -->\r\nOLD\r\n<!-- aontu:end -->\r\ntail\r\n')
+    vetCapture(() => Assert.equal(runAgentsMd(['--write', crlf, entry]), 0))
+    const spliced = Fs.readFileSync(crlf, 'utf8')
+    Assert.match(spliced, /<!-- aontu:end -->\ntail\r\n$/)
+    vetCapture(() => Assert.equal(runAgentsMd(['--write', crlf, entry]), 0))
+    Assert.equal(Fs.readFileSync(crlf, 'utf8'), spliced)
+
+    // The end marker as the LAST content, with no terminator after it.
+    const eof = Path.join(dir, 'EOF.md')
+    Fs.writeFileSync(eof,
+      'head\n\n<!-- aontu:begin -->\nOLD\n<!-- aontu:end -->')
+    vetCapture(() => Assert.equal(runAgentsMd(['--write', eof, entry]), 0))
+    const ended = Fs.readFileSync(eof, 'utf8')
+    Assert.match(ended, /^head\n\n<!-- aontu:begin -->\n/)
+    Assert.equal(ended.includes('OLD'), false)
+
     // A target that does not exist yet is created.
     const fresh = Path.join(dir, 'NEW.md')
     vetCapture(() => Assert.equal(runAgentsMd(['--write', fresh, entry]), 0))
