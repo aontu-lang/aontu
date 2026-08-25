@@ -17,9 +17,11 @@ One Windows defect is recorded rather than fixed: the resolver stack
 tests absoluteness with a leading `/` or `\`, so a drive-letter path
 (`C:/Users/me/x.aon` — an absolute include on Windows) is joined onto
 the base as though it were relative. **Both implementations do this
-identically**, so it is a shared gap and not a divergence; the fix
-belongs in each port's own resolver and needs a Windows machine to
-verify, which is why it is not in this change.
+identically**, so it is a shared gap and not a divergence. The fix
+cannot be a shape rule: on Linux `C:` is a legal directory name and
+`C:/x.aon` a good relative path that resolves today, so the correction
+has to sit behind a platform test — the one branch a contributor on
+Linux cannot exercise. That is why it is not in this change.
 
 - **The Go port had never been tested on Windows.** `build-go` declared
   three operating systems while hardcoding `runs-on: ubuntu-latest`, so
