@@ -2,12 +2,14 @@ export type WhyRole = 'literal' | 'spread' | 'ref' | 'pref';
 export type WhySite = {
     col: number;
     file: string;
+    len: number;
     row: number;
 };
 export type WhyConjunct = {
     canon: string;
     role: WhyRole;
     site: WhySite;
+    src: string;
 };
 export type WhyRecord = {
     conjuncts: WhyConjunct[];

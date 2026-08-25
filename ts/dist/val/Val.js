@@ -108,6 +108,28 @@ class Val {
         out.site.row = spec?.row ?? this.site.row;
         out.site.col = spec?.col ?? this.site.col;
         out.site.url = spec?.url ?? this.site.url;
+        // THE SPAN TRAVELS WITH THE POSITION. Copying row and col but not
+        // the extent would leave a site that names a place and denies it has
+        // any width — internally inconsistent, and it made the two ports
+        // disagree on every derived value (the shared subsume rows caught
+        // it). Safe because the span is VERIFIABLE: a consumer reads the
+        // document at (row, col, len) and refuses when it does not match
+        // `src`, so a span that has stopped describing its value is
+        // detectable rather than believed. See ts/src/site.ts.
+        //
+        // Read from `this.site`, never from the spec: ValSpec.src is a
+        // DIFFERENT field — ScalarVal's literal spelling, kept so `$.a.0x0`
+        // addresses the key `0x0` — and reading it here would put a path
+        // segment where a source span belongs.
+        //
+        // UNCONDITIONAL, as the Go twin is (clonePath, go/clone.go). A
+        // guard dropping the span when the spec relocates the value was
+        // written first and the coverage gate refused it as dead: nothing
+        // clones to a new row or column. Should a relocating caller ever
+        // appear it must drop both fields — an extent belongs to a place,
+        // and the text at a new one is not this value's to claim.
+        out.site.len = this.site.len;
+        out.site.src = this.site.src;
         out.mark = Object.assign({}, this.mark, fullspec.mark ?? {});
         out.mark.type = this.mark.type && (fullspec.mark?.type ?? true);
         out.mark.hide = this.mark.hide && (fullspec.mark?.hide ?? true);
@@ -170,6 +192,8 @@ class Val {
         v.site.row = this.site.row;
         v.site.col = this.site.col;
         v.site.url = this.site.url;
+        v.site.len = this.site.len;
+        v.site.src = this.site.src;
         return v;
     }
     // CONTRACT: implementations should treat `this` and `peer` as

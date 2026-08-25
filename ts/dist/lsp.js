@@ -84,7 +84,7 @@ function computeDiagnostics(src, opts) {
                 start: { line: v.site.row - 1, character: v.site.col - 1 },
                 end: {
                     line: v.site.row - 1,
-                    character: v.site.col - 1 + String(v.canon).length,
+                    character: v.site.col - 1 + siteExtent(v),
                 },
             },
             severity: 4,
@@ -121,9 +121,42 @@ function nilToDiagnostic(nil) {
     };
 }
 // Length (UTF-16 units, like LSP characters) of the offending value's
-// canonical form, used to size the diagnostic range (minimum 1).
+// SOURCE TEXT, used to size the diagnostic range (minimum 1).
 function labelLength(nil) {
-    const c = nil.primary?.canon;
+    return null == nil.primary ? 1 : siteExtent(nil.primary);
+}
+// The extent to underline for a value: its SOURCE TEXT's length, with
+// the canon as the fallback and 1 as the floor.
+//
+// CANON IS NOT SOURCE TEXT, which is the whole point of Site.len:
+// `0x1F` has canon `31`, so sizing by canon underlines two characters
+// of a four-character literal — hovering `0x1F` highlighted `0x` and
+// hovering `1F` answered nothing. The Go twin is the same fallback in
+// go/check.go (Problem.Len, ValueSpan.Len), in bytes there because it
+// is added to a byte offset before conversion.
+//
+// The fallback is for a value carrying no stamped span — one propagated
+// onto a result rather than written by a document — where canon is all
+// there is and an approximate underline beats none. A REPORT never
+// guesses this way: vet and why emit len only when it is known, because
+// there a wrong length is a corrupted document rather than a wonky
+// highlight.
+function siteExtent(v) {
+    const len = v?.site?.len;
+    if ('number' === typeof len && len > 0) {
+        return len;
+    }
+    // CANON IS READ DEFENSIVELY, as every other reader here does: it is a
+    // getter that unifies, and a host-supplied value can throw from it
+    // (hover-refuses-bad-input). A hover that cannot measure a value
+    // still has to answer for the rest of the document.
+    let c = '';
+    try {
+        c = v?.canon;
+    }
+    catch {
+        c = '';
+    }
     return 'string' === typeof c && c.length > 0 ? c.length : 1;
 }
 // Build the human-readable message. Kept identical to the Go port's
@@ -263,15 +296,24 @@ function collectHoverCandidates(v, out, seen) {
     catch {
         canon = '';
     }
+    // The span to highlight: the value's own source text where it has
+    // one, canon otherwise. See siteExtent.
+    const span = siteExtent(v);
+    const spanSrc = 'string' === typeof v.site?.src ? v.site.src : '';
     // Hover targets concrete values (scalars, kinds, refs, …), not
     // containers: a map/list source span is not reliably reconstructable
     // from a single site, and the same restriction in the Go port keeps
     // hover behaviour identical across implementations. The walk still
     // recurses into containers below to reach their leaf values. Canon is
     // single-line, so its length approximates the on-line source span.
-    if (row >= 1 && col >= 1 && canon.length > 0 && !canon.includes('\n') &&
+    // Single-line is decided by the SOURCE TEXT when there is one: a
+    // multi-line token cannot be described by one line's start and end,
+    // and canon's newlines are not the token's. Falling back to canon
+    // keeps the old test for a value with no stamped span.
+    const multiline = '' === spanSrc ? canon.includes('\n') : spanSrc.includes('\n');
+    if (row >= 1 && col >= 1 && canon.length > 0 && !multiline &&
         !v.isMap && !v.isList) {
-        out.push({ val: v, line: row - 1, start: col - 1, end: col - 1 + canon.length });
+        out.push({ val: v, line: row - 1, start: col - 1, end: col - 1 + span });
     }
     const peg = v.peg;
     if (Array.isArray(peg)) {

@@ -48,7 +48,35 @@ export type VetSite = {
   file: string
   row: number
   col: number
+  // The extent in UTF-16 code units, or -1 when unknown — the same
+  // "unknown" row and col already use.
+  //
+  // THIS IS WHAT MAKES A FINDING REPAIRABLE. `value` is the CANON, not
+  // the source text: `port: 0x1F` reports canon `31` at column 7, so a
+  // consumer replacing `(col, value.length)` writes `port: 5x1F` and
+  // corrupts the document. With `len` the span is `(col, 4)` and the
+  // replacement is exact.
+  //
+  // NEVER GUESSED. Where the span is unknown this is -1 and a consumer
+  // must not edit — unlike the LSP, which falls back to canon because a
+  // wonky highlight is cosmetic while a wrong edit is a lost file.
+  // See ts/src/site.ts for what the extent covers.
+  len: number
   role: VetRole
+  // The SOURCE TEXT the span covers, or '' when unknown.
+  //
+  // This is what makes the span SELF-VERIFYING, and it is not the same
+  // as `value`. For a scalar the two differ by normalisation — `0x1F`
+  // has src `0x1F` and value (canon) `31`. For a COMPOUND the span
+  // names the opening token only, exactly as row and col always have:
+  // a constraint `min(1)` reports src `min`, and a reference `$.b`
+  // reports src `$`.
+  //
+  // So a consumer must read the document at (row, col, len), compare it
+  // to `src`, and REFUSE when they differ — and, seeing `min` where it
+  // expected `min(1)`, refuse rather than replace the name and orphan
+  // the arguments. Without this field that mistake is undetectable.
+  src?: string
   value?: string
 }
 
@@ -158,7 +186,9 @@ function siteOf(v: any, dataUrl: string): VetSite | undefined {
     file,
     row: v.site.row,
     col: v.site.col,
+    len: v.site.len,
     role: dataUrl === file ? 'data' : 'schema',
+    src: v.site.src,
     value: v.canon,
   }
 }
@@ -497,7 +527,9 @@ export function vet(
               file: schemaUrl,
               row: d.site?.row ?? -1,
               col: d.site?.col ?? -1,
+              len: d.site?.len ?? -1,
               role: 'schema',
+              src: d.site?.src ?? '',
               value: d.canon,
             }],
           })
@@ -584,7 +616,9 @@ export function vet(
         file,
         row: v.site.row ?? -1,
         col: v.site.col ?? -1,
+        len: v.site.len ?? -1,
         role: (dataUrl === file ? 'data' : 'schema') as VetRole,
+        src: v.site.src ?? '',
         value: v.canon,
       }],
     })

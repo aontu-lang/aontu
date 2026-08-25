@@ -88,7 +88,7 @@ function redact(sarif) {
                 severity,
                 path: '$',
                 message: 'm',
-                sites: [{ file: 'f', row: 1, col: 1, role: 'data' }],
+                sites: [{ file: 'f', row: 1, col: 1, len: -1, role: 'data' }],
             })),
         };
         const log = JSON.parse((0, aontu_1.sarifReport)(report, 'x'));
@@ -107,7 +107,7 @@ function redact(sarif) {
                     severity: 'error',
                     path: '$',
                     message: 'm',
-                    sites: [{ file: 'data.aon', row: -1, col: -1, role: 'data' }],
+                    sites: [{ file: 'data.aon', row: -1, col: -1, len: -1, role: 'data' }],
                 }],
         };
         const log = JSON.parse((0, aontu_1.sarifReport)(report, 'x'));
@@ -149,7 +149,7 @@ function redact(sarif) {
                     severity: 'error',
                     path: '$',
                     message: 'm',
-                    sites: [{ file: 'a b#c%.aon', row: 1, col: 1, role: 'data' }],
+                    sites: [{ file: 'a b#c%.aon', row: 1, col: 1, len: -1, role: 'data' }],
                 }],
         };
         const log = JSON.parse((0, aontu_1.sarifReport)(report, 'x'));

@@ -158,7 +158,11 @@ class Provenance {
             // source it was handed, and an inline document (a spec row, a
             // piped stdin) has no file name to stamp. The Go port answers
             // the empty string for the same value, so the two agree.
-            site: { col: v.site.col, file: v.site.url ?? '', row: v.site.row },
+            site: {
+                col: v.site.col, file: v.site.url ?? '', len: v.site.len,
+                row: v.site.row,
+            },
+            src: v.site.src,
         });
     }
     // The record at one path. Empty when nothing met there — a value

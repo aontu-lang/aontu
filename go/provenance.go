@@ -31,13 +31,28 @@ const (
 type WhySite struct {
 	Col  int    `json:"col"`
 	File string `json:"file"`
-	Row  int    `json:"row"`
+	// Len is the extent in UTF-16 code units, or -1 when unknown. The
+	// same field, and the same meaning, as VetSite.Len (go/vet.go).
+	Len int `json:"len"`
+	Row int `json:"row"`
 }
 
 type WhyConjunct struct {
 	Canon string  `json:"canon"`
 	Role  string  `json:"role"`
 	Site  WhySite `json:"site"`
+	// Src is the SOURCE TEXT this contribution was written as.
+	//
+	// Canon is the value; Src is the spelling. They are not the same
+	// thing, and the difference is the whole reason this record exists:
+	// `port: 0x1F` contributes canon `31` from source `0x1F`, so a
+	// reader told only the canon cannot find, verify or replace what was
+	// actually written. Empty when the contribution occupies no source
+	// -- a value unification minted rather than a document wrote.
+	//
+	// LEXICOGRAPHIC field order, as everywhere the two emitters must
+	// agree byte for byte: src sorts after site.
+	Src string `json:"src"`
 }
 
 type WhyRecord struct {
@@ -206,7 +221,10 @@ func (p *Provenance) contribute(rec *whyPathRecord, v Val) {
 		WhyConjunct: WhyConjunct{
 			Canon: v.Canon(),
 			Role:  p.whyRole(v),
-			Site:  WhySite{Col: col, File: v.srcurl(), Row: row},
+			Site: WhySite{
+				Col: col, File: v.srcurl(), Len: v.srclen(), Row: row,
+			},
+			Src: v.srctext(),
 		},
 		val: v,
 	})

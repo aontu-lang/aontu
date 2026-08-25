@@ -40,8 +40,116 @@ const Fs = __importStar(require("node:fs"));
 const Os = __importStar(require("node:os"));
 const Path = __importStar(require("node:path"));
 const vet_1 = require("../dist/vet");
+const subsume_1 = require("../dist/subsume");
 const aontu_1 = require("../dist/aontu");
 const SCHEMA = 'service: { name: string, port: integer }';
+// THE REPAIR THE REPORT SAYS IS UNSAFE, made safe. A finding's site
+// used to carry a point and no extent, so the only length available to
+// a consumer was the CANON — and canon is not source text. Both halves
+// are asserted here: the span-driven edit is exact, and the
+// canon-driven one corrupts, so the test states what it prevents rather
+// than only that it passes.
+//
+// Status report 2026-08-21 §5, "the manual fallback corrupts files".
+// Twin: TestVetSiteSpanIsSafeToReplace in go/vet_test.go.
+(0, node_test_1.describe)('vet-site-span', () => {
+    const DATA = 'port: 0x1F\n';
+    const siteOfFirstDataFinding = () => {
+        const report = (0, vet_1.vet)('port: integer & min(9000)', DATA);
+        Assert.equal(report.verdict, 'invalid');
+        const site = report.findings[0].sites.find((s) => 'data' === s.role);
+        Assert.ok(site, 'no data site');
+        return site;
+    };
+    const replaceAt = (col, len, text) => DATA.slice(0, col - 1) + text + DATA.slice(col - 1 + len);
+    (0, node_test_1.test)('the-span-covers-the-whole-literal', () => {
+        const site = siteOfFirstDataFinding();
+        Assert.equal(site.row, 1);
+        Assert.equal(site.col, 7);
+        // The canon is `31`; the source is `0x1F`. That gap IS the defect.
+        Assert.equal(site.value, '31');
+        Assert.equal(site.src, '0x1F');
+        Assert.equal(site.len, 4);
+    });
+    (0, node_test_1.test)('replacing-by-the-span-is-exact', () => {
+        const site = siteOfFirstDataFinding();
+        Assert.equal(replaceAt(site.col, site.len, '9000'), 'port: 9000\n');
+    });
+    (0, node_test_1.test)('replacing-by-the-canon-length-corrupts', () => {
+        // What a consumer had to do before, and what it produced: the canon
+        // is two characters long, so the edit lands inside the literal and
+        // leaves the rest of it behind.
+        const site = siteOfFirstDataFinding();
+        Assert.equal(replaceAt(site.col, String(site.value).length, '9000'), 'port: 90001F\n');
+    });
+    // THE INVARIANT, over the whole shared suite rather than one case:
+    // a site that carries a span must describe the text at it. Reading
+    // the document at (row, col, len) has to yield exactly `src`.
+    //
+    // This is not decoration. A site whose position and text disagree is
+    // WORSE than a coarse one — a consumer following the verification
+    // contract refuses every repair, and one skipping it edits the wrong
+    // token. The first version of this change shipped exactly that
+    // defect: `close({...})` reported the call's column beside the map's
+    // `{`, so the document at the span read `c`. Found in review of the
+    // pull request, and this is what stops it returning.
+    (0, node_test_1.test)('every-span-in-the-suite-describes-its-own-text', () => {
+        const specDir = Path.join(__dirname, '..', '..', 'test', 'spec');
+        const rows = ['vet.tsv', 'subsume.tsv', 'deprecate.tsv'].flatMap((f) => Fs.readFileSync(Path.join(specDir, f), 'utf8')
+            .replace(/\r\n/g, '\n').split('\n'));
+        const unesc = (t) => {
+            let o = '';
+            for (let i = 0; i < t.length; i++) {
+                const c = t[i];
+                if ('\\' === c && i + 1 < t.length) {
+                    const n = t[++i];
+                    o += 'n' === n ? '\n' : 't' === n ? '\t' : n;
+                }
+                else
+                    o += c;
+            }
+            return o;
+        };
+        let checked = 0;
+        for (const line of rows) {
+            const p = line.split('\t');
+            if (!line || line.startsWith('#') || 5 > p.length)
+                continue;
+            if ('vet' !== p[1] && 'subsume' !== p[1])
+                continue;
+            const schema = unesc(p[2]), data = unesc(p[3]);
+            const opts = (JSON.parse(unesc(p[4])) ?? {}).opts;
+            // `subsume` roles the two documents general/specific; `vet` roles
+            // them schema/data. Either way the FIRST column is the first
+            // argument, which is what the role has to select between.
+            const report = 'vet' === p[1]
+                ? (0, vet_1.vet)(schema, data, opts)
+                : (0, subsume_1.subsume)(schema, data, opts);
+            for (const f of report.findings) {
+                for (const site of f.sites ?? []) {
+                    if (!(site.len > 0))
+                        continue;
+                    const text = ('data' === site.role || 'specific' === site.role) ? data : schema;
+                    const line = text.split('\n')[site.row - 1];
+                    Assert.ok(null != line, `${p[0]}: row ${site.row} past end of file`);
+                    Assert.equal(line.substr(site.col - 1, site.len), site.src, `${p[0]}: the document at (${site.row}, ${site.col}, ${site.len}) ` +
+                        `is not the site's own src`);
+                    checked++;
+                }
+            }
+        }
+        // A silent zero would pass vacuously, exactly as the documentation
+        // extractor could.
+        Assert.ok(40 < checked, `only ${checked} spans checked`);
+    });
+    (0, node_test_1.test)('the-span-is-verifiable-against-the-document', () => {
+        // The reason `src` is carried and not just `len`: a consumer can
+        // check that the span still describes what it is about to replace.
+        const site = siteOfFirstDataFinding();
+        const line = DATA.split('\n')[site.row - 1];
+        Assert.equal(line.substr(site.col - 1, site.len), site.src);
+    });
+});
 (0, node_test_1.describe)('vet-verdicts', () => {
     (0, node_test_1.test)('valid-data-is-valid', () => {
         const r = (0, vet_1.vet)(SCHEMA, 'service: { name: "auth", port: 8080 }');

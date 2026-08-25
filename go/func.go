@@ -449,6 +449,23 @@ func (f *FuncVal) Unify(peer Val, ctx *Ctx) Val {
 			out.setPos(f.sp)
 			out.setPosu(f.spu)
 			out.setSrcurl(f.surl)
+			// THE SPAN COMES WITH THE POSITION, always -- and the first
+			// attempt here kept it only for a value that had none of its
+			// own, on the theory that a wrapper should not claim the
+			// text of the thing it wraps. That was wrong, and the review
+			// of it was right: the position moves unconditionally two
+			// lines above, so a span left behind describes a DIFFERENT
+			// PLACE than the row and column beside it. `close({...})`
+			// then reported the call's column and the map's `{`, and
+			// reading the document at (row, col, len) found `c`.
+			//
+			// A site that contradicts itself is worse than a coarse one:
+			// a consumer following the verification contract refuses
+			// every such repair, and one skipping it edits the wrong
+			// token. Whatever the position names, the text names too --
+			// here that is the call, which is honest and is what the
+			// canonical port now records (ts/src/val/FuncBaseVal.ts).
+			out.setSrctext(f.srctext())
 		}
 	} else if isTop(peer) {
 		f.notdone()

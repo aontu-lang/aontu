@@ -1291,8 +1291,14 @@ describe('cli-subsume', () => {
     Assert.equal(
       renderWhyText({
         conjuncts: [
-          { canon: '1', role: 'literal', site: { col: -1, file: '', row: -1 } },
-          { canon: 'integer', role: 'spread', site: { col: 3, file: '', row: 2 } },
+          {
+            canon: '1', role: 'literal', src: '',
+            site: { col: -1, file: '', len: -1, row: -1 },
+          },
+          {
+            canon: 'integer', role: 'spread', src: 'integer',
+            site: { col: 3, file: '', len: 7, row: 2 },
+          },
         ],
         path: '$.a',
         value: '1',

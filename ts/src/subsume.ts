@@ -87,7 +87,9 @@ function siteOf(v: any, role: string, url: string): VetSite {
     file: url,
     row: v.site.row,
     col: v.site.col,
+    len: v.site.len,
     role: role as any,
+    src: v.site.src,
     value: v.canon,
   }
 }
@@ -484,7 +486,16 @@ function subsumeBag(
 let topVal: any
 function topLike(): any {
   if (null == topVal) {
-    topVal = { isTop: true, canon: 'top', site: { row: -1, col: -1 } }
+    // A full site, not a partial one: `len` and `src` are as much part
+    // of the shape as row and col, and leaving them undefined dropped
+    // both keys from the emitted report — so this stand-in was the one
+    // site in either port with no `len` at all, and the Go twin (which
+    // has no undefined) disagreed. It occupies no source, so the values
+    // are the "unknown" ones.
+    topVal = {
+      isTop: true, canon: 'top',
+      site: { row: -1, col: -1, len: -1, src: '' },
+    }
   }
   return topVal
 }

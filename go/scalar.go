@@ -205,6 +205,7 @@ func scalarPegSame(kind Kind, a, b any) bool {
 func (s *ScalarVal) superior() Val {
 	k := newScalarKind(s.kind)
 	k.sp, k.spu, k.surl = s.sp, s.spu, s.surl
+	k.stext = s.stext
 	return k
 }
 

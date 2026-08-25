@@ -23,6 +23,29 @@ func TestHoverScalar(t *testing.T) {
 	}
 }
 
+// A LITERAL WHOSE CANON IS NOT ITS SOURCE TEXT. `0x1F` renders as
+// canon `31`, and sizing the hover by canon underlined two characters
+// of a four-character literal: hovering the `0x` answered 6..8 and
+// hovering the `1F` answered NOTHING, because the span stopped before
+// the cursor. Every column of the literal now answers the whole of it.
+//
+// The twin is hover-over-a-literal-whose-canon-is-shorter in
+// ts/test/lsp.test.ts, and the defect is status report §5's
+// "Site is a point with no extent".
+func TestHoverSpansTheWholeLiteral(t *testing.T) {
+	const src = "port: 0x1F"
+	for col := 6; col <= 9; col++ {
+		h := Hover(src, 0, col, false)
+		if nil == h || nil == h.Range {
+			t.Fatalf("col %d: no hover over %q", col, src[col:col+1])
+		}
+		if 6 != h.Range.Start.Character || 10 != h.Range.End.Character {
+			t.Errorf("col %d: range = %d..%d, want 6..10",
+				col, h.Range.Start.Character, h.Range.End.Character)
+		}
+	}
+}
+
 func TestHoverType(t *testing.T) {
 	h := Hover("a:{x:string}", 0, 5, false)
 	if h == nil || !strings.Contains(h.Contents.Value, "string") || !strings.Contains(h.Contents.Value, "type") {

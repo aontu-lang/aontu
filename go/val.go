@@ -49,6 +49,22 @@ type Val interface {
 	setDc(dc int)
 	pos() int
 	setPos(p int)
+
+	// srctext is the SOURCE TEXT this value was written as, and
+	// srclen its extent in UTF-16 code units -- the units columns are
+	// already counted in (see utf16Len). Together with pos they make a
+	// site editable: canon is not source text, so `0x1F` (canon `31`)
+	// cannot be replaced by canon's length without corrupting the
+	// document. The twin is Site.len/Site.src in ts/src/site.ts, which
+	// carries the full note.
+	//
+	// THE EXTENT IS DERIVED FROM THE TEXT, in both ports, so the two
+	// cannot drift: TypeScript takes `src.length` (UTF-16 natively) and
+	// this takes utf16Len(stext). Reading the token's own `len` field
+	// instead would be one more thing to keep in step for no gain.
+	srctext() string
+	srclen() int
+	setSrctext(text string)
 	posu() bool
 	setPosu(u bool)
 	srcurl() string
@@ -84,6 +100,14 @@ type base struct {
 	dc   int
 	sp   int      // source position (byte offset), used to order error operands
 	path []string // path from root (for reference resolution)
+	// The source TEXT this value was written as, the other half of sp.
+	// Empty means NO SPAN -- the value was minted by unification rather
+	// than written, or its rule had no open token -- and srclen answers
+	// -1 there, the same "unknown" row and col already use. A token with
+	// no text is no span, in both ports, which is what lets Go leave
+	// this at its zero value everywhere a Val is constructed instead of
+	// threading a -1 default through every newX. See ts/src/site.ts.
+	stext string
 	// spu marks a clone-minted value. TS sites carry a url that is null
 	// on parsed values and BECOMES '' at Val.clone (`?? ''`), and
 	// NilVal.make's later-in-source primary flip fires only when the two
@@ -193,11 +217,22 @@ func setSprOn(v Val, s Val) {
 	}
 }
 
-func (b *base) Dc() int             { return b.dc }
-func (b *base) Nil() bool           { return false }
-func (b *base) setDc(dc int)        { b.dc = dc }
-func (b *base) pos() int            { return b.sp }
-func (b *base) setPos(p int)        { b.sp = p }
+func (b *base) Dc() int                { return b.dc }
+func (b *base) Nil() bool              { return false }
+func (b *base) setDc(dc int)           { b.dc = dc }
+func (b *base) pos() int               { return b.sp }
+func (b *base) setPos(p int)           { b.sp = p }
+func (b *base) srctext() string        { return b.stext }
+func (b *base) setSrctext(text string) { b.stext = text }
+
+// srclen is the extent in UTF-16 code units, or -1 for no span. Derived
+// rather than stored: see the note on the interface method.
+func (b *base) srclen() int {
+	if "" == b.stext {
+		return -1
+	}
+	return utf16Len(b.stext)
+}
 func (b *base) posu() bool          { return b.spu }
 func (b *base) setPosu(u bool)      { b.spu = u }
 func (b *base) srcurl() string      { return b.surl }

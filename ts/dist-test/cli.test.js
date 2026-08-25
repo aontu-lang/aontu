@@ -1001,8 +1001,14 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
     (0, node_test_1.test)('why-renders-a-siteless-contribution', () => {
         Assert.equal((0, cli_1.renderWhyText)({
             conjuncts: [
-                { canon: '1', role: 'literal', site: { col: -1, file: '', row: -1 } },
-                { canon: 'integer', role: 'spread', site: { col: 3, file: '', row: 2 } },
+                {
+                    canon: '1', role: 'literal', src: '',
+                    site: { col: -1, file: '', len: -1, row: -1 },
+                },
+                {
+                    canon: 'integer', role: 'spread', src: 'integer',
+                    site: { col: 3, file: '', len: 7, row: 2 },
+                },
             ],
             path: '$.a',
             value: '1',

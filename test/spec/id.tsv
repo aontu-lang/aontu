@@ -159,7 +159,7 @@ hash-anonymous	hash	a: {k:1}	aon1-DsMzdxA3lFJo0LiXpNlwie2-s-g8kd1g3tCMPdoqU2M
 # and the equal-pair fast path is skipped there — because the Go
 # recorder wraps the whole dispatcher and TypeScript's sat at the tail
 # of the slow path. Uninstrumented runs are untouched.
-why-entity-merged-key	why	a: id(x) & {k:1}\nb: id(x) & {j:2}	$.b.k	{"conjuncts":[{"canon":"1","role":"literal","site":{"col":15,"file":"","row":1}}],"value":"1"}
-why-entity-own-key	why	a: id(x) & {k:1}\nb: id(x) & {j:2}	$.a.k	{"conjuncts":[{"canon":"1","role":"literal","site":{"col":15,"file":"","row":1}}],"value":"1"}
-why-entity-position	why	a: id(x) & {k:1}\nb: id(x) & {j:2}	$.b	{"conjuncts":[{"canon":"{\\"k\\":1}","role":"literal","site":{"col":12,"file":"","row":1}},{"canon":"id(\\"x\\")","role":"literal","site":{"col":4,"file":"","row":2}},{"canon":"{\\"j\\":2}","role":"literal","site":{"col":12,"file":"","row":2}}],"value":"{\\"j\\":2,\\"k\\":1}"}
-why-entity-agreeing-key	why	a: id(x) & {k:1}\nb: id(x) & {k:1}	$.b.k	{"conjuncts":[{"canon":"1","role":"literal","site":{"col":15,"file":"","row":1}},{"canon":"1","role":"literal","site":{"col":15,"file":"","row":2}}],"value":"1"}
+why-entity-merged-key	why	a: id(x) & {k:1}\nb: id(x) & {j:2}	$.b.k	{"conjuncts":[{"canon":"1","role":"literal","site":{"col":15,"file":"","len":1,"row":1},"src":"1"}],"value":"1"}
+why-entity-own-key	why	a: id(x) & {k:1}\nb: id(x) & {j:2}	$.a.k	{"conjuncts":[{"canon":"1","role":"literal","site":{"col":15,"file":"","len":1,"row":1},"src":"1"}],"value":"1"}
+why-entity-position	why	a: id(x) & {k:1}\nb: id(x) & {j:2}	$.b	{"conjuncts":[{"canon":"{\\"k\\":1}","role":"literal","site":{"col":12,"file":"","len":1,"row":1},"src":"{"},{"canon":"id(\\"x\\")","role":"literal","site":{"col":4,"file":"","len":2,"row":2},"src":"id"},{"canon":"{\\"j\\":2}","role":"literal","site":{"col":12,"file":"","len":1,"row":2},"src":"{"}],"value":"{\\"j\\":2,\\"k\\":1}"}
+why-entity-agreeing-key	why	a: id(x) & {k:1}\nb: id(x) & {k:1}	$.b.k	{"conjuncts":[{"canon":"1","role":"literal","site":{"col":15,"file":"","len":1,"row":1},"src":"1"},{"canon":"1","role":"literal","site":{"col":15,"file":"","len":1,"row":2},"src":"1"}],"value":"1"}

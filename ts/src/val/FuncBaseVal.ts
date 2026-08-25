@@ -251,6 +251,17 @@ class FuncBaseVal extends FeatureVal {
           out.site.row = this.site.row
           out.site.col = this.site.col
           out.site.url = this.site.url
+          // THE SPAN COMES WITH THE POSITION, always. Moving row and
+          // col onto the result while leaving its own text behind
+          // produced a site that contradicted itself: `close({...})`
+          // reported the call's column and the map's `{`, so reading
+          // the document at (row, col, len) found `c` where `src` said
+          // `{`. A consumer following the verification contract would
+          // refuse every such repair; one skipping it would edit the
+          // wrong token. Whatever the position names, the text names
+          // too. Twin: the same assignment in go/func.go.
+          out.site.len = this.site.len
+          out.site.src = this.site.src
           out.path = this.path
 
           why += 'pegdone'
@@ -263,6 +274,17 @@ class FuncBaseVal extends FeatureVal {
           out.site.row = this.site.row
           out.site.col = this.site.col
           out.site.url = this.site.url
+          // THE SPAN COMES WITH THE POSITION, always. Moving row and
+          // col onto the result while leaving its own text behind
+          // produced a site that contradicted itself: `close({...})`
+          // reported the call's column and the map's `{`, so reading
+          // the document at (row, col, len) found `c` where `src` said
+          // `{`. A consumer following the verification contract would
+          // refuse every such repair; one skipping it would edit the
+          // wrong token. Whatever the position names, the text names
+          // too. Twin: the same assignment in go/func.go.
+          out.site.len = this.site.len
+          out.site.src = this.site.src
           out.path = this.path
 
           why += 'top'
@@ -282,6 +304,17 @@ class FuncBaseVal extends FeatureVal {
           out.site.row = this.site.row
           out.site.col = this.site.col
           out.site.url = this.site.url
+          // THE SPAN COMES WITH THE POSITION, always. Moving row and
+          // col onto the result while leaving its own text behind
+          // produced a site that contradicted itself: `close({...})`
+          // reported the call's column and the map's `{`, so reading
+          // the document at (row, col, len) found `c` where `src` said
+          // `{`. A consumer following the verification contract would
+          // refuse every such repair; one skipping it would edit the
+          // wrong token. Whatever the position names, the text names
+          // too. Twin: the same assignment in go/func.go.
+          out.site.len = this.site.len
+          out.site.src = this.site.src
           out.path = this.path
 
           why += 'defer'

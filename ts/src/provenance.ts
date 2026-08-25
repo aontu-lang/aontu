@@ -36,6 +36,9 @@ export type WhyRole = 'literal' | 'spread' | 'ref' | 'pref'
 export type WhySite = {
   col: number
   file: string
+  // The extent in UTF-16 code units, or -1 when unknown. The same
+  // field, and the same meaning, as VetSite.len (ts/src/vet.ts).
+  len: number
   row: number
 }
 
@@ -43,6 +46,15 @@ export type WhyConjunct = {
   canon: string
   role: WhyRole
   site: WhySite
+  // The SOURCE TEXT this contribution was written as.
+  //
+  // `canon` is the value; `src` is the spelling. They are not the same
+  // thing, and the difference is the whole reason this record exists:
+  // `port: 0x1F` contributes canon `31` from source `0x1F`, so a reader
+  // told only the canon cannot find, verify or replace what was
+  // actually written. Empty when the contribution occupies no source —
+  // a value unification minted rather than a document wrote.
+  src: string
 }
 
 export type WhyRecord = {
@@ -239,7 +251,11 @@ export class Provenance {
       // source it was handed, and an inline document (a spec row, a
       // piped stdin) has no file name to stamp. The Go port answers
       // the empty string for the same value, so the two agree.
-      site: { col: v.site.col, file: v.site.url ?? '', row: v.site.row },
+      site: {
+        col: v.site.col, file: v.site.url ?? '', len: v.site.len,
+        row: v.site.row,
+      },
+      src: v.site.src,
     })
   }
 
