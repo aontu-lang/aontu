@@ -336,12 +336,16 @@ func anchorAt(root Val, at string) Val {
 // message text. A machine-readable report is no place for them.
 var ansiRe = regexp.MustCompile("\u001b\\[[0-9;]*m")
 
-// dataParseFinding projects a data document's parse failure as the one
-// finding the report carries. Built by hand rather than through a
-// NilVal because the parse never produced one: what Go has is the
-// error, and the error already knows the code, the position and the
-// text (val.go, AontuError).
-func dataParseFinding(dataURL string, err error) VetFinding {
+// parseFinding projects a document's parse failure as the one finding
+// the report carries. Built by hand rather than through a NilVal
+// because the parse never produced one: what Go has is the error, and
+// the error already knows the code, the position and the text (val.go,
+// AontuError).
+//
+// Both documents use it. The failure is the same failure whichever
+// document it is in -- only the url, the role, and the verdict the
+// caller returns with it differ.
+func parseFinding(url, role string, err error) VetFinding {
 	ae, ok := err.(*AontuError)
 	if !ok { //coverage:ignore every parse failure path returns an *AontuError (lang.go)
 		ae = &AontuError{Msg: err.Error(), Code: "parse", Row: -1, Col: -1}
@@ -369,8 +373,8 @@ func dataParseFinding(dataURL string, err error) VetFinding {
 		Severity: "error",
 		Sites: []VetSite{{
 			Col:   col,
-			File:  dataURL,
-			Role:  VetRoleData,
+			File:  url,
+			Role:  role,
 			Row:   row,
 			Value: "nil",
 		}},
@@ -408,7 +412,12 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 		maxErrors = options.MaxErrors
 	}
 
-	broken := VetReport{Verdict: VetError, Truncated: false, Findings: []VetFinding{}}
+	// No bare `error` report is built here any more, and the absence is
+	// the point: every way this function can answer `error` -- a schema
+	// that will not parse, a schema that does not stand up, an `--at`
+	// that names nothing -- now carries the finding that says what and
+	// where. There is nothing left for an empty-finding constant to be
+	// used by.
 
 	// TWO instances, because the two documents may live in different
 	// directories and each one's includes resolve from its own.
@@ -419,13 +428,59 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 	//    is never blamed for it.
 	schemaParsed, perr := schemaA.Parse(schemaSrc)
 	if perr != nil {
-		return broken
+		// A SCHEMA THAT WILL NOT PARSE reports, exactly as unparseable
+		// data does one branch further down -- same finding, same
+		// parser code, the role and the verdict being the only
+		// difference. It used to return an empty finding list, so a
+		// caller was told the schema was broken and never where.
+		return VetReport{
+			Verdict:   VetError,
+			Truncated: false,
+			Findings:  []VetFinding{parseFinding(schemaURL, VetRoleSchema, perr)},
+		}
 	}
 	schemaCtx := &Ctx{root: schemaParsed, src: schemaSrc, collect: true}
 	schemaVal := unifyRoot(schemaParsed, schemaCtx)
 	schemaCtx.root = schemaVal
 	if 0 < len(schemaCtx.err) || schemaVal.Nil() {
-		return broken
+		// A broken schema REPORTS, exactly as broken data does. It used
+		// to answer an empty finding list with exit 4 and nothing else,
+		// in both ports: the engine had collected the fault and vet threw
+		// it away, so a caller was told the schema was broken and not
+		// what or where. The verdict stays `error` -- the fault is in the
+		// truth rather than in the data, and that distinction is what the
+		// class is for -- but the finding travels with it.
+		//
+		// The FIRST error only, for the reason the data path gives: later
+		// errors in a document that does not stand up are consequences of
+		// the first rather than separate things to fix.
+		// Mirrors the same branch in ts/src/vet.ts.
+		//
+		// ONE OF THE TWO IS ALWAYS THERE, and both are nils: the branch
+		// condition admits a collected error or a nil root, `Nil()` is
+		// true for *NilVal and for nothing else (val.go), and every
+		// value on schemaCtx.err is one. There is no third case, so
+		// there is no guard here -- a guard that cannot fire is dead
+		// code, and dead code is what ADR-002 exists to keep out.
+		failure, _ := schemaVal.(*NilVal)
+		if 0 < len(schemaCtx.err) {
+			failure = schemaCtx.err[0]
+		}
+		// The normal path stamps both documents before they meet
+		// (stampURL(anchor...) below), and this early return never
+		// reaches it, so it stamps what it is about to report: the
+		// unified root, and the failure itself -- a COLLECTED error is
+		// minted during unification and hangs off no tree, so nothing
+		// else would name it. The walk reaches a failure's operands
+		// (walk.go), which is what makes the sites say which file.
+		stampURL(schemaVal, schemaURL)
+		stampURL(failure, schemaURL)
+		return VetReport{
+			Verdict:   VetError,
+			Truncated: false,
+			Findings: []VetFinding{findingOf(failure, dataURL,
+				vetSources{schemaURL: schemaSrc, dataURL: dataSrc})},
+		}
 	}
 
 	// 2. The anchor: the whole schema, or the value at `--at`.
@@ -433,7 +488,18 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 	if "" != options.At {
 		anchor = anchorAt(schemaVal, options.At)
 		if nil == anchor {
-			return broken
+			// AND IT SAYS WHICH SEGMENT. `--at` naming nothing is an
+			// error verdict for the same reason a broken schema is --
+			// the run could not be set up from the truth's side -- and
+			// it reports for the same reason too: a caller handed exit
+			// 4 and an empty list has nothing to act on. The refusal is
+			// the SAME one Get and Why give for a path that names
+			// nothing, down to the "did you mean" (query.go).
+			return VetReport{
+				Verdict:   VetError,
+				Truncated: false,
+				Findings:  []VetFinding{noPathFinding(schemaVal, options.At)},
+			}
 		}
 	}
 
@@ -513,7 +579,7 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 		return VetReport{
 			Verdict:   VetInvalid,
 			Truncated: false,
-			Findings:  []VetFinding{dataParseFinding(dataURL, derr)},
+			Findings:  []VetFinding{parseFinding(dataURL, VetRoleData, derr)},
 		}
 	}
 	stampURL(anchor, schemaURL)

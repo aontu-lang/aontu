@@ -34,17 +34,38 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        go-version: [1.24, latest]    
-    runs-on: ubuntu-latest
+        go-version: ['1.24', 'stable']
+    runs-on: ${{ matrix.os }}
     defaults:
       run:
         working-directory: go
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Go
+      - name: Set up Go ${{ matrix.go-version }}
         uses: actions/setup-go@v5
-      #  with:
-      #    go-version: '1.24'
+        with:
+          go-version: ${{ matrix.go-version }}
       - run: go build ./...
       - run: go vet ./...
       - run: go test ./...
+
+  # ADR-002 requires 100% coverage in BOTH ports, and until now that
+  # floor was enforced only on a contributor's machine: CI ran the
+  # suites but never the gate, so a drop reached main unremarked. One
+  # job, on ubuntu -- the gate is a property of the code, not of the
+  # platform the suites already cover above.
+  coverage:
+    name: Coverage gate (ADR-002)
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.x
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+      - run: npm install
+        working-directory: ts
+      - run: make cov

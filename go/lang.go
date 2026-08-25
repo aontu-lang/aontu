@@ -2230,7 +2230,25 @@ func parseWithTrust(src, base, file string, trust *trustSink) (Val, error) {
 		// the INNER syntax code that leads errs() on the thrown error,
 		// so `syntax` is the cross-port first-code for a source that
 		// fails to parse (pinned by error.tsv errc-parse-syntax).
-		return newMap(), &AontuError{Msg: err.Error() + opCharHint(src), Code: "syntax"}
+		//
+		// THE POSITION TRAVELS WITH IT. The parser knows exactly where
+		// it stopped -- it draws a caret there -- and the rendered
+		// message carried the only copy, so `vet --format json`
+		// reported row -1, col -1 for a document whose fault the human
+		// renderer located to the character. A machine-readable report
+		// that says "somewhere in this file" is the one a repair loop
+		// can do nothing with. Both fields are already 1-based here
+		// (tabnas.TabnasError), which is the base a site uses.
+		row, col := -1, -1
+		if je, ok := err.(*jsonic.JsonicError); ok {
+			row, col = je.Row, je.Col
+		}
+		return newMap(), &AontuError{
+			Msg:  err.Error() + opCharHint(src),
+			Code: "syntax",
+			Row:  row,
+			Col:  col,
+		}
 	}
 	if out == nil {
 		return newMap(), nil

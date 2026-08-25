@@ -81,6 +81,33 @@ function documents(md) {
             '  replicas: *1 | integer\n}';
         Assert.deepEqual(new aontu_1.Aontu().generate(withDefaults), { service: { name: 'auth', port: 8080, replicas: 1 } });
     });
+    // EVERY LINK THAT ESCAPES THE SKILL DIRECTORY IS ONE prepack KNOWS
+    // ABOUT. `ts/scripts/prepack.js` copies this directory to the
+    // package root as `skill/`, two levels closer to the root than it
+    // sits here, so a `../../` link that was right in the repository
+    // resolves OUTSIDE the package once copied — under an install, into
+    // `node_modules/`. prepack rewrites the ones it knows and throws on
+    // a rewrite that no longer matches; what it cannot see is a NEW
+    // `../../` link added here later, which would ship broken and
+    // silently. This is that check, and it runs in CI rather than at
+    // pack time.
+    (0, node_test_1.test)('every-escaping-link-is-rewritten-at-pack-time', () => {
+        const prepack = Fs.readFileSync(Path.join(__dirname, '..', 'scripts', 'prepack.js'), 'utf8');
+        let checked = 0;
+        for (const file of Fs.readdirSync(SKILL_DIR)) {
+            if (!file.endsWith('.md')) {
+                continue;
+            }
+            const md = Fs.readFileSync(Path.join(SKILL_DIR, file), 'utf8');
+            for (const link of md.match(/\]\(\.\.\/\.\.\/[^)]*\)/g) ?? []) {
+                checked++;
+                Assert.ok(prepack.includes(link), `docs/skill/${file} links out of the package with ${link}, ` +
+                    'which ts/scripts/prepack.js does not rewrite — it would ship ' +
+                    'broken in the npm tarball');
+            }
+        }
+        Assert.ok(0 < checked, 'no escaping links found; has the shape changed?');
+    });
     // The skill points at files; a pointer that does not resolve is
     // worse than no pointer.
     (0, node_test_1.test)('every-linked-file-exists', () => {

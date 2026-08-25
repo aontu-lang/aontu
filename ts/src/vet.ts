@@ -32,6 +32,12 @@ import { ConjunctVal } from './val/ConjunctVal'
 import { walkVals, collectNils } from './walk'
 import { collectDeprecations, walkBagVals, deprecationMessage } from './utility'
 import { subsumeNode, effectiveDefault } from './subsume'
+// The `--at` refusal is the SAME refusal `get` and `why` give for a
+// path that names nothing, down to the "did you mean" -- so it is that
+// one, not a second spelling of it. A cycle in the module graph
+// (query imports anchorAt from here), and a benign one: both sides
+// use the other only from inside a function body, never at load time.
+import { noPathFinding } from './query'
 
 
 export type VetVerdict = 'valid' | 'invalid' | 'incomplete' | 'error'
@@ -366,7 +372,42 @@ export function vet(
   const schemaCtx = aontu.ctx({ collect: true })
   const schemaVal: any = aontu.unify(schemaSrc, schemaOpts, schemaCtx)
   if (0 < schemaCtx.err.length || true === schemaVal?.isNil) {
-    return { verdict: 'error', truncated: false, findings: [] }
+    // A broken schema REPORTS, exactly as broken data does. It used to
+    // answer `findings: []` with exit 4 and nothing else, in both
+    // ports: the engine had collected the fault and vet threw it away,
+    // so an agent -- or a person -- was told the schema was broken and
+    // not what or where. The verdict stays `error` (the fault is in
+    // the truth, not in the data, and that distinction is the whole
+    // point of the class), but the finding travels with it.
+    //
+    // The FIRST error only, and the data path's reasoning applies
+    // unchanged: later errors in a document that does not stand up are
+    // consequences of the first rather than separate things to fix.
+    //
+    // ONE OF THE TWO IS ALWAYS THERE, and both are nils: the branch
+    // condition admits a collected error or a nil root, and every
+    // value on `schemaCtx.err` is a NilVal. There is no third case, so
+    // there is no guard here -- a guard that cannot fire is dead code,
+    // and dead code is what ADR-002 exists to keep out. (One stood
+    // here and the TypeScript line report called it covered; the Go
+    // gate, which measures blocks, refused the twin.)
+    const failure: any =
+      0 < schemaCtx.err.length ? schemaCtx.err[0] : schemaVal
+    // The normal path stamps both documents before they meet
+    // (stampUrl(anchor...) below), and this early return never reaches
+    // it, so it stamps what it is about to report: the unified root,
+    // and the failure itself -- a COLLECTED error is minted during
+    // unification and hangs off no tree, so nothing else would name
+    // it. The walk reaches a failure's operands (ts/src/walk.ts),
+    // which is what makes the sites say which file.
+    stampUrl(schemaVal, schemaUrl)
+    stampUrl(failure, schemaUrl)
+    materialise(failure, schemaCtx)
+    return {
+      verdict: 'error',
+      truncated: false,
+      findings: [findingOf(failure, dataUrl)],
+    }
   }
 
   // 2. The anchor: the whole schema, or the value at `--at`.
@@ -374,7 +415,16 @@ export function vet(
   if (null != options.at) {
     anchor = anchorAt(schemaVal, options.at)
     if (null == anchor) {
-      return { verdict: 'error', truncated: false, findings: [] }
+      // AND IT SAYS WHICH SEGMENT. `--at` naming nothing is an error
+      // verdict for the same reason a broken schema is -- the run
+      // could not be set up from the truth's side -- and it reports
+      // for the same reason too: a caller handed exit 4 and an empty
+      // list has nothing to act on.
+      return {
+        verdict: 'error',
+        truncated: false,
+        findings: [noPathFinding(schemaVal, options.at)],
+      }
     }
   }
 

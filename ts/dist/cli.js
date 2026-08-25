@@ -1832,7 +1832,14 @@ function parseTrustArg(value) {
 }
 function main(argv) {
     let mode = 'json';
-    let file;
+    // A LIST, though the bare command evaluates exactly one document.
+    // It used to be one variable and the last argument won, which made a
+    // MISTYPED VERB a silent success: `aontu vet2 schema.aon good.json`
+    // printed good.json and exited 0, because `vet2` matched no
+    // subcommand, fell through to this loop as a file name, and was
+    // overwritten twice. In a tool loop that reads as a passing
+    // validation. Counting them is what lets the refusal below happen.
+    const files = [];
     let trust = { kind: 'system-warn' };
     // The REPL's SESSION protocol (G7 phase 7): one JSON line per
     // answer, so a harness can drive the session. Named --jsonl rather
@@ -1919,13 +1926,32 @@ function main(argv) {
             return finish(2);
         }
         else {
-            file = arg;
+            files.push(arg);
         }
     }
+    // ONE DOCUMENT. The bare form has always been `aontu [options]
+    // [file]`, singular, and anything past the first was silently
+    // discarded rather than refused -- so every way of getting the verb
+    // wrong (a typo, a verb this port does not have, a verb spelled for
+    // another tool) ended in a plausible answer about the wrong file.
+    // Exit 2, the usage class, and the message names the cause rather
+    // than the symptom: nothing here can tell a mistyped verb from a
+    // second file, but the reader can.
+    if (1 < files.length) {
+        process.stderr.write(`aontu: the bare command evaluates one document, and ${files.length}` +
+            ' were given\naontu: a mistyped verb reads as a file name' +
+            ' (try --help)\n');
+        return finish(2);
+    }
+    const file = files[0];
     if (null != file) {
         finish(runFile(file, mode, trust));
     }
-    else if (process.stdin.isTTY) {
+    // `--jsonl` overrides the TTY gate: the mode exists to be DRIVEN by
+    // a harness over a pipe, so gating it on an interactive terminal
+    // made it reachable only through a pty -- which is to say, not
+    // reachable by the thing it was built for. Mirrors go/cmd/aontu.
+    else if (jsonl || process.stdin.isTTY) {
         runRepl(mode, jsonl);
     }
     else {

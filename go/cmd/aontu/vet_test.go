@@ -121,7 +121,7 @@ func TestVetUnparseableDataExits1AndNamesTheFile(t *testing.T) {
 	}
 	vetMatch(t, out, `verdict: invalid`)
 	vetMatch(t, out, `\$: syntax \[parse\]`)
-	vetMatch(t, out, `data: .*data\.json:-1:-1 \(nil\)`)
+	vetMatch(t, out, `data: .*data\.json:1:10 \(nil\)`)
 
 	good := filepath.Join(dir, "good.json")
 	if err := os.WriteFile(good,

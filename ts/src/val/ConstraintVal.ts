@@ -392,6 +392,17 @@ function normaliseRe(src: string): [string, string] {
         return ['', why]
       }
       out.push(emit)
+      // `\b` AND `\B` ARE ASSERTIONS TOO, and quantifying one is the
+      // same disagreement `^{1}` is: JavaScript under `u` calls it a
+      // syntax error, RE2 quantifies the assertion happily. The rule
+      // said "`\b` and `\B` quantify identically in both and are left
+      // alone" and that was measured wrong -- `re("\\b{1}x")` is
+      // `constraint_pattern` in TypeScript and an accepted schema in
+      // Go. Only OUTSIDE a class: inside one, `\b` is a backspace in
+      // both engines and repeats like any other character.
+      if (!inClass && ('b' === src[i + 1] || 'B' === src[i + 1])) {
+        anchorPrev = true
+      }
       i += 1 + extra
       continue
     }
@@ -471,11 +482,12 @@ function normaliseRe(src: string): [string, string] {
       // Nothing to repeat. JavaScript under the `u` flag makes this a
       // SYNTAX ERROR, where RE2 quantifies the assertion happily and
       // matches, so `re("^{1}")` was `constraint_pattern` in
-      // TypeScript and an accepted schema in Go. (`\b` and `\B`
-      // quantify identically in both and are left alone.)
+      // TypeScript and an accepted schema in Go. The four assertions
+      // behave alike here -- `^`, `$`, `\b` and `\B` -- so the rule
+      // names all four.
       if (afterAnchor) {
-        return ['', 'a quantifier applied to `^` or `$`, which has ' +
-          'nothing to repeat']
+        return ['', 'a quantifier applied to `^`, `$`, `\\b` or ' +
+          '`\\B`, which has nothing to repeat']
       }
       if ('{' === c) {
         const [why, end] = repeatWhy(src, i)

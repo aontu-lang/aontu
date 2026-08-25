@@ -61,6 +61,14 @@ Options:
 - **File:** `aontu config.aontu` reads, unifies and prints the file.
   Relative `@"file"` loads inside it resolve against the file's own
   directory, so it works from any working directory.
+- **Exactly one file.** The bare form is `aontu [options] [file]`,
+  singular, and a second file name is a usage error (exit 2) rather
+  than a silent discard. This is what makes a MISTYPED VERB fail
+  loudly: `vet2` matches no subcommand, so it falls through as a file
+  name, and `aontu vet2 schema.aon good.json` used to print
+  `good.json` and exit 0 — a plausible pass, in the one place a tool
+  loop reads the exit code to decide whether the data is good. A file
+  genuinely named like a verb is still reachable as `./vet`.
 - **Stdin:** `echo 'a:1 b:$.a' | aontu` reads source from the pipe.
 - **REPL:** `aontu` with no file on a terminal starts an interactive
   loop; each line is evaluated and printed.
@@ -117,9 +125,25 @@ a broken schema. The distinction matters to the loop the verb exists
 for: exit 1 says "repair what you emitted", exit 4 says "the truth you
 were given is unusable, stop".
 
+**A parse failure is located.** Its single site carries the parser's
+own row and column, 1-based — the same position the human renderer
+draws its caret under. A document whose second line is `b: ]` reports
+`row: 2, col: 4`, in both ports.
+
+**Every verdict carries its finding, `error` included.** A schema that
+does not stand up — a contradiction inside it, a document that will not
+parse, a merge marker — reports what failed and where, while the
+verdict stays `error`: whose fault it is and what the fault is are two
+separate answers, and the report gives both. Every site is in the
+schema (role `schema`), and a contradiction names both of its operands,
+exactly as one in the data would. A report that said only `error` was
+the one a repair loop could do nothing with.
+
 **`--at` takes a structural path** — map keys and list indices, the
 same thing a reference means by `$.a.b`, with an index spelled as a
-plain decimal integer. A path that names nothing is verdict `error`.
+plain decimal integer. A path that names nothing is verdict `error`,
+carrying the same `no_path` finding `get` and `why` give — including
+the "did you mean" note when a near key exists.
 
 **Relative `@"file"` loads inside either document** resolve from that
 document's own directory, exactly as they do for `aontu <file>`.

@@ -725,12 +725,13 @@ type AontuError struct {
 	Code string
 
 	// Row and Col locate a PARSE failure, 1-based, or -1 when the
-	// failure knows no position. Only the merge-conflict refusal fills
-	// them today, which is exactly where the canonical port carries a
-	// position too (its other parse failures leave the site at -1:-1,
-	// with the coordinates only inside the rendered message). The
-	// validation verb reports them (vet.go), so the two ports have to
-	// know the same things here.
+	// failure knows no position. The merge-conflict refusal and the
+	// parser's own syntax failure both fill them, which is exactly
+	// where the canonical port carries a position too. The validation
+	// verb reports them (vet.go), so the two ports have to know the
+	// same things here -- and until they both threaded the parser's
+	// position through, a machine-readable report said -1:-1 for a
+	// fault the human renderer drew a caret under.
 	Row int
 	Col int
 }

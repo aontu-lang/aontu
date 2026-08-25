@@ -21,6 +21,8 @@ import * as Assert from 'node:assert'
 import * as Fs from 'node:fs'
 import * as Path from 'node:path'
 
+import { BUILTIN_FUNCS } from '../dist/lsp'
+
 
 const GRAMMAR_DIR = Path.join(__dirname, '..', '..', 'grammar')
 const SPEC_DIR = Path.join(__dirname, '..', '..', 'test', 'spec')
@@ -423,6 +425,33 @@ describe('grammar', () => {
   // The lark file is the same grammar for a different consumer, and
   // the two drift the moment one is edited alone. Rule NAMES are the
   // drift guard a test can check without a second interpreter.
+  // The grammar's function-name list is a HAND-WRITTEN copy of the
+  // engine's registry, and a copy drifts: it carried `same`, which is
+  // not a builtin and never has been, so a constrained decoder was
+  // free to emit a call the engine refuses (status-2026-08-21.md
+  // item 8). Asserting the two sets against each other is what stops
+  // the next divergence -- in EITHER direction, since a builtin added
+  // without its grammar entry is the same defect reversed.
+  test('the-grammar-names-exactly-the-engine-builtins', () => {
+    const gbnf = Fs.readFileSync(Path.join(GRAMMAR_DIR, 'aontu.gbnf'), 'utf8')
+    const start = gbnf.indexOf('\nname ::=')
+    Assert.ok(-1 < start, 'no name rule in aontu.gbnf')
+    const end = gbnf.indexOf('\n\n', start)
+    const named = new Set(
+      [...gbnf.slice(start, end).matchAll(/"([a-z]+)"/g)].map((m) => m[1]))
+
+    const engine = new Set(BUILTIN_FUNCS)
+    for (const name of engine) {
+      Assert.ok(named.has(name),
+        `builtin missing from aontu.gbnf: ${name}`)
+    }
+    for (const name of named) {
+      Assert.ok(engine.has(name),
+        `aontu.gbnf names a function the engine does not have: ${name}`)
+    }
+  })
+
+
   test('the-lark-grammar-names-the-same-rules', () => {
     const lark = Fs.readFileSync(Path.join(GRAMMAR_DIR, 'aontu.lark'), 'utf8')
     const larkRules = new Set(

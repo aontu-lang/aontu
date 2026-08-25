@@ -117,6 +117,25 @@ function run(args, input) {
         Assert.equal(r.code, 2);
         Assert.match(r.out, /unknown option/);
     });
+    // A MISTYPED VERB IS NOT A SUCCESS. `vet2` matches no subcommand, so
+    // it falls through to the bare form as a file name; the last name
+    // used to win, and the command answered about the DATA file with
+    // exit 0 -- a plausible pass, in the one place a tool loop is
+    // reading the exit code to decide whether the data is good.
+    (0, node_test_1.test)('cli-mistyped-verb-is-a-usage-error', () => {
+        const r = run(['vet2', 'schema.aon', 'data.json']);
+        Assert.equal(r.code, 2);
+        Assert.match(r.out, /evaluates one document, and 3 were given/);
+        Assert.match(r.out, /mistyped verb reads as a file name/);
+    });
+    // The same refusal, reached the other way: the bare form is
+    // documented as `aontu [options] [file]`, singular, and a second
+    // file is a usage error rather than a silent discard.
+    (0, node_test_1.test)('cli-two-files-is-a-usage-error', () => {
+        const r = run(['a.aon', 'b.aon']);
+        Assert.equal(r.code, 2);
+        Assert.match(r.out, /evaluates one document, and 2 were given/);
+    });
 });
 // --- the vet verb (G2 phase 3) ---------------------------------------
 function vetCapture(fn) {
@@ -190,7 +209,10 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
         const r = vetCapture(() => Assert.equal((0, cli_1.runVet)([f.schema, f.data]), 1));
         Assert.match(r.out, /verdict: invalid/);
         Assert.match(r.out, /\$: syntax \[parse\]/);
-        Assert.match(r.out, /data: .*data\.json:-1:-1 \(nil\)/);
+        // LOCATED. The parser knows where it stopped and the site says
+        // so; it used to read -1:-1 while the human renderer drew a caret
+        // under the exact character.
+        Assert.match(r.out, /data: .*data\.json:1:10 \(nil\)/);
         const good = Path.join(f.dir, 'good.json');
         Fs.writeFileSync(good, 'service: { name: 1, port: 8080 }');
         const both = vetCapture(() => Assert.equal((0, cli_1.runVet)([f.schema, good, f.data]), 1));
@@ -718,6 +740,27 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
     });
     // The SESSION protocol: one JSON line per answer, so a harness can
     // drive the REPL. Human-readable output stays the default.
+    // The flag through the SPAWNED binary, over a PIPE. The in-process
+    // test below drives replCommand with a hand-built state, so it passed
+    // while the mode was gated on process.stdin.isTTY and a piped harness
+    // got its commands parsed as Aontu SOURCE instead -- reachable only
+    // through a pty, which is to say not reachable by the thing it was
+    // built for (register, G7.7). Its Go twin is
+    // TestReplJSONLIsReachableOverAPipe.
+    (0, node_test_1.test)('repl-jsonl-is-reachable-over-a-pipe', () => {
+        const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-jsonl-'));
+        const file = Path.join(dir, 'm.aon');
+        Fs.writeFileSync(file, 'a: 1\n');
+        const r = run(["--jsonl"], `:load ${file}\n:get $.a\n`);
+        Assert.equal(r.code, 0, r.out);
+        const lines = r.out.trim().split('\n');
+        Assert.equal(lines.length, 2, r.out);
+        for (const line of lines) {
+            const m = JSON.parse(line);
+            Assert.equal(m.ok, true, line);
+        }
+        Assert.equal(JSON.parse(lines[1]).out, '1');
+    });
     (0, node_test_1.test)('repl-jsonl-answers-in-one-line', () => {
         const read = () => 'a: 1';
         let st = { mode: 'json', jsonl: true };
@@ -1037,6 +1080,106 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
         Assert.match(st.out, /verdict: valid/);
         const md = vetCapture(() => (0, cli_1.main)(['node', 'aontu', 'agentsmd', f.general]));
         Assert.match(md.out, /aontu:begin/);
+    });
+});
+// --- the repair loop, end to end ---------------------------------------
+//
+// Emit -> vet -> why -> set -> re-vet, through the SPAWNED binary, with
+// the exit code asserted at every step. The whole capability review
+// exists for this loop and until now nothing executed it: the spec
+// suite pins each verb in isolation, so the verbs could each be right
+// and the loop still not close. Walking it by hand is what found the
+// two defects the loop's own status report opens with -- `Site` has no
+// extent, and `set` cannot narrow a pinned literal -- and neither was
+// visible from any single verb.
+//
+// The exit codes ARE the assertion. A harness driving this reads
+// nothing else between steps, so a step that returns the right text
+// under the wrong code is a step that misroutes the loop.
+(0, node_test_1.describe)('cli-repair-loop', () => {
+    function loopFiles() {
+        const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-loop-'));
+        const schema = Path.join(dir, 'schema.aon');
+        const deploy = Path.join(dir, 'deploy.aon');
+        Fs.writeFileSync(schema, 'service: {\n' +
+            '  name: string\n' +
+            '  port: integer & above(1023)\n' +
+            '}\n');
+        // What an agent emitted: the name is right, the port was never
+        // written. A HOLE, which is the shape `set` can repair.
+        Fs.writeFileSync(deploy, 'service: { name: "auth" }\n');
+        return { dir, schema, deploy };
+    }
+    (0, node_test_1.test)('emit-vet-why-set-revet-closes', () => {
+        const f = loopFiles();
+        const overlay = Path.join(f.dir, 'overlay.aon');
+        // 1. VET the emitted document. Not a contradiction — nothing
+        //    conflicts — so exit 3, the verdict that means "not satisfied
+        //    YET", which is the code that tells a harness to repair rather
+        //    than to start over.
+        const vet1 = run(['vet', f.schema, f.deploy]);
+        Assert.equal(vet1.code, 3);
+        Assert.match(vet1.out, /verdict: incomplete/);
+        Assert.match(vet1.out, /\$\.service\.port/);
+        // 2. WHY, on the schema, for what the hole has to satisfy. The
+        //    finding named the path; this is the step that turns it into a
+        //    constraint the emitter can meet.
+        const why = run(['why', '$.service.port', f.schema]);
+        Assert.equal(why.code, 0);
+        Assert.match(why.out, /above\(1023\)/);
+        // 3. SET, which writes the overlay only if the change holds.
+        const set = run(['set', '$.service.port=8080',
+            '--entry', f.deploy, '--overlay', overlay]);
+        Assert.equal(set.code, 0);
+        Assert.match(set.out, /verdict: valid/);
+        Assert.match(set.out, /wrote: /);
+        Assert.match(Fs.readFileSync(overlay, 'utf8'), /"service": "port": 8080/);
+        // The entry is UNTOUCHED: the overlay is the change, which is what
+        // makes the loop safe to run against a file a human also edits.
+        Assert.equal(Fs.readFileSync(f.deploy, 'utf8'), 'service: { name: "auth" }\n');
+        // 4. RE-VET the pair. The two files together are the repaired
+        //    document, so the loop closes through an include of both.
+        const all = Path.join(f.dir, 'all.aon');
+        Fs.writeFileSync(all, '@"./deploy.aon"\n@"./overlay.aon"\n');
+        const vet2 = run(['vet', f.schema, all]);
+        Assert.equal(vet2.code, 0);
+        Assert.match(vet2.out, /verdict: valid/);
+    });
+    // The other arm, and the one the status report calls the loop's
+    // missing third step: unification only NARROWS, so a value the data
+    // already pinned cannot be set to a different one. The overlay is
+    // not written, the entry is not touched, and the finding names the
+    // site doing the pinning — which is where a human, not `set`, has to
+    // go.
+    (0, node_test_1.test)('a-pinned-value-refuses-the-repair-and-writes-nothing', () => {
+        const f = loopFiles();
+        const overlay = Path.join(f.dir, 'overlay.aon');
+        const set = run(['set', '$.service.name="other"',
+            '--entry', f.deploy, '--overlay', overlay]);
+        Assert.equal(set.code, 1);
+        Assert.match(set.out, /verdict: invalid/);
+        Assert.match(set.out, /\$\.service\.name/);
+        Assert.equal(Fs.existsSync(overlay), false);
+        Assert.equal(Fs.readFileSync(f.deploy, 'utf8'), 'service: { name: "auth" }\n');
+    });
+    // And the step before the loop can start at all: a truth that does
+    // not stand up. Exit 4 says "stop, the schema is the problem" — and
+    // now says WHAT the problem is, so a harness can report it instead
+    // of retrying against a schema that will never accept anything.
+    (0, node_test_1.test)('a-broken-schema-stops-the-loop-and-says-why', () => {
+        const f = loopFiles();
+        const broken = Path.join(f.dir, 'broken.aon');
+        Fs.writeFileSync(broken, 'a: 1\na: 2\n');
+        const r = run(['vet', '--format', 'json', broken, f.deploy]);
+        Assert.equal(r.code, 4);
+        const report = JSON.parse(r.out);
+        Assert.equal(report.verdict, 'error');
+        Assert.equal(report.findings.length, 1);
+        Assert.equal(report.findings[0].code, 'scalar_value');
+        for (const site of report.findings[0].sites) {
+            Assert.equal(site.role, 'schema');
+            Assert.equal(site.file, broken);
+        }
     });
 });
 //# sourceMappingURL=cli.test.js.map

@@ -7,6 +7,87 @@ which implementation each change affects.
 
 ## Unreleased — TypeScript 0.53.0 line
 
+### Fixed — a sixth verdict flip, and two costs on the refusal path
+
+Raised by the automated review on #72 and confirmed by measurement.
+
+- **A quantifier on `\b` or `\B` flipped the verdict.** The rule that
+  refuses `^{1}` and `${1}` — nothing to repeat, a syntax error under
+  JavaScript's `u` flag and an accepted assertion under RE2 — shipped
+  covering the two anchors only, on a comment asserting that the word
+  boundaries "quantify identically in both". They do not:
+  `re("\\b{1}x")` was `constraint_pattern` in TypeScript and an
+  accepted schema in Go. All four assertions now take the same rule,
+  refused in the normaliser before either engine compiles
+  ([ADR-003](ADR.md)). The shared row that claimed to pin this tested
+  a quantified **backspace** — one backslash where the regex needs two
+  — so it passed while the real case diverged; it is renamed for what
+  it tests, and the boundary rows it was standing in for are added.
+- **Rejecting a long repeat bound was quadratic in Go.** The scan
+  built the digit run into a string one character at a time, rebuilding
+  the whole immutable string per digit, so `x{111…1}` with 200 000
+  digits took **8.0 s** and gigabytes of transient copying before the
+  overflow was ever detected — on a path that runs over a
+  caller-supplied pattern and is counted by no evaluator budget. The
+  digits are folded as they are read: the same input now takes 8 ms.
+  Every verdict, and the order the two failures are detected in, is
+  unchanged.
+- **The packaged skill shipped two broken links.** `prepack` copies
+  `docs/skill/` to the package root, two levels closer to it, so
+  `../../grammar/aontu.gbnf` resolved outside the tarball and
+  `../../test/spec/errcodes.tsv` named a tree the tarball does not ship
+  at all. Staging now rewrites both and refuses to pack if a rewrite
+  stops matching; a test fails in CI if a new escaping link is added.
+
+### Fixed — the report says WHAT, not only whose fault it is
+
+Four defects the 2026-08-21 status report's repair-loop walkthrough
+turned up, all of them in the part an agent loop reads. Fixed in both
+implementations.
+
+- **`vet`'s `error` verdict now carries its finding.** A schema that
+  does not stand up — a contradiction inside it, a document that will
+  not parse, a merge marker — used to answer `findings: []` with exit
+  4, so a caller was told the truth was unusable and never what or
+  where, while `aontu <schema>` rendered the same fault in full. The
+  finding now travels with the verdict, every site in the schema. Two
+  causes, and the second is the general one: the provenance walk
+  stopped AT a nil, so a failure's OPERANDS — which are what a
+  finding's sites are — went unstamped and named no file. Both walks
+  now descend into them. `aontu set` inherits the finding: an entry
+  that will not parse names the parser's code.
+- **A parse failure keeps its position.** The machine-readable path
+  reported `row: -1, col: -1` for a fault the human renderer draws a
+  caret under; the parser knew all along and the rendered message held
+  the only copy. Sites now carry the real 1-based row and column.
+- **`vet --at` naming nothing reports too**, with the same `no_path`
+  finding `get` and `why` give — "did you mean" included — instead of
+  exit 4 and an empty list.
+- **A mistyped verb is a usage error, not a silent success.** Verb
+  dispatch reads the first argument only, and anything matching no
+  verb fell through to the bare form as a file name, last one winning
+  — so `aontu vet2 schema.aon good.json` printed `good.json` and
+  **exited 0**, which in a tool loop reads as a passing validation.
+  The bare form has always been documented as `aontu [options]
+  [file]`, singular; a second file name is now exit 2, naming the
+  likely cause. A file genuinely named like a verb is still reachable
+  as `./vet`.
+
+### Added — the loop, and the documentation, are executed
+
+- **An end-to-end repair-loop test**, in both implementations:
+  emit → vet → why → set → re-vet through the whole command, with the
+  exit code asserted at every step. The shared suite pins each verb in
+  isolation, so every verb could be right and the loop still not
+  close. Three arms — the loop that closes, the pinned value that
+  refuses the repair and leaves both files untouched, and the schema
+  that does not stand up.
+- **The teaching documents are held to the engine.** Every
+  `aontu`/`aon` example in `index.md`, `tutorial.md`, `how-to.md` and
+  `reference-language.md` must parse, and every one that states its
+  result must generate exactly that. The skill sources were already
+  executed this way; the prose documentation was not.
+
 ### Fixed — the two release blockers (security, and cross-port parity)
 
 Both were found by driving the delivered surface end to end
@@ -38,7 +119,9 @@ before this line could be published.
   family, found by sweeping around it: a quantifier applied to `^` or
   `$`, and a `}` that closes no counted quantifier — JavaScript's `u`
   flag calls each a syntax error where RE2 accepts it. Shared rows pin
-  all of it, in both runners (counts live in the register).
+  all of it, in both runners (counts live in the register). The sweep
+  stopped one construct short: `\b` and `\B` are assertions too, and
+  the entry above closes them.
 - **A refused call keeps its position and its code.** The non-name
   refusal is sited where TypeScript sites it, rather than rendering
   `<no-file>:-1:-1`, and survives a pipe (`0 |> f(1)(2)`) as

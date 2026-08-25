@@ -60,10 +60,30 @@ describe('vet-verdicts', () => {
   })
 
 
+  // A broken schema is never blamed on the data — verdict `error`, not
+  // `invalid` — and it is not a bare verdict either: the finding says
+  // what did not stand up and where, and BOTH sites name the schema.
+  // The sites are the failure's OPERANDS, which the provenance walk
+  // reaches only because it descends into a nil (ts/src/walk.ts);
+  // without that the report named no file at all.
   test('broken-schema-is-never-blamed-on-data', () => {
     const r = vet('a: 1\na: 2', 'a: 1')
     Assert.equal(r.verdict, 'error')
-    Assert.deepEqual(r.findings, [])
+    Assert.equal(r.findings.length, 1)
+    const f = r.findings[0]
+    Assert.equal(f.code, 'scalar_value')
+    Assert.equal(f.class, 'conflict')
+    Assert.equal(f.path, '$.a')
+    Assert.equal(f.sites.length, 2)
+    for (const site of f.sites) {
+      Assert.equal(site.role, 'schema')
+      Assert.equal(site.file, 'schema')
+    }
+    // Source order, and the columns are the SCALARS'.
+    Assert.equal(f.sites[0].row, 2)
+    Assert.equal(f.sites[0].col, 4)
+    Assert.equal(f.sites[1].row, 1)
+    Assert.equal(f.sites[1].col, 4)
   })
 
 
@@ -102,9 +122,31 @@ describe('vet-verdicts', () => {
 
 
   // The SCHEMA side keeps the error verdict: exit 4 means the run
-  // could not be set up from the truth's side, and nothing else.
+  // could not be set up from the truth's side, and nothing else. It
+  // reports through the same projection unparseable data does, with
+  // the role and the verdict as the only difference.
   test('unparseable-schema-is-still-an-error-verdict', () => {
-    Assert.equal(vet('a: ]', 'a: 1').verdict, 'error')
+    const r = vet('a: ]', 'a: 1')
+    Assert.equal(r.verdict, 'error')
+    Assert.equal(r.findings.length, 1)
+    const f = r.findings[0]
+    Assert.equal(f.code, 'syntax')
+    Assert.equal(f.class, 'parse')
+    Assert.equal(f.path, '$')
+    Assert.equal(f.sites.length, 1)
+    Assert.equal(f.sites[0].role, 'schema')
+    Assert.equal(f.sites[0].file, 'schema')
+  })
+
+
+  // And a merge marker in the schema knows where it is, exactly as one
+  // in the data does.
+  test('a-conflict-marker-in-the-schema-is-a-located-finding', () => {
+    const r = vet('a: 1\n<<<<<<< HEAD\nb: 2', 'a: 1')
+    Assert.equal(r.verdict, 'error')
+    Assert.equal(r.findings[0].code, 'merge_conflict')
+    Assert.equal(r.findings[0].sites[0].row, 2)
+    Assert.equal(r.findings[0].sites[0].col, 1)
   })
 })
 
@@ -286,9 +328,25 @@ describe('vet-anchor', () => {
   })
 
 
+  // …AND IT SAYS WHICH SEGMENT. The verdict alone left a caller
+  // holding exit 4 and an empty finding list, which is nothing to act
+  // on; the refusal is the one `get` and `why` already give for a path
+  // that names nothing, "did you mean" included.
   test('an-anchor-that-does-not-exist-is-an-error-verdict', () => {
     const r = vet(SCHEMA, 'a: 1', { at: '$.nope' })
     Assert.equal(r.verdict, 'error')
+    Assert.equal(r.findings.length, 1)
+    const f = r.findings[0]
+    Assert.equal(f.code, 'no_path')
+    Assert.equal(f.class, 'reference')
+    Assert.equal(f.path, '$.nope')
+    Assert.deepEqual(f.sites, [])
+  })
+
+
+  test('an-anchor-refusal-suggests-the-nearest-key', () => {
+    const r = vet(SCHEMA, 'a: 1', { at: '$.servce' })
+    Assert.equal(r.findings[0].note, 'did you mean service?')
   })
 
 

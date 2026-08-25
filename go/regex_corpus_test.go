@@ -127,3 +127,46 @@ func TestRegexCorpusIdempotent(t *testing.T) {
 		}
 	}
 }
+
+// A LONG REPEAT BOUND IS REFUSED IN LINEAR TIME. The normaliser runs
+// over a pattern the caller supplies and is counted by no evaluator
+// budget (docs/trust.md, clause 2), so the cost of REJECTING one is a
+// reachable cost. The scan used to build the digit run into a Go
+// string one character at a time -- rebuilding the whole immutable
+// string per digit -- which made this input quadratic: 200 000 digits
+// took eight seconds and several gigabytes of transient copying before
+// `Atoi` was ever reached. Folding the digits as they are read makes
+// it linear (the same input now takes milliseconds).
+//
+// The assertion here is the VERDICT, not a duration: a timing
+// assertion is a flake generator on a shared runner. The guard against
+// a re-regression is the test's own runtime — restore the quadratic
+// scan and this case alone runs for seconds.
+func TestLongRepeatBoundIsRefusedCheaply(t *testing.T) {
+	for _, n := range []int{1000, 100000} {
+		pattern := "x{" + strings.Repeat("1", n) + "}"
+		out, why := normaliseRe(pattern)
+		if "" == why {
+			t.Fatalf("%d digits: accepted, normalised to %q", n, out)
+		}
+		if !strings.Contains(why, "repeat count above") {
+			t.Fatalf("%d digits: %s", n, why)
+		}
+	}
+
+	// And the same run with a comma in it, which takes the other exit.
+	pattern := "x{2," + strings.Repeat("9", 100000) + "}"
+	if _, why := normaliseRe(pattern); !strings.Contains(why, "repeat count above") {
+		t.Fatalf("comma form: %s", why)
+	}
+
+	// A long run of LEADING ZEROS is a small number, not an over-cap
+	// one: the fold saturates on value, exactly as `Atoi` did on the
+	// assembled string.
+	pattern = "x{" + strings.Repeat("0", 100000) + "5}"
+	if out, why := normaliseRe(pattern); "" != why {
+		t.Fatalf("leading zeros: %s", why)
+	} else if out != pattern {
+		t.Fatalf("leading zeros rewritten: %q", out)
+	}
+}

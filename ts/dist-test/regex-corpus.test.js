@@ -119,5 +119,26 @@ function loadCorpus() {
             node_assert_1.default.equal(again, row.verdict, 'normalisation is not idempotent, line ' + row.line);
         }
     });
+    // A LONG REPEAT BOUND IS REFUSED, and the same three inputs the Go
+    // twin uses (go/regex_corpus_test.go). The COST is what differs
+    // between the ports and it is why the two scans are written
+    // differently: `digits += c` is a cons-string append in V8 and cost
+    // nothing here, while the Go twin rebuilt an immutable string per
+    // digit and took eight seconds on the first of these. The VERDICTS
+    // are what must not differ, so they are asserted in both.
+    (0, node_test_1.test)('a-long-repeat-bound-is-refused', () => {
+        for (const n of [1000, 100000]) {
+            const [, why] = (0, ConstraintVal_1.normaliseRe)('x{' + '1'.repeat(n) + '}');
+            node_assert_1.default.match(why, /repeat count above/, n + ' digits: ' + why);
+        }
+        const [, comma] = (0, ConstraintVal_1.normaliseRe)('x{2,' + '9'.repeat(100000) + '}');
+        node_assert_1.default.match(comma, /repeat count above/);
+        // A long run of LEADING ZEROS is a small number, not an over-cap
+        // one.
+        const zeros = 'x{' + '0'.repeat(100000) + '5}';
+        const [out, why] = (0, ConstraintVal_1.normaliseRe)(zeros);
+        node_assert_1.default.equal(why, '');
+        node_assert_1.default.equal(out, zeros);
+    });
 });
 //# sourceMappingURL=regex-corpus.test.js.map

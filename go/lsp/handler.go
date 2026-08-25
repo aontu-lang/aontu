@@ -10,8 +10,12 @@ import (
 	aontu "github.com/rjrodger/aontu/go"
 )
 
-// Version is reported to the client in the initialize response.
-const Version = "0.1.0"
+// Version is reported to the client in the initialize response. It is
+// the ENGINE's version, not a number of the server's own: a separately
+// maintained one drifts, and had -- the server answered 0.1.0 against
+// a module at 0.1.10, so a client could not tell which engine it was
+// talking to (status-2026-08-21.md section 10).
+const Version = aontu.VERSION
 
 // Message is an incoming JSON-RPC message (request or notification). ID
 // is kept raw because JSON-RPC ids may be either a number or a string;

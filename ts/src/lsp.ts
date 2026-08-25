@@ -18,7 +18,7 @@
 
 import type { Val } from './type'
 
-import { Aontu } from './aontu'
+import { Aontu, VERSION } from './aontu'
 import { getHint } from './err'
 import { collectNils } from './walk'
 import { collectDeprecations, deprecationMessage } from './utility'
@@ -32,8 +32,12 @@ const SEVERITY_WARNING = 2
 const SEVERITY_INFORMATION = 3
 const SEVERITY_HINT = 4
 
-// Reported to the client in the initialize response.
-const LSP_VERSION = '0.1.0'
+// Reported to the client in the initialize response. It is the
+// ENGINE's version, not a number of the server's own: a separately
+// maintained one drifts, and had -- the server answered 0.1.0 against
+// a package at 0.52.1, so a client could not tell which engine it was
+// talking to (status-2026-08-21.md section 10).
+const LSP_VERSION = VERSION
 
 
 // Zero-based line / UTF-16 character offset (LSP Position).

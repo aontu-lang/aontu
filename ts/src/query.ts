@@ -239,7 +239,7 @@ export function evalFailure(ctx: any): VetFinding {
 // `why`: WHICH segment failed, and what was there instead — the "did
 // you mean" the no_path contract promises. Walking again is cheap (the
 // tree is in hand) and is the only way to name the parent.
-function noPathFinding(root: any, path: string): VetFinding {
+export function noPathFinding(root: any, path: string): VetFinding {
   const parts = pathParts(path)
   let at: any = root
   let want = ''

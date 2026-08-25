@@ -209,15 +209,32 @@ re-repeat-overflow-low	errc	a:re("^a{99999999999999999999,5}$")&"x"	constraint_p
 # A pattern that ENDS in the brace: the scan runs off the end rather
 # than meeting a closing `}`.
 re-brace-at-end	errc	a:re("a{")&"x"	constraint_pattern
-# A quantifier applied to `^` or `$` has nothing to repeat: JavaScript
-# under the `u` flag makes it a syntax error, RE2 quantifies the
-# assertion and matches, so Go accepted a schema TypeScript refused.
-# `\b` and `\B` quantify identically in both and stay accepted.
+# A quantifier applied to an ASSERTION has nothing to repeat:
+# JavaScript under the `u` flag makes it a syntax error, RE2 quantifies
+# the assertion and matches, so Go accepted a schema TypeScript
+# refused. ALL FOUR assertions behave this way -- `^`, `$`, `\b` and
+# `\B`. The rule shipped covering the first two only, on a comment that
+# said the boundaries "quantify identically in both": measured, they do
+# not, and `re("\\b{1}x")` was `constraint_pattern` in TypeScript and an
+# accepted schema in Go until the normaliser reached them.
+#
+# MIND THE ESCAPING: in the source cell `\\b` is the two characters a
+# regex reads as a word boundary, while a bare `\b` is the string
+# escape for a BACKSPACE -- an ordinary character that repeats like any
+# other, which is what the -backspace row below pins. A row written
+# with one backslash tests the second thing while appearing to test the
+# first; one did.
 re-quantified-caret	errc	a:re("^{1}")&"x"	constraint_pattern
 re-quantified-dollar	errc	a:re("${1}")&"x"	constraint_pattern
 re-quantified-caret-star	errc	a:re("^*")&"x"	constraint_pattern
 re-quantified-caret-mid	errc	a:re("x^{1}")&"x"	constraint_pattern
-re-quantified-boundary-ok	errc	a:re("\\b{1}x")&"y"	constraint
+re-quantified-boundary	errc	a:re("\\\\b{1}x")&"y"	constraint_pattern
+re-quantified-nonboundary	errc	a:re("\\\\B{1}x")&"y"	constraint_pattern
+re-quantified-boundary-star	errc	a:re("\\\\b*x")&"y"	constraint_pattern
+# The boundary itself, UNQUANTIFIED, is untouched and still matches.
+re-boundary-unquantified	gen	a:re("\\\\bx") a:"x"	{"a":"x"}
+# And the escape that only LOOKS like one: a backspace is a character.
+re-quantified-backspace-ok	errc	a:re("\\b{1}x")&"y"	constraint
 # A `}` closing no counted quantifier is a lone quantifier bracket in
 # JavaScript and a literal in RE2. Inside a class it is a literal in
 # both, which is the spelling that survives.

@@ -53,6 +53,7 @@ const node_test_1 = require("node:test");
 const Assert = __importStar(require("node:assert"));
 const Fs = __importStar(require("node:fs"));
 const Path = __importStar(require("node:path"));
+const lsp_1 = require("../dist/lsp");
 const GRAMMAR_DIR = Path.join(__dirname, '..', '..', 'grammar');
 const SPEC_DIR = Path.join(__dirname, '..', '..', 'test', 'spec');
 class GbnfParser {
@@ -406,6 +407,27 @@ function canonCorpus() {
     // The lark file is the same grammar for a different consumer, and
     // the two drift the moment one is edited alone. Rule NAMES are the
     // drift guard a test can check without a second interpreter.
+    // The grammar's function-name list is a HAND-WRITTEN copy of the
+    // engine's registry, and a copy drifts: it carried `same`, which is
+    // not a builtin and never has been, so a constrained decoder was
+    // free to emit a call the engine refuses (status-2026-08-21.md
+    // item 8). Asserting the two sets against each other is what stops
+    // the next divergence -- in EITHER direction, since a builtin added
+    // without its grammar entry is the same defect reversed.
+    (0, node_test_1.test)('the-grammar-names-exactly-the-engine-builtins', () => {
+        const gbnf = Fs.readFileSync(Path.join(GRAMMAR_DIR, 'aontu.gbnf'), 'utf8');
+        const start = gbnf.indexOf('\nname ::=');
+        Assert.ok(-1 < start, 'no name rule in aontu.gbnf');
+        const end = gbnf.indexOf('\n\n', start);
+        const named = new Set([...gbnf.slice(start, end).matchAll(/"([a-z]+)"/g)].map((m) => m[1]));
+        const engine = new Set(lsp_1.BUILTIN_FUNCS);
+        for (const name of engine) {
+            Assert.ok(named.has(name), `builtin missing from aontu.gbnf: ${name}`);
+        }
+        for (const name of named) {
+            Assert.ok(engine.has(name), `aontu.gbnf names a function the engine does not have: ${name}`);
+        }
+    });
     (0, node_test_1.test)('the-lark-grammar-names-the-same-rules', () => {
         const lark = Fs.readFileSync(Path.join(GRAMMAR_DIR, 'aontu.lark'), 'utf8');
         const larkRules = new Set([...lark.matchAll(/^(?:\?)?([a-z_][a-z0-9_]*)\s*:/gm)].map((m) => m[1]));

@@ -13,6 +13,12 @@
 # invalid, and `why` locates the pinning site. The verdict is vet's,
 # unchanged.
 #
+# So are the FINDINGS. An entry that will not parse is a broken
+# schema as far as vet is concerned, and the report carries the
+# parser's own code with the verdict (patch-entry-unparseable): the
+# verb tells the caller which file it could not read and why, rather
+# than `error` and nothing (test/spec/vet.tsv, vet-schema-*).
+#
 # Keys are QUOTED in the flattened line: a path segment may be a
 # word the grammar spells otherwise (patch-keyword-key), a number
 # (patch-numeric-key), or hold a space.
@@ -39,6 +45,6 @@ patch-numeric-key	patch	a: {}	{"overlay": "", "set": ["$.a.0=1"]}	{"appended": [
 patch-entry-trailing-newline	patch	a: {}\n	{"overlay": "", "set": ["$.a.k=1"]}	{"appended": ["\\"a\\": \\"k\\": 1"], "overlay": "\\"a\\": \\"k\\": 1\\n", "verdict": "valid"}
 patch-overlay-no-newline	patch	a: {}	{"overlay": "y: 2", "set": ["$.a.k=1"]}	{"appended": ["\\"a\\": \\"k\\": 1"], "overlay": "y: 2\\n\\"a\\": \\"k\\": 1\\n", "verdict": "valid"}
 patch-overlay-trailing-newline	patch	a: {}	{"overlay": "y: 2\\n", "set": ["$.a.k=1"]}	{"appended": ["\\"a\\": \\"k\\": 1"], "overlay": "y: 2\\n\\"a\\": \\"k\\": 1\\n", "verdict": "valid"}
-patch-entry-unparseable	patch	a:]	{"overlay": "", "set": ["$.a=1"]}	{"appended": ["\\"a\\": 1"], "overlay": "\\"a\\": 1\\n", "verdict": "error"}
+patch-entry-unparseable	patch	a:]	{"overlay": "", "set": ["$.a=1"]}	{"appended": ["\\"a\\": 1"], "codes": ["syntax"], "overlay": "\\"a\\": 1\\n", "verdict": "error"}
 patch-no-assignments	patch	a: {b: 1}	{"overlay": "", "set": []}	{"appended": [], "overlay": "", "verdict": "valid"}
 patch-closed-map-refuses	patch	a: close({b:integer})	{"overlay": "", "set": ["$.a.c=1"]}	{"appended": ["\\"a\\": \\"c\\": 1"], "codes": ["closed"], "overlay": "\\"a\\": \\"c\\": 1\\n", "verdict": "invalid"}

@@ -397,7 +397,14 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, tty bool) int
 
 	mode := "json"
 	jsonl := false
-	var file string
+	// A LIST, though the bare command evaluates exactly one document.
+	// It used to be one variable and the last argument won, which made
+	// a MISTYPED VERB a silent success: `aontu vet2 schema.aon
+	// good.json` printed good.json and exited 0, because `vet2` matched
+	// no subcommand, fell through to this loop as a file name, and was
+	// overwritten twice. In a tool loop that reads as a passing
+	// validation. Counting them is what lets the refusal below happen.
+	var files []string
 	trust := trustArg{kind: "system-warn"}
 
 	for i := 0; i < len(args); i++ {
@@ -405,6 +412,15 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, tty bool) int
 		switch arg {
 		case "-c", "--canon":
 			mode = "canon"
+		case "--jsonl":
+			// The REPL's machine-drivable mode. helpText has advertised
+			// this since G7 phase 7, and repl.go carried the whole
+			// machinery behind it, but the switch had no case: `aontu
+			// --jsonl` answered "unknown option" and exited 2, so the
+			// flag was unreachable and the suite stayed green over it
+			// because repl_test.go built replState{JSONL: true} by hand
+			// (register, G7.7).
+			jsonl = true
 		case "-h", "--help":
 			fmt.Fprint(stdout, helpText)
 			return 0
@@ -434,8 +450,29 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, tty bool) int
 				fmt.Fprintf(stderr, "aontu: unknown option %s (try --help)\n", arg)
 				return 2
 			}
-			file = arg
+			files = append(files, arg)
 		}
+	}
+
+	// ONE DOCUMENT. The bare form has always been `aontu [options]
+	// [file]`, singular, and anything past the first was silently
+	// discarded rather than refused -- so every way of getting the verb
+	// wrong (a typo, a verb this port does not have, a verb spelled for
+	// another tool) ended in a plausible answer about the wrong file.
+	// Exit 2, the usage class, and the message names the cause rather
+	// than the symptom: nothing here can tell a mistyped verb from a
+	// second file, but the reader can.
+	if 1 < len(files) {
+		fmt.Fprintf(stderr,
+			"aontu: the bare command evaluates one document, and %d were given\n"+
+				"aontu: a mistyped verb reads as a file name (try --help)\n",
+			len(files))
+		return 2
+	}
+
+	file := ""
+	if 0 < len(files) {
+		file = files[0]
 	}
 
 	if file != "" {
@@ -461,7 +498,11 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, tty bool) int
 	}
 	applyTrust(a, trust, cwd, stderr)
 
-	if !tty {
+	// `--jsonl` overrides the TTY gate. The mode exists to be DRIVEN by
+	// a harness over a pipe, so gating it on an interactive terminal
+	// made it reachable only through a pty -- which is to say, not
+	// reachable by the thing it was built for.
+	if !tty && !jsonl {
 		src, err := io.ReadAll(stdin)
 		if err != nil {
 			fmt.Fprintf(stderr, "aontu: cannot read stdin: %v\n", err)

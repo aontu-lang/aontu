@@ -20,8 +20,12 @@ const SEVERITY_INFORMATION = 3;
 exports.SEVERITY_INFORMATION = SEVERITY_INFORMATION;
 const SEVERITY_HINT = 4;
 exports.SEVERITY_HINT = SEVERITY_HINT;
-// Reported to the client in the initialize response.
-const LSP_VERSION = '0.1.0';
+// Reported to the client in the initialize response. It is the
+// ENGINE's version, not a number of the server's own: a separately
+// maintained one drifts, and had -- the server answered 0.1.0 against
+// a package at 0.52.1, so a client could not tell which engine it was
+// talking to (status-2026-08-21.md section 10).
+const LSP_VERSION = aontu_1.VERSION;
 exports.LSP_VERSION = LSP_VERSION;
 // Compute LSP diagnostics for a unit of Aontu source. A valid document —
 // including a non-concrete schema such as `a:string` — returns an empty

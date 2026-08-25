@@ -45,21 +45,23 @@ cd go && go tool cover -html=coverage.out   # annotated source
 
 | Implementation | Metric (tool) | Coverage |
 |----------------|---------------|----------|
-| TypeScript — `ts/src` | lines (Node `--experimental-test-coverage`) | **100.00 %** (20242/20242) |
-| TypeScript — `ts/src` | branches | **100.00 %** (4734/4734) |
-| TypeScript — `ts/src` | functions | **100.00 %** (759/759) |
+| TypeScript — `ts/src` | lines (Node `--experimental-test-coverage`) | **100.00 %** |
+| TypeScript — `ts/src` | branches | **100.00 %** |
+| TypeScript — `ts/src` | functions | **100.00 %** |
 | Go — all four packages | statements (`go test -cover` + `GOCOVERDIR`) | **100.0 %** |
 
-Both suites pass in full via `make test`: **3397 TypeScript tests** and
-four green Go packages, including the **2852-row shared spec** that both
-engines execute.
+Both suites pass in full via `make test`: the TypeScript suite and four
+green Go packages, including the shared spec that both engines execute.
 
-The absolute figures above move with every change and are reproduced,
-not remembered — rerun `make cov` and `make test` rather than trusting
-this paragraph. The shared-suite total is also quoted, with its
-reproduction commands, in the
-[capability-review progress register](capability-review/progress.md#the-update-protocol);
-if the two disagree, both are stale.
+Only the ratios are quoted. The absolute counts behind them move with
+every change, so they are reproduced rather than remembered — rerun
+`make cov`, which prints them, rather than trusting this page.
+The suite's SIZE is deliberately not quoted here: every count of it
+lives in the
+[capability-review progress register](capability-review/progress.md#the-update-protocol),
+rule 5, with its reproduction commands, because a figure kept in two
+places goes wrong in one of them (all eight gap documents froze their
+own, and all eight were wrong within weeks).
 
 ### What the measurement includes
 
@@ -96,6 +98,24 @@ just the tests:
   The spawned-binary cases in `cli.test.ts` also no longer pass
   `NODE_V8_COVERAGE` to their children: those assert the packaged
   binary's behaviour, while the same paths are measured in-process.
+
+### One thing the TypeScript measurement does not catch
+
+**A guarded `return` inside a never-taken branch can be reported as
+covered.** Observed in `ts/src/vet.ts` on 2026-08-25: a guard whose
+condition the branch above made impossible had its `return` attributed
+the same hit count as the enclosing statement — the four source lines
+of the `const`, the `if`, the `return` and the closing brace all read
+`12` in the lcov. Appending to a file from inside the branch proved
+the `return` never executed, in any test, in the whole suite.
+
+The Go gate is not fooled by that shape: it counts coverage BLOCKS,
+and the twin of the same guard came back as three uncovered blocks.
+The two ports being held to parity is what surfaced it — which is the
+second-order argument for ADR-001 that no design document makes. Treat
+Go's block count as the sharper of the two instruments where they
+disagree, and read a TypeScript line count as evidence that the
+*statement* ran rather than that every arm of it did.
 
 ## What the suites exercise
 
@@ -202,16 +222,21 @@ engine never builds.
 
 ## The exclusions, in full
 
-100 % is only meaningful if what was excluded is visible. Twenty-two Go
-sites carry a `//coverage:ignore` marker — 24 statements, because two of
-them are `ignore-block` markers over a pair; TypeScript carries none
-at all beyond the export blocks (see below). Every marker states, in
-the source, what state would be required and why nothing can produce it
-— a marker without that justification is a defect
+100 % is only meaningful if what was excluded is visible. Forty-eight
+Go sites carry a `//coverage:ignore` marker — two of them
+`ignore-block` markers over a pair — and TypeScript carries none at all
+beyond the export blocks (see below). Every marker states, in the
+source, what state would be required and why nothing can produce it — a
+marker without that justification is a defect
 ([ADR-002](../ADR.md#adr-002--test-coverage-stays-at-100--in-both-implementations),
 rule 3).
 
-### Go — 32 marked sites, 35 statements
+`make cov-go` prints what it actually dropped —
+`covmerge: dropped N marked block(s), M statement(s)` — and that line,
+not this page, is the figure of record. The site list below is
+regenerated, never patched.
+
+### Go — 48 marked sites
 
 | Site | Why it cannot be reached |
 |------|--------------------------|
@@ -227,10 +252,16 @@ rule 3).
 | `query.go` × 2 — the JSON encoder error arms | A value that generated is a value that encodes; the arms exist so a future generator change refuses rather than emits half a document. |
 | `trim.go` — the re-parse failure arm | The baseline pass already parsed the same source. |
 | `val.go` — the caret-column clamp in `NilVal.frame` | `rowCol` never returns a column below 1. |
-| `vet.go` × 2 — the non-`*AontuError` and empty-code arms of `dataParseFinding` | Every parse failure path in `lang.go` returns an `*AontuError` and names a code; the two arms exist so the report cannot be built from nothing if one ever does not. |
+| `vet.go` × 2 — the non-`*AontuError` and empty-code arms of `parseFinding` | Every parse failure path in `lang.go` returns an `*AontuError` and names a code; the two arms exist so the report cannot be built from nothing if one ever does not. |
 | `aontu.go`, `cmd/aontu/main.go` × 2, `cmd/aontu/subsume.go` — `filepath.Abs` / `os.Getwd` guards | Both fail only on an unreadable or deleted working directory, which no test can produce without breaking the runner itself. |
 | `cmd/aontu/main.go` — the `pkg` arm of the trust warning | The Go resolver chain has no package leg to warn about; the arm keeps the two ports' warning code the same shape. |
 | `cmd/aontu/main.go`, `cmd/aontu-lsp/main.go` — `main()` | Executed for real by the `GOCOVERDIR` leg of `make cov-go`; the marker keeps the unit-only profile honest rather than excusing an untested function. |
+| `modtool.go` × 9, `mod.go` — the filesystem arms of the module tooling (G6) | Every one is a second failure of something the line above already succeeded at: a directory the caller just stat'd, a file the listing just named, or a copy into a project the same call chain has already written to. Making any of them fail needs the filesystem to change under the process mid-call. |
+| `cmd/aontu/mod.go` × 2 — the JSON round-trip arms of the report renderer | `Marshal` and `Unmarshal` over a plain struct the command itself built, so neither can fail; the arms exist so a future report shape refuses rather than prints half an object. |
+| `mod.go` — the `strconv` guard after a `\d+` match | The pattern has already vetted the digits, so the conversion cannot reject them — the same family as the `big.Int.SetString` guards above. |
+| `mod.go` — the `Unify` nil guard in the resolver | `Unify` always answers a `Val`; the guard exists so a broken invariant refuses rather than dereferences nil. |
+| `source.go` — the `filepath.Abs` guard | Same family as the `aontu.go` and `cmd/` guards above: `Abs` fails only on an unreadable working directory. |
+| `place.go` — the trailing `return v` of the place fold | `hasPlace` reporting true implies one of the cases above matched; the arm is the total-function tail. |
 
 Regenerate the site list rather than patching rows — the count above is
 whatever `covmerge` reports on the run:
