@@ -12,6 +12,7 @@ export declare function moduleDir(store: string, ref: ModuleRef): string;
 export declare function projectRoot(from: string, fs: ModuleFs): string;
 export declare function lockJson(text: string): string;
 export declare function modCacheDir(): string | undefined;
+export declare function modCacheDirFor(platform: string, env: Record<string, string | undefined>): string | undefined;
 export declare function lockHash(root: string, ref: ModuleRef, fs: ModuleFs): string | undefined;
 export type ModuleEval = (src: string, path: string) => {
     gen: any;

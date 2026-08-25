@@ -128,6 +128,55 @@ func TestModCacheDefaults(t *testing.T) {
 	}
 }
 
+// THE PLATFORM RULE, WITH THE PLATFORM PASSED IN. A Windows arm cannot
+// be reached from a suite that never runs on Windows, so it is
+// exercised here rather than trusted -- which is the whole reason
+// ModCacheDir splits into modCacheDirFor. Twin: cache-dir-rule in
+// ts/test/mod.test.ts.
+func TestModCacheDirRule(t *testing.T) {
+	env := func(vars map[string]string) func(string) string {
+		return func(key string) string { return vars[key] }
+	}
+	for _, c := range []struct {
+		name, goos string
+		vars       map[string]string
+		want       string
+	}{
+		// The explicit override wins on every platform.
+		{"xdg on posix", "linux",
+			map[string]string{"XDG_CACHE_HOME": "/x", "HOME": "/h"},
+			filepath.Join("/x", "aontu", "mod")},
+		{"xdg on windows", "windows",
+			map[string]string{"XDG_CACHE_HOME": "/x", "LOCALAPPDATA": "C:/L"},
+			filepath.Join("/x", "aontu", "mod")},
+
+		// Below it the platforms differ, which is the point.
+		{"windows takes LOCALAPPDATA", "windows",
+			map[string]string{"LOCALAPPDATA": "C:/L", "HOME": "/h"},
+			filepath.Join("C:/L", "aontu", "mod")},
+		{"posix ignores LOCALAPPDATA", "linux",
+			map[string]string{"LOCALAPPDATA": "C:/L", "HOME": "/h"},
+			filepath.Join("/h", ".cache", "aontu", "mod")},
+		{"windows without one falls back", "windows",
+			map[string]string{"HOME": "/h"},
+			filepath.Join("/h", ".cache", "aontu", "mod")},
+
+		// Nowhere to put one is a MISS, not a failure.
+		{"nowhere", "windows", map[string]string{}, ""},
+	} {
+		if got := modCacheDirFor(c.goos, env(c.vars)); c.want != got {
+			t.Fatalf("%s: want %q, got %q", c.name, c.want, got)
+		}
+	}
+
+	// And the exported entry point is that rule on THIS host, not a
+	// second spelling of it.
+	t.Setenv("XDG_CACHE_HOME", "/x")
+	if want := filepath.Join("/x", "aontu", "mod"); want != ModCacheDir() {
+		t.Fatalf("ModCacheDir: %q", ModCacheDir())
+	}
+}
+
 func TestModVendorOutsideRootIsDenied(t *testing.T) {
 	// Confinement is about what may be READ (docs/trust.md), and a
 	// project root found by walking UP can sit above the confinement

@@ -118,18 +118,46 @@ export function lockJson(text: string): string {
 }
 
 
-// The user cache: `~/.cache/aontu/mod` unless the host names another,
-// and honouring XDG_CACHE_HOME because that is what a cache directory
-// on this platform means. A host that gives no home has no cache,
-// which is a miss rather than a failure. One rule, in one place: the
-// resolver reads this cache during evaluation and `aontu mod` writes
-// into it, and two spellings of "where the cache is" is one bug.
+// The user cache: `$XDG_CACHE_HOME/aontu/mod` unless the host names
+// another, else the platform's own cache location. A host with nowhere
+// to put one has no cache, which is a miss rather than a failure. One
+// rule, in one place: the resolver reads this cache during evaluation
+// and `aontu mod` writes into it, and two spellings of "where the cache
+// is" is one bug.
 export function modCacheDir(): string | undefined {
-  const xdg = process.env.XDG_CACHE_HOME
+  return modCacheDirFor(process.platform, process.env)
+}
+
+
+// That rule with the platform and the environment PASSED IN, so the
+// Windows arm can be exercised off Windows — the only way a rule about
+// a platform nobody here runs gets tested at all. The Go port splits
+// the same way (modCacheDirFor, go/aontu.go).
+//
+// XDG_CACHE_HOME WINS EVERYWHERE, including on Windows: it is the
+// explicit override, and a caller who names a cache directory means it.
+// Below that the platforms differ, and the rule has to say so. Windows
+// sets neither XDG_CACHE_HOME nor HOME by default — it supplies
+// USERPROFILE and LOCALAPPDATA, and LOCALAPPDATA is what a cache
+// directory means there — so a rule that knew only the first two left
+// every Windows user with NO cache: `aontu mod get` had nowhere to
+// write, and a module fetched a moment earlier came back "not fetched",
+// resolvable only from a project-local aon_vendor/.
+export function modCacheDirFor(
+  platform: string,
+  env: Record<string, string | undefined>,
+): string | undefined {
+  const xdg = env.XDG_CACHE_HOME
   if ('string' === typeof xdg && '' !== xdg) {
     return pathJoin(xdg, 'aontu', 'mod')
   }
-  const home = process.env.HOME
+  if ('win32' === platform) {
+    const local = env.LOCALAPPDATA
+    if ('string' === typeof local && '' !== local) {
+      return pathJoin(local, 'aontu', 'mod')
+    }
+  }
+  const home = env.HOME
   return 'string' === typeof home && '' !== home ?
     pathJoin(home, '.cache', 'aontu', 'mod') : undefined
 }

@@ -24,7 +24,11 @@ it.
 
 ## Language server (Neovim)
 
-Ensure `aontu-lsp` is on your `PATH` (`npm install -g aontu`). On opening a
+Ensure `aontu-lsp` is on your `PATH` (`npm install -g aontu`). On Windows
+that entry point is the shim `aontu-lsp.cmd`, and an LSP client that
+spawns without a shell cannot execute it — name `aontu-lsp.cmd`
+explicitly, or point the command at `node` with the server script as its
+argument, as the examples below do. On opening a
 `.aon` file the plugin starts the server via Neovim's built-in LSP client.
 
 Customise or disable:

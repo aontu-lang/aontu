@@ -1250,14 +1250,19 @@ somewhere new.
 
 **Evaluation never touches the network.** A module resolves from local
 stores only — `aon_vendor/` beside the project's `mod.aon`, then a
-content-addressed user cache (`$XDG_CACHE_HOME/aontu/mod`, else
-`~/.cache/aontu/mod`) — and the cache is consulted only when the
+content-addressed user cache — and the cache is consulted only when the
 expected hash is known, because that hash is its key. A module in
 neither store is an error that names the step that fixes it:
 
 ```
 module not fetched: corp.example/schemas/service@1 (run: aontu mod get)
 ```
+
+The user cache is `$XDG_CACHE_HOME/aontu/mod` where that is set — an
+explicit override wins on every platform — and otherwise the platform's
+own cache location: `%LOCALAPPDATA%\aontu\mod` on Windows,
+`~/.cache/aontu/mod` elsewhere. A host that offers none of those has no
+user cache, and a module then resolves from `aon_vendor/` alone.
 
 **The module file and the lockfile are ordinary Aontu.** `mod.aon`
 declares the module's own path and entry file; the entry defaults to

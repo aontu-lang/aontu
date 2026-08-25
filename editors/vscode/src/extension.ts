@@ -19,9 +19,24 @@ export function activate(_context: vscode.ExtensionContext) {
   const command = cfg.get<string>('server.command', 'aontu-lsp')
   const args = cfg.get<string[]>('server.args', [])
 
+  // SPAWN THROUGH A SHELL ON WINDOWS, and only there. npm installs the
+  // server's entry point as the shim `aontu-lsp.cmd`, and
+  // vscode-languageclient spawns with child_process and no `shell`
+  // option — CreateProcess will not execute a .cmd, so the default
+  // command this extension ships never started at all on Windows, on
+  // the one path docs/lsp.md tells a user to configure.
+  //
+  // Windows-only because that is where the shim is: on POSIX the
+  // command is an executable with a shebang and a shell would only add
+  // a level of word-splitting to an argument list the user configures.
+  // Nothing in CI exercises editors/, so this is reasoned rather than
+  // measured — the failure it fixes is CreateProcess's documented
+  // refusal, not a guess about it.
+  const options = { shell: 'win32' === process.platform }
+
   const serverOptions: ServerOptions = {
-    run: { command, args, transport: TransportKind.stdio },
-    debug: { command, args, transport: TransportKind.stdio },
+    run: { command, args, options, transport: TransportKind.stdio },
+    debug: { command, args, options, transport: TransportKind.stdio },
   }
 
   const clientOptions: LanguageClientOptions = {

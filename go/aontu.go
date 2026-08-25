@@ -5,6 +5,7 @@ package aontu
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 )
 
@@ -264,16 +265,46 @@ func (a *Aontu) GenerateVars(src string, vars map[string]Val) (any, error) {
 }
 
 // ModCacheDir is the content-addressed user module cache (G6 phase 2):
-// `$XDG_CACHE_HOME/aontu/mod`, else `$HOME/.cache/aontu/mod`. A host
-// with no home has no cache, which is a miss rather than a failure. One
-// rule, in one place: the resolver reads this cache during evaluation
-// and `aontu mod` writes into it, and two spellings of "where the cache
-// is" is one bug. Mirrors modCacheDir in ts/src/mod.ts.
+// `$XDG_CACHE_HOME/aontu/mod`, else the platform's own cache location.
+// A host with nowhere to put one has no cache, which is a miss rather
+// than a failure. One rule, in one place: the resolver reads this cache
+// during evaluation and `aontu mod` writes into it, and two spellings
+// of "where the cache is" is one bug. Mirrors modCacheDir in
+// ts/src/mod.ts.
 func ModCacheDir() string {
-	if xdg := os.Getenv("XDG_CACHE_HOME"); "" != xdg {
+	return modCacheDirFor(runtime.GOOS, os.Getenv)
+}
+
+// modCacheDirFor is that rule with the platform and the environment
+// PASSED IN, so the Windows arm can be exercised off Windows -- the
+// only way a rule about a platform nobody here runs gets tested at all.
+// The canonical port splits the same way (modCacheDirFor, ts/src/mod.ts).
+//
+// XDG_CACHE_HOME WINS EVERYWHERE, including on Windows: it is the
+// explicit override, and a caller who names a cache directory means it.
+// Below that the platforms differ, and the rule has to say so. Windows
+// sets neither XDG_CACHE_HOME nor HOME by default -- it supplies
+// USERPROFILE and LOCALAPPDATA, and LOCALAPPDATA is what a cache
+// directory means there -- so a rule that knew only the first two left
+// every Windows user with NO cache: `aontu mod get` had nowhere to
+// write, and a module fetched a moment earlier came back "not fetched",
+// resolvable only from a project-local aon_vendor/.
+//
+// os.UserCacheDir is deliberately NOT used, though it encodes a
+// per-platform rule of its own: on macOS it answers
+// $HOME/Library/Caches, and taking it would move every existing macOS
+// cache and put this port out of step with the canonical one, which has
+// no such function to reach for.
+func modCacheDirFor(goos string, env func(string) string) string {
+	if xdg := env("XDG_CACHE_HOME"); "" != xdg {
 		return filepath.Join(xdg, "aontu", "mod")
 	}
-	if home := os.Getenv("HOME"); "" != home {
+	if "windows" == goos {
+		if local := env("LOCALAPPDATA"); "" != local {
+			return filepath.Join(local, "aontu", "mod")
+		}
+	}
+	if home := env("HOME"); "" != home {
 		return filepath.Join(home, ".cache", "aontu", "mod")
 	}
 	return ""

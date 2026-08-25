@@ -16,11 +16,11 @@ import * as Path from 'node:path'
 import { Aontu, canonHash } from '../dist/aontu'
 import { main as cliMain } from '../dist/cli'
 import { versionCompare } from '../dist/mod-tool'
+import { modCacheDirFor } from '../dist/mod'
+
+import { srcPath } from './srcpath'
 
 
-// Forward slashes for paths EMBEDDED IN SOURCE text: inside an @"..."
-// include a backslash is an ESCAPE character (trust.test.ts's `sp`).
-const sp = (p: string): string => p.split('\\').join('/')
 
 const MODULE = 'name: string\nport: *8080 | integer\n'
 
@@ -64,7 +64,7 @@ describe('mod', () => {
     const w = world('cache')
     const a0 = new Aontu({ mod: { cache: w.cache } } as any)
     Assert.deepEqual(
-      a0.generate('x: @"' + sp(w.main) + '"'),
+      a0.generate('x: @"' + srcPath(w.main) + '"'),
       { x: { svc: { name: 'auth', port: 8080 } } })
   })
 
@@ -80,7 +80,7 @@ describe('mod', () => {
       trust: { include: { root: w.dir } },
     } as any)
     Assert.throws(
-      () => a0.generate('x: @"' + sp(w.main) + '"'),
+      () => a0.generate('x: @"' + srcPath(w.main) + '"'),
       (err: any) => String(err.message).includes('module not fetched:'))
   })
 
@@ -99,7 +99,7 @@ describe('mod', () => {
     process.env.XDG_CACHE_HOME = xdg
     try {
       Assert.deepEqual(
-        new Aontu().generate('x: @"' + sp(w.main) + '"'),
+        new Aontu().generate('x: @"' + srcPath(w.main) + '"'),
         { x: { svc: { name: 'auth', port: 8080 } } })
     }
     finally {
@@ -128,7 +128,7 @@ describe('mod', () => {
     process.env.HOME = home
     try {
       Assert.deepEqual(
-        new Aontu().generate('x: @"' + sp(w.main) + '"'),
+        new Aontu().generate('x: @"' + srcPath(w.main) + '"'),
         { x: { svc: { name: 'auth', port: 8080 } } })
     }
     finally {
@@ -145,6 +145,41 @@ describe('mod', () => {
   })
 
 
+  // THE PLATFORM RULE, WITH THE PLATFORM PASSED IN. A Windows arm
+  // cannot be reached from a suite that never runs on Windows, so it is
+  // exercised here rather than trusted — which is the whole reason
+  // modCacheDir splits into modCacheDirFor. Twin: TestModCacheDirRule
+  // in go/mod_test.go.
+  test('cache-dir-rule', () => {
+    const at = (...p: string[]) => Path.join(...p)
+
+    // The explicit override wins on every platform.
+    Assert.equal(
+      modCacheDirFor('linux', { XDG_CACHE_HOME: '/x', HOME: '/h' }),
+      at('/x', 'aontu', 'mod'))
+    Assert.equal(
+      modCacheDirFor('win32', { XDG_CACHE_HOME: '/x', LOCALAPPDATA: 'C:/L' }),
+      at('/x', 'aontu', 'mod'))
+
+    // Below it the platforms differ, which is the point.
+    Assert.equal(
+      modCacheDirFor('win32', { LOCALAPPDATA: 'C:/L', HOME: '/h' }),
+      at('C:/L', 'aontu', 'mod'))
+    Assert.equal(
+      modCacheDirFor('linux', { LOCALAPPDATA: 'C:/L', HOME: '/h' }),
+      at('/h', '.cache', 'aontu', 'mod'))
+    Assert.equal(
+      modCacheDirFor('win32', { HOME: '/h' }),
+      at('/h', '.cache', 'aontu', 'mod'))
+
+    // An empty variable is not a location, and nowhere to put one is a
+    // MISS rather than a failure.
+    Assert.equal(modCacheDirFor('win32', { LOCALAPPDATA: '', HOME: '' }), undefined)
+    Assert.equal(modCacheDirFor('win32', {}), undefined)
+    Assert.equal(modCacheDirFor('linux', { XDG_CACHE_HOME: '' }), undefined)
+  })
+
+
   test('no-home-means-no-cache', () => {
     // A host with no home directory has no cache, and that is a MISS
     // rather than a failure: the module is simply not in any store this
@@ -156,7 +191,7 @@ describe('mod', () => {
     delete process.env.HOME
     try {
       Assert.throws(
-        () => new Aontu().generate('x: @"' + sp(w.main) + '"'),
+        () => new Aontu().generate('x: @"' + srcPath(w.main) + '"'),
         (err: any) => String(err.message).includes('module not fetched:'))
     }
     finally {
@@ -177,7 +212,7 @@ describe('mod', () => {
     Fs.rmSync(Path.join(w.dir, 'aon_vendor'), { recursive: true })
     const a0 = new Aontu({ fs: Fs } as any)
     Assert.throws(
-      () => a0.generate('x: @"' + sp(w.main) + '"'),
+      () => a0.generate('x: @"' + srcPath(w.main) + '"'),
       (err: any) => String(err.message).includes('module not fetched:'))
   })
 
@@ -190,7 +225,7 @@ describe('mod', () => {
     const w = world('vendor')
     const a0 = new Aontu({ fs: Fs } as any)
     Assert.deepEqual(
-      a0.generate('x: @"' + sp(w.main) + '"'),
+      a0.generate('x: @"' + srcPath(w.main) + '"'),
       { x: { svc: { name: 'auth', port: 8080 } } })
   })
 
@@ -208,7 +243,7 @@ describe('mod', () => {
 
     const a0 = new Aontu({ trust: { include: { root: sub } } } as any)
     Assert.throws(
-      () => a0.generate('x: @"' + sp(main) + '"'),
+      () => a0.generate('x: @"' + srcPath(main) + '"'),
       (err: any) => String(err.message).includes('include denied:'))
   })
 
@@ -225,7 +260,7 @@ describe('mod', () => {
     const w = world('vendor')
     const a0 = new Aontu({ mod: { depth: 16 } } as any)
     Assert.throws(
-      () => a0.generate('x: @"' + sp(w.main) + '"'),
+      () => a0.generate('x: @"' + srcPath(w.main) + '"'),
       (err: any) => String(err.message).includes('module depth:'))
   })
 
