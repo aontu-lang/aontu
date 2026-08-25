@@ -389,7 +389,7 @@ func editableLiteral(
 	// The full note is on the canonical port; the short of it is that
 	// the site's file cannot establish which document a literal came
 	// from -- this port names the ENTRY document for an included value
-	// (issue #76), and a library caller need not pass OverlayPath at all
+	// (issue #66), and a library caller need not pass OverlayPath at all
 	// -- so an included literal's (row, col, len, src) can COINCIDE with
 	// different text at the same coordinates here, and the span
 	// verification cannot tell them apart because the text really does

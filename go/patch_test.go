@@ -103,7 +103,7 @@ func TestOffsetAtConvertsUTF16ColumnsToBytes(t *testing.T) {
 // a splice that trusted it would rewrite `x` while reporting a
 // replacement of `$.a`, with a valid verdict and no findings. The site's
 // File cannot save it: this port names the ENTRY document for an
-// included value (issue #76), so the comparison is the overlay against
+// included value (issue #66), so the comparison is the overlay against
 // itself, and a library caller need not pass OverlayPath at all.
 //
 // Denying includes removes the ambiguity at its source: what resolves is

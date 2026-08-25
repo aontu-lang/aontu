@@ -76,11 +76,11 @@ PASSES — and a splice that trusted it rewrites `x` while reporting a
 replacement of `$.a`, with a valid verdict and no findings. The site's
 `file` cannot save it: a library caller need not pass `overlayPath`, and
 the Go port names the entry document for an included value anyway (issue
-#76). So the evaluation that decides what to edit **denies loads**, and
+#66). So the evaluation that decides what to edit **denies loads**, and
 what resolves is what the overlay says by itself. That removes the
 ambiguity at its source rather than detecting it, costs nothing in the
 shape `set` is for — an overlay it owns and appends to — and makes both
-ports agree without waiting on #76.
+ports agree without waiting on #66.
 
 The span verification and the no-extent guard **merged into one
 condition** on the way: they read as two guards and were one question
@@ -136,9 +136,11 @@ Found by the parity probe for the above, and fixed rather than recorded:
   `why-piped-call-is-unsited` and `why-written-call-sites-its-name`.
 
 A third divergence in the same machinery is **recorded, not fixed**
-(issue #76, `test/spec/divergent.tsv`): Go names the entry document for
-values TypeScript names none for — a literal in an `@"included"` file,
-and a value minted during unification. Go's loader stamps no
+(`test/spec/divergent.tsv`): Go names the entry document for values
+TypeScript names none for. That is TWO entries, not one — a literal in
+an `@"included"` file is **#66**, recorded a week before this work and
+rediscovered by its parity probe, and a value minted during unification
+is **#76**, which fixing #66 does not settle. Go's loader stamps no
 per-document url for a guard to preserve, and Go does not track whether
 a value was parsed or minted, so neither is a one-line fix. Safety in
 `set --in-place` is unaffected: the span verification catches what the
