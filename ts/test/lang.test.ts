@@ -29,6 +29,7 @@ const TOP = top()
 
 import { expect } from './expect'
 import { MapVal } from '../dist/val/MapVal'
+import { srcPath } from './srcpath'
 
 let lang = new Lang()
 let P: (s: string, o?: any) => Val = lang.parse.bind(lang)
@@ -162,73 +163,73 @@ describe('lang', function() {
       // trace: true,
     })
 
-    let t00x = g0.parse('x:@"' + __dirname + '/../test/t00.aon"')
+    let t00x = g0.parse('x:@"' + srcPath(__dirname) + '/../test/t00.aon"')
     expect(t00x.canon).equal('{"x":{"a":1}}')
 
-    let t00xA = g0.parse('A:11,x:@"' + __dirname + '/../test/t00.aon"')
+    let t00xA = g0.parse('A:11,x:@"' + srcPath(__dirname) + '/../test/t00.aon"')
     expect(t00xA.canon).equal('{"A":11,"x":{"a":1}}')
-    let t00xB = g0.parse('x:@"' + __dirname + '/../test/t00.aon",B:22')
+    let t00xB = g0.parse('x:@"' + srcPath(__dirname) + '/../test/t00.aon",B:22')
     expect(t00xB.canon).equal('{"B":22,"x":{"a":1}}')
-    let t00xAB = g0.parse('A:11,x:@"' + __dirname + '/../test/t00.aon",B:22')
+    let t00xAB = g0.parse('A:11,x:@"' + srcPath(__dirname) + '/../test/t00.aon",B:22')
     expect(t00xAB.canon).equal('{"A":11,"B":22,"x":{"a":1}}')
 
-    let t00xAs = g0.parse('A:11 x:@"' + __dirname + '/../test/t00.aon"')
+    let t00xAs = g0.parse('A:11 x:@"' + srcPath(__dirname) + '/../test/t00.aon"')
     expect(t00xAs.canon).equal('{"A":11,"x":{"a":1}}')
-    let t00xBs = g0.parse('x:@"' + __dirname + '/../test/t00.aon" B:22')
+    let t00xBs = g0.parse('x:@"' + srcPath(__dirname) + '/../test/t00.aon" B:22')
     expect(t00xBs.canon).equal('{"B":22,"x":{"a":1}}')
-    let t00xABs = g0.parse('A:11 x:@"' + __dirname + '/../test/t00.aon" B:22')
+    let t00xABs = g0.parse('A:11 x:@"' + srcPath(__dirname) + '/../test/t00.aon" B:22')
     expect(t00xABs.canon).equal('{"A":11,"B":22,"x":{"a":1}}')
 
 
-    let t00v = g0.parse('@"' + __dirname + '/../test/t00.aon"')
+    let t00v = g0.parse('@"' + srcPath(__dirname) + '/../test/t00.aon"')
     expect(t00v.canon).equal('{}&{"a":1}')
     let t00 = new Unify(t00v)
     expect(t00.res.canon).equal('{"a":1}')
     expect(t00.res.gen(ctx)).equal({ a: 1 })
 
-    let t00vX = g0.parse(' X:11 @"' + __dirname + '/../test/t00.aon"')
+    let t00vX = g0.parse(' X:11 @"' + srcPath(__dirname) + '/../test/t00.aon"')
     expect(t00vX.canon).equal('{"X":11}&{"a":1}')
     let t00X = new Unify(t00vX)
     expect(t00X.res.canon).equal('{"X":11,"a":1}')
     expect(t00X.res.gen(ctx)).equal({ X: 11, a: 1 })
 
-    let t00vY = g0.parse('@"' + __dirname + '/../test/t00.aon" Y:22 ')
+    let t00vY = g0.parse('@"' + srcPath(__dirname) + '/../test/t00.aon" Y:22 ')
     expect(t00vY.canon).equal('{"Y":22}&{"a":1}')
     let t00Y = new Unify(t00vY)
     expect(t00Y.res.canon).equal('{"Y":22,"a":1}')
     expect(t00Y.res.gen(ctx)).equal({ Y: 22, a: 1 })
 
 
-    let t00dv = g0.parse('D:{@"' + __dirname + '/../test/t00.aon"}')
+    let t00dv = g0.parse('D:{@"' + srcPath(__dirname) + '/../test/t00.aon"}')
     expect(t00dv.canon).equal('{"D":{}&{"a":1}}')
     let t00d = new Unify(t00dv)
     expect(t00d.res.canon).equal('{"D":{"a":1}}')
     expect(t00d.res.gen(ctx)).equal({ D: { a: 1 } })
 
 
-    let t01v = g0.parse('@"' + __dirname + '/../test/t01.aontu"')
+    let t01v = g0.parse('@"' + srcPath(__dirname) + '/../test/t01.aontu"')
     expect(t01v.canon).equal('{}&{"a":1,"b":{"d":2},"c":3}')
 
-    let t02v = g0.parse('@"' + __dirname + '/../test/t02.aon"')
+    let t02v = g0.parse('@"' + srcPath(__dirname) + '/../test/t02.aon"')
     expect(t02v.canon).equal('{}&({"x":1}&{"y":2})')
 
 
     let t00m = g0.parse(`
-    @"` + __dirname + `/../test/t00.aon"
+    @"` + srcPath(__dirname) + `/../test/t00.aon"
     `)
     expect(t00m.canon).equal('{}&{"a":1}')
 
     let t01m = g0.parse(`
-    @"` + __dirname + `/../test/t00.aon"
-    @"` + __dirname + `/../test/t04.aon"
+    @"` + srcPath(__dirname) + `/../test/t00.aon"
+    @"` + srcPath(__dirname) + `/../test/t04.aon"
     `)
     expect(t01m.canon).equal('{}&{"a":1}&{"b":2}')
 
     let t02m = g0.parse(`
     x: 11
-    @"` + __dirname + `/../test/t00.aon"
+    @"` + srcPath(__dirname) + `/../test/t00.aon"
     y: 22
-    @"` + __dirname + `/../test/t04.aon"
+    @"` + srcPath(__dirname) + `/../test/t04.aon"
     z: 33
     `)
     expect(t02m.canon).equal('{"x":11,"y":22,"z":33}&{"a":1}&{"b":2}')
@@ -236,7 +237,7 @@ describe('lang', function() {
 
     let t03m = g0.parse(`
     x:y:{}
-    @"` + __dirname + `/../test/t00.aon"
+    @"` + srcPath(__dirname) + `/../test/t00.aon"
     `)
     expect(t03m.canon).equal('{"x":{"y":{}}}&{"a":1}')
   })

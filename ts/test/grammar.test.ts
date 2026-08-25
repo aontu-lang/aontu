@@ -462,10 +462,17 @@ describe('grammar', () => {
     const end = -1 === blank ? gbnf.length : blank
     const named = new Set(
       [...gbnf.slice(start, end).matchAll(/"([a-z]+)"/g)].map((m) => m[1]))
-    // A guard on the SIZE of what was sliced, so a terminator that
-    // moves cannot quietly hand this assertion the whole file again.
-    Assert.ok(named.size < 40,
-      `the name rule slice is implausibly wide (${named.size} names) -- ` +
+    // A guard on what was sliced, so a terminator that moves cannot
+    // quietly hand this assertion the whole file again. It asserts the
+    // INVARIANT rather than a threshold: the slice is ONE rule, so it
+    // holds exactly one `::=`. A size guard was the first attempt and
+    // was far too close to run -- the real slice carries 28 names and
+    // the runaway slice 41, so `< 40` separated them by a single name,
+    // and two literals leaving any later rule would have restored the
+    // silence it was added to end. By rule count the margin is 14.
+    const rules = (gbnf.slice(start, end).match(/::=/g) ?? []).length
+    Assert.equal(rules, 1,
+      `the name rule slice spans ${rules} rules (${named.size} names) -- ` +
       'the terminator probably stopped matching')
 
     const engine = new Set(BUILTIN_FUNCS)

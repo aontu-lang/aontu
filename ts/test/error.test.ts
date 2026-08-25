@@ -7,6 +7,7 @@ import { expect } from './expect'
 import { Aontu } from '../dist/aontu'
 
 import { AontuError } from '../dist/err'
+import { srcPath } from './srcpath'
 
 
 describe('error', function() {
@@ -50,7 +51,7 @@ describe('error', function() {
 
   it('file-e01', async () => {
     let a0 = new Aontu()
-    let v0 = a0.unify('@"' + __dirname + '/../test/error/e01.aon"', { collect: true })
+    let v0 = a0.unify('@"' + srcPath(__dirname) + '/../test/error/e01.aon"', { collect: true })
     expect(v0.err[0].why).equal('scalar_value')
     expect(typeof v0.err[0].msg).equal('string')
   })
@@ -62,7 +63,7 @@ describe('error', function() {
     expect(() => aontu.generate('a:$.b')).throw(/no_path/)
 
     expect(() =>
-      aontu.generate('@"' + __dirname + '/../test/error/e02.aon"'))
+      aontu.generate('@"' + srcPath(__dirname) + '/../test/error/e02.aon"'))
       .throw(/no_path/)
   })
 
@@ -130,7 +131,7 @@ describe('error', function() {
     // File source: error message should show the file content.
     let a0 = new Aontu({ fs: Fs })
     let v0 = a0.unify(
-      '@"' + __dirname + '/../test/error/e01.aon"',
+      '@"' + srcPath(__dirname) + '/../test/error/e01.aon"',
       { collect: true }
     )
     expect(v0.err[0].why).equal('scalar_value')
@@ -146,7 +147,7 @@ describe('error', function() {
     // Error message should show file content, not SOURCE-NOT-FOUND.
     let a0 = new Aontu({ fs: Fs })
     let v0 = a0.unify(
-      '@"' + __dirname + '/../test/error/e03.aon"',
+      '@"' + srcPath(__dirname) + '/../test/error/e03.aon"',
       { collect: true }
     )
     expect(v0.err[0].why).equal('scalar_value')

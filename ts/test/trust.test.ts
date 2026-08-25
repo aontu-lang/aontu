@@ -18,16 +18,8 @@ import { Aontu } from '../dist/aontu'
 import { computeDiagnostics, LspHandler } from '../dist/lsp'
 import { main as cliMain } from '../dist/cli'
 
+import { srcPath } from './srcpath'
 
-// A little world to confine: root/{in.aon, nest.aon, sub/deep.aon},
-// with secret.aon OUTSIDE the root and a symlink inside pointing at it.
-
-// Forward slashes for paths EMBEDDED IN SOURCE text: inside an @"..."
-// include a backslash is an ESCAPE character, so a native Windows path
-// interpolated raw would be eaten by the lexer (C:\Users\... arrives
-// as C:Users...). Node accepts forward slashes on every platform, so
-// sources spell paths that way; filesystem calls keep native paths.
-const sp = (p: string): string => p.split('\\').join('/')
 
 // The uri a real editor sends for a directory: `file://`, then the
 // ABSOLUTE PATH with its own leading slash. On Windows that makes three
@@ -37,10 +29,20 @@ const sp = (p: string): string => p.split('\\').join('/')
 // and which quietly hid the drive-letter defect. Twin: fileURI in
 // go/lsp/lsp_test.go.
 const fileURI = (p: string): string => {
-  const s = sp(p)
+  const s = srcPath(p)
   return 'file://' + (s.startsWith('/') ? s : '/' + s)
 }
 
+// A little world to confine: root/{in.aon, nest.aon, sub/deep.aon},
+// with secret.aon OUTSIDE the root and a symlink inside pointing at it.
+//
+// THE SYMLINK IS BEST-EFFORT. Windows refuses one without Developer
+// Mode or elevation, and libuv asks for it exactly as Go does -- same
+// CreateSymbolicLinkW, same unprivileged-create retry, same privilege
+// required. Unguarded, that EPERM threw out of the shared fixture and
+// took every test in this file with it, for a reason that is not about
+// Aontu. Only symlinkEscape needs the link; the rest of the world is
+// built either way. Twin: trustWorld/trustSymlink in go/trust_test.go.
 function world(): { dir: string, root: string } {
   const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-trust-'))
   const root = Path.join(dir, 'root')
@@ -49,9 +51,20 @@ function world(): { dir: string, root: string } {
   Fs.writeFileSync(Path.join(root, 'nest.aon'), '@"in.aon"\ng: 22')
   Fs.writeFileSync(Path.join(root, 'sub', 'deep.aon'), 'h: 33')
   Fs.writeFileSync(Path.join(dir, 'secret.aon'), 'secret: "outside"')
-  Fs.symlinkSync(Path.join(dir, 'secret.aon'), Path.join(root, 'link.aon'))
+  try {
+    Fs.symlinkSync(Path.join(dir, 'secret.aon'), Path.join(root, 'link.aon'))
+  }
+  catch {
+    // Reported by symlinkEscape, as a skip on the one test that needs it.
+  }
   return { dir, root }
 }
+
+// symlinkEscape reports whether world() got its symlink, so the test
+// that turns on one can skip rather than fail where the platform
+// refuses to make it. The Go twin is trustSymlink.
+const symlinkEscape = (root: string): boolean =>
+  Fs.existsSync(Path.join(root, 'link.aon'))
 
 
 function firstCode(fn: () => void): string | undefined {
@@ -71,7 +84,7 @@ describe('trust-include', () => {
     const w = world()
     const a = new Aontu({ trust: { include: 'none' } })
     Assert.equal(
-      firstCode(() => a.generate(`a:@"${sp(w.root)}/in.aon"`)),
+      firstCode(() => a.generate(`a:@"${srcPath(w.root)}/in.aon"`)),
       'include_denied')
   })
 
@@ -94,22 +107,25 @@ describe('trust-include', () => {
     const opts = { trust: { include: { root: w.root } } }
 
     Assert.deepEqual(
-      new Aontu(opts).generate(`a:@"${sp(w.root)}/sub/deep.aon"`),
+      new Aontu(opts).generate(`a:@"${srcPath(w.root)}/sub/deep.aon"`),
       { a: { h: 33 } })
 
     Assert.equal(
       firstCode(() =>
-        new Aontu(opts).generate(`a:@"${sp(w.root)}/../secret.aon"`)),
+        new Aontu(opts).generate(`a:@"${srcPath(w.root)}/../secret.aon"`)),
       'include_denied')
   })
 
   // Confinement is realpath-then-prefix-check: a symlink INSIDE the
   // root pointing outside it is an escape, not a loophole.
-  test('root-denies-a-symlink-escape', () => {
+  test('root-denies-a-symlink-escape', (t) => {
     const w = world()
+    if (!symlinkEscape(w.root)) {
+      return t.skip('symlink not available on this platform')
+    }
     Assert.equal(
       firstCode(() => new Aontu({ trust: { include: { root: w.root } } })
-        .generate(`a:@"${sp(w.root)}/link.aon"`)),
+        .generate(`a:@"${srcPath(w.root)}/link.aon"`)),
       'include_denied')
   })
 
@@ -117,7 +133,7 @@ describe('trust-include', () => {
     const w = world()
     Assert.throws(
       () => new Aontu({ trust: { include: { root: w.root } } })
-        .generate(`a:@"${sp(w.root)}/nope.aon"`),
+        .generate(`a:@"${srcPath(w.root)}/nope.aon"`),
       /not found/)
   })
 
@@ -129,7 +145,7 @@ describe('trust-include', () => {
     Assert.equal(
       firstCode(() => new Aontu({
         trust: { include: { root: Path.join(w.dir, 'no-such-root') } },
-      }).generate(`a:@"${sp(w.root)}/in.aon"`)),
+      }).generate(`a:@"${srcPath(w.root)}/in.aon"`)),
       'include_denied')
   })
 
@@ -164,7 +180,7 @@ describe('trust-manifest', () => {
     const a = new Aontu({ trust: { include: { root: w.root } } })
     const ac = a.ctx({})
     const v: any = a.parse(
-      `a:@"${sp(w.root)}/nest.aon" b:@"${sp(w.root)}/in.aon" c:@"${sp(w.root)}/in.aon"`,
+      `a:@"${srcPath(w.root)}/nest.aon" b:@"${srcPath(w.root)}/in.aon" c:@"${srcPath(w.root)}/in.aon"`,
       undefined, ac)
     Assert.deepEqual(v.deps, [
       { path: Path.join(w.root, 'in.aon'), capability: 'file' },
@@ -237,12 +253,12 @@ describe('trust-lsp', () => {
     const h = init({ rootUri: fileURI(w.root) })
     // Two diagnostics, matching the syntax-failure precedent: the
     // outer parse nil and the inner denial carrying the code.
-    const diags = diagsFor(h, `a:@"${sp(w.root)}/../secret.aon"`)
+    const diags = diagsFor(h, `a:@"${srcPath(w.root)}/../secret.aon"`)
     Assert.ok(diags.some((d: any) => 'include_denied' === d.code),
       JSON.stringify(diags))
 
     // In-root includes still resolve under the same session.
-    Assert.deepEqual(diagsFor(h, `a:@"${sp(w.root)}/in.aon"`), [])
+    Assert.deepEqual(diagsFor(h, `a:@"${srcPath(w.root)}/in.aon"`), [])
   })
 
   test('workspace-folders-outrank-root-uri', () => {
@@ -251,13 +267,13 @@ describe('trust-lsp', () => {
       rootUri: 'file:///nowhere',
       workspaceFolders: [{ uri: fileURI(w.root) }],
     })
-    Assert.deepEqual(diagsFor(h, `a:@"${sp(w.root)}/in.aon"`), [])
+    Assert.deepEqual(diagsFor(h, `a:@"${srcPath(w.root)}/in.aon"`), [])
   })
 
   test('root-path-fallback-confines', () => {
     const w = world()
     const h = init({ rootPath: w.root })
-    Assert.ok(diagsFor(h, `a:@"${sp(w.root)}/../secret.aon"`)
+    Assert.ok(diagsFor(h, `a:@"${srcPath(w.root)}/../secret.aon"`)
       .some((d: any) => 'include_denied' === d.code))
   })
 
@@ -269,13 +285,13 @@ describe('trust-lsp', () => {
       rootUri: fileURI(w.root),
       initializationOptions: { aontu: { trust: { include: 'system' } } },
     })
-    Assert.deepEqual(diagsFor(wide, `a:@"${sp(w.dir)}/secret.aon"`), [])
+    Assert.deepEqual(diagsFor(wide, `a:@"${srcPath(w.dir)}/secret.aon"`), [])
 
     // 'none' narrows to nothing.
     const none = init({
       initializationOptions: { aontu: { trust: { include: 'none' } } },
     })
-    Assert.ok(diagsFor(none, `a:@"${sp(w.root)}/in.aon"`)
+    Assert.ok(diagsFor(none, `a:@"${srcPath(w.root)}/in.aon"`)
       .some((d: any) => 'include_denied' === d.code))
 
     // { root } names its own directory.
@@ -284,7 +300,7 @@ describe('trust-lsp', () => {
         aontu: { trust: { include: { root: w.root } } },
       },
     })
-    Assert.deepEqual(diagsFor(rooted, `a:@"${sp(w.root)}/in.aon"`), [])
+    Assert.deepEqual(diagsFor(rooted, `a:@"${srcPath(w.root)}/in.aon"`), [])
 
     // { mem } is honoured too.
     const mem = init({
@@ -299,20 +315,20 @@ describe('trust-lsp', () => {
     const unknown = init({
       initializationOptions: { aontu: { trust: { include: { bogus: 1 } } } },
     })
-    Assert.ok(diagsFor(unknown, `a:@"${sp(w.root)}/in.aon"`)
+    Assert.ok(diagsFor(unknown, `a:@"${srcPath(w.root)}/in.aon"`)
       .some((d: any) => 'include_denied' === d.code))
   })
 
   test('no-root-no-option-stays-unconfined', () => {
     const w = world()
     const h = init({})
-    Assert.deepEqual(diagsFor(h, `a:@"${sp(w.root)}/in.aon"`), [])
+    Assert.deepEqual(diagsFor(h, `a:@"${srcPath(w.root)}/in.aon"`), [])
   })
 
   test('compute-diagnostics-takes-a-trust-argument', () => {
     const w = world()
     Assert.ok(
-      computeDiagnostics(`a:@"${sp(w.root)}/in.aon"`,
+      computeDiagnostics(`a:@"${srcPath(w.root)}/in.aon"`,
         { trust: { include: 'none' } })
         .some((d: any) => 'include_denied' === d.code))
   })
@@ -354,7 +370,7 @@ describe('trust-cli', () => {
   test('include-root-confines', () => {
     const w = world()
     const entry = Path.join(w.root, 'main.aon')
-    Fs.writeFileSync(entry, `a:@"${sp(w.dir)}/secret.aon"`)
+    Fs.writeFileSync(entry, `a:@"${srcPath(w.dir)}/secret.aon"`)
     const r = cli(['--include-root', w.root, entry])
     Assert.equal(r.code, 1)
     Assert.match(r.err, /include denied/)
@@ -372,7 +388,7 @@ describe('trust-cli', () => {
     const r = cli(['--trust', 'root', entry])
     Assert.equal(r.code, 0)
 
-    Fs.writeFileSync(entry, `a:@"${sp(w.dir)}/secret.aon"`)
+    Fs.writeFileSync(entry, `a:@"${srcPath(w.dir)}/secret.aon"`)
     Assert.equal(cli(['--trust', 'root', entry]).code, 1)
     Assert.equal(cli(['--trust', `root:${w.dir}`, entry]).code, 0)
   })
@@ -384,7 +400,7 @@ describe('trust-cli', () => {
     const w = world()
     const entry = Path.join(w.root, 'main.aon')
     Fs.writeFileSync(entry,
-      `a:@"${sp(w.dir)}/secret.aon" b:@"${sp(w.dir)}/secret.aon" c:@"in.aon"`)
+      `a:@"${srcPath(w.dir)}/secret.aon" b:@"${srcPath(w.dir)}/secret.aon" c:@"in.aon"`)
     const r = cli([entry])
     Assert.equal(r.code, 0)
     Assert.equal(
