@@ -13,16 +13,45 @@ Making the Go CI matrix real and adding a coverage job turned two
 long-dormant gates on. Both failed immediately, and neither failure was
 a flake.
 
-One Windows defect is recorded rather than fixed: the resolver stack
-tests absoluteness with a leading `/` or `\`, so a drive-letter path
-(`C:/Users/me/x.aon` — an absolute include on Windows) is joined onto
-the base as though it were relative. **Both implementations do this
-identically**, so it is a shared gap and not a divergence. The fix
-cannot be a shape rule: on Linux `C:` is a legal directory name and
-`C:/x.aon` a good relative path that resolves today, so the correction
-has to sit behind a platform test — the one branch a contributor on
-Linux cannot exercise. That is why it is not in this change.
+An earlier draft of this entry recorded the Windows absolute include as
+a shared gap that could not be fixed without a Windows machine. Both
+halves of that were wrong, and it is fixed below.
 
+- **An absolute include was resolved against the base on Windows.**
+  The resolver stack tests absoluteness with a leading `/` or `\`
+  (`multisource.ResolvePathSpec`), which no drive-letter path passes,
+  so `@"C:/other/schema.aon"` was joined onto the entry's directory and
+  never found — and because the confinement check sits inside the
+  successful-read branch, a rooted profile answered "source not found"
+  where it should have answered "include denied". This was a **Go-only
+  divergence**, not the shared gap first recorded: the TypeScript
+  package survives the same library rule by accident, its file resolver
+  appending `resolve(base, 'node_modules', path)` as a fallback that
+  win32 `path.resolve` collapses to the absolute path. Fixed with
+  `filepath.IsAbs`, which is the platform's own rule — false for `C:/x`
+  on Linux, where `C:` is a legal directory name and the include must
+  keep resolving against the base, and true on Windows. No hand-written
+  platform branch, and the POSIX arm is covered by the suite that runs
+  there.
+- **`aontu agentsmd --write` cut one byte after its end marker**,
+  assuming the LF of that line. On a CRLF document it took the CR and
+  left the LF, so every regeneration of an `AGENTS.md` gained a blank
+  line. Where the marker is the document's last content it indexed past
+  the end: **Go panicked while TypeScript returned cleanly** — a crash
+  on one port and a result on the other. Both now skip an optional CR
+  then an optional LF, bounded by the length.
+- **Windows had no user module cache.** The location rule read
+  `XDG_CACHE_HOME` then `HOME`, neither of which Windows sets by
+  default, so `aontu mod get` had nowhere to write and a module fetched
+  a moment earlier came back `module not fetched`. Both implementations
+  now take `LOCALAPPDATA` on Windows, below `XDG_CACHE_HOME`, which
+  remains the explicit override everywhere. The rule takes the platform
+  as an argument so the Windows arm is tested from Linux.
+- **The VS Code extension never started its server on Windows.** npm
+  installs the entry point as the shim `aontu-lsp.cmd`, and
+  `CreateProcess` will not execute a `.cmd` without a shell — so the
+  extension's own default command failed on the path the docs describe.
+  Spawned through a shell on win32 only.
 - **The Go port had never been tested on Windows.** `build-go` declared
   three operating systems while hardcoding `runs-on: ubuntu-latest`, so
   the Windows job had never once run on Windows — and fifteen tests
