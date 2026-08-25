@@ -391,9 +391,9 @@ Save it as `config.aon`; the last two sections use it:
 # --- schema + defaults (could live in its own file) ---
 service: close({
   name:    string
-  host:    string     & (*localhost | string)
-  port:    integer    & (*8080 | integer)
-  rate:    bigdecimal & (*0d0.01 | bigdecimal)
+  host:    *localhost | string
+  port:    *8080      | integer
+  rate:    *0d0.01    | bigdecimal
   tags:    [&: string]
 })
 
@@ -430,8 +430,9 @@ aontu config.aon
 Two things in that schema are worth a second look, because the obvious
 spelling of each is weaker than it looks.
 
-Every default is written as `kind & (*value | kind)`, the shape from
-§6 — so `port: 9090.5` is refused rather than quietly accepted.
+Every default is written as `*value | kind`, the shape from §6 — so
+`port: 9090.5` is refused rather than quietly accepted. The kind in the
+branch is the kind you get; nothing has to be repeated outside it.
 
 `tags` uses the spread from §8. `[&: string]` says *every* element is a
 string. The shorter `[string]` would not: a list literal is
@@ -501,9 +502,9 @@ schema half becomes `service.aon`:
 ```aontu
 service: close({
   name:    string
-  host:    string     & (*localhost | string)
-  port:    integer    & (*8080 | integer)
-  rate:    bigdecimal & (*0d0.01 | bigdecimal)
+  host:    *localhost | string
+  port:    *8080      | integer
+  rate:    *0d0.01    | bigdecimal
   tags:    [&: string]
 })
 ```

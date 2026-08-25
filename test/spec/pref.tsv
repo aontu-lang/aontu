@@ -41,6 +41,29 @@ pref-kind-gate-copy-clone-err	err	x:*1 y:copy($.x)&"s"	Cannot unify value
 pref-kind-gate-copy-string-err	err	x:*"a" y:copy($.x)&1	Cannot unify value
 pref-kind-gate-disjunct-spread-err	err	a:{&:*1|number, b:{}}	Cannot unify value
 pref-override-within-kind-gens	gens	a:{&:*1, b:2}	{"a":{"b":2}}
+#
+# THE GATE IS A SCALAR GATE. The rows above all have a SCALAR preferred
+# value, whose superior() is its kind -- so the gate has something to
+# refuse with. A structural preferred value does not: a map and a list
+# inherit FeatureVal.superior(), which is TOP, and `unite(top, peer)` is
+# the peer, so ANY peer overrides a structural default including one of
+# another kind entirely. That is why `*1 & "s"` is a conflict and
+# `*{x:1} & "s"` is the string.
+#
+# Recorded here rather than fixed: it long predates the kind gate (it is
+# what FeatureVal's superior has always meant), both ports agree on it,
+# and giving maps and lists a real kind yardstick is its own change with
+# its own decisions -- what `*{x:1} & {y:2}` should then mean, not least,
+# since today the default is REPLACED rather than merged. These rows
+# exist so that change cannot be made by accident, in one port only, or
+# without noticing which of the two behaviours moved.
+pref-struct-map-default-yields-string	gens	a:*{x:1}\na:"s"	{"a":"s"}
+pref-struct-list-default-yields-string	gens	a:*[1]\na:"s"	{"a":"s"}
+pref-struct-map-default-replaced-not-merged	gens	a:*{x:1}\na:{y:2}	{"a":{"y":2}}
+pref-struct-list-default-yields-number	gens	a:*[1]\na:5	{"a":5}
+# The scalar direction of the same pairing, for contrast: a scalar
+# default DOES refuse a map, which is the gate doing its work.
+pref-scalar-default-refuses-map	errc	a:*1\na:{x:2}	not-scalar-type
 pref-override-ref-clone-gens	gens	x:*1 y:$.x&2	{"x":1,"y":2}
 # A preference inside a COLON-CHAIN nested map (issue #1). The report was
 # that `bar: kind: *'led' | 'custom'` raised a model error naming both

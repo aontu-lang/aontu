@@ -234,19 +234,33 @@ float-list-quoted-vs-kind-canon	canon	a:["float",float]	{"a":["float",float]}
 # `gen` rows answering the override, and are now conflicts. A document
 # that means "either" still says so -- `*8080 | number` admits 3.5, and
 # `*8080 | integer` no longer pretends to.
-pref-float-overridden-by-integer-err	err	a:*2.2 & 3	Cannot unify values
-pref-integer-overridden-by-float-err	err	a:*2 & 3.0	Cannot unify values
-pref-func-float-overridden-by-integer-err	err	a:*lower(2.2) & 3	Cannot unify values
-pref-func-float-overridden-by-integer-upper-err	err	a:*upper(1.1) & 3	Cannot unify values
+#
+# THESE ARE errc ROWS, NOT err ROWS, and deliberately: message text is
+# not in cross-port parity but codes are (AGENTS.md, "Error codes"), so
+# an `err` row on a NEW failure pins the weaker half -- it would pass
+# while the two ports named the failure differently. The docs promise
+# these codes to a reader by name (docs/tutorial.md, docs/how-to.md),
+# which makes them public surface. Probed in both engines before they
+# were written; both answer the same code for every row here.
+pref-float-overridden-by-integer-err	errc	a:*2.2 & 3	no_scalar_unify
+pref-integer-overridden-by-float-err	errc	a:*2 & 3.0	no_scalar_unify
+pref-func-float-overridden-by-integer-err	errc	a:*lower(2.2) & 3	no_scalar_unify
+pref-func-float-overridden-by-integer-upper-err	errc	a:*upper(1.1) & 3	no_scalar_unify
 # The SAME-kind override is untouched, which is the point of a
 # preference: plain `1 & 2` is a conflict and `*1 & 2` is 2.
 pref-same-leaf-override-integer	gen	a:*1 & 2	{"a":2}
 pref-same-leaf-override-float	gen	a:*1.5 & 2.5	{"a":2.5}
 # And the idiom that started it: the preferred branch no longer widens
 # past the kind its sibling states.
-pref-idiom-refuses-other-leaf	err	a:(*8080|integer) & 3.5	Cannot unify values
+pref-idiom-refuses-other-leaf	errc	a:(*8080|integer) & 3.5	|:empty
 pref-idiom-admits-own-leaf	gen	a:(*8080|integer) & 9090	{"a":9090}
 pref-idiom-number-still-admits	gen	a:(*8080|number) & 3.5	{"a":3.5}
+# The idiom AS WRITTEN -- two statements, not one parenthesised meet --
+# because that is the shape docs/tutorial.md and the skill card teach
+# and the shape a later fragment or a merged file actually produces.
+pref-idiom-two-statement-refuses	errc	a:*8080|integer\na:1.5	|:empty
+pref-idiom-two-statement-admits	gen	a:*8080|integer\na:9090	{"a":9090}
+pref-idiom-two-statement-number	gen	a:*8080|number\na:1.5	{"a":1.5}
 # A kind peer that the default already satisfies leaves it standing...
 pref-float-kept-by-number	gen	a:*1.5 & number	{"a":1.5}
 pref-float-kept-by-float	gen	a:*1.5 & float	{"a":1.5}
@@ -255,8 +269,8 @@ pref-integer-kept-by-number	gen	a:*1 & number	{"a":1}
 # used to replace the default with the constraint. It had to: a default
 # the constraint can never admit is an authoring mistake, and answering
 # `integer` silently discarded the `1.5` the author wrote.
-pref-float-narrowed-by-integer-err	err	a:*1.5 & integer	Cannot unify values
-pref-integer-narrowed-by-float-err	err	a:*1 & float	Cannot unify values
+pref-float-narrowed-by-integer-err	errc	a:*1.5 & integer	scalar-type
+pref-integer-narrowed-by-float-err	errc	a:*1 & float	scalar-type
 # A preference whose peg is itself a kind constrains nothing.
 pref-float-kind-peg-yields-peer	gen	a:*float & "hello"	{"a":"hello"}
 # Outside the family it is a conflict, not an override.

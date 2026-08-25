@@ -45,10 +45,26 @@ as a workaround keeps working and now says nothing the inner branch does
 not; `docs/tutorial.md`, `docs/how-to.md`, `docs/explanation.md`,
 `docs/reference-language.md` and the skill card teach the direct form.
 
+**The gate is a SCALAR gate**, and the reference now says so instead of
+letting a general phrasing stand for it. A preferred map or list has no
+kind yardstick — `superior()` is `top` for both — so any peer overrides
+one, of any kind, and replaces rather than merges it: `*{x:1}` meeting
+`"s"` is the string. That long predates this change and both ports agree
+on it; it is now pinned (`pref-struct-*` in `test/spec/pref.tsv`) rather
+than merely true, so it cannot move in one port or by accident. Write
+`{x:*1}` rather than `*{x:1}` when you mean a map whose `x` defaults.
+
 Pinned by `test/spec/number-tower.tsv` (the `pref-*-leaf-*` and
 `pref-idiom-*` rows) and `test/spec/pref.tsv` (the cross-kind gate rows,
-renamed `pref-family-gate-*` → `pref-kind-gate-*`). Closes §6 of the
-2026-08-21 status report. TypeScript and Go move together.
+renamed `pref-family-gate-*` → `pref-kind-gate-*`). The newly-failing
+rows are `errc`, not `err`: message text is not in cross-port parity but
+codes are, and these codes (`no_scalar_unify`, `scalar-type`,
+`|:empty`) are now promised to a reader by name in the teaching
+documents, which makes them public surface. Closes §6 of the 2026-08-21
+status report, and supersedes the phase-1 implementation note in
+`docs/design/number-tower.md` that argued for the family gate — the note
+is kept, with its reasoning and the reason that reasoning was
+incomplete. TypeScript and Go move together.
 
 ### Added — a site has an extent
 

@@ -569,6 +569,34 @@ pinned with baseline rows first):
    that both ports agreed on before the tower, breaking landed rows
    (`var.tsv:var-pref-kind-narrow` among them). Pinned by the
    `pref-*` rows in number-tower.tsv, in both ports.
+
+   > **SUPERSEDED 2026-08-25 — the gate is the LEAF after all.** The
+   > note above is kept because it records the reasoning that was
+   > applied, and that reasoning was incomplete: it weighed the
+   > loosening (`*2 & 3.0`) without weighing the direction that comes
+   > with it. A family gate is one rule seen from two ends, and the
+   > other end is `*8080 & 3.5` — so `port: *8080 | integer`, the
+   > default idiom `docs/skill/examples.md` teaches, accepted `3.5` in
+   > both ports and silently widened every key written that way from
+   > `integer` to `number`. §6 of `docs/capability-review/status-2026-08-21.md`
+   > calls that the most consequential finding of the review; it is
+   > resolved by taking the tightening this note argued against.
+   >
+   > `PrefVal` now gates on `superpeg`, the preferred value's own kind;
+   > `familypeg` is gone from both ports. The four `pref-*` rows named
+   > above are REVERSED — `a:*2 & 3.0`, `a:*2.2 & 3`, `a:*1.5 & integer`
+   > and `a:*1 & float` are conflicts — and are now `errc` rows in
+   > number-tower.tsv pinning the codes as well as the failure.
+   >
+   > The one prediction that did hold up needed no compromise:
+   > `var.tsv:var-pref-kind-narrow` did NOT break, because `resuper()`
+   > answers `top` for a preference whose peg is ITSELF a kind
+   > (`*integer` constrains nothing — there is no type-of-a-type in this
+   > lattice). That arm is load-bearing and carries a comment saying so.
+   >
+   > **Do not restore the family gate from this note.** Reversing it
+   > again means reversing §6, and would need a new decision recorded
+   > there and in ADR terms, not a reading of this paragraph.
 2. `super(1.5)` flips from `number` to `float` (one landed row).
 3. **Lossy integer literals become errors (D7)** — and this reaches
    further than the four flipped spec rows (`hex-big`,

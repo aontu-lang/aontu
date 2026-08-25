@@ -425,14 +425,18 @@ trade-off rather than of a defect.
 
 ### A preference is gated by kind, not by family
 
-Overriding is judged by the preferred value's own **kind**: a concrete
-peer replaces a default only where the peer is the same kind of thing.
-`*8080` meeting `9090` yields `9090`; `*8080` meeting `3.5` is a
-conflict, and so is `*2.2` meeting `3`. A peer that merely *constrains*
-the default rather than replacing it — `*1 & integer`, `*1 & number` —
-leaves the preference standing, because it said nothing the preferred
-value did not already satisfy. The rule is stated plainly in the
-[language reference](reference-language.md#preference--default-).
+Overriding a scalar default is judged by the preferred value's own
+**kind**: a concrete peer replaces it only where the peer is the same
+kind of thing. `*8080` meeting `9090` yields `9090`; `*8080` meeting
+`3.5` is a conflict, and so is `*2.2` meeting `3`. A peer that merely
+*constrains* the default rather than replacing it — `*1 & integer`,
+`*1 & number` — leaves the preference standing, because it said nothing
+the preferred value did not already satisfy. The rule is stated plainly
+in the [language reference](reference-language.md#preference--default-),
+which also records the case it does **not** cover: a preferred map or
+list has no kind yardstick (`superior()` is `top`), so any peer
+overrides one. The gate is a scalar gate, and the reference says so
+rather than letting the general phrasing stand for it.
 
 The surprise is that the two numeric leaves do not mix around a
 preference, even though they share a supertype:

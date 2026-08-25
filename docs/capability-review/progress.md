@@ -549,7 +549,10 @@ the tower made `integer` and `float` disjoint and removed on
 gate let `*8080 | integer` admit `3.5`, silently widening the
 documented default idiom, and the two directions of that one rule
 could not be separated. A `defaults`-profile subsumption rule must be
-written against `superpeg` alone.
+written against `superpeg` alone — and must account for the gate being
+a SCALAR gate: a preferred map or list has `top` for a superior, so it
+admits any peer at all (`pref-struct-*` in `test/spec/pref.tsv` pins
+this; it predates the kind gate and was not changed by it).
 
 ## G4 — identity and typed relations
 
