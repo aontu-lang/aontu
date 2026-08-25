@@ -718,6 +718,11 @@ func wrapLeaf(r *jsonic.Rule, _ *jsonic.Context) {
 		if math.IsInf(n, 0) || math.IsNaN(n) {
 			e := newNil("not_number")
 			e.sp = sp
+			// This exit precedes the stamp below it, so it needs its
+			// own: an overflowing literal is precisely located and was
+			// reported with no span at all, where TypeScript gave the
+			// literal's text. Pinned by vet-overflow-literal.
+			stampSrc(e, r)
 			r.Node = e
 			return
 		}
@@ -732,6 +737,7 @@ func wrapLeaf(r *jsonic.Rule, _ *jsonic.Context) {
 		if r.ON > 0 && r.O0.Tin == jsonic.TinTX && n == src && overflowsFloat(src) {
 			e := newNil("not_number")
 			e.sp = sp
+			stampSrc(e, r)
 			r.Node = e
 			return
 		}
@@ -1705,10 +1711,22 @@ func evaluate(r *jsonic.Rule, ctx *jsonic.Context, op *expr.Op, terms []interfac
 		// frame points at the `-`. Go's was positionless, which left the
 		// nil with neither a site nor -- once setPaths runs over it -- a
 		// way to be told apart from the root (issue #39).
-		if nl, ok := nv.(*NilVal); ok && r.ON > 0 {
-			nl.sp = r.O0.SI
-			stampSrc(nl, r)
+		// THE SITE GOES ON EVERY RESULT, not only the refused one, and
+		// BOTH HALVES of it. A refused negation is an error nil and has
+		// to be located (issue #39), but `negate` returns a freshly
+		// allocated scalar for the ordinary case and that got neither
+		// the position nor the span: `a:-1` reported column 1 -- the
+		// key, because sp defaulted to 0 -- with no span at all, where
+		// the canonical port's addsite records the `-` token for both.
+		//
+		// No shared row reported such a site, so the suite was green
+		// over the divergence. Pinned now by vet-negative-literal, which
+		// is what found the column half after review found the span
+		// half.
+		if r.ON > 0 {
+			nv.setPos(r.O0.SI)
 		}
+		stampSrc(nv, r)
 		return nv
 	case "positive-prefix":
 		if len(terms) < 1 {

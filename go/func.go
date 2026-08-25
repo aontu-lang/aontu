@@ -449,26 +449,23 @@ func (f *FuncVal) Unify(peer Val, ctx *Ctx) Val {
 			out.setPos(f.sp)
 			out.setPosu(f.spu)
 			out.setSrcurl(f.surl)
-			// The SPAN comes with the position, but ONLY FOR A FRESH
-			// VALUE. The canonical port does not copy a site here at
-			// all; it calls place() in the handful of spots that mint a
-			// new value (LowerFuncVal, PathFuncVal, ScalarKindVal, ...),
-			// and this branch is broader than that. A value that already
-			// carries a span brought it from its own source -- the map
-			// inside `close({...})`, the literal inside `type(1)` -- and
-			// overwriting it would claim the WRAPPER's text for the
-			// thing wrapped, which is the same lie as sizing by canon.
+			// THE SPAN COMES WITH THE POSITION, always -- and the first
+			// attempt here kept it only for a value that had none of its
+			// own, on the theory that a wrapper should not claim the
+			// text of the thing it wraps. That was wrong, and the review
+			// of it was right: the position moves unconditionally two
+			// lines above, so a span left behind describes a DIFFERENT
+			// PLACE than the row and column beside it. `close({...})`
+			// then reported the call's column and the map's `{`, and
+			// reading the document at (row, col, len) found `c`.
 			//
-			// Having no span of its own is exactly what makes a value
-			// fresh, so the data answers the question the port structure
-			// does not: `upper("x")` resolves to a new string that
-			// stands at the call and inherits `upper`; the wrapped
-			// values keep `{` and `1`. Measured against the shared
-			// subsume and deprecate rows, which disagree loudly in both
-			// directions.
-			if "" == out.srctext() {
-				out.setSrctext(f.srctext())
-			}
+			// A site that contradicts itself is worse than a coarse one:
+			// a consumer following the verification contract refuses
+			// every such repair, and one skipping it edits the wrong
+			// token. Whatever the position names, the text names too --
+			// here that is the call, which is honest and is what the
+			// canonical port now records (ts/src/val/FuncBaseVal.ts).
+			out.setSrctext(f.srctext())
 		}
 	} else if isTop(peer) {
 		f.notdone()

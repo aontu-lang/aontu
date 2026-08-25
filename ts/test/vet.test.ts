@@ -7,6 +7,7 @@ import * as Os from 'node:os'
 import * as Path from 'node:path'
 
 import { vet } from '../dist/vet'
+import { subsume } from '../dist/subsume'
 import { vet as vetFromPackage } from '../dist/aontu'
 
 
@@ -60,6 +61,68 @@ describe('vet-site-span', () => {
     Assert.equal(
       replaceAt(site.col, String(site.value).length, '9000'),
       'port: 90001F\n')
+  })
+
+  // THE INVARIANT, over the whole shared suite rather than one case:
+  // a site that carries a span must describe the text at it. Reading
+  // the document at (row, col, len) has to yield exactly `src`.
+  //
+  // This is not decoration. A site whose position and text disagree is
+  // WORSE than a coarse one — a consumer following the verification
+  // contract refuses every repair, and one skipping it edits the wrong
+  // token. The first version of this change shipped exactly that
+  // defect: `close({...})` reported the call's column beside the map's
+  // `{`, so the document at the span read `c`. Found in review of the
+  // pull request, and this is what stops it returning.
+  test('every-span-in-the-suite-describes-its-own-text', () => {
+    const specDir = Path.join(__dirname, '..', '..', 'test', 'spec')
+    const rows = ['vet.tsv', 'subsume.tsv', 'deprecate.tsv'].flatMap(
+      (f) => Fs.readFileSync(Path.join(specDir, f), 'utf8')
+        .replace(/\r\n/g, '\n').split('\n'))
+    const unesc = (t: string) => {
+      let o = ''
+      for (let i = 0; i < t.length; i++) {
+        const c = t[i]
+        if ('\\' === c && i + 1 < t.length) {
+          const n = t[++i]
+          o += 'n' === n ? '\n' : 't' === n ? '\t' : n
+        }
+        else o += c
+      }
+      return o
+    }
+
+    let checked = 0
+    for (const line of rows) {
+      const p = line.split('\t')
+      if (!line || line.startsWith('#') || 5 > p.length) continue
+      if ('vet' !== p[1] && 'subsume' !== p[1]) continue
+      const schema = unesc(p[2]), data = unesc(p[3])
+      const opts = (JSON.parse(unesc(p[4])) ?? {}).opts
+      // `subsume` roles the two documents general/specific; `vet` roles
+      // them schema/data. Either way the FIRST column is the first
+      // argument, which is what the role has to select between.
+      const report: any = 'vet' === p[1]
+        ? vet(schema, data, opts)
+        : subsume(schema, data, opts)
+      for (const f of report.findings) {
+        for (const site of f.sites ?? []) {
+          if (!(site.len > 0)) continue
+          const text =
+            ('data' === site.role || 'specific' === site.role) ? data : schema
+          const line = text.split('\n')[site.row - 1]
+          Assert.ok(null != line, `${p[0]}: row ${site.row} past end of file`)
+          Assert.equal(
+            line.substr(site.col - 1, site.len), site.src,
+            `${p[0]}: the document at (${site.row}, ${site.col}, ${site.len}) ` +
+            `is not the site's own src`)
+          checked++
+        }
+      }
+    }
+    // A silent zero would pass vacuously, exactly as the documentation
+    // extractor could.
+    Assert.ok(40 < checked, `only ${checked} spans checked`)
   })
 
   test('the-span-is-verifiable-against-the-document', () => {

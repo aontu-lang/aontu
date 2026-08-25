@@ -42,9 +42,18 @@ reports its opening token: `min(1)` reports `src: "min"`, a map reports
 `src`, and refuse when they differ — which turns "replace the name and
 orphan the arguments" from an undetectable mistake into a caught one.
 
-**Compatibility:** both fields are additive. Existing consumers of
-`row`, `col`, `value` and `canon` are unaffected; the JSON simply
-carries two more keys.
+**Compatibility, precisely.** The JSON is additive: anything READING a
+report — `row`, `col`, `value`, `canon` — is unaffected and simply sees
+two more keys. TypeScript code that CONSTRUCTS a `VetSite` is not:
+`len` is required on the type, so a synthetic report must now state a
+span (`-1` where there is none). That is deliberate — the guarantee
+worth having is that every site a report carries has the field — and it
+costs nothing here, because `vet` itself ships first in this same
+unreleased 0.53.0 line: the newest published version is 0.52.1, which
+has no `vet` verb at all, so no released consumer constructs one. An
+earlier draft of this entry said "existing consumers are unaffected"
+without that distinction, which was true of readers and not of
+constructors.
 
 ### Fixed — what happened when the gates that never ran, ran
 

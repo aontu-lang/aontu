@@ -174,3 +174,14 @@ multi-second-pass-conflict	vet	q:1 a:{p:1}	q:2 b:$.a b:{p:2}	{"findings":[{"clas
 multi-fanin-one-finding	vet	a:1	a:2 b:$.a c:$.a	{"findings":[{"class":"conflict","code":"scalar_value","path":"$.a","severity":"error","sites":[{"col":3,"file":"data","len":1,"role":"data","row":1,"src":"2","value":"2"},{"col":3,"file":"schema","len":1,"role":"schema","row":1,"src":"1","value":"1"}]}],"truncated":false,"verdict":"invalid"}
 multi-spread-children	vet	a: &: integer	a:{x:"p",y:"q"}	{"findings":[{"class":"conflict","code":"no_scalar_unify","path":"$.a.x","severity":"error","sites":[{"col":6,"file":"data","len":3,"role":"data","row":1,"src":"\\"p\\"","value":"\\"p\\""},{"col":7,"file":"schema","len":7,"role":"schema","row":1,"src":"integer","value":"integer"}]},{"class":"conflict","code":"no_scalar_unify","path":"$.a.y","severity":"error","sites":[{"col":12,"file":"data","len":3,"role":"data","row":1,"src":"\\"q\\"","value":"\\"q\\""},{"col":7,"file":"schema","len":7,"role":"schema","row":1,"src":"integer","value":"integer"}]}],"truncated":false,"verdict":"invalid"}
 multi-cycle-one-finding	vet	top	a:$.b b:$.c c:$.a	{"findings":[{"class":"reference","code":"path_cycle","path":"$.a","severity":"error","sites":[{"col":3,"file":"data","len":1,"role":"data","row":1,"src":"$","value":"$.b"}]}],"truncated":false,"verdict":"invalid"}
+
+# A NEGATIVE LITERAL and an OVERFLOWING one, here for their SITE SPANS
+# rather than their verdicts. Both were parity gaps no other row could
+# see: Go stamped the source span on a refused negation but not on a
+# successful one, and both of its overflow refusals returned before the
+# stamp -- so `a:-1` and `a:1e999` reported `len:-1, src:""` where the
+# canonical port reported the `-` token and the literal. Found in review
+# of the Site-extent change; a green suite over a real divergence is
+# exactly what a shared row is for.
+vet-negative-literal	vet	a: integer & min(0)	a: -1	{"findings":[{"actual":"-1","class":"conflict","code":"constraint","expected":"integer&min(0)","path":"$.a","severity":"error","sites":[{"col":4,"file":"data","len":1,"role":"data","row":1,"src":"-","value":"-1"},{"col":14,"file":"schema","len":-1,"role":"schema","row":1,"src":"","value":"integer&min(0)"}]}],"truncated":false,"verdict":"invalid"}
+vet-overflow-literal	vet	a: integer	a: 1e999	{"findings":[{"class":"parse","code":"not_number","path":"$.a","severity":"error","sites":[{"col":4,"file":"data","len":5,"role":"data","row":1,"src":"1e999","value":"nil"}]}],"truncated":false,"verdict":"invalid"}
