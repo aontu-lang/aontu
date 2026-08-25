@@ -14,6 +14,7 @@ import (
 	"encoding/json"
 	"io"
 	"os"
+	"strconv"
 	"strings"
 
 	aontu "github.com/rjrodger/aontu/go"
@@ -26,6 +27,7 @@ func runSet(argv []string, stdout, stderr io.Writer) int {
 	entry := ""
 	overlayFile := ""
 	dryRun := false
+	inPlace := false
 	format := "text"
 
 	for i := 0; i < len(argv); i++ {
@@ -46,6 +48,8 @@ func runSet(argv []string, stdout, stderr io.Writer) int {
 			}
 		case "--dry-run" == arg:
 			dryRun = true
+		case "--in-place" == arg:
+			inPlace = true
 		case "--format" == arg:
 			i++
 			if len(argv) <= i || ("text" != argv[i] && "json" != argv[i]) {
@@ -87,7 +91,8 @@ func runSet(argv []string, stdout, stderr io.Writer) int {
 
 	report := aontu.Patch(
 		string(entrySrc), string(overlaySrc), assignments,
-		&aontu.PatchOptions{EntryPath: entry, OverlayPath: overlayFile})
+		&aontu.PatchOptions{
+			EntryPath: entry, InPlace: inPlace, OverlayPath: overlayFile})
 
 	// WRITTEN ONLY WHEN IT HOLDS. A change that contradicts a pinned
 	// value is a question the author has to answer at the pinning
@@ -109,20 +114,54 @@ func runSet(argv []string, stdout, stderr io.Writer) int {
 		io.WriteString(stdout, renderSetJSON(report, wrote)+"\n")
 	} else {
 		head := "verdict: " + report.Verdict
+		// A replacement is REPORTED as the edit it is, not left for the
+		// reader to infer from a changed file: `where: what -> what`, in
+		// source spelling, because the spelling is what changed.
+		//
+		// PAST TENSE ONLY WHERE IT HAPPENED. A refused write leaves the
+		// file exactly as it was, and one assignment can be replaceable
+		// while another makes the whole run invalid -- so "replaced:"
+		// there tells an operator the pin was changed when it was not.
+		verb := "would replace: "
+		if wrote {
+			verb = "replaced: "
+		}
+		for _, r := range report.Replaced {
+			head += "\n" + verb + r.File + ":" +
+				strconv.Itoa(r.Row) + ":" + strconv.Itoa(r.Col) +
+				" " + r.From + " -> " + r.To
+		}
 		if wrote {
 			head += "\nwrote: " + overlayFile
 		} else if dryRun {
 			head += "\n(dry run)"
 		}
-		out := []string{head}
-		if 0 < len(report.Findings) {
-			out = append(out, "")
-			for _, f := range report.Findings {
-				out = append(out, renderFinding(f))
+
+		// A SUCCESSFUL COMMAND WRITES ITS STATUS TO STDOUT, findings or
+		// not. Routing on the finding COUNT was right while every
+		// finding this verb could produce was an error; InPlace made a
+		// WARNING possible, and a run that held, wrote the file and
+		// exited 0 then sent its whole report to stderr, leaving stdout
+		// empty. The verdict decides the stream; warnings are
+		// diagnostics and go to stderr beside it.
+		failed := aontu.VetInvalid == report.Verdict ||
+			aontu.VetError == report.Verdict
+		findingText := []string{}
+		for _, f := range report.Findings {
+			findingText = append(findingText, renderFinding(f))
+		}
+		if failed {
+			out := []string{head}
+			if 0 < len(findingText) {
+				out = append(out, "")
+				out = append(out, findingText...)
 			}
 			io.WriteString(stderr, strings.Join(out, "\n")+"\n")
 		} else {
-			io.WriteString(stdout, strings.Join(out, "\n")+"\n")
+			io.WriteString(stdout, head+"\n")
+			if 0 < len(findingText) {
+				io.WriteString(stderr, strings.Join(findingText, "\n")+"\n")
+			}
 		}
 	}
 
@@ -132,12 +171,13 @@ func runSet(argv []string, stdout, stderr io.Writer) int {
 // The machine-readable form. Field order is LEXICOGRAPHIC, the
 // canonical emitter's order (see vetReportJSON).
 type setReportJSON struct {
-	Aontu    subsumeProducerJSON `json:"aontu"`
-	Appended []string            `json:"appended"`
-	Findings []aontu.VetFinding  `json:"findings"`
-	Overlay  string              `json:"overlay"`
-	Verdict  string              `json:"verdict"`
-	Written  bool                `json:"written"`
+	Aontu    subsumeProducerJSON      `json:"aontu"`
+	Appended []string                 `json:"appended"`
+	Findings []aontu.VetFinding       `json:"findings"`
+	Overlay  string                   `json:"overlay"`
+	Replaced []aontu.PatchReplacement `json:"replaced"`
+	Verdict  string                   `json:"verdict"`
+	Written  bool                     `json:"written"`
 }
 
 func renderSetJSON(report aontu.PatchReport, wrote bool) string {
@@ -150,6 +190,7 @@ func renderSetJSON(report aontu.PatchReport, wrote bool) string {
 		Appended: report.Appended,
 		Findings: report.Findings,
 		Overlay:  report.Overlay,
+		Replaced: report.Replaced,
 		Verdict:  report.Verdict,
 		Written:  wrote,
 	})

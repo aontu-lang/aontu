@@ -17,7 +17,9 @@ type ListVal struct {
 }
 
 func newList(elems []Val) *ListVal {
-	return &ListVal{peg: elems}
+	l := &ListVal{peg: elems}
+	l.sp = unsited
+	return l
 }
 
 func (l *ListVal) superior() Val { return top() }

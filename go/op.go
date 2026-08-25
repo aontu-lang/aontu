@@ -16,7 +16,11 @@ type PlusOpVal struct {
 	peg []Val
 }
 
-func newPlusOp(a, b Val) *PlusOpVal { return &PlusOpVal{peg: []Val{a, b}} }
+func newPlusOp(a, b Val) *PlusOpVal {
+	o := &PlusOpVal{peg: []Val{a, b}}
+	o.sp = unsited
+	return o
+}
 
 func (o *PlusOpVal) superior() Val { return top() }
 

@@ -162,13 +162,21 @@ Set options:
   --entry <file>    The document the change is checked against
   --overlay <file>  The file the change is appended to (created if
                     absent; not written when the change does not hold)
+  --in-place        Rewrite a pinned literal where it was written,
+                    instead of appending a line that contradicts it.
+                    The span is verified against the source text
+                    before writing, and where the value is not a
+                    single editable literal in this overlay the
+                    assignment is appended as usual with a warning
+                    saying why
   --dry-run         Print the overlay that would be written, write
                     nothing
   --format <f>      text (default) or json
 
 Set exit codes are vet's verdict classes: 0 valid, 1 invalid (the
-change contradicts a pinned value -- aontu why locates it),
-2 usage, 3 incomplete, 4 the entry does not stand up on its own.
+change contradicts a pinned value -- aontu why locates it, and
+--in-place rewrites it), 2 usage, 3 incomplete, 4 the entry does not
+stand up on its own.
 
 Agentsmd options:
   --write <file>  Splice the stanza into this file between the
@@ -1968,6 +1976,7 @@ function runSet(argv: string[]): number {
   let entry: string | undefined
   let overlayFile: string | undefined
   let dryRun = false
+  let inPlace = false
   let format: SubsumeFormat = 'text'
 
   for (let i = 0; i < argv.length; i++) {
@@ -1984,6 +1993,9 @@ function runSet(argv: string[]): number {
     }
     else if ('--dry-run' === arg) {
       dryRun = true
+    }
+    else if ('--in-place' === arg) {
+      inPlace = true
     }
     else if ('--format' === arg) {
       const f = argv[++i]
@@ -2034,6 +2046,7 @@ function runSet(argv: string[]): number {
   const report = patch(entrySrc, overlaySrc, assignments, {
     entryPath: entry,
     overlayPath: overlayFile,
+    inPlace,
   })
 
   // WRITTEN ONLY WHEN IT HOLDS. A change that contradicts a pinned
@@ -2058,18 +2071,50 @@ function runSet(argv: string[]): number {
       appended: report.appended,
       findings: report.findings,
       overlay: report.overlay,
+      replaced: report.replaced,
       verdict: report.verdict,
       written: wrote,
     }, 2) + '\n')
   }
   else {
-    const head = `verdict: ${report.verdict}` +
+    // A replacement is REPORTED as the edit it is, not left for the
+    // reader to infer from a changed file: `where: what -> what`, in
+    // source spelling, because the spelling is what changed.
+    //
+    // PAST TENSE ONLY WHERE IT HAPPENED. A refused write leaves the
+    // file exactly as it was, and one assignment can be replaceable
+    // while another makes the whole run invalid — so `replaced:` there
+    // tells an operator the pin was changed when it was not, and unlike
+    // `--dry-run` there is nothing else on the line to say otherwise.
+    const verb = wrote ? 'replaced' : 'would replace'
+    const edits = report.replaced.map((r) =>
+      `${verb}: ${r.file}:${r.row}:${r.col} ${r.from} -> ${r.to}`)
+    const head = [`verdict: ${report.verdict}`].concat(edits).join('\n') +
       (wrote ? `\nwrote: ${overlayFile}` : dryRun ? '\n(dry run)' : '')
-    const body = 0 === report.findings.length
-      ? [head]
-      : [head, ''].concat(report.findings.map(renderFinding))
-    ;(0 === report.findings.length ? process.stdout : process.stderr)
-      .write(body.join('\n') + '\n')
+
+    // A SUCCESSFUL COMMAND WRITES ITS STATUS TO STDOUT, findings or
+    // not. Routing on `findings.length` was right while every finding
+    // this verb could produce was an ERROR; `--in-place` made a WARNING
+    // possible, and a run that held, wrote the file and exited 0 then
+    // sent its whole report to stderr — leaving stdout empty, so
+    // `$(aontu set ...)` captured nothing and only the JSON form
+    // behaved like a success. The verdict decides the stream; warnings
+    // are diagnostics and go to stderr beside it.
+    const failed = 'invalid' === report.verdict || 'error' === report.verdict
+    const findingText = report.findings.map(renderFinding)
+    if (failed) {
+      // A FAILED VERDICT ALWAYS CARRIES A FINDING — the conflict, or
+      // the parse error, that made it fail — so the blank separator is
+      // unconditional. Guarding it described a report vet cannot
+      // produce, and the coverage gate said so.
+      process.stderr.write([head, ''].concat(findingText).join('\n') + '\n')
+    }
+    else {
+      process.stdout.write(head + '\n')
+      if (0 < findingText.length) {
+        process.stderr.write(findingText.join('\n') + '\n')
+      }
+    }
   }
 
   return VET_EXIT[report.verdict]

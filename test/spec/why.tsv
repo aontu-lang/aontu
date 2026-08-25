@@ -62,3 +62,22 @@ why-pref-chain	why	a: *1 | *2 | 3	$.a	{"code":"scalar_value"}
 why-same-row-contributions	why	a:1 a:integer	$.a	{"conjuncts":[{"canon":"1","role":"literal","site":{"col":3,"file":"","len":1,"row":1},"src":"1"},{"canon":"integer","role":"literal","site":{"col":7,"file":"","len":7,"row":1},"src":"integer"}],"value":"1"}
 why-spread-list-element	why	&:{k:[integer]}\nx:{k:[2]}	$.x.k.0	{"conjuncts":[{"canon":"integer","role":"spread","site":{"col":7,"file":"","len":7,"row":1},"src":"integer"},{"canon":"2","role":"literal","site":{"col":7,"file":"","len":1,"row":2},"src":"2"}],"value":"2"}
 why-spread-list	why	&:{k:[integer]}\nx:{k:[2]}	$.x.k	{"conjuncts":[{"canon":"[integer]","role":"spread","site":{"col":6,"file":"","len":1,"row":1},"src":"["},{"canon":"[2]","role":"literal","site":{"col":6,"file":"","len":1,"row":2},"src":"["}],"value":"[2]"}
+#
+# A PIPED CALL IS UNSITED; A WRITTEN ONE NAMES ITS FUNCTION. `x |> upper`
+# synthesises `upper(x)`, which the author never wrote, so there is no
+# opening token for a site to point at -- the same "a value unification
+# minted is nowhere in particular" rule the arithmetic rows in vet.tsv
+# pin. `upper("hello")` WAS written, and its site names `upper`, which is
+# what a compound's site always names (its opening token, not the whole
+# call -- see the round-trip note in patch.tsv).
+#
+# Found by the parity probe for `set --in-place` and fixed rather than
+# recorded: Go reached buildCall through the PIPE's rule, whose first
+# token is the pipe's LEFT OPERAND, and so sited the synthesised call at
+# `hello` with src "hello". The canonical port never had the choice --
+# its buildCall does not site the success value at all and the written
+# path sites it afterwards. Caught by patch-inplace-no-extent-refused,
+# which needs both ports to agree which refusal a spanless contribution
+# earns.
+why-piped-call-is-unsited	why	x: hello |> upper	$.x	{"conjuncts":[{"canon":"upper(\\"hello\\")","role":"literal","site":{"col":-1,"file":"","len":-1,"row":-1},"src":""}],"value":"\\"HELLO\\""}
+why-written-call-sites-its-name	why	x: upper("hello")	$.x	{"conjuncts":[{"canon":"upper(\\"hello\\")","role":"literal","site":{"col":4,"file":"","len":5,"row":1},"src":"upper"}],"value":"\\"HELLO\\""}

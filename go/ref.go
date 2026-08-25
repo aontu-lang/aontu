@@ -22,6 +22,7 @@ type RefVal struct {
 
 func newRef(terms []any, prefix bool) *RefVal {
 	rv := &RefVal{prefix: prefix}
+	rv.sp = unsited
 	for _, t := range terms {
 		rv.append(t)
 	}
@@ -619,7 +620,11 @@ type VarVal struct {
 	peg any // variable name (string) or a Val
 }
 
-func newVar(name any) *VarVal { return &VarVal{peg: name} }
+func newVar(name any) *VarVal {
+	v := &VarVal{peg: name}
+	v.sp = unsited
+	return v
+}
 
 func (vv *VarVal) superior() Val { return top() }
 

@@ -122,7 +122,9 @@ type ReferVal struct {
 }
 
 func newRefer(tval Val) *ReferVal {
-	return &ReferVal{tval: tval}
+	r := &ReferVal{tval: tval}
+	r.sp = unsited
+	return r
 }
 
 // LAST in a conjunct fold, as the sizing atoms are: a refer has to see

@@ -354,11 +354,77 @@ $ echo $?
 1
 ```
 
-That `system.aon:3:24` is contribution 2 from the `why` recipe above:
-the loop is **set → conflict → why → edit the pinning site**. Exit
-codes are [`vet`](reference-api.md#aontu-vet)'s verdict classes, and
-`--dry-run` writes nothing (with `--format json`, printing the overlay
-it would have written).
+That `system.aon:3:24` is contribution 2 from the `why` recipe above.
+Exit codes are [`vet`](reference-api.md#aontu-vet)'s verdict classes,
+and `--dry-run` writes nothing (with `--format json`, printing the
+overlay it would have written).
+
+## Change a value that is already pinned
+
+`--in-place` rewrites the literal **where the author wrote it**, instead
+of appending a line that contradicts it. That closes the repair loop:
+what used to be *set → conflict → why → edit it yourself* is now one
+command.
+
+```sh
+$ cat deploy.aon
+# the deployment
+replicas: 42   # too many
+
+$ aontu set '$.replicas=5' --entry schema.aon --overlay deploy.aon --in-place
+verdict: valid
+replaced: deploy.aon:2:11 42 -> 5
+wrote: deploy.aon
+
+$ cat deploy.aon
+# the deployment
+replicas: 5   # too many
+```
+
+**Comments and layout survive**, including the one on the edited line,
+because nothing is re-serialised: the span at `(row, col, len)` is
+replaced and every other byte is left exactly as it was.
+
+**The edit is verified before it is written.** A site carries `src`, the
+source text it claims to cover, so the text at the span is checked
+against it first — which is what makes `port: 0x1F` safe to rewrite even
+though its *value* is `31`:
+
+```sh
+$ aontu set '$.port=80' --entry schema.aon --overlay ports.aon --in-place
+verdict: valid
+replaced: ports.aon:1:7 0x1F -> 80
+```
+
+**Where it cannot rewrite, it appends as usual and says why.** It is
+never worse than plain `set`; a refusal costs you a warning, not a
+verdict:
+
+| the overlay says | why not | what happens |
+|---|---|---|
+| `a: min(1)`, `a: 1+2`, `a: {b:1}` | the site names the opening token of a compound, not the whole value | appended, `patch_not_editable` |
+| `a: 1` twice | two statements pin it; there is no single place to edit | appended, `patch_ambiguous` |
+| a `&:` template, a `$ref` | the value comes from elsewhere; edit it there | appended, `patch_not_editable` |
+| `a: integer`, `a: above(0)` | a constraint, not a pin — appending narrows it without discarding it | appended, `patch_not_editable` |
+| anything, when the overlay itself `@"includes"` another document | a loaded literal's position cannot be told from the overlay's own | appended, `patch_not_editable` |
+
+A default (`a: *1`) is not in the table: appending already overrides it
+correctly, so `--in-place` leaves it alone and says nothing.
+
+**An overlay that loads another document cannot be edited in place at
+all.** That looks strict until you see what it prevents: an include
+holding `a: 42` at row 1 column 4, and the overlay holding `x: 42` at
+row 1 column 4. The site is real and the text at the span really is
+`42`, so the verification passes — and a splice that trusted it would
+rewrite `x` while reporting a replacement of `$.a`. Denying loads
+removes the ambiguity at its source rather than trying to detect it:
+what resolves is what the overlay says by itself.
+
+Rewriting a file is not reversible the way appending to one is, which
+is why it is opt-in. Pair it with `--dry-run` to see the rewritten
+overlay without writing it — and note that when a run is refused as a
+whole, any edit it *could* have made is reported as `would replace:`
+rather than `replaced:`, because the file was not touched.
 
 ## Find entries that are doing nothing
 

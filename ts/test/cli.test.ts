@@ -1132,6 +1132,91 @@ describe('cli-subsume', () => {
   // G7 phase 5: the overlay patch verb. What the two ports must agree
   // on (the report) is pinned by test/spec/patch.tsv; these cases hold
   // the command line and, above all, WHEN THE FILE IS WRITTEN.
+  // `--in-place` at the COMMAND LINE, closing the loop the status
+  // report says `set` could not: the data pins the wrong value, and
+  // appending can only contradict it. The report shape is pinned by
+  // test/spec/patch.tsv; what this holds is the flag, the `replaced:`
+  // line, and the bytes that end up on disk — comments included.
+  test('set-in-place-rewrites-the-pinned-literal', () => {
+    const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-set-'))
+    const entry = Path.join(dir, 'schema.aon')
+    const overlay = Path.join(dir, 'deploy.aon')
+    Fs.writeFileSync(entry, 'replicas: integer & above(0) & below(10)\n')
+    Fs.writeFileSync(overlay, '# the deployment\nreplicas: 42   # too many\n')
+
+    // WITHOUT the flag this is the defect: nothing written, exit 1.
+    const before = vetCapture(() => Assert.equal(runSet(
+      ['$.replicas=5', '--entry', entry, '--overlay', overlay]), 1))
+    Assert.match(before.err, /verdict: invalid/)
+    Assert.equal(Fs.readFileSync(overlay, 'utf8'),
+      '# the deployment\nreplicas: 42   # too many\n', 'untouched')
+
+    // WITH it, the literal is rewritten where it was written.
+    const r = vetCapture(() => Assert.equal(runSet(
+      ['$.replicas=5', '--entry', entry, '--overlay', overlay,
+        '--in-place']), 0))
+    Assert.match(r.out, /verdict: valid/)
+    Assert.match(r.out, /replaced: .*deploy\.aon:2:11 42 -> 5/)
+    Assert.match(r.out, /wrote:/)
+    // BOTH COMMENTS SURVIVE, the one on the edited line included.
+    Assert.equal(Fs.readFileSync(overlay, 'utf8'),
+      '# the deployment\nreplicas: 5   # too many\n')
+  })
+
+
+  // Where it cannot rewrite it APPENDS, exactly as plain set would, and
+  // says why. --dry-run still writes nothing.
+  test('set-in-place-appends-and-explains-when-it-cannot-rewrite', () => {
+    const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-set-'))
+    const entry = Path.join(dir, 'schema.aon')
+    const overlay = Path.join(dir, 'ov.aon')
+    Fs.writeFileSync(entry, 'a: integer\n')
+    Fs.writeFileSync(overlay, 'a: 1+2\n')
+
+    const r = vetCapture(() => Assert.equal(runSet(
+      ['$.a=5', '--entry', entry, '--overlay', overlay,
+        '--in-place', '--dry-run']), 1))
+    Assert.match(r.err, /patch_not_editable/)
+    Assert.match(r.err, /opening token/)
+    Assert.equal(Fs.readFileSync(overlay, 'utf8'), 'a: 1+2\n', 'dry run')
+  })
+
+
+  // WHAT THE TEXT RENDERER SAYS ABOUT AN EDIT THAT DID NOT HAPPEN, and
+  // WHICH STREAM A SUCCESSFUL RUN WRITES TO. Both were wrong when
+  // --in-place landed and both are load-bearing for an operator.
+  test('set-in-place-reports-unapplied-edits-and-uses-the-right-stream', () => {
+    const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-set-'))
+    const entry = Path.join(dir, 'e.aon')
+    const overlay = Path.join(dir, 'ov.aon')
+
+    // ONE ASSIGNMENT REPLACEABLE, ANOTHER REFUSED. The write is refused
+    // as a whole, so the file is untouched -- and the renderer must not
+    // report the replaceable one in the PAST TENSE.
+    Fs.writeFileSync(entry, 'a: integer\nb: integer & below(10)\n')
+    Fs.writeFileSync(overlay, 'a: 1\nb: 42\n')
+    const r = vetCapture(() => Assert.equal(runSet(
+      ['$.a=2', '$.b=99', '--entry', entry, '--overlay', overlay,
+        '--in-place']), 1))
+    Assert.match(r.err, /would replace: .*1 -> 2/)
+    Assert.doesNotMatch(r.err, /^replaced:/m, 'nothing was replaced')
+    Assert.equal(Fs.readFileSync(overlay, 'utf8'), 'a: 1\nb: 42\n')
+
+    // A SUCCESSFUL RUN CARRYING ONLY A WARNING puts its status on
+    // STDOUT. Routing on the finding count sent this whole report to
+    // stderr and left stdout empty, so `$(aontu set ...)` captured
+    // nothing while the command exited 0 and wrote the file.
+    Fs.writeFileSync(entry, 'a: integer\n')
+    Fs.writeFileSync(overlay, 'a: integer\n')
+    const ok = vetCapture(() => Assert.equal(runSet(
+      ['$.a=5', '--entry', entry, '--overlay', overlay, '--in-place']), 0))
+    Assert.match(ok.out, /verdict: valid/)
+    Assert.match(ok.out, /wrote:/)
+    Assert.match(ok.err, /patch_not_editable/, 'the warning is a diagnostic')
+    Assert.doesNotMatch(ok.err, /verdict:/, 'status is not duplicated')
+  })
+
+
   test('set-appends-to-the-overlay-when-the-change-holds', () => {
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-set-'))
     const entry = Path.join(dir, 'sys.aon')

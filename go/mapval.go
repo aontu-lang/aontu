@@ -28,7 +28,9 @@ func (m *MapVal) isOptional(k string) bool {
 }
 
 func newMap() *MapVal {
-	return &MapVal{peg: map[string]Val{}}
+	m := &MapVal{peg: map[string]Val{}}
+	m.sp = unsited
+	return m
 }
 
 // set assigns a key, preserving insertion order for new keys.

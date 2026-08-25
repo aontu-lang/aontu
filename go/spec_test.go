@@ -388,17 +388,29 @@ func TestSpec(t *testing.T) {
 
 				case "patch":
 					var input struct {
+						InPlace bool     `json:"inPlace"`
 						Overlay string   `json:"overlay"`
 						Set     []string `json:"set"`
 					}
 					if jerr := json.Unmarshal([]byte(data), &input); jerr != nil {
 						t.Fatalf("bad patch input: %v\n %s", jerr, data)
 					}
-					pr := Patch(src, input.Overlay, input.Set, nil)
+					// inPlace rides the input object, as opts does for
+					// the five-column modes: the overlay and the
+					// assignments are the same two inputs either way,
+					// and the flag is the third.
+					var popts *PatchOptions
+					if input.InPlace {
+						popts = &PatchOptions{InPlace: true}
+					}
+					pr := Patch(src, input.Overlay, input.Set, popts)
 					got := map[string]any{
 						"appended": pr.Appended,
 						"overlay":  pr.Overlay,
 						"verdict":  pr.Verdict,
+					}
+					if 0 < len(pr.Replaced) {
+						got["replaced"] = pr.Replaced
 					}
 					if 0 < len(pr.Findings) {
 						codes := []string{}
@@ -420,10 +432,52 @@ func TestSpec(t *testing.T) {
 					// rests on: an overlay entry is just another
 					// conjunct, so entry-against-overlay is the same as
 					// overlay-against-entry.
-					if VetError != pr.Verdict {
+					//
+					// IT IS CONDITIONAL ON THE OVERLAY STANDING UP ON
+					// ITS OWN, and the guard used to be `verdict !=
+					// error`, which is not the same test and passed only
+					// because no row had reached the difference.
+					// APPENDING A CONFLICTING VALUE MAKES THE OVERLAY
+					// SELF-CONTRADICTORY -- `a: 1` plus an appended
+					// `"a": 5` is a document that contradicts itself --
+					// and Vet reports a schema that does not stand up as
+					// `error` whatever the data says. That is not a
+					// disagreement about the value: it is the overlay no
+					// longer being a document you could hand to Vet as a
+					// truth. (ts/test/spec.test.ts asserts the same.)
+					_, gerr := New().Generate(pr.Overlay)
+					overlayStandsAlone := nil == gerr
+					if VetError != pr.Verdict && overlayStandsAlone {
 						if back := Vet(pr.Overlay, src, nil); back.Verdict != pr.Verdict {
 							t.Fatalf("patch is not order-independent: %s\n %s vs %s",
 								name, pr.Verdict, back.Verdict)
+						}
+					}
+
+					// AND THE STRONGER PROPERTY IN-PLACE BUYS: a
+					// replacement leaves an overlay that still stands
+					// up, where appending the same value leaves one that
+					// contradicts itself. That is the difference between
+					// repairing a document and layering a correction
+					// over it, and it is why the mode exists.
+					if 0 < len(pr.Replaced) && !overlayStandsAlone {
+						t.Fatalf("in-place left a self-contradicting overlay: %s", name)
+					}
+
+					// IN-PLACE IS NEVER WORSE THAN APPEND. Every
+					// in-place row is run again WITHOUT the flag and
+					// must reach a verdict at least as good -- the whole
+					// safety claim of the mode is that asking for it
+					// cannot turn a run that would have held into one
+					// that does not.
+					if input.InPlace {
+						rank := map[string]int{
+							VetValid: 0, VetIncomplete: 1, VetInvalid: 2, VetError: 3,
+						}
+						plain := Patch(src, input.Overlay, input.Set, nil)
+						if rank[pr.Verdict] > rank[plain.Verdict] {
+							t.Fatalf("in-place is worse than append: %s (%s vs %s)",
+								name, pr.Verdict, plain.Verdict)
 						}
 					}
 
