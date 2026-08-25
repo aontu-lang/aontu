@@ -429,6 +429,12 @@ wrote: changes.aon
   `src`, the source text it claims to cover, and the text at the span
   must equal it. That is what makes `port: 0x1F` safe to rewrite even
   though its value is `31` — the span is four code units and says so.
+- **An overlay that loads another document is refused outright.** A
+  literal reached through `@"..."` cannot be told apart from the
+  overlay's own by position — an include holding `a: 42` at 1:4 and an
+  overlay holding `x: 42` at 1:4 give the same site and the same text —
+  so the evaluation that decides what to edit denies loads, and what
+  resolves is what the overlay says by itself.
 - **It rewrites only a single editable literal, and appends otherwise.**
   The contribution must be one `literal`-role conjunct in *this*
   overlay whose `src`, parsed alone, means the contribution's own canon
@@ -442,6 +448,11 @@ wrote: changes.aon
   cannot turn a run that would have held into one that does not.
 - A default (`a: *1`) is left alone with no warning: appending already
   overrides a default correctly.
+- **The text form says `would replace:` when nothing was written**, and
+  `replaced:` only when the file changed: a run can have one replaceable
+  assignment and another that refuses it as a whole. A run that HOLDS
+  writes its status to stdout whether or not it carries warnings; the
+  warnings go to stderr beside it.
 - The report gains `replaced`, one entry per rewrite, carrying the path,
   the site, and `from`/`to` as **source text** — replacing `0x1F` with
   `31` is a different edit from replacing it with `0x1F`, and only the

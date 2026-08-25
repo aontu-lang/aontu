@@ -94,82 +94,64 @@ func TestOffsetAtConvertsUTF16ColumnsToBytes(t *testing.T) {
 	}
 }
 
-// THE FOREIGN-FILE REFUSAL. An included file's literal is editable, but
-// not by an overlay that did not name it: the write would land in a
-// document the caller did not name. Needs a real path on disk, which is
-// why it is here and not in the shared rows.
-func TestPatchRefusesALiteralInAnIncludedFile(t *testing.T) {
+// AN OVERLAY THAT LOADS ANOTHER DOCUMENT CANNOT BE EDITED IN PLACE, and
+// this is the case that makes it necessary rather than tidy.
+//
+// The include holds `a: 42` at row 1 column 4; the overlay holds
+// `x: 42` at row 1 column 4. The site is a real site, the text at the
+// span really is `42`, and the span verification therefore PASSES -- so
+// a splice that trusted it would rewrite `x` while reporting a
+// replacement of `$.a`, with a valid verdict and no findings. The site's
+// File cannot save it: this port names the ENTRY document for an
+// included value (issue #76), so the comparison is the overlay against
+// itself, and a library caller need not pass OverlayPath at all.
+//
+// Denying includes removes the ambiguity at its source: what resolves is
+// what this text says by itself. The TS twin is
+// refuses-an-overlay-that-loads-another-document.
+func TestPatchRefusesAnOverlayThatLoadsAnotherDocument(t *testing.T) {
 	dir := t.TempDir()
-	incFile := filepath.Join(dir, "inc.aon")
-	ovFile := filepath.Join(dir, "ov.aon")
-	if err := os.WriteFile(incFile, []byte("shared: 42\n"), 0o600); nil != err {
+	if err := os.MkdirAll(filepath.Join(dir, "sub"), 0o755); nil != err {
 		t.Fatal(err)
 	}
-	overlay := "@\"inc.aon\"\n"
+	incFile := filepath.Join(dir, "sub", "inc.aon")
+	if err := os.WriteFile(incFile, []byte("a: 42\n"), 0o600); nil != err {
+		t.Fatal(err)
+	}
+	ovFile := filepath.Join(dir, "ov.aon")
+	// The coincidence: same row, same column, same text. The include is
+	// written ABSOLUTE so it resolves with or without a base directory.
+	overlay := "x: 42\n@\"" + filepath.ToSlash(incFile) + "\"\n"
 	if err := os.WriteFile(ovFile, []byte(overlay), 0o600); nil != err {
 		t.Fatal(err)
 	}
 
-	r := Patch("shared: integer", overlay, []string{"$.shared=7"},
-		&PatchOptions{InPlace: true, OverlayPath: ovFile})
-
-	if 0 != len(r.Replaced) {
-		t.Fatalf("rewrote something: %+v", r.Replaced)
-	}
-	// THE REFUSAL IS ASSERTED; WHICH REFUSAL IS NOT, and that is a
-	// recorded divergence rather than a looser test. This port cannot
-	// name the file an included value came from -- Go's include loader
-	// stamps the whole tree with the ENTRY document's url, so the
-	// foreign-file check compares the overlay against itself and cannot
-	// fire (test/spec/divergent.tsv; TypeScript answers
-	// patch_not_editable naming inc.aon, Go answers patch_span_mismatch).
-	//
-	// What matters for SAFETY holds in both: the span verification
-	// catches what the file check cannot, because the include's
-	// coordinates do not describe the overlay's text. Nothing is written
-	// either way, which is the property this mode promises.
-	codes := []string{}
-	for _, f := range r.Findings {
-		codes = append(codes, f.Code)
-	}
-	joined := strings.Join(codes, ",")
-	if !strings.Contains(joined, "patch_not_editable") &&
-		!strings.Contains(joined, "patch_span_mismatch") {
-		t.Fatalf("neither refusal raised: %v", codes)
-	}
-	// AND THE FILE ON DISK IS UNTOUCHED, which is the point.
-	back, _ := os.ReadFile(incFile)
-	if "shared: 42\n" != string(back) {
-		t.Fatalf("the included file was written: %q", string(back))
-	}
-}
-
-// THE SPAN VERIFICATION, reached the way it is meant to be: an included
-// literal with NO OverlayPath, so the foreign-file guard cannot fire and
-// the verification is the only thing between the include's coordinates
-// and this file's text.
-func TestPatchRefusesASpanTheOverlayDoesNotHold(t *testing.T) {
-	dir := t.TempDir()
-	incFile := filepath.Join(dir, "inc.aon")
-	if err := os.WriteFile(incFile,
-		[]byte("# a comment that pushes the literal well down the file\nshared: 42\n"),
-		0o600); nil != err {
-		t.Fatal(err)
-	}
-	overlay := "@\"" + filepath.ToSlash(incFile) + "\"\n"
-
-	r := Patch("shared: integer", overlay, []string{"$.shared=7"},
-		&PatchOptions{InPlace: true})
-
-	if 0 != len(r.Replaced) {
-		t.Fatalf("rewrote something: %+v", r.Replaced)
-	}
-	codes := []string{}
-	for _, f := range r.Findings {
-		codes = append(codes, f.Code)
-	}
-	if !strings.Contains(strings.Join(codes, ","), "patch_span_mismatch") {
-		t.Fatalf("codes = %v", codes)
+	for _, opts := range []*PatchOptions{
+		{InPlace: true, OverlayPath: ovFile},
+		{InPlace: true}, // the library caller who names no path
+	} {
+		r := Patch("x: integer\na: integer", overlay, []string{"$.a=99"}, opts)
+		if 0 != len(r.Replaced) {
+			t.Fatalf("rewrote something: %+v", r.Replaced)
+		}
+		codes := []string{}
+		for _, f := range r.Findings {
+			codes = append(codes, f.Code)
+		}
+		if !strings.Contains(strings.Join(codes, ","), "patch_not_editable") {
+			t.Fatalf("codes = %v", codes)
+		}
+		if !strings.Contains(r.Findings[0].Message, "loads another document") {
+			t.Fatalf("message = %q", r.Findings[0].Message)
+		}
+		// AND `x: 42` IS UNTOUCHED, which is the whole point.
+		if !strings.HasPrefix(r.Overlay, "x: 42\n") {
+			t.Fatalf("overlay: %q", r.Overlay)
+		}
+		back, _ := os.ReadFile(incFile)
+		if "a: 42\n" != string(back) {
+			t.Fatalf("the included file was written: %q", string(back))
+		}
 	}
 }
 
@@ -241,5 +223,55 @@ func TestSpanValueSeparatesValuesFromConstraints(t *testing.T) {
 			t.Fatalf("spanValue(%q) = (%q, %v, %v), want (%q, %v, %v)",
 				c.src, canon, concrete, ok, c.canon, c.concrete, c.ok)
 		}
+	}
+}
+
+// THE LAST CHECK BEFORE A SPLICE, exercised with sites the engine would
+// never produce -- which is the only way to test a guard whose whole
+// purpose is to catch a state the rest of the code says cannot happen.
+// The TS twin is spanholds-refuses-what-it-cannot-account-for.
+func TestSpanHoldsRefusesWhatItCannotAccountFor(t *testing.T) {
+	src := "a: 42\nb: 7\n"
+	at := func(row, col, l int) WhySite {
+		return WhySite{Row: row, Col: col, Len: l}
+	}
+
+	// The site that describes the text: the only case a splice is
+	// allowed to proceed from.
+	if got := spanAt(src, at(1, 4, 2), "42"); "42" != got {
+		t.Fatalf("spanAt = %q, want 42", got)
+	}
+	if !spanHolds(src, at(1, 4, 2), "42") {
+		t.Fatal("the site that describes the text must hold")
+	}
+
+	// THE TEXT IS DIFFERENT. An included literal's coordinates applied
+	// to this file used to reach here; nothing does now, and it still
+	// must refuse.
+	if spanHolds(src, at(2, 4, 2), "42") {
+		t.Fatal("held over different text")
+	}
+
+	// THE POSITION IS NOT IN THIS TEXT AT ALL.
+	if got := spanAt(src, at(9, 1, 2), "42"); "" != got {
+		t.Fatalf("spanAt past the end = %q, want empty", got)
+	}
+	if spanHolds(src, at(9, 1, 2), "42") {
+		t.Fatal("held at a position that does not exist")
+	}
+	if spanHolds(src, at(-1, -1, 2), "") {
+		t.Fatal("the unsited site must never hold, even against empty text")
+	}
+
+	// A ZERO-LENGTH SPAN never holds against real text.
+	if spanHolds(src, at(1, 4, 0), "42") {
+		t.Fatal("held with a zero-length span")
+	}
+
+	// AND THE UTF-16 CONVERSION, at the one place it decides a write:
+	// the astral character is two columns and four bytes.
+	utf := "\"a\U0001F389b\": \"old\"\n"
+	if !spanHolds(utf, at(1, 9, 5), "\"old\"") {
+		t.Fatalf("utf-16 column did not resolve: %q", spanAt(utf, at(1, 9, 5), "\"old\""))
 	}
 }

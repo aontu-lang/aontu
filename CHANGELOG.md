@@ -68,6 +68,43 @@ for every in-place row by re-running it without the flag and requiring a
 verdict at least as good. A default (`a: *1`) earns no warning at all —
 appending already overrides a default correctly.
 
+**An overlay that loads another document is refused outright**, and the
+case that forces it is worth stating: an include holding `a: 42` at row
+1 column 4, and the overlay holding `x: 42` at row 1 column 4. The site
+is real, the text at the span really is `42`, so the verification
+PASSES — and a splice that trusted it rewrites `x` while reporting a
+replacement of `$.a`, with a valid verdict and no findings. The site's
+`file` cannot save it: a library caller need not pass `overlayPath`, and
+the Go port names the entry document for an included value anyway (issue
+#76). So the evaluation that decides what to edit **denies loads**, and
+what resolves is what the overlay says by itself. That removes the
+ambiguity at its source rather than detecting it, costs nothing in the
+shape `set` is for — an overlay it owns and appends to — and makes both
+ports agree without waiting on #76.
+
+The span verification and the no-extent guard **merged into one
+condition** on the way: they read as two guards and were one question
+asked twice, with the second half unreachable once loads were denied.
+Merged — and ordered before the round-trip — the question is reachable
+through the case that has no extent at all (`x: hello |> upper`
+synthesises a call the parser never sited), so the check is exercised
+rather than argued for. `spanHolds` is exported and tested directly
+against sites the engine would never produce, which is the only way to
+reach the half that stays theoretical; it also checks the site's `len`
+against the text's own length, since a site that disagrees with itself
+is exactly the state it exists to catch.
+
+Two reporting defects went with it. The text form printed `replaced:` in
+the **past tense** for edits a refused run never applied — one
+assignment can be replaceable while another makes the whole run invalid,
+and unlike `--dry-run` there was nothing on the line to say so; it now
+says `would replace:` wherever the file was not written. And a
+**successful** run carrying only a warning sent its whole report to
+stderr, leaving stdout empty and `$(aontu set ...)` with nothing:
+routing on the finding count was right while every finding this verb
+could raise was an error, and `--in-place` made a warning possible. The
+verdict decides the stream now; warnings are diagnostics beside it.
+
 The report gains `replaced`, carrying `from`/`to` as **source text**:
 replacing `0x1F` with `31` is a different edit from replacing it with
 `0x1F`, and only the spelling says which. 19 rows in

@@ -157,6 +157,44 @@ export function offsetAt(src: string, row: number, col: number): number {
 }
 
 
+// The text a site covers, or undefined when the site does not describe
+// a position in this text at all.
+export function spanAt(
+  src: string, site: { row: number, col: number, len: number }
+): string | undefined {
+  const off = offsetAt(src, site.row, site.col)
+  return off < 0 ? undefined : src.slice(off, off + site.len)
+}
+
+
+// DOES THE TEXT AT THIS SITE SAY WHAT THE SITE CLAIMS IT SAYS?
+//
+// The last check before a splice, and the one that makes the write
+// PROVABLE rather than argued. Exported so it can be exercised with a
+// site the engine would never produce — an out-of-range position, a
+// span over different text — which is the only way to test a guard whose
+// whole purpose is to catch a state the rest of the code says cannot
+// happen. (go/patch.go has the twin, tested the same way.)
+export function spanHolds(
+  src: string, site: { row: number, col: number, len: number }, expect: string
+): boolean {
+  // THE SITE'S OWN LENGTH IS PART OF ITS CLAIM, and is checked before
+  // the text is. A site whose `len` disagrees with the text it says it
+  // covers CONTRADICTS ITSELF, which is exactly the state this guard
+  // exists to catch — and a zero-length span would otherwise compare
+  // equal against nothing and then splice nothing, INSERTING the new
+  // value rather than replacing anything.
+  //
+  // Both ports compare in UTF-16 code units, which is what a site's
+  // `len` counts. That is free here and is not in Go, where a string is
+  // bytes (go/patch.go converts).
+  if ('' === expect || site.len !== expect.length) {
+    return false
+  }
+  return spanAt(src, site) === expect
+}
+
+
 // WHY IS THE VALUE AT THIS PATH WHAT IT IS, and is exactly one of the
 // answers a literal this overlay can edit in place?
 //
@@ -186,20 +224,61 @@ function editableLiteral(
   path: string,
   overlayPath: string | undefined,
 ): { site: PatchReplacement | undefined, finding: VetFinding | undefined } {
-  const report = why(overlaySrc, path,
-    null == overlayPath ? undefined : { path: overlayPath })
+  // THE AUTHORITY IS THE OVERLAY TEXT ALONE, WITH INCLUDES DENIED.
+  //
+  // The splice happens in the text this function was handed, so what it
+  // has to establish is that the contribution is IN that text — and the
+  // site's `file` cannot establish it. Two ways it fails: a caller of
+  // the library API need not pass `overlayPath`, leaving nothing to
+  // compare against; and the Go port names the ENTRY document for an
+  // included value anyway (issue #76), so the comparison is the overlay
+  // against itself. Either way an included literal's (row, col, len,
+  // src) can COINCIDE with different text at the same coordinates here
+  // — an include holding `a: 42` at 1:4 and an overlay holding `x: 42`
+  // at 1:4 — and the span verification cannot tell them apart, because
+  // the text really does match. The splice then rewrites `x` while
+  // reporting a replacement of `$.a`, in both ports.
+  //
+  // Denying includes removes the ambiguity at its source rather than
+  // detecting it: what resolves is what this text says by itself. An
+  // overlay that loads other documents therefore cannot be edited in
+  // place at all — the conservative answer, and the assignment still
+  // appends. It costs nothing in the shape `set` is for, an overlay it
+  // owns and appends to, and it does not depend on file attribution, so
+  // both ports agree without waiting on #76.
+  const alone = why(overlaySrc, path, {
+    trust: { include: 'none' },
+    ...(null == overlayPath ? {} : { path: overlayPath }),
+  })
 
-  // The overlay says NOTHING at this path. There is nothing to replace
-  // and nothing has gone wrong: appending is the whole of the answer.
-  if (true !== report.ok || null == report.record) {
-    return { site: undefined, finding: undefined }
+  if (true !== alone.ok || null == alone.record) {
+    // Nothing here BY ITSELF. Two very different reasons, and they earn
+    // different answers: the path may simply not be in this overlay, in
+    // which case appending is the whole of the answer and nothing has
+    // gone wrong — or it may be here only because something was loaded,
+    // which is the case above and has to say so.
+    const withLoads = why(overlaySrc, path,
+      null == overlayPath ? undefined : { path: overlayPath })
+    if (true !== withLoads.ok || null == withLoads.record) {
+      return { site: undefined, finding: undefined }
+    }
+    return {
+      site: undefined,
+      finding: notEditable('patch_not_editable', path,
+        'this path resolves only once the overlay loads another ' +
+        'document, so no literal here can be shown to be the one to ' +
+        'edit; run set with the document that writes it as the overlay',
+        withLoads.record.conjuncts),
+    }
   }
+
+  const record = alone.record
 
   // No `?? []`: WhyRecord.conjuncts is a non-optional array and the
   // record's own presence was just established, so a fallback here
   // would claim a possibility the type does not have — and the
   // coverage gate says so, an arm nothing can take.
-  const conjuncts: WhyConjunct[] = report.record.conjuncts
+  const conjuncts: WhyConjunct[] = record.conjuncts
   const literals = conjuncts.filter((c) => 'literal' === c.role)
 
   if (1 < literals.length) {
@@ -231,27 +310,30 @@ function editableLiteral(
 
   const one = literals[0]
 
-  // An included file is somebody else's document as far as
-  // `--overlay` is concerned.
-  if (null != overlayPath && '' !== one.site.file &&
-    one.site.file !== overlayPath) {
-    return {
-      site: undefined,
-      finding: notEditable('patch_not_editable', path,
-        'the literal is in ' + one.site.file +
-        ', not the overlay; run set with that file as the overlay',
-        [one]),
-    }
-  }
-
-  // A site with no extent cannot be spliced, and guessing one is the
-  // defect this whole mode exists to avoid.
-  if (one.site.len < 0 || '' === one.src) {
+  // THE SPAN MUST CHECK OUT, and this is one condition rather than two.
+  //
+  // A first draft tested "no extent" separately from "the text
+  // disagrees", which read as two guards and was really one question
+  // asked twice — with the second half unreachable, since denying
+  // includes means the site comes from evaluating THIS TEXT with
+  // nothing loaded, so its coordinates describe this text by
+  // construction. Merged, the question is reachable through the case
+  // that has no extent at all (`x: hello |> upper` synthesises a call
+  // the parser never sited), so the check is exercised rather than
+  // argued for — and `spanHolds` is exported and tested against sites
+  // the engine would never produce, which is the only way to reach the
+  // half that remains theoretical.
+  //
+  // It is load-bearing either way: a contribution with no `src` would
+  // otherwise splice ZERO characters, INSERTING the new value into the
+  // middle of a line instead of replacing anything.
+  if (!spanHolds(overlaySrc, one.site, one.src)) {
     return {
       site: undefined,
       finding: notEditable('patch_span_mismatch', path,
-        'the contribution carries no source extent, so its span cannot ' +
-        'be verified before writing',
+        'the overlay does not hold ' + JSON.stringify(one.src) + ' at ' +
+        one.site.row + ':' + one.site.col + ' (len ' + one.site.len +
+        '), so the span cannot be verified before writing',
         [one]),
     }
   }
@@ -303,21 +385,6 @@ function editableLiteral(
       finding: notEditable('patch_not_editable', path,
         one.canon + ' is a constraint here, not a pinned value; ' +
         'appending narrows it without discarding what it says',
-        [one]),
-    }
-  }
-
-  // THE VERIFICATION. Everything above decides WHETHER to edit; this
-  // decides whether the engine's idea of the file matches the file.
-  const off = offsetAt(overlaySrc, one.site.row, one.site.col)
-  const found = off < 0 ? undefined : overlaySrc.slice(off, off + one.site.len)
-  if (found !== one.src) {
-    return {
-      site: undefined,
-      finding: notEditable('patch_span_mismatch', path,
-        'the overlay holds ' + JSON.stringify(found ?? '') +
-        ' where the contribution says ' + JSON.stringify(one.src) +
-        '; refusing to write over text this run cannot account for',
         [one]),
     }
   }

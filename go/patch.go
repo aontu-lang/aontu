@@ -259,6 +259,48 @@ func offsetAt(src string, row, col int) int {
 	return -1
 }
 
+// spanAt is the text a site covers, or "" when the site does not
+// describe a position in this text at all.
+//
+// The site's Len counts UTF-16 UNITS and Go strings are BYTES, so the
+// span is taken by the expected text's own byte length rather than by
+// Len -- reading Len as a byte count here would slice mid-character on
+// any line holding one.
+func spanAt(src string, site WhySite, want string) string {
+	off := offsetAt(src, site.Row, site.Col)
+	if off < 0 || len(src) < off+len(want) {
+		return ""
+	}
+	return src[off : off+len(want)]
+}
+
+// spanHolds reports whether the text at this site says what the site
+// claims it says.
+//
+// The last check before a splice, and the one that makes the write
+// PROVABLE rather than argued. Exercised in the tests with a site the
+// engine would never produce -- an out-of-range position, a span over
+// different text -- which is the only way to test a guard whose whole
+// purpose is to catch a state the rest of the code says cannot happen.
+// (ts/src/patch.ts has the twin, tested the same way.)
+func spanHolds(src string, site WhySite, expect string) bool {
+	// THE SITE'S OWN LENGTH IS PART OF ITS CLAIM, and is checked before
+	// the text is. A site whose Len disagrees with the text it says it
+	// covers CONTRADICTS ITSELF, which is exactly the state this guard
+	// exists to catch -- and a zero-length span would otherwise compare
+	// equal against nothing and then splice nothing, INSERTING the new
+	// value rather than replacing anything.
+	//
+	// Len counts UTF-16 CODE UNITS and a Go string is BYTES, so the
+	// comparison converts. Reading Len as a byte count would accept a
+	// site that disagrees with itself on any line holding a multi-byte
+	// character -- and reject one that agrees.
+	if "" == expect || site.Len != utf16Len(expect) {
+		return false
+	}
+	return spanAt(src, site, expect) == expect
+}
+
 // spanValue answers what this source text means ON ITS OWN, and whether
 // it is a value rather than a constraint. ok is false when it does not
 // stand alone at all (`$` from a path, an unbalanced `{`).
@@ -343,19 +385,34 @@ func editableLiteral(
 	// — so the foreign-file refusal never fires and the assignment is
 	// appended instead. The canonical port passes the path as a parse
 	// option, which does both at once.
-	a := New()
-	if "" != overlayPath {
-		if abs, err := filepath.Abs(overlayPath); nil == err {
-			a = NewWithBase(filepath.Dir(abs))
-		}
-		a.File = overlayPath
-	}
-	report := a.Why(overlaySrc, path)
+	// THE AUTHORITY IS THE OVERLAY TEXT ALONE, WITH INCLUDES DENIED.
+	// The full note is on the canonical port; the short of it is that
+	// the site's file cannot establish which document a literal came
+	// from -- this port names the ENTRY document for an included value
+	// (issue #76), and a library caller need not pass OverlayPath at all
+	// -- so an included literal's (row, col, len, src) can COINCIDE with
+	// different text at the same coordinates here, and the span
+	// verification cannot tell them apart because the text really does
+	// match. Denying includes removes the ambiguity at its source.
+	alone := overlayAontu(overlayPath)
+	alone.Trust = &TrustOptions{IncludeNone: true}
+	report := alone.Why(overlaySrc, path)
 
-	// The overlay says NOTHING at this path. There is nothing to
-	// replace and nothing has gone wrong: appending is the answer.
 	if !report.OK || nil == report.Record {
-		return nil, nil
+		// Nothing here BY ITSELF. Two very different reasons: the path
+		// may simply not be in this overlay, in which case appending is
+		// the whole of the answer -- or it may be here only because
+		// something was loaded, which has to say so.
+		withLoads := overlayAontu(overlayPath).Why(overlaySrc, path)
+		if !withLoads.OK || nil == withLoads.Record {
+			return nil, nil
+		}
+		f := notEditable("patch_not_editable", path,
+			"this path resolves only once the overlay loads another "+
+				"document, so no literal here can be shown to be the one to "+
+				"edit; run set with the document that writes it as the overlay",
+			withLoads.Record.Conjuncts)
+		return nil, &f
 	}
 
 	literals := []WhyConjunct{}
@@ -397,38 +454,26 @@ func editableLiteral(
 
 	// An included file is somebody else's document as far as the
 	// overlay is concerned.
-	// UNREACHABLE IN THIS PORT UNTIL ISSUE #76. Go stamps the whole tree
-	// with the ENTRY document's url, so an included literal's site names
-	// the overlay and this compares the overlay against itself.
+	// THE SPAN MUST CHECK OUT, and this is one condition rather than
+	// two. The full note is on the canonical port: merging "no extent"
+	// with "the text disagrees" makes the check REACHABLE, through the
+	// case that has no extent at all, instead of half-unreachable.
 	//
-	// The branch is kept, and is not dead code: it is the check the
-	// canonical port makes and TAKES (ts/test/patch.test.ts,
-	// refuses-a-literal-in-an-included-file), and it becomes live here
-	// the moment the loader stamps per-document urls. Removing it would
-	// make fixing #76 silently reintroduce a write into a file the
-	// caller did not name. Safety does not rest on it meanwhile: the
-	// span verification below refuses the same input, which
-	// go/patch_test.go asserts rather than assumes.
-	//coverage:ignore-block unreachable until #76 -- see the note above
-	if "" != overlayPath && "" != one.Site.File && one.Site.File != overlayPath {
-		f := notEditable("patch_not_editable", path,
-			"the literal is in "+one.Site.File+
-				", not the overlay; run set with that file as the overlay",
+	// It is load-bearing either way: a contribution with no Src would
+	// otherwise splice ZERO bytes, INSERTING the new value into the
+	// middle of a line instead of replacing anything.
+	if !spanHolds(overlaySrc, one.Site, one.Src) {
+		f := notEditable("patch_span_mismatch", path,
+			"the overlay does not hold "+jsonString(one.Src)+" at "+
+				itoa(one.Site.Row)+":"+itoa(one.Site.Col)+" (len "+
+				itoa(one.Site.Len)+"), so the span cannot be verified "+
+				"before writing",
 			[]WhyConjunct{one})
 		return nil, &f
 	}
 
-	// A site with no extent cannot be spliced, and guessing one is the
-	// defect this whole mode exists to avoid.
-	if one.Site.Len < 0 || "" == one.Src {
-		f := notEditable("patch_span_mismatch", path,
-			"the contribution carries no source extent, so its span cannot "+
-				"be verified before writing", []WhyConjunct{one})
-		return nil, &f
-	}
-
 	// DOES THE SPAN MEAN THE WHOLE CONTRIBUTION? The check the
-	// `literal` role looks like it makes and does not — see the note on
+	// `literal` role looks like it makes and does not -- see the note on
 	// the canonical port.
 	canon, concrete, ok := spanValue(one.Src)
 	if !ok || canon != one.Canon {
@@ -450,25 +495,6 @@ func editableLiteral(
 		return nil, &f
 	}
 
-	// THE VERIFICATION. Everything above decides WHETHER to edit; this
-	// decides whether the engine's idea of the file matches the file.
-	// The site's Len counts UTF-16 units and Src is the text itself, so
-	// the span is taken by the source text's own byte length — reading
-	// Len as a byte count here would slice mid-character.
-	off := offsetAt(overlaySrc, one.Site.Row, one.Site.Col)
-	found := ""
-	if 0 <= off && off+len(one.Src) <= len(overlaySrc) {
-		found = overlaySrc[off : off+len(one.Src)]
-	}
-	if found != one.Src {
-		f := notEditable("patch_span_mismatch", path,
-			"the overlay holds "+jsonString(found)+" where the contribution "+
-				"says "+jsonString(one.Src)+
-				"; refusing to write over text this run cannot account for",
-			[]WhyConjunct{one})
-		return nil, &f
-	}
-
 	return &PatchReplacement{
 		Col:  one.Site.Col,
 		File: one.Site.File,
@@ -476,6 +502,23 @@ func editableLiteral(
 		Path: path,
 		Row:  one.Site.Row,
 	}, nil
+}
+
+// overlayAontu is an engine that reads the overlay from the overlay's
+// OWN directory: a relative `@"file"` inside it resolves from where the
+// overlay lives, the rule Vet applies through DataPath and the CLI
+// through aontuForFile. Setting only File names the document without
+// telling the loader where it is.
+func overlayAontu(overlayPath string) *Aontu {
+	if "" == overlayPath {
+		return New()
+	}
+	a := New()
+	if abs, err := filepath.Abs(overlayPath); nil == err {
+		a = NewWithBase(filepath.Dir(abs))
+	}
+	a.File = overlayPath
+	return a
 }
 
 // applyEdits splices back to front, so an earlier edit's offset is

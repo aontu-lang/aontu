@@ -25,6 +25,16 @@ export declare function parseAssignment(text: string): {
 } | undefined;
 export declare function overlayLine(path: string, value: string): string;
 export declare function offsetAt(src: string, row: number, col: number): number;
+export declare function spanAt(src: string, site: {
+    row: number;
+    col: number;
+    len: number;
+}): string | undefined;
+export declare function spanHolds(src: string, site: {
+    row: number;
+    col: number;
+    len: number;
+}, expect: string): boolean;
 export declare function spanValue(src: string): {
     canon: string;
     concrete: boolean;

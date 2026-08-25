@@ -117,8 +117,17 @@ func runSet(argv []string, stdout, stderr io.Writer) int {
 		// A replacement is REPORTED as the edit it is, not left for the
 		// reader to infer from a changed file: `where: what -> what`, in
 		// source spelling, because the spelling is what changed.
+		//
+		// PAST TENSE ONLY WHERE IT HAPPENED. A refused write leaves the
+		// file exactly as it was, and one assignment can be replaceable
+		// while another makes the whole run invalid -- so "replaced:"
+		// there tells an operator the pin was changed when it was not.
+		verb := "would replace: "
+		if wrote {
+			verb = "replaced: "
+		}
 		for _, r := range report.Replaced {
-			head += "\nreplaced: " + r.File + ":" +
+			head += "\n" + verb + r.File + ":" +
 				strconv.Itoa(r.Row) + ":" + strconv.Itoa(r.Col) +
 				" " + r.From + " -> " + r.To
 		}
@@ -127,15 +136,32 @@ func runSet(argv []string, stdout, stderr io.Writer) int {
 		} else if dryRun {
 			head += "\n(dry run)"
 		}
-		out := []string{head}
-		if 0 < len(report.Findings) {
-			out = append(out, "")
-			for _, f := range report.Findings {
-				out = append(out, renderFinding(f))
+
+		// A SUCCESSFUL COMMAND WRITES ITS STATUS TO STDOUT, findings or
+		// not. Routing on the finding COUNT was right while every
+		// finding this verb could produce was an error; InPlace made a
+		// WARNING possible, and a run that held, wrote the file and
+		// exited 0 then sent its whole report to stderr, leaving stdout
+		// empty. The verdict decides the stream; warnings are
+		// diagnostics and go to stderr beside it.
+		failed := aontu.VetInvalid == report.Verdict ||
+			aontu.VetError == report.Verdict
+		findingText := []string{}
+		for _, f := range report.Findings {
+			findingText = append(findingText, renderFinding(f))
+		}
+		if failed {
+			out := []string{head}
+			if 0 < len(findingText) {
+				out = append(out, "")
+				out = append(out, findingText...)
 			}
 			io.WriteString(stderr, strings.Join(out, "\n")+"\n")
 		} else {
-			io.WriteString(stdout, strings.Join(out, "\n")+"\n")
+			io.WriteString(stdout, head+"\n")
+			if 0 < len(findingText) {
+				io.WriteString(stderr, strings.Join(findingText, "\n")+"\n")
+			}
 		}
 	}
 

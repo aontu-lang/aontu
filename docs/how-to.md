@@ -406,14 +406,25 @@ verdict:
 | `a: 1` twice | two statements pin it; there is no single place to edit | appended, `patch_ambiguous` |
 | a `&:` template, a `$ref` | the value comes from elsewhere; edit it there | appended, `patch_not_editable` |
 | `a: integer`, `a: above(0)` | a constraint, not a pin — appending narrows it without discarding it | appended, `patch_not_editable` |
-| a literal in an `@"included"` file | that document is not this overlay | appended, `patch_not_editable` |
+| anything, when the overlay itself `@"includes"` another document | a loaded literal's position cannot be told from the overlay's own | appended, `patch_not_editable` |
 
 A default (`a: *1`) is not in the table: appending already overrides it
 correctly, so `--in-place` leaves it alone and says nothing.
 
+**An overlay that loads another document cannot be edited in place at
+all.** That looks strict until you see what it prevents: an include
+holding `a: 42` at row 1 column 4, and the overlay holding `x: 42` at
+row 1 column 4. The site is real and the text at the span really is
+`42`, so the verification passes — and a splice that trusted it would
+rewrite `x` while reporting a replacement of `$.a`. Denying loads
+removes the ambiguity at its source rather than trying to detect it:
+what resolves is what the overlay says by itself.
+
 Rewriting a file is not reversible the way appending to one is, which
 is why it is opt-in. Pair it with `--dry-run` to see the rewritten
-overlay without writing it.
+overlay without writing it — and note that when a run is refused as a
+whole, any edit it *could* have made is reported as `would replace:`
+rather than `replaced:`, because the file was not touched.
 
 ## Find entries that are doing nothing
 

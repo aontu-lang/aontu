@@ -11,6 +11,7 @@ import * as Assert from 'node:assert'
 
 import {
   patch, offsetAt, parseAssignment, overlayLine, spanValue,
+  spanAt, spanHolds,
 } from '../dist/patch'
 
 
@@ -50,54 +51,52 @@ describe('patch', () => {
   })
 
 
-  // THE FOREIGN-FILE REFUSAL. An included file's literal is editable,
-  // but not by `--overlay <this file>`: the write would land in a
-  // document the caller did not name. Needs a real path on disk, which
-  // is why it is here and not in the shared rows.
-  test('refuses-a-literal-in-an-included-file', () => {
+  // AN OVERLAY THAT LOADS ANOTHER DOCUMENT CANNOT BE EDITED IN PLACE,
+  // and this is the case that makes it necessary rather than tidy.
+  //
+  // The include holds `a: 42` at row 1 column 4; the overlay holds
+  // `x: 42` at row 1 column 4. The site is a real site, the text at the
+  // span really is `42`, and the span verification therefore PASSES —
+  // so a splice that trusted it would rewrite `x` while reporting a
+  // replacement of `$.a`, with a valid verdict and no findings. The
+  // site's `file` cannot save it: a library caller need not pass
+  // `overlayPath`, and the Go port names the entry document for an
+  // included value anyway (issue #76).
+  //
+  // Denying includes removes the ambiguity at its source: what resolves
+  // is what this text says by itself.
+  test('refuses-an-overlay-that-loads-another-document', () => {
     const Fs = require('node:fs')
     const Os = require('node:os')
     const Path = require('node:path')
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-patch-'))
-    const incFile = Path.join(dir, 'inc.aon')
+    Fs.mkdirSync(Path.join(dir, 'sub'))
+    const incFile = Path.join(dir, 'sub', 'inc.aon')
+    Fs.writeFileSync(incFile, 'a: 42\n')
     const ovFile = Path.join(dir, 'ov.aon')
-    Fs.writeFileSync(incFile, 'shared: 42\n')
-    const overlay = '@"inc.aon"\n'
+    // The coincidence: same row, same column, same text. The include is
+    // written ABSOLUTE so it resolves with or without a base directory
+    // — a RELATIVE one is refused earlier, by the loader, when no
+    // overlayPath is given, which would test the loader rather than
+    // this guard.
+    const overlay = 'x: 42\n@"' +
+      incFile.replace(/\\/g, '/') + '"\n'
     Fs.writeFileSync(ovFile, overlay)
 
-    const r = patch('shared: integer', overlay, ['$.shared=7'],
-      { inPlace: true, overlayPath: ovFile })
-
-    Assert.deepStrictEqual(r.replaced, [], 'nothing rewritten')
-    const codes = r.findings.map((f: any) => f.code)
-    Assert.ok(codes.includes('patch_not_editable'), codes.join(','))
-    const note = r.findings[0].message
-    Assert.ok(note.includes('inc.aon'), note)
-    Assert.ok(note.includes('not the overlay'), note)
-    // AND THE FILE ON DISK IS UNTOUCHED, which is the point.
-    Assert.strictEqual(Fs.readFileSync(incFile, 'utf8'), 'shared: 42\n')
-  })
-
-
-  // THE SPAN VERIFICATION, reached the way it is meant to be: an
-  // included literal with NO overlayPath, so the foreign-file guard
-  // above cannot fire and the verification is the only thing between
-  // the include's coordinates and this file's text.
-  test('refuses-a-span-the-overlay-does-not-hold', () => {
-    const Fs = require('node:fs')
-    const Os = require('node:os')
-    const Path = require('node:path')
-    const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-patch-'))
-    Fs.writeFileSync(Path.join(dir, 'inc.aon'),
-      '# a comment that pushes the literal well down the file\nshared: 42\n')
-    const overlay = '@"' + Path.join(dir, 'inc.aon').replace(/\\/g, '/') + '"\n'
-
-    const r = patch('shared: integer', overlay, ['$.shared=7'],
-      { inPlace: true })
-
-    Assert.deepStrictEqual(r.replaced, [], 'nothing rewritten')
-    Assert.ok(r.findings.map((f: any) => f.code).includes('patch_span_mismatch'),
-      r.findings.map((f: any) => f.code).join(','))
+    for (const opts of [
+      { inPlace: true, overlayPath: ovFile },
+      { inPlace: true },   // the library caller who names no path
+    ]) {
+      const r = patch('x: integer\na: integer', overlay, ['$.a=99'], opts)
+      Assert.deepStrictEqual(r.replaced, [], 'nothing rewritten')
+      Assert.ok(r.findings.map((f: any) => f.code).includes('patch_not_editable'),
+        r.findings.map((f: any) => f.code).join(','))
+      Assert.ok(r.findings[0].message.includes('loads another document'),
+        r.findings[0].message)
+      // AND `x: 42` IS UNTOUCHED, which is the whole point.
+      Assert.ok(r.overlay.startsWith('x: 42\n'), r.overlay)
+      Assert.strictEqual(Fs.readFileSync(incFile, 'utf8'), 'a: 42\n')
+    }
   })
 
 
@@ -126,6 +125,36 @@ describe('patch', () => {
     Assert.deepStrictEqual(r.appended, [])
     Assert.strictEqual(r.overlay, 'a: 1\n', 'the overlay is untouched')
     Assert.strictEqual(r.findings[0].code, 'patch_assignment')
+  })
+
+
+  // THE LAST CHECK BEFORE A SPLICE, exercised with sites the engine
+  // would never produce — which is the only way to test a guard whose
+  // whole purpose is to catch a state the rest of the code says cannot
+  // happen. The Go twin is TestSpanHoldsRefusesWhatItCannotAccountFor.
+  test('spanholds-refuses-what-it-cannot-account-for', () => {
+    const src = 'a: 42\nb: 7\n'
+
+    // The site that describes the text: this is the only case a splice
+    // is allowed to proceed from.
+    Assert.strictEqual(spanAt(src, { row: 1, col: 4, len: 2 }), '42')
+    Assert.strictEqual(spanHolds(src, { row: 1, col: 4, len: 2 }, '42'), true)
+
+    // THE TEXT IS DIFFERENT. An included literal's coordinates applied
+    // to this file used to reach here; nothing does now, and it still
+    // must refuse.
+    Assert.strictEqual(spanHolds(src, { row: 2, col: 4, len: 2 }, '42'), false)
+
+    // THE POSITION IS NOT IN THIS TEXT AT ALL.
+    Assert.strictEqual(spanAt(src, { row: 9, col: 1, len: 2 }), undefined)
+    Assert.strictEqual(spanHolds(src, { row: 9, col: 1, len: 2 }, '42'), false)
+    Assert.strictEqual(spanHolds(src, { row: -1, col: -1, len: 2 }, ''), false,
+      'the unsited site never holds, even against empty text')
+
+    // A ZERO-LENGTH SPAN never holds against real text: an empty slice
+    // would compare equal to an empty `src` and then splice nothing,
+    // INSERTING the new value instead of replacing anything.
+    Assert.strictEqual(spanHolds(src, { row: 1, col: 4, len: 0 }, '42'), false)
   })
 
 
