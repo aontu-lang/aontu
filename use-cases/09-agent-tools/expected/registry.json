@@ -1,0 +1,115 @@
+{
+  "docs": {
+    "header": "| tool | effect | rpm | approval | owner |",
+    "table": [
+      "| search_docs | readonly | 120 | false | search-infra@corp.example |",
+      "| read_file | readonly | 240 | false | workspace-core@corp.example |",
+      "| http_request | readonly | 60 | false | egress-gw@corp.example |",
+      "| create_ticket | write | 30 | false | tracker-team@corp.example |",
+      "| send_email | write | 10 | false | msg-platform@corp.example |",
+      "| delete_records | destructive | 5 | true | data-gov@corp.example |"
+    ]
+  },
+  "registry": {
+    "owner": "platform-tools@corp.example",
+    "platform": "orion",
+    "version": "1.4.0"
+  },
+  "tools": {
+    "create_ticket": {
+      "allowed_roles": [
+        "admin",
+        "operator",
+        "agent"
+      ],
+      "description": "Open a tracker ticket in a named project on behalf of the agent.",
+      "owner": "tracker-team@corp.example",
+      "rate_limit": {
+        "burst": 5,
+        "per_minute": 30
+      },
+      "requires_approval": false,
+      "side_effect": "write",
+      "timeout_ms": 10000
+    },
+    "delete_records": {
+      "allowed_roles": [
+        "admin"
+      ],
+      "description": "Bulk-delete records from a governed dataset; dry_run must be explicit.",
+      "owner": "data-gov@corp.example",
+      "rate_limit": {
+        "burst": 1,
+        "per_minute": 5
+      },
+      "requires_approval": true,
+      "side_effect": "destructive",
+      "timeout_ms": 60000
+    },
+    "http_request": {
+      "allowed_roles": [
+        "admin",
+        "operator",
+        "agent"
+      ],
+      "description": "Fetch an https URL through the egress proxy; GET and HEAD only.",
+      "owner": "egress-gw@corp.example",
+      "rate_limit": {
+        "burst": 10,
+        "per_minute": 60
+      },
+      "requires_approval": false,
+      "side_effect": "readonly",
+      "timeout_ms": 30000
+    },
+    "read_file": {
+      "allowed_roles": [
+        "admin",
+        "operator",
+        "analyst",
+        "agent"
+      ],
+      "description": "Read one workspace file below the sandbox root, capped by max_bytes.",
+      "owner": "workspace-core@corp.example",
+      "rate_limit": {
+        "burst": 40,
+        "per_minute": 240
+      },
+      "requires_approval": false,
+      "side_effect": "readonly",
+      "timeout_ms": 2000
+    },
+    "search_docs": {
+      "allowed_roles": [
+        "admin",
+        "operator",
+        "analyst",
+        "agent"
+      ],
+      "description": "Full-text search over the workspace documentation index.",
+      "owner": "search-infra@corp.example",
+      "rate_limit": {
+        "burst": 20,
+        "per_minute": 120
+      },
+      "requires_approval": false,
+      "side_effect": "readonly",
+      "timeout_ms": 5000
+    },
+    "send_email": {
+      "allowed_roles": [
+        "admin",
+        "operator"
+      ],
+      "description": "Send mail to one internal corp.example recipient; no external delivery.",
+      "owner": "msg-platform@corp.example",
+      "rate_limit": {
+        "burst": 2,
+        "per_minute": 10
+      },
+      "requires_approval": false,
+      "side_effect": "write",
+      "timeout_ms": 15000
+    }
+  }
+}

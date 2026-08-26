@@ -1,0 +1,25 @@
+{
+  "dependedOnBy": [
+    "svc/gateway"
+  ],
+  "dependsOn": [
+    "svc/ledger",
+    "svc/risk",
+    "svc/auth",
+    "svc/notify"
+  ],
+  "description": "Card payment orchestration and capture API.",
+  "image": "registry.acme.internal/payments:2.14.1",
+  "kind": "service",
+  "lifecycle": "production",
+  "owner": "team-payments",
+  "ports": {
+    "http": {
+      "direction": "in",
+      "number": 8080,
+      "protocol": "http"
+    }
+  },
+  "replicas": 6,
+  "tier": 1
+}

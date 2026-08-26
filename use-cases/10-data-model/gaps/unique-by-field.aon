@@ -1,0 +1,9 @@
+# SILENT LIMITATION (kept executable; check.sh asserts this passes,
+# which is the finding). unique() compares WHOLE members by canon;
+# there is no projection, so two customers sharing a ledgerId slip
+# through whenever any other field differs. Uniqueness of one field
+# across a collection is inexpressible. README, gap 8.
+customers: unique() & {
+  "cust-1001": { ledgerId: 111, name: "Acme" }
+  "cust-1002": { ledgerId: 111, name: "Globex" }
+}

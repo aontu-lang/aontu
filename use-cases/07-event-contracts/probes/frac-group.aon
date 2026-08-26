@@ -1,0 +1,12 @@
+# frac-group.aon --- FAILED ATTEMPT, kept as evidence (README gap:
+# RFC 3339 by regex). The natural spelling of optional fractional
+# seconds, (\.\d+)?, is a quantifier on a group containing another
+# quantifier, which re()'s portable subset refuses outright
+# ([aontu/constraint_pattern]). check.sh pins the refusal. The
+# working spelling (optionality folded into one unquantified
+# alternation group) lives in envelope.aon.
+
+BadTime: {
+  time: re("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$")
+        & "2026-08-26T12:00:00Z"
+}

@@ -1,0 +1,6 @@
+# Why guardrails.aon exists (README, gap 1): a constraint conjunct
+# meeting a ranked default does NOT resolve to the default.  This is
+# the documented phase-1 limit of the constraint algebra.  Expected:
+# [aontu/mapval_no_gen] leaving the residual integer&min(1)&max(24).
+replicas: *2 | integer
+replicas: min(1) & max(24)

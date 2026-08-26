@@ -1,0 +1,8 @@
+# bad/cycle.aon --- change request CR-4711: ledger gains a callback
+# into payments. Evaluation succeeds (nothing contradicts); only
+# `aontu relations` sees the loop payments -> ledger -> payments.
+@"../system.aon"
+
+change: cr4711: id(svc/ledger) & {
+  dependsOn: [svc/payments]
+}

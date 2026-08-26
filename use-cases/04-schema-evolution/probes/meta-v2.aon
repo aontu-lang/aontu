@@ -1,0 +1,5 @@
+# Identical schema body; only the version string bumped.
+meta: hide({version: "2.0.0"})
+profile: close({
+  id: string & re("^C[0-9]{7}$")
+})

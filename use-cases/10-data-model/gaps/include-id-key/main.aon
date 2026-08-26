@@ -1,0 +1,7 @@
+# Minimal repro, file 2 of 2: pull the same schema in through an
+# include and add one record. id(key(0)) now fails with a bogus
+# [aontu/id_name] "argument is not an entity name". Dropping the
+# id(key(0)) instead SILENTLY drops the record from generation
+# (customers: {}). README, gap 6.
+@"./vocab.aon"
+customers: "cust-1001": { ledgerId: 5, name: "Acme" }

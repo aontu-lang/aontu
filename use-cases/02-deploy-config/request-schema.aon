@@ -1,0 +1,20 @@
+# Schema for a rollout change request emitted by the release agent
+# (an LLM proposing capacity changes).  Candidates land in data/ as
+# plain JSON and are gated with:
+#
+#   aontu vet request-schema.aon data/<candidate>.json
+#
+# close() refuses any key the shape does not declare, so a hallucinated
+# field is [aontu/closed], not silently accepted.  The language
+# reference still lists length() as unimplemented, but it works in the
+# TypeScript engine (README, "What worked"), so the free-text rationale
+# is bounded with it directly.
+
+close({
+  kind: "rollout-change"
+  service: string & re("^[a-z][a-z0-9]*$")
+  env: dev | staging | prod
+  replicas: integer & min(1) & max(24)
+  reason: string & length(min(12) & max(200))
+  ticket?: string & re("^PAY-[0-9]+$")
+})

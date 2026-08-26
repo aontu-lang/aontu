@@ -1,0 +1,15 @@
+# UNDECIDABLE PROPOSAL: add a Band-B must() check to email.  must()
+# is evaluate-only -- no subsumption algebra -- so the gate answers
+# undecided (sub_evaluate_only, exit 3); --allow-undecided is the
+# explicit human override.
+aontu_policy: hide({compat: *backward | forward | full | none})
+profile: close({
+  id: string & re("^C[0-9]{7}$")
+  email: string & re("^[^@ ]+@[^@ ]+[.][^@ ]+$") & must(re("[.](com|net|org)$"), "email domain must be .com/.net/.org")
+  name: string & length(min(1))
+  phone?: deprecate(string, {msg: "free-form phone is unvalidated; write E.164 to contact.phone", use: "$.profile.contact.phone", since: "2.0.0"})
+  contact?: close({phone?: string & re("^[+][0-9]{7,15}$"), verified: *false | boolean})
+  locale?: string & re("^[a-z][a-z](?:-[A-Z][A-Z])?$")
+  tier: "standard" | "premium" | "enterprise"
+  consent: close({marketing: *false | boolean, analytics: *false | boolean})
+})

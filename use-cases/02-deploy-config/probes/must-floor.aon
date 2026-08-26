@@ -1,0 +1,5 @@
+# must(c, msg) fires with the AUTHOR'S message in the report -- the
+# reference still marks it unimplemented, but it works ([aontu/must],
+# README "What worked").  A prod workload scaled below the HA floor:
+replicas: must(min(2), "prod workloads need >= 2 replicas for zero-downtime rollouts")
+replicas: 1

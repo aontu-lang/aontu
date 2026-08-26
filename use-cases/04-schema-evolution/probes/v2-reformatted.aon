@@ -1,0 +1,13 @@
+# The same v2 truth, written by a different hand: keys reordered,
+# comments rewritten, whitespace collapsed.  aontu hash must not move.
+aontu_policy: hide({compat: *backward | forward | full | none})
+profile: close({
+  tier: "standard" | "premium" | "enterprise"
+  consent: close({analytics: *false | boolean, marketing: *false | boolean})
+  locale?: string & re("^[a-z][a-z](?:-[A-Z][A-Z])?$")
+  contact?: close({verified: *false | boolean, phone?: string & re("^[+][0-9]{7,15}$")})
+  phone?: deprecate(string, {msg: "free-form phone is unvalidated; write E.164 to contact.phone", use: "$.profile.contact.phone", since: "2.0.0"})
+  name: string & length(min(1))
+  email: string & re("^[^@ ]+@[^@ ]+[.][^@ ]+$")
+  id: string & re("^C[0-9]{7}$")
+})

@@ -1,0 +1,7 @@
+# The same breaking change, shipped honestly: version 2.0.0 publishes
+# as ...@2, a different module path, so no @1 consumer ever sees it.
+mod: {
+  path: "corp.example/schemas/service"
+  version: "2.0.0"
+  main: "service.aon"
+}

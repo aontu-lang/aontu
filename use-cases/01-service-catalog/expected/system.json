@@ -1,0 +1,410 @@
+{
+  "catalog": {
+    "domains": {
+      "identity": {
+        "services": {
+          "auth": {
+            "dependedOnBy": [
+              "svc/gateway",
+              "svc/payments"
+            ],
+            "dependsOn": [
+              "svc/directory"
+            ],
+            "description": "OAuth2 token issuing and session verification.",
+            "image": "registry.acme.internal/auth:5.2.0",
+            "kind": "service",
+            "lifecycle": "production",
+            "owner": "team-identity",
+            "ports": {
+              "http": {
+                "direction": "in",
+                "number": 8443,
+                "protocol": "https"
+              }
+            },
+            "replicas": 4,
+            "tier": 1
+          },
+          "directory": {
+            "dependedOnBy": [
+              "svc/risk",
+              "svc/auth"
+            ],
+            "description": "Employee and customer directory lookups.",
+            "image": "registry.acme.internal/directory:3.0.4",
+            "kind": "service",
+            "lifecycle": "production",
+            "owner": "team-identity",
+            "ports": {
+              "http": {
+                "direction": "in",
+                "number": 8080,
+                "protocol": "http"
+              }
+            },
+            "replicas": 2,
+            "tier": 2
+          }
+        },
+        "team": "team-identity"
+      },
+      "payments": {
+        "services": {
+          "ledger": {
+            "dependedOnBy": [
+              "svc/payments"
+            ],
+            "description": "Double-entry ledger of record for money movement.",
+            "image": "registry.acme.internal/ledger:1.9.0",
+            "kind": "service",
+            "lifecycle": "production",
+            "owner": "team-payments",
+            "ports": {
+              "grpc": {
+                "direction": "in",
+                "number": 9443,
+                "protocol": "grpc"
+              }
+            },
+            "replicas": 3,
+            "tier": 1
+          },
+          "payments": {
+            "dependedOnBy": [
+              "svc/gateway"
+            ],
+            "dependsOn": [
+              "svc/ledger",
+              "svc/risk",
+              "svc/auth",
+              "svc/notify"
+            ],
+            "description": "Card payment orchestration and capture API.",
+            "image": "registry.acme.internal/payments:2.14.1",
+            "kind": "service",
+            "lifecycle": "production",
+            "owner": "team-payments",
+            "ports": {
+              "http": {
+                "direction": "in",
+                "number": 8080,
+                "protocol": "http"
+              }
+            },
+            "replicas": 6,
+            "tier": 1
+          },
+          "risk": {
+            "dependedOnBy": [
+              "svc/payments"
+            ],
+            "dependsOn": [
+              "svc/directory"
+            ],
+            "description": "Transaction risk scoring and fraud rules engine.",
+            "image": "registry.acme.internal/risk:0.31.2",
+            "kind": "service",
+            "lifecycle": "production",
+            "owner": "team-payments",
+            "ports": {
+              "grpc": {
+                "direction": "in",
+                "number": 9443,
+                "protocol": "grpc"
+              }
+            },
+            "replicas": 2,
+            "tier": 2
+          }
+        },
+        "team": "team-payments"
+      },
+      "platform": {
+        "services": {
+          "email": {
+            "dependedOnBy": [
+              "svc/notify"
+            ],
+            "description": "SMTP delivery with bounce and complaint tracking.",
+            "image": "registry.acme.internal/email:2.2.7",
+            "kind": "service",
+            "lifecycle": "production",
+            "owner": "team-platform",
+            "ports": {
+              "smtp": {
+                "direction": "out",
+                "number": 2525,
+                "protocol": "smtp"
+              }
+            },
+            "replicas": 2,
+            "tier": 3
+          },
+          "gateway": {
+            "dependsOn": [
+              "svc/payments",
+              "svc/auth"
+            ],
+            "description": "Public API edge gateway and request routing.",
+            "image": "registry.acme.internal/gateway:4.7.3",
+            "kind": "service",
+            "lifecycle": "production",
+            "owner": "team-platform",
+            "ports": {
+              "admin": {
+                "direction": "inout",
+                "number": 9901,
+                "protocol": "http"
+              },
+              "public": {
+                "direction": "in",
+                "number": 443,
+                "protocol": "https"
+              }
+            },
+            "replicas": 8,
+            "tier": 1
+          },
+          "notify": {
+            "dependedOnBy": [
+              "svc/payments"
+            ],
+            "dependsOn": [
+              "svc/email"
+            ],
+            "description": "Customer notification fan-out orchestration.",
+            "image": "registry.acme.internal/notify:0.12.0",
+            "kind": "service",
+            "lifecycle": "experimental",
+            "owner": "team-platform",
+            "ports": {
+              "http": {
+                "direction": "in",
+                "number": 8080,
+                "protocol": "http"
+              }
+            },
+            "replicas": 2,
+            "tier": 3
+          }
+        },
+        "team": "team-platform"
+      }
+    }
+  },
+  "deploy": {
+    "regions": {
+      "eu1": {
+        "clusters": {
+          "core": {
+            "workloads": {
+              "auth": {
+                "dependedOnBy": [
+                  "svc/gateway",
+                  "svc/payments"
+                ],
+                "dependsOn": [
+                  "svc/directory"
+                ],
+                "description": "OAuth2 token issuing and session verification.",
+                "image": "registry.acme.internal/auth:5.2.0",
+                "kind": "service",
+                "lifecycle": "production",
+                "owner": "team-identity",
+                "ports": {
+                  "http": {
+                    "direction": "in",
+                    "number": 8443,
+                    "protocol": "https"
+                  }
+                },
+                "replicas": 4,
+                "tier": 1
+              },
+              "directory": {
+                "dependedOnBy": [
+                  "svc/risk",
+                  "svc/auth"
+                ],
+                "description": "Employee and customer directory lookups.",
+                "image": "registry.acme.internal/directory:3.0.4",
+                "kind": "service",
+                "lifecycle": "production",
+                "owner": "team-identity",
+                "ports": {
+                  "http": {
+                    "direction": "in",
+                    "number": 8080,
+                    "protocol": "http"
+                  }
+                },
+                "replicas": 2,
+                "tier": 2
+              },
+              "ledger": {
+                "dependedOnBy": [
+                  "svc/payments"
+                ],
+                "description": "Double-entry ledger of record for money movement.",
+                "image": "registry.acme.internal/ledger:1.9.0",
+                "kind": "service",
+                "lifecycle": "production",
+                "owner": "team-payments",
+                "ports": {
+                  "grpc": {
+                    "direction": "in",
+                    "number": 9443,
+                    "protocol": "grpc"
+                  }
+                },
+                "replicas": 3,
+                "tier": 1
+              },
+              "payments": {
+                "dependedOnBy": [
+                  "svc/gateway"
+                ],
+                "dependsOn": [
+                  "svc/ledger",
+                  "svc/risk",
+                  "svc/auth",
+                  "svc/notify"
+                ],
+                "description": "Card payment orchestration and capture API.",
+                "image": "registry.acme.internal/payments:2.14.1",
+                "kind": "service",
+                "lifecycle": "production",
+                "owner": "team-payments",
+                "ports": {
+                  "http": {
+                    "direction": "in",
+                    "number": 8080,
+                    "protocol": "http"
+                  }
+                },
+                "replicas": 6,
+                "tier": 1
+              },
+              "risk": {
+                "dependedOnBy": [
+                  "svc/payments"
+                ],
+                "dependsOn": [
+                  "svc/directory"
+                ],
+                "description": "Transaction risk scoring and fraud rules engine.",
+                "image": "registry.acme.internal/risk:0.31.2",
+                "kind": "service",
+                "lifecycle": "production",
+                "owner": "team-payments",
+                "ports": {
+                  "grpc": {
+                    "direction": "in",
+                    "number": 9443,
+                    "protocol": "grpc"
+                  }
+                },
+                "replicas": 2,
+                "tier": 2
+              }
+            }
+          },
+          "edge": {
+            "workloads": {
+              "gateway": {
+                "dependsOn": [
+                  "svc/payments",
+                  "svc/auth"
+                ],
+                "description": "Public API edge gateway and request routing.",
+                "image": "registry.acme.internal/gateway:4.7.3",
+                "kind": "service",
+                "lifecycle": "production",
+                "owner": "team-platform",
+                "ports": {
+                  "admin": {
+                    "direction": "inout",
+                    "number": 9901,
+                    "protocol": "http"
+                  },
+                  "public": {
+                    "direction": "in",
+                    "number": 443,
+                    "protocol": "https"
+                  }
+                },
+                "replicas": 8,
+                "tier": 1
+              }
+            }
+          }
+        }
+      },
+      "us1": {
+        "clusters": {
+          "comms": {
+            "workloads": {
+              "email": {
+                "dependedOnBy": [
+                  "svc/notify"
+                ],
+                "description": "SMTP delivery with bounce and complaint tracking.",
+                "image": "registry.acme.internal/email:2.2.7",
+                "kind": "service",
+                "lifecycle": "production",
+                "owner": "team-platform",
+                "ports": {
+                  "smtp": {
+                    "direction": "out",
+                    "number": 2525,
+                    "protocol": "smtp"
+                  }
+                },
+                "replicas": 2,
+                "tier": 3
+              },
+              "notify": {
+                "dependedOnBy": [
+                  "svc/payments"
+                ],
+                "dependsOn": [
+                  "svc/email"
+                ],
+                "description": "Customer notification fan-out orchestration.",
+                "image": "registry.acme.internal/notify:0.12.0",
+                "kind": "service",
+                "lifecycle": "experimental",
+                "owner": "team-platform",
+                "ports": {
+                  "http": {
+                    "direction": "in",
+                    "number": 8080,
+                    "protocol": "http"
+                  }
+                },
+                "replicas": 2,
+                "tier": 3
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "relations": {
+    "dependedOnBy": {
+      "acyclic": false,
+      "target": {
+        "kind": "service"
+      }
+    },
+    "dependsOn": {
+      "acyclic": true,
+      "inverse": "dependedOnBy",
+      "target": {
+        "kind": "service"
+      }
+    }
+  }
+}

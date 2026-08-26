@@ -1,0 +1,14 @@
+{
+  "allowed_roles": [
+    "admin"
+  ],
+  "description": "Bulk-delete records from a governed dataset; dry_run must be explicit.",
+  "owner": "data-gov@corp.example",
+  "rate_limit": {
+    "burst": 1,
+    "per_minute": 5
+  },
+  "requires_approval": true,
+  "side_effect": "destructive",
+  "timeout_ms": 60000
+}

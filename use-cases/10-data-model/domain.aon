@@ -1,0 +1,94 @@
+# domain.aon --- the Acme Flow GmbH order-to-cash domain model.
+#
+# One document plays both roles: the record schema that agent-emitted
+# JSON candidates are vetted against, and the substrate the seed
+# generator (seed.aon) layers onto.
+#
+# Money. Canonical money arithmetic is exact (0d bigdecimal) and lives
+# in seed.aon's pricing section. RECORD money is integer minor units
+# (cents), because plain JSON cannot spell a 0d literal: a bigdecimal
+# field would be unsatisfiable by any strictly-JSON record (README,
+# gap 1; exact-money.aon is the executable form of that finding).
+#
+# Vocabulary, inlined. The intended shape was named aliases --
+#   Country:  type(string & re("^[A-Z]{2}$"))
+#   Currency: type(string & re("^[A-Z]{3}$") & neq("XXX","XTS"))
+#   Cents:    type(integer & min(0) & max(100000000000))
+#   Id64:     type(integer & min(1) | biginteger & min(1))
+# -- referenced as $.schema.Country etc. from the record types. That
+# works in a single file, but the moment this file is pulled in via
+# @"./domain.aon", any record whose type contains such a nested alias
+# reference is SILENTLY DROPPED from generation (exit 0, customers:{}),
+# and an id(key(0)) in the bag spread dies with a bogus
+# [aontu/id_name]. See README, gap 6, and gaps/include-id-key/.
+# Every vocabulary constraint is therefore inlined at each use site;
+# the duplication below is the workaround, not the design.
+
+schema: {
+  Customer: type(close({
+    id: string & re("^cust-[0-9]{4}$")
+    # 64-bit upstream ledger id. NOT `integer`: an id above 2^53 must
+    # be spelled 0d, which has biginteger kind, and the numeric
+    # leaves are disjoint, so `integer` refuses it (README, gap 2).
+    # NOT bare `number` either: that would admit floats. The honest
+    # spelling is the two-leaf disjunction.
+    ledgerId: integer & min(1) | biginteger & min(1)
+    name: string & length(min(1) & max(120))
+    country: string & re("^[A-Z]{2}$")                # ISO 3166-1 a2
+    currency: string & re("^[A-Z]{3}$") & neq("XXX", "XTS")  # ISO 4217
+    email?: string & re("^[^@ ]+@[^@ ]+[.][a-z][a-z]+$")
+    creditLimitCents?: integer & min(0) & max(100000000000)
+  }))
+
+  OrderLine: type(close({
+    sku: string & re("^sku-[a-z][a-z0-9-]+$")
+    qty: integer & min(1) & max(999)
+    unitCents: integer & min(0) & max(100000000000)
+    # amountCents = qty * unitCents cannot be computed: the language
+    # has no '*' operator (README, gap 3). It is self-declared here
+    # and spot-checked per record in seed.aon.
+    amountCents: integer & min(0) & max(100000000000)
+  }))
+
+  Order: type(close({
+    id: string & re("^ord-[0-9]{4}$")
+    # INTENDED: `customerId: refer() & string & re("^cust-")`, making
+    # referential integrity part of the named type. A refer() inside
+    # a type definition cannot settle at its own definition site and
+    # kills (or hangs) the evaluation (README, gap 7), so the refer()
+    # is attached at the bag spread below instead.
+    customerId: string & re("^cust-")
+    status: *"open" | "invoiced" | "cancelled"
+    placed: string & re("^[0-9]{4}-[0-9]{2}-[0-9]{2}$")
+    # NOTE: the intended `& length(min(1) & max(50))` cannot be added:
+    # the sizing atom folds against this template list itself (zero
+    # elements) at the definition site and the schema dies (README,
+    # gap 5; gaps/list-length-template.aon).
+    lines: [&: $.schema.OrderLine]
+  }))
+
+  Invoice: type(close({
+    id: string & re("^inv-[0-9]{4}$")
+    orderId: string & re("^ord-")   # refer() applied at the bag spread
+    currency: string & re("^[A-Z]{3}$") & neq("XXX", "XTS")
+    netCents: integer & min(0) & max(100000000000)
+    taxCents: integer & min(0) & max(100000000000)
+    # grossCents = netCents + taxCents is a per-record must() in
+    # seed.aon: a relative reference inside a constraint argument
+    # does not re-anchor under this spread (README, gap 4), so the
+    # rule cannot be stated here once for every invoice.
+    grossCents: integer & min(0) & max(100000000000)
+  }))
+}
+
+# The record bags. Every member -- seeded here or merged in from a
+# data file at vet time -- gets its schema applied, its `id` field
+# forced to equal its key, and its outbound links checked by refer().
+#
+# INTENDED but not possible: `&: id(key(0)) & ...` to auto-declare
+# every record an entity named by its key; across the @ include it
+# dies with [aontu/id_name] (README, gap 6). Records are therefore
+# id()'d explicitly, one by one, in seed.aon.
+customers: { &: $.schema.Customer & { id: .$KEY } }
+orders:    { &: $.schema.Order    & { id: .$KEY, customerId: refer() } }
+invoices:  { &: $.schema.Invoice  & { id: .$KEY, orderId: refer() } }

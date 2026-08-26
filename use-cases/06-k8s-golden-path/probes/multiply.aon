@@ -1,0 +1,4 @@
+# FAILED ATTEMPT: double the prod replica count.  '+' is the only
+# operator; '*' is not even lexable.  Expect [aontu/unexpected], exit 1.
+base: 3
+prod: $.base * 2

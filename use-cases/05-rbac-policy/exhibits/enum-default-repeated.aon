@@ -1,0 +1,5 @@
+# The repeated-branch workaround: restating `member` as a plain
+# alternative silences the pref_not_instance warning. OBSERVED
+# BEHAVIOUR (asserted by check.sh): "superadmin" is STILL accepted --
+# the workaround fixes the lint, not the enforcement.
+invite: { role: *member | member | admin | owner }

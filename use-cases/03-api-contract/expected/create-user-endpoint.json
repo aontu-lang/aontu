@@ -1,0 +1,7 @@
+{
+  "auth": "bearer",
+  "method": "POST",
+  "path": "/v1/users",
+  "responses": {},
+  "summary": "Invite a user to the workspace"
+}

@@ -1,0 +1,22 @@
+# Layer 2: team-level defaults for the payments platform team.
+#
+# Team defaults use ** (rank 2): they beat the org's *** defaults and
+# lose to any environment's * default or a concrete pin.  They merge
+# into the SAME schema rows org-policy.aon declares -- duplicate keys
+# unify, so this file only states what the team changes.
+
+team: {
+  name: payments
+  oncall: "#payments-oncall"
+}
+
+# The team develops with debug logging and tracing on; environments
+# that disagree (staging, prod) say so with a stronger rank.
+defs: workload: logLevel: **debug | string
+defs: workload: tracing: **true | boolean
+
+# The release train currently rolling out.  Hidden: build metadata,
+# not deployment output.
+release: hide({
+  tag: "2025.34.2"
+})

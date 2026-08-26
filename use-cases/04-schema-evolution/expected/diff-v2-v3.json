@@ -1,0 +1,17 @@
+{
+  "changes": [
+    {
+      "kind": "removed",
+      "left": "deprecate(string,{\"msg\":\"free-form phone is unvalidated; write E.164 to contact.phone\",\"since\":\"2.0.0\",\"use\":\"$.profile.contact.phone\"})",
+      "path": "$.profile.phone"
+    },
+    {
+      "kind": "added",
+      "path": "$.profile.region",
+      "right": "re(\"^(us|eu|apac)$\")"
+    }
+  ],
+  "findings": [],
+  "ok": true,
+  "same": false
+}

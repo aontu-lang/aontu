@@ -1,0 +1,17 @@
+# The dispatcher's vet entrypoint: the wire shape of a call, one
+# schema per tool, GENERATED from the registry's argument schemas so
+# the two can never drift. A call {tool, arguments} is vetted at
+# $.guard.<tool>.
+#
+# This lives OUTSIDE registry.aon, unmarked, because a type() mark on
+# any ancestor of the vet anchor silently drops required-key
+# enforcement: a call missing a required argument vets "valid", and
+# copy() does not win the force back (README, gap 7). Packing here
+# from the marked $.argschemas keeps enforcement AND keeps
+# registry.aon cleanly generable.
+@"registry.aon"
+
+guard: pack($.argschemas, close({
+  tool: key()
+  arguments: _
+}))

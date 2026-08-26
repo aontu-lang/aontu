@@ -1,0 +1,4 @@
+# Probe pair for the gen profile: v2 hides a field that v1 generated.
+# Admitted values are unchanged (values/defaults: compatible), but the
+# generated shape loses a key -- only --profile gen reports it.
+p: {a: string, internal_score: integer}

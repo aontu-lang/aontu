@@ -1,0 +1,6 @@
+# Arithmetic: '+' is the only binary numeric operator.  Doubling the
+# replica count for a surge window cannot be written: '*' is the
+# preference marker, not multiplication.  Expected: parse error
+# [aontu/unexpected] "unexpected character(s): *".
+replicas: 4
+surgeReplicas: $.replicas * 2

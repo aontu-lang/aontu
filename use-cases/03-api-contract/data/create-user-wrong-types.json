@@ -1,0 +1,6 @@
+{
+  "email": "grace.hopper@example.com",
+  "name": 42,
+  "role": "member",
+  "send_invite": "true"
+}

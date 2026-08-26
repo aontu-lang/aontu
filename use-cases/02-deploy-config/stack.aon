@@ -1,0 +1,65 @@
+# Entry point: composes the four layers (org, team, catalog, env
+# overlays) into the fleet's deployment document.
+# Build:  aontu stack.aon            -> deployment JSON
+# Gate:   aontu vet guardrails.aon <built JSON>   (resource bounds)
+
+@"org-policy.aon"
+@"team-defaults.aon"
+@"fleet.aon"
+@"envs/dev.aon"
+@"envs/staging.aon"
+@"envs/prod.aon"
+
+# The environment table: the only place environments are declared.
+# pack() below generates one deploy.<env> block per row, so an
+# environment cannot exist in an overlay without existing here.
+environments: hide({
+  dev: { promote: false, domain: "dev.acme.internal" }
+  staging: { promote: true, domain: "staging.acme.internal" }
+  prod: { promote: true, domain: "pay.acme.example" }
+})
+
+# One block per environment (_ is the environment's own table row),
+# holding one workload per catalog service.  The workload merges:
+#   - the catalog row            (copy($.fleet) -- static facts)
+#   - the closed org shape       (close($.defs.workload))
+#   - generated fields           (service name, image)
+# close() makes every overlay key-checked: a misspelt field is
+# [aontu/closed], not silently dropped (probes/typo-overlay.aon).
+#
+# NOTE deploy itself is deliberately NOT close()d: close(pack(...))
+# combined with overlay merges absorbs the overlay into the template
+# and corrupts the output (README, gap 5; probes/close-pack-absorb.aon).
+# The hidden envguard below seals the environment set instead.
+deploy: pack($.environments, _ & {
+  workloads: copy($.fleet)
+  workloads: pack($.fleet, close($.defs.workload) & {
+    service: key()
+    image: $.org.registry + "/" + $.team.name + "/" + key() + ":" + $.release.tag
+  })
+})
+
+# Seals the environment set without touching the tree: a clone of
+# deploy must fit a closed map holding exactly the declared
+# environments.  A typo'd overlay (deploy: prod2: ...) fails with
+# [aontu/closed] here (probes/env-typo.aon).
+envguard: hide($.deploy & close(pack($.environments, {})))
+
+# Paging policy, derived from the catalog: only critical services page
+# the on-call rotation in production.  filter() keeps the services that
+# already satisfy {critical: true}; pack() builds one alert route per
+# survivor, so adding a critical service to the catalog creates its
+# paging route in the same commit.
+alerts: pack(filter($.fleet, { critical: true }), {
+  escalate: $.team.oncall
+  runbook: $.org.runbookBase + "/" + key()
+  env: prod
+})
+
+# Derived rollout arithmetic.  This MUST live outside the generated
+# deploy tree: any computed expression written into a pack()-generated
+# child fails (README, gap 4).  Here, in a plain map, `replicas + 1`
+# works because billing's prod replicas is a concrete pin.
+rollout: {
+  billingProdMaxSurge: $.deploy.prod.workloads.billing.replicas + 1
+}

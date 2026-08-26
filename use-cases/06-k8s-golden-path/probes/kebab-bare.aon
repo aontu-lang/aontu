@@ -1,0 +1,4 @@
+# LEXICAL TRAP: k8s names are kebab-case, but a bare 'web-api' is not a
+# string ('-' starts a negation).  [aontu/negative].  Quote every
+# kebab-case name.
+names: [web-api, billing]

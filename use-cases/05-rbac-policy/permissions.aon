@@ -1,0 +1,19 @@
+# Permission catalog: the ground truth of what CAN be granted.
+#
+# Every permission is an entity (id per key), so a grant anywhere in
+# the model is a checked foreign key via refer() -- an unknown
+# permission string is a located [aontu/refer_unresolved] error, not a
+# silently dead grant. Names use '/' (not ':') because entity names
+# admit letters, digits, '_', '-' and '/' only.
+permissions: {
+  &: id(key(0)) & close({ desc: string, risk: low | medium | high | critical })
+  project/read:   { desc: "List and read projects",          risk: low }
+  project/write:  { desc: "Create and update projects",      risk: medium }
+  project/delete: { desc: "Delete projects",                 risk: high }
+  member/read:    { desc: "List tenant members",             risk: low }
+  member/invite:  { desc: "Invite new members",              risk: medium }
+  billing/read:   { desc: "Read invoices and plan state",    risk: medium }
+  billing/manage: { desc: "Change plan and payment details", risk: high }
+  audit/read:     { desc: "Read the audit log",              risk: medium }
+  admin/all:      { desc: "Wildcard: every permission",      risk: critical }
+}

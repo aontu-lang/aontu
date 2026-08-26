@@ -1,0 +1,23 @@
+@"../tenant.aon"
+
+# VIOLATION: mfaRequired false with short sessions. The tenant schema
+# allows this (short-sessions branch of security), but the stricter
+# audit-layer must() rule CP-114 does not -- this is the must()
+# failure exhibit, showing how the author message is reported.
+tenant: {
+  name: "Acme Rockets", slug: "acme-rockets", plan: free
+  entitlement: { plan: free, sso: false, scim: false, auditLog: false }
+  members: {
+    ada:   { role: owner }
+    grace: { role: member }
+    alan:  { role: auditor, invitedBy: ada }
+  }
+  security: { mfaRequired: false, sessionTimeoutMinutes: 45 }
+}
+
+audit: hide({
+  exactly_one_owner: length(1) & filter($.tenant.members, { role: owner })
+  seats_within_plan: length(max($.tenant.limits.maxSeats)) & $.tenant.members
+  mfa_mandatory: must({ mfaRequired: true },
+    "corporate policy CP-114: MFA is mandatory for every tenant") & $.tenant.security
+})

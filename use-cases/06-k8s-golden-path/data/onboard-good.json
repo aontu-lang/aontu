@@ -1,0 +1,7 @@
+{
+  "service": "ledger-sync",
+  "version": "1.0.3",
+  "tier": "medium",
+  "port": 8090,
+  "reason": "Nightly settlement ledger reconciliation worker."
+}

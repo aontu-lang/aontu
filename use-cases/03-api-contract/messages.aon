@@ -1,0 +1,39 @@
+# messages.aon --- wire messages: request bodies, query shapes, list
+# pages. These are the vet anchors an agent codes against. Unmarked on
+# purpose: a hide()/type()-marked anchor silently loses required-field
+# enforcement under `vet --at` (README, gap 2).
+
+msg: {
+
+  CreateUserRequest: close({
+    email: $.types.Email
+    name:  $.types.DisplayName
+    role:  $.types.Role
+    # Invitations send an email unless explicitly suppressed.
+    send_invite?: boolean
+  })
+
+  ListUsersQuery: close({
+    page?:      $.types.Page
+    page_size?: $.types.PageSize
+    role?:      $.types.Role
+    sort?: "name" | "-name" | "created_at" | "-created_at"
+  })
+
+  CreateProjectRequest: close({
+    slug:        $.types.Slug
+    name:        $.types.DisplayName
+    visibility?: $.types.Visibility
+  })
+
+  # The paginated list body. This is the DRY spelling -- but a $.ref
+  # inside a list spread does not resolve under `vet --at '$.msg.UserPage'`
+  # (README, gap 1). check.sh pins the failure; user-page.aon is the
+  # working root-anchored duplicate of these four fields.
+  UserPage: close({
+    items:     [ &: $.entities.User ]
+    page:      $.types.Page
+    page_size: $.types.PageSize
+    total:     integer & min(0)
+  })
+}

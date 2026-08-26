@@ -1,0 +1,4 @@
+# A service module that itself depends on common@1 -- the transitive
+# case.  tidy resolves this closure; evaluation is the probe.
+mod: { path: "corp.example/schemas/service", version: "1.4.2", main: "service.aon" }
+dep: { "corp.example/schemas/common@1": { v: "1.2.0" } }

@@ -1,0 +1,8 @@
+# PINNED BUG: a ranked default computed from key() inside an each
+# template under pack evaluates ONCE and is shared: every service gets
+# the first service's name.  Exit 0, silently wrong.  Golden:
+# expected/pref-key-crosswire.json (both values are "web").  This is
+# why OTEL_SERVICE_NAME is injected in internal.envmaps instead.
+col: { web: {}, auth: {} }
+shared: { X: { name: X } }
+out: pack($.col, { env: each($.shared, { value: **key(3) | string }) })

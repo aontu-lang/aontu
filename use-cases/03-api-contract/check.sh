@@ -1,0 +1,283 @@
+#!/usr/bin/env bash
+# check.sh --- drive the aontu CLI end to end over the API-contract
+# model: the emit -> validate -> repair loop, report formats, fragment
+# anchors, evolution gating. Asserts every outcome. Runnable from any
+# cwd.
+set -euo pipefail
+
+DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO="$DIR/../.."
+AONTU="${AONTU:-node $REPO/ts/bin/aontu.js}"
+
+WORK="$(mktemp -d)"
+trap 'rm -rf "$WORK"' EXIT
+
+pass=0
+fail() { echo "FAIL: $1" >&2; exit 1; }
+ok() { pass=$((pass + 1)); echo "ok $pass - $1"; }
+
+# run <name> <expected-exit> -- <cli args...>
+run() {
+  local name="$1" want="$2"; shift 3
+  local got=0
+  $AONTU "$@" >"$WORK/$name.out" 2>"$WORK/$name.err" || got=$?
+  [ "$got" -eq "$want" ] \
+    || { cat "$WORK/$name.out" "$WORK/$name.err" >&2
+         fail "$name: exit $got, wanted $want"; }
+}
+
+# has <name> <stream> <fixed-string>
+has() {
+  grep -qF -- "$3" "$WORK/$1.$2" \
+    || { cat "$WORK/$1.$2" >&2; fail "$1: $2 does not contain: $3"; }
+}
+
+# lacks <name> <stream> <fixed-string>
+lacks() {
+  grep -qF -- "$3" "$WORK/$1.$2" \
+    && { cat "$WORK/$1.$2" >&2; fail "$1: $2 must NOT contain: $3"; } \
+    || true
+}
+
+# --- 1. The contract as ground truth: canon, inventory, identity. ---
+
+# Whole-file generation is BLOCKED by design (README gap 2 forces the
+# vet anchors to stay unmarked, and unmarked abstract values cannot
+# generate). Pin that price:
+run geneval 1 -- "$DIR/contract.aon"
+has geneval err '[aontu/scalar_value]'
+ok "contract.aon does not generate (the documented price of gap 2)"
+
+run canon 0 -- --canon "$DIR/contract.aon"
+diff -u "$DIR/expected/contract.canon" "$WORK/canon.out" \
+  || fail "canonical form drifted from expected/contract.canon"
+ok "--canon: the ground-truth serialization is stable (constraints kept)"
+
+run inv 0 -- get '$.api' "$DIR/contract.aon"
+diff -u "$DIR/expected/api-inventory.json" "$WORK/inv.out" \
+  || fail "endpoint inventory drifted"
+run ep 0 -- get '$.api.create_user' "$DIR/contract.aon"
+diff -u "$DIR/expected/create-user-endpoint.json" "$WORK/ep.out" \
+  || fail "create_user endpoint slice drifted"
+ok "get: concrete endpoint inventory (type()-marked schemas omitted)"
+
+# The inventory LOSES the response status codes (type()-marked values
+# vanish wholesale: "responses": {}); get --keys recovers them.
+has inv out '"responses": {}'
+run rkeys 0 -- get '$.api.create_user.responses' --keys "$DIR/contract.aon"
+diff -u "$DIR/expected/responses-keys.txt" "$WORK/rkeys.out" \
+  || fail "response status codes drifted"
+ok "get --keys: status codes 201/400/409 recovered (invisible in JSON view)"
+
+run hash 0 -- hash "$DIR/contract.aon"
+grep -q '^aon1-' "$WORK/hash.out" || fail "hash did not print an aon1- pin"
+run agents 0 -- agentsmd "$DIR/contract.aon"
+has agents out 'Ground truth: '
+has agents out 'contract.aon'
+has agents out 'aon1-'
+ok "hash + agentsmd: identity pin and agent-onboarding stanza"
+
+# Provenance for agent context: why traces a wire field to its source
+# file (correct attribution -- contrast the vet schema sites below).
+run why 0 -- why '$.msg.CreateUserRequest.email' "$DIR/contract.aon"
+has why out 'messages.aon:'
+ok "why: email requirement traced to its defining file"
+
+# --- 2. The emit -> validate -> repair loop over agent candidates. ---
+
+run vok 0 -- vet --at '$.msg.CreateUserRequest' "$DIR/contract.aon" \
+  "$DIR/data/create-user-ok.json"
+has vok out 'verdict: valid'
+ok "vet: well-formed candidate accepted (exit 0)"
+
+run vtypes 1 -- vet --at '$.msg.CreateUserRequest' "$DIR/contract.aon" \
+  "$DIR/data/create-user-wrong-types.json"
+has vtypes out '[aontu/constraint]'
+has vtypes out '[aontu/no_scalar_unify]'
+has vtypes out 'expected: string&length(integer&min(1)&max(80))'
+ok "vet: wrong types refused; constraint finding carries expected residual"
+
+run vsubtle 1 -- vet --at '$.msg.CreateUserRequest' "$DIR/contract.aon" \
+  "$DIR/data/create-user-subtle.json"
+has vsubtle out '[aontu/constraint]'
+has vsubtle out 'expected: re("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")'
+has vsubtle out '[aontu/|:empty]'
+has vsubtle out '"admin"|"member"|"viewer"'
+# ...but the enum finding's schema site has no source location:
+has vsubtle out 'contract.aon:-1:-1'
+ok "vet: bad email + bad enum refused; alternatives shown, enum site is -1:-1"
+
+# Missing required field, non-enum: verdict incomplete, exit 3 -- the
+# loop's third answer ("add what is missing" vs "fix what is wrong").
+run vmiss 3 -- vet --at '$.msg.CreateUserRequest' "$DIR/contract.aon" \
+  "$DIR/data/create-user-missing-name.json"
+has vmiss out 'verdict: incomplete'
+has vmiss out '[aontu/mapval_required]'
+# GAP 3 (misattribution): the schema site names the ENTRY file, with
+# row/col that belong to the included types.aon. Pin it structurally:
+# the row the finding cites holds DisplayName in types.aon, not in the
+# contract.aon the finding names.
+row="$(grep -o 'contract.aon:[0-9]*' "$WORK/vmiss.out" | head -1 | cut -d: -f2)"
+[ -n "$row" ] || fail "vmiss: schema site does not name contract.aon"
+sed -n "${row}p" "$DIR/types.aon" | grep -q 'DisplayName' \
+  || fail "vmiss: row $row is not DisplayName in types.aon; gap 3 pin stale"
+sed -n "${row}p" "$DIR/contract.aon" | grep -q 'DisplayName' \
+  && fail "vmiss: contract.aon:$row is DisplayName; gap 3 fixed? update README" \
+  || true
+ok "vet: missing name -> exit 3; schema site misattributed to entry file"
+
+# GAP 1 (silent pass): a required ENUM field can be omitted entirely --
+# the unresolved disjunction counts as concrete. This candidate is
+# missing role, and vet says valid. Delete this pin when fixed.
+run vhole 0 -- vet --at '$.msg.CreateUserRequest' "$DIR/contract.aon" \
+  "$DIR/data/create-user-missing-role.json"
+has vhole out 'verdict: valid'
+ok "vet: missing required enum field passes silently (pinned gap 1)"
+
+# Surplus keys against close(): refused, but with NO nearest-key help.
+run vsurp 1 -- vet --at '$.msg.CreateUserRequest' "$DIR/contract.aon" \
+  "$DIR/data/create-user-surplus.json"
+has vsurp out '[aontu/closed]'
+has vsurp out '$.emial'
+has vsurp out '$.favourite_colour'
+lacks vsurp out 'did you mean'
+# GAP 4 (path inconsistency): closed findings drop the --at anchor
+# prefix that constraint findings keep.
+lacks vsurp out '$.msg.CreateUserRequest.emial'
+ok "vet --closed-by-schema: typo'd + surplus keys refused, no suggestions"
+
+# Contrast: a typo in --at itself DOES get a did-you-mean note.
+run vat 4 -- vet --at '$.msg.CreateUserRequst' "$DIR/contract.aon" \
+  "$DIR/data/create-user-ok.json"
+has vat out 'did you mean CreateUserRequest?'
+ok "vet --at typo: no_path with did-you-mean (the help closed lacks)"
+
+# Repair round A: bounded constraint + enum, from --format json alone.
+run vjson 1 -- vet --at '$.msg.ListUsersQuery' --format json \
+  "$DIR/contract.aon" "$DIR/data/list-users-query-bad.json"
+python3 - "$WORK/vjson.out" <<'EOF'
+import json, sys
+r = json.load(open(sys.argv[1]))
+codes = {f["code"] for f in r["findings"]}
+assert r["verdict"] == "invalid", r["verdict"]
+assert "constraint" in codes and "|:empty" in codes, codes
+c = next(f for f in r["findings"] if f["code"] == "constraint")
+assert c["expected"] == "integer&min(1)&max(100)", c["expected"]
+assert c["actual"] == "500", c["actual"]
+e = next(f for f in r["findings"] if f["code"] == "|:empty")
+assert "expected" not in e, "enum finding grew an expected field: update README gap 6"
+sv = [s["value"] for s in e["sites"] if s["role"] == "schema"]
+assert sv == ['"name"|"-name"|"created_at"|"-created_at"'], sv
+EOF
+python3 "$DIR/repair.py" \
+  --candidate "$DIR/data/list-users-query-bad.json" \
+  --findings "$WORK/vjson.out" --out "$WORK/query-repaired.json" \
+  --anchor '$.msg.ListUsersQuery' >"$WORK/repairA.log"
+diff -u "$DIR/expected/query-repaired.json" "$WORK/query-repaired.json" \
+  || fail "repaired query drifted"
+run vrevA 0 -- vet --at '$.msg.ListUsersQuery' "$DIR/contract.aon" \
+  "$WORK/query-repaired.json"
+ok "repair loop A: clamp from expected + enum from schema site -> valid"
+
+# Repair round B: closed-key typo. The report gives no candidates, so
+# the agent must fetch the declared keys itself and nearest-match.
+run vsjson 1 -- vet --at '$.msg.CreateUserRequest' --format json \
+  "$DIR/contract.aon" "$DIR/data/create-user-surplus.json"
+run keys 0 -- get '$.msg.CreateUserRequest' --keys "$DIR/contract.aon"
+python3 "$DIR/repair.py" \
+  --candidate "$DIR/data/create-user-surplus.json" \
+  --findings "$WORK/vsjson.out" --out "$WORK/surplus-repaired.json" \
+  --anchor '$.msg.CreateUserRequest' --keys "$WORK/keys.out" \
+  >"$WORK/repairB.log"
+grep -q "key renamed to 'email'" "$WORK/repairB.log" \
+  || fail "nearest-key rename did not happen"
+diff -u "$DIR/expected/surplus-repaired.json" "$WORK/surplus-repaired.json" \
+  || fail "repaired surplus candidate drifted"
+run vrevB 0 -- vet --at '$.msg.CreateUserRequest' "$DIR/contract.aon" \
+  "$WORK/surplus-repaired.json"
+ok "repair loop B: emial->email via client-side key fetch -> valid"
+
+# Two candidates in one run: worst verdict wins.
+run vmulti 1 -- vet --at '$.msg.CreateUserRequest' "$DIR/contract.aon" \
+  "$DIR/data/create-user-ok.json" "$DIR/data/create-user-subtle.json"
+has vmulti out 'verdict: invalid'
+ok "vet: multiple candidates, worst verdict wins"
+
+# --- 3. SARIF for CI ingestion. ---
+
+run sarif 1 -- vet --at '$.msg.CreateUserRequest' --format sarif \
+  "$DIR/contract.aon" "$DIR/data/create-user-subtle.json"
+python3 - "$WORK/sarif.out" <<'EOF'
+import json, sys
+s = json.load(open(sys.argv[1]))
+assert "sarif-2.1.0" in s["$schema"], s["$schema"]
+results = s["runs"][0]["results"]
+assert len(results) == 2, len(results)
+props = [r["properties"] for r in results]
+assert any(p.get("code") == "constraint" and "expected" in p for p in props)
+assert all(r["locations"][0]["physicalLocation"]["artifactLocation"]["uri"]
+           .endswith("create-user-subtle.json") for r in results)
+EOF
+ok "vet --format sarif: 2.1.0 report, native finding embedded, exit still 1"
+
+# --- 4. Response bodies: entity and list-page candidates. ---
+
+run v201 0 -- vet --at '$.api.create_user.responses.201' \
+  "$DIR/contract.aon" "$DIR/data/user-201-ok.json"
+has v201 out 'verdict: valid'
+ok "vet --at through the registry (numeric status-code key) works"
+
+run venv 0 -- vet --at '$.errors.Envelope' "$DIR/contract.aon" \
+  "$DIR/data/error-envelope-ok.json"
+ok "vet: error envelope with inline-template details list accepted"
+
+# GAP 7: the DRY page schema (items: [&: $.entities.User]) cannot be
+# vetted under --at -- the ref inside the list spread does not resolve.
+run vpageat 1 -- vet --at '$.msg.UserPage' "$DIR/contract.aon" \
+  "$DIR/data/user-page-ok.json"
+has vpageat out '[aontu/no_path]'
+has vpageat out '$.entities.User'
+ok "vet --at '\$.msg.UserPage': ref-in-list-spread fails (pinned gap 7)"
+
+# The workaround: a root-anchored duplicate schema, vetted without --at.
+run vpage 0 -- vet "$DIR/user-page.aon" "$DIR/data/user-page-ok.json"
+has vpage out 'verdict: valid'
+run vpagebad 1 -- vet "$DIR/user-page.aon" "$DIR/data/user-page-bad.json"
+has vpagebad out '[aontu/constraint]'
+has vpagebad out '"grace.hopper@"'
+# GAP 8: the finding's path says items.0 but the broken element is
+# items[1] (the data site's row is correct; the path index is not).
+has vpagebad out '$.items.0.email'
+run vpagemiss 3 -- vet "$DIR/user-page.aon" \
+  "$DIR/data/user-page-missing-total.json"
+has vpagemiss out 'verdict: incomplete'
+ok "root-anchored page schema: valid/invalid/incomplete all work (gap 8 pinned)"
+
+# --- 5. The contract polices itself and its own evolution. ---
+
+run badm 1 -- --canon --include-root "$DIR" "$DIR/bad/new-endpoint-method.aon"
+has badm err '[aontu/|:empty]'
+has badm err '"FETCH"'
+has badm err '"GET"|"POST"|"PATCH"|"DELETE"'
+ok "registry spread: endpoint with method FETCH refused by the contract"
+
+# NOTE: breaking rejects the global --trust/--include-root options
+# (gap 11), so the include-outside-entry-root warning on stderr cannot
+# be addressed here the way it is for --canon above.
+run brk 1 -- breaking --against "$DIR/contract.aon" \
+  "$DIR/evolution/tighten-page-size.aon"
+has brk out 'verdict: breaking'
+has brk out 'compat_narrowed'
+has brk out 'PageSize'
+# GAP 10: the contract is not even self-compatible -- every &: spread
+# template is sub_unresolved / sub_path_dependent_spread, so verdict
+# undecided (exit 3) for a byte-identical document. Pin it, and pin
+# the documented escape hatch.
+run brksame 3 -- breaking --against "$DIR/contract.aon" "$DIR/contract.aon"
+has brksame out 'verdict: undecided'
+has brksame out 'sub_path_dependent_spread'
+run brkallow 0 -- breaking --against "$DIR/contract.aon" --allow-undecided \
+  "$DIR/contract.aon"
+ok "breaking: 100->50 refused; self-compare undecided (pinned gap 10)"
+
+echo "all $pass checks passed"

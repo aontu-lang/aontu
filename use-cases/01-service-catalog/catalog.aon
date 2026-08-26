@@ -1,0 +1,70 @@
+# catalog.aon --- THE CATALOG VIEW: what each service IS -- ownership,
+# tier, purpose, dependencies. Each service carries id(svc/<name>), so
+# the deployment view (deploy.aon) merges with this one field-by-field.
+# dependedOnBy (the inverse of dependsOn) is written BY HAND on every
+# target: `aontu relations` checks it, nothing derives it (gap 4).
+catalog: domains: {
+  payments: {
+    team: "team-payments"
+    services: {
+      &: $.spec.CatalogEntry & {owner: "team-payments"}
+      payments: id(svc/payments) & {
+        tier: 1
+        description: "Card payment orchestration and capture API."
+        dependsOn: [svc/ledger, svc/risk, svc/auth, svc/notify]
+        dependedOnBy: [svc/gateway]
+      }
+      ledger: id(svc/ledger) & {
+        tier: 1
+        description: "Double-entry ledger of record for money movement."
+        dependedOnBy: [svc/payments]
+      }
+      risk: id(svc/risk) & {
+        tier: 2
+        description: "Transaction risk scoring and fraud rules engine."
+        dependsOn: [svc/directory]
+        dependedOnBy: [svc/payments]
+      }
+    }
+  }
+  identity: {
+    team: "team-identity"
+    services: {
+      &: $.spec.CatalogEntry & {owner: "team-identity"}
+      auth: id(svc/auth) & {
+        tier: 1
+        description: "OAuth2 token issuing and session verification."
+        dependsOn: [svc/directory]
+        dependedOnBy: [svc/gateway, svc/payments]
+      }
+      directory: id(svc/directory) & {
+        tier: 2
+        description: "Employee and customer directory lookups."
+        dependedOnBy: [svc/risk, svc/auth]
+      }
+    }
+  }
+  platform: {
+    team: "team-platform"
+    services: {
+      &: $.spec.CatalogEntry & {owner: "team-platform"}
+      gateway: id(svc/gateway) & {
+        tier: 1
+        description: "Public API edge gateway and request routing."
+        dependsOn: [svc/payments, svc/auth]
+      }
+      notify: id(svc/notify) & {
+        tier: 3
+        lifecycle: experimental
+        description: "Customer notification fan-out orchestration."
+        dependsOn: [svc/email]
+        dependedOnBy: [svc/payments]
+      }
+      email: id(svc/email) & {
+        tier: 3
+        description: "SMTP delivery with bounce and complaint tracking."
+        dependedOnBy: [svc/notify]
+      }
+    }
+  }
+}

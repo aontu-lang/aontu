@@ -1,0 +1,6 @@
+{
+  "tool": "search_docs",
+  "arguments": {
+    "limit": 3
+  }
+}

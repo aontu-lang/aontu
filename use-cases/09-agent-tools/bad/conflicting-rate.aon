@@ -1,0 +1,6 @@
+# A second source of truth disagreeing with the registry: the rate
+# limit is already a fact (120/min), and facts cannot be contradicted,
+# only refused. Expected: a located "Cannot unify" conflict.
+@"../registry.aon"
+
+tools: search_docs: rate_limit: per_minute: 240

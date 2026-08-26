@@ -1,0 +1,21 @@
+@"../tenant.aon"
+
+# VIOLATION: two members hold the owner role. The exactly_one_owner
+# invariant (filter+length, same-layer) must refuse this document.
+tenant: {
+  name: "Acme Rockets", slug: "acme-rockets", plan: free
+  entitlement: { plan: free, sso: false, scim: false, auditLog: false }
+  members: {
+    ada:   { role: owner }
+    grace: { role: owner }
+    alan:  { role: auditor, invitedBy: ada }
+  }
+  security: { mfaRequired: true, sessionTimeoutMinutes: 480 }
+}
+
+audit: hide({
+  exactly_one_owner: length(1) & filter($.tenant.members, { role: owner })
+  seats_within_plan: length(max($.tenant.limits.maxSeats)) & $.tenant.members
+  mfa_mandatory: must({ mfaRequired: true },
+    "corporate policy CP-114: MFA is mandatory for every tenant") & $.tenant.security
+})

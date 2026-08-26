@@ -1,0 +1,4 @@
+# Pure refactor of platform/service v1.4.2: the entry now delegates to
+# schema.aon.  New bytes, new file layout, identical meaning -- the
+# canon-hash pin must not move.
+@"./schema.aon"

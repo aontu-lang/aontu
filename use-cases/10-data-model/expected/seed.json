@@ -1,0 +1,107 @@
+{
+  "customers": {
+    "cust-1001": {
+      "country": "DE",
+      "creditLimitCents": 5000000,
+      "currency": "EUR",
+      "email": "ap@acmeflow.example",
+      "id": "cust-1001",
+      "ledgerId": 9007199254740993,
+      "name": "Acme Flow GmbH"
+    },
+    "cust-1002": {
+      "country": "SE",
+      "currency": "SEK",
+      "id": "cust-1002",
+      "ledgerId": 4503599627370496,
+      "name": "Nordwind Logistics AB"
+    }
+  },
+  "invoices": {
+    "inv-3001": {
+      "currency": "EUR",
+      "grossCents": 4770,
+      "id": "inv-3001",
+      "netCents": 4008,
+      "orderId": "ord-7001",
+      "taxCents": 762
+    }
+  },
+  "orders": {
+    "ord-7001": {
+      "customerId": "cust-1001",
+      "id": "ord-7001",
+      "lines": [
+        {
+          "amountCents": 3998,
+          "qty": 2,
+          "sku": "sku-valve-basic",
+          "unitCents": 1999
+        },
+        {
+          "amountCents": 10,
+          "qty": 1,
+          "sku": "sku-gasket-set",
+          "unitCents": 10
+        }
+      ],
+      "placed": "2026-08-01",
+      "status": "invoiced"
+    },
+    "ord-7002": {
+      "customerId": "cust-1002",
+      "id": "ord-7002",
+      "lines": [
+        {
+          "amountCents": 20,
+          "qty": 1,
+          "sku": "sku-seal-ring",
+          "unitCents": 20
+        }
+      ],
+      "placed": "2026-08-14",
+      "status": "open"
+    }
+  },
+  "pricing": {
+    "book": {
+      "sku-gasket-set": {
+        "eur": 0.1
+      },
+      "sku-seal-ring": {
+        "eur": 0.2
+      },
+      "sku-valve-basic": {
+        "eur": 19.99
+      },
+      "sku-valve-pro": {
+        "eur": 49.9
+      }
+    },
+    "bundles": {
+      "pro-pair": {
+        "eur": 69.89,
+        "tier": "premium"
+      },
+      "service-kit": {
+        "eur": 0.3,
+        "tier": "accessory"
+      }
+    }
+  },
+  "receivables": {
+    "cust-1001": {
+      "accountFor": "cust-1001",
+      "openingCents": 0
+    },
+    "cust-1002": {
+      "accountFor": "cust-1002",
+      "openingCents": 0
+    }
+  },
+  "reconcile": {
+    "centsPath": 30,
+    "exactPath": 0.3
+  },
+  "schema": {}
+}

@@ -1,0 +1,5 @@
+# A hand-maintained SET PROJECTION of "the core read grants", for
+# subsumption queries. Grant sets must be re-modelled as maps
+# (set-as-map) because subsume compares lists by position -- see
+# README, "Set operations".
+grants: { "project/read": true, "member/read": true }

@@ -1,0 +1,7 @@
+# FAILED ATTEMPT (kept executable; check.sh asserts the failure).
+# There is no sum()/fold/reduce, so an invoice total cannot be
+# DERIVED from its lines; length() can count them but nothing can
+# add them. The model's workaround is a self-declared total plus a
+# per-record must() spot check (seed.aon). README, gap 3.
+lines: [ { amountCents: 3998 }, { amountCents: 10 } ]
+total: sum($.lines)

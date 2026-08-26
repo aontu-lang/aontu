@@ -1,0 +1,37 @@
+{
+  "aontu": {
+    "verb": "subsume"
+  },
+  "findings": [
+    {
+      "actual": "*false|boolean",
+      "class": "compat",
+      "code": "compat_default_changed",
+      "expected": "*true|boolean",
+      "message": "the effective default changed: previously generable documents materialise differently or become incomplete",
+      "path": "$.profile.consent.marketing",
+      "severity": "error",
+      "sites": [
+        {
+          "col": -1,
+          "file": "proposals/default-change.aon",
+          "len": -1,
+          "role": "general",
+          "row": -1,
+          "src": "",
+          "value": "*true|boolean"
+        },
+        {
+          "col": -1,
+          "file": "profile-v2.aon",
+          "len": -1,
+          "role": "specific",
+          "row": -1,
+          "src": "",
+          "value": "*false|boolean"
+        }
+      ]
+    }
+  ],
+  "verdict": "does_not_subsume"
+}

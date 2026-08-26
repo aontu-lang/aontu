@@ -1,0 +1,19 @@
+# user-page.aon --- root-anchored schema for the GET /v1/users 200 body.
+#
+# WORKAROUND (README, gap 1): $.msg.UserPage is the canonical spelling,
+# but its `items: [ &: $.entities.User ]` spread does not resolve under
+# `vet --at`, so this file re-states the page's four fields at the ROOT
+# and is vetted WITHOUT --at. Costs: the field list is duplicated from
+# messages.aon, and the document root cannot be close()d, so surplus
+# top-level keys in a candidate pass silently here.
+
+@"types.aon"
+@"entities.aon"
+# entities.aon is unmarked (it is a --at anchor elsewhere); hide({})
+# merges the mark on so this file's root is purely the page shape.
+entities: hide({})
+
+items:     [ &: $.entities.User ]
+page:      $.types.Page
+page_size: $.types.PageSize
+total:     integer & min(0)

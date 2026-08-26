@@ -1,0 +1,16 @@
+# FAILED ATTEMPT (kept executable). The invoice rule
+# "gross = net + tax" stated ONCE for every record, in the bag
+# spread. The relative references inside the must() argument do NOT
+# re-anchor at each record: they resolve at the template's own path
+# ($.invoices.grossCents) and die with [aontu/no_path], even though
+# the same references re-anchor fine OUTSIDE a constraint argument.
+# The same applies to bound atoms: min(.netCents) fails identically.
+# README, gap 4.
+invoices: {
+  &: {
+    netCents: integer
+    taxCents: integer
+    grossCents: integer & must(.netCents + .taxCents, "gross != net + tax")
+  }
+  "inv-9001": { netCents: 100, taxCents: 19, grossCents: 119 }
+}

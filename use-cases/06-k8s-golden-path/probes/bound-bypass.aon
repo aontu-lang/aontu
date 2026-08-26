@@ -1,0 +1,5 @@
+# PINNED: putting the bounds inside the non-default branch instead lets
+# any concrete override skip them entirely -- 40 > max(20) is accepted,
+# exit 0.  Golden: expected/bound-bypass.json.
+replicas: *2 | (integer & min(1) & max(20))
+replicas: 40

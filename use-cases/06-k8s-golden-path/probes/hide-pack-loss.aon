@@ -1,0 +1,7 @@
+# PINNED BUG: hide() wrapped directly around a pack call silently loses
+# the template -- children generate EMPTY, exit 0.  Golden:
+# expected/hide-pack-loss.json ("out.web" is {}).  Wrapping the
+# enclosing map (internal: hide({ envmaps: pack(...) })) works.
+col: { web: { a: 1 } }
+envmaps: hide(pack($.col, _))
+out: pack($.envmaps, { got: _ })

@@ -1,0 +1,24 @@
+# Layer 3: production overlay.
+#
+# The &: spread carries *-ranked defaults: every prod workload gets
+# them, and a single service may still override with a concrete value
+# (billing and auth below).  A CONCRETE value in the spread would be a
+# mandate no service could override -- unifying it with a different
+# per-service value is a conflict, which check.sh demonstrates in
+# probes/conflict.aon.
+
+deploy: prod: workloads: &: {
+  replicas: *4 | integer
+  logLevel: *warn | string
+  tracing: false            # concrete: tracing is never on in prod
+}
+
+# Payments peak capacity: billing runs wider than the env default.
+deploy: prod: workloads: billing: {
+  replicas: 12
+}
+
+# Auth keeps info logging in prod for audit trail correlation.
+deploy: prod: workloads: auth: {
+  logLevel: info
+}

@@ -1,0 +1,3 @@
+# The other half: a cost-reduction change pins the same field at 6.
+# Neither file is wrong on its own; composing them must fail loudly.
+deploy: prod: workloads: billing: replicas: 6

@@ -1,0 +1,17 @@
+# queries.aon --- derived, read-only views over the finished model:
+# the closest the language comes to instance-of queries.
+# WORKAROUNDS (README, gap 5): no wildcard paths, so the flat index is
+# a hand-maintained union; the direct union of the services maps fails
+# (their domain spreads conjoin: owner "team-payments" &
+# "team-identity"); filter(m, {}) drops the spread, so it is the union
+# that works; and the index cannot be hide()-hidden -- filter() over a
+# hidden map answers {}.
+@"../system.aon"
+
+query: {
+  index: filter($.catalog.domains.payments.services, {})
+    & filter($.catalog.domains.identity.services, {})
+    & filter($.catalog.domains.platform.services, {})
+  tier1: filter(.index, {tier: 1})
+  experimental: filter(.index, {lifecycle: experimental})
+}

@@ -1,0 +1,16 @@
+# The guardrail schema guardrails.aon originally said this: one
+# generic rule block for every environment's workloads, plus one
+# prod-only floor.  Two spreads addressing the same map at different
+# depths CROSS-WIRE the data's sibling children: vetting the built
+# output against this schema reports billing's port conflicting with
+# auth's port (both are data values -- no schema value involved).
+# check.sh pins the misbehaviour; guardrails.aon works around it with
+# per-environment spreads off one hidden block (README, gap 6).
+deploy: &: {
+  workloads: &: {
+    port: integer & min(1024) & max(65535)
+  }
+}
+deploy: prod: workloads: &: {
+  replicas: must(min(2), "prod floor")
+}

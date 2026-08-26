@@ -1,0 +1,7 @@
+{
+  "order_free": "warn",
+  "org_only": "info",
+  "org_team": "debug",
+  "org_team_env": "warn",
+  "pinned": "error"
+}

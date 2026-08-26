@@ -1,0 +1,6 @@
+# The schema author's trap: "a ledger id is an integer", spelled
+# `integer`. A 0d-rescued 64-bit id has biginteger kind, the numeric
+# leaves are disjoint, and this schema refuses the very records the
+# 0d escape exists to save. check.sh vets data/customer-bigid.aon
+# against this and asserts the refusal.
+customers: { &: { ledgerId: integer & min(1) } }

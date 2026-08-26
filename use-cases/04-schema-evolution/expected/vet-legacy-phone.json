@@ -1,0 +1,27 @@
+{
+  "aontu": {
+    "verb": "vet"
+  },
+  "findings": [
+    {
+      "class": "compat",
+      "code": "deprecated",
+      "message": "deprecated: free-form phone is unvalidated; write E.164 to contact.phone (use $.profile.contact.phone) (since 2.0.0)",
+      "path": "$.phone",
+      "severity": "warning",
+      "sites": [
+        {
+          "col": 12,
+          "file": "data/customer-legacy-phone.json",
+          "len": 10,
+          "role": "data",
+          "row": 5,
+          "src": "\"555 0193\"",
+          "value": "\"555 0193\""
+        }
+      ]
+    }
+  ],
+  "truncated": false,
+  "verdict": "valid"
+}

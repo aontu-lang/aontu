@@ -1,0 +1,11 @@
+{
+  "id": 1003,
+  "type": "order.cancelled",
+  "time": "2026-08-26T11:40:00+02:00",
+  "source": "/orders/eu-1",
+  "payload": {
+    "order_id": "ord-5e6f7a8b",
+    "cancelled_by": "customer",
+    "note": "changed my mind"
+  }
+}

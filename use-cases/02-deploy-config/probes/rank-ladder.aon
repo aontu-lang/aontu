@@ -1,0 +1,21 @@
+# Pins the OBSERVED preference-rank semantics (README, "Ranked
+# preferences"): generation picks the LOWEST rank, i.e. the FEWER
+# stars the stronger the default.  * beats ** beats ***, in any
+# statement order, and a concrete value beats them all.
+
+org_only: ***info | string
+
+org_team: ***info | string
+org_team: **debug | string
+
+org_team_env: ***info | string
+org_team_env: **debug | string
+org_team_env: *warn | string
+
+# Statement order does not matter: the strong rank first, weak last.
+order_free: *warn | string
+order_free: ***info | string
+
+pinned: ***info | string
+pinned: **debug | string
+pinned: error

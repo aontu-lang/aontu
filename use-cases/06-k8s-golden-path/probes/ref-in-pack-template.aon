@@ -1,0 +1,6 @@
+# FAILED ATTEMPT: a relative reference to a field the SAME pack template
+# defines.  The reference reference-language.md says relative refs in a
+# template "answer for the child"; in fact they resolve at the template's
+# own location (path shows a NaN key) and fail.  [aontu/no_path].
+names: [web, auth]
+deploy: pack($.names, { cpu_m: 250, cpu: .cpu_m + "m" })

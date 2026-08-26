@@ -1,0 +1,23 @@
+# match-dispatch.aon --- FAILED ATTEMPT, kept as evidence (README
+# gap: no in-language discriminator dispatch). The idea: replace the
+# plain union with a match() on the data's own `type` field, so a
+# wrong payload would be reported against the ONE branch the
+# discriminator selects instead of as a whole-union |:empty blob.
+# Under `vet --at $.Event` the call never settles: both valid and
+# invalid data yield verdict incomplete, [aontu/conjunct] at $.
+# check.sh pins that. Consumers dispatch client-side instead
+# (read `type`, vet --at $.registry.<type with dots underscored>).
+
+Placed: close({
+  type: "order.placed"
+  total_cents: integer & min(0)
+})
+
+Paid: close({
+  type: "order.paid"
+  amount_cents: integer & min(1)
+})
+
+Event: match(_,
+  {type: "order.placed"}, $.Placed,
+  {type: "order.paid"}, $.Paid)

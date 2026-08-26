@@ -1,0 +1,11 @@
+{
+  "id": 2005,
+  "type": "order.paid",
+  "time": "2026-08-26T10:09:00Z",
+  "payload": {
+    "order_id": "ord-1a2b3c4d",
+    "payment_ref": "psp-adyen-88f2",
+    "amount_cents": 500,
+    "method": "sepa"
+  }
+}

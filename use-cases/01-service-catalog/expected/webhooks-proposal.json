@@ -1,0 +1,18 @@
+{
+  "dependsOn": [
+    "svc/auth",
+    "svc/email"
+  ],
+  "description": "Outbound webhook delivery with retry and signing.",
+  "kind": "service",
+  "lifecycle": "experimental",
+  "owner": "team-platform",
+  "ports": {
+    "http": {
+      "direction": "in",
+      "number": 8087,
+      "protocol": "http"
+    }
+  },
+  "tier": 3
+}

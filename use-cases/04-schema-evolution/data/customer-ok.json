@@ -1,0 +1,7 @@
+{
+  "id": "C0480291",
+  "email": "ana.silva@example.com",
+  "name": "Ana Silva",
+  "tier": "premium",
+  "consent": { "marketing": true }
+}

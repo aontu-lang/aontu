@@ -1,0 +1,8 @@
+{
+  "service": "Ledger_Sync!",
+  "version": "1.0",
+  "tier": "xlarge",
+  "port": 80,
+  "reason": "add svc",
+  "forceDeploy": true
+}

@@ -1,0 +1,30 @@
+{
+  "create_project": {
+    "auth": "bearer",
+    "method": "POST",
+    "path": "/v1/projects",
+    "responses": {},
+    "summary": "Create a project owned by the caller"
+  },
+  "create_user": {
+    "auth": "bearer",
+    "method": "POST",
+    "path": "/v1/users",
+    "responses": {},
+    "summary": "Invite a user to the workspace"
+  },
+  "get_project": {
+    "auth": "bearer",
+    "method": "GET",
+    "path": "/v1/projects/{project_id}",
+    "responses": {},
+    "summary": "Fetch one project by id"
+  },
+  "list_users": {
+    "auth": "bearer",
+    "method": "GET",
+    "path": "/v1/users",
+    "responses": {},
+    "summary": "List users, paginated and filterable by role"
+  }
+}

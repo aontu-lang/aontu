@@ -1,0 +1,5 @@
+# FAILED ATTEMPT (kept executable). No '*' operator exists, so
+# amount = qty * unitCents is inexpressible; ditto net * vatRate.
+# The seed spells "qty 2" as unit + unit and computes VAT off-model.
+# README, gap 3.
+amount: 2 * 1999

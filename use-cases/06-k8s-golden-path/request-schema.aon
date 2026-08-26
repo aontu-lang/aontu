@@ -1,0 +1,10 @@
+# Gate for agent-emitted onboarding candidates (data/onboard-*.json):
+# the JSON an agent proposes before a human adds a service to
+# services.aon.  close() refuses hallucinated keys.
+close({
+  service: string & re("^([a-z]|[a-z][a-z0-9-]*[a-z0-9])$") & length(max(24))
+  version: string & re("^[0-9]+\\.[0-9]+\\.[0-9]+$")
+  tier: small | medium | large
+  port: integer & min(1024) & max(65535)
+  reason: string & length(min(12))
+})

@@ -1,0 +1,5 @@
+# FAILED ATTEMPT: doubling via self-addition works only on concrete
+# values.  A defaulted operand (*2|integer) never becomes concrete for
+# '+', so prod sizing off a default is impossible.  [aontu/mapval_no_gen].
+base: replicas: *2 | integer
+prod: $.base.replicas + $.base.replicas

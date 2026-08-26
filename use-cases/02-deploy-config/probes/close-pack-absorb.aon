@@ -1,0 +1,12 @@
+# Why stack.aon does NOT write close(pack(...)) around deploy
+# (README, gap 5).  When the sealed generator's template uses the
+# source-child hole (`_ &`), a later overlay statement is absorbed
+# into the TEMPLATE instead of merging with the generated children:
+# every environment grows a bogus `prod:` child carrying the overlay,
+# the real prod.x stays 1, and the run still EXITS 0.  Removing
+# close() (stack.aon's arrangement, sealed by envguard instead) gives
+# the correct merge.  check.sh pins the corrupted output against a
+# golden as evidence.
+environments: hide({ dev: { p: false }, prod: { p: true } })
+deploy: close(pack($.environments, _ & { x: ***1 | integer }))
+deploy: prod: x: 2

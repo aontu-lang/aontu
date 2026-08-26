@@ -1,0 +1,193 @@
+# Orion -- an AI agent platform's tool registry, held as ground truth.
+#
+# One document answers, for ~6 MCP-style tools: what exists, what
+# arguments each call may carry (and must refuse), what each call can
+# cost (side-effect class, rate limit, timeout), and who may call it.
+# The runtime vets every agent-emitted call {tool, arguments} against
+# guard.aon at $.guard.<tool> before dispatch (see guard.aon and
+# check.sh for why the wire schemas live there and not here).
+
+registry: {
+  platform: orion
+  version: "1.4.0"
+  owner: "platform-tools@corp.example"
+}
+
+# ----------------------------------------------------------------
+# Vocabulary and the per-tool contract. type() keeps each block out
+# of generated output while it still constrains.
+#
+# The enums deliberately carry NO '*' default: a defaulted disjunction
+# admits ANY value of the default's kind on override (README, gap 1),
+# so a guardrail enum must force every writer to choose explicitly.
+#
+# Role, SideEffect and ToolSpec are separate top-level fields rather
+# than one spec map: a reference into a type()-marked map from inside
+# that same map never resolves (README, gap 6).
+Role: type(admin | operator | analyst | agent)
+SideEffect: type(readonly | write | destructive)
+
+# close(): a registry entry may not carry unknown metadata.
+ToolSpec: type(close({
+  description: string & length(min(24) & max(200))
+  side_effect: $.SideEffect
+  requires_approval: boolean
+  rate_limit: close({
+    per_minute: integer & min(1) & max(600)
+    burst: integer & min(1) & max(60)
+  })
+  # length(min(1)) is unusable here: it folds against the schema's
+  # own zero-element templated list (README, gap 5). max + unique
+  # survive; "at least one role" is unenforceable in-schema today.
+  allowed_roles: [&: $.Role] & length(max(4)) & unique()
+  timeout_ms: integer & min(100) & max(600000)
+  owner: string & re("^[a-z][a-z0-9-]*@corp[.]example$")
+}))
+
+# ----------------------------------------------------------------
+# Per-tool argument schemas -- the spine of the registry: the set of
+# tool names is THIS map's key set. Every map is closed, so a
+# hallucinated argument is a refusal, not a silent pass-through.
+#
+# Optional arguments carry constraints but no '*' defaults (gap 1
+# again): the dispatcher owns runtime defaults, the schema owns the
+# admissible range.
+argschemas: type(close({
+
+  search_docs: close({
+    query: string & length(min(1) & max(256))
+    limit?: integer & min(1) & max(50)
+    scope?: workspace | org | web
+  })
+
+  read_file: close({
+    path: string & re("^[A-Za-z0-9._/\\-]+$") & re("^[a-z]") & length(max(512))
+    max_bytes?: integer & min(1) & max(1048576)
+  })
+
+  http_request: close({
+    url: string & re("^https://") & length(max(2048))
+    method: GET | HEAD
+    timeout_ms?: integer & min(100) & max(30000)
+    # Renamed in 1.4.0; still admitted, but every use is warned on.
+    max_redirects?: deprecate(integer & min(0) & max(10), {
+      msg: "renamed", use: "$.argschemas.http_request.redirects"
+      since: "1.4.0"
+    })
+    redirects?: integer & min(0) & max(10)
+  })
+
+  create_ticket: close({
+    project: string & re("^[A-Z][A-Z0-9]{1,9}$")
+    title: string & length(min(8) & max(140))
+    body?: string & length(max(20000))
+    priority: p1 | p2 | p3 | p4
+    labels?: [&: string & re("^[a-z][a-z0-9\\-]*$")] & length(max(10)) & unique()
+  })
+
+  send_email: close({
+    to: string & re("^[a-z0-9._\\-]+@corp[.]example$")
+    subject: string & length(min(1) & max(120))
+    body: string & length(min(1) & max(50000))
+  })
+
+  delete_records: close({
+    dataset: string & re("^[a-z][a-z0-9_]*[.][a-z][a-z0-9_]*$")
+    # "at least one id" cannot be stated: length(min(1)) conflicts
+    # with the empty templated list (README, gap 5).
+    record_ids: [&: string & re("^rec_[0-9a-f]{8}$")] & length(max(100)) & unique()
+    # Required and explicit: destruction must say what it means. A
+    # '*false' default would also admit any boolean unchecked (gap 1).
+    dry_run: boolean
+  })
+}))
+
+# ----------------------------------------------------------------
+# Tool metadata. pack() makes one ToolSpec-shaped entry per argument
+# schema, and close() seals the set, so both drift directions fail:
+#  - metadata below for a tool with no argument schema -> [aontu/closed]
+#  - an argument schema with no metadata -> the packed stub's required
+#    fields stay unresolved and the registry does not generate.
+tools: close(pack($.argschemas, $.ToolSpec))
+
+# requires_approval is derived from the side-effect class. We wanted
+# the match() once, in the template -- relative references inside a
+# pack/spread template do not resolve today (README, gaps 2 and 3) --
+# so the one-line rule is repeated per tool.
+
+tools: search_docs: {
+  description: "Full-text search over the workspace documentation index."
+  side_effect: readonly
+  requires_approval: match(.side_effect, destructive, true, false)
+  rate_limit: { per_minute: 120, burst: 20 }
+  allowed_roles: [admin, operator, analyst, agent]
+  timeout_ms: 5000
+  owner: "search-infra@corp.example"
+}
+
+tools: read_file: {
+  description: "Read one workspace file below the sandbox root, capped by max_bytes."
+  side_effect: readonly
+  requires_approval: match(.side_effect, destructive, true, false)
+  rate_limit: { per_minute: 240, burst: 40 }
+  allowed_roles: [admin, operator, analyst, agent]
+  timeout_ms: 2000
+  owner: "workspace-core@corp.example"
+}
+
+tools: http_request: {
+  description: "Fetch an https URL through the egress proxy; GET and HEAD only."
+  side_effect: readonly
+  requires_approval: match(.side_effect, destructive, true, false)
+  rate_limit: { per_minute: 60, burst: 10 }
+  allowed_roles: [admin, operator, agent]
+  timeout_ms: 30000
+  owner: "egress-gw@corp.example"
+}
+
+tools: create_ticket: {
+  description: "Open a tracker ticket in a named project on behalf of the agent."
+  side_effect: write
+  requires_approval: match(.side_effect, destructive, true, false)
+  rate_limit: { per_minute: 30, burst: 5 }
+  allowed_roles: [admin, operator, agent]
+  timeout_ms: 10000
+  owner: "tracker-team@corp.example"
+}
+
+tools: send_email: {
+  description: "Send mail to one internal corp.example recipient; no external delivery."
+  side_effect: write
+  requires_approval: match(.side_effect, destructive, true, false)
+  rate_limit: { per_minute: 10, burst: 2 }
+  allowed_roles: [admin, operator]
+  timeout_ms: 15000
+  owner: "msg-platform@corp.example"
+}
+
+tools: delete_records: {
+  description: "Bulk-delete records from a governed dataset; dry_run must be explicit."
+  side_effect: destructive
+  requires_approval: match(.side_effect, destructive, true, false)
+  rate_limit: { per_minute: 5, burst: 1 }
+  allowed_roles: [admin]
+  timeout_ms: 60000
+  owner: "data-gov@corp.example"
+}
+
+# ----------------------------------------------------------------
+# Derived documentation: one table row per tool. We wanted these
+# generated by pack/each over $.tools; a computed row needs the
+# sibling fields of each entry, which no template can reach today
+# (README, gap 2), so each row names its tool absolutely.
+docs: {
+  header: "| tool | effect | rpm | approval | owner |"
+  table: [
+    "| search_docs | " + $.tools.search_docs.side_effect + " | " + $.tools.search_docs.rate_limit.per_minute + " | " + $.tools.search_docs.requires_approval + " | " + $.tools.search_docs.owner + " |"
+    "| read_file | " + $.tools.read_file.side_effect + " | " + $.tools.read_file.rate_limit.per_minute + " | " + $.tools.read_file.requires_approval + " | " + $.tools.read_file.owner + " |"
+    "| http_request | " + $.tools.http_request.side_effect + " | " + $.tools.http_request.rate_limit.per_minute + " | " + $.tools.http_request.requires_approval + " | " + $.tools.http_request.owner + " |"
+    "| create_ticket | " + $.tools.create_ticket.side_effect + " | " + $.tools.create_ticket.rate_limit.per_minute + " | " + $.tools.create_ticket.requires_approval + " | " + $.tools.create_ticket.owner + " |"
+    "| send_email | " + $.tools.send_email.side_effect + " | " + $.tools.send_email.rate_limit.per_minute + " | " + $.tools.send_email.requires_approval + " | " + $.tools.send_email.owner + " |"
+    "| delete_records | " + $.tools.delete_records.side_effect + " | " + $.tools.delete_records.rate_limit.per_minute + " | " + $.tools.delete_records.requires_approval + " | " + $.tools.delete_records.owner + " |"
+  ]
+}

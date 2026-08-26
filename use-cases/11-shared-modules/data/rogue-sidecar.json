@@ -1,0 +1,6 @@
+{
+  "name": "Checkout Svc",
+  "owner": "payments-core@gmail.com",
+  "port": 80,
+  "sidecar": "envoy"
+}

@@ -1,0 +1,13 @@
+{
+  "id": 2003,
+  "type": "order.placed",
+  "time": "26/08/2026 10:07",
+  "source": "/orders/eu-1",
+  "payload": {
+    "order_id": "ord-9c8d7e6f",
+    "customer_id": "cus-00ff88aa",
+    "total_cents": 500,
+    "currency": "USD",
+    "lines": [{"sku": "sku-filter-pack", "qty": 1, "unit_cents": 500}]
+  }
+}

@@ -1,0 +1,17 @@
+# Tenant plans gate features. The entitlement is a disjunction of
+# CLOSED maps, one per plan (the tls-style conditional-shape idiom):
+# unifying a concrete `plan` kills every other branch, and the
+# surviving closed map pins what that plan may enable --
+# "if plan=free then sso=false" is a shape, not a rule.
+#
+# NOTE: candidates must carry entitlement.plan themselves. The schema
+# also ties entitlement.plan to tenant.plan by reference (tenant.aon),
+# but under `vet` that cross-reference is resolved against the schema
+# alone and never re-checked against the merged data -- a branch
+# keyed only on the reference silently passes (see README,
+# "Stale references under vet").
+Entitlement: type(
+    close({ plan: "free",       sso: false,   scim: false,   auditLog: false })
+  | close({ plan: "pro",        sso: boolean, scim: false,   auditLog: boolean })
+  | close({ plan: "enterprise", sso: boolean, scim: boolean, auditLog: true })
+)

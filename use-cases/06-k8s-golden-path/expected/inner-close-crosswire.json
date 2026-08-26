@@ -1,0 +1,28 @@
+{
+  "col": {
+    "auth": {
+      "p": 2
+    },
+    "web": {
+      "p": 1
+    }
+  },
+  "deploy": {
+    "auth": {
+      "extra": {
+        "p": 2
+      },
+      "name": "web"
+    },
+    "web": {
+      "extra": {
+        "p": 1
+      },
+      "name": "web"
+    }
+  },
+  "names": [
+    "web",
+    "auth"
+  ]
+}

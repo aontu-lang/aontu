@@ -1,0 +1,3 @@
+# One half of a cross-file conflict: the capacity plan pins billing
+# at 12 replicas in prod.
+deploy: prod: workloads: billing: replicas: 12

@@ -1,0 +1,6 @@
+# v2 of the routing table: the template now derives name from the key
+# itself.  Semantically benign, structurally undecidable.
+routes: {
+  &: { name: key(), shard: string }
+  emea: { shard: "fra1" }
+}

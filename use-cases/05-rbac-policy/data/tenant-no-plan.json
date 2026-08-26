@@ -1,0 +1,13 @@
+{
+  "tenant": {
+    "name": "Acme Rockets",
+    "slug": "acme-rockets",
+    "entitlement": { "plan": "free", "sso": false, "scim": false, "auditLog": false },
+    "members": {
+      "ada": { "role": "owner" },
+      "grace": { "role": "member" },
+      "alan": { "role": "auditor", "invitedBy": "ada" }
+    },
+    "security": { "mfaRequired": true, "sessionTimeoutMinutes": 480 }
+  }
+}

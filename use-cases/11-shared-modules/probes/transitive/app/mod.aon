@@ -1,0 +1,7 @@
+# Consumer asking for common@1 at 1.0.0 while service-dep asks 1.2.0:
+# minimum version selection must pick 1.2.0 (highest of the minima).
+mod: { path: "corp.example/checkout", main: "main.aon" }
+dep: {
+  "corp.example/schemas/service@1": { v: "1.4.2" }
+  "corp.example/schemas/common@1": { v: "1.0.0" }
+}

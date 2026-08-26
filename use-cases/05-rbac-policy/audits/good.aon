@@ -1,0 +1,26 @@
+@"../tenant.aon"
+
+# Audit composition: tenant data AND counting/domain invariants in ONE
+# document layer -- the only layering under which filter()+length()
+# and must() are reliable (across an include or the vet meet they
+# fold early or vanish; see README, "length across layers").
+tenant: {
+  name: "Acme Rockets", slug: "acme-rockets", plan: free
+  entitlement: { plan: free, sso: false, scim: false, auditLog: false }
+  members: {
+    ada:   { role: owner }
+    grace: { role: member }
+    alan:  { role: auditor, invitedBy: ada }
+  }
+  security: { mfaRequired: true, sessionTimeoutMinutes: 480 }
+}
+
+audit: hide({
+  # Universal quantification as an empty/counted witness set.
+  exactly_one_owner: length(1) & filter($.tenant.members, { role: owner })
+  # Cross-field bound: the member count against the plan-derived cap.
+  seats_within_plan: length(max($.tenant.limits.maxSeats)) & $.tenant.members
+  # Band-B domain rule with an author message (fires same-layer only).
+  mfa_mandatory: must({ mfaRequired: true },
+    "corporate policy CP-114: MFA is mandatory for every tenant") & $.tenant.security
+})

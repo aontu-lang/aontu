@@ -1,0 +1,10 @@
+# A reporting view that assumes ledger ids are plain integers -- the
+# same 64-bit trap at the projection level. The domain admits
+# biginteger ids (0d spellings above 2^53), so this view does NOT
+# subsume the domain; check.sh asserts the compat finding.
+schema: {
+  Customer: type({
+    id: string
+    ledgerId: integer
+  })
+}

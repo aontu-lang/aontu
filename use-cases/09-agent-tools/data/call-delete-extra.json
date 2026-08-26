@@ -1,0 +1,9 @@
+{
+  "tool": "delete_records",
+  "arguments": {
+    "dataset": "crm.contacts",
+    "record_ids": ["rec_00c0ffee", "rec_deadbeef"],
+    "dry_run": false,
+    "cascade": true
+  }
+}

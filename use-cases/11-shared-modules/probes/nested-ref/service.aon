@@ -1,0 +1,5 @@
+# A module using an internal absolute reference.  Standalone it
+# evaluates and hashes; imported at a nested consumer key the $.-ref
+# re-roots to the consumer document and fails (README, gap 5).
+defaults: hide({ port: 8080 })
+spec: { name: string, port: $.defaults.port }
