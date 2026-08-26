@@ -22,6 +22,7 @@ ADR-NNN**, so the reasoning that led there stays readable.
 | [ADR-003](#adr-003--host-provided-semantics-are-normalised-not-trusted) | Host-provided semantics are normalised, not trusted | Accepted |
 | [ADR-004](#adr-004--a-preference-override-must-be-admitted-by-its-disjunction) | A preference override must be admitted by its disjunction | Accepted |
 | [ADR-005](#adr-005--template-instantiation-is-per-destination) | Template instantiation is per-destination | Accepted |
+| [ADR-006](#adr-006--template-application-is-stateless-and-a-generator-snapshots-a-settled-source) | Template application is stateless, and a generator snapshots a settled source | Accepted |
 
 ---
 
@@ -484,3 +485,95 @@ destination, fully.** Concretely, three rules:
   changing together; the mark/hole rules are author-facing in
   [`docs/reference-language.md`](docs/reference-language.md)
   ("Generating children", "The placeholder `_`", "Marks").
+
+---
+
+## ADR-006 — Template application is stateless, and a generator snapshots a settled source
+
+**Status:** Accepted (2026-08-26)
+
+### Context
+
+ADR-005 made a template instance own its structure, and named what it
+did not fix: the unequal-spread sibling crosswire
+([use-cases/BUGS.md](use-cases/BUGS.md) §6–§7), expressions reading
+the generated child's own fields through a merge (§36), and — in the
+same family — a generator over spread-augmented data dying as
+`mapval_no_gen`. Execution found the roots, and they are about
+*application*, not instantiation:
+
+- The combination of two unequal `&:` templates (the spread meet in
+  MapVal/ListVal, marked `TODO: handle existing spread!`) bakes a key
+  present in only one side into the combined map as an `ExpectVal` —
+  and an ExpectVal accumulated its peers by MUTATING ITSELF. A
+  path-independent combined template is shared across every
+  destination (the spreadClone sharing tier), so one stateful node
+  unified each sibling's own data with the next sibling's. Every
+  spelling that combines unequal templates hit it: cross-statement
+  spreads, templates arriving by reference through a conjunction, and
+  both views of an id-merge.
+- The same expectation wrap FROZE any value that could still resolve
+  by itself: an operator arriving as a peer-only key was wrapped, an
+  expectation only advances when a peer arrives, and the residue
+  blamed a spread that existed nowhere (`mapval_spread_required` on
+  `deploy: web: {surge: $.deploy.web.replicas + 1}` — and equally on
+  the pack-free `a:{x:1} a:{y:.x+1}`).
+- A staged generator's data argument resolved its reference EARLY: the
+  copy was taken while the source was still resolving, rebased to the
+  argument's location — a place no root traversal reaches — so a
+  spread-injected relative reference in the copy could never resolve
+  and the generator never fired.
+
+### Decision
+
+**Two rules.**
+
+1. **Template application is stateless.** Nothing shared between
+   destinations may accumulate what a destination taught it.
+   Concretely: `ExpectVal.unify` is pure — a non-escaping peer rides a
+   NEW expectation node and the met node is never mutated; a carried
+   expectation is re-wrapped fresh at its destination (so its
+   key/parent name that bag); and a peer-only OPERATOR is carried,
+   never wrapped — it keeps computing exactly as it does written
+   inline, and one that can never resolve is honest `*_no_gen` / ref
+   residue naming the real expression and path. Consequence: each
+   child meets each template independently, and children never meet
+   each other's data.
+2. **A generator snapshots a settled source.** A staged function's
+   data argument (`pack`, `each`, `filter`, `match`) resolves
+   references under a snapshot flag (`argsnap`): the target is copied
+   only once it has finished resolving in the tree — where its own
+   spreads and relative references answer at their real location.
+   This is the documented staging rule finished: the generator waits
+   for the source, then copies it whole.
+
+### Consequences
+
+- The review's remaining minimal repros are the acceptance suite and
+  all evaluate green: `two-spreads*.aon` (direct and vet forms),
+  `idmerge-ref-templates.aon`, `oneview-ref-templates.aon`,
+  `spread-then-pack.aon`, `merge-expr-onto-pack-child.aon` (§36 lands
+  as outcome (a): it *works* — `surge: 3`).
+- One deliberate canon flip rides rule 2: an unfired generator over a
+  permanently stuck source canons with its data reference still
+  standing (`pack($.n,{"x":1})`), which reparses to the same document,
+  instead of with a baked-in copy of the stuck value. The flipped rows
+  (`gen-each.tsv` each-unfired-*, `gen-pack.tsv` pack-unfired-canon)
+  carry the note, parity-probed.
+- The settled-source snapshot also stops a mid-resolution copy from
+  re-stamping entity ids inside a hidden `filter()` witness: use-case
+  05's generated registry was silently MISSING its `owner` role (the
+  id-merge pulled the witness's hide mark onto the real role), and the
+  eval-path diagnostic that rode the same artifact is gone — both
+  recorded with dated notes in that use case.
+- Enforced by the shared spec (ADR-001 discipline), both ports
+  changing together: the `spread-interleave.tsv` spread-unequal-*
+  composition matrix (unequal spreads × literal / ref-arriving /
+  key()-bearing templates × 2,3 children × map,list, plus
+  requiredness, defaults and id-merge through the combine), `vet.tsv`
+  vet-unequal-spread-depths, `gen-pack.tsv`
+  pack-over-spread-augmented / pack-merge-expr-onto-child,
+  `gen-each.tsv` each-over-spread-augmented, `plus.tsv`
+  peer-key-expr*. Author-facing rules in
+  [`docs/reference-language.md`](docs/reference-language.md)
+  ("Spreads `&:`", "Generating children").

@@ -71,12 +71,26 @@ class FuncBaseVal extends FeatureVal_1.FeatureVal {
     driveStagedArgs(ctx, count) {
         const TOP = (0, top_1.top)();
         let alldone = true;
+        // THE SNAPSHOT WAITS FOR THE SOURCE (the spread-then-pack defect,
+        // use-cases/BUGS.md pack-refs family). A reference resolving inside
+        // a staged argument is this argument's SNAPSHOT of its source, and
+        // the snapshot is not part of the tree: a spread-injected relative
+        // reference inside a too-early copy dangles at the argument's
+        // location (`.containerPort` rebased under the generator, where no
+        // root traversal reaches it) and the generator never fires. The
+        // `argsnap` flag makes RefVal.find defer until the target has
+        // finished resolving IN THE TREE — where its own spreads and
+        // relative references answer at their real location — and only then
+        // take the copy. Inherited by every descended ctx, so a reference
+        // anywhere in the argument subtree waits the same way.
+        const actx = ctx.clone({});
+        actx.argsnap = true;
         for (let i = 0; i < count && i < this.peg.length; i++) {
             const arg = this.peg[i];
             if (!arg.done) {
                 // Charged to the depth budget, as FuncBaseVal's own arg loop is:
                 // this recurses without going through `unite`.
-                this.peg[i] = (0, unify_1.withDepth)(ctx, arg, TOP, () => arg.unify(TOP, ctx));
+                this.peg[i] = (0, unify_1.withDepth)(ctx, arg, TOP, () => arg.unify(TOP, actx));
             }
             alldone = alldone && true === this.peg[i].done;
         }

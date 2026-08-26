@@ -54,18 +54,30 @@ func (e *ExpectVal) Gen(ctx *Ctx) (any, error) {
 // them with the expectation, and ESCAPE to the united value as soon as
 // it is generable (`m:{&:{r:string} a:{r:x}}` resolves a.r to "x").
 // Until then the expect itself stays, done.
+//
+// PURE, deliberately (the unequal-spread crosswire, BUGS.md §6-§7,
+// mirroring ts/src/val/ExpectVal.ts). The old body accumulated e.peer
+// IN PLACE — invisible while an expectation only lived at one
+// destination, but the spread-combination meet (MapVal.Unify) bakes an
+// ExpectVal INTO the combined template, and a path-independent template
+// is SHARED across every destination (spreadCloneFor). One stateful
+// node in a shared template unified each sibling's own data with the
+// next sibling's. An expectation that must keep accumulated state now
+// answers with a NEW node, leaving the shared template untouched.
 func (e *ExpectVal) Unify(peer Val, ctx *Ctx) Val {
 	if peer != nil && !isTop(peer) {
-		if e.peer == nil {
-			e.peer = peer
-		} else {
-			e.peer = unite(ctx, e.peer, peer)
+		acc := peer
+		if e.peer != nil {
+			acc = unite(ctx, e.peer, peer)
 		}
-		peeru := unite(ctx, e.peer, e.peg)
+		peeru := unite(ctx, acc, e.peg)
 		if expectGenable(peeru) {
 			peeru.setDc(DONE)
 			return peeru
 		}
+		ne := &ExpectVal{peg: e.peg, peer: acc, parent: e.parent, key: e.key}
+		ne.dc = DONE
+		return ne
 	}
 	e.dc = DONE
 	return e

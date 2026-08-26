@@ -407,6 +407,20 @@ func (rv *RefVal) find(ctx *Ctx, snap bool) Val {
 		return nil
 	}
 
+	// A STAGED ARGUMENT SNAPSHOTS A SETTLED SOURCE (Ctx.argsnap, set by
+	// stagedDrive). A generator's data argument is a copy OUTSIDE the
+	// tree, so anything in the target still resolving against its own
+	// tree location — a spread-injected relative reference, a pending
+	// template — must finish there BEFORE the copy is taken: cloned
+	// earlier, the copy's rebased relative refs dangle under the
+	// generator and the model dies as *_no_gen with the generator never
+	// firing. Deferring is the documented staging rule: the generator
+	// waits for the source, then snapshots it whole. Mirrors the same
+	// guard in ts/src/val/RefVal.ts find.
+	if !snap && ctx.argsnap && node.Dc() != DONE {
+		return nil
+	}
+
 	// A ref carrying marks transfers them onto the found node in place
 	// (mirrors the mark assignment on `out` before the clone in TS
 	// RefVal.find).

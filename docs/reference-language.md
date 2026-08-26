@@ -557,6 +557,23 @@ Other forms:
 - **Lists:** `[&:{x:1}, {y:1}, {y:2}]` → `[{y:1,x:1},{y:2,x:1}]`;
   canon keeps the spread: `[&:{"x":1},{"y":1,"x":1},…]`.
 
+**Several templates apply independently, per child.** When one bag
+accumulates more than one `&:` template — consecutive spreads, spreads
+from different statements, templates arriving by reference through a
+conjunction or an id-merge — every child meets the combined constraint
+of all of them, and only that: children never meet each other's data
+through the templates, whatever mix of literal values, kinds,
+references, defaults or `key()` the templates carry. A key one
+template requires is required at every child; a default one template
+carries defaults (and stays overridable) per child.
+
+```
+w: &: {p:integer}
+w: &: {r:integer}
+w: x: {p:1, r:5}
+w: y: {p:2, r:6}      → {"w":{"x":{"p":1,"r":5},"y":{"p":2,"r":6}}}
+```
+
 ## Generating children: `pack` and `each`
 
 A spread constrains children that already exist. `pack` and `each`
@@ -613,9 +630,15 @@ generator.
 Both **wait for the model to settle** before they fire, and fire
 exactly once. A generator's data can still be merged into by a sibling
 statement, an include or a spread after it first looks complete, and
-children generated from a half-merged bag would be missing. Until it
-fires, a generator canons as its own call — `pack({"a":1+true},…)` —
-which reparses to the same value.
+children generated from a half-merged bag would be missing. The data
+argument's **snapshot waits for the source too**: a reference like
+`pack($.ports, …)` copies its target only once the target has finished
+resolving in the tree, so a source augmented by a spread — even one
+injecting relative references (`ports: &: {port: .containerPort}`) —
+reaches the generator with those references already answered at the
+source. Until it fires, a generator canons as its own call —
+`pack($.n,…)` with the data reference still standing — which reparses
+to the same value.
 
 Neither can recurse. Both iterate a finite bag that already exists, so
 the number of children either can produce is fixed by the data:

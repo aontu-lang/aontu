@@ -19,8 +19,14 @@ each-empty-map	gens	o:each({})\n	{"o":[]}
 each-of-pack	gens	n:[a,b]\no:each(pack($.n,{x:1}))\n	{"n":["a","b"],"o":[{"x":1},{"x":1}]}
 each-list-strings	gens	n:[a,b]\no:each($.n)\n	{"n":["a","b"],"o":["a","b"]}
 each-map-kind	gens	m:{a:1,b:2}\no:each($.m,integer)\n	{"m":{"a":1,"b":2},"o":[1,2]}
-each-unfired-canon	canon	n:[1+true]\no:each($.n)\n	{"n":[1+true],"o":each([1+true])}
-each-unfired-template-canon	canon	n:{a:1+true}\no:each($.n,integer)\n	{"n":{"a":1+true},"o":each({"a":1+true},integer)}
+# FLIPPED 2026-08-26 (spread application rework): a staged argument now
+# snapshots its source only once the source has SETTLED in the tree
+# (Ctx.argsnap / RefVal.find), so a generator over a permanently stuck
+# source canons with the reference still standing -- which reparses to
+# the same document, where the baked-in copy of the stuck value did not
+# round-trip the model's structure. Parity-probed 2026-08-26.
+each-unfired-canon	canon	n:[1+true]\no:each($.n)\n	{"n":[1+true],"o":each($.n)}
+each-unfired-template-canon	canon	n:{a:1+true}\no:each($.n,integer)\n	{"n":{"a":1+true},"o":each($.n,integer)}
 each-literal-canon	canon	o:each([1,2])\n	{"o":[1,2]}
 each-literal-kind-canon	canon	o:each([1,2],integer)\n	{"o":[1,2]}
 each-template-conflict	errc	p:[1,x]\no:each($.p,integer)\n	no_scalar_unify
@@ -28,3 +34,10 @@ each-data-integer	errc	o:each(1)\n	each_data
 each-data-string	errc	o:each("s")\n	each_data
 each-arity-none	errc	o:each()\n	func_arity
 each-arity-three	errc	o:each([1],integer,integer)\n	func_arity
+
+# GENERATOR OVER SPREAD-AUGMENTED DATA -- the each() twin of
+# gen-pack.tsv's pack-over-spread-augmented (2026-08-26, the spread
+# application rework): the snapshot waits for the settled source, so
+# the spread-injected relative reference arrives resolved and the
+# elements carry the augmented values. Parity-probed.
+each-over-spread-augmented	gens	ports:{a:{containerPort:1}}\nports:&:{port:.containerPort}\nout:each($.ports)\n	{"out":[{"containerPort":1,"port":1}],"ports":{"a":{"containerPort":1,"port":1}}}

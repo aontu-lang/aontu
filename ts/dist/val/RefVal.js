@@ -383,6 +383,20 @@ class RefVal extends FeatureVal_1.FeatureVal {
                     pendingMarkWrapper(out)) {
                     out = undefined;
                 }
+                // A STAGED ARGUMENT SNAPSHOTS A SETTLED SOURCE (the argsnap
+                // flag, set by driveStagedArgs). A generator's data argument is
+                // a copy OUTSIDE the tree, so anything in the target that still
+                // resolves against its own tree location — a spread-injected
+                // relative reference, a pending template — must finish there
+                // BEFORE the copy is taken: cloned earlier, the copy's rebased
+                // relative refs dangle under the generator and the model dies
+                // as *_no_gen with the generator never firing. Deferring here
+                // is exactly the documented staging rule: the generator waits
+                // for the source, then snapshots it whole.
+                else if (null != out && !snap && true === ctx.argsnap &&
+                    !out.done) {
+                    out = undefined;
+                }
                 // Types and hidden values are cloned and made concrete
                 else if (null != out) { //  && (out.mark.type || out.mark.hide)) {
                     // console.log('FOUND-A', out)

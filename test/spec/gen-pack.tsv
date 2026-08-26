@@ -30,7 +30,11 @@ pack-pref-override	gens	n:[a,b]\nd:pack($.n,{x:*1|integer})\nd:a:x:5\n	{"d":{"a"
 pack-override-conflict	errc	n:[a]\nd:pack($.n,{x:1})\nd:a:x:2\n	scalar_value
 pack-ref-into-generated	gens	n:[a,b]\nd:pack($.n,{x:1})\ne:$.d.a.x\n	{"d":{"a":{"x":1},"b":{"x":1}},"e":1,"n":["a","b"]}
 pack-nested	gens	n:[a,b]\nd:pack($.n,{p:pack([q],{z:1})})\n	{"d":{"a":{"p":{"q":{"z":1}}},"b":{"p":{"q":{"z":1}}}},"n":["a","b"]}
-pack-unfired-canon	canon	n:{a:1+true}\nd:pack($.n,{x:1})\n	{"d":pack({"a":1+true},{"x":1}),"n":{"a":1+true}}
+# FLIPPED 2026-08-26 (spread application rework): the data argument
+# snapshots only a SETTLED source (Ctx.argsnap / RefVal.find), so an
+# unfired generator over a stuck source canons with the reference still
+# standing. See the twin note in gen-each.tsv. Parity-probed 2026-08-26.
+pack-unfired-canon	canon	n:{a:1+true}\nd:pack($.n,{x:1})\n	{"d":pack($.n,{"x":1}),"n":{"a":1+true}}
 pack-unfired-errc	errc	n:{a:1+true}\nd:pack($.n,{x:1})\n	mapval_no_gen
 pack-literal-key-canon	canon	d:pack([a],{x:key()})\n	{"d":{"a":{"x":"a"}}}
 pack-data-integer	errc	d:pack(1,{x:1})\n	pack_data
@@ -65,3 +69,19 @@ pack-rankpref-key-override	gens	col:{web:{},auth:{}}\nout:pack($.col,{value:**ke
 # exactly as the bare forms always did. Parity-probed in both engines.
 pack-rel-ref-in-expr	gens	names:[web,auth]\nd:pack($.names,{a:1,b:.a+1})\n	{"d":{"auth":{"a":1,"b":2},"web":{"a":1,"b":2}},"names":["web","auth"]}
 pack-key-in-expr-and-call	gens	n:[p,q]\nd:pack($.n,{img:"acme/"+key()+":1",u:upper(key())})\n	{"d":{"p":{"img":"acme/p:1","u":"P"},"q":{"img":"acme/q:1","u":"Q"}},"n":["p","q"]}
+
+# GENERATOR OVER SPREAD-AUGMENTED DATA (2026-08-26, the spread
+# application rework; use-cases/BUGS.md pack-refs "pack over
+# spread-augmented data"). The data argument snapshots its source only
+# once the source has SETTLED in the tree (Ctx.argsnap / RefVal.find),
+# so a spread-injected RELATIVE reference resolves at the source child
+# before the copy is taken -- the copy no longer carries a dangling
+# `.containerPort` and the generator fires. Parity-probed.
+pack-over-spread-augmented	gens	ports:{a:{containerPort:1}}\nports:&:{port:.containerPort}\nout:pack($.ports,{})\n	{"out":{"a":{}},"ports":{"a":{"containerPort":1,"port":1}}}
+# MERGING AN EXPRESSION ONTO A GENERATED CHILD (BUGS.md sec 36): an
+# operator arriving as a peer-only key is CARRIED, never wrapped as an
+# expectation (handleExpectedVal), so it keeps computing and resolves
+# against the generated child once the pack has fired -- surge is 3,
+# not the historic phantom mapval_spread_required naming a spread that
+# existed nowhere.
+pack-merge-expr-onto-child	gens	names:[web]\ndeploy:pack($.names,{replicas:2})\ndeploy:web:{surge:$.deploy.web.replicas+1}\n	{"deploy":{"web":{"replicas":2,"surge":3}},"names":["web"]}

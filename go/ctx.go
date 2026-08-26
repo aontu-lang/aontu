@@ -63,6 +63,18 @@ type Ctx struct {
 	// clones, whose stored paths carry overlay tails).
 	slot []string
 
+	// argsnap is set by stagedDrive while a staged func's data argument
+	// is being driven (the Go side of the `argsnap` flag TS's
+	// driveStagedArgs sets on the drive ctx): a reference resolving
+	// inside such an argument is the generator's SNAPSHOT of its
+	// source, outside the tree, so RefVal.find defers the copy until
+	// the target has finished resolving IN THE TREE — where its own
+	// spreads and relative references answer at their real location.
+	// Copied earlier, the snapshot's rebased relative refs dangle
+	// under the generator and it never fires (the spread-then-pack
+	// defect, use-cases/BUGS.md pack-refs family).
+	argsnap bool
+
 	// The evaluation budgets (G5 trust profile, docs/trust.md): integer
 	// counts of engine events, never wall-clock. ZERO MEANS THE DEFAULT
 	// — the shared spec-visible constants test/spec/budget.tsv pins (9

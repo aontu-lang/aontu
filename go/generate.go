@@ -352,6 +352,15 @@ func stagedArgIdx(f *FuncVal) []int {
 // ts/src/val/FuncBaseVal.ts.
 func stagedDrive(ctx *Ctx, f *FuncVal, base []string) bool {
 	ready := true
+	// THE SNAPSHOT WAITS FOR THE SOURCE (see Ctx.argsnap): every ref
+	// resolution inside this drive defers its copy until the target has
+	// settled in the tree. Saved/restored rather than simply cleared:
+	// a staged func nested inside another's data argument drives its
+	// own argument with the flag already up, exactly as TS's
+	// prototype-inherited ctx flag behaves.
+	saved := ctx.argsnap
+	ctx.argsnap = true
+	defer func() { ctx.argsnap = saved }()
 	// Every index stagedArgIdx answers is derived from len(f.peg), and
 	// arity is checked at parse, so there is no bound to test here.
 	for _, i := range stagedArgIdx(f) {

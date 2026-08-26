@@ -93,6 +93,7 @@ const DisjunctVal_1 = require("../dist/val/DisjunctVal");
 const PrefVal_1 = require("../dist/val/PrefVal");
 const MatchFuncVal_1 = require("../dist/val/MatchFuncVal");
 const ExpectVal_1 = require("../dist/val/ExpectVal");
+const ScalarKindVal_1 = require("../dist/val/ScalarKindVal");
 const FeatureVal_1 = require("../dist/val/FeatureVal");
 const FuncBaseVal_1 = require("../dist/val/FuncBaseVal");
 const PathFuncVal_1 = require("../dist/val/PathFuncVal");
@@ -334,6 +335,15 @@ function capture(fn) {
         e2.parent = new MapVal_1.MapVal({ peg: {} });
         e2.key = 'a';
         Assert.ok(e2.inspection(0).includes('parent='));
+        // A non-escaping peer rides a NEW node (pure unify — the
+        // unequal-spread crosswire, BUGS.md §6-§7): the met expectation
+        // stays untouched, and the carried node's inspection renders the
+        // accumulated peer.
+        const e3 = new ExpectVal_1.ExpectVal({ peg: new ScalarKindVal_1.ScalarKindVal({ peg: ScalarKindVal_1.Integer }) }, ctx);
+        const out3 = e3.unify(new ScalarKindVal_1.ScalarKindVal({ peg: Number }), ctx);
+        Assert.ok(out3.isExpect && out3 !== e3 && undefined !== out3.peer);
+        Assert.equal(e3.peer, undefined);
+        Assert.ok(out3.inspection(0).includes('peer='));
     });
 });
 (0, node_test_1.describe)('coverage3-scalars', () => {

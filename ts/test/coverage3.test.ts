@@ -66,6 +66,7 @@ import { DisjunctVal } from '../dist/val/DisjunctVal'
 import { PrefVal } from '../dist/val/PrefVal'
 import { effectiveScrutinee } from '../dist/val/MatchFuncVal'
 import { ExpectVal } from '../dist/val/ExpectVal'
+import { ScalarKindVal, Integer } from '../dist/val/ScalarKindVal'
 import { FeatureVal } from '../dist/val/FeatureVal'
 import { FuncBaseVal } from '../dist/val/FuncBaseVal'
 import { PathFuncVal } from '../dist/val/PathFuncVal'
@@ -364,6 +365,16 @@ describe('coverage3-bags', () => {
     e2.parent = new MapVal({ peg: {} })
     e2.key = 'a'
     Assert.ok(e2.inspection(0).includes('parent='))
+
+    // A non-escaping peer rides a NEW node (pure unify — the
+    // unequal-spread crosswire, BUGS.md §6-§7): the met expectation
+    // stays untouched, and the carried node's inspection renders the
+    // accumulated peer.
+    const e3: any = new ExpectVal({ peg: new ScalarKindVal({ peg: Integer }) }, ctx)
+    const out3: any = e3.unify(new ScalarKindVal({ peg: Number }), ctx)
+    Assert.ok(out3.isExpect && out3 !== e3 && undefined !== out3.peer)
+    Assert.equal(e3.peer, undefined)
+    Assert.ok(out3.inspection(0).includes('peer='))
   })
 })
 

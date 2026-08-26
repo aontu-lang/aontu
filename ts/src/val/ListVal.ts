@@ -59,7 +59,10 @@ class ListVal extends BagVal {
     if (spread) {
       if ('&' === spread.o) {
 
-        // TODO: handle existing spread!
+        // Multiple same-level spreads conjoin; an unequal spread from
+        // another statement meets this one in unify's combination
+        // below (see the MapVal constructor note — the combined
+        // template is stateless, BUGS.md §6-§7).
         this.spread.cj =
           Array.isArray(spread.v) ?
             1 < spread.v.length ?

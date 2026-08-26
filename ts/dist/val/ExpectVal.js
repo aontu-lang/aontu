@@ -26,15 +26,36 @@ class ExpectVal extends FeatureVal_1.FeatureVal {
         super(spec, ctx);
         this.isExpect = true;
     }
+    // PURE, deliberately (the unequal-spread crosswire, BUGS.md §6-§7).
+    // The old body accumulated `this.peer` IN PLACE, which was invisible
+    // while an expectation only ever lived at one destination -- but the
+    // spread-combination meet (MapVal.unify's 'map-self' unite) bakes an
+    // ExpectVal INTO the combined template, and a path-independent
+    // template is SHARED across every destination (spreadClone tier 1).
+    // One stateful node in a shared template unified each sibling's own
+    // data with the next sibling's ($.w.y.r: "Cannot unify value: 6 with
+    // value: 5", both values sibling data). An expectation now answers
+    // with a NEW node when it must keep accumulated state, so a shared
+    // template's expect stays exactly what was written.
     unify(peer, ctx) {
         const te = ctx.explain && (0, utility_1.explainOpen)(ctx, ctx.explain, 'Expect', this, peer);
         let out = this;
         if (!peer.isTop) {
-            this.peer = undefined === this.peer ? peer :
+            const acc = undefined === this.peer ? peer :
                 (0, unify_1.unite)(te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'PEER') }) : ctx, this.peer, peer, 'expect-peer');
-            const peeru = (0, unify_1.unite)(te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'EXPECT') }) : ctx, this.peer, this.peg, 'expect-self');
+            const peeru = (0, unify_1.unite)(te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'EXPECT') }) : ctx, acc, this.peg, 'expect-self');
             if (peeru.isGenable) {
                 out = peeru;
+            }
+            else {
+                // Still an expectation: carry the accumulated peer forward in a
+                // fresh node stored at THIS destination by the caller, leaving
+                // `this` -- possibly a shared template's child -- untouched.
+                const e = new ExpectVal({ peg: this.peg }, ctx);
+                e.key = this.key;
+                e.parent = this.parent;
+                e.peer = acc;
+                out = e;
             }
         }
         out.dc = type_1.DONE;

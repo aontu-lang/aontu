@@ -110,7 +110,12 @@ class MapVal extends BagVal {
 
     if (spread) {
       if ('&' === spread.o) {
-        // TODO: handle existing spread!
+        // Multiple same-level spreads arrive as an array and conjoin;
+        // an unequal spread arriving from ANOTHER statement meets this
+        // one in unify's spread combination below — sound since the
+        // combined template became stateless (pure ExpectVal, BUGS.md
+        // §6-§7): each child meets the combined constraint
+        // independently and children never meet each other's data.
         this.spread.cj =
           Array.isArray(spread.v) ?
             1 < spread.v.length ?
@@ -206,6 +211,13 @@ class MapVal extends BagVal {
         // combined here). unite resolves key()/path() at each destination via
         // spreadClone below, so nested + sibling key() cases stay correct
         // (test/spec/spread-nested-key, spread-key-all).
+        //
+        // The combined template must stay STATELESS: this meet wraps a
+        // key present in only one side as an ExpectVal, the combined
+        // map is shared across destinations when path-independent
+        // (spreadClone tier 1), and a stateful expect accumulated the
+        // first sibling's data and met it into the next (BUGS.md
+        // §6-§7). ExpectVal.unify is pure for exactly this reason.
         out.spread.cj = null == out.spread.cj ? peer.spread.cj : (
           null == peer.spread.cj ? out.spread.cj :
             out.spread.cj.canon === peer.spread.cj.canon ? out.spread.cj :

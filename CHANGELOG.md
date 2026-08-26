@@ -5,6 +5,69 @@ package (`ts/`, npm `aontu`) and the Go module (`go/`,
 `github.com/rjrodger/aontu/go`) are versioned independently; entries note
 which implementation each change affects.
 
+## Unreleased — the spread application rework (ADR-006)
+
+Both implementations. The remaining defects of the 2026-08 language
+review's finding B (`use-cases/BUGS.md` §6, §7, §36 and the
+pack-over-spread-augmented-data failure), which ADR-005 named openly as
+different roots. Two rules, mirrored TS/Go:
+
+- **Template application is stateless.** The combination of two
+  unequal `&:` spread templates (MapVal/ListVal's spread meet) bakes a
+  key present in only one side into the combined map as an
+  `ExpectVal`, and a path-independent combined template is SHARED
+  across every destination — so the expectation's in-place peer
+  accumulation unified each sibling's own data with the next
+  sibling's (`$.w.y.r: Cannot unify value: 6 with value: 5`, both
+  values sibling data; the id-merged and one-view by-reference forms
+  identically). `ExpectVal.unify` is now pure — a non-escaping peer
+  rides a NEW node, the met expectation is never mutated — and a
+  carried expectation is re-wrapped fresh at its destination
+  (`handleExpectedVal` / the Go peer loop), which also unstacks the
+  double-wrap. Each child now meets each template independently;
+  children never meet each other's data (§6, §7, the `TODO: handle
+  existing spread!` retired). An operator arriving as a peer-only key
+  is CARRIED, never wrapped: a wrapped op froze (an expectation only
+  advances when a peer arrives) and the residue blamed a spread that
+  existed nowhere — `deploy: web: {surge: $.deploy.web.replicas + 1}`
+  merged onto a pack child now answers `surge: 3`, `a:{x:1}
+  a:{y:.x+1}` answers `y: 2`, and an op that can never resolve is an
+  honest error naming the real path (§36).
+- **A generator snapshots a settled source.** A staged function's data
+  argument (`pack`, `each`, `filter`, `match`) resolves references
+  under an `argsnap` flag (TS `driveStagedArgs` → `RefVal.find`; Go
+  `stagedDrive` → `ref.go`): the copy is taken only once the target
+  has finished resolving IN THE TREE. Copied earlier, a
+  spread-injected relative reference in the snapshot dangled at the
+  argument's location (rebased where no root traversal reaches) and
+  the generator never fired — `ports: &: {port: .containerPort}` +
+  `out: pack($.ports, {})` died as `mapval_no_gen`; it now generates,
+  and `each()` over the same source likewise. One deliberate canon
+  flip rides this rule: an unfired generator over a permanently stuck
+  source canons with the data reference still standing
+  (`pack($.n,{"x":1})`, which reparses to the same document) instead
+  of with a baked-in copy of the stuck value — `gen-each.tsv`
+  each-unfired-canon / each-unfired-template-canon and `gen-pack.tsv`
+  pack-unfired-canon flipped, parity-probed.
+
+Pinned by parity-probed shared rows: the `spread-interleave.tsv`
+spread-unequal-* composition matrix (unequal spreads × literal /
+ref-arriving / key()-bearing templates × 2,3 children × map,list, plus
+requiredness, defaults and id-merge through the combine), `vet.tsv`
+vet-unequal-spread-depths, `gen-pack.tsv`
+pack-over-spread-augmented / pack-merge-expr-onto-child,
+`gen-each.tsv` each-over-spread-augmented, and `plus.tsv`
+peer-key-expr / peer-key-expr-unresolvable. `make cov` stays at 100%
+in both ports. Downstream effects recorded with dated notes in the
+use-case suite: 01 (shared-PortSpec discipline now style, not
+workaround), 02 (stacked-spread guardrails vet correctly), 05 (the
+`owner` role was silently missing from the generated registry — the
+filter's mid-resolution snapshot re-stamped entity ids inside the
+hidden witness and the id-merge pulled the hide mark onto the real
+role; the eval-path hallucinated-permission diagnostic that rode the
+same artifact is gone, the vet path unchanged), 06 (the DRY
+port-column derivation works).
+
 ## Unreleased — template-clone isolation (ADR-005)
 
 Both implementations. The language review's finding B

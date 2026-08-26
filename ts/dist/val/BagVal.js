@@ -33,10 +33,24 @@ class BagVal extends FeatureVal_1.FeatureVal {
         // schema field arriving through an include's map meet into a
         // bogus `mapval_spread_required` naming a spread that exists in
         // neither file. The bag's gen already skips marked children.
-        if (val.isGenable || val.mark.type || val.mark.hide) {
+        //
+        // An OPERATOR is carried too (BUGS.md §36): an expression is a
+        // computation that resolves by itself once its operands do — the
+        // bag's own-key loop drives it every pass — so `m:{y:.x+1}`
+        // arriving as a peer key must keep computing exactly as it does
+        // written inline. Wrapping it froze the op (an expectation only
+        // advances when a peer arrives) and the residue then reported the
+        // phantom `mapval_spread_required` naming a spread that exists
+        // nowhere. An op that truly never resolves is honest *_no_gen
+        // residue naming the expression itself.
+        if (val.isGenable || val.isOp || val.mark.type || val.mark.hide) {
             return val;
         }
-        const expectVal = new ExpectVal_1.ExpectVal({ peg: val }, ctx);
+        // An expectation baked into a combined spread template (the
+        // 'map-self' meet of two unequal templates) is re-wrapped FRESH, so
+        // key/parent name THIS bag and the template's own node is never
+        // stored at a destination.
+        const expectVal = new ExpectVal_1.ExpectVal({ peg: val.isExpect ? val.peg : val }, ctx);
         expectVal.key = key;
         expectVal.parent = parent;
         return expectVal;

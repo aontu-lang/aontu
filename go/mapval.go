@@ -661,11 +661,12 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 				bad = makeNilErr(ctx, "closed", pc, nil)
 			}
 			pkslot := append(cp(dbase), pk)
+			_, pcIsOp := pc.(*PlusOpVal)
 			var uv Val
 			if ex, ok := out.peg[pk]; ok {
 				ctx.slot = pkslot
 				uv = unite(ctx, ex, pc)
-			} else if !expectGenable(pc) && !pc.markedType() && !pc.markedHide() {
+			} else if !expectGenable(pc) && !pcIsOp && !pc.markedType() && !pc.markedHide() {
 				// A MARKED value is carried, never expected (the second
 				// guard; ADR-005 era, BUGS.md §12's include form): a
 				// type()/hide()-marked child legitimately participates in
@@ -676,13 +677,30 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 				// that exists in neither file. The bag's Gen already
 				// skips marked children. Mirrors handleExpectedVal in
 				// ts/src/val/BagVal.ts.
+				// An OPERATOR is carried too (the pcIsOp guard; BUGS.md
+				// §36): an expression resolves by itself once its
+				// operands do — the own-key loop drives it every pass —
+				// so `m:{y:.x+1}` arriving as a peer key keeps computing
+				// exactly as it does written inline. Wrapping it froze
+				// the op and the residue reported a phantom
+				// mapval_spread_required naming a spread that exists
+				// nowhere. Mirrors handleExpectedVal in
+				// ts/src/val/BagVal.ts.
 				// TS handleExpectedVal: a peer key whose value cannot
 				// generate on its own (a kind, top, a var, a constraint —
 				// typically a spread template field) is wrapped, so the
 				// bag's Gen can distinguish spread-required residue from
 				// ordinary *_no_gen (issue #27). Not united with TOP: the
 				// wrap must hold the raw expectation, exactly as in TS.
-				uv = &ExpectVal{peg: pc, parent: m, key: pk}
+				// An expectation baked into a combined spread template
+				// (the spread-combination meet above) is re-wrapped
+				// FRESH, so key/parent name THIS bag and the template's
+				// own node is never stored at a destination.
+				peg := pc
+				if ev, isex := pc.(*ExpectVal); isex {
+					peg = ev.peg
+				}
+				uv = &ExpectVal{peg: peg, parent: m, key: pk}
 			} else {
 				ctx.slot = pkslot
 				uv = unite(ctx, pc, top())

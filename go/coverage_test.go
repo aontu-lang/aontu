@@ -552,12 +552,19 @@ func TestExpectSecondPeer(t *testing.T) {
 	e := &ExpectVal{peg: newScalarKind(KindInteger)}
 	ctx := &Ctx{root: newMap()}
 	out1 := e.Unify(newScalarKind(KindNumber), ctx)
-	if out1 != Val(e) {
-		t.Fatalf("kind peer must not escape")
+	// Unify is PURE (the unequal-spread crosswire, BUGS.md §6-§7): a
+	// non-escaping peer rides a NEW expectation while the met node —
+	// possibly a shared spread template's child — stays untouched.
+	e1, ok := out1.(*ExpectVal)
+	if !ok || e1 == e || e1.peer == nil {
+		t.Fatalf("kind peer must not escape, and its state must ride a new node: %v", out1.Canon())
 	}
-	out2 := e.Unify(newInteger(7), ctx)
+	if e.peer != nil {
+		t.Fatalf("the met expectation itself must stay untouched (shared-template safety)")
+	}
+	out2 := e1.Unify(newInteger(7), ctx)
 	if sv, ok := out2.(*ScalarVal); !ok || sv.peg.(int64) != 7 {
-		t.Fatalf("second, concrete peer must escape: %v", out2.Canon())
+		t.Fatalf("second, concrete peer must escape through the carried node: %v", out2.Canon())
 	}
 }
 

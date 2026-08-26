@@ -213,3 +213,10 @@ vet-minted-concat-operand-unsited	vet	a: string	a: "x"+"y"\n"a": "z"\n	{"finding
 # post-gate advisory reading -- see ts/src/vet.ts). Parity-probed.
 vet-enum-default-refuses-nonmember	vet	k:*'auto'|'literal'|'data'	k:'autoo'	{"findings":[{"class":"conflict","code":"|:empty","path":"$.k","severity":"error","sites":[{"col":3,"file":"data","len":7,"role":"data","row":1,"src":"'autoo'","value":"\\"autoo\\""},{"col":-1,"file":"schema","len":-1,"role":"schema","row":-1,"src":"","value":"*\\"auto\\"|\\"literal\\"|\\"data\\""}]},{"class":"compat","code":"pref_not_instance","path":"$.k","severity":"warning","sites":[{"col":4,"file":"schema","len":6,"role":"schema","row":1,"src":"'auto'","value":"\\"auto\\""}]}],"truncated":false,"verdict":"invalid"}
 vet-enum-default-admits-member	vet	k:*'auto'|'literal'|'data'	k:'literal'	{"findings":[{"class":"compat","code":"pref_not_instance","path":"$.k","severity":"warning","sites":[{"col":4,"file":"schema","len":6,"role":"schema","row":1,"src":"'auto'","value":"\\"auto\\""}]}],"truncated":false,"verdict":"valid"}
+
+# Two unequal cross-statement spreads addressing one map at DIFFERENT
+# depths (2026-08-26, the spread application rework; BUGS.md sec 7's
+# vet form): vetting data that satisfies both templates is VALID --
+# the historic crosswire reported one sibling's own value conflicting
+# with another sibling's. Parity-probed.
+vet-unequal-spread-depths	vet	a:&:{w:&:{p:integer}}\na:prod:w:&:{r:integer}	{"a":{"prod":{"w":{"x":{"p":1,"r":5},"y":{"p":2,"r":6}}}}}	{"findings":[],"truncated":false,"verdict":"valid"}
