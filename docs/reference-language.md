@@ -453,21 +453,52 @@ a:*1|number  a:2     → {"a":2}              (override beats default)
 Defaults propagate through nesting and spreads. `pref(x)` is the
 function form of `*x` (canon `*x`). Preferences can be ranked (a `*` of a
 `*` outranks a single `*`); the lowest rank wins when two preferred
-values meet.
+values meet. A ranked preference meets its peers exactly as rank 1
+does — the **rank-uniform meet** (ADR-004): `a:**1.5 & float` is `1.5`
+just as `a:*1.5 & float` is, and `**2|integer` met by a bare `integer`
+keeps its default.
 
-Overriding a **scalar** default is judged by *kind*, not by family: a
-concrete peer replaces the default only where it is the same kind of
-thing. A peer of another kind is a conflict, and that includes the other
-numeric leaf — `a:*2 & 3.0` and `a:*2.2 & 3` are both errors, as is
-`a:*1.5 & integer`. A kind peer the default already satisfies leaves the
+Overriding a **scalar** default is judged in two steps.
+
+**A bare preference is gated by kind**, not by family: a concrete peer
+replaces the default only where it is the same kind of thing. A peer of
+another kind is a conflict, and that includes the other numeric leaf —
+`a:*2 & 3.0` and `a:*2.2 & 3` are both errors, as is `a:*1.5 &
+integer`. A kind peer the default already satisfies leaves the
 preference standing (`a:*1.5 & float` and `a:*1.5 & number` are both
 `1.5`).
 
+**A preference inside a disjunction is gated by admission**
+(ADR-004): an override must be admitted by the disjunction itself —
+by at least one alternative, or by the preferred value. A preferred
+branch contributes exactly its own value to the admitted set, so
+`*'auto' | 'literal' | 'data'` is a true **enum with a default**:
+unset generates `"auto"`, `'literal'` and `'data'` override, and
+anything else is the empty disjunction (`[aontu/|:empty]`). A wider
+alternative admits a wider override (`*8080 | integer` accepts any
+integer), and a constraint alternative is consulted rather than
+bypassed (`*8080 | (integer & min(1024) & max(65535))` refuses `80`
+and accepts `2048`; `*8080 | (integer & neq(80))` refuses `80`). A
+deliberately open default states its openness: `*x | top` admits every
+override. The gate covers scalar preferred values — the same boundary
+as the kind gate below.
+
 ```
-a:*8080|integer  a:9090  → {"a":9090}     (same leaf: override)
+a:*8080|integer  a:9090  → {"a":9090}     (same leaf: an alternative admits it)
 a:*8080|integer  a:1.5   → refused        (other leaf: [aontu/|:empty])
 a:*8080|number   a:1.5   → {"a":1.5}      (the branch admits the family)
+k:*'auto'|'literal'|'data'  k:'autoo' → refused   (no alternative admits it)
+port:*8080|(integer&neq(80))  port:80 → refused   (the exclusion is consulted)
+x:*8080|string   x:8080  → {"x":8080}     (the preferred value admits itself)
 ```
+
+**This is a breaking change** (2026-08-26, ADR-004). Before it, a
+same-kind concrete peer replaced the preferred value with the other
+alternatives never consulted, so `k:*'auto'|'literal'|'data'` +
+`k:'autoo'` answered `"autoo"` with exit 0 — the fail-open enum of the
+2026-08 language review (use-cases/REVIEW.md finding A). A document
+that leaned on the open override keeps its meaning by writing the open
+branch explicitly: `*x | top`.
 
 **A structural default is not gated.** The yardstick is the preferred
 value's `superior()`, and a map or a list has none — it is `top` — so
@@ -617,6 +648,18 @@ patterns that were tried, not an empty answer — a default is how a
 document says the rest was meant to be allowed. An unselected result
 is never evaluated, so a broken arm nobody takes is not an error the
 document has to carry.
+
+**A defaulted scrutinee matches as the value it generates** (ADR-004).
+A settled scrutinee that carries an effective default — a preference,
+or a disjunction holding one — is tested as the innermost preferred
+value, not as the still-open preference. So with
+`side_effect: *readonly | write | destructive`, the derivation
+`match(.side_effect, destructive, true, false)` answers `false` when
+`side_effect` is unset (the effective value is `"readonly"`), and
+`true` only when it is genuinely `destructive`. Before this rule a
+pattern could *select* an arm by overriding the default, deriving a
+value that contradicted the one generated beside it. A pref-free open
+disjunction still matches by plain unifiability.
 
 Both wait for the model to settle before they answer, for the reason
 `pack` and `each` do: a bag that is still being merged into is the
@@ -1146,11 +1189,14 @@ except `'none'`, which denies every include by definition. It is
 Two things about it are worth knowing, because they are the language
 rather than the vocabulary:
 
-- **A preferred member does not close a disjunction.** `direction:
-  *in | out | inout` supplies a default, and still admits any other
-  string. Closing the set costs the default (`in | out | inout` refuses
-  anything else, and generates nothing on its own). The vocabulary
-  chooses the default.
+- **A preferred member is one enum member, with the default role.**
+  `direction: *in | out | inout` is a true enum-with-default under the
+  admission gate (ADR-004): unset generates `in`, `out` and `inout`
+  override, and any other value is refused (`[aontu/|:empty]`). It
+  used to be otherwise — the preference held the disjunction open and
+  any other string was admitted — which is exactly the fail-open
+  default the 2026-08 language review retired. A vocabulary that wants
+  an open field says so with a `| top` (or `| string`) branch.
 - **`Service` is written out rather than as `$.std.Component & {kind:
   service}`.** A reference from one member of an included file to
   another does not survive the include, so each schema states itself;
@@ -1562,16 +1608,20 @@ The `at` option anchors both documents at one path before comparing
 
 ### Default validity
 
-The relation also powers a lint the engine itself cannot express: a
-disjunction's effective default must be an instance of some remaining
-alternative. `level: *wran | info | warn | debug` unifies cleanly and
-GENERATES `{"level":"wran"}` — the schema ships a default its own
-disjunct refuses. The validation verb reports it as a
-`pref_not_instance` finding at severity `warning` (class `compat`).
-A warning, not an error, deliberately: existing documents may lean on
-today's generation behaviour, so promoting the warning to an error is
-itself a breaking change — sequenced through the `breaking` gate like
-any other, not taken silently.
+The relation also powers an advisory lint: the validation verb reports
+a `pref_not_instance` finding (severity `warning`, class `compat`)
+when a disjunction's effective default is not an instance of any
+**remaining** alternative. Under the admission gate (ADR-004) this is
+no longer a soundness hole — the preferred branch contributes its own
+value to the admitted set, so `level: *wran | info | warn | debug` is
+a well-defined enum `{wran, info, warn, debug}` defaulting to `wran` —
+but that spelling is also exactly the shape of a *typo'd* default
+(`*warn` was probably meant), which nothing at meet time can
+distinguish. The warning flags the boundary: a default drawn from the
+written alternatives (`*8080 | integer`) is silent, a default that
+widens them is worth a look. Repeating the branch
+(`*warn | warn | error`) states "the default is a first-class member",
+silences the lint, and enforces the same admitted set.
 
 Failures surface as messages (thrown as `AontuError` in TS, returned as
 `error` in Go):
@@ -1648,7 +1698,11 @@ distinguishable.
 > parity probing) as each implementation phase lands. Known phase-1
 > limit: a preference meeting a constraint in a CONJUNCT
 > (`min(1024) & *8080`) does not yet resolve to the default — use the
-> disjunct form (`*8080 | min(1024)`) today.
+> disjunct form (`*8080 | (integer & min(1024))`) today. Under the
+> admission gate (ADR-004) the disjunct form also ENFORCES on
+> override: an out-of-bound peer is refused rather than silently
+> bypassing the constraint branch, so the recommended spelling now
+> both defaults and validates.
 
 ### Vocabulary
 

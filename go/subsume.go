@@ -128,8 +128,15 @@ func subAdmission(v Val) Val {
 // has-one, indeterminate). Equal-rank preferences that disagree are
 // indeterminate — the engine itself refuses them only at generation.
 func subEffectiveDefault(v Val) (Val, bool, bool) {
+	// EVERY pref layer is unwrapped (prefInnerPeg), not just one: a
+	// ranked default's effective value is the innermost peg (the
+	// rank-uniform meet, ADR-004). The one-layer unwrap left a rank-2
+	// default wearing a `*`-wrapper no plain alternative subsumes --
+	// the pref_not_instance lint's ranked false positive of
+	// use-cases/BUGS.md §4. Mirrors effectiveDefault in
+	// ts/src/subsume.ts.
 	if p, ok := v.(*PrefVal); ok {
-		return p.peg, true, false
+		return prefInnerPeg(p), true, false
 	}
 	if d, ok := v.(*DisjunctVal); ok {
 		var prefs []*PrefVal
@@ -155,10 +162,10 @@ func subEffectiveDefault(v Val) (Val, bool, bool) {
 				continue
 			}
 			if nil == first {
-				first = p.peg
+				first = prefInnerPeg(p)
 				continue
 			}
-			if !valSame(first, p.peg) {
+			if !valSame(first, prefInnerPeg(p)) {
 				return nil, true, true
 			}
 		}

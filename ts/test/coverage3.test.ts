@@ -64,6 +64,7 @@ import { VarVal } from '../dist/val/VarVal'
 import { ConjunctVal } from '../dist/val/ConjunctVal'
 import { DisjunctVal } from '../dist/val/DisjunctVal'
 import { PrefVal } from '../dist/val/PrefVal'
+import { effectiveScrutinee } from '../dist/val/MatchFuncVal'
 import { ExpectVal } from '../dist/val/ExpectVal'
 import { FeatureVal } from '../dist/val/FeatureVal'
 import { FuncBaseVal } from '../dist/val/FuncBaseVal'
@@ -1316,6 +1317,40 @@ describe('coverage3-staging', () => {
 
     // ctx.settle is false, so this is the residuation path.
     Assert.strictEqual(key.unify(nil, ctx), nil)
+  })
+
+  test('nil-absorbs-a-unify', () => {
+    // NilVal.unify answers itself: a nil is absorbing, by definition.
+    // The dispatcher (unite) short-circuits on isNil before dispatching,
+    // so the method is reached only by a direct call — it used to be
+    // reached through DisjunctVal returning a lone trial sentinel as
+    // its result, a hole ADR-004's admission gate closed (a lone failed
+    // member is now the |:empty refusal) — and the Val contract is
+    // pinned here instead (ADR-002).
+    const a0 = new Aontu()
+    const ctx: any = a0.ctx({})
+    const nil: any = new NilVal({ why: 'test-absorb' }, ctx)
+    Assert.strictEqual(nil.unify(top(), ctx), nil)
+  })
+
+  test('defaulted-scrutinee-multi-pref-min-rank', () => {
+    // The defensive min-rank scan in effectiveScrutinee (ADR-004, the
+    // defaulted-scrutinee rule): rankPrefs leaves a SETTLED disjunct
+    // at most one pref, so a document cannot reach a two-pref
+    // scrutinee — the arm is pinned here (ADR-002), in both member
+    // orders so both sides of the rank comparison run. The effective
+    // value is the innermost peg of the LOWEST rank, matching
+    // generation (`a:**1|*2` generates 2 — test/spec/edge.tsv).
+    const rank2 = new PrefVal({
+      peg: new PrefVal({ peg: new IntegerVal({ peg: 1 }) }),
+    })
+    const rank1 = new PrefVal({ peg: new IntegerVal({ peg: 2 }) })
+
+    const d1: any = new DisjunctVal({ peg: [rank2, rank1] })
+    Assert.strictEqual((effectiveScrutinee(d1) as any).peg, 2)
+
+    const d2: any = new DisjunctVal({ peg: [rank1, rank2] })
+    Assert.strictEqual((effectiveScrutinee(d2) as any).peg, 2)
   })
 
 })

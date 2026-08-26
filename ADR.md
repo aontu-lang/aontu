@@ -20,6 +20,7 @@ ADR-NNN**, so the reasoning that led there stays readable.
 | [ADR-001](#adr-001--typescript-and-go-stay-at-full-parity-driven-by-a-shared-spec) | TypeScript and Go stay at full parity, driven by a shared spec | Accepted |
 | [ADR-002](#adr-002--test-coverage-stays-at-100--in-both-implementations) | Test coverage stays at 100 % in both implementations | Accepted |
 | [ADR-003](#adr-003--host-provided-semantics-are-normalised-not-trusted) | Host-provided semantics are normalised, not trusted | Accepted |
+| [ADR-004](#adr-004--a-preference-override-must-be-admitted-by-its-disjunction) | A preference override must be admitted by its disjunction | Accepted |
 
 ---
 
@@ -316,3 +317,86 @@ See [`docs/reference-language.md`](docs/reference-language.md#re-and-the-portabl
 for the author-facing subset, and
 [`docs/trust.md`](docs/trust.md#clause-2--termination) for the
 termination consequence.
+
+---
+
+## ADR-004 — A preference override must be admitted by its disjunction
+
+**Status:** Accepted (2026-08-26)
+
+### Context
+
+`*x` is a default, and the single most common schema pattern in
+existence is "one of A|B|C, default A". Until this decision, aontu had
+no on-field spelling for it: a same-kind concrete peer replaced a
+preferred value *without consulting the disjunction's other
+alternatives*, so `k: *'auto'|'literal'|'data'` met by `k: 'autoo'`
+answered `"autoo"` with exit 0, and `port: *8080 | (integer & neq(80))`
+met by `port: 80` bypassed an alternative that *explicitly excludes*
+the override. The 2026-08 language review
+([use-cases/REVIEW.md](use-cases/REVIEW.md), finding A;
+[use-cases/BUGS.md](use-cases/BUGS.md) §1–5) verified the consequence
+across five forms and across all four production consumers: every one
+had independently concluded literal disjunctions cannot be used, and
+kept enums in strings, downstream code, or prose. A `*` that widens
+the admitted set to its whole kind is not a default in the sense any
+user of any config system understands the word.
+
+Two adjacent defects share the root. A rank≥2 preference read its
+override gate from its immediate peg — itself a preference, whose
+superior is top — so ANY conjunct silently swallowed a ranked default
+(`**1.5 & float` was an error; `**2|integer` met by `integer` lost the
+default). And `match()` tested its patterns against the still-open
+preference, so a pattern could *select an arm by overriding the
+default*, deriving a value that contradicted the value generated
+beside it.
+
+### Decision
+
+**A peer that meets a scalar preference inside a disjunction must be
+admitted by the disjunction itself: by at least one alternative, or by
+the preferred value (the preferred branch's own admitted set). An
+inadmissible override makes the meet the empty disjunction — the
+existing `|:empty` refusal.** With it, two companion rules:
+
+1. **The rank-uniform meet.** A preference of any rank defends the
+   *innermost* preferred value's kind: `**1.5` gates exactly as `*1.5`
+   does. One rule, every rank.
+2. **The defaulted scrutinee.** `match()` on a settled scrutinee that
+   carries an effective default tests patterns against the
+   generation-effective value — the value the document will actually
+   emit — never against the open preference.
+
+The bare-preference kind gate is unchanged (`a:*1` + `a:2` is 2,
+`a:*1` + `a:"s"` is refused), and structural defaults stay ungated,
+the same boundary the kind gate always had.
+
+### Consequences
+
+- **This is a breaking language change**, taken deliberately.
+  `*'auto'|'literal'|'data'` now means what every consumer already
+  believed it means. The one known idiom that leaned on the open
+  override — apidef's machine-emitted `*(x)|top` — keeps its meaning
+  *because* of the gate's shape: the `top` branch admits every
+  override, so a deliberately open default states its openness
+  explicitly (`*x | top`).
+- **The `pref_not_instance` lint becomes advisory.** The soundness
+  hole it guarded (a generated default the disjunct itself refuses) no
+  longer exists; it now marks a default that is admitted only by being
+  the default — the shape of a typo — and its sanctioned fix (repeat
+  the branch) now genuinely enforces. See the decision note in
+  `ts/src/vet.ts`.
+- **The bundled `std/system` vocabulary tightens.**
+  `direction: *in|out|inout` is a true enum-with-default; `sideways`
+  is now refused.
+- **Enforced by the shared spec** (ADR-001 discipline): the
+  `pref-admit-*` rows in `test/spec/pref.tsv`, the flipped
+  `pref-nested-concrete-wins` and `pref-rank2-*` rows there, the
+  flipped `port-direction-refuses-nonmember` row in
+  `test/spec/std-system.tsv`, the `vet-enum-default-*` rows in
+  `test/spec/vet.tsv`, and the `match-defaulted-scrutinee-*` rows in
+  `test/spec/gen-match.tsv` — every expectation parity-probed in both
+  engines.
+
+See [`docs/reference-language.md`](docs/reference-language.md#preference--default-)
+for the author-facing rules.

@@ -46,6 +46,8 @@ func (d *DisjunctVal) Unify(peer Val, ctx *Ctx) Val {
 	}
 
 	done := true
+	var gate []int
+	_, peerIsPref := peer.(*PrefVal)
 	oval := make([]Val, len(d.peg))
 	for i, m := range d.peg {
 		// Try the member against peer in isolation: a failed trial
@@ -64,6 +66,59 @@ func (d *DisjunctVal) Unify(peer Val, ctx *Ctx) Val {
 			oval[i] = r
 			if r.Dc() != DONE {
 				done = false
+			}
+			if pm, ok := m.(*PrefVal); ok && !peerIsPref && !isTop(peer) {
+				if _, sc := prefInnerPeg(pm).(*ScalarVal); sc {
+					// A candidate for the admission gate below: a
+					// non-pref, non-top peer met a scalar preference
+					// inside this disjunction.
+					gate = append(gate, i)
+				}
+			}
+		}
+	}
+
+	// THE ADMISSION GATE (ADR-004). A peer that meets a preference
+	// INSIDE a disjunction must be admitted by the disjunction: by some
+	// sibling alternative (whose own trial above already answers that),
+	// or by the preferred value itself (the pref branch's own admitted
+	// set). The pref's kind gate alone used to decide, so a same-kind
+	// concrete peer replaced the default with the alternatives never
+	// consulted -- `k:*'auto'|'literal'|'data'` plus `k:'autoo'`
+	// answered "autoo", and `*8080|(integer&neq(80))` admitted 80
+	// (use-cases/BUGS.md §1-2). An inadmissible override now fails the
+	// pref member's trial, and when every member is gone the meet is
+	// the existing `|:empty` refusal.
+	//
+	// SCALAR preferred values only, exactly the kind gate's own
+	// boundary (test/spec/pref.tsv, "THE GATE IS A SCALAR GATE"): a
+	// structural or kind-peg default stays ungated. A deliberately open
+	// default remains spellable as `*x|top` -- the top branch admits
+	// every override. Mirrors DisjunctVal.unify in
+	// ts/src/val/DisjunctVal.ts.
+	for _, gI := range gate {
+		admitted := false
+		for kI := range oval {
+			// Sibling alternatives only: a pref member cannot admit its
+			// own override (post-rankPrefs at most one pref stands at
+			// this level, so this is defensive).
+			if kI == gI || nil == oval[kI] {
+				continue
+			}
+			if _, kPref := d.peg[kI].(*PrefVal); kPref {
+				continue
+			}
+			admitted = true
+			break
+		}
+		if !admitted {
+			// The trial is against a CLONE: the preferred value must
+			// stay pristine for the surviving preference (the matchFunc
+			// precedent in generate.go).
+			inner := prefInnerPeg(d.peg[gI].(*PrefVal))
+			ctx.slot = slot
+			if nil == trialUnify(ctx, clonePath(inner, cp(d.path)), peer) {
+				oval[gI] = nil
 			}
 		}
 	}

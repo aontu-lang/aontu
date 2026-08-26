@@ -95,7 +95,13 @@ spread-surplus-refused	subsume	a:{&:integer}	a:{&:string,y:hello}	{"findings":[{
 spread-path-dependent	subsume	floor:3 a:{&:min($.floor)}	a:{x:5}	{"findings":[{"actual":"{\\"a\\":{\\"x\\":5}}","class":"compat","code":"compat_required_added","expected":"3","path":"$.floor","severity":"error","sites":[{"col":7,"file":"general","len":1,"role":"general","row":1,"src":"3","value":"3"},{"col":1,"file":"specific","len":1,"role":"specific","row":1,"src":"a","value":"{\\"a\\":{\\"x\\":5}}"}]},{"actual":"{\\"x\\":5}","class":"compat","code":"sub_path_dependent_spread","expected":"min($.floor)","path":"$.a","severity":"error","sites":[{"col":14,"file":"general","len":3,"role":"general","row":1,"src":"min","value":"min($.floor)"},{"col":3,"file":"specific","len":1,"role":"specific","row":1,"src":"{","value":"{\\"x\\":5}"}]}],"verdict":"does_not_subsume"}
 default-nested-changed	subsume	a:{p:*1|number}	a:{p:*2|number}	{"findings":[{"actual":"*2|number","class":"compat","code":"compat_default_changed","expected":"*1|number","path":"$.a.p","severity":"error","sites":[{"col":-1,"file":"general","len":-1,"role":"general","row":-1,"src":"","value":"*1|number"},{"col":-1,"file":"specific","len":-1,"role":"specific","row":-1,"src":"","value":"*2|number"}]}],"verdict":"does_not_subsume"}
 default-indeterminate	subsume	a:top	a:*1|string|*x	{"findings":[{"actual":"*1|string|*\\"x\\"","class":"compat","code":"sub_default_indeterminate","expected":"top","path":"$.a","severity":"error","sites":[{"col":3,"file":"general","len":3,"role":"general","row":1,"src":"top","value":"top"},{"col":-1,"file":"specific","len":-1,"role":"specific","row":-1,"src":"","value":"*1|string|*\\"x\\""}]}],"verdict":"undecided"}
-default-rank-min	subsume	a:(*2|number)|string	a:*2|string|**x	{"findings":[{"actual":"**\\"x\\"","class":"compat","code":"sub_disjunct_distribution","expected":"*2|number|string","path":"$.a","severity":"error","sites":[{"col":-1,"file":"general","len":-1,"role":"general","row":-1,"src":"","value":"*2|number|string"},{"col":3,"file":"specific","len":1,"role":"specific","row":1,"src":"*","value":"**\\"x\\""}]}],"verdict":"undecided"}
+# FLIPPED 2026-08-26 by the rank-uniform meet (ADR-004): `**x` now
+# defends its innermost value's kind, so its admission view is `string`
+# rather than top -- which the general side's own `string` member
+# subsumes, and the effective defaults (both 2, min rank wins) agree.
+# The old `undecided`/sub_disjunct_distribution answer came from the
+# ungated rank-2 pref presenting as top. Parity-probed.
+default-rank-min	subsume	a:(*2|number)|string	a:*2|string|**x	{"findings":[],"verdict":"subsumes"}
 default-agree	subsume	a:(*1|number)|string	a:(*1|number)|(*1|string)	{"findings":[],"verdict":"subsumes"}
 default-indeterminate-general	subsume	a:*1|string|*x	a:*2|string	{"findings":[{"actual":"*2|string","class":"compat","code":"sub_default_indeterminate","expected":"*1|string|*\\"x\\"","path":"$.a","severity":"error","sites":[{"col":-1,"file":"general","len":-1,"role":"general","row":-1,"src":"","value":"*1|string|*\\"x\\""},{"col":-1,"file":"specific","len":-1,"role":"specific","row":-1,"src":"","value":"*2|string"}]}],"verdict":"undecided"}
 bare-pref-changed	subsume	a:*1	a:*2	{"findings":[{"actual":"*2","class":"compat","code":"compat_default_changed","expected":"*1","path":"$.a","severity":"error","sites":[{"col":3,"file":"general","len":1,"role":"general","row":1,"src":"*","value":"*1"},{"col":3,"file":"specific","len":1,"role":"specific","row":1,"src":"*","value":"*2"}]}],"verdict":"does_not_subsume"}
@@ -124,14 +130,23 @@ default-rank-mixed	subsume	a:*x|string	a:**1|string|*x	{"findings":[{"actual":"*
 map-witness	subsume	a:{x:1}|{x:2}	a:{x:3}	{"findings":[{"actual":"{\\"x\\":3}","class":"compat","code":"compat_narrowed","expected":"{\\"x\\":1}|{\\"x\\":2}","path":"$.a","severity":"error","sites":[{"col":-1,"file":"general","len":-1,"role":"general","row":-1,"src":"","value":"{\\"x\\":1}|{\\"x\\":2}"},{"col":3,"file":"specific","len":1,"role":"specific","row":1,"src":"{","value":"{\\"x\\":3}"}]}],"verdict":"does_not_subsume"}
 disj-list-nonconcrete	subsume	a:[1]|[2]	a:[integer]	{"findings":[{"actual":"[integer]","class":"compat","code":"sub_disjunct_distribution","expected":"[1]|[2]","path":"$.a","severity":"error","sites":[{"col":-1,"file":"general","len":-1,"role":"general","row":-1,"src":"","value":"[1]|[2]"},{"col":3,"file":"specific","len":1,"role":"specific","row":1,"src":"[","value":"[integer]"}]}],"verdict":"undecided"}
 
-# The default-validity lint (G3 phase 5, `pref_not_instance`): a
-# disjunction whose effective default no remaining alternative admits
-# ships an invalid value to every consumer leaning on it. A vet
-# WARNING for now: the engine still generates the bad default, and
-# promoting the warning to an error is itself a breaking change,
-# sequenced through the `breaking` gate. Parity-probed like every row
-# above.
+# The default-validity lint (G3 phase 5, `pref_not_instance`;
+# re-examined 2026-08-26 under the admission gate, ADR-004): warn when
+# a disjunction's effective default is not an instance of any REMAINING
+# alternative. Post-gate this is ADVISORY, not a soundness hole -- the
+# preferred branch now contributes exactly its own value to the
+# admitted set, so the default is always admitted -- but it is also the
+# exact shape of a typo'd default (`*wran|info|warn|debug`), which
+# nothing at meet time can catch; the repeated-branch spelling
+# (`*warn|warn|...`) both silences it and (unlike pre-gate) enforces
+# the same admitted set. See the decision note in ts/src/vet.ts.
+# Parity-probed like every row above.
 pref-lint-fires	vet	a:*5|string	a:ok	{"findings":[{"class":"compat","code":"pref_not_instance","path":"$.a","severity":"warning","sites":[{"col":4,"file":"schema","len":1,"role":"schema","row":1,"src":"5","value":"5"}]}],"truncated":false,"verdict":"valid"}
 pref-lint-clean	vet	a:*8080|integer	a:1	{"findings":[],"truncated":false,"verdict":"valid"}
 pref-lint-typo-default	vet	level:*wran|info|warn|debug	level:info	{"findings":[{"class":"compat","code":"pref_not_instance","path":"$.level","severity":"warning","sites":[{"col":8,"file":"schema","len":4,"role":"schema","row":1,"src":"wran","value":"\\"wran\\""}]}],"truncated":false,"verdict":"valid"}
 pref-lint-nested	vet	b:{p:*x|integer}	b:{p:1}	{"findings":[{"class":"compat","code":"pref_not_instance","path":"$.b.p","severity":"warning","sites":[{"col":7,"file":"schema","len":1,"role":"schema","row":1,"src":"x","value":"\\"x\\""}]}],"truncated":false,"verdict":"valid"}
+# A RANKED default is unwrapped fully (`**member` -> "member", an
+# instance of the repeated plain branch): the one-layer unwrap left a
+# `*`-wrapper no plain member subsumes, and the lint fired on its own
+# sanctioned fix (use-cases/BUGS.md §4, fixed 2026-08-26).
+pref-lint-ranked-clean	vet	role: **member | member | admin | owner	role: admin	{"findings":[],"truncated":false,"verdict":"valid"}

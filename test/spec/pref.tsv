@@ -12,7 +12,30 @@ pref-disjunct-fold-canon	canon	a:*{x:1} | *{y:2}	{"a":*{"x":1,"y":2}}
 pref-top-dropped	gen	K:*top	{}
 pref-top-dropped-canon	canon	K:*top	{"K":*top}
 pref-top-list-dropped	gen	l:[*top]	{"l":[]}
-pref-nested-concrete-wins	gen	k1:**hello&false	{"k1":false}
+# FLIPPED by the rank-uniform meet (ADR-004; was pref-nested-concrete-wins,
+# expecting `false`): a rank>=2 preference now defends the INNERMOST
+# value's kind exactly as rank 1 does, so `**hello & false` is the same
+# kind conflict `*hello & false` always was. The old expectation pinned
+# the inconsistency of use-cases/BUGS.md §3 (a bare conjunct silently
+# swallowing a ranked default). Parity-probed 2026-08-26.
+pref-nested-concrete-wins	errc	k1:**hello&false	no_scalar_unify
+# ... and the rank-uniform meet KEEPS a ranked default a kind conjunct
+# or kind alternative merely re-states (BUGS.md §3's other half:
+# `**1.5 & float` was mapval_no_gen, `**2|integer` met by `integer`
+# lost the default). The preference stands AS ITSELF, rank intact --
+# the canon shows the surviving `**` -- so the layered-defaults ladder
+# (***org / **env / *tenant) keeps its arbitration and the default
+# stays overridable after the kind meet. Canon rows because gen cannot
+# see the preference.
+pref-rank2-conjunct-kind-keeps-default	gen	a:**1.5 & float	{"a":1.5}
+pref-rank2-conjunct-kind-keeps-default-canon	canon	a:**1.5 & float	{"a":**1.5}
+pref-rank2-disjunct-kind-keeps-default	gen	b:**2|integer\nb:integer	{"b":2}
+pref-rank2-disjunct-kind-keeps-default-canon	canon	b:**2|integer\nb:integer	{"b":**2|integer}
+# Standing is non-destructive at rank 1 too: the kind meet leaves the
+# preference in place (canon `*1.5`, not the bare peg), so a later
+# same-kind concrete peer still overrides it.
+pref-rank1-kind-standing-canon	canon	x:*1.5 & float	{"x":*1.5}
+pref-rank1-kind-standing-still-overridable	gen	x:*1.5 & float\nx:2.5	{"x":2.5}
 pref-dangling-err	err	y:[*]	Cannot resolve value
 pref-disjunct-rank	gen	x:pref(*1e3|hello)	{"x":"hello"}
 pref-disjunct-rank-canon	canon	x:pref(*1e3|hello)	{"x":**1000|*"hello"}
@@ -65,6 +88,34 @@ pref-struct-list-default-yields-number	gens	a:*[1]\na:5	{"a":5}
 # default DOES refuse a map, which is the gate doing its work.
 pref-scalar-default-refuses-map	errc	a:*1\na:{x:2}	not-scalar-type
 pref-override-ref-clone-gens	gens	x:*1 y:$.x&2	{"x":1,"y":2}
+# THE ADMISSION GATE (ADR-004, 2026-08-26). A peer that meets a scalar
+# preference INSIDE a disjunction must be admitted by the disjunction:
+# by some sibling alternative, or by the preferred value itself. The
+# old rule let the pref's kind gate alone decide, so a same-kind
+# concrete peer replaced the default with the alternatives never
+# consulted -- `k:*'auto'|'literal'|'data'` + `k:'autoo'` answered
+# "autoo" with exit 0 (use-cases/BUGS.md §1), and a constraint branch
+# that EXCLUDED the override (`*8080|(integer&neq(80))` + 80) was
+# bypassed (§2). `*A|B|C` is now the enum-with-default every consumer
+# already believed it was: unset generates A, members override, a
+# non-member is the `|:empty` refusal. The deliberately-open default
+# keeps its spelling: `*x|top` admits every override (the apidef
+# machine-emitted `*(x)|top` idiom). Structural and kind-peg defaults
+# stay ungated (the scalar-gate boundary above). All rows parity-probed.
+pref-admit-enum-nonmember-refused	errc	k:*'auto'|'literal'|'data'\nk:'autoo'	|:empty
+pref-admit-enum-member-overrides	gen	k:*'auto'|'literal'|'data'\nk:'literal'	{"k":"literal"}
+pref-admit-enum-default	gen	k:*'auto'|'literal'|'data'	{"k":"auto"}
+pref-admit-constraint-branch-refuses	errc	port:*8080|(integer&min(1024)&max(65535))\nport:80	|:empty
+pref-admit-constraint-branch-admits	gen	port:*8080|(integer&min(1024)&max(65535))\nport:2048	{"port":2048}
+pref-admit-constraint-branch-default	gen	port:*8080|(integer&min(1024)&max(65535))	{"port":8080}
+pref-admit-neq-branch-refuses	errc	port:*8080|(integer&neq(80))\nport:80	|:empty
+# The preferred branch's OWN admitted set counts: a peer equal to the
+# default is admitted even when no sibling alternative takes it.
+pref-admit-own-value	gen	x:*8080|string\nx:8080	{"x":8080}
+# The escape hatch for a deliberately open default.
+pref-admit-top-escape-overrides	gen	x:*1|top\nx:'s'	{"x":"s"}
+pref-admit-top-escape-default	gen	x:*1|top	{"x":1}
+#
 # A preference inside a COLON-CHAIN nested map (issue #1). The report was
 # that `bar: kind: *'led' | 'custom'` raised a model error naming both
 # alternatives; it resolves to the preferred one in both engines. The

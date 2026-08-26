@@ -22,16 +22,16 @@ vocabulary-generates-nothing-of-its-own	gens	@"std/system"	{"std":{}}
 
 # --- Port -------------------------------------------------------------
 #
-# `port-direction-is-not-closed` records the language as it is rather
-# than as the vocabulary would like it: a PREFERRED member makes a
-# disjunction permissive, so `*in | out | inout` supplies a default but
-# does not close the set. A closed set costs the default
-# (`in | out | inout` refuses anything else and generates nothing on its
-# own), and the vocabulary chooses the default. A non-string is still
-# refused, the members all being strings.
+# `port-direction-refuses-nonmember` (FLIPPED 2026-08-26 by the
+# admission gate, ADR-004; was `port-direction-is-not-closed`,
+# expecting `"sideways"` to pass): a preferred member no longer holds
+# the disjunction open, so `*in | out | inout` is a true
+# enum-with-default -- unset generates `in`, `out`/`inout` override,
+# anything else is the `|:empty` refusal. The old row recorded the
+# fail-open behaviour of use-cases/BUGS.md §1. Parity-probed.
 port-default-direction	gens	@"std/system"\np: $.std.Port & {}	{"p":{"direction":"in"},"std":{}}
 port-direction-chosen	gens	@"std/system"\np: $.std.Port & {direction: out}	{"p":{"direction":"out"},"std":{}}
-port-direction-is-not-closed	gens	@"std/system"\np: $.std.Port & {direction: sideways}	{"p":{"direction":"sideways"},"std":{}}
+port-direction-refuses-nonmember	errc	@"std/system"\np: $.std.Port & {direction: sideways}	|:empty
 port-protocol-optional	gens	@"std/system"\np: $.std.Port & {protocol: http}	{"p":{"direction":"in","protocol":"http"},"std":{}}
 
 # --- Component and Service -------------------------------------------

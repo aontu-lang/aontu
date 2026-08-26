@@ -31,7 +31,7 @@ import {
 } from './top'
 
 import { TRIAL_NIL } from '../val/NilVal'
-import { PrefVal } from '../val/PrefVal'
+import { PrefVal, prefInnerPeg } from '../val/PrefVal'
 import { JunctionVal } from '../val/JunctionVal'
 
 
@@ -102,6 +102,7 @@ class DisjunctVal extends JunctionVal {
     // leaving ctx._trialMode=true would collapse every subsequent real
     // error in this ctx to the shared TRIAL_NIL sentinel.
     ctx._trialMode = true
+    let gate: number[] | undefined = undefined
     try {
       for (let vI = 0; vI < this.peg.length; vI++) {
         const v = this.peg[vI]
@@ -117,8 +118,59 @@ class DisjunctVal extends JunctionVal {
           // sentinel instead of allocating a fresh NilVal per trial.
           oval[vI] = TRIAL_NIL
         }
+        else if (v instanceof PrefVal &&
+          !(peer as any).isPref && !peer.isTop &&
+          true === (prefInnerPeg(v) as any).isScalar) {
+          // A candidate for the admission gate below: a non-pref,
+          // non-top peer met a scalar preference inside this
+          // disjunction.
+          ; (gate = gate ?? []).push(vI)
+        }
 
         done = done && DONE === oval[vI].dc
+      }
+
+      // THE ADMISSION GATE (ADR-004). A peer that meets a preference
+      // INSIDE a disjunction must be admitted by the disjunction: by
+      // some sibling alternative (whose own trial above already
+      // answers that), or by the preferred value itself (the pref
+      // branch's own admitted set). The pref's kind gate alone used to
+      // decide, so a same-kind concrete peer replaced the default with
+      // the alternatives never consulted -- `k:*'auto'|'literal'|'data'`
+      // plus `k:'autoo'` answered "autoo", and `*8080|(integer&neq(80))`
+      // admitted 80 (use-cases/BUGS.md §1-2). An inadmissible override
+      // now fails the pref member's trial, and when every member is
+      // gone the meet is the existing `|:empty` refusal.
+      //
+      // SCALAR preferred values only, exactly the kind gate's own
+      // boundary (test/spec/pref.tsv, "THE GATE IS A SCALAR GATE"): a
+      // structural or kind-peg default stays ungated. A deliberately
+      // open default remains spellable as `*x|top` -- the top branch
+      // admits every override (the apidef machine-emitted idiom).
+      if (undefined !== gate) {
+        for (const gI of gate) {
+          let admitted = false
+          for (let kI = 0; kI < oval.length && !admitted; kI++) {
+            // Sibling alternatives only: a pref member cannot admit
+            // its own override (post-rankPrefs at most one pref
+            // stands at this level, so this is defensive).
+            admitted = kI !== gI && !oval[kI].isNil &&
+              !(this.peg[kI] as any).isPref
+          }
+          if (!admitted) {
+            const admitErr: any[] = []
+            ctx.err = admitErr
+            // The trial is against a CLONE: the preferred value must
+            // stay pristine for the surviving preference (the
+            // MatchFuncVal.resolve precedent).
+            const met = unite(ctx,
+              prefInnerPeg(this.peg[gI] as PrefVal).clone(ctx), peer,
+              'dj-admit')
+            if (0 < admitErr.length || met.isNil) {
+              oval[gI] = TRIAL_NIL
+            }
+          }
+        }
       }
     }
     finally {
@@ -150,9 +202,13 @@ class DisjunctVal extends JunctionVal {
       }
 
       // // // console.log('DISJUNCT-unify-D', this.id, oval.map(v => v.canon))
-
-      oval = oval.filter(v => !v.isNil)
     }
+
+    // Outside the 1<length block: a SINGLE-member disjunction (e.g. a
+    // rankPrefs collapse) whose one member fails the trial or the
+    // admission gate must reach the `|:empty` refusal below, not
+    // return the trial sentinel as if it were the answer.
+    oval = oval.filter(v => !v.isNil)
 
     let out: Val
 

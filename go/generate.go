@@ -245,8 +245,39 @@ func matchHasDefault(peg []Val) bool {
 	return 0 == len(peg)%2
 }
 
+// effectiveScrutinee is THE DEFAULTED-SCRUTINEE RULE (ADR-004,
+// use-cases/BUGS.md §5): the generation-effective view of a settled
+// scrutinee. A preference -- or a disjunction carrying one -- means
+// "this value unless something overrides it", and by resolve time the
+// model has SETTLED (staging rule), so nothing will: the value
+// generation is about to emit is the value the patterns must be tested
+// against. Testing against the still-open preference instead let a
+// pattern SELECT an arm by overriding the default. A pref-free
+// scrutinee (open disjunction included) is untouched. Mirrors
+// effectiveScrutinee in ts/src/val/MatchFuncVal.ts.
+func effectiveScrutinee(v Val) Val {
+	out := v
+	if d, ok := out.(*DisjunctVal); ok {
+		// Generation picks the LOWEST rank (subEffectiveDefault in
+		// subsume.go; `a:**1|*2` generates 2). rankPrefs leaves at most
+		// one pref standing in a settled disjunct, so the scan is
+		// defensive.
+		var best *PrefVal
+		for _, m := range d.peg {
+			if p, ok := m.(*PrefVal); ok && (nil == best || p.rank < best.rank) {
+				best = p
+			}
+		}
+		if nil == best {
+			return v
+		}
+		out = best
+	}
+	return prefInnerPeg(out)
+}
+
 func matchFunc(ctx *Ctx, f *FuncVal, base []string, args []Val) Val {
-	scrutinee := args[0]
+	scrutinee := effectiveScrutinee(args[0])
 	last := len(args)
 	if matchHasDefault(args) {
 		last--

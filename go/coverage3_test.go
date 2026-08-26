@@ -414,6 +414,35 @@ func TestPrefRankArms(t *testing.T) {
 	}
 }
 
+// PrefVal.superior answers top for the Val interface. Nothing reaches
+// it through a document any more: resuper (the rank-uniform meet,
+// ADR-004) unwraps nested prefs to the innermost non-pref peg instead
+// of asking the pref itself, so the interface contract is pinned here
+// (ADR-002).
+func TestPrefSuperiorIsTop(t *testing.T) {
+	p := newPref(newInteger(1))
+	if !isTop(p.superior()) {
+		t.Fatalf("pref superior must be top")
+	}
+}
+
+// The admission gate's defensive pref-sibling skip (ADR-004): a pref
+// member cannot admit another pref's override. rankPrefs leaves a
+// settled disjunct at most one pref, so a document cannot reach a
+// two-pref gate -- the arm is pinned here (ADR-002) with prefsRanked
+// forced, and the meet is the `|:empty` refusal because neither
+// preferred value admits the peer.
+func TestDisjunctGateSkipsPrefSibling(t *testing.T) {
+	ctx := &Ctx{root: newMap()}
+	d := newDisjunct([]Val{newPref(newString("z")), newPref(newString("x"))})
+	d.prefsRanked = true
+	out := d.Unify(newString("y"), ctx)
+	if !out.Nil() {
+		t.Fatalf("two-pref gate must refuse an inadmissible peer, got %s",
+			out.Canon())
+	}
+}
+
 // recordNotFound guards: no context, and a meta bag without the sink.
 func TestSourceSinkGuards(t *testing.T) {
 	recordNotFound(nil, "x")

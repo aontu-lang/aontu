@@ -32,15 +32,44 @@ func newPref(v Val) *PrefVal {
 
 // resuper recomputes the type yardstick and the override gate from the
 // current peg. Called again whenever the peg resolves (e.g. a func).
+//
+// THE RANK-UNIFORM MEET (ADR-004): the yardstick is the INNERMOST
+// preferred value's kind, whatever the preference's rank -- `**1.5`
+// defends `float` exactly as `*1.5` does. Reading the immediate peg
+// made a rank>=2 peg (itself a PrefVal, whose superior is top) an
+// ungated default that ANY conjunct silently overrode
+// (use-cases/BUGS.md §3). Mirrors PrefVal.resuper in
+// ts/src/val/PrefVal.ts (whose innermost-kind exception -- a peg that
+// is itself a kind gates nothing -- is Go's ScalarKindVal.superior()
+// returning top).
 func (p *PrefVal) resuper() {
-	p.superpeg = p.peg.superior()
+	p.superpeg = prefInnerPeg(p).superior()
+}
+
+// prefInnerPeg unwraps every pref layer to the innermost preferred
+// value: the value a preference of ANY rank ultimately defends, and
+// the one generation emits for it. Shared by the disjunct admission
+// gate (disjunct.go), the defaulted-scrutinee rule (generate.go) and
+// the effective-default walk (subsume.go). Mirrors prefInnerPeg in
+// ts/src/val/PrefVal.ts.
+func prefInnerPeg(v Val) Val {
+	out := v
+	for {
+		p, ok := out.(*PrefVal)
+		if !ok {
+			return out
+		}
+		out = p.peg
+	}
 }
 
 func (p *PrefVal) cjo() int { return 30000 }
 
 // superior of a pref is TOP (TS PrefVal inherits FeatureVal's
-// superior): a nested pref peg (`**hello & false`) lets the concrete
-// peer win instead of clashing with the inner value's kind.
+// superior). NOTE: resuper above deliberately does NOT see this --
+// it unwraps to the innermost non-pref peg (the rank-uniform meet,
+// ADR-004), so a nested pref peg (`**hello & false`) clashes with the
+// inner value's kind exactly as the rank-1 spelling does.
 func (p *PrefVal) superior() Val { return top() }
 func (p *PrefVal) Canon() string { return "*" + p.peg.Canon() }
 
@@ -92,8 +121,14 @@ func (p *PrefVal) Unify(peer Val, ctx *Ctx) Val {
 				p.resuper()
 			}
 			out = unite(ctx, p.superpeg, peer)
+			// The preference stands AS ITSELF, rank intact (ADR-004):
+			// returning the peg demoted it — to a concrete value at
+			// rank 0, to a lower rank above — destroying
+			// overridability and the layered-defaults ladder. The
+			// full note is on the canonical port
+			// (ts/src/val/PrefVal.ts).
 			if valSame(out, p.superpeg) {
-				out = p.peg
+				out = p
 			}
 		}
 	}

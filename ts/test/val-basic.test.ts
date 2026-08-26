@@ -753,15 +753,15 @@ describe('val-basic', function() {
       .equal('number')
 
     expect(tu(ctx, P('number|*1').unify(P('number|*1'), ctx), TOP).canon)
-      .equal('number|1|*1')
+      .equal('number|*1')
 
 
     let u0 = tu(ctx, P('number|*1'), P('number'))
-    expect(u0.canon).equal('number|1')
+    expect(u0.canon).equal('number|*1')
     expect(u0.gen(ctx)).equal(1)
 
     let u1 = tu(ctx, P('number|*1'), P('number|string'))
-    expect(u1.canon).equal('number|1')
+    expect(u1.canon).equal('number|*1')
     expect(u1.gen(ctx)).equal(1)
 
     let u2 = tu(ctx, P('number|*1'), P('2'))
@@ -1009,10 +1009,10 @@ b: c2: {n:2}
 
     expect(UC('a:*1|number,a:*2|number'))
       // .equal('{"a":*2|*1|number}')
-      .equal('{"a":2|1|number}')
+      .equal('{"a":*2|*1|number}')
 
     expect(UC('a:*1|number,b:*2|number,c:.a&.b'))
-      .equal('{"a":*1|number,"b":*2|number,"c":2|1|number}')
+      .equal('{"a":*1|number,"b":*2|number,"c":*2|*1|number}')
 
 
     let d0 = P('1|number').unify(TOP, ctx)

@@ -494,15 +494,31 @@ export function vet(
   stampUrl(anchor, schemaUrl)
   stampUrl(dataVal, dataUrl)
 
-  // Default-validity lint (G3 phase 5): for every disjunction in the
-  // SCHEMA carrying a preference, the effective default must be
-  // admitted by some remaining alternative — `a:*5|string` ships a
-  // default its own disjunct refuses, and every consumer leaning on it
-  // receives an invalid value from the truth itself. A vet WARNING for
-  // now (code `pref_not_instance`, class compat): today's engine
-  // generates the bad default, existing documents may lean on it, and
-  // promoting the warning to an error is itself a breaking change,
-  // sequenced through the `breaking` gate (the G3 design's own rule).
+  // Default-validity lint (G3 phase 5, re-examined under ADR-004): for
+  // every disjunction in the SCHEMA carrying a preference, warn when
+  // the effective default is not an instance of any REMAINING
+  // alternative (code `pref_not_instance`, class compat, severity
+  // warning).
+  //
+  // What the finding MEANS changed with the admission gate (ADR-004).
+  // Before the gate it flagged a soundness hole: the preference held
+  // the disjunction open, so `a:*5|string` both generated a value the
+  // alternatives refuse AND admitted any same-kind override. The gate
+  // closed that hole — a preferred branch now contributes exactly its
+  // own value to the admitted set, so a default can no longer be
+  // "invalid against its own disjunct" and the enum-with-default idiom
+  // (`*'auto'|'literal'|'data'`) is sound as written. The lint is KEPT,
+  // as an advisory: a default admitted only because it is the default
+  // is also the exact shape of a typo'd default
+  // (`level:*wran|info|warn|debug` — the intended `*warn` would be
+  // silent), and nothing at meet time can catch that. The
+  // repeated-branch spelling (`*warn|warn|...`) states "the default is
+  // a first-class member", silences the lint, and — unlike before the
+  // gate — enforces exactly the same admitted set. The message names
+  // the REMAINING alternatives because that is what was scanned: the
+  // preferred branch itself always admits its own default, so the old
+  // wording ("any alternative of *5|string") read as false on its face
+  // (use-cases/BUGS.md §4).
   const lintFindings: VetFinding[] = []
   walkBagVals(anchor, (v: any, path: string[]): void => {
     if (true === v.isDisjunct && Array.isArray(v.peg)) {
@@ -522,7 +538,8 @@ export function vet(
             severity: 'warning',
             path: pathText(path),
             message: 'the default ' + d.canon +
-              ' is not an instance of any alternative of ' + v.canon,
+              ' is not an instance of any remaining alternative of ' +
+              v.canon,
             sites: [{
               file: schemaUrl,
               row: d.site?.row ?? -1,

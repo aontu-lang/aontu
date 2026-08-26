@@ -202,3 +202,14 @@ vet-overflow-literal	vet	a: integer	a: 1e999	{"findings":[{"class":"parse","code
 # no change: it was being handed a position that looked real.
 vet-minted-arith-operand-unsited	vet	a: integer	a: 1+2\n"a": 5\n	{"findings":[{"class":"conflict","code":"scalar_value","path":"$","severity":"error","sites":[{"col":6,"file":"data","len":1,"role":"data","row":2,"src":"5","value":"5"},{"col":-1,"file":"","len":-1,"role":"schema","row":-1,"src":"","value":"3"}]}],"truncated":false,"verdict":"invalid"}
 vet-minted-concat-operand-unsited	vet	a: string	a: "x"+"y"\n"a": "z"\n	{"findings":[{"class":"conflict","code":"scalar_value","path":"$","severity":"error","sites":[{"col":6,"file":"data","len":3,"role":"data","row":2,"src":"\\"z\\"","value":"\\"z\\""},{"col":-1,"file":"","len":-1,"role":"schema","row":-1,"src":"","value":"\\"xy\\""}]}],"truncated":false,"verdict":"invalid"}
+
+# THE ADMISSION GATE UNDER VET (ADR-004, 2026-08-26; use-cases/BUGS.md
+# §1). The enum-with-default schema now refuses an out-of-enum data
+# value: `k:*'auto'|'literal'|'data'` against `k:'autoo'` was
+# `verdict: valid` (the same-kind override replaced the default with no
+# alternative consulted), and is now the `|:empty` refusal, reported at
+# the data site. A member value stays valid. The schema's own
+# pref_not_instance warning rides along in both reports (the lint's
+# post-gate advisory reading -- see ts/src/vet.ts). Parity-probed.
+vet-enum-default-refuses-nonmember	vet	k:*'auto'|'literal'|'data'	k:'autoo'	{"findings":[{"class":"conflict","code":"|:empty","path":"$.k","severity":"error","sites":[{"col":3,"file":"data","len":7,"role":"data","row":1,"src":"'autoo'","value":"\\"autoo\\""},{"col":-1,"file":"schema","len":-1,"role":"schema","row":-1,"src":"","value":"*\\"auto\\"|\\"literal\\"|\\"data\\""}]},{"class":"compat","code":"pref_not_instance","path":"$.k","severity":"warning","sites":[{"col":4,"file":"schema","len":6,"role":"schema","row":1,"src":"'auto'","value":"\\"auto\\""}]}],"truncated":false,"verdict":"invalid"}
+vet-enum-default-admits-member	vet	k:*'auto'|'literal'|'data'	k:'literal'	{"findings":[{"class":"compat","code":"pref_not_instance","path":"$.k","severity":"warning","sites":[{"col":4,"file":"schema","len":6,"role":"schema","row":1,"src":"'auto'","value":"\\"auto\\""}]}],"truncated":false,"verdict":"valid"}

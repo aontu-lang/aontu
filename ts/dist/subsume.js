@@ -28,6 +28,7 @@ const aontu_1 = require("./aontu");
 const vet_1 = require("./vet");
 const ConstraintVal_1 = require("./val/ConstraintVal");
 const ScalarKindVal_1 = require("./val/ScalarKindVal");
+const PrefVal_1 = require("./val/PrefVal");
 const DEFAULT_GENERAL_URL = 'general';
 const DEFAULT_SPECIFIC_URL = 'specific';
 function pathText(path) {
@@ -80,8 +81,16 @@ function admission(v) {
 // questions — what is the effective default, and does a member admit
 // it.
 function effectiveDefault(v) {
+    // EVERY pref layer is unwrapped (prefInnerPeg), not just one: a
+    // ranked default's effective value is the innermost peg — `**member`
+    // generates "member" exactly as `*member` does (the rank-uniform
+    // meet, ADR-004). The one-layer unwrap left a rank-2 default wearing
+    // a `*`-wrapper no plain alternative subsumes, which is the
+    // pref_not_instance lint's ranked false positive of
+    // use-cases/BUGS.md §4 (`**member|member|admin|owner` warned while
+    // generating a value its own branch admits).
     if (true === v?.isPref) {
-        return v.peg;
+        return (0, PrefVal_1.prefInnerPeg)(v);
     }
     if (true === v?.isDisjunct && Array.isArray(v.peg)) {
         const prefs = v.peg.filter((m) => true === m?.isPref);
@@ -92,9 +101,9 @@ function effectiveDefault(v) {
         // test/spec/edge.tsv), so the effective default does too.
         const minRank = Math.min(...prefs.map((p) => p.rank));
         const top = prefs.filter((p) => p.rank === minRank);
-        const first = top[0].peg;
+        const first = (0, PrefVal_1.prefInnerPeg)(top[0]);
         for (const p of top.slice(1)) {
-            if (!first.same?.(p.peg)) {
+            if (!first.same?.((0, PrefVal_1.prefInnerPeg)(p))) {
                 return 'indeterminate';
             }
         }

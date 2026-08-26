@@ -539,16 +539,19 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 		}
 	}
 
-	// Default-validity lint (G3 phase 5): for every disjunction in the
-	// SCHEMA carrying a preference, the effective default must be
-	// admitted by some remaining alternative — `a:*5|string` ships a
-	// default its own disjunct refuses, and every consumer leaning on
-	// it receives an invalid value from the truth itself. A vet WARNING
-	// for now (code `pref_not_instance`, class compat): today's engine
-	// generates the bad default, existing documents may lean on it, and
-	// promoting the warning to an error is itself a breaking change,
-	// sequenced through the `breaking` gate (the G3 design's own rule).
-	// Mirrors the lintDefaults pass in ts/src/vet.ts.
+	// Default-validity lint (G3 phase 5, re-examined under ADR-004):
+	// for every disjunction in the SCHEMA carrying a preference, warn
+	// when the effective default is not an instance of any REMAINING
+	// alternative (code `pref_not_instance`, class compat, severity
+	// warning). What the finding MEANS changed with the admission gate:
+	// a preferred branch now contributes exactly its own value to the
+	// admitted set, so a default can no longer be "invalid against its
+	// own disjunct" — the lint is KEPT as an advisory, because a
+	// default admitted only by being the default is also the exact
+	// shape of a typo'd default (`level:*wran|info|warn|debug`), and
+	// the repeated-branch spelling now both silences it and enforces
+	// the same admitted set. The full decision note is on the canonical
+	// port (ts/src/vet.ts). Mirrors the lintDefaults pass there.
 	lintFindings := []VetFinding{}
 	walkBagVals(anchor, func(v Val, path []string) {
 		if d, ok := v.(*DisjunctVal); ok {
@@ -588,7 +591,8 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 						Severity: "warning",
 						Path:     subPathText(path),
 						Message: "the default " + def.Canon() +
-							" is not an instance of any alternative of " + d.Canon(),
+							" is not an instance of any remaining alternative of " +
+							d.Canon(),
 						Sites: []VetSite{*site},
 					})
 				}

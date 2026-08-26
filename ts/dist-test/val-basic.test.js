@@ -538,12 +538,12 @@ const makeIntegerVal = (v, c) => new IntegerVal_1.IntegerVal({ peg: v }, c);
         (0, expect_1.expect)(tu(ctx, P('number|string').unify(P('boolean|number'), ctx), TOP).canon)
             .equal('number');
         (0, expect_1.expect)(tu(ctx, P('number|*1').unify(P('number|*1'), ctx), TOP).canon)
-            .equal('number|1|*1');
+            .equal('number|*1');
         let u0 = tu(ctx, P('number|*1'), P('number'));
-        (0, expect_1.expect)(u0.canon).equal('number|1');
+        (0, expect_1.expect)(u0.canon).equal('number|*1');
         (0, expect_1.expect)(u0.gen(ctx)).equal(1);
         let u1 = tu(ctx, P('number|*1'), P('number|string'));
-        (0, expect_1.expect)(u1.canon).equal('number|1');
+        (0, expect_1.expect)(u1.canon).equal('number|*1');
         (0, expect_1.expect)(u1.gen(ctx)).equal(1);
         let u2 = tu(ctx, P('number|*1'), P('2'));
         (0, expect_1.expect)(u2.canon).equal('2');
@@ -723,9 +723,9 @@ b: c2: {n:2}
             .equal('{"a":*1|number,"b":top,"c":*1|number}');
         (0, expect_1.expect)(UC('a:*1|number,a:*2|number'))
             // .equal('{"a":*2|*1|number}')
-            .equal('{"a":2|1|number}');
+            .equal('{"a":*2|*1|number}');
         (0, expect_1.expect)(UC('a:*1|number,b:*2|number,c:.a&.b'))
-            .equal('{"a":*1|number,"b":*2|number,"c":2|1|number}');
+            .equal('{"a":*1|number,"b":*2|number,"c":*2|*1|number}');
         let d0 = P('1|number').unify(TOP, ctx);
         (0, expect_1.expect)(d0.canon).equal('1|number');
         (0, expect_1.expect)(d0.gen(ctx)).equal(1);

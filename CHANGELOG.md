@@ -5,6 +5,49 @@ package (`ts/`, npm `aontu`) and the Go module (`go/`,
 `github.com/rjrodger/aontu/go`) are versioned independently; entries note
 which implementation each change affects.
 
+## Unreleased — the preference admission gate (ADR-004, BREAKING)
+
+Both implementations. The top-priority recommendation of the 2026-08
+language review (`use-cases/REVIEW.md` finding A; `use-cases/BUGS.md`
+§1–5), taken as a deliberate breaking change:
+
+- **A preference override must be admitted by its disjunction.** A peer
+  meeting a scalar `*`-default inside a disjunction must unify with at
+  least one alternative — the preferred value's own admitted set counts
+  — or the meet is the empty disjunction (`|:empty`). `k: *'auto' |
+  'literal' | 'data'` + `k:'autoo'` is now REFUSED (it used to answer
+  `"autoo"`, exit 0); `port: *8080 | (integer & neq(80))` + `port: 80`
+  is refused instead of bypassing the exclusion. `*8080 | integer` +
+  `9090` still answers 9090, and an unset field still generates its
+  default. A deliberately open default is spelled `*x | top` (the
+  apidef machine-emitted idiom keeps its meaning).
+- **The rank-uniform meet.** A rank≥2 preference now defends the
+  innermost preferred value's kind exactly as rank 1 does:
+  `a: **1.5 & float` is `1.5` (was `mapval_no_gen`), `**2|integer` met
+  by a bare `integer` keeps the default 2 (was silently dropped), and
+  `**hello & false` is the same kind conflict `*hello & false` is
+  (the flipped `pref.tsv:pref-nested-concrete-wins` row).
+- **`match()` on a defaulted scrutinee** tests patterns against the
+  generation-effective value, so a pattern can no longer select an arm
+  by overriding the default and contradicting the value generated
+  beside it.
+- **`pref_not_instance` is advisory and honest.** The ranked-default
+  false positive is fixed (the effective default unwraps every pref
+  layer), the message now reads "…not an instance of any remaining
+  alternative of…", and the lint's post-gate meaning (a typo-shaped
+  default, no longer a soundness hole) is documented in `ts/src/vet.ts`.
+- **`std/system` tightens.** `direction: *in | out | inout` is a true
+  enum-with-default; `sideways` is refused.
+
+Pinned by parity-probed shared rows: `pref.tsv` (`pref-admit-*`,
+`pref-rank2-*`, flipped `pref-nested-concrete-wins`), `std-system.tsv`
+(flipped `port-direction-refuses-nonmember`), `vet.tsv`
+(`vet-enum-default-*`), `gen-match.tsv` (`match-defaulted-scrutinee-*`,
+`match-bare-pref-scrutinee`), `subsume.tsv` (`pref-lint-ranked-clean`,
+flipped `default-rank-min`). Rationale and the escape hatch: `ADR.md`
+ADR-004; author-facing rules: `docs/reference-language.md`
+("Preference / default `*`").
+
 ## Unreleased — TypeScript 0.53.0 line
 
 ### Documentation — the four quadrants brought back level

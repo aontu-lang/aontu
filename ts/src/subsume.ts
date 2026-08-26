@@ -30,6 +30,7 @@ import {
   constraintAdmitsScalar,
 } from './val/ConstraintVal'
 import { kindSubsumes } from './val/ScalarKindVal'
+import { prefInnerPeg } from './val/PrefVal'
 
 
 export type SubsumeVerdict =
@@ -134,8 +135,16 @@ function admission(v: any): any {
 // questions — what is the effective default, and does a member admit
 // it.
 export function effectiveDefault(v: any): any {
+  // EVERY pref layer is unwrapped (prefInnerPeg), not just one: a
+  // ranked default's effective value is the innermost peg — `**member`
+  // generates "member" exactly as `*member` does (the rank-uniform
+  // meet, ADR-004). The one-layer unwrap left a rank-2 default wearing
+  // a `*`-wrapper no plain alternative subsumes, which is the
+  // pref_not_instance lint's ranked false positive of
+  // use-cases/BUGS.md §4 (`**member|member|admin|owner` warned while
+  // generating a value its own branch admits).
   if (true === v?.isPref) {
-    return v.peg
+    return prefInnerPeg(v)
   }
   if (true === v?.isDisjunct && Array.isArray(v.peg)) {
     const prefs = v.peg.filter((m: any) => true === m?.isPref)
@@ -146,9 +155,9 @@ export function effectiveDefault(v: any): any {
     // test/spec/edge.tsv), so the effective default does too.
     const minRank = Math.min(...prefs.map((p: any) => p.rank))
     const top = prefs.filter((p: any) => p.rank === minRank)
-    const first = top[0].peg
+    const first: any = prefInnerPeg(top[0])
     for (const p of top.slice(1)) {
-      if (!first.same?.(p.peg)) {
+      if (!first.same?.(prefInnerPeg(p))) {
         return 'indeterminate'
       }
     }

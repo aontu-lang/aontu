@@ -29,7 +29,11 @@ const G = (s) => A.generate(s);
         (0, expect_1.expect)(G('*1')).equal(1);
         (0, expect_1.expect)(G('*1|string & 2')).equal(1);
         (0, expect_1.expect)(G('*1|nil')).equal(1);
-        (0, expect_1.expect)(G('(*1|string) & 2')).equal(2);
+        // The admission gate (ADR-004): 2 is admitted neither by the
+        // preferred value 1 nor by the string alternative, so the meet is
+        // the empty disjunction (it used to answer 2 -- the fail-open
+        // override of use-cases/BUGS.md §1).
+        (0, expect_1.expect)(() => G('(*1|string) & 2')).throws(/aontu/);
         (0, expect_1.expect)(G('(*1&2)|(string&2)')).equal(2);
         (0, expect_1.expect)(G('(*1&2)|nil')).equal(2);
         (0, expect_1.expect)(G('*1&2|nil')).equal(2);
@@ -56,7 +60,7 @@ const G = (s) => A.generate(s);
         (0, expect_1.expect)(() => G('a:type({}) a:x:number b:$.a b:x:1 c:$.a')).throws(/aontu/);
         (0, expect_1.expect)(G('x:type({}) x:y:1 a:$.x')).equal({ a: { y: 1 } });
         (0, expect_1.expect)(N('a:*1|number,b:*2|number,c:$.a&$.b'))
-            .equal('{"a":*1|number,"b":*2|number,"c":2|1|number}');
+            .equal('{"a":*1|number,"b":*2|number,"c":*2|*1|number}');
         (0, expect_1.expect)(N('a:x:number b:$.a b:x:1 c:$.a c:x:y'))
             .equal('{"a":{"x":number},"b":{"x":1},"c":{"x":nil}}');
         (0, expect_1.expect)(() => G('a:x:number b:$.a b:x:1 c:$.a c:x:y')).throws(/aontu/);
