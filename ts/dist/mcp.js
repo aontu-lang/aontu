@@ -92,14 +92,25 @@ function confinedParseFailure(src, trust, path) {
 // Confinement is realpath-then-prefix-check, mirroring the include
 // resolver's own rule (ts/src/lang.ts, docs/trust.md): the file's
 // real path must sit below the root's real path, so a symlink inside
-// the root pointing outside it is an escape, not a loophole. A path
-// realpath cannot resolve falls back to the lexical form.
+// the root pointing outside it is an escape, not a loophole.
+//
+// A path that does not (fully) exist cannot be realpath'd whole, and
+// falling back to the LEXICAL form compares apples to oranges when the
+// root itself sits behind a symlink -- on macOS a root under /var
+// realpaths to /private/var, so a merely-missing file inside it read
+// as an escape instead of "cannot read" (the CI failure that bought
+// this comment). Realpath the deepest EXISTING ancestor and re-attach
+// the rest, so both sides of the prefix check are in real coordinates.
 function realpathOf(p) {
     try {
         return (0, node_fs_1.realpathSync)(p);
     }
     catch {
-        return (0, node_path_1.resolve)(p);
+        const parent = (0, node_path_1.dirname)(p);
+        if (parent === p) {
+            return p;
+        }
+        return (0, node_path_1.join)(realpathOf(parent), (0, node_path_1.basename)(p));
     }
 }
 function outsideRoot(root, full) {
