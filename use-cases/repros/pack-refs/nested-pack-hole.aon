@@ -1,0 +1,13 @@
+# Claim C2 (use-case 02): in a nested pack, the INNER template's _
+# binds to the OUTER pack's source child, not the inner one.
+# reference-language.md ("The placeholder _"): "Inside a generator's
+# template, _ is the source child the generated one is being made
+# from" — the child at deploy.dev.services.web is made from the fleet
+# entry {replicas:1}, yet _ answers "dev".
+# expected: deploy.dev.services.web.v = {"replicas":1}
+# actual:   exit 0 and v = "dev" — silent wrong output. (Variant
+#           pack($.fleet, _ & {extra:2}) instead errors scalar_kind:
+#           Cannot unify value: {"extra":2} with value: "dev".)
+envs: [dev]
+fleet: {web: {replicas: 1}}
+deploy: pack($.envs, { services: pack($.fleet, {v: _}) })

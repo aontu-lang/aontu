@@ -1,0 +1,19 @@
+# Use-case 02 gap 3 (claim C2): `why` is blind through pack() --
+# attribution stops at the generator. The default *info|string
+# (line: defs) demonstrably produces prod's output value, yet:
+#   aontu why '$.deploy.prod.web.logLevel' pack-blind.aon
+# reference-api.md ("aontu why"): provenance is "what contributed to
+# the value at a path ... with the site each contribution was written
+# at"; g7-machine-access.md's motivating question is "Which file set
+# the default, which overrode". Nothing documents a pack() blind spot.
+# expected: prod.web.logLevel lists the defs default (line 17) as a
+#           contribution; dev.web.logLevel lists BOTH the defeated
+#           default (line 17) and the winning "debug" (line 19)
+# actual:   prod.web.logLevel = *"info"|string
+#             (no contributions: nothing met at this path)   [false]
+#           dev.web.logLevel = "debug"
+#             1. "debug" pack-blind.aon:19:29                [only]
+envs: hide({ dev: {}, prod: {} })
+defs: hide({ logLevel: *info | string })
+deploy: pack($.envs, { web: $.defs })
+deploy: dev: web: logLevel: debug

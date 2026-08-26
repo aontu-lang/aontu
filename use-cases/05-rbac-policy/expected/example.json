@@ -1,0 +1,107 @@
+{
+  "permissions": {
+    "admin/all": {
+      "desc": "Wildcard: every permission",
+      "risk": "critical"
+    },
+    "audit/read": {
+      "desc": "Read the audit log",
+      "risk": "medium"
+    },
+    "billing/manage": {
+      "desc": "Change plan and payment details",
+      "risk": "high"
+    },
+    "billing/read": {
+      "desc": "Read invoices and plan state",
+      "risk": "medium"
+    },
+    "member/invite": {
+      "desc": "Invite new members",
+      "risk": "medium"
+    },
+    "member/read": {
+      "desc": "List tenant members",
+      "risk": "low"
+    },
+    "project/delete": {
+      "desc": "Delete projects",
+      "risk": "high"
+    },
+    "project/read": {
+      "desc": "List and read projects",
+      "risk": "low"
+    },
+    "project/write": {
+      "desc": "Create and update projects",
+      "risk": "medium"
+    }
+  },
+  "roles": {
+    "admin": {
+      "desc": "Day-to-day administration",
+      "grants": [
+        "admin/all"
+      ],
+      "privileged": true,
+      "rank": 80,
+      "tenantOwner": false
+    },
+    "auditor": {
+      "desc": "Read-only compliance access",
+      "grants": [
+        "project/read",
+        "member/read",
+        "billing/read",
+        "audit/read"
+      ],
+      "privileged": false,
+      "rank": 20,
+      "tenantOwner": false
+    },
+    "member": {
+      "desc": "Regular collaborator",
+      "grants": [
+        "project/read",
+        "project/write",
+        "member/read"
+      ],
+      "privileged": false,
+      "rank": 40,
+      "tenantOwner": false
+    }
+  },
+  "tenant": {
+    "defaultMemberRole": "member",
+    "entitlement": {
+      "auditLog": false,
+      "plan": "free",
+      "scim": false,
+      "sso": false
+    },
+    "limits": {
+      "maxProjects": 3,
+      "maxSeats": 5
+    },
+    "members": {
+      "ada": {
+        "role": "owner"
+      },
+      "alan": {
+        "invitedBy": "ada",
+        "role": "auditor"
+      },
+      "grace": {
+        "role": "member"
+      }
+    },
+    "name": "Acme Rockets",
+    "plan": "free",
+    "security": {
+      "mfaRequired": true,
+      "sessionTimeoutMinutes": 480
+    },
+    "slug": "acme-rockets",
+    "supportTier": "community"
+  }
+}

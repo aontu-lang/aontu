@@ -1,0 +1,3 @@
+# envelope lib loaded by refclone-contract.aon
+# (padding line; the re() sits at row 3, col 24)
+Envelope: hide({ time: re("^[0-9]{4}-Z$") })

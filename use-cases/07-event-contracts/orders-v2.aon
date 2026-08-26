@@ -1,0 +1,52 @@
+# orders-v2.aon --- major revision draft. Deliberately BREAKING
+# against v1, in the two ways schema registries most often see:
+#   * OrderCancelled.payload now REQUIRES `reason` (old events do
+#     not carry it) -> compat_required_added.
+#   * currency drops "GBP" (an enum narrowed) -> compat_narrowed.
+# check.sh pins that `breaking --against orders-v1.aon` refuses this
+# document, which is exactly the gate a registry needs in CI.
+
+@"envelope.aon"
+
+OrderPlaced: close($.Envelope & {
+  type: "order.placed"
+  payload: close({
+    order_id: re("^ord-[0-9a-f]{8}$")
+    customer_id: re("^cus-[0-9a-f]{8}$")
+    total_cents: integer & min(0)
+    currency: "EUR" | "USD"
+    lines: [&: close({
+      sku: re("^sku-[a-z0-9-]{4,40}$")
+      qty: integer & min(1)
+      unit_cents: integer & min(0)
+    })]
+  })
+})
+
+OrderPaid: close($.Envelope & {
+  type: "order.paid"
+  payload: close({
+    order_id: re("^ord-[0-9a-f]{8}$")
+    payment_ref: re("^psp-[a-z0-9-]{4,40}$")
+    amount_cents: integer & min(1)
+    method: "card" | "sepa" | "paypal" | "invoice"
+  })
+})
+
+OrderCancelled: close($.Envelope & {
+  type: "order.cancelled"
+  payload: close({
+    order_id: re("^ord-[0-9a-f]{8}$")
+    cancelled_by: "customer" | "merchant" | "system"
+    reason: re("^[a-z_]{3,40}$")
+    note?: string
+  })
+})
+
+Event: $.OrderPlaced | $.OrderPaid | $.OrderCancelled
+
+registry: {
+  order_placed: $.OrderPlaced
+  order_paid: $.OrderPaid
+  order_cancelled: $.OrderCancelled
+}

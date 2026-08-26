@@ -1,0 +1,18 @@
+# C3 (use-case 04, README gap 3): the breaking gate reads
+# $.aontu_policy.compat from the NEW document (reference-api.md, "aontu
+# breaking" -- documented, so BY DESIGN), which means the document
+# under review can waive the gate it is judged by: a PR that narrows
+# port from integer to 8080 AND pins compat:"none" in the same commit
+# exits 0, and the text report says only "verdict: compatible" (the
+# waiver is visible only as "mode":"none" in --format json). The
+# documented closure is CI pinning --mode backward, which overrides the
+# document and correctly reports the break (exit 1).
+# expected: (what a gate operator assumes) the OLD version's promise
+#           governs, so the narrowing is reported breaking, exit 1
+# actual: aontu breaking --against policy-waiver-old.aon
+#           policy-waiver-new.aon => verdict: compatible, exit 0;
+#         with --mode backward => verdict: breaking, exit 1
+#           ($.port: compat_narrowed, 8080 vs integer)
+# run: aontu breaking --against policy-waiver-old.aon policy-waiver-new.aon
+aontu_policy: hide({compat: *backward | forward | full | none})
+port: integer

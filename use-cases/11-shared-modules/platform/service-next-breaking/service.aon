@@ -1,0 +1,19 @@
+# v1.5.0 candidate: adds a REQUIRED oncall field.  Every v1.4.2
+# instance without it stops validating -- a breaking change smuggled
+# into a minor version.  `mod manifest --against` must catch this.
+spec: close({
+  name: string & re("^[a-z][a-z0-9-]{2,39}$")
+  oncall: string & re("^[a-z0-9-]+$")
+  owner: string & re("^[a-z0-9.-]+@corp[.]example$")
+  tier: "critical" | "standard" | *"internal"
+  port: *8080 | (integer & min(1024) & max(65535))
+  replicas: *2 | (integer & min(1) & max(64))
+  healthcheck: {
+    path: *"/healthz" | (string & re("^/"))
+    interval_seconds: *15 | (integer & min(5) & max(300))
+  }
+  telemetry: {
+    metrics: *true | boolean
+    traces: *false | boolean
+  }
+})

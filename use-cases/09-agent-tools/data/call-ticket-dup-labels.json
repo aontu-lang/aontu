@@ -1,0 +1,9 @@
+{
+  "tool": "create_ticket",
+  "arguments": {
+    "project": "OPS",
+    "title": "Rotate egress proxy certificates",
+    "priority": "p2",
+    "labels": ["egress", "egress"]
+  }
+}

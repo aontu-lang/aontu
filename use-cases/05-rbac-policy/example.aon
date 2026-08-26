@@ -1,0 +1,18 @@
+@"tenant.aon"
+
+# A concrete tenant composed with the schema: the whole model
+# evaluates to one JSON document -- catalog, role registry and tenant,
+# with limits/supportTier derived by match() and defaultMemberRole
+# supplied by its preference.
+tenant: {
+  name: "Acme Rockets"
+  slug: "acme-rockets"
+  plan: free
+  entitlement: { plan: free, sso: false, scim: false, auditLog: false }
+  members: {
+    ada:   { role: owner }
+    grace: { role: member }
+    alan:  { role: auditor, invitedBy: ada }
+  }
+  security: { mfaRequired: true, sessionTimeoutMinutes: 480 }
+}

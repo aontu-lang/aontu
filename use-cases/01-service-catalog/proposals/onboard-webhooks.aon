@@ -1,0 +1,25 @@
+# proposals/onboard-webhooks.aon --- an AI agent proposed a new
+# service; this entry unifies its raw JSON candidate into the live
+# model, where the full CatalogEntry schema and refer() checks apply.
+# The JSON is loaded at its own hidden key and pulled in by reference:
+# `... & @"../data/x.json"` written inline fails with
+# [aontu/mapval_spread_required] (README, gap 2).
+@"../system.aon"
+
+candidate: hide(@"../data/candidate-webhooks.json")
+
+proposal: webhooks: id(svc/webhooks) & $.spec.CatalogEntry & $.candidate & {
+  dependsOn: [svc/auth, svc/email]
+}
+
+# The inverse edges the proposal implies, so `aontu relations` passes.
+# WORKAROUND (README, gap 4): lists unify positionally, so "append"
+# must restate the existing elements verbatim, in order.
+patch: {
+  auth: id(svc/auth) & {
+    dependedOnBy: [svc/gateway, svc/payments, svc/webhooks]
+  }
+  email: id(svc/email) & {
+    dependedOnBy: [svc/notify, svc/webhooks]
+  }
+}

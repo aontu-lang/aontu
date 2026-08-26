@@ -1,0 +1,7 @@
+# Candidate minor release that is actually breaking: the gate must
+# refuse to mint this under major 1.
+mod: {
+  path: "corp.example/schemas/service"
+  version: "1.5.0"
+  main: "service.aon"
+}

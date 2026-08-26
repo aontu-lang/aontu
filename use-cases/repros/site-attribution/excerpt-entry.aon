@@ -1,0 +1,12 @@
+# Claim C1 mode B: the human error frame of a bare eval names the
+# INCLUDED file (correct, with correct row/col) but renders the
+# excerpt lines FROM THE ENTRY FILE under that header. Run:
+#   aontu excerpt-entry.aon
+# The first frame's header says excerpt-frag.aon:3:7 (right: the 8080
+# there), yet the quoted lines 1..4 are THIS file's text, caret lost
+# in it. (Use-case 02 gap 9 / 07 gap 9: "included file's name, entry
+# file's text".)
+# expected: frame quotes excerpt-frag.aon's lines around row 3
+# actual:   frame header excerpt-frag.aon:3:7 above THIS file's lines
+cfg: @"excerpt-frag.aon"
+cfg: { port: 9090 }

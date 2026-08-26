@@ -1,0 +1,57 @@
+# spec.aon --- Acme's service vocabulary, layered over @"std/system".
+# Not wrapped in type(): a type()-marked schema referencing $.std.*
+# fails with [aontu/mapval_no_gen] once included (README, gap 1);
+# hide() keeps it out of output and survives inclusion.
+spec: hide({
+
+  # The org's port shape: the bundled Port plus a concrete number.
+  # MUST be the one ports template both views name: different ports
+  # templates on the two id-merged views unified sibling ports with
+  # each other, [aontu/scalar_value] 9901 & 443 (README, gap 7).
+  PortSpec: $.std.Port & {number: integer & min(1) & max(65535)}
+
+  # One catalog entry: what the org promises about a service,
+  # independent of where it runs. The default lifecycle is repeated as
+  # a member because *production|experimental|... makes `aontu vet`
+  # warn pref_not_instance (README, gap 6).
+  CatalogEntry: $.std.Service & {
+    ports?: {&: $.spec.PortSpec}
+    owner: string & re("^team-[a-z]+$")
+    tier: 1 | 2 | 3
+    lifecycle: *production | production | experimental | deprecated
+    description: string & length(min(10))
+    # Checked entity references: each element must name an entity that
+    # exists in this evaluation and is a service; the address string
+    # (the link, not the target) must look like svc/<name>. The wanted
+    # refer($.std.Service) dies of [aontu/unify_cycle] on this model,
+    # and typing BOTH directions of the inverse pair dies the same way
+    # (README, gap 8) -- hence one thin type, one bare refer().
+    dependsOn?: [&: refer({kind: service}) & string & re("^svc/")]
+    dependedOnBy?: [&: refer() & string & re("^svc/")]
+  }
+
+  # One workload: what a cluster actually runs. Names $.std.Service
+  # and $.spec.PortSpec exactly as CatalogEntry does, so both
+  # id-merged views carry the SAME template set (gap 7).
+  Workload: $.std.Service & {
+    replicas: *2 | integer & min(1) & max(48)
+    image: string & re("^registry[.]acme[.]internal/")
+    ports?: {&: $.spec.PortSpec}
+  }
+
+  # Vet anchor for agent-emitted candidates: written out
+  # self-contained because `vet --at` misattributes findings when the
+  # anchored schema contains references (README, gap 2).
+  CandidateShape: {
+    kind: service
+    owner: string & re("^team-[a-z]+$")
+    tier: 1 | 2 | 3
+    lifecycle: *production | production | experimental | deprecated
+    description: string & length(min(10))
+    ports?: {&: {
+      direction: *in | in | out | inout
+      protocol?: string
+      number: integer & min(1) & max(65535)
+    }}
+  }
+})

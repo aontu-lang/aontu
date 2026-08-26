@@ -1,0 +1,24 @@
+{
+  "items": [
+    {
+      "id": "usr_4kX9mQ2bL7cV0pZaR3dT",
+      "email": "ada.lovelace@example.com",
+      "name": "Ada Lovelace",
+      "role": "admin",
+      "status": "active",
+      "created_at": "2026-03-14T09:26:53Z",
+      "last_seen_at": "2026-08-25T17:03:11Z"
+    },
+    {
+      "id": "usr_9fH2wN6jP1qS8vB5xC0m",
+      "email": "grace.hopper@example.com",
+      "name": "Grace Hopper",
+      "role": "member",
+      "status": "invited",
+      "created_at": "2026-08-20T11:00:00Z"
+    }
+  ],
+  "page": 1,
+  "page_size": 20,
+  "total": 2
+}

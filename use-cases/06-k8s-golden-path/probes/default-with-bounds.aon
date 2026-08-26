@@ -1,0 +1,4 @@
+# FAILED ATTEMPT: a ranked default AND bounds on the same field.  The
+# constraint conjunct swallows the default; nothing generates.
+# [aontu/mapval_no_gen].  This is why guardrails.aon exists.
+replicas: (*2 | integer) & min(1) & max(20)

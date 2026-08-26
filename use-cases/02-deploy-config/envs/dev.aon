@@ -1,0 +1,8 @@
+# Layer 3: development overlay.
+# Environment defaults use * (rank 1) so a service can still pin its
+# own concrete value on top.  Log level is NOT set here: dev inherits
+# the team's **debug default, which check.sh asserts.
+
+deploy: dev: workloads: &: {
+  replicas: *1 | integer
+}

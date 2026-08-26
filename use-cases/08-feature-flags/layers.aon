@@ -1,0 +1,46 @@
+# Environment and tenant layers, and the effective views the flag
+# service would actually serve to SDKs.
+#
+# Rank ladder (FEWER stars win when preferences meet):
+#   ***  org catalog default   (flags.aon)
+#   **   environment default   (this file)
+#   *    tenant preference     (this file)
+#   pin  concrete value        (any file; beats every rank)
+#
+# The layers are hide()-marked working data: they take part in
+# unification but stay out of the generated document.  The effective
+# views below re-expose them fully resolved.
+
+envs: hide({
+  staging: flags: {
+    checkout_v2: { enabled: **true, rollout: **100 }
+    ui_dark_mode: { enabled: **true, variant: **"dusk" }
+  }
+  prod: flags: {
+    checkout_v2: { enabled: **true, rollout: **5 }
+    ui_dark_mode: { enabled: **true }
+  }
+})
+
+tenants: hide({
+  megacorp: flags: {
+    checkout_v2: { rollout: *25 }
+    ui_dark_mode: { variant: *"midnight" }
+  }
+  starterco: flags: {
+    checkout_v2: { rollout: *0 }
+  }
+})
+
+# Effective views: org & env (& tenant).  A reference unifies a copy
+# in place, so every overlay applied to the layers above flows into
+# these paths -- but `aontu why` cannot see through the copy: at an
+# effective path it reports "(no contributions)" (README, "Gaps").
+effective: {
+  staging: base: $.flags & $.envs.staging.flags
+  prod: {
+    base: $.flags & $.envs.prod.flags
+    megacorp: $.flags & $.envs.prod.flags & $.tenants.megacorp.flags
+    starterco: $.flags & $.envs.prod.flags & $.tenants.starterco.flags
+  }
+}

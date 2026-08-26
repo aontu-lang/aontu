@@ -1,0 +1,10 @@
+# Claim C5a (use-case 09 gap 3): sibling references in a &: spread
+# template re-anchor per child ONLY as bare values — the working
+# spelling is rows: { &: { md: .side_effect } a: {...} }. Inside an
+# expression the same reference resolves at the template's own path
+# ($.rows.md) and fails. Same root inconsistency as the pack-template
+# case (rel-ref-in-expr.aon); .$KEY in the identical position works.
+# expected: {"rows":{"a":{"md":"|readonly","side_effect":"readonly"}}}
+# actual:   exit 1, [aontu/no_path] Cannot resolve value at path
+#           $.rows.md / Cannot resolve value: .side_effect
+rows: { &: { md: "|" + .side_effect } a: { side_effect: readonly } }

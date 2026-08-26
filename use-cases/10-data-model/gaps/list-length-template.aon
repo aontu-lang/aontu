@@ -1,0 +1,6 @@
+# FAILED ATTEMPT (kept executable). "an order has 1 to 50 lines"
+# attached to the schema's line-list template. The sizing atom folds
+# against THIS list value -- the template, zero elements -- at the
+# definition site, and the schema dies with [aontu/constraint]
+# before any data arrives. README, gap 5.
+OrderLines: [&: { sku: string }] & length(min(1) & max(50))

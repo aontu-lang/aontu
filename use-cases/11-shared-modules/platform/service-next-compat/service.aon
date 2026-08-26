@@ -1,0 +1,19 @@
+# v1.4.3: replicas ceiling raised 64 -> 128, optional runbook link
+# added.  Both changes admit every instance v1.4.2 admitted, so the
+# publish gate must pass this under major 1.
+spec: close({
+  name: string & re("^[a-z][a-z0-9-]{2,39}$")
+  owner: string & re("^[a-z0-9.-]+@corp[.]example$")
+  tier: "critical" | "standard" | *"internal"
+  port: *8080 | (integer & min(1024) & max(65535))
+  replicas: *2 | (integer & min(1) & max(128))
+  runbook?: string & re("^https:")
+  healthcheck: {
+    path: *"/healthz" | (string & re("^/"))
+    interval_seconds: *15 | (integer & min(5) & max(300))
+  }
+  telemetry: {
+    metrics: *true | boolean
+    traces: *false | boolean
+  }
+})

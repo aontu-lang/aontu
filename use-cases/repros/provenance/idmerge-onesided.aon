@@ -1,0 +1,15 @@
+# Use-case 01 gap 9 (claim C3): `why` is one-sided across an
+# id()-merge. Both positions of svc/a output BOTH fields (the merge
+# itself is correct and bidirectional), but provenance is not:
+#   aontu why '$.deploy.wl.tier'      idmerge-onesided.aon   # works
+#   aontu why '$.catalog.svc.replicas' idmerge-onesided.aon  # blind
+# Which side goes blind is model-dependent: here the FIRST-declared
+# position loses; on use-cases/01-service-catalog/system.aon the
+# deploy (later) position loses. An audit gets a correct value with
+# a false "nobody wrote this".
+# expected: catalog.svc.replicas = 6 with contribution 6 at :15:37
+# actual:   catalog.svc.replicas = 6
+#             (no contributions: nothing met at this path)   [false:
+#           line 15 wrote 6 and it met the id-merged entity]
+catalog: svc: id(svc/a) & { tier: 1 }
+deploy: wl: id(svc/a) & { replicas: 6 }

@@ -1,0 +1,7 @@
+# A misspelt workload field in an overlay ("replcas") against the
+# close()d workload shape.  Expected: [aontu/closed] at the exact
+# path $.deploy.prod.workloads.auth.replcas -- the Helm failure mode
+# (a typo'd values key silently ignored) cannot happen here.
+@"../stack.aon"
+
+deploy: prod: workloads: auth: replcas: 3

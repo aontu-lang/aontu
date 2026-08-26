@@ -1,0 +1,6 @@
+# FAILED ATTEMPT: turn a compact port map {http: 8080} into k8s
+# [{name, containerPort}] entries.  each() MEETS the child with the
+# template, so a scalar child cannot become a map element.
+# [aontu/scalar_kind].  Port entries must be authored as maps.
+ports: { http: 8080, grpc: 9090 }
+list: each($.ports, { containerPort: _, name: key() })

@@ -1,0 +1,63 @@
+@"permissions.aon"
+
+# A role is one of two CLOSED shapes selected by the `privileged`
+# flag -- the conditional-shape idiom. The rule "no role grants
+# admin/all unless flagged privileged" is *structural*: the
+# unprivileged branch excludes the wildcard from every grant via a
+# list spread carrying neq(). (A filter()-based version of this rule
+# is not expressible: filter conditions cannot see into lists -- see
+# README, "Quantification".)
+Role: type(
+  close({
+    desc: string
+    rank: integer & min(0) & max(100)
+    tenantOwner: boolean
+    privileged: true
+    grants: unique() & [&: refer() & string]
+  })
+  |
+  close({
+    desc: string
+    rank: integer & min(0) & max(100)
+    tenantOwner: false
+    privileged: false
+    grants: unique() & [&: refer() & string & neq("admin/all")]
+  })
+)
+
+# The role set is EXHAUSTIVE: close() makes an unknown role a located
+# [aontu/closed] error instead of a silent extension. Each role is an
+# entity (id per key) so member assignments can refer() to it.
+roles: close({
+  &: id(key(0)) & $.Role
+  owner: {
+    desc: "Full control; holds the tenant", rank: 100
+    tenantOwner: true, privileged: true
+    grants: [admin/all]
+  }
+  admin: {
+    desc: "Day-to-day administration", rank: 80
+    tenantOwner: false, privileged: true
+    grants: [admin/all]
+  }
+  member: {
+    desc: "Regular collaborator", rank: 40
+    tenantOwner: false, privileged: false
+    grants: [project/read, project/write, member/read]
+  }
+  auditor: {
+    desc: "Read-only compliance access", rank: 20
+    tenantOwner: false, privileged: false
+    grants: [project/read, member/read, billing/read, audit/read]
+  }
+})
+
+# Registry invariant: exactly one role may hold the tenant.
+# filter()+length() works here because the counted entries and the
+# atom are in the SAME document layer; across an include or the vet
+# meet this pattern silently miscounts (see README, "length across
+# layers"). hide() keeps the check out of generated output while it
+# still evaluates -- and still fails loudly on violation.
+registry_invariant: hide({
+  one_owner_role: length(1) & filter($.roles, { tenantOwner: true })
+})

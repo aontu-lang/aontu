@@ -1,0 +1,1 @@
+{"pro-pair":{"eur":0d69.89,"tier":"premium"},"service-kit":{"eur":0d0.3,"tier":"accessory"}}

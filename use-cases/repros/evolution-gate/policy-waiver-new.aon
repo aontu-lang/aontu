@@ -1,0 +1,9 @@
+# C3: the NEW side of the pair -- see policy-waiver-old.aon for the
+# full header. This document both makes the breaking change (port
+# narrowed to a constant) and waives the promise the old version
+# declared, and the gate obeys THIS file's policy.
+# expected: verdict: breaking, exit 1 (port: integer -> 8080)
+# actual: verdict: compatible, exit 0 (compat:"none" checked nothing)
+# run: aontu breaking --against policy-waiver-old.aon policy-waiver-new.aon
+aontu_policy: hide({compat: "none"})
+port: 8080

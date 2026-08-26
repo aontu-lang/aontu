@@ -1,0 +1,10 @@
+# FAILED ATTEMPT: require at least one port per service on the skeleton.
+# The generated ports list HAS one element (merged by the second pack),
+# but length(min(1)) is checked against the spread-only schema list
+# (0 members) before the merge -- a false refusal of a valid model.
+# [aontu/constraint], exit 1.  (Length next to already-present elements
+# in one file works fine; the failure needs the generator merge.)
+names: [web]
+col: { web: { http: { containerPort: 8080 } } }
+deploy: pack($.names, { ports: [ &: { containerPort: integer } ] & length(min(1)) })
+deploy: pack($.col, { ports: each(_) })

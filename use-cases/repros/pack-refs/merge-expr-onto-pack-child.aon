@@ -1,0 +1,14 @@
+# Claim C6 (use-case 02 gap 4): an expression whose operand references
+# back into the pack-generated subtree cannot be merged onto the
+# generated child. The failure is NOT general: surge: 1+1 and
+# surge: $.base+1 (outside operand) merge fine, and the bare reference
+# surge: $.deploy.web.replicas (no +) works too. Only ref-into-the-
+# generated-subtree PLUS an operator dies, and the diagnostic blames a
+# spread that does not exist in the document.
+# expected: {"deploy":{"web":{"replicas":2,"surge":3}}}
+# actual:   exit 1, [aontu/mapval_spread_required] at $.deploy.web.surge
+#           "The value for key surge is required (defined in spread)."
+#           Cannot unify value: $.deploy.web.replicas+1 with value: nil
+names: [web]
+deploy: pack($.names, { replicas: 2 })
+deploy: web: { surge: $.deploy.web.replicas + 1 }

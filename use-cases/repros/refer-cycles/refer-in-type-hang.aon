@@ -1,0 +1,25 @@
+# Use-case 10 gap 7 (claim C2, nontermination half).
+# WARNING: DOES NOT TERMINATE — always run under `timeout`:
+#   timeout 30 aontu refer-in-type-hang.aon      # exit 124
+# refer() inside the included named type, plus a must() on a list
+# element whose fields carry min()/max() sizing atoms, makes
+# evaluation burn CPU with no output (verified >570s; the use case's
+# full model hit 90s and 120s timeboxes; comparable correct models
+# evaluate in ~0.2s).  Dropping ANY single ingredient — the refer()
+# in the type (see the controls in refer-in-type-hang-schema.aon),
+# the must(), or the min() on the must()-carrying field — terminates
+# in seconds.  The document is consistent: the spread-site-refer()
+# workaround emits the full expected output.
+# expected: {"customers":{"cust-1001":{}},"orders":{"ord-7001":
+#           {"customerId":"cust-1001","id":"ord-7001","lines":[{
+#           "amountCents":3998,"unitCents":1999}]}},"schema":{}} exit 0
+# actual:   no output, unbounded CPU burn (killed by timeout)
+@"./refer-in-type-hang-schema.aon"
+customers: { "cust-1001": id("cust-1001") & { } }
+orders: {
+  "ord-7001": id("ord-7001") & {
+    customerId: "cust-1001"
+    lines: [ { unitCents: 1999,
+               amountCents: 3998 & must(.unitCents + .unitCents, "bad") } ]
+  }
+}

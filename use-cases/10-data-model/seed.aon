@@ -1,0 +1,114 @@
+# seed.aon --- the deterministic seed ledger, layered on the domain.
+# Evaluating this file IS the seed-data generator: the JSON it emits
+# is the fixture set, and every constraint in domain.aon has already
+# held over it, or there is no output at all.
+
+@"./domain.aon"
+
+# --- Exact price book -------------------------------------------------
+# Book prices are exact decimals: a 0d value never touches binary64.
+# Bundle prices are written as sums PINNED to their expected value, so
+# they are theorems: if exact arithmetic drifted, the seed would fail
+# to evaluate rather than emit a wrong price.
+pricing: {
+  book: {
+    "sku-valve-basic": { eur: 0d19.99 }
+    "sku-valve-pro":   { eur: 0d49.90 }
+    "sku-gasket-set":  { eur: 0d0.10 }
+    "sku-seal-ring":   { eur: 0d0.20 }
+  }
+  bundles: {
+    "service-kit": {
+      # gasket + seal. binary64 says 0.30000000000000004; the book
+      # says 0d0.3, and the pin makes the engine prove it.
+      eur: ($.pricing.book."sku-gasket-set".eur
+            + $.pricing.book."sku-seal-ring".eur) & 0d0.3
+      tier: match(.eur, max(0d1.0), "accessory", max(0d25.0), "standard",
+                  "premium")
+    }
+    "pro-pair": {
+      eur: ($.pricing.book."sku-valve-basic".eur
+            + $.pricing.book."sku-valve-pro".eur) & 0d69.89
+      tier: match(.eur, max(0d1.0), "accessory", max(0d25.0), "standard",
+                  "premium")
+    }
+  }
+}
+
+# --- Customers --------------------------------------------------------
+customers: {
+  "cust-1001": id("cust-1001") & {
+    # 2^53+1: the first whole number binary64 cannot hold. Only the
+    # 0d spelling stores it exactly (README, gap 2).
+    ledgerId: 0d9007199254740993
+    name: "Acme Flow GmbH"
+    country: "DE"
+    currency: "EUR"
+    email: "ap@acmeflow.example"
+    creditLimitCents: 5000000
+  }
+  "cust-1002": id("cust-1002") & {
+    ledgerId: 4503599627370496   # 2^52: safely inside plain integer
+    name: "Nordwind Logistics AB"
+    country: "SE"
+    currency: "SEK"
+  }
+}
+
+# --- Orders -----------------------------------------------------------
+orders: {
+  "ord-7001": id("ord-7001") & {
+    customerId: "cust-1001"
+    status: "invoiced"
+    placed: "2026-08-01"
+    lines: [
+      {
+        sku: "sku-valve-basic", qty: 2, unitCents: 1999,
+        # No '*', so "qty 2" is spelled as unit + unit -- the honest
+        # per-record spot check (README, gap 3).
+        amountCents: 3998 & must(.unitCents + .unitCents,
+                                 "amountCents != 2 x unitCents")
+      },
+      {
+        sku: "sku-gasket-set", qty: 1, unitCents: 10,
+        amountCents: 10 & must(.unitCents, "amountCents != 1 x unitCents")
+      }
+    ]
+  }
+  "ord-7002": id("ord-7002") & {
+    customerId: "cust-1002"
+    placed: "2026-08-14"
+    # status omitted: the *"open" default in domain.aon fills it.
+    lines: [
+      { sku: "sku-seal-ring", qty: 1, unitCents: 20, amountCents: 20 }
+    ]
+  }
+}
+
+# --- Invoices ---------------------------------------------------------
+invoices: {
+  "inv-3001": id("inv-3001") & {
+    orderId: "ord-7001"
+    currency: "EUR"
+    netCents: 4008       # 3998 + 10, the two ord-7001 lines
+    taxCents: 762        # 19% VAT, computed OFF-model: no '*' in-model
+    grossCents: 4770 & must(.netCents + .taxCents,
+                            "grossCents != netCents + taxCents")
+  }
+}
+
+# --- Generated: one receivables account per customer ------------------
+# pack() derives the account set from the customer bag itself, so the
+# two can never drift apart; refer() makes each account's subject a
+# checked entity link, not a loose string.
+receivables: pack($.customers, {
+  accountFor: refer() & key()
+  openingCents: *0 | integer & min(0)
+})
+
+# --- Reconciliation ---------------------------------------------------
+# The classic decimal identity, stated in both record channels.
+reconcile: {
+  centsPath: (10 + 20) & 30              # integer cents: exact
+  exactPath: (0d0.1 + 0d0.2) & 0d0.3    # exact decimals: also exact
+}

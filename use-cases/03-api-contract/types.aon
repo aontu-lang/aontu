@@ -1,0 +1,37 @@
+# types.aon --- shared wire vocabulary for the Nimbus Tasks API.
+# hide() keeps these definitions out of generated output while every
+# other file references them ($.types.*). re() implies string; regex
+# quantifiers double as length bounds where a pattern already exists.
+
+types: hide({
+
+  # Prefixed opaque identifiers (Stripe-style): a routing prefix the
+  # gateway can dispatch on, then 20 base62 characters.
+  UserId:    re("^usr_[0-9A-Za-z]{20}$")
+  ProjectId: re("^prj_[0-9A-Za-z]{20}$")
+  RequestId: re("^req_[0-9A-Za-z]{20}$")
+
+  # Pragmatic email shape (not full RFC 5321 -- the gateway's rule).
+  Email: re("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")
+
+  # RFC 3339, UTC only: the API never emits a numeric offset.
+  # The natural spelling of optional fractional seconds, (\.\d+)?Z,
+  # is refused by the portable-regex subset -- a quantified group may
+  # not contain a quantifier (README, gap 5). Workaround: an
+  # UNQUANTIFIED alternation group, at the price of fixing fractional
+  # seconds to exactly three digits (milliseconds or nothing).
+  Timestamp: re("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(Z|\\.\\d{3}Z)$")
+
+  # URL-safe project slugs; the regex also bounds the length (3-40).
+  Slug: re("^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$")
+
+  # Human-facing names: sized with length() because no pattern applies.
+  DisplayName: string & length(min(1) & max(80))
+
+  # Pagination: page is 1-based, page_size is capped by the gateway.
+  Page:     integer & min(1)
+  PageSize: integer & min(1) & max(100)
+
+  Role:       "admin" | "member" | "viewer"
+  Visibility: "private" | "team" | "public"
+})

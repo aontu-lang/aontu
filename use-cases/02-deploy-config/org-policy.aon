@@ -1,0 +1,37 @@
+# Layer 1: organisation-wide deployment policy.
+#
+# Rank convention (verified by check.sh): the FEWER stars, the
+# STRONGER the preference -- generation picks the lowest rank:
+#   ***  org (this file, weakest)   **  team   *  environment
+#   concrete value                  strongest of all
+#
+# NOTE the schema rows below carry the org defaults DIRECTLY instead of
+# a bare kind ("replicas: integer") next to a defaulted field.  A kind
+# or constraint conjunct written against a ranked default inside a
+# pack() template swallows the default (README, gap 2).  Numeric BOUNDS
+# therefore live in guardrails.aon and are enforced with `aontu vet`,
+# not here.
+
+org: {
+  name: acme
+  registry: "registry.acme.internal"
+  runbookBase: "https://runbooks.acme.internal"
+}
+
+# The one workload shape every service in every environment must have.
+# It is applied close()d by the pack template in stack.aon, so an
+# overlay that misspells a key is refused with [aontu/closed] instead
+# of being silently ignored.
+defs: hide({
+  workload: {
+    service: string
+    tier: frontend | backend | batch
+    port: integer
+    critical: boolean
+    image: string
+    replicas: ***2 | integer
+    logLevel: ***info | string
+    tracing: ***false | boolean
+    imagePullPolicy: ***IfNotPresent | string
+  }
+})

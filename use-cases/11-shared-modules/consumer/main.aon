@@ -1,0 +1,20 @@
+# Checkout-team service definitions, validated against the platform
+# module.  hide() keeps the imported schema out of the rendered output
+# (the abstract schema itself cannot generate JSON).
+lib: hide(@"corp.example/schemas/service@1")
+
+srv: {
+  checkout: $.lib.spec & {
+    name: "checkout"
+    owner: "payments-core@corp.example"
+    tier: "critical"
+    port: 9091
+    replicas: 6
+  }
+  # Defaults exercised: port/replicas/tier/healthcheck all come from
+  # the module's *prefs.
+  "gift-cards": $.lib.spec & {
+    name: "gift-cards"
+    owner: "promo@corp.example"
+  }
+}

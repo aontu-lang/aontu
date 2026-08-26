@@ -1,0 +1,7 @@
+# FAILED ATTEMPT: append one env var to a generated env list.  Lists
+# unify by position, so the "appended" entry collides with element 0.
+# [aontu/scalar_value].  Env overrides must happen at the map level
+# (services.aon extraEnv) before the list is generated.
+base: { A: { name: A, value: "1" }, B: { name: B, value: "2" } }
+env: each($.base)
+env: [ { name: EXTRA, value: "3" } ]

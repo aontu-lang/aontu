@@ -1,0 +1,10 @@
+{
+  "id": 2002,
+  "type": "order.refunded",
+  "time": "2026-08-26T10:05:00Z",
+  "source": "/payments/eu-1",
+  "payload": {
+    "order_id": "ord-1a2b3c4d",
+    "refund_cents": 500
+  }
+}

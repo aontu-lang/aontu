@@ -1,0 +1,15 @@
+{
+  "deploy": {
+    "auth": {
+      "replcias": 4,
+      "replicas": 2
+    },
+    "web": {
+      "replicas": 2
+    }
+  },
+  "names": [
+    "web",
+    "auth"
+  ]
+}

@@ -1,0 +1,14 @@
+# C5 (use-cases 05, 06, 10): the same early fold in the other direction:
+# length(min(1)) beside a spread template counts the schema's own
+# spread-only (zero-member) container and refuses the SCHEMA, even
+# though the data supplies a satisfying entry.
+# expected: verdict: valid, exit 0 (data has one entry, min(1) holds)
+# actual: verdict: error, exit 4 -- "the schema is unusable on its own":
+#         $.x: constraint [conflict] expected length(integer&min(1))
+#         actual {&:{"r":integer}}. Same shape with the data in the SAME
+#         document (x: length(min(1)) & {&:{r:integer}} \n x: {a:{r:1}})
+#         evaluates fine, and the list form ([&:string] & length(min(1)))
+#         fails identically (use-case 06 probes/length-on-schema-list.aon,
+#         10 gaps/list-length-template.aon).
+# run: aontu vet sizing-min-kills-schema.aon one-entry.json
+x: length(min(1)) & { &: {r: integer} }

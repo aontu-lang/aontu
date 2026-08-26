@@ -1,0 +1,9 @@
+verdict: ok
+corp.example/schemas/service@1 1.4.2
+config: application/vnd.aontu.module.v1+json
+com.github.rjrodger.aontu.canon: aon1-zFHnyVa1fA--g8hTx8lUUhaKzzRUNI--2nDheIMsSFs
+com.github.rjrodger.aontu.major: 1
+org.opencontainers.image.title: corp.example/schemas/service
+org.opencontainers.image.version: 1.4.2
+layer: mod.aon
+layer: service.aon

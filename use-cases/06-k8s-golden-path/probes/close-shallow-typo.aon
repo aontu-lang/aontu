@@ -1,0 +1,6 @@
+# PINNED: close(pack(...)) seals only the set of children, not their
+# shapes.  A typo'd override key ('replcias') on a generated child is
+# ACCEPTED silently, exit 0.  Golden: expected/close-shallow-typo.json.
+names: [web, auth]
+deploy: close(pack($.names, { replicas: *2 | integer }))
+deploy: auth: replcias: 4

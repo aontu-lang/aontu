@@ -1,0 +1,5 @@
+# expected: vet against out-of-enum.json reports invalid (exit 1)
+# actual: verdict: valid, exit 0 (plus a pref_not_instance warning about
+#         the SCHEMA's own default, not about the data)
+# run: aontu vet enum-vet-schema.aon out-of-enum.json
+k: *'auto' | 'literal' | 'data'

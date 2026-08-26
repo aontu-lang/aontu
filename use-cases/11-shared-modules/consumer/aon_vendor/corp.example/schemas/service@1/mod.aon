@@ -1,0 +1,7 @@
+# Module identity for the platform team's service contract.
+# The major an import spells ("...@1") is derived from `version`.
+mod: {
+  path: "corp.example/schemas/service"
+  version: "1.4.2"
+  main: "service.aon"
+}

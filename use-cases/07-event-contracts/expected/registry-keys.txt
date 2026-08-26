@@ -1,0 +1,3 @@
+order_cancelled
+order_paid
+order_placed

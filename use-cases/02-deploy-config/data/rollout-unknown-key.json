@@ -1,0 +1,8 @@
+{
+  "kind": "rollout-change",
+  "service": "billing",
+  "env": "prod",
+  "replicas": 16,
+  "reason": "Black Friday capacity ramp for card settlement",
+  "forceRestart": true
+}

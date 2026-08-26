@@ -1,0 +1,11 @@
+# Claim C4, third manifestation found while reducing: when the
+# type()d alias pair lives at the TOP LEVEL of the included file, the
+# same pattern dies with a bogus [aontu/mapval_spread_required] "The
+# value for key T is required (defined in spread)" — though NO spread
+# exists anywhere in either file ("Cannot unify value: integer with
+# value: nil").  Inline in one file the same statements emit
+# {"customers":{"c1":{"a":5}}}.
+# expected: {"customers":{"c1":{"a":5}}} exit 0
+# actual:   [aontu/mapval_spread_required] at $.T, exit 1 (bogus error)
+@"./alias-top.aon"
+customers: c1: $.C & { a: 5 }

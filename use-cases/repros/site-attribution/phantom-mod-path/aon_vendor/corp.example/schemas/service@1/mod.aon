@@ -1,0 +1,3 @@
+# Module identity. NOTE: the phantom first segment of the consumer's
+# no_path diagnostic is this file's last top-level key ("mod").
+mod: { path: "corp.example/schemas/service", version: "1.4.2", main: "service.aon" }

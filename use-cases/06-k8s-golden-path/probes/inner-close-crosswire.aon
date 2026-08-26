@@ -1,0 +1,10 @@
+# PINNED BUG: sealing each child (close around the template) is the
+# obvious fix for close-shallow-typo, and it works with hand overrides.
+# But add a SECOND pack merging onto the same children and key()
+# cross-wires: every child reports the FIRST child's key.  Exit 0,
+# silently wrong.  Golden: expected/inner-close-crosswire.json
+# (both names are "web").
+names: [web, auth]
+col: { web: { p: 1 }, auth: { p: 2 } }
+deploy: close(pack($.names, close({ name: key(), extra: { p: integer } })))
+deploy: pack($.col, { extra: _ })

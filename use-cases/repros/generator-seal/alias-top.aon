@@ -1,0 +1,5 @@
+# Shared include for include-alias-spreadreq.aon (claim C4, third
+# manifestation): the same alias-in-type pattern with the aliases at
+# file TOP LEVEL instead of nested under schema:.
+T: type(integer)
+C: type({ a: $.T })

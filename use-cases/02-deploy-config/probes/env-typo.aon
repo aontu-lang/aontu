@@ -1,0 +1,7 @@
+# An overlay for an environment that does not exist ("prod2").
+# deploy itself must stay open (README, gap 5), so the hidden envguard
+# in stack.aon does the sealing: expected [aontu/closed] at
+# $.envguard, pointing at the offending statement below.
+@"../stack.aon"
+
+deploy: prod2: workloads: web: replicas: 2

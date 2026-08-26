@@ -1,0 +1,14 @@
+# Use-case 02 gap 3, second half (claim C2): a &: spread applied to
+# pack()-GENERATED children yields a contribution with NO source
+# location -- printed as "*4|integer  (spread)" with an empty site.
+#   aontu why '$.deploy.web.replicas' spread-site-empty.aon
+# On a plain (non-pack) map the same spread carries its real site
+# (see sibling-split.aon), and reference-api.md promises "the site
+# each contribution was written at".
+# expected: 1. *4|integer  spread-site-empty.aon:13:24  (spread)
+# actual:   1. *4|integer  (spread)        -- file/row/col empty
+#           (JSON record: site {file:"", row:-1, col:-1, len:-1})
+tbl: hide({ web: {}, api: {} })
+deploy: pack($.tbl, { svc: key() })
+deploy: &: { replicas: *4 | integer }
+deploy: api: replicas: 12

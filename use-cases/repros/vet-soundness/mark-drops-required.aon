@@ -1,0 +1,18 @@
+# C3 (use-cases 03, 09): a type() or hide() mark at or above the vet
+# anchor silently drops required-key (mapval_required) enforcement under
+# vet --at. Wrong-kind values at the same anchor are still refused, so
+# every probe with wrong values passes the guardrail test.
+# expected: --at '$.marked.R' and --at '$.plain.R' agree: incomplete, exit 3
+#           ($.….R.b: mapval_required)
+# actual: --at '$.marked.R' (and '$.hidden.R'): verdict valid, exit 0;
+#         --at '$.plain.R': verdict incomplete, exit 3.
+#         CORRECTION to the use-case READMEs: copy() DOES restore the
+#         force -- --at '$.copied.R' is incomplete, exit 3 -- unless the
+#         copy is placed under another marked ancestor.
+# run: aontu vet --at '$.marked.R' mark-drops-required.aon missing-b.json
+#      aontu vet --at '$.plain.R'  mark-drops-required.aon missing-b.json
+#      aontu vet --at '$.copied.R' mark-drops-required.aon missing-b.json
+marked: type({ R: { a: string, b: string } })
+hidden: hide({ R: { a: string, b: string } })
+plain: { R: { a: string, b: string } }
+copied: copy($.marked)

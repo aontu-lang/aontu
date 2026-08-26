@@ -1,0 +1,16 @@
+{
+  "aontu": {
+    "verb": "mod tidy",
+    "version": "0.53.0"
+  },
+  "lock": [
+    {
+      "canon": "aon1-zFHnyVa1fA--g8hTx8lUUhaKzzRUNI--2nDheIMsSFs",
+      "mod": "corp.example/schemas/service@1",
+      "oci": "",
+      "v": "1.4.2"
+    }
+  ],
+  "missing": [],
+  "verdict": "ok"
+}

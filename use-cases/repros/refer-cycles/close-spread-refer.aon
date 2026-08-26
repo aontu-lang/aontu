@@ -1,0 +1,14 @@
+# Use-case 05 gap 8 (claim C3): refer() inside a close()d spread
+# template never settles — the member dies at generation with the
+# refer still unresolved in the residue.  Deleting only the close()
+# wrapper makes the identical document generate (and the refer still
+# fires: role "nosuch" is then [aontu/refer_unresolved]), so closing a
+# template cannot legitimately change what its refer() resolves.
+# Docs say narrowing existing keys of a closed map is fine
+# (reference-language.md, "Closed values").
+# expected: {"members":{"ada":{"role":"member"}},"roles":{"member":{}}} exit 0
+# actual:   [aontu/mapval_no_gen]: Cannot resolve value at path
+#           $.members.ada (residue: close({"role":refer()&string})&
+#           {"role":"member"}) exit 1
+roles: { member: id("member") & { } }
+members: { &: close({ role: refer() & string }), ada: { role: "member" } }

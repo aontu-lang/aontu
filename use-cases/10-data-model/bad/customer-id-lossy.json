@@ -1,0 +1,10 @@
+{
+  "customers": {
+    "cust-1006": {
+      "ledgerId": 9007199254740993,
+      "name": "Meridian Supply Co",
+      "country": "IE",
+      "currency": "EUR"
+    }
+  }
+}

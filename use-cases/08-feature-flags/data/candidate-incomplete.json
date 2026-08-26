@@ -1,0 +1,8 @@
+{
+  "key": "billing.invoice-v2",
+  "flag_type": "boolean",
+  "owner": "billing@acme.example",
+  "description": "New invoice rendering pipeline",
+  "created": "2026-08-25",
+  "expiry": "2027-06-30"
+}

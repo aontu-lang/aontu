@@ -1,0 +1,9 @@
+# The OTHER way to combine a default with a bound -- disjoining the
+# constrained branch -- quietly admits an out-of-range override
+# (README, gap 2).  40 is far above max(24), yet this file evaluates
+# with exit 0 and generates replicas: 40: the concrete peer replaces
+# the *2 default by KIND alone and is never tested against the
+# constrained branch.  check.sh pins this against a golden as
+# evidence; the workaround is vetting the built output (guardrails.aon).
+replicas: *2 | (integer & min(1) & max(24))
+replicas: 40

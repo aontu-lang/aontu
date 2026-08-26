@@ -1,0 +1,34 @@
+# The strict flag definition -- the vet-side contract.
+#
+# This file is a SCHEMA DOCUMENT for `aontu vet` only; base.aon never
+# includes it.  Three language limits force the split (README, "Gaps"):
+#   - a constraint meeting a ranked default in a conjunct does not
+#     resolve, so the catalog cannot carry these types inline on the
+#     defaulted fields;
+#   - the disjunct form (***false | boolean) silently loses rank
+#     arbitration through the effective-view references;
+#   - a hide()-marked vet anchor silently disables the incompleteness
+#     verdict, so these defs stay unhidden -- which is also why this
+#     file cannot be part of the generated model.
+#
+# Used as:
+#   aontu vet --at '$.Flag' --closed flag-schema.aon <candidate.json>
+#   aontu vet --at '$.Flag'          flag-schema.aon <one-resolved-flag.json>
+#
+# A whole effective view is validated flag-by-flag: a spread anchor
+# whose template REFERENCES $.Flag does not resolve under --at, which
+# re-roots the document at the anchor (README, "Gaps").  So the check
+# extracts each resolved flag with `get` and vets it against $.Flag.
+
+Flag: {
+  key: string & re("^[a-z][a-z0-9_.\\-]*$") & length(min(3)) & length(max(64))
+  flag_type: "boolean" | "percentage" | "variant"
+  owner: string & re("^[a-z0-9._\\-]+@acme\\.example$")
+  description: string & length(min(12)) & length(max(160))
+  created: string & re("^\\d{4}-\\d{2}-\\d{2}$")
+  expiry: string & re("^\\d{4}-\\d{2}-\\d{2}$")
+  enabled: boolean
+  rollout: integer & min(0) & max(100)
+  variant?: string & re("^[a-z][a-z0-9\\-]*$")
+  message?: string & length(max(80))
+}

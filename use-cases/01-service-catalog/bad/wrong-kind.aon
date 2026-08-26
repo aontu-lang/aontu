@@ -1,0 +1,13 @@
+# bad/wrong-kind.aon --- typed endpoints in miniature: refer(t)
+# unifies t INTO the target, so a database endpoint collides.
+# Deliberately self-contained -- the same typed refer on the full
+# model fails with [aontu/unify_cycle] (README, gap 8).
+@"std/system"
+std: hide({})
+
+infra: paydb: id(res/paydb) & {kind: database}
+
+app: ledger: id(svc/ledger) & {
+  kind: service
+  dependsOn: [&: refer($.std.Service), res/paydb]
+}

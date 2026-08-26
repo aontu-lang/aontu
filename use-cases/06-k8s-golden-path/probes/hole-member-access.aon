@@ -1,0 +1,5 @@
+# FAILED ATTEMPT: project a field out of the pack source row via the
+# hole.  _.ports is not spellable ("Cannot resolve value: . unspellable.ports").
+# This is why services.aon is column-oriented.  [aontu/no_path].
+services: { web: { ports: { http: { containerPort: 8080 } } } }
+manifests: pack($.services, { portList: each(_.ports) })

@@ -1,0 +1,9 @@
+# C2 (use-case 05): a tenant with no plan at all vets valid -- the plain
+# disjunction counts as satisfied by an absent key (same engine defect as
+# enum-missing-key.aon; word enums, the RBAC idiom).
+# expected: verdict: incomplete, exit 3
+# actual: verdict: valid, exit 0, findings: [] -- while evaluating the
+#         same composition as one document errors ([aontu/scalar_value],
+#         the branches unified with each other), exit 1
+# run: aontu vet plain-disjunct-satisfied.aon no-plan.json
+tenant: { plan: free | pro | enterprise }

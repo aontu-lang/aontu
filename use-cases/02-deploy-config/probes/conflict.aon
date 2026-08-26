@@ -1,0 +1,6 @@
+# Two layers pin different concrete values for the same field.
+# Expected: [aontu/scalar_value] naming BOTH source files and lines --
+# the conflict is attributable (README, "What worked", though note the
+# excerpt-rendering quirk in gap 9).
+@"conflict-capacity.aon"
+@"conflict-costcut.aon"

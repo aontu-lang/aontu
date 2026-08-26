@@ -1,0 +1,40 @@
+# envelope.aon --- the shared event envelope every order-service
+# event carries on the wire (CloudEvents-flavoured field vocabulary).
+# Included by each versioned contract file; each event type narrows
+# it (pins `type`, adds `payload`) and then seals it with close().
+
+Envelope: {
+
+  # Producer-assigned event id: strictly positive, whole. Snowflake
+  # and Kafka-offset style ids are 19 digits and overflow binary64,
+  # so the schema must admit BOTH numeric leaves a whole number can
+  # land in: `integer` (plain JSON int64-window literals) and
+  # `biginteger` (0d-rescued exact literals). `integer` alone would
+  # reject every 0d id; `number` alone would admit floats.
+  id: (integer | biginteger) & min(1)
+
+  # Discriminator. Each event type pins the exact string; the
+  # envelope only says it is a string.
+  type: string
+
+  # RFC 3339 timestamp. There is no date-time type, so the format is
+  # a regex. The natural spelling of optional fractional seconds,
+  # (\.\d+)?, is OUTSIDE re()'s portable subset (a quantifier on a
+  # group containing a quantifier -- see probes/frac-group.aon), so
+  # the optionality is folded into one unquantified alternation
+  # group instead. The pattern cannot check calendar semantics:
+  # month 13 passes (pinned in check.sh).
+  time: re("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(Z|\\.\\d+Z|[+-]\\d{2}:\\d{2}|\\.\\d+[+-]\\d{2}:\\d{2})$")
+
+  # Path-style producer identity, e.g. /orders/eu-1.
+  source: re("^/[a-z][a-z0-9/-]*$")
+
+  # Envelope spec revision: allowed set with a default. The conjunct
+  # spelling is deliberate -- the disjunct spelling *"1.0"|"1.1"
+  # silently admits ANY string (see probes/pref-enum.aon).
+  specversion: ("1.0" | "1.1") & *"1.0"
+
+  # End-to-end trace id: UUID v4. Another format-by-regex stand-in;
+  # JSON Schema's format:uuid has no native counterpart.
+  correlation_id?: re("^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$")
+}

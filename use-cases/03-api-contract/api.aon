@@ -1,0 +1,63 @@
+# api.aon --- the endpoint registry. The &: spread is the contract
+# constraining itself: a malformed entry (bad method, non-/v1 path)
+# refuses to evaluate -- see bad/new-endpoint-method.aon.
+# Schema-bearing fields are type()-marked: they unify and serve as
+# `vet --at` anchors but are omitted from generation, so
+# `aontu get '$.api' contract.aon` prints a concrete inventory.
+# Cost of the mark: `vet --at` THROUGH these fields skips
+# required-field checks (README, gap 2) -- agents anchor at $.msg.*.
+
+api: {
+  &: close({
+    method:  "GET" | "POST" | "PATCH" | "DELETE"
+    path:    re("^/v1/[a-z0-9/{}_-]+$")
+    summary: string & length(min(8) & max(120))
+    auth:    "bearer" | "none"
+    request?:     top
+    query?:       top
+    path_params?: top
+    responses:    {}
+  })
+
+  list_users: {
+    method: "GET", path: "/v1/users", auth: "bearer"
+    summary: "List users, paginated and filterable by role"
+    query: type($.msg.ListUsersQuery)
+    responses: {
+      200: type($.msg.UserPage)
+      401: type($.errors.Envelope)
+    }
+  }
+
+  create_user: {
+    method: "POST", path: "/v1/users", auth: "bearer"
+    summary: "Invite a user to the workspace"
+    request: type($.msg.CreateUserRequest)
+    responses: {
+      201: type($.entities.User)
+      400: type($.errors.Envelope)
+      409: type($.errors.Envelope)
+    }
+  }
+
+  get_project: {
+    method: "GET", path: "/v1/projects/{project_id}", auth: "bearer"
+    summary: "Fetch one project by id"
+    path_params: type(close({ project_id: $.types.ProjectId }))
+    responses: {
+      200: type($.entities.Project)
+      404: type($.errors.Envelope)
+    }
+  }
+
+  create_project: {
+    method: "POST", path: "/v1/projects", auth: "bearer"
+    summary: "Create a project owned by the caller"
+    request: type($.msg.CreateProjectRequest)
+    responses: {
+      201: type($.entities.Project)
+      400: type($.errors.Envelope)
+      409: type($.errors.Envelope)
+    }
+  }
+}

@@ -1,0 +1,2 @@
+# default-b.aon --- see default-a.aon: differs ONLY in the default.
+v: ("1.0" | "1.1") & *"1.1"

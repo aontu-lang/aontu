@@ -1,0 +1,18 @@
+# expected: a way to check the store against the committed lock without
+#           rewriting it; or tidy to at least note that a pin CHANGED
+# actual: after tampering aon_vendor (sed -i 's/\*8080/*9090/' aon_vendor/corp.example/schemas/service@1/service.aon)
+#         evaluation refuses (module integrity, exit 1) -- but `aontu mod tidy .`
+#         prints only "verdict: ok" + the new pin and rewrites mod-lock.aon to
+#         the tampered hash with no warning; evaluation then passes with the
+#         tampered content.  Recomputation is documented design
+#         (docs/reference-api.md "aontu mod": the canon pin is "recomputed ...
+#         never carried over"), but no verify-without-rewrite verb exists
+#         (subcommands are tidy|vendor|manifest only; --check exists only for
+#         trim), so a CI job that runs tidy before evaluating has no integrity
+#         protection at all.
+# run: aontu mod tidy . && aontu main.aon    # baseline: ok
+#      sed -i 's/\*8080/*9090/' aon_vendor/corp.example/schemas/service@1/service.aon
+#      aontu main.aon                        # refused: module integrity (good)
+#      aontu mod tidy . && aontu main.aon    # verdict: ok, re-pinned, passes (gotcha)
+mod: { path: "corp.example/checkout", main: "main.aon" }
+dep: { "corp.example/schemas/service@1": { v: "1.0.0" } }

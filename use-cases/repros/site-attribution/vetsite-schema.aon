@@ -1,0 +1,11 @@
+# Claim C1 mode A: a vet finding site for a value that arrived via an
+# @"..." include names the ENTRY document with the INCLUDED file's
+# row/col. Run:
+#   aontu vet vetsite-schema.aon vetsite-data.aon
+# The data value 7 is written in vetsite-frag.aon:3:7; the entry data
+# document vetsite-data.aon is ONE line long. (Same shape as use-case
+# 03 gap 3 and 07 gap 9; `why` on the same value names the included
+# file correctly, so the data exists.)
+# expected: data site vetsite-frag.aon:3:7 (7)
+# actual:   data site vetsite-data.aon:3:7 (7) -- a file with no line 3
+name: string

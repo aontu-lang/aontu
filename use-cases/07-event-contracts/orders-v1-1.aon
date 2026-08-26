@@ -1,0 +1,68 @@
+# orders-v1-1.aon --- minor revision of the v1 contract. Intended to
+# be backward compatible: consumers built against v1 must still admit
+# everything v1 producers emit. Changes:
+#   * OrderPaid.payload gains OPTIONAL settled_at (reuses the
+#     envelope timestamp format by reference).
+#   * A new event type, OrderRefunded, joins the union and registry.
+#
+# Note this file is a full copy of v1 plus the delta. There is no
+# way to write "v1 plus one more union branch" by including v1 and
+# merging: a duplicate `Event:` key would UNIFY (intersect) with the
+# v1 union, not extend it. Versions are therefore whole documents,
+# and `breaking --against` is what keeps them honest.
+
+@"envelope.aon"
+
+OrderPlaced: close($.Envelope & {
+  type: "order.placed"
+  payload: close({
+    order_id: re("^ord-[0-9a-f]{8}$")
+    customer_id: re("^cus-[0-9a-f]{8}$")
+    total_cents: integer & min(0)
+    currency: "EUR" | "USD" | "GBP"
+    lines: [&: close({
+      sku: re("^sku-[a-z0-9-]{4,40}$")
+      qty: integer & min(1)
+      unit_cents: integer & min(0)
+    })]
+  })
+})
+
+OrderPaid: close($.Envelope & {
+  type: "order.paid"
+  payload: close({
+    order_id: re("^ord-[0-9a-f]{8}$")
+    payment_ref: re("^psp-[a-z0-9-]{4,40}$")
+    amount_cents: integer & min(1)
+    method: "card" | "sepa" | "paypal" | "invoice"
+    settled_at?: $.Envelope.time
+  })
+})
+
+OrderCancelled: close($.Envelope & {
+  type: "order.cancelled"
+  payload: close({
+    order_id: re("^ord-[0-9a-f]{8}$")
+    cancelled_by: "customer" | "merchant" | "system"
+    note?: string
+  })
+})
+
+OrderRefunded: close($.Envelope & {
+  type: "order.refunded"
+  payload: close({
+    order_id: re("^ord-[0-9a-f]{8}$")
+    payment_ref: re("^psp-[a-z0-9-]{4,40}$")
+    refund_cents: integer & min(1)
+    reason: "customer_request" | "chargeback" | "goodwill"
+  })
+})
+
+Event: $.OrderPlaced | $.OrderPaid | $.OrderCancelled | $.OrderRefunded
+
+registry: {
+  order_placed: $.OrderPlaced
+  order_paid: $.OrderPaid
+  order_cancelled: $.OrderCancelled
+  order_refunded: $.OrderRefunded
+}

@@ -1,0 +1,11 @@
+# expected: {"side_effect":"readonly","requires_approval":false} — the
+#           generated scrutinee is the default "readonly", not destructive
+# actual: {"side_effect":"readonly","requires_approval":true} exit 0 —
+#         match() tests arms against the still-open *readonly|write|destructive
+#         disjunction; 'destructive' overrides the pref, so the FIRST
+#         admissible arm wins and the derivation contradicts the very value
+#         generated next to it (silent wrong answer; 09-agent-tools gap 14)
+tool: {
+  side_effect: *readonly | write | destructive
+  requires_approval: match(.side_effect, destructive, true, false)
+}

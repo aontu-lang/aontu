@@ -1,0 +1,8 @@
+# FAILED ATTEMPT: derive port/targetPort from containerPort with a
+# nested spread, then pack over the column.  The spread alone works, but
+# a pack whose data carries a live spread never sees it settle: the
+# whole model dies [aontu/mapval_no_gen].  Hence the authored
+# duplication in services.aon.
+ports: { web: { http: { name: http, containerPort: 8080 } } }
+ports: &: &: { port: .containerPort, targetPort: .containerPort }
+out: pack($.ports, { plist: each(_, { protocol: *TCP | string }) })

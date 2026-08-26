@@ -1,0 +1,5 @@
+# Entry point: unify the golden path, the service model, and the
+# reviewed overrides.  Evaluating this file renders the manifests.
+@"platform.aon"
+@"services.aon"
+@"overrides.aon"

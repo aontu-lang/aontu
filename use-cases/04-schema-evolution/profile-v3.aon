@@ -1,0 +1,40 @@
+# Customer Profile schema, v3.0.0 -- a MAJOR version.
+#
+# Changes against v2:
+#   * phone is removed (deprecated since 2.0.0; the closed map makes
+#     the removal visible to the gate, and --allow-deprecated-removal
+#     is the sanctioned path for it)
+#   * region becomes REQUIRED for data-residency routing -- this is
+#     the change that forces the major bump: no flag excuses a
+#     compat_required_added, old instances simply do not carry it.
+#
+# The policy still declares backward: the promise applies within the
+# v3 line.  CI switches the --against target to v3 ancestors once v3
+# is adopted.
+aontu_policy: hide({compat: *backward | forward | full | none})
+
+profile: close({
+  id: string & re("^C[0-9]{7}$")
+
+  email: string & re("^[^@ ]+@[^@ ]+[.][^@ ]+$")
+  name: string & length(min(1))
+
+  contact?: close({
+    phone?: string & re("^[+][0-9]{7,15}$")
+    verified: *false | boolean
+  })
+
+  locale?: string & re("^[a-z][a-z](?:-[A-Z][A-Z])?$")
+
+  # Written as a regex-enum, not a literal disjunction: vet reports a
+  # missing required key as incomplete for a constraint residual, but
+  # says "valid" for a missing literal disjunction.  See README "Gaps".
+  region: string & re("^(us|eu|apac)$")
+
+  tier: "standard" | "premium" | "enterprise"
+
+  consent: close({
+    marketing: *false | boolean
+    analytics: *false | boolean
+  })
+})

@@ -1,0 +1,10 @@
+{
+  "customers": {
+    "cust-1005": {
+      "ledgerId": 90210,
+      "name": "Helvetia Precision AG",
+      "country": "Switzerland",
+      "currency": "CHF"
+    }
+  }
+}

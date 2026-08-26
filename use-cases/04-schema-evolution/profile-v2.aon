@@ -1,0 +1,44 @@
+# Customer Profile schema, v2.0.0 -- additive minor evolution of v1.
+#
+# Changes against v1 (all admitted by the backward gate):
+#   * new optional key: locale (BCP-47-ish subset)
+#   * new optional block: contact, the validated successor of phone
+#   * phone is deprecated in place; it still unifies exactly as in v1,
+#     the mark only rides the value and surfaces in vet / LSP / the
+#     breaking verb's --allow-deprecated-removal path.
+aontu_policy: hide({compat: *backward | forward | full | none})
+
+profile: close({
+  id: string & re("^C[0-9]{7}$")
+
+  email: string & re("^[^@ ]+@[^@ ]+[.][^@ ]+$")
+  name: string & length(min(1))
+
+  # Deprecated: unvalidated free-form number.  Writers should move to
+  # contact.phone (E.164).  Removal is scheduled for v3 via the
+  # deprecate-then-remove path the breaking verb supports.
+  phone?: deprecate(string, {
+    msg: "free-form phone is unvalidated; write E.164 to contact.phone"
+    use: "$.profile.contact.phone"
+    since: "2.0.0"
+  })
+
+  # Validated contact block, successor of phone.
+  contact?: close({
+    phone?: string & re("^[+][0-9]{7,15}$")
+    verified: *false | boolean
+  })
+
+  # Preferred locale, e.g. "en" or "pt-BR".
+  # The natural pattern ^[a-z]{2}(-[A-Z]{2})?$ is refused by re()'s
+  # portable subset (quantifier on a group containing a quantifier),
+  # so the inner {2} is written out by hand.  See README "Gaps".
+  locale?: string & re("^[a-z][a-z](?:-[A-Z][A-Z])?$")
+
+  tier: "standard" | "premium" | "enterprise"
+
+  consent: close({
+    marketing: *false | boolean
+    analytics: *false | boolean
+  })
+})

@@ -1,0 +1,7 @@
+# Two defaults of the SAME rank that disagree are a conflict, not a
+# quiet pick: [aontu/scalar_value] at generation time.  This is why
+# each layer of the stack owns one rank -- two teams' files both using
+# * would collide exactly like this.
+
+level: *info | string
+level: *debug | string

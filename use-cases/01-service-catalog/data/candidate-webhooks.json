@@ -1,0 +1,8 @@
+{
+  "kind": "service",
+  "owner": "team-platform",
+  "tier": 3,
+  "lifecycle": "experimental",
+  "description": "Outbound webhook delivery with retry and signing.",
+  "ports": {"http": {"number": 8087, "protocol": "http"}}
+}

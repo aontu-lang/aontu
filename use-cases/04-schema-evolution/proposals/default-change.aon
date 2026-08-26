@@ -1,0 +1,15 @@
+# CONTESTED PROPOSAL: flip the marketing-consent default to opted-in.
+# The admitted value set is unchanged (values profile: compatible),
+# but omitted flags now materialise differently: the defaults profile
+# (the gate's default) reports compat_default_changed.
+aontu_policy: hide({compat: *backward | forward | full | none})
+profile: close({
+  id: string & re("^C[0-9]{7}$")
+  email: string & re("^[^@ ]+@[^@ ]+[.][^@ ]+$")
+  name: string & length(min(1))
+  phone?: deprecate(string, {msg: "free-form phone is unvalidated; write E.164 to contact.phone", use: "$.profile.contact.phone", since: "2.0.0"})
+  contact?: close({phone?: string & re("^[+][0-9]{7,15}$"), verified: *false | boolean})
+  locale?: string & re("^[a-z][a-z](?:-[A-Z][A-Z])?$")
+  tier: "standard" | "premium" | "enterprise"
+  consent: close({marketing: *true | boolean, analytics: *false | boolean})
+})

@@ -1,0 +1,2 @@
+@"corp.example/schemas/common@1"
+spec: { name: string, port: *8080 | integer }

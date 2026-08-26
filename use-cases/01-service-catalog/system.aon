@@ -1,0 +1,24 @@
+# system.aon --- THE ROOT: one evaluation joining the bundled
+# vocabulary, Acme's own spec, and the two views of the same eight
+# entities. Identity (id) does the joining; nothing here repeats a path
+# from either view.
+@"std/system"
+@"./spec.aon"
+@"./catalog.aon"
+@"./deploy.aon"
+
+# The bundled vocabulary is schema-only (every member is type-marked);
+# hide the otherwise-empty bag it leaves in the output.
+std: hide({})
+
+# Relation declarations, read by `aontu relations`. NOTE: `target` is
+# documentation only -- the verb checks acyclic and inverse, and does
+# NOT enforce target against edge endpoints (README, gap 3).
+relations: {
+  dependsOn: $.std.Relation & {
+    target: $.std.Service
+    inverse: dependedOnBy
+    acyclic: true
+  }
+  dependedOnBy: $.std.Relation & {target: $.std.Service}
+}

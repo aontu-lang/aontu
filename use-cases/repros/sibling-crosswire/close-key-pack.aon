@@ -1,0 +1,14 @@
+# Use-case 06 gap 1 (claim C3): key() cross-wires inside a close()d
+# pack template. NO second pack is needed: close() around a template
+# containing key() is sufficient on its own -- key() evaluates once
+# and every generated child gets the FIRST child's key. Without the
+# inner close() the same document is correct. Docs promise per-child
+# resolution: "Each generated child is tmpl cloned at that
+# destination, so key() ... answer for the child" (reference-language.md,
+# "Generating children"); test/spec/gen-close.tsv pins close-inside-
+# template as supported (single child, no key()).
+# expected: {"deploy":{"auth":{"name":"auth"},"web":{"name":"web"}},...} exit 0
+# actual: {"deploy":{"auth":{"name":"web"},"web":{"name":"web"}},...} exit 0
+#         -- silently wrong, auth reports web's key
+names: [web, auth]
+deploy: pack($.names, close({ name: key() }))

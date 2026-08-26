@@ -1,0 +1,1 @@
+p: {a: string, internal_score: hide(integer)}

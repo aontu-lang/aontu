@@ -1,0 +1,51 @@
+@"roles.aon"
+@"plans.aon"
+
+# The tenant document schema: what an agent-emitted tenant candidate
+# must satisfy (aontu vet tenant.aon data/<candidate>.json).
+tenant: {
+  name: string & length(min(1) & max(64))
+
+  # Reserved slugs are excluded by identity (neq), the format by re().
+  slug: string & re("^[a-z][a-z0-9-]{1,30}$") & neq(admin, root, system, api)
+
+  # Deliberately a PLAIN disjunction: enforcement costs the default.
+  # `*member | ...` would admit ANY string (see exhibits/), and a
+  # type()-marked helper would make a missing plan vet as valid.
+  plan: free | pro | enterprise
+
+  # Conditional shape (plans.aon) + cross-field tie. The tie enforces
+  # plan==entitlement.plan in full evaluation (example.aon, audits/);
+  # under vet it is inert (stale reference) -- the branches are
+  # selected by the data's own entitlement.plan instead.
+  entitlement: $.Entitlement & { plan: $.tenant.plan }
+
+  # Tier mapping: match() derives per-plan limits and the support
+  # tier from the data's plan. Candidates need not repeat these; a
+  # candidate that contradicts them is invalid.
+  limits: match(.plan,
+    free,       close({ maxProjects: 3,    maxSeats: 5 }),
+    pro,        close({ maxProjects: 50,   maxSeats: 100 }),
+    enterprise, close({ maxProjects: 5000, maxSeats: 10000 }))
+  supportTier: match(.plan, free, community, pro, standard, enterprise, dedicated)
+
+  # The enum-with-default idiom, repeated-branch form. The repeat
+  # silences the pref_not_instance warning; it does NOT make the set
+  # closed -- any string is accepted here (documented gap, see
+  # exhibits/ and README).
+  defaultMemberRole: *member | member | admin | owner
+
+  # Member records: closed shape in one spread, refer() in a second.
+  # refer() inside a close()d spread template never settles
+  # (mapval_no_gen) -- splitting the spreads is the workaround that
+  # keeps both the typo protection and the role foreign-key check.
+  members: { &: close({ role: string, invitedBy?: string }) }
+  members: { &: { role: refer() } }
+
+  # "No MFA implies short sessions" as a disjunction of closed maps.
+  # The must() form of this rule is silently IGNORED under vet and
+  # across includes (same-layer only -- see audits/ and README), so
+  # the schema states it structurally.
+  security: close({ mfaRequired: true,  sessionTimeoutMinutes: integer & min(5) & max(1440) })
+          | close({ mfaRequired: false, sessionTimeoutMinutes: integer & min(5) & max(60) })
+}

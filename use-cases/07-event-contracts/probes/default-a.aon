@@ -1,0 +1,5 @@
+# default-a.aon --- identity probe: same allowed set as default-b,
+# DIFFERENT default. canon drops the conjunct *pref, so both files
+# canon (and therefore hash) identically, though vet fills different
+# defaults. check.sh pins the collision.
+v: ("1.0" | "1.1") & *"1.0"

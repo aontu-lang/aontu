@@ -1,0 +1,7 @@
+{
+  "name": "checkout",
+  "owner": "payments-core@corp.example",
+  "tier": "critical",
+  "port": 9091,
+  "replicas": 6
+}

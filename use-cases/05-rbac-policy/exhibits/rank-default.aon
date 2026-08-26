@@ -1,0 +1,5 @@
+# Ranked preferences: the org baseline ships a weakly-preferred
+# default (**), a team profile overrides it with a strong one (*),
+# and a concrete value would beat both. Generates "member".
+defaultRole: **viewer | viewer | member | admin
+defaultRole: *member

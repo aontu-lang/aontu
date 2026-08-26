@@ -1,0 +1,16 @@
+# Use-case 09 gap 6 (claim C5): a reference into a type()-marked map
+# from INSIDE that same map never resolves — type() waits for its
+# argument, the argument waits for $.spec.SE, which waits for type().
+# The failure surfaces at generation, far from the cause, and nothing
+# names the cycle.  Controls that work: the same reference from OUTSIDE
+# the type map resolves fine, and splitting SE/TS into separate
+# top-level type() fields works (the 09/registry.aon workaround).
+# expected: {} exit 0 (a type-marked field is omitted from output;
+#           $.spec.SE is a perfectly resolvable path)
+# actual:   [aontu/mapval_no_gen]: Cannot resolve value at path $.spec
+#           (residue: type({"SE":"readonly"|"write",
+#           "TS":close({"side_effect":$.spec.SE})})) exit 1
+spec: type({
+  SE: "readonly" | "write"
+  TS: close({ side_effect: $.spec.SE })
+})

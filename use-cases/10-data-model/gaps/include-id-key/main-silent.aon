@@ -1,0 +1,6 @@
+# The nastier half of gap 6: with id(key(0)) removed, the same
+# include+alias combination SILENTLY DROPS the record: exit 0 and
+# customers generates as {}. check.sh asserts the empty output --
+# that silence is the finding. README, gap 6.
+@"./vocab-noid.aon"
+customers: "cust-1001": { ledgerId: 5, name: "Acme" }

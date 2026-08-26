@@ -1,0 +1,21 @@
+# docs-core claim C1: `why` output is UNSTABLE across sibling keys
+# under one &: template. Identical siblings, different provenance:
+#   aontu why '$.services.a.replicas' sibling-split.aon
+#   aontu why '$.services.b.replicas' sibling-split.aon
+# reference-api.md ("aontu why") and test/spec/why.tsv both define:
+# "neither are the members INSIDE one written value" contributions --
+# so *1|integer, written once, must be ONE contribution everywhere
+# (why-spread-template goldens exactly that for the first child).
+# expected: a.replicas and b.replicas identical: 2 contributions each
+#           (1. *1|integer :18:18 (spread), 2. 3)
+# actual:   a.replicas: 2 contributions (*1|integer unsplit);
+#           b.replicas: 3 contributions -- the disjunction split into
+#           *1 at 18:18 and integer at 18:23. Same instability on the
+#           untouched field: a.tier lists 1 contribution
+#           (*"standard"|string (spread)); b.tier says
+#           "(no contributions: nothing met at this path)".
+services: {
+  &: { replicas: *1 | integer, tier: *standard | string }
+  a: { replicas: 3 }
+  b: { replicas: 3 }
+}

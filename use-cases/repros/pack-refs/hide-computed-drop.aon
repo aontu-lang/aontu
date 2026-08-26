@@ -1,0 +1,18 @@
+# Claim C5b (use-case 09 gap 4): hide() around a computed value merged
+# onto a pack-generated child converts a hard error into SILENT loss.
+# Without hide(), the same merge fails loudly (mapval_spread_required
+# "value for key doc_row is required (defined in spread)"); with
+# hide(), exit 0, doc_row vanishes and the copy() of it disappears
+# from the docs list — [] instead of an element or an error.
+# hide() itself is not at fault: doc_row: hide(lit) round-trips fine
+# through copy(), and the whole document works without the pack.
+# reference-language.md ("Marks"): hidden values are "still
+# participating in unification" and copy() "mak[es] the result
+# emittable again".
+# expected: docs = ["|readonly"] (as the pack-free spelling gives),
+#           or at minimum the hard error of the un-hidden spelling
+# actual:   exit 0, docs = [], doc_row silently gone
+names: [a]
+tools: pack($.names, {})
+tools: a: { se: readonly, doc_row: hide("|" + .se) }
+docs: [ copy($.tools.a.doc_row) ]

@@ -1,0 +1,40 @@
+# Organisation guardrails, enforced with:
+#
+#   aontu stack.aon > built.json
+#   aontu vet guardrails.aon built.json
+#
+# The bounds are a SEPARATE vet schema, not part of the build, for two
+# verified reasons (README, gaps 1 and 2):
+#   - a constraint conjunct written against a ranked default swallows
+#     the default ([aontu/mapval_no_gen], probes/lost-default.aon);
+#   - a default disjoined with a constrained branch lets a concrete
+#     override bypass the constraint entirely (probes/bypassed-bound.aon).
+# Running the atoms over the BUILT output closes both holes: by then
+# every value is concrete, and conjunct constraints work exactly as
+# advertised.
+#
+# The workload rules are spread per environment from one hidden block
+# rather than once via `deploy: &: {workloads: &: ...}`: combining that
+# outer spread with the prod-specific spread below cross-wires sibling
+# workloads and reports billing's port conflicting with auth's
+# (README, gap 6).
+
+common: hide({
+  workload: {
+    service: string & re("^[a-z][a-z0-9]*$")
+    replicas: integer & min(1) & max(24)
+    port: integer & min(1024) & max(65535)
+    logLevel: re("^(debug|info|warn|error)$")
+    tracing: boolean
+    imagePullPolicy: re("^(Always|IfNotPresent|Never)$")
+  }
+})
+
+deploy: dev: workloads: &: $.common.workload
+deploy: staging: workloads: &: $.common.workload
+
+# Production additionally has an HA floor, with an author message that
+# is surfaced verbatim when it fires ([aontu/must], probes/must-floor.aon).
+deploy: prod: workloads: &: $.common.workload & {
+  replicas: must(min(2), "prod workloads need >= 2 replicas for zero-downtime rollouts")
+}

@@ -1,0 +1,34 @@
+{
+  "srv": {
+    "checkout": {
+      "healthcheck": {
+        "interval_seconds": 15,
+        "path": "/healthz"
+      },
+      "name": "checkout",
+      "owner": "payments-core@corp.example",
+      "port": 9091,
+      "replicas": 6,
+      "telemetry": {
+        "metrics": true,
+        "traces": false
+      },
+      "tier": "critical"
+    },
+    "gift-cards": {
+      "healthcheck": {
+        "interval_seconds": 15,
+        "path": "/healthz"
+      },
+      "name": "gift-cards",
+      "owner": "promo@corp.example",
+      "port": 8080,
+      "replicas": 2,
+      "telemetry": {
+        "metrics": true,
+        "traces": false
+      },
+      "tier": "internal"
+    }
+  }
+}

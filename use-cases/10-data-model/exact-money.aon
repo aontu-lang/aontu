@@ -1,0 +1,13 @@
+# exact-money.aon --- the schema you WANT for money, and the one no
+# strictly-JSON record can ever satisfy.
+#
+# `bigdecimal` is reachable only through a 0d literal, and JSON has no
+# such spelling: every JSON number parses as integer or float kind,
+# and the four numeric leaves are disjoint. So a candidate like
+# {"amountEur": 10.5} is refused with [aontu/no_scalar_unify] -- see
+# check.sh and README, gap 1. An .aon data file (or 0d-annotated
+# pseudo-JSON, which the vet verb happens to accept) does satisfy it.
+quote: {
+  amountEur: bigdecimal & min(0d0)
+  currency: string & re("^[A-Z]{3}$")
+}

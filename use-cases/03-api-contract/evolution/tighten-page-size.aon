@@ -1,0 +1,9 @@
+# Proposed contract change: ops wants cheaper list pages, capping
+# page_size at 50 instead of 100. `aontu breaking` must refuse this
+# under an unchanged major: clients sending page_size=80 today would
+# start getting 400s. (max(50) MEETS the existing max(100) -- narrowing
+# a constraint is normal unification, so the proposal itself evaluates.)
+
+@"../contract.aon"
+
+types: { PageSize: max(50) }

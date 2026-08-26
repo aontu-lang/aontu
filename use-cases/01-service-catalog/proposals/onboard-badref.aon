@@ -1,0 +1,8 @@
+# proposals/onboard-badref.aon --- the same onboarding flow, but the
+# agent's candidate depends on svc/searchx, which no file declares.
+# The refer() check fails the whole evaluation.
+@"../system.aon"
+
+candidate: hide(@"../data/candidate-badref.json")
+
+proposal: search: id(svc/search) & $.spec.CatalogEntry & $.candidate

@@ -1,0 +1,13 @@
+# A registry that declares two tenant-owning roles, with the same
+# same-layer invariant roles.aon carries. Shows that (a) the
+# filter()+length() guard genuinely fires, and (b) hide() does not
+# suppress the check. (The real registry cannot be driven into this
+# state from outside: roles is close()d and each tenantOwner flag is
+# a pinned scalar, so an overlay conflicts before the count does.)
+roles: {
+  owner:   { tenantOwner: true, rank: 100 }
+  coowner: { tenantOwner: true, rank: 90 }
+}
+registry_invariant: hide({
+  one_owner_role: length(1) & filter($.roles, { tenantOwner: true })
+})

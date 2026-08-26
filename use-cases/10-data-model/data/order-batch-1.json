@@ -1,0 +1,12 @@
+{
+  "orders": {
+    "ord-7003": {
+      "customerId": "cust-1002",
+      "status": "open",
+      "placed": "2026-08-20",
+      "lines": [
+        {"sku": "sku-valve-pro", "qty": 1, "unitCents": 4990, "amountCents": 4990}
+      ]
+    }
+  }
+}

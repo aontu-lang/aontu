@@ -1,0 +1,7 @@
+# surge = replicas + 1 works only when replicas is CONCRETE.  Against
+# the idiomatic default form `*4 | integer` the sum never resolves:
+# expected [aontu/mapval_no_gen] "Cannot resolve value: $.replicas+1".
+# (stack.aon therefore computes rollout arithmetic only from pinned
+# values -- see $.rollout.)
+replicas: *4 | integer
+surgeReplicas: $.replicas + 1

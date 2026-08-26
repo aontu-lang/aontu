@@ -1,0 +1,14 @@
+# pref-enum.aon --- FAILED ATTEMPT, kept as evidence (README gap:
+# enum with a default). The disjunct spelling of "allowed set with a
+# default" does not enforce the set: a concrete same-kind peer
+# OVERRIDES the *pref branch rather than being tested against it, so
+# v:"9.9" vets VALID here. The pref_not_instance warning that
+# accompanies it is itself wrong -- "1.0" IS an alternative.
+# check.sh pins both. The conjunct spelling used by envelope.aon,
+#   ("1.0" | "1.1") & *"1.0"
+# enforces the set under vet but errors under plain eval and loses
+# the default in canon (see probes/default-a.aon / default-b.aon).
+
+E: {
+  v: *"1.0" | "1.1"
+}

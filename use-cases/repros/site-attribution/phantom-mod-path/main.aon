@@ -1,0 +1,19 @@
+# Claim C3 (use-case 11 gap 5): a module-internal $.-reference breaks
+# under nested import, and the no_path diagnostic names a PHANTOM
+# path. Run (from this directory):
+#   aontu main.aon
+# The module (aon_vendor/.../service@1/service.aon) hashes and
+# evaluates standalone; imported at a nested key its `$.defaults.port`
+# re-roots to THIS document (consistent with reference-language.md:
+# an include "unifies the result in place", `$.a.b` is "absolute path
+# from the document root" -- but it contradicts the module's
+# standalone-hash identity). The reported path's first segment is the
+# LAST TOP-LEVEL KEY of the module's own mod.aon ("mod" -- rename it
+# and the diagnostic follows): internal metadata-evaluation state
+# leaking into the consumer's error. No `mod` key exists in either
+# document, and the ref actually sits at $.lib.spec.port (a plain
+# file include of the same fragment reports exactly that path).
+# expected: [aontu/no_path] ... at path $.lib.spec.port
+# actual:   [aontu/no_path] ... at path $.mod.spec.port
+lib: hide(@"corp.example/schemas/service@1")
+svc: $.lib.spec & { name: "checkout" }

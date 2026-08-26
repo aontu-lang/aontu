@@ -1,0 +1,11 @@
+# Use-case 06 gap 2 (claim C4): a rank-2 default (**) computed from
+# key() in a pack template evaluates ONCE and is shared by every
+# generated child. each() is NOT needed; the double star is the
+# trigger: *key(1)|string, *key(1) alone, and plain key(1) are all
+# correct per child. (** is documented: "Preferences can be ranked",
+# reference-language.md, Preference section.)
+# expected: {"out":{"auth":{"value":"auth"},"web":{"value":"web"}},...} exit 0
+# actual: {"out":{"auth":{"value":"web"},"web":{"value":"web"}},...} exit 0
+#         -- silently wrong, every child gets the first child's key
+col: { web: {}, auth: {} }
+out: pack($.col, { value: **key(1) | string })

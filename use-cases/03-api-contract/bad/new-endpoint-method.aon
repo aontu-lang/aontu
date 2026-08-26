@@ -1,0 +1,16 @@
+# A teammate adds an endpoint with a method the gateway does not
+# serve. The &: spread in api.aon applies EndpointShape to the new
+# entry, so the contract refuses to evaluate: the registry polices
+# its own entries with no extra tooling.
+
+@"../contract.aon"
+
+api: {
+  export_workspace: {
+    method: FETCH
+    path: "/v1/export"
+    auth: bearer
+    summary: "Bulk-export the workspace as an archive"
+    responses: { 202: type({}) }
+  }
+}

@@ -1,0 +1,5 @@
+# FAILED ATTEMPT: join the service names into one string (an annotation
+# listing the fleet).  '+' does not accept a list operand and there is
+# no join()/split()/format().  [aontu/mapval_no_gen].
+names: [web, auth, billing]
+fleet: $.names + ","

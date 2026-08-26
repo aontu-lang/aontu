@@ -1,0 +1,19 @@
+# Shared include for refer-in-type-hang.aon (use-case 10 gap 7,
+# claim C2, nontermination half).  The ONLY difference from a fast,
+# correct model is that refer() lives INSIDE the named Order type:
+# - swap customerId to `string & re("^cust-")` here             -> 0.2s, correct
+# - or keep that swap and put `customerId: refer()` on the bag
+#   spread below (the 10/domain.aon workaround)                 -> 0.2s, correct + checked
+schema: {
+  OrderLine: type(close({
+    unitCents: integer & min(0) & max(100000000000)
+    amountCents: integer & min(0)
+  }))
+  Order: type(close({
+    id: string
+    customerId: refer() & string & re("^cust-")
+    lines: [&: $.schema.OrderLine]
+  }))
+}
+customers: {}
+orders: { &: $.schema.Order & { id: .$KEY } }

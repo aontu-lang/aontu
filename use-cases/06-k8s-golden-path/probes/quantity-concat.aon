@@ -1,0 +1,7 @@
+# PINNED: quantity strings are opaque.  "+" on two quantities
+# concatenates the text -- "256Mi256Mi" -- silently, exit 0.  Golden:
+# expected/quantity-concat.json.  The only safe pattern is number +
+# unit-suffix at authoring time (512 + "Mi").
+mem: "256Mi" + "256Mi"
+ok: 512 + "Mi"
+doubled: (512 + 512) + "Mi"

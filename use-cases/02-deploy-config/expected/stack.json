@@ -1,0 +1,178 @@
+{
+  "alerts": {
+    "auth": {
+      "env": "prod",
+      "escalate": "#payments-oncall",
+      "runbook": "https://runbooks.acme.internal/auth"
+    },
+    "billing": {
+      "env": "prod",
+      "escalate": "#payments-oncall",
+      "runbook": "https://runbooks.acme.internal/billing"
+    }
+  },
+  "deploy": {
+    "dev": {
+      "domain": "dev.acme.internal",
+      "promote": false,
+      "workloads": {
+        "auth": {
+          "critical": true,
+          "image": "registry.acme.internal/payments/auth:2025.34.2",
+          "imagePullPolicy": "IfNotPresent",
+          "logLevel": "debug",
+          "port": 8081,
+          "replicas": 1,
+          "service": "auth",
+          "tier": "backend",
+          "tracing": true
+        },
+        "billing": {
+          "critical": true,
+          "image": "registry.acme.internal/payments/billing:2025.34.2",
+          "imagePullPolicy": "IfNotPresent",
+          "logLevel": "debug",
+          "port": 8082,
+          "replicas": 1,
+          "service": "billing",
+          "tier": "backend",
+          "tracing": true
+        },
+        "reports": {
+          "critical": false,
+          "image": "registry.acme.internal/payments/reports:2025.34.2",
+          "imagePullPolicy": "IfNotPresent",
+          "logLevel": "debug",
+          "port": 8083,
+          "replicas": 1,
+          "service": "reports",
+          "tier": "batch",
+          "tracing": true
+        },
+        "web": {
+          "critical": false,
+          "image": "registry.acme.internal/payments/web:2025.34.2",
+          "imagePullPolicy": "IfNotPresent",
+          "logLevel": "debug",
+          "port": 8080,
+          "replicas": 1,
+          "service": "web",
+          "tier": "frontend",
+          "tracing": true
+        }
+      }
+    },
+    "prod": {
+      "domain": "pay.acme.example",
+      "promote": true,
+      "workloads": {
+        "auth": {
+          "critical": true,
+          "image": "registry.acme.internal/payments/auth:2025.34.2",
+          "imagePullPolicy": "IfNotPresent",
+          "logLevel": "info",
+          "port": 8081,
+          "replicas": 4,
+          "service": "auth",
+          "tier": "backend",
+          "tracing": false
+        },
+        "billing": {
+          "critical": true,
+          "image": "registry.acme.internal/payments/billing:2025.34.2",
+          "imagePullPolicy": "IfNotPresent",
+          "logLevel": "warn",
+          "port": 8082,
+          "replicas": 12,
+          "service": "billing",
+          "tier": "backend",
+          "tracing": false
+        },
+        "reports": {
+          "critical": false,
+          "image": "registry.acme.internal/payments/reports:2025.34.2",
+          "imagePullPolicy": "IfNotPresent",
+          "logLevel": "warn",
+          "port": 8083,
+          "replicas": 4,
+          "service": "reports",
+          "tier": "batch",
+          "tracing": false
+        },
+        "web": {
+          "critical": false,
+          "image": "registry.acme.internal/payments/web:2025.34.2",
+          "imagePullPolicy": "IfNotPresent",
+          "logLevel": "warn",
+          "port": 8080,
+          "replicas": 4,
+          "service": "web",
+          "tier": "frontend",
+          "tracing": false
+        }
+      }
+    },
+    "staging": {
+      "domain": "staging.acme.internal",
+      "promote": true,
+      "workloads": {
+        "auth": {
+          "critical": true,
+          "image": "registry.acme.internal/payments/auth:2025.34.2",
+          "imagePullPolicy": "IfNotPresent",
+          "logLevel": "info",
+          "port": 8081,
+          "replicas": 2,
+          "service": "auth",
+          "tier": "backend",
+          "tracing": true
+        },
+        "billing": {
+          "critical": true,
+          "image": "registry.acme.internal/payments/billing:2025.34.2",
+          "imagePullPolicy": "IfNotPresent",
+          "logLevel": "info",
+          "port": 8082,
+          "replicas": 2,
+          "service": "billing",
+          "tier": "backend",
+          "tracing": true
+        },
+        "reports": {
+          "critical": false,
+          "image": "registry.acme.internal/payments/reports:2025.34.2",
+          "imagePullPolicy": "IfNotPresent",
+          "logLevel": "info",
+          "port": 8083,
+          "replicas": 2,
+          "service": "reports",
+          "tier": "batch",
+          "tracing": true
+        },
+        "web": {
+          "critical": false,
+          "image": "registry.acme.internal/payments/web:2025.34.2",
+          "imagePullPolicy": "IfNotPresent",
+          "logLevel": "info",
+          "port": 8080,
+          "replicas": 2,
+          "service": "web",
+          "tier": "frontend",
+          "tracing": true
+        }
+      }
+    }
+  },
+  "org": {
+    "name": "acme",
+    "registry": "registry.acme.internal",
+    "runbookBase": "https://runbooks.acme.internal"
+  },
+  "rollout": {
+    "billingProdMaxSurge": 13
+  },
+  "team": {
+    "name": "payments",
+    "oncall": "#payments-oncall"
+  }
+}

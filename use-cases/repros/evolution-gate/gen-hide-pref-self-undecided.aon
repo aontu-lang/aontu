@@ -1,0 +1,19 @@
+# C2 (use-case 04, README gap 5): --profile gen is not reflexive on the
+# documented aontu_policy.compat idiom (reference-api.md, "aontu
+# breaking": aontu_policy: hide({compat: *backward|forward|full|none})).
+# Minimised: hide() around a preference-bearing disjunction. Under gen
+# the SPECIFIC side collapses to its effective default (*"backward" /
+# *1) while the general side keeps the whole disjunction, so the
+# member-wise rule cannot decide. Either ingredient alone is reflexive:
+# compat: *backward|forward (no hide) => subsumes; hide({c: x|y}) (no
+# pref) => subsumes. Profiles doc (reference-language.md "Profiles")
+# defines gen as defaults + type/hide marks agreeing on corresponding
+# nodes -- identical files trivially agree, and the same file DOES
+# self-subsume under --profile values and --profile defaults.
+# expected: verdict: subsumes, exit 0 (a document gen-subsumes itself)
+# actual: verdict: undecided, exit 3 -- $.aontu_policy.compat and $.p:
+#         sub_disjunct_distribution, specific side rendered as its
+#         default (*"backward", *1) against the general disjunction
+# run: aontu subsume --profile gen gen-hide-pref-self-undecided.aon gen-hide-pref-self-undecided.aon
+aontu_policy: hide({compat: *backward | forward | full | none})
+p: hide(*1 | 2)

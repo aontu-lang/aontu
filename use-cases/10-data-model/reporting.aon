@@ -1,0 +1,33 @@
+# reporting.aon --- the reporting/BI projection of the domain.
+#
+# Deliberately WIDER than domain.aon: fewer fields, looser types,
+# nothing closed. `aontu subsume reporting.aon domain.aon` proves the
+# projection is sound -- every document the domain admits, this view
+# admits too, so a report built against this shape can never be
+# surprised by a valid domain document.
+schema: {
+  Customer: type({
+    id: string
+    name: string
+    country: string
+    # NB deliberately no `ledgerId: integer` here: the domain allows
+    # biginteger ledger ids (0d spellings above 2^53), and a view
+    # that assumed plain integers would NOT subsume the domain.
+    # bad/reporting-int64.aon shows exactly that failure.
+  })
+  Order: type({
+    id: string
+    customerId: string
+    # `status: string` alone does NOT subsume: the domain carries a
+    # *"open" default, and the subsumption profile requires the view
+    # to preserve the effective default (compat_default_changed --
+    # README, "what worked", subsume). The view restates it:
+    status: *"open" | string
+  })
+  Invoice: type({
+    id: string
+    orderId: string
+    currency: string
+    grossCents: integer
+  })
+}

@@ -1,0 +1,20 @@
+# expected: tidy either resolves a closure that then evaluates, or refuses to
+#           pin a module it cannot evaluate standalone (as `aontu hash` does)
+# actual: tidy exits 0 and locks canon aon1-XaOkx_EXlEJ1tMhinEkWQDYl1aSmVzoB7LA_Dp0u2-Y
+#         for service@1 -- the canon-hash of `nil`, identical for ANY module whose
+#         import fails, so the pin carries no information -- while
+#         `aontu hash aon_vendor/corp.example/schemas/service@1/service.aon`
+#         refuses the same file (exit 4, "does not evaluate on its own");
+#         evaluation then fails `module not fetched: corp.example/schemas/common@1`
+#         even though common@1 IS vendored flat here: the nested import resolves
+#         against the vendored module's own root (its mod.aon stops the upward
+#         walk), which has no aon_vendor/.  This flat layout is exactly what
+#         `mod vendor` produces (ts/src/mod-tool.ts modVendor), and `mod manifest`
+#         strips aon_vendor/ from the layer, so the nested-vendor workaround
+#         cannot travel through a publish.
+# run: aontu mod tidy . && aontu main.aon
+mod: { path: "corp.example/checkout", main: "main.aon" }
+dep: {
+  "corp.example/schemas/service@1": { v: "1.4.2" }
+  "corp.example/schemas/common@1": { v: "1.0.0" }
+}

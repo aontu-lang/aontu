@@ -1,0 +1,9 @@
+# FAILED ATTEMPT (kept executable). An ERP export that parsed money
+# as a binary float can never meet the exact book: float and the
+# exact leaves refuse to mix, in either order. This refusal is the
+# guarantee that exactness is never silently lost. README, gap 1
+# is the flip side: JSON input is ALWAYS on the float side of this
+# wall.
+book: 0d19.99
+erp: 19.99
+delta: $.book + $.erp

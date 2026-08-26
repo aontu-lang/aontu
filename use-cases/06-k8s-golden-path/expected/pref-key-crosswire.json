@@ -1,0 +1,29 @@
+{
+  "col": {
+    "auth": {},
+    "web": {}
+  },
+  "out": {
+    "auth": {
+      "env": [
+        {
+          "name": "X",
+          "value": "web"
+        }
+      ]
+    },
+    "web": {
+      "env": [
+        {
+          "name": "X",
+          "value": "web"
+        }
+      ]
+    }
+  },
+  "shared": {
+    "X": {
+      "name": "X"
+    }
+  }
+}

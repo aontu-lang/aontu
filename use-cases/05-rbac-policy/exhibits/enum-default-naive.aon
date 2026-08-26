@@ -1,0 +1,8 @@
+# The natural spelling of "enum with default". OBSERVED BEHAVIOUR
+# (asserted by check.sh): a scalar preference is overridable by ANY
+# same-kind value, so this admits the string "superadmin" -- the enum
+# is not enforced at all. Every vet run also reports a
+# pref_not_instance warning, because peeling *member out of the
+# alternatives leaves a default that is "not an instance" of
+# admin|owner.
+invite: { role: *member | admin | owner }

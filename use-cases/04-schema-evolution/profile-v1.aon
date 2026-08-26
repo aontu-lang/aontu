@@ -1,0 +1,38 @@
+# Customer Profile schema, v1.0.0 -- the org-wide ground truth for the
+# customer record every service reads and writes.
+#
+# aontu_policy.compat declares the evolution promise the breaking verb
+# enforces without a --mode flag: backward means every instance valid
+# under the previous version stays valid under this one.  hide() keeps
+# the policy out of generated output.
+#
+# NOTE: the version number itself lives in the registry (file name /
+# git tag), NOT in this document -- a concrete "1.0.0" string would be
+# compared by the breaking gate and read as a narrowing when it bumps.
+# See README "Gaps".
+aontu_policy: hide({compat: *backward | forward | full | none})
+
+profile: close({
+  # Customer number: C + 7 digits, assigned by billing at signup.
+  id: string & re("^C[0-9]{7}$")
+
+  # Contact identity.
+  email: string & re("^[^@ ]+@[^@ ]+[.][^@ ]+$")
+  name: string & length(min(1))
+
+  # Legacy free-form direct-dial number.
+  phone?: string
+
+  # Service tier: a strict enum.  It carries no *default on purpose:
+  # a preferred scalar alternative admits its whole kind (any string
+  # would vet as valid), so default and strictness cannot share this
+  # expression.  See README "Gaps".
+  tier: "standard" | "premium" | "enterprise"
+
+  # Privacy consent flags; absent flags default to refused, which is
+  # safe because a boolean default is only overridable by a boolean.
+  consent: close({
+    marketing: *false | boolean
+    analytics: *false | boolean
+  })
+})

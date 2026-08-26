@@ -1,0 +1,12 @@
+# C4 (use-case 05), conditional-branch form: a disjunction of closed
+# shapes keyed on a data-supplied field VIA A REFERENCE silently passes
+# vet; the same composition as one document is refused.
+# expected: verdict: invalid, exit 1 (plan "free" selects the free branch,
+#           which pins sso: false; data says sso: true -- one-document
+#           evaluation reports [aontu/scalar_value] at $.t.e.plan, exit 1)
+# actual: verdict: valid, exit 0 -- { plan: $.t.p } resolved against the
+#         schema-side 'string' only, so the data's sso: true just picks
+#         the pro branch and the plan tie is never enforced
+# run: aontu vet stale-reference-branch.aon stale-reference-branch.json
+Ent: type( close({ plan: "free", sso: false }) | close({ plan: "pro", sso: boolean }) )
+t: { p: string, e: $.Ent & { plan: $.t.p } }

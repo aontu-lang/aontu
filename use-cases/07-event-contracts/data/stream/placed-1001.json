@@ -1,0 +1,18 @@
+{
+  "id": 1001,
+  "type": "order.placed",
+  "time": "2026-08-26T09:15:04Z",
+  "source": "/orders/eu-1",
+  "specversion": "1.0",
+  "correlation_id": "9f1c2d3e-55aa-4bb1-8c2d-0011aabbccdd",
+  "payload": {
+    "order_id": "ord-1a2b3c4d",
+    "customer_id": "cus-00ff88aa",
+    "total_cents": 12980,
+    "currency": "EUR",
+    "lines": [
+      {"sku": "sku-espresso-cup", "qty": 4, "unit_cents": 1495},
+      {"sku": "sku-moka-pot-6", "qty": 1, "unit_cents": 7000}
+    ]
+  }
+}

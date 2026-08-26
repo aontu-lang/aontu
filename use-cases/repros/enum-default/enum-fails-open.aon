@@ -1,0 +1,9 @@
+# expected: 'autoo' refused — it is not a member of the enum disjunction
+# actual: generates {"k":"autoo"} exit 0; same-kind override replaces the
+#         pref and no alternative is consulted (docs reference-language.md
+#         "A preferred member does not close a disjunction" + spec row
+#         number-tower.tsv pref-idiom-two-statement-admits pin this as design;
+#         no on-field spelling gives both a default and enum enforcement —
+#         see match-helper-workaround.aon for the only working workaround)
+k: *'auto' | 'literal' | 'data'
+k: 'autoo'

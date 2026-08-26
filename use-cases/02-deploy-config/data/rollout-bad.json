@@ -1,0 +1,8 @@
+{
+  "kind": "rollout-change",
+  "service": "Billing",
+  "env": "prod",
+  "replicas": 64,
+  "reason": "scale up",
+  "ticket": "PAY-4821"
+}

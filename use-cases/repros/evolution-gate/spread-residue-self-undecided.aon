@@ -1,0 +1,23 @@
+# C1 (use-cases 03, 07): a &: spread template that contains constraint
+# residue (close(), min(), length(), ...) is not comparable TO ITSELF:
+# subsume/breaking of a byte-identical document answers undecided,
+# sub_unresolved, at $.svcs.&.port and $.lines.&. The same expressions
+# at a PLAIN key self-subsume fine (port: integer & min(0) => subsumes),
+# and the docs' subsume table (reference-language.md "Rules, by value
+# former") says constraint residuals compare per the constraint
+# algebra's own subsumption table -- only PATH-DEPENDENT templates
+# (key(), a reference) are documented as undecided
+# (sub_path_dependent_spread). Inside a template the residual is
+# compared as "unresolved residue" instead, so every release of a
+# contract written in the documented close()-per-entry idiom (03
+# api.aon, 07 orders-v1.aon) needs --allow-undecided, which then masks
+# real undecideds. Plain-map / bare-kind / re() / disjunction templates
+# ARE reflexive ({&:{port:integer}} self-subsumes).
+# expected: verdict: subsumes, exit 0 (identical documents; both
+#           residuals are decidable per the documented tables)
+# actual: verdict: undecided, exit 3 -- $.svcs.&.port: sub_unresolved
+#         (integer&min(0) vs itself) and $.lines.&: sub_unresolved
+#         (close({"sku":string}) vs itself)
+# run: aontu subsume spread-residue-self-undecided.aon spread-residue-self-undecided.aon
+svcs: { &: { port: integer & min(0) } }
+lines: [ &: close({ sku: string }) ]
