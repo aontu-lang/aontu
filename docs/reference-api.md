@@ -785,7 +785,7 @@ aontu> :quit
 ### The MCP server
 
 ```
-aontu-mcp
+aontu-mcp [--root <dir>]
 ```
 
 A Model Context Protocol server over stdio (newline-delimited
@@ -803,20 +803,39 @@ nothing else.
 | `diff` | what changed at which paths between two documents |
 | `canon` | a document's canonical form |
 | `summary` | the pin, the root keys and the top-tier shape — the first tier of progressive disclosure, expanded by calling `get` |
+| `subsume` | the [subsume](#aontu-subsume) report: does the general document admit every instance the specific one admits? |
+| `breaking` | the [breaking](#aontu-breaking) verdict (`compatible` \| `breaking` \| `undecided` \| `error`) plus the mode checked — the `mode` argument, else the document's own `$.aontu_policy.compat`, else `backward` |
+| `set` | the [set](#aontu-set) report **plus the new overlay text**: assignments arrive as `{path, value}` pairs (with optional `inPlace`), and the server never writes files — the caller owns the write |
+| `relations` | the [relations](#aontu-relations) report: acyclicity and inverse consistency over the entity edge set |
+| `hash` | the [canon-hash](#aontu-hash) pin `{hash}` (plus the hash-form text when `form: true`) |
+| `trim` | the [trim --check](#aontu-trim) report: redundant entries as paths |
 
 Every tool returns **the same JSON contract the CLI prints**, so a
 report read from one is the report read from the other. A tool that
-*refuses* — an invalid document, a path that names nothing — answers
-with its own report and `isError: false`, because the report is the
-answer; `isError` is reserved for a call that could not be made at
-all.
+*refuses* — an invalid document, a path that names nothing, a document
+the served trust profile cannot read — answers with its own report and
+`isError: false`, because the report is the answer; `isError` is
+reserved for a call that could not be made at all (an unknown tool, a
+malformed argument, a file argument the server cannot serve).
 
-Served evaluation is **confined to no includes** (G5,
-[docs/trust.md](trust.md)): the source arrives from a caller, and
-`@"..."` is exactly what a server must not run unconfined. The Go port
-ships no separate MCP server — its role is embedding the same library
-calls, and `Get`, `Why`, `Diff` and `AgentsMd` are in the Go API for
-that.
+Served evaluation is **confined** (G5, [docs/trust.md](trust.md)): the
+source arrives from a caller, and `@"..."` is exactly what a server
+must not run unconfined. By default every include is denied
+(`{ include: 'none' }`). Started with **`--root <dir>`**, the server
+takes the CLI's `--trust root:<dir>` posture instead: includes resolve
+confined below the (realpath'd) root, and every tool's document
+arguments gain `<name>Path` alternatives — `schemaPath`, `srcPath`,
+`sourcePath`, `generalPath`, … — naming files below that root, checked
+by the same realpath-then-prefix rule the include resolver applies, so
+a symlink escape is an escape. Without `--root`, path arguments are
+refused with `isError: true`; the `initialize` handshake's
+`instructions` field says which mode the server is in, and
+`tools/list` advertises the `<name>Path` properties only when they are
+served. The package-resolver leg is enabled by neither posture.
+
+The Go port ships no separate MCP server — its role is embedding the
+same library calls, and `Get`, `Why`, `Diff` and `AgentsMd` are in the
+Go API for that.
 
 ### The published grammar
 
@@ -1296,10 +1315,15 @@ whenever the source is not yours:
 vet(schemaSrc, candidateSrc, { trust: { include: 'none' } })
 ```
 
-The [MCP server](#the-mcp-server) supplies `{ include: 'none' }` to
-every tool from a single place, rather than each tool applying it for
-itself: a tool that must remember to confine itself is one that
-eventually forgets, and the forgetting is silent.
+The [MCP server](#the-mcp-server) supplies its profile —
+`{ include: 'none' }`, or `{ include: { root } }` when started with
+`--root <dir>` — to every tool from a single place, rather than each
+tool applying it for itself: a tool that must remember to confine
+itself is one that eventually forgets, and the forgetting is silent.
+The engines that take no `trust` option (`subsume`, `trimCheck`,
+`relationCheck`, `patch`) are confined there by a pre-parse under the
+same profile: includes resolve at parse, so a document whose confined
+parse is clean gives the engine nothing it could reach further with.
 
 ---
 
