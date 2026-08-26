@@ -1,0 +1,10 @@
+# expected: no pref_not_instance finding — generation yields "member",
+#           which IS an instance of the plain 'member' alternative
+#           (repeating the branch is the lint's own sanctioned fix)
+# actual: vet reports: the default *"member" is not an instance of any
+#         alternative of **"member"|"member"|"admin"|"owner" — the lint's
+#         effectiveDefault (ts/src/subsume.ts:136) unwraps only one pref
+#         layer, so a rank-2 default keeps a *-wrapper no plain member
+#         subsumes, and the finding fires spuriously
+# run: aontu vet lint-ranked-false-positive.aon role-admin.json
+role: **member | member | admin | owner

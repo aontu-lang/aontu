@@ -1,0 +1,6 @@
+# Not a bug — the one spelling found that gives BOTH a default and enum
+# enforcement (weakens the "no spelling gives both" claim): a hidden
+# match() helper key. Unset -> {"k":"auto"}; k:'literal' -> passes;
+# k:'autoo' -> [aontu/match_none] exit 1 (error path names $.chk, not $.k).
+k: *'auto'
+chk: hide(match($.k, 'auto', 'ok', 'literal', 'ok', 'data', 'ok'))
