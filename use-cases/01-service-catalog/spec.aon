@@ -1,7 +1,10 @@
 # spec.aon --- Acme's service vocabulary, layered over @"std/system".
-# Not wrapped in type(): a type()-marked schema referencing $.std.*
-# fails with [aontu/mapval_no_gen] once included (README, gap 1);
-# hide() keeps it out of output and survives inclusion.
+# Not wrapped in type(): historically a type()-marked schema
+# referencing $.std.* failed with [aontu/mapval_no_gen] once included
+# (README, gap 1).  2026-08-26: fixed by the template-clone isolation
+# change (ADR-005), so type() would work here now; hide() is kept as
+# an equally-correct arrangement that also keeps the bag out of
+# output.
 spec: hide({
 
   # The org's port shape: the bundled Port plus a concrete number.

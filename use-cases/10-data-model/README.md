@@ -226,45 +226,34 @@ template list itself, which has zero elements
 So `domain.aon` ships `lines: [&: $.schema.OrderLine]` with no
 cardinality bound at all. An empty `lines: []` order vets as valid.
 
-### Gap 6 (critical, implementation bug): includes + named type aliases
+### Gap 6 (critical, FIXED 2026-08-26): includes + named type aliases
 
-The intended vocabulary — `Country`, `Currency`, `Cents`, `Id64` as
-named `type()` aliases referenced from the record types — works in a
-single file and **breaks as soon as the schema crosses an `@"..."`
-include boundary**, in two escalating ways (minimal 2-file repro in
-`gaps/include-id-key/`):
+**Fixed by the template-clone isolation change (ADR-005):** the
+intended vocabulary — named `type()` aliases referenced from the
+record types — now works across an `@"..."` include boundary exactly
+as it does in a single file. The 2-file repro in
+`gaps/include-id-key/` emits the fully-unified record in both of its
+historically-broken forms, and check.sh asserts the correct outputs:
 
-1. With `id(key(0))` in the bag spread, evaluation fails with a bogus
-   name error (the argument *is* a computed valid name):
+1. With `id(key(0))` in the bag spread, evaluation used to fail with a
+   bogus `[aontu/id_name]` naming the unevaluated `id(key(0))` call —
+   a leaked type mark froze the pending `key(0)`.
+2. Without `id(key(0))`, the same combination **silently dropped every
+   affected record from generation** (exit 0, `{"customers": {}}`) —
+   references cloned the still-pending `type()` alias and the clone
+   stamped its mark at the destination after the reference's
+   mark-clearing walk had run.
 
-   ```
-   [aontu/id_name]: Cannot id value at path $.customers.cust-1001
-   The argument to id() is not an entity name. ...
-    Cannot id value: id(key(0))
-   ```
-
-2. Without `id(key(0))`, the same combination **silently drops every
-   affected record from generation** — exit 0 and:
-
-   ```
-   { "customers": {}, "schema": {} }
-   ```
-
-   Silent data loss from a validity-first language is the worst
-   failure mode it has. check.sh asserts both.
-
-Marking the whole schema map `type({...})` instead fails with
-`mapval_no_gen` (`$.schema.Customer` never resolves through the
-include), and `hide()`-marked aliases drop records the same way.
-The only workaround that survived: **inline every vocabulary
-constraint at every use site** (see the duplicated
-`integer & min(0) & max(100000000000)` in `domain.aon`) and declare
-entity ids per record by hand. DRY schema vocabulary — the thing a
-"system ontology" most needs — is effectively unavailable across
-files today. Two knock-on diagnostics problems while debugging this:
-error blame frames mix up which include file a line came from, and a
-`vet` finding under a spread reports the template path
-(`$.customers.ledgerId`) without the record key segment.
+References now defer until a pending mark wrapper has resolved at its
+own field, and spread applications are full per-destination
+instances. The shared spec pins the include-crossing shapes in both
+engines (`test/spec/file.tsv`, `load-alias-*`), so DRY schema
+vocabulary across files is available again — `domain.aon`'s inlined
+duplicate constraints are no longer forced (kept as written, as a
+record of the era). Still open from the debugging notes: error blame
+frames can mix up which include file a line came from, and a `vet`
+finding under a spread can report the template path without the
+record key segment (site-attribution family).
 
 ### Gap 7 (major, incl. a hang): `refer()` cannot live in a named type
 
@@ -338,6 +327,7 @@ novel protection. Validation of *arithmetic* — the heart of an
 invoicing domain — is close to absent: no aggregates, no
 multiplication, cross-field rules that cannot be stated generically,
 and exact money that JSON data can never carry. The include/alias
-bugs (gap 6, gap 7) are implementation, not design, but today they
-force exactly the copy-paste vocabulary an ontology language exists
-to eliminate.
+bugs were implementation, not design: gap 6 is fixed (2026-08-26,
+the template-clone isolation change), so the copy-paste vocabulary
+it forced is no longer necessary; gap 7 (`refer()` in a named type)
+remains open.

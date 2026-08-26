@@ -1,9 +1,12 @@
-# PINNED BUG: sealing each child (close around the template) is the
-# obvious fix for close-shallow-typo, and it works with hand overrides.
-# But add a SECOND pack merging onto the same children and key()
-# cross-wires: every child reports the FIRST child's key.  Exit 0,
-# silently wrong.  Golden: expected/inner-close-crosswire.json
-# (both names are "web").
+# 2026-08-26: FIXED by the template-clone isolation change (ADR-005) —
+# sealing each child (close around the template) now composes with a
+# SECOND pack merging onto the same children: each child reports ITS
+# OWN key().  Historically key() evaluated once in the close()d
+# template's one shared inner map and every child reported the FIRST
+# child's key, exit 0, silently wrong.  Golden:
+# expected/inner-close-crosswire.json (web and auth each correctly
+# named).  Shared spec pin: test/spec/gen-close.tsv
+# close-template-keys-per-child.
 names: [web, auth]
 col: { web: { p: 1 }, auth: { p: 2 } }
 deploy: close(pack($.names, close({ name: key(), extra: { p: integer } })))

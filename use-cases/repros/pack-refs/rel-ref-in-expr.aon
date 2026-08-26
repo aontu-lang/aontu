@@ -1,13 +1,14 @@
-# Claim C1 (use-cases 06/09/10): a relative reference inside a pack
-# template resolves per generated child ONLY when it is a bare value or
-# a meet operand (b: .a and b: .a & integer both work). The moment it
-# is an operand of + or a call argument (upper(.a)) it resolves at the
-# template's own internal location instead — the NaN path segment —
-# contradicting reference-language.md "Generating children": "key() and
-# relative references inside the template answer for the child rather
-# than for the call".
-# expected: {"deploy":{"web":{"a":1,"b":2}}} exit 0
-# actual:   exit 1, [aontu/no_path] Cannot resolve value at path
-#           $.deploy.NaN.b / Cannot resolve value: .a
+# BUGS.md section 33 -- FIXED 2026-08-26 by the template-clone
+# isolation change (ADR-005): every path in a per-destination template
+# instance is normalised to the destination (repathInstance / the Go
+# setPaths shape), so a relative reference nested inside a `+`
+# expression or a call argument re-anchors per child exactly as the
+# bare-value form always did. Historically `b: .a + 1` and
+# `b: upper(.a)` failed with no_path at $.deploy.NaN.b while bare
+# `b: .a` worked.
+# Pinned in both engines: test/spec/gen-pack.tsv pack-rel-ref-in-expr,
+# pack-key-in-expr-and-call.
+# expected: {"deploy":{"web":{"a":1,"b":2}},"names":["web"]} exit 0
+# actual:   {"deploy":{"web":{"a":1,"b":2}},"names":["web"]} exit 0
 names: [web]
 deploy: pack($.names, { a: 1, b: .a + 1 })

@@ -291,9 +291,11 @@ $.items.0.email: constraint [conflict]
 
 An agent repairing by path (the natural JSON-pointer move) edits the
 healthy element. Repairing by row/col is right but means re-parsing
-the document positionally. Pinned by check 21. (Related cosmetic form:
-a bad element against an inline spread reports a doubled index,
-`$.tags.1.0`.)
+the document positionally. Pinned by check 21. (2026-08-26: unchanged
+by the template-clone isolation change, ADR-005 — this is a TS-only
+attribution defect: the Go port answers `items.1`. Site-attribution
+family, still open. Related cosmetic form: a bad element against an
+inline spread reports a doubled index, `$.tags.1.0`.)
 
 ### Gap 9 (minor): enum findings have no schema location
 

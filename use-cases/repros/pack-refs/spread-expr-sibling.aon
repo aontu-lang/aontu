@@ -1,10 +1,10 @@
-# Claim C5a (use-case 09 gap 3): sibling references in a &: spread
-# template re-anchor per child ONLY as bare values — the working
-# spelling is rows: { &: { md: .side_effect } a: {...} }. Inside an
-# expression the same reference resolves at the template's own path
-# ($.rows.md) and fails. Same root inconsistency as the pack-template
-# case (rel-ref-in-expr.aon); .$KEY in the identical position works.
-# expected: {"rows":{"a":{"md":"|readonly","side_effect":"readonly"}}}
-# actual:   exit 1, [aontu/no_path] Cannot resolve value at path
-#           $.rows.md / Cannot resolve value: .side_effect
+# BUGS.md section 35a -- FIXED 2026-08-26 by the template-clone
+# isolation change (ADR-005): the same instance path normalisation
+# that fixed section 33 makes a sibling reference inside a
+# spread-template EXPRESSION answer per child. Historically
+# `&: {md: .side_effect}` worked but `&: {md: "|" + .side_effect}`
+# failed with no_path.
+# Pinned in both engines: test/spec/spread.tsv spread-expr-sibling-ref.
+# expected: {"rows":{"a":{"md":"|readonly","side_effect":"readonly"}}} exit 0
+# actual:   {"rows":{"a":{"md":"|readonly","side_effect":"readonly"}}} exit 0
 rows: { &: { md: "|" + .side_effect } a: { side_effect: readonly } }

@@ -1,14 +1,16 @@
-# Use-case 10 gap 6 (claim C4, silent half): including a type()d
-# schema that references a type()d named alias silently DROPS the data
-# record from generation, exit 0.  The value survives in the graph:
-# `--canon` still shows customers.c1, and adding
-# `out: copy($.customers.c1)` emits {"ledgerId":5} — copy() clears
-# marks, proving a leaked type mark hides the record.  The identical
-# statements in ONE file (no include), or this include with
-# `ledgerId: integer` inline (no alias), emit the record correctly —
-# exactly the documented pattern (how-to.md, "Keep schema/helper
-# fields out of the output").
+# Use-case 10 gap 6 (claim C4, silent half) -- FIXED 2026-08-26 by the
+# template-clone isolation change (ADR-005): including a type()d
+# schema that references a type()d named alias now emits the applied
+# data record, identical to the same statements in one file.
+# Historically the record was silently DROPPED from generation (exit
+# 0, canon still showed it): the include delayed the alias one pass,
+# the reference cloned the still-pending type() call, and the clone
+# stamped its type mark at the destination after the reference's
+# mark-clearing walk had run. References now defer on pending mark
+# wrappers.
+# Pinned in both engines: test/spec/file.tsv load-alias-spread (and
+# the inline shapes in test/spec/marks.tsv type-alias-*).
 # expected: {"customers":{"c1":{"ledgerId":5}},"schema":{}} exit 0
-# actual:   {"customers":{},"schema":{}} exit 0 (record silently gone)
+# actual:   {"customers":{"c1":{"ledgerId":5}},"schema":{}} exit 0
 @"./alias-vocab.aon"
 customers: c1: { ledgerId: 5 }

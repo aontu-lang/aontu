@@ -27,10 +27,13 @@ environments: hide({
 # close() makes every overlay key-checked: a misspelt field is
 # [aontu/closed], not silently dropped (probes/typo-overlay.aon).
 #
-# NOTE deploy itself is deliberately NOT close()d: close(pack(...))
-# combined with overlay merges absorbs the overlay into the template
-# and corrupts the output (README, gap 5; probes/close-pack-absorb.aon).
-# The hidden envguard below seals the environment set instead.
+# NOTE deploy itself is NOT close()d.  Historically that was forced:
+# close(pack(...)) combined with overlay merges absorbed the overlay
+# into the template (README, gap 5).  2026-08-26: fixed by the
+# template-clone isolation change (ADR-005) — close(pack(...)) is safe
+# now (probes/close-pack-absorb.aon pins the correct merge) — and the
+# hidden envguard below is kept as a worked example of sealing the
+# environment set without touching the tree.
 deploy: pack($.environments, _ & {
   workloads: copy($.fleet)
   workloads: pack($.fleet, close($.defs.workload) & {

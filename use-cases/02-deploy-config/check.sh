@@ -198,11 +198,15 @@ run bypassed 1 "$DIR/probes/bypassed-bound.aon"
 has bypassed '[aontu/|:empty]' "empty-disjunction refusal"
 ok "fixed: override outside the disjoined bound refused, exit 1 (gap 2)"
 
-# ------------------------------------- probe: close(pack) + overlay bug
+# --------------------------------- probe: close(pack) + overlay (fixed)
+# 2026-08-26: fixed by the template-clone isolation change (ADR-005) —
+# the golden now holds the CORRECT merge (the overlay lands on the
+# generated prod child; no bogus template absorption). Shared-spec pin:
+# test/spec/gen-close.tsv close-pack-hole-overlay-merges.
 run absorb 0 "$DIR/probes/close-pack-absorb.aon"
 diff -u "$DIR/expected/close-pack-absorb.json" "$TMP/absorb.out" \
   || die "close-pack-absorb output differs"
-ok "pinned: close(pack(.., _ & t)) absorbs overlays, exit 0 (gap 5)"
+ok "fixed: close(pack(.., _ & t)) + overlay merges correctly (gap 5)"
 
 # --------------------------------------------- the set verb (agent edit)
 WORK="$TMP/work"

@@ -1,12 +1,14 @@
-# Why stack.aon does NOT write close(pack(...)) around deploy
-# (README, gap 5).  When the sealed generator's template uses the
-# source-child hole (`_ &`), a later overlay statement is absorbed
-# into the TEMPLATE instead of merging with the generated children:
-# every environment grows a bogus `prod:` child carrying the overlay,
-# the real prod.x stays 1, and the run still EXITS 0.  Removing
-# close() (stack.aon's arrangement, sealed by envguard instead) gives
-# the correct merge.  check.sh pins the corrupted output against a
-# golden as evidence.
+# 2026-08-26: FIXED by the template-clone isolation change (ADR-005) —
+# a hole now belongs to its nearest enclosing generator, so wrapping
+# the generator in close() no longer exposes the template's `_` to the
+# overlay statement.  Historically (README, gap 5) this document
+# absorbed `deploy: prod: x: 2` into the TEMPLATE: every environment
+# grew a bogus `prod:` child carrying the overlay, the real prod.x
+# stayed 1, and the run still EXITED 0.  Now the overlay merges with
+# the generated prod child exactly as it does without close():
+# dev {p:false,x:1}, prod {p:true,x:2}.  check.sh pins the CORRECT
+# output against the golden; the shared spec pins it in both engines
+# (test/spec/gen-close.tsv, close-pack-hole-overlay-merges).
 environments: hide({ dev: { p: false }, prod: { p: true } })
 deploy: close(pack($.environments, _ & { x: ***1 | integer }))
 deploy: prod: x: 2

@@ -23,6 +23,18 @@ Two cautions:
   the preference admission gate (ADR-004): each header records the
   new behaviour and the shared spec rows that pin it, and BUGS.md
   §1–5 carry Status lines.
+- The whole `generator-seal/` family, `sibling-crosswire/`'s
+  close/rank-pref halves (`close-key-pack.aon`,
+  `rankpref-key-pack.aon`), and `pack-refs/`'s re-anchoring entries
+  (`rel-ref-in-expr.aon`, `nested-pack-hole.aon`,
+  `spread-expr-sibling.aon`, `hide-computed-drop.aon`) are **FIXED**
+  as of 2026-08-26 by the template-clone isolation change (ADR-005):
+  headers record the new behaviour and the pinning rows, and BUGS.md
+  §8–12, §33–35 carry Status lines. Still open in those families:
+  the unequal-spread crosswire (§6, §7 — `idmerge-ref-templates.aon`,
+  `oneview-ref-templates.aon`, `two-spreads*.aon`) and the
+  self-referential merge expression (§36,
+  `merge-expr-onto-pack-child.aon`, `spread-then-pack.aon`).
 
 These are review artifacts. Per ADR-001, the durable home for any
 behaviour contract is a `test/spec/*.tsv` row probed in both ports;

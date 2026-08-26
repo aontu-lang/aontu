@@ -1,11 +1,15 @@
-# Use-case 06 gap 2 (claim C4): a rank-2 default (**) computed from
-# key() in a pack template evaluates ONCE and is shared by every
-# generated child. each() is NOT needed; the double star is the
-# trigger: *key(1)|string, *key(1) alone, and plain key(1) are all
-# correct per child. (** is documented: "Preferences can be ranked",
-# reference-language.md, Preference section.)
+# Use-case 06 gap 2 (claim C4) -- FIXED 2026-08-26 by the
+# template-clone isolation change (ADR-005): a template instance owns
+# its preference's inner value (PrefVal deep `dup` clone), so a rank-2
+# default computed from key() answers per generated child.
+# Historically the double star was the trigger -- PrefVal.clone shared
+# its peg, the one inner key() resolved at the first destination, and
+# every child got the first child's key, exit 0 (*key(1)|string,
+# *key(1) and plain key(1) escaped only because the rank-1 meet builds
+# a fresh pref per destination).
+# Pinned in both engines: test/spec/gen-pack.tsv
+# pack-rankpref-key-per-child, pack-rankpref-key-override.
 # expected: {"out":{"auth":{"value":"auth"},"web":{"value":"web"}},...} exit 0
-# actual: {"out":{"auth":{"value":"web"},"web":{"value":"web"}},...} exit 0
-#         -- silently wrong, every child gets the first child's key
+# actual:   {"out":{"auth":{"value":"auth"},"web":{"value":"web"}},...} exit 0
 col: { web: {}, auth: {} }
 out: pack($.col, { value: **key(1) | string })

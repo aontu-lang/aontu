@@ -1,17 +1,16 @@
-# Claim C5b (use-case 09 gap 4): hide() around a computed value merged
-# onto a pack-generated child converts a hard error into SILENT loss.
-# Without hide(), the same merge fails loudly (mapval_spread_required
-# "value for key doc_row is required (defined in spread)"); with
-# hide(), exit 0, doc_row vanishes and the copy() of it disappears
-# from the docs list — [] instead of an element or an error.
-# hide() itself is not at fault: doc_row: hide(lit) round-trips fine
-# through copy(), and the whole document works without the pack.
-# reference-language.md ("Marks"): hidden values are "still
-# participating in unification" and copy() "mak[es] the result
-# emittable again".
-# expected: docs = ["|readonly"] (as the pack-free spelling gives),
-#           or at minimum the hard error of the un-hidden spelling
-# actual:   exit 0, docs = [], doc_row silently gone
+# Claim C5b (use-case 09 gap 4) -- FIXED 2026-08-26 by the
+# template-clone isolation change (ADR-005): the copy()'d reference
+# now DEFERS until the hide() wrapper has resolved at its own field,
+# then clones with marks cleared as documented -- so docs carries the
+# computed value ["|readonly"], the outcome the pack-free spelling
+# always gave. Historically the reference cloned the pending hide
+# call, the clone resolved at docs.0 and stamped its hide mark there,
+# and the list silently skipped the marked element: exit 0, docs [],
+# doc_row gone -- hide() converting a merge complication into silent
+# data loss.
+# Pinned in both engines: test/spec/marks.tsv hide-computed-pack-copy.
+# expected: docs = ["|readonly"] exit 0
+# actual:   docs = ["|readonly"] exit 0
 names: [a]
 tools: pack($.names, {})
 tools: a: { se: readonly, doc_row: hide("|" + .se) }

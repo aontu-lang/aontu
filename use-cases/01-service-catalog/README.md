@@ -114,6 +114,14 @@ at this ("a reference from one member of an included file to another
 does not survive being INCLUDED"). Workaround used in `spec.aon`:
 no `type()`, `hide()` on the whole `spec` bag instead.
 
+**2026-08-26: fixed by the template-clone isolation change (ADR-005)**
+— a reference now defers on a pending `type()` wrapper instead of
+cloning it, so a `type()`-marked vocabulary referencing `$.std.*`
+survives inclusion (shared spec pins the include-crossing shapes:
+`test/spec/file.tsv`, `load-alias-*`). `spec.aon` keeps its `hide()`
+arrangement — equally correct, and a worked example — with a dated
+note.
+
 ### Gap 2 (major): `vet` cannot anchor on a reference-bearing schema
 
 `vet --at '$.spec.CatalogEntry'` misfires whenever the data touches a

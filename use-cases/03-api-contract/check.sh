@@ -48,6 +48,12 @@ run geneval 1 -- "$DIR/contract.aon"
 has geneval err '[aontu/scalar_value]'
 ok "contract.aon does not generate (the documented price of gap 2)"
 
+# 2026-08-26: golden regenerated after the template-clone isolation
+# change (ADR-005). Two spots inside the api spread TEMPLATE changed:
+# the method disjunction canons as parsed (nested parens, no longer
+# flattened by a destination's application leaking back), and summary's
+# length() keeps its written argument (the `integer&` residue came from
+# the same leak). Every applied endpoint is byte-identical.
 run canon 0 -- --canon "$DIR/contract.aon"
 diff -u "$DIR/expected/contract.canon" "$WORK/canon.out" \
   || fail "canonical form drifted from expected/contract.canon"
@@ -247,6 +253,9 @@ has vpagebad out '[aontu/constraint]'
 has vpagebad out '"grace.hopper@"'
 # GAP 8: the finding's path says items.0 but the broken element is
 # items[1] (the data site's row is correct; the path index is not).
+# 2026-08-26: unchanged by the template-clone isolation change
+# (ADR-005) — this is a TS-only attribution defect (the Go port
+# answers items.1), site-attribution family, still open.
 has vpagebad out '$.items.0.email'
 run vpagemiss 3 -- vet "$DIR/user-page.aon" \
   "$DIR/data/user-page-missing-total.json"

@@ -8,7 +8,7 @@
       "env": [
         {
           "name": "X",
-          "value": "web"
+          "value": "auth"
         }
       ]
     },

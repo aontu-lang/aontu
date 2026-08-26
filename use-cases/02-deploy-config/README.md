@@ -45,9 +45,10 @@ real CLI output (ANSI stripped), reproduced by the checks.
   construction.
 - **`close()` on the workload shape** (applied inside the pack
   template as `close($.defs.workload) & {...}`) makes every overlay
-  key-checked. `deploy` itself is *not* closed (gap 5); a hidden
+  key-checked. `deploy` itself is *not* closed (a workaround for
+  gap 5 — fixed 2026-08-26, `close(pack(...))` is safe now); a hidden
   `envguard: hide($.deploy & close(pack($.environments, {})))` seals
-  the environment set instead.
+  the environment set instead, kept as a worked example.
 - **`filter()` + `pack()`** derive the prod paging policy from the
   catalog: only `critical: true` services get an alert route.
 - **Constraint atoms live in `guardrails.aon`/`request-schema.aon`
@@ -261,27 +262,32 @@ workaround (compute outside the tree, referencing concrete pins):
   generator; merge catalog data via a duplicate key
   (`workloads: copy($.fleet)` next to `workloads: pack(...)`).
 
-### 5. (critical) `close(pack(d, _ & t))` + overlay = silent corruption
+### 5. (critical, FIXED 2026-08-26) `close(pack(d, _ & t))` + overlay
 
-Sealing the generator directly, then merging an ordinary overlay
-statement, absorbs the overlay into the *template*: every environment
-grows a bogus `prod:` child, the real `prod.x` keeps the default, and
-the run **exits 0**. `probes/close-pack-absorb.aon`, goldened:
+**Fixed by the template-clone isolation change (ADR-005):** a hole
+belongs to its nearest enclosing generator, so `close()` around the
+generator no longer exposes the template's `_` to the overlay.
+Historically, sealing the generator directly, then merging an ordinary
+overlay statement, absorbed the overlay into the *template*: every
+environment grew a bogus `prod:` child, the real `prod.x` kept the
+default, and the run **exited 0**. `probes/close-pack-absorb.aon` now
+pins the CORRECT merge:
 
 ```
 deploy: close(pack($.environments, _ & { x: ***1 | integer }))
 deploy: prod: x: 2
 ```
 ```json
-{"deploy": {"dev": {"prod": {"x": 2}, "x": 1},
-            "prod": {"prod": {"x": 2}, "x": 1}}}
+{"deploy": {"dev": {"p": false, "x": 1},
+            "prod": {"p": true, "x": 2}}}
 ```
 
-Without `close()` the identical document merges correctly. This is the
-worst kind of failure for a truth system — wrong output, no error —
-and it is why `stack.aon` seals the env set with the `envguard` idiom
-instead. (A cross-statement spread aimed at a pack-generated map
-misplaces similarly: `deploy: &: {workloads: X}` landed as
+The shared spec pins the behaviour in both engines
+(`test/spec/gen-close.tsv`, `close-pack-hole-overlay-merges`), so
+`close(pack(...))` is safe to write directly; `stack.aon` keeps the
+`envguard` idiom as a worked example of sealing without touching the
+tree. (Still open: a cross-statement spread aimed at a pack-generated
+map misplaces — `deploy: &: {workloads: X}` landed as
 `deploy.<env>.workloads.workloads` in probing.)
 
 ### 6. (major) Stacked spreads on one map cross-wire sibling children
@@ -395,8 +401,8 @@ misspelt key is simply ignored.
 
 **The generator layer is where it loses to CUE today.** The moment
 `pack()` enters — and it must, for anti-drift — attribution goes blind
-(gap 3), computed fields die (gap 4), `close()` corrupts silently
-(gap 5), and spreads cross-wire (gap 6). Combined with no arithmetic
+(gap 3), computed fields die (gap 4), `close()` corrupted silently
+(gap 5 — fixed 2026-08-26), and spreads cross-wire (gap 6). Combined with no arithmetic
 beyond `+` (gap 7), no projection (gap 8) and the default-vs-bound
 dilemma (gaps 1–2), real policies end up split between the model and a
 side-car vet schema. The split (build then vet) is workable — this use

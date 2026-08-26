@@ -91,7 +91,12 @@ has vet-tampered '[aontu/constraint]' "constraint code"
 has vet-tampered 'max(20)' "replica cap named"
 has vet-tampered 'replicas' "replica finding located"
 has vet-tampered 'memory' "unit-less quantity flagged by re()"
-has vet-tampered 'env.0.name' "env-name finding located at its path"
+# 2026-08-26 (template-clone isolation, ADR-005): the finding path is
+# now `...containers.0.env.name` — identical in BOTH ports (the TS
+# path previously said env.0.name but dropped `web`; the ports
+# disagreed). The element index inside env is still elided — a
+# site-attribution gap, open, tracked with use-case 03's gap 8.
+has vet-tampered 'env.name' "env-name finding located at its path"
 has vet-tampered 'log_level' "lowercase env name is the named offender"
 ok "tampered manifests: replicas 50, lowercase env, unit-less memory all caught"
 
@@ -137,11 +142,11 @@ probe_fails double-from-default '[aontu/mapval_no_gen]' \
   "x + x doubling fails against a defaulted operand"
 probe_fails default-with-bounds '[aontu/mapval_no_gen]' \
   "a ranked default and min/max cannot share a field"
-probe_fails ref-in-pack-template '[aontu/no_path]' \
-  "relative ref inside a pack template does not resolve"
-run p-nan 1 "$DIR/probes/ref-in-pack-template.aon"
-has p-nan 'NaN' "template evaluated at a NaN key"
-ok "probe ref-in-pack-template: diagnostic path contains NaN"
+# 2026-08-26: fixed by the template-clone isolation change (ADR-005) —
+# the relative ref in the template EXPRESSION now answers for the
+# child (was [aontu/no_path] at a NaN key), so this moved from the
+# expected-failure probes to the goldens below. Shared-spec pin:
+# test/spec/gen-pack.tsv pack-rel-ref-in-expr.
 probe_fails hole-member-access '[aontu/no_path]' \
   "_.field projection is unspellable"
 has p-hole-member-access 'unspellable' "unspellable in diagnostic"
@@ -175,17 +180,26 @@ probe_golden close-shallow-typo \
   "close(pack) does not seal children: typo'd override absorbed, exit 0"
 grep -q '"replcias": 4' "$DIR/expected/close-shallow-typo.json" \
   || die "close-shallow-typo golden lost its point"
+# 2026-08-26: the next four goldens hold the CORRECT outputs — fixed by
+# the template-clone isolation change (ADR-005). They pinned
+# silent-wrong answers before (both children named "web", shared
+# rank-2 key(), empty hidden-pack children, no_path on the template
+# expression ref).
+probe_golden ref-in-pack-template \
+  "fixed: relative ref in a template expression answers for the child"
+grep -q '"250m"' "$DIR/expected/ref-in-pack-template.json" \
+  || die "ref-in-pack-template golden lost its point"
 probe_golden inner-close-crosswire \
-  "close(tmpl) + second pack: key() cross-wires, both children named 'web'"
-[ "$(grep -c '"name": "web"' "$DIR/expected/inner-close-crosswire.json")" = "2" ] \
+  "fixed: close(tmpl) + second pack: each child keeps its own key()"
+grep -q '"name": "auth"' "$DIR/expected/inner-close-crosswire.json" \
   || die "inner-close-crosswire golden lost its point"
 probe_golden pref-key-crosswire \
-  "**key(n) default in an each-under-pack evaluates once, shared by all"
-[ "$(grep -c '"value": "web"' "$DIR/expected/pref-key-crosswire.json")" = "2" ] \
+  "fixed: **key(n) default in an each-under-pack answers per child"
+grep -q '"value": "auth"' "$DIR/expected/pref-key-crosswire.json" \
   || die "pref-key-crosswire golden lost its point"
 probe_golden hide-pack-loss \
-  "hide(pack(...)) drops the template: children generate empty, exit 0"
-grep -q '"web": {}' "$DIR/expected/hide-pack-loss.json" \
+  "fixed: hide(pack(...)) hides the field; children keep their values"
+grep -q '"a": 1' "$DIR/expected/hide-pack-loss.json" \
   || die "hide-pack-loss golden lost its point"
 probe_golden quantity-concat \
   "quantity strings concatenate: '256Mi'+'256Mi' is '256Mi256Mi', exit 0"

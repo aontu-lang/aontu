@@ -1,5 +1,6 @@
 # Shared include for include-alias-spreadreq.aon (claim C4, third
 # manifestation): the same alias-in-type pattern with the aliases at
-# file TOP LEVEL instead of nested under schema:.
+# file TOP LEVEL instead of nested under schema:.  2026-08-26: the
+# main file's failure is FIXED; this fixture is unchanged.
 T: type(integer)
 C: type({ a: $.T })

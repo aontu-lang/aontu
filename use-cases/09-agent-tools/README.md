@@ -185,10 +185,18 @@ language offers a footgun (`*10 | min(1) & max(50)`) that looks like
 the safe thing and is not. This should be a headline warning, or the
 pref-override gate should test the surviving disjunct.
 
-### Gap 2 (major): a pack template cannot compute from the child's own fields
+### Gap 2 (major, PARTLY FIXED 2026-08-26): a pack template cannot compute from the child's own fields
 
-The reference says *"key() and relative references inside the template
-answer for the child"*. Relative references do not:
+**2026-08-26, template-clone isolation (ADR-005):** relative
+references inside template expressions now answer for the child (the
+`NaN`/`no_path` failure below is gone — shared spec pin:
+`test/spec/gen-pack.tsv`, `pack-rel-ref-in-expr`). What remains open
+is computing from a *defaulted* sibling: `+` over a still-open
+preference (`.side_effect` = `*readonly | string`) cannot resolve and
+fails loudly (`mapval_no_gen` at the correct per-child path, both
+engines). The original finding, for the record — the reference says
+*"key() and relative references inside the template answer for the
+child"*, and relative references did not:
 
 ```
 tools: pack($.names, {
@@ -207,7 +215,12 @@ approval flags, or any projection — the docs-table half of this
 exercise. **Workaround used**: `requires_approval` and the docs table
 are written per tool with absolute paths (six repetitions each).
 
-### Gap 3 (major): spread templates have the same blindness
+### Gap 3 (major, FIXED 2026-08-26): spread templates have the same blindness
+
+**Fixed by the template-clone isolation change (ADR-005)** — the
+sibling reference inside the spread-template expression now answers
+per child in both engines (shared spec pin: `test/spec/spread.tsv`,
+`spread-expr-sibling-ref`). The original finding:
 
 ```
 rows: { &: { md: "| " + .$KEY + " | " + .side_effect + " |" }
@@ -231,7 +244,13 @@ and 3 there is no template-level projection at all — the G8 combinator
 work these presumably wait on is the single biggest expressiveness
 hole this use case hit.
 
-### Gap 4 (major): referencing a computed, hidden field of a pack child is silently dropped
+### Gap 4 (major, FIXED 2026-08-26): referencing a computed, hidden field of a pack child is silently dropped
+
+**Fixed by the template-clone isolation change (ADR-005)** — the
+reference now defers until the hide() wrapper has resolved at its own
+field, so the copy yields the computed value (`"docs": ["| readonly |"]`,
+both engines; shared spec pin: `test/spec/marks.tsv`,
+`hide-computed-pack-copy`). The original finding:
 
 ```
 names: type(close({ a: close({q: string}) }))

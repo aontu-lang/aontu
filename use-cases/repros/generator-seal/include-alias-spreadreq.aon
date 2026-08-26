@@ -1,11 +1,15 @@
-# Claim C4, third manifestation found while reducing: when the
-# type()d alias pair lives at the TOP LEVEL of the included file, the
-# same pattern dies with a bogus [aontu/mapval_spread_required] "The
-# value for key T is required (defined in spread)" — though NO spread
-# exists anywhere in either file ("Cannot unify value: integer with
-# value: nil").  Inline in one file the same statements emit
-# {"customers":{"c1":{"a":5}}}.
+# Claim C4, third manifestation -- FIXED 2026-08-26 by the
+# template-clone isolation change (ADR-005): with the type()d alias
+# pair at the TOP LEVEL of the included file, the pattern now emits
+# the record. Historically it died with a bogus
+# [aontu/mapval_spread_required] "The value for key T is required
+# (defined in spread)" though NO spread existed in either file: the
+# include's root-map meet wrapped the resolved, type-marked alias as
+# an EXPECTATION (a non-genable peer-only child), and the wrapper
+# carried no mark for gen to skip. A marked peer child is now carried,
+# never expected (BagVal.handleExpectedVal / expectGenable).
+# Pinned in both engines: test/spec/file.tsv load-alias-top-conjunct.
 # expected: {"customers":{"c1":{"a":5}}} exit 0
-# actual:   [aontu/mapval_spread_required] at $.T, exit 1 (bogus error)
+# actual:   {"customers":{"c1":{"a":5}}} exit 0
 @"./alias-top.aon"
 customers: c1: $.C & { a: 5 }

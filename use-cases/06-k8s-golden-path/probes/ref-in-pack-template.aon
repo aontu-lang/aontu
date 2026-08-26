@@ -1,6 +1,10 @@
-# FAILED ATTEMPT: a relative reference to a field the SAME pack template
-# defines.  The reference reference-language.md says relative refs in a
-# template "answer for the child"; in fact they resolve at the template's
-# own location (path shows a NaN key) and fail.  [aontu/no_path].
+# 2026-08-26: FIXED by the template-clone isolation change (ADR-005) —
+# a relative reference to a field the SAME pack template defines now
+# answers for the child, in the expression form too, exactly as
+# reference-language.md promises ("answer for the child").
+# Historically it resolved at the template's own location (path showed
+# a NaN key) and failed with [aontu/no_path].  Golden:
+# expected/ref-in-pack-template.json (cpu "250m" per child).  Shared
+# spec pin: test/spec/gen-pack.tsv pack-rel-ref-in-expr.
 names: [web, auth]
 deploy: pack($.names, { cpu_m: 250, cpu: .cpu_m + "m" })

@@ -163,13 +163,19 @@ has guniq '"Acme"'
 has guniq '"Globex"'
 ok "gap: duplicate ledgerIds pass unique() silently (no projection)"
 
-run gid 1 -- "$DIR/gaps/include-id-key/main.aon"
-has gid '[aontu/id_name]'
-ok "gap: id(key(0)) + include + nested alias dies with bogus id_name"
+# 2026-08-26: gap 6 fixed by the template-clone isolation change
+# (ADR-005) — both halves. The id(key(0)) form no longer dies with a
+# bogus id_name, and the id-free form no longer silently drops the
+# record; both emit the fully-unified record. Shared-spec pins:
+# test/spec/file.tsv load-alias-idspread / load-alias-spread.
+run gid 0 -- "$DIR/gaps/include-id-key/main.aon"
+has gid '"ledgerId": 5'
+has gid '"id": "cust-1001"'
+ok "fixed: id(key(0)) + include + nested alias emits the record"
 
 run gsilent 0 -- "$DIR/gaps/include-id-key/main-silent.aon"
-has gsilent '"customers": {}'
-ok "gap: same pattern without id(key(0)) SILENTLY drops the record"
+has gsilent '"ledgerId": 5'
+ok "fixed: same pattern without id(key(0)) emits the record too"
 
 echo
 echo "all $pass checks passed"

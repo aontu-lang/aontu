@@ -1,7 +1,12 @@
-# PINNED BUG: hide() wrapped directly around a pack call silently loses
-# the template -- children generate EMPTY, exit 0.  Golden:
-# expected/hide-pack-loss.json ("out.web" is {}).  Wrapping the
-# enclosing map (internal: hide({ envmaps: pack(...) })) works.
+# 2026-08-26: FIXED by the template-clone isolation change (ADR-005) —
+# hide() wrapped directly around a pack call now hides the FIELD
+# exactly as hide({literal map}) does: a downstream pack over the
+# hidden children emits their values.  Historically the hide mark
+# leaked onto the generated children through early reference clones
+# and children generated EMPTY, exit 0 (the workaround was wrapping
+# the enclosing map: internal: hide({ envmaps: pack(...) })).
+# Golden: expected/hide-pack-loss.json (out.web.got carries a:1).
+# Shared spec pin: test/spec/marks.tsv hide-pack-downstream-pack.
 col: { web: { a: 1 } }
 envmaps: hide(pack($.col, _))
 out: pack($.envmaps, { got: _ })

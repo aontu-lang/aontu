@@ -22,11 +22,16 @@ Cross-cutting root causes, visible across families:
 1. **Template state is shared between destinations that need
    independent instances.** Spread machinery combines unequal templates
    and entangles them with the first destination's data
-   (`MapVal`, the in-code `TODO: handle existing spread!`); per-child
-   template clones share inner nodes because `Val.clone` passes `peg`
-   by reference and neither `FuncBaseVal` (`close`) nor `PrefVal`
-   deep-clones its argument. Families: sibling-crosswire,
-   generator-seal.
+   (`MapVal`, the in-code `TODO: handle existing spread!`) — the
+   unequal-spread half (§6, §7) is still OPEN. The clone half is
+   **FIXED 2026-08-26** (template-clone isolation, ADR-005): per-child
+   template clones no longer share inner nodes — pack/each templates,
+   filter conditions and applied spread constraints are FULL
+   per-destination instances (the `dup` clone in `Val.clone`'s
+   subclasses / `instanceClone` in Go), with every inner path
+   normalised to the destination (`repathInstance` / setPaths).
+   Families: sibling-crosswire (§8, §9 fixed; §6, §7 open),
+   generator-seal (fixed).
 2. **Vet's incompleteness check is generation-based and filters to
    incomplete-class errors**, so unresolved disjunctions vanish
    (`DisjunctVal.gen` folds members with unify and the conflict is
@@ -45,7 +50,11 @@ Cross-cutting root causes, visible across families:
    id-merge-cloned context fail to reach a fixpoint** — surfacing as
    `unify_cycle` (revisit budget tripped), `mapval_no_gen` (never
    settles), or unbounded CPU (stays under the per-pass budget).
-   Family: refer-cycles.
+   Family: refer-cycles. The mark/clone part — a reference cloning a
+   still-pending `type()`/`hide()` wrapper and having the clone stamp
+   marks at the reference's site — is **FIXED 2026-08-26** (ADR-005:
+   references defer on pending mark wrappers); the refer()/fixpoint
+   part remains open.
 
 ---
 
@@ -158,50 +167,74 @@ correct, and `MapVal` carries `TODO: handle existing spread!`.
 Repros: `two-spreads.aon`, `two-spreads-vet-schema.aon` + data.
 
 ### 8. `close()` around a `key()`-bearing pack template evaluates `key()` once [critical]
-`deploy: pack($.names, close({ name: key() }))` alone →
+**Status: FIXED 2026-08-26 (template-clone isolation, ADR-005).**
+Each generated child is a full per-destination instance (deep `dup`
+clone / instanceClone), so key() resolves per child; the garbled
+`$.deploy.NaN.p` on partial overrides is gone (extra keys refuse
+cleanly with `closed` at the child's real path). Pinned in both
+engines: `gen-close.tsv` close-template-keys-per-child,
+close-template-key-pref-override, close-template-key-refuses-extra.
+Historically: `deploy: pack($.names, close({ name: key() }))` alone →
 `{"auth":{"name":"web"},"web":{"name":"web"}}`, exit 0 — every child
-gets the first key. Without `close()` it is correct. Partial overrides
-on the corrupted children fail with a garbled path
-(`$.deploy.NaN.p`). Contradicts the pack doc's "key() answers for the
-child"; `gen-close.tsv` pins close-in-template but never with `key()`
-and 2+ names. Repro: `close-key-pack.aon`.
+got the first key (without `close()` it was correct).
+Repro: `close-key-pack.aon`.
 
 ### 9. A rank-2 `key()` default evaluates once and is shared by all children [critical]
-`out: pack($.col, { value: **key(1) | string })` → every child gets the
-first child's key, exit 0. Single-star spellings (`*key(1)|string`)
-resolve correctly per child, so the trigger is the rank-2 pref —
-`PrefVal.clone`'s deep-clone of its inner value is commented out.
-Repro: `rankpref-key-pack.aon`.
+**Status: FIXED 2026-08-26 (template-clone isolation, ADR-005).**
+A template instance owns its preference's inner value (PrefVal deep
+`dup` clone), so `**key(1) | string` answers per generated child and
+stays overridable through the admission gate. Pinned in both engines:
+`gen-pack.tsv` pack-rankpref-key-per-child, pack-rankpref-key-override.
+Historically every child got the first child's key, exit 0 (the
+single-star spellings escaped only because the rank-1 meet builds a
+fresh pref per destination). Repro: `rankpref-key-pack.aon`.
 
 ---
 
 ## generator-seal — call wrappers around generators
 
+*2026-08-26: this family is closed — §10, §11 and §12 are fixed by the
+template-clone isolation change (ADR-005); see the Status lines.*
+
 ### 10. `close(pack(d, _ & t))` + overlay: the overlay fills the hole [critical]
-With a `_` hole in the template, an ordinary overlay statement
-(`deploy: prod: x: 2`) is absorbed *into the hole* — every generated
-child grows a bogus `prod:` child and the real override is silently
-lost, exit 0. Without `close()` the same document merges correctly;
-with a hole-free template, `close(pack(...))` + overlay works as
-documented. Repro: `close-pack-hole-absorb.aon`.
+**Status: FIXED 2026-08-26 (template-clone isolation, ADR-005).**
+A hole belongs to its nearest enclosing generator: `hasPlace` and the
+fill walk no longer cross into a generator's template argument, so the
+outer `close()` call does not report the template's `_` as its own and
+the overlay merges with the generated child exactly as it does without
+`close()`. Pinned in both engines: `gen-close.tsv`
+close-pack-hole-overlay-merges. Historically the overlay was absorbed
+*into the hole* — every generated child grew a bogus `prod:` child and
+the real override was silently lost, exit 0.
+Repro: `close-pack-hole-absorb.aon`.
 
 ### 11. `hide(pack(...))`: the hide mark leaks onto generated children [critical]
-`m: hide(pack($.col, _))` then `out: pack($.m, {got:_})` →
-`{"out":{"web":{}}}`, exit 0 — canon shows the values fully built, but
-the leaked mark suppresses them at generation. `hide({literal map})`
-does not behave this way, and hidden values are documented as usable
-downstream. Workaround: `hide({ m: pack(...) })`. Repro:
-`hide-pack-mark-leak.aon`.
+**Status: FIXED 2026-08-26 (template-clone isolation, ADR-005).**
+A reference defers on a pending type()/hide() wrapper instead of
+cloning the call, so `hide(pack(...))` hides the FIELD exactly as
+`hide({literal map})` does and downstream packs over the hidden
+children emit their values. Pinned in both engines: `marks.tsv`
+hide-pack-field-hidden, hide-pack-downstream-pack. Historically the
+downstream pack's data reference cloned the still-pending hide call
+and the clone stamped marks at the destination after the reference's
+mark-clearing walk had run — children emitted EMPTY, exit 0.
+Repro: `hide-pack-mark-leak.aon`.
 
 ### 12. Type-alias references inside `type()` bodies silently drop records [critical]
-Three-line inline form: `Base: {kind:"service"}` /
-`Entry: type($.Base & {owner: string})` / `use: $.Entry &
-{owner:"team-pay"}` → `use` is **silently absent** from output, exit 0,
-while `--canon` shows it fully unified. Crossing an `@` include, the
-sibling-alias shape (a `type()` schema referencing a `type()` alias)
-drops applied records the same way, or kills `id(key(0))` with a bogus
-`id_name`, or raises `mapval_spread_required` naming a spread that
-exists in neither file. Repros: `include-alias-*.aon`, `alias-*.aon`.
+**Status: FIXED 2026-08-26 (template-clone isolation, ADR-005), all
+manifestations.** The inline three-line form emits `use` fully
+unified; the include-crossing shapes emit their records; `id(key(0))`
+resolves; the phantom `mapval_spread_required` is gone. Three
+mechanisms, one campaign: references defer on pending mark wrappers
+(so a type() mark belongs to the field it was written at, extending
+the edge.tsv edge-type-template contract to conjunction-bearing and
+include-crossing shapes), spread applications are full
+per-destination instances, and a marked peer-only child is carried
+rather than wrapped as an expectation. Pinned in both engines:
+`marks.tsv` type-alias-conjunct-ref, type-conjunct-arg-ref,
+type-conjunct-target-ref, type-alias-ref-first; `file.tsv`
+load-alias-spread, load-alias-idspread, load-alias-top-conjunct.
+Repros: `include-alias-*.aon`, `alias-*.aon`.
 (Related but **by design**: `close()` is uniformly shallow — the
 deep-seal spelling `close(pack(d, close(tmpl)))` exists and works; the
 reference's "seals the generated shape" phrasing is the papercut.)
@@ -433,38 +466,44 @@ only cold start — whose directory layout is documented nowhere.)
 
 ## pack-refs — expressions inside generator and spread templates
 
-The family's cross-cutting mechanism: **a relative reference or hole
-re-anchors per clone only when it stands as a whole value or a meet
-operand; nested inside a `+` expression or a call argument it resolves
+The family's cross-cutting mechanism — **a relative reference or hole
+re-anchored per clone only when it stood as a whole value or a meet
+operand; nested inside a `+` expression or a call argument it resolved
 at the template's own location** (visible as the `NaN` path segment in
-diagnostics). That one inconsistency underlies 33, 35a and 36; its
-`hide()`-wrapped form (35b) and the nested-hole capture (34) turn it
-into silent data corruption.
+diagnostics) — is **FIXED 2026-08-26** (template-clone isolation,
+ADR-005): a per-destination instance has every inner path normalised
+to the destination, so 33, 34, 35a and 35b are closed. 36 remains
+open (an expression reading the generated child's OWN fields — a
+self-reference the fixpoint does not yet re-anchor).
 
 ### 33. Relative references in template *expressions* do not re-anchor [major]
-`pack($.names, {a:1, b: .a})` works (the bare ref re-anchors per
-child), but `pack($.names, {a:1, b: .a + 1})` and `b: upper(.a)` fail
-with `no_path` at `$.deploy.NaN.b` — while `"acme/" + key() + ":1.4.2"`
-(the doc's flagship expression) works. Contradicts the reference's
-"relative references inside the template answer for the child".
+**Status: FIXED 2026-08-26 (template-clone isolation, ADR-005).**
+`b: .a + 1` and `b: upper(.a)` inside a pack template now answer for
+the child exactly as the bare `b: .a` always did. Pinned in both
+engines: `gen-pack.tsv` pack-rel-ref-in-expr, pack-key-in-expr-and-call.
 Repro: `rel-ref-in-expr.aon`.
 
 ### 34. Nested pack: the inner template's `_` binds to the outer source child [critical]
-`deploy: pack($.envs, { services: pack($.fleet, {v: _}) })` →
-`deploy.dev.services.web.v = "dev"` (the *env name*), exit 0 — the
-outer pack fills every hole lexically inside its template, including
-the nested generator's, before the inner pack fires. Silent wrong
-output. Repro: `nested-pack-hole.aon`.
+**Status: FIXED 2026-08-26 (template-clone isolation, ADR-005).**
+A hole belongs to its nearest enclosing generator: the outer pack's
+fill pass no longer descends into the inner pack's template argument,
+so the inner `_` binds the inner generator's source child
+(`deploy.dev.services.web.v = {"replicas":1}`). Pinned in both
+engines: `place.tsv` place-nested-pack-inner-binding,
+place-nested-pack-inner-meet, place-hole-as-inner-data.
+Repro: `nested-pack-hole.aon`.
 
 ### 35. Sibling refs in expressions; hide() swallowing a failure into silent loss [critical]
-(a) A spread template *can* reference the child's sibling fields as
-bare values (`&: {md: .side_effect}` works); only the in-expression
-form fails (`&: {md: "|" + .side_effect}` → `no_path`) — same
-mechanism as 33. Repro: `spread-expr-sibling.aon`.
-(b) Referencing a computed `hide()`-marked field of a pack-generated
-child yields `[]` with exit 0 — and the *un-hidden* spelling of the
-same merge hard-errors, so `hide()` is converting a real unification
-failure into silent data loss. Repro: `hide-computed-drop.aon`.
+**Status: FIXED 2026-08-26 (template-clone isolation, ADR-005), both
+halves.** (a) The in-expression sibling reference in a spread template
+(`&: {md: "|" + .side_effect}`) now answers per child — pinned by
+`spread.tsv` spread-expr-sibling-ref. Repro: `spread-expr-sibling.aon`.
+(b) The copy()'d reference to a computed hide()-marked field of a
+pack-generated child now defers until the wrapper has resolved and
+yields the computed value (`docs = ["|readonly"]`, the pack-free
+spelling's outcome — better than the minimum surface-the-failure bar)
+— pinned by `marks.tsv` hide-computed-pack-copy.
+Repro: `hide-computed-drop.aon`.
 
 ### 36. An expression reading the generated child's own fields cannot be merged onto it [major]
 Computed expressions in templates and merged onto generated children

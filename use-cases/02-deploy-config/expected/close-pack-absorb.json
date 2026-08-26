@@ -1,16 +1,12 @@
 {
   "deploy": {
     "dev": {
-      "prod": {
-        "x": 2
-      },
+      "p": false,
       "x": 1
     },
     "prod": {
-      "prod": {
-        "x": 2
-      },
-      "x": 1
+      "p": true,
+      "x": 2
     }
   }
 }
