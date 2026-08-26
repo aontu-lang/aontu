@@ -236,7 +236,10 @@ if command -v git >/dev/null 2>&1; then
   ( cd "$gitdir" && run 1 "$TMP/git-bad" $AONTU breaking --against 'git#HEAD' profile.aon )
   has "compat_narrowed" "$TMP/git-bad"
 else
-  echo "  (git not present; skipped)"
+  # The git#HEAD gate is part of this case's contract; a run that
+  # cannot exercise it must not report success.
+  echo "FAIL - git is required (the git#rev gate cannot be skipped)" >&2
+  exit 1
 fi
 
 printf '\nAll %d steps passed.\n' "$step"

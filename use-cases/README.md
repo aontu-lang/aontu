@@ -30,9 +30,11 @@ The synthesis lives beside this file:
 ./03-api-contract/check.sh   # one case
 ```
 
-Requirements: Node (per `ts/package.json` engines) and an installed
-`ts/node_modules` (`cd ts && npm install`). Scripts locate the repo root
-from their own path and honour `AONTU` to point at a different build.
+Requirements: Node (per `ts/package.json` engines) with an installed
+`ts/node_modules` (`cd ts && npm install`), plus `python3` (JSON
+assertions in cases 03 and 07) and `git` (case 04's `git#rev` gate).
+Scripts locate the repo root from their own path and honour `AONTU` —
+and, in case 09, `MCP` — to point at a different build.
 
 ## The cases
 

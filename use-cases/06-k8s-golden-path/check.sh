@@ -91,6 +91,8 @@ has vet-tampered '[aontu/constraint]' "constraint code"
 has vet-tampered 'max(20)' "replica cap named"
 has vet-tampered 'replicas' "replica finding located"
 has vet-tampered 'memory' "unit-less quantity flagged by re()"
+has vet-tampered 'env.0.name' "env-name finding located at its path"
+has vet-tampered 'log_level' "lowercase env name is the named offender"
 ok "tampered manifests: replicas 50, lowercase env, unit-less memory all caught"
 
 run vet-unknown 1 vet --closed "$DIR/guardrails.aon" "$DIR/data/manifests-unknown-key.json"

@@ -7,7 +7,9 @@ set -euo pipefail
 DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO="$DIR/../.."
 AONTU="${AONTU:-node $REPO/ts/bin/aontu.js}"
-MCP="$REPO/ts/bin/aontu-mcp.js"
+# MCP is a command string like AONTU, so a caller validating another
+# build overrides both: AONTU="node .../aontu.js" MCP="node .../aontu-mcp.js".
+MCP="${MCP:-node $REPO/ts/bin/aontu-mcp.js}"
 
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
@@ -167,8 +169,9 @@ const schema = fs.readFileSync(schemaFile, 'utf8')
 const okCall = fs.readFileSync(okFile, 'utf8')
 const badCall = fs.readFileSync(badFile, 'utf8')
 
-const child = spawn(process.execPath, [server], {
-  stdio: ['pipe', 'pipe', 'inherit'] })
+// server is a command string (the check's $MCP), so spawn via the shell.
+const child = spawn(server, {
+  shell: true, stdio: ['pipe', 'pipe', 'inherit'] })
 let buf = ''
 const waiters = new Map()
 child.stdout.on('data', (d) => {
@@ -179,14 +182,33 @@ child.stdout.on('data', (d) => {
     if (!line.trim()) continue
     const msg = JSON.parse(line)
     const w = waiters.get(msg.id)
-    if (w) { waiters.delete(msg.id); w(msg) }
+    if (w) { waiters.delete(msg.id); w.res(msg) }
   }
 })
+// A server that dies or drops one response must fail the check, not
+// hang it: every pending call rejects on child exit, and each call
+// carries its own timeout.
+child.on('exit', (code) => {
+  for (const w of waiters.values()) {
+    w.rej(new Error('mcp server exited (code ' + code + ') with calls unanswered'))
+  }
+  waiters.clear()
+})
 let nextId = 1
+const RPC_TIMEOUT_MS = 30000
 function rpc(method, params) {
   const id = nextId++
   child.stdin.write(JSON.stringify({ jsonrpc: '2.0', id, method, params }) + '\n')
-  return new Promise((res) => waiters.set(id, res))
+  return new Promise((res, rej) => {
+    const timer = setTimeout(() => {
+      waiters.delete(id)
+      rej(new Error('mcp call ' + method + ' unanswered after ' + RPC_TIMEOUT_MS + 'ms'))
+    }, RPC_TIMEOUT_MS)
+    waiters.set(id, {
+      res: (m) => { clearTimeout(timer); res(m) },
+      rej: (e) => { clearTimeout(timer); rej(e) },
+    })
+  })
 }
 function notify(method) {
   child.stdin.write(JSON.stringify({ jsonrpc: '2.0', method }) + '\n')
