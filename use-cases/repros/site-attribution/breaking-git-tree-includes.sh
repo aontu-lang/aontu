@@ -1,17 +1,25 @@
 #!/bin/sh
-# Claim C2 (CRITICAL): `breaking --against git#rev` takes only the
-# ENTRY file's text from git (`git show <rev>:./<basename>`,
-# ts/src/cli.ts againstSource); the old side's @"..." includes resolve
-# from the WORKING TREE (cli.ts runBreaking: "A git#rev source has no
-# directory of its own; its relative loads resolve as the working
-# file's do"). So the old side is old-entry + NEW includes, and a
-# breaking change made INSIDE an included file compares new-vs-new.
-# docs/how-to.md recommends exactly this spelling as a CI gate
-# ("aontu breaking --against git#origin/main service.aon").
-# expected: verdict: breaking, exit 1 (port narrowed *8080|integer -> 8080
-#           in the included schema.aon; a v1 doc with port 9090 is now
-#           refused -- `--against <path to old copy>` DOES report it)
-# actual:   verdict: compatible, exit 0
+# Claim C2 (CRITICAL) -- FIXED 2026-08-26.
+#
+# `breaking --against git#rev` used to take only the ENTRY file's text
+# from git (`git show <rev>:./<basename>`), so the old side's @"..."
+# includes resolved from the WORKING TREE: the old side was old-entry
+# text meeting NEW includes, and a breaking change made INSIDE an
+# included file compared new-vs-new and answered `compatible`.
+# docs/how-to.md recommends exactly this spelling as a CI gate.
+#
+# The git spelling now materialises the old TREE's includable sources
+# into a temporary directory and evaluates the old document from there
+# (ts/src/cli.ts oldVersion, go/cmd/aontu/subsume.go resolveAgainst).
+#
+# expected: verdict: breaking, exit 1 (port narrowed *8080|integer ->
+#           8080 in the included schema.aon; a v1 doc with port 9090 is
+#           now refused)
+# actual:   verdict: breaking, exit 1  -- as expected since the fix
+# pinned by: ts/test/cli.test.ts breaking-git-compares-the-old-tree,
+#           go/cmd/aontu/subsume_test.go TestBreakingGitComparesTheOldTree
+#           (both assert the unchanged-tree control stays compatible,
+#           so a fix that merely reported breaking would fail)
 set -e
 ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"   # the repo root
 AONTU="${AONTU:-node $ROOT/ts/bin/aontu.js}"

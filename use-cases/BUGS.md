@@ -413,6 +413,16 @@ multi-file layout every real model uses, in the exact form
 `docs/how-to.md` recommends for CI. Repro:
 `breaking-git-tree-includes.sh` (self-building fixture).
 
+Status: FIXED 2026-08-26 — a `git#<rev>` spelling now materialises the
+revision's includable sources into a temporary tree and evaluates the
+old document from there, so a narrowing inside an included file reports
+`breaking` (exit 1) while an unchanged tree still reports `compatible`.
+Both ports; pinned by `ts/test/cli.test.ts`
+`breaking-git-compares-the-old-tree` and `go/cmd/aontu/subsume_test.go`
+`TestBreakingGitComparesTheOldTree`, each asserting the unchanged-tree
+control too, so a fix that merely reported breaking would fail. A file
+absent from the revision is now refused by name.
+
 ### 27. Module-internal references break under nested import, naming a phantom path [major]
 A module that evaluates and hashes standalone fails when imported at a
 nested key (`no_path` at `$.mod.spec.port` — a path existing in

@@ -246,9 +246,18 @@ aontu breaking --against <file|git#rev> [--mode backward|forward|full]
                [--allow-undecided] [--format text|json] <file.aon>
 ```
 
-- `--against` takes a file path or `git#<rev>` (resolved by shelling
-  out to `git show <rev>:./<basename>` from the file's own directory —
-  no embedded git), and is repeatable.
+- `--against` takes a file path or `git#<rev>`, and is repeatable.
+  A `git#<rev>` spelling is the old version of the **whole tree**, not
+  of the entry file alone: the revision's includable sources
+  (`.aon`, `.aontu`, `.jsonic`, `.json`) are materialised into a
+  temporary directory by shelling out to git — no embedded git — and
+  the old document is evaluated from there, so a change inside an
+  `@"…"`-included file is part of the comparison. The temporary tree
+  is removed when the run ends. Sources outside the revision —
+  package includes under `node_modules`, the bundled `std/system` —
+  resolve as they always do; their versions travel with the lockfile
+  rather than with this comparison. A file the revision does not carry
+  is a usage failure naming it, not a comparison against nothing.
 - Modes: **backward** (the default) checks the new document subsumes
   the old — documents valid under v1 stay valid; **forward** checks the
   old subsumes the new; **full** checks both.

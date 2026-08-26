@@ -10,8 +10,11 @@
 
 // Named imports, not `import * as`: the namespace form makes tsc emit the
 // __importStar downlevel helper, whose branches no supported Node takes.
-import { readFileSync, statSync, writeFileSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
+import {
+  mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync,
+} from 'node:fs'
+import { dirname, join, relative, resolve, sep } from 'node:path'
+import { tmpdir } from 'node:os'
 import { createInterface } from 'node:readline'
 
 import {
@@ -1097,15 +1100,40 @@ function parseBreakingArgs(
   }
 }
 
-// Resolve one --against spelling to source text. `git#<rev>` shells out
-// to `git show <rev>:./<basename>` from the file's own directory — no
-// embedded git, and the `./` prefix makes git resolve the path relative
-// to that directory rather than the repository root. Returns undefined
-// (with the message already printed) on failure.
-function againstSource(spec: string, file: string): string | undefined {
+// One resolved `--against` spelling: the old document's text, the path
+// its own relative includes must resolve from, and (for a git spelling)
+// the temporary tree to remove when the run is done.
+type OldVersion = { src: string, path: string, temp?: string }
+
+// A source file the include resolver can actually load. `git#<rev>`
+// materialises these and nothing else: an include names an Aontu
+// document (`.aon`/`.aontu`, the two extensions `@"foo"` tries) or a
+// JSON one, so the rest of a revision's tree cannot be part of any
+// include closure and copying it would be pure cost.
+const INCLUDABLE = /\.(aon|aontu|jsonic|json)$/
+
+// Resolve one --against spelling to an old version.
+//
+// A `git#<rev>` spelling is the old version of the WHOLE TREE, not of
+// the entry file alone. It used to be `git show <rev>:./<file>`, whose
+// text was then evaluated with `generalPath`/`specificPath` pointing at
+// the WORKING file -- so every `@"..."` include in the old document
+// resolved against the working tree, and the "old" side was old entry
+// text meeting new includes. A breaking change inside an included file
+// therefore compared against itself and answered `compatible`: the
+// documented CI gate silently un-gated every non-entry file of the
+// multi-file layout real models use (use-cases/BUGS.md §26). The old
+// tree's includable sources are copied into a temporary directory and
+// the old document is evaluated from THERE.
+//
+// Sources outside the revision -- package includes under node_modules,
+// the bundled `std/system` -- still resolve as they do today: they are
+// not in the tree, and their versions travel with the lockfile rather
+// than with this comparison.
+function oldVersion(spec: string, file: string): OldVersion | undefined {
   if (!spec.startsWith('git#')) {
     try {
-      return readFileSync(spec, 'utf8')
+      return { src: readFileSync(spec, 'utf8'), path: spec }
     }
     catch (err: any) {
       process.stderr.write(`aontu: cannot read ${err.path}: ${err.message}\n`)
@@ -1118,17 +1146,46 @@ function againstSource(spec: string, file: string): string | undefined {
     process.stderr.write('aontu: --against git# needs a revision\n')
     return undefined
   }
-  try {
-    // Lazy import: the dependency exists only when a git spelling is
-    // actually used, so plain runs never pay for it.
-    const { execFileSync } = require('node:child_process')
-    const dir = dirname(resolve(file))
-    const rel = './' + resolve(file).slice(dir.length + 1)
-    return execFileSync('git', ['show', `${rev}:${rel}`], {
-      cwd: dir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+
+  // Lazy import: the dependency exists only when a git spelling is
+  // actually used, so plain runs never pay for it.
+  const { execFileSync } = require('node:child_process')
+  const dir = dirname(resolve(file))
+  const git = (args: string[], cwd: string): string =>
+    execFileSync('git', args, {
+      cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
     })
+
+  // The temporary tree is made BEFORE the first git call, so every
+  // failure below has exactly one cleanup path rather than a branch
+  // that only some failures take.
+  const temp = mkdtempSync(join(tmpdir(), 'aontu-against-'))
+  try {
+    const top = git(['rev-parse', '--show-toplevel'], dir).trim()
+    const entryRel = relative(top, resolve(file)).split(sep).join('/')
+
+    // `-z` so a path with a newline or a quote cannot be mistaken for
+    // two paths (git otherwise quotes such names).
+    const listed = git(['ls-tree', '-r', '-z', '--name-only', rev], top)
+      .split('\0').filter((p) => '' !== p)
+    if (!listed.includes(entryRel)) {
+      throw new Error(`${entryRel} is not in that revision`)
+    }
+
+    for (const rel of listed) {
+      if (!INCLUDABLE.test(rel)) {
+        continue
+      }
+      const dest = join(temp, ...rel.split('/'))
+      mkdirSync(dirname(dest), { recursive: true })
+      writeFileSync(dest, git(['show', `${rev}:${rel}`], top))
+    }
+
+    const entry = join(temp, ...entryRel.split('/'))
+    return { src: readFileSync(entry, 'utf8'), path: entry, temp }
   }
   catch (err: any) {
+    rmSync(temp, { recursive: true, force: true })
     const detail = String(err.stderr ?? err.message).trim().split('\n')[0]
     process.stderr.write(`aontu: cannot resolve ${spec}: ${detail}\n`)
     return undefined
@@ -1252,10 +1309,24 @@ function runBreaking(argv: string[]): number {
   let worst: SubsumeVerdict = 'subsumes'
   const findings: VetFinding[] = []
 
+  // Temporary trees materialised for `git#<rev>` spellings, removed
+  // once every check that reads them has run.
+  const temps: string[] = []
+  const sweep = () => {
+    for (const t of temps) {
+      rmSync(t, { recursive: true, force: true })
+    }
+  }
+
+  try {
   for (const spec of args.against) {
-    const oldSrc = againstSource(spec, args.file)
-    if (null == oldSrc) {
+    const old = oldVersion(spec, args.file)
+    if (null == old) {
       return 2
+    }
+    const oldSrc = old.src
+    if (null != old.temp) {
+      temps.push(old.temp)
     }
 
     // backward: the NEW document is the general side — every old
@@ -1268,18 +1339,18 @@ function runBreaking(argv: string[]): number {
       checks.push({ general: [oldSrc, spec], specific: [newSrc, args.file] })
     }
 
-    const oldPath = spec.startsWith('git#') ? args.file : spec
+    const oldPath = old.path
 
     for (const check of checks) {
       const report = subsume(check.general[0], check.specific[0], {
         generalUrl: check.general[1],
         specificUrl: check.specific[1],
-        // A git#rev source has no directory of its own; its relative
-        // loads resolve as the working file's do.
-        generalPath: check.general[1].startsWith('git#')
-          ? args.file : check.general[1],
-        specificPath: check.specific[1].startsWith('git#')
-          ? args.file : check.specific[1],
+        // The old side's relative loads resolve from ITS own tree --
+        // the materialised revision for a git spelling, the named
+        // file's directory otherwise -- so an included file's change
+        // is part of the comparison rather than invisible to it.
+        generalPath: check.general[1] === spec ? oldPath : args.file,
+        specificPath: check.specific[1] === spec ? oldPath : args.file,
       })
 
       // The deprecated-removal downgrade: a finding about a value the
@@ -1308,6 +1379,10 @@ function runBreaking(argv: string[]): number {
       }
       findings.push(...report.findings)
     }
+  }
+  }
+  finally {
+    sweep()
   }
 
   const report: SubsumeReport = { verdict: worst, findings }

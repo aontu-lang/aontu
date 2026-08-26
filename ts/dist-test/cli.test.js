@@ -548,12 +548,52 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
         // An unknown revision is a usage failure naming the spelling.
         const bad = vetCapture(() => Assert.equal((0, cli_1.runBreaking)(['--against', 'git#no-such-rev', file]), 2));
         Assert.match(bad.err, /cannot resolve git#no-such-rev/);
+        // A file the revision does not carry is refused by name rather
+        // than compared against nothing.
+        const absent = Path.join(dir, 'absent.aon');
+        Fs.writeFileSync(absent, 'a: 1');
+        const miss = vetCapture(() => Assert.equal((0, cli_1.runBreaking)(['--against', 'git#HEAD', absent]), 2));
+        Assert.match(miss.err, /absent\.aon is not in that revision/);
+    });
+    // THE OLD SIDE IS THE OLD TREE, not old entry text meeting new
+    // includes. The git spelling used to resolve the old document's
+    // `@"..."` loads against the WORKING tree, so a breaking change made
+    // inside an included file compared against itself and answered
+    // compatible -- the CI gate silently un-gated every non-entry file
+    // (use-cases/BUGS.md §26). Both directions are asserted: the
+    // narrowing is caught, and an unchanged tree stays compatible, so a
+    // fix that simply reported breaking would fail too.
+    (0, node_test_1.test)('breaking-git-compares-the-old-tree', () => {
+        const { execFileSync } = require('node:child_process');
+        const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-brk-tree-'));
+        const model = Path.join(dir, 'model');
+        Fs.mkdirSync(model);
+        const entry = Path.join(model, 'entry.aon');
+        const inc = Path.join(model, 'schema.aon');
+        const git = (...args) => execFileSync('git', [
+            '-c', 'user.email=t@example.com', '-c', 'user.name=t', ...args,
+        ], { cwd: dir, stdio: ['ignore', 'pipe', 'pipe'] });
+        git('init', '-q', '.');
+        Fs.writeFileSync(entry, 'svc: @"schema.aon"');
+        Fs.writeFileSync(inc, 'port: *8080|integer');
+        // A file no include can name: the materialiser must skip it.
+        Fs.writeFileSync(Path.join(dir, 'README.md'), '# not a source');
+        git('add', '-A');
+        git('commit', '-q', '-m', 'v1');
+        // Unchanged tree: compatible.
+        const same = vetCapture(() => Assert.equal((0, cli_1.runBreaking)(['--against', 'git#HEAD', entry]), 0));
+        Assert.match(same.out, /verdict: compatible/);
+        // The narrowing lives in the INCLUDED file only.
+        Fs.writeFileSync(inc, 'port: 8080');
+        const r = vetCapture(() => Assert.equal((0, cli_1.runBreaking)(['--against', 'git#HEAD', entry]), 1));
+        Assert.match(r.out, /verdict: breaking/);
+        Assert.match(r.out, /\$\.svc\.port/);
         // No git binary at all: still a located usage failure, using the
         // spawn error's own message since there is no stderr to quote.
         const savedPath = process.env.PATH;
         try {
             process.env.PATH = '';
-            const gone = vetCapture(() => Assert.equal((0, cli_1.runBreaking)(['--against', 'git#HEAD', file]), 2));
+            const gone = vetCapture(() => Assert.equal((0, cli_1.runBreaking)(['--against', 'git#HEAD', entry]), 2));
             Assert.match(gone.err, /cannot resolve git#HEAD/);
         }
         finally {

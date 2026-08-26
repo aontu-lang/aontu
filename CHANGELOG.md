@@ -5,6 +5,30 @@ package (`ts/`, npm `aontu`) and the Go module (`go/`,
 `github.com/rjrodger/aontu/go`) are versioned independently; entries note
 which implementation each change affects.
 
+## Unreleased — the evolution gate compares the old TREE
+
+Both implementations. `breaking --against git#<rev>` took only the ENTRY
+file's text from git and then evaluated it with the WORKING file as its
+path, so every `@"..."` include in the old document resolved against the
+working tree: the "old" side was old entry text meeting NEW includes,
+and a breaking change made inside an included file compared against
+itself and answered `compatible`. The documented CI spelling therefore
+un-gated every non-entry file of the multi-file layout real models use
+(the 2026-08 review's finding D; `use-cases/BUGS.md` §26).
+
+A `git#<rev>` spelling now materialises the revision's includable
+sources (`.aon`, `.aontu`, `.jsonic`, `.json` — the only files an
+include can name) into a temporary directory and evaluates the old
+document from there; the tree is removed when the run ends. Sources
+outside the revision (package includes, the bundled `std/system`)
+resolve as before. A file the revision does not carry is a usage
+failure naming it rather than a comparison against nothing.
+
+Pinned by `ts/test/cli.test.ts` `breaking-git-compares-the-old-tree`
+and `go/cmd/aontu/subsume_test.go` `TestBreakingGitComparesTheOldTree`,
+both of which also assert that an UNCHANGED tree still answers
+`compatible` — a fix that merely reported breaking would fail them.
+
 ## Unreleased — the spread application rework (ADR-006)
 
 Both implementations. The remaining defects of the 2026-08 language

@@ -230,6 +230,17 @@ func TestBreakingResolvesGitRevisions(t *testing.T) {
 		t.Fatalf("want 2/cannot resolve, got %d: %s", code, errw)
 	}
 
+	// A file the revision does not carry is refused by name rather
+	// than compared against nothing.
+	absent := filepath.Join(dir, "absent.aon")
+	if err := os.WriteFile(absent, []byte("a: 1"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	_, errw, code = brkRun("--against", "git#HEAD", absent)
+	if 2 != code || !strings.Contains(errw, "absent.aon is not in that revision") {
+		t.Fatalf("want 2/not in revision, got %d: %s", code, errw)
+	}
+
 	// No git binary at all: still a located usage failure, using the
 	// spawn error's own message since there is no stderr to quote.
 	t.Setenv("PATH", "")
@@ -237,6 +248,65 @@ func TestBreakingResolvesGitRevisions(t *testing.T) {
 	if 2 != code || !strings.Contains(errw, "cannot resolve git#HEAD") {
 		t.Fatalf("want 2/cannot resolve, got %d: %s", code, errw)
 	}
+}
+
+// THE OLD SIDE IS THE OLD TREE, not old entry text meeting new
+// includes. The git spelling used to resolve the old document's
+// @"..." loads against the WORKING tree, so a breaking change made
+// inside an included file compared against itself and answered
+// compatible -- the CI gate silently un-gated every non-entry file
+// (use-cases/BUGS.md §26). Both directions are asserted: the narrowing
+// is caught, and an unchanged tree stays compatible, so a fix that
+// simply reported breaking would fail too.
+func TestBreakingGitComparesTheOldTree(t *testing.T) {
+	dir := t.TempDir()
+	model := filepath.Join(dir, "model")
+	if err := os.MkdirAll(model, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	entry := filepath.Join(model, "entry.aon")
+	inc := filepath.Join(model, "schema.aon")
+	git := func(args ...string) {
+		full := append([]string{
+			"-c", "user.email=t@example.com", "-c", "user.name=t"}, args...)
+		cmd := exec.Command("git", full...)
+		cmd.Dir = dir
+		if err := cmd.Run(); err != nil {
+			t.Skipf("git unavailable: %v", err)
+		}
+	}
+	if err := os.WriteFile(entry, []byte("svc: @\"schema.aon\""), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(inc, []byte("port: *8080|integer"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	// A file no include can name: the materialiser must skip it.
+	if err := os.WriteFile(
+		filepath.Join(dir, "README.md"), []byte("# not a source"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	git("init", "-q", ".")
+	git("add", "-A")
+	git("commit", "-q", "-m", "v1")
+
+	// Unchanged tree: compatible.
+	out, _, code := brkRun("--against", "git#HEAD", entry)
+	if 0 != code {
+		t.Fatalf("unchanged tree: want 0, got %d:\n%s", code, out)
+	}
+	vetMatch(t, out, `verdict: compatible`)
+
+	// The narrowing lives in the INCLUDED file only.
+	if err := os.WriteFile(inc, []byte("port: 8080"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	out, _, code = brkRun("--against", "git#HEAD", entry)
+	if 1 != code {
+		t.Fatalf("narrowed include: want 1, got %d:\n%s", code, out)
+	}
+	vetMatch(t, out, `verdict: breaking`)
+	vetMatch(t, out, `\$\.svc\.port`)
 }
 
 func TestBreakingReadsTheDocumentsOwnPolicy(t *testing.T) {

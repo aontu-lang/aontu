@@ -12,6 +12,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"io"
 	"os"
 	"os/exec"
@@ -223,36 +224,33 @@ func parseBreakingArgs(argv []string) (*breakingArgs, string) {
 	return args, ""
 }
 
-// againstSource resolves one --against spelling to source text.
-// `git#<rev>` shells out to `git show <rev>:./<basename>` from the
-// file's own directory — no embedded git, and the `./` prefix makes
-// git resolve the path relative to that directory rather than the
-// repository root. Returns ok=false with the message already printed.
-func againstSource(spec, file string, stderr io.Writer) (string, bool) {
-	if !strings.HasPrefix(spec, "git#") {
-		src, err := os.ReadFile(spec)
-		if nil != err {
-			io.WriteString(stderr, "aontu: cannot read "+spec+": "+err.Error()+"\n")
-			return "", false
-		}
-		return string(src), true
-	}
+// oldVersion is one resolved --against spelling: the old document's
+// text, the path its own relative includes must resolve from, and (for
+// a git spelling) the temporary tree to remove when the run is done.
+type oldVersion struct {
+	src  string
+	path string
+	temp string
+}
 
-	rev := spec[len("git#"):]
-	if "" == rev {
-		io.WriteString(stderr, "aontu: --against git# needs a revision\n")
-		return "", false
+// includable reports whether a tree path is a source the include
+// resolver can load. A git#<rev> spelling materialises these and
+// nothing else: an include names an Aontu document (.aon/.aontu, the
+// two extensions @"foo" tries) or a JSON one, so the rest of a
+// revision's tree cannot be part of any include closure and copying it
+// would be pure cost.
+func includable(p string) bool {
+	switch strings.ToLower(filepath.Ext(p)) {
+	case ".aon", ".aontu", ".jsonic", ".json":
+		return true
 	}
+	return false
+}
 
-	abs, err := filepath.Abs(file)
-	if nil != err { //coverage:ignore Abs fails only on an unreadable cwd
-		io.WriteString(stderr, "aontu: cannot resolve "+spec+": "+err.Error()+"\n")
-		return "", false
-	}
-	dir := filepath.Dir(abs)
-	rel := "./" + filepath.Base(abs)
-
-	cmd := exec.Command("git", "show", rev+":"+rel)
+// gitOut runs git in dir and returns its stdout, or the first line of
+// its stderr as the error detail.
+func gitOut(dir string, args ...string) (string, error) {
+	cmd := exec.Command("git", args...)
 	cmd.Dir = dir
 	var out, errOut bytes.Buffer
 	cmd.Stdout = &out
@@ -262,11 +260,124 @@ func againstSource(spec, file string, stderr io.Writer) (string, bool) {
 		if "" == detail {
 			detail = err.Error()
 		}
-		detail = strings.SplitN(detail, "\n", 2)[0]
-		io.WriteString(stderr, "aontu: cannot resolve "+spec+": "+detail+"\n")
-		return "", false
+		return "", errors.New(strings.SplitN(detail, "\n", 2)[0])
 	}
-	return out.String(), true
+	return out.String(), nil
+}
+
+// resolveAgainst resolves one --against spelling to an old version.
+//
+// A `git#<rev>` spelling is the old version of the WHOLE TREE, not of
+// the entry file alone. It used to be `git show <rev>:./<file>`, whose
+// text was then evaluated with the WORKING file as its path -- so every
+// @"..." include in the old document resolved against the working
+// tree, and the "old" side was old entry text meeting new includes. A
+// breaking change inside an included file therefore compared against
+// itself and answered compatible: the documented CI gate silently
+// un-gated every non-entry file of the multi-file layout real models
+// use (use-cases/BUGS.md §26). The old tree's includable sources are
+// copied into a temporary directory and the old document is evaluated
+// from THERE.
+//
+// Sources outside the revision -- package includes under node_modules,
+// the bundled std/system -- still resolve as they do today: they are
+// not in the tree, and their versions travel with the lockfile rather
+// than with this comparison.
+func resolveAgainst(spec, file string, stderr io.Writer) (oldVersion, bool) {
+	if !strings.HasPrefix(spec, "git#") {
+		src, err := os.ReadFile(spec)
+		if nil != err {
+			io.WriteString(stderr, "aontu: cannot read "+spec+": "+err.Error()+"\n")
+			return oldVersion{}, false
+		}
+		return oldVersion{src: string(src), path: spec}, true
+	}
+
+	rev := spec[len("git#"):]
+	if "" == rev {
+		io.WriteString(stderr, "aontu: --against git# needs a revision\n")
+		return oldVersion{}, false
+	}
+
+	abs, err := filepath.Abs(file)
+	if nil != err { //coverage:ignore Abs fails only on an unreadable cwd
+		io.WriteString(stderr, "aontu: cannot resolve "+spec+": "+err.Error()+"\n")
+		return oldVersion{}, false
+	}
+	dir := filepath.Dir(abs)
+
+	// The temporary tree is made BEFORE the first git call, so every
+	// failure below has exactly one cleanup path rather than a branch
+	// that only some failures take.
+	temp, err := os.MkdirTemp("", "aontu-against-")
+	if nil != err { //coverage:ignore MkdirTemp fails only on an unwritable tmp
+		io.WriteString(stderr, "aontu: cannot resolve "+spec+": "+err.Error()+"\n")
+		return oldVersion{}, false
+	}
+	fail := func(detail string) (oldVersion, bool) {
+		os.RemoveAll(temp)
+		io.WriteString(stderr, "aontu: cannot resolve "+spec+": "+detail+"\n")
+		return oldVersion{}, false
+	}
+
+	topOut, err := gitOut(dir, "rev-parse", "--show-toplevel")
+	if nil != err {
+		return fail(err.Error())
+	}
+	top := strings.TrimSpace(topOut)
+
+	entryRel, err := filepath.Rel(top, abs)
+	if nil != err { //coverage:ignore Rel fails only across Windows volumes
+		return fail(err.Error())
+	}
+	entryRel = filepath.ToSlash(entryRel)
+
+	// -z so a path with a newline or a quote cannot be mistaken for two
+	// paths (git otherwise quotes such names).
+	listOut, err := gitOut(top, "ls-tree", "-r", "-z", "--name-only", rev)
+	if nil != err {
+		return fail(err.Error())
+	}
+	listed := []string{}
+	for _, p := range strings.Split(listOut, "\x00") {
+		if "" != p {
+			listed = append(listed, p)
+		}
+	}
+	found := false
+	for _, p := range listed {
+		if p == entryRel {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return fail(entryRel + " is not in that revision")
+	}
+
+	for _, rel := range listed {
+		if !includable(rel) {
+			continue
+		}
+		body, err := gitOut(top, "show", rev+":"+rel)
+		if nil != err { //coverage:ignore a path git just listed always shows
+			return fail(err.Error())
+		}
+		dest := filepath.Join(temp, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(dest), 0o755); nil != err { //coverage:ignore MkdirAll under a fresh temp dir
+			return fail(err.Error())
+		}
+		if err := os.WriteFile(dest, []byte(body), 0o644); nil != err { //coverage:ignore WriteFile under a fresh temp dir
+			return fail(err.Error())
+		}
+	}
+
+	entry := filepath.Join(temp, filepath.FromSlash(entryRel))
+	src, err := os.ReadFile(entry)
+	if nil != err { //coverage:ignore the entry was just written from the tree
+		return fail(err.Error())
+	}
+	return oldVersion{src: string(src), path: entry, temp: temp}, true
 }
 
 // Verdict aggregation for breaking: an error anywhere makes the run an
@@ -364,18 +475,30 @@ func runBreaking(argv []string, stdout, stderr io.Writer) int {
 	worst := aontu.SubsumeYes
 	findings := []aontu.VetFinding{}
 
+	// Temporary trees materialised for git#<rev> spellings, removed
+	// once every check that reads them has run.
+	temps := []string{}
+	defer func() {
+		for _, t := range temps {
+			os.RemoveAll(t)
+		}
+	}()
+
 	for _, spec := range args.against {
-		oldSrc, ok := againstSource(spec, args.file, stderr)
+		old, ok := resolveAgainst(spec, args.file, stderr)
 		if !ok {
 			return 2
 		}
-
-		// A git#rev source has no directory of its own; its relative
-		// loads resolve as the working file's do.
-		oldPath := spec
-		if strings.HasPrefix(spec, "git#") {
-			oldPath = args.file
+		oldSrc := old.src
+		if "" != old.temp {
+			temps = append(temps, old.temp)
 		}
+
+		// The old side's relative loads resolve from ITS own tree --
+		// the materialised revision for a git spelling, the named
+		// file's directory otherwise -- so an included file's change is
+		// part of the comparison rather than invisible to it.
+		oldPath := old.path
 
 		// backward: the NEW document is the general side — every old
 		// instance must still be admitted. forward: the old one is.
