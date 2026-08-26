@@ -1,0 +1,11 @@
+# Same crosswire WITHOUT id(): one view, one entity, the two unequal
+# ports templates meet by plain conjunction of referenced schemas
+# (exactly how $.spec.Workload = $.std.Service & {ports:{&: ...}}
+# brought them together in use-case 01 -- id-merge is not required).
+# expected: {"w":{"gw":{"ports":{"adm":{"n":9901,...},"pub":{"n":443,...}}}}} exit 0
+# actual: [aontu/scalar_value] at $.w.gw.ports.adm.n:
+#         "Cannot unify value: 9901 with value: 443", exit 1
+Port: hide({ d: *1 | 2 })
+Service: hide({ ports: {&: $.Port} })
+Workload: hide($.Service & { ports: {&: $.Port & {n: integer}} })
+w: gw: $.Workload & { ports: { pub: { n: 443 }, adm: { n: 9901 } } }

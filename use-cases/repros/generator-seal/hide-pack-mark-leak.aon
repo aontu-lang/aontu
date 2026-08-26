@@ -1,0 +1,16 @@
+# Use-case 06 pinned bug (claim C2): hide() wrapped DIRECTLY around a
+# pack call leaks the hide mark onto the generated children, so a
+# downstream pack sourcing from them emits its children EMPTY, exit 0.
+# The values are all present — `--canon` shows
+# {"out":{"web":{"got":{"a":1}}}} — only generation drops them.
+# Plain hide on a literal map does not do this
+# (m: hide({web:{a:1}}); pack($.m,{got:_}) emits got), and the docs'
+# own hide-reference example (how-to.md, "Keep schema/helper fields
+# out of the output": token: $.secret → {"token":"s3cret"}) shows a
+# hidden value is meant to be usable downstream.  Workaround:
+# internal: hide({ m: pack(...) }).
+# expected: {"col":...,"out":{"web":{"got":{"a":1}}}} exit 0
+# actual:   {"col":...,"out":{"web":{}}} exit 0 (silent empty children)
+col: { web: { a: 1 } }
+m: hide(pack($.col, _))
+out: pack($.m, { got: _ })

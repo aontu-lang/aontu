@@ -1,0 +1,19 @@
+# Use-case 01 gap 7 (claim C1): two positions of one id()-merged
+# entity, each under a &: spread whose template arrives BY REFERENCE,
+# inner ports templates unequal ($.Port vs $.Port & {n: integer}).
+# The entity's two ports are siblings; their data is unified with
+# each other. Inline (non-ref) outer templates do not trigger it.
+# expected: both positions show ports {pub:{n:443},adm:{n:9901}}, exit 0
+# actual: [aontu/scalar_value] at $.cat.services.gw.ports.adm.n:
+#         "Cannot unify value: 9901 with value: 443", exit 1
+Port: hide({ d: *1 | 2 })
+Svc: hide({ ports: {&: $.Port} })
+WL: hide({ ports: {&: $.Port & {n: integer}} })
+cat: services: {
+  &: $.Svc
+  gw: id(svc/gw) & { ports: { pub: { n: 443 }, adm: { n: 9901 } } }
+}
+dep: workloads: {
+  &: $.WL
+  gw: id(svc/gw) & {}
+}

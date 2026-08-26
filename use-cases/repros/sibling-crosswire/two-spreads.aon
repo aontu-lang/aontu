@@ -1,0 +1,13 @@
+# Two unequal &: spread templates on ONE map (cross-statement merge)
+# cross-wire the map's sibling children: each sibling's DATA is
+# unified with the other sibling's DATA through the combined template.
+# One spread, or two spreads with identical canon, are fine
+# (test/spec/spread-interleave.tsv pins two-spread support; the
+# crosswire needs a non-concrete template key that children override).
+# expected: {"w":{"x":{"p":1,"r":5},"y":{"p":2,"r":6}}} exit 0
+# actual: [aontu/scalar_value] at $.w.y.r: "Cannot unify value: 6 with
+#         value: 5" (both sides are sibling DATA values), exit 1
+w: &: { p: integer }
+w: &: { r: integer }
+w: x: { p: 1, r: 5 }
+w: y: { p: 2, r: 6 }

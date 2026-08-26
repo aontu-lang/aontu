@@ -1,0 +1,8 @@
+# Shared include for the include-alias-* repros (use-case 10 gap 6,
+# claim C4): a type()-marked record schema whose body references a
+# type()-marked named ALIAS ($.schema.T).  Evaluated inline this
+# pattern is fine; pulled in through @"..." it misbehaves (see the
+# include-alias-* main files).  With `ledgerId: integer` written
+# inline instead of via $.schema.T, every main file below is correct.
+schema: { T: type(integer), C: type({ ledgerId: $.schema.T }) }
+customers: { &: $.schema.C }

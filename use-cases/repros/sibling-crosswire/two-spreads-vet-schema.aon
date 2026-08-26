@@ -1,0 +1,9 @@
+# vet form (use-case 02 gap 6): two spreads addressing one map at
+# DIFFERENT depths; vetting correct data reports one sibling's data
+# value conflicting with another sibling's data value.
+# expected: verdict: valid, exit 0
+# actual: verdict: invalid, $.a.prod.w.y.p: scalar_value [conflict]
+#         data (2) vs data (1) -- sibling children's own values -- exit 1
+#         (run: aontu vet two-spreads-vet-schema.aon two-spreads-vet-data.json)
+a: &: { w: &: { p: integer } }
+a: prod: w: &: { r: integer }

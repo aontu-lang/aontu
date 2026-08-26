@@ -1,0 +1,14 @@
+# Use-case 10 gap 6 (claim C4, silent half): including a type()d
+# schema that references a type()d named alias silently DROPS the data
+# record from generation, exit 0.  The value survives in the graph:
+# `--canon` still shows customers.c1, and adding
+# `out: copy($.customers.c1)` emits {"ledgerId":5} — copy() clears
+# marks, proving a leaked type mark hides the record.  The identical
+# statements in ONE file (no include), or this include with
+# `ledgerId: integer` inline (no alias), emit the record correctly —
+# exactly the documented pattern (how-to.md, "Keep schema/helper
+# fields out of the output").
+# expected: {"customers":{"c1":{"ledgerId":5}},"schema":{}} exit 0
+# actual:   {"customers":{},"schema":{}} exit 0 (record silently gone)
+@"./alias-vocab.aon"
+customers: c1: { ledgerId: 5 }
