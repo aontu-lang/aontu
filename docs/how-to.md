@@ -21,10 +21,13 @@ basics from the [Tutorial](tutorial.md); for exhaustive rules see the
 - [Apply one template to many keys](#apply-one-template-to-many-keys)
 - [Constrain every element of a list](#constrain-every-element-of-a-list)
 - [Forbid unexpected keys](#forbid-unexpected-keys)
+- [Seal generated children deeply](#seal-generated-children-deeply)
 - [Make a field optional](#make-a-field-optional)
+- [Carry exact money over JSON](#carry-exact-money-over-json)
 - [Reference and reshape other parts of the document](#reference-and-reshape-other-parts-of-the-document)
 - [Split a model across files](#split-a-model-across-files)
 - [Vendor a dependency closure for an offline build](#vendor-a-dependency-closure-for-an-offline-build)
+- [Vendor a module by hand](#vendor-a-module-by-hand)
 - [Pin what a document means](#pin-what-a-document-means)
 - [Inject values from the host program](#inject-values-from-the-host-program)
 - [Keep schema/helper fields out of the output](#keep-schemahelper-fields-out-of-the-output)
@@ -650,6 +653,76 @@ config: { host: h, port: 1, debug: true }
 `open(x)` to lift a `close` again (e.g. `open(close({x:1})) & {y:2}`
 succeeds).
 
+## Seal generated children deeply
+
+`close` seals exactly the node it wraps — it is deliberately
+**shallow**. Around a
+[`pack`](reference-language.md#generating-children-pack-and-each)
+generator, that means `close(pack(...))` forbids adding *children* to
+the generated map, but each child's own keys stay open — so a typo'd
+override is silently absorbed instead of refused:
+
+```aontu
+names: hide({ web: {}, auth: {} })
+
+deploy: close(pack($.names, {
+  replicas: *1 | integer
+  tier:     *standard | string
+}))
+
+deploy: web: replicaz: 3
+```
+
+```json
+{
+  "deploy": {
+    "auth": { "replicas": 1, "tier": "standard" },
+    "web":  { "replicas": 1, "replicaz": 3, "tier": "standard" }
+  }
+}
+```
+
+Exit 0 — and `web` runs with the default `replicas: 1`, the misspelled
+`replicaz` riding along beside it. The deep-seal spelling closes the
+template as well, so every generated child is sealed too:
+
+```aontu
+names: hide({ web: {}, auth: {} })
+
+deploy: close(pack($.names, close({
+  replicas: *1 | integer
+  tier:     *standard | string
+})))
+
+deploy: web: replicas: 3
+```
+
+```json
+{
+  "deploy": {
+    "auth": { "replicas": 1, "tier": "standard" },
+    "web":  { "replicas": 3, "tier": "standard" }
+  }
+}
+```
+
+The legitimate override composes exactly as before — `web` gets its
+`replicas: 3`, `auth` keeps the defaults. Now misspell it
+(`deploy: web: replicaz: 3` against the same sealed shape) and the
+child refuses, naming the key:
+
+```sh
+$ aontu deploy.aon
+[aontu/closed]: Cannot resolve value at path $.deploy.web.replicaz
+(the hint and the annotated source site follow)
+$ echo $?
+1
+```
+
+The rule generalises: `close` never travels, so seal each level you
+mean to seal — the outer `close(...)` pins the *set* of children, the
+inner `close({...})` pins each child's *shape*.
+
 ## Make a field optional
 
 Suffix the key with `?`. An optional field that never receives a concrete
@@ -664,6 +737,98 @@ record: { id: 1 }
 
 Supplying `note: hi` keeps it. Optional defaults still apply if given
 (`z: *3` survives even when untouched).
+
+## Carry exact money over JSON
+
+Inside an Aontu document, money is a
+[`bigdecimal`](reference-language.md#the-four-numeric-leaves): `0d`
+literals are exact base-10 values and `+` on them is exact arithmetic —
+no binary rounding, ever:
+
+```aontu
+subtotal: 0d19.99
+shipping: 0d4.01
+total:    $.subtotal + $.shipping
+```
+
+```sh
+$ aontu money.aon
+{
+  "shipping": 4.01,
+  "subtotal": 19.99,
+  "total": 24.0
+}
+```
+
+The problem is the wire. A `bigdecimal` schema **cannot be satisfied by
+a plain JSON number, by design**: `JSON.parse` has already turned `0.1`
+into a binary64 `float` before Aontu ever sees it, and
+[the numeric leaves are disjoint](reference-language.md#the-four-numeric-leaves),
+so the exactness the field demands is gone at the door:
+
+```aontu
+invoice: { total: bigdecimal }
+```
+
+```sh
+$ cat invoice.json
+{"invoice": {"total": 0.1}}
+
+$ aontu vet invoice.aon invoice.json
+verdict: invalid
+
+$.invoice.total: no_scalar_unify [conflict]
+  [aontu/no_scalar_unify]: Cannot unify values at path $.invoice.total
+  data: invoice.json:1:23 (0.1)
+  schema: invoice.aon:1:19 (bigdecimal)
+$ echo $?
+1
+```
+
+This refusal is the feature: a schema that admitted `0.1` here would be
+certifying a value the wire already corrupted. The convention that
+works is **string decimals at the boundary** — the JSON field carries
+the exact digits as a string, and the schema pins its shape with
+[`re`](reference-language.md#re-and-the-portable-pattern-subset):
+
+```aontu
+invoice: { total: string & re("^-?[0-9]+\\.[0-9][0-9]$") }
+```
+
+```sh
+$ cat wire.json
+{"invoice": {"total": "19.99"}}
+
+$ aontu vet invoice.aon wire.json
+verdict: valid
+
+$ cat bad.json
+{"invoice": {"total": "19.9"}}
+
+$ aontu vet invoice.aon bad.json
+verdict: invalid
+
+$.invoice.total: constraint [conflict]
+  [aontu/constraint]: Cannot unify values at path $.invoice.total
+  expected: re("^-?[0-9]+\\.[0-9][0-9]$")
+  actual:   "19.9"
+  data: bad.json:1:23 ("19.9")
+  schema: invoice.aon:1:28 (re("^-?[0-9]+\\.[0-9][0-9]$"))
+$ echo $?
+1
+```
+
+**Convert at the boundary, on both sides.** The producer formats its
+exact value into the string; the consumer, after `vet` passes, parses
+the string with a *decimal* parser (never `parseFloat`) — in
+TypeScript the `Decimal` class the engine itself uses, in Go
+`math/big`. Inside the trust boundary, keep the value a `0d` exact
+literal and let Aontu's arithmetic and the
+[lossy-literal refusal](reference-language.md#exact-or-refused-lossy-literals)
+protect it. Note the asymmetry: Aontu's own generated JSON *writes* an
+exact value's digits faithfully (the `24.0` above), but a standard JSON
+reader hands them back as a float — exactness survives writing, not the
+round trip, which is exactly why the wire field is a string.
 
 ## Reference and reshape other parts of the document
 
@@ -792,6 +957,93 @@ $ echo $?
 
 A major bump lifts the gate — that is what the major in the module path
 is for. Full contract: [`aontu mod`](reference-api.md#aontu-mod).
+
+## Vendor a module by hand
+
+`aontu mod get` — the network fetch — is not in this build, and the
+content-addressed user cache cannot be searched until a lockfile pins a
+hash. So the **cold start is hand-vendoring**: put the module's source
+tree into `aon_vendor/` yourself, then let `tidy` pin it.
+
+The layout is `aon_vendor/<module-path>@<major>/` beside your
+`mod.aon`: each `/`-segment of the module path becomes a directory, and
+the last carries the `@<major>` suffix. The directory holds the
+module's own source tree — its `mod.aon` and its entry file:
+
+```
+project/
+  mod.aon
+  main.aon
+  aon_vendor/
+    corp.example/
+      schemas/
+        service@1/
+          mod.aon
+          service.aon
+```
+
+The consumer side declares the dependency and imports it:
+
+```aontu
+# project/mod.aon
+mod: { path: "corp.example/app", main: "main.aon" }
+dep: { "corp.example/schemas/service@1": { v: "1.0.0" } }
+```
+
+```aontu
+# project/main.aon
+svc: @"corp.example/schemas/service@1"
+svc: name: "auth"
+```
+
+The vendored module is an ordinary source tree with its own `mod.aon`:
+
+```aontu
+# aon_vendor/corp.example/schemas/service@1/mod.aon
+mod: { path: "corp.example/schemas/service", version: "1.0.0", main: "service.aon" }
+```
+
+```aontu
+# aon_vendor/corp.example/schemas/service@1/service.aon
+name: string
+port: *8080 | integer
+```
+
+Now `tidy`, from the project root. It resolves the closure against the
+hand-made vendor tree, evaluates the module standalone, and locks its
+canon-hash:
+
+```sh
+$ aontu mod tidy
+verdict: ok
+corp.example/schemas/service@1 1.0.0 aon1-oQs6Ng6XxP2FHQGTYescREGDrDPfLLW1Liq4OS8Gs2E
+
+$ aontu main.aon
+{
+  "svc": {
+    "name": "auth",
+    "port": 8080
+  }
+}
+```
+
+The pin is what the hand-vendoring was *for*: from now on every
+evaluation checks the vendored content against the locked canon-hash,
+so a modified or tampered tree is refused rather than silently used —
+
+```sh
+$ aontu main.aon        # after any change to the vendored module
+module integrity: corp.example/schemas/service@1 expected aon1-oQs6… got aon1-Bd4O…
+$ echo $?
+1
+```
+
+— which is also why the order is **tidy, then vendor**: the user cache
+is keyed by canon-hash, so `aontu mod vendor` can only find what a
+lockfile already pins. On a cold start there is nothing in the cache to
+copy; the hand-made tree *is* the store, `tidy` gives it an identity,
+and `vendor` becomes useful once the cache holds modules (it leaves a
+module already resolving from `aon_vendor/` alone).
 
 ## Pin what a document means
 

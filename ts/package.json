@@ -9,10 +9,21 @@
     "aontu-lsp": "bin/aontu-lsp.js",
     "aontu-mcp": "bin/aontu-mcp.js"
   },
-  "description": "Unifier.",
+  "description": "JSON-superset unification language and validation gate for AI-agent ground truth - evaluate, vet, diff, query, and evolution-check structured models.",
   "homepage": "https://github.com/rjrodger/aontu",
   "keywords": [
-    "unify"
+    "unify",
+    "unification",
+    "json",
+    "schema",
+    "validation",
+    "vet",
+    "lattice",
+    "config",
+    "cue",
+    "agent",
+    "mcp",
+    "ground-truth"
   ],
   "author": "Richard Rodger (http://richardrodger.com)",
   "repository": {

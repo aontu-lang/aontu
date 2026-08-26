@@ -665,6 +665,20 @@ Because the user cache is keyed by canon-hash, `vendor` can only find
 what the lockfile already pins: a cold start with no lockfile has
 nothing to search the cache *by*. `tidy` first, then `vendor`.
 
+**The vendor layout** is `aon_vendor/<module-path>@<major>/`, beside
+the project's `mod.aon`: each `/`-segment of the module path becomes a
+directory, and the final segment carries the `@<major>` suffix — so
+`corp.example/schemas/service@1` lives at
+`aon_vendor/corp.example/schemas/service@1/` (`moduleDir`,
+`ts/src/mod.ts`; the Go port mirrors it). The directory holds the
+module's whole source tree — its own `mod.aon` (declaring `path`,
+`version` and `main`) and its entry file — exactly what an OCI layer
+would carry. With `mod get` absent, hand-creating this layout is the
+supported cold start: vendor the tree by hand, run `tidy` to lock its
+canon-hash, and every later evaluation verifies the vendored content
+against that pin (see the
+[hand-vendoring how-to](how-to.md#vendor-a-module-by-hand)).
+
 - `--format json` prints the report as an object with the usual
   `aontu: {version, verb}` envelope, `verdict` (`ok` or `missing`),
   the resolved list, and `missing`.
