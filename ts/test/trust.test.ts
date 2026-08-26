@@ -16,7 +16,11 @@ import * as Path from 'node:path'
 
 import { Aontu } from '../dist/aontu'
 import { computeDiagnostics, LspHandler } from '../dist/lsp'
-import { main as cliMain } from '../dist/cli'
+import {
+  main as cliMain, replCommand,
+  runVet, runGet, runWhy, runSubsume, runBreaking, runRelations, runTrim,
+  runHash, runAgentsMd, runSet,
+} from '../dist/cli'
 
 import { srcPath } from './srcpath'
 
@@ -325,6 +329,52 @@ describe('trust-lsp', () => {
     Assert.deepEqual(diagsFor(h, `a:@"${srcPath(w.root)}/in.aon"`), [])
   })
 
+  // HOVER, not only diagnostics. The server confined the diagnostics
+  // it published and left hover on the full system resolver, so a
+  // workspace-confined session still resolved an escaping include the
+  // moment a cursor rested on it (use-cases/REVIEW.md finding G).
+  //
+  // EVERY column of the line is probed rather than one chosen one: a
+  // hover span is measured in the INCLUDED document's own coordinates,
+  // so which column carries the value is an artefact of the include's
+  // text, and the invariant is that NO cursor position on a confined
+  // document reveals the outside value.
+  test('workspace-root-confines-hover', () => {
+    const w = world()
+    const hovers = (h: any, text: string): string => {
+      h.handle({
+        jsonrpc: '2.0',
+        method: 'textDocument/didOpen',
+        params: { textDocument: { uri: 'file:///d.aon', text } },
+      } as any)
+      let all = ''
+      for (let c = 0; c < text.length; c++) {
+        const outs = h.handle({
+          jsonrpc: '2.0', id: 2, method: 'textDocument/hover',
+          params: {
+            textDocument: { uri: 'file:///d.aon' },
+            position: { line: 0, character: c },
+          },
+        } as any)
+        all += JSON.stringify((outs[0] as any).result ?? null)
+      }
+      return all
+    }
+
+    const confined = init({ rootUri: fileURI(w.root) })
+    // In-root: the include resolves, so the value is hoverable.
+    Assert.match(hovers(confined, `a:@"${srcPath(w.root)}/in.aon"`), /11/)
+    // Out-of-root: nowhere on the line does the outside value appear.
+    Assert.doesNotMatch(
+      hovers(confined, `a:@"${srcPath(w.dir)}/secret.aon"`), /outside/)
+
+    // The unconfined session is the control: it DOES resolve the same
+    // escape, which is what makes the assertion above about the
+    // capability rather than about hover failing everywhere.
+    Assert.match(
+      hovers(init({}), `a:@"${srcPath(w.dir)}/secret.aon"`), /outside/)
+  })
+
   test('compute-diagnostics-takes-a-trust-argument', () => {
     const w = world()
     Assert.ok(
@@ -428,6 +478,95 @@ describe('trust-cli', () => {
     }
   })
 
+  // EVERY VERB, not just the bare command. The capability flags were
+  // wired to `aontu <file>` alone, so `aontu vet schema.aon data.json`
+  // -- the surface an agent scripts -- ran the full system resolver
+  // with no way to confine it (use-cases/REVIEW.md finding G). Each
+  // verb is asserted twice: the escape resolves under today's default
+  // and is DENIED under --trust none, so a verb that quietly dropped
+  // the flag again would fail here.
+  test('every-verb-honours-the-capability', () => {
+    const w = world()
+    const entry = Path.join(w.root, 'leak.aon')
+    Fs.writeFileSync(entry, `a:@"${srcPath(w.dir)}/secret.aon"`)
+    const data = Path.join(w.root, 'data.json')
+    Fs.writeFileSync(data, '{}')
+    const overlay = Path.join(w.root, 'overlay.aon')
+    Fs.writeFileSync(overlay, '')
+
+    const denied = (args: string[]) => {
+      const open = cli(args)
+      const shut = cli([...args.slice(0, 1), '--trust', 'none', ...args.slice(1)])
+      Assert.notEqual(
+        JSON.stringify([open.code, open.out, open.err]),
+        JSON.stringify([shut.code, shut.out, shut.err]),
+        'the verb ignored --trust: ' + args.join(' '))
+      // The denial itself is named where the verb's report carries a
+      // reason. `relations`, `trim`, `subsume`/`breaking` and `hash`
+      // answer an `error` verdict whose cause the report shape has
+      // nowhere to put -- the review's finding F, open in both ports
+      // (use-cases/BUGS.md, "relations and trim report verdict:error
+      // with zero findings"). What every verb MUST do is honour the
+      // capability, which the difference above asserts.
+      if (!/verdict: error|nothing to hash/.test(shut.out + shut.err)) {
+        Assert.match(shut.out + shut.err, /include denied|include_denied/)
+      }
+    }
+
+    denied(['vet', entry, data])
+    denied(['get', '$.a.secret', entry])
+    denied(['why', '$.a.secret', entry])
+    denied(['subsume', entry, entry])
+    denied(['breaking', '--against', entry, entry])
+    denied(['relations', entry])
+    denied(['trim', '--check', entry])
+    denied(['hash', entry])
+    denied(['agentsmd', entry])
+    denied(['set', '$.z=1', '--entry', entry, '--overlay', overlay])
+  })
+
+  // --include-root confines a verb to a directory, the CLI's own
+  // root: spelling, and a bare `root` means the document's directory.
+  test('verbs-take-include-root', () => {
+    const w = world()
+    const entry = Path.join(w.root, 'leak.aon')
+    Fs.writeFileSync(entry, `a:@"${srcPath(w.dir)}/secret.aon"`)
+    const inside = Path.join(w.root, 'fine.aon')
+    Fs.writeFileSync(inside, 'a:@"in.aon"')
+
+    const confined = cli(['get', '$.a.secret', '--include-root', w.root, entry])
+    Assert.match(confined.out + confined.err, /include denied/)
+    Assert.equal(cli(['get', '$.a.f', '--include-root', w.root, inside]).code, 0)
+    // A bare `root` confines to the document's own directory.
+    Assert.equal(cli(['get', '$.a.f', '--trust', 'root', inside]).code, 0)
+    const bare = cli(['get', '$.a.secret', '--trust', 'root', entry])
+    Assert.match(bare.out + bare.err, /include denied/)
+    // A bad spelling is the usage class, from a verb as from the bare
+    // command.
+    Assert.equal(cli(['get', '$.a', '--trust', 'bogus', inside]).code, 2)
+    Assert.equal(cli(['get', '$.a', inside, '--include-root']).code, 2)
+  })
+
+  // The REPL took --trust and DROPPED it: the --jsonl session mode,
+  // built to be driven by a harness, evaluated unconfined however it
+  // was invoked.
+  test('repl-honours-the-capability', () => {
+    const w = world()
+    const entry = Path.join(w.root, 'leak.aon')
+    Fs.writeFileSync(entry, `a:@"${srcPath(w.dir)}/secret.aon"`)
+    const read = (f: string) => Fs.readFileSync(f, 'utf8')
+
+    const open = replCommand(
+      { mode: 'json', jsonl: true }, ':load ' + entry, read)
+    Assert.match(open.out, /outside/)
+
+    const shut = replCommand(
+      { mode: 'json', jsonl: true, trust: { kind: 'none' } },
+      ':load ' + entry, read)
+    Assert.match(shut.out, /include denied/)
+    Assert.doesNotMatch(shut.out, /outside/)
+  })
+
   test('trust-usage-errors-exit-2', () => {
     for (const args of [
       ['--trust'],
@@ -437,5 +576,64 @@ describe('trust-cli', () => {
     ]) {
       Assert.equal(cli(args).code, 2, args.join(' '))
     }
+  })
+
+  // A bad spelling is the usage class FROM EVERY VERB, not only from
+  // the bare command: each verb strips the flags before parsing its own
+  // tail, so each has its own refusal to exercise. Checked against a
+  // verb tail that would otherwise be valid, so the exit code is the
+  // flag's and not the tail's. Twin:
+  // TestTrustCliEveryVerbRefusesABadSpelling in go/cmd/aontu.
+  test('every-verb-refuses-a-bad-spelling', () => {
+    const w = world()
+    const entry = Path.join(w.root, 'main.aon')
+    Fs.writeFileSync(entry, 'a:@"in.aon"')
+    const data = Path.join(w.root, 'data.json')
+    Fs.writeFileSync(data, '{}')
+    const overlay = Path.join(w.root, 'overlay.aon')
+    Fs.writeFileSync(overlay, '')
+
+    // The runners are called DIRECTLY rather than through main: `vet`
+    // finishes on a microtask (its --watch mode makes the runner
+    // promise-returning), and a synchronous capture would read
+    // process.exitCode before that lands. Each runner's own return is
+    // the exit code, which is what this asserts.
+    const bad = '--trust'
+    const runs: Array<[string, () => number | Promise<number>]> = [
+      ['vet', () => runVet([bad, 'everything', entry, data]) as number],
+      ['get', () => runGet([bad, 'everything', '$.a.f', entry])],
+      ['why', () => runWhy([bad, 'everything', '$.a.f', entry])],
+      ['subsume', () => runSubsume([bad, 'everything', entry, entry])],
+      ['breaking',
+        () => runBreaking([bad, 'everything', '--against', entry, entry])],
+      ['relations', () => runRelations([bad, 'everything', entry])],
+      ['trim', () => runTrim([bad, 'everything', '--check', entry])],
+      ['hash', () => runHash([bad, 'everything', entry])],
+      ['agentsmd', () => runAgentsMd([bad, 'everything', entry])],
+      ['set', () => runSet(
+        [bad, 'everything', '$.z=1', '--entry', entry, '--overlay', overlay])],
+    ]
+    for (const [name, run] of runs) {
+      const r = capture(() => Assert.equal(run(), 2, name))
+      Assert.match(r.err, /--trust needs/, name)
+    }
+  })
+
+  // A session state carrying source but NO file name is a shape the
+  // exported handler's own type allows (a library caller evaluating
+  // held text that came from somewhere other than `:load`), and its
+  // bare `root` spelling has to root somewhere: the working directory,
+  // as the bare command does for stdin.
+  test('nameless-repl-state-roots-at-the-working-directory', () => {
+    const held = { mode: 'json' as const, jsonl: false, src: 'a: 1' }
+    Assert.match(replCommand(held, ':get $.a', () => '').out, /1/)
+    Assert.match(
+      replCommand({ ...held, trust: { kind: 'root' as const } },
+        ':get $.a', () => '').out,
+      /1/)
+    Assert.match(
+      replCommand({ ...held, trust: { kind: 'root' as const } },
+        ':why $.a', () => '').out,
+      /1/)
   })
 })

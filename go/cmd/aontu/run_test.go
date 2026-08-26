@@ -121,7 +121,7 @@ func TestRunReplPath(t *testing.T) {
 func TestReplCommandsAndErrors(t *testing.T) {
 	var out bytes.Buffer
 	in := strings.NewReader(":help\n:json\na:1 a:2\n:quit\n")
-	repl("canon", false, in, &out)
+	repl("canon", false, trustArg{}, in, &out)
 	s := out.String()
 	for _, want := range []string{"Usage: aontu", "json output", "Cannot"} {
 		if !strings.Contains(s, want) {
@@ -130,7 +130,7 @@ func TestReplCommandsAndErrors(t *testing.T) {
 	}
 
 	out.Reset()
-	repl("json", false, errReader{}, &out)
+	repl("json", false, trustArg{}, errReader{}, &out)
 	if !strings.Contains(out.String(), "input error") {
 		t.Fatalf("scanner error must be reported: %q", out.String())
 	}

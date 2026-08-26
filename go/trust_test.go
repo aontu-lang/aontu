@@ -177,6 +177,85 @@ func TestTrustRootMissIsNotFoundNotDenied(t *testing.T) {
 // The include MANIFEST (docs/trust.md): the resolved closure as sorted,
 // deduplicated { path, capability } — hermeticity clause 1's "file set"
 // made observable.
+// THE VERB OPTIONS CARRY THE CAPABILITY, not just the evaluator. Every
+// report surface -- Vet, Subsume, Get, Why, Patch, RelationCheck,
+// TrimCheck, AgentsMd -- builds its own engine from a path, and G5
+// wired --trust to the bare command alone, so each of them ran the full
+// system resolver with no way to confine it (use-cases/REVIEW.md
+// finding G). This is the library half of that fix: an option struct's
+// Trust must reach the engine underneath. The CLI half is
+// TestTrustCliEveryVerbHonoursTheCapability in cmd/aontu.
+func TestTrustVerbOptionsConfineTheEngine(t *testing.T) {
+	dir, root := trustWorld(t)
+	entry := filepath.Join(root, "leak.aon")
+	src := `a:@"` + srcPath(dir) + `/secret.aon"`
+	if err := os.WriteFile(entry, []byte(src), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	none := &TrustOptions{IncludeNone: true}
+
+	// Vet: the schema leg. Unconfined the escape resolves and the
+	// document is valid; confined it cannot be read at all.
+	if v := Vet(src, "{}", &VetOptions{SchemaPath: entry}).Verdict; VetValid != v {
+		t.Fatalf("vet, unconfined: %s", v)
+	}
+	if v := Vet(src, "{}", &VetOptions{
+		SchemaPath: entry, Trust: none}).Verdict; VetValid == v {
+		t.Fatalf("vet ignored Trust: %s", v)
+	}
+
+	// Subsume, both sides through the same load.
+	if v := Subsume(src, src, &SubsumeOptions{
+		GeneralPath: entry, SpecificPath: entry}).Verdict; SubsumeYes != v {
+		t.Fatalf("subsume, unconfined: %s", v)
+	}
+	if v := Subsume(src, src, &SubsumeOptions{
+		GeneralPath: entry, SpecificPath: entry,
+		Trust: none}).Verdict; SubsumeError != v {
+		t.Fatalf("subsume ignored Trust: %s", v)
+	}
+
+	// PolicyCompatTrust: `breaking` reads its own mode by EVALUATING the
+	// document, so that leg runs the resolver too. It answers "" for a
+	// document that does not stand up, which a denied include makes it.
+	policy := "aontu_policy: { compat: \"forward\" }\n" + src
+	if m := PolicyCompatTrust(policy, entry, nil); "forward" != m {
+		t.Fatalf("policy, unconfined: %q", m)
+	}
+	if m := PolicyCompatTrust(policy, entry, none); "" != m {
+		t.Fatalf("policy ignored trust: %q", m)
+	}
+
+	// Patch: the vet underneath `set`. Its Trust field was declared and
+	// never passed on -- the hole this test would have caught.
+	if v := Patch(src, "", []string{"$.z=1"}, &PatchOptions{
+		EntryPath: entry, OverlayPath: entry}).Verdict; VetValid != v {
+		t.Fatalf("patch, unconfined: %s", v)
+	}
+	if v := Patch(src, "", []string{"$.z=1"}, &PatchOptions{
+		EntryPath: entry, OverlayPath: entry,
+		Trust: none}).Verdict; VetValid == v {
+		t.Fatalf("patch ignored Trust: %s", v)
+	}
+
+	// The query surfaces take the capability from the ENGINE -- Get and
+	// Why are methods, so aontuForPathTrust is what the CLI hands them
+	// and there is no second place for a caller to set it (the
+	// canonical port's get/why are free functions and take it in
+	// options; ADR-001 is a contract on behaviour, not on API shape).
+	open := aontuForPathTrust(entry, nil)
+	if got := open.Get(src, "$.a.secret", nil); !got.OK {
+		t.Fatalf("get, unconfined: %+v", got.Findings)
+	}
+	shut := aontuForPathTrust(entry, none)
+	if got := shut.Get(src, "$.a.secret", nil); got.OK {
+		t.Fatal("get ignored the capability")
+	}
+	if got := aontuForPathTrust(entry, none).Why(src, "$.a.secret"); got.OK {
+		t.Fatal("why ignored the capability")
+	}
+}
+
 func TestTrustDepsListsTheSortedDedupedClosure(t *testing.T) {
 	_, root := trustWorld(t)
 	a := New()

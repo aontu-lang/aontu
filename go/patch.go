@@ -31,6 +31,10 @@ import (
 )
 
 type PatchOptions struct {
+	// The include capability this document evaluates under (G5,
+	// docs/trust.md). Nil means today's default.
+	Trust *TrustOptions
+
 	// Where each document CAME FROM, so relative `@"file"` loads
 	// inside them resolve from their own directories.
 	EntryPath   string
@@ -182,6 +186,7 @@ func Patch(
 	// `schema`/`data` labels — with two documents that both belong to
 	// the caller, "which file" is the whole question.
 	report := Vet(entrySrc, overlay, &VetOptions{
+		Trust:      options.Trust,
 		DataPath:   options.OverlayPath,
 		DataURL:    options.OverlayPath,
 		SchemaPath: options.EntryPath,

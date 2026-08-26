@@ -28,6 +28,10 @@ var trimExit = map[string]int{
 }
 
 func runTrim(argv []string, stdout, stderr io.Writer) int {
+	argv, trust, trustOK := takeTrust(argv, stderr)
+	if !trustOK {
+		return 2
+	}
 	var files []string
 	check := false
 	format := "text"
@@ -74,7 +78,7 @@ func runTrim(argv []string, stdout, stderr io.Writer) int {
 
 	// The file's own directory is the include base, as every verb
 	// resolves a named file (vet's aontuForPath rule).
-	report := aontuForFile(files[0]).TrimCheck(string(src))
+	report := aontuForFileTrust(files[0], trust).TrimCheck(string(src))
 	text := renderTrimText(report)
 	if "json" == format {
 		text = renderTrimJSON(report)

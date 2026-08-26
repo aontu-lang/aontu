@@ -28,6 +28,10 @@ var relationsExit = map[string]int{
 }
 
 func runRelations(argv []string, stdout, stderr io.Writer) int {
+	argv, trust, trustOK := takeTrust(argv, stderr)
+	if !trustOK {
+		return 2
+	}
 	var files []string
 	format := "text"
 
@@ -65,7 +69,7 @@ func runRelations(argv []string, stdout, stderr io.Writer) int {
 
 	// The file's own directory is the include base, as every verb
 	// resolves a named file (vet's aontuForPath rule).
-	report := aontuForFile(files[0]).RelationCheck(string(src))
+	report := aontuForFileTrust(files[0], trust).RelationCheck(string(src))
 	text := renderRelationsText(report)
 	if "json" == format {
 		text = renderRelationsJSON(report)

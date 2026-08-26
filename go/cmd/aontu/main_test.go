@@ -71,7 +71,7 @@ func TestRenderError(t *testing.T) {
 func TestReplSession(t *testing.T) {
 	in := strings.NewReader("a:1 b:$.a\n:canon\na:1|2\n:quit\n")
 	var out strings.Builder
-	repl("json", false, in, &out)
+	repl("json", false, trustArg{}, in, &out)
 	s := out.String()
 	if !strings.Contains(s, `"b": 1`) {
 		t.Fatalf("repl json output missing:\n%s", s)
@@ -112,7 +112,7 @@ func TestAontuForFileRelativeLoad(t *testing.T) {
 func TestReplEmptyAndUnknown(t *testing.T) {
 	in := strings.NewReader("\n:nope\n")
 	var out strings.Builder
-	repl("json", false, in, &out)
+	repl("json", false, trustArg{}, in, &out)
 	if !strings.Contains(out.String(), "unknown command") {
 		t.Fatalf("expected unknown command notice:\n%s", out.String())
 	}

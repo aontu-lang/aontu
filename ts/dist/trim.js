@@ -84,7 +84,7 @@ function deleteAt(root, path) {
 // source does not stand up, which for the baseline is the caller's
 // error verdict and for a probe means "load-bearing".
 function evalCanon(src, opts, delPath) {
-    const aontu = new aontu_1.Aontu();
+    const aontu = new aontu_1.Aontu(null == opts.trust ? undefined : { trust: opts.trust });
     const ctx = aontu.ctx({ collect: true });
     const parseOpts = null == opts.path ? undefined : { path: opts.path };
     const parsed = aontu.parse(src, parseOpts, ctx);

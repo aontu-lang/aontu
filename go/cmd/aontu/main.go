@@ -52,7 +52,9 @@ Options:
   --jsonl         REPL: answer every command as one JSON line
   -v, --version   Print the version and exit
   --trust <t>     Include capability: system (default), none, or
-                  root[:dir] to confine @"..." below a directory
+                  root[:dir] to confine @"..." below a directory.
+                  Every verb takes it too, and a bare root means the
+                  document's own directory
   --include-root <dir>  Shorthand for --trust root:<dir>
 
 Mod options:
@@ -298,6 +300,87 @@ func applyTrust(a *aontu.Aontu, trust trustArg, entryRoot string, stderr io.Writ
 // against the directory containing file, so `aontu /path/to/main.aontu`
 // works regardless of the current working directory (matching the
 // TypeScript CLI, which passes the resolved entry path).
+// EVERY VERB honours the include capability, not just the bare
+// command. G5 wired --trust/--include-root to `aontu <file>` alone, so
+// `aontu vet schema.aon data.json` -- the surface an agent scripts --
+// ran the full system resolver with no way to confine it (the review's
+// finding G). takeTrust strips the flags before each verb parses its
+// tail; verbTrust turns the parsed argument into the capability, and
+// aontuForFileTrust applies it to the engine every verb builds.
+func takeTrust(argv []string, stderr io.Writer) ([]string, trustArg, bool) {
+	rest := []string{}
+	trust := trustArg{kind: "system-warn"}
+	for i := 0; i < len(argv); i++ {
+		switch {
+		case "--trust" == argv[i]:
+			i++
+			parsed, ok := trustArg{}, false
+			if i < len(argv) {
+				parsed, ok = parseTrustArg(argv[i])
+			}
+			if !ok {
+				io.WriteString(stderr,
+					"aontu: --trust needs system, none, or root[:dir]\n")
+				return nil, trustArg{}, false
+			}
+			trust = parsed
+		case "--include-root" == argv[i]:
+			i++
+			if len(argv) <= i {
+				io.WriteString(stderr, "aontu: --include-root needs a directory\n")
+				return nil, trustArg{}, false
+			}
+			trust = trustArg{kind: "root", dir: argv[i]}
+		default:
+			rest = append(rest, argv[i])
+		}
+	}
+	return rest, trust, true
+}
+
+// verbTrust is the capability a verb's engine runs under. "system" and
+// the staged warning default both mean today's behaviour (no
+// capability); the warning window stays a bare-command nicety, because
+// a verb's report is a machine contract and a stderr line is not part
+// of it.
+func verbTrust(trust trustArg, entryRoot string) *aontu.TrustOptions {
+	switch trust.kind {
+	case "none":
+		return &aontu.TrustOptions{IncludeNone: true}
+	case "root":
+		dir := trust.dir
+		if "" == dir {
+			dir = entryRoot
+		}
+		return &aontu.TrustOptions{IncludeRoot: dir}
+	}
+	return nil
+}
+
+// entryRootOfFile is the directory a bare `--trust root` confines a
+// verb to: the primary document's own, matching the bare command's
+// entry root.
+func entryRootOfFile(file string) string {
+	abs, err := filepath.Abs(file)
+	if err != nil { //coverage:ignore Abs fails only on an unreadable cwd
+		abs = file
+	}
+	return filepath.Dir(abs)
+}
+
+// aontuForFileTrust is aontuForFile under an explicit capability.
+func aontuForFileTrust(file string, trust trustArg) *aontu.Aontu {
+	a := aontuForFile(file)
+	abs, err := filepath.Abs(file)
+	if err != nil { //coverage:ignore Abs fails only on an unreadable cwd
+		abs = file
+	}
+	if capability := verbTrust(trust, filepath.Dir(abs)); nil != capability {
+		a.Trust = capability
+	}
+	return a
+}
+
 func aontuForFile(file string) *aontu.Aontu {
 	abs, err := filepath.Abs(file)
 	if err != nil {
@@ -321,7 +404,9 @@ func stdinIsPipe() bool {
 
 // repl reads source lines from in, evaluating each and writing results
 // to out, until EOF or a :quit/:exit command.
-func repl(mode string, jsonl bool, in io.Reader, out io.Writer) {
+func repl(
+	mode string, jsonl bool, trust trustArg, in io.Reader, out io.Writer,
+) {
 	prompt := "aontu> "
 	if jsonl {
 		prompt = ""
@@ -342,7 +427,7 @@ func repl(mode string, jsonl bool, in io.Reader, out io.Writer) {
 			fmt.Fprintln(out)
 		}
 	}
-	state := replState{Mode: mode, JSONL: jsonl}
+	state := replState{Mode: mode, JSONL: jsonl, Trust: trust}
 	sc := bufio.NewScanner(in)
 	// Raise the line cap well above bufio's 64KB default so a long
 	// pasted source line is not silently truncated.
@@ -532,6 +617,6 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, tty bool) int
 		return emit(a, string(src), mode, stdout, stderr)
 	}
 
-	repl(mode, jsonl, stdin, stdout)
+	repl(mode, jsonl, trust, stdin, stdout)
 	return 0
 }

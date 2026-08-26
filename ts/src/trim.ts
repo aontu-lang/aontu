@@ -22,6 +22,7 @@
 // baseline. A reporter can afford that; an editor loop belongs to G7.
 
 import { Aontu } from './aontu'
+import type { TrustOptions } from './type'
 
 
 export type TrimVerdict = 'clean' | 'redundant' | 'error'
@@ -35,6 +36,10 @@ export type TrimOptions = {
   // Where the document CAME FROM, so a relative `@"file"` load inside
   // it resolves from its own directory (vet's schemaPath precedent).
   path?: string
+  // The include capability this document evaluates under (G5,
+  // docs/trust.md). vet's precedent: the verb passes the profile the
+  // caller asked for, and an absent option means today's default.
+  trust?: TrustOptions
 }
 
 
@@ -103,7 +108,8 @@ export function deleteAt(root: any, path: string[]): boolean {
 // error verdict and for a probe means "load-bearing".
 export function evalCanon(
   src: string, opts: TrimOptions, delPath?: string[]): string | undefined {
-  const aontu = new Aontu()
+  const aontu = new Aontu(
+    null == opts.trust ? undefined : { trust: opts.trust })
   const ctx = aontu.ctx({ collect: true })
   const parseOpts = null == opts.path ? undefined : { path: opts.path }
   const parsed: any = aontu.parse(src, parseOpts, ctx)

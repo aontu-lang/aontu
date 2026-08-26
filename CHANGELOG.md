@@ -5,6 +5,49 @@ package (`ts/`, npm `aontu`) and the Go module (`go/`,
 `github.com/rjrodger/aontu/go`) are versioned independently; entries note
 which implementation each change affects.
 
+## Unreleased — the include capability reaches every surface
+
+Both implementations. `--trust` / `--include-root` were wired to
+`aontu <file>` alone. Every VERB — `vet`, `subsume`, `breaking`, `get`,
+`why`, `set`, `relations`, `trim`, `hash`, `agentsmd` — parsed its own
+argument tail and ran the full system resolver with no way to confine
+it, which is the surface an agent actually scripts. The REPL *accepted*
+`--trust` and dropped it, so the `--jsonl` session mode built to be
+driven by a harness evaluated unconfined however it was invoked. And
+the language server confined the diagnostics it published while leaving
+HOVER on the system resolver, so a workspace-confined editor session
+resolved an escaping include the moment a cursor rested on it — one
+document under two postures is not a confinement. (The 2026-08 review's
+finding G; `use-cases/BUGS.md` §37.)
+
+Every verb now takes `--trust <system|none|root[:dir]>` and
+`--include-root <dir>` anywhere in its argument tail, a bare `root`
+meaning the primary document's own directory. The REPL carries a
+session capability through `:load`, `:get`, `:why` and bare snippets.
+Hover and hover-provenance run under the same capability as
+diagnostics; the Go API gains `lsp.HoverTrust` beside `Hover`,
+following the existing `DiagnosticsTrust` precedent.
+
+Two parity holes closed with it. Go's `PatchOptions.Trust` was declared
+but never reached the `Vet` call underneath `set`. And `breaking` read
+its own `$.aontu_policy.compat` declaration through an unconfined
+evaluation in *both* ports, confining the comparison but not the
+question that chooses its mode.
+
+Pinned by `every-verb-honours-the-capability`,
+`verbs-take-include-root`, `repl-honours-the-capability` and
+`workspace-root-confines-hover` in `ts/test/trust.test.ts`, with Go
+twins in `go/cmd/aontu/trust_test.go` and `go/lsp/lsp_test.go`. Each of
+the ten verbs is asserted twice — the escape resolves under today's
+default and is denied under `--trust none` — so a verb that quietly
+dropped the flag again would fail. The hover tests probe every column
+of the line (a hover span is measured in the *included* document's
+coordinates) and carry an unconfined control, so they assert the
+capability rather than hover failing everywhere.
+
+No default changed: `system` with the phase-6 warning window remains
+the posture until the staged flip.
+
 ## Unreleased — the evolution gate compares the old TREE
 
 Both implementations. `breaking --against git#<rev>` took only the ENTRY

@@ -26,6 +26,10 @@ const (
 // SubsumeOptions are the query's knobs; the zero value compares under
 // the `defaults` profile at the roots.
 type SubsumeOptions struct {
+	// The include capability both documents evaluate under (G5,
+	// docs/trust.md). Nil means today's default.
+	Trust *TrustOptions
+
 	Profile     string // "values" | "defaults" (default) | "gen"
 	At          string // compare at this path of both documents
 	GeneralURL  string // provenance label for general sites
@@ -603,7 +607,14 @@ func subsumeDefaultsWalk(st *subState, path []string, g, s Val) string {
 // canonical port keeps the same reader beside its verb (ts/src/cli.ts
 // policyCompat).
 func PolicyCompat(src, path string) string {
-	a := aontuForPath(path)
+	return PolicyCompatTrust(src, path, nil)
+}
+
+// PolicyCompatTrust is PolicyCompat under an explicit include
+// capability, so a verb reading a document's own policy reads it the
+// same way it evaluates everything else.
+func PolicyCompatTrust(src, path string, trust *TrustOptions) string {
+	a := aontuForPathTrust(path, trust)
 	v, err := a.Unify(src)
 	if err != nil || nil == v || v.Nil() {
 		return ""
@@ -674,7 +685,7 @@ func Subsume(generalSrc, specificSrc string, opts *SubsumeOptions) SubsumeReport
 	broken := SubsumeReport{Verdict: SubsumeError, Findings: []VetFinding{}}
 
 	load := func(src, path string) Val {
-		a := aontuForPath(path)
+		a := aontuForPathTrust(path, options.Trust)
 		v, err := a.Unify(src)
 		if err != nil || nil == v || v.Nil() {
 			return nil

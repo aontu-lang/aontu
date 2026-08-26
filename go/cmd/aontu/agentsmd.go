@@ -17,6 +17,10 @@ import (
 const agentsMdHelp = "aontu agentsmd <file> (try --help)"
 
 func runAgentsMd(argv []string, stdout, stderr io.Writer) int {
+	argv, trust, trustOK := takeTrust(argv, stderr)
+	if !trustOK {
+		return 2
+	}
 	var files []string
 	write := ""
 	sawWrite := false
@@ -56,7 +60,7 @@ func runAgentsMd(argv []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 
-	report := aontuForFile(files[0]).AgentsMd(
+	report := aontuForFileTrust(files[0], trust).AgentsMd(
 		string(src), &aontu.AgentsMdOptions{Name: files[0]})
 	if !report.OK {
 		lines := make([]string, 0, len(report.Findings))

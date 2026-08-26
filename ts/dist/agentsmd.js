@@ -27,7 +27,7 @@ exports.AGENTSMD_END = '<!-- aontu:end -->';
 function agentsMd(src, opts) {
     const options = opts ?? {};
     const name = options.name ?? 'the definition';
-    const aontu = new aontu_1.Aontu();
+    const aontu = new aontu_1.Aontu(null == options.trust ? undefined : { trust: options.trust });
     const ctx = aontu.ctx({ collect: true });
     const parseOpts = null == options.path ? undefined : { path: options.path };
     const v = aontu.unify(src, parseOpts, ctx);

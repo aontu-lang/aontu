@@ -25,6 +25,7 @@
 // and says so.
 
 import { Aontu } from './aontu'
+import type { TrustOptions } from './type'
 import { graphOf } from './graph'
 import type { Edge } from './graph'
 import { cmpCodePoint } from './keyorder'
@@ -53,6 +54,10 @@ export type RelationOptions = {
   // Where the document CAME FROM, so a relative `@"file"` load inside
   // it resolves from its own directory (trimCheck's precedent).
   path?: string
+  // The include capability this document evaluates under (G5,
+  // docs/trust.md). vet's precedent: the verb passes the profile the
+  // caller asked for, and an absent option means today's default.
+  trust?: TrustOptions
 }
 
 
@@ -139,7 +144,8 @@ function findCycle(
 export function relationCheck(
   src: string, opts?: RelationOptions): RelationReport {
   const options = opts ?? {}
-  const aontu = new Aontu()
+  const aontu = new Aontu(
+    null == options.trust ? undefined : { trust: options.trust })
   const ctx = aontu.ctx({ collect: true })
   const parseOpts = null == options.path ? undefined : { path: options.path }
   const root: any = aontu.unify(src, parseOpts, ctx)

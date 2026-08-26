@@ -4,26 +4,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.effectiveDefault = effectiveDefault;
 exports.subsumeNode = subsumeNode;
 exports.subsume = subsume;
-// Subsumption as a first-class query (G3 phases 1-2,
-// docs/capability-review/g3-subsumption-evolution.md): does the GENERAL
-// value admit every instance the SPECIFIC value admits?
-//
-// The recursion is a dedicated structural walk over EVALUATED values —
-// design option B. It never mutates its inputs (it runs after
-// evaluation, on finished trees), carries no fixpoint, and returns a
-// THREE-VALUED verdict: `subsumes`, `does_not_subsume` (with the
-// failing path and both sides' canons as the witness), or `undecided`
-// (with a reason code, never silently). Where a rule cannot decide the
-// answer folds toward "not subsumed" or "undecided" — the safe
-// directions: a compatibility gate that wrongly reports "breaking"
-// costs a second look, one that wrongly reports "compatible" ships the
-// break (docs/reference-language.md, "Subsumption").
-//
-// Findings reuse G2's report vocabulary (the vet finding object), with
-// the G3 codes appended to the shared registry: `compat_narrowed`,
-// `compat_required_added`, `compat_default_changed`,
-// `compat_marks_changed`, and the `sub_*` undecided reasons — all
-// class `compat`.
 const aontu_1 = require("./aontu");
 const vet_1 = require("./vet");
 const ConstraintVal_1 = require("./val/ConstraintVal");
@@ -464,7 +444,7 @@ function subsume(generalSrc, specificSrc, opts) {
         specificUrl: options.specificUrl ?? DEFAULT_SPECIFIC_URL,
     };
     const load = (src, path) => {
-        const aontu = new aontu_1.Aontu();
+        const aontu = new aontu_1.Aontu(null == options.trust ? undefined : { trust: options.trust });
         const ctx = aontu.ctx({ collect: true });
         const v = aontu.unify(src, null == path ? undefined : { path }, ctx);
         if (0 < ctx.err.length || true === v?.isNil) {

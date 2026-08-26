@@ -5,11 +5,22 @@ declare function evalSource(aontu: Aontu, src: string, mode: Mode): {
     ok: boolean;
     text: string;
 };
+type TrustArg = {
+    kind: 'system-warn';
+} | {
+    kind: 'system';
+} | {
+    kind: 'none';
+} | {
+    kind: 'root';
+    dir?: string;
+};
 export type ReplState = {
     mode: Mode;
     jsonl: boolean;
     name?: string;
     src?: string;
+    trust?: TrustArg;
 };
 export type ReplAnswer = {
     close: boolean;

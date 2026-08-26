@@ -9,6 +9,7 @@
 // file and piped input, the source is read from stdin. See HELP below.
 
 // Named imports, not `import * as`: the namespace form makes tsc emit the
+import { evalFailure } from './query'
 // __importStar downlevel helper, whose branches no supported Node takes.
 import {
   mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync,
@@ -73,7 +74,9 @@ Options:
   --jsonl         REPL: answer every command as one JSON line
   -v, --version   Print the version and exit
   --trust <t>     Include capability: system (default), none, or
-                  root[:dir] to confine @"..." below a directory
+                  root[:dir] to confine @"..." below a directory.
+                  Every verb takes it too, and a bare root means the
+                  document's own directory
   --include-root <dir>  Shorthand for --trust root:<dir>
 
 Mod options:
@@ -292,6 +295,78 @@ function trustOpts(trust: TrustArg, entryRoot: string): any {
 }
 
 
+// EVERY VERB honours the include capability, not just the bare
+// command. G5 wired `--trust`/`--include-root` to `aontu <file>` alone,
+// so `aontu vet schema.aon data.json` -- the surface an agent actually
+// scripts -- ran the full system resolver with no flag to confine it
+// and no warning (use-cases/REVIEW.md finding G). The flags are
+// stripped here, before each verb parses its own tail, so a verb only
+// has to pass the profile on to its engine.
+//
+// Returns undefined when the spelling is wrong, with the message
+// already printed: the caller answers the usage class.
+function takeTrust(argv: string[]):
+  { argv: string[], trust: TrustArg } | undefined {
+  const rest: string[] = []
+  let trust: TrustArg = { kind: 'system-warn' }
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i]
+    if ('--trust' === arg) {
+      const parsed = null == argv[i + 1] ? undefined : parseTrustArg(argv[++i])
+      if (null == parsed) {
+        process.stderr.write(
+          'aontu: --trust needs system, none, or root[:dir]\n')
+        return undefined
+      }
+      trust = parsed
+    }
+    else if ('--include-root' === arg) {
+      const dir = argv[++i]
+      if (null == dir) {
+        process.stderr.write('aontu: --include-root needs a directory\n')
+        return undefined
+      }
+      trust = { kind: 'root', dir }
+    }
+    else {
+      rest.push(arg)
+    }
+  }
+  return { argv: rest, trust }
+}
+
+
+// The evaluator options a REPL session's capability means.
+function replTrust(state: ReplState, entryRoot: string): any {
+  const capability = verbTrust(
+    state.trust ?? { kind: 'system-warn' }, entryRoot)
+  return null == capability ? {} : { trust: capability }
+}
+
+
+// The capability a verb's engine runs under. `system` and the staged
+// warning default both mean today's behaviour (no option); the warning
+// window itself stays a bare-command nicety, because a verb's report
+// is a machine contract and a stderr line is not part of it.
+function verbTrust(trust: TrustArg, entryRoot: string): any {
+  switch (trust.kind) {
+    case 'none':
+      return { include: 'none' }
+    case 'root':
+      return { include: { root: trust.dir ?? entryRoot } }
+    default:
+      return undefined
+  }
+}
+
+
+// The directory a bare `--trust root` confines to for a verb: the
+// primary document's own, matching the bare command's entry root.
+function entryRootOf(file: string | undefined): string {
+  return null == file ? process.cwd() : dirname(resolve(file))
+}
+
+
 function runFile(file: string, mode: Mode, trust: TrustArg): number {
   let src: string
   try {
@@ -342,6 +417,12 @@ export type ReplState = {
   jsonl: boolean
   name?: string
   src?: string
+  // The include capability the session evaluates under. `--trust` and
+  // `--include-root` were parsed and then DROPPED on the way to the
+  // REPL, so `--jsonl` -- the surface built to be driven by a harness
+  // -- ran unconfined however it was invoked (use-cases/REVIEW.md
+  // finding G). The state carries it, so every line honours it.
+  trust?: TrustArg
 }
 
 export type ReplAnswer = {
@@ -382,7 +463,8 @@ export function replCommand(
   }
 
   if (!s.startsWith(':')) {
-    const res = evalSource(new Aontu(), s, state.mode)
+    const res = evalSource(
+      new Aontu(replTrust(state, process.cwd())), s, state.mode)
     return res.ok ? answer(res.text) : refuse(res.text)
   }
 
@@ -422,7 +504,9 @@ export function replCommand(
       // Evaluated ONCE, and what is held is the source: parsed trees
       // are single-use, so every later question re-evaluates from the
       // text rather than reusing a tree that has already been spent.
-      const res = evalSource(new Aontu({ path: arg }), src, state.mode)
+      const res = evalSource(
+        new Aontu({ path: arg, ...replTrust(state, dirname(resolve(arg))) }),
+        src, state.mode)
       return res.ok
         ? answer(`loaded: ${arg}\n${res.text}`, { name: arg, src })
         : refuse(res.text)
@@ -437,14 +521,22 @@ export function replCommand(
       }
       const path = '' === arg ? '$' : arg
       if (':why' === cmd) {
-        const report = why(src, path, { path: state.name })
+        const report = why(src, path, {
+          path: state.name,
+          trust: verbTrust(state.trust ?? { kind: 'system-warn' },
+            entryRootOf(state.name)),
+        })
         return report.ok
           ? answer(renderWhyText(report.record as WhyRecord))
           : refuse(report.findings.map(renderFinding).join('\n'))
       }
       const view: QueryView = ':keys' === cmd
         ? 'keys' : 'canon' === state.mode ? 'canon' : 'json'
-      const report = get(src, path, { view, path: state.name })
+      const report = get(src, path, {
+        view, path: state.name,
+        trust: verbTrust(state.trust ?? { kind: 'system-warn' },
+          entryRootOf(state.name)),
+      })
       return report.ok
         ? answer(report.out)
         : refuse(report.findings.map(renderFinding).join('\n'))
@@ -456,8 +548,8 @@ export function replCommand(
 }
 
 
-function runRepl(initialMode: Mode, jsonl: boolean): void {
-  let state: ReplState = { mode: initialMode, jsonl }
+function runRepl(initialMode: Mode, jsonl: boolean, trust: TrustArg): void {
+  let state: ReplState = { mode: initialMode, jsonl, trust }
   const rl = createInterface({
     input: process.stdin,
     output: process.stdout,
@@ -702,7 +794,7 @@ const VET_RANK: Record<VetVerdict, number> = {
 // one report, return the exit class. Split from runVet so `--watch` can
 // repeat it — the files are re-read on every run, which is the point of
 // watching them.
-function vetOnce(args: VetArgs): number {
+function vetOnce(args: VetArgs, trust: TrustArg): number {
   let schemaSrc: string
   const sources: { file: string; src: string }[] = []
   try {
@@ -725,6 +817,7 @@ function vetOnce(args: VetArgs): number {
 
   for (const source of sources) {
     const report = vet(schemaSrc, source.src, {
+      trust: verbTrust(trust, entryRootOf(args.schema)),
       at: args.at,
       closed: args.closed,
       partial: args.partial,
@@ -847,13 +940,14 @@ const vetWaiter: VetWaiter = (files, before) =>
 // vetOnce) and keeps watching — a file being rewritten is briefly
 // unreadable, and dying on it would make the mode useless for the very
 // moment it exists for.
-async function watchVet(args: VetArgs, wait: VetWaiter): Promise<number> {
+async function watchVet(
+  args: VetArgs, wait: VetWaiter, trust: TrustArg): Promise<number> {
   const files = [args.schema, ...args.data]
   let before = watchSignature(files)
-  let code = vetOnce(args)
+  let code = vetOnce(args, trust)
   while (await wait(files, before)) {
     before = watchSignature(files)
-    code = vetOnce(args)
+    code = vetOnce(args, trust)
   }
   return code
 }
@@ -863,6 +957,12 @@ async function watchVet(args: VetArgs, wait: VetWaiter): Promise<number> {
 // class directly; `--watch` returns a promise that resolves only when
 // the waiter says stop (never, for the real one).
 function runVet(argv: string[], wait?: VetWaiter): number | Promise<number> {
+  const trusted = takeTrust(argv)
+  if (null == trusted) {
+    return 2
+  }
+  argv = trusted.argv
+  const trust = trusted.trust
   const parsed = parseVetArgs(argv)
   if (null != parsed.err) {
     process.stderr.write(parsed.err + '\n')
@@ -876,10 +976,10 @@ function runVet(argv: string[], wait?: VetWaiter): number | Promise<number> {
   }
 
   if (true === args.watch) {
-    return watchVet(args, wait ?? vetWaiter)
+    return watchVet(args, wait ?? vetWaiter, trust)
   }
 
-  return vetOnce(args)
+  return vetOnce(args, trust)
 }
 
 
@@ -980,6 +1080,12 @@ function renderSubsumeJson(report: SubsumeReport): string {
 }
 
 function runSubsume(argv: string[]): number {
+  const trusted = takeTrust(argv)
+  if (null == trusted) {
+    return 2
+  }
+  argv = trusted.argv
+  const trust = trusted.trust
   const parsed = parseSubsumeArgs(argv)
   if (null != parsed.err) {
     process.stderr.write(parsed.err + '\n')
@@ -1003,6 +1109,7 @@ function runSubsume(argv: string[]): number {
   }
 
   const report = subsume(generalSrc, specificSrc, {
+    trust: verbTrust(trust, entryRootOf(args.general)),
     profile: args.profile,
     at: args.at,
     generalUrl: args.general,
@@ -1195,10 +1302,16 @@ function oldVersion(spec: string, file: string): OldVersion | undefined {
 // The document's own compatibility declaration: `$.aontu_policy.compat`,
 // a disjunction whose default is the declared mode. Undefined when the
 // key is absent or does not spell a mode.
-function policyCompat(newSrc: string, path: string): BreakingMode | undefined {
+function policyCompat(
+  newSrc: string, path: string, trust: any): BreakingMode | undefined {
   const aontu = new Aontu()
   const ctx = aontu.ctx({ collect: true })
-  const v: any = aontu.unify(newSrc, { path }, ctx)
+  // The declaration is read by EVALUATING the document, so this leg
+  // runs the include resolver too and has to run it under the verb's
+  // capability -- a `breaking --trust none` that read its own mode
+  // through an unconfined resolver would confine the comparison and
+  // not the question (use-cases/REVIEW.md finding G).
+  const v: any = aontu.unify(newSrc, { path, ...(null == trust ? {} : { trust }) }, ctx)
   if (0 < ctx.err.length || true === v?.isNil) {
     return undefined
   }
@@ -1269,6 +1382,12 @@ const BREAKING_VERDICT: Record<SubsumeVerdict, string> = {
 }
 
 function runBreaking(argv: string[]): number {
+  const trusted = takeTrust(argv)
+  if (null == trusted) {
+    return 2
+  }
+  argv = trusted.argv
+  const trust = trusted.trust
   const parsed = parseBreakingArgs(argv)
   if (null != parsed.err) {
     process.stderr.write(parsed.err + '\n')
@@ -1294,7 +1413,9 @@ function runBreaking(argv: string[]): number {
   // neither means backward, the index's framing (v1-valid documents
   // stay valid).
   const mode: BreakingMode =
-    args.mode ?? policyCompat(newSrc, args.file) ?? 'backward'
+    args.mode ??
+    policyCompat(newSrc, args.file, verbTrust(trust, entryRootOf(args.file))) ??
+    'backward'
 
   if ('none' === mode) {
     // The document declares no compatibility promise: nothing to check.
@@ -1343,6 +1464,7 @@ function runBreaking(argv: string[]): number {
 
     for (const check of checks) {
       const report = subsume(check.general[0], check.specific[0], {
+        trust: verbTrust(trust, entryRootOf(args.file)),
         generalUrl: check.general[1],
         specificUrl: check.specific[1],
         // The old side's relative loads resolve from ITS own tree --
@@ -1430,6 +1552,12 @@ const TRIM_EXIT: Record<TrimVerdict, number> = {
 }
 
 function runTrim(argv: string[]): number {
+  const trusted = takeTrust(argv)
+  if (null == trusted) {
+    return 2
+  }
+  argv = trusted.argv
+  const trust = trusted.trust
   const files: string[] = []
   let check = false
   let format: SubsumeFormat = 'text'
@@ -1480,7 +1608,9 @@ function runTrim(argv: string[]): number {
     return 2
   }
 
-  const report = trimCheck(src, { path: files[0] })
+  const report = trimCheck(src, {
+    path: files[0], trust: verbTrust(trust, entryRootOf(files[0])),
+  })
   const text = 'json' === format
     ? renderTrimJson(report)
     : renderTrimText(report)
@@ -1685,6 +1815,12 @@ function modText(sub: string, report: any): string {
 
 
 function runRelations(argv: string[]): number {
+  const trusted = takeTrust(argv)
+  if (null == trusted) {
+    return 2
+  }
+  argv = trusted.argv
+  const trust = trusted.trust
   const files: string[] = []
   let format: SubsumeFormat = 'text'
 
@@ -1725,7 +1861,9 @@ function runRelations(argv: string[]): number {
     return 2
   }
 
-  const report = relationCheck(src, { path: files[0] })
+  const report = relationCheck(src, {
+    path: files[0], trust: verbTrust(trust, entryRootOf(files[0])),
+  })
   const text = 'json' === format
     ? renderRelationsJson(report)
     : renderRelationsText(report)
@@ -1766,6 +1904,12 @@ function renderRelationsJson(report: RelationReport): string {
 const HASH_HELP = 'aontu hash <file> (try --help)'
 
 function runHash(argv: string[]): number {
+  const trusted = takeTrust(argv)
+  if (null == trusted) {
+    return 2
+  }
+  argv = trusted.argv
+  const trust = trusted.trust
   const files: string[] = []
   let form = false
   let format: SubsumeFormat = 'text'
@@ -1812,15 +1956,23 @@ function runHash(argv: string[]): number {
 
   // The file's own directory is the include base, as every verb
   // resolves a named file (vet's aontuForPath rule).
-  const aontu = new Aontu()
+  const capability = verbTrust(trust, entryRootOf(files[0]))
+  const aontu = new Aontu(
+    null == capability ? undefined : { trust: capability })
   const ctx = aontu.ctx({ collect: true })
   const v: any = aontu.unify(src, { path: files[0] }, ctx)
   if (0 < ctx.err.length || true === v?.isNil) {
     // A document that does not stand up on its own has no meaning to
     // pin, and a hash of a broken evaluation would be a pin that
     // silently agrees with every other broken evaluation.
+    // WHY it does not stand up, not just that it does not: the same
+    // diagnosis `aontu <file>` prints (the review's finding F).
+    // evalFailure unconditionally, as every other call site does: it
+    // owns the "ctx.err is never empty here" contract, and a guard
+    // that pretends otherwise is a dead arm asserting nothing.
     process.stderr.write(
-      `aontu: ${files[0]} does not evaluate on its own; nothing to hash\n`)
+      `aontu: ${files[0]} does not evaluate on its own; nothing to hash\n` +
+      renderFinding(evalFailure(ctx)) + '\n')
     return 4
   }
 
@@ -1846,6 +1998,12 @@ function runHash(argv: string[]): number {
 const GET_HELP = 'aontu get <path> <file> (try --help)'
 
 function runGet(argv: string[]): number {
+  const trusted = takeTrust(argv)
+  if (null == trusted) {
+    return 2
+  }
+  argv = trusted.argv
+  const trust = trusted.trust
   const rest: string[] = []
   let view: QueryView = 'json'
   let depth: number | undefined
@@ -1915,7 +2073,9 @@ function runGet(argv: string[]): number {
     return 2
   }
 
-  const report = get(src, path, { view, depth, path: file })
+  const report = get(src, path, {
+    view, depth, path: file, trust: verbTrust(trust, entryRootOf(file)),
+  })
   if ('json' === format) {
     process.stdout.write(exactJSON({
       aontu: { version: version(), verb: 'get' },
@@ -1950,6 +2110,12 @@ function runGet(argv: string[]): number {
 const WHY_HELP = 'aontu why <path> <file> (try --help)'
 
 function runWhy(argv: string[]): number {
+  const trusted = takeTrust(argv)
+  if (null == trusted) {
+    return 2
+  }
+  argv = trusted.argv
+  const trust = trusted.trust
   const rest: string[] = []
   let format: SubsumeFormat = 'text'
 
@@ -1991,7 +2157,9 @@ function runWhy(argv: string[]): number {
     return 2
   }
 
-  const report = why(src, path, { path: file })
+  const report = why(src, path, {
+    path: file, trust: verbTrust(trust, entryRootOf(file)),
+  })
   if ('json' === format) {
     process.stdout.write(exactJSON({
       aontu: { version: version(), verb: 'why' },
@@ -2047,6 +2215,12 @@ const SET_HELP =
   'aontu set <path>=<value> --entry <file> --overlay <file> (try --help)'
 
 function runSet(argv: string[]): number {
+  const trusted = takeTrust(argv)
+  if (null == trusted) {
+    return 2
+  }
+  argv = trusted.argv
+  const trust = trusted.trust
   const assignments: string[] = []
   let entry: string | undefined
   let overlayFile: string | undefined
@@ -2119,6 +2293,7 @@ function runSet(argv: string[]): number {
   }
 
   const report = patch(entrySrc, overlaySrc, assignments, {
+    trust: verbTrust(trust, entryRootOf(entry)),
     entryPath: entry,
     overlayPath: overlayFile,
     inPlace,
@@ -2204,6 +2379,12 @@ function runSet(argv: string[]): number {
 const AGENTSMD_HELP = 'aontu agentsmd <file> (try --help)'
 
 function runAgentsMd(argv: string[]): number {
+  const trusted = takeTrust(argv)
+  if (null == trusted) {
+    return 2
+  }
+  argv = trusted.argv
+  const trust = trusted.trust
   const files: string[] = []
   let write: string | undefined
 
@@ -2245,7 +2426,10 @@ function runAgentsMd(argv: string[]): number {
     return 2
   }
 
-  const report = agentsMd(src, { name: files[0], path: files[0] })
+  const report = agentsMd(src, {
+    name: files[0], path: files[0],
+    trust: verbTrust(trust, entryRootOf(files[0])),
+  })
   if (!report.ok) {
     process.stderr.write(
       report.findings.map(renderFinding).join('\n') + '\n')
@@ -2455,7 +2639,7 @@ function main(argv: string[]): void {
   // made it reachable only through a pty -- which is to say, not
   // reachable by the thing it was built for. Mirrors go/cmd/aontu.
   else if (jsonl || process.stdin.isTTY) {
-    runRepl(mode, jsonl)
+    runRepl(mode, jsonl, trust)
   }
   else {
     runStdin(mode, trust).then((code) => finish(code))

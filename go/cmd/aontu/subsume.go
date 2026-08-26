@@ -127,6 +127,11 @@ func renderSubsumeJSON(report aontu.SubsumeReport, verb, mode string) string {
 }
 
 func runSubsume(argv []string, stdout, stderr io.Writer) int {
+	argv, trust, trustOK := takeTrust(argv, stderr)
+	if !trustOK {
+		return 2
+	}
+
 	args, errText := parseSubsumeArgs(argv)
 	if "" != errText {
 		io.WriteString(stderr, errText+"\n")
@@ -151,6 +156,7 @@ func runSubsume(argv []string, stdout, stderr io.Writer) int {
 
 	report := aontu.Subsume(string(generalSrc), string(specificSrc),
 		&aontu.SubsumeOptions{
+			Trust:        verbTrust(trust, entryRootOfFile(args.general)),
 			Profile:      args.profile,
 			At:           args.at,
 			GeneralURL:   args.general,
@@ -430,6 +436,11 @@ type breakingCheck struct {
 }
 
 func runBreaking(argv []string, stdout, stderr io.Writer) int {
+	argv, trust, trustOK := takeTrust(argv, stderr)
+	if !trustOK {
+		return 2
+	}
+
 	args, errText := parseBreakingArgs(argv)
 	if "" != errText {
 		io.WriteString(stderr, errText+"\n")
@@ -451,9 +462,17 @@ func runBreaking(argv []string, stdout, stderr io.Writer) int {
 	// The declared mode: --mode overrides the document's own policy;
 	// neither means backward, the index's framing (v1-valid documents
 	// stay valid).
+	capability := verbTrust(trust, entryRootOfFile(args.file))
+
 	mode := args.mode
 	if "" == mode {
-		mode = aontu.PolicyCompat(newSrc, args.file)
+		// The declaration is read by EVALUATING the document, so this
+		// leg runs the include resolver too and has to run it under the
+		// verb's capability -- a `breaking --trust none` that read its
+		// own mode through an unconfined resolver would confine the
+		// comparison and not the question (use-cases/REVIEW.md finding
+		// G).
+		mode = aontu.PolicyCompatTrust(newSrc, args.file, capability)
 	}
 	if "" == mode {
 		mode = "backward"
@@ -519,6 +538,7 @@ func runBreaking(argv []string, stdout, stderr io.Writer) int {
 		for _, check := range checks {
 			report := aontu.Subsume(check.generalSrc, check.specificSrc,
 				&aontu.SubsumeOptions{
+					Trust:        capability,
 					GeneralURL:   check.generalURL,
 					SpecificURL:  check.specificURL,
 					GeneralPath:  check.generalPath,

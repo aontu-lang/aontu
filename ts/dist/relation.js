@@ -90,7 +90,7 @@ function findCycle(start, succ, done) {
 // The relation checks for one document.
 function relationCheck(src, opts) {
     const options = opts ?? {};
-    const aontu = new aontu_1.Aontu();
+    const aontu = new aontu_1.Aontu(null == options.trust ? undefined : { trust: options.trust });
     const ctx = aontu.ctx({ collect: true });
     const parseOpts = null == options.path ? undefined : { path: options.path };
     const root = aontu.unify(src, parseOpts, ctx);

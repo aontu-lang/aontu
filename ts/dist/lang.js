@@ -1150,12 +1150,24 @@ function makeModelResolver(options) {
     // Real fs, deliberately: `options.fs` is not a sandbox (it feeds
     // parse text; the file leg reads through its own channel), so the
     // containment check must see the same filesystem that leg read from.
+    // A path that does not (fully) exist cannot be realpath'd whole, and
+    // falling back to the LEXICAL form compares apples to oranges when
+    // the root itself sits behind a symlink -- on macOS a root under
+    // /var realpaths to /private/var, so a merely-missing file inside it
+    // reads as an escape. Realpath the deepest EXISTING ancestor and
+    // re-attach the rest, so both sides of the check are in real
+    // coordinates. (The MCP server's own confinement carries the twin of
+    // this rule; its CI failure is what found the shape.)
     const realpath = (p) => {
         try {
             return (0, node_fs_1.realpathSync)(p);
         }
         catch {
-            return (0, node_path_1.resolve)(p);
+            const parent = (0, node_path_1.dirname)(p);
+            if (parent === p) {
+                return p;
+            }
+            return (0, node_path_1.join)(realpath(parent), (0, node_path_1.basename)(p));
         }
     };
     const outsideRoot = (root, full) => {

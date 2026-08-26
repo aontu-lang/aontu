@@ -167,20 +167,36 @@ type VetOptions struct {
 	// directory and, worse, silently reads a same-named file that
 	// happens to sit there. The two documents get their OWN bases,
 	// because they need not live in the same place.
+	// The include capability both documents evaluate under (G5,
+	// docs/trust.md). Nil means today's default.
+	Trust *TrustOptions
+
 	SchemaPath string
 	DataPath   string
 }
 
-// aontuForPath builds an engine whose relative `@"file"` loads resolve
-// against the directory holding path. The twin of cmd/aontu's
-// aontuForFile, and of the per-parse `path` option the canonical port
-// hands to its parser. An empty path means the process working
-// directory, which is what New() already does.
-func aontuForPath(path string) *Aontu {
-	if "" == path {
-		return New()
+// aontuForPathTrust builds an engine whose relative `@"file"` loads
+// resolve against the directory holding path, under an explicit include
+// capability. The twin of cmd/aontu's aontuForFileTrust, and of the
+// per-parse `path` option the canonical port hands to its parser. An
+// empty path means the process working directory, which is what New()
+// already does; a nil capability means today's default, so a caller
+// that has no profile to pass is unchanged.
+//
+// The capability is a PARAMETER rather than a later assignment because
+// G5 wired --trust to the bare command alone, so every verb ran the
+// full system resolver with no way to confine it (the review's finding
+// G) -- and a verb that forgets to set it afterwards is exactly how
+// that happened.
+func aontuForPathTrust(path string, trust *TrustOptions) *Aontu {
+	a := New()
+	if "" != path {
+		a = NewWithBase(filepath.Dir(path))
 	}
-	return NewWithBase(filepath.Dir(path))
+	if nil != trust {
+		a.Trust = trust
+	}
+	return a
 }
 
 // vetSources maps a stamped url to the text its offsets index into.
@@ -457,8 +473,8 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 
 	// TWO instances, because the two documents may live in different
 	// directories and each one's includes resolve from its own.
-	schemaA := aontuForPath(options.SchemaPath)
-	dataA := aontuForPath(options.DataPath)
+	schemaA := aontuForPathTrust(options.SchemaPath, options.Trust)
+	dataA := aontuForPathTrust(options.DataPath, options.Trust)
 
 	// 1. The schema alone. If it does not stand up on its own, the data
 	//    is never blamed for it.

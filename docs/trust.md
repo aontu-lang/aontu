@@ -205,7 +205,13 @@ implementations, at every surface:
   / `Aontu.Trust` (Go). The default remains `'system'`.
 - **LSP**: confined to the **workspace root** by default, from the
   `initialize` params (workspaceFolders, rootUri, rootPath, in that
-  order); an explicit `initializationOptions.aontu.trust.include` of
+  order). The capability governs the **whole** server — hover and
+  hover-provenance as well as the diagnostics it publishes. Hover used
+  to evaluate through the full system resolver beside confined
+  diagnostics in the same session, so resting a cursor on an escaping
+  include resolved it; one document under two postures is not a
+  confinement. An explicit
+  `initializationOptions.aontu.trust.include` of
   `'system'`, `'none'`, `{root}` or `{mem}` widens or narrows it, and
   an unrecognised value confines to nothing rather than silently
   widening. A session with no workspace root and no explicit option
@@ -222,8 +228,15 @@ implementations, at every surface:
   gap rather than a divergence, and closing it needs a spelling for the
   UNC form (`\\server\share`) that neither port has yet.
 - **CLI**: `--trust <system|none|root[:dir]>` and
-  `--include-root <dir>`. The default remains `'system'` **with the
-  warning window** (G5 phase 6, the staged flip): every resolution
+  `--include-root <dir>`, accepted by the bare command **and by every
+  verb** — `vet`, `subsume`, `breaking`, `get`, `why`, `set`,
+  `relations`, `trim`, `hash`, `agentsmd` — and by the REPL, whose
+  `--jsonl` session honours the capability for `:load`, `:get`, `:why`
+  and bare snippets alike. A verb takes the flags anywhere in its
+  argument tail; a bare `root` means the primary document's own
+  directory, matching the bare command's entry root. The default
+  remains `'system'` **with the warning window** (G5 phase 6, the
+  staged flip): every resolution
   that escapes the entry file's directory, or goes through package
   resolution, prints a one-line stderr warning naming the flag a
   future release will require. The flip itself — entry-root

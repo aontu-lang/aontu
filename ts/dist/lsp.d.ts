@@ -51,7 +51,7 @@ type Hover = {
     range?: Range;
 };
 export declare function contributionsMarkdown(conjuncts: WhyConjunct[]): string;
-declare function computeHover(src: string, position: Position, provenance?: boolean): Hover | null;
+declare function computeHover(src: string, position: Position, provenance?: boolean, trust?: any): Hover | null;
 type CompletionItem = {
     label: string;
     kind?: number;

@@ -310,6 +310,65 @@ func TestTrustLspWorkspaceRootConfines(t *testing.T) {
 	}
 }
 
+// trustHovers is every hover the document answers, concatenated. EVERY
+// column of the line is probed rather than one chosen one: a hover span
+// is measured in the INCLUDED document's own coordinates, so which
+// column carries the value is an artefact of the include's text, and the
+// invariant is that NO cursor position on a confined document reveals
+// the outside value.
+func trustHovers(t *testing.T, h *Handler, text string) string {
+	t.Helper()
+	trustDiags(t, h, text)
+	all := ""
+	for c := 0; c < len(text); c++ {
+		raw, err := json.Marshal(map[string]any{
+			"textDocument": map[string]any{"uri": "file:///d.aon"},
+			"position":     map[string]any{"line": 0, "character": c},
+		})
+		if err != nil { //coverage:ignore Marshal of a literal map cannot fail
+			t.Fatal(err)
+		}
+		outs := h.Handle(Message{JSONRPC: "2.0", ID: json.RawMessage("2"),
+			Method: "textDocument/hover", Params: raw})
+		body, err := json.Marshal(outs[0].Result)
+		if err != nil { //coverage:ignore a HoverResult always marshals
+			t.Fatal(err)
+		}
+		all += string(body)
+	}
+	return all
+}
+
+// HOVER, not only diagnostics. The server confined the diagnostics it
+// published and left hover on the full system resolver, so a
+// workspace-confined session still resolved an escaping include the
+// moment a cursor rested on it (use-cases/REVIEW.md finding G). Twin:
+// workspace-root-confines-hover in ts/test/trust.test.ts.
+func TestTrustLspWorkspaceRootConfinesHover(t *testing.T) {
+	dir, root := trustLspWorld(t)
+	confined := trustInit(t,
+		trustParams(t, map[string]any{"rootUri": fileURI(root)}))
+
+	// In-root: the include resolves, so the value is hoverable.
+	if !strings.Contains(
+		trustHovers(t, confined, `a:@"`+srcPath(root)+`/in.aon"`), "11") {
+		t.Fatal("in-root value not hoverable")
+	}
+	// Out-of-root: nowhere on the line does the outside value appear.
+	if strings.Contains(
+		trustHovers(t, confined, `a:@"`+srcPath(dir)+`/secret.aon"`), "outside") {
+		t.Fatal("hover resolved an escape the diagnostics denied")
+	}
+	// The unconfined session is the control: it DOES resolve the same
+	// escape, which is what makes the assertion above about the
+	// capability rather than about hover failing everywhere.
+	wide := trustInit(t, trustParams(t, map[string]any{}))
+	if !strings.Contains(
+		trustHovers(t, wide, `a:@"`+srcPath(dir)+`/secret.aon"`), "outside") {
+		t.Fatal("unconfined control did not resolve the escape")
+	}
+}
+
 func TestTrustLspWorkspaceFoldersOutrankRootURI(t *testing.T) {
 	_, root := trustLspWorld(t)
 	h := trustInit(t, trustParams(t, map[string]any{

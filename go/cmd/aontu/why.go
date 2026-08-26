@@ -21,6 +21,10 @@ import (
 const whyHelp = "aontu why <path> <file> (try --help)"
 
 func runWhy(argv []string, stdout, stderr io.Writer) int {
+	argv, trust, trustOK := takeTrust(argv, stderr)
+	if !trustOK {
+		return 2
+	}
 	var rest []string
 	format := "text"
 
@@ -57,7 +61,7 @@ func runWhy(argv []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 
-	report := aontuForFile(file).Why(string(src), path)
+	report := aontuForFileTrust(file, trust).Why(string(src), path)
 
 	if "json" == format {
 		io.WriteString(stdout, renderWhyJSON(report)+"\n")

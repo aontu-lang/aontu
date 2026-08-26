@@ -149,7 +149,25 @@ type HoverResult struct {
 // returns nil when the position is not over a concrete value. Because it
 // reads the *unified* tree, a value shows its resolved canon and kind.
 func Hover(src string, line, character int, provenance bool) *HoverResult {
-	spans := aontu.New().Spans(src)
+	return HoverTrust(src, line, character, provenance, nil)
+}
+
+// HoverTrust is Hover under a trust profile (G5, docs/trust.md),
+// following the DiagnosticsTrust precedent above.
+//
+// HOVER RUNS UNDER THE SAME CAPABILITY AS DIAGNOSTICS. It used to
+// evaluate through a bare engine -- the full system resolver -- BESIDE
+// confined diagnostics in the same server, so a workspace-confined
+// session still resolved an escaping include the moment a cursor rested
+// on it (use-cases/REVIEW.md finding G). One document, two postures, is
+// not a confinement.
+func HoverTrust(
+	src string, line, character int, provenance bool,
+	trust *aontu.TrustOptions,
+) *HoverResult {
+	a := aontu.New()
+	a.Trust = trust
+	spans := a.Spans(src)
 	if spans == nil {
 		return nil
 	}
@@ -171,17 +189,19 @@ func Hover(src string, line, character int, provenance bool) *HoverResult {
 	s := spans[best]
 	return &HoverResult{
 		Contents: MarkupContent{Kind: "markdown", Value: hoverMarkdown(s) +
-			provenanceOf(src, s, provenance)},
+			provenanceOf(src, s, provenance, trust)},
 		Range: &Range{Start: idx.position(s.Pos), End: idx.position(s.Pos + s.Len)},
 	}
 }
 
 // provenanceOf is the gate: nothing at all unless the editor asked.
-func provenanceOf(src string, s aontu.ValueSpan, on bool) string {
+func provenanceOf(
+	src string, s aontu.ValueSpan, on bool, trust *aontu.TrustOptions,
+) string {
 	if !on {
 		return ""
 	}
-	return provenanceMarkdown(src, s.Path)
+	return provenanceMarkdown(src, s.Path, trust)
 }
 
 func hoverMarkdown(s aontu.ValueSpan) string {
@@ -194,14 +214,18 @@ func hoverMarkdown(s aontu.ValueSpan) string {
 // whole document per request, so an editor that asks for this pays a
 // second instrumented evaluation knowingly. Mirrors
 // provenanceMarkdown in ts/src/lsp.ts.
-func provenanceMarkdown(src string, path []string) string {
+func provenanceMarkdown(
+	src string, path []string, trust *aontu.TrustOptions,
+) string {
 	if 0 == len(path) {
 		return ""
 	}
 	// A document with an error ELSEWHERE still hovers — the tree the
 	// hover walked is there — while Why refuses it, so the record may
 	// be absent for a value the cursor is sitting on.
-	report := aontu.New().Why(src, "$."+strings.Join(path, "."))
+	a := aontu.New()
+	a.Trust = trust
+	report := a.Why(src, "$."+strings.Join(path, "."))
 	if !report.OK || nil == report.Record {
 		return ""
 	}

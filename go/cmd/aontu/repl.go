@@ -16,6 +16,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"os"
 	"strings"
 
 	aontu "github.com/rjrodger/aontu/go"
@@ -32,6 +33,28 @@ type replState struct {
 	// Loaded is false until a `:load` succeeds — an empty document is
 	// still a document.
 	Loaded bool
+	// Trust is the session's include capability. The REPL used to ACCEPT
+	// --trust and drop it: the --jsonl session mode, built to be driven
+	// by a harness, evaluated unconfined however it was invoked
+	// (use-cases/REVIEW.md finding G). The zero value is the staged
+	// default, which is today's behaviour.
+	Trust trustArg
+}
+
+// replSnippet is the engine a bare (unnamed) snippet evaluates in. A
+// snippet has no file of its own, so a bare `root` spelling confines it
+// to the working directory -- the same root the bare command uses for
+// stdin.
+func replSnippet(state replState) *aontu.Aontu {
+	a := aontu.New()
+	cwd, err := os.Getwd()
+	if err != nil { //coverage:ignore Getwd fails only on a deleted cwd
+		cwd = "."
+	}
+	if capability := verbTrust(state.Trust, cwd); nil != capability {
+		a.Trust = capability
+	}
+	return a
 }
 
 type replAnswer struct {
@@ -77,7 +100,7 @@ func replCommand(
 	}
 
 	if !strings.HasPrefix(s, ":") {
-		text, err := render(aontu.New(), s, state.Mode)
+		text, err := render(replSnippet(state), s, state.Mode)
 		if nil != err {
 			return refuse(err.Error())
 		}
@@ -117,7 +140,7 @@ func replCommand(
 		// Evaluated ONCE, and what is held is the source: parsed trees
 		// are single-use, so every later question re-evaluates from
 		// the text.
-		text, rerr := render(aontuForFile(arg), src, state.Mode)
+		text, rerr := render(aontuForFileTrust(arg, state.Trust), src, state.Mode)
 		if nil != rerr {
 			return refuse(rerr.Error())
 		}
@@ -133,7 +156,7 @@ func replCommand(
 		if "" == path {
 			path = "$"
 		}
-		a := aontuForFile(state.Name)
+		a := aontuForFileTrust(state.Name, state.Trust)
 		if ":why" == cmd {
 			report := a.Why(state.Src, path)
 			if !report.OK {

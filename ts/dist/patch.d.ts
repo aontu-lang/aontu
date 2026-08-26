@@ -1,8 +1,10 @@
+import type { TrustOptions } from './type';
 import type { VetFinding, VetVerdict } from './vet';
 export type PatchOptions = {
     entryPath?: string;
     overlayPath?: string;
     inPlace?: boolean;
+    trust?: TrustOptions;
 };
 export type PatchReplacement = {
     col: number;

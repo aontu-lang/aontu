@@ -572,6 +572,40 @@ index — the doc's `pack` spelling covers the transform case.)
 
 ---
 
+## trust — surfaces that ignored the include capability
+
+### 37. Verbs, the REPL and LSP hover all ran the unconfined resolver [critical]
+`--trust`/`--include-root` were wired to `aontu <file>` alone. Every
+verb — `vet`, `subsume`, `breaking`, `get`, `why`, `set`, `relations`,
+`trim`, `hash`, `agentsmd` — parsed its own argument tail and ran the
+full system resolver with no way to confine it, which is the surface an
+agent actually scripts. The REPL *accepted* `--trust` and dropped it, so
+the `--jsonl` session mode built to be driven by a harness evaluated
+unconfined however it was invoked. And the LSP confined the diagnostics
+it published while leaving hover on the system resolver, so a
+workspace-confined editor session resolved an escaping include the
+moment a cursor rested on it. One document under two postures is not a
+confinement.
+
+Status: FIXED 2026-08-26 — the flags are stripped before each verb
+parses its tail and turned into the engine's capability, in both ports;
+the REPL threads a session capability through `:load`, `:get`, `:why`
+and bare snippets; and the LSP's hover and hover-provenance run under
+the same capability as its diagnostics (`HoverTrust` in Go, the `trust`
+argument to `computeHover` in TypeScript). Two parity holes surfaced and
+closed with it: Go's `PatchOptions.Trust` was declared but never reached
+the `Vet` call underneath `set`, and `breaking` read its own
+`$.aontu_policy.compat` declaration through an unconfined evaluation in
+both ports — confining the comparison but not the question. Pinned by
+`every-verb-honours-the-capability`, `verbs-take-include-root`,
+`repl-honours-the-capability` and `workspace-root-confines-hover` in
+`ts/test/trust.test.ts`, with Go twins in `go/cmd/aontu/trust_test.go`
+and `go/lsp/lsp_test.go`. Each verb is asserted twice — the escape
+resolves under the default and is denied under `--trust none` — so a
+verb that quietly dropped the flag again would fail; the hover tests
+probe every column of the line and carry an unconfined control, so they
+assert the capability rather than hover failing everywhere.
+
 ## Elsewhere in this review
 
 Defects verified earlier in the effort and recorded in
@@ -581,8 +615,7 @@ dropping every following key (exit 0); `@"file.json"` includes yielding
 `{}` silently at top level and a raw TypeError nested; the
 `DisjunctVal` generation chimera (`({x:1}|{y:2}) & {z:3}` → merged
 map); canon not round-tripping constraint residuals
-(`a: min(true)` → `constraint()`); the REPL and LSP-hover surfaces
-ignoring `--trust`/workspace confinement; the `$KEY`-in-default and
+(`a: min(true)` → `constraint()`); the `$KEY`-in-default and
 `$KEY`-with-referenced-shape resolution bugs that podmind's models
 carry workarounds for; `why`'s tutorial mismatch; and the ADR-002
 coverage gate itself flaking red on an untouched tree

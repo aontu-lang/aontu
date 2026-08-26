@@ -196,8 +196,8 @@ func (h *Handler) Handle(m Message) []Out {
 		if !ok {
 			return []Out{newResponse(m.ID, nil)}
 		}
-		return []Out{newResponse(m.ID,
-			Hover(text, p.Position.Line, p.Position.Character, h.provenance))}
+		return []Out{newResponse(m.ID, HoverTrust(
+			text, p.Position.Line, p.Position.Character, h.provenance, h.trust))}
 
 	case "textDocument/completion":
 		return []Out{newResponse(m.ID, Completions())}

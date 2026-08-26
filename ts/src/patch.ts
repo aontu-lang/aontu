@@ -55,6 +55,7 @@
 // truth, and if not, where — so `set` adds a writer, not a report.
 
 import { vet } from './vet'
+import type { TrustOptions } from './type'
 import type { VetFinding, VetReport, VetVerdict } from './vet'
 import { pathParts, why } from './query'
 import type { WhyConjunct } from './provenance'
@@ -71,6 +72,9 @@ export type PatchOptions = {
   // non-destructive and in-place editing is not, so the caller says
   // which one they meant.
   inPlace?: boolean
+  // The include capability this document evaluates under
+  // (G5, docs/trust.md); vet's precedent.
+  trust?: TrustOptions
 }
 
 
@@ -548,6 +552,7 @@ export function patch(
   // `schema`/`data` labels — with two documents that both belong to
   // the caller, "which file" is the whole question.
   const report: VetReport = vet(entrySrc, overlay, {
+    trust: options.trust,
     schemaPath: options.entryPath,
     dataPath: options.overlayPath,
     schemaUrl: options.entryPath,
