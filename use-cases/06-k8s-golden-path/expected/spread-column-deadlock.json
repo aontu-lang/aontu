@@ -1,0 +1,25 @@
+{
+  "out": {
+    "web": {
+      "plist": [
+        {
+          "containerPort": 8080,
+          "name": "http",
+          "port": 8080,
+          "protocol": "TCP",
+          "targetPort": 8080
+        }
+      ]
+    }
+  },
+  "ports": {
+    "web": {
+      "http": {
+        "containerPort": 8080,
+        "name": "http",
+        "port": 8080,
+        "targetPort": 8080
+      }
+    }
+  }
+}

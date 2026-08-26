@@ -38,11 +38,16 @@ against the real CLI, including the gap repros (asserted at their
 
 - **`id()` + `refer()` as foreign keys is the best feature of the
   model.** Every permission and role is an entity; every grant and
-  every member's role is a checked address. A hallucinated permission
-  in an agent patch is a located error
-  (`[aontu/refer_unresolved] ... refer()&"billing/refund"`), and an
-  unknown role in a tenant document vets `invalid` with the same code
-  — this is referential integrity JSON Schema simply does not have.
+  every member's role is a checked address. An unknown role in a
+  tenant document vets `invalid` with a located
+  `[aontu/refer_unresolved]` — this is referential integrity JSON
+  Schema simply does not have. (2026-08-26: the *eval-path* proposal
+  `extend-member-grants.aon` still refuses a hallucinated permission
+  with exit 1, but the located refer_unresolved it used to print came
+  from the registry-invariant filter's mid-resolution witness copy —
+  an artifact the spread application rework removed; the surviving
+  diagnostic there is the spurious unify_cycle below. The vet path is
+  unchanged.)
 - **`close()` for exhaustiveness** does exactly what the scenario
   needs: `proposals/add-superuser-role.aon` dies with
   `[aontu/closed]: Cannot resolve value at path $.roles.superuser`.
@@ -66,7 +71,12 @@ against the real CLI, including the gap repros (asserted at their
 - **Same-layer `filter()+length()`** expresses "exactly one owner"
   as an empty/counted witness set, and `hide()` keeps the check out
   of the output without suppressing it — `audits/two-owners.aon`
-  fails with the two-owner witness map in the message.
+  fails with the two-owner witness map in the message. (2026-08-26:
+  until the spread application rework, the filter's mid-resolution
+  snapshot re-stamped entity ids inside the hidden witness and the
+  id-merge pulled the hide mark back onto the real role — the
+  `owner` role was silently MISSING from the generated output.
+  `expected/example.json` now carries all four roles.)
 - **`subsume` answers permission-subset** over set-as-map
   projections, with a real witness on failure
   (`compat_required_added` naming the missing grant), and the exit
@@ -321,9 +331,13 @@ should just work.
   before it died.
 - `proposals/extend-member-grants.aon` reports a spurious
   `[aontu/unify_cycle] … Cannot unify value: id(key(0)) with value:
-  id(key(0))` *before* the real `refer_unresolved`, and its source
-  snippets mix line numbers from `roles.aon` with text from the
-  proposal file.
+  id(key(0))`, and its source snippets mix line numbers from
+  `roles.aon` with text from the proposal file. (Until 2026-08-26 a
+  `refer_unresolved` followed it, raised inside the hidden filter's
+  witness copy; the spread application rework's settled-source
+  snapshot removed that artifact, so the unify_cycle is now the whole
+  report — the real-position refer stays unsurfaced inside the
+  still-open Role disjunction, refer-cycles family.)
 - Bare strings refuse hyphens (`slug: acme-rockets` →
   `[aontu/unexpected]: unexpected character(s): -`) — fine as a rule,
   but surprising in a model whose natural vocabulary

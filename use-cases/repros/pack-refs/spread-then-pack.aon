@@ -1,17 +1,20 @@
+# FIXED 2026-08-26 (the spread application rework: the snapshot waits
+# for the settled source -- argsnap in driveStagedArgs/RefVal.find).
 # Claim C4 (use-case 06): a generator over a map whose &: spread
-# template contains a RELATIVE reference kills the whole model. The
-# two ports: lines alone evaluate to {"a":{"containerPort":1,"port":1}};
-# adding any generator over $.ports (pack or each, even with an empty
-# template) makes the run exit 1 — the generator's view of the source
-# still holds the unresolved .containerPort and it never fires. A
-# literal spread template, or one using absolute refs, is fine.
-# reference-language.md documents this composition: "A generator's
-# data can still be merged into by a sibling statement, an include or
-# a spread after it first looks complete" (generators wait for it).
-# Not a hang: evaluation terminates in the error.
+# template contains a RELATIVE reference used to kill the whole model.
+# The two ports: lines alone evaluated fine; adding any generator over
+# $.ports (pack or each, even with an empty template) exited 1 -- the
+# generator's early snapshot of the source carried the unresolved
+# .containerPort, rebased where no root traversal reaches, and the
+# generator never fired ([aontu/mapval_no_gen]). The data argument now
+# snapshots its source only once the source has finished resolving in
+# the tree, exactly as reference-language.md promises ("a generator's
+# data can still be merged into by ... a spread after it first looks
+# complete" -- generators wait for it). each() over the same source
+# works too. Pinned in the shared spec: gen-pack.tsv
+# pack-over-spread-augmented, gen-each.tsv each-over-spread-augmented.
 # expected: {"out":{"a":{}},"ports":{"a":{"containerPort":1,"port":1}}}
-# actual:   exit 1, [aontu/mapval_no_gen] at $.out, canon shows
-#           "port":.containerPort unresolved inside the pack's data
+# actual:   {"out":{"a":{}},"ports":{"a":{"containerPort":1,"port":1}}} exit 0
 ports: { a: { containerPort: 1 } }
 ports: &: { port: .containerPort }
 out: pack($.ports, {})

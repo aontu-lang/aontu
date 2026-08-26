@@ -172,9 +172,20 @@ manifests: pack($.services, { portList: each(_.ports) })
 
 ### 6. (major) a pack over spread-augmented data deadlocks
 
+> **2026-08-26: fixed by the spread application rework.** A
+> generator's data argument now snapshots its source only once the
+> source has settled in the tree, so the spread-injected relative
+> references arrive resolved and the pack fires —
+> `probes/spread-column-deadlock.aon` is now a working golden in
+> check.sh, and the DRY derivation below is writable (shared-spec
+> pins: `gen-pack.tsv` pack-over-spread-augmented, `gen-each.tsv`
+> each-over-spread-augmented). The hide()-loss half further down
+> remains as documented.
+
 The DRY fix for the port-entry duplication — derive `port`/`targetPort`
 from `containerPort` with a nested spread, then pack over the column —
-kills the whole model (`probes/spread-column-deadlock.aon`):
+historically killed the whole model
+(`probes/spread-column-deadlock.aon`):
 
 ```
 ports: &: &: { port: .containerPort, targetPort: .containerPort }

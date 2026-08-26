@@ -245,6 +245,16 @@ the idiom.
 
 ### Gap 7 (critical): different `&:` templates on the two views corrupt sibling ports
 
+> **2026-08-26: fixed by the spread application rework** (pure
+> ExpectVal — BUGS.md §6; minimal repros
+> `repros/sibling-crosswire/idmerge-ref-templates.aon` and
+> `oneview-ref-templates.aon` now evaluate green, pinned by
+> `spread-interleave.tsv` spread-unequal-map-ref-* and
+> spread-unequal-idmerge). Unequal by-reference templates on the two
+> views now meet each child independently; the shared-PortSpec
+> discipline in `spec.aon` remains good style but is no longer a
+> required workaround.
+
 Engine bug, found the hard way. When the two id-merged views applied
 *different* ports templates (catalog side had `{&: $.std.Port}` via
 `$.std.Service`; deploy side had `{&: $.std.Port & {number: ...}}`),

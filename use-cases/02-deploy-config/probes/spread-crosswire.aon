@@ -1,11 +1,13 @@
 # The guardrail schema guardrails.aon originally said this: one
 # generic rule block for every environment's workloads, plus one
 # prod-only floor.  Two spreads addressing the same map at different
-# depths CROSS-WIRE the data's sibling children: vetting the built
-# output against this schema reports billing's port conflicting with
-# auth's port (both are data values -- no schema value involved).
-# check.sh pins the misbehaviour; guardrails.aon works around it with
-# per-environment spreads off one hidden block (README, gap 6).
+# depths used to CROSS-WIRE the data's sibling children: vetting the
+# built output against this schema reported billing's port conflicting
+# with auth's port (both data values -- no schema value involved).
+# 2026-08-26: fixed by the spread application rework (pure ExpectVal;
+# BUGS.md sec 7) -- this stacked spelling now vets the correct data as
+# valid, check.sh asserts it, and guardrails.aon's per-environment
+# workaround is optional. Pinned: vet.tsv vet-unequal-spread-depths.
 deploy: &: {
   workloads: &: {
     port: integer & min(1024) & max(65535)

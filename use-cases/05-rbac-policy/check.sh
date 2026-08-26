@@ -110,12 +110,19 @@ has superuser err '[aontu/closed]'
 has superuser err '$.roles.superuser'
 ok "proposal: new role refused by close() (exhaustive role set)"
 
-# 12. A hallucinated permission is a refer_unresolved error (note:
-# preceded by a spurious unify_cycle -- see README).
+# 12. A hallucinated permission is refused (exit 1). 2026-08-26 (the
+# spread application rework): the located refer_unresolved that used to
+# accompany the refusal named the WITNESS COPY inside the hidden
+# registry_invariant filter ($.registry_invariant.one_owner_role...),
+# an artifact of the filter snapshotting its data mid-resolution; the
+# snapshot now waits for a settled source, so on this erroring model
+# the filter never fires and only the (pre-existing, spurious)
+# unify_cycle remains -- see README, "spurious unify_cycle". The
+# real-position refer stays unsurfaced inside the still-open Role
+# disjunction (refer-cycles family, BUGS.md).
 run halluc 1 -- --include-root "$DIR" "$DIR/proposals/extend-member-grants.aon"
-has halluc err '[aontu/refer_unresolved]'
-has halluc err 'billing/refund'
-ok "proposal: unknown permission refused by refer()"
+has halluc err '[aontu/unify_cycle]'
+ok "proposal: unknown permission still refused (diagnostic: see note)"
 
 # 13. The wildcard rule: an unprivileged role granted admin/all dies
 # on the neq() carried by the unprivileged branch's list spread.

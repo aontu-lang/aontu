@@ -20,18 +20,20 @@ verdict, or nontermination; **major** = a documented capability fails;
 Cross-cutting root causes, visible across families:
 
 1. **Template state is shared between destinations that need
-   independent instances.** Spread machinery combines unequal templates
-   and entangles them with the first destination's data
-   (`MapVal`, the in-code `TODO: handle existing spread!`) — the
-   unequal-spread half (§6, §7) is still OPEN. The clone half is
-   **FIXED 2026-08-26** (template-clone isolation, ADR-005): per-child
+   independent instances.** **FIXED 2026-08-26, both halves.** The
+   clone half by template-clone isolation (ADR-005): per-child
    template clones no longer share inner nodes — pack/each templates,
    filter conditions and applied spread constraints are FULL
    per-destination instances (the `dup` clone in `Val.clone`'s
    subclasses / `instanceClone` in Go), with every inner path
-   normalised to the destination (`repathInstance` / setPaths).
-   Families: sibling-crosswire (§8, §9 fixed; §6, §7 open),
-   generator-seal (fixed).
+   normalised to the destination (`repathInstance` / setPaths). The
+   unequal-spread half (§6, §7) by the spread application rework
+   (ADR-006): the combined template of two unequal spreads carried a
+   STATEFUL ExpectVal that tier-1 sharing handed to every destination,
+   accumulating each sibling's data and meeting it into the next;
+   `ExpectVal.unify` is now pure, so each child meets each template
+   independently and children never meet each other's data.
+   Families: sibling-crosswire (fixed), generator-seal (fixed).
 2. **Vet's incompleteness check is generation-based and filters to
    incomplete-class errors**, so unresolved disjunctions vanish
    (`DisjunctVal.gen` folds members with unify and the conflict is
@@ -147,24 +149,43 @@ when it is genuinely `destructive`.
 
 ## sibling-crosswire — template state shared across destinations
 
+*2026-08-26: this family is closed — §8 and §9 by the template-clone
+isolation change (ADR-005), §6 and §7 by the spread application rework
+(ADR-006); see the Status lines.*
+
 ### 6. Unequal by-reference templates on one map merge sibling children with each other [critical]
-Two views of one `id()`-merged entity, each under a `&:` spread whose
-template arrives by reference, templates unequal → the entity's own
-sibling ports are unified with each other
-(`Cannot unify value: 9901 with value: 443`), and in the full model a
-*different entity's* port leaks in too. `id()` is sufficient but not
-necessary — one view with two reference-templates meeting via a
-conjunction fails identically. Repros: `idmerge-ref-templates.aon`,
+**Status: FIXED 2026-08-26 (the spread application rework, ADR-006).**
+Same root as §7: the combined template of two unequal spreads baked in
+a stateful ExpectVal that tier-1 sharing handed to every destination.
+`ExpectVal.unify` is now pure, so both the id()-merged two-view form
+and the one-view conjunction form evaluate green with per-child,
+per-template meets. Pinned in both engines: `spread-interleave.tsv`
+spread-unequal-idmerge, spread-unequal-map-ref-{2,3},
+spread-unequal-list-ref. Historically: two views of one `id()`-merged
+entity, each under a `&:` spread whose template arrived by reference,
+templates unequal → the entity's own sibling ports were unified with
+each other (`Cannot unify value: 9901 with value: 443`), and in the
+full model a *different entity's* port leaked in too; `id()` was
+sufficient but not necessary. Repros: `idmerge-ref-templates.aon`,
 `oneview-ref-templates.aon`.
 
 ### 7. Two unequal cross-statement spreads on one map cross-wire siblings [critical]
-`w: &: {p:integer}` + `w: &: {r:integer}` + two children that fill a
-template key with different values → earlier siblings' concrete values
-ride the combined template into later siblings
-(`$.w.y.r: Cannot unify value: 6 with value: 5`). An evaluator bug, not
-a vet bug; `spread-interleave.tsv` pins unequal-spread support as
-correct, and `MapVal` carries `TODO: handle existing spread!`.
-Repros: `two-spreads.aon`, `two-spreads-vet-schema.aon` + data.
+**Status: FIXED 2026-08-26 (the spread application rework, ADR-006).**
+The combined template is stateless: the 'map-self' meet of two unequal
+templates wraps a one-sided key as an ExpectVal, the combined map is
+shared across destinations when path-independent, and the expectation
+accumulated the first sibling's data IN PLACE and met it into the next
+(`$.w.y.r: Cannot unify value: 6 with value: 5` — both values sibling
+DATA). `ExpectVal.unify` now answers with a new node instead of
+mutating itself, a carried expectation is re-wrapped fresh at its
+destination, and the stale `TODO: handle existing spread!` is a
+documented rule. The vet form (two spreads at different depths) vets
+correct data as valid. Pinned in both engines: the
+`spread-interleave.tsv` spread-unequal-* composition matrix (literal /
+ref-arriving / key()-bearing × 2,3 children × map,list, requiredness
+and defaults through the combine) and `vet.tsv`
+vet-unequal-spread-depths. Repros: `two-spreads.aon`,
+`two-spreads-vet-schema.aon` + data.
 
 ### 8. `close()` around a `key()`-bearing pack template evaluates `key()` once [critical]
 **Status: FIXED 2026-08-26 (template-clone isolation, ADR-005).**
@@ -472,9 +493,24 @@ operand; nested inside a `+` expression or a call argument it resolved
 at the template's own location** (visible as the `NaN` path segment in
 diagnostics) — is **FIXED 2026-08-26** (template-clone isolation,
 ADR-005): a per-destination instance has every inner path normalised
-to the destination, so 33, 34, 35a and 35b are closed. 36 remains
-open (an expression reading the generated child's OWN fields — a
-self-reference the fixpoint does not yet re-anchor).
+to the destination, so 33, 34, 35a and 35b are closed. §36 and the
+generator-over-spread-augmented-data failure below are closed by the
+spread application rework (ADR-006), which finishes the family.
+
+**Pack over spread-augmented data** (claim C4, use-case 06 gap 6;
+repro `spread-then-pack.aon`): **FIXED 2026-08-26 (ADR-006).** A
+generator's data argument snapshots its source only once the source
+has SETTLED in the tree (the `argsnap` flag in
+driveStagedArgs/stagedDrive, honoured by RefVal.find), so a
+spread-injected relative reference resolves at the source child before
+the copy is taken — copied earlier it dangled under the generator
+(rebased where no root traversal reaches) and the model died as
+`mapval_no_gen` with the generator never firing. `each()` over the
+same source works identically. Pinned in both engines: `gen-pack.tsv`
+pack-over-spread-augmented, `gen-each.tsv` each-over-spread-augmented;
+the same rule flipped the unfired-generator canon rows (the data
+argument now canons as the still-standing reference — see the notes on
+each-unfired-*/pack-unfired-canon).
 
 ### 33. Relative references in template *expressions* do not re-anchor [major]
 **Status: FIXED 2026-08-26 (template-clone isolation, ADR-005).**
@@ -506,13 +542,20 @@ spelling's outcome — better than the minimum surface-the-failure bar)
 Repro: `hide-computed-drop.aon`.
 
 ### 36. An expression reading the generated child's own fields cannot be merged onto it [major]
-Computed expressions in templates and merged onto generated children
-mostly work (constants, absolute refs to outside data, `key()`
-concatenation). What cannot be written is any expression that reads the
-generated child's *own* fields — and the failure blames a spread that
-exists nowhere in the document
-(`mapval_spread_required … Cannot unify value: $.deploy.web.replicas+1
-with value: nil`). Repro: `merge-expr-onto-pack-child.aon`.
+**Status: FIXED 2026-08-26 (the spread application rework, ADR-006) —
+it works: surge is 3.** An operator arriving as a peer-only key is
+CARRIED, never wrapped as an expectation (handleExpectedVal / the
+pcIsOp guard in go/mapval.go): a wrapped op froze — an expectation only
+advances when a peer arrives — and the residue then blamed a spread
+that existed nowhere (`mapval_spread_required … Cannot unify value:
+$.deploy.web.replicas+1 with value: nil`). The carried op keeps
+computing and resolves against the generated child once the pack has
+fired. The failure was never pack-specific: `a:{x:1} a:{y:.x+1}` died
+identically and is fixed by the same rule; an op that can NEVER
+resolve is an honest error naming the real path. Pinned in both
+engines: `gen-pack.tsv` pack-merge-expr-onto-child, `plus.tsv`
+peer-key-expr, peer-key-expr-unresolvable.
+Repro: `merge-expr-onto-pack-child.aon`.
 (By design, not a bug: `each()`'s template is a *meet*, so scalars
 cannot be reshaped into maps, and `key()` at a list element is the
 index — the doc's `pack` spelling covers the transform case.)

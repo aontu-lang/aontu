@@ -30,11 +30,17 @@ Two cautions:
   `spread-expr-sibling.aon`, `hide-computed-drop.aon`) are **FIXED**
   as of 2026-08-26 by the template-clone isolation change (ADR-005):
   headers record the new behaviour and the pinning rows, and BUGS.md
-  §8–12, §33–35 carry Status lines. Still open in those families:
-  the unequal-spread crosswire (§6, §7 — `idmerge-ref-templates.aon`,
-  `oneview-ref-templates.aon`, `two-spreads*.aon`) and the
-  self-referential merge expression (§36,
-  `merge-expr-onto-pack-child.aon`, `spread-then-pack.aon`).
+  §8–12, §33–35 carry Status lines.
+- The rest of both families is **FIXED** as of 2026-08-26 by the
+  spread application rework (ADR-006): the unequal-spread crosswire
+  (§6, §7 — `idmerge-ref-templates.aon`, `oneview-ref-templates.aon`,
+  `two-spreads*.aon`), the self-referential merge expression (§36,
+  `merge-expr-onto-pack-child.aon`), and the generator over
+  spread-augmented data (`spread-then-pack.aon`). Headers record the
+  new behaviour; the durable pins are the `spread-interleave.tsv`
+  spread-unequal-* composition matrix, `gen-pack.tsv`/`gen-each.tsv`
+  *-over-spread-augmented and pack-merge-expr-onto-child, `plus.tsv`
+  peer-key-expr*, and `vet.tsv` vet-unequal-spread-depths.
 
 These are review artifacts. Per ADR-001, the durable home for any
 behaviour contract is a `test/spec/*.tsv` row probed in both ports;

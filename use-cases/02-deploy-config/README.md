@@ -292,6 +292,14 @@ map misplaces — `deploy: &: {workloads: X}` landed as
 
 ### 6. (major) Stacked spreads on one map cross-wire sibling children
 
+> **2026-08-26: fixed by the spread application rework** (pure
+> ExpectVal — BUGS.md §7; pinned by `vet.tsv`
+> vet-unequal-spread-depths and the `spread-interleave.tsv`
+> spread-unequal-* matrix). The stacked spelling below now vets the
+> correct data as valid; `probes/spread-crosswire.aon` and check.sh
+> assert the new behaviour. The per-environment workaround in
+> `guardrails.aon` remains valid spelling but is no longer required.
+
 `guardrails.aon` originally combined a generic rule
 (`deploy: &: {workloads: &: {...}}`) with a prod-only floor
 (`deploy: prod: workloads: &: {...}`). Vetting the built output
@@ -402,7 +410,8 @@ misspelt key is simply ignored.
 **The generator layer is where it loses to CUE today.** The moment
 `pack()` enters — and it must, for anti-drift — attribution goes blind
 (gap 3), computed fields die (gap 4), `close()` corrupted silently
-(gap 5 — fixed 2026-08-26), and spreads cross-wire (gap 6). Combined with no arithmetic
+(gap 5 — fixed 2026-08-26), and spreads cross-wired (gap 6 — fixed
+2026-08-26). Combined with no arithmetic
 beyond `+` (gap 7), no projection (gap 8) and the default-vs-bound
 dilemma (gaps 1–2), real policies end up split between the model and a
 side-car vet schema. The split (build then vet) is workable — this use

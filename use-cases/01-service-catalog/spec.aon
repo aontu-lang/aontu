@@ -8,9 +8,13 @@
 spec: hide({
 
   # The org's port shape: the bundled Port plus a concrete number.
-  # MUST be the one ports template both views name: different ports
-  # templates on the two id-merged views unified sibling ports with
-  # each other, [aontu/scalar_value] 9901 & 443 (README, gap 7).
+  # Historically this HAD to be the one ports template both views
+  # name: different ports templates on the two id-merged views unified
+  # sibling ports with each other, [aontu/scalar_value] 9901 & 443
+  # (README, gap 7). 2026-08-26: fixed by the spread application
+  # rework (BUGS.md sec 6) -- unequal by-reference templates now meet
+  # each child independently; the single shared template is kept as
+  # good style, no longer a required workaround.
   PortSpec: $.std.Port & {number: integer & min(1) & max(65535)}
 
   # One catalog entry: what the org promises about a service,
@@ -35,7 +39,8 @@ spec: hide({
 
   # One workload: what a cluster actually runs. Names $.std.Service
   # and $.spec.PortSpec exactly as CatalogEntry does, so both
-  # id-merged views carry the SAME template set (gap 7).
+  # id-merged views carry the SAME template set (gap 7 -- fixed
+  # 2026-08-26, kept as style; see the PortSpec note above).
   Workload: $.std.Service & {
     replicas: *2 | integer & min(1) & max(48)
     image: string & re("^registry[.]acme[.]internal/")

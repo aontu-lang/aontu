@@ -154,8 +154,13 @@ probe_fails each-reshape-scalar '[aontu/scalar_kind]' \
   "each cannot reshape scalar children into maps"
 probe_fails join-list '[aontu/mapval_no_gen]' \
   "no join(): list + string does not evaluate"
-probe_fails spread-column-deadlock '[aontu/mapval_no_gen]' \
-  "pack over spread-augmented data never settles"
+# 2026-08-26: fixed by the spread application rework — a generator's
+# data argument now snapshots its source only once the source has
+# settled in the tree, so the spread-injected relative refs arrive
+# resolved and the pack fires (was [aontu/mapval_no_gen], the whole
+# model dead). Moved from the expected-failure probes to the goldens
+# below. Shared-spec pins: gen-pack.tsv pack-over-spread-augmented,
+# gen-each.tsv each-over-spread-augmented.
 probe_fails length-on-schema-list '[aontu/constraint]' \
   "length(min(1)) fires on the empty schema list before the merge"
 probe_fails env-append '[aontu/scalar_value]' \
@@ -205,5 +210,13 @@ probe_golden quantity-concat \
   "quantity strings concatenate: '256Mi'+'256Mi' is '256Mi256Mi', exit 0"
 grep -q '256Mi256Mi' "$DIR/expected/quantity-concat.json" \
   || die "quantity-concat golden lost its point"
+# 2026-08-26: fixed by the spread application rework (see the note in
+# the probe_fails block above) — the DRY port-column derivation works:
+# the nested spread's port/targetPort reach both the tree and the
+# pack's snapshot, and the inner each() emits the augmented entries.
+probe_golden spread-column-deadlock \
+  "fixed: pack over spread-augmented data fires with resolved columns"
+grep -q '"targetPort": 8080' "$DIR/expected/spread-column-deadlock.json" \
+  || die "spread-column-deadlock golden lost its point"
 
 echo "all $PASS checks passed"

@@ -172,11 +172,15 @@ has surge-default '[aontu/mapval_no_gen]' "no-gen code"
 ok "replicas + 1 fails against a defaulted (*N | integer) operand"
 
 # ------------------------------ probe: two spreads on one map cross-wire
-run crosswire 1 vet "$DIR/probes/spread-crosswire.aon" "$DIR/expected/stack.json"
-has crosswire '$.deploy.prod.workloads.billing.port' "bogus sibling conflict path"
-has crosswire '8082' "billing's own port"
-has crosswire '8081' "auth's port leaked into billing"
-ok "pinned: stacked spreads cross-wire sibling children in vet (gap 6)"
+# 2026-08-26: fixed by the spread application rework (pure ExpectVal;
+# BUGS.md sec 7) — stacked spreads at different depths now vet the
+# correct data as valid; the historic run pinned billing's own 8082
+# conflicting with auth's 8081 through the combined template. Pinned in
+# the shared spec: vet.tsv vet-unequal-spread-depths,
+# spread-interleave.tsv spread-unequal-*.
+run crosswire 0 vet "$DIR/probes/spread-crosswire.aon" "$DIR/expected/stack.json"
+has crosswire 'verdict: valid' "correct data vets valid under stacked spreads"
+ok "stacked spreads at different depths vet siblings independently (gap 6 fixed)"
 
 # --------------------------------------------- probe: must with message
 run must-floor 1 "$DIR/probes/must-floor.aon"

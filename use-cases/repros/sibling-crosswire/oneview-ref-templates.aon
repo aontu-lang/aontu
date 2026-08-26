@@ -1,10 +1,12 @@
+# FIXED 2026-08-26 (the spread application rework: pure ExpectVal).
 # Same crosswire WITHOUT id(): one view, one entity, the two unequal
 # ports templates meet by plain conjunction of referenced schemas
 # (exactly how $.spec.Workload = $.std.Service & {ports:{&: ...}}
 # brought them together in use-case 01 -- id-merge is not required).
+# Pinned in the shared spec: spread-interleave.tsv
+# spread-unequal-map-ref-{2,3}.
 # expected: {"w":{"gw":{"ports":{"adm":{"n":9901,...},"pub":{"n":443,...}}}}} exit 0
-# actual: [aontu/scalar_value] at $.w.gw.ports.adm.n:
-#         "Cannot unify value: 9901 with value: 443", exit 1
+# actual: {"w":{"gw":{"ports":{"adm":{"d":1,"n":9901},"pub":{"d":1,"n":443}}}}} exit 0
 Port: hide({ d: *1 | 2 })
 Service: hide({ ports: {&: $.Port} })
 Workload: hide($.Service & { ports: {&: $.Port & {n: integer}} })
