@@ -1,0 +1,980 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aontu Playground</title>
+<meta name="description" content="Try the Aontu JSON structure unifier in your browser: evaluate, canon, vet and subsume, no install needed.">
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --panel: #ffffff;
+    --ink: #1c2330;
+    --ink-soft: #5b6472;
+    --line: #d8dde4;
+    --accent: #2456c4;
+    --accent-ink: #ffffff;
+    --editor-bg: #ffffff;
+    --editor-ink: #1c2330;
+    --out-bg: #f1f3f6;
+    --err-bg: #fbeaea;
+    --err-line: #d9534f;
+    --err-ink: #8a1f1b;
+    --ok: #1d7a3d;
+    --ok-bg: #e4f3e9;
+    --bad: #b02a25;
+    --bad-bg: #fbeaea;
+    --warn: #8a6d00;
+    --warn-bg: #f8f0d2;
+    --badge-bg: #e7ecf5;
+    --focus: #2456c4;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14181f;
+      --panel: #1c222b;
+      --ink: #e4e8ee;
+      --ink-soft: #98a2b0;
+      --line: #313a46;
+      --accent: #6c9bff;
+      --accent-ink: #10141b;
+      --editor-bg: #161b22;
+      --editor-ink: #e4e8ee;
+      --out-bg: #161b22;
+      --err-bg: #3a2022;
+      --err-line: #c85a55;
+      --err-ink: #f0b6b3;
+      --ok: #58c07d;
+      --ok-bg: #1d3325;
+      --bad: #e5716c;
+      --bad-bg: #3a2022;
+      --warn: #d9b64a;
+      --warn-bg: #363018;
+      --badge-bg: #26303d;
+      --focus: #6c9bff;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+      Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.45;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  code, pre, textarea, .mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas,
+      "Liberation Mono", monospace;
+  }
+
+  header {
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    padding: 0.8rem 1.2rem 0.6rem;
+    border-bottom: 1px solid var(--line);
+    background: var(--panel);
+  }
+  header h1 {
+    margin: 0;
+    font-size: 1.15rem;
+    font-weight: 650;
+    letter-spacing: 0.01em;
+  }
+  header h1 .sub { color: var(--ink-soft); font-weight: 400; }
+  .badge {
+    background: var(--badge-bg);
+    color: var(--ink-soft);
+    border-radius: 999px;
+    font-size: 0.72rem;
+    padding: 0.1rem 0.55rem;
+  }
+  header .spacer { flex: 1; }
+  header label { color: var(--ink-soft); font-size: 0.85rem; }
+  header select {
+    font: inherit;
+    font-size: 0.85rem;
+    color: var(--ink);
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 0.25rem 0.4rem;
+    max-width: 60vw;
+  }
+  header nav a {
+    color: var(--accent);
+    text-decoration: none;
+    font-size: 0.85rem;
+    margin-left: 0.7rem;
+  }
+  header nav a:hover { text-decoration: underline; }
+
+  main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 1rem;
+    padding: 1rem 1.2rem;
+    width: 100%;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+  @media (max-width: 900px) {
+    main { grid-template-columns: minmax(0, 1fr); }
+  }
+
+  .col { display: flex; flex-direction: column; gap: 0.7rem; min-width: 0; }
+
+  .pane {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .pane-head {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.45rem 0.8rem;
+    border-bottom: 1px solid var(--line);
+    font-size: 0.8rem;
+    color: var(--ink-soft);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .pane-head .spacer { flex: 1; }
+  textarea {
+    width: 100%;
+    border: 0;
+    resize: vertical;
+    background: var(--editor-bg);
+    color: var(--editor-ink);
+    padding: 0.7rem 0.8rem;
+    font-size: 0.88rem;
+    line-height: 1.5;
+    min-height: 200px;
+    outline: none;
+    tab-size: 2;
+    white-space: pre;
+    overflow-x: auto;
+  }
+  #source { min-height: 280px; }
+  #schema { min-height: 160px; }
+  textarea:focus-visible { box-shadow: inset 0 0 0 2px var(--focus); }
+
+  .actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+  button {
+    font: inherit;
+    font-size: 0.88rem;
+    padding: 0.4rem 0.95rem;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background: var(--panel);
+    color: var(--ink);
+    cursor: pointer;
+  }
+  button:hover { border-color: var(--accent); }
+  button:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+  button.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-ink);
+    font-weight: 600;
+  }
+  button.small {
+    font-size: 0.75rem;
+    padding: 0.15rem 0.55rem;
+    border-radius: 6px;
+    text-transform: none;
+    letter-spacing: normal;
+  }
+  .hint { color: var(--ink-soft); font-size: 0.78rem; margin-left: auto; }
+
+  .error {
+    background: var(--err-bg);
+    border: 1px solid var(--err-line);
+    border-left-width: 4px;
+    border-radius: 8px;
+    padding: 0.55rem 0.8rem;
+    color: var(--err-ink);
+  }
+  .error .error-title {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 0.25rem;
+  }
+  .error pre {
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: 0.82rem;
+  }
+
+  .tabs {
+    display: flex;
+    gap: 0.25rem;
+    border-bottom: 1px solid var(--line);
+    padding: 0.35rem 0.6rem 0;
+  }
+  .tab {
+    border: 1px solid transparent;
+    border-bottom: 0;
+    background: transparent;
+    color: var(--ink-soft);
+    border-radius: 8px 8px 0 0;
+    padding: 0.35rem 0.85rem;
+    font-size: 0.85rem;
+  }
+  .tab:hover { border-color: transparent; color: var(--ink); }
+  .tab.active {
+    background: var(--out-bg);
+    border-color: var(--line);
+    color: var(--ink);
+    font-weight: 600;
+  }
+  .tabpanel {
+    background: var(--out-bg);
+    flex: 1;
+    padding: 0.7rem 0.8rem;
+    overflow: auto;
+    min-height: 300px;
+  }
+  .tabpanel[hidden] { display: none; }
+  .tabpanel pre {
+    margin: 0;
+    font-size: 0.86rem;
+    line-height: 1.5;
+    white-space: pre;
+  }
+  .placeholder { color: var(--ink-soft); font-style: italic; }
+
+  .verdict {
+    display: inline-block;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    border-radius: 999px;
+    padding: 0.15rem 0.7rem;
+    margin-bottom: 0.6rem;
+  }
+  .verdict.ok { background: var(--ok-bg); color: var(--ok); }
+  .verdict.bad { background: var(--bad-bg); color: var(--bad); }
+  .verdict.warn { background: var(--warn-bg); color: var(--warn); }
+  .verdict-note { color: var(--ink-soft); font-size: 0.82rem; margin-left: 0.5rem; }
+
+  .finding {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--bad);
+    border-radius: 8px;
+    padding: 0.5rem 0.7rem;
+    margin: 0 0 0.55rem;
+    font-size: 0.85rem;
+  }
+  .finding.warning { border-left-color: var(--warn); }
+  .finding.info { border-left-color: var(--accent); }
+  .finding .fpath { font-weight: 700; }
+  .finding .fcode { color: var(--ink-soft); font-size: 0.75rem; margin-left: 0.5rem; }
+  .finding .fmsg { margin: 0.2rem 0; white-space: pre-wrap; word-break: break-word; }
+  .finding .fdetail { color: var(--ink-soft); font-size: 0.8rem; }
+  .finding .fdetail b { color: var(--ink); font-weight: 600; }
+  .finding .fsite { color: var(--ink-soft); font-size: 0.78rem; }
+
+  .hashline {
+    margin-top: 0.6rem;
+    padding-top: 0.5rem;
+    border-top: 1px dashed var(--line);
+    color: var(--ink-soft);
+    font-size: 0.8rem;
+    word-break: break-all;
+  }
+  .hashline b { color: var(--ink); }
+
+  details.raw { margin-top: 0.4rem; }
+  details.raw summary {
+    cursor: pointer;
+    color: var(--ink-soft);
+    font-size: 0.8rem;
+  }
+  details.raw pre { margin-top: 0.4rem; white-space: pre-wrap; word-break: break-word; }
+
+  footer {
+    padding: 0.6rem 1.2rem 0.9rem;
+    color: var(--ink-soft);
+    font-size: 0.78rem;
+    border-top: 1px solid var(--line);
+    background: var(--panel);
+  }
+  footer code { font-size: 0.75rem; }
+
+  .flash {
+    color: var(--ok);
+    font-size: 0.78rem;
+    transition: opacity 0.6s;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Aontu <span class="sub">playground</span></h1>
+  <span class="badge" id="version"></span>
+  <span class="spacer"></span>
+  <label for="example">Example
+    <select id="example"></select>
+  </label>
+  <button id="share" class="small" title="Copy a link that reopens this document">Share link</button>
+  <span id="share-flash" class="flash" hidden>copied</span>
+  <nav>
+    <a href="https://github.com/rjrodger/aontu">GitHub</a>
+    <a href="https://github.com/rjrodger/aontu/blob/main/docs/index.md">Docs</a>
+  </nav>
+</header>
+
+<main>
+  <section class="col" aria-label="Editors">
+    <div class="pane">
+      <div class="pane-head">
+        <label id="source-label" for="source">Source</label>
+        <span class="spacer"></span>
+        <button id="schema-toggle" class="small" aria-controls="schema-pane">Show schema pane</button>
+      </div>
+      <textarea id="source" spellcheck="false" autocomplete="off"
+        aria-label="Aontu source document"></textarea>
+    </div>
+
+    <div class="pane" id="schema-pane" hidden>
+      <div class="pane-head">
+        <label id="schema-label" for="schema">Schema</label>
+        <span class="spacer"></span>
+        <span class="hint" id="schema-hint">used by Vet and Subsume</span>
+      </div>
+      <textarea id="schema" spellcheck="false" autocomplete="off"
+        aria-label="Schema or general document"></textarea>
+    </div>
+
+    <div class="actions">
+      <button id="run-eval" class="primary" title="Parse, unify, generate JSON">Evaluate</button>
+      <button id="run-canon" title="Canonical form of the unified document, plus its canon-hash">Canon</button>
+      <button id="run-vet" title="Validate the source against the schema pane">Vet</button>
+      <button id="run-subsume" title="Does the schema-pane (general) document admit everything the source (specific) admits?">Subsume</button>
+      <span class="hint">Ctrl+Enter / Cmd+Enter evaluates</span>
+    </div>
+
+    <div id="error" class="error" hidden>
+      <div class="error-title">Error</div>
+      <pre id="error-text"></pre>
+    </div>
+  </section>
+
+  <section class="col" aria-label="Output">
+    <div class="pane" style="flex:1">
+      <div class="tabs" role="tablist">
+        <button class="tab active" role="tab" data-tab="json" aria-selected="true">Generate JSON</button>
+        <button class="tab" role="tab" data-tab="canon" aria-selected="false">Canon</button>
+        <button class="tab" role="tab" data-tab="vet" aria-selected="false">Vet</button>
+      </div>
+      <div class="tabpanel" id="panel-json" role="tabpanel">
+        <pre id="out-json" class="placeholder">Press Evaluate to generate JSON from the source.</pre>
+      </div>
+      <div class="tabpanel" id="panel-canon" role="tabpanel" hidden>
+        <pre id="out-canon" class="placeholder">Press Canon for the canonical unified form.</pre>
+        <div class="hashline" id="canon-hash" hidden></div>
+      </div>
+      <div class="tabpanel" id="panel-vet" role="tabpanel" hidden>
+        <div id="vet-head"></div>
+        <div id="vet-findings"></div>
+        <details class="raw" id="vet-raw-wrap" hidden>
+          <summary>Raw report (JSON)</summary>
+          <pre id="vet-raw"></pre>
+        </details>
+        <pre id="vet-placeholder" class="placeholder">Press Vet to validate the source against the schema pane, or Subsume to compare the two documents.</pre>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  Everything runs in your browser — no server, no network calls.
+  File includes (<code>@"other.aon"</code>) need a filesystem, so here
+  they report <em>source not found</em>
+  (<code>@"std/system"</code>, bundled into the engine, still works);
+  use the <code>aontu</code> CLI for multi-file documents. Engine: the
+  aontu TypeScript implementation, bundled from <code>ts/dist</code>.
+</footer>
+
+<script>
+/*__AONTU_BUNDLE__*/
+</script>
+
+<script>
+(function () {
+  'use strict'
+
+  var A = window.AontuLib
+
+  // ---- The examples ------------------------------------------------
+
+  // Each example: source (left editor), optional schema (second pane),
+  // labels for the two panes, and which action to run on load.
+  var EXAMPLES = [
+    {
+      id: 'welcome',
+      name: 'Welcome — defaults, constraints, vet',
+      sourceLabel: 'Source',
+      schemaLabel: 'Schema',
+      schemaOpen: true,
+      action: 'eval',
+      source: [
+        '# Defaults, constraints, and data in one notation.',
+        '# Evaluate generates JSON; Vet checks this document',
+        '# against the schema pane below (spot the bad port).',
+        'host: "localhost"',
+        'port: 80',
+        'debug: *false | boolean',
+        '',
+      ].join('\n'),
+      schema: [
+        '# The schema the Vet button checks the source against.',
+        'host: string & re("^[a-z][a-z0-9.-]*$")',
+        'port: integer & min(1024) & max(65535)',
+        'debug: boolean',
+        '',
+      ].join('\n'),
+    },
+    {
+      id: 'basics',
+      name: 'Basics — unify two structures',
+      sourceLabel: 'Source',
+      schemaLabel: 'Schema',
+      schemaOpen: false,
+      action: 'eval',
+      source: [
+        '# Two partial structures, one result: unification.',
+        '# The same key can be given twice; the values are merged,',
+        '# and $.path references read the unified document.',
+        'service: {',
+        '  name: "auth"',
+        '  port: *8080 | integer',
+        '}',
+        'service: {',
+        '  replicas: *1 | integer',
+        '}',
+        'deploy: {',
+        '  target: $.service.name',
+        '}',
+        '',
+      ].join('\n'),
+      schema: '',
+    },
+    {
+      id: 'constraints',
+      name: 'Constraints — bounds and patterns',
+      sourceLabel: 'Source',
+      schemaLabel: 'Schema',
+      schemaOpen: false,
+      action: 'eval',
+      source: [
+        '# Constraints are values too: unify them in.',
+        '# Try breaking one (port: 80) and Evaluate again.',
+        'server: {',
+        '  host: string & re("^[a-z][a-z0-9.-]*$")',
+        '  host: "api.example.com"',
+        '  port: integer & min(1024) & max(65535)',
+        '  port: 8443',
+        '  timeout: *30 | integer & min(1)',
+        '}',
+        '',
+      ].join('\n'),
+      schema: '',
+    },
+    {
+      id: 'pack',
+      name: 'Pack — a template generates the map',
+      sourceLabel: 'Source',
+      schemaLabel: 'Schema',
+      schemaOpen: false,
+      action: 'eval',
+      source: [
+        '# The &: template meets EVERY key of the map:',
+        '# say the shape once, and each entry completes it.',
+        'services: {',
+        '  &: {',
+        '    port: integer & min(1) & max(65535)',
+        '    replicas: *1 | integer',
+        '    tier: *"standard" | string',
+        '  }',
+        '  auth: { port: 8080 }',
+        '  db:   { port: 5432, replicas: 3, tier: "critical" }',
+        '}',
+        '',
+      ].join('\n'),
+      schema: '',
+    },
+    {
+      id: 'vet',
+      name: 'Vet — validate data against a schema',
+      sourceLabel: 'Data',
+      schemaLabel: 'Schema',
+      schemaOpen: true,
+      action: 'vet',
+      source: [
+        '# The data document. Vet reports every violation',
+        '# with its path and both contributing sites.',
+        'service: {',
+        '  name: "Auth Service"',
+        '  port: 80',
+        '}',
+        '',
+      ].join('\n'),
+      schema: [
+        '# The schema document.',
+        'service: {',
+        '  name: string & re("^[a-z][a-z0-9-]*$")',
+        '  port: integer & min(1024) & max(65535)',
+        '  replicas: *1 | integer',
+        '}',
+        '',
+      ].join('\n'),
+    },
+    {
+      id: 'subsume',
+      name: 'Subsume — gate schema evolution',
+      sourceLabel: 'Specific',
+      schemaLabel: 'General',
+      schemaOpen: true,
+      action: 'subsume',
+      source: [
+        '# Specific: one team\'s tighter contract.',
+        '# Subsume asks: does the General document (below) admit',
+        '# every instance this one admits? Swap the two documents',
+        '# and it reports exactly which domains were narrowed.',
+        'service: {',
+        '  port: integer & min(1024) & max(65535)',
+        '  replicas: integer & min(2) & max(10)',
+        '}',
+        '',
+      ].join('\n'),
+      schema: [
+        '# General: what every deployment must satisfy.',
+        'service: {',
+        '  port: integer',
+        '  replicas: integer & min(1)',
+        '}',
+        '',
+      ].join('\n'),
+    },
+  ]
+
+  // ---- DOM handles -------------------------------------------------
+
+  function $(id) { return document.getElementById(id) }
+
+  var el = {
+    version: $('version'),
+    example: $('example'),
+    share: $('share'),
+    shareFlash: $('share-flash'),
+    source: $('source'),
+    schema: $('schema'),
+    sourceLabel: $('source-label'),
+    schemaLabel: $('schema-label'),
+    schemaPane: $('schema-pane'),
+    schemaToggle: $('schema-toggle'),
+    error: $('error'),
+    errorText: $('error-text'),
+    outJson: $('out-json'),
+    outCanon: $('out-canon'),
+    canonHash: $('canon-hash'),
+    vetHead: $('vet-head'),
+    vetFindings: $('vet-findings'),
+    vetRawWrap: $('vet-raw-wrap'),
+    vetRaw: $('vet-raw'),
+    vetPlaceholder: $('vet-placeholder'),
+  }
+
+  var tabs = Array.prototype.slice.call(document.querySelectorAll('.tab'))
+  var panels = {
+    json: $('panel-json'),
+    canon: $('panel-canon'),
+    vet: $('panel-vet'),
+  }
+
+  el.version.textContent = 'v' + A.VERSION + ' · in-browser'
+
+  // ---- Small utilities ---------------------------------------------
+
+  // Strip ANSI escape sequences (CSI ... final byte) so any message
+  // formatted for a terminal reads cleanly here.
+  function stripAnsi(s) {
+    return String(s).replace(/\x1b\[[0-9;]*[A-Za-z]/g, '')
+  }
+
+  function showError(err) {
+    el.errorText.textContent = stripAnsi(err && err.message ? err.message : err)
+    el.error.hidden = false
+  }
+
+  function clearError() {
+    el.error.hidden = true
+    el.errorText.textContent = ''
+  }
+
+  function selectTab(name) {
+    tabs.forEach(function (t) {
+      var on = t.dataset.tab === name
+      t.classList.toggle('active', on)
+      t.setAttribute('aria-selected', on ? 'true' : 'false')
+    })
+    Object.keys(panels).forEach(function (k) {
+      panels[k].hidden = k !== name
+    })
+  }
+
+  tabs.forEach(function (t) {
+    t.addEventListener('click', function () { selectTab(t.dataset.tab) })
+  })
+
+  function setPre(pre, text, placeholder) {
+    pre.textContent = text
+    pre.classList.toggle('placeholder', !!placeholder)
+  }
+
+  // The browser has no filesystem, so confine includes to the memory
+  // capability: `@"std/system"` (bundled in the engine) still works,
+  // and a file include fails with a clean parse-stage not-found error
+  // instead of a crash inside the file/package resolvers.
+  var TRUST = { include: { mem: {} } }
+
+  // A fresh engine per run: unify()/generate() refine the parsed tree
+  // in place, so a parsed Val is single-use.
+  function engine() { return new A.Aontu({ trust: TRUST }) }
+
+  // ---- Actions -----------------------------------------------------
+
+  function runEvaluate(quiet) {
+    clearError()
+    try {
+      var out = engine().generate(el.source.value)
+      setPre(el.outJson, A.exactJSON(out, 2))
+      if (!quiet) selectTab('json')
+      return true
+    }
+    catch (e) {
+      setPre(el.outJson, '(error — see the message under the editor)', true)
+      if (!quiet) { showError(e); selectTab('json') }
+      return false
+    }
+  }
+
+  function runCanon(quiet) {
+    clearError()
+    try {
+      var val = engine().unify(el.source.value)
+      setPre(el.outCanon, String(val.canon))
+      var hash = A.canonHash(val)
+      el.canonHash.innerHTML = ''
+      var b = document.createElement('b')
+      b.textContent = 'canon-hash: '
+      el.canonHash.appendChild(b)
+      el.canonHash.appendChild(document.createTextNode(hash))
+      el.canonHash.hidden = false
+      if (!quiet) selectTab('canon')
+      return true
+    }
+    catch (e) {
+      setPre(el.outCanon, '(error — see the message under the editor)', true)
+      el.canonHash.hidden = true
+      if (!quiet) { showError(e); selectTab('canon') }
+      return false
+    }
+  }
+
+  var VERDICT_CLASS = {
+    valid: 'ok', subsumes: 'ok',
+    invalid: 'bad', does_not_subsume: 'bad', error: 'bad',
+    incomplete: 'warn', undecided: 'warn',
+  }
+
+  function renderReport(kind, report) {
+    el.vetPlaceholder.hidden = true
+    el.vetHead.innerHTML = ''
+    el.vetFindings.innerHTML = ''
+
+    var badge = document.createElement('span')
+    badge.className = 'verdict ' + (VERDICT_CLASS[report.verdict] || 'warn')
+    badge.textContent = kind + ': ' + report.verdict.replace(/_/g, ' ')
+    el.vetHead.appendChild(badge)
+
+    if (report.truncated) {
+      var note = document.createElement('span')
+      note.className = 'verdict-note'
+      note.textContent = '(report truncated)'
+      el.vetHead.appendChild(note)
+    }
+
+    var findings = report.findings || []
+    if (0 === findings.length && 'ok' === (VERDICT_CLASS[report.verdict] || '')) {
+      var okNote = document.createElement('div')
+      okNote.className = 'fdetail'
+      okNote.textContent = 'No findings.'
+      el.vetFindings.appendChild(okNote)
+    }
+
+    findings.forEach(function (f) {
+      var box = document.createElement('div')
+      box.className = 'finding ' + (f.severity || 'error')
+
+      var head = document.createElement('div')
+      var path = document.createElement('span')
+      path.className = 'fpath mono'
+      path.textContent = f.path || ''
+      head.appendChild(path)
+      var code = document.createElement('span')
+      code.className = 'fcode mono'
+      code.textContent = f.code + ' (' + f.class + ', ' + f.severity + ')'
+      head.appendChild(code)
+      box.appendChild(head)
+
+      var msg = document.createElement('div')
+      msg.className = 'fmsg'
+      msg.textContent = stripAnsi(f.message || '')
+      box.appendChild(msg)
+
+      if (null != f.expected || null != f.actual) {
+        var det = document.createElement('div')
+        det.className = 'fdetail mono'
+        det.textContent = 'expected ' + (null == f.expected ? '?' : f.expected) +
+          '  ·  actual ' + (null == f.actual ? '?' : f.actual)
+        box.appendChild(det)
+      }
+
+      ;(f.sites || []).forEach(function (s) {
+        var site = document.createElement('div')
+        site.className = 'fsite mono'
+        site.textContent = s.role + ' ' + s.file + ':' + s.row + ':' + s.col +
+          (s.value ? '  ' + s.value : '')
+        box.appendChild(site)
+      })
+
+      el.vetFindings.appendChild(box)
+    })
+
+    el.vetRaw.textContent = JSON.stringify(report, null, 2)
+    el.vetRawWrap.hidden = false
+  }
+
+  function needSchema(verb) {
+    if (el.schemaPane.hidden) setSchemaOpen(true)
+    if ('' === el.schema.value.trim()) {
+      showError(new Error(
+        verb + ' needs a second document: put the ' +
+        ('Subsume' === verb ? 'GENERAL document' : 'schema') +
+        ' in the ' + el.schemaLabel.textContent + ' pane.'))
+      return false
+    }
+    return true
+  }
+
+  function runVet(quiet) {
+    clearError()
+    if (!needSchema('Vet')) return false
+    try {
+      var report = A.vet(el.schema.value, el.source.value, { trust: TRUST })
+      renderReport('vet', report)
+      if (!quiet) selectTab('vet')
+      return true
+    }
+    catch (e) {
+      if (!quiet) { showError(e); selectTab('vet') }
+      return false
+    }
+  }
+
+  function runSubsume(quiet) {
+    clearError()
+    if (!needSchema('Subsume')) return false
+    try {
+      // General (schema pane) subsumes specific (source)?
+      var report = A.subsume(el.schema.value, el.source.value)
+      renderReport('subsume', report)
+      if (!quiet) selectTab('vet')
+      return true
+    }
+    catch (e) {
+      if (!quiet) { showError(e); selectTab('vet') }
+      return false
+    }
+  }
+
+  $('run-eval').addEventListener('click', function () { runEvaluate() })
+  $('run-canon').addEventListener('click', function () { runCanon() })
+  $('run-vet').addEventListener('click', function () { runVet() })
+  $('run-subsume').addEventListener('click', function () { runSubsume() })
+
+  // ---- Schema pane toggle ------------------------------------------
+
+  function setSchemaOpen(open) {
+    el.schemaPane.hidden = !open
+    el.schemaToggle.textContent = open ? 'Hide schema pane' : 'Show schema pane'
+  }
+
+  el.schemaToggle.addEventListener('click', function () {
+    setSchemaOpen(el.schemaPane.hidden)
+  })
+
+  // ---- Editor niceties ---------------------------------------------
+
+  function editorKeys(ta) {
+    ta.addEventListener('keydown', function (ev) {
+      if ('Tab' === ev.key && !ev.shiftKey && !ev.ctrlKey && !ev.metaKey) {
+        ev.preventDefault()
+        var s = ta.selectionStart, e = ta.selectionEnd
+        ta.value = ta.value.slice(0, s) + '  ' + ta.value.slice(e)
+        ta.selectionStart = ta.selectionEnd = s + 2
+      }
+    })
+  }
+  editorKeys(el.source)
+  editorKeys(el.schema)
+
+  document.addEventListener('keydown', function (ev) {
+    if ('Enter' === ev.key && (ev.ctrlKey || ev.metaKey)) {
+      ev.preventDefault()
+      runEvaluate()
+    }
+  })
+
+  // ---- Examples ----------------------------------------------------
+
+  EXAMPLES.forEach(function (ex, i) {
+    var opt = document.createElement('option')
+    opt.value = String(i)
+    opt.textContent = ex.name
+    el.example.appendChild(opt)
+  })
+
+  function resetOutputs() {
+    setPre(el.outJson, 'Press Evaluate to generate JSON from the source.', true)
+    setPre(el.outCanon, 'Press Canon for the canonical unified form.', true)
+    el.canonHash.hidden = true
+    el.vetHead.innerHTML = ''
+    el.vetFindings.innerHTML = ''
+    el.vetRawWrap.hidden = true
+    el.vetPlaceholder.hidden = false
+    clearError()
+  }
+
+  function loadExample(i) {
+    var ex = EXAMPLES[i]
+    if (!ex) return
+    el.source.value = ex.source
+    el.schema.value = ex.schema || ''
+    el.sourceLabel.textContent = ex.sourceLabel
+    el.schemaLabel.textContent = ex.schemaLabel
+    setSchemaOpen(!!ex.schemaOpen)
+    resetOutputs()
+
+    // Populate every tab that has inputs, then land on the example's
+    // primary one. Quiet mode: no tab switching, no error banner spam.
+    runEvaluate(true)
+    runCanon(true)
+    if ('vet' === ex.action) { runVet(true); selectTab('vet') }
+    else if ('subsume' === ex.action) { runSubsume(true); selectTab('vet') }
+    else {
+      if ('' !== (ex.schema || '').trim()) runVet(true)
+      selectTab('json')
+    }
+  }
+
+  el.example.addEventListener('change', function () {
+    loadExample(Number(el.example.value))
+  })
+
+  // ---- Share links (document encoded in the URL hash) --------------
+
+  function encodeState() {
+    var state = {
+      s: el.source.value,
+      k: el.schemaPane.hidden ? '' : el.schema.value,
+    }
+    var json = JSON.stringify(state)
+    // UTF-8-safe base64url.
+    var b64 = btoa(String.fromCharCode.apply(null,
+      Array.prototype.slice.call(new TextEncoder().encode(json))))
+    return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+  }
+
+  function decodeState(hash) {
+    try {
+      var b64 = hash.replace(/-/g, '+').replace(/_/g, '/')
+      var bin = atob(b64)
+      var bytes = new Uint8Array(bin.length)
+      for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
+      var state = JSON.parse(new TextDecoder().decode(bytes))
+      if ('string' !== typeof state.s) return null
+      return state
+    }
+    catch (e) { return null }
+  }
+
+  el.share.addEventListener('click', function () {
+    var hash = '#doc=' + encodeState()
+    try { history.replaceState(null, '', hash) }
+    catch (e) { location.hash = hash }
+    var url = location.href
+    var done = function () {
+      el.shareFlash.hidden = false
+      el.shareFlash.style.opacity = '1'
+      setTimeout(function () { el.shareFlash.style.opacity = '0' }, 1200)
+      setTimeout(function () { el.shareFlash.hidden = true }, 1900)
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(done, done)
+    }
+    else done()
+  })
+
+  // ---- Boot --------------------------------------------------------
+
+  var booted = false
+  if (location.hash && 0 === location.hash.indexOf('#doc=')) {
+    var state = decodeState(location.hash.slice('#doc='.length))
+    if (state) {
+      el.source.value = state.s
+      el.schema.value = state.k || ''
+      setSchemaOpen('' !== (state.k || '').trim())
+      resetOutputs()
+      runEvaluate(true)
+      runCanon(true)
+      if ('' !== (state.k || '').trim()) runVet(true)
+      selectTab('json')
+      booted = true
+    }
+  }
+  if (!booted) {
+    el.example.value = '0'
+    loadExample(0)
+  }
+})()
+</script>
+
+</body>
+</html>
