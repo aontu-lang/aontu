@@ -1,0 +1,10 @@
+{
+  "key": "search.reranker-v4",
+  "flag_type": "percentage",
+  "owner": "search-quality@acme.example",
+  "description": "ML reranker v4 with query-intent embeddings",
+  "created": "2026-08-20",
+  "expiry": "2027-02-28",
+  "enabled": false,
+  "rollout": 0
+}

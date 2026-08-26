@@ -1,0 +1,11 @@
+{
+  "key": "Growth.PromoBanner",
+  "flag_type": "boolean",
+  "owner": "growth@partner.example",
+  "description": "promo",
+  "created": "2026-08-20",
+  "expiry": "2026/12/31",
+  "enabled": true,
+  "rollout": 150,
+  "jira_ticket": "GROW-4411"
+}

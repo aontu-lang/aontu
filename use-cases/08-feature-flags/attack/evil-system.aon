@@ -1,0 +1,5 @@
+# Runtime view assembled with the hostile overlay in place of the
+# real one.  Relative includes stay inside the model tree; the escape
+# is the absolute path inside evil-overlay.aon.
+@"../base.aon"
+@"./evil-overlay.aon"

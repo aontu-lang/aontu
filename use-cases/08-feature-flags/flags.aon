@@ -1,0 +1,89 @@
+# Feature-flag catalog: the org-wide source of truth.
+#
+# Map keys use underscores (checkout_v2), not the public dotted key
+# (checkout.v2): CLI paths for get/why/set split on '.' and offer no
+# quoting, so a dotted map key is unaddressable from the command line
+# (README, "Gaps").  The public key is ordinary data in .key.
+
+# The strict Flag definition lives in flag-schema.aon (vet-only, not
+# included here): hidden defs silently disable vet's incompleteness
+# check, and unhidden defs cannot generate (README, "Gaps").
+
+flags: {
+  # Org lifecycle defaults are rank-3 preferences (***) -- the
+  # weakest rank, so environment (**) and tenant (*) preferences
+  # override them, and a concrete pin beats every rank.  A flag is
+  # born dark.
+  #
+  # The defaulted fields carry BARE preferences, no type conjunct:
+  # `boolean & ***false` does not generate (phase-1 limit), and the
+  # disjunct form `***false | boolean` silently loses rank
+  # arbitration through the effective-view references (README,
+  # "Gaps").  Kind-safety survives via the preference gate (a peer
+  # of another kind is refused); range/type checking is done by
+  # `vet` against defs.Flag, and by the range audit in policy.aon.
+  &: {
+    key: string & re("^[a-z][a-z0-9_.\\-]*$") & length(min(3)) & length(max(64))
+    owner: string & re("^[a-z0-9._\\-]+@acme\\.example$")
+    description: string & length(min(12)) & length(max(160))
+    created: string & re("^\\d{4}-\\d{2}-\\d{2}$")
+    expiry: string & re("^\\d{4}-\\d{2}-\\d{2}$")
+    enabled: ***false
+    rollout: ***0
+  }
+
+  checkout_v2: {
+    key: "checkout.v2"
+    flag_type: "percentage"
+    owner: "payments-platform@acme.example"
+    description: "One-page checkout flow replacing the 3-step wizard"
+    created: "2026-05-04"
+    expiry: "2026-12-31"
+  }
+
+  payments_legacy_gateway: {
+    key: "payments.legacy-gateway"
+    flag_type: "boolean"
+    owner: "payments-platform@acme.example"
+    description: "Route card auth through the legacy PSP gateway"
+    created: "2025-11-02"
+    expiry: "2026-09-30"
+    # Kill switch: a concrete pin, not a default.  No overlay can
+    # flip this without editing this file (asserted in check.sh).
+    enabled: false
+  }
+
+  search_reranker_v3: {
+    key: "search.reranker-v3"
+    flag_type: "boolean"
+    owner: "search-quality@acme.example"
+    description: "ML reranker v3 for organic search results"
+    created: "2026-01-15"
+    # Already expired relative to $.clock.today: the lifecycle rule
+    # in policy.aon refuses any overlay that pins it on.
+    expiry: "2026-06-30"
+  }
+
+  ui_dark_mode: {
+    key: "ui.dark-mode"
+    flag_type: "variant"
+    owner: "web-experience@acme.example"
+    description: "Dark mode theme experiment arms"
+    created: "2026-03-01"
+    expiry: "2027-03-01"
+    variant: ***"off"
+  }
+
+  ops_incident_banner: {
+    key: "ops.incident-banner"
+    flag_type: "boolean"
+    owner: "sre@acme.example"
+    description: "Status-page incident banner shown to all tenants"
+    created: "2026-02-10"
+    expiry: "2027-02-10"
+    # Narrow-only field: constrained here, never given a value.  The
+    # first concrete value arrives through the overlay (aontu set),
+    # which may only narrow, never contradict.
+    message?: string & length(max(80))
+  }
+}

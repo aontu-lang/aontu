@@ -1,0 +1,5 @@
+# A hostile overlay: tries to pull a file from outside the model tree
+# into a flag value.  Under --trust root:<model-dir> the include is
+# denied at parse time; under the default --trust system it is read
+# (with a warning) and the file's content lands in the served config.
+flags: ops_incident_banner: message: @"/etc/hostname"
