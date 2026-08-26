@@ -1,10 +1,16 @@
-# expected: no pref_not_instance finding — generation yields "member",
+# FIXED 2026-08-26 (pref_not_instance under ADR-004).
+# expected: no pref_not_instance finding -- generation yields "member",
 #           which IS an instance of the plain 'member' alternative
 #           (repeating the branch is the lint's own sanctioned fix)
-# actual: vet reports: the default *"member" is not an instance of any
-#         alternative of **"member"|"member"|"admin"|"owner" — the lint's
-#         effectiveDefault (ts/src/subsume.ts:136) unwraps only one pref
-#         layer, so a rank-2 default keeps a *-wrapper no plain member
-#         subsumes, and the finding fires spuriously
+# actual (now matches): verdict: valid, zero findings -- the effective
+#         default unwraps EVERY pref layer (ts/src/subsume.ts
+#         effectiveDefault), so the rank-2 default is the bare "member"
+#         the plain branch subsumes. Pinned by test/spec/subsume.tsv
+#         pref-lint-ranked-clean. The lint itself is now advisory: with
+#         the admission gate a default can no longer be invalid against
+#         its own disjunct (see ts/src/vet.ts).
+#         (Old behaviour: the finding fired with the half-peeled default
+#         *"member" in its message -- effectiveDefault unwrapped only
+#         one layer.)
 # run: aontu vet lint-ranked-false-positive.aon role-admin.json
 role: **member | member | admin | owner

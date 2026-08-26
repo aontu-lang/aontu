@@ -1,11 +1,15 @@
-# expected: {"a":1.5} — docs (reference-language.md, Preference section):
-#           "A kind peer the default already satisfies leaves the
-#           preference standing (`a:*1.5 & float` ... are both 1.5)",
-#           and that holds at rank 1: a:*1.5 & float -> 1.5
-# actual: rank >= 2 is swallowed by ANY conjunct: a:**1.5 & float ->
-#         [aontu/mapval_no_gen] exit 1 (canon shows the default dropped);
-#         likewise b below: **2|integer met by a bare `integer` statement
-#         loses the default (canon {"b":integer}), while *2|integer keeps it
+# FIXED 2026-08-26 (the rank-uniform meet, ADR-004).
+# expected: {"a":1.5,"b":2} -- a rank>=2 preference follows the same
+#           meet rules as rank 1: a kind conjunct or kind alternative
+#           the innermost value already satisfies leaves the ranked
+#           preference standing, rank intact
+# actual (now matches): {"a":1.5,"b":2}. Pinned by test/spec/pref.tsv
+#         pref-rank2-conjunct-kind-keeps-default /
+#         pref-rank2-disjunct-kind-keeps-default.
+#         (Old behaviour: a:**1.5&float -> [aontu/mapval_no_gen] exit 1,
+#         and b's default was silently dropped -- canon {"b":integer} --
+#         because the gate read the immediate peg, a PrefVal whose
+#         superior is top, so ANY conjunct overrode a ranked default.)
 a: **1.5 & float
 b: **2 | integer
 b: integer

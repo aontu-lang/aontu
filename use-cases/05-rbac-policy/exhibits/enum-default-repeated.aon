@@ -1,5 +1,6 @@
-# The repeated-branch workaround: restating `member` as a plain
-# alternative silences the pref_not_instance warning. OBSERVED
-# BEHAVIOUR (asserted by check.sh): "superadmin" is STILL accepted --
-# the workaround fixes the lint, not the enforcement.
+# The repeated-branch spelling: restating `member` as a plain
+# alternative silences the pref_not_instance advisory. Since
+# 2026-08-26 (the preference admission gate, ADR-004) it is no longer
+# a lint-only workaround: the admitted set is {member, admin, owner}
+# either way, and "superadmin" is refused (asserted by check.sh).
 invite: { role: *member | member | admin | owner }

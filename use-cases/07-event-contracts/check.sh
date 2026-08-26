@@ -244,13 +244,18 @@ ok "the 0d data file is NOT strict JSON (pinned gap: producers cannot emit it)"
 
 # --- 6. Defaults vs enums: the two spellings. ---
 
-# Disjunct spelling silently admits anything, with a wrong warning.
-run prefenum 0 -- vet --at '$.E' "$DIR/probes/pref-enum.aon" \
+# 2026-08-26: fixed by the preference admission gate (ADR-004) --
+# assertions updated to the new behaviour. The disjunct spelling now
+# ENFORCES the set: "9.9" is admitted by no alternative, so it vets
+# invalid ([aontu/|:empty]); the pref_not_instance advisory rides
+# along with its corrected "remaining alternative" message.
+run prefenum 1 -- vet --at '$.E' "$DIR/probes/pref-enum.aon" \
   "$DIR/data/probe-v99.json"
-has prefenum out 'verdict: valid'
+has prefenum out 'verdict: invalid'
+has prefenum out '[aontu/|:empty]'
 has prefenum out 'pref_not_instance'
-has prefenum out 'the default "1.0" is not an instance of any alternative'
-ok "vet: *\"1.0\"|\"1.1\" admits \"9.9\" as valid (pinned gap)"
+has prefenum out 'the default "1.0" is not an instance of any remaining alternative'
+ok "vet: *\"1.0\"|\"1.1\" refuses \"9.9\" (fixed: the admission gate)"
 
 # Conjunct spelling enforces the set under vet but errors under eval.
 run prefeval 1 -- "$DIR/probes/default-a.aon"

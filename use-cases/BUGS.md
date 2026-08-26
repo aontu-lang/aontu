@@ -66,6 +66,10 @@ common schema pattern in existence. A hidden helper key does work:
 (repro `match-helper-workaround.aon`) — refusing `'autoo'` with
 `match_none`, at the cost of the error naming `$.chk`.
 Repros: `enum-fails-open.aon`, `enum-vet-schema.aon` + `out-of-enum.json`.
+Status: FIXED 2026-08-26 (the preference admission gate, ADR-004) —
+`k:'autoo'` is the `|:empty` refusal in eval and vet alike; `*A|B|C`
+is a true enum-with-default (unset generates A, members override,
+`*x|top` is the deliberately-open spelling).
 
 ### 2. A `*` default disables the constraints in its own disjunction [critical]
 `port: *8080 | (integer & min(1024) & max(65535))` with `port: 80` →
@@ -75,6 +79,10 @@ is bypassed. The docs' recommended disjunct spelling for
 default-with-bound (`*8080 | min(1024)`) is exactly the form that stops
 checking the bound on override; the conjunct form enforces but cannot
 default (documented phase-1 limit). Repro: `pref-disables-constraint.aon`.
+Status: FIXED 2026-08-26 (ADR-004) — the constraint alternative is
+consulted on override: `port: 80` is refused (`|:empty`), `2048` is
+admitted, unset still generates 8080; the disjunct spelling now both
+defaults and validates (the conjunct form remains the phase-1 limit).
 
 ### 3. A bare-kind conjunct swallows a rank≥2 default [major]
 `a: *1.5 & float` → `1.5` (documented), but `a: **1.5 & float` →
@@ -83,6 +91,10 @@ lattice value (`--canon` shows the bare kind). Constraint conjuncts
 kill defaults of every rank (that half is the documented phase-1
 limit); the rank≥2-vs-bare-kind loss is undocumented and contradicts
 the pref section's own rule. Repro: `ranked-default-swallowed.aon`.
+Status: FIXED 2026-08-26 (the rank-uniform meet, ADR-004) — a rank≥2
+preference defends the innermost value's kind exactly as rank 1 does:
+`a:**1.5 & float` → 1.5, and `**2|integer` met by `integer` keeps the
+default 2 (the preference stands as itself, rank intact).
 
 ### 4. `pref_not_instance` fires on the idiom, with a false message and a real false positive [major]
 The lint fires on `role: *member | admin | owner` — and on the bundled
@@ -97,6 +109,16 @@ positive: generation produces `member`, an instance of the plain
 branch, yet the lint still fires — `effectiveDefault` unwraps exactly
 one pref layer (`ts/src/subsume.ts:136-138`). Repro:
 `lint-ranked-false-positive.aon` + `role-admin.json`.
+Status: FIXED 2026-08-26 (ADR-004) — the ranked false positive is gone
+(the effective default unwraps every pref layer), the message says
+"…not an instance of any remaining alternative of…", and with the
+admission gate the lint is an advisory (a typo-shaped default), not a
+soundness warning: the repeated-branch spelling now both silences it
+and enforces the same admitted set. It still fires, deliberately, on
+`*A|B|C` schemas whose default is not drawn from the remaining
+alternatives — including the bundled `std/system` `direction:` field —
+and the site misattribution for bundled sources remains open (the
+site-attribution family).
 
 ### 5. `match()` on a defaulted scrutinee takes the first admissible arm [critical]
 `side_effect: *readonly | write | destructive` with
@@ -106,6 +128,11 @@ value contradicts the generated value beside it, exit 0. The pattern
 unifies with the still-open disjunction via the same-kind override
 gate, so the first arm wins while generation picks the default.
 Repro: `match-default-crosswire.aon`.
+Status: FIXED 2026-08-26 (the defaulted-scrutinee rule, ADR-004) —
+match() on a settled scrutinee carrying an effective default tests
+patterns against the generation-effective value:
+`requires_approval` is false when `side_effect` is unset and true only
+when it is genuinely `destructive`.
 
 ---
 

@@ -165,10 +165,12 @@ probe_golden() { # file label
     || die "probe $1 output differs from expected/$1.json"
   ok "pinned $2"
 }
-probe_golden bound-bypass \
-  "bound in a disjunction branch: override 40 sails past max(20), exit 0"
-grep -q '"replicas": 40' "$DIR/expected/bound-bypass.json" \
-  || die "bound-bypass golden lost its point"
+# 2026-08-26: fixed by the preference admission gate (ADR-004) -- the
+# out-of-bound override is refused now, so this moved from the
+# silent-wrong-answer goldens to the refusal probes (the golden
+# expected/bound-bypass.json, replicas:40, is gone with it).
+probe_fails bound-bypass '[aontu/|:empty]' \
+  "bound in a disjunction branch: override 40 refused by the admission gate"
 probe_golden close-shallow-typo \
   "close(pack) does not seal children: typo'd override absorbed, exit 0"
 grep -q '"replcias": 4' "$DIR/expected/close-shallow-typo.json" \

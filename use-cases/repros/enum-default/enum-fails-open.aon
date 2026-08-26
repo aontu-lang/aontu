@@ -1,9 +1,11 @@
-# expected: 'autoo' refused — it is not a member of the enum disjunction
-# actual: generates {"k":"autoo"} exit 0; same-kind override replaces the
-#         pref and no alternative is consulted (docs reference-language.md
-#         "A preferred member does not close a disjunction" + spec row
-#         number-tower.tsv pref-idiom-two-statement-admits pin this as design;
-#         no on-field spelling gives both a default and enum enforcement —
-#         see match-helper-workaround.aon for the only working workaround)
+# FIXED 2026-08-26 (the preference admission gate, ADR-004).
+# expected: 'autoo' refused -- it is not a member of the enum disjunction
+# actual (now matches): [aontu/|:empty] at $.k, exit 1 -- an override
+#         must be admitted by an alternative or equal the preferred
+#         value, so *A|B|C is a true enum-with-default; unset still
+#         generates "auto" and k:'literal' still overrides. Pinned by
+#         test/spec/pref.tsv pref-admit-enum-nonmember-refused.
+#         (Old behaviour: {"k":"autoo"} exit 0 -- the same-kind
+#         override replaced the pref with no alternative consulted.)
 k: *'auto' | 'literal' | 'data'
 k: 'autoo'

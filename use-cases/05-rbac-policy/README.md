@@ -84,10 +84,23 @@ path prefixes.
 
 ### 1. An enum with a default is not an enum (critical)
 
+> **2026-08-26: fixed by the preference admission gate (ADR-004) —
+> assertions updated to the new behaviour.** `*member | admin | owner`
+> now refuses `superadmin` (`verdict: invalid`, `[aontu/|:empty]`,
+> exit 1) and still generates `member` unset — the idiom below works
+> as every consumer believed it did. The repeated-branch spelling
+> silences the (now advisory) `pref_not_instance` warning and keeps
+> the same enforcement, and the ranked-lint false positive at the end
+> of this section is fixed (the effective default unwraps every pref
+> layer). The conjunct-form limits (the `must()`-guarded and
+> enforcement-only conjunct spellings losing the default) remain the
+> documented G1 phase-1 limit. The original finding is kept below as
+> the record.
+
 The single most common schema idiom in policy — a closed role set
-with a default — cannot be written. A scalar preference is
+with a default — could not be written. A scalar preference was
 overridable by **any** same-kind value, so the preferred branch
-admits every string:
+admitted every string:
 
 ```
 $ aontu vet exhibits/enum-default-naive.aon data/invite-superadmin.json

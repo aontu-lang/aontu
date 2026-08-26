@@ -218,8 +218,17 @@ self-comparison would make this gate genuinely deployable.
 
 ### 4. "Enum with a default" has no sound spelling (major)
 
+> **2026-08-26: fixed by the preference admission gate (ADR-004) —
+> assertions updated to the new behaviour.** The disjunct spelling
+> `*"1.0" | "1.1"` is now the sound one: `"9.9"` vets **invalid**
+> (`[aontu/|:empty]`) and the unset field still generates `"1.0"`;
+> the `pref_not_instance` warning is advisory and its message now
+> correctly says "any *remaining* alternative". The conjunct
+> spelling's limits below are unchanged (the phase-1 limit).
+> The original finding is kept as the record.
+
 The envelope wants `specversion: one of {"1.0","1.1"}, default
-"1.0"`. Both spellings fail somewhere:
+"1.0"`. Both spellings failed somewhere:
 
 - Disjunct `*"1.0" | "1.1"` (probes/pref-enum.aon) does not enforce
   the set — a same-kind concrete value *overrides* the preferred

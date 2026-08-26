@@ -119,9 +119,19 @@ directory; output is verbatim (ANSI trimmed).
 
 ### 1. Enum-with-default is inexpressible (major)
 
+> **2026-08-26: fixed by the preference admission gate (ADR-004) —
+> assertions updated to the new behaviour.** `tier: *"standard" |
+> "premium" | "enterprise"` is now a true enum-with-default: `"x"` is
+> refused with `[aontu/|:empty]` and the unset field generates
+> `"standard"`. The conjunct form below remains the phase-1 limit,
+> and the `pref_not_instance` message now correctly says "any
+> *remaining* alternative" (it is an advisory, not a soundness
+> warning, post-gate). The record below is kept as written; this
+> case's check.sh assertions did not pin the old behaviour.
+
 The most common registry idiom — "one of these values, defaulting to
-X" — cannot be written as one field. A preferred scalar alternative is
-overridable by its whole *kind*, so the enum stops being an enum:
+X" — could not be written as one field. A preferred scalar alternative
+was overridable by its whole *kind*, so the enum stopped being an enum:
 
 ```
 $ cat te.aon        # tier: *"standard" | "premium" | "enterprise"

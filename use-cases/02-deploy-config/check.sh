@@ -190,10 +190,13 @@ has lost-default '[aontu/mapval_no_gen]' "no-gen code"
 has lost-default 'min(1)&max(24)' "unresolved residual shown"
 ok "pinned: constraint conjunct swallows a ranked default (gap 1)"
 
-run bypassed 0 "$DIR/probes/bypassed-bound.aon"
-diff -u "$DIR/expected/bypassed-bound.json" "$TMP/bypassed.out" \
-  || die "bypassed-bound output differs"
-ok "pinned: override bypasses a disjoined bound, 40 accepted (gap 2)"
+# 2026-08-26: fixed by the preference admission gate (ADR-004) -- the
+# out-of-range override is now refused instead of accepted (gap 2 was
+# the fail-open evidence; the golden expected/bypassed-bound.json with
+# replicas:40 is gone with it).
+run bypassed 1 "$DIR/probes/bypassed-bound.aon"
+has bypassed '[aontu/|:empty]' "empty-disjunction refusal"
+ok "fixed: override outside the disjoined bound refused, exit 1 (gap 2)"
 
 # ------------------------------------- probe: close(pack) + overlay bug
 run absorb 0 "$DIR/probes/close-pack-absorb.aon"

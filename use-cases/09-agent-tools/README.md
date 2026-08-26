@@ -134,10 +134,19 @@ files. Severities are my honest read for THIS use case.
 
 ### Gap 1 (critical): a `*` default silently disables the constraint it is written with
 
+> **2026-08-26: fixed by the preference admission gate (ADR-004).**
+> The disjunct form now enforces on override — `a: *10 | integer &
+> min(1) & max(50)` refuses `500` with `[aontu/|:empty]`, and
+> `*readonly | write | destructive` refuses `bogus` — exactly the
+> "test the surviving disjunct" gate this gap asked for. The conjunct
+> form's lost default below remains the phase-1 limit. No assertions
+> in this case pinned the old behaviour; the record below is kept
+> as written.
+
 The documented idiom for "default plus range" — the reference itself
-says *"use the disjunct form (`*8080 | min(1024)`) today"* — admits
+says *"use the disjunct form (`*8080 | min(1024)`) today"* — admitted
 **any** value of the default's kind, because a same-kind override
-replaces the preferred branch without consulting the others:
+replaced the preferred branch without consulting the others:
 
 ```
 $ cat tA.aon
@@ -436,6 +445,13 @@ first-tier examples should at least run.
 
 ### Gap 14 (major): `match()` on a defaulted scrutinee takes the first admissible arm, not the default
 
+> **2026-08-26: fixed by the defaulted-scrutinee rule (ADR-004).**
+> A settled scrutinee carrying an effective default now matches as the
+> value generation will emit, so the example below answers
+> `requires_approval: false` when `side_effect` is unset and `true`
+> only when it is genuinely `destructive`. Pinned by
+> `test/spec/gen-match.tsv` (`match-defaulted-scrutinee-*`).
+
 ```
 tool: {
   side_effect: *readonly | write | destructive
@@ -443,11 +459,11 @@ tool: {
 }
 ```
 
-generates `side_effect: "readonly"` with `requires_approval: true` —
-the `destructive` pattern unifies with the still-open disjunction, so
-the derivation contradicts the generated value it derives from.
+generated `side_effect: "readonly"` with `requires_approval: true` —
+the `destructive` pattern unified with the still-open disjunction, so
+the derivation contradicted the generated value it derives from.
 Combined with gap 1's "no defaults near enforcement" rule this cost
-nothing here (every `side_effect` is explicit), but it is a silent
+nothing here (every `side_effect` is explicit), but it was a silent
 wrong answer waiting for any model that keeps defaults.
 
 ### Gap 15 (minor): the deprecation warning fires without a point of use

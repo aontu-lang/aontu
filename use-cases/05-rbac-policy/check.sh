@@ -148,20 +148,27 @@ has reg2 err '[aontu/constraint]'
 has reg2 err '$.registry_invariant.one_owner_role'
 ok "registry: hidden filter+length invariant fires same-layer"
 
-# ------------------------------- the enum-with-default idiom (gaps)
-# 18. OBSERVED GAP: *member|admin|owner accepts "superadmin" (the
-# preference admits any same-kind value) AND warns pref_not_instance.
-run naive 0 -- vet "$DIR/exhibits/enum-default-naive.aon" "$DIR/data/invite-superadmin.json"
-has naive out 'verdict: valid'
+# ------------------------------- the enum-with-default idiom
+# 2026-08-26: fixed by the preference admission gate (ADR-004) --
+# assertions updated to the new behaviour. Checks 18-19 used to pin the
+# fail-open gap (superadmin accepted, verdict valid); the idiom now
+# enforces.
+# 18. *member|admin|owner refuses "superadmin" (no alternative admits
+# it) and still warns pref_not_instance (the advisory: the default is
+# a member only by being the default).
+run naive 1 -- vet "$DIR/exhibits/enum-default-naive.aon" "$DIR/data/invite-superadmin.json"
+has naive out 'verdict: invalid'
+has naive out '[aontu/|:empty]'
 has naive out 'pref_not_instance'
-ok "GAP pinned: *member|admin|owner admits superadmin, warns pref_not_instance"
+ok "fixed: *member|admin|owner refuses superadmin, warns pref_not_instance"
 
-# 19. The repeated branch silences the warning -- and still admits
-# any string.
-run repeated 0 -- vet "$DIR/exhibits/enum-default-repeated.aon" "$DIR/data/invite-superadmin.json"
-has repeated out 'verdict: valid'
+# 19. The repeated branch silences the warning AND (post-gate) keeps
+# exactly the same enforcement.
+run repeated 1 -- vet "$DIR/exhibits/enum-default-repeated.aon" "$DIR/data/invite-superadmin.json"
+has repeated out 'verdict: invalid'
+has repeated out '[aontu/|:empty]'
 hasnt repeated out 'pref_not_instance'
-ok "GAP pinned: repeated branch fixes the warning, not the enforcement"
+ok "fixed: repeated branch silences the warning and still enforces"
 
 # 20. The repeated form still generates its default.
 run repgen 0 -- "$DIR/exhibits/enum-default-repeated.aon"

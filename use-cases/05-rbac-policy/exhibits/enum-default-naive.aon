@@ -1,8 +1,9 @@
-# The natural spelling of "enum with default". OBSERVED BEHAVIOUR
-# (asserted by check.sh): a scalar preference is overridable by ANY
-# same-kind value, so this admits the string "superadmin" -- the enum
-# is not enforced at all. Every vet run also reports a
-# pref_not_instance warning, because peeling *member out of the
-# alternatives leaves a default that is "not an instance" of
-# admin|owner.
+# The natural spelling of "enum with default" -- and, since 2026-08-26
+# (the preference admission gate, ADR-004), the WORKING one: an
+# override must be admitted by an alternative or equal the preferred
+# value, so "superadmin" is refused with [aontu/|:empty] (asserted by
+# check.sh). Unset, the field generates "member". Vet also reports a
+# pref_not_instance advisory: the default is a member of the admitted
+# set only by being the default -- repeat the branch (see
+# enum-default-repeated.aon) to state it as a first-class member.
 invite: { role: *member | admin | owner }

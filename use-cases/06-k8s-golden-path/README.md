@@ -224,10 +224,16 @@ the default (`probes/default-with-bounds.aon`):
 ```
 
 Moving the bounds into the branch — `*2 | (integer & min(1) & max(20))`
-— generates, but any override skips the bounds entirely:
-`replicas: 40` is accepted, exit 0 (`probes/bound-bypass.aon` +
-golden). Every numeric policy therefore lives in `guardrails.aon` and
-is enforced only by a separate `vet` run, not by evaluation.
+— generates, and any override *used to* skip the bounds entirely:
+`replicas: 40` was accepted, exit 0.
+
+> **2026-08-26: fixed by the preference admission gate (ADR-004) —
+> assertions updated to the new behaviour.** The branch spelling now
+> both defaults and enforces: `replicas: 40` is refused with
+> `[aontu/|:empty]`, exit 1 (`probes/bound-bypass.aon`), while an
+> in-range override is admitted and the unset field generates `2`.
+> The conjunct spelling above remains the phase-1 limit, so
+> `guardrails.aon` still covers policies stated that way.
 
 ### 9. (major) no arithmetic beyond `+`, no unit arithmetic
 

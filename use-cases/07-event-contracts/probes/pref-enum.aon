@@ -1,13 +1,15 @@
-# pref-enum.aon --- FAILED ATTEMPT, kept as evidence (README gap:
-# enum with a default). The disjunct spelling of "allowed set with a
-# default" does not enforce the set: a concrete same-kind peer
-# OVERRIDES the *pref branch rather than being tested against it, so
-# v:"9.9" vets VALID here. The pref_not_instance warning that
-# accompanies it is itself wrong -- "1.0" IS an alternative.
-# check.sh pins both. The conjunct spelling used by envelope.aon,
-#   ("1.0" | "1.1") & *"1.0"
-# enforces the set under vet but errors under plain eval and loses
-# the default in canon (see probes/default-a.aon / default-b.aon).
+# pref-enum.aon --- the disjunct spelling of "allowed set with a
+# default". FIXED 2026-08-26 by the preference admission gate
+# (ADR-004): an override must be admitted by an alternative (or equal
+# the preferred value), so v:"9.9" is now REFUSED under vet
+# ([aontu/|:empty], verdict invalid) where it used to vet VALID --
+# this file was kept as evidence of that gap. The pref_not_instance
+# advisory still accompanies the schema (the default "1.0" is not an
+# instance of any remaining alternative -- write *"1.0"|"1.0"|"1.1"
+# to state it as a first-class member and silence it). The conjunct
+# spelling used by envelope.aon, ("1.0" | "1.1") & *"1.0", enforces
+# under vet but still errors under plain eval and loses the default in
+# canon (probes/default-a.aon / default-b.aon -- the phase-1 limit).
 
 E: {
   v: *"1.0" | "1.1"

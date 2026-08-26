@@ -19,6 +19,10 @@ Two cautions:
   the finding (marked in their headers and in BUGS.md), and
   `enum-default/match-helper-workaround.aon` is deliberately the
   *working* spelling, kept beside the failing ones.
+- The whole `enum-default/` family is **FIXED** as of 2026-08-26 by
+  the preference admission gate (ADR-004): each header records the
+  new behaviour and the shared spec rows that pin it, and BUGS.md
+  §1–5 carry Status lines.
 
 These are review artifacts. Per ADR-001, the durable home for any
 behaviour contract is a `test/spec/*.tsv` row probed in both ports;
