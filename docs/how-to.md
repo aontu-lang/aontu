@@ -1028,15 +1028,26 @@ $ aontu main.aon
 ```
 
 The pin is what the hand-vendoring was *for*: from now on every
-evaluation checks the vendored content against the locked canon-hash,
-so a modified or tampered tree is refused rather than silently used —
+evaluation re-derives the vendored module's canon-hash and compares it
+to the locked one, so a change to the module's **evaluated meaning** is
+refused rather than silently used —
 
 ```sh
-$ aontu main.aon        # after any change to the vendored module
+$ aontu main.aon        # after a semantic change to the vendored module
 module integrity: corp.example/schemas/service@1 expected aon1-oQs6… got aon1-Bd4O…
 $ echo $?
 1
 ```
+
+Be precise about what that pin protects: it is a *semantic* pin, taken
+over the canonical form of the module's entry document and its include
+closure. Meaning-preserving edits — comments, whitespace, refactored
+spellings that canon to the same value, `mod.aon` metadata, files the
+entry never includes — deliberately keep the same hash and are **not**
+refused. Byte-level integrity of a distributed artifact is the `oci`
+digest's job (see the lockfile's two pins in the
+[language reference](reference-language.md#modules)); the canon pin
+answers "has the truth changed?", not "are these the same bytes?".
 
 — which is also why the order is **tidy, then vendor**: the user cache
 is keyed by canon-hash, so `aontu mod vendor` can only find what a
