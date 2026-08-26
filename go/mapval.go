@@ -100,7 +100,9 @@ func snapshotRefSpread(cj *RefVal, ctx *Ctx) Val {
 	if snap, ok := ctx.snapmap[sk]; ok {
 		return snap
 	}
-	tgt := cj.find(ctx)
+	// snap mode: the pending-mark-wrapper defer in find must not apply
+	// here — the snapshot WANTS the pre-resolution structure.
+	tgt := cj.find(ctx, true)
 	// A ref to a type() resolves to its inner template — snapshot that,
 	// so a type-wrapped ref spread behaves like a plain-map ref spread.
 	if fv, ok := tgt.(*FuncVal); ok && fv.name == "type" && len(fv.peg) > 0 {
@@ -282,7 +284,14 @@ func spreadCloneFor(s Val, path []string, ctx *Ctx) Val {
 			return s
 		}
 	}
-	out := clonePath(s, path)
+	// A FULL INSTANCE per application (instanceClone, ADR-005): a
+	// spread constraint is applied once per destination child, and each
+	// application must own its path-dependent innards — a bare clone
+	// shared a call's arguments and a preference's inner value across
+	// destinations, so a spread like `&: id(key(0)) & $.schema.C`
+	// resolved its one shared key() at the first child it met
+	// (use-cases/BUGS.md §12's id_name form). Mirrors Val.spreadClone.
+	out := instanceClone(s, path)
 	markSpread(out, ctx)
 	return out
 }
@@ -656,7 +665,17 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 			if ex, ok := out.peg[pk]; ok {
 				ctx.slot = pkslot
 				uv = unite(ctx, ex, pc)
-			} else if !expectGenable(pc) {
+			} else if !expectGenable(pc) && !pc.markedType() && !pc.markedHide() {
+				// A MARKED value is carried, never expected (the second
+				// guard; ADR-005 era, BUGS.md §12's include form): a
+				// type()/hide()-marked child legitimately participates in
+				// unification without ever generating — the marks
+				// contract — so wrapping one as an expectation turned a
+				// schema field arriving through an include's map meet
+				// into a bogus mapval_spread_required naming a spread
+				// that exists in neither file. The bag's Gen already
+				// skips marked children. Mirrors handleExpectedVal in
+				// ts/src/val/BagVal.ts.
 				// TS handleExpectedVal: a peer key whose value cannot
 				// generate on its own (a kind, top, a var, a constraint —
 				// typically a spread template field) is wrapped, so the

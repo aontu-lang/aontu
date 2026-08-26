@@ -82,7 +82,13 @@ describe('examples', function() {
 
   test('model-examples', () => {
     expect(G('x:type({}) x:{y:number} a:copy($.x) a:{y:1}')).equal({ a: { y: 1 } })
-    expect(() => G('x:type({}) x:{y:number} a:copy($.x) a:{}')).throws(/required/)
+    // 2026-08-26 (ADR-005): was /required/ — the missing `y` used to be
+    // wrapped as an expectation and reported as mapval_spread_required,
+    // an error naming a spread that exists nowhere in the document.
+    // Marked values are now carried, never expected (BagVal.
+    // handleExpectedVal), so the copy leaves a bare `number` at a.y and
+    // the failure is the truthful mapval_no_gen at that path.
+    expect(() => G('x:type({}) x:{y:number} a:copy($.x) a:{}')).throws(/no_gen/)
     expect(G('x:type({}) x:{y?:number} a:copy($.x) a:{}')).equal({ a: {} })
     expect(G('x:type({}) x:{y?:number,z:2} a:copy($.x) a:{}')).equal({ a: { z: 2 } })
     expect(G('x:type({}) x:{y?:number,z:2} a:copy($.x) a:{y:11}')).equal({ a: { y: 11, z: 2 } })

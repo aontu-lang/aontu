@@ -68,7 +68,13 @@ const G = (s) => A.generate(s);
     });
     (0, node_test_1.test)('model-examples', () => {
         (0, expect_1.expect)(G('x:type({}) x:{y:number} a:copy($.x) a:{y:1}')).equal({ a: { y: 1 } });
-        (0, expect_1.expect)(() => G('x:type({}) x:{y:number} a:copy($.x) a:{}')).throws(/required/);
+        // 2026-08-26 (ADR-005): was /required/ — the missing `y` used to be
+        // wrapped as an expectation and reported as mapval_spread_required,
+        // an error naming a spread that exists nowhere in the document.
+        // Marked values are now carried, never expected (BagVal.
+        // handleExpectedVal), so the copy leaves a bare `number` at a.y and
+        // the failure is the truthful mapval_no_gen at that path.
+        (0, expect_1.expect)(() => G('x:type({}) x:{y:number} a:copy($.x) a:{}')).throws(/no_gen/);
         (0, expect_1.expect)(G('x:type({}) x:{y?:number} a:copy($.x) a:{}')).equal({ a: {} });
         (0, expect_1.expect)(G('x:type({}) x:{y?:number,z:2} a:copy($.x) a:{}')).equal({ a: { z: 2 } });
         (0, expect_1.expect)(G('x:type({}) x:{y?:number,z:2} a:copy($.x) a:{y:11}')).equal({ a: { y: 11, z: 2 } });

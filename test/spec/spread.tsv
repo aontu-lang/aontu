@@ -22,7 +22,19 @@ sibling-braced-canon	canon	x:{&:{k:a} &:{p:2}}	{"x":{&:{"k":"a"}&{"p":2}}}
 sibling-bare-canon	canon	&:k:a &:p:2	{&:{"k":"a"}&{"p":2}}
 sibling-bare-apply	gen	&:k:a &:p:2 m:{v:9}	{"m":{"k":"a","p":2,"v":9}}
 template-func-canon	canon	a:{&:{l:lower(HELLO)},b:{x:1}}	{"a":{&:{"l":"hello"},"b":{"l":"hello","x":1}}}
-spread-close-template-canon	canon	x:{&:close({k:key()})} x:a:{} x:c:move($.x.a)	{"x":{&:close({"k":"c"}),"a":{"k":"c"},"c":{"k":"c"}}}
+# FLIPPED 2026-08-26 (ADR-005, template-clone isolation): this row used
+# to pin `&:close({"k":"c"})` with a.k also "c" — the spread shared the
+# close call's inner map across applications AND with a move() clone,
+# so the last destination's key() resolution was stamped into the
+# template and into every child. Applications are now full instances
+# (Val.spreadClone dup / spreadCloneFor instanceClone): the template
+# canons as written and each child gets ITS OWN key. The move()
+# combination moved to the gens row below — its canon mixes the pinned
+# move ghost-innard sharing (func.tsv ghost-*) with per-instance
+# spread application and no longer reparses without contradiction,
+# while its generated output is stable and correct.
+spread-close-template-canon	canon	x:{&:close({k:key()})} x:a:{}	{"x":{&:close({"k":key()}),"a":{"k":"a"}}}
+spread-close-template-move-gens	gens	x:{&:close({k:key()})} x:a:{} x:c:move($.x.a)	{"x":{"c":{"k":"c"}}}
 spread-hidden-key-resolves-canon	canon	x:{&:{k:key(),w:0}} x:a:z:1 x:c:move($.x.a) x:d:{m:move($.x.c)}	{"x":{&:{"k":key(),"w":0},"a":{"k":key(),"w":0,"z":1},"c":{"k":"c","w":0,"z":*1},"d":{"k":"d","m":{"k":*"m","w":*0,"z":**1},"w":0}}}
 template-pref-copy-canon	canon	z:3 m:{&:{q:*copy($.z)},a:{}}	{"m":{&:{"q":*3},"a":{"q":*3}},"z":3}
 template-pref-copy	gen	z:3 m:{&:{q:*copy($.z)},a:{}}	{"m":{"a":{"q":3}},"z":3}
@@ -57,3 +69,11 @@ spread-nested-list-key-in-map	gens	a:{&:[&:{k:key()},{}], b:[{}], c:[{},{}]}	{"a
 template-op-ref	gen	b:y\na:{&:{k:"x"+$.b},c:{},d:{}}	{"a":{"c":{"k":"xy"},"d":{"k":"xy"}},"b":"y"}
 template-op-ref-canon	canon	b:y\na:{&:{k:"x"+$.b},c:{},d:{}}	{"a":{&:{"k":"x"+$.b},"c":{"k":"xy"},"d":{"k":"xy"}},"b":"y"}
 template-op-ref-list	gen	a:[&:{k:1+$.b},{},{}]\nb:2	{"a":[{"k":3},{"k":3}],"b":2}
+
+# A SIBLING REFERENCE INSIDE A SPREAD-TEMPLATE EXPRESSION (ADR-005,
+# 2026-08-26; use-cases/BUGS.md §35a): `&: {md: .side_effect}` always
+# worked, but the in-expression form `&: {md: "|" + .side_effect}`
+# failed with no_path — the same template-location anchoring defect as
+# gen-pack.tsv's pack-rel-ref-in-expr. Fixed by the same instance path
+# normalisation. Parity-probed in both engines.
+spread-expr-sibling-ref	gens	rows:{&:{md:"|"+.side_effect} a:{side_effect:readonly}}	{"rows":{"a":{"md":"|readonly","side_effect":"readonly"}}}

@@ -72,17 +72,38 @@ class PlaceVal extends ValBase {
 }
 
 
+// A HOLE BELONGS TO ITS NEAREST ENCLOSING GENERATOR. A `_` inside a
+// generator's template (pack/each, arg 1) or condition (filter, arg 1)
+// is that generator's to bind — "_ is the source child" — so neither
+// the hole test nor the fill walk may cross into those arguments from
+// outside. Before this boundary, `close(pack(d, _ & t))` reported a
+// hole to the OUTER call, so an ordinary overlay statement was
+// absorbed into the template instead of merging with the generated
+// child (use-cases/BUGS.md §10), and an outer pack's fill pass
+// captured a NESTED pack's hole lexically, binding it to the outer
+// source (§34). The data argument (arg 0) is not a binding position,
+// so it stays visible: a hole there is an outer hole as before.
+function boundArgStart(v: any): number {
+  return true === v.isPackFunc || true === v.isEachFunc ||
+    true === v.isFilterFunc ? 1 : Infinity
+}
+
+
 // Does this value CONTAIN a hole? Asked of a call before it resolves:
-// a call holding one must wait for a peer to fill it.
+// a call holding one must wait for a peer to fill it. Holes inside a
+// generator's own binding arguments are NOT this value's holes — see
+// boundArgStart above.
 function hasPlace(v: Val): boolean {
   if (true === (v as any).isPlace) {
     return true
   }
 
   const peg: any = (v as any).peg
+  const bound = boundArgStart(v)
 
   if (Array.isArray(peg)) {
-    for (const c of peg) {
+    for (let cI = 0; cI < peg.length && cI < bound; cI++) {
+      const c = peg[cI]
       if (true === c?.isVal && hasPlace(c)) {
         return true
       }
@@ -106,18 +127,21 @@ function hasPlace(v: Val): boolean {
 // The same tree with every hole filled by `fill`. Answers the value
 // UNCHANGED when it holds no hole, so a caller can test identity to
 // know whether anything was filled -- and so a tree with no hole is
-// never needlessly cloned.
+// never needlessly cloned. A nested generator's binding arguments are
+// left untouched (boundArgStart): those holes are the inner
+// generator's to fill with its OWN source children when it fires.
 function fillPlace(v: Val, fill: Val, ctx: AontuContext): Val {
   if (true === (v as any).isPlace) {
     return fill
   }
 
   const peg: any = (v as any).peg
+  const bound = boundArgStart(v)
 
   if (Array.isArray(peg)) {
     let changed = false
-    const out = peg.map((c: any) => {
-      if (true !== c?.isVal) {
+    const out = peg.map((c: any, cI: number) => {
+      if (true !== c?.isVal || bound <= cI) {
         return c
       }
       const f = fillPlace(c, fill, ctx)

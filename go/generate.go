@@ -103,7 +103,11 @@ func packFunc(ctx *Ctx, f *FuncVal, base []string, args []Val) Val {
 		// holds nothing path-dependent; a generator's template IS the
 		// child, and a child is a position (see the TS
 		// PackFuncVal.resolve comment).
-		child := fillPlace(clonePath(tmpl, kslot), source)
+		// A FULL INSTANCE, to the leaves (instanceClone, ADR-005): a
+		// bare clone shares the inner structure of any call, preference
+		// or operation in the template, so the first child's resolution
+		// of a shared key()/ref answered for every child (BUGS.md §8, §9).
+		child := fillPlace(instanceClone(tmpl, kslot), source)
 		if prev, seen := out.peg[key]; seen {
 			// Duplicate generated keys are not an error: the colliding
 			// children unify, exactly as duplicate source keys merge.
@@ -146,7 +150,8 @@ func eachFunc(ctx *Ctx, f *FuncVal, base []string, args []Val) Val {
 			ctx.slot = islot
 			// `_` inside the template binds the source child (G8 phase
 			// 3), which for each() is the element itself.
-			el = unite(ctx, el, fillPlace(clonePath(tmpl, islot), v))
+			// A full instance per element (instanceClone, ADR-005).
+			el = unite(ctx, el, fillPlace(instanceClone(tmpl, islot), v))
 		}
 		elems = append(elems, el)
 	}
@@ -203,7 +208,10 @@ func filterFunc(ctx *Ctx, f *FuncVal, base []string, args []Val) Val {
 		// `_` inside the condition binds the child being tested (G8
 		// phase 3), so a condition can be about the child as a whole
 		// rather than only about its shape.
-		test := fillPlace(clonePath(cond, slot), child)
+		// The condition is cloned as a FULL instance per trial
+		// (instanceClone, ADR-005) — a bare clone shares call/pref
+		// innards across trials.
+		test := fillPlace(instanceClone(cond, slot), child)
 		met := trialUnify(ctx, clonePath(child, slot), test)
 		return nil != met && met.Canon() == child.Canon()
 	}

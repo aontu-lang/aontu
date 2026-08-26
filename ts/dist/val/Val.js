@@ -4,6 +4,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.EMPTY_ERR = exports.SPREAD = exports.DONE = exports.Val = void 0;
 exports.nextValId = nextValId;
 exports.empty = empty;
+exports.repathInstance = repathInstance;
 const node_util_1 = require("node:util");
 const site_1 = require("../site");
 const DONE = -1;
@@ -151,8 +152,17 @@ class Val {
     // Shallow clone for spread constraints: creates a new Val with the
     // correct path context but shares non-path-dependent children.
     // Override in MapVal/ListVal to avoid deep-cloning simple children.
+    //
+    // A FULL INSTANCE (`dup`, ADR-005): a spread constraint is applied
+    // once per destination child, and each application must own its
+    // path-dependent innards — a bare clone shared a call's arguments
+    // and a preference's inner value across destinations, so a spread
+    // like `&: id(key(0)) & $.schema.C` resolved its one shared key()
+    // at the first child it met (use-cases/BUGS.md §12's id_name form).
     spreadClone(ctx) {
-        return this.clone(ctx);
+        const out = this.clone(ctx, { dup: true });
+        repathInstance(out, out.path);
+        return out;
     }
     get isPathDependent() {
         if (this._isPathDependent !== undefined)
@@ -299,6 +309,60 @@ Object.assign(Val.prototype, {
     isUpperFunc: false,
     isGenable: false,
 });
+// THE INSTANCE PATH NORMALISATION (ADR-005), the TS mirror of the Go
+// port's setPaths (go/clone.go): assign every value in a freshly
+// instantiated template the path the PARSER would have given it at the
+// instance's destination. A deep instance clone (`dup`) copies values
+// whose stored parse paths are argument-shaped — a func argument has
+// no key of its own, a spread template lives under a '&' segment — and
+// Val.clone's ctx-cut cannot rebase those: it derives the child path
+// from the driving ctx alone and drops the segments in between, which
+// is how a nested list spread inside a close()d template lost its
+// parent key and every finding under it named the wrong path (the
+// 06-k8s use case's env findings). One canonical walk instead:
+// bag children descend by key (numeric for a list element, as the
+// parser records them), a spread constraint sits under '&' with its
+// content at the bag's own path, and junction members, operator
+// operands, function arguments and a preference's value all sit AT
+// their holder's path — exactly the parse-time shape.
+function repathInstance(v, path) {
+    if (true !== v?.isVal) {
+        return;
+    }
+    v.path = path;
+    const peg = v.peg;
+    if (true === v.isBag) {
+        const spread = v.spread?.cj;
+        if (null != spread && true === spread.isVal) {
+            // The spread's CONTENT is pathed at the bag (its fields land on
+            // the bag's children); only its ROOT carries the '&' segment —
+            // the same two steps as the Go twin's setPaths.
+            repathInstance(spread, path);
+            spread.path = [...path, '&'];
+        }
+        if (true === v.isList) {
+            for (let i = 0; i < peg.length; i++) {
+                // Numeric, as the parser records list positions: a numeric
+                // segment is what tells key() an element is not a keyed
+                // position (KeyFuncVal.resolve, `positioned`).
+                repathInstance(peg[i], [...path, i]);
+            }
+        }
+        else {
+            for (const k of Object.keys(peg)) {
+                repathInstance(peg[k], [...path, k]);
+            }
+        }
+    }
+    else if (Array.isArray(peg)) {
+        for (const t of peg) {
+            repathInstance(t, path);
+        }
+    }
+    else if (true === peg?.isVal) {
+        repathInstance(peg, path);
+    }
+}
 function inspectpeg(peg, d) {
     const indent = '  '.repeat(d);
     return pretty(Array.isArray(peg) ?

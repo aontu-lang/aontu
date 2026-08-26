@@ -42,3 +42,26 @@ pack-key-map	errc	d:pack([a,{b:1}],{x:1})\n	pack_key
 pack-arity-one	errc	d:pack($.n)\n	func_arity
 pack-arity-none	errc	d:pack()\n	func_arity
 pack-arity-three	errc	d:pack([a],{x:1},{y:2})\n	func_arity
+
+# TEMPLATE-CLONE ISOLATION (ADR-005, 2026-08-26; use-cases/BUGS.md §9):
+# a rank-2 default computed from key() shared its one inner key()
+# across the generated children (the pref clone shared its inner
+# value), so every child silently answered the FIRST child's key. Rank
+# 1 escaped only because its meet builds a fresh pref per destination;
+# both ranks are now full per-destination instances. The override row
+# composes with the admission gate (ADR-004): `zz` is admitted by the
+# string alternative. Parity-probed in both engines.
+pack-rankpref-key-per-child	gens	col:{web:{},auth:{}}\nout:pack($.col,{value:**key(1)|string})\n	{"col":{"auth":{},"web":{}},"out":{"auth":{"value":"auth"},"web":{"value":"web"}}}
+pack-rankpref-key-override	gens	col:{web:{},auth:{}}\nout:pack($.col,{value:**key(1)|string})\nout:auth:value:zz\n	{"col":{"auth":{},"web":{}},"out":{"auth":{"value":"zz"},"web":{"value":"web"}}}
+
+# EXPRESSIONS IN A TEMPLATE RE-ANCHOR PER CHILD (ADR-005, 2026-08-26;
+# use-cases/BUGS.md §33): a relative reference or key() nested inside
+# a `+` expression or a call argument used to resolve at the
+# TEMPLATE's own location (visible as the NaN path segment in the
+# no_path diagnostics), while the same reference as a bare value
+# re-anchored correctly. The per-destination instance now has every
+# inner path normalised to the destination (repathInstance / the Go
+# setPaths call), so the expression forms answer for the child
+# exactly as the bare forms always did. Parity-probed in both engines.
+pack-rel-ref-in-expr	gens	names:[web,auth]\nd:pack($.names,{a:1,b:.a+1})\n	{"d":{"auth":{"a":1,"b":2},"web":{"a":1,"b":2}},"names":["web","auth"]}
+pack-key-in-expr-and-call	gens	n:[p,q]\nd:pack($.n,{img:"acme/"+key()+":1",u:upper(key())})\n	{"d":{"p":{"img":"acme/p:1","u":"P"},"q":{"img":"acme/q:1","u":"Q"}},"n":["p","q"]}

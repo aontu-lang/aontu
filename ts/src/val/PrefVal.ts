@@ -234,7 +234,20 @@ class PrefVal extends FeatureVal {
 
   clone(ctx: AontuContext, spec?: ValSpec): Val {
     let out = (super.clone(ctx, spec) as PrefVal)
-    // out.pref = this.pref.clone(null, ctx)
+    // THE PER-DESTINATION INSTANTIATION RULE (ADR-005). The default
+    // clone shares the preferred value (`peg: this.peg` in Val.clone)
+    // — a cloned pref spread template resolves its inner value at the
+    // template's own location, pinned behaviour. But a template
+    // INSTANCE must own it: with the peg shared, a rank-2 default
+    // (`**key(1) | string`) in a pack template resolved its one
+    // shared inner key() at the first destination and every child got
+    // the first child's key (use-cases/BUGS.md §9 — rank 1 escaped
+    // only because its unify builds a fresh PrefVal per meet). The
+    // superpeg yardstick from the shared peg still holds: the clone's
+    // innermost value is the same kind.
+    if (true === spec?.dup && true === (this.peg as any)?.isVal) {
+      out.peg = this.peg.clone(ctx, { dup: true })
+    }
     return out
   }
 

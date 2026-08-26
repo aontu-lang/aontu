@@ -26,7 +26,14 @@ class BagVal extends FeatureVal_1.FeatureVal {
         return bag;
     }
     handleExpectedVal(key, val, parent, ctx) {
-        if (val.isGenable) {
+        // A MARKED value is carried, never expected (ADR-005 era, BUGS.md
+        // §12's include form): a type()/hide()-marked child legitimately
+        // participates in unification without ever generating — that is
+        // the marks contract — so wrapping one as an expectation turned a
+        // schema field arriving through an include's map meet into a
+        // bogus `mapval_spread_required` naming a spread that exists in
+        // neither file. The bag's gen already skips marked children.
+        if (val.isGenable || val.mark.type || val.mark.hide) {
             return val;
         }
         const expectVal = new ExpectVal_1.ExpectVal({ peg: val }, ctx);

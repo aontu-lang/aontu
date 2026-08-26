@@ -1,0 +1,5 @@
+# A type()-marked record schema whose body references a type()-marked
+# named ALIAS across this include boundary (use-cases/BUGS.md §12, the
+# generator-seal include-alias repros). Loaded by file.tsv's
+# load-alias-* rows.
+schema: { T: type(integer), C: type({ ledgerId: $.schema.T }) }

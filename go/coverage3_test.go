@@ -153,18 +153,18 @@ func TestRefInternalsDirect(t *testing.T) {
 	}
 
 	// find: a non-string non-var segment defers.
-	if (&RefVal{absolute: true, peg: []any{42}}).find(ctx) != nil {
+	if (&RefVal{absolute: true, peg: []any{42}}).find(ctx, false) != nil {
 		t.Fatalf("bad segment must defer")
 	}
 	// find: relative ref with an empty own path clamps the base.
-	if f := (&RefVal{peg: []any{"a"}}).find(ctx); f == nil || f.Canon() != "1" {
+	if f := (&RefVal{peg: []any{"a"}}).find(ctx, false); f == nil || f.Canon() != "1" {
 		t.Fatalf("relative find from root")
 	}
 	// find: ref marks transfer onto the found node in place.
 	mk := &RefVal{absolute: true, peg: []any{"a"}}
 	mk.mtype = true
 	mk.mhide = true
-	if out := mk.find(ctx); out == nil {
+	if out := mk.find(ctx, false); out == nil {
 		t.Fatalf("marked find")
 	}
 	if !root.peg["a"].markedType() || !root.peg["a"].markedHide() {

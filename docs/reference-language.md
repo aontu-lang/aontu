@@ -583,6 +583,17 @@ and relative references inside the template answer for the child
 rather than for the call. Duplicate keys are not an error — the
 colliding children unify, exactly as duplicate source keys merge.
 
+**Instantiation is per destination, to the leaves** (ADR-005). The
+clone a destination receives is a *full instance*: nothing in it —
+not a call's arguments, not a preference's inner value, not an
+operator's operands — is shared with the template or with any sibling
+destination, and every path inside it is the destination's. So
+`close({name: key()})`, `**key(1) | string` and `.a + 1` inside a
+template all answer per child, in expressions and call arguments as
+much as in bare positions; the first child's resolution can never
+answer for the others. The same rule instantiates a `filter`
+condition per trial and a spread constraint (`&:`) per application.
+
 `each(data, tmpl?)` makes one **list element** per child of `data`,
 each of them that child met with `tmpl`. The order is fixed: source
 order for a list, sorted-key order for a map. Written with one
@@ -689,6 +700,18 @@ open:  pack($.ports, {port: _, name: key()})
   → {"open":{"http":{"name":"http","port":80},
              "https":{"name":"https","port":443}}}
 ```
+
+A hole belongs to its **nearest enclosing generator** (ADR-005): an
+outer generator's fill pass never reaches into a nested generator's
+template (or a `filter`'s condition), so in
+`pack($.envs, {services: pack($.fleet, {v: _})})` the inner `_` is
+the fleet entry, not the env. A hole in a generator's *data* argument
+is not a binding position, so it is still the outer generator's to
+fill: `pack($.m, {inner: each(_)})` iterates the outer source child.
+And wrapping a generator in a call (`close(pack(d, _ & t))`) does not
+expose the template's hole to the wrapper's peers — an overlay
+statement merges with the generated children, never with the
+template.
 
 For a `pack` over a list of names, `_` and `key()` are the same thing
 — the name is the key. Over a map they differ: `key()` is the key, `_`
@@ -1265,6 +1288,18 @@ omitted when the enclosing map is generated**, while still participating
 in unification. A bare marked value at the top level still generates
 (`type(1) & number`→`1`). `copy()` clears both marks, making the result
 emittable again (`x:type({}) x:y:1 a:copy($.x)`→`{"a":{"y":1}}`).
+
+**A mark belongs to the field its wrapper was written at** (ADR-005).
+A reference to a `type()`/`hide()`-marked value copies the value with
+the marks cleared — and that holds however the wrapper resolves:
+a reference that lands on a still-unresolved `type()`/`hide()` call
+waits for it to resolve at its *own* field rather than copying the
+call, so the marks can never be re-stamped at the referring site. In
+particular `m: hide(pack(...))` hides the field `m` exactly as
+`hide({literal map})` does — the generated children stay usable
+downstream (`out: pack($.m, {got:_})` emits their values) — and a
+`type()`-marked alias referenced inside another `type()` body
+constrains the referring field without suppressing its emission.
 
 ## Closed values: `close` / `open`
 

@@ -10,6 +10,7 @@ const top_1 = require("./top");
 const ConjunctVal_1 = require("./ConjunctVal");
 const NilVal_1 = require("./NilVal");
 const BagVal_1 = require("./BagVal");
+const Val_1 = require("./Val");
 const provenance_1 = require("../provenance");
 class ListVal extends BagVal_1.BagVal {
     constructor(spec, ctx) {
@@ -221,7 +222,11 @@ class ListVal extends BagVal_1.BagVal {
             }
         }
         if (!allScalarKind) {
-            return this.clone(ctx);
+            // A full instance (`dup`, ADR-005), paths normalised to the
+            // destination: see Val.spreadClone and repathInstance.
+            const out = this.clone(ctx, { dup: true });
+            (0, Val_1.repathInstance)(out, out.path);
+            return out;
         }
         let out = super.clone(ctx);
         for (let entry of Object.entries(this.peg)) {
@@ -237,12 +242,16 @@ class ListVal extends BagVal_1.BagVal {
     }
     clone(ctx, spec) {
         let out = super.clone(ctx, spec);
+        // The instantiation flag descends with the mark (ADR-005): a
+        // template's elements are part of the instance.
+        const childspec = spec?.mark || spec?.dup ?
+            { mark: spec?.mark, dup: spec?.dup } : {};
         for (let entry of Object.entries(this.peg)) {
             out.peg[entry[0]] =
-                entry[1]?.isVal ? entry[1].clone(ctx, spec?.mark ? { mark: spec.mark } : {}) : entry[1];
+                entry[1]?.isVal ? entry[1].clone(ctx, childspec) : entry[1];
         }
         if (this.spread.cj) {
-            out.spread.cj = this.spread.cj.clone(ctx, spec?.mark ? { mark: spec.mark } : {});
+            out.spread.cj = this.spread.cj.clone(ctx, childspec);
         }
         out.closed = this.closed;
         out.optionalKeys = [...this.optionalKeys];

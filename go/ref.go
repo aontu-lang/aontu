@@ -141,7 +141,7 @@ func (rv *RefVal) Unify(peer Val, ctx *Ctx) Val {
 	slot := ctx.slot
 
 	var out Val
-	found := rv.find(ctx)
+	found := rv.find(ctx, false)
 	if found == nil {
 		// Not yet resolved: defer.
 		switch {
@@ -219,7 +219,31 @@ func listIndex(part string) (int, bool) {
 	return idx, true
 }
 
-func (rv *RefVal) find(ctx *Ctx) Val {
+// pendingMarkWrapper: is this value an unresolved type()/hide() call —
+// or a conjunct still carrying one? A reference landing on one defers
+// rather than cloning it (see the guard in find). Mirrors
+// pendingMarkWrapper in ts/src/val/RefVal.ts.
+func pendingMarkWrapper(v Val) bool {
+	switch n := v.(type) {
+	case *FuncVal:
+		return ("type" == n.name || "hide" == n.name) && DONE != n.dc
+	case *ConjunctVal:
+		for _, t := range n.peg {
+			if pendingMarkWrapper(t) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// `snap` is set by snapshotRefSpread (mapval.go): a SPREAD snapshot
+// wants the target's pre-resolution STRUCTURE — key()/path() still
+// unresolved, to be re-resolved per destination — so the
+// pending-mark-wrapper defer must not apply to it (deferring there
+// leaked the target's own resolved key() literal into every
+// destination — test/spec/spread-type.tsv, spread-type-key-ref).
+func (rv *RefVal) find(ctx *Ctx, snap bool) Val {
 	if rv.isPrefixPath() {
 		return makeNilErr(ctx, "path_cycle", rv, nil)
 	}
@@ -362,6 +386,25 @@ func (rv *RefVal) find(ctx *Ctx) Val {
 		if rv.detectRefCycle(ctx) {
 			return makeNilErr(ctx, "path_cycle", rv, nil)
 		}
+	}
+
+	// A PENDING MARK WRAPPER IS NOT YET A VALUE TO COPY (ADR-005). A
+	// type()/hide() call still waiting for its argument would be cloned
+	// here as the CALL, and the clone then resolves at the REFERENCE's
+	// site, stamping marks the mark-clearing walk below has already run
+	// too early to clear — a type-marked alias silently suppressed the
+	// referring field's emission (use-cases/BUGS.md §12), hide(pack(…))
+	// leaked its mark onto downstream packs (§11), hide() around a
+	// computed field swallowed the value into a silent [] (§35b).
+	// Defer instead: the reference residuates until the wrapper has
+	// resolved at its OWN field, and the marked-value path below then
+	// clears the marks on the clone as documented. The move() reference
+	// (hideFound) is exempt — a move TRANSPLANTS the pending call
+	// (test/spec/func.tsv ghost rows) — and so is the spread snapshot
+	// (snap), which WANTS the pre-resolution structure. Mirrors the
+	// same guard in ts/src/val/RefVal.ts.
+	if !snap && !rv.hideFound && pendingMarkWrapper(node) {
+		return nil
 	}
 
 	// A ref carrying marks transfers them onto the found node in place

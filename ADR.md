@@ -21,6 +21,7 @@ ADR-NNN**, so the reasoning that led there stays readable.
 | [ADR-002](#adr-002--test-coverage-stays-at-100--in-both-implementations) | Test coverage stays at 100 % in both implementations | Accepted |
 | [ADR-003](#adr-003--host-provided-semantics-are-normalised-not-trusted) | Host-provided semantics are normalised, not trusted | Accepted |
 | [ADR-004](#adr-004--a-preference-override-must-be-admitted-by-its-disjunction) | A preference override must be admitted by its disjunction | Accepted |
+| [ADR-005](#adr-005--template-instantiation-is-per-destination) | Template instantiation is per-destination | Accepted |
 
 ---
 
@@ -400,3 +401,86 @@ the same boundary the kind gate always had.
 
 See [`docs/reference-language.md`](docs/reference-language.md#preference--default-)
 for the author-facing rules.
+
+---
+
+## ADR-005 — Template instantiation is per-destination
+
+**Status:** Accepted (2026-08-26)
+
+### Context
+
+The generation story (G8) rests on one sentence of the language
+reference: *"Each generated child is `tmpl` cloned at that
+destination, so `key()` and relative references inside the template
+answer for the child."* The 2026-08 language review
+([use-cases/REVIEW.md](use-cases/REVIEW.md), finding B;
+[use-cases/BUGS.md](use-cases/BUGS.md) §8–12, §33–35) verified that
+the clone was not an instance: the base clone shares a call's
+argument Vals, a preference's inner value and an operator's operands
+by reference (deliberately — the move()/copy() ghost rows pin that
+sharing), so the moment a template composed — `close()` around it, a
+rank-2 default in it, an expression in it, a nested generator, a
+`hide()`/`type()` wrapper near it — the FIRST destination's
+resolution of the shared innards answered for every destination.
+Every failure was silent wrong output with exit 0, in the exact
+idioms generation exists for: per-child keys stamped with the first
+child's key, overlays absorbed into template holes, a nested pack's
+`_` bound to the outer source, hidden generated children emitting
+empty, type-marked aliases suppressing the fields that referenced
+them.
+
+### Decision
+
+**A value that is multiplied over destinations is instantiated per
+destination, fully.** Concretely, three rules:
+
+1. **The instance owns its structure, to the leaves.** Pack/each
+   template clones, filter-condition trials and applied spread
+   constraints deep-clone function arguments, preference pegs and
+   operator operands (the `dup` clone flag in TypeScript,
+   `instanceClone` in Go), and every path inside the instance is
+   normalised to the destination — the path shape the parser itself
+   would assign there (`repathInstance` in TS mirrors the Go
+   `setPaths`). Nothing else changes its sharing: residuation,
+   reference-resolution and move()/copy() clones keep the pinned
+   ghost semantics.
+2. **A hole belongs to its nearest enclosing generator.** Neither the
+   hole test (`hasPlace`) nor the fill walk crosses into a
+   generator's template or condition argument from outside; a hole in
+   a *data* argument is not a binding position and stays visible.
+3. **A mark belongs to the field its wrapper was written at.** A
+   reference that finds a still-pending `type()`/`hide()` call defers
+   until the wrapper has resolved at its own field, then copies with
+   marks cleared as the marks contract documents — it never clones
+   the call to resolve (and stamp) at the referring site. A marked
+   peer-only child in a map meet is carried, never wrapped as an
+   expectation.
+
+### Consequences
+
+- The documented template contract becomes true under composition:
+  `close × pack × key()`, rank-pref × key() × pack,
+  close × pack × hole × overlay, nested pack × hole,
+  hide × pack × downstream-ref, type-mark × alias-ref × conjunction
+  (inline and include-crossing), and expressions in templates all
+  answer per destination. The review's minimal repros are the
+  acceptance suite and every fixed behaviour is pinned by
+  parity-probed shared rows (see the CHANGELOG entry for the list).
+- One canon flip, deliberate: a path-dependent spread template canons
+  as written instead of with the last destination's resolution baked
+  into it (`spread.tsv` spread-close-template-canon). Applications
+  are unchanged.
+- Instantiation costs a deep clone per destination for
+  path-dependent templates. The cost is scoped — the path-independent
+  sharing tiers (`spreadClone` tiers 1–2) are untouched, and a
+  400-service double-close pack model evaluates in ~0.25s (TS) /
+  ~0.10s (Go).
+- What this ADR does NOT fix is named in BUGS.md: the unequal-spread
+  sibling crosswire (§6–7, the `TODO: handle existing spread!`
+  machinery) and expressions reading the generated child's own fields
+  through a merge (§36) have different roots and remain open.
+- Enforced by the shared spec (ADR-001 discipline) and by both ports
+  changing together; the mark/hole rules are author-facing in
+  [`docs/reference-language.md`](docs/reference-language.md)
+  ("Generating children", "The placeholder `_`", "Marks").

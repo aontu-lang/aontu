@@ -5,6 +5,74 @@ package (`ts/`, npm `aontu`) and the Go module (`go/`,
 `github.com/rjrodger/aontu/go`) are versioned independently; entries note
 which implementation each change affects.
 
+## Unreleased — template-clone isolation (ADR-005)
+
+Both implementations. The language review's finding B
+(`use-cases/REVIEW.md`; `use-cases/BUGS.md` §8–12, §33–35), taken as
+one engineering campaign with the review's minimal repros as its
+acceptance suite. One mechanical root — template clones sharing inner
+nodes — and its surfaces, every one of them silent wrong output with
+exit 0:
+
+- **Instantiation is per destination, to the leaves.** A pack/each
+  template, a filter condition, and an applied spread constraint are
+  now FULL instances: function arguments, a preference's inner value
+  and operator operands are cloned per destination (the `dup` clone in
+  TS, `instanceClone` in Go) with every inner path normalised to the
+  destination (`repathInstance` / the Go `setPaths` shape). Fixes:
+  `pack($.names, close({name: key()}))` stamping the FIRST child's key
+  on every child (§8, and its garbled `$.deploy.NaN.p` override
+  paths); a rank-2 `**key(1)|string` default shared by all children
+  (§9); relative references and `key()` inside template *expressions*
+  resolving at the template's own location — the `NaN`-path family
+  (§33, §35a).
+- **A hole belongs to its nearest enclosing generator.** `hasPlace`/
+  `fillPlace` no longer cross into a generator's template or condition
+  argument, so `close(pack(d, _ & t))` + overlay merges with the
+  generated child instead of absorbing the overlay into the template
+  (§10), and a nested pack's `_` binds the INNER source child instead
+  of the outer one (§34). A hole in a generator's *data* argument is
+  still the outer generator's to fill.
+- **A mark belongs to the field its wrapper was written at.** A
+  reference that lands on a still-pending `type()`/`hide()` call now
+  DEFERS until the wrapper resolves at its own field, instead of
+  cloning the call and having the clone stamp marks at the referring
+  site after the mark-clearing walk had run. Fixes: `hide(pack(...))`
+  leaking its mark onto generated children so downstream packs emitted
+  them empty (§11); type-marked alias references silently suppressing
+  the referring field — inline and across `@` includes — plus the
+  bogus `id_name` on `id(key(0))` and the phantom
+  `mapval_spread_required` naming a spread in neither file (§12); and
+  `hide()` around a computed field of a pack child swallowing the
+  value into a silent `[]` (§35b — it now yields the computed value).
+  A marked peer-only child in a map meet is carried, never wrapped as
+  an expectation.
+
+One deliberate canon flip: a path-dependent spread template no longer
+canons with the last destination's resolution baked into it
+(`spread.tsv` spread-close-template-canon rewritten, with the move()
+combination pinned as `spread-close-template-move-gens`). The move()/
+copy() ghost-innard sharing (`func.tsv` ghost-*) is untouched.
+
+Pinned by parity-probed shared rows: `gen-close.tsv`
+(close-template-keys-per-child, close-template-key-pref-override,
+close-template-key-refuses-extra, close-pack-hole-overlay-merges),
+`gen-pack.tsv` (pack-rankpref-key-per-child, pack-rankpref-key-override,
+pack-rel-ref-in-expr, pack-key-in-expr-and-call), `place.tsv`
+(place-nested-pack-inner-binding, place-nested-pack-inner-meet,
+place-hole-as-inner-data, place-hole-as-inner-data-tmpl), `marks.tsv`
+(hide-pack-field-hidden, hide-pack-downstream-pack,
+type-alias-conjunct-ref, type-conjunct-arg-ref,
+type-conjunct-target-ref, type-alias-ref-first,
+hide-computed-pack-copy), `spread.tsv` (spread-expr-sibling-ref), and
+`file.tsv` (load-alias-spread, load-alias-idspread,
+load-alias-top-conjunct, over the new `alias_schema.aon` /
+`alias_top.aon` fixtures). Rationale: `ADR.md` ADR-005; author-facing
+rules: `docs/reference-language.md` ("Generating children", "The
+placeholder `_`", "Marks"). Still open, honestly: the unequal-spread
+sibling crosswire (BUGS.md §6–7) and the self-referential merge
+expression (§36).
+
 ## Unreleased — the preference admission gate (ADR-004, BREAKING)
 
 Both implementations. The top-priority recommendation of the 2026-08

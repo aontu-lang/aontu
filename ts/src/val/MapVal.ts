@@ -34,6 +34,7 @@ import {
 import { ConjunctVal } from './ConjunctVal'
 import { NilVal } from './NilVal'
 import { BagVal } from './BagVal'
+import { repathInstance } from './Val'
 import { cmpCodePoint } from '../keyorder'
 import { markSpread } from '../provenance'
 
@@ -63,7 +64,9 @@ function snapshotRefSpread(cj: any, ctx: AontuContext): Val | undefined {
   const sk = spreadSnapKey(cj)
   let snap: Val | undefined = snapmap.get(sk)
   if (undefined === snap) {
-    let tgt: Val | undefined = cj.find(ctx)
+    // snap mode: the pending-mark-wrapper defer in find must not
+    // apply here — the snapshot WANTS the pre-resolution structure.
+    let tgt: Val | undefined = cj.find(ctx, true)
     // A ref to a type() resolves to its inner template — snapshot that,
     // so a type-wrapped ref behaves like a plain-map ref spread.
     if (tgt && (tgt as any).isTypeFunc) tgt = (tgt as any).peg?.[0]
@@ -443,7 +446,11 @@ class MapVal extends BagVal {
     }
 
     if (!allScalarKind) {
-      return this.clone(ctx)
+      // A full instance (`dup`, ADR-005), paths normalised to the
+      // destination: see Val.spreadClone and repathInstance.
+      const out = this.clone(ctx, { dup: true })
+      repathInstance(out, out.path)
+      return out
     }
 
     let out = (super.clone(ctx) as MapVal)
@@ -475,12 +482,17 @@ class MapVal extends BagVal {
           // (entry[1] as Val).clone(ctx, spec?.mark ? { mark: spec.mark } : {}) :
           (entry[1] as Val).clone(ctx, {
             mark: spec?.mark ?? {},
-            path: [...out.path, entry[0]]
+            path: [...out.path, entry[0]],
+            // The instantiation flag descends (ADR-005): a template's
+            // children are part of the instance.
+            dup: spec?.dup,
           }) :
           entry[1]
     }
     if (this.spread.cj) {
-      out.spread.cj = this.spread.cj.clone(ctx, spec?.mark ? { mark: spec.mark } : {})
+      out.spread.cj = this.spread.cj.clone(ctx,
+        spec?.mark || spec?.dup ?
+          { mark: spec?.mark, dup: spec?.dup } : {})
     }
 
     out.closed = this.closed

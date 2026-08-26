@@ -82,6 +82,27 @@ class FuncBaseVal extends FeatureVal_1.FeatureVal {
         }
         return alldone;
     }
+    // THE PER-DESTINATION INSTANTIATION RULE (ADR-005). The default
+    // clone shares the argument array AND the argument Vals — pinned
+    // sharing for the move()/copy() ghost artifacts (test/spec/func.tsv,
+    // ghost-*-innard-canon) — but a clone that is a template INSTANCE
+    // must own the full inner structure: with the args shared,
+    // `pack($.names, close({name: key()}))` resolved key() once inside
+    // the one shared inner map and stamped the FIRST child's key on
+    // every child (use-cases/BUGS.md §8). The `dup` spec flag asks for
+    // that depth; everything else keeps the sharing it has always had.
+    clone(ctx, spec) {
+        const out = super.clone(ctx, spec);
+        if (true === spec?.dup && Array.isArray(this.peg)) {
+            // Every argument is a Val by construction (the parser builds
+            // them; make() rebuilds from driven Vals), as the Go twin's
+            // []Val typing states outright. The instantiation sites then
+            // normalise every path in the clone (repathInstance), so the
+            // argument-shaped parse paths never leak into an instance.
+            out.peg = this.peg.map((a) => a.clone(ctx, { dup: true }));
+        }
+        return out;
+    }
     // The shape a staged func holds while it waits: not done, so the pass
     // loop keeps going; unchanged against TOP, so nothing reads an answer
     // it has not given; and collapsed against an identical twin at the
