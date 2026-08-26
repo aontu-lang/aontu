@@ -1,0 +1,15 @@
+# Claim C1 mode A, schema-role variant (use-case 07 gap 9 / 03 gap 3
+# reduced): a constraint written in an INCLUDED file and reached
+# through a reference is reported at the ENTRY file's name with the
+# included file's row/col. Run:
+#   aontu vet --at '$.reg.placed' refclone-contract.aon refclone-bad.json
+# The re() lives at refclone-env.aon:3:24 only; THIS file's row 3 is a
+# comment. A repair agent following sites[].file+row+col edits the
+# wrong file. (Values parsed straight from a schema-side include keep
+# their absolute url and attribute correctly -- the ledger's #66 entry
+# even cites that shape as TS being RIGHT; it is the cloned/derived
+# values that fall back to the entry name.)
+# expected: schema site refclone-env.aon:3:24 (re("^[0-9]{4}-Z$"))
+# actual:   schema site refclone-contract.aon:3:24
+@"refclone-env.aon"
+reg: { placed: $.Envelope & { kind: "p" } }

@@ -1,0 +1,3 @@
+# Standalone this file evaluates and hashes (aontu hash service.aon).
+defaults: hide({ port: 8080 })
+spec: { name: string, port: $.defaults.port }

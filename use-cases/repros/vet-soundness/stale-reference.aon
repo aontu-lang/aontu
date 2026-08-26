@@ -1,0 +1,12 @@
+# C4 (use-case 05): a schema-internal reference is resolved against the
+# schema layer alone and never re-fired against the merged data, so vet
+# and one-document evaluation disagree about the same composition.
+# expected: verdict: invalid, exit 1 (b: $.a with a=3 forbids b=4;
+#           evaluating the same four lines as one document is
+#           [aontu/scalar_value] Cannot unify value: 4 with value: 3)
+# actual: verdict: valid, exit 0 -- $.a resolved to the schema-side
+#         'integer' before the data arrived, and the tie is never
+#         re-checked
+# run: aontu vet stale-reference.aon stale-reference.json
+a: integer
+b: $.a

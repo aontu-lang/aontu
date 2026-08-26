@@ -1,0 +1,2 @@
+mod: { path: "corp.example/schemas/service", version: "1.4.2", main: "service.aon" }
+dep: { "corp.example/schemas/common@1": { v: "1.2.0" } }

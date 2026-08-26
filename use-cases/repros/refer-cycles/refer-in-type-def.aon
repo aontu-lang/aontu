@@ -1,0 +1,19 @@
+# Use-case 10 gap 7 (claim C2, single-file half): refer() written inside
+# a named type() definition — the obvious home for referential
+# integrity — never settles at the use site, and the record dies at
+# generation.  The identical constraint attached at the bag spread
+# instead (`&: $.schema.Order & {customerId: refer()}`) works, which is
+# the workaround 10/domain.aon ships.
+# expected: {"customers":{"cust-1":{}},
+#            "orders":{"ord-1":{"customerId":"cust-1","id":"ord-1"}}} exit 0
+# actual:   [aontu/mapval_no_gen]: Cannot resolve value at path
+#           $.orders.ord-1 (residue: type(close({"customerId":
+#           refer()&re("^cust-"),"id":string}))&{...}) exit 1
+schema: {
+  Order: type(close({
+    id: string
+    customerId: refer() & string & re("^cust-")
+  }))
+}
+customers: { "cust-1": id("cust-1") & { } }
+orders: { &: $.schema.Order & { id: .$KEY }, "ord-1": id("ord-1") & { customerId: "cust-1" } }

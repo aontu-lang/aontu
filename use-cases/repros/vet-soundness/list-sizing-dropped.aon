@@ -1,0 +1,11 @@
+# C5 (use-case 09): list form -- length(max(2)) & unique() beside a list
+# spread template are stripped when the schema settles (--canon of this
+# file alone: {"labels":[&:string]}), so duplicate and oversize data
+# vets valid. One-document evaluation of the same atoms with the same
+# list refuses ([aontu/constraint], exit 1). Bare unique()/length(max)
+# WITHOUT the template in the same conjunct are correctly re-checked.
+# expected: verdict: invalid, exit 1 (3 elements > max(2), and "a","a"
+#           violates unique())
+# actual: verdict: valid, exit 0
+# run: aontu vet list-sizing-dropped.aon dup-labels.json
+labels: [&: string] & length(max(2)) & unique()

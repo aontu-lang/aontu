@@ -1,0 +1,15 @@
+# C5 (use-cases 05, 09): a sizing atom that shares a conjunct with a
+# container (the ubiquitous template idiom) folds against that layer's
+# container ALONE as soon as the schema settles; members from the vet
+# data document (or an @ include, or a later pack) are never counted.
+# A schema-satisfiable bound silently vanishes: --canon of this file
+# alone already shows {"x":{&:{"r":integer}}} -- length(max(2)) gone.
+# expected: verdict: invalid, exit 1 (three entries against max(2);
+#           reference-language.md "Sizing atoms fold last": "after every
+#           value that could contribute a member")
+# actual: verdict: valid, exit 0. NOTE: a BARE atom in the schema
+#         (x: length(max(2)) with no template beside it) IS re-checked
+#         against data and correctly refuses -- the fold is early only
+#         when a container sits in the same conjunct.
+# run: aontu vet sizing-max-vanishes.aon three-entries.json
+x: length(max(2)) & { &: {r: integer} }

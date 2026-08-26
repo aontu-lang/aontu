@@ -1,0 +1,17 @@
+# Use-case 01 gap 1 (claim C4, corrected): a type() whose ARGUMENT is a
+# conjunction containing a reference — the `type($.std.Service & {...})`
+# vocabulary idiom — breaks every use site.  On the current engine the
+# use site is SILENTLY DROPPED from generation (exit 0, `use` missing),
+# in one file just as under @"..." include; the README's loud
+# [aontu/mapval_no_gen] was not reproducible for this shape.  --canon
+# shows `use` fully unified and concrete, so this is silent data loss.
+# Controls that generate `use` correctly: type() removed; or the
+# reference moved to a FIELD of the type body (`Entry: type({base:
+# $.Base, owner: string})`); spec row edge.tsv:edge-type-template pins
+# the no-inner-reference case as generating.
+# expected: {"Base":{"kind":"service"},
+#            "use":{"kind":"service","owner":"team-pay"}} exit 0
+# actual:   {"Base":{"kind":"service"}} exit 0 — `use` silently gone
+Base: { kind: "service" }
+Entry: type($.Base & { owner: string })
+use: $.Entry & { owner: "team-pay" }

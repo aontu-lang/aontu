@@ -1,0 +1,13 @@
+# Use-case 10 gap 7 (claim C2, include half): the same refer()-in-a-
+# named-type as refer-in-type-def.aon, with the schema pulled in through
+# @"...".  Now the failure is a spurious cycle at the type's own
+# definition site — refer()&re() against `top` — and the error snippet
+# quotes THIS file's lines under the included file's path.
+# expected: {"customers":{"cust-1001":{}},"orders":{"ord-7001":
+#            {"customerId":"cust-1001","id":"ord-7001"}}} exit 0
+# actual:   [aontu/unify_cycle]: Cannot unify values at path
+#           $.schema.Order.customerId (Cannot unify value:
+#           refer()&re("^cust-") with value: top) exit 1
+@"./refer-in-type-schema.aon"
+customers: { "cust-1001": id("cust-1001") & { } }
+orders: { "ord-7001": id("ord-7001") & { customerId: "cust-1001" } }

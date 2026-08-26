@@ -1,0 +1,11 @@
+# Claim C1 mode C: a schema site for a disjunction carries position
+# -1:-1 (junctions have no site), and under an @"..." include the file
+# half of that site is the ENTRY file rather than the included file
+# that spells the disjunction. Run:
+#   aontu vet junction-entry.aon junction-data.json
+# ("GET"|"HEAD" is written only in junction-frag.aon. NOT reproduced:
+# the claimed <no-file>:-1:-1 -- <no-file> appears only when no entry
+# file is known at all, e.g. API/stdin parses; see ts/src/err.ts.)
+# expected: schema site junction-frag.aon:3:9 ("GET"|"HEAD")
+# actual:   schema site junction-entry.aon:-1:-1 ("GET"|"HEAD")
+@"junction-frag.aon"

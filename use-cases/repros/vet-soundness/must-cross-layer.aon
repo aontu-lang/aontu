@@ -1,0 +1,20 @@
+# C6 (use-case 05): a MAP-argument must() is consumed against its own
+# document layer -- --canon of this file alone is {"s":{"t":integer}},
+# the must() already gone: the check unified {t:integer} & {t:max(60)}
+# residually, deemed itself satisfied, and discarded the bound. A peer
+# arriving from the vet data document (or an @ include) is never
+# checked. The schema LOOKS guarded and is not.
+# expected: verdict: invalid, exit 1 with the author message "session
+#           too long" (reference-language.md "Band B: must": "residuates
+#           until its peer is concrete, then requires the peer to unify
+#           with c"; the same two lines in one document refuse t: 120
+#           with [aontu/must], exit 1)
+# actual: verdict: valid, exit 0; the same pair via @ include also
+#         generates {"s":{"t":120}}, exit 0.
+#         CORRECTION to use-case 05's "must() is same-layer only": the
+#         FIELD-level form s:{t: integer & must(max(60),"...")} DOES
+#         fire across the vet meet and across @ includes (exit 1, note
+#         attached -- pinned by spec row vet-must-note); only the
+#         map-argument cross-field form evaporates.
+# run: aontu vet must-cross-layer.aon session-120.json
+s: {t: integer} & must({t: max(60)}, "session too long")

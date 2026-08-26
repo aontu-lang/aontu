@@ -1,0 +1,19 @@
+# C1 (use-cases 03, 04): a required field whose schema value is a plain
+# disjunction is silently satisfied by ABSENCE under vet.
+# expected: verdict: incomplete, exit 3 (reference-language.md "Generation":
+#           an unresolved disjunction cannot generate; G2: residual
+#           non-generable value => incomplete finding)
+# actual: verdict: valid, exit 0, findings: [] -- for ANY disjunction that
+#         DisjunctVal.gen's member-fold turns into a conflict or a concrete
+#         value: 'a'|'b', 1|2, number|string, 'a'|integer, {x:1}|{y:2},
+#         and also string&('a'|'b'). Bare kinds (string) and constraints
+#         (min(1)) correctly give incomplete; only a disjunction whose fold
+#         stays a non-concrete kind (integer|number) is caught.
+#         Root cause: vet's gen check keeps only 'incomplete'-class errors,
+#         and DisjunctVal.gen (ts/src/val/DisjunctVal.ts) folds the members
+#         with unify -- 'a'&'b' raises conflict-class errors, which are
+#         dropped. Same value present-but-wrong IS caught (|:empty, exit 1).
+#         Workaround that gives the full triple (missing->3, member->0,
+#         non-member->1): role: string & must('a'|'b', "msg").
+# run: aontu vet enum-missing-key.aon missing-role.json
+user: { role: 'a'|'b' }

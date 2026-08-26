@@ -1,0 +1,11 @@
+# Shared include for refer-in-type-include.aon (use-case 10 gap 7,
+# claim C2, include half).  Same shape as refer-in-type-def.aon, split
+# so the schema crosses an @"..." boundary.
+schema: {
+  Order: type(close({
+    id: string
+    customerId: refer() & string & re("^cust-")
+  }))
+}
+customers: {}
+orders: { &: $.schema.Order & { id: .$KEY } }
