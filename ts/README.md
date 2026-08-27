@@ -68,7 +68,7 @@ root — whenever the source is not yours. See
 ## Two implementations, one specification
 
 TypeScript (this package) is canonical; a Go port
-(`github.com/rjrodger/aontu/go`) mirrors it. Both are checked against
+(`github.com/aontu-lang/aontu/go`) mirrors it. Both are checked against
 one language-agnostic suite of `.tsv` rows, so the same document means
 the same thing in a Node agent harness and a Go gateway.
 

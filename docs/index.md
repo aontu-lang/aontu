@@ -12,7 +12,7 @@ This repository ships **two implementations kept in parity**:
 - **TypeScript** in [`../ts/`](../ts/) — the canonical implementation,
   published to npm as [`aontu`](https://npmjs.com/package/aontu).
 - **Go** in [`../go/`](../go/) — a port
-  (`github.com/rjrodger/aontu/go`) that mirrors the core semantics.
+  (`github.com/aontu-lang/aontu/go`) that mirrors the core semantics.
 
 Both are checked against one language-agnostic test suite in
 [`../test/spec/`](../test/spec/).
@@ -108,6 +108,12 @@ documents argue and specify; what each verb actually does is in the
 [API reference](reference-api.md#command-line-interface), and what has
 been built phase by phase is recorded in the
 [progress register](capability-review/progress.md).
+
+The project site — [aontu.dev](https://aontu.dev), not yet live — is
+planned in [`site/`](site/index.md): what it serves, and where each
+page's content comes from (this documentation set is *rendered* there,
+not rewritten). The steps that stand it up outside a session are in
+[`site/manual-tasks.md`](site/manual-tasks.md).
 
 ### Why the split?
 

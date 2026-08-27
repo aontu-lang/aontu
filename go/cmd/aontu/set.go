@@ -17,7 +17,7 @@ import (
 	"strconv"
 	"strings"
 
-	aontu "github.com/rjrodger/aontu/go"
+	aontu "github.com/aontu-lang/aontu/go"
 )
 
 const setHelp = "aontu set <path>=<value> --entry <file> --overlay <file> (try --help)"

@@ -69,7 +69,7 @@ it drives the CLI (full table in the
 [API reference](reference-api.md#command-line-interface)).
 
 Get the command with `npm i -g aontu` (or `npx aontu`) for Node, or
-`go install github.com/rjrodger/aontu/go/cmd/aontu@latest` for Go. From a
+`go install github.com/aontu-lang/aontu/go/cmd/aontu@latest` for Go. From a
 clone, use `node ts/bin/aontu.js …` or `go run ./cmd/aontu …`.
 
 ## Call Aontu from TypeScript
@@ -91,7 +91,7 @@ unresolved or schema-bearing result rather than a final value.
 ## Call Aontu from Go
 
 ```go
-import aontu "github.com/rjrodger/aontu/go"
+import aontu "github.com/aontu-lang/aontu/go"
 
 a := aontu.New()
 
