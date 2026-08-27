@@ -15,6 +15,32 @@ import { hints } from './hints'
 const { errmsg, strinject } = util
 
 
+// COLOUR IS A DECISION ABOUT THE DESTINATION, not about the message.
+// Every error frame hardcoded the ANSI escapes, so a piped report and
+// a `--jsonl` answer carried terminal control codes into whatever read
+// them -- a log file, a CI annotation, an agent's parser (the review's
+// finding F).
+//
+// NO_COLOR (no-color.org: set, to anything, means no colour) turns them
+// off everywhere, library callers included. The CLI additionally turns
+// them off when its stderr is not a terminal, through setColor: a
+// library cannot see the destination, and a caller who has one is the
+// only one who can say.
+let COLOR: boolean | undefined = undefined
+
+function setColor(on: boolean | undefined): void {
+  COLOR = on
+}
+
+function colorActive(): boolean {
+  if (null != COLOR) {
+    return COLOR
+  }
+  const no = (globalThis as any)?.process?.env?.NO_COLOR
+  return null == no || '' === no
+}
+
+
 function getHint(why: any, details?: Record<string, any>): string | undefined {
   if (hints[why]) {
     let txt = hints[why]
@@ -83,7 +109,7 @@ function descErr<NILS extends NilVal | NilVal[]>(
 
       err.msg = [
         errmsg({
-          color: { active: true },
+          color: { active: colorActive() },
           name: 'aontu',
           code: err.why,
           txts: {
@@ -99,7 +125,7 @@ function descErr<NILS extends NilVal | NilVal[]>(
 
         (null != v1 && errmsg({
           // TODO: color should come from jsonic config
-          color: { active: true, line: '\x1b[34m' },
+          color: { active: colorActive(), line: '\x1b[34m' },
           txts: {
             msg: 'Cannot ' + attempt + ' value: ' + v1.canon +
               (null == v2 ? '' : ' with value: ' + v2.canon), // + ' #' + err.id,
@@ -115,7 +141,7 @@ function descErr<NILS extends NilVal | NilVal[]>(
 
         (null != v2 && errmsg({
           // TODO: color should come from jsonic config
-          color: { active: true, line: '\x1b[34m' },
+          color: { active: colorActive(), line: '\x1b[34m' },
           txts: {
             msg: 'Cannot ' + attempt + ' value: ' + v2.canon +
               ' with value: ' + v1.canon, // + ' #' + err.id,
@@ -210,7 +236,7 @@ class AontuError extends Error {
   }
 
   errs: () => NilVal[]
-} /* node:coverage ignore next 9 */
+} /* node:coverage ignore next 11 */
 
 
 export {
@@ -218,4 +244,6 @@ export {
   makeNilErr,
   descErr,
   AontuError,
+  setColor,
+  colorActive,
 }

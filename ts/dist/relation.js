@@ -26,6 +26,7 @@ exports.relationCheck = relationCheck;
 // Nothing in the engine knows the name `relations`; this pass does,
 // and says so.
 const aontu_1 = require("./aontu");
+const vet_1 = require("./vet");
 const graph_1 = require("./graph");
 const keyorder_1 = require("./keyorder");
 // The entity an address names — everything before the first dot. An
@@ -98,7 +99,11 @@ function relationCheck(src, opts) {
     // graph: the errors it already has are the answer, and blaming its
     // relations on top would be noise.
     if (0 < ctx.err.length || true === root?.isNil) {
-        return { verdict: 'error', findings: [] };
+        return {
+            verdict: 'error',
+            findings: [],
+            errors: [(0, vet_1.failureFinding)(ctx, options.path)],
+        };
     }
     const declared = declaredRelations(root);
     if (0 === declared.length) {

@@ -40,8 +40,8 @@ var semverRe = regexp.MustCompile(`^\d+\.\d+\.\d+$`)
 //	             codeClasses table (go/hints.go)
 //	mode=vet   : FIVE columns -- name, vet, schema, data, expect. The
 //	             report of Vet(schema, data) must equal the expect
-//	             object, MINUS each finding's message (prose is not in
-//	             parity; see test/spec/vet.tsv for the whole encoding,
+//	             object, MINUS each finding's message and hint (prose
+//	             is not in parity; see test/spec/vet.tsv for the whole encoding,
 //	             including the `opts` key)
 //	mode=subsume : FIVE columns -- name, subsume, general, specific,
 //	             expect. The report of Subsume(general, specific) must
@@ -566,8 +566,14 @@ func TestSpec(t *testing.T) {
 						t.Fatalf("expect is not JSON: %v\n expect: %s", err, expect)
 					}
 					r := New().TrimCheck(src)
-					got := specJSON(t, map[string]any{
-						"redundant": r.Redundant, "verdict": r.Verdict})
+					trimmed := map[string]any{
+						"redundant": r.Redundant, "verdict": r.Verdict}
+					if 0 < len(r.Errors) {
+						trimmed["errors"] = specAsMap(t,
+							map[string]any{"e": r.Errors})["e"]
+						specStripProse(trimmed, "errors")
+					}
+					got := specJSON(t, trimmed)
 					want := specJSON(t, golden)
 					if got != want {
 						t.Fatalf("trim report mismatch\n src: %q\n want: %s\n got:  %s",
@@ -585,7 +591,8 @@ func TestSpec(t *testing.T) {
 					if err := json.Unmarshal([]byte(expect), &golden); err != nil {
 						t.Fatalf("expect is not JSON: %v\n expect: %s", err, expect)
 					}
-					got := specJSON(t, specAsMap(t, New().RelationCheck(src)))
+					got := specJSON(t, specStripProse(
+						specAsMap(t, New().RelationCheck(src)), "errors"))
 					want := specJSON(t, golden)
 					if got != want {
 						t.Fatalf("relation report mismatch\n src: %q\n want: %s\n got:  %s",
@@ -660,6 +667,22 @@ func TestSpec(t *testing.T) {
 // object, so a golden cell may be written in any key order.
 // specAsMap round-trips a value through JSON into a plain map, so a
 // struct golden and a literal golden are compared by the same encoding.
+// specStripProse removes each finding's message and hint from a report
+// map, in place, the same carve-out the vet and subsume goldens apply:
+// prose is per-port, codes and shapes are not. Used by the `trim` and
+// `relation` modes for their `errors` list -- WHY the document could
+// not be evaluated, in the finding shape (the review's finding F).
+func specStripProse(out map[string]any, key string) map[string]any {
+	findings, _ := out[key].([]any)
+	for _, f := range findings {
+		if m, ok := f.(map[string]any); ok {
+			delete(m, "message")
+			delete(m, "hint")
+		}
+	}
+	return out
+}
+
 func specAsMap(t *testing.T, v any) map[string]any {
 	t.Helper()
 	b, err := json.Marshal(v)
@@ -702,6 +725,7 @@ func specVetGolden(t *testing.T, report VetReport) string {
 	for _, f := range findings {
 		if m, ok := f.(map[string]any); ok {
 			delete(m, "message")
+			delete(m, "hint")
 		}
 	}
 	return specJSON(t, out)
@@ -754,6 +778,7 @@ func specSubsumeGolden(t *testing.T, report SubsumeReport) string {
 	for _, f := range findings {
 		if m, ok := f.(map[string]any); ok {
 			delete(m, "message")
+			delete(m, "hint")
 		}
 	}
 	return specJSON(t, out)

@@ -1,7 +1,7 @@
 "use strict";
 /* Copyright (c) 2021-2025 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.relationCheck = exports.graphOf = exports.agentsMd = exports.diff = exports.patch = exports.why = exports.get = exports.canonHash = exports.hcanon = exports.trimCheck = exports.subsume = exports.sarifReport = exports.vet = exports.Decimal = exports.exactJSON = exports.formatExplain = exports.util = exports.Lang = exports.AontuError = exports.AontuContext = exports.Aontu = exports.VERSION = void 0;
+exports.relationCheck = exports.graphOf = exports.agentsMd = exports.diff = exports.patch = exports.why = exports.get = exports.canonHash = exports.hcanon = exports.trimCheck = exports.subsume = exports.sarifReport = exports.vet = exports.Decimal = exports.exactJSON = exports.formatExplain = exports.util = exports.Lang = exports.colorActive = exports.setColor = exports.AontuError = exports.AontuContext = exports.Aontu = exports.VERSION = void 0;
 exports.runparse = runparse;
 const lang_1 = require("./lang");
 Object.defineProperty(exports, "Lang", { enumerable: true, get: function () { return lang_1.Lang; } });
@@ -17,6 +17,8 @@ const utility_1 = require("./utility");
 Object.defineProperty(exports, "formatExplain", { enumerable: true, get: function () { return utility_1.formatExplain; } });
 const err_1 = require("./err");
 Object.defineProperty(exports, "AontuError", { enumerable: true, get: function () { return err_1.AontuError; } });
+Object.defineProperty(exports, "setColor", { enumerable: true, get: function () { return err_1.setColor; } });
+Object.defineProperty(exports, "colorActive", { enumerable: true, get: function () { return err_1.colorActive; } });
 const vet_1 = require("./vet");
 Object.defineProperty(exports, "vet", { enumerable: true, get: function () { return vet_1.vet; } });
 const report_sarif_1 = require("./report-sarif");

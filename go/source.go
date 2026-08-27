@@ -191,6 +191,7 @@ func fileResolver(spec multisource.PathSpec, opts *multisource.MultiSourceOption
 			res.Src = toValidSource(string(data))
 			res.Found = true
 			recordDep(sink, p, "file")
+			recordText(sink, p, res.Src)
 			return res
 		}
 	}
@@ -241,11 +242,19 @@ const trustMetaKey = reservedKeyPrefix + "trust"
 // and the include manifest. A POINTER, like notFoundSink, so a nested
 // include's writes reach the entry parse.
 type trustSink struct {
-	none     bool
-	mem      map[string]string
-	root     string
-	denied   string // first denial's message ("" = none)
-	deps     *[]IncludeDep
+	none   bool
+	mem    map[string]string
+	root   string
+	denied string // first denial's message ("" = none)
+	deps   *[]IncludeDep
+	// texts is the TEXT of every source the resolver read, by full
+	// path. A value's position is a byte offset into the source it was
+	// parsed from, so a report that names an included file honestly
+	// (finding F, use-cases/BUGS.md §25) needs that file's text to turn
+	// the offset into a row and column. Shared through the meta bag
+	// exactly as deps is, so an include at any depth lands in the entry
+	// parse's map.
+	texts    map[string]string
 	warn     func(kind, path string)
 	warnRoot string
 	// The module resolver's state and its first refusal (G6 phase 2,
@@ -315,6 +324,16 @@ func recordDep(sink *trustSink, path, capability string) {
 		return
 	}
 	*sink.deps = append(*sink.deps, IncludeDep{Path: path, Capability: capability})
+}
+
+// recordText keeps a resolved source's text by full path, so a report
+// can turn a value's byte offset into a row and column in the file the
+// value actually came from (see trustSink.texts).
+func recordText(sink *trustSink, path, src string) {
+	if nil == sink || nil == sink.texts || "" == path {
+		return
+	}
+	sink.texts[path] = src
 }
 
 // deniedProcessor injects the include_denied nil (the twin of
@@ -424,20 +443,75 @@ func notFoundProcessor(res *multisource.Resolution, _ *multisource.MultiSourceOp
 	res.Val = n
 }
 
-// msOptions builds the multisource plugin options for the aontu grammar.
-// As of multisource/go v0.1.6 the plugin resolves relative @"file" loads
-// inside a loaded file against that file's own directory (via the jsonic
-// context meta), matching the canonical TypeScript @tabnas/multisource,
-// so the stock JsonicProcessor is used directly.
+// aonProcessor parses an included source and then NAMES IT: every value
+// the nested parse produced is stamped with the path it was read from,
+// unless it already carries one from an include of its own.
+//
+// EVERY SITE NAMES THE FILE WHOSE TEXT IT EXCERPTS (the review's
+// finding F, use-cases/BUGS.md §25). Without this the Go port had no
+// per-source name at all -- a value's url was whatever the validation
+// verb stamped over the whole tree afterwards, always the ENTRY -- so a
+// finding cited `entry.aon:3:7` for text that lives three files away,
+// at a line the entry may not even have. A repair agent that follows
+// the site edits the wrong file. The canonical port names the source at
+// parse time through its own resolver; this is the same act, at the one
+// point in this port that knows both the value and its path.
+func aonProcessor(
+	res *multisource.Resolution, opts *multisource.MultiSourceOptions,
+	ctx *jsonic.Context, j *jsonic.Jsonic,
+) {
+	multisource.JsonicProcessor(res, opts, ctx, j)
+	if "" == res.Full { //coverage:ignore a resolution always carries its full path
+		return
+	}
+	stampResolved(res.Val, res.Full)
+}
+
+// stampResolved names every Val in a resolved include's result. The
+// nested parse hands back the raw container jsonic built -- a
+// map[string]any (or a []any) whose entries are Vals -- rather than a
+// Val itself, so the walk starts on the container. The FULL path is
+// the name, not the spelling the include used: two files including the
+// same library by different relative paths must report one file, and a
+// site is only useful if it can be opened.
+func stampResolved(node any, full string) {
+	switch n := node.(type) {
+	case Val:
+		if nil != n {
+			stampURL(n, full)
+		}
+	case map[string]any:
+		for _, child := range n {
+			stampResolved(child, full)
+		}
+	//coverage:ignore-block jsonic hands back a Val or a map, never a raw
+	// slice: probed over map-, list- and scalar-valued includes, where a
+	// list arrives as a *ListVal. Kept because the container shape is
+	// the loader's contract rather than this port's, and losing the
+	// stamp silently would put an included file's coordinates under the
+	// entry's name again -- the exact defect this walk exists to close.
+	case []any:
+		for _, child := range n {
+			stampResolved(child, full)
+		}
+	}
+}
+
+// msOptions builds the multisource plugin options for the aontu
+// grammar. As of multisource/go v0.1.6 the plugin resolves relative
+// @"file" loads inside a loaded file against that file's own directory
+// (via the jsonic context meta), matching the canonical TypeScript
+// @tabnas/multisource, so aonProcessor delegates the parse to the stock
+// JsonicProcessor and only adds the naming above.
 func msOptions(base string) map[string]any {
 	return map[string]any{
 		"_opts": &multisource.MultiSourceOptions{
 			Resolver: fileResolver,
 			Path:     base,
 			Processor: map[string]multisource.Processor{
-				"":           multisource.JsonicProcessor,
-				"aon":        multisource.JsonicProcessor,
-				"aontu":      multisource.JsonicProcessor,
+				"":           aonProcessor,
+				"aon":        aonProcessor,
+				"aontu":      aonProcessor,
 				notFoundKind: notFoundProcessor,
 				deniedKind:   deniedProcessor,
 			},

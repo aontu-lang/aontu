@@ -29,6 +29,7 @@
           "properties": {
             "class": "conflict",
             "code": "closed",
+            "hint": "<HINT>",
             "message": "<MESSAGE>",
             "path": "$.service.prot",
             "severity": "error",
@@ -69,6 +70,7 @@
             "class": "conflict",
             "code": "constraint",
             "expected": "integer&min(1024)",
+            "hint": "<HINT>",
             "message": "<MESSAGE>",
             "path": "$.service.port",
             "severity": "error",
@@ -131,6 +133,7 @@
             "class": "conflict",
             "code": "must",
             "expected": "\"gold\"|\"silver\"",
+            "hint": "<HINT>",
             "message": "<MESSAGE>",
             "note": "tier must be supported",
             "path": "$.service.tier",

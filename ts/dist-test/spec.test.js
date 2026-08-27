@@ -56,8 +56,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
  *                engine's codeClasses table (ts/src/hints.ts)
  *   mode=vet   : FIVE columns -- name, vet, schema, data, expect. The
  *                report of vet(schema, data) must equal the expect
- *                object, MINUS each finding's message (prose is not in
- *                parity; see test/spec/vet.tsv for the whole encoding,
+ *                object, MINUS each finding's message and hint (prose
+ *                is not in parity; see test/spec/vet.tsv for the whole encoding,
  *                including the `opts` key)
  *   mode=subsume : FIVE columns -- name, subsume, general, specific,
  *                expect. The report of subsume(general, specific) must
@@ -248,15 +248,22 @@ function assertViewSubsumes(row, report, opts) {
     const truth = (0, aontu_1.get)(row.src, row.data, { view: 'canon' });
     Assert.strictEqual((0, aontu_1.subsume)(report.out, truth.out, { profile: 'values' }).verdict, 'subsumes', `view does not subsume the truth: ${row.name}`);
 }
-// The report as a vet golden spells it: the message is EXCLUDED (prose
-// is per-port, codes are not), and the rest goes through the emitter
-// the two ports hold to byte parity -- which also sorts keys, so the
-// golden cell may be written in any order.
+// The report as a vet golden spells it: the message and the hint are
+// EXCLUDED (prose is per-port, codes are not), and the rest goes
+// through the emitter the two ports hold to byte parity -- which also
+// sorts keys, so the golden cell may be written in any order.
+// Each finding's message and hint, removed: prose is per-port, codes
+// and shapes are not. The `trim` and `relation` modes apply it to their
+// `errors` list -- WHY the document could not be evaluated, in the
+// finding shape (the review's finding F).
+function stripProse(findings) {
+    return findings.map(({ message, hint, ...rest }) => rest);
+}
 function vetGolden(report) {
     return (0, aontu_1.exactJSON)({
         verdict: report.verdict,
         truncated: report.truncated,
-        findings: report.findings.map(({ message, ...rest }) => rest),
+        findings: report.findings.map(({ message, hint, ...rest }) => rest),
     });
 }
 // Files whose rows evaluate under a fixed trust profile (G5,
@@ -341,7 +348,12 @@ function runRow(row) {
     }
     else if ('trim' === row.mode) {
         const report = (0, aontu_1.trimCheck)(row.src);
-        Assert.strictEqual((0, aontu_1.exactJSON)({ redundant: report.redundant, verdict: report.verdict }), (0, aontu_1.exactJSON)(JSON.parse(row.expect)), `trim report mismatch: ${row.name}`);
+        Assert.strictEqual((0, aontu_1.exactJSON)({
+            redundant: report.redundant,
+            verdict: report.verdict,
+            ...(null == report.errors
+                ? {} : { errors: stripProse(report.errors) }),
+        }), (0, aontu_1.exactJSON)(JSON.parse(row.expect)), `trim report mismatch: ${row.name}`);
     }
     else if ('relation' === row.mode) {
         // RELATION GRAPH CHECKS (G4 phase 5): acyclicity and inverse
@@ -350,7 +362,9 @@ function runRow(row) {
         // after unification and never by it — a lattice citizen may not be
         // falsified by more information, and one more edge is more
         // information.
-        Assert.strictEqual((0, aontu_1.exactJSON)((0, aontu_1.relationCheck)(row.src)), (0, aontu_1.exactJSON)(JSON.parse(row.expect)), `relation report mismatch: ${row.name}`);
+        const report = (0, aontu_1.relationCheck)(row.src);
+        Assert.strictEqual((0, aontu_1.exactJSON)(null == report.errors
+            ? report : { ...report, errors: stripProse(report.errors) }), (0, aontu_1.exactJSON)(JSON.parse(row.expect)), `relation report mismatch: ${row.name}`);
     }
     else if ('graph' === row.mode) {
         // THE DERIVED STRUCTURES (G4 phase 3): the entity index and the

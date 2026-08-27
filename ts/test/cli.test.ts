@@ -952,8 +952,19 @@ describe('cli-subsume', () => {
       Assert.equal(runTrim(['--check', file]), 0)
     ).out.trim(), 'verdict: clean')
 
+    // AN `error` VERDICT SAYS WHY (the review's finding F). Exit 4 is
+    // the same as it was; what changed is that the report now carries
+    // the reason, in text and in JSON, instead of a bare verdict.
     Fs.writeFileSync(file, 'a:1 a:2')
-    vetCapture(() => Assert.equal(runTrim(['--check', file]), 4))
+    const broken = vetCapture(() =>
+      Assert.equal(runTrim(['--check', file]), 4))
+    Assert.match(broken.out, /verdict: error/)
+    Assert.match(broken.out, /\$\.a: scalar_value \[conflict\]/)
+    const bj = JSON.parse(vetCapture(() => Assert.equal(
+      runTrim(['--check', '--format', 'json', file]), 4)).out)
+    Assert.equal(bj.errors[0].code, 'scalar_value')
+    // The document's own name, exactly as the command line spelled it.
+    Assert.equal(bj.errors[0].sites[0].file, file)
 
     Fs.writeFileSync(file, 'a:{&:{k:1},m:{k:1}}')
     const j = vetCapture(() => Assert.equal(
@@ -962,6 +973,9 @@ describe('cli-subsume', () => {
     Assert.equal(report.aontu.verb, 'trim')
     Assert.equal(report.verdict, 'redundant')
     Assert.deepEqual(report.redundant, ['$.a.m.k'])
+    // ABSENT, not empty, on a run that stood up: a consumer's presence
+    // check is the whole test.
+    Assert.equal('errors' in report, false)
   })
 
   test('trim-usage-errors-exit-2', () => {
@@ -1011,9 +1025,16 @@ describe('cli-subsume', () => {
     ).out.trim(), 'verdict: pass')
 
     // A document that does not stand up is not a document with a bad
-    // graph.
+    // graph -- and since the review's finding F it SAYS SO: exit 4 as
+    // before, with the reason under it rather than a bare verdict.
     Fs.writeFileSync(file, 'a: 1 & 2')
-    vetCapture(() => Assert.equal(runRelations([file]), 4))
+    const rbroken = vetCapture(() => Assert.equal(runRelations([file]), 4))
+    Assert.match(rbroken.out, /verdict: error/)
+    Assert.match(rbroken.out, /\$\.a: scalar_value \[conflict\]/)
+    const rbj = JSON.parse(vetCapture(() => Assert.equal(
+      runRelations(['--format', 'json', file]), 4)).out)
+    Assert.deepEqual(rbj.findings, [])
+    Assert.equal(rbj.errors[0].code, 'scalar_value')
 
     Fs.writeFileSync(file, decl +
       'a: id(a) & {dependsOn: [&: refer(), b]}\n' +
@@ -1026,6 +1047,9 @@ describe('cli-subsume', () => {
     Assert.equal(report.findings.length, 3)
     Assert.equal(report.findings[0].code, 'relation_cycle')
     Assert.deepEqual(report.findings[0].detail, ['a', 'b', 'a'])
+    // ABSENT, not empty, on a run that stood up: the graph had
+    // findings, and nothing stopped the graph being looked at.
+    Assert.equal('errors' in report, false)
   })
 
   test('relations-usage-errors-exit-2', () => {

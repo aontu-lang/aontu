@@ -26,6 +26,7 @@ exports.trimCheck = trimCheck;
 // is its own parse: one evaluation per candidate plus one for the
 // baseline. A reporter can afford that; an editor loop belongs to G7.
 const aontu_1 = require("./aontu");
+const vet_1 = require("./vet");
 function pathText(path) {
     return '$' + (0 < path.length ? '.' + path.join('.') : '');
 }
@@ -83,20 +84,31 @@ function deleteAt(root, path) {
 // unify under collect, and answer the canon — or undefined when the
 // source does not stand up, which for the baseline is the caller's
 // error verdict and for a probe means "load-bearing".
-function evalCanon(src, opts, delPath) {
+function evalCanon(src, opts, delPath, sink) {
     const aontu = new aontu_1.Aontu(null == opts.trust ? undefined : { trust: opts.trust });
     const ctx = aontu.ctx({ collect: true });
     const parseOpts = null == opts.path ? undefined : { path: opts.path };
+    // WHY the run failed, for the one caller that reports it. The
+    // BASELINE run passes a sink and a probe does not: a probe's failure
+    // means "load-bearing", which is an answer rather than a fault, and
+    // reporting it would bury the one real finding under one entry's
+    // worth of noise per candidate.
+    const fail = () => {
+        if (null != sink) {
+            sink.ctx = ctx;
+        }
+        return undefined;
+    };
     const parsed = aontu.parse(src, parseOpts, ctx);
     if (0 < ctx.err.length || null == parsed) {
-        return undefined;
+        return fail();
     }
     if (null != delPath && !deleteAt(parsed, delPath)) {
         return undefined;
     }
     const v = aontu.unify(parsed, parseOpts, ctx);
     if (0 < ctx.err.length || true === v?.isNil) {
-        return undefined;
+        return fail();
     }
     return v.canon;
 }
@@ -106,9 +118,14 @@ function evalCanon(src, opts, delPath) {
 // both would tell the author to delete the same text twice.
 function trimCheck(src, opts) {
     const options = opts ?? {};
-    const baseline = evalCanon(src, options);
+    const sink = {};
+    const baseline = evalCanon(src, options, undefined, sink);
     if (undefined === baseline) {
-        return { verdict: 'error', redundant: [] };
+        return {
+            verdict: 'error',
+            redundant: [],
+            errors: [(0, vet_1.failureFinding)(sink.ctx, options.path)],
+        };
     }
     const aontu = new aontu_1.Aontu();
     const ctx = aontu.ctx({ collect: true });

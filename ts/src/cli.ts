@@ -19,7 +19,8 @@ import { tmpdir } from 'node:os'
 import { createInterface } from 'node:readline'
 
 import {
-  Aontu, AontuError, exactJSON, vet, subsume, trimCheck, relationCheck,
+  Aontu, AontuError, setColor,
+  exactJSON, vet, subsume, trimCheck, relationCheck,
   hcanon, canonHash,
   get, why, patch, agentsMd,
 } from './aontu'
@@ -1654,6 +1655,12 @@ function runTrim(argv: string[]): number {
 
 function renderTrimText(report: TrimReport): string {
   const head = `verdict: ${report.verdict}`
+  // WHY, when the document could not be evaluated at all: rendered as
+  // vet renders a finding, because it IS one (the review's finding F).
+  const errors = report.errors ?? []
+  if (0 < errors.length) {
+    return [head, ''].concat(errors.map(renderFinding)).join('\n')
+  }
   if (0 === report.redundant.length) {
     return head
   }
@@ -1665,6 +1672,7 @@ function renderTrimJson(report: TrimReport): string {
     aontu: { version: version(), verb: 'trim' },
     verdict: report.verdict,
     redundant: report.redundant,
+    ...(null == report.errors ? {} : { errors: report.errors }),
   }, 2)
 }
 
@@ -1907,6 +1915,12 @@ function runRelations(argv: string[]): number {
 
 function renderRelationsText(report: RelationReport): string {
   const head = `verdict: ${report.verdict}`
+  // WHY, when the document could not be evaluated at all: rendered as
+  // vet renders a finding, because it IS one (the review's finding F).
+  const errors = report.errors ?? []
+  if (0 < errors.length) {
+    return [head, ''].concat(errors.map(renderFinding)).join('\n')
+  }
   if (0 === report.findings.length) {
     return head
   }
@@ -1923,6 +1937,7 @@ function renderRelationsJson(report: RelationReport): string {
     aontu: { version: version(), verb: 'relations' },
     verdict: report.verdict,
     findings: report.findings,
+    ...(null == report.errors ? {} : { errors: report.errors }),
   }, 2)
 }
 
@@ -2539,6 +2554,14 @@ function parseTrustArg(value: string): TrustArg | undefined {
 
 
 function main(argv: string[]): void {
+  // COLOUR OFF WHEN THE DESTINATION IS NOT A TERMINAL. Error frames
+  // hardcoded their ANSI escapes, so a piped report and a `--jsonl`
+  // answer carried terminal control codes into whatever read them (the
+  // review's finding F). `NO_COLOR` is honoured by the library itself;
+  // only the CLI can see whether its stderr is a terminal, so only the
+  // CLI can make this call. `undefined` means "leave it to NO_COLOR".
+  setColor(true === process.stderr.isTTY ? undefined : false)
+
   let mode: Mode = 'json'
   // A LIST, though the bare command evaluates exactly one document.
   // It used to be one variable and the last argument won, which made a
@@ -2630,6 +2653,12 @@ function main(argv: string[]): void {
     }
     else if ('--jsonl' === arg) {
       jsonl = true
+      // A JSONL answer is machine-read by definition, even when the
+      // session happens to be attached to a terminal, so this is a
+      // harder gate than the stderr test above rather than a repeat of
+      // it: escapes inside the answer string are noise the harness has
+      // to strip before it can compare anything.
+      setColor(false)
     }
     else if ('--include-root' === arg) {
       const dir = args[++i]

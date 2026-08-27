@@ -4,7 +4,7 @@ import { AontuContext, AontuContextConfig } from './ctx';
 import { Decimal } from './val/Decimal';
 import { exactJSON } from './exactjson';
 import { formatExplain } from './utility';
-import { AontuError } from './err';
+import { AontuError, setColor, colorActive } from './err';
 import { vet } from './vet';
 import { sarifReport } from './report-sarif';
 import { subsume } from './subsume';
@@ -30,5 +30,5 @@ declare function runparse(src: string, lang: Lang, ctx: AontuContext): Val;
 declare const util: {
     runparse: typeof runparse;
 };
-export { VERSION, Aontu, AontuOptions, AontuContext, AontuError, Val, Lang, runparse, util, formatExplain, exactJSON, Decimal, vet, sarifReport, subsume, trimCheck, hcanon, canonHash, get, why, patch, diff, agentsMd, graphOf, relationCheck, };
+export { VERSION, Aontu, AontuOptions, AontuContext, AontuError, setColor, colorActive, Val, Lang, runparse, util, formatExplain, exactJSON, Decimal, vet, sarifReport, subsume, trimCheck, hcanon, canonHash, get, why, patch, diff, agentsMd, graphOf, relationCheck, };
 export default Aontu;

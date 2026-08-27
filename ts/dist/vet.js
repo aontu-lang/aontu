@@ -2,9 +2,12 @@
 /* Copyright (c) 2025 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.VET_MAX_ERRORS = void 0;
+exports.displayFile = displayFile;
+exports.failureFinding = failureFinding;
 exports.anchorAt = anchorAt;
 exports.vet = vet;
 const aontu_1 = require("./aontu");
+const node_path_1 = require("node:path");
 const err_1 = require("./err");
 const ConjunctVal_1 = require("./val/ConjunctVal");
 const walk_1 = require("./walk");
@@ -29,11 +32,79 @@ const DEFAULT_DATA_URL = 'data';
 // itself — which is what lets the report assign site ROLES by
 // provenance rather than by NilVal's source-order heuristic, exactly as
 // the design requires.
-function stampUrl(v, url) {
+// EVERY SITE NAMES THE FILE WHOSE TEXT IT EXCERPTS (the review's
+// finding F, use-cases/BUGS.md §25). The parser already names the file
+// each value was read from -- a value loaded through `@"lib/types.aon"`
+// carries that path, with that file's row and column -- and this walk
+// used to OVERWRITE every url with the entry document's name. The
+// coordinates stayed the included file's, so a finding cited
+// `entry.aon:3:7` for text that lives three files away, at a line the
+// entry may not even have. A repair agent that follows the site edits
+// the wrong file.
+//
+// Only the values that carry no name of their own are stamped: those
+// are the ones the engine minted rather than read, and the entry is
+// the honest name for them. The urls actually seen are collected, so
+// the report can still tell WHICH DOCUMENT a site belongs to without
+// pretending they all came from one file -- see roleOf.
+function stampUrl(v, url, seen) {
+    const urls = seen ?? new Set();
+    urls.add(url);
     (0, walk_1.walkVals)(v, (n) => {
-        n.site.url = url;
+        // UNDEFINED counts as unstamped, not just empty: the parser leaves
+        // the url undefined on one of its two paths (ts/src/lang.ts), and
+        // treating that as a name would put `undefined` in the url set --
+        // where the OTHER document's unstamped values would then match it,
+        // and every site would read `data`.
+        if (null == n.site.url || '' === n.site.url) {
+            n.site.url = url;
+        }
+        urls.add(n.site.url);
         return true;
     }, new Set());
+    return urls;
+}
+// A FILE THE READER CAN OPEN. The parser resolves an include to an
+// absolute path, which is the right identity (two files loading the
+// same library by different relative spellings must be one file) and
+// the wrong NAME: a report whose entry reads `contract.aon` and whose
+// included site reads `/home/someone/checkout/types.aon` is a report
+// that cannot be uploaded as SARIF, diffed between machines, or read
+// beside the command that produced it.
+//
+// So an included file is named as the ENTRY'S OWN NAME reaches it:
+// relative to the entry's directory, then re-anchored on however the
+// caller spelled the entry. `vet contract.aon` names `types.aon`;
+// `vet a/b/contract.aon` names `a/b/types.aon`; an absolute entry
+// keeps absolute includes. A caller who passed no path at all has no
+// base to relativise against and gets the url unchanged.
+function displayFile(url, label, path) {
+    if (url === label || null == path || '' === url || !(0, node_path_1.isAbsolute)(url)) {
+        return url;
+    }
+    const rel = (0, node_path_1.relative)((0, node_path_1.dirname)((0, node_path_1.resolve)(path)), url);
+    const dir = (0, node_path_1.dirname)(label);
+    return '.' === dir ? rel : (0, node_path_1.join)(dir, rel);
+}
+// The name for one site, taken from the document the site BELONGS to
+// -- which is the role, already decided by url-set membership. Doing
+// it here rather than from a map built at stamping time is not a
+// shortcut: a nil's operands are off the tree by the time the report
+// is built, so a value first seen during the MEET (the commonest
+// schema site there is) would be missing from any such map.
+function displayOf(file, role, prov) {
+    return 'data' === role
+        ? displayFile(file, prov.dataUrl ?? file, prov.dataPath)
+        : displayFile(file, prov.schemaUrl ?? file, prov.schemaPath);
+}
+// The ROLE of a site: which of the two documents it belongs to. Not a
+// name comparison -- a data document may itself include another file,
+// and that file's values are still data. Membership of the url set the
+// stamping walk collected is the question, and the answer is `schema`
+// for anything the data walk never reached (an engine-minted value
+// stamped with the schema entry, say).
+function roleOf(file, prov) {
+    return prov.data.has(file) ? 'data' : 'schema';
 }
 // `$.a.b`, and `$` for the root. Deliberately NOT delimiter-escaped: a
 // map key may contain any character, including every separator a
@@ -46,7 +117,7 @@ function pathText(path) {
 // incomplete finding has one side, a two-site conflict has both — so
 // this is the one nullable input, and every Val that does arrive
 // carries a site and a canon.
-function siteOf(v, dataUrl) {
+function siteOf(v, prov) {
     if (null == v) {
         return undefined;
     }
@@ -63,12 +134,16 @@ function siteOf(v, dataUrl) {
     // ports should disagree loudly rather than quietly agree on an empty
     // name that neither of them meant.
     const file = v.site.url;
+    // NAMED for the reader, ROLED by the raw url: the two questions are
+    // different, and only the first is about how the file is spelled
+    // (see displayFile).
+    const role = roleOf(file, prov);
     return {
-        file,
+        file: displayOf(file, role, prov),
         row: v.site.row,
         col: v.site.col,
         len: v.site.len,
-        role: dataUrl === file ? 'data' : 'schema',
+        role,
         src: v.site.src,
         value: v.canon,
     };
@@ -76,7 +151,7 @@ function siteOf(v, dataUrl) {
 // The data site first — it is the thing to fix — then the schema site.
 // The underlying NilVal fields are untouched: this is a report-layer
 // projection, so the existing error.tsv assertions do not move.
-function sitesOf(nil, dataUrl) {
+function sitesOf(nil, prov) {
     // `?? nil`: a failure raised about a CONSTRUCT rather than about a
     // failed meet -- a lossy integer literal, say -- carries no operands
     // at all, and reporting it about ITSELF is what ctx.adderr already
@@ -84,8 +159,8 @@ function sitesOf(nil, dataUrl) {
     // site out of `undefined` and threw while partitioning it, which is
     // the one thing vet promises not to do: a bad value in the data is
     // DATA, and the caller gets a report.
-    const sites = [siteOf(nil.primary ?? nil, dataUrl)];
-    const secondary = siteOf(nil.secondary, dataUrl);
+    const sites = [siteOf(nil.primary ?? nil, prov)];
+    const secondary = siteOf(nil.secondary, prov);
     if (null != secondary) {
         sites.push(secondary);
     }
@@ -115,7 +190,7 @@ const ANSI_RE = new RegExp('\u001b\\[[0-9;]*m', 'g');
 function stripAnsi(s) {
     return s.replace(ANSI_RE, '');
 }
-function findingOf(nil, dataUrl) {
+function findingOf(nil, prov) {
     const details = nil.details ?? {};
     const finding = {
         code: nil.why,
@@ -130,8 +205,17 @@ function findingOf(nil, dataUrl) {
         // which colours its marker -- and a machine-readable report is no
         // place for terminal control codes.
         message: stripAnsi(nil.msg.split('\n')[0]),
-        sites: sitesOf(nil, dataUrl),
+        sites: sitesOf(nil, prov),
     };
+    // The hint, whole, with its detail placeholders filled in exactly as
+    // the terminal frame fills them. Trailing whitespace is dropped
+    // because it is spacing for the frame that used to follow it, not
+    // part of the text; the deliberate blank lines INSIDE a hint are
+    // `\n \n` and survive.
+    const hint = (0, err_1.getHint)(nil.why, nil.details);
+    if (null != hint && '' !== hint) {
+        finding.hint = stripAnsi(hint).replace(/\s+$/, '');
+    }
     // `expected`/`actual` are the admissible-alternatives contract, and
     // the constraint algebra already produces them: G1's atoms attach the
     // normalised residual and the offending value, and `must` attaches
@@ -181,6 +265,47 @@ function orderKey(f, index) {
         f.path,
         pad(index),
     ].join('\u0000');
+}
+// A DOCUMENT THAT DOES NOT STAND UP, in the finding shape (the
+// review's finding F). `trim` and `relations` answered an unusable
+// document with `verdict: error` and an EMPTY list: the caller learned
+// that something was wrong and nothing about what, which is the one
+// thing a repair loop cannot work with. Both verbs take ONE document,
+// so there is no role to decide -- the document is the thing being
+// checked and the thing to edit, which is what `data` means here.
+//
+// The engine's own first error IS the finding: these verbs add nothing
+// to a diagnosis the evaluator already made, and the FIRST is enough
+// because everything after it is a consequence.
+//
+// The Go twin is failureFinding in go/vet.go.
+function failureFinding(ctx, url) {
+    // ctx.err is never empty at a call site: every caller has already
+    // established that the document failed, and it can only fail by
+    // collecting an error. Not coalesced, on the siteOf precedent -- an
+    // impossible state should fail loudly rather than be papered over
+    // with a made-up code.
+    const nil = ctx.err[0];
+    materialise(nil, ctx);
+    // STAMPED, as vet stamps both documents before they meet: siteOf does
+    // not coalesce a missing name (deliberately -- see there), so a site
+    // that reached the report unstamped would carry `file: undefined`.
+    // The three Vals a finding can name are the nil and its two operands,
+    // and the url set collects whatever name each already had, so a value
+    // read from an included file keeps that file's name and still counts
+    // as part of the one document being checked.
+    const at = url ?? '';
+    const urls = new Set([at]);
+    for (const v of [nil, nil.primary, nil.secondary]) {
+        if (null == v || null == v.site) {
+            continue;
+        }
+        if (null == v.site.url || '' === v.site.url) {
+            v.site.url = at;
+        }
+        urls.add(v.site.url);
+    }
+    return findingOf(nil, { data: urls });
 }
 // Walk the evaluated schema to the anchor path. `$` and `$.a.b` are
 // both accepted, as is the bare `a.b` a shell is likely to hand over
@@ -287,7 +412,9 @@ function vet(schemaSrc, dataSrc, opts) {
         return {
             verdict: 'error',
             truncated: false,
-            findings: [findingOf(failure, dataUrl)],
+            // A schema that does not stand up: nothing here is data, so the
+            // data-url set is empty and every site reads `schema`.
+            findings: [findingOf(failure, { data: new Set() })],
         };
     }
     // 2. The anchor: the whole schema, or the value at `--at`.
@@ -337,11 +464,18 @@ function vet(schemaSrc, dataSrc, opts) {
         return {
             verdict: 'invalid',
             truncated: false,
-            findings: [findingOf(failure, dataUrl)],
+            findings: [findingOf(failure, { data: new Set([dataUrl]) })],
         };
     }
     stampUrl(anchor, schemaUrl);
-    stampUrl(dataVal, dataUrl);
+    const dataUrls = stampUrl(dataVal, dataUrl);
+    // The projection every site in this report goes through: roles by
+    // url-set membership, names by how the caller reached each document.
+    const prov = {
+        data: dataUrls,
+        schemaUrl, schemaPath: options.schemaPath,
+        dataUrl, dataPath: options.dataPath,
+    };
     // Default-validity lint (G3 phase 5, re-examined under ADR-004): for
     // every disjunction in the SCHEMA carrying a preference, warn when
     // the effective default is not an instance of any REMAINING
@@ -476,7 +610,7 @@ function vet(schemaSrc, dataSrc, opts) {
     }
     const findings = nils.map((n) => {
         materialise(n, ctx);
-        return findingOf(n, dataUrl);
+        return findingOf(n, prov);
     });
     const conflicts = findings.length;
     // 5. Incompleteness: what is left standing that cannot generate. The
@@ -496,7 +630,7 @@ function vet(schemaSrc, dataSrc, opts) {
     for (const err of genCtx.err) {
         if ('incomplete' === err.class) {
             materialise(err, genCtx);
-            findings.push(findingOf(err, dataUrl));
+            findings.push(findingOf(err, prov));
         }
     }
     // 5b. Deprecation warnings (G3 phase 4): a value that carries the
@@ -519,11 +653,11 @@ function vet(schemaSrc, dataSrc, opts) {
             path: pathText(path),
             message: (0, utility_1.deprecationMessage)(v.deprecation),
             sites: [{
-                    file,
+                    file: displayOf(file, roleOf(file, prov), prov),
                     row: v.site.row ?? -1,
                     col: v.site.col ?? -1,
                     len: v.site.len ?? -1,
-                    role: (dataUrl === file ? 'data' : 'schema'),
+                    role: roleOf(file, prov),
                     src: v.site.src ?? '',
                     value: v.canon,
                 }],

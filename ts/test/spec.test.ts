@@ -22,8 +22,8 @@
  *                engine's codeClasses table (ts/src/hints.ts)
  *   mode=vet   : FIVE columns -- name, vet, schema, data, expect. The
  *                report of vet(schema, data) must equal the expect
- *                object, MINUS each finding's message (prose is not in
- *                parity; see test/spec/vet.tsv for the whole encoding,
+ *                object, MINUS each finding's message and hint (prose
+ *                is not in parity; see test/spec/vet.tsv for the whole encoding,
  *                including the `opts` key)
  *   mode=subsume : FIVE columns -- name, subsume, general, specific,
  *                expect. The report of subsume(general, specific) must
@@ -266,16 +266,25 @@ function assertViewSubsumes(
 }
 
 
-// The report as a vet golden spells it: the message is EXCLUDED (prose
-// is per-port, codes are not), and the rest goes through the emitter
-// the two ports hold to byte parity -- which also sorts keys, so the
-// golden cell may be written in any order.
+// The report as a vet golden spells it: the message and the hint are
+// EXCLUDED (prose is per-port, codes are not), and the rest goes
+// through the emitter the two ports hold to byte parity -- which also
+// sorts keys, so the golden cell may be written in any order.
+// Each finding's message and hint, removed: prose is per-port, codes
+// and shapes are not. The `trim` and `relation` modes apply it to their
+// `errors` list -- WHY the document could not be evaluated, in the
+// finding shape (the review's finding F).
+function stripProse(findings: any[]): any[] {
+  return findings.map(({ message, hint, ...rest }: any) => rest)
+}
+
+
 function vetGolden(report: any): string {
   return exactJSON({
     verdict: report.verdict,
     truncated: report.truncated,
     findings: report.findings.map(
-      ({ message, ...rest }: any) => rest),
+      ({ message, hint, ...rest }: any) => rest),
   })
 }
 
@@ -393,7 +402,12 @@ function runRow(row: Omit<Row, 'file'> & { file?: string }): void {
   else if ('trim' === row.mode) {
     const report = trimCheck(row.src)
     Assert.strictEqual(
-      exactJSON({ redundant: report.redundant, verdict: report.verdict }),
+      exactJSON({
+        redundant: report.redundant,
+        verdict: report.verdict,
+        ...(null == report.errors
+          ? {} : { errors: stripProse(report.errors) }),
+      }),
       exactJSON(JSON.parse(row.expect)),
       `trim report mismatch: ${row.name}`)
   }
@@ -404,8 +418,10 @@ function runRow(row: Omit<Row, 'file'> & { file?: string }): void {
     // after unification and never by it — a lattice citizen may not be
     // falsified by more information, and one more edge is more
     // information.
+    const report = relationCheck(row.src)
     Assert.strictEqual(
-      exactJSON(relationCheck(row.src)),
+      exactJSON(null == report.errors
+        ? report : { ...report, errors: stripProse(report.errors) }),
       exactJSON(JSON.parse(row.expect)),
       `relation report mismatch: ${row.name}`)
   }

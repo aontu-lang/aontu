@@ -20,8 +20,43 @@ package aontu
 
 import (
 	"fmt"
+	"os"
 	"strings"
 )
+
+// COLOUR IS A DECISION ABOUT THE DESTINATION, not about the message.
+// Every error frame hardcoded the ANSI escapes, so a piped report
+// carried terminal control codes into whatever read them -- a log file,
+// a CI annotation, an agent's parser (the review's finding F).
+//
+// NO_COLOR (no-color.org: set, to anything, means no colour) turns them
+// off everywhere, library callers included. The CLI additionally turns
+// them off when its stderr is not a terminal, through SetColor: a
+// library cannot see the destination, and a caller who has one is the
+// only one who can say. The twin is setColor/colorActive in
+// ts/src/err.ts.
+var colorOverride *bool
+
+// SetColor forces ANSI on or off; nil restores the NO_COLOR default.
+func SetColor(on *bool) {
+	colorOverride = on
+}
+
+func colorActive() bool {
+	if nil != colorOverride {
+		return *colorOverride
+	}
+	return "" == os.Getenv("NO_COLOR")
+}
+
+// ansi returns the escape when colour is on, and nothing when it is
+// off, so the frame writer below reads the same either way.
+func ansi(code string) string {
+	if colorActive() {
+		return code
+	}
+	return ""
+}
 
 // DONE marks a Val whose unification has fully converged.
 const DONE = -1
@@ -566,7 +601,7 @@ func (n *NilVal) frame(src, file, attempt string, v, other Val) string {
 		// pointed the reader at a file the value never came from.
 		arrowFile = "<no-file>"
 	}
-	fmt.Fprintf(&b, "  \x1b[34m--> %s:%d:%d\n", arrowFile, arrowRow, arrowCol)
+	fmt.Fprintf(&b, "  %s--> %s:%d:%d\n", ansi("\x1b[34m"), arrowFile, arrowRow, arrowCol)
 	// TWO lines of leading context, clamped at the top of the file, then
 	// the value's own line, then two trailing: the window TS's frame
 	// shows. Go printed only the trailing half, so every error below row
@@ -575,10 +610,10 @@ func (n *NilVal) frame(src, file, attempt string, v, other Val) string {
 	// two ports' messages differed by those lines.
 	for r := row - 2; r < row; r++ {
 		if 1 <= r {
-			fmt.Fprintf(&b, "\x1b[34m%3d | \x1b[0m%s\n", r, line(r))
+			fmt.Fprintf(&b, "%s%3d | %s%s\n", ansi("\x1b[34m"), r, ansi("\x1b[0m"), line(r))
 		}
 	}
-	fmt.Fprintf(&b, "\x1b[34m%3d | \x1b[0m%s\n", row, line(row))
+	fmt.Fprintf(&b, "%s%3d | %s%s\n", ansi("\x1b[34m"), row, ansi("\x1b[0m"), line(row))
 
 	keyPrefix := ""
 	if k := n.details["key"]; k != "" {
@@ -589,14 +624,14 @@ func (n *NilVal) frame(src, file, attempt string, v, other Val) string {
 		caretCol = 1
 	}
 	b.WriteString(strings.Repeat(" ", 6+caretCol-1))
-	b.WriteString("\x1b[34m^ ")
+	b.WriteString(ansi("\x1b[34m") + "^ ")
 	b.WriteString(keyPrefix)
 	b.WriteString("value was: ")
 	b.WriteString(v.Canon())
-	b.WriteString("\x1b[0m\n")
+	b.WriteString(ansi("\x1b[0m") + "\n")
 
-	fmt.Fprintf(&b, "\x1b[34m%3d | \x1b[0m%s\n", row+1, line(row+1))
-	fmt.Fprintf(&b, "\x1b[34m%3d | \x1b[0m%s\n", row+2, line(row+2))
+	fmt.Fprintf(&b, "%s%3d | %s%s\n", ansi("\x1b[34m"), row+1, ansi("\x1b[0m"), line(row+1))
+	fmt.Fprintf(&b, "%s%3d | %s%s\n", ansi("\x1b[34m"), row+2, ansi("\x1b[0m"), line(row+2))
 	return b.String()
 }
 

@@ -85,7 +85,8 @@ by it.
   author's message as `note:`.
 - **`why` provenance is correct across includes**
   (`$.msg.CreateUserRequest.email ... messages.aon:9:12 (ref)`) --
-  which makes vet's misattribution (gap 3) look fixable.
+  which was what said vet's misattribution (gap 3) was fixable. It
+  was, and it is fixed.
 
 ## Gaps and friction
 
@@ -161,7 +162,15 @@ unaffected -- which makes the hole easy to ship without noticing.
 
 ### Gap 3 (major): schema sites are misattributed across `@` includes
 
-The finding for a missing `name` names the *entry* file with the
+**CLOSED 2026-08-27** (BUGS.md §25). Every site now names the file
+whose text it excerpts: the finding below reads `types.aon:29:25`, and
+the human frame quotes `errors.aon`'s own line 7 under an
+`errors.aon:7:33` header. Check 10 pins it in both directions -- the
+row the finding cites holds `DisplayName` in the file it NAMES, and
+the entry file's own line of that number does not. What follows is
+what it used to print.
+
+The finding for a missing `name` named the *entry* file with the
 *included* file's coordinates -- `contract.aon` is 19 lines long and
 `DisplayName` lives in `types.aon:29`:
 
@@ -183,10 +192,11 @@ comment lines under it):
                                       ^ value was: "unauthorized"
 ```
 
-A repair agent that follows the site edits the wrong file. Any
-contract big enough to matter is multi-file, so this bites
-immediately. (`why` gets the same attribution right, so the data
-exists.) Pinned structurally by check 10.
+A repair agent that followed the site edited the wrong file. Any
+contract big enough to matter is multi-file, so this bit immediately.
+(`why` got the same attribution right, which is what said the data
+existed.) Pinned structurally by check 10, now as the fixed
+behaviour.
 
 ### Gap 4 (major): finding paths are inconsistent about the `--at` anchor
 
@@ -399,13 +409,15 @@ Can an agent self-repair from vet findings? **For value defects, yes
 -- demonstrably, in one round** (checks 14-15: clamp from `expected`,
 enum from the schema site, and the loop re-vets green). For *shape*
 defects the report still under-delivers: key typos get no candidates
-(gap 6), list findings point at the wrong element (gap 8), and the
-schema-side coordinates cannot be trusted across includes (gap 3). The
-machinery for all three fixes visibly exists elsewhere in the tool
-(did-you-mean, `get --keys`, correct `why` sites); it has not been
-wired into the one report the agent loop consumes.
+(gap 6) and list findings point at the wrong element (gap 8). The
+machinery for both fixes visibly exists elsewhere in the tool
+(did-you-mean, `get --keys`); it has not been wired into the one
+report the agent loop consumes. The third of that group -- schema-side
+coordinates that could not be trusted across includes (gap 3) -- is
+closed.
 
-**2026-08-27**: two of the five are closed. A missing enum field is no
-longer silence (gap 1, ADR-007) and enum findings now carry a schema
+**2026-08-27**: three of the five are closed. A missing enum field is
+no longer silence (gap 1, ADR-007), enum findings now carry a schema
 location (gap 9), so the repair loop's enum branch has both a verdict
-and somewhere to jump to.
+and somewhere to jump to -- and that location is now in the right
+file (gap 3), which is what makes it a jump rather than a guess.

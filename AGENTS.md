@@ -450,6 +450,39 @@ user-facing rules are in
 - Go module releases (a Go module in a subdirectory) use git tags of the
   form `go/vX.Y.Z`.
 
+### The site-attribution invariant
+
+**Every site names the file whose text it excerpts.** A value carries
+the url of the file it was PARSED FROM, and nothing may overwrite that
+with the entry document's name: a report citing `entry.aon:3:7` for
+text three files away — at a line the entry may not have — sends a
+repair agent to edit the wrong file (use-cases/BUGS.md §25). Two
+corollaries a change in this area has to keep:
+
+- Only a value with NO name of its own may be stamped with the entry's.
+  Those are the ones the engine minted rather than read.
+- A site whose file the run holds no TEXT for reports `-1:-1`. Resolving
+  an offset against another document's text names a real line that says
+  something else, which is worse than saying nothing.
+
+Provenance ROLES (vet's `data`/`schema`) therefore come from membership
+of the url set each walk collected, never from comparing a name against
+one entry. The report NAME is separate again: identity is the resolved
+absolute path, and the printed name is the one the caller's own
+spelling reaches (`displayFile`, both ports), so a report stays
+openable from the invoking directory and repo-relative in SARIF.
+
+### Colour is a decision about the destination
+
+`NO_COLOR` (set, to anything) turns error-frame ANSI off for every
+caller of the library; the CLI additionally turns it off when its own
+stderr is not a terminal, and `--jsonl` turns it off unconditionally.
+The library cannot see the destination, so the library never decides:
+`setColor`/`SetColor` is the CLI's call to make, and a library caller
+who knows better can make it too. The full-message twin tests run with
+colour ON — the escapes are part of the byte parity they guard — so a
+change here must keep the default (no override, no `NO_COLOR`) coloured.
+
 ### Mutation caveat (both implementations)
 
 Although `Val.unify` is documented "MUST not mutate", the fixpoint

@@ -27,7 +27,15 @@ The exit code branches for you: `0` valid, `1` invalid (fix the
 data), `3` incomplete (supply more), `4` the schema itself is
 unusable (fix the truth, not the data). Every finding carries
 `path`, `code`, and the sites on both sides — the data site first,
-because that is the one to edit.
+because that is the one to edit. A site names **the file whose text
+it excerpts**, so its row and column are safe to edit at even when
+the document loads others.
+
+Read `hint` before guessing. `message` is the one-line headline;
+`hint` is the engine's own explanation of the failure class with the
+offending values filled in, and for several codes it names the fix
+outright — `lossy_integer_literal` tells you to write the literal as
+`0d…`. It is absent for codes that have no hint text.
 
 For a conflict, `aontu why <path> mine.aon` lists every contribution
 to that path with its role and source line, which turns "these

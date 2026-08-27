@@ -40,6 +40,8 @@ const Fs = __importStar(require("node:fs"));
 const Os = __importStar(require("node:os"));
 const Path = __importStar(require("node:path"));
 const vet_1 = require("../dist/vet");
+const trim_1 = require("../dist/trim");
+const relation_1 = require("../dist/relation");
 const subsume_1 = require("../dist/subsume");
 const aontu_1 = require("../dist/aontu");
 const SCHEMA = 'service: { name: string, port: integer }';
@@ -487,6 +489,59 @@ const SCHEMA = 'service: { name: string, port: integer }';
         // not stand up is an `error` verdict, never the data's fault.
         Assert.equal((0, vet_1.vet)(src, data).verdict, 'error');
     });
+    // EVERY SITE NAMES THE FILE WHOSE TEXT IT EXCERPTS (the review's
+    // finding F, use-cases/BUGS.md §25). Vet stamped the ENTRY document's
+    // name over every value of both trees, so a constraint written in an
+    // included library was reported at the entry file, with the LIBRARY's
+    // row and column -- a line the entry may not even have. A repair
+    // agent that follows the site edits the wrong file. Twin:
+    // TestVetSiteNamesTheIncludedFile in go/vet_test.go.
+    (0, node_test_1.test)('a-site-names-the-file-its-text-lives-in', () => {
+        const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-vet-site-'));
+        Fs.mkdirSync(Path.join(dir, 'lib'));
+        const lib = Path.join(dir, 'lib', 'types.aon');
+        Fs.writeFileSync(lib, 'Port: integer & min(1024)\n');
+        const schemaPath = Path.join(dir, 'schema.aon');
+        const src = '@"lib/types.aon"\nsvc: { port: $.Port }\n';
+        Fs.writeFileSync(schemaPath, src);
+        const dataPath = Path.join(dir, 'data.json');
+        const data = '{"svc":{"port":80}}\n';
+        Fs.writeFileSync(dataPath, data);
+        const r = (0, vet_1.vet)(src, data, {
+            schemaPath, dataPath, schemaUrl: schemaPath, dataUrl: dataPath,
+        });
+        Assert.equal(r.verdict, 'invalid');
+        const schemaSite = r.findings[0].sites.find((s) => 'schema' === s.role);
+        Assert.ok(null != schemaSite, JSON.stringify(r.findings[0]));
+        // The library, not the entry -- and the row is a row THAT FILE has.
+        Assert.equal(schemaSite.file, lib);
+        Assert.equal(schemaSite.row, 1);
+        // The data site still reads as data, and still names the data file:
+        // the role is decided by which document a url belongs to, not by a
+        // name comparison against one entry.
+        const dataSite = r.findings[0].sites.find((s) => 'data' === s.role);
+        Assert.ok(null != dataSite, JSON.stringify(r.findings[0]));
+        Assert.equal(dataSite.file, dataPath);
+    });
+    // An INCLUDED DATA file is still data. The role used to be a string
+    // comparison against the data entry's name, so a value read through
+    // an include of the data document would have read `schema` the
+    // moment its site named the file it really came from.
+    (0, node_test_1.test)('an-included-data-file-is-still-data', () => {
+        const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-vet-drole-'));
+        const part = Path.join(dir, 'part.aon');
+        Fs.writeFileSync(part, 'port: "80"\n');
+        const dataPath = Path.join(dir, 'data.aon');
+        const data = '@"part.aon"\n';
+        Fs.writeFileSync(dataPath, data);
+        const r = (0, vet_1.vet)('port: integer', data, {
+            dataPath, dataUrl: dataPath, schemaUrl: 'schema',
+        });
+        Assert.equal(r.verdict, 'invalid');
+        const site = r.findings[0].sites.find((s) => s.file === part);
+        Assert.ok(null != site, JSON.stringify(r.findings[0]));
+        Assert.equal(site.role, 'data');
+    });
 });
 (0, node_test_1.describe)('vet-containers', () => {
     // A list peg is an array, a map peg an object: the walk has to follow
@@ -499,6 +554,140 @@ const SCHEMA = 'service: { name: string, port: integer }';
     (0, node_test_1.test)('nested-list-conflicts-are-all-reported', () => {
         const r = (0, vet_1.vet)('a: [integer, integer]', 'a: ["x", "y"]');
         Assert.equal(r.findings.length, 2);
+    });
+});
+(0, node_test_1.describe)('vet-hint', () => {
+    // THE REPAIR, NOT JUST THE DIAGNOSIS (the review's finding F). The
+    // message is the headline and nothing else -- that is what makes it
+    // one line and comparable -- so everything the engine knows about
+    // how to FIX the failure reached a terminal reader in the frames and
+    // a machine reader not at all. The Go twin is TestVetFindingCarries
+    // TheHint.
+    (0, node_test_1.test)('a-finding-carries-the-repair-hint', () => {
+        // The clearest case in the language: the literal is refused
+        // BECAUSE binary64 would round it, and the fix is a one-character
+        // prefix the reader has no way to guess from the headline.
+        const r = (0, vet_1.vet)('port: integer', 'port: 9007199254740993');
+        Assert.equal(r.verdict, 'invalid');
+        const f = r.findings[0];
+        Assert.equal(f.code, 'lossy_integer_literal');
+        Assert.equal(f.message.includes('\n'), false, 'headline is still one line');
+        const hint = f.hint;
+        Assert.ok(null != hint, 'no hint on ' + JSON.stringify(f));
+        Assert.ok(hint.includes('0d'), 'hint does not name the escape:\n' + hint);
+        Assert.ok(hint.includes('\n'), 'hint was truncated to one line:\n' + hint);
+        // Trailing whitespace was spacing for the frame that used to
+        // follow the hint; the deliberate blank lines inside it are
+        // `\n \n` and must survive.
+        Assert.equal(hint, hint.replace(/\s+$/, ''));
+        Assert.ok(hint.includes('\n \n'), 'hint lost its internal spacing');
+    });
+    // Not every code has one, and an absent hint is ABSENT rather than
+    // empty: a consumer testing `null != finding.hint` must not have to
+    // also test for ''.
+    (0, node_test_1.test)('a-code-with-no-hint-text-carries-no-hint', () => {
+        const r = (0, vet_1.vet)('a: *5 | string\nb: string', 'b: "x"');
+        const lint = r.findings.find((f) => 'pref_not_instance' === f.code);
+        Assert.ok(null != lint, JSON.stringify(r.findings));
+        Assert.equal('hint' in lint, false, JSON.stringify(lint));
+    });
+});
+(0, node_test_1.describe)('vet-display-file', () => {
+    // A FILE THE READER CAN OPEN (the review's finding F). The parser
+    // resolves an include to an absolute path -- the right identity (two
+    // documents loading one library by different spellings are one file)
+    // and the wrong name -- so a site prints it as the entry's own
+    // spelling reaches it. Without this a report could not be uploaded as
+    // SARIF, diffed between machines, or read beside the command that
+    // produced it. The Go twin is
+    // TestDisplayFileNamesTheIncludeAsTheEntryReachesIt.
+    (0, node_test_1.test)('an-included-file-is-named-as-the-entry-reaches-it', () => {
+        const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-name-'));
+        Fs.mkdirSync(Path.join(dir, 'lib'));
+        Fs.writeFileSync(Path.join(dir, 'lib', 'types.aon'), 'Port: integer\n');
+        const schema = '@"lib/types.aon"\nsvc: { port: $.Port }\n';
+        const schemaPath = Path.join(dir, 'schema.aon');
+        Fs.writeFileSync(schemaPath, schema);
+        // The caller reached the entry by a BARE name, so the include is
+        // named beside it -- not by an absolute path naming a directory the
+        // caller never typed.
+        const bare = (0, vet_1.vet)(schema, 'svc: { port: "80" }', {
+            schemaPath, schemaUrl: 'schema.aon', dataUrl: 'data.json',
+        });
+        const site = bare.findings[0].sites.find((s) => 'schema' === s.role);
+        Assert.equal(site?.file, Path.join('lib', 'types.aon'));
+        // Reached through a directory, the include is named through the
+        // same one, so both are openable from the caller's cwd.
+        const nested = (0, vet_1.vet)(schema, 'svc: { port: "80" }', {
+            schemaPath, schemaUrl: Path.join('a', 'b', 'schema.aon'),
+            dataUrl: 'data.json',
+        });
+        Assert.equal(nested.findings[0].sites.find((s) => 'schema' === s.role)?.file, Path.join('a', 'b', 'lib', 'types.aon'));
+        // An ABSOLUTE entry keeps absolute includes: the caller asked for
+        // absolute names by giving one.
+        const abs = (0, vet_1.vet)(schema, 'svc: { port: "80" }', {
+            schemaPath, schemaUrl: schemaPath, dataUrl: 'data.json',
+        });
+        Assert.equal(abs.findings[0].sites.find((s) => 'schema' === s.role)?.file, Path.join(dir, 'lib', 'types.aon'));
+        Fs.rmSync(dir, { recursive: true, force: true });
+    });
+    // The naming rule itself, at the arms a two-document run cannot
+    // reach: a caller who passed no path, a url that is not a path, and
+    // a document's own name.
+    (0, node_test_1.test)('a-name-with-no-base-to-relativise-against-is-left-alone', () => {
+        const abs = Path.join(Path.sep, 'w', 'proj', 'lib.aon');
+        const entry = Path.join(Path.sep, 'w', 'proj', 'entry.aon');
+        // The document's OWN url is never rewritten -- it is already the
+        // name the caller used.
+        Assert.equal((0, vet_1.displayFile)('entry.aon', 'entry.aon', 'x/entry.aon'), 'entry.aon');
+        // Neither is the default label of a caller who named no file...
+        Assert.equal((0, vet_1.displayFile)('data', 'data', undefined), 'data');
+        // ... nor an absolute include with no base to measure from ...
+        Assert.equal((0, vet_1.displayFile)(abs, 'entry.aon', undefined), abs);
+        // ... nor an empty url, nor one that is already relative.
+        Assert.equal((0, vet_1.displayFile)('', 'entry.aon', 'x/entry.aon'), '');
+        Assert.equal((0, vet_1.displayFile)('rel.aon', 'entry.aon', 'x/entry.aon'), 'rel.aon');
+        // And the two that DO rewrite, stated here as well because the
+        // Go twin states them: bare beside bare, nested through nested.
+        Assert.equal((0, vet_1.displayFile)(abs, 'entry.aon', entry), 'lib.aon');
+        Assert.equal((0, vet_1.displayFile)(abs, Path.join('a', 'b', 'entry.aon'), entry), Path.join('a', 'b', 'lib.aon'));
+    });
+});
+(0, node_test_1.describe)('verb-errors', () => {
+    // AN `error` VERDICT SAYS WHY (the review's finding F). Both
+    // single-document verbs used to answer an unusable document with an
+    // empty report, which is the one answer a repair loop cannot act on.
+    // The Go twin is TestSingleDocumentVerbsReportWhy.
+    (0, node_test_1.test)('trim-and-relations-report-why-they-could-not-run', () => {
+        // A document that PARSES and then contradicts itself: the finding
+        // is the engine's own, with both operands sited.
+        const t = (0, trim_1.trimCheck)('a:1 a:2');
+        Assert.equal(t.verdict, 'error');
+        Assert.equal(t.errors?.length, 1);
+        Assert.equal(t.errors?.[0].code, 'scalar_value');
+        Assert.equal(t.errors?.[0].path, '$.a');
+        Assert.equal(t.errors?.[0].sites.length, 2);
+        // A document that does not PARSE takes the other arm, and lands in
+        // the same shape: one located parse-class finding.
+        const tp = (0, trim_1.trimCheck)('a:]');
+        Assert.equal(tp.verdict, 'error');
+        Assert.equal(tp.errors?.[0].class, 'parse');
+        // Relations, both arms. `findings` stays the GRAPH's vocabulary --
+        // a document with no graph has no graph findings -- and the reason
+        // rides `errors`.
+        const r = (0, relation_1.relationCheck)('a:1 a:2');
+        Assert.equal(r.verdict, 'error');
+        Assert.deepEqual(r.findings, []);
+        Assert.equal(r.errors?.[0].code, 'scalar_value');
+        const rp = (0, relation_1.relationCheck)('a:]');
+        Assert.equal(rp.verdict, 'error');
+        Assert.deepEqual(rp.findings, []);
+        Assert.equal(rp.errors?.[0].class, 'parse');
+        // A run that STANDS UP carries no `errors` key at all: an absent
+        // field, not an empty list, so a consumer's presence check is the
+        // whole test.
+        Assert.equal('errors' in (0, trim_1.trimCheck)('a:1'), false);
+        Assert.equal('errors' in (0, relation_1.relationCheck)('a:1'), false);
     });
 });
 //# sourceMappingURL=vet.test.js.map

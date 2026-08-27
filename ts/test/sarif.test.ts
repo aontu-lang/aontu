@@ -30,6 +30,12 @@ function redact(sarif: string): string {
   for (const result of log.runs[0].results) {
     result.message.text = '<MESSAGE>'
     result.properties.message = '<MESSAGE>'
+    // CONDITIONAL, so the golden still records which codes carry a
+    // hint and which do not -- that presence IS in parity, only the
+    // prose is not.
+    if (null != result.properties.hint) {
+      result.properties.hint = '<HINT>'
+    }
   }
   return exactJSON(log, 2)
 }

@@ -220,17 +220,19 @@ run btime 1 -- vet --at '$.registry.order_placed' "$V1" \
 has btime out '.time: constraint [conflict]'
 has btime out '26/08/2026 10:07'
 has btime out '[aontu/constraint]'
-# GAP (misattribution): the schema site names the ENTRY file with the
-# row/col of the included envelope.aon. Pin it structurally: the row
-# the finding cites holds the time pattern in envelope.aon only.
-row="$(grep -o 'orders-v1.aon:[0-9]*' "$WORK/btime.out" | head -1 | cut -d: -f2)"
-[ -n "$row" ] || fail "btime: schema site does not name orders-v1.aon"
+# GAP CLOSED 2026-08-27 (finding F, BUGS.md §25). The schema site used
+# to name the ENTRY file with the row/col of the included
+# envelope.aon. Pinned structurally, in both directions: the row the
+# finding cites holds the time pattern in the file the finding NAMES,
+# and the entry file's own line of that number does not.
+row="$(grep -o 'envelope.aon:[0-9]*' "$WORK/btime.out" | head -1 | cut -d: -f2)"
+[ -n "$row" ] || fail "btime: schema site does not name envelope.aon"
 sed -n "${row}p" "$DIR/envelope.aon" | grep -q 'time: re' \
-  || fail "btime: row $row is not the time pattern in envelope.aon; pin stale"
+  || fail "btime: envelope.aon:$row is not the time pattern; site pin stale"
 sed -n "${row}p" "$DIR/orders-v1.aon" | grep -q 'time: re' \
-  && fail "btime: orders-v1.aon:$row holds the time pattern; fixed? update README" \
+  && fail "btime: orders-v1.aon:$row holds it too; the pin proves nothing" \
   || true
-ok "vet: bad timestamp refused; schema site misattributed to entry file"
+ok "vet: bad timestamp refused; schema site names the file it excerpts"
 
 # The regex cannot check calendar semantics: month 13, hour 25 pass.
 run month13 0 -- vet --at '$.Event' "$V1" "$DIR/data/bad/placed-month-13.json"

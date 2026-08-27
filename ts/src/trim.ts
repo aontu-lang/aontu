@@ -22,6 +22,8 @@
 // baseline. A reporter can afford that; an editor loop belongs to G7.
 
 import { Aontu } from './aontu'
+import { failureFinding } from './vet'
+import type { VetFinding } from './vet'
 import type { TrustOptions } from './type'
 
 
@@ -30,6 +32,14 @@ export type TrimVerdict = 'clean' | 'redundant' | 'error'
 export type TrimReport = {
   verdict: TrimVerdict
   redundant: string[]
+
+  // WHY the run could not be made, in the same finding shape vet
+  // reports in (the review's finding F). An `error` verdict used to
+  // arrive with an empty report -- something is wrong with the
+  // document, and nothing about what -- which is the one answer a
+  // repair loop cannot act on. Present ONLY on an `error` verdict, so
+  // a clean report stays exactly the two fields it always was.
+  errors?: VetFinding[]
 }
 
 export type TrimOptions = {
@@ -107,21 +117,33 @@ export function deleteAt(root: any, path: string[]): boolean {
 // source does not stand up, which for the baseline is the caller's
 // error verdict and for a probe means "load-bearing".
 export function evalCanon(
-  src: string, opts: TrimOptions, delPath?: string[]): string | undefined {
+  src: string, opts: TrimOptions, delPath?: string[],
+  sink?: { ctx?: any }): string | undefined {
   const aontu = new Aontu(
     null == opts.trust ? undefined : { trust: opts.trust })
   const ctx = aontu.ctx({ collect: true })
   const parseOpts = null == opts.path ? undefined : { path: opts.path }
+  // WHY the run failed, for the one caller that reports it. The
+  // BASELINE run passes a sink and a probe does not: a probe's failure
+  // means "load-bearing", which is an answer rather than a fault, and
+  // reporting it would bury the one real finding under one entry's
+  // worth of noise per candidate.
+  const fail = (): undefined => {
+    if (null != sink) {
+      sink.ctx = ctx
+    }
+    return undefined
+  }
   const parsed: any = aontu.parse(src, parseOpts, ctx)
   if (0 < ctx.err.length || null == parsed) {
-    return undefined
+    return fail()
   }
   if (null != delPath && !deleteAt(parsed, delPath)) {
     return undefined
   }
   const v: any = aontu.unify(parsed, parseOpts, ctx)
   if (0 < ctx.err.length || true === v?.isNil) {
-    return undefined
+    return fail()
   }
   return v.canon
 }
@@ -134,9 +156,14 @@ export function evalCanon(
 export function trimCheck(src: string, opts?: TrimOptions): TrimReport {
   const options = opts ?? {}
 
-  const baseline = evalCanon(src, options)
+  const sink: { ctx?: any } = {}
+  const baseline = evalCanon(src, options, undefined, sink)
   if (undefined === baseline) {
-    return { verdict: 'error', redundant: [] }
+    return {
+      verdict: 'error',
+      redundant: [],
+      errors: [failureFinding(sink.ctx, options.path)],
+    }
   }
 
   const aontu = new Aontu()

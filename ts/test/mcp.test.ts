@@ -471,14 +471,22 @@ describe('mcp', () => {
     Assert.equal(cyc.verdict, 'fail')
     Assert.equal(cyc.findings[0].code, 'relation_cycle')
     Assert.deepEqual(cyc.findings[0].detail, ['a', 'b', 'a'])
-    Assert.deepEqual(payload(callTool('relations', { source: 'a: 1 & 2' })),
-      { verdict: 'error', findings: [] })
-    // The refusal (a document the served profile cannot read) keeps
-    // the engine's shape: RelationFinding is its own vocabulary, so no
-    // pre-parse finding is mixed into it.
-    Assert.deepEqual(
-      payload(callTool('relations', { source: 'a: @"/etc/passwd"' })),
-      { verdict: 'error', findings: [] })
+    // An `error` verdict now SAYS WHY (the review's finding F). The
+    // graph list stays the graph's own vocabulary -- a document with no
+    // graph has no graph findings -- and the reason rides `errors`, in
+    // vet's finding shape.
+    const broken = payload(callTool('relations', { source: 'a: 1 & 2' }))
+    Assert.equal(broken.verdict, 'error')
+    Assert.deepEqual(broken.findings, [])
+    Assert.equal(broken.errors[0].code, 'scalar_value')
+    Assert.equal(broken.errors[0].path, '$.a')
+    // The refusal (a document the served profile cannot read) names
+    // the capability rather than leaving the caller to guess.
+    const denied = payload(
+      callTool('relations', { source: 'a: @"/etc/passwd"' }))
+    Assert.equal(denied.verdict, 'error')
+    Assert.deepEqual(denied.findings, [])
+    Assert.equal(denied.errors[0].code, 'include_denied')
 
     // trim: clean, the redundant spread-implied entry, the engine's
     // error for a unify failure, and the refusal — same shape.
@@ -487,10 +495,14 @@ describe('mcp', () => {
     Assert.deepEqual(
       payload(callTool('trim', { source: 'q: { &: {x: 1}, a: {x: 1} }' })),
       { verdict: 'redundant', redundant: ['$.q.a.x'] })
-    Assert.deepEqual(payload(callTool('trim', { source: 'a: 1 & 2' })),
-      { verdict: 'error', redundant: [] })
-    Assert.deepEqual(payload(callTool('trim', { source: 'a: @"/x.aon"' })),
-      { verdict: 'error', redundant: [] })
+    const tbroken = payload(callTool('trim', { source: 'a: 1 & 2' }))
+    Assert.equal(tbroken.verdict, 'error')
+    Assert.deepEqual(tbroken.redundant, [])
+    Assert.equal(tbroken.errors[0].code, 'scalar_value')
+    const tdenied = payload(callTool('trim', { source: 'a: @"/x.aon"' }))
+    Assert.equal(tdenied.verdict, 'error')
+    Assert.deepEqual(tdenied.redundant, [])
+    Assert.equal(tdenied.errors[0].code, 'include_denied')
 
     // hash: the pin survives reformatting (it equals summary's), and
     // `form` adds the digested text.

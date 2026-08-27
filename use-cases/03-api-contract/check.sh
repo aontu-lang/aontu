@@ -118,7 +118,14 @@ has vsubtle out '"admin"|"member"|"viewer"'
 # used to arrive unsited, so this finding pointed at -1:-1 with nowhere
 # for a repair loop to go; a narrowed disjunction now carries the site
 # of the one it came from.
-has vsubtle out 'contract.aon:35:15'
+#
+# THE FILE IS types.aon, and that is the second half of the same fix
+# (finding F, BUGS.md §25). The enum is declared in types.aon at 35:15
+# and reached through an include; the site used to carry the ENTRY
+# file's name with the included file's coordinates -- and contract.aon
+# is nineteen lines long, so `contract.aon:35:15` named a line that
+# does not exist. Every site now names the file whose text it excerpts.
+has vsubtle out 'types.aon:35:15'
 ok "vet: bad email + bad enum refused; alternatives shown, enum site located"
 
 # Missing required field, non-enum: verdict incomplete, exit 3 -- the
@@ -127,18 +134,21 @@ run vmiss 3 -- vet --at '$.msg.CreateUserRequest' "$DIR/contract.aon" \
   "$DIR/data/create-user-missing-name.json"
 has vmiss out 'verdict: incomplete'
 has vmiss out '[aontu/mapval_required]'
-# GAP 3 (misattribution): the schema site names the ENTRY file, with
-# row/col that belong to the included types.aon. Pin it structurally:
-# the row the finding cites holds DisplayName in types.aon, not in the
-# contract.aon the finding names.
-row="$(grep -o 'contract.aon:[0-9]*' "$WORK/vmiss.out" | head -1 | cut -d: -f2)"
-[ -n "$row" ] || fail "vmiss: schema site does not name contract.aon"
+# GAP 3 CLOSED 2026-08-27 (finding F, BUGS.md §25). The schema site
+# used to name the ENTRY file while carrying row/col that belong to the
+# included types.aon -- a real file name against a line it does not
+# have, which is the worst of the three possible answers because it
+# looks right. Pinned structurally, in both directions: the row the
+# finding cites holds DisplayName in the file the finding NAMES, and
+# the entry file's own line of that number does not.
+row="$(grep -o 'types.aon:[0-9]*' "$WORK/vmiss.out" | head -1 | cut -d: -f2)"
+[ -n "$row" ] || fail "vmiss: schema site does not name types.aon"
 sed -n "${row}p" "$DIR/types.aon" | grep -q 'DisplayName' \
-  || fail "vmiss: row $row is not DisplayName in types.aon; gap 3 pin stale"
+  || fail "vmiss: types.aon:$row is not DisplayName; site pin stale"
 sed -n "${row}p" "$DIR/contract.aon" | grep -q 'DisplayName' \
-  && fail "vmiss: contract.aon:$row is DisplayName; gap 3 fixed? update README" \
+  && fail "vmiss: contract.aon:$row is DisplayName too; the pin proves nothing" \
   || true
-ok "vet: missing name -> exit 3; schema site misattributed to entry file"
+ok "vet: missing name -> exit 3; schema site names the file it excerpts"
 
 # GAP 1 CLOSED 2026-08-27 (ADR-007). A required ENUM field could be
 # omitted entirely: the unresolved disjunction counted as concrete

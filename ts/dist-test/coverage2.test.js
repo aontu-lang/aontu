@@ -110,6 +110,32 @@ function pendingCtx() {
         });
         return () => Object.defineProperty(process, 'stdin', desc);
     }
+    // COLOUR IS A DECISION ABOUT THE DESTINATION (the review's finding
+    // F), and only the command can see the destination. Every other test
+    // in this suite runs with stderr captured or piped, which is the
+    // colour-OFF arm; this is the other one.
+    (0, node_test_1.test)('an-interactive-stderr-leaves-colour-to-no-color', () => {
+        const desc = Object.getOwnPropertyDescriptor(process, 'stderr');
+        const fakeErr = new node_stream_1.PassThrough();
+        fakeErr.isTTY = true;
+        Object.defineProperty(process, 'stderr', {
+            value: fakeErr, configurable: true,
+        });
+        const cap = captureOut();
+        try {
+            // `-v` exercises main()'s entry and returns immediately: the
+            // decision under test is made before any argument is read.
+            (0, cli_1.main)(['node', 'cli', '-v']);
+            Assert.equal((0, err_1.colorActive)(), true);
+        }
+        finally {
+            cap.restore();
+            Object.defineProperty(process, 'stderr', desc);
+            // The gate is process-global: leave it as the rest of the suite
+            // expects to find it.
+            (0, err_1.setColor)(false);
+        }
+    });
     (0, node_test_1.test)('repl-in-process', async () => {
         const fakeIn = new node_stream_1.PassThrough();
         fakeIn.isTTY = true;

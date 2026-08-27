@@ -64,6 +64,15 @@ type Aontu struct {
 	// Nil means the 'system' posture, today's default.
 	Trust *TrustOptions
 
+	// IncludeText is the TEXT of every source the most recent parse
+	// READ, by full path. A value's position is a byte offset into the
+	// source it was parsed from, so a report that names an included
+	// file honestly (finding F, use-cases/BUGS.md §25) needs that
+	// file's text to turn the offset into a row and column. The
+	// canonical port has no equivalent because its values carry row and
+	// column directly; this port computes them on demand.
+	IncludeText map[string]string
+
 	// IncludeDeps is the include MANIFEST of the most recent parse:
 	// the resolved include closure, sorted by path then capability and
 	// deduplicated, so it is deterministic. Reset per parse; empty for
@@ -130,6 +139,7 @@ func (a *Aontu) parseEntry(src string) (Val, error) {
 	sink := a.newTrustSink()
 	v, err := parseWithTrust(src, a.base, a.File, sink)
 	a.IncludeDeps = manifestOf(*sink.deps)
+	a.IncludeText = sink.texts
 	return v, err
 }
 
@@ -139,7 +149,8 @@ func (a *Aontu) parseEntry(src string) (Val, error) {
 func (a *Aontu) newTrustSink() *trustSink {
 	deps := []IncludeDep{}
 	sink := &trustSink{
-		deps: &deps, warn: a.TrustWarn, warnRoot: a.TrustWarnRoot,
+		deps: &deps, texts: map[string]string{},
+		warn: a.TrustWarn, warnRoot: a.TrustWarnRoot,
 		modDepth: a.modDepth, modCache: a.modCacheDir(),
 	}
 	if nil != a.Trust {

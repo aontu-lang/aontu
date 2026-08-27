@@ -159,6 +159,21 @@ replacing the name and orphaning the arguments.
 `aontu why` carries the same pair: each conjunct in the record has the
 `len` on its site and the contribution's own `src` beside its `canon`.
 
+**A site names the file whose text it excerpts**, which for a modular
+document is not the entry file. A constraint written in
+`lib/types.aon` and reached through `@"lib/types.aon"` is reported at
+`lib/types.aon` with that file's row and column — never at the entry
+with the included file's coordinates, which is a real file name
+against a line it may not have.
+
+The name is the one the CALLER'S OWN spelling reaches: `vet
+contract.aon` names `types.aon`, `vet a/b/contract.aon` names
+`a/b/types.aon`, and an absolute entry keeps absolute includes. So a
+site can be opened from wherever the command was run, and a report
+stays repo-relative — which is what a SARIF upload needs. Identity is
+still the resolved path underneath: two documents loading one library
+by different relative spellings are one file, not two.
+
 **Every verdict carries its finding, `error` included.** A schema that
 does not stand up — a contradiction inside it, a document that will not
 parse, a merge marker — reports what failed and where, while the
@@ -199,6 +214,31 @@ stanza naming the producer, so a report read from a pipe says which
 version and verb made it. Where the constraint algebra knows what would
 have unified, the finding carries it as `expected`/`actual`, and a
 `must()` check's author message rides along as `note`.
+
+**A finding carries the repair, not just the diagnosis.** `message` is
+the headline and stays one line — that is what makes it comparable and
+greppable — so a finding also carries `hint`: the engine's own
+explanation of the failure class, with the offending values filled in.
+It is the text a human sees under the error frame, and for several
+codes it is the only place the FIX is written down. A lossy integer
+literal is the clearest case:
+
+```json
+{ "code": "lossy_integer_literal",
+  "message": "[aontu/lossy_integer_literal]: Cannot resolve value at path $.port",
+  "hint": "This integer literal, 9007199254740993, is not exactly representable in\nbinary64 ... write it as a `0d`\nliteral to get the exact integer." }
+```
+
+The field is absent, not empty, for a code that has no hint text.
+Hint prose, like `message`, is deliberately outside cross-port parity.
+
+**Colour is a decision about the destination.** Error frames are
+coloured for a terminal and plain everywhere else: `NO_COLOR` (set, to
+anything) turns colour off for every caller of the library, the command
+additionally turns it off when its own stderr is not a terminal, and
+`--jsonl` turns it off unconditionally — a JSONL answer is machine-read
+by definition. A piped report therefore never carries terminal control
+codes into a log, a CI annotation or a parser.
 
 `--format sarif` emits the report as SARIF 2.1.0, the interchange form
 CI systems ingest (GitHub code scanning upload, PR annotation) — a
@@ -312,6 +352,13 @@ aontu trim --check [--format text|json] <file.aon>
   guessing wrong silently rewrites the file's shape.
 - Exit codes: `0` clean, `1` redundant entries found, `4` the document
   itself does not evaluate, `2` usage.
+- **A verdict of `error` says why.** A document that does not evaluate
+  has no redundancy to report, but it does have a reason: the report
+  carries `errors`, the engine's own first failure in the same finding
+  shape [`vet`](#aontu-vet) reports in — code, class, path, sites with
+  file, row, column and extent, and the repair `hint`. The field is
+  present only on that verdict, and the text renderer prints the
+  finding under the verdict line.
 
 ### `aontu relations`
 
@@ -361,9 +408,15 @@ $ echo $?
   verdicts, not [`vet`](#aontu-vet)'s five classes — there is no
   schema on the other side of this question, so `incomplete` has
   nothing to mean.
+- **A verdict of `error` says why.** A document that does not stand up
+  has no graph, so it has no relation findings — but the report carries
+  `errors`, the engine's own first failure in the same finding shape
+  [`vet`](#aontu-vet) reports in. `findings` stays the graph's own
+  vocabulary; the two lists answer two different questions, and the
+  `errors` field is present only on the `error` verdict.
 - The library form is `relationCheck(src)` in TypeScript and
   `Aontu.RelationCheck(src)` in Go, returning the identical
-  `{verdict, findings}` record; the derived graph the checks run over
+  `{verdict, findings}` record (plus `errors` on a failed run); the derived graph the checks run over
   is `result.graph` / `Aontu.Graph`, described under
   [the TypeScript API](#class-aontu).
 

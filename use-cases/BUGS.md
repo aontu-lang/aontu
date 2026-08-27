@@ -464,6 +464,72 @@ values get the entry file's name with `-1:-1`. (`why` on the same
 values attributes correctly, so the engine has the data.) Repros:
 `vetsite-*.aon`, `refclone-*.aon`, `excerpt-*.aon`, `junction-*` files.
 
+Status: FIXED 2026-08-27 — ONE INVARIANT, *every site names the file
+whose text it excerpts*. The provenance walk used to OVERWRITE every
+url with the entry document's name while leaving the coordinates as
+they were, which is what produced a real file name against a line it
+does not have. It now stamps only the values that carry no name of
+their own — the ones the engine minted rather than read — and collects
+the urls it actually saw, so a value loaded through `@"lib/types.aon"`
+keeps that path with that file's row and column, and the report still
+knows which DOCUMENT a site belongs to (roles come from url-set
+membership, not from a name comparison). The error frame follows the
+same rule: a frame quotes the text of the file its header names, and
+where the run holds no text for that file it reports `-1:-1` rather
+than resolving an offset against the wrong document. Both ports;
+pinned by `a-site-names-the-file-its-text-lives-in` and
+`an-included-data-file-is-still-data` (ts/test/vet.test.ts) and
+`TestVetSiteNamesTheIncludedFile` / `TestVetIncludedDataIsStillData`
+(go/vet_test.go).
+
+The NAME is the one the caller's own spelling reaches: the resolved
+absolute path is the right identity (two documents loading one library
+by different relative spellings are one file) and the wrong name, so
+`vet contract.aon` reports `types.aon` and `vet a/b/contract.aon`
+reports `a/b/types.aon`. Without that the fix would have traded a
+wrong file name for an unusable one — a SARIF upload naming the build
+machine's home directory annotates nothing. Pinned by
+`an-included-file-is-named-as-the-entry-reaches-it` and
+`TestDisplayFileNamesTheIncludeAsTheEntryReachesIt`.
+
+Two ledger items closed with it. Parity divergence **#66** — a Go
+finding's site naming the wrong file under an include — is closed by
+the same stamping, its recorded fixture now byte-identical from both
+ports. And the junction half of this entry is closed in Go: a clone
+rebuilt a disjunction carrying the url and the source text but not the
+POSITION, so an enum declared once and named by `$.Role` reported its
+`|:empty` at row -1 where TypeScript reported it at the enum. The site
+travels whole through every clone now (`clonePathRec`), pinned by the
+shared row `vet-refd-disjunct-site`.
+
+Three companion repairs from the same review finding landed with it:
+
+- **Findings carry the repair, not just the diagnosis.** `message` is
+  the headline and stays one line, so the `0d` escape that fixes a
+  lossy integer literal — and every other hint the engine already
+  writes for a terminal reader — reached a machine reader nowhere. A
+  finding now carries `hint`, the whole shared hint text with its
+  placeholders filled in, present for every code that has one. Excluded
+  from spec goldens exactly as `message` is (prose is per-port), pinned
+  by `a-finding-carries-the-repair-hint` and its Go twin, and carried
+  into SARIF through the embedded finding.
+- **`relations` and `trim` report WHY.** Both answered an unusable
+  document with `verdict: error` and an empty list. Both now carry
+  `errors`, in the vet finding shape, present only on that verdict —
+  the engine's own first error, with its site, its hint and the file it
+  belongs to. Spec rows `trim-broken-error`, `trim-unparseable-error`
+  and `broken-document-is-not-blamed-on-relations` pin the shape in
+  both ports.
+- **Colour is a decision about the destination.** Error frames
+  hardcoded their ANSI escapes, so a piped report carried terminal
+  control codes into logs, CI annotations and agents' parsers. The
+  library honours `NO_COLOR`; the command additionally turns colour off
+  when its stderr is not a terminal, and `--jsonl` turns it off
+  unconditionally. Pinned by
+  `color-is-gated-by-no-color-and-the-caller` (ts/test/error.test.ts),
+  `TestColorGate` (go/color_test.go) and the command-side
+  `TestColorForDestination` / `TestRunGatesColor`.
+
 ### 26. `breaking --against git#rev` resolves the old side's includes from the working tree [critical]
 Entry committed at v1; the *included* schema narrowed in the working
 tree; `breaking --against git#HEAD entry.aon` → `verdict: compatible`,

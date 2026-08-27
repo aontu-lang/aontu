@@ -5,6 +5,82 @@ package (`ts/`, npm `aontu`) and the Go module (`go/`,
 `github.com/rjrodger/aontu/go`) are versioned independently; entries note
 which implementation each change affects.
 
+## Unreleased — every site names the file whose text it excerpts
+
+Both implementations. The 2026-08 review's finding F, in four parts:
+the diagnostics an agent repairs from.
+
+**One invariant: a site names the file whose text it excerpts.** The
+provenance walk used to OVERWRITE every value's url with the entry
+document's name and leave the coordinates alone, so a finding cited
+`entry.aon:3:7` for text that lives three files away, at a line the
+entry may not even have — *a repair agent that follows the site edits
+the wrong file* (`use-cases/BUGS.md` §25). Only values that carry no
+name of their own are stamped now — those the engine minted rather than
+read — and the urls actually seen are collected, so a value loaded
+through `@"lib/types.aon"` keeps that path with that file's row and
+column, and the report still knows which DOCUMENT a site belongs to:
+roles come from membership of the url set, never from a name
+comparison. Error frames follow the same rule, and where the run holds
+no text for a named file the site reports `-1:-1` rather than resolving
+an offset against the wrong document.
+
+**And it is named as the entry's own name reaches it.** The resolved
+absolute path is the right IDENTITY — two documents loading one library
+by different relative spellings must be one file — and the wrong NAME:
+a report whose entry reads `contract.aon` and whose included site reads
+`/home/someone/checkout/types.aon` cannot be uploaded as SARIF, diffed
+between machines, or read beside the command that produced it. A site
+is therefore printed relative to the entry's directory and re-anchored
+on however the caller spelled the entry: `vet contract.aon` names
+`types.aon`, `vet a/b/contract.aon` names `a/b/types.aon`, and an
+absolute entry keeps absolute includes.
+
+**A junction reached through a reference keeps its site.** Go's clone
+rebuilt a disjunction as a fresh value carrying the url and the source
+text but not the POSITION, so the commonest schema shape there is — an
+enum declared once and named by `$.Role` from wherever it applies —
+reported its `|:empty` finding at row -1 while the canonical port
+reported it at the enum. The site now travels whole through every
+clone, which closes divergence #66's neighbour in the same sweep. Pinned
+by `vet-refd-disjunct-site`.
+
+**Parity ledger: #66 is closed.** Go's include resolver stamps the
+resolved path onto every value a loaded document parses into, and keeps
+that document's text so an offset can be resolved in the file it
+belongs to. The fixture recorded in `test/spec/divergent.tsv` now
+reports `part.aon:1:7` from both ports, byte-identical.
+
+**Findings carry the repair.** `message` is the headline and stays one
+line — that is what makes it comparable — so everything the engine
+knows about how to FIX a failure reached a terminal reader in the
+frames and a machine reader not at all. A finding now carries `hint`:
+the whole shared hint text with its placeholders filled in, for every
+code that has one. The clearest case is a lossy integer literal, where
+the hint names the `0d` exact-decimal escape that fixes it. Excluded
+from the shared spec's goldens exactly as `message` is, because prose
+is per-port; carried into SARIF through the embedded finding, and
+redacted in the SARIF golden the same way.
+
+**`relations` and `trim` say WHY.** Both answered a document that does
+not stand up with `verdict: error` and an empty list — something is
+wrong, and nothing about what, which is the one answer a repair loop
+cannot act on. Both reports now carry `errors`, in the vet finding
+shape and present only on that verdict: the engine's own first error,
+with its site, its hint and the file it belongs to. The `findings` list
+of `relations` still means what it meant — facts about the GRAPH — and
+a document with no graph has none of those to report.
+
+**Colour is a decision about the destination, not about the message.**
+Error frames hardcoded their ANSI escapes, so a piped report carried
+terminal control codes into logs, CI annotations and agents' parsers.
+The library honours `NO_COLOR` (set, to anything, means no colour) for
+every caller; the command additionally turns colour off when its own
+stderr is not a terminal, since a library cannot see the destination
+and a caller who can is the only one who may say. `--jsonl` turns it
+off unconditionally: a JSONL answer is machine-read by definition, even
+in a session attached to a terminal.
+
 ## Unreleased — the evolution gate stops failing its own idioms
 
 Both implementations. Three fixes to `subsume`/`breaking`, all from the

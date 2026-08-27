@@ -89,6 +89,15 @@ func runTrim(argv []string, stdout, stderr io.Writer) int {
 
 func renderTrimText(report aontu.TrimReport) string {
 	head := "verdict: " + report.Verdict
+	// WHY, when the document could not be evaluated at all: rendered as
+	// vet renders a finding, because it IS one (the review's finding F).
+	if 0 < len(report.Errors) {
+		out := []string{head, ""}
+		for _, f := range report.Errors {
+			out = append(out, renderFinding(f))
+		}
+		return strings.Join(out, "\n")
+	}
 	if 0 == len(report.Redundant) {
 		return head
 	}
@@ -100,6 +109,7 @@ func renderTrimText(report aontu.TrimReport) string {
 // canonical emitter's order (see vetReportJSON).
 type trimReportJSON struct {
 	Aontu     subsumeProducerJSON `json:"aontu"`
+	Errors    []aontu.VetFinding  `json:"errors,omitempty"`
 	Redundant []string            `json:"redundant"`
 	Verdict   string              `json:"verdict"`
 }
@@ -111,6 +121,7 @@ func renderTrimJSON(report aontu.TrimReport) string {
 	enc.SetIndent("", "  ")
 	_ = enc.Encode(trimReportJSON{
 		Aontu:     subsumeProducerJSON{Verb: "trim", Version: aontu.VERSION},
+		Errors:    report.Errors,
 		Redundant: report.Redundant,
 		Verdict:   report.Verdict,
 	})

@@ -80,6 +80,15 @@ func runRelations(argv []string, stdout, stderr io.Writer) int {
 
 func renderRelationsText(report aontu.RelationReport) string {
 	head := "verdict: " + report.Verdict
+	// WHY, when the document could not be evaluated at all: rendered as
+	// vet renders a finding, because it IS one (the review's finding F).
+	if 0 < len(report.Errors) {
+		out := []string{head, ""}
+		for _, f := range report.Errors {
+			out = append(out, renderFinding(f))
+		}
+		return strings.Join(out, "\n")
+	}
 	if 0 == len(report.Findings) {
 		return head
 	}
@@ -100,6 +109,7 @@ func renderRelationsText(report aontu.RelationReport) string {
 // canonical emitter's order (see vetReportJSON).
 type relationsReportJSON struct {
 	Aontu    subsumeProducerJSON     `json:"aontu"`
+	Errors   []aontu.VetFinding      `json:"errors,omitempty"`
 	Findings []aontu.RelationFinding `json:"findings"`
 	Verdict  string                  `json:"verdict"`
 }
@@ -111,6 +121,7 @@ func renderRelationsJSON(report aontu.RelationReport) string {
 	enc.SetIndent("", "  ")
 	_ = enc.Encode(relationsReportJSON{
 		Aontu:    subsumeProducerJSON{Verb: "relations", Version: aontu.VERSION},
+		Errors:   report.Errors,
 		Findings: report.Findings,
 		Verdict:  report.Verdict,
 	})

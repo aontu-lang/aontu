@@ -32,7 +32,14 @@ func sarifRedact(t *testing.T, sarif string) string {
 	for _, r := range run["results"].([]any) {
 		result := r.(map[string]any)
 		result["message"].(map[string]any)["text"] = "<MESSAGE>"
-		result["properties"].(map[string]any)["message"] = "<MESSAGE>"
+		props := result["properties"].(map[string]any)
+		props["message"] = "<MESSAGE>"
+		// CONDITIONAL, so the golden still records which codes carry a
+		// hint and which do not -- that presence IS in parity, only the
+		// prose is not.
+		if _, has := props["hint"]; has {
+			props["hint"] = "<HINT>"
+		}
 	}
 	// Maps marshal with sorted keys, which is the canonical emitter's
 	// order too; HTML escaping off and two-space indent as everywhere.

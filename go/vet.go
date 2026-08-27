@@ -121,10 +121,27 @@ type VetSite struct {
 // written: `omitempty` on a plain string cannot tell those apart, and
 // the canonical emitter drops only what is undefined.
 type VetFinding struct {
-	Actual   *string   `json:"actual,omitempty"`
-	Class    string    `json:"class"`
-	Code     string    `json:"code"`
-	Expected *string   `json:"expected,omitempty"`
+	Actual   *string `json:"actual,omitempty"`
+	Class    string  `json:"class"`
+	Code     string  `json:"code"`
+	Expected *string `json:"expected,omitempty"`
+	// THE REPAIR, not just the diagnosis. Message is one line by design
+	// -- it is the headline, and the frames under it are for a human at
+	// a terminal -- but for several codes the part that says what to DO
+	// about the failure lived only in those frames, so a machine reader
+	// (an agent, a CI annotation, an editor) got the complaint and none
+	// of the cure. `0d` is the clearest case: the engine refuses a
+	// lossy integer literal and the hint names the exact-decimal escape
+	// that fixes it. Populated from the shared hints table (go/hints.go,
+	// mirroring ts/src/hints.ts) whenever the code has one; absent when
+	// it does not (the report-layer compat_* codes, notably, carry no
+	// hint text).
+	//
+	// Excluded from spec goldens for the same reason Message is: it is
+	// prose, it is long, and the two ports hold it to the byte through
+	// the message tests instead of through every vet row.
+	Hint *string `json:"hint,omitempty"`
+
 	Message  string    `json:"message"`
 	Note     *string   `json:"note,omitempty"`
 	Path     string    `json:"path"`
@@ -206,27 +223,101 @@ func aontuForPathTrust(path string, trust *TrustOptions) *Aontu {
 // row and column on every site at parse time.
 type vetSources map[string]string
 
+// vetProv is the provenance a report projects its sites through: which
+// urls belong to the DATA document, and how the caller reached each of
+// the two documents (which is what says how to NAME a third file either
+// of them included).
+type vetProv struct {
+	// data holds the urls the data walk reached. Roles are decided by
+	// membership, on the RAW url -- never by a name comparison.
+	data       map[string]bool
+	schemaURL  string
+	schemaPath string
+	dataURL    string
+	dataPath   string
+}
+
+// name answers what to print for a site, taken from the document the
+// site BELONGS to -- which is the role, already decided by url-set
+// membership. Doing it here rather than from a map built at stamping
+// time is not a shortcut: a nil's operands are off the tree by the time
+// the report is built, so a value first seen during the MEET (the
+// commonest schema site there is) would be missing from any such map.
+func (p vetProv) name(url, role string) string {
+	if VetRoleData == role {
+		return displayFile(url, orSelf(p.dataURL, url), p.dataPath)
+	}
+	return displayFile(url, orSelf(p.schemaURL, url), p.schemaPath)
+}
+
+// orSelf is the "this run has no label for that document" fallback: a
+// url that is its own label is returned unchanged by displayFile.
+func orSelf(label, url string) string {
+	if "" == label {
+		return url
+	}
+	return label
+}
+
+// displayFile names A FILE THE READER CAN OPEN. The parser resolves an
+// include to an absolute path, which is the right identity (two files
+// loading the same library by different relative spellings must be one
+// file) and the wrong NAME: a report whose entry reads `contract.aon`
+// and whose included site reads `/home/someone/checkout/types.aon` is
+// a report that cannot be uploaded as SARIF, diffed between machines,
+// or read beside the command that produced it.
+//
+// So an included file is named as the ENTRY'S OWN NAME reaches it:
+// relative to the entry's directory, then re-anchored on however the
+// caller spelled the entry. `vet contract.aon` names `types.aon`;
+// `vet a/b/contract.aon` names `a/b/types.aon`; an absolute entry keeps
+// absolute includes. A caller who passed no path at all has no base to
+// relativise against and gets the url unchanged. The TypeScript twin is
+// displayFile in ts/src/vet.ts.
+func displayFile(url, label, path string) string {
+	if url == label || "" == path || "" == url || !filepath.IsAbs(url) {
+		return url
+	}
+	base, err := filepath.Abs(path)
+	if err != nil { //coverage:ignore Abs fails only on an unreadable cwd
+		return url
+	}
+	rel, err := filepath.Rel(filepath.Dir(base), url)
+	if err != nil { //coverage:ignore both paths are absolute, so Rel cannot fail
+		return url
+	}
+	dir := filepath.Dir(label)
+	if "." == dir {
+		return rel
+	}
+	return filepath.Join(dir, rel)
+}
+
 // siteOf projects one operand into a report site. `secondary` is the
 // only operand that can be absent — a `closed` or an incomplete finding
 // has one side, a two-site conflict has both — so this is the one
 // nullable input, and every Val that does arrive carries a position and
 // a canon.
-func siteOf(v Val, dataURL string, sources vetSources) *VetSite {
+func siteOf(v Val, prov vetProv, sources vetSources) *VetSite {
 	if v == nil {
 		return nil
 	}
 	file := v.srcurl()
+	// The ROLE of a site: which of the two documents it belongs to. Not
+	// a name comparison -- a data document may itself include another
+	// file, and that file's values are still data. Membership of the
+	// url set the stamping walk collected is the question.
 	role := VetRoleSchema
-	if dataURL == file {
+	if prov.data[file] {
 		role = VetRoleData
 	}
-	// An unstamped value (one minted with no source name) is counted
-	// against the data text, which is the same fallback the error
-	// frames make with ctx.src.
-	src, ok := sources[file]
-	if !ok {
-		src = sources[dataURL]
-	}
+	// A value whose file the run has no TEXT for -- one read through an
+	// include, whose path is now named honestly rather than overwritten
+	// with the entry's -- has no coordinates to report: its offset
+	// indexes a text this report does not hold, and resolving it
+	// against the entry's text would name a real line that says
+	// something else. -1:-1, the same answer an unsited value gets.
+	src, haveSrc := sources[file]
 	// An UNSITED value reports -1:-1 rather than a coordinate it does
 	// not have. The parser gives no position to a junction (neither port
 	// does), so `a: 1|2` meeting `a: 3` has one operand that was never
@@ -234,12 +325,15 @@ func siteOf(v Val, dataURL string, sources vetSources) *VetSite {
 	// column 1, which is a place, and the wrong one. TypeScript says -1
 	// because an unset site starts there (ts/src/site.ts).
 	row, col := -1, -1
-	if 0 <= v.pos() {
+	if haveSrc && 0 <= v.pos() {
 		row, col = rowCol(src, v.pos())
 	}
+	// NAMED for the reader, ROLED and SOURCED by the raw url: the three
+	// questions are different, and only the first is about how the file
+	// is spelled (see displayFile).
 	return &VetSite{
-		Col: col, File: file, Len: v.srclen(), Role: role, Row: row,
-		Src: v.srctext(), Value: v.Canon(),
+		Col: col, File: prov.name(file, role), Len: v.srclen(), Role: role,
+		Row: row, Src: v.srctext(), Value: v.Canon(),
 	}
 }
 
@@ -247,7 +341,7 @@ func siteOf(v Val, dataURL string, sources vetSources) *VetSite {
 // schema site. The underlying NilVal fields are untouched: this is a
 // report-layer projection, so the existing error.tsv assertions do not
 // move.
-func sitesOf(n *NilVal, dataURL string, sources vetSources) []VetSite {
+func sitesOf(n *NilVal, prov vetProv, sources vetSources) []VetSite {
 	sites := []VetSite{}
 	// The nil ITSELF when it has no operands: a failure raised about a
 	// CONSTRUCT rather than about a failed meet -- a lossy integer
@@ -257,10 +351,10 @@ func sitesOf(n *NilVal, dataURL string, sources vetSources) []VetSite {
 	if nil == primary {
 		primary = n
 	}
-	if s := siteOf(primary, dataURL, sources); s != nil {
+	if s := siteOf(primary, prov, sources); s != nil {
 		sites = append(sites, *s)
 	}
-	if s := siteOf(n.secondary, dataURL, sources); s != nil {
+	if s := siteOf(n.secondary, prov, sources); s != nil {
 		sites = append(sites, *s)
 	}
 
@@ -281,14 +375,31 @@ func sitesOf(n *NilVal, dataURL string, sources vetSources) []VetSite {
 	return out
 }
 
-func findingOf(n *NilVal, dataURL string, sources vetSources) VetFinding {
+// hintOf renders the shared hint text for a code, with its detail
+// placeholders filled in exactly as the terminal frame fills them, or
+// nil when the code has none. Trailing whitespace is dropped because it
+// is spacing for the frame that used to follow the hint, not part of
+// the text; the deliberate blank lines INSIDE a hint are "\n \n" and
+// survive. The TypeScript twin is getHint (ts/src/err.ts), trimmed the
+// same way by findingOf.
+func hintOf(why string, details map[string]string) *string {
+	hint := hints[why]
+	if "" == hint {
+		return nil
+	}
+	text := strings.TrimRight(strinject(hint, details), " \t\r\n")
+	return &text
+}
+
+func findingOf(n *NilVal, prov vetProv, sources vetSources) VetFinding {
 	f := VetFinding{
 		Class:    n.Class(),
 		Code:     n.why,
+		Hint:     hintOf(n.why, n.details),
 		Message:  n.Headline(),
 		Path:     n.Path(),
 		Severity: "error",
-		Sites:    sitesOf(n, dataURL, sources),
+		Sites:    sitesOf(n, prov, sources),
 	}
 
 	// expected/actual are the admissible-alternatives contract, and the
@@ -346,6 +457,48 @@ func vetOrderKey(f VetFinding, index int) string {
 	return strings.Join([]string{
 		site.File, pad(site.Row), pad(site.Col), f.Code, f.Path, pad(index),
 	}, "\x00")
+}
+
+// failureFinding reports A DOCUMENT THAT DOES NOT STAND UP in the
+// finding shape (the review's finding F). TrimCheck and RelationCheck
+// answered an unusable document with an `error` verdict and an EMPTY
+// list: the caller learned that something was wrong and nothing about
+// what, which is the one thing a repair loop cannot work with. Both
+// verbs take ONE document, so there is no role to decide -- the
+// document is the thing being checked and the thing to edit, which is
+// what `data` means here.
+//
+// The engine's own first error IS the finding: these verbs add nothing
+// to a diagnosis the evaluator already made, and the FIRST is enough
+// because everything after it is a consequence.
+//
+// The TypeScript twin is failureFinding in ts/src/vet.ts.
+func failureFinding(ctx *Ctx, url, src string) VetFinding {
+	// ctx.err is never empty at a call site: every caller has already
+	// established that the document failed, and it can only fail by
+	// collecting an error.
+	n := ctx.err[0]
+
+	// STAMPED, as vet stamps both documents before they meet: siteOf
+	// reports whatever name a value carries, so a value that reached the
+	// report unstamped would carry an empty file for a document that
+	// does have one. The three Vals a finding can name are the nil and
+	// its two operands, and the url set collects whatever name each
+	// already had, so a value read from an included file keeps that
+	// file's name and still counts as part of the one document being
+	// checked.
+	urls := map[string]bool{url: true}
+	for _, v := range []Val{n, n.primary, n.secondary} {
+		if nil == v {
+			continue
+		}
+		if "" == v.srcurl() {
+			v.setSrcurl(url)
+		}
+		urls[v.srcurl()] = true
+	}
+
+	return findingOf(n, vetProv{data: urls}, vetSources{url: src})
 }
 
 // anchorAt walks the evaluated schema to the anchor path. `$` and
@@ -417,6 +570,7 @@ func parseFinding(url, role string, err error) VetFinding {
 	return VetFinding{
 		Class:    codeClass(code),
 		Code:     code,
+		Hint:     hintOf(code, nil),
 		Message:  message,
 		Path:     "$",
 		Severity: "error",
@@ -530,7 +684,9 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 		return VetReport{
 			Verdict:   VetError,
 			Truncated: false,
-			Findings: []VetFinding{findingOf(failure, dataURL,
+			// A schema that does not stand up: nothing here is data, so
+			// the data-url set is empty and every site reads `schema`.
+			Findings: []VetFinding{findingOf(failure, vetProv{},
 				vetSources{schemaURL: schemaSrc, dataURL: dataSrc})},
 		}
 	}
@@ -640,7 +796,16 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 		}
 	}
 	stampURL(anchor, schemaURL)
-	stampURL(dataVal, dataURL)
+	dataURLs := stampURL(dataVal, dataURL)
+	// The projection every site in this report goes through: roles by
+	// url-set membership, names by how the caller reached each document.
+	prov := vetProv{
+		data:       dataURLs,
+		schemaURL:  schemaURL,
+		schemaPath: options.SchemaPath,
+		dataURL:    dataURL,
+		dataPath:   options.DataPath,
+	}
 
 	// `--closed` sets the flag close() itself sets, rather than wrapping
 	// the anchor in a close() call: the anchor is an already-evaluated
@@ -696,7 +861,17 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 	unified := unifyRoot(pair, ctx)
 	ctx.root = unified
 
+	// The two entry texts, plus the text of every source either side
+	// READ through an include. A site now names the file it came from
+	// (finding F), and the row and column are offsets into THAT file's
+	// text -- so a report that held only the two entry texts could
+	// answer -1:-1 for every included value, which is honest but useless.
 	sources := vetSources{schemaURL: schemaSrc, dataURL: dataSrc}
+	for _, a := range []*Aontu{schemaA, dataA} {
+		for path, text := range a.IncludeText {
+			sources[path] = text
+		}
+	}
 
 	// 4. Contradictions: every NilVal standing in the result, PLUS the
 	//    ones that never made it into the tree.
@@ -719,7 +894,7 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 
 	findings := []VetFinding{}
 	for _, n := range nils {
-		findings = append(findings, findingOf(n, dataURL, sources))
+		findings = append(findings, findingOf(n, prov, sources))
 	}
 	conflicts := len(findings)
 
@@ -739,7 +914,7 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 	_, _ = unified.Gen(genCtx)
 	for _, e := range genCtx.err {
 		if "incomplete" == e.Class() {
-			findings = append(findings, findingOf(e, dataURL, sources))
+			findings = append(findings, findingOf(e, prov, sources))
 		}
 	}
 	errorFindings := len(findings)
@@ -763,7 +938,7 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 		if sv, ok := rec["since"]; ok {
 			msg += " (since " + sv + ")"
 		}
-		site := siteOf(d.v, dataURL, sources)
+		site := siteOf(d.v, prov, sources)
 		findings = append(findings, VetFinding{
 			Code:     "deprecated",
 			Class:    "compat",

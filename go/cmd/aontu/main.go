@@ -461,10 +461,34 @@ func main() { //coverage:ignore run under GOCOVERDIR by `make cov-go`
 	os.Exit(run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr, !stdinIsPipe()))
 }
 
+// colorFor decides the colour override for a destination: nil ("leave
+// it to NO_COLOR") when the writer is a character device, and a forced
+// off for everything else -- a pipe, a file, a test buffer. The
+// TypeScript twin is `true === process.stderr.isTTY ? undefined :
+// false`, and the *os.File test is how Go asks the same question.
+func colorFor(w io.Writer) *bool {
+	if f, isFile := w.(*os.File); isFile {
+		if info, err := f.Stat(); nil == err &&
+			0 != (info.Mode()&os.ModeCharDevice) {
+			return nil
+		}
+	}
+	off := false
+	return &off
+}
+
 // run is main with its arguments, streams and terminal-ness injected,
 // returning the process exit code. Separated from main so tests can
 // drive the whole command with in-memory pipes.
 func run(args []string, stdin io.Reader, stdout, stderr io.Writer, tty bool) int {
+	// COLOUR OFF WHEN THE DESTINATION IS NOT A TERMINAL. Error frames
+	// hardcoded their ANSI escapes, so a piped report carried terminal
+	// control codes into whatever read them (the review's finding F).
+	// NO_COLOR is honoured by the library itself; only the command can
+	// see whether its stderr is a terminal, so only the command can
+	// make this call. Mirrors ts/src/cli.ts main().
+	aontu.SetColor(colorFor(stderr))
+
 	// Subcommand dispatch, and deliberately only for a FIRST argument:
 	// `aontu vet` is the verb, while `aontu somefile vet` keeps meaning
 	// what it always did. A file named `vet` is still reachable as
@@ -530,6 +554,14 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, tty bool) int
 			// because repl_test.go built replState{JSONL: true} by hand
 			// (register, G7.7).
 			jsonl = true
+			// A JSONL answer is machine-read by definition, even when
+			// the session happens to be attached to a terminal, so this
+			// is a harder gate than the stderr test in run() rather
+			// than a repeat of it: escapes inside the answer string are
+			// noise the harness has to strip before it can compare
+			// anything.
+			off := false
+			aontu.SetColor(&off)
 		case "-h", "--help":
 			fmt.Fprint(stdout, helpText)
 			return 0

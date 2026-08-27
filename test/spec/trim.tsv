@@ -19,12 +19,12 @@ trim-spread-implied	trim	a:{&:{deep:1}, b:{deep:1}, c:{other:2}}	{"redundant":["
 trim-ref-clean	trim	a:1 b:$.a	{"redundant":[],"verdict":"clean"}
 trim-plain-clean	trim	x:{y:1}	{"redundant":[],"verdict":"clean"}
 trim-constraint-spread-clean	trim	a:{&:min(0),x:5}	{"redundant":[],"verdict":"clean"}
-trim-broken-error	trim	a:1 a:2	{"redundant":[],"verdict":"error"}
+trim-broken-error	trim	a:1 a:2	{"errors":[{"class":"conflict","code":"scalar_value","path":"$.a","severity":"error","sites":[{"col":7,"file":"","len":1,"role":"data","row":1,"src":"2","value":"2"},{"col":3,"file":"","len":1,"role":"data","row":1,"src":"1","value":"1"}]}],"redundant":[],"verdict":"error"}
 trim-multi-redundant	trim	a:{&:{p:1,q:2}, b:{p:1,q:2}, c:{p:1}}	{"redundant":["$.a.b.p","$.a.b.q","$.a.c.p"],"verdict":"redundant"}
 trim-dup-key-granularity	trim	t:{x:integer} a:$.t a:{x:integer}	{"redundant":[],"verdict":"clean"}
 trim-list-inner-map	trim	a:[{x:1}] b:{&:{k:2},m:{k:2}}	{"redundant":["$.b.m.k"],"verdict":"redundant"}
 trim-spread-changes-doc	trim	a:{b:{c:{deep:9}},&:{b:{c:{deep:9}}}}	{"redundant":[],"verdict":"clean"}
 # A child of a redundant parent is not reported separately
 # (trim-nested-covered-once: $.a.m.b covers $.a.m.b.c).
-trim-unparseable-error	trim	a:]	{"redundant":[],"verdict":"error"}
+trim-unparseable-error	trim	a:]	{"errors":[{"class":"parse","code":"syntax","path":"$","severity":"error","sites":[{"col":3,"file":"","len":-1,"role":"data","row":1,"src":"","value":"nil"}]}],"redundant":[],"verdict":"error"}
 trim-nested-covered-once	trim	a:{&:{b:{c:1}}, m:{b:{c:1}}, n:{other:2}}	{"redundant":["$.a.m.b"],"verdict":"redundant"}

@@ -25,6 +25,8 @@
 // and says so.
 
 import { Aontu } from './aontu'
+import { failureFinding } from './vet'
+import type { VetFinding } from './vet'
 import type { TrustOptions } from './type'
 import { graphOf } from './graph'
 import type { Edge } from './graph'
@@ -48,6 +50,14 @@ export type RelationFinding = {
 export type RelationReport = {
   verdict: RelationVerdict
   findings: RelationFinding[]
+
+  // WHY the graph could not be looked at, in the same finding shape
+  // vet reports in (the review's finding F). `findings` is about the
+  // GRAPH and stays that way; a document that does not stand up has no
+  // graph to have findings about, and an `error` verdict used to
+  // arrive with an empty list -- something is wrong, and nothing about
+  // what. Present ONLY on an `error` verdict.
+  errors?: VetFinding[]
 }
 
 export type RelationOptions = {
@@ -154,7 +164,11 @@ export function relationCheck(
   // graph: the errors it already has are the answer, and blaming its
   // relations on top would be noise.
   if (0 < ctx.err.length || true === root?.isNil) {
-    return { verdict: 'error', findings: [] }
+    return {
+      verdict: 'error',
+      findings: [],
+      errors: [failureFinding(ctx, options.path)],
+    }
   }
 
   const declared = declaredRelations(root)

@@ -117,6 +117,14 @@ vet-spread-template	vet	services:&:{port:integer}	services:{auth:{port:"80"}}	{"
 vet-operandless-nil	vet	a:integer	a:9007199254740993	{"findings":[{"class":"conflict","code":"lossy_integer_literal","path":"$.a","severity":"error","sites":[{"col":3,"file":"data","len":16,"role":"data","row":1,"src":"9007199254740993","value":"nil"}]}],"truncated":false,"verdict":"invalid"}
 vet-refused-construct	vet	a:integer	a:-0x_1	{"findings":[{"class":"parse","code":"negative","path":"$.a","severity":"error","sites":[{"col":3,"file":"data","len":1,"role":"data","row":1,"src":"-","value":"nil"}]}],"truncated":false,"verdict":"invalid"}
 vet-junction-site	vet	a:1|2	a:3	{"findings":[{"class":"conflict","code":"|:empty","path":"$.a","severity":"error","sites":[{"col":3,"file":"data","len":1,"role":"data","row":1,"src":"3","value":"3"},{"col":3,"file":"schema","len":1,"role":"schema","row":1,"src":"1","value":"1|2"}]}],"truncated":false,"verdict":"invalid"}
+# ... AND A JUNCTION REACHED THROUGH A REFERENCE keeps it, which is
+# the shape a schema actually has: an enum is declared once and named
+# from wherever it applies. Resolving the reference CLONES the
+# disjunction, and the Go clone rebuilt it as a fresh value carrying
+# the url and the text but not the position -- so this finding pointed
+# at row -1 there and at the enum here (the "junction values at -1:-1"
+# half of the review's finding F). The site travels whole now.
+vet-refd-disjunct-site	vet	Role: "admin" | "member" | "viewer"\nr: $.Role	r: "root"	{"findings":[{"class":"conflict","code":"|:empty","path":"$.r","severity":"error","sites":[{"col":4,"file":"data","len":6,"role":"data","row":1,"src":"\\"root\\"","value":"\\"root\\""},{"col":7,"file":"schema","len":7,"role":"schema","row":1,"src":"\\"admin\\"","value":"\\"admin\\"|\\"member\\"|\\"viewer\\""}]},{"class":"incomplete","code":"disjunct_no_gen","path":"$.Role","severity":"error","sites":[{"col":7,"file":"schema","len":7,"role":"schema","row":1,"src":"\\"admin\\"","value":"\\"admin\\"|\\"member\\"|\\"viewer\\""}]}],"truncated":false,"verdict":"invalid"}
 vet-pref-yardstick	vet	a:*1	a:{}	{"findings":[{"class":"conflict","code":"not-scalar-type","path":"$","severity":"error","sites":[{"col":3,"file":"data","len":1,"role":"data","row":1,"src":"{","value":"{}"},{"col":4,"file":"schema","len":1,"role":"schema","row":1,"src":"1","value":"integer"}]}],"truncated":false,"verdict":"invalid"}
 # A value the engine mints for ITSELF belongs to neither document, and
 # says so with an empty file rather than borrowing one: an unknown var

@@ -54,7 +54,55 @@ func TestTrimInternals(t *testing.T) {
 
 	// trimEvalCanon answers ok=false for a probe whose deletion cannot
 	// land (the caller's "load-bearing" fold).
-	if _, ok := New().trimEvalCanon("a:1", []string{"zz", "deep"}); ok {
+	if _, ok, _ := New().trimEvalCanon("a:1", []string{"zz", "deep"}); ok {
 		t.Fatal("expected ok=false for an unlandable deletion")
+	}
+}
+
+// AN `error` VERDICT SAYS WHY (the review's finding F). Both
+// single-document verbs used to answer an unusable document with an
+// empty report, which is the one answer a repair loop cannot act on.
+// The TypeScript twin is `verb-errors` in ts/test/vet.test.ts.
+func TestSingleDocumentVerbsReportWhy(t *testing.T) {
+	// A document that PARSES and then contradicts itself: the finding
+	// is the engine's own, with both operands sited.
+	tr := New().TrimCheck("a:1 a:2")
+	if TrimError != tr.Verdict || 1 != len(tr.Errors) {
+		t.Fatalf("trim: %+v", tr)
+	}
+	if "scalar_value" != tr.Errors[0].Code || "$.a" != tr.Errors[0].Path {
+		t.Fatalf("trim finding: %+v", tr.Errors[0])
+	}
+	if 2 != len(tr.Errors[0].Sites) {
+		t.Fatalf("trim sites: %+v", tr.Errors[0].Sites)
+	}
+
+	// A document that does not PARSE takes the other arm, and lands in
+	// the same shape: one located parse-class finding.
+	tp := New().TrimCheck("a:]")
+	if TrimError != tp.Verdict || 1 != len(tp.Errors) {
+		t.Fatalf("trim parse: %+v", tp)
+	}
+	if "parse" != tp.Errors[0].Class {
+		t.Fatalf("trim parse finding: %+v", tp.Errors[0])
+	}
+
+	// Relations, both arms. `Findings` stays the GRAPH's vocabulary --
+	// a document with no graph has no graph findings -- and the reason
+	// rides `Errors`.
+	rr := New().RelationCheck("a:1 a:2")
+	if "error" != rr.Verdict || 0 != len(rr.Findings) || 1 != len(rr.Errors) {
+		t.Fatalf("relations: %+v", rr)
+	}
+	if "scalar_value" != rr.Errors[0].Code {
+		t.Fatalf("relations finding: %+v", rr.Errors[0])
+	}
+
+	rp := New().RelationCheck("a:]")
+	if "error" != rp.Verdict || 0 != len(rp.Findings) || 1 != len(rp.Errors) {
+		t.Fatalf("relations parse: %+v", rp)
+	}
+	if "parse" != rp.Errors[0].Class {
+		t.Fatalf("relations parse finding: %+v", rp.Errors[0])
 	}
 }

@@ -42,6 +42,13 @@ type RelationFinding struct {
 
 // RelationReport is the relation checks for one document.
 type RelationReport struct {
+	// Errors is WHY the graph could not be looked at, in the same
+	// finding shape Vet reports in (the review's finding F). Findings is
+	// about the GRAPH and stays that way; a document that does not stand
+	// up has no graph to have findings about, and an `error` verdict
+	// used to arrive with an empty list -- something is wrong, and
+	// nothing about what. Present ONLY on an `error` verdict.
+	Errors   []VetFinding      `json:"errors,omitempty"`
 	Findings []RelationFinding `json:"findings"`
 	Verdict  string            `json:"verdict"`
 }
@@ -133,13 +140,23 @@ func findCycle(start string, succ map[string][]string, done map[string]bool) []s
 
 // RelationCheck runs the relation checks over one document.
 func (a *Aontu) RelationCheck(src string) RelationReport {
-	root, err := a.Unify(src)
+	// Parsed and unified in two steps rather than through Unify, so the
+	// failure can be REPORTED: the context carries the engine's own
+	// first error, and Unify hands back only that something went wrong.
+	parsed, perr := a.parseEntry(src)
+	if nil != perr {
+		return RelationReport{Verdict: "error", Findings: []RelationFinding{},
+			Errors: []VetFinding{parseFinding(a.File, VetRoleData, perr)}}
+	}
+
+	root, ctx, _ := a.unifyCtx(parsed, nil, src)
 
 	// A document that does not stand up is not a document with a bad
 	// graph: the errors it already has are the answer, and blaming its
 	// relations on top would be noise.
-	if nil != err || nil == root || root.Nil() {
-		return RelationReport{Verdict: "error", Findings: []RelationFinding{}}
+	if nil == root || root.Nil() || 0 < len(ctx.err) {
+		return RelationReport{Verdict: "error", Findings: []RelationFinding{},
+			Errors: []VetFinding{failureFinding(ctx, a.File, src)}}
 	}
 
 	declared := declaredRelations(root)

@@ -110,11 +110,25 @@ func walkVals(v Val, visit func(Val) bool, seen map[Val]bool) {
 // Stamped BEFORE the two trees meet, which is what makes the answer
 // provenance rather than a guess: after unification the values are
 // interleaved, and no property of a value distinguishes them.
-func stampURL(v Val, url string) {
+// EVERY SITE NAMES THE FILE WHOSE TEXT IT EXCERPTS (the review's
+// finding F, use-cases/BUGS.md §25). Only the values that carry no
+// name of their own are stamped: a value read through `@"lib/x.aon"`
+// already names that file, and overwriting it with the ENTRY's name
+// made a finding cite `entry.aon:3:7` for text three files away, at a
+// line the entry may not even have. The urls actually seen are
+// returned, so the report can still tell WHICH DOCUMENT a site belongs
+// to without pretending they all came from one file. Twin: stampUrl in
+// ts/src/vet.ts.
+func stampURL(v Val, url string) map[string]bool {
+	urls := map[string]bool{url: true}
 	walkVals(v, func(n Val) bool {
-		n.setSrcurl(url)
+		if "" == n.srcurl() {
+			n.setSrcurl(url)
+		}
+		urls[n.srcurl()] = true
 		return true
 	}, map[Val]bool{})
+	return urls
 }
 
 // collectNils appends every NilVal reachable from v exactly once

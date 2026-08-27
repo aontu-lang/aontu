@@ -369,4 +369,15 @@ func TestTrustSinkNilGuards(t *testing.T) {
 	recordDenied(nil, "p", "none")       // must not panic
 	recordDep(nil, "p", "file")          // must not panic
 	recordDep(&trustSink{}, "p", "file") // nil deps slice: must not panic
+
+	// recordText is the same contract: a sink with no text map, and a
+	// resolution with no path to file its text under, are both no-ops
+	// rather than a panic or an entry keyed on "".
+	recordText(nil, "p", "a:1")
+	recordText(&trustSink{}, "p", "a:1")
+	sink := &trustSink{texts: map[string]string{}}
+	recordText(sink, "", "a:1")
+	if 0 != len(sink.texts) {
+		t.Fatalf("a pathless source was filed anyway: %+v", sink.texts)
+	}
 }

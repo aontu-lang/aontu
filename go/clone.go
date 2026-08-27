@@ -189,6 +189,17 @@ func clonePathRec(v Val, path []string, deep bool) Val {
 	// another (close, type, deprecate) must not push its own text onto
 	// what it wraps, which would claim source the value never occupied.
 	out.setSrctext(v.srctext())
+	// AND THE POSITION, completing the site. The arms below that copy
+	// the struct keep it for free; the ones that BUILD a fresh value
+	// (top, disjunct, conjunct) lost it, so a disjunction reached
+	// through a `$ref` -- the ordinary way a schema names an enum --
+	// arrived unsited, and the `|:empty` finding for data that matches
+	// no alternative pointed at row -1 while the canonical port pointed
+	// at the enum. That is the "junction values at -1:-1" half of the
+	// review's finding F, and it is one line here rather than one per
+	// kind for the reason the two above are.
+	out.setPos(v.pos())
+	out.setPosu(v.posu())
 	return out
 }
 

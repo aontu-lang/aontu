@@ -123,7 +123,9 @@ const TOOLS = [
         name: 'vet',
         description: 'Validate a data document against a schema document. Returns the ' +
             'vet report: verdict (valid | invalid | incomplete | error), and ' +
-            'findings with codes, paths and sites.',
+            'findings with codes, paths, sites and a repair hint. A site ' +
+            'names the file whose text it excerpts, so its row and column ' +
+            'are safe to edit at even when the schema loads other files.',
         properties: {
             schema: { type: 'string', description: 'The schema document' },
             data: { type: 'string', description: 'The data document' },
@@ -336,11 +338,12 @@ const TOOLS = [
         },
         required: ['source'],
         docs: ['source'],
-        // Empty findings, not the pre-parse finding: RelationFinding is
-        // its own vocabulary (code, relation, at, detail), and the
-        // engine's own answer for a document that does not stand up is
-        // exactly this shape (ts/src/relation.ts).
-        refuse: () => ({ verdict: 'error', findings: [] }),
+        // The pre-parse finding rides `errors`, exactly where the engine
+        // puts its own reason for a document that does not stand up
+        // (ts/src/relation.ts, the review's finding F). NOT `findings`:
+        // RelationFinding is its own vocabulary (code, relation, at,
+        // detail) and a document with no graph has no graph findings.
+        refuse: (_a, finding) => ({ verdict: 'error', findings: [], errors: [finding] }),
         run: (a, _trust, paths) => (0, relation_1.relationCheck)(str(a.source), { path: paths.source }),
     },
     {
@@ -371,9 +374,10 @@ const TOOLS = [
         },
         required: ['source'],
         docs: ['source'],
-        // The engine's own error answer has no findings at all
-        // (ts/src/trim.ts), so neither does the refusal.
-        refuse: () => ({ verdict: 'error', redundant: [] }),
+        // The pre-parse finding rides `errors`, exactly where the engine
+        // puts its own reason for a document that does not stand up
+        // (ts/src/trim.ts, the review's finding F).
+        refuse: (_a, finding) => ({ verdict: 'error', redundant: [], errors: [finding] }),
         run: (a, _trust, paths) => (0, trim_1.trimCheck)(str(a.source), { path: paths.source }),
     },
 ];
