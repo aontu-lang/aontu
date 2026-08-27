@@ -22,7 +22,7 @@ import (
 	"os"
 	"strings"
 
-	aontu "github.com/rjrodger/aontu/go"
+	aontu "github.com/aontu-lang/aontu/go"
 )
 
 const jsonSchemaHelp = "aontu jsonschema [--at <path>] [--strict] <file> (try --help)"
