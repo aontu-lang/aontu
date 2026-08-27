@@ -958,6 +958,71 @@ test the moment a canon row emitted one — which is exactly what that
 test is for, and why the row (`arith-in-spread-template`) is worth
 having beyond the behaviour it pins.
 
+## diagnostics — a finding that named the record instead of the field
+
+### 41. Every conflict inside a referenced record reported the record's path [major]
+A schema that names its record types once and applies them by
+reference — the shape use case 10's `domain.aon` is built on, and the
+first thing anyone writing a reusable model does — reported every
+conflict inside such a record at the RECORD's path rather than the
+key's:
+
+```
+$ aontu vet two.aon two.json          # M: close({a:"x", b:"p"})  q: $.M
+$.q: scalar_value [conflict]   ... data "y", schema "x"
+$.q: scalar_value [conflict]   ... data "r", schema "p"
+```
+
+Two different fields, one path, printed twice. The sites were right and
+the paths were not, so a repair loop reading `path` — the field the
+report exists to give it — was told to rewrite the whole record, twice,
+instead of the two keys that clash. The two ports disagreed as well
+(Go named the key, TypeScript the record), which is an ADR-001
+divergence in the user-facing half of the report.
+
+The cause is the same in both ports and older than the reference case.
+A `NilVal` took its path from the OPERAND it blames, which decides the
+SITE correctly and the path only by accident: a value that arrives by
+reference is re-pathed to the referring field (TypeScript re-pathed the
+children there too, rather than rebasing them under it), and a MINTED
+operand — a preference's yardstick, an arithmetic or concat result —
+carries no path at all, so `a:*1` against `a:{}` reported `$`, the whole
+document, in BOTH ports.
+
+**Status: FIXED 2026-08-27, with one case left open.** The path is now
+taken from the location the meet is being driven at — TypeScript's
+`ctx.path`, Go's `ctx.slot`, which are the same thing — and only when
+that EXTENDS the operand's own path, so a nil minted away from the
+descent keeps what its operand carries. Taking the context path
+unconditionally was tried and reverted: it moves every closed-key,
+spread-template and `--at` finding to the driving location, which is
+not where those belong.
+
+Found while probing the money wire convention (finding I), by running
+both engines on the same document and diffing, which is what that probe
+is for. Pinned by `vet-ref-clone-names-the-key-not-the-record` and
+`vet-type-alias-names-the-key-not-the-record` in `test/spec/vet.tsv`;
+three existing rows (`vet-pref-yardstick`,
+`vet-minted-arith-operand-unsited`, `vet-minted-concat-operand-unsited`)
+moved from `$` to `$.a` and are the minted-operand half of the same
+defect.
+
+**Still open**: a reference whose target sits DEEPER than the referring
+field (`quote: $.schema.M`, where `$.schema.M` is two segments and
+`quote` is one) leaves exactly one stale segment in TypeScript —
+`$.quote.M.a`. The extension rule above cannot reach it, because that
+path is not a prefix of the driving one, it is simply wrong. The cause
+is the clone-path difference `ts/src/val/RefVal.ts` already documents
+in `detectRefCycle`: Go re-paths a resolved clone to the referring
+site, TypeScript overlays. Rebasing with the existing `repathInstance`
+walk is NOT the same operation — it moves relative references with it,
+so `match(.side_effect, …)` in `use-cases/09-agent-tools/registry.aon`
+dies `no_path` — so the real fix is a TypeScript twin of Go's
+`cloneAt`/`overlayPath`, a clone that takes a destination path. Recorded
+in `test/spec/divergent.tsv`; at equal depth both ports agree, which is
+why `use-cases/10-data-model/money-wire.aon` declares its types at the
+top level.
+
 ## Elsewhere in this review
 
 Defects verified earlier in the effort and recorded in

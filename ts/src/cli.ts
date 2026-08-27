@@ -25,6 +25,7 @@ import {
   get, why, patch, agentsMd,
 } from './aontu'
 import { sarifReport } from './report-sarif'
+import { jsonSchema } from './jsonschema'
 import { modTidy, modVerify, modVendor, modManifest } from './mod-tool'
 import type {
   ModTidyReport, ModVerifyReport, ModVendorReport, ModManifestReport,
@@ -51,6 +52,7 @@ const HELP = `Usage: aontu [options] [file]
        aontu breaking --against <file|git#rev> [options] <file>
        aontu trim --check [options] <file>
        aontu relations [options] <file>
+       aontu jsonschema [--at <path>] [--strict] [options] <file>
        aontu hash [options] <file>
        aontu mod tidy|verify|vendor|manifest [options] [dir]
        aontu get <path> [options] <file>
@@ -1993,6 +1995,116 @@ function renderRelationsJson(report: RelationReport): string {
 }
 
 
+
+// ---------------------------------------------------------------------
+// JSON SCHEMA EXPORT (SUPPORT.md act 2, the review's finding I): the
+// bridge to every structured-output API, which constrains generation to
+// JSON Schema and nothing else. Export the model, let the provider
+// generate under it, then `vet` the result against the model itself --
+// the hybrid an enterprise actually deploys, and impossible without
+// this verb.
+//
+// THE SCHEMA GOES TO STDOUT AND THE LOSSES TO STDERR, so `aontu
+// jsonschema x.aon > schema.json` writes a schema and still tells the
+// reader what it could not carry. `--strict` makes a loss a refusal,
+// for the CI job that would rather fail than ship a schema weaker than
+// its model.
+
+const JSONSCHEMA_HELP =
+  'aontu jsonschema [--at <path>] [--strict] <file> (try --help)'
+
+function runJsonSchema(argv: string[]): number {
+  const trusted = takeTrust(argv)
+  if (null == trusted) {
+    return 2
+  }
+  argv = trusted.argv
+  const trust = trusted.trust
+  const files: string[] = []
+  let format: SubsumeFormat = 'text'
+  let at: string | undefined = undefined
+  let strict = false
+
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i]
+    if ('-h' === arg || '--help' === arg) {
+      process.stdout.write(HELP)
+      return 0
+    }
+    if ('--format' === arg) {
+      const f = argv[++i]
+      if ('text' !== f && 'json' !== f) {
+        process.stderr.write('aontu: --format needs text or json\n')
+        return 2
+      }
+      format = f
+    }
+    else if ('--at' === arg) {
+      at = argv[++i]
+      if (null == at) {
+        process.stderr.write('aontu: --at needs a path\n')
+        return 2
+      }
+    }
+    else if ('--strict' === arg) {
+      strict = true
+    }
+    else if (arg.startsWith('-')) {
+      process.stderr.write(
+        `aontu: unknown jsonschema option ${arg} (try --help)\n`)
+      return 2
+    }
+    else {
+      files.push(arg)
+    }
+  }
+
+  if (1 !== files.length) {
+    process.stderr.write(
+      `aontu: jsonschema needs one file\n${JSONSCHEMA_HELP}\n`)
+    return 2
+  }
+
+  let src: string
+  try {
+    src = readFileSync(files[0], 'utf8')
+  }
+  catch (err: any) {
+    process.stderr.write(`aontu: cannot read ${err.path}: ${err.message}\n`)
+    return 2
+  }
+
+  const report = jsonSchema(src, {
+    at, path: files[0], trust: verbTrust(trust, entryRootOf(files[0])),
+  })
+
+  if ('json' === format) {
+    process.stdout.write(exactJSON({
+      aontu: { version: version(), verb: 'jsonschema' },
+      verdict: report.verdict,
+      schema: report.schema,
+      lossy: report.lossy,
+      ...(null == report.errors ? {} : { errors: report.errors }),
+    }, 2) + '\n')
+  }
+  else if ('error' === report.verdict) {
+    // Not `?? []`: every `error` return in jsonSchema() sets `errors`,
+    // so the list is the reason for the refusal rather than a maybe,
+    // exactly as Go's `r.Errors` is on this arm.
+    process.stderr.write(
+      (report.errors as VetFinding[]).map(renderFinding).join('\n') + '\n')
+  }
+  else {
+    process.stdout.write(exactJSON(report.schema, 2) + '\n')
+    for (const l of report.lossy) {
+      process.stderr.write(`lossy: ${l.path} ${l.construct}: ${l.reason}\n`)
+    }
+  }
+
+  return 'error' === report.verdict ? 4 :
+    strict && 'lossy' === report.verdict ? 1 : 0
+}
+
 // ---------------------------------------------------------------------
 // The canon-hash (G6 phase 1): the pin an agent, a lockfile or a
 // registry stores for "this module, this meaning". The hash covers the
@@ -2675,6 +2787,10 @@ function main(argv: string[]): void {
     return finish(runRelations(argv.slice(3)))
   }
 
+  if ('jsonschema' === argv[2]) {
+    return finish(runJsonSchema(argv.slice(3)))
+  }
+
   if ('trim' === argv[2]) {
     return finish(runTrim(argv.slice(3)))
   }
@@ -2758,7 +2874,7 @@ function main(argv: string[]): void {
   else {
     runStdin(mode, trust).then((code) => finish(code))
   }
-} /* node:coverage ignore next 13 */
+} /* node:coverage ignore next 14 */
 
 
 // No require.main guard here: bin/aontu.js is the executable entry and
@@ -2767,6 +2883,7 @@ function main(argv: string[]): void {
 
 export {
   evalSource, main, runVet, runSubsume, runBreaking, runTrim, runRelations,
+  runJsonSchema,
   runMod,
   runHash, runGet,
   runWhy, renderWhyText, runSet, runAgentsMd,

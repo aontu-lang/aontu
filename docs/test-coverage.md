@@ -222,10 +222,13 @@ engine never builds.
 
 ## The exclusions, in full
 
-100 % is only meaningful if what was excluded is visible. Forty-eight
+100 % is only meaningful if what was excluded is visible. Sixty-nine
 Go sites carry a `//coverage:ignore` marker — two of them
 `ignore-block` markers over a pair — and TypeScript carries none at all
-beyond the export blocks (see below). Every marker states, in the
+beyond the export blocks (see below). TypeScript's markers drop LINES
+and not branch arms, so a defensive `if` cannot be excused there at
+all: the arm is either reachable and tested, or it is deleted. Several
+were, when the JSON Schema export landed. Every marker states, in the
 source, what state would be required and why nothing can produce it — a
 marker without that justification is a defect
 ([ADR-002](../ADR.md#adr-002--test-coverage-stays-at-100--in-both-implementations),
@@ -260,7 +263,7 @@ the original incident announced itself only as forty-two unrelated
 coverage failures, when what had actually happened was that every
 marker stopped working.
 
-### Go — 48 marked sites
+### Go — 69 marked sites
 
 | Site | Why it cannot be reached |
 |------|--------------------------|
@@ -286,6 +289,13 @@ marker stopped working.
 | `mod.go` — the `Unify` nil guard in the resolver | `Unify` always answers a `Val`; the guard exists so a broken invariant refuses rather than dereferences nil. |
 | `source.go` — the `filepath.Abs` guard | Same family as the `aontu.go` and `cmd/` guards above: `Abs` fails only on an unreadable working directory. |
 | `place.go` — the trailing `return v` of the place fold | `hasPlace` reporting true implies one of the cases above matched; the arm is the total-function tail. |
+| `jsonschema.go` × 2 — the `nil == v` child guard and `kindType`'s miss | A bag never holds a nil child, and every scalar kind has a JSON type; both arms exist so a broken invariant refuses rather than panics or emits an untyped schema. The TypeScript twin has NEITHER, because its marker cannot excuse a branch (above). |
+| `patch.go` — the non-map guard on a parsed document | A parsed `v X` document is always a map; the guard is type safety on an interface value, not a reachable state. |
+| `cmd/aontu/subsume.go` × 7 — the temp-tree arms of the git-revision leg | Every one is a second failure of something the line above already succeeded at: `MkdirTemp`, then writes and reads under the directory it just created, and a path `git ls-tree` has just listed. |
+| `cmd/aontu/repl.go`, `source.go`, `vet.go` × 2 — `os.Getwd` / `filepath.Abs` guards | Same family as the `aontu.go` and `cmd/` guards above; one of the `vet.go` pair needs two drive letters and so is unreachable off Windows. |
+| `source.go` × 2 — the empty-`Full` guard and the jsonic result `ignore-block` | A resolution always carries its full path, and jsonic hands back a `Val` or a map, never a raw third thing. |
+| `trim.go` — the neither-value-nor-error arm of `parseEntry` | `parseEntry` answers one or the other. (The re-parse arm is listed above.) |
+| `lang.go` × 4 more than listed above — further `j.Use` registrations and digit guards | Same two families: compile-time plugin options that already succeeded at package init, and digit strings a regex or `allDigits` has already vetted. |
 
 Regenerate the site list rather than patching rows — the count above is
 whatever `covmerge` reports on the run:

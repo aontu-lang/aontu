@@ -331,3 +331,53 @@
 #   UNAFFECTED there: the overlay-alone evaluation refuses to edit a
 #   document that loads anything, so no attribution question arises
 #   before a write.
+#
+# ---------------------------------------------------------------------
+#
+# OPEN -- a finding inside a value that arrived by a reference to a
+#   DEEPER target is reported at a path that does not exist, in
+#   TypeScript only.
+#   issue: none filed yet; found 2026-08-27 while landing the money wire
+#   convention (use-cases/REVIEW.md finding I), by running both engines
+#   on the same document and diffing.
+#
+#   The trigger is a DEPTH MISMATCH between the reference and its
+#   target, not the kind of finding: TypeScript's clone overlays the
+#   referring path onto the target's, so a target one level deeper than
+#   the referring field leaves exactly one stale segment behind. At
+#   EQUAL depth the two ports agree, which is what the two rows
+#   vet-ref-clone-names-the-key-not-the-record and
+#   vet-type-alias-names-the-key-not-the-record in vet.tsv pin, and why
+#   use-cases/10-data-model/money-wire.aon declares its types at the top
+#   level rather than under a `schema:` namespace.
+#
+#   Divergent input:  schema `schema:{M:type(close({a:string&re("^x$")}))}`
+#                     `quote: $.schema.M`
+#     with data `{"quote":{}}`         -- an unsatisfied key
+#     TypeScript: mapval_required at $.quote.M.a   (no such path in
+#                 either document -- the alias's own key is in the tail)
+#     Go:         mapval_required at $.quote.a     (correct)
+#     with data `{"quote":{"a":"y"}}`  -- a conflict, same shape
+#     TypeScript: constraint at $.quote.M.a
+#     Go:         constraint at $.quote.a
+#
+#   The nil's own path is already taken from the driving context where
+#   that EXTENDS the operand's path (use-cases/BUGS.md §41), which fixes
+#   the equal-depth case; it deliberately does not redirect a path that
+#   is merely wrong, because taking the context path unconditionally was
+#   tried and moves every closed-key, spread-template and `--at`
+#   finding to the driving location instead.
+#
+#   Not simply fixed because the cause is the clone-path difference
+#   ts/src/val/RefVal.ts documents in detectRefCycle: Go's
+#   clonePath/overlayPath re-paths a resolved clone to the referring
+#   site, TypeScript's clone keeps the source paths. Rebasing the clone
+#   with the existing repathInstance walk (the spread-instance
+#   operation) is NOT the same operation and was tried and reverted: it
+#   moves RELATIVE references with it, so
+#   `match(.side_effect, destructive, true, false)` in
+#   use-cases/09-agent-tools/registry.aon resolves against the
+#   destination and dies no_path. The real fix is a TypeScript twin of
+#   Go's cloneAt/overlayPath -- a clone that takes a destination path --
+#   which is wider than any one finding and is the arm-for-arm
+#   correspondence ADR-001 asks for.

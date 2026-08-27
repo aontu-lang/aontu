@@ -1,0 +1,92 @@
+# JSON SCHEMA EXPORT -- the bridge to every structured-output API.
+#
+# Columns: name<TAB>jsonschema<TAB>src<TAB>expect
+#
+# The review's finding I / SUPPORT.md act 2. Every major LLM provider's
+# structured-output API constrains generation to JSON Schema and to
+# nothing else, so without an export a model cannot ride that path and
+# then be `vet`ted as the semantic gate -- and an MCP tool's
+# `inputSchema`, which the protocol REQUIRES to be JSON Schema, cannot
+# be derived from an Aontu tool model at all.
+#
+# EVERY EXPECTATION HERE WAS OBTAINED BY RUNNING BOTH ENGINES AND
+# DIFFING. The expect object is the schema AND the loss report, because
+# a schema that silently DROPPED a construct would look identical to one
+# that carried it -- and a dropped constraint makes the schema admit
+# MORE than the model does, which is the failure this language exists to
+# refuse. The CLI's envelope (version, verb) is not compared.
+#
+# WHAT CROSSES EXACTLY: kinds to types, concrete scalars to `const`, a
+# disjunction of scalars to `enum` (and its preference to `default`),
+# bounds to minimum/maximum with the OPEN endpoints as the exclusive
+# keywords, `re` to `pattern` (Aontu's portable subset is a subset of
+# ECMA-262, which is what JSON Schema reads), `neq` to `not: {enum}`,
+# `length` to minLength/maxLength or minItems/maxItems, `unique()` to
+# uniqueItems, optional keys to an absence from `required`, and -- the
+# one Aontu and JSON Schema say identically -- `close()` to
+# `additionalProperties: false`. A spread is
+# `additionalProperties: <template>`, which is what it means; a written
+# list is a TUPLE, so prefixItems plus items:false.
+#
+# WHAT DOES NOT, AND IS REPORTED: an evaluate-only `must()` (opaque by
+# construction), the exact `0d` leaves (JSON has one number type and it
+# is binary64), `unique(k)` (JSON Schema has no uniqueness-by-property
+# keyword), a hidden entry (not generated, so not part of the value a
+# consumer produces), a spread on a closed map, and any residue -- an
+# unresolved reference is not a property constraint, and guessing one
+# would be inventing a promise.
+
+js-kind-string	jsonschema	a: string	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"type":"string"}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-kind-integer	jsonschema	a: integer	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"type":"integer"}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-kind-boolean	jsonschema	a: boolean	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"type":"boolean"}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-kind-number	jsonschema	a: number	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"type":"number"}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-kind-float	jsonschema	a: float	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"type":"number"}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-kind-biginteger	jsonschema	a: biginteger	{"lossy":[{"construct":"biginteger","path":"$.a","reason":"JSON has one number type and it is binary64, so the EXACTNESS this leaf exists for cannot be carried; the schema says \\"integer\\" and a consumer may round"}],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"type":"integer"}},"required":["a"],"type":"object"},"verdict":"lossy"}
+js-kind-bigdecimal	jsonschema	a: bigdecimal	{"lossy":[{"construct":"bigdecimal","path":"$.a","reason":"JSON has one number type and it is binary64, so the EXACTNESS this leaf exists for cannot be carried; the schema says \\"number\\" and a consumer may round"}],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"type":"number"}},"required":["a"],"type":"object"},"verdict":"lossy"}
+js-null	jsonschema	a: null	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"type":"null"}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-top	jsonschema	a: top	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-const-integer	jsonschema	a: 1	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"const":1,"type":"integer"}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-const-string	jsonschema	a: "x"	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"const":"x","type":"string"}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-const-boolean	jsonschema	a: true	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"const":true,"type":"boolean"}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-const-biginteger	jsonschema	a: 0d5	{"lossy":[{"construct":"exact literal","path":"$.a","reason":"JSON has one number type and it is binary64, so this exact value is emitted as the nearest JSON number"}],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"const":5,"type":"integer"}},"required":["a"],"type":"object"},"verdict":"lossy"}
+js-enum	jsonschema	a: "p" | "q"	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"enum":["p","q"]}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-enum-default	jsonschema	a: *"p" | "q"	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"default":"p","enum":["p","q"]}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-anyof-default	jsonschema	a: *1 | integer	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"anyOf":[{"const":1,"type":"integer"},{"type":"integer"}],"default":1}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-bounds	jsonschema	a: integer & min(1) & max(9)	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"maximum":9,"minimum":1,"type":"integer"}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-bounds-exclusive	jsonschema	a: integer & above(1) & below(9)	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"exclusiveMaximum":9,"exclusiveMinimum":1,"type":"integer"}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-pattern	jsonschema	a: string & re("^x")	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"pattern":"^x","type":"string"}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-length	jsonschema	a: string & length(min(2) & max(8))	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"maxLength":8,"minLength":2,"type":"string"}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-neq	jsonschema	a: integer & neq(1,2)	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"not":{"enum":[1,2]},"type":"integer"}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-tuple	jsonschema	a: [1,2]	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"items":false,"minItems":2,"prefixItems":[{"const":1,"type":"integer"},{"const":2,"type":"integer"}],"type":"array"}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-list-spread	jsonschema	a: [&: integer]	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"items":{"type":"integer"},"type":"array"}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-map	jsonschema	a: {x: 1}	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"properties":{"x":{"const":1,"type":"integer"}},"required":["x"],"type":"object"}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-map-closed	jsonschema	a: close({x: 1})	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"additionalProperties":false,"properties":{"x":{"const":1,"type":"integer"}},"required":["x"],"type":"object"}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-map-optional	jsonschema	a: {x?: string}	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"properties":{"x":{"type":"string"}},"type":"object"}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-map-spread	jsonschema	a: {&: integer}	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"additionalProperties":{"type":"integer"},"properties":{},"type":"object"}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-map-hidden	jsonschema	a: {x: hide(1), y: 2}	{"lossy":[{"construct":"hide","path":"$.a.x","reason":"a hidden entry is not generated, so it is omitted from the schema; a consumer is neither asked for it nor allowed to know about it"}],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"properties":{"y":{"const":2,"type":"integer"}},"required":["y"],"type":"object"}},"required":["a"],"type":"object"},"verdict":"lossy"}
+js-unique	jsonschema	a: [] & unique()	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"items":false,"minItems":0,"prefixItems":[],"type":"array"}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-must	jsonschema	a: integer & must(min(2), "two")	{"lossy":[{"construct":"must","path":"$.a","reason":"an evaluate-only check is opaque by construction -- it carries the author's own message and the algebra never reasons about it -- so it is DROPPED and the schema admits values `vet` refuses"}],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"type":"integer"}},"required":["a"],"type":"object"},"verdict":"lossy"}
+js-unresolved-ref	jsonschema	a: $.missing	{"errors":[{"class":"reference","code":"no_path","path":"$.a","severity":"error","sites":[{"col":4,"file":"","len":1,"role":"data","row":1,"src":"$","value":"$.missing"}]}],"lossy":[],"schema":{},"verdict":"error"}
+js-root-scalar	jsonschema	0d1.5	{"lossy":[{"construct":"exact literal","path":"$","reason":"JSON has one number type and it is binary64, so this exact value is emitted as the nearest JSON number"}],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","const":1.5,"type":"number"},"verdict":"lossy"}
+js-const-bigdecimal	jsonschema	a: 0d1.5	{"lossy":[{"construct":"exact literal","path":"$.a","reason":"JSON has one number type and it is binary64, so this exact value is emitted as the nearest JSON number"}],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"const":1.5,"type":"number"}},"required":["a"],"type":"object"},"verdict":"lossy"}
+js-const-float	jsonschema	a: 1.5	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"const":1.5,"type":"number"}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-domain-number	jsonschema	a: min(1)	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"minimum":1,"type":"number"}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-domain-string	jsonschema	a: re("^x")	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"pattern":"^x","type":"string"}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-two-patterns	jsonschema	a: string & re("^x") & re("y$")	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"allOf":[{"pattern":"^x"},{"pattern":"y$"}],"type":"string"}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-length-no-domain	jsonschema	a: length(min(2))	{"lossy":[{"construct":"length","path":"$.a","reason":"a count with no domain is exported as minItems/maxItems; JSON Schema has no keyword that counts a string OR a container"}],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"minItems":2}},"required":["a"],"type":"object"},"verdict":"lossy"}
+js-unique-by-key	jsonschema	a: unique(k)	{"lossy":[{"construct":"unique(k)","path":"$.a","reason":"JSON Schema has no uniqueness-by-property keyword; uniqueItems compares whole items, so this constraint is DROPPED and the schema admits records sharing a `k`"}],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{}},"required":["a"],"type":"object"},"verdict":"lossy"}
+js-unique-bare	jsonschema	a: unique()	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"uniqueItems":true}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-anyof-shapes	jsonschema	a: {x:1} | [1]	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"anyOf":[{"properties":{"x":{"const":1,"type":"integer"}},"required":["x"],"type":"object"},{"items":false,"minItems":1,"prefixItems":[{"const":1,"type":"integer"}],"type":"array"}]}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-map-hidden-only	jsonschema	a: {x: hide(1)}	{"lossy":[{"construct":"hide","path":"$.a.x","reason":"a hidden entry is not generated, so it is omitted from the schema; a consumer is neither asked for it nor allowed to know about it"}],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"properties":{},"type":"object"}},"required":["a"],"type":"object"},"verdict":"lossy"}
+js-closed-spread	jsonschema	a: close({x: 1, &: integer})	{"lossy":[{"construct":"&:","path":"$.a","reason":"a spread on a CLOSED map constrains keys that cannot exist, so additionalProperties:false stands alone and the template is dropped"}],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"additionalProperties":false,"properties":{"x":{"const":1,"type":"integer"}},"required":["x"],"type":"object"}},"required":["a"],"type":"object"},"verdict":"lossy"}
+js-list-spread-and-elements	jsonschema	a: [&: integer, 1, 2]	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"items":{"type":"integer"},"minItems":2,"type":"array"}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-nested	jsonschema	a: {b: {c: string}}	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"properties":{"b":{"properties":{"c":{"type":"string"}},"required":["c"],"type":"object"}},"required":["b"],"type":"object"}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-func-residue	jsonschema	a: upper($.z)	{"errors":[{"class":"reference","code":"no_path","path":"$.a","severity":"error","sites":[{"col":4,"file":"","len":5,"role":"data","row":1,"src":"upper","value":"$.z"}]}],"lossy":[],"schema":{},"verdict":"error"}
+js-count-max-only	jsonschema	a: string & length(max(4))	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"maxLength":4,"minLength":0,"type":"string"}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-neq-strings	jsonschema	a: string & neq("x")	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"not":{"enum":["x"]},"type":"string"}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-pref-alone	jsonschema	a: pref(1)	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"const":1,"default":1,"type":"integer"}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-nil-residue	jsonschema	a: nil	{"lossy":[{"construct":"nil","path":"$.a","reason":"this is not a value yet, so there is nothing to constrain a consumer to; the schema admits anything here"}],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{}},"required":["a"],"type":"object"},"verdict":"lossy"}
+js-spread-template-residue	jsonschema	a: {&: {v: add(.n,1)}}	{"lossy":[{"construct":"add","path":"$.a.&.v","reason":"this is not a value yet, so there is nothing to constrain a consumer to; the schema admits anything here"}],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"additionalProperties":{"properties":{"v":{}},"required":["v"],"type":"object"},"properties":{},"type":"object"}},"required":["a"],"type":"object"},"verdict":"lossy"}
+js-pref-shape-member	jsonschema	a: *integer | 1	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"anyOf":[{"type":"integer"},{"const":1,"type":"integer"}]}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-ref-residue	jsonschema	a: {&: {v: .n}}	{"lossy":[{"construct":"reference","path":"$.a.&.v","reason":"this is not a value yet, so there is nothing to constrain a consumer to; the schema admits anything here"}],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"additionalProperties":{"properties":{"v":{}},"required":["v"],"type":"object"},"properties":{},"type":"object"}},"required":["a"],"type":"object"},"verdict":"lossy"}
+js-op-residue	jsonschema	a: {&: {v: .n + 1}}	{"lossy":[{"construct":"unresolved","path":"$.a.&.v","reason":"this is not a value yet, so there is nothing to constrain a consumer to; the schema admits anything here"}],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"additionalProperties":{"properties":{"v":{}},"required":["v"],"type":"object"},"properties":{},"type":"object"}},"required":["a"],"type":"object"},"verdict":"lossy"}

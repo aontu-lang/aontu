@@ -54,7 +54,7 @@ const mcp_1 = require("../dist/mcp");
 const mcp_server_1 = require("../dist/mcp-server");
 const srcpath_1 = require("./srcpath");
 const ALL_TOOLS = [
-    'breaking', 'canon', 'diff', 'get', 'hash', 'relations',
+    'breaking', 'canon', 'diff', 'get', 'hash', 'jsonschema', 'relations',
     'set', 'subsume', 'summary', 'trim', 'vet', 'why',
 ];
 // The text payload of a tool result, decoded.
@@ -388,6 +388,41 @@ function hostileModule(dir) {
             Assert.equal(payload(rv).verdict, 'error');
             Assert.equal(payload(rv).findings[0].code, 'include_denied');
         }
+    });
+    (0, node_test_1.test)('jsonschema-tool-exports-and-refuses', () => {
+        // The MCP surface of the export (the review's finding I): the
+        // schema, the loss report beside it rather than instead of it, the
+        // anchor, and the two refusals every tool here shares.
+        const ok = payload((0, mcp_1.callTool)('jsonschema', {
+            source: 'a: string & re("^x$")\nb?: integer\n',
+        }));
+        Assert.equal(ok.verdict, 'ok');
+        Assert.equal(ok.schema.properties.a.pattern, '^x$');
+        Assert.deepEqual(ok.schema.required, ['a']);
+        Assert.deepEqual(ok.lossy, []);
+        // A loss is reported WITH the schema: a weaker schema is still a
+        // usable one, and the caller is told what it cannot say.
+        const lossy = payload((0, mcp_1.callTool)('jsonschema', {
+            source: 'a: integer & must(min(2), "two")\n',
+        }));
+        Assert.equal(lossy.verdict, 'lossy');
+        Assert.equal(lossy.schema.properties.a.type, 'integer');
+        Assert.equal(lossy.lossy[0].path, '$.a');
+        Assert.equal(lossy.lossy[0].construct, 'must');
+        // `at` names the subtree, as it does for every other tool here.
+        const at = payload((0, mcp_1.callTool)('jsonschema', {
+            source: 'spec: {p: integer & min(1024)}\n', at: 'spec',
+        }));
+        Assert.equal(at.schema.properties.p.minimum, 1024);
+        // A document that does not stand up has nothing to export, and an
+        // unreadable include names the capability rather than the file.
+        const broken = payload((0, mcp_1.callTool)('jsonschema', { source: 'a: 1 & 2' }));
+        Assert.equal(broken.verdict, 'error');
+        Assert.deepEqual(broken.schema, {});
+        Assert.equal(broken.errors[0].code, 'scalar_value');
+        const denied = payload((0, mcp_1.callTool)('jsonschema', { source: 'a: @"/etc/passwd"' }));
+        Assert.equal(denied.verdict, 'error');
+        Assert.equal(denied.errors[0].code, 'include_denied');
     });
     (0, node_test_1.test)('relations-trim-and-hash-answer-their-reports', () => {
         // relations: the pass, the located cycle, and the engine's own

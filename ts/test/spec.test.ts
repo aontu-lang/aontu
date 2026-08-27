@@ -31,6 +31,11 @@
  *                each finding's message; see test/spec/subsume.tsv
  *   mode=trim  : trimCheck(src) must equal the expect object
  *                ({redundant, verdict}); see test/spec/trim.tsv
+ *   mode=jsonschema : jsonSchema(src) must equal the expect object
+ *                ({lossy, schema, verdict}) -- the schema AND the loss
+ *                report, because a schema that silently dropped a
+ *                construct would look identical to one that carried
+ *                it; see test/spec/jsonschema.tsv
  *   mode=hcanon : hcanon(unify(src)) -- the HASH FORM, canon plus the
  *                close()/type()/hide() wrappers -- must equal expect,
  *                and the hash form must round-trip (G6, hcanon.tsv)
@@ -78,6 +83,7 @@ import {
   graphOf, relationCheck,
   patch, diff, agentsMd,
 } from '../dist/aontu'
+import { jsonSchema } from '../dist/jsonschema'
 import { codeClasses } from '../dist/hints'
 import { IntegerVal } from '../dist/val/IntegerVal'
 import { StringVal } from '../dist/val/StringVal'
@@ -410,6 +416,24 @@ function runRow(row: Omit<Row, 'file'> & { file?: string }): void {
       }),
       exactJSON(JSON.parse(row.expect)),
       `trim report mismatch: ${row.name}`)
+  }
+  else if ('jsonschema' === row.mode) {
+    // JSON SCHEMA EXPORT (the review's finding I): the schema AND the
+    // loss report together, because a schema that silently dropped a
+    // construct would look identical to one that carried it. The
+    // envelope (version, verb) is the CLI's, not the export's, and is
+    // not compared -- the same carve-out every other report mode takes.
+    const report = jsonSchema(row.src)
+    Assert.strictEqual(
+      exactJSON({
+        lossy: report.lossy,
+        schema: report.schema,
+        verdict: report.verdict,
+        ...(null == report.errors
+          ? {} : { errors: stripProse(report.errors) }),
+      }),
+      exactJSON(JSON.parse(row.expect)),
+      `jsonschema report mismatch: ${row.name}`)
   }
   else if ('relation' === row.mode) {
     // RELATION GRAPH CHECKS (G4 phase 5): acyclicity and inverse

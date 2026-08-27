@@ -49,6 +49,11 @@ var semverRe = regexp.MustCompile(`^\d+\.\d+\.\d+$`)
 //	             each finding's message; see test/spec/subsume.tsv
 //	mode=trim  : TrimCheck(src) must equal the expect object
 //	             ({redundant, verdict}); see test/spec/trim.tsv
+//	mode=jsonschema : JSONSchema(src, "") must equal the expect object
+//	             ({lossy, schema, verdict}) -- the schema AND the loss
+//	             report, because a schema that silently dropped a
+//	             construct would look identical to one that carried it;
+//	             see test/spec/jsonschema.tsv
 //	mode=hcanon : Hcanon(Unify(src)) -- the HASH FORM, canon plus the
 //	             close()/type()/hide() wrappers -- must equal expect,
 //	             and the hash form must round-trip (G6, hcanon.tsv)
@@ -577,6 +582,34 @@ func TestSpec(t *testing.T) {
 					want := specJSON(t, golden)
 					if got != want {
 						t.Fatalf("trim report mismatch\n src: %q\n want: %s\n got:  %s",
+							src, want, got)
+					}
+				case "jsonschema":
+					// JSON SCHEMA EXPORT (the review's finding I): the
+					// schema AND the loss report together, because a
+					// schema that silently dropped a construct would look
+					// identical to one that carried it. The envelope
+					// (version, verb) is the CLI's, not the export's, and
+					// is not compared -- the same carve-out every other
+					// report mode takes.
+					var golden map[string]any
+					if err := json.Unmarshal([]byte(expect), &golden); err != nil {
+						t.Fatalf("expect is not JSON: %v\n expect: %s", err, expect)
+					}
+					r := New().JSONSchema(src, "")
+					out := map[string]any{
+						"lossy":   specAsMap(t, map[string]any{"l": r.Lossy})["l"],
+						"schema":  r.Schema,
+						"verdict": r.Verdict}
+					if 0 < len(r.Errors) {
+						out["errors"] = specAsMap(t,
+							map[string]any{"e": r.Errors})["e"]
+						specStripProse(out, "errors")
+					}
+					got := specJSON(t, out)
+					want := specJSON(t, golden)
+					if got != want {
+						t.Fatalf("jsonschema report mismatch\n src: %q\n want: %s\n got:  %s",
 							src, want, got)
 					}
 				case "relation":

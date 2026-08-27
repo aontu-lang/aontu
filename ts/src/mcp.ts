@@ -45,6 +45,7 @@ import { cmpCodePoint } from './keyorder'
 import { subsume } from './subsume'
 import type { SubsumeVerdict } from './subsume'
 import { trimCheck } from './trim'
+import { jsonSchema } from './jsonschema'
 import { relationCheck } from './relation'
 import { patch } from './patch'
 
@@ -461,6 +462,35 @@ const TOOLS: ToolDef[] = [
       ({ verdict: 'error', redundant: [], errors: [finding] }),
     run: (a, _trust, paths) =>
       trimCheck(str(a.source), { path: paths.source }),
+  },
+  {
+    name: 'jsonschema',
+    description:
+      'Export a document as a JSON Schema (draft 2020-12), and say ' +
+      'what could not be carried. This is the bridge to a ' +
+      'structured-output API, which constrains generation to JSON ' +
+      'Schema and to nothing else -- and to an MCP tool\'s own ' +
+      'inputSchema, which the protocol requires to be one. Returns ' +
+      'verdict (ok | lossy | error), the schema, and a `lossy` list ' +
+      'naming every construct the schema could not say and what it ' +
+      'says instead. A lossy schema admits MORE than the model does, ' +
+      'so vet the result against the model rather than trusting the ' +
+      'schema alone.',
+    properties: {
+      source: { type: 'string', description: 'The document' },
+      at: {
+        type: 'string',
+        description: 'Export this path of the document ($.a.b)',
+      },
+    },
+    required: ['source'],
+    docs: ['source'],
+    refuse: (_a, finding) =>
+      ({ verdict: 'error', schema: {}, lossy: [], errors: [finding] }),
+    run: (a, _trust, paths) =>
+      jsonSchema(str(a.source), {
+        at: null == a.at ? undefined : str(a.at), path: paths.source,
+      }),
   },
 ]
 

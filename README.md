@@ -58,7 +58,8 @@ The repository's CLI has grown a verb surface beyond evaluation —
 `vet` (validate data against a schema), `get`/`why` (query and
 provenance), `set` (change a value in an overlay, by appending or in
 place), `subsume`/`breaking`, `hash`,
-`relations`, `trim`, `mod` tooling, `agentsmd`, a path-addressed
+`relations`, `jsonschema` (export the model as JSON Schema), `trim`,
+`mod` tooling, `agentsmd`, a path-addressed
 `diff` in the API, and an MCP server —
 documented in [docs/reference-api.md](docs/reference-api.md).
 These verbs ship in the **0.53.0** line; the npm badge above shows

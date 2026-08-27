@@ -1,0 +1,86 @@
+# money-wire.aon --- THE MONEY WIRE CONVENTION (the review's finding I).
+#
+# The problem this answers is gap 1: `bigdecimal` is reachable only
+# through a `0d` literal, JSON has no such spelling, and every JSON
+# number parses as integer or float kind -- so an exact-money schema
+# written as `amountEur: bigdecimal` is unsatisfiable by any strictly
+# JSON record (exact-money.aon is that dead end, kept executable).
+#
+# The answer is a CONVENTION, not new machinery: money crosses the wire
+# as a DECIMAL STRING, validated exactly by re(), with the conversion
+# to the exact leaf declared in the schema rather than guessed by the
+# reader. Both halves matter --
+#
+#   the string   is what a stock JSON producer can emit and a stock
+#                JSON Schema validator can check (the pattern survives
+#                `aontu jsonschema` unchanged);
+#   the mark     is what tells a consumer the string is a NUMBER, which
+#                leaf it belongs to, and at what scale.
+#
+# Crossing the boundary is TEXTUAL, and the VALUE survives it exactly:
+# the wire text is the 0d literal's digits. "3998.19" -> 0d3998.19, and
+# a negative carries its sign OUTSIDE the prefix -- "-12.05" ->
+# -0d12.05, because `0d-12.05` is not a literal. Going the other way,
+# canon prints the literal (0d3998.19) and the wire form is its digits.
+# money-convert.aon writes each of these out as a theorem.
+#
+# SCALE IS A PROPERTY OF THE WIRE FORMAT, NOT OF THE VALUE. Aontu
+# normalises trailing zeros away -- 0d10.50 canons as 0d10.5, and
+# 0d10.50 & 0d10.5 unify, because they are the same number -- so the
+# scale can only come from the schema. That is precisely why the mark
+# names it, and why a serialiser formats TO the declared scale on the
+# way out rather than printing whatever the value happens to canon as.
+#
+# One more trap the mark keeps you out of: at scale 0 the fractional
+# part must still be written (`0d10` is a BIGINTEGER, `0d10.0` is a
+# bigdecimal, and the leaves are disjoint), so a scale-0 wire decimal
+# converts to `0d<digits>.0`, never `0d<digits>`.
+
+# --- the wire vocabulary ------------------------------------------------
+
+# TOP LEVEL, not under a `schema:` namespace like domain.aon's types.
+# A reference whose target sits DEEPER than the referring field leaves
+# the alias's own key in the reported path in TypeScript --
+# `$.quote.Money.amount` for a conflict at `$.quote.amount`, where Go
+# says the latter. Recorded in test/spec/divergent.tsv; at equal depth
+# both ports agree, which is what lets check.sh assert the field a
+# repair loop must edit. docs/how-to.md shows the namespaced form,
+# which is the one to write once that is closed.
+
+# A decimal carried as text, at a fixed scale. Canonical form only: no
+# leading zeros, no thousands separators, no exponent, no bare `-0`.
+# The pattern is total -- everything it admits converts, and everything
+# it rejects would have to be repaired before it could.
+Dec2: type(string & re("^-?(0|[1-9][0-9]*)[.][0-9]{2}$") & neq("-0.00"))
+
+# Money is the pair. The currency travels WITH the amount: a decimal
+# string with no currency beside it is not money, it is a number, and
+# every rounding rule that matters is the currency's.
+Money: type(close({
+  amount: $.Dec2
+
+  # ISO 4217. XXX ("no currency") and XTS ("for testing") are not
+  # things to be owed, so they are refused here as they are on
+  # Customer.currency in domain.aon.
+  currency: string & re("^[A-Z]{3}$") & neq("XXX", "XTS")
+
+  # THE CONVERSION MARK. Optional, so a producer is never asked to
+  # emit it -- a bare {amount, currency} record is valid -- and
+  # CONSTANT, so a producer that does emit it cannot claim something
+  # else: `dec: "float"` is refused, which is the check a preference
+  # (`*"bigdecimal:2"`) could not make, since a preference is a
+  # default and yields to whatever the data says.
+  #
+  # It survives export: `aontu jsonschema` renders it as
+  # {"const": "bigdecimal:2"} outside `required`, so a consumer
+  # reading only the JSON Schema still learns the leaf and the scale.
+  dec?: "bigdecimal:2"
+}))
+
+# --- a wire record ------------------------------------------------------
+
+# The record as it arrives: strictly JSON, nothing an agent or a stock
+# serializer cannot produce. data/quote-wire.json meets this; this file
+# is a SCHEMA, so `quote` stands unsatisfied until a data document
+# supplies it, exactly as exact-money.aon's does.
+quote: $.Money

@@ -825,6 +825,76 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
         // findings, and nothing stopped the graph being looked at.
         Assert.equal('errors' in report, false);
     });
+    // JSON SCHEMA EXPORT (the review's finding I / SUPPORT.md act 2). Go
+    // twin: TestJsonSchemaVerb and friends in
+    // go/cmd/aontu/jsonschema_test.go. What the two ports must AGREE on
+    // (the schema and the loss report) is test/spec/jsonschema.tsv's;
+    // what each port owns -- argument handling, exit codes, which stream
+    // each half goes to -- is here.
+    (0, node_test_1.test)('jsonschema-exports-the-model-and-names-what-it-cannot-carry', () => {
+        const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-js-'));
+        const file = Path.join(dir, 'doc.aon');
+        Fs.writeFileSync(file, 'spec: {\n' +
+            '  name: string & re("^[a-z]+$")\n' +
+            '  tier: *"internal" | "critical"\n' +
+            '  port?: integer & min(1024)\n' +
+            '}\n');
+        // THE SCHEMA GOES TO STDOUT so `aontu jsonschema x.aon > s.json`
+        // writes a usable file, and --at names the subtree as vet's does.
+        const r = vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)(['--at', 'spec', file]), 0));
+        const schema = JSON.parse(r.out);
+        Assert.equal(schema.$schema, 'https://json-schema.org/draft/2020-12/schema');
+        Assert.equal(schema.properties.name.pattern, '^[a-z]+$');
+        Assert.equal(schema.properties.tier.default, 'internal');
+        Assert.deepEqual(schema.properties.tier.enum, ['internal', 'critical']);
+        // An OPTIONAL key is simply absent from required, which is what
+        // `k?:` means and what a consumer must be told.
+        Assert.equal(schema.required.includes('port'), false);
+        Assert.equal(r.err, '');
+        // A LOSS IS NEVER SILENT -- and lands on the OTHER stream, so a
+        // redirect keeps the schema clean and the warning visible.
+        Fs.writeFileSync(file, 'a: integer & must(min(2), "two")\n');
+        const lossy = vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)([file]), 0));
+        Assert.match(lossy.out, /"type": "integer"/);
+        Assert.match(lossy.err, /^lossy: \$\.a must:/);
+        // ... and --strict turns the report into a refusal.
+        vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)(['--strict', file]), 1));
+        // A document that does not stand up has nothing to export, and
+        // says why in vet's finding shape.
+        Fs.writeFileSync(file, 'a: 1\na: 2\n');
+        const broken = vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)([file]), 4));
+        Assert.equal(broken.out, '');
+        Assert.match(broken.err, /scalar_value/);
+        // An anchor that names nothing is the same class of refusal.
+        Fs.writeFileSync(file, 'a: 1\n');
+        const noat = vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)(['--at', 'nope', file]), 4));
+        Assert.match(noat.err, /no_path/);
+        const j = JSON.parse(vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)(['--format', 'json', file]), 0)).out);
+        Assert.equal(j.aontu.verb, 'jsonschema');
+        Assert.equal(j.verdict, 'ok');
+        Assert.deepEqual(j.lossy, []);
+        Assert.equal('errors' in j, false);
+        // The SAME refusal under --format json puts the findings in the
+        // envelope instead of on stderr, so one redirect keeps both halves.
+        Fs.writeFileSync(file, 'a: 1\na: 2\n');
+        const je = JSON.parse(vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)(['--format', 'json', file]), 4)).out);
+        Assert.equal(je.verdict, 'error');
+        Assert.deepEqual(je.schema, {});
+        Assert.equal(je.errors[0].code, 'scalar_value');
+    });
+    (0, node_test_1.test)('jsonschema-usage-errors-exit-2', () => {
+        const f = subFiles('a:1', 'a:1');
+        vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)([]), 2));
+        vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)([f.general, f.specific]), 2));
+        vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)(['--bogus', f.general]), 2));
+        vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)(['--format', 'yaml', f.general]), 2));
+        vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)(['--at']), 2));
+        vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)([Path.join(f.dir, 'missing.aon')]), 2));
+        vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)(['--trust', 'nonsense', f.general]), 2));
+        // ... and one the parser ACCEPTS reaches the export.
+        Assert.equal(JSON.parse(vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)(['--trust', 'none', f.general]), 0)).out).type, 'object');
+        Assert.equal(vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)(['--help']), 0)).out.includes('aontu jsonschema'), true);
+    });
     (0, node_test_1.test)('relations-usage-errors-exit-2', () => {
         const f = subFiles('a:1', 'a:1');
         vetCapture(() => Assert.equal((0, cli_1.runRelations)([]), 2));
@@ -1337,6 +1407,8 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
         Assert.match(st.out, /verdict: valid/);
         const md = vetCapture(() => (0, cli_1.main)(['node', 'aontu', 'agentsmd', f.general]));
         Assert.match(md.out, /aontu:begin/);
+        const js = vetCapture(() => (0, cli_1.main)(['node', 'aontu', 'jsonschema', f.general]));
+        Assert.match(js.out, /"type": "integer"/);
     });
 });
 // --- the repair loop, end to end ---------------------------------------

@@ -980,15 +980,37 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 	// kept finding the first by data site then path, deterministically
 	// in both ports. NUL-joined, like the order key: no field can
 	// contain one, so the key cannot collide across field boundaries.
-	causes := map[string]bool{}
-	deduped := ordered[:0]
-	for _, f := range ordered {
+	//
+	// THE KEPT PATH IS THE DEEPEST one (use-cases/BUGS.md §41). A meet
+	// that fails inside a REFERENCED map is recorded twice: once at the
+	// key that actually conflicts, and once at the enclosing map, which
+	// collapsed as a consequence and carries the child's two sites. Both
+	// are the same cause; only the deeper one names the field an author
+	// or an agent has to edit. Depth first, then the sort order above,
+	// so the choice stays deterministic in both ports.
+	causeOf := func(f VetFinding) string {
 		cause := f.Code
 		for _, s := range f.Sites {
 			cause += "\x00" + s.File + "\x00" + strconv.Itoa(s.Row) +
 				"\x00" + strconv.Itoa(s.Col) + "\x00" + s.Role + "\x00" + s.Value
 		}
-		if causes[cause] {
+		return cause
+	}
+	deepest := map[string]int{}
+	for i, f := range ordered {
+		cause := causeOf(f)
+		held, seen := deepest[cause]
+		if !seen ||
+			len(strings.Split(ordered[held].Path, ".")) <
+				len(strings.Split(f.Path, ".")) {
+			deepest[cause] = i
+		}
+	}
+	causes := map[string]bool{}
+	deduped := make([]VetFinding, 0, len(ordered))
+	for i, f := range ordered {
+		cause := causeOf(f)
+		if causes[cause] || deepest[cause] != i {
 			continue
 		}
 		causes[cause] = true

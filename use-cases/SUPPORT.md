@@ -55,6 +55,27 @@ unlocks structured outputs + MCP interop), import second, both
 specified in docs with the lossy edges named. This is the highest-
 leverage feature outside the language itself.
 
+**Export done 2026-08-27.** `aontu jsonschema [--at <path>] [--strict]
+[--format text|json] <file>` in both ports, plus a library call and an
+MCP tool. Draft 2020-12 on stdout, so a redirect writes a usable file.
+The mapping is specified per construct in
+[`docs/reference-api.md`](../docs/reference-api.md#aontu-jsonschema),
+and the lossy edges are *named at runtime*, not just in prose: `must()`,
+the exact numeric leaves and an unresolved residue each produce a
+`SchemaLoss` on stderr beside the schema, `--strict` turns the report
+into a refusal for a CI job that would rather fail than ship a schema
+weaker than its model, and `--format json` puts both halves in one
+envelope. `test/spec/jsonschema.tsv` (54 rows) pins the mapping in both
+engines.
+
+The money edge that made the "exact leaves" loss look fatal is answered
+by convention rather than machinery — a decimal string plus a
+conversion mark, in
+[`docs/how-to.md`](../docs/how-to.md#carry-exact-money-over-json) —
+so an exported schema can carry exact money that a stock validator
+enforces. Import remains open, and remains the migration path for the
+existing OpenAPI/CRD estates.
+
 ## 3. Distribution: finish the trust loop before the network
 
 The local module half exists; use case 11 and BUGS.md §31–32 showed

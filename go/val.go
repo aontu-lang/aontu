@@ -491,6 +491,13 @@ func (n *NilVal) Path() string {
 
 // pathSegments is the raw path the failure is reported at.
 func (n *NilVal) pathSegments() []string {
+	// A path assigned to the nil itself WINS: makeNilErr stores the slot
+	// the meet was driven at when it is more specific than the operand's
+	// own path, and residueErr stores the residue's. The operand is the
+	// fallback for a nil that was never given one.
+	if 0 < len(n.path) {
+		return n.path
+	}
 	residue := n.primary
 	if residue == nil {
 		residue = n
@@ -835,6 +842,35 @@ func makeNilErr(ctx *Ctx, why string, a, b Val) *NilVal {
 			}
 		}
 	}
+	// THE PATH IS WHERE THE MEET IS, NOT WHERE THE OPERAND WAS WRITTEN
+	// (use-cases/BUGS.md §41). The operand path pathSegments falls back
+	// to decides the SITE correctly and the path only by accident: a
+	// MINTED operand (a preference's yardstick, an arithmetic or concat
+	// result) carries no path at all, so a conflict at `$.a` reported
+	// `$` -- the whole document, not the key to edit. The slot is the
+	// location this meet is being driven at, so it is the answer
+	// whenever it is known.
+	//
+	// Only EXTENDS, never redirects: taken when the operand's path is a
+	// prefix of the slot, so a nil minted away from the descent keeps
+	// the path its operand carries. Mirrors NilVal.make in
+	// ts/src/val/NilVal.ts.
+	if ctx != nil && 0 < len(ctx.slot) {
+		base := n.pathSegments()
+		if len(base) < len(ctx.slot) {
+			prefix := true
+			for i, p := range base {
+				if p != ctx.slot[i] {
+					prefix = false
+					break
+				}
+			}
+			if prefix {
+				n.path = cp(ctx.slot)
+			}
+		}
+	}
+
 	if ctx != nil {
 		ctx.adderr(n)
 	}

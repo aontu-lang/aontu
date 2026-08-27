@@ -39,6 +39,7 @@ Usage: aontu [options] [file]
        aontu breaking --against <file|git#rev> [options] <file>
        aontu trim --check [options] <file>
        aontu relations [options] <file>
+       aontu jsonschema [--at <path>] [--strict] [options] <file>
        aontu hash [options] <file>
        aontu mod tidy|verify|vendor|manifest [options] [dir]
        aontu get <path> [options] <file>
@@ -419,6 +420,105 @@ $ echo $?
   `{verdict, findings}` record (plus `errors` on a failed run); the derived graph the checks run over
   is `result.graph` / `Aontu.Graph`, described under
   [the TypeScript API](#class-aontu).
+
+### `aontu jsonschema`
+
+Export a document as a **JSON Schema** (draft 2020-12), and say what
+could not be carried.
+
+```
+aontu jsonschema [--at <path>] [--strict] [--format text|json] <file>
+```
+
+This is the interop bridge. Every major LLM provider's
+structured-output API constrains generation to JSON Schema and to
+nothing else, so the shape an enterprise actually deploys is: export
+the model, let the provider generate under it, then
+[`vet`](#aontu-vet) the result against the model itself — the schema
+narrows what is *produced*, the model decides what is *true*. An MCP
+tool's `inputSchema`, which the protocol requires to be JSON Schema, is
+the same export.
+
+**The schema goes to stdout and the losses to stderr**, so
+`aontu jsonschema x.aon > schema.json` writes a usable schema and still
+tells the reader what it left behind.
+
+```sh
+$ aontu jsonschema --at spec contract.aon
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "name": { "type": "string", "pattern": "^[a-z][a-z0-9-]{2,39}$" },
+    "tier": { "enum": ["internal","standard","critical"],
+              "default": "internal" }
+  },
+  "required": ["name","tier"]
+}
+```
+
+- It exports the **unified** value, not the parse: what a document
+  MEANS is what a consumer should be constrained to.
+- `--at <path>` names the subtree to export — the same anchor
+  [`vet --at`](#aontu-vet) takes, so `--at spec` means the same thing
+  in both.
+- `--format json` prints the whole report — `schema`, `lossy`,
+  `verdict` — under the usual `aontu: {version, verb}` envelope.
+- Exit codes: `0` exported, `1` lossy **under `--strict`**, `2` usage,
+  `4` the document does not stand up on its own. Without `--strict` a
+  lossy export is still an export and exits 0.
+
+**What crosses exactly.** Kinds become `type`; a concrete scalar
+becomes `const`; a disjunction of scalars becomes `enum`, and its
+preference becomes `default`; bounds become `minimum`/`maximum`, with
+the open endpoints as 2020-12's `exclusiveMinimum`/`exclusiveMaximum`;
+`re` becomes `pattern` (Aontu's portable subset is a subset of
+ECMA-262, which is what JSON Schema reads, so no translation happens);
+`neq` becomes `not: {enum: …}`; `length` becomes
+`minLength`/`maxLength` on a string and `minItems`/`maxItems`
+otherwise; `unique()` becomes `uniqueItems`; an optional key is simply
+absent from `required`. A spread is `additionalProperties: <template>`,
+which is what a spread means. A written list is a **tuple**, so
+`prefixItems` plus `items: false`.
+
+**And `close()` is `additionalProperties: false`** — the one thing the
+two languages say identically, and the reason the export is worth
+having at all: the closedness an agent's output must respect crosses
+without loss.
+
+**What does not cross is REPORTED, never dropped in silence.** A
+converter that quietly lost a constraint would hand its caller a schema
+that admits *more* than the model does, which is the failure this
+language exists to refuse. So each loss carries its path, the Aontu
+construct's own name, and one sentence saying what the schema says
+instead:
+
+```
+lossy: $.spec.total must: an evaluate-only check is opaque by
+  construction … so it is DROPPED and the schema admits values `vet`
+  refuses
+```
+
+The losses, and why each is one:
+
+| Construct | Why JSON Schema cannot say it |
+|---|---|
+| `must(c, m)` | Band B is opaque by construction — it carries the author's own message and the algebra never reasons about it |
+| `unique(k)` | there is no uniqueness-by-property keyword; `uniqueItems` compares whole items |
+| `biginteger`, `bigdecimal`, and exact literals | JSON has one number type and it is binary64, so the exactness these leaves exist for has no receiver |
+| `hide(x)` | a hidden entry is not generated, so it is not part of the value a consumer produces |
+| `&:` on a closed map | the template constrains keys that cannot exist |
+| a `length` with no domain | no keyword counts a string *or* a container, so it is exported as `minItems`/`maxItems` |
+| residue — an unresolved reference, a waiting call | not a property constraint at all; guessing one would be inventing a promise |
+
+The exact-leaf loss is the one with a way around it. Money carried as a
+**decimal string** with a conversion mark exports without loss — the
+pattern and the mark both cross — and stays exact on the Aontu side:
+see [how-to, "Carry exact money over JSON"](how-to.md#carry-exact-money-over-json).
+
+- The library form is `jsonSchema(src, options?)` in TypeScript and
+  `Aontu.JSONSchema(src, at)` in Go, returning the identical
+  `{verdict, schema, lossy}` record (plus `errors` on a failed run).
 
 ### `aontu get`
 
@@ -971,6 +1071,7 @@ nothing else.
 | `relations` | the [relations](#aontu-relations) report: acyclicity and inverse consistency over the entity edge set |
 | `hash` | the [canon-hash](#aontu-hash) pin `{hash}` (plus the hash-form text when `form: true`) |
 | `trim` | the [trim --check](#aontu-trim) report: redundant entries as paths |
+| `jsonschema` | the [JSON Schema export](#aontu-jsonschema): the schema, and the `lossy` list naming what it could not say — the bridge to a structured-output API, and to an MCP tool's own `inputSchema` |
 
 Every tool returns **the same JSON contract the CLI prints**, so a
 report read from one is the report read from the other. A tool that

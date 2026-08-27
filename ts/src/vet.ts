@@ -885,11 +885,32 @@ export function vet(
   // NOT (code, path) — the design's sketch — because the paths are
   // exactly what differ. Sorted order makes the kept finding the first
   // by data site then path, deterministically in both ports.
+  //
+  // THE KEPT PATH IS THE DEEPEST one (use-cases/BUGS.md §41). A meet
+  // that fails inside a REFERENCED map is recorded twice: once at the
+  // key that actually conflicts, and once at the enclosing map, which
+  // collapsed as a consequence and carries the child's two sites. Both
+  // are the same cause; only the deeper one names the field an author
+  // or an agent has to edit, and `$.q` for a conflict in `$.q.a` sent a
+  // repair loop to rewrite the whole record -- twice over, identically,
+  // when two of its fields conflicted. Depth first, then the sort order
+  // above, so the choice stays deterministic in both ports.
+  const causeKey = (f: VetFinding): string =>
+    f.code + '\u0000' + f.sites.map((s) =>
+      [s.file, s.row, s.col, s.role, s.value].join('\u0000')).join('\u0000')
+  const depth = (f: VetFinding): number => f.path.split('.').length
+  const deepest = new Map<string, VetFinding>()
+  for (const f of ordered) {
+    const cause = causeKey(f)
+    const held = deepest.get(cause)
+    if (null == held || depth(held) < depth(f)) {
+      deepest.set(cause, f)
+    }
+  }
   const causes = new Set<string>()
   ordered = ordered.filter((f) => {
-    const cause = f.code + '\u0000' + f.sites.map((s) =>
-      [s.file, s.row, s.col, s.role, s.value].join('\u0000')).join('\u0000')
-    if (causes.has(cause)) {
+    const cause = causeKey(f)
+    if (causes.has(cause) || deepest.get(cause) !== f) {
       return false
     }
     causes.add(cause)

@@ -43,6 +43,7 @@ const hcanon_1 = require("./hcanon");
 const keyorder_1 = require("./keyorder");
 const subsume_1 = require("./subsume");
 const trim_1 = require("./trim");
+const jsonschema_1 = require("./jsonschema");
 const relation_1 = require("./relation");
 const patch_1 = require("./patch");
 exports.MCP_PROTOCOL = '2024-11-05';
@@ -379,6 +380,32 @@ const TOOLS = [
         // (ts/src/trim.ts, the review's finding F).
         refuse: (_a, finding) => ({ verdict: 'error', redundant: [], errors: [finding] }),
         run: (a, _trust, paths) => (0, trim_1.trimCheck)(str(a.source), { path: paths.source }),
+    },
+    {
+        name: 'jsonschema',
+        description: 'Export a document as a JSON Schema (draft 2020-12), and say ' +
+            'what could not be carried. This is the bridge to a ' +
+            'structured-output API, which constrains generation to JSON ' +
+            'Schema and to nothing else -- and to an MCP tool\'s own ' +
+            'inputSchema, which the protocol requires to be one. Returns ' +
+            'verdict (ok | lossy | error), the schema, and a `lossy` list ' +
+            'naming every construct the schema could not say and what it ' +
+            'says instead. A lossy schema admits MORE than the model does, ' +
+            'so vet the result against the model rather than trusting the ' +
+            'schema alone.',
+        properties: {
+            source: { type: 'string', description: 'The document' },
+            at: {
+                type: 'string',
+                description: 'Export this path of the document ($.a.b)',
+            },
+        },
+        required: ['source'],
+        docs: ['source'],
+        refuse: (_a, finding) => ({ verdict: 'error', schema: {}, lossy: [], errors: [finding] }),
+        run: (a, _trust, paths) => (0, jsonschema_1.jsonSchema)(str(a.source), {
+            at: null == a.at ? undefined : str(a.at), path: paths.source,
+        }),
     },
 ];
 function str(v) {

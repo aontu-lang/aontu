@@ -818,17 +818,139 @@ $ echo $?
 1
 ```
 
-**Convert at the boundary, on both sides.** The producer formats its
-exact value into the string; the consumer, after `vet` passes, parses
-the string with a *decimal* parser (never `parseFloat`) — in
-TypeScript the `Decimal` class the engine itself uses, in Go
-`math/big`. Inside the trust boundary, keep the value a `0d` exact
-literal and let Aontu's arithmetic and the
+### The convention, in full
+
+A pattern alone leaves the reader guessing that the string is a number
+at all. The convention has two parts — a **canonical wire form** and a
+**conversion mark** that says what the text means:
+
+```aontu
+# A decimal carried as text, at a fixed scale. Canonical only: no
+# leading zeros, no separators, no exponent, no bare -0.
+Dec2: type(string & re("^-?(0|[1-9][0-9]*)[.][0-9]{2}$") & neq("-0.00"))
+
+Money: type(close({
+  amount: $.Dec2
+  currency: string & re("^[A-Z]{3}$") & neq("XXX", "XTS")
+
+  # The conversion mark: which leaf, at what scale. OPTIONAL, so a
+  # producer is never asked to send it; CONSTANT, so a producer that
+  # does send it cannot claim something else.
+  dec?: "bigdecimal:2"
+}))
+```
+
+Write the mark as a constant, not as a preference. `dec?: *"bigdecimal:2"`
+looks equivalent and is not: a preference is a *default*, so it yields
+to whatever the data says and `{"dec": "float"}` would vet clean.
+
+The currency travels with the amount. A decimal string with no currency
+beside it is not money, it is a number — and every rounding rule that
+matters belongs to the currency.
+
+### Crossing the boundary
+
+The conversion is **textual**: the wire string is the `0d` literal's
+digits, so nothing is parsed as a float on the way in and nothing is
+rounded.
+
+```aontu
+amount:         0d3998.19
+refund:         -0d12.05
+sameNumber:     0d10.50 & 0d10.5
+scaleZeroRight: 0d10.0
+```
+
+```sh
+$ aontu --canon money.aon
+{"amount":0d3998.19,"refund":-0d12.05,"sameNumber":0d10.5,"scaleZeroRight":0d10.0}
+```
+
+Three details decide whether an implementation of this is correct:
+
+- **The sign goes outside the prefix.** `"-12.05"` becomes `-0d12.05`.
+  `0d-12.05` is not a literal, so a converter that pastes the sign
+  after the prefix fails to parse rather than computing the wrong
+  number — the safe direction, but still the detail everyone gets
+  wrong once.
+- **Scale is not part of the value.** `0d10.50` and `0d10.5` are the
+  same number and unify; canon prints the shorter one. A serialiser
+  therefore cannot recover `"10.50"` from the value — it formats *to*
+  the scale the schema declared, which is why the mark names a scale
+  and not just a leaf.
+- **At scale 0 the point still has to be written.** `0d10` is a
+  `biginteger` and
+  [the leaves are disjoint](reference-language.md#the-four-numeric-leaves),
+  so a scale-0 wire decimal converts to `0d<digits>.0` — never
+  `0d<digits>`, which would refuse the very schema it was converted
+  for.
+
+The producer formats its exact value into the string; the consumer,
+after `vet` passes, parses the string with a *decimal* parser (never
+`parseFloat`) — in TypeScript the `Decimal` class the engine itself
+uses, in Go `math/big`. Inside the trust boundary, keep the value a
+`0d` exact literal and let Aontu's arithmetic and the
 [lossy-literal refusal](reference-language.md#exact-or-refused-lossy-literals)
 protect it. Note the asymmetry: Aontu's own generated JSON *writes* an
 exact value's digits faithfully (the `24.0` above), but a standard JSON
 reader hands them back as a float — exactness survives writing, not the
 round trip, which is exactly why the wire field is a string.
+
+### The convention survives export
+
+[`aontu jsonschema`](reference-api.md#aontu-jsonschema) renders the
+wire form as ordinary JSON Schema, so a consumer that never runs Aontu
+still enforces it — and still learns the leaf and the scale, because
+the mark exports as a `const` outside `required`:
+
+```sh
+$ aontu jsonschema --at '$.Money' money.aon
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "amount": {
+      "not": {
+        "enum": [
+          "-0.00"
+        ]
+      },
+      "pattern": "^-?(0|[1-9][0-9]*)[.][0-9]{2}$",
+      "type": "string"
+    },
+    "currency": {
+      "not": {
+        "enum": [
+          "XTS",
+          "XXX"
+        ]
+      },
+      "pattern": "^[A-Z]{3}$",
+      "type": "string"
+    },
+    "dec": {
+      "const": "bigdecimal:2",
+      "type": "string"
+    }
+  },
+  "required": [
+    "amount",
+    "currency"
+  ],
+  "type": "object"
+}
+```
+
+`type` and `pattern` do different jobs here and both are needed:
+`type: "string"` is what refuses a bare JSON number (whose *text* the
+pattern would happily accept), `pattern` is what refuses the wrong
+scale.
+
+A worked end-to-end version of all of this — the schema, strictly-JSON
+records that pass, the four that must not, the exported schema checked
+against the same records, and the conversion written as theorems — is
+`use-cases/10-data-model/money-wire.aon` and `money-convert.aon`, with
+`check.sh` asserting every claim on this page.
 
 ## Reference and reshape other parts of the document
 

@@ -125,7 +125,7 @@ vet-junction-site	vet	a:1|2	a:3	{"findings":[{"class":"conflict","code":"|:empty
 # at row -1 there and at the enum here (the "junction values at -1:-1"
 # half of the review's finding F). The site travels whole now.
 vet-refd-disjunct-site	vet	Role: "admin" | "member" | "viewer"\nr: $.Role	r: "root"	{"findings":[{"class":"conflict","code":"|:empty","path":"$.r","severity":"error","sites":[{"col":4,"file":"data","len":6,"role":"data","row":1,"src":"\\"root\\"","value":"\\"root\\""},{"col":7,"file":"schema","len":7,"role":"schema","row":1,"src":"\\"admin\\"","value":"\\"admin\\"|\\"member\\"|\\"viewer\\""}]},{"class":"incomplete","code":"disjunct_no_gen","path":"$.Role","severity":"error","sites":[{"col":7,"file":"schema","len":7,"role":"schema","row":1,"src":"\\"admin\\"","value":"\\"admin\\"|\\"member\\"|\\"viewer\\""}]}],"truncated":false,"verdict":"invalid"}
-vet-pref-yardstick	vet	a:*1	a:{}	{"findings":[{"class":"conflict","code":"not-scalar-type","path":"$","severity":"error","sites":[{"col":3,"file":"data","len":1,"role":"data","row":1,"src":"{","value":"{}"},{"col":4,"file":"schema","len":1,"role":"schema","row":1,"src":"1","value":"integer"}]}],"truncated":false,"verdict":"invalid"}
+vet-pref-yardstick	vet	a:*1	a:{}	{"findings":[{"class":"conflict","code":"not-scalar-type","path":"$.a","severity":"error","sites":[{"col":3,"file":"data","len":1,"role":"data","row":1,"src":"{","value":"{}"},{"col":4,"file":"schema","len":1,"role":"schema","row":1,"src":"1","value":"integer"}]}],"truncated":false,"verdict":"invalid"}
 # A value the engine mints for ITSELF belongs to neither document, and
 # says so with an empty file rather than borrowing one: an unknown var
 # meets `top`, which no parser sited and no stamp walk reached. Both
@@ -276,8 +276,8 @@ vet-overflow-literal	vet	a: integer	a: 1e999	{"findings":[{"class":"parse","code
 # always set `sp = -1` explicitly for exactly this reason; the scalar
 # minters never did. siteOf already guarded on `0 <= v.pos()` and needed
 # no change: it was being handed a position that looked real.
-vet-minted-arith-operand-unsited	vet	a: integer	a: 1+2\n"a": 5\n	{"findings":[{"class":"conflict","code":"scalar_value","path":"$","severity":"error","sites":[{"col":6,"file":"data","len":1,"role":"data","row":2,"src":"5","value":"5"},{"col":-1,"file":"","len":-1,"role":"schema","row":-1,"src":"","value":"3"}]}],"truncated":false,"verdict":"invalid"}
-vet-minted-concat-operand-unsited	vet	a: string	a: "x"+"y"\n"a": "z"\n	{"findings":[{"class":"conflict","code":"scalar_value","path":"$","severity":"error","sites":[{"col":6,"file":"data","len":3,"role":"data","row":2,"src":"\\"z\\"","value":"\\"z\\""},{"col":-1,"file":"","len":-1,"role":"schema","row":-1,"src":"","value":"\\"xy\\""}]}],"truncated":false,"verdict":"invalid"}
+vet-minted-arith-operand-unsited	vet	a: integer	a: 1+2\n"a": 5\n	{"findings":[{"class":"conflict","code":"scalar_value","path":"$.a","severity":"error","sites":[{"col":6,"file":"data","len":1,"role":"data","row":2,"src":"5","value":"5"},{"col":-1,"file":"","len":-1,"role":"schema","row":-1,"src":"","value":"3"}]}],"truncated":false,"verdict":"invalid"}
+vet-minted-concat-operand-unsited	vet	a: string	a: "x"+"y"\n"a": "z"\n	{"findings":[{"class":"conflict","code":"scalar_value","path":"$.a","severity":"error","sites":[{"col":6,"file":"data","len":3,"role":"data","row":2,"src":"\\"z\\"","value":"\\"z\\""},{"col":-1,"file":"","len":-1,"role":"schema","row":-1,"src":"","value":"\\"xy\\""}]}],"truncated":false,"verdict":"invalid"}
 
 # THE ADMISSION GATE UNDER VET (ADR-004, 2026-08-26; use-cases/BUGS.md
 # §1). The enum-with-default schema now refuses an out-of-enum data
@@ -296,3 +296,14 @@ vet-enum-default-admits-member	vet	k:*'auto'|'literal'|'data'	k:'literal'	{"find
 # the historic crosswire reported one sibling's own value conflicting
 # with another sibling's. Parity-probed.
 vet-unequal-spread-depths	vet	a:&:{w:&:{p:integer}}\na:prod:w:&:{r:integer}	{"a":{"prod":{"w":{"x":{"p":1,"r":5},"y":{"p":2,"r":6}}}}}	{"findings":[],"truncated":false,"verdict":"valid"}
+
+# A CONFLICT INSIDE A REFERENCED RECORD NAMES THE KEY, not the record
+# (use-cases/BUGS.md §41). A value that arrives by reference is
+# re-pathed to the referring field, and the operand path a nil used to
+# take its own path from put every conflict in `q: $.M` at `$.q` -- the
+# same path for every field of the record, so a repair loop was told to
+# rewrite the whole thing, twice, instead of the two keys that clash.
+# Both spellings of the alias, since only one of them carries a mark.
+vet-ref-clone-names-the-key-not-the-record	vet	M: close({a:"x", b:"p"})\nq: $.M\n	{"q":{"a":"y","b":"r"}}	{"findings":[{"class":"conflict","code":"scalar_value","path":"$.q.a","severity":"error","sites":[{"col":11,"file":"data","len":3,"role":"data","row":1,"src":"\\"y\\"","value":"\\"y\\""},{"col":13,"file":"schema","len":3,"role":"schema","row":1,"src":"\\"x\\"","value":"\\"x\\""}]},{"class":"conflict","code":"scalar_value","path":"$.q.b","severity":"error","sites":[{"col":19,"file":"data","len":3,"role":"data","row":1,"src":"\\"r\\"","value":"\\"r\\""},{"col":20,"file":"schema","len":3,"role":"schema","row":1,"src":"\\"p\\"","value":"\\"p\\""}]}],"truncated":false,"verdict":"invalid"}
+vet-type-alias-names-the-key-not-the-record	vet	M: type(close({a: integer & min(3)}))\nq: $.M\n	{"q":{"a":1}}	{"findings":[{"actual":"1","class":"conflict","code":"constraint","expected":"integer&min(3)","path":"$.q.a","severity":"error","sites":[{"col":11,"file":"data","len":1,"role":"data","row":1,"src":"1","value":"1"},{"col":29,"file":"schema","len":-1,"role":"schema","row":1,"src":"","value":"integer&min(3)"}]}],"truncated":false,"verdict":"invalid"}
+

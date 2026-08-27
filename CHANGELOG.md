@@ -77,6 +77,56 @@ by projection) are closed, and its checks now assert a derived invoice
 total and a caught duplicate ledger id where they used to assert the
 absence of both.
 
+**JSON Schema export: `aontu jsonschema`.** The other half of finding
+I's interop wall. The constraint algebra maps onto JSON Schema's core,
+so the mapping is now specified and executable rather than left to
+whoever needs it first: `re` becomes `pattern`, `min`/`max` become
+`minimum`/`maximum`, `length` becomes the string/array/object length
+keywords per type, a disjunction becomes `anyOf` (or `enum` where every
+member is a literal), a preference becomes `default`, `close()` becomes
+`additionalProperties: false`, an optional key is simply absent from
+`required`, and a list with a spread template becomes `items` where a
+written list literal becomes `prefixItems` plus `items: false`. Draft
+2020-12, on stdout, so `aontu jsonschema x.aon > x.schema.json` writes
+a usable file. Also an MCP tool and a library call in both ports.
+
+**A loss is never silent.** What JSON Schema cannot say — `must()`, an
+exact numeric leaf, an unresolved residue — is reported on *stderr*
+beside the schema rather than instead of it, because a weaker schema is
+still a usable one and the reader needs to know which. `--strict` turns
+the report into a refusal for the CI job that would rather fail than
+ship a schema weaker than its model; `--format json` puts both halves
+in one envelope.
+
+**A documented wire convention for money**, which finding I asked for
+ahead of any new machinery. Money crosses the wire as a *decimal
+string* validated by `re()` at a fixed scale, with an optional-but-
+constant **conversion mark** (`dec?: "bigdecimal:2"`) naming the leaf
+and the scale — optional so a producer is never asked to send it,
+constant so one that does cannot contradict it, and exported as a
+`const` outside `required` so a consumer holding only the JSON Schema
+still learns both. `docs/how-to.md` carries the convention and the
+three details that decide whether an implementation of it is correct:
+the sign goes *outside* the `0d` prefix, scale is not part of the value
+(`0d10.50` and `0d10.5` are the same number), and at scale 0 the point
+must still be written or the value lands on the `biginteger` leaf.
+`use-cases/10-data-model/money-wire.aon` and `money-convert.aon` are
+the executable form, and gap 1 — "exact money is unreachable from plain
+JSON" — is answered.
+
+**A finding that named the record instead of the field**
+(`use-cases/BUGS.md` 41), found by the money probe running both engines
+and diffing. A `NilVal` took its path from the operand it blames, which
+decides the *site* correctly and the path only by accident: every
+conflict inside a referenced record reported the record's path — the
+same path for every one of its fields — and a conflict against a
+*minted* operand, a preference's yardstick or an arithmetic result,
+reported `$`, the whole document, in both ports. The path now comes
+from the location the meet is being driven at, where that extends the
+operand's own. One case remains open and is recorded in
+`test/spec/divergent.tsv`: a reference to a target *deeper* than the
+referring field still leaves one stale segment in TypeScript.
+
 ## Unreleased — a module closure that travels, and a verb that verifies it
 
 Both implementations. The 2026-08 review's finding H: a ground truth

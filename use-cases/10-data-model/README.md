@@ -38,10 +38,20 @@ this README documents.
   price tiers, `pack()` for the receivables bag, `*"open"` default
   order status.
 - `exact-money.aon` — the money schema you *want* (`bigdecimal`), kept
-  as the executable form of gap 1.
+  as the executable form of gap 1's dead end.
+- `money-wire.aon` — the money wire convention that answers it: a
+  decimal string with a fixed scale, an ISO 4217 currency beside it,
+  and an optional-but-constant conversion mark (`dec?: "bigdecimal:2"`)
+  naming the leaf and the scale. `money-convert.aon` writes the
+  crossing point out as theorems — the sign outside the `0d` prefix,
+  scale absent from the value, the scale-0 point that must still be
+  written, and exact VAT both ways.
 - `reporting.aon` — a wider projection; `subsume` proves it sound.
-- Money on **records** is integer cents. That is a forced workaround,
-  not a preference — see gap 1.
+- Money on **records** is integer minor units (cents). That was a
+  forced workaround when gap 1 had no answer; it is now one of two
+  supported spellings, the other being the decimal-string wire form in
+  `money-wire.aon`. `domain.aon` keeps cents so the gap-2 and gap-4
+  findings around it stay reproducible.
 
 ## What worked
 
@@ -93,6 +103,18 @@ Severity: **critical** = blocks the scenario's core promise;
 **major** = forced a real workaround; **minor** = friction/diagnostic.
 
 ### Gap 1 (critical): exact money is unreachable from plain JSON
+
+**ANSWERED 2026-08-27** (the review's finding I) — by a documented
+convention rather than by new machinery, which is what the review asked
+for. Money crosses the wire as a **decimal string** validated exactly by
+`re()`, with a **conversion mark** in the schema naming the leaf and the
+scale. `money-wire.aon` is the schema, `money-convert.aon` writes the
+crossing point out as theorems, and `check.sh` asserts both, plus the
+exported JSON Schema, against the same records. See
+[docs/how-to.md, "Carry exact money over JSON"](../../docs/how-to.md#carry-exact-money-over-json).
+The finding below stands exactly as written — it is *why* the
+convention exists, and `exact-money.aon` remains the executable form of
+the dead end it describes.
 
 `bigdecimal` can only be produced by a `0d` literal. JSON has no such
 spelling, so **no strictly-JSON record can ever satisfy an exact-money

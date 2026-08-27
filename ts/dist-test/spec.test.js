@@ -65,6 +65,11 @@ Object.defineProperty(exports, "__esModule", { value: true });
  *                each finding's message; see test/spec/subsume.tsv
  *   mode=trim  : trimCheck(src) must equal the expect object
  *                ({redundant, verdict}); see test/spec/trim.tsv
+ *   mode=jsonschema : jsonSchema(src) must equal the expect object
+ *                ({lossy, schema, verdict}) -- the schema AND the loss
+ *                report, because a schema that silently dropped a
+ *                construct would look identical to one that carried
+ *                it; see test/spec/jsonschema.tsv
  *   mode=hcanon : hcanon(unify(src)) -- the HASH FORM, canon plus the
  *                close()/type()/hide() wrappers -- must equal expect,
  *                and the hash form must round-trip (G6, hcanon.tsv)
@@ -106,6 +111,7 @@ const Assert = __importStar(require("node:assert"));
 const Fs = __importStar(require("node:fs"));
 const Path = __importStar(require("node:path"));
 const aontu_1 = require("../dist/aontu");
+const jsonschema_1 = require("../dist/jsonschema");
 const hints_1 = require("../dist/hints");
 const IntegerVal_1 = require("../dist/val/IntegerVal");
 const StringVal_1 = require("../dist/val/StringVal");
@@ -354,6 +360,21 @@ function runRow(row) {
             ...(null == report.errors
                 ? {} : { errors: stripProse(report.errors) }),
         }), (0, aontu_1.exactJSON)(JSON.parse(row.expect)), `trim report mismatch: ${row.name}`);
+    }
+    else if ('jsonschema' === row.mode) {
+        // JSON SCHEMA EXPORT (the review's finding I): the schema AND the
+        // loss report together, because a schema that silently dropped a
+        // construct would look identical to one that carried it. The
+        // envelope (version, verb) is the CLI's, not the export's, and is
+        // not compared -- the same carve-out every other report mode takes.
+        const report = (0, jsonschema_1.jsonSchema)(row.src);
+        Assert.strictEqual((0, aontu_1.exactJSON)({
+            lossy: report.lossy,
+            schema: report.schema,
+            verdict: report.verdict,
+            ...(null == report.errors
+                ? {} : { errors: stripProse(report.errors) }),
+        }), (0, aontu_1.exactJSON)(JSON.parse(row.expect)), `jsonschema report mismatch: ${row.name}`);
     }
     else if ('relation' === row.mode) {
         // RELATION GRAPH CHECKS (G4 phase 5): acyclicity and inverse

@@ -9,7 +9,9 @@
 > `why` query a document and explain a value's provenance, `subsume` and
 > `breaking` gate schema evolution, `hash` pins what a document means,
 > `set` repairs a value in place, `relations` checks declared entity
-> graphs, and an MCP server exposes the same contracts over stdio. Two
+> graphs, `jsonschema` exports the model as JSON Schema and reports
+> what that export cannot carry, and an MCP server exposes the same
+> contracts over stdio. Two
 > implementations (TypeScript, canonical, npm `aontu`; a Go port) are
 > kept in parity by one shared conformance suite, under a written trust
 > contract (hermeticity, termination, determinism, sandboxing).
