@@ -13,7 +13,7 @@ vulnerability by definition.
 | Distribution | Package | Supported |
 |---|---|---|
 | npm (TypeScript, canonical) | [`aontu`](https://npmjs.com/package/aontu) | the latest published release only |
-| Go module | `github.com/rjrodger/aontu/go` (tags `go/vX.Y.Z`) | the latest published tag only |
+| Go module | `github.com/aontu-lang/aontu/go` (tags `go/vX.Y.Z`) | the latest published tag only |
 
 The project is pre-1.0 with a single maintainer. There are no
 long-term-support branches: a fix ships as a new release of each

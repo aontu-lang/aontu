@@ -15,7 +15,7 @@ import (
 	"os"
 	"strings"
 
-	aontu "github.com/rjrodger/aontu/go"
+	aontu "github.com/aontu-lang/aontu/go"
 )
 
 const reachesHelp = "aontu reaches <from> <to> [--relation <name>] <file> (try --help)"
