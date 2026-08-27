@@ -43,6 +43,20 @@ type Ctx struct {
 	// isolated (skipped/partial output) instead of raised, mirroring
 	// the cctx clone({err: [], collect: true}) in TS BagVal.gen.
 	collect bool
+	// THE COMPLETENESS PROBE (the review's finding C). Vet detects
+	// residue by GENERATING the anchored meet and keeping the
+	// incomplete-class failures. Generation honours the OUTPUT marks --
+	// type() and hide() say "do not emit this" -- so a --at anchor
+	// sitting under a mark generated nothing at all, reported nothing,
+	// and vetted VALID for data missing a required field, while the same
+	// anchor without the mark answered incomplete (use-cases/BUGS.md
+	// §14). A mark is a decision about OUTPUT; it is not a statement
+	// about what the data must satisfy, and --at names the truth to
+	// validate against explicitly. Under this flag the generation walk
+	// descends through marked values; nothing else changes, and no
+	// output is produced from a probe run -- only its findings are read.
+	// The twin of AontuContext.probe in ts/src/ctx.ts.
+	probe bool
 	// snapmap caches structural snapshots of ref spreads (see
 	// snapshotRefSpread in mapval.go), keyed by the ref's canon + source
 	// position — mirroring the snapmap on the TS unify root ctx.

@@ -729,8 +729,14 @@ describe('val-basic', function() {
     expect(tu(ctx, P('1|top'), TOP).canon).equal('1|top')
     expect(tu(ctx, P('1|number|top'), TOP).canon).equal('1|number|top')
 
-    expect(tu(ctx, P('1|number'), TOP).gen(ctx)).equal(1)
-    expect(tu(ctx, P('1|number|top'), TOP).gen(ctx)).equal(1)
+    // ADR-007: two alternatives still admitted is INCOMPLETE residue,
+    // not the first member. These used to answer 1 -- the old fold's
+    // `1 & number`, a value chosen by the fold rather than by the
+    // model.
+    expect(() => tu(ctx, P('1|number'), TOP).gen(ctx))
+      .throws(/disjunct_no_gen/)
+    expect(() => tu(ctx, P('1|number|top'), TOP).gen(ctx))
+      .throws(/disjunct_no_gen/)
 
     expect(tu(ctx, P('number|1').unify(P('top'), ctx), TOP).canon).equal('number|1')
 
@@ -1017,8 +1023,10 @@ b: c2: {n:2}
 
     let d0 = P('1|number').unify(TOP, ctx)
     expect(d0.canon).equal('1|number')
-    expect(d0.gen(ctx)).equal(1)
-    // expect(d0.gen(ctx)).equal(undefined)
+    // No preference, two alternatives: incomplete, not the fold's 1
+    // (ADR-007). `*1|number` a few lines down is the spelling that
+    // decides it.
+    expect(() => d0.gen(ctx)).throws(/disjunct_no_gen/)
 
 
     expect(G('number|*1')).equal(1)

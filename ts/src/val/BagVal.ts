@@ -80,10 +80,59 @@ abstract class BagVal extends FeatureVal {
   }
 
 
+  // TWO BAGS ARE THE SAME VALUE WHEN THEY HAVE THE SAME SHAPE. Val.same
+  // falls back to object IDENTITY, which no two separately built maps
+  // share -- so `x:*{a:1}|{a:number}` met by `x:{a:2}` left
+  // `{"a":2}|{"a":2}`, a disjunction of one value spelled twice, past
+  // the DisjunctVal dedup. Generation's old member FOLD hid that
+  // (folding a value with itself is that value); ADR-007 does not, and
+  // a disjunction whose alternatives are all the SAME value is
+  // resolved, not ambiguous. Canon prints the collapse too, which is
+  // the more honest text.
+  //
+  // Structural, and deliberately strict: container kind, closedness,
+  // the marks, the optional keys and the key set must all agree before
+  // the children are compared pairwise. Recursion terminates because a
+  // reference is not a bag -- RefVal keeps the identity comparison.
+  same(peer: any): boolean {
+    if (this === peer) {
+      return true
+    }
+    if (null == peer || true !== peer.isBag) {
+      return false
+    }
+    if (this.isMap !== peer.isMap ||
+      this.closed !== peer.closed ||
+      this.mark.type !== peer.mark.type ||
+      this.mark.hide !== peer.mark.hide) {
+      return false
+    }
+
+    const keys = Object.keys(this.peg)
+    if (keys.length !== Object.keys(peer.peg).length) {
+      return false
+    }
+    if (this.optionalKeys.length !== peer.optionalKeys.length ||
+      this.optionalKeys.some((k) => !peer.optionalKeys.includes(k))) {
+      return false
+    }
+
+    for (const k of keys) {
+      const mine: any = (this.peg as any)[k]
+      const theirs: any = (peer.peg as any)[k]
+      if (null == mine || null == theirs || !mine.same(theirs)) {
+        return false
+      }
+    }
+
+    return true
+  }
+
+
   gen(ctx: AontuContext) {
     let out: any = this.isMap ? {} : []
 
-    if (this.mark.type || this.mark.hide) {
+    if ((this.mark.type || this.mark.hide) && true !== ctx?.probe) {
       return undefined
     }
 
@@ -104,7 +153,7 @@ abstract class BagVal extends FeatureVal {
       const p = item[0]
       const child = item[1]
 
-      if (child.mark.type || child.mark.hide) {
+      if ((child.mark.type || child.mark.hide) && true !== ctx?.probe) {
         continue
       }
 

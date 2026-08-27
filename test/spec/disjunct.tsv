@@ -38,12 +38,53 @@ disjunct-top-pref-not-deduped-canon	canon	x:*top|top	{"x":*top|top}
 #
 # The members are genuinely different values, so no amount of deduping
 # reaches this: it survives the top|top fix entirely.
-disjunct-null-top-gens	gens	x:null|top	{"x":null}
-disjunct-top-null-gens	gens	x:top|null	{"x":null}
-disjunct-null-top-list-gens	gens	x:[null|top]	{"x":[null]}
-disjunct-null-top-list-position-gens	gens	x:[1,null|top,3]	{"x":[1,null,3]}
-disjunct-null-top-nested-gens	gens	x:{y:null|top}	{"x":{"y":null}}
+#
+# ADR-007 REWROTE THE SPELLING, NOT THE POINT. These rows used to read
+# `null|top`, which the old generation FOLD turned into null (`null &
+# top` is null) -- an answer that came from the fold rather than from
+# the model, and one a plain `x:top` already refuses as incomplete. An
+# unresolved disjunction now refuses too, so the null case is spelled
+# with the PREFERENCE that actually decides it. What is being pinned is
+# unchanged: a disjunction whose chosen member is null must emit null,
+# not vanish.
+disjunct-pref-null-top-gens	gens	x:*null|top	{"x":null}
+disjunct-pref-null-top-list-gens	gens	x:[*null|top]	{"x":[null]}
+disjunct-pref-null-top-list-position-gens	gens	x:[1,*null|top,3]	{"x":[1,null,3]}
+disjunct-pref-null-top-nested-gens	gens	x:{y:*null|top}	{"x":{"y":null}}
 disjunct-null-plain-gens	gens	x:null|null	{"x":null}
+#
+# The unresolved forms themselves, in the class that makes vet work:
+# more than one alternative still admitted is INCOMPLETE residue, not a
+# conflict of the fold (use-cases/BUGS.md §13, ADR-007).
+#
+# THE DEDUP IS STRUCTURAL. Two separately built maps are never the same
+# object, so identity-based dedup left `{"a":1}|{"a":1}` -- a
+# disjunction of one value spelled twice -- and the old generation fold
+# hid it by folding the value with itself. Under ADR-007 it would read
+# as ambiguous, so the dedup compares SHAPE: container kind, closedness,
+# marks, optional keys and the key set, then the children pairwise. The
+# optional-key rows are the strict half: same keys, same values,
+# different OPTIONALITY is a different value and must survive as two
+# alternatives.
+disjunct-same-map-collapses	gens	x:{a:1}|{a:1}	{"x":{"a":1}}
+disjunct-same-list-collapses	gens	x:[1]|[1]	{"x":[1]}
+disjunct-different-map-stays	canon	x:{a:1}|{a:2}	{"x":{"a":1}|{"a":2}}
+# SAMENESS IS STRICTER THAN CANON, deliberately. Each of these pairs
+# canons identically -- canon drops closedness and the marks -- and
+# each must survive as TWO alternatives, because the values they stand
+# for are different. A dedup that trusted canon would collapse a closed
+# map into an open one.
+disjunct-nonbag-peer-stays	canon	x:{a:1}|1	{"x":{"a":1}|1}
+disjunct-map-list-stays	canon	x:{a:1}|[1]	{"x":{"a":1}|[1]}
+disjunct-closed-differs-stays	canon	x:close({a:1})|{a:1}	{"x":{"a":1}|{"a":1}}
+disjunct-mark-differs-stays	canon	x:type({a:1})|{a:1}	{"x":{"a":1}|{"a":1}}
+disjunct-keycount-differs-stays	canon	x:{a:1}|{a:1,b:2}	{"x":{"a":1}|{"a":1,"b":2}}
+disjunct-optional-differs-stays	canon	x:{a?:1,b:1}|{b?:1,a:1}	{"x":{"a"?:1,"b":1}|{"a":1,"b"?:1}}
+disjunct-optional-differs-unresolved	errc	x:{a?:1,b:1}|{b?:1,a:1}	disjunct_no_gen
+disjunct-null-top-unresolved	errc	x:null|top	disjunct_no_gen
+disjunct-top-null-unresolved	errc	x:top|null	disjunct_no_gen
+disjunct-scalar-unresolved	errc	x:1|2	disjunct_no_gen
+disjunct-kind-unresolved	errc	x:string|integer	disjunct_no_gen
 #
 # Guard rows fencing the known DisjunctVal.gen fold defect
 # (ts/src/val/DisjunctVal.ts ~263, mirrored by the Go port): the CANON

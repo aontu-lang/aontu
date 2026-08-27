@@ -204,7 +204,10 @@ edge-op-residue-meet	errc	a:(1+$.zz)&2	no_path
 edge-op-ref-canon	errc	a:1+$.b	no_path
 edge-plus-str-int	gens	a:"x"+1	{"a":"x1"}
 edge-plus-int-str	gens	a:1+"y"	{"a":"1y"}
-edge-disjunct-ref-member	errc	a:($.b|2) b:1	scalar_value
+# A reference member that resolves to 1 leaves `1|2` -- still two
+# alternatives, so INCOMPLETE residue rather than the conflict the old
+# generation fold reported (ADR-007).
+edge-disjunct-ref-member	errc	a:($.b|2) b:1	disjunct_no_gen
 edge-pref-same-twice	gens	q:*2|*2	{"q":2}
 edge-key-newline	canon	a:{"x\\ny":1}	{"a":{"x\\ny":1}}
 edge-exp-e100	canon	a:1e100	{"a":nil}

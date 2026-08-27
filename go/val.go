@@ -691,6 +691,14 @@ func (n *NilVal) Message() string {
 // "Cannot generate value: <canon>" carrying no code marker, no path and
 // no frame -- so the one document shaped entirely like the mistake got
 // the least helpful message (issue #38).
+// probing reports whether this generation is vet's completeness probe
+// rather than an output run (Ctx.probe, and AontuContext.probe in the
+// canonical port). Nil-safe: a bare Gen with no context is an output
+// run.
+func probing(ctx *Ctx) bool {
+	return nil != ctx && ctx.probe
+}
+
 func residueErr(ctx *Ctx, v Val, code string) error {
 	// Recorded on the context first, as TS FeatureVal.gen does through
 	// makeNilErr — and, like TS, RAISED only when the context is not

@@ -13,7 +13,7 @@ import {
 
 import { AontuContext } from '../ctx'
 
-import { makeNilErr } from '../err'
+import { AontuError, descErr, makeNilErr } from '../err'
 import { unite } from '../unify'
 
 import {
@@ -180,6 +180,33 @@ class DisjunctVal extends JunctionVal {
 
     // // // console.log('DISJUNCT-unify-B', this.id, oval.map(v => v.canon))
 
+    // A PREFERENCE CONJOINED WITH A DISJUNCTION IS A PREFERENCE ON THE
+    // ALTERNATIVE IT NAMES: `(A|B) & *A` is `*A|B`, the same value the
+    // direct spelling `*A|B` denotes. Distribution carries the peer to
+    // each member, and a scalar preference meeting a concrete same-kind
+    // member is replaced BY that member (the kind gate) -- so the
+    // preference simply vanished, and `specversion: ("1.0"|"1.1") &
+    // *"1.0"`, the enum-with-default written the other way round, held
+    // no default at all. The old generation fold hid it by folding the
+    // members together; ADR-007 does not, and a disjunction that has
+    // lost its default is not the value the author wrote.
+    //
+    // A preference naming no alternative is dropped, as it is today: it
+    // has nothing to prefer, and the default-validity lint is what
+    // reports that shape.
+    if (true === (peer as any).isPref) {
+      const want: any = prefInnerPeg(peer as PrefVal)
+      for (let vI = 0; vI < oval.length; vI++) {
+        const got: any = oval[vI]
+        if (!got.isNil && true !== got.isPref && got.same(want)) {
+          const wrapped = new PrefVal({ peg: got }, ctx)
+          wrapped.rank = (peer as PrefVal).rank
+          ;(peer as PrefVal).place(wrapped)
+          oval[vI] = wrapped
+        }
+      }
+    }
+
     // Remove duplicates, and normalize
     if (1 < oval.length) {
       for (let vI = 0; vI < oval.length; vI++) {
@@ -220,6 +247,14 @@ class DisjunctVal extends JunctionVal {
     }
     else {
       out = new DisjunctVal({ peg: oval }, ctx)
+      // A NARROWED DISJUNCTION IS STILL THAT DISJUNCTION. The meet mints
+      // a fresh value, which used to arrive unsited and file-less -- so
+      // every finding naming a disjunction that had met anything
+      // pointed at row -1 with no file, and an agent handed the report
+      // had nowhere to go (the review's finding F). `place` copies the
+      // whole site, position and url together, which is what tells the
+      // report which document it came from.
+      this.place(out)
     }
 
     out.dc = done ? DONE : this.dc + 1
@@ -308,35 +343,49 @@ class DisjunctVal extends JunctionVal {
   }
 
 
+  // AN UNRESOLVED DISJUNCTION IS NOT A VALUE (ADR-007).
+  //
+  // Generation used to FOLD the surviving members together with unify
+  // and emit the result. That answer is in no branch of the
+  // disjunction: `({x:1}|{y:2}) & {z:3}` generated `{x:1,y:2,z:3}`, a
+  // map the model never admits, and `1|2` died as a scalar_value
+  // CONFLICT -- the conflict of the fold, not of anything the author
+  // wrote. The second half is what made vet decorative: vet's
+  // incompleteness check keeps incomplete-class findings, so a missing
+  // required enum field (`role: 'a'|'b'` with no data) arrived as a
+  // conflict, was filtered out, and vetted VALID with zero findings
+  // (use-cases/BUGS.md §13, the review's finding C).
+  //
+  // What remains after unification is what the model still admits, so
+  // more than one surviving alternative means the truth is not yet
+  // settled -- incomplete, the same class a bare `string` residue
+  // answers, and the same answer CUE gives for a non-concrete export.
+  // A preference resolves it (that is what `*` is for), and so does a
+  // single surviving member.
   gen(ctx: AontuContext) {
-    // TODO: move this to main unify
-
-    // console.log('DJ-GEN', this.peg.map((p: any) => p.canon), ctx.err)
-
     if (0 < this.peg.length) {
-
-      let vals = this.peg.filter((v: Val) => v instanceof PrefVal)
-      // // // console.log('DJ-GEN-VALS-A', vals.map((p: any) => p.canon))
-
-      vals = 0 === vals.length ? this.peg : vals
-
-      let val = vals[0]
-
-      // TODO: over unifies complex types like maps
-      // ({x:1}|{y:2})&{z:3} should be {"x":1,"z":3}|{"y":2,"z":3} not { x:1, z:3, y:2 }
-      for (let vI = 1; vI < vals.length; vI++) {
-        // Index `vals`, not `this.peg`: when the pref members are not the
-        // leading entries the two arrays differ, and folding against
-        // this.peg[vI] would unify the wrong (or a repeated) member.
-        let valnext = val.unify(vals[vI], ctx)
-        // // // console.log('DJ-GEN-VALS-NEXT', valnext.canon)
-        val = valnext
+      // Ranking may not have run when gen is reached without a prior
+      // unify (a library caller generating a freshly parsed tree), and
+      // it is what guarantees at most one preference stands here.
+      if (!this.prefsRanked) {
+        this.rankPrefs(ctx)
       }
 
-      // console.log('DJ-GEN-VALS-B', val.canon)
-      const out = val.gen(ctx)
-      // console.log('DJ-GEN-VALS-C', out)
-      return out
+      const prefs = this.peg.filter((v: Val) => v instanceof PrefVal)
+
+      if (0 === prefs.length && 1 < this.peg.length) {
+        const nerr = makeNilErr(ctx, 'disjunct_no_gen', this)
+        descErr(nerr, ctx)
+        ctx?.adderr(nerr)
+
+        if (null == ctx || !ctx?.collect) {
+          throw new AontuError(nerr.msg, [nerr])
+        }
+
+        return undefined
+      }
+
+      return (0 < prefs.length ? prefs[0] : this.peg[0]).gen(ctx)
     }
 
     return super.gen(ctx)

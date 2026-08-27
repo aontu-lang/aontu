@@ -409,8 +409,51 @@ function vet(schemaSrc, dataSrc, opts) {
     if (true === options.closed && (true === anchor.isMap || true === anchor.isList)) {
         anchor.closed = true;
     }
+    // THE MEET IS FROM A FRESH PARSE, NOT THE SETTLED SCHEMA (the
+    // review's finding C, use-cases/BUGS.md §15).
+    //
+    // Step 1 evaluated the schema ALONE, to decide whether it stands up
+    // before any data is blamed for it. That answer is a diagnosis, and
+    // it was also being used as the left side of the meet -- so every
+    // reference in the schema had already RESOLVED against the schema's
+    // own values and been replaced by them. `a:integer b:$.a` settled to
+    // `a:integer b:integer`, and data `{a:3,b:4}` then vetted VALID,
+    // while the same four lines as one document refuse with
+    // scalar_value. A reference is a statement about the FINAL model, and
+    // vet is asking about a model the data is part of.
+    //
+    // Parsing again is what makes `vet(S,D)` and `eval(S ∪ D)` the same
+    // question: the meet runs the fixpoint once, over both documents, so
+    // references, spreads and generators all see the data. Parsed trees
+    // are single-use, hence a second parse rather than a reuse of step
+    // 1's. The lint above still reads the SETTLED tree, where
+    // disjunctions are ranked and normalised.
+    //
+    // ONLY WHEN THERE IS NO `--at`. An anchor is a SUBTREE lifted out of
+    // the schema, and an absolute reference inside it (`$.OrderPlaced`,
+    // the discriminated-union idiom) names a sibling of the document
+    // root -- which the lifted subtree no longer has. The settled tree is
+    // where those references have already been resolved and substituted,
+    // so an anchored run keeps meeting that, exactly as it always has.
+    // Making the rule explicit rather than leaving it to whether
+    // anchorAt happens to find the path in an unresolved tree: the two
+    // ports answered that differently, which is an ADR-001 divergence
+    // waiting to happen.
     const ctx = aontu.ctx({ collect: true });
-    const pair = new ConjunctVal_1.ConjunctVal({ peg: [anchor, dataVal] }, ctx);
+    let meetAnchor = anchor;
+    if (null == options.at) {
+        const meetCtx = aontu.ctx({ collect: true });
+        const freshSchema = aontu.parse(schemaSrc, schemaOpts, meetCtx);
+        if (0 === meetCtx.err.length && null != freshSchema) {
+            meetAnchor = freshSchema;
+            if (true === options.closed &&
+                (true === meetAnchor.isMap || true === meetAnchor.isList)) {
+                meetAnchor.closed = true;
+            }
+            stampUrl(meetAnchor, schemaUrl);
+        }
+    }
+    const pair = new ConjunctVal_1.ConjunctVal({ peg: [meetAnchor, dataVal] }, ctx);
     const unified = aontu.unify(pair, undefined, ctx);
     // 4. Contradictions: every NilVal standing in the result, PLUS the
     //    ones that never made it into the tree.
@@ -444,6 +487,11 @@ function vet(schemaSrc, dataSrc, opts) {
     // context instead of throwing, which is the whole point of the mode.
     const genCtx = aontu.ctx({ collect: true });
     genCtx.root = unified;
+    // Under `--at` the probe descends through the OUTPUT marks: the
+    // caller named this node as the truth to validate against, so a
+    // `type()` or `hide()` on it (or propagated into it) is not a reason
+    // to check nothing. See AontuContext.probe.
+    genCtx.probe = null != options.at;
     unified.gen(genCtx);
     for (const err of genCtx.err) {
         if ('incomplete' === err.class) {

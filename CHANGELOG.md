@@ -5,6 +5,157 @@ package (`ts/`, npm `aontu`) and the Go module (`go/`,
 `github.com/rjrodger/aontu/go`) are versioned independently; entries note
 which implementation each change affects.
 
+## Unreleased — the evolution gate stops failing its own idioms
+
+Both implementations. Three fixes to `subsume`/`breaking`, all from the
+2026-08 review's finding D.
+
+**Reflexivity is a law of the walk.** Every value admits itself,
+residue included: the set admitted by `integer & min(0)` is exactly the
+set admitted by `integer & min(0)`. Without that, a constraint inside a
+SPREAD TEMPLATE made a contract non-self-subsumable — expected and
+actual byte-identical, verdict `undecided` — so `breaking` on the
+documented close-per-entry idiom hard-failed reflexivity and had to run
+`--allow-undecided`, which then masks the genuine undecideds the gate
+exists to surface (`use-cases/BUGS.md` §28). The check sits on the
+`sub_unresolved` branch, where the answer would otherwise be undecided,
+and identity is the HASH FORM: canon drops closedness and the marks, so
+`close({a:1})` and `{a:1}` share a canon while admitting different sets.
+
+**A preferred branch contributes exactly its own value** — ADR-004's
+rule, which the subsumption walk had never adopted. It still compared a
+pref MEMBER of a disjunction by its kind superior, so every member of
+`*backward|forward|full|none` widened to `string`, which no general
+member admits, and a disjunction with a default did not subsume itself
+(§29). Two existing rows sharpen from `undecided` to
+`does_not_subsume` as a result: with a pref member admitting its own
+value the counterexample is CONCRETE, so the walk names it instead of
+shrugging.
+
+**The `gen` profile's mark rule is a correspondence question**, and it
+was firing inside DISTRIBUTION TRIALS — comparing a whole marked
+disjunction against a member extracted out of one, which are not the
+same node of the two documents. `aontu_policy: hide({compat:
+*backward|forward|full|none})`, the verbatim idiom from
+`reference-api.md`, failed self-subsumption under `--profile gen`
+because of it. The enclosing node's marks are still compared where they
+correspond, and a mark that really did change is still refused.
+
+**`breaking --at <path>`** joins `subsume`'s anchor: a module's top
+level carries the version string and the policy block, which are
+*supposed* to change between releases, so the whole-document comparison
+answered about those rather than about the contract and a release that
+bumped only its version self-broke the gate. Findings are reported from
+the anchor.
+
+Pinned by `subsume.tsv` self-spread-residue, self-spread-residue-closed,
+self-hide-pref-disjunct, self-policy-idiom and hide-added-still-refused,
+plus `breaking-at-gates-a-subtree` and its Go twin.
+
+## Unreleased — `breaking --against git#<rev>` on macOS and Windows
+
+Both implementations. The repo-relative path of the entry file was
+computed by relativising `git rev-parse --show-toplevel` against the
+caller's resolved path — two DIFFERENT COORDINATE SYSTEMS on either
+side of the subtraction. git prints the real path, while the caller's
+is whatever they typed: on macOS a temp file under `/var` is
+`/private/var` to git, and on Windows a `TMP` short name (`RUNNER~1`)
+is the long form. The subtraction then produced a `../..` climb, the
+entry was reported "not in that revision", and the documented CI
+spelling exited 2 on both platforms while passing on Linux.
+
+The path now comes from git itself (`rev-parse --show-prefix`), which
+is the same question asked in git's coordinates. Pinned on every
+platform by a leg that reaches the entry through a symlink —
+`breaking-git-compares-the-old-tree` and its Go twin — so the case runs
+on Linux too rather than waiting for a macOS runner to notice.
+
+Two Windows-only test defects went with it, both in the MCP suite: an
+absolute path interpolated raw into an `@"..."` include (where a
+backslash is an escape), and a raw path substring-matched against its
+own JSON encoding.
+
+## Unreleased — vet asks the same question the evaluator does (ADR-007)
+
+**Breaking, both implementations.** `1|2`, `null|top` and
+`({x:1}|{y:2}) & {z:3}` no longer generate a value.
+
+Generation used to FOLD an unresolved disjunction's surviving members
+together with unify and emit the result — a value in no branch of the
+disjunction. `({x:1}|{y:2}) & {z:3}` generated `{x:1,y:2,z:3}`, a map
+the model never admits, and `role: 'a'|'b'` with no data died as a
+scalar_value CONFLICT: the conflict of the fold, not of anything the
+author wrote. Vet's incompleteness pass keeps incomplete-class
+findings, so it filtered that out and a **missing required enum field —
+the commonest schema idiom there is — vetted valid with zero
+findings** (the 2026-08 review's finding C; `use-cases/BUGS.md` §13).
+
+An unresolved disjunction is now incomplete residue: generation answers
+the preferred alternative when there is one (that is what `*` is for)
+or the single surviving one, and more than one still admitted raises
+`disjunct_no_gen`, class `incomplete` — the same class a bare `string`
+residue answers. The spelling that decides a disjunction is a
+preference (`*null|top`) or a value that selects an alternative.
+
+**Vet met the settled schema, not the schema.** The standalone pass
+that decides whether a schema stands up on its own was also serving as
+the left side of the meet, so every reference in the schema had already
+resolved against the schema's own values and been replaced by them:
+`a:integer b:$.a` settled to `a:integer b:integer`, and `{a:3,b:4}`
+vetted valid while the same four lines as one document refuse with
+`scalar_value` (§15). The meet is now built from a fresh parse, so the
+fixpoint runs once over both documents; the standalone pass remains as
+the diagnosis it always was. A `--at` path that exists only in the
+settled tree falls back to it, so no such path stops working.
+
+**A mark above the anchor is not a reason to check nothing.** Vet finds
+residue by generating the anchored meet, and generation honours
+`type()` and `hide()`. Under `--at` the probe now descends through them
+(§14): a mark is a decision about output, and `--at` names the truth to
+validate against explicitly.
+
+**A preference conjoined with a disjunction now names an alternative.**
+`(A|B) & *A` is `*A|B`, the same value the direct spelling denotes.
+Distribution carried the peer to each member and the kind gate then
+replaced a scalar preference *by* the concrete member it met, so the
+preference simply vanished: `specversion: ("1.0"|"1.1") & *"1.0"` —
+the enum-with-default written this way round — held no default at all,
+canon dropped the `*`, and two contracts differing only in their
+default hashed identically. The fold hid all three.
+
+Two more consequences fell out and shipped with it. The disjunct dedup
+compared object identity, so `x:*{a:1}|{a:number}` met by `x:{a:2}`
+left `{"a":2}|{"a":2}` — one value spelled twice, which the old fold
+hid; two bags are now the same value when they have the same shape.
+And a narrowed disjunction keeps the site of the one it came from:
+findings naming a disjunction that had met anything used to point at
+row −1 with no file, and now carry real coordinates in both ports (part
+of the review's finding F).
+
+**The invariant is now asserted as standing infrastructure**, beside
+the parity probe: `ts/test/veteval.test.ts` and `go/veteval_test.go`
+read the shared spec's own `vet` rows, compute `vet(S, D)` and
+`eval(S ∪ D)` for each, and require them to agree on accept/reject. The
+corpus is the spec, so it grows with every row anyone adds. Every one
+of the defects above would have failed it.
+
+`disjunct_no_gen` is registered in `test/spec/errcodes.tsv` (class
+`incomplete`, since 0.53.0). Pinned by `disjunct.tsv`, `vet.tsv`
+(vet-enum-missing-is-incomplete, vet-at-marked-anchor-*,
+vet-junction-site), `pref.tsv` and the re-probed site columns across
+`subsume.tsv`, `edge.tsv`, `number-tower.tsv` and `place.tsv`.
+
+The sharpest practical consequence is on the write path: `aontu set`
+takes vet's verdict, so it used to accept writes its own `must()`
+audits refuse — the entry's audits had been discharged before the
+overlay existed — and only the assembled runtime view caught them,
+post-hoc. A refused write is now refused at the point of writing, and
+never reaches the overlay.
+
+Still open, recorded in ADR-007: a sizing atom sharing a conjunct with
+a spread template is discharged against that layer alone (§16), and a
+map-argument `must()` is consumed by the schema layer (§17).
+
 ## Unreleased — the include capability reaches every surface
 
 Both implementations. `--trust` / `--include-root` were wired to

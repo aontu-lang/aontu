@@ -116,6 +116,9 @@ Subsume exit codes:
 Breaking options:
   --against <v>       An earlier version: a file path, or git#<rev>
                       (resolved by 'git show'); repeatable
+  --at <path>         Compare this path of both versions ($.a.b), so a
+                      module's own version string and policy block do
+                      not decide the verdict
   --mode <m>          backward (new admits old, the default), forward
                       (old admits new), or full (both); overrides the
                       document's own $.aontu_policy.compat declaration
@@ -922,6 +925,7 @@ function parseBreakingArgs(argv) {
     const files = [];
     const against = [];
     let mode;
+    let at;
     let allowUndecided = false;
     let allowDeprecatedRemoval = false;
     let format = 'text';
@@ -948,6 +952,13 @@ function parseBreakingArgs(argv) {
                 return { err: 'aontu: --mode needs backward, forward or full' };
             }
             mode = m;
+        }
+        else if ('--at' === arg) {
+            const a = argv[++i];
+            if (null == a) {
+                return { err: 'aontu: --at needs a path' };
+            }
+            at = a;
         }
         else if ('--allow-undecided' === arg) {
             allowUndecided = true;
@@ -977,7 +988,7 @@ function parseBreakingArgs(argv) {
     }
     return {
         args: {
-            file: files[0], against, mode,
+            file: files[0], against, mode, at,
             allowUndecided, allowDeprecatedRemoval, format,
         },
     };
@@ -1033,8 +1044,21 @@ function oldVersion(spec, file) {
     // that only some failures take.
     const temp = (0, node_fs_1.mkdtempSync)((0, node_path_1.join)((0, node_os_1.tmpdir)(), 'aontu-against-'));
     try {
+        // THE REPO-RELATIVE PATH COMES FROM GIT, not from path arithmetic.
+        // Relativising `rev-parse --show-toplevel` against `resolve(file)`
+        // puts two DIFFERENT COORDINATE SYSTEMS on either side of the
+        // subtraction: git prints the real path, while the caller's is
+        // whatever they typed. On macOS a temp file under /var is
+        // /private/var to git, and on Windows a TMP short name
+        // (RUNNER~1) is the long form to git -- so the subtraction gave a
+        // `../..` climb, the entry was "not in that revision", and the
+        // documented CI spelling failed on both platforms while passing on
+        // Linux (this PR's own CI). `--show-prefix` is the same question
+        // asked in git's coordinates: the repo-relative directory of the
+        // cwd, already slash-separated and already normalised.
+        const prefix = git(['rev-parse', '--show-prefix'], dir).trim();
+        const entryRel = prefix + (0, node_path_1.basename)(file);
         const top = git(['rev-parse', '--show-toplevel'], dir).trim();
-        const entryRel = (0, node_path_1.relative)(top, (0, node_path_1.resolve)(file)).split(node_path_1.sep).join('/');
         // `-z` so a path with a newline or a quote cannot be mistaken for
         // two paths (git otherwise quotes such names).
         const listed = git(['ls-tree', '-r', '-z', '--name-only', rev], top)
@@ -1208,6 +1232,7 @@ function runBreaking(argv) {
             for (const check of checks) {
                 const report = (0, aontu_1.subsume)(check.general[0], check.specific[0], {
                     trust: verbTrust(trust, entryRootOf(args.file)),
+                    at: args.at,
                     generalUrl: check.general[1],
                     specificUrl: check.specific[1],
                     // The old side's relative loads resolve from ITS own tree --

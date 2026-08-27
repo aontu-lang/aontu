@@ -153,14 +153,31 @@ box.
 
 ## Gaps and friction
 
-### 1. KEY FINDING — `must()` audits cannot guard the write path (critical)
+### 1. KEY FINDING — `must()` audits cannot guard the write path (critical) — FIXED 2026-08-27
 
-`set`'s verdict is vet's verdict of entry-vs-overlay, and `must()`
-is Band B of the constraint algebra — opaque to vet, evaluate-only.
-So the two policy rules this scenario most needs at write time
-(expired flags stay off; rollout in 0..100) are silently skipped by
-the verb whose job is to gate writes, even though `base.aon`
-*includes* `policy.aon`. Enabling the expired flag:
+**Closed by [ADR-007](../../ADR.md).** The two policy rules this
+scenario most needs at write time (expired flags stay off; rollout in
+0..100) now fire at write time:
+
+```
+$ aontu set '$.flags.search_reranker_v3.enabled=true' --entry base.aon --overlay overlay.aon
+verdict: invalid        # exit 1, nothing written
+
+$.policy.lifecycle.catalog: must [conflict]
+  note: expired flags must be disabled
+```
+
+The cause was not that `must()` is opaque to vet. It was that vet met
+the SETTLED entry: the standalone pass had already discharged the
+entry's audits against the entry's own values, before the overlay
+existed. vet now builds its meet from a fresh parse, so the audit meets
+the value being written. The write path and the read path agree, and a
+refused write never reaches the overlay. The rest of this entry is the
+diagnosis as it stood.
+
+`set`'s verdict is vet's verdict of entry-vs-overlay. The rules were
+silently skipped by the verb whose job is to gate writes, even though
+`base.aon` *includes* `policy.aon`. Enabling the expired flag:
 
 ```
 $ aontu set '$.flags.search_reranker_v3.enabled=true' --entry base.aon --overlay overlay.aon
@@ -173,16 +190,17 @@ This value fails an evaluate-only check written with must().
 The author's message is: expired flags must be disabled
 ```
 
-Same trap for range: `set ... rollout=200 --in-place` is
+Same trap for range: `set ... rollout=200 --in-place` was
 `verdict: valid` / `replaced: overlay.aon:2:59 55 -> 200`, and the
-next evaluation of the runtime view fails on
+next evaluation of the runtime view failed on
 `$.policy.rollout_range.megacorp_high`. The write the tool accepted
-makes EVERY subsequent evaluation of the served document fail — for
-a fleet, that is "config service down", not "one flag wrong".
-Workaround: treat `set` + full eval of `system.aon` as one
-transaction and roll the overlay back on a non-zero eval (what
-check.sh does); but that is the caller reimplementing the gate the
-verb advertises.
+made EVERY subsequent evaluation of the served document fail — for
+a fleet, that is "config service down", not "one flag wrong". The
+workaround was to treat `set` + full eval of `system.aon` as one
+transaction and roll the overlay back on a non-zero eval, which is the
+caller reimplementing the gate the verb advertises. No longer needed:
+both traps are refused at write time, and check.sh now asserts that
+neither refused line reaches the overlay.
 
 ### 2. A constraint and a ranked default cannot share a field — and the workaround is silently wrong (critical)
 

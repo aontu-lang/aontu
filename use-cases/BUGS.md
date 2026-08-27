@@ -35,15 +35,30 @@ Cross-cutting root causes, visible across families:
    independently and children never meet each other's data.
    Families: sibling-crosswire (fixed), generator-seal (fixed).
 2. **Vet's incompleteness check is generation-based and filters to
-   incomplete-class errors**, so unresolved disjunctions vanish
-   (`DisjunctVal.gen` folds members with unify and the conflict is
-   filtered), and gen-time mark-skipping erases required-key findings.
-   Family: vet-soundness.
+   incomplete-class errors**, so unresolved disjunctions vanished
+   (`DisjunctVal.gen` folded members with unify and the conflict was
+   filtered) and gen-time mark-skipping erased required-key findings.
+   **FIXED 2026-08-27 (ADR-007), both halves.** An unresolved
+   disjunction is now `disjunct_no_gen`, class *incomplete* — the class
+   vet keeps — instead of a scalar conflict between its own branches;
+   and under `--at` the completeness probe descends through the output
+   marks, because a mark is a decision about output and `--at` names
+   the truth to validate against. Family: vet-soundness (§13, §14).
 3. **The schema layer settles alone before the data meet**, so
    schema-internal references, template-conjoined sizing atoms, and
    map-argument `must()` are consumed against schema-side values and
    never re-fired against data — vet and one-document eval return
-   opposite verdicts for identical compositions. Family: vet-soundness.
+   opposite verdicts for identical compositions.
+   **PARTLY FIXED 2026-08-27 (ADR-007)**: the meet is now built from a
+   FRESH PARSE of the schema, so the fixpoint runs once over both
+   documents and references (§15) — and the `must()` audits on the
+   write path, which is what made `aontu set` accept writes its own
+   policy refuses — see the data. The standalone pass remains, as the
+   diagnosis it always was. What survives is the pair that is an engine
+   defect rather than a staging one: a sizing atom (§16) and a
+   map-argument `must()` (§17) are discharged against the layer they
+   share a conjunct with, and reproduce in a plain two-tree meet.
+   Family: vet-soundness.
 4. **The provenance recorder only attributes meets on original AST
    nodes** — later spread siblings, pack-generated children, and one
    side of every id-merge see cloned/normalised structures whose meets
@@ -274,6 +289,19 @@ residue errors. The only spelling giving the correct triple is
 `role: string & must('a'|'b', "msg")`. Repros: `enum-missing-key.aon`,
 `plain-disjunct-satisfied.aon`.
 
+
+Status: FIXED 2026-08-27 (ADR-007) — an unresolved disjunction no longer
+FOLDS its members together at generation. Generation answers the
+preferred alternative, or the single surviving one; more than one still
+admitted raises `disjunct_no_gen`, class **incomplete** — so vet's
+incompleteness pass, which keeps incomplete-class findings, now reports
+it. `user:{role:'a'|'b'}` with `user:{}` answers `verdict: incomplete`,
+exit 3, naming `$.user.role`; a value that selects an alternative still
+passes and one that selects none is still the `|:empty` refusal. The
+fold's other victim went with it: `({x:1}|{y:2}) & {z:3}` no longer
+generates `{x:1,y:2,z:3}`, a map in neither branch. Both ports; pinned
+by `vet.tsv` vet-enum-missing-is-incomplete and its two controls, and by
+four `disjunct_no_gen` rows in `disjunct.tsv`.
 ### 14. `type()`/`hide()` above the vet anchor drops required-key checks [critical]
 `vet --at '$.marked.R'` where `marked: type({R: {a: string, b:
 string}})` → `valid` for data missing `b`; the unmarked anchor answers
@@ -283,6 +311,16 @@ vet). **Correction to the use-case READMEs: `copy()` does restore
 enforcement** in every arrangement tried. Repro:
 `mark-drops-required.aon`.
 
+
+Status: FIXED 2026-08-27 (ADR-007) — vet finds residue by GENERATING the
+anchored meet, and generation honours the output marks. Under `--at` the
+probe now descends through them (`Ctx.probe` / `AontuContext.probe`): a
+mark is a decision about output, and `--at` names the truth to validate
+against explicitly. `vet --at '$.marked.R'` against
+`marked: type({R:{a:string,b:string}})` reports the missing `b` and
+answers incomplete, while complete data still passes and a wrong-kind
+value is still refused. Both ports; pinned by `vet.tsv`
+vet-at-marked-anchor-required / -complete / -conflict.
 ### 15. Schema-internal references bind schema-side only under vet [critical]
 Schema `a: integer` / `b: $.a`, data `{"a": 3, "b": 4}` →
 `verdict: valid`; the same four lines as one document refuse with
@@ -292,6 +330,30 @@ way. References are consumed during the schema-only evaluation and
 never re-fired when data arrives. Repros: `stale-reference.aon`,
 `stale-reference-branch.aon`.
 
+
+Status: FIXED 2026-08-27 (ADR-007) — vet evaluated the schema ALONE to
+decide whether it stands up, then used that SETTLED tree as the left
+side of the meet, so every reference had already resolved against the
+schema's own values and been replaced by them. The standalone pass
+remains, as the diagnosis it always was; the meet is now built from a
+FRESH PARSE, so the fixpoint runs once over both documents and
+references, spreads and generators all see the data. `a:integer b:$.a`
+with `{"a":3,"b":4}` answers `verdict: invalid`, `$.b: scalar_value`,
+which is what the same four lines as one document have always said.
+
+**Under `--at` the settled anchor is kept, by decision.** An anchor is
+a subtree *lifted out of* the schema, and an absolute reference inside
+it (`$.OrderPlaced`, the discriminated-union idiom) names a sibling of
+the document root the lifted subtree no longer has; the settled tree is
+where such a reference has already been resolved. Pinned by
+`vet.tsv:vet-at-absolute-ref-*` so the two ports cannot drift on it.
+
+The sharpest practical consequence is on the WRITE path: `aontu set`
+takes vet's verdict, so it used to accept writes its own `must()`
+audits refuse — use case 08's expired-flag and out-of-range-rollout
+traps, both caught only post-hoc in the assembled runtime view. A
+refused write is now refused at the point of writing and never reaches
+the overlay. Both ports.
 ### 16. Sizing atoms sharing a conjunct with a container fold against that layer alone [critical]
 `x: length(max(2)) & { &: {r:integer} }` vs 3 data entries → `valid`
 (canon of the schema alone already shows the atom stripped);
@@ -423,6 +485,17 @@ Both ports; pinned by `ts/test/cli.test.ts`
 control too, so a fix that merely reported breaking would fail. A file
 absent from the revision is now refused by name.
 
+Correction 2026-08-27: the first cut of that fix computed the
+repo-relative path by relativising `git rev-parse --show-toplevel`
+against the caller's resolved path, which subtracts two different
+coordinate systems -- git prints the real path, the caller's is
+whatever they typed. On macOS a temp file under `/var` is
+`/private/var` to git and on Windows a `TMP` short name is the long
+form, so the verb exited 2 on both platforms while passing on Linux.
+The path now comes from git itself (`rev-parse --show-prefix`), and
+both tests gained a leg that reaches the entry through a SYMLINK, so
+the case runs on every platform.
+
 ### 27. Module-internal references break under nested import, naming a phantom path [major]
 A module that evaluates and hashes standalone fails when imported at a
 nested key (`no_path` at `$.mod.spec.port` — a path existing in
@@ -448,6 +521,19 @@ written in the documented close-per-entry idiom hard-fails reflexivity
 and must run `--allow-undecided`, which then masks genuine undecideds.
 Repro: `spread-residue-self-undecided.aon`.
 
+
+Status: FIXED 2026-08-27 — REFLEXIVITY IS A LAW of the subsumption
+walk, not a rule the ladder gets to skip. Every value admits itself,
+residue included: the set admitted by `integer & min(0)` is exactly the
+set admitted by `integer & min(0)`. The check sits on the
+`sub_unresolved` branch, where the answer would otherwise be undecided,
+so the hot path is untouched, and identity is the HASH FORM rather than
+the canon — canon drops closedness and the marks, so `close({a:1})` and
+`{a:1}` share a canon while admitting different sets. Contracts written
+in the documented close-per-entry idiom now pass their own gate without
+`--allow-undecided`, which means the flag is back to meaning what it
+says. Both ports; pinned by `subsume.tsv` self-spread-residue and
+self-spread-residue-closed, and by use case 07's self-compare check.
 ### 29. `--profile gen` is not reflexive on the documented policy idiom [major]
 `aontu_policy: hide({compat: *backward | forward | full | none})` — the
 verbatim idiom from `reference-api.md` — fails self-subsumption under
@@ -456,6 +542,27 @@ hidden pref-disjunction collapses to its effective default). Trigger:
 `hide()` around a preference-bearing disjunction. Repro:
 `gen-hide-pref-self-undecided.aon`.
 
+
+Status: FIXED 2026-08-27 — two causes, both ADR-004 leftovers. (a) The
+walk compared a pref MEMBER of a disjunction by its KIND superior, the
+pre-gate reading: under ADR-004 a preferred branch contributes exactly
+its own value to the admitted set, so `*backward` admits `"backward"`
+and not every string. Every member of the specific side widened to
+`string`, which no general member admits, and the walk answered the
+distribution case. (b) The `gen` profile's mark rule fired inside a
+DISTRIBUTION TRIAL — comparing a whole marked disjunction against a
+member extracted out of one, which are not corresponding nodes of the
+two documents. A trial asks about admitted sets; the marks question
+belongs to the correspondence walk, where the enclosing node's marks
+are already compared. Both ports; pinned by `subsume.tsv`
+self-hide-pref-disjunct, self-policy-idiom, and hide-added-still-refused
+(the control: a mark that really did change is still refused).
+
+(a) also sharpened two existing rows from `undecided` to
+`does_not_subsume`: with a pref member admitting its own value, the
+counterexample is CONCRETE and the walk can name it instead of
+shrugging — see subsume.tsv default-indeterminate-general and
+default-rank-mixed, both re-probed.
 ### 30. The judged document waives its own gate [major, by design]
 `breaking` reads `$.aontu_policy.compat` from the **new** side, so a PR
 that pins `compat: "none"` waives the gate judging it — documented, and
@@ -465,7 +572,12 @@ json`'s `"mode":"none"` shows it). CI must pin `--mode`. Repro pair:
 
 (Also verified: concrete version strings self-break the gate and
 `breaking` has no `--at` — by design per subsumption's own rules; the
-module boundary (`mod.aon`'s `version:`) is the documented safe home.)
+module boundary (`mod.aon`'s `version:`) is the documented safe home.
+**`breaking --at <path>` landed 2026-08-27**, the same anchor `subsume`
+has taken since G3: a module's top level carries exactly the things
+that are supposed to change between releases, so anchoring at the
+contract is the fix and splitting the file was the workaround. Findings
+are reported from the anchor. §30's waiver stands as designed.)
 
 ---
 
@@ -572,6 +684,29 @@ index — the doc's `pack` spelling covers the transform case.)
 
 ---
 
+## defaults — the enum-with-default written the other way round
+
+### 38. A preference conjoined with a disjunction is silently dropped [critical]
+`("1.0"|"1.1") & *"1.0"` — the enum-with-default spelled as a conjunct
+rather than as `*"1.0"|"1.1"` — carried **no default at all**.
+Distribution takes the preference to each member, and the kind gate
+then replaces a scalar preference *by* the concrete member it met, so
+nothing preferred survived: canon read `"1.0"|"1.1"`, the two spellings
+of the same idiom disagreed, and two contracts differing only in their
+default hashed identically (use case 07's `probes/default-a.aon` vs
+`default-b.aon`). Generation's old member fold hid all of it by folding
+the alternatives together.
+
+Status: FIXED 2026-08-27 (ADR-007) — `(A|B) & *A` is now `*A|B`: after
+distribution, a surviving member equal to the preferred value is
+wrapped back as a preference of the peer's rank. `default-a.aon`
+generates `"1.0"`, canon keeps the `*`, and the two probes hash
+differently. A preference naming no alternative is still dropped — it
+has nothing to prefer, and the default-validity lint is what reports
+that shape. Both ports; pinned by six `pref.tsv` rows
+(pref-conjunct-distributes-* and pref-conjunct-names-nothing-*),
+including one asserting the two spellings canon identically.
+
 ## trust — surfaces that ignored the include capability
 
 ### 37. Verbs, the REPL and LSP hover all ran the unconfined resolver [critical]
@@ -614,7 +749,8 @@ the leading-`//` line silently converting a document into a list and
 dropping every following key (exit 0); `@"file.json"` includes yielding
 `{}` silently at top level and a raw TypeError nested; the
 `DisjunctVal` generation chimera (`({x:1}|{y:2}) & {z:3}` → merged
-map); canon not round-tripping constraint residuals
+map, **FIXED 2026-08-27 by ADR-007** -- see §13); canon not
+round-tripping constraint residuals
 (`a: min(true)` → `constraint()`); the `$KEY`-in-default and
 `$KEY`-with-referenced-shape resolution bugs that podmind's models
 carry workarounds for; `why`'s tutorial mismatch; and the ADR-002

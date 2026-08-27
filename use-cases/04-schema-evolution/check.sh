@@ -75,11 +75,18 @@ say "vet: an undeclared key is refused by the closed map (exit 1, [aontu/closed]
 run 1 "$TMP/vet-closed" $AONTU vet --at '$.profile' profile-v2.aon data/customer-unknown-field.json
 has "[aontu/closed]" "$TMP/vet-closed"
 
-say "vet: DOCUMENTED GAP -- a missing required literal-enum key (tier) vets valid, not incomplete"
-# tier is 'standard'|'premium'|'enterprise' with no default; the
-# instance omits it, yet the verdict is valid / exit 0.  README, gap 2.
-run 0 "$TMP/vet-notier" $AONTU vet --at '$.profile' profile-v2.aon data/customer-missing-tier.json
-has "verdict: valid" "$TMP/vet-notier"
+say "vet: a missing required literal-enum key (tier) is incomplete (exit 3)"
+# GAP CLOSED 2026-08-27 (ADR-007). tier is
+# 'standard'|'premium'|'enterprise' with no default and the instance
+# omits it. The verdict used to be valid / exit 0: generation FOLDED
+# the alternatives together, and the resulting scalar CONFLICT was
+# filtered out by vet's incomplete-class pass. It is now
+# `disjunct_no_gen`, class incomplete -- the same answer the regex-enum
+# workaround below has always given, so the workaround is no longer
+# needed to make presence enforceable.  README, gap 2.
+run 3 "$TMP/vet-notier" $AONTU vet --at '$.profile' profile-v2.aon data/customer-missing-tier.json
+has "verdict: incomplete" "$TMP/vet-notier"
+has "disjunct_no_gen" "$TMP/vet-notier"
 
 say "vet: the regex-enum workaround (v3 region) does report the omission (exit 3, incomplete)"
 run 3 "$TMP/vet-noregion" $AONTU vet --at '$.profile' profile-v3.aon data/customer-ok.json
@@ -147,11 +154,16 @@ run 0 "$TMP/marks-d" $AONTU subsume --profile defaults probes/hide-score-v2.aon 
 run 1 "$TMP/marks-g" $AONTU subsume --profile gen probes/hide-score-v2.aon probes/hide-score-v1.aon
 has "compat_marks_changed" "$TMP/marks-g"
 
-say "profiles: DOCUMENTED BUG -- under gen, v2 does not subsume ITSELF (hidden pref-disjunction, exit 3)"
-# The documented aontu_policy idiom (hide + *pref|...) makes gen-profile
-# self-comparison undecided.  README, gap 5.
-run 3 "$TMP/gen-self" $AONTU subsume --profile gen profile-v2.aon profile-v2.aon
-has "sub_disjunct_distribution" "$TMP/gen-self"
+say "profiles: under gen, v2 subsumes ITSELF (gap closed 2026-08-27)"
+# The documented aontu_policy idiom (hide + *pref|...) used to make
+# gen-profile self-comparison undecided. README, gap 5. Two causes,
+# both closed: a pref MEMBER was compared by its kind superior (the
+# pre-ADR-004 reading, which the walk kept after the engine stopped
+# using it), and the gen profile's mark rule fired inside a
+# DISTRIBUTION TRIAL, comparing a whole marked disjunction against a
+# member extracted out of one.
+run 0 "$TMP/gen-self" $AONTU subsume --profile gen profile-v2.aon profile-v2.aon
+has "verdict: subsumes" "$TMP/gen-self"
 
 # ------------------------------------------------------ undecided cases
 say "undecided: a Band-B must() on the new side stops the gate (exit 3, sub_evaluate_only)"
@@ -182,9 +194,12 @@ run 1 "$TMP/meta" $AONTU breaking --against probes/meta-v1.aon probes/meta-v2.ao
 has '$.meta.version' "$TMP/meta"
 has "compat_narrowed" "$TMP/meta"
 
-say "metadata: breaking has no --at to skip it (usage, exit 2); subsume --at is the manual workaround"
-run 2 "$TMP/meta-at" $AONTU breaking --against probes/meta-v1.aon --at '$.profile' probes/meta-v2.aon
-has "unknown breaking option --at" "$TMP/meta-at"
+say "metadata: breaking --at skips it (gap closed 2026-08-27)"
+# `breaking` now takes subsume's own anchor, so the version bump above
+# stops deciding the verdict and the contract is compared on its own.
+# The manual subsume --at workaround still answers the same way.
+run 0 "$TMP/meta-at" $AONTU breaking --against probes/meta-v1.aon --at '$.profile' probes/meta-v2.aon
+has "verdict: compatible" "$TMP/meta-at"
 run 0 "$TMP/meta-sub" $AONTU subsume --at '$.profile' probes/meta-v2.aon probes/meta-v1.aon
 has "verdict: subsumes" "$TMP/meta-sub"
 

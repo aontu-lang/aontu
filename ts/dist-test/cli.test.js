@@ -527,6 +527,27 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
         vetCapture(() => Assert.equal((0, cli_1.runBreaking)(['--against', f.specific, '--mode', 'forward', f.general]), 1));
         vetCapture(() => Assert.equal((0, cli_1.runBreaking)(['--against', f.specific, '--mode', 'full', f.general]), 1));
     });
+    // `--at` GATES A SUBTREE. A module's top level carries the version
+    // string and the policy block, which are SUPPOSED to change between
+    // releases -- so the whole-document comparison answered about them
+    // rather than about the contract, and a release that bumped only its
+    // version self-broke the gate. `subsume` has taken `--at` since G3;
+    // `breaking` did not, so the only way to gate a subtree was to split
+    // the file (use-cases/REVIEW.md finding D). The first leg is the
+    // control: without it, the version bump alone is breaking.
+    (0, node_test_1.test)('breaking-at-gates-a-subtree', () => {
+        const f = subFiles('version: "2.0.0"\nsvc: {port: integer}', 'version: "1.0.0"\nsvc: {port: integer}');
+        const whole = vetCapture(() => Assert.equal((0, cli_1.runBreaking)(['--against', f.specific, f.general]), 1));
+        Assert.match(whole.out, /\$\.version: compat_narrowed/);
+        const at = vetCapture(() => Assert.equal((0, cli_1.runBreaking)(['--at', '$.svc', '--against', f.specific, f.general]), 0));
+        Assert.match(at.out, /verdict: compatible/);
+        // And it still gates: a narrowing INSIDE the anchor is refused.
+        // Paths are reported from the ANCHOR, which is `subsume --at`'s
+        // own convention.
+        const g = subFiles('version: "2.0.0"\nsvc: {port: 8080}', 'version: "1.0.0"\nsvc: {port: integer}');
+        const narrowed = vetCapture(() => Assert.equal((0, cli_1.runBreaking)(['--at', '$.svc', '--against', g.specific, g.general]), 1));
+        Assert.match(narrowed.out, /\$\.port: compat_narrowed/);
+    });
     (0, node_test_1.test)('breaking-resolves-git-revisions', () => {
         const { execFileSync } = require('node:child_process');
         const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-brk-'));
@@ -588,6 +609,33 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
         const r = vetCapture(() => Assert.equal((0, cli_1.runBreaking)(['--against', 'git#HEAD', entry]), 1));
         Assert.match(r.out, /verdict: breaking/);
         Assert.match(r.out, /\$\.svc\.port/);
+        // THE PATH TO THE ENTRY NEED NOT BE THE PATH GIT PRINTS. Reaching
+        // the same file through a SYMLINK is the shape macOS and Windows
+        // hand every run of this verb: on macOS a temp file under /var is
+        // /private/var to git, and on Windows a TMP short name is the long
+        // form -- so relativising git's toplevel against the caller's
+        // resolved path subtracted two different coordinate systems, gave
+        // a `../..` climb, and the entry was "not in that revision". Exit
+        // 2 on both platforms, green on Linux, for the documented CI
+        // spelling. The repo-relative path now comes from git itself
+        // (`rev-parse --show-prefix`), so the caller's spelling cannot
+        // matter -- and this row runs that case on every platform.
+        //
+        // Best-effort: Windows refuses a symlink without Developer Mode,
+        // which is a privilege question rather than a defect in anything
+        // being tested. Twin: TestBreakingGitEntryPathNeedNotBeGits.
+        const linked = Path.join(dir, 'linked');
+        let symlinked = true;
+        try {
+            Fs.symlinkSync(model, linked, 'dir');
+        }
+        catch {
+            symlinked = false;
+        }
+        if (symlinked) {
+            const via = vetCapture(() => Assert.equal((0, cli_1.runBreaking)(['--against', 'git#HEAD', Path.join(linked, 'entry.aon')]), 1));
+            Assert.match(via.out, /verdict: breaking/);
+        }
         // No git binary at all: still a located usage failure, using the
         // spawn error's own message since there is no stderr to quote.
         const savedPath = process.env.PATH;
@@ -647,6 +695,10 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
         const gf = subFiles('a:1', 'a:1');
         Assert.equal(vetCapture(() => Assert.equal((0, cli_1.runBreaking)(['--against', 'git#', gf.general]), 2)).err.includes('git# needs a revision'), true);
         vetCapture(() => Assert.equal((0, cli_1.runBreaking)(['--mode', 'sideways', '--against', 'a.aon', 'b.aon']), 2));
+        // LAST, so the flag really has no argument: `--at --against x`
+        // would take '--against' as the path, which is a different (and
+        // already-covered) failure.
+        vetCapture(() => Assert.equal((0, cli_1.runBreaking)(['--against', 'a.aon', 'b.aon', '--at']), 2));
         vetCapture(() => Assert.equal((0, cli_1.runBreaking)(['--format', 'yaml', '--against', 'a.aon', 'b.aon']), 2));
         vetCapture(() => Assert.equal((0, cli_1.runBreaking)(['--bogus']), 2));
         const f = subFiles('a:1', 'a:1');

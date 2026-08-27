@@ -92,15 +92,21 @@ by it.
 Severity: **critical** = defeats the scenario silently; **major** =
 blocks or forces a structural workaround; **minor/polish** = friction.
 
-### Gap 1 (critical): a missing required enum field vets as `valid`
+### Gap 1 (critical): a missing required enum field vets as `valid` -- FIXED 2026-08-27
 
-A candidate that omits `role` entirely -- required, `"admin" |
-"member" | "viewer"` -- passes:
+**Closed by [ADR-007](../../ADR.md).** A candidate that omits `role`
+entirely -- required, `"admin" | "member" | "viewer"` -- used to pass.
+It is now incomplete, the same answer and exit code a missing non-enum
+field gets:
 
 ```
 $ aontu vet --at '$.msg.CreateUserRequest' contract.aon data/create-user-missing-role.json
-verdict: valid          # exit 0
+verdict: incomplete     # exit 3
+
+$.msg.CreateUserRequest.role: disjunct_no_gen [incomplete]
 ```
+
+The rest of this entry is the diagnosis as it stood.
 
 Minimal repro: any required field whose residual contains a scalar
 disjunction is silently satisfiable-by-absence, while `re()`/`string`
@@ -113,12 +119,19 @@ fields correctly report `mapval_required`:
 ```
 
 Every enum in a real API contract (role, status, visibility, error
-code, HTTP method) is optional-in-practice. The only spelling that
-enforces presence is a regex enum, which abandons the lattice-native
-disjunction. Pinned by check 11. Related: plain evaluation of an
-unresolved enum *does* refuse, but with a misleading message --
-`Cannot unify value: "y" with value: "x"` under `[aontu/scalar_value]`
--- as if the two alternatives conflicted with each other.
+code, HTTP method) was optional-in-practice. The only spelling that
+enforced presence was a regex enum, which abandons the lattice-native
+disjunction.
+
+The root was a single line of generation: an unresolved disjunction's
+surviving members were FOLDED together with unify and the result
+emitted. That fold produced the misleading eval message too --
+`Cannot unify value: "y" with value: "x"` under `[aontu/scalar_value]`,
+as if the two alternatives conflicted with each other -- and, being a
+*conflict*, it was filtered out by vet's incomplete-class pass, which
+is why vet said nothing at all. Both surfaces now answer
+`disjunct_no_gen`, class incomplete, naming the disjunction. Pinned by
+check 11.
 
 ### Gap 2 (critical): `hide()`/`type()` anchors silently lose required-field checks
 
@@ -297,12 +310,13 @@ attribution defect: the Go port answers `items.1`. Site-attribution
 family, still open. Related cosmetic form: a bad element against an
 inline spread reports a doubled index, `$.tags.1.0`.)
 
-### Gap 9 (minor): enum findings have no schema location
+### Gap 9 (minor): enum findings have no schema location -- FIXED 2026-08-27
 
-Every `|:empty` schema site is `-1:-1` (see gap 6's JSON: the
-disjunction apparently loses its source span). The alternatives are
-printed but the agent cannot jump to where the enum is defined.
-Pinned by check 9.
+Every `|:empty` schema site was `-1:-1`: the alternatives were printed
+but the agent could not jump to where the enum is defined. The meet
+mints a fresh disjunction, which arrived unsited; a narrowed
+disjunction now carries the site of the one it came from, so the
+finding names `contract.aon:35:15`. Pinned by check 9.
 
 ### Gap 10 (major): `&:` spreads make evolution checks undecidable -- a contract is not self-compatible
 
@@ -384,10 +398,14 @@ the engine is its own kind of contract violation.
 Can an agent self-repair from vet findings? **For value defects, yes
 -- demonstrably, in one round** (checks 14-15: clamp from `expected`,
 enum from the schema site, and the loop re-vets green). For *shape*
-defects the report under-delivers: key typos get no candidates (gap
-6), missing enum fields get silence (gap 1), list findings point at
-the wrong element (gap 8), and the schema-side coordinates cannot be
-trusted across includes (gap 3). The machinery for all four fixes
-visibly exists elsewhere in the tool (did-you-mean, `get --keys`,
-correct `why` sites); it has not been wired into the one report the
-agent loop consumes.
+defects the report still under-delivers: key typos get no candidates
+(gap 6), list findings point at the wrong element (gap 8), and the
+schema-side coordinates cannot be trusted across includes (gap 3). The
+machinery for all three fixes visibly exists elsewhere in the tool
+(did-you-mean, `get --keys`, correct `why` sites); it has not been
+wired into the one report the agent loop consumes.
+
+**2026-08-27**: two of the five are closed. A missing enum field is no
+longer silence (gap 1, ADR-007) and enum findings now carry a schema
+location (gap 9), so the repair loop's enum branch has both a verdict
+and somewhere to jump to.

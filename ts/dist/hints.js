@@ -26,6 +26,10 @@ const hints = {
         'generated because nil is not a literal value.',
     no_gen: 'This value was present after unification, and cannot be generated\n' +
         'because it is not a literal value.',
+    disjunct_no_gen: 'More than one alternative of this disjunction is still admitted, so\n' +
+        'there is no single value to generate. Supply a value that selects\n' +
+        'one alternative, or write a preference (*) to say which one holds\n' +
+        'when nothing else does.',
     // TODO: extend errors to have details so we can name the key
     mapval_required: 'This map value is required.',
     mapval_no_gen: 'This value was present after unification, and cannot be generated\n' +
@@ -365,6 +369,7 @@ const codeClasses = {
     close: 'conflict',
     // incomplete -- residue: the truth requires more than was supplied
     no_gen: 'incomplete',
+    disjunct_no_gen: 'incomplete',
     conjunct: 'incomplete',
     mapval_no_gen: 'incomplete',
     mapval_required: 'incomplete',

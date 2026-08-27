@@ -44,8 +44,12 @@ lacks() {
 # Whole-file generation is BLOCKED by design (README gap 2 forces the
 # vet anchors to stay unmarked, and unmarked abstract values cannot
 # generate). Pin that price:
+# 2026-08-27 (ADR-007): the refusal is now `disjunct_no_gen`, class
+# incomplete -- "more than one alternative still admitted" -- rather
+# than a scalar_value CONFLICT between an enum's own branches, which is
+# what folding them together used to report.
 run geneval 1 -- "$DIR/contract.aon"
-has geneval err '[aontu/scalar_value]'
+has geneval err '[aontu/disjunct_no_gen]'
 ok "contract.aon does not generate (the documented price of gap 2)"
 
 # 2026-08-26: golden regenerated after the template-clone isolation
@@ -109,9 +113,13 @@ has vsubtle out '[aontu/constraint]'
 has vsubtle out 'expected: re("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")'
 has vsubtle out '[aontu/|:empty]'
 has vsubtle out '"admin"|"member"|"viewer"'
-# ...but the enum finding's schema site has no source location:
-has vsubtle out 'contract.aon:-1:-1'
-ok "vet: bad email + bad enum refused; alternatives shown, enum site is -1:-1"
+# ...and, since 2026-08-27 (ADR-007), the enum finding's schema site
+# has a real source location. The meet mints a fresh disjunction, which
+# used to arrive unsited, so this finding pointed at -1:-1 with nowhere
+# for a repair loop to go; a narrowed disjunction now carries the site
+# of the one it came from.
+has vsubtle out 'contract.aon:35:15'
+ok "vet: bad email + bad enum refused; alternatives shown, enum site located"
 
 # Missing required field, non-enum: verdict incomplete, exit 3 -- the
 # loop's third answer ("add what is missing" vs "fix what is wrong").
@@ -132,13 +140,18 @@ sed -n "${row}p" "$DIR/contract.aon" | grep -q 'DisplayName' \
   || true
 ok "vet: missing name -> exit 3; schema site misattributed to entry file"
 
-# GAP 1 (silent pass): a required ENUM field can be omitted entirely --
-# the unresolved disjunction counts as concrete. This candidate is
-# missing role, and vet says valid. Delete this pin when fixed.
-run vhole 0 -- vet --at '$.msg.CreateUserRequest' "$DIR/contract.aon" \
+# GAP 1 CLOSED 2026-08-27 (ADR-007). A required ENUM field could be
+# omitted entirely: the unresolved disjunction counted as concrete
+# because generation FOLDED its members together, and the resulting
+# scalar CONFLICT was filtered out by vet's incomplete-class pass. It
+# is now `disjunct_no_gen`, class incomplete -- the same answer the
+# missing non-enum field above gets, and the same exit code, so the
+# repair loop's "add what is missing" branch covers both.
+run vhole 3 -- vet --at '$.msg.CreateUserRequest' "$DIR/contract.aon" \
   "$DIR/data/create-user-missing-role.json"
-has vhole out 'verdict: valid'
-ok "vet: missing required enum field passes silently (pinned gap 1)"
+has vhole out 'verdict: incomplete'
+has vhole out '$.msg.CreateUserRequest.role: disjunct_no_gen [incomplete]'
+ok "vet: missing required enum field is incomplete (exit 3)"
 
 # Surplus keys against close(): refused, but with NO nearest-key help.
 run vsurp 1 -- vet --at '$.msg.CreateUserRequest' "$DIR/contract.aon" \

@@ -200,13 +200,16 @@ describe('unify', function() {
   test('condis-different', () => {
     expect(G('a')).equal('a')
     expect(N('a|b')).equal('"a"|"b"')
-    expect(() => G('a|b')).throws(/aontu\/scalar/)
+    // ADR-007: an unresolved disjunction is INCOMPLETE residue, not the
+    // scalar CONFLICT the old generation fold reported by unifying the
+    // members with each other.
+    expect(() => G('a|b')).throws(/aontu\/disjunct_no_gen/)
     expect(N('a&b')).equal('nil')
     expect(() => G('a&b')).throws(/aontu\/scalar/)
 
     expect(G('x:a')).equal({ x: 'a' })
     expect(N('x:a|b')).equal('{"x":"a"|"b"}')
-    expect(() => G('x:a|b')).throws(/aontu\/scalar/)
+    expect(() => G('x:a|b')).throws(/aontu\/disjunct_no_gen/)
     expect(N('x:a&b')).equal('{"x":nil}')
     expect(() => G('x:a&b')).throws(/aontu\/scalar/)
 
@@ -219,7 +222,7 @@ describe('unify', function() {
     expect(G('(a|b)&a')).equal('a')
 
     expect(N('a&a|b')).equal('"a"|"b"')
-    expect(() => G('a&a|b')).throws(/aontu\/scalar/)
+    expect(() => G('a&a|b')).throws(/aontu\/disjunct_no_gen/)
     expect(G('a&a|b&a')).equal('a')
     expect(G('(a&a)|(b&a)')).equal('a')
     expect(G('(a&a)|nil')).equal('a')

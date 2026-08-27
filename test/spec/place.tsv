@@ -52,7 +52,10 @@ place-under-pref-canon	canon	m:{a:1}\nd:pack($.m,{v:*_|integer})\n	{"d":{"a":{"v
 # is the same refusal two placeheld calls are.
 place-two-op-holes	errc	a:_+2 & _+3\n	place_pair
 place-under-conjunct	gens	m:{a:1,b:2}\nd:pack($.m,{v:_ & integer})\n	{"d":{"a":{"v":1},"b":{"v":2}},"m":{"a":1,"b":2}}
-place-under-disjunct	errc	m:{a:1,b:2}\nd:pack($.m,{v:_ | string})\n	no_scalar_unify
+# The hole fills with 1, leaving `1|string`: two alternatives still
+# admitted, so incomplete residue rather than a scalar conflict
+# (ADR-007).
+place-under-disjunct	errc	m:{a:1,b:2}\nd:pack($.m,{v:_ | string})\n	disjunct_no_gen
 place-under-list	gens	m:{a:1,b:2}\nd:pack($.m,{v:[_,9]})\n	{"d":{"a":{"v":[1,9]},"b":{"v":[2,9]}},"m":{"a":1,"b":2}}
 place-under-nested-map	gens	m:{a:1}\nd:pack($.m,{v:{w:_}})\n	{"d":{"a":{"v":{"w":1}}},"m":{"a":1}}
 place-conjunct-conflict	errc	m:{a:1}\nd:pack($.m,{v:_ & string})\n	no_scalar_unify

@@ -242,7 +242,8 @@ The evolution gate built on the same query: compare a document against
 its own earlier versions.
 
 ```
-aontu breaking --against <file|git#rev> [--mode backward|forward|full]
+aontu breaking --against <file|git#rev> [--at <path>]
+               [--mode backward|forward|full]
                [--allow-undecided] [--format text|json] <file.aon>
 ```
 
@@ -258,6 +259,14 @@ aontu breaking --against <file|git#rev> [--mode backward|forward|full]
   resolve as they always do; their versions travel with the lockfile
   rather than with this comparison. A file the revision does not carry
   is a usage failure naming it, not a comparison against nothing.
+- `--at <path>` compares that path of **both** versions, the same
+  anchor [`subsume`](#aontu-subsume) takes, and findings are reported
+  from it. A module's top level carries the things that are *supposed*
+  to change between releases — the version string, the
+  `aontu_policy` block — so the whole-document comparison answers
+  about those rather than about the contract, and a release that bumps
+  only its version self-breaks the gate. Anchoring at the contract is
+  the fix; splitting the file was the workaround.
 - Modes: **backward** (the default) checks the new document subsumes
   the old — documents valid under v1 stay valid; **forward** checks the
   old subsumes the new; **full** checks both.

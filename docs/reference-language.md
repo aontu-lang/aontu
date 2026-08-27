@@ -438,6 +438,26 @@ a:2  a:string|number → {"a":2}
 
 `&` binds tighter than `|`, so `c & b | a` parses as `(c & b) | a`.
 
+**An unresolved disjunction has no value** (ADR-007). More than one
+alternative still admitted means the truth is not yet settled, so
+generation refuses with `disjunct_no_gen`, class `incomplete` — the
+same class a bare `string` residue answers:
+
+```
+a:1|2                → [aontu/disjunct_no_gen] at $.a
+a:{x:1}|{y:2}        → [aontu/disjunct_no_gen] at $.a
+```
+
+Two things resolve it: a value that selects an alternative, or a
+preference saying which one holds when nothing else does (below).
+Alternatives that are the *same value* collapse first, so `1|1` and
+`{a:1}|{a:1}` each generate that one value — sameness is structural
+for maps and lists (container kind, closedness, marks, optional keys,
+then the children).
+
+An optional key whose value is an unresolved disjunction is dropped
+rather than reported, as every other unresolved optional is.
+
 ## Preference / default `*`
 
 `*x` marks `x` as **preferred** (a default). In a disjunction the
@@ -467,6 +487,18 @@ another kind is a conflict, and that includes the other numeric leaf —
 integer`. A kind peer the default already satisfies leaves the
 preference standing (`a:*1.5 & float` and `a:*1.5 & number` are both
 `1.5`).
+
+**A preference conjoined with a disjunction names an alternative**
+(ADR-007): `(A|B) & *A` is `*A|B`, the same value the direct spelling
+denotes, so the two ways of writing an enum-with-default agree.
+
+```
+a:("1.0"|"1.1") & *"1.0"   → canon {"a":*"1.0"|"1.1"};  generates "1.0"
+a:("1.0"|"1.1") & *"2.0"   → canon {"a":"1.0"|"1.1"}    (names nothing)
+```
+
+A preference naming no alternative is dropped: it has nothing to
+prefer, and the default-validity lint below is what reports that shape.
 
 **A preference inside a disjunction is gated by admission**
 (ADR-004): an override must be admitted by the disjunction itself —

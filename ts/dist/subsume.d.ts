@@ -17,6 +17,7 @@ export type SubsumeReport = {
 };
 type SubState = {
     profile: SubsumeProfile;
+    distributing?: boolean;
     findings: VetFinding[];
     generalUrl: string;
     specificUrl: string;

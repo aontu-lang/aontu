@@ -14,7 +14,7 @@ import { evalFailure } from './query'
 import {
   mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync,
 } from 'node:fs'
-import { dirname, join, relative, resolve, sep } from 'node:path'
+import { basename, dirname, join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 import { createInterface } from 'node:readline'
 
@@ -120,6 +120,9 @@ Subsume exit codes:
 Breaking options:
   --against <v>       An earlier version: a file path, or git#<rev>
                       (resolved by 'git show'); repeatable
+  --at <path>         Compare this path of both versions ($.a.b), so a
+                      module's own version string and policy block do
+                      not decide the verdict
   --mode <m>          backward (new admits old, the default), forward
                       (old admits new), or full (both); overrides the
                       document's own $.aontu_policy.compat declaration
@@ -1133,6 +1136,15 @@ type BreakingArgs = {
   file: string
   against: string[]
   mode?: BreakingMode
+  // `--at`: compare a SUBTREE of both versions. The gate's own
+  // sub-question, and the one a real repository needs -- a document's
+  // top level carries the module's version string and its policy
+  // block, which are supposed to change between releases and which
+  // make the whole-document comparison answer about them rather than
+  // about the contract (use-cases/REVIEW.md finding D). `subsume` has
+  // taken it since G3; `breaking` did not, so the only way to gate a
+  // subtree was to split the file.
+  at?: string
   allowUndecided: boolean
   allowDeprecatedRemoval: boolean
   format: SubsumeFormat
@@ -1143,6 +1155,7 @@ function parseBreakingArgs(
   const files: string[] = []
   const against: string[] = []
   let mode: BreakingMode | undefined
+  let at: string | undefined
   let allowUndecided = false
   let allowDeprecatedRemoval = false
   let format: SubsumeFormat = 'text'
@@ -1170,6 +1183,13 @@ function parseBreakingArgs(
         return { err: 'aontu: --mode needs backward, forward or full' }
       }
       mode = m
+    }
+    else if ('--at' === arg) {
+      const a = argv[++i]
+      if (null == a) {
+        return { err: 'aontu: --at needs a path' }
+      }
+      at = a
     }
     else if ('--allow-undecided' === arg) {
       allowUndecided = true
@@ -1201,7 +1221,7 @@ function parseBreakingArgs(
 
   return {
     args: {
-      file: files[0], against, mode,
+      file: files[0], against, mode, at,
       allowUndecided, allowDeprecatedRemoval, format,
     },
   }
@@ -1268,8 +1288,21 @@ function oldVersion(spec: string, file: string): OldVersion | undefined {
   // that only some failures take.
   const temp = mkdtempSync(join(tmpdir(), 'aontu-against-'))
   try {
+    // THE REPO-RELATIVE PATH COMES FROM GIT, not from path arithmetic.
+    // Relativising `rev-parse --show-toplevel` against `resolve(file)`
+    // puts two DIFFERENT COORDINATE SYSTEMS on either side of the
+    // subtraction: git prints the real path, while the caller's is
+    // whatever they typed. On macOS a temp file under /var is
+    // /private/var to git, and on Windows a TMP short name
+    // (RUNNER~1) is the long form to git -- so the subtraction gave a
+    // `../..` climb, the entry was "not in that revision", and the
+    // documented CI spelling failed on both platforms while passing on
+    // Linux (this PR's own CI). `--show-prefix` is the same question
+    // asked in git's coordinates: the repo-relative directory of the
+    // cwd, already slash-separated and already normalised.
+    const prefix = git(['rev-parse', '--show-prefix'], dir).trim()
+    const entryRel = prefix + basename(file)
     const top = git(['rev-parse', '--show-toplevel'], dir).trim()
-    const entryRel = relative(top, resolve(file)).split(sep).join('/')
 
     // `-z` so a path with a newline or a quote cannot be mistaken for
     // two paths (git otherwise quotes such names).
@@ -1465,6 +1498,7 @@ function runBreaking(argv: string[]): number {
     for (const check of checks) {
       const report = subsume(check.general[0], check.specific[0], {
         trust: verbTrust(trust, entryRootOf(args.file)),
+        at: args.at,
         generalUrl: check.general[1],
         specificUrl: check.specific[1],
         // The old side's relative loads resolve from ITS own tree --

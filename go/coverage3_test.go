@@ -443,6 +443,25 @@ func TestDisjunctGateSkipsPrefSibling(t *testing.T) {
 	}
 }
 
+// A SINGLE-MEMBER DISJUNCTION GENERATES THAT MEMBER (ADR-007). Unify
+// returns the sole survivor directly rather than re-wrapping it, so a
+// document cannot reach Gen holding a one-member disjunct -- but the
+// type allows one, a library caller can build one, and the alternative
+// to answering its member is refusing a disjunction that is not
+// ambiguous at all. Pinned here (ADR-002) because no source spells it.
+// Twin: the same arm of DisjunctVal.gen in ts/src/val/DisjunctVal.ts.
+func TestDisjunctSingleMemberGenerates(t *testing.T) {
+	ctx := &Ctx{root: newMap()}
+	d := newDisjunct([]Val{newInteger(7)})
+	out, err := d.Gen(ctx)
+	if nil != err {
+		t.Fatalf("single member must generate: %v", err)
+	}
+	if int64(7) != out {
+		t.Fatalf("out: %#v", out)
+	}
+}
+
 // recordNotFound guards: no context, and a meta bag without the sink.
 func TestSourceSinkGuards(t *testing.T) {
 	recordNotFound(nil, "x")

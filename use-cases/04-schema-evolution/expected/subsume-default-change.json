@@ -13,21 +13,21 @@
       "severity": "error",
       "sites": [
         {
-          "col": -1,
+          "col": 30,
           "file": "proposals/default-change.aon",
-          "len": -1,
+          "len": 1,
           "role": "general",
-          "row": -1,
-          "src": "",
+          "row": 14,
+          "src": "*",
           "value": "*true|boolean"
         },
         {
-          "col": -1,
+          "col": 16,
           "file": "profile-v2.aon",
-          "len": -1,
+          "len": 1,
           "role": "specific",
-          "row": -1,
-          "src": "",
+          "row": 41,
+          "src": "*",
           "value": "*false|boolean"
         }
       ]

@@ -454,9 +454,10 @@ bigdec-list-canon	canon	x:[0d1,0d2.5,0d3]	{"x":[0d1,0d2.5,0d3]}
 exact-implicit-list-canon	canon	x:[0d1 0d2]	{"x":[0d1,0d2]}
 # In disjuncts, including one spanning both exact leaves. An unresolved
 # disjunct cannot generate, which is ordinary behaviour (`1|2.0` fails the
-# same way) and not an exact-leaf limitation.
+# same way) and not an exact-leaf limitation -- and it is INCOMPLETE
+# residue, the same code any unresolved disjunction answers (ADR-007).
 exact-cross-leaf-disjunct-canon	canon	x:0d1|0d2.0	{"x":0d1|0d2.0}
-exact-disjunct-unresolved-err	err	x:0d1|0d2	Cannot unify
+exact-disjunct-unresolved	errc	x:0d1|0d2	disjunct_no_gen
 exact-pref-disjunct-canon	canon	x:*0d1|0d2	{"x":*0d1|0d2}
 # Under type() and hide(): the mark keeps the value in canon and removes
 # it from generated output, whichever leaf it is.

@@ -125,6 +125,7 @@ close	errcode	conflict	0.51.0
 #
 # incomplete -- residue: the truth requires more than was supplied
 no_gen	errcode	incomplete	0.51.0
+disjunct_no_gen	errcode	incomplete	0.53.0
 conjunct	errcode	incomplete	0.51.0
 mapval_no_gen	errcode	incomplete	0.51.0
 mapval_required	errcode	incomplete	0.51.0

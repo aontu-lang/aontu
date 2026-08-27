@@ -244,15 +244,23 @@ is why `tenant.aon` states the MFA implication structurally
 sessionTimeoutMinutes: … max(60)})`) — which does fire under vet —
 and `must()` appears only in the audit layer.
 
-### 5. An unresolved disjunction vets as valid (major)
+### 5. An unresolved disjunction vets as valid (major) — FIXED 2026-08-27
 
-A candidate with **no plan at all** is `verdict: valid` (check 9),
-because `p: a | b` with data `{}` counts as satisfied — while
-evaluating the same document fails (reported, confusingly, as
-`[aontu/scalar_value] … Cannot unify value: "b" with value: "a"`, the
-branches unified with each other). A kind-typed field is correctly
-`incomplete` (`name` missing → exit 3, `mapval_no_gen`). So required
-enum fields need data to be complete-checked some other way.
+A candidate with **no plan at all** was `verdict: valid` (check 9),
+because `p: a | b` with data `{}` counted as satisfied — while
+evaluating the same document failed, and failed confusingly, as
+`[aontu/scalar_value] … Cannot unify value: "b" with value: "a"`: the
+branches unified with *each other*. That fold was the whole defect.
+Under [ADR-007](../../ADR.md) an unresolved disjunction is incomplete
+residue (`disjunct_no_gen`), which is the class vet keeps, so the
+plan-less candidate is now refused and check 9 asserts the refusal.
+
+Two things travelled with it. The confusing eval message is gone —
+both surfaces now name the disjunction rather than a conflict between
+its own branches. And the cross-field tie below (`entitlement:
+$.Entitlement & {plan: $.tenant.plan}`), described in gap 4 as inert
+under vet, now fires: vet builds its meet from a fresh parse, so the
+reference is no longer spent by the schema-alone pass.
 
 ### 6. Quantification stops at "one filter condition deep" (major)
 

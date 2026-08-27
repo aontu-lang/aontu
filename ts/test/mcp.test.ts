@@ -24,6 +24,8 @@ import {
 } from '../dist/mcp'
 import { main as mcpMain, LineCodec, parseArgs } from '../dist/mcp-server'
 
+import { srcPath } from './srcpath'
+
 
 const ALL_TOOLS = [
   'breaking', 'canon', 'diff', 'get', 'hash', 'relations',
@@ -571,11 +573,15 @@ describe('mcp', () => {
     Assert.deepEqual(payload(callTool('canon',
       { srcPath: 'main.aon' }, { root })),
       { ok: true, canon: '{"x":{"b":2}}', findings: [] })
+    // srcPath, not the native join: inside an @"..." include a
+    // BACKSLASH IS AN ESCAPE, so a Windows path interpolated raw is
+    // eaten by the lexer and the include resolves to nothing. The
+    // helper is shared with the trust suite for exactly this.
     Assert.equal(payload(callTool('canon',
-      { src: `x: @"${Path.join(root, 'inc.aon')}"` }, { root })).canon,
+      { src: `x: @"${srcPath(Path.join(root, 'inc.aon'))}"` }, { root })).canon,
       '{"x":{"b":2}}')
     const esc = payload(callTool('canon',
-      { src: `x: @"${Path.join(outside, 'evil.aon')}"` }, { root }))
+      { src: `x: @"${srcPath(Path.join(outside, 'evil.aon'))}"` }, { root }))
     Assert.equal(esc.ok, false)
     Assert.equal(esc.findings[0].code, 'include_denied')
 
@@ -728,12 +734,17 @@ describe('mcp', () => {
     Assert.match(errs[errs.length - 1], /is not a directory/)
 
     // A real root reaches the codec, realpath'd, and rides into the
-    // handshake.
+    // handshake. Read it back OUT of the JSON rather than substring-
+    // matching the line: a Windows path is backslash-escaped on the
+    // way in, so the raw path is not a substring of its own encoding.
     const root = scratchDir('aontu-mcp-args-')
     const codec = mcpMain(stdin, write, exit, '9', ['--root', root])
     Assert.ok(codec instanceof LineCodec)
     codec!.push('{"id":1,"method":"initialize"}\n')
-    Assert.ok(lines[lines.length - 1].includes(Fs.realpathSync(root)))
+    Assert.equal(
+      JSON.stringify(JSON.parse(lines[lines.length - 1]))
+        .includes(JSON.stringify(Fs.realpathSync(root)).slice(1, -1)),
+      true, lines[lines.length - 1])
   })
 
   test('protocol-errors', () => {

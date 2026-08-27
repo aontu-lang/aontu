@@ -162,18 +162,23 @@ an instance of any alternative of *\"a\"|\"b\"") — the message lists
 "a" as an alternative while claiming it is not one (the lint excludes
 the preferred branch itself), which reads as a false positive.
 
-### 2. A missing required enum key vets as valid (major, soundness)
+### 2. A missing required enum key vets as valid (major, soundness) -- FIXED 2026-08-27
 
-A required key whose schema value is a literal disjunction is simply
-not checked for presence. `data/customer-missing-tier.json` omits
-`tier` entirely:
+**Closed by [ADR-007](../../ADR.md).** A required key whose schema
+value is a literal disjunction was not checked for presence.
+`data/customer-missing-tier.json` omits `tier` entirely, and now says
+so:
 
 ```
 $ aontu vet --at '$.profile' profile-v2.aon data/customer-missing-tier.json
-verdict: valid
+verdict: incomplete
+
+$.tier: disjunct_no_gen [incomplete]
 $ echo $?
-0
+3
 ```
+
+The rest of this entry is the diagnosis as it stood.
 
 Compare `tier: string` (missing → `verdict: incomplete`, exit 3,
 `mapval_required`). Minimal pair: `p: close({a: string, t: "x"|"y"})`
@@ -186,14 +191,21 @@ $ aontu g1.aon      # t: "x" | "y"
  Cannot unify value: "y" with value: "x"
 ```
 
-So vet says "valid — concrete", generation says "cannot unify" — an
-incoherent pair. (That bare-eval error is itself confusing: the source
-contains `|`, the message talks about `&`-style scalar unification.)
-Workaround used in v3: spell required enums as regex constraints
-(`region: string & re("^(us|eu|apac)$")`), which correctly answers
-`incomplete`/exit 3 when omitted — at the price of a residual-style
-witness instead of the crisp "actual: \"enterprise\"" a literal
-disjunction gives on narrowing.
+So vet said "valid — concrete" and generation said "cannot unify": an
+incoherent pair, and the incoherence was one line of generation. An
+unresolved disjunction's members were FOLDED together with unify, which
+produced that confusing bare-eval message (the source contains `|`, the
+message talked about `&`-style scalar unification) and, being a
+*conflict*, was filtered out by vet's incomplete-class pass. Both
+surfaces now answer `disjunct_no_gen`, class incomplete, naming the
+disjunction.
+
+The v3 workaround — spelling required enums as regex constraints
+(`region: string & re("^(us|eu|apac)$")`) — is no longer needed for
+presence, and its price is now avoidable: a literal disjunction gives
+the crisp `actual: "enterprise"` witness on narrowing where the regex
+gives a residual-style one. v3 keeps the regex form here so the
+comparison stays in the record.
 
 ### 3. The document under review can waive its own gate (major, governance)
 
@@ -241,7 +253,16 @@ metadata (sunset dates, tickets) is lost without a warning.
 
 ### 5. `--profile gen` is not reflexive on the documented policy idiom (bug)
 
-A document containing the *documented* `aontu_policy` declaration does
+**FIXED 2026-08-27.** Two ADR-004 leftovers, both closed: the
+subsumption walk compared a pref MEMBER of a disjunction by its kind
+superior (the pre-gate reading — a preferred branch contributes exactly
+its own value), and the `gen` profile's mark rule fired inside a
+DISTRIBUTION TRIAL, comparing a whole marked disjunction against a
+member extracted out of one. `subsume --profile gen profile-v2.aon
+profile-v2.aon` now answers `subsumes`, and a mark that really did
+change is still refused. The diagnosis as it stood:
+
+A document containing the *documented* `aontu_policy` declaration did
 not gen-subsume **itself**:
 
 ```
@@ -277,20 +298,22 @@ $.meta.version: compat_narrowed [compat]
   actual:   "1.0.0"
 ```
 
-— and the gate cannot be anchored below the root:
+— and the gate could not be anchored below the root. **FIXED
+2026-08-27: `breaking --at` landed**, the same anchor `subsume` has
+taken since G3, and it keeps `--mode`, the policy declaration and the
+`--allow-*` flags, which the `subsume --at` workaround gave up:
 
 ```
 $ aontu breaking --against probes/meta-v1.aon --at '$.profile' probes/meta-v2.aon
-aontu: unknown breaking option --at (try --help)
+verdict: compatible
 $ echo $?
-2
+0
 ```
 
-`subsume --at '$.profile'` is the manual workaround (it answers
-`subsumes`), but it loses `--mode`/policy/`--allow-*` — the gate
-features are exactly what you give up. Consequence adopted in this
-model: version numbers live outside the document. `breaking --at`
-would fix this cheaply.
+A registry entry can now carry its own version and still be gated on
+its contract. This model keeps version numbers outside the document
+anyway, so the comparison above stays in the record as the
+demonstration.
 
 ### 7. `diff` is not a CLI verb (minor, doc/CLI mismatch)
 

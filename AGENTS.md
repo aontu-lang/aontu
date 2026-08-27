@@ -219,6 +219,33 @@ right. Nothing in the suite can warn you, because a row that was never
 probed carries no record of having been agreed. Probing costs two
 commands; the alternative costs a wrong contract that looks green.
 
+### The vet ≡ eval differential
+
+Beside the parity probe, which asks whether the two ENGINES agree,
+sits a check that asks whether the two SURFACES agree:
+[`ts/test/veteval.test.ts`](ts/test/veteval.test.ts) and
+[`go/veteval_test.go`](go/veteval_test.go) read the shared spec's own
+`vet` rows and require, for each, that `vet(S, D)` and `eval(S ∪ D)`
+give the same accept/reject answer. Their *reports* legitimately
+differ — vet names roles and sites across two documents, eval raises
+the first failure — but a document the gate accepts must evaluate, and
+one it refuses must not (ADR-007).
+
+Its corpus is the spec itself, so **adding a `vet` row adds a
+differential case for free**, and a change that makes the gate and the
+evaluator disagree fails here even when every golden still matches.
+That is how it earns its place: the five defects the 2026-08 review
+found under this heading each passed a fully green suite.
+
+Rows with no single-document spelling are skipped — `--at` and
+`--closed` change the truth rather than the documents, `--partial`
+calls residue acceptable where eval never does, `--maxErrors` shapes
+only the report, a fixture-loading row would resolve from a different
+base, and a rootless literal carrying an absolute reference has no
+honest wrapped form. The skip COUNT is bounded by the check itself, so
+a skip list that grew to swallow the corpus fails rather than passing
+over nothing.
+
 ### The divergence ledger
 
 When a probe shows the two engines disagreeing, that is a **bug**, and

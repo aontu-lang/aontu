@@ -656,7 +656,42 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 		}
 	}
 
-	pair := newConjunct([]Val{anchor, dataVal})
+	// THE MEET IS FROM A FRESH PARSE, NOT THE SETTLED SCHEMA (the
+	// review's finding C, use-cases/BUGS.md §15). The full note is on
+	// the twin in ts/src/vet.ts; the short of it: step 1 evaluated the
+	// schema ALONE to decide whether it stands up, and that settled tree
+	// was also the left side of the meet -- so every reference in the
+	// schema had already resolved against the schema's own values and
+	// been replaced by them. `a:integer b:$.a` settled to
+	// `a:integer b:integer`, and data {a:3,b:4} then vetted VALID, while
+	// the same four lines as one document refuse with scalar_value.
+	// Parsing again is what makes vet(S,D) and eval(S u D) the same
+	// question. Parsed trees are single-use, hence a second parse.
+	//
+	// ONLY WHEN THERE IS NO --at. An anchor is a SUBTREE lifted out of
+	// the schema, and an absolute reference inside it ($.OrderPlaced,
+	// the discriminated-union idiom) names a sibling of the document
+	// root -- which the lifted subtree no longer has. The settled tree
+	// is where those references have already been resolved and
+	// substituted, so an anchored run keeps meeting that, exactly as it
+	// always has.
+	meetAnchor := anchor
+	if "" == options.At {
+		if freshSchema, ferr := schemaA.Parse(schemaSrc); nil == ferr {
+			meetAnchor = freshSchema
+			if options.Closed {
+				switch n := meetAnchor.(type) {
+				case *MapVal:
+					n.closed = true
+				case *ListVal:
+					n.closed = true
+				}
+			}
+			stampURL(meetAnchor, schemaURL)
+		}
+	}
+
+	pair := newConjunct([]Val{meetAnchor, dataVal})
 	ctx := &Ctx{root: pair, src: dataSrc, collect: true}
 	unified := unifyRoot(pair, ctx)
 	ctx.root = unified
@@ -695,7 +730,12 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 	//    The returned error is deliberately dropped: under collect the
 	//    reasons are recorded on the context, which is the whole point
 	//    of the mode.
-	genCtx := &Ctx{root: unified, src: dataSrc, collect: true}
+	// Under --at the probe descends through the OUTPUT marks: the
+	// caller named this node as the truth to validate against, so a
+	// type() or hide() on it (or propagated into it) is not a reason
+	// to check nothing. See Ctx.probe.
+	genCtx := &Ctx{root: unified, src: dataSrc, collect: true,
+		probe: "" != options.At}
 	_, _ = unified.Gen(genCtx)
 	for _, e := range genCtx.err {
 		if "incomplete" == e.Class() {

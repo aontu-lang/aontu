@@ -497,15 +497,22 @@ func TestVetNestedListConflictsAreAllReported(t *testing.T) {
 	}
 }
 
-// An unsited operand reports -1:-1 rather than a coordinate it does not
-// have: the parser gives a junction no position, in either port.
-func TestVetUnsitedOperandReportsMinusOne(t *testing.T) {
+// A JUNCTION REPORTS ITS OWN POSITION. The meet mints a fresh
+// disjunction, which used to arrive unsited -- so a finding naming a
+// disjunction that had met anything pointed at -1:-1 with no file, and
+// an agent reading the report had nowhere to go (the review's finding
+// F). The narrowed disjunction now carries the site of the one it came
+// from, which the parser puts at the start of the first alternative.
+// Twin: vet.tsv:vet-junction-site, and the hover-kind-labels case in
+// ts/test/coverage3.test.ts.
+func TestVetJunctionReportsItsOwnSite(t *testing.T) {
 	r := vetRun("a: 1|2", "a: 3", nil)
 	sites := r.Findings[0].Sites
 	if 2 != len(sites) {
 		t.Fatalf("sites: %+v", sites)
 	}
-	if -1 != sites[1].Row || -1 != sites[1].Col || "1|2" != sites[1].Value {
+	// `a: 1|2` -- the first alternative starts at column 4.
+	if 1 != sites[1].Row || 4 != sites[1].Col || "1|2" != sites[1].Value {
 		t.Fatalf("schema site: %+v", sites[1])
 	}
 }

@@ -184,6 +184,44 @@ func TestBreakingModesChooseTheDirections(t *testing.T) {
 	}
 }
 
+// `--at` GATES A SUBTREE. A module's top level carries the version
+// string and the policy block, which are SUPPOSED to change between
+// releases -- so the whole-document comparison answered about them
+// rather than about the contract, and a release that bumped only its
+// version self-broke the gate. `subsume` has taken `--at` since G3;
+// `breaking` did not, so the only way to gate a subtree was to split
+// the file (use-cases/REVIEW.md finding D). The first leg is the
+// control: without it, the version bump alone is breaking. Twin:
+// breaking-at-gates-a-subtree in ts/test/cli.test.ts.
+func TestBreakingAtGatesASubtree(t *testing.T) {
+	_, g, s := subFiles(t,
+		"version: \"2.0.0\"\nsvc: {port: integer}",
+		"version: \"1.0.0\"\nsvc: {port: integer}")
+	out, _, code := brkRun("--against", s, g)
+	if 1 != code {
+		t.Fatalf("whole document: want 1, got %d:\n%s", code, out)
+	}
+	vetMatch(t, out, `\$\.version: compat_narrowed`)
+
+	out, _, code = brkRun("--at", "$.svc", "--against", s, g)
+	if 0 != code {
+		t.Fatalf("--at: want 0, got %d:\n%s", code, out)
+	}
+	vetMatch(t, out, `verdict: compatible`)
+
+	// And it still gates: a narrowing INSIDE the anchor is refused.
+	// Paths are reported from the ANCHOR, which is `subsume --at`'s own
+	// convention.
+	_, g2, s2 := subFiles(t,
+		"version: \"2.0.0\"\nsvc: {port: 8080}",
+		"version: \"1.0.0\"\nsvc: {port: integer}")
+	out, _, code = brkRun("--at", "$.svc", "--against", s2, g2)
+	if 1 != code {
+		t.Fatalf("narrowed under --at: want 1, got %d:\n%s", code, out)
+	}
+	vetMatch(t, out, `\$\.port: compat_narrowed`)
+}
+
 func TestBreakingResolvesGitRevisions(t *testing.T) {
 	dir := t.TempDir()
 	file := filepath.Join(dir, "svc.aon")
@@ -307,6 +345,32 @@ func TestBreakingGitComparesTheOldTree(t *testing.T) {
 	}
 	vetMatch(t, out, `verdict: breaking`)
 	vetMatch(t, out, `\$\.svc\.port`)
+
+	// THE PATH TO THE ENTRY NEED NOT BE THE PATH GIT PRINTS. Reaching
+	// the same file through a SYMLINK is the shape macOS and Windows
+	// hand every run of this verb: on macOS a temp file under /var is
+	// /private/var to git, and on Windows a TMP short name is the long
+	// form -- so relativising git's toplevel against the caller's
+	// resolved path subtracted two different coordinate systems, gave a
+	// `../..` climb, and the entry was "not in that revision". Exit 2 on
+	// both platforms, green on Linux, for the documented CI spelling.
+	// The repo-relative path now comes from git itself (`rev-parse
+	// --show-prefix`), so the caller's spelling cannot matter -- and
+	// this case runs on every platform.
+	//
+	// Best-effort: Windows refuses a symlink without Developer Mode,
+	// which is a privilege question rather than a defect in anything
+	// being tested. Twin: the linked leg of
+	// breaking-git-compares-the-old-tree in ts/test/cli.test.ts.
+	linked := filepath.Join(dir, "linked")
+	if err := os.Symlink(model, linked); nil == err {
+		out, _, code = brkRun(
+			"--against", "git#HEAD", filepath.Join(linked, "entry.aon"))
+		if 1 != code {
+			t.Fatalf("through a symlink: want 1, got %d:\n%s", code, out)
+		}
+		vetMatch(t, out, `verdict: breaking`)
+	}
 }
 
 func TestBreakingReadsTheDocumentsOwnPolicy(t *testing.T) {
@@ -388,6 +452,12 @@ func TestBreakingUsageErrorsExit2(t *testing.T) {
 	}
 	if _, _, code := brkRun("--mode", "sideways", "--against", "a.aon", "b.aon"); 2 != code {
 		t.Fatalf("want 2, got %d", code)
+	}
+	// LAST, so the flag really has no argument: `--at --against x`
+	// would take "--against" as the path, which is a different (and
+	// already-covered) failure.
+	if _, _, code := brkRun("--against", "a.aon", "b.aon", "--at"); 2 != code {
+		t.Fatalf("--at with no path: want 2, got %d", code)
 	}
 	if _, _, code := brkRun("--format", "yaml", "--against", "a.aon", "b.aon"); 2 != code {
 		t.Fatalf("want 2, got %d", code)

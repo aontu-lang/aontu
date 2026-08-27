@@ -577,3 +577,149 @@ same family — a generator over spread-augmented data dying as
   peer-key-expr*. Author-facing rules in
   [`docs/reference-language.md`](docs/reference-language.md)
   ("Spreads `&:`", "Generating children").
+
+---
+
+## ADR-007 — An unresolved disjunction is not a value, and vet asks the same question the evaluator does
+
+**Status:** Accepted (2026-08-27)
+
+### Context
+
+Aontu's identity is "the gate agents are validated against". The 2026-08
+language review ([use-cases/REVIEW.md](use-cases/REVIEW.md), finding C;
+[use-cases/BUGS.md](use-cases/BUGS.md) §13–17) found that **vet and
+one-document evaluation returned opposite verdicts for identical
+compositions**, which is the difference between a guardrail and a
+decoration. Two causes account for most of it.
+
+**Generation folded a disjunction's members together.** `DisjunctVal.gen`
+took the surviving alternatives, unified them with each other, and
+emitted the result. That value is in no branch of the disjunction:
+`({x:1}|{y:2}) & {z:3}` generated `{x:1,y:2,z:3}`, a map the model never
+admits. Worse for the gate, `role: 'a'|'b'` with no data died as a
+scalar_value CONFLICT — the conflict of the fold, not of anything the
+author wrote — and vet's incompleteness pass, which keeps
+incomplete-class findings, filtered it out. A missing required enum
+field, the commonest schema idiom there is, vetted **valid with zero
+findings**.
+
+**Vet met the SETTLED schema, not the schema.** Step 1 evaluated the
+schema alone to decide whether it stands up before any data is blamed
+for it — a diagnosis — and that settled tree was then used as the left
+side of the meet. Every reference in the schema had therefore already
+resolved against the schema's own values and been replaced by them.
+`a:integer b:$.a` settled to `a:integer b:integer`, and data
+`{a:3,b:4}` vetted valid, while the same four lines as one document
+refuse with `scalar_value`.
+
+A third, smaller cause: vet's residue check *generates* the anchored
+meet, and generation honours the output marks. A `--at` anchor sitting
+under a `type()` — the ordinary way a schema names a reusable
+definition — generated nothing, reported nothing, and vetted valid for
+data missing a required key.
+
+### Decision
+
+**1. An unresolved disjunction is incomplete residue, not a value.**
+Generation answers the preferred alternative when there is one (that is
+what `*` is for), or the single surviving alternative; more than one
+alternative still admitted raises `disjunct_no_gen`, class
+`incomplete` — the same class a bare `string` residue answers, and the
+same answer CUE gives for a non-concrete export. Members are never
+folded together.
+
+**2. `vet(S, D)` and `eval(S ∪ D)` are the same question.** The schema
+is parsed AGAIN for the meet, so the fixpoint runs once over both
+documents and references, spreads and generators all see the data. The
+standalone pass remains, as the diagnosis it always was: a schema that
+does not stand up is still an `error` verdict rather than the data's
+fault. (Parsed trees are single-use, hence a second parse.) A `--at`
+path that exists only in the settled tree — one a spread or generator
+mints — falls back to the settled anchor, so no such path stops working.
+
+**3. Under `--at`, the completeness probe descends through the output
+marks.** A mark is a decision about output; `--at` names the truth to
+validate against explicitly, so `type()` or `hide()` on the anchor is
+not a reason to check nothing.
+
+Two consequences fell out and are part of the decision:
+
+- **Two bags are the same value when they have the same shape.** The
+  disjunct dedup compared object identity, so `x:*{a:1}|{a:number}` met
+  by `x:{a:2}` left `{"a":2}|{"a":2}` — a disjunction of one value
+  spelled twice. The old fold hid it; rule 1 does not, and a
+  disjunction whose alternatives are all the same value *is* resolved.
+- **A narrowed disjunction keeps its site.** The meet mints a fresh
+  disjunction, which arrived unsited and file-less, so every finding
+  naming a disjunction that had met anything pointed at row −1 with no
+  file. It now carries the site of the one it came from (the review's
+  finding F, in part).
+- **A preference conjoined with a disjunction is a preference on the
+  alternative it names**: `(A|B) & *A` is `*A|B`, the same value the
+  direct spelling denotes. Distribution carried the peer to each
+  member, and the kind gate then replaced a scalar preference *by* the
+  concrete member it met — so the preference simply vanished, and the
+  enum-with-default written this way round held no default at all. The
+  fold hid it; rule 1 does not. A preference naming no alternative is
+  dropped, as before, and the default-validity lint is what reports
+  that shape.
+
+The `--at` exception to rule 2 is part of the decision, not an
+oversight: an anchor is a *subtree lifted out of* the schema, and an
+absolute reference inside it (`$.OrderPlaced`, the
+discriminated-union idiom) names a sibling of the document root, which
+the lifted subtree no longer has. The settled tree is where such a
+reference has already been resolved and substituted, so an anchored run
+keeps meeting it. Leaving this to whether `anchorAt` happens to find
+the path in an unresolved tree is what the two ports did while this
+change was being written, and they answered differently — an ADR-001
+divergence that only an explicit rule prevents. Pinned by
+`vet.tsv:vet-at-absolute-ref-*`.
+
+### Consequences
+
+- **Breaking.** `1|2`, `null|top` and `({x:1}|{y:2}) & {z:3}` no longer
+  generate. The spelling that decides them is a preference (`*null|top`)
+  or a value that selects one alternative — which is what the model
+  always meant. Documents that relied on the fold were relying on a
+  value in no branch of their own disjunction.
+- Schemas whose references were previously spent by the standalone pass
+  now enforce against the data. This turns silent passes into findings;
+  it cannot turn a finding into a pass.
+- `disjunct_no_gen` is registered in `test/spec/errcodes.tsv` (class
+  `incomplete`, since 0.53.0) with hints in both ports.
+- Enforced by the shared spec (ADR-001 discipline), both ports changing
+  together: `disjunct.tsv` (the pref-null rows, four `disjunct_no_gen`
+  rows for the unresolved forms, and the sameness-strictness rows),
+  `vet.tsv` (vet-enum-missing-is-incomplete and its two controls,
+  vet-at-marked-anchor-*, vet-schema-reference-*, vet-at-absolute-ref-*,
+  vet-closed-list-* and vet-junction-site), `pref.tsv` (the
+  distribution rows), plus the re-probed site columns across
+  `subsume.tsv`, `edge.tsv`, `number-tower.tsv` and `place.tsv`.
+- **The invariant itself is now asserted**, which is what the review
+  asked for: `ts/test/veteval.test.ts` and `go/veteval_test.go` read
+  the shared spec's own `vet` rows, compute `vet(S,D)` and
+  `eval(S ∪ D)` for each, and require them to agree on accept/reject.
+  The corpus is the spec, so it grows with every row anyone adds
+  rather than with a fixture list someone has to remember to extend.
+  Rows with no single-document spelling (`--at`, `--closed`,
+  `--partial`, `--maxErrors`, a file-loading fixture, or a rootless
+  literal carrying an absolute reference) are skipped, and the skip
+  count is itself bounded so the check cannot go green over nothing.
+  Every one of §13–§15 would have failed it.
+- Four use-case gaps closed with it, each recorded in its own case:
+  a required enum field could be omitted (03 gap 1, 04 gap 2, 05 gap 5);
+  enum findings had no schema location (03 gap 9); two contracts
+  differing only in a conjunct default hashed identically (07); and
+  `aontu set` accepted writes its own `must()` audits refuse, catching
+  them only post-hoc in the assembled view (08). The last is the
+  sharpest: the write path and the read path now agree, so a refused
+  write is never written.
+- **Still open at this decision:** BUGS.md §16 (a sizing atom sharing a
+  conjunct with a spread template is discharged against that layer
+  alone) and §17 (a map-argument `must()` is consumed by the schema
+  layer). Both are the same shape — a check that must RESIDUATE until
+  its peer is concrete, discharged early instead — and both are engine
+  defects rather than staging ones: they reproduce in a plain two-tree
+  meet, and are recorded rather than fixed here.

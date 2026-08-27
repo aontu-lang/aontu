@@ -89,13 +89,22 @@ has noname out 'verdict: incomplete'
 has noname out '[aontu/mapval_no_gen]'
 ok "vet: missing name reported incomplete (exit 3)"
 
-# 9. OBSERVED GAP (README "An unresolved disjunction vets as valid"):
-# a candidate with NO plan at all is reported valid, because an
-# unresolved enum disjunction counts as satisfied under vet. This
-# asserts the observed behaviour so the record notices if it changes.
-run noplan 0 -- vet "$DIR/tenant.aon" "$DIR/data/tenant-no-plan.json"
-has noplan out 'verdict: valid'
-ok "GAP pinned: tenant without a plan vets as valid (should be incomplete)"
+# 9. GAP CLOSED 2026-08-27 (ADR-007). A candidate with NO plan at all
+# used to be `verdict: valid`: generation FOLDED the unresolved
+# `free|pro|enterprise` into a scalar conflict, and vet -- which keeps
+# incomplete-class findings -- filtered it out. It is now
+# `disjunct_no_gen`, class incomplete, and the candidate is refused.
+# The verdict is `invalid` rather than `incomplete` because the same
+# run also reports conflicts: with no plan to select, the cross-field
+# tie `entitlement: $.Entitlement & {plan: $.tenant.plan}` now FIRES
+# under vet (§15 -- the meet is built from a fresh parse, so the
+# reference is no longer spent by the schema-alone pass), and the
+# distributed branch trials surface as scalar_value pairs. Evaluating
+# the same two documents as one reports exactly those conflicts too,
+# which is the point of ADR-007: vet and eval answer the same question.
+run noplan 1 -- vet "$DIR/tenant.aon" "$DIR/data/tenant-no-plan.json"
+has noplan out '$.tenant.plan: disjunct_no_gen [incomplete]'
+ok "vet: tenant without a plan is refused (disjunct_no_gen)"
 
 # 10. Machine-readable findings carry the same codes.
 run json 1 -- vet --format json "$DIR/tenant.aon" "$DIR/data/tenant-unknown-role.json"
@@ -188,8 +197,12 @@ has plain out 'verdict: invalid'
 has plain out '[aontu/|:empty]'
 run plainok 0 -- vet "$DIR/exhibits/enum-default-plain.aon" "$DIR/data/invite-member.json"
 # ...but no longer evaluates on its own: enforcement costs the default.
+# 2026-08-27 (ADR-007): the refusal is now `disjunct_no_gen`, class
+# incomplete -- "more than one alternative still admitted" -- rather
+# than a scalar_value CONFLICT between the enum's own branches, which
+# is what folding them together used to report.
 run plaingen 1 -- "$DIR/exhibits/enum-default-plain.aon"
-has plaingen err '[aontu/scalar_value]'
+has plaingen err '[aontu/disjunct_no_gen]'
 ok "plain enum enforces, but cannot generate a default"
 
 # 22. The must()-guarded form enforces under vet but the conjunct
@@ -197,7 +210,7 @@ ok "plain enum enforces, but cannot generate a default"
 run guarded 1 -- vet "$DIR/exhibits/enum-default-guarded.aon" "$DIR/data/invite-superadmin.json"
 has guarded out 'verdict: invalid'
 run guardgen 1 -- "$DIR/exhibits/enum-default-guarded.aon"
-has guardgen err '[aontu/scalar_value]'
+has guardgen err '[aontu/disjunct_no_gen]'
 ok "GAP pinned: pref & must() enforces but loses the default"
 
 # 23. Ranked preferences: * (team) outweighs ** (org baseline).
@@ -249,17 +262,24 @@ run lenmax 0 -- vet "$WORK/g2.aon" "$WORK/g2.json"
 has lenmax out 'verdict: valid'
 ok "GAP pinned: length(max(2)) silently passes 3 data entries under vet"
 
-# 30. Stale references under vet: a closed-map branch keyed on a
-# data-supplied field via a reference silently passes.
+# 30. GAP CLOSED 2026-08-27 (ADR-007): stale references under vet. A
+# closed-map branch keyed on a data-supplied field via a reference used
+# to pass silently, because vet met the SETTLED schema -- the
+# standalone pass had already resolved `$.t.p` to `string` and replaced
+# it. The meet is now built from a fresh parse, so the reference sees
+# the data and the branch is selected by it. Both spellings refuse,
+# with the same code, which is the invariant: vet(S,D) and eval(S u D)
+# answer the same question.
 printf 'Ent: type( close({ plan: "free", sso: false }) | close({ plan: "pro", sso: boolean }) )\nt: { p: string, e: $.Ent & { plan: $.t.p } }\n' > "$WORK/g3.aon"
 printf '{"t":{"p":"free","e":{"sso":true}}}\n' > "$WORK/g3.json"
-run stale 0 -- vet "$WORK/g3.aon" "$WORK/g3.json"
-has stale out 'verdict: valid'
-# The identical composition as one evaluation catches it:
+run stale 1 -- vet "$WORK/g3.aon" "$WORK/g3.json"
+has stale out 'verdict: invalid'
+has stale out '[aontu/|:empty]'
+# The identical composition as one evaluation says the same thing:
 printf '@"g3.aon"\nt: { p: "free", e: { sso: true } }\n' > "$WORK/g3e.aon"
 run staleeval 1 -- "$WORK/g3e.aon"
 has staleeval err '[aontu/|:empty]'
-ok "GAP pinned: vet misses what eval catches when a branch hangs on a reference"
+ok "vet catches what eval catches when a branch hangs on a reference"
 
 # 31. must() is same-layer only: the identical rule fires in one file
 # and silently passes across vet.

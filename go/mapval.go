@@ -311,7 +311,7 @@ func markSpread(v Val, ctx *Ctx) {
 }
 
 func (m *MapVal) Gen(ctx *Ctx) (any, error) {
-	if m.mtype || m.mhide {
+	if (m.mtype || m.mhide) && !probing(ctx) {
 		return nil, nil
 	}
 	out := map[string]any{}
@@ -326,7 +326,7 @@ func (m *MapVal) Gen(ctx *Ctx) (any, error) {
 		// Type and hidden values are excluded from generation (a key
 		// whose source was moved away carries the hide mark set by
 		// RefVal.find's hide-found handling).
-		if child.markedType() || child.markedHide() {
+		if (child.markedType() || child.markedHide()) && !probing(ctx) {
 			continue
 		}
 		optional := m.isOptional(k)
@@ -451,14 +451,17 @@ func gensNull(ctx *Ctx, v Val) bool {
 	case *PrefVal:
 		return gensNull(ctx, n.peg)
 	case *DisjunctVal:
-		// A disjunction generates whatever its FOLDED members generate, so
-		// ask the fold rather than the wrapper. Without this case a key
-		// whose value was `null|top` (which folds to null, since
-		// `null & top` is null) was read as "generated nothing" and
-		// silently dropped from the output -- and a list element with it.
-		// The members are genuinely different values, so no amount of
-		// deduping removes the case.
-		return gensNull(ctx, n.foldForGen(ctx))
+		// A disjunction generates whatever the member Gen would pick, so
+		// ask for that member rather than the wrapper. Without this case
+		// a key whose value was a disjunction resolving to null was read
+		// as "generated nothing" and silently dropped from the output --
+		// and a list element with it. An UNRESOLVED disjunction generates
+		// nothing at all (ADR-007), which is not JSON null.
+		member, unresolved := n.forGen(ctx)
+		if unresolved {
+			return false
+		}
+		return gensNull(ctx, member)
 	}
 	return false
 }

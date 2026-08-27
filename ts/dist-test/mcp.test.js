@@ -52,6 +52,7 @@ const Os = __importStar(require("node:os"));
 const Path = __importStar(require("node:path"));
 const mcp_1 = require("../dist/mcp");
 const mcp_server_1 = require("../dist/mcp-server");
+const srcpath_1 = require("./srcpath");
 const ALL_TOOLS = [
     'breaking', 'canon', 'diff', 'get', 'hash', 'relations',
     'set', 'subsume', 'summary', 'trim', 'vet', 'why',
@@ -474,8 +475,12 @@ function hostileModule(dir) {
         // file's own relative include loads, an inline document may load
         // a root file, and a file outside the root stays denied.
         Assert.deepEqual(payload((0, mcp_1.callTool)('canon', { srcPath: 'main.aon' }, { root })), { ok: true, canon: '{"x":{"b":2}}', findings: [] });
-        Assert.equal(payload((0, mcp_1.callTool)('canon', { src: `x: @"${Path.join(root, 'inc.aon')}"` }, { root })).canon, '{"x":{"b":2}}');
-        const esc = payload((0, mcp_1.callTool)('canon', { src: `x: @"${Path.join(outside, 'evil.aon')}"` }, { root }));
+        // srcPath, not the native join: inside an @"..." include a
+        // BACKSLASH IS AN ESCAPE, so a Windows path interpolated raw is
+        // eaten by the lexer and the include resolves to nothing. The
+        // helper is shared with the trust suite for exactly this.
+        Assert.equal(payload((0, mcp_1.callTool)('canon', { src: `x: @"${(0, srcpath_1.srcPath)(Path.join(root, 'inc.aon'))}"` }, { root })).canon, '{"x":{"b":2}}');
+        const esc = payload((0, mcp_1.callTool)('canon', { src: `x: @"${(0, srcpath_1.srcPath)(Path.join(outside, 'evil.aon'))}"` }, { root }));
         Assert.equal(esc.ok, false);
         Assert.equal(esc.findings[0].code, 'include_denied');
         // The pre-parsed engines take file pairs too, include closures
@@ -599,12 +604,15 @@ function hostileModule(dir) {
         Assert.equal(code, 2);
         Assert.match(errs[errs.length - 1], /is not a directory/);
         // A real root reaches the codec, realpath'd, and rides into the
-        // handshake.
+        // handshake. Read it back OUT of the JSON rather than substring-
+        // matching the line: a Windows path is backslash-escaped on the
+        // way in, so the raw path is not a substring of its own encoding.
         const root = scratchDir('aontu-mcp-args-');
         const codec = (0, mcp_server_1.main)(stdin, write, exit, '9', ['--root', root]);
         Assert.ok(codec instanceof mcp_server_1.LineCodec);
         codec.push('{"id":1,"method":"initialize"}\n');
-        Assert.ok(lines[lines.length - 1].includes(Fs.realpathSync(root)));
+        Assert.equal(JSON.stringify(JSON.parse(lines[lines.length - 1]))
+            .includes(JSON.stringify(Fs.realpathSync(root)).slice(1, -1)), true, lines[lines.length - 1]);
     });
     (0, node_test_1.test)('protocol-errors', () => {
         Assert.equal((0, mcp_1.handle)({ id: 9, method: 'no/such' }, '1')?.error?.code, -32601);

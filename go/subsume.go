@@ -62,6 +62,8 @@ type subState struct {
 	specificURL string
 	generalSrc  string
 	specificSrc string
+	// distributing is set inside a distribution trial: see subTrial.
+	distributing bool
 }
 
 func subPathText(path []string) string {
@@ -124,6 +126,24 @@ func strPtr(s string) *string { return &s }
 func subAdmission(v Val) Val {
 	if p, ok := v.(*PrefVal); ok {
 		return p.superpeg
+	}
+	return v
+}
+
+// subMemberAdmission is the admitted set of one MEMBER of a
+// disjunction. A PREFERRED BRANCH CONTRIBUTES EXACTLY ITS OWN VALUE
+// (ADR-004): the admission gate made that the engine's rule --
+// `*'auto'|'literal'|'data'` admits those three strings and nothing
+// else -- and the subsumption walk kept comparing a pref member by its
+// KIND superior, the pre-ADR-004 reading. So a disjunction with a
+// default did not subsume ITSELF: every member widened to `string`,
+// which no general member admits (use-cases/BUGS.md §29). Only for a
+// member: a bare `*x` standing alone is still gated by kind, which is
+// subAdmission above and the documented rule. The twin of
+// memberAdmission in ts/src/subsume.ts.
+func subMemberAdmission(v Val) Val {
+	if p, ok := v.(*PrefVal); ok {
+		return prefInnerPeg(p)
 	}
 	return v
 }
@@ -236,7 +256,7 @@ func subsumeNode(st *subState, path []string, g0, s0 Val) string {
 
 	// Marks change the OUTPUT shape, not the admitted set: only the
 	// `gen` profile reports them.
-	if "gen" == st.profile && nil != g && nil != s &&
+	if "gen" == st.profile && !st.distributing && nil != g && nil != s &&
 		(g.markedType() != s.markedType() || g.markedHide() != s.markedHide()) {
 		st.record("compat_marks_changed", path, g, s,
 			"marks differ between the general and specific values")
@@ -254,6 +274,24 @@ func subsumeNode(st *subState, path []string, g0, s0 Val) string {
 	}
 
 	if subUnresolvedVal(g) || subUnresolvedVal(s) {
+		// REFLEXIVITY IS A LAW, not a rule the ladder gets to skip. Every
+		// value admits itself, residue included: the set admitted by
+		// `integer & min(0)` is exactly the set admitted by
+		// `integer & min(0)`. Without this, a constraint inside a spread
+		// template made a contract non-SELF-subsumable -- expected and
+		// actual byte-identical, verdict `undecided` -- so `breaking` on
+		// the documented close-per-entry idiom hard-failed reflexivity
+		// and had to run --allow-undecided, which then masks the genuine
+		// undecideds it exists to surface (use-cases/BUGS.md §28).
+		//
+		// Identity is the HASH FORM, not the canon: canon drops
+		// closedness and the marks, so close({a:1}) and {a:1} share a
+		// canon while admitting different sets. Computed only on this
+		// branch, where the answer would otherwise be undecided, so the
+		// hot path is untouched.
+		if nil != g && nil != s && Hcanon(g) == Hcanon(s) {
+			return subYes
+		}
 		st.record("sub_unresolved", path, g, s,
 			"unresolved residue: the admitted set is not comparable")
 		return subUndecided
@@ -264,7 +302,8 @@ func subsumeNode(st *subState, path []string, g0, s0 Val) string {
 	// case.
 	if sd, ok := s.(*DisjunctVal); ok {
 		out := subYes
-		for _, member := range sd.peg {
+		for _, raw := range sd.peg {
+			member := subMemberAdmission(raw)
 			trial := subTrial(st, path, g, member)
 			if subYes != trial {
 				if subConcrete(subAdmission(member)) {
@@ -281,8 +320,8 @@ func subsumeNode(st *subState, path []string, g0, s0 Val) string {
 		return out
 	}
 	if gd, ok := g.(*DisjunctVal); ok {
-		for _, member := range gd.peg {
-			if subYes == subTrial(st, path, member, s) {
+		for _, raw := range gd.peg {
+			if subYes == subTrial(st, path, subMemberAdmission(raw), s) {
 				return subYes
 			}
 		}
@@ -542,13 +581,25 @@ func subsumeBag(st *subState, path []string, g, s bagView) string {
 // subTrial runs a comparison whose findings are DISCARDED: disjunct
 // member-matching asks many "would this member do?" questions, and only
 // the aggregated outcome is a finding.
+// A DISTRIBUTION TRIAL IS NOT A NODE CORRESPONDENCE. It asks whether
+// one ALTERNATIVE of one side admits one alternative of the other,
+// which is a question about admitted sets; the two values it compares
+// are not the same node of the two documents. The `gen` profile's mark
+// rule is a correspondence question -- did a field that used to be
+// generated become hidden -- and firing it here compared a whole
+// disjunction (carrying its enclosing bag's mark) against a member
+// extracted out of one (which does not), so `hide({c: *a|b})` stopped
+// subsuming ITSELF under --profile gen (use-cases/BUGS.md §29). The
+// enclosing node's marks are compared where they correspond: at that
+// node, by the ordinary walk.
 func subTrial(st *subState, path []string, g, s Val) string {
 	trial := &subState{
-		profile:     st.profile,
-		generalURL:  st.generalURL,
-		specificURL: st.specificURL,
-		generalSrc:  st.generalSrc,
-		specificSrc: st.specificSrc,
+		profile:      st.profile,
+		generalURL:   st.generalURL,
+		specificURL:  st.specificURL,
+		generalSrc:   st.generalSrc,
+		specificSrc:  st.specificSrc,
+		distributing: true,
 	}
 	return subsumeNode(trial, path, g, s)
 }

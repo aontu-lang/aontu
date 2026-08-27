@@ -25,6 +25,7 @@
 import type { TrustOptions } from './type'
 import { Aontu } from './aontu'
 import { anchorAt } from './vet'
+import { hcanon } from './hcanon'
 import type { VetFinding, VetSite } from './vet'
 import {
   constraintSubsumesConstraint,
@@ -69,6 +70,8 @@ const DEFAULT_SPECIFIC_URL = 'specific'
 // labels, and the profile.
 type SubState = {
   profile: SubsumeProfile
+  // Set inside a distribution trial: see trialSubsume.
+  distributing?: boolean
   findings: VetFinding[]
   generalUrl: string
   specificUrl: string
@@ -123,12 +126,31 @@ function record(
 }
 
 
-// The admission view of a value under a profile: under every profile a
-// PREFERENCE admits what its superior admits (the engine's own
-// PrefVal.superpeg semantics); the default itself is compared
-// separately, by the `defaults` and `gen` profiles.
+// The admission view of a value under a profile: a BARE preference
+// admits what its superior admits (the engine's own PrefVal.superpeg
+// semantics, and the docs' "a bare preference is gated by kind"); the
+// default itself is compared separately, by the `defaults` and `gen`
+// profiles.
 function admission(v: any): any {
   return true === v?.isPref ? v.superpeg : v
+}
+
+
+// A PREFERRED BRANCH CONTRIBUTES EXACTLY ITS OWN VALUE (ADR-004). The
+// admission gate made that the engine's rule -- `*'auto'|'literal'|'data'`
+// admits those three strings and nothing else -- and the subsumption
+// walk kept comparing a pref MEMBER by its kind superior, the
+// pre-ADR-004 reading. So a disjunction with a default did not subsume
+// ITSELF: every member of the specific side widened to `string`, which
+// no general member admits, and the walk answered the distribution
+// case. `aontu_policy: hide({compat: *backward|forward|full|none})` --
+// the verbatim idiom from reference-api.md -- failed self-subsumption
+// under --profile gen (use-cases/BUGS.md §29).
+//
+// Only for a member of a disjunction: a bare `*x` standing alone is
+// still gated by kind, which is the rule above and the documented one.
+function memberAdmission(v: any): any {
+  return true === v?.isPref ? prefInnerPeg(v) : v
 }
 
 
@@ -209,7 +231,7 @@ export function subsumeNode(
   // Marks change the OUTPUT shape, not the admitted set: only the `gen`
   // profile reports them, and only when they differ on corresponding
   // nodes.
-  if ('gen' === state.profile &&
+  if ('gen' === state.profile && true !== state.distributing &&
     (!!g?.mark?.type !== !!s?.mark?.type ||
       !!g?.mark?.hide !== !!s?.mark?.hide)) {
     record(state, 'compat_marks_changed', path, g, s,
@@ -229,6 +251,24 @@ export function subsumeNode(
   }
 
   if (unresolved(g) || unresolved(s)) {
+    // REFLEXIVITY IS A LAW, not a rule the ladder gets to skip. Every
+    // value admits itself, residue included: the set admitted by
+    // `integer & min(0)` is exactly the set admitted by
+    // `integer & min(0)`. Without this, a constraint inside a spread
+    // template made a contract non-SELF-subsumable -- expected and
+    // actual byte-identical, verdict `undecided` -- so `breaking` on
+    // the documented close-per-entry idiom hard-failed reflexivity and
+    // had to run --allow-undecided, which then masks the genuine
+    // undecideds it exists to surface (use-cases/BUGS.md §28).
+    //
+    // Identity is the HASH FORM, not the canon: canon drops closedness
+    // and the marks, so `close({a:1})` and `{a:1}` share a canon while
+    // admitting different sets. Computed only on this branch, where
+    // the answer would otherwise be undecided, so the hot path is
+    // untouched.
+    if (hcanon(g) === hcanon(s)) {
+      return 'yes'
+    }
     record(state, 'sub_unresolved', path, g, s,
       'unresolved residue: the admitted set is not comparable')
     return 'undecided'
@@ -240,7 +280,8 @@ export function subsumeNode(
   // witness and anything else is honestly undecided.
   if (true === s?.isDisjunct) {
     let out: Tri = 'yes'
-    for (const member of s.peg as any[]) {
+    for (const raw of s.peg as any[]) {
+      const member = memberAdmission(raw)
       const trial = trialSubsume(state, path, g, member)
       if ('yes' !== trial) {
         if (isConcrete(admission(member))) {
@@ -257,8 +298,8 @@ export function subsumeNode(
     return out
   }
   if (true === g?.isDisjunct) {
-    for (const member of g.peg as any[]) {
-      if ('yes' === trialSubsume(state, path, member, s)) {
+    for (const raw of g.peg as any[]) {
+      if ('yes' === trialSubsume(state, path, memberAdmission(raw), s)) {
         return 'yes'
       }
     }
@@ -518,9 +559,20 @@ function topLike(): any {
 // A trial comparison whose findings are DISCARDED: disjunct
 // member-matching asks many "would this member do?" questions, and only
 // the aggregated outcome is a finding.
+// A DISTRIBUTION TRIAL IS NOT A NODE CORRESPONDENCE. It asks whether
+// one ALTERNATIVE of one side admits one alternative of the other,
+// which is a question about admitted sets; the two values it compares
+// are not the same node of the two documents. The `gen` profile's mark
+// rule is a correspondence question -- did a field that used to be
+// generated become hidden -- and firing it here compared a whole
+// disjunction (carrying its enclosing bag's mark) against a member
+// extracted out of one (which does not), so `hide({c: *a|b})` stopped
+// subsuming ITSELF under --profile gen (use-cases/BUGS.md §29). The
+// enclosing node's marks are compared where they correspond: at that
+// node, by the ordinary walk.
 function trialSubsume(
   state: SubState, path: string[], g: any, s: any): Tri {
-  const trial: SubState = { ...state, findings: [] }
+  const trial: SubState = { ...state, findings: [], distributing: true }
   return subsumeNode(trial, path, g, s)
 }
 

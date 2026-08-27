@@ -285,7 +285,13 @@ describe('func', function() {
     expect(G('key()')).equal('')
 
     expect(G('key() & string')).equal('')
-    expect(G('key() & *a|string')).equal('')
+    // `&` binds tighter than `|`, so the unparenthesised spelling is
+    // `(key() & *a) | string` -- at the root key() is '', so that is
+    // `"" | string`: two alternatives still admitted, which ADR-007
+    // refuses as incomplete rather than folding them into one. The
+    // parenthesised form is the composition this line is about.
+    expect(G('key() & (*a|string)')).equal('')
+    expect(() => G('key() & *a|string')).throw(/disjunct_no_gen/)
     expect(() => G('key() & number')).throw(/scalar/)
 
     expect(G('a:b:c:key(0)')).equal({ a: { b: { c: 'c' } } })

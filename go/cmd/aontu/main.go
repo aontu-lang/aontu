@@ -98,6 +98,9 @@ Subsume exit codes:
 Breaking options:
   --against <v>       An earlier version: a file path, or git#<rev>
                       (resolved by 'git show'); repeatable
+  --at <path>         Compare this path of both versions ($.a.b), so a
+                      module's own version string and policy block do
+                      not decide the verdict
   --mode <m>          backward (new admits old, the default), forward
                       (old admits new), or full (both); overrides the
                       document's own $.aontu_policy.compat declaration

@@ -174,10 +174,19 @@ func runSubsume(argv []string, stdout, stderr io.Writer) int {
 }
 
 type breakingArgs struct {
-	help             bool
-	file             string
-	against          []string
-	mode             string
+	help    bool
+	file    string
+	against []string
+	mode    string
+	// at: compare a SUBTREE of both versions. The gate's own
+	// sub-question, and the one a real repository needs -- a document's
+	// top level carries the module's version string and its policy
+	// block, which are supposed to change between releases and which
+	// make the whole-document comparison answer about them rather than
+	// about the contract (use-cases/REVIEW.md finding D). `subsume` has
+	// taken it since G3; `breaking` did not, so the only way to gate a
+	// subtree was to split the file.
+	at               string
 	allowUndecided   bool
 	allowDeprRemoval bool
 	format           string
@@ -205,6 +214,12 @@ func parseBreakingArgs(argv []string) (*breakingArgs, string) {
 				return nil, "aontu: --mode needs backward, forward or full"
 			}
 			args.mode = argv[i]
+		case "--at" == arg:
+			i++
+			if len(argv) <= i {
+				return nil, "aontu: --at needs a path"
+			}
+			args.at = argv[i]
 		case "--allow-undecided" == arg:
 			args.allowUndecided = true
 		case "--allow-deprecated-removal" == arg:
@@ -326,17 +341,29 @@ func resolveAgainst(spec, file string, stderr io.Writer) (oldVersion, bool) {
 		return oldVersion{}, false
 	}
 
-	topOut, err := gitOut(dir, "rev-parse", "--show-toplevel")
+	// THE REPO-RELATIVE PATH COMES FROM GIT, not from path arithmetic.
+	// Relativising --show-toplevel against the resolved file put two
+	// DIFFERENT COORDINATE SYSTEMS on either side of the subtraction:
+	// git prints the real path, while the caller's is whatever they
+	// typed. On macOS a temp file under /var is /private/var to git,
+	// and on Windows a TMP short name (RUNNER~1) is the long form to
+	// git -- so the subtraction gave a `../..` climb, the entry was
+	// "not in that revision", and the documented CI spelling failed on
+	// both platforms while passing on Linux (this PR's own CI).
+	// --show-prefix is the same question asked in git's coordinates:
+	// the repo-relative directory of the cwd, already slash-separated
+	// and already normalised.
+	prefixOut, err := gitOut(dir, "rev-parse", "--show-prefix")
 	if nil != err {
 		return fail(err.Error())
 	}
-	top := strings.TrimSpace(topOut)
+	entryRel := strings.TrimSpace(prefixOut) + filepath.Base(file)
 
-	entryRel, err := filepath.Rel(top, abs)
-	if nil != err { //coverage:ignore Rel fails only across Windows volumes
+	topOut, err := gitOut(dir, "rev-parse", "--show-toplevel")
+	if nil != err { //coverage:ignore --show-prefix above fails first
 		return fail(err.Error())
 	}
-	entryRel = filepath.ToSlash(entryRel)
+	top := strings.TrimSpace(topOut)
 
 	// -z so a path with a newline or a quote cannot be mistaken for two
 	// paths (git otherwise quotes such names).
@@ -539,6 +566,7 @@ func runBreaking(argv []string, stdout, stderr io.Writer) int {
 			report := aontu.Subsume(check.generalSrc, check.specificSrc,
 				&aontu.SubsumeOptions{
 					Trust:        capability,
+					At:           args.at,
 					GeneralURL:   check.generalURL,
 					SpecificURL:  check.specificURL,
 					GeneralPath:  check.generalPath,

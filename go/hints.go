@@ -17,6 +17,7 @@ var hints = map[string]string{
 	"scalar_kind":      "Literal scalar values of different kinds cannot unify.\n \nExamples:\n  1 & 1   -> 1    # Does unify (equal Integers);\n  1 & a   -> nil  # Does not unify (Kinds: Integer & String);\n  1 & 1.0 -> nil  # Does not unify (kinds: Integer & Float).",
 	"nil_gen":          "The nil value was present after unification, and nil cannot be\ngenerated because nil is not a literal value.",
 	"no_gen":           "This value was present after unification, and cannot be generated\nbecause it is not a literal value.",
+	"disjunct_no_gen":  "More than one alternative of this disjunction is still admitted, so\nthere is no single value to generate. Supply a value that selects\none alternative, or write a preference (*) to say which one holds\nwhen nothing else does.",
 	"mapval_required":  "This map value is required.",
 	"mapval_no_gen":    "This value was present after unification, and cannot be generated\nbecause it is not a literal value.",
 	"listval_required": "This list element is required.",
@@ -260,6 +261,7 @@ var codeClasses = map[string]string{
 
 	// incomplete -- residue: the truth requires more than was supplied
 	"no_gen":                  "incomplete",
+	"disjunct_no_gen":         "incomplete",
 	"conjunct":                "incomplete",
 	"mapval_no_gen":           "incomplete",
 	"mapval_required":         "incomplete",

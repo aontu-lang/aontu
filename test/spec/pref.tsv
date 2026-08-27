@@ -27,6 +27,35 @@ pref-nested-concrete-wins	errc	k1:**hello&false	no_scalar_unify
 # (***org / **env / *tenant) keeps its arbitration and the default
 # stays overridable after the kind meet. Canon rows because gen cannot
 # see the preference.
+# A PREFERENCE CONJOINED WITH A DISJUNCTION IS A PREFERENCE ON THE
+# ALTERNATIVE IT NAMES: `(A|B) & *A` is `*A|B`, the same value the
+# direct spelling denotes. Distribution carries the peer to each
+# member, and the kind gate then replaces a scalar preference BY the
+# concrete member it met -- so the preference simply vanished, and the
+# enum-with-default written this way round held no default at all. The
+# old generation fold hid it; ADR-007 does not. A preference naming no
+# alternative is dropped: it has nothing to prefer, and the
+# default-validity lint is what reports that shape.
+pref-conjunct-distributes-canon	canon	a:("1.0"|"1.1") & *"1.0"	{"a":*"1.0"|"1.1"}
+pref-conjunct-distributes-gen	gen	a:("1.0"|"1.1") & *"1.0"	{"a":"1.0"}
+pref-conjunct-distributes-override	gen	a:("1.0"|"1.1") & *"1.0"\na:"1.1"	{"a":"1.1"}
+pref-conjunct-distributes-agrees	canon	a:*"1.0"|"1.1"	{"a":*"1.0"|"1.1"}
+# A member the preference CANNOT meet is dropped before the re-wrap is
+# considered: `("1.0"|"1.1"|9) & *"1.0"` loses the integer alternative
+# to the kind gate, and the preference lands on the alternative it
+# names among what survives.
+pref-conjunct-drops-failed-member	canon	a:("1.0"|"1.1"|9) & *"1.0"	{"a":*"1.0"|"1.1"}
+pref-conjunct-names-nothing-canon	canon	a:("1.0"|"1.1") & *"2.0"	{"a":"1.0"|"1.1"}
+pref-conjunct-names-nothing-errc	errc	a:("1.0"|"1.1") & *"2.0"	disjunct_no_gen
+# RANK ARBITRATION IS ORDER-INDEPENDENT: the LOWER rank wins whichever
+# side of the meet it arrives on, both as two statements of the same
+# key and as an explicit conjunct. This is the layered-defaults
+# ladder's whole contract (***org / **env / *tenant), and each
+# spelling exercises a different arm of the comparison.
+pref-rank-lower-wins-second	canon	a:**1 a:*2	{"a":*2}
+pref-rank-lower-wins-first	canon	a:*2 a:**1	{"a":*2}
+pref-rank-lower-wins-conjunct	canon	a:**1&*2	{"a":*2}
+pref-rank-lower-wins-conjunct-flipped	canon	a:*2&**1	{"a":*2}
 pref-rank2-conjunct-kind-keeps-default	gen	a:**1.5 & float	{"a":1.5}
 pref-rank2-conjunct-kind-keeps-default-canon	canon	a:**1.5 & float	{"a":**1.5}
 pref-rank2-disjunct-kind-keeps-default	gen	b:**2|integer\nb:integer	{"b":2}

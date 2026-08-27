@@ -522,8 +522,14 @@ const makeIntegerVal = (v, c) => new IntegerVal_1.IntegerVal({ peg: v }, c);
         (0, expect_1.expect)(tu(ctx, P('1|number'), TOP).canon).equal('1|number');
         (0, expect_1.expect)(tu(ctx, P('1|top'), TOP).canon).equal('1|top');
         (0, expect_1.expect)(tu(ctx, P('1|number|top'), TOP).canon).equal('1|number|top');
-        (0, expect_1.expect)(tu(ctx, P('1|number'), TOP).gen(ctx)).equal(1);
-        (0, expect_1.expect)(tu(ctx, P('1|number|top'), TOP).gen(ctx)).equal(1);
+        // ADR-007: two alternatives still admitted is INCOMPLETE residue,
+        // not the first member. These used to answer 1 -- the old fold's
+        // `1 & number`, a value chosen by the fold rather than by the
+        // model.
+        (0, expect_1.expect)(() => tu(ctx, P('1|number'), TOP).gen(ctx))
+            .throws(/disjunct_no_gen/);
+        (0, expect_1.expect)(() => tu(ctx, P('1|number|top'), TOP).gen(ctx))
+            .throws(/disjunct_no_gen/);
         (0, expect_1.expect)(tu(ctx, P('number|1').unify(P('top'), ctx), TOP).canon).equal('number|1');
         (0, expect_1.expect)(tu(ctx, P('1|number|1').unify(P('top'), ctx), TOP).canon).equal('1|number');
         (0, expect_1.expect)(tu(ctx, P('number|string').unify(P('top'), ctx), TOP).canon)
@@ -728,8 +734,10 @@ b: c2: {n:2}
             .equal('{"a":*1|number,"b":*2|number,"c":*2|*1|number}');
         let d0 = P('1|number').unify(TOP, ctx);
         (0, expect_1.expect)(d0.canon).equal('1|number');
-        (0, expect_1.expect)(d0.gen(ctx)).equal(1);
-        // expect(d0.gen(ctx)).equal(undefined)
+        // No preference, two alternatives: incomplete, not the fold's 1
+        // (ADR-007). `*1|number` a few lines down is the spelling that
+        // decides it.
+        (0, expect_1.expect)(() => d0.gen(ctx)).throws(/disjunct_no_gen/);
         (0, expect_1.expect)(G('number|*1')).equal(1);
         (0, expect_1.expect)(G('string|*1')).equal(1);
         (0, expect_1.expect)(N('*1 & x', ctx)).equal('nil');

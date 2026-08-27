@@ -785,7 +785,14 @@ describe('coverage3-lsp', () => {
       'a:$.b b:$.c c:$.d d:$.e e:$.f f:$.g g:$.h h:$.i i:$.j j:$.k k:$.l l:1',
       2), /\*reference\*/)
     Assert.match(label('n:1.5', 2), /\*float\*/)
-    Assert.match(label('x:null|top', 2), /\*scalar\*/)
+    Assert.match(label('x:null', 2), /\*scalar\*/)
+    // A DISJUNCTION LABELS ITSELF. `x:null|top` used to hover as
+    // *scalar*: the disjunct arrived unsited, so the hover walk found
+    // the null MEMBER under the cursor instead. Carrying the site
+    // through the meet (ts/src/val/DisjunctVal.ts, the review's finding
+    // F) makes the disjunction the thing at that position, which is
+    // what is written there.
+    Assert.match(label('x:null|top', 2), /\*disjunct\*/)
     Assert.match(label('x:top|top', 2), /\*top\*/)
   })
 
@@ -1362,6 +1369,48 @@ describe('coverage3-staging', () => {
 
     const d2: any = new DisjunctVal({ peg: [rank1, rank2] })
     Assert.strictEqual((effectiveScrutinee(d2) as any).peg, 2)
+  })
+
+  // BagVal.same's two guards that no source spells (ADR-002). The
+  // identity fast path needs the SAME object on both sides, which the
+  // parser never produces twice, and every discriminating comparison
+  // below IS reachable from source (test/spec/disjunct.tsv,
+  // "SAMENESS IS STRICTER THAN CANON") -- they are repeated here only
+  // because the direct call is the clearest statement of the contract.
+  test('bag-same-is-structural', () => {
+    const one: any = new MapVal({ peg: { a: new IntegerVal({ peg: 1 }) } })
+    const two: any = new MapVal({ peg: { a: new IntegerVal({ peg: 1 }) } })
+
+    Assert.equal(one.same(one), true, 'identity')
+    Assert.equal(one.same(two), true, 'same shape')
+    Assert.equal(one.same(new IntegerVal({ peg: 1 })), false, 'not a bag')
+    Assert.equal(one.same(undefined), false, 'no peer')
+
+    const closed: any = new MapVal({ peg: { a: new IntegerVal({ peg: 1 }) } })
+    closed.closed = true
+    Assert.equal(one.same(closed), false, 'closedness')
+
+    const marked: any = new MapVal({ peg: { a: new IntegerVal({ peg: 1 }) } })
+    marked.mark.type = true
+    Assert.equal(one.same(marked), false, 'marks')
+
+    const wider: any = new MapVal({
+      peg: { a: new IntegerVal({ peg: 1 }), b: new IntegerVal({ peg: 2 }) },
+    })
+    Assert.equal(one.same(wider), false, 'key count')
+  })
+
+
+  // A SINGLE-MEMBER DISJUNCTION GENERATES THAT MEMBER (ADR-007). unify
+  // returns the sole survivor directly rather than re-wrapping it, so a
+  // document cannot reach gen holding a one-member disjunct -- but the
+  // type allows one, a library caller can build one, and the
+  // alternative to answering its member is refusing a disjunction that
+  // is not ambiguous at all. Twin: TestDisjunctSingleMemberGenerates in
+  // go/coverage3_test.go.
+  test('disjunct-single-member-generates', () => {
+    const d: any = new DisjunctVal({ peg: [new IntegerVal({ peg: 7 })] })
+    Assert.equal(d.gen(CTX()), 7)
   })
 
 })
