@@ -1,3 +1,10 @@
+# FIXED 2026-08-27 (the review's finding C, BUGS.md sec 16): this
+# model is valid and now EVALUATES. A lower bound violated is
+# provisional -- more members may still arrive -- so the atom
+# residuates and is decided at generation, by which time the second
+# pack has merged the port in. Kept as the regression guard, with
+# expected/length-on-schema-list.json as its golden.
+#
 # FAILED ATTEMPT: require at least one port per service on the skeleton.
 # The generated ports list HAS one element (merged by the second pack),
 # but length(min(1)) is checked against the spread-only schema list

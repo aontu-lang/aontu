@@ -1,6 +1,7 @@
 import type { Val, ValSpec } from '../type';
 import { AontuContext } from '../ctx';
 import { FuncBaseVal } from './FuncBaseVal';
+export declare function effectiveScrutinee(v: Val): Val;
 declare class MatchFuncVal extends FuncBaseVal {
     isMatchFunc: boolean;
     staged: boolean;

@@ -27,15 +27,15 @@ and have its own emitted candidates checked (`aontu vet`, `refer()`).
 
 | File | Role | Features exercised |
 |---|---|---|
-| `system.aon` | root: joins everything, declares relations | `@"std/system"`, `@"./..."` includes, `hide()`, `$.std.Relation`, `inverse`, `acyclic` |
+| `system.aon` | root: joins everything, declares relations | `@"std/system"`, `@"./..."` includes, `hide()`, `$.std.Relation`, `inverse`, `acyclic`, `target` |
 | `spec.aon` | Acme vocabulary over the bundled one | `$.std.Service`, `$.std.Port`, conjunction-as-subclassing, `re`/`min`/`max`/`length` atoms, `*` defaults, optional `?` keys, `refer(t)` with link constraints |
 | `catalog.aon` | catalog view | `id()`, per-domain `&:` spreads stamping owner + schema |
 | `deploy.aon` | deployment view | `id()` from a second tree, defaults (`replicas: *2`) |
 | `queries/queries.aon` | instance-of queries | `filter`, map union as index |
-| `bad/*.aon` | change requests that must be refused | cycle, missing inverse, cross-view contradiction, wrong-kind endpoint |
+| `bad/*.aon` | change requests that must be refused | cycle, missing inverse, cross-view contradiction, wrong-kind endpoint, an unmet declared `target` |
 | `proposals/*.aon` + `data/*.json` | agent-emitted candidates | JSON-as-Aontu, `vet --at --closed`, `refer` existence checks |
 
-`check.sh` runs 16 assertions through the real CLI: golden-JSON diffs
+`check.sh` runs 20 assertions through the real CLI: golden-JSON diffs
 for the merged model, `get` slices and query results; grep-by-error-code
 (never byte-compared error text) for the five failure cases; `relations`
 verdicts on good, cyclic, inverse-missing and post-proposal models.
@@ -65,7 +65,16 @@ Run it: `./check.sh` (from anywhere; set `AONTU=` to override the CLI).
   report names the loop
   (`dependsOn: cycle svc/payments -> svc/ledger -> svc/payments`), the
   inverse report names the exact missing entry
-  (`svc/directory does not list svc/email under dependedOnBy`).
+  (`svc/directory does not list svc/email under dependedOnBy`), and
+  since the review's finding J the declared `target` is checked too.
+- **`aontu reaches` answers the closure question** the edge-at-a-time
+  checks cannot: `reaches svc/gateway svc/ledger` returns the chain
+  `svc/gateway -> svc/payments -> svc/ledger`, which is the evidence an
+  operator asking about blast radius actually acts on. Because this
+  model writes both `dependsOn` and its inverse, the whole edge set is
+  symmetric and everything reaches everything — so a *directional*
+  question means naming the relation, and `--relation dependsOn` is
+  what makes the answer one-way.
 - **Change-request files are free what-if analysis.** Every `bad/*.aon`
   and `proposals/*.aon` is four lines: `@"../system.aon"` plus the
   proposed delta, layered by id-merge. Verifying a change before
@@ -114,6 +123,14 @@ at this ("a reference from one member of an included file to another
 does not survive being INCLUDED"). Workaround used in `spec.aon`:
 no `type()`, `hide()` on the whole `spec` bag instead.
 
+**2026-08-26: fixed by the template-clone isolation change (ADR-005)**
+— a reference now defers on a pending `type()` wrapper instead of
+cloning it, so a `type()`-marked vocabulary referencing `$.std.*`
+survives inclusion (shared spec pins the include-crossing shapes:
+`test/spec/file.tsv`, `load-alias-*`). `spec.aon` keeps its `hide()`
+arrangement — equally correct, and a worked example — with a dated
+note.
+
 ### Gap 2 (major): `vet` cannot anchor on a reference-bearing schema
 
 `vet --at '$.spec.CatalogEntry'` misfires whenever the data touches a
@@ -159,6 +176,17 @@ while the same JSON loaded at its own key
 by reference (`... & $.candidate`) works.
 
 ### Gap 3 (major): the declared relation `target` is not enforced
+
+**FIXED 2026-08-27** (the review's finding J). `aontu relations` now
+checks `target` against every far end, and satisfaction is the meet
+*plus* still being able to generate — so a target key the far end does
+not have is caught rather than quietly unified in. `bad/wrong-target.aon`
+is the executable form: a `hostedOn` link written with a bare `refer()`,
+whose relation declares `target: $.std.Service`, pointing at a `kind:
+host` entity. The document evaluates; `relations` reports
+`svc/bastion is not what hostedOn targets`. The rest of this finding —
+no cardinality, no edge attributes, no source-side typing — still
+stands. The finding as written:
 
 `relations: dependsOn: $.std.Relation & {target: $.std.Service, ...}`
 looks like a typed endpoint declaration. It is documentation only. A
@@ -237,6 +265,16 @@ the idiom.
 
 ### Gap 7 (critical): different `&:` templates on the two views corrupt sibling ports
 
+> **2026-08-26: fixed by the spread application rework** (pure
+> ExpectVal — BUGS.md §6; minimal repros
+> `repros/sibling-crosswire/idmerge-ref-templates.aon` and
+> `oneview-ref-templates.aon` now evaluate green, pinned by
+> `spread-interleave.tsv` spread-unequal-map-ref-* and
+> spread-unequal-idmerge). Unequal by-reference templates on the two
+> views now meet each child independently; the shared-PortSpec
+> discipline in `spec.aon` remains good style but is no longer a
+> required workaround.
+
 Engine bug, found the hard way. When the two id-merged views applied
 *different* ports templates (catalog side had `{&: $.std.Port}` via
 `$.std.Service`; deploy side had `{&: $.std.Port & {number: ...}}`),
@@ -258,6 +296,16 @@ set. This is a landmine for exactly the multi-view merging the id()
 feature exists for.
 
 ### Gap 8 (critical): `refer($.std.Service)` — the documented idiom — dies of `unify_cycle` at scale
+
+**FIXED 2026-08-27** (the review's finding J, use-cases/BUGS.md §19).
+The flow unified `t` into the target, and uniting a target drove the
+target's own subtree — so a pair that linked back at each other flowed
+into each other until the depth budget or the host stack ended it. A
+flow that would re-enter an entity is now skipped, because the flow it
+is nested in is already uniting that entity. `spec.aon` carries the
+documented idiom, `refer($.std.Service)`, on **both** directions of the
+inverse pair, on the real model, in both ports; the asymmetric
+workaround this finding describes is gone. The finding as written:
 
 The language reference's own service-catalog example types dependency
 endpoints as `refer({kind: service})`-style. Doing it with the bundled
@@ -309,13 +357,30 @@ $.deploy.regions.eu1.clusters.core.workloads.payments.tier = 1
   (no contributions: nothing met at this path)
 ```
 
-`tier = 1` was written in `catalog.aon`; the deploy position reports
+`tier = 1` was written in `catalog.aon`; the deploy position reported
 *nothing met*. In a smaller two-file experiment the asymmetry pointed
 the other way (the later-declared position had the full story). An
-agent using `why` for ground-truth attribution gets a correct value
+agent using `why` for ground-truth attribution got a correct value
 with a wrong "nobody wrote this". Also minor: contributions that
-arrive via a referenced spread template print `(spread)` with an empty
-source position.
+arrived via a referenced spread template printed `(spread)` with an
+empty source position.
+
+**Mostly closed 2026-08-27** (the review's finding E, `BUGS.md` §22–24).
+Provenance is part of the clone contract now, so the deploy position
+answers:
+
+```
+$.deploy.regions.eu1.clusters.core.workloads.payments.tier = 1
+  1. (1|2)|3  .../spec.aon:27:11
+```
+
+The falsehood is gone, and the empty-site spread contribution with it
+(it now carries the template's real position). What remains is a
+NARROWING rather than a silence: the id-merge carries the resolved
+member into this position, and the `catalog.aon` line that selected it
+met at the *catalog* path, so this position names the schema row that
+admits the value instead. Check 7 pins both halves — the file is
+named, and "no contributions" must not come back.
 
 ### Gap 10 (minor): error cosmetics — misattributed source snippets
 

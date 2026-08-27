@@ -64,7 +64,7 @@ describe('val-conjunct', function() {
     expect(g2).equal({ x: { a: 1, b: 1 } })
 
     expect(UC('a:*1|number,b:*2|number,c:$.a&$.b'))
-      .equal('{"a":*1|number,"b":*2|number,"c":2|1|number}')
+      .equal('{"a":*1|number,"b":*2|number,"c":*2|*1|number}')
 
     let g3 = G('{b:$.a&$.a}&{a:1}')
     expect(g3).equal({ a: 1, b: 1 })
@@ -81,14 +81,14 @@ describe('val-conjunct', function() {
       .equal('{"a":{"x":1,"z":3}|{"y":2,"z":3}|{"q":4,"x":1}|{"q":4,"y":2}}')
 
     let u2 = UC('a:*1|number,a:*2|number')
-    expect(u2).equal('{"a":2|1|number}')
+    expect(u2).equal('{"a":*2|*1|number}')
 
     // TODO: fix syntax (*)
     // let u3 = UC('(*1|number) & (*2|number)')
     // expect(u3).equal('2|1|number')
 
     let u4 = UC('(number|*1) & (number|*2)')
-    expect(u4).equal('number|1|2')
+    expect(u4).equal('number|*1|*2')
 
   })
 

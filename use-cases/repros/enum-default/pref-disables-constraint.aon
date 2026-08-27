@@ -1,8 +1,13 @@
-# expected: 80 refused — it satisfies neither the default branch (8080)
-#           nor the constraint branch (min 1024); this is the disjunct
-#           spelling the docs' phase-1 note recommends over min(1024)&*8080
-# actual: generates {"port":80} exit 0 — the same-kind override replaces
-#         the pref and the constraint alternative is never consulted;
-#         even `*8080 | (integer & neq(80))` admits port: 80
+# FIXED 2026-08-26 (the preference admission gate, ADR-004).
+# expected: 80 refused -- it satisfies neither the default branch (8080)
+#           nor the constraint branch (min 1024)
+# actual (now matches): [aontu/|:empty] at $.port, exit 1 -- the
+#         constraint alternative is consulted on override, so the
+#         disjunct spelling both defaults and validates; 2048 is
+#         admitted and unset generates 8080. `*8080 | (integer &
+#         neq(80))` refuses 80 the same way. Pinned by
+#         test/spec/pref.tsv pref-admit-constraint-branch-refuses /
+#         pref-admit-neq-branch-refuses.
+#         (Old behaviour: {"port":80} exit 0 -- the branch was bypassed.)
 port: *8080 | (integer & min(1024) & max(65535))
 port: 80

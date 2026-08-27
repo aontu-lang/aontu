@@ -10,6 +10,7 @@ const top_1 = require("./top");
 const ConjunctVal_1 = require("./ConjunctVal");
 const NilVal_1 = require("./NilVal");
 const BagVal_1 = require("./BagVal");
+const Val_1 = require("./Val");
 const keyorder_1 = require("../keyorder");
 const provenance_1 = require("../provenance");
 // Structural snapshots of ref spreads (see MapVal.unify), keyed by the
@@ -36,7 +37,9 @@ function snapshotRefSpread(cj, ctx) {
     const sk = spreadSnapKey(cj);
     let snap = snapmap.get(sk);
     if (undefined === snap) {
-        let tgt = cj.find(ctx);
+        // snap mode: the pending-mark-wrapper defer in find must not
+        // apply here — the snapshot WANTS the pre-resolution structure.
+        let tgt = cj.find(ctx, true);
         // A ref to a type() resolves to its inner template — snapshot that,
         // so a type-wrapped ref behaves like a plain-map ref spread.
         if (tgt && tgt.isTypeFunc)
@@ -71,7 +74,12 @@ class MapVal extends BagVal_1.BagVal {
         delete this.peg[type_1.SPREAD];
         if (spread) {
             if ('&' === spread.o) {
-                // TODO: handle existing spread!
+                // Multiple same-level spreads arrive as an array and conjoin;
+                // an unequal spread arriving from ANOTHER statement meets this
+                // one in unify's spread combination below — sound since the
+                // combined template became stateless (pure ExpectVal, BUGS.md
+                // §6-§7): each child meets the combined constraint
+                // independently and children never meet each other's data.
                 this.spread.cj =
                     Array.isArray(spread.v) ?
                         1 < spread.v.length ?
@@ -149,6 +157,13 @@ class MapVal extends BagVal_1.BagVal {
                 // combined here). unite resolves key()/path() at each destination via
                 // spreadClone below, so nested + sibling key() cases stay correct
                 // (test/spec/spread-nested-key, spread-key-all).
+                //
+                // The combined template must stay STATELESS: this meet wraps a
+                // key present in only one side as an ExpectVal, the combined
+                // map is shared across destinations when path-independent
+                // (spreadClone tier 1), and a stateful expect accumulated the
+                // first sibling's data and met it into the next (BUGS.md
+                // §6-§7). ExpectVal.unify is pure for exactly this reason.
                 out.spread.cj = null == out.spread.cj ? peer.spread.cj : (null == peer.spread.cj ? out.spread.cj :
                     out.spread.cj.canon === peer.spread.cj.canon ? out.spread.cj :
                         (0, unify_1.unite)(te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'SPR') }) : ctx, out.spread.cj, peer.spread.cj, 'map-self'));
@@ -346,7 +361,11 @@ class MapVal extends BagVal_1.BagVal {
             }
         }
         if (!allScalarKind) {
-            return this.clone(ctx);
+            // A full instance (`dup`, ADR-005), paths normalised to the
+            // destination: see Val.spreadClone and repathInstance.
+            const out = this.clone(ctx, { dup: true });
+            (0, Val_1.repathInstance)(out, out.path);
+            return out;
         }
         let out = super.clone(ctx);
         out.peg = {};
@@ -370,12 +389,16 @@ class MapVal extends BagVal_1.BagVal {
                     // (entry[1] as Val).clone(ctx, spec?.mark ? { mark: spec.mark } : {}) :
                     entry[1].clone(ctx, {
                         mark: spec?.mark ?? {},
-                        path: [...out.path, entry[0]]
+                        path: [...out.path, entry[0]],
+                        // The instantiation flag descends (ADR-005): a template's
+                        // children are part of the instance.
+                        dup: spec?.dup,
                     }) :
                     entry[1];
         }
         if (this.spread.cj) {
-            out.spread.cj = this.spread.cj.clone(ctx, spec?.mark ? { mark: spec.mark } : {});
+            out.spread.cj = this.spread.cj.clone(ctx, spec?.mark || spec?.dup ?
+                { mark: spec?.mark, dup: spec?.dup } : {});
         }
         out.closed = this.closed;
         out.optionalKeys = [...this.optionalKeys];

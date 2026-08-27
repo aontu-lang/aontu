@@ -148,11 +148,18 @@ discriminator, but even heuristics (report the branch whose
 discriminator matched; or per-branch sub-findings) would transform
 agent usability.
 
-### 2. Canonical form is not the contract: `close()` and conjunct defaults vanish (major)
+### 2. Canonical form is not the contract: `close()` vanishes (major)
+
+**Half closed 2026-08-27 ([ADR-007](../../ADR.md)): conjunct defaults
+now survive.** `("1.0"|"1.1") & *"1.0"` canons as `*"1.0"|"1.1"` — a
+preference conjoined with a disjunction is a preference on the
+alternative it names — so the two identity probes below no longer
+collide, and the round-tripped text loses `close()` and nothing else.
+The rest of this entry is the diagnosis as it stood.
 
 A registry's natural move is to store and serve the canonical text
 (`--canon`; the docs say the semantic hash is taken over canon). But
-canon renders `close({...})` as a plain open map and silently drops a
+canon renders `close({...})` as a plain open map and silently dropped a
 `*default` sitting in a conjunct. check.sh re-parses
 `expected/orders-v1.canon` as the contract and vets the surplus-key
 event against it:
@@ -165,20 +172,30 @@ hash reparsed: aon1-sk4A6MN_8MqdEmXxAFNozEkPzLZ5Vtkwza70UjkUb1A
 ```
 
 The canonical text of the contract is a *different, weaker* contract
-(the differing hashes prove the engine knows). Relatedly, identity is
-blind to defaults: `probes/default-a.aon` and `default-b.aon` differ
-only in which specversion is preferred, behave differently under vet,
-yet canon identically and share the hash
-`aon1-ZNFIqGKBqx0JYmL9KwNzPrXC5jKKHldVBo6geWUYBUs`. For a system
-whose pitch is "ground truth with a semantic hash", canonical text
-that does not round-trip closedness or defaults is a real hole.
+(the differing hashes prove the engine knows) — still true for
+`close()`. The defaults half is fixed: `probes/default-a.aon` and
+`default-b.aon` differ only in which specversion is preferred, and now
+canon differently and hash differently, as two contracts that admit
+different values should. For a system whose pitch is "ground truth
+with a semantic hash", canonical text that does not round-trip
+closedness is still a real hole.
 
-### 3. The breaking gate cannot pass an honest event contract (major)
+### 3. The breaking gate cannot pass an honest event contract (major) -- FIXED 2026-08-27
+
+**Two of the three are closed, and the third no longer bites.**
+Reflexivity is now a law of the subsumption walk, so the list template
+compares to itself and `breaking --against orders-v1.aon
+orders-v1.aon` answers `compatible`; and `breaking --at` landed, so
+`--at '$.Event'` scopes the gate to the union and the purely additive
+v1.1 revision answers `compatible` there. What remains is that the
+WHOLE-DOCUMENT compare still reads a new top-level definition as a
+required key — true, and now avoidable by anchoring rather than by
+splitting the file. The gate is deployable. The diagnosis as it stood:
 
 Three compounding problems, all pinned:
 
-- A list element template is not comparable **to itself**. Self-compare
-  of v1 is undecided (exit 3), with `expected` and `actual`
+- A list element template was not comparable **to itself**. Self-compare
+  of v1 was undecided (exit 3), with `expected` and `actual`
   byte-identical:
 
   ```
@@ -189,7 +206,8 @@ Three compounding problems, all pinned:
   ```
 
   Any payload with a list-of-records field (order lines — hardly
-  exotic) poisons the gate permanently.
+  exotic) poisoned the gate permanently. **Closed**: every value admits
+  itself, residue included, compared by hash form.
 - The purely additive v1.1 (new event type, new optional field) is
   reported **breaking** (exit 1), because breaking compares whole
   documents and the new top-level definition reads as a required key
@@ -202,24 +220,36 @@ Three compounding problems, all pinned:
 
   Adding an event type is *the* routine registry change; the default
   gate refuses it.
-- The gate cannot be scoped to the union:
+- The gate could not be scoped to the union:
 
   ```
   aontu: unknown breaking option --at (try --help)
   ```
 
-The workaround (check.sh section 8): per-branch
+  **Closed**: `breaking --at '$.Event'` reports the additive v1.1 as
+  `compatible`, keeping `--mode`, the policy declaration and the
+  `--allow-*` flags that the `subsume --at` workaround gave up.
+
+The per-branch workaround (check.sh section 8) —
 `subsume --at '$.<Type>' <new> <old>` for the types both versions
-declare, skipping new types as additive. That gives the right answers
-(v1.1 passes, v2's `reason`/currency breaks are caught with exact
-findings) — except `OrderPlaced` stays undecided forever because of
-the list template. `breaking --at` plus a fix for template
-self-comparison would make this gate genuinely deployable.
+declare, skipping new types as additive — still gives the right
+answers, and now gives them for **every** branch: `OrderPlaced` no
+longer stays undecided on its list template. It stays in the record as
+the finer-grained alternative to anchoring the whole union.
 
 ### 4. "Enum with a default" has no sound spelling (major)
 
+> **2026-08-26: fixed by the preference admission gate (ADR-004) —
+> assertions updated to the new behaviour.** The disjunct spelling
+> `*"1.0" | "1.1"` is now the sound one: `"9.9"` vets **invalid**
+> (`[aontu/|:empty]`) and the unset field still generates `"1.0"`;
+> the `pref_not_instance` warning is advisory and its message now
+> correctly says "any *remaining* alternative". The conjunct
+> spelling's limits below are unchanged (the phase-1 limit).
+> The original finding is kept as the record.
+
 The envelope wants `specversion: one of {"1.0","1.1"}, default
-"1.0"`. Both spellings fail somewhere:
+"1.0"`. Both spellings failed somewhere:
 
 - Disjunct `*"1.0" | "1.1"` (probes/pref-enum.aon) does not enforce
   the set — a same-kind concrete value *overrides* the preferred
@@ -315,9 +345,9 @@ The dot is always a separator; there is no quoting or escaping form.
 Hence the underscored registry keys and the `${type//./_}` mapping in
 the consumer loop.
 
-### 8. No provenance through the envelope conjunction (minor)
+### 8. No provenance through the envelope conjunction (minor, FIXED 2026-08-27)
 
-`why` cannot say where a shared field came from:
+`why` could not say where a shared field came from:
 
 ```
 $ aontu why '$.OrderPaid.time' orders-v1.aon
@@ -328,7 +358,20 @@ $.OrderPaid.time = re("^\\d{4}-\\d{2}-\\d{2}T...")
 The value demonstrably came from `envelope.aon` via `$.Envelope &`,
 which is precisely the question a maintainer asks. (Use case 03 saw
 `why` attribute across a plain include; the reference-conjunction
-style used here defeats it.)
+style used here defeated it.)
+
+**Fixed** (the review's finding E): the field reached this path by
+being cloned out of the envelope, and provenance now travels with a
+clone, so the answer names the file and line the pattern was written
+on:
+
+```
+$.OrderPaid.time = re("^\\d{4}-\\d{2}-\\d{2}T...")
+  1. re("^\\d{4}-\\d{2}-\\d{2}T...")  .../envelope.aon:27:9
+```
+
+Check 4 pins it in both directions — the file is named, and "no
+contributions" must not come back.
 
 ### 9. Cross-file misattribution in error sites (minor)
 

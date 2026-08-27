@@ -232,7 +232,13 @@ const G = (x) => A.generate(x);
         (0, expect_1.expect)(G('a:key()')).equal({ a: '' });
         (0, expect_1.expect)(G('key()')).equal('');
         (0, expect_1.expect)(G('key() & string')).equal('');
-        (0, expect_1.expect)(G('key() & *a|string')).equal('');
+        // `&` binds tighter than `|`, so the unparenthesised spelling is
+        // `(key() & *a) | string` -- at the root key() is '', so that is
+        // `"" | string`: two alternatives still admitted, which ADR-007
+        // refuses as incomplete rather than folding them into one. The
+        // parenthesised form is the composition this line is about.
+        (0, expect_1.expect)(G('key() & (*a|string)')).equal('');
+        (0, expect_1.expect)(() => G('key() & *a|string')).throw(/disjunct_no_gen/);
         (0, expect_1.expect)(() => G('key() & number')).throw(/scalar/);
         (0, expect_1.expect)(G('a:b:c:key(0)')).equal({ a: { b: { c: 'c' } } });
         (0, expect_1.expect)(G('a:b:c:key(1)')).equal({ a: { b: { c: 'b' } } });

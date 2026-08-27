@@ -25,7 +25,7 @@ import (
 	aontu "github.com/rjrodger/aontu/go"
 )
 
-const modHelp = "aontu mod tidy|vendor|manifest [dir] (try --help)"
+const modHelp = "aontu mod tidy|verify|vendor|manifest [dir] (try --help)"
 
 func runMod(argv []string, stdout, stderr io.Writer) int {
 	var rest []string
@@ -76,9 +76,10 @@ func runMod(argv []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 
-	if ("tidy" != sub && "vendor" != sub && "manifest" != sub) || 2 < len(rest) {
+	if ("tidy" != sub && "verify" != sub && "vendor" != sub &&
+		"manifest" != sub) || 2 < len(rest) {
 		io.WriteString(stderr,
-			"aontu: mod needs tidy, vendor or manifest\n"+modHelp+"\n")
+			"aontu: mod needs tidy, verify, vendor or manifest\n"+modHelp+"\n")
 		return 2
 	}
 
@@ -96,6 +97,12 @@ func runMod(argv []string, stdout, stderr io.Writer) int {
 		report := aontu.ModTidy(dir, cache)
 		io.WriteString(stdout, modRender(sub, format, report.Verdict,
 			modTidyLines(report), report.Missing, report)+"\n")
+		return modExit(report.Verdict)
+
+	case "verify":
+		report := aontu.ModVerify(dir, cache)
+		io.WriteString(stdout, modRender(sub, format, report.Verdict,
+			modVerifyLines(report), report.Missing, report)+"\n")
 		return modExit(report.Verdict)
 
 	case "manifest":
@@ -163,6 +170,37 @@ func modTidyLines(report aontu.ModTidyReport) []string {
 	out := make([]string, 0, len(report.Lock))
 	for _, e := range report.Lock {
 		out = append(out, e.Mod+" "+e.V+" "+e.Canon)
+	}
+	// A module that is PRESENT but does not stand up. Named separately
+	// from a missing one because the repair is different: a fetch cannot
+	// help, the module itself has to be fixed (or its own dependencies
+	// vendored beside it). Rendered here rather than by modRender's
+	// shared tail, which speaks only of fetching.
+	for _, bad := range report.Unevaluable {
+		out = append(out, bad+": does not evaluate on its own; nothing to pin")
+	}
+	return out
+}
+
+func modVerifyLines(report aontu.ModVerifyReport) []string {
+	out := make([]string, 0, len(report.Verified)+len(report.Mismatched))
+	for _, mod := range report.Verified {
+		out = append(out, mod+": verified")
+	}
+	// BOTH HASHES, because the useful question is which way it moved: an
+	// empty Got is a module that no longer stands up at all.
+	for _, m := range report.Mismatched {
+		means := m.Got
+		if "" == means {
+			means = "nothing (it does not evaluate)"
+		}
+		out = append(out, m.Mod+": pinned "+m.Want+" but the store means "+means)
+	}
+	// NOT a fetch: the module may well be sitting in the store. What is
+	// absent is the PIN, and only a tidy writes one. Rendered here rather
+	// than by modRender's shared tail for exactly that reason.
+	for _, mod := range report.Unlocked {
+		out = append(out, mod+": not in the lockfile (run: aontu mod tidy)")
 	}
 	return out
 }

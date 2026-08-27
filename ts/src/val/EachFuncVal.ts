@@ -34,6 +34,7 @@ import { unite } from '../unify'
 import { makeNilErr } from '../err'
 import { ListVal } from './ListVal'
 import { FuncBaseVal } from './FuncBaseVal'
+import { repathInstance } from './Val'
 import { fillPlace } from './PlaceVal'
 import { cmpCodePoint } from '../keyorder'
 
@@ -107,12 +108,17 @@ class EachFuncVal extends FuncBaseVal {
     for (let i = 0; i < vals.length; i++) {
       const elctx = ctx.descend(String(i))
       const el = vals[i].clone(elctx)
-      // The template is CLONED per element, never shared: see
-      // PackFuncVal.resolve.
+      // The template is CLONED per element, never shared — a FULL
+      // instance to the leaves (`dup`, ADR-005): see PackFuncVal.resolve.
       // `_` inside the template binds the source child (G8 phase 3),
       // which for `each` is the element itself.
-      peg.push(undefined === tmpl ? el :
-        unite(elctx, el, fillPlace(tmpl.clone(elctx), vals[i], elctx), 'each'))
+      let inst: Val | undefined = undefined
+      if (undefined !== tmpl) {
+        inst = tmpl.clone(elctx, { dup: true })
+        repathInstance(inst, inst.path)
+      }
+      peg.push(undefined === inst ? el :
+        unite(elctx, el, fillPlace(inst, vals[i], elctx), 'each'))
     }
 
     return new ListVal({ peg }, ctx)

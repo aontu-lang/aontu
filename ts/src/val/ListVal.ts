@@ -34,6 +34,7 @@ import {
 import { ConjunctVal } from './ConjunctVal'
 import { NilVal } from './NilVal'
 import { BagVal } from './BagVal'
+import { repathInstance } from './Val'
 import { markSpread } from '../provenance'
 
 
@@ -58,7 +59,10 @@ class ListVal extends BagVal {
     if (spread) {
       if ('&' === spread.o) {
 
-        // TODO: handle existing spread!
+        // Multiple same-level spreads conjoin; an unequal spread from
+        // another statement meets this one in unify's combination
+        // below (see the MapVal constructor note — the combined
+        // template is stateless, BUGS.md §6-§7).
         this.spread.cj =
           Array.isArray(spread.v) ?
             1 < spread.v.length ?
@@ -305,7 +309,11 @@ class ListVal extends BagVal {
     }
 
     if (!allScalarKind) {
-      return this.clone(ctx)
+      // A full instance (`dup`, ADR-005), paths normalised to the
+      // destination: see Val.spreadClone and repathInstance.
+      const out = this.clone(ctx, { dup: true })
+      repathInstance(out, out.path)
+      return out
     }
 
     let out = (super.clone(ctx) as ListVal)
@@ -328,12 +336,16 @@ class ListVal extends BagVal {
 
   clone(ctx: AontuContext, spec?: ValSpec): Val {
     let out = (super.clone(ctx, spec) as ListVal)
+    // The instantiation flag descends with the mark (ADR-005): a
+    // template's elements are part of the instance.
+    const childspec = spec?.mark || spec?.dup ?
+      { mark: spec?.mark, dup: spec?.dup } : {}
     for (let entry of Object.entries(this.peg)) {
       out.peg[entry[0]] =
-        (entry[1] as any)?.isVal ? (entry[1] as Val).clone(ctx, spec?.mark ? { mark: spec.mark } : {}) : entry[1]
+        (entry[1] as any)?.isVal ? (entry[1] as Val).clone(ctx, childspec) : entry[1]
     }
     if (this.spread.cj) {
-      out.spread.cj = this.spread.cj.clone(ctx, spec?.mark ? { mark: spec.mark } : {})
+      out.spread.cj = this.spread.cj.clone(ctx, childspec)
     }
 
     out.closed = this.closed

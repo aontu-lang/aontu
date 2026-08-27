@@ -1,3 +1,8 @@
+# FIXED 2026-08-27 (the review's finding C, BUGS.md sec 16): this
+# file now vets as its `expected` line says it should. Kept as the
+# regression guard; the shared rows are vet-sizing-* and
+# vet-must-over-a-container-* in test/spec/vet.tsv.
+#
 # C5 (use-case 09): list form -- length(max(2)) & unique() beside a list
 # spread template are stripped when the schema settles (--canon of this
 # file alone: {"labels":[&:string]}), so duplicate and oversize data

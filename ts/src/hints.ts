@@ -33,6 +33,12 @@ const hints: Record<string, string> = {
     'This value was present after unification, and cannot be generated\n' +
     'because it is not a literal value.',
 
+  disjunct_no_gen:
+    'More than one alternative of this disjunction is still admitted, so\n' +
+    'there is no single value to generate. Supply a value that selects\n' +
+    'one alternative, or write a preference (*) to say which one holds\n' +
+    'when nothing else does.',
+
 
   // TODO: extend errors to have details so we can name the key
   mapval_required: 'This map value is required.',
@@ -231,12 +237,85 @@ const hints: Record<string, string> = {
     '  1.0 + 0d2   -> nil    # float with biginteger;\n' +
     '  0d0.5 + 1.0 -> nil    # ... and the same the other way round.',
 
+  pick_key:
+    'A child of this bag has no key `{key}` to pick. Projection\n' +
+    'refuses rather than skipping: a shorter list would make the\n' +
+    'aggregate over it total a DIFFERENT set of records than the one\n' +
+    'the author named, which is the failure an aggregate exists to\n' +
+    'prevent. Give every child the key, or filter the bag first.' +
+    '\n \nExamples:\n' +
+    '  pick([{a:1},{a:2}], a)   -> [1,2]  # Every child has it;\n' +
+    '  pick([{a:1},{b:2}], a)   -> nil    # ... the second does not;\n' +
+    '  pick([[9],[8]], 0)       -> [9,8]  # A list child takes an index.',
+
+  aggregate_data:
+    'This aggregate needs a BAG to fold: a list or a map. `sum`,\n' +
+    '`least` and `greatest` walk the children of the value they are\n' +
+    'given, so a scalar, a kind or an unresolved reference is not\n' +
+    'something they can total.' +
+    '\n \nExamples:\n' +
+    '  sum([1,2,3])       -> 6    # A list;\n' +
+    '  sum({a:1,b:2})     -> 3    # ... or a map, by sorted key;\n' +
+    '  sum(3)             -> nil  # A scalar is not a bag;\n' +
+    '  x:[1,2] sum($.x)   -> 3    # A reference to one is fine.',
+
+  aggregate_empty:
+    'There is no least or greatest element of an EMPTY bag. Addition\n' +
+    'has an identity, so `sum([])` is 0; comparison has none, and\n' +
+    'answering with a zero or an infinity would be inventing a value\n' +
+    'the data does not contain. Guard the bag, or give it a floor with\n' +
+    'a written element.' +
+    '\n \nExamples:\n' +
+    '  sum([])            -> 0    # Zero IS the empty sum;\n' +
+    '  least([])          -> nil  # ... but nothing is the least of none;\n' +
+    '  least([0])         -> 0    # A written floor answers.',
+
+  divide_by_zero:
+    'Division by zero. `div`, `mod` and `rem` refuse a zero divisor in\n' +
+    'every numeric leaf, including binary floats: Aontu is a JSON\n' +
+    'superset with no notation for an infinity, so there is no value\n' +
+    'the operation could answer with. A definition that divides by zero\n' +
+    'is wrong, and this says so where it is written rather than\n' +
+    'somewhere downstream.' +
+    '\n \nExamples:\n' +
+    '  div(7, 0)     -> nil  # No answer exists;\n' +
+    '  mod(7, 0)     -> nil  # ... nor for the modulus;\n' +
+    '  div(7.0, 0.0) -> nil  # ... and a float would say Infinity.',
+
+  inexact_divide:
+    'Exact decimal division is not closed: one third has no finite\n' +
+    'decimal form, so `div`, `mod` and `rem` refuse a `0d` operand\n' +
+    'rather than round one. Two ways out. Scale to integers and divide\n' +
+    'those -- which is the convention money should be carried in\n' +
+    'anyway, minor units as an integer -- or use binary floats if an\n' +
+    'approximation is acceptable here.' +
+    '\n \nExamples:\n' +
+    '  div(0d10.0, 0d4.0) -> nil    # Refused, though this one terminates;\n' +
+    '  div(0d10, 0d4)     -> 0d2    # A biginteger is not a decimal;\n' +
+    '  div(1000, 4)       -> 250    # Integer cents, exact;\n' +
+    '  div(10.0, 4.0)     -> 2.5    # ... or binary64, approximate;\n' +
+    '  mul(0d10.0, 0d4.0) -> 0d40.0 # Multiplication IS exact and stays.',
+
+  float_overflow:
+    'This result is not a finite binary64 number, so it is not a value\n' +
+    'Aontu can carry. There is no notation for an infinity or a NaN in\n' +
+    'a JSON superset, and no JSON a generator could emit for one, so\n' +
+    'the operation is refused where it is written rather than escaping\n' +
+    'as an internal error or an unserialisable value.\n' +
+    'Use the exact leaves (`0d`) if the magnitude is real rather than\n' +
+    'an accident.' +
+    '\n \nExamples:\n' +
+    '  1.0e308 + 1.0e308 -> nil  # Overflows binary64;\n' +
+    '  mul(1.0e200, 1.0e200) -> nil  # ... and so does this;\n' +
+    '  0d1e308 + 0d1e308 -> 0d2e308  # Exact, and well inside budget.',
+
   inexact_integer_sum:
     'The `integer` leaf holds a value only when it is integral, within\n' +
-    'the int64 range, and exactly representable in binary64. This sum\n' +
-    'is not: {sum}.\n' +
-    'Aontu adds integers exactly and refuses to store a rounded answer\n' +
-    '-- write `0d<digits>` for an exact integer beyond that window.' +
+    'the int64 range, and exactly representable in binary64. This\n' +
+    'result is not: {sum}.\n' +
+    'Aontu computes integers exactly and refuses to store a rounded\n' +
+    'answer -- write `0d<digits>` for an exact integer beyond that\n' +
+    'window.' +
     '\n \nExamples:\n' +
     '  4503599627370496 + 4503599627370496 -> 9007199254740992  # Exact;\n' +
     '  4503599627370496 + 4503599627370497 -> nil    # 2^53+1 is not;\n' +
@@ -411,6 +490,7 @@ const codeClasses: Record<string, string> = {
   // and a lattice citizen may not be falsified by more information.
   relation_cycle: 'conflict',
   relation_inverse_missing: 'conflict',
+  relation_target_unmet: 'conflict',
   func_arity: 'parse',
   elided_value: 'parse',
   unify_no_src: 'parse',
@@ -440,6 +520,12 @@ const codeClasses: Record<string, string> = {
   '|:empty-dist': 'conflict',
   exact_float_mix: 'conflict',
   inexact_integer_sum: 'conflict',
+  pick_key: 'conflict',
+  aggregate_data: 'conflict',
+  aggregate_empty: 'conflict',
+  divide_by_zero: 'conflict',
+  inexact_divide: 'conflict',
+  float_overflow: 'conflict',
   decimal_budget: 'conflict',
   lossy_integer_literal: 'conflict',
   arg: 'conflict',
@@ -458,6 +544,7 @@ const codeClasses: Record<string, string> = {
 
   // incomplete -- residue: the truth requires more than was supplied
   no_gen: 'incomplete',
+  disjunct_no_gen: 'incomplete',
   conjunct: 'incomplete',
   mapval_no_gen: 'incomplete',
   mapval_required: 'incomplete',

@@ -478,15 +478,18 @@ aontu why '$.service.port' config.aon
 
 ```
 $.service.port = 9090
-  1. integer  config.aon:5:12
-  2. *8080|integer  config.aon:5:25
-  3. 9090  config.aon:13:9
+  1. *8080|integer  config.aon:5:12
+  2. 9090  config.aon:13:9
 ```
 
-Three contributions, and you wrote all three: the constraint, the
-default, and the data that beat it — each with the line and column it
-came from. Ask the same of `$.service.host`, which nothing overrode,
-and only two come back: the constraint and the default.
+Two contributions, and you wrote both: the default with its type
+(`*8080 | integer`) and the data that beat it — each with the line and
+column it came from. Notice the first line is the *whole* written
+value: a contribution is a statement you wrote, not a member of one,
+so the `8080` and the `integer` arrive together as the single value
+they were written as. Ask the same of `$.service.host`, which nothing
+overrode, and only one comes back — the written default,
+`*"localhost"|string`.
 
 `get` has `--keys`, `--types` and `--canon` views as well, and there
 are eleven verbs in all. The

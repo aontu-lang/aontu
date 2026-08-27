@@ -44,10 +44,20 @@ lacks() {
 # Whole-file generation is BLOCKED by design (README gap 2 forces the
 # vet anchors to stay unmarked, and unmarked abstract values cannot
 # generate). Pin that price:
+# 2026-08-27 (ADR-007): the refusal is now `disjunct_no_gen`, class
+# incomplete -- "more than one alternative still admitted" -- rather
+# than a scalar_value CONFLICT between an enum's own branches, which is
+# what folding them together used to report.
 run geneval 1 -- "$DIR/contract.aon"
-has geneval err '[aontu/scalar_value]'
+has geneval err '[aontu/disjunct_no_gen]'
 ok "contract.aon does not generate (the documented price of gap 2)"
 
+# 2026-08-26: golden regenerated after the template-clone isolation
+# change (ADR-005). Two spots inside the api spread TEMPLATE changed:
+# the method disjunction canons as parsed (nested parens, no longer
+# flattened by a destination's application leaking back), and summary's
+# length() keeps its written argument (the `integer&` residue came from
+# the same leak). Every applied endpoint is byte-identical.
 run canon 0 -- --canon "$DIR/contract.aon"
 diff -u "$DIR/expected/contract.canon" "$WORK/canon.out" \
   || fail "canonical form drifted from expected/contract.canon"
@@ -103,9 +113,20 @@ has vsubtle out '[aontu/constraint]'
 has vsubtle out 'expected: re("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")'
 has vsubtle out '[aontu/|:empty]'
 has vsubtle out '"admin"|"member"|"viewer"'
-# ...but the enum finding's schema site has no source location:
-has vsubtle out 'contract.aon:-1:-1'
-ok "vet: bad email + bad enum refused; alternatives shown, enum site is -1:-1"
+# ...and, since 2026-08-27 (ADR-007), the enum finding's schema site
+# has a real source location. The meet mints a fresh disjunction, which
+# used to arrive unsited, so this finding pointed at -1:-1 with nowhere
+# for a repair loop to go; a narrowed disjunction now carries the site
+# of the one it came from.
+#
+# THE FILE IS types.aon, and that is the second half of the same fix
+# (finding F, BUGS.md §25). The enum is declared in types.aon at 35:15
+# and reached through an include; the site used to carry the ENTRY
+# file's name with the included file's coordinates -- and contract.aon
+# is nineteen lines long, so `contract.aon:35:15` named a line that
+# does not exist. Every site now names the file whose text it excerpts.
+has vsubtle out 'types.aon:35:15'
+ok "vet: bad email + bad enum refused; alternatives shown, enum site located"
 
 # Missing required field, non-enum: verdict incomplete, exit 3 -- the
 # loop's third answer ("add what is missing" vs "fix what is wrong").
@@ -113,26 +134,34 @@ run vmiss 3 -- vet --at '$.msg.CreateUserRequest' "$DIR/contract.aon" \
   "$DIR/data/create-user-missing-name.json"
 has vmiss out 'verdict: incomplete'
 has vmiss out '[aontu/mapval_required]'
-# GAP 3 (misattribution): the schema site names the ENTRY file, with
-# row/col that belong to the included types.aon. Pin it structurally:
-# the row the finding cites holds DisplayName in types.aon, not in the
-# contract.aon the finding names.
-row="$(grep -o 'contract.aon:[0-9]*' "$WORK/vmiss.out" | head -1 | cut -d: -f2)"
-[ -n "$row" ] || fail "vmiss: schema site does not name contract.aon"
+# GAP 3 CLOSED 2026-08-27 (finding F, BUGS.md §25). The schema site
+# used to name the ENTRY file while carrying row/col that belong to the
+# included types.aon -- a real file name against a line it does not
+# have, which is the worst of the three possible answers because it
+# looks right. Pinned structurally, in both directions: the row the
+# finding cites holds DisplayName in the file the finding NAMES, and
+# the entry file's own line of that number does not.
+row="$(grep -o 'types.aon:[0-9]*' "$WORK/vmiss.out" | head -1 | cut -d: -f2)"
+[ -n "$row" ] || fail "vmiss: schema site does not name types.aon"
 sed -n "${row}p" "$DIR/types.aon" | grep -q 'DisplayName' \
-  || fail "vmiss: row $row is not DisplayName in types.aon; gap 3 pin stale"
+  || fail "vmiss: types.aon:$row is not DisplayName; site pin stale"
 sed -n "${row}p" "$DIR/contract.aon" | grep -q 'DisplayName' \
-  && fail "vmiss: contract.aon:$row is DisplayName; gap 3 fixed? update README" \
+  && fail "vmiss: contract.aon:$row is DisplayName too; the pin proves nothing" \
   || true
-ok "vet: missing name -> exit 3; schema site misattributed to entry file"
+ok "vet: missing name -> exit 3; schema site names the file it excerpts"
 
-# GAP 1 (silent pass): a required ENUM field can be omitted entirely --
-# the unresolved disjunction counts as concrete. This candidate is
-# missing role, and vet says valid. Delete this pin when fixed.
-run vhole 0 -- vet --at '$.msg.CreateUserRequest' "$DIR/contract.aon" \
+# GAP 1 CLOSED 2026-08-27 (ADR-007). A required ENUM field could be
+# omitted entirely: the unresolved disjunction counted as concrete
+# because generation FOLDED its members together, and the resulting
+# scalar CONFLICT was filtered out by vet's incomplete-class pass. It
+# is now `disjunct_no_gen`, class incomplete -- the same answer the
+# missing non-enum field above gets, and the same exit code, so the
+# repair loop's "add what is missing" branch covers both.
+run vhole 3 -- vet --at '$.msg.CreateUserRequest' "$DIR/contract.aon" \
   "$DIR/data/create-user-missing-role.json"
-has vhole out 'verdict: valid'
-ok "vet: missing required enum field passes silently (pinned gap 1)"
+has vhole out 'verdict: incomplete'
+has vhole out '$.msg.CreateUserRequest.role: disjunct_no_gen [incomplete]'
+ok "vet: missing required enum field is incomplete (exit 3)"
 
 # Surplus keys against close(): refused, but with NO nearest-key help.
 run vsurp 1 -- vet --at '$.msg.CreateUserRequest' "$DIR/contract.aon" \
@@ -247,6 +276,9 @@ has vpagebad out '[aontu/constraint]'
 has vpagebad out '"grace.hopper@"'
 # GAP 8: the finding's path says items.0 but the broken element is
 # items[1] (the data site's row is correct; the path index is not).
+# 2026-08-26: unchanged by the template-clone isolation change
+# (ADR-005) — this is a TS-only attribution defect (the Go port
+# answers items.1), site-attribution family, still open.
 has vpagebad out '$.items.0.email'
 run vpagemiss 3 -- vet "$DIR/user-page.aon" \
   "$DIR/data/user-page-missing-total.json"

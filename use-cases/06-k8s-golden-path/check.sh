@@ -91,7 +91,12 @@ has vet-tampered '[aontu/constraint]' "constraint code"
 has vet-tampered 'max(20)' "replica cap named"
 has vet-tampered 'replicas' "replica finding located"
 has vet-tampered 'memory' "unit-less quantity flagged by re()"
-has vet-tampered 'env.0.name' "env-name finding located at its path"
+# 2026-08-26 (template-clone isolation, ADR-005): the finding path is
+# now `...containers.0.env.name` — identical in BOTH ports (the TS
+# path previously said env.0.name but dropped `web`; the ports
+# disagreed). The element index inside env is still elided — a
+# site-attribution gap, open, tracked with use-case 03's gap 8.
+has vet-tampered 'env.name' "env-name finding located at its path"
 has vet-tampered 'log_level' "lowercase env name is the named offender"
 ok "tampered manifests: replicas 50, lowercase env, unit-less memory all caught"
 
@@ -137,26 +142,43 @@ probe_fails double-from-default '[aontu/mapval_no_gen]' \
   "x + x doubling fails against a defaulted operand"
 probe_fails default-with-bounds '[aontu/mapval_no_gen]' \
   "a ranked default and min/max cannot share a field"
-probe_fails ref-in-pack-template '[aontu/no_path]' \
-  "relative ref inside a pack template does not resolve"
-run p-nan 1 "$DIR/probes/ref-in-pack-template.aon"
-has p-nan 'NaN' "template evaluated at a NaN key"
-ok "probe ref-in-pack-template: diagnostic path contains NaN"
-probe_fails hole-member-access '[aontu/no_path]' \
-  "_.field projection is unspellable"
-has p-hole-member-access 'unspellable' "unspellable in diagnostic"
+# 2026-08-26: fixed by the template-clone isolation change (ADR-005) —
+# the relative ref in the template EXPRESSION now answers for the
+# child (was [aontu/no_path] at a NaN key), so this moved from the
+# expected-failure probes to the goldens below. Shared-spec pin:
+# test/spec/gen-pack.tsv pack-rel-ref-in-expr.
+# 2026-08-27: the projection this probe was reaching for is WRITABLE
+# now. `_.ports` is still refused -- it asks for a value that is both
+# the whole source row and one of its fields -- but pick(d, k) is the
+# projector the language gained, and `pick([_], ports)` wraps the hole
+# in a one-element bag and projects it. Clunkier than `_.ports`, and a
+# spelling rather than nothing at all.
+run p-hole-member-access 0 "$DIR/probes/hole-member-access.aon"
+has p-hole-member-access '"containerPort": 8080' "the projected field"
+ok "probe hole-member-access: pick([_], k) projects out of the pack row"
 probe_fails each-reshape-scalar '[aontu/scalar_kind]' \
   "each cannot reshape scalar children into maps"
 probe_fails join-list '[aontu/mapval_no_gen]' \
   "no join(): list + string does not evaluate"
-probe_fails spread-column-deadlock '[aontu/mapval_no_gen]' \
-  "pack over spread-augmented data never settles"
-probe_fails length-on-schema-list '[aontu/constraint]' \
-  "length(min(1)) fires on the empty schema list before the merge"
+# 2026-08-26: fixed by the spread application rework — a generator's
+# data argument now snapshots its source only once the source has
+# settled in the tree, so the spread-injected relative refs arrive
+# resolved and the pack fires (was [aontu/mapval_no_gen], the whole
+# model dead). Moved from the expected-failure probes to the goldens
+# below. Shared-spec pins: gen-pack.tsv pack-over-spread-augmented,
+# gen-each.tsv each-over-spread-augmented.
 probe_fails env-append '[aontu/scalar_value]' \
   "appending to a generated list collides positionally"
 probe_fails kebab-bare '[aontu/negative]' \
   "bare kebab-case name parses as negation"
+
+# FIXED 2026-08-27 (the review's finding C, BUGS.md sec 16):
+# length(min(1)) used to fire against the spread-only schema list (0
+# members) before the generator merge -- a false refusal of a valid
+# model. A lower bound violated is provisional now: more members may
+# still arrive, so the atom residuates and is decided at generation,
+# by which time the pack has filled the list. Moved from the
+# expected-failure probes to the goldens below.
 
 # Pinned silent-wrong-answer bugs: exit 0, golden diff.
 probe_golden() { # file label
@@ -165,29 +187,56 @@ probe_golden() { # file label
     || die "probe $1 output differs from expected/$1.json"
   ok "pinned $2"
 }
-probe_golden bound-bypass \
-  "bound in a disjunction branch: override 40 sails past max(20), exit 0"
-grep -q '"replicas": 40' "$DIR/expected/bound-bypass.json" \
-  || die "bound-bypass golden lost its point"
+# 2026-08-26: fixed by the preference admission gate (ADR-004) -- the
+# out-of-bound override is refused now, so this moved from the
+# silent-wrong-answer goldens to the refusal probes (the golden
+# expected/bound-bypass.json, replicas:40, is gone with it).
+probe_fails bound-bypass '[aontu/|:empty]' \
+  "bound in a disjunction branch: override 40 refused by the admission gate"
+probe_golden length-on-schema-list \
+  "length(min(1)) beside a spread waits for the generator merge"
 probe_golden close-shallow-typo \
   "close(pack) does not seal children: typo'd override absorbed, exit 0"
 grep -q '"replcias": 4' "$DIR/expected/close-shallow-typo.json" \
   || die "close-shallow-typo golden lost its point"
+# 2026-08-26: the next four goldens hold the CORRECT outputs — fixed by
+# the template-clone isolation change (ADR-005). They pinned
+# silent-wrong answers before (both children named "web", shared
+# rank-2 key(), empty hidden-pack children, no_path on the template
+# expression ref).
+probe_golden ref-in-pack-template \
+  "fixed: relative ref in a template expression answers for the child"
+grep -q '"250m"' "$DIR/expected/ref-in-pack-template.json" \
+  || die "ref-in-pack-template golden lost its point"
 probe_golden inner-close-crosswire \
-  "close(tmpl) + second pack: key() cross-wires, both children named 'web'"
-[ "$(grep -c '"name": "web"' "$DIR/expected/inner-close-crosswire.json")" = "2" ] \
+  "fixed: close(tmpl) + second pack: each child keeps its own key()"
+grep -q '"name": "auth"' "$DIR/expected/inner-close-crosswire.json" \
   || die "inner-close-crosswire golden lost its point"
 probe_golden pref-key-crosswire \
-  "**key(n) default in an each-under-pack evaluates once, shared by all"
-[ "$(grep -c '"value": "web"' "$DIR/expected/pref-key-crosswire.json")" = "2" ] \
+  "fixed: **key(n) default in an each-under-pack answers per child"
+grep -q '"value": "auth"' "$DIR/expected/pref-key-crosswire.json" \
   || die "pref-key-crosswire golden lost its point"
 probe_golden hide-pack-loss \
-  "hide(pack(...)) drops the template: children generate empty, exit 0"
-grep -q '"web": {}' "$DIR/expected/hide-pack-loss.json" \
+  "fixed: hide(pack(...)) hides the field; children keep their values"
+grep -q '"a": 1' "$DIR/expected/hide-pack-loss.json" \
   || die "hide-pack-loss golden lost its point"
 probe_golden quantity-concat \
   "quantity strings concatenate: '256Mi'+'256Mi' is '256Mi256Mi', exit 0"
 grep -q '256Mi256Mi' "$DIR/expected/quantity-concat.json" \
   || die "quantity-concat golden lost its point"
+# ... and 2026-08-27, the spelling that does NOT quietly answer. `+`
+# stays polymorphic (the golden above is unchanged); the arithmetic
+# family is numeric, so add() on two quantity strings is refused where
+# it is written. The review's finding I named this exact case.
+probe_fails quantity-add-refused '[aontu/invalid-arg]' \
+  "add('256Mi','256Mi') is refused where '+' silently concatenates"
+# 2026-08-26: fixed by the spread application rework (see the note in
+# the probe_fails block above) — the DRY port-column derivation works:
+# the nested spread's port/targetPort reach both the tree and the
+# pack's snapshot, and the inner each() emits the augmented entries.
+probe_golden spread-column-deadlock \
+  "fixed: pack over spread-augmented data fires with resolved columns"
+grep -q '"targetPort": 8080' "$DIR/expected/spread-column-deadlock.json" \
+  || die "spread-column-deadlock golden lost its point"
 
 echo "all $PASS checks passed"

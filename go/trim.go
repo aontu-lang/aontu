@@ -27,8 +27,15 @@ const (
 
 // TrimReport is the whole answer: one verdict, and the redundant paths.
 type TrimReport struct {
-	Redundant []string `json:"redundant"`
-	Verdict   string   `json:"verdict"`
+	// Errors is WHY the run could not be made, in the same finding shape
+	// Vet reports in (the review's finding F). An `error` verdict used
+	// to arrive with an empty report -- something is wrong with the
+	// document, and nothing about what -- which is the one answer a
+	// repair loop cannot act on. Present ONLY on an `error` verdict, so
+	// a clean report stays exactly the two fields it always was.
+	Errors    []VetFinding `json:"errors,omitempty"`
+	Redundant []string     `json:"redundant"`
+	Verdict   string       `json:"verdict"`
 }
 
 // trimCandidates lists every (map, key) pair in a PARSED tree,
@@ -109,20 +116,29 @@ func trimDeleteAt(root Val, path []string) bool {
 // evaluates, and answers the canon — with ok=false when the source does
 // not stand up, which for the baseline is the caller's error verdict
 // and for a probe means "load-bearing".
-func (a *Aontu) trimEvalCanon(src string, delPath []string) (string, bool) {
+// The third result is WHY, for the one caller that reports it, and nil
+// for a failure that is an ANSWER rather than a fault: a probe whose
+// deletion cannot land means "load-bearing".
+func (a *Aontu) trimEvalCanon(
+	src string, delPath []string) (string, bool, *VetFinding) {
 	v, perr := a.parseEntry(src)
-	if perr != nil || nil == v {
-		return "", false
+	if perr != nil {
+		f := parseFinding(a.File, VetRoleData, perr)
+		return "", false, &f
+	}
+	if nil == v { //coverage:ignore parseEntry answers a value or an error, never neither
+		return "", false, nil
 	}
 	if nil != delPath && !trimDeleteAt(v, delPath) {
-		return "", false
+		return "", false, nil
 	}
 	ctx := &Ctx{root: v, src: src}
 	res := unifyRoot(v, ctx)
 	if nil == res || res.Nil() || 0 < len(ctx.err) {
-		return "", false
+		f := failureFinding(ctx, a.File, src, res)
+		return "", false, &f
 	}
-	return res.Canon(), true
+	return res.Canon(), true, nil
 }
 
 // TrimCheck is the whole reporter: the baseline canon, then one probe
@@ -131,9 +147,10 @@ func (a *Aontu) trimEvalCanon(src string, delPath []string) (string, bool) {
 // reporting both would tell the author to delete the same text twice.
 // Mirrors trimCheck in ts/src/trim.ts.
 func (a *Aontu) TrimCheck(src string) TrimReport {
-	baseline, ok := a.trimEvalCanon(src, nil)
+	baseline, ok, fail := a.trimEvalCanon(src, nil)
 	if !ok {
-		return TrimReport{Verdict: TrimError, Redundant: []string{}}
+		return TrimReport{Verdict: TrimError, Redundant: []string{},
+			Errors: []VetFinding{*fail}}
 	}
 
 	parsed, perr := a.parseEntry(src)
@@ -156,7 +173,7 @@ func (a *Aontu) TrimCheck(src string) TrimReport {
 		if covered {
 			continue
 		}
-		if canon, ok := a.trimEvalCanon(src, path); ok && baseline == canon {
+		if canon, ok, _ := a.trimEvalCanon(src, path); ok && baseline == canon {
 			redundant = append(redundant, subPathText(path))
 		}
 	}

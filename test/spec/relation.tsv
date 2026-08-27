@@ -65,9 +65,53 @@ two-relations-declared	relation	@"std/system"\nrelations: {dependsOn: $.std.Rela
 # the errors it already has are the answer. And a `relations` entry
 # that is not a map declares nothing.
 edge-outside-an-entity-is-not-a-relation	relation	@"std/system"\nrelations: {dependsOn: $.std.Relation & {inverse: usedBy}}\ndependsOn: [&: refer(), b]\nb: id(b) & {}	{"verdict":"pass","findings":[]}
-broken-document-is-not-blamed-on-relations	relation	@"std/system"\nrelations: {dependsOn: $.std.Relation & {acyclic: true}}\na: 1 & 2	{"verdict":"error","findings":[]}
+broken-document-is-not-blamed-on-relations	relation	@"std/system"\nrelations: {dependsOn: $.std.Relation & {acyclic: true}}\na: 1 & 2	{"errors":[{"class":"conflict","code":"scalar_value","path":"$.a","severity":"error","sites":[{"col":8,"file":"","len":1,"role":"data","row":3,"src":"2","value":"2"},{"col":4,"file":"","len":1,"role":"data","row":3,"src":"1","value":"1"}]}],"findings":[],"verdict":"error"}
 relations-that-are-not-maps-are-skipped	relation	relations: {dependsOn: 1}\na: id(a) & {dependsOn: [&: refer(), a]}	{"verdict":"pass","findings":[]}
 the-worked-example	relation	@"std/system"\n\nservices: {\n  auth: id(svc/auth) & $.std.Service & {}\n  billing: id(svc/billing) & $.std.Service & {dependsOn: [&: refer(), svc/auth]}\n}\nrelations: {\n  dependsOn: $.std.Relation & {target: $.std.Service, inverse: dependedOnBy, acyclic: true}\n}	{"verdict":"fail","findings":[{"code":"relation_inverse_missing","relation":"dependsOn","at":"$.services.billing.dependsOn.0","detail":["svc/billing","svc/auth","dependedOnBy"]}]}
 # A root that is not a map declares no relations: there is nowhere for
 # `relations` to be.
 non-map-root	relation	[1,2]	{"verdict":"pass","findings":[]}
+
+# --- target (the review's finding J) ----------------------------------
+#
+# `target` says what the FAR END must satisfy, and used to say it to
+# nobody: the field was read by nothing, on the reasoning that
+# `refer(t)` already flows the type in at the SITE. It does -- which is
+# why the declaration was worth nothing, because the site then has to
+# repeat it, and the idiom that avoids repeating it
+# (`refer($.std.Service)`) tripped the fixpoint until §19 was fixed. So
+# every real model wrote bare `refer()` and its typed-endpoint
+# declaration checked nothing.
+#
+# Satisfaction is the meet, and NOT MERELY THE ABSENCE OF A CONFLICT:
+# a target key the far end does not have unifies happily and leaves a
+# hole, so the check asks the question `refer(t)` answers at the site --
+# can the far end still generate once the target is met? -- and
+# compares it with the far end ALONE, so a node already incomplete for
+# its own reasons is not blamed on the relation pointing at it. The
+# reason reported is the engine's own code. Parity-probed.
+target-holds	relation	relations: {dependsOn: {target: {kind: service}}}\na: id(a) & {dependsOn: [&: refer(), b]}\nb: id(b) & {kind: service}\n	{"findings":[],"verdict":"pass"}
+target-refused	relation	relations: {dependsOn: {target: {kind: service}}}\na: id(a) & {dependsOn: [&: refer(), b]}\nb: id(b) & {kind: database}\n	{"findings":[{"at":"$.a.dependsOn.0","code":"relation_target_unmet","detail":["a","b","scalar_value"],"relation":"dependsOn"}],"verdict":"fail"}
+target-unsatisfied-key-is-not-satisfaction	relation	relations: {dependsOn: {target: {kind: service, port: integer}}}\na: id(a) & {dependsOn: [&: refer(), b]}\nb: id(b) & {kind: service}\n	{"findings":[{"at":"$.a.dependsOn.0","code":"relation_target_unmet","detail":["a","b","mapval_spread_required"],"relation":"dependsOn"}],"verdict":"fail"}
+target-top-asks-nothing	relation	relations: {dependsOn: {target: top}}\na: id(a) & {dependsOn: [&: refer(), b]}\nb: id(b) & {kind: database}\n	{"findings":[],"verdict":"pass"}
+target-absent-asks-nothing	relation	relations: {dependsOn: {acyclic: true}}\na: id(a) & {dependsOn: [&: refer(), b]}\nb: id(b) & {kind: database}\n	{"findings":[],"verdict":"pass"}
+target-is-per-edge-not-per-entity	relation	relations: {\n  dependsOn: {target: {kind: service}}\n  usedBy: {target: {kind: database}}\n}\na: id(a) & {dependsOn: [&: refer(), b], usedBy: [&: refer(), b]}\nb: id(b) & {kind: service}\n	{"findings":[{"at":"$.a.usedBy.0","code":"relation_target_unmet","detail":["a","b","scalar_value"],"relation":"usedBy"}],"verdict":"fail"}
+target-and-inverse-both-report	relation	relations: {dependsOn: {target: {kind: service}, inverse: usedBy}}\na: id(a) & {dependsOn: [&: refer(), b]}\nb: id(b) & {kind: database}\n	{"findings":[{"at":"$.a.dependsOn.0","code":"relation_inverse_missing","detail":["a","b","usedBy"],"relation":"dependsOn"},{"at":"$.a.dependsOn.0","code":"relation_target_unmet","detail":["a","b","scalar_value"],"relation":"dependsOn"}],"verdict":"fail"}
+target-already-incomplete-is-not-the-relations-fault	relation	relations: {dependsOn: {target: {kind: service}}}\na: id(a) & {dependsOn: [&: refer(), b]}\nb: id(b) & {kind: service, port: integer}\n	{"findings":[],"verdict":"pass"}
+target-through-std-service	relation	@"std/system"\nrelations: {dependsOn: $.std.Relation & {target: $.std.Service}}\na: id(a) & {dependsOn: [&: refer(), b]}\nb: id(b) & $.std.Service & {}\n	{"findings":[],"verdict":"pass"}
+
+# The target is checked against the node the link ARRIVES AT, not
+# merely its entity: an address into part of an entity is what the
+# far end is. And a scalar target refuses a record outright, where a
+# record target refuses one key at a time. Parity-probed.
+target-checks-the-node-the-link-arrives-at	relation	relations: {dependsOn: {target: {n: 1}}}\na: id(a) & {dependsOn: [&: refer(), "b.parts.one"]}\nb: id(b) & {parts: {one: {n: 1}}}\n	{"findings":[],"verdict":"pass"}
+target-refuses-the-node-the-link-arrives-at	relation	relations: {dependsOn: {target: {n: 1}}}\na: id(a) & {dependsOn: [&: refer(), "b.parts.one"]}\nb: id(b) & {parts: {one: {n: 2}}}\n	{"findings":[{"at":"$.a.dependsOn.0","code":"relation_target_unmet","detail":["a","b.parts.one","scalar_value"],"relation":"dependsOn"}],"verdict":"fail"}
+target-that-is-a-scalar-refuses-a-record	relation	relations: {dependsOn: {target: "x"}}\na: id(a) & {dependsOn: [&: refer(), b]}\nb: id(b) & {k: 1}\n	{"findings":[{"at":"$.a.dependsOn.0","code":"relation_target_unmet","detail":["a","b","map"],"relation":"dependsOn"}],"verdict":"fail"}
+
+# A LIST INDEX IS A SEGMENT TOO. Go walked map keys alone and so
+# silently SKIPPED the check for any link into a list, passing a far
+# end it had not looked at -- the fail-open shape this review exists
+# to retire, and invisible until a row asked for the refusal rather
+# than the pass. Parity-probed.
+target-reaches-into-a-list-element	relation	relations: {dependsOn: {target: {n: 1}}}\na: id(a) & {dependsOn: [&: refer(), "b.items.0"]}\nb: id(b) & {items: [{n: 1}]}\n	{"findings":[],"verdict":"pass"}
+target-refuses-a-list-element	relation	relations: {dependsOn: {target: {n: 1}}}\na: id(a) & {dependsOn: [&: refer(), "b.items.0"]}\nb: id(b) & {items: [{n: 2}]}\n	{"findings":[{"at":"$.a.dependsOn.0","code":"relation_target_unmet","detail":["a","b.items.0","scalar_value"],"relation":"dependsOn"}],"verdict":"fail"}

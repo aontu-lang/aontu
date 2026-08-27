@@ -28,6 +28,10 @@ var relationsExit = map[string]int{
 }
 
 func runRelations(argv []string, stdout, stderr io.Writer) int {
+	argv, trust, trustOK := takeTrust(argv, stderr)
+	if !trustOK {
+		return 2
+	}
 	var files []string
 	format := "text"
 
@@ -65,7 +69,7 @@ func runRelations(argv []string, stdout, stderr io.Writer) int {
 
 	// The file's own directory is the include base, as every verb
 	// resolves a named file (vet's aontuForPath rule).
-	report := aontuForFile(files[0]).RelationCheck(string(src))
+	report := aontuForFileTrust(files[0], trust).RelationCheck(string(src))
 	text := renderRelationsText(report)
 	if "json" == format {
 		text = renderRelationsJSON(report)
@@ -76,6 +80,15 @@ func runRelations(argv []string, stdout, stderr io.Writer) int {
 
 func renderRelationsText(report aontu.RelationReport) string {
 	head := "verdict: " + report.Verdict
+	// WHY, when the document could not be evaluated at all: rendered as
+	// vet renders a finding, because it IS one (the review's finding F).
+	if 0 < len(report.Errors) {
+		out := []string{head, ""}
+		for _, f := range report.Errors {
+			out = append(out, renderFinding(f))
+		}
+		return strings.Join(out, "\n")
+	}
 	if 0 == len(report.Findings) {
 		return head
 	}
@@ -84,6 +97,9 @@ func renderRelationsText(report aontu.RelationReport) string {
 		if "relation_cycle" == f.Code {
 			out = append(out, f.At+"  "+f.Relation+": cycle "+
 				strings.Join(f.Detail, " -> "))
+		} else if "relation_target_unmet" == f.Code {
+			out = append(out, f.At+"  "+f.Relation+": "+f.Detail[1]+
+				" is not what "+f.Relation+" targets ("+f.Detail[2]+")")
 		} else {
 			out = append(out, f.At+"  "+f.Relation+": "+f.Detail[1]+
 				" does not list "+f.Detail[0]+" under "+f.Detail[2])
@@ -96,6 +112,7 @@ func renderRelationsText(report aontu.RelationReport) string {
 // canonical emitter's order (see vetReportJSON).
 type relationsReportJSON struct {
 	Aontu    subsumeProducerJSON     `json:"aontu"`
+	Errors   []aontu.VetFinding      `json:"errors,omitempty"`
 	Findings []aontu.RelationFinding `json:"findings"`
 	Verdict  string                  `json:"verdict"`
 }
@@ -107,6 +124,7 @@ func renderRelationsJSON(report aontu.RelationReport) string {
 	enc.SetIndent("", "  ")
 	_ = enc.Encode(relationsReportJSON{
 		Aontu:    subsumeProducerJSON{Verb: "relations", Version: aontu.VERSION},
+		Errors:   report.Errors,
 		Findings: report.Findings,
 		Verdict:  report.Verdict,
 	})

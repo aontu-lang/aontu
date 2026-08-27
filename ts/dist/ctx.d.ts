@@ -30,6 +30,7 @@ declare class AontuContext {
     seenI: number;
     seen: Record<string, number>;
     collect: boolean;
+    probe: boolean;
     prov?: any;
     err: any[];
     explain: any[] | null;

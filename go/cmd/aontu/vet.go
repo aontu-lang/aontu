@@ -267,18 +267,22 @@ var vetWatchWait = watchWait
 // 2 from vetOnce) and keeps watching — a file being rewritten is
 // briefly unreadable, and dying on it would make the mode useless for
 // the very moment it exists for.
-func watchVet(args *vetArgs, stdout, stderr io.Writer) int {
+func watchVet(args *vetArgs, trust trustArg, stdout, stderr io.Writer) int {
 	files := append([]string{args.schema}, args.data...)
 	before := watchSignature(files)
-	code := vetOnce(args, stdout, stderr)
+	code := vetOnce(args, trust, stdout, stderr)
 	for vetWatchWait(files, before) {
 		before = watchSignature(files)
-		code = vetOnce(args, stdout, stderr)
+		code = vetOnce(args, trust, stdout, stderr)
 	}
 	return code
 }
 
 func runVet(argv []string, stdout, stderr io.Writer) int {
+	argv, trust, trustOK := takeTrust(argv, stderr)
+	if !trustOK {
+		return 2
+	}
 	args, argErr := parseVetArgs(argv)
 	if "" != argErr {
 		fmt.Fprintln(stderr, argErr)
@@ -291,17 +295,17 @@ func runVet(argv []string, stdout, stderr io.Writer) int {
 	}
 
 	if args.watch {
-		return watchVet(args, stdout, stderr)
+		return watchVet(args, trust, stdout, stderr)
 	}
 
-	return vetOnce(args, stdout, stderr)
+	return vetOnce(args, trust, stdout, stderr)
 }
 
 // vetOnce is one complete vet run: read every file, vet each data
 // document, print one report, return the exit class. Split from runVet
 // so --watch can repeat it — the files are re-read on every run, which
 // is the point of watching them.
-func vetOnce(args *vetArgs, stdout, stderr io.Writer) int {
+func vetOnce(args *vetArgs, trust trustArg, stdout, stderr io.Writer) int {
 	schemaSrc, err := os.ReadFile(args.schema)
 	if err != nil {
 		fmt.Fprintf(stderr, "aontu: cannot read %s: %v\n", args.schema, err)
@@ -327,6 +331,7 @@ func vetOnce(args *vetArgs, stdout, stderr io.Writer) int {
 
 	for _, source := range sources {
 		report := aontu.Vet(string(schemaSrc), source.src, &aontu.VetOptions{
+			Trust:     verbTrust(trust, entryRootOfFile(args.schema)),
 			At:        args.at,
 			Closed:    args.closed,
 			Partial:   args.partial,

@@ -1,0 +1,5 @@
+# The same alias-in-type pattern with the aliases at file TOP LEVEL
+# (use-cases/BUGS.md §12's mapval_spread_required form). Loaded by
+# file.tsv's load-alias-top-conjunct row.
+T: type(integer)
+C: type({ a: $.T })

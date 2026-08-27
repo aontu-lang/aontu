@@ -27,12 +27,12 @@ func siteVal(canon, file string, row, col int) Val {
 // the record's tail in meet order, which is the fixpoint's business
 // and differs between the ports.
 func TestProvenanceOrdersByFileThenCanon(t *testing.T) {
-	prov := newProvenance("")
+	prov := newProvenance("", nil)
 	a := siteVal("z", "two.aon", 1, 1)
 	b := siteVal("a", "one.aon", 1, 1)
 	c := siteVal("m", "one.aon", 1, 1)
 	for _, v := range []Val{a, b, c} {
-		prov.written[v] = true
+		v.setWritten()
 	}
 	prov.record([]string{"k"}, a, b, nil)
 	prov.record([]string{"k"}, c, nil, nil)
@@ -56,14 +56,14 @@ func TestProvenanceOrdersByFileThenCanon(t *testing.T) {
 // writtenFrom walks a tree once: a value reached twice (a shared
 // clone, a repeated stamp) is not re-walked.
 func TestProvenanceWrittenFromIsIdempotent(t *testing.T) {
-	prov := newProvenance("")
+	prov := newProvenance("", nil)
 	leaf := newInteger(1)
 	m := newMap()
 	m.set("a", leaf)
 	m.set("b", leaf)
 	prov.writtenFrom(m)
 	prov.writtenFrom(m)
-	if !prov.written[leaf] || !prov.written[m] {
+	if !leaf.written() || !m.written() {
 		t.Fatal("tree not stamped")
 	}
 	// A nil child is no tree at all.
@@ -85,5 +85,85 @@ func TestWhyStampsEntryFileAndCarriesTrust(t *testing.T) {
 		if "doc.aon" != c.Site.File {
 			t.Fatalf("entry file not stamped: %+v", c)
 		}
+	}
+}
+
+// ONE WRITTEN TOKEN IS ONE CONTRIBUTION (the review's finding E). The
+// same written value reaches a path more than once now that provenance
+// travels through clones -- as the template application and as the
+// value written at the key, or at two stages of narrowing -- and the
+// SITE is what says they are one thing. The role is not part of that
+// identity, so the more informative one survives. The TypeScript twin
+// is `one-written-token-is-one-contribution` in ts/test/why.test.ts.
+func TestProvenanceDeduplicatesBySite(t *testing.T) {
+	prov := newProvenance("", map[string]string{"one.aon": "a: \"x\"\n"})
+
+	// Two values at the SAME token: the written form and a narrowed
+	// one, arriving with different roles.
+	lit := newString("x")
+	lit.surl = "one.aon"
+	lit.sp = 3
+	lit.stext = "x"
+	lit.setWritten()
+
+	narrowed := newString("x")
+	narrowed.surl = "one.aon"
+	narrowed.sp = 3
+	narrowed.stext = "x"
+	narrowed.setWritten()
+	narrowed.setFromSpread()
+
+	prov.record([]string{"k"}, lit, narrowed, nil)
+
+	got := prov.at([]string{"k"})
+	if 1 != len(got) {
+		t.Fatalf("want 1 contribution, got %d: %+v", len(got), got)
+	}
+	// The role that says HOW it got here wins over "written there".
+	if WhySpread != got[0].Role {
+		t.Fatalf("want the spread role, got %q", got[0].Role)
+	}
+
+	// An UNSITED contribution cannot be told apart from another, so
+	// they are kept as they come rather than collapsed.
+	unsitedA := newString("p")
+	unsitedA.setWritten()
+	unsitedB := newString("q")
+	unsitedB.setWritten()
+	prov.record([]string{"u"}, unsitedA, unsitedB, nil)
+	if 2 != len(prov.at([]string{"u"})) {
+		t.Fatalf("unsited contributions were collapsed: %+v",
+			prov.at([]string{"u"}))
+	}
+}
+
+// The role precedence, stated directly: every role has a rank, and an
+// unknown one ranks last so a new role cannot silently outrank the
+// ones that carry information.
+func TestProvenanceRoleRank(t *testing.T) {
+	if !(whyRoleRank(WhySpread) < whyRoleRank(WhyRef) &&
+		whyRoleRank(WhyRef) < whyRoleRank(WhyPref) &&
+		whyRoleRank(WhyPref) < whyRoleRank(WhyLiteral)) {
+		t.Fatal("role precedence is not spread < ref < pref < literal")
+	}
+	if whyRoleRank(WhyLiteral) != whyRoleRank("something-new") {
+		t.Fatal("an unknown role must rank with literal")
+	}
+}
+
+// samePathKids is the containment fact the record is built on, and a
+// PrefVal with no inner value has no children to claim -- a shape no
+// source produces (the parser refuses a bare `*`), so it is asserted
+// here rather than through a row.
+func TestSamePathKidsOfAnEmptyPref(t *testing.T) {
+	if nil != samePathKids(&PrefVal{}) {
+		t.Fatal("an empty pref has no same-path children")
+	}
+	// And a bag's children are NOT same-path: they stand at their own,
+	// deeper paths, which is why containment does not swallow them.
+	m := newMap()
+	m.set("a", newInteger(1))
+	if nil != samePathKids(m) {
+		t.Fatal("a map's children are not same-path children")
 	}
 }

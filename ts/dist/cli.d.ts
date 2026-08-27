@@ -5,11 +5,22 @@ declare function evalSource(aontu: Aontu, src: string, mode: Mode): {
     ok: boolean;
     text: string;
 };
+type TrustArg = {
+    kind: 'system-warn';
+} | {
+    kind: 'system';
+} | {
+    kind: 'none';
+} | {
+    kind: 'root';
+    dir?: string;
+};
 export type ReplState = {
     mode: Mode;
     jsonl: boolean;
     name?: string;
     src?: string;
+    trust?: TrustArg;
 };
 export type ReplAnswer = {
     close: boolean;
@@ -28,6 +39,8 @@ declare function runBreaking(argv: string[]): number;
 declare function runTrim(argv: string[]): number;
 declare function runMod(argv: string[]): number;
 declare function runRelations(argv: string[]): number;
+declare function runReaches(argv: string[]): number;
+declare function runJsonSchema(argv: string[]): number;
 declare function runHash(argv: string[]): number;
 declare function runGet(argv: string[]): number;
 declare function runWhy(argv: string[]): number;
@@ -35,4 +48,4 @@ declare function renderWhyText(record: WhyRecord): string;
 declare function runSet(argv: string[]): number;
 declare function runAgentsMd(argv: string[]): number;
 declare function main(argv: string[]): void;
-export { evalSource, main, runVet, runSubsume, runBreaking, runTrim, runRelations, runMod, runHash, runGet, runWhy, renderWhyText, runSet, runAgentsMd, watchChange, watchSignature, vetWaiter, deprecatedAt, };
+export { evalSource, main, runVet, runSubsume, runBreaking, runTrim, runRelations, runReaches, runJsonSchema, runMod, runHash, runGet, runWhy, renderWhyText, runSet, runAgentsMd, watchChange, watchSignature, vetWaiter, deprecatedAt, };

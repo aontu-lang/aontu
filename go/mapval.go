@@ -100,7 +100,9 @@ func snapshotRefSpread(cj *RefVal, ctx *Ctx) Val {
 	if snap, ok := ctx.snapmap[sk]; ok {
 		return snap
 	}
-	tgt := cj.find(ctx)
+	// snap mode: the pending-mark-wrapper defer in find must not apply
+	// here — the snapshot WANTS the pre-resolution structure.
+	tgt := cj.find(ctx, true)
 	// A ref to a type() resolves to its inner template — snapshot that,
 	// so a type-wrapped ref spread behaves like a plain-map ref spread.
 	if fv, ok := tgt.(*FuncVal); ok && fv.name == "type" && len(fv.peg) > 0 {
@@ -282,7 +284,14 @@ func spreadCloneFor(s Val, path []string, ctx *Ctx) Val {
 			return s
 		}
 	}
-	out := clonePath(s, path)
+	// A FULL INSTANCE per application (instanceClone, ADR-005): a
+	// spread constraint is applied once per destination child, and each
+	// application must own its path-dependent innards — a bare clone
+	// shared a call's arguments and a preference's inner value across
+	// destinations, so a spread like `&: id(key(0)) & $.schema.C`
+	// resolved its one shared key() at the first child it met
+	// (use-cases/BUGS.md §12's id_name form). Mirrors Val.spreadClone.
+	out := instanceClone(s, path)
 	markSpread(out, ctx)
 	return out
 }
@@ -291,18 +300,37 @@ func spreadCloneFor(s Val, path []string, ctx *Ctx) Val {
 // contribution several levels down a template is still known to have
 // come from the template. Instrumented runs only (see spreadCloneFor).
 // Mirrors markSpread in ts/src/provenance.ts.
+//
+// THE GUARD IS A CYCLE GUARD, NOT A "DONE" FLAG, and that distinction
+// is the whole of the review's finding E for sibling position. A
+// template is applied once per destination, and the fixpoint advances
+// values IN PLACE between those applications (AGENTS.md, the mutation
+// caveat): by the time the second key is spread, the template's child
+// is no longer the value the first key saw but the one that meet
+// produced. Skipping the walk because the CONTAINER was already marked
+// left every such replacement unmarked, so `why` at the first sibling
+// reported the written `*1|integer` as one contribution and at the
+// second reported `*1` and `integer` as two -- identical statements,
+// different answers, decided by which key the fixpoint reached first
+// (use-cases/BUGS.md §22). Marking is idempotent, so re-walking costs
+// a pass and changes nothing where nothing moved.
 func markSpread(v Val, ctx *Ctx) {
-	if nil == ctx.prov || nil == v || v.fromSpread() {
+	markSpreadSeen(v, ctx, map[Val]bool{})
+}
+
+func markSpreadSeen(v Val, ctx *Ctx, seen map[Val]bool) {
+	if nil == ctx.prov || nil == v || seen[v] {
 		return
 	}
+	seen[v] = true
 	v.setFromSpread()
 	for _, k := range whyKids(v) {
-		markSpread(k, ctx)
+		markSpreadSeen(k, ctx, seen)
 	}
 }
 
 func (m *MapVal) Gen(ctx *Ctx) (any, error) {
-	if m.mtype || m.mhide {
+	if (m.mtype || m.mhide) && !probing(ctx) {
 		return nil, nil
 	}
 	out := map[string]any{}
@@ -317,7 +345,7 @@ func (m *MapVal) Gen(ctx *Ctx) (any, error) {
 		// Type and hidden values are excluded from generation (a key
 		// whose source was moved away carries the hide mark set by
 		// RefVal.find's hide-found handling).
-		if child.markedType() || child.markedHide() {
+		if (child.markedType() || child.markedHide()) && !probing(ctx) {
 			continue
 		}
 		optional := m.isOptional(k)
@@ -424,13 +452,48 @@ func (m *MapVal) Gen(ctx *Ctx) (any, error) {
 }
 
 // genable mirrors the generable-child branch list in TS BagVal.gen.
+//
+// A CONJUNCT IS GENERABLE WHEN IT IS A SETTLED SIZING RESIDUE (the
+// review's finding C, use-cases/BUGS.md §16). `length` and `unique`
+// over a container keep the readings more members could still change,
+// so `a: length(3) a:[1,2,3]` is a conjunct of the atom and the list
+// right up to generation -- which is where the atom decides, in
+// ConjunctVal.Gen. Any OTHER conjunct is unresolved residue as before.
 func genable(v Val) bool {
 	switch v.(type) {
 	case *ScalarVal, *MapVal, *ListVal, *PrefVal, *RefVal,
 		*DisjunctVal, *NilVal:
 		return true
 	}
+	if _, _, ok := sizingResidue(v); ok {
+		return true
+	}
 	return false
+}
+
+// sizingResidue reports a conjunct of exactly one sizing constraint and
+// one container: the shape admitContainer leaves when its reading is
+// still provisional, and the one ConjunctVal.Gen knows how to finish.
+// Mirrors sizingResidue in ts/src/val/BagVal.ts.
+func sizingResidue(v Val) (*ConstraintVal, Val, bool) {
+	cj, ok := v.(*ConjunctVal)
+	if !ok || 2 != len(cj.peg) {
+		return nil, nil, false
+	}
+	a, b := cj.peg[0], cj.peg[1]
+	con, isA := a.(*ConstraintVal)
+	bag := b
+	if !isA {
+		if con, ok = b.(*ConstraintVal); !ok {
+			return nil, nil, false
+		}
+		bag = a
+	}
+	switch bag.(type) {
+	case *MapVal, *ListVal:
+		return con, bag, true
+	}
+	return nil, nil, false
 }
 
 // gensNull reports whether a child's generated nil means JSON null
@@ -442,14 +505,17 @@ func gensNull(ctx *Ctx, v Val) bool {
 	case *PrefVal:
 		return gensNull(ctx, n.peg)
 	case *DisjunctVal:
-		// A disjunction generates whatever its FOLDED members generate, so
-		// ask the fold rather than the wrapper. Without this case a key
-		// whose value was `null|top` (which folds to null, since
-		// `null & top` is null) was read as "generated nothing" and
-		// silently dropped from the output -- and a list element with it.
-		// The members are genuinely different values, so no amount of
-		// deduping removes the case.
-		return gensNull(ctx, n.foldForGen(ctx))
+		// A disjunction generates whatever the member Gen would pick, so
+		// ask for that member rather than the wrapper. Without this case
+		// a key whose value was a disjunction resolving to null was read
+		// as "generated nothing" and silently dropped from the output --
+		// and a list element with it. An UNRESOLVED disjunction generates
+		// nothing at all (ADR-007), which is not JSON null.
+		member, unresolved := n.forGen(ctx)
+		if unresolved {
+			return false
+		}
+		return gensNull(ctx, member)
 	}
 	return false
 }
@@ -652,18 +718,46 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 				bad = makeNilErr(ctx, "closed", pc, nil)
 			}
 			pkslot := append(cp(dbase), pk)
+			_, pcIsOp := pc.(*PlusOpVal)
 			var uv Val
 			if ex, ok := out.peg[pk]; ok {
 				ctx.slot = pkslot
 				uv = unite(ctx, ex, pc)
-			} else if !expectGenable(pc) {
+			} else if !expectGenable(pc) && !pcIsOp && !pc.markedType() && !pc.markedHide() {
+				// A MARKED value is carried, never expected (the second
+				// guard; ADR-005 era, BUGS.md §12's include form): a
+				// type()/hide()-marked child legitimately participates in
+				// unification without ever generating — the marks
+				// contract — so wrapping one as an expectation turned a
+				// schema field arriving through an include's map meet
+				// into a bogus mapval_spread_required naming a spread
+				// that exists in neither file. The bag's Gen already
+				// skips marked children. Mirrors handleExpectedVal in
+				// ts/src/val/BagVal.ts.
+				// An OPERATOR is carried too (the pcIsOp guard; BUGS.md
+				// §36): an expression resolves by itself once its
+				// operands do — the own-key loop drives it every pass —
+				// so `m:{y:.x+1}` arriving as a peer key keeps computing
+				// exactly as it does written inline. Wrapping it froze
+				// the op and the residue reported a phantom
+				// mapval_spread_required naming a spread that exists
+				// nowhere. Mirrors handleExpectedVal in
+				// ts/src/val/BagVal.ts.
 				// TS handleExpectedVal: a peer key whose value cannot
 				// generate on its own (a kind, top, a var, a constraint —
 				// typically a spread template field) is wrapped, so the
 				// bag's Gen can distinguish spread-required residue from
 				// ordinary *_no_gen (issue #27). Not united with TOP: the
 				// wrap must hold the raw expectation, exactly as in TS.
-				uv = &ExpectVal{peg: pc, parent: m, key: pk}
+				// An expectation baked into a combined spread template
+				// (the spread-combination meet above) is re-wrapped
+				// FRESH, so key/parent name THIS bag and the template's
+				// own node is never stored at a destination.
+				peg := pc
+				if ev, isex := pc.(*ExpectVal); isex {
+					peg = ev.peg
+				}
+				uv = &ExpectVal{peg: peg, parent: m, key: pk}
 			} else {
 				ctx.slot = pkslot
 				uv = unite(ctx, pc, top())

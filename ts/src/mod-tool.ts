@@ -1,13 +1,15 @@
 /* Copyright (c) 2025 Richard Rodger, MIT License */
 
 // MODULE TOOLING (G6 phase 3, docs/capability-review/g6-distribution.md):
-// the LOCAL half — `aontu mod tidy` and `aontu mod vendor`.
+// the LOCAL half — `aontu mod tidy`, `verify`, `vendor` and
+// `manifest`.
 //
 // Evaluation never touches the network, and neither does this: `tidy`
 // resolves versions and rewrites the lockfile from what is already in
-// the local stores, and `vendor` materialises the locked closure into
-// the project. Fetching and publishing are the network half, and are
-// not in this build (see the register).
+// the local stores, `verify` asks whether the stores still MEAN what
+// the lockfile pins and changes nothing, and `vendor` materialises the
+// locked closure into the project. Fetching and publishing are the
+// network half, and are not in this build (see the register).
 //
 // MINIMUM VERSION SELECTION, not a solver: each module declares the
 // MINIMUM version of each dependency it needs, and the selected version
@@ -42,10 +44,33 @@ export type ModLock = {
 }
 
 export type ModTidyReport = {
-  verdict: 'ok' | 'missing'
+  verdict: 'ok' | 'missing' | 'error'
   // The resolved closure, sorted by module.
   lock: ModLock[]
   // Modules named by a dependency but present in no local store, sorted.
+  missing: string[]
+  // Modules present in a store but which DO NOT EVALUATE standalone,
+  // sorted. A pin is what a module MEANS, so there is nothing to pin
+  // here and the lockfile is left alone.
+  unevaluable: string[]
+}
+
+export type ModVerifyReport = {
+  // `ok` the lockfile covers what the project declares and every
+  // locked module still means what it pins; `mismatch` at least one
+  // does not; `unlocked` the lockfile does not cover the project's own
+  // dependencies; `missing` at least one locked module is not in any
+  // store. In that order of precedence, most specific first.
+  verdict: 'ok' | 'mismatch' | 'unlocked' | 'missing'
+  // The locked modules that verified, sorted.
+  verified: string[]
+  // What the lockfile pins against what the store now means, for each
+  // module that does not match, sorted by module.
+  mismatched: { mod: string, want: string, got: string }[]
+  // Dependencies the project declares that the lockfile does not name,
+  // sorted. A tidy is what fills them in.
+  unlocked: string[]
+  // Locked modules present in no store, sorted.
   missing: string[]
 }
 
@@ -63,7 +88,16 @@ export type ModVendorReport = {
 // evaluator does, and the tooling is a caller of it rather than a
 // second implementation.
 export type ModToolEval = (src: string, path: string) =>
-  { gen: any, hash: string, canon: string }
+  {
+    gen: any, hash: string, canon: string,
+    // DID IT STAND UP ON ITS OWN? A module that does not evaluate has
+    // no meaning to pin, and `canonHash` of the nil it collapses to is
+    // the SAME string for every such module -- so a lockfile written
+    // from one carries no information while looking exactly like one
+    // that does (use-cases/BUGS.md §31). `aontu hash` already refuses
+    // that file; `tidy` refuses it too, and this is what tells it.
+    ok: boolean,
+  }
 
 
 export type ModToolOptions = {
@@ -239,6 +273,7 @@ export function modTidy(root: string, options: ModToolOptions): ModTidyReport {
   }
 
   const lock: ModLock[] = []
+  const unevaluable: string[] = []
   for (const mod of Object.keys(selected).sort()) {
     if (missing.includes(mod)) {
       continue
@@ -246,14 +281,24 @@ export function modTidy(root: string, options: ModToolOptions): ModTidyReport {
     const ref = parseModuleRef(mod) as ModuleRef
     const dir = storeDir(root, ref, previous[mod]?.canon ?? '', options) as string
     const main = pathJoin(dir, mainOf(dir, options))
+    // RECOMPUTED, never carried over: the pin is what the module in
+    // this store MEANS, and a tidy that copied the old hash forward
+    // would pin what it used to mean.
+    const got = existsSync(main) ?
+      options.eval(readFileSync(main, 'utf8'), main) : undefined
+    // A NIL PIN IS WORSE THAN NO PIN. A module that does not stand up
+    // hashes to canonHash(nil) -- the same string for every broken
+    // module -- so writing it would put a plausible, uninformative
+    // pin in the lockfile and silently void the "breaks on any
+    // semantic change in the closure" contract (BUGS.md §31).
+    if (null != got && !got.ok) {
+      unevaluable.push(mod)
+      continue
+    }
     lock.push({
       mod,
       v: selected[mod],
-      // RECOMPUTED, never carried over: the pin is what the module in
-      // this store MEANS, and a tidy that copied the old hash forward
-      // would pin what it used to mean.
-      canon: existsSync(main) ?
-        options.eval(readFileSync(main, 'utf8'), main).hash : '',
+      canon: null == got ? '' : got.hash,
       // Carried over: the OCI digest is the registry's word about the
       // bytes it served, and nothing local can hear it.
       oci: previous[mod]?.oci ?? '',
@@ -261,15 +306,19 @@ export function modTidy(root: string, options: ModToolOptions): ModTidyReport {
   }
 
   const uniqueMissing = [...new Set(missing)].sort()
-  if (0 === uniqueMissing.length) {
+  const uniqueUnevaluable = [...new Set(unevaluable)].sort()
+  const held = 0 === uniqueMissing.length && 0 === uniqueUnevaluable.length
+  if (held) {
     writeFileSync(pathJoin(root, 'mod-lock.aon'),
       LOCK_HEADER + lockText(lock, options) + '\n')
   }
 
   return {
-    verdict: 0 === uniqueMissing.length ? 'ok' : 'missing',
+    verdict: held ? 'ok' :
+      0 < uniqueUnevaluable.length ? 'error' : 'missing',
     lock,
     missing: uniqueMissing,
+    unevaluable: uniqueUnevaluable,
   }
 }
 
@@ -288,6 +337,81 @@ function mainOf(dir: string, options: ModToolOptions): string {
   const gen: any = options.eval(readFileSync(file, 'utf8'), file).gen
   const main = gen?.mod?.main
   return 'string' === typeof main && '' !== main ? main : 'main.aon'
+}
+
+
+// `aontu mod verify`: does every locked module still MEAN what the
+// lockfile pins? Recompute and compare, and CHANGE NOTHING.
+//
+// The verb exists because `tidy` cannot answer this question. Tidy
+// recomputes and REWRITES by design -- a pin is what a module means
+// now -- so tampering with a vendored module and running tidy makes
+// the lockfile agree with the tampering, `verdict: ok`, and the next
+// evaluation passes. That is correct for the job tidy does and useless
+// as a gate, which left a CI job that tidies before evaluating with no
+// integrity protection at all (use-cases/BUGS.md §32). Verification is
+// a question; answering it must not be an edit.
+export function modVerify(root: string, options: ModToolOptions):
+  ModVerifyReport {
+  const locked = readLock(root)
+  const verified: string[] = []
+  const mismatched: { mod: string, want: string, got: string }[] = []
+  const missing: string[] = []
+
+  // NOTHING TO CHECK IS NOT A PASS. A project with no lockfile at all
+  // -- or one whose lockfile predates a dependency someone added --
+  // would otherwise verify clean, because the loop below walks what is
+  // LOCKED and there is nothing locked to walk. That is the same shape
+  // as the defect this verb exists to close: absence reading as
+  // agreement. Every dependency the project itself declares must be in
+  // the lockfile before the pins mean anything, and the repair is a
+  // tidy rather than a fetch. Transitive dependencies need no separate
+  // check: a locked module's own imports are resolved when its pin is
+  // recomputed, so one that is unreachable makes its DEPENDANT fail to
+  // evaluate and lands in `mismatched` below.
+  const declared = declaredDeps(pathJoin(root, 'mod.aon'), options)
+  const unlocked = Object.keys(declared)
+    .filter((mod) => null == locked[mod]).sort()
+
+  for (const mod of Object.keys(locked).sort()) {
+    const ref = parseModuleRef(mod)
+    if (undefined === ref) {
+      missing.push(mod)
+      continue
+    }
+    const dir = storeDir(root, ref, locked[mod].canon, options)
+    if (undefined === dir) {
+      missing.push(mod)
+      continue
+    }
+    const main = pathJoin(dir, mainOf(dir, options))
+    if (!existsSync(main)) {
+      missing.push(mod)
+      continue
+    }
+
+    // A module that no longer stands up is not a match: it has no
+    // meaning to compare, and reporting `got: <hash of nil>` would
+    // print the same string for every broken module. The empty `got`
+    // says the store holds something that does not evaluate.
+    const got = options.eval(readFileSync(main, 'utf8'), main)
+    const want = locked[mod].canon
+    if (got.ok && want === got.hash) {
+      verified.push(mod)
+      continue
+    }
+    mismatched.push({ mod, want, got: got.ok ? got.hash : '' })
+  }
+
+  return {
+    verdict: 0 < mismatched.length ? 'mismatch' :
+      0 < unlocked.length ? 'unlocked' :
+        0 < missing.length ? 'missing' : 'ok',
+    verified,
+    mismatched,
+    unlocked,
+    missing: missing.sort(),
+  }
 }
 
 

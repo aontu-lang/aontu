@@ -30,3 +30,30 @@ hide-lossy-literal-arg-nested-err	err	x:{a:hide(9007199254740993)}	not exactly r
 hide-lossy-literal-arg-in-list-err	err	x:[hide(9007199254740993)]	not exactly representable
 hide-unknown-func-arg-err	err	x:hide(unknownfn(1))	Cannot resolve value
 type-unknown-func-arg-err	err	x:type(unknownfn(1))	Cannot resolve value
+
+# A REFERENCE DEFERS ON A PENDING MARK WRAPPER (ADR-005, 2026-08-26;
+# use-cases/BUGS.md §11, §12, §35b). A reference that found a
+# type()/hide() call still waiting for its argument used to clone the
+# CALL, and the clone resolved at the reference's site, stamping marks
+# after the reference's mark-clearing walk had already run. Three
+# silent corruptions shared that one mechanism: hide(pack(...)) leaked
+# its mark onto downstream packs over the generated children (empty
+# children, exit 0); a type()-marked alias referenced inside a type()
+# body suppressed the referring field's emission entirely (the
+# edge.tsv edge-type-template contract extended to conjunction-bearing
+# shapes); and hide() around a computed field of a pack-generated
+# child swallowed the value into a silent []. The reference now
+# residuates until the wrapper has resolved at its OWN field, then
+# clones with marks cleared as documented. Parity-probed in both
+# engines.
+hide-pack-field-hidden	gens	col:{web:{a:1}}\nm:hide(pack($.col,_))\nout2:$.m.web\n	{"col":{"web":{"a":1}},"out2":{"a":1}}
+hide-pack-downstream-pack	gens	col:{web:{a:1}}\nm:hide(pack($.col,_))\nout:pack($.m,{got:_})\n	{"col":{"web":{"a":1}},"out":{"web":{"got":{"a":1}}}}
+type-alias-conjunct-ref	gens	Base:{kind:"service"}\nEntry:type($.Base&{owner:string})\nuse:$.Entry&{owner:"team-pay"}\n	{"Base":{"kind":"service"},"use":{"kind":"service","owner":"team-pay"}}
+type-conjunct-arg-ref	gens	Entry:type({kind:"service"}&{owner:string})\nuse:$.Entry&{owner:"team-pay"}\n	{"use":{"kind":"service","owner":"team-pay"}}
+# The referring statement WRITTEN FIRST, so the reference meets the
+# alias while it is still a pending conjunct carrying the type()
+# call — the shape the defer's conjunct walk exists for. Document
+# order must not change the answer.
+type-conjunct-target-ref	gens	use:$.Entry&{owner:"team-pay"}\nBase:{kind:"service"}\nEntry:type($.Base)&{owner:string}\n	{"Base":{"kind":"service"},"use":{"kind":"service","owner":"team-pay"}}
+type-alias-ref-first	gens	use:$.Entry&{owner:"team-pay"}\nEntry:type($.Base&{owner:string})\nBase:{kind:"service"}\n	{"Base":{"kind":"service"},"use":{"kind":"service","owner":"team-pay"}}
+hide-computed-pack-copy	gens	names:[a]\ntools:pack($.names,{})\ntools:a:{se:readonly,doc_row:hide("|"+.se)}\ndocs:[copy($.tools.a.doc_row)]\n	{"docs":["|readonly"],"names":["a"],"tools":{"a":{"se":"readonly"}}}

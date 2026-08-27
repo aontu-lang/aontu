@@ -45,14 +45,41 @@ func (p *PlaceVal) Unify(peer Val, ctx *Ctx) Val {
 	return peer
 }
 
+// boundArgStart is the first argument index a hole walk must NOT cross
+// into: A HOLE BELONGS TO ITS NEAREST ENCLOSING GENERATOR. A `_`
+// inside a generator's template (pack/each, arg 1) or condition
+// (filter, arg 1) is that generator's to bind — "_ is the source
+// child" — so neither hasPlace nor fillPlace may reach it from
+// outside. Before this boundary, `close(pack(d, _ & t))` reported a
+// hole to the OUTER call, so an ordinary overlay statement was
+// absorbed into the template instead of merging with the generated
+// child (use-cases/BUGS.md §10), and an outer pack's fill pass
+// captured a NESTED pack's hole lexically (§34). The data argument
+// (arg 0) is not a binding position, so it stays visible. Mirrors
+// boundArgStart in ts/src/val/PlaceVal.ts.
+func boundArgStart(v Val) int {
+	if fv, ok := v.(*FuncVal); ok {
+		if "pack" == fv.name || "each" == fv.name || "filter" == fv.name {
+			return 1
+		}
+	}
+	return int(^uint(0) >> 1) // max int
+}
+
 // hasPlace reports whether v CONTAINS a hole. Asked of a call before it
-// resolves: a call holding one must wait for a peer to fill it.
+// resolves: a call holding one must wait for a peer to fill it. Holes
+// inside a generator's own binding arguments are NOT this value's
+// holes — see boundArgStart above.
 func hasPlace(v Val) bool {
 	switch n := v.(type) {
 	case *PlaceVal:
 		return true
 	case *FuncVal:
-		for _, a := range n.peg {
+		bound := boundArgStart(n)
+		for i, a := range n.peg {
+			if bound <= i {
+				break
+			}
 			if hasPlace(a) {
 				return true
 			}
@@ -108,7 +135,10 @@ func fillPlace(v Val, fill Val) Val {
 	switch n := v.(type) {
 	case *FuncVal:
 		out := *n
-		out.peg = fillPlaceEach(n.peg, fill)
+		// A generator's binding arguments are left untouched
+		// (boundArgStart): those holes are the inner generator's to
+		// fill with its OWN source children when it fires.
+		out.peg = fillPlaceArgs(n.peg, fill, boundArgStart(n))
 		out.dc = 0
 		return &out
 	case *PlusOpVal:
@@ -154,8 +184,19 @@ func fillPlace(v Val, fill Val) Val {
 }
 
 func fillPlaceEach(vals []Val, fill Val) []Val {
+	return fillPlaceArgs(vals, fill, len(vals))
+}
+
+// fillPlaceArgs fills holes in the first `bound` values and carries the
+// rest through unchanged — the generator-template boundary of the
+// FuncVal arm above.
+func fillPlaceArgs(vals []Val, fill Val, bound int) []Val {
 	out := make([]Val, 0, len(vals))
-	for _, v := range vals {
+	for i, v := range vals {
+		if bound <= i {
+			out = append(out, v)
+			continue
+		}
 		out = append(out, fillPlace(v, fill))
 	}
 	return out

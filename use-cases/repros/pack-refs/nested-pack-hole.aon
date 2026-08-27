@@ -1,13 +1,20 @@
-# Claim C2 (use-case 02): in a nested pack, the INNER template's _
-# binds to the OUTER pack's source child, not the inner one.
-# reference-language.md ("The placeholder _"): "Inside a generator's
-# template, _ is the source child the generated one is being made
-# from" — the child at deploy.dev.services.web is made from the fleet
-# entry {replicas:1}, yet _ answers "dev".
-# expected: deploy.dev.services.web.v = {"replicas":1}
-# actual:   exit 0 and v = "dev" — silent wrong output. (Variant
-#           pack($.fleet, _ & {extra:2}) instead errors scalar_kind:
-#           Cannot unify value: {"extra":2} with value: "dev".)
+# Claim C2 (use-case 02) -- FIXED 2026-08-26 by the template-clone
+# isolation change (ADR-005): a `_` hole belongs to its NEAREST
+# ENCLOSING GENERATOR. The outer pack's fill pass no longer descends
+# into the inner pack's template argument, so the inner `_` binds the
+# inner generator's source child: deploy.dev.services.web.v is the
+# fleet entry {"replicas":1}, exactly as reference-language.md's "the
+# source child the generated one is being made from" promises.
+# Historically the outer pack filled every hole in its template
+# lexically -- the nested generator's included -- so v answered the
+# ENV NAME "dev", exit 0, silent wrong output. (The meet variant
+# pack($.fleet, _ & {extra:2}) now merges per inner child instead of
+# erroring scalar_kind.)
+# Pinned in both engines: test/spec/place.tsv
+# place-nested-pack-inner-binding, place-nested-pack-inner-meet (and
+# the boundary's data-side twin, place-hole-as-inner-data).
+# expected: deploy.dev.services.web.v = {"replicas":1} exit 0
+# actual:   deploy.dev.services.web.v = {"replicas":1} exit 0
 envs: [dev]
 fleet: {web: {replicas: 1}}
 deploy: pack($.envs, { services: pack($.fleet, {v: _}) })

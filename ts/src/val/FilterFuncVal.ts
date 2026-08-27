@@ -44,6 +44,7 @@ import { makeNilErr } from '../err'
 import { MapVal } from './MapVal'
 import { ListVal } from './ListVal'
 import { FuncBaseVal, trialUnify } from './FuncBaseVal'
+import { repathInstance } from './Val'
 import { fillPlace } from './PlaceVal'
 
 
@@ -106,8 +107,12 @@ class FilterFuncVal extends FuncBaseVal {
     const keeps = (child: Val, kctx: AontuContext): boolean => {
       // `_` inside the condition binds the child being tested (G8
       // phase 3), so a condition can be about the child as a whole
-      // rather than only about its shape.
-      const test = fillPlace(cond.clone(kctx), child, kctx)
+      // rather than only about its shape. The condition is cloned as
+      // a FULL instance per trial (`dup`, ADR-005) — a bare clone
+      // shares call/pref innards across trials (see PackFuncVal).
+      const inst = cond.clone(kctx, { dup: true })
+      repathInstance(inst, inst.path)
+      const test = fillPlace(inst, child, kctx)
       const met = trialUnify(kctx, child.clone(kctx), test)
       return undefined !== met && met.canon === child.canon
     }

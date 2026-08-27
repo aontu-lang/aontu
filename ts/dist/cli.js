@@ -10,6 +10,8 @@ exports.runSubsume = runSubsume;
 exports.runBreaking = runBreaking;
 exports.runTrim = runTrim;
 exports.runRelations = runRelations;
+exports.runReaches = runReaches;
+exports.runJsonSchema = runJsonSchema;
 exports.runMod = runMod;
 exports.runHash = runHash;
 exports.runGet = runGet;
@@ -28,15 +30,19 @@ exports.deprecatedAt = deprecatedAt;
 // With no file on an interactive terminal, a REPL is started. With no
 // file and piped input, the source is read from stdin. See HELP below.
 // Named imports, not `import * as`: the namespace form makes tsc emit the
+const query_1 = require("./query");
 // __importStar downlevel helper, whose branches no supported Node takes.
 const node_fs_1 = require("node:fs");
 const node_path_1 = require("node:path");
+const node_os_1 = require("node:os");
 const node_readline_1 = require("node:readline");
 const aontu_1 = require("./aontu");
 const report_sarif_1 = require("./report-sarif");
+const jsonschema_1 = require("./jsonschema");
 const mod_tool_1 = require("./mod-tool");
 const mod_1 = require("./mod");
 const vet_1 = require("./vet");
+const reach_1 = require("./reach");
 const agentsmd_1 = require("./agentsmd");
 const HELP = `Usage: aontu [options] [file]
        aontu vet [options] <schema> <data> [more-data...]
@@ -44,8 +50,10 @@ const HELP = `Usage: aontu [options] [file]
        aontu breaking --against <file|git#rev> [options] <file>
        aontu trim --check [options] <file>
        aontu relations [options] <file>
+       aontu reaches <from> <to> [--relation <name>] [options] <file>
+       aontu jsonschema [--at <path>] [--strict] [options] <file>
        aontu hash [options] <file>
-       aontu mod tidy|vendor|manifest [options] [dir]
+       aontu mod tidy|verify|vendor|manifest [options] [dir]
        aontu get <path> [options] <file>
        aontu why <path> [options] <file>
        aontu set <path>=<value>... --entry <file> --overlay <file>
@@ -68,7 +76,9 @@ Options:
   --jsonl         REPL: answer every command as one JSON line
   -v, --version   Print the version and exit
   --trust <t>     Include capability: system (default), none, or
-                  root[:dir] to confine @"..." below a directory
+                  root[:dir] to confine @"..." below a directory.
+                  Every verb takes it too, and a bare root means the
+                  document's own directory
   --include-root <dir>  Shorthand for --trust root:<dir>
 
 Mod options:
@@ -78,6 +88,8 @@ Mod options:
 Mod subcommands:
   tidy      Resolve the module closure by minimum version selection and
             rewrite mod-lock.aon in canonical form
+  verify    Check every locked module still means what mod-lock.aon
+            pins, and change nothing (the CI gate; tidy rewrites)
   vendor    Materialise the locked closure into aon_vendor/
   manifest  Print the OCI artifact a publish would push, gated on the
             breaking check against --against
@@ -112,6 +124,9 @@ Subsume exit codes:
 Breaking options:
   --against <v>       An earlier version: a file path, or git#<rev>
                       (resolved by 'git show'); repeatable
+  --at <path>         Compare this path of both versions ($.a.b), so a
+                      module's own version string and policy block do
+                      not decide the verdict
   --mode <m>          backward (new admits old, the default), forward
                       (old admits new), or full (both); overrides the
                       document's own $.aontu_policy.compat declaration
@@ -259,6 +274,67 @@ function trustOpts(trust, entryRoot) {
             return { trustWarn: makeTrustWarn(), trustWarnRoot: entryRoot };
     }
 }
+// EVERY VERB honours the include capability, not just the bare
+// command. G5 wired `--trust`/`--include-root` to `aontu <file>` alone,
+// so `aontu vet schema.aon data.json` -- the surface an agent actually
+// scripts -- ran the full system resolver with no flag to confine it
+// and no warning (use-cases/REVIEW.md finding G). The flags are
+// stripped here, before each verb parses its own tail, so a verb only
+// has to pass the profile on to its engine.
+//
+// Returns undefined when the spelling is wrong, with the message
+// already printed: the caller answers the usage class.
+function takeTrust(argv) {
+    const rest = [];
+    let trust = { kind: 'system-warn' };
+    for (let i = 0; i < argv.length; i++) {
+        const arg = argv[i];
+        if ('--trust' === arg) {
+            const parsed = null == argv[i + 1] ? undefined : parseTrustArg(argv[++i]);
+            if (null == parsed) {
+                process.stderr.write('aontu: --trust needs system, none, or root[:dir]\n');
+                return undefined;
+            }
+            trust = parsed;
+        }
+        else if ('--include-root' === arg) {
+            const dir = argv[++i];
+            if (null == dir) {
+                process.stderr.write('aontu: --include-root needs a directory\n');
+                return undefined;
+            }
+            trust = { kind: 'root', dir };
+        }
+        else {
+            rest.push(arg);
+        }
+    }
+    return { argv: rest, trust };
+}
+// The evaluator options a REPL session's capability means.
+function replTrust(state, entryRoot) {
+    const capability = verbTrust(state.trust ?? { kind: 'system-warn' }, entryRoot);
+    return null == capability ? {} : { trust: capability };
+}
+// The capability a verb's engine runs under. `system` and the staged
+// warning default both mean today's behaviour (no option); the warning
+// window itself stays a bare-command nicety, because a verb's report
+// is a machine contract and a stderr line is not part of it.
+function verbTrust(trust, entryRoot) {
+    switch (trust.kind) {
+        case 'none':
+            return { include: 'none' };
+        case 'root':
+            return { include: { root: trust.dir ?? entryRoot } };
+        default:
+            return undefined;
+    }
+}
+// The directory a bare `--trust root` confines to for a verb: the
+// primary document's own, matching the bare command's entry root.
+function entryRootOf(file) {
+    return null == file ? process.cwd() : (0, node_path_1.dirname)((0, node_path_1.resolve)(file));
+}
 function runFile(file, mode, trust) {
     let src;
     try {
@@ -309,7 +385,7 @@ function replCommand(state, line, read) {
         return { close: false, out: '', state };
     }
     if (!s.startsWith(':')) {
-        const res = evalSource(new aontu_1.Aontu(), s, state.mode);
+        const res = evalSource(new aontu_1.Aontu(replTrust(state, process.cwd())), s, state.mode);
         return res.ok ? answer(res.text) : refuse(res.text);
     }
     const sp = s.indexOf(' ');
@@ -343,7 +419,7 @@ function replCommand(state, line, read) {
             // Evaluated ONCE, and what is held is the source: parsed trees
             // are single-use, so every later question re-evaluates from the
             // text rather than reusing a tree that has already been spent.
-            const res = evalSource(new aontu_1.Aontu({ path: arg }), src, state.mode);
+            const res = evalSource(new aontu_1.Aontu({ path: arg, ...replTrust(state, (0, node_path_1.dirname)((0, node_path_1.resolve)(arg))) }), src, state.mode);
             return res.ok
                 ? answer(`loaded: ${arg}\n${res.text}`, { name: arg, src })
                 : refuse(res.text);
@@ -357,14 +433,20 @@ function replCommand(state, line, read) {
             }
             const path = '' === arg ? '$' : arg;
             if (':why' === cmd) {
-                const report = (0, aontu_1.why)(src, path, { path: state.name });
+                const report = (0, aontu_1.why)(src, path, {
+                    path: state.name,
+                    trust: verbTrust(state.trust ?? { kind: 'system-warn' }, entryRootOf(state.name)),
+                });
                 return report.ok
                     ? answer(renderWhyText(report.record))
                     : refuse(report.findings.map(renderFinding).join('\n'));
             }
             const view = ':keys' === cmd
                 ? 'keys' : 'canon' === state.mode ? 'canon' : 'json';
-            const report = (0, aontu_1.get)(src, path, { view, path: state.name });
+            const report = (0, aontu_1.get)(src, path, {
+                view, path: state.name,
+                trust: verbTrust(state.trust ?? { kind: 'system-warn' }, entryRootOf(state.name)),
+            });
             return report.ok
                 ? answer(report.out)
                 : refuse(report.findings.map(renderFinding).join('\n'));
@@ -373,8 +455,8 @@ function replCommand(state, line, read) {
             return refuse(`unknown command: ${s} (try :help)`);
     }
 }
-function runRepl(initialMode, jsonl) {
-    let state = { mode: initialMode, jsonl };
+function runRepl(initialMode, jsonl, trust) {
+    let state = { mode: initialMode, jsonl, trust };
     const rl = (0, node_readline_1.createInterface)({
         input: process.stdin,
         output: process.stdout,
@@ -573,7 +655,7 @@ const VET_RANK = {
 // one report, return the exit class. Split from runVet so `--watch` can
 // repeat it — the files are re-read on every run, which is the point of
 // watching them.
-function vetOnce(args) {
+function vetOnce(args, trust) {
     let schemaSrc;
     const sources = [];
     try {
@@ -594,6 +676,7 @@ function vetOnce(args) {
     const findings = [];
     for (const source of sources) {
         const report = (0, aontu_1.vet)(schemaSrc, source.src, {
+            trust: verbTrust(trust, entryRootOf(args.schema)),
             at: args.at,
             closed: args.closed,
             partial: args.partial,
@@ -695,13 +778,13 @@ exports.vetWaiter = vetWaiter;
 // vetOnce) and keeps watching — a file being rewritten is briefly
 // unreadable, and dying on it would make the mode useless for the very
 // moment it exists for.
-async function watchVet(args, wait) {
+async function watchVet(args, wait, trust) {
     const files = [args.schema, ...args.data];
     let before = watchSignature(files);
-    let code = vetOnce(args);
+    let code = vetOnce(args, trust);
     while (await wait(files, before)) {
         before = watchSignature(files);
-        code = vetOnce(args);
+        code = vetOnce(args, trust);
     }
     return code;
 }
@@ -709,6 +792,12 @@ async function watchVet(args, wait) {
 // class directly; `--watch` returns a promise that resolves only when
 // the waiter says stop (never, for the real one).
 function runVet(argv, wait) {
+    const trusted = takeTrust(argv);
+    if (null == trusted) {
+        return 2;
+    }
+    argv = trusted.argv;
+    const trust = trusted.trust;
     const parsed = parseVetArgs(argv);
     if (null != parsed.err) {
         process.stderr.write(parsed.err + '\n');
@@ -720,9 +809,9 @@ function runVet(argv, wait) {
         return 0;
     }
     if (true === args.watch) {
-        return watchVet(args, wait ?? vetWaiter);
+        return watchVet(args, wait ?? vetWaiter, trust);
     }
-    return vetOnce(args);
+    return vetOnce(args, trust);
 }
 // ---------------------------------------------------------------------
 // The subsumption verbs (G3 phase 3): `subsume` asks the query once,
@@ -800,6 +889,12 @@ function renderSubsumeJson(report) {
     }, 2);
 }
 function runSubsume(argv) {
+    const trusted = takeTrust(argv);
+    if (null == trusted) {
+        return 2;
+    }
+    argv = trusted.argv;
+    const trust = trusted.trust;
     const parsed = parseSubsumeArgs(argv);
     if (null != parsed.err) {
         process.stderr.write(parsed.err + '\n');
@@ -820,6 +915,7 @@ function runSubsume(argv) {
         return 2;
     }
     const report = (0, aontu_1.subsume)(generalSrc, specificSrc, {
+        trust: verbTrust(trust, entryRootOf(args.general)),
         profile: args.profile,
         at: args.at,
         generalUrl: args.general,
@@ -837,6 +933,7 @@ function parseBreakingArgs(argv) {
     const files = [];
     const against = [];
     let mode;
+    let at;
     let allowUndecided = false;
     let allowDeprecatedRemoval = false;
     let format = 'text';
@@ -863,6 +960,13 @@ function parseBreakingArgs(argv) {
                 return { err: 'aontu: --mode needs backward, forward or full' };
             }
             mode = m;
+        }
+        else if ('--at' === arg) {
+            const a = argv[++i];
+            if (null == a) {
+                return { err: 'aontu: --at needs a path' };
+            }
+            at = a;
         }
         else if ('--allow-undecided' === arg) {
             allowUndecided = true;
@@ -892,20 +996,39 @@ function parseBreakingArgs(argv) {
     }
     return {
         args: {
-            file: files[0], against, mode,
+            file: files[0], against, mode, at,
             allowUndecided, allowDeprecatedRemoval, format,
         },
     };
 }
-// Resolve one --against spelling to source text. `git#<rev>` shells out
-// to `git show <rev>:./<basename>` from the file's own directory — no
-// embedded git, and the `./` prefix makes git resolve the path relative
-// to that directory rather than the repository root. Returns undefined
-// (with the message already printed) on failure.
-function againstSource(spec, file) {
+// A source file the include resolver can actually load. `git#<rev>`
+// materialises these and nothing else: an include names an Aontu
+// document (`.aon`/`.aontu`, the two extensions `@"foo"` tries) or a
+// JSON one, so the rest of a revision's tree cannot be part of any
+// include closure and copying it would be pure cost.
+const INCLUDABLE = /\.(aon|aontu|jsonic|json)$/;
+// Resolve one --against spelling to an old version.
+//
+// A `git#<rev>` spelling is the old version of the WHOLE TREE, not of
+// the entry file alone. It used to be `git show <rev>:./<file>`, whose
+// text was then evaluated with `generalPath`/`specificPath` pointing at
+// the WORKING file -- so every `@"..."` include in the old document
+// resolved against the working tree, and the "old" side was old entry
+// text meeting new includes. A breaking change inside an included file
+// therefore compared against itself and answered `compatible`: the
+// documented CI gate silently un-gated every non-entry file of the
+// multi-file layout real models use (use-cases/BUGS.md §26). The old
+// tree's includable sources are copied into a temporary directory and
+// the old document is evaluated from THERE.
+//
+// Sources outside the revision -- package includes under node_modules,
+// the bundled `std/system` -- still resolve as they do today: they are
+// not in the tree, and their versions travel with the lockfile rather
+// than with this comparison.
+function oldVersion(spec, file) {
     if (!spec.startsWith('git#')) {
         try {
-            return (0, node_fs_1.readFileSync)(spec, 'utf8');
+            return { src: (0, node_fs_1.readFileSync)(spec, 'utf8'), path: spec };
         }
         catch (err) {
             process.stderr.write(`aontu: cannot read ${err.path}: ${err.message}\n`);
@@ -917,17 +1040,53 @@ function againstSource(spec, file) {
         process.stderr.write('aontu: --against git# needs a revision\n');
         return undefined;
     }
+    // Lazy import: the dependency exists only when a git spelling is
+    // actually used, so plain runs never pay for it.
+    const { execFileSync } = require('node:child_process');
+    const dir = (0, node_path_1.dirname)((0, node_path_1.resolve)(file));
+    const git = (args, cwd) => execFileSync('git', args, {
+        cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    // The temporary tree is made BEFORE the first git call, so every
+    // failure below has exactly one cleanup path rather than a branch
+    // that only some failures take.
+    const temp = (0, node_fs_1.mkdtempSync)((0, node_path_1.join)((0, node_os_1.tmpdir)(), 'aontu-against-'));
     try {
-        // Lazy import: the dependency exists only when a git spelling is
-        // actually used, so plain runs never pay for it.
-        const { execFileSync } = require('node:child_process');
-        const dir = (0, node_path_1.dirname)((0, node_path_1.resolve)(file));
-        const rel = './' + (0, node_path_1.resolve)(file).slice(dir.length + 1);
-        return execFileSync('git', ['show', `${rev}:${rel}`], {
-            cwd: dir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
-        });
+        // THE REPO-RELATIVE PATH COMES FROM GIT, not from path arithmetic.
+        // Relativising `rev-parse --show-toplevel` against `resolve(file)`
+        // puts two DIFFERENT COORDINATE SYSTEMS on either side of the
+        // subtraction: git prints the real path, while the caller's is
+        // whatever they typed. On macOS a temp file under /var is
+        // /private/var to git, and on Windows a TMP short name
+        // (RUNNER~1) is the long form to git -- so the subtraction gave a
+        // `../..` climb, the entry was "not in that revision", and the
+        // documented CI spelling failed on both platforms while passing on
+        // Linux (this PR's own CI). `--show-prefix` is the same question
+        // asked in git's coordinates: the repo-relative directory of the
+        // cwd, already slash-separated and already normalised.
+        const prefix = git(['rev-parse', '--show-prefix'], dir).trim();
+        const entryRel = prefix + (0, node_path_1.basename)(file);
+        const top = git(['rev-parse', '--show-toplevel'], dir).trim();
+        // `-z` so a path with a newline or a quote cannot be mistaken for
+        // two paths (git otherwise quotes such names).
+        const listed = git(['ls-tree', '-r', '-z', '--name-only', rev], top)
+            .split('\0').filter((p) => '' !== p);
+        if (!listed.includes(entryRel)) {
+            throw new Error(`${entryRel} is not in that revision`);
+        }
+        for (const rel of listed) {
+            if (!INCLUDABLE.test(rel)) {
+                continue;
+            }
+            const dest = (0, node_path_1.join)(temp, ...rel.split('/'));
+            (0, node_fs_1.mkdirSync)((0, node_path_1.dirname)(dest), { recursive: true });
+            (0, node_fs_1.writeFileSync)(dest, git(['show', `${rev}:${rel}`], top));
+        }
+        const entry = (0, node_path_1.join)(temp, ...entryRel.split('/'));
+        return { src: (0, node_fs_1.readFileSync)(entry, 'utf8'), path: entry, temp };
     }
     catch (err) {
+        (0, node_fs_1.rmSync)(temp, { recursive: true, force: true });
         const detail = String(err.stderr ?? err.message).trim().split('\n')[0];
         process.stderr.write(`aontu: cannot resolve ${spec}: ${detail}\n`);
         return undefined;
@@ -936,10 +1095,15 @@ function againstSource(spec, file) {
 // The document's own compatibility declaration: `$.aontu_policy.compat`,
 // a disjunction whose default is the declared mode. Undefined when the
 // key is absent or does not spell a mode.
-function policyCompat(newSrc, path) {
+function policyCompat(newSrc, path, trust) {
     const aontu = new aontu_1.Aontu();
     const ctx = aontu.ctx({ collect: true });
-    const v = aontu.unify(newSrc, { path }, ctx);
+    // The declaration is read by EVALUATING the document, so this leg
+    // runs the include resolver too and has to run it under the verb's
+    // capability -- a `breaking --trust none` that read its own mode
+    // through an unconfined resolver would confine the comparison and
+    // not the question (use-cases/REVIEW.md finding G).
+    const v = aontu.unify(newSrc, { path, ...(null == trust ? {} : { trust }) }, ctx);
     if (0 < ctx.err.length || true === v?.isNil) {
         return undefined;
     }
@@ -1004,6 +1168,12 @@ const BREAKING_VERDICT = {
     error: 'error',
 };
 function runBreaking(argv) {
+    const trusted = takeTrust(argv);
+    if (null == trusted) {
+        return 2;
+    }
+    argv = trusted.argv;
+    const trust = trusted.trust;
     const parsed = parseBreakingArgs(argv);
     if (null != parsed.err) {
         process.stderr.write(parsed.err + '\n');
@@ -1025,7 +1195,9 @@ function runBreaking(argv) {
     // The declared mode: --mode overrides the document's own policy;
     // neither means backward, the index's framing (v1-valid documents
     // stay valid).
-    const mode = args.mode ?? policyCompat(newSrc, args.file) ?? 'backward';
+    const mode = args.mode ??
+        policyCompat(newSrc, args.file, verbTrust(trust, entryRootOf(args.file))) ??
+        'backward';
     if ('none' === mode) {
         // The document declares no compatibility promise: nothing to check.
         const report = { verdict: 'subsumes', findings: [] };
@@ -1037,57 +1209,76 @@ function runBreaking(argv) {
     }
     let worst = 'subsumes';
     const findings = [];
-    for (const spec of args.against) {
-        const oldSrc = againstSource(spec, args.file);
-        if (null == oldSrc) {
-            return 2;
+    // Temporary trees materialised for `git#<rev>` spellings, removed
+    // once every check that reads them has run.
+    const temps = [];
+    const sweep = () => {
+        for (const t of temps) {
+            (0, node_fs_1.rmSync)(t, { recursive: true, force: true });
         }
-        // backward: the NEW document is the general side — every old
-        // instance must still be admitted. forward: the old one is.
-        const checks = [];
-        if ('backward' === mode || 'full' === mode) {
-            checks.push({ general: [newSrc, args.file], specific: [oldSrc, spec] });
-        }
-        if ('forward' === mode || 'full' === mode) {
-            checks.push({ general: [oldSrc, spec], specific: [newSrc, args.file] });
-        }
-        const oldPath = spec.startsWith('git#') ? args.file : spec;
-        for (const check of checks) {
-            const report = (0, aontu_1.subsume)(check.general[0], check.specific[0], {
-                generalUrl: check.general[1],
-                specificUrl: check.specific[1],
-                // A git#rev source has no directory of its own; its relative
-                // loads resolve as the working file's do.
-                generalPath: check.general[1].startsWith('git#')
-                    ? args.file : check.general[1],
-                specificPath: check.specific[1].startsWith('git#')
-                    ? args.file : check.specific[1],
-            });
-            // The deprecated-removal downgrade: a finding about a value the
-            // OLD version already deprecated becomes a warning, and warnings
-            // do not move the verdict. Deprecate-then-remove is the
-            // supported rename path (the design's own sequencing).
-            let verdict = report.verdict;
-            if (args.allowDeprecatedRemoval) {
-                let liveFindings = 0;
-                for (const f of report.findings) {
-                    if ('error' === f.severity &&
-                        deprecatedAt(oldSrc, f.path, oldPath)) {
-                        f.severity = 'warning';
+    };
+    try {
+        for (const spec of args.against) {
+            const old = oldVersion(spec, args.file);
+            if (null == old) {
+                return 2;
+            }
+            const oldSrc = old.src;
+            if (null != old.temp) {
+                temps.push(old.temp);
+            }
+            // backward: the NEW document is the general side — every old
+            // instance must still be admitted. forward: the old one is.
+            const checks = [];
+            if ('backward' === mode || 'full' === mode) {
+                checks.push({ general: [newSrc, args.file], specific: [oldSrc, spec] });
+            }
+            if ('forward' === mode || 'full' === mode) {
+                checks.push({ general: [oldSrc, spec], specific: [newSrc, args.file] });
+            }
+            const oldPath = old.path;
+            for (const check of checks) {
+                const report = (0, aontu_1.subsume)(check.general[0], check.specific[0], {
+                    trust: verbTrust(trust, entryRootOf(args.file)),
+                    at: args.at,
+                    generalUrl: check.general[1],
+                    specificUrl: check.specific[1],
+                    // The old side's relative loads resolve from ITS own tree --
+                    // the materialised revision for a git spelling, the named
+                    // file's directory otherwise -- so an included file's change
+                    // is part of the comparison rather than invisible to it.
+                    generalPath: check.general[1] === spec ? oldPath : args.file,
+                    specificPath: check.specific[1] === spec ? oldPath : args.file,
+                });
+                // The deprecated-removal downgrade: a finding about a value the
+                // OLD version already deprecated becomes a warning, and warnings
+                // do not move the verdict. Deprecate-then-remove is the
+                // supported rename path (the design's own sequencing).
+                let verdict = report.verdict;
+                if (args.allowDeprecatedRemoval) {
+                    let liveFindings = 0;
+                    for (const f of report.findings) {
+                        if ('error' === f.severity &&
+                            deprecatedAt(oldSrc, f.path, oldPath)) {
+                            f.severity = 'warning';
+                        }
+                        if ('error' === f.severity) {
+                            liveFindings++;
+                        }
                     }
-                    if ('error' === f.severity) {
-                        liveFindings++;
+                    if ('does_not_subsume' === verdict && 0 === liveFindings) {
+                        verdict = 'subsumes';
                     }
                 }
-                if ('does_not_subsume' === verdict && 0 === liveFindings) {
-                    verdict = 'subsumes';
+                if (BREAKING_RANK[worst] < BREAKING_RANK[verdict]) {
+                    worst = verdict;
                 }
+                findings.push(...report.findings);
             }
-            if (BREAKING_RANK[worst] < BREAKING_RANK[verdict]) {
-                worst = verdict;
-            }
-            findings.push(...report.findings);
         }
+    }
+    finally {
+        sweep();
     }
     const report = { verdict: worst, findings };
     const text = 'json' === args.format
@@ -1126,6 +1317,12 @@ const TRIM_EXIT = {
     error: 4,
 };
 function runTrim(argv) {
+    const trusted = takeTrust(argv);
+    if (null == trusted) {
+        return 2;
+    }
+    argv = trusted.argv;
+    const trust = trusted.trust;
     const files = [];
     let check = false;
     let format = 'text';
@@ -1171,7 +1368,9 @@ function runTrim(argv) {
         process.stderr.write(`aontu: cannot read ${err.path}: ${err.message}\n`);
         return 2;
     }
-    const report = (0, aontu_1.trimCheck)(src, { path: files[0] });
+    const report = (0, aontu_1.trimCheck)(src, {
+        path: files[0], trust: verbTrust(trust, entryRootOf(files[0])),
+    });
     const text = 'json' === format
         ? renderTrimJson(report)
         : renderTrimText(report);
@@ -1180,6 +1379,12 @@ function runTrim(argv) {
 }
 function renderTrimText(report) {
     const head = `verdict: ${report.verdict}`;
+    // WHY, when the document could not be evaluated at all: rendered as
+    // vet renders a finding, because it IS one (the review's finding F).
+    const errors = report.errors ?? [];
+    if (0 < errors.length) {
+        return [head, ''].concat(errors.map(renderFinding)).join('\n');
+    }
     if (0 === report.redundant.length) {
         return head;
     }
@@ -1190,6 +1395,7 @@ function renderTrimJson(report) {
         aontu: { version: version(), verb: 'trim' },
         verdict: report.verdict,
         redundant: report.redundant,
+        ...(null == report.errors ? {} : { errors: report.errors }),
     }, 2);
 }
 // The relation reporter (G4 phase 5): acyclicity and inverse
@@ -1203,11 +1409,29 @@ const RELATIONS_EXIT = {
     fail: 1,
     error: 4,
 };
-const MOD_HELP = 'aontu mod tidy|vendor|manifest [dir] (try --help)';
-// The module tooling (G6 phase 3, ts/src/mod-tool.ts). Two
-// subcommands, both LOCAL: `tidy` resolves the closure from what is in
-// the stores and rewrites the lockfile, `vendor` materialises the
-// locked closure into the project.
+const REACHES_HELP = 'aontu reaches <from> <to> [--relation <name>] <file> (try --help)';
+// Same three-way shape every check verb here uses: the check held (0),
+// the check failed (1), the document could not be checked (4). An
+// unreachable pair is a FAILED CHECK and not an error: the question was
+// answered, and the answer was no.
+const REACHES_EXIT = {
+    reaches: 0,
+    unreachable: 1,
+    error: 4,
+};
+const MOD_HELP = 'aontu mod tidy|verify|vendor|manifest [dir] (try --help)';
+// The module tooling (G6 phase 3, ts/src/mod-tool.ts). All LOCAL:
+// `tidy` resolves the closure from what is in the stores and rewrites
+// the lockfile, `verify` asks whether the stores still mean what the
+// lockfile pins and changes nothing, `vendor` materialises the locked
+// closure into the project, `manifest` prints what a publish would
+// push.
+//
+// TIDY AND VERIFY ARE DIFFERENT QUESTIONS, and that is why both exist.
+// Tidy recomputes and rewrites by design -- a pin is what a module
+// means NOW -- so it makes the lockfile agree with whatever the store
+// holds, tampering included. Verify is the gate: a CI job runs it
+// BEFORE tidy, or instead of it.
 //
 // `get` and `publish` are the NETWORK half of the design and are not in
 // this build. They are named here rather than left to fall out as an
@@ -1256,7 +1480,7 @@ function runMod(argv) {
         return 2;
     }
     if (!MOD_SUBS.includes(sub) || 2 < rest.length) {
-        process.stderr.write(`aontu: mod needs tidy, vendor or manifest\n${MOD_HELP}\n`);
+        process.stderr.write(`aontu: mod needs tidy, verify, vendor or manifest\n${MOD_HELP}\n`);
         return 2;
     }
     // `--against` gates a manifest and means nothing to the other two;
@@ -1266,17 +1490,25 @@ function runMod(argv) {
         return 2;
     }
     const report = 'tidy' === sub ? (0, mod_tool_1.modTidy)(dir, modToolOptions()) :
-        'vendor' === sub ? (0, mod_tool_1.modVendor)(dir, modToolOptions()) :
-            (0, mod_tool_1.modManifest)(dir, modToolOptions(), against);
+        'verify' === sub ? (0, mod_tool_1.modVerify)(dir, modToolOptions()) :
+            'vendor' === sub ? (0, mod_tool_1.modVendor)(dir, modToolOptions()) :
+                (0, mod_tool_1.modManifest)(dir, modToolOptions(), against);
     process.stdout.write(('json' === format ?
         (0, aontu_1.exactJSON)({ aontu: { version: version(), verb: 'mod ' + sub }, ...report }, 2) :
         modText(sub, report)) + '\n');
     return MOD_EXIT[report.verdict];
 }
-const MOD_SUBS = ['tidy', 'vendor', 'manifest'];
+const MOD_SUBS = ['tidy', 'verify', 'vendor', 'manifest'];
 const MOD_EXIT = {
     ok: 0,
     missing: 1,
+    // A REFUSED GATE, with `breaking`: a store that no longer means what
+    // the lockfile pins is the integrity check saying no, and a CI job
+    // reading exit codes should not have to learn a third class for it.
+    mismatch: 1,
+    // Likewise a lockfile that does not cover the project: the gate has
+    // nothing to check, which is a refusal and not a pass.
+    unlocked: 1,
     breaking: 1,
     undecided: 3,
     error: 4,
@@ -1295,6 +1527,9 @@ function modToolOptions() {
                 gen: val.gen(a0.ctx({ collect: true })),
                 hash: (0, aontu_1.canonHash)(val),
                 canon: val.canon,
+                // The same question `aontu hash` asks before it will answer:
+                // did this document stand up ON ITS OWN? See ModToolEval.
+                ok: 0 === ctx.err.length && true !== val.isNil,
             };
         },
     };
@@ -1325,10 +1560,38 @@ function modText(sub, report) {
         }
         return lines.join('\n');
     }
+    if ('verify' === sub) {
+        for (const mod of report.verified) {
+            lines.push(mod + ': verified');
+        }
+        // BOTH HASHES, because the useful question is which way it moved:
+        // an empty `got` is a module that no longer stands up at all.
+        for (const m of report.mismatched) {
+            lines.push(m.mod + ': pinned ' + m.want + ' but the store means ' +
+                ('' === m.got ? 'nothing (it does not evaluate)' : m.got));
+        }
+        // NOT a fetch: the module may well be sitting in the store. What
+        // is absent is the PIN, and only a tidy writes one.
+        for (const mod of report.unlocked) {
+            lines.push(mod + ': not in the lockfile (run: aontu mod tidy)');
+        }
+        for (const miss of report.missing) {
+            lines.push(miss + ': not fetched (run: aontu mod get)');
+        }
+        return lines.join('\n');
+    }
     const done = 'tidy' === sub ? report.lock : report.vendored;
     for (const item of done) {
         lines.push('tidy' === sub ?
             item.mod + ' ' + item.v + ' ' + item.canon : '' + item);
+    }
+    // A module that is PRESENT but does not stand up. Named separately
+    // from a missing one because the repair is different: a fetch cannot
+    // help, the module itself has to be fixed (or its own dependencies
+    // vendored beside it). Before the missing tail, as the Go port's
+    // shared renderer orders them.
+    for (const bad of report.unevaluable ?? []) {
+        lines.push(bad + ': does not evaluate on its own; nothing to pin');
     }
     for (const miss of report.missing) {
         lines.push(miss + ': not fetched (run: aontu mod get)');
@@ -1336,6 +1599,12 @@ function modText(sub, report) {
     return lines.join('\n');
 }
 function runRelations(argv) {
+    const trusted = takeTrust(argv);
+    if (null == trusted) {
+        return 2;
+    }
+    argv = trusted.argv;
+    const trust = trusted.trust;
     const files = [];
     let format = 'text';
     for (let i = 0; i < argv.length; i++) {
@@ -1372,22 +1641,115 @@ function runRelations(argv) {
         process.stderr.write(`aontu: cannot read ${err.path}: ${err.message}\n`);
         return 2;
     }
-    const report = (0, aontu_1.relationCheck)(src, { path: files[0] });
+    const report = (0, aontu_1.relationCheck)(src, {
+        path: files[0], trust: verbTrust(trust, entryRootOf(files[0])),
+    });
     const text = 'json' === format
         ? renderRelationsJson(report)
         : renderRelationsText(report);
     process.stdout.write(text + '\n');
     return RELATIONS_EXIT[report.verdict];
 }
+function runReaches(argv) {
+    const trusted = takeTrust(argv);
+    if (null == trusted) {
+        return 2;
+    }
+    argv = trusted.argv;
+    const trust = trusted.trust;
+    const rest = [];
+    let format = 'text';
+    let relation = undefined;
+    for (let i = 0; i < argv.length; i++) {
+        const arg = argv[i];
+        if ('-h' === arg || '--help' === arg) {
+            process.stdout.write(HELP);
+            return 0;
+        }
+        if ('--format' === arg) {
+            const f = argv[++i];
+            if ('text' !== f && 'json' !== f) {
+                process.stderr.write('aontu: --format needs text or json\n');
+                return 2;
+            }
+            format = f;
+        }
+        else if ('--relation' === arg) {
+            relation = argv[++i];
+            if (null == relation) {
+                process.stderr.write('aontu: --relation needs a name\n');
+                return 2;
+            }
+        }
+        else if (arg.startsWith('-')) {
+            process.stderr.write(`aontu: unknown reaches option ${arg} (try --help)\n`);
+            return 2;
+        }
+        else {
+            rest.push(arg);
+        }
+    }
+    if (3 !== rest.length) {
+        process.stderr.write(`aontu: reaches needs two entities and one file\n${REACHES_HELP}\n`);
+        return 2;
+    }
+    let src;
+    try {
+        src = (0, node_fs_1.readFileSync)(rest[2], 'utf8');
+    }
+    catch (err) {
+        process.stderr.write(`aontu: cannot read ${err.path}: ${err.message}\n`);
+        return 2;
+    }
+    const report = (0, reach_1.reachCheck)(src, rest[0], rest[1], {
+        path: rest[2], relation,
+        trust: verbTrust(trust, entryRootOf(rest[2])),
+    });
+    const text = 'json' === format
+        ? renderReachesJson(report)
+        : renderReachesText(report, rest[0], rest[1]);
+    process.stdout.write(text + '\n');
+    return REACHES_EXIT[report.verdict];
+}
+function renderReachesText(report, from, to) {
+    const head = `verdict: ${report.verdict}`;
+    const errors = report.errors ?? [];
+    if (0 < errors.length) {
+        return [head, ''].concat(errors.map(renderFinding)).join('\n');
+    }
+    // THE PATH IS THE ANSWER, not decoration: "yes" is worth little to an
+    // operator asking what a failure would take out, and the chain is
+    // what they act on.
+    return 'reaches' === report.verdict
+        ? [head, '', report.path.join(' -> ')].join('\n')
+        : [head, '', `${from} does not reach ${to}`].join('\n');
+}
+function renderReachesJson(report) {
+    return (0, aontu_1.exactJSON)({
+        aontu: { version: version(), verb: 'reaches' },
+        verdict: report.verdict,
+        ...(null == report.path ? {} : { path: report.path }),
+        ...(null == report.errors ? {} : { errors: report.errors }),
+    }, 2);
+}
 function renderRelationsText(report) {
     const head = `verdict: ${report.verdict}`;
+    // WHY, when the document could not be evaluated at all: rendered as
+    // vet renders a finding, because it IS one (the review's finding F).
+    const errors = report.errors ?? [];
+    if (0 < errors.length) {
+        return [head, ''].concat(errors.map(renderFinding)).join('\n');
+    }
     if (0 === report.findings.length) {
         return head;
     }
     const lines = report.findings.map((f) => 'relation_cycle' === f.code
         ? `${f.at}  ${f.relation}: cycle ${f.detail.join(' -> ')}`
-        : `${f.at}  ${f.relation}: ${f.detail[1]} does not list ` +
-            `${f.detail[0]} under ${f.detail[2]}`);
+        : 'relation_target_unmet' === f.code
+            ? `${f.at}  ${f.relation}: ${f.detail[1]} is not what ` +
+                `${f.relation} targets (${f.detail[2]})`
+            : `${f.at}  ${f.relation}: ${f.detail[1]} does not list ` +
+                `${f.detail[0]} under ${f.detail[2]}`);
     return [head, ''].concat(lines).join('\n');
 }
 function renderRelationsJson(report) {
@@ -1395,7 +1757,104 @@ function renderRelationsJson(report) {
         aontu: { version: version(), verb: 'relations' },
         verdict: report.verdict,
         findings: report.findings,
+        ...(null == report.errors ? {} : { errors: report.errors }),
     }, 2);
+}
+// ---------------------------------------------------------------------
+// JSON SCHEMA EXPORT (SUPPORT.md act 2, the review's finding I): the
+// bridge to every structured-output API, which constrains generation to
+// JSON Schema and nothing else. Export the model, let the provider
+// generate under it, then `vet` the result against the model itself --
+// the hybrid an enterprise actually deploys, and impossible without
+// this verb.
+//
+// THE SCHEMA GOES TO STDOUT AND THE LOSSES TO STDERR, so `aontu
+// jsonschema x.aon > schema.json` writes a schema and still tells the
+// reader what it could not carry. `--strict` makes a loss a refusal,
+// for the CI job that would rather fail than ship a schema weaker than
+// its model.
+const JSONSCHEMA_HELP = 'aontu jsonschema [--at <path>] [--strict] <file> (try --help)';
+function runJsonSchema(argv) {
+    const trusted = takeTrust(argv);
+    if (null == trusted) {
+        return 2;
+    }
+    argv = trusted.argv;
+    const trust = trusted.trust;
+    const files = [];
+    let format = 'text';
+    let at = undefined;
+    let strict = false;
+    for (let i = 0; i < argv.length; i++) {
+        const arg = argv[i];
+        if ('-h' === arg || '--help' === arg) {
+            process.stdout.write(HELP);
+            return 0;
+        }
+        if ('--format' === arg) {
+            const f = argv[++i];
+            if ('text' !== f && 'json' !== f) {
+                process.stderr.write('aontu: --format needs text or json\n');
+                return 2;
+            }
+            format = f;
+        }
+        else if ('--at' === arg) {
+            at = argv[++i];
+            if (null == at) {
+                process.stderr.write('aontu: --at needs a path\n');
+                return 2;
+            }
+        }
+        else if ('--strict' === arg) {
+            strict = true;
+        }
+        else if (arg.startsWith('-')) {
+            process.stderr.write(`aontu: unknown jsonschema option ${arg} (try --help)\n`);
+            return 2;
+        }
+        else {
+            files.push(arg);
+        }
+    }
+    if (1 !== files.length) {
+        process.stderr.write(`aontu: jsonschema needs one file\n${JSONSCHEMA_HELP}\n`);
+        return 2;
+    }
+    let src;
+    try {
+        src = (0, node_fs_1.readFileSync)(files[0], 'utf8');
+    }
+    catch (err) {
+        process.stderr.write(`aontu: cannot read ${err.path}: ${err.message}\n`);
+        return 2;
+    }
+    const report = (0, jsonschema_1.jsonSchema)(src, {
+        at, path: files[0], trust: verbTrust(trust, entryRootOf(files[0])),
+    });
+    if ('json' === format) {
+        process.stdout.write((0, aontu_1.exactJSON)({
+            aontu: { version: version(), verb: 'jsonschema' },
+            verdict: report.verdict,
+            schema: report.schema,
+            lossy: report.lossy,
+            ...(null == report.errors ? {} : { errors: report.errors }),
+        }, 2) + '\n');
+    }
+    else if ('error' === report.verdict) {
+        // Not `?? []`: every `error` return in jsonSchema() sets `errors`,
+        // so the list is the reason for the refusal rather than a maybe,
+        // exactly as Go's `r.Errors` is on this arm.
+        process.stderr.write(report.errors.map(renderFinding).join('\n') + '\n');
+    }
+    else {
+        process.stdout.write((0, aontu_1.exactJSON)(report.schema, 2) + '\n');
+        for (const l of report.lossy) {
+            process.stderr.write(`lossy: ${l.path} ${l.construct}: ${l.reason}\n`);
+        }
+    }
+    return 'error' === report.verdict ? 4 :
+        strict && 'lossy' === report.verdict ? 1 : 0;
 }
 // ---------------------------------------------------------------------
 // The canon-hash (G6 phase 1): the pin an agent, a lockfile or a
@@ -1406,6 +1865,12 @@ function renderRelationsJson(report) {
 // unified root, hence the hash.
 const HASH_HELP = 'aontu hash <file> (try --help)';
 function runHash(argv) {
+    const trusted = takeTrust(argv);
+    if (null == trusted) {
+        return 2;
+    }
+    argv = trusted.argv;
+    const trust = trusted.trust;
     const files = [];
     let form = false;
     let format = 'text';
@@ -1448,14 +1913,21 @@ function runHash(argv) {
     }
     // The file's own directory is the include base, as every verb
     // resolves a named file (vet's aontuForPath rule).
-    const aontu = new aontu_1.Aontu();
+    const capability = verbTrust(trust, entryRootOf(files[0]));
+    const aontu = new aontu_1.Aontu(null == capability ? undefined : { trust: capability });
     const ctx = aontu.ctx({ collect: true });
     const v = aontu.unify(src, { path: files[0] }, ctx);
     if (0 < ctx.err.length || true === v?.isNil) {
         // A document that does not stand up on its own has no meaning to
         // pin, and a hash of a broken evaluation would be a pin that
         // silently agrees with every other broken evaluation.
-        process.stderr.write(`aontu: ${files[0]} does not evaluate on its own; nothing to hash\n`);
+        // WHY it does not stand up, not just that it does not: the same
+        // diagnosis `aontu <file>` prints (the review's finding F).
+        // evalFailure unconditionally, as every other call site does: it
+        // owns the "ctx.err is never empty here" contract, and a guard
+        // that pretends otherwise is a dead arm asserting nothing.
+        process.stderr.write(`aontu: ${files[0]} does not evaluate on its own; nothing to hash\n` +
+            renderFinding((0, query_1.evalFailure)(ctx)) + '\n');
         return 4;
     }
     const text = 'json' === format
@@ -1476,6 +1948,12 @@ function runHash(argv) {
 // document that subsumes the truth it summarises.
 const GET_HELP = 'aontu get <path> <file> (try --help)';
 function runGet(argv) {
+    const trusted = takeTrust(argv);
+    if (null == trusted) {
+        return 2;
+    }
+    argv = trusted.argv;
+    const trust = trusted.trust;
     const rest = [];
     let view = 'json';
     let depth;
@@ -1539,7 +2017,9 @@ function runGet(argv) {
         process.stderr.write(`aontu: cannot read ${err.path}: ${err.message}\n`);
         return 2;
     }
-    const report = (0, aontu_1.get)(src, path, { view, depth, path: file });
+    const report = (0, aontu_1.get)(src, path, {
+        view, depth, path: file, trust: verbTrust(trust, entryRootOf(file)),
+    });
     if ('json' === format) {
         process.stdout.write((0, aontu_1.exactJSON)({
             aontu: { version: version(), verb: 'get' },
@@ -1569,6 +2049,12 @@ function runGet(argv) {
 // unify, this explains what did.
 const WHY_HELP = 'aontu why <path> <file> (try --help)';
 function runWhy(argv) {
+    const trusted = takeTrust(argv);
+    if (null == trusted) {
+        return 2;
+    }
+    argv = trusted.argv;
+    const trust = trusted.trust;
     const rest = [];
     let format = 'text';
     for (let i = 0; i < argv.length; i++) {
@@ -1606,7 +2092,9 @@ function runWhy(argv) {
         process.stderr.write(`aontu: cannot read ${err.path}: ${err.message}\n`);
         return 2;
     }
-    const report = (0, aontu_1.why)(src, path, { path: file });
+    const report = (0, aontu_1.why)(src, path, {
+        path: file, trust: verbTrust(trust, entryRootOf(file)),
+    });
     if ('json' === format) {
         process.stdout.write((0, aontu_1.exactJSON)({
             aontu: { version: version(), verb: 'why' },
@@ -1654,6 +2142,12 @@ function renderWhyText(record) {
 // a comment-preserving CST the parser stack does not have.
 const SET_HELP = 'aontu set <path>=<value> --entry <file> --overlay <file> (try --help)';
 function runSet(argv) {
+    const trusted = takeTrust(argv);
+    if (null == trusted) {
+        return 2;
+    }
+    argv = trusted.argv;
+    const trust = trusted.trust;
     const assignments = [];
     let entry;
     let overlayFile;
@@ -1720,6 +2214,7 @@ function runSet(argv) {
         }
     }
     const report = (0, aontu_1.patch)(entrySrc, overlaySrc, assignments, {
+        trust: verbTrust(trust, entryRootOf(entry)),
         entryPath: entry,
         overlayPath: overlayFile,
         inPlace,
@@ -1796,6 +2291,12 @@ function runSet(argv) {
 // source it points at.
 const AGENTSMD_HELP = 'aontu agentsmd <file> (try --help)';
 function runAgentsMd(argv) {
+    const trusted = takeTrust(argv);
+    if (null == trusted) {
+        return 2;
+    }
+    argv = trusted.argv;
+    const trust = trusted.trust;
     const files = [];
     let write;
     for (let i = 0; i < argv.length; i++) {
@@ -1831,7 +2332,10 @@ function runAgentsMd(argv) {
         process.stderr.write(`aontu: cannot read ${err.path}: ${err.message}\n`);
         return 2;
     }
-    const report = (0, aontu_1.agentsMd)(src, { name: files[0], path: files[0] });
+    const report = (0, aontu_1.agentsMd)(src, {
+        name: files[0], path: files[0],
+        trust: verbTrust(trust, entryRootOf(files[0])),
+    });
     if (!report.ok) {
         process.stderr.write(report.findings.map(renderFinding).join('\n') + '\n');
         return 4;
@@ -1897,6 +2401,13 @@ function parseTrustArg(value) {
     return undefined;
 }
 function main(argv) {
+    // COLOUR OFF WHEN THE DESTINATION IS NOT A TERMINAL. Error frames
+    // hardcoded their ANSI escapes, so a piped report and a `--jsonl`
+    // answer carried terminal control codes into whatever read them (the
+    // review's finding F). `NO_COLOR` is honoured by the library itself;
+    // only the CLI can see whether its stderr is a terminal, so only the
+    // CLI can make this call. `undefined` means "leave it to NO_COLOR".
+    (0, aontu_1.setColor)(true === process.stderr.isTTY ? undefined : false);
     let mode = 'json';
     // A LIST, though the bare command evaluates exactly one document.
     // It used to be one variable and the last argument won, which made a
@@ -1951,6 +2462,12 @@ function main(argv) {
     if ('relations' === argv[2]) {
         return finish(runRelations(argv.slice(3)));
     }
+    if ('jsonschema' === argv[2]) {
+        return finish(runJsonSchema(argv.slice(3)));
+    }
+    if ('reaches' === argv[2]) {
+        return finish(runReaches(argv.slice(3)));
+    }
     if ('trim' === argv[2]) {
         return finish(runTrim(argv.slice(3)));
     }
@@ -1978,6 +2495,12 @@ function main(argv) {
         }
         else if ('--jsonl' === arg) {
             jsonl = true;
+            // A JSONL answer is machine-read by definition, even when the
+            // session happens to be attached to a terminal, so this is a
+            // harder gate than the stderr test above rather than a repeat of
+            // it: escapes inside the answer string are noise the harness has
+            // to strip before it can compare anything.
+            (0, aontu_1.setColor)(false);
         }
         else if ('--include-root' === arg) {
             const dir = args[++i];
@@ -2018,10 +2541,10 @@ function main(argv) {
     // made it reachable only through a pty -- which is to say, not
     // reachable by the thing it was built for. Mirrors go/cmd/aontu.
     else if (jsonl || process.stdin.isTTY) {
-        runRepl(mode, jsonl);
+        runRepl(mode, jsonl, trust);
     }
     else {
         runStdin(mode, trust).then((code) => finish(code));
     }
-} /* node:coverage ignore next 13 */
+} /* node:coverage ignore next 15 */
 //# sourceMappingURL=cli.js.map

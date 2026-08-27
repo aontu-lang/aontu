@@ -119,10 +119,17 @@ class OpBaseVal extends FeatureVal_1.FeatureVal {
     same(peer) {
         return null == peer ? false : this.peg === peer.peg;
     }
-    clone(ctx, _spec) {
+    clone(ctx, spec) {
         let out = super.clone(ctx, {
             peg: this.peg,
         });
+        // THE PER-DESTINATION INSTANTIATION RULE (ADR-005): an operation
+        // inside a template clones its operands as instances — the
+        // default clone shares them (see FuncBaseVal.clone). Every
+        // operand is a Val by construction, as in the Go twin's []Val.
+        if (true === spec?.dup) {
+            out.peg = this.peg.map((a) => a.clone(ctx, { dup: true }));
+        }
         return out;
     }
     operate(ctx, _args) {

@@ -103,7 +103,11 @@ func packFunc(ctx *Ctx, f *FuncVal, base []string, args []Val) Val {
 		// holds nothing path-dependent; a generator's template IS the
 		// child, and a child is a position (see the TS
 		// PackFuncVal.resolve comment).
-		child := fillPlace(clonePath(tmpl, kslot), source)
+		// A FULL INSTANCE, to the leaves (instanceClone, ADR-005): a
+		// bare clone shares the inner structure of any call, preference
+		// or operation in the template, so the first child's resolution
+		// of a shared key()/ref answered for every child (BUGS.md §8, §9).
+		child := fillPlace(instanceClone(tmpl, kslot), source)
 		if prev, seen := out.peg[key]; seen {
 			// Duplicate generated keys are not an error: the colliding
 			// children unify, exactly as duplicate source keys merge.
@@ -146,7 +150,8 @@ func eachFunc(ctx *Ctx, f *FuncVal, base []string, args []Val) Val {
 			ctx.slot = islot
 			// `_` inside the template binds the source child (G8 phase
 			// 3), which for each() is the element itself.
-			el = unite(ctx, el, fillPlace(clonePath(tmpl, islot), v))
+			// A full instance per element (instanceClone, ADR-005).
+			el = unite(ctx, el, fillPlace(instanceClone(tmpl, islot), v))
 		}
 		elems = append(elems, el)
 	}
@@ -203,7 +208,10 @@ func filterFunc(ctx *Ctx, f *FuncVal, base []string, args []Val) Val {
 		// `_` inside the condition binds the child being tested (G8
 		// phase 3), so a condition can be about the child as a whole
 		// rather than only about its shape.
-		test := fillPlace(clonePath(cond, slot), child)
+		// The condition is cloned as a FULL instance per trial
+		// (instanceClone, ADR-005) — a bare clone shares call/pref
+		// innards across trials.
+		test := fillPlace(instanceClone(cond, slot), child)
 		met := trialUnify(ctx, clonePath(child, slot), test)
 		return nil != met && met.Canon() == child.Canon()
 	}
@@ -245,8 +253,39 @@ func matchHasDefault(peg []Val) bool {
 	return 0 == len(peg)%2
 }
 
+// effectiveScrutinee is THE DEFAULTED-SCRUTINEE RULE (ADR-004,
+// use-cases/BUGS.md §5): the generation-effective view of a settled
+// scrutinee. A preference -- or a disjunction carrying one -- means
+// "this value unless something overrides it", and by resolve time the
+// model has SETTLED (staging rule), so nothing will: the value
+// generation is about to emit is the value the patterns must be tested
+// against. Testing against the still-open preference instead let a
+// pattern SELECT an arm by overriding the default. A pref-free
+// scrutinee (open disjunction included) is untouched. Mirrors
+// effectiveScrutinee in ts/src/val/MatchFuncVal.ts.
+func effectiveScrutinee(v Val) Val {
+	out := v
+	if d, ok := out.(*DisjunctVal); ok {
+		// Generation picks the LOWEST rank (subEffectiveDefault in
+		// subsume.go; `a:**1|*2` generates 2). rankPrefs leaves at most
+		// one pref standing in a settled disjunct, so the scan is
+		// defensive.
+		var best *PrefVal
+		for _, m := range d.peg {
+			if p, ok := m.(*PrefVal); ok && (nil == best || p.rank < best.rank) {
+				best = p
+			}
+		}
+		if nil == best {
+			return v
+		}
+		out = best
+	}
+	return prefInnerPeg(out)
+}
+
 func matchFunc(ctx *Ctx, f *FuncVal, base []string, args []Val) Val {
-	scrutinee := args[0]
+	scrutinee := effectiveScrutinee(args[0])
 	last := len(args)
 	if matchHasDefault(args) {
 		last--
@@ -313,6 +352,15 @@ func stagedArgIdx(f *FuncVal) []int {
 // ts/src/val/FuncBaseVal.ts.
 func stagedDrive(ctx *Ctx, f *FuncVal, base []string) bool {
 	ready := true
+	// THE SNAPSHOT WAITS FOR THE SOURCE (see Ctx.argsnap): every ref
+	// resolution inside this drive defers its copy until the target has
+	// settled in the tree. Saved/restored rather than simply cleared:
+	// a staged func nested inside another's data argument drives its
+	// own argument with the flag already up, exactly as TS's
+	// prototype-inherited ctx flag behaves.
+	saved := ctx.argsnap
+	ctx.argsnap = true
+	defer func() { ctx.argsnap = saved }()
 	// Every index stagedArgIdx answers is derived from len(f.peg), and
 	// arity is checked at parse, so there is no bound to test here.
 	for _, i := range stagedArgIdx(f) {

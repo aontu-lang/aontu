@@ -17,6 +17,7 @@ var hints = map[string]string{
 	"scalar_kind":      "Literal scalar values of different kinds cannot unify.\n \nExamples:\n  1 & 1   -> 1    # Does unify (equal Integers);\n  1 & a   -> nil  # Does not unify (Kinds: Integer & String);\n  1 & 1.0 -> nil  # Does not unify (kinds: Integer & Float).",
 	"nil_gen":          "The nil value was present after unification, and nil cannot be\ngenerated because nil is not a literal value.",
 	"no_gen":           "This value was present after unification, and cannot be generated\nbecause it is not a literal value.",
+	"disjunct_no_gen":  "More than one alternative of this disjunction is still admitted, so\nthere is no single value to generate. Supply a value that selects\none alternative, or write a preference (*) to say which one holds\nwhen nothing else does.",
 	"mapval_required":  "This map value is required.",
 	"mapval_no_gen":    "This value was present after unification, and cannot be generated\nbecause it is not a literal value.",
 	"listval_required": "This list element is required.",
@@ -104,7 +105,13 @@ var hints = map[string]string{
 
 	"lossy_integer_literal":   "This integer literal, {src}, is not exactly representable in\nbinary64, so storing it would silently round it to a DIFFERENT\nnumber. Aontu refuses rather than corrupts: write it as a `0d`\nliteral to get the exact integer.\nThe rule is exactness, not magnitude -- a literal far outside the\nint64 window is still a value when it lands exactly on a binary64.\n \nExamples:\n  9007199254740992   -> 9007199254740992    # 2^53, exact;\n  9007199254740993   -> nil                 # 2^53+1 is not;\n  0d9007199254740993 -> 0d9007199254740993  # ... the exact escape;\n  0x7fffffffffffffff -> nil    # 2^63-1 rounds up to 2^63;\n  100000000000000000000 -> 1e20 # 10^20 is huge and exact.",
 	"exact_float_mix":         "Aontu cannot mix an exact number with a binary float.\nHere the operands are {left} and {right}, in that order.\nA big type never silently becomes a binary float, in either\noperand order -- binary64 cannot hold every exact value, so the\npromotion would throw away the exactness the `0d` leaves exist to\nguarantee. Write both operands in the same family (`0d1.0` for the\nfloat, or a plain integer for the big).\n \nExamples:\n  0d2 + 0d0.5 -> 0d2.5  # Exact with exact (widest leaf wins);\n  1 + 0d0.5   -> 0d1.5  # integer is on the exact ladder;\n  1 + 2.0     -> 3.0    # ... and float still mixes with integer;\n  1.0 + 0d2   -> nil    # float with biginteger;\n  0d0.5 + 1.0 -> nil    # ... and the same the other way round.",
-	"inexact_integer_sum":     "The `integer` leaf holds a value only when it is integral, within\nthe int64 range, and exactly representable in binary64. This sum\nis not: {sum}.\nAontu adds integers exactly and refuses to store a rounded answer\n-- write `0d<digits>` for an exact integer beyond that window.\n \nExamples:\n  4503599627370496 + 4503599627370496 -> 9007199254740992  # Exact;\n  4503599627370496 + 4503599627370497 -> nil    # 2^53+1 is not;\n  0d4503599627370496 + 0d4503599627370497 -> 0d9007199254740993.",
+	"pick_key":                "A child of this bag has no key `{key}` to pick. Projection\nrefuses rather than skipping: a shorter list would make the\naggregate over it total a DIFFERENT set of records than the one\nthe author named, which is the failure an aggregate exists to\nprevent. Give every child the key, or filter the bag first.\n \nExamples:\n  pick([{a:1},{a:2}], a)   -> [1,2]  # Every child has it;\n  pick([{a:1},{b:2}], a)   -> nil    # ... the second does not;\n  pick([[9],[8]], 0)       -> [9,8]  # A list child takes an index.",
+	"aggregate_data":          "This aggregate needs a BAG to fold: a list or a map. `sum`,\n`least` and `greatest` walk the children of the value they are\ngiven, so a scalar, a kind or an unresolved reference is not\nsomething they can total.\n \nExamples:\n  sum([1,2,3])       -> 6    # A list;\n  sum({a:1,b:2})     -> 3    # ... or a map, by sorted key;\n  sum(3)             -> nil  # A scalar is not a bag;\n  x:[1,2] sum($.x)   -> 3    # A reference to one is fine.",
+	"aggregate_empty":         "There is no least or greatest element of an EMPTY bag. Addition\nhas an identity, so `sum([])` is 0; comparison has none, and\nanswering with a zero or an infinity would be inventing a value\nthe data does not contain. Guard the bag, or give it a floor with\na written element.\n \nExamples:\n  sum([])            -> 0    # Zero IS the empty sum;\n  least([])          -> nil  # ... but nothing is the least of none;\n  least([0])         -> 0    # A written floor answers.",
+	"divide_by_zero":          "Division by zero. `div`, `mod` and `rem` refuse a zero divisor in\nevery numeric leaf, including binary floats: Aontu is a JSON\nsuperset with no notation for an infinity, so there is no value\nthe operation could answer with. A definition that divides by zero\nis wrong, and this says so where it is written rather than\nsomewhere downstream.\n \nExamples:\n  div(7, 0)     -> nil  # No answer exists;\n  mod(7, 0)     -> nil  # ... nor for the modulus;\n  div(7.0, 0.0) -> nil  # ... and a float would say Infinity.",
+	"inexact_divide":          "Exact decimal division is not closed: one third has no finite\ndecimal form, so `div`, `mod` and `rem` refuse a `0d` operand\nrather than round one. Two ways out. Scale to integers and divide\nthose -- which is the convention money should be carried in\nanyway, minor units as an integer -- or use binary floats if an\napproximation is acceptable here.\n \nExamples:\n  div(0d10.0, 0d4.0) -> nil    # Refused, though this one terminates;\n  div(0d10, 0d4)     -> 0d2    # A biginteger is not a decimal;\n  div(1000, 4)       -> 250    # Integer cents, exact;\n  div(10.0, 4.0)     -> 2.5    # ... or binary64, approximate;\n  mul(0d10.0, 0d4.0) -> 0d40.0 # Multiplication IS exact and stays.",
+	"float_overflow":          "This result is not a finite binary64 number, so it is not a value\nAontu can carry. There is no notation for an infinity or a NaN in\na JSON superset, and no JSON a generator could emit for one, so\nthe operation is refused where it is written rather than escaping\nas an internal error or an unserialisable value.\nUse the exact leaves (`0d`) if the magnitude is real rather than\nan accident.\n \nExamples:\n  1.0e308 + 1.0e308 -> nil  # Overflows binary64;\n  mul(1.0e200, 1.0e200) -> nil  # ... and so does this;\n  0d1e308 + 0d1e308 -> 0d2e308  # Exact, and well inside budget.",
+	"inexact_integer_sum":     "The `integer` leaf holds a value only when it is integral, within\nthe int64 range, and exactly representable in binary64. This\nresult is not: {sum}.\nAontu computes integers exactly and refuses to store a rounded\nanswer -- write `0d<digits>` for an exact integer beyond that\nwindow.\n \nExamples:\n  4503599627370496 + 4503599627370496 -> 9007199254740992  # Exact;\n  4503599627370496 + 4503599627370497 -> nil    # 2^53+1 is not;\n  0d4503599627370496 + 0d4503599627370497 -> 0d9007199254740993.",
 	"mapval_spread_required":  "The value for key {key} is required (defined in spread).",
 	"listval_spread_required": "The value for key {key} is required (defined in spread).",
 
@@ -208,6 +215,7 @@ var codeClasses = map[string]string{
 	// lattice citizen may not be falsified by more information.
 	"relation_cycle":           "conflict",
 	"relation_inverse_missing": "conflict",
+	"relation_target_unmet":    "conflict",
 
 	"patch_assignment":      "parse",
 	"patch_not_editable":    "reference",
@@ -242,6 +250,12 @@ var codeClasses = map[string]string{
 	"|:empty-dist":          "conflict",
 	"exact_float_mix":       "conflict",
 	"inexact_integer_sum":   "conflict",
+	"pick_key":              "conflict",
+	"aggregate_data":        "conflict",
+	"aggregate_empty":       "conflict",
+	"divide_by_zero":        "conflict",
+	"inexact_divide":        "conflict",
+	"float_overflow":        "conflict",
 	"decimal_budget":        "conflict",
 	"lossy_integer_literal": "conflict",
 	"arg":                   "conflict",
@@ -260,6 +274,7 @@ var codeClasses = map[string]string{
 
 	// incomplete -- residue: the truth requires more than was supplied
 	"no_gen":                  "incomplete",
+	"disjunct_no_gen":         "incomplete",
 	"conjunct":                "incomplete",
 	"mapval_no_gen":           "incomplete",
 	"mapval_required":         "incomplete",

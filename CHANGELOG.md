@@ -5,6 +5,842 @@ package (`ts/`, npm `aontu`) and the Go module (`go/`,
 `github.com/rjrodger/aontu/go`) are versioned independently; entries note
 which implementation each change affects.
 
+## Unreleased — the gate agrees with the evaluator about size
+
+Both implementations. The 2026-08 review's finding C, second half:
+"for every schema S and data D, `vet(S, D)` and `eval(S ∪ D)` must
+agree on accept/reject". Two of the five defects it named
+(`use-cases/BUGS.md` 16 and 17) were still open, and both were
+`vet` answering **valid** for data the evaluator refuses.
+
+**"Sizing atoms fold last" was only half the rule.** Sorting `length`
+and `unique` to the end of their conjunct does not help when the
+container settles in ONE document and still gains members from
+another: the data half of a `vet` meet, an `@` include, a later
+`pack`. The atom counted whatever the container held when its own
+layer settled — for the ubiquitous template-plus-bound spelling,
+nothing at all — discharged itself as satisfied, and vanished. Three
+entries then vetted clean against `length(max(2))`, duplicate labels
+passed `unique()`, and `length(min(1))` refused the schema it was
+written for.
+
+A sizing verdict is now taken only when **more members cannot change
+it** — members accumulate under unification and are never removed. An
+upper bound violated, a lower bound satisfied and a duplicate found are
+permanent and decided at once; everything else **residuates** and is
+decided at **generation**, where nothing more can arrive. A residuated
+atom is visible in canon, which is honest: the value really does still
+carry the constraint.
+
+**A `must` over a container residuates with them**, for the same reason
+and fixing the same class: `must({t: max(60)}, …)` beside a
+`{t: integer}` schema was answered against the schema layer alone, so
+the cross-field form — the form cross-field rules need — vetoed
+same-file and vanished under `vet`.
+
+**And `vet`'s generation probe now counts conflicts**, not only the
+`incomplete` class — the *other* engine cause the review named. A
+contradiction raised at generation is a contradiction; dropping it left
+the verdict `valid`. The `vet-equals-eval` harness caught this the
+moment the first fix landed, which is exactly what it is for.
+
+**A container that cannot generate cannot be counted**, and a schema is
+exactly that: the members of `{a: integer}` are types, so nothing is
+emitted. Discharging the atom there was the same defect wearing its
+other face — `length(min(2)) & {a: integer}` dropped its bound while
+still alone, so the data half of the meet was never measured. It
+residuates now, and is decided at generation like every other
+provisional reading.
+
+**The verdict is read by class, not by stage.** Whatever the meet found
+counted as contradiction and whatever generation added counted as
+incompleteness — positional, and no longer true once a sizing atom
+could hold its reading until generation. An error-severity finding that
+is not incompleteness now makes the document `invalid` wherever it was
+found; warnings still never touch the verdict.
+
+**`--at` keeps the atom it anchors on.** The anchor walk handed back the
+container inside a residue, dropping a constraint the author wrote at
+that node, so `vet --at $.x` passed data the evaluator refuses.
+Stepping THROUGH a residue is still right — `$.x.a` names a key
+whatever its container must satisfy — but arriving at one no longer
+discards what it must satisfy.
+
+Four use-case gap pins flipped from pinning the defect to pinning the
+fix (05's cross-layer folding pair and its `must` pin, 09's duplicate
+labels, 06's `length(min(1))`-beside-a-generator probe, which moved
+from the expected-failure list to the goldens).
+
+## Unreleased — relations that enforce, and a graph you can ask questions of
+
+Both implementations. The 2026-08 review's finding J: aontu is "a sound
+entity-and-edge substrate whose query and constraint layers over that
+substrate are one more capability review away". The review named a
+concrete slice — "make `relations` enforce `target`, add
+`unique()`-by-projection, and ship a transitive `reaches(a, b)` check
+verb". `unique(k)` landed with the arithmetic family; here are the
+other two, and the defect that made the first of them worth nothing.
+
+**`refer(t)` in both directions no longer eats itself** (`use-cases/BUGS.md`
+19). The flow unifies `t` into the target, and uniting a target drives
+the target's own subtree — so a pair that links back at each other, the
+shape *every* inverse relation has, flowed into each other until the
+depth budget or the host stack ended it. Two lines were enough:
+`a` typed-refers `b`, `b` typed-refers `a`, both `{kind: service}`, and
+the evaluator reported `unify_cycle` on a meet that is a fixpoint on
+sight. A flow that would re-enter an entity is now skipped — the flow
+it is nested in is already uniting that entity — and nothing is lost,
+as the differs-each-way and cycle-of-three rows pin. Use case 01 now
+carries the documented idiom `refer($.std.Service)` on **both**
+directions of a real model, and its gap 8 workaround is gone.
+
+**`relations` enforces `target`.** The field looked like a typed
+endpoint declaration and was read by nothing, on the reasoning that
+`refer(t)` already flows the type in at the site. It does — which is
+exactly why the declaration was worth nothing, because the site then
+has to repeat it, and the idiom that avoids repeating it was the one
+that ate itself. Satisfaction is the meet **and not merely the absence
+of a conflict**: a target key the far end does not have unifies happily
+and leaves a hole, so the check asks what `refer(t)` answers at the site
+— can the far end still generate once the target is met? — and compares
+it with the far end alone, so a node already incomplete for its own
+reasons is not blamed on the relation pointing at it. New code
+`relation_target_unmet`; the check never writes, because flowing the
+type in here would be generation.
+
+**`aontu reaches <from> <to>`**, a verb in both ports plus a library
+call and an MCP tool. `relations` asks about the edge set; this asks
+the question that needs the *closure* — does anything `from` links to,
+at any remove, end up at `to`? — which is the shape of every
+blast-radius question an operator asks and every containment question a
+policy asks, and which cannot be put one edge at a time. The path is
+the answer, not decoration: a shortest one, and among shortest ones the
+first in code-point order, so it is the same path in both ports.
+Transitive and **not** reflexive-transitive: an entity reaches itself
+only through a cycle. `--relation` follows one relation, which is the
+difference between "can this reach that at all" and "can it reach it
+*this way*" — and on a model that writes both a relation and its
+inverse, the second question is the only interesting one. An endpoint
+naming no entity is a refusal, not a `no`.
+
+**A critical defect found on the way, and NOT fixed** (`use-cases/BUGS.md`
+42, `test/spec/divergent.tsv`): on a two-view id-merged model, Go's
+derived graph has 6 edges where TypeScript's has 40, so `aontu
+relations` reports **no cycle** in Go where TypeScript reports a real
+one. It is not new — the pre-change Go binary loses the same edges —
+and it went unseen because `use-cases/run-all.sh` drives the TypeScript
+CLI and nothing had run a use case through the Go one. Use case 01's
+`check.sh` asserts the cycle, so the Go CLI fails that check today
+rather than passing it quietly.
+
+## Unreleased — arithmetic, aggregation and projection
+
+Both implementations. The 2026-08 review's finding I, the
+expressiveness walls that "fall on the wrong side of what total
+combinators can do". Ten new built-ins, 24 → 38, and one defect they
+uncovered on the way.
+
+**Arithmetic arrives as functions: `add` `sub` `mul` `div` `mod`
+`rem`.** The tokens `-` `*` `/` `%` stay reserved, as the design's
+boundary requires, so there is no infix arithmetic to learn beyond `+`.
+The semantics are the ones
+[G8 pre-registered](docs/capability-review/g8-generation.md#arithmetic-semantics-pre-registered):
+the exact ladder and R5 kind contagion the number tower already had,
+integer division truncating **toward zero** (`div(-7,2)` is `-3`, not
+`-4` — stated by the language rather than inherited from whichever host
+`/` each port calls, since Go's `Quo` truncates and its `Div` floors),
+and `rem`/`mod` differing only in whose sign the answer follows, the
+dividend's and the divisor's, which is the whole reason both exist.
+
+The family is **numeric where the operator is polymorphic**, and that
+is what makes `add` more than a second spelling of `+`. A Kubernetes
+quantity written `"500m" + "500m"` is the string `"500m500m"` and
+nothing complains; `add("500m","500m")` is a located error, because a
+function named for a numeric operation has no business inventing a
+string.
+
+Three refusals, each because the answer would be a value Aontu cannot
+carry: a zero divisor in any leaf including floats (`divide_by_zero`),
+a non-finite binary64 result (`float_overflow`), and `div`/`mod`/`rem`
+over a bigdecimal (`inexact_divide`) — one third has no finite decimal
+form, so exact decimal division either rounds, which is the one thing
+that leaf exists to prevent, or refuses.
+
+**`float_overflow` fixes a defect `+` already had** (`use-cases/BUGS.md`
+39): `1.0e308+1.0e308` used to escape as `[aontu/internal]` in
+TypeScript and as Go's raw `json: unsupported value: +Inf` — no code,
+no site, invisible to any harness grepping `[aontu/`. A Go CLI test
+pinned the marshaller error as expected; it now asserts the located
+refusal instead.
+
+**Aggregation: `sum` `least` `greatest`** fold a finite, settled bag —
+a list, or a map in sorted-key order. `sum` folds with `add`, so the
+number tower's whole law comes with it. They are named `least` and
+`greatest` rather than `min` and `max` because those two are already
+the constraint atoms for a lower and an upper *bound*, and an aggregate
+over a set is a different thing from a bound on a value. `sum([])` is
+`0` and `least([])` is an error: addition has an identity, comparison
+has none, and answering with a zero or an infinity would invent a value
+the data does not contain. Comparison is exact — `0d9007199254740993`
+and `9007199254740992` share a float image and are still ordered
+correctly.
+
+**Projection: `pick(d, k)`**, one element per child of `d`, being that
+child's `k`. Without it the aggregates cannot reach the case that
+motivated them, because `sum` needs a bag of numbers and a model holds
+a bag of records: `total: sum(pick($.lines, amountCents))`. It is not
+`each` with a clever template — `each` *meets* each child, and a meet
+cannot select. A child missing the key is an error, not a silently
+shorter list.
+
+**`unique(k)` spends the reserved arity.** `unique()` compared whole
+members, so "no two services share a port" and "event ids are unique"
+were inexpressible and two records differing anywhere else slipped
+through. The atom's single argument is now the projector the reference
+had reserved it for. A member without the key fails rather than being
+skipped; `unique(a) & unique(b)` demands both; canon sorts the keys.
+
+Use case 10's gap 3 (no aggregate computation) and gap 8 (no uniqueness
+by projection) are closed, and its checks now assert a derived invoice
+total and a caught duplicate ledger id where they used to assert the
+absence of both.
+
+**JSON Schema export: `aontu jsonschema`.** The other half of finding
+I's interop wall. The constraint algebra maps onto JSON Schema's core,
+so the mapping is now specified and executable rather than left to
+whoever needs it first: `re` becomes `pattern`, `min`/`max` become
+`minimum`/`maximum`, `length` becomes the string/array/object length
+keywords per type, a disjunction becomes `anyOf` (or `enum` where every
+member is a literal), a preference becomes `default`, `close()` becomes
+`additionalProperties: false`, an optional key is simply absent from
+`required`, and a list with a spread template becomes `items` where a
+written list literal becomes `prefixItems` plus `items: false`. Draft
+2020-12, on stdout, so `aontu jsonschema x.aon > x.schema.json` writes
+a usable file. Also an MCP tool and a library call in both ports.
+
+**A loss is never silent.** What JSON Schema cannot say — `must()`, an
+exact numeric leaf, an unresolved residue — is reported on *stderr*
+beside the schema rather than instead of it, because a weaker schema is
+still a usable one and the reader needs to know which. `--strict` turns
+the report into a refusal for the CI job that would rather fail than
+ship a schema weaker than its model; `--format json` puts both halves
+in one envelope.
+
+**A documented wire convention for money**, which finding I asked for
+ahead of any new machinery. Money crosses the wire as a *decimal
+string* validated by `re()` at a fixed scale, with an optional-but-
+constant **conversion mark** (`dec?: "bigdecimal:2"`) naming the leaf
+and the scale — optional so a producer is never asked to send it,
+constant so one that does cannot contradict it, and exported as a
+`const` outside `required` so a consumer holding only the JSON Schema
+still learns both. `docs/how-to.md` carries the convention and the
+three details that decide whether an implementation of it is correct:
+the sign goes *outside* the `0d` prefix, scale is not part of the value
+(`0d10.50` and `0d10.5` are the same number), and at scale 0 the point
+must still be written or the value lands on the `biginteger` leaf.
+`use-cases/10-data-model/money-wire.aon` and `money-convert.aon` are
+the executable form, and gap 1 — "exact money is unreachable from plain
+JSON" — is answered.
+
+**A finding that named the record instead of the field**
+(`use-cases/BUGS.md` 41), found by the money probe running both engines
+and diffing. A `NilVal` took its path from the operand it blames, which
+decides the *site* correctly and the path only by accident: every
+conflict inside a referenced record reported the record's path — the
+same path for every one of its fields — and a conflict against a
+*minted* operand, a preference's yardstick or an arithmetic result,
+reported `$`, the whole document, in both ports. The path now comes
+from the location the meet is being driven at, where that extends the
+operand's own. One case remains open and is recorded in
+`test/spec/divergent.tsv`: a reference to a target *deeper* than the
+referring field still leaves one stale segment in TypeScript.
+
+## Unreleased — a module closure that travels, and a verb that verifies it
+
+Both implementations. The 2026-08 review's finding H: a ground truth
+that cannot move between repositories tamper-evidently is a
+convention, not a truth. Three defects stood between the module layer
+and that claim, on either side of `mod-lock.aon`.
+
+**The store belongs to the project, not to the file that names it.**
+A vendored module carries its own `mod.aon`, so it is a project inside
+a project — and resolution walked up to the *nearest* one and stopped.
+An import made from inside `aon_vendor/corp.example/schemas/service@1/`
+therefore looked for a store beneath `service@1/`, found none, and
+refused with `module not fetched` while the module it wanted sat flat
+beside it, which is the only layout `aontu mod vendor` writes. The
+tooling produced a tree the resolver could not read: one dependency
+deep worked, a dependency *graph* did not. Resolution now collects
+every enclosing `mod.aon` root (`projectRoots`, both ports) and tries
+each one's `aon_vendor/` and lockfile in turn, nearest first — so a
+module shipping its own vendor tree still wins for its own tree, and
+one that does not falls through to the consumer that vendored it. The
+old workaround, a second `aon_vendor/` nested inside the dependency,
+is now a no-op that does not move the pin; it could never have
+travelled anyway, because `mod manifest` excludes `aon_vendor/` from
+the published layer.
+
+**A pin that cannot be computed is not written.** `tidy` pinned
+modules it could not evaluate, and the hash it locked for them was
+`canonHash(nil)` — the string *every* unevaluable module hashes to. Two
+entirely different broken modules locked the identical pin, so the
+lockfile's promise to break on any semantic change in the transitive
+closure was silently vacuous, and `aontu hash` refused the very file
+`tidy` had just pinned. Tidy now refuses it too, in the same words —
+`does not evaluate on its own; nothing to pin` — with `verdict: error`,
+exit 4, and no lockfile written. That is the verb's existing rule (a
+partial lock claims a resolve that never happened) applied to a pin
+that is present but means nothing, which is the harder case to see.
+
+**Verifying is not editing: `aontu mod verify [dir]`.** Nothing
+checked the store against the committed lock. `tidy` recomputes and
+rewrites by design, so a CI job that tidied before evaluating made the
+lockfile agree with whatever the store held — tampering included — and
+then passed: the integrity pin defeated by the order of two commands.
+The new verb recomputes every pin, compares it against the lockfile,
+**writes nothing**, and refuses on any disagreement with both hashes
+named (`pinned <want> but the store means <got>`); a module that no
+longer stands up says so rather than reporting the hash of `nil` as
+though it were a meaning.
+
+Nothing to check is not a pass, either — the obvious way to get this
+verb wrong. The gate walks what is *locked*, so a project whose
+lockfile was never committed, or whose lockfile predates a dependency
+someone added, would verify clean over an empty set: absence reading as
+agreement, which is the same shape as the defect above. Every
+dependency the project declares must be in the lockfile before the pins
+mean anything, and the repair is a `tidy` rather than a fetch:
+`verdict: unlocked`, and the line says so. Transitive dependencies need
+no separate check — a locked module's own imports are resolved when its
+pin is recomputed, so one that is unreachable makes its *dependant*
+fail to evaluate and is reported as a mismatch.
+
+Verdicts `ok`, `mismatch`, `unlocked` and `missing`; exit 0 and 1 for
+each of the three refusals, 2 for usage — a mismatch is a refused gate,
+the class `breaking` already uses. `--format json` carries `verified`,
+`mismatched` and `unlocked`. Run it beside your tests; run `tidy` only
+when you mean to move a pin.
+
+Documented in [`docs/reference-api.md`](docs/reference-api.md#aontu-mod)
+and the hand-vendoring how-to, which gained the flat transitive layout
+and the CI section. Use case 11 (`use-cases/11-shared-modules`) asserts
+all three behaviours where it previously pinned the defects.
+
+## Unreleased — provenance is part of the clone contract
+
+Both implementations. The 2026-08 review's finding E: `why` is the
+agent-facing differentiator, and it went dark exactly where an
+enterprise model puts its values.
+
+**The authored mark lives on the value, not in a set beside it.** The
+recorder decided "did the author write this" by looking the operand's
+id up in a set stamped over the parsed tree — which is true of the
+parsed tree and of nothing derived from it. So a default flowing into
+a `pack()`-generated child, a shape carried by a `$ref`, one side of an
+`id()`-merge were all invisible, and `why` answered "(no contributions:
+nothing met at this path)" over a value it had just printed, with exit
+0 (`use-cases/BUGS.md` §22–24). `Val.clone`, `Val.place` and the
+disjunct fold now carry the mark exactly as they carry the site: a
+clone of a written value IS that written value somewhere else, and it
+holds the author's site, so it can be pointed at. Values the engine
+MINTS are constructed rather than cloned and stay unmarked.
+
+**A member is not a value beside its container.** `*1|integer` is one
+thing the author wrote; `*1` is not a second thing next to it. The
+recorder knew that only where the container itself met something,
+which the fixpoint decides — so the first key under a spread template
+reported one contribution and the second reported two, for identical
+statements. The containment is now a fact about the document, recorded
+at stamping time, and an operand is reported as the outermost written
+value it is part of.
+
+**A spread's mark walked into an already-marked container and stopped.**
+Its guard was written as a "done" flag where a cycle guard was meant.
+A template is applied once per destination and the fixpoint advances
+values in place between applications, so every child replaced between
+the first key and the second stayed unmarked.
+
+**The value that stands at a path is a contribution when nothing met
+there.** A meet is where information vanishes, so a meet is what the
+recorder watches — but a generator PLACES a value without meeting
+anything, and "nothing met at this path" is not an answer to "where did
+this come from".
+
+**`set --in-place` refuses a path reached through a reference.** With
+provenance travelling, `n: $.base` against `base: 7` reports the
+literal `7` — correctly, and at `base`'s line rather than `n`'s. A
+splice there would rewrite the referent for every reader of it while
+leaving the named path unmoved, so the reference is refused as not
+editable and the assignment is appended as it always would have been.
+
+## Unreleased — every site names the file whose text it excerpts
+
+Both implementations. The 2026-08 review's finding F, in four parts:
+the diagnostics an agent repairs from.
+
+**One invariant: a site names the file whose text it excerpts.** The
+provenance walk used to OVERWRITE every value's url with the entry
+document's name and leave the coordinates alone, so a finding cited
+`entry.aon:3:7` for text that lives three files away, at a line the
+entry may not even have — *a repair agent that follows the site edits
+the wrong file* (`use-cases/BUGS.md` §25). Only values that carry no
+name of their own are stamped now — those the engine minted rather than
+read — and the urls actually seen are collected, so a value loaded
+through `@"lib/types.aon"` keeps that path with that file's row and
+column, and the report still knows which DOCUMENT a site belongs to:
+roles come from membership of the url set, never from a name
+comparison. Error frames follow the same rule, and where the run holds
+no text for a named file the site reports `-1:-1` rather than resolving
+an offset against the wrong document.
+
+**And it is named as the entry's own name reaches it.** The resolved
+absolute path is the right IDENTITY — two documents loading one library
+by different relative spellings must be one file — and the wrong NAME:
+a report whose entry reads `contract.aon` and whose included site reads
+`/home/someone/checkout/types.aon` cannot be uploaded as SARIF, diffed
+between machines, or read beside the command that produced it. A site
+is therefore printed relative to the entry's directory and re-anchored
+on however the caller spelled the entry: `vet contract.aon` names
+`types.aon`, `vet a/b/contract.aon` names `a/b/types.aon`, and an
+absolute entry keeps absolute includes.
+
+**A junction reached through a reference keeps its site.** Go's clone
+rebuilt a disjunction as a fresh value carrying the url and the source
+text but not the POSITION, so the commonest schema shape there is — an
+enum declared once and named by `$.Role` from wherever it applies —
+reported its `|:empty` finding at row -1 while the canonical port
+reported it at the enum. The site now travels whole through every
+clone, which closes divergence #66's neighbour in the same sweep. Pinned
+by `vet-refd-disjunct-site`.
+
+**Parity ledger: #66 is closed.** Go's include resolver stamps the
+resolved path onto every value a loaded document parses into, and keeps
+that document's text so an offset can be resolved in the file it
+belongs to. The fixture recorded in `test/spec/divergent.tsv` now
+reports `part.aon:1:7` from both ports, byte-identical.
+
+**Findings carry the repair.** `message` is the headline and stays one
+line — that is what makes it comparable — so everything the engine
+knows about how to FIX a failure reached a terminal reader in the
+frames and a machine reader not at all. A finding now carries `hint`:
+the whole shared hint text with its placeholders filled in, for every
+code that has one. The clearest case is a lossy integer literal, where
+the hint names the `0d` exact-decimal escape that fixes it. Excluded
+from the shared spec's goldens exactly as `message` is, because prose
+is per-port; carried into SARIF through the embedded finding, and
+redacted in the SARIF golden the same way.
+
+**`relations` and `trim` say WHY.** Both answered a document that does
+not stand up with `verdict: error` and an empty list — something is
+wrong, and nothing about what, which is the one answer a repair loop
+cannot act on. Both reports now carry `errors`, in the vet finding
+shape and present only on that verdict: the engine's own first error,
+with its site, its hint and the file it belongs to. The `findings` list
+of `relations` still means what it meant — facts about the GRAPH — and
+a document with no graph has none of those to report.
+
+**Colour is a decision about the destination, not about the message.**
+Error frames hardcoded their ANSI escapes, so a piped report carried
+terminal control codes into logs, CI annotations and agents' parsers.
+The library honours `NO_COLOR` (set, to anything, means no colour) for
+every caller; the command additionally turns colour off when its own
+stderr is not a terminal, since a library cannot see the destination
+and a caller who can is the only one who may say. `--jsonl` turns it
+off unconditionally: a JSONL answer is machine-read by definition, even
+in a session attached to a terminal.
+
+## Unreleased — the evolution gate stops failing its own idioms
+
+Both implementations. Three fixes to `subsume`/`breaking`, all from the
+2026-08 review's finding D.
+
+**Reflexivity is a law of the walk.** Every value admits itself,
+residue included: the set admitted by `integer & min(0)` is exactly the
+set admitted by `integer & min(0)`. Without that, a constraint inside a
+SPREAD TEMPLATE made a contract non-self-subsumable — expected and
+actual byte-identical, verdict `undecided` — so `breaking` on the
+documented close-per-entry idiom hard-failed reflexivity and had to run
+`--allow-undecided`, which then masks the genuine undecideds the gate
+exists to surface (`use-cases/BUGS.md` §28). The check sits on the
+`sub_unresolved` branch, where the answer would otherwise be undecided,
+and identity is the HASH FORM: canon drops closedness and the marks, so
+`close({a:1})` and `{a:1}` share a canon while admitting different sets.
+
+**A preferred branch contributes exactly its own value** — ADR-004's
+rule, which the subsumption walk had never adopted. It still compared a
+pref MEMBER of a disjunction by its kind superior, so every member of
+`*backward|forward|full|none` widened to `string`, which no general
+member admits, and a disjunction with a default did not subsume itself
+(§29). Two existing rows sharpen from `undecided` to
+`does_not_subsume` as a result: with a pref member admitting its own
+value the counterexample is CONCRETE, so the walk names it instead of
+shrugging.
+
+**The `gen` profile's mark rule is a correspondence question**, and it
+was firing inside DISTRIBUTION TRIALS — comparing a whole marked
+disjunction against a member extracted out of one, which are not the
+same node of the two documents. `aontu_policy: hide({compat:
+*backward|forward|full|none})`, the verbatim idiom from
+`reference-api.md`, failed self-subsumption under `--profile gen`
+because of it. The enclosing node's marks are still compared where they
+correspond, and a mark that really did change is still refused.
+
+**`breaking --at <path>`** joins `subsume`'s anchor: a module's top
+level carries the version string and the policy block, which are
+*supposed* to change between releases, so the whole-document comparison
+answered about those rather than about the contract and a release that
+bumped only its version self-broke the gate. Findings are reported from
+the anchor.
+
+Pinned by `subsume.tsv` self-spread-residue, self-spread-residue-closed,
+self-hide-pref-disjunct, self-policy-idiom and hide-added-still-refused,
+plus `breaking-at-gates-a-subtree` and its Go twin.
+
+## Unreleased — `breaking --against git#<rev>` on macOS and Windows
+
+Both implementations. The repo-relative path of the entry file was
+computed by relativising `git rev-parse --show-toplevel` against the
+caller's resolved path — two DIFFERENT COORDINATE SYSTEMS on either
+side of the subtraction. git prints the real path, while the caller's
+is whatever they typed: on macOS a temp file under `/var` is
+`/private/var` to git, and on Windows a `TMP` short name (`RUNNER~1`)
+is the long form. The subtraction then produced a `../..` climb, the
+entry was reported "not in that revision", and the documented CI
+spelling exited 2 on both platforms while passing on Linux.
+
+The path now comes from git itself (`rev-parse --show-prefix`), which
+is the same question asked in git's coordinates. Pinned on every
+platform by a leg that reaches the entry through a symlink —
+`breaking-git-compares-the-old-tree` and its Go twin — so the case runs
+on Linux too rather than waiting for a macOS runner to notice.
+
+Two Windows-only test defects went with it, both in the MCP suite: an
+absolute path interpolated raw into an `@"..."` include (where a
+backslash is an escape), and a raw path substring-matched against its
+own JSON encoding.
+
+## Unreleased — vet asks the same question the evaluator does (ADR-007)
+
+**Breaking, both implementations.** `1|2`, `null|top` and
+`({x:1}|{y:2}) & {z:3}` no longer generate a value.
+
+Generation used to FOLD an unresolved disjunction's surviving members
+together with unify and emit the result — a value in no branch of the
+disjunction. `({x:1}|{y:2}) & {z:3}` generated `{x:1,y:2,z:3}`, a map
+the model never admits, and `role: 'a'|'b'` with no data died as a
+scalar_value CONFLICT: the conflict of the fold, not of anything the
+author wrote. Vet's incompleteness pass keeps incomplete-class
+findings, so it filtered that out and a **missing required enum field —
+the commonest schema idiom there is — vetted valid with zero
+findings** (the 2026-08 review's finding C; `use-cases/BUGS.md` §13).
+
+An unresolved disjunction is now incomplete residue: generation answers
+the preferred alternative when there is one (that is what `*` is for)
+or the single surviving one, and more than one still admitted raises
+`disjunct_no_gen`, class `incomplete` — the same class a bare `string`
+residue answers. The spelling that decides a disjunction is a
+preference (`*null|top`) or a value that selects an alternative.
+
+**Vet met the settled schema, not the schema.** The standalone pass
+that decides whether a schema stands up on its own was also serving as
+the left side of the meet, so every reference in the schema had already
+resolved against the schema's own values and been replaced by them:
+`a:integer b:$.a` settled to `a:integer b:integer`, and `{a:3,b:4}`
+vetted valid while the same four lines as one document refuse with
+`scalar_value` (§15). The meet is now built from a fresh parse, so the
+fixpoint runs once over both documents; the standalone pass remains as
+the diagnosis it always was. A `--at` path that exists only in the
+settled tree falls back to it, so no such path stops working.
+
+**A mark above the anchor is not a reason to check nothing.** Vet finds
+residue by generating the anchored meet, and generation honours
+`type()` and `hide()`. Under `--at` the probe now descends through them
+(§14): a mark is a decision about output, and `--at` names the truth to
+validate against explicitly.
+
+**A preference conjoined with a disjunction now names an alternative.**
+`(A|B) & *A` is `*A|B`, the same value the direct spelling denotes.
+Distribution carried the peer to each member and the kind gate then
+replaced a scalar preference *by* the concrete member it met, so the
+preference simply vanished: `specversion: ("1.0"|"1.1") & *"1.0"` —
+the enum-with-default written this way round — held no default at all,
+canon dropped the `*`, and two contracts differing only in their
+default hashed identically. The fold hid all three.
+
+Two more consequences fell out and shipped with it. The disjunct dedup
+compared object identity, so `x:*{a:1}|{a:number}` met by `x:{a:2}`
+left `{"a":2}|{"a":2}` — one value spelled twice, which the old fold
+hid; two bags are now the same value when they have the same shape.
+And a narrowed disjunction keeps the site of the one it came from:
+findings naming a disjunction that had met anything used to point at
+row −1 with no file, and now carry real coordinates in both ports (part
+of the review's finding F).
+
+**The invariant is now asserted as standing infrastructure**, beside
+the parity probe: `ts/test/veteval.test.ts` and `go/veteval_test.go`
+read the shared spec's own `vet` rows, compute `vet(S, D)` and
+`eval(S ∪ D)` for each, and require them to agree on accept/reject. The
+corpus is the spec, so it grows with every row anyone adds. Every one
+of the defects above would have failed it.
+
+`disjunct_no_gen` is registered in `test/spec/errcodes.tsv` (class
+`incomplete`, since 0.53.0). Pinned by `disjunct.tsv`, `vet.tsv`
+(vet-enum-missing-is-incomplete, vet-at-marked-anchor-*,
+vet-junction-site), `pref.tsv` and the re-probed site columns across
+`subsume.tsv`, `edge.tsv`, `number-tower.tsv` and `place.tsv`.
+
+The sharpest practical consequence is on the write path: `aontu set`
+takes vet's verdict, so it used to accept writes its own `must()`
+audits refuse — the entry's audits had been discharged before the
+overlay existed — and only the assembled runtime view caught them,
+post-hoc. A refused write is now refused at the point of writing, and
+never reaches the overlay.
+
+Still open, recorded in ADR-007: a sizing atom sharing a conjunct with
+a spread template is discharged against that layer alone (§16), and a
+map-argument `must()` is consumed by the schema layer (§17).
+
+## Unreleased — the include capability reaches every surface
+
+Both implementations. `--trust` / `--include-root` were wired to
+`aontu <file>` alone. Every VERB — `vet`, `subsume`, `breaking`, `get`,
+`why`, `set`, `relations`, `trim`, `hash`, `agentsmd` — parsed its own
+argument tail and ran the full system resolver with no way to confine
+it, which is the surface an agent actually scripts. The REPL *accepted*
+`--trust` and dropped it, so the `--jsonl` session mode built to be
+driven by a harness evaluated unconfined however it was invoked. And
+the language server confined the diagnostics it published while leaving
+HOVER on the system resolver, so a workspace-confined editor session
+resolved an escaping include the moment a cursor rested on it — one
+document under two postures is not a confinement. (The 2026-08 review's
+finding G; `use-cases/BUGS.md` §37.)
+
+Every verb now takes `--trust <system|none|root[:dir]>` and
+`--include-root <dir>` anywhere in its argument tail, a bare `root`
+meaning the primary document's own directory. The REPL carries a
+session capability through `:load`, `:get`, `:why` and bare snippets.
+Hover and hover-provenance run under the same capability as
+diagnostics; the Go API gains `lsp.HoverTrust` beside `Hover`,
+following the existing `DiagnosticsTrust` precedent.
+
+Two parity holes closed with it. Go's `PatchOptions.Trust` was declared
+but never reached the `Vet` call underneath `set`. And `breaking` read
+its own `$.aontu_policy.compat` declaration through an unconfined
+evaluation in *both* ports, confining the comparison but not the
+question that chooses its mode.
+
+Pinned by `every-verb-honours-the-capability`,
+`verbs-take-include-root`, `repl-honours-the-capability` and
+`workspace-root-confines-hover` in `ts/test/trust.test.ts`, with Go
+twins in `go/cmd/aontu/trust_test.go` and `go/lsp/lsp_test.go`. Each of
+the ten verbs is asserted twice — the escape resolves under today's
+default and is denied under `--trust none` — so a verb that quietly
+dropped the flag again would fail. The hover tests probe every column
+of the line (a hover span is measured in the *included* document's
+coordinates) and carry an unconfined control, so they assert the
+capability rather than hover failing everywhere.
+
+No default changed: `system` with the phase-6 warning window remains
+the posture until the staged flip.
+
+## Unreleased — the evolution gate compares the old TREE
+
+Both implementations. `breaking --against git#<rev>` took only the ENTRY
+file's text from git and then evaluated it with the WORKING file as its
+path, so every `@"..."` include in the old document resolved against the
+working tree: the "old" side was old entry text meeting NEW includes,
+and a breaking change made inside an included file compared against
+itself and answered `compatible`. The documented CI spelling therefore
+un-gated every non-entry file of the multi-file layout real models use
+(the 2026-08 review's finding D; `use-cases/BUGS.md` §26).
+
+A `git#<rev>` spelling now materialises the revision's includable
+sources (`.aon`, `.aontu`, `.jsonic`, `.json` — the only files an
+include can name) into a temporary directory and evaluates the old
+document from there; the tree is removed when the run ends. Sources
+outside the revision (package includes, the bundled `std/system`)
+resolve as before. A file the revision does not carry is a usage
+failure naming it rather than a comparison against nothing.
+
+Pinned by `ts/test/cli.test.ts` `breaking-git-compares-the-old-tree`
+and `go/cmd/aontu/subsume_test.go` `TestBreakingGitComparesTheOldTree`,
+both of which also assert that an UNCHANGED tree still answers
+`compatible` — a fix that merely reported breaking would fail them.
+
+## Unreleased — the spread application rework (ADR-006)
+
+Both implementations. The remaining defects of the 2026-08 language
+review's finding B (`use-cases/BUGS.md` §6, §7, §36 and the
+pack-over-spread-augmented-data failure), which ADR-005 named openly as
+different roots. Two rules, mirrored TS/Go:
+
+- **Template application is stateless.** The combination of two
+  unequal `&:` spread templates (MapVal/ListVal's spread meet) bakes a
+  key present in only one side into the combined map as an
+  `ExpectVal`, and a path-independent combined template is SHARED
+  across every destination — so the expectation's in-place peer
+  accumulation unified each sibling's own data with the next
+  sibling's (`$.w.y.r: Cannot unify value: 6 with value: 5`, both
+  values sibling data; the id-merged and one-view by-reference forms
+  identically). `ExpectVal.unify` is now pure — a non-escaping peer
+  rides a NEW node, the met expectation is never mutated — and a
+  carried expectation is re-wrapped fresh at its destination
+  (`handleExpectedVal` / the Go peer loop), which also unstacks the
+  double-wrap. Each child now meets each template independently;
+  children never meet each other's data (§6, §7, the `TODO: handle
+  existing spread!` retired). An operator arriving as a peer-only key
+  is CARRIED, never wrapped: a wrapped op froze (an expectation only
+  advances when a peer arrives) and the residue blamed a spread that
+  existed nowhere — `deploy: web: {surge: $.deploy.web.replicas + 1}`
+  merged onto a pack child now answers `surge: 3`, `a:{x:1}
+  a:{y:.x+1}` answers `y: 2`, and an op that can never resolve is an
+  honest error naming the real path (§36).
+- **A generator snapshots a settled source.** A staged function's data
+  argument (`pack`, `each`, `filter`, `match`) resolves references
+  under an `argsnap` flag (TS `driveStagedArgs` → `RefVal.find`; Go
+  `stagedDrive` → `ref.go`): the copy is taken only once the target
+  has finished resolving IN THE TREE. Copied earlier, a
+  spread-injected relative reference in the snapshot dangled at the
+  argument's location (rebased where no root traversal reaches) and
+  the generator never fired — `ports: &: {port: .containerPort}` +
+  `out: pack($.ports, {})` died as `mapval_no_gen`; it now generates,
+  and `each()` over the same source likewise. One deliberate canon
+  flip rides this rule: an unfired generator over a permanently stuck
+  source canons with the data reference still standing
+  (`pack($.n,{"x":1})`, which reparses to the same document) instead
+  of with a baked-in copy of the stuck value — `gen-each.tsv`
+  each-unfired-canon / each-unfired-template-canon and `gen-pack.tsv`
+  pack-unfired-canon flipped, parity-probed.
+
+Pinned by parity-probed shared rows: the `spread-interleave.tsv`
+spread-unequal-* composition matrix (unequal spreads × literal /
+ref-arriving / key()-bearing templates × 2,3 children × map,list, plus
+requiredness, defaults and id-merge through the combine), `vet.tsv`
+vet-unequal-spread-depths, `gen-pack.tsv`
+pack-over-spread-augmented / pack-merge-expr-onto-child,
+`gen-each.tsv` each-over-spread-augmented, and `plus.tsv`
+peer-key-expr / peer-key-expr-unresolvable. `make cov` stays at 100%
+in both ports. Downstream effects recorded with dated notes in the
+use-case suite: 01 (shared-PortSpec discipline now style, not
+workaround), 02 (stacked-spread guardrails vet correctly), 05 (the
+`owner` role was silently missing from the generated registry — the
+filter's mid-resolution snapshot re-stamped entity ids inside the
+hidden witness and the id-merge pulled the hide mark onto the real
+role; the eval-path hallucinated-permission diagnostic that rode the
+same artifact is gone, the vet path unchanged), 06 (the DRY
+port-column derivation works).
+
+## Unreleased — template-clone isolation (ADR-005)
+
+Both implementations. The language review's finding B
+(`use-cases/REVIEW.md`; `use-cases/BUGS.md` §8–12, §33–35), taken as
+one engineering campaign with the review's minimal repros as its
+acceptance suite. One mechanical root — template clones sharing inner
+nodes — and its surfaces, every one of them silent wrong output with
+exit 0:
+
+- **Instantiation is per destination, to the leaves.** A pack/each
+  template, a filter condition, and an applied spread constraint are
+  now FULL instances: function arguments, a preference's inner value
+  and operator operands are cloned per destination (the `dup` clone in
+  TS, `instanceClone` in Go) with every inner path normalised to the
+  destination (`repathInstance` / the Go `setPaths` shape). Fixes:
+  `pack($.names, close({name: key()}))` stamping the FIRST child's key
+  on every child (§8, and its garbled `$.deploy.NaN.p` override
+  paths); a rank-2 `**key(1)|string` default shared by all children
+  (§9); relative references and `key()` inside template *expressions*
+  resolving at the template's own location — the `NaN`-path family
+  (§33, §35a).
+- **A hole belongs to its nearest enclosing generator.** `hasPlace`/
+  `fillPlace` no longer cross into a generator's template or condition
+  argument, so `close(pack(d, _ & t))` + overlay merges with the
+  generated child instead of absorbing the overlay into the template
+  (§10), and a nested pack's `_` binds the INNER source child instead
+  of the outer one (§34). A hole in a generator's *data* argument is
+  still the outer generator's to fill.
+- **A mark belongs to the field its wrapper was written at.** A
+  reference that lands on a still-pending `type()`/`hide()` call now
+  DEFERS until the wrapper resolves at its own field, instead of
+  cloning the call and having the clone stamp marks at the referring
+  site after the mark-clearing walk had run. Fixes: `hide(pack(...))`
+  leaking its mark onto generated children so downstream packs emitted
+  them empty (§11); type-marked alias references silently suppressing
+  the referring field — inline and across `@` includes — plus the
+  bogus `id_name` on `id(key(0))` and the phantom
+  `mapval_spread_required` naming a spread in neither file (§12); and
+  `hide()` around a computed field of a pack child swallowing the
+  value into a silent `[]` (§35b — it now yields the computed value).
+  A marked peer-only child in a map meet is carried, never wrapped as
+  an expectation.
+
+One deliberate canon flip: a path-dependent spread template no longer
+canons with the last destination's resolution baked into it
+(`spread.tsv` spread-close-template-canon rewritten, with the move()
+combination pinned as `spread-close-template-move-gens`). The move()/
+copy() ghost-innard sharing (`func.tsv` ghost-*) is untouched.
+
+Pinned by parity-probed shared rows: `gen-close.tsv`
+(close-template-keys-per-child, close-template-key-pref-override,
+close-template-key-refuses-extra, close-pack-hole-overlay-merges),
+`gen-pack.tsv` (pack-rankpref-key-per-child, pack-rankpref-key-override,
+pack-rel-ref-in-expr, pack-key-in-expr-and-call), `place.tsv`
+(place-nested-pack-inner-binding, place-nested-pack-inner-meet,
+place-hole-as-inner-data, place-hole-as-inner-data-tmpl), `marks.tsv`
+(hide-pack-field-hidden, hide-pack-downstream-pack,
+type-alias-conjunct-ref, type-conjunct-arg-ref,
+type-conjunct-target-ref, type-alias-ref-first,
+hide-computed-pack-copy), `spread.tsv` (spread-expr-sibling-ref), and
+`file.tsv` (load-alias-spread, load-alias-idspread,
+load-alias-top-conjunct, over the new `alias_schema.aon` /
+`alias_top.aon` fixtures). Rationale: `ADR.md` ADR-005; author-facing
+rules: `docs/reference-language.md` ("Generating children", "The
+placeholder `_`", "Marks"). Still open, honestly: the unequal-spread
+sibling crosswire (BUGS.md §6–7) and the self-referential merge
+expression (§36).
+
+## Unreleased — the preference admission gate (ADR-004, BREAKING)
+
+Both implementations. The top-priority recommendation of the 2026-08
+language review (`use-cases/REVIEW.md` finding A; `use-cases/BUGS.md`
+§1–5), taken as a deliberate breaking change:
+
+- **A preference override must be admitted by its disjunction.** A peer
+  meeting a scalar `*`-default inside a disjunction must unify with at
+  least one alternative — the preferred value's own admitted set counts
+  — or the meet is the empty disjunction (`|:empty`). `k: *'auto' |
+  'literal' | 'data'` + `k:'autoo'` is now REFUSED (it used to answer
+  `"autoo"`, exit 0); `port: *8080 | (integer & neq(80))` + `port: 80`
+  is refused instead of bypassing the exclusion. `*8080 | integer` +
+  `9090` still answers 9090, and an unset field still generates its
+  default. A deliberately open default is spelled `*x | top` (the
+  apidef machine-emitted idiom keeps its meaning).
+- **The rank-uniform meet.** A rank≥2 preference now defends the
+  innermost preferred value's kind exactly as rank 1 does:
+  `a: **1.5 & float` is `1.5` (was `mapval_no_gen`), `**2|integer` met
+  by a bare `integer` keeps the default 2 (was silently dropped), and
+  `**hello & false` is the same kind conflict `*hello & false` is
+  (the flipped `pref.tsv:pref-nested-concrete-wins` row).
+- **`match()` on a defaulted scrutinee** tests patterns against the
+  generation-effective value, so a pattern can no longer select an arm
+  by overriding the default and contradicting the value generated
+  beside it.
+- **`pref_not_instance` is advisory and honest.** The ranked-default
+  false positive is fixed (the effective default unwraps every pref
+  layer), the message now reads "…not an instance of any remaining
+  alternative of…", and the lint's post-gate meaning (a typo-shaped
+  default, no longer a soundness hole) is documented in `ts/src/vet.ts`.
+- **`std/system` tightens.** `direction: *in | out | inout` is a true
+  enum-with-default; `sideways` is refused.
+
+Pinned by parity-probed shared rows: `pref.tsv` (`pref-admit-*`,
+`pref-rank2-*`, flipped `pref-nested-concrete-wins`), `std-system.tsv`
+(flipped `port-direction-refuses-nonmember`), `vet.tsv`
+(`vet-enum-default-*`), `gen-match.tsv` (`match-defaulted-scrutinee-*`,
+`match-bare-pref-scrutinee`), `subsume.tsv` (`pref-lint-ranked-clean`,
+flipped `default-rank-min`). Rationale and the escape hatch: `ADR.md`
+ADR-004; author-facing rules: `docs/reference-language.md`
+("Preference / default `*`").
+
 ## Unreleased — TypeScript 0.53.0 line
 
 ### Documentation — the four quadrants brought back level

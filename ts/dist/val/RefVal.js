@@ -20,6 +20,28 @@ const BigDecimalVal_1 = require("./BigDecimalVal");
 // class it has no rule for. A key cannot contain a NUL, so this can never
 // match, which turns a silent path-shortening bug into a visible miss.
 const UNSPELLABLE_SEGMENT = '\u0000unspellable';
+// Is this value an unresolved type()/hide() call — or a conjunct still
+// carrying one? A reference that lands on one must defer rather than
+// clone it (see the call site in `find`): the marks such a call will
+// stamp belong to the field it was WRITTEN at, and a clone resolving
+// at the reference's site re-applies them after the reference's
+// mark-clearing walk has already run. Only the two mark wrappers
+// qualify — every other pending call resolves to an unmarked value,
+// and the existing early-clone behaviour for those is pinned
+// (move()/copy() ghost rows, hole-filling conjuncts).
+function pendingMarkWrapper(v) {
+    if (true === v.isTypeFunc || true === v.isHideFunc) {
+        return !v.done;
+    }
+    if (true === v.isConjunct && Array.isArray(v.peg)) {
+        for (const t of v.peg) {
+            if (pendingMarkWrapper(t)) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
 class RefVal extends FeatureVal_1.FeatureVal {
     constructor(spec, ctx) {
         super(spec, ctx);
@@ -150,7 +172,15 @@ class RefVal extends FeatureVal_1.FeatureVal {
         (0, utility_1.explainClose)(te, out);
         return out;
     }
-    find(ctx) {
+    // `snap` is set by snapshotRefSpread (MapVal): a SPREAD snapshot
+    // wants the target's pre-resolution STRUCTURE — key()/path() still
+    // unresolved, to be re-resolved per destination — so the
+    // pending-mark-wrapper defer below must not apply to it. Deferring
+    // there made the snapshot wait until the target's own key() had
+    // resolved at the target, and the literal leaked into every
+    // destination (the exact failure the snapshot exists to prevent —
+    // test/spec/spread-type.tsv, spread-type-key-ref).
+    find(ctx, snap) {
         let out = undefined;
         // Check if self.path starts with peg (cycle detection).
         // Element-by-element comparison avoids string join+startsWith allocations.
@@ -331,6 +361,41 @@ class RefVal extends FeatureVal_1.FeatureVal {
                 if (null != out && (out.isRef || out.isFunc) &&
                     this.detectRefCycle(ctx)) {
                     out = (0, err_1.makeNilErr)(ctx, 'path_cycle', this);
+                }
+                // A PENDING MARK WRAPPER IS NOT YET A VALUE TO COPY (ADR-005).
+                // A type()/hide() call still waiting for its argument — an
+                // alias reference inside a type() body, a generator inside a
+                // hide() — would be cloned here as the CALL, and the clone
+                // then resolves at the REFERENCE's site, stamping marks that
+                // the mark-clearing walk below has already run too early to
+                // clear. That is how a type-marked alias silently suppressed
+                // the referring field's emission (use-cases/BUGS.md §12), how
+                // `hide(pack(...))` leaked its mark onto downstream packs
+                // (§11), and how hide() around a computed field swallowed the
+                // value into a silent [] (§35b). Defer instead: the reference
+                // residuates until the wrapper has resolved at its OWN field,
+                // and the ordinary marked-value path below then clears the
+                // marks on the clone as documented. The move() reference
+                // (`_hide_found`) is exempt: a move TRANSPLANTS the pending
+                // call, and the ghost rows (test/spec/func.tsv) pin that its
+                // innards resolve at the destination.
+                else if (null != out && !snap && !this.mark._hide_found &&
+                    pendingMarkWrapper(out)) {
+                    out = undefined;
+                }
+                // A STAGED ARGUMENT SNAPSHOTS A SETTLED SOURCE (the argsnap
+                // flag, set by driveStagedArgs). A generator's data argument is
+                // a copy OUTSIDE the tree, so anything in the target that still
+                // resolves against its own tree location — a spread-injected
+                // relative reference, a pending template — must finish there
+                // BEFORE the copy is taken: cloned earlier, the copy's rebased
+                // relative refs dangle under the generator and the model dies
+                // as *_no_gen with the generator never firing. Deferring here
+                // is exactly the documented staging rule: the generator waits
+                // for the source, then snapshots it whole.
+                else if (null != out && !snap && true === ctx.argsnap &&
+                    !out.done) {
+                    out = undefined;
                 }
                 // Types and hidden values are cloned and made concrete
                 else if (null != out) { //  && (out.mark.type || out.mark.hide)) {

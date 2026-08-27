@@ -28,8 +28,10 @@ const helpText = `Usage: aontu [options] [file]
        aontu breaking --against <file|git#rev> [options] <file>
        aontu trim --check [options] <file>
        aontu relations [options] <file>
+       aontu reaches <from> <to> [--relation <name>] [options] <file>
+       aontu jsonschema [--at <path>] [--strict] [options] <file>
        aontu hash [options] <file>
-       aontu mod tidy|vendor|manifest [options] [dir]
+       aontu mod tidy|verify|vendor|manifest [options] [dir]
        aontu get <path> [options] <file>
        aontu why <path> [options] <file>
        aontu set <path>=<value>... --entry <file> --overlay <file>
@@ -52,7 +54,9 @@ Options:
   --jsonl         REPL: answer every command as one JSON line
   -v, --version   Print the version and exit
   --trust <t>     Include capability: system (default), none, or
-                  root[:dir] to confine @"..." below a directory
+                  root[:dir] to confine @"..." below a directory.
+                  Every verb takes it too, and a bare root means the
+                  document's own directory
   --include-root <dir>  Shorthand for --trust root:<dir>
 
 Mod options:
@@ -62,6 +66,8 @@ Mod options:
 Mod subcommands:
   tidy      Resolve the module closure by minimum version selection and
             rewrite mod-lock.aon in canonical form
+  verify    Check every locked module still means what mod-lock.aon
+            pins, and change nothing (the CI gate; tidy rewrites)
   vendor    Materialise the locked closure into aon_vendor/
   manifest  Print the OCI artifact a publish would push, gated on the
             breaking check against --against
@@ -96,6 +102,9 @@ Subsume exit codes:
 Breaking options:
   --against <v>       An earlier version: a file path, or git#<rev>
                       (resolved by 'git show'); repeatable
+  --at <path>         Compare this path of both versions ($.a.b), so a
+                      module's own version string and policy block do
+                      not decide the verdict
   --mode <m>          backward (new admits old, the default), forward
                       (old admits new), or full (both); overrides the
                       document's own $.aontu_policy.compat declaration
@@ -207,7 +216,14 @@ func render(a *aontu.Aontu, src, mode string) (string, error) {
 	enc := json.NewEncoder(&buf)
 	enc.SetEscapeHTML(false)
 	enc.SetIndent("", "  ")
-	if err := enc.Encode(out); err != nil {
+	if err := enc.Encode(out); err != nil { //coverage:ignore no generated value is unencodable
+		// UNREACHABLE, and kept anyway. The only values the encoder ever
+		// refused were the non-finite floats `+` could produce, and the
+		// engine now refuses those itself with float_overflow
+		// (go/arith.go, use-cases/BUGS.md 39) -- so nothing that
+		// generates reaches here unencodable. Dropping the check would
+		// buy nothing and would silently print a partial buffer if a
+		// future leaf ever escaped the same way.
 		return "", err
 	}
 	// Encode always appends a newline; emit adds its own.
@@ -298,6 +314,87 @@ func applyTrust(a *aontu.Aontu, trust trustArg, entryRoot string, stderr io.Writ
 // against the directory containing file, so `aontu /path/to/main.aontu`
 // works regardless of the current working directory (matching the
 // TypeScript CLI, which passes the resolved entry path).
+// EVERY VERB honours the include capability, not just the bare
+// command. G5 wired --trust/--include-root to `aontu <file>` alone, so
+// `aontu vet schema.aon data.json` -- the surface an agent scripts --
+// ran the full system resolver with no way to confine it (the review's
+// finding G). takeTrust strips the flags before each verb parses its
+// tail; verbTrust turns the parsed argument into the capability, and
+// aontuForFileTrust applies it to the engine every verb builds.
+func takeTrust(argv []string, stderr io.Writer) ([]string, trustArg, bool) {
+	rest := []string{}
+	trust := trustArg{kind: "system-warn"}
+	for i := 0; i < len(argv); i++ {
+		switch {
+		case "--trust" == argv[i]:
+			i++
+			parsed, ok := trustArg{}, false
+			if i < len(argv) {
+				parsed, ok = parseTrustArg(argv[i])
+			}
+			if !ok {
+				io.WriteString(stderr,
+					"aontu: --trust needs system, none, or root[:dir]\n")
+				return nil, trustArg{}, false
+			}
+			trust = parsed
+		case "--include-root" == argv[i]:
+			i++
+			if len(argv) <= i {
+				io.WriteString(stderr, "aontu: --include-root needs a directory\n")
+				return nil, trustArg{}, false
+			}
+			trust = trustArg{kind: "root", dir: argv[i]}
+		default:
+			rest = append(rest, argv[i])
+		}
+	}
+	return rest, trust, true
+}
+
+// verbTrust is the capability a verb's engine runs under. "system" and
+// the staged warning default both mean today's behaviour (no
+// capability); the warning window stays a bare-command nicety, because
+// a verb's report is a machine contract and a stderr line is not part
+// of it.
+func verbTrust(trust trustArg, entryRoot string) *aontu.TrustOptions {
+	switch trust.kind {
+	case "none":
+		return &aontu.TrustOptions{IncludeNone: true}
+	case "root":
+		dir := trust.dir
+		if "" == dir {
+			dir = entryRoot
+		}
+		return &aontu.TrustOptions{IncludeRoot: dir}
+	}
+	return nil
+}
+
+// entryRootOfFile is the directory a bare `--trust root` confines a
+// verb to: the primary document's own, matching the bare command's
+// entry root.
+func entryRootOfFile(file string) string {
+	abs, err := filepath.Abs(file)
+	if err != nil { //coverage:ignore Abs fails only on an unreadable cwd
+		abs = file
+	}
+	return filepath.Dir(abs)
+}
+
+// aontuForFileTrust is aontuForFile under an explicit capability.
+func aontuForFileTrust(file string, trust trustArg) *aontu.Aontu {
+	a := aontuForFile(file)
+	abs, err := filepath.Abs(file)
+	if err != nil { //coverage:ignore Abs fails only on an unreadable cwd
+		abs = file
+	}
+	if capability := verbTrust(trust, filepath.Dir(abs)); nil != capability {
+		a.Trust = capability
+	}
+	return a
+}
+
 func aontuForFile(file string) *aontu.Aontu {
 	abs, err := filepath.Abs(file)
 	if err != nil {
@@ -321,7 +418,9 @@ func stdinIsPipe() bool {
 
 // repl reads source lines from in, evaluating each and writing results
 // to out, until EOF or a :quit/:exit command.
-func repl(mode string, jsonl bool, in io.Reader, out io.Writer) {
+func repl(
+	mode string, jsonl bool, trust trustArg, in io.Reader, out io.Writer,
+) {
 	prompt := "aontu> "
 	if jsonl {
 		prompt = ""
@@ -342,7 +441,7 @@ func repl(mode string, jsonl bool, in io.Reader, out io.Writer) {
 			fmt.Fprintln(out)
 		}
 	}
-	state := replState{Mode: mode, JSONL: jsonl}
+	state := replState{Mode: mode, JSONL: jsonl, Trust: trust}
 	sc := bufio.NewScanner(in)
 	// Raise the line cap well above bufio's 64KB default so a long
 	// pasted source line is not silently truncated.
@@ -373,10 +472,34 @@ func main() { //coverage:ignore run under GOCOVERDIR by `make cov-go`
 	os.Exit(run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr, !stdinIsPipe()))
 }
 
+// colorFor decides the colour override for a destination: nil ("leave
+// it to NO_COLOR") when the writer is a character device, and a forced
+// off for everything else -- a pipe, a file, a test buffer. The
+// TypeScript twin is `true === process.stderr.isTTY ? undefined :
+// false`, and the *os.File test is how Go asks the same question.
+func colorFor(w io.Writer) *bool {
+	if f, isFile := w.(*os.File); isFile {
+		if info, err := f.Stat(); nil == err &&
+			0 != (info.Mode()&os.ModeCharDevice) {
+			return nil
+		}
+	}
+	off := false
+	return &off
+}
+
 // run is main with its arguments, streams and terminal-ness injected,
 // returning the process exit code. Separated from main so tests can
 // drive the whole command with in-memory pipes.
 func run(args []string, stdin io.Reader, stdout, stderr io.Writer, tty bool) int {
+	// COLOUR OFF WHEN THE DESTINATION IS NOT A TERMINAL. Error frames
+	// hardcoded their ANSI escapes, so a piped report carried terminal
+	// control codes into whatever read them (the review's finding F).
+	// NO_COLOR is honoured by the library itself; only the command can
+	// see whether its stderr is a terminal, so only the command can
+	// make this call. Mirrors ts/src/cli.ts main().
+	aontu.SetColor(colorFor(stderr))
+
 	// Subcommand dispatch, and deliberately only for a FIRST argument:
 	// `aontu vet` is the verb, while `aontu somefile vet` keeps meaning
 	// what it always did. A file named `vet` is still reachable as
@@ -395,6 +518,12 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, tty bool) int
 	}
 	if 0 < len(args) && "relations" == args[0] {
 		return runRelations(args[1:], stdout, stderr)
+	}
+	if 0 < len(args) && "jsonschema" == args[0] {
+		return runJsonSchema(args[1:], stdout, stderr)
+	}
+	if 0 < len(args) && "reaches" == args[0] {
+		return runReaches(args[1:], stdout, stderr)
 	}
 
 	if 0 < len(args) && "trim" == args[0] {
@@ -442,6 +571,14 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, tty bool) int
 			// because repl_test.go built replState{JSONL: true} by hand
 			// (register, G7.7).
 			jsonl = true
+			// A JSONL answer is machine-read by definition, even when
+			// the session happens to be attached to a terminal, so this
+			// is a harder gate than the stderr test in run() rather
+			// than a repeat of it: escapes inside the answer string are
+			// noise the harness has to strip before it can compare
+			// anything.
+			off := false
+			aontu.SetColor(&off)
 		case "-h", "--help":
 			fmt.Fprint(stdout, helpText)
 			return 0
@@ -532,6 +669,6 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, tty bool) int
 		return emit(a, string(src), mode, stdout, stderr)
 	}
 
-	repl(mode, jsonl, stdin, stdout)
+	repl(mode, jsonl, trust, stdin, stdout)
 	return 0
 }

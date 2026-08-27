@@ -18,7 +18,7 @@ class FeatureVal extends Val_1.Val {
         let nerr = (0, err_1.makeNilErr)(ctx, 'no_gen', this);
         (0, err_1.descErr)(nerr, ctx);
         ctx?.adderr(nerr);
-        if (null == ctx || !ctx?.collect) {
+        if (null == ctx || !ctx.collect) {
             const aerr = new err_1.AontuError(nerr.msg, [nerr]);
             throw aerr;
         }

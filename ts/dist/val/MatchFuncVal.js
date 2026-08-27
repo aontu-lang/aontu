@@ -2,9 +2,42 @@
 /* Copyright (c) 2025 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.MatchFuncVal = void 0;
+exports.effectiveScrutinee = effectiveScrutinee;
 const err_1 = require("../err");
 const top_1 = require("./top");
+const PrefVal_1 = require("./PrefVal");
 const FuncBaseVal_1 = require("./FuncBaseVal");
+// THE DEFAULTED-SCRUTINEE RULE (ADR-004, use-cases/BUGS.md §5). The
+// generation-effective view of a settled scrutinee: a preference — or
+// a disjunction carrying one — means "this value unless something
+// overrides it", and by resolve time the model has SETTLED (staging
+// rule), so nothing will. The value generation is about to emit is
+// therefore the value the patterns must be tested against. Testing
+// against the still-open preference instead let a pattern SELECT an
+// arm by overriding the default: `side_effect:*readonly|write|
+// destructive` beside `match(.side_effect, destructive, true, false)`
+// answered `true` while generating "readonly" next to it — a derived
+// value contradicting the very value it derives from, exit 0.
+// A pref-free scrutinee (open disjunction included) is untouched:
+// matching by unifiability is its documented meaning.
+// Exported for the multi-pref unit test (ADR-002, the subsumeNode
+// precedent): rankPrefs leaves a settled disjunct at most one pref, so
+// the min-rank scan below cannot be reached through a document.
+function effectiveScrutinee(v) {
+    let out = v;
+    if (true === out?.isDisjunct && Array.isArray(out.peg)) {
+        const prefs = out.peg.filter((m) => true === m?.isPref);
+        if (0 === prefs.length) {
+            return v;
+        }
+        // Generation picks the LOWEST rank (effectiveDefault in
+        // subsume.ts; `a:**1|*2` generates 2). rankPrefs leaves at most
+        // one pref standing in a settled disjunct, so the scan is
+        // defensive.
+        out = prefs.reduce((a, b) => b.rank < a.rank ? b : a);
+    }
+    return (0, PrefVal_1.prefInnerPeg)(out);
+}
 class MatchFuncVal extends FuncBaseVal_1.FuncBaseVal {
     constructor(spec, ctx) {
         super(spec, ctx);
@@ -46,7 +79,7 @@ class MatchFuncVal extends FuncBaseVal_1.FuncBaseVal {
         return super.unify(peer, ctx);
     }
     resolve(ctx, args) {
-        const scrutinee = args[0];
+        const scrutinee = effectiveScrutinee(args[0]);
         const dflt = this.hasDefault() ?
             args[args.length - 1] : undefined;
         const last = args.length - (undefined === dflt ? 0 : 1);

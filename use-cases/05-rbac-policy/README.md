@@ -38,11 +38,16 @@ against the real CLI, including the gap repros (asserted at their
 
 - **`id()` + `refer()` as foreign keys is the best feature of the
   model.** Every permission and role is an entity; every grant and
-  every member's role is a checked address. A hallucinated permission
-  in an agent patch is a located error
-  (`[aontu/refer_unresolved] ... refer()&"billing/refund"`), and an
-  unknown role in a tenant document vets `invalid` with the same code
-  — this is referential integrity JSON Schema simply does not have.
+  every member's role is a checked address. An unknown role in a
+  tenant document vets `invalid` with a located
+  `[aontu/refer_unresolved]` — this is referential integrity JSON
+  Schema simply does not have. (2026-08-26: the *eval-path* proposal
+  `extend-member-grants.aon` still refuses a hallucinated permission
+  with exit 1, but the located refer_unresolved it used to print came
+  from the registry-invariant filter's mid-resolution witness copy —
+  an artifact the spread application rework removed; the surviving
+  diagnostic there is the spurious unify_cycle below. The vet path is
+  unchanged.)
 - **`close()` for exhaustiveness** does exactly what the scenario
   needs: `proposals/add-superuser-role.aon` dies with
   `[aontu/closed]: Cannot resolve value at path $.roles.superuser`.
@@ -66,7 +71,12 @@ against the real CLI, including the gap repros (asserted at their
 - **Same-layer `filter()+length()`** expresses "exactly one owner"
   as an empty/counted witness set, and `hide()` keeps the check out
   of the output without suppressing it — `audits/two-owners.aon`
-  fails with the two-owner witness map in the message.
+  fails with the two-owner witness map in the message. (2026-08-26:
+  until the spread application rework, the filter's mid-resolution
+  snapshot re-stamped entity ids inside the hidden witness and the
+  id-merge pulled the hide mark back onto the real role — the
+  `owner` role was silently MISSING from the generated output.
+  `expected/example.json` now carries all four roles.)
 - **`subsume` answers permission-subset** over set-as-map
   projections, with a real witness on failure
   (`compat_required_added` naming the missing grant), and the exit
@@ -84,10 +94,23 @@ path prefixes.
 
 ### 1. An enum with a default is not an enum (critical)
 
+> **2026-08-26: fixed by the preference admission gate (ADR-004) —
+> assertions updated to the new behaviour.** `*member | admin | owner`
+> now refuses `superadmin` (`verdict: invalid`, `[aontu/|:empty]`,
+> exit 1) and still generates `member` unset — the idiom below works
+> as every consumer believed it did. The repeated-branch spelling
+> silences the (now advisory) `pref_not_instance` warning and keeps
+> the same enforcement, and the ranked-lint false positive at the end
+> of this section is fixed (the effective default unwraps every pref
+> layer). The conjunct-form limits (the `must()`-guarded and
+> enforcement-only conjunct spellings losing the default) remain the
+> documented G1 phase-1 limit. The original finding is kept below as
+> the record.
+
 The single most common schema idiom in policy — a closed role set
-with a default — cannot be written. A scalar preference is
+with a default — could not be written. A scalar preference was
 overridable by **any** same-kind value, so the preferred branch
-admits every string:
+admitted every string:
 
 ```
 $ aontu vet exhibits/enum-default-naive.aon data/invite-superadmin.json
@@ -221,15 +244,23 @@ is why `tenant.aon` states the MFA implication structurally
 sessionTimeoutMinutes: … max(60)})`) — which does fire under vet —
 and `must()` appears only in the audit layer.
 
-### 5. An unresolved disjunction vets as valid (major)
+### 5. An unresolved disjunction vets as valid (major) — FIXED 2026-08-27
 
-A candidate with **no plan at all** is `verdict: valid` (check 9),
-because `p: a | b` with data `{}` counts as satisfied — while
-evaluating the same document fails (reported, confusingly, as
-`[aontu/scalar_value] … Cannot unify value: "b" with value: "a"`, the
-branches unified with each other). A kind-typed field is correctly
-`incomplete` (`name` missing → exit 3, `mapval_no_gen`). So required
-enum fields need data to be complete-checked some other way.
+A candidate with **no plan at all** was `verdict: valid` (check 9),
+because `p: a | b` with data `{}` counted as satisfied — while
+evaluating the same document failed, and failed confusingly, as
+`[aontu/scalar_value] … Cannot unify value: "b" with value: "a"`: the
+branches unified with *each other*. That fold was the whole defect.
+Under [ADR-007](../../ADR.md) an unresolved disjunction is incomplete
+residue (`disjunct_no_gen`), which is the class vet keeps, so the
+plan-less candidate is now refused and check 9 asserts the refusal.
+
+Two things travelled with it. The confusing eval message is gone —
+both surfaces now name the disjunction rather than a conflict between
+its own branches. And the cross-field tie below (`entitlement:
+$.Entitlement & {plan: $.tenant.plan}`), described in gap 4 as inert
+under vet, now fires: vet builds its meet from a fresh parse, so the
+reference is no longer spent by the schema-alone pass.
 
 ### 6. Quantification stops at "one filter condition deep" (major)
 
@@ -308,9 +339,13 @@ should just work.
   before it died.
 - `proposals/extend-member-grants.aon` reports a spurious
   `[aontu/unify_cycle] … Cannot unify value: id(key(0)) with value:
-  id(key(0))` *before* the real `refer_unresolved`, and its source
-  snippets mix line numbers from `roles.aon` with text from the
-  proposal file.
+  id(key(0))`, and its source snippets mix line numbers from
+  `roles.aon` with text from the proposal file. (Until 2026-08-26 a
+  `refer_unresolved` followed it, raised inside the hidden filter's
+  witness copy; the spread application rework's settled-source
+  snapshot removed that artifact, so the unify_cycle is now the whole
+  report — the real-position refer stays unsurfaced inside the
+  still-open Role disjunction, refer-cycles family.)
 - Bare strings refuse hyphens (`slug: acme-rockets` →
   `[aontu/unexpected]: unexpected character(s): -`) — fine as a rule,
   but surprising in a model whose natural vocabulary

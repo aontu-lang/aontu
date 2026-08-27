@@ -11,9 +11,10 @@
 # hide the otherwise-empty bag it leaves in the output.
 std: hide({})
 
-# Relation declarations, read by `aontu relations`. NOTE: `target` is
-# documentation only -- the verb checks acyclic and inverse, and does
-# NOT enforce target against edge endpoints (README, gap 3).
+# Relation declarations, read by `aontu relations`. All THREE fields
+# are checked: `acyclic`, `inverse`, and -- since the review's finding
+# J (README, gap 3, fixed 2026-08-27) -- `target`, which says what the
+# far end must be and used to say it to nobody.
 relations: {
   dependsOn: $.std.Relation & {
     target: $.std.Service

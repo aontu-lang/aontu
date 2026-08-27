@@ -1,3 +1,4 @@
+import type { TrustOptions } from './type';
 import type { VetFinding } from './vet';
 export type SubsumeVerdict = 'subsumes' | 'does_not_subsume' | 'undecided' | 'error';
 export type SubsumeProfile = 'values' | 'defaults' | 'gen';
@@ -8,6 +9,7 @@ export type SubsumeOptions = {
     specificUrl?: string;
     generalPath?: string;
     specificPath?: string;
+    trust?: TrustOptions;
 };
 export type SubsumeReport = {
     verdict: SubsumeVerdict;
@@ -15,6 +17,7 @@ export type SubsumeReport = {
 };
 type SubState = {
     profile: SubsumeProfile;
+    distributing?: boolean;
     findings: VetFinding[];
     generalUrl: string;
     specificUrl: string;

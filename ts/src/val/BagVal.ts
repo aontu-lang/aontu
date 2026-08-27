@@ -49,20 +49,90 @@ abstract class BagVal extends FeatureVal {
 
 
   handleExpectedVal(key: string, val: Val, parent: Val, ctx: AontuContext): Val {
-    if (val.isGenable) {
+    // A MARKED value is carried, never expected (ADR-005 era, BUGS.md
+    // §12's include form): a type()/hide()-marked child legitimately
+    // participates in unification without ever generating — that is
+    // the marks contract — so wrapping one as an expectation turned a
+    // schema field arriving through an include's map meet into a
+    // bogus `mapval_spread_required` naming a spread that exists in
+    // neither file. The bag's gen already skips marked children.
+    //
+    // An OPERATOR is carried too (BUGS.md §36): an expression is a
+    // computation that resolves by itself once its operands do — the
+    // bag's own-key loop drives it every pass — so `m:{y:.x+1}`
+    // arriving as a peer key must keep computing exactly as it does
+    // written inline. Wrapping it froze the op (an expectation only
+    // advances when a peer arrives) and the residue then reported the
+    // phantom `mapval_spread_required` naming a spread that exists
+    // nowhere. An op that truly never resolves is honest *_no_gen
+    // residue naming the expression itself.
+    if (val.isGenable || val.isOp || val.mark.type || val.mark.hide) {
       return val
     }
-    const expectVal = new ExpectVal({ peg: val }, ctx)
+    // An expectation baked into a combined spread template (the
+    // 'map-self' meet of two unequal templates) is re-wrapped FRESH, so
+    // key/parent name THIS bag and the template's own node is never
+    // stored at a destination.
+    const expectVal = new ExpectVal({ peg: val.isExpect ? val.peg : val }, ctx)
     expectVal.key = key
     expectVal.parent = parent
     return expectVal
   }
 
 
+  // TWO BAGS ARE THE SAME VALUE WHEN THEY HAVE THE SAME SHAPE. Val.same
+  // falls back to object IDENTITY, which no two separately built maps
+  // share -- so `x:*{a:1}|{a:number}` met by `x:{a:2}` left
+  // `{"a":2}|{"a":2}`, a disjunction of one value spelled twice, past
+  // the DisjunctVal dedup. Generation's old member FOLD hid that
+  // (folding a value with itself is that value); ADR-007 does not, and
+  // a disjunction whose alternatives are all the SAME value is
+  // resolved, not ambiguous. Canon prints the collapse too, which is
+  // the more honest text.
+  //
+  // Structural, and deliberately strict: container kind, closedness,
+  // the marks, the optional keys and the key set must all agree before
+  // the children are compared pairwise. Recursion terminates because a
+  // reference is not a bag -- RefVal keeps the identity comparison.
+  same(peer: any): boolean {
+    if (this === peer) {
+      return true
+    }
+    if (null == peer || true !== peer.isBag) {
+      return false
+    }
+    if (this.isMap !== peer.isMap ||
+      this.closed !== peer.closed ||
+      this.mark.type !== peer.mark.type ||
+      this.mark.hide !== peer.mark.hide) {
+      return false
+    }
+
+    const keys = Object.keys(this.peg)
+    if (keys.length !== Object.keys(peer.peg).length) {
+      return false
+    }
+    if (this.optionalKeys.length !== peer.optionalKeys.length ||
+      this.optionalKeys.some((k) => !peer.optionalKeys.includes(k))) {
+      return false
+    }
+
+    for (const k of keys) {
+      const mine: any = (this.peg as any)[k]
+      const theirs: any = (peer.peg as any)[k]
+      if (null == mine || null == theirs || !mine.same(theirs)) {
+        return false
+      }
+    }
+
+    return true
+  }
+
+
   gen(ctx: AontuContext) {
     let out: any = this.isMap ? {} : []
 
-    if (this.mark.type || this.mark.hide) {
+    if ((this.mark.type || this.mark.hide) && true !== ctx?.probe) {
       return undefined
     }
 
@@ -83,7 +153,7 @@ abstract class BagVal extends FeatureVal {
       const p = item[0]
       const child = item[1]
 
-      if (child.mark.type || child.mark.hide) {
+      if ((child.mark.type || child.mark.hide) && true !== ctx?.probe) {
         continue
       }
 
@@ -114,6 +184,14 @@ abstract class BagVal extends FeatureVal {
         put(cval)
       }
 
+      // A CONJUNCT IS GENERABLE WHEN IT IS A SETTLED SIZING RESIDUE
+      // (the review's finding C, use-cases/BUGS.md §16). `length` and
+      // `unique` over a container keep the readings more members could
+      // still change, so `a: length(3) a:[1,2,3]` is a conjunct of the
+      // atom and the list right up to generation -- which is where the
+      // atom decides, in ConjunctVal.gen. Any OTHER conjunct is
+      // unresolved and falls through to the residue error below,
+      // exactly as before.
       else if (child.isScalar
         || child.isMap
         || child.isList
@@ -121,6 +199,7 @@ abstract class BagVal extends FeatureVal {
         || child.isRef
         || child.isDisjunct
         || child.isNil
+        || undefined !== sizingResidue(child)
       ) {
         // An optional child is generated in an isolated collect context so an
         // unresolved inner value (a bare type that survived unification, e.g.
@@ -183,4 +262,22 @@ abstract class BagVal extends FeatureVal {
 
 export {
   BagVal,
+}
+
+
+// A conjunct of exactly one sizing constraint and one container: the
+// shape ConstraintVal.admitContainer leaves when its reading is still
+// provisional, and the one ConjunctVal.gen knows how to finish. Kept
+// here rather than as a flag on the conjunct because it is a question
+// about the TERMS, and they can change until the meet converges.
+export function sizingResidue(v: any): { con: any, bag: any } | undefined {
+  if (true !== v?.isConjunct || 2 !== v.peg?.length) {
+    return undefined
+  }
+  const [a, b]: any[] = v.peg
+  const con = true === a?.isConstraint ? a :
+    true === b?.isConstraint ? b : undefined
+  const bag = true === a?.isConstraint ? b : a
+  return undefined !== con && (true === bag?.isMap || true === bag?.isList) ?
+    { con, bag } : undefined
 }

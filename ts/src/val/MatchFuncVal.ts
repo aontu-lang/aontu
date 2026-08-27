@@ -44,7 +44,41 @@ import {
 
 import { makeNilErr } from '../err'
 import { top } from './top'
+import { prefInnerPeg } from './PrefVal'
 import { FuncBaseVal, trialUnify } from './FuncBaseVal'
+
+
+// THE DEFAULTED-SCRUTINEE RULE (ADR-004, use-cases/BUGS.md §5). The
+// generation-effective view of a settled scrutinee: a preference — or
+// a disjunction carrying one — means "this value unless something
+// overrides it", and by resolve time the model has SETTLED (staging
+// rule), so nothing will. The value generation is about to emit is
+// therefore the value the patterns must be tested against. Testing
+// against the still-open preference instead let a pattern SELECT an
+// arm by overriding the default: `side_effect:*readonly|write|
+// destructive` beside `match(.side_effect, destructive, true, false)`
+// answered `true` while generating "readonly" next to it — a derived
+// value contradicting the very value it derives from, exit 0.
+// A pref-free scrutinee (open disjunction included) is untouched:
+// matching by unifiability is its documented meaning.
+// Exported for the multi-pref unit test (ADR-002, the subsumeNode
+// precedent): rankPrefs leaves a settled disjunct at most one pref, so
+// the min-rank scan below cannot be reached through a document.
+export function effectiveScrutinee(v: Val): Val {
+  let out: any = v
+  if (true === out?.isDisjunct && Array.isArray(out.peg)) {
+    const prefs = out.peg.filter((m: any) => true === m?.isPref)
+    if (0 === prefs.length) {
+      return v
+    }
+    // Generation picks the LOWEST rank (effectiveDefault in
+    // subsume.ts; `a:**1|*2` generates 2). rankPrefs leaves at most
+    // one pref standing in a settled disjunct, so the scan is
+    // defensive.
+    out = prefs.reduce((a: any, b: any) => b.rank < a.rank ? b : a)
+  }
+  return prefInnerPeg(out)
+}
 
 
 class MatchFuncVal extends FuncBaseVal {
@@ -105,7 +139,7 @@ class MatchFuncVal extends FuncBaseVal {
 
 
   resolve(ctx: AontuContext, args: Val[]) {
-    const scrutinee: Val = args[0]
+    const scrutinee: Val = effectiveScrutinee(args[0])
     const dflt: Val | undefined = this.hasDefault() ?
       args[args.length - 1] : undefined
     const last = args.length - (undefined === dflt ? 0 : 1)

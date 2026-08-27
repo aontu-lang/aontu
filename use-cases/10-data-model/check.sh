@@ -138,13 +138,24 @@ ok "int64-assuming view fails subsumption (undecided, biginteger cited)"
 
 # 12. The gap reproductions: every failed attempt in gaps/ still
 # fails the way the README documents.
-run gsum 1 -- "$DIR/gaps/agg-sum.aon"
-has gsum '[aontu/unknown_function]'
-ok "gap: no sum()/fold over a list (unknown_function)"
+# 12a. FIXED (the review's finding I): aggregation, projection and
+# arithmetic-as-functions. An invoice total is now DERIVED rather than
+# self-declared and spot-checked.
+run gsum 0 -- "$DIR/gaps/agg-sum.aon"
+has gsum '"total": 4008'
+has gsum '"largest": 3998'
+ok "sum(pick(lines, amountCents)) derives the total; greatest picks the max"
 
-run gmul 1 -- "$DIR/gaps/multiply.aon"
-has gmul '[aontu/unexpected]'
-ok "gap: no '*' operator (parse refuses)"
+run gmul 0 -- "$DIR/gaps/multiply.aon"
+has gmul '"amount": 3998'
+has gmul '"vatCents": 759'
+ok "mul/div compute quantity and integer-cent VAT in-model"
+
+# ... and the `*` TOKEN still refuses, by design: maths arrives as
+# functions, and the operator characters stay reserved.
+run gstar 1 -- "$DIR/gaps/star-token.aon"
+has gstar '[aontu/unexpected]'
+ok "by design: '*' is still not an operator (parse refuses)"
 
 run gmix 1 -- "$DIR/gaps/float-mix.aon"
 has gmix '[aontu/exact_float_mix]'
@@ -158,18 +169,102 @@ run glen 1 -- "$DIR/gaps/list-length-template.aon"
 has glen '[aontu/constraint]'
 ok "gap: length() on a list template folds against the template itself"
 
-run guniq 0 -- "$DIR/gaps/unique-by-field.aon"
-has guniq '"Acme"'
-has guniq '"Globex"'
-ok "gap: duplicate ledgerIds pass unique() silently (no projection)"
+run guniq 1 -- "$DIR/gaps/unique-by-field.aon"
+has guniq '[aontu/constraint]'
+has guniq '$.customers'
+ok "unique(ledgerId) catches the duplicate ledgerId across customers"
 
-run gid 1 -- "$DIR/gaps/include-id-key/main.aon"
-has gid '[aontu/id_name]'
-ok "gap: id(key(0)) + include + nested alias dies with bogus id_name"
+# 2026-08-26: gap 6 fixed by the template-clone isolation change
+# (ADR-005) — both halves. The id(key(0)) form no longer dies with a
+# bogus id_name, and the id-free form no longer silently drops the
+# record; both emit the fully-unified record. Shared-spec pins:
+# test/spec/file.tsv load-alias-idspread / load-alias-spread.
+run gid 0 -- "$DIR/gaps/include-id-key/main.aon"
+has gid '"ledgerId": 5'
+has gid '"id": "cust-1001"'
+ok "fixed: id(key(0)) + include + nested alias emits the record"
 
 run gsilent 0 -- "$DIR/gaps/include-id-key/main-silent.aon"
-has gsilent '"customers": {}'
-ok "gap: same pattern without id(key(0)) SILENTLY drops the record"
+has gsilent '"ledgerId": 5'
+ok "fixed: same pattern without id(key(0)) emits the record too"
+
+# 13. THE MONEY WIRE CONVENTION (the review's finding I). Gap 1 said
+# exact money was unreachable from plain JSON. It is reachable -- as a
+# decimal STRING with the conversion declared in the schema -- and this
+# section asserts every half of that claim.
+
+# The wire record is strictly JSON, and vets.
+node -e 'JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"))' \
+  "$DIR/data/quote-wire.json" \
+  || fail "quote-wire.json is not strict JSON"
+run mwire 0 -- vet "$DIR/money-wire.aon" "$DIR/data/quote-wire.json"
+has mwire 'verdict: valid'
+ok "money as a decimal string vets from a strictly-JSON record"
+
+# The mark is OPTIONAL for a producer and CONSTANT when supplied: a
+# record may echo it (and a negative amount is ordinary), a record may
+# not contradict it. A preference could not make that second check.
+run mmark 0 -- vet "$DIR/money-wire.aon" "$DIR/data/quote-wire-marked.json"
+has mmark 'verdict: valid'
+run mbadmark 1 -- vet "$DIR/money-wire.aon" "$DIR/bad/quote-wire-mark.json"
+has mbadmark '$.quote.dec'
+has mbadmark 'bigdecimal:2'
+ok "the conversion mark is optional to send and impossible to contradict"
+
+# The pattern is the guard: the wrong scale and a JSON NUMBER are both
+# refused, at the field rather than at the record.
+run mscale 1 -- vet "$DIR/money-wire.aon" "$DIR/bad/quote-wire-scale.json"
+has mscale '$.quote.amount'
+run mnum 1 -- vet "$DIR/money-wire.aon" "$DIR/bad/quote-wire-number.json"
+has mnum '$.quote.amount'
+ok "wrong scale and a bare JSON number are refused at \$.quote.amount"
+
+# The convention SURVIVES EXPORT: a consumer holding only the JSON
+# Schema gets the same pattern, and learns the leaf and scale from the
+# mark's const. Asserted by running the exported pattern over the same
+# records vet just judged -- the two must agree.
+run mjs 0 -- jsonschema --at '$.Money' "$DIR/money-wire.aon"
+has mjs '"pattern": "^-?(0|[1-9][0-9]*)[.][0-9]{2}$"'
+has mjs '"const": "bigdecimal:2"'
+node -e '
+  const Fs = require("fs")
+  const schema = JSON.parse(Fs.readFileSync(process.argv[1], "utf8"))
+  const re = new RegExp(schema.properties.amount.pattern)
+  if (schema.required.includes("dec")) {
+    throw new Error("the mark must not be required of a producer")
+  }
+  const amount = (f) =>
+    JSON.parse(Fs.readFileSync(f, "utf8")).quote.amount
+  // The two keywords a stock validator applies, in the order it
+  // applies them: `type` is what refuses a bare JSON number (whose
+  // TEXT the pattern would happily accept), `pattern` is what refuses
+  // the wrong scale. Both are needed, which is the point.
+  const admits = (v) => "string" === typeof v && re.test(v)
+  for (const f of process.argv.slice(2, 4)) {
+    if (true !== admits(amount(f))) {
+      throw new Error("exported schema rejects a record vet accepts: " + f)
+    }
+  }
+  for (const f of process.argv.slice(4)) {
+    if (false !== admits(amount(f))) {
+      throw new Error("exported schema accepts a record vet refuses: " + f)
+    }
+  }
+' "$WORK/mjs.out" \
+  "$DIR/data/quote-wire.json" "$DIR/data/quote-wire-marked.json" \
+  "$DIR/bad/quote-wire-scale.json" "$DIR/bad/quote-wire-number.json" \
+  || fail "the exported JSON Schema does not agree with vet"
+ok "the exported JSON Schema carries the pattern and the mark, and agrees"
+
+# The crossing point itself: every conversion claim in
+# money-convert.aon is a theorem, so evaluating the file IS the test.
+run mconv 0 -- --canon "$DIR/money-convert.aon"
+has mconv '"amount":0d3998.19'
+has mconv '"refund":-0d12.05'
+has mconv '"sameNumber":0d10.5'
+has mconv '"scaleZeroRight":0d10.0'
+has mconv '"vatExact":0d759.6561'
+ok "the wire<->exact conversion, its sign, its scale and its VAT all pin"
 
 echo
 echo "all $pass checks passed"

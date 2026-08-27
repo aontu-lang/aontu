@@ -125,12 +125,15 @@ const G = (s) => A.generate(s);
     (0, node_test_1.test)('condis-different', () => {
         (0, expect_1.expect)(G('a')).equal('a');
         (0, expect_1.expect)(N('a|b')).equal('"a"|"b"');
-        (0, expect_1.expect)(() => G('a|b')).throws(/aontu\/scalar/);
+        // ADR-007: an unresolved disjunction is INCOMPLETE residue, not the
+        // scalar CONFLICT the old generation fold reported by unifying the
+        // members with each other.
+        (0, expect_1.expect)(() => G('a|b')).throws(/aontu\/disjunct_no_gen/);
         (0, expect_1.expect)(N('a&b')).equal('nil');
         (0, expect_1.expect)(() => G('a&b')).throws(/aontu\/scalar/);
         (0, expect_1.expect)(G('x:a')).equal({ x: 'a' });
         (0, expect_1.expect)(N('x:a|b')).equal('{"x":"a"|"b"}');
-        (0, expect_1.expect)(() => G('x:a|b')).throws(/aontu\/scalar/);
+        (0, expect_1.expect)(() => G('x:a|b')).throws(/aontu\/disjunct_no_gen/);
         (0, expect_1.expect)(N('x:a&b')).equal('{"x":nil}');
         (0, expect_1.expect)(() => G('x:a&b')).throws(/aontu\/scalar/);
         (0, expect_1.expect)(G('(a|b)&a')).equal('a');
@@ -140,7 +143,7 @@ const G = (s) => A.generate(s);
         (0, expect_1.expect)(G('a|(b&a)')).equal('a');
         (0, expect_1.expect)(G('(a|b)&a')).equal('a');
         (0, expect_1.expect)(N('a&a|b')).equal('"a"|"b"');
-        (0, expect_1.expect)(() => G('a&a|b')).throws(/aontu\/scalar/);
+        (0, expect_1.expect)(() => G('a&a|b')).throws(/aontu\/disjunct_no_gen/);
         (0, expect_1.expect)(G('a&a|b&a')).equal('a');
         (0, expect_1.expect)(G('(a&a)|(b&a)')).equal('a');
         (0, expect_1.expect)(G('(a&a)|nil')).equal('a');

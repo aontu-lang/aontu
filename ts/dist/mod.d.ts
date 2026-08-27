@@ -9,7 +9,7 @@ export type ModuleFs = {
 };
 export declare function parseModuleRef(spec: string): ModuleRef | undefined;
 export declare function moduleDir(store: string, ref: ModuleRef): string;
-export declare function projectRoot(from: string, fs: ModuleFs): string;
+export declare function projectRoots(from: string, fs: ModuleFs): string[];
 export declare function lockJson(text: string): string;
 export declare function modCacheDir(): string | undefined;
 export declare function modCacheDirFor(platform: string, env: Record<string, string | undefined>): string | undefined;

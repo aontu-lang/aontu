@@ -1,0 +1,53 @@
+# Aontu
+
+> Aontu is a JSON-superset unification language and validation gate for
+> AI-agent ground truth. One document can carry data, the schema that
+> constrains it, and the defaults that fill it in; a single operation —
+> unification — combines them or reports exactly where they conflict,
+> with two-sited findings and stable error codes. The toolchain's verbs
+> serve the agent loop: `vet` validates data against a schema, `get` and
+> `why` query a document and explain a value's provenance, `subsume` and
+> `breaking` gate schema evolution, `hash` pins what a document means,
+> `set` repairs a value in place, `relations` checks declared entity
+> graphs, `reaches` answers whether one entity reaches another at any
+> remove, `jsonschema` exports the model as JSON Schema and reports
+> what that export cannot carry, and an MCP server exposes the same
+> contracts over stdio. Two
+> implementations (TypeScript, canonical, npm `aontu`; a Go port) are
+> kept in parity by one shared conformance suite, under a written trust
+> contract (hermeticity, termination, determinism, sandboxing).
+
+## Docs
+
+- [Documentation home](docs/index.md): the map of the documentation and
+  a 30-second taste of the language
+- [Tutorial](docs/tutorial.md): learn Aontu from zero — unification,
+  types, exact numbers, defaults, references, templates, vet
+- [Language reference](docs/reference-language.md): every construct and
+  rule — the exhaustive, dry source of truth for the language
+- [API reference](docs/reference-api.md): the CLI verbs with flags and
+  exit codes, the TypeScript and Go APIs, and the MCP server
+- [Trust contract](docs/trust.md): the guarantees a host may rely on
+  when evaluating a document, and exactly where each is conditional
+
+## Agent-facing
+
+- [Aontu skill](docs/skill/SKILL.md): a teaching pack for agents — the
+  grammar card, a worked example ladder, and the error-code index
+- [Grammars](grammar/): `aontu.gbnf` and `aontu.lark`, the emission
+  surface for constrained decoding of canonical Aontu
+
+## Conformance and review
+
+- [Shared spec suite](test/spec/): the conformance corpus — 3k+
+  language-agnostic cases both implementations must satisfy; a third
+  implementation claims conformance by passing it
+- [Executable review](use-cases/): eleven enterprise use cases driven
+  through the real CLI, with verified findings and minimal repros
+
+## Contributing
+
+- [AGENTS.md](AGENTS.md): the contributor and agent guide — layout,
+  build/test, the shared-spec workflow, and the parity probe
+- [SECURITY.md](SECURITY.md): the security policy — confinement
+  escapes, budget bypasses and hermeticity breaks are in scope

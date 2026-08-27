@@ -125,6 +125,20 @@ func (d *Decimal) add(o *Decimal) *Decimal {
 	return newDecimal(new(big.Int).Add(a, b), scale)
 }
 
+// D6 — EXACT MULTIPLICATION. Multiply the coefficients, ADD the scales:
+// (a/10^s)(b/10^t) is ab/10^(s+t), with no alignment step and no
+// rounding mode, exactly as add has none.
+//
+// The result leaves the budget far more readily than a sum does — scales
+// add rather than taking the maximum, and coefficient digits add too —
+// so squaring a value at half the budget is already over it. Callers
+// must ask overBudget for the same reason add's must: at the limit,
+// refusing is the only answer that is not a rounded one.
+func (d *Decimal) mul(o *Decimal) *Decimal {
+	return newDecimal(new(big.Int).Mul(d.coeff, o.coeff),
+		d.scale+o.scale)
+}
+
 // ceilFloor returns the exact ceiling (up) or floor of the decimal, as a
 // decimal — upper()/lower() keep the ARGUMENT's kind (R5), so the result
 // is still a bigdecimal and still renders its single decimal place:

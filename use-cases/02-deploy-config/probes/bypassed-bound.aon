@@ -1,9 +1,11 @@
-# The OTHER way to combine a default with a bound -- disjoining the
-# constrained branch -- quietly admits an out-of-range override
-# (README, gap 2).  40 is far above max(24), yet this file evaluates
-# with exit 0 and generates replicas: 40: the concrete peer replaces
-# the *2 default by KIND alone and is never tested against the
-# constrained branch.  check.sh pins this against a golden as
-# evidence; the workaround is vetting the built output (guardrails.aon).
+# The disjoined bound ENFORCES on override (fixed 2026-08-26 by the
+# preference admission gate, ADR-004).  This probe used to pin the
+# fail-open behaviour of README gap 2: 40 is far above max(24), yet the
+# concrete peer replaced the *2 default by KIND alone, was never tested
+# against the constrained branch, and the file evaluated with exit 0.
+# Now the override must be admitted by an alternative (or equal the
+# preferred value), so 40 is the empty disjunction: [aontu/|:empty],
+# exit 1.  An in-range override (e.g. 12) is admitted by the
+# constrained branch, and an unset field still generates the default 2.
 replicas: *2 | (integer & min(1) & max(24))
 replicas: 40

@@ -142,3 +142,20 @@ held-two-constraints-refused	errc	a: id(x) & {k:1}\nb: refer() & string & re("^y
 # type would move the site an error names.
 flow-type-mark-cleared	gens	a: id(x) & {}\nb: refer(type({k:1})) & "x"	{"a":{"k":1},"b":"x"}
 flow-hide-mark-cleared	gens	a: id(x) & {}\nb: refer(hide({k:1})) & "x"	{"a":{"k":1},"b":"x"}
+
+# A TYPED refer IN BOTH DIRECTIONS (use-cases/BUGS.md §19). The flow
+# unifies `t` into the target, and uniting a target drives the target's
+# own subtree -- so a pair that links back at each other used to flow
+# into each other until the depth budget ended it, reporting
+# unify_cycle on a model whose meet is a fixpoint on sight
+# ({kind:service} meeting {kind:service}). Every inverse relation pair
+# has this shape, so typing both ends was inexpressible and use case 01
+# shipped the asymmetric workaround. A flow that would re-enter an
+# entity is now skipped -- the flow it is nested in is already uniting
+# that entity -- and what each contributes is unchanged, as the
+# differs-each-way and cycle-of-three rows show. Parity-probed.
+refer-typed-inverse-pair	gens	a: id(svc/a) & { kind: service, dependsOn:    [&: refer({kind: service}), svc/b] }\nb: id(svc/b) & { kind: service, dependedOnBy: [&: refer({kind: service}), svc/a] }\n	{"a":{"dependsOn":["svc/b"],"kind":"service"},"b":{"dependedOnBy":["svc/a"],"kind":"service"}}
+refer-typed-flow-both-ways	gens	a: id(x) & { to: [&: refer({k:1}), y] }\nb: id(y) & { to: [&: refer({k:1}), x] }\n	{"a":{"k":1,"to":["y"]},"b":{"k":1,"to":["x"]}}
+refer-typed-flow-differs-each-way	gens	a: id(x) & { to: [&: refer({k:1}), y] }\nb: id(y) & { to: [&: refer({k:9}), x] }\n	{"a":{"k":9,"to":["y"]},"b":{"k":1,"to":["x"]}}
+refer-typed-cycle-of-three	gens	a: id(x) & { to: [&: refer({k:1}), y] }\nb: id(y) & { to: [&: refer({k:1}), z] }\nc: id(z) & { to: [&: refer({k:1}), x] }\n	{"a":{"k":1,"to":["y"]},"b":{"k":1,"to":["z"]},"c":{"k":1,"to":["x"]}}
+refer-typed-self-link	gens	a: id(x) & { to: [&: refer({k:1}), x] }\n	{"a":{"k":1,"to":["x"]}}

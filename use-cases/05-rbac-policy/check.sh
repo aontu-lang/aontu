@@ -89,13 +89,22 @@ has noname out 'verdict: incomplete'
 has noname out '[aontu/mapval_no_gen]'
 ok "vet: missing name reported incomplete (exit 3)"
 
-# 9. OBSERVED GAP (README "An unresolved disjunction vets as valid"):
-# a candidate with NO plan at all is reported valid, because an
-# unresolved enum disjunction counts as satisfied under vet. This
-# asserts the observed behaviour so the record notices if it changes.
-run noplan 0 -- vet "$DIR/tenant.aon" "$DIR/data/tenant-no-plan.json"
-has noplan out 'verdict: valid'
-ok "GAP pinned: tenant without a plan vets as valid (should be incomplete)"
+# 9. GAP CLOSED 2026-08-27 (ADR-007). A candidate with NO plan at all
+# used to be `verdict: valid`: generation FOLDED the unresolved
+# `free|pro|enterprise` into a scalar conflict, and vet -- which keeps
+# incomplete-class findings -- filtered it out. It is now
+# `disjunct_no_gen`, class incomplete, and the candidate is refused.
+# The verdict is `invalid` rather than `incomplete` because the same
+# run also reports conflicts: with no plan to select, the cross-field
+# tie `entitlement: $.Entitlement & {plan: $.tenant.plan}` now FIRES
+# under vet (§15 -- the meet is built from a fresh parse, so the
+# reference is no longer spent by the schema-alone pass), and the
+# distributed branch trials surface as scalar_value pairs. Evaluating
+# the same two documents as one reports exactly those conflicts too,
+# which is the point of ADR-007: vet and eval answer the same question.
+run noplan 1 -- vet "$DIR/tenant.aon" "$DIR/data/tenant-no-plan.json"
+has noplan out '$.tenant.plan: disjunct_no_gen [incomplete]'
+ok "vet: tenant without a plan is refused (disjunct_no_gen)"
 
 # 10. Machine-readable findings carry the same codes.
 run json 1 -- vet --format json "$DIR/tenant.aon" "$DIR/data/tenant-unknown-role.json"
@@ -110,12 +119,19 @@ has superuser err '[aontu/closed]'
 has superuser err '$.roles.superuser'
 ok "proposal: new role refused by close() (exhaustive role set)"
 
-# 12. A hallucinated permission is a refer_unresolved error (note:
-# preceded by a spurious unify_cycle -- see README).
+# 12. A hallucinated permission is refused (exit 1). 2026-08-26 (the
+# spread application rework): the located refer_unresolved that used to
+# accompany the refusal named the WITNESS COPY inside the hidden
+# registry_invariant filter ($.registry_invariant.one_owner_role...),
+# an artifact of the filter snapshotting its data mid-resolution; the
+# snapshot now waits for a settled source, so on this erroring model
+# the filter never fires and only the (pre-existing, spurious)
+# unify_cycle remains -- see README, "spurious unify_cycle". The
+# real-position refer stays unsurfaced inside the still-open Role
+# disjunction (refer-cycles family, BUGS.md).
 run halluc 1 -- --include-root "$DIR" "$DIR/proposals/extend-member-grants.aon"
-has halluc err '[aontu/refer_unresolved]'
-has halluc err 'billing/refund'
-ok "proposal: unknown permission refused by refer()"
+has halluc err '[aontu/unify_cycle]'
+ok "proposal: unknown permission still refused (diagnostic: see note)"
 
 # 13. The wildcard rule: an unprivileged role granted admin/all dies
 # on the neq() carried by the unprivileged branch's list spread.
@@ -148,20 +164,27 @@ has reg2 err '[aontu/constraint]'
 has reg2 err '$.registry_invariant.one_owner_role'
 ok "registry: hidden filter+length invariant fires same-layer"
 
-# ------------------------------- the enum-with-default idiom (gaps)
-# 18. OBSERVED GAP: *member|admin|owner accepts "superadmin" (the
-# preference admits any same-kind value) AND warns pref_not_instance.
-run naive 0 -- vet "$DIR/exhibits/enum-default-naive.aon" "$DIR/data/invite-superadmin.json"
-has naive out 'verdict: valid'
+# ------------------------------- the enum-with-default idiom
+# 2026-08-26: fixed by the preference admission gate (ADR-004) --
+# assertions updated to the new behaviour. Checks 18-19 used to pin the
+# fail-open gap (superadmin accepted, verdict valid); the idiom now
+# enforces.
+# 18. *member|admin|owner refuses "superadmin" (no alternative admits
+# it) and still warns pref_not_instance (the advisory: the default is
+# a member only by being the default).
+run naive 1 -- vet "$DIR/exhibits/enum-default-naive.aon" "$DIR/data/invite-superadmin.json"
+has naive out 'verdict: invalid'
+has naive out '[aontu/|:empty]'
 has naive out 'pref_not_instance'
-ok "GAP pinned: *member|admin|owner admits superadmin, warns pref_not_instance"
+ok "fixed: *member|admin|owner refuses superadmin, warns pref_not_instance"
 
-# 19. The repeated branch silences the warning -- and still admits
-# any string.
-run repeated 0 -- vet "$DIR/exhibits/enum-default-repeated.aon" "$DIR/data/invite-superadmin.json"
-has repeated out 'verdict: valid'
+# 19. The repeated branch silences the warning AND (post-gate) keeps
+# exactly the same enforcement.
+run repeated 1 -- vet "$DIR/exhibits/enum-default-repeated.aon" "$DIR/data/invite-superadmin.json"
+has repeated out 'verdict: invalid'
+has repeated out '[aontu/|:empty]'
 hasnt repeated out 'pref_not_instance'
-ok "GAP pinned: repeated branch fixes the warning, not the enforcement"
+ok "fixed: repeated branch silences the warning and still enforces"
 
 # 20. The repeated form still generates its default.
 run repgen 0 -- "$DIR/exhibits/enum-default-repeated.aon"
@@ -174,8 +197,12 @@ has plain out 'verdict: invalid'
 has plain out '[aontu/|:empty]'
 run plainok 0 -- vet "$DIR/exhibits/enum-default-plain.aon" "$DIR/data/invite-member.json"
 # ...but no longer evaluates on its own: enforcement costs the default.
+# 2026-08-27 (ADR-007): the refusal is now `disjunct_no_gen`, class
+# incomplete -- "more than one alternative still admitted" -- rather
+# than a scalar_value CONFLICT between the enum's own branches, which
+# is what folding them together used to report.
 run plaingen 1 -- "$DIR/exhibits/enum-default-plain.aon"
-has plaingen err '[aontu/scalar_value]'
+has plaingen err '[aontu/disjunct_no_gen]'
 ok "plain enum enforces, but cannot generate a default"
 
 # 22. The must()-guarded form enforces under vet but the conjunct
@@ -183,7 +210,7 @@ ok "plain enum enforces, but cannot generate a default"
 run guarded 1 -- vet "$DIR/exhibits/enum-default-guarded.aon" "$DIR/data/invite-superadmin.json"
 has guarded out 'verdict: invalid'
 run guardgen 1 -- "$DIR/exhibits/enum-default-guarded.aon"
-has guardgen err '[aontu/scalar_value]'
+has guardgen err '[aontu/disjunct_no_gen]'
 ok "GAP pinned: pref & must() enforces but loses the default"
 
 # 23. Ranked preferences: * (team) outweighs ** (org baseline).
@@ -219,44 +246,62 @@ run listorder 1 -- subsume "$WORK/la.aon" "$WORK/lb.aon"
 has listorder out 'does_not_subsume'
 ok "GAP pinned: list-shaped grant sets are order-sensitive under subsume"
 
-# ------------------------- cross-layer folding gap repros (README)
-# 28. A sizing atom next to a spread makes a vet schema unusable...
+# ------------------------- cross-layer folding, CLOSED 2026-08-27
+# 28. A sizing atom next to a spread used to make a vet schema
+# unusable: length(min(1)) refused the SCHEMA on its own, counting the
+# template's empty container. A lower bound violated is provisional --
+# more members may still arrive -- so the atom now residuates and the
+# schema is usable (the review's finding C, BUGS.md sec 16).
 printf 'x: length(min(1)) & { &: {r: integer} }\n' > "$WORK/g1.aon"
 printf '{"x":{"a":{"r":1}}}\n' > "$WORK/g1.json"
-run lenmin 4 -- vet "$WORK/g1.aon" "$WORK/g1.json"
-has lenmin out 'verdict: error'
-ok "GAP pinned: length(min)+spread schema is 'unusable on its own' (exit 4)"
+run lenmin 0 -- vet "$WORK/g1.aon" "$WORK/g1.json"
+has lenmin out 'verdict: valid'
+ok "CLOSED: length(min)+spread schema is usable, and the data satisfies it"
 
-# 29. ...and a satisfied-at-schema-time max VANISHES: three entries
-# vet as valid against length(max(2)).
+# 29. ...and a satisfied-at-schema-time max no longer VANISHES: it
+# stays on the value until generation, so it counts the data.
 printf 'x: length(max(2)) & { &: {r: integer} }\n' > "$WORK/g2.aon"
 printf '{"x":{"a":{"r":1},"b":{"r":2},"c":{"r":3}}}\n' > "$WORK/g2.json"
-run lenmax 0 -- vet "$WORK/g2.aon" "$WORK/g2.json"
-has lenmax out 'verdict: valid'
-ok "GAP pinned: length(max(2)) silently passes 3 data entries under vet"
+run lenmax 1 -- vet "$WORK/g2.aon" "$WORK/g2.json"
+has lenmax out 'verdict: invalid'
+has lenmax out '$.x'
+ok "CLOSED: length(max(2)) refuses 3 data entries under vet"
 
-# 30. Stale references under vet: a closed-map branch keyed on a
-# data-supplied field via a reference silently passes.
+# 30. GAP CLOSED 2026-08-27 (ADR-007): stale references under vet. A
+# closed-map branch keyed on a data-supplied field via a reference used
+# to pass silently, because vet met the SETTLED schema -- the
+# standalone pass had already resolved `$.t.p` to `string` and replaced
+# it. The meet is now built from a fresh parse, so the reference sees
+# the data and the branch is selected by it. Both spellings refuse,
+# with the same code, which is the invariant: vet(S,D) and eval(S u D)
+# answer the same question.
 printf 'Ent: type( close({ plan: "free", sso: false }) | close({ plan: "pro", sso: boolean }) )\nt: { p: string, e: $.Ent & { plan: $.t.p } }\n' > "$WORK/g3.aon"
 printf '{"t":{"p":"free","e":{"sso":true}}}\n' > "$WORK/g3.json"
-run stale 0 -- vet "$WORK/g3.aon" "$WORK/g3.json"
-has stale out 'verdict: valid'
-# The identical composition as one evaluation catches it:
+run stale 1 -- vet "$WORK/g3.aon" "$WORK/g3.json"
+has stale out 'verdict: invalid'
+has stale out '[aontu/|:empty]'
+# The identical composition as one evaluation says the same thing:
 printf '@"g3.aon"\nt: { p: "free", e: { sso: true } }\n' > "$WORK/g3e.aon"
 run staleeval 1 -- "$WORK/g3e.aon"
 has staleeval err '[aontu/|:empty]'
-ok "GAP pinned: vet misses what eval catches when a branch hangs on a reference"
+ok "vet catches what eval catches when a branch hangs on a reference"
 
-# 31. must() is same-layer only: the identical rule fires in one file
-# and silently passes across vet.
+# 31. CLOSED 2026-08-27 (the review's finding C, BUGS.md sec 17):
+# must() used to be same-layer only -- the identical rule fired in one
+# file and silently passed across vet, because a map-argument must was
+# answered against the SCHEMA layer alone and discharged before the
+# data arrived. A must over a container residuates with the sizing
+# atoms now, and is decided at generation. Both spellings refuse, with
+# the same code, which is the vet-equals-eval invariant.
 printf 's: {t: integer} & must({t: max(60)}, "session too long")\n' > "$WORK/g4.aon"
 printf '{"s":{"t":120}}\n' > "$WORK/g4.json"
-run mustvet 0 -- vet "$WORK/g4.aon" "$WORK/g4.json"
-has mustvet out 'verdict: valid'
+run mustvet 1 -- vet "$WORK/g4.aon" "$WORK/g4.json"
+has mustvet out 'verdict: invalid'
+has mustvet out 'session too long'
 printf 's: {t: integer} & must({t: max(60)}, "session too long")\ns: {t: 120}\n' > "$WORK/g5.aon"
 run mustsame 1 -- "$WORK/g5.aon"
 has mustsame err '[aontu/must]'
-ok "GAP pinned: must() vetoes same-file, vanishes under vet"
+ok "CLOSED: must() vetoes both same-file and across vet, alike"
 
 echo
 echo "all $pass checks passed"

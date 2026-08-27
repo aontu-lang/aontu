@@ -14,7 +14,7 @@ import * as Path from 'node:path'
 
 import { Aontu } from '../dist/aontu'
 import { AontuContext } from '../dist/ctx'
-import { AontuError, descErr } from '../dist/err'
+import { AontuError, descErr, setColor, colorActive } from '../dist/err'
 import { exactJSON } from '../dist/exactjson'
 import { codeClass } from '../dist/hints'
 import { cmpCodePoint } from '../dist/keyorder'
@@ -91,6 +91,33 @@ describe('coverage2-cli', () => {
     })
     return () => Object.defineProperty(process, 'stdin', desc)
   }
+
+  // COLOUR IS A DECISION ABOUT THE DESTINATION (the review's finding
+  // F), and only the command can see the destination. Every other test
+  // in this suite runs with stderr captured or piped, which is the
+  // colour-OFF arm; this is the other one.
+  test('an-interactive-stderr-leaves-colour-to-no-color', () => {
+    const desc = Object.getOwnPropertyDescriptor(process, 'stderr')!
+    const fakeErr: any = new PassThrough()
+    fakeErr.isTTY = true
+    Object.defineProperty(process, 'stderr', {
+      value: fakeErr, configurable: true,
+    })
+    const cap = captureOut()
+    try {
+      // `-v` exercises main()'s entry and returns immediately: the
+      // decision under test is made before any argument is read.
+      cliMain(['node', 'cli', '-v'])
+      Assert.equal(colorActive(), true)
+    }
+    finally {
+      cap.restore()
+      Object.defineProperty(process, 'stderr', desc)
+      // The gate is process-global: leave it as the rest of the suite
+      // expects to find it.
+      setColor(false)
+    }
+  })
 
   test('repl-in-process', async () => {
     const fakeIn: any = new PassThrough()

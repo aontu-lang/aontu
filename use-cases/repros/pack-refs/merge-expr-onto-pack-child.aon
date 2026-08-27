@@ -1,14 +1,19 @@
+# FIXED 2026-08-26 (the spread application rework: an operator
+# arriving as a peer-only key is CARRIED, never wrapped as a frozen
+# expectation -- handleExpectedVal / the pcIsOp guard in go/mapval.go).
 # Claim C6 (use-case 02 gap 4): an expression whose operand references
-# back into the pack-generated subtree cannot be merged onto the
-# generated child. The failure is NOT general: surge: 1+1 and
-# surge: $.base+1 (outside operand) merge fine, and the bare reference
-# surge: $.deploy.web.replicas (no +) works too. Only ref-into-the-
-# generated-subtree PLUS an operator dies, and the diagnostic blames a
-# spread that does not exist in the document.
+# back into the pack-generated subtree could not be merged onto the
+# generated child -- the wrap froze the op and the residue blamed a
+# spread that existed nowhere ([aontu/mapval_spread_required]). The
+# carried op now keeps computing and resolves against the generated
+# child once the pack fires: surge is 3. The failure was never
+# pack-specific -- `a:{x:1} a:{y:.x+1}` died the same way and works
+# now too (plus.tsv peer-key-expr); an op that can NEVER resolve is an
+# honest error naming the real path (plus.tsv
+# peer-key-expr-unresolvable). Pinned in the shared spec: gen-pack.tsv
+# pack-merge-expr-onto-child.
 # expected: {"deploy":{"web":{"replicas":2,"surge":3}}}
-# actual:   exit 1, [aontu/mapval_spread_required] at $.deploy.web.surge
-#           "The value for key surge is required (defined in spread)."
-#           Cannot unify value: $.deploy.web.replicas+1 with value: nil
+# actual:   {"deploy":{"web":{"replicas":2,"surge":3}},"names":["web"]} exit 0
 names: [web]
 deploy: pack($.names, { replicas: 2 })
 deploy: web: { surge: $.deploy.web.replicas + 1 }

@@ -52,7 +52,29 @@ place-under-pref-canon	canon	m:{a:1}\nd:pack($.m,{v:*_|integer})\n	{"d":{"a":{"v
 # is the same refusal two placeheld calls are.
 place-two-op-holes	errc	a:_+2 & _+3\n	place_pair
 place-under-conjunct	gens	m:{a:1,b:2}\nd:pack($.m,{v:_ & integer})\n	{"d":{"a":{"v":1},"b":{"v":2}},"m":{"a":1,"b":2}}
-place-under-disjunct	errc	m:{a:1,b:2}\nd:pack($.m,{v:_ | string})\n	no_scalar_unify
+# The hole fills with 1, leaving `1|string`: two alternatives still
+# admitted, so incomplete residue rather than a scalar conflict
+# (ADR-007).
+place-under-disjunct	errc	m:{a:1,b:2}\nd:pack($.m,{v:_ | string})\n	disjunct_no_gen
 place-under-list	gens	m:{a:1,b:2}\nd:pack($.m,{v:[_,9]})\n	{"d":{"a":{"v":[1,9]},"b":{"v":[2,9]}},"m":{"a":1,"b":2}}
 place-under-nested-map	gens	m:{a:1}\nd:pack($.m,{v:{w:_}})\n	{"d":{"a":{"v":{"w":1}}},"m":{"a":1}}
 place-conjunct-conflict	errc	m:{a:1}\nd:pack($.m,{v:_ & string})\n	no_scalar_unify
+
+# A HOLE BELONGS TO ITS NEAREST ENCLOSING GENERATOR (ADR-005,
+# 2026-08-26; use-cases/BUGS.md §34): an outer pack's fill pass used
+# to fill a NESTED pack's template hole lexically, binding `_` to the
+# OUTER source child — deploy.dev.services.web.v answered the env name
+# "dev", exit 0. Each generator now fills only its own template's
+# holes: the inner `_` is the inner generator's source child, both as
+# a bare hole and as a meet operand. Parity-probed in both engines.
+place-nested-pack-inner-binding	gens	envs:[dev]\nfleet:{web:{replicas:1}}\ndeploy:pack($.envs,{services:pack($.fleet,{v:_})})\n	{"deploy":{"dev":{"services":{"web":{"v":{"replicas":1}}}}},"envs":["dev"],"fleet":{"web":{"replicas":1}}}
+place-nested-pack-inner-meet	gens	envs:[dev,prod]\nfleet:{web:{replicas:1}}\ndeploy:pack($.envs,{services:pack($.fleet,_&{extra:2})})\n	{"deploy":{"dev":{"services":{"web":{"extra":2,"replicas":1}}},"prod":{"services":{"web":{"extra":2,"replicas":1}}}},"envs":["dev","prod"],"fleet":{"web":{"replicas":1}}}
+
+# A HOLE AS A GENERATOR'S DATA (the other side of the boundary): the
+# hole in `each(_)` is in the DATA argument — a binding position it is
+# NOT — so the OUTER pack's fill pass fills it with the outer source
+# child, and the inner each() then iterates that child. The two-arg
+# spelling pins that the inner TEMPLATE argument rides through the
+# fill untouched. Parity-probed in both engines.
+place-hole-as-inner-data	gens	m:{a:{x:1,y:2},b:{z:3}}\nd:pack($.m,{inner:each(_)})\n	{"d":{"a":{"inner":[1,2]},"b":{"inner":[3]}},"m":{"a":{"x":1,"y":2},"b":{"z":3}}}
+place-hole-as-inner-data-tmpl	gens	m:{a:{x:1,y:2}}\nd:pack($.m,{inner:each(_,integer)})\n	{"d":{"a":{"inner":[1,2]}},"m":{"a":{"x":1,"y":2}}}

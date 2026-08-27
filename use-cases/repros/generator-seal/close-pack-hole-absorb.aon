@@ -1,15 +1,16 @@
-# Use-case 02 gap 5 (claim C1): close() around a pack whose template
-# holds a `_` hole makes a later overlay statement fill the TEMPLATE
-# HOLE instead of merging with the generated child: every child grows
-# a bogus `prod:` map, prod.x stays 1, exit 0.  Docs say a generator
-# template's `_` is "the source child the generated one is being made
-# from" (reference-language.md, "The placeholder `_`"), and the same
-# document without close(), or with a hole-free template
-# (reference-language.md's own close(pack($.names,{...})) example),
-# merges the overlay correctly.
+# Use-case 02 gap 5 (claim C1) -- FIXED 2026-08-26 by the
+# template-clone isolation change (ADR-005): a `_` hole belongs to its
+# NEAREST ENCLOSING GENERATOR, so close() around a pack whose template
+# holds a hole no longer reports that hole as its own. The overlay
+# statement now merges with the generated child exactly as it does
+# without close(): dev {x:1}, prod {x:2}. Historically the outer
+# close() call saw the template's hole (hasPlace crossed the generator
+# boundary), so the overlay was absorbed INTO the template -- every
+# child grew a bogus `prod:` map, prod.x stayed 1, exit 0.
+# Pinned in both engines: test/spec/gen-close.tsv
+# close-pack-hole-overlay-merges.
 # expected: {"d":...,"deploy":{"dev":{"x":1},"prod":{"x":2}}} exit 0
-# actual:   {"d":...,"deploy":{"dev":{"prod":{"x":2},"x":1},
-#            "prod":{"prod":{"x":2},"x":1}}} exit 0 (silent corruption)
+# actual:   {"d":...,"deploy":{"dev":{"x":1},"prod":{"x":2}}} exit 0
 d: { dev: {}, prod: {} }
 deploy: close(pack($.d, _ & { x: ***1 | integer }))
 deploy: prod: x: 2

@@ -10,6 +10,7 @@ type ValSpec = {
     peg?: any;
     mark?: Partial<ValMark>;
     kind?: any;
+    dup?: boolean;
     row?: number;
     col?: number;
     url?: string;
@@ -100,6 +101,7 @@ declare abstract class Val {
     inspect(d?: number): string;
     inspection(_d?: number): string;
 }
+declare function repathInstance(v: any, path: string[]): void;
 declare function empty(o: any): boolean;
 export type { ValMark, ValSpec, };
-export { Val, DONE, SPREAD, EMPTY_ERR, empty };
+export { Val, DONE, SPREAD, EMPTY_ERR, empty, repathInstance, };

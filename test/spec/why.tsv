@@ -24,10 +24,10 @@
 # before any row was written.
 
 why-spread-template	why	org: {}\nservices: {&:{replicas: *1|integer}, auth: {replicas: 3}, db: {}}	$.services.auth.replicas	{"conjuncts":[{"canon":"*1|integer","role":"spread","site":{"col":25,"file":"","len":1,"row":2},"src":"*"},{"canon":"3","role":"literal","site":{"col":55,"file":"","len":1,"row":2},"src":"3"}],"value":"3"}
-why-spread-untouched	why	org: {}\nservices: {&:{replicas: *1|integer}, auth: {replicas: 3}, db: {}}	$.services.db.replicas	{"conjuncts":[],"value":"*1|integer"}
+why-spread-untouched	why	org: {}\nservices: {&:{replicas: *1|integer}, auth: {replicas: 3}, db: {}}	$.services.db.replicas	{"conjuncts":[{"canon":"*1|integer","role":"spread","site":{"col":25,"file":"","len":1,"row":2},"src":"*"}],"value":"*1|integer"}
 why-spread-map	why	org: {}\nservices: {&:{replicas: *1|integer}, auth: {replicas: 3}, db: {}}	$.services	{"conjuncts":[{"canon":"{&:{\\"replicas\\":*1|integer},\\"auth\\":{\\"replicas\\":3},\\"db\\":{\\"replicas\\":*1|integer}}","role":"literal","site":{"col":11,"file":"","len":1,"row":2},"src":"{"}],"value":"{&:{\\"replicas\\":*1|integer},\\"auth\\":{\\"replicas\\":3},\\"db\\":{\\"replicas\\":*1|integer}}"}
 why-root	why	org: {}\nservices: {&:{replicas: *1|integer}, auth: {replicas: 3}, db: {}}	$	{"conjuncts":[{"canon":"{\\"org\\":{},\\"services\\":{&:{\\"replicas\\":*1|integer},\\"auth\\":{\\"replicas\\":3},\\"db\\":{\\"replicas\\":*1|integer}}}","role":"literal","site":{"col":1,"file":"","len":3,"row":1},"src":"org"}],"value":"{\\"org\\":{},\\"services\\":{&:{\\"replicas\\":*1|integer},\\"auth\\":{\\"replicas\\":3},\\"db\\":{\\"replicas\\":*1|integer}}}"}
-why-ref	why	a:1 b:$.a	$.b	{"conjuncts":[{"canon":"$.a","role":"ref","site":{"col":7,"file":"","len":1,"row":1},"src":"$"}],"value":"1"}
+why-ref	why	a:1 b:$.a	$.b	{"conjuncts":[{"canon":"1","role":"literal","site":{"col":3,"file":"","len":1,"row":1},"src":"1"},{"canon":"$.a","role":"ref","site":{"col":7,"file":"","len":1,"row":1},"src":"$"}],"value":"1"}
 why-ref-target	why	a:1 b:$.a	$.a	{"conjuncts":[{"canon":"1","role":"literal","site":{"col":3,"file":"","len":1,"row":1},"src":"1"}],"value":"1"}
 why-conjunct-terms	why	a: 1 & integer	$.a	{"conjuncts":[{"canon":"1","role":"literal","site":{"col":4,"file":"","len":1,"row":1},"src":"1"},{"canon":"integer","role":"literal","site":{"col":8,"file":"","len":7,"row":1},"src":"integer"}],"value":"1"}
 why-pref-disjunct	why	a: *8080|integer	$.a	{"conjuncts":[{"canon":"*8080|integer","role":"literal","site":{"col":4,"file":"","len":1,"row":1},"src":"*"}],"value":"*8080|integer"}
@@ -42,7 +42,7 @@ why-nested-leaf	why	a:{b:{c:1}}	$.a.b.c	{"conjuncts":[{"canon":"1","role":"liter
 why-no-path	why	a:1	$.zz	{"code":"no_path"}
 why-conflict	why	a:1 a:2	$.a	{"code":"scalar_value"}
 why-unparseable	why	a:]	$	{"code":"syntax"}
-why-plus-op	why	x: 1 y: $.x + 1	$.y	{"conjuncts":[{"canon":"$.x+1","role":"literal","site":{"col":9,"file":"","len":1,"row":1},"src":"$"}],"value":"2"}
+why-plus-op	why	x: 1 y: $.x + 1	$.y	{"conjuncts":[{"canon":"1","role":"literal","site":{"col":4,"file":"","len":1,"row":1},"src":"1"},{"canon":"$.x+1","role":"literal","site":{"col":9,"file":"","len":1,"row":1},"src":"$"}],"value":"2"}
 why-type-and-literal	why	t: type({k:integer})\nu: t & {k:1}	$.u.k	{"code":"scalar_kind"}
 why-func-call	why	a: upper("x")	$.a	{"conjuncts":[{"canon":"upper(\\"x\\")","role":"literal","site":{"col":4,"file":"","len":5,"row":1},"src":"upper"}],"value":"\\"X\\""}
 why-optional-key	why	a: {b?: 1}	$.a.b	{"conjuncts":[{"canon":"1","role":"literal","site":{"col":9,"file":"","len":1,"row":1},"src":"1"}],"value":"1"}
@@ -51,11 +51,11 @@ why-hidden	why	a: hide(1)	$.a	{"conjuncts":[{"canon":"hide(1)","role":"literal",
 why-deprecated	why	a: deprecate(1,{msg:"m"})	$.a	{"conjuncts":[{"canon":"deprecate(1,{\\"msg\\":\\"m\\"})","role":"literal","site":{"col":4,"file":"","len":9,"row":1},"src":"deprecate"}],"value":"1"}
 why-spread-in-spread	why	&:{&:{z:1}}\np:{q:{}}	$.p.q.z	{"conjuncts":[{"canon":"1","role":"spread","site":{"col":9,"file":"","len":1,"row":1},"src":"1"}],"value":"1"}
 why-nested-list	why	a:[1,[2,3]]	$.a.1.0	{"conjuncts":[{"canon":"2","role":"literal","site":{"col":7,"file":"","len":1,"row":1},"src":"2"}],"value":"2"}
-why-ref-chain	why	s: "x"\nt: $.s\nu: $.t	$.u	{"conjuncts":[{"canon":"$.t","role":"ref","site":{"col":4,"file":"","len":1,"row":3},"src":"$"}],"value":"\\"x\\""}
+why-ref-chain	why	s: "x"\nt: $.s\nu: $.t	$.u	{"conjuncts":[{"canon":"\\"x\\"","role":"literal","site":{"col":4,"file":"","len":3,"row":1},"src":"\\"x\\""},{"canon":"$.t","role":"ref","site":{"col":4,"file":"","len":1,"row":3},"src":"$"}],"value":"\\"x\\""}
 why-exact-leaf	why	n: 0d9007199254740993	$.n	{"conjuncts":[{"canon":"0d9007199254740993","role":"literal","site":{"col":4,"file":"","len":18,"row":1},"src":"0d9007199254740993"}],"value":"0d9007199254740993"}
 why-constraint-re	why	a: string & re("^x")	$.a	{"conjuncts":[{"canon":"string","role":"literal","site":{"col":4,"file":"","len":6,"row":1},"src":"string"},{"canon":"re(\\"^x\\")","role":"literal","site":{"col":13,"file":"","len":2,"row":1},"src":"re"}],"value":"re(\\"^x\\")"}
 why-spread-sibling	why	m:{&:{n:integer},x:{n:1},y:{n:2}}	$.m.y.n	{"conjuncts":[{"canon":"integer","role":"spread","site":{"col":9,"file":"","len":7,"row":1},"src":"integer"},{"canon":"2","role":"literal","site":{"col":31,"file":"","len":1,"row":1},"src":"2"}],"value":"2"}
-why-ref-into-copied-map	why	a:1\nb:{c:$.a}\nd:$.b	$.d.c	{"conjuncts":[],"value":"1"}
+why-ref-into-copied-map	why	a:1\nb:{c:$.a}\nd:$.b	$.d.c	{"conjuncts":[{"canon":"1","role":"literal","site":{"col":3,"file":"","len":1,"row":1},"src":"1"}],"value":"1"}
 why-unbound-var	why	v: $x	$.v	{"code":"unknown_var"}
 why-two-maps-one-key	why	a: {b: 1} & {b: integer}	$.a.b	{"conjuncts":[{"canon":"1","role":"literal","site":{"col":8,"file":"","len":1,"row":1},"src":"1"},{"canon":"integer","role":"literal","site":{"col":17,"file":"","len":7,"row":1},"src":"integer"}],"value":"1"}
 why-pref-chain	why	a: *1 | *2 | 3	$.a	{"code":"scalar_value"}
@@ -81,3 +81,40 @@ why-spread-list	why	&:{k:[integer]}\nx:{k:[2]}	$.x.k	{"conjuncts":[{"canon":"[in
 # earns.
 why-piped-call-is-unsited	why	x: hello |> upper	$.x	{"conjuncts":[{"canon":"upper(\\"hello\\")","role":"literal","site":{"col":-1,"file":"","len":-1,"row":-1},"src":""}],"value":"\\"HELLO\\""}
 why-written-call-sites-its-name	why	x: upper("hello")	$.x	{"conjuncts":[{"canon":"upper(\\"hello\\")","role":"literal","site":{"col":4,"file":"","len":5,"row":1},"src":"upper"}],"value":"\\"HELLO\\""}
+
+# PROVENANCE THROUGH CLONES (the review's finding E). Every row below
+# is a value that reached its path by being CLONED from something the
+# author wrote -- a spread template applied per key, a pack()
+# generator, an id()-merge -- and the answer must name the line the
+# author can edit. The recorder used to decide "did the author write
+# this" by looking the operand's id up in a set stamped over the
+# parsed tree, which is true of the parsed tree and of nothing derived
+# from it, so all three families answered "(no contributions: nothing
+# met at this path)" over values `why` had just printed.
+#
+# THE SIBLING PAIR IS THE POINT of the first two: identical statements
+# under one template, and the record has to read the same for both.
+# It did not -- the first key reported the written `*1|integer` as one
+# contribution and the second reported `*1` and `integer` as two,
+# because the template's own child had been advanced in place between
+# the two applications (use-cases/BUGS.md §22). A row per position is
+# what the review asked for, so the instability cannot come back
+# unnoticed by covering only the first child.
+why-spread-first-sibling	why	services: {&:{replicas: *1|integer}, a: {replicas: 3}, b: {replicas: 3}}	$.services.a.replicas	{"conjuncts":[{"canon":"*1|integer","role":"spread","site":{"col":25,"file":"","len":1,"row":1},"src":"*"},{"canon":"3","role":"literal","site":{"col":52,"file":"","len":1,"row":1},"src":"3"}],"value":"3"}
+why-spread-later-sibling	why	services: {&:{replicas: *1|integer}, a: {replicas: 3}, b: {replicas: 3}}	$.services.b.replicas	{"conjuncts":[{"canon":"*1|integer","role":"spread","site":{"col":25,"file":"","len":1,"row":1},"src":"*"},{"canon":"3","role":"literal","site":{"col":70,"file":"","len":1,"row":1},"src":"3"}],"value":"3"}
+why-spread-untouched-later-sibling	why	services: {&:{tier: *standard|string}, a: {tier: "x"}, b: {}}	$.services.b.tier	{"conjuncts":[{"canon":"*\\"standard\\"|string","role":"spread","site":{"col":21,"file":"","len":1,"row":1},"src":"*"}],"value":"*\\"standard\\"|string"}
+why-pack-generated-default	why	envs: hide({dev: {}, prod: {}})\ndefs: hide({level: *info|string})\nout: pack($.envs, {web: $.defs})	$.out.prod.web.level	{"conjuncts":[{"canon":"*\\"info\\"|string","role":"literal","site":{"col":20,"file":"","len":1,"row":2},"src":"*"}],"value":"*\\"info\\"|string"}
+why-pack-generated-overridden	why	envs: hide({dev: {}, prod: {}})\ndefs: hide({level: *info|string})\nout: pack($.envs, {web: $.defs})\nout: dev: web: level: debug	$.out.dev.web.level	{"conjuncts":[{"canon":"*\\"info\\"|string","role":"literal","site":{"col":20,"file":"","len":1,"row":2},"src":"*"},{"canon":"\\"debug\\"","role":"literal","site":{"col":23,"file":"","len":5,"row":4},"src":"debug"}],"value":"\\"debug\\""}
+why-id-merge-first-position	why	catalog: svc: id(x) & {tier: 1}\ndeploy: wl: id(x) & {replicas: 6}	$.catalog.svc.replicas	{"conjuncts":[{"canon":"6","role":"literal","site":{"col":32,"file":"","len":1,"row":2},"src":"6"}],"value":"6"}
+why-id-merge-later-position	why	catalog: svc: id(x) & {tier: 1}\ndeploy: wl: id(x) & {replicas: 6}	$.deploy.wl.tier	{"conjuncts":[{"canon":"1","role":"literal","site":{"col":30,"file":"","len":1,"row":1},"src":"1"}],"value":"1"}
+
+# TOP IS THE UNIT ELEMENT, not something the author wrote, so a path
+# holding it has no contribution and says so -- the one shape that
+# still answers "nothing met at this path" now that the value which
+# STANDS at a path counts (finding E).
+#
+# A NESTED JUNCTION carried through a REFERENCE reports the statement
+# the author wrote, once: the fold's narrowed form stands at the same
+# token, and one written token is one contribution.
+why-top-has-no-contribution	why	a: top	$.a	{"conjuncts":[],"value":"top"}
+why-nested-junction-through-a-ref	why	x: 3|(1|2)\na: $.x & 1	$.a	{"conjuncts":[{"canon":"3|(1|2)","role":"literal","site":{"col":4,"file":"","len":1,"row":1},"src":"3"},{"canon":"$.x","role":"ref","site":{"col":4,"file":"","len":1,"row":2},"src":"$"},{"canon":"1","role":"literal","site":{"col":10,"file":"","len":1,"row":2},"src":"1"}],"value":"1"}

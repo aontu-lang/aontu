@@ -22,6 +22,10 @@ import (
 const hashHelp = "aontu hash <file> (try --help)"
 
 func runHash(argv []string, stdout, stderr io.Writer) int {
+	argv, trust, trustOK := takeTrust(argv, stderr)
+	if !trustOK {
+		return 2
+	}
 	var files []string
 	form := false
 	format := "text"
@@ -62,7 +66,7 @@ func runHash(argv []string, stdout, stderr io.Writer) int {
 
 	// The file's own directory is the include base, as every verb
 	// resolves a named file (vet's aontuForPath rule).
-	v, uerr := aontuForFile(files[0]).Unify(string(src))
+	v, uerr := aontuForFileTrust(files[0], trust).Unify(string(src))
 	if nil != uerr || nil == v || v.Nil() {
 		// A document that does not stand up on its own has no meaning
 		// to pin, and a hash of a broken evaluation would be a pin that

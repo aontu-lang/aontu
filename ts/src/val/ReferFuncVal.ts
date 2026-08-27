@@ -288,22 +288,47 @@ class ReferVal extends FeatureVal {
     // THE FLOW. `t` is unified into the target and written back, so
     // every position of the entity carries it after the pass's
     // identity merge — the same channel the merge itself uses.
-    if (!this.tval.isTop) {
-      // The flowed type is CONCRETE at the target: a schema flowing
-      // into a value must not make the value a schema. Same reasoning
-      // as a reference's clone clearing marks — `refer($.std.Service)`
-      // says the target IS a Service, not that it is the definition of
-      // one — and without it the target silently stopped generating.
-      const merged = unite(ctx, found.val, concreteFlow(ctx, this.tval),
-        'refer-flow')
-      if (true === (merged as any).isNil) {
-        return merged
+    //
+    // RE-ENTRANT ONLY ONCE PER ENTITY (use-cases/BUGS.md §19). Uniting
+    // the target drives the target's OWN subtree, and if the target
+    // links back — `a` typed-refers `b`, `b` typed-refers `a`, the
+    // shape every inverse pair has — that drives this entity again,
+    // and the two flow into each other until the depth budget or the
+    // host stack ends it. `unify_cycle` on a model whose meet plainly
+    // converges: `{k:1}` meeting `{k:1}` is a fixpoint, and the
+    // evaluator never got far enough to notice.
+    //
+    // The guard is the set of entities a flow is currently inside, on
+    // the context. A flow that would re-enter one is SKIPPED, not
+    // failed: the outer flow it is nested in is already uniting that
+    // entity, so the same information arrives by the same channel one
+    // frame up. What each flow contributes is unchanged; only the
+    // order it arrives in is, and unification does not care.
+    const flowing: Set<string> = ((ctx as any)._referflow ??=
+      new Set<string>())
+    if (!this.tval.isTop && !flowing.has(this.addr.name)) {
+      flowing.add(this.addr.name)
+      try {
+        // The flowed type is CONCRETE at the target: a schema flowing
+        // into a value must not make the value a schema. Same reasoning
+        // as a reference's clone clearing marks — `refer($.std.Service)`
+        // says the target IS a Service, not that it is the definition
+        // of one — and without it the target silently stopped
+        // generating.
+        const merged = unite(ctx, found.val, concreteFlow(ctx, this.tval),
+          'refer-flow')
+        if (true === (merged as any).isNil) {
+          return merged
+        }
+        if (undefined === found.parent) {
+          reg!.set(this.addr.name, merged)
+        }
+        else {
+          found.parent.peg[found.key as string] = merged
+        }
       }
-      if (undefined === found.parent) {
-        reg!.set(this.addr.name, merged)
-      }
-      else {
-        found.parent.peg[found.key as string] = merged
+      finally {
+        flowing.delete(this.addr.name)
       }
     }
 

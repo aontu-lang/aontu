@@ -10,3 +10,19 @@ close-admits-child-content	gens	n:[a]\nd:close(pack($.n,{x:1}))\nd:a:y:2\n	{"d":
 close-inside-template	gens	n:[a]\nd:pack($.n,close({x:1}))\n	{"d":{"a":{"x":1}},"n":["a"]}
 close-template-refuses-extra	errc	n:[a]\nd:pack($.n,close({x:1}))\nd:a:y:2\n	closed
 open-reopens-generated	gens	n:[a]\nd:open(close(pack($.n,{x:1})))\nd:z:1\n	{"d":{"a":{"x":1},"z":1},"n":["a"]}
+
+# TEMPLATE-CLONE ISOLATION (ADR-005, 2026-08-26; use-cases/BUGS.md §8,
+# §10 — the language review's finding B acceptance suite). close()
+# around a key()-bearing pack template used to resolve key() ONCE in
+# the one shared inner map (the base func clone shares its args), so
+# every generated child silently got the FIRST child's key; and a `_`
+# hole inside a close()d pack template made the outer call report the
+# template's hole as its own, so an ordinary overlay statement was
+# absorbed INTO the hole instead of merging with the generated child.
+# Each generated child is now a full per-destination instance, and a
+# hole belongs to its nearest enclosing generator. All expectations
+# parity-probed in both engines.
+close-template-keys-per-child	gens	n:[web,auth]\nd:pack($.n,close({name:key()}))\n	{"d":{"auth":{"name":"auth"},"web":{"name":"web"}},"n":["web","auth"]}
+close-template-key-pref-override	gens	n:[web,auth]\nd:pack($.n,close({name:key(),x:*1|integer}))\nd:auth:x:2\n	{"d":{"auth":{"name":"auth","x":2},"web":{"name":"web","x":1}},"n":["web","auth"]}
+close-template-key-refuses-extra	errc	n:[web,auth]\nd:pack($.n,close({name:key()}))\nd:auth:p:1\n	closed
+close-pack-hole-overlay-merges	gens	d:{dev:{},prod:{}}\ndeploy:close(pack($.d,_&{x:***1|integer}))\ndeploy:prod:x:2\n	{"d":{"dev":{},"prod":{}},"deploy":{"dev":{"x":1},"prod":{"x":2}}}

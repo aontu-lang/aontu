@@ -50,10 +50,10 @@ func TestBudgetResidueUnnamedPaths(t *testing.T) {
 // outside it reaches the fallthrough.
 func TestClonePathRecUnknown(t *testing.T) {
 	v := &stubVal{n: 7}
-	if got := clonePathRec(v, []string{"x"}); got != Val(v) {
+	if got := clonePathRec(v, []string{"x"}, false); got != Val(v) {
 		t.Fatalf("want the value back unchanged, got %v", got)
 	}
-	if got := clonePathRec(nil, []string{"x"}); got != nil {
+	if got := clonePathRec(nil, []string{"x"}, false); got != nil {
 		t.Fatalf("want nil back, got %v", got)
 	}
 }
@@ -109,5 +109,23 @@ func TestFuncNoArgGuardsViaAPI(t *testing.T) {
 	// than returning a nil, and report it when the residual is met.
 	if c := newConstraint("min", nil, -1); c.invalid != "arg" {
 		t.Fatalf("min(): invalid = %q, want %q", c.invalid, "arg")
+	}
+}
+
+// keyFunc's driver-deeper arm: a key() whose stored path is SHALLOWER
+// than the driving base answers for the base — the transplant contract
+// for a shared, never-placed argument (see the comment in keyFunc). No
+// source spelling reaches it any more now that template instantiation
+// deep-clones arguments with placed paths (ADR-005), but the arm is
+// the port of the TS `positioned` fallback (KeyFuncVal.resolve), which
+// TS still takes for parse-time argument paths; the contract is pinned
+// directly so the two ports cannot drift.
+func TestKeyFuncDriverDeeper(t *testing.T) {
+	f := newFunc("key", nil)
+	f.path = []string{"x"}
+	out := keyFunc(&Ctx{}, f, []string{"x", "a", "k"})
+	sv, ok := out.(*ScalarVal)
+	if !ok || "a" != sv.peg {
+		t.Fatalf("key() at a deeper driver must answer the driver's path, got %v", out)
 	}
 }

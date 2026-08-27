@@ -23,6 +23,10 @@ import (
 const getHelp = "aontu get <path> <file> (try --help)"
 
 func runGet(argv []string, stdout, stderr io.Writer) int {
+	argv, trust, trustOK := takeTrust(argv, stderr)
+	if !trustOK {
+		return 2
+	}
 	var rest []string
 	view := aontu.QueryJSON
 	depth := 0
@@ -89,7 +93,7 @@ func runGet(argv []string, stdout, stderr io.Writer) int {
 
 	// The file's own directory is the include base, as every verb
 	// resolves a named file (vet's aontuForPath rule).
-	report := aontuForFile(file).Get(
+	report := aontuForFileTrust(file, trust).Get(
 		string(src), path, &aontu.QueryOptions{View: view, Depth: depth})
 
 	if "json" == format {

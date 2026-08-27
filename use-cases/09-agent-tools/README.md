@@ -134,10 +134,19 @@ files. Severities are my honest read for THIS use case.
 
 ### Gap 1 (critical): a `*` default silently disables the constraint it is written with
 
+> **2026-08-26: fixed by the preference admission gate (ADR-004).**
+> The disjunct form now enforces on override — `a: *10 | integer &
+> min(1) & max(50)` refuses `500` with `[aontu/|:empty]`, and
+> `*readonly | write | destructive` refuses `bogus` — exactly the
+> "test the surviving disjunct" gate this gap asked for. The conjunct
+> form's lost default below remains the phase-1 limit. No assertions
+> in this case pinned the old behaviour; the record below is kept
+> as written.
+
 The documented idiom for "default plus range" — the reference itself
-says *"use the disjunct form (`*8080 | min(1024)`) today"* — admits
+says *"use the disjunct form (`*8080 | min(1024)`) today"* — admitted
 **any** value of the default's kind, because a same-kind override
-replaces the preferred branch without consulting the others:
+replaced the preferred branch without consulting the others:
 
 ```
 $ cat tA.aon
@@ -176,10 +185,18 @@ language offers a footgun (`*10 | min(1) & max(50)`) that looks like
 the safe thing and is not. This should be a headline warning, or the
 pref-override gate should test the surviving disjunct.
 
-### Gap 2 (major): a pack template cannot compute from the child's own fields
+### Gap 2 (major, PARTLY FIXED 2026-08-26): a pack template cannot compute from the child's own fields
 
-The reference says *"key() and relative references inside the template
-answer for the child"*. Relative references do not:
+**2026-08-26, template-clone isolation (ADR-005):** relative
+references inside template expressions now answer for the child (the
+`NaN`/`no_path` failure below is gone — shared spec pin:
+`test/spec/gen-pack.tsv`, `pack-rel-ref-in-expr`). What remains open
+is computing from a *defaulted* sibling: `+` over a still-open
+preference (`.side_effect` = `*readonly | string`) cannot resolve and
+fails loudly (`mapval_no_gen` at the correct per-child path, both
+engines). The original finding, for the record — the reference says
+*"key() and relative references inside the template answer for the
+child"*, and relative references did not:
 
 ```
 tools: pack($.names, {
@@ -198,7 +215,12 @@ approval flags, or any projection — the docs-table half of this
 exercise. **Workaround used**: `requires_approval` and the docs table
 are written per tool with absolute paths (six repetitions each).
 
-### Gap 3 (major): spread templates have the same blindness
+### Gap 3 (major, FIXED 2026-08-26): spread templates have the same blindness
+
+**Fixed by the template-clone isolation change (ADR-005)** — the
+sibling reference inside the spread-template expression now answers
+per child in both engines (shared spec pin: `test/spec/spread.tsv`,
+`spread-expr-sibling-ref`). The original finding:
 
 ```
 rows: { &: { md: "| " + .$KEY + " | " + .side_effect + " |" }
@@ -222,7 +244,13 @@ and 3 there is no template-level projection at all — the G8 combinator
 work these presumably wait on is the single biggest expressiveness
 hole this use case hit.
 
-### Gap 4 (major): referencing a computed, hidden field of a pack child is silently dropped
+### Gap 4 (major, FIXED 2026-08-26): referencing a computed, hidden field of a pack child is silently dropped
+
+**Fixed by the template-clone isolation change (ADR-005)** — the
+reference now defers until the hide() wrapper has resolved at its own
+field, so the copy yields the computed value (`"docs": ["| readonly |"]`,
+both engines; shared spec pin: `test/spec/marks.tsv`,
+`hide-computed-pack-copy`). The original finding:
 
 ```
 names: type(close({ a: close({q: string}) }))
@@ -436,6 +464,13 @@ first-tier examples should at least run.
 
 ### Gap 14 (major): `match()` on a defaulted scrutinee takes the first admissible arm, not the default
 
+> **2026-08-26: fixed by the defaulted-scrutinee rule (ADR-004).**
+> A settled scrutinee carrying an effective default now matches as the
+> value generation will emit, so the example below answers
+> `requires_approval: false` when `side_effect` is unset and `true`
+> only when it is genuinely `destructive`. Pinned by
+> `test/spec/gen-match.tsv` (`match-defaulted-scrutinee-*`).
+
 ```
 tool: {
   side_effect: *readonly | write | destructive
@@ -443,11 +478,11 @@ tool: {
 }
 ```
 
-generates `side_effect: "readonly"` with `requires_approval: true` —
-the `destructive` pattern unifies with the still-open disjunction, so
-the derivation contradicts the generated value it derives from.
+generated `side_effect: "readonly"` with `requires_approval: true` —
+the `destructive` pattern unified with the still-open disjunction, so
+the derivation contradicted the generated value it derives from.
 Combined with gap 1's "no defaults near enforcement" rule this cost
-nothing here (every `side_effect` is explicit), but it is a silent
+nothing here (every `side_effect` is explicit), but it was a silent
 wrong answer waiting for any model that keeps defaults.
 
 ### Gap 15 (minor): the deprecation warning fires without a point of use

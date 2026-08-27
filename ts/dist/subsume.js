@@ -4,30 +4,12 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.effectiveDefault = effectiveDefault;
 exports.subsumeNode = subsumeNode;
 exports.subsume = subsume;
-// Subsumption as a first-class query (G3 phases 1-2,
-// docs/capability-review/g3-subsumption-evolution.md): does the GENERAL
-// value admit every instance the SPECIFIC value admits?
-//
-// The recursion is a dedicated structural walk over EVALUATED values —
-// design option B. It never mutates its inputs (it runs after
-// evaluation, on finished trees), carries no fixpoint, and returns a
-// THREE-VALUED verdict: `subsumes`, `does_not_subsume` (with the
-// failing path and both sides' canons as the witness), or `undecided`
-// (with a reason code, never silently). Where a rule cannot decide the
-// answer folds toward "not subsumed" or "undecided" — the safe
-// directions: a compatibility gate that wrongly reports "breaking"
-// costs a second look, one that wrongly reports "compatible" ships the
-// break (docs/reference-language.md, "Subsumption").
-//
-// Findings reuse G2's report vocabulary (the vet finding object), with
-// the G3 codes appended to the shared registry: `compat_narrowed`,
-// `compat_required_added`, `compat_default_changed`,
-// `compat_marks_changed`, and the `sub_*` undecided reasons — all
-// class `compat`.
 const aontu_1 = require("./aontu");
 const vet_1 = require("./vet");
+const hcanon_1 = require("./hcanon");
 const ConstraintVal_1 = require("./val/ConstraintVal");
 const ScalarKindVal_1 = require("./val/ScalarKindVal");
+const PrefVal_1 = require("./val/PrefVal");
 const DEFAULT_GENERAL_URL = 'general';
 const DEFAULT_SPECIFIC_URL = 'specific';
 function pathText(path) {
@@ -65,12 +47,29 @@ function record(state, code, path, g, s, message) {
         actual: s.canon,
     });
 }
-// The admission view of a value under a profile: under every profile a
-// PREFERENCE admits what its superior admits (the engine's own
-// PrefVal.superpeg semantics); the default itself is compared
-// separately, by the `defaults` and `gen` profiles.
+// The admission view of a value under a profile: a BARE preference
+// admits what its superior admits (the engine's own PrefVal.superpeg
+// semantics, and the docs' "a bare preference is gated by kind"); the
+// default itself is compared separately, by the `defaults` and `gen`
+// profiles.
 function admission(v) {
     return true === v?.isPref ? v.superpeg : v;
+}
+// A PREFERRED BRANCH CONTRIBUTES EXACTLY ITS OWN VALUE (ADR-004). The
+// admission gate made that the engine's rule -- `*'auto'|'literal'|'data'`
+// admits those three strings and nothing else -- and the subsumption
+// walk kept comparing a pref MEMBER by its kind superior, the
+// pre-ADR-004 reading. So a disjunction with a default did not subsume
+// ITSELF: every member of the specific side widened to `string`, which
+// no general member admits, and the walk answered the distribution
+// case. `aontu_policy: hide({compat: *backward|forward|full|none})` --
+// the verbatim idiom from reference-api.md -- failed self-subsumption
+// under --profile gen (use-cases/BUGS.md §29).
+//
+// Only for a member of a disjunction: a bare `*x` standing alone is
+// still gated by kind, which is the rule above and the documented one.
+function memberAdmission(v) {
+    return true === v?.isPref ? (0, PrefVal_1.prefInnerPeg)(v) : v;
 }
 // The effective default of a value, or undefined when it has none, or
 // 'indeterminate' when equal-rank preferences disagree (which the
@@ -80,8 +79,16 @@ function admission(v) {
 // questions — what is the effective default, and does a member admit
 // it.
 function effectiveDefault(v) {
+    // EVERY pref layer is unwrapped (prefInnerPeg), not just one: a
+    // ranked default's effective value is the innermost peg — `**member`
+    // generates "member" exactly as `*member` does (the rank-uniform
+    // meet, ADR-004). The one-layer unwrap left a rank-2 default wearing
+    // a `*`-wrapper no plain alternative subsumes, which is the
+    // pref_not_instance lint's ranked false positive of
+    // use-cases/BUGS.md §4 (`**member|member|admin|owner` warned while
+    // generating a value its own branch admits).
     if (true === v?.isPref) {
-        return v.peg;
+        return (0, PrefVal_1.prefInnerPeg)(v);
     }
     if (true === v?.isDisjunct && Array.isArray(v.peg)) {
         const prefs = v.peg.filter((m) => true === m?.isPref);
@@ -92,9 +99,9 @@ function effectiveDefault(v) {
         // test/spec/edge.tsv), so the effective default does too.
         const minRank = Math.min(...prefs.map((p) => p.rank));
         const top = prefs.filter((p) => p.rank === minRank);
-        const first = top[0].peg;
+        const first = (0, PrefVal_1.prefInnerPeg)(top[0]);
         for (const p of top.slice(1)) {
-            if (!first.same?.(p.peg)) {
+            if (!first.same?.((0, PrefVal_1.prefInnerPeg)(p))) {
                 return 'indeterminate';
             }
         }
@@ -132,7 +139,7 @@ function subsumeNode(state, path, g0, s0) {
     // Marks change the OUTPUT shape, not the admitted set: only the `gen`
     // profile reports them, and only when they differ on corresponding
     // nodes.
-    if ('gen' === state.profile &&
+    if ('gen' === state.profile && true !== state.distributing &&
         (!!g?.mark?.type !== !!s?.mark?.type ||
             !!g?.mark?.hide !== !!s?.mark?.hide)) {
         record(state, 'compat_marks_changed', path, g, s, 'marks differ: general ' + JSON.stringify(g?.mark) +
@@ -149,6 +156,24 @@ function subsumeNode(state, path, g0, s0) {
         return 'yes';
     }
     if (unresolved(g) || unresolved(s)) {
+        // REFLEXIVITY IS A LAW, not a rule the ladder gets to skip. Every
+        // value admits itself, residue included: the set admitted by
+        // `integer & min(0)` is exactly the set admitted by
+        // `integer & min(0)`. Without this, a constraint inside a spread
+        // template made a contract non-SELF-subsumable -- expected and
+        // actual byte-identical, verdict `undecided` -- so `breaking` on
+        // the documented close-per-entry idiom hard-failed reflexivity and
+        // had to run --allow-undecided, which then masks the genuine
+        // undecideds it exists to surface (use-cases/BUGS.md §28).
+        //
+        // Identity is the HASH FORM, not the canon: canon drops closedness
+        // and the marks, so `close({a:1})` and `{a:1}` share a canon while
+        // admitting different sets. Computed only on this branch, where
+        // the answer would otherwise be undecided, so the hot path is
+        // untouched.
+        if ((0, hcanon_1.hcanon)(g) === (0, hcanon_1.hcanon)(s)) {
+            return 'yes';
+        }
         record(state, 'sub_unresolved', path, g, s, 'unresolved residue: the admitted set is not comparable');
         return 'undecided';
     }
@@ -158,7 +183,8 @@ function subsumeNode(state, path, g0, s0) {
     // witness and anything else is honestly undecided.
     if (true === s?.isDisjunct) {
         let out = 'yes';
-        for (const member of s.peg) {
+        for (const raw of s.peg) {
+            const member = memberAdmission(raw);
             const trial = trialSubsume(state, path, g, member);
             if ('yes' !== trial) {
                 if (isConcrete(admission(member))) {
@@ -173,8 +199,8 @@ function subsumeNode(state, path, g0, s0) {
         return out;
     }
     if (true === g?.isDisjunct) {
-        for (const member of g.peg) {
-            if ('yes' === trialSubsume(state, path, member, s)) {
+        for (const raw of g.peg) {
+            if ('yes' === trialSubsume(state, path, memberAdmission(raw), s)) {
                 return 'yes';
             }
         }
@@ -390,8 +416,19 @@ function topLike() {
 // A trial comparison whose findings are DISCARDED: disjunct
 // member-matching asks many "would this member do?" questions, and only
 // the aggregated outcome is a finding.
+// A DISTRIBUTION TRIAL IS NOT A NODE CORRESPONDENCE. It asks whether
+// one ALTERNATIVE of one side admits one alternative of the other,
+// which is a question about admitted sets; the two values it compares
+// are not the same node of the two documents. The `gen` profile's mark
+// rule is a correspondence question -- did a field that used to be
+// generated become hidden -- and firing it here compared a whole
+// disjunction (carrying its enclosing bag's mark) against a member
+// extracted out of one (which does not), so `hide({c: *a|b})` stopped
+// subsuming ITSELF under --profile gen (use-cases/BUGS.md §29). The
+// enclosing node's marks are compared where they correspond: at that
+// node, by the ordinary walk.
 function trialSubsume(state, path, g, s) {
-    const trial = { ...state, findings: [] };
+    const trial = { ...state, findings: [], distributing: true };
     return subsumeNode(trial, path, g, s);
 }
 // The defaults comparison (the `defaults` and `gen` profiles): the
@@ -455,7 +492,7 @@ function subsume(generalSrc, specificSrc, opts) {
         specificUrl: options.specificUrl ?? DEFAULT_SPECIFIC_URL,
     };
     const load = (src, path) => {
-        const aontu = new aontu_1.Aontu();
+        const aontu = new aontu_1.Aontu(null == options.trust ? undefined : { trust: options.trust });
         const ctx = aontu.ctx({ collect: true });
         const v = aontu.unify(src, null == path ? undefined : { path }, ctx);
         if (0 < ctx.err.length || true === v?.isNil) {

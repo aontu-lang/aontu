@@ -157,9 +157,18 @@ class PlusOpVal extends OpBaseVal {
     }
 
     // Float with float or integer: unchanged R5 contagion, binary64
-    // addition, float result (`1 + 2.0` is `3.0`).
+    // addition, float result (`1 + 2.0` is `3.0`) -- but a sum that
+    // leaves binary64's finite range is NOT a value. Aontu is a JSON
+    // superset and there is no notation for an infinity, so one here
+    // used to escape as `[aontu/internal]` in TypeScript and as Go's
+    // raw `json: unsupported value: +Inf` with no code at all
+    // (use-cases/BUGS.md 39). The same check governs the arithmetic
+    // family (float_overflow, ts/src/val/arith.ts).
     if ('float' === ak || 'float' === bk) {
-      return new NumberVal({ peg: av.peg + bv.peg })
+      const sum = av.peg + bv.peg
+      return Number.isFinite(sum) ?
+        new NumberVal({ peg: sum }) :
+        makeNilErr(ctx, 'float_overflow', this, undefined, 'add')
     }
 
     // Both operands are on the exact ladder: promote to the widest.

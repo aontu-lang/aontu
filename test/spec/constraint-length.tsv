@@ -72,7 +72,25 @@ length-arg-boolean	errc	a:length(true) a:[1]	invalid-arg
 length-arg-ref	gen	a:length($.z) a:[1,2,3]\nz:3	{"a":[1,2,3],"z":3}
 length-arg-ref-reject	errc	a:length($.z) a:[1]\nz:3	constraint
 length-arity	errc	a:length()	func_arity
-unique-arity	errc	a:unique(1)	func_arity
+# unique's ONE argument is a PROJECTOR (the review's finding I): the
+# arity was reserved for it and is now spent. `unique(port)` says no
+# two members share a `port`, so the arity error moves to TWO
+# arguments and a non-string argument is an invalid one.
+unique-arity	errc	a:unique(p,q)	func_arity
+unique-arg-not-a-key	errc	a:unique(1) a:[1,2]	invalid-arg
+unique-by-key-holds	canon	a:unique(p) a:[{p:1},{p:2}]	{"a":[{"p":1},{"p":2}]&unique("p")}
+unique-by-key-duplicate	errc	a:unique(p) a:[{p:1},{p:1}]	constraint
+unique-by-key-missing	errc	a:unique(p) a:[{p:1},{q:1}]	constraint
+unique-by-key-map-bag	canon	a:unique(p) a:{x:{p:1},y:{p:2}}	{"a":{"x":{"p":1},"y":{"p":2}}&unique("p")}
+unique-by-key-canon	canon	a:unique(q)&unique(p)	{"a":unique("p")&unique("q")}
+unique-by-key-and-bare	errc	a:unique()&unique(p) a:[{p:1},{p:1}]	constraint
+unique-by-two-keys	errc	a:unique(p)&unique(q) a:[{p:1},{p:2}]	constraint
+# A member that is not a map has no key to project, so it fails for
+# the same reason a map missing the key does.
+unique-by-key-scalar-member	errc	a:unique(p) a:[1,2]	constraint
+# The arity message names the NEW shape, since unique now takes none
+# or one.
+unique-arity-message	err	a:unique(p,q)	unique takes no arguments or one
 #
 # length counts what GENERATES, so it mirrors generation's own skip rules:
 # type and hide marks are not members.
@@ -99,9 +117,10 @@ length-atom-written-last	gen	a:{x:1} a:{y:2} a:length(2)	{"a":{"x":1,"y":2}}
 length-unique-counts-merged	gen	a:length(2)&unique() a:{x:1} a:{y:2}	{"a":{"x":1,"y":2}}
 unique-merged-list	gen	a:unique() a:[1] a:[1]	{"a":[1]}
 #
-# unique() takes no argument: it is a property of the container, not a
+# unique() with NO argument is a property of the container, not a
 # comparison against a value. It applies to lists AND maps -- map ENTRY
 # VALUES pairwise distinct, since keys are distinct by construction.
+# unique(k) is the projected form, above.
 unique-ok	gen	a:unique() a:[1,2,3]	{"a":[1,2,3]}
 unique-reject	errc	a:unique() a:[1,2,1]	constraint
 unique-reject-msg	err	a:unique() a:[1,2,1]	Cannot unify
@@ -123,7 +142,7 @@ unique-boolean-peer	errc	a:unique() a:true	constraint
 # a second rule. A generated value could not express the first: 1 and
 # 1.0 generate the same JSON number.
 unique-leafwise	gen	a:unique() a:[1,1.0]	{"a":[1,1]}
-unique-leafwise-canon	canon	a:unique() a:[1,1.0]	{"a":[1,1.0]}
+unique-leafwise-canon	canon	a:unique() a:[1,1.0]	{"a":[1,1.0]&unique()}
 unique-map-members-distinct	gen	a:unique() a:[{x:1},{x:2}]	{"a":[{"x":1},{"x":2}]}
 unique-map-members-same	errc	a:unique() a:[{x:1},{x:1}]	constraint
 unique-list-members-same	errc	a:unique() a:[[1,2],[1,2]]	constraint

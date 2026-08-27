@@ -44,8 +44,23 @@ func TestWhyNamesEveryContribution(t *testing.T) {
 	vetMatch(t, out, `1\. \*1\|integer.*doc\.aon:2:18  \(spread\)`)
 	vetMatch(t, out, `2\. 3.*doc\.aon:3:21`)
 
-	// A value written once and never met is a fact, not a failure.
+	// A KEY THE AUTHOR NEVER WROTE A VALUE FOR still has a source: the
+	// template did. It used to answer "no contributions" here -- true
+	// of meets, and no answer to "where did this value come from" (the
+	// review's finding E). The template's own site is what it names,
+	// and the same one the touched sibling above names.
 	out, _, code = whyRun("$.services.db.replicas", file)
+	if 0 != code {
+		t.Fatalf("want 0, got %d: %s", code, out)
+	}
+	vetMatch(t, out, `1\. \*1\|integer.*doc\.aon:2:18  \(spread\)`)
+
+	// TOP IS THE UNIT ELEMENT, not something the author wrote, so a path
+	// holding it has no contribution -- the one shape that still answers
+	// "nothing met at this path" now that the value which STANDS at a
+	// path counts (the review's finding E).
+	top := whyFile(t, t.TempDir(), "a: top\n")
+	out, _, code = whyRun("$.a", top)
 	if 0 != code || !strings.Contains(out, "no contributions") {
 		t.Fatalf("want 0/no contributions, got %d: %s", code, out)
 	}

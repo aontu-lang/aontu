@@ -153,18 +153,18 @@ func TestRefInternalsDirect(t *testing.T) {
 	}
 
 	// find: a non-string non-var segment defers.
-	if (&RefVal{absolute: true, peg: []any{42}}).find(ctx) != nil {
+	if (&RefVal{absolute: true, peg: []any{42}}).find(ctx, false) != nil {
 		t.Fatalf("bad segment must defer")
 	}
 	// find: relative ref with an empty own path clamps the base.
-	if f := (&RefVal{peg: []any{"a"}}).find(ctx); f == nil || f.Canon() != "1" {
+	if f := (&RefVal{peg: []any{"a"}}).find(ctx, false); f == nil || f.Canon() != "1" {
 		t.Fatalf("relative find from root")
 	}
 	// find: ref marks transfer onto the found node in place.
 	mk := &RefVal{absolute: true, peg: []any{"a"}}
 	mk.mtype = true
 	mk.mhide = true
-	if out := mk.find(ctx); out == nil {
+	if out := mk.find(ctx, false); out == nil {
 		t.Fatalf("marked find")
 	}
 	if !root.peg["a"].markedType() || !root.peg["a"].markedHide() {
@@ -411,6 +411,54 @@ func TestPrefRankArms(t *testing.T) {
 	hi := newPref(newPref(newInteger(2))) // rank 1
 	if lo.Unify(hi, ctx) != Val(lo) {
 		t.Fatalf("lower rank must supersede")
+	}
+}
+
+// PrefVal.superior answers top for the Val interface. Nothing reaches
+// it through a document any more: resuper (the rank-uniform meet,
+// ADR-004) unwraps nested prefs to the innermost non-pref peg instead
+// of asking the pref itself, so the interface contract is pinned here
+// (ADR-002).
+func TestPrefSuperiorIsTop(t *testing.T) {
+	p := newPref(newInteger(1))
+	if !isTop(p.superior()) {
+		t.Fatalf("pref superior must be top")
+	}
+}
+
+// The admission gate's defensive pref-sibling skip (ADR-004): a pref
+// member cannot admit another pref's override. rankPrefs leaves a
+// settled disjunct at most one pref, so a document cannot reach a
+// two-pref gate -- the arm is pinned here (ADR-002) with prefsRanked
+// forced, and the meet is the `|:empty` refusal because neither
+// preferred value admits the peer.
+func TestDisjunctGateSkipsPrefSibling(t *testing.T) {
+	ctx := &Ctx{root: newMap()}
+	d := newDisjunct([]Val{newPref(newString("z")), newPref(newString("x"))})
+	d.prefsRanked = true
+	out := d.Unify(newString("y"), ctx)
+	if !out.Nil() {
+		t.Fatalf("two-pref gate must refuse an inadmissible peer, got %s",
+			out.Canon())
+	}
+}
+
+// A SINGLE-MEMBER DISJUNCTION GENERATES THAT MEMBER (ADR-007). Unify
+// returns the sole survivor directly rather than re-wrapping it, so a
+// document cannot reach Gen holding a one-member disjunct -- but the
+// type allows one, a library caller can build one, and the alternative
+// to answering its member is refusing a disjunction that is not
+// ambiguous at all. Pinned here (ADR-002) because no source spells it.
+// Twin: the same arm of DisjunctVal.gen in ts/src/val/DisjunctVal.ts.
+func TestDisjunctSingleMemberGenerates(t *testing.T) {
+	ctx := &Ctx{root: newMap()}
+	d := newDisjunct([]Val{newInteger(7)})
+	out, err := d.Gen(ctx)
+	if nil != err {
+		t.Fatalf("single member must generate: %v", err)
+	}
+	if int64(7) != out {
+		t.Fatalf("out: %#v", out)
 	}
 }
 

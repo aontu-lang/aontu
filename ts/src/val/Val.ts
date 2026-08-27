@@ -8,6 +8,8 @@ import {
   Site
 } from '../site'
 
+import { INNER_OF, WRITTEN } from '../provenance'
+
 
 type ValMark = {
   type: boolean,
@@ -21,6 +23,21 @@ type ValSpec = {
   peg?: any,
   mark?: Partial<ValMark>,
   kind?: any,
+
+  // THE PER-DESTINATION INSTANTIATION FLAG (ADR-005). A generator's
+  // template is cloned once per destination, and every clone must be
+  // a full instance: nothing path-dependent may be shared between two
+  // destinations, or the first destination's resolution answers for
+  // them all. The default clone shares inner structure deliberately
+  // (`peg: this.peg` below — the move()/copy() ghost rows in
+  // test/spec/func.tsv pin that sharing), so instantiation asks for
+  // depth explicitly: `dup: true` makes FuncBaseVal, PrefVal and
+  // OpBaseVal clone their inner Vals too, and the bag/junction clones
+  // carry the flag down. Set by pack/each template instantiation,
+  // filter condition testing, and spread application (MapVal/
+  // ListVal.spreadClone) — never by the residuation or ref-resolution
+  // clones, whose sharing is pinned behaviour.
+  dup?: boolean,
 
 
   row?: number,
@@ -308,6 +325,30 @@ abstract class Val {
       out.deprecation = this.deprecation
     }
 
+    // PROVENANCE TRAVELS WITH THE CLONE, exactly as the site does, and
+    // for the same reason: a clone of a value the author wrote IS that
+    // written value somewhere else, and it carries the author's site,
+    // so it can be pointed at. Without this a default reaching a
+    // `pack()`-generated child, or a shape carried by a `$ref`, was
+    // invisible to `why` -- which answered "nothing met at this path"
+    // over a value it had just printed (the review's finding E). See
+    // WRITTEN in ts/src/provenance.ts; the mark is only ever set by an
+    // instrumented run, so this is one undefined read otherwise.
+    if (true === (this as any)[WRITTEN]) {
+      (out as any)[WRITTEN] = true
+    }
+    // AND SO DOES BEING PART OF SOMETHING. A clone of a disjunction's
+    // member is still that member of that written disjunction, and the
+    // whole statement is what the author needs shown -- otherwise a
+    // default reaching a generated child reports `*"info"` and
+    // `string` as two contributions at two columns, where the author
+    // wrote `*info | string` once. A number, deliberately: a Val
+    // holding another Val as an own property is a cycle through the
+    // tree. See INNER_OF in ts/src/provenance.ts.
+    if (null != (this as any)[INNER_OF]) {
+      (out as any)[INNER_OF] = (this as any)[INNER_OF]
+    }
+
     return out
   }
 
@@ -315,8 +356,17 @@ abstract class Val {
   // Shallow clone for spread constraints: creates a new Val with the
   // correct path context but shares non-path-dependent children.
   // Override in MapVal/ListVal to avoid deep-cloning simple children.
+  //
+  // A FULL INSTANCE (`dup`, ADR-005): a spread constraint is applied
+  // once per destination child, and each application must own its
+  // path-dependent innards — a bare clone shared a call's arguments
+  // and a preference's inner value across destinations, so a spread
+  // like `&: id(key(0)) & $.schema.C` resolved its one shared key()
+  // at the first child it met (use-cases/BUGS.md §12's id_name form).
   spreadClone(ctx: AontuContext): Val {
-    return this.clone(ctx)
+    const out = this.clone(ctx, { dup: true })
+    repathInstance(out, out.path)
+    return out
   }
 
 
@@ -356,12 +406,26 @@ abstract class Val {
   }
 
 
+  // PUT A MINTED VALUE WHERE THIS ONE STANDS: the site travels, and so
+  // does provenance, because the two answer one question. A narrowed
+  // disjunction, a lifted kind, a resolved reference -- each is a
+  // value the engine built from a value the author wrote, standing
+  // where that one stood. Carrying the site and withholding the mark
+  // would let `why` print a value, know the line it came from, and
+  // still answer "nothing met at this path" (the review's finding E).
+  // See WRITTEN and INNER_OF in ts/src/provenance.ts.
   place(v: Val) {
     v.site.row = this.site.row
     v.site.col = this.site.col
     v.site.url = this.site.url
     v.site.len = this.site.len
     v.site.src = this.site.src
+    if (true === (this as any)[WRITTEN]) {
+      (v as any)[WRITTEN] = true
+    }
+    if (null != (this as any)[INNER_OF]) {
+      (v as any)[INNER_OF] = (this as any)[INNER_OF]
+    }
     return v
   }
 
@@ -511,6 +575,64 @@ Object.assign(Val.prototype, {
 })
 
 
+// THE INSTANCE PATH NORMALISATION (ADR-005), the TS mirror of the Go
+// port's setPaths (go/clone.go): assign every value in a freshly
+// instantiated template the path the PARSER would have given it at the
+// instance's destination. A deep instance clone (`dup`) copies values
+// whose stored parse paths are argument-shaped — a func argument has
+// no key of its own, a spread template lives under a '&' segment — and
+// Val.clone's ctx-cut cannot rebase those: it derives the child path
+// from the driving ctx alone and drops the segments in between, which
+// is how a nested list spread inside a close()d template lost its
+// parent key and every finding under it named the wrong path (the
+// 06-k8s use case's env findings). One canonical walk instead:
+// bag children descend by key (numeric for a list element, as the
+// parser records them), a spread constraint sits under '&' with its
+// content at the bag's own path, and junction members, operator
+// operands, function arguments and a preference's value all sit AT
+// their holder's path — exactly the parse-time shape.
+function repathInstance(v: any, path: string[]): void {
+  if (true !== v?.isVal) {
+    return
+  }
+  v.path = path
+
+  const peg = v.peg
+
+  if (true === v.isBag) {
+    const spread = v.spread?.cj
+    if (null != spread && true === spread.isVal) {
+      // The spread's CONTENT is pathed at the bag (its fields land on
+      // the bag's children); only its ROOT carries the '&' segment —
+      // the same two steps as the Go twin's setPaths.
+      repathInstance(spread, path)
+      spread.path = [...path, '&']
+    }
+    if (true === v.isList) {
+      for (let i = 0; i < peg.length; i++) {
+        // Numeric, as the parser records list positions: a numeric
+        // segment is what tells key() an element is not a keyed
+        // position (KeyFuncVal.resolve, `positioned`).
+        repathInstance(peg[i], [...path, i as unknown as string])
+      }
+    }
+    else {
+      for (const k of Object.keys(peg)) {
+        repathInstance(peg[k], [...path, k])
+      }
+    }
+  }
+  else if (Array.isArray(peg)) {
+    for (const t of peg) {
+      repathInstance(t, path)
+    }
+  }
+  else if (true === peg?.isVal) {
+    repathInstance(peg, path)
+  }
+}
+
+
 function inspectpeg(peg: any, d: number) {
   const indent = '  '.repeat(d)
   return pretty(Array.isArray(peg) ?
@@ -554,5 +676,6 @@ export {
   DONE,
   SPREAD,
   EMPTY_ERR,
-  empty
+  empty,
+  repathInstance,
 }

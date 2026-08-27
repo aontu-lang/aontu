@@ -1,14 +1,17 @@
-# Use-case 06 gap 1 (claim C3): key() cross-wires inside a close()d
-# pack template. NO second pack is needed: close() around a template
-# containing key() is sufficient on its own -- key() evaluates once
-# and every generated child gets the FIRST child's key. Without the
-# inner close() the same document is correct. Docs promise per-child
-# resolution: "Each generated child is tmpl cloned at that
-# destination, so key() ... answer for the child" (reference-language.md,
-# "Generating children"); test/spec/gen-close.tsv pins close-inside-
-# template as supported (single child, no key()).
+# Use-case 06 gap 1 (claim C3) -- FIXED 2026-08-26 by the
+# template-clone isolation change (ADR-005): each generated child is a
+# FULL per-destination instance (the deep `dup` clone / instanceClone),
+# so key() inside a close()d pack template resolves per child.
+# Historically close() around the template was sufficient on its own
+# to cross-wire: the base func clone shared its argument Vals, key()
+# evaluated once in the one shared inner map, and every child got the
+# FIRST child's key, exit 0. The garbled $.deploy.NaN.p path on
+# partial overrides is gone with it (an extra key now refuses cleanly
+# with [aontu/closed] at the child's real path).
+# Pinned in both engines: test/spec/gen-close.tsv
+# close-template-keys-per-child, close-template-key-pref-override,
+# close-template-key-refuses-extra.
 # expected: {"deploy":{"auth":{"name":"auth"},"web":{"name":"web"}},...} exit 0
-# actual: {"deploy":{"auth":{"name":"web"},"web":{"name":"web"}},...} exit 0
-#         -- silently wrong, auth reports web's key
+# actual:   {"deploy":{"auth":{"name":"auth"},"web":{"name":"web"}},...} exit 0
 names: [web, auth]
 deploy: pack($.names, close({ name: key() }))

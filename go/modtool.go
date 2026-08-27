@@ -3,13 +3,14 @@
 package aontu
 
 // MODULE TOOLING (G6 phase 3, the Go side of ts/src/mod-tool.ts): the
-// LOCAL half — `aontu mod tidy` and `aontu mod vendor`.
+// LOCAL half — `aontu mod tidy`, `verify`, `vendor` and `manifest`.
 //
 // Evaluation never touches the network, and neither does this: tidy
 // resolves versions and rewrites the lockfile from what is already in
-// the local stores, and vendor materialises the locked closure into the
-// project. Fetching and publishing are the network half, and are not in
-// this build (see the register).
+// the local stores, verify asks whether the stores still MEAN what the
+// lockfile pins and changes nothing, and vendor materialises the locked
+// closure into the project. Fetching and publishing are the network
+// half, and are not in this build (see the register).
 //
 // MINIMUM VERSION SELECTION, not a solver: each module declares the
 // MINIMUM version of each dependency it needs, and the selected version
@@ -47,7 +48,34 @@ type ModLock struct {
 type ModTidyReport struct {
 	Lock    []ModLock `json:"lock"`
 	Missing []string  `json:"missing"`
-	Verdict string    `json:"verdict"`
+	// Unevaluable names the modules present in a store which DO NOT
+	// EVALUATE standalone, sorted. A pin is what a module MEANS, so
+	// there is nothing to pin here and the lockfile is left alone.
+	Unevaluable []string `json:"unevaluable"`
+	Verdict     string   `json:"verdict"`
+}
+
+// ModVerifyReport is the result of `aontu mod verify`.
+type ModVerifyReport struct {
+	// Mismatched is what the lockfile pins against what the store now
+	// means, for each module that does not match, sorted by module.
+	Mismatched []ModMismatch `json:"mismatched"`
+	Missing    []string      `json:"missing"`
+	// Unlocked names the dependencies the project declares that the
+	// lockfile does not name, sorted. A tidy is what fills them in.
+	Unlocked []string `json:"unlocked"`
+	Verdict  string   `json:"verdict"`
+	// Verified names the locked modules that still mean what is pinned.
+	Verified []string `json:"verified"`
+}
+
+// ModMismatch is one locked module whose store no longer means what the
+// lockfile pins. Got is empty when the store holds something that does
+// not evaluate at all.
+type ModMismatch struct {
+	Got  string `json:"got"`
+	Mod  string `json:"mod"`
+	Want string `json:"want"`
 }
 
 // ModVendorReport is the result of `aontu mod vendor`.
@@ -112,14 +140,24 @@ type modEval struct {
 	gen   any
 	hash  string
 	canon string
+	// ok is DID IT STAND UP ON ITS OWN? A module that does not evaluate
+	// has no meaning to pin, and CanonHash of the nil it collapses to is
+	// the SAME string for every such module -- so a lockfile written
+	// from one carries no information while looking exactly like one
+	// that does (use-cases/BUGS.md §31). `aontu hash` already refuses
+	// that file; tidy refuses it too, and this is what tells it.
+	ok bool
 }
 
 func evalMod(src, path string) modEval {
 	a := NewWithBase(filepath.Dir(path))
 	a.File = path
-	v, _ := a.Unify(src)
+	v, err := a.Unify(src)
 	gen, _ := v.Gen(&Ctx{collect: true})
-	return modEval{gen: gen, hash: CanonHash(v), canon: v.Canon()}
+	return modEval{
+		gen: gen, hash: CanonHash(v), canon: v.Canon(),
+		ok: nil == err && nil != v && !v.Nil(),
+	}
 }
 
 // declaredDeps is the `dep` block a module file declares: import string
@@ -276,6 +314,7 @@ func ModTidy(root, cache string) ModTidyReport {
 	sort.Strings(mods)
 
 	lock := []ModLock{}
+	unevaluable := []string{}
 	for _, mod := range mods {
 		if missing[mod] {
 			continue
@@ -288,7 +327,18 @@ func ModTidy(root, cache string) ModTidyReport {
 			// RECOMPUTED, never carried over: the pin is what the module
 			// in this store MEANS, and a tidy that copied the old hash
 			// forward would pin what it used to mean.
-			hash = evalMod(toValidSource(string(data)), main).hash
+			got := evalMod(toValidSource(string(data)), main)
+			// A NIL PIN IS WORSE THAN NO PIN. A module that does not
+			// stand up hashes to CanonHash(nil) -- the same string for
+			// every broken module -- so writing it would put a
+			// plausible, uninformative pin in the lockfile and silently
+			// void the "breaks on any semantic change in the closure"
+			// contract (BUGS.md §31).
+			if !got.ok {
+				unevaluable = append(unevaluable, mod)
+				continue
+			}
+			hash = got.hash
 		}
 		lock = append(lock, ModLock{
 			Mod:   mod,
@@ -305,17 +355,119 @@ func ModTidy(root, cache string) ModTidyReport {
 		miss = append(miss, mod)
 	}
 	sort.Strings(miss)
+	sort.Strings(unevaluable)
 
-	if 0 == len(miss) {
+	held := 0 == len(miss) && 0 == len(unevaluable)
+	if held {
 		_ = os.WriteFile(filepath.Join(root, "mod-lock.aon"),
 			[]byte(lockHeader+LockText(lock)+"\n"), 0o600)
 	}
 
 	verdict := "ok"
-	if 0 < len(miss) {
+	if 0 < len(unevaluable) {
+		verdict = "error"
+	} else if 0 < len(miss) {
 		verdict = "missing"
 	}
-	return ModTidyReport{Verdict: verdict, Lock: lock, Missing: miss}
+	return ModTidyReport{
+		Verdict: verdict, Lock: lock, Missing: miss,
+		Unevaluable: unevaluable,
+	}
+}
+
+// ModVerify asks whether every locked module still MEANS what the
+// lockfile pins. Recompute and compare, and CHANGE NOTHING.
+//
+// The verb exists because ModTidy cannot answer this question. Tidy
+// recomputes and REWRITES by design -- a pin is what a module means now
+// -- so tampering with a vendored module and running tidy makes the
+// lockfile agree with the tampering, `verdict: ok`, and the next
+// evaluation passes. That is correct for the job tidy does and useless
+// as a gate, which left a CI job that tidies before evaluating with no
+// integrity protection at all (use-cases/BUGS.md §32). Verification is
+// a question; answering it must not be an edit. Mirrors modVerify in
+// ts/src/mod-tool.ts.
+func ModVerify(root, cache string) ModVerifyReport {
+	locked := readLock(root)
+	verified := []string{}
+	mismatched := []ModMismatch{}
+	missing := []string{}
+
+	// NOTHING TO CHECK IS NOT A PASS. A project with no lockfile at all
+	// — or one whose lockfile predates a dependency someone added —
+	// would otherwise verify clean, because the loop below walks what is
+	// LOCKED and there is nothing locked to walk. That is the same shape
+	// as the defect this verb exists to close: absence reading as
+	// agreement. Every dependency the project itself declares must be in
+	// the lockfile before the pins mean anything, and the repair is a
+	// tidy rather than a fetch. Transitive dependencies need no separate
+	// check: a locked module's own imports are resolved when its pin is
+	// recomputed, so one that is unreachable makes its DEPENDANT fail to
+	// evaluate and lands in mismatched below.
+	unlocked := []string{}
+	for mod := range declaredDeps(filepath.Join(root, "mod.aon")) {
+		if _, ok := locked[mod]; !ok {
+			unlocked = append(unlocked, mod)
+		}
+	}
+	sort.Strings(unlocked)
+
+	mods := make([]string, 0, len(locked))
+	for mod := range locked {
+		mods = append(mods, mod)
+	}
+	sort.Strings(mods)
+
+	for _, mod := range mods {
+		ref, ok := parseModuleRef(mod)
+		if !ok {
+			missing = append(missing, mod)
+			continue
+		}
+		dir := modStoreDir(root, ref, locked[mod].Canon, cache)
+		if "" == dir {
+			missing = append(missing, mod)
+			continue
+		}
+		main := filepath.Join(dir, moduleMain(filepath.Join(dir, "mod.aon"), 0))
+		data, err := os.ReadFile(main)
+		if nil != err {
+			missing = append(missing, mod)
+			continue
+		}
+
+		// A module that no longer stands up is not a match: it has no
+		// meaning to compare, and reporting the hash of nil would print
+		// the same string for every broken module. The empty Got says
+		// the store holds something that does not evaluate.
+		got := evalMod(toValidSource(string(data)), main)
+		want := locked[mod].Canon
+		if got.ok && want == got.hash {
+			verified = append(verified, mod)
+			continue
+		}
+		shown := ""
+		if got.ok {
+			shown = got.hash
+		}
+		mismatched = append(mismatched,
+			ModMismatch{Mod: mod, Want: want, Got: shown})
+	}
+
+	sort.Strings(missing)
+
+	verdict := "ok"
+	if 0 < len(mismatched) {
+		verdict = "mismatch"
+	} else if 0 < len(unlocked) {
+		verdict = "unlocked"
+	} else if 0 < len(missing) {
+		verdict = "missing"
+	}
+	return ModVerifyReport{
+		Verdict: verdict, Verified: verified,
+		Mismatched: mismatched, Unlocked: unlocked, Missing: missing,
+	}
 }
 
 // ModVendor materialises the locked closure into `aon_vendor/`.

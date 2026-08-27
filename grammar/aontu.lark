@@ -57,17 +57,29 @@ element: spread
 
 func: name "(" [value ("," value)*] ")"
 
-name: "above" | "below" | "close" | "copy" | "deprecate" | "each" | "filter"
+name: "above" | "add" | "below" | "close" | "copy" | "deprecate" | "div"
+    | "each" | "filter" | "greatest"
     | "hide"
-    | "id" | "key"
-    | "length" | "lower" | "match" | "max" | "min" | "move" | "must"
+    | "id" | "key" | "least"
+    | "length" | "lower" | "match" | "max" | "min" | "mod" | "move"
+    | "mul" | "must"
     | "neq"
-    | "open" | "pack" | "path" | "pref" | "refer" | "re" | "super"
+    | "open" | "pack" | "path" | "pick" | "pref" | "refer" | "rem" | "re" | "super"
+    | "sub" | "sum"
     | "type"
     | "unique" | "upper"
 
 // At least one segment: a bare `$` is an incomplete expression.
+//
+// A RELATIVE reference has no `$`: `.n` names a sibling, resolved
+// against the enclosing map rather than the document root. Canon EMITS
+// one wherever a spread template survives unresolved
+// (`{&:{v:add(.n,1)}}`), so a grammar without it cannot parse this
+// engine's own output -- which is what `every-canon-output-parses`
+// exists to catch, and did. No conflict with `number`: a numeric
+// literal here always starts with a digit or `-`.
 ref: "$" ("." segment)+
+   | ("." segment)+
 
 // No `-`: not a bare-text character (test/spec/op-chars.tsv).
 segment: /[a-zA-Z0-9_]+/

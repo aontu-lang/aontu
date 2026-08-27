@@ -9,7 +9,7 @@ declare class OpBaseVal extends FeatureVal {
     opname(): string;
     unify(peer: Val, ctx: AontuContext): Val;
     same(peer: Val): boolean;
-    clone(ctx: AontuContext, _spec?: ValSpec): Val;
+    clone(ctx: AontuContext, spec?: ValSpec): Val;
     operate(ctx: AontuContext, _args: Val[]): Val | undefined;
     get canon(): string;
     primatize(v: any): undefined | null | string | number | boolean;

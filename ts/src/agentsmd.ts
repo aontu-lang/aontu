@@ -12,6 +12,7 @@
 // after an edit produces the stanza that edit implies.
 
 import { Aontu } from './aontu'
+import type { TrustOptions } from './type'
 import { canonHash } from './hcanon'
 import { get } from './query'
 import { evalFailure } from './query'
@@ -36,6 +37,9 @@ export type AgentsMdOptions = {
   // reads a file; the CLI passes what the author typed.
   name?: string
   path?: string
+  // The include capability this document evaluates under
+  // (G5, docs/trust.md); vet's precedent.
+  trust?: TrustOptions
 }
 
 
@@ -45,7 +49,8 @@ export function agentsMd(
   const options = opts ?? {}
   const name = options.name ?? 'the definition'
 
-  const aontu = new Aontu()
+  const aontu = new Aontu(
+    null == options.trust ? undefined : { trust: options.trust })
   const ctx = aontu.ctx({ collect: true })
   const parseOpts = null == options.path ? undefined : { path: options.path }
   const v: any = aontu.unify(src, parseOpts, ctx)

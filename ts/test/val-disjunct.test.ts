@@ -53,14 +53,14 @@ describe('val-disjunct', function() {
     expect(u2a).equal('{"a":*1|number}')
 
     let u2 = UC('a:*1|number,a:*2|number')
-    expect(u2).equal('{"a":2|1|number}')
+    expect(u2).equal('{"a":*2|*1|number}')
 
     // TODO: fix syntax (*...) !!!
     // let u3 = UC('(*1|number) & (*2|number)')
     // expect(u3).equal('*2|*1|number')
 
     let u4 = UC('(number|*1) & (number|*2)')
-    expect(u4).equal('number|1|2')
+    expect(u4).equal('number|*1|*2')
 
 
     let g0 = G('{&:{x:*1|number},a:{},b:{x:2}}')

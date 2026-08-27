@@ -1,11 +1,16 @@
+# FIXED 2026-08-26 (the spread application rework: pure ExpectVal).
 # Use-case 01 gap 7 (claim C1): two positions of one id()-merged
 # entity, each under a &: spread whose template arrives BY REFERENCE,
 # inner ports templates unequal ($.Port vs $.Port & {n: integer}).
-# The entity's two ports are siblings; their data is unified with
-# each other. Inline (non-ref) outer templates do not trigger it.
+# The entity's two ports are siblings; their data used to be unified
+# with each other through the stateful expectation the combined
+# template carried. Inline (non-ref) outer templates did not trigger
+# it. Both views now emit the merged entity with per-child ports.
+# Pinned in the shared spec: spread-interleave.tsv
+# spread-unequal-idmerge, spread-unequal-map-ref-{2,3}.
 # expected: both positions show ports {pub:{n:443},adm:{n:9901}}, exit 0
-# actual: [aontu/scalar_value] at $.cat.services.gw.ports.adm.n:
-#         "Cannot unify value: 9901 with value: 443", exit 1
+# actual: both positions show ports {pub:{d:1,n:443},adm:{d:1,n:9901}}
+#         (d defaulted per child), exit 0
 Port: hide({ d: *1 | 2 })
 Svc: hide({ ports: {&: $.Port} })
 WL: hide({ ports: {&: $.Port & {n: integer}} })

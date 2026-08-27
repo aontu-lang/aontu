@@ -176,6 +176,21 @@ class Decimal {
   }
 
 
+  // D6 -- EXACT MULTIPLICATION. Multiply the coefficients, ADD the
+  // scales: (a/10^s)(b/10^t) is ab/10^(s+t), with no alignment step and
+  // no rounding mode, exactly as add() has none.
+  //
+  // The result leaves the budget far more readily than a sum does --
+  // scales add rather than taking the maximum, and coefficient digits
+  // add too -- so squaring a value at half the budget is already over
+  // it. Every caller must test with decimalOverBudget() and report
+  // `decimal_budget`, for the same reason add()'s callers must: at the
+  // limit, refusing is the only answer that is not a rounded one.
+  multiply(peer: Decimal): Decimal {
+    return new Decimal(this.unscaled * peer.unscaled, this.scale + peer.scale)
+  }
+
+
   // Exact ceiling and floor, for `upper()`/`lower()`. Coefficient
   // arithmetic only -- Math.ceil of this value would mean rounding it to
   // binary64 first, which for a leaf that exists to escape binary64 is

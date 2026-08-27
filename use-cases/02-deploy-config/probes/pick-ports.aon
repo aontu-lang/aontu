@@ -1,0 +1,10 @@
+# The other half of README gap 8: the list of ports IS producible now,
+# with pick(). Useful where the ports are wanted as a value rather than
+# only checked -- an exposed-port list for a firewall rule, say.
+# Expected: {"fleet":{...},"ports":[8080,8443],"lowest":8080}
+fleet: {
+  api:  { port: 8080 }
+  auth: { port: 8443 }
+}
+ports: pick($.fleet, port)
+lowest: least($.ports)

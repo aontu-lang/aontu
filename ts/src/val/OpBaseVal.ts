@@ -177,10 +177,17 @@ class OpBaseVal extends FeatureVal {
   }
 
 
-  clone(ctx: AontuContext, _spec?: ValSpec): Val {
+  clone(ctx: AontuContext, spec?: ValSpec): Val {
     let out = (super.clone(ctx, {
       peg: this.peg,
     }) as OpBaseVal)
+    // THE PER-DESTINATION INSTANTIATION RULE (ADR-005): an operation
+    // inside a template clones its operands as instances — the
+    // default clone shares them (see FuncBaseVal.clone). Every
+    // operand is a Val by construction, as in the Go twin's []Val.
+    if (true === spec?.dup) {
+      out.peg = this.peg.map((a: Val) => a.clone(ctx, { dup: true }))
+    }
     return out
   }
 

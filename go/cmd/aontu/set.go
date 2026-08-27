@@ -23,6 +23,10 @@ import (
 const setHelp = "aontu set <path>=<value> --entry <file> --overlay <file> (try --help)"
 
 func runSet(argv []string, stdout, stderr io.Writer) int {
+	argv, trust, trustOK := takeTrust(argv, stderr)
+	if !trustOK {
+		return 2
+	}
 	var assignments []string
 	entry := ""
 	overlayFile := ""
@@ -92,6 +96,7 @@ func runSet(argv []string, stdout, stderr io.Writer) int {
 	report := aontu.Patch(
 		string(entrySrc), string(overlaySrc), assignments,
 		&aontu.PatchOptions{
+			Trust:     verbTrust(trust, entryRootOfFile(entry)),
 			EntryPath: entry, InPlace: inPlace, OverlayPath: overlayFile})
 
 	// WRITTEN ONLY WHEN IT HOLDS. A change that contradicts a pinned

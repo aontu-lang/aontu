@@ -24,6 +24,12 @@ import { srcPath } from './srcpath'
 
 const MODULE = 'name: string\nport: *8080 | integer\n'
 
+// The canon-hash of `nil`, which is what EVERY module that fails to
+// evaluate would pin if the lockfile were written from one -- the same
+// string for all of them, so a pin that carries no information while
+// looking exactly like one that does (use-cases/BUGS.md §31).
+const NIL_PIN = 'aon1-XaOkx_EXlEJ1tMhinEkWQDYl1aSmVzoB7LA_Dp0u2-Y'
+
 
 // A project whose main.aon imports one module, and the module itself,
 // placed wherever the caller says. Answers the paths and the module's
@@ -323,6 +329,200 @@ describe('mod-tool', () => {
       Fs.writeFileSync(Path.join(p, name), files[name])
     }
   }
+
+
+  // A VENDORED MODULE IS A PROJECT INSIDE A PROJECT (the review's
+  // finding H, use-cases/BUGS.md §31). `mod vendor` produces a FLAT
+  // tree, so a module's own dependency sits beside it in the
+  // consumer's `aon_vendor/` -- but the module carries its own
+  // `mod.aon`, which used to stop the upward walk there, and the
+  // nested import answered `module not fetched` for a module sitting
+  // one directory away. The Go twin is
+  // TestModTransitiveVendorResolves.
+  test('a-nested-import-reaches-the-consumers-vendor-tree', () => {
+    const dir = project(
+      '"corp.example/schemas/service@1": {v: "1.4.2"},' +
+      ' "corp.example/schemas/common@1": {v: "1.0.0"}', (d) => {
+        vendor(d, 'corp.example/schemas/service@1', {
+          'mod.aon':
+            'mod: {path: "corp.example/schemas/service",' +
+            ' version: "1.4.2", main: "service.aon"}\n' +
+            'dep: {"corp.example/schemas/common@1": {v: "1.0.0"}}\n',
+          'service.aon':
+            '@"corp.example/schemas/common@1"\n' +
+            'spec: {name: string, port: *8080 | integer}\n',
+        })
+        vendor(d, 'corp.example/schemas/common@1', {
+          'mod.aon':
+            'mod: {path: "corp.example/schemas/common",' +
+            ' version: "1.0.0", main: "common.aon"}\n',
+          'common.aon': 'naming: {id: string}\n',
+        })
+      })
+    Fs.writeFileSync(Path.join(dir, 'main.aon'),
+      'lib: hide(@"corp.example/schemas/service@1")\n' +
+      'svc: $.lib.spec & {name: "checkout"}\n')
+
+    const t = cli(['mod', 'tidy', dir])
+    Assert.equal(t.code, 0, t.err + t.out)
+    // NOT the hash of nil, which is what a module that does not
+    // evaluate pins -- and the same string for every one of them.
+    Assert.equal(t.out.includes(NIL_PIN), false, t.out)
+
+    const r = cli([Path.join(dir, 'main.aon')])
+    Assert.equal(r.code, 0, r.err)
+    Assert.equal(JSON.parse(r.out).svc.port, 8080)
+  })
+
+
+  // A NIL PIN IS WORSE THAN NO PIN: every module that fails to
+  // evaluate hashes to the same string, so a lockfile written from one
+  // looks exactly like a real pin and carries nothing (§31). `aontu
+  // hash` already refuses such a file; tidy refuses it too. The Go twin
+  // is TestModTidyRefusesAnUnevaluableModule.
+  test('tidy-refuses-to-pin-a-module-that-does-not-evaluate', () => {
+    const dir = project('"corp.example/schemas/service@1": {v: "1.4.2"}', (d) =>
+      vendor(d, 'corp.example/schemas/service@1', {
+        'mod.aon':
+          'mod: {path: "corp.example/schemas/service", main: "service.aon"}\n',
+        // Contradicts itself: no meaning, so nothing to pin.
+        'service.aon': 'a: 1\na: 2\n',
+      }))
+
+    const r = cli(['mod', 'tidy', dir])
+    Assert.equal(r.code, 4, r.out)
+    Assert.ok(r.out.includes('verdict: error'), r.out)
+    Assert.ok(r.out.includes('does not evaluate on its own'), r.out)
+    // AND THE LOCKFILE IS LEFT ALONE. A refusal that wrote a lockfile
+    // would be the defect with a louder message.
+    Assert.equal(Fs.existsSync(Path.join(dir, 'mod-lock.aon')), false)
+  })
+
+
+  // VERIFICATION IS A QUESTION; ANSWERING IT MUST NOT BE AN EDIT
+  // (§32). Tidy recomputes and rewrites by design, so a CI job that
+  // tidies before evaluating has no integrity protection at all: the
+  // lockfile simply agrees with whatever the store now holds. The Go
+  // twin is TestModVerify.
+  test('verify-catches-a-tampered-store-and-changes-nothing', () => {
+    const dir = project('"corp.example/schemas/service@1": {v: "1.4.2"}', (d) =>
+      vendor(d, 'corp.example/schemas/service@1', {
+        'mod.aon':
+          'mod: {path: "corp.example/schemas/service", main: "service.aon"}\n',
+        'service.aon': MODULE,
+      }))
+
+    Assert.equal(cli(['mod', 'tidy', dir]).code, 0)
+    const lock = Fs.readFileSync(Path.join(dir, 'mod-lock.aon'), 'utf8')
+
+    const clean = cli(['mod', 'verify', dir])
+    Assert.equal(clean.code, 0, clean.out)
+    Assert.ok(clean.out.includes(': verified'), clean.out)
+
+    // Tamper, and ask again.
+    const svc = Path.join(dir, 'aon_vendor', 'corp.example', 'schemas',
+      'service@1', 'service.aon')
+    Fs.writeFileSync(svc,
+      Fs.readFileSync(svc, 'utf8').replace('8080', '9090'))
+
+    const bad = cli(['mod', 'verify', dir])
+    Assert.equal(bad.code, 1, bad.out)
+    Assert.ok(bad.out.includes('verdict: mismatch'), bad.out)
+    Assert.ok(bad.out.includes('but the store means'), bad.out)
+    // THE LOCKFILE IS UNTOUCHED, which is the whole difference from
+    // tidy: a gate that rewrote what it was checking would pass every
+    // time.
+    Assert.equal(Fs.readFileSync(Path.join(dir, 'mod-lock.aon'), 'utf8'), lock)
+
+    // A module that no longer stands up at all says so, rather than
+    // reporting the hash of nil as though it were a meaning.
+    Fs.writeFileSync(svc, 'a: 1\na: 2\n')
+    const broken = cli(['mod', 'verify', dir])
+    Assert.equal(broken.code, 1, broken.out)
+    Assert.ok(broken.out.includes('it does not evaluate'), broken.out)
+  })
+
+
+  // NOTHING TO CHECK IS NOT A PASS. The gate walks what is LOCKED, so
+  // a project whose lockfile was never committed -- or whose lockfile
+  // predates a dependency someone added -- would verify clean over an
+  // empty set: absence reading as agreement, which is the shape of the
+  // defect this verb exists to close. The repair is a tidy, not a
+  // fetch, and the verdict says which. The Go twin is
+  // TestModVerifyRefusesAnUncoveredProject.
+  test('verify-refuses-a-project-the-lockfile-does-not-cover', () => {
+    const dir = project('"corp.example/schemas/service@1": {v: "1.4.2"}', (d) =>
+      vendor(d, 'corp.example/schemas/service@1', {
+        'mod.aon':
+          'mod: {path: "corp.example/schemas/service", main: "service.aon"}\n',
+        'service.aon': MODULE,
+      }))
+
+    const bare = cli(['mod', 'verify', dir])
+    Assert.equal(bare.code, 1, bare.out)
+    Assert.ok(bare.out.includes('verdict: unlocked'), bare.out)
+    Assert.ok(bare.out.includes(
+      'corp.example/schemas/service@1: not in the lockfile (run: aontu mod tidy)'),
+      bare.out)
+
+    // Tidy writes it, and the same question now passes.
+    Assert.equal(cli(['mod', 'tidy', dir]).code, 0)
+    Assert.equal(cli(['mod', 'verify', dir]).code, 0)
+
+    // A dependency added to mod.aon after the lockfile was written is
+    // the same hole one edit later: the pins that ARE there still
+    // verify, and the lockfile no longer covers the project.
+    Fs.writeFileSync(Path.join(dir, 'mod.aon'),
+      'mod: {path: "corp.example/app"}\ndep: {' +
+      '"corp.example/schemas/service@1": {v: "1.4.2"}, ' +
+      '"corp.example/schemas/later@1": {v: "1.0.0"}}\n')
+    const stale = cli(['mod', 'verify', '--format', 'json', dir])
+    Assert.equal(stale.code, 1, stale.out)
+    const report = JSON.parse(stale.out)
+    Assert.equal(report.verdict, 'unlocked')
+    Assert.deepEqual(report.unlocked, ['corp.example/schemas/later@1'])
+    Assert.deepEqual(report.verified, ['corp.example/schemas/service@1'])
+  })
+
+
+  // A pin cannot be compared against a store that has nothing to
+  // compare, and there are three ways to have nothing: a key that does
+  // not route as a module path, one that routes to a module no store
+  // holds, and one whose store directory exists but whose entry file
+  // does not. All three are `missing` -- the repair is a fetch, not an
+  // edit to the lockfile -- and none of them is a mismatch, which would
+  // claim the store means something else. The Go twin is
+  // TestModVerifyReportsWhatNoStoreHolds.
+  test('verify-reports-what-no-store-holds', () => {
+    const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-mod-'))
+    Fs.writeFileSync(Path.join(dir, 'mod-lock.aon'),
+      '# mod-lock.aon (generated by `aontu mod tidy`; do not edit)\n' +
+      '{"lock":{"corp.example/absent@1":{"canon":"aon1-x","oci":"","v":"1"},' +
+      '"corp.example/hollow@1":{"canon":"aon1-y","oci":"","v":"1"},' +
+      '"not-a-module":{"canon":"aon1-z","oci":"","v":"1"}}}\n')
+
+    // hollow@1 is vendored as a directory with a mod.aon naming an
+    // entry file that was never written.
+    vendor(dir, 'corp.example/hollow@1', {
+      'mod.aon': 'mod: {path: "corp.example/hollow", main: "hollow.aon"}\n',
+    })
+
+    const r = cli(['mod', 'verify', '--format', 'json', dir])
+    Assert.equal(r.code, 1, r.out)
+    const report = JSON.parse(r.out)
+    Assert.equal(report.verdict, 'missing')
+    Assert.deepEqual(report.mismatched, [])
+    Assert.deepEqual(report.missing, [
+      'corp.example/absent@1', 'corp.example/hollow@1', 'not-a-module'])
+
+    // And in text, where the line names the repair -- here a fetch,
+    // because the module itself is what is absent.
+    const text = cli(['mod', 'verify', dir])
+    Assert.equal(text.code, 1, text.out)
+    Assert.ok(text.out.includes('verdict: missing'), text.out)
+    Assert.ok(text.out.includes(
+      'corp.example/absent@1: not fetched (run: aontu mod get)'), text.out)
+  })
 
 
   test('tidy-writes-the-lockfile-in-canonical-form', () => {
@@ -625,10 +825,10 @@ describe('mod-tool', () => {
 
   test('mod-arguments', () => {
     Assert.equal(cli(['mod', '--help']).code, 0)
-    Assert.ok(cli(['mod']).err.includes('needs tidy, vendor or manifest'))
-    Assert.ok(cli(['mod', 'nope']).err.includes('needs tidy, vendor or manifest'))
+    Assert.ok(cli(['mod']).err.includes('needs tidy, verify, vendor or manifest'))
+    Assert.ok(cli(['mod', 'nope']).err.includes('needs tidy, verify, vendor or manifest'))
     Assert.ok(cli(['mod', 'tidy', 'a', 'b']).err
-      .includes('needs tidy, vendor or manifest'))
+      .includes('needs tidy, verify, vendor or manifest'))
     Assert.ok(cli(['mod', '--format', 'yaml', 'tidy']).err
       .includes('text or json'))
     Assert.ok(cli(['mod', '--nope', 'tidy']).err.includes('unknown mod option'))
@@ -841,7 +1041,7 @@ describe('mod-tool', () => {
     Assert.ok(cli(['mod', 'manifest', '--against']).err
       .includes('--against needs a module directory'))
     Assert.ok(cli(['mod', 'nope']).err
-      .includes('needs tidy, vendor or manifest'))
+      .includes('needs tidy, verify, vendor or manifest'))
   })
 
 })

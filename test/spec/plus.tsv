@@ -13,3 +13,14 @@ str-num-concat	gen	x:a+1	{"x":"a1"}
 qstr-num-concat	gen	x:"q"+0.001	{"x":"q0.001"}
 pref-operand	gen	x:pref(1)+2	{"x":3}
 top-operand-err	err	x:top+1	Cannot resolve value
+
+# An expression arriving as a PEER-ONLY key computes exactly as it does
+# written inline (2026-08-26, BUGS.md sec 36's general form): the map
+# meet CARRIES an operator instead of wrapping it as an expectation, so
+# the own-key loop keeps driving it. Historically `a:{x:1} a:{y:.x+1}`
+# froze the op and died as a phantom mapval_spread_required naming a
+# spread that existed nowhere. Parity-probed.
+peer-key-expr	gen	a:{x:1}\na:{y:.x+1}	{"a":{"x":1,"y":2}}
+# ... and one that can NEVER resolve is an honest unresolved-reference
+# error naming the real path ($.a.y via .z), not a phantom spread.
+peer-key-expr-unresolvable	errc	a:{x:1}\na:{y:.z+1}	no_path

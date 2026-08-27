@@ -6,6 +6,7 @@ const err_1 = require("../err");
 const MapVal_1 = require("./MapVal");
 const ListVal_1 = require("./ListVal");
 const FuncBaseVal_1 = require("./FuncBaseVal");
+const Val_1 = require("./Val");
 const PlaceVal_1 = require("./PlaceVal");
 class FilterFuncVal extends FuncBaseVal_1.FuncBaseVal {
     constructor(spec, ctx) {
@@ -50,8 +51,12 @@ class FilterFuncVal extends FuncBaseVal_1.FuncBaseVal {
         const keeps = (child, kctx) => {
             // `_` inside the condition binds the child being tested (G8
             // phase 3), so a condition can be about the child as a whole
-            // rather than only about its shape.
-            const test = (0, PlaceVal_1.fillPlace)(cond.clone(kctx), child, kctx);
+            // rather than only about its shape. The condition is cloned as
+            // a FULL instance per trial (`dup`, ADR-005) — a bare clone
+            // shares call/pref innards across trials (see PackFuncVal).
+            const inst = cond.clone(kctx, { dup: true });
+            (0, Val_1.repathInstance)(inst, inst.path);
+            const test = (0, PlaceVal_1.fillPlace)(inst, child, kctx);
             const met = (0, FuncBaseVal_1.trialUnify)(kctx, child.clone(kctx), test);
             return undefined !== met && met.canon === child.canon;
         };

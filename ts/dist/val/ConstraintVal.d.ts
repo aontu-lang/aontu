@@ -24,6 +24,7 @@ type ConstraintState = {
     res: ReAtom[];
     count?: ConstraintState;
     uniq: boolean;
+    uniqBy: string[];
     musts: MustAtom[];
     clash?: boolean;
     invalid?: string;
@@ -40,6 +41,7 @@ declare class ConstraintVal extends FeatureVal {
     res: ReAtom[];
     count?: ConstraintState;
     uniq: boolean;
+    uniqBy: string[];
     musts: MustAtom[];
     pending?: {
         atom: string;
@@ -57,7 +59,9 @@ declare class ConstraintVal extends FeatureVal {
     private settle;
     private admit;
     private checkMusts;
+    settleContainer(peer: any, ctx: AontuContext): Val;
     private admitContainer;
+    private hold;
     private meetKind;
     private meetConstraint;
     private finish;

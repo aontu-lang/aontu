@@ -108,6 +108,12 @@ unite	errcode	conflict	0.51.0
 exact_float_mix	errcode	conflict	0.51.0
 inexact_integer_sum	errcode	conflict	0.51.0
 decimal_budget	errcode	conflict	0.51.0
+pick_key	errcode	conflict	0.53.0
+aggregate_data	errcode	conflict	0.53.0
+aggregate_empty	errcode	conflict	0.53.0
+divide_by_zero	errcode	conflict	0.53.0
+inexact_divide	errcode	conflict	0.53.0
+float_overflow	errcode	conflict	0.53.0
 lossy_integer_literal	errcode	conflict	0.51.0
 arg	errcode	conflict	0.51.0
 invalid-arg	errcode	conflict	0.51.0
@@ -125,6 +131,7 @@ close	errcode	conflict	0.51.0
 #
 # incomplete -- residue: the truth requires more than was supplied
 no_gen	errcode	incomplete	0.51.0
+disjunct_no_gen	errcode	incomplete	0.53.0
 conjunct	errcode	incomplete	0.51.0
 mapval_no_gen	errcode	incomplete	0.51.0
 mapval_required	errcode	incomplete	0.51.0
@@ -249,6 +256,7 @@ refer_unresolved	errcode	reference	0.53.0
 # reports them; the lattice never sees them.
 relation_cycle	errcode	conflict	0.53.0
 relation_inverse_missing	errcode	conflict	0.53.0
+relation_target_unmet	errcode	conflict	0.53.0
 # THE GENERATION COMBINATORS (G8 phase 1, `pack` and `each`). Three
 # codes, all class `parse`: what is wrong is the CALL as the author
 # wrote it, and no later pass repairs it. `pack_data`/`each_data` is

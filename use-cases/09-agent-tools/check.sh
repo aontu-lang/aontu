@@ -110,14 +110,18 @@ has vdep out 'deprecated'
 has vdep out 'redirects'
 ok "vet: sunset argument admitted with a deprecation warning (exit 0)"
 
-# Pin of a HOLE, not an endorsement: the schema says
-# labels: [...] & length(max(10)) & unique(), but sizing atoms fold
-# against the schema's own empty templated list when the schema
-# settles alone, so vet never re-checks them against the data
-# (README, gap 8). Delete this pin when the engine fixes it.
-vet_call vdup 0 call-ticket-dup-labels.json
-has vdup out 'verdict: valid'
-ok "vet: duplicate labels pass -- pins gap 8 (unique() not enforced)"
+# FIXED 2026-08-27 (the review's finding C, BUGS.md sec 16): this used
+# to pin a HOLE. The schema says
+# labels: [...] & length(max(10)) & unique(), and the sizing atoms
+# folded against the schema's OWN empty templated list the moment the
+# schema settled alone, so vet never re-checked them against the data
+# and duplicate labels vetted valid. A sizing verdict is now taken only
+# when more members cannot change it, so the atoms are still on the
+# value when the data arrives -- and the duplicate is caught.
+vet_call vdup 1 call-ticket-dup-labels.json
+has vdup out 'verdict: invalid'
+has vdup out '$.guard.create_ticket.labels'
+ok "vet: duplicate labels REFUSED -- gap 8's unique() hole is closed"
 
 # The documented hole this layout works around: vetting the same
 # missing-required call against the type()-marked call schemas inside
@@ -260,7 +264,10 @@ grep '^TOOLS ' "$WORK/mcp.out" | sed 's/^TOOLS //' > "$WORK/mcp-tools.json"
 diff -u "$DIR/expected/mcp-tools.json" "$WORK/mcp-tools.json" \
   || fail "MCP tools/list drifted from expected/mcp-tools.json"
 has mcp out 'VETSCHEMA ["schema","data"]'
-ok "mcp: initialize + tools/list answer the expected six tools"
+# 2026-08-26: expected/mcp-tools.json refreshed to the twelve-verb
+# surface (the MCP completion commit added subsume, breaking, set,
+# relations, hash and trim to the original six).
+ok "mcp: initialize + tools/list answer the expected twelve tools"
 
 has mcp out 'VET_OK valid isError=false'
 has mcp out 'VET_BAD invalid constraint'

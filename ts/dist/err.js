@@ -5,10 +5,41 @@ exports.AontuError = void 0;
 exports.getHint = getHint;
 exports.makeNilErr = makeNilErr;
 exports.descErr = descErr;
+exports.setColor = setColor;
+exports.colorActive = colorActive;
 const jsonic_1 = require("@tabnas/jsonic");
 const NilVal_1 = require("./val/NilVal");
 const hints_1 = require("./hints");
 const { errmsg, strinject } = jsonic_1.util;
+// COLOUR IS A DECISION ABOUT THE DESTINATION, not about the message.
+// Every error frame hardcoded the ANSI escapes, so a piped report and
+// a `--jsonl` answer carried terminal control codes into whatever read
+// them -- a log file, a CI annotation, an agent's parser (the review's
+// finding F).
+//
+// NO_COLOR (no-color.org: set, to anything, means no colour) turns them
+// off everywhere, library callers included. The CLI additionally turns
+// them off when its stderr is not a terminal, through setColor: a
+// library cannot see the destination, and a caller who has one is the
+// only one who can say.
+let COLOR;
+function setColor(on) {
+    COLOR = on;
+}
+function colorActive() {
+    if (null != COLOR) {
+        return COLOR;
+    }
+    // `globalThis` always exists; `process` need not (this library runs
+    // in a browser too), so the optional chain starts at the part that
+    // can actually be missing -- and stays a CHAIN rather than becoming
+    // an `if`, because the browser arm is unreachable from any test this
+    // suite can run and ADR-002 does not accept an arm nothing takes.
+    // Set-but-EMPTY is the documented exception and does not disable
+    // colour (no-color.org).
+    const no = globalThis.process?.env?.NO_COLOR;
+    return null == no || '' === no;
+}
 function getHint(why, details) {
     if (hints_1.hints[why]) {
         let txt = hints_1.hints[why];
@@ -58,7 +89,7 @@ function descErr(err, errctx) {
             const details = err.details;
             err.msg = [
                 errmsg({
-                    color: { active: true },
+                    color: { active: colorActive() },
                     name: 'aontu',
                     code: err.why,
                     txts: {
@@ -72,7 +103,7 @@ function descErr(err, errctx) {
                 '\n',
                 (null != v1 && errmsg({
                     // TODO: color should come from jsonic config
-                    color: { active: true, line: '\x1b[34m' },
+                    color: { active: colorActive(), line: '\x1b[34m' },
                     txts: {
                         msg: 'Cannot ' + attempt + ' value: ' + v1.canon +
                             (null == v2 ? '' : ' with value: ' + v2.canon), // + ' #' + err.id,
@@ -87,7 +118,7 @@ function descErr(err, errctx) {
                 })),
                 (null != v2 && errmsg({
                     // TODO: color should come from jsonic config
-                    color: { active: true, line: '\x1b[34m' },
+                    color: { active: colorActive(), line: '\x1b[34m' },
                     txts: {
                         msg: 'Cannot ' + attempt + ' value: ' + v2.canon +
                             ' with value: ' + v1.canon, // + ' #' + err.id,
@@ -165,6 +196,6 @@ class AontuError extends Error {
             .filter(line => !line.match(/aontu\/(src|dist)\//))
             .join('\n');
     }
-} /* node:coverage ignore next 9 */
+} /* node:coverage ignore next 11 */
 exports.AontuError = AontuError;
 //# sourceMappingURL=err.js.map

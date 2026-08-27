@@ -184,6 +184,44 @@ func TestBreakingModesChooseTheDirections(t *testing.T) {
 	}
 }
 
+// `--at` GATES A SUBTREE. A module's top level carries the version
+// string and the policy block, which are SUPPOSED to change between
+// releases -- so the whole-document comparison answered about them
+// rather than about the contract, and a release that bumped only its
+// version self-broke the gate. `subsume` has taken `--at` since G3;
+// `breaking` did not, so the only way to gate a subtree was to split
+// the file (use-cases/REVIEW.md finding D). The first leg is the
+// control: without it, the version bump alone is breaking. Twin:
+// breaking-at-gates-a-subtree in ts/test/cli.test.ts.
+func TestBreakingAtGatesASubtree(t *testing.T) {
+	_, g, s := subFiles(t,
+		"version: \"2.0.0\"\nsvc: {port: integer}",
+		"version: \"1.0.0\"\nsvc: {port: integer}")
+	out, _, code := brkRun("--against", s, g)
+	if 1 != code {
+		t.Fatalf("whole document: want 1, got %d:\n%s", code, out)
+	}
+	vetMatch(t, out, `\$\.version: compat_narrowed`)
+
+	out, _, code = brkRun("--at", "$.svc", "--against", s, g)
+	if 0 != code {
+		t.Fatalf("--at: want 0, got %d:\n%s", code, out)
+	}
+	vetMatch(t, out, `verdict: compatible`)
+
+	// And it still gates: a narrowing INSIDE the anchor is refused.
+	// Paths are reported from the ANCHOR, which is `subsume --at`'s own
+	// convention.
+	_, g2, s2 := subFiles(t,
+		"version: \"2.0.0\"\nsvc: {port: 8080}",
+		"version: \"1.0.0\"\nsvc: {port: integer}")
+	out, _, code = brkRun("--at", "$.svc", "--against", s2, g2)
+	if 1 != code {
+		t.Fatalf("narrowed under --at: want 1, got %d:\n%s", code, out)
+	}
+	vetMatch(t, out, `\$\.port: compat_narrowed`)
+}
+
 func TestBreakingResolvesGitRevisions(t *testing.T) {
 	dir := t.TempDir()
 	file := filepath.Join(dir, "svc.aon")
@@ -230,12 +268,108 @@ func TestBreakingResolvesGitRevisions(t *testing.T) {
 		t.Fatalf("want 2/cannot resolve, got %d: %s", code, errw)
 	}
 
+	// A file the revision does not carry is refused by name rather
+	// than compared against nothing.
+	absent := filepath.Join(dir, "absent.aon")
+	if err := os.WriteFile(absent, []byte("a: 1"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	_, errw, code = brkRun("--against", "git#HEAD", absent)
+	if 2 != code || !strings.Contains(errw, "absent.aon is not in that revision") {
+		t.Fatalf("want 2/not in revision, got %d: %s", code, errw)
+	}
+
 	// No git binary at all: still a located usage failure, using the
 	// spawn error's own message since there is no stderr to quote.
 	t.Setenv("PATH", "")
 	_, errw, code = brkRun("--against", "git#HEAD", file)
 	if 2 != code || !strings.Contains(errw, "cannot resolve git#HEAD") {
 		t.Fatalf("want 2/cannot resolve, got %d: %s", code, errw)
+	}
+}
+
+// THE OLD SIDE IS THE OLD TREE, not old entry text meeting new
+// includes. The git spelling used to resolve the old document's
+// @"..." loads against the WORKING tree, so a breaking change made
+// inside an included file compared against itself and answered
+// compatible -- the CI gate silently un-gated every non-entry file
+// (use-cases/BUGS.md §26). Both directions are asserted: the narrowing
+// is caught, and an unchanged tree stays compatible, so a fix that
+// simply reported breaking would fail too.
+func TestBreakingGitComparesTheOldTree(t *testing.T) {
+	dir := t.TempDir()
+	model := filepath.Join(dir, "model")
+	if err := os.MkdirAll(model, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	entry := filepath.Join(model, "entry.aon")
+	inc := filepath.Join(model, "schema.aon")
+	git := func(args ...string) {
+		full := append([]string{
+			"-c", "user.email=t@example.com", "-c", "user.name=t"}, args...)
+		cmd := exec.Command("git", full...)
+		cmd.Dir = dir
+		if err := cmd.Run(); err != nil {
+			t.Skipf("git unavailable: %v", err)
+		}
+	}
+	if err := os.WriteFile(entry, []byte("svc: @\"schema.aon\""), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(inc, []byte("port: *8080|integer"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	// A file no include can name: the materialiser must skip it.
+	if err := os.WriteFile(
+		filepath.Join(dir, "README.md"), []byte("# not a source"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	git("init", "-q", ".")
+	git("add", "-A")
+	git("commit", "-q", "-m", "v1")
+
+	// Unchanged tree: compatible.
+	out, _, code := brkRun("--against", "git#HEAD", entry)
+	if 0 != code {
+		t.Fatalf("unchanged tree: want 0, got %d:\n%s", code, out)
+	}
+	vetMatch(t, out, `verdict: compatible`)
+
+	// The narrowing lives in the INCLUDED file only.
+	if err := os.WriteFile(inc, []byte("port: 8080"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	out, _, code = brkRun("--against", "git#HEAD", entry)
+	if 1 != code {
+		t.Fatalf("narrowed include: want 1, got %d:\n%s", code, out)
+	}
+	vetMatch(t, out, `verdict: breaking`)
+	vetMatch(t, out, `\$\.svc\.port`)
+
+	// THE PATH TO THE ENTRY NEED NOT BE THE PATH GIT PRINTS. Reaching
+	// the same file through a SYMLINK is the shape macOS and Windows
+	// hand every run of this verb: on macOS a temp file under /var is
+	// /private/var to git, and on Windows a TMP short name is the long
+	// form -- so relativising git's toplevel against the caller's
+	// resolved path subtracted two different coordinate systems, gave a
+	// `../..` climb, and the entry was "not in that revision". Exit 2 on
+	// both platforms, green on Linux, for the documented CI spelling.
+	// The repo-relative path now comes from git itself (`rev-parse
+	// --show-prefix`), so the caller's spelling cannot matter -- and
+	// this case runs on every platform.
+	//
+	// Best-effort: Windows refuses a symlink without Developer Mode,
+	// which is a privilege question rather than a defect in anything
+	// being tested. Twin: the linked leg of
+	// breaking-git-compares-the-old-tree in ts/test/cli.test.ts.
+	linked := filepath.Join(dir, "linked")
+	if err := os.Symlink(model, linked); nil == err {
+		out, _, code = brkRun(
+			"--against", "git#HEAD", filepath.Join(linked, "entry.aon"))
+		if 1 != code {
+			t.Fatalf("through a symlink: want 1, got %d:\n%s", code, out)
+		}
+		vetMatch(t, out, `verdict: breaking`)
 	}
 }
 
@@ -318,6 +452,12 @@ func TestBreakingUsageErrorsExit2(t *testing.T) {
 	}
 	if _, _, code := brkRun("--mode", "sideways", "--against", "a.aon", "b.aon"); 2 != code {
 		t.Fatalf("want 2, got %d", code)
+	}
+	// LAST, so the flag really has no argument: `--at --against x`
+	// would take "--against" as the path, which is a different (and
+	// already-covered) failure.
+	if _, _, code := brkRun("--against", "a.aon", "b.aon", "--at"); 2 != code {
+		t.Fatalf("--at with no path: want 2, got %d", code)
 	}
 	if _, _, code := brkRun("--format", "yaml", "--against", "a.aon", "b.aon"); 2 != code {
 		t.Fatalf("want 2, got %d", code)

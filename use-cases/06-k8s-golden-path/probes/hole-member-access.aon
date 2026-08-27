@@ -1,5 +1,16 @@
-# FAILED ATTEMPT: project a field out of the pack source row via the
-# hole.  _.ports is not spellable ("Cannot resolve value: . unspellable.ports").
-# This is why services.aon is column-oriented.  [aontu/no_path].
+# README gap 5 -- the bare `_.field` spelling is still refused, and the
+# projection it was reaching for is now WRITABLE (2026-08-27).
+#
+# `_.ports` inside a pack template asks for a value that is both the
+# whole source row and one of its fields, which is why every spelling
+# of it answered no_path ("Cannot resolve value: .unspellable.ports").
+# `pick(d, k)` is the projector the language gained instead: wrap the
+# hole in a one-element bag and project it, `pick([_], ports)`.
+#
+# Clunkier than `_.ports` would be, and it is a spelling rather than
+# nothing at all -- which is what the gap was.
+# run: aontu probes/hole-member-access.aon
+# expected: manifests.web.portList holds the ports map, exit 0
+# actual:   manifests.web.portList holds the ports map, exit 0
 services: { web: { ports: { http: { containerPort: 8080 } } } }
-manifests: pack($.services, { portList: each(_.ports) })
+manifests: pack($.services, { portList: pick([_], ports) })

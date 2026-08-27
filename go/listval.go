@@ -47,12 +47,12 @@ func (l *ListVal) Canon() string {
 }
 
 func (l *ListVal) Gen(ctx *Ctx) (any, error) {
-	if l.mtype || l.mhide {
+	if (l.mtype || l.mhide) && !probing(ctx) {
 		return nil, nil
 	}
 	out := make([]any, 0, len(l.peg))
 	for i, e := range l.peg {
-		if e.markedType() || e.markedHide() {
+		if (e.markedType() || e.markedHide()) && !probing(ctx) {
 			continue
 		}
 		// Mirrors the MapVal.Gen child handling (which mirrors TS

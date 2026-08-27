@@ -36,7 +36,7 @@ import { DeprecateFuncVal } from '../dist/val/DeprecateFuncVal'
 import { collectDeprecations } from '../dist/utility'
 import { hcanon, canonHash } from '../dist/hcanon'
 import { projectFor } from '../dist/query'
-import { Provenance } from '../dist/provenance'
+import { Provenance, markSpread } from '../dist/provenance'
 import { IdFuncVal, idName } from '../dist/val/IdFuncVal'
 import { ReferVal, parseAddress, findEntity } from '../dist/val/ReferFuncVal'
 import { graphOf } from '../dist/graph'
@@ -64,7 +64,9 @@ import { VarVal } from '../dist/val/VarVal'
 import { ConjunctVal } from '../dist/val/ConjunctVal'
 import { DisjunctVal } from '../dist/val/DisjunctVal'
 import { PrefVal } from '../dist/val/PrefVal'
+import { effectiveScrutinee } from '../dist/val/MatchFuncVal'
 import { ExpectVal } from '../dist/val/ExpectVal'
+import { ScalarKindVal, Integer } from '../dist/val/ScalarKindVal'
 import { FeatureVal } from '../dist/val/FeatureVal'
 import { FuncBaseVal } from '../dist/val/FuncBaseVal'
 import { PathFuncVal } from '../dist/val/PathFuncVal'
@@ -363,6 +365,16 @@ describe('coverage3-bags', () => {
     e2.parent = new MapVal({ peg: {} })
     e2.key = 'a'
     Assert.ok(e2.inspection(0).includes('parent='))
+
+    // A non-escaping peer rides a NEW node (pure unify — the
+    // unequal-spread crosswire, BUGS.md §6-§7): the met expectation
+    // stays untouched, and the carried node's inspection renders the
+    // accumulated peer.
+    const e3: any = new ExpectVal({ peg: new ScalarKindVal({ peg: Integer }) }, ctx)
+    const out3: any = e3.unify(new ScalarKindVal({ peg: Number }), ctx)
+    Assert.ok(out3.isExpect && out3 !== e3 && undefined !== out3.peer)
+    Assert.equal(e3.peer, undefined)
+    Assert.ok(out3.inspection(0).includes('peer='))
   })
 })
 
@@ -773,7 +785,14 @@ describe('coverage3-lsp', () => {
       'a:$.b b:$.c c:$.d d:$.e e:$.f f:$.g g:$.h h:$.i i:$.j j:$.k k:$.l l:1',
       2), /\*reference\*/)
     Assert.match(label('n:1.5', 2), /\*float\*/)
-    Assert.match(label('x:null|top', 2), /\*scalar\*/)
+    Assert.match(label('x:null', 2), /\*scalar\*/)
+    // A DISJUNCTION LABELS ITSELF. `x:null|top` used to hover as
+    // *scalar*: the disjunct arrived unsited, so the hover walk found
+    // the null MEMBER under the cursor instead. Carrying the site
+    // through the meet (ts/src/val/DisjunctVal.ts, the review's finding
+    // F) makes the disjunction the thing at that position, which is
+    // what is written there.
+    Assert.match(label('x:null|top', 2), /\*disjunct\*/)
     Assert.match(label('x:top|top', 2), /\*top\*/)
   })
 
@@ -1055,18 +1074,17 @@ describe('coverage3-query', () => {
 describe('coverage3-provenance', () => {
 
   // The last tiebreak of the contribution order (G7 phase 3): two
-  // values written at the SAME file, row and column. No document
-  // produces that — a position holds one value — but the order has to
-  // be TOTAL anyway, because a partial one would leave the record's
-  // tail in meet order, which is the fixpoint's business and differs
-  // between the ports.
+  // UNSITED contributions, which is now the only way two of them share
+  // a "position" — a real site identifies one written token and the
+  // record is deduplicated on it (finding E). The order still has to
+  // be TOTAL, because a partial one would leave the record's tail in
+  // meet order, which is the fixpoint's business and differs between
+  // the ports.
   test('provenance-orders-same-site-contributions-by-canon', () => {
     const ctx = new Aontu().ctx({})
     const zed = new StringVal({ peg: 'z' }, ctx)
     const alf = new StringVal({ peg: 'a' }, ctx)
     for (const v of [zed, alf]) {
-      v.site.row = 1
-      v.site.col = 1
       v.site.url = 'one.aon'
     }
 
@@ -1077,6 +1095,72 @@ describe('coverage3-provenance', () => {
     Assert.deepEqual(prov.at(['k']).map((c: any) => c.canon), ['"a"', '"z"'])
     // A path nothing met has no record at all.
     Assert.deepEqual(prov.at(['nowhere']), [])
+  })
+
+
+  // THE SPREAD MARK'S GUARD IS A CYCLE GUARD, not a "done" flag: it
+  // must stop the walk revisiting a value it has already reached in
+  // THIS walk, and must not stop a later application re-walking a
+  // template the fixpoint has advanced in place (finding E, BUGS.md
+  // §22). A tree holding one child under two keys is the shape that
+  // exercises it, and no source builds one -- the parser gives every
+  // key its own value -- so it is built here.
+  test('mark-spread-visits-a-shared-child-once', () => {
+    const ctx = new Aontu().ctx({})
+    const shared = new StringVal({ peg: 'x' }, ctx)
+    const tree = new MapVal({ peg: { a: shared, b: shared } }, ctx)
+    markSpread(tree)
+    Assert.equal((shared as any)._fromSpread, true)
+    Assert.equal((tree as any)._fromSpread, true)
+
+    // A SECOND application re-walks and re-marks: the fixpoint replaces
+    // a template's children between the two, and the replacements are
+    // what the first walk could not have seen.
+    const replaced = new StringVal({ peg: 'y' }, ctx)
+    ;(tree as any).peg.a = replaced
+    markSpread(tree)
+    Assert.equal((replaced as any)._fromSpread, true)
+  })
+
+
+  // ONE WRITTEN TOKEN IS ONE CONTRIBUTION (the review's finding E).
+  // The same written value reaches a path more than once now that
+  // provenance travels through clones -- as the template application
+  // and as the value written at the key, or at two stages of narrowing
+  // -- and the SITE is what says they are one thing. The role is not
+  // part of that identity, so the more informative one survives. The
+  // Go twin is TestProvenanceDeduplicatesBySite.
+  test('one-written-token-is-one-contribution', () => {
+    const ctx = new Aontu().ctx({})
+    const at = (v: any) => {
+      v.site.row = 1
+      v.site.col = 4
+      v.site.url = 'one.aon'
+      v.site.src = 'x'
+      return v
+    }
+    const lit = at(new StringVal({ peg: 'x' }, ctx))
+    const narrowed = at(new StringVal({ peg: 'x' }, ctx))
+
+    const prov = new Provenance()
+    prov.writtenFrom(new MapVal({ peg: { a: lit, b: narrowed } }, ctx))
+    // The narrowed one arrived through a template.
+    ;(narrowed as any)._fromSpread = true
+    prov.record(['k'], lit, narrowed, undefined)
+
+    const got: any[] = prov.at(['k'])
+    Assert.equal(got.length, 1, JSON.stringify(got))
+    // The role that says HOW it got here wins over "written there".
+    Assert.equal(got[0].role, 'spread')
+
+    // An UNSITED contribution cannot be told apart from another, so
+    // they are kept as they come rather than collapsed.
+    const p = new StringVal({ peg: 'p' }, ctx)
+    const q = new StringVal({ peg: 'q' }, ctx)
+    const prov2 = new Provenance()
+    prov2.writtenFrom(new MapVal({ peg: { p, q } }, ctx))
+    prov2.record(['u'], p, q, undefined)
+    Assert.equal(prov2.at(['u']).length, 2)
   })
 
 })
@@ -1316,6 +1400,82 @@ describe('coverage3-staging', () => {
 
     // ctx.settle is false, so this is the residuation path.
     Assert.strictEqual(key.unify(nil, ctx), nil)
+  })
+
+  test('nil-absorbs-a-unify', () => {
+    // NilVal.unify answers itself: a nil is absorbing, by definition.
+    // The dispatcher (unite) short-circuits on isNil before dispatching,
+    // so the method is reached only by a direct call — it used to be
+    // reached through DisjunctVal returning a lone trial sentinel as
+    // its result, a hole ADR-004's admission gate closed (a lone failed
+    // member is now the |:empty refusal) — and the Val contract is
+    // pinned here instead (ADR-002).
+    const a0 = new Aontu()
+    const ctx: any = a0.ctx({})
+    const nil: any = new NilVal({ why: 'test-absorb' }, ctx)
+    Assert.strictEqual(nil.unify(top(), ctx), nil)
+  })
+
+  test('defaulted-scrutinee-multi-pref-min-rank', () => {
+    // The defensive min-rank scan in effectiveScrutinee (ADR-004, the
+    // defaulted-scrutinee rule): rankPrefs leaves a SETTLED disjunct
+    // at most one pref, so a document cannot reach a two-pref
+    // scrutinee — the arm is pinned here (ADR-002), in both member
+    // orders so both sides of the rank comparison run. The effective
+    // value is the innermost peg of the LOWEST rank, matching
+    // generation (`a:**1|*2` generates 2 — test/spec/edge.tsv).
+    const rank2 = new PrefVal({
+      peg: new PrefVal({ peg: new IntegerVal({ peg: 1 }) }),
+    })
+    const rank1 = new PrefVal({ peg: new IntegerVal({ peg: 2 }) })
+
+    const d1: any = new DisjunctVal({ peg: [rank2, rank1] })
+    Assert.strictEqual((effectiveScrutinee(d1) as any).peg, 2)
+
+    const d2: any = new DisjunctVal({ peg: [rank1, rank2] })
+    Assert.strictEqual((effectiveScrutinee(d2) as any).peg, 2)
+  })
+
+  // BagVal.same's two guards that no source spells (ADR-002). The
+  // identity fast path needs the SAME object on both sides, which the
+  // parser never produces twice, and every discriminating comparison
+  // below IS reachable from source (test/spec/disjunct.tsv,
+  // "SAMENESS IS STRICTER THAN CANON") -- they are repeated here only
+  // because the direct call is the clearest statement of the contract.
+  test('bag-same-is-structural', () => {
+    const one: any = new MapVal({ peg: { a: new IntegerVal({ peg: 1 }) } })
+    const two: any = new MapVal({ peg: { a: new IntegerVal({ peg: 1 }) } })
+
+    Assert.equal(one.same(one), true, 'identity')
+    Assert.equal(one.same(two), true, 'same shape')
+    Assert.equal(one.same(new IntegerVal({ peg: 1 })), false, 'not a bag')
+    Assert.equal(one.same(undefined), false, 'no peer')
+
+    const closed: any = new MapVal({ peg: { a: new IntegerVal({ peg: 1 }) } })
+    closed.closed = true
+    Assert.equal(one.same(closed), false, 'closedness')
+
+    const marked: any = new MapVal({ peg: { a: new IntegerVal({ peg: 1 }) } })
+    marked.mark.type = true
+    Assert.equal(one.same(marked), false, 'marks')
+
+    const wider: any = new MapVal({
+      peg: { a: new IntegerVal({ peg: 1 }), b: new IntegerVal({ peg: 2 }) },
+    })
+    Assert.equal(one.same(wider), false, 'key count')
+  })
+
+
+  // A SINGLE-MEMBER DISJUNCTION GENERATES THAT MEMBER (ADR-007). unify
+  // returns the sole survivor directly rather than re-wrapping it, so a
+  // document cannot reach gen holding a one-member disjunct -- but the
+  // type allows one, a library caller can build one, and the
+  // alternative to answering its member is refusing a disjunction that
+  // is not ambiguous at all. Twin: TestDisjunctSingleMemberGenerates in
+  // go/coverage3_test.go.
+  test('disjunct-single-member-generates', () => {
+    const d: any = new DisjunctVal({ peg: [new IntegerVal({ peg: 7 })] })
+    Assert.equal(d.gen(CTX()), 7)
   })
 
 })

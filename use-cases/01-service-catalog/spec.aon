@@ -1,13 +1,20 @@
 # spec.aon --- Acme's service vocabulary, layered over @"std/system".
-# Not wrapped in type(): a type()-marked schema referencing $.std.*
-# fails with [aontu/mapval_no_gen] once included (README, gap 1);
-# hide() keeps it out of output and survives inclusion.
+# Not wrapped in type(): historically a type()-marked schema
+# referencing $.std.* failed with [aontu/mapval_no_gen] once included
+# (README, gap 1).  2026-08-26: fixed by the template-clone isolation
+# change (ADR-005), so type() would work here now; hide() is kept as
+# an equally-correct arrangement that also keeps the bag out of
+# output.
 spec: hide({
 
   # The org's port shape: the bundled Port plus a concrete number.
-  # MUST be the one ports template both views name: different ports
-  # templates on the two id-merged views unified sibling ports with
-  # each other, [aontu/scalar_value] 9901 & 443 (README, gap 7).
+  # Historically this HAD to be the one ports template both views
+  # name: different ports templates on the two id-merged views unified
+  # sibling ports with each other, [aontu/scalar_value] 9901 & 443
+  # (README, gap 7). 2026-08-26: fixed by the spread application
+  # rework (BUGS.md sec 6) -- unequal by-reference templates now meet
+  # each child independently; the single shared template is kept as
+  # good style, no longer a required workaround.
   PortSpec: $.std.Port & {number: integer & min(1) & max(65535)}
 
   # One catalog entry: what the org promises about a service,
@@ -22,17 +29,25 @@ spec: hide({
     description: string & length(min(10))
     # Checked entity references: each element must name an entity that
     # exists in this evaluation and is a service; the address string
-    # (the link, not the target) must look like svc/<name>. The wanted
-    # refer($.std.Service) dies of [aontu/unify_cycle] on this model,
-    # and typing BOTH directions of the inverse pair dies the same way
-    # (README, gap 8) -- hence one thin type, one bare refer().
-    dependsOn?: [&: refer({kind: service}) & string & re("^svc/")]
-    dependedOnBy?: [&: refer() & string & re("^svc/")]
+    # (the link, not the target) must look like svc/<name>.
+    #
+    # THE DOCUMENTED IDIOM, in BOTH directions (README, gap 8, fixed
+    # 2026-08-27). `refer($.std.Service)` used to die of
+    # [aontu/unify_cycle] on this model, and typing both ends of an
+    # inverse pair died the same way in two lines -- the flow unified
+    # `t` into the target, uniting the target drove the target's own
+    # subtree, and a pair that linked back at each other flowed into
+    # each other until the budget ended it. So this file shipped one
+    # thin literal type and one bare refer(). Both ends carry the real
+    # schema now.
+    dependsOn?: [&: refer($.std.Service) & string & re("^svc/")]
+    dependedOnBy?: [&: refer($.std.Service) & string & re("^svc/")]
   }
 
   # One workload: what a cluster actually runs. Names $.std.Service
   # and $.spec.PortSpec exactly as CatalogEntry does, so both
-  # id-merged views carry the SAME template set (gap 7).
+  # id-merged views carry the SAME template set (gap 7 -- fixed
+  # 2026-08-26, kept as style; see the PortSpec note above).
   Workload: $.std.Service & {
     replicas: *2 | integer & min(1) & max(48)
     image: string & re("^registry[.]acme[.]internal/")

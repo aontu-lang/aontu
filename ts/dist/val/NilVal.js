@@ -97,6 +97,30 @@ NilVal.make = (ctx, why, av, bv, attempt, details) => {
             }
         }
     }
+    // THE PATH IS WHERE THE MEET IS, NOT WHERE THE OPERAND WAS WRITTEN
+    // (use-cases/BUGS.md §41). The operand path above decides the SITE
+    // correctly and the path only by accident: a value that arrives by
+    // REFERENCE is re-pathed to the referring field, and its children
+    // are re-pathed to that same field rather than rebased under it, so
+    // every conflict inside `q: $.M` reported `$.q` — the enclosing
+    // record, not the key to edit, and the SAME path for every one of
+    // its fields. The context has descended to the child by the time
+    // the meet fails, and Go reads the path off the tree position for
+    // exactly this reason.
+    //
+    // Only EXTENDS, never redirects: the context path is taken when the
+    // operand's path is a PREFIX of it, so a nil minted away from the
+    // descent (a func resolving an argument, a generator's own probe,
+    // an anchored `--at` run whose operand is already correctly placed)
+    // keeps the path its operand carries. Taking the context path
+    // unconditionally was tried and reverted -- it moved the closed-key,
+    // spread-template and every `--at` finding to the driving location,
+    // which is not where those belong.
+    if (null != ctx?.path && null != nil.path &&
+        nil.path.length < ctx.path.length &&
+        nil.path.every((p, i) => p === ctx.path[i])) {
+        nil.path = [...ctx.path];
+    }
     if (ctx) {
         ctx.adderr(nil);
     }

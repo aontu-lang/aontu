@@ -44,6 +44,28 @@ a: id(a) & {dependsOn: [&: refer(), b]}
 b: id(b) & {usedBy: [&: refer(), a]}
 `
 
+func TestRelationsRendersAnUnmetTarget(t *testing.T) {
+	// The `target` arm of the text renderer (the review's finding J).
+	// What the two ports must AGREE on is test/spec/relation.tsv; that
+	// the CLI prints it, and exits 1 for it, is this port's own.
+	file := filepath.Join(t.TempDir(), "doc.aon")
+	if err := os.WriteFile(file, []byte(
+		"relations: {dependsOn: {target: {kind: service}}}\n"+
+			"a: id(a) & {dependsOn: [&: refer(), b]}\n"+
+			"b: id(b) & {kind: database}\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var out, errw bytes.Buffer
+	code := run([]string{"relations", file},
+		strings.NewReader(""), &out, &errw, false)
+	if 1 != code {
+		t.Fatalf("code %d: %s%s", code, out.String(), errw.String())
+	}
+	if !strings.Contains(out.String(), "b is not what dependsOn targets") {
+		t.Fatalf("target refusal not rendered: %s", out.String())
+	}
+}
+
 func TestRelationsVerb(t *testing.T) {
 	// A cycle AND a missing inverse: both are reported, and the exit
 	// class is the one an agent loop branches on.

@@ -114,7 +114,7 @@ func TestReplLoadRefusesABrokenDocument(t *testing.T) {
 // the JSONL protocol, which has no banner and no prompt.
 func TestReplLoopDrivesTheHandler(t *testing.T) {
 	var out bytes.Buffer
-	repl("json", false, strings.NewReader("a:1\n:quit\n"), &out)
+	repl("json", false, trustArg{}, strings.NewReader("a:1\n:quit\n"), &out)
 	if !strings.Contains(out.String(), "aontu>") ||
 		!strings.Contains(out.String(), "REPL") {
 		t.Fatalf("no banner or prompt: %q", out.String())
@@ -126,13 +126,13 @@ func TestReplLoopDrivesTheHandler(t *testing.T) {
 	doc := filepath.Join(dir, "doc.aon")
 	writeAt(t, doc, "a: 1")
 	out.Reset()
-	repl("json", false, strings.NewReader(":load "+doc+"\n:get $.a\n"), &out)
+	repl("json", false, trustArg{}, strings.NewReader(":load "+doc+"\n:get $.a\n"), &out)
 	if !strings.Contains(out.String(), "loaded: "+doc) {
 		t.Fatalf("loop did not load: %q", out.String())
 	}
 
 	out.Reset()
-	repl("json", true, strings.NewReader("a:1\n"), &out)
+	repl("json", true, trustArg{}, strings.NewReader("a:1\n"), &out)
 	got := strings.TrimSpace(out.String())
 	if strings.Contains(got, "aontu>") || strings.Contains(got, "REPL") {
 		t.Fatalf("jsonl session printed a banner: %q", got)

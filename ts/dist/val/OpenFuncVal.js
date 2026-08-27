@@ -16,11 +16,14 @@ class OpenFuncVal extends FuncBaseVal_1.FuncBaseVal {
         return 'open';
     }
     resolve(ctx, args) {
-        const argval = args[0];
+        let argval = args[0];
         if (null == argval) {
             return (0, err_1.makeNilErr)(ctx, 'no_first_arg', this, undefined, 'close');
         }
         if (argval.isMap || argval.isList) {
+            // In place, for the reason CloseFuncVal.resolve gives: the
+            // instantiation rule (ADR-005) makes the argument this call's
+            // own wherever the call is multiplied.
             argval.closed = false;
         }
         return argval;

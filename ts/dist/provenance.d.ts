@@ -17,22 +17,24 @@ export type WhyRecord = {
     value: string;
 };
 export declare const FROM_SPREAD = "_fromSpread";
-export declare function markSpread(v: any): void;
+export declare const WRITTEN = "_written";
+export declare const INNER_OF = "_innerOf";
+export declare function markSpread(v: any, seen?: Set<any>): void;
 type Contribution = WhyConjunct & {
     id: number;
 };
 type PathRecord = {
     conjuncts: Contribution[];
     made: Set<number>;
-    inside: Set<number>;
     seen: Set<number>;
 };
 export declare class Provenance {
     paths: Map<string, PathRecord>;
-    written: Set<number>;
+    containers: Map<number, any>;
     writtenFrom(v: any): void;
     record(path: string[], a: any, b: any, out: any): void;
     private contribute;
+    stands(path: string[], v: any): void;
     at(path: string[]): WhyConjunct[];
 }
 export {};

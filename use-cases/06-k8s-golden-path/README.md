@@ -155,9 +155,10 @@ concrete locations — the inconsistency is specifically pack templates.
 is no way to write `services: web: { replicas: 3, port: 8080 }` and
 consume the fields at different nested manifest positions.
 
-### 5. (major) no projection from the hole
+### 5. (major) — MOSTLY FIXED: no projection from the hole
 
-`_.field` is not spellable (`probes/hole-member-access.aon`):
+`_.field` was not spellable, so a field could not be projected out of
+the pack source row at all (`probes/hole-member-access.aon`):
 
 ```
 manifests: pack($.services, { portList: each(_.ports) })
@@ -167,14 +168,39 @@ manifests: pack($.services, { portList: each(_.ports) })
  Cannot resolve value: .unspellable.ports
 ```
 
-(the diagnostic also contains a literal NUL byte — `grep` reports
+(the diagnostic also contained a literal NUL byte — `grep` reported
 "binary file matches" on the output).
+
+**2026-08-27**: `pick(d, k)` is the projector the language gained
+(the review's finding I), and the hole reaches it by being wrapped in
+a one-element bag:
+
+```
+manifests: pack($.services, { portList: pick([_], ports) })
+```
+
+`check.sh` runs that as a golden now rather than as an expected
+failure. The bare `_.ports` spelling is still refused, and probably
+should be: it asks for a value that is simultaneously the whole source
+row and one of its fields. `pick([_], k)` is clunkier and it is a
+spelling, which is what the gap was about.
 
 ### 6. (major) a pack over spread-augmented data deadlocks
 
+> **2026-08-26: fixed by the spread application rework.** A
+> generator's data argument now snapshots its source only once the
+> source has settled in the tree, so the spread-injected relative
+> references arrive resolved and the pack fires —
+> `probes/spread-column-deadlock.aon` is now a working golden in
+> check.sh, and the DRY derivation below is writable (shared-spec
+> pins: `gen-pack.tsv` pack-over-spread-augmented, `gen-each.tsv`
+> each-over-spread-augmented). The hide()-loss half further down
+> remains as documented.
+
 The DRY fix for the port-entry duplication — derive `port`/`targetPort`
 from `containerPort` with a nested spread, then pack over the column —
-kills the whole model (`probes/spread-column-deadlock.aon`):
+historically killed the whole model
+(`probes/spread-column-deadlock.aon`):
 
 ```
 ports: &: &: { port: .containerPort, targetPort: .containerPort }
@@ -224,24 +250,44 @@ the default (`probes/default-with-bounds.aon`):
 ```
 
 Moving the bounds into the branch — `*2 | (integer & min(1) & max(20))`
-— generates, but any override skips the bounds entirely:
-`replicas: 40` is accepted, exit 0 (`probes/bound-bypass.aon` +
-golden). Every numeric policy therefore lives in `guardrails.aon` and
-is enforced only by a separate `vet` run, not by evaluation.
+— generates, and any override *used to* skip the bounds entirely:
+`replicas: 40` was accepted, exit 0.
 
-### 9. (major) no arithmetic beyond `+`, no unit arithmetic
+> **2026-08-26: fixed by the preference admission gate (ADR-004) —
+> assertions updated to the new behaviour.** The branch spelling now
+> both defaults and enforces: `replicas: 40` is refused with
+> `[aontu/|:empty]`, exit 1 (`probes/bound-bypass.aon`), while an
+> in-range override is admitted and the unset field generates `2`.
+> The conjunct spelling above remains the phase-1 limit, so
+> `guardrails.aon` still covers policies stated that way.
 
-- `prod: $.base * 2` → `[aontu/unexpected]: unexpected character(s): *`
-  (`probes/multiply.aon`). A 1.5× prod scale-up is not expressible at all.
-- Doubling by self-addition works only on concrete values; against the
-  golden path's own default it dies (`probes/double-from-default.aon`):
-  `[aontu/mapval_no_gen] ... Cannot resolve value: $.base.replicas+$.base.replicas`.
-- k8s quantities are opaque strings. The safe pattern is
-  `512 + "Mi"` → `"512Mi"` and `(512 + 512) + "Mi"` → `"1024Mi"`
-  (number + suffix at authoring time), because `+` on two quantities
-  silently concatenates: `"256Mi" + "256Mi"` → `"256Mi256Mi"`, exit 0
-  (`probes/quantity-concat.aon` + golden). In `platform.aon` the
-  doubled tier limits are consequently written out by hand.
+### 9. (major, largely FIXED) no arithmetic beyond `+`, no unit arithmetic
+
+**FIXED 2026-08-27** (the review's finding I): `mul`, `div`, `sub`,
+`mod` and `rem` are functions, so `mul($.base, 2)` scales a tier and
+`div(mul($.base, 3), 2)` is the 1.5× that was "not expressible at
+all". The `*` TOKEN still refuses, by design — maths arrives as
+functions and the operator characters stay reserved
+(`probes/multiply.aon`, unchanged).
+
+What is still true, and what changed:
+
+- **A defaulted operand still does not compute.** Doubling works only
+  on concrete values; against the golden path's own default it dies
+  (`probes/double-from-default.aon`), and `mul($.base.replicas, 2)`
+  refuses the same operand for the same reason — a disjunction
+  carrying a preference is not yet a number.
+- **k8s quantities are still opaque strings**, and `+` still
+  concatenates them: `"256Mi" + "256Mi"` → `"256Mi256Mi"`, exit 0
+  (`probes/quantity-concat.aon` + golden, deliberately unchanged —
+  concatenation is one of `+`'s meanings). What is new is a spelling
+  that does **not** quietly answer: the arithmetic family is numeric,
+  so `add("256Mi","256Mi")` is a located `invalid-arg`
+  (`probes/quantity-add-refused.aon`). The safe pattern is unchanged —
+  keep the number and the unit apart, `512 + "Mi"` → `"512Mi"` — and
+  the number can now be *computed*: `mul(512, 2) + "Mi"` is
+  `"1024Mi"`, so `platform.aon`'s hand-written doubled tier limits no
+  longer have to be hand-written.
 
 ### 10. (major) `each()` transforms nothing — it only annotates
 

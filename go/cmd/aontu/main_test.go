@@ -71,7 +71,7 @@ func TestRenderError(t *testing.T) {
 func TestReplSession(t *testing.T) {
 	in := strings.NewReader("a:1 b:$.a\n:canon\na:1|2\n:quit\n")
 	var out strings.Builder
-	repl("json", false, in, &out)
+	repl("json", false, trustArg{}, in, &out)
 	s := out.String()
 	if !strings.Contains(s, `"b": 1`) {
 		t.Fatalf("repl json output missing:\n%s", s)
@@ -112,7 +112,7 @@ func TestAontuForFileRelativeLoad(t *testing.T) {
 func TestReplEmptyAndUnknown(t *testing.T) {
 	in := strings.NewReader("\n:nope\n")
 	var out strings.Builder
-	repl("json", false, in, &out)
+	repl("json", false, trustArg{}, in, &out)
 	if !strings.Contains(out.String(), "unknown command") {
 		t.Fatalf("expected unknown command notice:\n%s", out.String())
 	}
@@ -121,16 +121,31 @@ func TestReplEmptyAndUnknown(t *testing.T) {
 // render surfaces an encoder failure rather than printing partial JSON.
 // A sum that overflows binary64 generates as +Inf, which encoding/json
 // refuses — the one input shape that reaches the Encode error arm.
-func TestRenderEncodeError(t *testing.T) {
+// A NON-FINITE SUM IS REFUSED BY THE ENGINE, NOT BY THE ENCODER.
+//
+// This test used to assert the opposite, and pinned a defect: the sum
+// reached the JSON encoder as +Inf and came back as Go's raw
+// `json: unsupported value: +Inf` -- no `[aontu/...]` code, no site, and
+// a different failure entirely from TypeScript's, which crashed with
+// `[aontu/internal]` (use-cases/BUGS.md 39). Both ports now refuse the
+// sum where it is written, with float_overflow.
+//
+// That is also why render's own encode-error branch is now marked
+// unreachable: with the engine refusing every non-finite float, no
+// generated value reaches the encoder that it cannot encode.
+func TestFloatOverflowIsRefusedNotUnencodable(t *testing.T) {
 	const max = "1.7976931348623157e308"
 	out, err := render(aontu.New(), "a: "+max+"+"+max, "json")
 	if err == nil {
-		t.Fatalf("want encode error, got %q", out)
+		t.Fatalf("want a located refusal, got %q", out)
 	}
 	if out != "" {
 		t.Fatalf("want empty output, got %q", out)
 	}
-	if !strings.Contains(err.Error(), "unsupported value") {
-		t.Fatalf("want json unsupported-value error, got %v", err)
+	if strings.Contains(err.Error(), "unsupported value") {
+		t.Fatalf("the raw encoder error escaped again: %v", err)
+	}
+	if !strings.Contains(err.Error(), "float_overflow") {
+		t.Fatalf("want float_overflow, got %v", err)
 	}
 }

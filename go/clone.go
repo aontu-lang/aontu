@@ -150,16 +150,31 @@ func repathArg(v Val, base []string, settle bool) {
 // gates the error-operand position flip in makeNilErr; children keep
 // their source marks, as TS's shallow clone shares the originals.
 func clonePath(v Val, path []string) Val {
-	out := clonePathRec(v, path)
+	return cloneAt(v, path, false)
+}
+
+// instanceClone is THE PER-DESTINATION INSTANTIATION clone (ADR-005;
+// TS `clone(ctx, {dup: true})`): a template cloned per destination —
+// pack/each templates, filter conditions, applied spread constraints —
+// must own its FULL inner structure, so a FuncVal's args and a
+// PrefVal's peg are cloned too instead of shared. Everything else
+// (residuation clones, ref resolution, move/copy) keeps clonePath's
+// sharing, which the ghost rows in test/spec/func.tsv pin.
+func instanceClone(v Val, path []string) Val {
+	return cloneAt(v, path, true)
+}
+
+func cloneAt(v Val, path []string, deep bool) Val {
+	out := clonePathRec(v, path, deep)
 	out.setPosu(true)
 	return out
 }
 
-func clonePathRec(v Val, path []string) Val {
+func clonePathRec(v Val, path []string, deep bool) Val {
 	if v == nil {
 		return nil
 	}
-	out := clonePathKind(v, path)
+	out := clonePathKind(v, path, deep)
 	// The SOURCE NAME travels with every clone, whatever its kind: TS's
 	// Val.clone copies the whole site, url included, so a value carried
 	// into another document by a ref still says which document wrote it
@@ -174,10 +189,37 @@ func clonePathRec(v Val, path []string) Val {
 	// another (close, type, deprecate) must not push its own text onto
 	// what it wraps, which would claim source the value never occupied.
 	out.setSrctext(v.srctext())
+	// AND THE POSITION, completing the site. The arms below that copy
+	// the struct keep it for free; the ones that BUILD a fresh value
+	// (top, disjunct, conjunct) lost it, so a disjunction reached
+	// through a `$ref` -- the ordinary way a schema names an enum --
+	// arrived unsited, and the `|:empty` finding for data that matches
+	// no alternative pointed at row -1 while the canonical port pointed
+	// at the enum. That is the "junction values at -1:-1" half of the
+	// review's finding F, and it is one line here rather than one per
+	// kind for the reason the two above are.
+	out.setPos(v.pos())
+	out.setPosu(v.posu())
+	// PROVENANCE TRAVELS WITH THE CLONE, exactly as the site does, and
+	// for the same reason: a clone of a value the author wrote IS that
+	// written value somewhere else, carrying the author's site, so it
+	// can be pointed at. Without it a default reaching a generated
+	// child, or a shape carried by a $ref, was invisible to `why` --
+	// which answered "nothing met at this path" over a value it had
+	// just printed (the review's finding E). And a clone of a member is
+	// still a member of the written container, so the whole statement
+	// is what gets shown. Both marks are set only by an instrumented
+	// run. See base.fwrt and base.finner.
+	if v.written() {
+		out.setWritten()
+	}
+	if nil != v.innerOf() {
+		out.setInnerOf(v.innerOf())
+	}
 	return out
 }
 
-func clonePathKind(v Val, path []string) Val {
+func clonePathKind(v Val, path []string, deep bool) Val {
 	switch n := v.(type) {
 	case *TopVal:
 		// Return a fresh TOP so marks (e.g. hide(top)) don't leak onto
@@ -235,11 +277,11 @@ func clonePathKind(v Val, path []string) Val {
 		out.closed = n.closed
 		out.optional = append([]string{}, n.optional...)
 		if n.spread != nil {
-			out.spread = clonePath(n.spread, path)
+			out.spread = cloneAt(n.spread, path, deep)
 		}
 		copyMarks(out, n)
 		for _, k := range n.keys {
-			out.set(k, clonePath(n.peg[k], append(cp(path), k)))
+			out.set(k, cloneAt(n.peg[k], append(cp(path), k), deep))
 		}
 		return out
 	case *ListVal:
@@ -249,11 +291,11 @@ func clonePathKind(v Val, path []string) Val {
 		out.sp = n.sp
 		out.closed = n.closed
 		if n.spread != nil {
-			out.spread = clonePath(n.spread, path)
+			out.spread = cloneAt(n.spread, path, deep)
 		}
 		copyMarks(out, n)
 		for i, e := range n.peg {
-			out.peg = append(out.peg, clonePath(e, append(cp(path), itoa(i))))
+			out.peg = append(out.peg, cloneAt(e, append(cp(path), itoa(i)), deep))
 		}
 		return out
 	case *ConjunctVal:
@@ -262,7 +304,7 @@ func clonePathKind(v Val, path []string) Val {
 		out.path = overlayPath(path, n.path)
 		copyMarks(out, n)
 		for _, t := range n.peg {
-			out.peg = append(out.peg, clonePath(t, path))
+			out.peg = append(out.peg, cloneAt(t, path, deep))
 		}
 		return out
 	case *DisjunctVal:
@@ -271,7 +313,7 @@ func clonePathKind(v Val, path []string) Val {
 		out.path = overlayPath(path, n.path)
 		copyMarks(out, n)
 		for _, t := range n.peg {
-			out.peg = append(out.peg, clonePath(t, path))
+			out.peg = append(out.peg, cloneAt(t, path, deep))
 		}
 		return out
 	case *PrefVal:
@@ -292,7 +334,18 @@ func clonePathKind(v Val, path []string) Val {
 		// Uncloned prefs were unaffected, which is why the suite stayed
 		// green: only values reaching a PrefVal through a spread
 		// template, a $ref or a copy() lost the gate.
-		out := &PrefVal{peg: n.peg, superpeg: n.superpeg, rank: n.rank}
+		//
+		// A template INSTANCE owns its peg (deep, ADR-005): with the
+		// peg shared, a rank-2 default (`**key(1)|string`) in a pack
+		// template resolved its one shared inner key() at the first
+		// destination and every child got the first child's key
+		// (use-cases/BUGS.md §9). Mirrors PrefVal.clone under `dup` in
+		// ts/src/val/PrefVal.ts.
+		peg := n.peg
+		if deep {
+			peg = cloneAt(n.peg, path, true)
+		}
+		out := &PrefVal{peg: peg, superpeg: n.superpeg, rank: n.rank}
 		out.dc = n.dc
 		out.sp = n.sp
 		out.path = overlayPath(path, n.path)
@@ -319,7 +372,7 @@ func clonePathKind(v Val, path []string) Val {
 		out.path = overlayPath(path, n.path)
 		copyMarks(out, n)
 		for _, t := range n.peg {
-			out.peg = append(out.peg, clonePath(t, path))
+			out.peg = append(out.peg, cloneAt(t, path, deep))
 		}
 		return out
 	case *FuncVal:
@@ -337,7 +390,21 @@ func clonePathKind(v Val, path []string) Val {
 		// are re-pathed to the clone's location when the clone resolves
 		// them (see FuncVal.Unify), mirroring the ctx-path-driven
 		// re-descent in TS.
-		out.peg = n.peg
+		//
+		// A template INSTANCE owns them (deep, ADR-005): with the args
+		// shared, `pack($.names, close({name: key()}))` resolved key()
+		// once inside the one shared inner map and stamped the FIRST
+		// child's key on every child (use-cases/BUGS.md §8). Mirrors
+		// FuncBaseVal.clone under `dup` in ts/src/val/FuncBaseVal.ts.
+		if deep {
+			args := make([]Val, 0, len(n.peg))
+			for _, a := range n.peg {
+				args = append(args, cloneAt(a, path, true))
+			}
+			out.peg = args
+		} else {
+			out.peg = n.peg
+		}
 		return out
 	}
 	return v

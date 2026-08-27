@@ -29,6 +29,19 @@ class AontuContext {
         // spreads and refs work, but it is a hack - find a better way".
         this.settle = false;
         this.vars = {};
+        // THE COMPLETENESS PROBE (the review's finding C). vet detects
+        // residue by GENERATING the anchored meet and keeping the
+        // incomplete-class failures. Generation honours the OUTPUT marks --
+        // `type()` and `hide()` say "do not emit this" -- so a `--at` anchor
+        // sitting under a mark generated nothing at all, reported nothing,
+        // and vetted VALID for data missing a required field, while the same
+        // anchor without the mark answered incomplete (use-cases/BUGS.md
+        // §14). A mark is a decision about OUTPUT; it is not a statement
+        // about what the data must satisfy, and `--at` names the truth to
+        // validate against explicitly. Under this flag the generation walk
+        // descends through marked values; nothing else changes, and no
+        // output is produced from a probe run -- only its findings are read.
+        this.probe = false;
         this.root = cfg.root;
         this.path = [...(cfg.path ?? [])];
         this.src = cfg.src;

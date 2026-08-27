@@ -1,11 +1,14 @@
-# Use-case 10 gap 6 (claim C4, loud half): the same include+alias
-# combination derails id(key(0)) — the key() argument never resolves
-# and id() reports the unevaluated call itself as a bad entity name.
-# Without the alias (ledgerId: integer inline in the include) the very
-# same id(key(0)) spread works, and inline in one file it works too.
+# Use-case 10 gap 6 (claim C4, loud half) -- FIXED 2026-08-26 by the
+# template-clone isolation change (ADR-005): the include+alias
+# combination no longer derails id(key(0)). Historically a leaked
+# type mark froze the pending key(0) (the marked-func freeze), so
+# id() saw the unevaluated call and refused it with a bogus
+# [aontu/id_name]. Spread applications are now full per-destination
+# instances and references defer on pending mark wrappers, so the
+# spread's key(0) resolves per record and id() names each entity.
+# Pinned in both engines: test/spec/file.tsv load-alias-idspread.
 # expected: {"customers":{"c1":{"ledgerId":5}},"schema":{}} exit 0
-# actual:   [aontu/id_name] "Cannot id value: id(key(0))" at
-#           $.customers.c1, exit 1 (bogus error)
+# actual:   {"customers":{"c1":{"ledgerId":5}},"schema":{}} exit 0
 @"./alias-vocab.aon"
 customers: { &: id(key(0)) & $.schema.C }
 customers: c1: { ledgerId: 5 }

@@ -7,15 +7,22 @@ repository*, and an agent working in the checkout repo must be able to
 trust that the contract it sees is the contract the platform team
 reviewed. This is the distribution story: module identity
 (`corp.example/schemas/service@1`), hand-rolled vendoring into
-`aon_vendor/`, the `mod tidy` / `mod vendor` / `mod manifest` verbs,
-canon-hash integrity pins, and the publish-time breaking gate. It is
+`aon_vendor/`, the `mod tidy` / `mod verify` / `mod vendor` /
+`mod manifest` verbs, canon-hash integrity pins, and the publish-time
+breaking gate. It is
 the load-bearing wall of the "ground-truth system ontology" claim: a
 ground truth that cannot travel between repos tamper-evidently is a
 convention, not a truth.
 
 Everything below was produced by the real CLI; `check.sh` re-runs all
-of it (30 assertions) and exits 0. All output shown is verbatim with
+of it (33 assertions) and exits 0. All output shown is verbatim with
 ANSI codes stripped.
+
+Three of the gaps this exercise found have since been closed — the
+undocumented vendor layout (gap 2), transitive dependencies that would
+not evaluate after vendoring (gap 4), and the missing
+verify-without-rewrite verb (gap 6). Each is marked below, and
+`check.sh` now asserts the fixed behaviour rather than the defect.
 
 ## Layout
 
@@ -60,9 +67,12 @@ and — correctly — writes no lockfile at all rather than a partial one.
 **2. Distribution is `cp -r`.** The step the error recommends does not
 exist (see gap 1), so the platform tree is copied by hand into the
 store layout the resolver expects:
-`consumer/aon_vendor/corp.example/schemas/service@1/`. That layout —
-path segments as directories, `@<major>` suffixed to the last one — is
-documented nowhere; we found it by reading `ts/src/mod.ts` (gap 2).
+`consumer/aon_vendor/corp.example/schemas/service@1/` — path segments
+as directories, `@<major>` suffixed to the last one. When we ran this
+that layout was documented nowhere and we read it out of `ts/src/mod.ts`
+(gap 2); it is now in
+[`how-to.md`](../../docs/how-to.md#vendor-a-module-by-hand) and
+[`reference-api.md`](../../docs/reference-api.md#aontu-mod).
 
 **3. `aontu mod tidy` then works exactly as documented.** Exit 0, and
 `mod-lock.aon` is written as one canonical, diffable, JSON-parseable
@@ -100,6 +110,14 @@ time we tested it.
   module integrity: corp.example/schemas/service@1 expected aon1-zFHnyVa1fA--g8hTx8lUUhaKzzRUNI--2nDheIMsSFs got aon1-NHmNT6r-Lhy8di9BgGNRfgwNFT3r5PgCZxCYnJ4F0Ws
   ```
 
+- **`mod verify` is a question, not an edit.** Against the tampered
+  store it names both hashes, exits 1, and leaves `mod-lock.aon`
+  byte-identical — the check a CI job can run before it evaluates,
+  which `tidy` (whose job is to rewrite the lock) structurally cannot
+  be. And it refuses the cold project too (`verdict: unlocked`, exit 1,
+  pointing at `mod tidy`) rather than verifying an empty lockfile
+  clean: nothing to check is not a pass, which is the same mistake the
+  verb exists to prevent.
 - **The inline `#aon1-…` pin works with nothing else on disk** — no
   `mod.aon`, no lockfile: a single file with
   `@"corp.example/schemas/service@1#aon1-zFHn…"` resolves, verifies,
@@ -131,7 +149,8 @@ time we tested it.
   and major annotations) — golden-diffed in `check.sh`.
 - **MVS behaves as specified**: consumer asks `common@1` at 1.0.0, a
   dependency asks 1.2.0, tidy selects 1.2.0 (highest of the minima)
-  and prints it.
+  and prints it — and the closure it selected now *evaluates*, from
+  the flat vendor tree `mod vendor` writes.
 - **Vet through the vendored module** gates agent-emitted JSON:
   `data/rogue-sidecar.json` is refused with located `[aontu/constraint]`
   findings for the bad name and non-corporate owner and an
@@ -191,38 +210,48 @@ first pin. With no `mod get`, hand-vendoring into `aon_vendor/` is the
 only cold-start path, period.
 
 **4. Transitive module dependencies do not survive vendoring.**
-(critical) A module that itself imports `@"corp.example/schemas/common@1"`
-resolves fine for `tidy` (MVS walks the closure, verdict ok, both
-modules locked) — and then the consumer does not evaluate:
+(critical) **— FIXED, both halves; `check.sh` now asserts the fix.**
+A module that itself imports `@"corp.example/schemas/common@1"`
+resolved fine for `tidy` (MVS walks the closure, verdict ok, both
+modules locked) — and then the consumer did not evaluate:
 
 ```
 module not fetched: corp.example/schemas/common@1 (run: aontu mod get)
 ```
 
-The nested import resolves against the vendored module's *own*
-project root (its `mod.aon` stops the upward walk), where there is no
-`aon_vendor/`; `mod vendor` materialises the closure flat at the
-consumer root only. Worse, the flat-layout `tidy` still locks a
+The nested import resolved against the vendored module's *own* project
+root (its `mod.aon` stopped the upward walk), where there is no
+`aon_vendor/`, while `mod vendor` materialises the closure flat at the
+consumer root only — so the layout the tooling produces was not the
+layout the resolver read. Resolution now tries **every** enclosing
+`mod.aon` root, nearest first, so a dependency vendored flat beside its
+dependant is found: the consumer evaluates, and the hand-nested
+`…/service@1/aon_vendor/…/common@1/` workaround is a no-op that leaves
+the pin unchanged. That matters beyond convenience, because
+`mod manifest` excludes `aon_vendor/` from the publish layer: the
+workaround could never have travelled through a publish, and now
+nothing needs it to.
+
+The second half was the pin. The flat-layout `tidy` used to lock a
 `canon` pin for the dep-bearing module — the hash of a *failed*
-standalone evaluation — while `aontu hash` on the same file refuses:
+standalone evaluation — while `aontu hash` on the same file refused
+it, so the two tools disagreed about whether the module had a meaning
+to pin, and two *different* broken modules both locked the *same* pin
+(`aon1-XaOkx_EXlEJ1tMhinEkWQDYl1aSmVzoB7LA_Dp0u2-Y` — the canon-hash
+of `nil`). `tidy` now refuses a module it cannot evaluate, with the
+wording `hash` already used:
 
 ```
-$ aontu hash aon_vendor/corp.example/schemas/service@1/service.aon
-aontu: aon_vendor/corp.example/schemas/service@1/service.aon does not evaluate on its own; nothing to hash
+$ aontu mod tidy
+verdict: error
+corp.example/schemas/service@1: does not evaluate on its own; nothing to pin
 $ echo $?
 4
 ```
 
-The two tools disagree about whether the module has a meaning to pin;
-two *different* broken modules we tried both locked the *same* pin
-(`aon1-XaOkx_EXlEJ1tMhinEkWQDYl1aSmVzoB7LA_Dp0u2-Y`), so the pin
-carries no information about the module at all. Workaround (verified
-in `check.sh`): hand-nest a second vendor tree *inside* the vendored
-module (`…/service@1/aon_vendor/…/common@1/`), after which tidy locks
-the true hash and evaluation passes — but `mod manifest` excludes
-`aon_vendor/` from the publish layer, so this workaround cannot travel
-through a future publish. One-module-deep sharing works; a dependency
-graph does not yet.
+and writes no lockfile. Where the closure *is* complete, the pin tidy
+writes and the hash `aontu hash` computes for the same file are now
+asserted equal in `check.sh`.
 
 **5. Module-internal references break under nested import.** (major)
 A module using `$.`-refs across its own top-level keys
@@ -248,23 +277,42 @@ want. This is the g6 design's open question about fragment modules,
 met in practice on day one.
 
 **6. `tidy` re-pins whatever is in the store — integrity is only as
-strong as lockfile discipline.** (major) After tampering the vendored
-module, evaluation refuses (good) — but `aontu mod tidy` run *after*
-the tamper reports `verdict: ok` and rewrites the lockfile to the
-tampered hash without a word:
+strong as lockfile discipline.** (major) **— FIXED by `aontu mod
+verify`.** After tampering the vendored module, evaluation refuses
+(good) — but `aontu mod tidy` run *after* the tamper reports
+`verdict: ok` and rewrites the lockfile to the tampered hash without a
+word:
 
 ```
 verdict: ok
 corp.example/schemas/service@1 1.4.2 aon1-NHmNT6r-Lhy8di9BgGNRfgwNFT3r5PgCZxCYnJ4F0Ws
 ```
 
-By design (`tidy` trusts the store; the pin is "what the module in
-this store means"), but the operational consequence needs saying
-loudly somewhere: a CI job that runs `tidy` before validating has no
-integrity protection at all. The lockfile must be committed and its
-diffs reviewed like code; no verb exists to *check* the store against
-the existing lock without rewriting it (a `tidy --check` / `mod
-verify` is missing).
+That much is by design and has not changed: `tidy` trusts the store,
+the pin is "what the module in this store means", and rewriting the
+lockfile is the verb's entire job. The hole was that *nothing else*
+checked, so a CI job that tidied before validating had no integrity
+protection at all. `aontu mod verify` is the missing verb — it
+recomputes every pin, compares it against the committed lock, writes
+nothing, and refuses:
+
+```
+$ aontu mod verify
+verdict: mismatch
+corp.example/schemas/service@1: pinned aon1-zFHnyVa1fA--g8hTx8lUUhaKzzRUNI--2nDheIMsSFs but the store means aon1-NHmNT6r-Lhy8di9BgGNRfgwNFT3r5PgCZxCYnJ4F0Ws
+$ echo $?
+1
+```
+
+`check.sh` asserts both hashes are named and that the lockfile is
+byte-identical afterwards. It also asserts the cold case, because the
+obvious way to get this verb wrong is to let *nothing to check* read as
+a pass: a project whose lockfile was never committed, or whose
+lockfile predates a dependency someone added, is refused with
+`verdict: unlocked` and pointed at `mod tidy`. The lockfile should
+still be committed and its diffs reviewed like code — but the review is
+no longer the only line of defence, and `verify` is what a CI job runs
+instead of `tidy`.
 
 **7. The lockfile's `v` is bookkeeping, not fact.** (minor) Declaring
 `v: "9.9.9"` for a store tree whose own `mod.aon` says
@@ -327,19 +375,25 @@ core — identity routing, canon-hash pins that survive refactors and
 break on meaning, the lockfile, confinement, the breaking gate — is
 built and works as documented; it is genuinely ahead of CUE/KCL on
 integrity (their pins are byte/OCI digests) and ahead of Dhall on
-versioning. What is missing is every ounce of logistics: fetch,
-publish, discovery, a documented hand-vendoring convention in the
-meantime (gap 2), transitive closures that evaluate after vendoring
-(gap 4), a verify-without-rewrite verb (gap 6), and a reference model
-that lets a module be factored into parts (gap 5). Until `mod get`
-exists, first contact survives only if the reader finds this
-directory or the source; the docs alone do not get a platform team
-from "here is our schema" to "another repo validates against it".
+versioning.
+
+Three of the four things this exercise found missing have since been
+built: the hand-vendoring convention is documented (gap 2), a
+transitive closure vendored flat now evaluates and pins honestly
+(gap 4), and `mod verify` gives CI an integrity check that does not
+rewrite what it is checking (gap 6). What remains is the logistics —
+fetch, publish, discovery (gap 1) — and a reference model that lets a
+module be factored into parts rather than written self-contained
+(gap 5). Until `mod get` exists, hand-vendoring is still the only cold
+start; it is at least now a documented one, so a platform team can get
+from "here is our schema" to "another repo validates against it"
+from the docs alone. What they cannot yet do is *distribute* it
+without `cp -r`.
 
 ## Run
 
 ```
-./check.sh          # 30 assertions, exits 0
+./check.sh          # 33 assertions, exits 0
 ```
 
 `check.sh` uses a private `XDG_CACHE_HOME`, never touches the real

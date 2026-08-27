@@ -5,10 +5,12 @@ SARIF 2.1.0 report both ports must render for it, **byte for byte**,
 after two redactions the comparing tests apply to their own output
 before diffing:
 
-- every `message.text` and `properties.message` becomes `<MESSAGE>` —
-  the same carve-out `test/spec/vet.tsv` applies to its goldens,
-  because prose is deliberately not in cross-port parity
-  (`docs/shared-spec.md`);
+- every `message.text` and `properties.message` becomes `<MESSAGE>`,
+  and every `properties.hint` becomes `<HINT>` — the same carve-out
+  `test/spec/vet.tsv` applies to its goldens, because prose is
+  deliberately not in cross-port parity (`docs/shared-spec.md`). The
+  hint is only present for codes that have one, so the redaction is
+  conditional and the golden still records WHICH findings carry it;
 - `tool.driver.version` becomes `<VERSION>`, because the two ports'
   version series are independent by design (the `aontu.version` field
   of the JSON report has the same exemption).

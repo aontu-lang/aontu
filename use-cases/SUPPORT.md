@@ -55,20 +55,52 @@ unlocks structured outputs + MCP interop), import second, both
 specified in docs with the lossy edges named. This is the highest-
 leverage feature outside the language itself.
 
+**Export done 2026-08-27.** `aontu jsonschema [--at <path>] [--strict]
+[--format text|json] <file>` in both ports, plus a library call and an
+MCP tool. Draft 2020-12 on stdout, so a redirect writes a usable file.
+The mapping is specified per construct in
+[`docs/reference-api.md`](../docs/reference-api.md#aontu-jsonschema),
+and the lossy edges are *named at runtime*, not just in prose: `must()`,
+the exact numeric leaves and an unresolved residue each produce a
+`SchemaLoss` on stderr beside the schema, `--strict` turns the report
+into a refusal for a CI job that would rather fail than ship a schema
+weaker than its model, and `--format json` puts both halves in one
+envelope. `test/spec/jsonschema.tsv` (54 rows) pins the mapping in both
+engines.
+
+The money edge that made the "exact leaves" loss look fatal is answered
+by convention rather than machinery — a decimal string plus a
+conversion mark, in
+[`docs/how-to.md`](../docs/how-to.md#carry-exact-money-over-json) —
+so an exported schema can carry exact money that a stock validator
+enforces. Import remains open, and remains the migration path for the
+existing OpenAPI/CRD estates.
+
 ## 3. Distribution: finish the trust loop before the network
 
-The local module half exists; use case 11 and BUGS.md §31–32 show the
-sharp edges (nil pins, transitive vendoring, tidy re-pinning tampered
-content, undocumented vendor layout, no `mod verify`). The network
-half (`mod get`/`publish`) needs a registry to exist — but the
-*consumer-shaped* requirements are already discoverable from sdkgen,
-which built copy-based distribution with provenance stamps, drift
-checking, and install-time renames because live includes didn't fit
-its needs. Design the registry against that user, not in the abstract.
-Interim: document the hand-vendoring layout (it is the only cold-start
-path and lives only in `ts/src/mod.ts`), and decide the
-package-import story *before* the G5.6 trust flip breaks every
-consumer's `node_modules` include pattern.
+The local module half exists; use case 11 and BUGS.md §31–32 showed
+the sharp edges (nil pins, transitive vendoring, tidy re-pinning
+tampered content, undocumented vendor layout, no `mod verify`).
+
+**Done 2026-08-27** — the trust loop closes locally: a transitive
+closure vendored flat now resolves (every enclosing `mod.aon` root is
+tried, not just the nearest), `tidy` refuses to pin a module it cannot
+evaluate rather than locking `canonHash(nil)`, `aontu mod verify`
+checks the store against the committed lock without rewriting it (the
+verb a CI job runs instead of `tidy`), and the hand-vendoring layout
+is documented in
+[`how-to.md`](../docs/how-to.md#vendor-a-module-by-hand) and
+[`reference-api.md`](../docs/reference-api.md#aontu-mod). See BUGS.md
+§31–32 and the CHANGELOG.
+
+The network half (`mod get`/`publish`) needs a registry to exist — but
+the *consumer-shaped* requirements are already discoverable from
+sdkgen, which built copy-based distribution with provenance stamps,
+drift checking, and install-time renames because live includes didn't
+fit its needs. Design the registry against that user, not in the
+abstract. Still open beside it: decide the package-import story
+*before* the G5.6 trust flip breaks every consumer's `node_modules`
+include pattern.
 
 ## 4. Developer surfaces
 

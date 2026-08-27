@@ -93,11 +93,16 @@ has why-billing 'envs/prod.aon' "prod overlay attributed"
 has why-billing '12' "pin value shown"
 ok "why attributes the prod pin to envs/prod.aon"
 
-# Pinned observation (README, gap 3): why cannot see contributions that
-# arrive through a pack() clone -- the org/team layers are invisible at
-# a generated workload path.
+# GAP 3 CLOSED 2026-08-27 (the review's finding E): why can now see
+# contributions that arrive through a pack() clone. The org/team layers
+# were invisible at a generated workload path -- "(no contributions:
+# nothing met at this path)" over a value it had just printed -- because
+# provenance was a set of parsed-tree ids rather than a mark the clone
+# carries. The generated path now names the file and line the default
+# was written on.
 run why-blind 0 why '$.deploy.dev.workloads.web.logLevel' "$DIR/stack.aon"
-has why-blind 'no contributions' "pack clones are unattributed"
+has why-blind 'team-defaults.aon:' "pack clone attributed to its source file"
+has why-blind '"debug"' "the winning default is shown"
 ok "pinned: why is blind through pack (gap 3)"
 
 # ------------------------------------------------------------ guardrails
@@ -171,12 +176,29 @@ run surge-default 1 "$DIR/probes/surge-from-default.aon"
 has surge-default '[aontu/mapval_no_gen]' "no-gen code"
 ok "replicas + 1 fails against a defaulted (*N | integer) operand"
 
+# ------------------------------------- probe: uniqueness by projection
+# README gap 8, FIXED 2026-08-27: unique() compared WHOLE children, so
+# two services differing anywhere else shared a port silently, and
+# nothing could produce the port list to check instead.
+run uniqport 1 "$DIR/probes/unique-port.aon"
+has uniqport '[aontu/constraint]' "constraint code"
+has uniqport '$.fleet' "the fleet is named"
+ok "unique(port) refuses two services sharing a port"
+
+run pickports 0 "$DIR/probes/pick-ports.aon"
+has pickports '"lowest": 8080' "least over the picked ports"
+ok "pick(fleet, port) produces the port list; least() reads its floor"
+
 # ------------------------------ probe: two spreads on one map cross-wire
-run crosswire 1 vet "$DIR/probes/spread-crosswire.aon" "$DIR/expected/stack.json"
-has crosswire '$.deploy.prod.workloads.billing.port' "bogus sibling conflict path"
-has crosswire '8082' "billing's own port"
-has crosswire '8081' "auth's port leaked into billing"
-ok "pinned: stacked spreads cross-wire sibling children in vet (gap 6)"
+# 2026-08-26: fixed by the spread application rework (pure ExpectVal;
+# BUGS.md sec 7) — stacked spreads at different depths now vet the
+# correct data as valid; the historic run pinned billing's own 8082
+# conflicting with auth's 8081 through the combined template. Pinned in
+# the shared spec: vet.tsv vet-unequal-spread-depths,
+# spread-interleave.tsv spread-unequal-*.
+run crosswire 0 vet "$DIR/probes/spread-crosswire.aon" "$DIR/expected/stack.json"
+has crosswire 'verdict: valid' "correct data vets valid under stacked spreads"
+ok "stacked spreads at different depths vet siblings independently (gap 6 fixed)"
 
 # --------------------------------------------- probe: must with message
 run must-floor 1 "$DIR/probes/must-floor.aon"
@@ -190,16 +212,23 @@ has lost-default '[aontu/mapval_no_gen]' "no-gen code"
 has lost-default 'min(1)&max(24)' "unresolved residual shown"
 ok "pinned: constraint conjunct swallows a ranked default (gap 1)"
 
-run bypassed 0 "$DIR/probes/bypassed-bound.aon"
-diff -u "$DIR/expected/bypassed-bound.json" "$TMP/bypassed.out" \
-  || die "bypassed-bound output differs"
-ok "pinned: override bypasses a disjoined bound, 40 accepted (gap 2)"
+# 2026-08-26: fixed by the preference admission gate (ADR-004) -- the
+# out-of-range override is now refused instead of accepted (gap 2 was
+# the fail-open evidence; the golden expected/bypassed-bound.json with
+# replicas:40 is gone with it).
+run bypassed 1 "$DIR/probes/bypassed-bound.aon"
+has bypassed '[aontu/|:empty]' "empty-disjunction refusal"
+ok "fixed: override outside the disjoined bound refused, exit 1 (gap 2)"
 
-# ------------------------------------- probe: close(pack) + overlay bug
+# --------------------------------- probe: close(pack) + overlay (fixed)
+# 2026-08-26: fixed by the template-clone isolation change (ADR-005) —
+# the golden now holds the CORRECT merge (the overlay lands on the
+# generated prod child; no bogus template absorption). Shared-spec pin:
+# test/spec/gen-close.tsv close-pack-hole-overlay-merges.
 run absorb 0 "$DIR/probes/close-pack-absorb.aon"
 diff -u "$DIR/expected/close-pack-absorb.json" "$TMP/absorb.out" \
   || die "close-pack-absorb output differs"
-ok "pinned: close(pack(.., _ & t)) absorbs overlays, exit 0 (gap 5)"
+ok "fixed: close(pack(.., _ & t)) + overlay merges correctly (gap 5)"
 
 # --------------------------------------------- the set verb (agent edit)
 WORK="$TMP/work"

@@ -1,3 +1,8 @@
+# FIXED 2026-08-27 (the review's finding J, BUGS.md sec 19): the flow
+# now skips a re-entry into an entity it is already inside, so this
+# file EVALUATES to the expected value below. Kept as the regression
+# guard; the shared rows are refer-typed-* in test/spec/refer.tsv.
+#
 # Use-case 01 gap 8 (claim C1, inverse half): typing BOTH directions of
 # an inverse relation pair with refer(t) dies of a spurious cycle.  The
 # two targets are plain consistent maps ({kind: service} meets

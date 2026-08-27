@@ -68,31 +68,53 @@ cp "$DIR/expected/orders-v1.canon" "$WORK/served.aon"
 run vsurpcanon 0 -- vet --at '$.registry.order_paid' "$WORK/served.aon" \
   "$DIR/data/bad/paid-surplus-topic.json"
 has vsurpcanon out 'verdict: valid'
+# 2026-08-27: canon now KEEPS the conjunct default -- `("1.0"|"1.1") &
+# *"1.0"` canons as `*"1.0"|"1.1"`, because a preference conjoined with
+# a disjunction is now a preference on the alternative it names -- so
+# the round-tripped text loses close() and nothing else.
 run hashserved 0 -- hash "$WORK/served.aon"
 diff -q "$WORK/hash.out" "$WORK/hashserved.out" >/dev/null \
   && fail "canon round-trip kept the hash; canon infidelity fixed? update README" \
   || true
 ok "canon round-trip LOSES close(): surplus key passes (pinned gap)"
 
-# GAP (identity blind to defaults): two contracts differing only in
-# the conjunct default canon and hash identically.
+# GAP CLOSED 2026-08-27: two contracts differing only in the conjunct
+# default used to canon -- and therefore hash -- identically, because
+# the conjoined `*` vanished in the meet. A preference conjoined with a
+# disjunction is now a preference on the alternative it names, so the
+# default survives into canon and the two identities differ.
 run hda 0 -- hash "$DIR/probes/default-a.aon"
 run hdb 0 -- hash "$DIR/probes/default-b.aon"
 diff -q "$WORK/hda.out" "$WORK/hdb.out" >/dev/null \
-  || fail "default-a/default-b hashes differ; hash-blind gap fixed? update README"
-ok "hash: different conjunct defaults, same aon1- identity (pinned gap)"
+  && fail "default-a/default-b hash identically; the conjunct default is lost again"
+ok "hash: different conjunct defaults give different aon1- identities"
 
-# GAP (provenance): why does not trace the envelope conjunction.
+# GAP CLOSED 2026-08-27 (the review's finding E): why traces the
+# envelope conjunction. The field is supplied by a reference to
+# envelope.aon and reached this path by being CLONED, which used to put
+# it outside the recorder's parsed-tree id set -- "(no contributions:
+# nothing met at this path)" over a value it had just printed. It now
+# names the file and line the pattern was written on, which is the
+# whole audit question for a shared envelope.
 run why 0 -- why '$.OrderPaid.time' "$V1"
-has why out '(no contributions: nothing met at this path)'
-ok "why: envelope-supplied field has no provenance (pinned gap)"
+has why out 'envelope.aon:'
+grep -q 'no contributions' "$WORK/why.out" \
+  && fail 'why: envelope-supplied field is silent again' || true
+ok "why: envelope-supplied field names the file that wrote it"
 
 # The price of the schema style: the contract never evaluates (and
 # the error snippet quotes the WRONG FILE: header envelope.aon:14,
 # body lines from orders-v1.aon).
+# 2026-08-27 (ADR-007): the refusal is now `disjunct_no_gen` on the
+# envelope's `id: (integer | biginteger) & min(1)` -- an unresolved
+# disjunction is incomplete residue rather than a folded conflict -- so
+# evaluation stops at that field instead of a later constraint. The
+# misattribution pin is unchanged and still the point: the frame header
+# names envelope.aon:14 (which IS where `id` is written) while the
+# quoted source lines come from orders-v1.aon.
 run geneval 1 -- "$V1"
-has geneval err '[aontu/constraint]'
-has geneval err 'envelope.aon:14:32'
+has geneval err '[aontu/disjunct_no_gen]'
+has geneval err 'envelope.aon:14:7'
 has geneval err 'customer_id'
 grep -q 'customer_id' "$DIR/envelope.aon" \
   && fail "envelope.aon now holds customer_id; misattribution pin stale" \
@@ -109,8 +131,15 @@ has stream out 'verdict: valid'
 ok "vet: three-event stream sample in one command, one verdict"
 
 # cancelled-1003 omits specversion; the conjunct default fills it.
+# 2026-08-27: it genuinely does now. This used to pass for the wrong
+# reason -- the conjoined `*` was lost in the meet, so specversion was
+# an UNRESOLVED enum, and the fold's scalar conflict was filtered out
+# of the report by vet's incomplete-class pass. `get` reads the filled
+# value back, which is the assertion the verdict alone never made.
 run dfill 0 -- vet --at '$.Event' "$V1" "$DIR/data/stream/cancelled-1003.json"
 has dfill out 'verdict: valid'
+run dfillget 0 -- get '$.Envelope.specversion' "$DIR/envelope.aon"
+has dfillget out '"1.0"'
 ok "vet: omitted specversion filled by the enum-guarded default"
 
 run streambad 1 -- vet --at '$.Event' "$V1" \
@@ -141,7 +170,12 @@ assert len(r["findings"]) == 1, len(r["findings"])
 f = r["findings"][0]
 assert f["code"] == "|:empty" and f["path"] == "$.Event", (f["code"], f["path"])
 schema = next(s for s in f["sites"] if s["role"] == "schema")
-assert schema["row"] == -1 and schema["col"] == -1, (schema["row"], schema["col"])
+# 2026-08-27: the union's schema site now HAS a location (a narrowed
+# disjunction carries the site of the one it came from). What is still
+# missing is localisation INSIDE the union: one finding at $.Event
+# carrying every alternative as one blob, with no field path and no
+# branch selection. That is the gap this row pins.
+assert schema["row"] > 0 and schema["col"] > 0, (schema["row"], schema["col"])
 assert len(schema["value"]) > 1500, len(schema["value"])  # the blob
 EOF
 ok "union anchor: wrong payload -> one |:empty blob, zero localisation (KEY gap)"
@@ -194,17 +228,19 @@ run btime 1 -- vet --at '$.registry.order_placed' "$V1" \
 has btime out '.time: constraint [conflict]'
 has btime out '26/08/2026 10:07'
 has btime out '[aontu/constraint]'
-# GAP (misattribution): the schema site names the ENTRY file with the
-# row/col of the included envelope.aon. Pin it structurally: the row
-# the finding cites holds the time pattern in envelope.aon only.
-row="$(grep -o 'orders-v1.aon:[0-9]*' "$WORK/btime.out" | head -1 | cut -d: -f2)"
-[ -n "$row" ] || fail "btime: schema site does not name orders-v1.aon"
+# GAP CLOSED 2026-08-27 (finding F, BUGS.md §25). The schema site used
+# to name the ENTRY file with the row/col of the included
+# envelope.aon. Pinned structurally, in both directions: the row the
+# finding cites holds the time pattern in the file the finding NAMES,
+# and the entry file's own line of that number does not.
+row="$(grep -o 'envelope.aon:[0-9]*' "$WORK/btime.out" | head -1 | cut -d: -f2)"
+[ -n "$row" ] || fail "btime: schema site does not name envelope.aon"
 sed -n "${row}p" "$DIR/envelope.aon" | grep -q 'time: re' \
-  || fail "btime: row $row is not the time pattern in envelope.aon; pin stale"
+  || fail "btime: envelope.aon:$row is not the time pattern; site pin stale"
 sed -n "${row}p" "$DIR/orders-v1.aon" | grep -q 'time: re' \
-  && fail "btime: orders-v1.aon:$row holds the time pattern; fixed? update README" \
+  && fail "btime: orders-v1.aon:$row holds it too; the pin proves nothing" \
   || true
-ok "vet: bad timestamp refused; schema site misattributed to entry file"
+ok "vet: bad timestamp refused; schema site names the file it excerpts"
 
 # The regex cannot check calendar semantics: month 13, hour 25 pass.
 run month13 0 -- vet --at '$.Event' "$V1" "$DIR/data/bad/placed-month-13.json"
@@ -244,18 +280,26 @@ ok "the 0d data file is NOT strict JSON (pinned gap: producers cannot emit it)"
 
 # --- 6. Defaults vs enums: the two spellings. ---
 
-# Disjunct spelling silently admits anything, with a wrong warning.
-run prefenum 0 -- vet --at '$.E' "$DIR/probes/pref-enum.aon" \
+# 2026-08-26: fixed by the preference admission gate (ADR-004) --
+# assertions updated to the new behaviour. The disjunct spelling now
+# ENFORCES the set: "9.9" is admitted by no alternative, so it vets
+# invalid ([aontu/|:empty]); the pref_not_instance advisory rides
+# along with its corrected "remaining alternative" message.
+run prefenum 1 -- vet --at '$.E' "$DIR/probes/pref-enum.aon" \
   "$DIR/data/probe-v99.json"
-has prefenum out 'verdict: valid'
+has prefenum out 'verdict: invalid'
+has prefenum out '[aontu/|:empty]'
 has prefenum out 'pref_not_instance'
-has prefenum out 'the default "1.0" is not an instance of any alternative'
-ok "vet: *\"1.0\"|\"1.1\" admits \"9.9\" as valid (pinned gap)"
+has prefenum out 'the default "1.0" is not an instance of any remaining alternative'
+ok "vet: *\"1.0\"|\"1.1\" refuses \"9.9\" (fixed: the admission gate)"
 
-# Conjunct spelling enforces the set under vet but errors under eval.
-run prefeval 1 -- "$DIR/probes/default-a.aon"
-has prefeval err '[aontu/scalar_value]'
-ok "eval: (\"1.0\"|\"1.1\") & *\"1.0\" errors outside vet (pinned gap)"
+# GAP CLOSED 2026-08-27: the conjunct spelling now carries its default
+# under EVAL too. `(A|B) & *A` is a preference on the alternative it
+# names, so it generates "1.0" instead of erroring -- the two spellings
+# of enum-with-default finally agree.
+run prefeval 0 -- "$DIR/probes/default-a.aon"
+has prefeval out '"v": "1.0"'
+ok "eval: (\"1.0\"|\"1.1\") & *\"1.0\" generates its default"
 
 # --- 7. No in-language discriminator dispatch. ---
 
@@ -267,14 +311,18 @@ ok "vet: match(_) dispatcher never settles (pinned gap; union stays the model)"
 
 # --- 8. The versioned breaking gate. ---
 
-# Self-compare: undecided, because the order-lines list template is
-# not comparable TO ITSELF (sub_unresolved on $...lines.&).
-run brkself 3 -- breaking --against "$V1" "$V1"
-has brkself out 'verdict: undecided'
-has brkself out 'sub_unresolved'
-has brkself out 'lines.&'
-run brkallow 0 -- breaking --against "$V1" --allow-undecided "$V1"
-ok "breaking: self-compare undecided via list template (pinned gap)"
+# GAP CLOSED 2026-08-27: self-compare is compatible. The order-lines
+# list template used to be reported as not comparable TO ITSELF
+# (`sub_unresolved` on $...lines.&, expected and actual byte-identical),
+# so a contract failed its own gate and CI had to run
+# --allow-undecided, which then masks the genuine undecideds the gate
+# exists to surface. Reflexivity is now a law of the walk: every value
+# admits itself, residue included, compared by HASH FORM so closedness
+# and the marks still count.
+run brkself 0 -- breaking --against "$V1" "$V1"
+has brkself out 'verdict: compatible'
+lacks brkself out 'sub_unresolved'
+ok "breaking: a contract is compatible with ITSELF (reflexivity)"
 
 # Additive minor revision: reported BREAKING, because the new
 # top-level definitions (OrderRefunded, registry.order_refunded) are
@@ -284,10 +332,14 @@ has brkminor out 'verdict: breaking'
 has brkminor out '$.OrderRefunded: compat_required_added'
 ok "breaking: additive v1.1 flagged breaking (pinned gap: whole-doc compare)"
 
-# ...and the gate cannot be scoped to the union: no --at.
-run brkat 2 -- breaking --against "$V1" --at '$.Event' "$DIR/orders-v1-1.aon"
-has brkat err 'unknown breaking option --at'
-ok "breaking --at: not supported (pinned gap)"
+# GAP CLOSED 2026-08-27: the gate CAN be scoped to the union. Anchored
+# at $.Event, the additive v1.1 revision is compatible -- which is the
+# right answer, and the one the whole-document compare above cannot
+# give, because a new top-level definition reads as a required key of a
+# data shape. `breaking` now takes subsume's own --at.
+run brkat 0 -- breaking --against "$V1" --at '$.Event' "$DIR/orders-v1-1.aon"
+has brkat out 'verdict: compatible'
+ok "breaking --at: the additive revision is compatible at the union"
 
 # Major revision: the two real breaks are found, precisely.
 run brkmajor 1 -- breaking --against "$V1" "$DIR/orders-v2.aon"
@@ -302,11 +354,15 @@ ok "breaking: v2 refused -- required reason + narrowed currency named exactly"
 run subpaid 0 -- subsume --at '$.OrderPaid' "$DIR/orders-v1-1.aon" "$V1"
 has subpaid out 'verdict: subsumes'
 run subcanc 0 -- subsume --at '$.OrderCancelled' "$DIR/orders-v1-1.aon" "$V1"
-run subplaced 3 -- subsume --at '$.OrderPlaced' "$DIR/orders-v1-1.aon" "$V1"
-has subplaced out 'sub_unresolved'
+# 2026-08-27: OrderPlaced passes too. Its order-lines list template is
+# unchanged between the versions, and reflexivity is now a law of the
+# walk, so the "lines poison" that used to make this branch undecided
+# is gone.
+run subplaced 0 -- subsume --at '$.OrderPlaced' "$DIR/orders-v1-1.aon" "$V1"
+has subplaced out 'verdict: subsumes'
 run subreason 1 -- subsume --at '$.OrderCancelled' "$DIR/orders-v2.aon" "$V1"
 has subreason out 'compat_required_added'
 has subreason out 'reason'
-ok "per-branch subsume gate: v1.1 passes (except lines poison), v2 refused"
+ok "per-branch subsume gate: every v1.1 branch passes, v2 refused"
 
 echo "all $pass checks passed"

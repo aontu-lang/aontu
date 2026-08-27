@@ -219,6 +219,33 @@ right. Nothing in the suite can warn you, because a row that was never
 probed carries no record of having been agreed. Probing costs two
 commands; the alternative costs a wrong contract that looks green.
 
+### The vet ≡ eval differential
+
+Beside the parity probe, which asks whether the two ENGINES agree,
+sits a check that asks whether the two SURFACES agree:
+[`ts/test/veteval.test.ts`](ts/test/veteval.test.ts) and
+[`go/veteval_test.go`](go/veteval_test.go) read the shared spec's own
+`vet` rows and require, for each, that `vet(S, D)` and `eval(S ∪ D)`
+give the same accept/reject answer. Their *reports* legitimately
+differ — vet names roles and sites across two documents, eval raises
+the first failure — but a document the gate accepts must evaluate, and
+one it refuses must not (ADR-007).
+
+Its corpus is the spec itself, so **adding a `vet` row adds a
+differential case for free**, and a change that makes the gate and the
+evaluator disagree fails here even when every golden still matches.
+That is how it earns its place: the five defects the 2026-08 review
+found under this heading each passed a fully green suite.
+
+Rows with no single-document spelling are skipped — `--at` and
+`--closed` change the truth rather than the documents, `--partial`
+calls residue acceptable where eval never does, `--maxErrors` shapes
+only the report, a fixture-loading row would resolve from a different
+base, and a rootless literal carrying an absolute reference has no
+honest wrapped form. The skip COUNT is bounded by the check itself, so
+a skip list that grew to swallow the corpus fails rather than passing
+over nothing.
+
 ### The divergence ledger
 
 When a probe shows the two engines disagreeing, that is a **bug**, and
@@ -422,6 +449,63 @@ user-facing rules are in
   Run `go vet ./...` and `gofmt` before committing.
 - Go module releases (a Go module in a subdirectory) use git tags of the
   form `go/vX.Y.Z`.
+
+### The site-attribution invariant
+
+**Every site names the file whose text it excerpts.** A value carries
+the url of the file it was PARSED FROM, and nothing may overwrite that
+with the entry document's name: a report citing `entry.aon:3:7` for
+text three files away — at a line the entry may not have — sends a
+repair agent to edit the wrong file (use-cases/BUGS.md §25). Two
+corollaries a change in this area has to keep:
+
+- Only a value with NO name of its own may be stamped with the entry's.
+  Those are the ones the engine minted rather than read.
+- A site whose file the run holds no TEXT for reports `-1:-1`. Resolving
+  an offset against another document's text names a real line that says
+  something else, which is worse than saying nothing.
+
+Provenance ROLES (vet's `data`/`schema`) therefore come from membership
+of the url set each walk collected, never from comparing a name against
+one entry. The report NAME is separate again: identity is the resolved
+absolute path, and the printed name is the one the caller's own
+spelling reaches (`displayFile`, both ports), so a report stays
+openable from the invoking directory and repo-relative in SARIF.
+
+### Provenance is part of the clone contract
+
+The `why` recorder answers "which line set this value", and a model
+that uses templates, generators or references reaches most of its
+values by CLONING what the author wrote. So the authored mark lives ON
+the value (`WRITTEN` / `base.fwrt`), and every place that carries a
+value's SITE carries the mark with it — `Val.clone`, `Val.place`, the
+disjunct fold. Deciding authorship by looking an id up in a set
+stamped over the parsed tree is the shape that made `why` answer
+"nothing met at this path" over values it had just printed
+(use-cases/BUGS.md §22–24). Two rules hold it up:
+
+- A value the engine MINTS is constructed rather than cloned and stays
+  unmarked. That is what keeps the record to what the author can edit.
+- A MEMBER is not a value beside its container (`INNER_OF` /
+  `base.finner`): `*1|integer` is one thing the author wrote. The
+  containment is recorded as a fact about the document at stamping
+  time, never inferred from what the fixpoint happened to meet — the
+  latter is what made identical siblings answer differently.
+
+The extra reach is why `set --in-place` refuses a path reached through
+a reference: the literal it correctly reports belongs to the referent's
+line, and splicing there rewrites it for every reader.
+
+### Colour is a decision about the destination
+
+`NO_COLOR` (set, to anything) turns error-frame ANSI off for every
+caller of the library; the CLI additionally turns it off when its own
+stderr is not a terminal, and `--jsonl` turns it off unconditionally.
+The library cannot see the destination, so the library never decides:
+`setColor`/`SetColor` is the CLI's call to make, and a library caller
+who knows better can make it too. The full-message twin tests run with
+colour ON — the escapes are part of the byte parity they guard — so a
+change here must keep the default (no override, no `NO_COLOR`) coloured.
 
 ### Mutation caveat (both implementations)
 

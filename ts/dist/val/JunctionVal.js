@@ -17,7 +17,13 @@ class JunctionVal extends FeatureVal_1.FeatureVal {
     }
     clone(ctx, spec) {
         let out = super.clone(ctx, spec);
-        out.peg = this.peg.map((entry) => entry.clone(ctx, spec?.mark ? { mark: spec.mark } : {}));
+        // The instantiation flag descends with the mark (ADR-005): a
+        // junction inside a template clones its members as instances (the
+        // instantiation sites re-path the whole clone afterwards — see
+        // repathInstance in Val.ts).
+        const childspec = spec?.mark || spec?.dup ?
+            { mark: spec?.mark, dup: spec?.dup } : {};
+        out.peg = this.peg.map((entry) => entry.clone(ctx, childspec));
         return out;
     }
     get canon() {

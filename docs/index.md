@@ -38,10 +38,12 @@ Tooling:
   gate schema evolution; `get` and `why` ask an evaluated document what
   it says and what contributed to it; `set` changes one in an overlay,
   by appending or in place; `trim` reports redundant entries;
-  `relations` runs the declared identity checks; `hash` pins what a
-  document *means*; `mod` maintains a dependency closure; `agentsmd`
-  writes the prose stanza for a definition. With no file, `aontu`
-  starts a REPL.
+  `relations` runs the declared identity checks and `reaches` answers
+  whether one entity reaches another at any remove; `jsonschema` exports
+  the model as JSON Schema and names what the export cannot carry;
+  `hash` pins what a document *means*; `mod` maintains a dependency
+  closure; `agentsmd` writes the prose stanza for a definition. With
+  no file, `aontu` starts a REPL.
 - [Language Server (LSP)](lsp.md) — the `aontu-lsp` diagnostics server
   (TypeScript and Go), how to wire it into an editor, and the reusable
   LSP library API.

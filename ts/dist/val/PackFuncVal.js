@@ -7,6 +7,7 @@ const unify_1 = require("../unify");
 const err_1 = require("../err");
 const MapVal_1 = require("./MapVal");
 const FuncBaseVal_1 = require("./FuncBaseVal");
+const Val_1 = require("./Val");
 const PlaceVal_1 = require("./PlaceVal");
 // The keys a data bag names, in the order the result must carry them,
 // or a code naming what is wrong with it. Shared with `each`, which
@@ -89,7 +90,14 @@ class PackFuncVal extends FuncBaseVal_1.FuncBaseVal {
             // child pointing at the template's own parse-time location, which
             // is the position the template is never used at -- visible as the
             // site an error inside a generated child reports.
-            const child = (0, PlaceVal_1.fillPlace)(tmpl.clone(keyctx), source, keyctx);
+            //
+            // A FULL INSTANCE, to the leaves (`dup`, ADR-005): a bare clone
+            // shares the inner structure of any call, preference or
+            // operation in the template, so the first child's resolution of
+            // a shared key()/ref answered for every child (BUGS.md §8, §9).
+            const inst = tmpl.clone(keyctx, { dup: true });
+            (0, Val_1.repathInstance)(inst, inst.path);
+            const child = (0, PlaceVal_1.fillPlace)(inst, source, keyctx);
             peg[key] = undefined === peg[key] ? child :
                 (0, unify_1.unite)(keyctx, peg[key], child, 'pack');
         }

@@ -20,8 +20,43 @@ package aontu
 
 import (
 	"fmt"
+	"os"
 	"strings"
 )
+
+// COLOUR IS A DECISION ABOUT THE DESTINATION, not about the message.
+// Every error frame hardcoded the ANSI escapes, so a piped report
+// carried terminal control codes into whatever read them -- a log file,
+// a CI annotation, an agent's parser (the review's finding F).
+//
+// NO_COLOR (no-color.org: set, to anything, means no colour) turns them
+// off everywhere, library callers included. The CLI additionally turns
+// them off when its stderr is not a terminal, through SetColor: a
+// library cannot see the destination, and a caller who has one is the
+// only one who can say. The twin is setColor/colorActive in
+// ts/src/err.ts.
+var colorOverride *bool
+
+// SetColor forces ANSI on or off; nil restores the NO_COLOR default.
+func SetColor(on *bool) {
+	colorOverride = on
+}
+
+func colorActive() bool {
+	if nil != colorOverride {
+		return *colorOverride
+	}
+	return "" == os.Getenv("NO_COLOR")
+}
+
+// ansi returns the escape when colour is on, and nothing when it is
+// off, so the frame writer below reads the same either way.
+func ansi(code string) string {
+	if colorActive() {
+		return code
+	}
+	return ""
+}
 
 // DONE marks a Val whose unification has fully converged.
 const DONE = -1
@@ -82,6 +117,12 @@ type Val interface {
 	// fromSpread reports the G7 provenance mark (see base.fspr).
 	fromSpread() bool
 	setFromSpread()
+	// written reports the AUTHORED mark (see base.fwrt), and innerOf
+	// the written container this value is part of (see base.finner).
+	written() bool
+	setWritten()
+	innerOf() Val
+	setInnerOf(v Val)
 	deprecRec() map[string]string
 	setDeprecRec(rec map[string]string)
 	entityName() string
@@ -157,6 +198,30 @@ type base struct {
 	// place a spread is applied and only on an INSTRUMENTED run (G7
 	// phase 4). Read by the provenance recorder; nothing else.
 	fspr bool
+	// fwrt marks a value the AUTHOR WROTE, and it lives on the value
+	// rather than in a set beside it so that CLONES CARRY IT (the
+	// review's finding E). The recorder used to decide "did the author
+	// write this" by looking the operand up in a set stamped over the
+	// parsed tree, which is true of the parsed tree and of nothing
+	// derived from it -- so a default reaching a generated child, a
+	// shape carried by a $ref, one side of an id()-merge were all dark,
+	// and `why` answered "nothing met at this path" over a value it had
+	// just printed. A clone of a written value IS that written value
+	// somewhere else: it carries the author's site, so it can be
+	// pointed at. Instrumented runs only (Why stamps it; nothing else).
+	// The TypeScript twin is WRITTEN in ts/src/provenance.ts.
+	fwrt bool
+	// finner is the WRITTEN CONTAINER this value stands inside at the
+	// SAME path: a junction's members, a preference's inner value, a
+	// function's arguments. `*1|integer` is one thing the author wrote
+	// and `*1` is not a second thing beside it, so an operand is
+	// reported as the outermost written value it is part of -- whether
+	// or not the fixpoint happened to meet that container whole here.
+	// A pointer, where TypeScript carries the container's id: a Val
+	// holding another Val as an own PROPERTY is a cycle through the
+	// tree there, and a struct field is not. See INNER_OF in
+	// ts/src/provenance.ts.
+	finner Val
 	// The deprecation record (G3 phase 4, `deprecate(x, m)`): boolean
 	// marks cannot hold a message, a replacement path and a version, so
 	// the value carries one optional record (keys msg/use/since, values
@@ -270,6 +335,10 @@ func (b *base) setLinkAddr(addr string) { b.link = addr }
 func (b *base) markedHide() bool        { return b.mhide }
 func (b *base) fromSpread() bool        { return b.fspr }
 func (b *base) setFromSpread()          { b.fspr = true }
+func (b *base) written() bool           { return b.fwrt }
+func (b *base) setWritten()             { b.fwrt = true }
+func (b *base) innerOf() Val            { return b.finner }
+func (b *base) setInnerOf(v Val)        { b.finner = v }
 func (b *base) setMarkType(v bool)      { b.mtype = v }
 func (b *base) setMarkHide(v bool)      { b.mhide = v }
 
@@ -422,6 +491,13 @@ func (n *NilVal) Path() string {
 
 // pathSegments is the raw path the failure is reported at.
 func (n *NilVal) pathSegments() []string {
+	// A path assigned to the nil itself WINS: makeNilErr stores the slot
+	// the meet was driven at when it is more specific than the operand's
+	// own path, and residueErr stores the residue's. The operand is the
+	// fallback for a nil that was never given one.
+	if 0 < len(n.path) {
+		return n.path
+	}
 	residue := n.primary
 	if residue == nil {
 		residue = n
@@ -566,7 +642,7 @@ func (n *NilVal) frame(src, file, attempt string, v, other Val) string {
 		// pointed the reader at a file the value never came from.
 		arrowFile = "<no-file>"
 	}
-	fmt.Fprintf(&b, "  \x1b[34m--> %s:%d:%d\n", arrowFile, arrowRow, arrowCol)
+	fmt.Fprintf(&b, "  %s--> %s:%d:%d\n", ansi("\x1b[34m"), arrowFile, arrowRow, arrowCol)
 	// TWO lines of leading context, clamped at the top of the file, then
 	// the value's own line, then two trailing: the window TS's frame
 	// shows. Go printed only the trailing half, so every error below row
@@ -575,10 +651,10 @@ func (n *NilVal) frame(src, file, attempt string, v, other Val) string {
 	// two ports' messages differed by those lines.
 	for r := row - 2; r < row; r++ {
 		if 1 <= r {
-			fmt.Fprintf(&b, "\x1b[34m%3d | \x1b[0m%s\n", r, line(r))
+			fmt.Fprintf(&b, "%s%3d | %s%s\n", ansi("\x1b[34m"), r, ansi("\x1b[0m"), line(r))
 		}
 	}
-	fmt.Fprintf(&b, "\x1b[34m%3d | \x1b[0m%s\n", row, line(row))
+	fmt.Fprintf(&b, "%s%3d | %s%s\n", ansi("\x1b[34m"), row, ansi("\x1b[0m"), line(row))
 
 	keyPrefix := ""
 	if k := n.details["key"]; k != "" {
@@ -589,14 +665,14 @@ func (n *NilVal) frame(src, file, attempt string, v, other Val) string {
 		caretCol = 1
 	}
 	b.WriteString(strings.Repeat(" ", 6+caretCol-1))
-	b.WriteString("\x1b[34m^ ")
+	b.WriteString(ansi("\x1b[34m") + "^ ")
 	b.WriteString(keyPrefix)
 	b.WriteString("value was: ")
 	b.WriteString(v.Canon())
-	b.WriteString("\x1b[0m\n")
+	b.WriteString(ansi("\x1b[0m") + "\n")
 
-	fmt.Fprintf(&b, "\x1b[34m%3d | \x1b[0m%s\n", row+1, line(row+1))
-	fmt.Fprintf(&b, "\x1b[34m%3d | \x1b[0m%s\n", row+2, line(row+2))
+	fmt.Fprintf(&b, "%s%3d | %s%s\n", ansi("\x1b[34m"), row+1, ansi("\x1b[0m"), line(row+1))
+	fmt.Fprintf(&b, "%s%3d | %s%s\n", ansi("\x1b[34m"), row+2, ansi("\x1b[0m"), line(row+2))
 	return b.String()
 }
 
@@ -691,6 +767,14 @@ func (n *NilVal) Message() string {
 // "Cannot generate value: <canon>" carrying no code marker, no path and
 // no frame -- so the one document shaped entirely like the mistake got
 // the least helpful message (issue #38).
+// probing reports whether this generation is vet's completeness probe
+// rather than an output run (Ctx.probe, and AontuContext.probe in the
+// canonical port). Nil-safe: a bare Gen with no context is an output
+// run.
+func probing(ctx *Ctx) bool {
+	return nil != ctx && ctx.probe
+}
+
 func residueErr(ctx *Ctx, v Val, code string) error {
 	// Recorded on the context first, as TS FeatureVal.gen does through
 	// makeNilErr — and, like TS, RAISED only when the context is not
@@ -758,6 +842,35 @@ func makeNilErr(ctx *Ctx, why string, a, b Val) *NilVal {
 			}
 		}
 	}
+	// THE PATH IS WHERE THE MEET IS, NOT WHERE THE OPERAND WAS WRITTEN
+	// (use-cases/BUGS.md §41). The operand path pathSegments falls back
+	// to decides the SITE correctly and the path only by accident: a
+	// MINTED operand (a preference's yardstick, an arithmetic or concat
+	// result) carries no path at all, so a conflict at `$.a` reported
+	// `$` -- the whole document, not the key to edit. The slot is the
+	// location this meet is being driven at, so it is the answer
+	// whenever it is known.
+	//
+	// Only EXTENDS, never redirects: taken when the operand's path is a
+	// prefix of the slot, so a nil minted away from the descent keeps
+	// the path its operand carries. Mirrors NilVal.make in
+	// ts/src/val/NilVal.ts.
+	if ctx != nil && 0 < len(ctx.slot) {
+		base := n.pathSegments()
+		if len(base) < len(ctx.slot) {
+			prefix := true
+			for i, p := range base {
+				if p != ctx.slot[i] {
+					prefix = false
+					break
+				}
+			}
+			if prefix {
+				n.path = cp(ctx.slot)
+			}
+		}
+	}
+
 	if ctx != nil {
 		ctx.adderr(n)
 	}

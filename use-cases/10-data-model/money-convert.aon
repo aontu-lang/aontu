@@ -1,0 +1,51 @@
+# money-convert.aon --- the money wire convention's CROSSING POINT,
+# written out as theorems rather than described in prose.
+#
+# money-wire.aon is the schema half: what a strictly-JSON record must
+# look like for its money to be exact. This file is the other half:
+# what the string on the wire means once it is inside the model, and
+# what a host or an agent has to do to get it there. Every line here
+# evaluates -- `aontu money-convert.aon` prints the interior, and any
+# claim that stopped being true would refuse instead.
+
+# 1. THE CONVERSION IS TEXTUAL. The wire text is the 0d literal's
+#    digits: "3998.19" -> 0d3998.19. Nothing is parsed as a float on
+#    the way in, so nothing is rounded.
+amount: 0d3998.19 & bigdecimal
+
+# 2. THE SIGN GOES OUTSIDE THE PREFIX. "-12.05" -> -0d12.05, because
+#    `0d-12.05` is not a literal at all. A conversion that pasted the
+#    sign after the prefix would fail to parse rather than compute the
+#    wrong number, which is the safe direction, but it is still the
+#    detail every implementation gets wrong once.
+refund: -0d12.05 & bigdecimal
+
+# 3. SCALE IS NOT PART OF THE VALUE. 0d10.50 and 0d10.5 are the same
+#    number and unify; canon prints the shorter one. So a serialiser
+#    cannot recover "10.50" from the value -- it formats TO the scale
+#    the schema declared (`dec: "bigdecimal:2"`), which is the whole
+#    reason the mark names a scale rather than just a leaf.
+sameNumber: 0d10.50 & 0d10.5
+
+# 4. AT SCALE 0 THE POINT STILL HAS TO BE WRITTEN. `0d10` is a
+#    BIGINTEGER and the numeric leaves are disjoint, so a scale-0 wire
+#    decimal converts to 0d<digits>.0 -- never 0d<digits>, which would
+#    refuse the very schema it was converted for.
+scaleZeroWrong: 0d10 & biginteger
+scaleZeroRight: 0d10.0 & bigdecimal
+
+# 5. THE ARITHMETIC IS EXACT ONCE IT IS INSIDE. 19% VAT on 3998.19,
+#    pinned to the cent-truncated figure the ledger carries beside the
+#    unrounded product. Both are theorems: if `mul` ever disagreed,
+#    this file would refuse rather than print a wrong invoice.
+vatExact: mul(0d3998.19, 0d0.19) & 0d759.6561
+vatCents: mul(399819, 19) & 7596561          # minor units, integer
+netPlusVat: 0d3998.19 + 0d759.6561 & 0d4757.8461
+
+# 6. THE WALL STILL HOLDS. An exact number and a binary float do not
+#    mix, so a wire value that was read as a JSON NUMBER somewhere
+#    upstream cannot quietly join the exact side later -- it is
+#    refused at the meet, with both kinds named. That refusal is what
+#    makes the string convention necessary rather than optional; see
+#    gaps/float-mix.aon for the message.
+floatStaysOut: 10.5 & float

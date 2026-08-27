@@ -1,12 +1,15 @@
+# FIXED 2026-08-26 (the spread application rework: pure ExpectVal).
 # Two unequal &: spread templates on ONE map (cross-statement merge)
-# cross-wire the map's sibling children: each sibling's DATA is
-# unified with the other sibling's DATA through the combined template.
-# One spread, or two spreads with identical canon, are fine
-# (test/spec/spread-interleave.tsv pins two-spread support; the
-# crosswire needs a non-concrete template key that children override).
+# used to cross-wire the map's sibling children: the combined template
+# carried a stateful expectation node, tier-1 spread sharing handed the
+# SAME node to every destination, and each sibling's data accumulated
+# in it and met the next sibling's ($.w.y.r: "Cannot unify value: 6
+# with value: 5" -- both sides sibling DATA). Each child now meets the
+# combined constraint independently. Pinned in the shared spec:
+# spread-interleave.tsv spread-unequal-map-{2,3} (and the rest of the
+# spread-unequal-* composition matrix).
 # expected: {"w":{"x":{"p":1,"r":5},"y":{"p":2,"r":6}}} exit 0
-# actual: [aontu/scalar_value] at $.w.y.r: "Cannot unify value: 6 with
-#         value: 5" (both sides are sibling DATA values), exit 1
+# actual: {"w":{"x":{"p":1,"r":5},"y":{"p":2,"r":6}}} exit 0
 w: &: { p: integer }
 w: &: { r: integer }
 w: x: { p: 1, r: 5 }

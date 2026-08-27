@@ -71,16 +71,51 @@ class FuncBaseVal extends FeatureVal_1.FeatureVal {
     driveStagedArgs(ctx, count) {
         const TOP = (0, top_1.top)();
         let alldone = true;
+        // THE SNAPSHOT WAITS FOR THE SOURCE (the spread-then-pack defect,
+        // use-cases/BUGS.md pack-refs family). A reference resolving inside
+        // a staged argument is this argument's SNAPSHOT of its source, and
+        // the snapshot is not part of the tree: a spread-injected relative
+        // reference inside a too-early copy dangles at the argument's
+        // location (`.containerPort` rebased under the generator, where no
+        // root traversal reaches it) and the generator never fires. The
+        // `argsnap` flag makes RefVal.find defer until the target has
+        // finished resolving IN THE TREE — where its own spreads and
+        // relative references answer at their real location — and only then
+        // take the copy. Inherited by every descended ctx, so a reference
+        // anywhere in the argument subtree waits the same way.
+        const actx = ctx.clone({});
+        actx.argsnap = true;
         for (let i = 0; i < count && i < this.peg.length; i++) {
             const arg = this.peg[i];
             if (!arg.done) {
                 // Charged to the depth budget, as FuncBaseVal's own arg loop is:
                 // this recurses without going through `unite`.
-                this.peg[i] = (0, unify_1.withDepth)(ctx, arg, TOP, () => arg.unify(TOP, ctx));
+                this.peg[i] = (0, unify_1.withDepth)(ctx, arg, TOP, () => arg.unify(TOP, actx));
             }
             alldone = alldone && true === this.peg[i].done;
         }
         return alldone;
+    }
+    // THE PER-DESTINATION INSTANTIATION RULE (ADR-005). The default
+    // clone shares the argument array AND the argument Vals — pinned
+    // sharing for the move()/copy() ghost artifacts (test/spec/func.tsv,
+    // ghost-*-innard-canon) — but a clone that is a template INSTANCE
+    // must own the full inner structure: with the args shared,
+    // `pack($.names, close({name: key()}))` resolved key() once inside
+    // the one shared inner map and stamped the FIRST child's key on
+    // every child (use-cases/BUGS.md §8). The `dup` spec flag asks for
+    // that depth; everything else keeps the sharing it has always had.
+    clone(ctx, spec) {
+        const out = super.clone(ctx, spec);
+        if (true === spec?.dup && Array.isArray(this.peg)) {
+            // Every argument is a Val by construction (the parser builds
+            // them; make() rebuilds from driven Vals), as the Go twin's
+            // []Val typing states outright. The instantiation sites then
+            // normalise every path in the clone (repathInstance), so the
+            // argument-shaped parse paths never leak into an instance.
+            out.peg = this.peg.map((a) => a.clone(ctx, { dup: true }));
+        }
+        return out;
     }
     // The shape a staged func holds while it waits: not done, so the pass
     // loop keeps going; unchanged against TOP, so nothing reads an answer

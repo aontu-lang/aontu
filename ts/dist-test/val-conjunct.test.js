@@ -33,7 +33,7 @@ const G = (x, ctx) => new unify_1.Unify(x, lang).res.gen(ctx);
         let g2 = G('x:a:1,x:b:number&$.x.a');
         (0, expect_1.expect)(g2).equal({ x: { a: 1, b: 1 } });
         (0, expect_1.expect)(UC('a:*1|number,b:*2|number,c:$.a&$.b'))
-            .equal('{"a":*1|number,"b":*2|number,"c":2|1|number}');
+            .equal('{"a":*1|number,"b":*2|number,"c":*2|*1|number}');
         let g3 = G('{b:$.a&$.a}&{a:1}');
         (0, expect_1.expect)(g3).equal({ a: 1, b: 1 });
     });
@@ -44,12 +44,12 @@ const G = (x, ctx) => new unify_1.Unify(x, lang).res.gen(ctx);
         (0, expect_1.expect)(u1)
             .equal('{"a":{"x":1,"z":3}|{"y":2,"z":3}|{"q":4,"x":1}|{"q":4,"y":2}}');
         let u2 = UC('a:*1|number,a:*2|number');
-        (0, expect_1.expect)(u2).equal('{"a":2|1|number}');
+        (0, expect_1.expect)(u2).equal('{"a":*2|*1|number}');
         // TODO: fix syntax (*)
         // let u3 = UC('(*1|number) & (*2|number)')
         // expect(u3).equal('2|1|number')
         let u4 = UC('(number|*1) & (number|*2)');
-        (0, expect_1.expect)(u4).equal('number|1|2');
+        (0, expect_1.expect)(u4).equal('number|*1|*2');
     });
     (0, node_test_1.test)('map', () => {
         let m0 = UC('{a:1}&{b:2}');

@@ -1,18 +1,31 @@
-# expected: tidy either resolves a closure that then evaluates, or refuses to
-#           pin a module it cannot evaluate standalone (as `aontu hash` does)
-# actual: tidy exits 0 and locks canon aon1-XaOkx_EXlEJ1tMhinEkWQDYl1aSmVzoB7LA_Dp0u2-Y
-#         for service@1 -- the canon-hash of `nil`, identical for ANY module whose
-#         import fails, so the pin carries no information -- while
-#         `aontu hash aon_vendor/corp.example/schemas/service@1/service.aon`
-#         refuses the same file (exit 4, "does not evaluate on its own");
-#         evaluation then fails `module not fetched: corp.example/schemas/common@1`
-#         even though common@1 IS vendored flat here: the nested import resolves
-#         against the vendored module's own root (its mod.aon stops the upward
-#         walk), which has no aon_vendor/.  This flat layout is exactly what
-#         `mod vendor` produces (ts/src/mod-tool.ts modVendor), and `mod manifest`
-#         strips aon_vendor/ from the layer, so the nested-vendor workaround
-#         cannot travel through a publish.
+# BUGS.md section 31 -- FIXED 2026-08-27, both halves.
+#
+# (a) Transitive imports now survive the flat vendor tree. A vendored
+# module's own mod.aon used to stop the upward walk for the store, so
+# `@"corp.example/schemas/common@1"` -- imported by service@1, which is
+# itself imported from here -- resolved against
+# aon_vendor/corp.example/schemas/service@1/ and found no aon_vendor/
+# there, failing `module not fetched` even though common@1 IS vendored
+# flat beside it. The resolver now walks to EVERY enclosing mod.aon
+# root (projectRoots in ts/src/mod.ts, go/mod.go) and tries each root's
+# store and lockfile in turn, so the flat layout `mod vendor` produces
+# is the layout a nested import reads -- and the workaround (nesting a
+# second aon_vendor/ inside the dependency) is no longer needed, which
+# matters because `mod manifest` strips aon_vendor/ from the layer.
+#
+# (b) `tidy` no longer pins a module it cannot evaluate. It used to lock
+# canon aon1-XaOkx_EXlEJ1tMhinEkWQDYl1aSmVzoB7LA_Dp0u2-Y -- the
+# canon-hash of `nil`, identical for ANY module whose import fails, so
+# the pin carried no information and two different broken modules
+# locked the same pin. Tidy now refuses (verdict: error, exit 4, no
+# lockfile written) with the same message `aontu hash` gives the same
+# file: "does not evaluate on its own; nothing to pin".
+#
+# Pinned by ts/test/mod.test.ts and go/modtool_test.go
+# (TestModTransitiveVendorResolves, TestModTidyRefusesAnUnevaluableModule).
 # run: aontu mod tidy . && aontu main.aon
+# expected: verdict: ok, both modules pinned; {"svc":{"name":"checkout","port":8080}} exit 0
+# actual:   verdict: ok, both modules pinned; {"svc":{"name":"checkout","port":8080}} exit 0
 mod: { path: "corp.example/checkout", main: "main.aon" }
 dep: {
   "corp.example/schemas/service@1": { v: "1.4.2" }

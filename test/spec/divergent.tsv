@@ -68,10 +68,60 @@
 #
 # ---------------------------------------------------------------------
 #
-# OPEN -- a finding's site names the WRONG FILE under an `@"..."`
-#   include, in Go.
+# OPEN -- an include CYCLE is reported at a different site, with a
+#   different path spelling, and with the chain rendered in TS only.
+#   issue: none filed yet; found 2026-08-27 while landing the module
+#   distribution fixes (use-cases/REVIEW.md finding H). NOT introduced
+#   by that work -- it reproduces on a plain two-file include cycle with
+#   no modules involved, and is recorded here because the modself
+#   fixture now reaches the guard that exposes it.
+#
+#   Divergent input:  a.aon `x: @"b.aon"`, b.aon `y: @"b.aon"` `z: @"a.aon"`
+#   TypeScript: [aontu/multisource_cycle] at b.aon:1:4, naming the
+#               RESOLVED path (/tmp/cyc/b.aon), hint chain rendered
+#               `/tmp/cyc/b.aon -> /tmp/cyc/b.aon`
+#   Go:         [aontu/multisource_cycle] at a.aon:1:4, naming the
+#               SPELLING (b.aon), hint chain rendered as the literal
+#               `{loop}` -- the placeholder is never filled
+#   Both refuse, with the same code and the same exit class, so the
+#   disagreement is in the diagnostic and not in the verdict.
+#
+#   Not simply fixed because all three differences originate in the
+#   pinned @tabnas/multisource (0.5.2, both ports): the code, the
+#   message, the blamed site and the `{loop}` hint placeholder are the
+#   dependency's, not this repository's. Two of the three are arguably
+#   upstream BUGS rather than choices -- an unfilled `{loop}` says
+#   nothing to the reader it was written for, and naming the resolved
+#   absolute path contradicts the site rule finding F established for
+#   every finding this repo does own (a site prints the file as the
+#   entry's own spelling reaches it, so a SARIF upload stays
+#   repo-relative). Fixing it means an upstream change in both ports of
+#   multisource, released together.
+#
+#   No spec row asserts any of it: `mod-nested-has-its-own-root` pins
+#   the CLASS (errc -> syntax), which both ports agree on.
+#
+# ---------------------------------------------------------------------
+#
+# CLOSED 2026-08-27 -- a finding's site names the WRONG FILE under an
+#   `@"..."` include, in Go.
 #   issue: #66 (recorded 2026-08-24, from the 2026-08-21 status
-#   report's section 4). The row and column are right; only the file
+#   report's section 4).
+#
+#   CLOSED by the site-attribution invariant (use-cases/REVIEW.md
+#   finding F, BUGS.md §25): Go's include resolver now stamps the
+#   RESOLVED path onto every Val a loaded document parses into
+#   (`aonProcessor`/`stampResolved`, go/source.go) and keeps that
+#   document's text so the offsets can be resolved in the right file
+#   (`Aontu.IncludeText`), which is exactly the "carry the source URL
+#   down the include path" sweep this entry said was owed. TypeScript
+#   stopped OVERWRITING the loaded url with the entry's in the same
+#   change, so the two ports met rather than one moving to the other.
+#   The fixture below now reports `part.aon:1:7` from BOTH ports,
+#   byte-identical through `--format json`. Kept as a note because the
+#   opposite-direction warning about #76 still holds.
+#
+#   What it used to do: The row and column are right; only the file
 #   is wrong, which is the dangerous shape: an agent applying a patch
 #   from sites[].file + row + col edits that position in a file the
 #   constraint was never written in.
@@ -83,17 +133,18 @@
 #   Go:         schema site file = main.aon,     row 1, col 7
 #   (col 7 of main.aon is inside the include directive itself.)
 #
-#   Not simply fixed because the two ports carry a loaded file's
-#   identity differently: TS threads the resolved URL onto every Val
-#   parsed from it, where the Go port keeps the ENTRY document's URL on
-#   the context and stamps it at finding time. Making Go match means
-#   carrying the source URL down the include path onto each Val, which
-#   touches every construction site -- the same sweep `setPaths` needed
-#   for constraints (register, G1 phase 4) and worth doing as its own
-#   change rather than inside a release fix. Verdicts, codes and
-#   positions agree meanwhile, so `vet.tsv` rows are unaffected: the
-#   divergence is confined to the file NAME on a schema-role site, and
-#   `progress.md` carries the carve-out on its byte-identical claim.
+#   Why it stood as long as it did: the two ports carried a loaded
+#   file's identity differently. TS threaded the resolved URL onto
+#   every Val parsed from it, where the Go port kept the ENTRY
+#   document's URL on the context and stamped it at finding time.
+#   Making Go match meant carrying the source URL down the include path
+#   onto each Val -- the same sweep `setPaths` needed for constraints
+#   (register, G1 phase 4), and worth doing as its own change rather
+#   than inside a release fix. It was done as one, and it also settled
+#   what a report should CALL such a file: the resolved absolute path
+#   is the right identity and the wrong name, so a site prints the file
+#   as the entry's own spelling reaches it (`displayFile`), which is
+#   what keeps a SARIF upload repo-relative.
 #
 #   SEE ALSO the #76 entry below: the same machinery seen from the other
 #   side. This entry is a value that HAS a document and is attributed to
@@ -280,3 +331,161 @@
 #   UNAFFECTED there: the overlay-alone evaluation refuses to edit a
 #   document that loads anything, so no attribution question arises
 #   before a write.
+#
+# ---------------------------------------------------------------------
+#
+# OPEN -- a finding inside a value that arrived by a reference to a
+#   DEEPER target is reported at a path that does not exist, in
+#   TypeScript only.
+#   issue: none filed yet; found 2026-08-27 while landing the money wire
+#   convention (use-cases/REVIEW.md finding I), by running both engines
+#   on the same document and diffing.
+#
+#   The trigger is a DEPTH MISMATCH between the reference and its
+#   target, not the kind of finding: TypeScript's clone overlays the
+#   referring path onto the target's, so a target one level deeper than
+#   the referring field leaves exactly one stale segment behind. At
+#   EQUAL depth the two ports agree, which is what the two rows
+#   vet-ref-clone-names-the-key-not-the-record and
+#   vet-type-alias-names-the-key-not-the-record in vet.tsv pin, and why
+#   use-cases/10-data-model/money-wire.aon declares its types at the top
+#   level rather than under a `schema:` namespace.
+#
+#   Divergent input:  schema `schema:{M:type(close({a:string&re("^x$")}))}`
+#                     `quote: $.schema.M`
+#     with data `{"quote":{}}`         -- an unsatisfied key
+#     TypeScript: mapval_required at $.quote.M.a   (no such path in
+#                 either document -- the alias's own key is in the tail)
+#     Go:         mapval_required at $.quote.a     (correct)
+#     with data `{"quote":{"a":"y"}}`  -- a conflict, same shape
+#     TypeScript: constraint at $.quote.M.a
+#     Go:         constraint at $.quote.a
+#
+#   The nil's own path is already taken from the driving context where
+#   that EXTENDS the operand's path (use-cases/BUGS.md §41), which fixes
+#   the equal-depth case; it deliberately does not redirect a path that
+#   is merely wrong, because taking the context path unconditionally was
+#   tried and moves every closed-key, spread-template and `--at`
+#   finding to the driving location instead.
+#
+#   Not simply fixed because the cause is the clone-path difference
+#   ts/src/val/RefVal.ts documents in detectRefCycle: Go's
+#   clonePath/overlayPath re-paths a resolved clone to the referring
+#   site, TypeScript's clone keeps the source paths. Rebasing the clone
+#   with the existing repathInstance walk (the spread-instance
+#   operation) is NOT the same operation and was tried and reverted: it
+#   moves RELATIVE references with it, so
+#   `match(.side_effect, destructive, true, false)` in
+#   use-cases/09-agent-tools/registry.aon resolves against the
+#   destination and dies no_path. The real fix is a TypeScript twin of
+#   Go's cloneAt/overlayPath -- a clone that takes a destination path --
+#   which is wider than any one finding and is the arm-for-arm
+#   correspondence ADR-001 asks for.
+#
+# ---------------------------------------------------------------------
+#
+# OPEN -- Go's DERIVED GRAPH loses most of its edges on a two-view
+#   id-merged model, so `relations` silently misses a real cycle and
+#   `reaches` would under-answer with it.
+#   issue: none filed yet; found 2026-08-27 while landing the relations
+#   work (use-cases/REVIEW.md finding J), by running use case 01's
+#   check.sh through the GO CLI -- which nothing had done, because
+#   use-cases/run-all.sh drives the TypeScript one. NOT introduced by
+#   that work: the pre-change Go binary loses the same edges.
+#
+#   Divergent input:  use-cases/01-service-catalog/system.aon (and
+#     bad/cycle.aon, which includes it) -- eight entities described by
+#     TWO views (catalog.aon, deploy.aon) joined by id(), with the link
+#     lists typed by a spread from a shared vocabulary.
+#   TypeScript: graphOf gives 40 edges (19 distinct from/key/to
+#               triples); `relations bad/cycle.aon` reports
+#               `cycle svc/payments -> svc/ledger -> svc/payments`.
+#   Go:         GraphOf gives 6 edges (2 distinct triples); `relations
+#               bad/cycle.aon` reports NO cycle, and reports extra
+#               inverse_missing findings for the inverses it cannot
+#               see. Both ports find the same 8 ENTITIES.
+#
+#   What is established: BOTH VIEWS ARE NEEDED. With `deploy: {}` the
+#   two ports agree exactly (21 edges each); with one catalog domain
+#   and the full deploy they differ by 4. So the trigger is the
+#   id-merge across two trees, not the include, the spread or the
+#   vocabulary -- each of which agrees on its own. The missing edges
+#   are all links the merge carried into a position other than the one
+#   they were written at.
+#
+#   Not simply fixed because the cause is in how each port's identity
+#   merge places a link-stamped value at an entity's other positions,
+#   which is engine work rather than a graph-walk fix, and it did not
+#   minimise: every synthetic reduction tried (two views + spread, two
+#   views + include, an entity in one view pointing at one in two)
+#   agrees in both ports. The reproduction is the use case itself,
+#   which is in the tree.
+#
+#   Guarded meanwhile: use-cases/01-service-catalog/check.sh asserts the
+#   cycle, so the Go CLI fails that check today rather than passing it
+#   quietly -- which is the honest state, and how a fix will be noticed.
+
+#
+# ---------------------------------------------------------------------
+#
+# OPEN -- an id-spread refusal is pathed at `$` by TypeScript and at
+#   `$.&` by Go.
+#   issue: none filed yet; found 2026-08-27 while fixing the crash the
+#   same document caused (use-cases/BUGS.md 43). PRE-EXISTING and
+#   engine-level: plain evaluation disagrees the same way, so it is not
+#   the verbs' doing.
+#
+#   Divergent input:  `&: id(root)` `b: id(b) & {n: 1}`
+#   TypeScript: [aontu/id_spread] Cannot resolve value at path $
+#   Go:         [aontu/id_spread] Cannot resolve value at path $.&
+#
+#   Not simply fixed because it is a question about where a bag
+#   spread's own refusal SITS -- at the bag, or at the `&` entry that
+#   carries it -- which is a language answer rather than a port
+#   difference, and neither port is obviously right. The VERDICT, the
+#   code and the exit agree, which is what a caller acts on; the
+#   per-port tests named in 43 assert those and deliberately not the
+#   path.
+
+#
+# ---------------------------------------------------------------------
+#
+# OPEN -- the SITE of a MERGED CONTAINER that the meet minted: sited by
+#   TypeScript at the schema's own brace, unsited by Go.
+#   issue: none filed yet; found 2026-08-27 while pinning the sizing
+#   soundness fix (use-cases/BUGS.md 16), by probing a row through both
+#   library forms and diffing.
+#
+#   Divergent input:  schema `x: length(min(2)) & { &: {r: integer} }`,
+#                     data `{"x": {"a": {"r": 1}}}`
+#   TypeScript: the finding's schema site is len 1, src "{"
+#   Go:         the same site is len -1, src "" (unsited)
+#   Everything else agrees: verdict `incomplete`, code `constraint`,
+#   path `$.x`, expected and actual, and the OTHER site.
+#
+#   Not simply fixed because it is the same question the existing
+#   `vet-minted-arith-operand-unsited` row settles the other way for a
+#   minted SCALAR -- a value the meet built has no source text of its
+#   own, and Go says so while TypeScript lends it the brace of the
+#   fragment it grew from. Which is right is a finding-F decision about
+#   what a site MEANS for a value nobody wrote, and it wants answering
+#   once for every minted value rather than per shape.
+#
+#   The SAME divergence shows in a finding's PATH, not just its site,
+#   and reaches `--at`: anchoring ON a residuated container
+#   (`x: length(min(2)) & {a: 1}` with `--at $.x`) has TypeScript report
+#   the conflict at `$` and Go at `$.x`, because the path is taken from
+#   whichever operand's location wins and TypeScript has re-pathed the
+#   merged container to the meet position. Both ports still answer
+#   `invalid`, so the SOUNDNESS agrees; only where they say it is
+#   differs. Anchoring THROUGH a residue to a child (`--at $.x.a`)
+#   agrees byte for byte, and is pinned by
+#   `vet-at-steps-through-a-sizing-residue`.
+#
+#   The soundness this shape was probed for is pinned instead by
+#   `vet-sizing-min-still-short-in-the-data`,
+#   `vet-sizing-min-met-by-the-data` and
+#   `vet-sizing-min-survives-beside-a-container` in vet.tsv, whose
+#   containers the meet does not mint and which both ports agree on byte
+#   for byte.
+

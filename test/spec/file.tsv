@@ -52,3 +52,18 @@ load-not-found-list	err	a:[ @"nope-no-such-file" ]	source not found: nope-no-suc
 # pinned, because value and member fail by different routes.
 load-not-found-in-loaded-member	err	@"__FIXTURES__/nest_missing.aon"	source not found: ./no-such-child
 load-not-found-in-loaded-value	err	@"__FIXTURES__/nest_missing_val.aon"	source not found: ./no-such-child-val
+
+# TYPE-MARKED ALIASES ACROSS AN INCLUDE (ADR-005, 2026-08-26;
+# use-cases/BUGS.md §12, the include-alias-* repros). A type()d schema
+# referencing a type()d named alias behaved correctly inline but,
+# crossing an @"..." include, silently DROPPED the applied data record
+# (the record survived in canon), killed id(key(0)) with a bogus
+# id_name naming the unevaluated call, or died with a bogus
+# mapval_spread_required naming a spread existing in neither file.
+# Three mechanisms, one campaign: references defer on pending mark
+# wrappers, spread applications are full per-destination instances,
+# and a marked peer-only child is carried rather than wrapped as an
+# expectation. Parity-probed in both engines.
+load-alias-spread	gen	@"__FIXTURES__/alias_schema.aon" customers:{&:$.schema.C} customers:c1:{ledgerId:5}	{"customers":{"c1":{"ledgerId":5}},"schema":{}}
+load-alias-idspread	gen	@"__FIXTURES__/alias_schema.aon" customers:{&:id(key(0))&$.schema.C} customers:c1:{ledgerId:5}	{"customers":{"c1":{"ledgerId":5}},"schema":{}}
+load-alias-top-conjunct	gen	@"__FIXTURES__/alias_top.aon" c1:$.C&{a:5}	{"c1":{"a":5}}

@@ -9,7 +9,9 @@
 // already the @tabnas/path plugin below.
 import { existsSync, readFileSync, realpathSync } from 'node:fs'
 import {
+  basename as pathBasename,
   dirname as pathDirname,
+  join as pathJoin,
   resolve as pathResolve,
   sep as pathSep,
 } from 'node:path'
@@ -117,6 +119,12 @@ import { PackFuncVal } from './val/PackFuncVal'
 import { EachFuncVal } from './val/EachFuncVal'
 import { FilterFuncVal } from './val/FilterFuncVal'
 import { MatchFuncVal } from './val/MatchFuncVal'
+import {
+  AddFuncVal, SubFuncVal, MulFuncVal, DivFuncVal, ModFuncVal, RemFuncVal,
+} from './val/ArithFuncVal'
+import {
+  SumFuncVal, LeastFuncVal, GreatestFuncVal, PickFuncVal,
+} from './val/AggFuncVal'
 import { PlaceVal } from './val/PlaceVal'
 import { MoveFuncVal } from './val/MoveFuncVal'
 import { PathFuncVal } from './val/PathFuncVal'
@@ -514,6 +522,32 @@ help isolate the syntax error.`,
     // language to the one the lattice already is.
     filter: FilterFuncVal,
     match: MatchFuncVal,
+
+    // The arithmetic family (the review's finding I). Maths beyond `+`
+    // arrives as FUNCTIONS — `-` `*` `/` `%` stay reserved — and the
+    // family is numeric where the operator is polymorphic, which is
+    // what makes `add` more than a second spelling of `+`: it refuses
+    // the string concatenation that silently answers `"500m" + "500m"`.
+    // Every rule they obey is in ts/src/val/arith.ts.
+    add: AddFuncVal,
+    sub: SubFuncVal,
+    mul: MulFuncVal,
+    div: DivFuncVal,
+    mod: ModFuncVal,
+    rem: RemFuncVal,
+
+    // Aggregation over a finite, settled bag (the review's finding I).
+    // `least` and `greatest` rather than min and max, which are already
+    // the atoms for a lower and an upper BOUND -- an aggregate over a
+    // set and a bound on a value must not share a spelling.
+    sum: SumFuncVal,
+    least: LeastFuncVal,
+    greatest: GreatestFuncVal,
+
+    // Projection, which is what lets the aggregates reach a bag of
+    // RECORDS: `sum(pick($.lines, amountCents))`. Not a clever `each`
+    // template -- `each` MEETS each child, and a meet cannot select.
+    pick: PickFuncVal,
   }
 
 
@@ -1412,12 +1446,24 @@ function makeModelResolver(options: any) {
   // Real fs, deliberately: `options.fs` is not a sandbox (it feeds
   // parse text; the file leg reads through its own channel), so the
   // containment check must see the same filesystem that leg read from.
+  // A path that does not (fully) exist cannot be realpath'd whole, and
+  // falling back to the LEXICAL form compares apples to oranges when
+  // the root itself sits behind a symlink -- on macOS a root under
+  // /var realpaths to /private/var, so a merely-missing file inside it
+  // reads as an escape. Realpath the deepest EXISTING ancestor and
+  // re-attach the rest, so both sides of the check are in real
+  // coordinates. (The MCP server's own confinement carries the twin of
+  // this rule; its CI failure is what found the shape.)
   const realpath = (p: string): string => {
     try {
       return realpathSync(p)
     }
     catch {
-      return pathResolve(p)
+      const parent = pathDirname(p)
+      if (parent === p) {
+        return p
+      }
+      return pathJoin(realpath(parent), pathBasename(p))
     }
   }
 
@@ -1622,6 +1668,12 @@ function makeModelResolver(options: any) {
 // entries.
 const POSITIONAL_ARG_FUNCS: Record<string, boolean> = {
   deprecate: true, pack: true, each: true, filter: true, match: true,
+  // Arithmetic takes two OPERANDS, and an operand is a position: `sub`
+  // is not commutative, so `sub(a, b)` reaching the engine as one
+  // two-element list would lose which is which.
+  add: true, sub: true, mul: true, div: true, mod: true, rem: true,
+  // The bag and the key are distinct positions.
+  pick: true,
 }
 
 
@@ -1629,12 +1681,12 @@ const POSITIONAL_ARG_FUNCS: Record<string, boolean> = {
 // entry, and the arity is a property of the language rather than of
 // either port -- go/func.go carries the same table.
 //
-// Nearly everything takes exactly one. The four exceptions earn their
-// place: key() names how many levels UP the path to read, defaulting to
-// the parent when omitted, neq takes a whole set of exclusions,
-// unique() is a property of the container rather than a comparison
-// against anything, so there is nothing for it to take, and must()
-// takes a check AND the author's message for when it fails.
+// Nearly everything takes exactly one. The exceptions earn their place:
+// key() names how many levels UP the path to read, defaulting to the
+// parent when omitted, neq takes a whole set of exclusions, unique()
+// takes none (a property of the container) or a PROJECTOR key, must()
+// takes a check AND the author's message for when it fails, and the
+// arithmetic family takes two operands.
 const funcArity: Record<string, [number, number]> = {
   upper: [1, 1], lower: [1, 1], copy: [1, 1], pref: [1, 1],
   super: [1, 1], type: [1, 1], hide: [1, 1], close: [1, 1],
@@ -1642,7 +1694,9 @@ const funcArity: Record<string, [number, number]> = {
   min: [1, 1], max: [1, 1], above: [1, 1], below: [1, 1], re: [1, 1],
   length: [1, 1],
   key: [0, 1],
-  unique: [0, 0],
+  // THE ONE ARGUMENT IS A PROJECTOR: `unique(port)` says no two
+  // members share a `port`. The arity was reserved for it (finding I).
+  unique: [0, 1],
   neq: [1, -1],
   must: [2, 2],
   deprecate: [1, 2],
@@ -1654,6 +1708,16 @@ const funcArity: Record<string, [number, number]> = {
   // The scrutinee, then pattern/result pairs, then an optional
   // default: three arguments at least, and any number above that.
   match: [3, -1],
+  // Two operands, always. Arithmetic has no variadic reading that is
+  // not a fold, and a fold is the recursion this language refuses.
+  add: [2, 2], sub: [2, 2], mul: [2, 2],
+  div: [2, 2], mod: [2, 2], rem: [2, 2],
+  // One bag. The operation is fixed, so there is nothing else to pass:
+  // a fold's second argument is a FUNCTION, and this language has none
+  // to give it.
+  sum: [1, 1], least: [1, 1], greatest: [1, 1],
+  // The bag, and the key to take from each of its children.
+  pick: [2, 2],
 }
 
 
@@ -1690,9 +1754,11 @@ function arityText(lo: number, hi: number): string {
   if (lo !== hi) {
     return 0 === lo ? 'no arguments or one' : 'one argument or two'
   }
-  if (0 === hi) {
-    return 'no arguments'
-  }
+  // NO {0,0} ARM. `unique` was the only built-in taking none, and its
+  // one argument is now the projector the arity was reserved for
+  // (finding I), so a phrasing for a count no entry carries would be
+  // untested prose pretending to be tested -- the rule this function's
+  // header states. The arm returns with the table, if one ever does.
   if (2 === hi) {
     return 'exactly two arguments'
   }

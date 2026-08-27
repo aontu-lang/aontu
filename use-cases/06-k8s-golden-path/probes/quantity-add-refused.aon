@@ -1,0 +1,14 @@
+# THE REVIEW'S OWN EXAMPLE, now refused. `"256Mi" + "256Mi"` is the
+# string "256Mi256Mi" and always will be: `+` is polymorphic and
+# concatenation is one of its meanings (see quantity-concat.aon, still
+# pinned). What the review's finding I asked for is a spelling that
+# does NOT quietly answer -- and the arithmetic family is numeric, so
+# `add` on two quantity strings is a located invalid-arg rather than
+# nonsense that generates cleanly.
+#
+# The safe pattern is unchanged: keep the number and the unit apart,
+# and now the number can be COMPUTED rather than written twice.
+# run: aontu probes/quantity-add-refused.aon
+# expected: [aontu/invalid-arg] at $.mem, exit 1
+# actual:   [aontu/invalid-arg] at $.mem, exit 1
+mem: add("256Mi", "256Mi")

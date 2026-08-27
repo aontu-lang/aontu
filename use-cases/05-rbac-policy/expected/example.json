@@ -69,6 +69,15 @@
       "privileged": false,
       "rank": 40,
       "tenantOwner": false
+    },
+    "owner": {
+      "desc": "Full control; holds the tenant",
+      "grants": [
+        "admin/all"
+      ],
+      "privileged": true,
+      "rank": 100,
+      "tenantOwner": true
     }
   },
   "tenant": {

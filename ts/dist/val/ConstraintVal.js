@@ -10,6 +10,7 @@ const utility_1 = require("../utility");
 const Val_1 = require("./Val");
 const keyorder_1 = require("../keyorder");
 const ConjunctVal_1 = require("./ConjunctVal");
+const BagVal_1 = require("./BagVal");
 const top_1 = require("./top");
 const unify_1 = require("../unify");
 const IntegerVal_1 = require("./IntegerVal");
@@ -448,6 +449,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         this.neqs = [];
         this.res = [];
         this.uniq = false;
+        this.uniqBy = [];
         this.musts = [];
         if (spec.state) {
             this.domain = spec.state.domain;
@@ -460,6 +462,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
             this.res = spec.state.res ?? [];
             this.count = spec.state.count;
             this.uniq = spec.state.uniq ?? false;
+            this.uniqBy = spec.state.uniqBy ?? [];
             this.musts = spec.state.musts ?? [];
             this.invalid = spec.state.invalid;
         }
@@ -485,7 +488,8 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
                 this.fromAtom(spec.atom, args);
             }
         }
-        if (null != this.count || this.uniq || 0 < this.musts.length ||
+        if (null != this.count || this.uniq || 0 < this.uniqBy.length ||
+            0 < this.musts.length ||
             (null != this.pending && lateAtom(this.pending.atom))) {
             this.cjo = LATE_CJO;
         }
@@ -512,11 +516,22 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         const bad = (why) => {
             this.invalid = why;
         };
-        // `unique()` takes no argument: it is a property of the container,
-        // not a comparison against a value. Arity is checked at parse, so a
-        // written argument never reaches here.
+        // `unique()` is a property of the container -- not a comparison
+        // against a value -- so with no argument it says the members are
+        // pairwise DISTINCT. THE ONE ARGUMENT IS A PROJECTOR (the review's
+        // finding I: "unique()-by-field is reserved but absent", and the
+        // arity was reserved for exactly this): `unique(port)` says no two
+        // members share a `port`, which is how "no two services share a
+        // port" and "event ids are unique" are said.
         if ('unique' === atom) {
-            this.uniq = true;
+            if (0 === args.length) {
+                this.uniq = true;
+                return;
+            }
+            if (1 !== args.length || !stringLeaf(args[0])) {
+                return bad('invalid-arg');
+            }
+            this.uniqBy = [args[0].peg];
             return;
         }
         // `must(c, msg)` is Band B: an evaluate-only check against the
@@ -749,8 +764,9 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
     // Membership: the peer scalar passes every part of the residual, or
     // the whole meet is a located conflict.
     admit(peer, ctx) {
-        // No scalar has members, so a `unique()` residual admits none.
-        if (this.uniq) {
+        // No scalar has members, so a `unique()` residual admits none --
+        // and neither does a `unique(k)` one, for the same reason.
+        if (this.uniq || 0 < this.uniqBy.length) {
             return this.fail(ctx, peer);
         }
         if (!stateAdmits(this, peer)) {
@@ -767,7 +783,10 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
                 return this.fail(ctx, peer);
             }
         }
-        const bad = this.checkMusts(peer, ctx);
+        // A SCALAR HAS NO MEMBERS to accumulate, so its musts are decided
+        // here and never residuate: the final reading is the only reading
+        // a scalar has.
+        const bad = this.checkMusts(peer, ctx, true);
         if (null != bad) {
             return bad;
         }
@@ -781,10 +800,29 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
     // The trial runs in an isolated collect context so a failing check
     // leaves nothing on the caller's error list — only the located nil
     // this returns, carrying the author's own message.
-    checkMusts(peer, ctx) {
+    // `final` is the generation-time reading (see settleContainer): a
+    // must whose own check is a SIZING atom inherits that atom's
+    // provisionality, because `must(length(2), …)` against a map that may
+    // still gain members has not failed yet -- it has not been answered.
+    // Without this the must would decide against whatever the container
+    // held when it first settled, which is the very defect the sizing
+    // atoms were fixed for (use-cases/BUGS.md §16, §17).
+    checkMusts(peer, ctx, final) {
         for (const m of this.musts) {
             const trial = ctx.clone({ err: [], collect: true });
-            const got = (0, unify_1.unite)(trial, m.v.clone(trial), peer.clone(trial), 'must');
+            let got = (0, unify_1.unite)(trial, m.v.clone(trial), peer.clone(trial), 'must');
+            // A must whose check is a SIZING atom answers a residue rather
+            // than a verdict, because the atom is waiting for members that
+            // may still arrive. Before generation that residue IS the answer
+            // -- the must has not failed, it has not been asked yet -- and at
+            // generation it is settled, because nothing more can arrive.
+            const residue = (0, BagVal_1.sizingResidue)(got);
+            if (undefined !== residue) {
+                if (true !== final) {
+                    continue;
+                }
+                got = residue.con.settleContainer(residue.bag, trial);
+            }
             if (true === got?.isNil || 0 < trial.err.length) {
                 return (0, err_1.makeNilErr)(ctx, 'must', this, peer, undefined, {
                     message: m.msg.peg,
@@ -794,6 +832,14 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
             }
         }
         return undefined;
+    }
+    // THE FINAL READING of a sizing atom over a container: the same
+    // checks admitContainer makes, with the provisional ones taken as
+    // decided. Called from ConjunctVal.gen, which is where no more
+    // members can arrive. Returns the container (to generate) or the
+    // constraint's own nil (to report).
+    settleContainer(peer, ctx) {
+        return this.admitContainer(peer, ctx, true);
     }
     // Membership for a container peer. Only the SIZING atoms have anything
     // to say about a map or a list; every other atom is scalar-domain and
@@ -806,7 +852,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
     // isolated collect context so nothing leaks into the caller's errors.
     // A mirror would be a second copy of a filter that has already grown
     // subtle, free to drift from it; asking is correct by construction.
-    admitContainer(peer, ctx) {
+    admitContainer(peer, ctx, final) {
         // A scalar-domain residual has no reading over a container.
         if (null != this.domain) {
             return this.fail(ctx, peer);
@@ -818,21 +864,76 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
             this.dc = 0;
             return new ConjunctVal_1.ConjunctVal({ peg: [this, peer] }, ctx);
         }
-        const bad = this.checkMusts(peer, ctx);
+        const bad = this.checkMusts(peer, ctx, final);
         if (null != bad) {
             return bad;
         }
-        if (!this.uniq && null == this.count) {
-            return peer;
+        // A MUST OVER A CONTAINER RESIDUATES with the atoms, for the same
+        // reason (use-cases/BUGS.md §17): `must({t: max(60)}, …)` beside a
+        // `{t: integer}` schema was answered against the schema layer
+        // ALONE, and discharged before the data it was written to judge
+        // ever arrived. It is decided at generation, where the value is
+        // whole -- unless there is nothing else on the constraint AND the
+        // reading is already final.
+        if (!this.uniq && 0 === this.uniqBy.length && null == this.count) {
+            if (true === final || 0 === this.musts.length) {
+                return peer;
+            }
+            return this.hold(peer, ctx);
         }
         const members = emittedMembers(peer, ctx);
         if (null == members) {
-            // The container cannot generate at all; its own error is the one
-            // worth reporting, so pass it through untouched.
-            return peer;
+            // NOT COUNTABLE YET IS NOT A PASS. A container that cannot
+            // generate cannot be counted, and a SCHEMA is exactly that: the
+            // members of `{a: integer}` are types, so nothing is emitted and
+            // nothing can be counted. Discharging the atom here was the §16
+            // defect wearing its other face -- `length(min(2)) & {a: integer}`
+            // dropped its bound while still alone, so the data half of a
+            // `vet` meet was never measured at all and short data vetted
+            // clean against a bound the evaluator enforces.
+            //
+            // At generation the reading IS final: a container that still
+            // cannot generate has its own error, and that error is the one
+            // worth reporting, so it passes through untouched.
+            if (true === final) {
+                return peer;
+            }
+            return this.hold(peer, ctx);
         }
-        if (null != this.count && !stateAdmits(this.count, countVal(members.length))) {
-            return this.fail(ctx, peer);
+        // MONOTONE READINGS ONLY (the review's finding C, use-cases/BUGS.md
+        // §16). Members ACCUMULATE under unification -- a meet adds keys and
+        // never removes them -- so a settled container is settled ON ITS
+        // OWN and not against every value that may still contribute. The
+        // schema half of a `vet` meet, a document that is about to receive
+        // an `@` include, a bag a later `pack` will fill: each settles, and
+        // an atom that decided there decided too early.
+        //
+        // So a verdict is taken only when MORE MEMBERS CANNOT CHANGE IT:
+        //   - an upper bound VIOLATED is permanent -> refuse now;
+        //     satisfied is provisional -> keep the atom, re-check later.
+        //   - a lower bound SATISFIED is permanent -> that part may go;
+        //     violated is provisional -> keep the atom (which is why
+        //     `length(min(1))` beside a template no longer kills the schema
+        //     it was written for).
+        //   - a DUPLICATE is permanent -> refuse now; distinctness is
+        //     provisional -> keep the atom.
+        // Anything provisional residuates, exactly as an unsettled
+        // container does above, and the two spellings then agree.
+        const count = null == this.count ? undefined : this.count;
+        const n = members.length;
+        if (null != count) {
+            if (null != count.hi && !stateAdmits({ ...count, lo: undefined }, countVal(n))) {
+                return this.fail(ctx, peer);
+            }
+            if (0 < count.neqs.length && !stateAdmits({ ...count, lo: undefined, hi: undefined }, countVal(n))) {
+                return this.fail(ctx, peer);
+            }
+            // The provisional half, decided only when nothing more can
+            // arrive: a lower bound still short is a refusal at generation
+            // and a residue before it.
+            if (true === final && !stateAdmits(count, countVal(n))) {
+                return this.fail(ctx, peer);
+            }
         }
         if (this.uniq) {
             // Members compare by CANONICAL FORM, which reduces to scalar
@@ -849,7 +950,65 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
                 seen.add(key);
             }
         }
-        return peer;
+        // ... and the same test per PROJECTED key. A member that has no such
+        // key FAILS the constraint rather than being skipped: distinctness
+        // it cannot be shown to have is distinctness it does not have, and
+        // skipping would let one keyless record hide a duplicate.
+        for (const field of this.uniqBy) {
+            const seen = new Set();
+            for (const m of members) {
+                const at = true === m.isMap ?
+                    m.peg[field] : undefined;
+                if (null == at) {
+                    return this.fail(ctx, peer);
+                }
+                const key = at.canon;
+                if (seen.has(key)) {
+                    return this.fail(ctx, peer);
+                }
+                seen.add(key);
+            }
+        }
+        // WHAT IS LEFT IS PROVISIONAL, so the atom stays on the value. A
+        // lower bound already met is the one reading that cannot be undone,
+        // and an atom holding nothing else is spent: that is when it goes.
+        const spent = true === final || (0 === this.musts.length &&
+            !this.uniq && 0 === this.uniqBy.length &&
+            (null == count ||
+                (null == count.hi && 0 === count.neqs.length &&
+                    stateAdmits(count, countVal(n)))));
+        if (spent) {
+            return peer;
+        }
+        // DONE, unlike the unsettled case above. The container HAS settled;
+        // the atom is kept only because a LATER value could still add
+        // members, and a residue that reported itself unresolved would
+        // leave every enclosing value unresolved with it -- a `type()`
+        // waiting on its argument for ever, and use case 09's whole
+        // registry with it.
+        // The ATOM is done too, not just the conjunct. An earlier pass may
+        // have set `dc = 0` on the unsettled branch above, and a conjunct
+        // recomputes its own doneness from its terms on every later meet --
+        // so a stale 0 here would drag the residue, and every value holding
+        // it, back to unresolved for ever.
+        return this.hold(peer, ctx);
+    }
+    // The atom kept on a value whose reading is still provisional.
+    // DONE, unlike the unsettled container above: the value HAS settled;
+    // the atom is kept only because a LATER value could still add
+    // members, and a residue that reported itself unresolved would leave
+    // every enclosing value unresolved with it -- a `type()` waiting on
+    // its argument for ever, and use case 09's whole registry with it.
+    // The ATOM is done too, not just the conjunct. An earlier pass may
+    // have set `dc = 0` on the unsettled branch, and a conjunct
+    // recomputes its own doneness from its terms on every later meet --
+    // so a stale 0 here would drag the residue, and every value holding
+    // it, back to unresolved for ever.
+    hold(peer, ctx) {
+        this.dc = type_1.DONE;
+        const held = new ConjunctVal_1.ConjunctVal({ peg: [this, peer] }, ctx);
+        held.dc = type_1.DONE;
+        return held;
     }
     // Meet with a kind: `number` (or `string` on the string domain) is
     // already implied by an ORDER atom's argument; a numeric LEAF narrows
@@ -914,6 +1073,11 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
             null == peer.count ? this.count : meetCount(this.count, peer.count);
         // `unique()` is idempotent: two of them are one.
         merged.uniq = this.uniq || peer.uniq;
+        // `unique(a) & unique(b)` is BOTH, not the later one: each names a
+        // key on which the members must differ, and dropping either would
+        // silently weaken the constraint. Sorted and deduplicated, so the
+        // meet is commutative and `unique(a) & unique(a)` is one atom.
+        merged.uniqBy = [...new Set([...this.uniqBy, ...peer.uniqBy])].sort();
         // Band B checks accumulate in written order and are never merged,
         // deduplicated or reordered: each carries its own author message,
         // and two checks with the same shape may still say different things.
@@ -954,6 +1118,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
             res: [...this.res],
             count: this.count,
             uniq: this.uniq,
+            uniqBy: [...this.uniqBy],
             musts: [...this.musts],
             invalid: this.invalid,
         };
@@ -971,6 +1136,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         out.res = [...this.res];
         out.count = this.count;
         out.uniq = this.uniq;
+        out.uniqBy = [...this.uniqBy];
         out.musts = [...this.musts];
         out.pending = this.pending;
         out.cjo = this.cjo;
@@ -1135,6 +1301,12 @@ function canonState(s) {
     if (s.uniq) {
         parts.push('unique()');
     }
+    // After the bare atom, and sorted: canon is a normal form, so two
+    // documents writing the same keys in different orders must render
+    // the same string.
+    for (const key of s.uniqBy) {
+        parts.push('unique(' + JSON.stringify(key) + ')');
+    }
     for (const m of s.musts) {
         parts.push('must(' + m.v.canon + ',' + m.msg.canon + ')');
     }
@@ -1209,6 +1381,12 @@ function constraintStateSubsumes(g, s) {
     }
     // `unique()` subsumes only itself on that axis: a general uniqueness
     // demand admits no container the unconstrained specific also admits.
+    // ... and a general `unique(k)` needs the same key on the specific
+    // side: distinctness on `port` says nothing about distinctness on
+    // `name`.
+    if (g.uniqBy.some((k) => !s.uniqBy.includes(k))) {
+        return false;
+    }
     if (g.uniq && !s.uniq) {
         return false;
     }
@@ -1231,7 +1409,7 @@ function constraintAdmitsScalar(g, scalar) {
     if (0 < g.musts.length) {
         return 'undecided';
     }
-    if (g.uniq) {
+    if (g.uniq || 0 < g.uniqBy.length) {
         return false;
     }
     // A count residual admits by LENGTH, which is the meet's business;
@@ -1350,7 +1528,8 @@ function stateEmpty(s) {
     // members, so `integer & length(3)` and `min(2) & unique()` admit
     // nothing. Uniqueness over the string domain is empty for the same
     // reason -- a string's members are not values the algebra compares.
-    if ('number' === d && (null != s.count || s.uniq)) {
+    if ('number' === d && (null != s.count || s.uniq ||
+        0 < s.uniqBy.length)) {
         return true;
     }
     if ('string' === d && s.uniq) {
@@ -1375,7 +1554,9 @@ function countBase() {
         neqs: [],
         res: [],
         musts: [],
+        // A COUNT is a number, and a number has no members to be distinct.
         uniq: false,
+        uniqBy: [],
     };
 }
 // A count as a Val, so the count residual can be applied by exactly the
@@ -1401,6 +1582,7 @@ function meetCount(a, b) {
         res: [],
         musts: [],
         uniq: false,
+        uniqBy: [],
         clash: true === a.clash || true === b.clash ||
             (null != a.kind && null != b.kind && a.kind !== b.kind),
     };
@@ -1423,14 +1605,15 @@ function countArgState(arg) {
             domain: 'number',
             lo: { v: arg, open: false },
             hi: { v: arg, open: false },
-            neqs: [], res: [], musts: [], uniq: false,
+            neqs: [], res: [], musts: [], uniq: false, uniqBy: [],
         };
     }
     if (true === arg?.isConstraint) {
         const c = arg;
         // A pattern, a sizing atom or a string bound inside a count is not
         // a count constraint at all, and neither is a broken one.
-        if (null != c.invalid || 0 < c.res.length || c.uniq || null != c.count ||
+        if (null != c.invalid || 0 < c.res.length || c.uniq ||
+            0 < c.uniqBy.length || null != c.count ||
             'number' !== c.domain) {
             return undefined;
         }
@@ -1440,17 +1623,23 @@ function countArgState(arg) {
             lo: c.lo,
             hi: c.hi,
             neqs: [...c.neqs],
-            res: [], musts: [], uniq: false,
+            res: [], musts: [], uniq: false, uniqBy: [],
         };
     }
     if (true === arg?.isScalarKind) {
         const marker = arg.peg;
         if (Number === marker) {
-            return { domain: 'number', neqs: [], res: [], musts: [], uniq: false };
+            return {
+                domain: 'number', neqs: [], res: [], musts: [],
+                uniq: false, uniqBy: [],
+            };
         }
         if (ScalarKindVal_1.Integer === marker || ScalarKindVal_1.Float === marker ||
             ScalarKindVal_1.BigInteger === marker || ScalarKindVal_1.BigDecimal === marker) {
-            return { domain: 'number', kind: marker, neqs: [], res: [], musts: [], uniq: false };
+            return {
+                domain: 'number', kind: marker, neqs: [], res: [], musts: [],
+                uniq: false, uniqBy: [],
+            };
         }
         return undefined;
     }
@@ -1477,7 +1666,12 @@ function genable(child) {
     return true === child.isScalar || true === child.isMap ||
         true === child.isList || true === child.isPref ||
         true === child.isRef || true === child.isDisjunct ||
-        true === child.isNil;
+        true === child.isNil ||
+        // A settled sizing residue generates through ConjunctVal.gen, so it
+        // is a member like any other -- and a `length` that did not count
+        // its sibling's `unique` would be the early-fold defect again, one
+        // level up.
+        undefined !== (0, BagVal_1.sizingResidue)(child);
 }
 // The children a bag would EMIT, mirroring the selection in
 // `BagVal.gen` — type/hide marks skipped, non-generable residue and

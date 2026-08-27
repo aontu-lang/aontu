@@ -227,7 +227,7 @@ func TestModArguments(t *testing.T) {
 	}
 	for _, args := range [][]string{{}, {"nope"}, {"tidy", "a", "b"}} {
 		if _, errw, code := modRun(args...); 2 != code ||
-			!strings.Contains(errw, "needs tidy, vendor or manifest") {
+			!strings.Contains(errw, "needs tidy, verify, vendor or manifest") {
 			t.Fatalf("%v = %d: %s", args, code, errw)
 		}
 	}
@@ -366,5 +366,73 @@ func TestModTidyJSONIsTheReport(t *testing.T) {
 		1 != len(report.Lock) ||
 		"corp.example/schemas/service@1" != report.Lock[0].Mod {
 		t.Fatalf("bad report: %+v", report)
+	}
+}
+
+// THE VERIFY VERB (the review's finding H, use-cases/BUGS.md §32): a
+// gate that answers whether the stores still mean what the lockfile
+// pins, and changes nothing. Tidy cannot be that gate -- it recomputes
+// and rewrites by design, so it makes the lockfile agree with whatever
+// the store now holds, tampering included. The TypeScript twin is
+// `verify-catches-a-tampered-store-and-changes-nothing`.
+func TestModVerifyCommand(t *testing.T) {
+	dir := modProject(t, "\"corp.example/schemas/service@1\": {v: \"1.4.2\"}")
+	modVendorTree(t, dir, "corp.example/schemas/service@1", map[string]string{
+		"mod.aon": "mod: {path: \"corp.example/schemas/service\"," +
+			" main: \"service.aon\"}\n",
+		"service.aon": modToolSource,
+	})
+	// Before the lockfile exists there is nothing to check, which is a
+	// refusal and not a pass: the repair is a tidy, and the line says so
+	// rather than sending the reader to a fetch.
+	if out, _, code := modRun("verify", dir); 1 != code ||
+		!strings.Contains(out, "verdict: unlocked") ||
+		!strings.Contains(out,
+			"corp.example/schemas/service@1: not in the lockfile (run: aontu mod tidy)") {
+		t.Fatalf("unlocked verify = %d: %s", code, out)
+	}
+
+	if _, errw, code := modRun("tidy", dir); 0 != code {
+		t.Fatalf("tidy = %d: %s", code, errw)
+	}
+	lock, err := os.ReadFile(filepath.Join(dir, "mod-lock.aon"))
+	if nil != err {
+		t.Fatal(err)
+	}
+
+	out, errw, code := modRun("verify", dir)
+	if 0 != code || !strings.Contains(out, ": verified") {
+		t.Fatalf("clean verify = %d: %s%s", code, out, errw)
+	}
+
+	svc := filepath.Join(dir, "aon_vendor", "corp.example", "schemas",
+		"service@1", "service.aon")
+	modWrite(t, svc, strings.Replace(modToolSource, "8080", "9090", 1))
+
+	out, _, code = modRun("verify", dir)
+	if 1 != code || !strings.Contains(out, "verdict: mismatch") ||
+		!strings.Contains(out, "but the store means") {
+		t.Fatalf("tampered verify = %d: %s", code, out)
+	}
+	// THE LOCKFILE IS UNTOUCHED, which is the whole difference from
+	// tidy: a gate that rewrote what it was checking would pass every
+	// time.
+	now, err := os.ReadFile(filepath.Join(dir, "mod-lock.aon"))
+	if nil != err || string(lock) != string(now) {
+		t.Fatal("verify rewrote the lockfile")
+	}
+
+	// A module that no longer stands up says so, rather than reporting
+	// the hash of nil as though it were a meaning.
+	modWrite(t, svc, "a: 1\na: 2\n")
+	if out, _, code = modRun("verify", dir); 1 != code ||
+		!strings.Contains(out, "it does not evaluate") {
+		t.Fatalf("broken verify = %d: %s", code, out)
+	}
+
+	// And TIDY refuses to pin it, rather than writing the hash of nil.
+	if out, _, code = modRun("tidy", dir); 4 != code ||
+		!strings.Contains(out, "does not evaluate on its own; nothing to pin") {
+		t.Fatalf("tidy over a broken module = %d: %s", code, out)
 	}
 }

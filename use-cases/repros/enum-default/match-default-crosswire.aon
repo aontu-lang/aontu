@@ -1,10 +1,15 @@
-# expected: {"side_effect":"readonly","requires_approval":false} — the
+# FIXED 2026-08-26 (the defaulted-scrutinee rule, ADR-004).
+# expected: {"side_effect":"readonly","requires_approval":false} -- the
 #           generated scrutinee is the default "readonly", not destructive
-# actual: {"side_effect":"readonly","requires_approval":true} exit 0 —
-#         match() tests arms against the still-open *readonly|write|destructive
-#         disjunction; 'destructive' overrides the pref, so the FIRST
-#         admissible arm wins and the derivation contradicts the very value
-#         generated next to it (silent wrong answer; 09-agent-tools gap 14)
+# actual (now matches): {"requires_approval":false,"side_effect":"readonly"};
+#         with side_effect:destructive supplied the match answers true.
+#         match() on a settled scrutinee carrying an effective default
+#         tests patterns against the generation-effective value, never
+#         against the still-open preference. Pinned by
+#         test/spec/gen-match.tsv match-defaulted-scrutinee-*.
+#         (Old behaviour: requires_approval:true beside
+#         side_effect:"readonly" exit 0 -- the pattern selected the arm
+#         by overriding the default.)
 tool: {
   side_effect: *readonly | write | destructive
   requires_approval: match(.side_effect, destructive, true, false)

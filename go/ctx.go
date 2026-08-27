@@ -43,6 +43,20 @@ type Ctx struct {
 	// isolated (skipped/partial output) instead of raised, mirroring
 	// the cctx clone({err: [], collect: true}) in TS BagVal.gen.
 	collect bool
+	// THE COMPLETENESS PROBE (the review's finding C). Vet detects
+	// residue by GENERATING the anchored meet and keeping the
+	// incomplete-class failures. Generation honours the OUTPUT marks --
+	// type() and hide() say "do not emit this" -- so a --at anchor
+	// sitting under a mark generated nothing at all, reported nothing,
+	// and vetted VALID for data missing a required field, while the same
+	// anchor without the mark answered incomplete (use-cases/BUGS.md
+	// §14). A mark is a decision about OUTPUT; it is not a statement
+	// about what the data must satisfy, and --at names the truth to
+	// validate against explicitly. Under this flag the generation walk
+	// descends through marked values; nothing else changes, and no
+	// output is produced from a probe run -- only its findings are read.
+	// The twin of AontuContext.probe in ts/src/ctx.ts.
+	probe bool
 	// snapmap caches structural snapshots of ref spreads (see
 	// snapshotRefSpread in mapval.go), keyed by the ref's canon + source
 	// position — mirroring the snapmap on the TS unify root ctx.
@@ -53,6 +67,14 @@ type Ctx struct {
 	// evaluation, one set of entities — mirroring the `entities` map on
 	// the TS unify root ctx.
 	entities map[string]Val
+	// referflow is the set of entities a refer(t) type-flow is currently
+	// INSIDE — the Go twin of `ctx._referflow` in
+	// ts/src/val/ReferFuncVal.ts. Uniting a target drives the target's
+	// own subtree, so a pair that links back at each other flows into
+	// each other without bound; a flow that would re-enter an entity is
+	// skipped, because the flow one frame up is already uniting it. Same
+	// lifetime as `entities` above: one evaluation.
+	referflow map[string]bool
 	// slot is the location the next Unify target is being driven at —
 	// the TS ctx.path equivalent. Producers (bag child loops, func arg
 	// loops, junction folds) set it right before a unite call; unite
@@ -62,6 +84,18 @@ type Ctx struct {
 	// actually sits at its slot (everything except shared/transplanted
 	// clones, whose stored paths carry overlay tails).
 	slot []string
+
+	// argsnap is set by stagedDrive while a staged func's data argument
+	// is being driven (the Go side of the `argsnap` flag TS's
+	// driveStagedArgs sets on the drive ctx): a reference resolving
+	// inside such an argument is the generator's SNAPSHOT of its
+	// source, outside the tree, so RefVal.find defers the copy until
+	// the target has finished resolving IN THE TREE — where its own
+	// spreads and relative references answer at their real location.
+	// Copied earlier, the snapshot's rebased relative refs dangle
+	// under the generator and it never fires (the spread-then-pack
+	// defect, use-cases/BUGS.md pack-refs family).
+	argsnap bool
 
 	// The evaluation budgets (G5 trust profile, docs/trust.md): integer
 	// counts of engine events, never wall-clock. ZERO MEANS THE DEFAULT

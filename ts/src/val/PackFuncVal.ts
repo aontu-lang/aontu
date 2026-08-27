@@ -42,6 +42,7 @@ import { unite } from '../unify'
 import { makeNilErr } from '../err'
 import { MapVal } from './MapVal'
 import { FuncBaseVal } from './FuncBaseVal'
+import { repathInstance } from './Val'
 import { fillPlace } from './PlaceVal'
 
 
@@ -150,7 +151,14 @@ class PackFuncVal extends FuncBaseVal {
       // child pointing at the template's own parse-time location, which
       // is the position the template is never used at -- visible as the
       // site an error inside a generated child reports.
-      const child = fillPlace(tmpl.clone(keyctx), source, keyctx)
+      //
+      // A FULL INSTANCE, to the leaves (`dup`, ADR-005): a bare clone
+      // shares the inner structure of any call, preference or
+      // operation in the template, so the first child's resolution of
+      // a shared key()/ref answered for every child (BUGS.md §8, §9).
+      const inst = tmpl.clone(keyctx, { dup: true })
+      repathInstance(inst, inst.path)
+      const child = fillPlace(inst, source, keyctx)
       peg[key] = undefined === peg[key] ? child :
         unite(keyctx, peg[key], child, 'pack')
     }

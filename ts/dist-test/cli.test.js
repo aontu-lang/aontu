@@ -527,6 +527,27 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
         vetCapture(() => Assert.equal((0, cli_1.runBreaking)(['--against', f.specific, '--mode', 'forward', f.general]), 1));
         vetCapture(() => Assert.equal((0, cli_1.runBreaking)(['--against', f.specific, '--mode', 'full', f.general]), 1));
     });
+    // `--at` GATES A SUBTREE. A module's top level carries the version
+    // string and the policy block, which are SUPPOSED to change between
+    // releases -- so the whole-document comparison answered about them
+    // rather than about the contract, and a release that bumped only its
+    // version self-broke the gate. `subsume` has taken `--at` since G3;
+    // `breaking` did not, so the only way to gate a subtree was to split
+    // the file (use-cases/REVIEW.md finding D). The first leg is the
+    // control: without it, the version bump alone is breaking.
+    (0, node_test_1.test)('breaking-at-gates-a-subtree', () => {
+        const f = subFiles('version: "2.0.0"\nsvc: {port: integer}', 'version: "1.0.0"\nsvc: {port: integer}');
+        const whole = vetCapture(() => Assert.equal((0, cli_1.runBreaking)(['--against', f.specific, f.general]), 1));
+        Assert.match(whole.out, /\$\.version: compat_narrowed/);
+        const at = vetCapture(() => Assert.equal((0, cli_1.runBreaking)(['--at', '$.svc', '--against', f.specific, f.general]), 0));
+        Assert.match(at.out, /verdict: compatible/);
+        // And it still gates: a narrowing INSIDE the anchor is refused.
+        // Paths are reported from the ANCHOR, which is `subsume --at`'s
+        // own convention.
+        const g = subFiles('version: "2.0.0"\nsvc: {port: 8080}', 'version: "1.0.0"\nsvc: {port: integer}');
+        const narrowed = vetCapture(() => Assert.equal((0, cli_1.runBreaking)(['--at', '$.svc', '--against', g.specific, g.general]), 1));
+        Assert.match(narrowed.out, /\$\.port: compat_narrowed/);
+    });
     (0, node_test_1.test)('breaking-resolves-git-revisions', () => {
         const { execFileSync } = require('node:child_process');
         const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-brk-'));
@@ -548,12 +569,79 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
         // An unknown revision is a usage failure naming the spelling.
         const bad = vetCapture(() => Assert.equal((0, cli_1.runBreaking)(['--against', 'git#no-such-rev', file]), 2));
         Assert.match(bad.err, /cannot resolve git#no-such-rev/);
+        // A file the revision does not carry is refused by name rather
+        // than compared against nothing.
+        const absent = Path.join(dir, 'absent.aon');
+        Fs.writeFileSync(absent, 'a: 1');
+        const miss = vetCapture(() => Assert.equal((0, cli_1.runBreaking)(['--against', 'git#HEAD', absent]), 2));
+        Assert.match(miss.err, /absent\.aon is not in that revision/);
+    });
+    // THE OLD SIDE IS THE OLD TREE, not old entry text meeting new
+    // includes. The git spelling used to resolve the old document's
+    // `@"..."` loads against the WORKING tree, so a breaking change made
+    // inside an included file compared against itself and answered
+    // compatible -- the CI gate silently un-gated every non-entry file
+    // (use-cases/BUGS.md §26). Both directions are asserted: the
+    // narrowing is caught, and an unchanged tree stays compatible, so a
+    // fix that simply reported breaking would fail too.
+    (0, node_test_1.test)('breaking-git-compares-the-old-tree', () => {
+        const { execFileSync } = require('node:child_process');
+        const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-brk-tree-'));
+        const model = Path.join(dir, 'model');
+        Fs.mkdirSync(model);
+        const entry = Path.join(model, 'entry.aon');
+        const inc = Path.join(model, 'schema.aon');
+        const git = (...args) => execFileSync('git', [
+            '-c', 'user.email=t@example.com', '-c', 'user.name=t', ...args,
+        ], { cwd: dir, stdio: ['ignore', 'pipe', 'pipe'] });
+        git('init', '-q', '.');
+        Fs.writeFileSync(entry, 'svc: @"schema.aon"');
+        Fs.writeFileSync(inc, 'port: *8080|integer');
+        // A file no include can name: the materialiser must skip it.
+        Fs.writeFileSync(Path.join(dir, 'README.md'), '# not a source');
+        git('add', '-A');
+        git('commit', '-q', '-m', 'v1');
+        // Unchanged tree: compatible.
+        const same = vetCapture(() => Assert.equal((0, cli_1.runBreaking)(['--against', 'git#HEAD', entry]), 0));
+        Assert.match(same.out, /verdict: compatible/);
+        // The narrowing lives in the INCLUDED file only.
+        Fs.writeFileSync(inc, 'port: 8080');
+        const r = vetCapture(() => Assert.equal((0, cli_1.runBreaking)(['--against', 'git#HEAD', entry]), 1));
+        Assert.match(r.out, /verdict: breaking/);
+        Assert.match(r.out, /\$\.svc\.port/);
+        // THE PATH TO THE ENTRY NEED NOT BE THE PATH GIT PRINTS. Reaching
+        // the same file through a SYMLINK is the shape macOS and Windows
+        // hand every run of this verb: on macOS a temp file under /var is
+        // /private/var to git, and on Windows a TMP short name is the long
+        // form -- so relativising git's toplevel against the caller's
+        // resolved path subtracted two different coordinate systems, gave
+        // a `../..` climb, and the entry was "not in that revision". Exit
+        // 2 on both platforms, green on Linux, for the documented CI
+        // spelling. The repo-relative path now comes from git itself
+        // (`rev-parse --show-prefix`), so the caller's spelling cannot
+        // matter -- and this row runs that case on every platform.
+        //
+        // Best-effort: Windows refuses a symlink without Developer Mode,
+        // which is a privilege question rather than a defect in anything
+        // being tested. Twin: TestBreakingGitEntryPathNeedNotBeGits.
+        const linked = Path.join(dir, 'linked');
+        let symlinked = true;
+        try {
+            Fs.symlinkSync(model, linked, 'dir');
+        }
+        catch {
+            symlinked = false;
+        }
+        if (symlinked) {
+            const via = vetCapture(() => Assert.equal((0, cli_1.runBreaking)(['--against', 'git#HEAD', Path.join(linked, 'entry.aon')]), 1));
+            Assert.match(via.out, /verdict: breaking/);
+        }
         // No git binary at all: still a located usage failure, using the
         // spawn error's own message since there is no stderr to quote.
         const savedPath = process.env.PATH;
         try {
             process.env.PATH = '';
-            const gone = vetCapture(() => Assert.equal((0, cli_1.runBreaking)(['--against', 'git#HEAD', file]), 2));
+            const gone = vetCapture(() => Assert.equal((0, cli_1.runBreaking)(['--against', 'git#HEAD', entry]), 2));
             Assert.match(gone.err, /cannot resolve git#HEAD/);
         }
         finally {
@@ -607,6 +695,10 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
         const gf = subFiles('a:1', 'a:1');
         Assert.equal(vetCapture(() => Assert.equal((0, cli_1.runBreaking)(['--against', 'git#', gf.general]), 2)).err.includes('git# needs a revision'), true);
         vetCapture(() => Assert.equal((0, cli_1.runBreaking)(['--mode', 'sideways', '--against', 'a.aon', 'b.aon']), 2));
+        // LAST, so the flag really has no argument: `--at --against x`
+        // would take '--against' as the path, which is a different (and
+        // already-covered) failure.
+        vetCapture(() => Assert.equal((0, cli_1.runBreaking)(['--against', 'a.aon', 'b.aon', '--at']), 2));
         vetCapture(() => Assert.equal((0, cli_1.runBreaking)(['--format', 'yaml', '--against', 'a.aon', 'b.aon']), 2));
         vetCapture(() => Assert.equal((0, cli_1.runBreaking)(['--bogus']), 2));
         const f = subFiles('a:1', 'a:1');
@@ -655,14 +747,26 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
         Assert.match(r.out, /\$\.a\.b\.deep/);
         Fs.writeFileSync(file, 'x:{y:1}');
         Assert.equal(vetCapture(() => Assert.equal((0, cli_1.runTrim)(['--check', file]), 0)).out.trim(), 'verdict: clean');
+        // AN `error` VERDICT SAYS WHY (the review's finding F). Exit 4 is
+        // the same as it was; what changed is that the report now carries
+        // the reason, in text and in JSON, instead of a bare verdict.
         Fs.writeFileSync(file, 'a:1 a:2');
-        vetCapture(() => Assert.equal((0, cli_1.runTrim)(['--check', file]), 4));
+        const broken = vetCapture(() => Assert.equal((0, cli_1.runTrim)(['--check', file]), 4));
+        Assert.match(broken.out, /verdict: error/);
+        Assert.match(broken.out, /\$\.a: scalar_value \[conflict\]/);
+        const bj = JSON.parse(vetCapture(() => Assert.equal((0, cli_1.runTrim)(['--check', '--format', 'json', file]), 4)).out);
+        Assert.equal(bj.errors[0].code, 'scalar_value');
+        // The document's own name, exactly as the command line spelled it.
+        Assert.equal(bj.errors[0].sites[0].file, file);
         Fs.writeFileSync(file, 'a:{&:{k:1},m:{k:1}}');
         const j = vetCapture(() => Assert.equal((0, cli_1.runTrim)(['--check', '--format', 'json', file]), 1));
         const report = JSON.parse(j.out);
         Assert.equal(report.aontu.verb, 'trim');
         Assert.equal(report.verdict, 'redundant');
         Assert.deepEqual(report.redundant, ['$.a.m.k']);
+        // ABSENT, not empty, on a run that stood up: a consumer's presence
+        // check is the whole test.
+        Assert.equal('errors' in report, false);
     });
     (0, node_test_1.test)('trim-usage-errors-exit-2', () => {
         const f = subFiles('a:1', 'a:1');
@@ -692,15 +796,30 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
         Assert.match(r.out, /verdict: fail/);
         Assert.match(r.out, /cycle a -> b -> a/);
         Assert.match(r.out, /b does not list a under usedBy/);
+        // THE DECLARED TARGET, rendered (the review's finding J). The link
+        // site uses a bare refer(), so the relation's own `target` is the
+        // only thing saying what the far end must be.
+        Fs.writeFileSync(file, '@"std/system"\n' +
+            'relations: {dependsOn: $.std.Relation & {target: {kind: service}}}\n' +
+            'a: id(a) & {dependsOn: [&: refer(), b]}\n' +
+            'b: id(b) & {kind: database}\n');
+        const rt = vetCapture(() => Assert.equal((0, cli_1.runRelations)([file]), 1));
+        Assert.match(rt.out, /b is not what dependsOn targets/);
         // Acyclic AND mirrored: nothing to report.
         Fs.writeFileSync(file, decl +
             'a: id(a) & {dependsOn: [&: refer(), b]}\n' +
             'b: id(b) & {usedBy: [&: refer(), a]}\n');
         Assert.equal(vetCapture(() => Assert.equal((0, cli_1.runRelations)([file]), 0)).out.trim(), 'verdict: pass');
         // A document that does not stand up is not a document with a bad
-        // graph.
+        // graph -- and since the review's finding F it SAYS SO: exit 4 as
+        // before, with the reason under it rather than a bare verdict.
         Fs.writeFileSync(file, 'a: 1 & 2');
-        vetCapture(() => Assert.equal((0, cli_1.runRelations)([file]), 4));
+        const rbroken = vetCapture(() => Assert.equal((0, cli_1.runRelations)([file]), 4));
+        Assert.match(rbroken.out, /verdict: error/);
+        Assert.match(rbroken.out, /\$\.a: scalar_value \[conflict\]/);
+        const rbj = JSON.parse(vetCapture(() => Assert.equal((0, cli_1.runRelations)(['--format', 'json', file]), 4)).out);
+        Assert.deepEqual(rbj.findings, []);
+        Assert.equal(rbj.errors[0].code, 'scalar_value');
         Fs.writeFileSync(file, decl +
             'a: id(a) & {dependsOn: [&: refer(), b]}\n' +
             'b: id(b) & {dependsOn: [&: refer(), a]}\n');
@@ -711,6 +830,161 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
         Assert.equal(report.findings.length, 3);
         Assert.equal(report.findings[0].code, 'relation_cycle');
         Assert.deepEqual(report.findings[0].detail, ['a', 'b', 'a']);
+        // ABSENT, not empty, on a run that stood up: the graph had
+        // findings, and nothing stopped the graph being looked at.
+        Assert.equal('errors' in report, false);
+    });
+    // JSON SCHEMA EXPORT (the review's finding I / SUPPORT.md act 2). Go
+    // twin: TestJsonSchemaVerb and friends in
+    // go/cmd/aontu/jsonschema_test.go. What the two ports must AGREE on
+    // (the schema and the loss report) is test/spec/jsonschema.tsv's;
+    // what each port owns -- argument handling, exit codes, which stream
+    // each half goes to -- is here.
+    (0, node_test_1.test)('jsonschema-exports-the-model-and-names-what-it-cannot-carry', () => {
+        const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-js-'));
+        const file = Path.join(dir, 'doc.aon');
+        Fs.writeFileSync(file, 'spec: {\n' +
+            '  name: string & re("^[a-z]+$")\n' +
+            '  tier: *"internal" | "critical"\n' +
+            '  port?: integer & min(1024)\n' +
+            '}\n');
+        // THE SCHEMA GOES TO STDOUT so `aontu jsonschema x.aon > s.json`
+        // writes a usable file, and --at names the subtree as vet's does.
+        const r = vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)(['--at', 'spec', file]), 0));
+        const schema = JSON.parse(r.out);
+        Assert.equal(schema.$schema, 'https://json-schema.org/draft/2020-12/schema');
+        Assert.equal(schema.properties.name.pattern, '^[a-z]+$');
+        Assert.equal(schema.properties.tier.default, 'internal');
+        Assert.deepEqual(schema.properties.tier.enum, ['internal', 'critical']);
+        // An OPTIONAL key is simply absent from required, which is what
+        // `k?:` means and what a consumer must be told.
+        Assert.equal(schema.required.includes('port'), false);
+        Assert.equal(r.err, '');
+        // A LOSS IS NEVER SILENT -- and lands on the OTHER stream, so a
+        // redirect keeps the schema clean and the warning visible.
+        Fs.writeFileSync(file, 'a: integer & must(min(2), "two")\n');
+        const lossy = vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)([file]), 0));
+        Assert.match(lossy.out, /"type": "integer"/);
+        Assert.match(lossy.err, /^lossy: \$\.a must:/);
+        // ... and --strict turns the report into a refusal.
+        vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)(['--strict', file]), 1));
+        // A document that does not stand up has nothing to export, and
+        // says why in vet's finding shape.
+        Fs.writeFileSync(file, 'a: 1\na: 2\n');
+        const broken = vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)([file]), 4));
+        Assert.equal(broken.out, '');
+        Assert.match(broken.err, /scalar_value/);
+        // An anchor that names nothing is the same class of refusal.
+        Fs.writeFileSync(file, 'a: 1\n');
+        const noat = vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)(['--at', 'nope', file]), 4));
+        Assert.match(noat.err, /no_path/);
+        const j = JSON.parse(vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)(['--format', 'json', file]), 0)).out);
+        Assert.equal(j.aontu.verb, 'jsonschema');
+        Assert.equal(j.verdict, 'ok');
+        Assert.deepEqual(j.lossy, []);
+        Assert.equal('errors' in j, false);
+        // The SAME refusal under --format json puts the findings in the
+        // envelope instead of on stderr, so one redirect keeps both halves.
+        Fs.writeFileSync(file, 'a: 1\na: 2\n');
+        const je = JSON.parse(vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)(['--format', 'json', file]), 4)).out);
+        Assert.equal(je.verdict, 'error');
+        Assert.deepEqual(je.schema, {});
+        Assert.equal(je.errors[0].code, 'scalar_value');
+    });
+    (0, node_test_1.test)('jsonschema-usage-errors-exit-2', () => {
+        const f = subFiles('a:1', 'a:1');
+        vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)([]), 2));
+        vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)([f.general, f.specific]), 2));
+        vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)(['--bogus', f.general]), 2));
+        vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)(['--format', 'yaml', f.general]), 2));
+        vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)(['--at']), 2));
+        vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)([Path.join(f.dir, 'missing.aon')]), 2));
+        vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)(['--trust', 'nonsense', f.general]), 2));
+        // ... and one the parser ACCEPTS reaches the export.
+        Assert.equal(JSON.parse(vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)(['--trust', 'none', f.general]), 0)).out).type, 'object');
+        Assert.equal(vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)(['--help']), 0)).out.includes('aontu jsonschema'), true);
+    });
+    // REACHABILITY (the review's finding J). Go twin:
+    // go/cmd/aontu/reaches_test.go. What the two ports must AGREE on --
+    // the verdict and the path -- is test/spec/reach.tsv; what each port
+    // owns (argument handling, exit codes, rendering) is here.
+    (0, node_test_1.test)('reaches-answers-with-the-path-and-its-exit-code', () => {
+        const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-rc-'));
+        const file = Path.join(dir, 'doc.aon');
+        Fs.writeFileSync(file, 'a: id(a) & {dependsOn: [&: refer(), b]}\n' +
+            'b: id(b) & {dependsOn: [&: refer(), c], usedBy: [&: refer(), d]}\n' +
+            'c: id(c) & {}\nd: id(d) & {}\n');
+        // THE PATH IS THE ANSWER: "yes" is worth little to an operator
+        // asking what a failure would take out.
+        const hit = vetCapture(() => Assert.equal((0, cli_1.runReaches)(['a', 'c', file]), 0));
+        Assert.match(hit.out, /verdict: reaches/);
+        Assert.match(hit.out, /a -> b -> c/);
+        // An unreachable pair is a FAILED CHECK, not an error: the question
+        // was answered, and the answer was no.
+        const miss = vetCapture(() => Assert.equal((0, cli_1.runReaches)(['c', 'a', file]), 1));
+        Assert.match(miss.out, /verdict: unreachable/);
+        Assert.match(miss.out, /c does not reach a/);
+        // --relation follows one relation, which is the difference between
+        // "can this reach that at all" and "can it reach it THIS way".
+        vetCapture(() => Assert.equal((0, cli_1.runReaches)(['a', 'd', file]), 0));
+        vetCapture(() => Assert.equal((0, cli_1.runReaches)(['a', 'd', '--relation', 'dependsOn', file]), 1));
+        // An endpoint that names no entity is a REFUSAL, not a `no`:
+        // answering no would report a typo as a fact about the model.
+        const bad = vetCapture(() => Assert.equal((0, cli_1.runReaches)(['a', 'nope', file]), 4));
+        Assert.match(bad.out, /refer_unresolved/);
+        Assert.match(bad.out, /known entities: a, b, c, d/);
+        const j = JSON.parse(vetCapture(() => Assert.equal((0, cli_1.runReaches)(['a', 'c', '--format', 'json', file]), 0)).out);
+        Assert.equal(j.aontu.verb, 'reaches');
+        Assert.deepEqual(j.path, ['a', 'b', 'c']);
+        Assert.equal('errors' in j, false);
+        // A `no` carries no path -- there is no evidence for a negative
+        // answer -- and a refusal carries its findings instead.
+        const jn = JSON.parse(vetCapture(() => Assert.equal((0, cli_1.runReaches)(['c', 'a', '--format', 'json', file]), 1)).out);
+        Assert.equal(jn.verdict, 'unreachable');
+        Assert.equal('path' in jn, false);
+        Assert.equal('errors' in jn, false);
+        const je = JSON.parse(vetCapture(() => Assert.equal((0, cli_1.runReaches)(['a', 'nope', '--format', 'json', file]), 4)).out);
+        Assert.equal(je.verdict, 'error');
+        Assert.equal(je.errors[0].code, 'refer_unresolved');
+        Assert.equal('path' in je, false);
+        // A --trust the parser ACCEPTS reaches the graph.
+        vetCapture(() => Assert.equal((0, cli_1.runReaches)(['--trust', 'none', 'a', 'c', file]), 0));
+        // A document that does not stand up has no graph to ask about.
+        Fs.writeFileSync(file, 'a: 1\na: 2\n');
+        const broken = vetCapture(() => Assert.equal((0, cli_1.runReaches)(['a', 'b', file]), 4));
+        Assert.match(broken.out, /scalar_value/);
+    });
+    // A NIL ROOT WITH AN EMPTY ERROR LIST (use-cases/BUGS.md §43). The
+    // id-spread refusal IS the root, so `ctx.err` is empty and every verb
+    // that reports "this document does not stand up" used to read
+    // `ctx.err[0]` as undefined and die with a TypeError. The path the
+    // two ports give this nil differs ($ here, $.& in Go) and is recorded
+    // in test/spec/divergent.tsv, so this asserts the CODE and the
+    // verdict -- which is what a caller acts on -- rather than the path.
+    (0, node_test_1.test)('a-nil-root-with-no-collected-error-is-reported-not-thrown', () => {
+        const f = subFiles('&: id(root)\nb: id(b) & {n: 1}\n', 'a:1');
+        for (const run of [
+            () => (0, cli_1.runRelations)([f.general]),
+            () => (0, cli_1.runReaches)(['b', 'b', f.general]),
+            () => (0, cli_1.runJsonSchema)([f.general]),
+            () => (0, cli_1.runTrim)(['--check', f.general]),
+        ]) {
+            const r = vetCapture(() => Assert.equal(run(), 4));
+            // out OR err: jsonschema puts its refusal on stderr, because
+            // stdout is the schema's stream.
+            Assert.match(r.out + r.err, /id_spread/);
+        }
+    });
+    (0, node_test_1.test)('reaches-usage-errors-exit-2', () => {
+        const f = subFiles('a:1', 'a:1');
+        vetCapture(() => Assert.equal((0, cli_1.runReaches)([]), 2));
+        vetCapture(() => Assert.equal((0, cli_1.runReaches)(['a', f.general]), 2));
+        vetCapture(() => Assert.equal((0, cli_1.runReaches)(['--bogus', 'a', 'b', f.general]), 2));
+        vetCapture(() => Assert.equal((0, cli_1.runReaches)(['a', 'b', '--format', 'yaml', f.general]), 2));
+        vetCapture(() => Assert.equal((0, cli_1.runReaches)(['a', 'b', '--relation']), 2));
+        vetCapture(() => Assert.equal((0, cli_1.runReaches)(['--trust', 'nonsense', 'a', 'b', f.general]), 2));
+        vetCapture(() => Assert.equal((0, cli_1.runReaches)(['a', 'b', Path.join(f.dir, 'missing.aon')]), 2));
+        Assert.equal(vetCapture(() => Assert.equal((0, cli_1.runReaches)(['--help']), 0)).out.includes('aontu reaches'), true);
     });
     (0, node_test_1.test)('relations-usage-errors-exit-2', () => {
         const f = subFiles('a:1', 'a:1');
@@ -1032,9 +1306,21 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
         Assert.match(r.out, /^\$\.services\.auth\.replicas = 3/);
         Assert.match(r.out, /1\. \*1\|integer.*doc\.aon:2:18  \(spread\)/);
         Assert.match(r.out, /2\. 3.*doc\.aon:3:21/);
-        // A value written once and never met is a fact, not a failure.
+        // A KEY THE AUTHOR NEVER WROTE A VALUE FOR still has a source: the
+        // template did. It used to answer "no contributions" here -- true
+        // of meets, and no answer to "where did this value come from" (the
+        // review's finding E). The template's own site is what it names,
+        // and the same one the touched sibling above names.
         const q = vetCapture(() => Assert.equal((0, cli_1.runWhy)(['$.services.db.replicas', file]), 0));
-        Assert.match(q.out, /no contributions/);
+        Assert.match(q.out, /1\. \*1\|integer.*doc\.aon:2:18  \(spread\)/);
+        // TOP IS THE UNIT ELEMENT, not something the author wrote, so a
+        // path holding it has no contribution -- the one shape that still
+        // answers "nothing met at this path" now that the value which
+        // STANDS at a path counts (the review's finding E).
+        const topFile = Path.join(dir, 'top.aon');
+        Fs.writeFileSync(topFile, 'a: top\n');
+        const t = vetCapture(() => Assert.equal((0, cli_1.runWhy)(['$.a', topFile]), 0));
+        Assert.match(t.out, /no contributions/);
         const j = JSON.parse(vetCapture(() => Assert.equal((0, cli_1.runWhy)(['$.services.auth.replicas', '--format', 'json', file]), 0)).out);
         Assert.equal(j.aontu.verb, 'why');
         Assert.equal(j.ok, true);
@@ -1212,6 +1498,10 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
         Assert.match(st.out, /verdict: valid/);
         const md = vetCapture(() => (0, cli_1.main)(['node', 'aontu', 'agentsmd', f.general]));
         Assert.match(md.out, /aontu:begin/);
+        const js = vetCapture(() => (0, cli_1.main)(['node', 'aontu', 'jsonschema', f.general]));
+        Assert.match(js.out, /"type": "integer"/);
+        const rc = vetCapture(() => (0, cli_1.main)(['node', 'aontu', 'reaches', 'x', 'y', f.general]));
+        Assert.match(rc.out, /verdict: error/);
     });
 });
 // --- the repair loop, end to end ---------------------------------------

@@ -225,14 +225,14 @@ function publishDiagnosticsMsg(uri, diagnostics) {
 // value's own hover. Hover already re-unifies the whole document per
 // request, so an editor that asks for this pays a second instrumented
 // evaluation knowingly, and one that does not pays nothing.
-function provenanceMarkdown(src, path) {
+function provenanceMarkdown(src, path, trust) {
     if (0 === path.length) {
         return '';
     }
     // A document with an error ELSEWHERE still hovers — the tree the
     // hover walked is there — while `why` refuses it, so the record may
     // be absent for a value the cursor is sitting on.
-    const report = (0, query_1.why)(src, '$.' + path.join('.'));
+    const report = (0, query_1.why)(src, '$.' + path.join('.'), { trust });
     return contributionsMarkdown(report.record?.conjuncts ?? []);
 }
 // The contributions as hover markdown. Exported for the direct test
@@ -248,10 +248,16 @@ function contributionsMarkdown(conjuncts) {
             ('' === c.site.file ? '' : c.site.file + ':') +
             c.site.row + ':' + c.site.col + ')')).join('\n');
 }
-function computeHover(src, position, provenance) {
+// HOVER RUNS UNDER THE SAME CAPABILITY AS DIAGNOSTICS. It used to
+// evaluate through `new Aontu()` -- the full system resolver -- BESIDE
+// confined diagnostics in the same server, so a workspace-confined
+// session still resolved an escaping include the moment a cursor rested
+// on it (use-cases/REVIEW.md finding G). One document, two postures, is
+// not a confinement.
+function computeHover(src, position, provenance, trust) {
     let root;
     try {
-        root = new aontu_1.Aontu().unify(src, { collect: true });
+        root = new aontu_1.Aontu(null == trust ? {} : { trust }).unify(src, { collect: true });
     }
     catch {
         return null;
@@ -273,7 +279,8 @@ function computeHover(src, position, provenance) {
         contents: {
             kind: 'markdown',
             value: hoverMarkdown(best.val) +
-                (true === provenance ? provenanceMarkdown(src, best.val.path) : ''),
+                (true === provenance
+                    ? provenanceMarkdown(src, best.val.path, trust) : ''),
         },
         range: {
             start: { line: best.line, character: best.start },
@@ -374,10 +381,13 @@ exports.COMPLETION_KEYWORD = COMPLETION_KEYWORD;
 // and forgotten here diverges silently — as `id` and `refer` did
 // between G4 phases 1/2 and G8 phase 1.
 const BUILTIN_FUNCS = [
-    'above', 'below', 'close', 'copy', 'deprecate', 'each', 'filter',
-    'hide', 'id', 'key', 'length', 'lower',
-    'match', 'max', 'min', 'move', 'must', 'neq', 'open', 'pack', 'path',
-    'pref', 're', 'refer', 'super', 'type', 'unique', 'upper',
+    'above', 'add', 'below', 'close', 'copy', 'deprecate', 'div', 'each',
+    'filter', 'greatest',
+    'hide', 'id', 'key', 'least', 'length', 'lower',
+    'match', 'max', 'min', 'mod', 'move', 'mul', 'must', 'neq', 'open',
+    'pack', 'path', 'pick',
+    'pref', 're', 'refer', 'rem', 'sub', 'sum', 'super', 'type', 'unique',
+    'upper',
 ];
 exports.BUILTIN_FUNCS = BUILTIN_FUNCS;
 // Scalar-kind and literal keywords.
@@ -573,7 +583,7 @@ class LspHandler {
                 const pos = msg.params?.position;
                 const text = null != uri ? this.docs.get(uri) : undefined;
                 const hover = (null != text && null != pos)
-                    ? computeHover(text, pos, this.provenance) : null;
+                    ? computeHover(text, pos, this.provenance, this.trust) : null;
                 return [{ jsonrpc: '2.0', id: msg.id, result: hover }];
             }
             case 'textDocument/completion':

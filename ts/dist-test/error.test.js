@@ -360,5 +360,62 @@ const err_1 = require("../dist/err");
         const out = new aontu_1.Aontu().generate('x:(([]%))');
         (0, expect_1.expect)(JSON.stringify(out.x)).equal('[[],"%"]');
     });
+    // COLOUR IS A DECISION ABOUT THE DESTINATION (the review's finding
+    // F). Every frame hardcoded `active: true`, so a message piped into a
+    // log, a CI annotation or an agent's parser arrived wrapped in
+    // terminal control codes that the reader then had to strip before it
+    // could match anything. The Go twin is TestColorGate.
+    (0, node_test_1.it)('color-is-gated-by-no-color-and-the-caller', () => {
+        const frame = () => {
+            try {
+                new aontu_1.Aontu().generate('a:1\na:2\n');
+            }
+            catch (e) {
+                return e.message;
+            }
+            throw new Error('expected a conflict');
+        };
+        const esc = /\x1b\[/;
+        const noColor = process.env.NO_COLOR;
+        try {
+            delete process.env.NO_COLOR;
+            // The default is colour: an interactive session is still the
+            // common case, and nothing about the library knows better.
+            (0, err_1.setColor)(undefined);
+            (0, expect_1.expect)((0, err_1.colorActive)()).equal(true);
+            (0, expect_1.expect)(esc.test(frame())).equal(true);
+            // NO_COLOR, per no-color.org: SET, to anything, means no colour.
+            process.env.NO_COLOR = '1';
+            (0, expect_1.expect)((0, err_1.colorActive)()).equal(false);
+            (0, expect_1.expect)(esc.test(frame())).equal(false);
+            // Set-but-empty is the documented exception and does NOT disable.
+            process.env.NO_COLOR = '';
+            (0, expect_1.expect)((0, err_1.colorActive)()).equal(true);
+            (0, expect_1.expect)(esc.test(frame())).equal(true);
+            // A caller who can see the destination outranks the environment
+            // in both directions -- this is the call ts/src/cli.ts makes from
+            // process.stderr.isTTY, and the one --jsonl makes unconditionally.
+            process.env.NO_COLOR = '1';
+            (0, err_1.setColor)(true);
+            (0, expect_1.expect)((0, err_1.colorActive)()).equal(true);
+            (0, expect_1.expect)(esc.test(frame())).equal(true);
+            delete process.env.NO_COLOR;
+            (0, err_1.setColor)(false);
+            (0, expect_1.expect)((0, err_1.colorActive)()).equal(false);
+            (0, expect_1.expect)(esc.test(frame())).equal(false);
+            // THE POINT OF THE WHOLE GATE: with colour off the message is
+            // exactly the text, so a reader can match on it.
+            (0, expect_1.expect)(frame()).match(/^\[aontu\/scalar_value\]/);
+        }
+        finally {
+            (0, err_1.setColor)(undefined);
+            if (null == noColor) {
+                delete process.env.NO_COLOR;
+            }
+            else {
+                process.env.NO_COLOR = noColor;
+            }
+        }
+    });
 });
 //# sourceMappingURL=error.test.js.map

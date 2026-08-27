@@ -25,6 +25,20 @@ import { top } from './top'
 import { FeatureVal } from './FeatureVal'
 
 
+// The innermost preferred value under every pref layer: the value a
+// preference of ANY rank ultimately defends, and the one generation
+// emits for it. Shared by the disjunct admission gate (DisjunctVal),
+// the defaulted-scrutinee rule (MatchFuncVal) and the effective-default
+// walk (subsume.ts) so "the default's value" cannot mean three things.
+function prefInnerPeg(v: Val): Val {
+  let out: any = v
+  while (true === out?.isPref) {
+    out = out.peg
+  }
+  return out
+}
+
+
 class PrefVal extends FeatureVal {
   isPref = true
   isGenable = true
@@ -82,7 +96,21 @@ class PrefVal extends FeatureVal {
   // Recompute the type yardstick and the override gate from the current
   // peg. Called again whenever the peg resolves (e.g. a ref).
   private resuper() {
-    const peg: any = this.peg
+    // THE RANK-UNIFORM MEET (ADR-004). The yardstick is the INNERMOST
+    // preferred value's kind, whatever the preference's rank: `**1.5`
+    // defends `float` exactly as `*1.5` does. The old rule read the
+    // immediate peg, and a rank>=2 peg is itself a PrefVal whose
+    // superior is top -- so ANY conjunct overrode a ranked default
+    // (`**1.5 & float` dropped the default and died as mapval_no_gen;
+    // `**2|integer` met by a bare `integer` lost the default the
+    // spelling exists to carry -- use-cases/BUGS.md §3), while the
+    // rank-1 spelling of the same document kept it. One rule, every
+    // rank. Pinned by test/spec/pref.tsv (pref-rank2-* rows, and the
+    // flipped pref-nested-concrete-wins).
+    let peg: any = this.peg
+    while (true === peg?.isPref) {
+      peg = peg.peg
+    }
 
     // A preference whose peg is ITSELF a kind (`*integer`) constrains
     // nothing: there is no type-of-a-type in this lattice, so any peer
@@ -160,9 +188,17 @@ class PrefVal extends FeatureVal {
 
       // The peer added nothing beyond a type the preferred value already
       // satisfies (`*1 & integer`, `*1 & number`), so the preference
-      // stands. Anything else is a concrete override and wins.
+      // stands — as ITSELF, rank intact (ADR-004). Returning the peg
+      // here (the old rule) demoted the preference to a concrete value
+      // at rank 0 and to a lower rank above it, which both destroyed
+      // overridability (`*1 & integer` then `2` was a conflict) and
+      // broke the layered-defaults ladder: a team's `**debug|string`
+      // meeting an env's `string` branch produced a rank-0 `*debug`
+      // that then fought the env's own rank-0 `*warn` as an equal.
+      // Anything else is a concrete override and wins (subject to the
+      // disjunct admission gate in DisjunctVal).
       if (out.same(this.superpeg)) {
-        out = this.peg
+        out = this
         why += 'same'
       }
 
@@ -198,7 +234,20 @@ class PrefVal extends FeatureVal {
 
   clone(ctx: AontuContext, spec?: ValSpec): Val {
     let out = (super.clone(ctx, spec) as PrefVal)
-    // out.pref = this.pref.clone(null, ctx)
+    // THE PER-DESTINATION INSTANTIATION RULE (ADR-005). The default
+    // clone shares the preferred value (`peg: this.peg` in Val.clone)
+    // — a cloned pref spread template resolves its inner value at the
+    // template's own location, pinned behaviour. But a template
+    // INSTANCE must own it: with the peg shared, a rank-2 default
+    // (`**key(1) | string`) in a pack template resolved its one
+    // shared inner key() at the first destination and every child got
+    // the first child's key (use-cases/BUGS.md §9 — rank 1 escaped
+    // only because its unify builds a fresh PrefVal per meet). The
+    // superpeg yardstick from the shared peg still holds: the clone's
+    // innermost value is the same kind.
+    if (true === spec?.dup && true === (this.peg as any)?.isVal) {
+      out.peg = this.peg.clone(ctx, { dup: true })
+    }
     return out
   }
 
@@ -220,9 +269,10 @@ class PrefVal extends FeatureVal {
 
     return val.gen(ctx)
   }
-} /* node:coverage ignore next 6 */
+} /* node:coverage ignore next 7 */
 
 
 export {
   PrefVal,
+  prefInnerPeg,
 }

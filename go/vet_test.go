@@ -497,15 +497,22 @@ func TestVetNestedListConflictsAreAllReported(t *testing.T) {
 	}
 }
 
-// An unsited operand reports -1:-1 rather than a coordinate it does not
-// have: the parser gives a junction no position, in either port.
-func TestVetUnsitedOperandReportsMinusOne(t *testing.T) {
+// A JUNCTION REPORTS ITS OWN POSITION. The meet mints a fresh
+// disjunction, which used to arrive unsited -- so a finding naming a
+// disjunction that had met anything pointed at -1:-1 with no file, and
+// an agent reading the report had nowhere to go (the review's finding
+// F). The narrowed disjunction now carries the site of the one it came
+// from, which the parser puts at the start of the first alternative.
+// Twin: vet.tsv:vet-junction-site, and the hover-kind-labels case in
+// ts/test/coverage3.test.ts.
+func TestVetJunctionReportsItsOwnSite(t *testing.T) {
 	r := vetRun("a: 1|2", "a: 3", nil)
 	sites := r.Findings[0].Sites
 	if 2 != len(sites) {
 		t.Fatalf("sites: %+v", sites)
 	}
-	if -1 != sites[1].Row || -1 != sites[1].Col || "1|2" != sites[1].Value {
+	// `a: 1|2` -- the first alternative starts at column 4.
+	if 1 != sites[1].Row || 4 != sites[1].Col || "1|2" != sites[1].Value {
 		t.Fatalf("schema site: %+v", sites[1])
 	}
 }
@@ -554,5 +561,217 @@ func TestVetEachDocumentResolvesItsOwnIncludes(t *testing.T) {
 	// not stand up is an `error` verdict, never the data's fault.
 	if r := vetRun(src, data, nil); VetError != r.Verdict {
 		t.Fatalf("unbased: %s", r.Verdict)
+	}
+}
+
+// EVERY SITE NAMES THE FILE WHOSE TEXT IT EXCERPTS (the review's
+// finding F, use-cases/BUGS.md §25). Vet stamped the ENTRY document's
+// name over every value of both trees, so a constraint written in an
+// included library was reported at the entry file, with the LIBRARY's
+// row and column -- a line the entry may not even have. A repair agent
+// that follows the site edits the wrong file. Twin:
+// a-site-names-the-file-its-text-lives-in in ts/test/vet.test.ts.
+func TestVetSiteNamesTheIncludedFile(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "lib"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	lib := filepath.Join(dir, "lib", "types.aon")
+	if err := os.WriteFile(lib,
+		[]byte("Port: integer & min(1024)\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	schemaPath := filepath.Join(dir, "schema.aon")
+	src := "@\"lib/types.aon\"\nsvc: { port: $.Port }\n"
+	if err := os.WriteFile(schemaPath, []byte(src), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	dataPath := filepath.Join(dir, "data.json")
+	data := "{\"svc\":{\"port\":80}}\n"
+	if err := os.WriteFile(dataPath, []byte(data), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	r := vetRun(src, data, &VetOptions{
+		SchemaPath: schemaPath, DataPath: dataPath,
+		SchemaURL: schemaPath, DataURL: dataPath,
+	})
+	if VetInvalid != r.Verdict {
+		t.Fatalf("verdict: %s", r.Verdict)
+	}
+	var schemaSite, dataSite *VetSite
+	for i := range r.Findings[0].Sites {
+		s := &r.Findings[0].Sites[i]
+		if VetRoleSchema == s.Role {
+			schemaSite = s
+		} else {
+			dataSite = s
+		}
+	}
+	if nil == schemaSite || lib != schemaSite.File {
+		t.Fatalf("schema site: %+v", schemaSite)
+	}
+	// A row THAT FILE has, not one the entry happens to share.
+	if 1 != schemaSite.Row {
+		t.Fatalf("schema row: %+v", schemaSite)
+	}
+	// The role is decided by which document a url belongs to, not by a
+	// name comparison against one entry.
+	if nil == dataSite || dataPath != dataSite.File {
+		t.Fatalf("data site: %+v", dataSite)
+	}
+}
+
+// An INCLUDED DATA file is still data. The role used to be a string
+// comparison against the data entry's name, so a value read through an
+// include of the DATA document would have read `schema` the moment its
+// site named the file it really came from.
+func TestVetIncludedDataIsStillData(t *testing.T) {
+	dir := t.TempDir()
+	part := filepath.Join(dir, "part.aon")
+	if err := os.WriteFile(part, []byte("port: \"80\"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	dataPath := filepath.Join(dir, "data.aon")
+	data := "@\"part.aon\"\n"
+	if err := os.WriteFile(dataPath, []byte(data), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	r := vetRun("port: integer", data, &VetOptions{
+		DataPath: dataPath, DataURL: dataPath, SchemaURL: "schema",
+	})
+	if VetInvalid != r.Verdict {
+		t.Fatalf("verdict: %s", r.Verdict)
+	}
+	found := false
+	for _, s := range r.Findings[0].Sites {
+		if part == s.File {
+			found = true
+			if VetRoleData != s.Role {
+				t.Fatalf("included data site reads %q: %+v", s.Role, s)
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("no site names %s: %+v", part, r.Findings[0].Sites)
+	}
+}
+
+// THE REPAIR, NOT JUST THE DIAGNOSIS (the review's finding F). The
+// message is the headline and nothing else -- that is what makes it one
+// line and comparable -- so everything the engine knows about how to FIX
+// the failure reached a terminal reader in the frames and a machine
+// reader not at all. The TypeScript twin is
+// `a-finding-carries-the-repair-hint` in ts/test/vet.test.ts.
+func TestVetFindingCarriesTheHint(t *testing.T) {
+	// The clearest case in the language: the literal is refused BECAUSE
+	// binary64 would round it, and the fix is a one-character prefix the
+	// reader has no way to guess from the headline.
+	r := vetRun("port: integer", "port: 9007199254740993", nil)
+	if VetInvalid != r.Verdict {
+		t.Fatalf("verdict: %s", r.Verdict)
+	}
+
+	f := r.Findings[0]
+	if "lossy_integer_literal" != f.Code {
+		t.Fatalf("code: %s", f.Code)
+	}
+	if strings.Contains(f.Message, "\n") {
+		t.Fatalf("headline is not one line: %q", f.Message)
+	}
+	if nil == f.Hint {
+		t.Fatalf("no hint on %+v", f)
+	}
+
+	hint := *f.Hint
+	if !strings.Contains(hint, "0d") {
+		t.Fatalf("hint does not name the escape:\n%s", hint)
+	}
+	if !strings.Contains(hint, "\n") {
+		t.Fatalf("hint was truncated to one line:\n%s", hint)
+	}
+	// Trailing whitespace was spacing for the frame that used to follow
+	// the hint; the deliberate blank lines inside it are "\n \n" and
+	// must survive.
+	if hint != strings.TrimRight(hint, " \t\r\n") {
+		t.Fatalf("hint keeps trailing whitespace: %q", hint)
+	}
+	if !strings.Contains(hint, "\n \n") {
+		t.Fatal("hint lost its internal spacing")
+	}
+}
+
+// Not every code has one, and an absent hint is ABSENT rather than
+// empty: a consumer testing for a hint must not have to also test for
+// the empty string. The TypeScript twin is
+// `a-code-with-no-hint-text-carries-no-hint`.
+func TestVetFindingWithoutHintText(t *testing.T) {
+	r := vetRun("a: *5 | string\nb: string", "b: \"x\"", nil)
+	for _, f := range r.Findings {
+		if "pref_not_instance" == f.Code {
+			if nil != f.Hint {
+				t.Fatalf("unexpected hint: %+v", f)
+			}
+			return
+		}
+	}
+	t.Fatalf("no pref_not_instance finding: %+v", r.Findings)
+}
+
+// A FILE THE READER CAN OPEN (the review's finding F). The parser
+// resolves an include to an absolute path -- the right identity, the
+// wrong name -- so a site prints it as the entry's own spelling reaches
+// it. The TypeScript twin is `an-included-file-is-named-as-the-entry-
+// reaches-it` in ts/test/vet.test.ts.
+func TestDisplayFileNamesTheIncludeAsTheEntryReachesIt(t *testing.T) {
+	// A REAL absolute path, from the OS rather than assembled: on
+	// Windows a rooted path is not an absolute one without its drive
+	// letter, so `\w\proj\lib.aon` is relative there and the rule
+	// under test would decline to rewrite it -- passing for the wrong
+	// reason on Linux and failing outright on Windows.
+	dir := t.TempDir()
+	abs := filepath.Join(dir, "lib.aon")
+	absEntry := filepath.Join(dir, "entry.aon")
+
+	// A BARE entry name: the include is named beside it, with no
+	// directory the caller never typed.
+	if got := displayFile(abs, "entry.aon", absEntry); "lib.aon" != got {
+		t.Fatalf("bare entry: %q", got)
+	}
+
+	// An entry reached through a directory: the include is named through
+	// the same one, so both are openable from the caller's cwd.
+	deep := filepath.Join("a", "b", "entry.aon")
+	want := filepath.Join("a", "b", "lib.aon")
+	if got := displayFile(abs, deep, absEntry); want != got {
+		t.Fatalf("nested entry: %q, want %q", got, want)
+	}
+
+	// An ABSOLUTE entry keeps absolute includes: the caller asked for
+	// absolute names by giving one.
+	if got := displayFile(abs, absEntry, absEntry); abs != got {
+		t.Fatalf("absolute entry: %q", got)
+	}
+
+	// The document's OWN url is never rewritten -- it is already the
+	// name the caller used.
+	if got := displayFile("entry.aon", "entry.aon", "x/entry.aon"); "entry.aon" != got {
+		t.Fatalf("self: %q", got)
+	}
+	// Neither is a url that is not a path, or one with no base to
+	// relativise against: the default labels `schema` and `data`, and a
+	// caller who passed no path at all.
+	if got := displayFile("data", "data", ""); "data" != got {
+		t.Fatalf("label: %q", got)
+	}
+	if got := displayFile(abs, "entry.aon", ""); abs != got {
+		t.Fatalf("no base: %q", got)
+	}
+	if got := displayFile("", "entry.aon", "x/entry.aon"); "" != got {
+		t.Fatalf("empty url: %q", got)
+	}
+	if got := displayFile("rel.aon", "entry.aon", "x/entry.aon"); "rel.aon" != got {
+		t.Fatalf("relative url: %q", got)
 	}
 }

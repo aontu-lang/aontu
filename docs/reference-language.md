@@ -31,6 +31,8 @@ the [Explanation](explanation.md).
 - [Variables `$name`](#variables-name)
 - [The `+` operator and grouping](#the--operator-and-grouping)
 - [Functions](#functions)
+- [Arithmetic: `add` `sub` `mul` `div` `mod` `rem`](#arithmetic-add-sub-mul-div-mod-rem)
+- [Aggregating: `sum` `least` `greatest`](#aggregating-sum-least-greatest)
 - [Marks: `type` and `hide`](#marks-type-and-hide)
 - [Closed values: `close` / `open`](#closed-values-close--open)
 - [Source loading `@"…"`](#source-loading-)
@@ -438,6 +440,26 @@ a:2  a:string|number → {"a":2}
 
 `&` binds tighter than `|`, so `c & b | a` parses as `(c & b) | a`.
 
+**An unresolved disjunction has no value** (ADR-007). More than one
+alternative still admitted means the truth is not yet settled, so
+generation refuses with `disjunct_no_gen`, class `incomplete` — the
+same class a bare `string` residue answers:
+
+```
+a:1|2                → [aontu/disjunct_no_gen] at $.a
+a:{x:1}|{y:2}        → [aontu/disjunct_no_gen] at $.a
+```
+
+Two things resolve it: a value that selects an alternative, or a
+preference saying which one holds when nothing else does (below).
+Alternatives that are the *same value* collapse first, so `1|1` and
+`{a:1}|{a:1}` each generate that one value — sameness is structural
+for maps and lists (container kind, closedness, marks, optional keys,
+then the children).
+
+An optional key whose value is an unresolved disjunction is dropped
+rather than reported, as every other unresolved optional is.
+
 ## Preference / default `*`
 
 `*x` marks `x` as **preferred** (a default). In a disjunction the
@@ -453,21 +475,64 @@ a:*1|number  a:2     → {"a":2}              (override beats default)
 Defaults propagate through nesting and spreads. `pref(x)` is the
 function form of `*x` (canon `*x`). Preferences can be ranked (a `*` of a
 `*` outranks a single `*`); the lowest rank wins when two preferred
-values meet.
+values meet. A ranked preference meets its peers exactly as rank 1
+does — the **rank-uniform meet** (ADR-004): `a:**1.5 & float` is `1.5`
+just as `a:*1.5 & float` is, and `**2|integer` met by a bare `integer`
+keeps its default.
 
-Overriding a **scalar** default is judged by *kind*, not by family: a
-concrete peer replaces the default only where it is the same kind of
-thing. A peer of another kind is a conflict, and that includes the other
-numeric leaf — `a:*2 & 3.0` and `a:*2.2 & 3` are both errors, as is
-`a:*1.5 & integer`. A kind peer the default already satisfies leaves the
+Overriding a **scalar** default is judged in two steps.
+
+**A bare preference is gated by kind**, not by family: a concrete peer
+replaces the default only where it is the same kind of thing. A peer of
+another kind is a conflict, and that includes the other numeric leaf —
+`a:*2 & 3.0` and `a:*2.2 & 3` are both errors, as is `a:*1.5 &
+integer`. A kind peer the default already satisfies leaves the
 preference standing (`a:*1.5 & float` and `a:*1.5 & number` are both
 `1.5`).
 
+**A preference conjoined with a disjunction names an alternative**
+(ADR-007): `(A|B) & *A` is `*A|B`, the same value the direct spelling
+denotes, so the two ways of writing an enum-with-default agree.
+
 ```
-a:*8080|integer  a:9090  → {"a":9090}     (same leaf: override)
+a:("1.0"|"1.1") & *"1.0"   → canon {"a":*"1.0"|"1.1"};  generates "1.0"
+a:("1.0"|"1.1") & *"2.0"   → canon {"a":"1.0"|"1.1"}    (names nothing)
+```
+
+A preference naming no alternative is dropped: it has nothing to
+prefer, and the default-validity lint below is what reports that shape.
+
+**A preference inside a disjunction is gated by admission**
+(ADR-004): an override must be admitted by the disjunction itself —
+by at least one alternative, or by the preferred value. A preferred
+branch contributes exactly its own value to the admitted set, so
+`*'auto' | 'literal' | 'data'` is a true **enum with a default**:
+unset generates `"auto"`, `'literal'` and `'data'` override, and
+anything else is the empty disjunction (`[aontu/|:empty]`). A wider
+alternative admits a wider override (`*8080 | integer` accepts any
+integer), and a constraint alternative is consulted rather than
+bypassed (`*8080 | (integer & min(1024) & max(65535))` refuses `80`
+and accepts `2048`; `*8080 | (integer & neq(80))` refuses `80`). A
+deliberately open default states its openness: `*x | top` admits every
+override. The gate covers scalar preferred values — the same boundary
+as the kind gate below.
+
+```
+a:*8080|integer  a:9090  → {"a":9090}     (same leaf: an alternative admits it)
 a:*8080|integer  a:1.5   → refused        (other leaf: [aontu/|:empty])
 a:*8080|number   a:1.5   → {"a":1.5}      (the branch admits the family)
+k:*'auto'|'literal'|'data'  k:'autoo' → refused   (no alternative admits it)
+port:*8080|(integer&neq(80))  port:80 → refused   (the exclusion is consulted)
+x:*8080|string   x:8080  → {"x":8080}     (the preferred value admits itself)
 ```
+
+**This is a breaking change** (2026-08-26, ADR-004). Before it, a
+same-kind concrete peer replaced the preferred value with the other
+alternatives never consulted, so `k:*'auto'|'literal'|'data'` +
+`k:'autoo'` answered `"autoo"` with exit 0 — the fail-open enum of the
+2026-08 language review (use-cases/REVIEW.md finding A). A document
+that leaned on the open override keeps its meaning by writing the open
+branch explicitly: `*x | top`.
 
 **A structural default is not gated.** The yardstick is the preferred
 value's `superior()`, and a map or a list has none — it is `top` — so
@@ -526,6 +591,23 @@ Other forms:
 - **Lists:** `[&:{x:1}, {y:1}, {y:2}]` → `[{y:1,x:1},{y:2,x:1}]`;
   canon keeps the spread: `[&:{"x":1},{"y":1,"x":1},…]`.
 
+**Several templates apply independently, per child.** When one bag
+accumulates more than one `&:` template — consecutive spreads, spreads
+from different statements, templates arriving by reference through a
+conjunction or an id-merge — every child meets the combined constraint
+of all of them, and only that: children never meet each other's data
+through the templates, whatever mix of literal values, kinds,
+references, defaults or `key()` the templates carry. A key one
+template requires is required at every child; a default one template
+carries defaults (and stays overridable) per child.
+
+```
+w: &: {p:integer}
+w: &: {r:integer}
+w: x: {p:1, r:5}
+w: y: {p:2, r:6}      → {"w":{"x":{"p":1,"r":5},"y":{"p":2,"r":6}}}
+```
+
 ## Generating children: `pack` and `each`
 
 A spread constrains children that already exist. `pack` and `each`
@@ -552,6 +634,17 @@ and relative references inside the template answer for the child
 rather than for the call. Duplicate keys are not an error — the
 colliding children unify, exactly as duplicate source keys merge.
 
+**Instantiation is per destination, to the leaves** (ADR-005). The
+clone a destination receives is a *full instance*: nothing in it —
+not a call's arguments, not a preference's inner value, not an
+operator's operands — is shared with the template or with any sibling
+destination, and every path inside it is the destination's. So
+`close({name: key()})`, `**key(1) | string` and `.a + 1` inside a
+template all answer per child, in expressions and call arguments as
+much as in bare positions; the first child's resolution can never
+answer for the others. The same rule instantiates a `filter`
+condition per trial and a spread constraint (`&:`) per application.
+
 `each(data, tmpl?)` makes one **list element** per child of `data`,
 each of them that child met with `tmpl`. The order is fixed: source
 order for a list, sorted-key order for a map. Written with one
@@ -571,9 +664,15 @@ generator.
 Both **wait for the model to settle** before they fire, and fire
 exactly once. A generator's data can still be merged into by a sibling
 statement, an include or a spread after it first looks complete, and
-children generated from a half-merged bag would be missing. Until it
-fires, a generator canons as its own call — `pack({"a":1+true},…)` —
-which reparses to the same value.
+children generated from a half-merged bag would be missing. The data
+argument's **snapshot waits for the source too**: a reference like
+`pack($.ports, …)` copies its target only once the target has finished
+resolving in the tree, so a source augmented by a spread — even one
+injecting relative references (`ports: &: {port: .containerPort}`) —
+reaches the generator with those references already answered at the
+source. Until it fires, a generator canons as its own call —
+`pack($.n,…)` with the data reference still standing — which reparses
+to the same value.
 
 Neither can recurse. Both iterate a finite bag that already exists, so
 the number of children either can produce is fixed by the data:
@@ -618,6 +717,18 @@ document says the rest was meant to be allowed. An unselected result
 is never evaluated, so a broken arm nobody takes is not an error the
 document has to carry.
 
+**A defaulted scrutinee matches as the value it generates** (ADR-004).
+A settled scrutinee that carries an effective default — a preference,
+or a disjunction holding one — is tested as the innermost preferred
+value, not as the still-open preference. So with
+`side_effect: *readonly | write | destructive`, the derivation
+`match(.side_effect, destructive, true, false)` answers `false` when
+`side_effect` is unset (the effective value is `"readonly"`), and
+`true` only when it is genuinely `destructive`. Before this rule a
+pattern could *select* an arm by overriding the default, deriving a
+value that contradicted the one generated beside it. A pref-free open
+disjunction still matches by plain unifiability.
+
 Both wait for the model to settle before they answer, for the reason
 `pack` and `each` do: a bag that is still being merged into is the
 wrong bag to take a subset of, and a scrutinee that is still being
@@ -646,6 +757,18 @@ open:  pack($.ports, {port: _, name: key()})
   → {"open":{"http":{"name":"http","port":80},
              "https":{"name":"https","port":443}}}
 ```
+
+A hole belongs to its **nearest enclosing generator** (ADR-005): an
+outer generator's fill pass never reaches into a nested generator's
+template (or a `filter`'s condition), so in
+`pack($.envs, {services: pack($.fleet, {v: _})})` the inner `_` is
+the fleet entry, not the env. A hole in a generator's *data* argument
+is not a binding position, so it is still the outer generator's to
+fill: `pack($.m, {inner: each(_)})` iterates the outer source child.
+And wrapping a generator in a call (`close(pack(d, _ & t))`) does not
+expose the template's hole to the wrapper's peers — an overlay
+statement merges with the generated children, never with the
+template.
 
 For a `pack` over a list of names, `_` and `key()` are the same thing
 — the name is the key. Over a map they differ: `key()` is the key, `_`
@@ -848,12 +971,14 @@ never narrows the kind and never yields `-0`.
 
 ## Functions
 
-Aontu provides a fixed set of twenty-eight built-in functions. There
+Aontu provides a fixed set of thirty-seven built-in functions. There
 are no user-defined functions. Nineteen are the general-purpose
-functions tabulated below; the other nine — `min(x)`, `max(x)`,
-`above(x)`, `below(x)`, `neq(x,...)`, `re(p)`, `length(c)`,
-`unique()` and `must(c,msg)` — are the constraint atoms, whose
-meaning is defined in
+functions tabulated below; six more are
+[the arithmetic family](#arithmetic-add-sub-mul-div-mod-rem) and three
+[the aggregates](#aggregating-sum-least-greatest); and the
+other nine — `min(x)`, `max(x)`, `above(x)`, `below(x)`, `neq(x,...)`,
+`re(p)`, `length(c)`, `unique()` and `must(c,msg)` — are the constraint
+atoms, whose meaning is defined in
 [The constraint algebra](#the-constraint-algebra-specified).
 
 | Function    | Effect | Example |
@@ -916,6 +1041,136 @@ Functions compose with operators and references:
 `upper(a)+b`→`"Ab"`, `lower(1.1)+2`→`3`, `x:foo y:upper($.x)`→`y:"FOO"`,
 `[lower(A),lower(B)]`→`["a","b"]`, and a function may be a preferred
 default: `*upper(foo)`→`"FOO"`.
+
+## Arithmetic: `add` `sub` `mul` `div` `mod` `rem`
+
+Maths beyond `+` is spelled with **functions**. The tokens `-` `*` `/`
+`%` stay reserved for the language's own use, so there is no infix
+arithmetic to learn beyond `+` and unary `-`:
+
+```
+replicas: mul($.base.replicas, 2)
+spare:    sub($.quota.cpu, $.used.cpu)
+shards:   div($.total, $.per_shard)
+```
+
+Each takes exactly **two operands**, and both must be numbers. That is
+what distinguishes `add` from `+`: the operator is polymorphic and will
+happily concatenate, so a Kubernetes quantity written `"500m" + "500m"`
+is the string `"500m500m"` and nothing complains. `add("500m","500m")`
+is an error, because a function named for a numeric operation has no
+business inventing a string.
+
+```
+x:add(1,2)        → {"x":3}          x:add("a","b")  → error, invalid-arg
+x:sub(10,3)       → {"x":7}          x:add(true,1)   → error, invalid-arg
+x:mul(6,7)        → {"x":42}         x:sub(integer,1)→ error, invalid-arg
+```
+
+**Kind follows the operands** (R5, and the same
+[exact ladder](#the-four-numeric-leaves) `+` uses): integer with
+integer is an integer, anything with a float is a float, and a mixed
+exact operation promotes to the widest leaf and never demotes.
+
+```
+x:mul(2,3)         → {"x":6}      integer
+x:mul(2,1.5)       → {"x":3.0}    float — never narrowed to integer 3
+x:add(1,0d2)       → {"x":0d3}    biginteger, the wider operand
+x:mul(2,0d1.5)     → {"x":0d3.0}  bigdecimal
+x:add(1.0,0d2)     → error, exact_float_mix — as with `+`
+```
+
+**Integer division truncates toward zero**, and `rem` and `mod` differ
+only in whose sign the answer follows — `rem`'s the dividend's, `mod`'s
+the divisor's. That is the whole reason both exist:
+
+```
+x:div(7,2)   → {"x":3}     x:div(-7,2)  → {"x":-3}   (not -4)
+x:rem(-7,2)  → {"x":-1}    x:mod(-7,2)  → {"x":1}
+x:rem(7,-2)  → {"x":1}     x:mod(7,-2)  → {"x":-1}
+```
+
+Three things are refused rather than answered, each because the answer
+would be a value Aontu cannot carry:
+
+- **A zero divisor**, in every leaf including floats. A JSON superset
+  has no notation for an infinity, so there is nothing `div(7,0)` could
+  return (`divide_by_zero`).
+- **A non-finite float result**: `mul(1.0e200,1.0e200)` overflows
+  binary64 (`float_overflow`). The same check now governs `+`, where
+  the sum used to escape as an internal error.
+- **`div`, `mod` or `rem` over a bigdecimal.** One third has no finite
+  decimal form, so exact decimal division either rounds — the one thing
+  that leaf exists to prevent — or refuses (`inexact_divide`). Scale to
+  integers first, which is how money should be carried anyway (minor
+  units as an integer), or use floats if an approximation is acceptable.
+  Note `0d10` is a *biginteger*, not a decimal, so `div(0d10,0d4)` is
+  `0d2`; it is `0d10.0` that is refused.
+
+An exact result that will not store is refused too, exactly as a sum is
+(`inexact_integer_sum`): `mul(4503599627370496,4503599627370496)` is an
+error rather than a rounded answer, and `0d` operands compute it
+exactly.
+
+The [pipe](#the-pipe-) reads well with them, and the operand order is
+the written one: `x:10 |> sub(3)` is `sub(10,3)`, which is `7`.
+
+## Aggregating: `sum` `least` `greatest`
+
+`length()` counts a bag; these three fold one. Each takes a **single
+bag** — a list or a map — and walks the children the model already
+holds:
+
+```
+lines:  [1200, 450, 3000]
+total:  sum($.lines)          → 4650
+lowest: least($.lines)        → 450
+peak:   greatest($.lines)     → 3000
+
+hourly: {p50: 12, p95: 40, p99: 91}
+spike:  greatest($.hourly)    → 91
+```
+
+A map is folded in **sorted-key order** and a list in source order,
+which is `each`'s rule; for these three it changes nothing, since every
+operation is commutative, but it is stated so that it cannot drift.
+
+They are named `least` and `greatest` rather than `min` and `max`
+because those two are already the constraint atoms for a lower and an
+upper *bound*: `min(3)` means "at least 3", which is a statement about
+a value, while `least($.xs)` picks an element out of a set. Two
+different things do not share a spelling.
+
+**`sum` folds with `add`**, so the whole [number tower](#arithmetic-add-sub-mul-div-mod-rem)
+comes with it: a bag of integers sums to an integer, one float among
+them makes the total a float, `0d` members keep it exact, and a total
+that will not store is refused rather than rounded.
+
+```
+x:sum([1,2,3])         → {"x":6}       integer
+x:sum([1,2.5])         → {"x":3.5}     float, by contagion
+x:sum([0d1.5,0d2.5])   → {"x":0d4.0}   exact
+x:sum([])              → {"x":0}
+```
+
+**`sum([])` is `0`, and `least([])` is an error.** Addition has an
+identity, so the empty sum has an answer; comparison has none, and
+answering with a zero or an infinity would be inventing a value the
+data does not contain (`aggregate_empty`).
+
+`least` and `greatest` return **one of the elements**, so the answer
+keeps that element's own kind, and they compare with the tower's exact
+comparator rather than through binary64 — `0d9007199254740993` and
+`9007199254740992` share a float image but are correctly ordered here.
+
+A value that is not a bag is `aggregate_data`; a member that is not a
+number is `invalid-arg`, reported against the aggregate the author
+wrote rather than against the `add` inside it.
+
+There is no `fold` combinator and will not be one: a fold takes a
+function, and this language has no user functions to give it. These
+three are total because the bag is finite, the operation is fixed, and
+each child is visited once — the same argument that makes `each` safe.
 
 ## Identity: `id(name)`
 
@@ -1146,11 +1401,14 @@ except `'none'`, which denies every include by definition. It is
 Two things about it are worth knowing, because they are the language
 rather than the vocabulary:
 
-- **A preferred member does not close a disjunction.** `direction:
-  *in | out | inout` supplies a default, and still admits any other
-  string. Closing the set costs the default (`in | out | inout` refuses
-  anything else, and generates nothing on its own). The vocabulary
-  chooses the default.
+- **A preferred member is one enum member, with the default role.**
+  `direction: *in | out | inout` is a true enum-with-default under the
+  admission gate (ADR-004): unset generates `in`, `out` and `inout`
+  override, and any other value is refused (`[aontu/|:empty]`). It
+  used to be otherwise — the preference held the disjunction open and
+  any other string was admitted — which is exactly the fail-open
+  default the 2026-08 language review retired. A vocabulary that wants
+  an open field says so with a `| top` (or `| string`) branch.
 - **`Service` is written out rather than as `$.std.Component & {kind:
   service}`.** A reference from one member of an included file to
   another does not survive the include, so each schema states itself;
@@ -1181,6 +1439,17 @@ b: id(b) & { usedBy:    [&: refer(), a] }
   cycle. The report names the entities the cycle runs through.
 - **`inverse: <name>`** — for each `a --dependsOn--> b`, `b` must carry
   `a` under `<name>`. The report names the exact missing entry.
+- **`target: <schema>`** — every far end must satisfy `<schema>`. This
+  is the declared form of what [`refer(t)`](#entity-references-refert)
+  does at each site, so the relation says once what every link would
+  otherwise repeat. Satisfaction is the meet, and **not merely the
+  absence of a conflict**: a target key the far end does not have
+  unifies happily and leaves a hole, so the check asks what `refer(t)`
+  answers at the site — can the far end still generate once the target
+  is met? — and compares it with the far end alone, so a node already
+  incomplete for its own reasons is not blamed on the relation pointing
+  at it. The check never writes; flowing the type in here would be
+  generation.
 
 The `$.std.Relation` conjunct **documents** the declaration; it is not
 what makes it one. The checking pass reads every map under `relations`
@@ -1190,7 +1459,9 @@ relation with no `@"std/system"` — which is what keeps the checks
 available under the `'none'` include capability.
 
 `aontu relations <file>` runs them, and the library exposes
-`relationCheck(src)`. **Neither is a lattice constraint, deliberately.**
+`relationCheck(src)`. The closure question — does `a` reach `b` at any
+remove? — is a separate verb, [`aontu reaches`](reference-api.md#aontu-reaches),
+for the same reason and with the same answer about monotonicity. **Neither is a lattice constraint, deliberately.**
 Both properties are global and non-monotone: an acyclic graph becomes
 cyclic when one more edge unifies in, and an inverse that is present
 becomes absent when the far side is narrowed. The lattice guarantee is
@@ -1219,6 +1490,18 @@ omitted when the enclosing map is generated**, while still participating
 in unification. A bare marked value at the top level still generates
 (`type(1) & number`→`1`). `copy()` clears both marks, making the result
 emittable again (`x:type({}) x:y:1 a:copy($.x)`→`{"a":{"y":1}}`).
+
+**A mark belongs to the field its wrapper was written at** (ADR-005).
+A reference to a `type()`/`hide()`-marked value copies the value with
+the marks cleared — and that holds however the wrapper resolves:
+a reference that lands on a still-unresolved `type()`/`hide()` call
+waits for it to resolve at its *own* field rather than copying the
+call, so the marks can never be re-stamped at the referring site. In
+particular `m: hide(pack(...))` hides the field `m` exactly as
+`hide({literal map})` does — the generated children stay usable
+downstream (`out: pack($.m, {got:_})` emits their values) — and a
+`type()`-marked alias referenced inside another `type()` body
+constrains the referring field without suppressing its emission.
 
 ## Closed values: `close` / `open`
 
@@ -1344,9 +1627,18 @@ selection**: every module is taken at the highest of the minima anyone
 asked for, and never higher. Resolving upgrades nothing, so the answer
 is reproducible and adding one dependency cannot move another. It then
 recomputes each `canon` pin from the module in the store and rewrites
-`mod-lock.aon`; if any module is not in a store the lockfile is left
-alone, because a partial lock claims a closure that was never
-resolved.
+`mod-lock.aon`; if any module is not in a store, or is in one but does
+not evaluate on its own, the lockfile is left alone — a partial lock
+claims a closure that was never resolved, and a pin computed from a
+module that has no meaning is the same string for every broken module.
+
+`aontu mod verify` asks the opposite question and **changes nothing**:
+does every locked module still *mean* what the lockfile pins? It is
+the CI gate, because `tidy` cannot be one — rewriting the lockfile is
+tidy's job, so a job that tidies before evaluating simply makes the
+lock agree with whatever the store now holds. A store that has drifted
+is reported with both hashes; a project the lockfile does not cover is
+refused rather than verified over nothing.
 
 `aontu mod vendor` copies the locked closure into `aon_vendor/` as
 whole source trees, which is what makes a project evaluable with no
@@ -1562,16 +1854,20 @@ The `at` option anchors both documents at one path before comparing
 
 ### Default validity
 
-The relation also powers a lint the engine itself cannot express: a
-disjunction's effective default must be an instance of some remaining
-alternative. `level: *wran | info | warn | debug` unifies cleanly and
-GENERATES `{"level":"wran"}` — the schema ships a default its own
-disjunct refuses. The validation verb reports it as a
-`pref_not_instance` finding at severity `warning` (class `compat`).
-A warning, not an error, deliberately: existing documents may lean on
-today's generation behaviour, so promoting the warning to an error is
-itself a breaking change — sequenced through the `breaking` gate like
-any other, not taken silently.
+The relation also powers an advisory lint: the validation verb reports
+a `pref_not_instance` finding (severity `warning`, class `compat`)
+when a disjunction's effective default is not an instance of any
+**remaining** alternative. Under the admission gate (ADR-004) this is
+no longer a soundness hole — the preferred branch contributes its own
+value to the admitted set, so `level: *wran | info | warn | debug` is
+a well-defined enum `{wran, info, warn, debug}` defaulting to `wran` —
+but that spelling is also exactly the shape of a *typo'd* default
+(`*warn` was probably meant), which nothing at meet time can
+distinguish. The warning flags the boundary: a default drawn from the
+written alternatives (`*8080 | integer`) is silent, a default that
+widens them is worth a look. Repeating the branch
+(`*warn | warn | error`) states "the default is a first-class member",
+silences the lint, and enforces the same admitted set.
 
 Failures surface as messages (thrown as `AontuError` in TS, returned as
 `error` in Go):
@@ -1648,7 +1944,11 @@ distinguishable.
 > parity probing) as each implementation phase lands. Known phase-1
 > limit: a preference meeting a constraint in a CONJUNCT
 > (`min(1024) & *8080`) does not yet resolve to the default — use the
-> disjunct form (`*8080 | min(1024)`) today.
+> disjunct form (`*8080 | (integer & min(1024))`) today. Under the
+> admission gate (ADR-004) the disjunct form also ENFORCES on
+> override: an out-of-bound peer is refused rather than silently
+> bypassing the constraint branch, so the recommended spelling now
+> both defaults and validates.
 
 ### Vocabulary
 
@@ -2035,6 +2335,34 @@ run against the first fragment would refuse `a: must(length(2),m)` /
 `a: {x:1}` / `a: {y:2}` on a count of one, exactly as an early-folding
 `length` would.
 
+**And "last" reaches past the document.** Sorting the atom to the end of
+its conjunct is only half the rule, because a container can settle in
+one document and still gain members from another: the data half of a
+[`vet`](reference-api.md#aontu-vet) meet, an
+[`@` include](#source-loading-), a later [`pack`](#generating-children-pack-and-each).
+An atom that decided when its own conjunct settled decided too early
+there, and `vet` then reported `valid` for data the evaluator refuses.
+
+So a sizing verdict is taken only when **more members cannot change
+it** — members accumulate under unification, they are never removed:
+
+| reading | permanent? | what happens |
+|---|---|---|
+| an upper bound **violated** | yes — more members only add | refuse now |
+| an upper bound **satisfied** | no | the atom stays on the value |
+| a lower bound **satisfied** | yes | that reading is spent |
+| a lower bound **violated** | no | the atom stays on the value |
+| a **duplicate** found | yes | refuse now |
+| distinctness **so far** | no | the atom stays on the value |
+
+Anything provisional **residuates**, exactly as an atom over a container
+that has not settled does, and is decided at **generation** — which is
+where nothing more can arrive. So `length(min(1)) & {&: {r: integer}}`
+no longer refuses the schema it was written for, and
+`length(max(2)) & {&: {r: integer}}` no longer passes three records.
+A residuated atom is visible in [canon](#canonical-form), which is the
+honest rendering: the value really does still carry the constraint.
+
 ### `unique` semantics
 
 `unique()` holds when the members of a container are **pairwise
@@ -2066,11 +2394,33 @@ conflict: no scalar has members. The members it does compare are the
 members that *generate*, the same set `length` counts, so a `hide`n entry
 and a dropped optional are not members here either.
 
-What `unique()` does **not** do is uniqueness *by projection*: "no two
-services share a port" compares one field of each member rather than
-the whole member, and that needs a projector, which in turn needs
-[G8](capability-review/g8-generation.md)'s combinators. The arity is
-reserved for it.
+**`unique(k)` is uniqueness by projection.** "No two services share a
+port" compares one field of each member rather than the whole member,
+and the atom's single argument is that projector — the arity was
+reserved for it, and is now spent:
+
+```aon
+services: unique(port) & {
+  api:  { port: 8080, name: "api"  }
+  auth: { port: 8443, name: "auth" }
+}
+```
+
+A member with no such key **fails** rather than being skipped:
+distinctness that cannot be shown is distinctness the collection does
+not have, and skipping would let one keyless record hide a duplicate.
+A member that is not a map fails for the same reason — it has no key
+to project.
+
+`unique(a) & unique(b)` demands **both**; the keys accumulate rather
+than the later one replacing the earlier, since each names a different
+axis of distinctness and dropping either would silently weaken the
+constraint. Canon renders them sorted after the bare atom
+(`unique()&unique("a")&unique("b")`), so two documents saying the same
+thing render the same string. In subsumption, a general `unique(k)`
+needs the same key on the specific side — distinctness on `port` says
+nothing about distinctness on `name` — while a specific that adds a
+key still subsumes, because more distinctness is narrower.
 
 ### Cross-field bounds and residuation
 

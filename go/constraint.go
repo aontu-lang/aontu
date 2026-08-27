@@ -520,6 +520,9 @@ type ConstraintVal struct {
 	// recursively. nil when the residual says nothing about length.
 	count *ConstraintVal
 	uniq  bool // members must be pairwise distinct (unique())
+	// uniqBy: ... and distinct ON EACH OF THESE KEYS (unique(k)),
+	// sorted and deduplicated.
+	uniqBy []string
 	// musts are Band B checks, kept in written order and never
 	// simplified: each carries its own author message.
 	musts []constraintMust
@@ -559,7 +562,7 @@ func lateAtom(atom string) bool {
 }
 
 func (c *ConstraintVal) cjo() int {
-	if nil != c.count || c.uniq || 0 < len(c.musts) ||
+	if nil != c.count || c.uniq || 0 < len(c.uniqBy) || 0 < len(c.musts) ||
 		(nil != c.pending && lateAtom(c.pending.atom)) {
 		return sizingCjo
 	}
@@ -664,11 +667,24 @@ func newConstraint(atom string, args []Val, sp int) *ConstraintVal {
 
 	c.dc = DONE
 
-	// `unique()` takes no argument: it is a property of the container,
-	// not a comparison against a value. Arity is checked at parse, so a
-	// written argument never reaches here.
+	// `unique()` is a property of the container -- not a comparison
+	// against a value -- so with no argument it says the members are
+	// pairwise DISTINCT. THE ONE ARGUMENT IS A PROJECTOR (the review's
+	// finding I: "unique()-by-field is reserved but absent", and the
+	// arity was reserved for exactly this): `unique(port)` says no two
+	// members share a `port`, which is how "no two services share a
+	// port" and "event ids are unique" are said.
 	if "unique" == atom {
-		c.uniq = true
+		if 0 == len(args) {
+			c.uniq = true
+			return c
+		}
+		sv, ok := args[0].(*ScalarVal)
+		if 1 != len(args) || !ok || sv.kind != KindString {
+			c.invalid = "invalid-arg"
+			return c
+		}
+		c.uniqBy = []string{sv.peg.(string)}
 		return c
 	}
 
@@ -900,6 +916,15 @@ func (c *ConstraintVal) settle(peer Val, ctx *Ctx) Val {
 // leaves nothing on the caller's error list -- only the located nil this
 // returns, carrying the author's own message.
 func (c *ConstraintVal) checkMusts(peer Val, ctx *Ctx) Val {
+	return c.checkMustsFinal(peer, ctx, true)
+}
+
+// `final` is the generation-time reading (see settleContainer): a must
+// whose own check is a SIZING atom inherits that atom's provisionality,
+// because `must(length(2), …)` against a map that may still gain
+// members has not failed -- it has not been asked yet. Mirrors
+// checkMusts in ts/src/val/ConstraintVal.ts.
+func (c *ConstraintVal) checkMustsFinal(peer Val, ctx *Ctx, final bool) Val {
 	for _, m := range c.musts {
 		trial := &Ctx{}
 		if nil != ctx {
@@ -909,6 +934,12 @@ func (c *ConstraintVal) checkMusts(peer Val, ctx *Ctx) Val {
 		}
 		trial.collect = true
 		got := unite(trial, clonePath(m.v, c.path), clonePath(peer, c.path))
+		if con, bag, ok := sizingResidue(got); ok {
+			if !final {
+				continue
+			}
+			got = con.settleContainer(bag, trial)
+		}
 		if (nil != got && got.Nil()) || 0 < len(trial.err) {
 			pcanon := ""
 			if nil != peer {
@@ -927,8 +958,9 @@ func (c *ConstraintVal) checkMusts(peer Val, ctx *Ctx) Val {
 // admit checks membership: the peer scalar passes every part of the
 // residual, or the meet is a located conflict.
 func (c *ConstraintVal) admit(peer *ScalarVal, ctx *Ctx) Val {
-	// No scalar has members, so a `unique()` residual admits none.
-	if c.uniq {
+	// No scalar has members, so a `unique()` residual admits none -- and
+	// neither does a `unique(k)` one, for the same reason.
+	if c.uniq || 0 < len(c.uniqBy) {
 		return c.fail(ctx, peer)
 	}
 	if !stateAdmits(c, peer) {
@@ -952,6 +984,19 @@ func (c *ConstraintVal) admit(peer *ScalarVal, ctx *Ctx) Val {
 	return peer
 }
 
+// settleContainer is the FINAL reading of a sizing atom over a
+// container: the same checks admitContainer makes, with the provisional
+// ones taken as decided. Called from ConjunctVal.Gen, which is where no
+// more members can arrive. Mirrors settleContainer in
+// ts/src/val/ConstraintVal.ts.
+func (c *ConstraintVal) settleContainer(bag Val, ctx *Ctx) Val {
+	var optional []string
+	if m, ok := bag.(*MapVal); ok {
+		optional = m.optional
+	}
+	return c.admitContainerFinal(bag, optional, ctx, bag, true)
+}
+
 // admitContainer checks membership for a map or list peer. Only the
 // SIZING atoms have anything to say about a container; every other atom
 // is scalar-domain and refuses one.
@@ -961,6 +1006,11 @@ func (c *ConstraintVal) admit(peer *ScalarVal, ctx *Ctx) Val {
 // emittedMembers mirrors MapVal.Gen/ListVal.Gen exactly.
 func (c *ConstraintVal) admitContainer(
 	bag Val, optional []string, ctx *Ctx, peer Val) Val {
+	return c.admitContainerFinal(bag, optional, ctx, peer, false)
+}
+
+func (c *ConstraintVal) admitContainerFinal(
+	bag Val, optional []string, ctx *Ctx, peer Val, final bool) Val {
 	// A scalar-domain residual has no reading over a container.
 	if "" != c.domain {
 		return c.fail(ctx, peer)
@@ -973,23 +1023,76 @@ func (c *ConstraintVal) admitContainer(
 		return newConjunct([]Val{c, peer})
 	}
 
-	if bad := c.checkMusts(peer, ctx); nil != bad {
+	if bad := c.checkMustsFinal(peer, ctx, final); nil != bad {
 		return bad
 	}
 
-	if !c.uniq && nil == c.count {
-		return peer
+	// A MUST OVER A CONTAINER RESIDUATES with the atoms
+	// (use-cases/BUGS.md §17): `must({t: max(60)}, …)` beside a
+	// `{t: integer}` schema was answered against the schema layer ALONE
+	// and discharged before the data it was written to judge arrived.
+	if !c.uniq && 0 == len(c.uniqBy) && nil == c.count {
+		if final || 0 == len(c.musts) {
+			return peer
+		}
+		return c.hold(peer)
 	}
 
 	members := emittedMembers(bag, optional, ctx)
 	if nil == members {
-		// The container cannot generate at all; its own error is the
-		// one worth reporting, so pass it through untouched.
-		return peer
+		// NOT COUNTABLE YET IS NOT A PASS. A container that cannot
+		// generate cannot be counted, and a SCHEMA is exactly that: the
+		// members of `{a: integer}` are types, so nothing is emitted and
+		// nothing can be counted. Discharging the atom here was the §16
+		// defect wearing its other face -- `length(min(2)) & {a: integer}`
+		// dropped its bound while still alone, so the data half of a
+		// `vet` meet was never measured at all.
+		//
+		// At generation the reading IS final: a container that still
+		// cannot generate has its own error, and that error is the one
+		// worth reporting, so it passes through untouched. Mirrors
+		// admitContainer in ts/src/val/ConstraintVal.ts.
+		if final {
+			return peer
+		}
+		return c.hold(peer)
 	}
 
-	if nil != c.count && !stateAdmits(c.count, countVal(len(members))) {
-		return c.fail(ctx, peer)
+	// MONOTONE READINGS ONLY (the review's finding C, use-cases/BUGS.md
+	// §16). Members ACCUMULATE under unification -- a meet adds keys and
+	// never removes them -- so a settled container is settled ON ITS OWN
+	// and not against every value that may still contribute. The schema
+	// half of a `vet` meet, a document about to receive an `@` include,
+	// a bag a later `pack` will fill: each settles, and an atom that
+	// decided there decided too early.
+	//
+	// A verdict is taken only when MORE MEMBERS CANNOT CHANGE IT: an
+	// upper bound violated is permanent, a lower bound satisfied is
+	// permanent, a duplicate is permanent. Everything else residuates
+	// and is decided at generation. Mirrors admitContainer in
+	// ts/src/val/ConstraintVal.ts.
+	n := len(members)
+	if nil != c.count {
+		if nil != c.count.hi {
+			noLo := *c.count
+			noLo.lo = nil
+			if !stateAdmits(&noLo, countVal(n)) {
+				return c.fail(ctx, peer)
+			}
+		}
+		if 0 < len(c.count.neqs) {
+			only := *c.count
+			only.lo = nil
+			only.hi = nil
+			if !stateAdmits(&only, countVal(n)) {
+				return c.fail(ctx, peer)
+			}
+		}
+		// The provisional half, decided only when nothing more can
+		// arrive.
+		if final && !stateAdmits(c.count, countVal(n)) {
+			return c.fail(ctx, peer)
+		}
 	}
 
 	if c.uniq {
@@ -1008,7 +1111,67 @@ func (c *ConstraintVal) admitContainer(
 		}
 	}
 
-	return peer
+	// ... and the same test per PROJECTED key. A member that has no such
+	// key FAILS the constraint rather than being skipped: distinctness it
+	// cannot be shown to have is distinctness it does not have, and
+	// skipping would let one keyless record hide a duplicate.
+	for _, field := range c.uniqBy {
+		seen := map[string]bool{}
+		for _, m := range members {
+			mv, ok := m.(*MapVal)
+			if !ok {
+				return c.fail(ctx, peer)
+			}
+			at, has := mv.peg[field]
+			if !has {
+				return c.fail(ctx, peer)
+			}
+			key := at.Canon()
+			if seen[key] {
+				return c.fail(ctx, peer)
+			}
+			seen[key] = true
+		}
+	}
+
+	// WHAT IS LEFT IS PROVISIONAL, so the atom stays on the value. A
+	// lower bound already met is the one reading that cannot be undone,
+	// and an atom holding nothing else is spent: that is when it goes.
+	spent := final || (0 == len(c.musts) && !c.uniq && 0 == len(c.uniqBy) &&
+		(nil == c.count ||
+			(nil == c.count.hi && 0 == len(c.count.neqs) &&
+				stateAdmits(c.count, countVal(n)))))
+	if spent {
+		return peer
+	}
+	// DONE, unlike the unsettled case above. The container HAS settled;
+	// the atom is kept only because a LATER value could still add
+	// members, and a residue that reported itself unresolved would leave
+	// every enclosing value unresolved with it -- a `type()` waiting on
+	// its argument for ever.
+	// The ATOM is done too, not just the conjunct. An earlier pass may
+	// have set dc = 0 on the unsettled branch above, and a conjunct
+	// recomputes its own doneness from its terms on every later meet --
+	// so a stale 0 here would drag the residue, and every value holding
+	// it, back to unresolved for ever.
+	return c.hold(peer)
+}
+
+// hold is the atom kept on a value whose reading is still provisional.
+// DONE, unlike the unsettled container above: the value HAS settled;
+// the atom is kept only because a LATER value could still add members,
+// and a residue that reported itself unresolved would leave every
+// enclosing value unresolved with it -- a `type()` waiting on its
+// argument for ever. The ATOM is done too, not just the conjunct: an
+// earlier pass may have set dc = 0 on the unsettled branch, and a
+// conjunct recomputes its own doneness from its terms on every later
+// meet, so a stale 0 would drag the residue back to unresolved for
+// ever. Mirrors hold in ts/src/val/ConstraintVal.ts.
+func (c *ConstraintVal) hold(peer Val) Val {
+	c.dc = DONE
+	held := newConjunct([]Val{c, peer})
+	held.dc = DONE
+	return held
 }
 
 // meetKind: `number` (or `string` on the string domain) is already
@@ -1089,6 +1252,11 @@ func (c *ConstraintVal) meetConstraint(peer *ConstraintVal, ctx *Ctx) Val {
 	}
 	// `unique()` is idempotent: two of them are one.
 	merged.uniq = c.uniq || peer.uniq
+	// `unique(a) & unique(b)` is BOTH, not the later one: each names a
+	// key on which the members must differ, and dropping either would
+	// silently weaken the constraint. Sorted and deduplicated, so the
+	// meet is commutative and `unique(a) & unique(a)` is one atom.
+	merged.uniqBy = mergeUniqBy(c.uniqBy, peer.uniqBy)
 	// Band B checks accumulate in written order and are never merged,
 	// deduplicated or reordered: each carries its own author message,
 	// and two checks with the same shape may still say different things.
@@ -1138,6 +1306,7 @@ func (c *ConstraintVal) cloneState() *ConstraintVal {
 		res:     append([]constraintRe{}, c.res...),
 		count:   c.count,
 		uniq:    c.uniq,
+		uniqBy:  append([]string{}, c.uniqBy...),
 		musts:   append([]constraintMust{}, c.musts...),
 		clash:   c.clash,
 		invalid: c.invalid,
@@ -1235,6 +1404,12 @@ func (c *ConstraintVal) Canon() string {
 	}
 	if c.uniq {
 		parts = append(parts, "unique()")
+	}
+	// After the bare atom, and sorted: canon is a normal form, so two
+	// documents writing the same keys in different orders must render
+	// the same string.
+	for _, key := range c.uniqBy {
+		parts = append(parts, "unique("+jsonString(key)+")")
 	}
 	for _, m := range c.musts {
 		parts = append(parts, "must("+m.v.Canon()+","+m.msg.Canon()+")")
@@ -1416,6 +1591,14 @@ func constraintStateSubsumes(g, s *ConstraintVal) (bool, bool) {
 			return false, false
 		}
 	}
+	// ... and a general `unique(k)` needs the same key on the specific
+	// side: distinctness on `port` says nothing about distinctness on
+	// `name`.
+	for _, k := range g.uniqBy {
+		if !containsString(s.uniqBy, k) {
+			return false, false
+		}
+	}
 	if g.uniq && !s.uniq {
 		return false, false
 	}
@@ -1437,7 +1620,7 @@ func constraintAdmitsScalarQ(g *ConstraintVal, scalar *ScalarVal) (bool, bool) {
 	if 0 < len(g.musts) {
 		return false, true
 	}
-	if g.uniq || nil != g.count {
+	if g.uniq || 0 < len(g.uniqBy) || nil != g.count {
 		return false, false
 	}
 	return stateAdmits(g, scalar), false
@@ -1556,10 +1739,10 @@ func stateEmpty(s *ConstraintVal) bool {
 	// members, so `integer & len(3)` and `min(2) & unique()` admit
 	// nothing. Uniqueness over the string domain is empty for the same
 	// reason -- a string's members are not values the algebra compares.
-	if "number" == d && (nil != s.count || s.uniq) {
+	if "number" == d && (nil != s.count || s.uniq || 0 < len(s.uniqBy)) {
 		return true
 	}
-	if "string" == d && s.uniq {
+	if "string" == d && (s.uniq || 0 < len(s.uniqBy)) {
 		return true
 	}
 
@@ -1641,7 +1824,8 @@ func countArgState(arg Val) *ConstraintVal {
 	if cv, ok := arg.(*ConstraintVal); ok {
 		// A pattern, a sizing atom or a string bound inside a count is
 		// not a count constraint at all, and neither is a broken one.
-		if "" != cv.invalid || 0 < len(cv.res) || cv.uniq || nil != cv.count ||
+		if "" != cv.invalid || 0 < len(cv.res) || cv.uniq ||
+			0 < len(cv.uniqBy) || nil != cv.count ||
 			"number" != cv.domain {
 			return nil
 		}
@@ -1840,4 +2024,34 @@ func dedupSortedNeqs(domain string, neqs []*ScalarVal) []*ScalarVal {
 		}
 	}
 	return out
+}
+
+// mergeUniqBy is the sorted, deduplicated union of two projector key
+// lists: `unique(a) & unique(b)` demands BOTH, and canon is a normal
+// form so the order cannot depend on which side was written first.
+func mergeUniqBy(a, b []string) []string {
+	if 0 == len(a) && 0 == len(b) {
+		return nil
+	}
+	seen := map[string]bool{}
+	out := []string{}
+	for _, k := range append(append([]string{}, a...), b...) {
+		if !seen[k] {
+			seen[k] = true
+			out = append(out, k)
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
+// containsString is membership in a small sorted slice; a set would be
+// heavier than the two or three keys these lists ever hold.
+func containsString(xs []string, want string) bool {
+	for _, x := range xs {
+		if x == want {
+			return true
+		}
+	}
+	return false
 }

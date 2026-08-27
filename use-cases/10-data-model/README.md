@@ -38,10 +38,20 @@ this README documents.
   price tiers, `pack()` for the receivables bag, `*"open"` default
   order status.
 - `exact-money.aon` — the money schema you *want* (`bigdecimal`), kept
-  as the executable form of gap 1.
+  as the executable form of gap 1's dead end.
+- `money-wire.aon` — the money wire convention that answers it: a
+  decimal string with a fixed scale, an ISO 4217 currency beside it,
+  and an optional-but-constant conversion mark (`dec?: "bigdecimal:2"`)
+  naming the leaf and the scale. `money-convert.aon` writes the
+  crossing point out as theorems — the sign outside the `0d` prefix,
+  scale absent from the value, the scale-0 point that must still be
+  written, and exact VAT both ways.
 - `reporting.aon` — a wider projection; `subsume` proves it sound.
-- Money on **records** is integer cents. That is a forced workaround,
-  not a preference — see gap 1.
+- Money on **records** is integer minor units (cents). That was a
+  forced workaround when gap 1 had no answer; it is now one of two
+  supported spellings, the other being the decimal-string wire form in
+  `money-wire.aon`. `domain.aon` keeps cents so the gap-2 and gap-4
+  findings around it stay reproducible.
 
 ## What worked
 
@@ -93,6 +103,18 @@ Severity: **critical** = blocks the scenario's core promise;
 **major** = forced a real workaround; **minor** = friction/diagnostic.
 
 ### Gap 1 (critical): exact money is unreachable from plain JSON
+
+**ANSWERED 2026-08-27** (the review's finding I) — by a documented
+convention rather than by new machinery, which is what the review asked
+for. Money crosses the wire as a **decimal string** validated exactly by
+`re()`, with a **conversion mark** in the schema naming the leaf and the
+scale. `money-wire.aon` is the schema, `money-convert.aon` writes the
+crossing point out as theorems, and `check.sh` asserts both, plus the
+exported JSON Schema, against the same records. See
+[docs/how-to.md, "Carry exact money over JSON"](../../docs/how-to.md#carry-exact-money-over-json).
+The finding below stands exactly as written — it is *why* the
+convention exists, and `exact-money.aon` remains the executable form of
+the dead end it describes.
 
 `bigdecimal` can only be produced by a `0d` literal. JSON has no such
 spelling, so **no strictly-JSON record can ever satisfy an exact-money
@@ -162,34 +184,35 @@ and the warehouse has to know this idiom.
 
 ### Gap 3 (critical for a data domain): no aggregate computation
 
-`invoice.total = sum(lines[].amountCents)` is the single most natural
-invariant in this domain and it is inexpressible. There is no
-sum/fold/reduce/avg — `length()` can *count* members but nothing can
-*add* them (`gaps/agg-sum.aon`):
+**FIXED 2026-08-27** (the review's finding I). `invoice.total =
+sum(lines[].amountCents)` is the single most natural invariant in this
+domain and it was inexpressible: there was no sum/fold/reduce/avg —
+`length()` could *count* members but nothing could *add* them —
+and no `*` operator, so `amountCents = qty * unitCents` and
+`taxCents = netCents * 0.19` were equally out of reach. The honest
+workaround was self-declared totals spot-checked with per-record
+`must()`, and "qty 2" spelled `unit + unit`. It protected seed records
+an author writes by hand and could not protect the batch (gap 4).
 
-```
-[aontu/unknown_function]: Cannot resolve value at path $.total
-This function name is not recognized.
-```
+It took three things, and `check.sh` now asserts all of them
+(`gaps/agg-sum.aon`, `gaps/multiply.aon`):
 
-`|> sum` fails the same way (`pipe_target`). There is also no `*`
-operator (`gaps/multiply.aon`):
+- **`sum(d)`**, with `least(d)` and `greatest(d)`, folds a list or a
+  map. It folds with `add`, so the number tower's law comes with it:
+  integer cents total to an exact integer, and a total too large to
+  store is refused rather than rounded.
+- **`pick(d, k)`** is what gets from a bag of *records* to a bag of
+  *numbers* — `sum(pick($.lines, amountCents))`. It is not `each` with
+  a clever template: `each` *meets* each child, and a meet cannot
+  select.
+- **`mul` / `div` / `sub` / `mod` / `rem`**, so VAT is computed
+  in-model: `div(mul($.amount, 19), 100)` is 759 cents on 3998, with
+  the single truncation at the end and the truncation rule (toward
+  zero) stated by the language rather than inherited from a host.
 
-```
-[aontu/unexpected]: unexpected character(s): *
-```
-
-so `amountCents = qty * unitCents` and `taxCents = netCents * 0.19`
-are equally out of reach. The honest workaround used in `seed.aon`:
-totals are **self-declared** and spot-checked with per-record
-`must()`, and "qty 2" is spelled `unit + unit`:
-
-```aon
-amountCents: 3998 & must(.unitCents + .unitCents, "amountCents != 2 x unitCents")
-```
-
-That protects seed records an author writes by hand. It does not and
-cannot protect the batch: see gap 4.
+The `*` **token** is still a parse refusal, by design and unchanged —
+maths arrives as functions, and the operator characters stay reserved
+(`gaps/star-token.aon`).
 
 ### Gap 4 (major): cross-field constraint args don't re-anchor in templates
 
@@ -226,45 +249,34 @@ template list itself, which has zero elements
 So `domain.aon` ships `lines: [&: $.schema.OrderLine]` with no
 cardinality bound at all. An empty `lines: []` order vets as valid.
 
-### Gap 6 (critical, implementation bug): includes + named type aliases
+### Gap 6 (critical, FIXED 2026-08-26): includes + named type aliases
 
-The intended vocabulary — `Country`, `Currency`, `Cents`, `Id64` as
-named `type()` aliases referenced from the record types — works in a
-single file and **breaks as soon as the schema crosses an `@"..."`
-include boundary**, in two escalating ways (minimal 2-file repro in
-`gaps/include-id-key/`):
+**Fixed by the template-clone isolation change (ADR-005):** the
+intended vocabulary — named `type()` aliases referenced from the
+record types — now works across an `@"..."` include boundary exactly
+as it does in a single file. The 2-file repro in
+`gaps/include-id-key/` emits the fully-unified record in both of its
+historically-broken forms, and check.sh asserts the correct outputs:
 
-1. With `id(key(0))` in the bag spread, evaluation fails with a bogus
-   name error (the argument *is* a computed valid name):
+1. With `id(key(0))` in the bag spread, evaluation used to fail with a
+   bogus `[aontu/id_name]` naming the unevaluated `id(key(0))` call —
+   a leaked type mark froze the pending `key(0)`.
+2. Without `id(key(0))`, the same combination **silently dropped every
+   affected record from generation** (exit 0, `{"customers": {}}`) —
+   references cloned the still-pending `type()` alias and the clone
+   stamped its mark at the destination after the reference's
+   mark-clearing walk had run.
 
-   ```
-   [aontu/id_name]: Cannot id value at path $.customers.cust-1001
-   The argument to id() is not an entity name. ...
-    Cannot id value: id(key(0))
-   ```
-
-2. Without `id(key(0))`, the same combination **silently drops every
-   affected record from generation** — exit 0 and:
-
-   ```
-   { "customers": {}, "schema": {} }
-   ```
-
-   Silent data loss from a validity-first language is the worst
-   failure mode it has. check.sh asserts both.
-
-Marking the whole schema map `type({...})` instead fails with
-`mapval_no_gen` (`$.schema.Customer` never resolves through the
-include), and `hide()`-marked aliases drop records the same way.
-The only workaround that survived: **inline every vocabulary
-constraint at every use site** (see the duplicated
-`integer & min(0) & max(100000000000)` in `domain.aon`) and declare
-entity ids per record by hand. DRY schema vocabulary — the thing a
-"system ontology" most needs — is effectively unavailable across
-files today. Two knock-on diagnostics problems while debugging this:
-error blame frames mix up which include file a line came from, and a
-`vet` finding under a spread reports the template path
-(`$.customers.ledgerId`) without the record key segment.
+References now defer until a pending mark wrapper has resolved at its
+own field, and spread applications are full per-destination
+instances. The shared spec pins the include-crossing shapes in both
+engines (`test/spec/file.tsv`, `load-alias-*`), so DRY schema
+vocabulary across files is available again — `domain.aon`'s inlined
+duplicate constraints are no longer forced (kept as written, as a
+record of the era). Still open from the debugging notes: error blame
+frames can mix up which include file a line came from, and a `vet`
+finding under a spread can report the template path without the
+record key segment (site-attribution family).
 
 ### Gap 7 (major, incl. a hang): `refer()` cannot live in a named type
 
@@ -290,15 +302,25 @@ at the bag spread (`&: $.schema.Order & { customerId: refer() }`),
 which works — but it splits the contract between the type and its
 application site.
 
-### Gap 8 (major): no uniqueness by projection
+### Gap 8 — FIXED (major): no uniqueness by projection
 
 `unique()` compares whole members, so "no two customers share a
-ledgerId" is inexpressible; `gaps/unique-by-field.aon` gives two
-customers the same ledger id and **evaluates cleanly** — check.sh
-asserts the silent pass, because that silence is the finding. (The
-reference acknowledges this and reserves the arity for G8.) In this
-domain, key-uniqueness covers ids, but natural-key fields — VAT
-numbers, ledger ids, emails — get no protection.
+ledgerId" was inexpressible: `gaps/unique-by-field.aon` gave two
+customers the same ledger id and **evaluated cleanly**, and check.sh
+asserted that silent pass because the silence was the finding. The
+reference acknowledged it and reserved the arity for exactly this.
+
+**FIXED 2026-08-27** — the arity is spent. `unique(ledgerId)` says no
+two members may share the named key, so the natural-key fields that
+had no protection at all — VAT numbers, ledger ids, emails — now have
+the same protection map keys always had. `check.sh` asserts the
+duplicate is caught (`[aontu/constraint]` at `$.customers`).
+
+A member with no such key **fails** rather than being skipped:
+distinctness that cannot be shown is distinctness the collection does
+not have, and skipping would let one keyless record hide a duplicate.
+`unique(a) & unique(b)` demands both, and canon sorts the keys so two
+documents saying the same thing render the same string.
 
 ### Gap 9 (minor, diagnostics): spurious `pref_not_instance` warning
 
@@ -338,6 +360,7 @@ novel protection. Validation of *arithmetic* — the heart of an
 invoicing domain — is close to absent: no aggregates, no
 multiplication, cross-field rules that cannot be stated generically,
 and exact money that JSON data can never carry. The include/alias
-bugs (gap 6, gap 7) are implementation, not design, but today they
-force exactly the copy-paste vocabulary an ontology language exists
-to eliminate.
+bugs were implementation, not design: gap 6 is fixed (2026-08-26,
+the template-clone isolation change), so the copy-paste vocabulary
+it forced is no longer necessary; gap 7 (`refer()` in a named type)
+remains open.

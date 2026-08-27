@@ -269,51 +269,52 @@ grep -v 'search_reranker_v3.*message' "$OV" > "$OV.tmp" && mv "$OV.tmp" "$OV"
 
 echo "# -------------------------- write loop: the DEFERRED policy trap"
 
-# CRITICAL FINDING: `set`'s verdict is vet's verdict of entry vs
-# overlay, and must() is Band B of the constraint algebra -- opaque
-# to vet, evaluate-only (base.aon DOES include policy.aon; the audit
-# simply cannot fire on the write path).  So enabling an EXPIRED flag
-# through the overlay is accepted by `set` (verdict valid) yet makes
-# the full runtime view (system.aon) fail the must() rule on its next
-# evaluation.
-run setzombie 0 set '$.flags.search_reranker_v3.enabled=true' \
+# CRITICAL FINDING, CLOSED 2026-08-27 (ADR-007). `set`'s verdict is
+# vet's verdict of entry vs overlay, and vet used to meet the SETTLED
+# entry -- a tree whose must() audits had already been discharged
+# against the entry's own values, before the overlay existed. So
+# enabling an EXPIRED flag through the overlay was accepted (verdict
+# valid) and only the full runtime view caught it, post-hoc. The meet
+# is now built from a fresh parse, so the audit meets the overlay's
+# value and `set` refuses the write at the point of writing.
+run setzombie 1 set '$.flags.search_reranker_v3.enabled=true' \
   --entry "$WORK/base.aon" --overlay "$OV"
-has setzombie "verdict: valid" "zombie set accepted by set"
-ok "set ACCEPTS enabling an expired flag (must() audits are opaque to set's vet verdict)"
+has setzombie "[aontu/must]" "zombie set refused by the lifecycle audit"
+has setzombie "expired flags must be disabled" "the author's message"
+ok "set REFUSES enabling an expired flag (must() audits fire on the write path)"
 
-# The full runtime view catches it -- eval fails (exit 1), must code.
-run zombieval 1 "$WORK/system.aon"
-has zombieval "[aontu/must]" "zombie lifecycle code"
-has zombieval "expired flags must be disabled" "zombie author message"
-ok "the ASSEMBLED runtime view rejects the zombie: must() fires (post-hoc, not at set time)"
+# The refusal means nothing was written: the runtime view is still
+# green, and there is no post-hoc failure to clean up. `set` does not
+# write an overlay whose change does not hold, so the write path and
+# the read path now agree.
+grep -q 'search_reranker_v3.*enabled.*true' "$OV" \
+  && die "set wrote the refused zombie line into the overlay"
+run zombieval 0 "$WORK/system.aon"
+ok "the refused write never reached the overlay; runtime view stays valid"
 
-# Roll the bad line back; runtime view is green again.
-grep -v 'search_reranker_v3.*enabled.*true' "$OV" > "$OV.tmp" && mv "$OV.tmp" "$OV"
-run afterrollback 0 "$WORK/system.aon"
-ok "removing the offending overlay line restores a valid runtime view"
-
-# Same trap for the range audit: an out-of-range rollout on the
-# megacorp tenant is accepted even by the fleet-safe write path
-# (--in-place rewrites the sweep's 55 to 200, verdict valid): the
-# catalog field carries no inline range -- phase-1 limit, README --
-# and the rollout_range must() audit is opaque to set.  The full
-# view catches it post hoc.
-run setbigroll 0 set '$.tenants.megacorp.flags.checkout_v2.rollout=200' \
+# The range audit is the same story, and closed the same way
+# (2026-08-27, ADR-007): an out-of-range rollout on the megacorp tenant
+# used to be accepted even by the fleet-safe write path -- the catalog
+# field carries no inline range (phase-1 limit, README), and the
+# rollout_range must() audit had already been discharged against the
+# entry's own values before the overlay existed. vet now meets a
+# freshly parsed entry, so the audit meets the value being written and
+# `set` refuses it.
+run setbigroll 1 set '$.tenants.megacorp.flags.checkout_v2.rollout=200' \
   --entry "$WORK/base.aon" --overlay "$OV" --in-place
-has setbigroll "verdict: valid"  "range set accepted by set"
-has setbigroll "replaced:"       "range set rewrote the pinned literal"
-ok "set --in-place ACCEPTS rollout=200 (no catalog-level range constraint)"
+has setbigroll "[aontu/must]" "range audit code"
+has setbigroll "rollout must be an integer in 0..100" "range audit message"
+ok "set --in-place REFUSES rollout=200 (the rollout_range audit fires)"
 
-run rangeval 1 "$WORK/system.aon"
-has rangeval "[aontu/must]" "range audit code"
-has rangeval "rollout must be an integer in 0..100" "range audit message"
-ok "the assembled runtime view rejects rollout=200: rollout_range must() fires"
+# Nothing was written, so the runtime view never went red.
+run rangeval 0 "$WORK/system.aon"
+ok "the refused range write never reached the overlay; runtime view stays valid"
 
-# Repair the same way an operator would: set the value back in place.
+# A rollout the audit admits IS written, in place.
 run setrepair 0 set '$.tenants.megacorp.flags.checkout_v2.rollout=55' \
   --entry "$WORK/base.aon" --overlay "$OV" --in-place
 run afterrange 0 "$WORK/system.aon"
-ok "setting the rollout back in place restores a valid runtime view"
+ok "an in-range rollout is accepted and the runtime view stays valid"
 
 echo "# -------------------------------------------- why: value provenance"
 

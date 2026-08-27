@@ -26,6 +26,20 @@ match-atom-pattern	gens	z:match(1,min(0),ok,integer,no)\n	{"z":"ok"}
 match-map-pattern	gens	z:match({a:1},{a:integer},yes,other)\n	{"z":"yes"}
 match-result-key	gens	z:match(1,integer,{k:key()})\n	{"z":{"k":"z"}}
 match-inside-pack	gens	n:[a,b]\nd:pack($.n,{t:match(key(),a,1,2)})\n	{"d":{"a":{"t":1},"b":{"t":2}},"n":["a","b"]}
+# THE DEFAULTED-SCRUTINEE RULE (ADR-004, 2026-08-26; use-cases/BUGS.md
+# §5). A settled scrutinee carrying an effective default matches as the
+# value generation will emit -- the innermost preferred value -- not as
+# the still-open preference. Before this, a pattern could SELECT an arm
+# by overriding the default: match(.s, destructive, true, false) beside
+# s:*readonly|write|destructive answered true while generating
+# "readonly" next to it. All rows parity-probed.
+match-defaulted-scrutinee-default	gen	t:{s:*readonly|write|destructive,r:match(.s,destructive,true,false)}	{"t":{"r":false,"s":"readonly"}}
+match-defaulted-scrutinee-hit	gen	t:{s:*readonly|write|destructive,r:match(.s,destructive,true,false)}\nt:s:destructive	{"t":{"r":true,"s":"destructive"}}
+match-defaulted-scrutinee-other	gen	t:{s:*readonly|write|destructive,r:match(.s,destructive,true,false)}\nt:s:write	{"t":{"r":false,"s":"write"}}
+match-bare-pref-scrutinee	gen	k:*5\nz:match($.k,6,a,b)	{"k":5,"z":"b"}
+# ... and a PREF-FREE open disjunction is untouched: no effective
+# default, so it matches by unifiability as documented.
+match-open-disjunct-scrutinee	gen	z:match(1|2,integer,a,b)	{"z":"a"}
 match-none-no-default	errc	t:mid\nz:match($.t,small,{cpu:1},large,{cpu:8})\n	match_none
 match-none-single-arm	errc	z:match(1,string,a)\n	match_none
 match-arity-two	errc	z:match(1,string)\n	func_arity

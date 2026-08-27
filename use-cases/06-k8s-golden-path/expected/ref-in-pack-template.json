@@ -1,0 +1,16 @@
+{
+  "deploy": {
+    "auth": {
+      "cpu": "250m",
+      "cpu_m": 250
+    },
+    "web": {
+      "cpu": "250m",
+      "cpu_m": 250
+    }
+  },
+  "names": [
+    "web",
+    "auth"
+  ]
+}

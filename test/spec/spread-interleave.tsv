@@ -8,3 +8,54 @@ spread-interleave-5	gen	{a:{y:3}}&{&:{x:1}}&{&:{p:2}}	{"a":{"y":3,"x":1,"p":2}}
 spread-interleave-6	gen	{&:{x:1}}&{a:{y:2}}&{&:{p:3}}&{b:{z:4}}	{"a":{"y":2,"x":1,"p":3},"b":{"z":4,"x":1,"p":3}}
 spread-interleave-7	gen	q:&:{k:a} q:&:{p:2} q:a:{x:11}	{"q":{"a":{"k":"a","p":2,"x":11}}}
 spread-interleave-11	gen	a:{&:{x:1}} a:{b:{y:2}} a:{&:{p:3}} a:{c:{z:4}}	{"a":{"b":{"y":2,"x":1,"p":3},"c":{"z":4,"x":1,"p":3}}}
+
+# THE COMPOSITION MATRIX (2026-08-26, the spread application rework):
+# unequal cross-statement spreads on one bag apply INDEPENDENTLY per
+# child -- children meet each template's constraints and never meet
+# each other's data. The historic crosswire (use-cases/BUGS.md sec 6-7)
+# rode a stateful ExpectVal baked into the combined template and shared
+# across destinations; ExpectVal.unify is now pure. Every row below is
+# parity-probed (both CLIs agree). Matrix: unequal-spread x {literal,
+# ref-arriving, key()-bearing} templates x {2,3 children} x {map,list},
+# plus requiredness/defaults through the combine, generator-over-
+# spread-augmented data, and id-merge x unequal ref spreads.
+# map x literal x 2 children: the minimal sec-7 crosswire shape --
+# each child keeps ITS OWN p and r (5/6 never meet).
+spread-unequal-map-2	gen	w:&:{p:integer}\nw:&:{r:integer}\nw:x:{p:1,r:5}\nw:y:{p:2,r:6}	{"w":{"x":{"p":1,"r":5},"y":{"p":2,"r":6}}}
+# map x literal x 3 children: a third sibling meets the same combined
+# constraint, still no cross-talk.
+spread-unequal-map-3	gen	w:&:{p:integer}\nw:&:{r:integer}\nw:x:{p:1,r:5}\nw:y:{p:2,r:6}\nw:z:{p:3,r:7}	{"w":{"x":{"p":1,"r":5},"y":{"p":2,"r":6},"z":{"p":3,"r":7}}}
+# map x key()-bearing x 2: key() in one unequal template resolves per
+# child (the combined template stays path-dependent, so it is a fresh
+# instance per destination).
+spread-unequal-map-key-2	gen	w:&:{k:key()}\nw:&:{r:integer}\nw:x:{r:5}\nw:y:{r:6}	{"w":{"x":{"k":"x","r":5},"y":{"k":"y","r":6}}}
+# map x key()-bearing x 3.
+spread-unequal-map-key-3	gen	w:&:{k:key()}\nw:&:{r:integer}\nw:x:{r:5}\nw:y:{r:6}\nw:z:{r:7}	{"w":{"x":{"k":"x","r":5},"y":{"k":"y","r":6},"z":{"k":"z","r":7}}}
+# map x ref-arriving x 2 (BUGS.md sec 6, the oneview shape): unequal
+# templates meeting BY REFERENCE through a conjunction of hidden
+# schemas -- per-child default d, per-child n.
+spread-unequal-map-ref-2	gen	P:hide({d:*1|2})\nS:hide({m:{&:$.P}})\nW:hide($.S&{m:{&:$.P&{n:integer}}})\nw:$.W&{m:{a:{n:1},b:{n:2}}}	{"w":{"m":{"a":{"d":1,"n":1},"b":{"d":1,"n":2}}}}
+# map x ref-arriving x 3.
+spread-unequal-map-ref-3	gen	P:hide({d:*1|2})\nS:hide({m:{&:$.P}})\nW:hide($.S&{m:{&:$.P&{n:integer}}})\nw:$.W&{m:{a:{n:1},b:{n:2},c:{n:3}}}	{"w":{"m":{"a":{"d":1,"n":1},"b":{"d":1,"n":2},"c":{"d":1,"n":3}}}}
+# id-merge x unequal ref spreads (BUGS.md sec 6, the idmerge shape):
+# two views of one id()-merged entity under different ref-arriving
+# templates -- the entity's sibling ports stay independent and both
+# positions emit the merged entity.
+spread-unequal-idmerge	gen	P:hide({d:*1|2})\nS:hide({m:{&:$.P}})\nW:hide({m:{&:$.P&{n:integer}}})\na:{&:$.S}\na:g:id(x)&{m:{u:{n:1},v:{n:2}}}\nb:{&:$.W}\nb:g:id(x)&{}	{"a":{"g":{"m":{"u":{"d":1,"n":1},"v":{"d":1,"n":2}}}},"b":{"g":{"m":{"u":{"d":1,"n":1},"v":{"d":1,"n":2}}}}}
+# requiredness survives the combine: a key contributed by the OTHER
+# template is still required at every child (fresh per-destination
+# expectation, not the template's own node).
+spread-unequal-required	errc	w:&:{p:integer}\nw:&:{r:integer}\nw:x:{p:1}	mapval_spread_required
+# defaults through the combine: one template's *1|integer defaults
+# per child and stays overridable per child.
+spread-unequal-pref	gen	w:&:{d:*1|integer}\nw:&:{r:integer}\nw:x:{r:5}\nw:y:{d:2,r:6}	{"w":{"x":{"d":1,"r":5},"y":{"d":2,"r":6}}}
+# list x literal x 2 elements: the same independence on list bags
+# (elements meet the combined constraint, never each other).
+spread-unequal-list-2	gen	q:[&:{p:integer}]\nq:[&:{r:integer}]\nq:[{p:1,r:5},{p:2,r:6}]	{"q":[{"p":1,"r":5},{"p":2,"r":6}]}
+# list x literal x 3 elements.
+spread-unequal-list-3	gen	q:[&:{p:integer}]\nq:[&:{r:integer}]\nq:[{p:1,r:5},{p:2,r:6},{p:3,r:7}]	{"q":[{"p":1,"r":5},{"p":2,"r":6},{"p":3,"r":7}]}
+# list x key()-bearing: key() at a list element is the INDEX (the
+# documented rule), resolved per element through the combine.
+spread-unequal-list-key	gen	q:[&:{k:key()}]\nq:[&:{r:integer}]\nq:[{r:5},{r:6}]	{"q":[{"k":"0","r":5},{"k":"1","r":6}]}
+# list x ref-arriving templates.
+spread-unequal-list-ref	gen	T:hide({p:integer})\nU:hide({r:integer})\nq:[&:$.T]\nq:[&:$.U]\nq:[{p:1,r:5},{p:2,r:6}]	{"q":[{"p":1,"r":5},{"p":2,"r":6}]}

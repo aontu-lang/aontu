@@ -1,0 +1,13 @@
+# README gap 8 -- FIXED 2026-08-27. "Every service port must be unique"
+# is an org rule this model could not state: unique() compared WHOLE
+# children, so two services differing in any other field passed, and
+# nothing could PRODUCE the list of ports to check instead (each/pack
+# map whole children, `_.port` is unspellable).
+#
+# unique(port) says it directly -- no projection needed at all, because
+# the atom now takes the projector. Expected: [aontu/constraint], the
+# duplicate 8080 refused.
+fleet: unique(port) & {
+  api:  { port: 8080, image: "acme/api:1" }
+  auth: { port: 8080, image: "acme/auth:1" }
+}

@@ -24,12 +24,12 @@ const G = (x, ctx) => new unify_1.Unify(x, lang).res.gen(ctx);
         let u2a = UC('a:*1|*1|number');
         (0, expect_1.expect)(u2a).equal('{"a":*1|number}');
         let u2 = UC('a:*1|number,a:*2|number');
-        (0, expect_1.expect)(u2).equal('{"a":2|1|number}');
+        (0, expect_1.expect)(u2).equal('{"a":*2|*1|number}');
         // TODO: fix syntax (*...) !!!
         // let u3 = UC('(*1|number) & (*2|number)')
         // expect(u3).equal('*2|*1|number')
         let u4 = UC('(number|*1) & (number|*2)');
-        (0, expect_1.expect)(u4).equal('number|1|2');
+        (0, expect_1.expect)(u4).equal('number|*1|*2');
         let g0 = G('{&:{x:*1|number},a:{},b:{x:2}}');
         (0, expect_1.expect)(g0).equal({ a: { x: 1 }, b: { x: 2 } });
         let g1 = G('&:{x:*1|number},a:{},b:{x:2}');

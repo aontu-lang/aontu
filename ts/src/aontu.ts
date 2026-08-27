@@ -12,7 +12,7 @@ import { MapVal } from './val/MapVal'
 import { Decimal } from './val/Decimal'
 import { exactJSON } from './exactjson'
 import { formatExplain } from './utility'
-import { makeNilErr, descErr, AontuError } from './err'
+import { makeNilErr, descErr, AontuError, setColor, colorActive } from './err'
 import { vet } from './vet'
 import { sarifReport } from './report-sarif'
 import { subsume } from './subsume'
@@ -399,6 +399,8 @@ export {
   AontuOptions,
   AontuContext,
   AontuError,
+  setColor,
+  colorActive,
 
   Val,
   Lang,

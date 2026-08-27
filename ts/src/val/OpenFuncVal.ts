@@ -38,13 +38,16 @@ class OpenFuncVal extends FuncBaseVal {
 
 
   resolve(ctx: AontuContext | undefined, args: Val[]) {
-    const argval: any = args[0]
+    let argval: any = args[0]
 
     if (null == argval) {
       return makeNilErr(ctx, 'no_first_arg', this, undefined, 'close')
     }
 
     if (argval.isMap || argval.isList) {
+      // In place, for the reason CloseFuncVal.resolve gives: the
+      // instantiation rule (ADR-005) makes the argument this call's
+      // own wherever the call is multiplied.
       (argval as BagVal).closed = false
     }
 

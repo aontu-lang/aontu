@@ -1,5 +1,8 @@
-# PINNED: putting the bounds inside the non-default branch instead lets
-# any concrete override skip them entirely -- 40 > max(20) is accepted,
-# exit 0.  Golden: expected/bound-bypass.json.
+# FIXED 2026-08-26 by the preference admission gate (ADR-004): the
+# bounds in the non-default branch are now CONSULTED on override --
+# 40 > max(20) is refused with [aontu/|:empty], exit 1 (this probe
+# used to pin the bypass: 40 accepted, exit 0, golden
+# expected/bound-bypass.json).  An in-range override is admitted by
+# the branch, and an unset field still generates the default 2.
 replicas: *2 | (integer & min(1) & max(20))
 replicas: 40
