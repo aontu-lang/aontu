@@ -378,7 +378,7 @@ class DisjunctVal extends JunctionVal {
         descErr(nerr, ctx)
         ctx?.adderr(nerr)
 
-        if (null == ctx || !ctx?.collect) {
+        if (null == ctx || !ctx.collect) {
           throw new AontuError(nerr.msg, [nerr])
         }
 

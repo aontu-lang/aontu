@@ -298,7 +298,7 @@ class DisjunctVal extends JunctionVal_1.JunctionVal {
                 const nerr = (0, err_1.makeNilErr)(ctx, 'disjunct_no_gen', this);
                 (0, err_1.descErr)(nerr, ctx);
                 ctx?.adderr(nerr);
-                if (null == ctx || !ctx?.collect) {
+                if (null == ctx || !ctx.collect) {
                     throw new err_1.AontuError(nerr.msg, [nerr]);
                 }
                 return undefined;
