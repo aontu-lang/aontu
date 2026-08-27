@@ -36,7 +36,12 @@ function colorActive(): boolean {
   if (null != COLOR) {
     return COLOR
   }
-  const no = (globalThis as any)?.process?.env?.NO_COLOR
+  // `globalThis` always exists; `process` need not (this library runs
+  // in a browser too), so the optional chain starts at the part that
+  // can actually be missing. Set-but-EMPTY is the documented exception
+  // and does not disable colour (no-color.org).
+  const env = (globalThis as any).process?.env
+  const no = null == env ? undefined : env.NO_COLOR
   return null == no || '' === no
 }
 

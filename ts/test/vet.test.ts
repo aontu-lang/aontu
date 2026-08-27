@@ -747,8 +747,14 @@ describe('vet-display-file', () => {
   // reach: a caller who passed no path, a url that is not a path, and
   // a document's own name.
   test('a-name-with-no-base-to-relativise-against-is-left-alone', () => {
-    const abs = Path.join(Path.sep, 'w', 'proj', 'lib.aon')
-    const entry = Path.join(Path.sep, 'w', 'proj', 'entry.aon')
+    // A REAL absolute path, from the OS rather than assembled: on
+    // Windows a rooted path is not an absolute one without its drive
+    // letter, so an assembled `\w\proj\lib.aon` would exercise a
+    // different arm of the rule there than here. The Go twin says the
+    // same, and learned it from a Windows CI run.
+    const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-name2-'))
+    const abs = Path.join(dir, 'lib.aon')
+    const entry = Path.join(dir, 'entry.aon')
 
     // The document's OWN url is never rewritten -- it is already the
     // name the caller used.
@@ -768,6 +774,8 @@ describe('vet-display-file', () => {
     Assert.equal(
       displayFile(abs, Path.join('a', 'b', 'entry.aon'), entry),
       Path.join('a', 'b', 'lib.aon'))
+
+    Fs.rmSync(dir, { recursive: true, force: true })
   })
 })
 

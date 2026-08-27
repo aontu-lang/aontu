@@ -635,8 +635,14 @@ const SCHEMA = 'service: { name: string, port: integer }';
     // reach: a caller who passed no path, a url that is not a path, and
     // a document's own name.
     (0, node_test_1.test)('a-name-with-no-base-to-relativise-against-is-left-alone', () => {
-        const abs = Path.join(Path.sep, 'w', 'proj', 'lib.aon');
-        const entry = Path.join(Path.sep, 'w', 'proj', 'entry.aon');
+        // A REAL absolute path, from the OS rather than assembled: on
+        // Windows a rooted path is not an absolute one without its drive
+        // letter, so an assembled `\w\proj\lib.aon` would exercise a
+        // different arm of the rule there than here. The Go twin says the
+        // same, and learned it from a Windows CI run.
+        const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-name2-'));
+        const abs = Path.join(dir, 'lib.aon');
+        const entry = Path.join(dir, 'entry.aon');
         // The document's OWN url is never rewritten -- it is already the
         // name the caller used.
         Assert.equal((0, vet_1.displayFile)('entry.aon', 'entry.aon', 'x/entry.aon'), 'entry.aon');
@@ -651,6 +657,7 @@ const SCHEMA = 'service: { name: string, port: integer }';
         // Go twin states them: bare beside bare, nested through nested.
         Assert.equal((0, vet_1.displayFile)(abs, 'entry.aon', entry), 'lib.aon');
         Assert.equal((0, vet_1.displayFile)(abs, Path.join('a', 'b', 'entry.aon'), entry), Path.join('a', 'b', 'lib.aon'));
+        Fs.rmSync(dir, { recursive: true, force: true });
     });
 });
 (0, node_test_1.describe)('verb-errors', () => {

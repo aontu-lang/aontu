@@ -283,7 +283,13 @@ func displayFile(url, label, path string) string {
 		return url
 	}
 	rel, err := filepath.Rel(filepath.Dir(base), url)
-	if err != nil { //coverage:ignore both paths are absolute, so Rel cannot fail
+	// Rel fails only when no relative path EXISTS between two absolute
+	// paths, which on this side of the guard means a Windows pair on
+	// different drives. The url is then already the shortest name for
+	// the file, and it is what TypeScript's path.relative answers for
+	// the same pair -- the ports agree by falling back to the same
+	// string rather than by sharing the branch.
+	if err != nil { //coverage:ignore needs two drives, so no test can reach it
 		return url
 	}
 	dir := filepath.Dir(label)

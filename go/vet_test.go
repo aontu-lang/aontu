@@ -725,27 +725,31 @@ func TestVetFindingWithoutHintText(t *testing.T) {
 // it. The TypeScript twin is `an-included-file-is-named-as-the-entry-
 // reaches-it` in ts/test/vet.test.ts.
 func TestDisplayFileNamesTheIncludeAsTheEntryReachesIt(t *testing.T) {
-	abs := filepath.Join(string(filepath.Separator), "w", "proj", "lib.aon")
+	// A REAL absolute path, from the OS rather than assembled: on
+	// Windows a rooted path is not an absolute one without its drive
+	// letter, so `\w\proj\lib.aon` is relative there and the rule
+	// under test would decline to rewrite it -- passing for the wrong
+	// reason on Linux and failing outright on Windows.
+	dir := t.TempDir()
+	abs := filepath.Join(dir, "lib.aon")
+	absEntry := filepath.Join(dir, "entry.aon")
 
 	// A BARE entry name: the include is named beside it, with no
 	// directory the caller never typed.
-	if got := displayFile(abs, "entry.aon",
-		filepath.Join(string(filepath.Separator), "w", "proj", "entry.aon")); "lib.aon" != got {
+	if got := displayFile(abs, "entry.aon", absEntry); "lib.aon" != got {
 		t.Fatalf("bare entry: %q", got)
 	}
 
-	// A entry reached through a directory: the include is named through
+	// An entry reached through a directory: the include is named through
 	// the same one, so both are openable from the caller's cwd.
 	deep := filepath.Join("a", "b", "entry.aon")
 	want := filepath.Join("a", "b", "lib.aon")
-	if got := displayFile(abs, deep,
-		filepath.Join(string(filepath.Separator), "w", "proj", "entry.aon")); want != got {
+	if got := displayFile(abs, deep, absEntry); want != got {
 		t.Fatalf("nested entry: %q, want %q", got, want)
 	}
 
 	// An ABSOLUTE entry keeps absolute includes: the caller asked for
 	// absolute names by giving one.
-	absEntry := filepath.Join(string(filepath.Separator), "w", "proj", "entry.aon")
 	if got := displayFile(abs, absEntry, absEntry); abs != got {
 		t.Fatalf("absolute entry: %q", got)
 	}
