@@ -1480,9 +1480,18 @@ selection**: every module is taken at the highest of the minima anyone
 asked for, and never higher. Resolving upgrades nothing, so the answer
 is reproducible and adding one dependency cannot move another. It then
 recomputes each `canon` pin from the module in the store and rewrites
-`mod-lock.aon`; if any module is not in a store the lockfile is left
-alone, because a partial lock claims a closure that was never
-resolved.
+`mod-lock.aon`; if any module is not in a store, or is in one but does
+not evaluate on its own, the lockfile is left alone — a partial lock
+claims a closure that was never resolved, and a pin computed from a
+module that has no meaning is the same string for every broken module.
+
+`aontu mod verify` asks the opposite question and **changes nothing**:
+does every locked module still *mean* what the lockfile pins? It is
+the CI gate, because `tidy` cannot be one — rewriting the lockfile is
+tidy's job, so a job that tidies before evaluating simply makes the
+lock agree with whatever the store now holds. A store that has drifted
+is reported with both hashes; a project the lockfile does not cover is
+refused rather than verified over nothing.
 
 `aontu mod vendor` copies the locked closure into `aon_vendor/` as
 whole source trees, which is what makes a project evaluable with no

@@ -719,6 +719,29 @@ modules lock the *identical* pin (`canonHash(nil)`), silently violating
 the "breaks on any semantic change in the transitive closure" contract;
 `aontu hash` refuses the same file. Repro: `transitive-vendor/`.
 
+**Status: FIXED 2026-08-27, both halves.** (a) *The store belongs to
+the project, not to the file that names it.* A vendored module carries
+its own `mod.aon`, and that stopped the upward walk — so an import
+made from inside `aon_vendor/…/service@1/` looked for a store under
+`service@1/`, found none, and refused, while the module it wanted sat
+flat beside it. Resolution now collects **every** enclosing `mod.aon`
+root (`projectRoots` in `ts/src/mod.ts`, `go/mod.go`) and tries each
+one's `aon_vendor/` and lockfile in turn, nearest first, so the flat
+tree `mod vendor` writes is the tree a nested import reads. The old
+workaround — nesting a second `aon_vendor/` inside the dependency —
+could never have travelled anyway, because `mod manifest` strips
+`aon_vendor/` from the published layer. (b) *A pin that cannot be
+computed is not written.* `tidy` refuses a module that does not
+evaluate on its own (verdict `error`, exit 4, lockfile untouched) with
+the message `aontu hash` already gave the same file — "does not
+evaluate on its own; nothing to pin" — instead of locking
+`canonHash(nil)`, so the pin can no longer be a hash of nothing shared
+by every broken module. Both ports; pinned by
+`TestModTransitiveVendorResolves` and
+`TestModTidyRefusesAnUnevaluableModule` (and their TypeScript twins),
+and the `mod-nested-has-its-own-root` spec row now records the nested
+root as resolving.
+
 ### 32. `tidy` re-pins tampered store content; no verify-without-rewrite verb [major]
 Tamper a vendored module → eval correctly refuses with the integrity
 error → run `mod tidy` → lockfile silently rewritten to the tampered
@@ -727,9 +750,31 @@ The recompute-always semantics is documented; the operational hole is
 the absence of any `mod verify` — a CI job that tidies before
 evaluating has no integrity protection. Repro: `tidy-repin/`.
 
+**Status: FIXED 2026-08-27 — `aontu mod verify <root>`.** Recomputing
+the pin is `tidy`'s job and stays as documented; the missing piece was
+a verb that *reads* the lockfile rather than writing it. `verify`
+recomputes every pin from the store, compares it against the committed
+lock, writes nothing, and exits 1 on any disagreement naming both
+hashes: `<mod>: pinned <want> but the store means <got>`. A module that
+does not evaluate reports "nothing (it does not evaluate)" rather than
+a hash, so an unevaluable module cannot read as agreement. Neither can
+an empty lockfile: the gate walks what is *locked*, so a project whose
+lockfile was never committed — or whose lockfile predates a dependency
+someone added — would otherwise verify clean over nothing at all, which
+is this same defect one step earlier. Every dependency the project
+declares must be in the lockfile before the pins mean anything;
+`verdict: unlocked` says so and names `mod tidy` as the repair rather
+than a fetch. That is the verb a CI job runs before it evaluates. Both
+ports; pinned by `TestModVerify`,
+`TestModVerifyRefusesAnUncoveredProject`,
+`TestModVerifyReportsWhatNoStoreHolds` and `TestModVerifyCommand` (and
+their TypeScript twins).
+
 (Also confirmed, by design: the content-addressed cache is unreachable
 until a pin exists, and with `mod get` absent, hand-vendoring is the
-only cold start — whose directory layout is documented nowhere.)
+only cold start. Its directory layout — documented nowhere when this
+was written — is now `docs/reference-api.md`, "Vendor a module by
+hand", with the flat-tree rule and the `verify` step.)
 
 ---
 

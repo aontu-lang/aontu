@@ -5,6 +5,77 @@ package (`ts/`, npm `aontu`) and the Go module (`go/`,
 `github.com/rjrodger/aontu/go`) are versioned independently; entries note
 which implementation each change affects.
 
+## Unreleased — a module closure that travels, and a verb that verifies it
+
+Both implementations. The 2026-08 review's finding H: a ground truth
+that cannot move between repositories tamper-evidently is a
+convention, not a truth. Three defects stood between the module layer
+and that claim, on either side of `mod-lock.aon`.
+
+**The store belongs to the project, not to the file that names it.**
+A vendored module carries its own `mod.aon`, so it is a project inside
+a project — and resolution walked up to the *nearest* one and stopped.
+An import made from inside `aon_vendor/corp.example/schemas/service@1/`
+therefore looked for a store beneath `service@1/`, found none, and
+refused with `module not fetched` while the module it wanted sat flat
+beside it, which is the only layout `aontu mod vendor` writes. The
+tooling produced a tree the resolver could not read: one dependency
+deep worked, a dependency *graph* did not. Resolution now collects
+every enclosing `mod.aon` root (`projectRoots`, both ports) and tries
+each one's `aon_vendor/` and lockfile in turn, nearest first — so a
+module shipping its own vendor tree still wins for its own tree, and
+one that does not falls through to the consumer that vendored it. The
+old workaround, a second `aon_vendor/` nested inside the dependency,
+is now a no-op that does not move the pin; it could never have
+travelled anyway, because `mod manifest` excludes `aon_vendor/` from
+the published layer.
+
+**A pin that cannot be computed is not written.** `tidy` pinned
+modules it could not evaluate, and the hash it locked for them was
+`canonHash(nil)` — the string *every* unevaluable module hashes to. Two
+entirely different broken modules locked the identical pin, so the
+lockfile's promise to break on any semantic change in the transitive
+closure was silently vacuous, and `aontu hash` refused the very file
+`tidy` had just pinned. Tidy now refuses it too, in the same words —
+`does not evaluate on its own; nothing to pin` — with `verdict: error`,
+exit 4, and no lockfile written. That is the verb's existing rule (a
+partial lock claims a resolve that never happened) applied to a pin
+that is present but means nothing, which is the harder case to see.
+
+**Verifying is not editing: `aontu mod verify [dir]`.** Nothing
+checked the store against the committed lock. `tidy` recomputes and
+rewrites by design, so a CI job that tidied before evaluating made the
+lockfile agree with whatever the store held — tampering included — and
+then passed: the integrity pin defeated by the order of two commands.
+The new verb recomputes every pin, compares it against the lockfile,
+**writes nothing**, and refuses on any disagreement with both hashes
+named (`pinned <want> but the store means <got>`); a module that no
+longer stands up says so rather than reporting the hash of `nil` as
+though it were a meaning.
+
+Nothing to check is not a pass, either — the obvious way to get this
+verb wrong. The gate walks what is *locked*, so a project whose
+lockfile was never committed, or whose lockfile predates a dependency
+someone added, would verify clean over an empty set: absence reading as
+agreement, which is the same shape as the defect above. Every
+dependency the project declares must be in the lockfile before the pins
+mean anything, and the repair is a `tidy` rather than a fetch:
+`verdict: unlocked`, and the line says so. Transitive dependencies need
+no separate check — a locked module's own imports are resolved when its
+pin is recomputed, so one that is unreachable makes its *dependant*
+fail to evaluate and is reported as a mismatch.
+
+Verdicts `ok`, `mismatch`, `unlocked` and `missing`; exit 0 and 1 for
+each of the three refusals, 2 for usage — a mismatch is a refused gate,
+the class `breaking` already uses. `--format json` carries `verified`,
+`mismatched` and `unlocked`. Run it beside your tests; run `tidy` only
+when you mean to move a pin.
+
+Documented in [`docs/reference-api.md`](docs/reference-api.md#aontu-mod)
+and the hand-vendoring how-to, which gained the flat transitive layout
+and the CI section. Use case 11 (`use-cases/11-shared-modules`) asserts
+all three behaviours where it previously pinned the defects.
+
 ## Unreleased — provenance is part of the clone contract
 
 Both implementations. The 2026-08 review's finding E: `why` is the

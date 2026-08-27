@@ -69,19 +69,35 @@ func moduleDir(store string, ref ModuleRef) string {
 	return filepath.Join(parts...) + "@" + strconv.Itoa(ref.Major)
 }
 
-// projectRoot is the nearest directory at or above from holding a
-// `mod.aon`. A document with no module file of its own still resolves
-// modules — from its own directory — because a single file with an
-// inline pin is a supported mode.
-func projectRoot(from string) string {
+// projectRoots is EVERY project root at or above from, innermost first
+// — a project root being a directory holding a `mod.aon`. This used to
+// answer with the NEAREST one alone, and the plural is the fix, because
+// a VENDORED MODULE IS A PROJECT INSIDE A PROJECT. A module in
+// `aon_vendor/` carries its own `mod.aon`, which stopped the upward walk
+// there, so a nested import resolved against the vendored module's own
+// directory: a tree with no `aon_vendor/` of its own, and therefore a
+// `module not fetched` for a dependency sitting flat beside it in the
+// CONSUMER's vendor tree — the only layout `mod vendor` produces
+// (use-cases/BUGS.md §31).
+//
+// The consumer's stores are searched after the module's own, so a
+// module that vendors its dependencies nested still wins for its own
+// tree, and one that does not falls through to the consumer that
+// vendored it. The last element is `from` itself when nothing above it
+// declares a module, which is the single-file inline-pin mode.
+func projectRoots(from string) []string {
+	roots := []string{}
 	dir := from
 	for {
 		if _, err := os.Stat(filepath.Join(dir, "mod.aon")); nil == err {
-			return dir
+			roots = append(roots, dir)
 		}
 		up := filepath.Dir(dir)
 		if up == dir {
-			return from
+			if 0 == len(roots) {
+				return []string{from}
+			}
+			return roots
 		}
 		dir = up
 	}
@@ -160,13 +176,28 @@ func resolveModule(ref ModuleRef, fromDir string, cache string, depth int) modul
 		}
 	}
 
-	root := projectRoot(fromDir)
+	// EVERY enclosing project, innermost first (see projectRoots): a
+	// vendored module is a project inside a project, and its nested
+	// imports have to reach the tree the consumer vendored them into.
+	roots := projectRoots(fromDir)
 	expect := ref.Hash
 	if "" == expect {
-		expect = lockHash(root, ref)
+		// The PIN comes from the first lockfile that names this import.
+		// A vendored module usually ships none, so that is the
+		// consumer's -- which is right: the consumer's lock is what its
+		// build is pinned to.
+		for _, r := range roots {
+			if h := lockHash(r, ref); "" != h {
+				expect = h
+				break
+			}
+		}
 	}
 
-	stores := []string{moduleDir(filepath.Join(root, "aon_vendor"), ref)}
+	stores := []string{}
+	for _, r := range roots {
+		stores = append(stores, moduleDir(filepath.Join(r, "aon_vendor"), ref))
+	}
 	if "" != cache && "" != expect {
 		// Content-addressed: the cache is keyed by the hash, so a cache
 		// hit is already the right MEANING before anything is read.

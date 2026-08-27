@@ -58,6 +58,15 @@ APP="$TMP/app"
 mkdir -p "$APP"
 cp "$DIR/consumer/mod.aon" "$DIR/consumer/main.aon" "$DIR/consumer/gate.aon" "$APP/"
 
+# Before anything is vendored or locked there is nothing to verify --
+# which is a refusal, not a pass. A gate that returned ok over an empty
+# lockfile would be the §32 defect wearing a different hat.
+run verify-cold 1 mod verify "$APP"
+has verify-cold 'verdict: unlocked' "cold verify refuses"
+has verify-cold 'corp.example/schemas/service@1: not in the lockfile (run: aontu mod tidy)' \
+  "unlocked names the repair, and it is a tidy not a fetch"
+ok "cold start: verify exits 1 -- an uncovered project is not a verified one"
+
 run tidy-cold 1 mod tidy "$APP"
 has tidy-cold 'verdict: missing' "cold tidy reports missing"
 has tidy-cold 'corp.example/schemas/service@1: not fetched (run: aontu mod get)' \
@@ -124,9 +133,20 @@ has tampered 'module integrity: corp.example/schemas/service@1' "integrity error
 has tampered "expected $PIN got aon1-" "integrity error names expected vs got"
 ok "tampered vendored module: evaluation refused, expected vs got hashes named"
 
-# Recorded behaviour, not endorsement: tidy after the tamper re-pins
-# the tampered meaning without complaint -- lockfile discipline is the
-# only protection (README gap 4).
+# `mod verify` is the read-only check: it recomputes every pin from the
+# store, compares it against the committed lock, and writes nothing.
+# This is what a CI job runs before it evaluates.
+LOCK_BEFORE="$(cat "$APP/mod-lock.aon")"
+run verify-tamper 1 mod verify "$APP"
+has verify-tamper 'verdict: mismatch' "verify refuses the tampered store"
+has verify-tamper "corp.example/schemas/service@1: pinned $PIN but the store means aon1-" \
+  "mismatch names pinned vs computed"
+[ "$LOCK_BEFORE" = "$(cat "$APP/mod-lock.aon")" ] \
+  || die "mod verify must not rewrite the lockfile"
+ok "mod verify: tampered store reported, exit 1, lockfile untouched"
+
+# tidy, by contrast, is the verb whose job IS to write the lockfile, so
+# it recomputes the pin as documented -- which is why verify exists.
 run tidy-tamper 0 mod tidy "$APP"
 PIN2="$(grep -o 'aon1-[A-Za-z0-9_-]*' "$APP/mod-lock.aon")"
 [ "$PIN2" != "$PIN" ] || die "expected tidy to re-pin the tampered meaning"
@@ -240,7 +260,11 @@ has vet-bad 'aontu/constraint' "regex constraints fire"
 has vet-bad 'aontu/closed' "close() catches the rogue sidecar key"
 ok "vet: rogue candidate refused -- name/owner constraints and closed() violations"
 
-# ----------------------- H. transitive dependencies (recorded gaps)
+# ------------------------------- H. transitive dependencies
+# The flat layout `mod vendor` writes is the layout a nested import
+# reads: resolution tries every enclosing mod.aon root, not just the
+# nearest one, so a dependency vendored beside its dependant is found
+# (BUGS.md 31a).
 TAPP="$TMP/tapp"
 mkdir -p "$TAPP/aon_vendor/corp.example/schemas"
 cp "$DIR/probes/transitive/app/mod.aon" "$DIR/probes/transitive/app/main.aon" "$TAPP/"
@@ -255,31 +279,41 @@ ok "MVS: common@1 selected at 1.2.0, the highest of the declared minima"
 FLATPIN="$(grep -o '"corp.example/schemas/service@1":{"canon":"aon1-[A-Za-z0-9_-]*' \
   "$TAPP/mod-lock.aon" | grep -o 'aon1-[A-Za-z0-9_-]*$')"
 
-# The flat vendor layout tidy+vendor produce is not evaluable: the
-# nested import resolves against the vendored module's own root.
-run eval-trans 1 "$TAPP/main.aon"
-has eval-trans 'module not fetched: corp.example/schemas/common@1' \
-  "transitive import unresolved at evaluation"
-ok "gap reproduced: flat-vendored transitive dep fails at evaluation"
+run eval-trans 0 "$TAPP/main.aon"
+ok "flat-vendored transitive dep evaluates: common@1 found beside service@1"
 
-# And the pin tidy locked for the dep-bearing module is the hash of a
-# failed evaluation -- aontu hash itself refuses the same file.
-run hash-wreck 4 hash "$TAPP/aon_vendor/corp.example/schemas/service@1/service.aon"
-has hash-wreck 'does not evaluate on its own; nothing to hash' "hash refuses"
-ok "gap reproduced: tidy locked a pin for a module aontu hash refuses to hash"
+# The pin tidy locked is a real pin: `aontu hash` -- which refuses any
+# file that does not evaluate on its own -- agrees with it exactly.
+run hash-trans 0 hash "$TAPP/aon_vendor/corp.example/schemas/service@1/service.aon"
+[ "$(cat "$TMP/hash-trans.out")" = "$FLATPIN" ] \
+  || die "aontu hash of the dep-bearing module differs from its locked pin"
+ok "tidy's pin for the dep-bearing module equals what aontu hash computes"
 
-# Workaround: nest a vendor tree inside the vendored module by hand,
-# then re-tidy (the pin changes to the true hash) and evaluate.
+# The old workaround -- a second vendor tree nested inside the vendored
+# module -- is now a no-op: same closure, therefore the same pin.
 mkdir -p "$TAPP/aon_vendor/corp.example/schemas/service@1/aon_vendor/corp.example/schemas"
 cp -r "$DIR/probes/transitive/common" \
   "$TAPP/aon_vendor/corp.example/schemas/service@1/aon_vendor/corp.example/schemas/common@1"
 run tidy-nested 0 mod tidy "$TAPP"
 NESTPIN="$(grep -o '"corp.example/schemas/service@1":{"canon":"aon1-[A-Za-z0-9_-]*' \
   "$TAPP/mod-lock.aon" | grep -o 'aon1-[A-Za-z0-9_-]*$')"
-[ "$NESTPIN" != "$FLATPIN" ] \
-  || die "nested vendor tree should change the locked pin to the true hash"
+[ "$NESTPIN" = "$FLATPIN" ] \
+  || die "a nested vendor tree of the same module moved the pin: $NESTPIN != $FLATPIN"
 run eval-nested 0 "$TAPP/main.aon"
-ok "workaround verified: hand-nested vendor tree evaluates; pin moves to true hash"
+ok "nesting a vendor tree inside the dependency is now a no-op: same pin, same output"
+
+# A module that cannot evaluate is not pinned at all: tidy refuses it
+# rather than locking canonHash(nil), which every broken module shares.
+BAPP="$TMP/bapp"
+mkdir -p "$BAPP/aon_vendor/corp.example/schemas"
+cp "$DIR/probes/transitive/app/mod.aon" "$DIR/probes/transitive/app/main.aon" "$BAPP/"
+cp -r "$DIR/probes/transitive/service-dep" "$BAPP/aon_vendor/corp.example/schemas/service@1"
+run tidy-unevaluable 4 mod tidy "$BAPP"
+has tidy-unevaluable 'verdict: error' "unevaluable module is an error"
+has tidy-unevaluable 'corp.example/schemas/service@1: does not evaluate on its own; nothing to pin' \
+  "refusal names the module and the reason"
+[ ! -e "$BAPP/mod-lock.aon" ] || die "tidy must not write a lockfile it cannot fill"
+ok "tidy refuses to pin a module it cannot evaluate (no canonHash(nil) pin)"
 
 # Internal absolute refs: fine standalone, broken at a nested key.
 RAPP="$TMP/rapp"

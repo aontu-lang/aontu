@@ -25,9 +25,9 @@ import {
   get, why, patch, agentsMd,
 } from './aontu'
 import { sarifReport } from './report-sarif'
-import { modTidy, modVendor, modManifest } from './mod-tool'
+import { modTidy, modVerify, modVendor, modManifest } from './mod-tool'
 import type {
-  ModTidyReport, ModVendorReport, ModManifestReport,
+  ModTidyReport, ModVerifyReport, ModVendorReport, ModManifestReport,
 } from './mod-tool'
 import { modCacheDir } from './mod'
 import { VET_MAX_ERRORS } from './vet'
@@ -52,7 +52,7 @@ const HELP = `Usage: aontu [options] [file]
        aontu trim --check [options] <file>
        aontu relations [options] <file>
        aontu hash [options] <file>
-       aontu mod tidy|vendor|manifest [options] [dir]
+       aontu mod tidy|verify|vendor|manifest [options] [dir]
        aontu get <path> [options] <file>
        aontu why <path> [options] <file>
        aontu set <path>=<value>... --entry <file> --overlay <file>
@@ -87,6 +87,8 @@ Mod options:
 Mod subcommands:
   tidy      Resolve the module closure by minimum version selection and
             rewrite mod-lock.aon in canonical form
+  verify    Check every locked module still means what mod-lock.aon
+            pins, and change nothing (the CI gate; tidy rewrites)
   vendor    Materialise the locked closure into aon_vendor/
   manifest  Print the OCI artifact a publish would push, gated on the
             breaking check against --against
@@ -1691,12 +1693,20 @@ const RELATIONS_EXIT: Record<RelationVerdict, number> = {
   error: 4,
 }
 
-const MOD_HELP = 'aontu mod tidy|vendor|manifest [dir] (try --help)'
+const MOD_HELP = 'aontu mod tidy|verify|vendor|manifest [dir] (try --help)'
 
-// The module tooling (G6 phase 3, ts/src/mod-tool.ts). Two
-// subcommands, both LOCAL: `tidy` resolves the closure from what is in
-// the stores and rewrites the lockfile, `vendor` materialises the
-// locked closure into the project.
+// The module tooling (G6 phase 3, ts/src/mod-tool.ts). All LOCAL:
+// `tidy` resolves the closure from what is in the stores and rewrites
+// the lockfile, `verify` asks whether the stores still mean what the
+// lockfile pins and changes nothing, `vendor` materialises the locked
+// closure into the project, `manifest` prints what a publish would
+// push.
+//
+// TIDY AND VERIFY ARE DIFFERENT QUESTIONS, and that is why both exist.
+// Tidy recomputes and rewrites by design -- a pin is what a module
+// means NOW -- so it makes the lockfile agree with whatever the store
+// holds, tampering included. Verify is the gate: a CI job runs it
+// BEFORE tidy, or instead of it.
 //
 // `get` and `publish` are the NETWORK half of the design and are not in
 // this build. They are named here rather than left to fall out as an
@@ -1751,7 +1761,7 @@ function runMod(argv: string[]): number {
 
   if (!MOD_SUBS.includes(sub) || 2 < rest.length) {
     process.stderr.write(
-      `aontu: mod needs tidy, vendor or manifest\n${MOD_HELP}\n`)
+      `aontu: mod needs tidy, verify, vendor or manifest\n${MOD_HELP}\n`)
     return 2
   }
 
@@ -1764,8 +1774,9 @@ function runMod(argv: string[]): number {
 
   const report =
     'tidy' === sub ? modTidy(dir, modToolOptions()) :
-      'vendor' === sub ? modVendor(dir, modToolOptions()) :
-        modManifest(dir, modToolOptions(), against)
+      'verify' === sub ? modVerify(dir, modToolOptions()) :
+        'vendor' === sub ? modVendor(dir, modToolOptions()) :
+          modManifest(dir, modToolOptions(), against)
 
   process.stdout.write(('json' === format ?
     exactJSON({ aontu: { version: version(), verb: 'mod ' + sub }, ...report },
@@ -1776,7 +1787,7 @@ function runMod(argv: string[]): number {
 }
 
 
-const MOD_SUBS = ['tidy', 'vendor', 'manifest']
+const MOD_SUBS = ['tidy', 'verify', 'vendor', 'manifest']
 
 // The verdict classes: `ok` 0, a refused gate 1, an open question 3, a
 // document that does not stand up 4 -- `subsume`'s classes, because a
@@ -1784,12 +1795,20 @@ const MOD_SUBS = ['tidy', 'vendor', 'manifest']
 // should not have to learn a second table.
 type ModVerdict =
   ModTidyReport['verdict'] |
+  ModVerifyReport['verdict'] |
   ModVendorReport['verdict'] |
   ModManifestReport['verdict']
 
 const MOD_EXIT: Record<ModVerdict, number> = {
   ok: 0,
   missing: 1,
+  // A REFUSED GATE, with `breaking`: a store that no longer means what
+  // the lockfile pins is the integrity check saying no, and a CI job
+  // reading exit codes should not have to learn a third class for it.
+  mismatch: 1,
+  // Likewise a lockfile that does not cover the project: the gate has
+  // nothing to check, which is a refusal and not a pass.
+  unlocked: 1,
   breaking: 1,
   undecided: 3,
   error: 4,
@@ -1805,11 +1824,14 @@ function modToolOptions() {
     eval: (src: string, path: string) => {
       const a0 = new Aontu()
       const ctx = a0.ctx({ collect: true })
-      const val = a0.unify(src, { path }, ctx)
+      const val: any = a0.unify(src, { path }, ctx)
       return {
         gen: val.gen(a0.ctx({ collect: true })),
         hash: canonHash(val),
         canon: val.canon,
+        // The same question `aontu hash` asks before it will answer:
+        // did this document stand up ON ITS OWN? See ModToolEval.
+        ok: 0 === ctx.err.length && true !== val.isNil,
       }
     },
   }
@@ -1844,10 +1866,39 @@ function modText(sub: string, report: any): string {
     return lines.join('\n')
   }
 
+  if ('verify' === sub) {
+    for (const mod of report.verified) {
+      lines.push(mod + ': verified')
+    }
+    // BOTH HASHES, because the useful question is which way it moved:
+    // an empty `got` is a module that no longer stands up at all.
+    for (const m of report.mismatched) {
+      lines.push(m.mod + ': pinned ' + m.want + ' but the store means ' +
+        ('' === m.got ? 'nothing (it does not evaluate)' : m.got))
+    }
+    // NOT a fetch: the module may well be sitting in the store. What
+    // is absent is the PIN, and only a tidy writes one.
+    for (const mod of report.unlocked) {
+      lines.push(mod + ': not in the lockfile (run: aontu mod tidy)')
+    }
+    for (const miss of report.missing) {
+      lines.push(miss + ': not fetched (run: aontu mod get)')
+    }
+    return lines.join('\n')
+  }
+
   const done: any[] = 'tidy' === sub ? report.lock : report.vendored
   for (const item of done) {
     lines.push('tidy' === sub ?
       item.mod + ' ' + item.v + ' ' + item.canon : '' + item)
+  }
+  // A module that is PRESENT but does not stand up. Named separately
+  // from a missing one because the repair is different: a fetch cannot
+  // help, the module itself has to be fixed (or its own dependencies
+  // vendored beside it). Before the missing tail, as the Go port's
+  // shared renderer orders them.
+  for (const bad of report.unevaluable ?? []) {
+    lines.push(bad + ': does not evaluate on its own; nothing to pin')
   }
   for (const miss of report.missing) {
     lines.push(miss + ': not fetched (run: aontu mod get)')

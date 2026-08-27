@@ -1056,6 +1056,74 @@ copy; the hand-made tree *is* the store, `tidy` gives it an identity,
 and `vendor` becomes useful once the cache holds modules (it leaves a
 module already resolving from `aon_vendor/` alone).
 
+**A module with its own dependencies is vendored flat, beside it.**
+The vendored module carries its own `mod.aon`, but its imports are
+resolved from its own directory *and* from every project enclosing it
+— so its dependency goes in the same `aon_vendor/` tree, not inside
+it:
+
+```
+project/
+  mod.aon
+  aon_vendor/
+    corp.example/
+      schemas/
+        service@1/         # imports common@1
+          mod.aon
+          service.aon
+        common@1/          # flat beside it, not nested inside it
+          mod.aon
+          common.aon
+```
+
+`tidy` walks the whole closure, so declaring only the top dependency
+is enough — but each module in the closure must be in the store before
+`tidy` can pin it, and a module that does not evaluate on its own is
+refused rather than pinned:
+
+```sh
+$ aontu mod tidy
+verdict: error
+corp.example/schemas/service@1: does not evaluate on its own; nothing to pin
+$ echo $?
+4
+```
+
+That is the same refusal `aontu hash` gives the same file, and it is a
+refusal rather than a warning because every module that fails to
+evaluate hashes to the *same* string: a lockfile written from it would
+look like a pin and mean nothing.
+
+**In CI, verify — do not tidy.** `tidy` rewrites the lockfile from
+whatever the store currently holds, so a job that tidies before
+evaluating makes the lock agree with a tampered store and then passes.
+`aontu mod verify` asks the question without answering it by editing:
+
+```sh
+$ aontu mod verify
+verdict: mismatch
+corp.example/schemas/service@1: pinned aon1-oQs6… but the store means aon1-Bd4O…
+$ echo $?
+1
+```
+
+It recomputes every pin, compares it to the committed lockfile, writes
+nothing, and exits 1 on any disagreement. Run it beside your tests;
+run `tidy` only when you *intend* to move a pin, and review its diff.
+
+Nothing to check is not a pass, either: a project whose lockfile was
+never committed — or whose lockfile predates a dependency someone
+added — is refused rather than verified over an empty set, and the
+line names the repair:
+
+```sh
+$ aontu mod verify
+verdict: unlocked
+corp.example/schemas/service@1: not in the lockfile (run: aontu mod tidy)
+$ echo $?
+1
+```
+
 ## Pin what a document means
 
 `aontu hash` prints one string that identifies a document's *meaning*,

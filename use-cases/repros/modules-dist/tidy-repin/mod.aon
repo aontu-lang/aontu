@@ -1,18 +1,25 @@
-# expected: a way to check the store against the committed lock without
-#           rewriting it; or tidy to at least note that a pin CHANGED
-# actual: after tampering aon_vendor (sed -i 's/\*8080/*9090/' aon_vendor/corp.example/schemas/service@1/service.aon)
-#         evaluation refuses (module integrity, exit 1) -- but `aontu mod tidy .`
-#         prints only "verdict: ok" + the new pin and rewrites mod-lock.aon to
-#         the tampered hash with no warning; evaluation then passes with the
-#         tampered content.  Recomputation is documented design
-#         (docs/reference-api.md "aontu mod": the canon pin is "recomputed ...
-#         never carried over"), but no verify-without-rewrite verb exists
-#         (subcommands are tidy|vendor|manifest only; --check exists only for
-#         trim), so a CI job that runs tidy before evaluating has no integrity
-#         protection at all.
+# BUGS.md section 32 -- FIXED 2026-08-27 by the `aontu mod verify` verb.
+#
+# Tampering a vendored module still makes evaluation refuse (module
+# integrity, exit 1) and `mod tidy` still recomputes the pin from the
+# store -- recomputation is documented design (docs/reference-api.md
+# "aontu mod": the canon pin is "recomputed ... never carried over"),
+# and tidy is the verb whose whole job is to write the lockfile. The
+# hole was that nothing CHECKED the store against the committed lock,
+# so a CI job that tidied before evaluating had no integrity protection
+# at all. `aontu mod verify .` is that check: it recomputes every pin,
+# compares it to the lockfile, writes nothing, and exits 1 on any
+# mismatch with the pinned and computed hashes named. A module that
+# does not evaluate reports "nothing (it does not evaluate)" rather
+# than a hash, so it cannot be mistaken for agreement.
+#
+# Pinned by ts/test/mod.test.ts and go/modtool_test.go (TestModVerify)
+# and by the CLI tests (TestModVerifyCommand).
 # run: aontu mod tidy . && aontu main.aon    # baseline: ok
 #      sed -i 's/\*8080/*9090/' aon_vendor/corp.example/schemas/service@1/service.aon
 #      aontu main.aon                        # refused: module integrity (good)
-#      aontu mod tidy . && aontu main.aon    # verdict: ok, re-pinned, passes (gotcha)
+#      aontu mod verify .                    # verdict: mismatch, exit 1, lock untouched
+# expected: verify reports the tampered module and exits 1 without rewriting mod-lock.aon
+# actual:   verify reports the tampered module and exits 1 without rewriting mod-lock.aon
 mod: { path: "corp.example/checkout", main: "main.aon" }
 dep: { "corp.example/schemas/service@1": { v: "1.0.0" } }

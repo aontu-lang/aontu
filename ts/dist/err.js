@@ -22,7 +22,7 @@ const { errmsg, strinject } = jsonic_1.util;
 // them off when its stderr is not a terminal, through setColor: a
 // library cannot see the destination, and a caller who has one is the
 // only one who can say.
-let COLOR = undefined;
+let COLOR;
 function setColor(on) {
     COLOR = on;
 }

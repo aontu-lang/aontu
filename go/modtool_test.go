@@ -10,6 +10,7 @@ package aontu
 // diffed byte-for-byte over the same worlds.
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -517,6 +518,239 @@ func TestModSelfIgnoresWhatIsNotAModuleDeclaration(t *testing.T) {
 		r := ModManifest(dir, "")
 		if "error" != r.Verdict || 3 != len(r.Missing) {
 			t.Fatalf("%q gave verdict %q missing %v", src, r.Verdict, r.Missing)
+		}
+	}
+}
+
+// The canon-hash of `nil`, which is what EVERY module that fails to
+// evaluate would pin if the lockfile were written from one -- the same
+// string for all of them, so a pin that carries no information while
+// looking exactly like one that does (use-cases/BUGS.md §31).
+const modNilPin = "aon1-XaOkx_EXlEJ1tMhinEkWQDYl1aSmVzoB7LA_Dp0u2-Y"
+
+// A VENDORED MODULE IS A PROJECT INSIDE A PROJECT (the review's finding
+// H, use-cases/BUGS.md §31). `mod vendor` produces a FLAT tree, so a
+// module's own dependency sits beside it in the consumer's
+// `aon_vendor/` -- but the module carries its own `mod.aon`, which used
+// to stop the upward walk there, and the nested import answered
+// `module not fetched` for a module sitting one directory away. The
+// TypeScript twin is
+// `a-nested-import-reaches-the-consumers-vendor-tree`.
+func TestModTransitiveVendorResolves(t *testing.T) {
+	dir := modtoolProject(t,
+		"\"corp.example/schemas/service@1\": {v: \"1.4.2\"},"+
+			" \"corp.example/schemas/common@1\": {v: \"1.0.0\"}",
+		func(d string) {
+			modtoolVendor(t, d, "corp.example/schemas/service@1",
+				map[string]string{
+					"mod.aon": "mod: {path: \"corp.example/schemas/service\"," +
+						" version: \"1.4.2\", main: \"service.aon\"}\n" +
+						"dep: {\"corp.example/schemas/common@1\": {v: \"1.0.0\"}}\n",
+					"service.aon": "@\"corp.example/schemas/common@1\"\n" +
+						"spec: {name: string, port: *8080 | integer}\n",
+				})
+			modtoolVendor(t, d, "corp.example/schemas/common@1",
+				map[string]string{
+					"mod.aon": "mod: {path: \"corp.example/schemas/common\"," +
+						" version: \"1.0.0\", main: \"common.aon\"}\n",
+					"common.aon": "naming: {id: string}\n",
+				})
+		})
+	write(t, filepath.Join(dir, "main.aon"),
+		"lib: hide(@\"corp.example/schemas/service@1\")\n"+
+			"svc: $.lib.spec & {name: \"checkout\"}\n")
+
+	report := ModTidy(dir, "")
+	if "ok" != report.Verdict {
+		t.Fatalf("tidy verdict: %s %+v", report.Verdict, report)
+	}
+	for _, e := range report.Lock {
+		// NOT the hash of nil, which is what a module that does not
+		// evaluate pins -- and the same string for every one of them.
+		if modNilPin == e.Canon {
+			t.Fatalf("%s pinned the hash of nil", e.Mod)
+		}
+	}
+
+	src, err := os.ReadFile(filepath.Join(dir, "main.aon"))
+	if nil != err {
+		t.Fatal(err)
+	}
+	a := NewWithBase(dir)
+	a.File = filepath.Join(dir, "main.aon")
+	out, uerr := a.Generate(string(src))
+	if nil != uerr {
+		t.Fatalf("evaluate: %v", uerr)
+	}
+	svc, _ := out.(map[string]any)["svc"].(map[string]any)
+	if nil == svc || "8080" != fmt.Sprint(svc["port"]) {
+		t.Fatalf("unexpected result: %+v", out)
+	}
+}
+
+// A NIL PIN IS WORSE THAN NO PIN: every module that fails to evaluate
+// hashes to the same string, so a lockfile written from one looks
+// exactly like a real pin and carries nothing (§31). `aontu hash`
+// already refuses such a file; tidy refuses it too. The TypeScript twin
+// is `tidy-refuses-to-pin-a-module-that-does-not-evaluate`.
+func TestModTidyRefusesAnUnevaluableModule(t *testing.T) {
+	dir := modtoolProject(t,
+		"\"corp.example/schemas/service@1\": {v: \"1.4.2\"}", func(d string) {
+			modtoolVendor(t, d, "corp.example/schemas/service@1",
+				map[string]string{
+					"mod.aon": "mod: {path: \"corp.example/schemas/service\"," +
+						" main: \"service.aon\"}\n",
+					// Contradicts itself: no meaning, so nothing to pin.
+					"service.aon": "a: 1\na: 2\n",
+				})
+		})
+
+	report := ModTidy(dir, "")
+	if "error" != report.Verdict || 1 != len(report.Unevaluable) {
+		t.Fatalf("tidy: %+v", report)
+	}
+	// AND THE LOCKFILE IS LEFT ALONE. A refusal that wrote a lockfile
+	// would be the defect with a louder message.
+	if _, err := os.Stat(filepath.Join(dir, "mod-lock.aon")); nil == err {
+		t.Fatal("a refused tidy wrote a lockfile")
+	}
+}
+
+// VERIFICATION IS A QUESTION; ANSWERING IT MUST NOT BE AN EDIT (§32).
+// Tidy recomputes and rewrites by design, so a CI job that tidies
+// before evaluating has no integrity protection at all: the lockfile
+// simply agrees with whatever the store now holds. The TypeScript twin
+// is `verify-catches-a-tampered-store-and-changes-nothing`.
+func TestModVerify(t *testing.T) {
+	svcDir := ""
+	dir := modtoolProject(t,
+		"\"corp.example/schemas/service@1\": {v: \"1.4.2\"}", func(d string) {
+			modtoolVendor(t, d, "corp.example/schemas/service@1",
+				map[string]string{
+					"mod.aon": "mod: {path: \"corp.example/schemas/service\"," +
+						" main: \"service.aon\"}\n",
+					"service.aon": "name: string\nport: *8080 | integer\n",
+				})
+			svcDir = filepath.Join(d, "aon_vendor", "corp.example", "schemas",
+				"service@1", "service.aon")
+		})
+
+	if "ok" != ModTidy(dir, "").Verdict {
+		t.Fatal("tidy did not hold")
+	}
+	lock, err := os.ReadFile(filepath.Join(dir, "mod-lock.aon"))
+	if nil != err {
+		t.Fatal(err)
+	}
+
+	clean := ModVerify(dir, "")
+	if "ok" != clean.Verdict || 1 != len(clean.Verified) {
+		t.Fatalf("clean verify: %+v", clean)
+	}
+
+	// Tamper, and ask again.
+	write(t, svcDir, "name: string\nport: *9090 | integer\n")
+	bad := ModVerify(dir, "")
+	if "mismatch" != bad.Verdict || 1 != len(bad.Mismatched) {
+		t.Fatalf("tampered verify: %+v", bad)
+	}
+	if "" == bad.Mismatched[0].Got || bad.Mismatched[0].Want == bad.Mismatched[0].Got {
+		t.Fatalf("mismatch does not name both hashes: %+v", bad.Mismatched[0])
+	}
+	// THE LOCKFILE IS UNTOUCHED, which is the whole difference from
+	// tidy: a gate that rewrote what it was checking would pass every
+	// time.
+	now, err := os.ReadFile(filepath.Join(dir, "mod-lock.aon"))
+	if nil != err || string(lock) != string(now) {
+		t.Fatal("verify rewrote the lockfile")
+	}
+
+	// A module that no longer stands up at all says so, rather than
+	// reporting the hash of nil as though it were a meaning.
+	write(t, svcDir, "a: 1\na: 2\n")
+	broken := ModVerify(dir, "")
+	if "mismatch" != broken.Verdict || "" != broken.Mismatched[0].Got {
+		t.Fatalf("broken verify: %+v", broken)
+	}
+}
+
+func TestModVerifyRefusesAnUncoveredProject(t *testing.T) {
+	// NOTHING TO CHECK IS NOT A PASS. The gate walks what is LOCKED, so
+	// a project whose lockfile was never committed -- or whose lockfile
+	// predates a dependency someone added -- would verify clean over an
+	// empty set: absence reading as agreement, which is the shape of the
+	// defect this verb exists to close. The repair is a tidy, not a
+	// fetch, and the verdict says which.
+	dir := modtoolProject(t,
+		"\"corp.example/schemas/service@1\": {v: \"1.4.2\"}", func(d string) {
+			modtoolVendor(t, d, "corp.example/schemas/service@1",
+				map[string]string{
+					"mod.aon": "mod: {path: \"corp.example/schemas/service\"," +
+						" main: \"service.aon\"}\n",
+					"service.aon": "name: string\nport: *8080 | integer\n",
+				})
+		})
+
+	bare := ModVerify(dir, "")
+	if "unlocked" != bare.Verdict || 1 != len(bare.Unlocked) ||
+		"corp.example/schemas/service@1" != bare.Unlocked[0] {
+		t.Fatalf("no lockfile: %+v", bare)
+	}
+
+	// Tidy writes it, and the same question now passes.
+	if "ok" != ModTidy(dir, "").Verdict {
+		t.Fatal("tidy did not hold")
+	}
+	if r := ModVerify(dir, ""); "ok" != r.Verdict || 0 != len(r.Unlocked) {
+		t.Fatalf("after tidy: %+v", r)
+	}
+
+	// A dependency added to mod.aon after the lockfile was written is
+	// the same hole one edit later: the pins that ARE there still verify,
+	// and the lockfile no longer covers the project.
+	write(t, filepath.Join(dir, "mod.aon"),
+		"mod: {path: \"corp.example/app\"}\ndep: {"+
+			"\"corp.example/schemas/service@1\": {v: \"1.4.2\"}, "+
+			"\"corp.example/schemas/later@1\": {v: \"1.0.0\"}}\n")
+	stale := ModVerify(dir, "")
+	if "unlocked" != stale.Verdict || 1 != len(stale.Unlocked) ||
+		"corp.example/schemas/later@1" != stale.Unlocked[0] {
+		t.Fatalf("stale lockfile: %+v", stale)
+	}
+	if 1 != len(stale.Verified) {
+		t.Fatalf("the pin that is there should still verify: %+v", stale)
+	}
+}
+
+func TestModVerifyReportsWhatNoStoreHolds(t *testing.T) {
+	// A pin cannot be compared against a store that has nothing to
+	// compare, and there are three ways to have nothing: a key that
+	// does not route as a module path, one that routes to a module no
+	// store holds, and one whose store directory exists but whose entry
+	// file does not. All three are `missing` — the repair is a fetch,
+	// not an edit to the lockfile — and none of them is a mismatch,
+	// which would claim the store means something else.
+	dir := t.TempDir()
+	write(t, filepath.Join(dir, "mod-lock.aon"), lockHeader+
+		"{\"lock\":{\"corp.example/absent@1\":{\"canon\":\"aon1-x\",\"oci\":\"\",\"v\":\"1\"},"+
+			"\"corp.example/hollow@1\":{\"canon\":\"aon1-y\",\"oci\":\"\",\"v\":\"1\"},"+
+			"\"not-a-module\":{\"canon\":\"aon1-z\",\"oci\":\"\",\"v\":\"1\"}}}\n")
+
+	// hollow@1 is vendored as a directory with a mod.aon naming an
+	// entry file that was never written.
+	modtoolVendor(t, dir, "corp.example/hollow@1", map[string]string{
+		"mod.aon": "mod: {path: \"corp.example/hollow\", main: \"hollow.aon\"}\n",
+	})
+
+	r := ModVerify(dir, "")
+	if "missing" != r.Verdict || 3 != len(r.Missing) || 0 != len(r.Mismatched) {
+		t.Fatalf("verdict %q missing %v mismatched %v",
+			r.Verdict, r.Missing, r.Mismatched)
+	}
+	for i, want := range []string{
+		"corp.example/absent@1", "corp.example/hollow@1", "not-a-module"} {
+		if want != r.Missing[i] {
+			t.Fatalf("missing %v", r.Missing)
 		}
 	}
 }

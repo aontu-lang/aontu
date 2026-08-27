@@ -26,7 +26,7 @@ const { errmsg, strinject } = util
 // them off when its stderr is not a terminal, through setColor: a
 // library cannot see the destination, and a caller who has one is the
 // only one who can say.
-let COLOR: boolean | undefined = undefined
+let COLOR: boolean | undefined
 
 function setColor(on: boolean | undefined): void {
   COLOR = on

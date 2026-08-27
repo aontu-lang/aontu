@@ -29,7 +29,7 @@ const helpText = `Usage: aontu [options] [file]
        aontu trim --check [options] <file>
        aontu relations [options] <file>
        aontu hash [options] <file>
-       aontu mod tidy|vendor|manifest [options] [dir]
+       aontu mod tidy|verify|vendor|manifest [options] [dir]
        aontu get <path> [options] <file>
        aontu why <path> [options] <file>
        aontu set <path>=<value>... --entry <file> --overlay <file>
@@ -64,6 +64,8 @@ Mod options:
 Mod subcommands:
   tidy      Resolve the module closure by minimum version selection and
             rewrite mod-lock.aon in canonical form
+  verify    Check every locked module still means what mod-lock.aon
+            pins, and change nothing (the CI gate; tidy rewrites)
   vendor    Materialise the locked closure into aon_vendor/
   manifest  Print the OCI artifact a publish would push, gated on the
             breaking check against --against

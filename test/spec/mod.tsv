@@ -23,10 +23,16 @@ mod-missing-message	err	x: @"__FIXTURES__/modmiss/main.aon"	module not fetched: 
 mod-inline-pin-mismatch	errc	x: @"__FIXTURES__/modpin/main.aon"	module_integrity
 mod-inline-pin-mismatch-message	err	x: @"__FIXTURES__/modpin/main.aon"	module integrity: corp.example/schemas/service@1 expected aon1-wrongwrongwrongwrongwrongwrongwrongwrong got aon1-oQs6Ng6XxP2FHQGTYescREGDrDPfLLW1Liq4OS8Gs2E
 mod-lock-pin-mismatch	errc	x: @"__FIXTURES__/modbad/main.aon"	module_integrity
-# A module resolves from ITS OWN project root, not the importer's: the
-# vendored module here imports itself, finds no vendor tree of its own,
-# and says so rather than reaching back up into the importer's.
-mod-nested-has-its-own-root	errc	x: @"__FIXTURES__/modself/main.aon"	module_missing
+# A module resolves from ITS OWN project root FIRST, and then from the
+# roots that enclose it -- because a vendored module is a project
+# inside a project, and `mod vendor` only ever produces a FLAT tree, so
+# a nested import has nowhere else to find its dependency
+# (use-cases/BUGS.md §31). The vendored module here imports ITSELF: it
+# used to answer `module not fetched`, which was the upward walk
+# stopping early rather than a fact about the document, and now the
+# import is found and refused as what it is -- a source cannot be its
+# own ancestor.
+mod-nested-has-its-own-root	errc	x: @"__FIXTURES__/modself/main.aon"	syntax
 # THE ROUTING GUARD. A path routes to the module resolver only when it
 # is domain-shaped AND carries a major; anything else falls through the
 # chain exactly as it did before this phase existed.

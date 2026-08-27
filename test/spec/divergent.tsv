@@ -68,6 +68,41 @@
 #
 # ---------------------------------------------------------------------
 #
+# OPEN -- an include CYCLE is reported at a different site, with a
+#   different path spelling, and with the chain rendered in TS only.
+#   issue: none filed yet; found 2026-08-27 while landing the module
+#   distribution fixes (use-cases/REVIEW.md finding H). NOT introduced
+#   by that work -- it reproduces on a plain two-file include cycle with
+#   no modules involved, and is recorded here because the modself
+#   fixture now reaches the guard that exposes it.
+#
+#   Divergent input:  a.aon `x: @"b.aon"`, b.aon `y: @"b.aon"` `z: @"a.aon"`
+#   TypeScript: [aontu/multisource_cycle] at b.aon:1:4, naming the
+#               RESOLVED path (/tmp/cyc/b.aon), hint chain rendered
+#               `/tmp/cyc/b.aon -> /tmp/cyc/b.aon`
+#   Go:         [aontu/multisource_cycle] at a.aon:1:4, naming the
+#               SPELLING (b.aon), hint chain rendered as the literal
+#               `{loop}` -- the placeholder is never filled
+#   Both refuse, with the same code and the same exit class, so the
+#   disagreement is in the diagnostic and not in the verdict.
+#
+#   Not simply fixed because all three differences originate in the
+#   pinned @tabnas/multisource (0.5.2, both ports): the code, the
+#   message, the blamed site and the `{loop}` hint placeholder are the
+#   dependency's, not this repository's. Two of the three are arguably
+#   upstream BUGS rather than choices -- an unfilled `{loop}` says
+#   nothing to the reader it was written for, and naming the resolved
+#   absolute path contradicts the site rule finding F established for
+#   every finding this repo does own (a site prints the file as the
+#   entry's own spelling reaches it, so a SARIF upload stays
+#   repo-relative). Fixing it means an upstream change in both ports of
+#   multisource, released together.
+#
+#   No spec row asserts any of it: `mod-nested-has-its-own-root` pins
+#   the CLASS (errc -> syntax), which both ports agree on.
+#
+# ---------------------------------------------------------------------
+#
 # CLOSED 2026-08-27 -- a finding's site names the WRONG FILE under an
 #   `@"..."` include, in Go.
 #   issue: #66 (recorded 2026-08-24, from the 2026-08-21 status
