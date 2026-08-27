@@ -12,7 +12,7 @@ This repository ships **two implementations kept in parity**:
 - **TypeScript** in [`../ts/`](../ts/) — the canonical implementation,
   published to npm as [`aontu`](https://npmjs.com/package/aontu).
 - **Go** in [`../go/`](../go/) — a port
-  (`github.com/rjrodger/aontu/go`) that mirrors the core semantics.
+  (`github.com/aontu-lang/aontu/go`) that mirrors the core semantics.
 
 Both are checked against one language-agnostic test suite in
 [`../test/spec/`](../test/spec/).

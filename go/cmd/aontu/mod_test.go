@@ -18,7 +18,7 @@ import (
 	"strings"
 	"testing"
 
-	aontu "github.com/rjrodger/aontu/go"
+	aontu "github.com/aontu-lang/aontu/go"
 )
 
 const modToolSource = "name: string\nport: *8080 | integer\n"

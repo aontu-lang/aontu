@@ -17,7 +17,7 @@ import (
 	"strconv"
 	"strings"
 
-	aontu "github.com/rjrodger/aontu/go"
+	aontu "github.com/aontu-lang/aontu/go"
 )
 
 const getHelp = "aontu get <path> <file> (try --help)"

@@ -189,21 +189,27 @@ Match the template's posture:
 
 Not site work, but the site will publish whichever answer it finds
 ([plan D7](index.md#d7--the-identity-questions-the-site-will-force)).
-Three places still name the old owner:
 
-| Where | What it says |
-|---|---|
-| `README.md` badges | `rjrodger/aontu` — build, coverage, Snyk, DeepScan, CodeClimate |
-| `ts/scripts/prepack.js` | `REPO = 'https://github.com/rjrodger/aontu/blob/main/'`, baked into every published tarball's `skill/error-codes.md` |
-| `go/go.mod`, `docs/index.md`, `README.md` | module `github.com/rjrodger/aontu/go` |
+**The module path is done** — `github.com/aontu-lang/aontu/go`, in
+`go/go.mod` and every import, install line and doc that stated it. Two
+references to the old owner are left standing, and both want a
+credential or a click before the URL can honestly change:
 
-The first two are edits a session can make on your word. **The third is
-your decision**: renaming the Go module to
-`github.com/aontu-lang/aontu/go` breaks every importer, and pre-1.0 is
-the cheapest this will ever be.
+| Where | What it says | Why it is still yours |
+|---|---|---|
+| `README.md` badges | `rjrodger/aontu` — build, coverage, Snyk, DeepScan, CodeClimate | Each badge is a *service* registered against the old path. Rewriting the URL first breaks the badge; re-point the project in Coveralls, Snyk, DeepScan and CodeClimate, then the URL follows. |
+| `ts/scripts/prepack.js` | `REPO = 'https://github.com/rjrodger/aontu/blob/main/'`, baked into every published tarball's `skill/error-codes.md` | A repository URL, not a module path, and GitHub redirects it. Safe to change on your word — it just wants a release to take effect. |
 
-**Hand back:** rename the module, or keep it and have the site document
-`github.com/rjrodger/aontu/go` as the import path.
+A third sits alongside them: `go/report_sarif.go` and its TypeScript
+twin both emit `informationUri: "https://github.com/rjrodger/aontu"`,
+held byte-identical across the two ports by the golden
+`test/spec/files/vet-sarif/expect.sarif`. Changing it means all three
+files plus a rebuild of the committed `ts/dist` — a deliberate edit, not
+a sweep.
+
+**Hand back:** say the word and the `prepack.js` constant and the SARIF
+URI go in one commit; the badges after you have re-pointed the four
+services.
 
 ### C5. Decide the sponsorship treatment
 
@@ -290,6 +296,7 @@ Blocking, in order:
 
 Then B4 at cutover, and D1 before the next engine release.
 
-Decisions I need from you before the scaffold can be written: the repo
-name (C1), which Cloudflare account (A1), the Go module path (C4), the
-sponsorship treatment (C5), and the analytics token or a "no" (B5).
+Decisions I need from you before the scaffold can be written: which
+Cloudflare account (A1), the sponsorship treatment (C5), and the
+analytics token or a "no" (B5). The repo name (C1) is settled as
+`aontu-lang/web`, and the Go module path (C4) is renamed.

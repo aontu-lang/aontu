@@ -2,7 +2,7 @@
 
 All notable changes to this project are documented here. The TypeScript
 package (`ts/`, npm `aontu`) and the Go module (`go/`,
-`github.com/rjrodger/aontu/go`) are versioned independently; entries note
+`github.com/aontu-lang/aontu/go`) are versioned independently; entries note
 which implementation each change affects.
 
 ## Unreleased — TypeScript 0.53.0 line

@@ -52,7 +52,7 @@ package main
 
 import (
 	"fmt"
-	aontu "github.com/rjrodger/aontu/go"
+	aontu "github.com/aontu-lang/aontu/go"
 )
 
 func main() {

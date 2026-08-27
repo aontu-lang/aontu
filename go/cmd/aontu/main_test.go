@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	aontu "github.com/rjrodger/aontu/go"
+	aontu "github.com/aontu-lang/aontu/go"
 )
 
 func TestRenderJSON(t *testing.T) {

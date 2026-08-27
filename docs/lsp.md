@@ -114,7 +114,7 @@ The library (layers 1–2) does **not** depend on the bundled stdio server,
 so a third party can build a server on a different transport while reusing
 all the analysis and protocol logic:
 
-- **Go**: import `github.com/rjrodger/aontu/go/lsp`. The package has no
+- **Go**: import `github.com/aontu-lang/aontu/go/lsp`. The package has no
   dependency on `cmd/aontu-lsp` (verifiable with
   `go list -deps ./lsp | grep cmd` → empty). Drive `lsp.NewHandler()` with
   decoded `lsp.Message` values and write back the returned `lsp.Out`s over
@@ -313,10 +313,10 @@ without real stdio. Most users want the `aontu-lsp` binary instead.
 
 ### Go library
 
-Import `github.com/rjrodger/aontu/go/lsp`.
+Import `github.com/aontu-lang/aontu/go/lsp`.
 
 ```go
-import "github.com/rjrodger/aontu/go/lsp"
+import "github.com/aontu-lang/aontu/go/lsp"
 ```
 
 #### `func Diagnostics(src string) []Diagnostic`

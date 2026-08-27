@@ -22,7 +22,7 @@ import (
 	"sort"
 	"strings"
 
-	aontu "github.com/rjrodger/aontu/go"
+	aontu "github.com/aontu-lang/aontu/go"
 )
 
 const modHelp = "aontu mod tidy|vendor|manifest [dir] (try --help)"

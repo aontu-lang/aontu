@@ -16,7 +16,7 @@ import (
 	"os"
 	"strings"
 
-	aontu "github.com/rjrodger/aontu/go"
+	aontu "github.com/aontu-lang/aontu/go"
 )
 
 const trimHelp = "aontu trim --check <file> (try --help)"

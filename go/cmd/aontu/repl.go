@@ -18,7 +18,7 @@ import (
 	"encoding/json"
 	"strings"
 
-	aontu "github.com/rjrodger/aontu/go"
+	aontu "github.com/aontu-lang/aontu/go"
 )
 
 type replState struct {

@@ -23,7 +23,7 @@ import (
 	"strings"
 	"time"
 
-	aontu "github.com/rjrodger/aontu/go"
+	aontu "github.com/aontu-lang/aontu/go"
 )
 
 const vetHelp = "aontu vet <schema> <data> [more-data...] (try --help)"

@@ -53,7 +53,7 @@ implementations are checked against the same cases.
 │   ├── dist/            # committed compiled JS + .d.ts (incl. cli.js)
 │   └── dist-test/       # committed compiled tests (the run target)
 └── go/                  # Go port
-    ├── go.mod           # module github.com/rjrodger/aontu/go
+    ├── go.mod           # module github.com/aontu-lang/aontu/go
     ├── *.go             # package aontu (incl. check.go: Check -> []Problem)
     ├── lsp/             # LSP library (Diagnostics + Handler)
     ├── cmd/aontu/       # `aontu` CLI (package main, file/stdin/REPL)

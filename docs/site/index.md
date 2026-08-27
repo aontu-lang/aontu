@@ -241,17 +241,22 @@ sync machinery has proven itself on the simpler docs.
 None of these are website work, but the site is where each becomes
 visible, so they want settling before launch rather than after:
 
-- **The GitHub org moved to `aontu-lang`, and the repo has not caught
-  up.** `README.md`'s badges point at `rjrodger/aontu`;
-  `ts/scripts/prepack.js` rewrites a link into
-  `https://github.com/rjrodger/aontu/blob/main/`; `docs/index.md` names
-  the Go module as `github.com/rjrodger/aontu/go` and `go/go.mod`
-  declares it. A site that links its own source has to pick one, and
-  every one of those is a link the site would inherit.
-- **The Go module path** is the sharp end of the same question. Renaming
-  it to `github.com/aontu-lang/aontu/go` breaks every importer, which
-  pre-1.0 is a cost worth paying once and never again — but it is a
-  deliberate decision, not a find-and-replace.
+- **The Go module path is renamed** — `github.com/aontu-lang/aontu/go`,
+  in `go/go.mod` and in every import, install line and doc that stated
+  it. Deliberate, not a find-and-replace: it breaks every importer,
+  which pre-1.0 is a cost worth paying once and never again. Existing
+  `go/v*` tags keep resolving under the old path, because their own
+  `go.mod` still declares it; tags cut after the rename require the new
+  one.
+- **Two references to the old owner remain, by choice.** `README.md`'s
+  badges, and the `REPO` constant in `ts/scripts/prepack.js` that is
+  baked into every published tarball's `skill/error-codes.md`. Both are
+  *repository URLs* rather than module paths, and GitHub redirects them.
+  The badges additionally point at services — Coveralls, Snyk, DeepScan,
+  CodeClimate — registered against the old path, so rewriting the URL
+  without re-pointing the service breaks the badge rather than fixes it.
+  A site that links its own source still has to pick one, and each of
+  those is a link the site would inherit.
 - **npm stays unscoped.** `aontu` is published and the name is held;
   there is no reason to move to `@aontu/aontu`. Worth *reserving* the
   `aontu` npm org anyway so `@aontu/*` cannot be squatted (see

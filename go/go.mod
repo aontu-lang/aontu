@@ -1,4 +1,4 @@
-module github.com/rjrodger/aontu/go
+module github.com/aontu-lang/aontu/go
 
 go 1.24.7
 

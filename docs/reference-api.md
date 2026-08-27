@@ -845,7 +845,7 @@ one that does not pays nothing. Diagnostics are unchanged either way.
 - **TypeScript:** the npm package declares a `bin` named `aontu`
   (`dist/cli.js`), so `npm install -g aontu` (or `npx aontu`) provides
   it. From a clone: `node ts/dist/cli.js …`.
-- **Go:** `go install github.com/rjrodger/aontu/go/cmd/aontu@latest`, or
+- **Go:** `go install github.com/aontu-lang/aontu/go/cmd/aontu@latest`, or
   from a clone: `go run ./cmd/aontu …` (inside `go/`).
 
 Both commands accept the same options and produce the same results.
@@ -1291,10 +1291,10 @@ eventually forgets, and the forgetting is silent.
 
 ## Go API
 
-Module `github.com/rjrodger/aontu/go`, package `aontu`.
+Module `github.com/aontu-lang/aontu/go`, package `aontu`.
 
 ```go
-import aontu "github.com/rjrodger/aontu/go"
+import aontu "github.com/aontu-lang/aontu/go"
 ```
 
 ### type `Aontu`
