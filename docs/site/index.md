@@ -359,8 +359,17 @@ created). Nothing to build until the repo exists.
 **Phase 1 — the site stands up.** Scaffold from `tabnas/web`; strip
 every tabnas-specific page and asset; neutral tokens; `astro.config.mjs`
 with `site: "https://aontu.dev"`; `wrangler.json` as `aontu-web`; the
-landing page and one synced doc page end to end. *Exit:* it builds, and
-Cloudflare serves it on a `workers.dev` subdomain.
+landing page and one synced doc page end to end. *Exit:* `npm run check`
+passes and Cloudflare's build of `main` succeeds.
+
+> **This exit criterion originally read "Cloudflare serves it on a
+> `workers.dev` subdomain", and that was wrong.** That route is off for
+> Workers on this account, and the 404 it returns is indistinguishable
+> from a broken Worker — `tabnas-web.<subdomain>.workers.dev` answers
+> `error code: 1042` while `tabnas.dev` serves every page. So phase 1
+> has no externally reachable URL to check, and the first real
+> end-to-end verification is the cutover in phase 3. Which is how it
+> actually went.
 
 **Phase 2 — content and the sync.** `sync-docs` + `check-sync`; the full
 Diátaxis set rendered; the error registry emitted as JSON; Pagefind

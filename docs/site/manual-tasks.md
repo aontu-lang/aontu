@@ -12,6 +12,38 @@ Each task says what to do, how to check it worked, and — where relevant
 — **what to hand back**, meaning a value or a decision a session needs
 before it can write the corresponding config.
 
+## Where this stands
+
+**aontu.dev is live.** Verified against the running Worker on
+2026-08-27: markdown negotiation returns `text/markdown` with
+`Vary: Accept`, `www` 301s to the apex, `/nope` answers markdown and
+`/nope.json` a structured error with CORS, `POST` answers 405.
+
+| | Task | State |
+|---|---|---|
+| A1 | Cloudflare zone (same account as tabnas) | **done** |
+| A2 | Nameservers → `fred`/`sofia.ns.cloudflare.com` | **done** |
+| A3 | Apex canonical, `www` redirects | **done** |
+| B1 | Workers Builds GitHub App on `aontu-lang` | **done** |
+| B2 | Worker `aontu-web` + build connection | **done** |
+| B3 | No stale secrets | not checked |
+| B4 | Custom domains attached | **done** |
+| B5 | Web Analytics beacon | open — needs a token or a "no" |
+| C1 | `aontu-lang/web` created | **done** |
+| C2 | Claude GitHub App on the org | **done** |
+| C3 | Repository settings, branch protection, CodeQL | open |
+| C4 | Org-rename leftovers | Go module **renamed**; badges + `prepack.js` open |
+| C5 | Sponsorship treatment | open — needs a decision |
+| D1 | npm trusted-publisher record after the rename | **open, and has a deadline** |
+
+D1 is the one that bites if left: a stale record fails the next release
+*after* the tag is pushed.
+
+One thing the build carries that this file did not ask for: the build
+token is `tabnas-web-01`, reused rather than minted, because a build
+token is account-scoped and A1 chose one account. Nothing is broken, but
+the name now lies about what it serves — see the note under B2.
+
 ---
 
 ## A. Domain and DNS
@@ -47,9 +79,12 @@ dig +short NS aontu.dev        # expect the two ns.cloudflare.com names
 
 > **Ordering constraint.** A1 and A2 must complete before the deploy
 > that carries the custom-domain routes (B4). They do **not** block
-> anything earlier: phase 1 deploys to a `workers.dev` subdomain and
-> needs no DNS at all. So start A1/A2 now and let them propagate while
-> the site is being built.
+> anything earlier: the phases before it never resolve the hostname. So
+> start A1/A2 now and let them propagate while the site is built.
+>
+> They do, however, gate the first VERIFICATION — see B2, which
+> originally promised a `workers.dev` URL that this account does not
+> serve.
 
 ### A3. Decide the canonical host
 
@@ -95,9 +130,23 @@ whatever `dist/` happens to be sitting there. And `NODE_VERSION=24`
 rather than the Astro minimum, because the `aontu` package declares
 `engines: {"node": ">=24"}` and the build imports it.
 
-**Verify:** merging to `main` produces a build in *Workers & Pages →
-aontu-web → Deployments*, and the site answers on
-`aontu-web.<subdomain>.workers.dev`.
+**Verify:** merging to `main` produces a successful build in *Workers &
+Pages → aontu-web → Deployments*. **That is the whole check available at
+this point** — do not reach for a `workers.dev` URL.
+
+That route is off for Workers on this account, and its 404 is
+indistinguishable from a broken Worker. Established by comparison rather
+than assumed:
+
+```
+tabnas-web.<subdomain>.workers.dev  ->  404, "error code: 1042"   # live site
+aontu-web.<subdomain>.workers.dev   ->  404, "error code: 1042"   # identical
+tabnas.dev                          ->  200
+```
+
+A known-healthy Worker returns byte-identical garbage, so the response
+says nothing about health. The first URL that can actually be checked is
+the custom domain, at B4.
 
 ### B3. Confirm no stale secrets on the Worker
 
@@ -286,17 +335,21 @@ someone else publishing `@aontu/anything` with your name on it.
 
 ## The short version
 
-Blocking, in order:
+The blocking chain — C1, C2, A1+A2, B1+B2, then B4 — is **done**, and
+the site is serving from the apex.
 
-1. **C1** — create `aontu-lang/web`.
-2. **C2** — grant session access to it.
-3. **A1 + A2** — `aontu.dev` into Cloudflare, nameservers switched. Start
-   these now; they propagate while the site is built.
-4. **B1 + B2** — connect the repo to Workers Builds as `aontu-web`.
+What is left, in the order it will hurt if ignored:
 
-Then B4 at cutover, and D1 before the next engine release.
+1. **D1** — check the npm trusted-publisher record survived the org
+   rename. Before the next release, not after: a stale record fails at
+   the publish step once the tag is already pushed.
+2. **C4** — the README badges and `prepack.js`'s `REPO` constant still
+   name the old owner. The badges need their services re-pointed first;
+   the constant is a word from you.
+3. **B5 / C5** — the analytics token (or a "no"), and where the
+   sponsorship goes.
+4. **C3** — branch protection and CodeQL on `aontu-lang/web`. It has no
+   workflows by design, so a Cloudflare build check is its only CI.
 
-Decisions I need from you before the scaffold can be written: which
-Cloudflare account (A1), the sponsorship treatment (C5), and the
-analytics token or a "no" (B5). The repo name (C1) is settled as
-`aontu-lang/web`, and the Go module path (C4) is renamed.
+None of these block the site. All of them are cheaper now than after
+they are forgotten.
