@@ -21,7 +21,7 @@ import (
 	"unicode/utf16"
 	"unicode/utf8"
 
-	aontu "github.com/rjrodger/aontu/go"
+	aontu "github.com/aontu-lang/aontu/go"
 )
 
 // Severity values (a subset of the LSP DiagnosticSeverity enum).

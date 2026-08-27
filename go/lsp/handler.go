@@ -8,7 +8,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	aontu "github.com/rjrodger/aontu/go"
+	aontu "github.com/aontu-lang/aontu/go"
 )
 
 // Version is reported to the client in the initialize response. It is

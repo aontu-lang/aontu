@@ -20,7 +20,7 @@ Aontu ships two implementations, kept in parity (structure inspired by
 
 - **TypeScript** in [`ts/`](ts/) — the canonical implementation
   (published to npm as `aontu`).
-- **Go** in [`go/`](go/) — a port (`github.com/rjrodger/aontu/go`) that
+- **Go** in [`go/`](go/) — a port (`github.com/aontu-lang/aontu/go`) that
   mirrors the core unification semantics.
 
 Both are checked against a single, language-agnostic test suite in
@@ -69,7 +69,7 @@ what is currently published, and the
 exactly what has landed.
 
 Install with `npm i -g aontu` (Node) or
-`go install github.com/rjrodger/aontu/go/cmd/aontu@latest` (Go). From a
+`go install github.com/aontu-lang/aontu/go/cmd/aontu@latest` (Go). From a
 clone: `node ts/dist/cli.js …` or, inside `go/`, `go run ./cmd/aontu …`.
 
 ## Documentation

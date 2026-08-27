@@ -19,7 +19,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	aontu "github.com/rjrodger/aontu/go"
+	aontu "github.com/aontu-lang/aontu/go"
 )
 
 const subsumeHelp = "aontu subsume <general> <specific> (try --help)"

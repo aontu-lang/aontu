@@ -13,7 +13,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/rjrodger/aontu/go/lsp"
+	"github.com/aontu-lang/aontu/go/lsp"
 )
 
 // A non-EOF read error is logged and stops the loop with exit 1.

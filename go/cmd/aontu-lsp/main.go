@@ -5,7 +5,7 @@
 // diagnostics as you edit `.aontu` files.
 //
 // This binary is intentionally thin: all protocol logic lives in the
-// reusable library github.com/rjrodger/aontu/go/lsp (Handler +
+// reusable library github.com/aontu-lang/aontu/go/lsp (Handler +
 // Diagnostics). Editors typically launch it with no arguments:
 //
 //	aontu-lsp
@@ -22,7 +22,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/rjrodger/aontu/go/lsp"
+	"github.com/aontu-lang/aontu/go/lsp"
 )
 
 func main() { //coverage:ignore run under GOCOVERDIR by `make cov-go`
