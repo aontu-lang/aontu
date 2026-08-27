@@ -345,9 +345,9 @@ The dot is always a separator; there is no quoting or escaping form.
 Hence the underscored registry keys and the `${type//./_}` mapping in
 the consumer loop.
 
-### 8. No provenance through the envelope conjunction (minor)
+### 8. No provenance through the envelope conjunction (minor, FIXED 2026-08-27)
 
-`why` cannot say where a shared field came from:
+`why` could not say where a shared field came from:
 
 ```
 $ aontu why '$.OrderPaid.time' orders-v1.aon
@@ -358,7 +358,20 @@ $.OrderPaid.time = re("^\\d{4}-\\d{2}-\\d{2}T...")
 The value demonstrably came from `envelope.aon` via `$.Envelope &`,
 which is precisely the question a maintainer asks. (Use case 03 saw
 `why` attribute across a plain include; the reference-conjunction
-style used here defeats it.)
+style used here defeated it.)
+
+**Fixed** (the review's finding E): the field reached this path by
+being cloned out of the envelope, and provenance now travels with a
+clone, so the answer names the file and line the pattern was written
+on:
+
+```
+$.OrderPaid.time = re("^\\d{4}-\\d{2}-\\d{2}T...")
+  1. re("^\\d{4}-\\d{2}-\\d{2}T...")  .../envelope.aon:27:9
+```
+
+Check 4 pins it in both directions — the file is named, and "no
+contributions" must not come back.
 
 ### 9. Cross-file misattribution in error sites (minor)
 

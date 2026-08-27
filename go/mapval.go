@@ -300,13 +300,32 @@ func spreadCloneFor(s Val, path []string, ctx *Ctx) Val {
 // contribution several levels down a template is still known to have
 // come from the template. Instrumented runs only (see spreadCloneFor).
 // Mirrors markSpread in ts/src/provenance.ts.
+//
+// THE GUARD IS A CYCLE GUARD, NOT A "DONE" FLAG, and that distinction
+// is the whole of the review's finding E for sibling position. A
+// template is applied once per destination, and the fixpoint advances
+// values IN PLACE between those applications (AGENTS.md, the mutation
+// caveat): by the time the second key is spread, the template's child
+// is no longer the value the first key saw but the one that meet
+// produced. Skipping the walk because the CONTAINER was already marked
+// left every such replacement unmarked, so `why` at the first sibling
+// reported the written `*1|integer` as one contribution and at the
+// second reported `*1` and `integer` as two -- identical statements,
+// different answers, decided by which key the fixpoint reached first
+// (use-cases/BUGS.md §22). Marking is idempotent, so re-walking costs
+// a pass and changes nothing where nothing moved.
 func markSpread(v Val, ctx *Ctx) {
-	if nil == ctx.prov || nil == v || v.fromSpread() {
+	markSpreadSeen(v, ctx, map[Val]bool{})
+}
+
+func markSpreadSeen(v Val, ctx *Ctx, seen map[Val]bool) {
+	if nil == ctx.prov || nil == v || seen[v] {
 		return
 	}
+	seen[v] = true
 	v.setFromSpread()
 	for _, k := range whyKids(v) {
-		markSpread(k, ctx)
+		markSpreadSeen(k, ctx, seen)
 	}
 }
 

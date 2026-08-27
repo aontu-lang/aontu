@@ -36,7 +36,7 @@ import { DeprecateFuncVal } from '../dist/val/DeprecateFuncVal'
 import { collectDeprecations } from '../dist/utility'
 import { hcanon, canonHash } from '../dist/hcanon'
 import { projectFor } from '../dist/query'
-import { Provenance } from '../dist/provenance'
+import { Provenance, markSpread } from '../dist/provenance'
 import { IdFuncVal, idName } from '../dist/val/IdFuncVal'
 import { ReferVal, parseAddress, findEntity } from '../dist/val/ReferFuncVal'
 import { graphOf } from '../dist/graph'
@@ -1074,18 +1074,17 @@ describe('coverage3-query', () => {
 describe('coverage3-provenance', () => {
 
   // The last tiebreak of the contribution order (G7 phase 3): two
-  // values written at the SAME file, row and column. No document
-  // produces that — a position holds one value — but the order has to
-  // be TOTAL anyway, because a partial one would leave the record's
-  // tail in meet order, which is the fixpoint's business and differs
-  // between the ports.
+  // UNSITED contributions, which is now the only way two of them share
+  // a "position" — a real site identifies one written token and the
+  // record is deduplicated on it (finding E). The order still has to
+  // be TOTAL, because a partial one would leave the record's tail in
+  // meet order, which is the fixpoint's business and differs between
+  // the ports.
   test('provenance-orders-same-site-contributions-by-canon', () => {
     const ctx = new Aontu().ctx({})
     const zed = new StringVal({ peg: 'z' }, ctx)
     const alf = new StringVal({ peg: 'a' }, ctx)
     for (const v of [zed, alf]) {
-      v.site.row = 1
-      v.site.col = 1
       v.site.url = 'one.aon'
     }
 
@@ -1096,6 +1095,72 @@ describe('coverage3-provenance', () => {
     Assert.deepEqual(prov.at(['k']).map((c: any) => c.canon), ['"a"', '"z"'])
     // A path nothing met has no record at all.
     Assert.deepEqual(prov.at(['nowhere']), [])
+  })
+
+
+  // THE SPREAD MARK'S GUARD IS A CYCLE GUARD, not a "done" flag: it
+  // must stop the walk revisiting a value it has already reached in
+  // THIS walk, and must not stop a later application re-walking a
+  // template the fixpoint has advanced in place (finding E, BUGS.md
+  // §22). A tree holding one child under two keys is the shape that
+  // exercises it, and no source builds one -- the parser gives every
+  // key its own value -- so it is built here.
+  test('mark-spread-visits-a-shared-child-once', () => {
+    const ctx = new Aontu().ctx({})
+    const shared = new StringVal({ peg: 'x' }, ctx)
+    const tree = new MapVal({ peg: { a: shared, b: shared } }, ctx)
+    markSpread(tree)
+    Assert.equal((shared as any)._fromSpread, true)
+    Assert.equal((tree as any)._fromSpread, true)
+
+    // A SECOND application re-walks and re-marks: the fixpoint replaces
+    // a template's children between the two, and the replacements are
+    // what the first walk could not have seen.
+    const replaced = new StringVal({ peg: 'y' }, ctx)
+    ;(tree as any).peg.a = replaced
+    markSpread(tree)
+    Assert.equal((replaced as any)._fromSpread, true)
+  })
+
+
+  // ONE WRITTEN TOKEN IS ONE CONTRIBUTION (the review's finding E).
+  // The same written value reaches a path more than once now that
+  // provenance travels through clones -- as the template application
+  // and as the value written at the key, or at two stages of narrowing
+  // -- and the SITE is what says they are one thing. The role is not
+  // part of that identity, so the more informative one survives. The
+  // Go twin is TestProvenanceDeduplicatesBySite.
+  test('one-written-token-is-one-contribution', () => {
+    const ctx = new Aontu().ctx({})
+    const at = (v: any) => {
+      v.site.row = 1
+      v.site.col = 4
+      v.site.url = 'one.aon'
+      v.site.src = 'x'
+      return v
+    }
+    const lit = at(new StringVal({ peg: 'x' }, ctx))
+    const narrowed = at(new StringVal({ peg: 'x' }, ctx))
+
+    const prov = new Provenance()
+    prov.writtenFrom(new MapVal({ peg: { a: lit, b: narrowed } }, ctx))
+    // The narrowed one arrived through a template.
+    ;(narrowed as any)._fromSpread = true
+    prov.record(['k'], lit, narrowed, undefined)
+
+    const got: any[] = prov.at(['k'])
+    Assert.equal(got.length, 1, JSON.stringify(got))
+    // The role that says HOW it got here wins over "written there".
+    Assert.equal(got[0].role, 'spread')
+
+    // An UNSITED contribution cannot be told apart from another, so
+    // they are kept as they come rather than collapsed.
+    const p = new StringVal({ peg: 'p' }, ctx)
+    const q = new StringVal({ peg: 'q' }, ctx)
+    const prov2 = new Provenance()
+    prov2.writtenFrom(new MapVal({ peg: { p, q } }, ctx))
+    prov2.record(['u'], p, q, undefined)
+    Assert.equal(prov2.at(['u']).length, 2)
   })
 
 })

@@ -413,7 +413,17 @@ func (a *Aontu) Why(src, path string) WhyReport {
 		stampURL(parsed, a.File)
 	}
 
-	prov := newProvenance(src)
+	// The entry's own text under its own name, plus every file the parse
+	// read: a contribution's offset is counted in the file it was
+	// written in (Provenance.texts).
+	texts := map[string]string{}
+	for k, v := range a.IncludeText {
+		texts[k] = v
+	}
+	if "" != a.File {
+		texts[a.File] = src
+	}
+	prov := newProvenance(src, texts)
 	prov.writtenFrom(parsed)
 
 	ctx := &Ctx{root: parsed, src: src, file: a.File, prov: prov}
@@ -439,10 +449,17 @@ func (a *Aontu) Why(src, path string) WhyReport {
 		}
 	}
 
+	// The value that stands here is a contribution when nothing met
+	// (see Provenance.stands): a generator places a value without a
+	// meet, and "nothing met at this path" is not an answer to "where
+	// did this come from".
+	parts := queryPathParts(path)
+	prov.stands(parts, node)
+
 	return WhyReport{
 		OK: true,
 		Record: &WhyRecord{
-			Conjuncts: prov.at(queryPathParts(path)),
+			Conjuncts: prov.at(parts),
 			Path:      queryPathText(path),
 			Value:     node.Canon(),
 		},

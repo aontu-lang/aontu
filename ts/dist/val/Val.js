@@ -7,6 +7,7 @@ exports.empty = empty;
 exports.repathInstance = repathInstance;
 const node_util_1 = require("node:util");
 const site_1 = require("../site");
+const provenance_1 = require("../provenance");
 const DONE = -1;
 exports.DONE = DONE;
 const SPREAD = Symbol('spread');
@@ -147,6 +148,29 @@ class Val {
         if (null != this.deprecation) {
             out.deprecation = this.deprecation;
         }
+        // PROVENANCE TRAVELS WITH THE CLONE, exactly as the site does, and
+        // for the same reason: a clone of a value the author wrote IS that
+        // written value somewhere else, and it carries the author's site,
+        // so it can be pointed at. Without this a default reaching a
+        // `pack()`-generated child, or a shape carried by a `$ref`, was
+        // invisible to `why` -- which answered "nothing met at this path"
+        // over a value it had just printed (the review's finding E). See
+        // WRITTEN in ts/src/provenance.ts; the mark is only ever set by an
+        // instrumented run, so this is one undefined read otherwise.
+        if (true === this[provenance_1.WRITTEN]) {
+            out[provenance_1.WRITTEN] = true;
+        }
+        // AND SO DOES BEING PART OF SOMETHING. A clone of a disjunction's
+        // member is still that member of that written disjunction, and the
+        // whole statement is what the author needs shown -- otherwise a
+        // default reaching a generated child reports `*"info"` and
+        // `string` as two contributions at two columns, where the author
+        // wrote `*info | string` once. A number, deliberately: a Val
+        // holding another Val as an own property is a cycle through the
+        // tree. See INNER_OF in ts/src/provenance.ts.
+        if (null != this[provenance_1.INNER_OF]) {
+            out[provenance_1.INNER_OF] = this[provenance_1.INNER_OF];
+        }
         return out;
     }
     // Shallow clone for spread constraints: creates a new Val with the
@@ -198,12 +222,26 @@ class Val {
         this._isPathDependent = dep;
         return dep;
     }
+    // PUT A MINTED VALUE WHERE THIS ONE STANDS: the site travels, and so
+    // does provenance, because the two answer one question. A narrowed
+    // disjunction, a lifted kind, a resolved reference -- each is a
+    // value the engine built from a value the author wrote, standing
+    // where that one stood. Carrying the site and withholding the mark
+    // would let `why` print a value, know the line it came from, and
+    // still answer "nothing met at this path" (the review's finding E).
+    // See WRITTEN and INNER_OF in ts/src/provenance.ts.
     place(v) {
         v.site.row = this.site.row;
         v.site.col = this.site.col;
         v.site.url = this.site.url;
         v.site.len = this.site.len;
         v.site.src = this.site.src;
+        if (true === this[provenance_1.WRITTEN]) {
+            v[provenance_1.WRITTEN] = true;
+        }
+        if (null != this[provenance_1.INNER_OF]) {
+            v[provenance_1.INNER_OF] = this[provenance_1.INNER_OF];
+        }
         return v;
     }
     // CONTRACT: implementations should treat `this` and `peer` as

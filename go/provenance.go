@@ -74,43 +74,77 @@ type whyPathRecord struct {
 	// Ids of values PRODUCED by a meet at this path: an operand among
 	// them is an intermediate result, not a source contribution.
 	made map[Val]bool
-	// Values structurally INSIDE a contribution: a disjunct's members,
-	// a constraint's atoms.
-	inside map[Val]bool
-	seen   map[Val]bool
+	seen map[Val]bool
 }
 
 // Provenance is the recorder itself. Mirrors the class in
 // ts/src/provenance.ts.
 type Provenance struct {
 	paths map[string]*whyPathRecord
-	// Ids of the values the AUTHOR WROTE: everything in the parsed
-	// tree, stamped before unification starts. A value minted during
-	// unification is the engine's own work, not a contribution the
-	// author can be pointed at. The one exception is a SPREAD clone,
-	// which is an authored template re-minted per key and says so.
-	written map[Val]bool
 	// The entry source, for turning a byte offset into row and column.
 	src string
+	// The text of every file the parse READ, by the name a site
+	// carries. A value's position is an offset into the source it was
+	// parsed from, so a contribution written in an included file has to
+	// be counted in THAT file -- counting it in the entry names a real
+	// line that says something else (the review's finding F, applied to
+	// this surface). Vet solves the same problem the same way, with
+	// vetSources; Aontu.IncludeText is where both get the map.
+	texts map[string]string
 }
 
-func newProvenance(src string) *Provenance {
+func newProvenance(src string, texts map[string]string) *Provenance {
 	return &Provenance{
-		paths:   map[string]*whyPathRecord{},
-		written: map[Val]bool{},
-		src:     src,
+		paths: map[string]*whyPathRecord{},
+		src:   src,
+		texts: texts,
 	}
 }
 
-// writtenFrom stamps the parsed tree. Called once, before unify, by Why.
+// writtenFrom stamps the parsed tree with the AUTHORED mark: everything
+// the author wrote, before unification starts. A value minted during
+// unification is the engine's own work, not a contribution the author
+// can be pointed at; a CLONE of a marked value keeps the mark, because
+// it is the same written value somewhere else (base.fwrt). Called once,
+// before unify, by Why.
 func (p *Provenance) writtenFrom(v Val) {
-	if nil == v || p.written[v] {
+	if nil == v || v.written() {
 		return
 	}
-	p.written[v] = true
+	v.setWritten()
 	for _, k := range whyKids(v) {
 		p.writtenFrom(k)
 	}
+	// OUTERMOST WINS: the walk is top-down, so a value already pointed
+	// at a container is inside that one and this one, and the answer the
+	// author wants is the whole written statement. See base.finner.
+	for _, k := range samePathKids(v) {
+		if nil == k.innerOf() {
+			k.setInnerOf(v)
+		}
+	}
+}
+
+// samePathKids are the children that stand at the SAME path as v: a
+// junction's members, a preference's inner value, a function's
+// arguments. NOT a bag's children (they stand at their own, deeper
+// paths) and NOT a conjunct's terms (a conjunct is the statement that
+// several things must all hold, and each term is one of them).
+func samePathKids(v Val) []Val {
+	switch b := v.(type) {
+	case *DisjunctVal:
+		return b.peg
+	case *PrefVal:
+		if nil == b.peg {
+			return nil
+		}
+		return []Val{b.peg}
+	case *FuncVal:
+		return b.peg
+	case *PlusOpVal:
+		return b.peg
+	}
+	return nil
 }
 
 // whyKids is the structural walk both the written stamp and the
@@ -147,6 +181,21 @@ func whyKids(v Val) []Val {
 	return nil
 }
 
+// whyRoleRank orders the roles by how much they tell the reader, for
+// the deduplication in `at`: a role that names HOW a value reached the
+// path says more than "written here".
+func whyRoleRank(role string) int {
+	switch role {
+	case WhySpread:
+		return 0
+	case WhyRef:
+		return 1
+	case WhyPref:
+		return 2
+	}
+	return 3
+}
+
 func (p *Provenance) whyRole(v Val) string {
 	if v.fromSpread() {
 		return WhySpread
@@ -168,9 +217,8 @@ func (p *Provenance) record(path []string, a, b, out Val) {
 	rec, ok := p.paths[key]
 	if !ok {
 		rec = &whyPathRecord{
-			made:   map[Val]bool{},
-			inside: map[Val]bool{},
-			seen:   map[Val]bool{},
+			made: map[Val]bool{},
+			seen: map[Val]bool{},
 		}
 		p.paths[key] = rec
 	}
@@ -191,8 +239,20 @@ func (p *Provenance) contribute(rec *whyPathRecord, v Val) {
 		rec.made[v] || rec.seen[v] {
 		return
 	}
-	// Not the author's: see `written`.
-	if !p.written[v] && !v.fromSpread() {
+	// Not the author's: see base.fwrt.
+	if !v.written() && !v.fromSpread() {
+		return
+	}
+
+	// PART OF a written value is not a value beside it: report the
+	// whole statement the author wrote, whichever piece of it the
+	// fixpoint happened to meet here. See base.finner.
+	outer := v
+	for up := outer.innerOf(); nil != up; up = outer.innerOf() {
+		outer = up
+	}
+	if outer != v {
+		p.contribute(rec, outer)
 		return
 	}
 	// A CONJUNCT is not one contribution, it is the statement that
@@ -209,13 +269,20 @@ func (p *Provenance) contribute(rec *whyPathRecord, v Val) {
 	}
 
 	rec.seen[v] = true
-	// Everything INSIDE this value is part of it, not a further
-	// contribution beside it.
-	whyInsideIds(v, rec.inside)
 
+	// COUNTED IN THE FILE THE VALUE CAME FROM, and -1:-1 when this run
+	// holds no text for that file: an offset resolved against another
+	// document names a real line that says something else, which is
+	// worse than saying nothing (see Provenance.texts).
 	row, col := -1, -1
 	if 0 <= v.pos() {
-		row, col = rowCol(p.src, v.pos())
+		text, have := p.src, true
+		if file := v.srcurl(); "" != file {
+			text, have = p.texts[file]
+		}
+		if have {
+			row, col = rowCol(text, v.pos())
+		}
 	}
 	rec.conjuncts = append(rec.conjuncts, whyContribution{
 		WhyConjunct: WhyConjunct{
@@ -230,22 +297,38 @@ func (p *Provenance) contribute(rec *whyPathRecord, v Val) {
 	})
 }
 
-func whyInsideIds(v Val, out map[Val]bool) {
-	for _, k := range whyKids(v) {
-		if nil != k && !out[k] {
-			out[k] = true
-			whyInsideIds(k, out)
-		}
+// stands records THE VALUE THAT STANDS at a path as a contribution when
+// nothing met there and the author wrote it. A meet is where
+// information vanishes, so a meet is what the recorder watches -- but a
+// generator PLACES a value without meeting anything, and `why` then
+// answered "(no contributions: nothing met at this path)" over a value
+// it had just printed. That is literally true and practically false:
+// the author is asking where the value came from, and it came from
+// somewhere they can be shown (use-cases/BUGS.md §23).
+//
+// Only when the record is otherwise EMPTY. Where something did meet,
+// the standing value is that meet's result -- an intermediate, and the
+// recorder's oldest rule is that a result is not a source.
+func (p *Provenance) stands(path []string, v Val) {
+	rec, ok := p.paths[strings.Join(path, ".")]
+	if ok && 0 < len(rec.conjuncts) {
+		return
 	}
+	p.record(path, v, nil, nil)
 }
 
-// at answers the record at one path. Empty when nothing met there — a
-// value written once and never unified against anything has no
-// conjuncts, which is a true and useful answer rather than an error.
+// at answers the record at one path. Empty when nothing met there and
+// nothing the author wrote stands there either — which is a true and
+// useful answer rather than an error.
 //
 // ONLY WHOLE WRITTEN VALUES are contributions: a Val's own Unify
 // re-enters unite at the same path (a disjunct trials each member
-// there), and those members are PARTS OF one written value.
+// there), and those members are PARTS OF one written value. That is
+// settled BEFORE a member is ever pushed, by the base.finner fact
+// stamped over the document (see contribute), which is why no filter
+// runs here: a per-path "inside" set used to do it, and it could only
+// work where the container itself happened to meet something at the
+// same path -- the order-dependence finding E records.
 //
 // SOURCE ORDER, not meet order: the two are the same in simple cases
 // and diverge with the fixpoint's fold order, which is an engine detail
@@ -255,14 +338,34 @@ func (p *Provenance) at(path []string) []WhyConjunct {
 	if !ok {
 		return []WhyConjunct{}
 	}
-	out := []WhyConjunct{}
-	for _, c := range rec.conjuncts {
-		if !rec.inside[c.val] {
-			out = append(out, c.WhyConjunct)
-		}
-	}
-	sort.SliceStable(out, func(i, j int) bool {
-		a, b := out[i], out[j]
+	// ONE WRITTEN TOKEN IS ONE CONTRIBUTION, and the SITE is what
+	// identifies it -- not the value's identity, and not the canon.
+	//
+	// Not the identity, because provenance travels through clones now:
+	// a written value and a clone of it are the same statement in the
+	// same place, and a path that met both would list it twice.
+	//
+	// Not the canon, because the same written value reaches a path at
+	// different stages of narrowing -- `3|(1|2)` as the author wrote it
+	// and `3|1|2` after a fold -- and both name one token.
+	//
+	// Not the role either: the role says how the value REACHED this
+	// path, not which value it is, and one written value can reach a
+	// path both ways (a template applied to a key whose value is also
+	// written there). Keeping the literal would throw away the more
+	// informative half, so the roles have a precedence.
+	//
+	// ONLY WHERE THE SITE IS REAL. An unsited contribution (row -1)
+	// cannot be told apart from another unsited one, so those are kept
+	// as they come rather than collapsed into whichever arrived first.
+	// SORTED FIRST, so which of two contributions at one site survives
+	// the deduplication is decided by the order the record is READ in
+	// -- source order, with the canon breaking a tie -- and not by the
+	// order the fixpoint happened to meet them, which is an engine
+	// detail and would put the two ports on different answers.
+	sorted := append([]whyContribution{}, rec.conjuncts...)
+	sort.SliceStable(sorted, func(i, j int) bool {
+		a, b := sorted[i].WhyConjunct, sorted[j].WhyConjunct
 		if a.Site.File != b.Site.File {
 			return a.Site.File < b.Site.File
 		}
@@ -274,5 +377,32 @@ func (p *Provenance) at(path []string) []WhyConjunct {
 		}
 		return a.Canon < b.Canon
 	})
+
+	kept := []*WhyConjunct{}
+	shown := map[string]*WhyConjunct{}
+	for _, c := range sorted {
+		one := c.WhyConjunct
+		if 0 > c.Site.Row {
+			kept = append(kept, &one)
+			continue
+		}
+		key := strings.Join([]string{
+			c.Src, c.Site.File,
+			itoa(c.Site.Row), itoa(c.Site.Col), itoa(c.Site.Len),
+		}, "\x00")
+		had, seen := shown[key]
+		if !seen {
+			kept = append(kept, &one)
+			shown[key] = &one
+			continue
+		}
+		if whyRoleRank(c.Role) < whyRoleRank(had.Role) {
+			had.Role = c.Role
+		}
+	}
+	out := make([]WhyConjunct, 0, len(kept))
+	for _, c := range kept {
+		out = append(out, *c)
+	}
 	return out
 }

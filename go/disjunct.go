@@ -195,6 +195,19 @@ func (d *DisjunctVal) Unify(peer Val, ctx *Ctx) Val {
 	out.spu = d.spu
 	out.surl = d.surl
 	out.stext = d.stext
+	// AND SO DOES PROVENANCE, because the site and the mark answer one
+	// question. A narrowed disjunction is a value the engine built from
+	// a value the author wrote, standing where that one stood: carrying
+	// the site and withholding the mark would let `why` print the value,
+	// know the line it came from, and still answer "nothing met at this
+	// path" (the review's finding E). Twin: the WRITTEN/INNER_OF carry
+	// in Val.place, ts/src/val/Val.ts.
+	if d.written() {
+		out.setWritten()
+	}
+	if nil != d.innerOf() {
+		out.setInnerOf(d.innerOf())
+	}
 	if done {
 		out.setDc(DONE)
 	} else {

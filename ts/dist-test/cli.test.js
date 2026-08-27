@@ -1145,9 +1145,21 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
         Assert.match(r.out, /^\$\.services\.auth\.replicas = 3/);
         Assert.match(r.out, /1\. \*1\|integer.*doc\.aon:2:18  \(spread\)/);
         Assert.match(r.out, /2\. 3.*doc\.aon:3:21/);
-        // A value written once and never met is a fact, not a failure.
+        // A KEY THE AUTHOR NEVER WROTE A VALUE FOR still has a source: the
+        // template did. It used to answer "no contributions" here -- true
+        // of meets, and no answer to "where did this value come from" (the
+        // review's finding E). The template's own site is what it names,
+        // and the same one the touched sibling above names.
         const q = vetCapture(() => Assert.equal((0, cli_1.runWhy)(['$.services.db.replicas', file]), 0));
-        Assert.match(q.out, /no contributions/);
+        Assert.match(q.out, /1\. \*1\|integer.*doc\.aon:2:18  \(spread\)/);
+        // TOP IS THE UNIT ELEMENT, not something the author wrote, so a
+        // path holding it has no contribution -- the one shape that still
+        // answers "nothing met at this path" now that the value which
+        // STANDS at a path counts (the review's finding E).
+        const topFile = Path.join(dir, 'top.aon');
+        Fs.writeFileSync(topFile, 'a: top\n');
+        const t = vetCapture(() => Assert.equal((0, cli_1.runWhy)(['$.a', topFile]), 0));
+        Assert.match(t.out, /no contributions/);
         const j = JSON.parse(vetCapture(() => Assert.equal((0, cli_1.runWhy)(['$.services.auth.replicas', '--format', 'json', file]), 0)).out);
         Assert.equal(j.aontu.verb, 'why');
         Assert.equal(j.ok, true);

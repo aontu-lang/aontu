@@ -117,6 +117,12 @@ type Val interface {
 	// fromSpread reports the G7 provenance mark (see base.fspr).
 	fromSpread() bool
 	setFromSpread()
+	// written reports the AUTHORED mark (see base.fwrt), and innerOf
+	// the written container this value is part of (see base.finner).
+	written() bool
+	setWritten()
+	innerOf() Val
+	setInnerOf(v Val)
 	deprecRec() map[string]string
 	setDeprecRec(rec map[string]string)
 	entityName() string
@@ -192,6 +198,30 @@ type base struct {
 	// place a spread is applied and only on an INSTRUMENTED run (G7
 	// phase 4). Read by the provenance recorder; nothing else.
 	fspr bool
+	// fwrt marks a value the AUTHOR WROTE, and it lives on the value
+	// rather than in a set beside it so that CLONES CARRY IT (the
+	// review's finding E). The recorder used to decide "did the author
+	// write this" by looking the operand up in a set stamped over the
+	// parsed tree, which is true of the parsed tree and of nothing
+	// derived from it -- so a default reaching a generated child, a
+	// shape carried by a $ref, one side of an id()-merge were all dark,
+	// and `why` answered "nothing met at this path" over a value it had
+	// just printed. A clone of a written value IS that written value
+	// somewhere else: it carries the author's site, so it can be
+	// pointed at. Instrumented runs only (Why stamps it; nothing else).
+	// The TypeScript twin is WRITTEN in ts/src/provenance.ts.
+	fwrt bool
+	// finner is the WRITTEN CONTAINER this value stands inside at the
+	// SAME path: a junction's members, a preference's inner value, a
+	// function's arguments. `*1|integer` is one thing the author wrote
+	// and `*1` is not a second thing beside it, so an operand is
+	// reported as the outermost written value it is part of -- whether
+	// or not the fixpoint happened to meet that container whole here.
+	// A pointer, where TypeScript carries the container's id: a Val
+	// holding another Val as an own PROPERTY is a cycle through the
+	// tree there, and a struct field is not. See INNER_OF in
+	// ts/src/provenance.ts.
+	finner Val
 	// The deprecation record (G3 phase 4, `deprecate(x, m)`): boolean
 	// marks cannot hold a message, a replacement path and a version, so
 	// the value carries one optional record (keys msg/use/since, values
@@ -305,6 +335,10 @@ func (b *base) setLinkAddr(addr string) { b.link = addr }
 func (b *base) markedHide() bool        { return b.mhide }
 func (b *base) fromSpread() bool        { return b.fspr }
 func (b *base) setFromSpread()          { b.fspr = true }
+func (b *base) written() bool           { return b.fwrt }
+func (b *base) setWritten()             { b.fwrt = true }
+func (b *base) innerOf() Val            { return b.finner }
+func (b *base) setInnerOf(v Val)        { b.finner = v }
 func (b *base) setMarkType(v bool)      { b.mtype = v }
 func (b *base) setMarkHide(v bool)      { b.mhide = v }
 

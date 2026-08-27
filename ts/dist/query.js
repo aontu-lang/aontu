@@ -275,10 +275,16 @@ function why(src, path, opts) {
     if (null == node) {
         return { ok: false, findings: [noPathFinding(root, path)] };
     }
+    // The value that stands here is a contribution when nothing met
+    // (see Provenance.stands): a generator places a value without a
+    // meet, and "nothing met at this path" is not an answer to "where
+    // did this come from".
+    const parts = pathParts(path);
+    prov.stands(parts, node);
     return {
         ok: true,
         record: {
-            conjuncts: prov.at(pathParts(path)),
+            conjuncts: prov.at(parts),
             path: pathText(path),
             value: node.canon,
         },

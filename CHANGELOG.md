@@ -5,6 +5,53 @@ package (`ts/`, npm `aontu`) and the Go module (`go/`,
 `github.com/rjrodger/aontu/go`) are versioned independently; entries note
 which implementation each change affects.
 
+## Unreleased — provenance is part of the clone contract
+
+Both implementations. The 2026-08 review's finding E: `why` is the
+agent-facing differentiator, and it went dark exactly where an
+enterprise model puts its values.
+
+**The authored mark lives on the value, not in a set beside it.** The
+recorder decided "did the author write this" by looking the operand's
+id up in a set stamped over the parsed tree — which is true of the
+parsed tree and of nothing derived from it. So a default flowing into
+a `pack()`-generated child, a shape carried by a `$ref`, one side of an
+`id()`-merge were all invisible, and `why` answered "(no contributions:
+nothing met at this path)" over a value it had just printed, with exit
+0 (`use-cases/BUGS.md` §22–24). `Val.clone`, `Val.place` and the
+disjunct fold now carry the mark exactly as they carry the site: a
+clone of a written value IS that written value somewhere else, and it
+holds the author's site, so it can be pointed at. Values the engine
+MINTS are constructed rather than cloned and stay unmarked.
+
+**A member is not a value beside its container.** `*1|integer` is one
+thing the author wrote; `*1` is not a second thing next to it. The
+recorder knew that only where the container itself met something,
+which the fixpoint decides — so the first key under a spread template
+reported one contribution and the second reported two, for identical
+statements. The containment is now a fact about the document, recorded
+at stamping time, and an operand is reported as the outermost written
+value it is part of.
+
+**A spread's mark walked into an already-marked container and stopped.**
+Its guard was written as a "done" flag where a cycle guard was meant.
+A template is applied once per destination and the fixpoint advances
+values in place between applications, so every child replaced between
+the first key and the second stayed unmarked.
+
+**The value that stands at a path is a contribution when nothing met
+there.** A meet is where information vanishes, so a meet is what the
+recorder watches — but a generator PLACES a value without meeting
+anything, and "nothing met at this path" is not an answer to "where did
+this come from".
+
+**`set --in-place` refuses a path reached through a reference.** With
+provenance travelling, `n: $.base` against `base: 7` reports the
+literal `7` — correctly, and at `base`'s line rather than `n`'s. A
+splice there would rewrite the referent for every reader of it while
+leaving the named path unmoved, so the reference is refused as not
+editable and the assignment is appended as it always would have been.
+
 ## Unreleased — every site names the file whose text it excerpts
 
 Both implementations. The 2026-08 review's finding F, in four parts:

@@ -93,11 +93,16 @@ has why-billing 'envs/prod.aon' "prod overlay attributed"
 has why-billing '12' "pin value shown"
 ok "why attributes the prod pin to envs/prod.aon"
 
-# Pinned observation (README, gap 3): why cannot see contributions that
-# arrive through a pack() clone -- the org/team layers are invisible at
-# a generated workload path.
+# GAP 3 CLOSED 2026-08-27 (the review's finding E): why can now see
+# contributions that arrive through a pack() clone. The org/team layers
+# were invisible at a generated workload path -- "(no contributions:
+# nothing met at this path)" over a value it had just printed -- because
+# provenance was a set of parsed-tree ids rather than a mark the clone
+# carries. The generated path now names the file and line the default
+# was written on.
 run why-blind 0 why '$.deploy.dev.workloads.web.logLevel' "$DIR/stack.aon"
-has why-blind 'no contributions' "pack clones are unattributed"
+has why-blind 'team-defaults.aon:' "pack clone attributed to its source file"
+has why-blind '"debug"' "the winning default is shown"
 ok "pinned: why is blind through pack (gap 3)"
 
 # ------------------------------------------------------------ guardrails

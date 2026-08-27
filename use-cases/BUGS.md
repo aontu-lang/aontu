@@ -428,6 +428,66 @@ at different columns — and a spread-only field present on the first
 sibling answers "(no contributions)" on later ones. Repro:
 `sibling-split.aon`.
 
+Status (§22–24): FIXED 2026-08-27 — PROVENANCE IS PART OF THE CLONE
+CONTRACT, which is the review's own recommendation and the one change
+all three defects were waiting for. The recorder decided "did the
+author write this" by looking the operand's id up in a set stamped
+over the parsed tree — true of the parsed tree, and of nothing derived
+from it. Every value that reached a path through a clone was therefore
+dark. The mark now lives ON the value, and `Val.clone`, `Val.place`
+and the disjunct fold carry it exactly as they carry the site: a clone
+of a written value IS that written value somewhere else, and it holds
+the author's site, so it can be pointed at. Values the engine MINTS
+are constructed rather than cloned and stay unmarked, which is what
+keeps the record to what the author can edit.
+
+Three further pieces landed with it:
+
+- **A member is not a value beside its container.** Which of the two
+  the recorder saw was decided by evaluation order, so §22's siblings
+  answered differently for identical statements. The containment is
+  now recorded as a fact about the DOCUMENT at stamping time, and an
+  operand is reported as the outermost written value it is part of.
+- **`markSpread`'s guard was a "done" flag where a cycle guard was
+  meant.** A template is applied once per destination and the fixpoint
+  advances values in place between applications, so the second key's
+  spread walked into an already-marked container and stopped —
+  leaving every replaced child unmarked.
+- **The value that STANDS at a path is a contribution when nothing
+  met.** A generator places a value without a meet, and "nothing met
+  at this path" is not an answer to "where did this come from".
+
+One safety rule came with the extra reach: `set --in-place` now
+REFUSES a path reached through a reference. `n: $.base` against
+`base: 7` correctly reports the literal `7` — at `base`'s line, not
+`n`'s — and splicing there would rewrite the referent for every reader
+of it while leaving the named path unmoved.
+
+Pinned by seven new shared rows (`why-spread-first-sibling` and
+`why-spread-later-sibling` are the pair the review asked for, plus
+`why-spread-untouched-later-sibling`, the two `why-pack-generated-*`
+and the two `why-id-merge-*`), and five existing rows whose goldens
+recorded the defect now record the file and line the value came from.
+
+Two smaller things went with the sweep. A contribution's ROLE is no
+longer part of its identity when the record is deduplicated: one
+written value can reach a path both as a template application and as
+the value written there, and reporting it twice at one position says
+nothing the reader can use — the more informative role wins. And the
+Go port counted a contribution's byte offset in the ENTRY text even
+when the contribution came from an included file, so the two ports
+reported different rows for the same value; `why` now carries the same
+per-file text map `vet` does, which is finding F's rule applied to
+this surface.
+
+WHAT REMAINS, narrowed: §24's id-merge asymmetry is no longer a
+silence, but on a large model the position that did not write the
+value names the SCHEMA ROW that admits it rather than the line that
+selected it — the merge carries the resolved member across, and the
+selecting meet happened at the other position's path. Use case 01's
+check 7 pins both halves: the file is named, and "no contributions"
+must not come back.
+
 ### 23. `why` is blind through `pack()` and spread sites can be empty [major]
 A default flowing through `pack()` produces the output value while
 `why` at the generated path answers

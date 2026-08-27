@@ -89,10 +89,18 @@ diff -q "$WORK/hda.out" "$WORK/hdb.out" >/dev/null \
   && fail "default-a/default-b hash identically; the conjunct default is lost again"
 ok "hash: different conjunct defaults give different aon1- identities"
 
-# GAP (provenance): why does not trace the envelope conjunction.
+# GAP CLOSED 2026-08-27 (the review's finding E): why traces the
+# envelope conjunction. The field is supplied by a reference to
+# envelope.aon and reached this path by being CLONED, which used to put
+# it outside the recorder's parsed-tree id set -- "(no contributions:
+# nothing met at this path)" over a value it had just printed. It now
+# names the file and line the pattern was written on, which is the
+# whole audit question for a shared envelope.
 run why 0 -- why '$.OrderPaid.time' "$V1"
-has why out '(no contributions: nothing met at this path)'
-ok "why: envelope-supplied field has no provenance (pinned gap)"
+has why out 'envelope.aon:'
+grep -q 'no contributions' "$WORK/why.out" \
+  && fail 'why: envelope-supplied field is silent again' || true
+ok "why: envelope-supplied field names the file that wrote it"
 
 # The price of the schema style: the contract never evaluates (and
 # the error snippet quotes the WRONG FILE: header envelope.aon:14,

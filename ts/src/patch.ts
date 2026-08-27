@@ -283,6 +283,27 @@ function editableLiteral(
   // would claim a possibility the type does not have — and the
   // coverage gate says so, an arm nothing can take.
   const conjuncts: WhyConjunct[] = record.conjuncts
+
+  // A VALUE REACHED THROUGH A REFERENCE IS NOT THIS PATH'S TO EDIT.
+  // Provenance travels through clones now, so `n: $.base` against
+  // `base: 7` reports the literal `7` -- correctly, and at the site
+  // where it was written, which is `base`'s line and not `n`'s. A
+  // splice there would rewrite the REFERENT: every other reader of
+  // `$.base` changes with it, and the path the caller named does not
+  // move at all. The reference is what stands here, so the reference
+  // is what has to be edited, wherever it points.
+  const refs = conjuncts.filter((c) => 'ref' === c.role)
+  if (0 < refs.length) {
+    return {
+      site: undefined,
+      finding: notEditable('patch_not_editable', path,
+        'the value here is reached through a reference (ref), so the ' +
+        'literal below belongs to the path it points at; edit where it ' +
+        'comes from',
+        refs),
+    }
+  }
+
   const literals = conjuncts.filter((c) => 'literal' === c.role)
 
   if (1 < literals.length) {

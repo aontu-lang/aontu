@@ -69,13 +69,20 @@ run why1 0 -- why '$.catalog.domains.payments.services.payments.replicas' \
 has why1 out 'deploy.aon:'
 ok "why: catalog position of replicas is traced to deploy.aon"
 
-# ...but the deploy position of tier does NOT name the catalog.aon
-# site (README, gap 9: provenance is one-sided across an id-merge).
-# This pins today's behavior; delete the assertion when it is fixed.
+# ...and the deploy position of tier is no longer SILENT: gap 9's
+# "(no contributions: nothing met at this path)" over a printed value
+# is gone (the review's finding E). What it names is the schema row
+# that admits the value, in the file that declares it -- one hop short
+# of the catalog.aon literal that selected it, because the id-merge
+# carries the RESOLVED member into this position and the catalog's own
+# meet happened at the catalog path. That narrowing is what remains of
+# gap 9; the falsehood is what is fixed.
 run why2 0 -- why \
   '$.deploy.regions.eu1.clusters.core.workloads.payments.tier' \
   "$DIR/system.aon"
-has why2 out '(no contributions'
+has why2 out 'spec.aon:'
+grep -q 'no contributions' "$WORK/why2.out" \
+  && fail 'why2: still silent at the deploy position' || true
 ok "why: deploy position of tier shows the documented one-sidedness"
 
 # 6. Instance-of queries over the hand-built flat index.

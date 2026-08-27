@@ -508,8 +508,19 @@ $.services.auth.replicas = 3
 - Contributions are listed in **source order** — file, then row, then
   column — not in the order the fixpoint happened to meet them, which
   is an engine detail.
-- A value written once and never met has **no contributions**, and
-  says so. That is a fact about the document, not a failure.
+- **Provenance travels with a clone.** A value that reached this path
+  by being copied from somewhere else — a spread template applied per
+  key, a `pack()` generator's child, a `$ref`, one side of an
+  `id()`-merge — is reported as the value the author wrote, at the line
+  they wrote it on. That is the whole audit question: *which file set
+  this?* A clone of a written value is that written value somewhere
+  else, so it is named; a value the engine mints on the way is not.
+- **The value that stands at a path is a contribution when nothing met
+  there.** A generator places a value without meeting anything, and a
+  path with no meets still has a source.
+- A value the author never wrote and no template supplied has **no
+  contributions**, and says so. That is a fact about the document, not
+  a failure.
 - `--format json` emits the record: `{path, value, conjuncts:
   [{canon, role, site}]}`, with sites in the same shape the vet report
   uses. Exit codes mirror `get`'s: `0` explained, `1` the path names
@@ -552,6 +563,11 @@ wrote: changes.aon
   against `3`, the verdict is `invalid`, and the finding names the
   pinning site — which [`aontu why`](#aontu-why) then explains.
   `--in-place` closes that loop.
+- **A path reached through a reference is refused** (`patch_not_editable`).
+  `n: $.base` against `base: 7` is pinned by `base`'s line, not by
+  `n`'s: splicing there would rewrite the referent for every reader of
+  it and leave the named path where it was. The assignment is appended
+  instead, exactly as it would be without the flag.
 - **`--in-place` rewrites the literal where the author wrote it.** The
   span at `(row, col, len)` is replaced and nothing else is touched, so
   comments and layout survive — including a comment on the edited line.

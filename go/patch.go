@@ -422,12 +422,32 @@ func editableLiteral(
 
 	literals := []WhyConjunct{}
 	indirect := []WhyConjunct{}
+	refs := []WhyConjunct{}
 	for _, c := range report.Record.Conjuncts {
+		if "ref" == c.Role {
+			refs = append(refs, c)
+		}
 		if "literal" == c.Role {
 			literals = append(literals, c)
 		} else if "pref" != c.Role {
 			indirect = append(indirect, c)
 		}
+	}
+
+	// A VALUE REACHED THROUGH A REFERENCE IS NOT THIS PATH'S TO EDIT.
+	// Provenance travels through clones now, so `n: $.base` against
+	// `base: 7` reports the literal `7` -- correctly, and at the site
+	// where it was written, which is `base`'s line and not `n`'s. A
+	// splice there would rewrite the REFERENT: every other reader of
+	// `$.base` changes with it, and the path the caller named does not
+	// move at all. The reference is what stands here, so the reference
+	// is what has to be edited, wherever it points.
+	if 0 < len(refs) {
+		f := notEditable("patch_not_editable", path,
+			"the value here is reached through a reference (ref), so the "+
+				"literal below belongs to the path it points at; edit where "+
+				"it comes from", refs)
+		return nil, &f
 	}
 
 	if 1 < len(literals) {

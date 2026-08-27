@@ -472,6 +472,30 @@ absolute path, and the printed name is the one the caller's own
 spelling reaches (`displayFile`, both ports), so a report stays
 openable from the invoking directory and repo-relative in SARIF.
 
+### Provenance is part of the clone contract
+
+The `why` recorder answers "which line set this value", and a model
+that uses templates, generators or references reaches most of its
+values by CLONING what the author wrote. So the authored mark lives ON
+the value (`WRITTEN` / `base.fwrt`), and every place that carries a
+value's SITE carries the mark with it — `Val.clone`, `Val.place`, the
+disjunct fold. Deciding authorship by looking an id up in a set
+stamped over the parsed tree is the shape that made `why` answer
+"nothing met at this path" over values it had just printed
+(use-cases/BUGS.md §22–24). Two rules hold it up:
+
+- A value the engine MINTS is constructed rather than cloned and stays
+  unmarked. That is what keeps the record to what the author can edit.
+- A MEMBER is not a value beside its container (`INNER_OF` /
+  `base.finner`): `*1|integer` is one thing the author wrote. The
+  containment is recorded as a fact about the document at stamping
+  time, never inferred from what the fixpoint happened to meet — the
+  latter is what made identical siblings answer differently.
+
+The extra reach is why `set --in-place` refuses a path reached through
+a reference: the literal it correctly reports belongs to the referent's
+line, and splicing there rewrites it for every reader.
+
 ### Colour is a decision about the destination
 
 `NO_COLOR` (set, to anything) turns error-frame ANSI off for every

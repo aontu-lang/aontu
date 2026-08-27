@@ -200,6 +200,22 @@ func clonePathRec(v Val, path []string, deep bool) Val {
 	// kind for the reason the two above are.
 	out.setPos(v.pos())
 	out.setPosu(v.posu())
+	// PROVENANCE TRAVELS WITH THE CLONE, exactly as the site does, and
+	// for the same reason: a clone of a value the author wrote IS that
+	// written value somewhere else, carrying the author's site, so it
+	// can be pointed at. Without it a default reaching a generated
+	// child, or a shape carried by a $ref, was invisible to `why` --
+	// which answered "nothing met at this path" over a value it had
+	// just printed (the review's finding E). And a clone of a member is
+	// still a member of the written container, so the whole statement
+	// is what gets shown. Both marks are set only by an instrumented
+	// run. See base.fwrt and base.finner.
+	if v.written() {
+		out.setWritten()
+	}
+	if nil != v.innerOf() {
+		out.setInnerOf(v.innerOf())
+	}
 	return out
 }
 

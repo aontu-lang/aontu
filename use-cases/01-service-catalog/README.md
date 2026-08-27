@@ -327,13 +327,30 @@ $.deploy.regions.eu1.clusters.core.workloads.payments.tier = 1
   (no contributions: nothing met at this path)
 ```
 
-`tier = 1` was written in `catalog.aon`; the deploy position reports
+`tier = 1` was written in `catalog.aon`; the deploy position reported
 *nothing met*. In a smaller two-file experiment the asymmetry pointed
 the other way (the later-declared position had the full story). An
-agent using `why` for ground-truth attribution gets a correct value
+agent using `why` for ground-truth attribution got a correct value
 with a wrong "nobody wrote this". Also minor: contributions that
-arrive via a referenced spread template print `(spread)` with an empty
-source position.
+arrived via a referenced spread template printed `(spread)` with an
+empty source position.
+
+**Mostly closed 2026-08-27** (the review's finding E, `BUGS.md` §22–24).
+Provenance is part of the clone contract now, so the deploy position
+answers:
+
+```
+$.deploy.regions.eu1.clusters.core.workloads.payments.tier = 1
+  1. (1|2)|3  .../spec.aon:27:11
+```
+
+The falsehood is gone, and the empty-site spread contribution with it
+(it now carries the template's real position). What remains is a
+NARROWING rather than a silence: the id-merge carries the resolved
+member into this position, and the `catalog.aon` line that selected it
+met at the *catalog* path, so this position names the schema row that
+admits the value instead. Check 7 pins both halves — the file is
+named, and "no contributions" must not come back.
 
 ### Gap 10 (minor): error cosmetics — misattributed source snippets
 

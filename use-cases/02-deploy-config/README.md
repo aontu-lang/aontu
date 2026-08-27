@@ -92,7 +92,7 @@ real CLI output (ANSI stripped), reproduced by the checks.
     2. **"debug"|string  .../team-defaults.aon:15:27
   ```
 
-  (But see gap 3 for what happens at generated paths.)
+  (Generated paths answer too, since gap 3 was fixed.)
 - **`vet` is a properly engineered CI gate.** Exit codes are a
   contract (0/1/2/3/4); findings carry the code, the path, expected
   vs actual, and *both* the data and schema locations:
@@ -190,10 +190,10 @@ default and an enforced bound in the model: conjunct form kills the
 default (gap 1), disjunct form killed the bound. This is why
 `guardrails.aon` exists and why `check.sh` vets the built output.
 
-### 3. (major) `why` is blind through `pack()` — attribution stops at the generator
+### 3. (major, FIXED 2026-08-27) `why` is blind through `pack()` — attribution stops at the generator
 
 At a generated workload path, the org and team layers that actually
-supplied the value are invisible:
+supplied the value were invisible:
 
 ```
 $ aontu why '$.deploy.dev.workloads.web.logLevel' stack.aon
@@ -201,8 +201,8 @@ $.deploy.dev.workloads.web.logLevel = **"debug"|string
   (no contributions: nothing met at this path)
 ```
 
-Overlay contributions that arrive via a spread fare little better —
-located only as `(spread)`:
+Overlay contributions arriving via a spread fared little better —
+located only as `(spread)`, with no position at all:
 
 ```
 $.deploy.prod.workloads.billing.replicas = 12
@@ -212,9 +212,29 @@ $.deploy.prod.workloads.billing.replicas = 12
 ```
 
 For the flagship "why is prod configured this way?" question, the
-answer is complete only for values written literally at their final
-path. Since `pack()` is also the anti-drift mechanism, the two
-headline features currently undercut each other.
+answer was complete only for values written literally at their final
+path — and since `pack()` is also the anti-drift mechanism, the two
+headline features undercut each other.
+
+**Fixed** (the review's finding E, `BUGS.md` §22–24): provenance is
+part of the clone contract now, so a value that reached a path by
+being copied is reported as the value the author wrote, at the line
+they wrote it on. The generated path answers, and the spread carries
+its real position:
+
+```
+$ aontu why '$.deploy.dev.workloads.web.logLevel' stack.aon
+$.deploy.dev.workloads.web.logLevel = **"debug"|***"info"|string
+  1. **"debug"|***"info"|string  .../team-defaults.aon:15:27
+
+$ aontu why '$.deploy.prod.workloads.billing.replicas' stack.aon
+$.deploy.prod.workloads.billing.replicas = 12
+  1. *4|integer  .../envs/prod.aon:11:13  (spread)
+  2. 12  .../envs/prod.aon:18:13
+  3. ***2|integer  .../org-policy.aon:32:15
+```
+
+Checks 13–15 pin all three.
 
 ### 4. (major) No computed value can live in — or be merged into — a generated child
 
@@ -408,10 +428,10 @@ None of that exists in `helm template` + `values.yaml`, where a
 misspelt key is simply ignored.
 
 **The generator layer is where it loses to CUE today.** The moment
-`pack()` enters — and it must, for anti-drift — attribution goes blind
-(gap 3), computed fields die (gap 4), `close()` corrupted silently
-(gap 5 — fixed 2026-08-26), and spreads cross-wired (gap 6 — fixed
-2026-08-26). Combined with no arithmetic
+`pack()` enters — and it must, for anti-drift — computed fields die
+(gap 4). Attribution went blind there too (gap 3 — fixed 2026-08-27),
+`close()` corrupted silently (gap 5 — fixed 2026-08-26), and spreads
+cross-wired (gap 6 — fixed 2026-08-26). Combined with no arithmetic
 beyond `+` (gap 7), no projection (gap 8) and the default-vs-bound
 dilemma (gaps 1–2), real policies end up split between the model and a
 side-car vet schema. The split (build then vet) is workable — this use

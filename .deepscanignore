@@ -1,0 +1,18 @@
+# Files a SOURCE analyser should not review, because they are not
+# source: they are build output that this repository happens to commit.
+#
+# ts/dist and ts/dist-test are the compiled TypeScript (AGENTS.md
+# explains why they are checked in, and CI has a staleness gate to keep
+# them honest). Reviewing them reports every finding TWICE -- once
+# against the line the author wrote and once against the line tsc
+# emitted for it -- and reports transpiler artefacts as defects of code
+# nobody wrote.
+#
+# web/aontu-bundle.js is the esbuild bundle of the same tree, minified,
+# and says "Do not edit" in its first line.
+#
+# Everything a person writes is still analysed: ts/src, ts/test,
+# web/build, and the playground's own scripts.
+ts/dist/
+ts/dist-test/
+web/aontu-bundle.js
