@@ -10,7 +10,7 @@
     "aontu-mcp": "bin/aontu-mcp.js"
   },
   "description": "JSON-superset unification language and validation gate for AI-agent ground truth - evaluate, vet, diff, query, and evolution-check structured models.",
-  "homepage": "https://github.com/rjrodger/aontu",
+  "homepage": "https://github.com/aontu-lang/aontu",
   "keywords": [
     "unify",
     "unification",
@@ -28,7 +28,7 @@
   "author": "Richard Rodger (http://richardrodger.com)",
   "repository": {
     "type": "git",
-    "url": "git://github.com/rjrodger/aontu.git"
+    "url": "git+https://github.com/aontu-lang/aontu.git"
   },
   "scripts": {
     "test": "node --enable-source-maps --test \"dist-test/**/*.test.js\"",
