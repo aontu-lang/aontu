@@ -107,6 +107,12 @@ documents argue and specify; what each verb actually does is in the
 been built phase by phase is recorded in the
 [progress register](capability-review/progress.md).
 
+The project site — [aontu.dev](https://aontu.dev), not yet live — is
+planned in [`site/`](site/index.md): what it serves, and where each
+page's content comes from (this documentation set is *rendered* there,
+not rewritten). The steps that stand it up outside a session are in
+[`site/manual-tasks.md`](site/manual-tasks.md).
+
 ### Why the split?
 
 The four kinds of document answer four different questions and are kept
