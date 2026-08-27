@@ -1,0 +1,122 @@
+# AGGREGATION -- sum, least and greatest over a finite, settled bag.
+#
+# Columns: name<TAB>mode<TAB>src<TAB>expect
+#
+# The review's finding I: "`length()` counts but nothing sums: an
+# invoice total, a fleet-wide resource budget, a quota roll-up -- all
+# inexpressible." A fold over a bag the model already holds is as TOTAL
+# as `each` is: no recursion, no user-supplied step, each child visited
+# once. That is why these are built-ins rather than a `fold` combinator
+# -- a fold takes a function, and this language has none to give it.
+#
+# EVERY EXPECTATION HERE WAS OBTAINED BY RUNNING BOTH ENGINES AND
+# DIFFING. `canon` rather than `gen`, because half of what these promise
+# is the KIND of the answer and a gen row cannot see one.
+#
+# THE NAMES ARE `least` AND `greatest`, NOT `min` AND `max`: those two
+# are already the constraint atoms for a lower and an upper BOUND, and
+# an aggregate over a set is a different thing from a bound on a value.
+#
+# WHAT THE ROWS PIN:
+#
+#   sum FOLDS WITH add, so the number tower's whole law arrives with it
+#   (see arith.tsv): the exact ladder (agg-sum-ladder), R5 contagion
+#   (agg-sum-float-contagion), and the refusal to store a result that
+#   will not fit (agg-sum-overflow).
+#
+#   sum([]) IS 0 and least([]) IS AN ERROR. Addition has an identity, so
+#   the empty sum is answerable; comparison has none, and answering with
+#   a zero or an infinity would invent a value the data does not
+#   contain.
+#
+#   COMPARISON IS EXACT, never through binary64: 2^53+1 as a biginteger
+#   and 2^53 as an integer have the SAME float image, so a port
+#   comparing through doubles would call them equal and return whichever
+#   it saw first. agg-least-exact-compare and agg-greatest-exact-compare
+#   are that pair.
+#
+#   THE WINNER KEEPS ITS OWN KIND (agg-least-keeps-kind): least is one
+#   of the elements, not a new value computed from them.
+#
+#   ORDER IS each's ORDER -- source order for a list, sorted-key order
+#   for a map -- which matters for nothing here except that it is
+#   stated, since every operation is commutative.
+#
+# THE ERROR ROWS PIN CODES, NOT MESSAGES, and deliberately: where an
+# argument is an unresolved reference the two ports render the failing
+# call's own canon differently inside the frame (TS `sum(nil)`, Go
+# `sum($.a)`). That is pre-existing frame prose -- `upper($.a)` diverges
+# the same way and predates this family -- and no row pins it.
+
+agg-sum-list	canon	x:sum([1,2,3])	{"x":6}
+agg-sum-empty	canon	x:sum([])	{"x":0}
+agg-sum-map	canon	x:sum({a:1,b:2,c:3})	{"x":6}
+agg-sum-float-contagion	canon	x:sum([1,2.5])	{"x":3.5}
+agg-sum-bigdecimal	canon	x:sum([0d1.5,0d2.5])	{"x":0d4.0}
+agg-sum-ladder	canon	x:sum([0d1,2])	{"x":0d3}
+agg-sum-pref-member	canon	x:sum([1,pref(2)])	{"x":3}
+agg-sum-single	canon	x:sum([7])	{"x":7}
+agg-least-list	canon	x:least([3,1,2])	{"x":1}
+agg-greatest-list	canon	x:greatest([3,1,2])	{"x":3}
+agg-least-map	canon	x:least({a:3,b:1})	{"x":1}
+agg-greatest-map	canon	x:greatest({a:3,b:1})	{"x":3}
+agg-least-single	canon	x:least([1])	{"x":1}
+agg-least-keeps-kind	canon	x:least([0d1.5,2])	{"x":0d1.5}
+agg-least-pref-member	canon	x:least([pref(5),9])	{"x":5}
+agg-sum-over-each	canon	x:sum(each({p:1,q:2}))	{"x":3}
+# A bag that is not yet resolved residuates and the call is rebuilt.
+agg-forward-reference	canon	y:sum($.x)\nx:[1,2]	{"x":[1,2],"y":3}
+agg-greatest-exact-compare	canon	x:greatest([0d9007199254740993,9007199254740992])	{"x":0d9007199254740993}
+agg-least-exact-compare	canon	x:least([0d9007199254740993,9007199254740992])	{"x":9007199254740992}
+
+# The refusals.
+agg-least-empty	errc	x:least([])	aggregate_empty
+agg-greatest-empty	errc	x:greatest([])	aggregate_empty
+agg-sum-not-a-bag	errc	x:sum(3)	aggregate_data
+agg-least-not-a-bag	errc	x:least("a")	aggregate_data
+agg-sum-string-member	errc	x:sum(["a"])	invalid-arg
+agg-least-string-member	errc	x:least(["a",1])	invalid-arg
+agg-sum-overflow	errc	x:sum([4503599627370496,4503599627370497])	inexact_integer_sum
+agg-arity	errc	x:sum([1],[2])	func_arity
+
+# PROJECTION -- pick(d, k): one element per child of d, being that
+# child's k.
+#
+# The other half of finding I. Without it the aggregates above cannot
+# reach the case that motivated them, because `sum` needs a bag of
+# NUMBERS and a model holds a bag of RECORDS:
+#
+#   total: sum(pick($.lines, amountCents))
+#
+# IT IS NOT `each` WITH A CLEVER TEMPLATE. each(d, t) MEETS each child
+# with t, and a meet cannot select: `each($.lines, _.amount)` asks for a
+# child that is simultaneously the whole record and one of its fields,
+# which is why every spelling of it answers no_path.
+#
+# A CHILD MISSING THE KEY IS AN ERROR (pick_key), not a silently shorter
+# list -- skipping would make the aggregate over it total a DIFFERENT
+# set of records than the one the author named. A list child takes an
+# INDEX, spelled as a reference segment is (pick-list-index), and an
+# index past the end is the same refusal as a missing key.
+
+pick-list-of-maps	canon	x:pick([{a:1},{a:2}],a)	{"x":[1,2]}
+pick-map-of-maps	canon	x:pick({p:{a:1},q:{a:2}},a)	{"x":[1,2]}
+pick-list-index	canon	x:pick([[9],[8]],0)	{"x":[9,8]}
+pick-empty-bag	canon	x:pick([],a)	{"x":[]}
+pick-then-sum	canon	x:sum(pick([{a:1},{a:2}],a))	{"x":3}
+pick-then-greatest	canon	x:greatest(pick([{a:1},{a:5}],a))	{"x":5}
+pick-keeps-kind	canon	x:least(pick([{a:0d1.5},{a:2}],a))	{"x":0d1.5}
+pick-nested-value	canon	x:pick([{a:{b:1}}],a)	{"x":[{"b":1}]}
+pick-missing-key	errc	x:pick([{a:1},{b:2}],a)	pick_key
+pick-not-a-bag	errc	x:pick(3,a)	aggregate_data
+pick-key-not-a-name	errc	x:pick([{a:1}],[1])	invalid-arg
+# A FLOAT is not an index either: a list position is an integer, and
+# `0.0` is not the spelling a reference segment would use for one.
+pick-key-float-index	errc	x:pick([[9]],0.0)	invalid-arg
+# ... nor a null, nor a kind: the key names a field, and only a
+# string or an integer index can.
+pick-key-null	errc	x:pick([{a:1}],null)	invalid-arg
+pick-key-kind	errc	x:pick([{a:1}],integer)	invalid-arg
+pick-scalar-child	errc	x:pick([1,2],a)	pick_key
+pick-index-out-of-range	errc	x:pick([[9]],3)	pick_key
+pick-arity	errc	x:pick([{a:1}])	func_arity

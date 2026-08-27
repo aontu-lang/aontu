@@ -147,9 +147,15 @@ probe_fails default-with-bounds '[aontu/mapval_no_gen]' \
 # child (was [aontu/no_path] at a NaN key), so this moved from the
 # expected-failure probes to the goldens below. Shared-spec pin:
 # test/spec/gen-pack.tsv pack-rel-ref-in-expr.
-probe_fails hole-member-access '[aontu/no_path]' \
-  "_.field projection is unspellable"
-has p-hole-member-access 'unspellable' "unspellable in diagnostic"
+# 2026-08-27: the projection this probe was reaching for is WRITABLE
+# now. `_.ports` is still refused -- it asks for a value that is both
+# the whole source row and one of its fields -- but pick(d, k) is the
+# projector the language gained, and `pick([_], ports)` wraps the hole
+# in a one-element bag and projects it. Clunkier than `_.ports`, and a
+# spelling rather than nothing at all.
+run p-hole-member-access 0 "$DIR/probes/hole-member-access.aon"
+has p-hole-member-access '"containerPort": 8080' "the projected field"
+ok "probe hole-member-access: pick([_], k) projects out of the pack row"
 probe_fails each-reshape-scalar '[aontu/scalar_kind]' \
   "each cannot reshape scalar children into maps"
 probe_fails join-list '[aontu/mapval_no_gen]' \
@@ -210,6 +216,12 @@ probe_golden quantity-concat \
   "quantity strings concatenate: '256Mi'+'256Mi' is '256Mi256Mi', exit 0"
 grep -q '256Mi256Mi' "$DIR/expected/quantity-concat.json" \
   || die "quantity-concat golden lost its point"
+# ... and 2026-08-27, the spelling that does NOT quietly answer. `+`
+# stays polymorphic (the golden above is unchanged); the arithmetic
+# family is numeric, so add() on two quantity strings is refused where
+# it is written. The review's finding I named this exact case.
+probe_fails quantity-add-refused '[aontu/invalid-arg]' \
+  "add('256Mi','256Mi') is refused where '+' silently concatenates"
 # 2026-08-26: fixed by the spread application rework (see the note in
 # the probe_fails block above) — the DRY port-column derivation works:
 # the nested spread's port/targetPort reach both the tree and the

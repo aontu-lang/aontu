@@ -24,6 +24,7 @@ type ConstraintState = {
     res: ReAtom[];
     count?: ConstraintState;
     uniq: boolean;
+    uniqBy: string[];
     musts: MustAtom[];
     clash?: boolean;
     invalid?: string;
@@ -40,6 +41,7 @@ declare class ConstraintVal extends FeatureVal {
     res: ReAtom[];
     count?: ConstraintState;
     uniq: boolean;
+    uniqBy: string[];
     musts: MustAtom[];
     pending?: {
         atom: string;

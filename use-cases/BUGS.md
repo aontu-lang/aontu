@@ -912,6 +912,52 @@ verb that quietly dropped the flag again would fail; the hover tests
 probe every column of the line and carry an unconfined control, so they
 assert the capability rather than hover failing everywhere.
 
+---
+
+## arithmetic — a non-finite result with no code, and no way to say it
+
+### 39. A float sum that overflows escapes as an internal error, differently in each port [major]
+`1.0e308 + 1.0e308` is not a value Aontu can carry — the language is a
+JSON superset with no notation for an infinity, and no JSON a generator
+could emit for one. Neither port said so. TypeScript crashed with
+`[aontu/internal]` ("Internal error during unification"), which is the
+engine reporting a bug in itself; Go leaked its marshaller's raw
+`json: unsupported value: +Inf`, with no `[aontu/…]` banner, no site,
+and no line of source — the one shape a harness grepping `\[aontu/`
+cannot see at all. A CLI test in the Go port even *pinned* the
+marshaller error as expected behaviour.
+
+**Status: FIXED 2026-08-27, with the arithmetic family.** A non-finite
+binary64 result is now `float_overflow`, located at the operation, in
+both ports — the number model's own rule (docs/design/number-model.md,
+rule 4: "an infinite or NaN result is a located error, not a value")
+applied where it was reachable. `PlusOpVal.operate` and its Go twin go
+through the same check the six new arithmetic functions do
+(`ts/src/val/arith.ts`, `go/arith.go`). The Go CLI test that pinned the
+old behaviour now asserts the new one, and `render`'s encode-error
+branch is marked unreachable with its reason: with the engine refusing
+every non-finite float, no generated value reaches the encoder that it
+cannot encode. Pinned by `arith-plus-float-overflow` and
+`arith-float-overflow` in `test/spec/arith.tsv`.
+
+### 40. The published grammar cannot parse a relative reference [minor]
+`grammar/aontu.lark` and `grammar/aontu.gbnf` — the grammars shipped
+for LLM-constrained generation — had a production for an ABSOLUTE
+reference (`$.a.b`) and none at all for a RELATIVE one (`.a`). Canon
+emits a relative reference wherever a spread template survives
+unresolved (`{&:{v:add(.n,1)}}` canons with the `.n` intact), so the
+engine could print output its own published grammar refuses. A model
+generating under the gbnf could not write the sibling reference the
+language's own examples use.
+
+**Status: FIXED 2026-08-27.** Both grammars gained
+`ref: ("." segment)+` beside the `$` form. There is no ambiguity with
+a numeric literal, which always starts with a digit or `-`. Found by
+the repository's own `every-canon-output-parses-under-the-published-grammar`
+test the moment a canon row emitted one — which is exactly what that
+test is for, and why the row (`arith-in-spread-template`) is worth
+having beyond the behaviour it pins.
+
 ## Elsewhere in this review
 
 Defects verified earlier in the effort and recorded in

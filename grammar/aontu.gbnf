@@ -67,23 +67,33 @@ element ::= spread | value
 #
 # ORDER MATTERS where one name is a prefix of another: this is an
 # ordered choice, so `refer` is listed before `re` or `re` would match
-# the prefix and the `(` check would then fail on `refer(...)`.
+# the prefix and the `(` check would then fail on `refer(...)`. The
+# arithmetic family added a second such pair: `rem` must also precede
+# `re`.
 func ::= name "(" ws ( value ( ws "," ws value )* ws )? ")"
 
 name ::=
-    "above" | "below" | "close" | "copy" | "deprecate" | "each" | "filter"
+    "above" | "add" | "below" | "close" | "copy" | "deprecate" | "div"
+  | "each" | "filter" | "greatest"
   | "hide"
-  | "id" | "key"
-  | "length" | "lower" | "match" | "max" | "min" | "move" | "must"
+  | "id" | "key" | "least"
+  | "length" | "lower" | "match" | "max" | "min" | "mod" | "move"
+  | "mul" | "must"
   | "neq"
-  | "open" | "pack" | "path" | "pref" | "refer" | "re" | "super"
+  | "open" | "pack" | "path" | "pick" | "pref" | "refer" | "rem" | "re" | "super"
+  | "sub" | "sum"
   | "type"
   | "unique" | "upper"
 
 # A path reference, absolute from the document root.
 # At least one segment: a bare `$` is an incomplete expression, not a
 # reference, so `*` here admitted a form the engine refuses.
-ref ::= "$" ( "." segment )+
+# A RELATIVE reference has no "$": `.n` names a sibling, resolved
+# against the enclosing map rather than the document root. Canon emits
+# one wherever a spread template survives unresolved, so a grammar
+# without it cannot parse this engine's own output. No conflict with
+# `number`: a numeric literal here always starts with a digit or "-".
+ref ::= "$" ( "." segment )+ | ( "." segment )+
 
 # No `-`: it is not a bare-text character (test/spec/op-chars.tsv pins
 # `a:6-2` as a parse error), so admitting it over-approximated.

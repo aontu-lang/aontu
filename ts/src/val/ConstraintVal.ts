@@ -115,6 +115,8 @@ type ConstraintState = {
                            // over the integer domain -- the count atom reuses
                            // this same algebra recursively
   uniq: boolean   // members must be pairwise distinct (unique())
+  uniqBy: string[]  // ... and distinct ON EACH OF THESE KEYS
+                    // (unique(k)), sorted and deduplicated
   musts: MustAtom[]  // Band B checks, kept in written order, never simplified
   clash?: boolean // a kind disagreement inside a length() argument, recorded
                   // rather than raised: the argument's own meet has no
@@ -603,6 +605,7 @@ class ConstraintVal extends FeatureVal {
   res: ReAtom[] = []
   count?: ConstraintState
   uniq = false
+  uniqBy: string[] = []
   musts: MustAtom[] = []
   // An atom whose arguments have not settled yet (G1 phase 4). Held
   // until unify has a ctx to resolve them through; never present on a
@@ -629,6 +632,7 @@ class ConstraintVal extends FeatureVal {
       this.res = spec.state.res ?? []
       this.count = spec.state.count
       this.uniq = spec.state.uniq ?? false
+      this.uniqBy = spec.state.uniqBy ?? []
       this.musts = spec.state.musts ?? []
       this.invalid = spec.state.invalid
     }
@@ -655,7 +659,8 @@ class ConstraintVal extends FeatureVal {
       }
     }
 
-    if (null != this.count || this.uniq || 0 < this.musts.length ||
+    if (null != this.count || this.uniq || 0 < this.uniqBy.length ||
+      0 < this.musts.length ||
       (null != this.pending && lateAtom(this.pending.atom))) {
       this.cjo = LATE_CJO
     }
@@ -686,11 +691,22 @@ class ConstraintVal extends FeatureVal {
       this.invalid = why
     }
 
-    // `unique()` takes no argument: it is a property of the container,
-    // not a comparison against a value. Arity is checked at parse, so a
-    // written argument never reaches here.
+    // `unique()` is a property of the container -- not a comparison
+    // against a value -- so with no argument it says the members are
+    // pairwise DISTINCT. THE ONE ARGUMENT IS A PROJECTOR (the review's
+    // finding I: "unique()-by-field is reserved but absent", and the
+    // arity was reserved for exactly this): `unique(port)` says no two
+    // members share a `port`, which is how "no two services share a
+    // port" and "event ids are unique" are said.
     if ('unique' === atom) {
-      this.uniq = true
+      if (0 === args.length) {
+        this.uniq = true
+        return
+      }
+      if (1 !== args.length || !stringLeaf(args[0])) {
+        return bad('invalid-arg')
+      }
+      this.uniqBy = [args[0].peg]
       return
     }
 
@@ -946,8 +962,9 @@ class ConstraintVal extends FeatureVal {
   // Membership: the peer scalar passes every part of the residual, or
   // the whole meet is a located conflict.
   private admit(peer: any, ctx: AontuContext): Val {
-    // No scalar has members, so a `unique()` residual admits none.
-    if (this.uniq) {
+    // No scalar has members, so a `unique()` residual admits none --
+    // and neither does a `unique(k)` one, for the same reason.
+    if (this.uniq || 0 < this.uniqBy.length) {
       return this.fail(ctx, peer)
     }
     if (!stateAdmits(this, peer)) {
@@ -1025,7 +1042,7 @@ class ConstraintVal extends FeatureVal {
       return bad
     }
 
-    if (!this.uniq && null == this.count) {
+    if (!this.uniq && 0 === this.uniqBy.length && null == this.count) {
       return peer
     }
 
@@ -1049,6 +1066,26 @@ class ConstraintVal extends FeatureVal {
       const seen = new Set<string>()
       for (const m of members) {
         const key = m.canon
+        if (seen.has(key)) {
+          return this.fail(ctx, peer)
+        }
+        seen.add(key)
+      }
+    }
+
+    // ... and the same test per PROJECTED key. A member that has no such
+    // key FAILS the constraint rather than being skipped: distinctness
+    // it cannot be shown to have is distinctness it does not have, and
+    // skipping would let one keyless record hide a duplicate.
+    for (const field of this.uniqBy) {
+      const seen = new Set<string>()
+      for (const m of members) {
+        const at: any = true === (m as any).isMap ?
+          (m as any).peg[field] : undefined
+        if (null == at) {
+          return this.fail(ctx, peer)
+        }
+        const key = at.canon
         if (seen.has(key)) {
           return this.fail(ctx, peer)
         }
@@ -1129,6 +1166,11 @@ class ConstraintVal extends FeatureVal {
       null == peer.count ? this.count : meetCount(this.count, peer.count)
     // `unique()` is idempotent: two of them are one.
     merged.uniq = this.uniq || peer.uniq
+    // `unique(a) & unique(b)` is BOTH, not the later one: each names a
+    // key on which the members must differ, and dropping either would
+    // silently weaken the constraint. Sorted and deduplicated, so the
+    // meet is commutative and `unique(a) & unique(a)` is one atom.
+    merged.uniqBy = [...new Set([...this.uniqBy, ...peer.uniqBy])].sort()
     // Band B checks accumulate in written order and are never merged,
     // deduplicated or reordered: each carries its own author message,
     // and two checks with the same shape may still say different things.
@@ -1177,6 +1219,7 @@ class ConstraintVal extends FeatureVal {
       res: [...this.res],
       count: this.count,
       uniq: this.uniq,
+      uniqBy: [...this.uniqBy],
       musts: [...this.musts],
       invalid: this.invalid,
     }
@@ -1196,6 +1239,7 @@ class ConstraintVal extends FeatureVal {
     out.res = [...this.res]
     out.count = this.count
     out.uniq = this.uniq
+    out.uniqBy = [...this.uniqBy]
     out.musts = [...this.musts]
     out.pending = this.pending
     out.cjo = this.cjo
@@ -1378,6 +1422,12 @@ function canonState(s: ConstraintState): string {
   if (s.uniq) {
     parts.push('unique()')
   }
+  // After the bare atom, and sorted: canon is a normal form, so two
+  // documents writing the same keys in different orders must render
+  // the same string.
+  for (const key of s.uniqBy) {
+    parts.push('unique(' + JSON.stringify(key) + ')')
+  }
   for (const m of s.musts) {
     parts.push('must(' + m.v.canon + ',' + m.msg.canon + ')')
   }
@@ -1402,11 +1452,13 @@ function constraintStateSubsumes(
   g: {
     domain?: 'number' | 'string', kind?: any, lo?: Bound, hi?: Bound,
     neqs: any[], res: ReAtom[], count?: ConstraintState, uniq: boolean,
+    uniqBy: string[],
     musts: MustAtom[],
   },
   s: {
     domain?: 'number' | 'string', kind?: any, lo?: Bound, hi?: Bound,
     neqs: any[], res: ReAtom[], count?: ConstraintState, uniq: boolean,
+    uniqBy: string[],
     musts: MustAtom[],
   },
 ): boolean | 'undecided' {
@@ -1471,6 +1523,12 @@ function constraintStateSubsumes(
 
   // `unique()` subsumes only itself on that axis: a general uniqueness
   // demand admits no container the unconstrained specific also admits.
+  // ... and a general `unique(k)` needs the same key on the specific
+  // side: distinctness on `port` says nothing about distinctness on
+  // `name`.
+  if (g.uniqBy.some((k: string) => !s.uniqBy.includes(k))) {
+    return false
+  }
   if (g.uniq && !s.uniq) {
     return false
   }
@@ -1500,7 +1558,7 @@ function constraintAdmitsScalar(
   if (0 < g.musts.length) {
     return 'undecided'
   }
-  if (g.uniq) {
+  if (g.uniq || 0 < g.uniqBy.length) {
     return false
   }
   // A count residual admits by LENGTH, which is the meet's business;
@@ -1630,7 +1688,8 @@ function stateEmpty(s: ConstraintState): boolean {
   // members, so `integer & length(3)` and `min(2) & unique()` admit
   // nothing. Uniqueness over the string domain is empty for the same
   // reason -- a string's members are not values the algebra compares.
-  if ('number' === d && (null != s.count || s.uniq)) {
+  if ('number' === d && (null != s.count || s.uniq ||
+    0 < s.uniqBy.length)) {
     return true
   }
   if ('string' === d && s.uniq) {
@@ -1659,7 +1718,9 @@ function countBase(): ConstraintState {
     neqs: [],
     res: [],
     musts: [],
+    // A COUNT is a number, and a number has no members to be distinct.
     uniq: false,
+    uniqBy: [],
   }
 }
 
@@ -1689,6 +1750,7 @@ function meetCount(a: ConstraintState, b: ConstraintState): ConstraintState {
     res: [],
     musts: [],
     uniq: false,
+    uniqBy: [],
     clash: true === a.clash || true === b.clash ||
       (null != a.kind && null != b.kind && a.kind !== b.kind),
   }
@@ -1713,7 +1775,7 @@ function countArgState(arg: any): ConstraintState | undefined {
       domain: 'number',
       lo: { v: arg, open: false },
       hi: { v: arg, open: false },
-      neqs: [], res: [], musts: [], uniq: false,
+      neqs: [], res: [], musts: [], uniq: false, uniqBy: [],
     }
   }
 
@@ -1721,7 +1783,8 @@ function countArgState(arg: any): ConstraintState | undefined {
     const c = arg as ConstraintVal
     // A pattern, a sizing atom or a string bound inside a count is not
     // a count constraint at all, and neither is a broken one.
-    if (null != c.invalid || 0 < c.res.length || c.uniq || null != c.count ||
+    if (null != c.invalid || 0 < c.res.length || c.uniq ||
+      0 < c.uniqBy.length || null != c.count ||
       'number' !== c.domain) {
       return undefined
     }
@@ -1731,18 +1794,24 @@ function countArgState(arg: any): ConstraintState | undefined {
       lo: c.lo,
       hi: c.hi,
       neqs: [...c.neqs],
-      res: [], musts: [], uniq: false,
+      res: [], musts: [], uniq: false, uniqBy: [],
     }
   }
 
   if (true === arg?.isScalarKind) {
     const marker = arg.peg
     if (Number === marker) {
-      return { domain: 'number', neqs: [], res: [], musts: [], uniq: false }
+      return {
+        domain: 'number', neqs: [], res: [], musts: [],
+        uniq: false, uniqBy: [],
+      }
     }
     if (Integer === marker || Float === marker ||
       BigInteger === marker || BigDecimal === marker) {
-      return { domain: 'number', kind: marker, neqs: [], res: [], musts: [], uniq: false }
+      return {
+        domain: 'number', kind: marker, neqs: [], res: [], musts: [],
+        uniq: false, uniqBy: [],
+      }
     }
     return undefined
   }

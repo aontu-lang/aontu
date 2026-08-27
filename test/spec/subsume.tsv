@@ -186,3 +186,10 @@ pref-lint-nested	vet	b:{p:*x|integer}	b:{p:1}	{"findings":[{"class":"compat","co
 # `*`-wrapper no plain member subsumes, and the lint fired on its own
 # sanctioned fix (use-cases/BUGS.md §4, fixed 2026-08-26).
 pref-lint-ranked-clean	vet	role: **member | member | admin | owner	role: admin	{"findings":[],"truncated":false,"verdict":"valid"}
+# unique(k) subsumes only itself on that axis: a general demand for
+# distinctness on `port` is not met by a specific one about `name`
+# (the review's finding I). A specific that adds a key still
+# subsumes: more distinctness is narrower, which is the direction
+# subsumption allows.
+unique-by-key-subsumes	subsume	a:unique(p)	a:unique(p)&unique(q)	{"findings":[],"verdict":"subsumes"}
+unique-by-key-does-not-subsume	subsume	a:unique(p)	a:unique(q)	{"findings":[{"actual":"unique(\\"q\\")","class":"compat","code":"compat_narrowed","expected":"unique(\\"p\\")","path":"$.a","severity":"error","sites":[{"col":3,"file":"general","len":6,"role":"general","row":1,"src":"unique","value":"unique(\\"p\\")"},{"col":3,"file":"specific","len":6,"role":"specific","row":1,"src":"unique","value":"unique(\\"q\\")"}]}],"verdict":"does_not_subsume"}

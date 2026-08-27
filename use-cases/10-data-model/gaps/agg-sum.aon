@@ -1,7 +1,22 @@
-# FAILED ATTEMPT (kept executable; check.sh asserts the failure).
-# There is no sum()/fold/reduce, so an invoice total cannot be
-# DERIVED from its lines; length() can count them but nothing can
-# add them. The model's workaround is a self-declared total plus a
-# per-record must() spot check (seed.aon). README, gap 3.
+# README gap 3 -- FIXED 2026-08-27 by the aggregation and projection
+# family.
+#
+# `invoice.total = sum(lines[].amountCents)` was the single most natural
+# invariant in this domain and it was inexpressible: there was no
+# sum/fold/reduce, and `length()` could COUNT members but nothing could
+# ADD them, so the model's totals were self-declared and spot-checked
+# with per-record must() (seed.aon). A model asserting what it should be
+# able to COMPUTE.
+#
+# It takes BOTH halves of the fix. `sum(d)` folds a bag with `add`, so
+# the number tower's law comes with it -- these are integer cents and
+# the total is an exact integer. But `sum` needs a bag of NUMBERS and a
+# model holds a bag of RECORDS, so `pick(d, k)` is what gets from one to
+# the other. `least` and `greatest` land with them.
+# run: aontu gaps/agg-sum.aon
+# expected: {"amounts":[3998,10],"largest":3998,"lines":[...],"total":4008}
+# actual:   {"amounts":[3998,10],"largest":3998,"lines":[...],"total":4008}
 lines: [ { amountCents: 3998 }, { amountCents: 10 } ]
-total: sum($.lines)
+amounts: pick($.lines, amountCents)
+total: sum($.amounts)
+largest: greatest($.amounts)

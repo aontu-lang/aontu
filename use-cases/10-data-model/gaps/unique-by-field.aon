@@ -1,9 +1,19 @@
-# SILENT LIMITATION (kept executable; check.sh asserts this passes,
-# which is the finding). unique() compares WHOLE members by canon;
-# there is no projection, so two customers sharing a ledgerId slip
-# through whenever any other field differs. Uniqueness of one field
-# across a collection is inexpressible. README, gap 8.
-customers: unique() & {
+# README gap 8 -- FIXED 2026-08-27 by unique(k), the projected form.
+#
+# `unique()` compares WHOLE members by canon, so two customers sharing
+# a ledgerId slipped through whenever any other field differed --
+# uniqueness of ONE field across a collection was inexpressible, and
+# the arity for saying it was reserved and unspent (the review's
+# finding I). `unique(ledgerId)` is that spelling: no two members may
+# share the named key.
+#
+# A member with no such key FAILS rather than being skipped.
+# Distinctness that cannot be shown is distinctness the collection does
+# not have, and skipping would let one keyless record hide a duplicate.
+# run: aontu gaps/unique-by-field.aon
+# expected: [aontu/constraint] at $.customers, exit 1
+# actual:   [aontu/constraint] at $.customers, exit 1
+customers: unique(ledgerId) & {
   "cust-1001": { ledgerId: 111, name: "Acme" }
   "cust-1002": { ledgerId: 111, name: "Globex" }
 }

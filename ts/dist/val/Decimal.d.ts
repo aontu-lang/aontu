@@ -8,6 +8,7 @@ declare class Decimal {
     compare(peer: Decimal): number;
     negate(): Decimal;
     add(peer: Decimal): Decimal;
+    multiply(peer: Decimal): Decimal;
     ceil(): Decimal;
     floor(): Decimal;
     private intPart;

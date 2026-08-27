@@ -1,5 +1,22 @@
-# FAILED ATTEMPT (kept executable). No '*' operator exists, so
-# amount = qty * unitCents is inexpressible; ditto net * vatRate.
-# The seed spells "qty 2" as unit + unit and computes VAT off-model.
-# README, gap 3.
-amount: 2 * 1999
+# README gap 3, second half -- FIXED 2026-08-27 by `mul`, though the
+# `*` TOKEN is still refused and stays that way by design.
+#
+# Maths beyond `+` arrives as FUNCTIONS: `-` `*` `/` `%` stay reserved
+# (test/spec/op-chars.tsv), so `2 * 1999` is still a parse refusal and
+# `mul(2, 1999)` is how it is said. The seed's "qty 2 spelled unit +
+# unit" workaround is no longer needed, and neither is computing VAT
+# off-model.
+#
+# The family refuses what `+` would silently answer: `add("500m",
+# "500m")` is an error where `"500m" + "500m"` is the string
+# "500m500m", which is how a Kubernetes quantity becomes nonsense.
+# run: aontu gaps/multiply.aon
+# expected: {"amount":3998,"tenPercent":399,"vatCents":759}
+# actual:   {"amount":3998,"tenPercent":399,"vatCents":759}
+amount: mul(2, 1999)
+# 19% VAT on 3998 cents, in integer cents: multiply FIRST, then divide,
+# so the one truncation happens at the end. 19% of 3998 is 759.62, and
+# div truncates toward zero, so the answer is 759 -- which is the
+# rounding rule stated once rather than inherited from a host.
+vatCents: div(mul($.amount, 19), 100)
+tenPercent: div($.amount, 10)

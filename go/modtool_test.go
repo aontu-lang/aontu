@@ -733,8 +733,8 @@ func TestModVerifyReportsWhatNoStoreHolds(t *testing.T) {
 	dir := t.TempDir()
 	write(t, filepath.Join(dir, "mod-lock.aon"), lockHeader+
 		"{\"lock\":{\"corp.example/absent@1\":{\"canon\":\"aon1-x\",\"oci\":\"\",\"v\":\"1\"},"+
-			"\"corp.example/hollow@1\":{\"canon\":\"aon1-y\",\"oci\":\"\",\"v\":\"1\"},"+
-			"\"not-a-module\":{\"canon\":\"aon1-z\",\"oci\":\"\",\"v\":\"1\"}}}\n")
+		"\"corp.example/hollow@1\":{\"canon\":\"aon1-y\",\"oci\":\"\",\"v\":\"1\"},"+
+		"\"not-a-module\":{\"canon\":\"aon1-z\",\"oci\":\"\",\"v\":\"1\"}}}\n")
 
 	// hollow@1 is vendored as a directory with a mod.aon naming an
 	// entry file that was never written.

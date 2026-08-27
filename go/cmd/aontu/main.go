@@ -214,7 +214,14 @@ func render(a *aontu.Aontu, src, mode string) (string, error) {
 	enc := json.NewEncoder(&buf)
 	enc.SetEscapeHTML(false)
 	enc.SetIndent("", "  ")
-	if err := enc.Encode(out); err != nil {
+	if err := enc.Encode(out); err != nil { //coverage:ignore no generated value is unencodable
+		// UNREACHABLE, and kept anyway. The only values the encoder ever
+		// refused were the non-finite floats `+` could produce, and the
+		// engine now refuses those itself with float_overflow
+		// (go/arith.go, use-cases/BUGS.md 39) -- so nothing that
+		// generates reaches here unencodable. Dropping the check would
+		// buy nothing and would silently print a partial buffer if a
+		// future leaf ever escaped the same way.
 		return "", err
 	}
 	// Encode always appends a newline; emit adds its own.

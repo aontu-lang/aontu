@@ -520,6 +520,9 @@ type ConstraintVal struct {
 	// recursively. nil when the residual says nothing about length.
 	count *ConstraintVal
 	uniq  bool // members must be pairwise distinct (unique())
+	// uniqBy: ... and distinct ON EACH OF THESE KEYS (unique(k)),
+	// sorted and deduplicated.
+	uniqBy []string
 	// musts are Band B checks, kept in written order and never
 	// simplified: each carries its own author message.
 	musts []constraintMust
@@ -559,7 +562,7 @@ func lateAtom(atom string) bool {
 }
 
 func (c *ConstraintVal) cjo() int {
-	if nil != c.count || c.uniq || 0 < len(c.musts) ||
+	if nil != c.count || c.uniq || 0 < len(c.uniqBy) || 0 < len(c.musts) ||
 		(nil != c.pending && lateAtom(c.pending.atom)) {
 		return sizingCjo
 	}
@@ -664,11 +667,24 @@ func newConstraint(atom string, args []Val, sp int) *ConstraintVal {
 
 	c.dc = DONE
 
-	// `unique()` takes no argument: it is a property of the container,
-	// not a comparison against a value. Arity is checked at parse, so a
-	// written argument never reaches here.
+	// `unique()` is a property of the container -- not a comparison
+	// against a value -- so with no argument it says the members are
+	// pairwise DISTINCT. THE ONE ARGUMENT IS A PROJECTOR (the review's
+	// finding I: "unique()-by-field is reserved but absent", and the
+	// arity was reserved for exactly this): `unique(port)` says no two
+	// members share a `port`, which is how "no two services share a
+	// port" and "event ids are unique" are said.
 	if "unique" == atom {
-		c.uniq = true
+		if 0 == len(args) {
+			c.uniq = true
+			return c
+		}
+		sv, ok := args[0].(*ScalarVal)
+		if 1 != len(args) || !ok || sv.kind != KindString {
+			c.invalid = "invalid-arg"
+			return c
+		}
+		c.uniqBy = []string{sv.peg.(string)}
 		return c
 	}
 
@@ -927,8 +943,9 @@ func (c *ConstraintVal) checkMusts(peer Val, ctx *Ctx) Val {
 // admit checks membership: the peer scalar passes every part of the
 // residual, or the meet is a located conflict.
 func (c *ConstraintVal) admit(peer *ScalarVal, ctx *Ctx) Val {
-	// No scalar has members, so a `unique()` residual admits none.
-	if c.uniq {
+	// No scalar has members, so a `unique()` residual admits none -- and
+	// neither does a `unique(k)` one, for the same reason.
+	if c.uniq || 0 < len(c.uniqBy) {
 		return c.fail(ctx, peer)
 	}
 	if !stateAdmits(c, peer) {
@@ -977,7 +994,7 @@ func (c *ConstraintVal) admitContainer(
 		return bad
 	}
 
-	if !c.uniq && nil == c.count {
+	if !c.uniq && 0 == len(c.uniqBy) && nil == c.count {
 		return peer
 	}
 
@@ -1001,6 +1018,29 @@ func (c *ConstraintVal) admitContainer(
 		seen := map[string]bool{}
 		for _, m := range members {
 			key := m.Canon()
+			if seen[key] {
+				return c.fail(ctx, peer)
+			}
+			seen[key] = true
+		}
+	}
+
+	// ... and the same test per PROJECTED key. A member that has no such
+	// key FAILS the constraint rather than being skipped: distinctness it
+	// cannot be shown to have is distinctness it does not have, and
+	// skipping would let one keyless record hide a duplicate.
+	for _, field := range c.uniqBy {
+		seen := map[string]bool{}
+		for _, m := range members {
+			mv, ok := m.(*MapVal)
+			if !ok {
+				return c.fail(ctx, peer)
+			}
+			at, has := mv.peg[field]
+			if !has {
+				return c.fail(ctx, peer)
+			}
+			key := at.Canon()
 			if seen[key] {
 				return c.fail(ctx, peer)
 			}
@@ -1089,6 +1129,11 @@ func (c *ConstraintVal) meetConstraint(peer *ConstraintVal, ctx *Ctx) Val {
 	}
 	// `unique()` is idempotent: two of them are one.
 	merged.uniq = c.uniq || peer.uniq
+	// `unique(a) & unique(b)` is BOTH, not the later one: each names a
+	// key on which the members must differ, and dropping either would
+	// silently weaken the constraint. Sorted and deduplicated, so the
+	// meet is commutative and `unique(a) & unique(a)` is one atom.
+	merged.uniqBy = mergeUniqBy(c.uniqBy, peer.uniqBy)
 	// Band B checks accumulate in written order and are never merged,
 	// deduplicated or reordered: each carries its own author message,
 	// and two checks with the same shape may still say different things.
@@ -1138,6 +1183,7 @@ func (c *ConstraintVal) cloneState() *ConstraintVal {
 		res:     append([]constraintRe{}, c.res...),
 		count:   c.count,
 		uniq:    c.uniq,
+		uniqBy:  append([]string{}, c.uniqBy...),
 		musts:   append([]constraintMust{}, c.musts...),
 		clash:   c.clash,
 		invalid: c.invalid,
@@ -1235,6 +1281,12 @@ func (c *ConstraintVal) Canon() string {
 	}
 	if c.uniq {
 		parts = append(parts, "unique()")
+	}
+	// After the bare atom, and sorted: canon is a normal form, so two
+	// documents writing the same keys in different orders must render
+	// the same string.
+	for _, key := range c.uniqBy {
+		parts = append(parts, "unique("+jsonString(key)+")")
 	}
 	for _, m := range c.musts {
 		parts = append(parts, "must("+m.v.Canon()+","+m.msg.Canon()+")")
@@ -1416,6 +1468,14 @@ func constraintStateSubsumes(g, s *ConstraintVal) (bool, bool) {
 			return false, false
 		}
 	}
+	// ... and a general `unique(k)` needs the same key on the specific
+	// side: distinctness on `port` says nothing about distinctness on
+	// `name`.
+	for _, k := range g.uniqBy {
+		if !containsString(s.uniqBy, k) {
+			return false, false
+		}
+	}
 	if g.uniq && !s.uniq {
 		return false, false
 	}
@@ -1437,7 +1497,7 @@ func constraintAdmitsScalarQ(g *ConstraintVal, scalar *ScalarVal) (bool, bool) {
 	if 0 < len(g.musts) {
 		return false, true
 	}
-	if g.uniq || nil != g.count {
+	if g.uniq || 0 < len(g.uniqBy) || nil != g.count {
 		return false, false
 	}
 	return stateAdmits(g, scalar), false
@@ -1556,10 +1616,10 @@ func stateEmpty(s *ConstraintVal) bool {
 	// members, so `integer & len(3)` and `min(2) & unique()` admit
 	// nothing. Uniqueness over the string domain is empty for the same
 	// reason -- a string's members are not values the algebra compares.
-	if "number" == d && (nil != s.count || s.uniq) {
+	if "number" == d && (nil != s.count || s.uniq || 0 < len(s.uniqBy)) {
 		return true
 	}
-	if "string" == d && s.uniq {
+	if "string" == d && (s.uniq || 0 < len(s.uniqBy)) {
 		return true
 	}
 
@@ -1641,7 +1701,8 @@ func countArgState(arg Val) *ConstraintVal {
 	if cv, ok := arg.(*ConstraintVal); ok {
 		// A pattern, a sizing atom or a string bound inside a count is
 		// not a count constraint at all, and neither is a broken one.
-		if "" != cv.invalid || 0 < len(cv.res) || cv.uniq || nil != cv.count ||
+		if "" != cv.invalid || 0 < len(cv.res) || cv.uniq ||
+			0 < len(cv.uniqBy) || nil != cv.count ||
 			"number" != cv.domain {
 			return nil
 		}
@@ -1840,4 +1901,34 @@ func dedupSortedNeqs(domain string, neqs []*ScalarVal) []*ScalarVal {
 		}
 	}
 	return out
+}
+
+// mergeUniqBy is the sorted, deduplicated union of two projector key
+// lists: `unique(a) & unique(b)` demands BOTH, and canon is a normal
+// form so the order cannot depend on which side was written first.
+func mergeUniqBy(a, b []string) []string {
+	if 0 == len(a) && 0 == len(b) {
+		return nil
+	}
+	seen := map[string]bool{}
+	out := []string{}
+	for _, k := range append(append([]string{}, a...), b...) {
+		if !seen[k] {
+			seen[k] = true
+			out = append(out, k)
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
+// containsString is membership in a small sorted slice; a set would be
+// heavier than the two or three keys these lists ever hold.
+func containsString(xs []string, want string) bool {
+	for _, x := range xs {
+		if x == want {
+			return true
+		}
+	}
+	return false
 }

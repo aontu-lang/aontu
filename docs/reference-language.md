@@ -31,6 +31,8 @@ the [Explanation](explanation.md).
 - [Variables `$name`](#variables-name)
 - [The `+` operator and grouping](#the--operator-and-grouping)
 - [Functions](#functions)
+- [Arithmetic: `add` `sub` `mul` `div` `mod` `rem`](#arithmetic-add-sub-mul-div-mod-rem)
+- [Aggregating: `sum` `least` `greatest`](#aggregating-sum-least-greatest)
 - [Marks: `type` and `hide`](#marks-type-and-hide)
 - [Closed values: `close` / `open`](#closed-values-close--open)
 - [Source loading `@"…"`](#source-loading-)
@@ -969,12 +971,14 @@ never narrows the kind and never yields `-0`.
 
 ## Functions
 
-Aontu provides a fixed set of twenty-eight built-in functions. There
+Aontu provides a fixed set of thirty-seven built-in functions. There
 are no user-defined functions. Nineteen are the general-purpose
-functions tabulated below; the other nine — `min(x)`, `max(x)`,
-`above(x)`, `below(x)`, `neq(x,...)`, `re(p)`, `length(c)`,
-`unique()` and `must(c,msg)` — are the constraint atoms, whose
-meaning is defined in
+functions tabulated below; six more are
+[the arithmetic family](#arithmetic-add-sub-mul-div-mod-rem) and three
+[the aggregates](#aggregating-sum-least-greatest); and the
+other nine — `min(x)`, `max(x)`, `above(x)`, `below(x)`, `neq(x,...)`,
+`re(p)`, `length(c)`, `unique()` and `must(c,msg)` — are the constraint
+atoms, whose meaning is defined in
 [The constraint algebra](#the-constraint-algebra-specified).
 
 | Function    | Effect | Example |
@@ -1037,6 +1041,136 @@ Functions compose with operators and references:
 `upper(a)+b`→`"Ab"`, `lower(1.1)+2`→`3`, `x:foo y:upper($.x)`→`y:"FOO"`,
 `[lower(A),lower(B)]`→`["a","b"]`, and a function may be a preferred
 default: `*upper(foo)`→`"FOO"`.
+
+## Arithmetic: `add` `sub` `mul` `div` `mod` `rem`
+
+Maths beyond `+` is spelled with **functions**. The tokens `-` `*` `/`
+`%` stay reserved for the language's own use, so there is no infix
+arithmetic to learn beyond `+` and unary `-`:
+
+```
+replicas: mul($.base.replicas, 2)
+spare:    sub($.quota.cpu, $.used.cpu)
+shards:   div($.total, $.per_shard)
+```
+
+Each takes exactly **two operands**, and both must be numbers. That is
+what distinguishes `add` from `+`: the operator is polymorphic and will
+happily concatenate, so a Kubernetes quantity written `"500m" + "500m"`
+is the string `"500m500m"` and nothing complains. `add("500m","500m")`
+is an error, because a function named for a numeric operation has no
+business inventing a string.
+
+```
+x:add(1,2)        → {"x":3}          x:add("a","b")  → error, invalid-arg
+x:sub(10,3)       → {"x":7}          x:add(true,1)   → error, invalid-arg
+x:mul(6,7)        → {"x":42}         x:sub(integer,1)→ error, invalid-arg
+```
+
+**Kind follows the operands** (R5, and the same
+[exact ladder](#the-four-numeric-leaves) `+` uses): integer with
+integer is an integer, anything with a float is a float, and a mixed
+exact operation promotes to the widest leaf and never demotes.
+
+```
+x:mul(2,3)         → {"x":6}      integer
+x:mul(2,1.5)       → {"x":3.0}    float — never narrowed to integer 3
+x:add(1,0d2)       → {"x":0d3}    biginteger, the wider operand
+x:mul(2,0d1.5)     → {"x":0d3.0}  bigdecimal
+x:add(1.0,0d2)     → error, exact_float_mix — as with `+`
+```
+
+**Integer division truncates toward zero**, and `rem` and `mod` differ
+only in whose sign the answer follows — `rem`'s the dividend's, `mod`'s
+the divisor's. That is the whole reason both exist:
+
+```
+x:div(7,2)   → {"x":3}     x:div(-7,2)  → {"x":-3}   (not -4)
+x:rem(-7,2)  → {"x":-1}    x:mod(-7,2)  → {"x":1}
+x:rem(7,-2)  → {"x":1}     x:mod(7,-2)  → {"x":-1}
+```
+
+Three things are refused rather than answered, each because the answer
+would be a value Aontu cannot carry:
+
+- **A zero divisor**, in every leaf including floats. A JSON superset
+  has no notation for an infinity, so there is nothing `div(7,0)` could
+  return (`divide_by_zero`).
+- **A non-finite float result**: `mul(1.0e200,1.0e200)` overflows
+  binary64 (`float_overflow`). The same check now governs `+`, where
+  the sum used to escape as an internal error.
+- **`div`, `mod` or `rem` over a bigdecimal.** One third has no finite
+  decimal form, so exact decimal division either rounds — the one thing
+  that leaf exists to prevent — or refuses (`inexact_divide`). Scale to
+  integers first, which is how money should be carried anyway (minor
+  units as an integer), or use floats if an approximation is acceptable.
+  Note `0d10` is a *biginteger*, not a decimal, so `div(0d10,0d4)` is
+  `0d2`; it is `0d10.0` that is refused.
+
+An exact result that will not store is refused too, exactly as a sum is
+(`inexact_integer_sum`): `mul(4503599627370496,4503599627370496)` is an
+error rather than a rounded answer, and `0d` operands compute it
+exactly.
+
+The [pipe](#the-pipe-) reads well with them, and the operand order is
+the written one: `x:10 |> sub(3)` is `sub(10,3)`, which is `7`.
+
+## Aggregating: `sum` `least` `greatest`
+
+`length()` counts a bag; these three fold one. Each takes a **single
+bag** — a list or a map — and walks the children the model already
+holds:
+
+```
+lines:  [1200, 450, 3000]
+total:  sum($.lines)          → 4650
+lowest: least($.lines)        → 450
+peak:   greatest($.lines)     → 3000
+
+hourly: {p50: 12, p95: 40, p99: 91}
+spike:  greatest($.hourly)    → 91
+```
+
+A map is folded in **sorted-key order** and a list in source order,
+which is `each`'s rule; for these three it changes nothing, since every
+operation is commutative, but it is stated so that it cannot drift.
+
+They are named `least` and `greatest` rather than `min` and `max`
+because those two are already the constraint atoms for a lower and an
+upper *bound*: `min(3)` means "at least 3", which is a statement about
+a value, while `least($.xs)` picks an element out of a set. Two
+different things do not share a spelling.
+
+**`sum` folds with `add`**, so the whole [number tower](#arithmetic-add-sub-mul-div-mod-rem)
+comes with it: a bag of integers sums to an integer, one float among
+them makes the total a float, `0d` members keep it exact, and a total
+that will not store is refused rather than rounded.
+
+```
+x:sum([1,2,3])         → {"x":6}       integer
+x:sum([1,2.5])         → {"x":3.5}     float, by contagion
+x:sum([0d1.5,0d2.5])   → {"x":0d4.0}   exact
+x:sum([])              → {"x":0}
+```
+
+**`sum([])` is `0`, and `least([])` is an error.** Addition has an
+identity, so the empty sum has an answer; comparison has none, and
+answering with a zero or an infinity would be inventing a value the
+data does not contain (`aggregate_empty`).
+
+`least` and `greatest` return **one of the elements**, so the answer
+keeps that element's own kind, and they compare with the tower's exact
+comparator rather than through binary64 — `0d9007199254740993` and
+`9007199254740992` share a float image but are correctly ordered here.
+
+A value that is not a bag is `aggregate_data`; a member that is not a
+number is `invalid-arg`, reported against the aggregate the author
+wrote rather than against the `add` inside it.
+
+There is no `fold` combinator and will not be one: a fold takes a
+function, and this language has no user functions to give it. These
+three are total because the bag is finite, the operation is fixed, and
+each child is visited once — the same argument that makes `each` safe.
 
 ## Identity: `id(name)`
 
@@ -2219,11 +2353,33 @@ conflict: no scalar has members. The members it does compare are the
 members that *generate*, the same set `length` counts, so a `hide`n entry
 and a dropped optional are not members here either.
 
-What `unique()` does **not** do is uniqueness *by projection*: "no two
-services share a port" compares one field of each member rather than
-the whole member, and that needs a projector, which in turn needs
-[G8](capability-review/g8-generation.md)'s combinators. The arity is
-reserved for it.
+**`unique(k)` is uniqueness by projection.** "No two services share a
+port" compares one field of each member rather than the whole member,
+and the atom's single argument is that projector — the arity was
+reserved for it, and is now spent:
+
+```aon
+services: unique(port) & {
+  api:  { port: 8080, name: "api"  }
+  auth: { port: 8443, name: "auth" }
+}
+```
+
+A member with no such key **fails** rather than being skipped:
+distinctness that cannot be shown is distinctness the collection does
+not have, and skipping would let one keyless record hide a duplicate.
+A member that is not a map fails for the same reason — it has no key
+to project.
+
+`unique(a) & unique(b)` demands **both**; the keys accumulate rather
+than the later one replacing the earlier, since each names a different
+axis of distinctness and dropping either would silently weaken the
+constraint. Canon renders them sorted after the bare atom
+(`unique()&unique("a")&unique("b")`), so two documents saying the same
+thing render the same string. In subsumption, a general `unique(k)`
+needs the same key on the specific side — distinctness on `port` says
+nothing about distinctness on `name` — while a specific that adds a
+key still subsumes, because more distinctness is narrower.
 
 ### Cross-field bounds and residuation
 

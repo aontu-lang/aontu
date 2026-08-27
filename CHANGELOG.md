@@ -5,6 +5,78 @@ package (`ts/`, npm `aontu`) and the Go module (`go/`,
 `github.com/rjrodger/aontu/go`) are versioned independently; entries note
 which implementation each change affects.
 
+## Unreleased — arithmetic, aggregation and projection
+
+Both implementations. The 2026-08 review's finding I, the
+expressiveness walls that "fall on the wrong side of what total
+combinators can do". Ten new built-ins, 24 → 38, and one defect they
+uncovered on the way.
+
+**Arithmetic arrives as functions: `add` `sub` `mul` `div` `mod`
+`rem`.** The tokens `-` `*` `/` `%` stay reserved, as the design's
+boundary requires, so there is no infix arithmetic to learn beyond `+`.
+The semantics are the ones
+[G8 pre-registered](docs/capability-review/g8-generation.md#arithmetic-semantics-pre-registered):
+the exact ladder and R5 kind contagion the number tower already had,
+integer division truncating **toward zero** (`div(-7,2)` is `-3`, not
+`-4` — stated by the language rather than inherited from whichever host
+`/` each port calls, since Go's `Quo` truncates and its `Div` floors),
+and `rem`/`mod` differing only in whose sign the answer follows, the
+dividend's and the divisor's, which is the whole reason both exist.
+
+The family is **numeric where the operator is polymorphic**, and that
+is what makes `add` more than a second spelling of `+`. A Kubernetes
+quantity written `"500m" + "500m"` is the string `"500m500m"` and
+nothing complains; `add("500m","500m")` is a located error, because a
+function named for a numeric operation has no business inventing a
+string.
+
+Three refusals, each because the answer would be a value Aontu cannot
+carry: a zero divisor in any leaf including floats (`divide_by_zero`),
+a non-finite binary64 result (`float_overflow`), and `div`/`mod`/`rem`
+over a bigdecimal (`inexact_divide`) — one third has no finite decimal
+form, so exact decimal division either rounds, which is the one thing
+that leaf exists to prevent, or refuses.
+
+**`float_overflow` fixes a defect `+` already had** (`use-cases/BUGS.md`
+39): `1.0e308+1.0e308` used to escape as `[aontu/internal]` in
+TypeScript and as Go's raw `json: unsupported value: +Inf` — no code,
+no site, invisible to any harness grepping `[aontu/`. A Go CLI test
+pinned the marshaller error as expected; it now asserts the located
+refusal instead.
+
+**Aggregation: `sum` `least` `greatest`** fold a finite, settled bag —
+a list, or a map in sorted-key order. `sum` folds with `add`, so the
+number tower's whole law comes with it. They are named `least` and
+`greatest` rather than `min` and `max` because those two are already
+the constraint atoms for a lower and an upper *bound*, and an aggregate
+over a set is a different thing from a bound on a value. `sum([])` is
+`0` and `least([])` is an error: addition has an identity, comparison
+has none, and answering with a zero or an infinity would invent a value
+the data does not contain. Comparison is exact — `0d9007199254740993`
+and `9007199254740992` share a float image and are still ordered
+correctly.
+
+**Projection: `pick(d, k)`**, one element per child of `d`, being that
+child's `k`. Without it the aggregates cannot reach the case that
+motivated them, because `sum` needs a bag of numbers and a model holds
+a bag of records: `total: sum(pick($.lines, amountCents))`. It is not
+`each` with a clever template — `each` *meets* each child, and a meet
+cannot select. A child missing the key is an error, not a silently
+shorter list.
+
+**`unique(k)` spends the reserved arity.** `unique()` compared whole
+members, so "no two services share a port" and "event ids are unique"
+were inexpressible and two records differing anywhere else slipped
+through. The atom's single argument is now the projector the reference
+had reserved it for. A member without the key fails rather than being
+skipped; `unique(a) & unique(b)` demands both; canon sorts the keys.
+
+Use case 10's gap 3 (no aggregate computation) and gap 8 (no uniqueness
+by projection) are closed, and its checks now assert a derived invoice
+total and a caught duplicate ledger id where they used to assert the
+absence of both.
+
 ## Unreleased — a module closure that travels, and a verb that verifies it
 
 Both implementations. The 2026-08 review's finding H: a ground truth

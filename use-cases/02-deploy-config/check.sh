@@ -176,6 +176,19 @@ run surge-default 1 "$DIR/probes/surge-from-default.aon"
 has surge-default '[aontu/mapval_no_gen]' "no-gen code"
 ok "replicas + 1 fails against a defaulted (*N | integer) operand"
 
+# ------------------------------------- probe: uniqueness by projection
+# README gap 8, FIXED 2026-08-27: unique() compared WHOLE children, so
+# two services differing anywhere else shared a port silently, and
+# nothing could produce the port list to check instead.
+run uniqport 1 "$DIR/probes/unique-port.aon"
+has uniqport '[aontu/constraint]' "constraint code"
+has uniqport '$.fleet' "the fleet is named"
+ok "unique(port) refuses two services sharing a port"
+
+run pickports 0 "$DIR/probes/pick-ports.aon"
+has pickports '"lowest": 8080' "least over the picked ports"
+ok "pick(fleet, port) produces the port list; least() reads its floor"
+
 # ------------------------------ probe: two spreads on one map cross-wire
 # 2026-08-26: fixed by the spread application rework (pure ExpectVal;
 # BUGS.md sec 7) — stacked spreads at different depths now vet the

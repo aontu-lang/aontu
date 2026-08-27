@@ -29,6 +29,29 @@ var funcSet = map[string]bool{
 	"each":      true,
 	"filter":    true,
 	"match":     true,
+	// The arithmetic family (the review's finding I). Maths beyond `+`
+	// arrives as FUNCTIONS -- `-` `*` `/` `%` stay reserved -- and the
+	// family is numeric where the operator is polymorphic, which is
+	// what makes add more than a second spelling of `+`: it refuses the
+	// string concatenation that silently answers "500m" + "500m".
+	// Every rule they obey is in go/arith.go.
+	"add": true,
+	"sub": true,
+	"mul": true,
+	"div": true,
+	"mod": true,
+	"rem": true,
+	// Aggregation over a finite, settled bag (also finding I). least and
+	// greatest rather than min and max, which are already the atoms for a
+	// lower and an upper BOUND -- an aggregate over a set and a bound on
+	// a value must not share a spelling. See go/agg.go.
+	"sum":      true,
+	"least":    true,
+	"greatest": true,
+	// Projection, which is what lets the aggregates reach a bag of
+	// RECORDS. Not a clever each template -- each MEETS each child, and
+	// a meet cannot select.
+	"pick": true,
 }
 
 // stagedFuncs take THE STAGING RULE (G8 phase 0, see Ctx.settle): they
@@ -39,6 +62,9 @@ var funcSet = map[string]bool{
 // FuncBaseVal subclasses.
 var stagedFuncs = map[string]bool{
 	"key": true, "pack": true, "each": true, "filter": true, "match": true,
+	// A total over a bag that is still being merged into is a total of
+	// the wrong bag.
+	"sum": true, "least": true, "greatest": true, "pick": true,
 }
 
 // positionalArgFuncs are the functions whose comma-separated arguments
@@ -47,6 +73,13 @@ var stagedFuncs = map[string]bool{
 var positionalArgFuncs = map[string]bool{
 	"deprecate": true, "pack": true, "each": true,
 	"filter": true, "match": true,
+	// Arithmetic takes two OPERANDS, and an operand is a position: sub
+	// is not commutative, so sub(a, b) reaching the engine as one
+	// two-element list would lose which is which.
+	"add": true, "sub": true, "mul": true,
+	"div": true, "mod": true, "rem": true,
+	// The bag and the key are distinct positions.
+	"pick": true,
 }
 
 // generatorFuncs hold arguments that must never be driven at the call
@@ -64,12 +97,12 @@ var generatorFuncs = map[string]bool{
 // entry, and the arity is a property of the language rather than of
 // either port -- ts/src/lang.ts carries the same table.
 //
-// Nearly everything takes exactly one. The four exceptions earn their
-// place: key() names how many levels UP the path to read, defaulting to
-// the parent when omitted, neq takes a whole set of exclusions,
-// unique() is a property of the container rather than a comparison
-// against anything, so there is nothing for it to take, and must()
-// takes a check AND the author's message for when it fails.
+// Nearly everything takes exactly one. The exceptions earn their place:
+// key() names how many levels UP the path to read, defaulting to the
+// parent when omitted, neq takes a whole set of exclusions, unique()
+// takes none (a property of the container) or a PROJECTOR key, must()
+// takes a check AND the author's message for when it fails, and the
+// arithmetic family takes two operands.
 var funcArity = map[string][2]int{
 	"upper": {1, 1}, "lower": {1, 1}, "copy": {1, 1}, "pref": {1, 1},
 	"super": {1, 1}, "type": {1, 1}, "hide": {1, 1}, "close": {1, 1},
@@ -78,7 +111,9 @@ var funcArity = map[string][2]int{
 	"re":     {1, 1},
 	"length": {1, 1},
 	"key":    {0, 1},
-	"unique": {0, 0},
+	// THE ONE ARGUMENT IS A PROJECTOR: `unique(port)` says no two
+	// members share a `port`. The arity was reserved for it (finding I).
+	"unique": {0, 1},
 	"neq":    {1, -1},
 	"must":   {2, 2},
 	// G3 phase 4: the value, and its optional deprecation record.
@@ -96,6 +131,16 @@ var funcArity = map[string][2]int{
 	"match":  {3, -1},
 	// G4 phase 2: the optional type to flow into the target.
 	"refer": {0, 1},
+	// Two operands, always. Arithmetic has no variadic reading that is
+	// not a fold, and a fold is the recursion this language refuses.
+	"add": {2, 2}, "sub": {2, 2}, "mul": {2, 2},
+	"div": {2, 2}, "mod": {2, 2}, "rem": {2, 2},
+	// One bag. The operation is fixed, so there is nothing else to pass:
+	// a fold's second argument is a FUNCTION, and this language has none
+	// to give it.
+	"sum": {1, 1}, "least": {1, 1}, "greatest": {1, 1},
+	// The bag, and the key to take from each of its children.
+	"pick": {2, 2},
 }
 
 // writtenArgCount counts the arguments as the AUTHOR wrote them.
@@ -116,9 +161,10 @@ func writtenArgCount(terms []any) int {
 }
 
 // arityText renders a built-in's permitted count for the error message.
-// The fixed-arity case says "one" outright rather than counting: every
-// fixed arity in the table is either one or none, and a phrasing for a
-// count no entry carries would be untested prose pretending to be tested.
+// The fixed-arity case says "one" or "two" outright rather than
+// counting: every fixed arity in the table is one of those, and a
+// phrasing for a count no entry carries would be untested prose
+// pretending to be tested.
 func arityText(lo, hi int) string {
 	switch {
 	case -1 == hi:
@@ -128,8 +174,11 @@ func arityText(lo, hi int) string {
 			return "no arguments or one"
 		}
 		return "one argument or two"
-	case 0 == hi:
-		return "no arguments"
+	// NO {0,0} ARM. unique was the only built-in taking none, and its one
+	// argument is now the projector the arity was reserved for (finding
+	// I), so a phrasing for a count no entry carries would be untested
+	// prose pretending to be tested -- the rule this function's header
+	// states. The arm returns with the table, if one ever does.
 	case 2 == hi:
 		return "exactly two arguments"
 	default:
@@ -176,6 +225,14 @@ func (f *FuncVal) superior() Val {
 			return newScalarKind(sv.kind)
 		}
 	}
+	// NO ARITHMETIC ARM HERE, deliberately. An arithmetic call would
+	// only be able to advertise a kind once both its operands were
+	// concrete scalars -- and at that point it has RESOLVED, so what
+	// super() sees is the result, whose own superior is already the
+	// right answer: super(mul(2,3)) is integer and super(mul(2,1.5)) is
+	// float, through the value rather than through a promise about it.
+	// The arm was written and then removed as unreachable; the same is
+	// true of ArithFuncVal in the TypeScript port.
 	return top()
 }
 
@@ -545,6 +602,33 @@ func (f *FuncVal) resolve(ctx *Ctx, base []string, args []Val) Val {
 		return filterFunc(ctx, f, base, args)
 	case "match":
 		return matchFunc(ctx, f, base, args)
+	case "add", "sub", "mul", "div", "mod", "rem":
+		// resolve is only reached once every argument has settled, so
+		// arith may name a bad operand rather than waiting for it.
+		if len(args) < 2 { //coverage:ignore arity {2,2} is refused at parse
+			// UNREACHABLE, and kept: funcArity refuses a short call in
+			// lang.go before a Val exists, so nothing gets here with one
+			// operand. Without the guard the index below would PANIC
+			// rather than report, which is the one outcome worse than a
+			// dead branch. (TypeScript needs no twin: `args?.[1]` is
+			// undefined there and falls into the same invalid-arg.)
+			return makeNilErr(ctx, "invalid-arg", f, nil)
+		}
+		return arith(ctx, f.name, f, args[0], args[1])
+	case "sum", "least", "greatest":
+		if len(args) < 1 { //coverage:ignore arity {1,1} is refused at parse
+			// UNREACHABLE, and kept for the reason the arithmetic guard
+			// above is: without it the index would PANIC rather than
+			// report.
+			return makeNilErr(ctx, "invalid-arg", f, nil)
+		}
+		return aggregate(ctx, f.name, f, base, args[0])
+	case "pick":
+		if len(args) < 2 { //coverage:ignore arity {2,2} is refused at parse
+			// UNREACHABLE, and kept for the reason the guards above are.
+			return makeNilErr(ctx, "invalid-arg", f, nil)
+		}
+		return project(ctx, f, base, args[0], args[1])
 	case "pref":
 		if len(args) == 0 {
 			return makeNilErr(ctx, "arg", f, nil)

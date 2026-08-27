@@ -3,6 +3,7 @@
 package aontu
 
 import (
+	"math"
 	"math/big"
 	"strconv"
 )
@@ -177,6 +178,16 @@ func (o *PlusOpVal) operate(ctx *Ctx, args []Val) Val {
 		// is the one that can yield an integer, and it left above, so
 		// every sum arriving here has a float operand and is a FLOAT —
 		// never the `number` supertype, which no concrete value carries.
+		//
+		// A sum that leaves binary64's finite range is NOT a value.
+		// Aontu is a JSON superset with no notation for an infinity, so
+		// one here used to escape as Go's raw `json: unsupported value:
+		// +Inf` with no code at all, and as `[aontu/internal]` in
+		// TypeScript (use-cases/BUGS.md 39). The same check governs the
+		// arithmetic family (float_overflow, go/arith.go).
+		if math.IsInf(p, 0) || math.IsNaN(p) {
+			return makeNilErrFull(ctx, "float_overflow", o, nil, "add", nil)
+		}
 		return newFloat(p)
 	}
 	return nil //coverage:ignore peg is always string, bool or float64

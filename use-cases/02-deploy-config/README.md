@@ -10,7 +10,7 @@ files, Kustomize overlays and CUE all compete for, and the scenario the
 document, and any contradiction between them must be a loud, located
 error rather than a last-writer-wins surprise.
 
-Run `./check.sh` (35 assertions, exit 0). Everything quoted below is
+Run `./check.sh` (37 assertions, exit 0). Everything quoted below is
 real CLI output (ANSI stripped), reproduced by the checks.
 
 ## Files
@@ -336,10 +336,22 @@ $.deploy.prod.workloads.billing.port: scalar_value [conflict]
 Pinned by `probes/spread-crosswire.aon`. Workaround: per-environment
 spreads referencing one hidden block (current `guardrails.aon`).
 
-### 7. (major) Arithmetic: `+` only, and only over concrete operands
+### 7. (major, half FIXED) Arithmetic: `+` only, and only over concrete operands
 
-Doubling a replica count for a surge window is unwritable — `*` is the
-preference marker, so there is no multiplication (or `-`, `/`, `%`,
+**FIXED 2026-08-27, the missing operations.** `mul`, `sub`, `div`,
+`mod` and `rem` exist as FUNCTIONS — `mul($.replicas, 2)` doubles a
+replica count — with `sum`, `least` and `greatest` for a bag. The `*`
+TOKEN is still refused, and stays that way by design: `*` is the
+preference marker, so maths arrives as functions or not at all.
+
+**Still open: the defaulted operand.** `mul($.replicas, 2)` against
+`replicas: *4 | integer` refuses (`invalid-arg`) for the same reason
+`+ 1` did — a disjunction carrying a preference is not yet a concrete
+number, so derived values still only work downstream of a concrete
+pin. The historic form of the gap, unchanged below.
+
+Doubling a replica count for a surge window was unwritable — `*` is the
+preference marker, so there was no multiplication (or `-`, `/`, `%`,
 min/max-of-two-numbers):
 
 ```
@@ -364,14 +376,24 @@ For Kubernetes-shaped config (HPA percentages, memory = requests * 2,
 maxUnavailable = ceil(replicas/4)) this is a real ceiling. CUE does
 all of these.
 
-### 8. (major) No projection: a field cannot be collected across a map
+### 8. (major) — FIXED: No projection: a field cannot be collected across a map
 
 "Every service port must be unique" is a natural org rule and
-`unique()` exists (and works), but nothing can *produce* the list of
-ports from `fleet`: `each`/`pack` map whole children, `_.port` is
+`unique()` existed (and worked), but nothing could *produce* the list
+of ports from `fleet`: `each`/`pack` map whole children, `_.port` is
 unspellable (gap 4), and there is no comprehension. The uniqueness
-policy is inexpressible without hand-maintaining a second list — the
+policy was inexpressible without hand-maintaining a second list — the
 drift `pack()` exists to prevent.
+
+**FIXED 2026-08-27**, both ways round, and `check.sh` asserts both:
+
+- `unique(port)` states the rule **directly** on the fleet, with no
+  projection needed at all — the atom's reserved argument is now that
+  projector (`probes/unique-port.aon`, two services sharing 8080
+  refused with `[aontu/constraint]`).
+- `pick($.fleet, port)` **produces** the list where the ports are
+  wanted as a value rather than only checked — a firewall rule, say —
+  and `least`/`greatest`/`sum` fold it (`probes/pick-ports.aon`).
 
 ### 9. (minor) Cross-file conflict excerpts render the wrong file's text
 
@@ -431,10 +453,15 @@ misspelt key is simply ignored.
 `pack()` enters — and it must, for anti-drift — computed fields die
 (gap 4). Attribution went blind there too (gap 3 — fixed 2026-08-27),
 `close()` corrupted silently (gap 5 — fixed 2026-08-26), and spreads
-cross-wired (gap 6 — fixed 2026-08-26). Combined with no arithmetic
-beyond `+` (gap 7), no projection (gap 8) and the default-vs-bound
-dilemma (gaps 1–2), real policies end up split between the model and a
-side-car vet schema. The split (build then vet) is workable — this use
-case ships it green — but CUE expresses the same fleet with
-comprehensions, arithmetic and in-model bounds in one document. Fixing
-gaps 2, 3, 4 and 5 would flip that comparison for the golden path.
+cross-wired (gap 6 — fixed 2026-08-26). Arithmetic beyond `+` (gap 7)
+and projection (gap 8) landed 2026-08-27 as functions and `pick` /
+`unique(k)`, so two of the three walls in this paragraph are gone: what
+remains here is the default-vs-bound dilemma (gaps 1–2) and the fact
+that a derived value still needs a concrete operand rather than a
+defaulted one. Real policies are less split between the model and a
+side-car vet schema than they were; the split (build then vet) is still
+workable and this use case ships it green. CUE expresses the same fleet
+with comprehensions and in-model bounds in one document — Aontu now
+answers the arithmetic and projection half of that with total
+combinators rather than comprehensions, and gaps 2 and 4 are what
+remain between it and the golden path.

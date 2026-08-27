@@ -138,13 +138,24 @@ ok "int64-assuming view fails subsumption (undecided, biginteger cited)"
 
 # 12. The gap reproductions: every failed attempt in gaps/ still
 # fails the way the README documents.
-run gsum 1 -- "$DIR/gaps/agg-sum.aon"
-has gsum '[aontu/unknown_function]'
-ok "gap: no sum()/fold over a list (unknown_function)"
+# 12a. FIXED (the review's finding I): aggregation, projection and
+# arithmetic-as-functions. An invoice total is now DERIVED rather than
+# self-declared and spot-checked.
+run gsum 0 -- "$DIR/gaps/agg-sum.aon"
+has gsum '"total": 4008'
+has gsum '"largest": 3998'
+ok "sum(pick(lines, amountCents)) derives the total; greatest picks the max"
 
-run gmul 1 -- "$DIR/gaps/multiply.aon"
-has gmul '[aontu/unexpected]'
-ok "gap: no '*' operator (parse refuses)"
+run gmul 0 -- "$DIR/gaps/multiply.aon"
+has gmul '"amount": 3998'
+has gmul '"vatCents": 759'
+ok "mul/div compute quantity and integer-cent VAT in-model"
+
+# ... and the `*` TOKEN still refuses, by design: maths arrives as
+# functions, and the operator characters stay reserved.
+run gstar 1 -- "$DIR/gaps/star-token.aon"
+has gstar '[aontu/unexpected]'
+ok "by design: '*' is still not an operator (parse refuses)"
 
 run gmix 1 -- "$DIR/gaps/float-mix.aon"
 has gmix '[aontu/exact_float_mix]'
@@ -158,10 +169,10 @@ run glen 1 -- "$DIR/gaps/list-length-template.aon"
 has glen '[aontu/constraint]'
 ok "gap: length() on a list template folds against the template itself"
 
-run guniq 0 -- "$DIR/gaps/unique-by-field.aon"
-has guniq '"Acme"'
-has guniq '"Globex"'
-ok "gap: duplicate ledgerIds pass unique() silently (no projection)"
+run guniq 1 -- "$DIR/gaps/unique-by-field.aon"
+has guniq '[aontu/constraint]'
+has guniq '$.customers'
+ok "unique(ledgerId) catches the duplicate ledgerId across customers"
 
 # 2026-08-26: gap 6 fixed by the template-clone isolation change
 # (ADR-005) — both halves. The id(key(0)) form no longer dies with a

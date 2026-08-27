@@ -1,0 +1,127 @@
+# THE ARITHMETIC FAMILY -- add, sub, mul, div, mod, rem.
+#
+# Columns: name<TAB>mode<TAB>src<TAB>expect
+#
+# The review's finding I: "Arithmetic stops at `+`". These rows are the
+# contract for the five operations that had no spelling at all, and for
+# the one that did -- `add` is NOT a synonym for `+`, because the
+# operator is polymorphic and the family is numeric. That is the whole
+# reason both exist: `"500m" + "500m"` is the string "500m500m", which
+# is how a Kubernetes quantity silently becomes nonsense, while
+# `add("500m","500m")` is a located invalid-arg.
+#
+# EVERY EXPECTATION HERE WAS OBTAINED BY RUNNING BOTH ENGINES AND
+# DIFFING, never by copying one. The rows are `canon` rather than `gen`
+# because a gen row cannot see a KIND (G5's ruling), and the kind is
+# half of what these operations promise: R5 contagion says no operation
+# introduces a kind narrower than its operands, so `mul(2,1.5)` must be
+# a float 3.0 and not an integer 3, and only canon shows the difference.
+#
+# THE RULES THESE ROWS PIN, each stated once in ts/src/val/arith.ts and
+# go/arith.go:
+#
+#   D6 EXACT LADDER   integer < biginteger < bigdecimal. A mixed exact
+#                     operation promotes to the WIDEST operand, computes
+#                     exactly, and never demotes.
+#   FLOAT IS OFF IT   binary64 mixed with either big leaf is a hard
+#                     error in both operand orders.
+#   TRUNCATION        integer division truncates TOWARD ZERO:
+#                     div(-7,2) is -3, not -4. Stated here rather than
+#                     left to whichever host `/` each port calls (Go's
+#                     Quo truncates and its Div floors -- picking the
+#                     wrong one is a silent one-off in every negative
+#                     case).
+#   rem VS mod        rem's sign follows the DIVIDEND, mod's the
+#                     DIVISOR. That is the only difference between them,
+#                     and it is why both exist.
+#   NO ROUNDING       an exact result that will not store is refused.
+#
+# AND THE THREE REFUSALS, all new with the family:
+#
+#   divide_by_zero    in every leaf, floats included: a JSON superset
+#                     has no notation for an infinity, so there is no
+#                     value the operation could answer with.
+#   float_overflow    a non-finite binary64 result, for the same reason.
+#                     REACHABLE THROUGH `+` TOO, and was reported as
+#                     neither: `1.0e308+1.0e308` crashed TypeScript with
+#                     `[aontu/internal]` and leaked Go's raw
+#                     `json: unsupported value: +Inf` with no code at
+#                     all (use-cases/BUGS.md 39). Both go through the
+#                     same check now, which is what
+#                     arith-plus-float-overflow pins.
+#   inexact_divide    div/mod/rem over the DECIMAL leaf. One third has
+#                     no finite decimal form, so the operation either
+#                     rounds -- the one thing that leaf exists to refuse
+#                     -- or refuses. Note that `0d10` is a BIGINTEGER,
+#                     not a decimal, so arith-div-biginteger divides
+#                     exactly and arith-decimal-div-refused does not.
+
+arith-add-int	canon	x:add(1,2)	{"x":3}
+arith-sub-int	canon	x:sub(10,3)	{"x":7}
+arith-mul-int	canon	x:mul(6,7)	{"x":42}
+arith-div-int	canon	x:div(7,2)	{"x":3}
+arith-div-neg-dividend	canon	x:div(-7,2)	{"x":-3}
+arith-div-neg-divisor	canon	x:div(7,-2)	{"x":-3}
+arith-div-both-neg	canon	x:div(-7,-2)	{"x":3}
+arith-rem-neg-dividend	canon	x:rem(-7,2)	{"x":-1}
+arith-rem-neg-divisor	canon	x:rem(7,-2)	{"x":1}
+arith-mod-neg-dividend	canon	x:mod(-7,2)	{"x":1}
+arith-mod-neg-divisor	canon	x:mod(7,-2)	{"x":-1}
+arith-mod-both-neg	canon	x:mod(-7,-2)	{"x":-1}
+arith-rem-exact	canon	x:rem(6,3)	{"x":0}
+arith-mod-exact	canon	x:mod(6,3)	{"x":0}
+arith-add-float	canon	x:add(1.5,2.5)	{"x":4.0}
+arith-sub-float	canon	x:sub(1.5,0.5)	{"x":1.0}
+arith-mul-float	canon	x:mul(1.5,2.0)	{"x":3.0}
+arith-div-float	canon	x:div(7.0,2.0)	{"x":3.5}
+arith-rem-float	canon	x:rem(-7.5,2.0)	{"x":-1.5}
+arith-mod-float	canon	x:mod(-7.5,2.0)	{"x":0.5}
+# ... and the arm that does NOT adjust: dividend and divisor already
+# agree in sign, so rem and mod are the same answer.
+arith-mod-float-same-sign	canon	x:mod(7.5,2.0)	{"x":1.5}
+arith-rem-float-same-sign	canon	x:rem(7.5,2.0)	{"x":1.5}
+arith-int-float-contagion	canon	x:add(1,2.0)	{"x":3.0}
+arith-mul-int-float	canon	x:mul(2,1.5)	{"x":3.0}
+arith-add-biginteger	canon	x:add(0d1,0d2)	{"x":0d3}
+arith-mul-biginteger	canon	x:mul(0d3,0d4)	{"x":0d12}
+arith-div-biginteger	canon	x:div(0d10,0d4)	{"x":0d2}
+arith-rem-biginteger	canon	x:rem(0d10,0d4)	{"x":0d2}
+arith-add-bigdecimal	canon	x:add(0d1.5,0d2.5)	{"x":0d4.0}
+arith-sub-bigdecimal	canon	x:sub(0d1.5,0d0.5)	{"x":0d1.0}
+arith-mul-bigdecimal	canon	x:mul(0d1.5,0d2.0)	{"x":0d3.0}
+arith-ladder-int-biginteger	canon	x:add(1,0d2)	{"x":0d3}
+arith-ladder-int-bigdecimal	canon	x:mul(2,0d1.5)	{"x":0d3.0}
+arith-pref-operand	canon	x:add(pref(1),2)	{"x":3}
+arith-pipe	canon	x:1 |> add(2)	{"x":3}
+arith-pipe-order	canon	x:10 |> sub(3)	{"x":7}
+# AN OPERAND THAT IS NOT YET RESOLVED residuates and the call is
+# rebuilt (FuncBaseVal.make), which a document written in the natural
+# order -- the derived value above its source -- reaches every time.
+arith-forward-reference	canon	y:add($.x,1)\nx:2	{"x":2,"y":3}
+# INSIDE A SPREAD TEMPLATE the call answers per child, and the
+# template itself stays an unresolved call in canon -- which is the
+# only place a caller sees the rebuild path (FuncBaseVal.make).
+arith-in-spread-template	canon	a:{&:{v:add(.n,1)}}\na:{p:{n:1},q:{n:2}}	{"a":{&:{"v":add(.n,1)},"p":{"n":1,"v":2},"q":{"n":2,"v":3}}}
+arith-zero-dividend	canon	x:div(0,5)	{"x":0}
+
+# The refusals.
+arith-div-by-zero	errc	x:div(7,0)	divide_by_zero
+arith-mod-by-zero	errc	x:mod(7,0)	divide_by_zero
+arith-rem-by-zero	errc	x:rem(7,0)	divide_by_zero
+arith-div-by-zero-float	errc	x:div(7.0,0.0)	divide_by_zero
+arith-div-by-zero-exact	errc	x:div(0d7,0d0)	divide_by_zero
+arith-string-operand	errc	x:add("a","b")	invalid-arg
+arith-boolean-operand	errc	x:add(true,false)	invalid-arg
+arith-null-operand	errc	x:add(null,1)	invalid-arg
+arith-kind-operand	errc	x:sub(integer,1)	invalid-arg
+arith-list-operand	errc	x:mul([1,2],2)	invalid-arg
+arith-map-operand	errc	x:add({a:1},1)	invalid-arg
+arith-float-overflow	errc	x:mul(1.0e200,1.0e200)	float_overflow
+arith-plus-float-overflow	errc	x:1.0e308+1.0e308	float_overflow
+arith-integer-range	errc	x:mul(4503599627370496,4503599627370496)	inexact_integer_sum
+arith-decimal-budget	errc	x:mul(0d1e3000,0d1e3000)	decimal_budget
+arith-decimal-div-refused	errc	x:div(0d1.0,0d3.0)	inexact_divide
+arith-decimal-mod-refused	errc	x:mod(0d1.0,0d3.0)	inexact_divide
+arith-exact-float-mix	errc	x:add(1.0,0d2)	exact_float_mix
+arith-arity-short	errc	x:add(1)	func_arity
+arith-arity-long	errc	x:add(1,2,3)	func_arity

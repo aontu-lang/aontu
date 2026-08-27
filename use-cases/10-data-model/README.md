@@ -162,34 +162,35 @@ and the warehouse has to know this idiom.
 
 ### Gap 3 (critical for a data domain): no aggregate computation
 
-`invoice.total = sum(lines[].amountCents)` is the single most natural
-invariant in this domain and it is inexpressible. There is no
-sum/fold/reduce/avg — `length()` can *count* members but nothing can
-*add* them (`gaps/agg-sum.aon`):
+**FIXED 2026-08-27** (the review's finding I). `invoice.total =
+sum(lines[].amountCents)` is the single most natural invariant in this
+domain and it was inexpressible: there was no sum/fold/reduce/avg —
+`length()` could *count* members but nothing could *add* them —
+and no `*` operator, so `amountCents = qty * unitCents` and
+`taxCents = netCents * 0.19` were equally out of reach. The honest
+workaround was self-declared totals spot-checked with per-record
+`must()`, and "qty 2" spelled `unit + unit`. It protected seed records
+an author writes by hand and could not protect the batch (gap 4).
 
-```
-[aontu/unknown_function]: Cannot resolve value at path $.total
-This function name is not recognized.
-```
+It took three things, and `check.sh` now asserts all of them
+(`gaps/agg-sum.aon`, `gaps/multiply.aon`):
 
-`|> sum` fails the same way (`pipe_target`). There is also no `*`
-operator (`gaps/multiply.aon`):
+- **`sum(d)`**, with `least(d)` and `greatest(d)`, folds a list or a
+  map. It folds with `add`, so the number tower's law comes with it:
+  integer cents total to an exact integer, and a total too large to
+  store is refused rather than rounded.
+- **`pick(d, k)`** is what gets from a bag of *records* to a bag of
+  *numbers* — `sum(pick($.lines, amountCents))`. It is not `each` with
+  a clever template: `each` *meets* each child, and a meet cannot
+  select.
+- **`mul` / `div` / `sub` / `mod` / `rem`**, so VAT is computed
+  in-model: `div(mul($.amount, 19), 100)` is 759 cents on 3998, with
+  the single truncation at the end and the truncation rule (toward
+  zero) stated by the language rather than inherited from a host.
 
-```
-[aontu/unexpected]: unexpected character(s): *
-```
-
-so `amountCents = qty * unitCents` and `taxCents = netCents * 0.19`
-are equally out of reach. The honest workaround used in `seed.aon`:
-totals are **self-declared** and spot-checked with per-record
-`must()`, and "qty 2" is spelled `unit + unit`:
-
-```aon
-amountCents: 3998 & must(.unitCents + .unitCents, "amountCents != 2 x unitCents")
-```
-
-That protects seed records an author writes by hand. It does not and
-cannot protect the batch: see gap 4.
+The `*` **token** is still a parse refusal, by design and unchanged —
+maths arrives as functions, and the operator characters stay reserved
+(`gaps/star-token.aon`).
 
 ### Gap 4 (major): cross-field constraint args don't re-anchor in templates
 
@@ -279,15 +280,25 @@ at the bag spread (`&: $.schema.Order & { customerId: refer() }`),
 which works — but it splits the contract between the type and its
 application site.
 
-### Gap 8 (major): no uniqueness by projection
+### Gap 8 — FIXED (major): no uniqueness by projection
 
 `unique()` compares whole members, so "no two customers share a
-ledgerId" is inexpressible; `gaps/unique-by-field.aon` gives two
-customers the same ledger id and **evaluates cleanly** — check.sh
-asserts the silent pass, because that silence is the finding. (The
-reference acknowledges this and reserves the arity for G8.) In this
-domain, key-uniqueness covers ids, but natural-key fields — VAT
-numbers, ledger ids, emails — get no protection.
+ledgerId" was inexpressible: `gaps/unique-by-field.aon` gave two
+customers the same ledger id and **evaluated cleanly**, and check.sh
+asserted that silent pass because the silence was the finding. The
+reference acknowledged it and reserved the arity for exactly this.
+
+**FIXED 2026-08-27** — the arity is spent. `unique(ledgerId)` says no
+two members may share the named key, so the natural-key fields that
+had no protection at all — VAT numbers, ledger ids, emails — now have
+the same protection map keys always had. `check.sh` asserts the
+duplicate is caught (`[aontu/constraint]` at `$.customers`).
+
+A member with no such key **fails** rather than being skipped:
+distinctness that cannot be shown is distinctness the collection does
+not have, and skipping would let one keyless record hide a duplicate.
+`unique(a) & unique(b)` demands both, and canon sorts the keys so two
+documents saying the same thing render the same string.
 
 ### Gap 9 (minor, diagnostics): spurious `pref_not_instance` warning
 
