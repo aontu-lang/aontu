@@ -471,8 +471,21 @@
 #   what a site MEANS for a value nobody wrote, and it wants answering
 #   once for every minted value rather than per shape.
 #
+#   The SAME divergence shows in a finding's PATH, not just its site,
+#   and reaches `--at`: anchoring ON a residuated container
+#   (`x: length(min(2)) & {a: 1}` with `--at $.x`) has TypeScript report
+#   the conflict at `$` and Go at `$.x`, because the path is taken from
+#   whichever operand's location wins and TypeScript has re-pathed the
+#   merged container to the meet position. Both ports still answer
+#   `invalid`, so the SOUNDNESS agrees; only where they say it is
+#   differs. Anchoring THROUGH a residue to a child (`--at $.x.a`)
+#   agrees byte for byte, and is pinned by
+#   `vet-at-steps-through-a-sizing-residue`.
+#
 #   The soundness this shape was probed for is pinned instead by
-#   `vet-sizing-min-still-short-in-the-data` in vet.tsv, whose schema
-#   uses a written key rather than a spread and which both ports agree
-#   on byte for byte.
+#   `vet-sizing-min-still-short-in-the-data`,
+#   `vet-sizing-min-met-by-the-data` and
+#   `vet-sizing-min-survives-beside-a-container` in vet.tsv, whose
+#   containers the meet does not mint and which both ports agree on byte
+#   for byte.
 

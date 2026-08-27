@@ -1035,17 +1035,27 @@ func (c *ConstraintVal) admitContainerFinal(
 		if final || 0 == len(c.musts) {
 			return peer
 		}
-		c.dc = DONE
-		kept := newConjunct([]Val{c, peer})
-		kept.dc = DONE
-		return kept
+		return c.hold(peer)
 	}
 
 	members := emittedMembers(bag, optional, ctx)
 	if nil == members {
-		// The container cannot generate at all; its own error is the
-		// one worth reporting, so pass it through untouched.
-		return peer
+		// NOT COUNTABLE YET IS NOT A PASS. A container that cannot
+		// generate cannot be counted, and a SCHEMA is exactly that: the
+		// members of `{a: integer}` are types, so nothing is emitted and
+		// nothing can be counted. Discharging the atom here was the §16
+		// defect wearing its other face -- `length(min(2)) & {a: integer}`
+		// dropped its bound while still alone, so the data half of a
+		// `vet` meet was never measured at all.
+		//
+		// At generation the reading IS final: a container that still
+		// cannot generate has its own error, and that error is the one
+		// worth reporting, so it passes through untouched. Mirrors
+		// admitContainer in ts/src/val/ConstraintVal.ts.
+		if final {
+			return peer
+		}
+		return c.hold(peer)
 	}
 
 	// MONOTONE READINGS ONLY (the review's finding C, use-cases/BUGS.md
@@ -1144,6 +1154,20 @@ func (c *ConstraintVal) admitContainerFinal(
 	// recomputes its own doneness from its terms on every later meet --
 	// so a stale 0 here would drag the residue, and every value holding
 	// it, back to unresolved for ever.
+	return c.hold(peer)
+}
+
+// hold is the atom kept on a value whose reading is still provisional.
+// DONE, unlike the unsettled container above: the value HAS settled;
+// the atom is kept only because a LATER value could still add members,
+// and a residue that reported itself unresolved would leave every
+// enclosing value unresolved with it -- a `type()` waiting on its
+// argument for ever. The ATOM is done too, not just the conjunct: an
+// earlier pass may have set dc = 0 on the unsettled branch, and a
+// conjunct recomputes its own doneness from its terms on every later
+// meet, so a stale 0 would drag the residue back to unresolved for
+// ever. Mirrors hold in ts/src/val/ConstraintVal.ts.
+func (c *ConstraintVal) hold(peer Val) Val {
 	c.dc = DONE
 	held := newConjunct([]Val{c, peer})
 	held.dc = DONE

@@ -563,7 +563,13 @@ func anchorAt(root Val, at string) Val {
 			return nil
 		}
 	}
-	return throughResidue(node)
+	// THE ANCHOR KEEPS ITS ATOM. Stepping THROUGH a residue is right --
+	// `$.x.a` names a key of the container whatever the container still
+	// has to satisfy -- but ARRIVING at one and handing back the bare
+	// container drops a constraint the author wrote, so `--at $.x`
+	// vetted clean against a `length` the evaluator enforces. Mirrors
+	// anchorAt in ts/src/vet.ts.
+	return node
 }
 
 // throughResidue is the container inside a settled sizing residue, or
@@ -937,7 +943,6 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 	for _, n := range nils {
 		findings = append(findings, findingOf(n, prov, sources))
 	}
-	conflicts := len(findings)
 
 	// 5. Incompleteness: what is left standing that cannot generate. The
 	//    generate check runs in its own collect context so nothing it
@@ -966,7 +971,6 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 			findings = append(findings, findingOf(e, prov, sources))
 		}
 	}
-	errorFindings := len(findings)
 	findings = append(findings, lintFindings...)
 
 	// 5b. Deprecation warnings (G3 phase 4): a value that carries the
@@ -1069,10 +1073,34 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 
 	// 6. The verdict derives from finding CLASSES, never from codes, so
 	//    a new code can never change exit behaviour.
+	//
+	// BY CLASS, NOT BY STAGE. The split used to be positional --
+	// whatever step 4 found counted as contradiction and whatever step 5
+	// added counted as incompleteness -- which stopped being true when a
+	// sizing atom or a container `must` began holding a provisional
+	// reading until generation (the review's finding C,
+	// use-cases/BUGS.md §16). A CONTRADICTION found at generation is
+	// still a contradiction.
+	//
+	// So: an error-severity finding that is not INCOMPLETENESS makes the
+	// document invalid, wherever it was found. Warnings (the `compat`
+	// class: lint and deprecation) never touch the verdict. Mirrors vet
+	// in ts/src/vet.ts.
+	errors := 0
+	unmet := 0
+	for _, f := range ordered {
+		if "error" != f.Severity {
+			continue
+		}
+		errors++
+		if "incomplete" == f.Class {
+			unmet++
+		}
+	}
 	verdict := VetValid
-	if 0 < conflicts {
+	if unmet < errors {
 		verdict = VetInvalid
-	} else if conflicts < errorFindings && !options.Partial {
+	} else if 0 < unmet && !options.Partial {
 		verdict = VetIncomplete
 	}
 

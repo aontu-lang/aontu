@@ -370,6 +370,26 @@ The other half was `vet`'s generation probe keeping the `incomplete`
 class alone — the first of the two engine causes the review named. A
 conflict raised at generation is a conflict, and it now counts.
 
+Two further faults in the same rule surfaced while pinning it, both
+found by running the two engines against each other rather than
+trusting either. A container that CANNOT GENERATE cannot be counted,
+and a schema is exactly that (`{a: integer}` emits nothing): the atom
+was discharged there as satisfied, so `length(min(2)) & {a: integer}`
+dropped its bound while still alone and the data was never measured at
+all. And the verdict was read POSITIONALLY -- whatever the meet found
+counted as contradiction, whatever generation added counted as
+incompleteness -- so the conflict this fix moved to generation was
+reported as `incomplete` where the evaluator refuses. An error-severity
+finding that is not incompleteness now makes the document `invalid`
+wherever it was found.
+
+`--at` had the same hole one level down: the anchor walk handed back
+the container INSIDE a residue, dropping the constraint the author
+wrote at that node, so `vet --at $.x` passed data the evaluator
+refuses. Stepping THROUGH a residue is still right -- `$.x.a` names a
+key whatever its container must still satisfy -- but ARRIVING at one
+now keeps the atom.
+
 Both fixes together are what makes `vet(S,D)` and `eval(S ∪ D)` agree
 here; the `vet-equals-eval` harness caught the second one the moment
 the first landed, which is what it is for.

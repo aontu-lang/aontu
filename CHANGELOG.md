@@ -44,6 +44,28 @@ contradiction raised at generation is a contradiction; dropping it left
 the verdict `valid`. The `vet-equals-eval` harness caught this the
 moment the first fix landed, which is exactly what it is for.
 
+**A container that cannot generate cannot be counted**, and a schema is
+exactly that: the members of `{a: integer}` are types, so nothing is
+emitted. Discharging the atom there was the same defect wearing its
+other face — `length(min(2)) & {a: integer}` dropped its bound while
+still alone, so the data half of the meet was never measured. It
+residuates now, and is decided at generation like every other
+provisional reading.
+
+**The verdict is read by class, not by stage.** Whatever the meet found
+counted as contradiction and whatever generation added counted as
+incompleteness — positional, and no longer true once a sizing atom
+could hold its reading until generation. An error-severity finding that
+is not incompleteness now makes the document `invalid` wherever it was
+found; warnings still never touch the verdict.
+
+**`--at` keeps the atom it anchors on.** The anchor walk handed back the
+container inside a residue, dropping a constraint the author wrote at
+that node, so `vet --at $.x` passed data the evaluator refuses.
+Stepping THROUGH a residue is still right — `$.x.a` names a key
+whatever its container must satisfy — but arriving at one no longer
+discards what it must satisfy.
+
 Four use-case gap pins flipped from pinning the defect to pinning the
 fix (05's cross-layer folding pair and its `must` pin, 09's duplicate
 labels, 06's `length(min(1))`-beside-a-generator probe, which moved

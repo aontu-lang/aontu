@@ -66,9 +66,12 @@ func TestAnAnchorStepsThroughASizingResidue(t *testing.T) {
 	if nil == at || "1" != at.Canon() {
 		t.Fatalf("anchor = %v, want the element's p", at)
 	}
-	// The residue itself anchors as its container.
-	if bag := anchorAt(root, "$.a"); nil == bag || bag.Canon() != "[{\"p\":1}]" {
-		t.Fatalf("the residue did not anchor as its container: %v", bag)
+	// ARRIVING at the residue keeps its atom: the anchored node is the
+	// honest schema for `$.a`, container and unmet constraint alike, so
+	// `--at` enforces what the author wrote there.
+	got := anchorAt(root, "$.a")
+	if nil == got || !strings.Contains(got.Canon(), "unique()") {
+		t.Fatalf("the anchor dropped its atom: %v", got)
 	}
 }
 

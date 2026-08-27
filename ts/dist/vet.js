@@ -368,7 +368,14 @@ function anchorAt(root, at) {
             return undefined;
         }
     }
-    return throughResidue(node);
+    // THE ANCHOR KEEPS ITS ATOM. Stepping THROUGH a residue is right --
+    // `$.x.a` names a key of the container whatever the container still
+    // has to satisfy -- but ARRIVING at one and handing back the bare
+    // container drops a constraint the author wrote, so `--at $.x` vetted
+    // clean against a `length` the evaluator enforces. The residue is the
+    // honest schema for the node: the meet drives it, and generation
+    // settles it, exactly as it does without an anchor.
+    return node;
 }
 // The container inside a settled sizing residue, or the value itself.
 function throughResidue(v) {
@@ -632,7 +639,6 @@ function vet(schemaSrc, dataSrc, opts) {
         materialise(n, ctx);
         return findingOf(n, prov);
     });
-    const conflicts = findings.length;
     // 5. Incompleteness: what is left standing that cannot generate. The
     //    generate check runs in its own collect context so nothing it
     //    raises reaches the caller's error list, and so a schema that is
@@ -671,7 +677,6 @@ function vet(schemaSrc, dataSrc, opts) {
     //     deprecated schema value, or the schema's own default will
     //     generate one. Severity `warning` (the slot G2 reserved for
     //     exactly this mark), and warnings never touch the verdict below.
-    const errorFindings = findings.length;
     findings.push(...lintFindings);
     for (const { val, path } of (0, utility_1.collectDeprecations)(unified)) {
         const v = val;
@@ -743,11 +748,27 @@ function vet(schemaSrc, dataSrc, opts) {
     const kept = truncated ? ordered.slice(0, maxErrors) : ordered;
     // 6. The verdict derives from finding CLASSES, never from codes, so a
     //    new code can never change exit behaviour.
+    //
+    // BY CLASS, NOT BY STAGE. The split used to be positional -- whatever
+    // step 4 found counted as contradiction and whatever step 5 added
+    // counted as incompleteness -- which stopped being true when a sizing
+    // atom or a container `must` began holding a provisional reading
+    // until generation (the review's finding C, use-cases/BUGS.md §16). A
+    // CONTRADICTION found at generation is still a contradiction: reading
+    // it as mere incompleteness answered `incomplete` where the evaluator
+    // refuses, and `vet` and `eval` have to agree.
+    //
+    // So: an error-severity finding that is not INCOMPLETENESS makes the
+    // document invalid, wherever it was found -- a contradiction, a parse
+    // refusal, an unresolvable reference alike. Warnings (the `compat`
+    // class: lint and deprecation) never touch the verdict.
     let verdict = 'valid';
-    if (0 < conflicts) {
+    const errors = ordered.filter((f) => 'error' === f.severity);
+    const unmet = errors.filter((f) => 'incomplete' === f.class).length;
+    if (unmet < errors.length) {
         verdict = 'invalid';
     }
-    else if (errorFindings > conflicts && true !== options.partial) {
+    else if (0 < unmet && true !== options.partial) {
         verdict = 'incomplete';
     }
     return { verdict, truncated, findings: kept };
