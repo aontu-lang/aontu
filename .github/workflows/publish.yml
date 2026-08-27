@@ -1,15 +1,57 @@
-# Publish the `aontu` npm package using npm trusted publishing (OIDC).
+# Releases aontu: publishes the npm package AND writes both git tags.
 #
-# No NPM_TOKEN: the `id-token: write` permission lets npm exchange a GitHub
-# OIDC token for a short-lived publish credential. The trusted publisher must
-# be registered on npmjs.com against THIS filename (publish.yml) — renaming
-# this file breaks publishing until the npm-side config is updated to match.
+# ONE FILE, BECAUSE NPM ALLOWS EXACTLY ONE. A trusted publisher is registered
+# on npmjs.com against a single workflow FILENAME. The name itself is
+# arbitrary, but only the ONE registered file can publish, so anything that
+# must accompany a publish has to live inside it. Here that is the tags.
 #
-# Provenance is attached automatically; no --provenance flag needed.
+# A second workflow cannot publish whatever permissions it holds; npm rejects
+# the OIDC exchange and reports it as
 #
-# Release flow: bump the version and push a v* tag (npm run repo-bump, then
-# npm run repo-tag). Do NOT run repo-publish locally — it publishes over a
-# token and bypasses OIDC entirely.
+#   npm error 404 Not Found - PUT https://registry.npmjs.org/aontu
+#
+# — a 404, not a 403, so as not to leak whether the package exists. Expect to
+# lose an hour to the wrong hypothesis unless you know that.
+#
+# THE REGISTRATION IS BOUND TO owner/repo. This repository moved from
+# rjrodger/aontu to aontu-lang/aontu, so the npmjs.com entry must name
+# aontu-lang/aontu or the exchange is refused.
+#
+# TWO JOBS, BECAUSE THEY NEED DIFFERENT PRIVILEGES.
+#
+#   publish  id-token: write, contents: READ. Runs npm install, the build and
+#            the tests — i.e. dependency lifecycle scripts and project code.
+#   tag      contents: write. Runs git and nothing else.
+#
+# Keeping them in one job would hand a repository-write credential to every
+# dependency postinstall script that runs during `npm install`, because
+# checkout persists its token into the git config for the whole job.
+#
+# A ref pushed with GITHUB_TOKEN does NOT start another workflow run (GitHub
+# suppresses that so workflows cannot trigger themselves), so the tag job
+# cannot be replaced by "tag, and let the publisher fire on the v* push".
+#
+# TWO WAYS IN:
+#
+#   workflow_dispatch  the normal path. Publishes what is missing, then tags.
+#   push: tags v*      the manual path, for a tag pushed by hand. Publishes
+#                      only; the tag job does not run.
+#
+# VERSION BUMPS ARE NOT AUTOMATED, deliberately. Nothing here commits. It
+# reads the versions already on the branch and releases exactly those, so the
+# bump stays a reviewable diff and the release stays a button.
+#
+#   npm   ts/package.json "version"     -> tag v<version>
+#   go    go/aontu.go     const VERSION -> tag go/v<VERSION>
+#
+# Go modules have no registry step: the tag IS the release. proxy.golang.org
+# caches a module version immutably, so a wrong go/vX.Y.Z cannot be fixed by
+# re-pushing it — bump to the next patch instead.
+#
+# Do NOT run `npm run repo-publish` locally: it publishes over a token and
+# bypasses OIDC entirely.
+#
+# See docs/release-and-tag.md.
 
 name: publish
 
@@ -17,34 +59,308 @@ on:
   push:
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      npm:
+        description: 'Publish the npm package and tag v<version>'
+        type: boolean
+        default: true
+      go:
+        description: 'Tag the Go module go/v<VERSION>'
+        type: boolean
+        default: true
+      expect_sha:
+        description: 'Optional: refuse unless main is still at this commit (set by `make publish`)'
+        type: string
+        default: ''
 
 jobs:
   publish:
     name: npm publish
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
+
+    # Deliberately NOT contents: write — see the header. This job runs
+    # dependency lifecycle scripts.
     permissions:
       id-token: write
       contents: read
-    defaults:
-      run:
-        working-directory: ts
+
+    outputs:
+      npm_version: ${{ steps.versions.outputs.npm_version }}
+      go_version: ${{ steps.versions.outputs.go_version }}
+
     steps:
+      # fetch-depth: 0 so the tag guards below can see refs/tags/*.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
           node-version: 24.x
           registry-url: 'https://registry.npmjs.org'
 
+      - name: Resolve the versions being released
+        id: versions
+        run: |
+          set -euo pipefail
+          NPM_VERSION="$(node -p "require('./ts/package.json').version")"
+          GO_VERSION="$(sed -n 's/^const VERSION = "\(.*\)"$/\1/p' go/aontu.go)"
+
+          test -n "$NPM_VERSION" || { echo "::error::could not read ts/package.json version"; exit 1; }
+          test -n "$GO_VERSION"  || { echo "::error::could not read VERSION from go/aontu.go"; exit 1; }
+
+          echo "npm_version=$NPM_VERSION" >> "$GITHUB_OUTPUT"
+          echo "go_version=$GO_VERSION"   >> "$GITHUB_OUTPUT"
+          echo "npm: $NPM_VERSION -> v$NPM_VERSION"
+          echo "go:  $GO_VERSION -> go/v$GO_VERSION"
+
+      # RELEASES COME FROM main, INCLUDING FROM THE BUTTON. `gh workflow run
+      # --ref` accepts any branch or tag, and the Makefile's `main` guard only
+      # binds callers who went through `make publish` — so without this the
+      # Actions UI or a stray API call could publish and tag a feature branch,
+      # irreversibly.
+      - name: Dispatches must come from main
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        run: |
+          set -euo pipefail
+          if [ "$GITHUB_REF_NAME" != "main" ]; then
+            echo "::error::dispatch ref is $GITHUB_REF_NAME; releases must come from main"
+            exit 1
+          fi
+
+      # `--ref main` names a MUTABLE branch, so between `make publish` pushing
+      # the release commit and this run resolving, another commit can land and
+      # be released under the version just bumped.
+      - name: main must still be the commit we intended to release
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.expect_sha != '' }}
+        env:
+          EXPECT_SHA: ${{ inputs.expect_sha }}
+        run: |
+          set -euo pipefail
+          if [ "$GITHUB_SHA" != "$EXPECT_SHA" ]; then
+            echo "::error::main has moved: expected $EXPECT_SHA, got $GITHUB_SHA"
+            exit 1
+          fi
+
+      # A tag pushed by hand must agree with the version it claims to release.
+      # Without this, pushing v0.54.0 while ts/package.json still says 0.53.0
+      # resolves 0.53.0, finds it already published, skips the publish, and the
+      # run goes GREEN — leaving a v0.54.0 tag with no npm release behind it.
+      - name: The pushed tag must match the package version
+        if: ${{ github.event_name == 'push' }}
+        env:
+          NPM_VERSION: ${{ steps.versions.outputs.npm_version }}
+        run: |
+          set -euo pipefail
+          WANT="v$NPM_VERSION"
+          if [ "$GITHUB_REF_NAME" != "$WANT" ]; then
+            echo "::error::tag $GITHUB_REF_NAME does not match ts/package.json ($WANT)"
+            exit 1
+          fi
+
+      # AN EXISTING TAG IS ONLY A PROBLEM IF IT POINTS SOMEWHERE ELSE.
+      #
+      # A tag already on THIS commit is the idempotent case: nothing to do,
+      # not an error — which is what makes re-dispatching after a partial
+      # release safe (publish succeeded, tag push failed). A tag on a
+      # different commit means the version was not bumped, and moving it
+      # would rewrite a published release.
+      - name: Refuse a tag that points at a different commit
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        env:
+          INPUT_NPM: ${{ inputs.npm }}
+          INPUT_GO: ${{ inputs.go }}
+          NPM_VERSION: ${{ steps.versions.outputs.npm_version }}
+          GO_VERSION: ${{ steps.versions.outputs.go_version }}
+        run: |
+          set -euo pipefail
+          HEAD_SHA="$(git rev-parse HEAD)"
+          fail=0
+
+          check() {
+            local tag="$1" what="$2"
+            local at
+            at="$(git rev-parse -q --verify "refs/tags/$tag^{commit}" 2>/dev/null || true)"
+            if [ -n "$at" ] && [ "$at" != "$HEAD_SHA" ]; then
+              echo "::error::tag $tag already exists on $at, not this commit — bump $what"
+              return 1
+            fi
+            if [ -n "$at" ]; then
+              echo "$tag already points here; nothing to create"
+            fi
+            return 0
+          }
+
+          if [ "$INPUT_NPM" = "true" ]; then
+            check "v$NPM_VERSION" "ts/package.json" || fail=1
+          fi
+          if [ "$INPUT_GO" = "true" ]; then
+            check "go/v$GO_VERSION" "VERSION in go/aontu.go" || fail=1
+          fi
+          exit $fail
+
+      # npm install, not npm ci: package-lock.json is gitignored in this repo.
+      - name: Build and test TypeScript
+        working-directory: ts
+        run: |
+          npm install
+          npm run build
+          npm test
+
+      # build.yml already runs the Go matrix on every push and PR, so main is
+      # covered. This re-runs it against the EXACT commit being released,
+      # which is the one that becomes an immutable module version — a cheap
+      # gate on the half of the release that cannot be taken back.
+      - name: Build and test Go
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.go }}
+        working-directory: go
+        run: |
+          go version
+          go build ./...
+          go vet ./...
+          go test ./... -count=1
+
       # Trusted publishing requires npm >= 11.5.1.
       - name: Use a trusted-publishing capable npm
         run: npm install -g npm@latest
 
-      # npm install, not npm ci: package-lock.json is gitignored in this repo.
-      - run: npm install
-      - run: npm run build
-      - run: npm test
+      # THE REGISTRY IS THE SOURCE OF TRUTH FOR "IS THIS RELEASED", not the
+      # tag. A run can publish and then fail before tagging, leaving a version
+      # on npm with nothing pointing at it. Without this check that state is
+      # unrecoverable: the publish step dies on "cannot publish over the
+      # previously published versions" before the tag job ever runs.
+      - name: Is this version already on npm?
+        id: registry
+        env:
+          NPM_VERSION: ${{ steps.versions.outputs.npm_version }}
+        run: |
+          set -euo pipefail
+          V="$NPM_VERSION"
+          if npm view "aontu@$V" version >/dev/null 2>&1; then
+            echo "published=true" >> "$GITHUB_OUTPUT"
+            echo "$V is already on npm — skipping publish"
+          else
+            echo "published=false" >> "$GITHUB_OUTPUT"
+            echo "$V is not on npm — will publish"
+          fi
 
+      # SKIPPING THE PUBLISH ASSUMES "SAME VERSION MEANS SAME CODE". That holds
+      # only if main has not moved. Publish succeeds at commit A, the tag job
+      # fails, main advances to B, someone re-dispatches: the version is still
+      # on npm, so the publish is skipped and B gets tagged — while the
+      # registry artifact was built from A.
+      #
+      # npm records the source commit as `gitHead`, so this is checkable.
+      # Absent gitHead cannot be verified, so warn rather than block: refusing
+      # would make legitimate recovery impossible.
+      #
+      # Gated on the npm half being requested. `make publish GOV=x.y.z` is a
+      # Go-only release: the npm version is unchanged and was published from an
+      # EARLIER commit, so comparing its gitHead with this one would always
+      # mismatch and block a release that is not touching npm at all.
+      - name: A published version must come from this commit
+        if: ${{ steps.registry.outputs.published == 'true' && (github.event_name == 'push' || inputs.npm) }}
+        env:
+          NPM_VERSION: ${{ steps.versions.outputs.npm_version }}
+        run: |
+          set -euo pipefail
+          V="$NPM_VERSION"
+          GH="$(npm view "aontu@$V" gitHead 2>/dev/null || true)"
+          if [ -z "$GH" ]; then
+            echo "::warning::npm records no gitHead for $V; cannot verify it was built from this commit"
+          elif [ "$GH" != "$GITHUB_SHA" ]; then
+            echo "::error::npm has $V built from $GH, but this run is $GITHUB_SHA — tagging would point at code the registry does not contain"
+            exit 1
+          else
+            echo "$V on npm was built from this commit"
+          fi
+
+      # Publish BEFORE tagging (the tag job `needs` this one), so a tag only
+      # ever exists for a release that reached the registry.
       - name: Publish to npm
-        run: npm publish
+        if: ${{ (github.event_name == 'push' || inputs.npm) && steps.registry.outputs.published == 'false' }}
+        working-directory: ts
+        env:
+          NPM_VERSION: ${{ steps.versions.outputs.npm_version }}
+        run: |
+          set -euo pipefail
+          V="$NPM_VERSION"
+          # A PRERELEASE MUST NOT BECOME `latest`. `npm publish` defaults to the
+          # latest dist-tag, so publishing 0.54.0-beta.1 that way hands it to
+          # every unpinned install.
+          case "$V" in
+            *-*) DIST=next ;;
+            *)   DIST=latest ;;
+          esac
+          echo "publishing $V under dist-tag $DIST"
+          npm publish --access public --tag "$DIST"
+
+  # Runs git and nothing else. No npm install, no project code — so the
+  # repository-write credential is never in scope while third-party code runs.
+  tag:
+    name: tag
+    needs: publish
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Tag the npm release
+        if: ${{ inputs.npm }}
+        env:
+          NPM_VERSION: ${{ needs.publish.outputs.npm_version }}
+        run: |
+          set -euo pipefail
+          TAG="v$NPM_VERSION"
+          HEAD_SHA="$(git rev-parse HEAD)"
+
+          # EXISTENCE IS NOT ENOUGH. `--verify` only asks whether the name
+          # resolves; a tag created between the publish job's guard and this
+          # checkout could point anywhere. Treating that as idempotent would
+          # leave a green run with an artifact from THIS commit and a release
+          # tag on a different one.
+          AT="$(git rev-parse -q --verify "refs/tags/$TAG^{commit}" 2>/dev/null || true)"
+          if [ -n "$AT" ]; then
+            if [ "$AT" != "$HEAD_SHA" ]; then
+              echo "::error::$TAG exists on $AT, not this commit ($HEAD_SHA)"
+              exit 1
+            fi
+            echo "$TAG already points here — nothing to do" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          git tag "$TAG"
+          git push origin "refs/tags/$TAG"
+          echo "pushed $TAG" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Tag the Go module
+        if: ${{ inputs.go }}
+        env:
+          GO_VERSION: ${{ needs.publish.outputs.go_version }}
+        run: |
+          set -euo pipefail
+          TAG="go/v$GO_VERSION"
+          HEAD_SHA="$(git rev-parse HEAD)"
+
+          # EXISTENCE IS NOT ENOUGH — see above. And a Go tag is worse to get
+          # wrong: proxy.golang.org caches a module version immutably, so a
+          # tag on the wrong commit cannot be corrected by re-pushing it.
+          AT="$(git rev-parse -q --verify "refs/tags/$TAG^{commit}" 2>/dev/null || true)"
+          if [ -n "$AT" ]; then
+            if [ "$AT" != "$HEAD_SHA" ]; then
+              echo "::error::$TAG exists on $AT, not this commit ($HEAD_SHA)"
+              exit 1
+            fi
+            echo "$TAG already points here — nothing to do" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          git tag "$TAG"
+          git push origin "refs/tags/$TAG"
+          echo "pushed $TAG" >> "$GITHUB_STEP_SUMMARY"
