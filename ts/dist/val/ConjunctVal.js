@@ -8,6 +8,7 @@ const err_1 = require("../err");
 const unify_1 = require("../unify");
 const err_2 = require("../err");
 const JunctionVal_1 = require("./JunctionVal");
+const BagVal_1 = require("./BagVal");
 const utility_1 = require("../utility");
 const top_1 = require("./top");
 // TODO: move main logic to op/conjunct
@@ -140,6 +141,24 @@ class ConjunctVal extends JunctionVal_1.JunctionVal {
         return '&';
     }
     gen(ctx) {
+        // A RESIDUATED SIZING ATOM DECIDES HERE (the review's finding C,
+        // use-cases/BUGS.md §16). `length`/`unique` over a container keep
+        // the readings that MORE MEMBERS COULD STILL CHANGE -- an upper
+        // bound satisfied, a lower bound violated, distinctness so far --
+        // rather than deciding against whatever the container held when it
+        // first settled (ConstraintVal.admitContainer). Generation is where
+        // no more members can arrive, so it is where the provisional
+        // reading becomes the verdict: the container generates if the atom
+        // is satisfied, and the atom's OWN refusal is raised if it is not.
+        //
+        // Without this the conjunct would report `conjunct` for a document
+        // whose only fault is a length -- the constraint's message is the
+        // one the author needs.
+        const residue = (0, BagVal_1.sizingResidue)(this);
+        if (undefined !== residue) {
+            const settled = residue.con.settleContainer(residue.bag, ctx);
+            return true === settled?.isNil ? undefined : settled.gen(ctx);
+        }
         // Unresolved conjunct cannot be generated, so always an error.
         let nil = (0, err_1.makeNilErr)(ctx, 'conjunct', this, // (formatPath(this.peg, this.absolute) as any),
         undefined);

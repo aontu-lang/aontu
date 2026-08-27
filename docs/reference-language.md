@@ -2335,6 +2335,34 @@ run against the first fragment would refuse `a: must(length(2),m)` /
 `a: {x:1}` / `a: {y:2}` on a count of one, exactly as an early-folding
 `length` would.
 
+**And "last" reaches past the document.** Sorting the atom to the end of
+its conjunct is only half the rule, because a container can settle in
+one document and still gain members from another: the data half of a
+[`vet`](reference-api.md#aontu-vet) meet, an
+[`@` include](#source-loading-), a later [`pack`](#generating-children-pack-and-each).
+An atom that decided when its own conjunct settled decided too early
+there, and `vet` then reported `valid` for data the evaluator refuses.
+
+So a sizing verdict is taken only when **more members cannot change
+it** — members accumulate under unification, they are never removed:
+
+| reading | permanent? | what happens |
+|---|---|---|
+| an upper bound **violated** | yes — more members only add | refuse now |
+| an upper bound **satisfied** | no | the atom stays on the value |
+| a lower bound **satisfied** | yes | that reading is spent |
+| a lower bound **violated** | no | the atom stays on the value |
+| a **duplicate** found | yes | refuse now |
+| distinctness **so far** | no | the atom stays on the value |
+
+Anything provisional **residuates**, exactly as an atom over a container
+that has not settled does, and is decided at **generation** — which is
+where nothing more can arrive. So `length(min(1)) & {&: {r: integer}}`
+no longer refuses the schema it was written for, and
+`length(max(2)) & {&: {r: integer}}` no longer passes three records.
+A residuated atom is visible in [canon](#canonical-form), which is the
+honest rendering: the value really does still carry the constraint.
+
 ### `unique` semantics
 
 `unique()` holds when the members of a container are **pairwise

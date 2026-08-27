@@ -10,7 +10,7 @@ declare class ConjunctVal extends JunctionVal {
     unify(peer: Val, ctx: AontuContext): Val;
     clone(ctx: AontuContext, spec?: ValSpec): Val;
     getJunctionSymbol(): string;
-    gen(ctx?: AontuContext): undefined;
+    gen(ctx?: AontuContext): any;
 }
 declare function norm(terms: Val[]): Val[];
 export { norm, ConjunctVal, };

@@ -447,3 +447,32 @@
 #   per-port tests named in 43 assert those and deliberately not the
 #   path.
 
+#
+# ---------------------------------------------------------------------
+#
+# OPEN -- the SITE of a MERGED CONTAINER that the meet minted: sited by
+#   TypeScript at the schema's own brace, unsited by Go.
+#   issue: none filed yet; found 2026-08-27 while pinning the sizing
+#   soundness fix (use-cases/BUGS.md 16), by probing a row through both
+#   library forms and diffing.
+#
+#   Divergent input:  schema `x: length(min(2)) & { &: {r: integer} }`,
+#                     data `{"x": {"a": {"r": 1}}}`
+#   TypeScript: the finding's schema site is len 1, src "{"
+#   Go:         the same site is len -1, src "" (unsited)
+#   Everything else agrees: verdict `incomplete`, code `constraint`,
+#   path `$.x`, expected and actual, and the OTHER site.
+#
+#   Not simply fixed because it is the same question the existing
+#   `vet-minted-arith-operand-unsited` row settles the other way for a
+#   minted SCALAR -- a value the meet built has no source text of its
+#   own, and Go says so while TypeScript lends it the brace of the
+#   fragment it grew from. Which is right is a finding-F decision about
+#   what a site MEANS for a value nobody wrote, and it wants answering
+#   once for every minted value rather than per shape.
+#
+#   The soundness this shape was probed for is pinned instead by
+#   `vet-sizing-min-still-short-in-the-data` in vet.tsv, whose schema
+#   uses a written key rather than a spread and which both ports agree
+#   on byte for byte.
+

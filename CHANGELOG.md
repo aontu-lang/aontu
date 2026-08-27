@@ -5,6 +5,50 @@ package (`ts/`, npm `aontu`) and the Go module (`go/`,
 `github.com/rjrodger/aontu/go`) are versioned independently; entries note
 which implementation each change affects.
 
+## Unreleased — the gate agrees with the evaluator about size
+
+Both implementations. The 2026-08 review's finding C, second half:
+"for every schema S and data D, `vet(S, D)` and `eval(S ∪ D)` must
+agree on accept/reject". Two of the five defects it named
+(`use-cases/BUGS.md` 16 and 17) were still open, and both were
+`vet` answering **valid** for data the evaluator refuses.
+
+**"Sizing atoms fold last" was only half the rule.** Sorting `length`
+and `unique` to the end of their conjunct does not help when the
+container settles in ONE document and still gains members from
+another: the data half of a `vet` meet, an `@` include, a later
+`pack`. The atom counted whatever the container held when its own
+layer settled — for the ubiquitous template-plus-bound spelling,
+nothing at all — discharged itself as satisfied, and vanished. Three
+entries then vetted clean against `length(max(2))`, duplicate labels
+passed `unique()`, and `length(min(1))` refused the schema it was
+written for.
+
+A sizing verdict is now taken only when **more members cannot change
+it** — members accumulate under unification and are never removed. An
+upper bound violated, a lower bound satisfied and a duplicate found are
+permanent and decided at once; everything else **residuates** and is
+decided at **generation**, where nothing more can arrive. A residuated
+atom is visible in canon, which is honest: the value really does still
+carry the constraint.
+
+**A `must` over a container residuates with them**, for the same reason
+and fixing the same class: `must({t: max(60)}, …)` beside a
+`{t: integer}` schema was answered against the schema layer alone, so
+the cross-field form — the form cross-field rules need — vetoed
+same-file and vanished under `vet`.
+
+**And `vet`'s generation probe now counts conflicts**, not only the
+`incomplete` class — the *other* engine cause the review named. A
+contradiction raised at generation is a contradiction; dropping it left
+the verdict `valid`. The `vet-equals-eval` harness caught this the
+moment the first fix landed, which is exactly what it is for.
+
+Four use-case gap pins flipped from pinning the defect to pinning the
+fix (05's cross-layer folding pair and its `must` pin, 09's duplicate
+labels, 06's `length(min(1))`-beside-a-generator probe, which moved
+from the expected-failure list to the goldens).
+
 ## Unreleased — relations that enforce, and a graph you can ask questions of
 
 Both implementations. The 2026-08 review's finding J: aontu is "a sound

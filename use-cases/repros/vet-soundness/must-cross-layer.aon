@@ -1,3 +1,8 @@
+# FIXED 2026-08-27 (the review's finding C, BUGS.md sec 17): this
+# file now vets as its `expected` line says it should. Kept as the
+# regression guard; the shared rows are vet-sizing-* and
+# vet-must-over-a-container-* in test/spec/vet.tsv.
+#
 # C6 (use-case 05): a MAP-argument must() is consumed against its own
 # document layer -- --canon of this file alone is {"s":{"t":integer}},
 # the must() already gone: the check unified {t:integer} & {t:max(60)}

@@ -452,13 +452,48 @@ func (m *MapVal) Gen(ctx *Ctx) (any, error) {
 }
 
 // genable mirrors the generable-child branch list in TS BagVal.gen.
+//
+// A CONJUNCT IS GENERABLE WHEN IT IS A SETTLED SIZING RESIDUE (the
+// review's finding C, use-cases/BUGS.md §16). `length` and `unique`
+// over a container keep the readings more members could still change,
+// so `a: length(3) a:[1,2,3]` is a conjunct of the atom and the list
+// right up to generation -- which is where the atom decides, in
+// ConjunctVal.Gen. Any OTHER conjunct is unresolved residue as before.
 func genable(v Val) bool {
 	switch v.(type) {
 	case *ScalarVal, *MapVal, *ListVal, *PrefVal, *RefVal,
 		*DisjunctVal, *NilVal:
 		return true
 	}
+	if _, _, ok := sizingResidue(v); ok {
+		return true
+	}
 	return false
+}
+
+// sizingResidue reports a conjunct of exactly one sizing constraint and
+// one container: the shape admitContainer leaves when its reading is
+// still provisional, and the one ConjunctVal.Gen knows how to finish.
+// Mirrors sizingResidue in ts/src/val/BagVal.ts.
+func sizingResidue(v Val) (*ConstraintVal, Val, bool) {
+	cj, ok := v.(*ConjunctVal)
+	if !ok || 2 != len(cj.peg) {
+		return nil, nil, false
+	}
+	a, b := cj.peg[0], cj.peg[1]
+	con, isA := a.(*ConstraintVal)
+	bag := b
+	if !isA {
+		if con, ok = b.(*ConstraintVal); !ok {
+			return nil, nil, false
+		}
+		bag = a
+	}
+	switch bag.(type) {
+	case *MapVal, *ListVal:
+		return con, bag, true
+	}
+	return nil, nil, false
 }
 
 // gensNull reports whether a child's generated nil means JSON null

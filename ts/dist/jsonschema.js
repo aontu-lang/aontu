@@ -32,6 +32,7 @@ exports.jsonSchema = jsonSchema;
 // Draft 2020-12, because that is what the structured-output APIs read.
 const aontu_1 = require("./aontu");
 const err_1 = require("./err");
+const BagVal_1 = require("./val/BagVal");
 const vet_1 = require("./vet");
 const vet_2 = require("./vet");
 const DRAFT = 'https://json-schema.org/draft/2020-12/schema';
@@ -178,6 +179,19 @@ function fromVal(ctx, path, v) {
     }
     if (true === v.isConstraint) {
         return fromConstraint(ctx, path, v);
+    }
+    // A SIZING RESIDUE is a container and its own sizing atom, kept
+    // together because more members could still change the atom's reading
+    // (use-cases/BUGS.md §16). Both halves are exportable and both must
+    // be: the container gives the shape, the atom gives `uniqueItems` and
+    // the length keywords, and a walk that saw only "a conjunct" would
+    // report the whole field as unresolved and admit anything.
+    const residue = (0, BagVal_1.sizingResidue)(v);
+    if (undefined !== residue) {
+        return {
+            ...fromVal(ctx, path, residue.bag),
+            ...fromConstraint(ctx, path, residue.con),
+        };
     }
     if (true === v.isMap) {
         return fromMap(ctx, path, v);

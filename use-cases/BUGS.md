@@ -355,6 +355,25 @@ traps, both caught only post-hoc in the assembled runtime view. A
 refused write is now refused at the point of writing and never reaches
 the overlay. Both ports.
 ### 16. Sizing atoms sharing a conjunct with a container fold against that layer alone [critical]
+**Status: FIXED 2026-08-27** (the review's finding C). "Sizing atoms
+fold last" was only half the rule: sorting the atom to the end of its
+conjunct does not help when the container settles in ONE document and
+still gains members from another. A verdict is now taken only when more
+members cannot change it — members accumulate under unification and are
+never removed — so an upper bound violated, a lower bound satisfied and
+a duplicate found are decided at once, and everything else RESIDUATES
+and is decided at generation, where nothing more can arrive. A
+residuated atom is visible in canon, which is honest: the value really
+does still carry the constraint.
+
+The other half was `vet`'s generation probe keeping the `incomplete`
+class alone — the first of the two engine causes the review named. A
+conflict raised at generation is a conflict, and it now counts.
+
+Both fixes together are what makes `vet(S,D)` and `eval(S ∪ D)` agree
+here; the `vet-equals-eval` harness caught the second one the moment
+the first landed, which is what it is for.
+
 `x: length(max(2)) & { &: {r:integer} }` vs 3 data entries → `valid`
 (canon of the schema alone already shows the atom stripped);
 `length(min(1))` beside a template refuses the *schema* (`error`, exit
@@ -368,6 +387,15 @@ atoms fold last… written order does not matter". Repros:
 `list-sizing-dropped.aon`.
 
 ### 17. Map-argument `must()` is consumed by the schema layer [critical]
+
+**Status: FIXED 2026-08-27** (the review's finding C, with §16). A
+`must` over a container residuates with the sizing atoms and for the
+same reason: `must({t: max(60)}, …)` beside a `{t: integer}` schema was
+answered against the schema layer ALONE and discharged before the data
+it was written to judge ever arrived. It is decided at generation now,
+and a `must` whose own check is a sizing atom inherits that atom's
+provisionality rather than reading its residue as a pass.
+
 `s: {t: integer} & must({t: max(60)}, "session too long")`, data
 `{"s":{"t":120}}` → `valid`, exit 0 (canon shows the must already
 consumed: `{t:integer}` unified residually with the check and the bound

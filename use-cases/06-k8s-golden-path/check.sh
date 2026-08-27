@@ -167,12 +167,18 @@ probe_fails join-list '[aontu/mapval_no_gen]' \
 # model dead). Moved from the expected-failure probes to the goldens
 # below. Shared-spec pins: gen-pack.tsv pack-over-spread-augmented,
 # gen-each.tsv each-over-spread-augmented.
-probe_fails length-on-schema-list '[aontu/constraint]' \
-  "length(min(1)) fires on the empty schema list before the merge"
 probe_fails env-append '[aontu/scalar_value]' \
   "appending to a generated list collides positionally"
 probe_fails kebab-bare '[aontu/negative]' \
   "bare kebab-case name parses as negation"
+
+# FIXED 2026-08-27 (the review's finding C, BUGS.md sec 16):
+# length(min(1)) used to fire against the spread-only schema list (0
+# members) before the generator merge -- a false refusal of a valid
+# model. A lower bound violated is provisional now: more members may
+# still arrive, so the atom residuates and is decided at generation,
+# by which time the pack has filled the list. Moved from the
+# expected-failure probes to the goldens below.
 
 # Pinned silent-wrong-answer bugs: exit 0, golden diff.
 probe_golden() { # file label
@@ -187,6 +193,8 @@ probe_golden() { # file label
 # expected/bound-bypass.json, replicas:40, is gone with it).
 probe_fails bound-bypass '[aontu/|:empty]' \
   "bound in a disjunction branch: override 40 refused by the admission gate"
+probe_golden length-on-schema-list \
+  "length(min(1)) beside a spread waits for the generator merge"
 probe_golden close-shallow-typo \
   "close(pack) does not seal children: typo'd override absorbed, exit 0"
 grep -q '"replcias": 4' "$DIR/expected/close-shallow-typo.json" \

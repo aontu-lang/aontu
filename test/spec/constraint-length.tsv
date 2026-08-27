@@ -78,10 +78,10 @@ length-arity	errc	a:length()	func_arity
 # arguments and a non-string argument is an invalid one.
 unique-arity	errc	a:unique(p,q)	func_arity
 unique-arg-not-a-key	errc	a:unique(1) a:[1,2]	invalid-arg
-unique-by-key-holds	canon	a:unique(p) a:[{p:1},{p:2}]	{"a":[{"p":1},{"p":2}]}
+unique-by-key-holds	canon	a:unique(p) a:[{p:1},{p:2}]	{"a":[{"p":1},{"p":2}]&unique("p")}
 unique-by-key-duplicate	errc	a:unique(p) a:[{p:1},{p:1}]	constraint
 unique-by-key-missing	errc	a:unique(p) a:[{p:1},{q:1}]	constraint
-unique-by-key-map-bag	canon	a:unique(p) a:{x:{p:1},y:{p:2}}	{"a":{"x":{"p":1},"y":{"p":2}}}
+unique-by-key-map-bag	canon	a:unique(p) a:{x:{p:1},y:{p:2}}	{"a":{"x":{"p":1},"y":{"p":2}}&unique("p")}
 unique-by-key-canon	canon	a:unique(q)&unique(p)	{"a":unique("p")&unique("q")}
 unique-by-key-and-bare	errc	a:unique()&unique(p) a:[{p:1},{p:1}]	constraint
 unique-by-two-keys	errc	a:unique(p)&unique(q) a:[{p:1},{p:2}]	constraint
@@ -142,7 +142,7 @@ unique-boolean-peer	errc	a:unique() a:true	constraint
 # a second rule. A generated value could not express the first: 1 and
 # 1.0 generate the same JSON number.
 unique-leafwise	gen	a:unique() a:[1,1.0]	{"a":[1,1]}
-unique-leafwise-canon	canon	a:unique() a:[1,1.0]	{"a":[1,1.0]}
+unique-leafwise-canon	canon	a:unique() a:[1,1.0]	{"a":[1,1.0]&unique()}
 unique-map-members-distinct	gen	a:unique() a:[{x:1},{x:2}]	{"a":[{"x":1},{"x":2}]}
 unique-map-members-same	errc	a:unique() a:[{x:1},{x:1}]	constraint
 unique-list-members-same	errc	a:unique() a:[[1,2],[1,2]]	constraint

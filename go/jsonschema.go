@@ -243,6 +243,24 @@ func schemaFromVal(sc *schemaCtx, path []string, v Val) map[string]any {
 	case *ConstraintVal:
 		return schemaFromConstraint(sc, path, t)
 
+	case *ConjunctVal:
+		// A SIZING RESIDUE is a container and its own sizing atom, kept
+		// together because more members could still change the atom's
+		// reading (use-cases/BUGS.md §16). Both halves are exportable
+		// and both must be: the container gives the shape, the atom
+		// gives uniqueItems and the length keywords, and a walk that saw
+		// only "a conjunct" would report the whole field as unresolved
+		// and admit anything. Mirrors ts/src/jsonschema.ts.
+		// A conjunct that is NOT a residue falls out of the switch to
+		// the residue loss below, as every other unresolved value does.
+		if con, bag, ok := sizingResidue(t); ok {
+			out := schemaFromVal(sc, path, bag)
+			for k, val := range schemaFromConstraint(sc, path, con) {
+				out[k] = val
+			}
+			return out
+		}
+
 	case *MapVal:
 		return schemaFromMap(sc, path, t)
 

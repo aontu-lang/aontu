@@ -2,6 +2,7 @@
 /* Copyright (c) 2021-2025 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.BagVal = void 0;
+exports.sizingResidue = sizingResidue;
 const utility_1 = require("../utility");
 const err_1 = require("../err");
 const Val_1 = require("./Val");
@@ -143,13 +144,22 @@ class BagVal extends FeatureVal_1.FeatureVal {
                 }
                 put(cval);
             }
+            // A CONJUNCT IS GENERABLE WHEN IT IS A SETTLED SIZING RESIDUE
+            // (the review's finding C, use-cases/BUGS.md §16). `length` and
+            // `unique` over a container keep the readings more members could
+            // still change, so `a: length(3) a:[1,2,3]` is a conjunct of the
+            // atom and the list right up to generation -- which is where the
+            // atom decides, in ConjunctVal.gen. Any OTHER conjunct is
+            // unresolved and falls through to the residue error below,
+            // exactly as before.
             else if (child.isScalar
                 || child.isMap
                 || child.isList
                 || child.isPref
                 || child.isRef
                 || child.isDisjunct
-                || child.isNil) {
+                || child.isNil
+                || undefined !== sizingResidue(child)) {
                 // An optional child is generated in an isolated collect context so an
                 // unresolved inner value (a bare type that survived unification, e.g.
                 // an absent optional sub-map's `field: string`) is dropped rather than
@@ -197,4 +207,20 @@ class BagVal extends FeatureVal_1.FeatureVal {
     }
 } /* node:coverage ignore next 6 */
 exports.BagVal = BagVal;
+// A conjunct of exactly one sizing constraint and one container: the
+// shape ConstraintVal.admitContainer leaves when its reading is still
+// provisional, and the one ConjunctVal.gen knows how to finish. Kept
+// here rather than as a flag on the conjunct because it is a question
+// about the TERMS, and they can change until the meet converges.
+function sizingResidue(v) {
+    if (true !== v?.isConjunct || 2 !== v.peg?.length) {
+        return undefined;
+    }
+    const [a, b] = v.peg;
+    const con = true === a?.isConstraint ? a :
+        true === b?.isConstraint ? b : undefined;
+    const bag = true === a?.isConstraint ? b : a;
+    return undefined !== con && (true === bag?.isMap || true === bag?.isList) ?
+        { con, bag } : undefined;
+}
 //# sourceMappingURL=BagVal.js.map

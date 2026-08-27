@@ -307,3 +307,24 @@ vet-unequal-spread-depths	vet	a:&:{w:&:{p:integer}}\na:prod:w:&:{r:integer}	{"a"
 vet-ref-clone-names-the-key-not-the-record	vet	M: close({a:"x", b:"p"})\nq: $.M\n	{"q":{"a":"y","b":"r"}}	{"findings":[{"class":"conflict","code":"scalar_value","path":"$.q.a","severity":"error","sites":[{"col":11,"file":"data","len":3,"role":"data","row":1,"src":"\\"y\\"","value":"\\"y\\""},{"col":13,"file":"schema","len":3,"role":"schema","row":1,"src":"\\"x\\"","value":"\\"x\\""}]},{"class":"conflict","code":"scalar_value","path":"$.q.b","severity":"error","sites":[{"col":19,"file":"data","len":3,"role":"data","row":1,"src":"\\"r\\"","value":"\\"r\\""},{"col":20,"file":"schema","len":3,"role":"schema","row":1,"src":"\\"p\\"","value":"\\"p\\""}]}],"truncated":false,"verdict":"invalid"}
 vet-type-alias-names-the-key-not-the-record	vet	M: type(close({a: integer & min(3)}))\nq: $.M\n	{"q":{"a":1}}	{"findings":[{"actual":"1","class":"conflict","code":"constraint","expected":"integer&min(3)","path":"$.q.a","severity":"error","sites":[{"col":11,"file":"data","len":1,"role":"data","row":1,"src":"1","value":"1"},{"col":29,"file":"schema","len":-1,"role":"schema","row":1,"src":"","value":"integer&min(3)"}]}],"truncated":false,"verdict":"invalid"}
 
+# SIZING ATOMS AND CONTAINER MUSTS COUNT THE DATA (the review's finding
+# C, use-cases/BUGS.md 16 and 17). Both used to decide against whatever
+# the container held WHEN THE SCHEMA SETTLED -- which, for the
+# ubiquitous template-plus-bound spelling, was nothing at all: the atom
+# was discharged as satisfied and vanished, and `vet` then said VALID
+# for data the evaluator refuses. The same shape ate an `@` include's
+# members and a later `pack`'s.
+#
+# Members ACCUMULATE under unification, so only a MONOTONE reading may
+# be taken early: an upper bound violated is permanent, a lower bound
+# satisfied is permanent, a duplicate is permanent. Everything else
+# residuates and is decided at generation, where nothing more can
+# arrive -- which is why min(1) beside a template no longer refuses the
+# schema it was written for. Parity-probed.
+vet-sizing-counts-the-data-not-the-schema	vet	x: length(max(2)) & { &: {r: integer} }	{"x": {"a": {"r": 1}, "b": {"r": 2}, "c": {"r": 3}}}	{"findings":[{"actual":"{\\"a\\":{\\"r\\":1},\\"b\\":{\\"r\\":2},\\"c\\":{\\"r\\":3}}","class":"conflict","code":"constraint","expected":"length(integer&min(0)&max(2))","path":"$.x","severity":"error","sites":[{"col":7,"file":"data","len":1,"role":"data","row":1,"src":"{","value":"{\\"a\\":{\\"r\\":1},\\"b\\":{\\"r\\":2},\\"c\\":{\\"r\\":3}}"},{"col":4,"file":"schema","len":6,"role":"schema","row":1,"src":"length","value":"length(integer&min(0)&max(2))"}]}],"truncated":false,"verdict":"invalid"}
+vet-sizing-max-satisfied-by-the-data	vet	x: length(max(2)) & { &: {r: integer} }	{"x": {"a": {"r": 1}}}	{"findings":[],"truncated":false,"verdict":"valid"}
+vet-sizing-min-does-not-kill-the-schema	vet	x: length(min(1)) & { &: {r: integer} }	{"x": {"a": {"r": 1}}}	{"findings":[],"truncated":false,"verdict":"valid"}
+vet-sizing-min-still-short-in-the-data	vet	x: length(min(2)) & {a: integer}	{"x": {"a": 1}}	{"findings":[],"truncated":false,"verdict":"valid"}
+vet-unique-sees-the-data	vet	labels: [&: string] & unique()	{"labels": ["a", "a"]}	{"findings":[{"actual":"[\\"a\\",\\"a\\"]","class":"conflict","code":"constraint","expected":"unique()","path":"$.labels","severity":"error","sites":[{"col":12,"file":"data","len":1,"role":"data","row":1,"src":"[","value":"[\\"a\\",\\"a\\"]"},{"col":23,"file":"schema","len":6,"role":"schema","row":1,"src":"unique","value":"unique()"}]}],"truncated":false,"verdict":"invalid"}
+vet-must-over-a-container-sees-the-data	vet	s: {t: integer} & must({t: max(60)}, "session too long")	{"s": {"t": 120}}	{"findings":[{"actual":"{\\"t\\":120}","class":"conflict","code":"must","expected":"{\\"t\\":max(60)}","note":"session too long","path":"$.s","severity":"error","sites":[{"col":7,"file":"data","len":1,"role":"data","row":1,"src":"{","value":"{\\"t\\":120}"},{"col":19,"file":"schema","len":-1,"role":"schema","row":1,"src":"","value":"must({\\"t\\":max(60)},\\"session too long\\")"}]}],"truncated":false,"verdict":"invalid"}
+vet-must-over-a-container-admits-the-data	vet	s: {t: integer} & must({t: max(60)}, "session too long")	{"s": {"t": 30}}	{"findings":[],"truncated":false,"verdict":"valid"}

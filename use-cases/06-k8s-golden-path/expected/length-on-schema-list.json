@@ -1,0 +1,21 @@
+{
+  "col": {
+    "web": {
+      "http": {
+        "containerPort": 8080
+      }
+    }
+  },
+  "deploy": {
+    "web": {
+      "ports": [
+        {
+          "containerPort": 8080
+        }
+      ]
+    }
+  },
+  "names": [
+    "web"
+  ]
+}

@@ -31,6 +31,7 @@
 
 import { Aontu } from './aontu'
 import { makeNilErr } from './err'
+import { sizingResidue } from './val/BagVal'
 import { failureFinding } from './vet'
 import type { VetFinding } from './vet'
 import type { TrustOptions } from './type'
@@ -254,6 +255,20 @@ function fromVal(ctx: Ctx, path: string[], v: any): any {
 
   if (true === v.isConstraint) {
     return fromConstraint(ctx, path, v)
+  }
+
+  // A SIZING RESIDUE is a container and its own sizing atom, kept
+  // together because more members could still change the atom's reading
+  // (use-cases/BUGS.md §16). Both halves are exportable and both must
+  // be: the container gives the shape, the atom gives `uniqueItems` and
+  // the length keywords, and a walk that saw only "a conjunct" would
+  // report the whole field as unresolved and admit anything.
+  const residue = sizingResidue(v)
+  if (undefined !== residue) {
+    return {
+      ...fromVal(ctx, path, residue.bag),
+      ...fromConstraint(ctx, path, residue.con),
+    }
   }
 
   if (true === v.isMap) {

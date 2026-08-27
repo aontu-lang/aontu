@@ -1,3 +1,8 @@
+# FIXED 2026-08-27 (the review's finding C, BUGS.md sec 16): this
+# file now vets INVALID, as its `expected` line always said it
+# should. Kept as the regression guard; the shared rows are
+# vet-sizing-* in test/spec/vet.tsv.
+#
 # C5 (use-cases 05, 09): a sizing atom that shares a conjunct with a
 # container (the ubiquitous template idiom) folds against that layer's
 # container ALONE as soon as the schema settles; members from the vet

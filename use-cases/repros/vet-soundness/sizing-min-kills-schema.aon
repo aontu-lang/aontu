@@ -1,3 +1,8 @@
+# FIXED 2026-08-27 (the review's finding C, BUGS.md sec 16): this
+# file now vets as its `expected` line says it should. Kept as the
+# regression guard; the shared rows are vet-sizing-* and
+# vet-must-over-a-container-* in test/spec/vet.tsv.
+#
 # C5 (use-cases 05, 06, 10): the same early fold in the other direction:
 # length(min(1)) beside a spread template counts the schema's own
 # spread-only (zero-member) container and refuses the SCHEMA, even

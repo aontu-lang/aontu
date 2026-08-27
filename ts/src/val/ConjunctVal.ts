@@ -22,6 +22,7 @@ import {
 
 
 import { JunctionVal } from './JunctionVal'
+import { sizingResidue } from './BagVal'
 
 import {
   explainOpen,
@@ -215,6 +216,25 @@ class ConjunctVal extends JunctionVal {
 
 
   gen(ctx?: AontuContext) {
+    // A RESIDUATED SIZING ATOM DECIDES HERE (the review's finding C,
+    // use-cases/BUGS.md §16). `length`/`unique` over a container keep
+    // the readings that MORE MEMBERS COULD STILL CHANGE -- an upper
+    // bound satisfied, a lower bound violated, distinctness so far --
+    // rather than deciding against whatever the container held when it
+    // first settled (ConstraintVal.admitContainer). Generation is where
+    // no more members can arrive, so it is where the provisional
+    // reading becomes the verdict: the container generates if the atom
+    // is satisfied, and the atom's OWN refusal is raised if it is not.
+    //
+    // Without this the conjunct would report `conjunct` for a document
+    // whose only fault is a length -- the constraint's message is the
+    // one the author needs.
+    const residue = sizingResidue(this)
+    if (undefined !== residue) {
+      const settled: any = residue.con.settleContainer(residue.bag, ctx)
+      return true === settled?.isNil ? undefined : settled.gen(ctx)
+    }
+
     // Unresolved conjunct cannot be generated, so always an error.
     let nil = makeNilErr(
       ctx,

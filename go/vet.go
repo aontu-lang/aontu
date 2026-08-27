@@ -537,6 +537,12 @@ func anchorAt(root Val, at string) Val {
 		if "" == part {
 			continue
 		}
+		// A SIZING RESIDUE IS ITS CONTAINER, plus a note about what the
+		// container must still satisfy (use-cases/BUGS.md §16). The path
+		// steps through it, so `$.a.ports.0.port` names the same node
+		// whether or not `ports` still carries a `unique()`. Mirrors
+		// anchorAt in ts/src/vet.ts.
+		node = throughResidue(node)
 		switch n := node.(type) {
 		case *MapVal:
 			child, ok := n.peg[part]
@@ -557,7 +563,16 @@ func anchorAt(root Val, at string) Val {
 			return nil
 		}
 	}
-	return node
+	return throughResidue(node)
+}
+
+// throughResidue is the container inside a settled sizing residue, or
+// the value itself.
+func throughResidue(v Val) Val {
+	if _, bag, ok := sizingResidue(v); ok {
+		return bag
+	}
+	return v
 }
 
 // ansiRe matches the terminal colour escapes the parser puts in its
@@ -939,7 +954,15 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 		probe: "" != options.At}
 	_, _ = unified.Gen(genCtx)
 	for _, e := range genCtx.err {
-		if "incomplete" == e.Class() {
+		// A CONFLICT RAISED AT GENERATION COUNTS TOO (the review's
+		// finding C, use-cases/BUGS.md §16). The filter used to keep the
+		// `incomplete` class alone, on the reading that the meet had
+		// already found every contradiction -- true while every conflict
+		// was decided during the meet, and untrue since a sizing atom or
+		// a container `must` may hold a PROVISIONAL reading until
+		// generation, which is where no more members can arrive.
+		// Mirrors ts/src/vet.ts.
+		if "incomplete" == e.Class() || "conflict" == e.Class() {
 			findings = append(findings, findingOf(e, prov, sources))
 		}
 	}

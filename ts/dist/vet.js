@@ -11,6 +11,7 @@ const node_path_1 = require("node:path");
 const err_1 = require("./err");
 const ConjunctVal_1 = require("./val/ConjunctVal");
 const walk_1 = require("./walk");
+const BagVal_1 = require("./val/BagVal");
 const utility_1 = require("./utility");
 const subsume_1 = require("./subsume");
 // The `--at` refusal is the SAME refusal `get` and `why` give for a
@@ -323,6 +324,13 @@ function anchorAt(root, at) {
     const parts = trimmed.split('.').filter((p) => '' !== p);
     let node = root;
     for (const part of parts) {
+        // A SIZING RESIDUE IS ITS CONTAINER, plus a note about what the
+        // container must still satisfy (use-cases/BUGS.md §16). The path
+        // steps through it: `$.a.ports.0.port` names the same node whether
+        // or not `ports` still carries a `unique()`, and an anchor that
+        // stopped here would report `no_path` for a key the document
+        // plainly has.
+        node = throughResidue(node);
         // TYPE-DIRECTED, not a property lookup on whatever `peg` happens to
         // be. An anchor is a STRUCTURAL path into the schema — the same
         // thing a reference means by `$.a.b` — so it walks map keys and
@@ -360,7 +368,11 @@ function anchorAt(root, at) {
             return undefined;
         }
     }
-    return node;
+    return throughResidue(node);
+}
+// The container inside a settled sizing residue, or the value itself.
+function throughResidue(v) {
+    return (0, BagVal_1.sizingResidue)(v)?.bag ?? v;
 }
 // Validate `dataSrc` against `schemaSrc`.
 //
@@ -636,7 +648,20 @@ function vet(schemaSrc, dataSrc, opts) {
     genCtx.probe = null != options.at;
     unified.gen(genCtx);
     for (const err of genCtx.err) {
-        if ('incomplete' === err.class) {
+        // A CONFLICT RAISED AT GENERATION COUNTS TOO (the review's finding
+        // C, use-cases/BUGS.md §16). The filter used to keep the
+        // `incomplete` class alone, on the reading that step 4 had already
+        // found every contradiction -- true while every conflict was
+        // decided during the meet, and untrue since a sizing atom or a
+        // container `must` may hold a PROVISIONAL reading until generation,
+        // which is where no more members can arrive. Dropping those left
+        // `vet` answering `valid` for data the evaluator refuses, which is
+        // the one disagreement the vet-equals-eval harness exists to catch
+        // -- and did.
+        //
+        // Deduped against step 4 by the same cause key the loop below uses,
+        // so a contradiction seen twice is still reported once.
+        if ('incomplete' === err.class || 'conflict' === err.class) {
             materialise(err, genCtx);
             findings.push(findingOf(err, prov));
         }

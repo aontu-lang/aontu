@@ -246,21 +246,26 @@ run listorder 1 -- subsume "$WORK/la.aon" "$WORK/lb.aon"
 has listorder out 'does_not_subsume'
 ok "GAP pinned: list-shaped grant sets are order-sensitive under subsume"
 
-# ------------------------- cross-layer folding gap repros (README)
-# 28. A sizing atom next to a spread makes a vet schema unusable...
+# ------------------------- cross-layer folding, CLOSED 2026-08-27
+# 28. A sizing atom next to a spread used to make a vet schema
+# unusable: length(min(1)) refused the SCHEMA on its own, counting the
+# template's empty container. A lower bound violated is provisional --
+# more members may still arrive -- so the atom now residuates and the
+# schema is usable (the review's finding C, BUGS.md sec 16).
 printf 'x: length(min(1)) & { &: {r: integer} }\n' > "$WORK/g1.aon"
 printf '{"x":{"a":{"r":1}}}\n' > "$WORK/g1.json"
-run lenmin 4 -- vet "$WORK/g1.aon" "$WORK/g1.json"
-has lenmin out 'verdict: error'
-ok "GAP pinned: length(min)+spread schema is 'unusable on its own' (exit 4)"
+run lenmin 0 -- vet "$WORK/g1.aon" "$WORK/g1.json"
+has lenmin out 'verdict: valid'
+ok "CLOSED: length(min)+spread schema is usable, and the data satisfies it"
 
-# 29. ...and a satisfied-at-schema-time max VANISHES: three entries
-# vet as valid against length(max(2)).
+# 29. ...and a satisfied-at-schema-time max no longer VANISHES: it
+# stays on the value until generation, so it counts the data.
 printf 'x: length(max(2)) & { &: {r: integer} }\n' > "$WORK/g2.aon"
 printf '{"x":{"a":{"r":1},"b":{"r":2},"c":{"r":3}}}\n' > "$WORK/g2.json"
-run lenmax 0 -- vet "$WORK/g2.aon" "$WORK/g2.json"
-has lenmax out 'verdict: valid'
-ok "GAP pinned: length(max(2)) silently passes 3 data entries under vet"
+run lenmax 1 -- vet "$WORK/g2.aon" "$WORK/g2.json"
+has lenmax out 'verdict: invalid'
+has lenmax out '$.x'
+ok "CLOSED: length(max(2)) refuses 3 data entries under vet"
 
 # 30. GAP CLOSED 2026-08-27 (ADR-007): stale references under vet. A
 # closed-map branch keyed on a data-supplied field via a reference used
@@ -281,16 +286,22 @@ run staleeval 1 -- "$WORK/g3e.aon"
 has staleeval err '[aontu/|:empty]'
 ok "vet catches what eval catches when a branch hangs on a reference"
 
-# 31. must() is same-layer only: the identical rule fires in one file
-# and silently passes across vet.
+# 31. CLOSED 2026-08-27 (the review's finding C, BUGS.md sec 17):
+# must() used to be same-layer only -- the identical rule fired in one
+# file and silently passed across vet, because a map-argument must was
+# answered against the SCHEMA layer alone and discharged before the
+# data arrived. A must over a container residuates with the sizing
+# atoms now, and is decided at generation. Both spellings refuse, with
+# the same code, which is the vet-equals-eval invariant.
 printf 's: {t: integer} & must({t: max(60)}, "session too long")\n' > "$WORK/g4.aon"
 printf '{"s":{"t":120}}\n' > "$WORK/g4.json"
-run mustvet 0 -- vet "$WORK/g4.aon" "$WORK/g4.json"
-has mustvet out 'verdict: valid'
+run mustvet 1 -- vet "$WORK/g4.aon" "$WORK/g4.json"
+has mustvet out 'verdict: invalid'
+has mustvet out 'session too long'
 printf 's: {t: integer} & must({t: max(60)}, "session too long")\ns: {t: 120}\n' > "$WORK/g5.aon"
 run mustsame 1 -- "$WORK/g5.aon"
 has mustsame err '[aontu/must]'
-ok "GAP pinned: must() vetoes same-file, vanishes under vet"
+ok "CLOSED: must() vetoes both same-file and across vet, alike"
 
 echo
 echo "all $pass checks passed"

@@ -17,3 +17,7 @@ declare abstract class BagVal extends FeatureVal {
     gen(ctx: AontuContext): any;
 }
 export { BagVal, };
+export declare function sizingResidue(v: any): {
+    con: any;
+    bag: any;
+} | undefined;

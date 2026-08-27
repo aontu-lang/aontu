@@ -57,6 +57,7 @@ import { empty } from './Val'
 import { cmpCodePoint } from '../keyorder'
 
 import { ConjunctVal } from './ConjunctVal'
+import { sizingResidue } from './BagVal'
 
 import { top } from './top'
 
@@ -981,7 +982,10 @@ class ConstraintVal extends FeatureVal {
         return this.fail(ctx, peer)
       }
     }
-    const bad = this.checkMusts(peer, ctx)
+    // A SCALAR HAS NO MEMBERS to accumulate, so its musts are decided
+    // here and never residuate: the final reading is the only reading
+    // a scalar has.
+    const bad = this.checkMusts(peer, ctx, true)
     if (null != bad) {
       return bad
     }
@@ -997,10 +1001,30 @@ class ConstraintVal extends FeatureVal {
   // The trial runs in an isolated collect context so a failing check
   // leaves nothing on the caller's error list — only the located nil
   // this returns, carrying the author's own message.
-  private checkMusts(peer: any, ctx: AontuContext): Val | undefined {
+  // `final` is the generation-time reading (see settleContainer): a
+  // must whose own check is a SIZING atom inherits that atom's
+  // provisionality, because `must(length(2), …)` against a map that may
+  // still gain members has not failed yet -- it has not been answered.
+  // Without this the must would decide against whatever the container
+  // held when it first settled, which is the very defect the sizing
+  // atoms were fixed for (use-cases/BUGS.md §16, §17).
+  private checkMusts(
+    peer: any, ctx: AontuContext, final?: boolean): Val | undefined {
     for (const m of this.musts) {
       const trial = ctx.clone({ err: [], collect: true })
-      const got = unite(trial, m.v.clone(trial), peer.clone(trial), 'must')
+      let got: any = unite(trial, m.v.clone(trial), peer.clone(trial), 'must')
+      // A must whose check is a SIZING atom answers a residue rather
+      // than a verdict, because the atom is waiting for members that
+      // may still arrive. Before generation that residue IS the answer
+      // -- the must has not failed, it has not been asked yet -- and at
+      // generation it is settled, because nothing more can arrive.
+      const residue = sizingResidue(got)
+      if (undefined !== residue) {
+        if (true !== final) {
+          continue
+        }
+        got = residue.con.settleContainer(residue.bag, trial)
+      }
       if (true === (got as any)?.isNil || 0 < trial.err.length) {
         return makeNilErr(ctx, 'must', this, peer, undefined, {
           message: m.msg.peg,
@@ -1010,6 +1034,16 @@ class ConstraintVal extends FeatureVal {
       }
     }
     return undefined
+  }
+
+
+  // THE FINAL READING of a sizing atom over a container: the same
+  // checks admitContainer makes, with the provisional ones taken as
+  // decided. Called from ConjunctVal.gen, which is where no more
+  // members can arrive. Returns the container (to generate) or the
+  // constraint's own nil (to report).
+  settleContainer(peer: any, ctx: AontuContext): Val {
+    return this.admitContainer(peer, ctx, true)
   }
 
 
@@ -1024,7 +1058,8 @@ class ConstraintVal extends FeatureVal {
   // isolated collect context so nothing leaks into the caller's errors.
   // A mirror would be a second copy of a filter that has already grown
   // subtle, free to drift from it; asking is correct by construction.
-  private admitContainer(peer: any, ctx: AontuContext): Val {
+  private admitContainer(
+    peer: any, ctx: AontuContext, final?: boolean): Val {
     // A scalar-domain residual has no reading over a container.
     if (null != this.domain) {
       return this.fail(ctx, peer)
@@ -1037,13 +1072,26 @@ class ConstraintVal extends FeatureVal {
       return new ConjunctVal({ peg: [this, peer] }, ctx)
     }
 
-    const bad = this.checkMusts(peer, ctx)
+    const bad = this.checkMusts(peer, ctx, final)
     if (null != bad) {
       return bad
     }
 
+    // A MUST OVER A CONTAINER RESIDUATES with the atoms, for the same
+    // reason (use-cases/BUGS.md §17): `must({t: max(60)}, …)` beside a
+    // `{t: integer}` schema was answered against the schema layer
+    // ALONE, and discharged before the data it was written to judge
+    // ever arrived. It is decided at generation, where the value is
+    // whole -- unless there is nothing else on the constraint AND the
+    // reading is already final.
     if (!this.uniq && 0 === this.uniqBy.length && null == this.count) {
-      return peer
+      if (true === final || 0 === this.musts.length) {
+        return peer
+      }
+      this.dc = DONE
+      const kept: any = new ConjunctVal({ peg: [this, peer] }, ctx)
+      kept.dc = DONE
+      return kept
     }
 
     const members = emittedMembers(peer, ctx)
@@ -1053,8 +1101,42 @@ class ConstraintVal extends FeatureVal {
       return peer
     }
 
-    if (null != this.count && !stateAdmits(this.count, countVal(members.length))) {
-      return this.fail(ctx, peer)
+    // MONOTONE READINGS ONLY (the review's finding C, use-cases/BUGS.md
+    // §16). Members ACCUMULATE under unification -- a meet adds keys and
+    // never removes them -- so a settled container is settled ON ITS
+    // OWN and not against every value that may still contribute. The
+    // schema half of a `vet` meet, a document that is about to receive
+    // an `@` include, a bag a later `pack` will fill: each settles, and
+    // an atom that decided there decided too early.
+    //
+    // So a verdict is taken only when MORE MEMBERS CANNOT CHANGE IT:
+    //   - an upper bound VIOLATED is permanent -> refuse now;
+    //     satisfied is provisional -> keep the atom, re-check later.
+    //   - a lower bound SATISFIED is permanent -> that part may go;
+    //     violated is provisional -> keep the atom (which is why
+    //     `length(min(1))` beside a template no longer kills the schema
+    //     it was written for).
+    //   - a DUPLICATE is permanent -> refuse now; distinctness is
+    //     provisional -> keep the atom.
+    // Anything provisional residuates, exactly as an unsettled
+    // container does above, and the two spellings then agree.
+    const count = null == this.count ? undefined : this.count
+    const n = members.length
+    if (null != count) {
+      if (null != count.hi && !stateAdmits({ ...count, lo: undefined },
+        countVal(n))) {
+        return this.fail(ctx, peer)
+      }
+      if (0 < count.neqs.length && !stateAdmits(
+        { ...count, lo: undefined, hi: undefined }, countVal(n))) {
+        return this.fail(ctx, peer)
+      }
+      // The provisional half, decided only when nothing more can
+      // arrive: a lower bound still short is a refusal at generation
+      // and a residue before it.
+      if (true === final && !stateAdmits(count, countVal(n))) {
+        return this.fail(ctx, peer)
+      }
     }
 
     if (this.uniq) {
@@ -1093,7 +1175,32 @@ class ConstraintVal extends FeatureVal {
       }
     }
 
-    return peer
+    // WHAT IS LEFT IS PROVISIONAL, so the atom stays on the value. A
+    // lower bound already met is the one reading that cannot be undone,
+    // and an atom holding nothing else is spent: that is when it goes.
+    const spent = true === final || (0 === this.musts.length &&
+      !this.uniq && 0 === this.uniqBy.length &&
+      (null == count ||
+        (null == count.hi && 0 === count.neqs.length &&
+          stateAdmits(count, countVal(n)))))
+    if (spent) {
+      return peer
+    }
+    // DONE, unlike the unsettled case above. The container HAS settled;
+    // the atom is kept only because a LATER value could still add
+    // members, and a residue that reported itself unresolved would
+    // leave every enclosing value unresolved with it -- a `type()`
+    // waiting on its argument for ever, and use case 09's whole
+    // registry with it.
+    // The ATOM is done too, not just the conjunct. An earlier pass may
+    // have set `dc = 0` on the unsettled branch above, and a conjunct
+    // recomputes its own doneness from its terms on every later meet --
+    // so a stale 0 here would drag the residue, and every value holding
+    // it, back to unresolved for ever.
+    this.dc = DONE
+    const held: any = new ConjunctVal({ peg: [this, peer] }, ctx)
+    held.dc = DONE
+    return held
   }
 
 
@@ -1843,7 +1950,12 @@ function genable(child: any): boolean {
   return true === child.isScalar || true === child.isMap ||
     true === child.isList || true === child.isPref ||
     true === child.isRef || true === child.isDisjunct ||
-    true === child.isNil
+    true === child.isNil ||
+    // A settled sizing residue generates through ConjunctVal.gen, so it
+    // is a member like any other -- and a `length` that did not count
+    // its sibling's `unique` would be the early-fold defect again, one
+    // level up.
+    undefined !== sizingResidue(child)
 }
 
 

@@ -916,6 +916,15 @@ func (c *ConstraintVal) settle(peer Val, ctx *Ctx) Val {
 // leaves nothing on the caller's error list -- only the located nil this
 // returns, carrying the author's own message.
 func (c *ConstraintVal) checkMusts(peer Val, ctx *Ctx) Val {
+	return c.checkMustsFinal(peer, ctx, true)
+}
+
+// `final` is the generation-time reading (see settleContainer): a must
+// whose own check is a SIZING atom inherits that atom's provisionality,
+// because `must(length(2), …)` against a map that may still gain
+// members has not failed -- it has not been asked yet. Mirrors
+// checkMusts in ts/src/val/ConstraintVal.ts.
+func (c *ConstraintVal) checkMustsFinal(peer Val, ctx *Ctx, final bool) Val {
 	for _, m := range c.musts {
 		trial := &Ctx{}
 		if nil != ctx {
@@ -925,6 +934,12 @@ func (c *ConstraintVal) checkMusts(peer Val, ctx *Ctx) Val {
 		}
 		trial.collect = true
 		got := unite(trial, clonePath(m.v, c.path), clonePath(peer, c.path))
+		if con, bag, ok := sizingResidue(got); ok {
+			if !final {
+				continue
+			}
+			got = con.settleContainer(bag, trial)
+		}
 		if (nil != got && got.Nil()) || 0 < len(trial.err) {
 			pcanon := ""
 			if nil != peer {
@@ -969,6 +984,19 @@ func (c *ConstraintVal) admit(peer *ScalarVal, ctx *Ctx) Val {
 	return peer
 }
 
+// settleContainer is the FINAL reading of a sizing atom over a
+// container: the same checks admitContainer makes, with the provisional
+// ones taken as decided. Called from ConjunctVal.Gen, which is where no
+// more members can arrive. Mirrors settleContainer in
+// ts/src/val/ConstraintVal.ts.
+func (c *ConstraintVal) settleContainer(bag Val, ctx *Ctx) Val {
+	var optional []string
+	if m, ok := bag.(*MapVal); ok {
+		optional = m.optional
+	}
+	return c.admitContainerFinal(bag, optional, ctx, bag, true)
+}
+
 // admitContainer checks membership for a map or list peer. Only the
 // SIZING atoms have anything to say about a container; every other atom
 // is scalar-domain and refuses one.
@@ -978,6 +1006,11 @@ func (c *ConstraintVal) admit(peer *ScalarVal, ctx *Ctx) Val {
 // emittedMembers mirrors MapVal.Gen/ListVal.Gen exactly.
 func (c *ConstraintVal) admitContainer(
 	bag Val, optional []string, ctx *Ctx, peer Val) Val {
+	return c.admitContainerFinal(bag, optional, ctx, peer, false)
+}
+
+func (c *ConstraintVal) admitContainerFinal(
+	bag Val, optional []string, ctx *Ctx, peer Val, final bool) Val {
 	// A scalar-domain residual has no reading over a container.
 	if "" != c.domain {
 		return c.fail(ctx, peer)
@@ -990,12 +1023,22 @@ func (c *ConstraintVal) admitContainer(
 		return newConjunct([]Val{c, peer})
 	}
 
-	if bad := c.checkMusts(peer, ctx); nil != bad {
+	if bad := c.checkMustsFinal(peer, ctx, final); nil != bad {
 		return bad
 	}
 
+	// A MUST OVER A CONTAINER RESIDUATES with the atoms
+	// (use-cases/BUGS.md §17): `must({t: max(60)}, …)` beside a
+	// `{t: integer}` schema was answered against the schema layer ALONE
+	// and discharged before the data it was written to judge arrived.
 	if !c.uniq && 0 == len(c.uniqBy) && nil == c.count {
-		return peer
+		if final || 0 == len(c.musts) {
+			return peer
+		}
+		c.dc = DONE
+		kept := newConjunct([]Val{c, peer})
+		kept.dc = DONE
+		return kept
 	}
 
 	members := emittedMembers(bag, optional, ctx)
@@ -1005,8 +1048,41 @@ func (c *ConstraintVal) admitContainer(
 		return peer
 	}
 
-	if nil != c.count && !stateAdmits(c.count, countVal(len(members))) {
-		return c.fail(ctx, peer)
+	// MONOTONE READINGS ONLY (the review's finding C, use-cases/BUGS.md
+	// §16). Members ACCUMULATE under unification -- a meet adds keys and
+	// never removes them -- so a settled container is settled ON ITS OWN
+	// and not against every value that may still contribute. The schema
+	// half of a `vet` meet, a document about to receive an `@` include,
+	// a bag a later `pack` will fill: each settles, and an atom that
+	// decided there decided too early.
+	//
+	// A verdict is taken only when MORE MEMBERS CANNOT CHANGE IT: an
+	// upper bound violated is permanent, a lower bound satisfied is
+	// permanent, a duplicate is permanent. Everything else residuates
+	// and is decided at generation. Mirrors admitContainer in
+	// ts/src/val/ConstraintVal.ts.
+	n := len(members)
+	if nil != c.count {
+		if nil != c.count.hi {
+			noLo := *c.count
+			noLo.lo = nil
+			if !stateAdmits(&noLo, countVal(n)) {
+				return c.fail(ctx, peer)
+			}
+		}
+		if 0 < len(c.count.neqs) {
+			only := *c.count
+			only.lo = nil
+			only.hi = nil
+			if !stateAdmits(&only, countVal(n)) {
+				return c.fail(ctx, peer)
+			}
+		}
+		// The provisional half, decided only when nothing more can
+		// arrive.
+		if final && !stateAdmits(c.count, countVal(n)) {
+			return c.fail(ctx, peer)
+		}
 	}
 
 	if c.uniq {
@@ -1048,7 +1124,30 @@ func (c *ConstraintVal) admitContainer(
 		}
 	}
 
-	return peer
+	// WHAT IS LEFT IS PROVISIONAL, so the atom stays on the value. A
+	// lower bound already met is the one reading that cannot be undone,
+	// and an atom holding nothing else is spent: that is when it goes.
+	spent := final || (0 == len(c.musts) && !c.uniq && 0 == len(c.uniqBy) &&
+		(nil == c.count ||
+			(nil == c.count.hi && 0 == len(c.count.neqs) &&
+				stateAdmits(c.count, countVal(n)))))
+	if spent {
+		return peer
+	}
+	// DONE, unlike the unsettled case above. The container HAS settled;
+	// the atom is kept only because a LATER value could still add
+	// members, and a residue that reported itself unresolved would leave
+	// every enclosing value unresolved with it -- a `type()` waiting on
+	// its argument for ever.
+	// The ATOM is done too, not just the conjunct. An earlier pass may
+	// have set dc = 0 on the unsettled branch above, and a conjunct
+	// recomputes its own doneness from its terms on every later meet --
+	// so a stale 0 here would drag the residue, and every value holding
+	// it, back to unresolved for ever.
+	c.dc = DONE
+	held := newConjunct([]Val{c, peer})
+	held.dc = DONE
+	return held
 }
 
 // meetKind: `number` (or `string` on the string domain) is already

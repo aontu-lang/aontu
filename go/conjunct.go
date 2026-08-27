@@ -51,6 +51,36 @@ func junctChildCanon(v Val) string {
 }
 
 func (c *ConjunctVal) Gen(ctx *Ctx) (any, error) {
+	// A RESIDUATED SIZING ATOM DECIDES HERE (the review's finding C,
+	// use-cases/BUGS.md §16). `length`/`unique` over a container keep
+	// the readings that more members could still change rather than
+	// deciding against whatever the container held when it first
+	// settled. Generation is where no more members can arrive, so it is
+	// where the provisional reading becomes the verdict: the container
+	// generates if the atom is satisfied, and the atom's OWN refusal is
+	// raised if it is not -- the constraint's message being the one the
+	// author needs, not a generic `conjunct`. Mirrors ConjunctVal.gen in
+	// ts/src/val/ConjunctVal.ts.
+	if con, bag, ok := sizingResidue(c); ok {
+		settled := con.settleContainer(bag, ctx)
+		if n, isNil := settled.(*NilVal); isNil {
+			// Recorded on the context first and RAISED only when the
+			// context is not collecting -- the residueErr discipline, so
+			// a collecting caller (vet, the verbs) reads the refusal off
+			// the context and a bare evaluation throws it.
+			if nil != ctx {
+				ctx.adderr(n)
+				if ctx.collect {
+					return nil, nil
+				}
+				return nil, &AontuError{
+					Msg: n.FullMessage(ctx.src, ctx.file), Code: n.why}
+			}
+			return nil, &AontuError{Msg: n.FullMessage("", ""), Code: n.why}
+		}
+		return settled.Gen(ctx)
+	}
+
 	// An unresolved conjunct is not a concrete value. Code mirrors TS
 	// ConjunctVal.gen ('conjunct').
 	return nil, residueErr(ctx, c, "conjunct")
