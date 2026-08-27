@@ -27,10 +27,11 @@
 import { Aontu } from './aontu'
 import { failureFinding } from './vet'
 import type { VetFinding } from './vet'
-import type { TrustOptions } from './type'
+import type { TrustOptions, Val } from './type'
 import { graphOf } from './graph'
-import type { Edge } from './graph'
+import type { Edge, EntityEntry, Graph } from './graph'
 import { cmpCodePoint } from './keyorder'
+import { unite } from './unify'
 
 
 export type RelationVerdict = 'pass' | 'fail' | 'error'
@@ -76,6 +77,11 @@ type Declared = {
   name: string
   inverse?: string
   acyclic: boolean
+  // What the FAR END must satisfy, if the relation says. Absent when
+  // the relation declares none, and when it declares `top` -- which
+  // constrains nothing and would report nothing, so reading it as a
+  // declaration would only cost a meet per edge.
+  target?: Val
 }
 
 
@@ -86,6 +92,93 @@ type Declared = {
 function entityOf(addr: string): string {
   const dot = addr.indexOf('.')
   return dot < 0 ? addr : addr.slice(0, dot)
+}
+
+
+// The node an address names, or undefined. The entity's own position
+// comes from the graph (a merged entity sits at every position that
+// declared it, and they hold the same value, so the FIRST in the
+// graph's sorted list is as good as any and is the same one in both
+// ports); the rest of the address walks into it, exactly as the
+// address's own grammar says.
+// NO GUARD ON THE LOOKUP OR THE WALK. An edge exists only because
+// `refer()` RESOLVED its full address, so `find` cannot miss and no
+// segment can fall off: an address that does not walk is
+// `refer_unresolved` at unification and the document never reaches the
+// graph (probed for a missing key, a scalar mid-path and an
+// out-of-range index, in both ports). An unreachable `if` is a branch
+// arm the ADR-002 gate counts and no marker suppresses, so the Go twin
+// keeps its guards — where a nil would PANIC rather than propagate,
+// and where the marker mechanism can carry them — and this one relies
+// on optional chaining instead.
+function addressed(
+  root: any, graph: Graph, addr: string
+): any {
+  const dot = addr.indexOf('.')
+  const name = dot < 0 ? addr : addr.slice(0, dot)
+  const entry = graph.entities.find((e) => e.id === name) as EntityEntry
+  const segs = entry.paths[0].slice(2).split('.')
+    .concat(dot < 0 ? [] : addr.slice(dot + 1).split('.'))
+  let node: any = root
+  for (const seg of segs) {
+    node = node?.peg?.[seg]
+  }
+  return node
+}
+
+
+// Does the far end satisfy the declared target? A TEST, never a flow:
+// the check reports on a finished model and writing into it would be
+// generation, which `relations` does not do (the same rule that keeps
+// it from writing an author's inverse for them). So both sides are
+// CLONED into a throwaway context and the meet is taken there; what
+// the document holds is untouched either way.
+//
+// `refer(t)` is the other half of this and does flow, at the site. The
+// two agree on what "satisfies" means -- a meet that is not a nil --
+// which is what lets a relation declare once what every site would
+// otherwise repeat.
+// `root` is the DOCUMENT, not the node: a target lifted out of the
+// model (`target: $.std.Service`) can still hold a reference that
+// resolves against the document, and a probe rooted at the far end
+// answers `no_path` for it -- which the worked example in
+// test/spec/relation.tsv caught the moment this check existed.
+function meets(
+  aontu: any, root: any, node: any, target: any
+): string | undefined {
+  const ctx = aontu.ctx({ collect: true })
+  ctx.root = root
+  const out: any = unite(ctx, node.clone(ctx), target.clone(ctx), 'relation-target')
+  if (true === out?.isNil) {
+    return out.why as string
+  }
+  if (0 < ctx.err.length) {
+    return ctx.err[0].why as string
+  }
+
+  // A MEET THAT LEAVES A HOLE IS NOT SATISFACTION. `target:
+  // {kind: service, port: integer}` against a far end with no `port`
+  // does not CONFLICT -- the meet simply carries `integer` into a key
+  // that had none -- and a check that stopped at "no conflict" would
+  // pass a far end that is missing half of what the relation demands.
+  //
+  // What `refer(t)` does at the site is the yardstick: it flows `t` in,
+  // and the document then fails to generate, because `integer` is not a
+  // value. So the same question is asked here -- can the far end still
+  // generate once the target is met? -- and the answer is compared with
+  // the far end ALONE, so a node that was already incomplete for its
+  // own reasons is not blamed on the relation that points at it.
+  // The REASON reported is the engine's own -- the code `refer(t)` at
+  // the site would have raised -- rather than a name invented here.
+  const probe = (v: any): string | undefined => {
+    const gctx = aontu.ctx({ collect: true })
+    gctx.root = root
+    v.gen(gctx)
+    return 0 === gctx.err.length ? undefined : (gctx.err[0].why as string)
+  }
+  const alone = probe(node.clone(aontu.ctx({ collect: true })))
+  const met = probe(out)
+  return undefined === alone && undefined !== met ? met : undefined
 }
 
 
@@ -102,11 +195,13 @@ function declaredRelations(root: any): Declared[] {
     }
     const inv: any = r.peg.inverse
     const acy: any = r.peg.acyclic
+    const tgt: any = r.peg.target
     out.push({
       name,
       inverse: true === inv?.isScalar && 'string' === typeof inv.peg
         ? inv.peg : undefined,
       acyclic: true === acy?.isScalar && true === acy.peg,
+      target: true === tgt?.isVal && true !== tgt.isTop ? tgt : undefined,
     })
   }
   return out
@@ -167,7 +262,7 @@ export function relationCheck(
     return {
       verdict: 'error',
       findings: [],
-      errors: [failureFinding(ctx, options.path)],
+      errors: [failureFinding(ctx, options.path, root)],
     }
   }
 
@@ -176,7 +271,8 @@ export function relationCheck(
     return { verdict: 'pass', findings: [] }
   }
 
-  const edges = graphOf(root).edges
+  const graph = graphOf(root)
+  const edges = graph.edges
   const findings: RelationFinding[] = []
 
   // The edge set, indexed the two ways the checks read it.
@@ -234,6 +330,36 @@ export function relationCheck(
             detail: cycle,
           })
           break
+        }
+      }
+    }
+
+    // TARGET: the far end IS what the relation says it is (the review's
+    // finding J). The declaration used to be inert -- `target` was read
+    // by nothing, on the reasoning that `refer(t)` already flows the
+    // type in at the site. It does, and that is exactly why the
+    // declaration was worth nothing: the site has to REPEAT it, and the
+    // idiom that avoids repeating it (`refer($.std.Service)`) tripped
+    // the fixpoint until §19 was fixed, so every real model wrote bare
+    // `refer()` and a typed-endpoint declaration checked nothing.
+    //
+    // Reported per EDGE, not per entity: an entity reached by two
+    // relations must satisfy both, and the report points at the link
+    // that made the demand.
+    if (undefined !== rel.target) {
+      for (const e of mine) {
+        // No guard on the node either, and for the same reason
+        // `addressed` needs none: an unresolved link is a nil in the
+        // tree, so this document would not have reached the graph.
+        const why = meets(aontu, root, addressed(root, graph, e.to),
+          rel.target)
+        if (undefined !== why) {
+          findings.push({
+            code: 'relation_target_unmet',
+            relation: rel.name,
+            at: e.at,
+            detail: [e.from, e.to, why],
+          })
         }
       }
     }

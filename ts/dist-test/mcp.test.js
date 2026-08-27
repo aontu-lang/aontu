@@ -54,7 +54,8 @@ const mcp_1 = require("../dist/mcp");
 const mcp_server_1 = require("../dist/mcp-server");
 const srcpath_1 = require("./srcpath");
 const ALL_TOOLS = [
-    'breaking', 'canon', 'diff', 'get', 'hash', 'jsonschema', 'relations',
+    'breaking', 'canon', 'diff', 'get', 'hash', 'jsonschema',
+    'reaches', 'relations',
     'set', 'subsume', 'summary', 'trim', 'vet', 'why',
 ];
 // The text payload of a tool result, decoded.
@@ -388,6 +389,36 @@ function hostileModule(dir) {
             Assert.equal(payload(rv).verdict, 'error');
             Assert.equal(payload(rv).findings[0].code, 'include_denied');
         }
+    });
+    (0, node_test_1.test)('reaches-tool-answers-the-closure-question', () => {
+        const doc = 'a: id(a) & {dependsOn: [&: refer(), b]}\n' +
+            'b: id(b) & {dependsOn: [&: refer(), c], usedBy: [&: refer(), d]}\n' +
+            'c: id(c) & {}\nd: id(d) & {}\n';
+        const hit = payload((0, mcp_1.callTool)('reaches', { source: doc, from: 'a', to: 'c' }));
+        Assert.equal(hit.verdict, 'reaches');
+        Assert.deepEqual(hit.path, ['a', 'b', 'c']);
+        // A `no` is an ANSWER and carries no path: there is no evidence for
+        // a negative one.
+        const miss = payload((0, mcp_1.callTool)('reaches', { source: doc, from: 'c', to: 'a' }));
+        Assert.equal(miss.verdict, 'unreachable');
+        Assert.equal('path' in miss, false);
+        // The relation filter is the difference between "at all" and "this
+        // way".
+        Assert.equal(payload((0, mcp_1.callTool)('reaches', { source: doc, from: 'a', to: 'd', relation: 'dependsOn' })).verdict, 'unreachable');
+        // TRANSITIVE, NOT REFLEXIVE: an entity reaches itself only through
+        // a cycle.
+        Assert.equal(payload((0, mcp_1.callTool)('reaches', { source: doc, from: 'a', to: 'a' })).verdict, 'unreachable');
+        // An endpoint that names nothing, and a document that does not
+        // stand up, are both refusals in vet's finding shape.
+        const bad = payload((0, mcp_1.callTool)('reaches', { source: doc, from: 'a', to: 'nope' }));
+        Assert.equal(bad.verdict, 'error');
+        Assert.equal(bad.errors[0].code, 'refer_unresolved');
+        const broken = payload((0, mcp_1.callTool)('reaches', { source: 'a: 1 & 2', from: 'a', to: 'b' }));
+        Assert.equal(broken.verdict, 'error');
+        Assert.equal(broken.errors[0].code, 'scalar_value');
+        const denied = payload((0, mcp_1.callTool)('reaches', { source: 'a: @"/etc/passwd"', from: 'a', to: 'b' }));
+        Assert.equal(denied.verdict, 'error');
+        Assert.equal(denied.errors[0].code, 'include_denied');
     });
     (0, node_test_1.test)('jsonschema-tool-exports-and-refuses', () => {
         // The MCP surface of the export (the review's finding I): the

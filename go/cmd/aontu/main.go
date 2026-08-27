@@ -28,6 +28,7 @@ const helpText = `Usage: aontu [options] [file]
        aontu breaking --against <file|git#rev> [options] <file>
        aontu trim --check [options] <file>
        aontu relations [options] <file>
+       aontu reaches <from> <to> [--relation <name>] [options] <file>
        aontu jsonschema [--at <path>] [--strict] [options] <file>
        aontu hash [options] <file>
        aontu mod tidy|verify|vendor|manifest [options] [dir]
@@ -520,6 +521,9 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, tty bool) int
 	}
 	if 0 < len(args) && "jsonschema" == args[0] {
 		return runJsonSchema(args[1:], stdout, stderr)
+	}
+	if 0 < len(args) && "reaches" == args[0] {
+		return runReaches(args[1:], stdout, stderr)
 	}
 
 	if 0 < len(args) && "trim" == args[0] {

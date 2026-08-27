@@ -396,6 +396,25 @@ checked). Repros: `refer-in-type-def.aon`, `refer-in-type-include.aon`,
 `refer-in-type-hang.aon` (+schema; run under `timeout`).
 
 ### 19. `refer($.X)` — a *reference* as the type argument — trips spurious unify_cycle [major]
+
+**Status: FIXED 2026-08-27** (the review's finding J). Two halves, and
+they were two defects. The `typed-refer-two-views.aon` half fell to the
+template-clone isolation work (ADR-005) earlier in this effort. The
+`inverse-pair.aon` half — typing BOTH directions of an inverse pair,
+which every real relation has — was the type FLOW re-entering itself:
+`refer(t)` unifies `t` into the target, uniting the target drives the
+target's own subtree, and a pair that links back at each other flows
+into each other until the depth budget or the host stack ends it. The
+model whose meet is a fixpoint on sight (`{kind:service}` meeting
+`{kind:service}`) never got far enough for anyone to notice. A flow
+that would re-enter an entity is now SKIPPED, because the flow it is
+nested in is already uniting that entity, so the same information
+arrives by the same channel one frame up; the differs-each-way and
+cycle-of-three rows in `test/spec/refer.tsv` pin that nothing is lost.
+`use-cases/01-service-catalog/spec.aon` now carries the documented
+idiom `refer($.std.Service)` on both directions of the real model, in
+both ports, and its gap 8 workaround is gone.
+
 The reference manual's own idiom `refer($.std.Service)` fails with
 `unify_cycle` on a two-view id-merged model whose shared schema carries
 a referenced ports template — the error names
@@ -1022,6 +1041,93 @@ dies `no_path` — so the real fix is a TypeScript twin of Go's
 in `test/spec/divergent.tsv`; at equal depth both ports agree, which is
 why `use-cases/10-data-model/money-wire.aon` declares its types at the
 top level.
+
+## relations — a graph one port can only partly see
+
+### 42. Go's derived graph loses most of its edges on a two-view model [critical]
+`aontu relations` is the verb an operator trusts to say "this estate
+has no dependency cycle". On use case 01 — eight services described by
+a catalog view and a deployment view, joined by `id()` — the two ports
+do not see the same graph:
+
+| | entities | edges | distinct from/key/to |
+|---|---|---|---|
+| TypeScript | 8 | 40 | 19 |
+| Go | 8 | 6 | 2 |
+
+The consequence is the one that matters: `aontu relations
+bad/cycle.aon` reports `cycle svc/payments -> svc/ledger ->
+svc/payments` in TypeScript and **reports no cycle at all** in Go. It
+also reports inverse-missing findings for inverses it simply cannot
+see. A verdict of `pass` from the port that cannot see the edges is
+worse than no verdict.
+
+**BOTH VIEWS ARE NEEDED to trigger it.** With `deploy: {}` the two
+ports agree exactly (21 edges each); with one catalog domain and the
+full deployment view they differ by four. So the trigger is the
+id-merge across two trees, not the include, the spread, or the
+vocabulary — each of which agrees on its own, and every synthetic
+reduction tried (two views plus a spread, two views plus an include, an
+entity in one view pointing at one in two) agrees in both ports.
+
+**Status: OPEN**, recorded in `test/spec/divergent.tsv`. Not introduced
+by the review's finding J — the pre-change Go binary loses the same
+edges. It went unnoticed because `use-cases/run-all.sh` drives the
+TypeScript CLI, and nothing had run a use case through the Go one.
+`use-cases/01-service-catalog/check.sh` asserts the cycle, so the Go
+CLI fails that check today rather than passing it quietly; that is the
+honest state and how a fix will be noticed. The fix is engine work: how
+each port's identity merge places a link-stamped value at an entity's
+other positions.
+
+## verbs — a refusal that arrived as a stack trace
+
+### 43. A nil root with no collected error crashed four verbs, in both ports [critical]
+`&: id(root)` is a refusal — an `id()` in a bag spread has no single
+entry to name — and the refusal IS THE ROOT: the evaluation answers a
+nil, and collects nothing beside it. Every verb that reports "this
+document does not stand up" then read the context's first error, which
+was not there:
+
+```
+$ aontu relations doc.aon
+/…/ts/dist/vet.js:182
+    if (null == nil.msg || '' === nil.msg) {
+                    ^
+$ aontu-go relations doc.aon
+panic: runtime error: index out of range [0] with length 0
+```
+
+`relations`, `reaches`, `jsonschema` and `trim` all did it, in both
+ports — a TypeError in TypeScript, a panic in Go. It is the one shape
+where the review's own finding F, that a document which does not stand
+up SAYS SO in the finding shape, was answered with a stack trace. Worse
+than a wrong answer: a harness grepping `[aontu/` sees nothing at all,
+and an exit code that means "the tool broke" rather than "your document
+is wrong".
+
+`failureFinding`'s own comment asserted the state was impossible — "ctx
+.err is never empty at a call site: every caller has already
+established that the document failed, and it can only fail by
+collecting an error". The second half is what is untrue: it can fail by
+BEING a nil.
+
+**Status: FIXED 2026-08-27.** `failureFinding` takes the failing root
+as its last argument and builds the finding from it when the context
+carries nothing; every caller already had it, since each one's
+condition is `0 < ctx.err.length || root.isNil` and the second half is
+exactly this case. All four verbs now report
+`$: id_spread [parse]` and exit 4.
+
+Found while closing the ADR-002 gate on the JSON Schema export: the
+per-caller belt-and-braces guard was deleted as unreachable, which
+turned a wrong-but-safe path into a crash and made the real defect
+visible. Pinned by
+`a-nil-root-with-no-collected-error-is-reported-not-thrown`
+(ts/test/cli.test.ts) and its Go twin. The two ports still give this
+nil a different PATH (`$` and `$.&`) — a pre-existing engine
+disagreement that plain evaluation shows too, now recorded in
+`test/spec/divergent.tsv`.
 
 ## Elsewhere in this review
 

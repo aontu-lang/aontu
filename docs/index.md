@@ -38,7 +38,8 @@ Tooling:
   gate schema evolution; `get` and `why` ask an evaluated document what
   it says and what contributed to it; `set` changes one in an overlay,
   by appending or in place; `trim` reports redundant entries;
-  `relations` runs the declared identity checks; `jsonschema` exports
+  `relations` runs the declared identity checks and `reaches` answers
+  whether one entity reaches another at any remove; `jsonschema` exports
   the model as JSON Schema and names what the export cannot carry;
   `hash` pins what a document *means*; `mod` maintains a dependency
   closure; `agentsmd` writes the prose stanza for a definition. With

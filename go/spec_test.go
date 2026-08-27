@@ -612,6 +612,31 @@ func TestSpec(t *testing.T) {
 						t.Fatalf("jsonschema report mismatch\n src: %q\n want: %s\n got:  %s",
 							src, want, got)
 					}
+				case "reaches":
+					// REACHABILITY OVER THE ENTITY GRAPH (the review's
+					// finding J). The endpoints ride the expect object
+					// under `ask`, because the row's other columns are
+					// already spoken for and the question is part of what
+					// the row pins: the same document answers differently
+					// for different pairs, and for the same pair under a
+					// `relation` filter.
+					var golden map[string]any
+					if err := json.Unmarshal([]byte(expect), &golden); err != nil {
+						t.Fatalf("expect is not JSON: %v\n expect: %s", err, expect)
+					}
+					ask, _ := golden["ask"].(map[string]any)
+					delete(golden, "ask")
+					from, _ := ask["from"].(string)
+					to, _ := ask["to"].(string)
+					rel, _ := ask["relation"].(string)
+					got := specJSON(t, specStripProse(specAsMap(t,
+						New().Reach(src, from, to,
+							&ReachOptions{Relation: rel})), "errors"))
+					want := specJSON(t, golden)
+					if got != want {
+						t.Fatalf("reach report mismatch\n src: %q\n want: %s\n got:  %s",
+							src, want, got)
+					}
 				case "relation":
 					// RELATION GRAPH CHECKS (G4 phase 5): acyclicity and
 					// inverse consistency over the edge set, compared as

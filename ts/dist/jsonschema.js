@@ -345,7 +345,7 @@ function jsonSchema(src, options) {
     if (0 < actx.err.length || true === root?.isNil) {
         return {
             verdict: 'error', schema: {}, lossy: [],
-            errors: [(0, vet_1.failureFinding)(actx, opts.path)],
+            errors: [(0, vet_1.failureFinding)(actx, opts.path, root)],
         };
     }
     let node = root;
@@ -360,7 +360,7 @@ function jsonSchema(src, options) {
             actx.err.push(nil);
             return {
                 verdict: 'error', schema: {}, lossy: [],
-                errors: [(0, vet_1.failureFinding)(actx, opts.path)],
+                errors: [(0, vet_1.failureFinding)(actx, opts.path, root)],
             };
         }
         node = found;

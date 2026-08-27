@@ -256,6 +256,7 @@ refer_unresolved	errcode	reference	0.53.0
 # reports them; the lattice never sees them.
 relation_cycle	errcode	conflict	0.53.0
 relation_inverse_missing	errcode	conflict	0.53.0
+relation_target_unmet	errcode	conflict	0.53.0
 # THE GENERATION COMBINATORS (G8 phase 1, `pack` and `each`). Three
 # codes, all class `parse`: what is wrong is the CALL as the author
 # wrote it, and no later pass repairs it. `pack_data`/`each_data` is

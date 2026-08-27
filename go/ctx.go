@@ -67,6 +67,14 @@ type Ctx struct {
 	// evaluation, one set of entities — mirroring the `entities` map on
 	// the TS unify root ctx.
 	entities map[string]Val
+	// referflow is the set of entities a refer(t) type-flow is currently
+	// INSIDE — the Go twin of `ctx._referflow` in
+	// ts/src/val/ReferFuncVal.ts. Uniting a target drives the target's
+	// own subtree, so a pair that links back at each other flows into
+	// each other without bound; a flow that would re-enter an entity is
+	// skipped, because the flow one frame up is already uniting it. Same
+	// lifetime as `entities` above: one evaluation.
+	referflow map[string]bool
 	// slot is the location the next Unify target is being driven at —
 	// the TS ctx.path equivalent. Producers (bag child loops, func arg
 	// loops, junction folds) set it right before a unite call; unite

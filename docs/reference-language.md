@@ -1439,6 +1439,17 @@ b: id(b) & { usedBy:    [&: refer(), a] }
   cycle. The report names the entities the cycle runs through.
 - **`inverse: <name>`** — for each `a --dependsOn--> b`, `b` must carry
   `a` under `<name>`. The report names the exact missing entry.
+- **`target: <schema>`** — every far end must satisfy `<schema>`. This
+  is the declared form of what [`refer(t)`](#entity-references-refert)
+  does at each site, so the relation says once what every link would
+  otherwise repeat. Satisfaction is the meet, and **not merely the
+  absence of a conflict**: a target key the far end does not have
+  unifies happily and leaves a hole, so the check asks what `refer(t)`
+  answers at the site — can the far end still generate once the target
+  is met? — and compares it with the far end alone, so a node already
+  incomplete for its own reasons is not blamed on the relation pointing
+  at it. The check never writes; flowing the type in here would be
+  generation.
 
 The `$.std.Relation` conjunct **documents** the declaration; it is not
 what makes it one. The checking pass reads every map under `relations`
@@ -1448,7 +1459,9 @@ relation with no `@"std/system"` — which is what keeps the checks
 available under the `'none'` include capability.
 
 `aontu relations <file>` runs them, and the library exposes
-`relationCheck(src)`. **Neither is a lattice constraint, deliberately.**
+`relationCheck(src)`. The closure question — does `a` reach `b` at any
+remove? — is a separate verb, [`aontu reaches`](reference-api.md#aontu-reaches),
+for the same reason and with the same answer about monotonicity. **Neither is a lattice constraint, deliberately.**
 Both properties are global and non-monotone: an acyclic graph becomes
 cyclic when one more edge unifies in, and an inverse that is present
 becomes absent when the far side is narrowed. The lattice guarantee is

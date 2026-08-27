@@ -479,11 +479,31 @@ func vetOrderKey(f VetFinding, index int) string {
 // because everything after it is a consequence.
 //
 // The TypeScript twin is failureFinding in ts/src/vet.ts.
-func failureFinding(ctx *Ctx, url, src string) VetFinding {
-	// ctx.err is never empty at a call site: every caller has already
-	// established that the document failed, and it can only fail by
-	// collecting an error.
-	n := ctx.err[0]
+func failureFinding(ctx *Ctx, url, src string, failed ...Val) VetFinding {
+	// ctx.err IS SOMETIMES EMPTY, and the comment that used to stand
+	// here said otherwise (use-cases/BUGS.md §43). `&: id(root)` fails
+	// with a NIL ROOT and NO COLLECTED ERROR -- the id-spread refusal is
+	// the root itself -- and every verb that reports "this document does
+	// not stand up" then indexed err[0] and died: a panic here, a
+	// TypeError in TypeScript. The one shape where finding F's own
+	// invariant, that a document which does not stand up SAYS SO in the
+	// finding shape, was answered with a stack trace.
+	//
+	// `failed` is the caller's own root -- every caller has it, and its
+	// condition is `0 < len(ctx.err) || root.Nil()`, so when the first
+	// half is false the second holds and the root IS the reason.
+	// Variadic rather than required, so a future caller that reports a
+	// failure which always collects need not invent a value.
+	var n *NilVal
+	if 0 < len(ctx.err) {
+		n = ctx.err[0]
+	} else if 0 < len(failed) {
+		n, _ = failed[0].(*NilVal)
+	}
+	if nil == n { //coverage:ignore the last resort for a root that is nil-the-INTERFACE rather than nil-the-value: every caller's condition is `nil == root || root.Nil() || 0 < len(ctx.err)`, and the first arm has never been observed to fire, but a typed-nil assertion that failed would otherwise dereference nil here — the panic this whole function was fixed to stop (use-cases/BUGS.md §43)
+		n = newNil("internal")
+		n.primary = n
+	}
 
 	// STAMPED, as vet stamps both documents before they meet: siteOf
 	// reports whatever name a value carries, so a value that reached the

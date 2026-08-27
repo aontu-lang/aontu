@@ -462,7 +462,7 @@ export function jsonSchema(src: string, options?: SchemaOptions): SchemaReport {
   if (0 < actx.err.length || true === root?.isNil) {
     return {
       verdict: 'error', schema: {}, lossy: [],
-      errors: [failureFinding(actx, opts.path)],
+      errors: [failureFinding(actx, opts.path, root)],
     }
   }
 
@@ -478,7 +478,7 @@ export function jsonSchema(src: string, options?: SchemaOptions): SchemaReport {
       actx.err.push(nil)
       return {
         verdict: 'error', schema: {}, lossy: [],
-        errors: [failureFinding(actx, opts.path)],
+        errors: [failureFinding(actx, opts.path, root)],
       }
     }
     node = found

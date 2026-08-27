@@ -477,7 +477,7 @@ func (a *Aontu) JSONSchema(src, at string) SchemaReport {
 	if nil == root || root.Nil() || 0 < len(ctx.err) {
 		return SchemaReport{Verdict: "error", Schema: empty,
 			Lossy:  []SchemaLoss{},
-			Errors: []VetFinding{failureFinding(ctx, a.File, src)}}
+			Errors: []VetFinding{failureFinding(ctx, a.File, src, root)}}
 	}
 
 	node := root
@@ -491,7 +491,7 @@ func (a *Aontu) JSONSchema(src, at string) SchemaReport {
 				makeNilErrFull(ctx, "no_path", root, nil, "at", nil))
 			return SchemaReport{Verdict: "error", Schema: empty,
 				Lossy:  []SchemaLoss{},
-				Errors: []VetFinding{failureFinding(ctx, a.File, src)}}
+				Errors: []VetFinding{failureFinding(ctx, a.File, src, root)}}
 		}
 		for _, part := range strings.Split(strings.TrimPrefix(at, "$"), ".") {
 			if "" != part {

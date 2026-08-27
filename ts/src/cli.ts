@@ -38,6 +38,8 @@ import type {
 } from './subsume'
 import type { TrimReport, TrimVerdict } from './trim'
 import type { RelationReport, RelationVerdict } from './relation'
+import { reachCheck } from './reach'
+import type { ReachReport, ReachVerdict } from './reach'
 import type { QueryView } from './query'
 import type { WhyRecord } from './provenance'
 import { agentsMdSplice } from './agentsmd'
@@ -52,6 +54,7 @@ const HELP = `Usage: aontu [options] [file]
        aontu breaking --against <file|git#rev> [options] <file>
        aontu trim --check [options] <file>
        aontu relations [options] <file>
+       aontu reaches <from> <to> [--relation <name>] [options] <file>
        aontu jsonschema [--at <path>] [--strict] [options] <file>
        aontu hash [options] <file>
        aontu mod tidy|verify|vendor|manifest [options] [dir]
@@ -1695,6 +1698,19 @@ const RELATIONS_EXIT: Record<RelationVerdict, number> = {
   error: 4,
 }
 
+const REACHES_HELP =
+  'aontu reaches <from> <to> [--relation <name>] <file> (try --help)'
+
+// Same three-way shape every check verb here uses: the check held (0),
+// the check failed (1), the document could not be checked (4). An
+// unreachable pair is a FAILED CHECK and not an error: the question was
+// answered, and the answer was no.
+const REACHES_EXIT: Record<ReachVerdict, number> = {
+  reaches: 0,
+  unreachable: 1,
+  error: 4,
+}
+
 const MOD_HELP = 'aontu mod tidy|verify|vendor|manifest [dir] (try --help)'
 
 // The module tooling (G6 phase 3, ts/src/mod-tool.ts). All LOCAL:
@@ -1966,6 +1982,98 @@ function runRelations(argv: string[]): number {
   return RELATIONS_EXIT[report.verdict]
 }
 
+function runReaches(argv: string[]): number {
+  const trusted = takeTrust(argv)
+  if (null == trusted) {
+    return 2
+  }
+  argv = trusted.argv
+  const trust = trusted.trust
+  const rest: string[] = []
+  let format: SubsumeFormat = 'text'
+  let relation: string | undefined = undefined
+
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i]
+    if ('-h' === arg || '--help' === arg) {
+      process.stdout.write(HELP)
+      return 0
+    }
+    if ('--format' === arg) {
+      const f = argv[++i]
+      if ('text' !== f && 'json' !== f) {
+        process.stderr.write('aontu: --format needs text or json\n')
+        return 2
+      }
+      format = f
+    }
+    else if ('--relation' === arg) {
+      relation = argv[++i]
+      if (null == relation) {
+        process.stderr.write('aontu: --relation needs a name\n')
+        return 2
+      }
+    }
+    else if (arg.startsWith('-')) {
+      process.stderr.write(
+        `aontu: unknown reaches option ${arg} (try --help)\n`)
+      return 2
+    }
+    else {
+      rest.push(arg)
+    }
+  }
+
+  if (3 !== rest.length) {
+    process.stderr.write(
+      `aontu: reaches needs two entities and one file\n${REACHES_HELP}\n`)
+    return 2
+  }
+
+  let src: string
+  try {
+    src = readFileSync(rest[2], 'utf8')
+  }
+  catch (err: any) {
+    process.stderr.write(`aontu: cannot read ${err.path}: ${err.message}\n`)
+    return 2
+  }
+
+  const report = reachCheck(src, rest[0], rest[1], {
+    path: rest[2], relation,
+    trust: verbTrust(trust, entryRootOf(rest[2])),
+  })
+  const text = 'json' === format
+    ? renderReachesJson(report)
+    : renderReachesText(report, rest[0], rest[1])
+  process.stdout.write(text + '\n')
+  return REACHES_EXIT[report.verdict]
+}
+
+function renderReachesText(
+  report: ReachReport, from: string, to: string): string {
+  const head = `verdict: ${report.verdict}`
+  const errors = report.errors ?? []
+  if (0 < errors.length) {
+    return [head, ''].concat(errors.map(renderFinding)).join('\n')
+  }
+  // THE PATH IS THE ANSWER, not decoration: "yes" is worth little to an
+  // operator asking what a failure would take out, and the chain is
+  // what they act on.
+  return 'reaches' === report.verdict
+    ? [head, '', (report.path as string[]).join(' -> ')].join('\n')
+    : [head, '', `${from} does not reach ${to}`].join('\n')
+}
+
+function renderReachesJson(report: ReachReport): string {
+  return exactJSON({
+    aontu: { version: version(), verb: 'reaches' },
+    verdict: report.verdict,
+    ...(null == report.path ? {} : { path: report.path }),
+    ...(null == report.errors ? {} : { errors: report.errors }),
+  }, 2)
+}
+
 function renderRelationsText(report: RelationReport): string {
   const head = `verdict: ${report.verdict}`
   // WHY, when the document could not be evaluated at all: rendered as
@@ -1980,8 +2088,11 @@ function renderRelationsText(report: RelationReport): string {
   const lines = report.findings.map((f) =>
     'relation_cycle' === f.code
       ? `${f.at}  ${f.relation}: cycle ${f.detail.join(' -> ')}`
-      : `${f.at}  ${f.relation}: ${f.detail[1]} does not list ` +
-      `${f.detail[0]} under ${f.detail[2]}`)
+      : 'relation_target_unmet' === f.code
+        ? `${f.at}  ${f.relation}: ${f.detail[1]} is not what ` +
+        `${f.relation} targets (${f.detail[2]})`
+        : `${f.at}  ${f.relation}: ${f.detail[1]} does not list ` +
+        `${f.detail[0]} under ${f.detail[2]}`)
   return [head, ''].concat(lines).join('\n')
 }
 
@@ -2791,6 +2902,10 @@ function main(argv: string[]): void {
     return finish(runJsonSchema(argv.slice(3)))
   }
 
+  if ('reaches' === argv[2]) {
+    return finish(runReaches(argv.slice(3)))
+  }
+
   if ('trim' === argv[2]) {
     return finish(runTrim(argv.slice(3)))
   }
@@ -2874,7 +2989,7 @@ function main(argv: string[]): void {
   else {
     runStdin(mode, trust).then((code) => finish(code))
   }
-} /* node:coverage ignore next 14 */
+} /* node:coverage ignore next 15 */
 
 
 // No require.main guard here: bin/aontu.js is the executable entry and
@@ -2883,6 +2998,7 @@ function main(argv: string[]): void {
 
 export {
   evalSource, main, runVet, runSubsume, runBreaking, runTrim, runRelations,
+  runReaches,
   runJsonSchema,
   runMod,
   runHash, runGet,

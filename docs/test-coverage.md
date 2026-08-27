@@ -222,7 +222,7 @@ engine never builds.
 
 ## The exclusions, in full
 
-100 % is only meaningful if what was excluded is visible. Sixty-nine
+100 % is only meaningful if what was excluded is visible. Seventy-five
 Go sites carry a `//coverage:ignore` marker — two of them
 `ignore-block` markers over a pair — and TypeScript carries none at all
 beyond the export blocks (see below). TypeScript's markers drop LINES
@@ -263,7 +263,7 @@ the original incident announced itself only as forty-two unrelated
 coverage failures, when what had actually happened was that every
 marker stopped working.
 
-### Go — 69 marked sites
+### Go — 75 marked sites
 
 | Site | Why it cannot be reached |
 |------|--------------------------|
@@ -296,6 +296,8 @@ marker stopped working.
 | `source.go` × 2 — the empty-`Full` guard and the jsonic result `ignore-block` | A resolution always carries its full path, and jsonic hands back a `Val` or a map, never a raw third thing. |
 | `trim.go` — the neither-value-nor-error arm of `parseEntry` | `parseEntry` answers one or the other. (The re-parse arm is listed above.) |
 | `lang.go` × 4 more than listed above — further `j.Use` registrations and digit guards | Same two families: compile-time plugin options that already succeeded at package init, and digit strings a regex or `allDigits` has already vetted. |
+| `relation.go` × 5 — `addressedNode`'s lookup, its two walk guards, its `default` arm, and the caller's nil check | An edge exists only because `refer()` RESOLVED its full address, so the walk cannot miss: an address that does not walk is `refer_unresolved` at unification and the document never reaches the graph — probed for a missing key, a scalar mid-path and an out-of-range index, in both ports. The TypeScript twin has NONE of them, because its marker cannot excuse a branch; it relies on optional chaining, where a Go nil would panic. |
+| `vet.go` — `failureFinding`'s last resort | The fallback for a root that is nil-the-INTERFACE rather than nil-the-value. Every caller's condition is `nil == root \|\| root.Nil() \|\| 0 < len(ctx.err)` and the first arm has never been observed to fire, but a failed type assertion would otherwise dereference nil — the panic that function was fixed to stop (use-cases/BUGS.md 43). |
 
 Regenerate the site list rather than patching rows — the count above is
 whatever `covmerge` reports on the run:

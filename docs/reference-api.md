@@ -39,6 +39,7 @@ Usage: aontu [options] [file]
        aontu breaking --against <file|git#rev> [options] <file>
        aontu trim --check [options] <file>
        aontu relations [options] <file>
+       aontu reaches <from> <to> [--relation <name>] [options] <file>
        aontu jsonschema [--at <path>] [--strict] [options] <file>
        aontu hash [options] <file>
        aontu mod tidy|verify|vendor|manifest [options] [dir]
@@ -398,10 +399,26 @@ $ echo $?
   the rule; the [explanation](explanation.md#why-there-is-a-verb-surface)
   argues it.
 - A finding carries `at` (the position of the offending edge), `code`
-  (`relation_cycle` or `relation_inverse_missing`), `relation`, and
-  `detail` — for a cycle, the entities it runs through in order; for a
-  missing inverse, `[from, to, inverseName]`. Findings are **sorted by
-  `at`**, so the report diffs cleanly.
+  (`relation_cycle`, `relation_inverse_missing` or
+  `relation_target_unmet`), `relation`, and `detail` — for a cycle, the
+  entities it runs through in order; for a missing inverse,
+  `[from, to, inverseName]`; for an unmet target, `[from, to, reason]`
+  where the reason is the engine's own code for the refusal. Findings
+  are **sorted by `at`**, so the report diffs cleanly.
+- **`target: <schema>` says what the far end must be**, and is checked
+  here. The declaration used to be inert, on the reasoning that
+  [`refer(t)`](reference-language.md#entity-references-refert) already
+  flows the type in at the site — which is exactly why it was worth
+  nothing, because the site then has to repeat it. Satisfaction is the
+  meet, and **not merely the absence of a conflict**: a target key the
+  far end does not have unifies happily and leaves a hole, so the check
+  asks the question `refer(t)` answers at the site — can the far end
+  still generate once the target is met? — and compares it with the far
+  end alone, so a node already incomplete for its own reasons is not
+  blamed on the relation pointing at it. The check never writes: a
+  relation reports on a finished model, and flowing the type in here
+  would be generation, the same rule that keeps it from writing an
+  author's `inverse` for them.
 - `--format json` wraps the same findings with the `aontu` producer
   block (`verb`, `version`) that every machine-readable report carries.
 - Exit codes: `0` `pass`, `1` `fail`, `4` `error` (the document does
@@ -420,6 +437,63 @@ $ echo $?
   `{verdict, findings}` record (plus `errors` on a failed run); the derived graph the checks run over
   is `result.graph` / `Aontu.Graph`, described under
   [the TypeScript API](#class-aontu).
+
+### `aontu reaches`
+
+Ask whether one entity **reaches** another over the entity graph, at
+any remove.
+
+```
+aontu reaches <from> <to> [--relation <name>] [--format text|json] <file>
+```
+
+[`relations`](#aontu-relations) asks about the edge set as a whole.
+This asks the question that needs the **closure**: does anything `from`
+links to, at any remove, end up at `to`? That is the shape of every
+blast-radius question an operator asks ("if the billing database goes,
+what falls over?") and every containment question a policy asks
+("nothing in the public tier may reach the ledger"), and neither can be
+put one edge at a time.
+
+```sh
+$ aontu reaches web ledger system.aon
+verdict: reaches
+
+web -> billing -> ledger
+$ echo $?
+0
+```
+
+- **The path is the answer**, not decoration: "yes" is worth little to
+  an operator asking what a failure would take out, and the chain is
+  what they act on. It is a **shortest** path, and among shortest ones
+  the first in code-point order, so it is the same path in both ports.
+  A `no` carries none — there is no evidence for a negative answer.
+- **Transitive, not reflexive-transitive.** `reaches a a` is true only
+  when a path of one or more edges returns to `a`, which says the graph
+  has a cycle through `a` rather than saying nothing.
+- `--relation <name>` follows only edges under that relation — the
+  difference between "can this reach that at all" and "can it reach it
+  *this way*".
+- A link into part of an entity (`svc/auth.ports.http`) reaches the
+  **entity**: reachability is between entities, and the path inside one
+  says which part of it the link arrives at. Same rule
+  [`relations`](#aontu-relations) uses, and it has to be, or the two
+  verbs would disagree about what an edge connects.
+- Exit codes: `0` `reaches`, `1` `unreachable`, `4` `error`, `2` usage.
+  An unreachable pair is a **failed check**, not an error: the question
+  was answered, and the answer was no.
+- **An endpoint that names no entity is a refusal**, reported as
+  `refer_unresolved` with the known entities listed — answering `no`
+  would report a typo as a fact about the model.
+- Like acyclicity, this is a verb and **not a lattice constraint**:
+  reachability is global and non-monotone, so a citizen asserting
+  *non*-reachability could be true and then false as one more edge
+  arrives.
+- The library form is `reachCheck(src, from, to, options?)` in
+  TypeScript and `Aontu.Reach(src, from, to, options)` in Go, returning
+  the identical `{verdict, path?}` record (plus `errors` on a failed
+  run).
 
 ### `aontu jsonschema`
 
@@ -1071,6 +1145,7 @@ nothing else.
 | `relations` | the [relations](#aontu-relations) report: acyclicity and inverse consistency over the entity edge set |
 | `hash` | the [canon-hash](#aontu-hash) pin `{hash}` (plus the hash-form text when `form: true`) |
 | `trim` | the [trim --check](#aontu-trim) report: redundant entries as paths |
+| `reaches` | the [reachability check](#aontu-reaches): the verdict and, when it reaches, a shortest path — the closure question `relations` cannot ask one edge at a time |
 | `jsonschema` | the [JSON Schema export](#aontu-jsonschema): the schema, and the `lossy` list naming what it could not say — the bridge to a structured-output API, and to an MCP tool's own `inputSchema` |
 
 Every tool returns **the same JSON contract the CLI prints**, so a

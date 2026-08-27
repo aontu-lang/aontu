@@ -84,6 +84,7 @@ import {
   patch, diff, agentsMd,
 } from '../dist/aontu'
 import { jsonSchema } from '../dist/jsonschema'
+import { reachCheck } from '../dist/reach'
 import { codeClasses } from '../dist/hints'
 import { IntegerVal } from '../dist/val/IntegerVal'
 import { StringVal } from '../dist/val/StringVal'
@@ -434,6 +435,24 @@ function runRow(row: Omit<Row, 'file'> & { file?: string }): void {
       }),
       exactJSON(JSON.parse(row.expect)),
       `jsonschema report mismatch: ${row.name}`)
+  }
+  else if ('reaches' === row.mode) {
+    // REACHABILITY OVER THE ENTITY GRAPH (the review's finding J). The
+    // endpoints ride the expect object under `ask`, because the row's
+    // other columns are already spoken for and the question is part of
+    // what the row pins: the same document answers differently for
+    // different pairs, and for the same pair under a `relation` filter.
+    const golden = JSON.parse(row.expect)
+    const ask = golden.ask
+    delete golden.ask
+
+    const report = reachCheck(row.src, ask.from, ask.to,
+      null == ask.relation ? undefined : { relation: ask.relation })
+    Assert.strictEqual(
+      exactJSON(null == report.errors
+        ? report : { ...report, errors: stripProse(report.errors) }),
+      exactJSON(golden),
+      `reach report mismatch: ${row.name}`)
   }
   else if ('relation' === row.mode) {
     // RELATION GRAPH CHECKS (G4 phase 5): acyclicity and inverse

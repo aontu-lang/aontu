@@ -47,6 +47,7 @@ import type { SubsumeVerdict } from './subsume'
 import { trimCheck } from './trim'
 import { jsonSchema } from './jsonschema'
 import { relationCheck } from './relation'
+import { reachCheck } from './reach'
 import { patch } from './patch'
 
 
@@ -423,6 +424,33 @@ const TOOLS: ToolDef[] = [
       ({ verdict: 'error', findings: [], errors: [finding] }),
     run: (a, _trust, paths) =>
       relationCheck(str(a.source), { path: paths.source }),
+  },
+  {
+    name: 'reaches',
+    description:
+      'Ask whether one entity reaches another over the entity graph, ' +
+      'at any remove — the closure question `relations` cannot ask one ' +
+      'edge at a time (blast radius, containment). Returns verdict ' +
+      '(reaches | unreachable | error) and, when it reaches, a shortest ' +
+      'path. Transitive, not reflexive: an entity reaches itself only ' +
+      'through a cycle.',
+    properties: {
+      source: { type: 'string', description: 'The document' },
+      from: { type: 'string', description: 'The entity to start at' },
+      to: { type: 'string', description: 'The entity to look for' },
+      relation: {
+        type: 'string',
+        description: 'Follow only edges under this relation (optional)',
+      },
+    },
+    required: ['source', 'from', 'to'],
+    docs: ['source'],
+    refuse: (_a, finding) => ({ verdict: 'error', errors: [finding] }),
+    run: (a, _trust, paths) =>
+      reachCheck(str(a.source), str(a.from), str(a.to), {
+        path: paths.source,
+        relation: null == a.relation ? undefined : str(a.relation),
+      }),
   },
   {
     name: 'hash',

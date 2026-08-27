@@ -112,6 +112,7 @@ const Fs = __importStar(require("node:fs"));
 const Path = __importStar(require("node:path"));
 const aontu_1 = require("../dist/aontu");
 const jsonschema_1 = require("../dist/jsonschema");
+const reach_1 = require("../dist/reach");
 const hints_1 = require("../dist/hints");
 const IntegerVal_1 = require("../dist/val/IntegerVal");
 const StringVal_1 = require("../dist/val/StringVal");
@@ -375,6 +376,19 @@ function runRow(row) {
             ...(null == report.errors
                 ? {} : { errors: stripProse(report.errors) }),
         }), (0, aontu_1.exactJSON)(JSON.parse(row.expect)), `jsonschema report mismatch: ${row.name}`);
+    }
+    else if ('reaches' === row.mode) {
+        // REACHABILITY OVER THE ENTITY GRAPH (the review's finding J). The
+        // endpoints ride the expect object under `ask`, because the row's
+        // other columns are already spoken for and the question is part of
+        // what the row pins: the same document answers differently for
+        // different pairs, and for the same pair under a `relation` filter.
+        const golden = JSON.parse(row.expect);
+        const ask = golden.ask;
+        delete golden.ask;
+        const report = (0, reach_1.reachCheck)(row.src, ask.from, ask.to, null == ask.relation ? undefined : { relation: ask.relation });
+        Assert.strictEqual((0, aontu_1.exactJSON)(null == report.errors
+            ? report : { ...report, errors: stripProse(report.errors) }), (0, aontu_1.exactJSON)(golden), `reach report mismatch: ${row.name}`);
     }
     else if ('relation' === row.mode) {
         // RELATION GRAPH CHECKS (G4 phase 5): acyclicity and inverse

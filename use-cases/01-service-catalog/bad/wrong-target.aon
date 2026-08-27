@@ -1,0 +1,19 @@
+# bad/wrong-target.aon --- the declared endpoint type, violated, where
+# the SITE does not repeat it.
+#
+# `relations.hostedOn.target` says a hostedOn edge must land on a
+# $.std.Service. The link itself is written with a bare `refer()` --
+# existence only -- which is what a model does when it declares the
+# type ONCE on the relation instead of at every link site. The
+# document EVALUATES (the link is well formed and the entity exists);
+# only `aontu relations` sees that the far end is the wrong kind of
+# thing. Before the review's finding J landed, `target` was read by
+# nothing and this reported `verdict: pass`.
+@"../system.aon"
+
+relations: hostedOn: $.std.Relation & { target: $.std.Service }
+
+infra: {
+  bastion: id(svc/bastion) & { kind: host, name: "bastion-eu1" }
+  runner: id(svc/runner) & { hostedOn: [&: refer(), svc/bastion] }
+}

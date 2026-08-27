@@ -462,13 +462,22 @@ function orderKey(f: VetFinding, index: number): string {
 // because everything after it is a consequence.
 //
 // The Go twin is failureFinding in go/vet.go.
-export function failureFinding(ctx: any, url?: string): VetFinding {
-  // ctx.err is never empty at a call site: every caller has already
-  // established that the document failed, and it can only fail by
-  // collecting an error. Not coalesced, on the siteOf precedent -- an
-  // impossible state should fail loudly rather than be papered over
-  // with a made-up code.
-  const nil: any = ctx.err[0]
+export function failureFinding(
+  ctx: any, url?: string, failed?: any): VetFinding {
+  // ctx.err IS SOMETIMES EMPTY, and the comment that used to stand here
+  // said otherwise (use-cases/BUGS.md §43). `&: id(root)` fails with a
+  // NIL ROOT and NO COLLECTED ERROR -- the id-spread refusal is the
+  // root itself -- and every verb that reports "this document does not
+  // stand up" then read `ctx.err[0]` as undefined and died: a TypeError
+  // out of `relations`, `reaches` and `jsonschema` in TypeScript, a
+  // panic in Go. The one shape where finding F's own invariant, that a
+  // document which does not stand up SAYS SO in the finding shape, was
+  // answered with a stack trace.
+  //
+  // `failed` is the caller's own root -- every caller has it, and its
+  // condition is `0 < ctx.err.length || root.isNil`, so when the first
+  // half is false the second holds and the root IS the reason.
+  const nil: any = ctx.err[0] ?? failed
   materialise(nil, ctx)
 
   // STAMPED, as vet stamps both documents before they meet: siteOf does

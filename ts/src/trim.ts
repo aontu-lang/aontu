@@ -118,7 +118,7 @@ export function deleteAt(root: any, path: string[]): boolean {
 // error verdict and for a probe means "load-bearing".
 export function evalCanon(
   src: string, opts: TrimOptions, delPath?: string[],
-  sink?: { ctx?: any }): string | undefined {
+  sink?: { ctx?: any, failed?: any }): string | undefined {
   const aontu = new Aontu(
     null == opts.trust ? undefined : { trust: opts.trust })
   const ctx = aontu.ctx({ collect: true })
@@ -128,9 +128,13 @@ export function evalCanon(
   // means "load-bearing", which is an answer rather than a fault, and
   // reporting it would bury the one real finding under one entry's
   // worth of noise per candidate.
-  const fail = (): undefined => {
+  const fail = (failed?: any): undefined => {
     if (null != sink) {
       sink.ctx = ctx
+      // The failing ROOT travels with the context: a nil root can
+      // arrive with an EMPTY error list (`&: id(root)`), and the
+      // finding is built from it then (use-cases/BUGS.md §43).
+      sink.failed = failed
     }
     return undefined
   }
@@ -143,7 +147,7 @@ export function evalCanon(
   }
   const v: any = aontu.unify(parsed, parseOpts, ctx)
   if (0 < ctx.err.length || true === v?.isNil) {
-    return fail()
+    return fail(v)
   }
   return v.canon
 }
@@ -156,13 +160,13 @@ export function evalCanon(
 export function trimCheck(src: string, opts?: TrimOptions): TrimReport {
   const options = opts ?? {}
 
-  const sink: { ctx?: any } = {}
+  const sink: { ctx?: any, failed?: any } = {}
   const baseline = evalCanon(src, options, undefined, sink)
   if (undefined === baseline) {
     return {
       verdict: 'error',
       redundant: [],
-      errors: [failureFinding(sink.ctx, options.path)],
+      errors: [failureFinding(sink.ctx, options.path, sink.failed)],
     }
   }
 

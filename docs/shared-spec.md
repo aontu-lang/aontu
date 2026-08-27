@@ -24,7 +24,7 @@ name <TAB> mode <TAB> src <TAB> expect
 | column   | meaning                                                        |
 |----------|----------------------------------------------------------------|
 | `name`   | short identifier for the case (unique within its file)         |
-| `mode`   | `canon`, `gen`, `gens`, `err`, `errc`, `errcode`, `vet`, `subsume`, `query`, `why`, `patch`, `diff`, `agentsmd`, `trim`, `hcanon`, `hash`, `graph` or `relation` (see below) |
+| `mode`   | `canon`, `gen`, `gens`, `err`, `errc`, `errcode`, `vet`, `subsume`, `query`, `why`, `patch`, `diff`, `agentsmd`, `trim`, `hcanon`, `hash`, `graph`, `relation` or `reaches` (see below) |
 | `src`    | Aontu source text to evaluate                                  |
 | `expect` | the expected result, interpreted according to `mode`          |
 
@@ -68,6 +68,7 @@ name <TAB> agentsmd <TAB> src <TAB> document-name <TAB> expect
 | `agentsmd` | five columns: the stanza of `agentsMd(src, {name})` must match `expect` BYTE FOR BYTE |
 | `trim`  | `trimCheck(src)` must produce the report `expect` describes (`{redundant, verdict}`) |
 | `relation` | `relationCheck(src)` — acyclicity and inverse consistency over the edge set — must produce the report `expect` describes (`verdict` and the ordered `findings`) |
+| `reaches` | `reachCheck(src, from, to, {relation?})` — transitive reachability over the entity graph — must produce the report `expect` describes (`verdict` and, when it reaches, the shortest `path`). The endpoints ride `expect.ask` as `{from, to, relation?}`, since the same document answers differently for different pairs |
 | `graph` | the DERIVED GRAPH of `unify(src)` — the entity index and the edge set — must equal `expect` as JSON, and must be the same bytes again on a fresh engine |
 | `hcanon` | `unify(src)` then its HASH FORM — canon plus the `close()`/`type()`/`hide()` wrappers — must equal `expect`, and that text must round-trip through the engine unchanged |
 | `hash`  | `canonHash(unify(src))` must equal `expect`, the full `aon1-…` pin |

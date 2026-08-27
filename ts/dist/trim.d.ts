@@ -14,5 +14,6 @@ export declare function candidates(v: any, path: string[], out: string[][]): voi
 export declare function deleteAt(root: any, path: string[]): boolean;
 export declare function evalCanon(src: string, opts: TrimOptions, delPath?: string[], sink?: {
     ctx?: any;
+    failed?: any;
 }): string | undefined;
 export declare function trimCheck(src: string, opts?: TrimOptions): TrimReport;

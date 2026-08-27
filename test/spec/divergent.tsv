@@ -381,3 +381,69 @@
 #   Go's cloneAt/overlayPath -- a clone that takes a destination path --
 #   which is wider than any one finding and is the arm-for-arm
 #   correspondence ADR-001 asks for.
+#
+# ---------------------------------------------------------------------
+#
+# OPEN -- Go's DERIVED GRAPH loses most of its edges on a two-view
+#   id-merged model, so `relations` silently misses a real cycle and
+#   `reaches` would under-answer with it.
+#   issue: none filed yet; found 2026-08-27 while landing the relations
+#   work (use-cases/REVIEW.md finding J), by running use case 01's
+#   check.sh through the GO CLI -- which nothing had done, because
+#   use-cases/run-all.sh drives the TypeScript one. NOT introduced by
+#   that work: the pre-change Go binary loses the same edges.
+#
+#   Divergent input:  use-cases/01-service-catalog/system.aon (and
+#     bad/cycle.aon, which includes it) -- eight entities described by
+#     TWO views (catalog.aon, deploy.aon) joined by id(), with the link
+#     lists typed by a spread from a shared vocabulary.
+#   TypeScript: graphOf gives 40 edges (19 distinct from/key/to
+#               triples); `relations bad/cycle.aon` reports
+#               `cycle svc/payments -> svc/ledger -> svc/payments`.
+#   Go:         GraphOf gives 6 edges (2 distinct triples); `relations
+#               bad/cycle.aon` reports NO cycle, and reports extra
+#               inverse_missing findings for the inverses it cannot
+#               see. Both ports find the same 8 ENTITIES.
+#
+#   What is established: BOTH VIEWS ARE NEEDED. With `deploy: {}` the
+#   two ports agree exactly (21 edges each); with one catalog domain
+#   and the full deploy they differ by 4. So the trigger is the
+#   id-merge across two trees, not the include, the spread or the
+#   vocabulary -- each of which agrees on its own. The missing edges
+#   are all links the merge carried into a position other than the one
+#   they were written at.
+#
+#   Not simply fixed because the cause is in how each port's identity
+#   merge places a link-stamped value at an entity's other positions,
+#   which is engine work rather than a graph-walk fix, and it did not
+#   minimise: every synthetic reduction tried (two views + spread, two
+#   views + include, an entity in one view pointing at one in two)
+#   agrees in both ports. The reproduction is the use case itself,
+#   which is in the tree.
+#
+#   Guarded meanwhile: use-cases/01-service-catalog/check.sh asserts the
+#   cycle, so the Go CLI fails that check today rather than passing it
+#   quietly -- which is the honest state, and how a fix will be noticed.
+
+#
+# ---------------------------------------------------------------------
+#
+# OPEN -- an id-spread refusal is pathed at `$` by TypeScript and at
+#   `$.&` by Go.
+#   issue: none filed yet; found 2026-08-27 while fixing the crash the
+#   same document caused (use-cases/BUGS.md 43). PRE-EXISTING and
+#   engine-level: plain evaluation disagrees the same way, so it is not
+#   the verbs' doing.
+#
+#   Divergent input:  `&: id(root)` `b: id(b) & {n: 1}`
+#   TypeScript: [aontu/id_spread] Cannot resolve value at path $
+#   Go:         [aontu/id_spread] Cannot resolve value at path $.&
+#
+#   Not simply fixed because it is a question about where a bag
+#   spread's own refusal SITS -- at the bag, or at the `&` entry that
+#   carries it -- which is a language answer rather than a port
+#   difference, and neither port is obviously right. The VERDICT, the
+#   code and the exit agree, which is what a caller acts on; the
+#   per-port tests named in 43 assert those and deliberately not the
+#   path.
+

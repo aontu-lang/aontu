@@ -215,6 +215,7 @@ var codeClasses = map[string]string{
 	// lattice citizen may not be falsified by more information.
 	"relation_cycle":           "conflict",
 	"relation_inverse_missing": "conflict",
+	"relation_target_unmet":    "conflict",
 
 	"patch_assignment":      "parse",
 	"patch_not_editable":    "reference",

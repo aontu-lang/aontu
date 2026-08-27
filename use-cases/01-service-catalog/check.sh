@@ -102,6 +102,42 @@ has cycle out 'verdict: fail'
 has cycle out 'cycle svc/payments -> svc/ledger -> svc/payments'
 ok "relations: cycle payments->ledger->payments detected"
 
+# 7b. THE DECLARED ENDPOINT TYPE is checked too (the review's finding
+# J; README, gap 3). The link site uses a bare refer() -- existence
+# only -- so the relation's own `target` is the only thing that says
+# what the far end must be, and it now says it.
+run wtgt 1 -- relations "$DIR/bad/wrong-target.aon"
+has wtgt out 'verdict: fail'
+has wtgt out 'svc/bastion is not what hostedOn targets'
+ok "relations: declared target enforced against an untyped link site"
+
+# 7c. REACHABILITY, the closure question relations cannot ask one edge
+# at a time: the gateway reaches the ledger through payments, and the
+# path is the answer.
+run reach 0 -- reaches svc/gateway svc/ledger "$DIR/system.aon"
+has reach out 'verdict: reaches'
+has reach out 'svc/gateway -> svc/payments -> svc/ledger'
+ok "reaches: gateway -> payments -> ledger, with the chain as evidence"
+
+# THE DIRECTION IS THE RELATION'S, not the graph's. This model writes
+# both dependsOn and its inverse, so the whole edge set is symmetric
+# and EVERYTHING reaches everything: asking a directional question
+# means naming the relation to follow. That is what --relation is for,
+# and the difference between the two runs below is the whole point.
+run reachdep 0 -- reaches svc/gateway svc/ledger --relation dependsOn \
+  "$DIR/system.aon"
+has reachdep out 'verdict: reaches'
+run noreach 1 -- reaches svc/ledger svc/gateway --relation dependsOn \
+  "$DIR/system.aon"
+has noreach out 'verdict: unreachable'
+ok "reaches --relation dependsOn: one way only, as the estate is layered"
+
+# ...and an endpoint that names no entity is a REFUSAL, not a `no`:
+# answering no would report a typo as a fact about the model.
+run badreach 4 -- reaches svc/gateway svc/nope "$DIR/system.aon"
+has badreach out 'refer_unresolved'
+ok "reaches: an endpoint naming no entity is refused, not answered no"
+
 # 8. A missing inverse is caught the same way.
 run noinv 1 -- relations "$DIR/bad/missing-inverse.aon"
 has noinv out 'verdict: fail'

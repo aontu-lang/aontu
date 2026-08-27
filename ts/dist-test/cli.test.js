@@ -796,6 +796,15 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
         Assert.match(r.out, /verdict: fail/);
         Assert.match(r.out, /cycle a -> b -> a/);
         Assert.match(r.out, /b does not list a under usedBy/);
+        // THE DECLARED TARGET, rendered (the review's finding J). The link
+        // site uses a bare refer(), so the relation's own `target` is the
+        // only thing saying what the far end must be.
+        Fs.writeFileSync(file, '@"std/system"\n' +
+            'relations: {dependsOn: $.std.Relation & {target: {kind: service}}}\n' +
+            'a: id(a) & {dependsOn: [&: refer(), b]}\n' +
+            'b: id(b) & {kind: database}\n');
+        const rt = vetCapture(() => Assert.equal((0, cli_1.runRelations)([file]), 1));
+        Assert.match(rt.out, /b is not what dependsOn targets/);
         // Acyclic AND mirrored: nothing to report.
         Fs.writeFileSync(file, decl +
             'a: id(a) & {dependsOn: [&: refer(), b]}\n' +
@@ -894,6 +903,88 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
         // ... and one the parser ACCEPTS reaches the export.
         Assert.equal(JSON.parse(vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)(['--trust', 'none', f.general]), 0)).out).type, 'object');
         Assert.equal(vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)(['--help']), 0)).out.includes('aontu jsonschema'), true);
+    });
+    // REACHABILITY (the review's finding J). Go twin:
+    // go/cmd/aontu/reaches_test.go. What the two ports must AGREE on --
+    // the verdict and the path -- is test/spec/reach.tsv; what each port
+    // owns (argument handling, exit codes, rendering) is here.
+    (0, node_test_1.test)('reaches-answers-with-the-path-and-its-exit-code', () => {
+        const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-rc-'));
+        const file = Path.join(dir, 'doc.aon');
+        Fs.writeFileSync(file, 'a: id(a) & {dependsOn: [&: refer(), b]}\n' +
+            'b: id(b) & {dependsOn: [&: refer(), c], usedBy: [&: refer(), d]}\n' +
+            'c: id(c) & {}\nd: id(d) & {}\n');
+        // THE PATH IS THE ANSWER: "yes" is worth little to an operator
+        // asking what a failure would take out.
+        const hit = vetCapture(() => Assert.equal((0, cli_1.runReaches)(['a', 'c', file]), 0));
+        Assert.match(hit.out, /verdict: reaches/);
+        Assert.match(hit.out, /a -> b -> c/);
+        // An unreachable pair is a FAILED CHECK, not an error: the question
+        // was answered, and the answer was no.
+        const miss = vetCapture(() => Assert.equal((0, cli_1.runReaches)(['c', 'a', file]), 1));
+        Assert.match(miss.out, /verdict: unreachable/);
+        Assert.match(miss.out, /c does not reach a/);
+        // --relation follows one relation, which is the difference between
+        // "can this reach that at all" and "can it reach it THIS way".
+        vetCapture(() => Assert.equal((0, cli_1.runReaches)(['a', 'd', file]), 0));
+        vetCapture(() => Assert.equal((0, cli_1.runReaches)(['a', 'd', '--relation', 'dependsOn', file]), 1));
+        // An endpoint that names no entity is a REFUSAL, not a `no`:
+        // answering no would report a typo as a fact about the model.
+        const bad = vetCapture(() => Assert.equal((0, cli_1.runReaches)(['a', 'nope', file]), 4));
+        Assert.match(bad.out, /refer_unresolved/);
+        Assert.match(bad.out, /known entities: a, b, c, d/);
+        const j = JSON.parse(vetCapture(() => Assert.equal((0, cli_1.runReaches)(['a', 'c', '--format', 'json', file]), 0)).out);
+        Assert.equal(j.aontu.verb, 'reaches');
+        Assert.deepEqual(j.path, ['a', 'b', 'c']);
+        Assert.equal('errors' in j, false);
+        // A `no` carries no path -- there is no evidence for a negative
+        // answer -- and a refusal carries its findings instead.
+        const jn = JSON.parse(vetCapture(() => Assert.equal((0, cli_1.runReaches)(['c', 'a', '--format', 'json', file]), 1)).out);
+        Assert.equal(jn.verdict, 'unreachable');
+        Assert.equal('path' in jn, false);
+        Assert.equal('errors' in jn, false);
+        const je = JSON.parse(vetCapture(() => Assert.equal((0, cli_1.runReaches)(['a', 'nope', '--format', 'json', file]), 4)).out);
+        Assert.equal(je.verdict, 'error');
+        Assert.equal(je.errors[0].code, 'refer_unresolved');
+        Assert.equal('path' in je, false);
+        // A --trust the parser ACCEPTS reaches the graph.
+        vetCapture(() => Assert.equal((0, cli_1.runReaches)(['--trust', 'none', 'a', 'c', file]), 0));
+        // A document that does not stand up has no graph to ask about.
+        Fs.writeFileSync(file, 'a: 1\na: 2\n');
+        const broken = vetCapture(() => Assert.equal((0, cli_1.runReaches)(['a', 'b', file]), 4));
+        Assert.match(broken.out, /scalar_value/);
+    });
+    // A NIL ROOT WITH AN EMPTY ERROR LIST (use-cases/BUGS.md §43). The
+    // id-spread refusal IS the root, so `ctx.err` is empty and every verb
+    // that reports "this document does not stand up" used to read
+    // `ctx.err[0]` as undefined and die with a TypeError. The path the
+    // two ports give this nil differs ($ here, $.& in Go) and is recorded
+    // in test/spec/divergent.tsv, so this asserts the CODE and the
+    // verdict -- which is what a caller acts on -- rather than the path.
+    (0, node_test_1.test)('a-nil-root-with-no-collected-error-is-reported-not-thrown', () => {
+        const f = subFiles('&: id(root)\nb: id(b) & {n: 1}\n', 'a:1');
+        for (const run of [
+            () => (0, cli_1.runRelations)([f.general]),
+            () => (0, cli_1.runReaches)(['b', 'b', f.general]),
+            () => (0, cli_1.runJsonSchema)([f.general]),
+            () => (0, cli_1.runTrim)(['--check', f.general]),
+        ]) {
+            const r = vetCapture(() => Assert.equal(run(), 4));
+            // out OR err: jsonschema puts its refusal on stderr, because
+            // stdout is the schema's stream.
+            Assert.match(r.out + r.err, /id_spread/);
+        }
+    });
+    (0, node_test_1.test)('reaches-usage-errors-exit-2', () => {
+        const f = subFiles('a:1', 'a:1');
+        vetCapture(() => Assert.equal((0, cli_1.runReaches)([]), 2));
+        vetCapture(() => Assert.equal((0, cli_1.runReaches)(['a', f.general]), 2));
+        vetCapture(() => Assert.equal((0, cli_1.runReaches)(['--bogus', 'a', 'b', f.general]), 2));
+        vetCapture(() => Assert.equal((0, cli_1.runReaches)(['a', 'b', '--format', 'yaml', f.general]), 2));
+        vetCapture(() => Assert.equal((0, cli_1.runReaches)(['a', 'b', '--relation']), 2));
+        vetCapture(() => Assert.equal((0, cli_1.runReaches)(['--trust', 'nonsense', 'a', 'b', f.general]), 2));
+        vetCapture(() => Assert.equal((0, cli_1.runReaches)(['a', 'b', Path.join(f.dir, 'missing.aon')]), 2));
+        Assert.equal(vetCapture(() => Assert.equal((0, cli_1.runReaches)(['--help']), 0)).out.includes('aontu reaches'), true);
     });
     (0, node_test_1.test)('relations-usage-errors-exit-2', () => {
         const f = subFiles('a:1', 'a:1');
@@ -1409,6 +1500,8 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
         Assert.match(md.out, /aontu:begin/);
         const js = vetCapture(() => (0, cli_1.main)(['node', 'aontu', 'jsonschema', f.general]));
         Assert.match(js.out, /"type": "integer"/);
+        const rc = vetCapture(() => (0, cli_1.main)(['node', 'aontu', 'reaches', 'x', 'y', f.general]));
+        Assert.match(rc.out, /verdict: error/);
     });
 });
 // --- the repair loop, end to end ---------------------------------------

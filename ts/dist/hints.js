@@ -385,6 +385,7 @@ const codeClasses = {
     // and a lattice citizen may not be falsified by more information.
     relation_cycle: 'conflict',
     relation_inverse_missing: 'conflict',
+    relation_target_unmet: 'conflict',
     func_arity: 'parse',
     elided_value: 'parse',
     unify_no_src: 'parse',

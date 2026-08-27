@@ -5,6 +5,68 @@ package (`ts/`, npm `aontu`) and the Go module (`go/`,
 `github.com/rjrodger/aontu/go`) are versioned independently; entries note
 which implementation each change affects.
 
+## Unreleased — relations that enforce, and a graph you can ask questions of
+
+Both implementations. The 2026-08 review's finding J: aontu is "a sound
+entity-and-edge substrate whose query and constraint layers over that
+substrate are one more capability review away". The review named a
+concrete slice — "make `relations` enforce `target`, add
+`unique()`-by-projection, and ship a transitive `reaches(a, b)` check
+verb". `unique(k)` landed with the arithmetic family; here are the
+other two, and the defect that made the first of them worth nothing.
+
+**`refer(t)` in both directions no longer eats itself** (`use-cases/BUGS.md`
+19). The flow unifies `t` into the target, and uniting a target drives
+the target's own subtree — so a pair that links back at each other, the
+shape *every* inverse relation has, flowed into each other until the
+depth budget or the host stack ended it. Two lines were enough:
+`a` typed-refers `b`, `b` typed-refers `a`, both `{kind: service}`, and
+the evaluator reported `unify_cycle` on a meet that is a fixpoint on
+sight. A flow that would re-enter an entity is now skipped — the flow
+it is nested in is already uniting that entity — and nothing is lost,
+as the differs-each-way and cycle-of-three rows pin. Use case 01 now
+carries the documented idiom `refer($.std.Service)` on **both**
+directions of a real model, and its gap 8 workaround is gone.
+
+**`relations` enforces `target`.** The field looked like a typed
+endpoint declaration and was read by nothing, on the reasoning that
+`refer(t)` already flows the type in at the site. It does — which is
+exactly why the declaration was worth nothing, because the site then
+has to repeat it, and the idiom that avoids repeating it was the one
+that ate itself. Satisfaction is the meet **and not merely the absence
+of a conflict**: a target key the far end does not have unifies happily
+and leaves a hole, so the check asks what `refer(t)` answers at the site
+— can the far end still generate once the target is met? — and compares
+it with the far end alone, so a node already incomplete for its own
+reasons is not blamed on the relation pointing at it. New code
+`relation_target_unmet`; the check never writes, because flowing the
+type in here would be generation.
+
+**`aontu reaches <from> <to>`**, a verb in both ports plus a library
+call and an MCP tool. `relations` asks about the edge set; this asks
+the question that needs the *closure* — does anything `from` links to,
+at any remove, end up at `to`? — which is the shape of every
+blast-radius question an operator asks and every containment question a
+policy asks, and which cannot be put one edge at a time. The path is
+the answer, not decoration: a shortest one, and among shortest ones the
+first in code-point order, so it is the same path in both ports.
+Transitive and **not** reflexive-transitive: an entity reaches itself
+only through a cycle. `--relation` follows one relation, which is the
+difference between "can this reach that at all" and "can it reach it
+*this way*" — and on a model that writes both a relation and its
+inverse, the second question is the only interesting one. An endpoint
+naming no entity is a refusal, not a `no`.
+
+**A critical defect found on the way, and NOT fixed** (`use-cases/BUGS.md`
+42, `test/spec/divergent.tsv`): on a two-view id-merged model, Go's
+derived graph has 6 edges where TypeScript's has 40, so `aontu
+relations` reports **no cycle** in Go where TypeScript reports a real
+one. It is not new — the pre-change Go binary loses the same edges —
+and it went unseen because `use-cases/run-all.sh` drives the TypeScript
+CLI and nothing had run a use case through the Go one. Use case 01's
+`check.sh` asserts the cycle, so the Go CLI fails that check today
+rather than passing it quietly.
+
 ## Unreleased — arithmetic, aggregation and projection
 
 Both implementations. The 2026-08 review's finding I, the

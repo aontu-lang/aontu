@@ -135,7 +135,7 @@ func (a *Aontu) trimEvalCanon(
 	ctx := &Ctx{root: v, src: src}
 	res := unifyRoot(v, ctx)
 	if nil == res || res.Nil() || 0 < len(ctx.err) {
-		f := failureFinding(ctx, a.File, src)
+		f := failureFinding(ctx, a.File, src, res)
 		return "", false, &f
 	}
 	return res.Canon(), true, nil

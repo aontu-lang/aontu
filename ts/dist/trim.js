@@ -93,9 +93,13 @@ function evalCanon(src, opts, delPath, sink) {
     // means "load-bearing", which is an answer rather than a fault, and
     // reporting it would bury the one real finding under one entry's
     // worth of noise per candidate.
-    const fail = () => {
+    const fail = (failed) => {
         if (null != sink) {
             sink.ctx = ctx;
+            // The failing ROOT travels with the context: a nil root can
+            // arrive with an EMPTY error list (`&: id(root)`), and the
+            // finding is built from it then (use-cases/BUGS.md §43).
+            sink.failed = failed;
         }
         return undefined;
     };
@@ -108,7 +112,7 @@ function evalCanon(src, opts, delPath, sink) {
     }
     const v = aontu.unify(parsed, parseOpts, ctx);
     if (0 < ctx.err.length || true === v?.isNil) {
-        return fail();
+        return fail(v);
     }
     return v.canon;
 }
@@ -124,7 +128,7 @@ function trimCheck(src, opts) {
         return {
             verdict: 'error',
             redundant: [],
-            errors: [(0, vet_1.failureFinding)(sink.ctx, options.path)],
+            errors: [(0, vet_1.failureFinding)(sink.ctx, options.path, sink.failed)],
         };
     }
     const aontu = new aontu_1.Aontu();

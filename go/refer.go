@@ -281,32 +281,60 @@ func (r *ReferVal) settle(ctx *Ctx, site Val) Val {
 	// THE FLOW. `t` is unified into the target and written back, so
 	// every position of the entity carries it after the pass's identity
 	// merge — the same channel the merge itself uses.
-	if nil != r.tval && !isTop(r.tval) {
-		// The flowed type is CONCRETE at the target: a schema flowing
-		// into a value must not make the value a schema. Same reasoning
-		// as a reference's clone clearing marks — `refer($.std.Service)`
-		// says the target IS a Service, not that it is the definition of
-		// one — and without it the target silently stopped generating.
-		// Cloned as well as cleared: `t` is shared by every position
-		// that refers to the same thing.
-		flow := r.tval
-		if hasMark(flow) {
-			flow = clonePath(flow, cp(flow.vpath()))
-			walkMark(flow, true, false, true, false)
-		}
-		merged := unite(ctx, found.val, flow)
-		if merged.Nil() {
-			return merged
-		}
-		switch p := found.parent.(type) {
-		case nil:
-			ctx.entities[r.addr.Name] = merged
-		case *MapVal:
-			p.set(found.key, merged)
-		case *ListVal:
-			if i, err := strconv.Atoi(found.key); nil == err {
-				p.peg[i] = merged
+	//
+	// RE-ENTRANT ONLY ONCE PER ENTITY (use-cases/BUGS.md §19). Uniting
+	// the target drives the target's OWN subtree, and if the target
+	// links back — `a` typed-refers `b`, `b` typed-refers `a`, the
+	// shape every inverse pair has — that drives this entity again, and
+	// the two flow into each other until the depth budget or the host
+	// stack ends it. `unify_cycle` on a model whose meet plainly
+	// converges. A flow that would re-enter an entity is SKIPPED, not
+	// failed: the outer flow it is nested in is already uniting that
+	// entity, so the same information arrives by the same channel one
+	// frame up. Mirrors the guard in ts/src/val/ReferFuncVal.ts.
+	if nil == ctx.referflow {
+		ctx.referflow = map[string]bool{}
+	}
+	// Released at the END OF THE FLOW, not at the end of settle — a
+	// plain `defer` in this function would hold the entity marked while
+	// the tail below builds the link value and meets `held`, where
+	// TypeScript's try/finally has already released it. A closure gives
+	// `defer` the block scope, arm for arm (ADR-001).
+	if nil != r.tval && !isTop(r.tval) && !ctx.referflow[r.addr.Name] {
+		if bad := func() Val {
+			ctx.referflow[r.addr.Name] = true
+			defer delete(ctx.referflow, r.addr.Name)
+
+			// The flowed type is CONCRETE at the target: a schema
+			// flowing into a value must not make the value a schema.
+			// Same reasoning as a reference's clone clearing marks —
+			// `refer($.std.Service)` says the target IS a Service, not
+			// that it is the definition of one — and without it the
+			// target silently stopped generating. Cloned as well as
+			// cleared: `t` is shared by every position that refers to
+			// the same thing.
+			flow := r.tval
+			if hasMark(flow) {
+				flow = clonePath(flow, cp(flow.vpath()))
+				walkMark(flow, true, false, true, false)
 			}
+			merged := unite(ctx, found.val, flow)
+			if merged.Nil() {
+				return merged
+			}
+			switch p := found.parent.(type) {
+			case nil:
+				ctx.entities[r.addr.Name] = merged
+			case *MapVal:
+				p.set(found.key, merged)
+			case *ListVal:
+				if i, err := strconv.Atoi(found.key); nil == err {
+					p.peg[i] = merged
+				}
+			}
+			return nil
+		}(); nil != bad {
+			return bad
 		}
 	}
 
