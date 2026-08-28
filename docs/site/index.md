@@ -114,11 +114,27 @@ That splits the sources three ways:
 | Content | Source | How it reaches the site |
 |---|---|---|
 | The engine itself (examples on site-authored pages, `/versions.json`) | `aontu` npm package, pinned exactly | `npm ci` |
-| `grammar/aontu.gbnf`, `grammar/aontu.lark` | `node_modules/aontu/grammar/` | read at build time |
-| The skill pack (`SKILL.md`, `grammar-card.md`, `examples.md`, `error-codes.md`) | `node_modules/aontu/skill/` | read at build time |
-| The Diátaxis docs (`index`, `tutorial`, `how-to`, `reference-language`, `reference-api`, `explanation`, `trust`, `lsp`, `shared-spec`) | `aontu-lang/aontu` git, at the tag matching the pin | **synced and committed** |
-| The error-code registry (297 rows, code/class/since) | `test/spec/errcodes.tsv` in git | **synced and committed**, emitted as JSON |
+| The Diátaxis docs (`index`, `tutorial`, `how-to`, `reference-language`, `reference-api`, `explanation`, `trust`, `lsp`) | git | **synced and committed** |
+| The error-code registry (111 codes, code/class/since) | `test/spec/errcodes.tsv` in git | **synced and committed**, emitted as JSON |
+| `grammar/aontu.gbnf`, `grammar/aontu.lark` | git | **synced and committed**, byte-identical |
+| The skill pack | not yet served — see the phase list |
 | Capability review G1–G8 + progress register | git | **synced and committed** (optional; see D6) |
+
+> **Built differently from what this table first said, and the difference
+> is worth recording.** The original split the sources: npm for the
+> grammar and the skill, git for the docs and the registry, on the
+> strength of `ts/scripts/prepack.js` staging the first two into the
+> tarball. That staging is real — but it landed *after* `0.52.1` was
+> cut, so at the version the site first pinned the tarball held
+> `["bin","src","dist","LICENSE"]` and the npm route did not exist.
+>
+> `0.53.0` ships them, so the split is now possible. It was still not
+> taken. The sync already checks staleness, already fails on a broken
+> link, and already fails when the registry and its class table
+> disagree; a second npm-shaped path would add a mechanism without
+> adding a guarantee, and leave two answers to "where did this file come
+> from". `test/spec/errcodes.tsv` is in no tarball at any version in any
+> case. **npm stays the runtime dependency, not a content source.**
 
 "Synced and committed" is the template's own idiom, not an invention:
 `tabnas/web` commits generated `src/data/*.json` "because neither source
@@ -319,7 +335,7 @@ canonical form the shared suite produces; a model host that wants to
 emit valid Aontu needs to *fetch* it, and a raw GitHub URL is not a
 contract.
 
-**`/errors/<code>` is the registry, not a copy of it.** 297 rows with a
+**`/errors/<code>` is the registry, not a copy of it.** 111 codes with a
 class and a `since` version, held to both engines by set equality in
 `ts/test/spec.test.ts` and `go/spec_test.go`. Serve the class and the
 version; serve the *message text* nowhere — tabnas's rule that a
@@ -382,6 +398,28 @@ search; `src/worker.ts` and the markdown twins; the site-authored pages.
 custom domains, the `www` → apex 301, and analytics. *Exit:* `aontu.dev`
 serves the site; `curl -H 'Accept: text/markdown' https://aontu.dev/docs`
 returns markdown.
+
+> **What actually landed, and in what order.** The phases were not run
+> as written. Cutover (phase 3's tail) came *before* the agent surfaces,
+> because this account serves no `workers.dev` URL and the custom domain
+> was the first place anything could be verified at all. The surfaces
+> then followed onto a live site.
+>
+> Done: the sync and its link checker, the full Diátaxis set, the
+> markdown twins and the request Worker, both custom domains,
+> `/llms.txt` and `/llms-full.txt`, the error registry as pages and
+> JSON, `/grammar/*`, `/versions.json`. Still open from phases 2 and 3:
+> **Pagefind search**, **`/skills`** and **`/.well-known/mcp`**, the
+> **OpenAPI** document, and the site-authored pages beyond the landing
+> page (`/why`, comparisons, community).
+>
+> One thing the phase list never anticipated, and which cost the most:
+> the site pinned the newest *published* engine while rendering docs
+> from `main`, and for a while those were `0.52.1` and the `0.53.0`
+> line — an engine with no verbs at all, documenting thirteen. Closed
+> by the release on 2026-08-28. **A plan that syncs docs from one place
+> and runs code from another needs to say what happens while the two
+> disagree.** This one did not, and the gap it left was not small.
 
 **Phase 4 — the rest.** Playground (D5), brand identity, `/use-cases`,
 the capability review, MCP registry listing.
