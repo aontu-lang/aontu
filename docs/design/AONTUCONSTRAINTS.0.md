@@ -11,12 +11,15 @@ proposes are **declined outright** — [ADR-008](../../ADR.md#adr-008--constrain
 adopting `>=10` later needs a new ADR. N3 is **deferred** (2026-08-28,
 maintainer decision — unblocked, simply not now); the sized-integer
 sugar is **not needed**, since named aliases express it in user space
-(§6); and row 7's defect is still live: `port: >=1024` still
-evaluates to `{"port":">=1024"}` and exits 0. Do not read §2 as current
-behaviour. The item-by-item reconciliation, re-run against both engines
-on 2026-08-28, is in
+(§6); and **row 7 was not a defect** — `port: >=1024` still evaluates to
+`{"port":">=1024"}`, because `>` is not a reserved character and a bare
+value containing one is ordinary text, exactly as `port: high` is
+`"high"`. This note grades that "worse than unsupported"; the grading
+was **retracted** on 2026-08-28, since it assumes an intent the document
+never states. Do not read §2 as current behaviour. The item-by-item
+reconciliation, re-run against both engines on 2026-08-28, is in
 [`docs/capability-review/g1-constraint-algebra.md`](../capability-review/g1-constraint-algebra.md#reconciliation-with-the-2026-08-27-constraint-design-note);
-row 7 is [`use-cases/BUGS.md`](../../use-cases/BUGS.md) §45.
+row 7's disposition is [`use-cases/BUGS.md`](../../use-cases/BUGS.md) §45.
 **Home:** this repository (TS canonical under `ts/`, Go port under `go/`)
 **Origin:** empirical survey run from boru, which consumes the Go port
 via its `boru:parselang` module (pinned at `go/` v0.1.6)
@@ -229,8 +232,18 @@ well-formed wrong config.
 > named atoms — `min`, `max`, `above`, `below`, `neq` — so
 > `port: integer & min(1024) & max(65535)` is the spelling of the
 > example below. One spelling per concept; adopting the operators later
-> needs a new ADR. What remains open is only what `>=1024` should do
-> TODAY, where it is silently the string `">=1024"` (BUGS.md §45).
+> needs a new ADR. And what `>=1024` does today is settled too: it stays
+> the string `">=1024"`, because `>` is not a reserved character and a
+> bare value containing one is ordinary text — `port: high` is `"high"`
+> for the same reason.
+>
+> **The paragraph immediately below grades that "worse than unsupported,
+> since it produces a well-formed wrong config". That grading is
+> retracted** (2026-08-28; BUGS.md §45, itself retracted). It was
+> reasonable when written — bounds existed in no spelling, so a reader
+> writing `>10` could only have meant one thing — but it assumes an
+> intent the document never states, and ADR-008 removes its premise.
+> Nothing here needs fixing; the original text is kept as written.
 
 Unary comparison prefixes in value position: `>10`, `>=10`, `<5`,
 `<=5`, `!=0`. Composition needs no new syntax — `&` already exists:
@@ -398,7 +411,7 @@ doing — every aontu program terminates:
   arrived as named atoms, so nothing had to be reused, and the break
   would now buy only a synonym. The analysis above stands as the reason
   a *refusal* of those bare strings would still be a break, if BUGS.md
-  §45 is closed that way.
+  §45 was retracted rather than closed.
 - **N2/N3 are pure additions** (both currently lex errors).
 - boru sees nothing until `lang/go/go.mod` bumps the pin; the boru-side
   test rows below make the bump's behavior change visible in one diff.

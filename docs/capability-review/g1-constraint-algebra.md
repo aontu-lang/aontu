@@ -823,7 +823,8 @@ this section it was referenced by nothing in the repository.
 It is not a competing design. It surveyed a tree that predates most of
 G1's landing, and read as current it is misleading in both directions:
 it reports as broken two things that are now fixed, and it names one
-defect that is still live and that no phase here ever claimed.
+defect that no phase here ever claimed — and which, on inspection,
+turned out not to be a defect at all (row 7 below).
 
 **Its §2 baseline, re-run 2026-08-28 against `aontu@0.53.0` and
 `go/v0.1.11`, both ports byte-identical unless noted.** Five of the
@@ -835,8 +836,8 @@ twelve rows have changed since it was written:
 | **3** | **D1**: `*"i"\|"d"\|"w"` & `"nope"` → `{a:'nope'}`, no validation | `[aontu/\|:empty]` "Empty disjunction" | **fixed** before the note was written, by the preference admission gate (ADR-004) |
 | **4** | **D2**: defaultless disjunct reports a *conflict* | `[aontu/disjunct_no_gen]`, "supply a value that selects one alternative, or write a preference (\*)" | **fixed** by ADR-007 |
 | **5** | D1 again via explicit `&` | `[aontu/\|:empty]` | fixed with row 3 |
-| **7** | **N1**: `a: >10` lexes as the string `">10"` | *unchanged* — `{"a":">10"}`, exit 0 | **still live**; see below |
-| **8** | **N2**: `a: =~"^ab"` is a lex error | *changed, still wrong* — lexes as a bare string | still live, with row 7 |
+| **7** | **N1**: `a: >10` lexes as the string `">10"` | *unchanged* — `{"a":">10"}` | **not a defect**; see below |
+| **8** | **N2**: `a: =~"^ab"` is a lex error | *changed* — now a bare string | ordinary text, with row 7 |
 | 9, 10, 11 | `&:` spreads and optional keys exist | unchanged | — |
 | 12 | `a: $.a` correctly refused | now `path_cycle` | — |
 
@@ -899,18 +900,18 @@ admits `"zebra"` and refuses `"apple"`.
   `ts/test/docs.test.ts`. The idiom also exposes a trap a keyword would
   have hidden: bounds alone bound a *number*, so an alias must lead with
   `integer` or `1.5` satisfies it.
-- **Row 7's defect itself.** The atom vocabulary landed; the silent
-  mislex the note called "worse than unsupported, since it produces a
-  well-formed wrong config" was never in a phase's scope, because
-  choosing function syntax removed the *need* to reuse `>` without
-  removing what `>` currently does. `port: >=1024` still evaluates to
-  `{"port":">=1024"}` and exits 0. Recorded as
-  [`use-cases/BUGS.md` §45](../../use-cases/BUGS.md).
-  ADR-008 narrows this rather than closing it: it settles what `>=1024`
-  will never mean, leaving only whether to **refuse** such a bare string
-  and name the atom to use. That remains open, and it is the one repair
-  consistent with the ADR — it removes a spelling instead of
-  repurposing one.
+- **Row 7 — which turned out not to be a defect at all.** The note
+  called `a: >10` lexing as `">10"` "worse than unsupported, since it
+  produces a well-formed wrong config", and this document repeated that
+  grading. Both were wrong. `>`, `<`, `=` and `!` are not reserved, so a
+  bare value containing them is ordinary text, exactly as `port: high`
+  is `"high"`; reading a failure into it assumes the author meant a
+  bound. The grading made sense when bounds existed in no spelling and
+  CUE's operators were the live proposal — ADR-008 removes that premise,
+  and the grading should not outlive it.
+  [`use-cases/BUGS.md` §45](../../use-cases/BUGS.md) is **retracted**
+  and the refusal it proposed withdrawn. What is left is
+  discoverability, which the reference and how-to carry.
 
 **What this design has that the note does not.** The note scoped the gap
 to "exactly three things" — D1, D2, and bounds/regex plus key patterns.

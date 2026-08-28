@@ -373,7 +373,8 @@ now declined outright** —
 [ADR-008](../../ADR.md#adr-008--constraints-are-named-not-spelled-with-operators),
 2026-08-28: constraints are named, not spelled with operators, and
 adopting them later needs a new ADR. That settles a question this
-register had left open, and narrows §45 (below) to one remaining repair.
+register had left open. It also removes the premise behind §45 (below),
+which is now retracted.
 **N3** key-pattern constraints
 (`&"^env_"` is a parse error in both ports) are **DEFERRED as of
 2026-08-28 by maintainer decision** — a choice, not a blockage: `re`
@@ -390,19 +391,22 @@ where it is used. Verified in both ports and pinned by
 `docs/how-to.md` "Name a reusable constraint", both executed by
 `ts/test/docs.test.ts`. This phase set never scoped either item.
 
-**One defect the note named is still live, and this register should not
-imply otherwise.** Its row 7 — `a: >10` lexing as the string `">10"`,
+**One defect the note named turned out not to be one, and this register
+should not imply otherwise.** Its row 7 — `a: >10` lexing as the string `">10"`,
 which it called "worse than unsupported, since it produces a
 well-formed wrong config" — is unchanged: `port: >=1024` evaluates to
 `{"port":">=1024"}` and exits 0, in both ports. Choosing function
 syntax removed the *need* to reuse `>` without changing what `>`
 currently does, so the capability landed while the defect that motivated
-it went unaddressed. [`use-cases/BUGS.md`](../../use-cases/BUGS.md) §45.
-ADR-008 does not close it: declining the sugar settles what `>=1024`
-will never mean, not what it does now. The one repair that ADR admits —
-refuse a bare string leading with `> < = !` and name the atom to use —
-is still an open choice, and a smaller break than the one declined,
-since it removes a spelling rather than repurposing one.
+it went unaddressed — **and on 2026-08-28 that framing was retracted as
+wrong.** `>`, `<`, `=` and `!` are not reserved, so a bare value
+containing them is ordinary text, exactly as `port: high` is `"high"`;
+calling the result a wrong config assumes an intent the document never
+states. The grading was inherited from a note written when bounds
+existed in no spelling at all, and ADR-008 removes its premise.
+[`use-cases/BUGS.md`](../../use-cases/BUGS.md) §45 is retracted and the
+refusal it proposed withdrawn; what remains is discoverability, which
+the reference and how-to carry.
 
 **And one this review found while reconciling — now FIXED, 2026-08-28.**
 A `&:` element spread occupied an index slot in the TypeScript port's

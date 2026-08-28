@@ -1331,16 +1331,41 @@ disagreement that plain evaluation shows too, now recorded in
 
 ## constraint-syntax — the notation the constraint algebra did not claim
 
-### 45. CUE-style constraint operators lex as bare strings, so a schema written in them enforces nothing [critical, by design]
-**Status: NARROWED 2026-08-28, not fixed.**
+### 45. CUE-style constraint operators lex as bare strings [RETRACTED — not a defect]
+**Status: RETRACTED 2026-08-28. This entry was wrong, and is kept
+because the numbering is cited elsewhere.**
+
+`>`, `<`, `=` and `!` are not reserved characters. A bare value
+containing them is **undifferentiated text content**, for exactly the
+reason `port: high` is the string `"high"` — the language never assigned
+those characters a meaning, and
 [ADR-008](../ADR.md#adr-008--constraints-are-named-not-spelled-with-operators)
-declines CUE's operator spellings outright: constraints are named, not
-spelled with operators. That removes one of the two ways this could have
-been closed — making `>=1024` *mean* `min(1024)` — and leaves the other:
-**refuse** a bare string whose first character is one of `> < = !` and
-name the atom to use. That refusal is the only repair consistent with
-the ADR, and it is still an open choice. Until it is taken, everything
-below remains true of the shipped engine.
+settled that it never will. `port: >=1024` producing `">=1024"` is
+therefore not a silent failure; it is the bare-string rule applying
+uniformly.
+
+**What the entry got wrong** is that it graded the behaviour against an
+*intent* rather than against the language. Calling the output "a
+well-formed wrong config" assumes the author meant a bound — but nothing
+in the document says so, and an engine cannot read that. By the same
+argument `timeout: fast` would be a critical defect, which nobody would
+claim. The severity was inherited uncritically from
+`AONTUCONSTRAINTS.0.md` §6, which wrote it when bounds did not exist in
+any spelling and CUE's operators were the proposal on the table; once
+ADR-008 declines that proposal, the premise is gone and the sentence
+should not have outlived it.
+
+There is consequently **nothing to fix and no repair outstanding**. The
+earlier suggestion — refuse a bare string leading with `> < = !` — is
+withdrawn: it would carve an arbitrary hole in the bare-string rule to
+serve a guess about intent, and make `a: >x` an error while `a: ?x`
+stayed fine.
+
+What survives is a *documentation* point, not a defect: a reader arriving
+from CUE may expect those characters to mean something, and the
+reference should make the named atoms easy to find from where they would
+look. `docs/reference-language.md` "Named constraint aliases" and
+`docs/how-to.md` "Name a reusable constraint" are that surface.
 
 `>10`, `>=10`, `<5`, `!=0` and `=~"^ab"` are all legal aontu — as
 **strings**. A schema written in them parses, evaluates, validates
@@ -1355,14 +1380,9 @@ $ echo $?
 0
 ```
 
-Identical in both ports, so this is not a parity defect. It is by design
-in the narrow sense that bare strings are a documented scalar form
-(`reference-language.md`: `bare string | a:hello | "hello"`) — though
-the documentation nowhere says a `>` may lead one. It is kept here under
-this file's rule for by-design behaviour whose consequence is severe,
-and the consequence is the one the severity scale calls critical: silent
-wrong output from a document whose whole purpose is to reject wrong
-input.
+Identical in both ports. Bare strings are a documented scalar form
+(`reference-language.md`: `bare string | a:hello | "hello"`), and a
+leading `>` does not except a value from that rule.
 
 `docs/design/AONTUCONSTRAINTS.0.md` §6 named this in its row 7 and
 called it "worse than unsupported, since it produces a well-formed wrong
@@ -1385,14 +1405,8 @@ aontu's commutative-unification core, which makes CUE notation the thing
 a new user most plausibly arrives holding. `min(1024)` is not
 discoverable from a document that silently accepted `>=1024`.
 
-A fix has a cheap form that needs no new syntax and breaks nothing that
-is not already broken: refuse a bare string whose first character is one
-of `> < = !` and name the atom to use. That is a language change with
-its own spec rows in both ports, so it is recorded here rather than
-taken as part of a documentation pass. It is also, after ADR-008, the
-only form left — and note it is still a *break*, just a smaller one: a
-document today holding `a: ">10"` unquoted would start failing. Quoted
-strings are unaffected.
+*(The original entry proposed refusing such bare strings. Withdrawn —
+see the Status note above.)*
 
 ## Elsewhere in this review
 
