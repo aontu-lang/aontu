@@ -144,6 +144,19 @@ A related defect: both implementations pin numbers to IEEE-754 double
 semantics, so int64-scale values silently lose precision; CUE
 deliberately uses arbitrary-precision decimals.
 
+A **second, independent constraint design** —
+[`docs/design/AONTUCONSTRAINTS.0.md`](../design/AONTUCONSTRAINTS.0.md),
+written downstream from a boru survey and cross-checked against real
+`cue export` — arrived on 2026-08-27, after most of G1 had landed. Its
+disposition against the shipped engine is in
+[g1-constraint-algebra.md](g1-constraint-algebra.md#reconciliation-with-the-2026-08-27-constraint-design-note):
+the two defects it root-caused were already fixed, its bounds and regex
+landed under function syntax rather than the CUE operators it proposed,
+and its key-pattern constraints — the substantial piece still unbuilt —
+are deferred by decision rather than blocked.
+Read its §2 baseline as a snapshot of Go v0.1.6, not as current
+behaviour.
+
 ### G2 — The validation verb
 
 The canonical agent loop — *emit, validate, repair* — currently has no

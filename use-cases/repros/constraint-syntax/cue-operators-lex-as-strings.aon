@@ -1,0 +1,31 @@
+# 45 (found by the 2026-08-28 constraint-design reconciliation): the
+# CUE-style constraint operators are not syntax errors — they are bare
+# strings, so a schema written in them produces a well-formed document
+# with no constraint in it and exit 0.
+#
+# docs/design/AONTUCONSTRAINTS.0.md §6 named exactly this in its row 7
+# and called it "worse than unsupported, since it produces a
+# well-formed wrong config". G1 then landed the whole constraint
+# algebra under FUNCTION syntax — min/max/above/below/neq/re — which
+# dissolved that design's headline compatibility risk (§10, "N1 is a
+# lexing break": nothing had to break, because nothing was reused).
+# The defect the row named was never in any phase's scope, and survives.
+#
+# The correct spelling of the line below is `port: integer & min(1024)`.
+#
+# Both ports agree, so this is not a parity defect. It is by design in
+# the narrow sense that bare strings are a documented scalar form
+# (reference-language.md, "bare string | a:hello | \"hello\""), and the
+# docs nowhere say `>` leads one. Kept here under BUGS.md's rule for
+# by-design behaviour whose practical consequence is severe: CUE is the
+# one language sharing aontu's core, so it is the notation a new user
+# most plausibly arrives holding.
+#
+# The conjunct form does fail — `port: integer & >=1024` raises
+# no_scalar_unify — but as "scalar values of different kinds", which
+# names neither the real mistake nor the atom that fixes it.
+#
+# expected: a refusal naming the operator, or the bound it should mean
+# actual:   {"port":">=1024"}, exit 0 — the same for >10, <5, !=0, =~"^ab"
+# run: node ../../ts/bin/aontu.js cue-operators-lex-as-strings.aon
+port: >=1024

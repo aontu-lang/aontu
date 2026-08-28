@@ -89,12 +89,18 @@ the divergence ledger, `Accepted`/`Superseded` in the ADR register).
    gap documents froze a row count into a "nothing may regress" clause;
    all eight are now wrong, by roughly 1,400 to 1,500 rows. A gap
    document should link this line instead: as of this
-   register's last update the suite is **86 `.tsv` files, 85
-   row-bearing, 3,099 rows**, in eighteen modes — `canon` 715, `gen`
-   545, `errc` 545, `gens` 491, `err` 246, `errcode` 100, `subsume` 94,
-   `query` 92, `vet` 55, `why` 43, `hcanon` 43, `graph` 28,
-   `diff` 28, `patch` 23, `relation` 21, `hash` 12, `trim` 11,
-   `agentsmd` 7.
+   register's last update the suite is **90 `.tsv` files, 89
+   row-bearing, 3,478 rows**, in twenty modes — `canon` 799, `errc`
+   612, `gen` 579, `gens` 523, `err` 246, `errcode` 111, `subsume` 101,
+   `query` 92, `vet` 88, `why` 54, `jsonschema` 54, `hcanon` 43,
+   `patch` 42, `relation` 35, `graph` 28, `diff` 28, `reaches` 13,
+   `hash` 12, `trim` 11, `agentsmd` 7.
+   (Re-derived 2026-08-28. The figures this line carried before —
+   86/85/3,099 in eighteen modes — were stale by four files and 379
+   rows, and omitted `jsonschema` and `reaches` entirely. They were
+   falsifiable in the two commands below, which is the point of
+   carrying them; nobody ran them. `status-2026-08-27.md` had the
+   right counts.)
    Reproduce with
    `ls test/spec/*.tsv | wc -l` and
    `cat test/spec/*.tsv | grep -P '\t' | grep -vc '^#'`.
@@ -170,9 +176,12 @@ Against the review's own [sequencing](index.md#sequencing):
   examples are executed. **G7 is complete** (G7.7):
   the REPL loads a document and answers `:get`, `:keys` and `:why`
   about it in both ports, and LSP hover can carry the provenance record
-  behind a config gate — but the `--jsonl` session mode that makes it
-  machine-drivable is unreachable in the Go CLI and TTY-gated in the
-  TypeScript one, so the phase stands PARTIAL.
+  behind a config gate. The `--jsonl` session mode that makes it
+  machine-drivable was the reason this phase read PARTIAL on 2026-08-21
+  — unreachable in the Go CLI, TTY-gated in the TypeScript one — and
+  was closed on 2026-08-24. Re-checked 2026-08-28: piping
+  `:load <file>` and `:get $.b.c` into `aontu --jsonl` answers one JSON
+  object per line, byte-identical in both ports.
 - **Phase C — scale.** G4 is complete, and so are G6 and G8. **G8**
   is the generation combinators: **G8.0**, the staging rule they all
   share, which replaced the pass-count hack the review named as the
@@ -342,6 +351,59 @@ preference meeting a constraint inside a conjunct (`min(1024) & *8080`)
 does not resolve to the default; the disjunct form does. See
 `docs/reference-language.md` and the comment above
 `constraint-bound.tsv:bound-pref-disjunct`.
+
+**A second constraint design landed on `main` and is now reconciled,
+2026-08-28.** [`docs/design/AONTUCONSTRAINTS.0.md`](../design/AONTUCONSTRAINTS.0.md)
+was uploaded in commit `8d892a4` as that commit's only content, written
+downstream from a boru survey of **Go port v0.1.6** and cross-checked
+against real `cue export`. Nothing in this repository referenced it. It
+is not a competing design — it surveyed a tree predating most of G1's
+landing — but read as current it misleads in both directions, so its
+disposition is recorded item by item in
+[g1-constraint-algebra.md](g1-constraint-algebra.md#reconciliation-with-the-2026-08-27-constraint-design-note)
+and its own header now says which parts are stale. In summary, with all
+twelve of its §2 rows re-run against `aontu@0.53.0` and `go/v0.1.11`:
+its **D1** and **D2** were fixed one day before it landed (ADR-004,
+ADR-007), and its `D1-a` recommendation is what the engine does; its
+**N1**/**N2** landed as capabilities under function syntax
+(`min`/`max`/`above`/`below`/`neq`/`re`) rather than the CUE operators
+it proposed, which is why the lexing break its §10 budgeted for never
+happened; its `D6-a` string bounds are in. **N3** key-pattern constraints
+(`&"^env_"` is a parse error in both ports) are **DEFERRED as of
+2026-08-28 by maintainer decision** — a choice, not a blockage: `re`
+supplies the pattern machinery and `&:` spreads the scoping point, so
+nothing is missing but the decision to build it. The sized-integer sugar
+(`int8` is the bare string `"int8"`) is likewise unbuilt and likewise
+unblocked, but carries no such decision. This phase set never scoped
+either.
+
+**One defect the note named is still live, and this register should not
+imply otherwise.** Its row 7 — `a: >10` lexing as the string `">10"`,
+which it called "worse than unsupported, since it produces a
+well-formed wrong config" — is unchanged: `port: >=1024` evaluates to
+`{"port":">=1024"}` and exits 0, in both ports. Choosing function
+syntax removed the *need* to reuse `>` without changing what `>`
+currently does, so the capability landed while the defect that motivated
+it went unaddressed. [`use-cases/BUGS.md`](../../use-cases/BUGS.md) §45.
+
+**And one this review found while reconciling.** A `&:` element spread
+occupies an index slot in the TypeScript port's error paths and not in
+Go's, so `l: [&: integer, 10, 20, "bad"]` reports `$.l.3` in TypeScript
+and `$.l.2` in Go — an ADR-001 divergence, with the canonical port on
+the wrong side of it: both ports' `get` answers `$.l.2` with the
+element, so TypeScript rejects, through `get`, the path its own
+`vet --format json` emits. It is the §41 defect (right site, wrong path)
+in the container §41's fix did not reach. Not entered in
+`test/spec/divergent.tsv`, which is for divergences that cannot be fixed
+here; this one can. [`use-cases/BUGS.md`](../../use-cases/BUGS.md) §44.
+
+The structural reason both gates missed it is worth recording against
+protocol rule 5: **the shared suite pins error codes and message
+substrings, but almost never the path.** Of 7,679 `err` rows, 15 include
+a `$.` path in their expectation; `errc` asserts the code alone. Both
+ports emit `no_scalar_unify` here, so every gate agrees while the paths
+differ. The path is the field G7's machine surface hands to agents, and
+it is the least-asserted thing in the report.
 
 ## G2 — the validation verb
 

@@ -1,0 +1,29 @@
+# 44 (found by the 2026-08-28 constraint-design reconciliation): a `&:`
+# element spread occupies an index slot in the TypeScript port's error
+# paths but not in Go's, so every element written AFTER the spread is
+# reported one index too high by the canonical implementation.
+#
+# The generated output settles which side is right: `aontu` on the
+# passing form `l: [&: integer, 10, 20, 30]` prints {"l":[10,20,30]} in
+# BOTH ports, so "bad" below is element 2. Go names it; TypeScript does
+# not. Without the spread the two ports agree (`l: [10, 20, "bad"]`
+# against `l: [integer, integer, integer]` is `$.l.2` in both), and
+# elements written BEFORE the spread are unaffected
+# (`l: ["bad", &: integer]` is `$.l.0` in both).
+#
+# On a one-element list TypeScript's path points off the end:
+# `l: [&: integer, "bad"]` reports `$.l.1` in a list whose only element
+# is index 0. The path is the field the machine surface hands to agents
+# (`vet --format json` .findings[].path), which is what makes a
+# silently-wrong index worse than a missing one.
+#
+# NOT reproducible through `vet` with a separate data file: when the
+# failing element arrives from another document both ports agree on
+# `$.l.2`. The spread and the offending element must be written in the
+# SAME list literal.
+#
+# expected: both ports report path $.l.2 (the index the output uses)
+# actual:   TypeScript reports $.l.3; Go reports $.l.2
+# run: node ../../ts/bin/aontu.js list-spread-index-offset.aon
+#      (then the same file through go/aontu, and diff the paths)
+l: [&: integer, 10, 20, "bad"]
