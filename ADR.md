@@ -755,11 +755,18 @@ The argument for adopting it is real and should be recorded rather than
 strawmanned. CUE is the only widely used configuration language sharing
 aontu's commutative-unification core, which makes CUE notation the thing
 a new user most plausibly arrives holding; and today that notation fails
-in the worst available way. `port: >=1024` is not a syntax error — it is
-the bare string `">=1024"`, so a schema written in CUE's operators
-parses, validates nothing, and exits 0. The note called this "worse than
-unsupported, since it produces a well-formed wrong config"
-([`use-cases/BUGS.md`](use-cases/BUGS.md) §45).
+differently from how a CUE user would read it. `port: >=1024` is not a
+syntax error — it is the bare string `">=1024"`, so a schema written in
+CUE's operators parses and imposes no constraint. The note called this
+"worse than unsupported, since it produces a well-formed wrong config".
+
+*That grading was withdrawn on the same day this entry was accepted, and
+the sentence is kept only because the argument below responds to it.*
+Those characters are not reserved, so the behaviour is the bare-string
+rule applying uniformly — `port: high` is `"high"` for the same reason —
+and calling it a wrong config assumes an intent the document never
+states. [`use-cases/BUGS.md`](use-cases/BUGS.md) §45 recorded it as a
+critical defect and is retracted.
 
 ### Decision
 
@@ -799,15 +806,18 @@ needs a new ADR.
   constraint layer, and the project should say so** rather than let a
   reader infer it from the shared core. The positioning claim in
   AONTUCONSTRAINTS.0.md §1 is about the *lattice*, not the notation.
-- **BUGS.md §45 is not closed by this decision, and is arguably
-  sharpened by it.** Declining the sugar settles what `>=1024` will
-  never mean; it does not settle what it should do *now*, which is
-  silently become a string. The remaining options are to refuse a bare
-  string whose first character is one of `> < = !` — naming the atom to
-  use, which closes the silent-wrong-config hole without adding a second
-  syntax and is the only option consistent with this entry — or to leave
-  it. That choice is **open**, and is a smaller break than the one
-  declined here: it removes a spelling rather than repurposing one.
+- **A bare value containing `> < = !` is ordinary text, and stays so.**
+  This follows directly, and is not an unfinished edge. Those characters
+  are not reserved, so `port: >=1024` produces `">=1024"` exactly as
+  `port: high` produces `"high"`. There is no silent failure to close:
+  reading one requires assuming the author meant a bound, which is an
+  assumption about intent that neither the document nor the engine can
+  make. An earlier draft of this entry proposed **refusing** such bare
+  strings; that is **withdrawn**, because carving `> < = !` out of the
+  bare-string rule to serve a guess about intent would make `a: >x` an
+  error while `a: ?x` stayed fine. What remains is discoverability — the
+  named atoms should be easy to find from where a CUE-trained reader
+  looks, which is what the reference and how-to now provide.
 - **The sized-integer sugar (`int8`, `uint16`) is untouched by this
   entry.** It is a name for a bounded `integer`, not an operator, so it
   is a *named* form and this decision does not bear on it. It remains
@@ -820,8 +830,7 @@ needs a new ADR.
 ### Enforcement
 
 Prose, and this entry. There is no test for a syntax that does not
-exist — a spec row can only pin what an engine does, and both engines
-today read `>10` as a string, which is BUGS.md §45 rather than a pin on
-this decision. Should §45 be closed by refusal, the refusal's own rows
-become the enforcement: a row asserting that `a: >10` is an error is
-also a row asserting it is not a bound.
+exist — a spec row can only pin what an engine does, and what both
+engines do with `>10` is read it as text, which pins the bare-string
+rule rather than this decision. The two are independent, and conflating
+them is what made the retracted §45 look like a defect.
