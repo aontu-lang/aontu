@@ -14,7 +14,7 @@ import (
 // Spelled in caps to match ts/src/aontu.ts's exported VERSION, so the two
 // ports name the same thing the same way. Note the two version SERIES are
 // independent: the Go module is 0.1.x, the npm package 0.49.x.
-const VERSION = "0.1.10"
+const VERSION = "0.1.11"
 
 // TrustBudget bounds evaluation work (G5 trust profile, docs/trust.md):
 // integer counts of engine events, never wall-clock. Zero means the
