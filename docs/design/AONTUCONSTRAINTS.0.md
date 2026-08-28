@@ -1,6 +1,18 @@
 # Aontu Constraint Machinery — Gap Analysis and Design
 
-**Status:** Discovery draft
+**Status:** Discovery draft — **superseded in part; the §2 baseline is
+stale.** Written against **Go port v0.1.6**. As of `aontu@0.53.0` /
+`go/v0.1.11`, D1 and D2 are FIXED (ADR-004 and ADR-007), and N1/N2
+landed as capabilities under *function* syntax — `min`, `max`, `above`,
+`below`, `neq`, `re` — not the CUE operators proposed here, which is why
+the §10 lexing break never happened. N3 is **deferred** (2026-08-28,
+maintainer decision — unblocked, simply not now); the sized-integer
+sugar is unbuilt; and row 7's defect is still live: `port: >=1024` still
+evaluates to `{"port":">=1024"}` and exits 0. Do not read §2 as current
+behaviour. The item-by-item reconciliation, re-run against both engines
+on 2026-08-28, is in
+[`docs/capability-review/g1-constraint-algebra.md`](../capability-review/g1-constraint-algebra.md#reconciliation-with-the-2026-08-27-constraint-design-note);
+row 7 is [`use-cases/BUGS.md`](../../use-cases/BUGS.md) §45.
 **Home:** this repository (TS canonical under `ts/`, Go port under `go/`)
 **Origin:** empirical survey run from boru, which consumes the Go port
 via its `boru:parselang` module (pinned at `go/` v0.1.6)
@@ -288,6 +300,14 @@ validation pattern.
 
 ## 8. N3 — key-pattern constraints (scoping extension)
 
+> **DEFERRED — 2026-08-28, maintainer decision.** Not built, and not
+> scheduled. The deferral is a choice, not a consequence: `re` landed in
+> G1 phase 2 and `&:` spreads already exist, so both ingredients this
+> section depends on are in the engine. `&"…"` is a parse error in both
+> ports today. The design below stands as written for whenever it is
+> picked up.
+
+
 `&:` already applies a constraint to *every* child (row 9) and is the
 right primitive. What is missing is CUE's ability to scope the
 constraint to keys matching a pattern (`[=~"^env_"]: string`). Rather
@@ -372,7 +392,7 @@ behavior change.
 | P0 | D1 + D2 (defect fixes, `disjunct.go` + error taxonomy) | outputs change; no syntax |
 | P1 | N1 bounds + sized-int sugar | lexing break for bare `>…` strings |
 | P2 | N2 regex (subset pinned first — N2-a is blocking) | additive |
-| P3 | N3 key patterns | additive; depends on P2 |
+| P3 | N3 key patterns — **DEFERRED 2026-08-28** | additive; depends on P2, which has landed |
 
 P0 is independently shippable and is the highest-value single change:
 it is the difference between "aontu has enums with defaults" and "aontu

@@ -1095,6 +1095,60 @@ in `test/spec/divergent.tsv`; at equal depth both ports agree, which is
 why `use-cases/10-data-model/money-wire.aon` declares its types at the
 top level.
 
+### 44. A list's `&:` element spread shifts every later index in the TypeScript port's error paths [major]
+The same defect as §41 — a right site under a wrong path — in the one
+container §41's fix did not reach. A `&:` element spread occupies an
+index slot in TypeScript's error paths and not in Go's, so every
+element written after the spread is reported one index too high:
+
+```
+$ cat l.aon                                   # l: [&: integer, 10, 20, "bad"]
+$ node ts/bin/aontu.js l.aon
+[aontu/no_scalar_unify]: Cannot unify values at path $.l.3
+$ go/aontu l.aon
+[aontu/no_scalar_unify]: Cannot unify values at path $.l.2
+```
+
+Go is right, and the TypeScript port's own verbs prove it rather than
+the Go port doing so. On the passing form `l: [&: integer, 10, 20, 30]`
+both ports generate `{"l":[10,20,30]}` and both answer `aontu get $.l.2`
+with `30` — the spread is not an element anywhere except in one port's
+error paths. So TypeScript **contradicts itself**, and the contradiction
+is on the machine surface:
+
+```
+$ node ts/bin/aontu.js vet l.aon l.aon --format json | jq -r '.findings[0].path'
+$.l.3
+$ node ts/bin/aontu.js get '$.l.3' l.aon
+$.l.3: no_path [reference]          # the port rejects the path it just emitted
+$ node ts/bin/aontu.js get '$.l.2' l.aon
+30
+```
+
+An agent doing the loop G7 exists to serve — read `.findings[].path`,
+`get` it, patch it — is handed a path that resolves to nothing. On a
+one-element list it points off the end entirely: `l: [&: integer, "bad"]`
+reports `$.l.1`.
+
+Two things bound it. Elements written **before** the spread are
+unaffected (`l: ["bad", &: integer]` is `$.l.0` in both ports), and the
+spread and the offending element must be in the **same list literal** —
+when the failure arrives from a separate document, which is the ordinary
+`vet` schema/data shape, both ports agree on `$.l.2`. That is why the
+`vet.tsv` rows did not catch it.
+
+Neither did anything else, and the reason is structural: of the 7,679
+`err` rows in the shared suite only 15 include a `$.` path in their
+expectation, and `errc` asserts the code alone. Both ports emit
+`no_scalar_unify` here, so every gate the suite has agrees while the two
+paths differ. **The suite pins error codes and message substrings; the
+path — the field the machine surface hands to agents — is very nearly
+unasserted.** Fixing this one index without also pinning paths leaves
+the class open.
+
+Not entered in `test/spec/divergent.tsv`: that register is for
+divergences which cannot be fixed from this repository, and this one can.
+
 ## relations — a graph one port can only partly see
 
 ### 42. Go's derived graph loses most of its edges on a two-view model [critical]
@@ -1181,6 +1235,58 @@ visible. Pinned by
 nil a different PATH (`$` and `$.&`) — a pre-existing engine
 disagreement that plain evaluation shows too, now recorded in
 `test/spec/divergent.tsv`.
+
+## constraint-syntax — the notation the constraint algebra did not claim
+
+### 45. CUE-style constraint operators lex as bare strings, so a schema written in them enforces nothing [critical, by design]
+`>10`, `>=10`, `<5`, `!=0` and `=~"^ab"` are all legal aontu — as
+**strings**. A schema written in them parses, evaluates, validates
+nothing and exits 0:
+
+```
+$ echo 'port: >=1024' | aontu
+{
+  "port": ">=1024"
+}
+$ echo $?
+0
+```
+
+Identical in both ports, so this is not a parity defect. It is by design
+in the narrow sense that bare strings are a documented scalar form
+(`reference-language.md`: `bare string | a:hello | "hello"`) — though
+the documentation nowhere says a `>` may lead one. It is kept here under
+this file's rule for by-design behaviour whose consequence is severe,
+and the consequence is the one the severity scale calls critical: silent
+wrong output from a document whose whole purpose is to reject wrong
+input.
+
+`docs/design/AONTUCONSTRAINTS.0.md` §6 named this in its row 7 and
+called it "worse than unsupported, since it produces a well-formed wrong
+config". G1 then landed the constraint algebra under **function** syntax
+— `min`, `max`, `above`, `below`, `neq`, `re` — which dissolved that
+design's headline compatibility risk (§10 had budgeted a lexing break
+for reusing `>`; nothing had to break, because nothing was reused). The
+capability landed and the defect that motivated it was never in a
+phase's scope. See the reconciliation in
+[`docs/capability-review/g1-constraint-algebra.md`](../docs/capability-review/g1-constraint-algebra.md#reconciliation-with-the-2026-08-27-constraint-design-note).
+
+The conjunct spelling does fail, but unhelpfully: `port: integer & >=1024`
+raises `no_scalar_unify`, "Literal scalar values of different kinds
+cannot unify" — which names neither the mistake nor `min(1024)`, the
+atom that fixes it.
+
+Why it matters more than an unfamiliar spelling would: the design note's
+own framing is that CUE is the **only** widely used language sharing
+aontu's commutative-unification core, which makes CUE notation the thing
+a new user most plausibly arrives holding. `min(1024)` is not
+discoverable from a document that silently accepted `>=1024`.
+
+A fix has a cheap form that needs no new syntax and breaks nothing that
+is not already broken: refuse a bare string whose first character is one
+of `> < = !` and name the atom to use. That is a language change with
+its own spec rows in both ports, so it is recorded here rather than
+taken as part of a documentation pass.
 
 ## Elsewhere in this review
 

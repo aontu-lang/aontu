@@ -4,7 +4,10 @@
 shared spec rows. Per-phase status, pins, the departures from this
 design and the corrections this document still needs are in the
 [progress register](progress.md), which is authoritative for status;
-this document is authoritative for design.
+this document is authoritative for design. A second, independent
+constraint design arrived on 2026-08-27 and is reconciled against what
+landed in [Reconciliation with the 2026-08-27 constraint design
+note](#reconciliation-with-the-2026-08-27-constraint-design-note).
 Part of the
 [capability review](index.md) (August 2026). This document expands the
 G1 entry in the review index: the vocabulary of constraint atoms, their
@@ -806,3 +809,96 @@ applied to the language itself.
   alternatives drive agent self-correction; the exact shape should
   be settled jointly with G2's report schema so the data is produced
   once, correctly.)
+
+## Reconciliation with the 2026-08-27 constraint design note
+
+[`docs/design/AONTUCONSTRAINTS.0.md`](../../docs/design/AONTUCONSTRAINTS.0.md)
+is a second, independent constraint design, uploaded to `main` on
+2026-08-27 in commit `8d892a4` — the only content of that commit. It was
+written downstream, from an empirical survey run through boru's
+`boru:parselang` module against **Go port v0.1.6**, and cross-checked
+against real `cue export` rather than against CUE's documentation. Until
+this section it was referenced by nothing in the repository.
+
+It is not a competing design. It surveyed a tree that predates most of
+G1's landing, and read as current it is misleading in both directions:
+it reports as broken two things that are now fixed, and it names one
+defect that is still live and that no phase here ever claimed.
+
+**Its §2 baseline, re-run 2026-08-28 against `aontu@0.53.0` and
+`go/v0.1.11`, both ports byte-identical unless noted.** Five of the
+twelve rows have changed since it was written:
+
+| Row | Note's finding (v0.1.6) | Today | Disposition |
+|-----|-------------------------|-------|-------------|
+| 1, 2, 6 | default selection, override, struct defaults OK | unchanged | — |
+| **3** | **D1**: `*"i"\|"d"\|"w"` & `"nope"` → `{a:'nope'}`, no validation | `[aontu/\|:empty]` "Empty disjunction" | **fixed** before the note was written, by the preference admission gate (ADR-004) |
+| **4** | **D2**: defaultless disjunct reports a *conflict* | `[aontu/disjunct_no_gen]`, "supply a value that selects one alternative, or write a preference (\*)" | **fixed** by ADR-007 |
+| **5** | D1 again via explicit `&` | `[aontu/\|:empty]` | fixed with row 3 |
+| **7** | **N1**: `a: >10` lexes as the string `">10"` | *unchanged* — `{"a":">10"}`, exit 0 | **still live**; see below |
+| **8** | **N2**: `a: =~"^ab"` is a lex error | *changed, still wrong* — lexes as a bare string | still live, with row 7 |
+| 9, 10, 11 | `&:` spreads and optional keys exist | unchanged | — |
+| 12 | `a: $.a` correctly refused | now `path_cycle` | — |
+
+**D1 and D2 were fixed independently, one day before the note landed.**
+The note root-caused D1 to `PrefVal.Unify`'s concrete-peer branch
+unifying the peer against the default's *kind* rather than its payload,
+and proposed fixing the disjunct trial. ADR-004 reached the same place
+from the other direction — an override must be *admitted by* its
+disjunction — and the note's `D1-a` recommendation (keep soft standalone
+`*x`, fix only the disjunct trial) is what the engine does:
+`a: *1  a: 2` gives `2`, and `a: *1  a: "x"` conflicts.
+
+**N1 and N2 landed as capabilities under different syntax.** The note
+proposed CUE's operators — `>10`, `>=10`, `=~"p"` — and budgeted a
+lexing break for them (§10: "N1 is a lexing break"). G1 phases 1–2 had
+already chosen **function atoms**: `min`, `max`, `above`, `below`, `neq`,
+`re`. That choice makes the note's headline compatibility risk moot —
+nothing had to break, because nothing was reused — and it is why phases
+1 and 2 shipped in a minor release. The note's `D6-a` ("string bounds:
+recommend yes-but-later") is also already in: `a: string & min("m")`
+admits `"zebra"` and refuses `"apple"`.
+
+**What the note asked for that this design did not, and still does not:**
+
+- **N3, key-pattern constraints** (`&"^env_": …`, scoping a constraint
+  to keys matching a pattern). **DEFERRED — 2026-08-28, maintainer
+  decision.** Not implemented; `&"…"` is a parse error in both ports,
+  identically. This is a deferral, not a blockage: it is the note's
+  most substantial unbuilt proposal, and it depends on nothing that is
+  missing — `re` gives the pattern machinery and `&:` spreads give the
+  scoping point, so the work is available whenever it is wanted.
+  Recorded so that a later reader finds a decision rather than an
+  oversight, and so that nobody re-derives the dependency analysis to
+  discover it was never the obstacle.
+- **Sized integer kinds** (`int8`, `uint16` as sugar for a bounded
+  `integer`). Not implemented; `a: int8` is the bare string `"int8"`.
+  The note called this a free win once bounds exist, and bounds exist.
+- **Row 7's defect itself.** The atom vocabulary landed; the silent
+  mislex the note called "worse than unsupported, since it produces a
+  well-formed wrong config" was never in a phase's scope, because
+  choosing function syntax removed the *need* to reuse `>` without
+  removing what `>` currently does. `port: >=1024` still evaluates to
+  `{"port":">=1024"}` and exits 0. Recorded as
+  [`use-cases/BUGS.md` §45](../../use-cases/BUGS.md).
+
+**What this design has that the note does not.** The note scoped the gap
+to "exactly three things" — D1, D2, and bounds/regex plus key patterns.
+G1 landed `length`, `unique` (with the `unique(k)` projector), `must`,
+cross-field residuation with a settle discipline, subsumption rules per
+atom, and the ADR-003 normalisation posture for `re` — which is stronger
+than the note's N2-a, and reached the opposite way. N2-a proposed pinning
+a portable **subset** and refusing outside it; three leaks in one day
+established that a blacklist cannot work, and `re` now *normalises* the
+pattern before either host engine sees it. The note's instinct (RE2 as
+the common denominator, to keep a hostile pattern from stalling a
+terminating language) is the same instinct ADR-003 acts on; the
+mechanism is not.
+
+**The note's method is worth keeping.** Its cross-check column ran real
+`cue export` rather than quoting CUE's documentation, and that is what
+let it state row 4's divergence precisely. Nothing in this repository
+does that today. If the compatibility story with CUE matters — and §1's
+positioning argument says it does — a differential corpus against a
+pinned `cue` binary belongs beside `regex-corpus.tsv`, and neither this
+document nor the register has ever proposed one.
