@@ -1,0 +1,48 @@
+# 48 (found while verifying the named-constraint-alias idiom for
+# docs/reference-language.md, then re-probed after the first assessment
+# proved too narrow).
+#
+# FIXED 2026-08-28, and REGRADED from minor to critical on the way.
+#
+# Filed as a message difference: both ports refused a violating value
+# with the same code and the same path, and named different residuals.
+# Re-probing found the message was the symptom of a CANON SOUNDNESS
+# defect in BOTH ports. The canon of the composition below dropped
+# `max(15)` -- the atom added at the point of use -- so `aontu -c`
+# printed, and `aontu hash` pinned, a document admitting 20, which this
+# document rejects. Canon did not round-trip meaning, and the two ports
+# hashed one document differently, which is a parity break at the trust
+# layer. `subsume`, `breaking` and `diff` all read that canon.
+#
+#   $ aontu -c composed-alias-atom-dropped.aon
+#   {"a":min(0)&max(15),...}   # now, both ports
+#   {"a":min(0),...}           # before, BOTH ports -- max(15) gone
+#
+# ENFORCEMENT WAS NEVER AFFECTED, which is how it survived: every
+# accepting case agreed byte-for-byte across both ports and every
+# violating case refused in both, before the fix as after. Only the
+# value written down for the composition was wrong.
+#
+# The cause. When the referent is completed by a LATER statement (`b`
+# here is written twice) the reference resolves a pass late, so the
+# locally-conjoined atom arrives as a PEER of an ExpectVal.
+# ExpectVal.unify computed the meet, saw it was still not generable,
+# and rebuilt the surviving node from the ORIGINAL peg -- keeping the
+# meet only in `peer`, which canon does not render. Every later copy
+# (the bag's expect re-wrap, Val.clone) rebuilt from `peg` too, so the
+# atom was dropped again at each one. The meet is now the new peg: an
+# expectation that has met a peer without being freed by it stands for
+# `peg & peer` from then on. That needs no new field and no carrying,
+# because every copy site already preserves `peg`.
+#
+# Pinned by test/spec/constraint-alias.tsv (alias-violated-* and
+# alias-*-canon). Reverting the fix separates the ports exactly as the
+# diagnosis predicts: Go fails seven rows, TypeScript two -- the two
+# being the plain-layered pair, the half both ports got wrong.
+#
+# expected: canon of $.a is min(0)&max(15) in both ports
+# actual:   canon of $.a is min(0)&max(15) (was min(0) in both)
+# run: node ../../ts/bin/aontu.js -c composed-alias-atom-dropped.aon
+b: {z: 1}
+b: {u8: min(0)}
+a: $.b.u8 & max(15)

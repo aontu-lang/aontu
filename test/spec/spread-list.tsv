@@ -21,11 +21,7 @@ spread-list-1	gen	a:{&:{x:1},b:{y:[1,2,3]}}	{"a":{"b":{"y":[1,2,3],"x":1}}}
 # `vet --format json` hands an agent.
 #
 # Every expectation below was obtained by running BOTH engines and
-# diffing, per the parity probe. Cases where the two ports still
-# disagree are deliberately NOT here: a `k:v` pair written BEFORE a `&:`
-# spread makes TypeScript drop the spread entirely, and a conjunct of
-# unequal-length lists paths its finding differently. Both predate this
-# fix (verified against the published 0.53.0) and neither is this rule.
+# diffing, per the parity probe.
 spread-list-elem-path	err	a:[&:integer,10,20,"bad"]	at path $.a.2
 spread-list-elem-path-code	errc	a:[&:integer,10,20,"bad"]	no_scalar_unify
 spread-list-elem-path-single	err	a:[&:integer,"bad"]	at path $.a.0
@@ -37,3 +33,25 @@ spread-list-pair-path	err	a:[&:integer,x:1,"bad"]	at path $.a.0
 spread-list-gen-spread	gens	a:[&:integer,10,20]	{"a":[10,20]}
 spread-list-gen-pair	gens	a:[x:1,10,20]	{"a":[10,20]}
 spread-list-gen-mid	gens	a:[10,&:integer,20]	{"a":[10,20]}
+#
+# A PAIR BEFORE THE SPREAD DOES NOT CANCEL IT (BUGS.md 46).
+#
+# The `elem` rule marked all four of its alternatives `spread: true` --
+# that flag is what says "contributes no element" -- and the SPREAD
+# collector then took every one of them, so a `k:v` pair in list
+# position was collected as if it were a `&:` spread. ListVal's
+# `'&' === spread.o` test rejected the resulting entry and the real
+# constraint went with it: `a:[x:1,&:integer,"bad"]` generated
+# `{"a":["bad"]}` and exited 0 on the TypeScript side while Go refused.
+# Order-dependence in a commutative language, and silent wrong output on
+# the canonical port. `pair` now distinguishes the two.
+spread-list-pair-before-spread	errc	a:[x:1,&:integer,"bad"]	no_scalar_unify
+spread-list-pair-before-spread-path	err	a:[x:1,&:integer,"bad"]	at path $.a.0
+spread-list-pairs-before-spread	errc	a:[x:1,y:2,&:integer,"bad"]	no_scalar_unify
+spread-list-pairs-before-spread-path	err	a:[x:1,y:2,&:integer,"bad"]	at path $.a.0
+# The commutativity itself: the same list with the pair AFTER the
+# spread was already correct, and the two orders must stay one answer.
+spread-list-pair-after-spread-path	err	a:[&:integer,x:1,"bad"]	at path $.a.0
+# The accepting side, so a future change cannot buy the refusal by
+# dropping the pair from the array instead of from the element count.
+spread-list-pair-before-spread-gen	gens	a:[x:1,&:integer,10,20]	{"a":[10,20]}

@@ -2535,3 +2535,34 @@ a: 1.5
 Because an alias is just a value, the aliases compose: one can be
 written in terms of another, and a reference to an alias may be met
 with further constraints at the point of use.
+
+```aon
+type: type({})
+type: {
+  n:  integer & min(0)
+  u8: $.type.n & max(255)
+}
+
+small: $.type.u8 & max(15)
+small: 12
+```
+
+```json
+{ "small": 12 }
+```
+
+`u8` is written in terms of `n`, and `small` narrows `u8` again where
+it is used. Nothing here is special to constraints — it is the meet,
+applied to values that happen to be constraints.
+
+A value that violates the composition is refused against the whole
+residual, not against whichever atom noticed first:
+
+```
+Cannot unify value: 20 with value: integer&min(0)&max(15)
+```
+
+`max(255)` is absent because `max(15)` subsumes it, and `integer` and
+`min(0)` are present because `20` still has to satisfy them. That
+normalised form is what `vet --format json` reports as `expected`, and
+what the value's [canon](#canonical-form) states.

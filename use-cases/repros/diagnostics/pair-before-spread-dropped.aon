@@ -1,0 +1,28 @@
+# 46 (found while fixing 44, and NOT caused by it -- TypeScript's
+# output here was byte-identical to the published aontu@0.53.0).
+#
+# FIXED 2026-08-28. A `k:v` pair written BEFORE a `&:` element spread
+# made the TypeScript port drop the spread entirely: the line below
+# generated `{"l":["bad"]}` and exited 0, where Go refused. Order
+# dependence in a commutative language, and silent wrong output on the
+# canonical side -- move the pair after the spread and both ports
+# already agreed.
+#
+# The cause was one over-broad test. The `elem` rule marks all four of
+# its alternatives `spread: true` -- that flag is what says
+# "contributes no element" -- so the SPREAD collector took every one of
+# them, and a pair in list position was collected as though it were a
+# `&:` spread. ListVal's `'&' === spread.o` test then rejected the
+# resulting entry and the real constraint went with it. `pair`
+# distinguishes the two; the collector now asks for `spread && !pair`.
+#
+# Pinned by test/spec/spread-list.tsv:
+# spread-list-pair-before-spread{,-path}, -pairs-before-spread{,-path},
+# the reversed-order control and the accepting -gen row. Every
+# expectation was probed through both engines; reverting the fix fails
+# exactly the four pair-before rows.
+#
+# expected: both ports refuse at $.l.0 (integer & "bad")
+# actual:   both ports refuse at $.l.0 (TypeScript generated {"l":["bad"]})
+# run: node ../../ts/bin/aontu.js pair-before-spread-dropped.aon
+l: [x: 1, &: integer, "bad"]

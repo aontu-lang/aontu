@@ -1,0 +1,31 @@
+# 47 (found while fixing 44, and predating it).
+#
+# FIXED 2026-08-28, both halves. When a list meets a peer that is not a
+# list, no ELEMENT is party to the refusal -- the conflict belongs to
+# the container. Go named a member: `$.a.2` here, where TypeScript named
+# `$.a`. Same code and same verdict in both, so only a caller navigating
+# by path was misled -- which is every agent reading `.findings[].path`.
+#
+# ListVal.Unify drives its element loop through `ctx.slot` and only the
+# in-branch paths restored it, so a stale element slot survived into the
+# not-a-list branch and makeNilErr's slot-extension stamped it. One
+# line: restore the container's own slot before the refusal.
+#
+# MapVal had the IDENTICAL bug and it had never been reported -- it was
+# found by looking for the twin once the list cause was understood. Its
+# repro is the companion file, container-conflict-member-path-map.aon.
+#
+# Pinned by test/spec/container-path.tsv. Those had to be `vet` rows,
+# not `err` rows: `err` matches its expectation as a SUBSTRING, and a
+# container's path is a PREFIX of every member path beneath it, so
+# `at path $.a` passes against `at path $.a.2` -- the exact answer the
+# row forbids. The rest of the message is byte-identical between the
+# two, so nothing else in it discriminates. A `vet` row compares the
+# finding field by field, where `path` is matched exactly. Reverting the
+# fix fails the three vet rows and leaves all four errc rows passing.
+#
+# expected: both ports report path $.a
+# actual:   both ports report path $.a (was $.a.2 in Go)
+# run: node ../../ts/bin/aontu.js container-conflict-member-path.aon
+a: [1, 2, 3]
+a: "str"

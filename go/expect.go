@@ -39,6 +39,9 @@ func (e *ExpectVal) superior() Val { return top() }
 // reparsed into a document that accepts values the original rejects. A
 // canon that silently drops a constraint is worse than one that fails to
 // parse.
+//
+// Which is why `peg` is kept the WHOLE expectation as peers arrive
+// (BUGS.md 48) rather than only what was first written: see Unify.
 func (e *ExpectVal) Canon() string { return e.peg.Canon() }
 
 // Gen is unreachable: BagVal-level Gen intercepts an expect child (the
@@ -66,16 +69,44 @@ func (e *ExpectVal) Gen(ctx *Ctx) (any, error) {
 // answers with a NEW node, leaving the shared template untouched.
 func (e *ExpectVal) Unify(peer Val, ctx *Ctx) Val {
 	if peer != nil && !isTop(peer) {
-		acc := peer
-		if e.peer != nil {
-			acc = unite(ctx, e.peer, peer)
-		}
-		peeru := unite(ctx, acc, e.peg)
+		// THE PEER MEETS THE WHOLE EXPECTATION. `peg` already carries
+		// every peer met so far (see below), so meeting the incoming
+		// peer against the ACCUMULATED `peer` first -- as this did --
+		// refused against only the atom that happened to reject:
+		// `b:type({}) b:{u8:integer&min(0)&max(255)} a:$.b.u8&max(15)
+		// a:20` said `with value: max(15)` where TypeScript said
+		// `integer&min(0)&max(15)`, the residual the error's own hint
+		// promises (BUGS.md 48). A conflict with `peg` is a conflict
+		// with the accumulation too, since peg subsumes it, so nothing
+		// stops being refused -- only the sentence changes.
+		peeru := unite(ctx, peer, e.peg)
 		if expectGenable(peeru) {
 			peeru.setDc(DONE)
 			return peeru
 		}
-		ne := &ExpectVal{peg: e.peg, peer: acc, parent: e.parent, key: e.key}
+		// Accumulated for the `expect` finding's operand only, now that
+		// the meet is decided above.
+		acc := peer
+		if e.peer != nil {
+			acc = unite(ctx, e.peer, peer)
+		}
+		// THE MEET IS THE NEW PEG (BUGS.md 48). An expectation that has
+		// met a peer without being freed by it stands for `peg & peer`
+		// from then on -- that is what a later peer must satisfy, and
+		// what Canon has to state. Rebuilding from the ORIGINAL peg
+		// dropped the peer everywhere the node was later copied (the bag
+		// re-wrap in MapVal.Unify, clone), so `b:{z:1} b:{u8:min(0)}
+		// a:$.b.u8&max(15)` -- whose reference resolves a pass late, so
+		// `max(15)` arrives as a peer -- canoned as `min(0)`. That text
+		// reparses into a document admitting 20, which the original
+		// rejects, and hashed differently in each port. Storing the meet
+		// in `peg` needs no new field and no carrying: every copy site
+		// already preserves `peg`.
+		//
+		// Purity is untouched -- this is a NEW node, so a shared
+		// template's own expectation keeps the peg it was written with
+		// (6-7).
+		ne := &ExpectVal{peg: peeru, peer: acc, parent: e.parent, key: e.key}
 		ne.dc = DONE
 		return ne
 	}

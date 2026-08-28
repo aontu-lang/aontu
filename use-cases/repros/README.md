@@ -42,6 +42,18 @@ Two cautions:
   *-over-spread-augmented and pack-merge-expr-onto-child, `plus.tsv`
   peer-key-expr*, and `vet.tsv` vet-unequal-spread-depths.
 
+- The three defects that fixing §44 surfaced are **FIXED** as of
+  2026-08-28, and each has a header recording what changed:
+  `diagnostics/pair-before-spread-dropped.aon` (§46, the `elem` rule's
+  spread guard), `diagnostics/container-conflict-member-path.aon` with
+  its `-map` companion (§47 and an unreported map twin, the container's
+  own slot restored before the refusal), and
+  `constraint-compose/composed-alias-atom-dropped.aon` (§48, regraded
+  from minor to critical — the canon of a composed constraint dropped
+  the atom added at the point of use, in BOTH ports). Their pins are
+  `spread-list.tsv`, the new `container-path.tsv`, and
+  `constraint-alias.tsv`.
+
 These are review artifacts. Per ADR-001, the durable home for any
 behaviour contract is a `test/spec/*.tsv` row probed in both ports;
 promoting these repros into rows is follow-up work for maintainers.

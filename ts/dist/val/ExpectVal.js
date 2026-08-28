@@ -21,6 +21,9 @@ class ExpectVal extends FeatureVal_1.FeatureVal {
     // canon reparsed into a document that accepts values the original
     // rejects. A canon that silently drops a constraint is worse than one
     // that fails to parse. Go's ExpectVal.Canon renders the same peg.
+    //
+    // Which is why `peg` is kept the WHOLE expectation as peers arrive
+    // (BUGS.md §48) rather than only what was first written: see unify.
     get canon() { return this.peg.canon; }
     constructor(spec, ctx) {
         super(spec, ctx);
@@ -41,17 +44,44 @@ class ExpectVal extends FeatureVal_1.FeatureVal {
         const te = ctx.explain && (0, utility_1.explainOpen)(ctx, ctx.explain, 'Expect', this, peer);
         let out = this;
         if (!peer.isTop) {
-            const acc = undefined === this.peer ? peer :
-                (0, unify_1.unite)(te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'PEER') }) : ctx, this.peer, peer, 'expect-peer');
-            const peeru = (0, unify_1.unite)(te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'EXPECT') }) : ctx, acc, this.peg, 'expect-self');
+            // THE PEER MEETS THE WHOLE EXPECTATION. `peg` already carries
+            // every peer met so far (see below), so meeting the incoming peer
+            // against the ACCUMULATED `peer` first -- as this did -- refused
+            // against only the atom that happened to reject. A conflict with
+            // `peg` is a conflict with the accumulation too, since peg
+            // subsumes it, so nothing stops being refused: only the sentence
+            // changes, to the residual the error's own hint promises
+            // (BUGS.md §48).
+            const peeru = (0, unify_1.unite)(te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'EXPECT') }) : ctx, peer, this.peg, 'expect-self');
             if (peeru.isGenable) {
                 out = peeru;
             }
             else {
+                // Accumulated for the `expect` finding's operand only, now that
+                // the meet is decided above.
+                const acc = undefined === this.peer ? peer :
+                    (0, unify_1.unite)(te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'PEER') }) : ctx, this.peer, peer, 'expect-peer');
                 // Still an expectation: carry the accumulated peer forward in a
                 // fresh node stored at THIS destination by the caller, leaving
                 // `this` -- possibly a shared template's child -- untouched.
-                const e = new ExpectVal({ peg: this.peg }, ctx);
+                //
+                // THE MEET IS THE NEW PEG (BUGS.md §48). An expectation that
+                // has met a peer without being freed by it stands for `peg &
+                // peer` from then on -- that is what a later peer must satisfy,
+                // and what canon has to state. Rebuilding from the ORIGINAL peg
+                // dropped the peer everywhere the node was later copied (the
+                // bag re-wrap, Val.clone), so `b:{z:1} b:{u8:min(0)}
+                // a:$.b.u8&max(15)` -- whose reference resolves a pass late, so
+                // `max(15)` arrives as a peer -- canoned as `min(0)`. That text
+                // reparses into a document admitting 20, which the original
+                // rejects, and hashed differently in each port. Storing the
+                // meet in `peg` needs no new field and no carrying: every copy
+                // site already preserves `peg`.
+                //
+                // Purity is untouched -- this is a NEW node, so a shared
+                // template's own expectation keeps the peg it was written with
+                // (§6-§7).
+                const e = new ExpectVal({ peg: peeru }, ctx);
                 e.key = this.key;
                 e.parent = this.parent;
                 e.peer = acc;

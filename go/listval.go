@@ -263,6 +263,14 @@ func (l *ListVal) Unify(peer Val, ctx *Ctx) Val {
 			}
 		}
 	} else if !isTop(peer) {
+		// The meet is the LIST against a non-list, so it happens at the
+		// list's own slot -- restore it. The element loops above overwrite
+		// ctx.slot with an element slot and only the in-branch paths put
+		// it back, so a stale index survived into this branch and
+		// makeNilErr's slot-extension then stamped it: `a:[10,"bad"] &
+		// {a:[...]}` reported `$.a.1`, an element that is not party to the
+		// failure, where TypeScript reported `$.a` (BUGS.md 47).
+		ctx.slot = dbase
 		return makeNilErr(ctx, "list", l, peer)
 	}
 

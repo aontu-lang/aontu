@@ -34,8 +34,44 @@ alias-key-name-not-reserved	gens	defs:type({}) defs:{p:integer&min(1)&max(65535)
 # point of use.
 alias-of-alias	gens	type:type({}) type:{n:integer&min(0) u8:$.type.n&max(255)} a:$.type.u8 a:42	{"a":42}
 alias-narrowed-at-use	gens	type:type({}) type:{u8:integer&min(0)&max(255)} a:$.type.u8&max(15) a:12	{"a":12}
-# NOT PINNED HERE, deliberately: a composed alias that is VIOLATED. Both
-# ports refuse, with the same code and the same path, but they name
-# different residuals -- TypeScript the merged `integer&min(0)&max(15)`,
-# Go only the local `max(15)`, at different sites. A row must pass in
-# both. use-cases/BUGS.md 48.
+# A VIOLATED COMPOSED ALIAS NAMES THE WHOLE RESIDUAL (BUGS.md 48).
+#
+# The constraint error's own hint promises that `expected` is "the
+# normalised residual the value must satisfy", and these rows hold both
+# engines to it. When the referent is completed by a LATER statement the
+# reference resolves a pass late, so the locally-conjoined atom reaches
+# the field as a PEER of an expectation -- and an expectation rebuilt
+# from its original peg dropped it. The value stayed enforced, but the
+# canon lost it and the refusal named only whichever atom happened to
+# reject: `a:20` said `max(15)`, `a:1.5` said `integer&min(0)&max(255)`,
+# neither the residual. An expectation now carries the meet as its peg.
+alias-violated-names-residual	err	type:type({}) type:{u8:integer&min(0)&max(255)} a:$.type.u8&max(15) a:20	with value: integer&min(0)&max(15)
+alias-violated-code	errc	type:type({}) type:{u8:integer&min(0)&max(255)} a:$.type.u8&max(15) a:20	constraint
+alias-violated-path	err	type:type({}) type:{u8:integer&min(0)&max(255)} a:$.type.u8&max(15) a:20	at path $.a
+# The SAME residual whichever atom the value offends -- the kind, the
+# lower bound, the alias's own ceiling, or the one added at the point of
+# use. Each of these named a different value before.
+alias-violated-by-kind	err	type:type({}) type:{u8:integer&min(0)&max(255)} a:$.type.u8&max(15) a:1.5	with value: integer&min(0)&max(15)
+alias-violated-by-lower	err	type:type({}) type:{u8:integer&min(0)&max(255)} a:$.type.u8&max(15) a:-3	with value: integer&min(0)&max(15)
+alias-violated-by-alias-ceiling	err	type:type({}) type:{u8:integer&min(0)&max(255)} a:$.type.u8&max(15) a:300	with value: integer&min(0)&max(15)
+# CANON IS WHAT THE EVALUATOR ENFORCES. This is the half that made the
+# defect more than a message: the canon of the composed alias dropped
+# `max(15)`, so `-c` printed -- and `aontu hash` pinned -- a document
+# admitting 20, which the original rejects. The two ports also hashed it
+# differently, which is a parity break at the trust layer.
+alias-composed-canon	canon	type:type({}) type:{u8:integer&min(0)&max(255)} a:$.type.u8&max(15)	{"a":integer&min(0)&max(15),"type":{"u8":integer&min(0)&max(255)}}
+# The plain (unmarked) layering that reaches the same path, so the fix
+# is pinned independently of the `type()` mark.
+alias-layered-canon	canon	b:{z:1} b:{u8:min(0)} a:$.b.u8&max(15)	{"a":min(0)&max(15),"b":{"u8":min(0),"z":1}}
+alias-layered-violated	err	b:{z:1} b:{u8:min(0)} a:$.b.u8&max(15) a:20	with value: min(0)&max(15)
+# Unlayered controls: these always agreed, and pin that the fix did not
+# buy the layered answer by changing the direct one.
+alias-direct-canon	canon	b:{u8:min(0)} a:$.b.u8&max(15)	{"a":min(0)&max(15),"b":{"u8":min(0)}}
+alias-nested-canon	canon	b:{c:{u8:min(0)}} a:$.b.c.u8&max(15)	{"a":min(0)&max(15),"b":{"c":{"u8":min(0)}}}
+# THE TRUST-LAYER CONSEQUENCE, pinned directly. `aon1-` is what pins
+# meaning; the two ports produced DIFFERENT hashes for the marked form
+# and both produced a hash of the wrong document for the layered one.
+# A hash row asserts the exact digest, so it fails on any canon drift
+# that a canon row somehow missed.
+alias-composed-hash	hash	type:type({}) type:{u8:integer&min(0)&max(255)} a:$.type.u8&max(15)	aon1-shHf8_aOciKTCKpBNxhSFtbSNn4U9UuKQgU5PC4bH7c
+alias-layered-hash	hash	b:{z:1} b:{u8:min(0)} a:$.b.u8&max(15)	aon1-Gj0Fox0fWdLN7UIvVCRT3RET3M-7JWM_47PA7Ma4ClI

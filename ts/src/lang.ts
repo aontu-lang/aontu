@@ -1405,7 +1405,19 @@ help isolate the syntax error.`,
       .bc((rule: Rule) => {
         // TRAVERSE PARENTS TO GET PATH
 
-        if (rule.u.spread) {
+        // Only the `&:` alternative is a SPREAD. All four alts above set
+        // `spread: true` -- it is what marks them as contributing no
+        // element -- so this guard needs the narrower test, and `pair`
+        // is what distinguishes a `k:v` in list position from a spread.
+        //
+        // Without it a pair BUILT the spread record, with `o` taken from
+        // its own key rather than '&': `[x:1, &:integer, "bad"]` left
+        // `{o:'x', v:[1, integer]}`, and ListVal's `'&' === spread.o`
+        // then discarded the real constraint -- so the element spread
+        // was silently dropped and the bad value generated (BUGS.md 46).
+        // A pair alone did it too: `[x:1, 10]` produced a spread record
+        // out of nothing.
+        if (rule.u.spread && !rule.u.pair) {
           rule.node[SPREAD] =
             (rule.node[SPREAD] || { o: rule.o0.src, v: [] })
           rule.node[SPREAD].v.push(rule.child.node)
