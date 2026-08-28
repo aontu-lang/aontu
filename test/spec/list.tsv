@@ -7,3 +7,25 @@ list-mixed	gen	a:[1,two,true]	{"a":[1,"two",true]}
 list-nested	gen	a:[[1,2],[3,4]]	{"a":[[1,2],[3,4]]}
 list-maps	gen	a:[{x:1},{y:2}]	{"a":[{"x":1},{"y":2}]}
 list-ws-sep	gen	a:[1 2 3]	{"a":[1,2,3]}
+#
+# A PAIR IN LIST POSITION IS A SINGLE-KEY MAP ELEMENT (@tabnas/jsonic's
+# `list.pair` rule): `[a:1, b:2]` is `[{a:1}, {b:2}]`. The braced twin
+# is the invariant -- each sugar row here is paired with its `[{...}]`
+# spelling and the two must answer byte-for-byte, which is what makes
+# the sugar a spelling rather than a semantics. optional.tsv carries
+# the `?` and numeric-key halves of the rule.
+list-pair-element	gens	x:[a:1, b:2]	{"x":[{"a":1},{"b":2}]}
+list-pair-element-braced-twin	gens	x:[{a:1}, {b:2}]	{"x":[{"a":1},{"b":2}]}
+list-pair-element-canon	canon	x:[a:1, b:2]	{"x":[{"a":1},{"b":2}]}
+list-pair-mixed	gens	x:[7, a:1, 8]	{"x":[7,{"a":1},8]}
+list-pair-chain	gens	x:[a:b:1]	{"x":[{"a":{"b":1}}]}
+list-pair-chain-braced-twin	gens	x:[{a:{b:1}}]	{"x":[{"a":{"b":1}}]}
+# Two pairs of one key are two ELEMENTS -- elements do not merge by
+# key, and the braced twin says the same.
+list-pair-dup-keys	gens	x:[a:1, a:2]	{"x":[{"a":1},{"a":2}]}
+# The element is a real position: errors inside it carry the index AND
+# the key, and key() answers the element's own key, which is its index.
+list-pair-err-path	err	x:[7, a:$.nope]	at path $.x.1.a
+list-pair-elided	errc	x:[9, a:]	elided_value
+list-pair-elided-path	err	x:[9, a:]	at path $.x.1.a
+list-pair-key-func	gens	x:[a:key()]	{"x":[{"a":"0"}]}

@@ -1483,7 +1483,10 @@ help isolate the syntax error.`,
           s: [QM, CL],
           c: (r) => r.prev.u.aontu_optional,
           p: 'val',
-          u: { spread: true, done: true, list: true, pair: true },
+          u: {
+            spread: true, done: true, list: true, pair: true,
+            aontu_optional_elem: true,
+          },
           a: (r) => {
             pairkey(r.prev)
             r.u.key = r.prev.u.key
@@ -1492,18 +1495,17 @@ help isolate the syntax error.`,
           g: 'aontu-optional-elem'
         },
 
-        // A PLAIN pair in list position, `[k:v]`. It contributes no
-        // element either -- a key:value pair is simply not a list element,
-        // which is the rule the optional form above already followed, and
-        // the two spellings must not disagree (issue #40).
-        //
-        // It needed an alt of its own because only a NON-NUMERIC key was
-        // already inert: jsonic writes the pair at `node[key]`, and the
-        // node is an array, so `[x:1]` set a property that never showed up
-        // (`length` stays 0) while `[0:1]` set an INDEX and became an
-        // element -- `[1:2]` even filling the gap with a null. That is the
-        // shape of a JavaScript array, not a decision about the language,
-        // and it made the two ports disagree on generate as well as canon.
+        // A PLAIN pair in list position IS A SINGLE-KEY MAP ELEMENT:
+        // `[a:1, b:2]` is `[{a:1}, {b:2}]` (the rule @tabnas/jsonic
+        // spells as `list.pair`). This REVERSES issue #40's "a pair is
+        // not an element": that rule was chosen because jsonic wrote
+        // the pair at `node[key]` -- an array PROPERTY that never
+        // showed up for a text key and an INDEX for a numeric one --
+        // and inert beat that incoherence. But inert was itself a
+        // silent drop: `x: [a:1, b:2]` evaluated to `x: []`, the
+        // author's data gone at exit 0. The element is built in the
+        // bc below, where the value is already a Val; the snapshot
+        // still neutralises jsonic's raw slot write first.
         {
           s: [OPTKEY, CL], p: 'val',
           u: { spread: true, done: true, list: true, pair: true },
@@ -1541,16 +1543,32 @@ help isolate the syntax error.`,
       // takes the `'&'` segment its map twin takes, and a pair takes its
       // key, as a map entry would.
       .ao((r) => {
-        if (0 < r.d && r.u.spread) {
+        // A pair IS an element now, so it keeps the index @tabnas/path
+        // gave it, and its VALUE is pathed through both the index and
+        // the key (`[a: $.nope]` fails at $.l.0.a). Only the `&:`
+        // spread still contributes no element and gives its index back
+        // (BUGS.md 44).
+        if (0 < r.d && r.u.spread && !r.u.pair) {
           r.k.index = r.k.index - 1
 
-          const seg = r.u.pair ? '' + r.u.key : '&'
+          const seg = '&'
           r.child.k.path = [...r.k.path, seg]
+          r.child.k.key = seg
+        }
+        else if (0 < r.d && r.u.pair) {
+          // The element's index is the array length: everything before
+          // it is already pushed, and the pair's own map is pushed at
+          // close. `r.k.index` is not usable here -- the path plugin
+          // counts only the elements it pushes itself, and this one is
+          // aontu's.
+          const seg = '' + r.u.key
+          r.child.k.path =
+            [...r.k.path, '' + (r.node?.length ?? 0), seg]
           r.child.k.key = seg
         }
       })
 
-      .bc((rule: Rule) => {
+      .bc((rule: Rule, ctx: JsonicContext) => {
         // TRAVERSE PARENTS TO GET PATH
 
         // Only the `&:` alternative is a SPREAD. All four alts above set
@@ -1571,7 +1589,37 @@ help isolate the syntax error.`,
           rule.node[SPREAD].v.push(rule.child.node)
         }
 
+        // The slot is given back BEFORE the element is added: the
+        // restore undoes jsonic's raw write (a property for a text
+        // key, an INDEX for a numeric one -- restoring length is what
+        // keeps `[1:2]` from padding with a null), and the push then
+        // appends cleanly after it.
         restorePairSlot(rule)
+
+        // THE SINGLE-KEY MAP ELEMENT, for both pair spellings. The
+        // value is a Val already (`p: 'val'`), so the map is built
+        // exactly as the map rule builds one -- and an elided value
+        // (`[a:]`) is refused exactly as the map rule refuses one
+        // (issue #48): a key with nothing after the colon is a
+        // mistake, not an empty value.
+        if (true === rule.u.pair) {
+          const key = '' + rule.u.key
+          let v: any = rule.child.node
+          if (null == v) {
+            v = addsite(new NilVal({ why: 'elided_value' }), rule, ctx)
+            v.path = [...(rule.k?.path ?? []),
+              '' + rule.node.length, key]
+          }
+          const mv: any = addsite(
+            new MapVal({ peg: { [key]: v } }), rule, ctx)
+          // `[a?: 1]` is `[{a?: 1}]`: the key is optional IN the
+          // element, so the two spellings stay one rule apart rather
+          // than two behaviours apart.
+          if (true === rule.u.aontu_optional_elem) {
+            mv.optionalKeys = [key]
+          }
+          rule.node.push(mv)
+        }
 
         return undefined
       })

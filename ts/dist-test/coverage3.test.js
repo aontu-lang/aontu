@@ -605,7 +605,10 @@ function capture(fn) {
         // [nil,"k2","b"] -- the op descriptor as a nil, its operands
         // trailing behind it -- and unify then produced that list as a
         // VALUE in Go while TypeScript raised no_path. Both now raise.
-        Assert.equal(lang.parse('k2.b K:1').canon, '[.k2.b]');
+        // The trailing pair is an ELEMENT (`K:1` is `{"K":1}`): pairs in
+        // list position are single-key map elements, per list.tsv's
+        // list-pair-element block.
+        Assert.equal(lang.parse('k2.b K:1').canon, '[.k2.b,{"K":1}]');
     });
 });
 (0, node_test_1.describe)('coverage3-lsp', () => {

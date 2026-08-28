@@ -68,6 +68,12 @@ Two cautions:
   shared spec row — a row would have to encode one port's answer, and
   which port is right is what is unsettled.
 
+- `recursion/` (§52, filed 2026-08-28) is **open**, and a design
+  question rather than a patch: every spelling of a recursive schema
+  is refused (`path_cycle`), broken at depth one (`scalar_kind` naming
+  neither the recursion nor the schema), or silently vacuous (the
+  spread-template spelling generates at any depth and checks nothing).
+
 These are review artifacts. Per ADR-001, the durable home for any
 behaviour contract is a `test/spec/*.tsv` row probed in both ports;
 promoting these repros into rows is follow-up work for maintainers.

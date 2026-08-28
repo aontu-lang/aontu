@@ -1,0 +1,18 @@
+# 52 (regime 4): the recursive spelling that "works" checks NOTHING --
+# the well-formed wrong config shape. `v: oops` should refuse against
+# `v: integer`; instead the whole tree generates at any depth with the
+# schema silently unapplied below the root.
+#
+# run: node ../../../ts/bin/aontu.js spread-template-never-applies.aon
+# run: aontu-go spread-template-never-applies.aon
+#
+# expected: [aontu/no_scalar_unify] (or kin) at $.t.kids.0.v
+# actual (both ports): {"t":{"kids":[{"kids":[],"v":"oops"}],"v":1}}
+#
+# The disjunct admits the `[&: $.Node]` branch wholesale and the
+# spread template inside it is never applied to the elements --
+# consistent with edge.tsv:edge-spread-disjunct-key, but reached here
+# from a schema an author would write in good faith. A missing `v`
+# passes the same way.
+Node: hide({v: integer, kids: [] | [&: $.Node]})
+t: $.Node & {v: 1, kids: [{v: oops, kids: []}]}

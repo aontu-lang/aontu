@@ -207,6 +207,13 @@ help isolate the syntax error.`,
 				"multi": nil,
 			},
 		},
+		// A PAIR INSIDE A LIST IS A SINGLE-KEY MAP ELEMENT:
+		// `[a:1, b:2]` is `[{a:1}, {b:2}]` (ts/src/lang.ts builds the
+		// element in its elem bc). The option routes the pair into the
+		// list as a raw `map[string]any{key: val}`; elemSpread then
+		// stamps aontu's sentinels onto it (order, position, source)
+		// so asValDepth converts it exactly as a braced map converts.
+		List: &jsonic.ListOptions{Pair: boolPtr(true)},
 		// See tsTextCheck: unquoted text must run through quote chars
 		// (`x:tail` + "`" is the text "tail`"), as in the TS lexer.
 		Text: &jsonic.TextOptions{Check: tsTextCheck},
@@ -616,23 +623,48 @@ help isolate the syntax error.`,
 // listSpread marks the &: spread value within a parsed list slice.
 type listSpread struct{ val Val }
 
-// optionalElem marks a list entry that must NOT become an element: the
-// value of an unbraced optional pair in list position (`a:[x?:1]`).
-//
-// A marker rather than a removal because the entry is reached through the
-// enclosing list's slice, and shortening a slice here would not be visible
-// to the rule that owns it. The same reason listSpread is a marker.
-type optionalElem struct{}
-
 func elemSpread(r *jsonic.Rule, _ *jsonic.Context) {
-	// An optional key is not a list element. The pair is consumed by the
-	// two aontu-optional-*-elem alts above and its VALUE lands in the
-	// list, so it is marked here and dropped by asValDepth -- leaving the
-	// list exactly as the same pair without the `?` leaves it, which both
-	// ports already agree is empty.
+	// A PAIR IN LIST POSITION IS A SINGLE-KEY MAP ELEMENT (the rule
+	// optional.tsv's block states; ts/src/lang.ts builds the element in
+	// its elem bc). Two spellings arrive by two routes:
+	//
+	// The OPTIONAL pair (`[x?:1]`) is consumed by the two
+	// aontu-optional-*-elem alts above, and its VALUE was pushed as the
+	// last entry; it is rebuilt here into the single-key map, with the
+	// key marked optional IN the element -- `[x?:1]` is `[{x?:1}]`.
 	if r.U["aontu_optional_elem"] == true {
+		if list, ok := r.Node.([]any); ok && 0 < len(list) && r.Prev != nil {
+			key := keyOf(r.Prev.O0)
+			m := map[string]any{
+				key:         list[len(list)-1],
+				orderKey:    []string{key},
+				optionalKey: []string{key},
+			}
+			if r.Prev.ON > 0 {
+				m[posKey] = r.Prev.O0.SI
+				m[srcKey] = r.Prev.O0.Src
+			}
+			list[len(list)-1] = m
+		}
+		return
+	}
+
+	// The PLAIN pair (`[x:1]`): jsonic's ListPair option already pushed
+	// `map[string]any{key: val}` as the last element; it lacks aontu's
+	// sentinels (order, position, source), without which asValDepth
+	// reads it as an EMPTY map. Stamp them, and an elided value
+	// (`[a:]`, a raw nil in the pushed map) then refuses through the
+	// same isElidedNode path a braced map's elision takes.
+	if r.U["pair"] == true {
 		if list, ok := r.Node.([]any); ok && 0 < len(list) {
-			list[len(list)-1] = &optionalElem{}
+			if m, ok := list[len(list)-1].(map[string]any); ok {
+				key, _ := r.U["key"].(string)
+				m[orderKey] = []string{key}
+				if r.ON > 0 {
+					m[posKey] = r.O0.SI
+					m[srcKey] = r.O0.Src
+				}
+			}
 		}
 		return
 	}
@@ -2177,9 +2209,6 @@ func listOfRaw(n []any, depth int) *ListVal { return listOfRawAt(n, depth, -1) }
 func listOfRawAt(n []any, depth int, sp int) *ListVal {
 	lv := &ListVal{}
 	for _, e := range n {
-		if _, ok := e.(*optionalElem); ok {
-			continue
-		}
 		if ls, ok := e.(*listSpread); ok {
 			if lv.spread == nil {
 				lv.spread = ls.val

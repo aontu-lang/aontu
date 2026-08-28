@@ -1670,6 +1670,51 @@ the difference lives, and `key()`'s answer is the one G8 phase 1
 specified. Recorded so that a model whose numbers move after the rewrite
 has somewhere to look.
 
+## recursion — schema self-reference has no working spelling
+
+### 52. A recursive schema is refused, broken, or silently vacuous, depending on the spelling [major]
+Probed in both ports (which agree byte-for-byte throughout) on
+2026-08-28, prompted by the question "is it possible to define
+recursive schemas?" The answer is no, and the three failure regimes
+are worth recording because two of them are silent.
+
+| spelling | outcome |
+|---|---|
+| `Node: {v: integer, next?: $.Node}` | `path_cycle` — also for a map-spread body and inside `type()` |
+| `A: {b?: $.B}` with `B: {a?: $.A}` | `path_cycle` at the second hop |
+| `Node: hide({v: integer, next: null \| $.Node})` | base case works; **one level of real nesting dies as `scalar_kind`** at the parent — the recursive alternative does not re-resolve at the nested position, so the disjunct is left holding only `null` against a map, and the error names neither the recursion nor the schema |
+| `Node: hide({v: integer, kids: [] \| [&: $.Node]})` | **generates at any depth and checks nothing**: `v: oops` and a missing `v` both pass at every level. The disjunct admits the list branch wholesale and the spread template inside it is never applied — the vet-shaped worst case, a tree that looks validated and is not |
+
+The first regime is the cycle detector doing its job too early:
+`RefVal`'s prefix test fires on `$.Node` *written inside* `Node`,
+before any question of whether the recursion is guarded by a base case
+(`?`, a `null |` alternative, an empty-list alternative). Guardedness
+is not considered anywhere: the language currently has no way to say
+"expand this reference lazily, at data that is finite".
+
+The fourth regime is the one with teeth for agents: it is the
+well-formed wrong config shape. It is consistent with the pinned
+template-through-disjunct behaviour (`edge.tsv:edge-spread-disjunct-key`
+— a spread whose template is a disjunct does not apply the map branch),
+but here the non-application is reached FROM a schema an author would
+write in good faith, and nothing says so.
+
+Fixing this is a design question, not a patch:
+`docs/design/AONTUCONSTRAINTS.0.md` §9 refuses "recursion of any kind"
+for FUNCTIONS on termination grounds, and that refusal is right — but
+a recursive *data schema* expanded lazily against finite data always
+terminates, which is the distinction a future design would have to
+draw (JSON Schema's `$ref` recursion and CUE's recursive definitions
+are the prior art; the T-1 expansion budget from the aliases note is
+the obvious backstop). Until then the honest position is that aontu
+schemas are non-recursive, and the reference/tutorial nowhere suggest
+otherwise.
+
+Repros:
+[`repros/recursion/guarded-next-breaks-at-depth-one.aon`](repros/recursion/guarded-next-breaks-at-depth-one.aon)
+and
+[`repros/recursion/spread-template-never-applies.aon`](repros/recursion/spread-template-never-applies.aon).
+
 ## Elsewhere in this review
 
 Defects verified earlier in the effort and recorded in

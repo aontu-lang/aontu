@@ -403,6 +403,22 @@ A list is an ordered sequence.
   whitespace-separated: `[1 2 3]`.
 - **Mixed / nested / of maps:** `[1,two,true]`, `[[1,2],[3,4]]`,
   `[{x:1},{y:2}]` all work.
+- **A pair is a single-key map element:** `[a:1, b:2]` is
+  `[{a:1}, {b:2}]` — the braces are optional for a one-key map in list
+  position, and the two spellings are the same document. An optional
+  pair carries its `?` into the element (`[a?:1]` is `[{a?:1}]`), a
+  numeric key is a key of the element map and never an index into the
+  list (`[0:1]` is `[{"0":1}]`), and a chain nests (`[a:b:1]` is
+  `[{a:{b:1}}]`).
+
+  ```aon
+  routes: [get: "/health", post: "/orders"]
+  ```
+
+  ```json
+  { "routes": [ { "get": "/health" }, { "post": "/orders" } ] }
+  ```
+
 - Lists unify element-by-element by position (and support `&:` spreads,
   below).
 

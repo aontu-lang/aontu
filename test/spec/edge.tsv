@@ -176,7 +176,7 @@ edge-exact-1e20	gens	a:100000000000000000000	{"a":100000000000000000000}
 edge-lossy-hex-max	errc	a:0x7fffffffffffffff	lossy_integer_literal
 edge-list-two-spreads	gens	a:[&:integer,&:min(0),5]	{"a":[5]}
 edge-opt-dive	gens	q:a?:1	{"q":{"a":1}}
-edge-opt-in-list	gens	a:[x?:1]	{"a":[]}
+edge-opt-in-list	gens	a:[x?:1]	{"a":[{"x":1}]}
 edge-list-spread-empty	gens	a:[&:number] b:1	{"a":[],"b":1}
 edge-binary-meet	canon	a:0b11&3	{"a":3}
 edge-exp-small	gens	a:1e2	{"a":100}
@@ -354,8 +354,8 @@ edge-dup-list-two	gens	a:[1,2] a:[1,2]	{"a":[1,2]}
 edge-dup-conjunct-kind	gens	a:1&integer a:1&integer	{"a":1}
 edge-dup-list-conjunct	gens	a:[1]&[1] a:[1]&[1]	{"a":[1]}
 edge-dup-junction	gens	a:1&2|3 a:4&5|3	{"a":3}
-edge-optional-pair-in-list	gens	a:[1,x?:2]	{"a":[1]}
-edge-optional-pair-in-list-ref	gens	a:[1,x?:$.zz]	{"a":[1]}
+edge-optional-pair-in-list	gens	a:[1,x?:2]	{"a":[1,{"x":2}]}
+edge-optional-pair-in-list-ref	errc	a:[1,x?:$.zz]	no_path
 # --- batch 8: implicit top-level lists (raw scalar conversions of every
 # --- kind outside the val rules) ---
 edge-implicit-list-ints	gens	1,2	[1,2]
