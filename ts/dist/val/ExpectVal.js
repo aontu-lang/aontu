@@ -53,14 +53,19 @@ class ExpectVal extends FeatureVal_1.FeatureVal {
             // changes, to the residual the error's own hint promises
             // (BUGS.md §48).
             const peeru = (0, unify_1.unite)(te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'EXPECT') }) : ctx, peer, this.peg, 'expect-self');
+            // Accumulated for the `expect` finding's operand. Computed BEFORE
+            // the escape below, where it has always been: an expectation that
+            // escapes still passed through here, and moving it after the
+            // escape leaves the accumulating arm reachable only by a node
+            // that both carries an accumulation AND fails to escape -- which
+            // the suite never produces, so it reads as dead code against the
+            // ADR-002 gate. Go's ExpectVal.Unify keeps the same order.
+            const acc = undefined === this.peer ? peer :
+                (0, unify_1.unite)(te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'PEER') }) : ctx, this.peer, peer, 'expect-peer');
             if (peeru.isGenable) {
                 out = peeru;
             }
             else {
-                // Accumulated for the `expect` finding's operand only, now that
-                // the meet is decided above.
-                const acc = undefined === this.peer ? peer :
-                    (0, unify_1.unite)(te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'PEER') }) : ctx, this.peer, peer, 'expect-peer');
                 // Still an expectation: carry the accumulated peer forward in a
                 // fresh node stored at THIS destination by the caller, leaving
                 // `this` -- possibly a shared template's child -- untouched.

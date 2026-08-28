@@ -80,15 +80,20 @@ func (e *ExpectVal) Unify(peer Val, ctx *Ctx) Val {
 		// with the accumulation too, since peg subsumes it, so nothing
 		// stops being refused -- only the sentence changes.
 		peeru := unite(ctx, peer, e.peg)
-		if expectGenable(peeru) {
-			peeru.setDc(DONE)
-			return peeru
-		}
-		// Accumulated for the `expect` finding's operand only, now that
-		// the meet is decided above.
+		// Accumulated for the `expect` finding's operand. Computed
+		// BEFORE the escape below, where it has always been: an
+		// expectation that escapes still passed through here, and
+		// moving it after the escape left this branch reachable only
+		// by a node that both carries an accumulation AND fails to
+		// escape -- which the suite never produces, so it read as dead
+		// code against the ADR-002 gate.
 		acc := peer
 		if e.peer != nil {
 			acc = unite(ctx, e.peer, peer)
+		}
+		if expectGenable(peeru) {
+			peeru.setDc(DONE)
+			return peeru
 		}
 		// THE MEET IS THE NEW PEG (BUGS.md 48). An expectation that has
 		// met a peer without being freed by it stands for `peg & peer`
