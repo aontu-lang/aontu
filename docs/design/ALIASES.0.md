@@ -1,8 +1,10 @@
 # Aliases, export and import — design note
 
-**Status:** Discovery draft. **Nothing here is implemented**, and this
-note does not propose that it should be until the decision points in
-§9 are settled.
+**Status:** Discovery draft. **Nothing here is implemented.**
+**Revised 2026-08-28: `%` is adopted as the alias sigil** (A-4 Option A),
+and it carries through the declaration, the use site, `export`, the
+destructuring form and the shorthand. That decision closes A-4, dissolves
+A-3, and reopens X-1 in a better place — see §10.
 **Origin:** Richard Rodger, 2026-08-28, as the general form behind the
 sized-integer question that [ADR-008](../../ADR.md#adr-008--constraints-are-named-not-spelled-with-operators)
 left standing.
@@ -15,19 +17,24 @@ such.
 
 Three parts, as given:
 
-1. **Alias declaration.** `foo = 1` means that `foo`, appearing in a
-   value expression, denotes `1`. Grammar: `KEY = <aontu value>`.
-   Aliases are **local to the file that declares them**.
-2. **`export({...})`** declares which aliases a file publishes.
+1. **Alias declaration.** `%foo = 1` means that `%foo`, appearing in a
+   value expression, denotes `1`. Grammar: `%NAME = <aontu value>`.
+   Aliases are **local to the file that declares them**. *(The proposal
+   was written without the sigil; §4 adopts it, and §10 notes that with
+   `%` reserved the `=` may not be needed either.)*
+2. **`export({ %uint8, %port })`** declares which aliases a file
+   publishes — the sigil marks each one as an alias rather than a key.
 3. **`import(string, @<ref>, {...})`** takes the path (as a string) at
    which to place the import, the file to import, and an optional
    destructuring of the imported aliases so they can be used directly.
    **Superseded — see §6.** Asked whether `import` was needed at all,
    the answer is no: a destructuring left-hand side does the job with
    no new builtin.
-4. **Shorthand.** `{ foo, bar }` stands for `{ foo: foo, bar: bar }`,
-   as in JavaScript. This turns out to be **load-bearing** rather than a
-   nicety, once §6 drops `import`.
+4. **Shorthand.** `{ %foo, %bar }` stands for `{ foo: %foo, bar: %bar }`
+   — the JavaScript idea, **gated on the sigil**. `{ foo, bar }` without
+   sigils stays a parse error, so the sugar can never be confused with
+   bare strings. It is **load-bearing** rather than a nicety, once §6
+   drops `import`.
 
 The worked case is the one from
 [`docs/reference-language.md`](../reference-language.md#named-constraint-aliases):
@@ -40,8 +47,8 @@ listen: $.type.uint8
 listen: 200
 
 # proposed
-uint8 = integer & min(0) & max(255)
-listen: uint8
+%uint8 = integer & min(0) & max(255)
+listen: %uint8
 listen: 200
 ```
 
@@ -91,12 +98,17 @@ All probed 2026-08-28, both ports byte-identical unless noted.
 | 12 | `a: %x` / `~x` / `^x` / `!x` | all bare strings | free in the weak sense: text, no meaning |
 | 13 | `a: ?x` / `:x` / `&x` | parse errors | free outright, but structurally confusing |
 | 14 | `a: #x` / `.x` / `@x` | comment / path / include | genuinely taken |
+| 15 | `%uint8: 1` | `{"%uint8":1}` — an ordinary key | **a sigil name is already a legal key** |
+| 16 | `a: { %foo, %bar }` | parse error | the sigil-gated shorthand is FREE |
+| 17 | `%`-led bare tokens, 309 files | **0**, and 0 in the spec | reserving `%` costs nothing measurable |
 
 Row 6 is the happiest: the JavaScript shorthand costs nothing.
 Row 11 matters for §6 — the destructuring form is the alias declaration
 generalised from a name to a pattern, not a new construct.
-Rows 12–14 matter for §4's A-4. Rows 2–5 are where the difficulty is,
-and §10 quantifies it.
+Rows 12–14 matter for §4's A-4, and rows 15–17 for the sigil that
+answers it. **Row 15 is the surprise**: `%name:` already parses as a
+key, so a sigil declaration needs no new operator — see §10. Rows 2–5
+are where the difficulty was, and §10 now questions whether it remains.
 
 ## 4. Aliases
 
@@ -116,7 +128,7 @@ already resolving references away, so the machinery is the right shape.
 
 ### Substitution, not assignment
 
-`uint8 = integer & min(0) & max(255)` followed by `listen: uint8`
+`%uint8 = integer & min(0) & max(255)` followed by `listen: %uint8`
 must mean exactly what `listen: integer & min(0) & max(255)` means —
 including at the *site* level, since a conflict reports the site that
 wrote the value. **Decision point A-1: what does a finding point at
@@ -133,8 +145,8 @@ Aontu is commutative — that is the language's central claim. So an
 alias must be usable **before its declaration**:
 
 ```
-listen: uint8
-uint8 = integer & min(0) & max(255)
+listen: %uint8
+%uint8 = integer & min(0) & max(255)
 ```
 
 must mean what the reverse order means. Anything else introduces a
@@ -156,16 +168,19 @@ cannot threaten [`docs/trust.md`](../trust.md) clause 2 (termination).
 it (`u8 = integer & bounds`, `bounds = min(0) & max(255)`) is the
 useful case and costs only the cycle check above. Recommend yes.
 
-### Shadowing
+### Shadowing — dissolved by the sigil
 
-**Decision point A-3.** If a file declares `uint8 = …` and also has a
-key `uint8:`, what does a bare `uint8` in value position mean? Three
-options: alias wins, key wins, or it is an error. Recommend **error** —
-the two readings are both plausible to a human, and Aontu's habit is to
-refuse an ambiguity rather than resolve it by a rule the reader has to
-remember. Cheap to check, since both names are known after the pass.
+**A-3 asked** what a bare `uint8` means when a file declares both an
+alias `uint8` and a key `uint8:`. **With `%` adopted the question does
+not arise**: `%uint8` and `uint8:` are different namespaces, and no
+spelling is ambiguous between them. The recommendation was to refuse the
+collision; there is now no collision to refuse.
 
-### A-4: the capture hazard, and three ways out
+This is the second decision the sigil removes rather than answers, and
+it is worth noticing that both were ambiguity questions. A namespace
+that is visibly distinct has no ambiguities to adjudicate.
+
+### A-4: the capture hazard — DECIDED, Option A
 
 A bare string that happens to match an alias name is the worse case.
 `status: active` is the bare string `"active"` today; if a file declares
@@ -180,8 +195,10 @@ file declaring `X = …` must mean the alias, or the alias is unusable.
 So "make the alias win only sometimes" is not on the table. The three
 real options are:
 
-**Option A — put a sigil in the alias's name.** Declared and used
-identically, so there is no question of which side carries it:
+**Option A — put a sigil in the alias's name. ADOPTED 2026-08-28.**
+Declared and used identically, so there is no question of which side
+carries it, and the sigil goes everywhere a name goes: the declaration,
+the use site, `export`, the destructuring pattern and the shorthand.
 
 ```
 %uint8 = integer & min(0) & max(255)
@@ -208,8 +225,9 @@ led by each candidate:
 
 All four are unused. `?`, `:` and `&` are free *outright* (parse errors
 today) but are structurally confusing; `#`, `.` and `@` are genuinely
-taken. **`%` is the recommendation**, and the choice among `% ~ ^` is
-free on this evidence.
+taken. **`%` is adopted** — it reads as substitution, which is what an
+alias does, and row 17 re-confirms zero `%`-led bare tokens in the
+corpus and none in the spec.
 
 **Option B — refuse a declaration that would capture.** Keep the bare
 spelling, and at the whole-file pass the design already requires for
@@ -230,16 +248,31 @@ with bare identifiers do. It leaves the property that adding a line can
 change an unrelated line, which is the thing the rest of Aontu does not
 do.
 
-**Recommendation: A**, because it is the only one that also answers §8,
-and the measurement puts its cost at the same near-zero as `=`. **B is
-the fallback** if the sigil is judged to cost more than it looks —
-it preserves the `listen: uint8` reading exactly. A and B compose, but
-A alone makes B unnecessary.
+**A is adopted.** It was the only option that also answered §8, and the
+measurement puts its cost at zero rather than merely near-zero. B and C
+are recorded above because the reasoning is worth keeping, not because
+either remains open.
+
+What adopting it settles, beyond A-4 itself:
+
+- **A-3 dissolves** — an alias and a key can no longer collide.
+- **§8 becomes four sigils out of four**, so every name-like thing in
+  the language is legible at a glance.
+- **The shorthand can be general** rather than confined, because
+  `{ %foo }` is unambiguous wherever it appears (§7). That is a better
+  answer to S-1 than the one this note gave.
+- **X-1 reopens in a better place.** Row 15 shows `%uint8:` is already a
+  legal key, so the `=` operator — the proposal's only break — may be
+  unnecessary. See §10.
 
 ## 5. `export`
 
-`export({ uint8, port })` — using the row-6 shorthand — declares which
-of the file's aliases are published. Everything else stays private.
+`export({ %uint8, %port })` — using the sigil-gated shorthand of §7 —
+declares which of the file's aliases are published. Everything else
+stays private. The sigils are not decoration: they are what makes the
+argument a list of *aliases* rather than a map of keys, so
+`export({ uint8 })` is not a shorter spelling of the same thing but a
+different — and refused — one.
 
 Open shape questions:
 
@@ -268,7 +301,7 @@ only thing actually missing.
 |---|---|---|
 | `"path.to.place"` | place the file's **values** at a path | yes — `svc: @"other.aon"` |
 | `@"other.aon"` | read the file | yes — that *is* `@"…"` |
-| `{ uint8, port }` | bring its **aliases** into scope | **no** — the only gap |
+| `{ %uint8, %port }` | bring its **aliases** into scope | **no** — the only gap |
 
 `@"…"` already crosses the file boundary for values. What it cannot
 carry is aliases, because an alias is erased before a value exists. So
@@ -279,8 +312,8 @@ occupies the same syntactic slot as the alias declaration — it is
 `KEY = value` with the key generalised from a name to a pattern:
 
 ```
-{ uint8, port }   = @"types.aon"     # bind two exported aliases
-{ u8: uint8 }     = @"types.aon"     # …and rename while binding
+{ %uint8, %port }  = @"types.aon"    # bind two exported aliases
+{ %u8: %uint8 }    = @"types.aon"    # …and rename while binding
 svc: @"types.aon"                    # values, if also wanted — unchanged
 ```
 
@@ -308,17 +341,18 @@ cross via `@"…"`, names cross via a pattern on the left of `=`.**
   the right-hand side with no new machinery, so this adds no
   distribution surface at all — which §6 of the earlier draft named as
   the outcome to aim for and could only hope for.
-- **The shorthand becomes load-bearing.** `{ uint8, port }` is now the
-  import syntax rather than a convenience, which also answers **S-1**:
-  it is confined to *pattern* position, a principled boundary rather
-  than an arbitrary one, and never collides with bare strings in
-  ordinary maps.
+- **The shorthand becomes load-bearing.** `{ %uint8, %port }` is now the
+  import syntax rather than a convenience — and with the sigil adopted
+  it needs no confinement to be unambiguous, which is a better answer to
+  **S-1** than this note first gave (§7).
 
 ### The one question it opens
 
-`@"other.aon"` evaluates to the file's **value**. So `{ port, host } =
-@"config.aon"` has two readings: bind to the file's exported *aliases*,
-or bind to the *keys* of the map it evaluates to.
+`@"other.aon"` evaluates to the file's **value**. So `{ %port, %host } =
+@"config.aon"` still has two readings: bind to the file's exported
+*aliases*, or bind to the *keys* of the map it evaluates to. The sigil
+marks the left-hand names as aliases; it says nothing about what they
+are bound *from*.
 
 **Decision point E-1.** The second reading is arguably more natural, and
 it would make `export` unnecessary — the public surface would just be
@@ -329,27 +363,39 @@ They could coexist (aliases when the name is exported, keys otherwise),
 but a rule that silently falls back from one namespace to another is the
 A-4 mistake in a new place, so: pick one.
 
-Recommend the **alias** reading, with `export` retained — and note that
-under Option A of §4 the two are visibly different anyway, since an
-exported alias is written `%uint8` and a key is not.
+Recommend the **alias** reading, with `export` retained. The sigil helps
+but does not decide this: it makes the *binding* unambiguous, while E-1
+is about the *source*. Under the alias reading `{ %port } = @"c.aon"`
+requires `c.aon` to have written `export({ %port })`; under the key
+reading it would bind from `port:`. Pick one.
 
-## 7. The `{ foo, bar }` shorthand
+## 7. The `{ %foo, %bar }` shorthand
 
-Row 6 shows this is free syntax. Two notes:
+`{ %foo, %bar }` stands for `{ foo: %foo, bar: %bar }`: the key is the
+alias's name without the sigil, the value is the alias reference. That
+is the JavaScript reading, and it is what makes `export({ %uint8 })`
+say "publish the alias named uint8" rather than "publish a key called
+`%uint8`".
 
-- It should be **general**, not special to `export`/`import`. If
-  `{foo, bar}` means `{foo: foo, bar: bar}` in one place and is a parse
-  error in another, that is a second grammar to remember. But general
-  means it also applies to ordinary maps, where `foo` in value position
-  is a bare string today — so `{name, port}` would mean
-  `{name: "name", port: "port"}` in a file with no such aliases, which
-  is almost certainly not what anyone means.
-  **Decision point S-1**: general (and therefore interacting with the
-  bare-string hazard of §4) versus confined to the two builtins
-  (and therefore a local rule). This note leans **confined**, on the
-  grounds that the shorthand's whole value is in an alias context.
-- Canon must expand it. `{foo}` and `{foo: foo}` are the same document
-  and must hash identically.
+**The sigil settles the scope question this note could not.** Written
+`{ foo, bar }`, the shorthand had to be confined to pattern position,
+because in an ordinary map `foo` in value position is a bare string —
+so `{name, port}` would have meant `{name: "name", port: "port"}`, which
+nobody intends. Written `{ %foo, %bar }` there is no such collision:
+row 16 shows the sigil form is a parse error today, so it can be given
+one meaning everywhere without displacing anything.
+
+So the shorthand can be **general**, and S-1's confinement is
+unnecessary. The rule is not "this form works in export and
+destructuring" but "this form works for sigil aliases" — a rule about
+what the entries *are*, which is why it needs no positional exception.
+
+`{ foo, bar }` without sigils stays exactly what it is today: a parse
+error. That is the guard, and it costs nothing to keep.
+
+Canon must still expand the sugar. `{ %foo }` and `{ foo: %foo }` are
+the same document and must hash identically — and since aliases are
+erased before canon (§4), both reduce to whatever `%foo` denotes.
 
 ## 8. Interactions to keep straight
 
@@ -363,12 +409,11 @@ has to tell them apart at a glance:
 | `foo` (alias) | the **file** | file | **yes** |
 | `foo:` (key) | it *is* the document | document | no |
 
-Under the bare spelling, three of the four are distinguishable by sigil
-and the alias is the one that is not — the ergonomic win and the
-readability cost in one sentence, with §4's capture hazard as its
-sharpest consequence. **Option A of §4 makes it four out of four**,
-which is the second reason to prefer it: this table is an argument for
-a sigil quite apart from A-4.
+With `%` adopted this is **four sigils out of four**: every name-like
+thing in the language is legible at a glance, and none can be mistaken
+for a bare string. That property was the second argument for the sigil,
+independent of A-4 — and it is the one that will still matter in a year,
+when nobody remembers what A-4 was.
 
 ## 9. Decision points, gathered
 
@@ -378,17 +423,23 @@ Nothing should be built before these are answered.
 |---|----------|------------------|
 | **A-1** | What site does a finding name when the value came via an alias? | Both, as a `why` contribution |
 | **A-2** | May an alias reference another alias? | Yes, with a cycle check |
-| **A-3** | Alias name colliding with a key | Refuse |
-| **A-4** | **Alias name colliding with a bare string** | **Option A — a sigil in the name (`%uint8`)**; B as fallback. §4 |
+| **A-3** | Alias name colliding with a key | **Dissolved** by the sigil — different namespaces. §4 |
+| **A-4** | Alias name colliding with a bare string | **DECIDED: `%` sigil in the name.** §4 |
 | **E-1** | Does a destructure bind exported *aliases* or the value's *keys*? | Aliases, `export` retained. §6 |
-| **S-1** | Is `{foo, bar}` general or confined? | **Answered** by §6 — confined to pattern position |
-| **X-1** | Is `=` the right spelling at all? | See §10 |
+| **S-1** | Is `{%foo, %bar}` general or confined? | **Answered: general**, because the sigil disambiguates. §7 |
+| **X-1** | Is `=` the right spelling at all? | **Reopened, better placed** — row 15. §10 |
 
-**Dissolved, not decided.** `I-1` (placement as a string path) and `I-2`
-(exported but not destructured) were questions about `import`, and §6
-removes the builtin that raised them; `S-1` is answered by the same
-change. A-4 moved from unresolved to a recommendation with a
-measurement behind it. **Two open questions replace four.**
+**Three of the original eight are now dissolved rather than decided,
+and that is the pattern worth noticing.** `I-1` and `I-2` were questions
+about `import`, which §6 removes. `A-3` was an ambiguity between an
+alias and a key, which the sigil makes unrepresentable. In each case the
+question disappeared with the construct that raised it, which is a
+better outcome than answering it — an answered question is a rule
+someone has to remember.
+
+**Open: A-1, A-2, E-1, X-1.** A-1 (which site a finding names) and A-2
+(alias-of-alias, lean yes) are unchanged. E-1 is new with §6. X-1 is
+the live one, and the sigil has improved its odds — see §10.
 
 ## 10. Compatibility, measured
 
@@ -432,17 +483,33 @@ worth noticing that **this proposal is already two-thirds named**:
 `export` and `import` are builtins in the house style, and `=` is the
 one operator among them.
 
-**X-1** is therefore a real fork, not a formality:
+**X-1 is therefore a real fork — and adopting the sigil has changed
+what is on it.** Row 15 is the reason: `%uint8: 1` *already* parses, as
+an ordinary key named `%uint8`. So a third option exists that did not
+before:
 
-- `foo = 1` — best ergonomics, the break above, whitespace becomes
-  significant in one place.
-- `alias(foo, 1)` — no break at all, consistent with ADR-008 and with
-  the proposal's own other two parts, worse to read at the density
-  where aliases pay off.
+- `%foo = 1` — the proposal as written. Needs the `=` break above.
+- `alias(%foo, 1)` — no break, consistent with ADR-008's named style,
+  worse to read at the density where aliases pay off.
+- **`%foo: integer & min(0)`** — declare an alias with the ordinary
+  key syntax, in the namespace the sigil already creates. **No new
+  operator, no lexing break, nothing to measure.** The whole of §10's
+  compatibility argument becomes moot, because there is nothing to
+  break.
 
-This note does not resolve it. It records that the syntax is the
-expensive part of the proposal and the semantics are the valuable part,
-and that the two can be decided separately.
+The third looks strictly better and it should be tested properly before
+being believed: it means a declaration and a key are spelled alike and
+told apart only by the sigil, which is either the point (one syntax,
+one namespace marker) or a confusion (two things that look the same).
+It also needs an answer for the destructuring form, which is the one
+place `=` is doing work a key cannot: `{ %a, %b } = @"f.aon"` binds
+several names at once, and `%…:` has no obvious multi-binding spelling
+(`%{ a, b }: @"f.aon"` is a parse error today, so it is available but
+would be a new construct).
+
+**Recommendation: settle X-1 before P1, and start from the third
+option.** The syntax was the expensive part of this proposal; the sigil
+may have made it free.
 
 ## 11. Non-goals
 
@@ -463,8 +530,10 @@ Per ADR-001 nothing lands without shared rows probed in both engines.
 Sketch only, since §9 is open:
 
 - **Aliases:** substitution in every value position; use-before-declare
-  (order independence); alias-of-alias; cycle refused; shadowing refused;
-  erased from canon *and* from the hash — a document with aliases and its
+  (order independence); alias-of-alias; cycle refused; a bare `foo` and
+  an alias `%foo` in one file staying independent (the A-4 guard, which
+  can only be written now the sigil exists); erased from canon *and*
+  from the hash — a document with aliases and its
   expanded twin must produce the identical `aon1-…` string, which is the
   sharpest single row in this list.
 - **Export and destructuring:** exported name bindable; unexported name
@@ -476,15 +545,16 @@ Sketch only, since §9 is open:
   so the existing include rows already cover every confinement mode and
   the include manifest. That absence is itself the argument for §6 —
   the earlier `import` design would have needed a row per mode.
-- **Shorthand:** `{foo}` ≡ `{foo: foo}` in canon; refusal wherever S-1
-  lands it out of scope.
+- **Shorthand:** `{%foo}` ≡ `{foo: %foo}` in canon, in every position
+  since S-1 lands general; and `{foo}` without a sigil still a parse
+  error — the guard that keeps the sugar unambiguous.
 - **Negatives paired with positives** throughout, per the house rule.
 
 ## 13. Phasing
 
 | Phase | Content | Gate |
 |-------|---------|------|
-| P0 | Settle X-1, A-4 and E-1 first | no code |
+| P0 | Settle X-1 and E-1 first — A-4 is decided | no code |
 | P1 | Aliases, file-local, with canon erasure and the cycle/shadow refusals | the hash row |
 | P2 | `export`, and `{…} = @"…"` destructuring | canon expansion |
 
@@ -492,13 +562,16 @@ P1 is independently useful and independently shippable: file-local
 aliases with nothing crossing a file boundary is the whole of §2's
 argument, and it can be judged before any of §5–6 is built.
 
-**A-4 must be answered before P1, not during it** — if an alias name
-silently captures a bare string, adding an alias to a file can change
-the meaning of a line that does not mention it, which is the opposite of
-what the rest of the language does. It is no longer the open risk it
-was: §4 gives three ways out, a recommendation, and a corpus
-measurement putting the recommended one at the same cost as `=`. But it
-determines the spelling, so it cannot be deferred into implementation.
+**A-4 is decided and no longer gates P1.** The `%` sigil ends the
+capture hazard outright: bare text stays bare text, and no declaration
+can reach a line that does not carry the sigil.
+
+**What gates P1 now is X-1** — whether a declaration is `%foo = …` or
+simply `%foo: …` — because that is the difference between a proposal
+carrying a lexing break and one carrying none, and it cannot be deferred
+into implementation. §10's third option would make the whole
+compatibility section moot; it deserves a proper look before P1 rather
+than a guess during it.
 
 The old P2/P3 split is gone with `import`: `export` and destructuring
 are one phase now, because destructuring *is* the import.
