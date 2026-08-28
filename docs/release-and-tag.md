@@ -13,20 +13,19 @@ registry upload step: `proxy.golang.org` serves whatever a tag points at, so
 **pushing the tag *is* the release**. There is nothing else to do, and
 nothing to undo it.
 
-> **The workflow file lands separately.** `make publish`,
-> `make check-go-major` and this guide are in the repository; the
-> `.github/workflows/publish.yml` they drive has to be applied by a
-> maintainer, because the agent that wrote them cannot push workflow
-> files. Until it is, `make publish` runs its guards, bumps, commits and
-> pushes, then fails at the dispatch — the irreversible half (tags,
-> publish) is exactly the half that does not happen.
+> **This path is proven.** Its first end-to-end run was 2026-08-28:
+> one dispatch from `main` at `2cec558` published npm `aontu@0.53.0`
+> over OIDC and pushed both `v0.53.0` and `go/v0.1.11`. The trusted
+> publisher registration on npmjs.com does name `aontu-lang/aontu` and
+> `publish.yml` — that was the open question after the repository move,
+> and the green run answers it.
 
 ## The normal path
 
 ```sh
-make publish V=0.53.0 GOV=0.2.0   # release both
-make publish V=0.53.0             # npm only
-make publish GOV=0.2.0            # Go module only
+make publish V=0.54.0 GOV=0.1.12   # release both
+make publish V=0.54.0              # npm only
+make publish GOV=0.1.12            # Go module only
 ```
 
 Bumps whichever versions you give — `V` for `ts/package.json`, `GOV` for
@@ -60,8 +59,8 @@ the ref already says, so bump the versions **first**, in a normal reviewed
 PR:
 
 ```sh
-# ts/package.json  "version": "0.53.0"
-# go/aontu.go      const VERSION = "0.2.0"
+# ts/package.json  "version": "0.54.0"
+# go/aontu.go      const VERSION = "0.1.12"
 ```
 
 A version input would let the dispatch and the files disagree — you would
@@ -73,12 +72,16 @@ Release only the half that changed. A TypeScript-only change wants
 `go=false`; leaving it ticked with an unchanged `VERSION` is harmless — the
 workflow refuses rather than moving an existing tag.
 
-## Before the first release from this repository
+## The trusted-publisher registration
 
 The repository moved from `rjrodger/aontu` to `aontu-lang/aontu`, and **an
 npm trusted publisher is bound to owner, repo, and workflow filename**. The
 entry on npmjs.com must name `aontu-lang/aontu` and `publish.yml`, or the
 OIDC exchange is refused — reported, unhelpfully, as a 404 (see below).
+**The 0.53.0 release on 2026-08-28 published over OIDC, so the entry is
+correct today.** It is recorded here because it breaks silently: an org
+rename or a renamed workflow file voids it, and the failure lands after
+the version bump is already pushed.
 
 npmjs.com → the `aontu` package → Settings → Trusted Publisher → GitHub
 Actions:
@@ -187,8 +190,8 @@ Guards that fail closed, in the order they run:
    create, not an error — which is what makes re-dispatching after a partial
    release safe.
 4. **A pushed tag that disagrees with the package version.** On the manual
-   `v*` path only: pushing `v0.54.0` while `ts/package.json` still says
-   `0.53.0` would resolve 0.53.0, find it already published, skip the
+   `v*` path only: pushing `v0.55.0` while `ts/package.json` still says
+   `0.54.0` would resolve 0.54.0, find it already published, skip the
    publish and go green — leaving a tag with no release behind it.
 5. **A failing build or test**, in both ports. `build.yml` already runs the
    Go matrix on every push and PR, so `main` is covered; the release re-runs

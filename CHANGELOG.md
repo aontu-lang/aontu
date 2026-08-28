@@ -5,7 +5,9 @@ package (`ts/`, npm `aontu`) and the Go module (`go/`,
 `github.com/aontu-lang/aontu/go`) are versioned independently; entries note
 which implementation each change affects.
 
-## Unreleased — the gate agrees with the evaluator about size
+## Go 0.1.11 — 2026-08-28 · TypeScript 0.53.0
+
+### The gate agrees with the evaluator about size
 
 Both implementations. The 2026-08 review's finding C, second half:
 "for every schema S and data D, `vet(S, D)` and `eval(S ∪ D)` must
@@ -71,7 +73,7 @@ fix (05's cross-layer folding pair and its `must` pin, 09's duplicate
 labels, 06's `length(min(1))`-beside-a-generator probe, which moved
 from the expected-failure list to the goldens).
 
-## Unreleased — relations that enforce, and a graph you can ask questions of
+### Relations that enforce, and a graph you can ask questions of
 
 Both implementations. The 2026-08 review's finding J: aontu is "a sound
 entity-and-edge substrate whose query and constraint layers over that
@@ -133,7 +135,7 @@ CLI and nothing had run a use case through the Go one. Use case 01's
 `check.sh` asserts the cycle, so the Go CLI fails that check today
 rather than passing it quietly.
 
-## Unreleased — arithmetic, aggregation and projection
+### Arithmetic, aggregation and projection
 
 Both implementations. The 2026-08 review's finding I, the
 expressiveness walls that "fall on the wrong side of what total
@@ -255,7 +257,7 @@ operand's own. One case remains open and is recorded in
 `test/spec/divergent.tsv`: a reference to a target *deeper* than the
 referring field still leaves one stale segment in TypeScript.
 
-## Unreleased — a module closure that travels, and a verb that verifies it
+### A module closure that travels, and a verb that verifies it
 
 Both implementations. The 2026-08 review's finding H: a ground truth
 that cannot move between repositories tamper-evidently is a
@@ -326,7 +328,7 @@ and the hand-vendoring how-to, which gained the flat transitive layout
 and the CI section. Use case 11 (`use-cases/11-shared-modules`) asserts
 all three behaviours where it previously pinned the defects.
 
-## Unreleased — provenance is part of the clone contract
+### Provenance is part of the clone contract
 
 Both implementations. The 2026-08 review's finding E: `why` is the
 agent-facing differentiator, and it went dark exactly where an
@@ -373,7 +375,7 @@ splice there would rewrite the referent for every reader of it while
 leaving the named path unmoved, so the reference is refused as not
 editable and the assignment is appended as it always would have been.
 
-## Unreleased — every site names the file whose text it excerpts
+### Every site names the file whose text it excerpts
 
 Both implementations. The 2026-08 review's finding F, in four parts:
 the diagnostics an agent repairs from.
@@ -449,7 +451,7 @@ and a caller who can is the only one who may say. `--jsonl` turns it
 off unconditionally: a JSONL answer is machine-read by definition, even
 in a session attached to a terminal.
 
-## Unreleased — the evolution gate stops failing its own idioms
+### The evolution gate stops failing its own idioms
 
 Both implementations. Three fixes to `subsume`/`breaking`, all from the
 2026-08 review's finding D.
@@ -496,7 +498,7 @@ Pinned by `subsume.tsv` self-spread-residue, self-spread-residue-closed,
 self-hide-pref-disjunct, self-policy-idiom and hide-added-still-refused,
 plus `breaking-at-gates-a-subtree` and its Go twin.
 
-## Unreleased — `breaking --against git#<rev>` on macOS and Windows
+### `breaking --against git#<rev>` on macOS and Windows
 
 Both implementations. The repo-relative path of the entry file was
 computed by relativising `git rev-parse --show-toplevel` against the
@@ -519,7 +521,7 @@ absolute path interpolated raw into an `@"..."` include (where a
 backslash is an escape), and a raw path substring-matched against its
 own JSON encoding.
 
-## Unreleased — vet asks the same question the evaluator does (ADR-007)
+### Vet asks the same question the evaluator does (ADR-007)
 
 **Breaking, both implementations.** `1|2`, `null|top` and
 `({x:1}|{y:2}) & {z:3}` no longer generate a value.
@@ -600,7 +602,7 @@ Still open, recorded in ADR-007: a sizing atom sharing a conjunct with
 a spread template is discharged against that layer alone (§16), and a
 map-argument `must()` is consumed by the schema layer (§17).
 
-## Unreleased — the include capability reaches every surface
+### The include capability reaches every surface
 
 Both implementations. `--trust` / `--include-root` were wired to
 `aontu <file>` alone. Every VERB — `vet`, `subsume`, `breaking`, `get`,
@@ -643,7 +645,7 @@ capability rather than hover failing everywhere.
 No default changed: `system` with the phase-6 warning window remains
 the posture until the staged flip.
 
-## Unreleased — the evolution gate compares the old TREE
+### The evolution gate compares the old TREE
 
 Both implementations. `breaking --against git#<rev>` took only the ENTRY
 file's text from git and then evaluated it with the WORKING file as its
@@ -667,7 +669,7 @@ and `go/cmd/aontu/subsume_test.go` `TestBreakingGitComparesTheOldTree`,
 both of which also assert that an UNCHANGED tree still answers
 `compatible` — a fix that merely reported breaking would fail them.
 
-## Unreleased — the spread application rework (ADR-006)
+### The spread application rework (ADR-006)
 
 Both implementations. The remaining defects of the 2026-08 language
 review's finding B (`use-cases/BUGS.md` §6, §7, §36 and the
@@ -730,7 +732,7 @@ role; the eval-path hallucinated-permission diagnostic that rode the
 same artifact is gone, the vet path unchanged), 06 (the DRY
 port-column derivation works).
 
-## Unreleased — template-clone isolation (ADR-005)
+### Template-clone isolation (ADR-005)
 
 Both implementations. The language review's finding B
 (`use-cases/REVIEW.md`; `use-cases/BUGS.md` §8–12, §33–35), taken as
@@ -798,7 +800,7 @@ placeholder `_`", "Marks"). Still open, honestly: the unequal-spread
 sibling crosswire (BUGS.md §6–7) and the self-referential merge
 expression (§36).
 
-## Unreleased — the preference admission gate (ADR-004, BREAKING)
+### The preference admission gate (ADR-004, BREAKING)
 
 Both implementations. The top-priority recommendation of the 2026-08
 language review (`use-cases/REVIEW.md` finding A; `use-cases/BUGS.md`
@@ -840,8 +842,6 @@ Pinned by parity-probed shared rows: `pref.tsv` (`pref-admit-*`,
 flipped `default-rank-min`). Rationale and the escape hatch: `ADR.md`
 ADR-004; author-facing rules: `docs/reference-language.md`
 ("Preference / default `*`").
-
-## Unreleased — TypeScript 0.53.0 line
 
 ### Documentation — the four quadrants brought back level
 
@@ -1441,6 +1441,8 @@ per-phase record with pins. In both implementations unless noted:
   CLI — the register's G7.7 records it).
 - **Generation** (G8): `pack`, `each`, `filter`, `match`, the
   placeholder `_`, and the `|>` pipe.
+
+## Go 0.1.10 — 2026-08-17 · TypeScript 0.52.1
 
 ### Added — `re()`, pattern membership in the constraint algebra
 

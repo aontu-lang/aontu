@@ -50,7 +50,7 @@ irreversible, so the process has guards rather than steps to remember.
 the short version is:
 
 ```sh
-make publish V=0.53.0 GOV=0.2.0   # npm version, Go module version
+make publish V=0.54.0 GOV=0.1.12   # npm version, Go module version
 ```
 
 That bumps, runs both suites, pushes `main`, and dispatches the publish

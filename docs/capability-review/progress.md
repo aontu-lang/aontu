@@ -199,34 +199,41 @@ unreachable. Existence is not reachability, and a pin sweep cannot tell
 the difference — which is why its closing tests drive the real entry
 points rather than a hand-built state.
 
-A separate readiness caveat, which this register does not otherwise
-carry: **most of the work below is not in a released artifact — but
-not none of it.** The npm `aontu@0.52.1` and Go `go/v0.1.10` release
-commits sit MID-review: their trees carry the G1 constraint
-algebra's whole atom vocabulary (`min` through `must`, with phases
-4–5's completing fixes still ahead of it), the errcodes registry and
-the written G5 trust contract, and everything after commit `8ee985c` — every CLI verb
-(`vet` included: the released `ts/src/cli.ts` has no occurrence of
-it), the MCP server, and all of G3, G4, G6, G7 and G8 — is
-unreleased. (This paragraph originally claimed both tags predate the
-first review commit; git ancestry disproves that, and
+A separate readiness caveat, which this register carried until the
+release, is now **closed: the work below is released.**
+npm `aontu@0.53.0` and Go `go/v0.1.11` were published on 2026-08-28
+from commit `2cec558`, over the OIDC trusted-publisher path in
+`.github/workflows/publish.yml` — so every CLI verb (`vet` included),
+the MCP server, and all of G3, G4, G6, G7 and G8 are installable for
+the first time. `npm view aontu version` answers `0.53.0`, the proxy
+resolves `github.com/aontu-lang/aontu/go@v0.1.11`, and both tags point
+at that one commit.
+
+What the caveat said before, which was accurate then: **most of the
+work below was not in a released artifact — but not none of it.** The
+npm `aontu@0.52.1` and Go `go/v0.1.10` release commits sit MID-review:
+their trees carry the G1 constraint algebra's whole atom vocabulary
+(`min` through `must`, with phases 4–5's completing fixes still ahead
+of it), the errcodes registry and the written G5 trust contract, while
+everything after commit `8ee985c` — every CLI verb (`vet` included:
+the 0.52.1 `ts/src/cli.ts` has no occurrence of it), the MCP server,
+and all of G3, G4, G6, G7 and G8 — was unreleased. (That paragraph
+originally claimed both tags predate the first review commit; git
+ancestry disproves that, and
 [`status-2026-08-21.md`](status-2026-08-21.md#2-none-of-it-is-released)
 carries the same correction.)
 
-**The 0.53.0 release is prepared but not published** (2026-08-24). The
-two defects `status-2026-08-21.md` named as blocking it are closed —
-the served-evaluation confinement hole, and the five cross-port `vet`
-verdict flips, four of them named in that report and the rest found by
-sweeping around them (`re("x{y}")`, a quantified `^`/`$`, and a `}`
-closing no quantifier) — with 37 shared rows pinning the agreement and
-both coverage gates back at 100%. The
-version is bumped and the package now carries a README, the published
-grammar and the skill. What remains is the publishing act itself:
-`npm publish` from `ts/`, and `make publish-go V=…`, which commits,
-tags and pushes.
+The two defects `status-2026-08-21.md` named as blocking the 0.53.0
+release were closed on 2026-08-24 — the served-evaluation confinement
+hole, and the five cross-port `vet` verdict flips, four of them named
+in that report and the rest found by sweeping around them
+(`re("x{y}")`, a quantified `^`/`$`, and a `}` closing no quantifier)
+— with 37 shared rows pinning the agreement and both coverage gates
+back at 100%. The Go half shipped as **0.1.11**, a patch on the 0.1.x
+series, rather than the 0.2.0 that report anticipated.
 
 One structural note the sequencing table itself makes: G7's query/MCP
-surface depends on nothing and could ship at any time.
+surface depended on nothing, and shipped in 0.53.0 with the rest.
 
 ## G1 — a real constraint algebra
 

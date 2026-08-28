@@ -28,6 +28,18 @@ against a 0.52.1 binary; and the npm metadata is a stub
 (`"description": "Unifier."`, `"keywords": ["unify"]`).
 
 **Act:** publish 0.53.0 (npm) and tag Go, with real package metadata.
+
+> **Update (2026-08-28).** Done, and this section is now history. npm
+> `aontu@0.53.0` and Go `go/v0.1.11` are published from commit
+> `2cec558`, so the whole agent-facing surface — every verb, the MCP
+> server, the skill, the grammars — is installable. Three of this
+> section's specifics fall with it: `vet-action`'s `npx aontu@0.53.0`
+> default now resolves, the `since 0.53.0` error codes are in the
+> binary an agent filters against, and the npm metadata is no longer a
+> stub (a real description and twelve keywords ship in the tarball).
+> The silent-pass trap it describes is a property of 0.52.1, which
+> nobody tracking `latest` is on any more.
+
 Until this ships, every other row in this document points at vapor —
 and the flagship consumers stay pinned to 0.49 via `@voxgig/model`,
 which is the second act: bump that pin and release the toolchain, or
@@ -154,6 +166,14 @@ artifacts, not repo files; deepen `agentsmd`'s shape rendering; and
 consider the name problem honestly — if renaming is off the table,
 own the SEO battle deliberately ("aontu lang", consistent tagline,
 the playground as the canonical link target).
+
+> **Update (2026-08-28).** Two of these are answered by the 0.53.0
+> release. The skill and the GBNF/Lark grammars now ship inside the npm
+> tarball (`files` carries `grammar` and `skill`), so they are
+> installable artifacts rather than repo files; and `llms.txt` exists
+> at the repository root. Serving it from aontu.dev, the MCP-registry
+> listing, `agentsmd`'s shape rendering and the name problem are all
+> still open.
 
 ## 7. A versioned language, separate from its implementations
 

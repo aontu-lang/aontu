@@ -63,8 +63,9 @@ graph), `jsonschema` (export the model as JSON Schema), `trim`,
 `mod` tooling, `agentsmd`, a path-addressed
 `diff` in the API, and an MCP server —
 documented in [docs/reference-api.md](docs/reference-api.md).
-These verbs ship in the **0.53.0** line; the npm badge above shows
-what is currently published, and the
+These verbs ship in the **0.53.0** line, published on npm since
+2026-08-28 and as the Go module tag `go/v0.1.11`. The npm badge above
+shows what is currently published, and the
 [progress register](docs/capability-review/progress.md) records
 exactly what has landed.
 

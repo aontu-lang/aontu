@@ -328,7 +328,7 @@ This is the verb's own answer to the Problem section's example, keys
 absent where the engine has nothing to say:
 
 ```json
-{ "aontu": { "verb": "vet", "version": "0.52.1" },
+{ "aontu": { "verb": "vet", "version": "0.53.0" },
   "findings": [
     { "class": "conflict", "code": "closed",
       "message":

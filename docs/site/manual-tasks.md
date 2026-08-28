@@ -34,10 +34,12 @@ before it can write the corresponding config.
 | C3 | Repository settings, branch protection, CodeQL | open |
 | C4 | Org-rename leftovers | Go module **renamed**; badges + `prepack.js` open |
 | C5 | Sponsorship treatment | open — needs a decision |
-| D1 | npm trusted-publisher record after the rename | **open, and has a deadline** |
+| D1 | npm trusted-publisher record after the rename | **done** — proven by the 0.53.0 release |
 
-D1 is the one that bites if left: a stale record fails the next release
-*after* the tag is pushed.
+D1 was the one that bit if left. It is closed the only way that really
+settles it: the 0.53.0 release published over OIDC on 2026-08-28, so
+the record does name `aontu-lang/aontu` and `publish.yml`. Re-check it
+after any future org or workflow-file rename, for the same reason.
 
 One thing the build carries that this file did not ask for: the build
 token is `tabnas-web-01`, reused rather than minted, because a build
@@ -272,9 +274,14 @@ the masthead.
 
 ## D. npm
 
-### D1. Verify the trusted-publisher record survived the org rename
+### D1. Verify the trusted-publisher record survived the org rename — **done**
 
-**Do this before the next release, not after.** `publish.yml` publishes
+**Settled on 2026-08-28 by a green release**, which is stronger evidence
+than `npm trust list`: npm `aontu@0.53.0` published over OIDC with no
+token, which only succeeds when the record matches. The procedure below
+is kept for the next rename.
+
+`publish.yml` publishes
 `aontu` over OIDC with no token, and a trust record names a *repository*
 and a *workflow filename*. If the record still says `rjrodger/aontu`,
 the next release fails at the publish step — after the version bump and
@@ -340,14 +347,15 @@ the site is serving from the apex.
 
 What is left, in the order it will hurt if ignored:
 
-1. **D1** — check the npm trusted-publisher record survived the org
-   rename. Before the next release, not after: a stale record fails at
-   the publish step once the tag is already pushed.
-2. **C4** — the README badges and `prepack.js`'s `REPO` constant still
+1. **C4** — the README badges and `prepack.js`'s `REPO` constant still
    name the old owner. The badges need their services re-pointed first;
    the constant is a word from you.
-3. **B5 / C5** — the analytics token (or a "no"), and where the
+2. **B5 / C5** — the analytics token (or a "no"), and where the
    sponsorship goes.
+
+**D1 is closed** — the 0.53.0 release published over OIDC on
+2026-08-28, which proves the trusted-publisher record survived the
+rename.
 4. **C3** — branch protection and CodeQL on `aontu-lang/web`. It has no
    workflows by design, so a Cloudflare build check is its only CI.
 
