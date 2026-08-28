@@ -1113,6 +1113,38 @@ help isolate the syntax error.`,
                 g: 'aontu-plain-pair-elem'
             }
         ])
+            // NOTE: manually adjust path - the twin of the `pair` rule's hook
+            // above, and for the same reason, one layer down.
+            //
+            // Every alt above contributes NO element: a `&:` spread is a
+            // constraint on the elements, and a `k:v` pair in list position is
+            // simply not one (the `aontu-plain-pair-elem` note above). The array
+            // slot they briefly occupy is already given back by
+            // restorePairSlot. The PATH index was not: @tabnas/path's
+            // `@elem-ao` increments `r.k.index` for every elem rule it sees, so
+            // each of these stole an index and every later element's path was
+            // one too high — `[&: integer, 10, 20, "bad"]` reported the bad
+            // value at `$.l.3` while `aontu get $.l.2` returned it, and on a
+            // one-element list the path pointed off the end. Generation was
+            // never wrong, which is why nothing caught it: the array is right
+            // and only the labels on it were shifted (BUGS.md 44).
+            //
+            // Rewinding here rather than in the plugin keeps the plugin's rule
+            // ("in an array, the path property is the element index") true —
+            // these alts are the aontu-specific exceptions to what counts as an
+            // element, so the correction belongs with the grammar that
+            // introduces them. The child is re-pathed because the plugin has
+            // already stamped it with the index being given back: a spread
+            // takes the `'&'` segment its map twin takes, and a pair takes its
+            // key, as a map entry would.
+            .ao((r) => {
+            if (0 < r.d && r.u.spread) {
+                r.k.index = r.k.index - 1;
+                const seg = r.u.pair ? '' + r.u.key : '&';
+                r.child.k.path = [...r.k.path, seg];
+                r.child.k.key = seg;
+            }
+        })
             .bc((rule) => {
             // TRAVERSE PARENTS TO GET PATH
             if (rule.u.spread) {

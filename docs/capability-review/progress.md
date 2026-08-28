@@ -90,8 +90,8 @@ the divergence ledger, `Accepted`/`Superseded` in the ADR register).
    all eight are now wrong, by roughly 1,400 to 1,500 rows. A gap
    document should link this line instead: as of this
    register's last update the suite is **90 `.tsv` files, 89
-   row-bearing, 3,478 rows**, in twenty modes — `canon` 799, `errc`
-   612, `gen` 579, `gens` 523, `err` 246, `errcode` 111, `subsume` 101,
+   row-bearing, 3,487 rows**, in twenty modes — `canon` 799, `errc`
+   613, `gen` 579, `gens` 526, `err` 251, `errcode` 111, `subsume` 101,
    `query` 92, `vet` 88, `why` 54, `jsonschema` 54, `hcanon` 43,
    `patch` 42, `relation` 35, `graph` 28, `diff` 28, `reaches` 13,
    `hash` 12, `trim` 11, `agentsmd` 7.
@@ -386,24 +386,47 @@ syntax removed the *need* to reuse `>` without changing what `>`
 currently does, so the capability landed while the defect that motivated
 it went unaddressed. [`use-cases/BUGS.md`](../../use-cases/BUGS.md) §45.
 
-**And one this review found while reconciling.** A `&:` element spread
-occupies an index slot in the TypeScript port's error paths and not in
-Go's, so `l: [&: integer, 10, 20, "bad"]` reports `$.l.3` in TypeScript
-and `$.l.2` in Go — an ADR-001 divergence, with the canonical port on
-the wrong side of it: both ports' `get` answers `$.l.2` with the
-element, so TypeScript rejects, through `get`, the path its own
-`vet --format json` emits. It is the §41 defect (right site, wrong path)
-in the container §41's fix did not reach. Not entered in
-`test/spec/divergent.tsv`, which is for divergences that cannot be fixed
-here; this one can. [`use-cases/BUGS.md`](../../use-cases/BUGS.md) §44.
+**And one this review found while reconciling — now FIXED, 2026-08-28.**
+A `&:` element spread occupied an index slot in the TypeScript port's
+error paths and not in Go's, so `l: [&: integer, 10, 20, "bad"]`
+reported `$.l.3` in TypeScript and `$.l.2` in Go — an ADR-001
+divergence, with the canonical port on the wrong side of it. It was the
+§41 defect (right site, wrong path) in the container §41's fix did not
+reach, and it was broader than first reported: a plain `k:v` pair in
+list position stole an index too.
+
+The cause was in neither evaluator. `@tabnas/path`'s `@elem-ao`
+increments its element index for **every** `elem` rule, and three of
+aontu's four `elem` alternatives contribute no element; the array slot
+they occupy was already given back by `restorePairSlot`, the path index
+was not. The `elem` rule now rewinds it and re-paths the child — the
+twin of the correction the `pair` rule already carried for map spreads.
+Pinned by ten rows in `test/spec/spread-list.tsv`, every expectation
+probed through both engines; reverting the fix fails exactly four of
+them. [`use-cases/BUGS.md`](../../use-cases/BUGS.md) §44.
+
+**Fixing it surfaced two more cross-port divergences, both predating it**
+(TypeScript byte-identical to the published 0.53.0 on each) and both
+left open: a `k:v` pair written BEFORE a `&:` spread makes TypeScript
+drop the spread entirely and generate where Go refuses (§46 — silent
+wrong output on the canonical side, and order-dependent, which should
+not be true of a commutative language), and a conjunct of unequal-length
+lists paths its finding at the list in TypeScript and at the element in
+Go (§47). Neither is in `spread-list.tsv`: a row must pass in both
+ports. Neither is in `divergent.tsv` either, which is for divergences
+that cannot be fixed here.
 
 The structural reason both gates missed it is worth recording against
-protocol rule 5: **the shared suite pins error codes and message
-substrings, but almost never the path.** Of 7,679 `err` rows, 15 include
-a `$.` path in their expectation; `errc` asserts the code alone. Both
-ports emit `no_scalar_unify` here, so every gate agrees while the paths
-differ. The path is the field G7's machine surface hands to agents, and
-it is the least-asserted thing in the report.
+protocol rule 5, and **it is still open**: the shared suite pins error
+codes and message substrings, but almost never the path. Of 7,679 `err`
+rows, 15 include a `$.` path in their expectation; `errc` asserts the
+code alone. Both ports emitted `no_scalar_unify` here, so every gate
+agreed while the paths differed. The §44 rows demonstrate it from the
+inside — reverting the fix leaves `spread-list-elem-path-code` passing
+while the four path rows fail. The path is the field G7's machine
+surface hands to agents, and it is the least-asserted thing in the
+report. Ten rows now assert one; §46 and §47 are what the other
+7,664 do not see.
 
 ## G2 — the validation verb
 

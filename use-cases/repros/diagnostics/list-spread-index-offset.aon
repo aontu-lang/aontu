@@ -1,29 +1,33 @@
-# 44 (found by the 2026-08-28 constraint-design reconciliation): a `&:`
-# element spread occupies an index slot in the TypeScript port's error
-# paths but not in Go's, so every element written AFTER the spread is
-# reported one index too high by the canonical implementation.
+# 44 (found by the 2026-08-28 constraint-design reconciliation).
 #
-# The generated output settles which side is right: `aontu` on the
-# passing form `l: [&: integer, 10, 20, 30]` prints {"l":[10,20,30]} in
-# BOTH ports, so "bad" below is element 2. Go names it; TypeScript does
-# not. Without the spread the two ports agree (`l: [10, 20, "bad"]`
-# against `l: [integer, integer, integer]` is `$.l.2` in both), and
-# elements written BEFORE the spread are unaffected
-# (`l: ["bad", &: integer]` is `$.l.0` in both).
+# FIXED 2026-08-28. A `&:` element spread -- and a plain `k:v` pair in
+# list position, which had the same shift -- no longer consumes a path
+# index. Both ports now report the offending value below at `$.l.2`,
+# which is the index its own output uses and the index `aontu get`
+# answers to.
 #
-# On a one-element list TypeScript's path points off the end:
-# `l: [&: integer, "bad"]` reports `$.l.1` in a list whose only element
-# is index 0. The path is the field the machine surface hands to agents
-# (`vet --format json` .findings[].path), which is what makes a
-# silently-wrong index worse than a missing one.
+# The cause was in neither evaluator: @tabnas/path's `@elem-ao`
+# increments its element index for EVERY elem rule, and three of the
+# four elem alternatives contribute no element. The array slot they
+# occupy was already given back by restorePairSlot; the path index was
+# not. The `elem` rule now rewinds it and re-paths the child -- the twin
+# of the correction the `pair` rule already carried for map spreads.
 #
-# NOT reproducible through `vet` with a separate data file: when the
-# failing element arrives from another document both ports agree on
-# `$.l.2`. The spread and the offending element must be written in the
-# SAME list literal.
+# What made it worth chasing: TypeScript contradicted ITSELF. It emitted
+# `"path": "$.l.3"` from `vet --format json` and then answered
+# `aontu get $.l.3` with `no_path`, so an agent doing the read-path,
+# get, patch loop was handed a path the same port rejected. On a
+# one-element list (`l: [&: integer, "bad"]`) it pointed off the end.
 #
-# expected: both ports report path $.l.2 (the index the output uses)
-# actual:   TypeScript reports $.l.3; Go reports $.l.2
+# Pinned by test/spec/spread-list.tsv: spread-list-elem-path,
+# -single, -mid, -before, spread-list-pair-path, and the three
+# spread-list-gen-* rows that hold generation still. Every expectation
+# was probed through both engines. Reverting the fix fails exactly four
+# of them -- and NOT spread-list-elem-path-code, because both ports
+# emitted `no_scalar_unify` all along. That is why nothing caught this:
+# of 7,679 `err` rows in the suite only 15 assert a `$.` path.
+#
+# expected: both ports report path $.l.2
+# actual:   both ports report path $.l.2 (was $.l.3 in TypeScript)
 # run: node ../../ts/bin/aontu.js list-spread-index-offset.aon
-#      (then the same file through go/aontu, and diff the paths)
 l: [&: integer, 10, 20, "bad"]
