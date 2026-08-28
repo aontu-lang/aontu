@@ -42,6 +42,7 @@ the [Explanation](explanation.md).
 - [Subsumption](#subsumption)
 - [Errors](#errors)
 - [The constraint algebra (specified)](#the-constraint-algebra-specified)
+  - [Named constraint aliases](#named-constraint-aliases)
 
 ---
 
@@ -2462,3 +2463,75 @@ with machine-readable `details`: the failing atom, the normalised
 admissible interval/sets, and any `must` message. Codes ride the
 [error-code registry](../test/spec/errcodes.tsv); rendering into
 reports belongs to the vet verb (G2).
+
+### Named constraint aliases
+
+The algebra has no `int8`, `uint16` or `port` keyword, and does not
+need one. A constraint is an ordinary value, so a name for one is an
+ordinary field — and a `type()`-marked block gives you a library of
+them that unifies like everything else and emits nothing:
+
+```aon
+type: type({})
+type: {
+  uint8: integer & min(0)    & max(255)
+  int8:  integer & min(-128) & max(127)
+  port:  integer & min(1)    & max(65535)
+}
+
+listen: $.type.port
+listen: 8080
+```
+
+```json
+{ "listen": 8080 }
+```
+
+Three properties make this work, and all three are rules stated
+elsewhere in this document rather than anything special to constraints:
+
+- **The block is schema, so it does not generate.** `type()` marks its
+  value as metadata, and a map field whose value is type-marked is
+  omitted from the enclosing map ([Marks](#marks-type-and-hide)). The
+  aliases are present for unification and absent from output.
+- **A reference copies with the marks cleared.** `$.type.port` lands on
+  a type-marked value and yields an unmarked one, so `listen` emits
+  normally.
+- **The alias is a constraint, not a value**, so it meets the concrete
+  value at the referring field exactly as if it had been written there.
+
+The key name is not reserved: `type` above is a field called `type`
+that happens to be `type()`-marked. `defs`, `schema` or anything else
+reads the same to the engine.
+
+An out-of-range value is refused at the field that holds it:
+
+```aon
+type: type({})
+type: { uint8: integer & min(0) & max(255) }
+a: $.type.uint8
+a: 300
+```
+
+fails with `[aontu/constraint]` at `$.a` — `300` does not satisfy
+`max(255)`.
+
+**Name the kind as well as the bounds.** `min(0) & max(255)` alone is a
+bound on *numbers*, so `1.5` satisfies it; a sized integer is
+`integer & min(0) & max(255)`. This is the one mistake the idiom
+invites, and the reason the aliases above all lead with `integer`:
+
+```aon
+loose: type({})
+loose: { byteish: min(0) & max(255) }
+a: $.loose.byteish
+a: 1.5
+```
+
+```json
+{ "a": 1.5 }
+```
+
+Because an alias is just a value, the aliases compose: one can be
+written in terms of another, and a reference to an alias may be met
+with further constraints at the point of use.

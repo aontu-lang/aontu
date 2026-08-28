@@ -89,9 +89,9 @@ the divergence ledger, `Accepted`/`Superseded` in the ADR register).
    gap documents froze a row count into a "nothing may regress" clause;
    all eight are now wrong, by roughly 1,400 to 1,500 rows. A gap
    document should link this line instead: as of this
-   register's last update the suite is **90 `.tsv` files, 89
-   row-bearing, 3,487 rows**, in twenty modes — `canon` 799, `errc`
-   613, `gen` 579, `gens` 526, `err` 251, `errcode` 111, `subsume` 101,
+   register's last update the suite is **91 `.tsv` files, 90
+   row-bearing, 3,495 rows**, in twenty modes — `canon` 799, `errc`
+   615, `gen` 579, `gens` 531, `err` 252, `errcode` 111, `subsume` 101,
    `query` 92, `vet` 88, `why` 54, `jsonschema` 54, `hcanon` 43,
    `patch` 42, `relation` 35, `graph` 28, `diff` 28, `reaches` 13,
    `hash` 12, `trim` 11, `agentsmd` 7.
@@ -368,14 +368,27 @@ ADR-007), and its `D1-a` recommendation is what the engine does; its
 **N1**/**N2** landed as capabilities under function syntax
 (`min`/`max`/`above`/`below`/`neq`/`re`) rather than the CUE operators
 it proposed, which is why the lexing break its §10 budgeted for never
-happened; its `D6-a` string bounds are in. **N3** key-pattern constraints
+happened; its `D6-a` string bounds are in. **The operator spellings are
+now declined outright** —
+[ADR-008](../../ADR.md#adr-008--constraints-are-named-not-spelled-with-operators),
+2026-08-28: constraints are named, not spelled with operators, and
+adopting them later needs a new ADR. That settles a question this
+register had left open, and narrows §45 (below) to one remaining repair.
+**N3** key-pattern constraints
 (`&"^env_"` is a parse error in both ports) are **DEFERRED as of
 2026-08-28 by maintainer decision** — a choice, not a blockage: `re`
 supplies the pattern machinery and `&:` spreads the scoping point, so
 nothing is missing but the decision to build it. The sized-integer sugar
-(`int8` is the bare string `"int8"`) is likewise unbuilt and likewise
-unblocked, but carries no such decision. This phase set never scoped
-either.
+(`int8` is the bare string `"int8"`) is **not being built, because the
+language already expresses it**: a `type()`-marked block of named
+constraint aliases gives `uint8`, `port` and anything else without a
+keyword, emits nothing, and unlike a closed list of built-in names it
+composes — an alias may be defined in terms of another, or narrowed
+where it is used. Verified in both ports and pinned by
+`test/spec/constraint-alias.tsv` (8 rows); documented normatively in
+`docs/reference-language.md` "Named constraint aliases" and as a task in
+`docs/how-to.md` "Name a reusable constraint", both executed by
+`ts/test/docs.test.ts`. This phase set never scoped either item.
 
 **One defect the note named is still live, and this register should not
 imply otherwise.** Its row 7 — `a: >10` lexing as the string `">10"`,
@@ -385,6 +398,11 @@ well-formed wrong config" — is unchanged: `port: >=1024` evaluates to
 syntax removed the *need* to reuse `>` without changing what `>`
 currently does, so the capability landed while the defect that motivated
 it went unaddressed. [`use-cases/BUGS.md`](../../use-cases/BUGS.md) §45.
+ADR-008 does not close it: declining the sugar settles what `>=1024`
+will never mean, not what it does now. The one repair that ADR admits —
+refuse a bare string leading with `> < = !` and name the atom to use —
+is still an open choice, and a smaller break than the one declined,
+since it removes a spelling rather than repurposing one.
 
 **And one this review found while reconciling — now FIXED, 2026-08-28.**
 A `&:` element spread occupied an index slot in the TypeScript port's
@@ -401,7 +419,7 @@ aontu's four `elem` alternatives contribute no element; the array slot
 they occupy was already given back by `restorePairSlot`, the path index
 was not. The `elem` rule now rewinds it and re-paths the child — the
 twin of the correction the `pair` rule already carried for map spreads.
-Pinned by ten rows in `test/spec/spread-list.tsv`, every expectation
+Pinned by nine rows in `test/spec/spread-list.tsv`, every expectation
 probed through both engines; reverting the fix fails exactly four of
 them. [`use-cases/BUGS.md`](../../use-cases/BUGS.md) §44.
 
@@ -425,7 +443,7 @@ agreed while the paths differed. The §44 rows demonstrate it from the
 inside — reverting the fix leaves `spread-list-elem-path-code` passing
 while the four path rows fail. The path is the field G7's machine
 surface hands to agents, and it is the least-asserted thing in the
-report. Ten rows now assert one; §46 and §47 are what the other
+report. Nine rows now assert one; §46 and §47 are what the other
 7,664 do not see.
 
 ## G2 — the validation verb

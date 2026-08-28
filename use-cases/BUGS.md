@@ -1206,6 +1206,42 @@ rather than the member. Minor because the refusal itself is correct in
 both ports and the code is identical, so only a caller navigating by
 path is misled.
 
+### 48. A violated composed constraint names a different residual in each port [minor]
+Found while verifying the named-constraint-alias idiom for
+`docs/reference-language.md`. When an alias reference is met with a
+further constraint at the point of use and the value violates the
+result, both ports refuse with the same code and the same path — and
+then explain it differently:
+
+```
+$ echo 'type:type({}) type:{u8:integer&min(0)&max(255)} a:$.type.u8&max(15) a:20' | aontu
+Cannot unify value: 20 with value: integer&min(0)&max(15)    # TypeScript, sited at the reference
+Cannot unify value: 20 with value: max(15)                   # Go, sited at the local atom
+```
+
+TypeScript names the **merged residual** — what the value actually had
+to satisfy — and Go names only the **local atom** it was checking when
+it refused. TypeScript's is the more useful answer and, on the reading
+that a conflict should state the whole constraint the peer failed, the
+correct one: `20` does not violate `integer&min(0)`, it violates the
+meet.
+
+Same shape as §41, §44 and §47 — right verdict, partial explanation —
+which makes four in that family. This one costs the least, since the
+code, the path and the accept/reject decision all agree; only the
+`expected` half of the finding differs, and `vet --format json` carries
+that as `expected`.
+
+**Enforcement is not affected, and was checked separately.** Every
+accepting case agrees byte-for-byte across both ports (`a:12`, `a:15`,
+alias-of-alias `a:42`), and every violating case refuses in both. The
+composition itself is sound in both engines; it is only the sentence
+that differs.
+
+Pinned around, not over: `test/spec/constraint-alias.tsv` carries the
+accepting composition rows and says in a comment why the violating one
+is absent — a row must pass in both ports.
+
 ## relations — a graph one port can only partly see
 
 ### 42. Go's derived graph loses most of its edges on a two-view model [critical]
@@ -1296,6 +1332,16 @@ disagreement that plain evaluation shows too, now recorded in
 ## constraint-syntax — the notation the constraint algebra did not claim
 
 ### 45. CUE-style constraint operators lex as bare strings, so a schema written in them enforces nothing [critical, by design]
+**Status: NARROWED 2026-08-28, not fixed.**
+[ADR-008](../ADR.md#adr-008--constraints-are-named-not-spelled-with-operators)
+declines CUE's operator spellings outright: constraints are named, not
+spelled with operators. That removes one of the two ways this could have
+been closed — making `>=1024` *mean* `min(1024)` — and leaves the other:
+**refuse** a bare string whose first character is one of `> < = !` and
+name the atom to use. That refusal is the only repair consistent with
+the ADR, and it is still an open choice. Until it is taken, everything
+below remains true of the shipped engine.
+
 `>10`, `>=10`, `<5`, `!=0` and `=~"^ab"` are all legal aontu — as
 **strings**. A schema written in them parses, evaluates, validates
 nothing and exits 0:
@@ -1343,7 +1389,10 @@ A fix has a cheap form that needs no new syntax and breaks nothing that
 is not already broken: refuse a bare string whose first character is one
 of `> < = !` and name the atom to use. That is a language change with
 its own spec rows in both ports, so it is recorded here rather than
-taken as part of a documentation pass.
+taken as part of a documentation pass. It is also, after ADR-008, the
+only form left — and note it is still a *break*, just a smaller one: a
+document today holding `a: ">10"` unquoted would start failing. Quoted
+strings are unaffected.
 
 ## Elsewhere in this review
 
