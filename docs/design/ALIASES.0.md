@@ -522,6 +522,64 @@ The include carries *values* down, never the includer's names. Without
 that rule an alias would be a dynamic scope, and a file's meaning would
 depend on who included it.
 
+### Where a declaration may sit, and who decides
+
+A declaration must sit at the **document** root. Not the *file* root —
+the document's — and the difference is the whole of this rule:
+
+```
+x: { %a: 1 }                   # refused: alias_not_toplevel at $.x.%a
+```
+
+`%a` resolves from the root, so a nested declaration would be erased
+from the output (it *is* a declaration) and still unreachable by any
+reference (it is *not* at the root) — a name that silently exists
+nowhere. Refusing it is the better of the two.
+
+**The parse cannot decide this, so it does not try.** Both ports collect
+`%name` keys as they walk and refuse on the *value*, in `MapVal.unify`,
+because an included file's declarations are at the root of their own
+text and only once the loaded map is *placed* does it become apparent
+that root is not the document's:
+
+```
+# f.aon
+%b: integer & min(1)
+q: %b
+q: 7
+```
+
+```
+a: @"f.aon"                    # refused: alias_not_toplevel at $.a.%b
+```
+
+That refusal is not pedantry about position. Left writable, `%b` in the
+*includer* is what the included file's own `%b` would reach — the
+cross-file capture the sigil exists to prevent, arriving one level up.
+
+Spliced at the root, the same file is accepted, and for a reason that
+is not a special case:
+
+```
+@"f.aon"
+x: 1
+```
+
+```
+{ "q": 7, "x": 1 }
+```
+
+There is one root map, so there is no second scope for a name to leak
+out of: the declaration is a declaration *of this document*, which is
+exactly what it says it is. Two documents unified are one document, and
+a name declared in either is declared in the result — the same additive
+rule optional keys and spreads already follow. `vet` is where two
+separately parsed roots actually meet, so it is where the rule is
+observable, and `alias-vet-across-documents` is the row.
+
+Rows: `alias-nested-declaration-refused`, `alias-include-at-root-declares`,
+`alias-include-under-key-refused`, `alias-vet-across-documents`.
+
 ### Aliases are not passed to children
 
 Scope is lexical and **does not descend into generated children**. A
@@ -784,16 +842,12 @@ P1 is independently useful and independently shippable: file-local
 aliases with nothing crossing a file boundary is the whole of §2's
 argument, and it can be judged before any of §5–6 is built.
 
-**X-1 gates P1** — whether a declaration is `%foo = …` or simply
-`%foo: …` — because that is the difference between a proposal carrying a
-lexing break and one carrying none, and it cannot be deferred into
-implementation. §10's third option would make the whole compatibility
-section moot; it deserves a proper look before P1 rather than a guess
-during it.
-
-**T-1 gates P1 too**, and less obviously: the expansion budget has to be
-designed with the expander, not bolted on after. A budget charged before
-evaluation is a different program from one that counts as it goes.
+X-1 and T-1 both gated P1 when this note was written, and both were
+answered rather than deferred: X-1 by taking the third option, which
+removed the lexing break the compatibility section was written about,
+and T-1 by P1 being single-file, which bounds expansion by one file.
+They return as gates on P2 unchanged — the destructure needs `=`, and
+imported aliases make expansion unbounded again.
 
 `export` and the destructure are one phase: the destructure *is* how a
 name crosses, so neither is useful without the other.

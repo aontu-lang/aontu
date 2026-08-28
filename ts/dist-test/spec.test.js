@@ -286,6 +286,8 @@ const TRUST_FILES = {
     // rows run under the same fixture root for the same reason file.tsv's
     // do: no row may read outside the repository.
     'mod.tsv': true,
+    // alias.tsv's two include rows load a fixture, for the same reason.
+    'alias.tsv': true,
 };
 function rowAontu(row) {
     return new aontu_1.Aontu(null != row.file && true === TRUST_FILES[row.file]

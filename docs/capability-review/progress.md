@@ -412,7 +412,22 @@ document written with aliases and its longhand twin must hash to one
 string, and `hcanon` is a separate renderer that does not inherit
 canon's filter.
 
-Pinned by `test/spec/alias.tsv` (27 rows, every expectation probed
+One rule is not the reference machinery and had to be decided:
+**a declaration sits at the root of the DOCUMENT, not of the file.**
+The parse cannot see the difference — an included file's declarations
+are at the root of its own text, and only once the loaded map is
+*placed* does it become apparent that root is not the document's — so
+both ports collect `%name` keys as they walk and refuse on the value,
+in `MapVal.unify`. That single rule then decides all three shapes:
+`x: {%a: 1}` refused, `a: @"f.aon"` refused (left writable, the
+includer's `%b` is what `f.aon`'s own `%b` would reach), and `@"f.aon"`
+spliced at the root accepted, because one root map is one document with
+no second scope to leak out of. The Go port originally carried a
+syntactic twin of this check at the parse as well; it decided the
+nested case one column off from TS and left the value-level rule
+unexercised, and removing it made the two ports agree byte for byte.
+
+Pinned by `test/spec/alias.tsv` (38 rows, every expectation probed
 through both engines), including the hash pair that states the erasure
 as an equality rather than an absence. Documented in
 `docs/reference-language.md` "Aliases", executed by `docs.test.ts`.

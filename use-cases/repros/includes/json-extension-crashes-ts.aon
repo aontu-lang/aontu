@@ -1,0 +1,21 @@
+# 49(b): the `.json` extension is the one that neither parses nor
+# stringifies — TypeScript raises an unhandled internal error with no
+# code, no path and no site (the §43 shape: a harness grepping
+# `[aontu/` sees nothing at all). Go parses it.
+#
+# run: node ../../../ts/bin/aontu.js json-extension-crashes-ts.aon
+# run: aontu-go json-extension-crashes-ts.aon
+#
+# expected: a located refusal, or the value — the same one in both.
+#
+# actual (TypeScript):
+#   Aontu: unexpected error: Cannot convert object to primitive value
+# actual (Go):
+#   {"vocab":{"@context":{"name":"http://schema.org/name"},"name":"Ada"}}
+#
+# `.json` alone fails this way rather than falling through to text
+# because it is the one extension carrying an upstream default
+# processor. It is also the extension every published vocabulary ships
+# as, which is why docs/design/ONTOLOGY.0.md §3.1 makes this a
+# prerequisite of that note's phase P1.
+vocab: @"vocab.json"

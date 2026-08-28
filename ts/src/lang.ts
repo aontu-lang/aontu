@@ -222,11 +222,15 @@ let AontuJsonic: Plugin = function AontuLang(jsonic: Jsonic) {
     // `%foo` lexes to the reference itself, so in `$.%foo` it arrives
     // as a TERM rather than as a string segment -- both shapes are
     // checked, since a quoted `$."%foo"` would arrive as the string.
+    // Terms here are always Vals -- dropUnfilled has removed the
+    // nulls, and the dot rules never hand over a raw string -- so the
+    // shapes are exactly three: a RefVal (peg is the segment array), a
+    // StringVal (peg is the segment), and anything else (a numeric or
+    // exact segment, which cannot be an alias name).
     for (const t of terms) {
       const segs: any[] =
-        'string' === typeof t ? [t] :
-          (null != t && Array.isArray(t.peg) ? t.peg :
-            (null != t && 'string' === typeof t.peg ? [t.peg] : []))
+        Array.isArray(t.peg) ? t.peg :
+          ('string' === typeof t.peg ? [t.peg] : [])
       for (const seg of segs) {
         if ('string' === typeof seg && ALIAS_RE.test(seg)) {
           return addsite(new NilVal({ why: 'alias_in_path' }), r, ctx)

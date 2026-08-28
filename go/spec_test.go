@@ -191,9 +191,10 @@ func TestSpec(t *testing.T) {
 				// applies the same profile to the same files).
 				// Module resolution reads the filesystem (G6 phase 2),
 				// so mod.tsv's rows run under the same fixture root for
-				// the same reason file.tsv's do.
+				// the same reason file.tsv's do, and alias.tsv's two
+				// include rows for the same reason again.
 				if "include-trust.tsv" == file || "file.tsv" == file ||
-					"mod.tsv" == file {
+					"mod.tsv" == file || "alias.tsv" == file {
 					a.Trust = &TrustOptions{IncludeRoot: fixturesDir}
 				}
 				vars := specVars()

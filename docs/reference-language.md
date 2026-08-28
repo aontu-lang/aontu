@@ -2593,16 +2593,28 @@ and it does not appear in canon — so the file above and the file with
 document and produce the same [`aon1-` hash](#canonical-form). That is
 the whole of what an alias is: a name for a value, and nothing else.
 
-**An alias is not a path segment.** `$.%foo` is refused: the alias
-namespace and the path namespace are disjoint, and an alias is reached
-by writing `%foo` and only that.
+**An alias is not a path segment.** `$.%foo` is refused, at any depth:
+the alias namespace and the path namespace are disjoint, and an alias
+is reached by writing `%foo` and only that.
 
-**Aliases are local to the file that declares them**, and declared at
-the top level of the document. A nested `x: { %a: 1 }` is refused, and
-so is a declaration in an **included** file — an alias resolves from
-the document root, so an included file's own `%b` would otherwise reach
-the *including* file's `%b` instead of its own. A file using aliases
-therefore stands alone; carrying a name across files is what `export`
+**A declaration sits at the root of the document.** A nested
+`x: { %a: 1 }` is refused: `%a` resolves from the root, so a nested
+declaration would be erased from the output (it *is* a declaration) and
+still unreachable by any reference (it is *not* at the root) — a name
+that exists nowhere.
+
+Where the declaration *lands* is what decides this, not where it was
+written, which is what makes the two include shapes differ:
+
+- `a: @"f.aon"` is **refused** if `f.aon` declares an alias. The
+  declaration is at the root of its own file but not of the document,
+  and left writable a `%b` in the *including* file is what `f.aon`'s own
+  `%b` would reach.
+- `@"f.aon"` spliced at the root is **accepted**. There is one root map,
+  so there is no second scope for a name to leak out of, and the
+  declaration is a declaration of that one document.
+
+Carrying a name across a file boundary *deliberately* is what `export`
 will be for, and it is not built.
 
 **The `%` is part of the name.** A quoted `"%a"` is an ordinary key or

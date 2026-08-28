@@ -1298,23 +1298,20 @@ func trackOrder(r *jsonic.Rule, _ *jsonic.Context) {
 	// The TOKEN is what separates them -- a quoted key arrives as TinST,
 	// the alias lexeme as the value token the alias def produced.
 	//
-	// AN ALIAS IS FILE-LOCAL, SO IT IS DECLARED AT FILE LEVEL. A nested
-	// `x: {%a: 1}` is refused rather than accepted, because accepting it
-	// is the worse outcome: `%a` resolves from the ROOT, so a nested
-	// declaration would be erased from the output (it IS a declaration)
-	// and still unreachable by any reference (it is NOT at the root) --
-	// a name that silently exists nowhere.
+	// Recorded on the enclosing map, never on the value, and that is the
+	// point: a reference COPIES the value it resolves to, so a mark
+	// riding the value would erase the referring field too. Being a
+	// property of the map is also what carries it through a meet, the
+	// way optional keys are carried.
 	if r.O0 != nil && r.O0.Tin != jsonic.TinST && aliasRe.MatchString(key) {
-		if aliasAtFileLevel(r) {
-			ak, _ := m[aliasKeysKey].([]string)
-			m[aliasKeysKey] = append(ak, key)
-		} else {
-			en := newNil("alias_not_toplevel")
-			if r.O0 != nil {
-				en.sp = r.O0.SI
-			}
-			m[key] = en
-		}
+		// Always recorded here; whether the map is ALLOWED to carry
+		// declarations is decided on the VALUE (MapVal.Unify), not at the
+		// parse. The parse cannot see it: an INCLUDED file's declarations
+		// are at the root of their own text, and only once the loaded map
+		// is placed does it become apparent that root is not the
+		// document's. Twin of the collection in ts/src/lang.ts.
+		ak, _ := m[aliasKeysKey].([]string)
+		m[aliasKeysKey] = append(ak, key)
 	}
 
 	// An optional pair (key?:value): the custom alt bypasses jsonic's
@@ -1393,17 +1390,21 @@ func keyOf(t *jsonic.Token) string {
 // than a string segment; a quoted `$."%foo"` arrives as the string.
 // Both shapes are checked. Twin of the guard in ts/src/lang.ts dotRef.
 func refuseAliasSegment(terms []any, r *jsonic.Rule) *NilVal {
+	// Terms here are always Vals, and the shapes are exactly two that
+	// can carry a name: a RefVal (whose peg is the segment list) and a
+	// StringVal (whose peg is the segment). Anything else is a numeric
+	// or exact segment, which cannot be an alias name.
 	bad := false
 	for _, t := range terms {
 		switch seg := t.(type) {
-		case string:
-			bad = bad || aliasRe.MatchString(seg)
 		case *RefVal:
 			for _, p := range seg.peg {
 				if ps, ok := p.(string); ok && aliasRe.MatchString(ps) {
 					bad = true
 				}
 			}
+		case *ScalarVal:
+			bad = bad || aliasRe.MatchString(seg.Canon())
 		}
 	}
 	if !bad {
@@ -1415,24 +1416,6 @@ func refuseAliasSegment(terms []any, r *jsonic.Rule) *NilVal {
 	}
 	stampSrc(nv, r)
 	return nv
-}
-
-// aliasAtFileLevel reports whether this pair rule sits at the document
-// root, which is where an alias declaration belongs.
-//
-// The TS twin reads `rule.k.path.length`, the key path @tabnas/path
-// maintains; this port has no such field on the rule, so it asks the
-// equivalent question of the rule stack: a pair is nested exactly when
-// some ANCESTOR is also a pair, because that ancestor's key is what
-// would sit above it in the path. Same answer, from what each engine
-// actually carries.
-func aliasAtFileLevel(r *jsonic.Rule) bool {
-	for a := r.Parent; a != nil; a = a.Parent {
-		if "pair" == a.Name {
-			return false
-		}
-	}
-	return true
 }
 
 // tsTextCheck reproduces the TS lexer's treatment of quote characters
