@@ -42,6 +42,22 @@ implementations and requiring them to agree — never copied out of one:
 expectation from one engine's output is how a divergence gets baselined
 as the contract (AGENTS.md, "The parity probe").
 
+## Releasing
+
+Two artifacts, two version series, one workflow file — and half of it is
+irreversible, so the process has guards rather than steps to remember.
+[`docs/release-and-tag.md`](docs/release-and-tag.md) is the whole story;
+the short version is:
+
+```sh
+make publish V=0.53.0 GOV=0.2.0   # npm version, Go module version
+```
+
+That bumps, runs both suites, pushes `main`, and dispatches the publish
+workflow, which publishes to npm over OIDC and then writes both tags.
+Never run `npm run repo-publish` locally: it publishes over a token and
+bypasses trusted publishing entirely.
+
 ## Where use-cases/ fits
 
 [use-cases/](use-cases/) is the executable review: eleven enterprise
