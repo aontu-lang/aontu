@@ -1526,6 +1526,76 @@ discoverable from a document that silently accepted `>=1024`.
 *(The original entry proposed refusing such bare strings. Withdrawn —
 see the Status note above.)*
 
+## includes — what an included file's EXTENSION decides
+
+### 49. An include's extension decides the answer, and the two ports decide differently [critical]
+`@"file"` reads a file. What the engine does with the bytes depends on
+the file's extension, and the two ports have different rules — so the
+same document and the same file evaluate to different values. One
+extension crashes TypeScript outright.
+
+Probed with the identical file content `{"a":1,"b":{"c":2}}` under six
+names, both ports, at `claude/aontu-dev-setup-plan-uvsj50`:
+
+| file | TypeScript | Go | |
+|---|---|---|---|
+| `v.aon` | `{"x":{"a":1,"b":{"c":2}}}` | same | **the only match** |
+| `v.json` | `Aontu: unexpected error: Cannot convert object to primitive value` | `{"x":{"a":1,"b":{"c":2}}}` | crash vs. value |
+| `v.jsonld` | `{"x":"{\"a\":1,\"b\":{\"c\":2}}\n"}` | `{"x":{"a":1,"b":{"c":2}}}` | string vs. map |
+| `v.txt` | string | map | |
+| `v.dat` | string | map | |
+| `vnoext` | string | map | |
+
+Two separate defects, and it is worth keeping them apart:
+
+**(a) The parity break.** TypeScript parses an include as Aontu source
+only for `.aon` and `.aontu`, and hands back every other file as its raw
+TEXT — a `StringVal` holding the bytes. Go parses every include as Aontu
+source whatever it is called. The cause is one line on each side:
+`ts/src/lang.ts` registers `processor: {aontu, aon}`, while
+`go/source.go`'s `msOptions` also registers the empty kind `""`, which
+is the fallback for an unrecognised extension. Either rule is
+defensible; having both is not, and ADR-001 says so.
+
+**(b) The crash.** `.json` is the one extension where TypeScript neither
+parses nor stringifies: it raises an unhandled internal error with no
+code, no path and no site — the §43 shape again, a harness grepping
+`[aontu/` sees nothing. `.json` is also the extension with an upstream
+default processor, which is why it alone fails this way rather than
+falling through to text.
+
+**Why this is graded critical rather than cosmetic.** It is the shape
+that produces a well-formed WRONG document: `schema: @"vocab.jsonld"`
+gives a map in Go and a string in TypeScript, and both exit 0. A
+document that pins a vendored vocabulary would validate against the
+vocabulary in one port and against a 40 KB string in the other.
+
+It also blocks work already designed:
+[`docs/design/ONTOLOGY.0.md`](../docs/design/ONTOLOGY.0.md) §3.1 makes
+it a prerequisite of that note's phase P1, because **every** vocabulary
+it wants to import ships as `.json` or `.jsonld` — schema.org's release
+is `schemaorg-current-https.jsonld`, microformats2 parsers emit JSON,
+DCMI publishes RDF serialisations. The one extension that crashes is the
+one that work needs most.
+
+Deciding it needs a ruling, not just a fix: whether a non-`.aon`
+include is Aontu source (Go's rule, which makes JSON work because JSON
+is a subset of the grammar), raw text (TypeScript's rule, which makes
+`@"notes.txt"` a string literal), or a refusal naming the extension.
+Whichever is chosen, both ports and a shared spec row.
+
+Repros: [`repros/includes/extension-decides-the-value.aon`](repros/includes/extension-decides-the-value.aon)
+for (a) and
+[`repros/includes/json-extension-crashes-ts.aon`](repros/includes/json-extension-crashes-ts.aon)
+for (b), with the byte-identical `vocab.json` / `vocab.jsonld` pair
+beside them.
+
+A narrower form of this was recorded in [REVIEW.md](REVIEW.md) —
+"`@"file.json"` includes yielding `{}` silently at top level and a raw
+TypeError nested". This entry supersedes it: the top-level `{}` was one
+symptom of the text reading, and the divergence covers every extension,
+not only `.json`.
+
 ## Elsewhere in this review
 
 Defects verified earlier in the effort and recorded in

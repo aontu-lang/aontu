@@ -48,6 +48,11 @@ const reservedKeyPrefix = "\x00aontu_"
 const orderKey = reservedKeyPrefix + "order"
 const spreadKey = reservedKeyPrefix + "spread"
 const optionalKey = reservedKeyPrefix + "optional"
+
+// aliasKeysKey is the sentinel holding this map's ALIAS DECLARATIONS
+// -- `%name:` pairs, which bind a file-local name and are not fields
+// of the document. Twin of aontu_alias_keys in ts/src/lang.ts.
+const aliasKeysKey = reservedKeyPrefix + "aliaskeys"
 const posKey = reservedKeyPrefix + "pos"
 
 // srcKey rides beside posKey: the map rule's open-token SOURCE TEXT,
@@ -242,6 +247,43 @@ help isolate the syntax error.`,
 				// number matcher (which declines `0d…` as not fully
 				// numeric) and the dot token that would otherwise split
 				// `0d1.5` into a path reference. See exactLiteralRe.
+				// THE ALIAS SIGIL (docs/design/ALIASES.0.md §4). `%` is
+				// part of an alias's name, so the name is one lexeme
+				// wherever it appears and its meaning is decided by
+				// POSITION: a binding in key position (`%uint8: …`
+				// declares), a use in value position (`listen: %uint8`
+				// refers). Consume claims the run whole for the same
+				// reason the exact literal below does -- the text
+				// matcher's ender set would otherwise carve the `%` off
+				// and leave a bare `uint8`, which is precisely the
+				// capture the sigil exists to prevent.
+				//
+				// A key is taken from the token's SOURCE, so one lexeme
+				// serves both positions. Mirrors the alias arm of the
+				// text check hook in ts/src/lang.ts.
+				"alias": {
+					Match:   aliasRe,
+					Consume: true,
+					ValFunc: func(m []string) any {
+						name := m[0]
+						return jsonic.TokenValFunc(func(r *jsonic.Rule, _ *jsonic.Context) any {
+							// AN ALIAS REFERENCE IS A PATH REFERENCE:
+							// `%uint8` is `$.%uint8`, root-absolute and
+							// one segment. Order independence,
+							// alias-of-alias, redeclaration unifying and
+							// cycle refusal spanning both namespaces are
+							// then the reference machinery the language
+							// already has, not a second resolver.
+							rv := newRef([]any{name}, false)
+							rv.absolute = true
+							if r.ON > 0 {
+								rv.sp = r.O0.SI
+							}
+							stampSrc(rv, r)
+							return rv
+						})
+					},
+				},
 				"exact": {
 					Match:   exactLiteralRe,
 					Consume: true,
@@ -674,6 +716,20 @@ func kindDef(k Kind) *jsonic.ValueDef {
 // produce new values. A site span must NOT travel that way -- a value
 // minted by unification occupies no source text -- so the two are
 // stored apart even where a scalar literal makes them equal.
+// bagIsBraceless reports a map or list that was opened WITHOUT its
+// brace -- the implicit top-level map. The open token's source text is
+// the discriminator: `{` or `[` for a braced bag, the first key or
+// element for an implicit one. Used by the `star-prefix` guard.
+func bagIsBraceless(v Val) bool {
+	switch v.(type) {
+	case *MapVal:
+		return "{" != v.srctext()
+	case *ListVal:
+		return "[" != v.srctext()
+	}
+	return false
+}
+
 func stampSrc(v Val, r *jsonic.Rule) {
 	if nil == v || 0 >= r.ON {
 		return
@@ -990,6 +1046,12 @@ func allDigits(s string) bool {
 //	           D3's rejected forms fall through to the ordinary grammar
 //	0d-5    -> the literal never sees the `-`: the sign belongs BEFORE
 //	           the prefix (`-0d5`)
+//
+// aliasRe matches an alias name: the sigil and an identifier. Kept
+// byte-identical to ALIAS_RE in ts/src/lang.ts so the two ports cannot
+// drift on what an alias name is.
+var aliasRe = regexp.MustCompile(`^%[A-Za-z_][A-Za-z0-9_]*`)
+
 var exactLiteralRe = regexp.MustCompile(
 	`^0[dD]([0-9](?:_?[0-9])*)(?:\.([0-9](?:_?[0-9])*))?(?:[eE]([-+]?[0-9](?:_?[0-9])*))?`)
 
@@ -1230,6 +1292,28 @@ func trackOrder(r *jsonic.Rule, _ *jsonic.Context) {
 			`"\x00aontu_"`)
 	}
 
+	// A DECLARATION IS A PAIR WHOSE KEY IS AN ALIAS NAME. The key TEXT
+	// alone cannot be the test: a quoted `"%a": 1` is an ordinary key
+	// that merely starts with the sigil, and erasing it would be wrong.
+	// The TOKEN is what separates them -- a quoted key arrives as TinST,
+	// the alias lexeme as the value token the alias def produced.
+	//
+	// Recorded on the enclosing map, never on the value, and that is the
+	// point: a reference COPIES the value it resolves to, so a mark
+	// riding the value would erase the referring field too. Being a
+	// property of the map is also what carries it through a meet, the
+	// way optional keys are carried.
+	if r.O0 != nil && r.O0.Tin != jsonic.TinST && aliasRe.MatchString(key) {
+		// Always recorded here; whether the map is ALLOWED to carry
+		// declarations is decided on the VALUE (MapVal.Unify), not at the
+		// parse. The parse cannot see it: an INCLUDED file's declarations
+		// are at the root of their own text, and only once the loaded map
+		// is placed does it become apparent that root is not the
+		// document's. Twin of the collection in ts/src/lang.ts.
+		ak, _ := m[aliasKeysKey].([]string)
+		m[aliasKeysKey] = append(ak, key)
+	}
+
 	// An optional pair (key?:value): the custom alt bypasses jsonic's
 	// value storage, so store the value ourselves and record the key.
 	// A duplicate key merges into a conjunct exactly like the Map.Merge
@@ -1288,6 +1372,50 @@ func keyOf(t *jsonic.Token) string {
 		}
 	}
 	return t.Src
+}
+
+// refuseAliasSegment refuses an ALIAS NAME USED AS A PATH SEGMENT --
+// `$.%foo` -- returning the nil to raise, or nil when the terms are
+// clean. The alias namespace and the path namespace are disjoint: an
+// alias is reached by writing `%foo` and only that.
+//
+// The engine spells an alias reference AS a root reference to the
+// declaration, which is what gives it order independence and a cycle
+// check shared with paths -- but that is an implementation of the name,
+// not a second way to write it. Left writable, `$.%b` inside an
+// INCLUDED file would reach the includer's `%b` rather than its own,
+// which is the cross-file capture the sigil exists to prevent.
+//
+// `%foo` lexes to the reference itself, so it arrives as a TERM rather
+// than a string segment; a quoted `$."%foo"` arrives as the string.
+// Both shapes are checked. Twin of the guard in ts/src/lang.ts dotRef.
+func refuseAliasSegment(terms []any, r *jsonic.Rule) *NilVal {
+	// Terms here are always Vals, and the shapes are exactly two that
+	// can carry a name: a RefVal (whose peg is the segment list) and a
+	// StringVal (whose peg is the segment). Anything else is a numeric
+	// or exact segment, which cannot be an alias name.
+	bad := false
+	for _, t := range terms {
+		switch seg := t.(type) {
+		case *RefVal:
+			for _, p := range seg.peg {
+				if ps, ok := p.(string); ok && aliasRe.MatchString(ps) {
+					bad = true
+				}
+			}
+		case *ScalarVal:
+			bad = bad || aliasRe.MatchString(seg.Canon())
+		}
+	}
+	if !bad {
+		return nil
+	}
+	nv := newNil("alias_in_path")
+	if r.ON > 0 {
+		nv.sp = r.O0.SI
+	}
+	stampSrc(nv, r)
+	return nv
 }
 
 // tsTextCheck reproduces the TS lexer's treatment of quote characters
@@ -1692,6 +1820,29 @@ func evaluate(r *jsonic.Rule, ctx *jsonic.Context, op *expr.Op, terms []interfac
 			return incompleteNil(r)
 		}
 		inner := asVal(terms[0])
+
+		// A PREFERENCE MARKS A VALUE, AND A BARE KEY IS NOT ONE.
+		// `*a: 1` has no braces, so the prefix took the whole IMPLICIT
+		// map as its operand and the document silently became
+		// `*{"a":1}` -- `*a: 1, b: 2` became a one-element LIST, losing
+		// `b` outright. Neither is anything the author wrote.
+		//
+		// The accident is confined to the first position of the implicit
+		// top-level map, the only place no brace has yet committed the
+		// rule to a map: `{*a: 1}` and `a: 1, *b: 2` are ALREADY parse
+		// errors. A BRACED operand is untouched -- `*{x:1}` and `*[1]`
+		// are the real spelling and the shared spec pins them -- and the
+		// open token's own source text is what separates the two.
+		// Mirrors the same guard in ts/src/lang.ts 'star-prefix'.
+		if bagIsBraceless(inner) {
+			nv := newNil("pref_implicit_bag")
+			if r.ON > 0 {
+				nv.sp = r.O0.SI
+			}
+			stampSrc(nv, r)
+			return nv
+		}
+
 		pv := newPref(inner)
 		// Sited at the `*` itself, as TS's addsite frames it; the inner
 		// value's position is the fallback for a synthetic rule.
@@ -1737,6 +1888,9 @@ func evaluate(r *jsonic.Rule, ctx *jsonic.Context, op *expr.Op, terms []interfac
 		if len(terms) < 1 {
 			return incompleteNil(r)
 		}
+		if nv := refuseAliasSegment(terms, r); nv != nil {
+			return nv
+		}
 		rv := newRef(terms, true)
 		if r.ON > 0 {
 			rv.sp = r.O0.SI
@@ -1747,6 +1901,9 @@ func evaluate(r *jsonic.Rule, ctx *jsonic.Context, op *expr.Op, terms []interfac
 		if len(terms) < 1 {
 			return incompleteNil(r)
 		}
+		if nv := refuseAliasSegment(terms, r); nv != nil {
+			return nv
+		}
 		rv := newRef(terms, false)
 		if r.ON > 0 {
 			rv.sp = r.O0.SI
@@ -1756,6 +1913,18 @@ func evaluate(r *jsonic.Rule, ctx *jsonic.Context, op *expr.Op, terms []interfac
 	case "dollar-prefix":
 		if len(terms) < 1 {
 			return incompleteNil(r)
+		}
+		// A refusal from the dot arms above (an alias used as a path
+		// segment) rides straight through: wrapping it in a var would
+		// replace `alias_in_path` with a var whose peg is a nil.
+		if nv, ok := terms[0].(*NilVal); ok {
+			return nv
+		}
+		// `$%foo` -- the sigil directly after the root -- reaches here
+		// as the alias reference rather than through a dot arm, and is
+		// refused for the same reason.
+		if nv := refuseAliasSegment(terms, r); nv != nil {
+			return nv
 		}
 		// $.a.b -> absolute reference; $name -> variable (the name is
 		// wrapped as a StringVal so canon renders as $"name").
@@ -2063,6 +2232,9 @@ func asValDepth(node any, depth int) Val {
 		}
 		if opt, ok := n[optionalKey].([]string); ok {
 			mv.optional = opt
+		}
+		if ak, ok := n[aliasKeysKey].([]string); ok {
+			mv.aliasKeys = ak
 		}
 		if p, ok := n[posKey].(int); ok {
 			mv.sp = p

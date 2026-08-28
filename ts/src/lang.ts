@@ -188,6 +188,13 @@ const CC_0 = 48
 const CC_d = 100
 const CC_D = 68
 
+// THE ALIAS SIGIL. `%` is part of an alias's name, so the name is one
+// lexeme wherever it appears and its meaning is decided by position:
+// a BINDING in key position (`%uint8: …` declares), a USE in value
+// position (`listen: %uint8` refers). docs/design/ALIASES.0.md §4.
+const CC_PCT = 37
+const ALIAS_RE = /^%[A-Za-z_][A-Za-z0-9_]*/
+
 let AontuJsonic: Plugin = function AontuLang(jsonic: Jsonic) {
 
   jsonic.use(asPlugin(Path))
@@ -199,6 +206,38 @@ let AontuJsonic: Plugin = function AontuLang(jsonic: Jsonic) {
   let dotRef = (r: Rule, ctx: JsonicContext, terms: any, prefix: boolean) => {
     terms = dropUnfilled(terms)
     if (0 === terms.length) return incompleteNil(r, ctx)
+
+    // AN ALIAS IS NOT A PATH SEGMENT. `$.%foo` is refused: the alias
+    // namespace and the path namespace are disjoint, and an alias is
+    // reached by writing `%foo` and only that.
+    //
+    // The engine spells an alias reference AS a root reference to the
+    // declaration -- which is what gives it order independence and a
+    // cycle check shared with paths -- but that is an implementation of
+    // the name, not a second way to write it. Left writable, the two
+    // spellings would drift apart the moment aliases stop being
+    // file-shaped, and `$.%b` inside an included file would reach the
+    // INCLUDER's `%b` rather than its own, which is exactly the
+    // cross-file capture the sigil exists to prevent.
+    // `%foo` lexes to the reference itself, so in `$.%foo` it arrives
+    // as a TERM rather than as a string segment -- both shapes are
+    // checked, since a quoted `$."%foo"` would arrive as the string.
+    // Terms here are always Vals -- dropUnfilled has removed the
+    // nulls, and the dot rules never hand over a raw string -- so the
+    // shapes are exactly three: a RefVal (peg is the segment array), a
+    // StringVal (peg is the segment), and anything else (a numeric or
+    // exact segment, which cannot be an alias name).
+    for (const t of terms) {
+      const segs: any[] =
+        Array.isArray(t.peg) ? t.peg :
+          ('string' === typeof t.peg ? [t.peg] : [])
+      for (const seg of segs) {
+        if ('string' === typeof seg && ALIAS_RE.test(seg)) {
+          return addsite(new NilVal({ why: 'alias_in_path' }), r, ctx)
+        }
+      }
+    }
+
     return addsite(new RefVal({ peg: terms, prefix }), r, ctx)
   }
 
@@ -273,9 +312,47 @@ let AontuJsonic: Plugin = function AontuLang(jsonic: Jsonic) {
       check: (lex: any) => {
         // Guard first, on char codes: this hook runs at every text
         // position, and the common case (any run that cannot be a `0d`
-        // literal) must cost two char reads and no allocation.
+        // literal or an alias) must cost two char reads and no
+        // allocation.
         const pnt = lex.pnt
         const src = lex.src
+
+        // AN ALIAS NAME IS CLAIMED WHOLE, for the same reason the `0d`
+        // run below is: the text matcher's ender regexp would otherwise
+        // carve `%uint8` at the `%` and emit the sigil as its own token,
+        // leaving a bare `uint8` behind -- which is exactly the capture
+        // the sigil exists to prevent. Claiming it here, before that
+        // ender runs, keeps the name one lexeme.
+        //
+        // The token's SOURCE is the whole `%name`, which is what makes
+        // the same lexeme work in both positions: jsonic keys a pair by
+        // the token's source text (`0d1: 5` yields the key `0d1`), so a
+        // declaration reads as the key `%uint8`, while a value position
+        // calls the function below and gets the reference.
+        if (CC_PCT === src.charCodeAt(pnt.sI)) {
+          const ares = ALIAS_RE.exec(lex.refwd())
+          if (null == ares) {
+            return undefined
+          }
+          const asrc = ares[0]
+          const atkn = lex.token(
+            '#VL',
+            // AN ALIAS REFERENCE IS A PATH REFERENCE. `%uint8` is
+            // `$.%uint8`: root-absolute, one segment, spelled with the
+            // sigil the declaration is spelled with. Everything the
+            // design asks of it -- order independence, alias-of-alias,
+            // redeclaration unifying, cycle refusal spanning both
+            // namespaces -- is then the reference machinery already in
+            // the language, not a second resolver beside it.
+            (r: Rule, ctx: JsonicContext) =>
+              addsite(new RefVal({ peg: [asrc], absolute: true }), r, ctx),
+            asrc,
+            pnt)
+          pnt.sI += asrc.length
+          pnt.cI += asrc.length
+          return { done: true, token: atkn }
+        }
+
         if (CC_0 !== src.charCodeAt(pnt.sI)) {
           return undefined
         }
@@ -690,11 +767,50 @@ help isolate the syntax error.`,
 
     'star-prefix': (r: Rule, ctx: JsonicContext, _op: Op, terms: any) => {
       if (null == terms[0]) return incompleteNil(r, ctx)
+
+      // A PREFERENCE MARKS A VALUE, AND A BARE KEY IS NOT ONE.
+      // `*a: 1` has no braces, so the prefix took the whole IMPLICIT
+      // map as its operand and the document silently became
+      // `*{"a":1}` -- `*a: 1, b: 2` became a one-element LIST, losing
+      // `b` outright. Neither is anything the author wrote.
+      //
+      // The accident is confined to the first position of the implicit
+      // top-level map, which is the only place no brace has yet
+      // committed the rule to a map: `{*a: 1}` and `a: 1, *b: 2` are
+      // ALREADY parse errors. This makes the third spelling agree with
+      // them rather than inventing a meaning for it.
+      //
+      // A BRACED operand is untouched, and that is the whole of the
+      // distinction: `*{x:1}` and `*[1]` are the real spelling, they
+      // are what `*{x:1} | *{y:2}` needs, and the shared spec pins them
+      // (11 rows). The open token's own source text is what separates
+      // the two -- `{` or `[` for a braced bag, the first key or
+      // element for an implicit one.
+      const bag: any = terms[0]
+      if ((bag.isMap && '{' !== bag.site.src) ||
+        (bag.isList && '[' !== bag.site.src)) {
+        return addsite(new NilVal({ why: 'pref_implicit_bag' }), r, ctx)
+      }
+
       return addsite(new PrefVal({ peg: terms[0] }), r, ctx)
     },
 
     'dollar-prefix': (r: Rule, ctx: JsonicContext, _op: Op, terms: any) => {
       if (null == terms[0]) return incompleteNil(r, ctx)
+      // A refusal from the dot rule below (an alias used as a path
+      // segment) rides straight through: wrapping it in a VarVal would
+      // replace `alias_in_path` with a var whose peg is a nil.
+      if (terms[0]?.isNil) {
+        return terms[0]
+      }
+      // `$%foo` -- the sigil directly after the root -- reaches here
+      // as the alias reference rather than through the dot rule, and
+      // is refused for the same reason.
+      if (terms[0] instanceof RefVal &&
+        terms[0].peg.some((seg: any) =>
+          'string' === typeof seg && ALIAS_RE.test(seg))) {
+        return addsite(new NilVal({ why: 'alias_in_path' }), r, ctx)
+      }
       // $.a.b absolute path
       if (terms[0] instanceof RefVal) {
         terms[0].absolute = true
@@ -926,6 +1042,8 @@ help isolate the syntax error.`,
 
   const QM = jsonic.token.QM
 
+  const VL = jsonic.token.VL
+
   const OPTKEY = [TX, ST, NR]
 
 
@@ -1067,6 +1185,7 @@ help isolate the syntax error.`,
 
       .bc((r: Rule, ctx: JsonicContext) => {
         const optionalKeys = r.u.aontu_optional_keys ?? []
+        const aliasKeys = r.u.aontu_alias_keys ?? []
 
         let mo = r.node
 
@@ -1133,6 +1252,7 @@ help isolate the syntax error.`,
           // TODO: needs addpath?
           let mopv = new MapVal({ peg: mop })
           mopv.optionalKeys = optionalKeys
+          mopv.aliasKeys = aliasKeys
 
           r.node =
             addsite(new ConjunctVal({ peg: [mopv, ...mo.___merge] }), r, ctx)
@@ -1140,6 +1260,7 @@ help isolate the syntax error.`,
         else {
           r.node = addsite(new MapVal({ peg: mo }), r, ctx)
           r.node.optionalKeys = optionalKeys
+          r.node.aliasKeys = aliasKeys
         }
 
         return undefined
@@ -1289,6 +1410,33 @@ help isolate the syntax error.`,
 
       .bc((rule: Rule) => {
         // TRAVERSE PARENTS TO GET PATH
+
+        // A DECLARATION IS A PAIR WHOSE KEY IS AN ALIAS NAME. The lexer
+        // claims `%name` whole and hands it over as a #VL token whose
+        // SOURCE is the name, so the key TEXT alone cannot be the test:
+        // a quoted `"%a": 1` is an ordinary key that merely starts with
+        // the sigil, and erasing that would be wrong. The token is what
+        // separates them.
+        //
+        // Recorded on the enclosing map, never on the value, and that is
+        // the point: a reference COPIES the value it resolves to, so a
+        // mark riding the value would erase the referring field too.
+        // Being a property of the map is also what carries it through a
+        // meet, the way optional keys are carried.
+        const ktkn: any = rule.o0
+        if (null != ktkn && VL === ktkn.tin && ALIAS_RE.test('' + ktkn.src)) {
+          const holder: any = rule.parent
+          const aname = '' + ktkn.src
+
+          // Always recorded here; whether the map is ALLOWED to carry
+          // declarations is decided on the VALUE (MapVal.unify), not at
+          // the parse. The parse cannot see it: an INCLUDED file's
+          // declarations are at the root of their own text, and only
+          // once the loaded map is placed does it become apparent that
+          // root is not the document's.
+          holder.u.aontu_alias_keys = (holder.u.aontu_alias_keys || [])
+          holder.u.aontu_alias_keys.push(aname)
+        }
 
         if (rule.u.spread) {
           rule.node[SPREAD] =

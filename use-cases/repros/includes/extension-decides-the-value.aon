@@ -1,0 +1,21 @@
+# 49: an included file's EXTENSION decides what the engine does with
+# the bytes, and the two ports decide differently. The file content
+# here is identical in vocab.json and vocab.jsonld; only the name
+# differs.
+#
+# run: node ../../../ts/bin/aontu.js extension-decides-the-value.aon
+# run: aontu-go extension-decides-the-value.aon
+#
+# expected: one value, both ports.
+#
+# actual (TypeScript): the file's raw TEXT as a string —
+#   {"jsonld":"{\"@context\":{\"name\":\"http://schema.org/name\"},…"}
+# actual (Go): the file PARSED as Aontu source —
+#   {"jsonld":{"@context":{"name":"http://schema.org/name"},"name":"Ada"}}
+#
+# TypeScript parses an include as source only for `.aon`/`.aontu`
+# (ts/src/lang.ts, `processor: {aontu, aon}`); Go also registers the
+# empty kind "" (go/source.go, msOptions), which is the fallback for an
+# unrecognised extension. Same split for `.txt`, `.dat` and a name with
+# no extension at all. `.aon` is the only extension both ports agree on.
+jsonld: @"vocab.jsonld"

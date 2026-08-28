@@ -56,7 +56,15 @@ function render(v, inh) {
     };
     let s;
     if (true === v.isMap) {
-        const keys = Object.keys(v.peg).sort(keyorder_1.cmpCodePoint);
+        // Alias declarations are dropped here for the same reason
+        // MapVal.canon drops them, and this is the surface where it counts:
+        // `aon1-` pins MEANING, so a document written with aliases and the
+        // same document written longhand must hash to one string. Two
+        // renderers, one rule -- hcanon is not canon and does not inherit
+        // the filter (docs/design/ALIASES.0.md §4).
+        const keys = Object.keys(v.peg)
+            .filter((k) => !v.aliasKeys.includes(k))
+            .sort(keyorder_1.cmpCodePoint);
         s = '{' +
             (v.spread.cj ? '&:' + render(v.spread.cj, inner) +
                 (0 < keys.length ? ',' : '') : '') +

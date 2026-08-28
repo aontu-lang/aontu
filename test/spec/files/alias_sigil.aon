@@ -1,0 +1,8 @@
+# A file that declares a `%` ALIAS at its own top level, loaded by
+# alias.tsv's two include rows. Whether the declaration is allowed is
+# decided where the loaded map LANDS, not here: spliced at the root it
+# is a declaration of the one document, and placed under a key it is a
+# declaration that is not at the root, which is refused.
+%b: integer & min(1)
+q: %b
+q: 7

@@ -54,6 +54,13 @@ Two cautions:
   `spread-list.tsv`, the new `container-path.tsv`, and
   `constraint-alias.tsv`.
 
+- `includes/` (§49, filed 2026-08-28) is the one family here that is
+  **open and unruled**: an included file's extension decides what the
+  engine does with the bytes, and the two ports decide differently.
+  Both entries need a fixture beside them, so the directory carries
+  `vocab.json` and `vocab.jsonld` — byte-identical, differing only in
+  name, which is the whole point.
+
 These are review artifacts. Per ADR-001, the durable home for any
 behaviour contract is a `test/spec/*.tsv` row probed in both ports;
 promoting these repros into rows is follow-up work for maintainers.

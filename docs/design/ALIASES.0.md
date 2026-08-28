@@ -1,9 +1,33 @@
 # Aliases and export — design note
 
-**Status:** Discovery draft. **Nothing here is implemented.**
-This note describes the design as it now stands. `%` is the alias
-sigil, carried through the declaration, the use site, `export`, the
-destructuring form and the shorthand; there is no `import` verb.
+**Status:** **P1 is implemented in both ports** — file-local aliases,
+with canon and hash erasure and the cycle refusals. `export` and the
+destructure (P2) are not. `%` is the alias sigil, carried through the
+declaration, the use site, `export`, the destructuring form and the
+shorthand; there is no `import` verb.
+
+**What P1 turned out to be.** An alias reference IS a path reference:
+`%uint8` is `$.%uint8`, root-absolute and one segment. Everything §4
+asks for then comes from the reference machinery the language already
+had rather than a resolver beside it — order independence,
+alias-of-alias, redeclaration unifying, and a cycle check that spans
+both namespaces because there is only ever one graph. What had to be
+built was the lexeme (so `%name` is one token in both positions) and
+the ERASURE (`MapVal.aliasKeys`, filtered in gen, canon and hcanon).
+Pinned by `test/spec/alias.tsv`, 31 rows, every expectation probed
+through both engines.
+
+**Two rules the implementation forced, both narrowing P1.** `$.%foo` is
+refused — the alias and path namespaces are disjoint, and leaving the
+root spelling writable would let `$.%b` inside an included file reach
+the *includer's* `%b`. And a declaration must sit at the **document**
+root, which is checked on the value rather than at the parse, because
+the parse cannot see it: an included file's declarations are at the
+root of their own text, and only once the loaded map is placed does it
+become apparent that root is not the document's. So **a file using
+aliases stands alone.** Carrying a name across files is exactly what
+`export` is for, and P2 has to answer it rather than inheriting an
+answer by accident.
 **Origin:** Richard Rodger, 2026-08-28, as the general form behind the
 sized-integer question that [ADR-008](../../ADR.md#adr-008--constraints-are-named-not-spelled-with-operators)
 left standing.
@@ -498,6 +522,64 @@ The include carries *values* down, never the includer's names. Without
 that rule an alias would be a dynamic scope, and a file's meaning would
 depend on who included it.
 
+### Where a declaration may sit, and who decides
+
+A declaration must sit at the **document** root. Not the *file* root —
+the document's — and the difference is the whole of this rule:
+
+```
+x: { %a: 1 }                   # refused: alias_not_toplevel at $.x.%a
+```
+
+`%a` resolves from the root, so a nested declaration would be erased
+from the output (it *is* a declaration) and still unreachable by any
+reference (it is *not* at the root) — a name that silently exists
+nowhere. Refusing it is the better of the two.
+
+**The parse cannot decide this, so it does not try.** Both ports collect
+`%name` keys as they walk and refuse on the *value*, in `MapVal.unify`,
+because an included file's declarations are at the root of their own
+text and only once the loaded map is *placed* does it become apparent
+that root is not the document's:
+
+```
+# f.aon
+%b: integer & min(1)
+q: %b
+q: 7
+```
+
+```
+a: @"f.aon"                    # refused: alias_not_toplevel at $.a.%b
+```
+
+That refusal is not pedantry about position. Left writable, `%b` in the
+*includer* is what the included file's own `%b` would reach — the
+cross-file capture the sigil exists to prevent, arriving one level up.
+
+Spliced at the root, the same file is accepted, and for a reason that
+is not a special case:
+
+```
+@"f.aon"
+x: 1
+```
+
+```
+{ "q": 7, "x": 1 }
+```
+
+There is one root map, so there is no second scope for a name to leak
+out of: the declaration is a declaration *of this document*, which is
+exactly what it says it is. Two documents unified are one document, and
+a name declared in either is declared in the result — the same additive
+rule optional keys and spreads already follow. `vet` is where two
+separately parsed roots actually meet, so it is where the rule is
+observable, and `alias-vet-across-documents` is the row.
+
+Rows: `alias-nested-declaration-refused`, `alias-include-at-root-declares`,
+`alias-include-under-key-refused`, `alias-vet-across-documents`.
+
 ### Aliases are not passed to children
 
 Scope is lexical and **does not descend into generated children**. A
@@ -744,23 +826,28 @@ Sketch only, since §9 is open:
 | Phase | Content | Gate |
 |-------|---------|------|
 | P0 | Settle X-1 and T-1 | no code |
-| P1 | Aliases, file-local, with canon erasure and the cycle refusals | the hash row |
+| P1 | ~~Aliases, file-local, with canon erasure and the cycle refusals~~ **LANDED** | the hash row, `alias-hash-erases` + its longhand twin |
 | P2 | `export`, and `{…} = @"…"` destructuring | canon expansion |
+
+**P1 landed with X-1 taken the third way and T-1 not yet needed.** The
+declaration is spelled `%foo: …`, the ordinary key syntax in the
+namespace the sigil creates — so there is no `=` operator, no lexing
+break beyond the sigil itself, and §10's compatibility argument is
+moot for what shipped. T-1 does not bite yet either: without `export`
+there is no cross-file expansion, and the doubling ladder it worries
+about is bounded by one file. **Both remain open for P2**, where the
+destructure needs `=` and imported aliases make expansion unbounded.
 
 P1 is independently useful and independently shippable: file-local
 aliases with nothing crossing a file boundary is the whole of §2's
 argument, and it can be judged before any of §5–6 is built.
 
-**X-1 gates P1** — whether a declaration is `%foo = …` or simply
-`%foo: …` — because that is the difference between a proposal carrying a
-lexing break and one carrying none, and it cannot be deferred into
-implementation. §10's third option would make the whole compatibility
-section moot; it deserves a proper look before P1 rather than a guess
-during it.
-
-**T-1 gates P1 too**, and less obviously: the expansion budget has to be
-designed with the expander, not bolted on after. A budget charged before
-evaluation is a different program from one that counts as it goes.
+X-1 and T-1 both gated P1 when this note was written, and both were
+answered rather than deferred: X-1 by taking the third option, which
+removed the lexing break the compatibility section was written about,
+and T-1 by P1 being single-file, which bounds expansion by one file.
+They return as gates on P2 unchanged — the destructure needs `=`, and
+imported aliases make expansion unbounded again.
 
 `export` and the destructure are one phase: the destructure *is* how a
 name crosses, so neither is useful without the other.

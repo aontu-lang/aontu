@@ -43,6 +43,7 @@ the [Explanation](explanation.md).
 - [Errors](#errors)
 - [The constraint algebra (specified)](#the-constraint-algebra-specified)
   - [Named constraint aliases](#named-constraint-aliases)
+  - [Aliases](#aliases)
 
 ---
 
@@ -2566,3 +2567,95 @@ Cannot unify value: 20 with value: integer&min(0)&max(15)
 `min(0)` are present because `20` still has to satisfy them. That
 normalised form is what `vet --format json` reports as `expected`, and
 what the value's [canon](#canonical-form) states.
+
+### Aliases
+
+The `type()` block above is a *map* of names, so every use spells the
+path to it. An **alias** is the name on its own. `%name:` at the top
+level of a file declares one; `%name` in value position uses it:
+
+```aon
+%port: integer & min(1) & max(65535)
+
+listen: %port
+listen: 8080
+admin:  %port
+admin:  443
+```
+
+```json
+{ "listen": 8080, "admin": 443 }
+```
+
+**The declaration is not part of the document.** It does not generate,
+and it does not appear in canon — so the file above and the file with
+`integer & min(1) & max(65535)` written out at both keys are the same
+document and produce the same [`aon1-` hash](#canonical-form). That is
+the whole of what an alias is: a name for a value, and nothing else.
+
+**An alias is not a path segment.** `$.%foo` is refused, at any depth:
+the alias namespace and the path namespace are disjoint, and an alias
+is reached by writing `%foo` and only that.
+
+**A declaration sits at the root of the document.** A nested
+`x: { %a: 1 }` is refused: `%a` resolves from the root, so a nested
+declaration would be erased from the output (it *is* a declaration) and
+still unreachable by any reference (it is *not* at the root) — a name
+that exists nowhere.
+
+Where the declaration *lands* is what decides this, not where it was
+written, which is what makes the two include shapes differ:
+
+- `a: @"f.aon"` is **refused** if `f.aon` declares an alias. The
+  declaration is at the root of its own file but not of the document,
+  and left writable a `%b` in the *including* file is what `f.aon`'s own
+  `%b` would reach.
+- `@"f.aon"` spliced at the root is **accepted**. There is one root map,
+  so there is no second scope for a name to leak out of, and the
+  declaration is a declaration of that one document.
+
+Carrying a name across a file boundary *deliberately* is what `export`
+will be for, and it is not built.
+
+**The `%` is part of the name.** A quoted `"%a"` is an ordinary key or
+string, and a bare `%` not followed by a name is ordinary text:
+
+```aon
+a: "%foo"
+b: 50%
+```
+
+```json
+{ "a": "%foo", "b": "50%" }
+```
+
+An alias resolves exactly the way a path reference does, which is where
+its properties come from rather than from rules of its own:
+
+- **Order is irrelevant** — a use may precede its declaration.
+- **An alias may name another alias**, and a cycle is refused. So is a
+  cycle that runs through the document (`%a: $.x` with `x: %a`), because
+  there is one reference graph, not two.
+- **Two declarations of one name unify**, exactly as two statements for
+  one key do: `%n: 1` with `%n: integer` is `1`, and `%n: 1` with
+  `%n: 2` is a conflict.
+- **A use of an undeclared name is refused**, naming the name.
+
+Aliases are not passed to generated children: a spread template sees the
+*expansion*, so children are constrained by the value and acquire no
+name.
+
+```aon
+%row: { kind: string, id: integer }
+
+table: {
+  &: %row
+  a: { kind: user, id: 1 }
+  b: { kind: user, id: 2 }
+}
+```
+
+```json
+{ "table": { "a": { "kind": "user", "id": 1 },
+             "b": { "kind": "user", "id": 2 } } }
+```

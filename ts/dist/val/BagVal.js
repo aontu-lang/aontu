@@ -17,6 +17,16 @@ class BagVal extends FeatureVal_1.FeatureVal {
         this.isGenable = true;
         this.closed = false;
         this.optionalKeys = [];
+        // ALIAS DECLARATIONS, by key. `%uint8: …` binds a name for this file
+        // and is not a field of the document: it does not generate and does
+        // not appear in canon, so a document using aliases and its expanded
+        // twin are the SAME document and hash identically
+        // (docs/design/ALIASES.0.md §4).
+        //
+        // Keyed on the map rather than marked on the value, because a
+        // reference copies the value it resolves to -- a mark riding the
+        // value would erase the referring field along with the declaration.
+        this.aliasKeys = [];
         this.spread = {
             cj: undefined,
         };
@@ -121,6 +131,13 @@ class BagVal extends FeatureVal_1.FeatureVal {
             const p = item[0];
             const child = item[1];
             if ((child.mark.type || child.mark.hide) && true !== ctx?.probe) {
+                continue;
+            }
+            // An alias declaration contributes no field, and unlike a marked
+            // one it is skipped even under `probe`: the probe descends
+            // through output marks to check what a `--at` anchor really
+            // holds, and an alias is not part of the document at all.
+            if (this.aliasKeys.includes('' + p)) {
                 continue;
             }
             const optional = this.optionalKeys.includes('' + p);

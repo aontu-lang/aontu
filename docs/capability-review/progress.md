@@ -391,6 +391,52 @@ where it is used. Verified in both ports and pinned by
 `docs/how-to.md` "Name a reusable constraint", both executed by
 `ts/test/docs.test.ts`. This phase set never scoped either item.
 
+**ALIASES (P1) LANDED 2026-08-28**, in both ports, and they are the
+general form the sized-integer question was a special case of: `%port:`
+declares a file-local name and `%port` uses it, with no path to spell
+and no `type()` block to hang it on.
+
+The implementation is smaller than the design note expected, and the
+reason is worth recording: **an alias reference IS a path reference.**
+`%uint8` is `$.%uint8` — root-absolute, one segment, spelled with the
+sigil the declaration is spelled with. Order independence,
+alias-of-alias, redeclaration unifying and cycle refusal are then the
+reference machinery already in the language rather than a second
+resolver beside it, which is also why the MIXED cycle (`%a: $.x` with
+`x: %a`) is refused: there is one reference graph, not two. What had to
+be built was the LEXEME — `%name` is one token, a binding in key
+position and a use in value position — and the ERASURE, which is a
+`MapVal.aliasKeys` list filtered in generation, canon **and hcanon**.
+That third surface is the one that matters: `aon1-` pins meaning, so a
+document written with aliases and its longhand twin must hash to one
+string, and `hcanon` is a separate renderer that does not inherit
+canon's filter.
+
+One rule is not the reference machinery and had to be decided:
+**a declaration sits at the root of the DOCUMENT, not of the file.**
+The parse cannot see the difference — an included file's declarations
+are at the root of its own text, and only once the loaded map is
+*placed* does it become apparent that root is not the document's — so
+both ports collect `%name` keys as they walk and refuse on the value,
+in `MapVal.unify`. That single rule then decides all three shapes:
+`x: {%a: 1}` refused, `a: @"f.aon"` refused (left writable, the
+includer's `%b` is what `f.aon`'s own `%b` would reach), and `@"f.aon"`
+spliced at the root accepted, because one root map is one document with
+no second scope to leak out of. The Go port originally carried a
+syntactic twin of this check at the parse as well; it decided the
+nested case one column off from TS and left the value-level rule
+unexercised, and removing it made the two ports agree byte for byte.
+
+Pinned by `test/spec/alias.tsv` (38 rows, every expectation probed
+through both engines), including the hash pair that states the erasure
+as an equality rather than an absence. Documented in
+`docs/reference-language.md` "Aliases", executed by `docs.test.ts`.
+**P2 — `export` and the `{…} = @"…"` destructure — is not built**, and
+the two open questions gate it rather than P1: X-1 was taken the third
+way (`%foo:`, the ordinary key syntax, so no `=` and no lexing break
+beyond the sigil), and T-1's expansion budget does not bite while
+expansion is bounded by one file.
+
 **One defect the note named turned out not to be one, and this register
 should not imply otherwise.** Its row 7 — `a: >10` lexing as the string `">10"`,
 which it called "worse than unsupported, since it produces a
