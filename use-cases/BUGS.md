@@ -49,16 +49,21 @@ Cross-cutting root causes, visible across families:
    map-argument `must()` are consumed against schema-side values and
    never re-fired against data — vet and one-document eval return
    opposite verdicts for identical compositions.
-   **PARTLY FIXED 2026-08-27 (ADR-007)**: the meet is now built from a
-   FRESH PARSE of the schema, so the fixpoint runs once over both
-   documents and references (§15) — and the `must()` audits on the
-   write path, which is what made `aontu set` accept writes its own
-   policy refuses — see the data. The standalone pass remains, as the
-   diagnosis it always was. What survives is the pair that is an engine
-   defect rather than a staging one: a sizing atom (§16) and a
-   map-argument `must()` (§17) are discharged against the layer they
-   share a conjunct with, and reproduce in a plain two-tree meet.
-   Family: vet-soundness.
+   **FIXED 2026-08-27 (ADR-007), in two parts.** The staging half: the
+   meet is now built from a FRESH PARSE of the schema, so the fixpoint
+   runs once over both documents and references (§15) — and the
+   `must()` audits on the write path, which is what made `aontu set`
+   accept writes its own policy refuses — see the data. The standalone
+   pass remains, as the diagnosis it always was. The engine half, which
+   reproduced in a plain two-tree meet: a sizing atom (§16) and a
+   map-argument `must()` (§17) were discharged against the layer they
+   share a conjunct with. A verdict is now taken only when MORE MEMBERS
+   CANNOT CHANGE IT — everything provisional residuates and is decided
+   at generation, where nothing more can arrive — and a container that
+   cannot be counted yet (every schema, whose members are types) no
+   longer counts as one that passed. `--at` keeps the atom it anchors
+   on, and the verdict is read by finding class rather than by the
+   stage that found it. Family: vet-soundness.
 4. **The provenance recorder only attributes meets on original AST
    nodes** — later spread siblings, pack-generated children, and one
    side of every id-merge see cloned/normalised structures whose meets

@@ -27,7 +27,7 @@
 const Fs = require('node:fs')
 const Path = require('node:path')
 
-const REPO = 'https://github.com/rjrodger/aontu/blob/main/'
+const REPO = 'https://github.com/aontu-lang/aontu/blob/main/'
 
 // [file, from, to]. `file` is relative to the staged tree.
 const REWRITES = [

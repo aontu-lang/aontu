@@ -319,14 +319,17 @@ skin, multi-error collection), and the whole of G5's machinery (the
 trust profile in both ports at every surface, deterministic budgets,
 the include manifest), with shared rows for all of it. Outstanding in
 A: only G5.6's default flip, a next-major release act whose warning
-window already ships. **Phases B and C have since landed too, bar one
-cross-port deliverable** — G7.7's `--jsonl` is unreachable in the Go
-CLI, so G7, and with it Phase B, is complete but for that. This
-paragraph was written before any of the work and is kept only for the
-sequencing rationale above it; the
-[progress register](progress.md#summary) carries the actual state, and
-[`status-2026-08-21.md`](status-2026-08-21.md) carries what driving the
-delivered surface found.
+window already ships. **Phases B and C have since landed too** — G7.7's
+Go `--jsonl` gap, named here when this paragraph was last corrected,
+closed on 2026-08-24, so G5.6 is now the register's only partial and it
+is a release decision rather than more code. This paragraph was written
+before any of the work and is kept only for the sequencing rationale
+above it; the [progress register](progress.md#summary) carries the
+actual state, and the dated status reports carry what driving the
+delivered surface found —
+[`status-2026-08-21.md`](status-2026-08-21.md) for the agent-facing
+surface, [`status-2026-08-27.md`](status-2026-08-27.md) for
+implementing the external language review.
 
 ## Verified codebase facts referenced by the design documents
 
