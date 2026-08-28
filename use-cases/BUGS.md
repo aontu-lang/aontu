@@ -1699,6 +1699,13 @@ template-through-disjunct behaviour (`edge.tsv:edge-spread-disjunct-key`
 but here the non-application is reached FROM a schema an author would
 write in good faith, and nothing says so.
 
+**The design now exists:**
+[`docs/design/RECURSION.0.md`](../docs/design/RECURSION.0.md) — the
+prefix detector's response becomes a recursive residual, expansion is
+per-destination clone instantiation driven by finite data, and regime
+4 is its phase P0 prerequisite. This entry stays open until that note
+lands or is declined.
+
 Fixing this is a design question, not a patch:
 `docs/design/AONTUCONSTRAINTS.0.md` §9 refuses "recursion of any kind"
 for FUNCTIONS on termination grounds, and that refusal is right — but

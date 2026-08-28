@@ -73,6 +73,7 @@ Two cautions:
   is refused (`path_cycle`), broken at depth one (`scalar_kind` naming
   neither the recursion nor the schema), or silently vacuous (the
   spread-template spelling generates at any depth and checks nothing).
+  The design is written: `docs/design/RECURSION.0.md`.
 
 These are review artifacts. Per ADR-001, the durable home for any
 behaviour contract is a `test/spec/*.tsv` row probed in both ports;
