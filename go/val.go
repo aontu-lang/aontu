@@ -11,7 +11,7 @@
 // Coverage note: this port has full parity with the TypeScript language
 // — scalars, scalar kinds, maps (nesting, merge, spreads &:, optional
 // keys, close/open), lists (incl. &: spreads), conjunction (&),
-// disjunction (|), preference (*), references ($.a.b / .x.a / $KEY),
+// disjunction (|), preference (*), references ($.a.b / .x.a),
 // $name variables, the + operator, all eighteen built-in functions
 // (upper/lower/copy/key/pref/super/type/hide/close/open/move/path and
 // the constraint atoms min/max/above/below/neq), type/hide marks and

@@ -309,13 +309,12 @@ service:  timeout: $.defaults.timeout
 { "defaults": { "timeout": 30 }, "service": { "timeout": 30 } }
 ```
 
-A leading `.` is relative to the current object, and `.$KEY` resolves to
-the key the value is stored under — handy for giving records their own
-name:
+A leading `.` is relative to the current object, and `key()` gives the
+key a value is stored under — handy for giving records their own name:
 
 ```aontu
-users: alice: { id: .$KEY }
-users: bob:   { id: .$KEY }
+users: alice: { id: key() }
+users: bob:   { id: key() }
 ```
 
 → `{ "users": { "alice": { "id": "alice" }, "bob": { "id": "bob" } } }`

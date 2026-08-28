@@ -16,4 +16,4 @@ schema: {
   }))
 }
 customers: { "cust-1": id("cust-1") & { } }
-orders: { &: $.schema.Order & { id: .$KEY }, "ord-1": id("ord-1") & { customerId: "cust-1" } }
+orders: { &: $.schema.Order & { id: key() }, "ord-1": id("ord-1") & { customerId: "cust-1" } }

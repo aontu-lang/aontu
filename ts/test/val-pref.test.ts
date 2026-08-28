@@ -494,24 +494,24 @@ describe('val-pref', function() {
   
   
     test('key', () => {
-      // let s0 = 'a:b:1,c:$.a.b$KEY'
+      // let s0 = 'a:b:1,c:$.a.bkey()'
       // let v0 = P(s0)
       // console.log('AAA', v0)
-      // expect(v0.canon).equal('{"a":{"b":1},"c":$.a.b$KEY}')
+      // expect(v0.canon).equal('{"a":{"b":1},"c":$.a.bkey()}')
       // expect(G(s0)).equal({ a: { b: 1 }, c: 'a' })
   
   
-      // let s1 = 'a:.$KEY'
+      // let s1 = 'a:key()'
       // expect(G(s1)).equal({ a: '' })
   
-      let s2 = 'a:b:.$KEY'
+      let s2 = 'a:b:key()'
       expect(G(s2)).equal({ a: { b: 'a' } })
   
-      let s3 = 'a:b:c:.$KEY'
+      let s3 = 'a:b:c:key()'
       expect(G(s3)).equal({ a: { b: { c: 'b' } } })
   
       let s4 = `
-  a: { n: .$KEY, x:1 }
+  a: { n: key(), x:1 }
   b: { c: $.a }
   `
       expect(G(s4)).equal({
@@ -528,20 +528,20 @@ describe('val-pref', function() {
       })
   
       let s5 = `
-  a: { &: { n: .$KEY } }
+  a: { &: { n: key() } }
   `
       expect(G(s5)).equal({ a: {} })
   
       let s6 = `
-  a: { &: { n: .$KEY } }
+  a: { &: { n: key() } }
   a: { b0: {} }
   `
       expect(G(s6)).equal({ a: { b0: { n: 'b0' } } })
   
   
       let s10 = `
-  b: { &: {n:.$KEY} }
-  b: { c0: { k:0, m:.$KEY }}
+  b: { &: {n:key()} }
+  b: { c0: { k:0, m:key() }}
   b: { c1: { k:1 }}
   `
       expect(G(s10))
@@ -554,7 +554,7 @@ describe('val-pref', function() {
   
       // let v1 = P(s1)
       // console.log('AAA', v0)
-      // expect(v0.canon).equal('{"a":{"b":1},"c":$.a.b$KEY}')
+      // expect(v0.canon).equal('{"a":{"b":1},"c":$.a.bkey()}')
       // expect(G(s1)).equal({})
   
     })
@@ -684,51 +684,51 @@ describe('val-pref', function() {
   
   
     test('multi-spreadable-key', () => {
-      expect(G('.$KEY')).equal('')
-      expect(G('k:.$KEY')).equal({ k: '' })
-      expect(G('a:k:.$KEY')).equal({ a: { k: 'a' } })
-      expect(G('a:b:k:.$KEY')).equal({ a: { b: { k: 'b' } } })
+      expect(G('key()')).equal('')
+      expect(G('k:key()')).equal({ k: '' })
+      expect(G('a:k:key()')).equal({ a: { k: 'a' } })
+      expect(G('a:b:k:key()')).equal({ a: { b: { k: 'b' } } })
   
-      expect(G('k:.$KEY k:string')).equal({ k: '' })
-      expect(G('a:k:.$KEY a:k:a')).equal({ a: { k: 'a' } })
-      expect(G('a:k:string a:k:.$KEY a:k:a')).equal({ a: { k: 'a' } })
+      expect(G('k:key() k:string')).equal({ k: '' })
+      expect(G('a:k:key() a:k:a')).equal({ a: { k: 'a' } })
+      expect(G('a:k:string a:k:key() a:k:a')).equal({ a: { k: 'a' } })
   
-      expect(G('&:k:.$KEY')).equal({})
-      expect(G('&:k:.$KEY a:{}')).equal({ a: { k: 'a' } })
-      expect(G('&:k:.$KEY a:{} b:{}')).equal({ a: { k: 'a' }, b: { k: 'b' } })
+      expect(G('&:k:key()')).equal({})
+      expect(G('&:k:key() a:{}')).equal({ a: { k: 'a' } })
+      expect(G('&:k:key() a:{} b:{}')).equal({ a: { k: 'a' }, b: { k: 'b' } })
   
       expect(G('&:k:a &:p:2 a:{x:11}')).equal({ a: { k: 'a', p: 2, x: 11 } })
   
-      // expect(G('&:k:.$KEY &:p:2 a:{x:11}')).equal({ a: { k: 'a', p: 2, x: 11 } })
+      // expect(G('&:k:key() &:p:2 a:{x:11}')).equal({ a: { k: 'a', p: 2, x: 11 } })
       expect(G('&:k:key() &:p:2 a:{x:11}')).equal({ a: { k: 'a', p: 2, x: 11 } })
   
-      // expect(G('&:k:.$KEY &:p:2 a:{x:11} b:{x:22}'))
+      // expect(G('&:k:key() &:p:2 a:{x:11} b:{x:22}'))
       //   .equal({ a: { k: 'a', p: 2, x: 11 }, b: { k: 'b', p: 2, x: 22 } })
   
       expect(G('&:k:key() &:p:2 a:{x:11} b:{x:22}'))
         .equal({ a: { k: 'a', p: 2, x: 11 }, b: { k: 'b', p: 2, x: 22 } })
   
-      expect(G('a:&:n:.$KEY a:b:{}'))
+      expect(G('a:&:n:key() a:b:{}'))
         .equal({ a: { b: { n: 'b' } } })
-      expect(G('a:&:b:&:n:.$KEY a:x:b:y:{}'))
+      expect(G('a:&:b:&:n:key() a:x:b:y:{}'))
         .equal({ a: { x: { b: { y: { n: 'y' } } } } })
   
-      expect(G('&:n:.$KEY a:{}'))
+      expect(G('&:n:key() a:{}'))
         .equal({ a: { n: 'a' } })
-      expect(G('&:a:&:n:.$KEY x:{a:{y:{}}}'))
+      expect(G('&:a:&:n:key() x:{a:{y:{}}}'))
         .equal({ x: { a: { y: { n: 'y' } } } })
   
-      expect(G('a:&:k:.$KEY a:b:{}')).equal({ a: { b: { k: 'b' } } })
-      expect(G('a:&:k:.$KEY a:b:{c:1} x:&:k:.$KEY x:y:{d:2}'))
+      expect(G('a:&:k:key() a:b:{}')).equal({ a: { b: { k: 'b' } } })
+      expect(G('a:&:k:key() a:b:{c:1} x:&:k:key() x:y:{d:2}'))
         .equal({ a: { b: { k: 'b', c: 1 } }, x: { y: { k: 'y', d: 2 } } })
   
-      expect(G('a:&:k:.$KEY a:b:{c:1} x:$.a x:y:{d:2}')).equal({
+      expect(G('a:&:k:key() a:b:{c:1} x:$.a x:y:{d:2}')).equal({
         a: { b: { c: 1, k: 'b' } },
         x: { b: { c: 1, k: 'b' }, y: { d: 2, k: 'y' } }
       })
   
       expect(G(`
-  q: &: { n: .$KEY, m: &: { k: .$KEY } }
+  q: &: { n: key(), m: &: { k: key() } }
   a: q: $.q
   a: q: v: { m: { w:{}, y:{} } }
   `)).equal({
@@ -744,7 +744,7 @@ describe('val-pref', function() {
   a: b: c: d: e: $.a.b.f
   
   a: b: f: &: {
-     n: .$KEY
+     n: key()
      p: *true | boolean
   }
   

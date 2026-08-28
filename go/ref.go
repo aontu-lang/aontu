@@ -249,8 +249,7 @@ func (rv *RefVal) find(ctx *Ctx, snap bool) Val {
 	}
 
 	parts := make([]string, 0, len(rv.peg))
-	var modes []string
-	for i, p := range rv.peg {
+	for _, p := range rv.peg {
 		// An unspellable segment MISSES BEFORE ANY LOOKUP. The marker is
 		// NUL-prefixed because no spelling produces one, but a document
 		// can still hold a key spelled with an escaped NUL
@@ -262,58 +261,42 @@ func (rv *RefVal) find(ctx *Ctx, snap bool) Val {
 			return makeNilErr(ctx, "no_path", rv, nil)
 		}
 		if vv, ok := p.(*VarVal); ok {
-			switch name := varName(vv); name {
-			case "KEY":
-				if i != len(rv.peg)-1 {
-					return nil
+			// EVERY `$name` IN A PATH IS AN ORDINARY VARIABLE, resolved
+			// via the variable table (mirrors part.unify(top()) in ts
+			// RefVal.find); an unknown variable is an error (recorded by
+			// VarVal.Unify via makeNilErr). `$KEY`, `$SELF` and
+			// `$PARENT` used to be intercepted here by name; they are
+			// gone (ADR-009).
+			pv := vv.Unify(top(), ctx)
+			if pv.Nil() {
+				return pv
+			}
+			sv, ok := pv.(*ScalarVal)
+			if !ok {
+				// A non-scalar variable is not a usable path part
+				// (TS coerces to a string that never matches).
+				return makeNilErr(ctx, "no_path", rv, nil)
+			}
+			switch sv.kind {
+			case KindString:
+				parts = append(parts, sv.peg.(string))
+			case KindInteger:
+				parts = append(parts, strconv.FormatInt(sv.peg.(int64), 10))
+			case KindFloat:
+				parts = append(parts, formatNumber(sv.peg.(float64)))
+			case KindBigInteger:
+				// Plain digits, no `0d` marker — see RefVal.append.
+				parts = append(parts, bigIntDigits(sv.peg.(*big.Int)))
+			case KindBigDecimal:
+				parts = append(parts, sv.peg.(*Decimal).digits())
+			case KindBoolean:
+				if sv.peg.(bool) {
+					parts = append(parts, "true")
+				} else {
+					parts = append(parts, "false")
 				}
-				modes = append(modes, "KEY")
-			case "SELF":
-				if i != 0 {
-					return nil
-				}
-				modes = append(modes, "SELF")
-			case "PARENT":
-				if i != 0 {
-					return nil
-				}
-				modes = append(modes, "PARENT")
 			default:
-				// Generic variable part ($name.r): resolve via the
-				// variable table (mirrors the part.unify(top())
-				// resolution in ts RefVal.find); an unknown variable is
-				// an error (recorded by VarVal.Unify via makeNilErr).
-				pv := vv.Unify(top(), ctx)
-				if pv.Nil() {
-					return pv
-				}
-				sv, ok := pv.(*ScalarVal)
-				if !ok {
-					// A non-scalar variable is not a usable path part
-					// (TS coerces to a string that never matches).
-					return makeNilErr(ctx, "no_path", rv, nil)
-				}
-				switch sv.kind {
-				case KindString:
-					parts = append(parts, sv.peg.(string))
-				case KindInteger:
-					parts = append(parts, strconv.FormatInt(sv.peg.(int64), 10))
-				case KindFloat:
-					parts = append(parts, formatNumber(sv.peg.(float64)))
-				case KindBigInteger:
-					// Plain digits, no `0d` marker — see RefVal.append.
-					parts = append(parts, bigIntDigits(sv.peg.(*big.Int)))
-				case KindBigDecimal:
-					parts = append(parts, sv.peg.(*Decimal).digits())
-				case KindBoolean:
-					if sv.peg.(bool) {
-						parts = append(parts, "true")
-					} else {
-						parts = append(parts, "false")
-					}
-				default:
-					return makeNilErr(ctx, "no_path", rv, nil)
-				}
+				return makeNilErr(ctx, "no_path", rv, nil)
 			}
 			continue
 		}
@@ -324,23 +307,13 @@ func (rv *RefVal) find(ctx *Ctx, snap bool) Val {
 		parts = append(parts, s)
 	}
 
-	// $KEY resolves to the enclosing key (the path segment above this node).
-	if containsStr(modes, "KEY") {
-		key := ""
-		if len(rv.path) >= 2 {
-			key = rv.path[len(rv.path)-2]
-		}
-		return newString(key)
-	}
-
 	var refpath []string
 	if rv.absolute {
 		refpath = parts
 	} else {
+		// A relative reference reads from the SIBLING scope: drop this
+		// node's own key and append the written segments.
 		end := len(rv.path) - 1
-		if containsStr(modes, "SELF") {
-			end = 0
-		}
 		if end < 0 {
 			end = 0
 		}
@@ -614,15 +587,6 @@ func varName(vv *VarVal) string {
 		}
 	}
 	return ""
-}
-
-func containsStr(ss []string, s string) bool {
-	for _, x := range ss {
-		if x == s {
-			return true
-		}
-	}
-	return false
 }
 
 // reduceDots collapses parent-navigation markers (".").

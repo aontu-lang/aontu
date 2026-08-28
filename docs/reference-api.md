@@ -1882,7 +1882,7 @@ kinds — including the numeric tower's four leaves (`integer`, `float`,
 `0d` exact literals, and exact arithmetic — maps (nesting, merge,
 spreads `&:`, optional keys, `close`/`open`), lists (incl. spreads),
 conjunction `&`, disjunction `|`, preference `*`, references (`$.a.b`,
-`.x.a`, `.$KEY`), `$name` variables, the `+` operator, all twelve
+`.x.a`), `$name` variables, the `+` operator, all twelve
 functions, `type`/`hide` marks, and `@"…"` source loading — plus
 `parse` / `unify` / `generate` and the canonical form.
 

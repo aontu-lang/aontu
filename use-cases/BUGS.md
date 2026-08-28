@@ -1596,6 +1596,80 @@ TypeError nested". This entry supersedes it: the top-level `{}` was one
 symptom of the text reading, and the divergence covers every extension,
 not only `.json`.
 
+## key() — the enclosing key at a generated or referenced position
+
+### 50. A spread template's `key()`, read through a reference four levels down, refuses in TypeScript and answers in Go [major]
+Found by removing `.$KEY` (ADR-009): the only test covering this shape
+used that spelling, which took the RefVal path and never reached the
+divergence. Translating it to `key()` surfaced this immediately.
+
+```
+a: b: c: d: e: $.a.b.f
+a: b: f: &: {n: key()}
+a: b: f: {x: {}}
+```
+
+```
+$ aontu-go repro.aon
+{"a":{"b":{"c":{"d":{"e":{"x":{"n":"x"}}}},"f":{"x":{"n":"x"}}}}}
+
+$ aontu repro.aon
+[aontu/scalar_value]: Cannot unify values at path $.a.b.f.x.n.n
+ Cannot unify value: "n" with value: "x"
+```
+
+**The path in the TypeScript refusal is the diagnosis.** `$.a.b.f.x.n.n`
+has `n` twice: the spread template is being applied a second time
+*inside* the field it already resolved. `n: key()` answers `"x"` at
+`$.a.b.f.x.n`; the template then meets that string as though it were a
+map, and the inner `n: key()` answers `"n"` — hence `"n"` against `"x"`.
+Five levels gives `$.a.b.f.x.n.e.n`, the referring path's own tail
+spliced in, which says the re-application is being driven by the
+REFERENCE rather than by the spread.
+
+**It is a depth threshold, not the shape.** The same document with the
+destination three levels down agrees in both ports:
+
+| destination | outcome |
+|---|---|
+| `a: b: e: $.a.b.f` | agree |
+| `a: b: c: e: $.a.b.f` | agree |
+| `a: b: c: d: e: $.a.b.f` | **Go answers, TypeScript refuses** |
+
+A threshold at four is a fixpoint-pass artefact, not a rule anyone
+wrote, which is the argument for calling it a defect rather than a
+divergence to be documented.
+
+Repro:
+[`repros/key-func/spread-key-through-deep-ref.aon`](repros/key-func/spread-key-through-deep-ref.aon).
+No shared spec row: a row would have to encode one port's answer, and
+which port is right is exactly what is unsettled. `ts/test/val-ref.test.ts`
+asserts the three-level form and carries a comment pointing here.
+
+### 51. `key()` is late-bound and `.$KEY` was early-bound — a translation is not always value-preserving [by design, recorded]
+Not a defect. Recorded because ADR-009 asks every `.$KEY` in an existing
+document to be rewritten as `key()`, and in three shapes that rewrite
+CHANGES THE VALUE — always from the wrong answer to the right one, but
+a change:
+
+```
+a: { n: <the enclosing key>, x: 1 }
+b: { c: $.a }
+```
+
+`.$KEY` gave `b.c.n == "a"` — the key where the reference was *written*.
+`key()` gives `b.c.n == "c"` — the key where the copy *landed*. The same
+split appears under `move()` (`.$KEY` names the source, `key()` the
+destination) and inside a `type()` block referenced from elsewhere
+(`.$KEY` names the definition's key, `key()` the using site's).
+
+In a literal position nothing travels and the two agree, which is why
+every ordinary case translates untouched — 331 use-case checks and the
+whole shared suite passed the rewrite unchanged. These three are where
+the difference lives, and `key()`'s answer is the one G8 phase 1
+specified. Recorded so that a model whose numbers move after the rewrite
+has somewhere to look.
+
 ## Elsewhere in this review
 
 Defects verified earlier in the effort and recorded in
@@ -1608,6 +1682,9 @@ map, **FIXED 2026-08-27 by ADR-007** -- see §13); canon not
 round-tripping constraint residuals
 (`a: min(true)` → `constraint()`); the `$KEY`-in-default and
 `$KEY`-with-referenced-shape resolution bugs that podmind's models
-carry workarounds for; `why`'s tutorial mismatch; and the ADR-002
+carry workarounds for (**RETIRED 2026-08-28 by ADR-009**, which removed
+the spelling entirely — `key()` is the replacement, and the
+referenced-shape one was the early-binding difference §51 records);
+`why`'s tutorial mismatch; and the ADR-002
 coverage gate itself flaking red on an untouched tree
 (`ListVal.ts:206-207` branch arms) during this PR's own CI runs.

@@ -86,13 +86,28 @@ edge-open-close	gens	a:open(close({x:1}))&{y:2}	{"a":{"x":1,"y":2}}
 edge-key-float-arg	errc	a:key(1.5)	key_level
 edge-key-own	gens	q:{k:key(0)}	{"q":{"k":"k"}}
 #
-# Batch 2: reference modes ($SELF/$PARENT/$KEY, var path parts,
-# numeric segments, dotted parents), function edges, closed bags,
-# list spreads, junction dedup, + operator kinds, and neq edges.
-edge-self-mid	errc	a:{b:$SELF.c,c:2}	no_path
-edge-key-root	errc	k:$KEY	unknown_var
-edge-parent-var	gens	a:{b:$PARENT.c,c:5}	{"a":{"b":5,"c":5}}
-edge-key-mid	errc	a:$KEY.x	ref
+# Batch 2: var path parts, numeric segments, dotted parents, function
+# edges, closed bags, list spreads, junction dedup, + operator kinds,
+# and neq edges.
+#
+# THE RESERVED PATH NAMES ARE GONE (ADR-009). `$KEY`, `$SELF` and
+# `$PARENT` were intercepted by name before the variable table was
+# consulted; they are now ORDINARY VARIABLES, so the sources below say
+# `unknown_var` for the same reason `$nosuch` does. Each is paired with
+# the surviving spelling that carries what the removed name meant --
+# `$SELF.c` was only ever `$.c`, `$PARENT.c` only ever `.c` -- so the
+# BEHAVIOUR the old rows pinned is still pinned, one line down.
+edge-self-name-is-a-var	errc	a:{b:$SELF.c,c:2}	unknown_var
+edge-abs-into-missing-root	errc	a:{b:$.c,c:2}	no_path
+edge-key-name-is-a-var	errc	k:$KEY	unknown_var
+edge-relative-sibling	gens	a:{b:.c,c:5}	{"a":{"b":5,"c":5}}
+# THE OTHER HALF, AND THE ONE THAT SAYS THE NAME IS FREE RATHER THAN
+# MERELY BROKEN: the runners bind a variable literally called `PARENT`
+# (specVars), and it resolves as a path segment like any other.
+edge-parent-name-resolves	gens	q:{c:5} a:{b:$.$PARENT.c}	{"a":{"b":5},"q":{"c":5}}
+# A reserved name mid-path was a `ref` refusal for being in the wrong
+# POSITION; an unbound variable is refused wherever it stands.
+edge-key-name-mid-path	errc	a:$KEY.x	unknown_var
 edge-var-map-part	errc	x:$.q.$obj q:{}	no_path
 edge-var-bool-part	gens	q:{"true":3} x:$.q.$flag	{"q":{"true":3},"x":3}
 edge-var-int-part	gens	q:{"11":3} x:$.q.$foo	{"q":{"11":3},"x":3}
@@ -185,7 +200,7 @@ edge-key-empty	gens	a:{"":1}	{"a":{"":1}}
 # pref folding ranks, list spread merges, expect re-meets, and
 # constraint meet refusals.
 edge-ref-dot-after-abs	errc	a:$.a..b	no_path
-edge-self-mid-var	errc	x:$.q.$SELF q:{}	ref
+edge-self-name-mid-abs-path	errc	x:$.q.$SELF q:{}	unknown_var
 edge-hide-ref	gens	a:hide($.b) b:1 c:2	{"b":1,"c":2}
 edge-cycle-through-list	errc	a:$.b.0 b:[$.a]	path_cycle
 edge-rel-deep	gens	a:{b:{c:{d:1}},e:.b.c.d}	{"a":{"b":{"c":{"d":1}},"e":1}}
@@ -234,7 +249,7 @@ edge-expect-kind-peer	errc	m:{&:{r:string} a:{r:string}}	mapval_no_gen
 edge-expect-two-peers	gens	m:{&:{r:min(0)} a:{}} m:{a:{r:5}} m:{a:{r:5}}	{"m":{"a":{"r":5}}}
 edge-pref-nil	errc	a:*1&nil	literal_nil
 edge-conjunct-nested-dup	canon	a:(1&1)&(1&1)	{"a":1}
-edge-key-var-meet	errc	a:$KEY&1	unknown_var
+edge-key-name-in-a-meet	errc	a:$KEY&1	unknown_var
 edge-move-then-ref	gens	b:{x:1} a:move($.b) c:$.a	{"a":{"x":1},"c":{"x":1}}
 edge-func-residue-meet	errc	a:upper($.zz)&1	no_path
 edge-key-level-conflict	errc	q:{k:key(3)&"q"}	scalar_value
@@ -249,8 +264,11 @@ edge-var-bigint-part	gens	q:{"5":3} x:$.q.$bigi	{"q":{"5":3},"x":3}
 edge-var-bigdec-part	gens	q:{"1.5":3} x:$.q.$bigd	{"q":{"1.5":3},"x":3}
 edge-var-null-part	errc	x:$.q.$nul q:{}	no_path
 edge-var-all-kinds	gens	x:$half y:$off z:$bigi w:$bigd v:$nul	{"v":null,"w":1.5,"x":1.5,"y":false,"z":5}
-edge-parent-mid	errc	a:$.x.$PARENT	ref
-edge-self-root	errc	a:$SELF	unknown_var
+# `PARENT` is bound (see edge-parent-name-resolves), so this reaches
+# `$.x.q` and misses on the absent `x` -- an ordinary no_path, where the
+# reserved name used to make it a positional `ref` refusal.
+edge-parent-name-mid-abs-path	errc	a:$.x.$PARENT	no_path
+edge-self-name-alone	errc	a:$SELF	unknown_var
 edge-type-ref	canon	a:type($.b) b:1 c:2	{"a":1,"b":1,"c":2}
 edge-chase-var-part	errc	a:$.b b:$.c.$foo c:{}	no_path
 edge-chase-bad-index	errc	a:$.b.x b:[$.a]	no_path

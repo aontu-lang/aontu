@@ -579,7 +579,7 @@ c:{&:{x:2}, y:{k:3}, z:{k:4}}
 
 a:b:{&:string, c:C, d:D}        → applies a type to every value
 a:b:{&:{x:number}, c:{x:1}, d:{x:2}}   → constrains every child
-a:b:{&:{name:.$KEY}, c:{}, d:{}}       → {"c":{"name":"c"},"d":{"name":"d"}}
+a:b:{&:{name:key()}, c:{}, d:{}}       → {"c":{"name":"c"},"d":{"name":"d"}}
 a:b:{&:$.tmpl, …}                      → spread a referenced template
 a:b:{&:x:*1|number, c:{x:2}, d:{}}     → defaults per child, overridable
 ```
@@ -822,7 +822,6 @@ place.
 | `$.a.b`   | absolute path from the document root                 | `a:1 b:$.a` → `b:1` |
 | `.a.b`    | path relative to the current map                     | `z:x:{a:62} z:y:.x.a` → `y:62` |
 | `$.a.1`   | list index — a segment is numeric **only** as a plain decimal integer | `a:[10,20,30] b:$.a.1` → `b:20` |
-| `.$KEY`   | the key under which the current value is stored      | `a:{k:.$KEY}` → `{"a":{"k":"a"}}` |
 
 **Numeric segments are plain decimal integers, and nothing else is.**
 `$.a.1` indexes a list and reaches the key `1`. Every other numeric

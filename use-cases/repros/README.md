@@ -61,6 +61,13 @@ Two cautions:
   `vocab.json` and `vocab.jsonld` — byte-identical, differing only in
   name, which is the whole point.
 
+- `key-func/` (§50, filed 2026-08-28) is **open**, and was found by
+  removing `.$KEY` (ADR-009): the only test covering a spread template
+  read through a deep reference used that spelling, whose different code
+  path hid a live parity break in `key()`. There is deliberately no
+  shared spec row — a row would have to encode one port's answer, and
+  which port is right is what is unsettled.
+
 These are review artifacts. Per ADR-001, the durable home for any
 behaviour contract is a `test/spec/*.tsv` row probed in both ports;
 promoting these repros into rows is follow-up work for maintainers.

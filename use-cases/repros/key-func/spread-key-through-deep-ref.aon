@@ -1,0 +1,32 @@
+# 50: a spread template's key(), read through a reference to a SIBLING
+# subtree four levels down, refuses in TypeScript and answers in Go.
+#
+# run: node ../../../ts/bin/aontu.js spread-key-through-deep-ref.aon
+# run: aontu-go spread-key-through-deep-ref.aon
+#
+# expected: one answer, both ports.
+#
+# actual (Go):
+#   {"a":{"b":{"c":{"d":{"e":{"x":{"n":"x"}}}},"f":{"x":{"n":"x"}}}}}
+# actual (TypeScript):
+#   [aontu/scalar_value]: Cannot unify values at path $.a.b.f.x.n.n
+#    Cannot unify value: "n" with value: "x"
+#
+# THE PATH IS THE DIAGNOSIS. `$.a.b.f.x.n.n` carries `n` twice: the
+# template is applied a SECOND time inside the field it already
+# resolved. `n: key()` answers "x" at $.a.b.f.x.n, the template then
+# meets that string as though it were a map, and the inner key()
+# answers "n". At five levels the path reads $.a.b.f.x.n.e.n -- the
+# referring path's own tail spliced in, which says the re-application
+# is driven by the REFERENCE, not by the spread.
+#
+# It is a DEPTH THRESHOLD, not the shape: with `a: b: e:` or
+# `a: b: c: e:` as the destination both ports agree. A threshold at
+# four is a fixpoint-pass artefact, not a rule anyone wrote.
+#
+# Found by ADR-009's removal of `.$KEY`: the only test covering this
+# shape used that spelling, which took the RefVal path and never
+# reached the divergence.
+a: b: c: d: e: $.a.b.f
+a: b: f: &: {n: key()}
+a: b: f: {x: {}}

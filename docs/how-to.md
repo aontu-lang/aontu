@@ -984,7 +984,7 @@ prod: $.base & { tier: paid }
 
 - `$.a.b` — absolute path from the root.
 - `.a.b` — relative to the current object.
-- `.$KEY` — the key the current value is stored under.
+- `key()` — the key the current value is stored under.
 - `copy($.x)` — a deep copy with type/hide marks cleared.
 - `move($.x)` — like a reference but drops unresolved optional keys.
 

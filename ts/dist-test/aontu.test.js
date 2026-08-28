@@ -154,12 +154,12 @@ w1: b: {y:2,z:3} & $.q.a
     (0, node_test_1.test)('key-edges', () => {
         let ctx = makeCtx();
         let a0 = new aontu_1.Aontu();
-        (0, expect_1.expect)(a0.unify('a:{k:.$KEY}').gen(ctx)).equal({ a: { k: 'a' } });
-        (0, expect_1.expect)(a0.unify('a:b:{k:.$KEY}').gen(ctx)).equal({ a: { b: { k: 'b' } } });
-        (0, expect_1.expect)(a0.unify('a:{k:.$KEY} x:1').gen(ctx)).equal({ x: 1, a: { k: 'a' } });
-        (0, expect_1.expect)(a0.unify('a:b:{k:.$KEY} x:1').gen(ctx)).equal({ x: 1, a: { b: { k: 'b' } } });
-        (0, expect_1.expect)(a0.unify('x:1 a:{k:.$KEY}').gen(ctx)).equal({ x: 1, a: { k: 'a' } });
-        (0, expect_1.expect)(a0.unify('x:1 a:b:{k:.$KEY}').gen(ctx)).equal({ x: 1, a: { b: { k: 'b' } } });
+        (0, expect_1.expect)(a0.unify('a:{k:key()}').gen(ctx)).equal({ a: { k: 'a' } });
+        (0, expect_1.expect)(a0.unify('a:b:{k:key()}').gen(ctx)).equal({ a: { b: { k: 'b' } } });
+        (0, expect_1.expect)(a0.unify('a:{k:key()} x:1').gen(ctx)).equal({ x: 1, a: { k: 'a' } });
+        (0, expect_1.expect)(a0.unify('a:b:{k:key()} x:1').gen(ctx)).equal({ x: 1, a: { b: { k: 'b' } } });
+        (0, expect_1.expect)(a0.unify('x:1 a:{k:key()}').gen(ctx)).equal({ x: 1, a: { k: 'a' } });
+        (0, expect_1.expect)(a0.unify('x:1 a:b:{k:key()}').gen(ctx)).equal({ x: 1, a: { b: { k: 'b' } } });
     });
     (0, node_test_1.test)('practical-path-spread', () => {
         let ctx = makeCtx();
@@ -238,8 +238,8 @@ def: garage: {
         (0, expect_1.expect)(a0.unify('t:{x:number} a:b:{&:$.t,c:{x:1},d:{x:2}}').canon).equal('{"a":{"b":{&:$.t,"c":{"x":1},"d":{"x":2}}},"t":{"x":number}}');
         // Deep spread with ref to concrete map
         (0, expect_1.expect)(a0.generate('t:{x:1} a:b:{&:$.t,c:{y:A},d:{y:B}}')).equal({ t: { x: 1 }, a: { b: { c: { x: 1, y: 'A' }, d: { x: 1, y: 'B' } } } });
-        // Spread with $KEY at depth
-        (0, expect_1.expect)(a0.generate('a:b:{&:{name:.$KEY},c:{},d:{}}')).equal({ a: { b: { c: { name: 'c' }, d: { name: 'd' } } } });
+        // Spread with key() at depth
+        (0, expect_1.expect)(a0.generate('a:b:{&:{name:key()},c:{},d:{}}')).equal({ a: { b: { c: { name: 'c' }, d: { name: 'd' } } } });
         // Nested maps with spread at inner level
         (0, expect_1.expect)(a0.generate(`
       a: {

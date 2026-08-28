@@ -223,9 +223,11 @@ per child in both engines (shared spec pin: `test/spec/spread.tsv`,
 `spread-expr-sibling-ref`). The original finding:
 
 ```
-rows: { &: { md: "| " + .$KEY + " | " + .side_effect + " |" }
+rows: { &: { md: "| " + key() + " | " + .side_effect + " |" }
   a: { side_effect: readonly } }
 ```
+(as reported this said `.$KEY`, the spelling ADR-009 removed; `key()`
+is the same value and the finding is unchanged)
 ```
 [aontu/no_path]: Cannot resolve value at path $.rows.md
  Cannot resolve value: .side_effect
@@ -239,8 +241,8 @@ The value for key md is required (defined in spread).
  Cannot unify value: "| "+key()+" | "+.side_effect+" |" with value: nil
 ```
 
-`.$KEY` works in a spread; sibling references do not. Between gaps 2
-and 3 there is no template-level projection at all — the G8 combinator
+The enclosing key works in a spread; sibling references do not. Between
+gaps 2 and 3 there is no template-level projection at all — the G8 combinator
 work these presumably wait on is the single biggest expressiveness
 hole this use case hit.
 

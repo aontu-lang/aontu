@@ -834,3 +834,78 @@ exist — a spec row can only pin what an engine does, and what both
 engines do with `>10` is read it as text, which pins the bare-string
 rule rather than this decision. The two are independent, and conflating
 them is what made the retracted §45 look like a defect.
+
+## ADR-009 — There are no reserved path elements: `$KEY`, `$SELF` and `$PARENT` are removed
+
+**Date:** 2026-08-28
+**Status:** Accepted
+
+### Context
+
+A path segment spelled `$name` is a variable reference, resolved from
+the variable table. Three names never reached that table: `RefVal.find`
+(and its Go twin) matched `KEY`, `SELF` and `PARENT` by name first and
+switched on them. Measured against the engines rather than the
+documentation, the three were worth very different things:
+
+- **`$PARENT` did nothing.** Both ports computed the same slice
+  endpoint for PARENT mode as for the default, so `$PARENT.c` was
+  `.c` — including failing identically at depth.
+- **`$SELF` was `$.` under a misleading name.** SELF mode sliced the
+  base path to zero, i.e. root-absolute. `$SELF.q` was `$.q`; it
+  resolved from the ROOT, not from self.
+- **`.$KEY` was an early-bound `key()`.** In a literal position the two
+  agreed everywhere probed — map, deep map, list index, spread
+  template, `pack` template, at root, in meets, inside
+  `close`/`hide`/`+`/`upper`/`id`. They parted where a value TRAVELS:
+  under `move()` `.$KEY` named the source and `key()` names the
+  destination; in a `type()` block referenced elsewhere `.$KEY` named
+  the definition and `key()` names the using site. `key()` also takes a
+  LEVEL (`key(0)`, `key(2)`), which `.$KEY` had no spelling for —
+  leading dots were ignored, so `..$KEY` was `.$KEY`.
+
+Two silent defects came with the interception. `$KEY` had to be the last
+segment (`$KEY.x` was a `ref` refusal), but when it WAS last everything
+before it was discarded without complaint: `z:{q:9}` with
+`a:{b:$.z.$KEY}` answered `"a"`, not `9`. And because the match ran
+before the variable table was consulted, the three names could not be
+used as ordinary variables at all.
+
+### Decision
+
+**Remove all three. Every `$name` in a path is an ordinary variable.**
+`key()` is the replacement for `.$KEY`; `$.x` and `.x` were always what
+`$SELF.x` and `$PARENT.x` meant.
+
+An unbound `$KEY` is now `unknown_var`, exactly like `$nosuch` — the
+loud failure, located and coded, rather than a silent wrong value. A
+BOUND one resolves like any other variable, which is the half that says
+the names are freed rather than merely broken.
+
+### Consequences
+
+- **Breaking, at the surface language.** A document using `.$KEY` stops
+  working and says so. `use-cases/BUGS.md` §51 records the three shapes
+  where the rewrite to `key()` changes a value — always from the wrong
+  answer to the right one.
+- **`key()` is the only spelling of the enclosing key**, so there is one
+  answer to how it behaves rather than two that agree until they do not.
+- Two defects recorded against `$KEY` in podmind's models, which carried
+  workarounds for them, are retired with the spelling.
+- **The removal uncovered a live parity break in `key()`**
+  (`use-cases/BUGS.md` §50): the only test covering a spread template
+  read through a deep reference used `.$KEY`, whose different code path
+  hid it. That is an argument for the removal, not against it — a second
+  spelling was masking a defect in the first.
+
+### Enforcement
+
+`test/spec/edge.tsv` pins the three names as ordinary variables
+(`edge-key-name-is-a-var`, `edge-self-name-is-a-var`,
+`edge-key-name-mid-path`, `edge-self-name-alone`,
+`edge-self-name-mid-abs-path`, `edge-parent-name-mid-abs-path`), each
+paired with the surviving spelling that carries what the removed name
+meant (`edge-abs-into-missing-root`, `edge-relative-sibling`).
+`edge-parent-name-resolves` binds a variable literally called `PARENT`
+in both runners' `specVars` and reads it as a path segment, which is
+what distinguishes a freed name from a broken one.

@@ -13,24 +13,45 @@ list-index	gen	a:[10,20,30] b:$.a.1	{"a":[10,20,30],"b":20}
 no-path	err	a:$.nope	Cannot resolve value: $.nope
 relative	gen	z:x:{a:62} z:y:.x.a	{"z":{"x":{"a":62},"y":62}}
 relative-add	gen	x:{a:4} y:.x.a	{"x":{"a":4},"y":4}
-key	gen	a:{k:.$KEY}	{"a":{"k":"a"}}
-key-deep	gen	a:b:{k:.$KEY}	{"a":{"b":{"k":"b"}}}
-key-sibling	gen	x:1 a:{k:.$KEY}	{"x":1,"a":{"k":"a"}}
+# THE ENCLOSING KEY IS `key()`, AND ONLY `key()` (ADR-009). These three
+# were written `.$KEY` until that name was removed; the assertions are
+# unchanged, because the two spellings agreed in every position where a
+# value does not travel.
+key	gen	a:{k:key()}	{"a":{"k":"a"}}
+key-deep	gen	a:b:{k:key()}	{"a":{"b":{"k":"b"}}}
+key-sibling	gen	x:1 a:{k:key()}	{"x":1,"a":{"k":"a"}}
 forward-ref	gen	x:$.a\na:7	{"x":7,"a":7}
 chain-reverse	gen	c:42\nb:$.c\na:$.b	{"a":42,"b":42,"c":42}
 # A LIST INDEX IS A STRING KEY, LIKE ANY OTHER.
 #
-# `.$KEY` at a list position built a StringVal whose peg was the JS NUMBER
-# 0 in TypeScript -- an ill-formed value, not a design choice: it canoned
-# as a bare 0, generated a JSON number, satisfied `number` and failed
-# `string`. Go stringifies and is right. key() already agrees with Go here,
-# so TypeScript also disagreed with itself.
-key-ref-list-index-gens	gens	a:[{k:.$KEY}]	{"a":[{"k":"0"}]}
-key-ref-list-index-canon	canon	a:[{k:.$KEY}]	{"a":[{"k":"0"}]}
-key-ref-list-index-is-string-canon	canon	a:[{k:.$KEY&string}]	{"a":[{"k":"0"}]}
-key-ref-list-index-not-number-err	err	a:[{k:.$KEY&number}]	Cannot unify value
-key-ref-list-index-agrees-with-keyfunc-gens	gens	a:[{k:.$KEY},{j:key()}]	{"a":[{"k":"0"},{"j":"1"}]}
-key-ref-nested-list-index-gens	gens	a:[{b:{k:.$KEY}}]	{"a":[{"b":{"k":"b"}}]}
+# The defect these rows were written for was in the removed `.$KEY`: at a
+# list position TypeScript built a StringVal whose peg was the JS NUMBER
+# 0 -- an ill-formed value, not a design choice, since it canoned as a
+# bare 0, generated a JSON number, satisfied `number` and failed
+# `string`, while Go stringified and was right. The rows are kept under
+# `key()`, which agreed with Go throughout, so that the property they
+# assert -- an index is a STRING -- stays pinned after the spelling that
+# broke it is gone. The `&number` row is the one that does the work.
+key-index-gens	gens	a:[{k:key()}]	{"a":[{"k":"0"}]}
+key-index-canon	canon	a:[{k:key()}]	{"a":[{"k":"0"}]}
+key-index-is-string-canon	canon	a:[{k:key()&string}]	{"a":[{"k":"0"}]}
+key-index-not-number-errc	errc	a:[{k:key()&number}]	no_scalar_unify
+key-index-per-element-gens	gens	a:[{k:key()},{j:key()}]	{"a":[{"k":"0"},{"j":"1"}]}
+key-nested-list-index-gens	gens	a:[{b:{k:key()}}]	{"a":[{"b":{"k":"b"}}]}
+# `key()` IS LATE-BOUND: IT ANSWERS WHERE A VALUE LANDS, NOT WHERE IT
+# WAS WRITTEN. A reference COPIES the subtree, and an unresolved key()
+# inside the copy resolves at the destination -- `$.a` read into `b.c`
+# gives "c", not "a". Same rule that makes key() work under move() and
+# inside a spread template, reaching a plain reference too.
+#
+# This is the row ADR-009 needs. The removed `.$KEY` was EARLY-bound and
+# answered "a" here, so a document rewritten from one spelling to the
+# other changes value in exactly this shape (use-cases/BUGS.md §51) --
+# from the key of the definition to the key of the use, which is the
+# answer G8 phase 1 specified. Written down so the change is a pinned
+# rule rather than a surprise.
+key-under-a-reference-answers-at-the-destination	gens	a: {n: key(), x: 1}\nb: {c: $.a}	{"a":{"n":"a","x":1},"b":{"c":{"n":"c","x":1}}}
+key-under-a-type-answers-at-the-use	gens	T: type({n: key()})\na: {&: $.T, b: {}}	{"a":{"b":{"n":"b"}}}
 # A NUMERIC PATH SEGMENT IS A PLAIN DECIMAL INTEGER. NOTHING ELSE IS.
 #
 # `$.a.1` is a numeric segment: it indexes a list and addresses the key

@@ -3,7 +3,7 @@ basic	gen	c:{&:{x:2},y:{k:3},z:{k:4}}	{"c":{"y":{"k":3,"x":2},"z":{"k":4,"x":2}}
 basic-canon	canon	c:{&:{x:2},y:{k:3},z:{k:4}}	{"c":{&:{"x":2},"y":{"k":3,"x":2},"z":{"k":4,"x":2}}}
 kind	gen	a:b:{&:string,c:C,d:D}	{"a":{"b":{"c":"C","d":"D"}}}
 map-constraint	gen	a:b:{&:{x:number},c:{x:1},d:{x:2}}	{"a":{"b":{"c":{"x":1},"d":{"x":2}}}}
-key	gen	a:b:{&:{name:.$KEY},c:{},d:{}}	{"a":{"b":{"c":{"name":"c"},"d":{"name":"d"}}}}
+key	gen	a:b:{&:{name:key()},c:{},d:{}}	{"a":{"b":{"c":{"name":"c"},"d":{"name":"d"}}}}
 ref	gen	tmpl:{version:1} items:{&:$.tmpl,a:{name:A},b:{name:B}}	{"tmpl":{"version":1},"items":{"a":{"version":1,"name":"A"},"b":{"version":1,"name":"B"}}}
 pref	gen	a:b:{&:x:*1|number,c:{},d:{}}	{"a":{"b":{"c":{"x":1},"d":{"x":1}}}}
 pref-override	gen	a:b:{&:x:*1|number,c:{x:2},d:{}}	{"a":{"b":{"c":{"x":2},"d":{"x":1}}}}

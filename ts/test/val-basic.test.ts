@@ -885,11 +885,11 @@ b: c2: {n:2}
       p: { a: { b: { c: { n: 1 } } } }
     })
 
-    expect(G('p:a:b:&:n:.$KEY p:a:b:c:{}', ctx)).equal({
+    expect(G('p:a:b:&:n:key() p:a:b:c:{}', ctx)).equal({
       p: { a: { b: { c: { n: 'c' } } } }
     })
 
-    expect(G('p:a:&:&:n:.$KEY p:a:b:c:{}', ctx)).equal({
+    expect(G('p:a:&:&:n:key() p:a:b:c:{}', ctx)).equal({
       p: { a: { b: { c: { n: 'c' } } } }
     })
   })

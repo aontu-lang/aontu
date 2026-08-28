@@ -213,7 +213,6 @@ class RefVal extends FeatureVal_1.FeatureVal {
         }
         else {
             let parts = [];
-            let modes = [];
             for (let pI = 0; pI < this.peg.length; pI++) {
                 let part = this.peg[pI];
                 // An unspellable segment MISSES BEFORE ANY LOOKUP. The marker
@@ -227,36 +226,13 @@ class RefVal extends FeatureVal_1.FeatureVal {
                     return (0, err_1.makeNilErr)(ctx, 'no_path', this);
                 }
                 if (part instanceof VarVal_1.VarVal) {
-                    let strval = part.peg;
-                    let name = strval ? '' + strval.peg : '';
-                    if ('KEY' === name) {
-                        if (pI === this.peg.length - 1) {
-                            modes.push(name);
-                        }
-                        else {
-                            // TODO: return a Nil explaining error
-                            return;
-                        }
-                    }
-                    if ('SELF' === name) {
-                        if (pI === 0) {
-                            modes.push(name);
-                        }
-                        else {
-                            // TODO: return a Nil explaining error
-                            return;
-                        }
-                    }
-                    else if ('PARENT' === name) {
-                        if (pI === 0) {
-                            modes.push(name);
-                        }
-                        else {
-                            // TODO: return a Nil explaining error
-                            return;
-                        }
-                    }
-                    else if (0 === modes.length) {
+                    // EVERY `$name` IN A PATH IS AN ORDINARY VARIABLE. `$KEY`,
+                    // `$SELF` and `$PARENT` used to be intercepted here by name;
+                    // they are gone (ADR-009). `key()` is the replacement for
+                    // `$KEY` and answers where a value LANDS rather than where it
+                    // was written, `$SELF.x` was only ever `$.x`, and `$PARENT.x`
+                    // was only ever `.x`.
+                    {
                         part = part.unify((0, top_1.top)(), ctx);
                         if (part.isNil) {
                             // TODO: var not found, so can't find path
@@ -290,35 +266,13 @@ class RefVal extends FeatureVal_1.FeatureVal {
                 refpath = parts;
             }
             else {
-                // TODO: deprecate $KEY, etc
-                refpath = this.path.slice(0, (modes.includes('SELF') ? 0 :
-                    modes.includes('PARENT') ? -1 :
-                        -1 // siblings
-                )).concat(parts);
+                // A relative reference reads from the SIBLING scope: drop this
+                // node's own key and append the written segments.
+                refpath = this.path.slice(0, -1).concat(parts);
             }
             let sep = '.';
             refpath = refpath
                 .reduce(((a, p) => (p === sep ? a.length = a.length - 1 : a.push(p), a)), []);
-            if (modes.includes('KEY')) {
-                // STRINGIFY. A LIST index arrives here as a JS NUMBER (jsonic puts
-                // it in the path as one, and lang.ts copies the path wholesale),
-                // so `.$KEY` inside a list built a StringVal whose peg was the
-                // number 0 -- an ill-formed value, not a design choice: it canoned
-                // as a bare 0, generated a JSON number, satisfied `number` and
-                // failed `string`. Go stringifies, and key() already agreed with
-                // Go, so this port disagreed with itself.
-                //
-                // Coerced HERE, at the consumption site, rather than by
-                // normalising Val.path: the numeric segment originates in jsonic's
-                // own r.k.path and every other path consumer (find's descent,
-                // key(), the clone/spread machinery) already handles it.
-                let key = this.path[this.path.length - 2];
-                let sv = new StringVal_1.StringVal({ peg: null == key ? '' : '' + key }, ctx);
-                // TODO: other props?
-                sv.dc = type_1.DONE;
-                sv.path = this.path;
-                return sv;
-            }
             let node = ctx.root;
             let nopath = false;
             if (null != node) {

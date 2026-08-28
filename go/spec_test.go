@@ -1016,6 +1016,15 @@ func specVars() map[string]Val {
 		"bigi": newBigInteger(big.NewInt(5)),
 		"bigd": newBigDecimal(newDecimal(big.NewInt(15), 1)),
 		"nul":  newNull(),
+		// A FORMERLY RESERVED NAME, BOUND LIKE ANY OTHER. `$PARENT` was
+		// intercepted by name in find() before the variable table was
+		// ever consulted (ADR-009); removing that interception did not
+		// merely stop the interception, it FREED THE NAME, and
+		// edge.tsv's edge-parent-name-resolves is the row that says so.
+		// `KEY` and `SELF` are deliberately left unbound so their rows
+		// can pin the other half: an unbound one is `unknown_var`,
+		// exactly like any other.
+		"PARENT": newString("q"),
 	}
 }
 
