@@ -1,9 +1,21 @@
 # Aliases and export — design note
 
-**Status:** Discovery draft. **Nothing here is implemented.**
-This note describes the design as it now stands. `%` is the alias
-sigil, carried through the declaration, the use site, `export`, the
-destructuring form and the shorthand; there is no `import` verb.
+**Status:** **P1 is implemented in both ports** — file-local aliases,
+with canon and hash erasure and the cycle refusals. `export` and the
+destructure (P2) are not. `%` is the alias sigil, carried through the
+declaration, the use site, `export`, the destructuring form and the
+shorthand; there is no `import` verb.
+
+**What P1 turned out to be.** An alias reference IS a path reference:
+`%uint8` is `$.%uint8`, root-absolute and one segment. Everything §4
+asks for then comes from the reference machinery the language already
+had rather than a resolver beside it — order independence,
+alias-of-alias, redeclaration unifying, and a cycle check that spans
+both namespaces because there is only ever one graph. What had to be
+built was the lexeme (so `%name` is one token in both positions) and
+the ERASURE (`MapVal.aliasKeys`, filtered in gen, canon and hcanon).
+Pinned by `test/spec/alias.tsv`, 27 rows, every expectation probed
+through both engines.
 **Origin:** Richard Rodger, 2026-08-28, as the general form behind the
 sized-integer question that [ADR-008](../../ADR.md#adr-008--constraints-are-named-not-spelled-with-operators)
 left standing.
@@ -744,8 +756,17 @@ Sketch only, since §9 is open:
 | Phase | Content | Gate |
 |-------|---------|------|
 | P0 | Settle X-1 and T-1 | no code |
-| P1 | Aliases, file-local, with canon erasure and the cycle refusals | the hash row |
+| P1 | ~~Aliases, file-local, with canon erasure and the cycle refusals~~ **LANDED** | the hash row, `alias-hash-erases` + its longhand twin |
 | P2 | `export`, and `{…} = @"…"` destructuring | canon expansion |
+
+**P1 landed with X-1 taken the third way and T-1 not yet needed.** The
+declaration is spelled `%foo: …`, the ordinary key syntax in the
+namespace the sigil creates — so there is no `=` operator, no lexing
+break beyond the sigil itself, and §10's compatibility argument is
+moot for what shipped. T-1 does not bite yet either: without `export`
+there is no cross-file expansion, and the doubling ladder it worries
+about is bounded by one file. **Both remain open for P2**, where the
+destructure needs `=` and imported aliases make expansion unbounded.
 
 P1 is independently useful and independently shippable: file-local
 aliases with nothing crossing a file boundary is the whole of §2's

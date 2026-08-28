@@ -7,6 +7,7 @@ declare abstract class BagVal extends FeatureVal {
     isGenable: boolean;
     closed: boolean;
     optionalKeys: string[];
+    aliasKeys: string[];
     spread: {
         cj: Val | undefined;
     };

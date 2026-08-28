@@ -42,6 +42,15 @@ const hints = {
     unknown_function: 'This function name is not recognized.',
     literal_nil: 'A literal nil cannot unify with any other value.',
     unify_cycle: 'Circular reference detected during unification.',
+    pref_implicit_bag: 'A preference marks a VALUE, and a bare key is not one. Without\n' +
+        'braces the `*` took the whole implicit map as its operand, so the\n' +
+        'document became a preferred map rather than a map with a preferred\n' +
+        'entry. Brace the bag, or move the `*` onto the value it marks.' +
+        '\n \nExamples:\n' +
+        '  *a: 1        -> nil       # No braces: the `*` takes the whole map;\n' +
+        '  a: *1        -> *1        # ... the `*` belongs on the value;\n' +
+        '  *{a: 1}      -> *{"a":1}  # ... or brace the bag to prefer it whole;\n' +
+        '  *{x:1}|*{y:2} -> *{"x":1}|*{"y":2}  # which is what disjunction needs.',
     constraint: 'This value does not satisfy the constraint. A constraint is the\n' +
         'meet of bound atoms (min, max, above, below) and exclusions (neq)\n' +
         'over one domain; the expected form shown is the normalised\n' +
@@ -390,6 +399,8 @@ const codeClasses = {
     elided_value: 'parse',
     unify_no_src: 'parse',
     incomplete_expression: 'parse',
+    pref_implicit_bag: 'parse',
+    alias_not_toplevel: 'parse',
     not_number: 'parse',
     negative: 'parse',
     decimal_syntax: 'parse',

@@ -16,6 +16,27 @@ type MapVal struct {
 	closed   bool     // close() — no keys beyond those present may be added
 	spread   Val      // &: spread constraint applied to every key (nil if none)
 	optional []string // keys marked optional (a?:1) — dropped if unresolved
+
+	// ALIAS DECLARATIONS, by key. `%uint8: …` binds a name for this
+	// file and is not a field of the document: it does not generate and
+	// does not appear in canon, so a document using aliases and its
+	// longhand twin are the SAME document and hash identically
+	// (docs/design/ALIASES.0.md §4).
+	//
+	// Keyed on the map rather than marked on the value, because a
+	// reference COPIES the value it resolves to -- a mark riding the
+	// value would erase the referring field along with the declaration.
+	// Twin of MapVal.aliasKeys / BagVal.aliasKeys in the TS port.
+	aliasKeys []string
+}
+
+func (m *MapVal) isAliasKey(k string) bool {
+	for _, a := range m.aliasKeys {
+		if a == k {
+			return true
+		}
+	}
+	return false
 }
 
 func (m *MapVal) isOptional(k string) bool {
@@ -66,12 +87,23 @@ func (m *MapVal) Canon() string {
 	// JSON marshaling, which also sorts keys). A copy is sorted so the
 	// internal m.keys order — used by the determinism driver in Unify —
 	// is left untouched.
-	keys := append([]string(nil), m.keys...)
+	keys := make([]string, 0, len(m.keys))
+	for _, k := range m.keys {
+		// An alias declaration is not part of the document, so canon
+		// does not render it: a document with aliases and the same
+		// document written longhand must produce one text, and
+		// therefore one `aon1-` hash.
+		if !m.isAliasKey(k) {
+			keys = append(keys, k)
+		}
+	}
 	sort.Strings(keys)
-	for i, k := range keys {
-		if i > 0 {
+	first := true
+	for _, k := range keys {
+		if !first {
 			b.WriteByte(',')
 		}
+		first = false
 		b.WriteString(jsonString(k))
 		if m.isOptional(k) {
 			b.WriteByte('?')
@@ -348,6 +380,13 @@ func (m *MapVal) Gen(ctx *Ctx) (any, error) {
 		if (child.markedType() || child.markedHide()) && !probing(ctx) {
 			continue
 		}
+		// An alias declaration contributes no field, and unlike a marked
+		// one it is skipped even under `probe`: the probe descends
+		// through output marks to see what a `--at` anchor really holds,
+		// and an alias is not part of the document at all.
+		if m.isAliasKey(k) {
+			continue
+		}
 		optional := m.isOptional(k)
 
 		// Non-generable child kinds (top, kinds, funcs, vars, ops,
@@ -589,6 +628,7 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 		out.surl = m.surl
 		out.spread = m.spread
 		out.optional = append([]string{}, m.optional...)
+		out.aliasKeys = append([]string{}, m.aliasKeys...)
 	}
 	done := true
 
@@ -606,6 +646,14 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 			// and non-terminating on real models (the apidef/sdkgen entity
 			// schemas each contribute a `&:` spread with `name: key()`).
 			out.spread = unite(ctx, out.spread, pm.spread)
+		}
+		// An alias declaration is additive for the same reason optional
+		// keys are: two statements for one map are one map, and a name
+		// declared in either is declared in the result.
+		for _, ak := range pm.aliasKeys {
+			if !out.isAliasKey(ak) {
+				out.aliasKeys = append(out.aliasKeys, ak)
+			}
 		}
 		for _, ok := range pm.optional {
 			if !out.isOptional(ok) {

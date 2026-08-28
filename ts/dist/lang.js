@@ -102,6 +102,12 @@ function bigVal(res) {
 const CC_0 = 48;
 const CC_d = 100;
 const CC_D = 68;
+// THE ALIAS SIGIL. `%` is part of an alias's name, so the name is one
+// lexeme wherever it appears and its meaning is decided by position:
+// a BINDING in key position (`%uint8: …` declares), a USE in value
+// position (`listen: %uint8` refers). docs/design/ALIASES.0.md §4.
+const CC_PCT = 37;
+const ALIAS_RE = /^%[A-Za-z_][A-Za-z0-9_]*/;
 let AontuJsonic = function AontuLang(jsonic) {
     jsonic.use(asPlugin(path_1.Path));
     // Only # line comments are valid Aontu syntax (see
@@ -183,9 +189,41 @@ let AontuJsonic = function AontuLang(jsonic) {
             check: (lex) => {
                 // Guard first, on char codes: this hook runs at every text
                 // position, and the common case (any run that cannot be a `0d`
-                // literal) must cost two char reads and no allocation.
+                // literal or an alias) must cost two char reads and no
+                // allocation.
                 const pnt = lex.pnt;
                 const src = lex.src;
+                // AN ALIAS NAME IS CLAIMED WHOLE, for the same reason the `0d`
+                // run below is: the text matcher's ender regexp would otherwise
+                // carve `%uint8` at the `%` and emit the sigil as its own token,
+                // leaving a bare `uint8` behind -- which is exactly the capture
+                // the sigil exists to prevent. Claiming it here, before that
+                // ender runs, keeps the name one lexeme.
+                //
+                // The token's SOURCE is the whole `%name`, which is what makes
+                // the same lexeme work in both positions: jsonic keys a pair by
+                // the token's source text (`0d1: 5` yields the key `0d1`), so a
+                // declaration reads as the key `%uint8`, while a value position
+                // calls the function below and gets the reference.
+                if (CC_PCT === src.charCodeAt(pnt.sI)) {
+                    const ares = ALIAS_RE.exec(lex.refwd());
+                    if (null == ares) {
+                        return undefined;
+                    }
+                    const asrc = ares[0];
+                    const atkn = lex.token('#VL', 
+                    // AN ALIAS REFERENCE IS A PATH REFERENCE. `%uint8` is
+                    // `$.%uint8`: root-absolute, one segment, spelled with the
+                    // sigil the declaration is spelled with. Everything the
+                    // design asks of it -- order independence, alias-of-alias,
+                    // redeclaration unifying, cycle refusal spanning both
+                    // namespaces -- is then the reference machinery already in
+                    // the language, not a second resolver beside it.
+                    (r, ctx) => addsite(new RefVal_1.RefVal({ peg: [asrc], absolute: true }), r, ctx), asrc, pnt);
+                    pnt.sI += asrc.length;
+                    pnt.cI += asrc.length;
+                    return { done: true, token: atkn };
+                }
                 if (CC_0 !== src.charCodeAt(pnt.sI)) {
                     return undefined;
                 }
@@ -534,6 +572,29 @@ help isolate the syntax error.`,
         'star-prefix': (r, ctx, _op, terms) => {
             if (null == terms[0])
                 return incompleteNil(r, ctx);
+            // A PREFERENCE MARKS A VALUE, AND A BARE KEY IS NOT ONE.
+            // `*a: 1` has no braces, so the prefix took the whole IMPLICIT
+            // map as its operand and the document silently became
+            // `*{"a":1}` -- `*a: 1, b: 2` became a one-element LIST, losing
+            // `b` outright. Neither is anything the author wrote.
+            //
+            // The accident is confined to the first position of the implicit
+            // top-level map, which is the only place no brace has yet
+            // committed the rule to a map: `{*a: 1}` and `a: 1, *b: 2` are
+            // ALREADY parse errors. This makes the third spelling agree with
+            // them rather than inventing a meaning for it.
+            //
+            // A BRACED operand is untouched, and that is the whole of the
+            // distinction: `*{x:1}` and `*[1]` are the real spelling, they
+            // are what `*{x:1} | *{y:2}` needs, and the shared spec pins them
+            // (11 rows). The open token's own source text is what separates
+            // the two -- `{` or `[` for a braced bag, the first key or
+            // element for an implicit one.
+            const bag = terms[0];
+            if ((bag.isMap && '{' !== bag.site.src) ||
+                (bag.isList && '[' !== bag.site.src)) {
+                return addsite(new NilVal_1.NilVal({ why: 'pref_implicit_bag' }), r, ctx);
+            }
             return addsite(new PrefVal_1.PrefVal({ peg: terms[0] }), r, ctx);
         },
         'dollar-prefix': (r, ctx, _op, terms) => {
@@ -740,6 +801,7 @@ help isolate the syntax error.`,
     const TX = jsonic.token.TX;
     const NR = jsonic.token.NR;
     const QM = jsonic.token.QM;
+    const VL = jsonic.token.VL;
     const OPTKEY = [TX, ST, NR];
     jsonic.rule('expr', (rs) => {
         rs.close([
@@ -861,6 +923,7 @@ help isolate the syntax error.`,
         ])
             .bc((r, ctx) => {
             const optionalKeys = r.u.aontu_optional_keys ?? [];
+            const aliasKeys = r.u.aontu_alias_keys ?? [];
             let mo = r.node;
             // An elided value (`a:`) leaves a raw null/undefined that never
             // passed through the val rule. It is REFUSED rather than made a
@@ -920,12 +983,14 @@ help isolate the syntax error.`,
                 // TODO: needs addpath?
                 let mopv = new MapVal_1.MapVal({ peg: mop });
                 mopv.optionalKeys = optionalKeys;
+                mopv.aliasKeys = aliasKeys;
                 r.node =
                     addsite(new ConjunctVal_1.ConjunctVal({ peg: [mopv, ...mo.___merge] }), r, ctx);
             }
             else {
                 r.node = addsite(new MapVal_1.MapVal({ peg: mo }), r, ctx);
                 r.node.optionalKeys = optionalKeys;
+                r.node.aliasKeys = aliasKeys;
             }
             return undefined;
         })
@@ -1045,8 +1110,47 @@ help isolate the syntax error.`,
                 r.child.k.key = '&';
             }
         })
-            .bc((rule) => {
+            .bc((rule, ctx) => {
             // TRAVERSE PARENTS TO GET PATH
+            // A DECLARATION IS A PAIR WHOSE KEY IS AN ALIAS NAME. The lexer
+            // claims `%name` whole and hands it over as a #VL token whose
+            // SOURCE is the name, so the key TEXT alone cannot be the test:
+            // a quoted `"%a": 1` is an ordinary key that merely starts with
+            // the sigil, and erasing that would be wrong. The token is what
+            // separates them.
+            //
+            // Recorded on the enclosing map, never on the value, and that is
+            // the point: a reference COPIES the value it resolves to, so a
+            // mark riding the value would erase the referring field too.
+            // Being a property of the map is also what carries it through a
+            // meet, the way optional keys are carried.
+            const ktkn = rule.o0;
+            if (null != ktkn && VL === ktkn.tin && ALIAS_RE.test('' + ktkn.src)) {
+                const holder = rule.parent;
+                const aname = '' + ktkn.src;
+                // AN ALIAS IS FILE-LOCAL, SO IT IS DECLARED AT FILE LEVEL.
+                // A nested `x: {%a: 1}` is refused rather than accepted,
+                // because accepting it is the worse outcome: `%a` resolves
+                // from the ROOT, so a nested declaration would be erased from
+                // the output (it IS a declaration) and still unreachable by
+                // any reference (it is NOT at the root) -- a name that
+                // silently exists nowhere. An empty key path is file level.
+                if (0 < (rule.k?.path?.length ?? 0)) {
+                    // Pathed at the DECLARATION, not at the enclosing map: the
+                    // key is what is wrong, and addsite would otherwise take
+                    // the rule's path and name the container, leaving the
+                    // reader to work out which key was refused. Same correction
+                    // the elided-value nil above carries, and the same lesson
+                    // as BUGS.md §47.
+                    const an = addsite(new NilVal_1.NilVal({ why: 'alias_not_toplevel' }), rule, ctx);
+                    an.path = [...(rule.k?.path ?? []), aname];
+                    rule.node[aname] = an;
+                }
+                else {
+                    holder.u.aontu_alias_keys = (holder.u.aontu_alias_keys || []);
+                    holder.u.aontu_alias_keys.push(aname);
+                }
+            }
             if (rule.u.spread) {
                 rule.node[type_1.SPREAD] =
                     (rule.node[type_1.SPREAD] || { o: rule.o0.src, v: [] });

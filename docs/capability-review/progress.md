@@ -391,6 +391,37 @@ where it is used. Verified in both ports and pinned by
 `docs/how-to.md` "Name a reusable constraint", both executed by
 `ts/test/docs.test.ts`. This phase set never scoped either item.
 
+**ALIASES (P1) LANDED 2026-08-28**, in both ports, and they are the
+general form the sized-integer question was a special case of: `%port:`
+declares a file-local name and `%port` uses it, with no path to spell
+and no `type()` block to hang it on.
+
+The implementation is smaller than the design note expected, and the
+reason is worth recording: **an alias reference IS a path reference.**
+`%uint8` is `$.%uint8` — root-absolute, one segment, spelled with the
+sigil the declaration is spelled with. Order independence,
+alias-of-alias, redeclaration unifying and cycle refusal are then the
+reference machinery already in the language rather than a second
+resolver beside it, which is also why the MIXED cycle (`%a: $.x` with
+`x: %a`) is refused: there is one reference graph, not two. What had to
+be built was the LEXEME — `%name` is one token, a binding in key
+position and a use in value position — and the ERASURE, which is a
+`MapVal.aliasKeys` list filtered in generation, canon **and hcanon**.
+That third surface is the one that matters: `aon1-` pins meaning, so a
+document written with aliases and its longhand twin must hash to one
+string, and `hcanon` is a separate renderer that does not inherit
+canon's filter.
+
+Pinned by `test/spec/alias.tsv` (27 rows, every expectation probed
+through both engines), including the hash pair that states the erasure
+as an equality rather than an absence. Documented in
+`docs/reference-language.md` "Aliases", executed by `docs.test.ts`.
+**P2 — `export` and the `{…} = @"…"` destructure — is not built**, and
+the two open questions gate it rather than P1: X-1 was taken the third
+way (`%foo:`, the ordinary key syntax, so no `=` and no lexing break
+beyond the sigil), and T-1's expansion budget does not bite while
+expansion is bounded by one file.
+
 **One defect the note named turned out not to be one, and this register
 should not imply otherwise.** Its row 7 — `a: >10` lexing as the string `">10"`,
 which it called "worse than unsupported, since it produces a

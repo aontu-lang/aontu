@@ -13,19 +13,20 @@ import "strings"
 // strinject at render time (go/val.go), exactly as TS getHint does.
 // decimal_syntax stays Go-only (TS never raises it).
 var hints = map[string]string{
-	"scalar_value":     "Literal scalar values of the same kind can only unify if they are\nexactly equal.\n \nExamples:\n  1 & 1   -> 1    # Does unify (equal Integers);\n  a & a   -> a    # Does unify (equal Strings);\n  1 & 2   -> nil  # Does not unify (unequal Integers);\n  1 & 1.0 -> nil  # Does not unify (kinds: Integer & Float).",
-	"scalar_kind":      "Literal scalar values of different kinds cannot unify.\n \nExamples:\n  1 & 1   -> 1    # Does unify (equal Integers);\n  1 & a   -> nil  # Does not unify (Kinds: Integer & String);\n  1 & 1.0 -> nil  # Does not unify (kinds: Integer & Float).",
-	"nil_gen":          "The nil value was present after unification, and nil cannot be\ngenerated because nil is not a literal value.",
-	"no_gen":           "This value was present after unification, and cannot be generated\nbecause it is not a literal value.",
-	"disjunct_no_gen":  "More than one alternative of this disjunction is still admitted, so\nthere is no single value to generate. Supply a value that selects\none alternative, or write a preference (*) to say which one holds\nwhen nothing else does.",
-	"mapval_required":  "This map value is required.",
-	"mapval_no_gen":    "This value was present after unification, and cannot be generated\nbecause it is not a literal value.",
-	"listval_required": "This list element is required.",
-	"listval_no_gen":   "This list element was present after unification, and cannot be generated\nbecause it is not a literal value.",
-	"unknown_function": "This function name is not recognized.",
-	"literal_nil":      "A literal nil cannot unify with any other value.",
-	"unify_cycle":      "Circular reference detected during unification.",
-	"constraint":       "This value does not satisfy the constraint. A constraint is the\nmeet of bound atoms (min, max, above, below) and exclusions (neq)\nover one domain; the expected form shown is the normalised\nresidual the value must satisfy.\n \nExamples:\n  min(0) & 3                    -> 3    # Admitted (3 >= 0);\n  min(0) & 0d5                  -> 0d5  # Bounds are leaf-agnostic;\n  max(65535) & 99999            -> nil  # Above the bound;\n  min(5) & max(3)               -> nil  # Empty at composition time;\n  integer & above(1) & below(2) -> nil  # No integer in the gap;\n  neq(1) & 1.0                  -> 1.0  # neq excludes leaf AND value.\n  re(\"^a\") & \"abc\"              -> \"abc\" # Patterns are unanchored.",
+	"scalar_value":      "Literal scalar values of the same kind can only unify if they are\nexactly equal.\n \nExamples:\n  1 & 1   -> 1    # Does unify (equal Integers);\n  a & a   -> a    # Does unify (equal Strings);\n  1 & 2   -> nil  # Does not unify (unequal Integers);\n  1 & 1.0 -> nil  # Does not unify (kinds: Integer & Float).",
+	"scalar_kind":       "Literal scalar values of different kinds cannot unify.\n \nExamples:\n  1 & 1   -> 1    # Does unify (equal Integers);\n  1 & a   -> nil  # Does not unify (Kinds: Integer & String);\n  1 & 1.0 -> nil  # Does not unify (kinds: Integer & Float).",
+	"nil_gen":           "The nil value was present after unification, and nil cannot be\ngenerated because nil is not a literal value.",
+	"no_gen":            "This value was present after unification, and cannot be generated\nbecause it is not a literal value.",
+	"disjunct_no_gen":   "More than one alternative of this disjunction is still admitted, so\nthere is no single value to generate. Supply a value that selects\none alternative, or write a preference (*) to say which one holds\nwhen nothing else does.",
+	"mapval_required":   "This map value is required.",
+	"mapval_no_gen":     "This value was present after unification, and cannot be generated\nbecause it is not a literal value.",
+	"listval_required":  "This list element is required.",
+	"listval_no_gen":    "This list element was present after unification, and cannot be generated\nbecause it is not a literal value.",
+	"unknown_function":  "This function name is not recognized.",
+	"literal_nil":       "A literal nil cannot unify with any other value.",
+	"unify_cycle":       "Circular reference detected during unification.",
+	"pref_implicit_bag": "A preference marks a VALUE, and a bare key is not one. Without\nbraces the `*` took the whole implicit map as its operand, so the\ndocument became a preferred map rather than a map with a preferred\nentry. Brace the bag, or move the `*` onto the value it marks.\n \nExamples:\n  *a: 1        -> nil       # No braces: the `*` takes the whole map;\n  a: *1        -> *1        # ... the `*` belongs on the value;\n  *{a: 1}      -> *{\"a\":1}  # ... or brace the bag to prefer it whole;\n  *{x:1}|*{y:2} -> *{\"x\":1}|*{\"y\":2}  # which is what disjunction needs.",
+	"constraint":        "This value does not satisfy the constraint. A constraint is the\nmeet of bound atoms (min, max, above, below) and exclusions (neq)\nover one domain; the expected form shown is the normalised\nresidual the value must satisfy.\n \nExamples:\n  min(0) & 3                    -> 3    # Admitted (3 >= 0);\n  min(0) & 0d5                  -> 0d5  # Bounds are leaf-agnostic;\n  max(65535) & 99999            -> nil  # Above the bound;\n  min(5) & max(3)               -> nil  # Empty at composition time;\n  integer & above(1) & below(2) -> nil  # No integer in the gap;\n  neq(1) & 1.0                  -> 1.0  # neq excludes leaf AND value.\n  re(\"^a\") & \"abc\"              -> \"abc\" # Patterns are unanchored.",
 	"must": "This value fails an evaluate-only check written with must().\n" +
 		"The author's message is: {message}" +
 		"\n \n" +
@@ -225,6 +226,8 @@ var codeClasses = map[string]string{
 	"elided_value":          "parse",
 	"unify_no_src":          "parse",
 	"incomplete_expression": "parse",
+	"pref_implicit_bag":     "parse",
+	"alias_not_toplevel":    "parse",
 	"not_number":            "parse",
 	"negative":              "parse",
 	"decimal_syntax":        "parse",

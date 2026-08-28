@@ -173,6 +173,7 @@ class MapVal extends BagVal {
 
     out.closed = this.closed
     out.optionalKeys = [...this.optionalKeys]
+    out.aliasKeys = [...this.aliasKeys]
     out.spread.cj = this.spread.cj
     out.site = this.site
 
@@ -355,6 +356,13 @@ class MapVal extends BagVal {
             out.optionalKeys.push(peerkey)
           }
 
+          // ... and so is an alias declaration, for the same reason:
+          // two statements for one map are one map, and a name declared
+          // in either is declared in the result.
+          if (upeer.aliasKeys.includes(peerkey) && !out.aliasKeys.includes(peerkey)) {
+            out.aliasKeys.push(peerkey)
+          }
+
           let child = out.peg[peerkey]
 
           const peerctx = ctx.descend(peerkey)
@@ -479,6 +487,7 @@ class MapVal extends BagVal {
 
     out.closed = this.closed
     out.optionalKeys = [...this.optionalKeys]
+    out.aliasKeys = [...this.aliasKeys]
 
     return out
   }
@@ -509,6 +518,7 @@ class MapVal extends BagVal {
 
     out.closed = this.closed
     out.optionalKeys = [...this.optionalKeys]
+    out.aliasKeys = [...this.aliasKeys]
 
     // out.from = this.from
 
@@ -522,7 +532,14 @@ class MapVal extends BagVal {
     // independent of insertion/unification order and matches the Go
     // port. A bare .sort() is UTF-16 code-unit order, which puts an
     // astral key ahead of everything in U+E000-U+FFFF -- see cmpCodePoint.
-    let keys = Object.keys(this.peg).sort(cmpCodePoint)
+    // An alias declaration is not part of the document, so canon does
+    // not render it: a document with aliases and the document with
+    // every alias written out longhand must produce the same text and
+    // therefore the same `aon1-` hash. That is the sharpest statement
+    // of what an alias IS -- a name for a value, and nothing more.
+    let keys = Object.keys(this.peg)
+      .filter(k => !this.aliasKeys.includes(k))
+      .sort(cmpCodePoint)
     return '' +
       // this.errcanon() +
       // (this.mark.type ? '<type>' : '') +

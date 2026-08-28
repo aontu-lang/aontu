@@ -127,6 +127,7 @@ class MapVal extends BagVal_1.BagVal {
         let out = (peer.isTop ? this : new MapVal({ peg: {} }, ctx));
         out.closed = this.closed;
         out.optionalKeys = [...this.optionalKeys];
+        out.aliasKeys = [...this.aliasKeys];
         out.spread.cj = this.spread.cj;
         out.site = this.site;
         if (peer instanceof MapVal) {
@@ -274,6 +275,12 @@ class MapVal extends BagVal_1.BagVal {
                     if (upeer.optionalKeys.includes(peerkey) && !out.optionalKeys.includes(peerkey)) {
                         out.optionalKeys.push(peerkey);
                     }
+                    // ... and so is an alias declaration, for the same reason:
+                    // two statements for one map are one map, and a name declared
+                    // in either is declared in the result.
+                    if (upeer.aliasKeys.includes(peerkey) && !out.aliasKeys.includes(peerkey)) {
+                        out.aliasKeys.push(peerkey);
+                    }
                     let child = out.peg[peerkey];
                     const peerctx = ctx.descend(peerkey);
                     let oval = out.peg[peerkey] =
@@ -378,6 +385,7 @@ class MapVal extends BagVal_1.BagVal {
         };
         out.closed = this.closed;
         out.optionalKeys = [...this.optionalKeys];
+        out.aliasKeys = [...this.aliasKeys];
         return out;
     }
     clone(ctx, spec) {
@@ -402,6 +410,7 @@ class MapVal extends BagVal_1.BagVal {
         }
         out.closed = this.closed;
         out.optionalKeys = [...this.optionalKeys];
+        out.aliasKeys = [...this.aliasKeys];
         // out.from = this.from
         // console.log('MAPVAL-CLONE', this.canon, '->', out.canon)
         return out;
@@ -411,7 +420,14 @@ class MapVal extends BagVal_1.BagVal {
         // independent of insertion/unification order and matches the Go
         // port. A bare .sort() is UTF-16 code-unit order, which puts an
         // astral key ahead of everything in U+E000-U+FFFF -- see cmpCodePoint.
-        let keys = Object.keys(this.peg).sort(keyorder_1.cmpCodePoint);
+        // An alias declaration is not part of the document, so canon does
+        // not render it: a document with aliases and the document with
+        // every alias written out longhand must produce the same text and
+        // therefore the same `aon1-` hash. That is the sharpest statement
+        // of what an alias IS -- a name for a value, and nothing more.
+        let keys = Object.keys(this.peg)
+            .filter(k => !this.aliasKeys.includes(k))
+            .sort(keyorder_1.cmpCodePoint);
         return '' +
             // this.errcanon() +
             // (this.mark.type ? '<type>' : '') +

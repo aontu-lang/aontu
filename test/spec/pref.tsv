@@ -154,3 +154,29 @@ pref-disjunct-colon-chain	gen	foo: {\n  bar: kind: *'led' | 'custom'\n}	{"foo":{
 pref-disjunct-colon-chain-canon	canon	foo: {\n  bar: kind: *'led' | 'custom'\n}	{"foo":{"bar":{"kind":*"led"|"custom"}}}
 # ... and the preference yields when the other alternative is required.
 pref-disjunct-colon-chain-override	gen	foo:{bar:kind:*'led'|'custom'} foo:{bar:kind:'custom'}	{"foo":{"bar":{"kind":"custom"}}}
+#
+# A PREFERENCE MARKS A VALUE, AND A BARE KEY IS NOT ONE.
+#
+# `*a: 1` has no braces, so the `*` took the whole IMPLICIT top-level
+# map as its operand and the document silently became `*{"a":1}`. With
+# a second entry it was worse: `*a: 1, b: 2` parsed as the one-element
+# LIST `[*{"a":1}]`, losing `b` outright. Neither is anything the author
+# wrote, and the accident was confined to the first position of the
+# implicit top-level map -- the only place where no brace has yet
+# committed the rule to a map. `{*a: 1}` and `a: 1, *b: 2` were already
+# parse errors; these rows make the third spelling agree with them.
+#
+# Every expectation was obtained by running BOTH engines and diffing.
+pref-implicit-bag-refused	errc	*a: 1	pref_implicit_bag
+pref-implicit-bag-refused-two	errc	*a: 1, b: 2	pref_implicit_bag
+# THE BRACED FORMS ARE UNTOUCHED, which is the whole of the distinction:
+# these are the real spelling, and `*{x:1}|*{y:2}` is what a defaulted
+# map alternative needs. Pinned here so the guard above cannot widen.
+pref-braced-map-canon	canon	*{a: 1}	*{"a":1}
+pref-braced-list-canon	canon	*[1]	*[1]
+pref-braced-nested-canon	canon	x: *{a:1}	{"x":*{"a":1}}
+pref-braced-disjunct	canon	*{x:1}|*{y:2}	*{"x":1,"y":2}
+# A preference on a scalar was never in doubt; pinned as the control
+# that says the guard reads the operand's braces, not the `*`.
+pref-scalar-untouched	canon	a: *1	{"a":*1}
+pref-scalar-disjunct-untouched	canon	a: *1|2	{"a":*1|2}

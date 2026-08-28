@@ -65,12 +65,25 @@ func hcanonRender(v Val, inh hcanonMarks) string {
 				out.WriteByte(',')
 			}
 		}
-		keys := append([]string(nil), b.keys...)
+		// Alias declarations are dropped here for the same reason
+		// MapVal.Canon drops them, and this is the surface where it
+		// counts: `aon1-` pins MEANING, so a document written with
+		// aliases and the same document written longhand must hash to
+		// one string. Two renderers, one rule -- hcanon is not Canon
+		// and does not inherit the filter.
+		keys := make([]string, 0, len(b.keys))
+		for _, k := range b.keys {
+			if !b.isAliasKey(k) {
+				keys = append(keys, k)
+			}
+		}
 		sort.Strings(keys)
-		for i, k := range keys {
-			if i > 0 {
+		first := true
+		for _, k := range keys {
+			if !first {
 				out.WriteByte(',')
 			}
+			first = false
 			out.WriteString(jsonString(k))
 			if b.isOptional(k) {
 				out.WriteByte('?')

@@ -276,6 +276,7 @@ func clonePathKind(v Val, path []string, deep bool) Val {
 		out.sp = n.sp
 		out.closed = n.closed
 		out.optional = append([]string{}, n.optional...)
+		out.aliasKeys = append([]string{}, n.aliasKeys...)
 		if n.spread != nil {
 			out.spread = cloneAt(n.spread, path, deep)
 		}
