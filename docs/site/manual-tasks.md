@@ -14,10 +14,18 @@ before it can write the corresponding config.
 
 ## Where this stands
 
-**aontu.dev is live.** Verified against the running Worker on
-2026-08-27: markdown negotiation returns `text/markdown` with
-`Vary: Accept`, `www` 301s to the apex, `/nope` answers markdown and
-`/nope.json` a structured error with CORS, `POST` answers 405.
+**aontu.dev is live, and runs the engine it documents.** Verified
+against the running Worker on 2026-08-27: markdown negotiation returns
+`text/markdown` with `Vary: Accept`, `www` 301s to the apex, `/nope`
+answers markdown and `/nope.json` a structured error with CORS, `POST`
+answers 405.
+
+The machine surfaces followed — `/errors` and `/errors/<code>` over the
+111-code registry, `/errors.json`, `/grammar/*` byte-identical to
+source, `/versions.json`, `/llms-full.txt` — and the pin moved to
+`0.53.0` the day it shipped. Until then the site had been describing a
+verb surface `0.52.1` did not have; the landing page said so, and the
+test that made it say so deleted the caveat when the pin caught up.
 
 | | Task | State |
 |---|---|---|
@@ -352,12 +360,12 @@ What is left, in the order it will hurt if ignored:
    the constant is a word from you.
 2. **B5 / C5** — the analytics token (or a "no"), and where the
    sponsorship goes.
+3. **C3** — branch protection and CodeQL on `aontu-lang/web`. It has no
+   workflows by design; connecting Workers Builds gave it the one check
+   it does have, a real `npm ci && npm run build` on every pull request.
 
-**D1 is closed** — the 0.53.0 release published over OIDC on
-2026-08-28, which proves the trusted-publisher record survived the
-rename.
-4. **C3** — branch protection and CodeQL on `aontu-lang/web`. It has no
-   workflows by design, so a Cloudflare build check is its only CI.
+**D1 is closed** — the 0.53.0 release published over OIDC on 2026-08-28,
+which proves the trusted-publisher record survived the rename.
 
 None of these block the site. All of them are cheaper now than after
 they are forgotten.
