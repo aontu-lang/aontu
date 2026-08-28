@@ -267,135 +267,289 @@ What adopting it settles, beyond A-4 itself:
 
 ## 5. `export`
 
-`export({ %uint8, %port })` — using the sigil-gated shorthand of §7 —
-declares which of the file's aliases are published. Everything else
-stays private. The sigils are not decoration: they are what makes the
-argument a list of *aliases* rather than a map of keys, so
-`export({ uint8 })` is not a shorter spelling of the same thing but a
-different — and refused — one.
+`export({ %uint8, %port })` declares which of a file's aliases are
+published. Three rules, all settled:
 
-Open shape questions:
-
-- **Is `export` a declaration or a value?** It is written like a
-  builtin call, but it cannot *evaluate* to anything without appearing
-  in the output. Either it is erased like an alias (recommended, and
-  consistent with `type()`-marked fields being omitted), or it needs a
-  home key and the reader has to know it is special.
-- **May a file export something that is not an alias** — a key, a
-  constraint, a whole subtree? Recommend **no** for the first version.
-  Exporting keys is what `@"…"` already does, and the value of this
-  proposal is precisely that aliases are the things `@"…"` *cannot*
-  carry.
-- **Is export required for import?** Yes, or "local to the file" means
-  nothing. An unexported alias must be invisible to an importer, and
-  importing a name that is not exported must be an error naming the
-  name — not a silent nothing.
-
-## 6. Crossing the file boundary — and why `import` is not needed
-
-The proposal gave `import` three arguments. Taken one at a time, two of
-them duplicate machinery the language already has, and the third is the
-only thing actually missing.
-
-| Argument | What it does | Already expressible? |
-|---|---|---|
-| `"path.to.place"` | place the file's **values** at a path | yes — `svc: @"other.aon"` |
-| `@"other.aon"` | read the file | yes — that *is* `@"…"` |
-| `{ %uint8, %port }` | bring its **aliases** into scope | **no** — the only gap |
-
-`@"…"` already crosses the file boundary for values. What it cannot
-carry is aliases, because an alias is erased before a value exists. So
-the missing feature is not an import verb; it is a way to bind names.
-
-**A destructuring left-hand side does exactly that**, and row 11 shows it
-occupies the same syntactic slot as the alias declaration — it is
-`KEY = value` with the key generalised from a name to a pattern:
+**It is self-erasing.** `export(…)` contributes nothing to the
+document's value — it is a declaration, not a value, and the file
+generates exactly as it would without it. This matches `type()`-marked
+fields being omitted, and it means adding an export can never change
+what a file produces.
 
 ```
-{ %uint8, %port }  = @"types.aon"    # bind two exported aliases
-{ %u8: %uint8 }    = @"types.aon"    # …and rename while binding
-svc: @"types.aon"                    # values, if also wanted — unchanged
+# types.aon
+%uint8: integer & min(0) & max(255)
+%port:  integer & min(1) & max(65535)
+%secret: string                        # declared, deliberately not exported
+
+export({ %uint8, %port })
+
+defaults: { retries: 3 }
 ```
 
-One form, `<pattern> = <value>`, where the pattern is a name or a map of
-names. No new builtin, and the two concerns separate cleanly: **values
-cross via `@"…"`, names cross via a pattern on the left of `=`.**
+```
+# what types.aon generates, with or without the export line
+{ "defaults": { "retries": 3 } }
+```
 
-### What dropping `import` buys
+**It takes aliases and nothing else.** `export({ uint8 })` — no sigil —
+is refused, not silently reinterpreted as a key. Keys already cross the
+boundary as values; the whole point of `export` is the thing that
+otherwise cannot.
 
-- **Decision I-1 disappears.** There is no placement argument, so there
-  is no question of a string path as a write location — the thing
-  nothing else in the language does. `move(p)` takes a real path
-  expression and reads; a string path would have been unchecked by the
-  parser and unfollowable by `why` or `get`.
-- **Decision I-2 disappears.** The destructuring list *is* the import,
-  so "exported but not destructured" has no meaning.
-- **The trust question dissolves.** The earlier draft argued at length
-  that `import` must ride the same resolver and confinement as `@"…"`,
-  or it adds a fifth input to hermeticity's four and falsifies
-  [`docs/trust.md`](../trust.md) clause 1 in both ports. With the
-  right-hand side being a plain `@"…"`, **there is no new file-reading
-  route to govern** — confinement, the resolver chain and the include
-  manifest all apply unchanged, because it is the same include.
-- **The module question dissolves too.** A module-shaped `@"…"` works on
-  the right-hand side with no new machinery, so this adds no
-  distribution surface at all — which §6 of the earlier draft named as
-  the outcome to aim for and could only hope for.
-- **The shorthand becomes load-bearing.** `{ %uint8, %port }` is now the
-  import syntax rather than a convenience — and with the sigil adopted
-  it needs no confinement to be unambiguous, which is a better answer to
-  **S-1** than this note first gave (§7).
+```
+export({ %uint8 })       # ok
+export({ uint8 })        # refused: not an alias
+export({ defaults })     # refused: that is a key, and it already crosses
+export(%uint8)           # refused: takes a set, even of one
+```
 
-### The one question it opens
+**An unexported alias is invisible.** `%secret` above cannot be bound by
+any importer; asking for it names the name rather than failing silently:
 
-`@"other.aon"` evaluates to the file's **value**. So `{ %port, %host } =
-@"config.aon"` still has two readings: bind to the file's exported
-*aliases*, or bind to the *keys* of the map it evaluates to. The sigil
-marks the left-hand names as aliases; it says nothing about what they
-are bound *from*.
+```
+{ %secret } = @"types.aon"    # refused: types.aon does not export %secret
+```
 
-**Decision point E-1.** The second reading is arguably more natural, and
-it would make `export` unnecessary — the public surface would just be
-the file's keys. But it also dissolves §2's locality argument, which is
-the whole case for aliases crossing a boundary at all. The first reading
-keeps `export` meaningful and keeps "this name is mine" expressible.
-They could coexist (aliases when the name is exported, keys otherwise),
-but a rule that silently falls back from one namespace to another is the
-A-4 mistake in a new place, so: pick one.
+## 6. Crossing the file boundary
 
-Recommend the **alias** reading, with `export` retained. The sigil helps
-but does not decide this: it makes the *binding* unambiguous, while E-1
-is about the *source*. Under the alias reading `{ %port } = @"c.aon"`
-requires `c.aon` to have written `export({ %port })`; under the key
-reading it would bind from `port:`. Pick one.
+`@"…"` already carries a file's **values** across. What it cannot carry
+is aliases, because an alias is erased before a value exists. A
+destructuring left-hand side carries those, and nothing else changes.
 
-## 7. The `{ %foo, %bar }` shorthand
+### The destructure is additive
 
-`{ %foo, %bar }` stands for `{ foo: %foo, bar: %bar }`: the key is the
-alias's name without the sigil, the value is the alias reference. That
-is the JavaScript reading, and it is what makes `export({ %uint8 })`
-say "publish the alias named uint8" rather than "publish a key called
-`%uint8`".
+**Exported aliases are not injected automatically.** Writing
+`@"types.aon"` gives you its values and none of its aliases; you have to
+ask, by name:
 
-**The sigil settles the scope question this note could not.** Written
-`{ foo, bar }`, the shorthand had to be confined to pattern position,
-because in an ordinary map `foo` in value position is a bare string —
-so `{name, port}` would have meant `{name: "name", port: "port"}`, which
-nobody intends. Written `{ %foo, %bar }` there is no such collision:
-row 16 shows the sigil form is a parse error today, so it can be given
-one meaning everywhere without displacing anything.
+```
+{ %uint8, %port } = @"types.aon"
+```
 
-So the shorthand can be **general**, and S-1's confinement is
-unnecessary. The rule is not "this form works in export and
-destructuring" but "this form works for sigil aliases" — a rule about
-what the entries *are*, which is why it needs no positional exception.
+**And the include still does its ordinary job.** The destructure is
+*additive*, not a replacement: the imported subtree lands exactly where
+and as it would have without the pattern — as if the `{…} =` were not
+written at all.
 
-`{ foo, bar }` without sigils stays exactly what it is today: a parse
-error. That is the guard, and it costs nothing to keep.
+```
+# these two lines place identical values; the second ALSO binds two aliases
+svc: @"types.aon"
+svc: { %uint8, %port } = @"types.aon"
+```
 
-Canon must still expand the sugar. `{ %foo }` and `{ foo: %foo }` are
-the same document and must hash identically — and since aliases are
-erased before canon (§4), both reduce to whatever `%foo` denotes.
+```
+# so a destructure at top level merges the file's values as usual
+{ %uint8 } = @"types.aon"
+
+listen: %uint8
+listen: 8080
+```
+
+```
+{ "defaults": { "retries": 3 }, "listen": 8080 }
+```
+
+That is worth stating twice because the JavaScript intuition points the
+other way: there, destructuring is how you *narrow* what you take. Here
+it only *adds* a binding, and taking the values is what `@"…"` was
+already doing.
+
+### Renaming
+
+Both sides carry the sigil, because both are aliases:
+
+```
+{ %u8: %uint8 } = @"types.aon"     # bind the exported %uint8 as local %u8
+```
+
+### `{%}` — take all the exports
+
+```
+{%} = @"types.aon"                 # bind every alias types.aon exports
+```
+
+Sugar for naming them all, and the one place a wildcard is safe: the
+exporting file chose the set, so `{%}` cannot reach anything the author
+did not publish. It is still explicit at the *use* site — a reader sees
+that aliases arrive here, even without seeing which.
+
+The obvious hazard is that `{%}` makes an importing file's alias
+namespace depend on a remote file's export list, so a new export
+appears without a local edit. Two things bound it: an alias arriving
+this way can only *conflict* with a local one by unifying (§7), never
+silently replace it; and `{%}` is a choice the importer makes, so the
+blast radius is the files that opted in.
+
+### E-1 is closed by the additive rule
+
+The earlier draft asked whether a destructure binds exported *aliases*
+or the *keys* of the value. The answer is that the question was
+malformed: **aliases are what the pattern binds, and keys land as values
+regardless.** Both happen, and neither is a choice.
+
+```
+{ %uint8 } = @"types.aon"
+# binds  : %uint8, because types.aon exported it
+# places : types.aon's values, because that is what @"…" does
+```
+
+### Why this needs no new machinery
+
+The right-hand side is a plain `@"…"`, so the resolver chain,
+confinement, the include manifest and module-shaped paths all apply
+unchanged. There is no second file-reading route to govern, which is
+what made dropping `import` worth doing — see the §6 note in the
+previous revision.
+
+### The shorthand
+
+`{ %foo, %bar }` stands for `{ foo: %foo, bar: %bar }` — key without the
+sigil, value with it. Gated on the sigil, so `{ foo, bar }` stays the
+parse error it is today and the sugar can never be confused with bare
+strings. That gate is why it can be general rather than confined to
+pattern position. Canon expands it: `{ %foo }` and `{ foo: %foo }` are
+the same document and must hash identically.
+
+## 7. Failure modes, scope, and termination
+
+### Redeclaration unifies
+
+An alias declared more than once in a file denotes the **meet** of its
+declarations, exactly as a key does. This keeps order-independence and
+means a redeclaration is not an error by itself:
+
+```
+%port: integer                 # → %port denotes integer & min(1) & max(65535)
+%port: min(1) & max(65535)
+```
+
+```
+%n: 1
+%n: integer                    # → 1, since integer & 1 = 1
+```
+
+```
+%n: 1
+%n: 2                          # conflict: 1 & 2 has no value
+```
+
+The conflict is reported at the declarations, not at some later use
+site, because it is decidable without knowing where `%n` is used. Two
+files can also both contribute — a local `%port` and an imported one
+meet in the same way:
+
+```
+%port: integer
+{ %port } = @"types.aon"       # types.aon exports %port: integer & min(1) & max(65535)
+                               # → %port denotes the meet of both
+```
+
+That is the answer to the `{%}` hazard above: an alias arriving by
+wildcard cannot quietly replace a local one, because arriving means
+meeting.
+
+### Aliases work only where defined or imported
+
+An alias is in scope in the file that declares it, and in a file that
+imports it by name. Nowhere else:
+
+```
+# a.aon
+%t: integer & min(0)
+inner: @"b.aon"                # b.aon does NOT see %t
+```
+
+```
+# b.aon
+x: %t                          # refused: %t is not defined here
+```
+
+The include carries *values* down, never the includer's names. Without
+that rule an alias would be a dynamic scope, and a file's meaning would
+depend on who included it.
+
+### Aliases are not passed to children
+
+Scope is lexical and **does not descend into generated children**. A
+spread template or a generator sees the *expansion*, never the alias:
+
+```
+%row: { kind: string, id: integer }
+
+table: {
+  &: %row                      # every child meets the EXPANSION
+  a: { kind: user, id: 1 }
+  b: { kind: user, id: 2 }
+}
+```
+
+```
+{ "table": { "a": { "kind": "user", "id": 1 },
+             "b": { "kind": "user", "id": 2 } } }
+```
+
+The children are constrained by `{kind: string, id: integer}`. They do
+not acquire `%row` as a name, and nothing inside them can write `%row`
+unless the file itself declared it. Same for `pack`/`each`:
+
+```
+%tmpl: { replicas: *2 | integer }
+
+deploy: pack($.names, %tmpl)   # the template is the expansion
+```
+
+This is what keeps aliases erasable: if a child could carry one, the
+alias would have to survive into the value, and canon could no longer
+erase it (§4).
+
+### Can aliases give Turing completeness? No.
+
+**They cannot, and the reason is structural rather than a limit we
+impose.** Three properties together:
+
+1. **No parameters.** An alias substitutes a fixed expression. There is
+   no application, so no way to build a function.
+2. **No recursion.** The alias reference graph must be acyclic — §4
+   refuses a cycle at resolution, and the check is on the graph, not
+   just on direct self-reference, so `%a: %b` with `%b: %a` is refused
+   too.
+3. **Finite name set.** A file declares finitely many aliases, and each
+   expansion step consumes one name from that set without adding any.
+
+So expansion is a topological walk of a DAG. It terminates, always, and
+its result is bounded. This is macro expansion *without* parameters —
+strictly weaker than the untyped lambda calculus, and weaker than C's
+preprocessor, which gets its (limited) power from arguments.
+
+**But expansion can still explode, and that is the real hazard:**
+
+```
+%a0: 1
+%a1: { x: %a0, y: %a0 }
+%a2: { x: %a1, y: %a1 }
+# … %aN expands to 2^N copies of %a0
+```
+
+Twenty declarations reach a million nodes. This is not
+non-termination — it finishes — but
+[`docs/trust.md`](../trust.md) clause 2 is about what an unattended
+agent can be handed, and "terminates eventually" is not the promise
+that clause makes.
+
+**So expansion must be budgeted**, and the budget must be on *expanded
+size*, not on depth or on declaration count, since the example above is
+twenty shallow declarations. The evaluator already has a pass budget
+with a deterministic bound; alias expansion needs the equivalent, and it
+should be charged before evaluation begins rather than discovered
+during it. Recorded as **T-1** in §9.
+
+### What the sigil does not fix
+
+Worth being explicit, since §4 credits it with a lot. The sigil ends
+name *capture*; it does nothing about the three failures above.
+Redeclaration conflicts, out-of-scope use and expansion blowup are all
+possible with `%` and would all be possible without it.
 
 ## 8. Interactions to keep straight
 
@@ -425,8 +579,9 @@ Nothing should be built before these are answered.
 | **A-2** | May an alias reference another alias? | Yes, with a cycle check |
 | **A-3** | Alias name colliding with a key | **Dissolved** by the sigil — different namespaces. §4 |
 | **A-4** | Alias name colliding with a bare string | **DECIDED: `%` sigil in the name.** §4 |
-| **E-1** | Does a destructure bind exported *aliases* or the value's *keys*? | Aliases, `export` retained. §6 |
-| **S-1** | Is `{%foo, %bar}` general or confined? | **Answered: general**, because the sigil disambiguates. §7 |
+| **E-1** | Does a destructure bind exported *aliases* or the value's *keys*? | **Closed** — the question was malformed. The pattern binds aliases; keys land as values regardless, because the destructure is additive. §6 |
+| **T-1** | How is alias expansion budgeted? | **Open, new.** Expansion terminates (§7) but can be exponential; budget on expanded *size*, charged before evaluation |
+| **S-1** | Is `{%foo, %bar}` general or confined? | **Answered: general** — the sigil disambiguates, so no confinement is needed. §6 |
 | **X-1** | Is `=` the right spelling at all? | **Reopened, better placed** — row 15. §10 |
 
 **Three of the original eight are now dissolved rather than decided,
@@ -437,9 +592,12 @@ question disappeared with the construct that raised it, which is a
 better outcome than answering it — an answered question is a rule
 someone has to remember.
 
-**Open: A-1, A-2, E-1, X-1.** A-1 (which site a finding names) and A-2
-(alias-of-alias, lean yes) are unchanged. E-1 is new with §6. X-1 is
-the live one, and the sigil has improved its odds — see §10.
+**Open: A-1, A-2, T-1, X-1.** A-1 (which site a finding names) and A-2
+(alias-of-alias, lean yes) are unchanged. **E-1 closed** once the
+destructure was settled as additive — the pattern binds aliases and the
+values land anyway, so there was never a choice to make. **T-1 is new**,
+and is what §7 turned up: aliases cannot loop, but they can explode, and
+the budget for that is unspecified. X-1 still gates P1 — see §10.
 
 ## 10. Compatibility, measured
 
@@ -517,7 +675,11 @@ may have made it free.
   no parameters and is not a macro or a function. A parameterised alias
   is a user-defined function, which
   [AONTUCONSTRAINTS.0.md §9](AONTUCONSTRAINTS.0.md) refuses on
-  termination grounds and this note refuses for the same reason.
+  termination grounds and this note refuses for the same reason. §7
+  shows this is exactly what keeps aliases sub-Turing — no parameters,
+  no recursion, finite name set, so expansion is a DAG walk. Adding
+  parameters would give up that argument entirely, which is why this is
+  a non-goal rather than a deferral.
 - **No re-export.** A file that imports a name does not thereby publish
   it. Chains of re-export are how a name's origin becomes unfindable.
 - **No dynamic names.** The importable set is textual and known after
@@ -536,11 +698,24 @@ Sketch only, since §9 is open:
   from the hash — a document with aliases and its
   expanded twin must produce the identical `aon1-…` string, which is the
   sharpest single row in this list.
-- **Export and destructuring:** exported name bindable; unexported name
-  refused *by name*; destructure and rename; a module-shaped `@"…"` on
-  the right-hand side resolving as it already does; and whichever way
-  E-1 lands, a row pinning that a non-exported key is not silently
-  reachable.
+- **Export:** self-erasing — a file generates identically with and
+  without its `export` line, which is one row and the sharpest statement
+  of the rule; `export({ uint8 })` without a sigil refused; an
+  unexported alias refused *by name* when an importer asks for it.
+- **Destructuring:** exported name bindable; rename; `{%}` binding every
+  export and nothing more; a module-shaped `@"…"` on the right resolving
+  as it already does. And the additive rule as its own row:
+  `svc: @"f.aon"` and `svc: { %a } = @"f.aon"` must **generate
+  identically**, differing only in what is bound.
+- **Failure modes (§7):** redeclaration meeting rather than erroring
+  (`%n: 1` with `%n: integer` → 1) and conflicting when it cannot
+  (`%n: 1` with `%n: 2`); an alias unavailable in an included file; an
+  alias not reaching spread or generator children, pinned by the
+  children carrying the expansion's constraint but no name; a cycle
+  through two aliases refused, not just direct self-reference.
+- **Expansion budget (T-1):** the doubling ladder of §7 refused at the
+  budget rather than evaluated, with the refusal naming the budget.
+  This row cannot be written until T-1 is settled.
 - **Trust:** nothing new to pin. The right-hand side is a plain `@"…"`,
   so the existing include rows already cover every confinement mode and
   the include manifest. That absence is itself the argument for §6 —
@@ -554,7 +729,7 @@ Sketch only, since §9 is open:
 
 | Phase | Content | Gate |
 |-------|---------|------|
-| P0 | Settle X-1 and E-1 first — A-4 is decided | no code |
+| P0 | Settle X-1 and T-1 first — A-4 decided, E-1 closed | no code |
 | P1 | Aliases, file-local, with canon erasure and the cycle/shadow refusals | the hash row |
 | P2 | `export`, and `{…} = @"…"` destructuring | canon expansion |
 

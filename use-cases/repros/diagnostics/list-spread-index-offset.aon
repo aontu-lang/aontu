@@ -25,7 +25,9 @@
 # was probed through both engines. Reverting the fix fails exactly four
 # of them -- and NOT spread-list-elem-path-code, because both ports
 # emitted `no_scalar_unify` all along. That is why nothing caught this:
-# of 7,679 `err` rows in the suite only 15 assert a `$.` path.
+# of the suite's 252 `err` rows only 20 asserted a `$.` path (measured
+# at the commit before the 46/47/48 fixes; an earlier note here said
+# "7,679 and 15", and neither figure reproduces).
 #
 # expected: both ports report path $.l.2
 # actual:   both ports report path $.l.2 (was $.l.3 in TypeScript)

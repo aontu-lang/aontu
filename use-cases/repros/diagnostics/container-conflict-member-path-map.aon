@@ -1,0 +1,12 @@
+# 47, the MAP twin -- never reported, found by looking for it once the
+# list cause was understood (see container-conflict-member-path.aon).
+#
+# FIXED 2026-08-28. Same shape, same one-line cause: MapVal.Unify's key
+# loop leaves a stale child slot in `ctx.slot`, and the not-a-map branch
+# stamped it, naming a key that is not party to the failure.
+#
+# expected: both ports report path $.a
+# actual:   both ports report path $.a (was $.a.r in Go)
+# run: node ../../ts/bin/aontu.js container-conflict-member-path-map.aon
+a: {p: 1, q: 2, r: 3}
+a: "str"

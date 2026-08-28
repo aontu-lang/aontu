@@ -779,6 +779,15 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 			}
 		}
 	} else if !isTop(peer) {
+		// The meet is the MAP against a non-map, so it happens at the
+		// map's own slot -- restore it. The key loops above overwrite
+		// ctx.slot with a child slot and only the in-branch paths put it
+		// back, so a stale key survived into this branch and
+		// makeNilErr's slot-extension then stamped it: the map twin of
+		// the list case in BUGS.md 47, which reported an element that is
+		// not party to the failure where TypeScript reported the
+		// container.
+		ctx.slot = dbase
 		return makeNilErr(ctx, "map", m, peer)
 	}
 

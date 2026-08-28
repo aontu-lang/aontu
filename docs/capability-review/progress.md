@@ -428,27 +428,54 @@ probed through both engines; reverting the fix fails exactly four of
 them. [`use-cases/BUGS.md`](../../use-cases/BUGS.md) §44.
 
 **Fixing it surfaced two more cross-port divergences, both predating it**
-(TypeScript byte-identical to the published 0.53.0 on each) and both
-left open: a `k:v` pair written BEFORE a `&:` spread makes TypeScript
-drop the spread entirely and generate where Go refuses (§46 — silent
-wrong output on the canonical side, and order-dependent, which should
-not be true of a commutative language), and a conjunct of unequal-length
-lists paths its finding at the list in TypeScript and at the element in
-Go (§47). Neither is in `spread-list.tsv`: a row must pass in both
-ports. Neither is in `divergent.tsv` either, which is for divergences
-that cannot be fixed here.
+(TypeScript byte-identical to the published 0.53.0 on each): a `k:v`
+pair written BEFORE a `&:` spread made TypeScript drop the spread
+entirely and generate where Go refused (§46 — silent wrong output on the
+canonical side, and order-dependent, which should not be true of a
+commutative language), and a conjunct of unequal-length lists pathed its
+finding at the list in TypeScript and at the element in Go (§47).
+**Both are now FIXED (2026-08-28)**, along with an unreported `MapVal`
+instance of §47 found by looking for the twin once the list cause was
+understood. §46 is pinned by six more rows in `spread-list.tsv`; §47 and
+its map twin by `test/spec/container-path.tsv`.
 
 The structural reason both gates missed it is worth recording against
 protocol rule 5, and **it is still open**: the shared suite pins error
-codes and message substrings, but almost never the path. Of 7,679 `err`
-rows, 15 include a `$.` path in their expectation; `errc` asserts the
-code alone. Both ports emitted `no_scalar_unify` here, so every gate
-agreed while the paths differed. The §44 rows demonstrate it from the
-inside — reverting the fix leaves `spread-list-elem-path-code` passing
-while the four path rows fail. The path is the field G7's machine
-surface hands to agents, and it is the least-asserted thing in the
-report. Nine rows now assert one; §46 and §47 are what the other
-7,664 do not see.
+codes and message substrings, but almost never the path. Both ports
+emitted `no_scalar_unify` here, so every gate agreed while the paths
+differed. The §44 rows demonstrate it from the inside — reverting the
+fix leaves `spread-list-elem-path-code` passing while the four path rows
+fail. The path is the field G7's machine surface hands to agents, and it
+is the least-asserted thing in the report.
+
+**The count this paragraph carried was wrong** — "of 7,679 `err` rows,
+15 include a `$.` path" — and neither figure reproduces. Measured
+directly, at the commit before this one there were **252 `err` rows, 20
+of which assert a path**, against 615 `errc` rows asserting a code
+alone, in 3,495 shared rows total:
+
+```
+grep -hP '\terr\t'  test/spec/*.tsv | wc -l                 # 252
+grep -hP '\terr\t'  test/spec/*.tsv | grep -c 'at path \$'  # 20
+```
+
+§46, §47 and §48 all lived in that gap. Fixing them takes it to **261
+`err` rows, 24 of which assert a path**, plus **three new `vet` rows**
+that assert one exactly (see below for why those could not be `err`
+rows). The ratio is still the exposure: 27 rows in the whole suite check
+where a finding points.
+
+**And the `err` mode has a second blind spot, found writing §47's
+rows.** `err` matches its expectation as a SUBSTRING, and a container's
+path is a PREFIX of every member path beneath it — `at path $.a` is
+contained in `at path $.a.2`. An `err` row asserting a container's own
+path therefore passes against the exact answer it forbids, and the rest
+of the message is byte-identical between the two, so nothing else in it
+discriminates. §47's rows are `vet` rows for that reason: a `vet` row
+compares the finding object field by field, where `path` is matched
+exactly. **Any future path row whose wrong answer EXTENDS the right one
+has to be a `vet` row** — protocol rule 5's counting is necessary but
+not sufficient, because a row can assert a path and still be vacuous.
 
 ## G2 — the validation verb
 

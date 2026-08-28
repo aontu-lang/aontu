@@ -1,0 +1,45 @@
+# A CONTAINER'S OWN CONFLICT IS SITED AT THE CONTAINER (BUGS.md 47).
+# Columns: name<TAB>mode<TAB>src<TAB>expect (errc), and the five-column
+# name<TAB>vet<TAB>schema<TAB>data<TAB>expect for the vet rows below.
+#
+# When a list or a map meets a peer that is not a list or a map, the
+# refusal belongs to the CONTAINER -- no member is party to it. Both
+# ports refused correctly and both emitted the same code, but Go named
+# a member: ListVal.Unify and MapVal.Unify drive their element and key
+# loops through `ctx.slot`, and only the in-branch paths restored it,
+# so a stale child slot survived into the not-a-container branch and
+# makeNilErr's slot-extension stamped it. `a:[x:1,10,"bad"] &
+# {a:[integer,integer,integer]}` reported `$.a.1`, an element that is
+# not party to the failure, where TypeScript reported `$.a`.
+#
+# The MAP twin was never reported -- it was found by looking for it
+# after the list case, and had the identical shape and the identical
+# one-line cause.
+#
+# The code rows come first and the PATH rows after, because the code was
+# never the thing in dispute: both ports agreed on it throughout, so
+# every code-only row passed in both engines while the paths disagreed.
+# The path is the field `vet --format json` hands an agent, and it
+# decides which line a caller is sent to. The four `errc` rows below are
+# therefore controls -- they pass with the fix reverted -- and the three
+# `vet` rows are the pins.
+#
+# Every expectation was obtained by running BOTH engines and diffing,
+# per the parity probe.
+container-path-list-conjunct-code	errc	a:[x:1,10,"bad"]&{a:[integer,integer,integer]}	list
+container-path-list-scalar-conjunct-code	errc	a:[1,2,3]&{a:9}	list
+container-path-map-statements-code	errc	a:{p:1,q:2,r:3} a:"str"	map
+container-path-nested-code	errc	a:{b:[1,2,3]} a:{b:"str"}	list
+#
+# THE PATH ITSELF IS PINNED THROUGH `vet`, NOT THROUGH `err`. An `err`
+# row matches its expectation as a SUBSTRING, and a container's path is
+# a PREFIX of every member path below it -- `at path $.a` is contained
+# in `at path $.a.2`, so an err row asserting the container would have
+# passed against the very answer it was written to forbid. (The whole
+# rest of the message is byte-identical between the two, so no other
+# substring discriminates either.) A `vet` row compares the finding
+# object field by field, where `path` is matched exactly. These three
+# fail against the pre-fix engine: `$.a.2`, `$.a.r`, `$.a.b.2`.
+container-path-vet-list	vet	a:[integer,integer,integer]	a:"str"	{"findings":[{"class":"conflict","code":"list","path":"$.a","severity":"error","sites":[{"col":3,"file":"data","len":5,"role":"data","row":1,"src":"\\"str\\"","value":"\\"str\\""},{"col":3,"file":"schema","len":1,"role":"schema","row":1,"src":"[","value":"[integer,integer,integer]"}]}],"truncated":false,"verdict":"invalid"}
+container-path-vet-map	vet	a:{p:1,q:2,r:3}	a:"str"	{"findings":[{"class":"conflict","code":"map","path":"$.a","severity":"error","sites":[{"col":3,"file":"data","len":5,"role":"data","row":1,"src":"\\"str\\"","value":"\\"str\\""},{"col":3,"file":"schema","len":1,"role":"schema","row":1,"src":"{","value":"{\\"p\\":1,\\"q\\":2,\\"r\\":3}"}]}],"truncated":false,"verdict":"invalid"}
+container-path-vet-nested	vet	a:{b:[1,2,3]}	a:{b:"str"}	{"findings":[{"class":"conflict","code":"list","path":"$.a.b","severity":"error","sites":[{"col":6,"file":"data","len":5,"role":"data","row":1,"src":"\\"str\\"","value":"\\"str\\""},{"col":6,"file":"schema","len":1,"role":"schema","row":1,"src":"[","value":"[1,2,3]"}]}],"truncated":false,"verdict":"invalid"}

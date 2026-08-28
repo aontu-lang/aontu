@@ -1154,28 +1154,38 @@ when the failure arrives from a separate document, which is the ordinary
 `vet` schema/data shape, both ports agree on `$.l.2`. That is why the
 `vet.tsv` rows did not catch it.
 
-Neither did anything else, and the reason is structural: of the 7,679
-`err` rows in the shared suite only 15 include a `$.` path in their
-expectation, and `errc` asserts the code alone. Both ports emit
+Neither did anything else, and the reason is structural: of the shared
+suite's **252 `err` rows only 20 include a `$.` path** in their
+expectation, against 615 `errc` rows asserting the code alone (measured
+at the commit before the §46–§48 fixes; an earlier version of this
+paragraph said "7,679 and 15", and neither figure reproduces — the
+corrected counts and their commands are in
+`docs/capability-review/progress.md`). Both ports emit
 `no_scalar_unify` here, so every gate the suite has agrees while the two
 paths differ. **The suite pins error codes and message substrings; the
 path — the field the machine surface hands to agents — is very nearly
 unasserted.** Fixing this one index without also pinning paths leaves
-the class open.
+the class open. §47 later added a second edge: an `err` row asserting a
+path can be vacuous even when it is written, because the match is a
+substring and a wrong path may EXTEND the right one.
 
 Not entered in `test/spec/divergent.tsv`: that register is for
 divergences which cannot be fixed from this repository, and this one can.
 
 ### 46. A `k:v` pair written before a `&:` spread makes the TypeScript port drop the spread [major]
-Found while fixing §44 and **not caused by it** — TypeScript's output is
+**Status: FIXED 2026-08-28 (the `elem` rule's spread guard narrowed).**
+Found while fixing §44 and **not caused by it** — TypeScript's output was
 byte-identical to the published `aontu@0.53.0`.
 
 ```
+# BEFORE THE FIX
 $ echo 'a:[x:1,&:integer,"bad"]' | aontu        # TypeScript
 { "a": [ "bad" ] }                              # exit 0 — spread ignored
 $ echo 'a:[x:1,&:integer,"bad"]' | go/aontu     # Go
 [aontu/no_scalar_unify]: Cannot unify values at path $.a.0
 ```
+
+Both ports now give Go's answer.
 
 Go applies the element constraint and rejects; TypeScript silently does
 not apply it at all. Order-dependent, which is the part that should not
@@ -1185,62 +1195,170 @@ wrong output on the canonical side, so **critical** by consequence; kept
 at major only because reaching it needs a pair and a spread in one list
 literal.
 
-Deliberately excluded from the `spread-list.tsv` rows added with §44: a
-row must pass in both ports, and this does not. Not entered in
-`divergent.tsv` either — that register is for divergences which cannot
-be fixed here.
+The cause was one over-broad test. The `elem` rule marks all four of its
+alternatives `spread: true` — that flag is what says "contributes no
+element" — and the SPREAD collector took every one of them, so a `k:v`
+pair in list position was collected as though it were a `&:` spread.
+`ListVal`'s `'&' === spread.o` test then rejected the resulting entry
+and the real constraint went with it. `pair` distinguishes the two, and
+the collector now asks for `spread && !pair`.
+
+Pinned by `test/spec/spread-list.tsv`
+(`spread-list-pair-before-spread…`), including the accepting case and
+the reversed order, so the two orders cannot drift apart again.
+Reverting the fix fails exactly the four pair-before rows and leaves the
+pair-after control passing. Repro:
+[`repros/diagnostics/pair-before-spread-dropped.aon`](repros/diagnostics/pair-before-spread-dropped.aon).
 
 ### 47. A conjunct of unequal-length lists paths its finding differently in each port [minor]
+**Status: FIXED 2026-08-28 (the container slot restored before the
+refusal), and a second, unreported instance fixed with it.**
 Also found while fixing §44, also predating it.
 
 ```
+# BEFORE THE FIX
 $ echo 'a:[x:1,10,"bad"]&{a:[integer,integer,integer]}' | aontu
 [aontu/list]: Cannot unify values at path $.a          # TypeScript
 [aontu/list]: Cannot unify values at path $.a.1        # Go
 ```
 
+Both ports now give TypeScript's answer.
+
 Same code, same verdict, different path — the §41/§44 shape again
-(right refusal, wrong label) in a third container. Go names the element,
-TypeScript the list. An agent reading `path` is sent to the container
-rather than the member. Minor because the refusal itself is correct in
-both ports and the code is identical, so only a caller navigating by
-path is misled.
+(right refusal, wrong label) in a third container. Go named the element,
+TypeScript the list. Minor because the refusal itself is correct in both
+ports and the code is identical, so only a caller navigating by path was
+misled.
 
-### 48. A violated composed constraint names a different residual in each port [minor]
+TypeScript was right: when a list meets a peer that is not a list, no
+element is party to the failure. `ListVal.Unify` drives its element loop
+through `ctx.slot` and only the in-branch paths restored it, so a stale
+element slot survived into the not-a-list branch and `makeNilErr`'s
+slot-extension stamped it. One line — restore the container's own slot
+before the refusal.
+
+**`MapVal` had the identical bug, and it had not been reported.** It was
+found by looking for it once the list cause was understood: same shape,
+same one-line cause, same fix. `a:{p:1,q:2,r:3} a:"str"` named a key
+that is not party to the failure. Both are pinned by
+`test/spec/container-path.tsv`.
+
+**Those rows had to be `vet` rows, and the reason is a hole in the
+suite's own instrument.** An `err` row matches its expectation as a
+SUBSTRING, and a container's path is a PREFIX of every member path
+beneath it: `at path $.a` is contained in `at path $.a.2`, so an `err`
+row asserting the container passes against the very answer it was
+written to forbid. The rest of the message is byte-identical between the
+two, so no other substring discriminates. A `vet` row compares the
+finding object field by field, where `path` is matched exactly.
+Reverting the fix fails exactly the three `vet` rows while all four
+`errc` rows keep passing — the §44 lesson (a code-only row is blind to
+a path defect) with a second edge on it: an `err` row can be blind too,
+whenever the wrong path extends the right one. Repros:
+[`repros/diagnostics/container-conflict-member-path.aon`](repros/diagnostics/container-conflict-member-path.aon)
+and its `-map` companion.
+
+### 48. A composed constraint lost the atom added at the point of use [critical]
+**Status: FIXED 2026-08-28 (an expectation carries the meet as its peg).**
+**Regraded from minor.** Filed as a message difference; it was a canon
+soundness defect in BOTH ports, and the message was the symptom that
+led to it. Critical by this file's own ladder: `aontu -c` and
+`aontu hash` emitted **silent wrong output** — a document admitting
+values the source rejects. Repro:
+[`repros/constraint-compose/composed-alias-atom-dropped.aon`](repros/constraint-compose/composed-alias-atom-dropped.aon).
+
 Found while verifying the named-constraint-alias idiom for
-`docs/reference-language.md`. When an alias reference is met with a
-further constraint at the point of use and the value violates the
-result, both ports refuse with the same code and the same path — and
-then explain it differently:
+`docs/reference-language.md`, then re-probed after the first assessment
+proved too narrow.
 
 ```
+# BEFORE THE FIX
 $ echo 'type:type({}) type:{u8:integer&min(0)&max(255)} a:$.type.u8&max(15) a:20' | aontu
-Cannot unify value: 20 with value: integer&min(0)&max(15)    # TypeScript, sited at the reference
-Cannot unify value: 20 with value: max(15)                   # Go, sited at the local atom
+Cannot unify value: 20 with value: integer&min(0)&max(15)    # TypeScript
+Cannot unify value: 20 with value: max(15)                   # Go
 ```
 
-TypeScript names the **merged residual** — what the value actually had
-to satisfy — and Go names only the **local atom** it was checking when
-it refused. TypeScript's is the more useful answer and, on the reading
-that a conflict should state the whole constraint the peer failed, the
-correct one: `20` does not violate `integer&min(0)`, it violates the
-meet.
+The original entry recorded that difference, judged TypeScript correct,
+and called the cost low because "the code, the path and the accept/reject
+decision all agree; only the `expected` half of the finding differs".
+The verdict on TypeScript was right. The **cost was wrong**, and so was
+the family: this is not another §41/§44/§47 right-verdict-wrong-label
+case. Two further probes settled it.
 
-Same shape as §41, §44 and §47 — right verdict, partial explanation —
-which makes four in that family. This one costs the least, since the
-code, the path and the accept/reject decision all agree; only the
-`expected` half of the finding differs, and `vet --format json` carries
-that as `expected`.
+**First: the residual named was not stable even within one port.** Go
+answered `max(15)` for `a:20` but `integer&min(0)&max(255)` for `a:1.5`
+and `a:-3` — it named whichever conjunct happened to reject, and for the
+float that meant reporting a ceiling of 255 where the value had to
+satisfy 15. Not a partial explanation; a wrong one.
 
-**Enforcement is not affected, and was checked separately.** Every
-accepting case agrees byte-for-byte across both ports (`a:12`, `a:15`,
-alias-of-alias `a:42`), and every violating case refuses in both. The
-composition itself is sound in both engines; it is only the sentence
-that differs.
+**Second, and the reason for the regrade: the canon dropped the atom.**
 
-Pinned around, not over: `test/spec/constraint-alias.tsv` carries the
-accepting composition rows and says in a comment why the violating one
-is absent — a row must pass in both ports.
+```
+# BEFORE THE FIX
+$ echo 'type:type({}) type:{u8:integer&min(0)&max(255)} a:$.type.u8&max(15)' | aontu -c
+{"a":integer&min(0)&max(15),…}     # TypeScript
+{"a":integer&min(0)&max(255),…}    # Go — max(15) gone
+```
+
+Re-parsing Go's own canon admits `20`, which the source rejects. **Canon
+did not round-trip meaning**, and the two ports produced different
+`aon1-` hashes for one document — a parity break at the trust layer,
+where the hash is the thing that pins meaning. `subsume`, `breaking` and
+`diff` all read that canon.
+
+And it was **not only Go**. Under plain layering both ports dropped it:
+
+```
+# BEFORE THE FIX
+$ echo 'b:{z:1} b:{u8:min(0)} a:$.b.u8&max(15)' | aontu -c
+{"a":min(0),…}                     # BOTH ports — max(15) gone
+```
+
+Both ports now answer `{"a":min(0)&max(15),…}`, and the two `aon1-`
+hashes agree.
+
+The evaluator enforced `max(15)` in every one of these; only the
+recorded value did not carry it. A canon that silently drops an enforced
+constraint is the defect the `ExpectVal.canon` comment already warned
+about twice, in its own words — "a canon that silently drops a
+constraint is worse than one that fails to parse" — reached a third way.
+
+**Cause.** When the referent is completed by a *later* statement the
+reference resolves a pass late, so the atom conjoined at the point of
+use arrives as a **peer** of an `ExpectVal`. `ExpectVal.unify` computed
+the meet, saw it was still not generable, and rebuilt the surviving node
+from the **original** `peg`, keeping the meet only in `peer`. `canon`
+renders `peg`. Every later copy — the bag's expect re-wrap, `Val.clone`
+— rebuilt from `peg` too, so the atom was dropped again at each one.
+
+**Fix.** The meet becomes the new `peg`: an expectation that has met a
+peer without being freed by it stands for `peg & peer` from then on.
+That is what a later peer must satisfy and what canon has to state, and
+it needs no new field and no carrying, because every copy site already
+preserves `peg`. Purity is untouched — the node is new, so a shared
+template keeps the peg it was written with (§6–§7). With the meet in
+`peg`, the incoming peer is met against the whole expectation rather
+than against the accumulated `peer` first, which is what had reduced the
+message to a single atom.
+
+Both halves are pinned in `test/spec/constraint-alias.tsv`: the refusal
+names `integer&min(0)&max(15)` whichever atom the value offends, and the
+canon rows hold both engines to what the evaluator enforces. The
+unlayered forms are pinned alongside as controls.
+
+Reverting the fix separates the two ports exactly as the diagnosis
+predicts: **Go fails seven rows, TypeScript two.** The two TypeScript
+failures are the plain-layered pair — the half both ports got wrong —
+and the five Go-only failures are the `type()`-marked forms TypeScript
+already handled. That split is the evidence for the regrade: a
+TypeScript-only defect would have been a parity difference, and a
+Go-only one would have been the minor entry as filed.
+
+**Enforcement was never affected**, which is why this survived: every
+accepting case agreed byte-for-byte across both ports and every
+violating case refused in both, before the fix as after. The composition
+was sound in both engines throughout. What was wrong was the value they
+wrote down for it.
 
 ## relations — a graph one port can only partly see
 
