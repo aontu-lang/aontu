@@ -5,9 +5,13 @@ stale.** Written against **Go port v0.1.6**. As of `aontu@0.53.0` /
 `go/v0.1.11`, D1 and D2 are FIXED (ADR-004 and ADR-007), and N1/N2
 landed as capabilities under *function* syntax — `min`, `max`, `above`,
 `below`, `neq`, `re` — not the CUE operators proposed here, which is why
-the §10 lexing break never happened. N3 is **deferred** (2026-08-28,
+the §10 lexing break never happened. The operator SPELLINGS this note
+proposes are **declined outright** — [ADR-008](../../ADR.md#adr-008--constraints-are-named-not-spelled-with-operators),
+2026-08-28: constraints are named, not spelled with operators, and
+adopting `>=10` later needs a new ADR. N3 is **deferred** (2026-08-28,
 maintainer decision — unblocked, simply not now); the sized-integer
-sugar is unbuilt; and row 7's defect is still live: `port: >=1024` still
+sugar is **not needed**, since named aliases express it in user space
+(§6); and row 7's defect is still live: `port: >=1024` still
 evaluates to `{"port":">=1024"}` and exits 0. Do not read §2 as current
 behaviour. The item-by-item reconciliation, re-run against both engines
 on 2026-08-28, is in
@@ -219,6 +223,15 @@ well-formed wrong config.
 
 ### Syntax
 
+> **DECLINED — [ADR-008](../../ADR.md#adr-008--constraints-are-named-not-spelled-with-operators),
+> 2026-08-28.** The bound FAMILY landed (G1 phase 1) and is complete;
+> these operator spellings did not and will not. The shipped syntax is
+> named atoms — `min`, `max`, `above`, `below`, `neq` — so
+> `port: integer & min(1024) & max(65535)` is the spelling of the
+> example below. One spelling per concept; adopting the operators later
+> needs a new ADR. What remains open is only what `>=1024` should do
+> TODAY, where it is silently the string `">=1024"` (BUGS.md §45).
+
 Unary comparison prefixes in value position: `>10`, `>=10`, `<5`,
 `<=5`, `!=0`. Composition needs no new syntax — `&` already exists:
 `port: integer & >=1024 & <=65535`.
@@ -263,6 +276,26 @@ deserves its own spec rows.
 
 ### Free win: sized integer kinds
 
+> **NOT BUILT — 2026-08-28 — because the language already expresses
+> it.** The conclusion below is right that bounds absorb these; the
+> proposed *mechanism* (a name table in the engine) is not needed. A
+> `type()`-marked block of named aliases does it in user space:
+>
+> ```
+> type: type({})
+> type: { uint8: integer & min(0) & max(255) }
+> a: $.type.uint8
+> ```
+>
+> The block emits nothing, the alias constrains at the referring field,
+> and — unlike a closed list of built-in names — aliases compose and
+> extend to `port`, `percent` or any project's own vocabulary. Pinned by
+> `test/spec/constraint-alias.tsv`; documented in
+> `docs/reference-language.md` "Named constraint aliases".
+> One trap the sugar would have hidden and the idiom exposes: bounds
+> alone bound a *number*, so an alias must lead with `integer` or `1.5`
+> satisfies it.
+
 `int8`, `uint16`, … become pure sugar: `int8 ≡ integer & >=-128 &
 <=127`. A name table in `construct.go`, zero new lattice machinery. This
 was surveyed as a separate CUE gap; bounds absorb it.
@@ -270,6 +303,13 @@ was surveyed as a separate CUE gap; bounds absorb it.
 ## 7. N2 — regex constraints
 
 ### Syntax
+
+> **DECLINED — [ADR-008](../../ADR.md#adr-008--constraints-are-named-not-spelled-with-operators),
+> 2026-08-28**, as with N1. The pattern family landed as `re("p")` in G1
+> phase 2, under a normalisation posture stronger than the subset this
+> section proposes ([ADR-003](../../ADR.md#adr-003--host-provided-semantics-are-normalised-not-trusted)).
+> Note also that the premise below is stale: `=~"^ab"` is no longer a
+> lex error, it is a bare string, so the syntax is not "free".
 
 `=~"pattern"` and `!~"pattern"` in value position (CUE spellings; both
 lex-error today so the syntax is free).
@@ -354,6 +394,11 @@ doing — every aontu program terminates:
   `> < = !` change meaning. Corpus risk is minimal (such strings are
   overwhelmingly *intended* as future bounds) but it is a break:
   major version, called out in release notes.
+  **This break was never taken and will not be** — ADR-008. Bounds
+  arrived as named atoms, so nothing had to be reused, and the break
+  would now buy only a synonym. The analysis above stands as the reason
+  a *refusal* of those bare strings would still be a break, if BUGS.md
+  §45 is closed that way.
 - **N2/N3 are pure additions** (both currently lex errors).
 - boru sees nothing until `lang/go/go.mod` bumps the pin; the boru-side
   test rows below make the bump's behavior change visible in one diff.
@@ -389,9 +434,9 @@ behavior change.
 
 | Phase | Content | Risk |
 |-------|---------|------|
-| P0 | D1 + D2 (defect fixes, `disjunct.go` + error taxonomy) | outputs change; no syntax |
-| P1 | N1 bounds + sized-int sugar | lexing break for bare `>…` strings |
-| P2 | N2 regex (subset pinned first — N2-a is blocking) | additive |
+| P0 | D1 + D2 — **LANDED** (ADR-004, ADR-007) | outputs change; no syntax |
+| P1 | N1 bounds — **LANDED as named atoms** (G1 phase 1); operator spelling **DECLINED**, ADR-008; sized-int sugar **not needed** — see §6 | no break taken |
+| P2 | N2 regex — **LANDED as `re()`** (G1 phase 2), under ADR-003 normalisation rather than a pinned subset; operator spelling **DECLINED**, ADR-008 | additive |
 | P3 | N3 key patterns — **DEFERRED 2026-08-28** | additive; depends on P2, which has landed |
 
 P0 is independently shippable and is the highest-value single change:

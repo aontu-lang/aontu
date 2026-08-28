@@ -849,13 +849,26 @@ disjunction — and the note's `D1-a` recommendation (keep soft standalone
 `*x`, fix only the disjunct trial) is what the engine does:
 `a: *1  a: 2` gives `2`, and `a: *1  a: "x"` conflicts.
 
-**N1 and N2 landed as capabilities under different syntax.** The note
-proposed CUE's operators — `>10`, `>=10`, `=~"p"` — and budgeted a
-lexing break for them (§10: "N1 is a lexing break"). G1 phases 1–2 had
-already chosen **function atoms**: `min`, `max`, `above`, `below`, `neq`,
-`re`. That choice makes the note's headline compatibility risk moot —
-nothing had to break, because nothing was reused — and it is why phases
-1 and 2 shipped in a minor release. The note's `D6-a` ("string bounds:
+**N1 and N2 landed as capabilities under different syntax, and the
+syntax they proposed is now declined outright.** The note proposed CUE's
+operators — `>10`, `>=10`, `=~"p"` — and budgeted a lexing break for
+them (§10: "N1 is a lexing break"). G1 phases 1–2 had already chosen
+**function atoms**: `min`, `max`, `above`, `below`, `neq`, `re`. That
+choice makes the note's headline compatibility risk moot — nothing had
+to break, because nothing was reused — and it is why phases 1 and 2
+shipped in a minor release.
+
+Whether to adopt the operators anyway, as sugar over the atoms, was
+open until 2026-08-28 and is now settled: **no**, by
+[ADR-008](../../ADR.md#adr-008--constraints-are-named-not-spelled-with-operators).
+One spelling per concept, because a second one is paid for at every
+surface that renders a residual — canon, the shipped grammars, LSP
+completion, every error quoting a constraint — and because the named
+form is the one that composes with references, expressions and the
+families that arrived later (`length`, `unique(k)`, `must`), none of
+which has an operator at all. The note's §6, §7, §10 and §12 carry the
+refusal inline, since a design note proposing a syntax is where someone
+would look for permission to build it. The note's `D6-a` ("string bounds:
 recommend yes-but-later") is also already in: `a: string & min("m")`
 admits `"zebra"` and refuses `"apple"`.
 
@@ -872,8 +885,20 @@ admits `"zebra"` and refuses `"apple"`.
   oversight, and so that nobody re-derives the dependency analysis to
   discover it was never the obstacle.
 - **Sized integer kinds** (`int8`, `uint16` as sugar for a bounded
-  `integer`). Not implemented; `a: int8` is the bare string `"int8"`.
-  The note called this a free win once bounds exist, and bounds exist.
+  `integer`). **Not being built — the language already expresses it.**
+  The note called this a free win once bounds exist; bounds exist, but
+  the win does not need the engine. A `type()`-marked block of named
+  aliases gives `uint8`, `port` or any project's own vocabulary in user
+  space: the block emits nothing, the alias constrains at the referring
+  field, and unlike a closed list of built-in names the aliases compose
+  — one may be defined in terms of another, or narrowed where it is
+  used. `a: int8` is still the bare string `"int8"`, and stays that way.
+  Pinned by `test/spec/constraint-alias.tsv`, documented in
+  `docs/reference-language.md` "Named constraint aliases" and
+  `docs/how-to.md` "Name a reusable constraint", both executed by
+  `ts/test/docs.test.ts`. The idiom also exposes a trap a keyword would
+  have hidden: bounds alone bound a *number*, so an alias must lead with
+  `integer` or `1.5` satisfies it.
 - **Row 7's defect itself.** The atom vocabulary landed; the silent
   mislex the note called "worse than unsupported, since it produces a
   well-formed wrong config" was never in a phase's scope, because
@@ -881,6 +906,11 @@ admits `"zebra"` and refuses `"apple"`.
   removing what `>` currently does. `port: >=1024` still evaluates to
   `{"port":">=1024"}` and exits 0. Recorded as
   [`use-cases/BUGS.md` §45](../../use-cases/BUGS.md).
+  ADR-008 narrows this rather than closing it: it settles what `>=1024`
+  will never mean, leaving only whether to **refuse** such a bare string
+  and name the atom to use. That remains open, and it is the one repair
+  consistent with the ADR — it removes a spelling instead of
+  repurposing one.
 
 **What this design has that the note does not.** The note scoped the gap
 to "exactly three things" — D1, D2, and bounds/regex plus key patterns.

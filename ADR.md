@@ -23,6 +23,8 @@ ADR-NNN**, so the reasoning that led there stays readable.
 | [ADR-004](#adr-004--a-preference-override-must-be-admitted-by-its-disjunction) | A preference override must be admitted by its disjunction | Accepted |
 | [ADR-005](#adr-005--template-instantiation-is-per-destination) | Template instantiation is per-destination | Accepted |
 | [ADR-006](#adr-006--template-application-is-stateless-and-a-generator-snapshots-a-settled-source) | Template application is stateless, and a generator snapshots a settled source | Accepted |
+| [ADR-007](#adr-007--an-unresolved-disjunction-is-not-a-value-and-vet-asks-the-same-question-the-evaluator-does) | An unresolved disjunction is not a value, and vet asks the same question the evaluator does | Accepted |
+| [ADR-008](#adr-008--constraints-are-named-not-spelled-with-operators) | Constraints are named, not spelled with operators | Accepted |
 
 ---
 
@@ -723,3 +725,103 @@ divergence that only an explicit rule prevents. Pinned by
   its peer is concrete, discharged early instead — and both are engine
   defects rather than staging ones: they reproduce in a plain two-tree
   meet, and are recorded rather than fixed here.
+
+---
+
+## ADR-008 — Constraints are named, not spelled with operators
+
+**Status:** Accepted
+
+### Context
+
+[`docs/design/AONTUCONSTRAINTS.0.md`](docs/design/AONTUCONSTRAINTS.0.md)
+proposes CUE's operator spellings for the constraint families it
+designs: `>10`, `>=10`, `<5`, `!=0` for bounds (§6), `=~"p"` and `!~"p"`
+for patterns (§7). Its §10 budgets a **lexing break** for them — bare
+values beginning with `> < = !` change meaning — and its §12 schedules
+them as phases P1 and P2.
+
+Those phases landed before that note was written, under different
+syntax. G1 shipped the whole family as **named atoms**: `min`, `max`,
+`above`, `below`, `neq`, `re`, joined by `length`, `unique` and `must`.
+Composition needed no new syntax because `&` already exists —
+`port: integer & min(1024) & max(65535)`.
+
+So the note's proposal is not a gap to fill. It is a **second spelling
+for machinery that is already complete**, and the question it leaves
+open is whether to adopt it as sugar.
+
+The argument for adopting it is real and should be recorded rather than
+strawmanned. CUE is the only widely used configuration language sharing
+aontu's commutative-unification core, which makes CUE notation the thing
+a new user most plausibly arrives holding; and today that notation fails
+in the worst available way. `port: >=1024` is not a syntax error — it is
+the bare string `">=1024"`, so a schema written in CUE's operators
+parses, validates nothing, and exits 0. The note called this "worse than
+unsupported, since it produces a well-formed wrong config"
+([`use-cases/BUGS.md`](use-cases/BUGS.md) §45).
+
+### Decision
+
+**Aontu does not adopt CUE's operator spellings for constraints.** There
+is one way to write each constraint, and it is the named atom.
+
+This is a decision about the language's surface, not about the
+constraint algebra, which is unchanged and complete.
+
+Three reasons, in the order they weigh:
+
+1. **One spelling per concept.** Two ways to write a bound means two
+   things to parse, two things to canon (and a decision about which one
+   canon emits), two things in the grammar files shipped for constrained
+   decoding, two things in the LSP's completion list, two things in
+   every error message that quotes a residual, and two things a reader
+   has to recognise. `min(10)` and `>=10` would denote one value; the
+   cost is paid at every surface that renders it.
+2. **The named form composes with everything already built; the
+   operator form does not extend.** `min` takes a reference or an
+   expression as its argument (`min($.floor)`) because it is an atom in
+   the same registry as every other builtin, settling through the same
+   `settle` discipline. An operator prefix has no obvious spelling for
+   that, and the families that arrived after the note — `length`,
+   `unique(k)`, `must` — have no operator at all. The sugar would cover
+   a shrinking fraction of the vocabulary.
+3. **The break buys nothing back.** §10's lexing break was the price of
+   *acquiring* bounds. Acquired differently, the same break would now be
+   paid purely for a synonym.
+
+Adopting CUE's spelling later would be a reversal of this entry, and
+needs a new ADR.
+
+### Consequences
+
+- **`aontu` and `cue` documents are not interchangeable at the
+  constraint layer, and the project should say so** rather than let a
+  reader infer it from the shared core. The positioning claim in
+  AONTUCONSTRAINTS.0.md §1 is about the *lattice*, not the notation.
+- **BUGS.md §45 is not closed by this decision, and is arguably
+  sharpened by it.** Declining the sugar settles what `>=1024` will
+  never mean; it does not settle what it should do *now*, which is
+  silently become a string. The remaining options are to refuse a bare
+  string whose first character is one of `> < = !` — naming the atom to
+  use, which closes the silent-wrong-config hole without adding a second
+  syntax and is the only option consistent with this entry — or to leave
+  it. That choice is **open**, and is a smaller break than the one
+  declined here: it removes a spelling rather than repurposing one.
+- **The sized-integer sugar (`int8`, `uint16`) is untouched by this
+  entry.** It is a name for a bounded `integer`, not an operator, so it
+  is a *named* form and this decision does not bear on it. It remains
+  unbuilt and undecided.
+- **`docs/design/AONTUCONSTRAINTS.0.md` §6, §7, §10 and §12 now carry
+  this decision inline**, because a design note that proposes a syntax
+  is exactly where a future contributor will look for permission to
+  build it.
+
+### Enforcement
+
+Prose, and this entry. There is no test for a syntax that does not
+exist — a spec row can only pin what an engine does, and both engines
+today read `>10` as a string, which is BUGS.md §45 rather than a pin on
+this decision. Should §45 be closed by refusal, the refusal's own rows
+become the enforcement: a row asserting that `a: >10` is an error is
+also a row asserting it is not a bound.

@@ -1,3 +1,39 @@
 # Spread cases salvaged from the perf0 branch (spread-list.tsv).
 # Columns: name<TAB>mode<TAB>src<TAB>expect ; mode: gen
 spread-list-1	gen	a:{&:{x:1},b:{y:[1,2,3]}}	{"a":{"b":{"y":[1,2,3],"x":1}}}
+#
+# A LIST'S NON-ELEMENTS DO NOT CONSUME A PATH INDEX (BUGS.md 44).
+#
+# A `&:` spread constrains the elements and a `k:v` pair in list
+# position is not one, so neither is an element and neither may take an
+# index. Generation always agreed -- the array is built right in both
+# ports -- but @tabnas/path's `@elem-ao` increments its index for every
+# elem rule, so in TypeScript each non-element stole one and every LATER
+# element's path came out one too high. `[&:integer,10,20,"bad"]` named
+# `$.a.3` while `aontu get $.a.2` returned the offending value, and on a
+# one-element list the path pointed past the end. Go was right
+# throughout.
+#
+# These rows assert the PATH, not just the code. That is the point of
+# them: both ports emitted `no_scalar_unify` all along, so a code-only
+# row -- which is what nearly every error row in this suite is -- agreed
+# in both engines while the paths disagreed. The path is the field
+# `vet --format json` hands an agent.
+#
+# Every expectation below was obtained by running BOTH engines and
+# diffing, per the parity probe. Cases where the two ports still
+# disagree are deliberately NOT here: a `k:v` pair written BEFORE a `&:`
+# spread makes TypeScript drop the spread entirely, and a conjunct of
+# unequal-length lists paths its finding differently. Both predate this
+# fix (verified against the published 0.53.0) and neither is this rule.
+spread-list-elem-path	err	a:[&:integer,10,20,"bad"]	at path $.a.2
+spread-list-elem-path-code	errc	a:[&:integer,10,20,"bad"]	no_scalar_unify
+spread-list-elem-path-single	err	a:[&:integer,"bad"]	at path $.a.0
+spread-list-elem-path-mid	err	a:[10,&:integer,"bad"]	at path $.a.1
+spread-list-elem-path-before	err	a:["bad",&:integer]	at path $.a.0
+spread-list-pair-path	err	a:[&:integer,x:1,"bad"]	at path $.a.0
+# Generation was never wrong; pinned so a future path fix cannot buy
+# correct labels by changing what the array holds.
+spread-list-gen-spread	gens	a:[&:integer,10,20]	{"a":[10,20]}
+spread-list-gen-pair	gens	a:[x:1,10,20]	{"a":[10,20]}
+spread-list-gen-mid	gens	a:[10,&:integer,20]	{"a":[10,20]}

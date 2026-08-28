@@ -1096,6 +1096,23 @@ why `use-cases/10-data-model/money-wire.aon` declares its types at the
 top level.
 
 ### 44. A list's `&:` element spread shifts every later index in the TypeScript port's error paths [major]
+**Status: FIXED 2026-08-28 (the `elem` rule's path-index rewind).**
+Broader than reported: a plain `k:v` pair in list position stole an
+index too, so `[x:1,10,20]` had the same shift. Root cause was neither
+port's evaluator but `@tabnas/path`'s `@elem-ao`, which increments its
+element index for **every** `elem` rule the grammar enters — and three
+of aontu's four `elem` alternatives contribute no element. The array
+slot they occupy was already given back (`restorePairSlot`); the path
+index was not. The `elem` rule now rewinds it and re-paths the child,
+the exact twin of the correction the `pair` rule already carried for
+map spreads. Pinned by `test/spec/spread-list.tsv`
+`spread-list-elem-path*`, `spread-list-pair-path` and the three
+`spread-list-gen-*` rows, every expectation probed through both engines.
+Verified by reverting the fix: exactly four of the new rows fail, and
+`spread-list-elem-path-code` is **not** one of them — the code-only row
+passes in the broken engine, which is the finding below, demonstrated
+inside the suite.
+
 The same defect as §41 — a right site under a wrong path — in the one
 container §41's fix did not reach. A `&:` element spread occupies an
 index slot in TypeScript's error paths and not in Go's, so every
@@ -1148,6 +1165,82 @@ the class open.
 
 Not entered in `test/spec/divergent.tsv`: that register is for
 divergences which cannot be fixed from this repository, and this one can.
+
+### 46. A `k:v` pair written before a `&:` spread makes the TypeScript port drop the spread [major]
+Found while fixing §44 and **not caused by it** — TypeScript's output is
+byte-identical to the published `aontu@0.53.0`.
+
+```
+$ echo 'a:[x:1,&:integer,"bad"]' | aontu        # TypeScript
+{ "a": [ "bad" ] }                              # exit 0 — spread ignored
+$ echo 'a:[x:1,&:integer,"bad"]' | go/aontu     # Go
+[aontu/no_scalar_unify]: Cannot unify values at path $.a.0
+```
+
+Go applies the element constraint and rejects; TypeScript silently does
+not apply it at all. Order-dependent, which is the part that should not
+be true of a commutative language: move the pair after the spread
+(`a:[&:integer,x:1,"bad"]`) and both ports agree on `$.a.0`. Silent
+wrong output on the canonical side, so **critical** by consequence; kept
+at major only because reaching it needs a pair and a spread in one list
+literal.
+
+Deliberately excluded from the `spread-list.tsv` rows added with §44: a
+row must pass in both ports, and this does not. Not entered in
+`divergent.tsv` either — that register is for divergences which cannot
+be fixed here.
+
+### 47. A conjunct of unequal-length lists paths its finding differently in each port [minor]
+Also found while fixing §44, also predating it.
+
+```
+$ echo 'a:[x:1,10,"bad"]&{a:[integer,integer,integer]}' | aontu
+[aontu/list]: Cannot unify values at path $.a          # TypeScript
+[aontu/list]: Cannot unify values at path $.a.1        # Go
+```
+
+Same code, same verdict, different path — the §41/§44 shape again
+(right refusal, wrong label) in a third container. Go names the element,
+TypeScript the list. An agent reading `path` is sent to the container
+rather than the member. Minor because the refusal itself is correct in
+both ports and the code is identical, so only a caller navigating by
+path is misled.
+
+### 48. A violated composed constraint names a different residual in each port [minor]
+Found while verifying the named-constraint-alias idiom for
+`docs/reference-language.md`. When an alias reference is met with a
+further constraint at the point of use and the value violates the
+result, both ports refuse with the same code and the same path — and
+then explain it differently:
+
+```
+$ echo 'type:type({}) type:{u8:integer&min(0)&max(255)} a:$.type.u8&max(15) a:20' | aontu
+Cannot unify value: 20 with value: integer&min(0)&max(15)    # TypeScript, sited at the reference
+Cannot unify value: 20 with value: max(15)                   # Go, sited at the local atom
+```
+
+TypeScript names the **merged residual** — what the value actually had
+to satisfy — and Go names only the **local atom** it was checking when
+it refused. TypeScript's is the more useful answer and, on the reading
+that a conflict should state the whole constraint the peer failed, the
+correct one: `20` does not violate `integer&min(0)`, it violates the
+meet.
+
+Same shape as §41, §44 and §47 — right verdict, partial explanation —
+which makes four in that family. This one costs the least, since the
+code, the path and the accept/reject decision all agree; only the
+`expected` half of the finding differs, and `vet --format json` carries
+that as `expected`.
+
+**Enforcement is not affected, and was checked separately.** Every
+accepting case agrees byte-for-byte across both ports (`a:12`, `a:15`,
+alias-of-alias `a:42`), and every violating case refuses in both. The
+composition itself is sound in both engines; it is only the sentence
+that differs.
+
+Pinned around, not over: `test/spec/constraint-alias.tsv` carries the
+accepting composition rows and says in a comment why the violating one
+is absent — a row must pass in both ports.
 
 ## relations — a graph one port can only partly see
 
@@ -1239,6 +1332,16 @@ disagreement that plain evaluation shows too, now recorded in
 ## constraint-syntax — the notation the constraint algebra did not claim
 
 ### 45. CUE-style constraint operators lex as bare strings, so a schema written in them enforces nothing [critical, by design]
+**Status: NARROWED 2026-08-28, not fixed.**
+[ADR-008](../ADR.md#adr-008--constraints-are-named-not-spelled-with-operators)
+declines CUE's operator spellings outright: constraints are named, not
+spelled with operators. That removes one of the two ways this could have
+been closed — making `>=1024` *mean* `min(1024)` — and leaves the other:
+**refuse** a bare string whose first character is one of `> < = !` and
+name the atom to use. That refusal is the only repair consistent with
+the ADR, and it is still an open choice. Until it is taken, everything
+below remains true of the shipped engine.
+
 `>10`, `>=10`, `<5`, `!=0` and `=~"^ab"` are all legal aontu — as
 **strings**. A schema written in them parses, evaluates, validates
 nothing and exits 0:
@@ -1286,7 +1389,10 @@ A fix has a cheap form that needs no new syntax and breaks nothing that
 is not already broken: refuse a bare string whose first character is one
 of `> < = !` and name the atom to use. That is a language change with
 its own spec rows in both ports, so it is recorded here rather than
-taken as part of a documentation pass.
+taken as part of a documentation pass. It is also, after ADR-008, the
+only form left — and note it is still a *break*, just a smaller one: a
+document today holding `a: ">10"` unquoted would start failing. Quoted
+strings are unaffected.
 
 ## Elsewhere in this review
 

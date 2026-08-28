@@ -1,0 +1,41 @@
+# NAMED CONSTRAINT ALIASES -- the `type()`-marked definitions block.
+#
+# The algebra has no int8/uint16/port keyword and does not need one: a
+# constraint is a value, so a name for one is a field, and `type()`
+# keeps the definitions out of the output while they still unify.
+# docs/design/AONTUCONSTRAINTS.0.md wanted sized-integer sugar built
+# into the language (its "free win" once bounds exist); these rows are
+# why that was declined -- the idiom is already expressible, and unlike
+# a keyword it composes and is not a closed list.
+#
+# Normative: docs/reference-language.md "Named constraint aliases";
+# task form in docs/how-to.md "Name a reusable constraint". Both are
+# executed by ts/test/docs.test.ts, so these rows and those pages
+# cannot drift apart silently.
+#
+# Every expectation was obtained by running BOTH engines and diffing
+# full output, per the parity probe. Columns: name<TAB>mode<TAB>src<TAB>expect
+alias-uint8-accepts	gens	type:type({}) type:{uint8:integer&min(0)&max(255)} a:$.type.uint8 a:200	{"a":200}
+alias-uint8-rejects-above	errc	type:type({}) type:{uint8:integer&min(0)&max(255)} a:$.type.uint8 a:256	constraint
+# The refusal lands at the field that holds the value, not at the
+# definition -- an agent reading `path` is sent where the fix goes.
+alias-uint8-rejects-path	err	type:type({}) type:{uint8:integer&min(0)&max(255)} a:$.type.uint8 a:256	at path $.a
+# LEAD WITH THE KIND. This is the trap the idiom invites and the reason
+# every alias in the documentation starts with `integer`: bounds alone
+# bound a NUMBER, so a float in range satisfies them. Both rows are
+# correct behaviour; they are here as a pair so the difference is a
+# pinned contract rather than a surprise.
+alias-kind-named-rejects-float	errc	type:type({}) type:{uint8:integer&min(0)&max(255)} a:$.type.uint8 a:1.5	constraint
+alias-kind-omitted-admits-float	gens	type:type({}) type:{b:min(0)&max(255)} a:$.type.b a:1.5	{"a":1.5}
+# `type` is not a reserved word -- the mark does the work, not the name.
+alias-key-name-not-reserved	gens	defs:type({}) defs:{p:integer&min(1)&max(65535)} a:$.defs.p a:8080	{"a":8080}
+# Aliases are ordinary values, so they compose both ways: one defined
+# in terms of another, and one met with a further constraint at the
+# point of use.
+alias-of-alias	gens	type:type({}) type:{n:integer&min(0) u8:$.type.n&max(255)} a:$.type.u8 a:42	{"a":42}
+alias-narrowed-at-use	gens	type:type({}) type:{u8:integer&min(0)&max(255)} a:$.type.u8&max(15) a:12	{"a":12}
+# NOT PINNED HERE, deliberately: a composed alias that is VIOLATED. Both
+# ports refuse, with the same code and the same path, but they name
+# different residuals -- TypeScript the merged `integer&min(0)&max(15)`,
+# Go only the local `max(15)`, at different sites. A row must pass in
+# both. use-cases/BUGS.md 48.

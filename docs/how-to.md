@@ -1351,6 +1351,43 @@ emit — `secret: hide("s3cret")` / `token: $.secret` generates
 `{"token":"s3cret"}`. `copy(...)` clears both marks, so
 `copy($._schema)` produces an emittable value again.
 
+## Name a reusable constraint
+
+The previous recipe parks a record *shape*. The same mark gives you
+named *scalar* constraints — the `uint8`/`port` vocabulary other
+languages build into the grammar. Aontu has no such keywords and does
+not need them: a constraint is a value, so a name for one is a field.
+
+```aontu
+type: type({})
+type: {
+  uint8: integer & min(0)    & max(255)
+  int8:  integer & min(-128) & max(127)
+  port:  integer & min(1)    & max(65535)
+}
+
+listen: $.type.port
+listen: 8080
+```
+
+```json
+{ "listen": 8080 }
+```
+
+The block emits nothing, and `listen: 70000` fails at `$.listen`
+with `[aontu/constraint]`. `type` is not a reserved word here — it is a
+field that happens to be `type()`-marked, so `defs` or `schema` reads
+the same.
+
+**Lead with the kind.** `min(0) & max(255)` bounds a *number*, so `1.5`
+satisfies it. A sized integer is `integer & min(0) & max(255)`, which
+is why every alias above starts with `integer`. This is the one trap in
+the idiom.
+
+Aliases are ordinary values, so they compose — one can be defined in
+terms of another, and a reference to one can be met with further
+constraints where it is used.
+
 ## Give an agent an entrypoint to a definition
 
 Two halves: a stanza the agent reads before it starts, and a server it
