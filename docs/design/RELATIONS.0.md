@@ -32,6 +32,14 @@ else in the language — module paths (`@"std/system"`, `mod` deps) are
 file paths and keep their slashes; this rule is about entity names
 only.
 
+**D-2 — no magic keys or paths (ADR-010).** A plain, spellable key
+name never carries engine- or verb-assigned meaning, at any depth;
+reserved meaning is carried only by syntax an author visibly opts
+into. Recorded as an ADR because it outlives this note; here it makes
+the `relations:` convention's retirement a ruling rather than a
+preference, and constrains every alternative in §4 to spellings the
+grammar marks.
+
 What D-1 changes, measured at head: 38 slashed-name lines across the
 use-case models (nearly all `01-service-catalog`), 21 spec rows in 5
 files (`graph`, `id`, `refer`, `relation`, `std-system`). Migration is
@@ -63,7 +71,8 @@ Read against `ts/src/{unify,graph,relation}.ts`,
    `relations`; this pass does, and says so." The language has no
    other reserved key — spreads are `&:`, optionality is `?:`,
    aliases are `%name:` — and this one is load-bearing for a whole
-   capability.
+   capability. ADR-010 now forbids the shape outright and carries this
+   key as its one grandfathered violation.
 
 3. **Data-side boilerplate.** A list of links is spelled
    `dependsOn: [&: refer(), svc/auth]` — a spread whose template is a
@@ -200,32 +209,64 @@ Aontu spelling in it at all.
 
 `acyclic()` and `inverse(name)` are ordinary named atoms conjoined at
 the same field as the `rel()` they govern (see the vocabulary above).
-They are **lattice-inert**: during unification they only residuate —
-they can never refuse a meet, because both properties are
-non-monotone and refusing early would violate the lattice guarantee.
-What they do is *declare*, on the tree itself, what the post-fixpoint
-graph pass must check. The `relations:` root key, `$.std.Relation`,
-and `relation.ts declaredRelations()` all retire; `std/system` keeps
-providing entity *types* (`Port`, `Service`), which were always
-ordinary values.
+**Their model is the sizing atoms** — `length()`, `unique()` — which
+already solved this exact problem shape for containers
+(use-cases/BUGS.md §16): a property that cannot be decided while
+information can still arrive is *held* during unification and
+*decided* at generation, where no more can.
 
-The checks and their findings are unchanged in meaning
-(`relation_cycle`, `relation_inverse_missing`), minus one:
-`relation_target_unmet` becomes unnecessary as a separate mechanism,
-because the target type now flows at the site through the one
-satisfaction path — an unmet target is an ordinary located conflict
-or an incomplete generation at the entity, found where the author
-wrote the link. `meets()` and its clone-and-probe dance are deleted,
-not moved.
+What each does, precisely:
+
+- **During unification: nothing, deliberately.** Both properties are
+  global and non-monotone — one more edge can make an acyclic graph
+  cyclic — and the lattice guarantee (more information never
+  falsifies what has been observed) forbids a constraint that could
+  answer true and then false. So the atoms only residuate: they ride
+  the field through meets, dedup additively (`acyclic() & acyclic()`
+  is one), appear in canon, and reach the `aon1-` hash — the
+  declaration is part of the document's *meaning*, which the magic
+  key never was.
+- **The predicate they govern is the key name, evaluation-global.**
+  Every `rel()` field spelled `dependsOn` contributes edges to the
+  one `dependsOn` predicate, and a property declared on *any* of
+  those fields holds for the predicate — the same additive rule two
+  statements of one map already follow. Written once in the schema's
+  spread or `type()` template, it lands on every entity.
+- **At generation, the verdict.** Generation is where the edge set is
+  complete — the sizing atoms' own settle point. A cycle under an
+  `acyclic()` predicate refuses generation with `relation_cycle`,
+  sited at an offending edge and naming the entities in the cycle; a
+  pair without its mirror under `inverse(n)` refuses with
+  `relation_inverse_missing`, naming both ends and the predicate that
+  should have mirrored it. **This is the behavioural change from the
+  landed design**: today `aontu doc.aon` happily generates a cyclic
+  model and only the `relations` verb notices, which made the
+  declaration advisory. A constraint the author wrote into the
+  document now binds the document.
+- **`inverse(n)` checks; it never writes.** Generation does not
+  invent the mirroring edge for the author — the same rule the landed
+  verb states for itself. The far side must be spelled.
+
+The `relations:` root key, `$.std.Relation`, and
+`relation.ts declaredRelations()` all retire (D-2/ADR-010 makes this
+mandatory, not stylistic); `std/system` keeps providing entity
+*types* (`Port`, `Service`), which were always ordinary values.
+
+`relation_target_unmet` also retires as a separate mechanism: the
+target type flows at the site through the one satisfaction path, so
+an unmet target is an ordinary located conflict or an incomplete
+generation at the entity, found where the author wrote the link.
+`meets()` and its clone-and-probe dance are deleted, not moved.
 
 ### 3.4 The verbs
 
-`relations` and `reaches` remain the report surface, and shrink to
-what they should have been: build the graph (entity registry + edge
-set, both now read off declarations rather than reconstructed by
-inference), run cycle detection per `acyclic()` relation and inverse
-presence per `inverse(n)` relation, and report in the existing
-finding shapes. `graph` mode rows change only where the old inference
+`relations` and `reaches` remain, and shrink to report-shaped views
+of decisions the language now makes itself: the same cycle and
+inverse verdicts generation reaches, rendered as verdict-plus-
+findings for a CI gate that wants a report rather than an exit code —
+exactly vet's relationship to evaluation. The graph (entity registry
++ edge set) is read off declarations rather than reconstructed by
+inference; `graph` mode rows change only where the old inference
 answered wrongly (the `edge-map-valued-relation` predicate).
 
 ### 3.5 Mechanism (implementation sketch, both ports)
@@ -287,8 +328,8 @@ form would make it two languages.
 | `rel() & 7`, `rel() & [7]` | `rel_address`: a non-string leaf can never be an address |
 | address that resolves nowhere | `rel_unresolved` at settle, naming the address (refer_unresolved's successor) |
 | `rel($.T)` and target cannot satisfy `T` | ordinary conflict at the entity, sited at the link that flowed it |
-| cycle under an `acyclic()` relation | `relation_cycle` from the verb (unchanged shape) |
-| missing inverse under `inverse(n)` | `relation_inverse_missing` (unchanged shape) |
+| cycle under an `acyclic()` relation | `relation_cycle` refuses generation, sited at an edge; the verb reports the same finding |
+| missing inverse under `inverse(n)` | `relation_inverse_missing` refuses generation; the verb reports the same finding |
 | `acyclic()` on a field with no `rel()` | `rel_atom_alone`: the atoms govern a relation, so there must be one |
 
 ## 6. Compatibility and migration

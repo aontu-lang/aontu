@@ -909,3 +909,67 @@ meant (`edge-abs-into-missing-root`, `edge-relative-sibling`).
 `edge-parent-name-resolves` binds a variable literally called `PARENT`
 in both runners' `specVars` and reads it as a path segment, which is
 what distinguishes a freed name from a broken one.
+
+## ADR-010 — No magic keys or paths: the tree at all levels is user space
+
+**Date:** 2026-08-28
+**Status:** Accepted
+
+### Context
+
+Reserved meaning has crept into the value tree twice, by two different
+doors. ADR-009 closed one: the three path elements (`$KEY`, `$SELF`,
+`$PARENT`) that were intercepted by name before the variable table was
+consulted. The other door is still open: the `relations:` key at the
+document root, which the `relations` verb reads as configuration
+(`ts/src/relation.ts`, `go/relation.go`) — the engine's own comment
+concedes the shape: "Nothing in the engine knows the name `relations`;
+this pass does." An author whose document is *about* database
+relations cannot use that word at the root without a verb reading
+their data as directives.
+
+Everything else the language reserves is carried by grammar the author
+visibly opts into: operators and sigils in key position (`&:`, `?:`,
+`%name:`), call syntax in value position (`min(1)` — the parentheses
+are the claim, and `min: 1` stays an ordinary key), quoting to opt out
+(`"%a"` is an ordinary key). The one internal namespace — the
+NUL-prefixed sentinel prefix — is unspellable by construction and
+panics if forged, so it claims nothing an author can write.
+
+### Decision
+
+**A plain, spellable key name never carries engine- or verb-assigned
+meaning — at any depth, the root included. Nor does any tree location
+single out plain-named children for special reading.** Reserved
+meaning is carried only by syntax: an operator, a sigil, or a call —
+something the grammar marks and quoting escapes.
+
+Two boundaries, so the rule cuts where intended:
+
+- **Libraries may establish conventions in user space.** `std/system`
+  populating `std:` is legitimate: a library is opted into by
+  inclusion and displaced by not including it. The prohibition binds
+  the engine and the verbs, which an author cannot opt out of.
+- **Internal sentinels must be unspellable, never merely unlikely.**
+  The reserved-prefix rule (a NUL no spelling produces, a panic if
+  forged) is the required shape for any internal namespace.
+
+### Consequences
+
+- The `relations:` convention is a **standing violation**,
+  grandfathered until `docs/design/RELATIONS.0.md` P2 replaces it with
+  value-level atoms and retires it. No new reader of a plain-named key
+  or plain-named location may land meanwhile — a capability that needs
+  a home in the tree gets syntax, or it gets a function.
+- ADR-009's removal is ratified as an instance of this rule rather
+  than a one-off.
+- File-system conventions (`mod-lock.aon`, `aon_vendor/`) are outside
+  the tree and outside this rule.
+
+### Enforcement
+
+Prose, this entry, and the retirement it schedules: the
+`relation.tsv` rows keep the grandfathered convention pinned until
+RELATIONS.0.md P2 lands, and P2's own rows then pin its absence. There
+is no mechanical gate for "no verb reads a plain key" — review carries
+it, as ADR-008's decision is carried.
