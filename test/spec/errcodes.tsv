@@ -83,6 +83,7 @@ unify_no_src	errcode	parse	0.51.0
 incomplete_expression	errcode	parse	0.51.0
 pref_implicit_bag	errcode	parse	0.53.0
 alias_not_toplevel	errcode	parse	0.53.0
+alias_in_path	errcode	parse	0.53.0
 not_number	errcode	parse	0.51.0
 negative	errcode	parse	0.51.0
 decimal_syntax	errcode	parse	0.51.0

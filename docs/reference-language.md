@@ -2593,10 +2593,17 @@ and it does not appear in canon — so the file above and the file with
 document and produce the same [`aon1-` hash](#canonical-form). That is
 the whole of what an alias is: a name for a value, and nothing else.
 
+**An alias is not a path segment.** `$.%foo` is refused: the alias
+namespace and the path namespace are disjoint, and an alias is reached
+by writing `%foo` and only that.
+
 **Aliases are local to the file that declares them**, and declared at
-its top level. A nested `x: { %a: 1 }` is refused rather than accepted
-— an alias resolves from the root, so a nested declaration would be
-erased from the output and still unreachable by any use.
+the top level of the document. A nested `x: { %a: 1 }` is refused, and
+so is a declaration in an **included** file — an alias resolves from
+the document root, so an included file's own `%b` would otherwise reach
+the *including* file's `%b` instead of its own. A file using aliases
+therefore stands alone; carrying a name across files is what `export`
+will be for, and it is not built.
 
 **The `%` is part of the name.** A quoted `"%a"` is an ordinary key or
 string, and a bare `%` not followed by a name is ordinary text:

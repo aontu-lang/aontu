@@ -228,6 +228,7 @@ var codeClasses = map[string]string{
 	"incomplete_expression": "parse",
 	"pref_implicit_bag":     "parse",
 	"alias_not_toplevel":    "parse",
+	"alias_in_path":         "parse",
 	"not_number":            "parse",
 	"negative":              "parse",
 	"decimal_syntax":        "parse",

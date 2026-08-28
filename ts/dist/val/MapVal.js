@@ -107,7 +107,33 @@ class MapVal extends BagVal_1.BagVal {
     }
     // NOTE: order of keys is not preserved!
     // not possible in any case - consider {a,b} unify {b,a}
+    // ALIAS DECLARATIONS MUST SIT AT THE DOCUMENT ROOT. Stated on the
+    // VALUE rather than at the parse, because the parse cannot see it: an
+    // INCLUDED file's declarations are at the root of their own text, and
+    // only once the loaded map is placed does it become apparent that
+    // root is not the document's. `%name` is spelled as a reference from
+    // the document root, so an included file's own `%b` would otherwise
+    // reach the INCLUDER's `%b` -- cross-file capture, the hazard the
+    // sigil exists to prevent, one level up.
+    //
+    // P1 is single-file by construction; carrying a name ACROSS files is
+    // what `export` and the destructure are for (P2, not built), and this
+    // refusal is what keeps the two from being confused meanwhile. Pathed
+    // at the DECLARATION, which is what is wrong, not at the map.
+    aliasDeclarationsAreRooted(ctx) {
+        if (0 === this.aliasKeys.length || 0 === this.path.length) {
+            return undefined;
+        }
+        const nv = new NilVal_1.NilVal({ why: 'alias_not_toplevel' }, ctx);
+        nv.site = this.site;
+        nv.path = [...this.path, this.aliasKeys[0]];
+        return nv;
+    }
     unify(peer, ctx) {
+        const arooted = this.aliasDeclarationsAreRooted(ctx);
+        if (undefined !== arooted) {
+            return arooted;
+        }
         // console.log('MAPVAL-UNIFY', this.id, this.canon, peer.id, peer.canon)
         const TOP = (0, top_1.top)();
         peer = peer ?? TOP;

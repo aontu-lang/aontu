@@ -1377,6 +1377,46 @@ func keyOf(t *jsonic.Token) string {
 	return t.Src
 }
 
+// refuseAliasSegment refuses an ALIAS NAME USED AS A PATH SEGMENT --
+// `$.%foo` -- returning the nil to raise, or nil when the terms are
+// clean. The alias namespace and the path namespace are disjoint: an
+// alias is reached by writing `%foo` and only that.
+//
+// The engine spells an alias reference AS a root reference to the
+// declaration, which is what gives it order independence and a cycle
+// check shared with paths -- but that is an implementation of the name,
+// not a second way to write it. Left writable, `$.%b` inside an
+// INCLUDED file would reach the includer's `%b` rather than its own,
+// which is the cross-file capture the sigil exists to prevent.
+//
+// `%foo` lexes to the reference itself, so it arrives as a TERM rather
+// than a string segment; a quoted `$."%foo"` arrives as the string.
+// Both shapes are checked. Twin of the guard in ts/src/lang.ts dotRef.
+func refuseAliasSegment(terms []any, r *jsonic.Rule) *NilVal {
+	bad := false
+	for _, t := range terms {
+		switch seg := t.(type) {
+		case string:
+			bad = bad || aliasRe.MatchString(seg)
+		case *RefVal:
+			for _, p := range seg.peg {
+				if ps, ok := p.(string); ok && aliasRe.MatchString(ps) {
+					bad = true
+				}
+			}
+		}
+	}
+	if !bad {
+		return nil
+	}
+	nv := newNil("alias_in_path")
+	if r.ON > 0 {
+		nv.sp = r.O0.SI
+	}
+	stampSrc(nv, r)
+	return nv
+}
+
 // aliasAtFileLevel reports whether this pair rule sits at the document
 // root, which is where an alias declaration belongs.
 //
@@ -1865,6 +1905,9 @@ func evaluate(r *jsonic.Rule, ctx *jsonic.Context, op *expr.Op, terms []interfac
 		if len(terms) < 1 {
 			return incompleteNil(r)
 		}
+		if nv := refuseAliasSegment(terms, r); nv != nil {
+			return nv
+		}
 		rv := newRef(terms, true)
 		if r.ON > 0 {
 			rv.sp = r.O0.SI
@@ -1875,6 +1918,9 @@ func evaluate(r *jsonic.Rule, ctx *jsonic.Context, op *expr.Op, terms []interfac
 		if len(terms) < 1 {
 			return incompleteNil(r)
 		}
+		if nv := refuseAliasSegment(terms, r); nv != nil {
+			return nv
+		}
 		rv := newRef(terms, false)
 		if r.ON > 0 {
 			rv.sp = r.O0.SI
@@ -1884,6 +1930,18 @@ func evaluate(r *jsonic.Rule, ctx *jsonic.Context, op *expr.Op, terms []interfac
 	case "dollar-prefix":
 		if len(terms) < 1 {
 			return incompleteNil(r)
+		}
+		// A refusal from the dot arms above (an alias used as a path
+		// segment) rides straight through: wrapping it in a var would
+		// replace `alias_in_path` with a var whose peg is a nil.
+		if nv, ok := terms[0].(*NilVal); ok {
+			return nv
+		}
+		// `$%foo` -- the sigil directly after the root -- reaches here
+		// as the alias reference rather than through a dot arm, and is
+		// refused for the same reason.
+		if nv := refuseAliasSegment(terms, r); nv != nil {
+			return nv
 		}
 		// $.a.b -> absolute reference; $name -> variable (the name is
 		// wrapped as a StringVal so canon renders as $"name").

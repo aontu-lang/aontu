@@ -14,8 +14,20 @@ alias-of-alias, redeclaration unifying, and a cycle check that spans
 both namespaces because there is only ever one graph. What had to be
 built was the lexeme (so `%name` is one token in both positions) and
 the ERASURE (`MapVal.aliasKeys`, filtered in gen, canon and hcanon).
-Pinned by `test/spec/alias.tsv`, 27 rows, every expectation probed
+Pinned by `test/spec/alias.tsv`, 31 rows, every expectation probed
 through both engines.
+
+**Two rules the implementation forced, both narrowing P1.** `$.%foo` is
+refused — the alias and path namespaces are disjoint, and leaving the
+root spelling writable would let `$.%b` inside an included file reach
+the *includer's* `%b`. And a declaration must sit at the **document**
+root, which is checked on the value rather than at the parse, because
+the parse cannot see it: an included file's declarations are at the
+root of their own text, and only once the loaded map is placed does it
+become apparent that root is not the document's. So **a file using
+aliases stands alone.** Carrying a name across files is exactly what
+`export` is for, and P2 has to answer it rather than inheriting an
+answer by accident.
 **Origin:** Richard Rodger, 2026-08-28, as the general form behind the
 sized-integer question that [ADR-008](../../ADR.md#adr-008--constraints-are-named-not-spelled-with-operators)
 left standing.

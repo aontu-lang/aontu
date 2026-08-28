@@ -206,6 +206,34 @@ let AontuJsonic: Plugin = function AontuLang(jsonic: Jsonic) {
   let dotRef = (r: Rule, ctx: JsonicContext, terms: any, prefix: boolean) => {
     terms = dropUnfilled(terms)
     if (0 === terms.length) return incompleteNil(r, ctx)
+
+    // AN ALIAS IS NOT A PATH SEGMENT. `$.%foo` is refused: the alias
+    // namespace and the path namespace are disjoint, and an alias is
+    // reached by writing `%foo` and only that.
+    //
+    // The engine spells an alias reference AS a root reference to the
+    // declaration -- which is what gives it order independence and a
+    // cycle check shared with paths -- but that is an implementation of
+    // the name, not a second way to write it. Left writable, the two
+    // spellings would drift apart the moment aliases stop being
+    // file-shaped, and `$.%b` inside an included file would reach the
+    // INCLUDER's `%b` rather than its own, which is exactly the
+    // cross-file capture the sigil exists to prevent.
+    // `%foo` lexes to the reference itself, so in `$.%foo` it arrives
+    // as a TERM rather than as a string segment -- both shapes are
+    // checked, since a quoted `$."%foo"` would arrive as the string.
+    for (const t of terms) {
+      const segs: any[] =
+        'string' === typeof t ? [t] :
+          (null != t && Array.isArray(t.peg) ? t.peg :
+            (null != t && 'string' === typeof t.peg ? [t.peg] : []))
+      for (const seg of segs) {
+        if ('string' === typeof seg && ALIAS_RE.test(seg)) {
+          return addsite(new NilVal({ why: 'alias_in_path' }), r, ctx)
+        }
+      }
+    }
+
     return addsite(new RefVal({ peg: terms, prefix }), r, ctx)
   }
 
@@ -765,6 +793,20 @@ help isolate the syntax error.`,
 
     'dollar-prefix': (r: Rule, ctx: JsonicContext, _op: Op, terms: any) => {
       if (null == terms[0]) return incompleteNil(r, ctx)
+      // A refusal from the dot rule below (an alias used as a path
+      // segment) rides straight through: wrapping it in a VarVal would
+      // replace `alias_in_path` with a var whose peg is a nil.
+      if (terms[0]?.isNil) {
+        return terms[0]
+      }
+      // `$%foo` -- the sigil directly after the root -- reaches here
+      // as the alias reference rather than through the dot rule, and
+      // is refused for the same reason.
+      if (terms[0] instanceof RefVal &&
+        terms[0].peg.some((seg: any) =>
+          'string' === typeof seg && ALIAS_RE.test(seg))) {
+        return addsite(new NilVal({ why: 'alias_in_path' }), r, ctx)
+      }
       // $.a.b absolute path
       if (terms[0] instanceof RefVal) {
         terms[0].absolute = true
@@ -1362,7 +1404,7 @@ help isolate the syntax error.`,
         }
       })
 
-      .bc((rule: Rule, ctx: JsonicContext) => {
+      .bc((rule: Rule) => {
         // TRAVERSE PARENTS TO GET PATH
 
         // A DECLARATION IS A PAIR WHOSE KEY IS AN ALIAS NAME. The lexer
@@ -1382,29 +1424,14 @@ help isolate the syntax error.`,
           const holder: any = rule.parent
           const aname = '' + ktkn.src
 
-          // AN ALIAS IS FILE-LOCAL, SO IT IS DECLARED AT FILE LEVEL.
-          // A nested `x: {%a: 1}` is refused rather than accepted,
-          // because accepting it is the worse outcome: `%a` resolves
-          // from the ROOT, so a nested declaration would be erased from
-          // the output (it IS a declaration) and still unreachable by
-          // any reference (it is NOT at the root) -- a name that
-          // silently exists nowhere. An empty key path is file level.
-          if (0 < (rule.k?.path?.length ?? 0)) {
-            // Pathed at the DECLARATION, not at the enclosing map: the
-            // key is what is wrong, and addsite would otherwise take
-            // the rule's path and name the container, leaving the
-            // reader to work out which key was refused. Same correction
-            // the elided-value nil above carries, and the same lesson
-            // as BUGS.md §47.
-            const an: any =
-              addsite(new NilVal({ why: 'alias_not_toplevel' }), rule, ctx)
-            an.path = [...(rule.k?.path ?? []), aname]
-            rule.node[aname] = an
-          }
-          else {
-            holder.u.aontu_alias_keys = (holder.u.aontu_alias_keys || [])
-            holder.u.aontu_alias_keys.push(aname)
-          }
+          // Always recorded here; whether the map is ALLOWED to carry
+          // declarations is decided on the VALUE (MapVal.unify), not at
+          // the parse. The parse cannot see it: an INCLUDED file's
+          // declarations are at the root of their own text, and only
+          // once the loaded map is placed does it become apparent that
+          // root is not the document's.
+          holder.u.aontu_alias_keys = (holder.u.aontu_alias_keys || [])
+          holder.u.aontu_alias_keys.push(aname)
         }
 
         if (rule.u.spread) {

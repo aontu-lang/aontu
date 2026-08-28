@@ -89,3 +89,16 @@ alias-bare-sigil-is-text	gens	a: %	{"a":"%"}
 alias-sigil-digit-is-text	gens	a: %1	{"a":"%1"}
 alias-trailing-sigil-is-text	gens	a: 50%	{"a":"50%"}
 alias-interior-sigil-is-text	gens	a: b%c	{"a":"b%c"}
+#
+# AN ALIAS IS NOT A PATH SEGMENT. The alias namespace and the path
+# namespace are disjoint: an alias is reached by writing `%foo`, and
+# only that. The engine spells the reference AS a root reference to the
+# declaration -- which is what gives it order independence and a cycle
+# check shared with paths -- but that is an IMPLEMENTATION of the name,
+# not a second way to write it. Left writable, `$.%b` inside an included
+# file would reach the INCLUDER's `%b` rather than its own.
+alias-in-path-refused	errc	a: $.%foo	alias_in_path
+alias-in-path-refused-when-declared	errc	%foo: 1\na: $.%foo	alias_in_path
+alias-after-root-refused	errc	a: $%foo	alias_in_path
+# The control: an ordinary path is untouched by the guard.
+alias-ordinary-path-unaffected	gens	%foo: 1\nb: {c: 2}\na: $.b.c\nz: %foo	{"a":2,"b":{"c":2},"z":1}

@@ -30,6 +30,32 @@ type MapVal struct {
 	aliasKeys []string
 }
 
+// aliasDeclarationsAreRooted refuses a map that carries ALIAS
+// DECLARATIONS anywhere but the document root, returning the nil to
+// raise or nil when the map is clean.
+//
+// Stated on the VALUE rather than at the parse, because the parse
+// cannot see it: an INCLUDED file's declarations are at the root of
+// their own text, and only once the loaded map is placed does it become
+// apparent that root is not the document's. `%name` is spelled as a
+// reference from the document root, so an included file's own `%b`
+// would otherwise reach the INCLUDER's `%b` -- cross-file capture, the
+// hazard the sigil exists to prevent, one level up.
+//
+// P1 is single-file by construction; carrying a name ACROSS files is
+// what `export` and the destructure are for (P2, not built), and this
+// refusal is what keeps the two from being confused meanwhile.
+func (m *MapVal) aliasDeclarationsAreRooted(ctx *Ctx) Val {
+	if 0 == len(m.aliasKeys) || 0 == len(m.path) {
+		return nil
+	}
+	nv := newNil("alias_not_toplevel")
+	nv.sp = m.sp
+	nv.path = append([]string{}, m.path...)
+	nv.path = append(nv.path, m.aliasKeys[0])
+	return nv
+}
+
 func (m *MapVal) isAliasKey(k string) bool {
 	for _, a := range m.aliasKeys {
 		if a == k {
@@ -573,6 +599,9 @@ func isEmptyGen(v any) bool {
 func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 	if peer == nil {
 		peer = top()
+	}
+	if nv := m.aliasDeclarationsAreRooted(ctx); nv != nil {
+		return nv
 	}
 	// A sizing residual (`length`, `unique`) sorts AFTER containers in a
 	// conjunct so that it counts the MERGED map rather than the first
