@@ -1,7 +1,7 @@
 "use strict";
 /* Copyright (c) 2025 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ReferVal = exports.ReferFuncVal = void 0;
+exports.RelVal = exports.RelFuncVal = exports.ReferVal = exports.ReferFuncVal = void 0;
 exports.parseAddress = parseAddress;
 exports.findEntity = findEntity;
 const type_1 = require("../type");
@@ -17,9 +17,12 @@ const utility_1 = require("../utility");
 // before the first dot names the entity, everything after walks its
 // value.
 const ADDR_SEGMENT = /^[A-Za-z0-9_-]+$/;
-const ADDR_NAME = /^[A-Za-z0-9_/-]+$/;
+// The entity half of an address is a D-1 name; the segments after the
+// first dot are keys and list indices, so a leading digit is
+// legitimate THERE and only there.
+const ADDR_NAME = /^[_a-zA-Z][-_a-zA-Z0-9]*$/;
 // The address a string spells, or undefined when it does not spell
-// one. `svc/auth` is the entity; `svc/auth.ports.http` is a node
+// one. `svc_auth` is the entity; `svc_auth.ports.http` is a node
 // inside it — the two addressing schemes reconciled: `$.a.b` answers
 // WHERE, an address answers WHAT, and beneath entity granularity the
 // tree is authoritative again.
@@ -96,6 +99,10 @@ class ReferVal extends FeatureVal_1.FeatureVal {
         super(spec, ctx);
         this.isRefer = true;
         this.isGenable = true;
+        // The codes this residual refuses with: refer() keeps its own,
+        // rel()-minted residuals carry rel_address/rel_unresolved.
+        this.addrcode = 'refer_address';
+        this.unresolvedcode = 'refer_unresolved';
         this.tval = spec.tval ?? (0, top_1.top)();
         this.addr = spec.addr;
         this.addrsrc = spec.addrsrc;
@@ -118,6 +125,9 @@ class ReferVal extends FeatureVal_1.FeatureVal {
         out.addr = this.addr;
         out.addrsrc = this.addrsrc;
         out.held = this.held;
+        out.relkey = this.relkey;
+        out.addrcode = this.addrcode;
+        out.unresolvedcode = this.unresolvedcode;
         return out;
     }
     unify(peer, ctx) {
@@ -146,18 +156,18 @@ class ReferVal extends FeatureVal_1.FeatureVal {
             && true === p.isScalar && 'string' === typeof p.peg) {
             const addr = parseAddress(p.peg);
             if (undefined === addr) {
-                return (0, err_1.makeNilErr)(ctx, 'refer_address', this, peer, 'refer', { addr: p.peg });
+                return (0, err_1.makeNilErr)(ctx, this.addrcode, this, peer, 'refer', { addr: p.peg });
             }
             return this.with(ctx, { addr, addrsrc: p.peg }, peer);
         }
         // A value that can never BE a string cannot constrain one either,
         // and no later pass can repair it — so this arm refuses rather
         // than defers. A KIND or a constraint is not in it: `string`,
-        // `re("^svc/")` and the like are perfectly good constraints on an
+        // `re("^svc_")` and the like are perfectly good constraints on an
         // address, and are held below until there is one to apply them to.
         if ((true === p.isScalar && 'string' !== typeof p.peg)
             || true === p.isMap || true === p.isList) {
-            return (0, err_1.makeNilErr)(ctx, 'refer_address', this, peer, 'refer');
+            return (0, err_1.makeNilErr)(ctx, this.addrcode, this, peer, 'refer');
         }
         // HELD: everything else waits for the address. Carried on the
         // residual rather than parked in a conjunct, because a conjunct
@@ -178,6 +188,9 @@ class ReferVal extends FeatureVal_1.FeatureVal {
         out.addr = spec.addr ?? this.addr;
         out.addrsrc = spec.addrsrc ?? this.addrsrc;
         out.held = spec.held ?? this.held;
+        out.relkey = this.relkey;
+        out.addrcode = this.addrcode;
+        out.unresolvedcode = this.unresolvedcode;
         (0, utility_1.propagateMarks)(this, out);
         out.site = site.site;
         out.path = this.path;
@@ -208,7 +221,7 @@ class ReferVal extends FeatureVal_1.FeatureVal {
             // pending refer keeps the tree not-done, so the pass loop always
             // reaches that pass when there is one to decide.
             if (ctx.cc + 1 >= ctx.budget.passes) {
-                return (0, err_1.makeNilErr)(ctx, 'refer_unresolved', this, undefined, 'refer', { addr: this.addrsrc });
+                return (0, err_1.makeNilErr)(ctx, this.unresolvedcode, this, undefined, 'refer', { addr: this.addrsrc });
             }
             this.dc = 0;
             return this;
@@ -264,8 +277,13 @@ class ReferVal extends FeatureVal_1.FeatureVal {
         // STAMPED as a link (G4 phase 3): the value is the address string,
         // so without this nothing downstream could tell a checked link from
         // a literal that happens to look like one. The edge set is exactly
-        // the set of these stamps.
+        // the set of these stamps. A rel()-minted link also carries its
+        // PREDICATE (the rel field's key), so the graph reports a declared
+        // relation rather than inferring one from the path.
         out.link = this.addrsrc;
+        if (undefined !== this.relkey) {
+            out.relkey = this.relkey;
+        }
         (0, utility_1.propagateMarks)(this, out);
         out.site = site.site;
         out.path = this.path;
@@ -280,6 +298,161 @@ class ReferVal extends FeatureVal_1.FeatureVal {
     }
 }
 exports.ReferVal = ReferVal;
+// RelVal is what `rel(t?)` RESOLVES to (RELATIONS.0.md §3.2): the
+// relation constraint, sited on the FIELD the way the sizing atoms sit
+// on containers. Its value may be one address, a LIST of addresses, or
+// a MAP whose string leaves are addresses -- the container shapes are
+// rewritten leaf by leaf through the refer machinery, so pending
+// resolution, type flow and link stamping are the one battle-tested
+// path, and the data side stays plain strings. The PREDICATE of every
+// edge produced is the key the rel() sits on -- declared once, in the
+// schema, never inferred from the path.
+class RelVal extends FeatureVal_1.FeatureVal {
+    constructor(spec, ctx) {
+        super(spec, ctx);
+        this.isRel = true;
+        this.isGenable = true;
+        this.cjo = 45000;
+        this.tval = spec.tval ?? (0, top_1.top)();
+        this.held = spec.held;
+        // DONE while unmet, deliberately -- the property refer() lacks and
+        // G4 phase 4 records the cost of: a type() body holding a rel()
+        // must SETTLE, or the schema idiom (`dependsOn?: rel($.T)` inside
+        // a vocabulary) leaves the type unresolved and every reference to
+        // it deferring forever. An unmet rel is its own settled residual,
+        // like `min(1)`; the meet re-activates it whenever a value
+        // arrives, because map merges build the conjunct regardless.
+        this.dc = type_1.DONE;
+    }
+    clone(ctx, spec) {
+        const out = super.clone(ctx, spec);
+        out.tval = this.tval;
+        out.held = this.held;
+        return out;
+    }
+    // The predicate: the last segment of the field path the constraint
+    // is being driven at -- when that segment is a D-1 NAME. A relation
+    // predicate is a declared name (RELATIONS.0.md §3.2), so a list
+    // index or a key outside the name grammar produces unlabelled
+    // links, and the graph falls back to its old inference. The D-1
+    // test is also what keeps the two ports' edges identical: a list
+    // index is a number here and a string in Go.
+    fieldkey() {
+        const seg = this.path[this.path.length - 1];
+        return 'string' === typeof seg && ADDR_NAME.test(seg) ? seg : undefined;
+    }
+    // One leaf's residual: the refer machinery carrying rel's codes,
+    // predicate and type.
+    leafRefer(ctx) {
+        const rv = new ReferVal({ tval: this.tval }, ctx);
+        rv.addrcode = 'rel_address';
+        rv.unresolvedcode = 'rel_unresolved';
+        rv.relkey = this.fieldkey();
+        rv.site = this.site;
+        rv.path = this.path;
+        return rv;
+    }
+    // The container, every string leaf wrapped as a link. Nested
+    // containers descend; a leaf already STAMPED as a link is left
+    // alone, which is what makes a second application (a template
+    // re-applied, a later pass) a no-op.
+    rewrite(ctx, container) {
+        const out = container.clone(ctx);
+        const peg = out.peg;
+        const keys = Array.isArray(peg)
+            ? peg.map((_v, i) => i) : Object.keys(peg);
+        for (const k of keys) {
+            // Children here are always Vals: the parse builds Vals, elision
+            // builds a NilVal, and clone preserved whatever the container
+            // held.
+            const child = peg[k];
+            if (true === child.isMap || true === child.isList) {
+                peg[k] = this.rewrite(ctx.descend('' + k), child);
+            }
+            else if (undefined === child.link) {
+                peg[k] = (0, unify_1.unite)(ctx.descend('' + k), this.leafRefer(ctx), child, 'rel-leaf');
+            }
+        }
+        // The rewrite holds PENDING leaves (an address whose entity a
+        // later statement declares), so the container is NOT done: the
+        // pass loop must keep driving it until every link settles.
+        out.dc = 0;
+        return out;
+    }
+    unify(peer, ctx) {
+        const p = peer;
+        // Two rel() at one field: one relation, both types.
+        if (true === p?.isRel) {
+            const out = new RelVal({}, ctx);
+            out.tval = (0, unify_1.unite)(ctx, this.tval, p.tval, 'rel-t');
+            out.held = null == this.held ? p.held
+                : null == p.held ? this.held
+                    : (0, unify_1.unite)(ctx, this.held, p.held, 'rel-held');
+            (0, utility_1.propagateMarks)(this, out);
+            out.site = this.site;
+            out.path = this.path;
+            return out;
+        }
+        // No null/top/nil arms: unite's dispatch ladder absorbs those
+        // peers before any Val's own unify is consulted (a null or top
+        // peer returns this side; a nil peer returns the nil), and unite
+        // is the only entrance -- the container hand-offs pass the
+        // container itself.
+        // ONE ADDRESS: the scalar-valued field, refer's own shape.
+        if (true === p.isScalar && 'string' === typeof p.peg) {
+            const out = (0, unify_1.unite)(ctx, this.leafRefer(ctx), peer, 'rel-scalar');
+            return null == this.held ? out
+                : (0, unify_1.unite)(ctx, out, this.held, 'rel-held');
+        }
+        // A SET OF LINKS: list or map, rewritten leaf by leaf.
+        if (true === p.isMap || true === p.isList) {
+            const out = this.rewrite(ctx, peer);
+            return null == this.held ? out
+                : (0, unify_1.unite)(ctx, out, this.held, 'rel-held');
+        }
+        // A scalar that can never be an address.
+        if (true === p.isScalar) {
+            return (0, err_1.makeNilErr)(ctx, 'rel_address', this, peer, 'refer');
+        }
+        // Everything else -- a reference still resolving, a kind, a
+        // container constraint -- waits for the value, as refer's held
+        // does.
+        const out = new RelVal({}, ctx);
+        out.tval = this.tval;
+        out.held = null == this.held ? peer
+            : (0, unify_1.unite)(ctx, this.held, peer, 'rel-held');
+        (0, utility_1.propagateMarks)(this, out);
+        out.site = this.site;
+        out.path = this.path;
+        return out;
+    }
+    get canon() {
+        const t = this.tval.isTop ? '' : this.tval.canon;
+        return 'rel(' + t + ')' +
+            (null == this.held ? '' : '&' + this.held.canon);
+    }
+}
+exports.RelVal = RelVal;
+class RelFuncVal extends FuncBaseVal_1.FuncBaseVal {
+    constructor(spec, ctx) {
+        super(spec, ctx);
+        this.isRelFunc = true;
+    }
+    make(_ctx, spec) {
+        return new RelFuncVal(spec);
+    }
+    funcname() {
+        return 'rel';
+    }
+    resolve(ctx, args) {
+        const out = new RelVal({}, ctx);
+        out.tval = 0 < args.length ? args[0] : (0, top_1.top)();
+        out.site = this.site;
+        out.path = this.path;
+        return out;
+    }
+}
+exports.RelFuncVal = RelFuncVal;
 class ReferFuncVal extends FuncBaseVal_1.FuncBaseVal {
     constructor(spec, ctx) {
         super(spec, ctx);
@@ -298,6 +471,6 @@ class ReferFuncVal extends FuncBaseVal_1.FuncBaseVal {
         out.path = this.path;
         return out;
     }
-} /* node:coverage ignore next 6 */
+} /* node:coverage ignore next 8 */
 exports.ReferFuncVal = ReferFuncVal;
 //# sourceMappingURL=ReferFuncVal.js.map

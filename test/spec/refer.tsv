@@ -15,12 +15,12 @@
 # written.
 #
 # Columns: name<TAB>mode<TAB>src<TAB>expect
-link-not-embedding	gens	a: id(svc/auth) & {port:8080}\nb: refer() & "svc/auth"	{"a":{"port":8080},"b":"svc/auth"}
-link-vs-plain-ref	gens	a: id(svc/auth) & {port:8080}\nb: $.a	{"a":{"port":8080},"b":{"port":8080}}
-link-inside-entity	gens	a: id(svc/auth) & {ports: {http: 80}}\nb: refer() & "svc/auth.ports.http"	{"a":{"ports":{"http":80}},"b":"svc/auth.ports.http"}
+link-not-embedding	gens	a: id(svc_auth) & {port:8080}\nb: refer() & "svc_auth"	{"a":{"port":8080},"b":"svc_auth"}
+link-vs-plain-ref	gens	a: id(svc_auth) & {port:8080}\nb: $.a	{"a":{"port":8080},"b":{"port":8080}}
+link-inside-entity	gens	a: id(svc_auth) & {ports: {http: 80}}\nb: refer() & "svc_auth.ports.http"	{"a":{"ports":{"http":80}},"b":"svc_auth.ports.http"}
 link-inside-list	gens	a: id(x) & {p:[1,2]}\nb: refer() & "x.p.1"	{"a":{"p":[1,2]},"b":"x.p.1"}
-link-forward	gens	b: refer() & "svc/late"\na: id(svc/late) & {k:1}	{"a":{"k":1},"b":"svc/late"}
-link-many-to-one	gens	a: id(svc/auth) & {port:8080}\nb: refer() & "svc/auth"\nc: refer() & "svc/auth"	{"a":{"port":8080},"b":"svc/auth","c":"svc/auth"}
+link-forward	gens	b: refer() & "svc_late"\na: id(svc_late) & {k:1}	{"a":{"k":1},"b":"svc_late"}
+link-many-to-one	gens	a: id(svc_auth) & {port:8080}\nb: refer() & "svc_auth"\nc: refer() & "svc_auth"	{"a":{"port":8080},"b":"svc_auth","c":"svc_auth"}
 link-name-quoted	gens	a: id("team-pay") & {k:1}\nb: refer() & "team-pay"	{"a":{"k":1},"b":"team-pay"}
 
 # --- Constraint flow --------------------------------------------------
@@ -37,7 +37,7 @@ link-name-quoted	gens	a: id("team-pay") & {k:1}\nb: refer() & "team-pay"	{"a":{"
 # after: two positions of one entity hold the same object once a pass
 # has merged them, so a guard that ran first left the second position
 # on the pre-flow value.
-flow-adds-to-target	gens	a: id(svc/auth) & {port:8080}\nb: refer({kind:service}) & "svc/auth"	{"a":{"kind":"service","port":8080},"b":"svc/auth"}
+flow-adds-to-target	gens	a: id(svc_auth) & {port:8080}\nb: refer({kind:service}) & "svc_auth"	{"a":{"kind":"service","port":8080},"b":"svc_auth"}
 flow-reaches-every-position	gens	a: id(x) & {p:1}\nc: id(x) & {q:2}\nb: refer({r:3}) & "x"	{"a":{"p":1,"q":2,"r":3},"b":"x","c":{"p":1,"q":2,"r":3}}
 flow-inside-entity	gens	a: id(x) & {p:{q:1}}\nb: refer({r:2}) & "x.p"	{"a":{"p":{"q":1,"r":2}},"b":"x.p"}
 flow-kind-constrains	gens	a: id(x) & {k:1}\nb: refer({k:integer}) & "x"	{"a":{"k":1},"b":"x"}
@@ -52,10 +52,10 @@ flow-two-refers	gens	a: id(x) & {k:1}\nb: refer({k:integer}) & refer({j:2}) & "x
 # a refer residuates while an entity might still be declared -- by a
 # later conjunct, include or spread, as `link-forward` shows -- and the
 # LAST pass is where the question is answered.
-unresolved-entity	errc	a: id(svc/auth) & {port:8080}\nb: refer() & "svc/nope"	refer_unresolved
-unresolved-entity-msg	err	a: id(svc/auth) & {port:8080}\nb: refer() & "svc/nope"	Cannot refer value at path $.b
-unresolved-inside-entity	errc	a: id(svc/auth) & {port:8080}\nb: refer() & "svc/auth.nope"	refer_unresolved
-unresolved-no-entities-at-all	errc	b: refer() & "svc/nope"	refer_unresolved
+unresolved-entity	errc	a: id(svc_auth) & {port:8080}\nb: refer() & "svc_nope"	refer_unresolved
+unresolved-entity-msg	err	a: id(svc_auth) & {port:8080}\nb: refer() & "svc_nope"	Cannot refer value at path $.b
+unresolved-inside-entity	errc	a: id(svc_auth) & {port:8080}\nb: refer() & "svc_auth.nope"	refer_unresolved
+unresolved-no-entities-at-all	errc	b: refer() & "svc_nope"	refer_unresolved
 
 # --- The address grammar ---------------------------------------------
 #
@@ -91,9 +91,9 @@ two-addresses-conflict	errc	a: id(x) & {k:1}\nb: refer() & "x" & "y"	scalar_valu
 # list is a list of NAMES that the engine checks. This is the shape the
 # Problem section of the design could not produce: strings that check
 # nothing, or references that embed everything.
-spread-over-a-list	gens	services: {\n  auth: id(svc/auth) & {port:8080}\n  billing: id(svc/billing) & {\n    dependsOn: [&: refer(), svc/auth]\n  }\n}	{"services":{"auth":{"port":8080},"billing":{"dependsOn":["svc/auth"]}}}
-spread-over-a-list-typed	gens	services: {\n  auth: id(svc/auth) & {kind:service, port:8080}\n  billing: id(svc/billing) & {\n    dependsOn: [&: refer({kind:service}), svc/auth]\n  }\n}	{"services":{"auth":{"kind":"service","port":8080},"billing":{"dependsOn":["svc/auth"]}}}
-spread-over-a-list-miss	errc	services: {\n  auth: id(svc/auth) & {port:8080}\n  billing: id(svc/billing) & {\n    dependsOn: [&: refer(), svc/auth, svc/payments]\n  }\n}	refer_unresolved
+spread-over-a-list	gens	services: {\n  auth: id(svc_auth) & {port:8080}\n  billing: id(svc_billing) & {\n    dependsOn: [&: refer(), svc_auth]\n  }\n}	{"services":{"auth":{"port":8080},"billing":{"dependsOn":["svc_auth"]}}}
+spread-over-a-list-typed	gens	services: {\n  auth: id(svc_auth) & {kind:service, port:8080}\n  billing: id(svc_billing) & {\n    dependsOn: [&: refer({kind:service}), svc_auth]\n  }\n}	{"services":{"auth":{"kind":"service","port":8080},"billing":{"dependsOn":["svc_auth"]}}}
+spread-over-a-list-miss	errc	services: {\n  auth: id(svc_auth) & {port:8080}\n  billing: id(svc_billing) & {\n    dependsOn: [&: refer(), svc_auth, svc_payments]\n  }\n}	refer_unresolved
 
 # --- Canon and the hash ----------------------------------------------
 #
@@ -121,7 +121,13 @@ merge-refer-one-held	gens	a: id(x) & {k:1}\nb: (refer() & string) & refer() & "x
 flow-into-a-list-element	gens	a: id(x) & {p:[{},{}]}\nb: refer({k:1}) & "x.p.0"	{"a":{"p":[{"k":1},{}]},"b":"x.p.0"}
 spread-over-a-map	gens	a: {&: refer(), b: "x", c: "x"}\nz: id(x) & {}	{"a":{"b":"x","c":"x"},"z":{}}
 type-through-a-reference	gens	a: id(x) & {k:1}\nb: refer($.a) & "x"	{"a":{"k":1},"b":"x"}
-address-name-segments	gens	a: id("A/b-c_1") & {p:1}\nb: refer() & "A/b-c_1.p"	{"a":{"p":1},"b":"A/b-c_1.p"}
+# D-1: the name half is a flat identifier (no slash, no leading digit
+# or hyphen); segments AFTER the first dot are keys and may lead with
+# a digit.
+address-name-segments	gens	a: id("A_b-c1") & {p:1}\nb: refer() & "A_b-c1.p"	{"a":{"p":1},"b":"A_b-c1.p"}
+address-name-slash-refused	errc	a: id("A/b") & {p:1}	id_name
+address-name-digit-lead-refused	errc	a: id("9x") & {p:1}	id_name
+address-slash-link-refused	errc	z: id(ok) & {}\nb: refer() & "a/b"	refer_address
 address-segment-bad-char	errc	a: id(x) & {p:1}\nb: refer() & "x.p$q"	refer_address
 # A PATH-DEPENDENT template is cloned per destination, so the residual
 # it carries — the type to flow, the address it has met — has to travel
@@ -154,7 +160,7 @@ flow-hide-mark-cleared	gens	a: id(x) & {}\nb: refer(hide({k:1})) & "x"	{"a":{"k"
 # entity is now skipped -- the flow it is nested in is already uniting
 # that entity -- and what each contributes is unchanged, as the
 # differs-each-way and cycle-of-three rows show. Parity-probed.
-refer-typed-inverse-pair	gens	a: id(svc/a) & { kind: service, dependsOn:    [&: refer({kind: service}), svc/b] }\nb: id(svc/b) & { kind: service, dependedOnBy: [&: refer({kind: service}), svc/a] }\n	{"a":{"dependsOn":["svc/b"],"kind":"service"},"b":{"dependedOnBy":["svc/a"],"kind":"service"}}
+refer-typed-inverse-pair	gens	a: id(svc_a) & { kind: service, dependsOn:    [&: refer({kind: service}), svc_b] }\nb: id(svc_b) & { kind: service, dependedOnBy: [&: refer({kind: service}), svc_a] }\n	{"a":{"dependsOn":["svc_b"],"kind":"service"},"b":{"dependedOnBy":["svc_a"],"kind":"service"}}
 refer-typed-flow-both-ways	gens	a: id(x) & { to: [&: refer({k:1}), y] }\nb: id(y) & { to: [&: refer({k:1}), x] }\n	{"a":{"k":1,"to":["y"]},"b":{"k":1,"to":["x"]}}
 refer-typed-flow-differs-each-way	gens	a: id(x) & { to: [&: refer({k:1}), y] }\nb: id(y) & { to: [&: refer({k:9}), x] }\n	{"a":{"k":9,"to":["y"]},"b":{"k":1,"to":["x"]}}
 refer-typed-cycle-of-three	gens	a: id(x) & { to: [&: refer({k:1}), y] }\nb: id(y) & { to: [&: refer({k:1}), z] }\nc: id(z) & { to: [&: refer({k:1}), x] }\n	{"a":{"k":1,"to":["y"]},"b":{"k":1,"to":["z"]},"c":{"k":1,"to":["x"]}}

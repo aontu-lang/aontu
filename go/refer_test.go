@@ -33,16 +33,42 @@ func TestAddrSegmentOK(t *testing.T) {
 }
 
 func TestParseAddressShapes(t *testing.T) {
-	a, ok := parseAddress("svc/auth.ports.http")
-	if !ok || "svc/auth" != a.Name || 2 != len(a.Path) ||
+	a, ok := parseAddress("svc_auth.ports.http")
+	if !ok || "svc_auth" != a.Name || 2 != len(a.Path) ||
 		"ports" != a.Path[0] || "http" != a.Path[1] {
 		t.Fatalf("parseAddress = %+v,%v", a, ok)
 	}
-	if _, ok := parseAddress("svc/auth."); ok {
+	if _, ok := parseAddress("svc_auth."); ok {
 		t.Error("a trailing dot is not an address")
+	}
+	// D-1: the name half is a flat identifier -- no slash.
+	if _, ok := parseAddress("svc/auth.ports"); ok {
+		t.Error("a slashed name is not an address")
 	}
 	if _, ok := parseAddress("a b"); ok {
 		t.Error("a space is not an address")
+	}
+}
+
+func TestRelValShape(t *testing.T) {
+	// The stubs no spec row reaches: the fold-order slot and the
+	// silent generation of a settled-but-unmet relation (the bag
+	// drops an optional one before asking, and a required one errors
+	// before generation). The TS twin is rel-func-shape in
+	// ts/test/coverage3.test.ts.
+	r := newRel(nil)
+	if 45000 != r.cjo() {
+		t.Errorf("cjo = %d", r.cjo())
+	}
+	if !isTop(r.superior()) {
+		t.Error("a rel has no meaningful superior")
+	}
+	v, err := r.Gen(&Ctx{})
+	if nil != v || nil != err {
+		t.Errorf("Gen = %v,%v; want nil,nil", v, err)
+	}
+	if "rel()" != r.Canon() {
+		t.Errorf("Canon = %q", r.Canon())
 	}
 }
 
@@ -99,10 +125,10 @@ func TestReferMergeNilCombinations(t *testing.T) {
 	}
 
 	// And a peer that already has the address, when this one does not.
-	addr, _ := parseAddress("svc/x")
+	addr, _ := parseAddress("svc_x")
 	sited := newRefer(nil)
-	sited.addr, sited.addrsrc = &addr, "svc/x"
-	if out := bare.Unify(sited, ctx).(*ReferVal); "svc/x" != out.addrsrc {
+	sited.addr, sited.addrsrc = &addr, "svc_x"
+	if out := bare.Unify(sited, ctx).(*ReferVal); "svc_x" != out.addrsrc {
 		t.Errorf("the address should carry across the merge, got %q", out.addrsrc)
 	}
 }

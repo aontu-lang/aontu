@@ -488,8 +488,8 @@ relations: {
 }
 
 services: {
-  auth:    id(svc/auth)    & { dependsOn: [&: refer(), svc/billing] }
-  billing: id(svc/billing) & {}
+  auth:    id(svc_auth)    & { dependsOn: [&: refer(), svc_billing] }
+  billing: id(svc_billing) & {}
 }
 ```
 
@@ -500,12 +500,12 @@ what notices `billing` never named `auth` back:
 $ aontu relations topology.aon
 verdict: fail
 
-$.services.auth.dependsOn.0  dependsOn: svc/billing does not list svc/auth under usedBy
+$.services.auth.dependsOn.0  dependsOn: svc_billing does not list svc_auth under usedBy
 $ echo $?
 1
 ```
 
-Give `billing` a `usedBy: [&: refer(), svc/auth]` and it passes:
+Give `billing` a `usedBy: [&: refer(), svc_auth]` and it passes:
 
 ```sh
 $ aontu relations topology.aon
@@ -515,7 +515,7 @@ $ echo $?
 ```
 
 A cycle is reported the same way, naming the entities it runs through
-(`dependsOn: cycle svc/auth -> svc/billing -> svc/auth`). Exit `4` means
+(`dependsOn: cycle svc_auth -> svc_billing -> svc_auth`). Exit `4` means
 the document did not evaluate at all.
 
 ## Provide defaults that callers can override

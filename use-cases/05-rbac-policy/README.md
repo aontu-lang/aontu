@@ -54,12 +54,12 @@ against the real CLI, including the gap repros (asserted at their
   The role set cannot be extended by accident from any layer.
 - **Conditional shapes (disjunction of closed maps)** carry both
   "if plan=free then sso=false" *and* the wildcard rule "no role
-  grants admin/all unless privileged". The second is the nicer trick:
-  the unprivileged `Role` branch puts `neq("admin/all")` on the
+  grants admin_all unless privileged". The second is the nicer trick:
+  the unprivileged `Role` branch puts `neq("admin_all")` on the
   grants **list spread**, i.e. universal quantification over list
   elements, and a violating patch fails at the exact element:
   `[aontu/constraint] ... $.roles.member.grants.3 ... Cannot unify
-  value: "admin/all" with value: neq("admin/all")`.
+  value: "admin_all" with value: neq("admin_all")`.
 - **`match()` as tier mapping** derives `limits` and `supportTier`
   from the data's plan during vet, so candidates cannot contradict
   plan-derived facts, and `why` explains the derivation with
@@ -82,7 +82,7 @@ against the real CLI, including the gap repros (asserted at their
   (`compat_required_added` naming the missing grant), and the exit
   codes (0/1/3/4) make all of this scriptable in CI. Better than
   expected.
-- **Canon preserves policy meaning**: `id("admin/all")`, `refer()`,
+- **Canon preserves policy meaning**: `id("admin_all")`, `refer()`,
   and the `*"member"|"member"|"admin"|"owner"` default all survive
   `--canon`, so the canon-hash genuinely covers the *policy*, not
   just its JSON shadow.
@@ -278,7 +278,7 @@ Everything derived fails:
   `[aontu/no_path] … Cannot resolve value: .src` at the nonsense path
   `$.checks.NaN.b`.
 - Filter conditions cannot see into lists: a spread-carrying
-  condition `filter($.roles, {grants: [&: neq("admin/all")]})` keeps
+  condition `filter($.roles, {grants: [&: neq("admin_all")]})` keeps
   **nothing** (the meet always "changes" the child), so
   "role whose grants contain X" is not a writable condition.
 - There is no count *accessor*, so two computed counts cannot be
@@ -296,7 +296,7 @@ Grants are naturally sets; lists are positional. `subsume` on the
 same two grants reordered:
 
 ```
-$ aontu subsume la.aon lb.aon        # ["project/read","member/read"] vs reversed
+$ aontu subsume la.aon lb.aon        # ["project_read","member_read"] vs reversed
 verdict: does_not_subsume
 $.g.0: compat_narrowed [compat]
   a concrete value subsumes only itself

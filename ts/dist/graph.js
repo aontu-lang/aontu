@@ -47,7 +47,13 @@ function graphOf(root) {
         if (null != link) {
             edges.push({
                 from: inside,
-                key: relationKey(below),
+                // A rel()-minted link carries its PREDICATE -- the key the
+                // rel() sat on, declared in the schema -- and that beats the
+                // path inference, which answered wrongly for map-valued
+                // relations (it named the inner label, not the relation).
+                // refer()-minted links keep the inference until P3 retires
+                // them.
+                key: node.relkey ?? relationKey(below),
                 to: link,
                 at: formatPath(path),
             });

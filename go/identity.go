@@ -11,22 +11,31 @@ import "sort"
 // other. The Go side of ts/src/val/IdFuncVal.ts and the mergeEntities
 // pass in ts/src/unify.ts.
 
-// idNameOK reports whether s spells an entity name: letters, digits,
-// `_`, `-`, `/` — and NO DOTS, because a dot separates an entity
-// address from a sub-path (G4 phase 2), so a dotted id would make
-// `svc/auth.port` ambiguous between "the entity `svc/auth.port`" and
-// "the port of `svc/auth`". Written as an explicit loop rather than a
-// regexp so the two ports cannot drift on a character class.
+// idNameOK reports whether s spells an entity name (D-1,
+// docs/design/RELATIONS.0.md): a flat identifier,
+// /[_a-zA-Z][-_a-zA-Z0-9]*/. No slash — hierarchy belongs in document
+// structure and kind fields, never in name punctuation — no leading
+// digit or hyphen, and NO DOTS, because a dot separates an entity
+// address from a sub-path (G4 phase 2). Written as an explicit loop
+// rather than a regexp so the two ports cannot drift on a character
+// class.
 func idNameOK(s string) bool {
 	if "" == s {
 		return false
 	}
-	for _, r := range s {
+	for i, r := range s {
 		switch {
 		case 'a' <= r && r <= 'z':
 		case 'A' <= r && r <= 'Z':
+		case '_' == r:
 		case '0' <= r && r <= '9':
-		case '_' == r || '-' == r || '/' == r:
+			if 0 == i {
+				return false
+			}
+		case '-' == r:
+			if 0 == i {
+				return false
+			}
 		default:
 			return false
 		}
@@ -35,8 +44,8 @@ func idNameOK(s string) bool {
 }
 
 // idName is the name an argument spells, or ok=false when it does not
-// spell one. A bare `svc/auth` parses as a string, as does
-// `"svc/auth"`; anything else — a number, a map, an unresolved
+// spell one. A bare `svc_auth` parses as a string, as does
+// `"svc_auth"`; anything else — a number, a map, an unresolved
 // reference — is not a name, and saying so at once beats an entity
 // nobody can address. Mirrors idName in ts/src/val/IdFuncVal.ts.
 func idName(v Val) (string, bool) {
@@ -166,8 +175,8 @@ func entityNames(ctx *Ctx) []string {
 }
 
 // SPREAD TEMPLATES MAY NOT STAMP ONE ID ONTO EVERY CHILD (G4 phase 1,
-// clearing rule 3). `&: id(svc/thing) & {…}` says that every child of
-// the bag IS the entity `svc/thing`, and the identity merge then
+// clearing rule 3). `&: id(svc_thing) & {…}` says that every child of
+// the bag IS the entity `svc_thing`, and the identity merge then
 // unifies all of them into one another: an author who wrote a
 // per-child template would get a single merged blob, and any two
 // children that disagreed about a field would fail at a site that

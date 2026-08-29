@@ -73,8 +73,8 @@ function deprecationMessage(d) {
         ('string' === typeof d.since ? ' (since ' + d.since + ')' : '');
 }
 // SPREAD TEMPLATES MAY NOT STAMP ONE ID ONTO EVERY CHILD (G4 phase
-// 1, clearing rule 3). `&: id(svc/thing) & {…}` says that every child
-// of the bag IS the entity `svc/thing`, and the identity merge then
+// 1, clearing rule 3). `&: id(svc_thing) & {…}` says that every child
+// of the bag IS the entity `svc_thing`, and the identity merge then
 // unifies all of them into one another: an author who wrote a
 // per-child template would get a single merged blob, and any two
 // children that disagreed about a field would fail at a site that
@@ -109,7 +109,7 @@ function constantIdFunc(v, seen) {
     }
     return constantIdFunc(v.spread?.cj, s);
 }
-// The IDENTITY wrapper (G4 phase 1): `id("svc/auth")&{…}`, written
+// The IDENTITY wrapper (G4 phase 1): `id("svc_auth")&{…}`, written
 // as the conjunct an author writes, so canon reparses to the same
 // entity. This deliberately differs from the type/hide MARKS, which
 // canon drops (test/spec/marks.tsv, row `type-canon`): identity is

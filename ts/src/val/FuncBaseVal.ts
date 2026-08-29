@@ -271,7 +271,7 @@ class FuncBaseVal extends FeatureVal {
 
         // console.log('FUNCBASE-PEG', this.id, pegdone, this.peg.map((p: any) => p?.canon))
 
-        if (pegdone) {
+        if (pegdone && !this.deferResolve(ctx)) {
           const resolved = this.resolve(ctx, newpeg)
           // console.log('FUNC-RESOLVED', ctx.cc, resolved?.canon)
 
@@ -390,6 +390,16 @@ class FuncBaseVal extends FeatureVal {
 
   resolve(ctx: AontuContext, _args: Val[]): Val {
     return makeNilErr(ctx, 'func:' + this.funcname(), this, undefined, 'resolve')
+  }
+
+
+  // A function may hold its resolution for a later pass even with its
+  // arguments settled -- it then rides the ordinary args-not-done
+  // path, residuating as any unresolved call does. Bare id() is the
+  // one user: its answer depends on marks that only exist after the
+  // first pass (IdFuncVal.deferResolve).
+  deferResolve(_ctx: AontuContext): boolean {
+    return false
   }
 
 

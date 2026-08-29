@@ -56,6 +56,11 @@ class ListVal extends BagVal_1.BagVal {
     // NOTE: order of keys is not preserved!
     // not possible in any case - consider {a,b} unify {b,a}
     unify(peer, ctx) {
+        // A rel() peer drives: the relation constraint rewrites this list
+        // leaf by leaf (RELATIONS.0.md §3.2); see the twin arm in MapVal.
+        if (true === peer?.isRel) {
+            return peer.unify(this, ctx);
+        }
         const TOP = (0, top_1.top)();
         peer = peer ?? TOP;
         // A sizing residual (`length`, `unique`) sorts AFTER containers in a

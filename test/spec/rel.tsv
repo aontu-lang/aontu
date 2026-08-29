@@ -1,0 +1,92 @@
+# rel(t?) -- THE RELATION CONSTRAINT, SITED ON THE FIELD
+# (docs/design/RELATIONS.0.md §3.2, replacing refer()'s per-element
+# spelling). Its value is one address, a LIST of addresses, or a MAP
+# whose string leaves are addresses; every leaf goes through the refer
+# machinery, so pending resolution, type flow and link stamping are
+# one path. The PREDICATE of every edge is the key the rel() sits on --
+# declared once, never inferred from the path. Columns:
+# name<TAB>mode<TAB>src<TAB>expect
+#
+# Every expectation was obtained by running BOTH engines and diffing.
+rel-scalar	gens	p: id() & {k:1}\nq: {hostedOn: rel() & p}	{"p":{"k":1},"q":{"hostedOn":"p"}}
+rel-list	gens	a: id() & {}\nb: id() & {}\ns: id() & {dependsOn: rel() & [a, b]}	{"a":{},"b":{},"s":{"dependsOn":["a","b"]}}
+rel-map-labelled	gens	a: id() & {}\ns: id() & {uses: rel() & {primary: a}}	{"a":{},"s":{"uses":{"primary":"a"}}}
+# TWO STATEMENTS OF ONE FIELD, in either order: the constraint from
+# one, the addresses from the other. The reversed row is what the
+# container hand-off arms exist for -- whichever side the fold hands
+# the drive, the relation rewrites the container.
+rel-two-statements	gens	s: {dependsOn: rel()}\ns: {dependsOn: [x]}\nx: id() & {}	{"s":{"dependsOn":["x"]},"x":{}}
+rel-two-statements-reversed	gens	s: {dependsOn: [x]}\ns: {dependsOn: rel()}\nx: id() & {}	{"s":{"dependsOn":["x"]},"x":{}}
+# THE SCHEMA IDIOM. An unmet rel() is DONE -- its own settled residual,
+# like min(1) -- which is what lets a type() body carry one and still
+# settle (the property refer() lacks, G4 phase 4). The data side stays
+# plain strings.
+rel-schema-optional	gens	S: type({dependsOn?: rel()})\na: id() & {}\ns: $.S & {dependsOn: [a]}	{"a":{},"s":{"dependsOn":["a"]}}
+rel-schema-optional-absent	gens	S: type({dependsOn?: rel()})\ns: $.S & {k: 1}	{"s":{"k":1}}
+rel-unmet-canon	canon	S: type({dependsOn?: rel()})\nz: 1	{"S":{"dependsOn"?:rel()},"z":1}
+# THE FLOW: rel(t) unifies t into each target, so referring to
+# something as a kind MAKES it that kind, and a contradiction is an
+# ordinary located error at the entity.
+rel-flow-admits	gens	a: id() & {kind: svc}\ns: {dependsOn: rel({kind: svc}) & [a]}	{"a":{"kind":"svc"},"s":{"dependsOn":["a"]}}
+rel-flow-refuses	errc	a: id() & {kind: db}\ns: {dependsOn: rel({kind: svc}) & [a]}	scalar_value
+# REFUSALS, each with its own code.
+rel-address-not-a-string	errc	s: {dependsOn: rel() & [7]}	rel_address
+rel-address-scalar-direct	errc	s: {hostedOn: rel() & 7}	rel_address
+rel-unresolved	errc	s: {dependsOn: rel() & [nosuch]}	rel_unresolved
+# Nested containers descend: leaves at any depth are addresses.
+rel-nested-map	gens	a: id() & {}\ns: {uses: rel() & {tier1: {primary: a}}}	{"a":{},"s":{"uses":{"tier1":{"primary":"a"}}}}
+# An unmet REQUIRED rel refuses at generation, as any unresolved
+# residual does; the optional form (rel-schema-optional-absent) drops.
+rel-unmet-required	errc	d: rel()\nz: 1	mapval_no_gen
+# Two rel() at one field: one relation, both types.
+rel-meets-rel	gens	x: id() & {kind: a}\ns: {d: rel({kind: a})}\ns: {d: rel()}\ns: {d: [x]}	{"s":{"d":["x"]},"x":{"kind":"a"}}
+# A KIND met before the value is HELD, and meets the link once there
+# is one -- refer's own held rule.
+rel-holds-a-kind	gens	x: id() & {}\nd: rel() & string & x	{"d":"x","x":{}}
+# The MAP-drives order (the map twin of rel-two-statements-reversed):
+# whichever side the fold hands the drive, the relation rewrites.
+rel-map-drives	gens	s: {uses: {primary: a}}\ns: {uses: rel()}\na: id() & {}	{"a":{},"s":{"uses":{"primary":"a"}}}
+# A rel in a spread template is cloned per destination.
+rel-in-spread-template	gens	T: {&: {d: rel() & [q]}, s1: {}}\nq: id() & {}	{"T":{"s1":{"d":["q"]}},"q":{}}
+# A nil formed beside the rel rides through it.
+rel-meets-nil	errc	q: id() & {}\nd: {x: rel() & q}\nd: {x: 1 & two}	scalar_kind
+# A non-string scalar anywhere in the conjunct is refused by the
+# relation, whichever term the fold hands it first.
+rel-conjunct-non-string	errc	d: rel() & (1 & "x")	rel_address
+# TWO rel() AT ONE FIELD MERGE INTO ONE RELATION -- both types, both
+# held constraints -- whatever order the statements arrive in. The
+# order rows pin the fix for unite's equal-scalar shortcuts, which
+# matched two settled rels (peg equally absent) and silently dropped
+# one side's type and held.
+rel-two-at-one-field	gens	x: id(a) & {k:1}\ns: {d: rel() & rel()}\ns: {d: a}	{"s":{"d":"a"},"x":{"k":1}}
+rel-two-merged-canon	canon	s: {d: rel({kind:q}) & rel()}	{"s":{"d":rel({"kind":"q"})}}
+rel-two-typed-canon	canon	s: {d: rel({kind:q})}\ns: {d: rel({kind:q})}	{"s":{"d":rel({"kind":"q"})}}
+rel-two-held-canon	canon	s: {d: rel() & string}\ns: {d: rel()}	{"s":{"d":rel()&string}}
+rel-two-held-order-canon	canon	s: {d: rel()}\ns: {d: rel() & string}	{"s":{"d":rel()&string}}
+rel-two-held-both-canon	canon	s: {d: rel() & string}\ns: {d: rel() & string}	{"s":{"d":rel()&string}}
+rel-two-held-resolves	gens	x: id(a) & {k:1}\ns: {d: rel() & string}\ns: {d: rel()}\ns: {d: a}	{"s":{"d":"a"},"x":{"k":1}}
+# A rel in LIST-ELEMENT position has no usable field key -- the
+# predicate needs a keyed field -- so its links are unlabelled and the
+# graph falls back to path inference. It still resolves.
+rel-in-list-element	gens	q: id() & {}\na: [rel() & q]	{"a":["q"],"q":{}}
+rel-in-list-element-canon	canon	q: id() & {}\na: [rel() & q]	{"a":["q"],"q":id("q")&{}}
+# One rel absorbing two held constraints in one fold carries both.
+rel-two-held-fold-canon	canon	s: {d: rel() & re("^a") & re("a$")}	{"s":{"d":rel()&re("^a")&re("a$")}}
+rel-two-held-fold-admits	gens	x: id(a) & {}\ns: {d: rel() & re("^a") & re("a$")}\ns: {d: a}	{"s":{"d":"a"},"x":{}}
+# Held constraints meet the LINK: on a container value they refuse
+# loudly (both ports agree) rather than deferring to the rewritten
+# list -- the recorded boundary of the held channel.
+rel-held-on-container	errc	x: id(a) & {}\ns: {d: rel() & min(1)}\ns: {d: [a]}	constraint
+# The PREDICATE is a D-1 NAME: a list index or a key outside the name
+# grammar stamps nothing, and the edge falls back to the graph's path
+# inference -- identically in both ports (a list index is a number in
+# TS and a string in Go, so the D-1 test is also the parity guard).
+rel-at-root-unresolved	errc	rel() & nosuch	rel_unresolved
+rel-at-root-container	errc	rel() & {primary: nosuch}	rel_unresolved
+# A rel restated after the container already met one is absorbed by
+# the merged relation; the restatement changes nothing.
+rel-restated-after-container	gens	x: id(a) & {}\ns: {d: rel()}\ns: {d: [a]}\ns: {d: rel()}	{"s":{"d":["a"]},"x":{}}
+# A reference-copy of a settled relation field carries its stamped
+# links, and a rel() meeting the copy leaves stamped leaves alone --
+# the no-op that makes a second application safe.
+rel-over-linked-copy	gens	x: id(a) & {}\ns: {d: rel() & [a]}\nt: $.s.d & rel()	{"s":{"d":["a"]},"t":["a"],"x":{}}

@@ -29,7 +29,7 @@ spec: hide({
     description: string & length(min(10))
     # Checked entity references: each element must name an entity that
     # exists in this evaluation and is a service; the address string
-    # (the link, not the target) must look like svc/<name>.
+    # (the link, not the target) must look like svc_<name>.
     #
     # THE DOCUMENTED IDIOM, in BOTH directions (README, gap 8, fixed
     # 2026-08-27). `refer($.std.Service)` used to die of
@@ -40,8 +40,8 @@ spec: hide({
     # each other until the budget ended it. So this file shipped one
     # thin literal type and one bare refer(). Both ends carry the real
     # schema now.
-    dependsOn?: [&: refer($.std.Service) & string & re("^svc/")]
-    dependedOnBy?: [&: refer($.std.Service) & string & re("^svc/")]
+    dependsOn?: [&: refer($.std.Service) & string & re("^svc_")]
+    dependedOnBy?: [&: refer($.std.Service) & string & re("^svc_")]
   }
 
   # One workload: what a cluster actually runs. Names $.std.Service

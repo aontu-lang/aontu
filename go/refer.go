@@ -21,7 +21,7 @@ import (
 // name. `refer` leaves the name and checks it.
 
 // Address is an entity name and, optionally, a path INSIDE that
-// entity: `svc/auth` or `svc/auth.ports.http`. The two addressing
+// entity: `svc_auth` or `svc_auth.ports.http`. The two addressing
 // schemes reconciled — `$.a.b` answers WHERE, an address answers WHAT,
 // and beneath entity granularity the tree is authoritative again. The
 // no-dots rule on ids makes the split unambiguous.
@@ -119,10 +119,17 @@ type ReferVal struct {
 	// — a kind, a regex, a preference. They meet the LINK once there is
 	// one.
 	held Val
+	// relpred is the PREDICATE for a rel()-minted residual: the rel
+	// field's key, stamped onto the produced link. Empty for refer().
+	relpred string
+	// The codes this residual refuses with: refer() keeps its own, a
+	// rel()-minted residual carries rel_address/rel_unresolved.
+	addrCode, unresolvedCode string
 }
 
 func newRefer(tval Val) *ReferVal {
-	r := &ReferVal{tval: tval}
+	r := &ReferVal{tval: tval,
+		addrCode: "refer_address", unresolvedCode: "refer_unresolved"}
 	r.sp = unsited
 	return r
 }
@@ -199,7 +206,7 @@ func (r *ReferVal) Unify(peer Val, ctx *Ctx) Val {
 		str, _ := sv.peg.(string)
 		addr, aok := parseAddress(str)
 		if !aok {
-			return makeNilErrFull(ctx, "refer_address", r, peer, "refer",
+			return makeNilErrFull(ctx, r.addrCode, r, peer, "refer",
 				map[string]string{"addr": str})
 		}
 		out := r.reshape()
@@ -211,12 +218,12 @@ func (r *ReferVal) Unify(peer Val, ctx *Ctx) Val {
 	// A value that can never BE a string cannot constrain one either,
 	// and no later pass can repair it — so this arm refuses rather than
 	// defers. A KIND or a constraint is not in it: `string`,
-	// `re("^svc/")` and the like are perfectly good constraints on an
+	// `re("^svc_")` and the like are perfectly good constraints on an
 	// address, and are held below until there is one to apply them to.
 	_, ismap := peer.(*MapVal)
 	_, islist := peer.(*ListVal)
 	if (isscalar && KindString != sv.kind) || ismap || islist {
-		return makeNilErrFull(ctx, "refer_address", r, peer, "refer", nil)
+		return makeNilErrFull(ctx, r.addrCode, r, peer, "refer", nil)
 	}
 
 	// HELD: everything else waits for the address. Carried on the
@@ -271,7 +278,7 @@ func (r *ReferVal) settle(ctx *Ctx, site Val) Val {
 			maxcc = 9
 		}
 		if ctx.cc+1 >= maxcc {
-			return makeNilErrFull(ctx, "refer_unresolved", r, nil, "refer",
+			return makeNilErrFull(ctx, r.unresolvedCode, r, nil, "refer",
 				map[string]string{"addr": r.addrsrc})
 		}
 		r.notdone()
@@ -344,12 +351,209 @@ func (r *ReferVal) settle(ctx *Ctx, site Val) Val {
 	// STAMPED as a link (G4 phase 3): the value is the address string,
 	// so without this nothing downstream could tell a checked link from
 	// a literal that happens to look like one. The edge set is exactly
-	// the set of these stamps.
+	// the set of these stamps. A rel()-minted link also carries its
+	// PREDICATE (see base.relkey).
 	out.setLinkAddr(r.addrsrc)
+	out.relkey = r.relpred
 	out.sp, out.spu, out.surl = site.pos(), site.posu(), site.srcurl()
 	out.path = cp(r.path)
 	if nil == r.held {
 		return out
 	}
 	return unite(ctx, out, r.held)
+}
+
+// RelVal is what `rel(t?)` RESOLVES to (RELATIONS.0.md §3.2): the
+// relation constraint, sited on the FIELD the way the sizing atoms sit
+// on containers. Its value may be one address, a LIST of addresses, or
+// a MAP whose string leaves are addresses -- containers are rewritten
+// leaf by leaf through the refer machinery, so pending resolution,
+// type flow and link stamping are the one battle-tested path, and the
+// data side stays plain strings. The PREDICATE of every edge produced
+// is the key the rel() sits on -- declared, never inferred. Mirrors
+// RelVal in ts/src/val/ReferFuncVal.ts.
+type RelVal struct {
+	base
+	tval Val
+	held Val
+}
+
+func newRel(tval Val) *RelVal {
+	r := &RelVal{tval: tval}
+	r.sp = unsited
+	// DONE while unmet, deliberately -- the property refer() lacks and
+	// G4 phase 4 records the cost of: a type() body holding a rel()
+	// must SETTLE, or the schema idiom leaves the type unresolved and
+	// every reference to it deferring forever. An unmet rel is its own
+	// settled residual, like `min(1)`; the meet re-activates it
+	// whenever a value arrives, because map merges build the conjunct
+	// regardless.
+	r.dc = DONE
+	return r
+}
+
+func (r *RelVal) cjo() int      { return 45000 }
+func (r *RelVal) superior() Val { return top() }
+
+func (r *RelVal) Canon() string {
+	t := ""
+	if nil != r.tval && !isTop(r.tval) {
+		t = r.tval.Canon()
+	}
+	out := "rel(" + t + ")"
+	if nil != r.held {
+		out += "&" + r.held.Canon()
+	}
+	return out
+}
+
+func (r *RelVal) Gen(ctx *Ctx) (any, error) {
+	// Silent, as every residual is: an unmet rel under an optional key
+	// drops with it, and a required one is an ordinary unresolved
+	// constraint.
+	return nil, nil
+}
+
+// fieldkey is the predicate: the last segment of the field path the
+// constraint is driven at -- when that segment is a D-1 NAME. A
+// relation predicate is a declared name (RELATIONS.0.md §3.2), so a
+// list index or a key outside the name grammar produces unlabelled
+// links, and the graph falls back to its old inference. The D-1 test
+// is also what keeps the two ports' edges identical: a list index is
+// a string here and a number in TS.
+func (r *RelVal) fieldkey() string {
+	if 0 == len(r.path) {
+		return ""
+	}
+	seg := r.path[len(r.path)-1]
+	if !idNameOK(seg) {
+		return ""
+	}
+	return seg
+}
+
+// leafRefer is one leaf's residual: the refer machinery carrying rel's
+// codes, predicate and type.
+func (r *RelVal) leafRefer() *ReferVal {
+	rv := newRefer(r.tval)
+	rv.addrCode = "rel_address"
+	rv.unresolvedCode = "rel_unresolved"
+	rv.relpred = r.fieldkey()
+	rv.sp, rv.spu, rv.surl = r.sp, r.spu, r.surl
+	rv.path = cp(r.path)
+	return rv
+}
+
+// rewrite is the container with every string leaf wrapped as a link.
+// Nested containers descend; a leaf already STAMPED as a link is left
+// alone, which is what makes a second application a no-op.
+func (r *RelVal) rewrite(ctx *Ctx, container Val) Val {
+	out := clonePath(container, cp(container.vpath()))
+	base := ctx.slot
+	if nil == base {
+		base = container.vpath()
+	}
+	switch n := out.(type) {
+	case *MapVal:
+		for _, k := range n.keys {
+			ctx.slot = append(cp(base), k)
+			n.peg[k] = r.rewriteChild(ctx, n.peg[k])
+		}
+	case *ListVal:
+		for i, c := range n.peg {
+			ctx.slot = append(cp(base), itoa(i))
+			n.peg[i] = r.rewriteChild(ctx, c)
+		}
+	}
+	ctx.slot = base
+	// The rewrite holds PENDING leaves (an address whose entity a later
+	// statement declares), so the container is NOT done: the pass loop
+	// must keep driving it until every link settles.
+	out.setDc(0)
+	return out
+}
+
+func (r *RelVal) rewriteChild(ctx *Ctx, child Val) Val {
+	// Children here are always Vals: the parse builds Vals, elision
+	// builds a NilVal, and clonePath preserved whatever the container
+	// held.
+	switch child.(type) {
+	case *MapVal, *ListVal:
+		return r.rewrite(ctx, child)
+	}
+	// No already-stamped-leaf short-circuit: this port's clones do not
+	// carry the link stamp, so a copied leaf arrives plain, re-resolves
+	// through leafRefer and re-stamps identically (rel-over-linked-copy
+	// pins the outcome and the graph agreeing with TS, where clones DO
+	// carry the stamp and the short-circuit lives).
+	return unite(ctx, r.leafRefer(), child)
+}
+
+func (r *RelVal) Unify(peer Val, ctx *Ctx) Val {
+	// Two rel() at one field: one relation, both types.
+	if pr, ok := peer.(*RelVal); ok {
+		out := newRel(nil)
+		switch {
+		case nil == r.tval:
+			out.tval = pr.tval
+		case nil == pr.tval:
+			out.tval = r.tval
+		default:
+			out.tval = unite(ctx, r.tval, pr.tval)
+		}
+		switch {
+		case nil == r.held:
+			out.held = pr.held
+		case nil == pr.held:
+			out.held = r.held
+		default:
+			out.held = unite(ctx, r.held, pr.held)
+		}
+		copyMarks(out, r)
+		out.sp, out.spu, out.surl = r.sp, r.spu, r.surl
+		out.path = cp(r.path)
+		return out
+	}
+
+	// No nil-peer/top/Nil arms: uniteRaw's dispatch ladder absorbs
+	// those peers before any Val's own Unify is consulted, and unite
+	// is the only entrance -- the container hand-offs pass the
+	// container itself.
+
+	if sv, ok := peer.(*ScalarVal); ok {
+		// ONE ADDRESS: the scalar-valued field, refer's own shape.
+		if KindString == sv.kind {
+			out := unite(ctx, Val(r.leafRefer()), peer)
+			if nil == r.held {
+				return out
+			}
+			return unite(ctx, out, r.held)
+		}
+		// A scalar that can never be an address.
+		return makeNilErrFull(ctx, "rel_address", r, peer, "refer", nil)
+	}
+
+	// A SET OF LINKS: list or map, rewritten leaf by leaf.
+	switch peer.(type) {
+	case *MapVal, *ListVal:
+		out := r.rewrite(ctx, peer)
+		if nil == r.held {
+			return out
+		}
+		return unite(ctx, out, r.held)
+	}
+
+	// Everything else -- a reference still resolving, a kind, a
+	// container constraint -- waits for the value, as refer's held
+	// does.
+	out := newRel(r.tval)
+	if nil == r.held {
+		out.held = peer
+	} else {
+		out.held = unite(ctx, r.held, peer)
+	}
+	copyMarks(out, r)
+	out.sp, out.spu, out.surl = r.sp, r.spu, r.surl
+	out.path = cp(r.path)
+	return out
 }

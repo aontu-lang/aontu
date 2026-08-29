@@ -40,8 +40,8 @@ ok "system.aon evaluates to the expected merged catalog"
 
 # 2. Identity survives canonical form.
 run canon 0 -- --canon "$DIR/system.aon"
-has canon out 'id("svc/payments")'
-has canon out 'id("svc/email")'
+has canon out 'id("svc_payments")'
+has canon out 'id("svc_email")'
 ok "canonical form keeps entity identity"
 
 # 3. The relation checks hold on the good model.
@@ -99,7 +99,7 @@ ok "queries: tier-1 and experimental instance sets are right"
 run cyceval 0 -- "$DIR/bad/cycle.aon"
 run cycle 1 -- relations "$DIR/bad/cycle.aon"
 has cycle out 'verdict: fail'
-has cycle out 'cycle svc/payments -> svc/ledger -> svc/payments'
+has cycle out 'cycle svc_payments -> svc_ledger -> svc_payments'
 ok "relations: cycle payments->ledger->payments detected"
 
 # 7b. THE DECLARED ENDPOINT TYPE is checked too (the review's finding
@@ -108,15 +108,15 @@ ok "relations: cycle payments->ledger->payments detected"
 # what the far end must be, and it now says it.
 run wtgt 1 -- relations "$DIR/bad/wrong-target.aon"
 has wtgt out 'verdict: fail'
-has wtgt out 'svc/bastion is not what hostedOn targets'
+has wtgt out 'svc_bastion is not what hostedOn targets'
 ok "relations: declared target enforced against an untyped link site"
 
 # 7c. REACHABILITY, the closure question relations cannot ask one edge
 # at a time: the gateway reaches the ledger through payments, and the
 # path is the answer.
-run reach 0 -- reaches svc/gateway svc/ledger "$DIR/system.aon"
+run reach 0 -- reaches svc_gateway svc_ledger "$DIR/system.aon"
 has reach out 'verdict: reaches'
-has reach out 'svc/gateway -> svc/payments -> svc/ledger'
+has reach out 'svc_gateway -> svc_payments -> svc_ledger'
 ok "reaches: gateway -> payments -> ledger, with the chain as evidence"
 
 # THE DIRECTION IS THE RELATION'S, not the graph's. This model writes
@@ -124,31 +124,31 @@ ok "reaches: gateway -> payments -> ledger, with the chain as evidence"
 # and EVERYTHING reaches everything: asking a directional question
 # means naming the relation to follow. That is what --relation is for,
 # and the difference between the two runs below is the whole point.
-run reachdep 0 -- reaches svc/gateway svc/ledger --relation dependsOn \
+run reachdep 0 -- reaches svc_gateway svc_ledger --relation dependsOn \
   "$DIR/system.aon"
 has reachdep out 'verdict: reaches'
-run noreach 1 -- reaches svc/ledger svc/gateway --relation dependsOn \
+run noreach 1 -- reaches svc_ledger svc_gateway --relation dependsOn \
   "$DIR/system.aon"
 has noreach out 'verdict: unreachable'
 ok "reaches --relation dependsOn: one way only, as the estate is layered"
 
 # ...and an endpoint that names no entity is a REFUSAL, not a `no`:
 # answering no would report a typo as a fact about the model.
-run badreach 4 -- reaches svc/gateway svc/nope "$DIR/system.aon"
+run badreach 4 -- reaches svc_gateway svc_nope "$DIR/system.aon"
 has badreach out 'refer_unresolved'
 ok "reaches: an endpoint naming no entity is refused, not answered no"
 
 # 8. A missing inverse is caught the same way.
 run noinv 1 -- relations "$DIR/bad/missing-inverse.aon"
 has noinv out 'verdict: fail'
-has noinv out 'svc/directory does not list svc/email under dependedOnBy'
+has noinv out 'svc_directory does not list svc_email under dependedOnBy'
 ok "relations: missing dependedOnBy inverse detected"
 
 # 9. Two views disagreeing about one entity is an evaluation error --
 # that is what id() is for.
 run conflict 1 -- "$DIR/bad/tier-conflict.aon"
 has conflict err '[aontu/scalar_value]'
-ok "id-merge: tier 1 vs tier 2 on svc/payments refuses to evaluate"
+ok "id-merge: tier 1 vs tier 2 on svc_payments refuses to evaluate"
 
 # 10. A typed endpoint (refer($.std.Service)) refuses a database
 # target -- in the miniature model where typed refer works (gap 8).
@@ -185,6 +185,6 @@ ok "proposal: candidate JSON joins the model and relations still pass"
 # evaluate: refer() decides existence inside one evaluation.
 run badref 1 -- "$DIR/proposals/onboard-badref.aon"
 has badref err '[aontu/refer_unresolved]'
-ok "proposal: dangling dependsOn svc/searchx refused by refer()"
+ok "proposal: dangling dependsOn svc_searchx refused by refer()"
 
 echo "all $pass checks passed"

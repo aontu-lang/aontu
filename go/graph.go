@@ -14,7 +14,7 @@ import (
 // edge set (the checked links, each from one entity to one address).
 //
 // G4's deliverable is that these exist and are DETERMINISTIC. What is
-// built on them — impact analysis ("what reaches svc/auth?"),
+// built on them — impact analysis ("what reaches svc_auth?"),
 // reachability, context-window-sized entity slices — is a traversal,
 // and its exposure as verbs and projections belongs to G7. Relation
 // properties (acyclicity, inverse consistency) are G4 phase 5's, and
@@ -37,7 +37,7 @@ type Edge struct {
 	From string `json:"from"`
 	// Key is the RELATION: the nearest map key on the way down from the
 	// entity, so a link inside a list (`dependsOn: [&: refer(),
-	// svc/auth]`) is an edge under `dependsOn` rather than under `0`.
+	// svc_auth]`) is an edge under `dependsOn` rather than under `0`.
 	Key string `json:"key"`
 	// To is the address, as the link spells it.
 	To string `json:"to"`
@@ -94,9 +94,18 @@ func GraphOf(root Val) Graph {
 		}
 
 		if link := node.linkAddr(); "" != link {
+			// A rel()-minted link carries its PREDICATE -- the key the
+			// rel() sat on, declared in the schema -- and that beats
+			// the path inference, which answered wrongly for
+			// map-valued relations. refer()-minted links keep the
+			// inference until P3 retires them. Mirrors ts/src/graph.ts.
+			key := relationKey(below)
+			if bb, ok := node.(interface{ relKey() string }); ok && "" != bb.relKey() {
+				key = bb.relKey()
+			}
 			edges = append(edges, Edge{
 				From: inside,
-				Key:  relationKey(below),
+				Key:  key,
 				To:   link,
 				At:   graphPath(path),
 			})

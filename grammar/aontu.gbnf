@@ -80,7 +80,7 @@ name ::=
   | "length" | "lower" | "match" | "max" | "min" | "mod" | "move"
   | "mul" | "must"
   | "neq"
-  | "open" | "pack" | "path" | "pick" | "pref" | "refer" | "rem" | "re" | "super"
+  | "open" | "pack" | "path" | "pick" | "pref" | "refer" | "rel" | "rem" | "re" | "super"
   | "sub" | "sum"
   | "type"
   | "unique" | "upper"

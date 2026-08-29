@@ -67,7 +67,7 @@ export type ReachOptions = {
 
 
 // The entity an address names --- everything before the first dot. A
-// link into `svc/auth.ports.http` reaches `svc/auth`: reachability is
+// link into `svc_auth.ports.http` reaches `svc_auth`: reachability is
 // between ENTITIES, and the path inside one says which part of it the
 // link arrives at. Same rule as relation.ts's entityOf, and it has to
 // be, or the two verbs would disagree about what an edge connects.

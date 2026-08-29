@@ -156,6 +156,13 @@ class MapVal extends BagVal_1.BagVal {
         out.aliasKeys = [...this.aliasKeys];
         out.spread.cj = this.spread.cj;
         out.site = this.site;
+        // A rel() peer DRIVES whichever side the fold hands it on: the
+        // relation constraint rewrites this container leaf by leaf
+        // (RELATIONS.0.md §3.2), exactly as a sizing residual takes the
+        // driver's seat above.
+        if (true === peer?.isRel) {
+            return peer.unify(this, te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'REL') }) : ctx);
+        }
         if (peer instanceof MapVal) {
             if (!this.closed && peer.closed) {
                 out = peer.unify(this, te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'PMC') }) : ctx);

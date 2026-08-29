@@ -117,7 +117,12 @@ const unite = (ctx: AontuContext, a: any, b: any, whence: string) => {
             // CARRYING AN IDENTITY, and `id(x) & id(y)` is two of
             // those. The slow path answers the same thing for two
             // plain tops, and refuses the pair for two named ones.
-            && !a.isTop && !b.isTop) {
+            && !a.isTop && !b.isTop
+            // NOT two rel residuals (RELATIONS P1) for the same
+            // reason: a settled rel is DONE with an absent peg, so
+            // any two matched here — dropping one side's type and
+            // held constraints. RelVal.unify merges them instead.
+            && !a.isRel) {
           // The deprecation record survives the fast path too (G3):
           // `deprecate(5) & 5` short-circuits here.
           if (null == a.deprecation && null != b.deprecation) {
@@ -228,8 +233,11 @@ const unite = (ctx: AontuContext, a: any, b: any, whence: string) => {
         why = 'bv'
       }
       // Exactly equal scalars (not caught by early fast-path — e.g.
-      // because a or b isn't .done yet).
-      else if (a.constructor === b.constructor && a.peg === b.peg) {
+      // because a or b isn't .done yet). Rel residuals are excluded
+      // exactly as in the fast path: their pegs are equally absent
+      // without the values being the same relation.
+      else if (a.constructor === b.constructor && a.peg === b.peg
+        && !a.isRel) {
         out = update(a, b)
         why = 'up'
       }

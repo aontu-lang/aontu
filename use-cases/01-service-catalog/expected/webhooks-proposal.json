@@ -1,7 +1,7 @@
 {
   "dependsOn": [
-    "svc/auth",
-    "svc/email"
+    "svc_auth",
+    "svc_email"
   ],
   "description": "Outbound webhook delivery with retry and signing.",
   "kind": "service",

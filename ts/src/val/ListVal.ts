@@ -96,6 +96,12 @@ class ListVal extends BagVal {
   // NOTE: order of keys is not preserved!
   // not possible in any case - consider {a,b} unify {b,a}
   unify(peer: Val, ctx: AontuContext): Val {
+    // A rel() peer drives: the relation constraint rewrites this list
+    // leaf by leaf (RELATIONS.0.md §3.2); see the twin arm in MapVal.
+    if (true === (peer as any)?.isRel) {
+      return (peer as any).unify(this, ctx)
+    }
+
     const TOP = top()
     peer = peer ?? TOP
 

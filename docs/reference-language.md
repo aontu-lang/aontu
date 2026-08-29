@@ -1012,8 +1012,8 @@ atoms, whose meaning is defined in
 | `open(x)`   | reverse a `close`                             | `open(close({x:1})) & {y:2}`→`{x:1,y:2}` |
 | `move(p)`   | resolve reference `p`, dropping unresolved optional keys | `m:{x?:number,y:Y} n:move($.m)`→`n:{y:"Y"}` |
 | `path(p)`   | resolve a path expression (function form of a reference) | `path(x.a)` (relative), `path($.z.x.a)` (absolute) |
-| `id(name)`  | declare the enclosing value an **entity** called `name`; every node in the evaluation with that name is unified with every other. See [Identity](#identity-idname) | `services: auth: id(svc/auth) & {port:8080}` |
-| `refer(t?)` | constrain a string field to be an **entity address** that resolves; `t`, if given, is unified into the target. The field keeps the address. See [Entity references](#entity-references-refert) | `dependsOn: [&: refer($.std.Service), svc/auth]` |
+| `id(name)`  | declare the enclosing value an **entity** called `name`; every node in the evaluation with that name is unified with every other. See [Identity](#identity-idname) | `services: auth: id(svc_auth) & {port:8080}` |
+| `refer(t?)` | constrain a string field to be an **entity address** that resolves; `t`, if given, is unified into the target. The field keeps the address. See [Entity references](#entity-references-refert) | `dependsOn: [&: refer($.std.Service), svc_auth]` |
 | `pack(d, t)` | one keyed child per child of `d`, each of them `t` cloned at that destination. Keys are the strings of a list, or the keys of a map. See [Generating children](#generating-children-pack-and-each) | `deploy: pack($.names, {replicas:*2\|integer})` |
 | `each(d, t?)` | one list element per child of `d`, each met with `t`. Source order for a list, sorted-key order for a map | `open: each($.ports, integer)` |
 | `filter(d, c)` | the children of `d` that ALREADY satisfy `c` — the meet with `c` changes nothing. Keys kept for a map, order for a list; the rest are dropped, not refused. See [Selecting](#selecting-filter-and-match) | `debugged: filter($.services, {debug:true})` |
@@ -1196,7 +1196,7 @@ adds a second, **location-independent** name: it declares that the
 value it is written on IS the entity called `name`.
 
 ```aon
-services: auth: id(svc/auth) & {
+services: auth: id(svc_auth) & {
   kind: service
   port: 8080
 }
@@ -1209,10 +1209,10 @@ is an ordinary located error:
 
 ```aon
 # catalog.aon
-catalog: payments: id(svc/payments) & { owner: "team-pay", tier: 1 }
+catalog: payments: id(svc_payments) & { owner: "team-pay", tier: 1 }
 
 # deploy.aon
-deploy: eu1: payments: id(svc/payments) & { replicas: 3, tier: 2 }
+deploy: eu1: payments: id(svc_payments) & { replicas: 3, tier: 2 }
 ```
 
 Without the ids these two files evaluate together in silence —
@@ -1247,7 +1247,7 @@ written unquoted; `-` is not a bare-text character, so a name
 containing one must be quoted:
 
 ```
-id(svc/auth)     id(a_1)     id("team-pay")     id("svc.auth") → error
+id(svc_auth)     id(a_1)     id("team-pay")     id("svc.auth") → error
 ```
 
 Anything that is not a string — a number, a boolean, a map — is not a
@@ -1278,7 +1278,7 @@ like an entity:
 2. **`copy()` clears the id**, as it clears the marks — a copy of an
    entity is a second value shaped like it.
 3. **A spread template may not stamp a constant id on every child.**
-   `{&: id(svc/thing), a:{}, b:{}}` would declare every child to be one
+   `{&: id(svc_thing), a:{}, b:{}}` would declare every child to be one
    entity; it is refused (`id_spread`). To name each child, use a
    path-dependent argument — in a map template applied at the child
    position that is `key(0)`, the child's own key:
@@ -1312,15 +1312,15 @@ language check it.
 
 ```aon
 services: {
-  auth: id(svc/auth) & { kind: service, port: 8080 }
-  billing: id(svc/billing) & {
-    dependsOn: [&: refer({kind: service}), svc/auth]
+  auth: id(svc_auth) & { kind: service, port: 8080 }
+  billing: id(svc_billing) & {
+    dependsOn: [&: refer({kind: service}), svc_auth]
   }
 }
 ```
 
 The list spread applies `refer` to every element, so `dependsOn`
-generates `["svc/auth"]` — a list of **names**, checked. Neither of the
+generates `["svc_auth"]` — a list of **names**, checked. Neither of the
 two things you could write before does that: a bare string checks
 nothing, and `dependsOn: [$.services.auth]` embeds a full copy of the
 auth node, because a reference resolves by cloning its target.
@@ -1337,8 +1337,8 @@ An address is an entity name, optionally followed by a dot-separated
 path *inside* that entity:
 
 ```
-svc/auth              the entity
-svc/auth.ports.http   a node inside it
+svc_auth              the entity
+svc_auth.ports.http   a node inside it
 ```
 
 The two addressing schemes divide cleanly: `$.a.b` answers *where* — a
@@ -1376,7 +1376,7 @@ lattice guarantee is that more information never falsifies what has
 already been observed.
 
 Constraints written *alongside* a refer constrain the **link**, not the
-target: `refer() & string & re("^svc/") & "svc/auth"` checks the
+target: `refer() & string & re("^svc-") & "svc_auth"` checks the
 address itself. They are held until the address arrives, and then meet
 it.
 
@@ -1389,11 +1389,11 @@ one set of them ships with the engine:
 @"std/system"
 
 services: {
-  auth: id(svc/auth) & $.std.Service & {
+  auth: id(svc_auth) & $.std.Service & {
     ports: { http: { protocol: http } }
   }
-  billing: id(svc/billing) & $.std.Service & {
-    dependsOn: [&: refer(), svc/auth]
+  billing: id(svc_billing) & $.std.Service & {
+    dependsOn: [&: refer(), svc_auth]
   }
 }
 relations: {

@@ -436,7 +436,7 @@ help isolate the syntax error.`,
         // call back (canonRiders).
         deprecate: DeprecateFuncVal_1.DeprecateFuncVal,
         // G4 phase 1: the identity mark. Written as a conjunct
-        // (`id(svc/auth) & {…}`), it resolves to the unit carrying the
+        // (`id(svc_auth) & {…}`), it resolves to the unit carrying the
         // name, and every node in one evaluation with that name is
         // unified with every other.
         id: IdFuncVal_1.IdFuncVal,
@@ -445,6 +445,7 @@ help isolate the syntax error.`,
         // address, the address must resolve, and the optional argument
         // flows INTO the target. The field keeps the string.
         refer: ReferFuncVal_1.ReferFuncVal,
+        rel: ReferFuncVal_1.RelFuncVal,
         // G8 phase 1: the generation combinators. `pack` makes one keyed
         // child per child of its data, `each` one list element; both clone
         // their template per destination exactly as a spread does, and both
@@ -1619,8 +1620,9 @@ const funcArity = {
     neq: [1, -1],
     must: [2, 2],
     deprecate: [1, 2],
-    id: [1, 1],
+    id: [0, 1],
     refer: [0, 1],
+    rel: [0, 1],
     pack: [2, 2],
     each: [1, 2],
     filter: [2, 2],

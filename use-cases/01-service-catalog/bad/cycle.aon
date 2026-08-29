@@ -3,6 +3,6 @@
 # `aontu relations` sees the loop payments -> ledger -> payments.
 @"../system.aon"
 
-change: cr4711: id(svc/ledger) & {
-  dependsOn: [svc/payments]
+change: cr4711: id(svc_ledger) & {
+  dependsOn: [svc_payments]
 }

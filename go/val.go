@@ -243,6 +243,10 @@ type base struct {
 	// tell a checked link from a literal that happens to look like one,
 	// and the edge set (graph.go) is exactly the set of these.
 	link string
+	// relkey is the PREDICATE a rel()-minted link belongs to (the rel
+	// field's key), so the graph reports the edge under a DECLARED
+	// relation rather than inferring one (RELATIONS.0.md §3.2).
+	relkey string
 	// spr records the identity of the spread constraint already merged
 	// into this value (the `_spr` stamp in TS MapVal.unify): the spread
 	// applies ONCE per child, and later passes only self-unify.
@@ -331,6 +335,7 @@ func (b *base) entityName() string        { return b.entity }
 func (b *base) setEntityName(name string) { b.entity = name }
 
 func (b *base) linkAddr() string        { return b.link }
+func (b *base) relKey() string          { return b.relkey }
 func (b *base) setLinkAddr(addr string) { b.link = addr }
 func (b *base) markedHide() bool        { return b.mhide }
 func (b *base) fromSpread() bool        { return b.fspr }

@@ -67,8 +67,8 @@ type declaredRelation struct {
 }
 
 // entityOfAddr is the entity an address names — everything before the
-// first dot. An edge into `svc/auth.ports.http` is an edge to
-// `svc/auth`: a relation holds between ENTITIES, and the path inside
+// first dot. An edge into `svc_auth.ports.http` is an edge to
+// `svc_auth`: a relation holds between ENTITIES, and the path inside
 // one says which part of it the link reaches.
 func entityOfAddr(addr string) string {
 	if i := strings.IndexByte(addr, '.'); 0 <= i {

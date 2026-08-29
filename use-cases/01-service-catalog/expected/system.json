@@ -5,11 +5,11 @@
         "services": {
           "auth": {
             "dependedOnBy": [
-              "svc/gateway",
-              "svc/payments"
+              "svc_gateway",
+              "svc_payments"
             ],
             "dependsOn": [
-              "svc/directory"
+              "svc_directory"
             ],
             "description": "OAuth2 token issuing and session verification.",
             "image": "registry.acme.internal/auth:5.2.0",
@@ -28,8 +28,8 @@
           },
           "directory": {
             "dependedOnBy": [
-              "svc/risk",
-              "svc/auth"
+              "svc_risk",
+              "svc_auth"
             ],
             "description": "Employee and customer directory lookups.",
             "image": "registry.acme.internal/directory:3.0.4",
@@ -53,7 +53,7 @@
         "services": {
           "ledger": {
             "dependedOnBy": [
-              "svc/payments"
+              "svc_payments"
             ],
             "description": "Double-entry ledger of record for money movement.",
             "image": "registry.acme.internal/ledger:1.9.0",
@@ -72,13 +72,13 @@
           },
           "payments": {
             "dependedOnBy": [
-              "svc/gateway"
+              "svc_gateway"
             ],
             "dependsOn": [
-              "svc/ledger",
-              "svc/risk",
-              "svc/auth",
-              "svc/notify"
+              "svc_ledger",
+              "svc_risk",
+              "svc_auth",
+              "svc_notify"
             ],
             "description": "Card payment orchestration and capture API.",
             "image": "registry.acme.internal/payments:2.14.1",
@@ -97,10 +97,10 @@
           },
           "risk": {
             "dependedOnBy": [
-              "svc/payments"
+              "svc_payments"
             ],
             "dependsOn": [
-              "svc/directory"
+              "svc_directory"
             ],
             "description": "Transaction risk scoring and fraud rules engine.",
             "image": "registry.acme.internal/risk:0.31.2",
@@ -124,7 +124,7 @@
         "services": {
           "email": {
             "dependedOnBy": [
-              "svc/notify"
+              "svc_notify"
             ],
             "description": "SMTP delivery with bounce and complaint tracking.",
             "image": "registry.acme.internal/email:2.2.7",
@@ -143,8 +143,8 @@
           },
           "gateway": {
             "dependsOn": [
-              "svc/payments",
-              "svc/auth"
+              "svc_payments",
+              "svc_auth"
             ],
             "description": "Public API edge gateway and request routing.",
             "image": "registry.acme.internal/gateway:4.7.3",
@@ -168,10 +168,10 @@
           },
           "notify": {
             "dependedOnBy": [
-              "svc/payments"
+              "svc_payments"
             ],
             "dependsOn": [
-              "svc/email"
+              "svc_email"
             ],
             "description": "Customer notification fan-out orchestration.",
             "image": "registry.acme.internal/notify:0.12.0",
@@ -201,11 +201,11 @@
             "workloads": {
               "auth": {
                 "dependedOnBy": [
-                  "svc/gateway",
-                  "svc/payments"
+                  "svc_gateway",
+                  "svc_payments"
                 ],
                 "dependsOn": [
-                  "svc/directory"
+                  "svc_directory"
                 ],
                 "description": "OAuth2 token issuing and session verification.",
                 "image": "registry.acme.internal/auth:5.2.0",
@@ -224,8 +224,8 @@
               },
               "directory": {
                 "dependedOnBy": [
-                  "svc/risk",
-                  "svc/auth"
+                  "svc_risk",
+                  "svc_auth"
                 ],
                 "description": "Employee and customer directory lookups.",
                 "image": "registry.acme.internal/directory:3.0.4",
@@ -244,7 +244,7 @@
               },
               "ledger": {
                 "dependedOnBy": [
-                  "svc/payments"
+                  "svc_payments"
                 ],
                 "description": "Double-entry ledger of record for money movement.",
                 "image": "registry.acme.internal/ledger:1.9.0",
@@ -263,13 +263,13 @@
               },
               "payments": {
                 "dependedOnBy": [
-                  "svc/gateway"
+                  "svc_gateway"
                 ],
                 "dependsOn": [
-                  "svc/ledger",
-                  "svc/risk",
-                  "svc/auth",
-                  "svc/notify"
+                  "svc_ledger",
+                  "svc_risk",
+                  "svc_auth",
+                  "svc_notify"
                 ],
                 "description": "Card payment orchestration and capture API.",
                 "image": "registry.acme.internal/payments:2.14.1",
@@ -288,10 +288,10 @@
               },
               "risk": {
                 "dependedOnBy": [
-                  "svc/payments"
+                  "svc_payments"
                 ],
                 "dependsOn": [
-                  "svc/directory"
+                  "svc_directory"
                 ],
                 "description": "Transaction risk scoring and fraud rules engine.",
                 "image": "registry.acme.internal/risk:0.31.2",
@@ -314,8 +314,8 @@
             "workloads": {
               "gateway": {
                 "dependsOn": [
-                  "svc/payments",
-                  "svc/auth"
+                  "svc_payments",
+                  "svc_auth"
                 ],
                 "description": "Public API edge gateway and request routing.",
                 "image": "registry.acme.internal/gateway:4.7.3",
@@ -347,7 +347,7 @@
             "workloads": {
               "email": {
                 "dependedOnBy": [
-                  "svc/notify"
+                  "svc_notify"
                 ],
                 "description": "SMTP delivery with bounce and complaint tracking.",
                 "image": "registry.acme.internal/email:2.2.7",
@@ -366,10 +366,10 @@
               },
               "notify": {
                 "dependedOnBy": [
-                  "svc/payments"
+                  "svc_payments"
                 ],
                 "dependsOn": [
-                  "svc/email"
+                  "svc_email"
                 ],
                 "description": "Customer notification fan-out orchestration.",
                 "image": "registry.acme.internal/notify:0.12.0",

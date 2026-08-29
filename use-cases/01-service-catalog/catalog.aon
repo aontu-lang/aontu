@@ -1,5 +1,5 @@
 # catalog.aon --- THE CATALOG VIEW: what each service IS -- ownership,
-# tier, purpose, dependencies. Each service carries id(svc/<name>), so
+# tier, purpose, dependencies. Each service carries id(svc_<name>), so
 # the deployment view (deploy.aon) merges with this one field-by-field.
 # dependedOnBy (the inverse of dependsOn) is written BY HAND on every
 # target: `aontu relations` checks it, nothing derives it (gap 4).
@@ -8,22 +8,22 @@ catalog: domains: {
     team: "team-payments"
     services: {
       &: $.spec.CatalogEntry & {owner: "team-payments"}
-      payments: id(svc/payments) & {
+      payments: id(svc_payments) & {
         tier: 1
         description: "Card payment orchestration and capture API."
-        dependsOn: [svc/ledger, svc/risk, svc/auth, svc/notify]
-        dependedOnBy: [svc/gateway]
+        dependsOn: [svc_ledger, svc_risk, svc_auth, svc_notify]
+        dependedOnBy: [svc_gateway]
       }
-      ledger: id(svc/ledger) & {
+      ledger: id(svc_ledger) & {
         tier: 1
         description: "Double-entry ledger of record for money movement."
-        dependedOnBy: [svc/payments]
+        dependedOnBy: [svc_payments]
       }
-      risk: id(svc/risk) & {
+      risk: id(svc_risk) & {
         tier: 2
         description: "Transaction risk scoring and fraud rules engine."
-        dependsOn: [svc/directory]
-        dependedOnBy: [svc/payments]
+        dependsOn: [svc_directory]
+        dependedOnBy: [svc_payments]
       }
     }
   }
@@ -31,16 +31,16 @@ catalog: domains: {
     team: "team-identity"
     services: {
       &: $.spec.CatalogEntry & {owner: "team-identity"}
-      auth: id(svc/auth) & {
+      auth: id(svc_auth) & {
         tier: 1
         description: "OAuth2 token issuing and session verification."
-        dependsOn: [svc/directory]
-        dependedOnBy: [svc/gateway, svc/payments]
+        dependsOn: [svc_directory]
+        dependedOnBy: [svc_gateway, svc_payments]
       }
-      directory: id(svc/directory) & {
+      directory: id(svc_directory) & {
         tier: 2
         description: "Employee and customer directory lookups."
-        dependedOnBy: [svc/risk, svc/auth]
+        dependedOnBy: [svc_risk, svc_auth]
       }
     }
   }
@@ -48,22 +48,22 @@ catalog: domains: {
     team: "team-platform"
     services: {
       &: $.spec.CatalogEntry & {owner: "team-platform"}
-      gateway: id(svc/gateway) & {
+      gateway: id(svc_gateway) & {
         tier: 1
         description: "Public API edge gateway and request routing."
-        dependsOn: [svc/payments, svc/auth]
+        dependsOn: [svc_payments, svc_auth]
       }
-      notify: id(svc/notify) & {
+      notify: id(svc_notify) & {
         tier: 3
         lifecycle: experimental
         description: "Customer notification fan-out orchestration."
-        dependsOn: [svc/email]
-        dependedOnBy: [svc/payments]
+        dependsOn: [svc_email]
+        dependedOnBy: [svc_payments]
       }
-      email: id(svc/email) & {
+      email: id(svc_email) & {
         tier: 3
         description: "SMTP delivery with bounce and complaint tracking."
-        dependedOnBy: [svc/notify]
+        dependedOnBy: [svc_notify]
       }
     }
   }

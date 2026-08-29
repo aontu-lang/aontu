@@ -1,9 +1,9 @@
 # bad/missing-inverse.aon --- change request CR-4718: email adds a
-# directory lookup but nobody records the inverse on svc/directory.
+# directory lookup but nobody records the inverse on svc_directory.
 # Evaluation succeeds; `aontu relations` reports the missing
 # dependedOnBy entry.
 @"../system.aon"
 
-change: cr4718: id(svc/email) & {
-  dependsOn: [svc/directory]
+change: cr4718: id(svc_email) & {
+  dependsOn: [svc_directory]
 }

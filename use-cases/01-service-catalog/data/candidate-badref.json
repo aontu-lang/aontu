@@ -4,5 +4,5 @@
   "tier": 3,
   "lifecycle": "experimental",
   "description": "Search indexing pipeline emitted by the scaffolder.",
-  "dependsOn": ["svc/searchx"]
+  "dependsOn": ["svc_searchx"]
 }

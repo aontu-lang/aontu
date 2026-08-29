@@ -226,6 +226,14 @@ func computePathFunc(v Val) bool {
 		switch n.name {
 		case "key", "path", "move", "super":
 			return true
+		case "id":
+			// BARE `id()` is named by the enclosing key, so its meaning
+			// depends on where it lands (RELATIONS.0.md §3.1) -- the
+			// no-arg form only; `id(name)` stays constant. The TS twin
+			// sets _isPathDependent in the IdFuncVal constructor.
+			if 0 == len(n.peg) {
+				return true
+			}
 		}
 		for _, a := range n.peg {
 			if hasPathFunc(a) {
@@ -611,6 +619,11 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 	// hand it straight back.
 	if pc, ok := peer.(*ConstraintVal); ok {
 		return pc.Unify(m, ctx)
+	}
+	// A rel() peer drives for the same reason: the relation constraint
+	// rewrites this container leaf by leaf (RELATIONS.0.md §3.2).
+	if pr, ok := peer.(*RelVal); ok {
+		return pr.Unify(m, ctx)
 	}
 	// Let the closed side drive, so its key restriction is enforced
 	// deterministically (mirrors MapVal.unify).

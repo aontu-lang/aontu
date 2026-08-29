@@ -391,6 +391,32 @@ where it is used. Verified in both ports and pinned by
 `docs/how-to.md` "Name a reusable constraint", both executed by
 `ts/test/docs.test.ts`. This phase set never scoped either item.
 
+**RELATIONS P0+P1 LANDED 2026-08-29** (docs/design/RELATIONS.0.md), in
+both ports: D-1 (entity names are flat identifiers,
+/[_a-zA-Z][-_a-zA-Z0-9]*/, no slash -- the corpus's 17 slashed names
+underscore-joined, `svc/payments` -> `svc_payments`, because a bare
+hyphenated name belongs to the minus operator); bare `id()` named by
+the enclosing key, late-bound with a one-pass defer so the pass-zero
+spread snapshot finds it open and each child resolves at its own key
+(the id(key(0)) include gap made primitive); and `rel(t?)`, the
+relation constraint sited on the FIELD -- one address, a list, or a
+labelled map, every leaf through the refer machinery, the PREDICATE
+declared as the key the rel() sits on (the map-valued edge now reports
+under `uses`, where the old inference named the inner label), type
+flow, and rel_address/rel_unresolved. An unmet rel() is DONE, the
+settled-residual property refer() lacks, so type() bodies carrying one
+settle and the data side stays plain JSON-shaped strings. Pinned by
+test/spec/rel.tsv (37 rows -- the rel-two block also pins the unite
+equal-scalar shortcut fix: two settled rels share an absent peg and
+were matched as "the same value", order-dependently dropping one
+side's type and held), the id.tsv/graph.tsv bare-id blocks, and the
+D-1 refusal rows; every expectation probed through both engines. The
+D-1 migration also rewrote the id_name hint (it taught the slash) and
+the refer_* hint examples.
+refer(), the `relations:` key and the verb are UNCHANGED until P2/P3;
+a self-typed rel($.T) inside T waits on RECURSION.0.md P1 (the prefix
+test refuses it today), recorded in the note's phase table.
+
 **ALIASES (P1) LANDED 2026-08-28**, in both ports, and they are the
 general form the sized-integer question was a special case of: `%port:`
 declares a file-local name and `%port` uses it, with no path to spell
@@ -774,7 +800,7 @@ own value, not its kind.
    `write` flag rather than two: the halves differ in three lines and
    agree in the walk, and a walk written twice is a walk that drifts.
 2. **`id(key(0))`, not `id(key())`, is the per-child spread name.**
-   The design sketched `&: id(svc/ + key())`; there is no string `+`,
+   The design sketched `&: id(svc- + key())`; there is no string `+`,
    and more importantly `key()` reads one level UP (`func.tsv`,
    `key-one`), so in a template applied at the child position it names
    the BAG and every child collides on that one name. `key(0)` is the

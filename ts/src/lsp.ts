@@ -473,7 +473,7 @@ const BUILTIN_FUNCS = [
   'hide', 'id', 'key', 'least', 'length', 'lower',
   'match', 'max', 'min', 'mod', 'move', 'mul', 'must', 'neq', 'open',
   'pack', 'path', 'pick',
-  'pref', 're', 'refer', 'rem', 'sub', 'sum', 'super', 'type', 'unique',
+  'pref', 're', 'refer', 'rel', 'rem', 'sub', 'sum', 'super', 'type', 'unique',
   'upper',
 ]
 

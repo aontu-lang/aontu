@@ -114,7 +114,7 @@ import { TypeFuncVal } from './val/TypeFuncVal'
 import { HideFuncVal } from './val/HideFuncVal'
 import { DeprecateFuncVal } from './val/DeprecateFuncVal'
 import { IdFuncVal } from './val/IdFuncVal'
-import { ReferFuncVal } from './val/ReferFuncVal'
+import { ReferFuncVal, RelFuncVal } from './val/ReferFuncVal'
 import { PackFuncVal } from './val/PackFuncVal'
 import { EachFuncVal } from './val/EachFuncVal'
 import { FilterFuncVal } from './val/FilterFuncVal'
@@ -573,7 +573,7 @@ help isolate the syntax error.`,
     deprecate: DeprecateFuncVal,
 
     // G4 phase 1: the identity mark. Written as a conjunct
-    // (`id(svc/auth) & {…}`), it resolves to the unit carrying the
+    // (`id(svc_auth) & {…}`), it resolves to the unit carrying the
     // name, and every node in one evaluation with that name is
     // unified with every other.
     id: IdFuncVal,
@@ -583,6 +583,7 @@ help isolate the syntax error.`,
     // address, the address must resolve, and the optional argument
     // flows INTO the target. The field keeps the string.
     refer: ReferFuncVal,
+    rel: RelFuncVal,
 
     // G8 phase 1: the generation combinators. `pack` makes one keyed
     // child per child of its data, `each` one list element; both clone
@@ -1942,8 +1943,9 @@ const funcArity: Record<string, [number, number]> = {
   neq: [1, -1],
   must: [2, 2],
   deprecate: [1, 2],
-  id: [1, 1],
+  id: [0, 1],
   refer: [0, 1],
+  rel: [0, 1],
   pack: [2, 2],
   each: [1, 2],
   filter: [2, 2],

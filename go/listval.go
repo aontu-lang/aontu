@@ -125,6 +125,11 @@ func (l *ListVal) Unify(peer Val, ctx *Ctx) Val {
 	if pc, ok := peer.(*ConstraintVal); ok {
 		return pc.Unify(l, ctx)
 	}
+	// A rel() peer drives for the same reason: the relation constraint
+	// rewrites this list leaf by leaf (RELATIONS.0.md §3.2).
+	if pr, ok := peer.(*RelVal); ok {
+		return pr.Unify(l, ctx)
+	}
 	if pl, ok := peer.(*ListVal); ok && !l.closed && pl.closed {
 		return pl.Unify(l, ctx)
 	}

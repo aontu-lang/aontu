@@ -16,9 +16,9 @@ Svc: hide({ ports: {&: $.Port} })
 WL: hide({ ports: {&: $.Port & {n: integer}} })
 cat: services: {
   &: $.Svc
-  gw: id(svc/gw) & { ports: { pub: { n: 443 }, adm: { n: 9901 } } }
+  gw: id(svc_gw) & { ports: { pub: { n: 443 }, adm: { n: 9901 } } }
 }
 dep: workloads: {
   &: $.WL
-  gw: id(svc/gw) & {}
+  gw: id(svc_gw) & {}
 }

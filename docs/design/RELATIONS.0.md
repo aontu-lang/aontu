@@ -43,8 +43,12 @@ grammar marks.
 What D-1 changes, measured at head: 38 slashed-name lines across the
 use-case models (nearly all `01-service-catalog`), 21 spec rows in 5
 files (`graph`, `id`, `refer`, `relation`, `std-system`). Migration is
-mechanical — `svc/payments` → `payments` where unambiguous, hyphen-join
-(`res-paydb`) where two namespaces collide in one document. Today's
+mechanical — underscore-join (`svc/payments` → `svc_payments`).
+Measured, not chosen: D-1 admits `-` in a NAME, but a hyphenated name
+is only spellable QUOTED — bare `id(svc-auth)` is `func_arity` (the
+minus infix splits it) and a bare `svc-auth` list element is
+`negative`, so the unquoted spelling every model uses needs the
+underscore. Today's
 engine also *accepts* a leading digit (`id(9x)` evaluates; probed) and
 refuses a dotted name with the wrong error (`id(a.b)` dies downstream
 as `mapval_no_gen`, not `id_name`; probed) — D-1's regex fixes the
@@ -371,7 +375,37 @@ exposure (podmind, apidef, sdkgen) needs its own grep before P2.
 
 | Phase | Content | Gate |
 |---|---|---|
-| P0 | D-1: name grammar tightened in the existing surface; corpus migrated | both suites green on renamed corpus |
-| P1 | `id()` no-arg; `rel(t?)` with flow-through-the-registry; `rel_*` codes | refer() still working beside it |
+| P0 | ~~D-1: name grammar tightened in the existing surface; corpus migrated~~ **LANDED 2026-08-29** | both suites green on renamed corpus |
+| P1 | ~~`id()` no-arg; `rel(t?)`; `rel_*` codes~~ **LANDED 2026-08-29** | refer() still working beside it |
 | P2 | `acyclic()`/`inverse()` atoms; verbs read declarations; `meets()` deleted | relation.tsv re-pinned |
 | P3 | `deprecate()` on `refer()` + `relations:`; one release later, removal | corpus carries zero uses |
+
+**P1 landed with three boundaries worth recording, each pinned:**
+
+- **Bare `id()` holds its answer for one pass** (`deferResolve`), so the
+  pass-zero snapshot a spread of a type body takes finds the id() still
+  open and each child resolves at its own key. The definition's own
+  position also resolves — a type body IS an entity named by the
+  schema's key (`index-bare-id-spread-of-type`).
+- **A plain `$.S &` reference copies identity-free** — clearing rule 1,
+  already pinned by `ref-and-merge`, extends unchanged to the no-arg
+  form: the schema idiom that confers identity is the SPREAD
+  (`&: $.S`), not the copy (`id-bare-plain-ref-copies`).
+- **A self-typed relation (`rel($.schema.Service)` written inside
+  `Service`) is refused by the prefix test today** — the same guarded
+  self-reference RECURSION.0.md licenses, and it waits for that note's
+  P1. Layered vocabularies (`rel($.std.Service)` from a derived
+  Service) do not self-refer and work now.
+
+An unmet `rel()` is DONE — its own settled residual, like `min(1)` —
+which is what lets a `type()` body carry one and still settle: the
+property `refer()` lacks, and G4 phase 4 recorded the cost of.
+
+Settledness has one sharp edge, found and pinned while landing: two
+DONE rels share an equally-absent peg, so unite's equal-scalar
+shortcuts matched them as "the same value" and dropped one side's type
+and held constraints — visibly order-dependent (`rel() & string` met
+from separate statements kept or lost the kind depending on which
+statement came first). The shortcuts now exclude rel residuals and the
+merge arm runs instead (`rel-two-held-order-canon` and its
+neighbours).

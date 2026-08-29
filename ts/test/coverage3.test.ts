@@ -38,7 +38,7 @@ import { hcanon, canonHash } from '../dist/hcanon'
 import { projectFor } from '../dist/query'
 import { Provenance, markSpread } from '../dist/provenance'
 import { IdFuncVal, idName } from '../dist/val/IdFuncVal'
-import { ReferVal, parseAddress, findEntity } from '../dist/val/ReferFuncVal'
+import { ReferVal, RelFuncVal, parseAddress, findEntity } from '../dist/val/ReferFuncVal'
 import { graphOf } from '../dist/graph'
 import { constantIdFunc, canonRiders } from '../dist/utility'
 import { nextValId } from '../dist/val/Val'
@@ -1182,10 +1182,12 @@ describe('coverage3-identity', () => {
     // What spells a name, and what does not. `undefined` and a
     // non-Val reach idName only through a direct call: the func
     // dispatcher resolves every argument to a Val first.
-    for (const ok of ['a', 'svc/auth', 'team-pay', 'a_1', '0', 'A/b-c_1']) {
+    for (const ok of ['a', 'svc_auth', 'team-pay', 'a_1', 'A_b-c1', '_x']) {
       Assert.strictEqual(idName(new StringVal({ peg: ok }, ctx)), ok)
     }
-    for (const bad of ['', 'svc.auth', 'a b', 'a:b', 'a$b']) {
+    // D-1: no slash, no leading digit or hyphen (RELATIONS.0.md).
+    for (const bad of ['', 'svc.auth', 'a b', 'a:b', 'a$b',
+      'svc/auth', 'A/b-c_1', '0', '9x', '-x']) {
       Assert.strictEqual(idName(new StringVal({ peg: bad }, ctx)), undefined)
     }
     Assert.strictEqual(idName(new IntegerVal({ peg: 1 }, ctx)), undefined)
@@ -1211,6 +1213,24 @@ describe('coverage3-identity', () => {
     Assert.strictEqual(out.entity, 'x')
     Assert.notStrictEqual(out.id, 0)
     Assert.ok(nextValId() > 0)
+  })
+
+  test('rel-func-shape', () => {
+    // The clone hook and name of the rel() function itself: specs
+    // resolve rel() before any clone or unresolved canon needs them,
+    // so the hooks are pinned here the way id-func-shape pins id's.
+    const ctx = new Aontu().ctx({})
+    const fn = new RelFuncVal({ peg: [] }, ctx)
+    Assert.strictEqual(fn.funcname(), 'rel')
+    Assert.strictEqual((fn as any).isRelFunc, true)
+    const made: any = fn.make(ctx, { peg: fn.peg })
+    Assert.strictEqual(made.isRelFunc, true)
+    // Resolving with no argument answers the settled residual with
+    // the open type.
+    const out: any = fn.resolve(ctx, [])
+    Assert.strictEqual(out.isRel, true)
+    Assert.strictEqual(out.tval.isTop, true)
+    Assert.strictEqual(out.canon, 'rel()')
   })
 
   test('constant-id-in-every-template-container', () => {

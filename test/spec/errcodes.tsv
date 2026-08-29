@@ -251,6 +251,10 @@ id_spread	errcode	parse	0.53.0
 # conflict of whatever disagreed, which is what constraint flow means.
 refer_address	errcode	parse	0.53.0
 refer_unresolved	errcode	reference	0.53.0
+# rel(t?) (RELATIONS.0.md P1): the relation constraint's own codes,
+# carried by the same refer machinery underneath.
+rel_address	errcode	parse	0.53.0
+rel_unresolved	errcode	reference	0.53.0
 # RELATION GRAPH CHECKS (G4 phase 5). Two report-layer codes, class
 # `conflict`: the model contradicts a property it declared for itself.
 # NEITHER is a NilVal code -- both are GLOBAL and NON-MONOTONE (an

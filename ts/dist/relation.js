@@ -31,7 +31,7 @@ const graph_1 = require("./graph");
 const keyorder_1 = require("./keyorder");
 const unify_1 = require("./unify");
 // The entity an address names — everything before the first dot. An
-// edge into `svc/auth.ports.http` is an edge to `svc/auth`: a relation
+// edge into `svc_auth.ports.http` is an edge to `svc_auth`: a relation
 // holds between ENTITIES, and the path inside one says which part of it
 // the link reaches.
 function entityOf(addr) {

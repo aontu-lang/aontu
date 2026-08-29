@@ -1374,8 +1374,8 @@ do not see the same graph:
 | Go | 8 | 6 | 2 |
 
 The consequence is the one that matters: `aontu relations
-bad/cycle.aon` reports `cycle svc/payments -> svc/ledger ->
-svc/payments` in TypeScript and **reports no cycle at all** in Go. It
+bad/cycle.aon` reports `cycle svc_payments -> svc_ledger ->
+svc_payments` in TypeScript and **reports no cycle at all** in Go. It
 also reports inverse-missing findings for inverses it simply cannot
 see. A verdict of `pass` from the port that cannot see the edges is
 worse than no verdict.

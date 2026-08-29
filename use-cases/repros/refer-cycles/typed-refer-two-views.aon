@@ -2,7 +2,7 @@
 # reference's own example for refer(t) — `[&: refer($.std.Service), ...]`
 # (reference-language.md, function table) — dies of unify_cycle when the
 # REFERRING entity is id-merged across two views whose shared schema
-# carries a referenced ports template.  The target (svc/ledger) carries
+# carries a referenced ports template.  The target (svc_ledger) carries
 # no ports at all; the failure names an integer meeting ITSELF.
 # Controls that pass on this exact document: refer() bare, and
 # refer({kind: service}) with the type written out literally — so the
@@ -22,10 +22,10 @@ spec: hide({
 })
 catalog: services: {
   &: $.spec.Entry
-  pay: id(svc/pay) & { dependsOn: [svc/ledger] }
-  ledger: id(svc/ledger) & {}
+  pay: id(svc_pay) & { dependsOn: [svc_ledger] }
+  ledger: id(svc_ledger) & {}
 }
 deploy: workloads: {
   &: $.spec.Entry
-  pay: id(svc/pay) & { ports: {http: {number: 8080}} }
+  pay: id(svc_pay) & { ports: {http: {number: 8080}} }
 }

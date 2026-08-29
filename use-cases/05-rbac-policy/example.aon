@@ -2,7 +2,7 @@
 
 # A concrete tenant composed with the schema: the whole model
 # evaluates to one JSON document -- catalog, role registry and tenant,
-# with limits/supportTier derived by match() and defaultMemberRole
+# with limits_supportTier derived by match() and defaultMemberRole
 # supplied by its preference.
 tenant: {
   name: "Acme Rockets"

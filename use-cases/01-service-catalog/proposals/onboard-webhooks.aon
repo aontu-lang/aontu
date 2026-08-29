@@ -8,18 +8,18 @@
 
 candidate: hide(@"../data/candidate-webhooks.json")
 
-proposal: webhooks: id(svc/webhooks) & $.spec.CatalogEntry & $.candidate & {
-  dependsOn: [svc/auth, svc/email]
+proposal: webhooks: id(svc_webhooks) & $.spec.CatalogEntry & $.candidate & {
+  dependsOn: [svc_auth, svc_email]
 }
 
 # The inverse edges the proposal implies, so `aontu relations` passes.
 # WORKAROUND (README, gap 4): lists unify positionally, so "append"
 # must restate the existing elements verbatim, in order.
 patch: {
-  auth: id(svc/auth) & {
-    dependedOnBy: [svc/gateway, svc/payments, svc/webhooks]
+  auth: id(svc_auth) & {
+    dependedOnBy: [svc_gateway, svc_payments, svc_webhooks]
   }
-  email: id(svc/email) & {
-    dependedOnBy: [svc/notify, svc/webhooks]
+  email: id(svc_email) & {
+    dependedOnBy: [svc_notify, svc_webhooks]
   }
 }

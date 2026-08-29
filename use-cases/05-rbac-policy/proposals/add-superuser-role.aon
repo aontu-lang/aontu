@@ -5,5 +5,5 @@
 roles: superuser: {
   desc: "Emergency break-glass access", rank: 90
   tenantOwner: false, privileged: true
-  grants: [admin/all]
+  grants: [admin_all]
 }

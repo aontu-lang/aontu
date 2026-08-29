@@ -36,7 +36,7 @@ hasnt() {
 
 # ---------------------------------------------------------------- model
 # 1. The whole model evaluates: catalog + closed role registry +
-# concrete tenant, with limits/supportTier derived by match().
+# concrete tenant, with limits_supportTier derived by match().
 run eval 0 -- "$DIR/example.aon"
 diff -u "$DIR/expected/example.json" "$WORK/eval.out" \
   || fail "example.aon output drifted from expected/example.json"
@@ -45,7 +45,7 @@ ok "example.aon evaluates to the expected policy document"
 # 2. Canonical form keeps the policy's meaning: entity identities,
 # the preserved default, and the refer() foreign-key constraints.
 run canon 0 -- --canon "$DIR/example.aon"
-has canon out 'id("admin/all")'
+has canon out 'id("admin_all")'
 has canon out '*"member"|"member"|"admin"|"owner"'
 has canon out 'refer()'
 ok "canon keeps id(), the * default and refer()"
@@ -133,12 +133,12 @@ run halluc 1 -- --include-root "$DIR" "$DIR/proposals/extend-member-grants.aon"
 has halluc err '[aontu/unify_cycle]'
 ok "proposal: unknown permission still refused (diagnostic: see note)"
 
-# 13. The wildcard rule: an unprivileged role granted admin/all dies
+# 13. The wildcard rule: an unprivileged role granted admin_all dies
 # on the neq() carried by the unprivileged branch's list spread.
 run wildcard 1 -- --include-root "$DIR" "$DIR/proposals/member-wildcard.aon"
 has wildcard err '[aontu/constraint]'
 has wildcard err '$.roles.member.grants.3'
-ok "proposal: member+admin/all refused by the conditional role shape"
+ok "proposal: member+admin_all refused by the conditional role shape"
 
 # --------------------------------------------- same-layer invariants
 # 14. The audit composition holds when the data is clean.
@@ -240,8 +240,8 @@ ok "subsume answers grant-subset over set-as-map projections"
 
 # 27. OBSERVED GAP: the same grants as LISTS are order-sensitive --
 # the identical set reordered does not subsume.
-printf 'g: ["project/read", "member/read"]\n' > "$WORK/la.aon"
-printf 'g: ["member/read", "project/read"]\n' > "$WORK/lb.aon"
+printf 'g: ["project_read", "member_read"]\n' > "$WORK/la.aon"
+printf 'g: ["member_read", "project_read"]\n' > "$WORK/lb.aon"
 run listorder 1 -- subsume "$WORK/la.aon" "$WORK/lb.aon"
 has listorder out 'does_not_subsume'
 ok "GAP pinned: list-shaped grant sets are order-sensitive under subsume"

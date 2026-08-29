@@ -5,4 +5,4 @@
 # restate the existing grants: lists unify by position, so an
 # extension must repeat the prefix.)
 @"../roles.aon"
-roles: member: grants: [project/read, project/write, member/read, billing/refund]
+roles: member: grants: [project_read, project_write, member_read, billing/refund]

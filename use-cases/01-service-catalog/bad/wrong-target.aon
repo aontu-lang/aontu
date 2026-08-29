@@ -14,6 +14,6 @@
 relations: hostedOn: $.std.Relation & { target: $.std.Service }
 
 infra: {
-  bastion: id(svc/bastion) & { kind: host, name: "bastion-eu1" }
-  runner: id(svc/runner) & { hostedOn: [&: refer(), svc/bastion] }
+  bastion: id(svc_bastion) & { kind: host, name: "bastion-eu1" }
+  runner: id(svc_runner) & { hostedOn: [&: refer(), svc_bastion] }
 }
