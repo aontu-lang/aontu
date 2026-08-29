@@ -96,7 +96,12 @@ func mergeVals(a, b Val) Val {
 	return newConjunct([]Val{a, b})
 }
 
-func (m *MapVal) superior() Val { return top() }
+// superior answers top for a bag, as it always has. Its one caller
+// was the preference gate, which asks superOf now (ADR-011 R4) and
+// lifts a bag child by child instead; the method stays because the
+// Val interface requires it.
+// (superOf answers for this type before the fallthrough.)
+func (m *MapVal) superior() Val { return top() } //coverage:ignore
 
 func (m *MapVal) Canon() string {
 	var b strings.Builder

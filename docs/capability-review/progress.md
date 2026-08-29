@@ -815,6 +815,13 @@ longer "degenerate and unpinned" — `ts/src/val/SuperFuncVal.ts` and
 `number-model.tsv`, `number-tower.tsv` and `edge.tsv`. That also
 settles G3's fifth open question ("re-founding `super()`") in favour of
 the kind-lift, though it was the number-tower work that settled it.
+The kind-lift was then widened to the full immediate-parent-type rule
+(2026-08-29, docs/design/SUPER.0.md, owner ruling): `super()` descends
+into maps and lists, unwraps preferences, distributes over
+disjunctions and reads a constraint's kind or domain — `top` only
+where `top` is the immediate parent — pinned by `super.tsv` in both
+ports, with recursion residuals held symbolic as the recorded phase
+boundary.
 And `PrefVal`'s single yardstick — `superpeg`, computed by
 `resuper()` — is both the type it reports and the gate an overriding
 peer must pass. It briefly carried a second, `familypeg`, added when
@@ -834,6 +841,23 @@ story — the admission gate in `DisjunctVal` requires an override to be
 admitted by an alternative or by the preferred value itself, so a
 pref member's admitted contribution to a disjunction is exactly its
 own value, not its kind.
+
+**And the preference machinery was re-founded on it (2026-08-29,
+[ADR-011](../../ADR.md#adr-011), docs/design/DEFAULTS.0.md).** `*x` is
+sugar for `*x | super(x)`, so the meet distributes over that
+disjunction — `(x & peer) | (super(x) & peer)` — instead of testing
+whether the peer resolves to exactly the gate. The preferred value
+answers first, so a default the peer merely narrows now STANDS
+(`*8080 & min(1024)` kept answering the bare constraint before);
+`super()` is the gate, so a kind or constraint peg has one at last and
+a structural default is gated leafwise (a map peer merges, another
+kind refuses); equal-rank defaults that disagree refuse as
+`pref_rank_clash`; rank orders the SURVIVING arms, so eliminating one
+promotes the next rather than losing the ladder; and a rejected
+override refuses as `empty` — the code renamed from `|:empty` by the
+same ADR, the registry's one sanctioned rename. `test/spec/defaults.tsv`
+(29 rows) pins it in both ports; eighteen rows across seven files moved
+and are listed in the design note.
 
 ## G4 — identity and typed relations
 

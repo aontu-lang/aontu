@@ -1,6 +1,6 @@
 # FIXED 2026-08-26 (the preference admission gate, ADR-004).
 # expected: vet against out-of-enum.json reports invalid (exit 1)
-# actual (now matches): verdict: invalid, [aontu/|:empty] at the data
+# actual (now matches): verdict: invalid, [aontu/empty] at the data
 #         site, exit 1. The schema's own pref_not_instance advisory
 #         rides along (its message now says "remaining alternative").
 #         Pinned by test/spec/vet.tsv vet-enum-default-refuses-nonmember.

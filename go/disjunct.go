@@ -22,8 +22,14 @@ func newDisjunct(members []Val) *DisjunctVal {
 	return d
 }
 
-func (d *DisjunctVal) cjo() int      { return 35000 }
-func (d *DisjunctVal) superior() Val { return top() }
+func (d *DisjunctVal) cjo() int { return 35000 }
+
+// superior answers top for a junction, as it always has. Its one
+// caller was the preference gate, which asks superOf now (ADR-011 R4)
+// and answers for this type explicitly; the method stays because the
+// Val interface requires it.
+// (superOf answers for this type before the fallthrough.)
+func (d *DisjunctVal) superior() Val { return top() } //coverage:ignore
 
 func (d *DisjunctVal) Canon() string {
 	parts := make([]string, len(d.peg))
@@ -45,7 +51,11 @@ func (d *DisjunctVal) Unify(peer Val, ctx *Ctx) Val {
 	slot := ctx.slot
 
 	if !d.prefsRanked {
-		d.rankPrefs(ctx)
+		// A clash between equal-rank defaults refuses for the whole
+		// disjunction (R2): the disagreement IS the answer.
+		if ranked := d.rankPrefs(ctx); nil != ranked && ranked.Nil() {
+			return ranked
+		}
 	}
 
 	done := true
@@ -94,7 +104,7 @@ func (d *DisjunctVal) Unify(peer Val, ctx *Ctx) Val {
 	// answered "autoo", and `*8080|(integer&neq(80))` admitted 80
 	// (use-cases/BUGS.md §1-2). An inadmissible override now fails the
 	// pref member's trial, and when every member is gone the meet is
-	// the existing `|:empty` refusal.
+	// the existing `empty` refusal.
 	//
 	// SCALAR preferred values only, exactly the kind gate's own
 	// boundary (test/spec/pref.tsv, "THE GATE IS A SCALAR GATE"): a
@@ -150,6 +160,18 @@ func (d *DisjunctVal) Unify(peer Val, ctx *Ctx) Val {
 			if !valSame(got, want) {
 				continue
 			}
+			// UNREACHABLE IN THIS PORT SINCE ADR-011, and kept in
+			// parity with the TypeScript twin rather than deleted. The
+			// meet now DELIVERS the preference itself: a member equal
+			// to the preferred value satisfies the first arm of the
+			// distribution, so it comes back a preference and the
+			// isPref check above has already taken it. The canonical
+			// port still reaches this wrap, because a bag member
+			// drives the meet from its own side there; the two answer
+			// the same value either way (`("1.0"|"1.1") & *"1.0"` is
+			// `*"1.0"|"1.1"` in both), and the rule ADR-007 states has
+			// to stay written down in both places.
+			//coverage:ignore-block the meet returns the preference itself; see above
 			wrapped := newPref(got)
 			wrapped.rank = pp.rank
 			wrapped.sp = pp.sp
@@ -179,7 +201,7 @@ func (d *DisjunctVal) Unify(peer Val, ctx *Ctx) Val {
 	case 1:
 		return res[0]
 	case 0:
-		return makeNilErr(ctx, "|:empty", d, peer)
+		return makeNilErr(ctx, "empty", d, peer)
 	}
 	out := newDisjunct(res)
 	// The fold's result stands where the disjunct stood, so it keeps the
@@ -250,7 +272,7 @@ func (d *DisjunctVal) Gen(ctx *Ctx) (any, error) {
 		// generates nothing for an empty disjunct and lets the bag
 		// report — an edge no shared row pins; this Code is
 		// classification, not pinned parity.)
-		return nil, &AontuError{Msg: "Cannot generate value: empty disjunct", Code: "|:empty"}
+		return nil, &AontuError{Msg: "Cannot generate value: empty disjunct", Code: "empty"}
 	}
 	return val.Gen(ctx)
 }
@@ -289,56 +311,74 @@ func (d *DisjunctVal) forGen(ctx *Ctx) (Val, bool) {
 		}
 		return d.peg[0], false
 	}
-	return prefs[0], false
+	// THE LOWEST-RANK SURVIVOR (R5). Ranking no longer discards the
+	// weaker arms, so the choice is made here, over what is left:
+	// `*1 | **2` answers 1, and answers 2 once `*1` is gone.
+	best := prefs[0]
+	for _, m := range prefs {
+		if m.(*PrefVal).rank < best.(*PrefVal).rank {
+			best = m
+		}
+	}
+	return best, false
 }
 
-// rankPrefs merges and filters PrefVal members before member trials
-// (DisjunctVal.rankPrefs in TS): equal-rank prefs unify into one
-// (`*{x:1} | *{y:2}` -> `*{x:1,y:2}`), a lower-rank pref supersedes a
-// higher-rank one, and a nested disjunct that collapses to a single
-// pref replaces itself in place. Returns the single remaining PrefVal
-// (or the nil from a failed pref merge) for nested-collapse callers;
-// nil otherwise.
+// rankPrefs folds EQUAL-RANK PrefVal members before the member trials
+// and keeps every other rank standing (ADR-011 R5,
+// docs/design/DEFAULTS.0.md; DisjunctVal.rankPrefs in TS).
+//
+// RANK ORDERS THE SURVIVORS, IT DOES NOT DISCARD AT PARSE. Generation
+// takes the lowest-rank preference STILL STANDING, so eliminating the
+// lower arm promotes the next: `*1 | **2` met by `neq(1)` answers 2,
+// where this used to run once, discard every arm but the lowest, and
+// lose the whole ladder with it. Rank is a preference order over what
+// survives, which is not knowable until the trials have run.
+//
+// Only equal ranks fold, because two defaults at one rank are one
+// decision: compatible pegs merge, and a disagreement is the
+// pref_rank_clash refusal (R2), which belongs to the whole disjunction
+// -- there is no alternative to fall back to.
+//
+// Returns the single remaining PrefVal (for nested-collapse callers) or
+// the clash nil; nil otherwise.
 func (d *DisjunctVal) rankPrefs(ctx *Ctx) Val {
-	var lastpref *PrefVal
-	lastprefI := -1
+	// The kept index per rank, so an equal-rank twin folds into the arm
+	// already standing for that rank.
+	atRank := map[int]int{}
 
 	for vI := 0; vI < len(d.peg); vI++ {
+		var pref *PrefVal
+
 		switch v := d.peg[vI].(type) {
 		case *PrefVal:
-			if lastpref != nil {
-				if v.rank == lastpref.rank {
-					u := v.Unify(lastpref, ctx)
-					// A pref meeting a pref always yields a pref, never a
-					// bare nil (a conflict is wrapped inside it).
-					if u.Nil() { //coverage:ignore PrefVal.Unify never returns a bare nil here
-						return u
-					}
-					d.peg[lastprefI] = u
-					if up, ok := u.(*PrefVal); ok {
-						lastpref = up
-					}
-					d.peg[vI] = nil
-				} else if v.rank < lastpref.rank {
-					d.peg[lastprefI] = nil
-					lastpref = v
-					lastprefI = vI
-				} else {
-					d.peg[vI] = nil
-				}
-			} else {
-				lastpref = v
-				lastprefI = vI
-			}
+			pref = v
 		case *DisjunctVal:
-			if sub := v.rankPrefs(ctx); sub != nil {
-				if sp, ok := sub.(*PrefVal); ok {
-					d.peg[vI] = sp
-					lastpref = sp
-					lastprefI = vI
-				}
+			sub := v.rankPrefs(ctx)
+			if nil != sub && sub.Nil() {
+				return sub
+			}
+			if sp, ok := sub.(*PrefVal); ok {
+				d.peg[vI] = sp
+				pref = sp
 			}
 		}
+
+		if nil == pref {
+			continue
+		}
+
+		at, seen := atRank[pref.rank]
+		if !seen {
+			atRank[pref.rank] = vI
+			continue
+		}
+
+		folded := pref.Unify(d.peg[at], ctx)
+		if folded.Nil() {
+			return folded
+		}
+		d.peg[at] = folded
+		d.peg[vI] = nil
 	}
 
 	kept := d.peg[:0]
@@ -385,13 +425,34 @@ func (d *DisjunctVal) genSame(ctx *Ctx) (any, bool) {
 }
 
 // dedup removes structurally-equal Vals, keeping first occurrence.
+//
+// TWO PREFERENCES OVER ONE VALUE ARE ONE PREFERENCE (ADR-011 R5), and
+// the lower rank is the one that generates: `*1 | **1` is `*1`.
+// Ranking folds EQUAL ranks (R2); this folds the rest, which R5
+// stopped discarding.
+//
+// A PLAIN arm holding that same value is NOT a duplicate of it and
+// must not be folded away: it is the sibling that ADMITS an override
+// under ADR-004's gate, which is the whole point of writing `*x | x`.
+// Folding it turned that idiom's own default into a
+// pref_not_instance finding, and `*top | top` is pinned as its
+// control. Mirrors the dedup loop in ts/src/val/DisjunctVal.ts.
 func dedup(vals []Val) []Val {
 	var out []Val
 	for _, v := range vals {
 		dup := false
-		for _, e := range out {
+		for eI, e := range out {
 			if valSame(e, v) {
 				dup = true
+				break
+			}
+			ep, eok := e.(*PrefVal)
+			vp, vok := v.(*PrefVal)
+			if eok && vok && valSame(prefInnerPeg(ep), prefInnerPeg(vp)) {
+				dup = true
+				if vp.rank < ep.rank {
+					out[eI] = v
+				}
 				break
 			}
 		}

@@ -11,7 +11,14 @@
 #
 # Columns: code<TAB>errcode<TAB>class<TAB>since
 #   code  : the frozen snake_case code string (the NilVal `why`).
-#           Codes are a CONTRACT: append-only, renames forbidden. A code
+#           Codes are a CONTRACT: append-only, renames forbidden --
+#           with ONE sanctioned exception, recorded in ADR-011: the
+#           disjunction-empty pair was renamed `|:empty`/`|:empty-dist`
+#           -> `empty`/`empty-dist` in 0.54.0, because the `|:` prefix
+#           named a spelling the author may never have written (a bare
+#           `*x` default refuses with it now), and a code that lies
+#           about its own origin is worse than a frozen name. A rename
+#           needs an ADR; nothing else does. A code
 #           that ends in `:` or `[` is a dynamic-prefix family -- the
 #           engine appends a name/value (e.g. `func:upper`, `ref[$.x]`)
 #           and class lookup falls back to the longest registered prefix.
@@ -106,8 +113,9 @@ closed	errcode	conflict	0.51.0
 literal_nil	errcode	conflict	0.51.0
 nil_gen	errcode	conflict	0.51.0
 unite	errcode	conflict	0.51.0
-|:empty	errcode	conflict	0.51.0
-|:empty-dist	errcode	conflict	0.51.0
+empty	errcode	conflict	0.54.0
+empty-dist	errcode	conflict	0.54.0
+pref_rank_clash	errcode	conflict	0.54.0
 exact_float_mix	errcode	conflict	0.51.0
 inexact_integer_sum	errcode	conflict	0.51.0
 decimal_budget	errcode	conflict	0.51.0

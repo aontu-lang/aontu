@@ -115,9 +115,18 @@ const NullVal_1 = require("../dist/val/NullVal");
         // answer the kind and discard a default it could never admit.
         (0, expect_1.expect)(() => G('x:*1 & float')).throws(/Cannot unify/);
         (0, expect_1.expect)(() => G('x:*1.5 & integer')).throws(/Cannot unify/);
-        // A preference whose peg is ITSELF a kind constrains nothing, so any
-        // peer wins (pinned by test/spec/var.tsv:var-pref-kind-narrow).
-        (0, expect_1.expect)(G('x:*integer & a')).equal({ x: 'a' });
+        // A preference whose peg is itself a KIND gates on that kind's own
+        // parent, like every other default (ADR-011 R4): the gate is
+        // `super(x)`, and `super(integer)` is `number`. It used to gate on
+        // nothing at all -- written when a kind's superior was top -- so a
+        // string overrode `*integer` without a murmur.
+        (0, expect_1.expect)(G('x:*integer & 7')).equal({ x: 7 });
+        (0, expect_1.expect)(() => G('x:*integer & a')).throws(/Cannot unify/);
+        // A kind peg gates on the kind's PARENT, so a sibling leaf passes
+        // it: `super(float)` is `number`, and 1 is a number. That is the
+        // long form's own answer -- `(float&1) | (number&1)` is `1` -- and
+        // it is not the widening ADR-004 closed, which was about a peg
+        // that is a VALUE: `*8080 & 3.5` still refuses, two lines above.
         (0, expect_1.expect)(G('x:*float & 1')).equal({ x: 1 });
     });
     /*

@@ -1,0 +1,61 @@
+# SUPER -- docs/design/SUPER.0.md: super(x) answers the immediate
+# parent type of its argument, structurally. The scalar and kind
+# ladders are pinned where they always were (number-model.tsv,
+# number-tower.tsv, edge.tsv); this file pins the structural rules
+# that replaced the old blanket `top`: maps and lists lift child by
+# child (shape -- optionality, closedness, spread -- carried, the
+# spread template lifted), preferences unwrap to their value's
+# parent, disjunctions distribute arm by arm (top absorbs, duplicates
+# collapse), constraints answer the kind they constrain (absorbed
+# leaf kind, else comparison domain, else top for the multi-domain
+# length()), and a recursion residual stays a symbolic call -- the
+# finite spelling of a lift that is itself recursive.
+#
+# Columns: name<TAB>mode<TAB>src<TAB>expect
+
+# --- maps and lists: descend, carry shape, lift the spread ---
+super-map-canon	canon	x:super({a:1,b?:c})	{"x":{"a":integer,"b"?:string}}
+super-map-spread-canon	canon	x:super({&:integer,a:1})	{"x":{&:number,"a":integer}}
+super-map-empty-canon	canon	x:super({})	{"x":{}}
+super-list-canon	canon	x:super([1,a])	{"x":[integer,string]}
+super-list-empty-canon	canon	x:super([])	{"x":[]}
+super-ref-map-canon	canon	a:{b:1} x:super($.a)	{"a":{"b":1},"x":{"b":integer}}
+super-type-def-canon	canon	T:type({a:1}) x:super($.T)	{"T":{"a":1},"x":{"a":integer}}
+super-ladder-map-canon	canon	x:super(super({a:1}))	{"x":{"a":number}}
+
+# --- the lift is a usable schema: admits at the lifted level ---
+super-map-as-schema-gens	gens	x:super({a:1})&{a:7}	{"x":{"a":7}}
+super-map-as-schema-errc	errc	x:super({a:1})&{a:7.5}	no_scalar_unify
+
+# --- preferences unwrap: softness does not survive typing ---
+super-pref-canon	canon	x:super(*1)	{"x":integer}
+super-pref-kind-canon	canon	x:super(*integer)	{"x":number}
+
+# --- disjunctions distribute; top absorbs; duplicates collapse ---
+super-disjunct-canon	canon	x:super(1|2)	{"x":integer}
+super-disjunct-mixed-canon	canon	x:super(1|"a")	{"x":integer|string}
+super-disjunct-kinds-canon	canon	x:super(integer|string)	{"x":top}
+super-ranked-disjunct-canon	canon	x:super(*1|2)	{"x":integer}
+
+# --- constraints answer the kind they constrain ---
+super-constraint-number-canon	canon	x:super(min(3))	{"x":number}
+super-constraint-string-canon	canon	x:super(min("a"))	{"x":string}
+super-constraint-re-canon	canon	x:super(re(abc))	{"x":string}
+super-constraint-kind-canon	canon	x:super(integer&min(3))	{"x":integer}
+super-constraint-length-canon	canon	x:super(length(3))	{"x":top}
+
+# --- shape carries: closedness survives the lift, and the lifted
+# spread admits at the lifted level (floats the original refused)
+super-closed-carried-errc	errc	x:super(close({a:1}))&{b:2}	closed
+super-list-spread-canon	canon	x:super([&:integer,1])	{"x":[&:number,integer]}
+super-list-spread-admits-gens	gens	x:super([&:integer])&[1.5,2.5]	{"x":[1.5,2.5]}
+
+# --- recursion stays symbolic: the finite spelling of a recursive
+# lift, direct or met during descent (SUPER.0.md, the phase boundary)
+super-recursive-symbolic-canon	canon	N:type({v:integer,next?:$.N}) x:super($.N)	{"N":{"next"?:$.N,"v":integer},"x":super($.N)}
+super-descent-residual-canon	canon	N:type({v:integer,next?:$.N}) x:super({v:1,n?:$.N})	{"N":{"next"?:$.N,"v":integer},"x":{"n"?:super($.N),"v":integer}}
+
+# --- the null ladder: the null KIND prints as the value does, and
+# its own parent is top (the print ambiguity is recorded in SUPER.0.md)
+super-null-kind-canon	canon	x:super(null)	{"x":null}
+super-null-ladder-canon	canon	x:super(super(null))	{"x":top}

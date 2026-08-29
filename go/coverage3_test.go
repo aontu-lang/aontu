@@ -430,7 +430,7 @@ func TestPrefSuperiorIsTop(t *testing.T) {
 // member cannot admit another pref's override. rankPrefs leaves a
 // settled disjunct at most one pref, so a document cannot reach a
 // two-pref gate -- the arm is pinned here (ADR-002) with prefsRanked
-// forced, and the meet is the `|:empty` refusal because neither
+// forced, and the meet is the `empty` refusal because neither
 // preferred value admits the peer.
 func TestDisjunctGateSkipsPrefSibling(t *testing.T) {
 	ctx := &Ctx{root: newMap()}

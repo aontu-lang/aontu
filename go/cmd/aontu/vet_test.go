@@ -403,10 +403,12 @@ func TestVetNoteAndAlternativesReachTheTextReport(t *testing.T) {
 func TestVetSiteOffPegStillNamesItsDocument(t *testing.T) {
 	_, s, d := vetFiles(t, "a: *1", "a: {}")
 	out, _, _ := vetRun(s, d)
-	// `integer`, not `number`: the yardstick a preference reports is its
-	// own kind. It read `number` while the override gate widened to the
-	// numeric family (removed 2026-08-25, status report §6).
-	vetMatch(t, out, `schema: .*schema\.aon:1:\d+ \(integer\)`)
+	// The DEFAULT the author wrote, sited at its star (ADR-011 R1). The
+	// finding used to name the gate the engine computed from it --
+	// `integer`, which appears nowhere in the schema text a reader
+	// opens. (It read `number` before that, while the gate widened to
+	// the numeric family; removed 2026-08-25, status report §6.)
+	vetMatch(t, out, `schema: .*schema\.aon:1:\d+ \(\*1\)`)
 }
 
 // The verb dispatches only as the FIRST argument, so a file argument is

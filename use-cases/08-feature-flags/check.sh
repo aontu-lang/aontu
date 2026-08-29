@@ -211,7 +211,7 @@ echo "# ------------------------------ write loop: refusals (safety rails)"
 # flip it.  set refuses and names the pinning site.
 run setkill 1 set '$.flags.payments_legacy_gateway.enabled=true' \
   --entry "$WORK/base.aon" --overlay "$OV"
-has setkill "[aontu/scalar_value]" "kill-switch conflict code"
+has setkill "[aontu/empty]" "kill-switch conflict code"
 has setkill "verdict: invalid"     "kill-switch verdict"
 ok "kill switch: set to true refused; the pin in flags.aon wins"
 

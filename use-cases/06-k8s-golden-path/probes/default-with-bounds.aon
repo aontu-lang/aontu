@@ -1,4 +1,11 @@
-# FAILED ATTEMPT: a ranked default AND bounds on the same field.  The
-# constraint conjunct swallows the default; nothing generates.
-# [aontu/mapval_no_gen].  This is why guardrails.aon exists.
+# FIXED 2026-08-29 by ADR-011 (the star is sugar for `*x | super(x)`):
+# a ranked default AND bounds on the same field now work.  The
+# preferred value answers the meet first, and 2 satisfies min(1) &
+# max(20), so the default generates -- while the bounds ride the
+# override space, so an out-of-range override is still refused
+# (probes/bound-bypass.aon).
+#
+# This probe used to pin the opposite: the constraint conjunct
+# swallowed the default and nothing generated ([aontu/mapval_no_gen]),
+# which is why guardrails.aon spells the two apart.
 replicas: (*2 | integer) & min(1) & max(20)

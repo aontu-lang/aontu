@@ -113,7 +113,7 @@ ok "agent onboarding candidate within policy: valid"
 run onboard-bad 1 vet "$DIR/request-schema.aon" "$DIR/data/onboard-bad.json"
 has onboard-bad '[aontu/constraint]' "constraint findings"
 has onboard-bad '$.service' "bad name flagged (portable-subset DNS-1123)"
-has onboard-bad '[aontu/|:empty]' "tier outside the enum"
+has onboard-bad '[aontu/empty]' "tier outside the enum"
 has onboard-bad '$.forceDeploy' "hallucinated key flagged"
 has onboard-bad '[aontu/closed]' "closed code"
 ok "bad candidate: name, version, tier, port, reason, extra key all located"
@@ -140,8 +140,12 @@ probe_fails multiply '[aontu/unexpected]' \
   "replicas * 2 is not even lexable ('+' is the only operator)"
 probe_fails double-from-default '[aontu/mapval_no_gen]' \
   "x + x doubling fails against a defaulted operand"
-probe_fails default-with-bounds '[aontu/mapval_no_gen]' \
-  "a ranked default and min/max cannot share a field"
+# 2026-08-29: fixed by ADR-011 — the preferred value answers the meet
+# first, so a ranked default and min/max now share a field, and the
+# bounds ride the override space rather than swallowing the default.
+run p-default-with-bounds 0 "$DIR/probes/default-with-bounds.aon"
+has p-default-with-bounds '"replicas": 2' "generated default"
+ok "probe default-with-bounds: a ranked default and min/max coexist"
 # 2026-08-26: fixed by the template-clone isolation change (ADR-005) —
 # the relative ref in the template EXPRESSION now answers for the
 # child (was [aontu/no_path] at a NaN key), so this moved from the
@@ -191,7 +195,7 @@ probe_golden() { # file label
 # out-of-bound override is refused now, so this moved from the
 # silent-wrong-answer goldens to the refusal probes (the golden
 # expected/bound-bypass.json, replicas:40, is gone with it).
-probe_fails bound-bypass '[aontu/|:empty]' \
+probe_fails bound-bypass '[aontu/empty]' \
   "bound in a disjunction branch: override 40 refused by the admission gate"
 probe_golden length-on-schema-list \
   "length(min(1)) beside a spread waits for the generator merge"

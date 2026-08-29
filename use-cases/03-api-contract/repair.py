@@ -8,7 +8,7 @@ each finding implies, and writes the repaired candidate:
   constraint  expected `integer&min(A)&max(B)` -> clamp the actual
               number into [A, B]. The `expected` field alone carries
               enough to do this; this is the report at its best.
-  |:empty     the finding has NO `expected` field; the admissible
+  empty     the finding has NO `expected` field; the admissible
               alternatives must be dug out of the schema-role site's
               `value` ("a"|"b"|"c"), then nearest-matched HERE --
               the report names alternatives but ranks nothing.
@@ -102,7 +102,7 @@ def main():
                   f"(expected {finding['expected']}); left for the model",
                   file=sys.stderr)
 
-        elif code == "|:empty":
+        elif code == "empty":
             alts = alternatives(finding)
             actual = str(parent.get(last, "")).strip('"')
             near = difflib.get_close_matches(actual, alts, n=1, cutoff=0.4)

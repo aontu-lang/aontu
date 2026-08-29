@@ -18,7 +18,10 @@ pref-top-list-dropped	gen	l:[*top]	{"l":[]}
 # kind conflict `*hello & false` always was. The old expectation pinned
 # the inconsistency of use-cases/BUGS.md §3 (a bare conjunct silently
 # swallowing a ranked default). Parity-probed 2026-08-26.
-pref-nested-concrete-wins	errc	k1:**hello&false	no_scalar_unify
+# The CODE moved to `empty` with ADR-011 R1 (the refusal belongs to
+# the disjunction `*x` stands for, at every rank); the refusal itself
+# is the same one this row has always pinned.
+pref-nested-concrete-wins	errc	k1:**hello&false	empty
 # ... and the rank-uniform meet KEEPS a ranked default a kind conjunct
 # or kind alternative merely re-states (BUGS.md §3's other half:
 # `**1.5 & float` was mapval_no_gen, `**2|integer` met by `integer`
@@ -94,28 +97,31 @@ pref-kind-gate-copy-string-err	err	x:*"a" y:copy($.x)&1	Cannot unify value
 pref-kind-gate-disjunct-spread-err	err	a:{&:*1|number, b:{}}	Cannot unify value
 pref-override-within-kind-gens	gens	a:{&:*1, b:2}	{"a":{"b":2}}
 #
-# THE GATE IS A SCALAR GATE. The rows above all have a SCALAR preferred
-# value, whose superior() is its kind -- so the gate has something to
-# refuse with. A structural preferred value does not: a map and a list
-# inherit FeatureVal.superior(), which is TOP, and `unite(top, peer)` is
-# the peer, so ANY peer overrides a structural default including one of
-# another kind entirely. That is why `*1 & "s"` is a conflict and
-# `*{x:1} & "s"` is the string.
+# THE GATE IS super(), SO A STRUCTURAL DEFAULT HAS ONE AT LAST.
+# These rows used to record the opposite: a map or a list inherited
+# FeatureVal.superior(), which is TOP, so `unite(top, peer)` was the
+# peer and ANY value overrode a structural default -- including one of
+# another kind entirely, and a map that merely added a key REPLACED
+# the default rather than merging with it.
 #
-# Recorded here rather than fixed: it long predates the kind gate (it is
-# what FeatureVal's superior has always meant), both ports agree on it,
-# and giving maps and lists a real kind yardstick is its own change with
-# its own decisions -- what `*{x:1} & {y:2}` should then mean, not least,
-# since today the default is REPLACED rather than merged. These rows
-# exist so that change cannot be made by accident, in one port only, or
-# without noticing which of the two behaviours moved.
-pref-struct-map-default-yields-string	gens	a:*{x:1}\na:"s"	{"a":"s"}
-pref-struct-list-default-yields-string	gens	a:*[1]\na:"s"	{"a":"s"}
-pref-struct-map-default-replaced-not-merged	gens	a:*{x:1}\na:{y:2}	{"a":{"y":2}}
-pref-struct-list-default-yields-number	gens	a:*[1]\na:5	{"a":5}
+# They were recorded "so that change cannot be made by accident, in
+# one port only, or without noticing which of the two behaviours
+# moved". ADR-011 is that change, made on purpose, in both ports.
+# `super({x:1})` is `{x:integer}`, and the meet asks the two questions
+# the long form asks: does the preferred value ITSELF admit the peer
+# (maps merge, so `x` survives), and if not does its type? A string
+# answers neither, so nothing of the default remains -- `empty`.
+#
+# The replace-anything reading stays spellable, as `*{x:1} | top`.
+pref-struct-map-default-refuses-string	errc	a:*{x:1}\na:"s"	empty
+pref-struct-list-default-refuses-string	errc	a:*[1]\na:"s"	empty
+pref-struct-map-default-merges	gens	a:*{x:1}\na:{y:2}	{"a":{"x":1,"y":2}}
+pref-struct-list-default-refuses-number	errc	a:*[1]\na:5	empty
 # The scalar direction of the same pairing, for contrast: a scalar
-# default DOES refuse a map, which is the gate doing its work.
-pref-scalar-default-refuses-map	errc	a:*1\na:{x:2}	not-scalar-type
+# default refuses a map, and says so as the emptied disjunction it is
+# (ADR-011 R1; it read `not-scalar-type`, the code of the gate's own
+# inner meet rather than of anything the author wrote).
+pref-scalar-default-refuses-map	errc	a:*1\na:{x:2}	empty
 pref-override-ref-clone-gens	gens	x:*1 y:$.x&2	{"x":1,"y":2}
 # THE ADMISSION GATE (ADR-004, 2026-08-26). A peer that meets a scalar
 # preference INSIDE a disjunction must be admitted by the disjunction:
@@ -127,17 +133,17 @@ pref-override-ref-clone-gens	gens	x:*1 y:$.x&2	{"x":1,"y":2}
 # that EXCLUDED the override (`*8080|(integer&neq(80))` + 80) was
 # bypassed (§2). `*A|B|C` is now the enum-with-default every consumer
 # already believed it was: unset generates A, members override, a
-# non-member is the `|:empty` refusal. The deliberately-open default
+# non-member is the `empty` refusal. The deliberately-open default
 # keeps its spelling: `*x|top` admits every override (the apidef
 # machine-emitted `*(x)|top` idiom). Structural and kind-peg defaults
 # stay ungated (the scalar-gate boundary above). All rows parity-probed.
-pref-admit-enum-nonmember-refused	errc	k:*'auto'|'literal'|'data'\nk:'autoo'	|:empty
+pref-admit-enum-nonmember-refused	errc	k:*'auto'|'literal'|'data'\nk:'autoo'	empty
 pref-admit-enum-member-overrides	gen	k:*'auto'|'literal'|'data'\nk:'literal'	{"k":"literal"}
 pref-admit-enum-default	gen	k:*'auto'|'literal'|'data'	{"k":"auto"}
-pref-admit-constraint-branch-refuses	errc	port:*8080|(integer&min(1024)&max(65535))\nport:80	|:empty
+pref-admit-constraint-branch-refuses	errc	port:*8080|(integer&min(1024)&max(65535))\nport:80	empty
 pref-admit-constraint-branch-admits	gen	port:*8080|(integer&min(1024)&max(65535))\nport:2048	{"port":2048}
 pref-admit-constraint-branch-default	gen	port:*8080|(integer&min(1024)&max(65535))	{"port":8080}
-pref-admit-neq-branch-refuses	errc	port:*8080|(integer&neq(80))\nport:80	|:empty
+pref-admit-neq-branch-refuses	errc	port:*8080|(integer&neq(80))\nport:80	empty
 # The preferred branch's OWN admitted set counts: a peer equal to the
 # default is admitted even when no sibling alternative takes it.
 pref-admit-own-value	gen	x:*8080|string\nx:8080	{"x":8080}
@@ -172,6 +178,8 @@ pref-implicit-bag-refused-two	errc	*a: 1, b: 2	pref_implicit_bag
 # THE BRACED FORMS ARE UNTOUCHED, which is the whole of the distinction:
 # these are the real spelling, and `*{x:1}|*{y:2}` is what a defaulted
 # map alternative needs. Pinned here so the guard above cannot widen.
+# They keep their WRITTEN shape under ADR-011 too (R6): a container
+# default is leafwise in what it ADMITS, not in how it is spelled.
 pref-braced-map-canon	canon	*{a: 1}	*{"a":1}
 pref-braced-list-canon	canon	*[1]	*[1]
 pref-braced-nested-canon	canon	x: *{a:1}	{"x":*{"a":1}}

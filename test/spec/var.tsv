@@ -9,7 +9,7 @@ multi	gen	x:$foo y:$bar z:$flag	{"x":11,"y":"hello","z":true}
 canon	canon	a:$foo	{"a":11}
 unknown	err	a:$nope	Cannot
 var-plus	gen	x:$foo+1	{"x":12}
-var-pref-kind-narrow	gen	x:*integer&$bar	{"x":"hello"}
+var-pref-kind-refuses-other-kind	errc	x:*integer&$bar	empty
 var-unknown-ref-part	err	K:$ba.r	Cannot unify
 spread-bool	gen	k1:$flag &:boolean	{"k1":true}
 spread-bool-canon	canon	k1:$flag &:boolean	{&:boolean,"k1":true}

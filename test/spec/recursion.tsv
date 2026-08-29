@@ -36,12 +36,12 @@ tree-refuses-at-depth	errc	Cat: hide({label: string, sub: {&: $.Cat}})\nmenu: $.
 # --- The list-of-children spelling (regime 4, inverted) --------------
 kids-empty	gens	Node: hide({v: integer, kids: [] | [&: $.Node]})\nt: $.Node & {v: 1, kids: []}	{"t":{"kids":[],"v":1}}
 kids-depth-1	gens	Node: hide({v: integer, kids: [] | [&: $.Node]})\nt: $.Node & {v: 1, kids: [{v: 2, kids: []}]}	{"t":{"kids":[{"kids":[],"v":2}],"v":1}}
-kids-enforced	errc	Node: hide({v: integer, kids: [] | [&: $.Node]})\nt: $.Node & {v: 1, kids: [{v: oops, kids: []}]}	|:empty
+kids-enforced	errc	Node: hide({v: integer, kids: [] | [&: $.Node]})\nt: $.Node & {v: 1, kids: [{v: oops, kids: []}]}	empty
 # The X-C3 adjudication that made the spelling honest: in a disjunct
 # trial, a literal list alternative admits only a peer of its own
 # length -- a spread makes it variadic. Statement merges outside
 # trials are untouched.
-list-alternative-is-its-length	errc	y: ([a] | [b]) & [a, extra]	|:empty
+list-alternative-is-its-length	errc	y: ([a] | [b]) & [a, extra]	empty
 list-alternative-still-merges	gens	a: [] a: [1]	{"a":[1]}
 #
 # --- Mutual recursion ------------------------------------------------

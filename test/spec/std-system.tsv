@@ -27,11 +27,11 @@ vocabulary-generates-nothing-of-its-own	gens	@"std/system"	{"std":{}}
 # expecting `"sideways"` to pass): a preferred member no longer holds
 # the disjunction open, so `*in | out | inout` is a true
 # enum-with-default -- unset generates `in`, `out`/`inout` override,
-# anything else is the `|:empty` refusal. The old row recorded the
+# anything else is the `empty` refusal. The old row recorded the
 # fail-open behaviour of use-cases/BUGS.md §1. Parity-probed.
 port-default-direction	gens	@"std/system"\np: $.std.Port & {}	{"p":{"direction":"in"},"std":{}}
 port-direction-chosen	gens	@"std/system"\np: $.std.Port & {direction: out}	{"p":{"direction":"out"},"std":{}}
-port-direction-refuses-nonmember	errc	@"std/system"\np: $.std.Port & {direction: sideways}	|:empty
+port-direction-refuses-nonmember	errc	@"std/system"\np: $.std.Port & {direction: sideways}	empty
 port-protocol-optional	gens	@"std/system"\np: $.std.Port & {protocol: http}	{"p":{"direction":"in","protocol":"http"},"std":{}}
 
 # --- Component and Service -------------------------------------------
@@ -68,4 +68,4 @@ vocabulary-canon	canon	@"std/system"	{"std":{"Component":{"ports"?:{&:$.std.Port
 vocabulary-hash	hash	@"std/system"	aon1-aSuWMdmRq_A59KJu3PkYKmL4x9NoCbPCVIOoAvwbfmk
 relation-atoms-replace-the-schema	gens	@"std/system"\na: id(a) & $.std.Service & {dependsOn: rel($.std.Service) & acyclic() & []}	{"a":{"dependsOn":[],"kind":"service"},"std":{}}
 service-is-a-component-shape	gens	@"std/system"\ns: $.std.Component & $.std.Service & {ports: {http: {}}}	{"s":{"kind":"service","ports":{"http":{"direction":"in"}}},"std":{}}
-port-direction-refuses-a-non-string	errc	@"std/system"\np: $.std.Port & {direction: 1}	|:empty
+port-direction-refuses-a-non-string	errc	@"std/system"\np: $.std.Port & {direction: 1}	empty

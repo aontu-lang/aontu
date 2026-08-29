@@ -1599,7 +1599,7 @@ describe('coverage3-staging', () => {
     // so the method is reached only by a direct call — it used to be
     // reached through DisjunctVal returning a lone trial sentinel as
     // its result, a hole ADR-004's admission gate closed (a lone failed
-    // member is now the |:empty refusal) — and the Val contract is
+    // member is now the empty refusal) — and the Val contract is
     // pinned here instead (ADR-002).
     const a0 = new Aontu()
     const ctx: any = a0.ctx({})

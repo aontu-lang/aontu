@@ -318,7 +318,7 @@ port: 1.5
 → fails with:
 
 ```
-[aontu/|:empty]: Cannot unify values at path $.port
+[aontu/empty]: Cannot unify values at path $.port
 
 Empty disjunction. The disjunction has no valid alternatives.
 ```

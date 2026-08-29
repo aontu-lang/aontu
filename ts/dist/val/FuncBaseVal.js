@@ -203,7 +203,7 @@ class FuncBaseVal extends FeatureVal_1.FeatureVal {
                     }
                 }
                 // console.log('FUNCBASE-PEG', this.id, pegdone, this.peg.map((p: any) => p?.canon))
-                if (pegdone && !this.deferResolve(ctx)) {
+                if (pegdone && !this.deferResolve(ctx, newpeg)) {
                     const resolved = this.resolve(ctx, newpeg);
                     // console.log('FUNC-RESOLVED', ctx.cc, resolved?.canon)
                     // The TOP peer is DROPPED as the unit it is — unless it
@@ -305,10 +305,12 @@ class FuncBaseVal extends FeatureVal_1.FeatureVal {
     }
     // A function may hold its resolution for a later pass even with its
     // arguments settled -- it then rides the ordinary args-not-done
-    // path, residuating as any unresolved call does. Bare id() is the
-    // one user: its answer depends on marks that only exist after the
-    // first pass (IdFuncVal.deferResolve).
-    deferResolve(_ctx) {
+    // path, residuating as any unresolved call does. Bare id() defers on
+    // marks that only exist after the first pass (IdFuncVal); super()
+    // defers on a recursion residual argument (SuperFuncVal), which is
+    // why the DRIVEN arguments are passed: this.peg still holds the
+    // undriven originals at the decision point.
+    deferResolve(_ctx, _args) {
         return false;
     }
 } /* node:coverage ignore next 6 */

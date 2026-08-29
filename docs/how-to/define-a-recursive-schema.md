@@ -228,8 +228,8 @@ $.spec.Step.then.approver: constraint [conflict]
   actual:   "EXTERNAL@other.example"
   data: chain-bad.json:5:17 ("EXTERNAL@other.example")
   schema: spec.aon:2:22 (re("^[a-z]+@acme[.]example$"))
-$.spec.Step.then.decision: |:empty [conflict]
-  [aontu/|:empty]: Cannot unify values at path $.spec.Step.then.decision
+$.spec.Step.then.decision: empty [conflict]
+  [aontu/empty]: Cannot unify values at path $.spec.Step.then.decision
   data: chain-bad.json:6:17 ("maybe")
   schema: spec.aon:3:13 (*"pending"|"pending"|"approved"|"rejected")
 $ echo $?

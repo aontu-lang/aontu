@@ -113,14 +113,19 @@ default (documented phase-1 limit). Repro: `pref-disables-constraint.aon`.
 Status: FIXED 2026-08-26 (ADR-004) — the constraint alternative is
 consulted on override: `port: 80` is refused (`|:empty`), `2048` is
 admitted, unset still generates 8080; the disjunct spelling now both
-defaults and validates (the conjunct form remains the phase-1 limit).
+defaults and validates. The conjunct form followed on 2026-08-29
+(ADR-011): `*x` is sugar for `*x | super(x)`, so the preferred value
+answers the meet first and `port: *8080` beside `port: min(1024)`
+defaults to 8080 while the bound rides the override space. The
+phase-1 limit is closed in both spellings.
 
 ### 3. A bare-kind conjunct swallows a rank≥2 default [major]
 `a: *1.5 & float` → `1.5` (documented), but `a: **1.5 & float` →
 `mapval_no_gen`, exit 1 — the ranked default silently drops out of the
 lattice value (`--canon` shows the bare kind). Constraint conjuncts
-kill defaults of every rank (that half is the documented phase-1
-limit); the rank≥2-vs-bare-kind loss is undocumented and contradicts
+kill defaults of every rank (that half was the documented phase-1
+limit, closed 2026-08-29 by ADR-011); the rank≥2-vs-bare-kind loss is
+undocumented and contradicts
 the pref section's own rule. Repro: `ranked-default-swallowed.aon`.
 Status: FIXED 2026-08-26 (the rank-uniform meet, ADR-004) — a rank≥2
 preference defends the innermost value's kind exactly as rank 1 does:

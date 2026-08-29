@@ -46,7 +46,7 @@ timeout: 1.5
 <!-- test: run -->
 ```sh
 $ aontu timeout.aon
-[aontu/|:empty]: Cannot unify values at path $.timeout
+[aontu/empty]: Cannot unify values at path $.timeout
 ...
  Cannot unify value: 1.5 with value: *30|integer
 ...
@@ -91,7 +91,7 @@ replicas: 40
 <!-- test: run -->
 ```sh
 $ aontu replicas.aon
-[aontu/|:empty]: Cannot unify values at path $.replicas
+[aontu/empty]: Cannot unify values at path $.replicas
 ...
  Cannot unify value: 40 with value: *2|integer&min(1)&max(24)
 ...
@@ -127,8 +127,14 @@ logLevel: *warn        # environment
 
 No priority table, no merge order: the three statements can arrive
 from three files in any order and `warn` still wins. Two defaults of
-the same rank that disagree are a conflict (`[aontu/scalar_value]`),
-so two teams cannot both claim the same rung silently.
+the same rank that disagree refuse as `[aontu/pref_rank_clash]`, whose
+hint names the fix, so two teams cannot both claim the same rung
+silently.
+
+Ranks also order the arms of one disjunction, and there the ladder
+survives elimination: `*1 | **2` generates `1`, and generates `2` once
+something rules `1` out. Adding a rung is therefore safe — it cannot
+take the rungs above it with it.
 
 The marker is specified in [Preference / default
 `*`](../reference-language.md#preference--default-). Two live

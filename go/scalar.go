@@ -326,7 +326,12 @@ func newScalarKind(k Kind) *ScalarKindVal {
 // `number`, not top. That ladder is kindParent, consulted directly by
 // the super() function; superior() has the separate PrefVal job above
 // and must keep answering top for every kind.
-func (k *ScalarKindVal) superior() Val { return top() }
+// superior answers top for a kind marker. Its one caller was the
+// preference gate, which asks superOf now (ADR-011 R4) and climbs the
+// kind lattice explicitly (`super(integer)` is `number`); the method
+// stays because the Val interface requires it.
+// (superOf answers for this type before the fallthrough.)
+func (k *ScalarKindVal) superior() Val { return top() } //coverage:ignore
 func (k *ScalarKindVal) Canon() string { return k.kind.String() }
 
 func (k *ScalarKindVal) Gen(ctx *Ctx) (any, error) {

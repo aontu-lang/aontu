@@ -4,7 +4,7 @@
 # concrete peer replaced the *2 default by KIND alone, was never tested
 # against the constrained branch, and the file evaluated with exit 0.
 # Now the override must be admitted by an alternative (or equal the
-# preferred value), so 40 is the empty disjunction: [aontu/|:empty],
+# preferred value), so 40 is the empty disjunction: [aontu/empty],
 # exit 1.  An in-range override (e.g. 12) is admitted by the
 # constrained branch, and an unset field still generates the default 2.
 replicas: *2 | (integer & min(1) & max(24))

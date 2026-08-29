@@ -81,7 +81,7 @@ run vbad 1 -- vet --at '$.spec.Step' "$DIR/schema.aon" \
   "$DIR/data/chain-bad.json"
 has vbad out 'verdict: invalid'
 has vbad out '$.spec.Step.then.approver: constraint [conflict]'
-has vbad out '$.spec.Step.then.decision: |:empty [conflict]'
+has vbad out '$.spec.Step.then.decision: empty [conflict]'
 ok "vet --at Step: refused at depth, findings located in the schema"
 
 # 7. Evaluation enforces the same truth at any depth of a full model:

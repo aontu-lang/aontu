@@ -1,0 +1,99 @@
+# DEFAULTS -- docs/design/DEFAULTS.0.md and ADR-011: the short form is
+# SUGAR and the long form is the STRUCTURE. `a: *x` means
+# `a: *x | super(x)`, and every place the two spellings disagreed is
+# resolved in favour of the long form.
+#
+# The meet distributes over that disjunction:
+#
+#     *x & peer   ==   (x & peer)  |  (super(x) & peer)
+#
+# THE FIRST ARM DECIDES. If the preferred value itself still satisfies
+# the peer, the default STANDS (narrowed); otherwise the second arm
+# answers, and that is the override; and if both are empty, so is the
+# disjunction the star stands for -- `empty`.
+#
+# Columns: name<TAB>mode<TAB>src<TAB>expect
+
+# --- R1: the first arm -- a peer the default itself admits leaves it
+# standing, narrowed to what survived
+defaults-stands-under-its-kind	canon	a:*1 & integer	{"a":*1}
+defaults-stands-under-a-constraint	canon	a:*8080 & min(1024)	{"a":*8080}
+defaults-kind-peg-narrows-to-the-value	canon	a:*integer & 7	{"a":*7}
+
+# --- R1: the second arm -- a peer the default cannot admit but its
+# type can is the override
+defaults-override-same-kind	gens	a:*1\na:2	{"a":2}
+defaults-override-bag-key	gens	a:*{p:1}\na:{p:2}	{"a":{"p":2}}
+defaults-override-list-element	gens	a:*[1]\na:[2]	{"a":[2]}
+
+# --- R1: both arms empty is the emptied disjunction, whatever the
+# shapes involved. These read `no_scalar_unify` and `not-scalar-type`
+# -- the codes of the gate's own inner meet, naming a meet the author
+# never wrote.
+defaults-refuse-other-leaf	errc	a:*1\na:1.5	empty
+defaults-refuse-other-shape	errc	a:*1\na:{x:2}	empty
+
+# --- R2: two defaults of equal rank that cannot agree refuse AS
+# defaults, in every spelling. Compatible ones still fold, and
+# identical ones collapse.
+defaults-rank-clash	errc	a:*1\na:*7	pref_rank_clash
+defaults-rank-clash-in-one-disjunct	errc	a:*1|*7	pref_rank_clash
+defaults-rank-clash-at-rank-two	errc	a:**1\na:**7	pref_rank_clash
+defaults-rank-same-value-collapses	canon	a:*1\na:*1	{"a":*1}
+defaults-rank-compatible-folds	canon	a:*1\na:*integer	{"a":*1}
+
+# --- R3: a container default is leafwise in what it ADMITS. The bag
+# meets the peer as the bag it is: a map that adds a key MERGES (the
+# preferred value itself admits it, so the `p` default survives), and
+# a value of another kind refuses. Both used to override outright,
+# because a bag had no gate at all.
+defaults-bag-merges-a-new-key	gens	a:*{p:1}\na:{q:2}	{"a":{"p":1,"q":2}}
+defaults-bag-refuses-another-kind	errc	a:*{p:1}\na:"s"	empty
+defaults-list-refuses-a-scalar	errc	a:*[1]\na:5	empty
+
+# --- R4: the gate is super(), so a kind peg and a constraint peg have
+# one at last. `super(integer)` is `number`: 7 passes, "s" does not.
+defaults-kind-peg-admits-its-instance	gens	a:*integer\na:7	{"a":7}
+defaults-kind-peg-refuses-another-kind	errc	a:*integer\na:"s"	empty
+defaults-constraint-peg-refuses-another-kind	errc	a:*min(3)\na:"s"	empty
+# A kind peg gates on the kind's PARENT, so a sibling leaf passes it:
+# `super(float)` is `number`, and 1 is a number. Not the widening
+# ADR-004 closed, which was about a peg that is a VALUE -- `*8080 &
+# 3.5` still refuses (number-tower.tsv, pref-idiom-refuses-other-leaf).
+defaults-kind-peg-admits-a-sibling-leaf	gens	a:*float\na:1	{"a":1}
+
+# --- R5: rank orders the SURVIVORS. Every arm is kept, generation
+# takes the lowest rank still standing, and eliminating that arm
+# promotes the next -- which used to lose the whole ladder, because
+# ranking ran once, before the trials, and discarded the rest.
+defaults-ladder-lowest-rank-generates	gens	a:*1 | **2	{"a":1}
+defaults-ladder-keeps-every-arm	canon	a:*1 | **2	{"a":*1|**2}
+defaults-ladder-promotes-when-lower-goes	gens	a:*1 | **2\na:neq(1)	{"a":2}
+defaults-ladder-order-independent	gens	a:**1 | *2	{"a":2}
+# Cross-statement layering is a CONJUNCT meet, not a disjunction, and
+# is untouched: fewer stars wins, more stars is the weaker layer.
+defaults-cross-statement-lower-rank-wins	gens	a:*1\na:**2	{"a":1}
+
+# --- R6: the desugaring is SEMANTIC. Canon keeps the written spelling
+# (and so does the aon1- hash), because a parse-time rewrite would
+# rehash every document carrying a default.
+defaults-canon-keeps-the-star	canon	a:*1	{"a":*1}
+defaults-canon-keeps-the-bag	canon	a:*{p:1}	{"a":*{"p":1}}
+defaults-canon-keeps-the-rank	canon	a:**{p:1}	{"a":**{"p":1}}
+
+# --- and the idiom the whole thing exists for: a defaulted
+# alternative beside its open type
+defaults-arm-idiom	gens	x:*{a:1}|{a:number}	{"x":{"a":1}}
+
+# --- the dedup that R5 needs: two preferences over ONE value are one
+# preference, whichever order they are written in, and the lower rank
+# is the one that stands
+defaults-two-ranks-one-value	canon	a:*1 | **1	{"a":*1}
+defaults-two-ranks-one-value-reversed	canon	a:**1 | *1	{"a":*1}
+
+# --- the narrowed override space is DURABLE: it survives the gate
+# being recomputed (a rank>=2 default is re-driven every pass) and it
+# survives a reference copy. Without either, a pinned default widened
+# back out and the pin was overridden.
+defaults-pin-holds-at-rank-three	errc	x:***false\nx:false\nx:true	empty
+defaults-pin-holds-through-a-reference	errc	T:{e:***false & false}\nf:$.T & {e:true}	empty

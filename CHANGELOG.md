@@ -5,6 +5,71 @@ package (`ts/`, npm `aontu`) and the Go module (`go/`,
 `github.com/aontu-lang/aontu/go`) are versioned independently; entries note
 which implementation each change affects.
 
+## Unreleased
+
+### The star is sugar; the disjunction is the structure
+
+Both implementations. `a: *x` and `a: *x | super(x)` were two
+mechanisms that agreed on the common case and disagreed in six places.
+[ADR-011](ADR.md#adr-011) makes the long form the structure and the
+short form sugar for it, and the meet now distributes over the
+disjunction the star stands for:
+
+    *x & peer   ==   (x & peer)  |  (super(x) & peer)
+
+The preferred value answers first, so a peer that merely narrows the
+default leaves it **standing**: `*8080 & min(1024)` is still `*8080`,
+where it used to drop the default and answer the bare constraint. Only
+when that arm is empty does the type answer, and that is the override.
+When both are empty the refusal is `empty` — one code for a rejected
+override, whatever the shapes, in place of `no_scalar_unify`,
+`scalar-type` and `not-scalar-type`, which named the gate's own inner
+meet rather than anything the author wrote.
+
+**The gate is `super()`**, so the kinds of default that never had one
+now do: `*integer` admits `7` and refuses `"s"`, `*min(3)` gates on
+`number`, and a map or list default is gated leafwise — `*{p:1}` meeting
+`{q:2}` **merges** and keeps the `p` default (it used to be replaced
+outright), while `*{p:1}` meeting `"s"` refuses (it used to take the
+string). The replace-anything reading stays spellable as `*{p:1} | top`.
+
+**Two defaults of the same rank that disagree** refuse as
+`pref_rank_clash`, whose hint names the fix, in every spelling — `*1`
+beside `*7`, and `*1|*7`.
+
+**Rank orders the surviving arms** instead of collapsing them at parse:
+`*1 | **2` generates `1`, and generates `2` once something rules `1`
+out. The ladder used to be discarded before the member trials ran, so
+eliminating its lowest rung lost the whole default.
+
+Canon and the `aon1-` hash keep the written spelling: the desugaring is
+semantic, never a parse-time rewrite.
+
+**Breaking.** `|:empty` and `|:empty-dist` are renamed `empty` and
+`empty-dist` — the registry's one sanctioned rename, recorded in
+ADR-011, because the `|:` prefix named a spelling a bare `*x` default
+never had. A default the peer satisfies now survives in canon (`*1 & 1`
+is `*1`; the generated value is unchanged). Eighteen pinned rows moved,
+listed in `docs/design/DEFAULTS.0.md`; `test/spec/defaults.tsv` adds 29.
+
+### `super()` answers the immediate parent type
+
+Both implementations. `super(x)` answered `top` for everything the
+lattice primitive could not name — maps, lists, preferences,
+disjunctions, constraints — which is sound and useless. It now answers
+the immediate parent type structurally: maps and lists lift child by
+child, preferences unwrap, disjunctions distribute, and a constraint
+answers the kind it constrains. `top` remains only where `top` is the
+immediate parent. A recursion residual's lift stays symbolic, finite in
+canon. See `docs/design/SUPER.0.md`.
+
+The TypeScript CLI's error frames stripped the working-directory prefix
+with a hardcoded `/`, so a Windows run named an absolute path where
+POSIX — and the Go CLI — named the file as typed.
+
+`go/aontu`, a binary committed once and never rebuilt, is removed from
+the repository.
+
 ## Go 0.1.11 — 2026-08-28 · TypeScript 0.53.0
 
 ### The gate agrees with the evaluator about size

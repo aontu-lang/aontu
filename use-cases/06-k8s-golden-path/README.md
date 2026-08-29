@@ -239,9 +239,16 @@ seals the generated shape" is true only of the set of names. The
 per-child fix triggers gap 1, so the model polices shapes with
 `vet --closed` after rendering instead.
 
-### 8. (major) defaults and bounds cannot coexist on a field
+### 8. (major, FIXED 2026-08-29) defaults and bounds could not coexist on a field
 
-`replicas: (*2 | integer) & min(1) & max(20)` — the conjunct swallows
+> **Closed by [ADR-011](../../ADR.md#adr-011).** `*x` is sugar for
+> `*x | super(x)`, so the preferred value answers the meet first: `2`
+> satisfies `min(1) & max(20)`, the default generates, and the bounds
+> ride the override space so an out-of-range override is still
+> refused. `probes/default-with-bounds.aon` pins the fix.
+
+The original finding, kept as the record:
+`replicas: (*2 | integer) & min(1) & max(20)` — the conjunct swallowed
 the default (`probes/default-with-bounds.aon`):
 
 ```
@@ -256,7 +263,7 @@ Moving the bounds into the branch — `*2 | (integer & min(1) & max(20))`
 > **2026-08-26: fixed by the preference admission gate (ADR-004) —
 > assertions updated to the new behaviour.** The branch spelling now
 > both defaults and enforces: `replicas: 40` is refused with
-> `[aontu/|:empty]`, exit 1 (`probes/bound-bypass.aon`), while an
+> `[aontu/empty]`, exit 1 (`probes/bound-bypass.aon`), while an
 > in-range override is admitted and the unset field generates `2`.
 > The conjunct spelling above remains the phase-1 limit, so
 > `guardrails.aon` still covers policies stated that way.

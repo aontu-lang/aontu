@@ -34,11 +34,11 @@ hide-list-elem-canon	canon	l:[1,hide(2),3]	{"l":[1,2,3]}
 copy-raw-func	gen	y:copy(open(Zed))	{"y":"Zed"}
 copy-stuck-expr-canon	canon	x:copy(2+{a:1})	{"x":2+{"a":1}}
 copy-stuck-expr-err	err	x:copy(2+{a:1})	Cannot resolve value
-ghost-spread-key-canon	canon	x:{&:{y:1,k:key()}} x:a:z:2 x:c:move($.x.a)	{"x":{&:{"k":key(),"y":1},"a":{"k":key(),"y":1,"z":2},"c":{"k":"c","y":1,"z":*2}}}
+ghost-spread-key-canon	canon	x:{&:{y:1,k:key()}} x:a:z:2 x:c:move($.x.a)	{"x":{&:{"k":key(),"y":1},"a":{"k":key(),"y":1,"z":2},"c":{"k":*"c","y":*1,"z":*2}}}
 ghost-spread-key	gen	x:{&:{y:1,k:key()}} x:a:z:2 x:c:move($.x.a)	{"x":{"c":{"k":"c","y":1,"z":2}}}
 ghost-direct-key-canon	canon	x:a:{k:key()} x:c:move($.x.a)	{"x":{"a":{"k":key()},"c":{"k":*"c"}}}
 ghost-conjunct-key-canon	canon	x:a:{q:key()&key()} x:c:move($.x.a)	{"x":{"a":{"q":key()},"c":{"q":*"c"}}}
-ghost-mixed-canon	canon	x:{&:{k:key(),u:upper(kk)}} x:a:z:2 x:c:move($.x.a)	{"x":{&:{"k":key(),"u":upper("kk")},"a":{"k":key(),"u":"KK","z":2},"c":{"k":"c","u":"KK","z":*2}}}
+ghost-mixed-canon	canon	x:{&:{k:key(),u:upper(kk)}} x:a:z:2 x:c:move($.x.a)	{"x":{&:{"k":key(),"u":upper("kk")},"a":{"k":key(),"u":"KK","z":2},"c":{"k":*"c","u":*"KK","z":*2}}}
 move-literal-map-canon	canon	n:move({k:key()})	{"n":{"k":*"n"}}
 move-literal-map	gen	n:move({k:key()})	{"n":{"k":"n"}}
 move-func-arg-canon	canon	n:move(upper(aa))	{"n":*"AA"}

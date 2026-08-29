@@ -1,10 +1,13 @@
-# Attempted repair: keep the default, add a must() backstop for the
-# closed set. Under vet this DOES refuse "superadmin" (the must-
-# carrying branch dies, the scalar branches die, |:empty). But the
-# conjunct kills the default: standalone evaluation now FAILS (the
-# documented G1 phase-1 limit -- a preference meeting a constraint in
-# a conjunct does not resolve to the default). So this spelling
-# trades away generation instead of enforcement.
+# FIXED 2026-08-29 by ADR-011: keeping the default AND a must()
+# backstop now does both.  Under vet this still refuses "superadmin"
+# (the must-carrying branch dies, the scalar branches die, empty), and
+# standalone evaluation generates "member" -- the preferred value
+# answers the meet first, and it satisfies the must().
+#
+# This exhibit used to pin the trade: the conjunct killed the default
+# and evaluation FAILED with [aontu/disjunct_no_gen], the documented
+# G1 phase-1 limit (a preference meeting a constraint in a conjunct
+# did not resolve to the default).
 invite: { role: (*member | member | admin | owner)
                 & must(member | admin | owner,
                        "role must be one of: member, admin, owner") }

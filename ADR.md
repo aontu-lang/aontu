@@ -976,3 +976,94 @@ Prose, this entry, and the retirement it scheduled — now landed: the
 RELATIONS.0.md P2, and P2's rows pin its absence. There is no
 mechanical gate for "no verb reads a plain key" — review carries it,
 as ADR-008's decision is carried.
+
+
+## ADR-011 — The star is sugar; the disjunction is the structure
+
+**Date:** 2026-08-29
+**Status:** Accepted
+
+### Context
+
+`a: *x` and `a: *x | super(x)` were two separately implemented
+mechanisms that happened to agree on the common case. A probe of the
+whole cross product — both ports, byte-identical — found that they
+disagreed in four places:
+
+| Case | `a: *1` | `a: *1 \| super(1)` |
+|---|---|---|
+| peer `1.5` | refuses `no_scalar_unify` | refuses `\|:empty` |
+| peer `*7` | refuses `scalar_value` | answers `*7` |
+| `%x: {p:1}`, peer `{q:2}` | `{q:2}` — default dropped | keeps both |
+| `%x: {p:1}`, peer `"s"` | `"s"` — default dropped | refuses |
+
+and two more the long form exposed by construction: `*integer` gated
+nothing, so a string overrode a kind default; and a rank ladder inside
+one disjunction (`*1 | **2`) discarded every arm but the lowest at
+parse time, so eliminating that arm lost the whole default instead of
+promoting the next.
+
+The gate had also been asking the wrong question. It tested whether
+the peer resolved to EXACTLY the preferred value's type, so any
+narrowing at all counted as an override: `*8080 & min(1024)` dropped
+the default and answered the bare constraint, where the long form's
+`(8080 & min(1024)) | (integer & min(1024))` plainly keeps it.
+
+### Decision
+
+**`*x` is sugar for `*x | super(x)`, and the long form is the
+structure. Where the two disagree, the long form wins.** The
+desugaring is SEMANTIC: the meet distributes over the disjunction the
+star stands for, and no spelling is rewritten.
+
+    *x & peer   ==   (x & peer)  |  (super(x) & peer)
+
+The first arm decides. A peer the preferred value itself admits leaves
+the default standing, narrowed to what survived; otherwise the second
+arm answers, and that is the override; and when both are empty, so is
+the disjunction — the refusal is `empty`, at every rank and for every
+shape.
+
+Five consequences, spelled out with their reasoning in
+[docs/design/DEFAULTS.0.md](docs/design/DEFAULTS.0.md): one refusal
+code (R1); equal-rank defaults that cannot agree refuse as
+`pref_rank_clash` rather than as a conflict between the values they
+hold (R2); a container default is leafwise in what it admits, so a map
+peer MERGES and another kind refuses (R3); the override gate is
+`super()`, retiring the ungated kind and constraint pegs (R4); and
+rank orders the SURVIVING arms rather than collapsing them at parse,
+so eliminating one promotes the next (R5).
+
+Canon and the `aon1-` hash keep the written spelling (R6). A
+parse-time rewrite of `*x` to `*x | super(x)`, or of `*{p:1}` to
+`{p: *1}`, would rehash every document that carries a default and — in
+the container case — stop canon round-tripping and strip the star from
+a defaulted alternative.
+
+**One frozen error code is renamed**, against the registry's own
+append-only rule: `|:empty` and `|:empty-dist` become `empty` and
+`empty-dist`. The `|:` prefix named a spelling the author may never
+have written — a bare `*x` default refuses with this code now — and a
+code that lies about its own origin is worse than a frozen name. The
+exception is recorded in `test/spec/errcodes.tsv` beside the rule it
+suspends: a rename needs an ADR, and nothing else does.
+
+### Consequences
+
+This COMPLETES ADR-004 rather than reversing it. ADR-004 said a
+default inside a disjunction must be admitted by that disjunction;
+this says a default IS a disjunction with its own type, so there is
+one rule where there were two. Every ADR-004 admission refusal stands,
+including the fail-open enum (`k:*'auto'|'literal'|'data'` refusing
+`'autoo'`) that motivated it.
+
+Eighteen pinned rows change, listed in the design note, each replaced
+by a row naming the rule that moved it. The visible costs are that a
+default the peer merely satisfies now SURVIVES in canon (`*1 & 1` is
+`*1`, where the star used to be consumed — the generated value is
+unchanged), and that a structural default no longer accepts a value of
+another kind. The replace-anything reading stays spellable as
+`*{p:1} | top`.
+
+`test/spec/defaults.tsv` (29 rows, both runners) pins the rules;
+`pref_rank_clash` joins the registry.

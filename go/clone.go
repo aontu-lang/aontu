@@ -193,7 +193,7 @@ func clonePathRec(v Val, path []string, deep bool) Val {
 	// the struct keep it for free; the ones that BUILD a fresh value
 	// (top, disjunct, conjunct) lost it, so a disjunction reached
 	// through a `$ref` -- the ordinary way a schema names an enum --
-	// arrived unsited, and the `|:empty` finding for data that matches
+	// arrived unsited, and the `empty` finding for data that matches
 	// no alternative pointed at row -1 while the canonical port pointed
 	// at the enum. That is the "junction values at -1:-1" half of the
 	// review's finding F, and it is one line here rather than one per
@@ -353,7 +353,12 @@ func clonePathKind(v Val, path []string, deep bool) Val {
 		if deep {
 			peg = cloneAt(n.peg, path, true)
 		}
-		out := &PrefVal{peg: peg, superpeg: n.superpeg, rank: n.rank}
+		// `narrowed` rides with it: it is the override space the meets
+		// so far have left, and resuper() reapplies it whenever the gate
+		// is recomputed. Dropping it widened a pinned default back out
+		// (ADR-011 R1).
+		out := &PrefVal{peg: peg, superpeg: n.superpeg,
+			narrowed: n.narrowed, rank: n.rank}
 		out.dc = n.dc
 		out.sp = n.sp
 		out.path = overlayPath(path, n.path)

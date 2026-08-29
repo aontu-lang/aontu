@@ -368,12 +368,12 @@ func TestPlusOpGen(t *testing.T) {
 	}
 }
 
-// An empty disjunct folds to nothing and reports |:empty.
+// An empty disjunct folds to nothing and reports empty.
 func TestEmptyDisjunctGen(t *testing.T) {
 	d := newDisjunct(nil)
 	_, err := d.Gen(nil)
 	ae, ok := err.(*AontuError)
-	if !ok || ae.Code != "|:empty" {
+	if !ok || ae.Code != "empty" {
 		t.Fatalf("empty disjunct: %v", err)
 	}
 }

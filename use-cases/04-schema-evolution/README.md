@@ -122,7 +122,7 @@ directory; output is verbatim (ANSI trimmed).
 > **2026-08-26: fixed by the preference admission gate (ADR-004) —
 > assertions updated to the new behaviour.** `tier: *"standard" |
 > "premium" | "enterprise"` is now a true enum-with-default: `"x"` is
-> refused with `[aontu/|:empty]` and the unset field generates
+> refused with `[aontu/empty]` and the unset field generates
 > `"standard"`. The conjunct form below remains the phase-1 limit,
 > and the `pref_not_instance` message now correctly says "any
 > *remaining* alternative" (it is an advisory, not a soundness

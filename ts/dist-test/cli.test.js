@@ -356,10 +356,12 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
     (0, node_test_1.test)('vet-site-off-peg-still-names-its-document', () => {
         const f = vetFiles('a: *1', 'a: {}');
         const r = vetCapture(() => (0, cli_1.runVet)([f.schema, f.data]));
-        // `integer`, not `number`: the yardstick a preference reports is its
-        // own kind. It read `number` while the override gate widened to the
-        // numeric family (removed 2026-08-25, status report §6).
-        Assert.match(r.out, /schema: .*schema\.aon:1:\d+ \(integer\)/);
+        // The DEFAULT the author wrote, sited at its star (ADR-011 R1). The
+        // finding used to name the gate the engine computed from it --
+        // `integer`, which appears nowhere in the schema text a reader
+        // opens. (It read `number` before that, while the gate widened to
+        // the numeric family; removed 2026-08-25, status report §6.)
+        Assert.match(r.out, /schema: .*schema\.aon:1:\d+ \(\*1\)/);
     });
     // The verb dispatches only as the FIRST argument, so a file argument
     // is never shadowed by a verb name.

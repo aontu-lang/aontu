@@ -35,7 +35,7 @@ template-func-canon	canon	a:{&:{l:lower(HELLO)},b:{x:1}}	{"a":{&:{"l":"hello"},"
 # while its generated output is stable and correct.
 spread-close-template-canon	canon	x:{&:close({k:key()})} x:a:{}	{"x":{&:close({"k":key()}),"a":{"k":"a"}}}
 spread-close-template-move-gens	gens	x:{&:close({k:key()})} x:a:{} x:c:move($.x.a)	{"x":{"c":{"k":"c"}}}
-spread-hidden-key-resolves-canon	canon	x:{&:{k:key(),w:0}} x:a:z:1 x:c:move($.x.a) x:d:{m:move($.x.c)}	{"x":{&:{"k":key(),"w":0},"a":{"k":key(),"w":0,"z":1},"c":{"k":"c","w":0,"z":*1},"d":{"k":"d","m":{"k":*"m","w":*0,"z":**1},"w":0}}}
+spread-hidden-key-resolves-canon	canon	x:{&:{k:key(),w:0}} x:a:z:1 x:c:move($.x.a) x:d:{m:move($.x.c)}	{"x":{&:{"k":key(),"w":0},"a":{"k":key(),"w":0,"z":1},"c":{"k":"c","w":*0,"z":*1},"d":{"k":"d","m":{"k":**"m","w":**0,"z":**1},"w":0}}}
 template-pref-copy-canon	canon	z:3 m:{&:{q:*copy($.z)},a:{}}	{"m":{&:{"q":*3},"a":{"q":*3}},"z":3}
 template-pref-copy	gen	z:3 m:{&:{q:*copy($.z)},a:{}}	{"m":{"a":{"q":3}},"z":3}
 # Consecutive bare spreads on SEPARATE LINES (issue #4): the second `&:`

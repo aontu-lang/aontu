@@ -33,7 +33,7 @@ production incident.
 | `messages.aon` | request/query/page shapes -- the vet anchors | `close()`, refs, `[ &: $.entities.User ]` |
 | `api.aon` | endpoint registry | `&:` spread as self-policing shape, `type()` marks, numeric status-code keys |
 | `contract.aon` | entry point | `@"file"` includes |
-| `user-page.aon` | root-anchored duplicate of `$.msg.UserPage` | workaround for gap 7 |
+| `user-page.aon` | root-anchored duplicate of `$.msg.UserPage` | was the workaround for gap 7, closed 2026-08-29 |
 | `evolution/tighten-page-size.aon` | proposed v1.4 change | constraint meet (`max(100) & max(50)`) |
 | `bad/new-endpoint-method.aon` | a `method: FETCH` endpoint | the registry spread refusing it |
 | `repair.py` | the mechanical half of the agent loop | consumes `vet --format json` |
@@ -66,7 +66,7 @@ by it.
   positional list unification would not give (checks 19, 21).
 - **The contract polices itself.** The `&:` spread over the registry
   refused `method: FETCH` on a teammate's new endpoint with
-  `[aontu/|:empty] ... "FETCH" ... "GET"|"POST"|"PATCH"|"DELETE"`
+  `[aontu/empty] ... "FETCH" ... "GET"|"POST"|"PATCH"|"DELETE"`
   (check 22) -- schema-for-the-schema with zero extra tooling.
 - **`breaking` catches real API breaks across an include chain.**
   Capping `page_size` at 50 under the same major:
@@ -242,14 +242,14 @@ The repair-quality ledger, from `--format json`:
 | finding | `expected`/`actual` | admissible alternatives | nearest-key note |
 |---|---|---|---|
 | `constraint` (bounds, `re`, `length`) | yes | n/a | n/a |
-| `\|:empty` (enum) | **no** | only inside `sites[role=schema].value` | no |
+| `\empty` (enum) | **no** | only inside `sites[role=schema].value` | no |
 | `no_scalar_unify` (kind) | **no** | site value only | n/a |
 | `closed` (surplus key) | **no** | **none** | **none** |
 
 The enum finding for `"sort": "namez"`:
 
 ```json
-{ "code": "|:empty",
+{ "code": "empty",
   "path": "$.msg.ListUsersQuery.sort",
   "sites": [
     { "role": "data",   "value": "\"namez\"", ... },
@@ -275,9 +275,16 @@ demonstrably has the machinery: a typo in `--at` itself answers
 headline agent story, key-typo-against-`close()` is *the* most common
 LLM emission defect; it gets the least helpful finding in the report.
 
-### Gap 7 (major): a `$.ref` inside a list spread fails under `vet --at`
+### Gap 7 (major, FIXED 2026-08-29): a `$.ref` inside a list spread failed under `vet --at`
 
-The DRY page schema cannot be vetted at its anchor:
+> **Closed by [ADR-011](../../ADR.md#adr-011).** `aontu vet --at
+> '$.msg.UserPage' contract.aon data/user-page-ok.json` answers
+> `verdict: valid`; the workarounds below are no longer needed, though
+> `user-page.aon` is kept as a second shape the checks still cover.
+> Pinned by check `vpageat`.
+
+The original finding, kept as the record. The DRY page schema could
+not be vetted at its anchor:
 
 ```
 # msg: { UserPage: close({ items: [ &: $.entities.User ], ... }) }
@@ -322,7 +329,7 @@ inline spread reports a doubled index, `$.tags.1.0`.)
 
 ### Gap 9 (minor): enum findings have no schema location -- FIXED 2026-08-27
 
-Every `|:empty` schema site was `-1:-1`: the alternatives were printed
+Every `empty` schema site was `-1:-1`: the alternatives were printed
 but the agent could not jump to where the enum is defined. The meet
 mints a fresh disjunction, which arrived unsited; a narrowed
 disjunction now carries the site of the one it came from, so the

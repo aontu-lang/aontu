@@ -1,7 +1,7 @@
 # FIXED 2026-08-26 (the preference admission gate, ADR-004).
 # expected: 80 refused -- it satisfies neither the default branch (8080)
 #           nor the constraint branch (min 1024)
-# actual (now matches): [aontu/|:empty] at $.port, exit 1 -- the
+# actual (now matches): [aontu/empty] at $.port, exit 1 -- the
 #         constraint alternative is consulted on override, so the
 #         disjunct spelling both defaults and validates; 2048 is
 #         admitted and unset generates 8080. `*8080 | (integer &
