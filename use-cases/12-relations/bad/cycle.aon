@@ -1,0 +1,12 @@
+# bad/cycle.aon --- a change makes load feed extract: the DAG closes
+# into a loop. feeds declares acyclic() (spec.aon), so GENERATION
+# refuses with a located relation_cycle at an edge on the loop, and
+# `aontu relations` reports the same finding.
+@"../model.aon"
+
+change: id(job_load) & {
+  feeds: [job_extract]
+}
+mirror: id(job_extract) & {
+  fedBy: [job_load]
+}

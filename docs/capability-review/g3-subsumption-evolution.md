@@ -166,9 +166,9 @@ The ordering exists operationally; the relation does not.
   a bit.
 - **Spread templates** live in `spread.cj` on `BagVal`; the
   `isPathDependent` flag (`ts/src/val/Val.ts`) already identifies
-  templates whose meaning depends on their location (`key()`,
-  `.$KEY`) — exactly the templates a subsumption comparison cannot
-  decide structurally.
+  templates whose meaning depends on their location (`key()`) —
+  exactly the templates a subsumption comparison cannot decide
+  structurally.
 - **No verdict vocabulary, no pairing.** The CLI evaluates one file
   ([G2](g2-validation-verb.md) adds the (schema, data) pairing); the
   spec suite's modes are canon/gen/err over a single source — no mode

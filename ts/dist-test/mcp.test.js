@@ -460,9 +460,8 @@ function hostileModule(dir) {
         // error answer for a document that does not stand up.
         Assert.deepEqual(payload((0, mcp_1.callTool)('relations', { source: 'a: 1' })), { verdict: 'pass', findings: [] });
         const cyc = payload((0, mcp_1.callTool)('relations', {
-            source: 'relations: {dependsOn: {acyclic: true}}\n' +
-                'a: id(a) & {dependsOn: [&: refer(), b]}\n' +
-                'b: id(b) & {dependsOn: [&: refer(), a]}',
+            source: 'a: id(a) & {dependsOn: rel() & acyclic() & [b]}\n' +
+                'b: id(b) & {dependsOn: rel() & acyclic() & [a]}',
         }));
         Assert.equal(cyc.verdict, 'fail');
         Assert.equal(cyc.findings[0].code, 'relation_cycle');

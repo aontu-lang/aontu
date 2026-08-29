@@ -111,8 +111,8 @@ function render(v: any, inh: HMarks): string {
   }
 
   // The IDENTITY is innermost, exactly as canon writes it (G4 phase
-  // 1). It is IN the hash — a node declared `id(svc/auth)` and the
-  // same node declared `id(svc/billing)` describe different systems,
+  // 1). It is IN the hash — a node declared `id(svc_auth)` and the
+  // same node declared `id(svc_billing)` describe different systems,
   // and a pin that could not tell them apart would be a pin on the
   // shape rather than on the meaning.
   const e = v.entity

@@ -97,9 +97,6 @@ func renderRelationsText(report aontu.RelationReport) string {
 		if "relation_cycle" == f.Code {
 			out = append(out, f.At+"  "+f.Relation+": cycle "+
 				strings.Join(f.Detail, " -> "))
-		} else if "relation_target_unmet" == f.Code {
-			out = append(out, f.At+"  "+f.Relation+": "+f.Detail[1]+
-				" is not what "+f.Relation+" targets ("+f.Detail[2]+")")
 		} else {
 			out = append(out, f.At+"  "+f.Relation+": "+f.Detail[1]+
 				" does not list "+f.Detail[0]+" under "+f.Detail[2])

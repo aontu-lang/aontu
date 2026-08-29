@@ -134,7 +134,15 @@ func isExpect(v Val) bool {
 func expectGenable(v Val) bool {
 	switch v.(type) {
 	case *ScalarVal, *MapVal, *ListVal, *ConjunctVal, *DisjunctVal,
-		*FuncVal, *NilVal, *PrefVal, *RefVal:
+		*FuncVal, *NilVal, *PrefVal, *RefVal,
+		// The refer/rel residuals and the graph atoms resolve by
+		// themselves once their peers do, exactly as an operator does:
+		// wrapping one froze it -- the atom's held stopped being
+		// driven and its pending refers never settled (found by the
+		// worked example the moment a schema arrived through a
+		// reference). Mirrors the isGenable flag these classes carry
+		// in ts/src/val.
+		*ReferVal, *RelVal, *GraphAtomVal, *RecurseVal:
 		return true
 	}
 	return false

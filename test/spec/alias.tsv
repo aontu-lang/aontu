@@ -58,7 +58,12 @@ alias-quoted-key-is-an-ordinary-key	gens	"%a": 1	{"%a":1}
 # runs through the TREE, so it exists in neither namespace's graph
 # alone. It is caught here only because an alias reference IS a path
 # reference and there is therefore only one graph.
-alias-cycle-direct	errc	%a: %a\nx: %a	path_cycle
+# RE-PINNED (RECURSION.0.md): a self-referential alias is the same
+# prefix reference (%a is $.%a by construction), so the unguarded
+# direct cycle moves stage with it -- refused at generation as
+# recursion_unexpanded. The pair and through-the-tree cycles are
+# chase-detected VALUE cycles and keep path_cycle.
+alias-cycle-direct	errc	%a: %a\nx: %a	recursion_unexpanded
 alias-cycle-pair	errc	%a: %b\n%b: %a\nx: %a	path_cycle
 alias-cycle-mixed-through-the-tree	errc	%a: $.x\nx: %a	path_cycle
 #

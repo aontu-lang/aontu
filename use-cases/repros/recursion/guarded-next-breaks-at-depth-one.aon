@@ -1,0 +1,23 @@
+# FIXED 2026-08-29 (RECURSION.0.md P1: the recursive residual --
+# $.Node inside Node means the fixpoint; the disjunct's recursive
+# alternative re-resolves per destination). Generates at any depth
+# now; kept as the regime-3 record.
+# 52 (regime 3): a disjunction-guarded recursive schema gets past the
+# cycle detector, works for the base case, and dies on the FIRST level
+# of real nesting -- with an error naming neither the recursion nor
+# the schema.
+#
+# run: node ../../../ts/bin/aontu.js guarded-next-breaks-at-depth-one.aon
+# run: aontu-go guarded-next-breaks-at-depth-one.aon
+#
+# expected: {"t":{"next":{"next":null,"v":2},"v":1}}
+# actual (both ports):
+#   [aontu/scalar_kind]: Cannot unify values at path $.t.next
+#
+# The recursive alternative ($.Node) does not re-resolve at the nested
+# position, so the disjunct is left holding only `null` against the
+# nested map. With `next: null` instead of a nested node, the document
+# evaluates -- the base case is fine, which is what makes the failure
+# look like the data's fault rather than the schema's.
+Node: hide({v: integer, next: null | $.Node})
+t: $.Node & {v: 1, next: {v: 2, next: null}}

@@ -56,6 +56,11 @@ class ListVal extends BagVal_1.BagVal {
     // NOTE: order of keys is not preserved!
     // not possible in any case - consider {a,b} unify {b,a}
     unify(peer, ctx) {
+        // A rel() peer drives: the relation constraint rewrites this list
+        // leaf by leaf (RELATIONS.0.md §3.2); see the twin arm in MapVal.
+        if (true === peer?.isRel) {
+            return peer.unify(this, ctx);
+        }
         const TOP = (0, top_1.top)();
         peer = peer ?? TOP;
         // A sizing residual (`length`, `unique`) sorts AFTER containers in a
@@ -66,6 +71,18 @@ class ListVal extends BagVal_1.BagVal {
         // hand it straight back.
         if (true === peer.isConstraint) {
             return peer.unify(this, ctx);
+        }
+        // A DISJUNCT ALTERNATIVE MATCHES ITS OWN LENGTH (BUGS.md §52
+        // regime 4, the X-C3 adjudication): in a trial, a literal list
+        // with no spread admits only a peer list of the same length -- a
+        // spread makes it variadic. Outside trials the ordinary
+        // elementwise merge stands (two statements of one list are one
+        // list), so `[] | [&: T]` stops admitting every list through the
+        // empty arm while `a: [] a: [1]` still merges.
+        if (true === ctx._trialMode && true === peer.isList
+            && null == this.spread.cj && null == peer.spread.cj
+            && this.peg.length !== peer.peg.length) {
+            return (0, err_1.makeNilErr)(ctx, 'list_length', this, peer);
         }
         const te = ctx.explain && (0, utility_1.explainOpen)(ctx, ctx.explain, 'List', this, peer);
         let done = true;

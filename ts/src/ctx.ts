@@ -123,6 +123,25 @@ class AontuContext {
   // directly on its Ctx pointer (go/unify.go, maxUniteDepth).
   _depth: { n: number }
 
+  // The relation declarations this evaluation accumulates (RELATIONS
+  // P2): predicate -> what its graph atoms said. One Map per
+  // evaluation, created here and inherited by reference through
+  // clone()'s prototype chain, exactly as _depth's box is -- a clone
+  // made before the first registration must still share the registry.
+  _reldecls: Map<string, { acyclic?: boolean, inverses: Set<string> }>
+
+  // The tree a recursive residual's target resolves against when the
+  // meet's own root does not contain it (RECURSION.0.md). Normally
+  // undefined: a residual expands by walking ctx.root, and the root
+  // holds the definition. An ANCHORED vet run meets a subtree LIFTED
+  // out of the settled schema, so `$.spec.Step` names nothing in the
+  // meet's root -- the residual held its peer forever and the data
+  // under it vetted VALID unchecked. Vet sets this to the settled
+  // schema root for anchored runs; RecurseVal.body falls back to it
+  // only when the root walk finds nothing. Inherited by clone()
+  // through the prototype chain.
+  _fixroot: any
+
   // The evaluation budgets (G5 trust profile, docs/trust.md): integer
   // counts of engine events, never wall-clock. Always present, defaults
   // from the shared spec-visible constants (test/spec/budget.tsv), so
@@ -185,6 +204,7 @@ class AontuContext {
     this._pathTrie = new Map()
     this._pathidxNext = { n: 1 }  // 0 reserved for the root path
     this._depth = { n: 0 }
+    this._reldecls = new Map()
     this._pathidx = 0
 
     this.manifest = []

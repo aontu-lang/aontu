@@ -245,12 +245,37 @@ func pendingMarkWrapper(v Val) bool {
 // destination — test/spec/spread-type.tsv, spread-type-key-ref).
 func (rv *RefVal) find(ctx *Ctx, snap bool) Val {
 	if rv.isPrefixPath() {
-		return makeNilErr(ctx, "path_cycle", rv, nil)
+		// THE DETECTOR'S ANSWER IS A RESIDUAL (RECURSION.0.md): a
+		// self-reference under a guarded shape is the fixpoint the
+		// author wrote, so the prefix hit mints the recursive
+		// residual instead of refusing -- except the degenerate
+		// all-empty spelling (path("")), which names nothing and
+		// keeps its path_cycle. Only all-string non-empty paths
+		// recurse; anything else keeps the conservative refusal.
+		degenerate := 0 == len(rv.path)
+		target := make([]string, 0, len(rv.peg))
+		for _, p := range rv.peg {
+			seg, ok := p.(string)
+			if !ok || "" == seg {
+				degenerate = true
+				break
+			}
+			target = append(target, seg)
+		}
+		if degenerate {
+			return makeNilErr(ctx, "path_cycle", rv, nil)
+		}
+		rec := newRecurse(target, 0)
+		rec.sp, rec.spu, rec.surl = rv.sp, rv.spu, rv.surl
+		// The source excerpt travels too, so reports frame the `$`
+		// exactly as TS's residual site does.
+		rec.stext = rv.stext
+		rec.path = cp(rv.path)
+		return rec
 	}
 
 	parts := make([]string, 0, len(rv.peg))
-	var modes []string
-	for i, p := range rv.peg {
+	for _, p := range rv.peg {
 		// An unspellable segment MISSES BEFORE ANY LOOKUP. The marker is
 		// NUL-prefixed because no spelling produces one, but a document
 		// can still hold a key spelled with an escaped NUL
@@ -262,58 +287,42 @@ func (rv *RefVal) find(ctx *Ctx, snap bool) Val {
 			return makeNilErr(ctx, "no_path", rv, nil)
 		}
 		if vv, ok := p.(*VarVal); ok {
-			switch name := varName(vv); name {
-			case "KEY":
-				if i != len(rv.peg)-1 {
-					return nil
+			// EVERY `$name` IN A PATH IS AN ORDINARY VARIABLE, resolved
+			// via the variable table (mirrors part.unify(top()) in ts
+			// RefVal.find); an unknown variable is an error (recorded by
+			// VarVal.Unify via makeNilErr). `$KEY`, `$SELF` and
+			// `$PARENT` used to be intercepted here by name; they are
+			// gone (ADR-009).
+			pv := vv.Unify(top(), ctx)
+			if pv.Nil() {
+				return pv
+			}
+			sv, ok := pv.(*ScalarVal)
+			if !ok {
+				// A non-scalar variable is not a usable path part
+				// (TS coerces to a string that never matches).
+				return makeNilErr(ctx, "no_path", rv, nil)
+			}
+			switch sv.kind {
+			case KindString:
+				parts = append(parts, sv.peg.(string))
+			case KindInteger:
+				parts = append(parts, strconv.FormatInt(sv.peg.(int64), 10))
+			case KindFloat:
+				parts = append(parts, formatNumber(sv.peg.(float64)))
+			case KindBigInteger:
+				// Plain digits, no `0d` marker — see RefVal.append.
+				parts = append(parts, bigIntDigits(sv.peg.(*big.Int)))
+			case KindBigDecimal:
+				parts = append(parts, sv.peg.(*Decimal).digits())
+			case KindBoolean:
+				if sv.peg.(bool) {
+					parts = append(parts, "true")
+				} else {
+					parts = append(parts, "false")
 				}
-				modes = append(modes, "KEY")
-			case "SELF":
-				if i != 0 {
-					return nil
-				}
-				modes = append(modes, "SELF")
-			case "PARENT":
-				if i != 0 {
-					return nil
-				}
-				modes = append(modes, "PARENT")
 			default:
-				// Generic variable part ($name.r): resolve via the
-				// variable table (mirrors the part.unify(top())
-				// resolution in ts RefVal.find); an unknown variable is
-				// an error (recorded by VarVal.Unify via makeNilErr).
-				pv := vv.Unify(top(), ctx)
-				if pv.Nil() {
-					return pv
-				}
-				sv, ok := pv.(*ScalarVal)
-				if !ok {
-					// A non-scalar variable is not a usable path part
-					// (TS coerces to a string that never matches).
-					return makeNilErr(ctx, "no_path", rv, nil)
-				}
-				switch sv.kind {
-				case KindString:
-					parts = append(parts, sv.peg.(string))
-				case KindInteger:
-					parts = append(parts, strconv.FormatInt(sv.peg.(int64), 10))
-				case KindFloat:
-					parts = append(parts, formatNumber(sv.peg.(float64)))
-				case KindBigInteger:
-					// Plain digits, no `0d` marker — see RefVal.append.
-					parts = append(parts, bigIntDigits(sv.peg.(*big.Int)))
-				case KindBigDecimal:
-					parts = append(parts, sv.peg.(*Decimal).digits())
-				case KindBoolean:
-					if sv.peg.(bool) {
-						parts = append(parts, "true")
-					} else {
-						parts = append(parts, "false")
-					}
-				default:
-					return makeNilErr(ctx, "no_path", rv, nil)
-				}
+				return makeNilErr(ctx, "no_path", rv, nil)
 			}
 			continue
 		}
@@ -324,23 +333,13 @@ func (rv *RefVal) find(ctx *Ctx, snap bool) Val {
 		parts = append(parts, s)
 	}
 
-	// $KEY resolves to the enclosing key (the path segment above this node).
-	if containsStr(modes, "KEY") {
-		key := ""
-		if len(rv.path) >= 2 {
-			key = rv.path[len(rv.path)-2]
-		}
-		return newString(key)
-	}
-
 	var refpath []string
 	if rv.absolute {
 		refpath = parts
 	} else {
+		// A relative reference reads from the SIBLING scope: drop this
+		// node's own key and append the written segments.
 		end := len(rv.path) - 1
-		if containsStr(modes, "SELF") {
-			end = 0
-		}
 		if end < 0 {
 			end = 0
 		}
@@ -351,6 +350,20 @@ func (rv *RefVal) find(ctx *Ctx, snap bool) Val {
 
 	var node Val = ctx.root
 	for _, part := range refpath {
+		// A PENDING MARK WRAPPER IS TRANSPARENT TO THE WALK: hide()
+		// and type() only mark, and their argument is the structure
+		// the path names. Without this, two sibling schemas in one
+		// hide() bag deadlock -- the wrapper waits for its argument,
+		// the argument's members wait for references that walk into
+		// the unresolved wrapper (BUGS.md §53's family; the recursive
+		// Policy/Step pair found it again). Mirrors the walk arm in
+		// ts/src/val/RefVal.ts find.
+		if fv, ok := node.(*FuncVal); ok && DONE != fv.dc &&
+			("hide" == fv.name || "type" == fv.name) && 0 < len(fv.peg) {
+			if inner, ok := fv.peg[0].(*MapVal); ok {
+				node = inner
+			}
+		}
 		switch n := node.(type) {
 		case *MapVal:
 			node = n.peg[part]
@@ -419,6 +432,33 @@ func (rv *RefVal) find(ctx *Ctx, snap bool) Val {
 	// guard in ts/src/val/RefVal.ts find.
 	if !snap && ctx.argsnap && node.Dc() != DONE {
 		return nil
+	}
+
+	// A REFERENCE TO A RECURSIVE DEFINITION IS THE FIXPOINT REFERENCE
+	// (RECURSION.0.md): resolving it to a clone unrolled the schema
+	// one level, and every reparse of a canon then unrolled one more
+	// -- canon never converged. The residual is the resolved form,
+	// exactly as at the prefix positions inside the definition.
+	if !snap {
+		target := make([]string, 0, len(rv.peg))
+		alls := true
+		for _, p := range rv.peg {
+			seg, ok := p.(string)
+			if !ok {
+				alls = false
+				break
+			}
+			target = append(target, seg)
+		}
+		if alls && containsRecurseOf(node, target, 0) {
+			rec := newRecurse(target, 0)
+			rec.sp, rec.spu, rec.surl = rv.sp, rv.spu, rv.surl
+			// The source excerpt travels too, so reports frame the `$`
+			// exactly as TS's residual site does.
+			rec.stext = rv.stext
+			rec.path = cp(rv.path)
+			return rec
+		}
 	}
 
 	// A ref carrying marks transfers them onto the found node in place
@@ -614,15 +654,6 @@ func varName(vv *VarVal) string {
 		}
 	}
 	return ""
-}
-
-func containsStr(ss []string, s string) bool {
-	for _, x := range ss {
-		if x == s {
-			return true
-		}
-	}
-	return false
 }
 
 // reduceDots collapses parent-navigation markers (".").

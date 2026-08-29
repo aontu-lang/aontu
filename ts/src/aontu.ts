@@ -23,7 +23,7 @@ import { patch } from './patch'
 import { diff } from './diff'
 import { agentsMd } from './agentsmd'
 import { graphOf } from './graph'
-import { relationCheck } from './relation'
+import { relationCheck, relationErrors } from './relation'
 
 
 // VERSION is the Aontu npm package version, and mirrors
@@ -241,7 +241,19 @@ class Aontu {
 
         if (undefined !== uval && 0 === uval.err.length) {
 
-          out = uval.isNil ? (ac.adderr(uval as any), undefined) : uval.gen(ac as any)
+          // The relation verdict (RELATIONS P2): declarations the
+          // graph atoms registered during unification are decided
+          // HERE, where no more information can arrive -- the sizing
+          // atoms' model. A violated declaration is a located
+          // evaluation error at the offending edge, and generation
+          // does not proceed past it.
+          if (!uval.isNil) {
+            relationErrors(ac as any, uval)
+          }
+
+          out = uval.isNil ? (ac.adderr(uval as any), undefined)
+            : 0 < ac.err.length ? undefined
+              : uval.gen(ac as any)
 
           if (0 < ac.err.length) {
             if (!ac.collect) {

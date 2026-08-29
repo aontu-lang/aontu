@@ -3,4 +3,4 @@ schema: {
   T: type(integer & min(1))
   Customer: type(close({ id: string, ledgerId: $.schema.T, name: string }))
 }
-customers: { &: $.schema.Customer & { id: .$KEY } }
+customers: { &: $.schema.Customer & { id: key() } }

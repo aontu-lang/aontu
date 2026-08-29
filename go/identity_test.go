@@ -19,13 +19,16 @@ import (
 )
 
 func TestIdNameOK(t *testing.T) {
-	for _, ok := range []string{"a", "svc/auth", "team-pay", "a_1", "0",
-		"A/b-c_1", "x/y/z"} {
+	for _, ok := range []string{"a", "svc_auth", "team-pay", "a_1",
+		"A_b-c1", "_x"} {
 		if !idNameOK(ok) {
 			t.Errorf("idNameOK(%q) = false, want true", ok)
 		}
 	}
-	for _, bad := range []string{"", "svc.auth", "a b", "a:b", "a$b", "é"} {
+	// D-1 (docs/design/RELATIONS.0.md): no slash, no leading digit or
+	// hyphen.
+	for _, bad := range []string{"", "svc.auth", "a b", "a:b", "a$b", "é",
+		"svc/auth", "A/b-c_1", "x/y/z", "0", "9x", "-x"} {
 		if idNameOK(bad) {
 			t.Errorf("idNameOK(%q) = true, want false", bad)
 		}
@@ -41,8 +44,8 @@ func TestIdNameArgKinds(t *testing.T) {
 	if _, ok := idName(newInteger(1)); ok {
 		t.Error("an integer is not a name")
 	}
-	if n, ok := idName(newString("svc/auth")); !ok || "svc/auth" != n {
-		t.Errorf("idName(scalar) = %q,%v; want svc/auth,true", n, ok)
+	if n, ok := idName(newString("svc_auth")); !ok || "svc_auth" != n {
+		t.Errorf("idName(scalar) = %q,%v; want svc_auth,true", n, ok)
 	}
 }
 
@@ -64,13 +67,13 @@ func TestMergeEntitiesRegistryIsSorted(t *testing.T) {
 	// entityNames is the deterministic view of a Go map (ADR-001):
 	// insertion order here is deliberately not sorted order.
 	ctx := &Ctx{entities: map[string]Val{}}
-	for _, n := range []string{"svc/z", "svc/a", "svc/m"} {
+	for _, n := range []string{"svc_z", "svc_a", "svc_m"} {
 		v := newMap()
 		v.setEntityName(n)
 		ctx.entities[n] = v
 	}
 	got := entityNames(ctx)
-	want := []string{"svc/a", "svc/m", "svc/z"}
+	want := []string{"svc_a", "svc_m", "svc_z"}
 	for i := range want {
 		if got[i] != want[i] {
 			t.Fatalf("entityNames = %v, want %v", got, want)

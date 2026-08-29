@@ -16,4 +16,4 @@ schema: {
   }))
 }
 customers: {}
-orders: { &: $.schema.Order & { id: .$KEY } }
+orders: { &: $.schema.Order & { id: key() } }

@@ -50,6 +50,11 @@ declare class AontuContext {
     _depth: {
         n: number;
     };
+    _reldecls: Map<string, {
+        acyclic?: boolean;
+        inverses: Set<string>;
+    }>;
+    _fixroot: any;
     budget: {
         passes: number;
         revisits: number;

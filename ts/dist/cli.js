@@ -1745,11 +1745,8 @@ function renderRelationsText(report) {
     }
     const lines = report.findings.map((f) => 'relation_cycle' === f.code
         ? `${f.at}  ${f.relation}: cycle ${f.detail.join(' -> ')}`
-        : 'relation_target_unmet' === f.code
-            ? `${f.at}  ${f.relation}: ${f.detail[1]} is not what ` +
-                `${f.relation} targets (${f.detail[2]})`
-            : `${f.at}  ${f.relation}: ${f.detail[1]} does not list ` +
-                `${f.detail[0]} under ${f.detail[2]}`);
+        : `${f.at}  ${f.relation}: ${f.detail[1]} does not list ` +
+            `${f.detail[0]} under ${f.detail[2]}`);
     return [head, ''].concat(lines).join('\n');
 }
 function renderRelationsJson(report) {

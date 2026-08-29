@@ -7,6 +7,7 @@ const unify_1 = require("../unify");
 const utility_1 = require("../utility");
 const err_1 = require("../err");
 const top_1 = require("./top");
+const RefVal_1 = require("./RefVal");
 const ConjunctVal_1 = require("./ConjunctVal");
 const NilVal_1 = require("./NilVal");
 const BagVal_1 = require("./BagVal");
@@ -44,6 +45,15 @@ function snapshotRefSpread(cj, ctx) {
         // so a type-wrapped ref behaves like a plain-map ref spread.
         if (tgt && tgt.isTypeFunc)
             tgt = tgt.peg?.[0];
+        // A pending type()/hide() CALL is not yet a value to snapshot
+        // (ADR-005, the same rule find's non-snap path defers on): cached
+        // here it resolves at every destination and STAMPS marks the
+        // clearing walk ran too early to clear -- a mutual recursive
+        // schema's members vanished from generation this way. No cache;
+        // retry once the wrapper has resolved at its own field.
+        if (tgt && (0, RefVal_1.pendingMarkWrapper)(tgt)) {
+            return undefined;
+        }
         // Only snapshot a found, path-dependent target. If the target is not
         // present yet (it may be introduced by a later conjunct/merge), do
         // NOT cache — retry on the next fixpoint pass.
@@ -156,6 +166,13 @@ class MapVal extends BagVal_1.BagVal {
         out.aliasKeys = [...this.aliasKeys];
         out.spread.cj = this.spread.cj;
         out.site = this.site;
+        // A rel() peer DRIVES whichever side the fold hands it on: the
+        // relation constraint rewrites this container leaf by leaf
+        // (RELATIONS.0.md §3.2), exactly as a sizing residual takes the
+        // driver's seat above.
+        if (true === peer?.isRel) {
+            return peer.unify(this, te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'REL') }) : ctx);
+        }
         if (peer instanceof MapVal) {
             if (!this.closed && peer.closed) {
                 out = peer.unify(this, te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'PMC') }) : ctx);

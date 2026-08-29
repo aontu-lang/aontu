@@ -27,21 +27,17 @@ spec: hide({
     tier: 1 | 2 | 3
     lifecycle: *production | production | experimental | deprecated
     description: string & length(min(10))
-    # Checked entity references: each element must name an entity that
-    # exists in this evaluation and is a service; the address string
-    # (the link, not the target) must look like svc/<name>.
-    #
-    # THE DOCUMENTED IDIOM, in BOTH directions (README, gap 8, fixed
-    # 2026-08-27). `refer($.std.Service)` used to die of
-    # [aontu/unify_cycle] on this model, and typing both ends of an
-    # inverse pair died the same way in two lines -- the flow unified
-    # `t` into the target, uniting the target drove the target's own
-    # subtree, and a pair that linked back at each other flowed into
-    # each other until the budget ended it. So this file shipped one
-    # thin literal type and one bare refer(). Both ends carry the real
-    # schema now.
-    dependsOn?: [&: refer($.std.Service) & string & re("^svc/")]
-    dependedOnBy?: [&: refer($.std.Service) & string & re("^svc/")]
+    # Checked entity references, THE RELATION IDIOM (RELATIONS.0.md
+    # P2): rel() sits on the FIELD, so the predicate is the key, the
+    # type flows into every target, the held re() constrains every
+    # address, and the graph atoms declare the properties the old
+    # root-level `relations:` block used to -- acyclic dependencies,
+    # and a written-out inverse. Data documents stay plain lists.
+    # (Gap 8's history -- refer($.std.Service) dying of unify_cycle,
+    # both ends typed dying twice -- is why the flow goes through the
+    # refer machinery per leaf; both ends carry the real schema.)
+    dependsOn?: rel($.std.Service) & re("^svc_") & acyclic() & inverse(dependedOnBy)
+    dependedOnBy?: rel($.std.Service) & re("^svc_")
   }
 
   # One workload: what a cluster actually runs. Names $.std.Service

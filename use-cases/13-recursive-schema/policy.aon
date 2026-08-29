@@ -1,0 +1,17 @@
+# policy.aon --- a three-level approval chain, plain data. The schema
+# applies AT EVERY DEPTH: each `then` is a Step, checked exactly as
+# the root is.
+payments_policy: $.spec.Policy & {
+  name: "payments-change"
+  chain: {
+    approver: "lead@acme.example"
+    decision: approved
+    then: {
+      approver: "cfo@acme.example"
+      decision: approved
+      then: {
+        approver: "audit@acme.example"
+      }
+    }
+  }
+}

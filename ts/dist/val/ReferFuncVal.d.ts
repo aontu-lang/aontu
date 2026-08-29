@@ -19,12 +19,36 @@ declare class ReferVal extends FeatureVal {
     addr?: Address;
     addrsrc?: string;
     held?: Val;
+    relkey?: string;
+    addrcode: string;
+    unresolvedcode: string;
     constructor(spec: ValSpec, ctx?: AontuContext);
     clone(ctx: AontuContext, spec?: ValSpec): Val;
     unify(peer: Val, ctx: AontuContext): Val;
     with(ctx: AontuContext, spec: any, site: Val): Val;
     settle(ctx: AontuContext, site: Val): Val;
     get canon(): string;
+}
+declare class RelVal extends FeatureVal {
+    isRel: boolean;
+    isGenable: boolean;
+    cjo: number;
+    tval: Val;
+    held?: Val;
+    constructor(spec: ValSpec, ctx?: AontuContext);
+    clone(ctx: AontuContext, spec?: ValSpec): Val;
+    fieldkey(): string | undefined;
+    leafRefer(ctx: AontuContext): ReferVal;
+    rewrite(ctx: AontuContext, container: any): Val;
+    unify(peer: Val, ctx: AontuContext): Val;
+    get canon(): string;
+}
+declare class RelFuncVal extends FuncBaseVal {
+    isRelFunc: boolean;
+    constructor(spec: ValSpec, ctx?: AontuContext);
+    make(_ctx: AontuContext, spec: ValSpec): Val;
+    funcname(): string;
+    resolve(ctx: AontuContext, args: Val[]): RelVal;
 }
 declare class ReferFuncVal extends FuncBaseVal {
     isReferFunc: boolean;
@@ -33,4 +57,4 @@ declare class ReferFuncVal extends FuncBaseVal {
     funcname(): string;
     resolve(ctx: AontuContext, args: Val[]): ReferVal;
 }
-export { ReferFuncVal, ReferVal, };
+export { ReferFuncVal, ReferVal, RelFuncVal, RelVal, };

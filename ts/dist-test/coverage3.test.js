@@ -78,12 +78,14 @@ const trim_1 = require("../dist/trim");
 const Val_2 = require("../dist/val/Val");
 const top_1 = require("../dist/val/top");
 const MapVal_1 = require("../dist/val/MapVal");
+const RecurseVal_1 = require("../dist/val/RecurseVal");
+const GraphAtomVal_1 = require("../dist/val/GraphAtomVal");
 const ListVal_1 = require("../dist/val/ListVal");
 const IntegerVal_1 = require("../dist/val/IntegerVal");
+const NilVal_1 = require("../dist/val/NilVal");
 const NumberVal_1 = require("../dist/val/NumberVal");
 const StringVal_1 = require("../dist/val/StringVal");
 const ScalarVal_1 = require("../dist/val/ScalarVal");
-const NilVal_1 = require("../dist/val/NilVal");
 const KeyFuncVal_1 = require("../dist/val/KeyFuncVal");
 const PlaceVal_1 = require("../dist/val/PlaceVal");
 const RefVal_1 = require("../dist/val/RefVal");
@@ -605,7 +607,10 @@ function capture(fn) {
         // [nil,"k2","b"] -- the op descriptor as a nil, its operands
         // trailing behind it -- and unify then produced that list as a
         // VALUE in Go while TypeScript raised no_path. Both now raise.
-        Assert.equal(lang.parse('k2.b K:1').canon, '[.k2.b]');
+        // The trailing pair is an ELEMENT (`K:1` is `{"K":1}`): pairs in
+        // list position are single-key map elements, per list.tsv's
+        // list-pair-element block.
+        Assert.equal(lang.parse('k2.b K:1').canon, '[.k2.b,{"K":1}]');
     });
 });
 (0, node_test_1.describe)('coverage3-lsp', () => {
@@ -670,7 +675,12 @@ function capture(fn) {
             Assert.ok(h, 'no hover for ' + src);
             return h.contents.value;
         };
-        Assert.match(label('a:$.a', 2), /\*error\*/);
+        // The unguarded self-reference is a RESIDUAL now (RECURSION.0.md):
+        // hover shows the symbolic fixpoint, not an error.
+        Assert.match(label('a:$.a', 2), /\*recurse\*/);
+        // A value that collapsed to a nil still hovers, as *error* -- the
+        // label the residual used to carry here.
+        Assert.match(label('a:$.nope', 2), /\*error\*/);
         // A REFERENCE that survives unification: a chain deeper than the
         // pass budget stalls unresolved without erroring. A cycle no longer
         // works here — with multi-error collection (G2 phase 6) the pass
@@ -1009,10 +1019,12 @@ function capture(fn) {
         // What spells a name, and what does not. `undefined` and a
         // non-Val reach idName only through a direct call: the func
         // dispatcher resolves every argument to a Val first.
-        for (const ok of ['a', 'svc/auth', 'team-pay', 'a_1', '0', 'A/b-c_1']) {
+        for (const ok of ['a', 'svc_auth', 'team-pay', 'a_1', 'A_b-c1', '_x']) {
             Assert.strictEqual((0, IdFuncVal_1.idName)(new StringVal_1.StringVal({ peg: ok }, ctx)), ok);
         }
-        for (const bad of ['', 'svc.auth', 'a b', 'a:b', 'a$b']) {
+        // D-1: no slash, no leading digit or hyphen (RELATIONS.0.md).
+        for (const bad of ['', 'svc.auth', 'a b', 'a:b', 'a$b',
+            'svc/auth', 'A/b-c_1', '0', '9x', '-x']) {
             Assert.strictEqual((0, IdFuncVal_1.idName)(new StringVal_1.StringVal({ peg: bad }, ctx)), undefined);
         }
         Assert.strictEqual((0, IdFuncVal_1.idName)(new IntegerVal_1.IntegerVal({ peg: 1 }, ctx)), undefined);
@@ -1037,6 +1049,154 @@ function capture(fn) {
         Assert.strictEqual(out.entity, 'x');
         Assert.notStrictEqual(out.id, 0);
         Assert.ok((0, Val_1.nextValId)() > 0);
+    });
+    (0, node_test_1.test)('rel-func-shape', () => {
+        // The clone hook and name of the rel() function itself: specs
+        // resolve rel() before any clone or unresolved canon needs them,
+        // so the hooks are pinned here the way id-func-shape pins id's.
+        const ctx = new aontu_1.Aontu().ctx({});
+        const fn = new ReferFuncVal_1.RelFuncVal({ peg: [] }, ctx);
+        Assert.strictEqual(fn.funcname(), 'rel');
+        Assert.strictEqual(fn.isRelFunc, true);
+        const made = fn.make(ctx, { peg: fn.peg });
+        Assert.strictEqual(made.isRelFunc, true);
+        // Resolving with no argument answers the settled residual with
+        // the open type.
+        const out = fn.resolve(ctx, []);
+        Assert.strictEqual(out.isRel, true);
+        Assert.strictEqual(out.tval.isTop, true);
+        Assert.strictEqual(out.canon, 'rel()');
+    });
+    (0, node_test_1.test)('constraint-hands-drive-to-rel-and-atom', () => {
+        // The ConstraintVal side of the hand-off: a constraint DRIVING
+        // with a rel or atom peer defers to the peer, so `rel(t) & re(x)`
+        // reads the same in either order. Inline documents route these
+        // pairs through unite's b-drives first; the INCLUDE flow re-drives
+        // a loaded schema's conjunct with the constraint on the left
+        // (use-cases/12-relations refused without the arm), which a direct
+        // call pins without a fixture file.
+        const ctx = new aontu_1.Aontu().ctx({ collect: true });
+        ctx.root = new MapVal_1.MapVal({ peg: {} }, ctx);
+        const con = new aontu_1.Aontu().unify('c: re("^j")').peg.c;
+        Assert.strictEqual(con.isConstraint, true);
+        const atom = new GraphAtomVal_1.GraphAtomVal({ akind: 'acyclic' }, ctx);
+        const viaAtom = con.unify(atom, ctx);
+        Assert.strictEqual(viaAtom.isGraphAtom, true);
+        Assert.strictEqual(viaAtom.held.isConstraint, true);
+        const rel = new aontu_1.Aontu().unify('r: rel()').peg.r;
+        Assert.strictEqual(rel.isRel, true);
+        const viaRel = con.unify(rel, ctx);
+        Assert.strictEqual(viaRel.isRel, true);
+    });
+    (0, node_test_1.test)('graph-atom-shape', () => {
+        // The atom arms no document reaches through unite's ladder: the
+        // fast paths skip a DONE value with no peer, so the self-drive's
+        // held-undefined and held-done returns, the clone hook, and the
+        // funcval make hooks are pinned directly, the way rel-func-shape
+        // pins rel's. The Go twin is TestGraphAtomShape in
+        // go/refer_test.go.
+        const ctx = new aontu_1.Aontu().ctx({ collect: true });
+        ctx.root = new MapVal_1.MapVal({ peg: {} }, ctx);
+        // Bare atom: DONE at birth, self-drive answers itself.
+        const bare = new GraphAtomVal_1.GraphAtomVal({ akind: 'acyclic' }, ctx);
+        Assert.strictEqual(bare.done, true);
+        Assert.strictEqual(bare.unify(null, ctx), bare);
+        // A held that is already done: the self-drive records DONE in
+        // place and answers the atom.
+        const held = new GraphAtomVal_1.GraphAtomVal({
+            akind: 'inverse', invname: 'q', held: new IntegerVal_1.IntegerVal({ peg: 1 }, ctx),
+        }, ctx);
+        held.dc = 0;
+        Assert.strictEqual(held.unify(null, ctx), held);
+        Assert.strictEqual(held.done, true);
+        // A held whose own drive collapses to a nil (a pending conjunct
+        // of two scalars): the self-drive answers the nil.
+        const broken = new GraphAtomVal_1.GraphAtomVal({
+            akind: 'acyclic', held: new ConjunctVal_1.ConjunctVal({
+                peg: [new IntegerVal_1.IntegerVal({ peg: 1 }, ctx), new IntegerVal_1.IntegerVal({ peg: 2 }, ctx)],
+            }, ctx),
+        }, ctx);
+        Assert.strictEqual(broken.done, false);
+        Assert.strictEqual(broken.unify(null, ctx).isNil, true);
+        // The clone hook carries the declaration and the held.
+        const c = held.clone(ctx);
+        Assert.strictEqual(c.akind, 'inverse');
+        Assert.strictEqual(c.invname, 'q');
+        Assert.strictEqual(c.held, held.held);
+        Assert.strictEqual(c.done, true);
+        // Dedup with one side unheld: the held side's value survives.
+        const dup = new GraphAtomVal_1.GraphAtomVal({ akind: 'inverse', invname: 'q' }, ctx);
+        const merged = held.unify(dup, ctx);
+        Assert.strictEqual(merged.isGraphAtom, true);
+        Assert.strictEqual(merged.held.peg, 1);
+        // Absorbing a first value: the atom carries it.
+        const carry = bare.unify(new IntegerVal_1.IntegerVal({ peg: 7 }, ctx), ctx);
+        Assert.strictEqual(carry.isGraphAtom, true);
+        Assert.strictEqual(carry.held.peg, 7);
+        // The funcval make/name hooks, as rel-func-shape pins rel's.
+        const afn = new GraphAtomVal_1.AcyclicFuncVal({ peg: [] }, ctx);
+        Assert.strictEqual(afn.funcname(), 'acyclic');
+        Assert.strictEqual(afn.make(ctx, { peg: [] }).isVal, true);
+        const ifn = new GraphAtomVal_1.InverseFuncVal({ peg: [] }, ctx);
+        Assert.strictEqual(ifn.funcname(), 'inverse');
+        Assert.strictEqual(ifn.make(ctx, { peg: [] }).isVal, true);
+    });
+    (0, node_test_1.test)('recurse-budget-backstop', () => {
+        // The T-1 backstop (RECURSION.0.md): the depth budget is shared
+        // with the unite nesting guard, so through DATA the nesting guard
+        // always trips first -- a chain deep enough to charge the
+        // residual is a tree too deep to drive. The arm is a backstop,
+        // pinned directly: a residual already charged to the budget
+        // refuses the next expansion as recursion_budget, naming the
+        // target. The Go twin is TestRecurseBudgetBackstop in
+        // go/refer_test.go.
+        const ctx = new aontu_1.Aontu().ctx({ collect: true });
+        ctx.root = new MapVal_1.MapVal({ peg: {} }, ctx);
+        const rec = new RecurseVal_1.RecurseVal({ target: ['n'], xc: 1000 }, ctx);
+        const out = rec.unify(new MapVal_1.MapVal({ peg: {} }, ctx), ctx);
+        Assert.strictEqual(out.isNil, true);
+        Assert.strictEqual(out.why, 'recursion_budget');
+        Assert.strictEqual(out.details.target, '$.n');
+    });
+    (0, node_test_1.test)('recurse-residual-shape', () => {
+        // The residual arms unite's ladder never dispatches to (the fast
+        // paths skip a DONE value with no peer) and the hold arms a
+        // document with an assembled definition never revisits, pinned
+        // directly, the way graph-atom-shape pins the atom's. The Go twin
+        // is TestRecurseResidualShape in go/refer_test.go.
+        const ctx = new aontu_1.Aontu().ctx({ collect: true });
+        ctx.root = new MapVal_1.MapVal({ peg: {} }, ctx);
+        const mk = (t) => new RecurseVal_1.RecurseVal({ target: t }, ctx);
+        // Self-drive: nothing to advance.
+        const r = mk(['n']);
+        Assert.strictEqual(r.unify(null, ctx), r);
+        // The same fixpoint twice is one fixpoint.
+        Assert.strictEqual(r.unify(mk(['n']), ctx), r);
+        // Mutual recursion meeting: both held, in a conjunct.
+        Assert.strictEqual(r.unify(mk(['m']), ctx).isConjunct, true);
+        // Concrete structure whose definition has not assembled (the
+        // root holds no `n`): the peer is held beside the residual.
+        Assert.strictEqual(r.unify(new MapVal_1.MapVal({ peg: {} }, ctx), ctx).isConjunct, true);
+        // Anything else -- here a graph atom -- waits beside the
+        // residual the same way.
+        const atom = new GraphAtomVal_1.GraphAtomVal({ akind: 'acyclic' }, ctx);
+        Assert.strictEqual(r.unify(atom, ctx).isConjunct, true);
+        // bumpRecurse: the guard arms (nothing, a non-val), the conjunct
+        // arm, and the spread tail.
+        (0, RecurseVal_1.bumpRecurse)(null, 3);
+        (0, RecurseVal_1.bumpRecurse)({ some: 'object' }, 3);
+        const cj = new ConjunctVal_1.ConjunctVal({ peg: [mk(['n'])] }, ctx);
+        (0, RecurseVal_1.bumpRecurse)(cj, 5);
+        Assert.strictEqual(cj.peg[0].xc, 5);
+        const spreadMap = new MapVal_1.MapVal({ peg: {} }, ctx);
+        spreadMap.spread.cj = mk(['n']);
+        (0, RecurseVal_1.bumpRecurse)(spreadMap, 4);
+        Assert.strictEqual(spreadMap.spread.cj.xc, 4);
+        // containsRecurseOf: the depth guard, and a raw reference of a
+        // DIFFERENT length is not the target.
+        Assert.strictEqual((0, RecurseVal_1.containsRecurseOf)(mk(['n']), ['n'], 9), false);
+        Assert.strictEqual((0, RecurseVal_1.containsRecurseOf)(mk(['n']), ['n'], 0), true);
+        Assert.strictEqual((0, RecurseVal_1.containsRecurseOf)(mk(['n', 'm']), ['n'], 0), false);
     });
     (0, node_test_1.test)('constant-id-in-every-template-container', () => {
         const ctx = new aontu_1.Aontu().ctx({});

@@ -22,6 +22,7 @@ import {
 import { AontuContext } from '../ctx'
 
 import { makeNilErr } from '../err'
+import { RecurseVal, containsRecurseOf } from './RecurseVal'
 import { unite } from '../unify'
 
 
@@ -279,14 +280,35 @@ class RefVal extends FeatureVal {
     // let descent = ''
 
     if (isprefixpath) {
-      // console.log('SELFPATH', selfpath, 'PEGPATH', pegpath)
-      out = makeNilErr(ctx, 'path_cycle', this)
+      // THE DETECTOR'S ANSWER IS A RESIDUAL (RECURSION.0.md): a
+      // self-reference under a guarded shape is the fixpoint the
+      // author wrote, so the prefix hit mints the recursive residual
+      // instead of refusing -- except the degenerate all-empty
+      // spelling (path("")), which names nothing and keeps its
+      // path_cycle. Only all-string paths recurse; anything else
+      // keeps the conservative refusal.
+      let degenerate = 0 === this.path.length
+      let target: string[] = []
+      for (let i = 0; i < this.peg.length && !degenerate; i++) {
+        if ('string' !== typeof this.peg[i] || '' === this.peg[i]) {
+          degenerate = true
+          break
+        }
+        target.push(this.peg[i] as string)
+      }
+      if (degenerate) {
+        out = makeNilErr(ctx, 'path_cycle', this)
+      }
+      else {
+        const rec: any = new RecurseVal({ target } as any, ctx)
+        rec.site = this.site
+        rec.path = [...this.path]
+        out = rec
+      }
     }
     else {
 
       let parts: string[] = []
-
-      let modes: string[] = []
 
       for (let pI = 0; pI < this.peg.length; pI++) {
         let part = this.peg[pI]
@@ -301,38 +323,13 @@ class RefVal extends FeatureVal {
           return makeNilErr(ctx, 'no_path', this)
         }
         if (part instanceof VarVal) {
-          let strval = (part as VarVal).peg
-          let name = strval ? '' + strval.peg : ''
-
-          if ('KEY' === name) {
-            if (pI === this.peg.length - 1) {
-              modes.push(name)
-            }
-            else {
-              // TODO: return a Nil explaining error
-              return
-            }
-          }
-
-          if ('SELF' === name) {
-            if (pI === 0) {
-              modes.push(name)
-            }
-            else {
-              // TODO: return a Nil explaining error
-              return
-            }
-          }
-          else if ('PARENT' === name) {
-            if (pI === 0) {
-              modes.push(name)
-            }
-            else {
-              // TODO: return a Nil explaining error
-              return
-            }
-          }
-          else if (0 === modes.length) {
+          // EVERY `$name` IN A PATH IS AN ORDINARY VARIABLE. `$KEY`,
+          // `$SELF` and `$PARENT` used to be intercepted here by name;
+          // they are gone (ADR-009). `key()` is the replacement for
+          // `$KEY` and answers where a value LANDS rather than where it
+          // was written, `$SELF.x` was only ever `$.x`, and `$PARENT.x`
+          // was only ever `.x`.
+          {
             part = (part as VarVal).unify(top(), ctx)
             if (part.isNil) {
               // TODO: var not found, so can't find path
@@ -367,44 +364,15 @@ class RefVal extends FeatureVal {
         refpath = parts
       }
       else {
-        // TODO: deprecate $KEY, etc
-        refpath = this.path.slice(
-          0,
-          (
-            modes.includes('SELF') ? 0 :
-              modes.includes('PARENT') ? -1 :
-                -1 // siblings
-          )
-        ).concat(parts)
+        // A relative reference reads from the SIBLING scope: drop this
+        // node's own key and append the written segments.
+        refpath = this.path.slice(0, -1).concat(parts)
       }
 
       let sep = '.'
       refpath = refpath
         .reduce(((a: string[], p: string) =>
           (p === sep ? a.length = a.length - 1 : a.push(p), a)), [])
-
-      if (modes.includes('KEY')) {
-        // STRINGIFY. A LIST index arrives here as a JS NUMBER (jsonic puts
-        // it in the path as one, and lang.ts copies the path wholesale),
-        // so `.$KEY` inside a list built a StringVal whose peg was the
-        // number 0 -- an ill-formed value, not a design choice: it canoned
-        // as a bare 0, generated a JSON number, satisfied `number` and
-        // failed `string`. Go stringifies, and key() already agreed with
-        // Go, so this port disagreed with itself.
-        //
-        // Coerced HERE, at the consumption site, rather than by
-        // normalising Val.path: the numeric segment originates in jsonic's
-        // own r.k.path and every other path consumer (find's descent,
-        // key(), the clone/spread machinery) already handles it.
-        let key = this.path[this.path.length - 2]
-        let sv = new StringVal({ peg: null == key ? '' : '' + key }, ctx)
-
-        // TODO: other props?
-        sv.dc = DONE
-        sv.path = this.path
-
-        return sv
-      }
 
       let node = ctx.root as Val
 
@@ -422,6 +390,21 @@ class RefVal extends FeatureVal {
           }
           else if (node.isList) {
             node = node.peg[part]
+          }
+          // A PENDING MARK WRAPPER IS TRANSPARENT TO THE WALK: hide()
+          // and type() only mark, and their argument is the structure
+          // the path names. Without this, two sibling schemas in one
+          // hide() bag deadlock -- the wrapper waits for its argument,
+          // the argument's members wait for references that walk into
+          // the unresolved wrapper (BUGS.md §53's family; the
+          // recursive Policy/Step pair found it again). The found node
+          // is cloned and mark-cleared exactly as any reference target
+          // is, and the wrapper still marks its own field.
+          else if (true === (node as any).isFunc
+            && ((node as any).isHideFunc || (node as any).isTypeFunc)
+            && (true === (node as any).peg?.[0]?.isMap
+              || true === (node as any).peg?.[0]?.isList)) {
+            node = (node as any).peg[0].peg[part]
           }
           else if (node.done) {
             nopath = true
@@ -493,6 +476,18 @@ class RefVal extends FeatureVal {
         else if (null != out && !snap && true === (ctx as any).argsnap &&
           !out.done) {
           out = undefined
+        }
+        // A REFERENCE TO A RECURSIVE DEFINITION IS THE FIXPOINT
+        // REFERENCE (RECURSION.0.md): resolving it to a clone
+        // unrolled the schema one level, and every reparse of a
+        // canon then unrolled one more -- canon never converged. The
+        // residual is the resolved form, exactly as at the prefix
+        // positions inside the definition.
+        else if (null != out && !snap && containsRecurseOf(out, this.peg as any)) {
+          const rec: any = new RecurseVal({ target: [...this.peg] } as any, ctx)
+          rec.site = this.site
+          rec.path = [...this.path]
+          out = rec
         }
         // Types and hidden values are cloned and made concrete
         else if (null != out) { //  && (out.mark.type || out.mark.hide)) {
@@ -719,5 +714,6 @@ class RefVal extends FeatureVal {
 
 
 export {
+  pendingMarkWrapper,
   RefVal,
 }

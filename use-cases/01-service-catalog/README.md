@@ -13,7 +13,7 @@ angles**:
 - `deploy.aon` — the deployment view: what each cluster *runs*
   (image, replicas, ports), organised by region and cluster.
 
-The two files never mention each other's tree paths. `id(svc/<name>)`
+The two files never mention each other's tree paths. `id(svc_<name>)`
 declares that they describe the same entities, and one evaluation of
 `system.aon` merges them field-by-field. This is the core enterprise
 problem: the org chart and the runtime both hold facts about one
@@ -45,7 +45,7 @@ Run it: `./check.sh` (from anywhere; set `AONTU=` to override the CLI).
 ## What worked
 
 - **Identity-based merging is real and bidirectional.** The catalog
-  slice of `svc/payments` (`aontu get
+  slice of `svc_payments` (`aontu get
   '$.catalog.domains.payments.services.payments' system.aon`) contains
   `image`, `replicas` and `ports` written only in `deploy.aon`, and
   the workload position contains `owner`, `tier`, `description`
@@ -56,20 +56,20 @@ Run it: `./check.sh` (from anywhere; set `AONTU=` to override the CLI).
   `[aontu/scalar_value]` — the anti-`owl:sameAs` design does what the
   reference says it does.
 - **`refer()` existence checking is a genuine ontology feature.** A
-  proposal whose `dependsOn` names `svc/searchx` (declared nowhere)
+  proposal whose `dependsOn` names `svc_searchx` (declared nowhere)
   fails the whole evaluation with `[aontu/refer_unresolved]`. Link
   constraints compose on the address string (`refer(...) & string &
-  re("^svc/")`), separate from target constraints.
+  re("^svc-")`), separate from target constraints.
 - **The relations verb earns its keep.** `aontu relations` verdicts are
   deterministic, position-addressed, and exit-code-clean. The cycle
   report names the loop
-  (`dependsOn: cycle svc/payments -> svc/ledger -> svc/payments`), the
+  (`dependsOn: cycle svc_payments -> svc_ledger -> svc_payments`), the
   inverse report names the exact missing entry
-  (`svc/directory does not list svc/email under dependedOnBy`), and
+  (`svc_directory does not list svc_email under dependedOnBy`), and
   since the review's finding J the declared `target` is checked too.
 - **`aontu reaches` answers the closure question** the edge-at-a-time
-  checks cannot: `reaches svc/gateway svc/ledger` returns the chain
-  `svc/gateway -> svc/payments -> svc/ledger`, which is the evidence an
+  checks cannot: `reaches svc_gateway svc_ledger` returns the chain
+  `svc_gateway -> svc_payments -> svc_ledger`, which is the evidence an
   operator asking about blast radius actually acts on. Because this
   model writes both `dependsOn` and its inverse, the whole edge set is
   symmetric and everything reaches everything — so a *directional*
@@ -93,7 +93,7 @@ Run it: `./check.sh` (from anywhere; set `AONTU=` to override the CLI).
   whole vocabulary and stamps ownership; `*` defaults filled in
   `replicas: 2`, `direction: "in"`, `lifecycle: "production"`
   everywhere they were not overridden.
-- **Canon keeps identity.** `--canon` renders `id("svc/payments")`
+- **Canon keeps identity.** `--canon` renders `id("svc_payments")`
   back, so the canon-hash distinguishes documents that disagree about
   identity.
 
@@ -143,7 +143,7 @@ $.spec.CatalogEntry.dependsOn.0: no_path [reference]
   schema: sys.aon:5:21 ($.std.Service)
 $.dependsOn.0.pay.0: refer_unresolved [reference]
   [aontu/refer_unresolved]: Cannot refer value at path $.dependsOn.0.pay.0
-  schema: sys.aon:5:21 (refer(nil)&"svc/auth"&"svc/auth")
+  schema: sys.aon:5:21 (refer(nil)&"svc_auth"&"svc_auth")
 ```
 
 Note `refer(nil)` — the target type reference collapsed — and the
@@ -184,7 +184,7 @@ not have is caught rather than quietly unified in. `bad/wrong-target.aon`
 is the executable form: a `hostedOn` link written with a bare `refer()`,
 whose relation declares `target: $.std.Service`, pointing at a `kind:
 host` entity. The document evaluates; `relations` reports
-`svc/bastion is not what hostedOn targets`. The rest of this finding —
+`svc_bastion is not what hostedOn targets`. The rest of this finding —
 no cardinality, no edge attributes, no source-side typing — still
 stands. The finding as written:
 
@@ -212,16 +212,16 @@ reference is explicit that generation "is not done here". In an
 edge must update. Two language limits make it worse:
 
 - **Membership queries are inexpressible**, so the model cannot derive
-  inverses itself. `filter($.services, {dependsOn: [svc/ledger]})`
+  inverses itself. `filter($.services, {dependsOn: [svc_ledger]})`
   matches by list *prefix*, not containment: with
-  `pay: {dependsOn: [svc/auth, svc/ledger]}` the filter answer is `{}`
-  even though `svc/ledger` is in the list.
+  `pay: {dependsOn: [svc_auth, svc_ledger]}` the filter answer is `{}`
+  even though `svc_ledger` is in the list.
 - **Edge lists are positional, so cross-file "append" is brittle.**
-  `[svc/pay] & [svc/pay, svc/web]` extends fine, but
-  `[svc/pay] & [svc/web, svc/pay]` is
+  `[svc_pay] & [svc_pay, svc_web]` extends fine, but
+  `[svc_pay] & [svc_web, svc_pay]` is
   `[aontu/scalar_value]: Cannot unify values at path $.a.0`.
   `proposals/onboard-webhooks.aon` must restate
-  `[svc/gateway, svc/payments, svc/webhooks]` verbatim and in order to
+  `[svc_gateway, svc_payments, svc_webhooks]` verbatim and in order to
   add one inverse entry; if the catalog reorders its list, the
   proposal breaks. Relation edges want to be *sets*; the language only
   has ordered lists.
@@ -324,8 +324,8 @@ Circular reference detected during unification.
 
 — refusing to unify a value *with itself*, once targets carry ports.
 And typing **both** directions of an inverse pair fails even in a
-minimal model (`a: dependsOn: [&: refer({kind: service}), svc/b]` +
-`b: dependedOnBy: [&: refer({kind: service}), svc/a]` is enough:
+minimal model (`a: dependsOn: [&: refer({kind: service}), svc_b]` +
+`b: dependedOnBy: [&: refer({kind: service}), svc_a]` is enough:
 `[aontu/unify_cycle]: Cannot unify values at path $.b`). On the full
 model the both-directions variant produced a diagnostic whose path
 oscillates without bound:
@@ -389,7 +389,7 @@ findings citing `schema: system.aon:47:21` when `system.aon` has 24
 lines (positions appear to be in a concatenated coordinate space);
 a snippet labelled `std/system:33:11` displaying the *user* file's
 text; the finding path `$.proposal.search.dependsOn.0.email` for an
-address that was `svc/searchx`. None block work; all erode trust in
+address that was `svc_searchx`. None block work; all erode trust in
 exactly the tool an agent is supposed to trust. Related warts: the
 default trust level warns
 (`aontu: warning: include resolved outside the entry root: ...`)
@@ -412,7 +412,7 @@ The scenario's headline questions, answered bluntly:
   Nothing answers "all entities that are Services" — filtering is by
   structural condition, not by declared schema.
 - **Transitive closure / reachability**: absent. "What breaks if
-  svc/directory goes down?" is unanswerable; `graphOf` exists inside
+  svc_directory goes down?" is unanswerable; `graphOf` exists inside
   the engine (entity index + edge set) but no verb exposes it, and
   the source marks impact analysis as future work (G7). `relations`
   computes reachability internally (it finds cycles) yet cannot be

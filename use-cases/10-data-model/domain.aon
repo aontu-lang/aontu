@@ -89,6 +89,6 @@ schema: {
 # every record an entity named by its key; across the @ include it
 # dies with [aontu/id_name] (README, gap 6). Records are therefore
 # id()'d explicitly, one by one, in seed.aon.
-customers: { &: $.schema.Customer & { id: .$KEY } }
-orders:    { &: $.schema.Order    & { id: .$KEY, customerId: refer() } }
-invoices:  { &: $.schema.Invoice  & { id: .$KEY, orderId: refer() } }
+customers: { &: $.schema.Customer & { id: key() } }
+orders:    { &: $.schema.Order    & { id: key(), customerId: refer() } }
+invoices:  { &: $.schema.Invoice  & { id: key(), orderId: refer() } }

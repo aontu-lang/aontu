@@ -249,6 +249,13 @@ func clonePathKind(v Val, path []string, deep bool) Val {
 		c := *n
 		c.path = cp(path)
 		return &c
+	case *RecurseVal:
+		// The recursive residual clones per position for the same
+		// reason: shared, an expansion at one instance carried the
+		// DEFINITION's path into every error it raised there.
+		c := *n
+		c.path = cp(path)
+		return &c
 	case *ConstraintVal:
 		// Residuals are immutable after construction (constraint.go), so
 		// bounds and exclusions are shared, like a ScalarKindVal's marker.

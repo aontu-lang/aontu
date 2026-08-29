@@ -1,0 +1,17 @@
+# bad/wrong-email-at-depth.aon --- the schema applies AT EVERY DEPTH:
+# an approver outside the company two levels down is refused exactly
+# as it would be at the root, with the finding located at the deep
+# instance field and the schema site naming the one re() in
+# schema.aon. There is no depth after which the checks stop.
+@"../schema.aon"
+payments_policy: $.spec.Policy & {
+  name: "payments-change"
+  chain: {
+    approver: "lead@acme.example"
+    decision: approved
+    then: {
+      approver: "EXTERNAL@other.example"
+      decision: approved
+    }
+  }
+}

@@ -7,7 +7,7 @@
 // from one entity to one address).
 //
 // G4's deliverable is that these exist and are DETERMINISTIC. What is
-// built on them — impact analysis ("what reaches svc/auth?"),
+// built on them — impact analysis ("what reaches svc_auth?"),
 // reachability, context-window-sized entity slices — is a traversal,
 // and its exposure as verbs and projections belongs to G7. Relation
 // properties (acyclicity, inverse consistency) are G4 phase 5's, and
@@ -34,7 +34,7 @@ export type Edge = {
   // of its nearest identified ancestor.
   from: string
   // The RELATION: the nearest map key on the way down from the entity,
-  // so a link inside a list (`dependsOn: [&: refer(), svc/auth]`) is an
+  // so a link inside a list (`dependsOn: [&: refer(), svc_auth]`) is an
   // edge under `dependsOn` rather than under `0`.
   key: string
   // The address, as the link spells it.
@@ -105,10 +105,23 @@ export function graphOf(root: Val): Graph {
     if (null != link) {
       edges.push({
         from: inside,
-        key: relationKey(below),
+        // A rel()-minted link carries its PREDICATE -- the key the
+        // rel() sat on, declared in the schema -- and that beats the
+        // path inference, which answered wrongly for map-valued
+        // relations (it named the inner label, not the relation).
+        // refer()-minted links keep the inference until P3 retires
+        // them.
+        key: (node.relkey as string) ?? relationKey(below),
         to: link,
         at: formatPath(path),
       })
+    }
+
+    // A graph atom is TRANSPARENT here (RELATIONS P2): it carries
+    // the field's value at the field's own position, and the graph is
+    // about the value.
+    if (true === node.isGraphAtom && undefined !== node.held) {
+      visit(node.held, path, inside, below, ancestors)
     }
 
     if ((true === node.isMap || true === node.isList) && null != node.peg) {

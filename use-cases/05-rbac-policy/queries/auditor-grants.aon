@@ -2,8 +2,8 @@
 # hand, in step with roles.aon -- the language has no operator to
 # derive this projection from the list.
 grants: {
-  "project/read": true
-  "member/read": true
-  "billing/read": true
-  "audit/read": true
+  "project_read": true
+  "member_read": true
+  "billing_read": true
+  "audit_read": true
 }

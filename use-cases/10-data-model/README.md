@@ -29,7 +29,7 @@ this README documents.
 - `domain.aon` — record types (`close()`d maps, optional keys `?`,
   `re()` for ISO codes, `neq()` to ban XXX/XTS, `length()` on names,
   `min`/`max` cents bounds), plus the record bags whose `&:` spreads
-  apply the types, force `id == key` via `.$KEY`, and attach `refer()`
+  apply the types, force `id == key` via `key()`, and attach `refer()`
   links (`order.customerId`, `invoice.orderId`).
 - `seed.aon` — includes the domain; an exact price book in `0d`
   bigdecimals with **pinned sums** (`(0d0.1 + 0d0.2) & 0d0.3` is a

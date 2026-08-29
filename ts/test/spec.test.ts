@@ -786,5 +786,13 @@ function makeVarsCtx(a0: Aontu): any {
   ctx.vars.bigi = new BigIntegerVal({ peg: 5n })
   ctx.vars.bigd = new BigDecimalVal({ peg: new Decimal(15n, 1) })
   ctx.vars.nul = new NullVal({ peg: null })
+  // A FORMERLY RESERVED NAME, BOUND LIKE ANY OTHER. `$PARENT` was
+  // intercepted by name in RefVal.find before the variable table was
+  // ever consulted (ADR-009); removing that interception did not merely
+  // stop the interception, it FREED THE NAME, and edge.tsv's
+  // edge-parent-name-resolves is the row that says so. `KEY` and `SELF`
+  // are deliberately left unbound so their rows can pin the other half:
+  // an unbound one is `unknown_var`, exactly like any other.
+  ctx.vars.PARENT = new StringVal({ peg: 'q' })
   return ctx
 }

@@ -1,0 +1,102 @@
+# RECURSIVE SCHEMAS (docs/design/RECURSION.0.md): where RefVal's
+# prefix test used to answer path_cycle, it answers a RECURSIVE
+# RESIDUAL -- `$.Node` inside `Node` (and `%t` inside `%t`) simply
+# means the fixpoint. The residual expands ONE LEVEL PER MEET WITH
+# CONCRETE STRUCTURE (per destination, ADR-005's clone discipline), is
+# SYMBOLIC in canon and the aon1- hash (the mu-form, finite and
+# round-tripping), and REFUSES at generation when a demanded position
+# never met data (recursion_unexpanded) -- so guardedness is EMERGENT:
+# `next?:` drops, `*null | $.Node` generates, a required recursive
+# field with no data refuses at the instance. Termination is
+# structural descent on finite data, with the depth budget as backstop
+# (recursion_budget). VALUE cycles (mutual `a:$.b b:$.a`, chains,
+# func-routed) are the chase detector's and still refuse path_cycle.
+#
+# Every expectation was obtained by the parity probe (AGENTS.md).
+#
+# --- The linked list (BUGS.md §52 regime 1, inverted) ----------------
+list-depth-0	gens	Node: hide({v: integer, next?: $.Node})\nt: $.Node & {v: 1}	{"t":{"v":1}}
+list-depth-1	gens	Node: hide({v: integer, next?: $.Node})\nt: $.Node & {v: 1, next: {v: 2}}	{"t":{"next":{"v":2},"v":1}}
+list-depth-2	gens	Node: hide({v: integer, next?: $.Node})\nt: $.Node & {v: 1, next: {v: 2, next: {v: 3}}}	{"t":{"next":{"next":{"v":3},"v":2},"v":1}}
+# Enforcement reaches every level -- regime 2's silent break and
+# regime 4's vacuity, both retired: the schema applies AT depth.
+enforced-at-depth	errc	Node: hide({v: integer, next?: $.Node})\nt: $.Node & {v: 1, next: {v: oops}}	no_scalar_unify
+enforced-at-depth-2	errc	Node: hide({v: integer, next?: $.Node})\nt: $.Node & {v: 1, next: {v: 2, next: {v: oops}}}	no_scalar_unify
+# The guarded default (regime 3, inverted): the preference terminates
+# the recursion where data stops.
+null-guard-generates	gens	Node: hide({v: integer, next: *null | $.Node})\nt: $.Node & {v: 1, next: {v: 2}}	{"t":{"next":{"next":null,"v":2},"v":1}}
+# A REQUIRED recursive field with no data refuses, per instance, at
+# the instance -- guardedness is emergent, not statically analysed.
+required-unexpanded	errc	Node: hide({v: integer, next: $.Node})\nt: $.Node & {v: 1}	recursion_unexpanded
+#
+# --- The tree, children as a map spread ------------------------------
+tree-map-spread	gens	Cat: hide({label: string, sub: {&: $.Cat}})\nmenu: $.Cat & {label: "root", sub: {file: {label: "File", sub: {open: {label: "Open", sub: {}}}}, edit: {label: "Edit", sub: {}}}}	{"menu":{"label":"root","sub":{"edit":{"label":"Edit","sub":{}},"file":{"label":"File","sub":{"open":{"label":"Open","sub":{}}}}}}}
+tree-refuses-at-depth	errc	Cat: hide({label: string, sub: {&: $.Cat}})\nmenu: $.Cat & {label: "root", sub: {file: {label: 7, sub: {}}}}	no_scalar_unify
+#
+# --- The list-of-children spelling (regime 4, inverted) --------------
+kids-empty	gens	Node: hide({v: integer, kids: [] | [&: $.Node]})\nt: $.Node & {v: 1, kids: []}	{"t":{"kids":[],"v":1}}
+kids-depth-1	gens	Node: hide({v: integer, kids: [] | [&: $.Node]})\nt: $.Node & {v: 1, kids: [{v: 2, kids: []}]}	{"t":{"kids":[{"kids":[],"v":2}],"v":1}}
+kids-enforced	errc	Node: hide({v: integer, kids: [] | [&: $.Node]})\nt: $.Node & {v: 1, kids: [{v: oops, kids: []}]}	|:empty
+# The X-C3 adjudication that made the spelling honest: in a disjunct
+# trial, a literal list alternative admits only a peer of its own
+# length -- a spread makes it variadic. Statement merges outside
+# trials are untouched.
+list-alternative-is-its-length	errc	y: ([a] | [b]) & [a, extra]	|:empty
+list-alternative-still-merges	gens	a: [] a: [1]	{"a":[1]}
+#
+# --- Mutual recursion ------------------------------------------------
+# After $.Company expands once inside Person, its $.Person is a prefix
+# reference at its landed position and residuates by the same rule.
+# (employer? partially generates by the pinned optional-partial rule.)
+mutual-pair	gens	Person: hide({name: string, employer?: $.Company})\nCompany: hide({title: string, staff: {&: $.Person}})\nacme: $.Company & {title: "Acme", staff: {sam: {name: "Sam"}}}	{"acme":{"staff":{"sam":{"employer":{"staff":{}},"name":"Sam"}},"title":"Acme"}}
+#
+# --- JSON itself, as a guarded alias ---------------------------------
+json-alias	gens	%json: null | boolean | number | string | [&: %json] | {&: %json}\npayload: %json\npayload: {user: {id: 1, tags: [admin, [nested, true]]}}	{"payload":{"user":{"id":1,"tags":["admin",["nested",true]]}}}
+#
+# --- Canon and the hash: symbolic, never expanded --------------------
+canon-symbolic	canon	Node: hide({v: integer, next?: $.Node})\nt: $.Node & {v: 1, next: {v: 2}}	{"Node":{"next"?:$.Node,"v":integer},"t":{"next"?:{"next"?:$.Node,"v":2},"v":1}}
+hash-stable-under-data	hash	Node: hide({v: integer, next?: $.Node})	aon1-5xioH6h8iheHHF6KqorbFfM9BG5oWYLpIO6KldjKOL4
+#
+# --- Subsume: recursive schemas are not yet comparable ----------------
+# The residual is an unresolved value to the subsumption walk, and the
+# existing compat refusal locates it -- a stated "undecided", never a
+# loop (the seen-pair memo is its own phase).
+subsume-undecided	subsume	Node: hide({v: integer, next?: $.Node})	Node: hide({v: integer, next?: $.Node})	{"findings":[{"actual":"$.Node","class":"compat","code":"sub_unresolved","expected":"$.Node","path":"$.Node.next","severity":"error","sites":[{"col":32,"file":"general","len":1,"role":"general","row":1,"src":"$","value":"$.Node"},{"col":32,"file":"specific","len":1,"role":"specific","row":1,"src":"$","value":"$.Node"}]}],"verdict":"undecided"}
+#
+# --- Two schemas, one bag ---------------------------------------------
+# A recursive Step and a Policy that uses it, side by side in one
+# hidden bag: the sibling reference walks THROUGH the pending hide()
+# wrapper (the same rule that fixed BUGS.md §53), so the bag settles
+# and the chain checks at every depth.
+policy-pair	gens	spec: hide({S: {v: integer, then?: $.spec.S}, P: {name: string, chain: $.spec.S}})\np: $.spec.P & {name: "x", chain: {v: 1, then: {v: 2}}}	{"p":{"chain":{"then":{"v":2},"v":1},"name":"x"}}
+policy-pair-enforced	errc	spec: hide({S: {v: integer, then?: $.spec.S}, P: {name: string, chain: $.spec.S}})\np: $.spec.P & {name: "x", chain: {v: 1, then: {v: oops}}}	no_scalar_unify
+
+# The expansion path is the INSTANCE's, wherever the residual came
+# from. A residual carried inside a copied definition body (chain:
+# $.spec.S inside P, copied to a slot shallower than the definition)
+# inherited the copy's rebase-overlay tail in the TypeScript port,
+# and the deep finding read $.p.chain.S.then.v there while Go said
+# $.p.chain.then.v. The expansion clone now rebases to the DRIVE
+# path unless the residual was lifted out of its defining tree (the
+# vet --at row below), where the stored schema-namespace path is the
+# one every anchored finding uses.
+expansion-path-through-copied-body	err	spec: hide({S: {v: integer, then?: $.spec.S}, P: {name: string, chain: $.spec.S}})\np: $.spec.P & {name: "x", chain: {v: 1, then: {v: oops}}}	Cannot unify values at path $.p.chain.then.v
+
+# vet --at over a recursive schema: the anchored meet lifts the
+# definition subtree out of the schema, so the residual's absolute
+# target ($.spec.Node) names nothing in the meet's root. The meet
+# context keeps the settled schema root for the residual's walk
+# (AontuContext._fixroot / Ctx.fixroot): depth-1 data is checked, and
+# the finding sits in the schema's own namespace, as every anchored
+# finding does. Before, the residual held its peer forever and bad
+# data at depth vetted VALID unchecked.
+vet-at-expands-recursion-at-depth	vet	spec: hide({ Node: { v: integer, next?: $.spec.Node } })	{"v":1,"next":{"v":"x"}}	{"findings":[{"class":"conflict","code":"no_scalar_unify","path":"$.spec.Node.next.v","severity":"error","sites":[{"col":20,"file":"data","len":3,"role":"data","row":1,"src":"\\"x\\"","value":"\\"x\\""},{"col":25,"file":"schema","len":7,"role":"schema","row":1,"src":"integer","value":"integer"}]}],"opts":{"at":"$.spec.Node"},"truncated":false,"verdict":"invalid"}
+vet-at-recursion-valid-at-depth	vet	spec: hide({ Node: { v: integer, next?: $.spec.Node } })	{"v":1,"next":{"v":2,"next":{"v":3}}}	{"findings":[],"opts":{"at":"$.spec.Node"},"truncated":false,"verdict":"valid"}
+
+# The canon of an INSTANCE reparses to itself: the unrolled-to-data
+# chain ends in a symbolic residual ($.spec.Step), and on reparse the
+# instance's trailing references answer the residual through the raw-
+# reference arm of containsRecurseOf, whatever order the bag resolves
+# in. Before that arm, this exact text -- an engine's own output --
+# unrolled one level per resolve until unify_cycle killed it.
+canon-of-instance-reparses	canon	{"payments_policy":{"chain":{"approver":"lead@acme.example","decision":"approved","then"?:{"approver":"cfo@acme.example","decision":"approved","then"?:{"approver":"audit@acme.example","decision":*"pending"|"pending"|"approved"|"rejected","then"?:$.spec.Step}}},"name":"payments-change"},"spec":{"Policy":{"chain":$.spec.Step,"name":string},"Step":{"approver":re("^[a-z]+@acme[.]example$"),"decision":*"pending"|"pending"|"approved"|"rejected","then"?:$.spec.Step}}}	{"payments_policy":{"chain":{"approver":"lead@acme.example","decision":"approved","then"?:{"approver":"cfo@acme.example","decision":"approved","then"?:{"approver":"audit@acme.example","decision":*"pending"|"pending"|"approved"|"rejected","then"?:$.spec.Step}}},"name":"payments-change"},"spec":{"Policy":{"chain":$.spec.Step,"name":string},"Step":{"approver":re("^[a-z]+@acme[.]example$"),"decision":*"pending"|"pending"|"approved"|"rejected","then"?:$.spec.Step}}}

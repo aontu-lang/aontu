@@ -1,0 +1,17 @@
+{
+  "payments_policy": {
+    "chain": {
+      "approver": "lead@acme.example",
+      "decision": "approved",
+      "then": {
+        "approver": "cfo@acme.example",
+        "decision": "approved",
+        "then": {
+          "approver": "audit@acme.example",
+          "decision": "pending"
+        }
+      }
+    },
+    "name": "payments-change"
+  }
+}

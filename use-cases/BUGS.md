@@ -1374,8 +1374,8 @@ do not see the same graph:
 | Go | 8 | 6 | 2 |
 
 The consequence is the one that matters: `aontu relations
-bad/cycle.aon` reports `cycle svc/payments -> svc/ledger ->
-svc/payments` in TypeScript and **reports no cycle at all** in Go. It
+bad/cycle.aon` reports `cycle svc_payments -> svc_ledger ->
+svc_payments` in TypeScript and **reports no cycle at all** in Go. It
 also reports inverse-missing findings for inverses it simply cannot
 see. A verdict of `pass` from the port that cannot see the edges is
 worse than no verdict.
@@ -1596,6 +1596,193 @@ TypeError nested". This entry supersedes it: the top-level `{}` was one
 symptom of the text reading, and the divergence covers every extension,
 not only `.json`.
 
+## key() — the enclosing key at a generated or referenced position
+
+### 50. A spread template's `key()`, read through a reference four levels down, refuses in TypeScript and answers in Go [major]
+Found by removing `.$KEY` (ADR-009): the only test covering this shape
+used that spelling, which took the RefVal path and never reached the
+divergence. Translating it to `key()` surfaced this immediately.
+
+```
+a: b: c: d: e: $.a.b.f
+a: b: f: &: {n: key()}
+a: b: f: {x: {}}
+```
+
+```
+$ aontu-go repro.aon
+{"a":{"b":{"c":{"d":{"e":{"x":{"n":"x"}}}},"f":{"x":{"n":"x"}}}}}
+
+$ aontu repro.aon
+[aontu/scalar_value]: Cannot unify values at path $.a.b.f.x.n.n
+ Cannot unify value: "n" with value: "x"
+```
+
+**The path in the TypeScript refusal is the diagnosis.** `$.a.b.f.x.n.n`
+has `n` twice: the spread template is being applied a second time
+*inside* the field it already resolved. `n: key()` answers `"x"` at
+`$.a.b.f.x.n`; the template then meets that string as though it were a
+map, and the inner `n: key()` answers `"n"` — hence `"n"` against `"x"`.
+Five levels gives `$.a.b.f.x.n.e.n`, the referring path's own tail
+spliced in, which says the re-application is being driven by the
+REFERENCE rather than by the spread.
+
+**It is a depth threshold, not the shape.** The same document with the
+destination three levels down agrees in both ports:
+
+| destination | outcome |
+|---|---|
+| `a: b: e: $.a.b.f` | agree |
+| `a: b: c: e: $.a.b.f` | agree |
+| `a: b: c: d: e: $.a.b.f` | **Go answers, TypeScript refuses** |
+
+A threshold at four is a fixpoint-pass artefact, not a rule anyone
+wrote, which is the argument for calling it a defect rather than a
+divergence to be documented.
+
+Repro:
+[`repros/key-func/spread-key-through-deep-ref.aon`](repros/key-func/spread-key-through-deep-ref.aon).
+No shared spec row: a row would have to encode one port's answer, and
+which port is right is exactly what is unsettled. `ts/test/val-ref.test.ts`
+asserts the three-level form and carries a comment pointing here.
+
+### 51. `key()` is late-bound and `.$KEY` was early-bound — a translation is not always value-preserving [by design, recorded]
+Not a defect. Recorded because ADR-009 asks every `.$KEY` in an existing
+document to be rewritten as `key()`, and in three shapes that rewrite
+CHANGES THE VALUE — always from the wrong answer to the right one, but
+a change:
+
+```
+a: { n: <the enclosing key>, x: 1 }
+b: { c: $.a }
+```
+
+`.$KEY` gave `b.c.n == "a"` — the key where the reference was *written*.
+`key()` gives `b.c.n == "c"` — the key where the copy *landed*. The same
+split appears under `move()` (`.$KEY` names the source, `key()` the
+destination) and inside a `type()` block referenced from elsewhere
+(`.$KEY` names the definition's key, `key()` the using site's).
+
+In a literal position nothing travels and the two agree, which is why
+every ordinary case translates untouched — 331 use-case checks and the
+whole shared suite passed the rewrite unchanged. These three are where
+the difference lives, and `key()`'s answer is the one G8 phase 1
+specified. Recorded so that a model whose numbers move after the rewrite
+has somewhere to look.
+
+## recursion — schema self-reference
+
+### 52. A recursive schema is refused, broken, or silently vacuous, depending on the spelling [FIXED 2026-08-29]
+Probed in both ports (which agree byte-for-byte throughout) on
+2026-08-28, prompted by the question "is it possible to define
+recursive schemas?" The answer is no, and the three failure regimes
+are worth recording because two of them are silent.
+
+| spelling | outcome |
+|---|---|
+| `Node: {v: integer, next?: $.Node}` | `path_cycle` — also for a map-spread body and inside `type()` |
+| `A: {b?: $.B}` with `B: {a?: $.A}` | `path_cycle` at the second hop |
+| `Node: hide({v: integer, next: null \| $.Node})` | base case works; **one level of real nesting dies as `scalar_kind`** at the parent — the recursive alternative does not re-resolve at the nested position, so the disjunct is left holding only `null` against a map, and the error names neither the recursion nor the schema |
+| `Node: hide({v: integer, kids: [] \| [&: $.Node]})` | **generates at any depth and checks nothing**: `v: oops` and a missing `v` both pass at every level. The disjunct admits the list branch wholesale and the spread template inside it is never applied — the vet-shaped worst case, a tree that looks validated and is not |
+
+The first regime is the cycle detector doing its job too early:
+`RefVal`'s prefix test fires on `$.Node` *written inside* `Node`,
+before any question of whether the recursion is guarded by a base case
+(`?`, a `null |` alternative, an empty-list alternative). Guardedness
+is not considered anywhere: the language currently has no way to say
+"expand this reference lazily, at data that is finite".
+
+The fourth regime is the one with teeth for agents: it is the
+well-formed wrong config shape. It is consistent with the pinned
+template-through-disjunct behaviour (`edge.tsv:edge-spread-disjunct-key`
+— a spread whose template is a disjunct does not apply the map branch),
+but here the non-application is reached FROM a schema an author would
+write in good faith, and nothing says so.
+
+**FIXED 2026-08-29**, by the landing of
+[`docs/design/RECURSION.0.md`](../docs/design/RECURSION.0.md) P0+P1 in
+both ports — per regime:
+
+- **Regimes 1–2 (`path_cycle` on the self- and mutual reference):**
+  the prefix detector's response is now a RECURSIVE RESIDUAL — the
+  reference the author wrote simply means the fixpoint. It expands
+  one level per meet with concrete data, stays symbolic in canon and
+  the `aon1-` hash, and refuses at generation only where a REQUIRED
+  recursive position never met data (`recursion_unexpanded`; the
+  depth budget answers `recursion_budget`). The degenerate all-empty
+  self-reference (`a: $.a`) keeps `path_cycle`'s honesty as an
+  unexpandable residual. Rows: `test/spec/recursion.tsv` throughout
+  (`list-depth-*`, `mutual-pair`, `canon-symbolic`,
+  `hash-stable-under-data`, `required-unexpanded`).
+- **Regime 3 (nullable alternative dies at depth as `scalar_kind`):**
+  the recursive alternative is a residual inside the disjunct and
+  re-resolves per destination, so `*null | $.Node` now guards
+  correctly at every level (`null-guard-generates`,
+  `enforced-at-depth`).
+- **Regime 4 (the silently vacuous `[] | [&: $.Node]`):** two rules.
+  `same()`/`valSame` compare SPREADS, so the disjunct no longer
+  deduplicates `[]` with `[&: $.Node]` at the definition; and the
+  X-C3 adjudication (`list_length` in a member trial: a literal list
+  alternative without a spread admits only a peer of its own length)
+  makes the disjunct select by shape instead of first-match. The
+  spread template applies at every depth; `v: oops` at depth is
+  refused where it sits (`kids-enforced`, `enforced-at-depth`,
+  `list-alternative-is-its-length`).
+
+The reference now documents the spelling
+(`docs/reference-language.md`, recursive schemas) and
+use-cases/13-recursive-schema exercises the whole surface end to end,
+`vet --at` over plain JSON included.
+
+Repros (kept as history — the first now generates at depth, the
+second now refuses `v: oops`, as `|:empty` at the list: the refusal
+the disjunct can state):
+[`repros/recursion/guarded-next-breaks-at-depth-one.aon`](repros/recursion/guarded-next-breaks-at-depth-one.aon)
+and
+[`repros/recursion/spread-template-never-applies.aon`](repros/recursion/spread-template-never-applies.aon).
+
+## relations — rel(t) at its boundaries
+
+### 53. A rel(t) whose t references a sibling of its own schema bag never resolves [FIXED 2026-08-29]
+
+`rel($.spec.JobShape)` written inside `$.spec.Job` deadlocks: the
+func's argument is a reference back into the bag being resolved, the
+reference defers while its ancestor is open (the prefix rule's
+conservatism -- whole-bag granularity, though `JobShape` itself is
+done), the func waits for the argument, the bag waits for the func.
+Every spread destination then holds the unresolved `$.spec.Job & {…}`
+conjunct forever and generation refuses with `mapval_no_gen`. Both
+ports agree.
+
+```aon
+spec: hide({
+  Job: {kind: job, feeds?: rel($.spec.JobShape)}
+  JobShape: {kind: job}
+})
+p: jobs: {&: $.spec.Job, a: id(job_a) & {feeds: [job_b]}, b: id(job_b) & {}}
+```
+
+The same target spelled the old way -- `feeds?: [&:
+refer($.spec.JobShape)]` -- WORKS, because the refer sits in the
+list-spread template, whose snapshot is taken lazily at each
+destination, outside the bag. And a `t` that references a DIFFERENT
+bag (`rel($.shape.JobShape)`, `rel($.std.Service)`) works from
+anywhere: the deadlock needs the argument to point into the func's own
+enclosing bag.
+
+One step from the recorded self-typed boundary (`rel($.spec.Job)`
+inside `Job`, RELATIONS.0.md P1 landing notes), and the same family
+RECURSION.0.md exists for.
+
+**FIXED 2026-08-29**, by the recursion landing's reference-walk rule:
+a pending hide()/type() wrapper is TRANSPARENT to the walk -- the
+wrapper only marks, and its argument is the structure the path names
+-- so the sibling reference resolves instead of deadlocking against
+the unresolved bag (`rel-sibling-shape` in test/spec/rel.tsv;
+use-cases/12-relations spells the natural form). The self-typed
+`rel($.spec.Job)` inside `Job` remains with the recursion note's
+rel-side wiring.
+
 ## Elsewhere in this review
 
 Defects verified earlier in the effort and recorded in
@@ -1608,6 +1795,9 @@ map, **FIXED 2026-08-27 by ADR-007** -- see §13); canon not
 round-tripping constraint residuals
 (`a: min(true)` → `constraint()`); the `$KEY`-in-default and
 `$KEY`-with-referenced-shape resolution bugs that podmind's models
-carry workarounds for; `why`'s tutorial mismatch; and the ADR-002
+carry workarounds for (**RETIRED 2026-08-28 by ADR-009**, which removed
+the spelling entirely — `key()` is the replacement, and the
+referenced-shape one was the early-binding difference §51 records);
+`why`'s tutorial mismatch; and the ADR-002
 coverage gate itself flaking red on an untouched tree
 (`ListVal.ts:206-207` branch arms) during this PR's own CI runs.

@@ -382,43 +382,33 @@ $ echo $?
 1
 ```
 
-- Relations are read from the **`relations` key of the document root**:
-  every map under it is a declaration, and its `acyclic` and `inverse`
-  fields are read directly. Unifying one with the bundled
-  `$.std.Relation` documents what it is and is the vocabulary's
-  convention — **not a requirement**. A bare
-  `{ inverse: usedBy, acyclic: true }` declares the same relation with
-  no `@"std/system"` at all, so the checks are available under every
-  include capability, `'none'` included. The key name is convention
-  too: nothing in the language knows it, the checking pass does.
+- Relations are declared **at the field**, by
+  [`rel(t)` and the graph atoms](reference-language.md#declared-relations):
+  `acyclic()` and `inverse(name)` register the declaration during
+  unification, and the verb reports the verdict over the finished
+  model's edge set. There is no reserved `relations:` key — a document
+  that writes one has written ordinary data (ADR-010).
 - **These are not lattice constraints, deliberately.** Both properties
   are global and non-monotone — one more edge makes an acyclic graph
   cyclic — so they are facts about a finished model rather than
-  something unification may hold. The
+  something unification may hold. Generation enforces the same verdict
+  (a located `relation_cycle` / `relation_inverse_missing` at the
+  offending edge); the verb reports it without generating. The
   [language reference](reference-language.md#declared-relations) states
   the rule; the [explanation](explanation.md#why-there-is-a-verb-surface)
   argues it.
 - A finding carries `at` (the position of the offending edge), `code`
-  (`relation_cycle`, `relation_inverse_missing` or
-  `relation_target_unmet`), `relation`, and `detail` — for a cycle, the
-  entities it runs through in order; for a missing inverse,
-  `[from, to, inverseName]`; for an unmet target, `[from, to, reason]`
-  where the reason is the engine's own code for the refusal. Findings
-  are **sorted by `at`**, so the report diffs cleanly.
-- **`target: <schema>` says what the far end must be**, and is checked
-  here. The declaration used to be inert, on the reasoning that
-  [`refer(t)`](reference-language.md#entity-references-refert) already
-  flows the type in at the site — which is exactly why it was worth
-  nothing, because the site then has to repeat it. Satisfaction is the
-  meet, and **not merely the absence of a conflict**: a target key the
-  far end does not have unifies happily and leaves a hole, so the check
-  asks the question `refer(t)` answers at the site — can the far end
-  still generate once the target is met? — and compares it with the far
-  end alone, so a node already incomplete for its own reasons is not
-  blamed on the relation pointing at it. The check never writes: a
-  relation reports on a finished model, and flowing the type in here
-  would be generation, the same rule that keeps it from writing an
-  author's `inverse` for them.
+  (`relation_cycle` or `relation_inverse_missing`), `relation`, and
+  `detail` — for a cycle, the entities it runs through in order; for a
+  missing inverse, `[from, to, inverseName]`. Findings are **sorted by
+  `at`**, so the report diffs cleanly.
+- **The endpoint type is `rel(t)`'s flow**: declared once on the field,
+  it flows into each far end at the site, so a conflict or a hole is an
+  ordinary located evaluation error rather than a report row — and a
+  document with a wrong-typed far end answers `verdict: error` here,
+  because it does not stand up at all. (The old `target:` declaration
+  and its `relation_target_unmet` finding are retired with the
+  `relations:` key.)
 - `--format json` wraps the same findings with the `aontu` producer
   block (`verb`, `version`) that every machine-readable report carries.
 - Exit codes: `0` `pass`, `1` `fail`, `4` `error` (the document does
@@ -1882,7 +1872,7 @@ kinds — including the numeric tower's four leaves (`integer`, `float`,
 `0d` exact literals, and exact arithmetic — maps (nesting, merge,
 spreads `&:`, optional keys, `close`/`open`), lists (incl. spreads),
 conjunction `&`, disjunction `|`, preference `*`, references (`$.a.b`,
-`.x.a`, `.$KEY`), `$name` variables, the `+` operator, all twelve
+`.x.a`), `$name` variables, the `+` operator, all twelve
 functions, `type`/`hide` marks, and `@"…"` source loading — plus
 `parse` / `unify` / `generate` and the canonical form.
 

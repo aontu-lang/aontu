@@ -9,10 +9,10 @@
 # {kind: service} is a fixpoint), so the meet converges; unify_cycle is
 # raised anyway.  Typing only ONE direction (bare refer() on the other)
 # evaluates fine — that asymmetric workaround is what 01/spec.aon ships.
-# expected: {"a":{"dependsOn":["svc/b"],"kind":"service"},
-#            "b":{"dependedOnBy":["svc/a"],"kind":"service"}} exit 0
+# expected: {"a":{"dependsOn":["svc_b"],"kind":"service"},
+#            "b":{"dependedOnBy":["svc_a"],"kind":"service"}} exit 0
 # actual:   [aontu/unify_cycle]: Cannot unify values at path $.b
 #           (Cannot unify value: {"dependedOnBy":[...],"kind":"service"}
 #            with value: {"kind":"service"}) exit 1
-a: id(svc/a) & { kind: service, dependsOn:    [&: refer({kind: service}), svc/b] }
-b: id(svc/b) & { kind: service, dependedOnBy: [&: refer({kind: service}), svc/a] }
+a: id(svc_a) & { kind: service, dependsOn:    [&: refer({kind: service}), svc_b] }
+b: id(svc_b) & { kind: service, dependedOnBy: [&: refer({kind: service}), svc_a] }

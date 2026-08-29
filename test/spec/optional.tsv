@@ -17,46 +17,45 @@ optional-elided	errc	a?:	elided_value
 optional-partial-subtree	gen	a?:{x:1,y:top}	{"a":{"x":1}}
 optional-dup-merge	gen	a:1 a?:1	{"a":1}
 optional-dup-conflict	err	a:1 a?:2	Cannot unify value
-# AN OPTIONAL KEY IS NOT A LIST ELEMENT.
+# A PAIR IN LIST POSITION IS A SINGLE-KEY MAP ELEMENT: `[x:1]` is
+# `[{x:1}]`, and `[x?:1]` is `[{x?:1}]` -- the `?` rides into the
+# element, marking the KEY optional there, rather than changing what
+# the pair is. This REVERSES the "not an element" rule these rows used
+# to pin (issue #40): that rule was the least-bad answer to jsonic's
+# raw slot write (a property for a text key, an INDEX for a numeric
+# one), but it was itself a SILENT DROP -- `a:[x:1]` evaluated to
+# `{"a":[]}`, the author's data gone at exit 0.
 #
-# The decisive argument is Go's own inconsistency, not canonicity: the SAME
-# pair without the `?` is discarded by BOTH ports -- `a:[x:1]` is
-# `{"a":[]}` everywhere, because a key:value pair is simply not a list
-# element. Adding `?` must not turn a discarded pair into a materialised
-# one, and in Go it did, purely because the construct reached a different
-# grammar rule.
-#
-# The last row is why this matters beyond a stray element: the phantom
-# MERGED into a real element, injecting x:1 into {q:9}.
-list-optional-pair-dropped-canon	canon	a:[x?:1]	{"a":[]}
-list-optional-pair-dropped-gens	gens	a:[x?:1]	{"a":[]}
-list-plain-pair-dropped-canon	canon	a:[x:1]	{"a":[]}
-list-plain-pair-dropped-gens	gens	a:[x:1]	{"a":[]}
-list-optional-pair-with-elem-gens	gens	a:[x?:1, 2]	{"a":[2]}
-list-optional-pair-after-elem-gens	gens	a:[2, x?:1]	{"a":[2]}
-list-optional-pair-no-merge-gens	gens	a:[x?:1] a:[{q:9}]	{"a":[{"q":9}]}
-# The same rule with a NUMERIC key (issue #40). This half was divergent
-# and invisible: jsonic writes a pair at `node[key]`, and a list's node is
-# an array, so a non-numeric key set a property nothing ever read
-# (`length` stays 0) while a numeric one set an INDEX and became a real
-# element -- TS generated {"a":[1]} for `a:[0:1]` where Go generated
-# {"a":[]}, and `a:[1:2]` even filled the gap with a null. That is the
-# shape of a JavaScript array, not a decision about the language.
-#
-# The last two rows are the ones with teeth: a pair aimed at an index a
-# real element already holds must leave that element ALONE, in both
-# directions (the pair before the element, and after it).
-list-plain-pair-numeric-canon	canon	a:[0:1]	{"a":[]}
-list-plain-pair-numeric-gens	gens	a:[0:1]	{"a":[]}
-list-optional-pair-numeric-canon	canon	a:[0?:1]	{"a":[]}
-list-optional-pair-numeric-gens	gens	a:[0?:1]	{"a":[]}
-# An index PAST the end must not grow the list with a hole either.
-list-plain-pair-gap-gens	gens	a:[1:2]	{"a":[]}
-list-optional-pair-gap-gens	gens	a:[2?:3]	{"a":[]}
-list-plain-pair-then-elem-gens	gens	a:[0:1, 2]	{"a":[2]}
-list-elem-then-plain-pair-gens	gens	a:[5, 0:1]	{"a":[5]}
-list-elem-then-optional-pair-gens	gens	a:[5, 0?:1]	{"a":[5]}
-list-elem-then-optional-gap-gens	gens	a:[5, 1?:9]	{"a":[5]}
+# THE BRACED TWIN IS THE INVARIANT: every row here answers
+# byte-for-byte as its `[{...}]` spelling does, which is what makes
+# the sugar a spelling rather than a semantics. The merge row is the
+# old block's fear made a rule: two statements of one list meet
+# ELEMENTWISE, so the single-key element merges into the map at its
+# index -- exactly as the braced twin merges.
+list-optional-pair-element-canon	canon	a:[x?:1]	{"a":[{"x"?:1}]}
+list-optional-pair-element-gens	gens	a:[x?:1]	{"a":[{"x":1}]}
+list-plain-pair-element-canon	canon	a:[x:1]	{"a":[{"x":1}]}
+list-plain-pair-element-gens	gens	a:[x:1]	{"a":[{"x":1}]}
+list-optional-pair-with-elem-gens	gens	a:[x?:1, 2]	{"a":[{"x":1},2]}
+list-optional-pair-after-elem-gens	gens	a:[2, x?:1]	{"a":[2,{"x":1}]}
+list-optional-pair-merges-gens	gens	a:[x?:1] a:[{q:9}]	{"a":[{"q":9,"x":1}]}
+# A NUMERIC key is a KEY OF THE ELEMENT MAP, never an index into the
+# list: `[0:1]` is `[{"0":1}]` and `[1:2]` is `[{"1":2}]` -- no index
+# writes, no gap-filling nulls, nothing for a JavaScript array's shape
+# to leak through (the divergence issue #40 recorded). A pair "aimed
+# at" an occupied index is not aimed at anything: it is its own
+# element, the neighbours untouched in both directions -- and an index
+# PAST the end grows the list by one MAP, not by a hole.
+list-plain-pair-numeric-canon	canon	a:[0:1]	{"a":[{"0":1}]}
+list-plain-pair-numeric-gens	gens	a:[0:1]	{"a":[{"0":1}]}
+list-optional-pair-numeric-canon	canon	a:[0?:1]	{"a":[{"0"?:1}]}
+list-optional-pair-numeric-gens	gens	a:[0?:1]	{"a":[{"0":1}]}
+list-plain-pair-gap-gens	gens	a:[1:2]	{"a":[{"1":2}]}
+list-optional-pair-gap-gens	gens	a:[2?:3]	{"a":[{"2":3}]}
+list-plain-pair-then-elem-gens	gens	a:[0:1, 2]	{"a":[{"0":1},2]}
+list-elem-then-plain-pair-gens	gens	a:[5, 0:1]	{"a":[5,{"0":1}]}
+list-elem-then-optional-pair-gens	gens	a:[5, 0?:1]	{"a":[5,{"0":1}]}
+list-elem-then-optional-gap-gens	gens	a:[5, 1?:9]	{"a":[5,{"1":9}]}
 # The map-level optional key is untouched and must stay that way.
 map-optional-still-works-gens	gens	a:{x?:1}	{"a":{"x":1}}
 top-optional-still-works-gens	gens	x?:1	{"x":1}

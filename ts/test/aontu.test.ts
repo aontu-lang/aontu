@@ -230,14 +230,14 @@ w1: b: {y:2,z:3} & $.q.a
     let ctx = makeCtx()
     let a0 = new Aontu()
 
-    expect(a0.unify('a:{k:.$KEY}').gen(ctx)).equal({ a: { k: 'a' } })
-    expect(a0.unify('a:b:{k:.$KEY}').gen(ctx)).equal({ a: { b: { k: 'b' } } })
+    expect(a0.unify('a:{k:key()}').gen(ctx)).equal({ a: { k: 'a' } })
+    expect(a0.unify('a:b:{k:key()}').gen(ctx)).equal({ a: { b: { k: 'b' } } })
 
-    expect(a0.unify('a:{k:.$KEY} x:1').gen(ctx)).equal({ x: 1, a: { k: 'a' } })
-    expect(a0.unify('a:b:{k:.$KEY} x:1').gen(ctx)).equal({ x: 1, a: { b: { k: 'b' } } })
+    expect(a0.unify('a:{k:key()} x:1').gen(ctx)).equal({ x: 1, a: { k: 'a' } })
+    expect(a0.unify('a:b:{k:key()} x:1').gen(ctx)).equal({ x: 1, a: { b: { k: 'b' } } })
 
-    expect(a0.unify('x:1 a:{k:.$KEY}').gen(ctx)).equal({ x: 1, a: { k: 'a' } })
-    expect(a0.unify('x:1 a:b:{k:.$KEY}').gen(ctx)).equal({ x: 1, a: { b: { k: 'b' } } })
+    expect(a0.unify('x:1 a:{k:key()}').gen(ctx)).equal({ x: 1, a: { k: 'a' } })
+    expect(a0.unify('x:1 a:b:{k:key()}').gen(ctx)).equal({ x: 1, a: { b: { k: 'b' } } })
   })
 
 
@@ -358,8 +358,8 @@ def: garage: {
       { t: { x: 1 }, a: { b: { c: { x: 1, y: 'A' }, d: { x: 1, y: 'B' } } } }
     )
 
-    // Spread with $KEY at depth
-    expect(a0.generate('a:b:{&:{name:.$KEY},c:{},d:{}}')).equal(
+    // Spread with key() at depth
+    expect(a0.generate('a:b:{&:{name:key()},c:{},d:{}}')).equal(
       { a: { b: { c: { name: 'c' }, d: { name: 'd' } } } }
     )
 

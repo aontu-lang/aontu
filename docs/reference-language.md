@@ -28,6 +28,7 @@ the [Explanation](explanation.md).
 - [The placeholder `_`](#the-placeholder-_)
 - [The pipe `|>`](#the-pipe-)
 - [References and paths](#references-and-paths)
+  - [Recursive references (fixpoints)](#recursive-references-fixpoints)
 - [Variables `$name`](#variables-name)
 - [The `+` operator and grouping](#the--operator-and-grouping)
 - [Functions](#functions)
@@ -403,6 +404,22 @@ A list is an ordered sequence.
   whitespace-separated: `[1 2 3]`.
 - **Mixed / nested / of maps:** `[1,two,true]`, `[[1,2],[3,4]]`,
   `[{x:1},{y:2}]` all work.
+- **A pair is a single-key map element:** `[a:1, b:2]` is
+  `[{a:1}, {b:2}]` — the braces are optional for a one-key map in list
+  position, and the two spellings are the same document. An optional
+  pair carries its `?` into the element (`[a?:1]` is `[{a?:1}]`), a
+  numeric key is a key of the element map and never an index into the
+  list (`[0:1]` is `[{"0":1}]`), and a chain nests (`[a:b:1]` is
+  `[{a:{b:1}}]`).
+
+  ```aon
+  routes: [get: "/health", post: "/orders"]
+  ```
+
+  ```json
+  { "routes": [ { "get": "/health" }, { "post": "/orders" } ] }
+  ```
+
 - Lists unify element-by-element by position (and support `&:` spreads,
   below).
 
@@ -579,7 +596,7 @@ c:{&:{x:2}, y:{k:3}, z:{k:4}}
 
 a:b:{&:string, c:C, d:D}        → applies a type to every value
 a:b:{&:{x:number}, c:{x:1}, d:{x:2}}   → constrains every child
-a:b:{&:{name:.$KEY}, c:{}, d:{}}       → {"c":{"name":"c"},"d":{"name":"d"}}
+a:b:{&:{name:key()}, c:{}, d:{}}       → {"c":{"name":"c"},"d":{"name":"d"}}
 a:b:{&:$.tmpl, …}                      → spread a referenced template
 a:b:{&:x:*1|number, c:{x:2}, d:{}}     → defaults per child, overridable
 ```
@@ -822,7 +839,6 @@ place.
 | `$.a.b`   | absolute path from the document root                 | `a:1 b:$.a` → `b:1` |
 | `.a.b`    | path relative to the current map                     | `z:x:{a:62} z:y:.x.a` → `y:62` |
 | `$.a.1`   | list index — a segment is numeric **only** as a plain decimal integer | `a:[10,20,30] b:$.a.1` → `b:20` |
-| `.$KEY`   | the key under which the current value is stored      | `a:{k:.$KEY}` → `{"a":{"k":"a"}}` |
 
 **Numeric segments are plain decimal integers, and nothing else is.**
 `$.a.1` indexes a list and reaches the key `1`. Every other numeric
@@ -846,6 +862,84 @@ merge:  w:b:$.q.a & {y:2,z:3}            → referenced map unified with extra k
 
 An unresolvable path is an error: `a:$.nope` →
 `Cannot resolve value: $.nope`.
+
+### Recursive references (fixpoints)
+
+A reference to a value **inside that value** is not an error — it is
+the fixpoint. `$.schema.Step` written inside `Step` means "a `Step`,
+by this very definition", and the schema applies at every depth of
+the data:
+
+```aon
+schema: hide({Step: {
+  label: string
+  then?: $.schema.Step
+}})
+doc: $.schema.Step & {label: "start", then: {label: "finish"}}
+```
+
+```json
+{"doc": {"label": "start", "then": {"label": "finish"}}}
+```
+
+The recursive position expands **one level per meet with concrete
+data**, so the checks descend exactly as far as the data does and no
+further. Data is finite, so evaluation terminates; the depth budget
+is the backstop (`recursion_budget`).
+
+**Guardedness is emergent — the data decides, never a static
+analysis.** Under an optional key (`then?:`) the chain simply ends
+where the data ends. A ranked default works the same way:
+
+```aon
+schema: hide({Node: {v: integer, next: *null | $.schema.Node}})
+doc: $.schema.Node & {v: 1, next: {v: 2}}
+```
+
+```json
+{"doc": {"v": 1, "next": {"v": 2, "next": null}}}
+```
+
+A **required** recursive position that never meets data refuses at
+generation, at the exact place no finite document can fill:
+
+```
+schema: hide({Step: {label: string, then: $.schema.Step}})
+doc: $.schema.Step & {label: "start"}
+→ [aontu/recursion_unexpanded]: Cannot recurse value at path $.doc.then
+```
+
+In [canonical form](#canonical-form) and the `aon1-` hash the
+recursion stays **symbolic**: the instance unrolls to its data and
+then says `$.schema.Step`; the definition stays one reference deep.
+A recursive schema's canon is finite, reparses to itself, and its
+hash pins the mu-form — one string for an infinitely deep type:
+
+```
+{"doc":{"label":"start","then"?:{"label":"finish","then"?:$.schema.Step}},
+ "schema":{"Step":{"label":string,"then"?:$.schema.Step}}}
+```
+
+Mutual recursion (`A` referencing `B` referencing `A`) works the same
+way, and so does a recursive [alias](#aliases) — which is enough to
+write the JSON value space in one line:
+
+```aon
+%json: null|boolean|number|string|[&: %json]|{&: %json}
+x: %json & {a: [1, "two", {b: true}]}
+```
+
+```json
+{"x": {"a": [1, "two", {"b": true}]}}
+```
+
+[Subsumption](#subsumption) over an unexpanded recursive position
+answers `undecided` rather than guessing. The degenerate
+self-reference with no structure at all (`a: $.a`) is a residual that
+can never expand — its canon is honestly `{"a":$.a}` and generation
+refuses with `recursion_unexpanded`. A cycle THROUGH other values
+(`a:$.b b:$.a`) is still `path_cycle`: two references chasing each
+other name no definition at all.
 
 ## Variables `$name`
 
@@ -997,8 +1091,8 @@ atoms, whose meaning is defined in
 | `open(x)`   | reverse a `close`                             | `open(close({x:1})) & {y:2}`→`{x:1,y:2}` |
 | `move(p)`   | resolve reference `p`, dropping unresolved optional keys | `m:{x?:number,y:Y} n:move($.m)`→`n:{y:"Y"}` |
 | `path(p)`   | resolve a path expression (function form of a reference) | `path(x.a)` (relative), `path($.z.x.a)` (absolute) |
-| `id(name)`  | declare the enclosing value an **entity** called `name`; every node in the evaluation with that name is unified with every other. See [Identity](#identity-idname) | `services: auth: id(svc/auth) & {port:8080}` |
-| `refer(t?)` | constrain a string field to be an **entity address** that resolves; `t`, if given, is unified into the target. The field keeps the address. See [Entity references](#entity-references-refert) | `dependsOn: [&: refer($.std.Service), svc/auth]` |
+| `id(name)`  | declare the enclosing value an **entity** called `name`; every node in the evaluation with that name is unified with every other. See [Identity](#identity-idname) | `services: auth: id(svc_auth) & {port:8080}` |
+| `refer(t?)` | constrain a string field to be an **entity address** that resolves; `t`, if given, is unified into the target. The field keeps the address. See [Entity references](#entity-references-refert) | `dependsOn: [&: refer($.std.Service), svc_auth]` |
 | `pack(d, t)` | one keyed child per child of `d`, each of them `t` cloned at that destination. Keys are the strings of a list, or the keys of a map. See [Generating children](#generating-children-pack-and-each) | `deploy: pack($.names, {replicas:*2\|integer})` |
 | `each(d, t?)` | one list element per child of `d`, each met with `t`. Source order for a list, sorted-key order for a map | `open: each($.ports, integer)` |
 | `filter(d, c)` | the children of `d` that ALREADY satisfy `c` — the meet with `c` changes nothing. Keys kept for a map, order for a list; the rest are dropped, not refused. See [Selecting](#selecting-filter-and-match) | `debugged: filter($.services, {debug:true})` |
@@ -1181,7 +1275,7 @@ adds a second, **location-independent** name: it declares that the
 value it is written on IS the entity called `name`.
 
 ```aon
-services: auth: id(svc/auth) & {
+services: auth: id(svc_auth) & {
   kind: service
   port: 8080
 }
@@ -1194,10 +1288,10 @@ is an ordinary located error:
 
 ```aon
 # catalog.aon
-catalog: payments: id(svc/payments) & { owner: "team-pay", tier: 1 }
+catalog: payments: id(svc_payments) & { owner: "team-pay", tier: 1 }
 
 # deploy.aon
-deploy: eu1: payments: id(svc/payments) & { replicas: 3, tier: 2 }
+deploy: eu1: payments: id(svc_payments) & { replicas: 3, tier: 2 }
 ```
 
 Without the ids these two files evaluate together in silence —
@@ -1232,7 +1326,7 @@ written unquoted; `-` is not a bare-text character, so a name
 containing one must be quoted:
 
 ```
-id(svc/auth)     id(a_1)     id("team-pay")     id("svc.auth") → error
+id(svc_auth)     id(a_1)     id("team-pay")     id("svc.auth") → error
 ```
 
 Anything that is not a string — a number, a boolean, a map — is not a
@@ -1263,7 +1357,7 @@ like an entity:
 2. **`copy()` clears the id**, as it clears the marks — a copy of an
    entity is a second value shaped like it.
 3. **A spread template may not stamp a constant id on every child.**
-   `{&: id(svc/thing), a:{}, b:{}}` would declare every child to be one
+   `{&: id(svc_thing), a:{}, b:{}}` would declare every child to be one
    entity; it is refused (`id_spread`). To name each child, use a
    path-dependent argument — in a map template applied at the child
    position that is `key(0)`, the child's own key:
@@ -1297,15 +1391,15 @@ language check it.
 
 ```aon
 services: {
-  auth: id(svc/auth) & { kind: service, port: 8080 }
-  billing: id(svc/billing) & {
-    dependsOn: [&: refer({kind: service}), svc/auth]
+  auth: id(svc_auth) & { kind: service, port: 8080 }
+  billing: id(svc_billing) & {
+    dependsOn: [&: refer({kind: service}), svc_auth]
   }
 }
 ```
 
 The list spread applies `refer` to every element, so `dependsOn`
-generates `["svc/auth"]` — a list of **names**, checked. Neither of the
+generates `["svc_auth"]` — a list of **names**, checked. Neither of the
 two things you could write before does that: a bare string checks
 nothing, and `dependsOn: [$.services.auth]` embeds a full copy of the
 auth node, because a reference resolves by cloning its target.
@@ -1322,8 +1416,8 @@ An address is an entity name, optionally followed by a dot-separated
 path *inside* that entity:
 
 ```
-svc/auth              the entity
-svc/auth.ports.http   a node inside it
+svc_auth              the entity
+svc_auth.ports.http   a node inside it
 ```
 
 The two addressing schemes divide cleanly: `$.a.b` answers *where* — a
@@ -1361,7 +1455,7 @@ lattice guarantee is that more information never falsifies what has
 already been observed.
 
 Constraints written *alongside* a refer constrain the **link**, not the
-target: `refer() & string & re("^svc/") & "svc/auth"` checks the
+target: `refer() & string & re("^svc-") & "svc_auth"` checks the
 address itself. They are held until the address arrives, and then meet
 it.
 
@@ -1374,16 +1468,12 @@ one set of them ships with the engine:
 @"std/system"
 
 services: {
-  auth: id(svc/auth) & $.std.Service & {
+  auth: id(svc_auth) & $.std.Service & {
     ports: { http: { protocol: http } }
+    dependedOnBy: rel() & [svc_billing]
   }
-  billing: id(svc/billing) & $.std.Service & {
-    dependsOn: [&: refer(), svc/auth]
-  }
-}
-relations: {
-  dependsOn: $.std.Relation & {
-    target: $.std.Service, inverse: dependedOnBy, acyclic: true
+  billing: id(svc_billing) & $.std.Service & {
+    dependsOn: rel($.std.Service) & inverse(dependedOnBy) & acyclic() & [svc_auth]
   }
 }
 ```
@@ -1393,7 +1483,11 @@ relations: {
 | `$.std.Port` | one end of a connection: `direction` (default `in`) and an optional `protocol` |
 | `$.std.Component` | a node with `ports`, each of which is a `Port` |
 | `$.std.Service` | a Component whose `kind` is `service` |
-| `$.std.Relation` | a declared relation: what its `target` must satisfy, the `inverse` that mirrors it, and whether it is `acyclic` |
+
+(The `Relation` schema that used to sit beside these is retired: a
+relation is declared by [`rel(t)` and the graph atoms](#declared-relations)
+at the field itself, so there is nothing left for a vocabulary entry to
+say.)
 
 `@"std/system"` is **bundled with the engine** — no filesystem, no
 package resolution — so it resolves under every include capability
@@ -1423,61 +1517,46 @@ language knows these names.
 
 ### Declared relations
 
-`$.std.Relation` says what a relation IS, and two of its fields are
-checked over the whole finished model rather than by unification:
+A relation is declared AT ITS FIELD: [`rel(t)`](#relation-fields-relt)
+says the field's strings are entity addresses and flows `t` into every
+target, and the two GRAPH ATOMS declare the properties that hold over
+the whole edge set:
 
 ```aon
-@"std/system"
-
-relations: {
-  dependsOn: $.std.Relation & { inverse: usedBy, acyclic: true }
-}
-
-a: id(a) & { dependsOn: [&: refer(), b] }
-b: id(b) & { usedBy:    [&: refer(), a] }
+a: id(a) & { dependsOn: rel() & inverse(usedBy) & acyclic() & [b] }
+b: id(b) & { usedBy:    rel() & [a] }
 ```
 
-- **`acyclic: true`** — the edges under that relation must have no
-  cycle. The report names the entities the cycle runs through.
-- **`inverse: <name>`** — for each `a --dependsOn--> b`, `b` must carry
-  `a` under `<name>`. The report names the exact missing entry.
-- **`target: <schema>`** — every far end must satisfy `<schema>`. This
-  is the declared form of what [`refer(t)`](#entity-references-refert)
-  does at each site, so the relation says once what every link would
-  otherwise repeat. Satisfaction is the meet, and **not merely the
-  absence of a conflict**: a target key the far end does not have
-  unifies happily and leaves a hole, so the check asks what `refer(t)`
-  answers at the site — can the far end still generate once the target
-  is met? — and compares it with the far end alone, so a node already
-  incomplete for its own reasons is not blamed on the relation pointing
-  at it. The check never writes; flowing the type in here would be
-  generation.
+- **`acyclic()`** — the edges under this relation must have no cycle.
+  The error names the entities the cycle runs through, closing back on
+  the first.
+- **`inverse(<name>)`** — for each `a --dependsOn--> b`, `b` must carry
+  `a` under `<name>`, as an edge of that relation. The error names the
+  exact missing entry. Writing the inverse **for** you is generation,
+  not validation, and is not done here.
+- The `target` half of the old declaration is `rel(t)` itself: the
+  type flows into each far end at the site, so a conflict or a hole is
+  an ordinary located evaluation error.
 
-The `$.std.Relation` conjunct **documents** the declaration; it is not
-what makes it one. The checking pass reads every map under `relations`
-and takes its `acyclic` and `inverse` fields directly, so a bare
-`dependsOn: { inverse: usedBy, acyclic: true }` declares the same
-relation with no `@"std/system"` — which is what keeps the checks
-available under the `'none'` include capability.
-
-`aontu relations <file>` runs them, and the library exposes
+The atoms are **lattice-inert, deliberately.** Both properties are
+global and non-monotone: an acyclic graph becomes cyclic when one more
+edge unifies in, and an inverse that is present becomes absent when the
+far side is narrowed. The lattice guarantee is that more information
+never falsifies what has already been observed, so a constraint that
+could be true and then false is not one the lattice may hold. During
+unification the atoms only REGISTER the declaration (the predicate is
+the key they sit on) and ride the field's value; the verdict lands at
+GENERATION — where no more information can arrive — as a located
+`relation_cycle` or `relation_inverse_missing` at the offending edge,
+exactly as an unmet sizing atom refuses. `aontu relations <file>`
+reports the same findings without generating, and the library exposes
 `relationCheck(src)`. The closure question — does `a` reach `b` at any
-remove? — is a separate verb, [`aontu reaches`](reference-api.md#aontu-reaches),
-for the same reason and with the same answer about monotonicity. **Neither is a lattice constraint, deliberately.**
-Both properties are global and non-monotone: an acyclic graph becomes
-cyclic when one more edge unifies in, and an inverse that is present
-becomes absent when the far side is narrowed. The lattice guarantee is
-that more information never falsifies what has already been observed,
-so a constraint that could be true and then false is not one the
-lattice may hold. These are facts about a finished model, and a verb
-that reports facts about a finished model is where they belong.
+remove? — is a separate verb, [`aontu reaches`](reference-api.md#aontu-reaches).
 
-Relations are read from the `relations` key of the document root —
-the vocabulary's convention, not the engine's. Nothing in the language
-knows the name; the checking pass does.
-
-Writing the inverse **for** you is generation, not validation, and is
-not done here.
+There is no reserved `relations:` key: a document that writes one has
+written ordinary data ([ADR-010](../ADR.md) — the tree at all levels is
+user space; this retirement discharged that ADR's one grandfather
+clause).
 
 ## Marks: `type` and `hide`
 

@@ -153,8 +153,11 @@ func uniteRaw(ctx *Ctx, a, b Val) Val {
 	// on kind. Narrow to placeheld operators on purpose -- every other
 	// operator meets its peer the way it always has, through the
 	// conjunct fold that drives it.
+	// A graph atom DRIVES (RELATIONS P2): its peer is the value it
+	// carries -- a container, a rel, a scalar -- and none of them know
+	// the atom; the atom knows to absorb.
 	if isConjunct(b) || isDisjunct(b) || isPref(b) || isRef(b) || isVar(b) || isFunc(b) || isExpect(b) || isRefer(b) ||
-		isPlaceheldOp(b) {
+		isGraphAtom(b) || isRecurse(b) || isPlaceheldOp(b) {
 		return drive(b, a)
 	}
 	return drive(a, b)

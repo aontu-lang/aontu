@@ -238,7 +238,7 @@ vet-time pass.
 entity named `name`. It composes by conjunction like any value:
 
 ```aon
-services: auth: id(svc/auth) & {
+services: auth: id(svc_auth) & {
   kind: service
   port: 8080
 }
@@ -257,14 +257,14 @@ Semantics:
   entity *means* unifying them; any contradiction is a hard error
   naming both declaration sites — the anti-`owl:sameAs`. The
   `catalog.aon`/`deploy.aon` example becomes, once both add
-  `id(svc/payments) &`, a located `Cannot unify value: 2 with
+  `id(svc_payments) &`, a located `Cannot unify value: 2 with
   value: 1` at the two `tier` sites instead of a silent fork.
 - **Positions.** The tree stays a tree. After merging, *every*
   declared position holds the merged value, and generation emits it
   at each path — duplication, exactly as references generate today.
   Identity adds a location-independent addressing scheme without
   changing the shape of the output.
-- **Canon.** Canon renders `id("svc/auth")&{…}` reparseably, and
+- **Canon.** Canon renders `id("svc_auth")&{…}` reparseably, and
   reparsing re-merges idempotently, so canon convergence (the enforced property is CONVERGENCE, not the stronger round-trip this line states — see the correction in [G1](g1-constraint-algebra.md#implementation-plan))
   holds. This deliberately differs from `type`/`hide` marks, which
   canon drops (`test/spec/marks.tsv`, row `type-canon`): identity
@@ -333,24 +333,24 @@ address string: a link, not an embedding.
 @"std/system"
 
 services: {
-  auth: id(svc/auth) & $.std.Service & { port: 8080 }
-  billing: id(svc/billing) & $.std.Service & {
-    dependsOn: [&: refer($.std.Service), svc/auth, svc/payments]
+  auth: id(svc_auth) & $.std.Service & { port: 8080 }
+  billing: id(svc_billing) & $.std.Service & {
+    dependsOn: [&: refer($.std.Service), svc_auth, svc_payments]
   }
 }
 ```
 
-The list spread applies `refer` to every element; `svc/auth`
-resolves; `svc/payments` names no entity, so evaluation fails with
+The list spread applies `refer` to every element; `svc_auth`
+resolves; `svc_payments` names no entity, so evaluation fails with
 a located error at the string's site. The generated `dependsOn` is
-`["svc/auth", …]` — the link shape the Problem section could not
+`["svc_auth", …]` — the link shape the Problem section could not
 produce.
 
 Semantics:
 
 - **Address grammar.** An address is an entity id, optionally
   followed by a dot-separated path *inside* that entity:
-  `svc/auth.ports.http`. This reconciles the two addressing
+  `svc_auth.ports.http`. This reconciles the two addressing
   schemes: `$.a.b` answers *where* (a tree location), an entity
   address answers *what* (an id anchor), and beneath entity
   granularity the tree is authoritative again. The no-dots rule on
@@ -378,7 +378,7 @@ Semantics:
   Integrity is a unification-time property, per the
   review index — there is no vet-time deferral.
 - **Canon** renders the residual reparseably:
-  `"dependsOn":[refer($.std.Service)&"svc/auth", …]`. (As built, a
+  `"dependsOn":[refer($.std.Service)&"svc_auth", …]`. (As built, a
   RESOLVED refer is simply its address string — the link is the value —
   so it is the *pending* residual that renders as a call.)
 - **Error data.** Failures carry both sites and the machine-facing
@@ -478,7 +478,7 @@ resolution so nothing has to guess which strings are addresses; phase
 5 filters it by declared relation rather than rebuilding it. See
 `result.graph` / `Aontu.Graph` in
 [the API reference](../reference-api.md).) Impact
-analysis ("what reaches `svc/auth`?"), reachability, and
+analysis ("what reaches `svc_auth`?"), reachability, and
 context-window-sized entity slices become traversals over them;
 their exposure — CLI verbs, projections, the MCP tool set — is
 owned by [G7](g7-machine-access.md). G4's deliverable is that the

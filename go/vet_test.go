@@ -376,6 +376,31 @@ func TestVetAtSelectsASubtree(t *testing.T) {
 	}
 }
 
+// A recursive residual inside the lifted anchor names its definition
+// by ABSOLUTE path (`next?: $.spec.Node`, RECURSION.0.md), and the
+// anchored meet's root is the subtree -- which holds no `$.spec`.
+// Before the meet context kept the settled schema root for the
+// residual's walk (Ctx.fixroot), the residual held its peer forever
+// and BAD DATA AT DEPTH VETTED VALID; the depth-0 fields were
+// checked, everything under `next` was not.
+func TestVetAtExpandsARecursiveSchemaAtDepth(t *testing.T) {
+	schema := "spec: hide({ Node: { v: integer, next?: $.spec.Node } })"
+	good := vetRun(schema, `{"v":1,"next":{"v":2,"next":{"v":3}}}`,
+		&VetOptions{At: "$.spec.Node"})
+	if VetValid != good.Verdict {
+		t.Fatalf("report: %+v", good)
+	}
+	bad := vetRun(schema, `{"v":1,"next":{"v":"x"}}`,
+		&VetOptions{At: "$.spec.Node"})
+	if VetInvalid != bad.Verdict || 1 != len(bad.Findings) {
+		t.Fatalf("report: %+v", bad)
+	}
+	if "no_scalar_unify" != bad.Findings[0].Code ||
+		"$.spec.Node.next.v" != bad.Findings[0].Path {
+		t.Fatalf("finding: %+v", bad.Findings[0])
+	}
+}
+
 func TestVetAtAcceptsABarePath(t *testing.T) {
 	r := vetRun("services: { auth: { port: integer } }",
 		`auth: { port: "x" }`, &VetOptions{At: "services"})

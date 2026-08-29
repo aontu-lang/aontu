@@ -399,7 +399,7 @@
 #     lists typed by a spread from a shared vocabulary.
 #   TypeScript: graphOf gives 40 edges (19 distinct from/key/to
 #               triples); `relations bad/cycle.aon` reports
-#               `cycle svc/payments -> svc/ledger -> svc/payments`.
+#               `cycle svc_payments -> svc_ledger -> svc_payments`.
 #   Go:         GraphOf gives 6 edges (2 distinct triples); `relations
 #               bad/cycle.aon` reports NO cycle, and reports extra
 #               inverse_missing findings for the inverses it cannot

@@ -1,0 +1,8 @@
+{
+  "approver": "lead@acme.example",
+  "decision": "approved",
+  "then": {
+    "approver": "EXTERNAL@other.example",
+    "decision": "maybe"
+  }
+}

@@ -8,6 +8,7 @@ declare class IdFuncVal extends FuncBaseVal {
     constructor(spec: ValSpec, ctx?: AontuContext);
     make(_ctx: AontuContext, spec: ValSpec): Val;
     funcname(): string;
+    deferResolve(ctx: AontuContext): boolean;
     resolve(ctx: AontuContext, args: Val[]): import("./NilVal").NilVal | TopVal;
 }
 export { IdFuncVal, };

@@ -31,7 +31,7 @@ spread-list-pair-path	err	a:[&:integer,x:1,"bad"]	at path $.a.0
 # Generation was never wrong; pinned so a future path fix cannot buy
 # correct labels by changing what the array holds.
 spread-list-gen-spread	gens	a:[&:integer,10,20]	{"a":[10,20]}
-spread-list-gen-pair	gens	a:[x:1,10,20]	{"a":[10,20]}
+spread-list-gen-pair	gens	a:[x:1,10,20]	{"a":[{"x":1},10,20]}
 spread-list-gen-mid	gens	a:[10,&:integer,20]	{"a":[10,20]}
 #
 # A PAIR BEFORE THE SPREAD DOES NOT CANCEL IT (BUGS.md 46).
@@ -45,13 +45,16 @@ spread-list-gen-mid	gens	a:[10,&:integer,20]	{"a":[10,20]}
 # `{"a":["bad"]}` and exited 0 on the TypeScript side while Go refused.
 # Order-dependence in a commutative language, and silent wrong output on
 # the canonical port. `pair` now distinguishes the two.
-spread-list-pair-before-spread	errc	a:[x:1,&:integer,"bad"]	no_scalar_unify
+# A pair IS an element now (the optional.tsv block), so the `integer`
+# spread refuses the single-key MAP at index 0 before it reaches
+# "bad": the code is `map`, and the path names the pair's own element.
+spread-list-pair-before-spread	errc	a:[x:1,&:integer,"bad"]	map
 spread-list-pair-before-spread-path	err	a:[x:1,&:integer,"bad"]	at path $.a.0
-spread-list-pairs-before-spread	errc	a:[x:1,y:2,&:integer,"bad"]	no_scalar_unify
+spread-list-pairs-before-spread	errc	a:[x:1,y:2,&:integer,"bad"]	map
 spread-list-pairs-before-spread-path	err	a:[x:1,y:2,&:integer,"bad"]	at path $.a.0
 # The commutativity itself: the same list with the pair AFTER the
 # spread was already correct, and the two orders must stay one answer.
 spread-list-pair-after-spread-path	err	a:[&:integer,x:1,"bad"]	at path $.a.0
 # The accepting side, so a future change cannot buy the refusal by
 # dropping the pair from the array instead of from the element count.
-spread-list-pair-before-spread-gen	gens	a:[x:1,&:integer,10,20]	{"a":[10,20]}
+spread-list-pair-refused-by-spread	errc	a:[x:1,&:integer,10,20]	map

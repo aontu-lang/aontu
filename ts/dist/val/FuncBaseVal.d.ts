@@ -17,5 +17,6 @@ declare class FuncBaseVal extends FeatureVal {
     funcname(): string;
     prepare(_ctx: AontuContext, args: Val[]): Val[] | null;
     resolve(ctx: AontuContext, _args: Val[]): Val;
+    deferResolve(_ctx: AontuContext): boolean;
 }
 export { trialUnify, FuncBaseVal, };

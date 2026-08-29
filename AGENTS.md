@@ -344,7 +344,7 @@ and the numeric tower `number` over its four leaves `integer`, `float`,
 `0d` exact literals and exact arithmetic, maps (implicit nesting,
 duplicate-key merge, spreads `&:`, optional keys `a?:`, `close`/`open`),
 lists (incl. `&:` spreads), conjunction (`&`), disjunction (`|`),
-preference/defaults (`*`), references (`$.a.b`, relative `.x.a`, `$KEY`,
+preference/defaults (`*`), references (`$.a.b`, relative `.x.a`,
 cross/chained refs), `$name` variables, the `+` operator (and
 parenthesised grouping), all eighteen built-in functions (`upper`,
 `lower`, `copy`, `key`, `pref`, `super`, `type`, `hide`, `close`,

@@ -1,6 +1,6 @@
 # Agent-emitted proposal: give the (unprivileged) member role the
 # wildcard grant. The unprivileged branch of the Role shape excludes
-# admin/all from every grant via neq() on the list spread, so this is
+# admin_all from every grant via neq() on the list spread, so this is
 # a located [aontu/constraint] error at the offending element.
 @"../roles.aon"
-roles: member: grants: [project/read, project/write, member/read, admin/all]
+roles: member: grants: [project_read, project_write, member_read, admin_all]

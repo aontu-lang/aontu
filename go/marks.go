@@ -15,7 +15,7 @@ func propagateMarks(from, to Val) {
 	}
 }
 
-// canonEntity is the IDENTITY wrapper (G4 phase 1): `id("svc/auth")&{…}`,
+// canonEntity is the IDENTITY wrapper (G4 phase 1): `id("svc_auth")&{…}`,
 // written as the conjunct an author writes, so canon reparses to the
 // same entity. This deliberately differs from the type/hide MARKS,
 // which canon drops (test/spec/marks.tsv, row `type-canon`): identity

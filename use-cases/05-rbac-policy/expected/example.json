@@ -1,38 +1,38 @@
 {
   "permissions": {
-    "admin/all": {
+    "admin_all": {
       "desc": "Wildcard: every permission",
       "risk": "critical"
     },
-    "audit/read": {
+    "audit_read": {
       "desc": "Read the audit log",
       "risk": "medium"
     },
-    "billing/manage": {
+    "billing_manage": {
       "desc": "Change plan and payment details",
       "risk": "high"
     },
-    "billing/read": {
+    "billing_read": {
       "desc": "Read invoices and plan state",
       "risk": "medium"
     },
-    "member/invite": {
+    "member_invite": {
       "desc": "Invite new members",
       "risk": "medium"
     },
-    "member/read": {
+    "member_read": {
       "desc": "List tenant members",
       "risk": "low"
     },
-    "project/delete": {
+    "project_delete": {
       "desc": "Delete projects",
       "risk": "high"
     },
-    "project/read": {
+    "project_read": {
       "desc": "List and read projects",
       "risk": "low"
     },
-    "project/write": {
+    "project_write": {
       "desc": "Create and update projects",
       "risk": "medium"
     }
@@ -41,7 +41,7 @@
     "admin": {
       "desc": "Day-to-day administration",
       "grants": [
-        "admin/all"
+        "admin_all"
       ],
       "privileged": true,
       "rank": 80,
@@ -50,10 +50,10 @@
     "auditor": {
       "desc": "Read-only compliance access",
       "grants": [
-        "project/read",
-        "member/read",
-        "billing/read",
-        "audit/read"
+        "project_read",
+        "member_read",
+        "billing_read",
+        "audit_read"
       ],
       "privileged": false,
       "rank": 20,
@@ -62,9 +62,9 @@
     "member": {
       "desc": "Regular collaborator",
       "grants": [
-        "project/read",
-        "project/write",
-        "member/read"
+        "project_read",
+        "project_write",
+        "member_read"
       ],
       "privileged": false,
       "rank": 40,
@@ -73,7 +73,7 @@
     "owner": {
       "desc": "Full control; holds the tenant",
       "grants": [
-        "admin/all"
+        "admin_all"
       ],
       "privileged": true,
       "rank": 100,

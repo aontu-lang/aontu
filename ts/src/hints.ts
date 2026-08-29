@@ -169,15 +169,23 @@ const hints: Record<string, string> = {
 
   elided_value: 'A key or element was written with no value after the colon. An\nelided value is a mistake in the source rather than a null: write\n`null` if that is what was meant, or supply the value.\n \nExamples:\n  a:null  -> null  # An explicit null, which is a value;\n  a:      -> nil   # ... but nothing at all is not;\n  a: b:1  -> {..}  # A colon chain is not an elision;\n  [1,]    -> [1]   # ... nor is a trailing comma.',
 
-  id_name: 'The argument to id() is not an entity name. A name is one or\nmore letters, digits, `_`, `-` or `/`, and NO dots: a dot separates\nan entity name from a path inside that entity, so a dotted name\nwould be ambiguous. A `-` must be quoted, because it is not a\nbare-text character.\n \nExamples:\n  id(svc/auth)   -> id   # Letters, digits and `/` may be bare;\n  id("team-pay") -> id   # ... a `-` name must be quoted;\n  id(svc.auth)   -> nil  # ... a dot is a path separator, not a name;\n  id(1)          -> nil  # ... and a number is not a name at all.',
+  id_name: 'The argument to id() is not an entity name. A name starts with a\nletter or `_`, and continues with letters, digits, `_` or `-` --\nNO slash (hierarchy belongs in document structure and kind fields,\nnot in name punctuation) and NO dots: a dot separates an entity\nname from a path inside that entity. A `-` name must be quoted,\nbecause a bare `-` is the minus operator.\n \nExamples:\n  id(svc_auth)   -> id   # Letters, digits and `_` may be bare;\n  id("team-pay") -> id   # ... a `-` name must be quoted;\n  id(svc.auth)   -> nil  # ... a dot is a path separator, not a name;\n  id(1)          -> nil  # ... and a number is not a name at all.',
 
   id_conflict: 'One value was declared to be two different entities. An id() says\nwhat a value IS, so two names on one node is a contradiction, not a\nmerge — the same kind of failure as unifying 1 with 2. Give the node\none name, or give the two names to two nodes.\n \nExamples:\n  id(a) & id(a) & {}  -> {..}  # One entity, said twice;\n  id(a) & {x:1}       -> {..}  # ... an entity with content;\n  id(a) & id(b) & {}  -> nil   # ... but a node cannot be both.',
 
   id_spread: 'A spread template stamps one id() onto every child. `&: id(x) & …`\nsays that EVERY child of the bag is the entity `x`, and identity\nmerging would then unify all of them into one. Use a\npath-dependent name — `id(key())` — to give each child its own,\nor move the id() to the one child that has it.\n \nExamples:\n  {&: id(key()), a:{}, b:{}}  -> {..}  # A name per child;\n  {a: id(x) & {}}             -> {..}  # ... or one named child;\n  {&: id(x), a:{}, b:{}}      -> nil   # ... but not one name for all.',
 
-  refer_address: 'A refer() was given something that is not an entity address. An\naddress is an entity name, optionally followed by a dot-separated path\ninside that entity — and only a STRING can be one.\n \nExamples:\n  refer() & "svc/auth"        -> "svc/auth"  # An entity;\n  refer() & "svc/auth.port"   -> ...         # ... and a node inside it;\n  refer() & "svc/auth."       -> nil         # ... but not a trailing dot;\n  refer() & 1                 -> nil         # ... and not a number.',
+  recursion_unexpanded: 'A schema refers to itself here, and no data reached this position\nto expand it against. Guard the recursion -- an optional key\n(next?:) drops when nothing arrives, and a preferred alternative\n(*null | $.Node) generates -- or supply the data.\n \nExamples:\n  Node: {v: integer, next?: $.Node}\n  t: $.Node & {v: 1}            -> {..}  # next? drops;\n  Node: {v: integer, next: $.Node}\n  t: $.Node & {v: 1}            -> nil   # ... required refuses.',
+  recursion_budget: 'A recursive schema expanded past the evaluation depth budget\nwithout meeting concrete data. Expansion is driven by the data --\nfinite data always terminates -- so a chain this deep means two\ndefinitions feeding each other, or data deeper than the budget\n(docs/trust.md raises it deliberately).',
+  list_length: 'A literal list alternative in a disjunction admits only a list of\nits own length -- a spread (&:) makes it variadic. Outside a\ndisjunction two statements of one list still merge elementwise.\n \nExamples:\n  x: [] | [&: integer]\n  x: [1, 2]      -> [1,2]  # The variadic arm;\n  x: []          -> []     # ... or exactly empty;\n  y: [a] | [b]\n  y: [a, extra]  -> nil    # ... a literal arm is its length.',
+  relation_cycle: 'This relation declared acyclic(), and its edges form a cycle. The\nverdict lands at generation, where every edge is known; the error\npoints at an edge on the cycle and names the entities it runs\nthrough, closing back on the first.\n \nExamples:\n  dependsOn: rel() & acyclic()\n  a: {dependsOn: [b]}\n  b: {dependsOn: [a]}   -> nil   # a -> b -> a;\n  b: {dependsOn: []}    -> {..}  # ... one edge fewer passes.',
+  relation_inverse_missing: 'This relation declared inverse(name), and an edge has no mirroring\nedge under that name: A relates to B, and B does not name A back.\nThe declaration asks for the mirror to be WRITTEN, and never writes\nit for the author -- generation is refused until the document says\nboth directions.\n \nExamples:\n  a: {dependsOn: rel() & inverse(dependedOnBy) & [b]}\n  b: {dependedOnBy: rel() & [a]}  -> {..}  # Mirrored;\n  b: {dependedOnBy: rel() & []}   -> nil   # ... and this is not.',
+  inverse_name: 'The argument to inverse() is not a relation name. The mirroring\npredicate is a D-1 name -- a letter or `_`, then letters, digits,\n`_` or `-` -- spelled bare or quoted, exactly as an id() argument\nis.\n \nExamples:\n  inverse(dependedOnBy)  -> inverse  # A name;\n  inverse("dep-on")     -> inverse  # ... quoted when hyphenated;\n  inverse(1)             -> nil      # ... a number is not a name.',
+  rel_address: 'A rel() field holds entity addresses: one string, a list of\nstrings, or a map whose string leaves are addresses. This value can\nnever be one.\n \nExamples:\n  dependsOn: rel() & [ledger]     -> {..}  # A list of addresses;\n  hostedOn: rel() & bastion       -> {..}  # ... or one;\n  dependsOn: rel() & [7]          -> nil   # ... but 7 is not a name.',
+  refer_address: 'A refer() was given something that is not an entity address. An\naddress is an entity name, optionally followed by a dot-separated path\ninside that entity — and only a STRING can be one.\n \nExamples:\n  refer() & "svc_auth"        -> "svc_auth"  # An entity;\n  refer() & "svc_auth.port"   -> ...         # ... and a node inside it;\n  refer() & "svc_auth."       -> nil         # ... but not a trailing dot;\n  refer() & 1                 -> nil         # ... and not a number.',
 
-  refer_unresolved: 'A refer() address names no entity in this evaluation. Within one\nevaluation the document-set is fixed, so a link to nothing is an\nerror rather than something to resolve later: check the spelling, or\nadd the id() that was meant to declare it.\n \nExamples:\n  a:id(svc/x)&{} b:refer()&"svc/x"     -> "svc/x"  # Declared, so it resolves;\n  a:id(svc/x)&{p:1} b:refer()&"svc/x.p" -> "svc/x.p"  # ... and so does a node inside it;\n  b:refer()&"svc/nope"                -> nil      # ... but nothing declares this.',
+  rel_unresolved: 'The address names no entity in this evaluation. Every id()-declared\nname is addressable; nothing else is.\n \nExamples:\n  p: id() & {}\n  q: rel() & p       -> {..}  # p is declared;\n  q: rel() & nosuch  -> nil   # ... nosuch is not.',
+  refer_unresolved: 'A refer() address names no entity in this evaluation. Within one\nevaluation the document-set is fixed, so a link to nothing is an\nerror rather than something to resolve later: check the spelling, or\nadd the id() that was meant to declare it.\n \nExamples:\n  a:id(svc_x)&{} b:refer()&"svc_x"     -> "svc_x"  # Declared, so it resolves;\n  a:id(svc_x)&{p:1} b:refer()&"svc_x.p" -> "svc_x.p"  # ... and so does a node inside it;\n  b:refer()&"svc_nope"                -> nil      # ... but nothing declares this.',
 
   pack_data: 'The first argument to pack() is not a bag. `pack` makes one child\nper child of its DATA, so the data has to have children: a list of\nnames, or a map whose keys are the names.\n \nExamples:\n  pack([a,b], {x:1})     -> {..}  # A list of names;\n  pack({a:1,b:2}, {x:1}) -> {..}  # ... or a map, keyed by its keys;\n  pack(1, {x:1})         -> nil   # ... but a scalar has no children.',
 
@@ -459,7 +467,9 @@ const codeClasses: Record<string, string> = {
   // names nothing in this evaluation (class `reference`, the same
   // class as `no_path`, because it is the same kind of miss).
   refer_address: 'parse',
+  rel_address: 'parse',
   refer_unresolved: 'reference',
+  rel_unresolved: 'reference',
 
   // G8 phase 1 -- the generation combinators. All three are class
   // `parse`: what is wrong is the CALL as written (data that is not a
@@ -501,7 +511,10 @@ const codeClasses: Record<string, string> = {
   // and a lattice citizen may not be falsified by more information.
   relation_cycle: 'conflict',
   relation_inverse_missing: 'conflict',
-  relation_target_unmet: 'conflict',
+  inverse_name: 'parse',
+  list_length: 'conflict',
+  recursion_unexpanded: 'incomplete',
+  recursion_budget: 'budget',
   func_arity: 'parse',
   elided_value: 'parse',
   unify_no_src: 'parse',

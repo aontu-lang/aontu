@@ -787,28 +787,18 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
     (0, node_test_1.test)('relations-reports-cycles-and-missing-inverses', () => {
         const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-rel-'));
         const file = Path.join(dir, 'doc.aon');
-        const decl = '@"std/system"\n' +
-            'relations: {dependsOn: $.std.Relation & {inverse: usedBy, acyclic: true}}\n';
-        Fs.writeFileSync(file, decl +
-            'a: id(a) & {dependsOn: [&: refer(), b]}\n' +
-            'b: id(b) & {dependsOn: [&: refer(), a]}\n');
+        Fs.writeFileSync(file, 'a: id(a) & {dependsOn: rel() & inverse(usedBy) & acyclic() & [b]}\n' +
+            'b: id(b) & {dependsOn: rel() & inverse(usedBy) & acyclic() & [a]}\n');
         const r = vetCapture(() => Assert.equal((0, cli_1.runRelations)([file]), 1));
         Assert.match(r.out, /verdict: fail/);
         Assert.match(r.out, /cycle a -> b -> a/);
         Assert.match(r.out, /b does not list a under usedBy/);
-        // THE DECLARED TARGET, rendered (the review's finding J). The link
-        // site uses a bare refer(), so the relation's own `target` is the
-        // only thing saying what the far end must be.
-        Fs.writeFileSync(file, '@"std/system"\n' +
-            'relations: {dependsOn: $.std.Relation & {target: {kind: service}}}\n' +
-            'a: id(a) & {dependsOn: [&: refer(), b]}\n' +
-            'b: id(b) & {kind: database}\n');
-        const rt = vetCapture(() => Assert.equal((0, cli_1.runRelations)([file]), 1));
-        Assert.match(rt.out, /b is not what dependsOn targets/);
+        // (The old declared-target rendering is gone with the code:
+        // rel(t) flows at the site and its refusal is the engine's own,
+        // pinned in test/spec/relation.tsv.)
         // Acyclic AND mirrored: nothing to report.
-        Fs.writeFileSync(file, decl +
-            'a: id(a) & {dependsOn: [&: refer(), b]}\n' +
-            'b: id(b) & {usedBy: [&: refer(), a]}\n');
+        Fs.writeFileSync(file, 'a: id(a) & {dependsOn: rel() & inverse(usedBy) & acyclic() & [b]}\n' +
+            'b: id(b) & {usedBy: rel() & [a]}\n');
         Assert.equal(vetCapture(() => Assert.equal((0, cli_1.runRelations)([file]), 0)).out.trim(), 'verdict: pass');
         // A document that does not stand up is not a document with a bad
         // graph -- and since the review's finding F it SAYS SO: exit 4 as
@@ -820,9 +810,8 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
         const rbj = JSON.parse(vetCapture(() => Assert.equal((0, cli_1.runRelations)(['--format', 'json', file]), 4)).out);
         Assert.deepEqual(rbj.findings, []);
         Assert.equal(rbj.errors[0].code, 'scalar_value');
-        Fs.writeFileSync(file, decl +
-            'a: id(a) & {dependsOn: [&: refer(), b]}\n' +
-            'b: id(b) & {dependsOn: [&: refer(), a]}\n');
+        Fs.writeFileSync(file, 'a: id(a) & {dependsOn: rel() & inverse(usedBy) & acyclic() & [b]}\n' +
+            'b: id(b) & {dependsOn: rel() & inverse(usedBy) & acyclic() & [a]}\n');
         const j = vetCapture(() => Assert.equal((0, cli_1.runRelations)(['--format', 'json', file]), 1));
         const report = JSON.parse(j.out);
         Assert.equal(report.aontu.verb, 'relations');

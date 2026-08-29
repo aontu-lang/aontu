@@ -80,7 +80,14 @@ disjunct-closed-differs-stays	canon	x:close({a:1})|{a:1}	{"x":{"a":1}|{"a":1}}
 disjunct-mark-differs-stays	canon	x:type({a:1})|{a:1}	{"x":{"a":1}|{"a":1}}
 disjunct-keycount-differs-stays	canon	x:{a:1}|{a:1,b:2}	{"x":{"a":1}|{"a":1,"b":2}}
 disjunct-optional-differs-stays	canon	x:{a?:1,b:1}|{b?:1,a:1}	{"x":{"a"?:1,"b":1}|{"a":1,"b"?:1}}
-disjunct-optional-differs-unresolved	errc	x:{a?:1,b:1}|{b?:1,a:1}	disjunct_no_gen
+# TRANSLATED (BUGS.md §52 regime 4's fix): alternatives that GENERATE
+# the same value are resolved -- ADR-007's rule asked at the moment it
+# matters. These two arms differ in optionality alone; both generate
+# {"a":1,"b":1}, and one generated value is one value. (What forced
+# the rule: `[] | [&: T]` met by an empty list keeps both arms, since
+# the spread is part of the shape now, and its base case must still
+# generate.)
+disjunct-optional-differs-resolved	gens	x:{a?:1,b:1}|{b?:1,a:1}	{"x":{"a":1,"b":1}}
 disjunct-null-top-unresolved	errc	x:null|top	disjunct_no_gen
 disjunct-top-null-unresolved	errc	x:top|null	disjunct_no_gen
 disjunct-scalar-unresolved	errc	x:1|2	disjunct_no_gen
@@ -97,3 +104,9 @@ disjunct-kind-unresolved	errc	x:string|integer	disjunct_no_gen
 guard-fold-canon	canon	a:({x:1}|{y:2})&{z:3}	{"a":{"x":1,"z":3}|{"y":2,"z":3}}
 guard-pref-disjunct-canon	canon	a:*8080|1024	{"a":*8080|1024}
 guard-pref-disjunct-gens	gens	a:*8080|1024	{"a":8080}
+
+# Two alternatives with the SAME spread are the same alternative:
+# the spread compare is by canon, so an identical template deduplicates
+# exactly as identical keys always have -- only a DIFFERING spread
+# (the regime-4 fix) holds a disjunction open.
+disjunct-equal-spreads-dedup	gens	y: ([&: integer] | [&: integer]) & [3]\nz: ({&: integer} | {&: integer}) & {a: 4}	{"y":[3],"z":{"a":4}}

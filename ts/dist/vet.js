@@ -614,6 +614,18 @@ function vet(schemaSrc, dataSrc, opts) {
             stampUrl(meetAnchor, schemaUrl);
         }
     }
+    else {
+        // A RECURSIVE residual inside the lifted anchor still names its
+        // definition by absolute path (`then?: $.spec.Step` -- the
+        // fixpoint, RECURSION.0.md), and the meet's root is the anchored
+        // subtree, which does not contain `$.spec`. Without a tree to
+        // walk, the residual held its peer forever and everything under a
+        // recursive field vetted VALID unchecked. The settled schema root
+        // is kept on the meet context for exactly that walk
+        // (AontuContext._fixroot; RecurseVal.body falls back to it).
+        ;
+        ctx._fixroot = schemaVal;
+    }
     const pair = new ConjunctVal_1.ConjunctVal({ peg: [meetAnchor, dataVal] }, ctx);
     const unified = aontu.unify(pair, undefined, ctx);
     // 4. Contradictions: every NilVal standing in the result, PLUS the

@@ -11,15 +11,8 @@
 # hide the otherwise-empty bag it leaves in the output.
 std: hide({})
 
-# Relation declarations, read by `aontu relations`. All THREE fields
-# are checked: `acyclic`, `inverse`, and -- since the review's finding
-# J (README, gap 3, fixed 2026-08-27) -- `target`, which says what the
-# far end must be and used to say it to nobody.
-relations: {
-  dependsOn: $.std.Relation & {
-    target: $.std.Service
-    inverse: dependedOnBy
-    acyclic: true
-  }
-  dependedOnBy: $.std.Relation & {target: $.std.Service}
-}
+# The relation declarations live ON THE FIELDS now (spec.aon,
+# CatalogEntry.dependsOn: rel($.std.Service) & acyclic() &
+# inverse(dependedOnBy)) -- the old root-level `relations:` block is
+# gone with the magic key (RELATIONS.0.md P2, ADR-010's grandfather
+# clause discharged), and `target` is rel(t)'s flow.
