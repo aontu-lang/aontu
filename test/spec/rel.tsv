@@ -90,3 +90,13 @@ rel-restated-after-container	gens	x: id(a) & {}\ns: {d: rel()}\ns: {d: [a]}\ns: 
 # links, and a rel() meeting the copy leaves stamped leaves alone --
 # the no-op that makes a second application safe.
 rel-over-linked-copy	gens	x: id(a) & {}\ns: {d: rel() & [a]}\nt: $.s.d & rel()	{"s":{"d":["a"]},"t":["a"],"x":{}}
+# Held constraints apply PER LEAF: a re() on the relation constrains
+# every address, never the container that holds them -- found by the
+# service catalog, whose re("^svc_") met the whole list and refused
+# it. The refusal is located at the failing element.
+rel-held-flows-per-leaf	gens	x: id(sa) & {}\ns: {d: rel() & re("^s") & [sa]}	{"s":{"d":["sa"]},"x":{}}
+rel-held-refuses-a-leaf	errc	x: id(qa) & {}\ns: {d: rel() & re("^s") & [qa]}	constraint
+# A rel(t) whose t names a SIBLING of its own schema bag resolves
+# (BUGS.md §53, fixed): the reference walk sees through the pending
+# hide()/type() wrapper, so the bag no longer deadlocks on itself.
+rel-sibling-shape	gens	spec: hide({Job: {kind: job, feeds?: rel($.spec.JobShape)}, JobShape: {kind: job}})\np: jobs: {&: $.spec.Job, a: id(job_a) & {feeds: [job_b]}, b: id(job_b) & {}}	{"p":{"jobs":{"a":{"feeds":["job_b"],"kind":"job"},"b":{"kind":"job"}}}}

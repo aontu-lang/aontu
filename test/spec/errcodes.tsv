@@ -236,6 +236,10 @@ patch_span_mismatch	errcode	internal	0.53.0
 # whatever disagreed (`scalar_value` and friends), which is the whole
 # point of merging by unification.
 id_name	errcode	parse	0.53.0
+inverse_name	errcode	parse	0.53.0
+list_length	errcode	conflict	0.53.0
+recursion_unexpanded	errcode	incomplete	0.53.0
+recursion_budget	errcode	budget	0.53.0
 id_conflict	errcode	conflict	0.53.0
 id_spread	errcode	parse	0.53.0
 # THE CHECKED LINK (G4 phase 2, `refer(t?)`). Two codes. `refer_address`
@@ -263,7 +267,6 @@ rel_unresolved	errcode	reference	0.53.0
 # reports them; the lattice never sees them.
 relation_cycle	errcode	conflict	0.53.0
 relation_inverse_missing	errcode	conflict	0.53.0
-relation_target_unmet	errcode	conflict	0.53.0
 # THE GENERATION COMBINATORS (G8 phase 1, `pack` and `each`). Three
 # codes, all class `parse`: what is wrong is the CALL as the author
 # wrote it, and no later pass repairs it. `pack_data`/`each_data` is

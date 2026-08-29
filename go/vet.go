@@ -905,6 +905,17 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 
 	pair := newConjunct([]Val{meetAnchor, dataVal})
 	ctx := &Ctx{root: pair, src: dataSrc, collect: true}
+	if "" != options.At {
+		// A RECURSIVE residual inside the lifted anchor still names its
+		// definition by absolute path (`then?: $.spec.Step` -- the
+		// fixpoint, RECURSION.0.md), and the meet's root is the anchored
+		// subtree, which does not contain `$.spec`. Without a tree to
+		// walk, the residual held its peer forever and everything under
+		// a recursive field vetted VALID unchecked. The settled schema
+		// root is kept on the meet context for exactly that walk
+		// (Ctx.fixroot; RecurseVal.body falls back to it).
+		ctx.fixroot = schemaVal
+	}
 	unified := unifyRoot(pair, ctx)
 	ctx.root = unified
 

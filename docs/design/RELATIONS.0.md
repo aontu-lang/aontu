@@ -377,7 +377,7 @@ exposure (podmind, apidef, sdkgen) needs its own grep before P2.
 |---|---|---|
 | P0 | ~~D-1: name grammar tightened in the existing surface; corpus migrated~~ **LANDED 2026-08-29** | both suites green on renamed corpus |
 | P1 | ~~`id()` no-arg; `rel(t?)`; `rel_*` codes~~ **LANDED 2026-08-29** | refer() still working beside it |
-| P2 | `acyclic()`/`inverse()` atoms; verbs read declarations; `meets()` deleted | relation.tsv re-pinned |
+| P2 | ~~`acyclic()`/`inverse()` atoms; verbs read declarations; `meets()` deleted~~ **LANDED 2026-08-29** | relation.tsv re-pinned |
 | P3 | `deprecate()` on `refer()` + `relations:`; one release later, removal | corpus carries zero uses |
 
 **P1 landed with three boundaries worth recording, each pinned:**
@@ -395,7 +395,11 @@ exposure (podmind, apidef, sdkgen) needs its own grep before P2.
   `Service`) is refused by the prefix test today** — the same guarded
   self-reference RECURSION.0.md licenses, and it waits for that note's
   P1. Layered vocabularies (`rel($.std.Service)` from a derived
-  Service) do not self-refer and work now.
+  Service) do not self-refer and work now. *[Resolved 2026-08-29:
+  RECURSION P1 landed in the same change-set, and with it the walk
+  through a pending hide() wrapper (BUGS §53) — the natural sibling
+  spelling is what use-cases/12-relations now writes, pinned by
+  `rel-sibling-shape`.]*
 
 An unmet `rel()` is DONE — its own settled residual, like `min(1)` —
 which is what lets a `type()` body carry one and still settle: the
@@ -409,3 +413,36 @@ from separate statements kept or lost the kind depending on which
 statement came first). The shortcuts now exclude rel residuals and the
 merge arm runs instead (`rel-two-held-order-canon` and its
 neighbours).
+
+**P2 landed with its own boundaries, each pinned:**
+
+- **The atom carries the value** (`held`), the sizing-constraint shape:
+  absorbing its fold neighbours is what lets the pairwise fold merge
+  the value across it. Riding beside as a conjunct member — the first
+  build — derailed the fold (`rel & atom & [..]` never met the list).
+- **The self-drive refines in place.** A fresh atom per pass changes
+  object identity, so spread apply-once stamps and the entity merge's
+  fast paths stop holding and the enclosing bags reopen every pass —
+  the service catalog never converged until the atom followed MapVal's
+  top-peer pattern.
+- **A rewrite that minted nothing pending keeps the clone's doneness**,
+  for the same convergence reason: the entity merge drops the spread
+  stamp each pass, so the template re-applies, and its rewrite has to
+  come back done over an already-settled value.
+- **The rewrite installs its leaf constraint as the container's element
+  spread** (flat containers only), so elements arriving after it — a
+  patch position restating a list — convert exactly as the old
+  per-element `[&: refer()]` idiom converted them (the onboarding
+  proposal in use-cases/01 is the pin).
+- **Held constraints apply per leaf**, never to the container
+  (`re("^svc_")` met the whole list and refused it), and a constraint
+  meeting a rel or an atom hands the drive over, so `rel(t) & re(x)`
+  reads the same in either order.
+- **The edge predicate is a D-1 name** in both ports (`fieldkey` and
+  `register`): a list index or an out-of-grammar key declares nothing
+  and stamps nothing, and the graph falls back to inference — also the
+  parity guard, an index being a number in TS and a string in Go.
+
+The `relations:` magic key, `meets()`, `declaredRelations()`, the
+`Relation` vocabulary entry and `relation_target_unmet` are gone;
+ADR-010's grandfather clause is discharged. `refer()` remains until P3.

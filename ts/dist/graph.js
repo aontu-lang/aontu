@@ -58,6 +58,12 @@ function graphOf(root) {
                 at: formatPath(path),
             });
         }
+        // A graph atom is TRANSPARENT here (RELATIONS P2): it carries
+        // the field's value at the field's own position, and the graph is
+        // about the value.
+        if (true === node.isGraphAtom && undefined !== node.held) {
+            visit(node.held, path, inside, below, ancestors);
+        }
         if ((true === node.isMap || true === node.isList) && null != node.peg) {
             ancestors.add(node);
             for (const k of Object.keys(node.peg)) {

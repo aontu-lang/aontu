@@ -51,17 +51,10 @@ std: {
     ports?: {&: $.std.Port}
   })
 
-  # A DECLARED RELATION. "target" is what the far end must satisfy,
-  # "inverse" names the relation that must mirror it, and "acyclic"
-  # asks that the edge set have no cycle. The last two are checked
-  # AFTER unification, not by it: they are global and non-monotone ---
-  # an acyclic graph becomes cyclic when one more edge unifies in ---
-  # and no lattice citizen may be falsified by more information.
-  Relation: type({
-    target?: top
-    inverse?: string
-    acyclic?: *false | boolean
-  })
+  # (The Relation schema that used to sit here is retired with the
+  # relations: magic key, RELATIONS.0.md P2: a relation is declared
+  # by the graph atoms at its field -- rel(t) & acyclic() &
+  # inverse(name) -- and the target half is rel(t)'s flow.)
 }
 `
 

@@ -47,27 +47,25 @@ component-without-ports	gens	@"std/system"\nc: $.std.Component & {}	{"c":{},"std
 service-is-a-component	gens	@"std/system"\ns: $.std.Service & {ports: {http: {}}}	{"s":{"kind":"service","ports":{"http":{"direction":"in"}}},"std":{}}
 service-kind-is-fixed	errc	@"std/system"\ns: $.std.Service & {kind: database}	scalar_value
 
-# --- Relation ---------------------------------------------------------
+# --- Relation (retired) ----------------------------------------------
 #
-# What phase 5 will read: `target` is what the far end must satisfy,
-# `inverse` names the relation that must mirror it, and `acyclic` asks
-# that the edge set have no cycle. The last two are checked AFTER
-# unification, not by it -- they are global and non-monotone, and no
-# lattice citizen may be falsified by more information.
-relation-declared	gens	@"std/system"\nr: $.std.Relation & {target: {kind: service}, inverse: dependedOnBy, acyclic: true}	{"r":{"acyclic":true,"inverse":"dependedOnBy","target":{"kind":"service"}},"std":{}}
-relation-acyclic-defaults-false	gens	@"std/system"\nr: $.std.Relation & {target: {kind: service}}	{"r":{"acyclic":false,"target":{"kind":"service"}},"std":{}}
-relation-inverse-optional	gens	@"std/system"\nr: $.std.Relation & {target: {kind: service}, acyclic: true}	{"r":{"acyclic":true,"target":{"kind":"service"}},"std":{}}
-relation-acyclic-must-be-boolean	errc	@"std/system"\nr: $.std.Relation & {target: {kind: service}, acyclic: yes}	|:empty
+# The Relation schema is GONE (RELATIONS.0.md P2): a relation is
+# declared by the graph atoms at its field -- `rel(t) & acyclic() &
+# inverse(name)` -- so `target` is rel(t)'s flow and the other two are
+# the atoms, all pinned in test/spec/relation.tsv. A document still
+# reaching for the old member gets the ordinary missing-path refusal.
+relation-schema-retired	errc	@"std/system"\nr: $.std.Relation & {acyclic: true}	no_path
 
 # --- The worked example ----------------------------------------------
 #
 # The design's own figure, evaluated: identified services, a typed
-# link-shaped dependency list, and a declared relation over it. The
-# graph row is what phase 5 will consume.
-the-worked-example	gens	@"std/system"\n\nservices: {\n  auth: id(svc_auth) & $.std.Service & {ports: {http: {protocol: http}}}\n  billing: id(svc_billing) & $.std.Service & {dependsOn: [&: refer(), svc_auth]}\n}\nrelations: {\n  dependsOn: $.std.Relation & {target: $.std.Service, inverse: dependedOnBy, acyclic: true}\n}	{"relations":{"dependsOn":{"acyclic":true,"inverse":"dependedOnBy","target":{"kind":"service"}}},"services":{"auth":{"kind":"service","ports":{"http":{"direction":"in","protocol":"http"}}},"billing":{"dependsOn":["svc_auth"],"kind":"service"}},"std":{}}
+# link-shaped dependency list, and the relation declared BY THE FIELD
+# (rel + the graph atoms), with the mirror the inverse asks for
+# written out. The graph row is what the verdict consumes.
+the-worked-example	gens	@"std/system"\n\nservices: {\n  auth: id(svc_auth) & $.std.Service & {ports: {http: {protocol: http}}, dependedOnBy: rel() & [svc_billing]}\n  billing: id(svc_billing) & $.std.Service & {dependsOn: rel($.std.Service) & inverse(dependedOnBy) & acyclic() & [svc_auth]}\n}	{"services":{"auth":{"dependedOnBy":["svc_billing"],"kind":"service","ports":{"http":{"direction":"in","protocol":"http"}}},"billing":{"dependsOn":["svc_auth"],"kind":"service"}},"std":{}}
 the-worked-example-graph	graph	@"std/system"\n\nservices: {\n  auth: id(svc_auth) & $.std.Service & {ports: {http: {protocol: http}}}\n  billing: id(svc_billing) & $.std.Service & {dependsOn: [&: refer(), svc_auth]}\n}	{"entities":[{"id":"svc_auth","paths":["$.services.auth"]},{"id":"svc_billing","paths":["$.services.billing"]}],"edges":[{"from":"svc_billing","key":"dependsOn","to":"svc_auth","at":"$.services.billing.dependsOn.0"}]}
-vocabulary-canon	canon	@"std/system"	{"std":{"Component":{"ports"?:{&:$.std.Port}},"Port":{"direction":*"in"|"out"|"inout","protocol"?:string},"Relation":{"acyclic"?:*false|boolean,"inverse"?:string,"target"?:top},"Service":{"kind":"service","ports"?:{&:$.std.Port}}}}
-vocabulary-hash	hash	@"std/system"	aon1-rI-LzXTNNXmMLQpedeNbdYuMC25N9KCbAWQZRI7-pD4
-relation-target-optional	gens	@"std/system"\nr: $.std.Relation & {acyclic: true}	{"r":{"acyclic":true},"std":{}}
+vocabulary-canon	canon	@"std/system"	{"std":{"Component":{"ports"?:{&:$.std.Port}},"Port":{"direction":*"in"|"out"|"inout","protocol"?:string},"Service":{"kind":"service","ports"?:{&:$.std.Port}}}}
+vocabulary-hash	hash	@"std/system"	aon1-aSuWMdmRq_A59KJu3PkYKmL4x9NoCbPCVIOoAvwbfmk
+relation-atoms-replace-the-schema	gens	@"std/system"\na: id(a) & $.std.Service & {dependsOn: rel($.std.Service) & acyclic() & []}	{"a":{"dependsOn":[],"kind":"service"},"std":{}}
 service-is-a-component-shape	gens	@"std/system"\ns: $.std.Component & $.std.Service & {ports: {http: {}}}	{"s":{"kind":"service","ports":{"http":{"direction":"in"}}},"std":{}}
 port-direction-refuses-a-non-string	errc	@"std/system"\np: $.std.Port & {direction: 1}	|:empty

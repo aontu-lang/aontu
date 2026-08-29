@@ -1,117 +1,148 @@
-# G4 phase 5: RELATION GRAPH CHECKS
-# (docs/capability-review/g4-identity-relations.md). Acyclicity and
-# inverse consistency over the edge set, checked AFTER unification and
-# never by it.
+# RELATION GRAPH VERDICTS (RELATIONS.0.md §3.3, replacing the G4
+# phase 5 magic-key pass). Acyclicity and inverse consistency over the
+# edge set, DECLARED by the graph atoms -- `acyclic()` and
+# `inverse(name)` conjoined at the field whose key is the predicate --
+# and decided at GENERATION, never by unification.
 #
 # Why not in the lattice. Both properties are GLOBAL and NON-MONOTONE:
 # an acyclic graph becomes cyclic when one more edge unifies in, and an
 # inverse that is present becomes absent when the far side is narrowed.
 # The lattice guarantee is that more information never falsifies what
 # has been observed, so a constraint that could be true and then false
-# is not a constraint the lattice may hold. These are facts about the
-# finished model, and a verb that reports facts about a finished model
-# is where they belong.
+# is not a constraint the lattice may hold. The atoms therefore only
+# REGISTER during unification, and the verdict lands where no more
+# information can arrive: generation refuses with a located
+# relation_cycle / relation_inverse_missing, and the `relations` verb
+# reports the same findings from the same declarations.
 #
-# A relation is DECLARED as data, under the `relations` key of the
-# document root, which is the std/system vocabulary's convention.
-# Nothing in the ENGINE knows that name; this pass does.
-#
-# Mode `relation`, four columns; `expect` is the whole report as JSON.
-# Findings are sorted by the position of the offending edge, and a
-# cycle walk visits its roots and successors in sorted order, so the
-# cycle a report names is the same one in both ports.
+# The old declaration channel -- a `relations:` key at the document
+# root -- is GONE, discharging ADR-010's grandfather clause; the row
+# `relations-key-is-user-space` pins the discharge. The `target:` half
+# of the old declaration is `rel(t)`'s flow at the site, pinned at the
+# end of this file. Mode `relation`: `expect` is the whole verb report
+# as JSON.
 #
 # Every expectation was obtained by the parity probe (AGENTS.md).
-no-relations-declared	relation	a: id(a) & {dependsOn: [&: refer(), b]}\nb: id(b) & {}	{"verdict":"pass","findings":[]}
-relation-declared-nothing-asked	relation	@"std/system"\nrelations: {dependsOn: $.std.Relation & {target: top}}\na: id(a) & {dependsOn: [&: refer(), b]}\nb: id(b) & {}	{"verdict":"pass","findings":[]}
+no-relations-declared	relation	a: id(a) & {dependsOn: rel() & [b]}\nb: id(b) & {}	{"verdict":"pass","findings":[]}
+relation-declared-nothing-asked	relation	a: id(a) & {dependsOn: rel() & [b]}\nb: id(b) & {}\nc: id(c) & {}	{"verdict":"pass","findings":[]}
 
 # --- Acyclicity -------------------------------------------------------
 #
-# Asked for by `acyclic: true` and by nothing else: a cycle in a
-# relation nobody declared acyclic is DATA, and the engine has no
-# opinion about it. A cycle is reported ONCE, with the entities it runs
-# through closing back on the first, and only for the relation that
-# asked. An edge into a node INSIDE an entity is an edge to that
-# entity: a relation holds between entities, and the path inside one
-# says which part of it the link reaches.
-acyclic-holds	relation	@"std/system"\nrelations: {dependsOn: $.std.Relation & {acyclic: true}}\na: id(a) & {dependsOn: [&: refer(), b]}\nb: id(b) & {}	{"verdict":"pass","findings":[]}
-acyclic-two-cycle	relation	@"std/system"\nrelations: {dependsOn: $.std.Relation & {acyclic: true}}\na: id(a) & {dependsOn: [&: refer(), b]}\nb: id(b) & {dependsOn: [&: refer(), a]}	{"verdict":"fail","findings":[{"code":"relation_cycle","relation":"dependsOn","at":"$.a.dependsOn.0","detail":["a","b","a"]}]}
-acyclic-three-cycle	relation	@"std/system"\nrelations: {dependsOn: $.std.Relation & {acyclic: true}}\na: id(a) & {dependsOn: [&: refer(), b]}\nb: id(b) & {dependsOn: [&: refer(), c]}\nc: id(c) & {dependsOn: [&: refer(), a]}	{"verdict":"fail","findings":[{"code":"relation_cycle","relation":"dependsOn","at":"$.a.dependsOn.0","detail":["a","b","c","a"]}]}
-acyclic-self-cycle	relation	@"std/system"\nrelations: {dependsOn: $.std.Relation & {acyclic: true}}\na: id(a) & {dependsOn: [&: refer(), a]}	{"verdict":"fail","findings":[{"code":"relation_cycle","relation":"dependsOn","at":"$.a.dependsOn.0","detail":["a","a"]}]}
-acyclic-diamond-is-not-a-cycle	relation	@"std/system"\nrelations: {dependsOn: $.std.Relation & {acyclic: true}}\na: id(a) & {dependsOn: [&: refer(), b, c]}\nb: id(b) & {dependsOn: [&: refer(), d]}\nc: id(c) & {dependsOn: [&: refer(), d]}\nd: id(d) & {}	{"verdict":"pass","findings":[]}
-acyclic-not-asked-for	relation	@"std/system"\nrelations: {dependsOn: $.std.Relation & {target: top}}\na: id(a) & {dependsOn: [&: refer(), b]}\nb: id(b) & {dependsOn: [&: refer(), a]}	{"verdict":"pass","findings":[]}
-acyclic-only-its-own-relation	relation	@"std/system"\nrelations: {dependsOn: $.std.Relation & {acyclic: true}}\na: id(a) & {dependsOn: [&: refer(), b], seeAlso: [&: refer(), b]}\nb: id(b) & {seeAlso: [&: refer(), a]}	{"verdict":"pass","findings":[]}
-acyclic-into-a-node-inside-an-entity	relation	@"std/system"\nrelations: {dependsOn: $.std.Relation & {acyclic: true}}\na: id(a) & {ports: {p: {}}, dependsOn: [&: refer(), "b.ports.p"]}\nb: id(b) & {ports: {p: {}}, dependsOn: [&: refer(), "a.ports.p"]}	{"verdict":"fail","findings":[{"code":"relation_cycle","relation":"dependsOn","at":"$.a.dependsOn.0","detail":["a","b","a"]}]}
+# Asked for by `acyclic()` and by nothing else: a cycle in a relation
+# nobody declared acyclic is DATA, and the engine has no opinion about
+# it. A cycle is reported ONCE, with the entities it runs through
+# closing back on the first, and only for the relation that asked. An
+# edge into a node INSIDE an entity is an edge to that entity: a
+# relation holds between entities, and the path inside one says which
+# part of it the link reaches.
+acyclic-holds	relation	a: id(a) & {dependsOn: rel() & acyclic() & [b]}\nb: id(b) & {}	{"verdict":"pass","findings":[]}
+acyclic-two-cycle	relation	a: id(a) & {dependsOn: rel() & acyclic() & [b]}\nb: id(b) & {dependsOn: rel() & acyclic() & [a]}	{"verdict":"fail","findings":[{"code":"relation_cycle","relation":"dependsOn","at":"$.a.dependsOn.0","detail":["a","b","a"]}]}
+acyclic-three-cycle	relation	a: id(a) & {dependsOn: rel() & acyclic() & [b]}\nb: id(b) & {dependsOn: rel() & acyclic() & [c]}\nc: id(c) & {dependsOn: rel() & acyclic() & [a]}	{"verdict":"fail","findings":[{"code":"relation_cycle","relation":"dependsOn","at":"$.a.dependsOn.0","detail":["a","b","c","a"]}]}
+acyclic-self-cycle	relation	a: id(a) & {dependsOn: rel() & acyclic() & [a]}	{"verdict":"fail","findings":[{"code":"relation_cycle","relation":"dependsOn","at":"$.a.dependsOn.0","detail":["a","a"]}]}
+acyclic-diamond-is-not-a-cycle	relation	a: id(a) & {dependsOn: rel() & acyclic() & [b, c]}\nb: id(b) & {dependsOn: rel() & acyclic() & [d]}\nc: id(c) & {dependsOn: rel() & acyclic() & [d]}\nd: id(d) & {}	{"verdict":"pass","findings":[]}
+acyclic-not-asked-for	relation	a: id(a) & {dependsOn: rel() & [b]}\nb: id(b) & {dependsOn: rel() & [a]}	{"verdict":"pass","findings":[]}
+acyclic-only-its-own-relation	relation	a: id(a) & {dependsOn: rel() & acyclic() & [b], seeAlso: rel() & [b]}\nb: id(b) & {seeAlso: rel() & [a]}	{"verdict":"pass","findings":[]}
+acyclic-into-a-node-inside-an-entity	relation	a: id(a) & {ports: {p: {}}, dependsOn: rel() & acyclic() & ["b.ports.p"]}\nb: id(b) & {ports: {p: {}}, dependsOn: rel() & acyclic() & ["a.ports.p"]}	{"verdict":"fail","findings":[{"code":"relation_cycle","relation":"dependsOn","at":"$.a.dependsOn.0","detail":["a","b","a"]}]}
+# One statement of the atom declares for the PREDICATE, everywhere: the
+# declaration set is evaluation-global and additive, so a cycle formed
+# by an edge whose own field never spelled acyclic() is still a cycle
+# of the declared relation.
+acyclic-declaration-is-global	relation	a: id(a) & {dependsOn: rel() & acyclic() & [b]}\nb: id(b) & {dependsOn: rel() & [a]}	{"verdict":"fail","findings":[{"code":"relation_cycle","relation":"dependsOn","at":"$.a.dependsOn.0","detail":["a","b","a"]}]}
 
 # --- Inverse consistency ----------------------------------------------
 #
 # For each `a --dependsOn--> b`, `b` must carry `a` under the declared
-# inverse. The report names the exact missing entry -- the two ends and
-# the relation that should have mirrored it -- and one per edge, because
-# each missing entry is its own repair. DERIVING the inverse (writing
-# `usedBy` for the author) is field generation, and waits for the
-# generation combinators; this validates only.
-inverse-holds	relation	@"std/system"\nrelations: {dependsOn: $.std.Relation & {inverse: usedBy}}\na: id(a) & {dependsOn: [&: refer(), b]}\nb: id(b) & {usedBy: [&: refer(), a]}	{"verdict":"pass","findings":[]}
-inverse-missing	relation	@"std/system"\nrelations: {dependsOn: $.std.Relation & {inverse: usedBy}}\na: id(a) & {dependsOn: [&: refer(), b]}\nb: id(b) & {}	{"verdict":"fail","findings":[{"code":"relation_inverse_missing","relation":"dependsOn","at":"$.a.dependsOn.0","detail":["a","b","usedBy"]}]}
-inverse-missing-names-the-entry	relation	@"std/system"\nrelations: {dependsOn: $.std.Relation & {inverse: usedBy}}\na: id(a) & {dependsOn: [&: refer(), b, c]}\nb: id(b) & {usedBy: [&: refer(), a]}\nc: id(c) & {}	{"verdict":"fail","findings":[{"code":"relation_inverse_missing","relation":"dependsOn","at":"$.a.dependsOn.1","detail":["a","c","usedBy"]}]}
-inverse-wrong-way-round	relation	@"std/system"\nrelations: {dependsOn: $.std.Relation & {inverse: usedBy}}\na: id(a) & {dependsOn: [&: refer(), b]}\nb: id(b) & {usedBy: [&: refer(), b]}	{"verdict":"fail","findings":[{"code":"relation_inverse_missing","relation":"dependsOn","at":"$.a.dependsOn.0","detail":["a","b","usedBy"]}]}
-inverse-and-acyclic-together	relation	@"std/system"\nrelations: {dependsOn: $.std.Relation & {inverse: usedBy, acyclic: true}}\na: id(a) & {dependsOn: [&: refer(), b]}\nb: id(b) & {dependsOn: [&: refer(), a]}	{"verdict":"fail","findings":[{"code":"relation_cycle","relation":"dependsOn","at":"$.a.dependsOn.0","detail":["a","b","a"]},{"code":"relation_inverse_missing","relation":"dependsOn","at":"$.a.dependsOn.0","detail":["a","b","usedBy"]},{"code":"relation_inverse_missing","relation":"dependsOn","at":"$.b.dependsOn.0","detail":["b","a","usedBy"]}]}
-two-relations-declared	relation	@"std/system"\nrelations: {dependsOn: $.std.Relation & {acyclic: true}, seeAlso: $.std.Relation & {inverse: seeAlso}}\na: id(a) & {dependsOn: [&: refer(), b], seeAlso: [&: refer(), b]}\nb: id(b) & {}	{"verdict":"fail","findings":[{"code":"relation_inverse_missing","relation":"seeAlso","at":"$.a.seeAlso.0","detail":["a","b","seeAlso"]}]}
+# inverse -- as an EDGE, so the mirror field is itself a relation
+# (spelled with rel(), usually once, in the schema). The report names
+# the exact missing entry -- the two ends and the relation that should
+# have mirrored it -- one per edge, because each missing entry is its
+# own repair. DERIVING the inverse (writing `usedBy` for the author)
+# is field generation, and waits for the generation combinators; this
+# validates only.
+inverse-holds	relation	a: id(a) & {dependsOn: rel() & inverse(usedBy) & [b]}\nb: id(b) & {usedBy: rel() & [a]}	{"verdict":"pass","findings":[]}
+inverse-missing	relation	a: id(a) & {dependsOn: rel() & inverse(usedBy) & [b]}\nb: id(b) & {}	{"verdict":"fail","findings":[{"code":"relation_inverse_missing","relation":"dependsOn","at":"$.a.dependsOn.0","detail":["a","b","usedBy"]}]}
+inverse-missing-names-the-entry	relation	a: id(a) & {dependsOn: rel() & inverse(usedBy) & [b, c]}\nb: id(b) & {usedBy: rel() & [a]}\nc: id(c) & {}	{"verdict":"fail","findings":[{"code":"relation_inverse_missing","relation":"dependsOn","at":"$.a.dependsOn.1","detail":["a","c","usedBy"]}]}
+inverse-wrong-way-round	relation	a: id(a) & {dependsOn: rel() & inverse(usedBy) & [b]}\nb: id(b) & {usedBy: rel() & [b]}	{"verdict":"fail","findings":[{"code":"relation_inverse_missing","relation":"dependsOn","at":"$.a.dependsOn.0","detail":["a","b","usedBy"]}]}
+inverse-and-acyclic-together	relation	a: id(a) & {dependsOn: rel() & inverse(usedBy) & acyclic() & [b]}\nb: id(b) & {dependsOn: rel() & inverse(usedBy) & acyclic() & [a]}	{"verdict":"fail","findings":[{"code":"relation_cycle","relation":"dependsOn","at":"$.a.dependsOn.0","detail":["a","b","a"]},{"code":"relation_inverse_missing","relation":"dependsOn","at":"$.a.dependsOn.0","detail":["a","b","usedBy"]},{"code":"relation_inverse_missing","relation":"dependsOn","at":"$.b.dependsOn.0","detail":["b","a","usedBy"]}]}
+two-relations-declared	relation	a: id(a) & {dependsOn: rel() & acyclic() & [b], seeAlso: rel() & inverse(seeAlso) & [b]}\nb: id(b) & {}	{"verdict":"fail","findings":[{"code":"relation_inverse_missing","relation":"seeAlso","at":"$.a.seeAlso.0","detail":["a","b","seeAlso"]}]}
 
-# --- What the pass does not do ---------------------------------------
+# --- What the verdict does not do -------------------------------------
 #
 # An edge outside every entity has no source to be a relation OF. A
 # document that does not stand up is not a document with a bad graph:
-# the errors it already has are the answer. And a `relations` entry
-# that is not a map declares nothing.
-edge-outside-an-entity-is-not-a-relation	relation	@"std/system"\nrelations: {dependsOn: $.std.Relation & {inverse: usedBy}}\ndependsOn: [&: refer(), b]\nb: id(b) & {}	{"verdict":"pass","findings":[]}
-broken-document-is-not-blamed-on-relations	relation	@"std/system"\nrelations: {dependsOn: $.std.Relation & {acyclic: true}}\na: 1 & 2	{"errors":[{"class":"conflict","code":"scalar_value","path":"$.a","severity":"error","sites":[{"col":8,"file":"","len":1,"role":"data","row":3,"src":"2","value":"2"},{"col":4,"file":"","len":1,"role":"data","row":3,"src":"1","value":"1"}]}],"findings":[],"verdict":"error"}
-relations-that-are-not-maps-are-skipped	relation	relations: {dependsOn: 1}\na: id(a) & {dependsOn: [&: refer(), a]}	{"verdict":"pass","findings":[]}
-the-worked-example	relation	@"std/system"\n\nservices: {\n  auth: id(svc_auth) & $.std.Service & {}\n  billing: id(svc_billing) & $.std.Service & {dependsOn: [&: refer(), svc_auth]}\n}\nrelations: {\n  dependsOn: $.std.Relation & {target: $.std.Service, inverse: dependedOnBy, acyclic: true}\n}	{"verdict":"fail","findings":[{"code":"relation_inverse_missing","relation":"dependsOn","at":"$.services.billing.dependsOn.0","detail":["svc_billing","svc_auth","dependedOnBy"]}]}
-# A root that is not a map declares no relations: there is nowhere for
-# `relations` to be.
+# the errors it already has are the answer. And `relations` as a KEY
+# is ordinary user data -- the magic key is retired (ADR-010's
+# grandfather clause discharged).
+edge-outside-an-entity-is-not-a-relation	relation	dependsOn: rel() & inverse(usedBy) & [b]\nb: id(b) & {usedBy: rel() & []}	{"verdict":"pass","findings":[]}
+broken-document-is-not-blamed-on-relations	relation	d: rel() & acyclic()\na: 1 & 2	{"errors":[{"class":"conflict","code":"scalar_value","path":"$.a","severity":"error","sites":[{"col":8,"file":"","len":1,"role":"data","row":2,"src":"2","value":"2"},{"col":4,"file":"","len":1,"role":"data","row":2,"src":"1","value":"1"}]}],"findings":[],"verdict":"error"}
+relations-key-is-user-space	relation	relations: {dependsOn: 1}\na: id(a) & {dependsOn: rel() & [a]}	{"verdict":"pass","findings":[]}
+relations-key-generates-as-data	gens	relations: {dependsOn: 1}	{"relations":{"dependsOn":1}}
+the-worked-example	relation	@"std/system"\n\nservices: {\n  auth: id(svc_auth) & $.std.Service & {}\n  billing: id(svc_billing) & $.std.Service & {dependsOn: rel($.std.Service) & inverse(dependedOnBy) & acyclic() & [svc_auth]}\n}	{"verdict":"fail","findings":[{"code":"relation_inverse_missing","relation":"dependsOn","at":"$.services.billing.dependsOn.0","detail":["svc_billing","svc_auth","dependedOnBy"]}]}
 non-map-root	relation	[1,2]	{"verdict":"pass","findings":[]}
 
-# --- target (the review's finding J) ----------------------------------
+# --- The verdict at generation ----------------------------------------
 #
-# `target` says what the FAR END must satisfy, and used to say it to
-# nobody: the field was read by nothing, on the reasoning that
-# `refer(t)` already flows the type in at the SITE. It does -- which is
-# why the declaration was worth nothing, because the site then has to
-# repeat it, and the idiom that avoids repeating it
-# (`refer($.std.Service)`) tripped the fixpoint until §19 was fixed. So
-# every real model wrote bare `refer()` and its typed-endpoint
-# declaration checked nothing.
+# The verb REPORTS; generation ENFORCES. The same findings become
+# located evaluation errors at the offending edge, exactly as an unmet
+# sizing atom refuses at generation -- and a document whose atoms hold
+# generates the plain value, the atoms transparent.
+generation-refuses-a-cycle	errc	a: id(a) & {dependsOn: rel() & acyclic() & [b]}\nb: id(b) & {dependsOn: rel() & acyclic() & [a]}	relation_cycle
+generation-refuses-a-missing-inverse	errc	a: id(a) & {dependsOn: rel() & inverse(usedBy) & [b]}\nb: id(b) & {}	relation_inverse_missing
+generation-passes-a-held-declaration	gens	a: id(a) & {dependsOn: rel() & acyclic() & inverse(usedBy) & [b]}\nb: id(b) & {usedBy: rel() & [a]}	{"a":{"dependsOn":["b"]},"b":{"usedBy":["a"]}}
+atoms-are-transparent-at-generation	gens	a: id(a) & {dependsOn: rel() & acyclic() & [b]}\nb: id(b) & {}	{"a":{"dependsOn":["b"]},"b":{}}
+bare-atom-is-silent	gens	s: {d?: acyclic()}	{"s":{}}
+# The declarations survive canon and reach the hash: reparsing a canon
+# re-registers what the document declared.
+atom-canon	canon	a: id(a) & {dependsOn: rel() & acyclic() & inverse(usedBy) & [b]}\nb: id(b) & {usedBy: rel() & [a]}	{"a":id("a")&{"dependsOn":[&:refer(),"b"]&acyclic()&inverse("usedBy")},"b":id("b")&{"usedBy":[&:refer(),"a"]}}
+inverse-name-refused	errc	d: rel() & inverse(1)	inverse_name
+inverse-name-not-a-name	errc	d: rel() & inverse("a b")	inverse_name
+
+# --- rel(t): the target half of the old declaration -------------------
 #
-# Satisfaction is the meet, and NOT MERELY THE ABSENCE OF A CONFLICT:
-# a target key the far end does not have unifies happily and leaves a
-# hole, so the check asks the question `refer(t)` answers at the site --
-# can the far end still generate once the target is met? -- and
-# compares it with the far end ALONE, so a node already incomplete for
-# its own reasons is not blamed on the relation pointing at it. The
-# reason reported is the engine's own code. Parity-probed.
-target-holds	relation	relations: {dependsOn: {target: {kind: service}}}\na: id(a) & {dependsOn: [&: refer(), b]}\nb: id(b) & {kind: service}\n	{"findings":[],"verdict":"pass"}
-target-refused	relation	relations: {dependsOn: {target: {kind: service}}}\na: id(a) & {dependsOn: [&: refer(), b]}\nb: id(b) & {kind: database}\n	{"findings":[{"at":"$.a.dependsOn.0","code":"relation_target_unmet","detail":["a","b","scalar_value"],"relation":"dependsOn"}],"verdict":"fail"}
-target-unsatisfied-key-is-not-satisfaction	relation	relations: {dependsOn: {target: {kind: service, port: integer}}}\na: id(a) & {dependsOn: [&: refer(), b]}\nb: id(b) & {kind: service}\n	{"findings":[{"at":"$.a.dependsOn.0","code":"relation_target_unmet","detail":["a","b","mapval_spread_required"],"relation":"dependsOn"}],"verdict":"fail"}
-target-top-asks-nothing	relation	relations: {dependsOn: {target: top}}\na: id(a) & {dependsOn: [&: refer(), b]}\nb: id(b) & {kind: database}\n	{"findings":[],"verdict":"pass"}
-target-absent-asks-nothing	relation	relations: {dependsOn: {acyclic: true}}\na: id(a) & {dependsOn: [&: refer(), b]}\nb: id(b) & {kind: database}\n	{"findings":[],"verdict":"pass"}
-target-is-per-edge-not-per-entity	relation	relations: {\n  dependsOn: {target: {kind: service}}\n  usedBy: {target: {kind: database}}\n}\na: id(a) & {dependsOn: [&: refer(), b], usedBy: [&: refer(), b]}\nb: id(b) & {kind: service}\n	{"findings":[{"at":"$.a.usedBy.0","code":"relation_target_unmet","detail":["a","b","scalar_value"],"relation":"usedBy"}],"verdict":"fail"}
-target-and-inverse-both-report	relation	relations: {dependsOn: {target: {kind: service}, inverse: usedBy}}\na: id(a) & {dependsOn: [&: refer(), b]}\nb: id(b) & {kind: database}\n	{"findings":[{"at":"$.a.dependsOn.0","code":"relation_inverse_missing","detail":["a","b","usedBy"],"relation":"dependsOn"},{"at":"$.a.dependsOn.0","code":"relation_target_unmet","detail":["a","b","scalar_value"],"relation":"dependsOn"}],"verdict":"fail"}
-target-already-incomplete-is-not-the-relations-fault	relation	relations: {dependsOn: {target: {kind: service}}}\na: id(a) & {dependsOn: [&: refer(), b]}\nb: id(b) & {kind: service, port: integer}\n	{"findings":[],"verdict":"pass"}
-target-through-std-service	relation	@"std/system"\nrelations: {dependsOn: $.std.Relation & {target: $.std.Service}}\na: id(a) & {dependsOn: [&: refer(), b]}\nb: id(b) & $.std.Service & {}\n	{"findings":[],"verdict":"pass"}
+# `target:` in the retired Relation schema said what the far end must
+# satisfy, and said it to a report layer. `rel(t)` says it to the
+# ENGINE: t flows into each addressed target, a conflict is an
+# ordinary located error, and a hole the flow leaves is an ordinary
+# generation refusal -- the site never repeats the declaration, the
+# schema states it once.
+target-holds	gens	a: id(a) & {dependsOn: rel({kind: service}) & [b]}\nb: id(b) & {kind: service}	{"a":{"dependsOn":["b"]},"b":{"kind":"service"}}
+target-refused	errc	a: id(a) & {dependsOn: rel({kind: service}) & [b]}\nb: id(b) & {kind: database}	scalar_value
+target-unsatisfied-key-is-not-satisfaction	errc	a: id(a) & {dependsOn: rel({kind: service, port: integer}) & [b]}\nb: id(b) & {kind: service}	mapval_spread_required
+target-top-asks-nothing	gens	a: id(a) & {dependsOn: rel(top) & [b]}\nb: id(b) & {kind: database}	{"a":{"dependsOn":["b"]},"b":{"kind":"database"}}
+target-is-per-edge-not-per-entity	errc	a: id(a) & {dependsOn: rel({kind: service}) & [b], usedBy: rel({kind: database}) & [b]}\nb: id(b) & {kind: service}	scalar_value
+target-checks-the-node-the-link-arrives-at	gens	a: id(a) & {dependsOn: rel({n: 1}) & ["b.parts.one"]}\nb: id(b) & {parts: {one: {n: 1}}}	{"a":{"dependsOn":["b.parts.one"]},"b":{"parts":{"one":{"n":1}}}}
+target-refuses-the-node-the-link-arrives-at	errc	a: id(a) & {dependsOn: rel({n: 1}) & ["b.parts.one"]}\nb: id(b) & {parts: {one: {n: 2}}}	scalar_value
+target-that-is-a-scalar-refuses-a-record	errc	a: id(a) & {dependsOn: rel("x") & [b]}\nb: id(b) & {k: 1}	map
+target-reaches-into-a-list-element	gens	a: id(a) & {dependsOn: rel({n: 1}) & ["b.items.0"]}\nb: id(b) & {items: [{n: 1}]}	{"a":{"dependsOn":["b.items.0"]},"b":{"items":[{"n":1}]}}
+target-refuses-a-list-element	errc	a: id(a) & {dependsOn: rel({n: 1}) & ["b.items.0"]}\nb: id(b) & {items: [{n: 2}]}	scalar_value
+# The atom does not HIDE the value it carries from the bag's
+# generability rules: an unmet required rel() refuses generation with
+# or without the atom on it.
+atom-does-not-hide-an-unmet-rel	errc	d: rel({kind: q}) & acyclic()	mapval_no_gen
+# The located error steps through NESTED atoms (one carrying another)
+# on its way to the offending edge.
+generation-locates-through-nested-atoms	errc	a: id(a) & {dependsOn: rel() & acyclic() & inverse(usedBy) & [b]}\nb: id(b) & {dependsOn: rel() & acyclic() & inverse(usedBy) & [a]}\na: {dependsOn: rel()}\nb: {usedBy: rel() & [a]}\na: {usedBy: rel() & [b]}	relation_cycle
 
-# The target is checked against the node the link ARRIVES AT, not
-# merely its entity: an address into part of an entity is what the
-# far end is. And a scalar target refuses a record outright, where a
-# record target refuses one key at a time. Parity-probed.
-target-checks-the-node-the-link-arrives-at	relation	relations: {dependsOn: {target: {n: 1}}}\na: id(a) & {dependsOn: [&: refer(), "b.parts.one"]}\nb: id(b) & {parts: {one: {n: 1}}}\n	{"findings":[],"verdict":"pass"}
-target-refuses-the-node-the-link-arrives-at	relation	relations: {dependsOn: {target: {n: 1}}}\na: id(a) & {dependsOn: [&: refer(), "b.parts.one"]}\nb: id(b) & {parts: {one: {n: 2}}}\n	{"findings":[{"at":"$.a.dependsOn.0","code":"relation_target_unmet","detail":["a","b.parts.one","scalar_value"],"relation":"dependsOn"}],"verdict":"fail"}
-target-that-is-a-scalar-refuses-a-record	relation	relations: {dependsOn: {target: "x"}}\na: id(a) & {dependsOn: [&: refer(), b]}\nb: id(b) & {k: 1}\n	{"findings":[{"at":"$.a.dependsOn.0","code":"relation_target_unmet","detail":["a","b","map"],"relation":"dependsOn"}],"verdict":"fail"}
+# The SAME declaration twice is one declaration -- restating an atom
+# (a shared schema fragment meeting a local one) merges helds and
+# renders once in canon; a reparse re-registers exactly one.
+atom-dedup-acyclic	canon	p: acyclic() & acyclic() & ["x"]	{"p":["x"]&acyclic()}
+atom-dedup-inverse	canon	p: inverse(q) & inverse(q) & ["x"]	{"p":["x"]&inverse("q")}
 
-# A LIST INDEX IS A SEGMENT TOO. Go walked map keys alone and so
-# silently SKIPPED the check for any link into a list, passing a far
-# end it had not looked at -- the fail-open shape this review exists
-# to retire, and invisible until a row asked for the refusal rather
-# than the pass. Parity-probed.
-target-reaches-into-a-list-element	relation	relations: {dependsOn: {target: {n: 1}}}\na: id(a) & {dependsOn: [&: refer(), "b.items.0"]}\nb: id(b) & {items: [{n: 1}]}\n	{"findings":[],"verdict":"pass"}
-target-refuses-a-list-element	relation	relations: {dependsOn: {target: {n: 1}}}\na: id(a) & {dependsOn: [&: refer(), "b.items.0"]}\nb: id(b) & {items: [{n: 2}]}\n	{"findings":[{"at":"$.a.dependsOn.0","code":"relation_target_unmet","detail":["a","b.items.0","scalar_value"],"relation":"dependsOn"}],"verdict":"fail"}
+# A held constraint WITHOUT rel() applies to the value the atom rides
+# on -- the container itself. Only rel()'s rewrite gives a constraint
+# per-leaf address flow; a bare re() meeting a list is an ordinary
+# refusal, in either fold order (the constraint hands the drive to the
+# atom exactly as it hands it to a rel).
+atom-held-constraint-without-rel	errc	p: re("^j") & acyclic() & ["job_a"]	constraint
+
+# An atom at a LIST position: the last path segment is an index, not a
+# D-1 name, so the atom declares nothing (register's name filter --
+# the parity guard, an index being a number in TS and a string in Go)
+# and simply rides its value.
+atom-in-list-position	canon	x: [acyclic() & ["a"]]	{"x":[["a"]&acyclic()]}
+
+# TWO inverse declarations on one predicate: both are registered, both
+# are checked, and one unmirrored edge is flagged once per name --
+# sorted by detail, the report's third tie-breaker.
+two-inverses-one-predicate	relation	ent_a: id() & {links: ["ent_b"] & rel() & inverse(back) & inverse(also), back: [], also: []}\nent_b: id() & {back: [], also: []}	{"verdict":"fail","findings":[{"at":"$.ent_a.links.0","code":"relation_inverse_missing","detail":["ent_a","ent_b","also"],"relation":"links"},{"at":"$.ent_a.links.0","code":"relation_inverse_missing","detail":["ent_a","ent_b","back"],"relation":"links"}]}

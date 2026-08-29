@@ -2,7 +2,10 @@
 
 package aontu
 
-import "strings"
+import (
+	"reflect"
+	"strings"
+)
 
 // DisjunctVal is the choice (|) between its members. Conjunction
 // distributes over disjunction: unifying with a peer tries the peer
@@ -54,12 +57,15 @@ func (d *DisjunctVal) Unify(peer Val, ctx *Ctx) Val {
 		// must not pollute the real error list, so swap in a throwaway
 		// error slice for the duration of the trial.
 		saved := ctx.err
+		savedTrial := ctx.trial
 		trial := []*NilVal{}
 		ctx.err = trial
+		ctx.trial = true
 		ctx.slot = slot
 		r := unite(ctx, m, peer)
 		failed := len(ctx.err) > 0 || r.Nil()
 		ctx.err = saved
+		ctx.trial = savedTrial
 		if failed {
 			oval[i] = nil
 		} else {
@@ -227,6 +233,16 @@ func (d *DisjunctVal) Unify(peer Val, ctx *Ctx) Val {
 func (d *DisjunctVal) Gen(ctx *Ctx) (any, error) {
 	val, unresolved := d.forGen(ctx)
 	if unresolved {
+		// ALTERNATIVES THAT GENERATE THE SAME VALUE ARE RESOLVED
+		// (ADR-007's rule, asked at the moment it matters): `[] | [&:
+		// T]` met by an empty list keeps both arms -- they differ as
+		// SCHEMAS, which is what stops dedup collapsing the template
+		// away (BUGS.md §52 regime 4) -- but both generate the empty
+		// list, and one generated value is one value. Mirrors the
+		// same-value arm in ts/src/val/DisjunctVal.ts.
+		if out, same := d.genSame(ctx); same {
+			return out, nil
+		}
 		return nil, residueErr(ctx, d, "disjunct_no_gen")
 	}
 	if val == nil {
@@ -342,6 +358,32 @@ func (d *DisjunctVal) rankPrefs(ctx *Ctx) Val {
 	return nil
 }
 
+// genSame generates every member in isolation and answers the one
+// value they all produce, or same=false when any refuses, generates
+// nothing, or differs.
+func (d *DisjunctVal) genSame(ctx *Ctx) (any, bool) {
+	var first any
+	for i, m := range d.peg {
+		gctx := &Ctx{}
+		if nil != ctx {
+			c := *ctx
+			gctx = &c
+		}
+		gctx.err = nil
+		gctx.collect = true
+		out, gerr := m.Gen(gctx)
+		if nil != gerr || 0 < len(gctx.err) || nil == out {
+			return nil, false
+		}
+		if 0 == i {
+			first = out
+		} else if !reflect.DeepEqual(first, out) {
+			return nil, false
+		}
+	}
+	return first, true
+}
+
 // dedup removes structurally-equal Vals, keeping first occurrence.
 func dedup(vals []Val) []Val {
 	var out []Val
@@ -358,6 +400,17 @@ func dedup(vals []Val) []Val {
 		}
 	}
 	return out
+}
+
+// spreadSame is the spread half of bag equality (BUGS.md §52 regime
+// 4): `[]` and `[&: T]` share an empty key set, and calling them the
+// same value collapsed the disjunction to its first arm before any
+// data could pick. Two spreads are the same when their canons are.
+func spreadSame(a, b Val) bool {
+	if (nil == a) != (nil == b) {
+		return false
+	}
+	return nil == a || a.Canon() == b.Canon()
 }
 
 // valSame reports structural equality used for disjunct dedup.
@@ -417,7 +470,8 @@ func valSame(a, b Val) bool {
 		if !ok || am.closed != bm.closed ||
 			am.mtype != bm.mtype || am.mhide != bm.mhide ||
 			len(am.peg) != len(bm.peg) ||
-			len(am.optional) != len(bm.optional) {
+			len(am.optional) != len(bm.optional) ||
+			!spreadSame(am.spread, bm.spread) {
 			return false
 		}
 		for _, k := range am.optional {
@@ -437,7 +491,8 @@ func valSame(a, b Val) bool {
 		bl, ok := b.(*ListVal)
 		if !ok || al.closed != bl.closed ||
 			al.mtype != bl.mtype || al.mhide != bl.mhide ||
-			len(al.peg) != len(bl.peg) {
+			len(al.peg) != len(bl.peg) ||
+			!spreadSame(al.spread, bl.spread) {
 			return false
 		}
 		for i, av := range al.peg {

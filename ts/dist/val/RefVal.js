@@ -2,9 +2,11 @@
 /* Copyright (c) 2021-2025 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.RefVal = void 0;
+exports.pendingMarkWrapper = pendingMarkWrapper;
 const utility_1 = require("../utility");
 const type_1 = require("../type");
 const err_1 = require("../err");
+const RecurseVal_1 = require("./RecurseVal");
 const unify_1 = require("../unify");
 const top_1 = require("./top");
 const StringVal_1 = require("./StringVal");
@@ -208,8 +210,31 @@ class RefVal extends FeatureVal_1.FeatureVal {
         let pI = 0;
         // let descent = ''
         if (isprefixpath) {
-            // console.log('SELFPATH', selfpath, 'PEGPATH', pegpath)
-            out = (0, err_1.makeNilErr)(ctx, 'path_cycle', this);
+            // THE DETECTOR'S ANSWER IS A RESIDUAL (RECURSION.0.md): a
+            // self-reference under a guarded shape is the fixpoint the
+            // author wrote, so the prefix hit mints the recursive residual
+            // instead of refusing -- except the degenerate all-empty
+            // spelling (path("")), which names nothing and keeps its
+            // path_cycle. Only all-string paths recurse; anything else
+            // keeps the conservative refusal.
+            let degenerate = 0 === this.path.length;
+            let target = [];
+            for (let i = 0; i < this.peg.length && !degenerate; i++) {
+                if ('string' !== typeof this.peg[i] || '' === this.peg[i]) {
+                    degenerate = true;
+                    break;
+                }
+                target.push(this.peg[i]);
+            }
+            if (degenerate) {
+                out = (0, err_1.makeNilErr)(ctx, 'path_cycle', this);
+            }
+            else {
+                const rec = new RecurseVal_1.RecurseVal({ target }, ctx);
+                rec.site = this.site;
+                rec.path = [...this.path];
+                out = rec;
+            }
         }
         else {
             let parts = [];
@@ -286,6 +311,21 @@ class RefVal extends FeatureVal_1.FeatureVal {
                     else if (node.isList) {
                         node = node.peg[part];
                     }
+                    // A PENDING MARK WRAPPER IS TRANSPARENT TO THE WALK: hide()
+                    // and type() only mark, and their argument is the structure
+                    // the path names. Without this, two sibling schemas in one
+                    // hide() bag deadlock -- the wrapper waits for its argument,
+                    // the argument's members wait for references that walk into
+                    // the unresolved wrapper (BUGS.md §53's family; the
+                    // recursive Policy/Step pair found it again). The found node
+                    // is cloned and mark-cleared exactly as any reference target
+                    // is, and the wrapper still marks its own field.
+                    else if (true === node.isFunc
+                        && (node.isHideFunc || node.isTypeFunc)
+                        && (true === node.peg?.[0]?.isMap
+                            || true === node.peg?.[0]?.isList)) {
+                        node = node.peg[0].peg[part];
+                    }
                     else if (node.done) {
                         nopath = true;
                         break;
@@ -350,6 +390,18 @@ class RefVal extends FeatureVal_1.FeatureVal {
                 else if (null != out && !snap && true === ctx.argsnap &&
                     !out.done) {
                     out = undefined;
+                }
+                // A REFERENCE TO A RECURSIVE DEFINITION IS THE FIXPOINT
+                // REFERENCE (RECURSION.0.md): resolving it to a clone
+                // unrolled the schema one level, and every reparse of a
+                // canon then unrolled one more -- canon never converged. The
+                // residual is the resolved form, exactly as at the prefix
+                // positions inside the definition.
+                else if (null != out && !snap && (0, RecurseVal_1.containsRecurseOf)(out, this.peg)) {
+                    const rec = new RecurseVal_1.RecurseVal({ target: [...this.peg] }, ctx);
+                    rec.site = this.site;
+                    rec.path = [...this.path];
+                    out = rec;
                 }
                 // Types and hidden values are cloned and made concrete
                 else if (null != out) { //  && (out.mark.type || out.mark.hide)) {

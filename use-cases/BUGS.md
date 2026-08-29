@@ -1670,9 +1670,9 @@ the difference lives, and `key()`'s answer is the one G8 phase 1
 specified. Recorded so that a model whose numbers move after the rewrite
 has somewhere to look.
 
-## recursion — schema self-reference has no working spelling
+## recursion — schema self-reference
 
-### 52. A recursive schema is refused, broken, or silently vacuous, depending on the spelling [major]
+### 52. A recursive schema is refused, broken, or silently vacuous, depending on the spelling [FIXED 2026-08-29]
 Probed in both ports (which agree byte-for-byte throughout) on
 2026-08-28, prompted by the question "is it possible to define
 recursive schemas?" The answer is no, and the three failure regimes
@@ -1699,28 +1699,89 @@ template-through-disjunct behaviour (`edge.tsv:edge-spread-disjunct-key`
 but here the non-application is reached FROM a schema an author would
 write in good faith, and nothing says so.
 
-**The design now exists:**
-[`docs/design/RECURSION.0.md`](../docs/design/RECURSION.0.md) — the
-prefix detector's response becomes a recursive residual, expansion is
-per-destination clone instantiation driven by finite data, and regime
-4 is its phase P0 prerequisite. This entry stays open until that note
-lands or is declined.
+**FIXED 2026-08-29**, by the landing of
+[`docs/design/RECURSION.0.md`](../docs/design/RECURSION.0.md) P0+P1 in
+both ports — per regime:
 
-Fixing this is a design question, not a patch:
-`docs/design/AONTUCONSTRAINTS.0.md` §9 refuses "recursion of any kind"
-for FUNCTIONS on termination grounds, and that refusal is right — but
-a recursive *data schema* expanded lazily against finite data always
-terminates, which is the distinction a future design would have to
-draw (JSON Schema's `$ref` recursion and CUE's recursive definitions
-are the prior art; the T-1 expansion budget from the aliases note is
-the obvious backstop). Until then the honest position is that aontu
-schemas are non-recursive, and the reference/tutorial nowhere suggest
-otherwise.
+- **Regimes 1–2 (`path_cycle` on the self- and mutual reference):**
+  the prefix detector's response is now a RECURSIVE RESIDUAL — the
+  reference the author wrote simply means the fixpoint. It expands
+  one level per meet with concrete data, stays symbolic in canon and
+  the `aon1-` hash, and refuses at generation only where a REQUIRED
+  recursive position never met data (`recursion_unexpanded`; the
+  depth budget answers `recursion_budget`). The degenerate all-empty
+  self-reference (`a: $.a`) keeps `path_cycle`'s honesty as an
+  unexpandable residual. Rows: `test/spec/recursion.tsv` throughout
+  (`list-depth-*`, `mutual-pair`, `canon-symbolic`,
+  `hash-stable-under-data`, `required-unexpanded`).
+- **Regime 3 (nullable alternative dies at depth as `scalar_kind`):**
+  the recursive alternative is a residual inside the disjunct and
+  re-resolves per destination, so `*null | $.Node` now guards
+  correctly at every level (`null-guard-generates`,
+  `enforced-at-depth`).
+- **Regime 4 (the silently vacuous `[] | [&: $.Node]`):** two rules.
+  `same()`/`valSame` compare SPREADS, so the disjunct no longer
+  deduplicates `[]` with `[&: $.Node]` at the definition; and the
+  X-C3 adjudication (`list_length` in a member trial: a literal list
+  alternative without a spread admits only a peer of its own length)
+  makes the disjunct select by shape instead of first-match. The
+  spread template applies at every depth; `v: oops` at depth is
+  refused where it sits (`kids-enforced`, `enforced-at-depth`,
+  `list-alternative-is-its-length`).
 
-Repros:
+The reference now documents the spelling
+(`docs/reference-language.md`, recursive schemas) and
+use-cases/13-recursive-schema exercises the whole surface end to end,
+`vet --at` over plain JSON included.
+
+Repros (kept as history — the first now generates at depth, the
+second now refuses `v: oops`, as `|:empty` at the list: the refusal
+the disjunct can state):
 [`repros/recursion/guarded-next-breaks-at-depth-one.aon`](repros/recursion/guarded-next-breaks-at-depth-one.aon)
 and
 [`repros/recursion/spread-template-never-applies.aon`](repros/recursion/spread-template-never-applies.aon).
+
+## relations — rel(t) at its boundaries
+
+### 53. A rel(t) whose t references a sibling of its own schema bag never resolves [FIXED 2026-08-29]
+
+`rel($.spec.JobShape)` written inside `$.spec.Job` deadlocks: the
+func's argument is a reference back into the bag being resolved, the
+reference defers while its ancestor is open (the prefix rule's
+conservatism -- whole-bag granularity, though `JobShape` itself is
+done), the func waits for the argument, the bag waits for the func.
+Every spread destination then holds the unresolved `$.spec.Job & {…}`
+conjunct forever and generation refuses with `mapval_no_gen`. Both
+ports agree.
+
+```aon
+spec: hide({
+  Job: {kind: job, feeds?: rel($.spec.JobShape)}
+  JobShape: {kind: job}
+})
+p: jobs: {&: $.spec.Job, a: id(job_a) & {feeds: [job_b]}, b: id(job_b) & {}}
+```
+
+The same target spelled the old way -- `feeds?: [&:
+refer($.spec.JobShape)]` -- WORKS, because the refer sits in the
+list-spread template, whose snapshot is taken lazily at each
+destination, outside the bag. And a `t` that references a DIFFERENT
+bag (`rel($.shape.JobShape)`, `rel($.std.Service)`) works from
+anywhere: the deadlock needs the argument to point into the func's own
+enclosing bag.
+
+One step from the recorded self-typed boundary (`rel($.spec.Job)`
+inside `Job`, RELATIONS.0.md P1 landing notes), and the same family
+RECURSION.0.md exists for.
+
+**FIXED 2026-08-29**, by the recursion landing's reference-walk rule:
+a pending hide()/type() wrapper is TRANSPARENT to the walk -- the
+wrapper only marks, and its argument is the structure the path names
+-- so the sibling reference resolves instead of deadlocking against
+the unresolved bag (`rel-sibling-shape` in test/spec/rel.tsv;
+use-cases/12-relations spells the natural form). The self-typed
+`rel($.spec.Job)` inside `Job` remains with the recursion note's
+rel-side wiring.
 
 ## Elsewhere in this review
 

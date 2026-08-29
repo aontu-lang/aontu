@@ -166,6 +166,15 @@ func snapshotRefSpread(cj *RefVal, ctx *Ctx) Val {
 	if fv, ok := tgt.(*FuncVal); ok && fv.name == "type" && len(fv.peg) > 0 {
 		tgt = fv.peg[0]
 	}
+	// A pending type()/hide() CALL is not yet a value to snapshot
+	// (ADR-005, the same rule find's non-snap path defers on): cached
+	// here it resolves at every destination and STAMPS marks the
+	// clearing walk ran too early to clear -- a mutual recursive
+	// schema's members vanished from generation this way. No cache;
+	// retry once the wrapper has resolved at its own field.
+	if nil != tgt && pendingMarkWrapper(tgt) {
+		return nil
+	}
 	// Only snapshot a found, path-dependent target; otherwise retry on
 	// a later pass.
 	if tgt != nil && !tgt.Nil() && hasPathFunc(tgt) {
@@ -539,6 +548,21 @@ func genable(v Val) bool {
 		return true
 	}
 	if _, _, ok := sizingResidue(v); ok {
+		return true
+	}
+	// A graph atom (RELATIONS P2) is exactly as generable as the value
+	// it carries: the atom is transparent at generation, so wrapping a
+	// field's value in acyclic() must not change whether the bag
+	// accepts it -- an unmet rel() refuses required generation with or
+	// without the atom, and a BARE atom generates nothing and is
+	// dropped, exactly as an unmet rel() under an optional key is.
+	if ga, ok := v.(*GraphAtomVal); ok {
+		return nil == ga.held || genable(ga.held)
+	}
+	// The recursive residual carries its own generation refusal
+	// (recursion_unexpanded), which names the schema and the site --
+	// the bag's generic residue error would bury both.
+	if isRecurse(v) {
 		return true
 	}
 	return false

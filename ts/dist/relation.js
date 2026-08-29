@@ -1,11 +1,14 @@
 "use strict";
 /* Copyright (c) 2025 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.relationFindings = relationFindings;
+exports.relationErrors = relationErrors;
 exports.relationCheck = relationCheck;
-// RELATION GRAPH CHECKS (G4 phase 5,
-// docs/capability-review/g4-identity-relations.md): acyclicity and
-// inverse consistency over the edge set, checked AFTER unification and
-// never by it.
+// RELATION GRAPH VERDICTS (RELATIONS.0.md §3.3, replacing the G4
+// phase 5 magic-key pass): acyclicity and inverse consistency over
+// the edge set, DECLARED by the graph atoms -- `acyclic()` and
+// `inverse(name)` conjoined at the field whose key is the predicate
+// -- and decided AFTER unification, never by it.
 //
 // Why not in the lattice. Both properties are GLOBAL and NON-MONOTONE:
 // an acyclic graph becomes cyclic when one more edge unifies in, and an
@@ -13,23 +16,22 @@ exports.relationCheck = relationCheck;
 // The lattice guarantee is that more information never falsifies what
 // has been observed, so a constraint that could be true and then false
 // is not a constraint the lattice may hold. These are facts about the
-// finished model, and the verb that reports facts about a finished
-// model is where they belong.
+// finished model, so the atoms only REGISTER during unification
+// (GraphAtomVal.register, onto ctx._reldecls), and the verdict lands
+// at GENERATION -- the sizing atoms' model -- where no more
+// information can arrive. The `relations` verb reports the same
+// verdict from the same declarations: one decision, two surfaces.
 //
-// A relation is DECLARED as data, under the `relations` key of the
-// document root, which is the `std/system` vocabulary's convention:
-//
-//   relations: dependsOn: $.std.Relation & {
-//     target: $.std.Service, inverse: dependedOnBy, acyclic: true
-//   }
-//
-// Nothing in the engine knows the name `relations`; this pass does,
-// and says so.
+// The old declaration channel -- a `relations:` key at the document
+// root, read by name -- is GONE, discharging ADR-010's grandfather
+// clause: the engine no longer knows any spellable key. The target
+// half of the old declaration is `rel(t)`'s flow at the site, which
+// checks by unifying rather than by a report-layer probe.
 const aontu_1 = require("./aontu");
 const vet_1 = require("./vet");
 const graph_1 = require("./graph");
 const keyorder_1 = require("./keyorder");
-const unify_1 = require("./unify");
+const err_1 = require("./err");
 // The entity an address names — everything before the first dot. An
 // edge into `svc_auth.ports.http` is an edge to `svc_auth`: a relation
 // holds between ENTITIES, and the path inside one says which part of it
@@ -37,108 +39,6 @@ const unify_1 = require("./unify");
 function entityOf(addr) {
     const dot = addr.indexOf('.');
     return dot < 0 ? addr : addr.slice(0, dot);
-}
-// The node an address names, or undefined. The entity's own position
-// comes from the graph (a merged entity sits at every position that
-// declared it, and they hold the same value, so the FIRST in the
-// graph's sorted list is as good as any and is the same one in both
-// ports); the rest of the address walks into it, exactly as the
-// address's own grammar says.
-// NO GUARD ON THE LOOKUP OR THE WALK. An edge exists only because
-// `refer()` RESOLVED its full address, so `find` cannot miss and no
-// segment can fall off: an address that does not walk is
-// `refer_unresolved` at unification and the document never reaches the
-// graph (probed for a missing key, a scalar mid-path and an
-// out-of-range index, in both ports). An unreachable `if` is a branch
-// arm the ADR-002 gate counts and no marker suppresses, so the Go twin
-// keeps its guards — where a nil would PANIC rather than propagate,
-// and where the marker mechanism can carry them — and this one relies
-// on optional chaining instead.
-function addressed(root, graph, addr) {
-    const dot = addr.indexOf('.');
-    const name = dot < 0 ? addr : addr.slice(0, dot);
-    const entry = graph.entities.find((e) => e.id === name);
-    const segs = entry.paths[0].slice(2).split('.')
-        .concat(dot < 0 ? [] : addr.slice(dot + 1).split('.'));
-    let node = root;
-    for (const seg of segs) {
-        node = node?.peg?.[seg];
-    }
-    return node;
-}
-// Does the far end satisfy the declared target? A TEST, never a flow:
-// the check reports on a finished model and writing into it would be
-// generation, which `relations` does not do (the same rule that keeps
-// it from writing an author's inverse for them). So both sides are
-// CLONED into a throwaway context and the meet is taken there; what
-// the document holds is untouched either way.
-//
-// `refer(t)` is the other half of this and does flow, at the site. The
-// two agree on what "satisfies" means -- a meet that is not a nil --
-// which is what lets a relation declare once what every site would
-// otherwise repeat.
-// `root` is the DOCUMENT, not the node: a target lifted out of the
-// model (`target: $.std.Service`) can still hold a reference that
-// resolves against the document, and a probe rooted at the far end
-// answers `no_path` for it -- which the worked example in
-// test/spec/relation.tsv caught the moment this check existed.
-function meets(aontu, root, node, target) {
-    const ctx = aontu.ctx({ collect: true });
-    ctx.root = root;
-    const out = (0, unify_1.unite)(ctx, node.clone(ctx), target.clone(ctx), 'relation-target');
-    if (true === out?.isNil) {
-        return out.why;
-    }
-    if (0 < ctx.err.length) {
-        return ctx.err[0].why;
-    }
-    // A MEET THAT LEAVES A HOLE IS NOT SATISFACTION. `target:
-    // {kind: service, port: integer}` against a far end with no `port`
-    // does not CONFLICT -- the meet simply carries `integer` into a key
-    // that had none -- and a check that stopped at "no conflict" would
-    // pass a far end that is missing half of what the relation demands.
-    //
-    // What `refer(t)` does at the site is the yardstick: it flows `t` in,
-    // and the document then fails to generate, because `integer` is not a
-    // value. So the same question is asked here -- can the far end still
-    // generate once the target is met? -- and the answer is compared with
-    // the far end ALONE, so a node that was already incomplete for its
-    // own reasons is not blamed on the relation that points at it.
-    // The REASON reported is the engine's own -- the code `refer(t)` at
-    // the site would have raised -- rather than a name invented here.
-    const probe = (v) => {
-        const gctx = aontu.ctx({ collect: true });
-        gctx.root = root;
-        v.gen(gctx);
-        return 0 === gctx.err.length ? undefined : gctx.err[0].why;
-    };
-    const alone = probe(node.clone(aontu.ctx({ collect: true })));
-    const met = probe(out);
-    return undefined === alone && undefined !== met ? met : undefined;
-}
-function declaredRelations(root) {
-    const rels = root?.peg?.relations;
-    if (true !== rels?.isMap) {
-        return [];
-    }
-    const out = [];
-    for (const name of Object.keys(rels.peg).sort(keyorder_1.cmpCodePoint)) {
-        const r = rels.peg[name];
-        if (true !== r?.isMap) {
-            continue;
-        }
-        const inv = r.peg.inverse;
-        const acy = r.peg.acyclic;
-        const tgt = r.peg.target;
-        out.push({
-            name,
-            inverse: true === inv?.isScalar && 'string' === typeof inv.peg
-                ? inv.peg : undefined,
-            acyclic: true === acy?.isScalar && true === acy.peg,
-            target: true === tgt?.isVal && true !== tgt.isTop ? tgt : undefined,
-        });
-    }
-    return out;
 }
 // The first cycle reachable from `start`, as the entities it runs
 // through, or undefined. Depth-first with the path as the stack, and
@@ -169,34 +69,16 @@ function findCycle(start, succ, done) {
     };
     return walk(start);
 }
-// The relation checks for one document.
-function relationCheck(src, opts) {
-    const options = opts ?? {};
-    const aontu = new aontu_1.Aontu(null == options.trust ? undefined : { trust: options.trust });
-    const ctx = aontu.ctx({ collect: true });
-    const parseOpts = null == options.path ? undefined : { path: options.path };
-    const root = aontu.unify(src, parseOpts, ctx);
-    // A document that does not stand up is not a document with a bad
-    // graph: the errors it already has are the answer, and blaming its
-    // relations on top would be noise.
-    if (0 < ctx.err.length || true === root?.isNil) {
-        return {
-            verdict: 'error',
-            findings: [],
-            errors: [(0, vet_1.failureFinding)(ctx, options.path, root)],
-        };
-    }
-    const declared = declaredRelations(root);
-    if (0 === declared.length) {
-        return { verdict: 'pass', findings: [] };
-    }
-    const graph = (0, graph_1.graphOf)(root);
-    const edges = graph.edges;
+// The verdict itself, pure over what the evaluation produced: the
+// registered declarations and the edge set. Shared by the generation
+// hook (relationErrors) and the `relations` verb, so the two surfaces
+// cannot disagree.
+function relationFindings(decls, graph) {
     const findings = [];
     // The edge set, indexed the two ways the checks read it.
     const byRelation = new Map();
     const pairs = new Set();
-    for (const e of edges) {
+    for (const e of graph.edges) {
         if ('' === e.from) {
             // An edge outside every entity has no source to be a relation OF.
             continue;
@@ -210,9 +92,14 @@ function relationCheck(src, opts) {
         }
         pairs.add(e.key + ' ' + e.from + ' ' + entityOf(e.to));
     }
-    for (const rel of declared) {
-        const mine = byRelation.get(rel.name) ?? [];
-        if (rel.acyclic) {
+    // Predicates in sorted order, so the findings arrive the same way
+    // in both ports (the registry is insertion-ordered here, random in
+    // Go).
+    const names = [...decls.keys()].sort(keyorder_1.cmpCodePoint);
+    for (const name of names) {
+        const decl = decls.get(name);
+        const mine = byRelation.get(name) ?? [];
+        if (true === decl.acyclic) {
             const succ = new Map();
             for (const e of mine) {
                 const list = succ.get(e.from);
@@ -240,7 +127,7 @@ function relationCheck(src, opts) {
                     const at = mine.find((e) => e.from === cycle[0]);
                     findings.push({
                         code: 'relation_cycle',
-                        relation: rel.name,
+                        relation: name,
                         at: at.at,
                         detail: cycle,
                     });
@@ -248,55 +135,86 @@ function relationCheck(src, opts) {
                 }
             }
         }
-        // TARGET: the far end IS what the relation says it is (the review's
-        // finding J). The declaration used to be inert -- `target` was read
-        // by nothing, on the reasoning that `refer(t)` already flows the
-        // type in at the site. It does, and that is exactly why the
-        // declaration was worth nothing: the site has to REPEAT it, and the
-        // idiom that avoids repeating it (`refer($.std.Service)`) tripped
-        // the fixpoint until §19 was fixed, so every real model wrote bare
-        // `refer()` and a typed-endpoint declaration checked nothing.
-        //
-        // Reported per EDGE, not per entity: an entity reached by two
-        // relations must satisfy both, and the report points at the link
-        // that made the demand.
-        if (undefined !== rel.target) {
-            for (const e of mine) {
-                // No guard on the node either, and for the same reason
-                // `addressed` needs none: an unresolved link is a nil in the
-                // tree, so this document would not have reached the graph.
-                const why = meets(aontu, root, addressed(root, graph, e.to), rel.target);
-                if (undefined !== why) {
-                    findings.push({
-                        code: 'relation_target_unmet',
-                        relation: rel.name,
-                        at: e.at,
-                        detail: [e.from, e.to, why],
-                    });
-                }
-            }
-        }
-        if (undefined !== rel.inverse) {
+        const inverses = [...decl.inverses].sort(keyorder_1.cmpCodePoint);
+        for (const inv of inverses) {
             for (const e of mine) {
                 const to = entityOf(e.to);
-                if (!pairs.has(rel.inverse + ' ' + to + ' ' + e.from)) {
+                if (!pairs.has(inv + ' ' + to + ' ' + e.from)) {
                     findings.push({
                         code: 'relation_inverse_missing',
-                        relation: rel.name,
+                        relation: name,
                         at: e.at,
-                        detail: [e.from, to, rel.inverse],
+                        detail: [e.from, to, inv],
                     });
                 }
             }
         }
     }
     // SORTED, because a report is read by a machine that diffs it: by the
-    // position the offending edge is written at, then by code. No third
-    // key: one edge sits under one key and one key is one relation, so
-    // two findings can share (at, code) only by being the same finding.
-    // The sort is STABLE, and the relations were iterated in sorted
-    // order, so what order remains is fixed anyway.
-    findings.sort((a, b) => (0, keyorder_1.cmpCodePoint)(a.at, b.at) || (0, keyorder_1.cmpCodePoint)(a.code, b.code));
+    // position the offending edge is written at, then by code, then by
+    // the detail (two inverse declarations on one predicate can flag one
+    // edge twice). The sort is STABLE and the predicates were iterated
+    // in sorted order, so what order remains is fixed anyway.
+    findings.sort((a, b) => (0, keyorder_1.cmpCodePoint)(a.at, b.at) || (0, keyorder_1.cmpCodePoint)(a.code, b.code)
+        || (0, keyorder_1.cmpCodePoint)(a.detail.join(' '), b.detail.join(' ')));
+    return findings;
+}
+// The generation hook (Aontu.generate, between unification success
+// and value generation): each finding becomes a LOCATED evaluation
+// error at the offending edge, exactly as an unmet sizing atom
+// refuses at generation. Findings name entities and positions the
+// document spelled, so the walk to the site cannot miss.
+function relationErrors(ctx, root) {
+    const decls = ctx._reldecls;
+    if (0 === decls.size) {
+        return;
+    }
+    const findings = relationFindings(decls, (0, graph_1.graphOf)(root));
+    for (const f of findings) {
+        let node = root;
+        for (const seg of f.at.slice(2).split('.')) {
+            // Graph atoms hold the field's value -- possibly nested, one
+            // atom carrying another -- and the path steps through them
+            // exactly as the graph walk does.
+            while (true === node?.isGraphAtom) {
+                node = node.held;
+            }
+            node = node?.peg?.[seg];
+        }
+        // No unwrap AFTER the walk: a finding's `at` names an edge
+        // element, and an edge's element is a string -- an atom-wrapped
+        // element mints no edge in the first place (the graph visit
+        // descends atoms only at field values), so the walk cannot end on
+        // an atom.
+        ctx.adderr((0, err_1.makeNilErr)(ctx, f.code, node, undefined, 'relate', {
+            relation: f.relation,
+            detail: f.detail.join(' -> '),
+        }));
+    }
+}
+// The relation checks for one document: evaluate, then report the
+// same verdict generation enforces.
+function relationCheck(src, opts) {
+    const options = opts ?? {};
+    const aontu = new aontu_1.Aontu(null == options.trust ? undefined : { trust: options.trust });
+    const ctx = aontu.ctx({ collect: true });
+    const parseOpts = null == options.path ? undefined : { path: options.path };
+    const root = aontu.unify(src, parseOpts, ctx);
+    // A document that does not stand up is not a document with a bad
+    // graph: the errors it already has are the answer, and blaming its
+    // relations on top would be noise.
+    if (0 < ctx.err.length || true === root?.isNil) {
+        return {
+            verdict: 'error',
+            findings: [],
+            errors: [(0, vet_1.failureFinding)(ctx, options.path, root)],
+        };
+    }
+    const decls = ctx._reldecls;
+    if (0 === decls.size) {
+        return { verdict: 'pass', findings: [] };
+    }
+    const findings = relationFindings(decls, (0, graph_1.graphOf)(root));
     return {
         verdict: 0 === findings.length ? 'pass' : 'fail',
         findings,

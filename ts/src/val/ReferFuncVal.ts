@@ -37,6 +37,7 @@ import { makeNilErr } from '../err'
 
 import { FuncBaseVal } from './FuncBaseVal'
 import { FeatureVal } from './FeatureVal'
+import { ConjunctVal } from './ConjunctVal'
 import { StringVal } from './StringVal'
 import { unite } from '../unify'
 import { top } from './top'
@@ -454,23 +455,60 @@ class RelVal extends FeatureVal {
     const peg: any = out.peg
     const keys: any[] = Array.isArray(peg)
       ? peg.map((_v: any, i: number) => i) : Object.keys(peg)
+    let pending = false
+    let nested = false
     for (const k of keys) {
       // Children here are always Vals: the parse builds Vals, elision
       // builds a NilVal, and clone preserved whatever the container
       // held.
       const child: any = peg[k]
       if (true === child.isMap || true === child.isList) {
-        peg[k] = this.rewrite(ctx.descend('' + k), child)
+        nested = true
+        const sub: any = this.rewrite(ctx.descend('' + k), child)
+        peg[k] = sub
+        pending = pending || true !== sub.done
       }
       else if (undefined === child.link) {
-        peg[k] = unite(ctx.descend('' + k), this.leafRefer(ctx), child,
+        let leaf = unite(ctx.descend('' + k), this.leafRefer(ctx), child,
           'rel-leaf')
+        // The held constraints apply PER LEAF: a re() on the relation
+        // constrains every address, never the container that holds
+        // them (found by the service catalog, whose re("^svc_") met
+        // the whole list and refused it).
+        if (null != this.held) {
+          leaf = unite(ctx.descend('' + k), leaf, this.held, 'rel-held')
+        }
+        peg[k] = leaf
+        pending = pending || true !== leaf.done
       }
     }
-    // The rewrite holds PENDING leaves (an address whose entity a
-    // later statement declares), so the container is NOT done: the
-    // pass loop must keep driving it until every link settles.
-    out.dc = 0
+    // The rewrite holds its PENDING leaves open (an address whose
+    // entity a later statement declares), so the pass loop keeps
+    // driving the container until every link settles. A rewrite that
+    // minted NOTHING pending -- every leaf already linked or settled
+    // in place -- keeps the clone's doneness: re-applying a template
+    // over a settled value must converge in the same pass, or the
+    // enclosing bags reopen forever (the service catalog, where the
+    // entity merge drops the spread stamp each pass).
+    if (pending) {
+      out.dc = 0
+    }
+    // Elements that arrive AFTER this rewrite -- another statement of
+    // the list, a patch position of the entity -- must convert too, so
+    // the rewrite installs its own leaf constraint as the container's
+    // ELEMENT SPREAD, exactly the machinery the old per-element
+    // `[&: refer()]` idiom used. Only on a FLAT address container (a
+    // labelled map's sub-containers get their own spread from the
+    // recursion above; a leaf template meeting a map child would
+    // refuse it), and only where no spread already stands: a schema's
+    // own template is not this rewrite's to clobber.
+    if (!nested && null == (out as any).spread.cj) {
+      let tmpl: Val = this.leafRefer(ctx)
+      if (null != this.held) {
+        tmpl = new ConjunctVal({ peg: [tmpl, this.held] }, ctx)
+      }
+      ; (out as any).spread.cj = tmpl
+    }
     return out
   }
 
@@ -503,11 +541,10 @@ class RelVal extends FeatureVal {
         : unite(ctx, out, this.held, 'rel-held')
     }
 
-    // A SET OF LINKS: list or map, rewritten leaf by leaf.
+    // A SET OF LINKS: list or map, rewritten leaf by leaf; the held
+    // constraints ride into each leaf inside the rewrite.
     if (true === p.isMap || true === p.isList) {
-      const out = this.rewrite(ctx, peer)
-      return null == this.held ? out
-        : unite(ctx, out, this.held, 'rel-held')
+      return this.rewrite(ctx, peer)
     }
 
     // A scalar that can never be an address.

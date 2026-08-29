@@ -22,6 +22,7 @@ import {
 import { AontuContext } from '../ctx'
 
 import { makeNilErr } from '../err'
+import { RecurseVal, containsRecurseOf } from './RecurseVal'
 import { unite } from '../unify'
 
 
@@ -279,8 +280,31 @@ class RefVal extends FeatureVal {
     // let descent = ''
 
     if (isprefixpath) {
-      // console.log('SELFPATH', selfpath, 'PEGPATH', pegpath)
-      out = makeNilErr(ctx, 'path_cycle', this)
+      // THE DETECTOR'S ANSWER IS A RESIDUAL (RECURSION.0.md): a
+      // self-reference under a guarded shape is the fixpoint the
+      // author wrote, so the prefix hit mints the recursive residual
+      // instead of refusing -- except the degenerate all-empty
+      // spelling (path("")), which names nothing and keeps its
+      // path_cycle. Only all-string paths recurse; anything else
+      // keeps the conservative refusal.
+      let degenerate = 0 === this.path.length
+      let target: string[] = []
+      for (let i = 0; i < this.peg.length && !degenerate; i++) {
+        if ('string' !== typeof this.peg[i] || '' === this.peg[i]) {
+          degenerate = true
+          break
+        }
+        target.push(this.peg[i] as string)
+      }
+      if (degenerate) {
+        out = makeNilErr(ctx, 'path_cycle', this)
+      }
+      else {
+        const rec: any = new RecurseVal({ target } as any, ctx)
+        rec.site = this.site
+        rec.path = [...this.path]
+        out = rec
+      }
     }
     else {
 
@@ -367,6 +391,21 @@ class RefVal extends FeatureVal {
           else if (node.isList) {
             node = node.peg[part]
           }
+          // A PENDING MARK WRAPPER IS TRANSPARENT TO THE WALK: hide()
+          // and type() only mark, and their argument is the structure
+          // the path names. Without this, two sibling schemas in one
+          // hide() bag deadlock -- the wrapper waits for its argument,
+          // the argument's members wait for references that walk into
+          // the unresolved wrapper (BUGS.md §53's family; the
+          // recursive Policy/Step pair found it again). The found node
+          // is cloned and mark-cleared exactly as any reference target
+          // is, and the wrapper still marks its own field.
+          else if (true === (node as any).isFunc
+            && ((node as any).isHideFunc || (node as any).isTypeFunc)
+            && (true === (node as any).peg?.[0]?.isMap
+              || true === (node as any).peg?.[0]?.isList)) {
+            node = (node as any).peg[0].peg[part]
+          }
           else if (node.done) {
             nopath = true
             break;
@@ -437,6 +476,18 @@ class RefVal extends FeatureVal {
         else if (null != out && !snap && true === (ctx as any).argsnap &&
           !out.done) {
           out = undefined
+        }
+        // A REFERENCE TO A RECURSIVE DEFINITION IS THE FIXPOINT
+        // REFERENCE (RECURSION.0.md): resolving it to a clone
+        // unrolled the schema one level, and every reparse of a
+        // canon then unrolled one more -- canon never converged. The
+        // residual is the resolved form, exactly as at the prefix
+        // positions inside the definition.
+        else if (null != out && !snap && containsRecurseOf(out, this.peg as any)) {
+          const rec: any = new RecurseVal({ target: [...this.peg] } as any, ctx)
+          rec.site = this.site
+          rec.path = [...this.path]
+          out = rec
         }
         // Types and hidden values are cloned and made concrete
         else if (null != out) { //  && (out.mark.type || out.mark.hide)) {
@@ -663,5 +714,6 @@ class RefVal extends FeatureVal {
 
 
 export {
+  pendingMarkWrapper,
   RefVal,
 }

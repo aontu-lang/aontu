@@ -4,6 +4,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.DisjunctVal = void 0;
 const type_1 = require("../type");
 const err_1 = require("../err");
+const exactjson_1 = require("../exactjson");
 const unify_1 = require("../unify");
 const utility_1 = require("../utility");
 const top_1 = require("./top");
@@ -294,6 +295,32 @@ class DisjunctVal extends JunctionVal_1.JunctionVal {
                 this.rankPrefs(ctx);
             }
             const prefs = this.peg.filter((v) => v instanceof PrefVal_1.PrefVal);
+            // ALTERNATIVES THAT GENERATE THE SAME VALUE ARE RESOLVED
+            // (ADR-007's rule, asked at the moment it matters): `[] | [&:
+            // T]` met by an empty list keeps both arms -- they differ as
+            // SCHEMAS, which is what stops the dedup collapsing the
+            // template away (BUGS.md §52 regime 4) -- but both generate
+            // the empty list, and one generated value is one value.
+            if (0 === prefs.length && 1 < this.peg.length) {
+                const gctx = ctx.clone({ err: [], collect: true });
+                let firstOut;
+                let allSame = true;
+                for (let gI = 0; gI < this.peg.length && allSame; gI++) {
+                    const gout = this.peg[gI].gen(gctx);
+                    if (0 < gctx.err.length || undefined === gout) {
+                        allSame = false;
+                    }
+                    else if (0 === gI) {
+                        firstOut = gout;
+                    }
+                    else {
+                        allSame = (0, exactjson_1.exactJSON)(gout) === (0, exactjson_1.exactJSON)(firstOut);
+                    }
+                }
+                if (allSame) {
+                    return firstOut;
+                }
+            }
             if (0 === prefs.length && 1 < this.peg.length) {
                 const nerr = (0, err_1.makeNilErr)(ctx, 'disjunct_no_gen', this);
                 (0, err_1.descErr)(nerr, ctx);

@@ -175,6 +175,12 @@ const hints: Record<string, string> = {
 
   id_spread: 'A spread template stamps one id() onto every child. `&: id(x) & …`\nsays that EVERY child of the bag is the entity `x`, and identity\nmerging would then unify all of them into one. Use a\npath-dependent name — `id(key())` — to give each child its own,\nor move the id() to the one child that has it.\n \nExamples:\n  {&: id(key()), a:{}, b:{}}  -> {..}  # A name per child;\n  {a: id(x) & {}}             -> {..}  # ... or one named child;\n  {&: id(x), a:{}, b:{}}      -> nil   # ... but not one name for all.',
 
+  recursion_unexpanded: 'A schema refers to itself here, and no data reached this position\nto expand it against. Guard the recursion -- an optional key\n(next?:) drops when nothing arrives, and a preferred alternative\n(*null | $.Node) generates -- or supply the data.\n \nExamples:\n  Node: {v: integer, next?: $.Node}\n  t: $.Node & {v: 1}            -> {..}  # next? drops;\n  Node: {v: integer, next: $.Node}\n  t: $.Node & {v: 1}            -> nil   # ... required refuses.',
+  recursion_budget: 'A recursive schema expanded past the evaluation depth budget\nwithout meeting concrete data. Expansion is driven by the data --\nfinite data always terminates -- so a chain this deep means two\ndefinitions feeding each other, or data deeper than the budget\n(docs/trust.md raises it deliberately).',
+  list_length: 'A literal list alternative in a disjunction admits only a list of\nits own length -- a spread (&:) makes it variadic. Outside a\ndisjunction two statements of one list still merge elementwise.\n \nExamples:\n  x: [] | [&: integer]\n  x: [1, 2]      -> [1,2]  # The variadic arm;\n  x: []          -> []     # ... or exactly empty;\n  y: [a] | [b]\n  y: [a, extra]  -> nil    # ... a literal arm is its length.',
+  relation_cycle: 'This relation declared acyclic(), and its edges form a cycle. The\nverdict lands at generation, where every edge is known; the error\npoints at an edge on the cycle and names the entities it runs\nthrough, closing back on the first.\n \nExamples:\n  dependsOn: rel() & acyclic()\n  a: {dependsOn: [b]}\n  b: {dependsOn: [a]}   -> nil   # a -> b -> a;\n  b: {dependsOn: []}    -> {..}  # ... one edge fewer passes.',
+  relation_inverse_missing: 'This relation declared inverse(name), and an edge has no mirroring\nedge under that name: A relates to B, and B does not name A back.\nThe declaration asks for the mirror to be WRITTEN, and never writes\nit for the author -- generation is refused until the document says\nboth directions.\n \nExamples:\n  a: {dependsOn: rel() & inverse(dependedOnBy) & [b]}\n  b: {dependedOnBy: rel() & [a]}  -> {..}  # Mirrored;\n  b: {dependedOnBy: rel() & []}   -> nil   # ... and this is not.',
+  inverse_name: 'The argument to inverse() is not a relation name. The mirroring\npredicate is a D-1 name -- a letter or `_`, then letters, digits,\n`_` or `-` -- spelled bare or quoted, exactly as an id() argument\nis.\n \nExamples:\n  inverse(dependedOnBy)  -> inverse  # A name;\n  inverse("dep-on")     -> inverse  # ... quoted when hyphenated;\n  inverse(1)             -> nil      # ... a number is not a name.',
   rel_address: 'A rel() field holds entity addresses: one string, a list of\nstrings, or a map whose string leaves are addresses. This value can\nnever be one.\n \nExamples:\n  dependsOn: rel() & [ledger]     -> {..}  # A list of addresses;\n  hostedOn: rel() & bastion       -> {..}  # ... or one;\n  dependsOn: rel() & [7]          -> nil   # ... but 7 is not a name.',
   refer_address: 'A refer() was given something that is not an entity address. An\naddress is an entity name, optionally followed by a dot-separated path\ninside that entity — and only a STRING can be one.\n \nExamples:\n  refer() & "svc_auth"        -> "svc_auth"  # An entity;\n  refer() & "svc_auth.port"   -> ...         # ... and a node inside it;\n  refer() & "svc_auth."       -> nil         # ... but not a trailing dot;\n  refer() & 1                 -> nil         # ... and not a number.',
 
@@ -505,7 +511,10 @@ const codeClasses: Record<string, string> = {
   // and a lattice citizen may not be falsified by more information.
   relation_cycle: 'conflict',
   relation_inverse_missing: 'conflict',
-  relation_target_unmet: 'conflict',
+  inverse_name: 'parse',
+  list_length: 'conflict',
+  recursion_unexpanded: 'incomplete',
+  recursion_budget: 'budget',
   func_arity: 'parse',
   elided_value: 'parse',
   unify_no_src: 'parse',

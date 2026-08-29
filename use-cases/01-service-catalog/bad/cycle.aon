@@ -1,6 +1,8 @@
 # bad/cycle.aon --- change request CR-4711: ledger gains a callback
-# into payments. Evaluation succeeds (nothing contradicts); only
-# `aontu relations` sees the loop payments -> ledger -> payments.
+# into payments. The dependsOn relation declares acyclic() (spec.aon),
+# so GENERATION refuses the loop payments -> ledger -> payments with a
+# located relation_cycle -- the atoms decide at generation, where every
+# edge is known -- and `aontu relations` reports the same finding.
 @"../system.aon"
 
 change: cr4711: id(svc_ledger) & {

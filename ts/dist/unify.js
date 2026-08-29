@@ -102,7 +102,10 @@ const unite = (ctx, a, b, whence) => {
                     // reason: a settled rel is DONE with an absent peg, so
                     // any two matched here — dropping one side's type and
                     // held constraints. RelVal.unify merges them instead.
-                    && !a.isRel) {
+                    // NOT two graph atoms (P2) either: acyclic() and
+                    // inverse(x) share a constructor and an absent peg
+                    // without being the same declaration.
+                    && !a.isRel && !a.isGraphAtom && !a.isRecurse) {
                     // The deprecation record survives the fast path too (G3):
                     // `deprecate(5) & 5` short-circuits here.
                     if (null == a.deprecation && null != b.deprecation) {
@@ -199,7 +202,14 @@ const unite = (ctx, a, b, whence) => {
                 // refuses it on kind. Narrow to placeheld operators on
                 // purpose -- every other operator meets its peer the way it
                 // always has, through the conjunct fold that drives it.
-                || (b.isOp && (0, PlaceVal_1.hasPlace)(b))) {
+                || (b.isOp && (0, PlaceVal_1.hasPlace)(b))
+                // A graph atom DRIVES (RELATIONS P2): its peer is the value
+                // it rides beside -- a container, a rel, a scalar -- and none
+                // of them know the atom; the atom knows to residuate.
+                || b.isGraphAtom
+                // The recursive residual DRIVES for the same reason: its peer
+                // is the concrete structure it expands against.
+                || b.isRecurse) {
                 out = b.unify(a, te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'BW') }) : ctx);
                 unified = true;
                 why = 'bv';
@@ -209,7 +219,7 @@ const unite = (ctx, a, b, whence) => {
             // exactly as in the fast path: their pegs are equally absent
             // without the values being the same relation.
             else if (a.constructor === b.constructor && a.peg === b.peg
-                && !a.isRel) {
+                && !a.isRel && !a.isGraphAtom && !a.isRecurse) {
                 out = update(a, b);
                 why = 'up';
             }

@@ -453,6 +453,30 @@ describe('vet-anchor', () => {
   })
 
 
+  // A recursive residual inside the lifted anchor names its
+  // definition by ABSOLUTE path (`next?: $.spec.Node`,
+  // RECURSION.0.md), and the anchored meet's root is the subtree --
+  // which holds no `$.spec`. Before the meet context kept the settled
+  // schema root for the residual's walk (_fixroot), the residual held
+  // its peer forever and BAD DATA AT DEPTH VETTED VALID; the depth-0
+  // fields were checked, everything under `next` was not.
+  test('at-expands-a-recursive-schema-at-depth', () => {
+    const schema = 'spec: hide({ Node: { v: integer, next?: $.spec.Node } })'
+    const good = vet(schema, '{"v":1,"next":{"v":2,"next":{"v":3}}}',
+      { at: '$.spec.Node' })
+    Assert.equal(good.verdict, 'valid')
+    const bad = vet(schema, '{"v":1,"next":{"v":"x"}}',
+      { at: '$.spec.Node' })
+    Assert.equal(bad.verdict, 'invalid')
+    Assert.equal(bad.findings[0].code, 'no_scalar_unify')
+    // In the schema's own namespace, as every anchored finding is --
+    // the expansion clone is rebased to the residual's slot, so no
+    // definition segment leaks into the middle of the path (the
+    // default rebase reported `$.next.Node.v` here).
+    Assert.equal(bad.findings[0].path, '$.spec.Node.next.v')
+  })
+
+
   // …AND IT SAYS WHICH SEGMENT. The verdict alone left a caller
   // holding exit 4 and an empty finding list, which is nothing to act
   // on; the refusal is the one `get` and `why` already give for a path

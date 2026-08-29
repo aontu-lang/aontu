@@ -125,6 +125,18 @@ func (l *ListVal) Unify(peer Val, ctx *Ctx) Val {
 	if pc, ok := peer.(*ConstraintVal); ok {
 		return pc.Unify(l, ctx)
 	}
+	// A DISJUNCT ALTERNATIVE MATCHES ITS OWN LENGTH (BUGS.md §52
+	// regime 4, the X-C3 adjudication): in a trial, a literal list
+	// with no spread admits only a peer list of the same length -- a
+	// spread makes it variadic. Outside trials the ordinary
+	// elementwise merge stands (two statements of one list are one
+	// list), so `[] | [&: T]` stops admitting every list through the
+	// empty arm while `a: [] a: [1]` still merges.
+	if pl, ok := peer.(*ListVal); ok && nil != ctx && ctx.trial &&
+		nil == l.spread && nil == pl.spread &&
+		len(l.peg) != len(pl.peg) {
+		return makeNilErrFull(ctx, "list_length", l, peer, "", nil)
+	}
 	// A rel() peer drives for the same reason: the relation constraint
 	// rewrites this list leaf by leaf (RELATIONS.0.md §3.2).
 	if pr, ok := peer.(*RelVal); ok {

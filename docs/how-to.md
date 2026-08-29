@@ -476,25 +476,21 @@ see [`aontu trim`](reference-api.md#aontu-trim).
 ## Check that components agree about their relations
 
 Acyclicity and inverse consistency are facts about a *finished* model,
-not constraints unification can carry, so they are a separate pass over
-the `relations` key of the root (see
+not constraints unification can carry, so the graph atoms declare them
+at the field and the verdict lands at generation (see
 [declared relations](reference-language.md#declared-relations)):
 
 ```aontu
-@"std/system"
-
-relations: {
-  dependsOn: $.std.Relation & { inverse: usedBy, acyclic: true }
-}
-
 services: {
-  auth:    id(svc_auth)    & { dependsOn: [&: refer(), svc_billing] }
+  auth:    id(svc_auth)    & { dependsOn: rel() & inverse(usedBy) & acyclic() & [svc_billing] }
   billing: id(svc_billing) & {}
 }
 ```
 
-Evaluating that document succeeds — nothing contradicts. The verb is
-what notices `billing` never named `auth` back:
+Unification succeeds — nothing contradicts — but `billing` never named
+`auth` back, so generation refuses with a located
+`relation_inverse_missing` at the edge, and the verb reports the same
+finding without generating:
 
 ```sh
 $ aontu relations topology.aon
@@ -505,7 +501,7 @@ $ echo $?
 1
 ```
 
-Give `billing` a `usedBy: [&: refer(), svc_auth]` and it passes:
+Give `billing` a `usedBy: rel() & [svc_auth]` and both pass:
 
 ```sh
 $ aontu relations topology.aon
@@ -987,6 +983,59 @@ prod: $.base & { tier: paid }
 - `key()` — the key the current value is stored under.
 - `copy($.x)` — a deep copy with type/hide marks cleared.
 - `move($.x)` — like a reference but drops unresolved optional keys.
+
+## Define a recursive schema
+
+Reference the definition **inside itself** — that reference means the
+fixpoint, and the schema applies at every depth of the data. Guard
+the recursion with an optional key (or a ranked default like
+`*null |`), so the structure ends where the data ends:
+
+```aontu
+spec: hide({Comment: {
+  author: string
+  text: string
+  replies?: [&: $.spec.Comment]
+}})
+thread: $.spec.Comment & {
+  author: "alix"
+  text: "ship it"
+  replies: [
+    {author: "bo", text: "+1"}
+    {author: "cy", text: "hold on", replies: [
+      {author: "alix", text: "?"}
+    ]}
+  ]
+}
+```
+
+```json
+{"thread": {
+  "author": "alix", "text": "ship it",
+  "replies": [
+    {"author": "bo", "text": "+1"},
+    {"author": "cy", "text": "hold on",
+     "replies": [{"author": "alix", "text": "?"}]}
+  ]}}
+```
+
+A wrong value three levels down is an ordinary located error
+(`$.thread.replies.1.replies.0.author`), because the recursive
+position expands one level per level of concrete data — validation
+has no maximum depth to configure and no blind spot past it.
+
+If you forget the guard (`replies:` required instead of `replies?:`),
+the schema still evaluates — but no finite document can satisfy it,
+and generation refuses with `recursion_unexpanded` at the exact
+position the data ran out. The canonical form and the `aon1-` hash
+stay finite: recursion renders symbolically (`$.spec.Comment`), so
+the hash pins the schema, not any unrolling of it.
+
+`aontu vet --at '$.spec.Comment' spec.aon thread.json` runs the same
+checks over plain JSON — see
+[Validate data against a schema](#validate-data-against-a-schema).
+The full worked example is
+[use-cases/13-recursive-schema](../use-cases/13-recursive-schema/).
 
 ## Split a model across files
 

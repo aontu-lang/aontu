@@ -111,6 +111,13 @@ func GraphOf(root Val) Graph {
 			})
 		}
 
+		// A graph atom is TRANSPARENT here (RELATIONS P2): it carries
+		// the field's value at the field's own position, and the graph
+		// is about the value.
+		if ga, ok := node.(*GraphAtomVal); ok && nil != ga.held {
+			visit(ga.held, path, inside, below)
+		}
+
 		switch n := node.(type) {
 		case *MapVal:
 			ancestors[node] = true

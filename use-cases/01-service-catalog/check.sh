@@ -94,22 +94,25 @@ diff -u "$DIR/expected/experimental-keys.txt" "$WORK/exper.out" \
   || fail "experimental query drifted"
 ok "queries: tier-1 and experimental instance sets are right"
 
-# 7. A dependency cycle is caught by the relations verb, not by
-# evaluation: the cyclic variant still evaluates cleanly.
-run cyceval 0 -- "$DIR/bad/cycle.aon"
+# 7. A dependency cycle now refuses at GENERATION (RELATIONS.0.md P2:
+# acyclic() decides where every edge is known), with the same finding
+# the relations verb reports.
+run cyceval 1 -- "$DIR/bad/cycle.aon"
+has cyceval err 'relation_cycle'
 run cycle 1 -- relations "$DIR/bad/cycle.aon"
 has cycle out 'verdict: fail'
 has cycle out 'cycle svc_payments -> svc_ledger -> svc_payments'
-ok "relations: cycle payments->ledger->payments detected"
+ok "relations: cycle payments->ledger->payments refused and reported"
 
-# 7b. THE DECLARED ENDPOINT TYPE is checked too (the review's finding
-# J; README, gap 3). The link site uses a bare refer() -- existence
-# only -- so the relation's own `target` is the only thing that says
-# what the far end must be, and it now says it.
-run wtgt 1 -- relations "$DIR/bad/wrong-target.aon"
-has wtgt out 'verdict: fail'
-has wtgt out 'svc_bastion is not what hostedOn targets'
-ok "relations: declared target enforced against an untyped link site"
+# 7b. THE DECLARED ENDPOINT TYPE is rel(t)'s flow now: declared once
+# on the field (bad/wrong-target.aon spells its own), it flows into
+# each target, so the wrong kind is an ordinary located evaluation
+# error and the verb answers error for a document that does not stand.
+run wtgteval 1 -- "$DIR/bad/wrong-target.aon"
+has wtgteval err '[aontu/scalar_value]'
+run wtgt 4 -- relations "$DIR/bad/wrong-target.aon"
+has wtgt out 'verdict: error'
+ok "relations: rel(t) flow enforces the endpoint type at evaluation"
 
 # 7c. REACHABILITY, the closure question relations cannot ask one edge
 # at a time: the gateway reaches the ledger through payments, and the
@@ -138,11 +141,13 @@ run badreach 4 -- reaches svc_gateway svc_nope "$DIR/system.aon"
 has badreach out 'refer_unresolved'
 ok "reaches: an endpoint naming no entity is refused, not answered no"
 
-# 8. A missing inverse is caught the same way.
+# 8. A missing inverse is refused and reported the same way.
+run noinveval 1 -- "$DIR/bad/missing-inverse.aon"
+has noinveval err 'relation_inverse_missing'
 run noinv 1 -- relations "$DIR/bad/missing-inverse.aon"
 has noinv out 'verdict: fail'
 has noinv out 'svc_directory does not list svc_email under dependedOnBy'
-ok "relations: missing dependedOnBy inverse detected"
+ok "relations: missing dependedOnBy inverse refused and reported"
 
 # 9. Two views disagreeing about one entity is an evaluation error --
 # that is what id() is for.
@@ -182,9 +187,9 @@ diff -u "$DIR/expected/webhooks-proposal.json" "$WORK/onbget.out" \
 ok "proposal: candidate JSON joins the model and relations still pass"
 
 # 13. A candidate depending on an entity nobody declared cannot even
-# evaluate: refer() decides existence inside one evaluation.
+# evaluate: rel() decides existence inside one evaluation.
 run badref 1 -- "$DIR/proposals/onboard-badref.aon"
-has badref err '[aontu/refer_unresolved]'
-ok "proposal: dangling dependsOn svc_searchx refused by refer()"
+has badref err '[aontu/rel_unresolved]'
+ok "proposal: dangling dependsOn svc_searchx refused by rel()"
 
 echo "all $pass checks passed"

@@ -245,7 +245,33 @@ func pendingMarkWrapper(v Val) bool {
 // destination — test/spec/spread-type.tsv, spread-type-key-ref).
 func (rv *RefVal) find(ctx *Ctx, snap bool) Val {
 	if rv.isPrefixPath() {
-		return makeNilErr(ctx, "path_cycle", rv, nil)
+		// THE DETECTOR'S ANSWER IS A RESIDUAL (RECURSION.0.md): a
+		// self-reference under a guarded shape is the fixpoint the
+		// author wrote, so the prefix hit mints the recursive
+		// residual instead of refusing -- except the degenerate
+		// all-empty spelling (path("")), which names nothing and
+		// keeps its path_cycle. Only all-string non-empty paths
+		// recurse; anything else keeps the conservative refusal.
+		degenerate := 0 == len(rv.path)
+		target := make([]string, 0, len(rv.peg))
+		for _, p := range rv.peg {
+			seg, ok := p.(string)
+			if !ok || "" == seg {
+				degenerate = true
+				break
+			}
+			target = append(target, seg)
+		}
+		if degenerate {
+			return makeNilErr(ctx, "path_cycle", rv, nil)
+		}
+		rec := newRecurse(target, 0)
+		rec.sp, rec.spu, rec.surl = rv.sp, rv.spu, rv.surl
+		// The source excerpt travels too, so reports frame the `$`
+		// exactly as TS's residual site does.
+		rec.stext = rv.stext
+		rec.path = cp(rv.path)
+		return rec
 	}
 
 	parts := make([]string, 0, len(rv.peg))
@@ -324,6 +350,20 @@ func (rv *RefVal) find(ctx *Ctx, snap bool) Val {
 
 	var node Val = ctx.root
 	for _, part := range refpath {
+		// A PENDING MARK WRAPPER IS TRANSPARENT TO THE WALK: hide()
+		// and type() only mark, and their argument is the structure
+		// the path names. Without this, two sibling schemas in one
+		// hide() bag deadlock -- the wrapper waits for its argument,
+		// the argument's members wait for references that walk into
+		// the unresolved wrapper (BUGS.md §53's family; the recursive
+		// Policy/Step pair found it again). Mirrors the walk arm in
+		// ts/src/val/RefVal.ts find.
+		if fv, ok := node.(*FuncVal); ok && DONE != fv.dc &&
+			("hide" == fv.name || "type" == fv.name) && 0 < len(fv.peg) {
+			if inner, ok := fv.peg[0].(*MapVal); ok {
+				node = inner
+			}
+		}
 		switch n := node.(type) {
 		case *MapVal:
 			node = n.peg[part]
@@ -392,6 +432,33 @@ func (rv *RefVal) find(ctx *Ctx, snap bool) Val {
 	// guard in ts/src/val/RefVal.ts find.
 	if !snap && ctx.argsnap && node.Dc() != DONE {
 		return nil
+	}
+
+	// A REFERENCE TO A RECURSIVE DEFINITION IS THE FIXPOINT REFERENCE
+	// (RECURSION.0.md): resolving it to a clone unrolled the schema
+	// one level, and every reparse of a canon then unrolled one more
+	// -- canon never converged. The residual is the resolved form,
+	// exactly as at the prefix positions inside the definition.
+	if !snap {
+		target := make([]string, 0, len(rv.peg))
+		alls := true
+		for _, p := range rv.peg {
+			seg, ok := p.(string)
+			if !ok {
+				alls = false
+				break
+			}
+			target = append(target, seg)
+		}
+		if alls && containsRecurseOf(node, target, 0) {
+			rec := newRecurse(target, 0)
+			rec.sp, rec.spu, rec.surl = rv.sp, rv.spu, rv.surl
+			// The source excerpt travels too, so reports frame the `$`
+			// exactly as TS's residual site does.
+			rec.stext = rv.stext
+			rec.path = cp(rv.path)
+			return rec
+		}
 	}
 
 	// A ref carrying marks transfers them onto the found node in place

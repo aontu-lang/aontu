@@ -453,23 +453,73 @@ func (r *RelVal) rewrite(ctx *Ctx, container Val) Val {
 	if nil == base {
 		base = container.vpath()
 	}
+	pending := false
+	nested := false
+	isContainer := func(v Val) bool {
+		switch v.(type) {
+		case *MapVal, *ListVal:
+			return true
+		}
+		return false
+	}
 	switch n := out.(type) {
 	case *MapVal:
 		for _, k := range n.keys {
 			ctx.slot = append(cp(base), k)
-			n.peg[k] = r.rewriteChild(ctx, n.peg[k])
+			nested = nested || isContainer(n.peg[k])
+			cv := r.rewriteChild(ctx, n.peg[k])
+			n.peg[k] = cv
+			pending = pending || DONE != cv.Dc()
 		}
 	case *ListVal:
 		for i, c := range n.peg {
 			ctx.slot = append(cp(base), itoa(i))
-			n.peg[i] = r.rewriteChild(ctx, c)
+			nested = nested || isContainer(c)
+			cv := r.rewriteChild(ctx, c)
+			n.peg[i] = cv
+			pending = pending || DONE != cv.Dc()
 		}
 	}
 	ctx.slot = base
-	// The rewrite holds PENDING leaves (an address whose entity a later
-	// statement declares), so the container is NOT done: the pass loop
-	// must keep driving it until every link settles.
-	out.setDc(0)
+	// The rewrite holds its PENDING leaves open (an address whose
+	// entity a later statement declares), so the pass loop keeps
+	// driving the container until every link settles. A rewrite that
+	// minted NOTHING pending -- every leaf already linked or settled
+	// in place -- keeps the clone's doneness: re-applying a template
+	// over a settled value must converge in the same pass, or the
+	// enclosing bags reopen forever (the service catalog, where the
+	// entity merge drops the spread stamp each pass).
+	if pending {
+		out.setDc(0)
+	}
+	// Elements that arrive AFTER this rewrite -- another statement of
+	// the list, a patch position of the entity -- must convert too, so
+	// the rewrite installs its own leaf constraint as the container's
+	// ELEMENT SPREAD, exactly the machinery the old per-element
+	// `[&: refer()]` idiom used. Only on a FLAT address container (a
+	// labelled map's sub-containers get their own spread from the
+	// recursion above; a leaf template meeting a map child would
+	// refuse it), and only where no spread already stands: a schema's
+	// own template is not this rewrite's to clobber.
+	tmpl := func() Val {
+		lr := Val(r.leafRefer())
+		if nil == r.held {
+			return lr
+		}
+		return newConjunct([]Val{lr, r.held})
+	}
+	if !nested {
+		switch n := out.(type) {
+		case *MapVal:
+			if nil == n.spread {
+				n.spread = tmpl()
+			}
+		case *ListVal:
+			if nil == n.spread {
+				n.spread = tmpl()
+			}
+		}
+	}
 	return out
 }
 
@@ -486,7 +536,15 @@ func (r *RelVal) rewriteChild(ctx *Ctx, child Val) Val {
 	// through leafRefer and re-stamps identically (rel-over-linked-copy
 	// pins the outcome and the graph agreeing with TS, where clones DO
 	// carry the stamp and the short-circuit lives).
-	return unite(ctx, r.leafRefer(), child)
+	leaf := unite(ctx, r.leafRefer(), child)
+	// The held constraints apply PER LEAF: a re() on the relation
+	// constrains every address, never the container that holds them
+	// (found by the service catalog, whose re("^svc_") met the whole
+	// list and refused it).
+	if nil != r.held {
+		leaf = unite(ctx, leaf, r.held)
+	}
+	return leaf
 }
 
 func (r *RelVal) Unify(peer Val, ctx *Ctx) Val {
@@ -533,14 +591,11 @@ func (r *RelVal) Unify(peer Val, ctx *Ctx) Val {
 		return makeNilErrFull(ctx, "rel_address", r, peer, "refer", nil)
 	}
 
-	// A SET OF LINKS: list or map, rewritten leaf by leaf.
+	// A SET OF LINKS: list or map, rewritten leaf by leaf; the held
+	// constraints ride into each leaf inside the rewrite.
 	switch peer.(type) {
 	case *MapVal, *ListVal:
-		out := r.rewrite(ctx, peer)
-		if nil == r.held {
-			return out
-		}
-		return unite(ctx, out, r.held)
+		return r.rewrite(ctx, peer)
 	}
 
 	// Everything else -- a reference still resolving, a kind, a

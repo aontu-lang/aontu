@@ -1,0 +1,6 @@
+# model.aon --- THE ROOT: one evaluation joining the vocabulary and
+# the topology. There is no relations: block anywhere -- the
+# declarations live on the schema fields (spec.aon), and a relations:
+# key would be ordinary user data (ADR-010).
+@"./spec.aon"
+@"./pipeline.aon"

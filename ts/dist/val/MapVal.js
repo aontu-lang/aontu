@@ -7,6 +7,7 @@ const unify_1 = require("../unify");
 const utility_1 = require("../utility");
 const err_1 = require("../err");
 const top_1 = require("./top");
+const RefVal_1 = require("./RefVal");
 const ConjunctVal_1 = require("./ConjunctVal");
 const NilVal_1 = require("./NilVal");
 const BagVal_1 = require("./BagVal");
@@ -44,6 +45,15 @@ function snapshotRefSpread(cj, ctx) {
         // so a type-wrapped ref behaves like a plain-map ref spread.
         if (tgt && tgt.isTypeFunc)
             tgt = tgt.peg?.[0];
+        // A pending type()/hide() CALL is not yet a value to snapshot
+        // (ADR-005, the same rule find's non-snap path defers on): cached
+        // here it resolves at every destination and STAMPS marks the
+        // clearing walk ran too early to clear -- a mutual recursive
+        // schema's members vanished from generation this way. No cache;
+        // retry once the wrapper has resolved at its own field.
+        if (tgt && (0, RefVal_1.pendingMarkWrapper)(tgt)) {
+            return undefined;
+        }
         // Only snapshot a found, path-dependent target. If the target is not
         // present yet (it may be introduced by a later conjunct/merge), do
         // NOT cache — retry on the next fixpoint pass.

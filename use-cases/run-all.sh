@@ -21,6 +21,8 @@ CASES="
 09-agent-tools
 10-data-model
 11-shared-modules
+12-relations
+13-recursive-schema
 "
 
 fail=0

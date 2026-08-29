@@ -29,6 +29,7 @@ import { makeNilErr, AontuError } from '../err'
 import {
   top
 } from './top'
+import { pendingMarkWrapper } from './RefVal'
 
 
 import { ConjunctVal } from './ConjunctVal'
@@ -70,6 +71,15 @@ function snapshotRefSpread(cj: any, ctx: AontuContext): Val | undefined {
     // A ref to a type() resolves to its inner template — snapshot that,
     // so a type-wrapped ref behaves like a plain-map ref spread.
     if (tgt && (tgt as any).isTypeFunc) tgt = (tgt as any).peg?.[0]
+    // A pending type()/hide() CALL is not yet a value to snapshot
+    // (ADR-005, the same rule find's non-snap path defers on): cached
+    // here it resolves at every destination and STAMPS marks the
+    // clearing walk ran too early to clear -- a mutual recursive
+    // schema's members vanished from generation this way. No cache;
+    // retry once the wrapper has resolved at its own field.
+    if (tgt && pendingMarkWrapper(tgt)) {
+      return undefined
+    }
     // Only snapshot a found, path-dependent target. If the target is not
     // present yet (it may be introduced by a later conjunct/merge), do
     // NOT cache — retry on the next fixpoint pass.

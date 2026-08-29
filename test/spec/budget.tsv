@@ -15,8 +15,15 @@
 # go/ref.go), THROUGH function arguments as well as plain refs. A chain
 # that passes through a variable segment, a conjunct, or any other
 # non-ref value yields NO proof and defers as before.
-path-cycle-self	errc	a:$.a	path_cycle
-path-cycle-ancestor	errc	a:b:$.a	path_cycle
+# RE-PINNED (RECURSION.0.md): the prefix test's answer is a RESIDUAL
+# now, so an unguarded self-reference stops failing at unification and
+# starts failing at generation -- recursion_unexpanded, named at the
+# instance -- and its canon is the finite symbolic form. The chase
+# rows below (mutual, chain, func-routed) keep path_cycle: a VALUE
+# cycle is a different mechanism and genuinely unguarded.
+path-cycle-self	errc	a:$.a	recursion_unexpanded
+path-cycle-self-canon	canon	a:$.a	{"a":$.a}
+path-cycle-ancestor	errc	a:b:$.a	recursion_unexpanded
 path-cycle-mutual	errc	a:$.b b:$.a	path_cycle
 path-cycle-chain	errc	a:$.b b:$.c c:$.a	path_cycle
 path-cycle-nested-mutual	errc	a:{x:$.b.y} b:{y:$.a.x}	path_cycle

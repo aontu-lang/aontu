@@ -72,6 +72,18 @@ class ListVal extends BagVal_1.BagVal {
         if (true === peer.isConstraint) {
             return peer.unify(this, ctx);
         }
+        // A DISJUNCT ALTERNATIVE MATCHES ITS OWN LENGTH (BUGS.md §52
+        // regime 4, the X-C3 adjudication): in a trial, a literal list
+        // with no spread admits only a peer list of the same length -- a
+        // spread makes it variadic. Outside trials the ordinary
+        // elementwise merge stands (two statements of one list are one
+        // list), so `[] | [&: T]` stops admitting every list through the
+        // empty arm while `a: [] a: [1]` still merges.
+        if (true === ctx._trialMode && true === peer.isList
+            && null == this.spread.cj && null == peer.spread.cj
+            && this.peg.length !== peer.peg.length) {
+            return (0, err_1.makeNilErr)(ctx, 'list_length', this, peer);
+        }
         const te = ctx.explain && (0, utility_1.explainOpen)(ctx, ctx.explain, 'List', this, peer);
         let done = true;
         let exit = false;

@@ -1,0 +1,24 @@
+# schema.aon --- an approval-chain vocabulary, RECURSIVE
+# (docs/design/RECURSION.0.md): a Step is a decision plus the step
+# that follows it, and the chain ends where the data ends. `$.spec.Step`
+# written inside Step IS the fixpoint -- no marker, no annotation: the
+# prefix reference residuates, expands one level per meet with
+# concrete data, stays symbolic in canon and the hash, and refuses at
+# generation only where a REQUIRED recursive position never met data.
+spec: hide({
+
+  Step: {
+    approver: string & re("^[a-z]+@acme[.]example$")
+    decision: *pending | pending | approved | rejected
+    # The guard: an optional recursive tail. Where the data stops, the
+    # chain stops -- guardedness is emergent, never statically
+    # analysed.
+    then?: $.spec.Step
+  }
+
+  # The whole-policy shape: a named root step.
+  Policy: {
+    name: string
+    chain: $.spec.Step
+  }
+})

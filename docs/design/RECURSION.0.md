@@ -197,7 +197,8 @@ the pinned map-shape behaviour (`edge.tsv:edge-spread-disjunct-key`)
 but silently vacuous from a schema an author would write in good
 faith. The `kids` spelling in §3 stays unenforced until this is fixed,
 whatever this note's fate — it is filed with §52's repros and is a
-prerequisite of P1 below, not part of it.
+prerequisite of P1 below, not part of it. *[Fixed as P0, 2026-08-29 —
+see the phasing table's P0 entry for what the fix actually took.]*
 
 ## 6. Compatibility, measured
 
@@ -263,10 +264,70 @@ currently evaluates, so no existing model can be relying on one.
 
 | Phase | Content | Gate |
 |---|---|---|
-| P0 | Fix §52 regime 4 (disjunct-selected list spread applies) | its repro row, plus edge-spread-disjunct-key re-adjudicated |
-| P1 | The residual: prefix-test response, expansion at meet, `recursion_*` codes, canon/hash symbolic; single-file | the §3 examples as rows; both gates |
-| P2 | `jsonschema` `$defs`/`$ref`; vet flows | export rows |
+| P0 | ~~Fix §52 regime 4 (disjunct-selected list spread applies)~~ **LANDED 2026-08-29** | its repro row, plus edge-spread-disjunct-key re-adjudicated |
+| P1 | ~~The residual: prefix-test response, expansion at meet, `recursion_*` codes, canon/hash symbolic; single-file~~ **LANDED 2026-08-29** | the §3 examples as rows; both gates |
+| P2 | `jsonschema` `$defs`/`$ref` (~~vet flows~~ **LANDED 2026-08-29** with P1 — the anchored meet needed the schema root, see below) | export rows |
 | P3 | G3: seen-pair subsumption of recursive schemas | subsume rows |
+
+**P0 landed as two rules, not one fix.** Regime 4's root cause was
+`same()`/`valSame` ignoring spreads, so the disjunct DEDUPLICATED
+`[]` and `[&: T]` at the definition. Comparing spreads re-opened the
+base case (`kids: [] | [&: $.Node]` met by `[]` was suddenly
+ambiguous), which forced the second rule: a disjunction whose every
+surviving member GENERATES THE SAME VALUE collapses to that value
+(the gen-value collapse, isolated collect context, byte-compared).
+X-C3 was adjudicated alongside as the `list_length` trial gate: in a
+disjunct member's trial, a literal list alternative without a spread
+admits only a peer list of its own length — which is what makes
+`[] | [&: T]` select by length instead of by first-match.
+
+**P1 landed with these boundaries worth recording, each pinned:**
+
+- **The fixpoint-reference rule.** A reference RESOLVING to a
+  definition that contains the recursion of ITS OWN target answers
+  the residual, exactly as the prefix positions inside the definition
+  do (`containsRecurseOf`, both mint sites). Cloned instead, every
+  reparse of a canon unrolled the schema one level and canon never
+  converged. The containment test recognises a RAW REFERENCE to the
+  target as well as a minted residual — the answer must not depend on
+  resolution order, and a generated canon puts the instance (whose
+  trailing `$.spec.Step` leaves resolve first) before the definition
+  (`canon-of-instance-reparses`).
+- **Walk transparency.** A reference's segment walk descends through
+  a PENDING `hide()`/`type()` wrapper when the wrapped value is a bag
+  — `$.spec.Step` written beside `Policy` in one hidden bag resolves
+  while `hide()` is still a call. This is the same rule that closed
+  BUGS §53 (rel() naming a sibling of its own hide bag); it is
+  deliberately narrow: only `hide`/`type`, only a map/list argument
+  (`policy-pair`, `rel-sibling-shape`).
+- **Expansion clones clear marks and identity at every depth.** The
+  schema is hidden; the instances it expands into are the output.
+  Type/hide marks and `entity` are walk-cleared on each level clone,
+  as a plain reference copy clears them (clearing rule 1).
+- **The expansion rebases to the DRIVE path** — unless the residual
+  was LIFTED out of its defining tree (stored path longer, ending
+  with the drive path), where the stored schema-namespace path wins.
+  A residual carried inside a copied definition body otherwise
+  inherited the copy's rebase-overlay tail in TypeScript
+  (`expansion-path-through-copied-body`); the lifted case is vet's
+  anchored meet (`vet-at-expands-recursion-at-depth`).
+- **The anchored vet meet keeps the settled schema root.** With
+  `--at`, the meet's root is a lifted subtree that does not contain
+  `$.spec` — the residual held its peer forever and bad data at depth
+  vetted VALID unchecked. The meet context carries the settled schema
+  root (`AontuContext._fixroot` / `Ctx.fixroot`) and the residual's
+  body walk falls back to it; findings sit in the schema's own
+  namespace, as anchored findings always have.
+- **The ref-spread snapshot refuses a pending mark wrapper.** Snap
+  mode bypasses the walk-transparency defer, so a snapshot taken of a
+  pending `hide()` CALL captured the call itself and stamped
+  destinations; the snapshot answers undefined (no cache) until the
+  wrapper resolves — mutual recursion's second schema depended on it.
+- **X-C2 resolved:** the expansion budget is `budget.depth` (the T-1
+  backstop), charged per chain via the residual's expansion count;
+  exhaustion is `recursion_budget`. X-C1 stays declined — guardedness
+  is emergent, `bad/required-tail.aon` in use-case 13 is the shape of
+  the refusal.
 
 ## 11. Open questions
 

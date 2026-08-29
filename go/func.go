@@ -25,6 +25,8 @@ var funcSet = map[string]bool{
 	"deprecate": true,
 	"id":        true,
 	"rel":       true,
+	"acyclic":   true,
+	"inverse":   true,
 	"refer":     true,
 	"pack":      true,
 	"each":      true,
@@ -120,8 +122,10 @@ var funcArity = map[string][2]int{
 	// G3 phase 4: the value, and its optional deprecation record.
 	"deprecate": {1, 2},
 	// G4 phase 1: the entity name.
-	"id":  {0, 1},
-	"rel": {0, 1},
+	"id":      {0, 1},
+	"rel":     {0, 1},
+	"acyclic": {0, 0},
+	"inverse": {1, 1},
 	// G8 phase 1: the data, and the template to clone per destination.
 	// each() writes the template optionally -- `each(m)` is a map's
 	// children as a list.
@@ -752,6 +756,25 @@ func (f *FuncVal) resolve(ctx *Ctx, base []string, args []Val) Val {
 		}
 		out := newTop()
 		out.setEntityName(name)
+		return out
+	case "acyclic", "inverse":
+		// RELATIONS.0.md §3.3: the graph atoms, conjoined at the field
+		// whose key is the predicate they govern. Mirrors
+		// AcyclicFuncVal/InverseFuncVal.resolve in
+		// ts/src/val/GraphAtomVal.ts.
+		invname := ""
+		if "inverse" == f.name {
+			// The mirroring predicate is a NAME -- D-1, spelled bare
+			// or quoted, exactly an id() argument's shape.
+			var ok bool
+			invname, ok = idName(args[0])
+			if !ok {
+				return makeNilErrFull(ctx, "inverse_name", f, nil, "inverse", nil)
+			}
+		}
+		out := newGraphAtom(f.name, invname, nil)
+		out.sp, out.spu, out.surl = f.sp, f.spu, f.surl
+		out.path = cp(base)
 		return out
 	case "rel":
 		// RELATIONS.0.md §3.2: the relation constraint, sited on the

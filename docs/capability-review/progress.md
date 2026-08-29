@@ -391,6 +391,67 @@ where it is used. Verified in both ports and pinned by
 `docs/how-to.md` "Name a reusable constraint", both executed by
 `ts/test/docs.test.ts`. This phase set never scoped either item.
 
+**RECURSION P0+P1 LANDED 2026-08-29** (docs/design/RECURSION.0.md,
+plus its P2 vet flows, pulled forward because the anchored meet needed
+the schema root), in both ports: where `RefVal`'s prefix test answered
+`path_cycle` for a self-reference, it now mints a RECURSIVE RESIDUAL
+— `$.spec.Step` inside `Step` means the fixpoint. The residual
+expands ONE LEVEL PER MEET with concrete structure (per-destination
+clone, marks and identity walk-cleared at every depth, rebased to the
+drive path unless lifted out of its tree), stays SYMBOLIC in canon
+and the `aon1-` hash (the mu-form; a recursive schema's canon is
+finite and reparses to itself), and refuses at generation only where
+a REQUIRED recursive position never met data (`recursion_unexpanded`;
+the depth budget answers `recursion_budget`) — guardedness is
+EMERGENT, never statically analysed. The FIXPOINT-REFERENCE RULE
+makes canon converge: a reference resolving to a definition that
+contains the recursion of its own target (a minted residual OR a raw
+reference to it — the answer is order-independent) itself answers the
+residual. Mutual pairs, `*null |` guards, tree spreads and recursive
+`%aliases` all work (`%json:
+null|boolean|number|string|[&: %json]|{&: %json}` is the JSON value
+space in one line); subsume over an unexpanded residual answers
+`undecided`. P0 is the §52 regime-4 fix: `same()`/`valSame` compare
+spreads and X-C3 landed as the `list_length` trial gate, so
+`[] | [&: T]` selects by shape. Two engine rules fell out: reference
+walks descend through a PENDING `hide()`/`type()` wrapper onto a bag
+(closes BUGS §53 as well as the one-bag schema shape), and vet's
+anchored meet keeps the settled schema root for the residual's walk
+(`_fixroot`/`fixroot` — before it, bad data at depth vetted VALID
+unchecked under `--at`). Pinned by `test/spec/recursion.tsv` (25
+rows), the re-adjudicated rows in budget/alias/disjunct/errcodes
+TSVs, and paired anchored-vet unit tests; documented in
+`docs/reference-language.md` ("Recursive references (fixpoints)") and
+`docs/how-to.md` ("Define a recursive schema"), both executed;
+exercised end to end by `use-cases/13-recursive-schema` (and BUGS §52
+is FIXED per regime). `jsonschema` `$defs`/`$ref` export remains (the
+rest of P2), and P3 subsumption-through-expansion stays future.
+
+**RELATIONS P2 LANDED 2026-08-29** (docs/design/RELATIONS.0.md), in
+both ports: the graph atoms — `acyclic()` and `inverse(name)`,
+conjoined at the field whose key is the predicate — REGISTER during
+unification (lattice-inert: both properties are global and
+non-monotone) and the verdict lands at GENERATION as a located
+`relation_cycle`/`relation_inverse_missing` at the offending edge, the
+sizing atoms' model; the `relations` verb reports the same findings
+from the same declarations (`relationFindings`, shared by both
+surfaces). The atom CARRIES the field's value (`held`, the
+sizing-constraint shape), self-drives in place, and the rel rewrite
+keeps doneness when nothing is pending and installs its leaf
+constraint as the flat container's element spread — the three
+convergence rules the service catalog forced (see the note's P2
+boundary list; the catalog's own schema now reads
+`dependsOn?: rel($.std.Service) & re("^svc_") & acyclic() &
+inverse(dependedOnBy)` with plain-list data and patch positions
+converting). The `relations:` magic key is GONE — ADR-010's
+grandfather clause discharged, `relations:` is ordinary user data —
+along with `meets()`, `declaredRelations()`, the std `Relation`
+schema, and `relation_target_unmet` (the target half is `rel(t)`'s
+flow, refusing at evaluation); `inverse_name` is new, hints for the
+two verdict codes are new (they render as thrown errors now), and
+relation.tsv is re-pinned end to end on the atoms. `refer()` remains
+beside `rel()` until P3.
+
 **RELATIONS P0+P1 LANDED 2026-08-29** (docs/design/RELATIONS.0.md), in
 both ports: D-1 (entity names are flat identifiers,
 /[_a-zA-Z][-_a-zA-Z0-9]*/, no slash -- the corpus's 17 slashed names

@@ -22,3 +22,4 @@ export declare function sizingResidue(v: any): {
     con: any;
     bag: any;
 } | undefined;
+export declare function bagGenable(child: any): boolean;

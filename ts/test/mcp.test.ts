@@ -551,9 +551,8 @@ describe('mcp', () => {
     Assert.deepEqual(payload(callTool('relations', { source: 'a: 1' })),
       { verdict: 'pass', findings: [] })
     const cyc = payload(callTool('relations', {
-      source: 'relations: {dependsOn: {acyclic: true}}\n' +
-        'a: id(a) & {dependsOn: [&: refer(), b]}\n' +
-        'b: id(b) & {dependsOn: [&: refer(), a]}',
+      source: 'a: id(a) & {dependsOn: rel() & acyclic() & [b]}\n' +
+        'b: id(b) & {dependsOn: rel() & acyclic() & [a]}',
     }))
     Assert.equal(cyc.verdict, 'fail')
     Assert.equal(cyc.findings[0].code, 'relation_cycle')

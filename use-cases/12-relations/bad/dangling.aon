@@ -1,0 +1,8 @@
+# bad/dangling.aon --- a feeds edge names an entity nobody declared.
+# rel() decides existence inside one evaluation: the address resolves
+# or the document refuses (rel_unresolved), there is no "maybe later".
+@"../model.aon"
+
+change: id(job_audit) & {
+  feeds: [job_archive]
+}

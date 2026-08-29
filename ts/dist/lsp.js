@@ -381,9 +381,10 @@ exports.COMPLETION_KEYWORD = COMPLETION_KEYWORD;
 // and forgotten here diverges silently — as `id` and `refer` did
 // between G4 phases 1/2 and G8 phase 1.
 const BUILTIN_FUNCS = [
-    'above', 'add', 'below', 'close', 'copy', 'deprecate', 'div', 'each',
+    'above', 'acyclic', 'add', 'below', 'close', 'copy', 'deprecate', 'div',
+    'each',
     'filter', 'greatest',
-    'hide', 'id', 'key', 'least', 'length', 'lower',
+    'hide', 'id', 'inverse', 'key', 'least', 'length', 'lower',
     'match', 'max', 'min', 'mod', 'move', 'mul', 'must', 'neq', 'open',
     'pack', 'path', 'pick',
     'pref', 're', 'refer', 'rel', 'rem', 'sub', 'sum', 'super', 'type', 'unique',

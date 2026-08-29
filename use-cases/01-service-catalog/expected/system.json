@@ -391,20 +391,5 @@
         }
       }
     }
-  },
-  "relations": {
-    "dependedOnBy": {
-      "acyclic": false,
-      "target": {
-        "kind": "service"
-      }
-    },
-    "dependsOn": {
-      "acyclic": true,
-      "inverse": "dependedOnBy",
-      "target": {
-        "kind": "service"
-      }
-    }
   }
 }

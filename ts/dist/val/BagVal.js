@@ -3,6 +3,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.BagVal = void 0;
 exports.sizingResidue = sizingResidue;
+exports.bagGenable = bagGenable;
 const utility_1 = require("../utility");
 const err_1 = require("../err");
 const Val_1 = require("./Val");
@@ -93,6 +94,17 @@ class BagVal extends FeatureVal_1.FeatureVal {
             this.mark.hide !== peer.mark.hide) {
             return false;
         }
+        // The SPREAD is part of the shape (BUGS.md §52 regime 4): `[]`
+        // and `[&: T]` share an empty key set, and calling them the same
+        // value collapsed the disjunction to its first arm before any
+        // data could pick -- the vacuous-schema hole. Two spreads are the
+        // same when their canons are.
+        const scj = this.spread?.cj;
+        const pcj = peer.spread?.cj;
+        if ((null == scj) !== (null == pcj) ||
+            (null != scj && null != pcj && scj.canon !== pcj.canon)) {
+            return false;
+        }
         const keys = Object.keys(this.peg);
         if (keys.length !== Object.keys(peer.peg).length) {
             return false;
@@ -169,14 +181,7 @@ class BagVal extends FeatureVal_1.FeatureVal {
             // atom decides, in ConjunctVal.gen. Any OTHER conjunct is
             // unresolved and falls through to the residue error below,
             // exactly as before.
-            else if (child.isScalar
-                || child.isMap
-                || child.isList
-                || child.isPref
-                || child.isRef
-                || child.isDisjunct
-                || child.isNil
-                || undefined !== sizingResidue(child)) {
+            else if (bagGenable(child)) {
                 // An optional child is generated in an isolated collect context so an
                 // unresolved inner value (a bare type that survived unification, e.g.
                 // an absent optional sub-map's `field: string`) is dropped rather than
@@ -239,5 +244,31 @@ function sizingResidue(v) {
     const bag = true === a?.isConstraint ? b : a;
     return undefined !== con && (true === bag?.isMap || true === bag?.isList) ?
         { con, bag } : undefined;
+}
+// bagGenable is the bag's generability whitelist. A graph atom
+// (RELATIONS P2) is exactly as generable as the value it carries: the
+// atom is transparent at generation, so wrapping a field's value in
+// acyclic() must not change whether the bag accepts it -- an unmet
+// rel() refuses required generation with or without the atom, and a
+// BARE atom generates nothing and is dropped, exactly as an unmet
+// rel() under an optional key is.
+function bagGenable(child) {
+    if (true === child.isGraphAtom) {
+        return undefined === child.held || bagGenable(child.held);
+    }
+    // The recursive residual carries its own generation refusal
+    // (recursion_unexpanded), which names the schema and the site --
+    // the bag's generic residue error would bury both.
+    if (true === child.isRecurse) {
+        return true;
+    }
+    return true === child.isScalar
+        || true === child.isMap
+        || true === child.isList
+        || true === child.isPref
+        || true === child.isRef
+        || true === child.isDisjunct
+        || true === child.isNil
+        || undefined !== sizingResidue(child);
 }
 //# sourceMappingURL=BagVal.js.map

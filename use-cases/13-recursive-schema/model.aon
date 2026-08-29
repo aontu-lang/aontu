@@ -1,0 +1,3 @@
+# model.aon --- THE ROOT: vocabulary plus one policy document.
+@"./schema.aon"
+@"./policy.aon"

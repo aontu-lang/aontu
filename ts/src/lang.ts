@@ -115,6 +115,7 @@ import { HideFuncVal } from './val/HideFuncVal'
 import { DeprecateFuncVal } from './val/DeprecateFuncVal'
 import { IdFuncVal } from './val/IdFuncVal'
 import { ReferFuncVal, RelFuncVal } from './val/ReferFuncVal'
+import { AcyclicFuncVal, InverseFuncVal } from './val/GraphAtomVal'
 import { PackFuncVal } from './val/PackFuncVal'
 import { EachFuncVal } from './val/EachFuncVal'
 import { FilterFuncVal } from './val/FilterFuncVal'
@@ -584,6 +585,12 @@ help isolate the syntax error.`,
     // flows INTO the target. The field keeps the string.
     refer: ReferFuncVal,
     rel: RelFuncVal,
+
+    // RELATIONS P2 (docs/design/RELATIONS.0.md §3.3): the graph
+    // atoms, conjoined at the field whose key is the predicate they
+    // govern. Lattice-inert; the verdict lands at generation.
+    acyclic: AcyclicFuncVal,
+    inverse: InverseFuncVal,
 
     // G8 phase 1: the generation combinators. `pack` makes one keyed
     // child per child of its data, `each` one list element; both clone
@@ -1944,6 +1951,8 @@ const funcArity: Record<string, [number, number]> = {
   must: [2, 2],
   deprecate: [1, 2],
   id: [0, 1],
+  acyclic: [0, 0],
+  inverse: [1, 1],
   refer: [0, 1],
   rel: [0, 1],
   pack: [2, 2],

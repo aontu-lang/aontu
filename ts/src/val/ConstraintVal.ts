@@ -852,7 +852,20 @@ class ConstraintVal extends FeatureVal {
     // residual is stable and the ladder is total.
     let out: Val
 
-    if (null != this.pending) {
+    // A rel residual or a graph atom HOLDS constraints for the value
+    // they stand for (RELATIONS P1/P2): hand the drive over before
+    // any settling, exactly as a container does, so `rel(t) & re(x)`
+    // reads the same in either order. Reached through the INCLUDE
+    // flow (a loaded schema's conjunct re-drives with the constraint
+    // on the left) -- inline documents route rel/atom peers through
+    // unite's b-drives first, which is why use-cases/12-relations
+    // refused without this arm while every inline row stayed green;
+    // pinned by constraint-hands-drive-to-rel-and-atom.
+    if (true === (peer as any)?.isRel
+      || true === (peer as any)?.isGraphAtom) {
+      out = (peer as any).unify(this, ctx)
+    }
+    else if (null != this.pending) {
       out = this.settle(peer, ctx)
     }
     else if (null != this.invalid) {

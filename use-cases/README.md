@@ -51,6 +51,8 @@ and, in case 09, `MCP` — to point at a different build.
 | [09-agent-tools](09-agent-tools/) | An agent platform's tool registry; runtime call guardrail; the MCP server itself | per-tool `vet --at`, the real `aontu-mcp` over JSON-RPC, `agentsmd`, generation |
 | [10-data-model](10-data-model/) | Enterprise data domain with exact money and 64-bit ids | `0d` exact leaves, `lossy_integer_literal`, cross-field constraints, batch `vet`, `subsume` |
 | [11-shared-modules](11-shared-modules/) | Shared truth across repos: a schema module vendored into a consumer | `mod tidy`/`verify`/`vendor`/`manifest`, lockfile pins, integrity errors, `#aon1-…` inline pins |
+| [12-relations](12-relations/) | Pipeline DAG: field-declared relations, one line of schema | `rel(t)`, held constraints, `acyclic()`/`inverse(n)` atoms, verdict at generation, `relations`/`reaches` |
+| [13-recursive-schema](13-recursive-schema/) | Approval chain: a schema one reference deep over any-depth data | recursive residuals (`$.spec.Step`), mu-form canon + hash, `recursion_unexpanded`, `vet --at` over plain JSON |
 
 ## Scope and conventions
 

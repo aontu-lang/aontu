@@ -1,0 +1,15 @@
+# bad/missing-inverse.aon --- a new job taps the transform output but
+# nobody records the feeder on its fedBy. feeds declares
+# inverse(fedBy) (spec.aon), so generation refuses the unmirrored
+# edge with relation_inverse_missing, naming the exact missing entry.
+@"../model.aon"
+
+pipeline: jobs: {
+  metrics: id(job_metrics) & {
+    cmd: "aggregate --hourly"
+    fedBy: []
+  }
+}
+change: id(job_transform) & {
+  feeds: [job_load, job_audit, job_metrics]
+}

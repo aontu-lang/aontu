@@ -52,6 +52,7 @@ const HideFuncVal_1 = require("./val/HideFuncVal");
 const DeprecateFuncVal_1 = require("./val/DeprecateFuncVal");
 const IdFuncVal_1 = require("./val/IdFuncVal");
 const ReferFuncVal_1 = require("./val/ReferFuncVal");
+const GraphAtomVal_1 = require("./val/GraphAtomVal");
 const PackFuncVal_1 = require("./val/PackFuncVal");
 const EachFuncVal_1 = require("./val/EachFuncVal");
 const FilterFuncVal_1 = require("./val/FilterFuncVal");
@@ -446,6 +447,11 @@ help isolate the syntax error.`,
         // flows INTO the target. The field keeps the string.
         refer: ReferFuncVal_1.ReferFuncVal,
         rel: ReferFuncVal_1.RelFuncVal,
+        // RELATIONS P2 (docs/design/RELATIONS.0.md §3.3): the graph
+        // atoms, conjoined at the field whose key is the predicate they
+        // govern. Lattice-inert; the verdict lands at generation.
+        acyclic: GraphAtomVal_1.AcyclicFuncVal,
+        inverse: GraphAtomVal_1.InverseFuncVal,
         // G8 phase 1: the generation combinators. `pack` makes one keyed
         // child per child of its data, `each` one list element; both clone
         // their template per destination exactly as a spread does, and both
@@ -1621,6 +1627,8 @@ const funcArity = {
     must: [2, 2],
     deprecate: [1, 2],
     id: [0, 1],
+    acyclic: [0, 0],
+    inverse: [1, 1],
     refer: [0, 1],
     rel: [0, 1],
     pack: [2, 2],

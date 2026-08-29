@@ -1,0 +1,58 @@
+{
+  "change": {
+    "cmd": "clean --dedup",
+    "fedBy": [
+      "job_extract"
+    ],
+    "feeds": [
+      "job_load",
+      "job_audit",
+      "job_archive"
+    ],
+    "kind": "job"
+  },
+  "pipeline": {
+    "jobs": {
+      "archive": {
+        "cmd": "cold --store",
+        "fedBy": [
+          "job_transform"
+        ],
+        "kind": "job"
+      },
+      "audit": {
+        "cmd": "report --daily",
+        "fedBy": [
+          "job_transform"
+        ],
+        "kind": "job"
+      },
+      "extract": {
+        "cmd": "fetch --source api",
+        "feeds": [
+          "job_transform"
+        ],
+        "kind": "job"
+      },
+      "load": {
+        "cmd": "warehouse --commit",
+        "fedBy": [
+          "job_transform"
+        ],
+        "kind": "job"
+      },
+      "transform": {
+        "cmd": "clean --dedup",
+        "fedBy": [
+          "job_extract"
+        ],
+        "feeds": [
+          "job_load",
+          "job_audit",
+          "job_archive"
+        ],
+        "kind": "job"
+      }
+    }
+  }
+}

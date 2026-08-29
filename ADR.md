@@ -956,11 +956,14 @@ Two boundaries, so the rule cuts where intended:
 
 ### Consequences
 
-- The `relations:` convention is a **standing violation**,
-  grandfathered until `docs/design/RELATIONS.0.md` P2 replaces it with
-  value-level atoms and retires it. No new reader of a plain-named key
-  or plain-named location may land meanwhile — a capability that needs
-  a home in the tree gets syntax, or it gets a function.
+- The `relations:` convention was a **standing violation**,
+  grandfathered until `docs/design/RELATIONS.0.md` P2 replaced it with
+  value-level atoms — **discharged 2026-08-29**: the engine reads no
+  plain-named key anywhere, `relations:` is ordinary user data
+  (pinned by `relation.tsv` `relations-key-is-user-space` /
+  `relations-key-generates-as-data`), and the rule now binds with no
+  exceptions. A capability that needs a home in the tree gets syntax,
+  or it gets a function.
 - ADR-009's removal is ratified as an instance of this rule rather
   than a one-off.
 - File-system conventions (`mod-lock.aon`, `aon_vendor/`) are outside
@@ -968,8 +971,8 @@ Two boundaries, so the rule cuts where intended:
 
 ### Enforcement
 
-Prose, this entry, and the retirement it schedules: the
-`relation.tsv` rows keep the grandfathered convention pinned until
-RELATIONS.0.md P2 lands, and P2's own rows then pin its absence. There
-is no mechanical gate for "no verb reads a plain key" — review carries
-it, as ADR-008's decision is carried.
+Prose, this entry, and the retirement it scheduled — now landed: the
+`relation.tsv` rows pinned the grandfathered convention until
+RELATIONS.0.md P2, and P2's rows pin its absence. There is no
+mechanical gate for "no verb reads a plain key" — review carries it,
+as ADR-008's decision is carried.

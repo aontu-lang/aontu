@@ -268,6 +268,14 @@ func (a *Aontu) GenerateVars(src string, vars map[string]Val) (any, error) {
 	if err != nil {
 		return nil, err
 	}
+	// The relation verdict (RELATIONS P2): declarations the graph
+	// atoms registered during unification are decided HERE, where no
+	// more information can arrive -- the sizing atoms' model. A
+	// violated declaration is a located evaluation error at the
+	// offending edge, and generation does not proceed past it.
+	if rerr := relationErrors(ctx, res); nil != rerr {
+		return nil, rerr
+	}
 	out, gerr := res.Gen(ctx)
 	if gerr != nil {
 		return nil, gerr

@@ -26,6 +26,25 @@ type Ctx struct {
 	err   []*NilVal
 	depth int // unite recursion depth (cycle guard)
 	cc    int // current fixpoint pass (for late-resolving funcs)
+	// trial marks a disjunct-member trial in progress (the TS
+	// _trialMode): a refusal inside one is a failed alternative, not a
+	// user-visible error, and ListVal's alternative-length gate reads
+	// it.
+	trial bool
+	// reldecls is the relation-declaration registry (RELATIONS P2):
+	// predicate -> what its graph atoms said. Lazily made by
+	// GraphAtomVal.register; one map per evaluation, shared through
+	// the *Ctx pointer exactly as err is.
+	reldecls map[string]*relDecl
+	// fixroot is the tree a recursive residual's target resolves
+	// against when the meet's own root does not contain it
+	// (RECURSION.0.md; the Go side of AontuContext._fixroot). Normally
+	// nil: a residual expands by walking ctx.root. Vet's ANCHORED meet
+	// unifies a subtree LIFTED out of the settled schema, so
+	// `$.spec.Step` names nothing in the meet's root -- vet sets this
+	// to the settled schema root, and RecurseVal.body falls back to it
+	// only when the root walk finds nothing.
+	fixroot Val
 	// settle is THE STAGING RULE (G8 phase 0,
 	// docs/capability-review/g8-generation.md, and the Go side of
 	// AontuContext.settle). A value whose answer depends on WHERE IT IS

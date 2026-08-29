@@ -14,6 +14,7 @@ import {
 import { AontuContext } from '../ctx'
 
 import { AontuError, descErr, makeNilErr } from '../err'
+import { exactJSON } from '../exactjson'
 import { unite } from '../unify'
 
 import {
@@ -372,6 +373,33 @@ class DisjunctVal extends JunctionVal {
       }
 
       const prefs = this.peg.filter((v: Val) => v instanceof PrefVal)
+
+      // ALTERNATIVES THAT GENERATE THE SAME VALUE ARE RESOLVED
+      // (ADR-007's rule, asked at the moment it matters): `[] | [&:
+      // T]` met by an empty list keeps both arms -- they differ as
+      // SCHEMAS, which is what stops the dedup collapsing the
+      // template away (BUGS.md §52 regime 4) -- but both generate
+      // the empty list, and one generated value is one value.
+      if (0 === prefs.length && 1 < this.peg.length) {
+        const gctx = ctx.clone({ err: [], collect: true })
+        let firstOut: any
+        let allSame = true
+        for (let gI = 0; gI < this.peg.length && allSame; gI++) {
+          const gout = this.peg[gI].gen(gctx)
+          if (0 < gctx.err.length || undefined === gout) {
+            allSame = false
+          }
+          else if (0 === gI) {
+            firstOut = gout
+          }
+          else {
+            allSame = exactJSON(gout) === exactJSON(firstOut)
+          }
+        }
+        if (allSame) {
+          return firstOut
+        }
+      }
 
       if (0 === prefs.length && 1 < this.peg.length) {
         const nerr = makeNilErr(ctx, 'disjunct_no_gen', this)
