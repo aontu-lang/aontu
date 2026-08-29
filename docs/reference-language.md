@@ -549,15 +549,29 @@ does — the **rank-uniform meet** (ADR-004): `a:**1.5 & float` is `1.5`
 just as `a:*1.5 & float` is, and `**2|integer` met by a bare `integer`
 keeps its default.
 
-Overriding a **scalar** default is judged in two steps.
+Overriding a default is judged in two steps, and they are the two arms
+of the disjunction `*x` stands for ([ADR-011](../ADR.md#adr-011)):
+`*x & peer` is `(x & peer) | (super(x) & peer)`.
 
-**A bare preference is gated by kind**, not by family: a concrete peer
-replaces the default only where it is the same kind of thing. A peer of
-another kind is a conflict, and that includes the other numeric leaf —
-`a:*2 & 3.0` and `a:*2.2 & 3` are both errors, as is `a:*1.5 &
-integer`. A kind peer the default already satisfies leaves the
-preference standing (`a:*1.5 & float` and `a:*1.5 & number` are both
-`1.5`).
+**The preferred value answers first.** A peer it still admits leaves
+the preference standing, narrowed to what survived: `a:*1.5 & float`
+and `a:*1.5 & number` are both `1.5`, `a:*8080 & min(1024)` is still
+`*8080`, and `a:*integer & 7` is `*7`.
+
+**Otherwise its type answers, and that is the override.** `a:*8080 &
+9090` is `9090` — `8080` cannot admit it, `integer` can. When neither
+arm admits the peer, nothing is left of the disjunction and the
+refusal is `empty`: `a:*2 & 3.0`, `a:*2.2 & 3` and `a:*1.5 & integer`
+are all errors, because the numeric leaves are disjoint.
+
+The type is `super(x)`, so the rule reaches every kind of default —
+`super(integer)` is `number`, so `a:*integer & 7` narrows and
+`a:*integer & "s"` refuses.
+
+**Two defaults of the same rank must agree.** `a:*1` beside `a:*7` is
+`pref_rank_clash`, in that spelling and in `a:*1|*7`: the disagreement
+is between the DEFAULTS, and the fix is to rank one of them (`**`).
+Compatible defaults fold — `a:*1` beside `a:*integer` is `*1`.
 
 **A preference conjoined with a disjunction names an alternative**
 (ADR-007): `(A|B) & *A` is `*A|B`, the same value the direct spelling
@@ -582,7 +596,7 @@ by at least one alternative, or by the preferred value. A preferred
 branch contributes exactly its own value to the admitted set, so
 `*'auto' | 'literal' | 'data'` is a true **enum with a default**:
 unset generates `"auto"`, `'literal'` and `'data'` override, and
-anything else is the empty disjunction (`[aontu/|:empty]`). A wider
+anything else is the empty disjunction (`[aontu/empty]`). A wider
 alternative admits a wider override (`*8080 | integer` accepts any
 integer), and a constraint alternative is consulted rather than
 bypassed (`*8080 | (integer & min(1024) & max(65535))` refuses `80`
@@ -612,14 +626,14 @@ override nothing admits is the empty disjunction:
 <!-- test: run -->
 ```sh
 $ echo 'k: *auto | literal | data  k: autoo' | aontu
-[aontu/|:empty]: Cannot unify values at path $.k
+[aontu/empty]: Cannot unify values at path $.k
 ...
 $ echo $?
 1
 ```
 
 The refusals follow the same rule at every width: `*8080 | integer`
-met by `1.5` is `[aontu/|:empty]` (the other numeric leaf), and
+met by `1.5` is `[aontu/empty]` (the other numeric leaf), and
 `*8080 | (integer & neq(80))` met by `80` is refused because the
 exclusion is consulted, not bypassed.
 
@@ -631,29 +645,37 @@ alternatives never consulted, so `k:*'auto'|'literal'|'data'` +
 that leaned on the open override keeps its meaning by writing the open
 branch explicitly: `*x | top`.
 
-**A structural default is not gated.** The yardstick is the preferred
-value's `superior()`, and a map or a list has none — it is `top` — so
-*any* peer overrides a preferred map or list, including one of another
-kind, and it REPLACES rather than merges:
+**A structural default is gated too**, by the same rule as every
+other: the peer must pass `super(x)`, and `super({x:1})` is
+`{x:integer}`. A map default therefore MERGES with a map that adds a
+key — the preferred value itself admits it — and refuses a value of
+another kind outright:
 
 ```aon
 a: *{x:1}
-a: "s"
+a: {y:2}
 b: *{x:1}
-b: {y:2}
+b: {x:2}
 ```
 
 ```json
-{"a":"s","b":{"y":2}}
+{"a":{"x":1,"y":2},"b":{"x":2}}
 ```
 
-`a` takes the other-kind peer with no gate, and `b` is replaced, not
-merged. The scalar case differs: `a:*1` met by `a:"s"` is refused,
-because the gate applies.
+`a` keeps its `x` default and gains `y`; `b`'s `x` is overridden,
+because `{x:1}` cannot admit `{x:2}` but its type can. A peer of
+another kind — `a: "s"` — refuses, as the scalar case always did.
 
-Write `a:{x:*1}` rather than `a:*{x:1}` when you mean "a map whose `x`
-defaults to 1" — the preference belongs on the scalar that has a kind to
-defend. Pinned by the `pref-struct-*` rows in
+**This changed on 2026-08-29** ([ADR-011](../ADR.md#adr-011)). Before
+it, a map or a list had no gate at all: any peer overrode a structural
+default, including one of another kind, and a map that added a key
+REPLACED the default rather than merging with it. A document that
+leaned on the replace-anything reading keeps its meaning by writing
+the open branch explicitly, `*{x:1} | top`.
+
+Writing `a:{x:*1}` rather than `a:*{x:1}` is still the clearer
+spelling when you mean "a map whose `x` defaults to 1", and it is what
+`pref({x:1})` produces. Pinned by the `pref-struct-*` rows in
 [`test/spec/pref.tsv`](../test/spec/pref.tsv).
 
 ## Optional keys `?`
@@ -1827,7 +1849,7 @@ Two of its behaviours are the language rather than the vocabulary:
 - **A preferred member is one enum member, with the default role.**
   `direction: *in | out | inout` is a true enum-with-default under the
   admission gate (ADR-004): unset generates `in`, `out` and `inout`
-  override, and any other value is refused (`[aontu/|:empty]`). It
+  override, and any other value is refused (`[aontu/empty]`). It
   used to be otherwise — the preference held the disjunction open and
   any other string was admitted — which is exactly the fail-open
   default the 2026-08 language review retired. A vocabulary that wants

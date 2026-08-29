@@ -121,17 +121,17 @@ disagree, and read a TypeScript line count as evidence that the
 
 ### Shared, cross-language spec
 
-`test/spec/*.tsv` — **3721 cases across 96 files** — is run by *both*
+`test/spec/*.tsv` — **3751 cases across 97 files** — is run by *both*
 implementations and is the contract that defines shared behaviour
 ([ADR-001](../ADR.md#adr-001--typescript-and-go-stay-at-full-parity-driven-by-a-shared-spec)):
 
 | File | Cases | File | Cases |
 |------|------:|------|------:|
-| `number-tower.tsv`          | 395 | `marks.tsv` | 30 |
+| `number-tower.tsv`          | 395 | `defaults.tsv` | 29 |
 | `edge.tsv`                  | 312 | `diff.tsv` | 28 |
 | `constraint-product.tsv`    | 256 | `super.tsv` | 28 |
 | `func.tsv`                  | 122 | `file.tsv` | 27 |
-| `errcodes.tsv`              | 119 | `recursion.tsv` | 27 |
+| `errcodes.tsv`              | 120 | `recursion.tsv` | 27 |
 | `constraint-re.tsv`         | 118 | `pipe.tsv` | 26 |
 | `number-model.tsv`          | 112 | `budget.tsv` | 25 |
 | `subsume.tsv`               | 106 | `engine-parity.tsv` | 23 |
@@ -162,6 +162,7 @@ implementations and is the contract that defines shared behaviour
 | `error.tsv`                 |  34 | `comment.tsv` |  6 |
 | `gen-pack.tsv`              |  31 | `include-trust.tsv` |  4 |
 | `constraint-cross.tsv`      |  30 | `divergent.tsv` |  0 |
+| `marks.tsv`                 |  30 | | |
 
 plus the `spread*.tsv` family — **26 files, 167 cases**, one spread
 topic per file. `divergent.tsv` is the parity ledger: commentary only,

@@ -12,7 +12,7 @@
 #         Root cause: vet's gen check keeps only 'incomplete'-class errors,
 #         and DisjunctVal.gen (ts/src/val/DisjunctVal.ts) folds the members
 #         with unify -- 'a'&'b' raises conflict-class errors, which are
-#         dropped. Same value present-but-wrong IS caught (|:empty, exit 1).
+#         dropped. Same value present-but-wrong IS caught (empty, exit 1).
 #         Workaround that gives the full triple (missing->3, member->0,
 #         non-member->1): role: string & must('a'|'b', "msg").
 # run: aontu vet enum-missing-key.aon missing-role.json

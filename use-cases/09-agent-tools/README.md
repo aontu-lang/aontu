@@ -76,7 +76,7 @@ The model exercises the full loop:
     actual:   "http://169.254.169.254/latest/meta-data/"
     data: data/call-http-bad.json:4:12 ("http://169.254.169.254/latest/meta-data/")
     schema: guard.aon:69:19 (re("^https://")&length(integer&min(0)&max(2048)))
-  $.guard.http_request.method: |:empty [conflict]
+  $.guard.http_request.method: empty [conflict]
     ...
     data: data/call-http-bad.json:5:15 ("DELETE")
     schema: guard.aon:-1:-1 ("GET"|"HEAD")
@@ -136,7 +136,7 @@ files. Severities are my honest read for THIS use case.
 
 > **2026-08-26: fixed by the preference admission gate (ADR-004).**
 > The disjunct form now enforces on override — `a: *10 | integer &
-> min(1) & max(50)` refuses `500` with `[aontu/|:empty]`, and
+> min(1) & max(50)` refuses `500` with `[aontu/empty]`, and
 > `*readonly | write | destructive` refuses `bogus` — exactly the
 > "test the surviving disjunct" gate this gap asked for. The conjunct
 > form's lost default below remains the phase-1 limit. No assertions

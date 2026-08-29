@@ -992,10 +992,20 @@ b: c2: {n:2}
     let up21 = p2.unify(p1, ctx)
     expect(up21.canon).equal('*"p1"')
 
+    // A KIND peg narrows to the value that satisfied it and STAYS a
+    // preference (ADR-011 R1): `*string & "s0"` is `*"s0"`, which is
+    // what the long form answers -- `(string&"s0") | (top&"s0")` keeps
+    // the star on the arm that survived. It used to answer a bare
+    // `"s0"`, because a kind peg gated nothing and the peer simply
+    // replaced the preference.
     let up2s0 = p2.unify(new StringVal({ peg: 's0' }), ctx)
-    expect(up2s0.canon).equal('"s0"')
+    expect(up2s0.canon).equal('*"s0"')
 
-    // NOTE: once made concrete a prefval is fixed
+    // ... and it is FIXED by that narrowing, because the override
+    // space narrowed with it: `super(string)` is `top`, so the second
+    // arm was `top & "s0"`, which is `"s0"` and admits nothing else.
+    // A default whose type has been pinned to one value has no room
+    // left to be overridden in.
     expect(up2s0.unify(new StringVal({ peg: 's1' }), ctx).canon)
       .equal('nil')
 

@@ -19,6 +19,15 @@ type PrefVal struct {
 	// second silently widened every key written with the documented
 	// default idiom `*8080 | integer` from integer to number.
 	rank int
+
+	// THE OVERRIDE SPACE, NARROWED (ADR-011 R1). The second arm of the
+	// distribution -- `super(x) & every peer met so far` -- kept here
+	// as well as in superpeg, because resuper() recomputes the gate
+	// from the peg whenever the peg resolves and would otherwise widen
+	// it back to `super(x)`: a rank>=2 default, whose peg is itself a
+	// preference and so is re-driven, lost its narrowing that way and
+	// let a pinned `***false & false` be overridden by `true`.
+	narrowed Val
 }
 
 func newPref(v Val) *PrefVal {
@@ -42,8 +51,48 @@ func newPref(v Val) *PrefVal {
 // ts/src/val/PrefVal.ts (whose innermost-kind exception -- a peg that
 // is itself a kind gates nothing -- is Go's ScalarKindVal.superior()
 // returning top).
+// THE GATE IS super() (ADR-011 R4, docs/design/DEFAULTS.0.md). `*x` is
+// sugar for `*x | super(x)`, so the type an overriding peer must pass
+// is the one the long form spells out loud -- one function, not a
+// second implementation that agrees with it on the common case. Two
+// special cases retired with the switch: a KIND peg gated nothing
+// (`*integer` was overridden by a string) and a BAG peg had no gate at
+// all, both of which followed from a superior() of top. Mirrors
+// PrefVal.resuper in ts/src/val/PrefVal.ts.
 func (p *PrefVal) resuper() {
-	p.superpeg = prefInnerPeg(p).superior()
+	p.superpeg = superOf(cp(p.path), prefInnerPeg(p))
+}
+
+// regate recomputes the gate and REAPPLIES any narrowing the meets so
+// far have left on it. resuper alone widens the override space back to
+// `super(x)` every time the peg resolves, which a rank>=2 default --
+// whose peg is itself a preference, and so is re-driven -- hits on
+// every pass: a pinned `***false & false` was overridden by `true`.
+// Split from resuper because narrowing needs a context to meet in and
+// the constructor has none (it also has nothing narrowed yet).
+func (p *PrefVal) regate(ctx *Ctx) {
+	p.resuper()
+	if nil != p.narrowed {
+		p.superpeg = unite(ctx, clonePath(p.superpeg, cp(p.path)), p.narrowed)
+	}
+}
+
+// restand rebuilds the preference around a NARROWED value: `*integer &
+// 7` is `*7`, which is what the long form answers (`(integer&7) |
+// (number&7)` keeps the star on the arm that survived). The rank is
+// rebuilt as NESTING rather than stamped, because Canon renders one
+// star per layer -- a rank set on a single layer would print `*x` for
+// a rank-2 default and the document would no longer round-trip.
+// Mirrors PrefVal.restand in ts/src/val/PrefVal.ts.
+func (p *PrefVal) restand(met Val) Val {
+	out := met
+	for rI := 0; rI <= p.rank; rI++ {
+		np := newPref(out)
+		np.sp, np.spu, np.surl = p.sp, p.spu, p.surl
+		np.path = cp(p.path)
+		out = np
+	}
+	return out
 }
 
 // prefInnerPeg unwraps every pref layer to the innermost preferred
@@ -85,7 +134,7 @@ func (p *PrefVal) Unify(peer Val, ctx *Ctx) Val {
 	if p.peg.Dc() != DONE {
 		ctx.slot = slot
 		p.peg = unite(ctx, p.peg, top())
-		p.resuper()
+		p.regate(ctx)
 	}
 
 	var out Val
@@ -99,36 +148,90 @@ func (p *PrefVal) Unify(peer Val, ctx *Ctx) Val {
 		case pp.rank < p.rank:
 			out = pp
 		default:
-			out = newPref(unite(ctx, p.peg, pp.peg))
+			// TWO DEFAULTS OF EQUAL RANK THAT CANNOT AGREE (ADR-011
+			// R2): the refusal is about the DEFAULTS, not about the
+			// values they happen to hold, and its hint names the fix
+			// -- rank one of them. Compatible pegs still fold (`*1 &
+			// *integer` is `*1`), so only a real disagreement lands
+			// here. Trialled, because the inner meet's own code would
+			// otherwise be the one the reader sees.
+			peg := trialUnify(ctx, clonePath(prefInnerPeg(p), cp(p.path)),
+				prefInnerPeg(pp))
+			if nil == peg {
+				out = makeNilErr(ctx, "pref_rank_clash", p, peer)
+			} else {
+				out = p.restand(peg)
+			}
 		}
 	default:
 		if isTop(peer) {
 			out = p
 		} else {
-			// Peer is a concrete or kind value. Unify the preferred
-			// value's FAMILY with peer: if the peer added nothing beyond
-			// a type the preferred value already satisfies (`*1 &
-			// integer`, `*1 & number`), the preference stands; anything
-			// else is a concrete override and wins.
-			// Recompute a missing gate rather than proceed without one.
-			// unite(ctx, nil, peer) returns the peer verbatim, so a nil
-			// superpeg does not weaken this test, it deletes it -- and
-			// silently, which is how a dropped field in one clone case
-			// disabled the gate everywhere without a single test failing.
-			// Belt and braces: clone.go carries the field, and this makes
-			// the whole class of bug unreachable rather than fixed once.
+			// THE MEET IS THE DESUGARING, DISTRIBUTED (ADR-011 R1,
+			// docs/design/DEFAULTS.0.md). `*x` stands for `*x |
+			// super(x)`, and a peer meets a disjunction arm by arm:
+			//
+			//     (x & peer)  |  (super(x) & peer)
+			//
+			// THE FIRST ARM DECIDES. When the preferred value itself
+			// still satisfies the peer the default STANDS -- `*1 &
+			// integer`, `*8080 & min(1024)`, `*{x:1} & {y:2}` (maps
+			// merge, so the `x` default survives): the peer narrowed
+			// the type without ruling the default out, which is the
+			// whole point of writing one. Only when that arm is empty
+			// does the second answer, and that is the override. When
+			// BOTH are empty nothing remains of the disjunction the
+			// star stands for -- `empty`, the same refusal the
+			// written-out long form gives.
+			//
+			// Recompute a missing gate rather than proceed without
+			// one: unite(ctx, nil, peer) returns the peer verbatim, so
+			// a nil superpeg does not weaken the second arm, it
+			// deletes it -- and silently.
 			if nil == p.superpeg {
-				p.resuper()
+				p.regate(ctx)
 			}
-			out = unite(ctx, p.superpeg, peer)
-			// The preference stands AS ITSELF, rank intact (ADR-004):
-			// returning the peg demoted it — to a concrete value at
-			// rank 0, to a lower rank above — destroying
-			// overridability and the layered-defaults ladder. The
-			// full note is on the canonical port
-			// (ts/src/val/PrefVal.ts).
-			if valSame(out, p.superpeg) {
-				out = p
+
+			// Trialled against a CLONE, on the innermost value (the
+			// rank-uniform meet): the preferred value must stay
+			// pristine for the arm that stands, and a failed trial
+			// must not leave its errors on the context.
+			inner := prefInnerPeg(p)
+			if met := trialUnify(ctx, clonePath(inner, cp(p.path)), peer); nil != met {
+				// THE SECOND ARM IS CARRIED FORWARD, not discarded. It
+				// is the override space -- everything the peer would
+				// still admit INSTEAD of the default -- and meeting a
+				// peer narrows it just as it narrows the default, so
+				// two successive meets compose to `(x & p1 & p2) |
+				// (super(x) & p1 & p2)`. Dropping it let a constraint
+				// arriving beside a default vanish: `r:*2` with
+				// `r:max(20)` stood as a bare `*2`, and `r:40` then
+				// overrode it through a gate that had forgotten the
+				// bound. It cannot fail: the first arm succeeded, so
+				// its value satisfies `super(x)` and `peer` both.
+				gate := unite(ctx, clonePath(p.superpeg, cp(p.path)), peer)
+
+				// Unchanged on both counts is the SAME preference,
+				// returned as itself: minting a new one every pass
+				// would keep the fixpoint moving for ever.
+				if valSame(met, inner) && valSame(gate, p.superpeg) {
+					out = p
+				} else {
+					stood := p.restand(met)
+					if sp, ok := stood.(*PrefVal); ok {
+						sp.narrowed = gate
+						sp.superpeg = gate
+					}
+					out = stood
+				}
+			} else if over := trialUnify(ctx, clonePath(p.superpeg, cp(p.path)), peer); nil != over {
+				out = over
+			} else if peer.Nil() {
+				// A peer that arrived already failed keeps its own
+				// refusal: that is its failure, not the default's.
+				out = peer
+			} else {
+				out = makeNilErr(ctx, "empty", p, peer)
 			}
 		}
 	}

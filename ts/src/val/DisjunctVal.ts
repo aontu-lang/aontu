@@ -71,7 +71,12 @@ class DisjunctVal extends JunctionVal {
     const te = ctx.explain && explainOpen(ctx, ctx.explain, 'Disjunct', this, peer)
 
     if (!this.prefsRanked) {
-      this.rankPrefs(ctx)
+      const ranked = this.rankPrefs(ctx)
+      // A clash between equal-rank defaults refuses for the whole
+      // disjunction (R2): the disagreement IS the answer.
+      if (null != ranked && ranked.isNil) {
+        return ranked
+      }
     }
 
     // // // console.log('DISJUNCT-unify-A', this.id, this.canon)
@@ -141,7 +146,7 @@ class DisjunctVal extends JunctionVal {
       // plus `k:'autoo'` answered "autoo", and `*8080|(integer&neq(80))`
       // admitted 80 (use-cases/BUGS.md §1-2). An inadmissible override
       // now fails the pref member's trial, and when every member is
-      // gone the meet is the existing `|:empty` refusal.
+      // gone the meet is the existing `empty` refusal.
       //
       // SCALAR preferred values only, exactly the kind gate's own
       // boundary (test/spec/pref.tsv, "THE GATE IS A SCALAR GATE"): a
@@ -225,6 +230,31 @@ class DisjunctVal extends JunctionVal {
         for (let kI = vI + 1; kI < oval.length; kI++) {
           if (oval[kI].same(oval[vI])) {
             oval[kI] = TRIAL_NIL
+            continue
+          }
+
+          // TWO PREFERENCES OVER ONE VALUE ARE ONE PREFERENCE, and
+          // the lower rank is the one that generates: `*1 | **1` is
+          // `*1`. Ranking folds EQUAL ranks (R2); this folds the rest,
+          // which R5 stopped discarding.
+          //
+          // A PLAIN arm holding that same value is NOT a duplicate of
+          // it and must not be folded away: it is the sibling that
+          // ADMITS an override under ADR-004's gate, which is the
+          // whole point of writing `*x | x`. Folding it turned that
+          // idiom's own default into a `pref_not_instance` finding,
+          // and `*top | top` is pinned as its control.
+          const a: any = oval[vI]
+          const b: any = oval[kI]
+          if (true === a.isPref && true === b.isPref
+            && prefInnerPeg(a).same(prefInnerPeg(b))) {
+            if ((a as PrefVal).rank <= (b as PrefVal).rank) {
+              oval[kI] = TRIAL_NIL
+            }
+            else {
+              oval[vI] = TRIAL_NIL
+              break
+            }
           }
         }
       }
@@ -234,7 +264,7 @@ class DisjunctVal extends JunctionVal {
 
     // Outside the 1<length block: a SINGLE-member disjunction (e.g. a
     // rankPrefs collapse) whose one member fails the trial or the
-    // admission gate must reach the `|:empty` refusal below, not
+    // admission gate must reach the `empty` refusal below, not
     // return the trial sentinel as if it were the answer.
     oval = oval.filter(v => !v.isNil)
 
@@ -244,7 +274,7 @@ class DisjunctVal extends JunctionVal {
       out = oval[0]
     }
     else if (0 == oval.length) {
-      return makeNilErr(ctx, '|:empty', this, peer)
+      return makeNilErr(ctx, 'empty', this, peer)
     }
     else {
       out = new DisjunctVal({ peg: oval }, ctx)
@@ -269,52 +299,61 @@ class DisjunctVal extends JunctionVal {
   }
 
 
-  // Answers the sole surviving preference when ranking collapsed the
-  // disjunction to one -- which the RECURSIVE call below consumes to
-  // lift a nested disjunct's winner into this one. Undefined when
-  // more than one alternative survives, so the type says both.
-  rankPrefs(ctx: AontuContext): PrefVal | undefined {
-    let lastpref: PrefVal | undefined = undefined
-    let lastprefI = -1
+  // RANK ORDERS THE SURVIVORS, IT DOES NOT DISCARD AT PARSE (ADR-011
+  // R5, docs/design/DEFAULTS.0.md). Every rank is KEPT here, and
+  // generation takes the lowest-rank preference still standing -- so
+  // eliminating the lower arm PROMOTES the next instead of taking the
+  // whole ladder with it. This ran once, before the member trials,
+  // and discarded every arm but the lowest: `*1 | **2` met by
+  // `neq(1)` lost the default entirely and refused, where the ladder
+  // exists precisely to answer 2. Rank is a preference order over
+  // WHAT SURVIVES, which is not knowable until the trials have run.
+  //
+  // Only EQUAL ranks fold, because two defaults at one rank are one
+  // decision: compatible pegs merge, and a disagreement is the
+  // `pref_rank_clash` refusal (R2), which belongs to the whole
+  // disjunction -- there is no alternative to fall back to.
+  //
+  // Answers the sole surviving preference when the disjunction holds
+  // exactly one -- which the RECURSIVE call below consumes to lift a
+  // nested disjunct's winner into this one -- or the clash refusal.
+  rankPrefs(ctx: AontuContext): Val | undefined {
+    // The kept index per rank, so an equal-rank twin folds into the
+    // arm already standing for that rank.
+    const atRank: Record<number, number> = {}
 
     // // // console.log('RP-A', this.peg.map((p: Val) => p.canon))
 
     for (let vI = 0; vI < this.peg.length; vI++) {
       const v = this.peg[vI]
+      let pref: PrefVal | undefined = undefined
+
       if (v instanceof PrefVal) {
-        if (null != lastpref) {
-          if (v.rank === lastpref.rank) {
-            const pref = v.unify(lastpref, ctx) as PrefVal
-            if (pref.isNil) {
-              return pref
-            }
-            else {
-              this.peg[lastprefI] = pref
-              lastpref = pref
-              this.peg[vI] = null
-            }
-            // return Nil.make(ctx, '|:prefs', lastpref, v, 'associate')
-          }
-          else if (v.rank < lastpref.rank) {
-            this.peg[lastprefI] = null
-            lastpref = v
-            lastprefI = vI
-          }
-          else {
-            this.peg[vI] = null
-          }
-        }
-        else {
-          lastpref = v
-          lastprefI = vI
-        }
+        pref = v
       }
       else if (v.isDisjunct) {
         const subrank = (v as DisjunctVal).rankPrefs(ctx)
+        if (null != subrank && subrank.isNil) {
+          return subrank
+        }
         if (subrank instanceof PrefVal) {
           this.peg[vI] = subrank
-          lastpref = subrank
-          lastprefI = vI
+          pref = subrank
+        }
+      }
+
+      if (undefined !== pref) {
+        const at = atRank[pref.rank]
+        if (undefined === at) {
+          atRank[pref.rank] = vI
+        }
+        else {
+          const folded = pref.unify(this.peg[at], ctx)
+          if (folded.isNil) {
+            return folded
+          }
+          this.peg[at] = folded
+          this.peg[vI] = null
         }
       }
     }
@@ -413,7 +452,19 @@ class DisjunctVal extends JunctionVal {
         return undefined
       }
 
-      return (0 < prefs.length ? prefs[0] : this.peg[0]).gen(ctx)
+      // THE LOWEST-RANK SURVIVOR (R5). Ranking no longer discards the
+      // weaker arms, so the choice is made here, over what is left:
+      // `*1 | **2` answers 1, and answers 2 once `*1` is gone.
+      let best: any = this.peg[0]
+      if (0 < prefs.length) {
+        best = prefs[0]
+        for (const p of prefs) {
+          if ((p as PrefVal).rank < best.rank) {
+            best = p
+          }
+        }
+      }
+      return best.gen(ctx)
     }
 
     return super.gen(ctx)

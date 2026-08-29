@@ -643,25 +643,34 @@ trade-off rather than of a defect.
 
 ### A preference is gated by kind, not by family
 
-Overriding a scalar default is judged by the preferred value's own
-**kind**: a concrete peer replaces it only where the peer is the same
-kind of thing. `*8080` meeting `9090` yields `9090`; `*8080` meeting
-`3.5` is a conflict, and so is `*2.2` meeting `3`. A peer that merely
-*constrains* the default rather than replacing it — `*1 & integer`,
-`*1 & number` — leaves the preference standing, because it said nothing
-the preferred value did not already satisfy. The rule is stated plainly
-in the [language reference](reference-language.md#preference--default-),
-which also records the case it does **not** cover: a preferred map or
-list has no kind yardstick (`superior()` is `top`), so any peer
-overrides one. The gate is a scalar gate, and the reference says so
-rather than letting the general phrasing stand for it.
+Overriding a default is judged by asking the two questions the long
+form asks out loud. `*x` is sugar for `*x | super(x)`
+([ADR-011](../ADR.md#adr-011)), so a peer meets it arm by arm:
+
+    *x & peer   ==   (x & peer)  |  (super(x) & peer)
+
+The first arm decides. Does the preferred value *itself* still admit
+the peer? Then the default stands, narrowed to what survived: `*1 &
+integer`, `*8080 & min(1024)`, and — because maps merge — `*{p:1} &
+{q:2}`, which keeps the `p` default and gains `q`. Only when that arm
+is empty does the second answer, and that is the override: `*8080`
+meeting `9090` yields `9090`, because `8080` cannot admit it but
+`integer` can. When both arms are empty nothing is left of the
+disjunction the star stands for, and the refusal says exactly that —
+`empty`. `*8080` meeting `3.5` is empty, and so is `*2.2` meeting `3`.
+
+There is one rule here, and it reaches everything a default can be:
+a scalar, a kind (`super(integer)` is `number`, so `*integer` admits
+`7` and refuses `"s"`), a constraint, a map, a list. It used to be a
+scalar gate with a hole beside it — a preferred map or list had no
+yardstick at all, so any peer overrode one.
 
 The surprise is that the two numeric leaves do not mix around a
 preference, even though they share a supertype:
 
 ```
-a: *2.2 & 3         → refused: [aontu/no_scalar_unify] at $.a
-a: *1.5 & integer   → refused: [aontu/scalar-type] at $.a
+a: *2.2 & 3         → refused: [aontu/empty] at $.a
+a: *1.5 & integer   → refused: [aontu/empty] at $.a
 ```
 
 This is a choice, and the other one shipped for a while. A gate that
@@ -688,7 +697,7 @@ So the idiom now means what it looks like:
 port: *8080 | integer
     alone                          → generates {"port":8080}
     with a later  port: 9090       → generates {"port":9090}
-    with a later  port: 1.5        → refused: [aontu/|:empty] at $.port
+    with a later  port: 1.5        → refused: [aontu/empty] at $.port
 ```
 
 and an author who *wants* the whole family writes it in the branch,

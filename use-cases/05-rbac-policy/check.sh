@@ -61,7 +61,7 @@ ok "vet: good tenant is valid and warning-free"
 # entitlement disjunction of closed maps.
 run sso 1 -- vet "$DIR/tenant.aon" "$DIR/data/tenant-free-sso.json"
 has sso out 'verdict: invalid'
-has sso out '[aontu/|:empty]'
+has sso out '[aontu/empty]'
 has sso out '$.tenant.entitlement'
 ok "vet: free plan + sso refused by the closed-map disjunction"
 
@@ -174,7 +174,7 @@ ok "registry: hidden filter+length invariant fires same-layer"
 # a member only by being the default).
 run naive 1 -- vet "$DIR/exhibits/enum-default-naive.aon" "$DIR/data/invite-superadmin.json"
 has naive out 'verdict: invalid'
-has naive out '[aontu/|:empty]'
+has naive out '[aontu/empty]'
 has naive out 'pref_not_instance'
 ok "fixed: *member|admin|owner refuses superadmin, warns pref_not_instance"
 
@@ -182,7 +182,7 @@ ok "fixed: *member|admin|owner refuses superadmin, warns pref_not_instance"
 # exactly the same enforcement.
 run repeated 1 -- vet "$DIR/exhibits/enum-default-repeated.aon" "$DIR/data/invite-superadmin.json"
 has repeated out 'verdict: invalid'
-has repeated out '[aontu/|:empty]'
+has repeated out '[aontu/empty]'
 hasnt repeated out 'pref_not_instance'
 ok "fixed: repeated branch silences the warning and still enforces"
 
@@ -191,10 +191,10 @@ run repgen 0 -- "$DIR/exhibits/enum-default-repeated.aon"
 has repgen out '"role": "member"'
 ok "repeated form generates the default (member)"
 
-# 21. The plain enum enforces (|:empty on superadmin)...
+# 21. The plain enum enforces (empty on superadmin)...
 run plain 1 -- vet "$DIR/exhibits/enum-default-plain.aon" "$DIR/data/invite-superadmin.json"
 has plain out 'verdict: invalid'
-has plain out '[aontu/|:empty]'
+has plain out '[aontu/empty]'
 run plainok 0 -- vet "$DIR/exhibits/enum-default-plain.aon" "$DIR/data/invite-member.json"
 # ...but no longer evaluates on its own: enforcement costs the default.
 # 2026-08-27 (ADR-007): the refusal is now `disjunct_no_gen`, class
@@ -209,9 +209,9 @@ ok "plain enum enforces, but cannot generate a default"
 # kills the default: standalone evaluation fails (G1 phase-1 limit).
 run guarded 1 -- vet "$DIR/exhibits/enum-default-guarded.aon" "$DIR/data/invite-superadmin.json"
 has guarded out 'verdict: invalid'
-run guardgen 1 -- "$DIR/exhibits/enum-default-guarded.aon"
-has guardgen err '[aontu/disjunct_no_gen]'
-ok "GAP pinned: pref & must() enforces but loses the default"
+run guardgen 0 -- "$DIR/exhibits/enum-default-guarded.aon"
+has guardgen out '"role": "member"'
+ok "FIXED (ADR-011): pref & must() enforces AND keeps the default"
 
 # 23. Ranked preferences: * (team) outweighs ** (org baseline).
 run rank 0 -- "$DIR/exhibits/rank-default.aon"
@@ -279,11 +279,11 @@ printf 'Ent: type( close({ plan: "free", sso: false }) | close({ plan: "pro", ss
 printf '{"t":{"p":"free","e":{"sso":true}}}\n' > "$WORK/g3.json"
 run stale 1 -- vet "$WORK/g3.aon" "$WORK/g3.json"
 has stale out 'verdict: invalid'
-has stale out '[aontu/|:empty]'
+has stale out '[aontu/empty]'
 # The identical composition as one evaluation says the same thing:
 printf '@"g3.aon"\nt: { p: "free", e: { sso: true } }\n' > "$WORK/g3e.aon"
 run staleeval 1 -- "$WORK/g3e.aon"
-has staleeval err '[aontu/|:empty]'
+has staleeval err '[aontu/empty]'
 ok "vet catches what eval catches when a branch hangs on a reference"
 
 # 31. CLOSED 2026-08-27 (the review's finding C, BUGS.md sec 17):

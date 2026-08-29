@@ -151,10 +151,10 @@ ok "vet: stream with one bad event, worst verdict wins"
 # --- 3. KEY FINDING: error localisation inside the union. ---
 
 # Valid discriminator (order.paid), invalid payload (amount_cents 0).
-# The union reports ONE |:empty at $.Event: no field path, no branch
+# The union reports ONE empty at $.Event: no field path, no branch
 # selection, all three alternatives dumped into a single schema site.
 run ubad 1 -- vet --at '$.Event' "$V1" "$DIR/data/bad/paid-zero-amount.json"
-has ubad out '$.Event: |:empty [conflict]'
+has ubad out '$.Event: empty [conflict]'
 lacks ubad out '$.Event.payload.amount_cents'
 lacks ubad out 'expected: integer&min(1)'
 has ubad out '"type":"order.placed"'
@@ -168,7 +168,7 @@ r = json.load(open(sys.argv[1]))
 assert r["verdict"] == "invalid", r["verdict"]
 assert len(r["findings"]) == 1, len(r["findings"])
 f = r["findings"][0]
-assert f["code"] == "|:empty" and f["path"] == "$.Event", (f["code"], f["path"])
+assert f["code"] == "empty" and f["path"] == "$.Event", (f["code"], f["path"])
 schema = next(s for s in f["sites"] if s["role"] == "schema")
 # 2026-08-27: the union's schema site now HAS a location (a narrowed
 # disjunction carries the site of the one it came from). What is still
@@ -178,7 +178,7 @@ schema = next(s for s in f["sites"] if s["role"] == "schema")
 assert schema["row"] > 0 and schema["col"] > 0, (schema["row"], schema["col"])
 assert len(schema["value"]) > 1500, len(schema["value"])  # the blob
 EOF
-ok "union anchor: wrong payload -> one |:empty blob, zero localisation (KEY gap)"
+ok "union anchor: wrong payload -> one empty blob, zero localisation (KEY gap)"
 
 # Same event at the dispatched branch: exact field, expected residual,
 # row/col in both files.
@@ -201,7 +201,7 @@ ok "consumer dispatch loop: wire type -> registry anchor, all events valid"
 # Unknown discriminator: byte-identical finding shape to the wrong
 # payload -- an agent cannot tell 'unknown type' from 'bad payload'.
 run unk 1 -- vet --at '$.Event' "$V1" "$DIR/data/bad/refunded-unknown-type.json"
-has unk out '$.Event: |:empty [conflict]'
+has unk out '$.Event: empty [conflict]'
 grep '^\$\.Event' "$WORK/unk.out" > "$WORK/unk.head"
 grep '^\$\.Event' "$WORK/ubad.out" > "$WORK/ubad.head"
 diff -q "$WORK/unk.head" "$WORK/ubad.head" >/dev/null \
@@ -283,12 +283,12 @@ ok "the 0d data file is NOT strict JSON (pinned gap: producers cannot emit it)"
 # 2026-08-26: fixed by the preference admission gate (ADR-004) --
 # assertions updated to the new behaviour. The disjunct spelling now
 # ENFORCES the set: "9.9" is admitted by no alternative, so it vets
-# invalid ([aontu/|:empty]); the pref_not_instance advisory rides
+# invalid ([aontu/empty]); the pref_not_instance advisory rides
 # along with its corrected "remaining alternative" message.
 run prefenum 1 -- vet --at '$.E' "$DIR/probes/pref-enum.aon" \
   "$DIR/data/probe-v99.json"
 has prefenum out 'verdict: invalid'
-has prefenum out '[aontu/|:empty]'
+has prefenum out '[aontu/empty]'
 has prefenum out 'pref_not_instance'
 has prefenum out 'the default "1.0" is not an instance of any remaining alternative'
 ok "vet: *\"1.0\"|\"1.1\" refuses \"9.9\" (fixed: the admission gate)"

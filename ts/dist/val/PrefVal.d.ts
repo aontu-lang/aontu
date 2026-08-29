@@ -8,8 +8,10 @@ declare class PrefVal extends FeatureVal {
     cjo: number;
     superpeg: Val;
     rank: number;
+    narrowed?: Val;
     constructor(spec: ValSpec, ctx?: AontuContext);
     private resuper;
+    private restand;
     unify(peer: Val, ctx: AontuContext): Val;
     same(peer: Val): boolean;
     clone(ctx: AontuContext, spec?: ValSpec): Val;

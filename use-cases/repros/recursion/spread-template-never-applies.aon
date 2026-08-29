@@ -1,6 +1,6 @@
 # FIXED 2026-08-29 (RECURSION.0.md P0: same()/valSame compare
 # spreads, and a literal list alternative admits only its own length
-# -- list_length). `v: oops` below now refuses as |:empty at the
+# -- list_length). `v: oops` below now refuses as empty at the
 # list, the refusal a disjunct can state; kept as the regime-4
 # record.
 # 52 (regime 4): the recursive spelling that "works" checks NOTHING --

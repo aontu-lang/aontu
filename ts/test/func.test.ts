@@ -270,7 +270,9 @@ describe('func', function() {
   test('copy-type', () => {
     expect(G('x:type({}) x:y:1 a:copy($.x)')).equal({ a: { y: 1 } })
     expect(G('x:type({}) x:y:1 a:pref(copy($.x)) a:y:2')).equal({ a: { y: 2 } })
-    expect(() => G('x:type({}) x:y:1 a:pref(copy($.x)) a:y:Y')).throws(/scalar/)
+    // ADR-011 R1: a default its own type will not admit refuses as the
+    // emptied disjunction `*x` stands for, whatever the leaf.
+    expect(() => G('x:type({}) x:y:1 a:pref(copy($.x)) a:y:Y')).throws(/empty/)
   })
 
   test('copy-hide', () => {

@@ -124,8 +124,8 @@ line — as the schema site, at `-1:-1`:
 ```
 verdict: invalid
 
-$.Event: |:empty [conflict]
-  [aontu/|:empty]: Cannot unify values at path $.Event
+$.Event: empty [conflict]
+  [aontu/empty]: Cannot unify values at path $.Event
   data: data/bad/paid-zero-amount.json:1:1 ({"id":2001,"payload":{"amount_cents":0,"method":"card","order_id":"ord-1a2b3c4d","payment_ref":"psp-adyen-88f2"},"source":"/payments/eu-1","time":"2026-08-26T10:00:00Z","type":"order.paid"})
   schema: orders-v1.aon:-1:-1 ({"correlation_id"?:re("^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"),"id":integer&min(1)|biginteger&min(1),"payload":{"currency":"EUR"|"USD"|"GBP","customer_id":re("^cus-[0-9a-f]{8}$"),"lines":[&:close({... all three branches follow; 1,535 chars total ...}),"type":"order.cancelled"})
 ```
@@ -135,7 +135,7 @@ branch matched the discriminator. The same event at the branch anchor
 produces the perfect finding quoted under "What worked" — so the
 information exists; the union reporter throws it away. Worse, an
 *unknown* discriminator (`"type": "order.refunded"`) produces a
-byte-identical finding header (`$.Event: |:empty [conflict]`), so an
+byte-identical finding header (`$.Event: empty [conflict]`), so an
 agent cannot distinguish "unregistered event type" from "known type,
 bad payload" without re-vetting per branch. Since a conflict in ANY
 field of the selected branch kills that branch and therefore the
@@ -242,7 +242,7 @@ the finer-grained alternative to anchoring the whole union.
 > **2026-08-26: fixed by the preference admission gate (ADR-004) —
 > assertions updated to the new behaviour.** The disjunct spelling
 > `*"1.0" | "1.1"` is now the sound one: `"9.9"` vets **invalid**
-> (`[aontu/|:empty]`) and the unset field still generates `"1.0"`;
+> (`[aontu/empty]`) and the unset field still generates `"1.0"`;
 > the `pref_not_instance` warning is advisory and its message now
 > correctly says "any *remaining* alternative". The conjunct
 > spelling's limits below are unchanged (the phase-1 limit).

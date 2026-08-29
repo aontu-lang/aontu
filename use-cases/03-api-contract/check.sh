@@ -111,7 +111,7 @@ run vsubtle 1 -- vet --at '$.msg.CreateUserRequest' "$DIR/contract.aon" \
   "$DIR/data/create-user-subtle.json"
 has vsubtle out '[aontu/constraint]'
 has vsubtle out 'expected: re("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")'
-has vsubtle out '[aontu/|:empty]'
+has vsubtle out '[aontu/empty]'
 has vsubtle out '"admin"|"member"|"viewer"'
 # ...and, since 2026-08-27 (ADR-007), the enum finding's schema site
 # has a real source location. The meet mints a fresh disjunction, which
@@ -189,11 +189,11 @@ import json, sys
 r = json.load(open(sys.argv[1]))
 codes = {f["code"] for f in r["findings"]}
 assert r["verdict"] == "invalid", r["verdict"]
-assert "constraint" in codes and "|:empty" in codes, codes
+assert "constraint" in codes and "empty" in codes, codes
 c = next(f for f in r["findings"] if f["code"] == "constraint")
 assert c["expected"] == "integer&min(1)&max(100)", c["expected"]
 assert c["actual"] == "500", c["actual"]
-e = next(f for f in r["findings"] if f["code"] == "|:empty")
+e = next(f for f in r["findings"] if f["code"] == "empty")
 assert "expected" not in e, "enum finding grew an expected field: update README gap 6"
 sv = [s["value"] for s in e["sites"] if s["role"] == "schema"]
 assert sv == ['"name"|"-name"|"created_at"|"-created_at"'], sv
@@ -260,13 +260,13 @@ run venv 0 -- vet --at '$.errors.Envelope' "$DIR/contract.aon" \
   "$DIR/data/error-envelope-ok.json"
 ok "vet: error envelope with inline-template details list accepted"
 
-# GAP 7: the DRY page schema (items: [&: $.entities.User]) cannot be
-# vetted under --at -- the ref inside the list spread does not resolve.
-run vpageat 1 -- vet --at '$.msg.UserPage' "$DIR/contract.aon" \
+# GAP 7, FIXED 2026-08-29 by ADR-011: the DRY page schema
+# (items: [&: $.entities.User]) vets under --at.  A lifted anchor's
+# absolute ref used to die as [aontu/no_path] at $.entities.User.
+run vpageat 0 -- vet --at '$.msg.UserPage' "$DIR/contract.aon" \
   "$DIR/data/user-page-ok.json"
-has vpageat out '[aontu/no_path]'
-has vpageat out '$.entities.User'
-ok "vet --at '\$.msg.UserPage': ref-in-list-spread fails (pinned gap 7)"
+has vpageat out 'verdict: valid'
+ok "vet --at '\$.msg.UserPage': ref-in-list-spread now resolves (gap 7 fixed)"
 
 # The workaround: a root-anchored duplicate schema, vetted without --at.
 run vpage 0 -- vet "$DIR/user-page.aon" "$DIR/data/user-page-ok.json"
@@ -288,7 +288,7 @@ ok "root-anchored page schema: valid/invalid/incomplete all work (gap 8 pinned)"
 # --- 5. The contract polices itself and its own evolution. ---
 
 run badm 1 -- --canon --include-root "$DIR" "$DIR/bad/new-endpoint-method.aon"
-has badm err '[aontu/|:empty]'
+has badm err '[aontu/empty]'
 has badm err '"FETCH"'
 has badm err '"GET"|"POST"|"PATCH"|"DELETE"'
 ok "registry spread: endpoint with method FETCH refused by the contract"

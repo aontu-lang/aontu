@@ -1,6 +1,11 @@
-# Why guardrails.aon exists (README, gap 1): a constraint conjunct
-# meeting a ranked default does NOT resolve to the default.  This is
-# the documented phase-1 limit of the constraint algebra.  Expected:
-# [aontu/mapval_no_gen] leaving the residual integer&min(1)&max(24).
+# FIXED 2026-08-29 by ADR-011 (the star is sugar for `*x | super(x)`):
+# a constraint conjunct meeting a ranked default now RESOLVES to the
+# default, because the preferred value answers the meet first and 2
+# satisfies min(1)&max(24).  The bound is not lost with it -- it rides
+# the override space, so a later `replicas: 40` is still refused.
+#
+# This probe used to pin the phase-1 limit of the constraint algebra:
+# [aontu/mapval_no_gen], leaving the residual integer&min(1)&max(24),
+# which is why guardrails.aon exists (README, gap 1).
 replicas: *2 | integer
 replicas: min(1) & max(24)

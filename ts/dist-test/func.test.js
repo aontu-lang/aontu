@@ -221,7 +221,9 @@ const G = (x) => A.generate(x);
     (0, node_test_1.test)('copy-type', () => {
         (0, expect_1.expect)(G('x:type({}) x:y:1 a:copy($.x)')).equal({ a: { y: 1 } });
         (0, expect_1.expect)(G('x:type({}) x:y:1 a:pref(copy($.x)) a:y:2')).equal({ a: { y: 2 } });
-        (0, expect_1.expect)(() => G('x:type({}) x:y:1 a:pref(copy($.x)) a:y:Y')).throws(/scalar/);
+        // ADR-011 R1: a default its own type will not admit refuses as the
+        // emptied disjunction `*x` stands for, whatever the leaf.
+        (0, expect_1.expect)(() => G('x:type({}) x:y:1 a:pref(copy($.x)) a:y:Y')).throws(/empty/);
     });
     (0, node_test_1.test)('copy-hide', () => {
         (0, expect_1.expect)(G('x:hide({}) x:y:1 a:copy($.x)')).equal({ a: { y: 1 } });

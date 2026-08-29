@@ -116,7 +116,7 @@ vet-spread-template	vet	services:&:{port:integer}	services:{auth:{port:"80"}}	{"
 # count UTF-16 code units, as the canonical port's sites do.
 vet-operandless-nil	vet	a:integer	a:9007199254740993	{"findings":[{"class":"conflict","code":"lossy_integer_literal","path":"$.a","severity":"error","sites":[{"col":3,"file":"data","len":16,"role":"data","row":1,"src":"9007199254740993","value":"nil"}]}],"truncated":false,"verdict":"invalid"}
 vet-refused-construct	vet	a:integer	a:-0x_1	{"findings":[{"class":"parse","code":"negative","path":"$.a","severity":"error","sites":[{"col":3,"file":"data","len":1,"role":"data","row":1,"src":"-","value":"nil"}]}],"truncated":false,"verdict":"invalid"}
-vet-junction-site	vet	a:1|2	a:3	{"findings":[{"class":"conflict","code":"|:empty","path":"$.a","severity":"error","sites":[{"col":3,"file":"data","len":1,"role":"data","row":1,"src":"3","value":"3"},{"col":3,"file":"schema","len":1,"role":"schema","row":1,"src":"1","value":"1|2"}]}],"truncated":false,"verdict":"invalid"}
+vet-junction-site	vet	a:1|2	a:3	{"findings":[{"class":"conflict","code":"empty","path":"$.a","severity":"error","sites":[{"col":3,"file":"data","len":1,"role":"data","row":1,"src":"3","value":"3"},{"col":3,"file":"schema","len":1,"role":"schema","row":1,"src":"1","value":"1|2"}]}],"truncated":false,"verdict":"invalid"}
 # ... AND A JUNCTION REACHED THROUGH A REFERENCE keeps it, which is
 # the shape a schema actually has: an enum is declared once and named
 # from wherever it applies. Resolving the reference CLONES the
@@ -124,8 +124,12 @@ vet-junction-site	vet	a:1|2	a:3	{"findings":[{"class":"conflict","code":"|:empty
 # the url and the text but not the position -- so this finding pointed
 # at row -1 there and at the enum here (the "junction values at -1:-1"
 # half of the review's finding F). The site travels whole now.
-vet-refd-disjunct-site	vet	Role: "admin" | "member" | "viewer"\nr: $.Role	r: "root"	{"findings":[{"class":"conflict","code":"|:empty","path":"$.r","severity":"error","sites":[{"col":4,"file":"data","len":6,"role":"data","row":1,"src":"\\"root\\"","value":"\\"root\\""},{"col":7,"file":"schema","len":7,"role":"schema","row":1,"src":"\\"admin\\"","value":"\\"admin\\"|\\"member\\"|\\"viewer\\""}]},{"class":"incomplete","code":"disjunct_no_gen","path":"$.Role","severity":"error","sites":[{"col":7,"file":"schema","len":7,"role":"schema","row":1,"src":"\\"admin\\"","value":"\\"admin\\"|\\"member\\"|\\"viewer\\""}]}],"truncated":false,"verdict":"invalid"}
-vet-pref-yardstick	vet	a:*1	a:{}	{"findings":[{"class":"conflict","code":"not-scalar-type","path":"$.a","severity":"error","sites":[{"col":3,"file":"data","len":1,"role":"data","row":1,"src":"{","value":"{}"},{"col":4,"file":"schema","len":1,"role":"schema","row":1,"src":"1","value":"integer"}]}],"truncated":false,"verdict":"invalid"}
+vet-refd-disjunct-site	vet	Role: "admin" | "member" | "viewer"\nr: $.Role	r: "root"	{"findings":[{"class":"conflict","code":"empty","path":"$.r","severity":"error","sites":[{"col":4,"file":"data","len":6,"role":"data","row":1,"src":"\\"root\\"","value":"\\"root\\""},{"col":7,"file":"schema","len":7,"role":"schema","row":1,"src":"\\"admin\\"","value":"\\"admin\\"|\\"member\\"|\\"viewer\\""}]},{"class":"incomplete","code":"disjunct_no_gen","path":"$.Role","severity":"error","sites":[{"col":7,"file":"schema","len":7,"role":"schema","row":1,"src":"\\"admin\\"","value":"\\"admin\\"|\\"member\\"|\\"viewer\\""}]}],"truncated":false,"verdict":"invalid"}
+# ADR-011 R1: the finding names the DEFAULT the author wrote (`*1`,
+# sited at the star) and refuses as the emptied disjunction `*1`
+# stands for. It used to name the gate the engine computed from it
+# (`integer`), which is not text the reader can find in the schema.
+vet-pref-yardstick	vet	a:*1	a:{}	{"findings":[{"class":"conflict","code":"empty","path":"$.a","severity":"error","sites":[{"col":3,"file":"data","len":1,"role":"data","row":1,"src":"{","value":"{}"},{"col":3,"file":"schema","len":1,"role":"schema","row":1,"src":"*","value":"*1"}]}],"truncated":false,"verdict":"invalid"}
 # A value the engine mints for ITSELF belongs to neither document, and
 # says so with an empty file rather than borrowing one: an unknown var
 # meets `top`, which no parser sited and no stamp walk reached. Both
@@ -226,7 +230,7 @@ vet-at-marked-anchor-conflict	vet	marked:type({R:{a:string}})	a:1	{"findings":[{
 # than papered over -- it is the review's finding F, open in both ports.
 vet-enum-missing-is-incomplete	vet	user:{role:'a'|'b'}	user:{}	{"findings":[{"class":"incomplete","code":"disjunct_no_gen","path":"$.user.role","severity":"error","sites":[{"col":12,"file":"schema","len":3,"role":"schema","row":1,"src":"'a'","value":"\\"a\\"|\\"b\\""}]}],"truncated":false,"verdict":"incomplete"}
 vet-enum-member-is-valid	vet	user:{role:'a'|'b'}	user:{role:"a"}	{"findings":[],"truncated":false,"verdict":"valid"}
-vet-enum-non-member-is-invalid	vet	user:{role:'a'|'b'}	user:{role:"z"}	{"findings":[{"class":"conflict","code":"|:empty","path":"$.user.role","severity":"error","sites":[{"col":12,"file":"data","len":3,"role":"data","row":1,"src":"\\"z\\"","value":"\\"z\\""},{"col":12,"file":"schema","len":3,"role":"schema","row":1,"src":"'a'","value":"\\"a\\"|\\"b\\""}]}],"truncated":false,"verdict":"invalid"}
+vet-enum-non-member-is-invalid	vet	user:{role:'a'|'b'}	user:{role:"z"}	{"findings":[{"class":"conflict","code":"empty","path":"$.user.role","severity":"error","sites":[{"col":12,"file":"data","len":3,"role":"data","row":1,"src":"\\"z\\"","value":"\\"z\\""},{"col":12,"file":"schema","len":3,"role":"schema","row":1,"src":"'a'","value":"\\"a\\"|\\"b\\""}]}],"truncated":false,"verdict":"invalid"}
 # AN ANCHOR IS A STRUCTURAL PATH -- map keys and list indices, and
 # nothing else. Reading it off whatever a value's peg happened to hold
 # walked into a junction's branches, a constraint's own arguments, and
@@ -283,11 +287,11 @@ vet-minted-concat-operand-unsited	vet	a: string	a: "x"+"y"\n"a": "z"\n	{"finding
 # §1). The enum-with-default schema now refuses an out-of-enum data
 # value: `k:*'auto'|'literal'|'data'` against `k:'autoo'` was
 # `verdict: valid` (the same-kind override replaced the default with no
-# alternative consulted), and is now the `|:empty` refusal, reported at
+# alternative consulted), and is now the `empty` refusal, reported at
 # the data site. A member value stays valid. The schema's own
 # pref_not_instance warning rides along in both reports (the lint's
 # post-gate advisory reading -- see ts/src/vet.ts). Parity-probed.
-vet-enum-default-refuses-nonmember	vet	k:*'auto'|'literal'|'data'	k:'autoo'	{"findings":[{"class":"conflict","code":"|:empty","path":"$.k","severity":"error","sites":[{"col":3,"file":"data","len":7,"role":"data","row":1,"src":"'autoo'","value":"\\"autoo\\""},{"col":3,"file":"schema","len":1,"role":"schema","row":1,"src":"*","value":"*\\"auto\\"|\\"literal\\"|\\"data\\""}]},{"class":"compat","code":"pref_not_instance","path":"$.k","severity":"warning","sites":[{"col":4,"file":"schema","len":6,"role":"schema","row":1,"src":"'auto'","value":"\\"auto\\""}]}],"truncated":false,"verdict":"invalid"}
+vet-enum-default-refuses-nonmember	vet	k:*'auto'|'literal'|'data'	k:'autoo'	{"findings":[{"class":"conflict","code":"empty","path":"$.k","severity":"error","sites":[{"col":3,"file":"data","len":7,"role":"data","row":1,"src":"'autoo'","value":"\\"autoo\\""},{"col":3,"file":"schema","len":1,"role":"schema","row":1,"src":"*","value":"*\\"auto\\"|\\"literal\\"|\\"data\\""}]},{"class":"compat","code":"pref_not_instance","path":"$.k","severity":"warning","sites":[{"col":4,"file":"schema","len":6,"role":"schema","row":1,"src":"'auto'","value":"\\"auto\\""}]}],"truncated":false,"verdict":"invalid"}
 vet-enum-default-admits-member	vet	k:*'auto'|'literal'|'data'	k:'literal'	{"findings":[{"class":"compat","code":"pref_not_instance","path":"$.k","severity":"warning","sites":[{"col":4,"file":"schema","len":6,"role":"schema","row":1,"src":"'auto'","value":"\\"auto\\""}]}],"truncated":false,"verdict":"valid"}
 
 # Two unequal cross-statement spreads addressing one map at DIFFERENT

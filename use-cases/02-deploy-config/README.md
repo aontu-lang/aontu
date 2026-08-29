@@ -171,9 +171,16 @@ exit).
 > assertions updated to the new behaviour.** An override must now be
 > admitted by an alternative of the disjunction (or equal the
 > preferred value), so `probes/bypassed-bound.aon` refuses `40` with
-> `[aontu/|:empty]`, exit 1, and the disjunct form both defaults AND
-> enforces. The original finding below is kept as the record; gap 1
-> (the conjunct form) remains the documented phase-1 limit.
+> `[aontu/empty]`, exit 1, and the disjunct form both defaults AND
+> enforces. The original finding below is kept as the record.
+>
+> **2026-08-29: gap 1 closed too, by [ADR-011](../../ADR.md#adr-011).**
+> `*x` is sugar for `*x | super(x)`, so the preferred value answers a
+> meet first and the CONJUNCT form now defaults as well: `replicas:
+> *2` beside `replicas: min(1) & max(24)` generates 2, and the bound
+> rides the override space, so `replicas: 40` is still refused.
+> `probes/lost-default.aon` pins the fix where it used to pin the
+> limit.
 
 The advertised workaround for gap 1 ("use the disjunct form") was a
 policy hole. `probes/bypassed-bound.aon`:
@@ -187,7 +194,8 @@ evaluated with **exit 0** and generated `{"replicas": 40}` — the
 concrete peer replaced the default by *kind* alone and was never tested
 against the constrained branch. So a field could not both have a
 default and an enforced bound in the model: conjunct form kills the
-default (gap 1), disjunct form killed the bound. This is why
+default (gap 1, closed 2026-08-29), disjunct form killed the bound.
+This is why
 `guardrails.aon` exists and why `check.sh` vets the built output.
 
 ### 3. (major, FIXED 2026-08-27) `why` is blind through `pack()` — attribution stops at the generator

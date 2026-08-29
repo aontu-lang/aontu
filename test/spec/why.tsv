@@ -58,7 +58,7 @@ why-spread-sibling	why	m:{&:{n:integer},x:{n:1},y:{n:2}}	$.m.y.n	{"conjuncts":[{
 why-ref-into-copied-map	why	a:1\nb:{c:$.a}\nd:$.b	$.d.c	{"conjuncts":[{"canon":"1","role":"literal","site":{"col":3,"file":"","len":1,"row":1},"src":"1"}],"value":"1"}
 why-unbound-var	why	v: $x	$.v	{"code":"unknown_var"}
 why-two-maps-one-key	why	a: {b: 1} & {b: integer}	$.a.b	{"conjuncts":[{"canon":"1","role":"literal","site":{"col":8,"file":"","len":1,"row":1},"src":"1"},{"canon":"integer","role":"literal","site":{"col":17,"file":"","len":7,"row":1},"src":"integer"}],"value":"1"}
-why-pref-chain	why	a: *1 | *2 | 3	$.a	{"code":"scalar_value"}
+why-pref-chain	why	a: *1 | *2 | 3	$.a	{"code":"pref_rank_clash"}
 why-same-row-contributions	why	a:1 a:integer	$.a	{"conjuncts":[{"canon":"1","role":"literal","site":{"col":3,"file":"","len":1,"row":1},"src":"1"},{"canon":"integer","role":"literal","site":{"col":7,"file":"","len":7,"row":1},"src":"integer"}],"value":"1"}
 why-spread-list-element	why	&:{k:[integer]}\nx:{k:[2]}	$.x.k.0	{"conjuncts":[{"canon":"integer","role":"spread","site":{"col":7,"file":"","len":7,"row":1},"src":"integer"},{"canon":"2","role":"literal","site":{"col":7,"file":"","len":1,"row":2},"src":"2"}],"value":"2"}
 why-spread-list	why	&:{k:[integer]}\nx:{k:[2]}	$.x.k	{"conjuncts":[{"canon":"[integer]","role":"spread","site":{"col":6,"file":"","len":1,"row":1},"src":"["},{"canon":"[2]","role":"literal","site":{"col":6,"file":"","len":1,"row":2},"src":"["}],"value":"[2]"}

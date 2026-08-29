@@ -2,6 +2,7 @@
 /* Copyright (c) 2021-2025 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SuperFuncVal = void 0;
+exports.superOf = superOf;
 const FuncBaseVal_1 = require("./FuncBaseVal");
 const MapVal_1 = require("./MapVal");
 const ListVal_1 = require("./ListVal");
@@ -41,11 +42,6 @@ exports.SuperFuncVal = SuperFuncVal;
 // caller drives arguments before resolve fires, so pending forms --
 // held conjuncts, unresolved references, holes -- never arrive).
 function superOf(ctx, v) {
-    // A failed argument is the failure: super(1 & 2) reports the
-    // conflict, it does not type it.
-    if (true === v.isNil) {
-        return v;
-    }
     // The residual's lift is itself recursive, so the finite answer is
     // the symbolic call (SUPER.0.md): a fresh pending super() holding a
     // clone of the residual, standing wherever the residual stood --
@@ -130,7 +126,9 @@ function superOf(ctx, v) {
     }
     // The lattice primitive answers for the forms it always served:
     // a concrete scalar lifts to its leaf kind, a kind to its parent,
-    // and top to itself. Where it has no meaningful answer (superior()
+    // top to itself, and a NIL to itself -- which is how a failed
+    // argument stays the failure: `super(1 & 2)` reports the conflict
+    // rather than typing it. Where it has no meaningful answer (superior()
     // defaults to top for features), top is the honest remainder.
     const sup = v.superior();
     if (null != sup && true !== sup.isTop) {

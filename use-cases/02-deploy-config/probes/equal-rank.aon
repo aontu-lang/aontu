@@ -1,5 +1,8 @@
 # Two defaults of the SAME rank that disagree are a conflict, not a
-# quiet pick: [aontu/scalar_value] at generation time.  This is why
+# quiet pick: [aontu/pref_rank_clash], whose hint names the fix --
+# rank one of them (ADR-011 R2; it read [aontu/scalar_value] before,
+# the code of a conflict between the VALUES rather than between the
+# defaults holding them).  This is why
 # each layer of the stack owns one rank -- two teams' files both using
 # * would collide exactly like this.
 

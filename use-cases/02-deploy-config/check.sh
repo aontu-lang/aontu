@@ -138,7 +138,7 @@ diff -u "$DIR/expected/rank-ladder.json" "$TMP/rank.out" \
 ok "rank ladder golden: * beats ** beats ***, concrete beats all"
 
 run equal-rank 1 "$DIR/probes/equal-rank.aon"
-has equal-rank '[aontu/scalar_value]' "equal-rank conflict code"
+has equal-rank '[aontu/pref_rank_clash]' "equal-rank clash code"
 ok "two disagreeing defaults of equal rank are a conflict"
 
 # ------------------------------------------------ probe: layer conflict
@@ -207,9 +207,8 @@ has must-floor 'zero-downtime rollouts' "author message surfaced"
 ok "must() fires with the author's own message"
 
 # -------------------------------- probe: defaults vs constraint atoms
-run lost-default 1 "$DIR/probes/lost-default.aon"
-has lost-default '[aontu/mapval_no_gen]' "no-gen code"
-has lost-default 'min(1)&max(24)' "unresolved residual shown"
+run lost-default 0 "$DIR/probes/lost-default.aon"
+has lost-default '"replicas": 2' "the default survives the bound"
 ok "pinned: constraint conjunct swallows a ranked default (gap 1)"
 
 # 2026-08-26: fixed by the preference admission gate (ADR-004) -- the
@@ -217,7 +216,7 @@ ok "pinned: constraint conjunct swallows a ranked default (gap 1)"
 # the fail-open evidence; the golden expected/bypassed-bound.json with
 # replicas:40 is gone with it).
 run bypassed 1 "$DIR/probes/bypassed-bound.aon"
-has bypassed '[aontu/|:empty]' "empty-disjunction refusal"
+has bypassed '[aontu/empty]' "empty-disjunction refusal"
 ok "fixed: override outside the disjoined bound refused, exit 1 (gap 2)"
 
 # --------------------------------- probe: close(pack) + overlay (fixed)

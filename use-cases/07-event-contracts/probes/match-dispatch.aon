@@ -2,7 +2,7 @@
 # gap: no in-language discriminator dispatch). The idea: replace the
 # plain union with a match() on the data's own `type` field, so a
 # wrong payload would be reported against the ONE branch the
-# discriminator selects instead of as a whole-union |:empty blob.
+# discriminator selects instead of as a whole-union empty blob.
 # Under `vet --at $.Event` the call never settles: both valid and
 # invalid data yield verdict incomplete, [aontu/conjunct] at $.
 # check.sh pins that. Consumers dispatch client-side instead

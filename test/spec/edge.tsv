@@ -18,7 +18,10 @@ edge-neg-interval-lives	errc	a:integer&above(-2.5)&below(-1.5)	mapval_no_gen
 edge-neg-bound-member	gens	a:integer&min(-2.5) a:-2	{"a":-2}
 edge-cross-scale-window	canon	a:min(0.5)&max(0d0.75)	{"a":min(0.5)&max(0d0.75)}
 edge-constraint-nil	errc	a:min(0)&nil	literal_nil
-edge-pref-of-constraint	canon	a:*min(0) a:5	{"a":5}
+# ADR-011 R1: the peer SATISFIES the default's constraint, so the
+# default stands as the value that satisfied it -- the long form's
+# `(min(0)&5) | (number&5)` keeps the star on the arm that survived.
+edge-pref-of-constraint	canon	a:*min(0) a:5	{"a":*5}
 edge-root-constraint-gen	errc	min(0)	no_gen
 edge-constraint-second-leaf	errc	a:integer&min(0)&float	constraint
 edge-kind-then-neq	canon	a:number&neq(1)&min(0)	{"a":min(0)&neq(1)}
@@ -29,9 +32,11 @@ edge-root-conjunct-ref	errc	1&$.zz	conjunct
 edge-pref-conjunct	gens	b:2 a:*(1&1)	{"a":1,"b":2}
 edge-pref-op	gens	b:1 a:*(1+1)	{"a":2,"b":1}
 edge-pref-disjunct-meet	gens	a:*(1|2)&3	{"a":3}
-edge-pref-pref-disjunct	errc	a:*1|*2	scalar_value
+# ADR-011 R2: two defaults at one rank disagreeing is a clash between
+# DEFAULTS, not between the values they hold.
+edge-pref-pref-disjunct	errc	a:*1|*2	pref_rank_clash
 edge-disjunct-intersect	canon	a:(1|2)&(2|3)	{"a":2}
-edge-disjunct-empty	errc	a:(1|2)&3	|:empty
+edge-disjunct-empty	errc	a:(1|2)&3	empty
 #
 # References and variables: numeric segments, relative misses, $vars
 # of every bound kind, self-prefix cycles, path().
@@ -148,7 +153,7 @@ edge-list-pref-elem	gens	a:[*1|2]	{"a":[1]}
 edge-disjunct-dup-scalar	gens	a:1|1	{"a":1}
 edge-pref-or-kind	canon	a:*3|integer	{"a":*3|integer}
 edge-disjunct-dup-pref	gens	a:(*1|2)|(*1|2)	{"a":1}
-edge-disjunct-map-vs-str	errc	a:({x:1}|2)&"s"	|:empty
+edge-disjunct-map-vs-str	errc	a:({x:1}|2)&"s"	empty
 edge-plus-exact	gens	a:0d2+0d0.5	{"a":2.5}
 edge-plus-chain	gens	a:1+2+3	{"a":6}
 edge-plus-nil	errc	a:nil+1	mapval_no_gen

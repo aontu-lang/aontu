@@ -382,8 +382,14 @@ const hints: Record<string, string> = {
   'required_listelem': 'Required list element is missing. A non-optional list element has no value.',
 
   // Junction errors (disjunction/conjection)
-  '|:empty': 'Empty disjunction. The disjunction has no valid alternatives.',
-  '|:empty-dist': 'Empty disjunction distribution. All alternatives in the disjunction are invalid.',
+  'empty': 'Empty disjunction. The disjunction has no valid alternatives.',
+  'empty-dist': 'Empty disjunction distribution. All alternatives in the disjunction are invalid.',
+
+  // ADR-011 R2: two DEFAULTS of equal rank that cannot agree. The
+  // fix is a rank, so the hint names it.
+  'pref_rank_clash': 'Two defaults of the same rank disagree.' +
+    ' Rank one of them (`**x`) to say which is the weaker layer,' +
+    ' or give them the same value.',
 
   'max_depth': 'Input nesting is too deep to process safely.',
 
@@ -543,8 +549,9 @@ const codeClasses: Record<string, string> = {
   literal_nil: 'conflict',
   nil_gen: 'conflict',
   unite: 'conflict',
-  '|:empty': 'conflict',
-  '|:empty-dist': 'conflict',
+  'empty': 'conflict',
+  'empty-dist': 'conflict',
+  pref_rank_clash: 'conflict',
   exact_float_mix: 'conflict',
   inexact_integer_sum: 'conflict',
   pick_key: 'conflict',

@@ -96,7 +96,7 @@ path prefixes.
 
 > **2026-08-26: fixed by the preference admission gate (ADR-004) —
 > assertions updated to the new behaviour.** `*member | admin | owner`
-> now refuses `superadmin` (`verdict: invalid`, `[aontu/|:empty]`,
+> now refuses `superadmin` (`verdict: invalid`, `[aontu/empty]`,
 > exit 1) and still generates `member` unset — the idiom below works
 > as every consumer believed it did. The repeated-branch spelling
 > silences the (now advisory) `pref_not_instance` warning and keeps
@@ -135,7 +135,7 @@ verdict: valid          # *member | member | admin | owner — still accepts sup
 ```
 
 The enforcing spelling costs the default (`member | admin | owner`
-refuses `superadmin` with `[aontu/|:empty]`, but the file no longer
+refuses `superadmin` with `[aontu/empty]`, but the file no longer
 evaluates alone), and the `must()`-guarded repair hits the documented
 G1 phase-1 limit — a preference meeting a constraint in a conjunct
 does not resolve to the default — so *it* loses generation instead:
@@ -220,7 +220,7 @@ verdict: valid
 ```
 
 The identical composition as one evaluation catches it
-(`[aontu/|:empty]: Cannot unify values at path $.t.e`). The model
+(`[aontu/empty]: Cannot unify values at path $.t.e`). The model
 works around it by requiring candidates to carry
 `entitlement.plan` themselves, so branch selection runs on data-side
 scalars; the reference tie stays for eval-mode consistency. But
@@ -332,7 +332,7 @@ should just work.
   the bad role is not named (the data line/column is, which saves
   it in practice).
 - A failed disjunction-of-closed-maps prints the *entire* disjunction
-  against the *entire* data map (`|:empty`, check 4) with no
+  against the *entire* data map (`empty`, check 4) with no
   per-branch diagnosis. When a data-side scalar pins the branch
   first, the error is excellent (`sso: true` vs `false` at the exact
   key) — the difference is whether anything selected the branch
