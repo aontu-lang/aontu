@@ -1,0 +1,52 @@
+# registry.aon --- a small MCP-flavoured tool registry, built to be
+# EXPORTED: each tool's argument schema becomes the `inputSchema` the
+# MCP protocol requires, via `aontu jsonschema --at`.
+#
+# Modelled on use-case 09's registry (see 09-agent-tools/registry.aon
+# for the full six-tool version and the gaps it records), but
+# self-contained, and trimmed to constructs that CROSS the export
+# without loss -- check.sh asserts stderr stays empty for every tool.
+# The two trims that buy that:
+#
+#   - no length() on lists: the sizing atom has no domain until data
+#     arrives, so it exports as minItems/maxItems WITH a lossy report
+#     (residue.aon keeps one to show the report);
+#   - no constrained element templates ([&: string & re(...)]): only a
+#     bare-kind template crosses as `items`; a constrained one exports
+#     as items:{} and is reported (residue.aon again).
+#
+# type() keeps the map out of generated output while it still
+# constrains; the export reads straight through the mark.
+
+registry: {
+  platform: hermes
+  version: "1.0.0"
+}
+
+# The set of tool names is this map's key set, and every map is
+# closed, so a hallucinated argument is a refusal on the Aontu side
+# and `additionalProperties: false` on the JSON Schema side. The enums
+# carry no '*' default: a guardrail enum must force every caller to
+# choose (09's README, gap 1).
+argschemas: type(close({
+
+  search_docs: close({
+    query: string & length(min(1) & max(256))
+    limit?: integer & min(1) & max(50)
+    scope?: workspace | org | web
+  })
+
+  read_file: close({
+    # Two re() calls: the export renders them as allOf of patterns,
+    # since JSON Schema allows one `pattern` per schema object.
+    path: string & re("^[A-Za-z0-9._/\\-]+$") & re("^[a-z]") & length(max(512))
+    max_bytes?: integer & min(1) & max(1048576)
+  })
+
+  create_ticket: close({
+    project: string & re("^[A-Z][A-Z0-9]{1,9}$")
+    title: string & length(min(8) & max(140))
+    priority: p1 | p2 | p3 | p4
+    labels?: [&: string] & unique()
+  })
+}))

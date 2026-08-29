@@ -30,9 +30,11 @@ command-line tool. For the language itself see the
 
 Both implementations ship the same `aontu` command. It evaluates a
 source file (or stdin) and prints the result, or starts a REPL when run
-interactively with no file.
+interactively with no file. The synopsis, from the command itself:
 
-```
+<!-- test: run -->
+```sh
+$ aontu --help
 Usage: aontu [options] [file]
        aontu vet [options] <schema> <data> [more-data...]
        aontu subsume [options] <general> <specific>
@@ -45,18 +47,20 @@ Usage: aontu [options] [file]
        aontu mod tidy|verify|vendor|manifest [options] [dir]
        aontu get <path> [options] <file>
        aontu why <path> [options] <file>
-       aontu set <path>=<value>... --entry <file> --overlay <file> [--in-place]
+       aontu set <path>=<value>... --entry <file> --overlay <file>
        aontu agentsmd [--write <AGENTS.md>] <file>
 
 Evaluate an Aontu source file and print the result as JSON.
 With no file on an interactive terminal, start a REPL.
 With no file and piped input, read the source from stdin.
-
-Options:
-  -c, --canon     Print the canonical form instead of generated JSON
-  -h, --help      Show this help and exit
-  -v, --version   Print the version and exit
+...
 ```
+
+The elided remainder lists every option; the per-verb sections below
+carry the same lists. Two options apply everywhere: `--trust <t>`
+(the include capability — `system`, `none`, or `root[:dir]`; see
+[`AontuOptions`](#aontuoptions) for what each admits) and its
+shorthand `--include-root <dir>`.
 
 **Behaviour**
 
@@ -153,10 +157,45 @@ token — `min(1)` reports `src: "min"`, a map reports `src: "{"`. Seeing
 `min` where it expected `min(1)`, a consumer refuses rather than
 replacing the name and orphaning the arguments.
 
-```json
-{ "col": 7, "file": "data.aon", "len": 4, "role": "data",
-  "src": "0x1F", "row": 1, "value": "31" }
+To see the site shape, pin `port` in a one-line `schema.aon`:
+
+<!-- test: scenario vet-site -->
+<!-- test: file schema.aon -->
+```aontu
+port: 8080
 ```
+
+and vet a `data.aon` that spells a different port in hex:
+
+<!-- test: file data.aon -->
+```aontu
+port: 0x1F
+```
+
+<!-- test: run -->
+```sh
+$ aontu vet --format json schema.aon data.aon
+{
+  "aontu": {
+    "verb": "vet",
+...
+      "sites": [
+        {
+          "col": 7,
+          "file": "data.aon",
+          "len": 4,
+          "role": "data",
+          "row": 1,
+          "src": "0x1F",
+          "value": "31"
+        },
+...
+$ echo $?
+1
+```
+
+`value` says `31`, `src` says `0x1F`, and `len` says the span is four
+code units — the three facts an editing consumer needs, together.
 
 `aontu why` carries the same pair: each conjunct in the record has the
 `len` on its site and the contribution's own `src` beside its `canon`.
@@ -196,20 +235,47 @@ document's own directory, exactly as they do for `aontu <file>`.
 
 **A finding names both sides.** Sites are labelled by provenance —
 `data` first, because that is the one to edit — rather than by the
-source-order heuristic a single-document error uses:
+source-order heuristic a single-document error uses. Write a closed
+schema as `service.aon`:
 
+<!-- test: scenario vet -->
+<!-- test: file service.aon -->
+```aontu
+service: close({
+  name: string
+  port: *8080 | integer
+  replicas: integer
+})
 ```
+
+and a `deploy.json` with one mistyped key and one string where an
+integer belongs:
+
+<!-- test: file deploy.json -->
+```json
+{"service": {"name": "checkout", "prot": 8080,
+  "replicas": "3"}}
+```
+
+<!-- test: run -->
+```sh
 $ aontu vet service.aon deploy.json
 verdict: invalid
 
 $.service.prot: closed [conflict]
   [aontu/closed]: Cannot resolve value at path $.service.prot
-  data: deploy.json:1:40 (8080)
+  data: deploy.json:1:42 (8080)
 $.service.replicas: no_scalar_unify [conflict]
   [aontu/no_scalar_unify]: Cannot unify values at path $.service.replicas
-  data: deploy.json:2:28 ("3")
+  data: deploy.json:2:15 ("3")
   schema: service.aon:4:13 (integer)
+$ echo $?
+1
 ```
+
+The `closed` finding has no schema site — there is no line that
+refuses `prot`, only a `close()` that never declared it — and the
+`no_scalar_unify` finding names both.
 
 `--format json` emits the same report as an object, with an `aontu`
 stanza naming the producer, so a report read from a pipe says which
@@ -217,14 +283,15 @@ version and verb made it. Where the constraint algebra knows what would
 have unified, the finding carries it as `expected`/`actual`, and a
 `must()` check's author message rides along as `note`.
 
-**A finding carries the repair, not just the diagnosis.** `message` is
+**A finding carries the repair beside the diagnosis.** `message` is
 the headline and stays one line — that is what makes it comparable and
 greppable — so a finding also carries `hint`: the engine's own
 explanation of the failure class, with the offending values filled in.
 It is the text a human sees under the error frame, and for several
 codes it is the only place the FIX is written down. A lossy integer
-literal is the clearest case:
+literal is the clearest case (abridged):
 
+<!-- test: skip abridged finding excerpt; hint prose is deliberately outside cross-port parity and tracks the engine's wording -->
 ```json
 { "code": "lossy_integer_literal",
   "message": "[aontu/lossy_integer_literal]: Cannot resolve value at path $.port",
@@ -261,6 +328,76 @@ non-incremental: parsed trees are single-use, so every run is a full
 re-parse and re-unify, bounded by the fixpoint's pass budget. A file
 that is briefly unreadable mid-save reports and keeps watching.
 
+#### Vetting a recursive schema
+
+A [recursive schema](reference-language.md#recursive-references-fixpoints)
+needs nothing extra from `vet`: the definition expands one level per
+meet with concrete data, so the checks descend exactly as far as the
+data does, and a finding at depth is located there. The vocabulary
+below is a trimmed version of
+[use-cases/13-recursive-schema](../use-cases/13-recursive-schema/).
+Write it as `chain.aon`:
+
+<!-- test: scenario vet-recursive -->
+<!-- test: file chain.aon -->
+```aontu
+spec: hide({
+  Step: {
+    approver: string & re("^[a-z]+@acme[.]example$")
+    decision: *pending | pending | approved | rejected
+    then?: $.spec.Step
+  }
+})
+```
+
+`--at` anchors the run at the definition — `hide()` keeps `spec` out
+of generated output but not out of the path — so a data document is a
+candidate `Step`, not a candidate whole file. A two-level chain in
+`request.json` holds:
+
+<!-- test: file request.json -->
+```json
+{"approver": "lead@acme.example", "decision": "approved",
+ "then": {"approver": "cfo@acme.example"}}
+```
+
+<!-- test: run -->
+```sh
+$ aontu vet --at $.spec.Step chain.aon request.json
+verdict: valid
+```
+
+A chain whose third level breaks the `approver` pattern, as
+`request-deep.json` does, is refused **at that depth**:
+
+<!-- test: file request-deep.json -->
+```json
+{"approver": "lead@acme.example", "decision": "approved",
+ "then": {"approver": "cfo@acme.example",
+          "then": {"approver": "EXTERNAL@other.example"}}}
+```
+
+<!-- test: run -->
+```sh
+$ aontu vet --at $.spec.Step chain.aon request-deep.json
+verdict: invalid
+
+$.spec.Step.then.then.approver: constraint [conflict]
+  [aontu/constraint]: Cannot unify values at path $.spec.Step.then.then.approver
+  expected: re("^[a-z]+@acme[.]example$")
+  actual:   "EXTERNAL@other.example"
+  data: request-deep.json:3:32 ("EXTERNAL@other.example")
+  schema: chain.aon:3:24 (re("^[a-z]+@acme[.]example$"))
+$ echo $?
+1
+```
+
+The finding's path is the unrolled position
+(`$.spec.Step.then.then.approver`), while its schema site is the one
+`re()` the author wrote — the definition is written once and applies
+at every depth, and the report says both. For the recipe form see
+[Define a recursive schema](how-to/define-a-recursive-schema.md).
+
 ### `aontu subsume`
 
 The subsumption query as a command
@@ -277,6 +414,49 @@ The exit code is the verdict class: `0` subsumes, `1` does not subsume
 undecided (always with a `sub_*` reason), `4` a document that does not
 stand up on its own, `2` usage. The report reuses vet's finding object
 and renderers, class `compat`.
+
+**An unexpanded recursive position is `undecided`, never guessed.**
+A [recursive reference](reference-language.md#recursive-references-fixpoints)
+expands only against concrete data, and subsumption compares two
+documents with no data on either side — so at the recursive position
+there is no rule to apply, and the query says so rather than
+answering from hope. Write a `general.aon`:
+
+<!-- test: scenario subsume-recursive -->
+<!-- test: file general.aon -->
+```aontu
+spec: hide({Step: {label: string, then?: $.spec.Step}})
+doc: $.spec.Step
+```
+
+and a `specific.aon` that pins `label` inside the same definition:
+
+<!-- test: file specific.aon -->
+```aontu
+spec: hide({Step: {label: "start", then?: $.spec.Step}})
+doc: $.spec.Step
+```
+
+<!-- test: run -->
+```sh
+$ aontu subsume general.aon specific.aon
+verdict: undecided
+
+$.spec.Step.then: sub_unresolved [compat]
+  no subsumption rule covers this pair of value formers
+  expected: $.spec.Step
+  actual:   $.spec.Step
+  general: general.aon:1:42 ($.spec.Step)
+  specific: specific.aon:1:43 ($.spec.Step)
+...
+$ echo $?
+3
+```
+
+This is the verdict [`breaking`](#aontu-breaking) fails on by
+default: a gate that cannot decide a recursive contract reports
+`undecided` and stops, and `--allow-undecided` is the deliberate
+downgrade.
 
 ### `aontu breaking`
 
@@ -339,7 +519,8 @@ aontu trim --check [--format text|json] <file.aon>
   source is re-parsed, the entry deleted from the parsed tree, and the
   canon compared to the baseline. This covers everything the fixpoint
   can see (spread templates, references, duplicate-key merges), and a
-  removal that *errors* is not redundant — the entry is load-bearing.
+  removal that *errors* is not redundant — the document does not stand
+  up without that entry.
 - Candidates are map entries at every depth; **list elements are not
   candidates** (removing one shifts every later index — a different
   document, not the same one minus a redundancy). A child of a
@@ -371,13 +552,64 @@ checks — acyclicity and inverse consistency — over one finished model.
 aontu relations [--format text|json] <file.aon>
 ```
 
+The vocabulary is declared once, at the field; the model lists plain
+names. The files below are a trimmed version of
+[use-cases/12-relations](../use-cases/12-relations/).
+Write the vocabulary as `spec.aon`:
+
+<!-- test: scenario relations -->
+<!-- test: file spec.aon -->
+```aontu
+spec: hide({
+  Service: {
+    kind: service
+    dependsOn?: rel($.spec.ServiceShape) & acyclic() & inverse(usedBy)
+    usedBy?: rel($.spec.ServiceShape)
+  }
+  ServiceShape: { kind: service }
+})
 ```
+
+A model whose edges hold, `system.aon`, passes:
+
+<!-- test: file system.aon -->
+```aontu
+@"./spec.aon"
+services: {
+  &: $.spec.Service
+  web: id(web) & { dependsOn: [billing] }
+  billing: id(billing) & { dependsOn: [ledger], usedBy: [web] }
+  ledger: id(ledger) & { usedBy: [billing] }
+}
+```
+
+<!-- test: run -->
+```sh
 $ aontu relations system.aon
+verdict: pass
+```
+
+A `bad-system.aon` whose two services depend on each other, with
+neither inverse written out, fails on every count at once:
+
+<!-- test: file bad-system.aon -->
+```aontu
+@"./spec.aon"
+services: {
+  &: $.spec.Service
+  auth: id(auth) & { dependsOn: [billing] }
+  billing: id(billing) & { dependsOn: [auth] }
+}
+```
+
+<!-- test: run -->
+```sh
+$ aontu relations bad-system.aon
 verdict: fail
 
-$.auth.dependsOn.0  dependsOn: cycle auth -> billing -> auth
-$.auth.dependsOn.0  dependsOn: billing does not list auth under usedBy
-$.billing.dependsOn.0  dependsOn: auth does not list billing under usedBy
+$.services.auth.dependsOn.0  dependsOn: cycle auth -> billing -> auth
+$.services.auth.dependsOn.0  dependsOn: billing does not list auth under usedBy
+$.services.billing.dependsOn.0  dependsOn: auth does not list billing under usedBy
 $ echo $?
 1
 ```
@@ -424,9 +656,9 @@ $ echo $?
   `errors` field is present only on the `error` verdict.
 - The library form is `relationCheck(src)` in TypeScript and
   `Aontu.RelationCheck(src)` in Go, returning the identical
-  `{verdict, findings}` record (plus `errors` on a failed run); the derived graph the checks run over
-  is `result.graph` / `Aontu.Graph`, described under
-  [the TypeScript API](#class-aontu).
+  `{verdict, findings}` record (plus `errors` on a failed run); the
+  derived graph the checks run over is `result.graph` /
+  `Aontu.Graph`, described under [the TypeScript API](#class-aontu).
 
 ### `aontu reaches`
 
@@ -443,8 +675,9 @@ links to, at any remove, end up at `to`? That is the shape of every
 blast-radius question an operator asks ("if the billing database goes,
 what falls over?") and every containment question a policy asks
 ("nothing in the public tier may reach the ledger"), and neither can be
-put one edge at a time.
+put one edge at a time. Ask it of the `system.aon` model above:
 
+<!-- test: run -->
 ```sh
 $ aontu reaches web ledger system.aon
 verdict: reaches
@@ -485,6 +718,37 @@ $ echo $?
   the identical `{verdict, path?}` record (plus `errors` on a failed
   run).
 
+In `system.aon` the `usedBy` inverses run the other way, so `ledger`
+reaches `web` in general but not along `dependsOn`:
+
+<!-- test: run -->
+```sh
+$ aontu reaches ledger web system.aon
+verdict: reaches
+
+ledger -> billing -> web
+$ aontu reaches ledger web --relation dependsOn system.aon
+verdict: unreachable
+
+ledger does not reach web
+$ echo $?
+1
+```
+
+And an endpoint that names no entity refuses rather than answering:
+
+<!-- test: run -->
+```sh
+$ aontu reaches web ledgr system.aon
+verdict: error
+
+$: refer_unresolved [reference]
+  ledgr names no entity in this document.
+  note: known entities: billing, ledger, web
+$ echo $?
+4
+```
+
 ### `aontu jsonschema`
 
 Export a document as a **JSON Schema** (draft 2020-12), and say what
@@ -505,19 +769,41 @@ the same export.
 
 **The schema goes to stdout and the losses to stderr**, so
 `aontu jsonschema x.aon > schema.json` writes a usable schema and still
-tells the reader what it left behind.
+tells the reader what it left behind. Write a `contract.aon`:
 
+<!-- test: scenario jsonschema -->
+<!-- test: file contract.aon -->
+```aontu
+spec: {
+  name: string & re("^[a-z][a-z0-9-]{2,39}$")
+  tier: *internal | standard | critical
+}
+```
+
+<!-- test: run -->
 ```sh
 $ aontu jsonschema --at spec contract.aon
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "type": "object",
   "properties": {
-    "name": { "type": "string", "pattern": "^[a-z][a-z0-9-]{2,39}$" },
-    "tier": { "enum": ["internal","standard","critical"],
-              "default": "internal" }
+    "name": {
+      "pattern": "^[a-z][a-z0-9-]{2,39}$",
+      "type": "string"
+    },
+    "tier": {
+      "default": "internal",
+      "enum": [
+        "internal",
+        "standard",
+        "critical"
+      ]
+    }
   },
-  "required": ["name","tier"]
+  "required": [
+    "name",
+    "tier"
+  ],
+  "type": "object"
 }
 ```
 
@@ -578,7 +864,54 @@ The losses, and why each is one:
 The exact-leaf loss is the one with a way around it. Money carried as a
 **decimal string** with a conversion mark exports without loss — the
 pattern and the mark both cross — and stays exact on the Aontu side:
-see [how-to, "Carry exact money over JSON"](how-to.md#carry-exact-money-over-json).
+see [Carry exact money over JSON](how-to/carry-exact-money-over-json.md).
+
+**A recursive position is residue, and exports as residue.** JSON
+Schema can spell recursion (`$defs` plus `$ref`), but this exporter
+does not mint it: a
+[recursive reference](reference-language.md#recursive-references-fixpoints)
+that has met no data is unresolved, so it crosses as the empty schema
+`{}` — a position that admits *anything* — and is reported under
+`lossy` as `unresolved`, like any other residue. Two consequences
+follow. Anchor the export at a definition kept **un-hidden**, because
+a `hide()` mark propagates and a hidden entry is omitted from the
+export entirely; and treat the exported schema as wider than the
+model at the recursive position — [`vet`](#aontu-vet) the produced
+value against the model, which does check every depth. `--strict`
+turns the loss into exit 1. Write a recursive `steps.aon`:
+
+<!-- test: file steps.aon -->
+```aontu
+Step: {
+  approver: string & re("^[a-z]+@acme[.]example$")
+  then?: $.Step
+}
+```
+
+<!-- test: run -->
+```sh
+$ aontu jsonschema --strict --at Step steps.aon
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "approver": {
+      "pattern": "^[a-z]+@acme[.]example$",
+      "type": "string"
+    },
+    "then": {}
+  },
+  "required": [
+    "approver"
+  ],
+  "type": "object"
+}
+lossy: $.Step.then unresolved: this is not a value yet, so there is nothing to constrain a consumer to; the schema admits anything here
+$ echo $?
+1
+```
+
+Everything above `then` crosses intact; the tail is the honest gap.
+Without `--strict` the same export exits 0.
 
 - The library form is `jsonSchema(src, options?)` in TypeScript and
   `Aontu.JSONSchema(src, at)` in Go, returning the identical
@@ -611,6 +944,39 @@ aontu get <path> [-c|--canon] [--keys] [--types] [--depth <n>]
   not stand up on its own — including a node that is not concrete, for
   which there is no JSON to print.
 
+Write an `app.aon` whose spread template supplies defaults:
+
+<!-- test: scenario query -->
+<!-- test: file app.aon -->
+```aontu
+services: {
+  &: {replicas: *1 | integer, port: *8080 | integer}
+  auth: {replicas: 3}
+  billing: {}
+}
+```
+
+<!-- test: run -->
+```sh
+$ aontu get $.services.auth app.aon
+{
+  "port": 8080,
+  "replicas": 3
+}
+$ aontu get --keys $.services app.aon
+auth
+billing
+$ aontu get $.services.auht app.aon
+$.services.auht: no_path [reference]
+  The path $.services.auht names nothing in this document.
+  note: did you mean auth?
+$ echo $?
+1
+```
+
+The mistyped path is exit 1 with a suggestion, not an empty render: a
+missing key and an empty value are different answers.
+
 **The projections are lattice abstractions.** Each view is a valid
 Aontu document that *subsumes the truth* — generalisation, never
 distortion:
@@ -621,14 +987,22 @@ distortion:
 | `--depth n` | structure to depth n; every elided subtree renders as `top` — "no further information at this tier" |
 | `--keys` | the node's own key names (or list indices), one per line |
 
+On `app.aon` the shape view erases the concrete leaves:
+
+<!-- test: run -->
+```sh
+$ aontu get --types $.services.auth app.aon
+{"port":*integer|integer,"replicas":integer}
+```
+
 That claim is checked rather than asserted: every projection row of
 `test/spec/query.tsv` runs
 [`subsume`](#aontu-subsume)`(view, truth)` in both implementations and
 requires `subsumes`. It runs under the **values** profile, deliberately
 — a shape view *erases defaults* (`*8080|integer` becomes
-`*integer|integer`), which the `defaults` profile would rightly call a
-compatibility break. The claim projections make is about the values
-admitted, not about which one is generated.
+`*integer|integer`, as above), which the `defaults` profile would
+rightly call a compatibility break. The claim projections make is
+about the values admitted, not about which one is generated.
 
 Kinds are lifted through the lattice's own `superior()`, so the view
 follows the type system rather than a table of the renderer's opinions;
@@ -649,11 +1023,14 @@ the site each contribution was written at. The positive twin of
 aontu why <path> [--format text|json] <file.aon>
 ```
 
-```
-$ aontu why $.services.auth.replicas service.aon
+Ask it about the `app.aon` above:
+
+<!-- test: run -->
+```sh
+$ aontu why $.services.auth.replicas app.aon
 $.services.auth.replicas = 3
-  1. *1|integer  service.aon:2:18  (spread)
-  2. 3  service.aon:3:21
+  1. *1|integer  app.aon:2:17  (spread)
+  2. 3  app.aon:3:20
 ```
 
 - A **contribution** is a value the author *wrote* that met something
@@ -706,10 +1083,47 @@ aontu set <path>=<value>... --entry <file> --overlay <file>
          [--in-place] [--dry-run] [--format text|json]
 ```
 
+Write an `entry.aon` that constrains `owner` and pins `replicas`:
+
+<!-- test: scenario set -->
+<!-- test: file entry.aon -->
+```aontu
+services: {
+  auth: {owner: string, replicas: 3}
+}
 ```
-$ aontu set '$.services.auth.owner="identity-2"' \
-    --entry system.aon --overlay changes.aon
+
+<!-- test: run -->
+```sh
+$ aontu set '$.services.auth.owner="identity-2"' --entry entry.aon --overlay changes.aon
 verdict: valid
+wrote: changes.aon
+```
+
+A pinned value refuses the append and the overlay is left unchanged:
+
+<!-- test: run -->
+```sh
+$ aontu set '$.services.auth.replicas=5' --entry entry.aon --overlay changes.aon
+verdict: invalid
+
+$.services.auth.replicas: scalar_value [conflict]
+  [aontu/scalar_value]: Cannot unify values at path $.services.auth.replicas
+  data: changes.aon:2:33 (5)
+  schema: entry.aon:2:35 (3)
+$ echo $?
+1
+```
+
+A literal the overlay itself pinned is `--in-place`'s case — the span
+is rewritten where it was written, and the report says so as source
+text:
+
+<!-- test: run -->
+```sh
+$ aontu set '$.services.auth.owner="identity-3"' --entry entry.aon --overlay changes.aon --in-place
+verdict: valid
+replaced: changes.aon:1:30 "identity-2" -> "identity-3"
 wrote: changes.aon
 ```
 
@@ -829,6 +1243,39 @@ aontu hash [--form] [--format text|json] <file.aon>
 - Exit codes: `0` hashed, `2` usage, `4` the document does not
   evaluate on its own — a broken document has no meaning to pin, and a
   hash of the wreck would agree with every other wreck.
+
+To see the pin hold still, write `svc.aon`:
+
+<!-- test: scenario hash -->
+<!-- test: file svc.aon -->
+```aontu
+service: {
+  name: "checkout"
+  port: *8080 | integer
+}
+```
+
+and `svc-reformat.aon`, the same meaning re-ordered under a comment:
+
+<!-- test: file svc-reformat.aon -->
+```aontu
+# the same meaning, reordered and commented
+service: port: *8080 | integer
+service: name: "checkout"
+```
+
+<!-- test: run -->
+```sh
+$ aontu hash svc.aon
+aon1-nSY9noXFhWc_dtcRrErhCS9bZVtNfTJb0vVoCE9W1CM
+$ aontu hash svc-reformat.aon
+aon1-nSY9noXFhWc_dtcRrErhCS9bZVtNfTJb0vVoCE9W1CM
+$ aontu hash --form svc.aon
+{"service":{"name":"checkout","port":*8080|integer}}
+```
+
+Two spellings, one meaning, one pin — and `--form` prints the exact
+text the digest is taken over.
 
 **The hash form (`hcanon`)**
 
@@ -1000,7 +1447,7 @@ a nested store could never have travelled through a publish.
 With `mod get` absent, hand-creating this layout is the supported cold
 start: vendor the tree by hand, run `tidy` to lock its canon-hash, and
 every later evaluation verifies the vendored content against that pin
-(see the [hand-vendoring how-to](how-to.md#vendor-a-module-by-hand)).
+(see the [hand-vendoring how-to](how-to/vendor-by-hand.md)).
 
 - `--format json` prints every report as an object with the usual
   `aontu: {version, verb}` envelope, a `verdict`, and `missing`.
@@ -1193,6 +1640,7 @@ hover — what met at that path, in source order, with each site — the
 same record [`aontu why`](#aontu-why) prints. It is off unless an
 editor asks for it:
 
+<!-- test: skip editor initialization sample; the hover surface is pinned by ts/test/lsp.test.ts -->
 ```json
 { "initializationOptions": { "aontu": { "provenance": true } } }
 ```
@@ -1234,6 +1682,7 @@ not slow ones.
 Package `aontu` (canonical). Entry point `dist/aontu.js`, types
 `dist/aontu.d.ts`. Requires Node ≥ 22.
 
+<!-- test: skip TypeScript API sample; the API surface is pinned by ts/test/ -->
 ```ts
 import { Aontu } from 'aontu'          // named
 import Aontu from 'aontu'              // default (same class)
@@ -1241,6 +1690,7 @@ import Aontu from 'aontu'              // default (same class)
 
 ### class `Aontu`
 
+<!-- test: skip TypeScript API sample; the API surface is pinned by ts/test/ -->
 ```ts
 new Aontu(opts?: AontuOptions)
 ```
@@ -1255,6 +1705,7 @@ many sources.
 | `generate` | `generate(src: string, opts?, ctx?)` | `any` | Parse → unify → emit a native JS value. **Throws `AontuError`** on conflict or an unresolved result. Serialise the result with [`exactJSON`](#exact-numbers-and-exactjson), not `JSON.stringify`. |
 | `ctx`      | `ctx(cfg?: AontuContextConfig)` | `AontuContext` | Creates a context (for variables, error collection, a custom `fs`, etc.). |
 
+<!-- test: skip TypeScript API sample; the API surface is pinned by ts/test/ -->
 ```ts
 const aontu = new Aontu()
 aontu.parse('a:number')                  // Val (AST)
@@ -1295,6 +1746,7 @@ process can read — so **treat opening an untrusted source as running
 it**. Confinement is the **`trust` option** (G5, [the trust
 contract](trust.md)), in both implementations:
 
+<!-- test: skip TypeScript API sample; the API surface is pinned by ts/test/ -->
 ```ts
 const aontu = new Aontu({
   trust: {
@@ -1346,6 +1798,7 @@ identity structure is observable too (G4):
 `result.graph` in TypeScript — also available as the pure function
 `graphOf(val)` — and `Aontu.Graph` in Go. It has two parts:
 
+<!-- test: skip TypeScript API sample; the API surface is pinned by ts/test/ -->
 ```ts
 {
   entities: [ { id: 'svc/auth', paths: ['$.services.auth'] }, … ],
@@ -1428,9 +1881,10 @@ there, so the `number` renders its own exact digits. Above it they are
 not — `JSON.stringify(2**60)` is `1152921504606847000`, a *different*
 integer that merely rounds to the same double — so `generate()` returns
 a `bigint`, which `exactJSON` writes exactly. A `float` stays a `number`
-at any magnitude, because there its shortest form *is* the right answer
-(`1e21` serialises as `1e+21`, in this port and in Go).
+at any magnitude, because a double's shortest form already names it
+exactly (`1e21` serialises as `1e+21`, in this port and in Go).
 
+<!-- test: skip TypeScript API sample; the API surface is pinned by ts/test/ -->
 ```ts
 typeof gen('x:9007199254740991').x     // 'number'  (2^53-1)
 typeof gen('x:9007199254740992').x     // 'bigint'  (2^53)
@@ -1462,6 +1916,7 @@ was never the obstacle: a JSON number is arbitrary-precision decimal
 text, and `{"x":9007199254740993}` is a legal document. Only
 JavaScript's serialiser stands in the way, so the package ships its own.
 
+<!-- test: skip TypeScript API sample; the API surface is pinned by ts/test/ -->
 ```ts
 exactJSON(value: any, indent?: number | string): string
 ```
@@ -1469,6 +1924,7 @@ exactJSON(value: any, indent?: number | string): string
 Serialises a `generate()` result as JSON text, preserving exact numbers.
 **Use it instead of `JSON.stringify` on generated output.**
 
+<!-- test: skip TypeScript API sample; the API surface is pinned by ts/test/ -->
 ```ts
 import { Aontu, exactJSON } from 'aontu'
 
@@ -1538,6 +1994,7 @@ same refusal a literal gets.
 `$name` references are filled from `ctx.vars`. Build value objects with
 the exported `Val` constructors:
 
+<!-- test: skip TypeScript API sample; the API surface is pinned by ts/test/ -->
 ```ts
 import { Aontu } from 'aontu'
 import { IntegerVal } from 'aontu/dist/val/IntegerVal'
@@ -1559,6 +2016,7 @@ aontu.generate('a:$foo b:$bar c:$obj', undefined, ctx)
 binary64 has already rounded before this library could inspect it, so an
 exact value above 2^53 could not arrive that way intact:
 
+<!-- test: skip TypeScript API sample; the API surface is pinned by ts/test/ -->
 ```ts
 import { Decimal }       from 'aontu'
 import { BigIntegerVal } from 'aontu/dist/val/BigIntegerVal'
@@ -1584,6 +2042,7 @@ and canons `0d5.0`.
 
 From `aontu`:
 
+<!-- test: skip TypeScript API sample; the API surface is pinned by ts/test/ -->
 ```ts
 Aontu          // class (also default export)
 AontuOptions   // type
@@ -1639,6 +2098,7 @@ chain, which reaches the filesystem and `require()`s a `.js` path.
 **Opening an untrusted source is running it**, so pass a profile
 whenever the source is not yours:
 
+<!-- test: skip TypeScript API sample; the API surface is pinned by ts/test/ -->
 ```ts
 vet(schemaSrc, candidateSrc, { trust: { include: 'none' } })
 ```
@@ -1659,12 +2119,14 @@ parse is clean gives the engine nothing it could reach further with.
 
 Module `github.com/aontu-lang/aontu/go`, package `aontu`.
 
+<!-- test: skip Go API sample; the API surface is pinned by the go/ test suite -->
 ```go
 import aontu "github.com/aontu-lang/aontu/go"
 ```
 
 ### type `Aontu`
 
+<!-- test: skip Go API sample; the API surface is pinned by the go/ test suite -->
 ```go
 func New() *Aontu                 // relative @"file" loads resolve from the cwd
 func NewWithBase(base string) *Aontu  // …resolve from base (a directory)
@@ -1674,6 +2136,7 @@ Use `NewWithBase` when a source's relative `@"file"` loads should resolve
 from somewhere other than the process working directory — typically the
 directory of an entry file:
 
+<!-- test: skip Go API sample; the API surface is pinned by the go/ test suite -->
 ```go
 abs, _ := filepath.Abs(file)
 a := aontu.NewWithBase(filepath.Dir(abs))
@@ -1690,6 +2153,7 @@ does exactly this for a file argument.)
 | `Generate`     | `Generate(src string) (any, error)` | Parse → unify → native Go value. |
 | `GenerateVars` | `GenerateVars(src string, vars map[string]Val) (any, error)` | `Generate` with variables. |
 
+<!-- test: skip Go API sample; the API surface is pinned by the go/ test suite -->
 ```go
 a := aontu.New()
 v, err := a.Unify("a:1 a:number")   // v.Canon() == `{"a":1}`
@@ -1707,6 +2171,7 @@ Generated output uses Go's natural types (`map[string]any`, `[]any`,
 
 The lattice element interface:
 
+<!-- test: skip Go API sample; the API surface is pinned by the go/ test suite -->
 ```go
 type Val interface {
     Canon() string              // canonical source-like form
@@ -1744,17 +2209,18 @@ A `0d`-free document generates exactly what it always did. An
 Both types implement `json.Marshaler` and emit **exact digits as a raw
 JSON number**, so `encoding/json` needs no help:
 
+<!-- test: skip Go API sample; the API surface is pinned by the go/ test suite -->
 ```go
 out, _ := aontu.New().Generate("a:0d9007199254740993 b:0d1e3 c:0d0.1")
 b, _ := json.Marshal(out)
 // {"a":9007199254740993,"b":1000.0,"c":0.1}
 ```
 
-The pointer is load-bearing. A non-pointer `big.Int` inside an `any` has
-no `MarshalJSON` in its method set, so `encoding/json` falls back to the
-struct encoder and writes `{}` — an exact number silently replaced by an
-empty object, which is the class of failure the exact leaves exist to
-eliminate.
+The pointer is part of the contract. A non-pointer `big.Int` inside an
+`any` has no `MarshalJSON` in its method set, so `encoding/json` falls
+back to the struct encoder and writes `{}` — an exact number silently
+replaced by an empty object, which is the class of failure the exact
+leaves exist to eliminate.
 
 A generated `*big.Int` is a **copy**, so a caller may mutate it without
 disturbing the value it came from.
@@ -1800,6 +2266,7 @@ with the exported constructors:
 | `NewMap(map[string]Val) Val`     | map (keys inserted in sorted order) |
 | `NewList([]Val) Val`             | list |
 
+<!-- test: skip Go API sample; the API surface is pinned by the go/ test suite -->
 ```go
 vars := map[string]aontu.Val{
     "port": aontu.NewInteger(8080),
@@ -1827,6 +2294,7 @@ escape a lossy literal gets.
 The rule is **exactness, not magnitude**: every power of two in the
 window is fine however large, `math.MinInt64` included.
 
+<!-- test: skip Go API sample; the API surface is pinned by the go/ test suite -->
 ```go
 aontu.NewInteger(1152921504606846976)   // 2^60 — fine
 aontu.NewInteger(math.MinInt64)         // -2^63, a power of two — fine
@@ -1844,6 +2312,7 @@ marker, digits, an optional fraction and an optional exponent, and no
 A `float64` is deliberately not accepted: it has already rounded before
 the library can inspect it.
 
+<!-- test: skip Go API sample; the API surface is pinned by the go/ test suite -->
 ```go
 n, _ := new(big.Int).SetString("123456789012345678901234567890", 10)
 aontu.NewBigInteger(n)          // 0d123456789012345678901234567890

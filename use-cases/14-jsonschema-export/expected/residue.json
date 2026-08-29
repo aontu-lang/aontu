@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "amountEur": {
+      "type": "number"
+    },
+    "annotations": {
+      "additionalProperties": {},
+      "properties": {},
+      "type": "object"
+    },
+    "attempts": {
+      "items": {
+        "type": "integer"
+      },
+      "maxItems": 3,
+      "minItems": 0,
+      "type": "array"
+    },
+    "total": {}
+  },
+  "required": [
+    "amountEur",
+    "annotations",
+    "attempts",
+    "total"
+  ],
+  "type": "object"
+}

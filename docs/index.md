@@ -15,42 +15,73 @@ This repository ships **two implementations kept in parity**:
   (`github.com/aontu-lang/aontu/go`) that mirrors the core semantics.
 
 Both are checked against one language-agnostic test suite in
-[`../test/spec/`](../test/spec/).
+[`../test/spec/`](../test/spec/), and every example in these pages is
+executed by that machinery too: the outputs come from the engine, not
+from the author's memory.
 
 ## How this documentation is organised
 
 The documentation is split by **what you are trying to do** when you
 open it. Reach for the part that matches your need:
 
-| If you want to…                                              | Read |
-|--------------------------------------------------------------|------|
+| If you want to…                                               | Read |
+|---------------------------------------------------------------|------|
 | **Learn** Aontu from zero by building something, step by step | [Tutorial](tutorial.md) |
-| **Accomplish a specific task** you already have in mind        | [How-to guides](how-to.md) |
+| **Learn** the graph layer (identity, relations, reachability) | [Graph tutorial](tutorial-graph.md) |
+| **Accomplish a specific task** you already have in mind       | [How-to guides](how-to/) |
 | **Look up** exact syntax, semantics, options, or API surface  | [Language reference](reference-language.md) · [API reference](reference-api.md) |
-| **Understand** how and why the engine works the way it does    | [Explanation](explanation.md) |
+| **Understand** how and why the engine works the way it does   | [Explanation](explanation.md) |
+| **See whole systems defined**, each with its checks runnable  | [Use cases](use-cases.md) |
+
+The how-to guides are one page per task, grouped six ways: run, embed
+and integrate; templates, defaults and composition; schemas and
+constraints; query, explain and change; validate and evolve; modules
+and multi-file.
+
+Two capabilities are new enough to deserve doorways of their own:
+
+- **Declare and check relations.** Entities carry identity, the edges
+  between them are declared in the model, and the engine checks both.
+  The recipe is [check relations](how-to/check-relations.md); the live
+  version is [`use-cases/12-relations`](../use-cases/12-relations/);
+  the normative rules are under
+  [Declared relations](reference-language.md#declared-relations).
+- **Write a recursive schema.** A schema can name itself, so trees and
+  nested structures validate to any depth. The recipe is
+  [define a recursive schema](how-to/define-a-recursive-schema.md);
+  the live version is
+  [`use-cases/13-recursive-schema`](../use-cases/13-recursive-schema/);
+  the semantics are under
+  [Recursive references](reference-language.md#recursive-references-fixpoints).
 
 Tooling:
 
 - [The `aontu` command](reference-api.md#command-line-interface) — one
-  binary and eleven verbs, in both implementations. `vet` validates
-  data documents against a schema (and ships wrapped for CI as a
-  [GitHub Action](../vet-action/README.md)); `subsume` and `breaking`
-  gate schema evolution; `get` and `why` ask an evaluated document what
-  it says and what contributed to it; `set` changes one in an overlay,
-  by appending or in place; `trim` reports redundant entries;
-  `relations` runs the declared identity checks and `reaches` answers
-  whether one entity reaches another at any remove; `jsonschema` exports
-  the model as JSON Schema and names what the export cannot carry;
-  `hash` pins what a document *means*; `mod` maintains a dependency
-  closure; `agentsmd` writes the prose stanza for a definition. With
-  no file, `aontu` starts a REPL.
+  binary, thirteen verbs, both implementations. Each verb has its own
+  reference section:
+  - validate: [`vet`](reference-api.md#aontu-vet), wrapped for CI as a
+    [GitHub Action](../vet-action/README.md)
+  - evolve a schema: [`subsume`](reference-api.md#aontu-subsume),
+    [`breaking`](reference-api.md#aontu-breaking)
+  - ask and change: [`get`](reference-api.md#aontu-get),
+    [`why`](reference-api.md#aontu-why),
+    [`set`](reference-api.md#aontu-set),
+    [`trim`](reference-api.md#aontu-trim)
+  - identity and relations:
+    [`relations`](reference-api.md#aontu-relations),
+    [`reaches`](reference-api.md#aontu-reaches)
+  - export and pin: [`jsonschema`](reference-api.md#aontu-jsonschema),
+    [`hash`](reference-api.md#aontu-hash)
+  - distribute and hand over: [`mod`](reference-api.md#aontu-mod),
+    [`agentsmd`](reference-api.md#aontu-agentsmd)
+
+  With no file at all, `aontu` starts a REPL.
 - [Language Server (LSP)](lsp.md) — the `aontu-lsp` diagnostics server
   (TypeScript and Go), how to wire it into an editor, and the reusable
   LSP library API.
 - [The MCP server](reference-api.md#the-mcp-server) — `aontu-mcp`, a
-  Model Context Protocol server over stdio (TypeScript; the Go port
-  offers the same calls as library API) answering with the identical
-  reports the CLI prints.
+  Model Context Protocol server over stdio, answering with the
+  identical reports the CLI prints.
 
 For agents:
 
@@ -58,62 +89,35 @@ For agents:
   the [grammar card](skill/grammar-card.md), a
   [worked example ladder](skill/examples.md) whose documents the test
   suite executes, and the [error-code index](skill/error-codes.md).
-  The `aontu agentsmd` verb generates the matching AGENTS.md stanza.
 - [The published grammar](reference-api.md#the-published-grammar) —
   [`grammar/aontu.gbnf`](../grammar/aontu.gbnf) and
   [`grammar/aontu.lark`](../grammar/aontu.lark), the emission surface
-  for constrained decoding, held by a test to accept every canonical
-  form the shared suite produces.
+  for constrained decoding.
 
 Contract:
 
 - [The trust contract](trust.md) — hermeticity, termination,
   determinism, and sandboxing: what a host may rely on when evaluating
-  an Aontu document, exactly where each guarantee is conditional
-  today, and the budget/cycle error taxonomy.
+  an Aontu document, and exactly where each guarantee is conditional
+  today.
 
-Two further documents support the project itself:
+For contributors:
 
-- [Test coverage](test-coverage.md) — how coverage is measured for both
-  implementations, the current numbers, and where the gaps are.
-- [Shared test specification](shared-spec.md) — the format of the
-  cross-language `test/spec/*.tsv` suite.
-
-Design notes (deeper analyses of specific behaviours and known defects)
-live in [`design/`](design/):
-
-- [Colon-chain nested `@"file"` import](design/nested-import-colon-chain.md)
-  — a since-resolved Go-port parity defect (fixed upstream in
-  `@tabnas/multisource/go`) where a colon-chain imported value was
-  dropped.
-- [The number model](design/number-model.md) — how a numeric literal
-  is classified and how kind travels through operators and canon:
-  the pre-tower record, its rounding edges since reversed by the
-  tower's exactness rule.
-- [The number tower](design/number-tower.md) — *implemented*:
-  boru's four-leaf number structure mirrored (`integer`, `float`,
-  `biginteger`, `bigdecimal` under a pure-supertype `number`), the
-  `0d` exact literals, the `lossy_integer_literal` exactness error,
-  and where a unification lattice forces
-  deviations from boru.
-
-The design behind the verb surface lives in
-[`capability-review/`](capability-review/index.md): the survey that
-asked what Aontu lacked in order to serve as a systems-definition
-ground truth for agents, with eight companion design documents (G1–G8)
-covering the constraint algebra, the validation verb, subsumption and
-schema evolution, identity and relations, the trust contract,
-distribution, the machine-facing access surface, and generation. Those
-documents argue and specify; what each verb actually does is in the
-[API reference](reference-api.md#command-line-interface), and what has
-been built phase by phase is recorded in the
-[progress register](capability-review/progress.md).
-
-The project site — [aontu.dev](https://aontu.dev), not yet live — is
-planned in [`site/`](site/index.md): what it serves, and where each
-page's content comes from (this documentation set is *rendered* there,
-not rewritten). The steps that stand it up outside a session are in
-[`site/manual-tasks.md`](site/manual-tasks.md).
+- [The style guide](STYLE-GUIDE.md) — how these pages are written:
+  Diátaxis placement, the voice, the banned-phrase list, and the
+  snippet directives under which every example runs.
+- [Test coverage](test-coverage.md) and the
+  [shared test specification](shared-spec.md) — how both
+  implementations are measured against the one `test/spec/*.tsv`
+  suite.
+- [`capability-review/`](capability-review/index.md) — the design
+  documents (G1–G8) behind the verb surface, with the
+  [progress register](capability-review/progress.md) recording what
+  has landed. Deeper analyses of specific behaviours live in
+  [`design/`](design/).
+- [`site/`](site/index.md) — the plan for
+  [aontu.dev](https://aontu.dev), not yet live, where this
+  documentation set is rendered rather than rewritten.
 
 ### Why the split?
 
@@ -122,16 +126,17 @@ separate on purpose. A tutorial holds your hand and is allowed to omit
 detail; a how-to assumes you know the basics and just need the recipe; a
 reference is exhaustive and dry so you can trust it as the source of
 truth; an explanation is discursive and is the only place that argues
-about trade-offs. Mixing them — a reference that teaches, a tutorial that
-digresses into design rationale — serves none of those needs well, so
-each lives in its own file.
+about trade-offs. Mixing them (a reference that teaches, a tutorial
+that digresses into design rationale) serves none of those needs well,
+so each lives in its own file.
 
 The rule applies to the toolkit as much as to the language, which is
-why a verb can appear in all four without any of them repeating
-another: met once, in passing, while the tutorial builds something;
-given as a recipe for one goal in the how-to guides; specified
-exhaustively — every flag, every exit code — in the API reference; and
-argued for, never merely listed, in the explanation.
+why a verb can appear in all four kinds without any of them repeating
+another: met once, in passing, while a tutorial builds something; given
+as a recipe for one goal in a how-to guide; specified exhaustively
+(every flag, every exit code) in the API reference; and argued for,
+never merely listed, in the explanation. The use cases stand alongside
+as whole worked systems, each holding a `check.sh` that CI runs.
 
 ## A 30-second taste
 
@@ -148,19 +153,23 @@ Unifying the three lines above yields:
 { "host": "localhost", "port": 8080 }
 ```
 
-The `port` is constrained to be an `integer`, defaults to `8080`, and —
-because nothing overrode the default — `8080` is what comes out. `host`
+The `port` is constrained to be an `integer`, defaults to `8080`, and,
+because nothing overrode the default, `8080` is what comes out. `host`
 is constrained to a `string` and pinned to `"localhost"`. Conflicting
-facts (e.g. a second `port: "high"`, or a `port: 1.5`) would instead
-produce a precise unification error rather than a silent wrong answer:
-the preferred branch keeps the kind it names, which is
+facts (a second `port: "high"`, say, or a `port: 1.5`) are refused
+with a precise error rather than silently resolved: the preferred
+branch keeps the kind it names, which is
 [argued in the explanation](explanation.md#a-preference-is-gated-by-kind-not-by-family).
 
-Try it without writing any code — both implementations ship an `aontu`
-command that evaluates a file or starts a REPL:
+Try it without writing a file — both implementations ship an `aontu`
+command that evaluates a file, reads stdin, or starts a REPL:
 
+<!-- test: run -->
 ```sh
-echo 'port: *8080 | integer' | node ts/bin/aontu.js   # or: go run ./cmd/aontu
+$ echo 'port: *8080 | integer' | aontu
+{
+  "port": 8080
+}
 ```
 
 Start with the [Tutorial](tutorial.md).

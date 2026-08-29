@@ -3,8 +3,8 @@
 This document is discursive. It explains the ideas behind Aontu and the
 shape of the implementation, and argues some of the trade-offs. It is the
 place to build a mental model; for precise rules use the
-[Language reference](reference-language.md), and for recipes the
-[How-to guides](how-to.md).
+[Language reference](reference-language.md), and for recipes the how-to
+guides listed in the [index](index.md).
 
 ## The core idea: one operation, three jobs
 
@@ -80,14 +80,14 @@ source text ──parse──▶ Val AST ──unify (fixpoint)──▶ unified
 3. **Generate / canon.** A converged tree is either emitted as a native
    value (`gen`) or rendered as canonical source (`canon`).
 
-The third arrow is not a fourth stage but a fan-out. `vet`, `get`,
+The third arrow fans out instead of adding a fourth stage. `vet`, `get`,
 `why`, `subsume` and `hash` all interrogate the *same* converged tree
 that `generate` renders, which is why they agree with one another by
 construction rather than by care, and why none of them can be a partial
 evaluation. What they are *for* is argued below, in
 [Why there is a verb surface](#why-there-is-a-verb-surface).
 
-### Why a *fixpoint*, not a single pass
+### Why unification runs to a fixpoint
 
 References make a single pass insufficient. Consider:
 
@@ -107,9 +107,9 @@ spinning.
 
 ### The dispatch ladder
 
-The heart of the engine is a binary `unite(a, b)` function (see
+The engine's dispatch is one binary function, `unite(a, b)` (see
 [`ts/src/unify.ts`](../ts/src/unify.ts) and
-[`go/unify.go`](../go/unify.go)). It is a careful ladder of cases:
+[`go/unify.go`](../go/unify.go)), and it is a careful ladder of cases:
 
 - degenerate/`top` cases first (unit element);
 - `nil` short-circuits (bottom is absorbing);
@@ -136,6 +136,105 @@ sentinel and save/restore of the error array instead of cloning a context
 per alternative, because schemas with many disjunctions
 (`GET | PUT | POST | …`) make this the busiest path in the engine.
 
+## Recursive schemas and residuals
+
+Unification needs a word for a value that is still waiting. A
+**residual** is that word, and this page is its definition of record: a
+residual is a value that has absorbed everything said about it so far
+and still needs more information to be decided — a `min(1)` no number
+has reached yet, a reference whose target a later include will declare,
+an entity address whose entity has not yet appeared. Residuals are what
+let the fixpoint loop be honest: each pass either brings information
+that discharges one or leaves it standing, and the ones still standing
+when the loop settles are the document's open questions, judged by
+whatever consumes the tree next — `vet` reports them as its
+`incomplete` verdict, generation refuses one left in a demanded
+position, and canon prints each as it was written.
+
+One residual deserves its own argument, because it looks like the thing
+this engine most loudly refuses. A reference to a value from **inside
+that value** — `$.schema.Step` written inside `Step` — means the
+fixpoint: a `Step`, by this very definition. The engine's cycle
+detector always recognised the shape; what changed is the response.
+Where the prefix test used to refuse with `path_cycle`, it now answers
+a **recursive residual**, a deferred reference carrying its target
+exactly as a constraint atom carries its bound. When concrete data
+meets the residual, it expands the definition one level — per
+destination, under the same clone discipline spreads use — and the
+clone's own self-reference is again a residual. Each meet with data
+consumes one level of data:
+
+```aontu
+schema: hide({Step: {label: string, then?: $.schema.Step}})
+doc: $.schema.Step & {label: "a", then: {label: "b", then: {label: "c"}}}
+```
+
+```json
+{"doc": {"label": "a", "then": {"label": "b", "then": {"label": "c"}}}}
+```
+
+The schema is one reference deep; the checks descend exactly as far as
+the data does, and no further. Mutual recursion needs nothing extra:
+once `$.B` expands inside `A`, the `$.A` in the clone is a
+self-reference at its landed position and residuates by the same rule.
+
+That expansion rule is also the termination argument, and it has to be,
+because the [limitations below](#limitations-and-trade-offs) refuse
+user-defined functions on termination grounds. The two rulings are
+consistent because they license different recursions. A recursive
+*function* is a fixpoint of the program, and whether its expansion ends
+is undecidable — admitting one would demote "every Aontu program
+terminates" to "most do", and
+[Termination is part of the offer](#termination-is-part-of-the-offer)
+says what that demotion costs. A recursive *schema* is structural
+descent on the data: an expansion happens only at a meet with concrete
+structure and consumes one level of it, and data is finite, so the
+expansions along any path are bounded by the data's depth. The one
+shape that escapes the bound — two recursive definitions unified
+directly, with no concrete layer between them to consume — is caught by
+the depth budget, and exhausting it refuses with
+`[aontu/recursion_budget]`, naming the recursion. The guarantee
+survives as the smaller of the data's depth and the budget.
+
+Guardedness is **emergent**: the engine never analyses a schema for
+well-foundedness, because the data decides. Under an optional key
+(`then?:`) an unexpanded residual drops with its key; under
+`*null | $.Node` the preference generates; and a required recursive
+field that no data reached refuses at generation, per instance, at the
+exact position no finite document can fill:
+
+```
+schema: hide({Step: {label: string, then: $.schema.Step}})
+doc: $.schema.Step & {label: "start"}
+    → refused: [aontu/recursion_unexpanded] at $.doc.then
+```
+
+A static well-foundedness check was considered and declined: it would
+need an analysis the lattice never needed, and the per-instance refusal
+names the same fix at the place the author feels it.
+
+In canon and the `aon1-` hash the recursion stays **symbolic** — the
+residual prints as the reference the author wrote:
+
+```
+schema: hide({Step: {label: string, then?: $.schema.Step}})
+    → canon: {"schema":{"Step":{"label":string,"then"?:$.schema.Step}}}
+```
+
+So the canonical form of a recursive schema is finite, reparses to
+itself, and the hash pins the mu-form: one string names an infinitely
+deep type, which is what makes the hash usable as a schema version pin.
+This is a documented exception to the hash form's resolve-everything
+rule, and a principled one — a recursive reference is the fixpoint
+binder, and the binder *is* its own resolved form.
+
+The rules are in the reference under
+[Recursive references (fixpoints)](reference-language.md#recursive-references-fixpoints);
+the recipe is
+[Define a recursive schema](how-to/define-a-recursive-schema.md); and
+the live version, an approval chain checked at every depth, is
+[use-cases/13-recursive-schema](../use-cases/13-recursive-schema/).
+
 ## Immutability
 
 A foundational rule, stated right on the base class: **`unify` must not
@@ -150,13 +249,117 @@ never altered in place.
 ## Marks: separating schema from data
 
 Two boolean **marks** ride along with every value: `type` and `hide`.
-They do not change *what* a value unifies to; they change whether it is
+Both leave *what* a value unifies to alone and decide only whether it is
 *emitted*. A `type`-marked field is schema and a `hide`-marked field is a
 working value — both are omitted when their enclosing map is generated,
 yet both still constrain unification. This is how a single document can
 carry its own schema inline without that schema leaking into the output,
 and why `copy()` (which clears the marks) is the way to turn a schema
 node back into emittable data.
+
+## Identity and relations
+
+A document is a tree, and a tree gives every value exactly one name:
+its path. Real models need a second kind of name. The payments service
+is described by the catalog (owner, tier) and by the deployment (image,
+replicas), in two files, under two paths that never mention each other
+— and both descriptions are about one thing. A definition language that
+cannot say so leaves the most consequential fact in the model unstated.
+
+`id(name)` says it, inside the lattice. Identity is a declaration whose
+meaning is unification: every node in one evaluation carrying the same
+name is unified with every other, so declaring two nodes the same
+entity *means* their descriptions meet, field by field. The shape,
+trimmed from the [service catalog use
+case](../use-cases/01-service-catalog/):
+
+```aontu
+catalog: pay: id(svc_pay) & { tier: 1 }
+deploy: pay: id(svc_pay) & { replicas: 3 }
+```
+
+```json
+{"catalog": {"pay": {"replicas": 3, "tier": 1}},
+ "deploy": {"pay": {"replicas": 3, "tier": 1}}}
+```
+
+Each position now holds the whole entity, and a contradiction between
+the views — the catalog pinning `tier: 1` where the deployment claims
+`tier: 2` — is an ordinary located error. That failure mode is the
+argument. The alternative design is an identity link bolted on beside
+the data, `owl:sameAs` style, and such a link cannot fail: asserting
+sameness costs nothing to be wrong about, each store keeps its own
+copy, and drift between the copies is found by whoever gets paged.
+`owl:sameAs` earned its reputation for silent corruption exactly this
+way. Making identity a declaration *inside* the operation the engine
+already trusts means
+the sameness claim is re-checked on every contact, and the commonest
+enterprise lie — two systems quietly disagreeing about one thing — dies
+at evaluation instead of in production.
+
+Relations follow the same instinct: an edge is data on a **field**, and
+the field declares what its data means. `rel(t)` on a field says the
+field's strings are entity addresses; each must resolve in this
+evaluation, and `t`, when given, is unified *into* every target.
+(Check-only semantics would be non-monotone — true, then false as the
+target grows — so referring to something as a `Service` makes it one,
+and a target that cannot be one fails with an ordinary located error.)
+The predicate, the relation's name, is the key the `rel()` sits on:
+declared once, in the schema, never inferred. The first landed design
+inferred it — "the nearest non-numeric key above the link" — and the
+heuristic answered wrongly for map-valued relations, which meant two of
+an edge's three parts were guesses and only the object was written.
+Declaration also buys the property `vet` needs: with the schema side
+carrying the `rel()`, a data document is plain JSON-shaped, links and
+all, with no Aontu spelling in it.
+
+The graph properties are where the lattice draws a line worth arguing.
+`acyclic()` and `inverse(name)`, conjoined at the same field, declare
+properties of the whole edge set — and both are global and non-monotone,
+because one more edge is more information, and one more edge can turn
+an acyclic graph cyclic. The lattice guarantee is that more information
+never falsifies what has been observed, so a constraint that could
+answer true and then false is one unification may not hold, and the
+engine must not refuse early. The atoms are therefore **lattice-inert**
+declarations: during unification they only register the predicate and
+ride the field through meets, and the verdict lands at **generation**,
+where the edge set is complete — the same settle point the sizing atoms
+use:
+
+```
+a: id(a) & { feeds: rel() & acyclic() & [b] }
+b: id(b) & { feeds: rel() & [a] }
+    → refused: [aontu/relation_cycle] at $.a.feeds.0
+```
+
+A declaration that binds at generation also repairs an old
+embarrassment: in the first design, plain generation happily emitted a
+cyclic model and only the `relations` verb noticed, so `acyclic` was
+advisory — a constraint the author wrote into the document that the
+document did not enforce.
+
+That first design kept its relation declarations under a `relations:`
+key at the document root, a plain key that one verb's pass knew by
+convention and nothing else in the engine knew at all. Retiring it is
+[ADR-010](../ADR.md#adr-010--no-magic-keys-or-paths-the-tree-at-all-levels-is-user-space):
+**the tree is user space.** A plain, spellable
+key never carries engine-assigned meaning at any depth; reserved
+meaning rides only on syntax an author visibly opts into, which `id()`,
+`rel()` and the atoms are. The retirement bought two concrete things. A
+document that writes `relations:` today has written ordinary data. And
+because the declarations now live in the lattice, they reach canon and
+the `aon1-` hash, so a pin distinguishes two documents that disagree
+about their relations — under the magic key the declaration's *meaning*
+lived outside the hash's reach, in the verb.
+
+The precise rules are the reference's
+[Identity](reference-language.md#identity-idname) and
+[Declared relations](reference-language.md#declared-relations)
+sections; the live versions are
+[use-cases/12-relations](../use-cases/12-relations/) (an ETL pipeline
+DAG, one relation with its inverse) and
+[use-cases/01-service-catalog](../use-cases/01-service-catalog/) (the
+two-view catalog this section's example was trimmed from).
 
 ## Why there is a verb surface
 
@@ -167,17 +370,17 @@ end is writing the document as well as reading it, because then the
 interesting questions are all the other ones. Does this data hold
 against that definition, and *where* does it not? What does it say at
 this one path? Why does it say that — who wrote the value that made it
-so? Has its meaning changed since the pin I recorded? Can I change it
-without breaking somebody downstream?
+so? Has its meaning changed since the pin you recorded? Can you change
+it without breaking somebody downstream?
 
 Every one of those is already answerable from the converged tree. The
 source sites are on the nodes, the contributions met at known paths,
-the canon is a deterministic rendering. Not exposing them does not make
-the questions go away; it makes every consumer re-derive them from
-generated JSON, badly and out of band. A definition that can validate,
-be queried, explain itself and be diffed is not really a document any
-more — it is ground truth that something else can act on, and the verbs
-are what turn one into the other. The roster is in the
+the canon is a deterministic rendering. Declining to expose them leaves
+the questions standing, and pushes every consumer into re-deriving the
+answers from generated JSON, badly and out of band. A definition that
+can validate, be queried, explain itself and be diffed has become
+ground truth that something else can act on, and the verbs are what
+turn a document into that. The roster is in the
 [API reference](reference-api.md#command-line-interface); what follows
 is why it has the shape it has.
 
@@ -189,16 +392,16 @@ the author — human or otherwise — repairs it and goes round again.
 Taking that loop seriously decides several things that would otherwise
 be arbitrary.
 
-**Exit codes are verdict classes, not a pass/fail bit**, because the
-three ways to fail call for three different next moves. A contradiction
-(`invalid`) means repair what you emitted. An unsatisfied truth
-(`incomplete`) means keep writing — nothing is wrong yet, the document
-is merely unfinished. An unusable schema (`error`) means stop: the
-fault is not the data's, and another round of repair cannot reach it.
-Collapsing those into "failed" discards exactly the bit the repairing
-end needs in order to choose. For the same reason a finding labels its
-two sites by provenance instead of by source order, and puts the data's
-site first: that is the one you are meant to edit.
+**Exit codes are verdict classes** rather than a pass/fail bit, because
+the three ways to fail call for three different next moves. A
+contradiction (`invalid`) means repair what you emitted. An unsatisfied
+truth (`incomplete`) means keep writing — nothing is wrong yet, the
+document is merely unfinished. An unusable schema (`error`) means stop:
+the fault lies outside the data, and another round of repair cannot
+reach it. Collapsing those into "failed" discards exactly the bit the
+repairing end needs in order to choose. For the same reason a finding
+labels its two sites by provenance instead of by source order, and puts
+the data's site first: that is the one you are meant to edit.
 
 **[`why`](reference-api.md#aontu-why) is the positive twin of a failure
 report.** An error explains what did not unify; `why` explains what
@@ -209,15 +412,15 @@ pinned `3`" is. The same record is what the language server can append
 to a hover and what the MCP tool of that name returns: one answer,
 three ways in.
 
-**[`get`](reference-api.md#aontu-get) buys the size of the answer, not
-the cost of it.** Unification has no partial mode — the whole document
-converges or none of it does — so a query verb cannot be an
-optimisation, and it would be dishonest to present it as one. What it
-is instead is a way for a reader with a small question to receive a
-small answer, which for a consumer paying by the token is not a small
-thing. Its shape views are held to a stronger claim than "a summary":
-each is itself a valid document that *subsumes* the truth, so a
-projection may generalise but may never mislead.
+**[`get`](reference-api.md#aontu-get) buys the size of the answer
+rather than the cost of it.** Unification has no partial mode — the
+whole document converges or none of it does — so a query verb cannot be
+an optimisation, and it would be dishonest to present it as one. It is
+a way for a reader with a small question to receive a small answer,
+which for a consumer paying by the token is no small thing. Its shape
+views are held to a stronger claim than "a summary": each is itself a
+valid document that *subsumes* the truth, so a projection may
+generalise but may never mislead.
 
 **[`set`](reference-api.md#aontu-set) appends by default**, and that
 follows from the lattice rather than from a gap in the tooling. Because
@@ -232,57 +435,34 @@ hole rather than a principled refusal, and an embarrassing one — the
 commonest validation failure of all is "the data says the wrong thing",
 and the verb built for repair could only fill holes.
 
-`--in-place` closes it, and the interesting part is what it turned out
-*not* to need. The rewriter was deferred for a long time behind a
-comment-preserving CST, on the reasonable-sounding grounds that you
-cannot put a document back together without one. But a CST is what you
-need to **re-serialise** a document, and replacing one value serialises
-nothing: it writes new text over a known span and leaves every other
-byte alone — every comment, every blank line, every alignment space —
-because it never reads them. The prerequisite was for a different job
-than the one that had to be done.
+`--in-place` closes it with a targeted splice: new text written over
+the span where the author spelled the value, every other byte
+untouched. The prerequisite the rewriter had long been deferred behind,
+a comment-preserving CST, turned out to belong to a different job —
+re-serialising a document needs one, and replacing one value serialises
+nothing, which is why comments and layout survive without ever being
+read. What the splice does need is to be right about the bytes, and the
+rule that decides it generalises past this verb: instead of enumerating
+which spans are safe to write over (a list is a thing to be incomplete
+about), the candidate text is parsed on its own and required to mean
+what the contribution meant, so the same unifier that produced the
+value rules on whether the text is the whole of it, and the answer
+cannot drift from the engine.
 
-What it *does* need is the ability to say **which bytes**, and to be
-right. That is the second thing this cost more than expected. A site
-names the **token** it points at, not the value it belongs to, and for
-anything compound those are different: `min(1)` reports `min`, `1+2`
-reports `1`, `{b:1}` reports `{`. Writing over those spans produces
-`a: 5(1)` and `a: 5+2` — a corruption with the same shape as the one
-this whole line of work started from, arrived at by a different route.
+Rewriting stays **opt-in** for the reason appending was preferred in
+the first place: appending is reversible in a way overwriting is not,
+so the flag is asked for, never inferred. Where a span cannot be
+established — a compound spelling, a path reached through a reference —
+the assignment appends exactly as it would have without the flag, and
+says why; an overlay that loads another document is refused outright,
+because a position inside an include can collide with a position in the
+overlay, and the span check would pass while lying about the place.
+Refusing to edit is always safe; editing the wrong bytes never is. The
+mechanics — span verification, the warning vocabulary, what counts as
+an editable literal — are specified with
+[`aontu set`](reference-api.md#aontu-set) in the API reference.
 
-The fix is worth stating because it generalises past this verb: rather
-than enumerate which shapes are safe — a list is a thing to be
-incomplete about — the candidate text is parsed **on its own** and
-required to mean what the contribution meant. The same unifier that
-produced the value decides whether the text is the whole of it, so the
-answer cannot drift from the engine, and the awkward case falls out
-without being named: `0x1F` canons to `31`, which is not its own
-spelling but *is* the contribution's canon, so a hex literal is
-editable while `min` is not.
-
-One case shows why that check is not the whole of the answer.
-Verification asks whether the text at the span is what the site claims,
-and there is a shape where it says yes and is still wrong: an included
-document holding `a: 42` at row 1 column 4, and the overlay holding
-`x: 42` at row 1 column 4. Same position, same text, so the check
-passes — and the splice rewrites `x` while reporting a replacement of
-`$.a`. What fails there is not the verification but the premise
-underneath it, that a position identifies a place in *this* file. So
-the evaluation that decides what to edit refuses to load at all, and
-the ambiguity never arises: what resolves is what the overlay says by
-itself. Denying the shape is worth more than detecting the collision,
-because a detector is a list of shapes, and the argument here is about
-what happens when the list turns out to be incomplete.
-
-Rewriting is **opt-in** for the reason appending was preferred in the
-first place: appending is reversible in a way that overwriting is not,
-and the two failure modes are not symmetric. So the flag is asked for,
-never inferred; where the span cannot be established the assignment
-appends exactly as it would have without it, and says why. Refusing to
-edit is always available, and always safe. Editing the wrong bytes is
-neither.
-
-### Meaning, not bytes
+### What the hash pins
 
 [`hash`](reference-api.md#aontu-hash) answers "has this changed?" over
 what a document *means* rather than over the bytes it is stored in.
@@ -291,41 +471,40 @@ together by `@"…"` includes, and the pin holds; flip one default and it
 moves. That is only possible because canon renders the converged tree
 rather than the source text.
 
-The trade is real and taken deliberately. Canon is deterministic
-syntax, not a unique normal form, so two documents that denote the same
-set of values can still hash differently — `number|integer` and
-`number` are the standing example. The failure direction is the safe
-one: a spurious "changed" costs somebody a second look, whereas a
-spurious "unchanged" would ship the break — and the extra spellings the
-hash form carries over ordinary canon are there precisely to keep that
-second failure out of reach. Trading cheap false alarms for an
-assurance that cannot fail in the dangerous direction is a good
-bargain, and it is the same bargain
+The trade is real and taken deliberately. Canon is a deterministic
+rendering and only that: two documents that denote the same set of
+values can still hash differently, because no unique normal form is
+computed — `number|integer` and `number` are the standing example. The
+failure direction is the safe one: a spurious "changed" costs somebody
+a second look, whereas a spurious "unchanged" would ship the break —
+and the extra spellings the hash form carries over ordinary canon are
+there precisely to keep that second failure out of reach. Trading cheap
+false alarms for an assurance that cannot fail in the dangerous
+direction is a good bargain, and it is the same bargain
 [`subsume`](reference-api.md#aontu-subsume) and
 [`breaking`](reference-api.md#aontu-breaking) make one level up, where
-the question is not "did the meaning change?" but "did it change in a
-direction that hurts anyone downstream?" A check that answers
+the question sharpens from "did the meaning change?" to "did it change
+in a direction that hurts anyone downstream?" A check that answers
 `undecided`, and fails the gate for saying so, is honest; one that
 guesses "compatible" ships the break it was installed to catch.
 
 ### The same answers, through other transports
 
 The MCP server, the language server, the published grammar and the
-agent skill are not four more features; they are the argument above
-carried to callers that do not run a shell. The MCP tools return the
-identical JSON contract the CLI prints, and a tool that *refuses* — an
-invalid document, a path naming nothing — answers with its own report
-rather than a protocol error, because the report is the answer. The
-grammar published for constrained decoding accepts less than the parser
-does and never more, and leaves out `@"…"` includes entirely, on the
-view that a generated document should describe values rather than reach
-for files. Served evaluation is confined for the same reason rather
-than as a deployment option: a tool that has to remember to restrict
-itself is one that will eventually forget, silently. And the skill's
-example documents are executed by the test suite, on the same principle
-that governs the rest of this repository — a teaching pack that taught
-something the engine no longer did would fail the build rather than
-mislead a reader quietly.
+agent skill are the argument above carried to callers that do not run a
+shell. The MCP tools return the identical JSON contract the CLI prints,
+and a tool that *refuses* — an invalid document, a path naming nothing —
+answers with its own report rather than a protocol error, because the
+report is the answer. The grammar published for constrained decoding
+accepts less than the parser does and never more, and leaves out `@"…"`
+includes entirely, on the view that a generated document should
+describe values rather than reach for files. Served evaluation is
+confined for the same reason rather than as a deployment option: a tool
+that has to remember to restrict itself is one that will eventually
+forget, silently. And the skill's example documents are executed by the
+test suite, on the same principle that governs the rest of this
+repository — a teaching pack that taught something the engine no longer
+did would fail the build rather than mislead a reader quietly.
 
 ## Closed-world validation is a dial
 
@@ -345,7 +524,7 @@ alternative — a mark that travels further than it was written — is
 worse in a language where a subtree is routinely a template someone
 else will extend. `aontu vet --closed` is the same dial at the command
 line: it closes the anchor being validated, not the whole document, so
-"no keys I did not declare *here*" is a question you can ask without
+"no keys you did not declare *here*" is a question you can ask without
 sealing everything else.
 
 The cost is that closedness has to be written rather than assumed. An
@@ -356,9 +535,9 @@ definition and the half-written one beside it.
 
 ## Two implementations, one behaviour
 
-TypeScript is canonical; Go is a port kept in lock-step. Parity is not
-maintained by reading code side by side but by a **shared, data-driven
-contract**: the [`test/spec/*.tsv`](../test/spec/) files. Each row is a
+TypeScript is canonical; Go is a port kept in lock-step. Parity rests
+on a **shared, data-driven contract** rather than on reading code side
+by side: the [`test/spec/*.tsv`](../test/spec/) files. Each row is a
 `name / mode / src / expect` tuple, and both
 [`ts/test/spec.test.ts`](../ts/test/spec.test.ts) and
 [`go/spec_test.go`](../go/spec_test.go) load the *same* files and assert
@@ -393,37 +572,36 @@ to behaviour is still two ports and a spec row in one commit; features
 are designed knowing that. What it buys is a claim no single
 implementation can make. Two independently written engines agreeing
 byte for byte across the whole shared suite is evidence about the
-*specification*, not about one codebase's tests — and the suite becomes
-an unusually good detector of accidents, because an optimisation that
-quietly reorders a fold shows up as failing rows on whichever side
-moved. That friction is the mechanism working.
+*specification* itself, of a kind one codebase's tests cannot supply —
+and the suite becomes an unusually good detector of accidents, because
+an optimisation that quietly reorders a fold shows up as failing rows
+on whichever side moved. That friction is the mechanism working.
 
 ## Where the meaning is ours
 
 Parity is enforceable only while everything either port does is ours to
 fix. `re()` broke that assumption. A pattern is handed to a *host*
 subsystem — JavaScript's `RegExp` on one side, RE2 on the other — and
-those are not two implementations of one specification; they are
-different languages, in different complexity classes, over different
-alphabets. `\A` is an anchor in one and a literal `A` in the other;
-`\s` is Unicode whitespace in one and ASCII in the other; one matches
-UTF-16 code units where the other matches code points. None of it can
-be fixed from this repository.
+those hosts are different languages, in different complexity classes,
+over different alphabets, with no shared specification between them.
+`\A` is an anchor in one and a literal `A` in the other; `\s` is
+Unicode whitespace in one and ASCII in the other; one matches UTF-16
+code units where the other matches code points. None of it can be
+fixed from this repository.
 
 The first attempt was a blacklist — enumerate the constructs known to
 differ, refuse those, pass the rest through — and it leaked three times
-in a day. The instructive part is not that the list was short. It is
-that a blacklist's correctness is a claim about the *author's
-knowledge* of two large external systems: it decays silently as those
-systems evolve, and no test can falsify it. Two of the three leaks were
-found by reading and one while writing documentation. None by the
-suite.
+in a day. The instructive part is where a blacklist's correctness
+lives: in the *author's knowledge* of two large external systems, a
+claim that decays silently as those systems evolve and that no test can
+falsify. Two of the three leaks were found by reading and one while
+writing documentation. None by the suite.
 
 So [ADR-003](../ADR.md#adr-003--host-provided-semantics-are-normalised-not-trusted)
 inverts it: **where a host subsystem supplies semantics, Aontu defines
 the meaning and rewrites the input**, and the host is given only
 constructs it cannot read two ways. `\d` is `[0-9]` because the ADR
-says so, not because the hosts happen to agree. What that costs is
+says so, whether or not the hosts happen to agree. What that costs is
 paid at the point of use — `\s` no longer means what a regex habit
 expects in *either* language, and an author has one more small thing to
 learn. The gain is that the guarantee stops depending on what the
@@ -432,40 +610,28 @@ both normalisers, so a drift fails in whichever port drifted.
 
 The rule is stated generally on purpose, because a date parser, a
 collation order or a number formatter would each inherit it. It also
-admits what it cannot close. Complexity is not a property of the
-pattern language — backtracking makes some patterns exponential where
-an automaton is linear — so no rewriting reaches it, and that axis is
-held by a syntactic restriction instead. The principled end state is to
-own the matcher, at which point there is no host subsystem left to
-normalise; that is recorded as the direction, not as a plan.
+admits what it cannot close. Complexity is a property of the host's
+matcher rather than of the pattern language — backtracking makes some
+patterns exponential where an automaton is linear — so no rewriting
+reaches it, and that axis is held by a syntactic restriction instead.
+The principled end state is to own the matcher, at which point there is
+no host subsystem left to normalise; that is recorded as a direction
+rather than a plan.
 
 ## Performance shape
 
 Unification is pointer-chasing over many small immutable nodes, run for
 several passes, so most of the engineering effort goes into *not
-allocating*. The TypeScript implementation in particular carries a number
-of deliberate optimisations, documented inline:
-
-- **Type discriminators live on the prototype.** Every `Val` answers
-  `isMap`, `isRef`, … via prototype defaults; a subclass overrides only
-  its own flags. This removes dozens of property writes (and the hidden
-  class transitions they cause) from every node construction.
-- **Lazy `site` and `err`.** Source positions and error arrays are
-  allocated on first use; the common node never pays for either, and all
-  error-free nodes share one frozen empty array.
-- **A path trie in the context.** Cycle detection and reference
-  resolution need a stable index per path; the context memoises
-  `(parent, key) → index` and reuses the materialised path array across
-  passes instead of re-concatenating it.
-- **A per-parent descend cache.** Visiting the same `(parent, key)` child
-  context across fixpoint passes returns a cached context rather than a
-  fresh `Object.create`.
-
-None of these change behaviour — the shared spec guards that — but they
-are why the engine stays usable on realistically large models. The Go
-port keeps the same overall structure but, lacking references-with-cycles
-in its hottest paths, uses a simpler depth guard in place of the
-TypeScript seen-map.
+allocating*: type discriminators, source positions, error arrays, path
+indexing and per-pass descent are all arranged so that the common node
+pays for none of them. The inventory of those optimisations lives as
+comments beside the code that carries each one (start at
+[`ts/src/unify.ts`](../ts/src/unify.ts) and the `Val` classes under
+[`ts/src/val/`](../ts/src/val/)); none of them changes behaviour — the
+shared spec guards that — and together they are why the engine stays
+usable on realistically large models. The Go port keeps the same
+overall structure but, lacking references-with-cycles in its hottest
+paths, uses a simpler depth guard in place of the TypeScript seen-map.
 
 ## Two rules that surprise readers
 
@@ -586,26 +752,27 @@ watching: a CI gate, a tool call, a repair loop several steps from
 anyone's attention. For that caller, "usually finishes" is not a weaker
 version of "finishes" — it is a different product. A definition
 language that can loop is one you have to supervise, and a definition
-you have to supervise is not ground truth; it is a program you are
-running on faith.
+you have to supervise is a program you are running on faith.
 
 That is the reason for the refusals listed below, rather than the other
-way round: they are not concessions to implementation difficulty, they
-are what the guarantee is made of. The trust contract
-([trust.md](trust.md)) states the guarantee formally and is candid
-about the clauses that are conditional today.
+way round: the guarantee is made of them, and implementation difficulty
+had no vote. The trust contract ([trust.md](trust.md)) states the
+guarantee formally and is candid about the clauses that are conditional
+today.
 
 ## Limitations and trade-offs
 
-- **No user-defined functions.** The function set is fixed (28
-  built-ins today — the original twelve plus the constraint atoms,
-  `deprecate`, `id`/`refer` and the generator combinators). This
-  keeps the language total and analysable. Of the
-  [`IDEAS.md`](../IDEAS.md) sketches, piping (`|>`) and the
-  placeholder `_` ARE now implemented — as fixed syntax, via the
-  [G8 design](capability-review/g8-generation.md) — while custom
-  functions were considered there and refused: recursion would trade
-  away the termination guarantee.
+- **No user-defined functions.** The function set is fixed (41
+  built-ins today, the constraint atoms, the graph atoms, identity and
+  the generator combinators included). This keeps the language total
+  and analysable. Of the [`IDEAS.md`](../IDEAS.md) sketches, piping
+  (`|>`) and the placeholder `_` ARE now implemented — as fixed
+  syntax, via the [G8 design](capability-review/g8-generation.md) —
+  while custom functions were considered there and refused: a
+  recursive function is a fixpoint of the program, and its termination
+  is undecidable. [Recursive schemas](#recursive-schemas-and-residuals)
+  stand on the other side of that line: they recurse on finite data,
+  never on the program, so the guarantee survives them.
 - **The fixpoint is bounded.** Extremely self-referential models hit the
   pass/cycle limits and surface a cycle error rather than diverging —
   correct, but it means some legal-looking models are rejected for
@@ -615,5 +782,8 @@ about the clauses that are conditional today.
 
 - The lattice and unification idea, in much greater depth, in the
   [CUE documentation](https://cuelang.org/docs/concept/the-logic-of-cue/).
+- The design notes behind the two newest capabilities, history and
+  failure modes included: [relations](design/RELATIONS.0.md) and
+  [recursion](design/RECURSION.0.md).
 - The shared test format: [shared-spec.md](shared-spec.md).
 - What the suites actually exercise: [test-coverage.md](test-coverage.md).

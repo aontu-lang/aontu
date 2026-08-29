@@ -828,8 +828,17 @@ export function vet(
     // walk, the residual held its peer forever and everything under a
     // recursive field vetted VALID unchecked. The settled schema root
     // is kept on the meet context for exactly that walk
-    // (AontuContext._fixroot; RecurseVal.body falls back to it).
+    // (AontuContext._fixroot; RecurseVal.body and RefVal.find fall
+    // back to it).
     ; (ctx as any)._fixroot = schemaVal
+    // And the meet DRIVES AT the anchor's own path, so every finding
+    // minted live during it sits in the schema's namespace
+    // ($.spec.Step.then.approver), exactly where the findings carried
+    // on the settled anchor's stored paths already sit -- the Go port
+    // gets this for free from its clone discipline, and the shared
+    // anchored-vet rows pin the agreement.
+    ; (ctx as any).path = options.at.replace(/^\$\.?/, '')
+      .split('.').filter((s: string) => '' !== s)
   }
   const pair = new ConjunctVal({ peg: [meetAnchor, dataVal] }, ctx)
   const unified: any = aontu.unify(pair, undefined, ctx)

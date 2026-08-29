@@ -82,33 +82,21 @@ class RecurseVal extends FeatureVal_1.FeatureVal {
             // exactly as a plain reference copy clears them (concreteFlow's
             // rule): the schema is hidden, the instances it expands into
             // are the output.
-            // The clone is REBASED to the residual's slot explicitly
-            // (spec.path; the Go twin passes cp(r.path)): the default
-            // rebase slices the definition's path by the DESTINATION'S
-            // length, which leaks definition segments into instance paths
-            // whenever the destination is shallower -- vet's anchored meet
-            // reported `$.then.Step.approver` for the finding Go placed at
-            // `$.spec.Step.then.approver`.
-            //
-            // WHICH slot: the DRIVE path, unless the residual was LIFTED
-            // out of its defining tree (the stored path is then longer and
-            // ends with the drive path -- vet's anchored meet drives
-            // `$.spec.Step`'s residual at `then`), where the stored path
-            // keeps the schema's namespace, as every anchored finding
-            // does. The stored path alone -- all Go needs, its clone
-            // arms never inherit a rebase overlay -- is not reliable here:
-            // a residual carried INSIDE a copied definition body
-            // (`chain: $.spec.Step` inside Policy, copied to a slot
-            // shallower than the definition) inherits the copy's overlay
-            // tail, and the expansion then reported
+            // The clone is REBASED to the DRIVE path explicitly (spec.path;
+            // the Go twin passes cp(r.path), whose stored paths its clone
+            // arms keep clean): the default rebase slices the definition's
+            // path by the destination's length, which leaks definition
+            // segments into instance paths whenever the destination is
+            // shallower -- a residual carried inside a copied definition
+            // body (`chain: $.spec.Step` inside Policy, copied to a slot
+            // shallower than the definition) reported
             // `$.payments_policy.Policy.chain.then.approver` for the
             // finding Go placed at `$.payments_policy.chain.then.approver`.
-            const live = ctx.path;
-            const stored = this.path;
-            const lifted = stored.length > live.length
-                && live.every((s, i) => s === stored[stored.length - live.length + i]);
+            // The drive path is also right under vet's anchored meet, which
+            // drives AT the anchor's own path (see vet.ts), so anchored
+            // findings land in the schema's namespace in both ports.
             const level = body.clone(ctx, {
-                dup: true, path: [...(lifted ? stored : live)],
+                dup: true, path: [...ctx.path],
             });
             (0, utility_1.walk)(level, (_key, v) => {
                 v.mark.type = false;

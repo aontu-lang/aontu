@@ -17,6 +17,10 @@ Quick reference:
 - Shared behaviour lives in `test/spec/*.tsv` and is run by both
   `ts/test/spec.test.ts` and `go/spec_test.go`.
 - `make test` runs both suites; `make cov` checks the ADR-002 floor.
+- Documentation edits follow [docs/STYLE-GUIDE.md](docs/STYLE-GUIDE.md)
+  (Diátaxis placement, voice, banned phrases, snippet directives);
+  `ts/test/docs.test.ts` enforces it — every tagged snippet tested or
+  skipped with a reason.
 - Forward-looking work is the capability review in
   `docs/capability-review/` (G1–G8, design) plus
   `docs/capability-review/progress.md` (the register of what has

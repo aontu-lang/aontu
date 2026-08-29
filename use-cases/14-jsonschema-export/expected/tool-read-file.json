@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "max_bytes": {
+      "maximum": 1048576,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "path": {
+      "allOf": [
+        {
+          "pattern": "^[A-Za-z0-9._/\\-]+$"
+        },
+        {
+          "pattern": "^[a-z]"
+        }
+      ],
+      "maxLength": 512,
+      "minLength": 0,
+      "type": "string"
+    }
+  },
+  "required": [
+    "path"
+  ],
+  "type": "object"
+}

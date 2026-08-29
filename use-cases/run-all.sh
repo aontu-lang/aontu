@@ -23,6 +23,7 @@ CASES="
 11-shared-modules
 12-relations
 13-recursive-schema
+14-jsonschema-export
 "
 
 fail=0

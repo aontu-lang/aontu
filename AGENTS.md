@@ -79,12 +79,20 @@ can reuse it with their own transport. Editor plugins live in
 [`editors/`](editors/). Full reference: [`docs/lsp.md`](docs/lsp.md).
 Long-form documentation lives under [`docs/`](docs/) (start at
 `docs/index.md`); measure coverage with `make cov` (see
-`docs/test-coverage.md`). **Documented examples are executed**:
-`ts/test/docs.test.ts` requires every `aontu`/`aon` fenced block in
-`index.md`, `tutorial.md`, `how-to.md` and `reference-language.md` to
-parse, and every one immediately followed by a `json` fence to
-generate exactly that — so a page that states a result states the
-engine's. `ts/test/skill.test.ts` does the same for `docs/skill/`. The trust contract —
+`docs/test-coverage.md`). **How the documentation is written is
+normative**: [`docs/STYLE-GUIDE.md`](docs/STYLE-GUIDE.md) carries the
+Diátaxis placement rules, the voice, the banned-phrase list, and the
+snippet directive vocabulary — read it before editing any page, and
+update it in the same commit as the first page that follows a new
+rule. **Documented examples are executed**: `ts/test/docs.test.ts`
+requires every tagged fenced block in the Diátaxis pages (`index.md`,
+the tutorials, `docs/how-to/*.md`, both references, `use-cases.md`)
+to be tested — parse-checked, paired with its stated `json` result,
+scaffolded and run through the scenario/transcript directives, or
+skipped with a written reason — and applies the enforced banned-phrase
+gate to the prose. A narrowed run for one page:
+`DOCS_PAGES=tutorial.md node ts/dist-test/docs.test.js`.
+`ts/test/skill.test.ts` does the same for `docs/skill/`. The trust contract —
 hermeticity, termination, determinism, sandboxing, and exactly where
 each is conditional today — is [`docs/trust.md`](docs/trust.md); the
 budget/cycle error taxonomy it defines is pinned by

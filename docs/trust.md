@@ -34,8 +34,8 @@ instead.
 
 **Where this is conditional.** Input 2 — the include closure — is only
 a well-defined *input* when the resolver is confined, and confinement
-is now a first-class option in **both** implementations: the **trust
-profile** (G5 phase 3) —
+is now a first-class option in **both** implementations, the **trust
+profile** (G5 phase 3):
 `trust: { include: 'none' | {mem} | {root} | 'system' }` on
 `AontuOptions` in TypeScript, `Aontu.Trust` (`TrustOptions`) in Go.
 Under `none`, `{mem}` or `{root}` the closure is explicit and
@@ -90,21 +90,17 @@ Every evaluation halts within deterministic budgets counted in
 | `revisits` | same-pair re-unifications within a pass  | 999 (`MAXCYCLE`, `ts/src/unify.ts`) |
 | `depth`    | structural recursion depth               | 1000 (`MAXDEPTH`, `ts/src/unify.ts`; `maxUniteDepth`, `go/unify.go`), plus Go's parse-depth guard (`max_depth`). Shared: both engines report `unify_cycle` past it, and `test/spec/budget.tsv` pins the boundary from both sides. |
 
-> **Closed gap.** TypeScript previously had no explicit depth budget:
-> deep nesting reached the V8 call-stack limit, which was caught and
-> reported as `internal` — a verdict that depended on the host's stack
-> size rather than on the document, and so a real breach of this
-> clause. It now carries the counter above. Aligning the two required
-> lowering Go's bound from 2000, which V8 could never reach, so that a
-> document does not resolve in one port and fail in the other. 1000
-> sits above every real document (the whole shared suite peaks at depth
-> 603) and below both hosts' limits, so the budget decides the verdict.
+(The shared 1000 sits above every real document and below both hosts'
+stack limits, chosen when TypeScript — which previously let deep
+nesting hit the V8 stack and report a host-dependent `internal` —
+gained its explicit counter and Go came down from 2000 to match, so
+the budget, not the host, decides the verdict.)
 
 The contract pins *verdicts at default budgets* — every shared spec
 row must produce the same verdict in both implementations — not
 internal step counts, which remain implementation detail.
 
-**Exhaustion is a semantic error, never silent truncation.** The three
+**Exhaustion is a semantic error, never silent truncation.** The
 different answers — "your model is cyclic", "your model is
 incomplete", "my budget ran out" — are distinct codes with distinct
 classes (the registry: [test/spec/errcodes.tsv](../test/spec/errcodes.tsv);
@@ -116,6 +112,8 @@ the taxonomy rows: [test/spec/budget.tsv](../test/spec/budget.tsv)):
 | `no_path`       | `reference` | a reference target that does not exist | supply what is missing |
 | `budget_passes` | `budget`    | the pass budget was spent while the final pass was **still making progress** — the evaluator gave up mid-convergence | retry with a larger budget, or restructure |
 | `unify_cycle`   | `budget`    | the revisit bound tripped: **suspected** non-convergence | inspect; may be a cycle or a very large model |
+| `recursion_unexpanded` | `incomplete` | a required recursive-schema position that no data ever expanded — refused at generation, at the instance | supply the data, or guard the field (`next?:` drops, a `*null` preference generates) |
+| `recursion_budget` | `budget` | a recursive schema expanded past the depth budget without meeting concrete data: two definitions feeding each other, or data deeper than the budget | restructure the definitions, or raise `trust.budget.depth` for genuinely deep data |
 
 A *stable* residue — a stuck `1+true`, an unresolved kind — is none of
 these: it is ordinary incompleteness, silent at unify time and a
@@ -206,11 +204,10 @@ implementations, at every surface:
 - **LSP**: confined to the **workspace root** by default, from the
   `initialize` params (workspaceFolders, rootUri, rootPath, in that
   order). The capability governs the **whole** server — hover and
-  hover-provenance as well as the diagnostics it publishes. Hover used
-  to evaluate through the full system resolver beside confined
-  diagnostics in the same session, so resting a cursor on an escaping
-  include resolved it; one document under two postures is not a
-  confinement. An explicit
+  hover-provenance as well as the diagnostics it publishes (hover once
+  evaluated through the unconfined system resolver beside confined
+  diagnostics, so resting a cursor on an escaping include resolved
+  it). An explicit
   `initializationOptions.aontu.trust.include` of
   `'system'`, `'none'`, `{root}` or `{mem}` widens or narrows it, and
   an unrecognised value confines to nothing rather than silently
@@ -219,9 +216,9 @@ implementations, at every surface:
   uri's path is everything after the literal `file://`, and the leading
   slash of a **drive-letter** path is uri syntax rather than path — so
   `file:///C:/Users/me/project` is the root `C:/Users/me/project`, not
-  `/C:/Users/me/project`. Both ports read it that way; until 2026-08-25
-  neither did, and the confinement an editor on Windows relied on was
-  therefore never applied. **A non-empty authority is not handled**:
+  `/C:/Users/me/project`. Both ports read it that way (until
+  2026-08-25 neither did, so the confinement an editor on Windows
+  relied on was never applied). **A non-empty authority is not handled**:
   `file://server/share/x` yields `server/share/x`, a relative string,
   so a UNC root or a VS Code `wsl.localhost` remote root confines to
   nothing usable. Both ports do the same thing with it, so this is a
@@ -278,8 +275,8 @@ place, and reusing a consumed tree (or any node reachable from it) in
 a second evaluation is a *correctness* bug that surfaces as
 nondeterminism — the exact failure mode this contract exists to
 exclude. Parse again (or clone first) for every independent
-evaluation. This is a named rule of the API contract now — see
-[the API reference](reference-api.md#evaluation-consumes-the-tree) —
+evaluation. This is a named rule of the API contract now (see
+[the API reference](reference-api.md#evaluation-consumes-the-tree)),
 not a code-comment caveat.
 
 ## Refusals
@@ -306,6 +303,7 @@ Guarantees are as much about what will never be added:
 | code → class registry | [test/spec/errcodes.tsv](../test/spec/errcodes.tsv) + set-equality tests in both runners |
 | canon byte-stability | every `canon` row (strict equality, both runners) |
 | generated-JSON byte-stability | `gens` rows (docs/shared-spec.md) |
+| graph and relation-verdict byte-stability | [test/spec/graph.tsv](../test/spec/graph.tsv) (`graph` rows — both runners re-derive the entity index and edge set on a fresh engine and require the same bytes) + [test/spec/relation.tsv](../test/spec/relation.tsv) (`relation` verdict rows, both engines) |
 | known open divergences | [test/spec/divergent.tsv](../test/spec/divergent.tsv) — each entry carries its tracking issue. Read the file for the live list rather than a count copied here; as of this revision one entry is `# OPEN` (#24, lone surrogates), and #26/#27/#29/#30/#31/#32/#34/#35 are fixed and closed. Only the Unicode table vintage remains permanent, in DIVERGENCE.md |
 | resolver posture | SECURITY comment, `ts/src/lang.ts`; this document |
 | single-use trees | reference-api.md rule; `Aontu.parse` / Go `Parse` doc comments |

@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "labels": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array",
+      "uniqueItems": true
+    },
+    "priority": {
+      "enum": [
+        "p1",
+        "p2",
+        "p3",
+        "p4"
+      ]
+    },
+    "project": {
+      "pattern": "^[A-Z][A-Z0-9]{1,9}$",
+      "type": "string"
+    },
+    "title": {
+      "maxLength": 140,
+      "minLength": 8,
+      "type": "string"
+    }
+  },
+  "required": [
+    "priority",
+    "project",
+    "title"
+  ],
+  "type": "object"
+}

@@ -13,6 +13,10 @@ registry upload step: `proxy.golang.org` serves whatever a tag points at, so
 **pushing the tag *is* the release**. There is nothing else to do, and
 nothing to undo it.
 
+This page blends how-to and explanation on purpose, under the exception
+[STYLE-GUIDE.md](STYLE-GUIDE.md) makes for it: a release is irreversible
+enough that the rationale stays beside the commands.
+
 > **This path is proven.** Its first end-to-end run was 2026-08-28:
 > one dispatch from `main` at `2cec558` published npm `aontu@0.53.0`
 > over OIDC and pushed both `v0.53.0` and `go/v0.1.11`. The trusted
@@ -22,7 +26,7 @@ nothing to undo it.
 
 ## The normal path
 
-```sh
+```
 make publish V=0.54.0 GOV=0.1.12   # release both
 make publish V=0.54.0              # npm only
 make publish GOV=0.1.12            # Go module only
@@ -39,8 +43,8 @@ Every guard runs **before** anything is written, because half of this is
 irreversible: npm never allows republishing a version, and
 `proxy.golang.org` caches a Go module version immutably. It refuses unless
 you are on `main`, with a clean tree, not behind `origin/main`, with neither
-tag already taken (asked of **origin**, not just the clone), and with the Go
-module path matching the major version.
+tag already taken (asked of **origin**, since the clone's tag list can be
+stale), and with the Go module path matching the major version.
 
 ### Or drive the workflow directly
 
@@ -50,7 +54,7 @@ both tags.
 
 The equivalent from a shell:
 
-```sh
+```
 gh workflow run publish.yml --ref main -f go=true
 ```
 
@@ -58,7 +62,7 @@ gh workflow run publish.yml --ref main -f go=true
 the ref already says, so bump the versions **first**, in a normal reviewed
 PR:
 
-```sh
+```
 # ts/package.json  "version": "0.54.0"
 # go/aontu.go      const VERSION = "0.1.12"
 ```
@@ -158,7 +162,7 @@ Both are needed, and neither can do the other's job:
 
 OIDC **cannot create a tag** — its audience is the registry, not GitHub.
 
-**They live in separate jobs, and that separation is load-bearing.** The
+**They live in separate jobs, and the split is a security boundary.** The
 `publish` job runs `npm install`, the build and the tests — dependency
 lifecycle scripts and project code — and keeps `contents: read`. The `tag`
 job runs git and nothing else, and is the only place `contents: write`
