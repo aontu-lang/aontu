@@ -6,6 +6,7 @@ declare class SuperFuncVal extends FuncBaseVal {
     constructor(spec: ValSpec, ctx?: AontuContext);
     make(_ctx: AontuContext, spec: ValSpec): Val;
     funcname(): string;
-    resolve(_ctx: AontuContext, args: Val[]): Val;
+    deferResolve(_ctx: AontuContext, args?: Val[]): boolean;
+    resolve(ctx: AontuContext, args: Val[]): Val;
 }
 export { SuperFuncVal, };

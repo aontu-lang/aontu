@@ -1283,7 +1283,7 @@ atoms, whose meaning is defined in
 | `copy(x)`   | deep copy of a value or referenced node; clears `type`/`hide` marks | `copy({a:1,b:2})`→`{a:1,b:2}`; `copy($.x)` |
 | `key(n)`    | the ancestor key `n` levels up (`0` = own key, default `1` = parent). `n` must be an **integer** (`integer` or `biginteger`); anything else is an error. A level beyond the top of the path yields `""`. | at `a:b:c`: `key()`→`"b"`, `key(0)`→`"c"`, `key(2)`→`"a"`, `key(2.0)`→error |
 | `pref(x)`   | mark `x` as preferred (same as `*x`)          | `pref(1)` canon `*1`; `pref(2),x:3`→`3` |
-| `super(x)`  | the lattice-superior (generalisation/type) of `x` — for a concrete scalar, its kind | `super(1)` → `integer`, `super(1.5)` → `float`, `super(integer)` → `number` |
+| `super(x)`  | the immediate parent type of `x`, structurally: a scalar's kind, a kind's parent, a container of its children's parents | `super(1)` → `integer`, `super(integer)` → `number`, `super({a:1})` → `{a:integer}` |
 | `type(x)`   | mark `x` as a type/schema value               | `type(1) & number`→`1` |
 | `hide(x)`   | mark `x` as hidden                            | `hide(world) & string`→`"world"` |
 | `close(x)`  | seal a map/list against extra keys            | see [closed values](#closed-values-close--open) |
@@ -1298,22 +1298,60 @@ atoms, whose meaning is defined in
 | `match(v, p, r, …, d?)` | the result of the first pattern `v` unifies with; a trailing argument is the default. No match and no default is an error naming the patterns tried | `size: match($.tier, small, {cpu:1}, {cpu:2})` |
 | `deprecate(x, m)` | mark `x` deprecated; unifies exactly as `x`, and the record `m` (`{msg?, use?, since?}`, all strings; `use` is a path spelled as a string) rides the result through meets, reference clones and spread applications. Canon renders the call back; generation is unchanged. The point-of-use surfaces: a vet `deprecated` warning, the LSP Deprecated tag, and `aontu breaking --allow-deprecated-removal` | `port: deprecate(*8080\|integer, {msg:"renamed", use:"$.listen", since:"2.0.0"})` |
 
-`super(x)` lifts its **argument** one step up the lattice, so for a
-concrete scalar it yields that scalar's kind — and because `number`
-sits above the four numeric leaves, the numeric side of the ladder has
-a real middle rung: a leaf lifts to `number`, and `number` to `top`:
+`super(x)` answers the immediate parent type of its **argument**. For
+a concrete scalar that is the scalar's kind, and for a kind it is the
+kind's own parent — `number` sits above the four numeric leaves, so
+the numeric ladder has a real middle rung. For structured arguments,
+`super` descends: a map lifts to the map of its values' parents (key
+optionality, closedness and any `&:` spread carried over, the spread
+template lifted), a list lifts element by element, a preference lifts
+to its value's parent, a disjunction lifts arm by arm, and a
+constraint lifts to the kind it constrains — its absorbed leaf kind
+when it has one, otherwise the domain its atoms compare in.
 
-```
-x:super(1)       → integer      x:super(a)          → string
-x:super(1.5)     → float        x:super(true)       → boolean
-x:super(0d5)     → biginteger   x:super(integer)    → number
-x:super(0d1.5)   → bigdecimal   x:super(number)     → top
+<!-- test: scenario super-parent-type -->
+<!-- test: run -->
+```sh
+$ echo 'a: super(1)  b: super(1.5)  c: super(integer)  d: super(number)' | aontu -c
+{"a":integer,"b":float,"c":number,"d":top}
+$ echo 'e: super({port: 8080, name?: web})  f: super([1, on])' | aontu -c
+{"e":{"name"?:string,"port":integer},"f":[integer,string]}
+$ echo 'g: super(*8080)  h: super(1|2)  i: super(min(3))  j: super(integer & min(3))' | aontu -c
+{"g":integer,"h":integer,"i":number,"j":integer}
+$ echo $?
+0
 ```
 
-Being a kind, the result then constrains: `x:super(1) & 2` → `2`, while
-`x:super(1) & 2.5` is a conflict. Where the argument has no meaningful
-superior — a map, a list, a non-numeric kind, `top` — the result is
-`top`.
+The result is a type, so it constrains — lifting an example produces
+a schema the example itself satisfies:
+
+<!-- test: scenario super-as-schema -->
+<!-- test: run -->
+```sh
+$ echo 'x: super({a:1}) & {a: 7}' | aontu
+{
+  "x": {
+    "a": 7
+  }
+}
+$ echo 'x: super({a:1}) & {a: 7.5}' | aontu
+[aontu/no_scalar_unify]: Cannot unify values at path $.x.a
+...
+$ echo $?
+1
+```
+
+The answer is `top` only where `top` is the immediate parent: the
+root kinds (`number`, `string`, `boolean`), `top` itself, a
+disjunction with an arm that lifts to `top`, and a constraint that
+admits several container kinds (`length(n)` constrains strings, lists
+and maps alike). Two edges are pinned in `test/spec/super.tsv`: a
+recursion residual met by `super` stays a symbolic call — the finite
+spelling of a lift that is itself recursive — which generation
+refuses like any unresolved call, and `super(null)` answers the null
+kind, which canon prints as `null`, the same spelling as the value.
+The full rules are recorded in
+[docs/design/SUPER.0.md](design/SUPER.0.md).
 
 `upper()` and `lower()` round a number without narrowing it: the result
 carries the *argument's* kind, so `upper(2)` is an integer `2` (and

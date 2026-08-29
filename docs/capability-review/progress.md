@@ -815,6 +815,13 @@ longer "degenerate and unpinned" — `ts/src/val/SuperFuncVal.ts` and
 `number-model.tsv`, `number-tower.tsv` and `edge.tsv`. That also
 settles G3's fifth open question ("re-founding `super()`") in favour of
 the kind-lift, though it was the number-tower work that settled it.
+The kind-lift was then widened to the full immediate-parent-type rule
+(2026-08-29, docs/design/SUPER.0.md, owner ruling): `super()` descends
+into maps and lists, unwraps preferences, distributes over
+disjunctions and reads a constraint's kind or domain — `top` only
+where `top` is the immediate parent — pinned by `super.tsv` in both
+ports, with recursion residuals held symbolic as the recorded phase
+boundary.
 And `PrefVal`'s single yardstick — `superpeg`, computed by
 `resuper()` — is both the type it reports and the gate an overriding
 peer must pass. It briefly carried a second, `familypeg`, added when

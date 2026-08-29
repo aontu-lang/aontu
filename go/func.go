@@ -459,6 +459,19 @@ func (f *FuncVal) Unify(peer Val, ctx *Ctx) Val {
 		pegdone = false
 	}
 
+	// super() over a DIRECT recursion residual never resolves: the
+	// pending call IS the finite answer (docs/design/SUPER.0.md, the
+	// phase boundary), printing as written and refusing at generation
+	// as an unexpanded recursion does. Residuals met DURING descent
+	// are minted as pending child calls by superOf; only the direct
+	// argument defers, or resolve would re-mint the same call inside
+	// one pass forever. Mirrors SuperFuncVal.deferResolve in TS.
+	if "super" == f.name && 0 < len(newpeg) {
+		if _, isRec := newpeg[0].(*RecurseVal); isRec {
+			pegdone = false
+		}
+	}
+
 	if pegdone {
 		result := f.resolve(ctx, base, newpeg)
 		if result == nil { //coverage:ignore no resolve arm returns nil
@@ -800,30 +813,14 @@ func (f *FuncVal) resolve(ctx *Ctx, base []string, args []Val) Val {
 		out.path = cp(base)
 		return out
 	case "super":
-		// super(x) is the lattice-superior of its ARGUMENT, not of the
-		// super() call itself: super(1) -> integer, super(1.5) ->
-		// float, super(a) -> string, super(true) -> boolean.
-		// Returning the func's own superior (top) is what made super()
-		// inert.
-		if len(args) > 0 && args[0] != nil {
-			// A kind argument climbs the KIND lattice — super(integer)
-			// and super(float) are `number`, super(number) is top.
-			// ScalarKindVal.superior() cannot answer this: it is also
-			// PrefVal's narrowing gate and must stay top there.
-			if kv, ok := args[0].(*ScalarKindVal); ok {
-				if p, has := kindParent(kv.kind); has {
-					return newScalarKind(p)
-				}
-				return f.superior()
-			}
-			if sup := args[0].superior(); sup != nil && !isTop(sup) {
-				// Where the argument has no meaningful superior,
-				// superior() answers top and we fall through to the
-				// previous behaviour.
-				return sup
-			}
-		}
-		return f.superior()
+		// THE IMMEDIATE PARENT TYPE (docs/design/SUPER.0.md): the
+		// structural walk in superOf below, mirroring superOf in
+		// ts/src/val/SuperFuncVal.ts. A DIRECT residual argument never
+		// reaches here — the pegdone defer above holds the call
+		// symbolic, as SuperFuncVal.deferResolve does. One argument,
+		// always: funcArity pins super at {1, 1} before any resolve —
+		// a guarded fallback here is dead code under ADR-002.
+		return superOf(cp(base), args[0])
 	case "move":
 		// Move the referenced value here, hiding it at the source. The
 		// moved copy always arrives behind a pref() func (exactly the
@@ -847,6 +844,137 @@ func (f *FuncVal) resolve(ctx *Ctx, base []string, args []Val) Val {
 		return nf
 	}
 	return makeNilErr(ctx, "func:"+f.name, f, nil)
+}
+
+// superOf answers the immediate parent type of a RESOLVED value
+// (docs/design/SUPER.0.md; twin of superOf in
+// ts/src/val/SuperFuncVal.ts). The lattice primitive superior() stays
+// the preference override gate; everything structural is this walk:
+// maps and lists lift child by child, preferences unwrap, disjunctions
+// distribute, constraints answer the kind they constrain, and a
+// recursion residual met during descent stays a symbolic call.
+func superOf(path []string, v Val) Val {
+	switch tv := v.(type) {
+
+	// A failed argument is the failure: super(1 & 2) reports the
+	// conflict, it does not type it.
+	case *NilVal:
+		return v
+
+	// The residual's lift is itself recursive, so the finite answer
+	// is the symbolic call: a fresh pending super() holding the
+	// residual, standing wherever the residual stood -- the `next?`
+	// slot of a lifted recursive body prints `super($.Node)` and
+	// drops under an optional key at generation.
+	case *RecurseVal:
+		nf := newFunc("super", []Val{clonePath(tv, cp(path))})
+		nf.path = cp(path)
+		nf.sp, nf.spu, nf.surl = tv.sp, tv.spu, tv.surl
+		return nf
+
+	// Maps and lists lift child by child. Shape is carried, not
+	// lifted: key optionality and closedness describe the container,
+	// and the spread template lifts so the result admits at the
+	// lifted level for future keys exactly as the original admitted
+	// at its own. A fresh bag (ADR-005 instantiation): type/hide
+	// marks are not copied -- the lift of a hidden definition is
+	// output.
+	case *MapVal:
+		out := newMap()
+		out.path = cp(path)
+		out.sp, out.spu, out.surl = tv.sp, tv.spu, tv.surl
+		out.closed = tv.closed
+		out.optional = append([]string{}, tv.optional...)
+		if tv.spread != nil {
+			out.spread = superOf(append(cp(path), "&"), tv.spread)
+		}
+		for _, k := range tv.keys {
+			out.set(k, superOf(append(cp(path), k), tv.peg[k]))
+		}
+		return out
+
+	case *ListVal:
+		elems := make([]Val, 0, len(tv.peg))
+		for i, e := range tv.peg {
+			elems = append(elems, superOf(append(cp(path), itoa(i)), e))
+		}
+		out := newList(elems)
+		out.path = cp(path)
+		out.sp, out.spu, out.surl = tv.sp, tv.spu, tv.surl
+		out.closed = tv.closed
+		if tv.spread != nil {
+			out.spread = superOf(append(cp(path), "&"), tv.spread)
+		}
+		return out
+
+	// The parent TYPE of a soft value is the parent of the value --
+	// softness does not survive typing. Deliberately NOT superpeg,
+	// whose top-for-a-kind answer is override-gate semantics.
+	case *PrefVal:
+		return superOf(path, tv.peg)
+
+	// A choice lifts arm by arm: super(1|2) is integer, super(1|"a")
+	// is integer|string. An arm whose lift is top absorbs the whole
+	// answer -- a disjunct carrying top says nothing -- and duplicate
+	// lifts collapse so the common case answers as the one kind it is.
+	case *DisjunctVal:
+		arms := make([]Val, 0, len(tv.peg))
+		seen := map[string]bool{}
+		for _, a := range tv.peg {
+			lift := superOf(path, a)
+			if isTop(lift) {
+				return top()
+			}
+			c := lift.Canon()
+			if !seen[c] {
+				seen[c] = true
+				arms = append(arms, lift)
+			}
+		}
+		if 1 == len(arms) {
+			return arms[0]
+		}
+		out := newDisjunct(arms)
+		out.path = cp(path)
+		out.sp, out.spu, out.surl = tv.sp, tv.spu, tv.surl
+		return out
+
+	// A constraint's parent is the kind it constrains: the absorbed
+	// leaf kind when it has one (integer & min(3) -> integer), else
+	// the domain its atoms compare in (min(3) -> number, min("a") ->
+	// string). length() constrains strings, lists and maps alike, so
+	// with neither it falls through to top.
+	case *ConstraintVal:
+		if tv.kind != KindTop {
+			return newScalarKind(tv.kind)
+		}
+		if "number" == tv.domain {
+			return newScalarKind(KindNumber)
+		}
+		if "string" == tv.domain {
+			return newScalarKind(KindString)
+		}
+		return top()
+
+	// A kind argument climbs the KIND lattice -- super(integer) and
+	// super(float) are `number`, super(number) is top. The struct's
+	// own superior() cannot answer this: it is also PrefVal's
+	// narrowing gate and must stay top there.
+	case *ScalarKindVal:
+		if p, has := kindParent(tv.kind); has {
+			return newScalarKind(p)
+		}
+		return top()
+	}
+
+	// The lattice primitive answers for the forms it always served: a
+	// concrete scalar lifts to its leaf kind, and top to itself. Where
+	// it has no meaningful answer (superior() defaults to top), top is
+	// the honest remainder.
+	if sup := v.superior(); sup != nil && !isTop(sup) {
+		return sup
+	}
+	return top()
 }
 
 // caseUpper / caseLower apply FULL Unicode case mapping, matching
