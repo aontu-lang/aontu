@@ -37,3 +37,8 @@ go/coverage.out
 go/bin/
 go/covdata/
 go/coverage*.out
+
+# Build artifacts (never commit binaries)
+go/aontu
+go/bin/
+go/covdata/
