@@ -1,0 +1,9 @@
+# dangling.aon --- a reference that resolves nowhere. This is not a
+# loss to report: the document does not stand up on its own, so there
+# is no unified value to export, and the verb refuses with exit 4 and
+# [aontu/no_path] -- the same class as any other verb given a document
+# that does not evaluate.
+spec: {
+  owner: $.people.alice.email
+}
+people: {}

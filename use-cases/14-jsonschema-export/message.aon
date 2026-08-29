@@ -1,0 +1,22 @@
+# message.aon --- one wire message, exported WHOLE.
+#
+# The document's root is a single close() expression, so the export's
+# root object carries `additionalProperties: false` directly: the
+# schema you hand a structured-output API or an OpenAPI components
+# entry, with no envelope key to strip.
+#
+# Everything here is chosen to cross exactly (reference-api.md, "What
+# crosses exactly"): re() as `pattern`, a scalar disjunction as
+# `enum` (and its '*' preference as `default`), length() on strings
+# as minLength/maxLength, bounds as minimum/maximum, and the two
+# optional keys simply absent from `required`.
+
+close({
+  id: string & re("^evt_[0-9a-f]{12}$")
+  ts: string & re("^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$")
+  kind: created | updated | deleted
+  actor: string & re("^[a-z0-9._\\-]+@corp[.]example$")
+  priority: *normal | low | high
+  note?: string & length(min(1) & max(500))
+  retries?: integer & min(0) & max(5)
+})

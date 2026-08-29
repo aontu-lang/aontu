@@ -1,0 +1,32 @@
+# residue.aon --- everything JSON Schema cannot say, in one report.
+#
+# The export's contract (reference-api.md): what does not cross is
+# REPORTED to stderr, never dropped in silence -- a converter that
+# quietly lost a constraint would hand its caller a schema that admits
+# MORE than the model does. This document collects one instance of
+# each loss class; check.sh pins the exported schema, every stderr
+# line, and the --strict exit flip.
+#
+# What each field becomes (probed, not guessed):
+#
+#   total       must() is evaluate-only, and the engine holds the WHOLE
+#               value residual, so the export is {} and the report says
+#               `nil` -- the `number` bound beside it is lost too.
+#   amountEur   bigdecimal exports as "number" with the exactness loss
+#               reported; money.aon is the convention that avoids this.
+#   audit       hide() is omitted entirely, and reported: a consumer
+#               is neither asked for it nor allowed to know about it.
+#   annotations a spread template carrying a constraint call stays
+#               residual, so additionalProperties is {} and the `&`
+#               entry is reported `unresolved`. (A bare-kind template,
+#               registry.aon's labels, crosses without loss.)
+#   attempts    length() on a list has no domain until data arrives:
+#               exported as minItems/maxItems, and still reported.
+
+report: {
+  total: number & must((v) => 0 <= v, "total must not be negative")
+  amountEur: bigdecimal
+  audit: hide("kept-off-the-wire")
+  annotations: { &: string & length(max(63)) }
+  attempts: [&: integer] & length(max(3))
+}

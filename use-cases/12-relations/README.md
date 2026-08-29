@@ -11,7 +11,7 @@ An ETL pipeline: four jobs, each an entity (`id(job_extract)` …), and
 one relation — `feeds`, with its written-out inverse `fedBy`. The
 WHOLE declaration is one line of schema (spec.aon):
 
-    feeds?: rel($.shape.JobShape) & re("^job_") & acyclic() & inverse(fedBy)
+    feeds?: rel($.spec.JobShape) & re("^job_") & acyclic() & inverse(fedBy)
 
 - `rel(t)` — the field's strings are checked entity addresses, and
   `t` flows into every target (the old `target:` declaration, now the

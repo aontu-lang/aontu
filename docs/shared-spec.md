@@ -73,6 +73,13 @@ name <TAB> agentsmd <TAB> src <TAB> document-name <TAB> expect
 | `hcanon` | `unify(src)` then its HASH FORM — canon plus the `close()`/`type()`/`hide()` wrappers — must equal `expect`, and that text must round-trip through the engine unchanged |
 | `hash`  | `canonHash(unify(src))` must equal `expect`, the full `aon1-…` pin |
 
+Every mode above is dispatched by name in `ts/test/spec.test.ts` and
+mirrored by `go/spec_test.go` — the newer `vet`, `graph`, `relation`
+and `reaches` modes included. Recursive schemas need no mode of their
+own: their rows live in
+[`test/spec/recursion.tsv`](../test/spec/recursion.tsv) and pin the
+fixpoint through the ordinary modes (mostly `gens` and `errc`).
+
 For `gen`, the generated value and the expected JSON are compared
 structurally (numeric type and object key order do not matter). That
 comparison is weaker than it looks, and choosing the wrong mode because

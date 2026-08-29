@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "actor": {
+      "pattern": "^[a-z0-9._\\-]+@corp[.]example$",
+      "type": "string"
+    },
+    "id": {
+      "pattern": "^evt_[0-9a-f]{12}$",
+      "type": "string"
+    },
+    "kind": {
+      "enum": [
+        "created",
+        "updated",
+        "deleted"
+      ]
+    },
+    "note": {
+      "maxLength": 500,
+      "minLength": 1,
+      "type": "string"
+    },
+    "priority": {
+      "default": "normal",
+      "enum": [
+        "normal",
+        "low",
+        "high"
+      ]
+    },
+    "retries": {
+      "maximum": 5,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "ts": {
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$",
+      "type": "string"
+    }
+  },
+  "required": [
+    "actor",
+    "id",
+    "kind",
+    "priority",
+    "ts"
+  ],
+  "type": "object"
+}

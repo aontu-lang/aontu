@@ -9,7 +9,8 @@ produce identical diagnostic text for the same source.
 
 This document is a **reference**: it is exhaustive about the architecture,
 the library API in both languages, the supported protocol surface, and how
-to wire the server into an editor.
+to run the server. Wiring it into an editor is a task, and lives in the
+[wire your editor](how-to/wire-your-editor.md) guide.
 
 - [What it does](#what-it-does)
 - [Architecture: library vs. server](#architecture-library-vs-server)
@@ -45,14 +46,26 @@ It reports *genuine errors* only:
 | `a:1 & string`          | yes — `no_scalar_unify`                        |
 | `x:foo(1)`              | yes — `unknown_function`                       |
 | `a:$.missing`           | yes — `no_path`                                |
+| `b: refer() & "nope"`   | yes — `refer_unresolved` (a `rel()` member naming no entity: `rel_unresolved`) |
 | `a:string`              | **no** — a non-concrete schema is valid        |
 | `a:{b:string, c:1}`     | **no** — partial/constraint documents are valid |
 | `port:*8080 \| integer` | **no** — defaults and disjunctions are valid    |
+| `a: $.a`                | **no** — a recursive reference is a valid schema |
 
 This distinction is deliberate: Aontu documents are frequently schemas or
 partial fragments, which are *not concrete* but are *not errors*. The
 server flags only contradictions and unresolved/unknown constructs. See
 [How diagnostics are computed](#how-diagnostics-are-computed).
+
+Verdicts that land at generation stay out of the editor. A required
+recursive position that no data expanded (`recursion_unexpanded`) and a
+relation finding from `acyclic()` (`relation_cycle`) are generate-time
+refusals, so `computeDiagnostics` publishes nothing for either.
+
+One diagnostic is not an error: a value carrying `deprecate()` is
+published with code `deprecated` at Hint severity (4), tagged with the
+native Deprecated tag (2), so editors strike it through without
+shouting.
 
 **Hover** reads the *unified* tree, so hovering a value shows what it
 resolves to: e.g. hovering `8080` in `port: 8080` shows `8080` with kind
@@ -60,11 +73,10 @@ resolves to: e.g. hovering `8080` in `port: 8080` shows `8080` with kind
 concrete values (scalars, kinds, references), not containers.
 
 **Completion** offers a context-free list (clients filter by the typed
-prefix): the built-in functions — the engine's full roster, 28 today,
-the constraint atoms (`min`, `re`, `length`, …), `deprecate`,
-`id`/`refer` and `pack`/`each`/`filter`/`match` included alongside
-the original twelve — the
-scalar-kind keywords (`string`, `number`, `integer`, `float`,
+prefix): the built-in functions — the engine's full roster, 41 today,
+the constraint atoms (`min`, `re`, `length`, …) and the entity and
+relation atoms (`id`, `refer`, `rel`, `acyclic`, `inverse`) included —
+the scalar-kind keywords (`string`, `number`, `integer`, `float`,
 `biginteger`, `bigdecimal`, `boolean`) and the
 literals (`_`, `true`, `false`, `null`, `top`).
 
@@ -136,6 +148,7 @@ with no arguments.
 
 **TypeScript** (Node ≥ 22):
 
+<!-- test: skip build-and-launch commands for a long-running stdio server; the transport is round-trip tested in ts/test/lsp.test.ts -->
 ```sh
 cd ts && npm install && npm run build
 node ts/bin/aontu-lsp.js
@@ -145,6 +158,7 @@ aontu-lsp
 
 **Go**:
 
+<!-- test: skip build-and-launch commands for a long-running stdio server; the transport is round-trip tested in go/cmd/aontu-lsp/main_test.go -->
 ```sh
 cd go && go build -o aontu-lsp ./cmd/aontu-lsp
 ./aontu-lsp
@@ -159,65 +173,12 @@ from a client's point of view.
 ## Editor configuration
 
 Ready-made plugins for **VS Code**, **Emacs** and **Vim/Neovim** live in
-[`editors/`](../editors/) — each is a thin client that launches
-`aontu-lsp`. Install instructions are in the per-editor READMEs. The
-snippets below show the minimal manual wiring if you prefer to configure a
-client yourself.
-
-Associate the language server with Aontu source files. `.aon` is the
-preferred extension and `.aontu` also works (`.jsonic` is retired). The
-server has no configuration options.
-
-### VS Code
-
-There is no published extension; the smallest path is a tiny custom
-extension whose `activate` starts the server with
-[`vscode-languageclient`](https://www.npmjs.com/package/vscode-languageclient):
-
-```ts
-import { workspace, ExtensionContext } from 'vscode'
-import { LanguageClient, TransportKind } from 'vscode-languageclient/node'
-
-export function activate(_ctx: ExtensionContext) {
-  const serverModule = '/abs/path/to/aontu/ts/bin/aontu-lsp.js' // or the Go binary
-  const client = new LanguageClient(
-    'aontu',
-    'Aontu',
-    {
-      run:   { module: serverModule, transport: TransportKind.stdio },
-      debug: { module: serverModule, transport: TransportKind.stdio },
-    },
-    { documentSelector: [{ scheme: 'file', language: 'aontu' }] },
-  )
-  client.start()
-}
-```
-
-(For the Go binary, use `{ command: '/abs/path/to/aontu-lsp', transport: TransportKind.stdio }` instead of `module`.)
-
-### Neovim (built-in LSP)
-
-```lua
-vim.filetype.add({ extension = { aontu = 'aontu' } })
-
-vim.api.nvim_create_autocmd('FileType', {
-  pattern = 'aontu',
-  callback = function(args)
-    vim.lsp.start({
-      name = 'aontu-lsp',
-      cmd = { 'aontu-lsp' },           -- or { 'node', '/abs/path/ts/bin/aontu-lsp.js' }
-      root_dir = vim.fs.dirname(args.file),
-    })
-  end,
-})
-```
-
-### Any LSP client
-
-Configure a server whose **command** is `aontu-lsp` (or `node
-.../lsp-server.js`), **transport** is stdio, and **document selector** is
-the `aontu` language / `*.aontu` glob. No initialization options are
-required.
+[`editors/`](../editors/), and the manual wiring recipes for VS Code,
+Neovim and any other LSP client have moved to the
+[wire your editor](how-to/wire-your-editor.md) guide. The facts a client
+needs: command `aontu-lsp`, transport stdio, document selector the
+`aontu` language (`.aon` is the preferred extension, `.aontu` also
+works, `.jsonic` is retired), and no configuration options.
 
 
 ## Library API
@@ -227,6 +188,7 @@ required.
 Import from the built package (`ts/dist/lsp`) or from source
 (`ts/src/lsp.ts`).
 
+<!-- test: skip TypeScript import sample; the exported surface is pinned by ts/test/lsp.test.ts -->
 ```ts
 import {
   computeDiagnostics,
@@ -249,23 +211,26 @@ document (including a non-concrete schema) returns `[]`.
 
 `Diagnostic` is LSP-shaped:
 
+<!-- test: skip type shapes quoted from ts/src/lsp.ts; pinned by ts/test/lsp.test.ts -->
 ```ts
 type Position = { line: number; character: number }   // 0-based; UTF-16 chars
 type Range    = { start: Position; end: Position }
 type Diagnostic = {
   range: Range
-  severity: number       // SEVERITY_ERROR (1)
+  severity: number       // SEVERITY_ERROR (1); SEVERITY_HINT (4) for "deprecated"
   code?: string          // engine error code, e.g. "scalar_value"
   source: string         // always "aontu"
   message: string
+  tags?: number[]        // LSP DiagnosticTag values; [2] marks "deprecated"
 }
 ```
 
+<!-- test: skip TypeScript API sample; results probed against ts/dist/lsp.js and pinned by ts/test/lsp.test.ts -->
 ```ts
 computeDiagnostics('a:1\na:2')
 // [{ range: { start: { line: 1, character: 2 }, end: { line: 1, character: 3 } },
 //    severity: 1, code: 'scalar_value', source: 'aontu',
-//    message: 'Cannot unify value: 2 with value: 1\n...' }]
+//    message: '[aontu/scalar_value]: Cannot unify values at path $.a\n...' }]
 
 computeDiagnostics('a:string') // []  (valid schema)
 ```
@@ -275,6 +240,7 @@ computeDiagnostics('a:string') // []  (valid schema)
 Resolve the value at a 0-based `{ line, character }` position and describe
 it, or `null` if the position is not over a concrete value.
 
+<!-- test: skip TypeScript API sample; results probed against ts/dist/lsp.js and pinned by ts/test/lsp.test.ts -->
 ```ts
 computeHover('port: 8080', { line: 0, character: 7 })
 // { contents: { kind: 'markdown', value: '```aontu\n8080\n```\n\n*integer*' },
@@ -292,6 +258,7 @@ exported `BUILTIN_FUNCS` is the function-name list.
 The transport-agnostic protocol state machine. Construct one per session
 and feed it decoded JSON-RPC message objects.
 
+<!-- test: skip TypeScript API sample; the handler is pinned by ts/test/lsp.test.ts -->
 ```ts
 const handler = new LspHandler()
 const replies: OutMessage[] = handler.handle({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} })
@@ -315,6 +282,7 @@ without real stdio. Most users want the `aontu-lsp` binary instead.
 
 Import `github.com/aontu-lang/aontu/go/lsp`.
 
+<!-- test: skip Go import sample; the exported surface is pinned by go/lsp/lsp_test.go -->
 ```go
 import "github.com/aontu-lang/aontu/go/lsp"
 ```
@@ -324,18 +292,21 @@ import "github.com/aontu-lang/aontu/go/lsp"
 Analyse one document and return its diagnostics (empty for valid
 documents). `DiagnosticsVars(src, vars)` adds `$name` bindings.
 
+<!-- test: skip struct shapes quoted from go/lsp/lsp.go; pinned by go/lsp/lsp_test.go -->
 ```go
 type Position struct { Line int `json:"line"`; Character int `json:"character"` }
 type Range    struct { Start Position `json:"start"`; End Position `json:"end"` }
 type Diagnostic struct {
     Range    Range  `json:"range"`
-    Severity int    `json:"severity"` // SeverityError (1)
+    Severity int    `json:"severity"` // SeverityError (1); SeverityHint (4) for "deprecated"
     Code     string `json:"code,omitempty"`
     Source   string `json:"source"`   // "aontu"
     Message  string `json:"message"`
+    Tags     []int  `json:"tags,omitempty"` // LSP DiagnosticTag values; [2] marks "deprecated"
 }
 ```
 
+<!-- test: skip Go API sample; behaviour is pinned by go/lsp/lsp_test.go and kept in parity with the probed TypeScript results -->
 ```go
 d := lsp.Diagnostics("a:1\na:2")
 // d[0].Code == "scalar_value", d[0].Range.Start == {Line:1, Character:2}
@@ -421,7 +392,7 @@ The analysis layer turns source into diagnostics in three steps:
 1. **Unify.** Parse and run the fixpoint unification over the whole
    document (in error-collecting mode; it never throws on conflicts).
 2. **Walk for `NilVal`s.** Traverse the unified result tree and collect
-   every `NilVal` node. This is the key idea: in Aontu a `NilVal` in the
+   every `NilVal` node. The rule: in Aontu a `NilVal` in the
    *result* is always a real error (a conflict, an unresolved reference,
    an unknown function, …). Valid-but-non-concrete values — scalar kinds
    like `string`, unresolved references, conjuncts — are **not** `NilVal`s,
@@ -430,8 +401,9 @@ The analysis layer turns source into diagnostics in three steps:
 3. **Map to LSP.** Each `NilVal` carries a source position (1-based
    row/col in TS; a byte offset in Go) and the offending value's canon.
    These become a 0-based LSP range whose end extends across the canon
-   length. The message is built as `Cannot <attempt> value: X with value:
-   Y` followed by the engine hint — identically in both languages.
+   length. The message is the engine's full error text — the
+   `[aontu/<code>]` marker line, the hint, and the located source
+   frames — identical in both languages.
 
 A hard **syntax error** (which prevents producing a tree) is reported as a
 single diagnostic with code `parse`, positioned where the parser failed if
@@ -481,8 +453,10 @@ analysis layer (layer 1) and advertised in `initialize` (layer 2):
 - **Incremental sync** — the server uses Full document sync for
   simplicity; range-based incremental edits could be added in the handler
   without touching the analysis layer.
-- **Warnings/info severities** — all diagnostics are currently
-  `Error`; the severity constants exist for future use.
+- **Warnings/info severities** — engine problems are all published as
+  `Error`; the one exception is `deprecated`, at Hint severity with the
+  Deprecated tag. The Warning and Information constants exist for
+  future use.
 - **Number-canon edge cases** — diagnostic ranges are sized by the
   offending value's canon length; see the *numeric canon* note in
   [`AGENTS.md`](../AGENTS.md) for the documented decimal subset.

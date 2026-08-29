@@ -1,45 +1,53 @@
-# Tutorial: your first unifications
+# Tutorial: build a config that checks itself
 
-This is a hands-on introduction. By the end you will have installed
-Aontu, run it from both TypeScript and Go, used every core feature to
-build up a small service configuration that is part schema, part
-default, and part data — all in one document — and then turned the
-`aontu` command on what you built: validating data against it,
-querying it, and asking it where a value came from.
+A service config is three documents wearing one file format: the
+values, the rules the values must obey, and the fallbacks for what
+nobody said. Most stacks store the three separately and hope. In Aontu
+they are one document, combined by one operation — unification — and
+the result is a config that can check itself.
 
-You do not need to understand *why* unification works yet (that is the
-[Explanation](explanation.md)); just follow along and watch what each
-step produces. Every snippet here is real, tested behaviour.
+That is what we build here, feature by feature, and then interrogate:
+run it, validate other people's data against it, ask it where a value
+came from. You do not need to know *why* unification behaves the way
+it does yet (the [explanation](explanation.md) argues that); watch
+what each step produces. Every snippet on this page is executed by the
+test suite, and every output is the engine's.
 
 ## 1. Set up
 
+If Aontu is already installed, skip to [§2](#2-objects-are-just-keys-and-values).
+
 ### TypeScript
 
+Install and build inside the repo's `ts/` directory:
+
+<!-- test: skip environment setup; npm and node are outside the transcript vocabulary -->
 ```sh
 cd ts
 npm install
 npm run build      # compiles src + test into dist/ and dist-test/
 ```
 
-Create a scratch file `play.js` next to `ts/`:
+A scratch `play.js` next to `ts/` is enough to call the library:
 
+<!-- test: skip TypeScript API sample; the API is pinned by ts/test/aontu.test.ts -->
 ```js
 const { Aontu } = require('aontu')   // when installed from npm
-// from inside this repo, use: require('./ts/dist/aontu')
+// from inside this repo: require('./ts/dist/aontu')
 
 const aontu = new Aontu()
 console.log(aontu.generate('hello: world'))
+// { hello: 'world' }
 ```
 
-```sh
-node play.js
-# { hello: 'world' }
-```
-
-`generate` takes Aontu source text and returns a plain JavaScript value.
+`generate` takes Aontu source text and returns a plain JavaScript
+value. That is the whole API surface you need today.
 
 ### Go
 
+The Go port lives in `go/`:
+
+<!-- test: skip environment setup; go is outside the transcript vocabulary -->
 ```sh
 cd go
 go test ./...      # confirms the toolchain works
@@ -47,6 +55,7 @@ go test ./...      # confirms the toolchain works
 
 A scratch `main.go`:
 
+<!-- test: skip Go API sample; the API is pinned by go/aontu_test.go -->
 ```go
 package main
 
@@ -62,22 +71,38 @@ func main() {
 ```
 
 The two implementations accept the same source and produce the same
-shape. The rest of this tutorial shows source text and the result; run
-it in whichever language you prefer.
+shape; the parity is pinned by a [shared spec](shared-spec.md) both
+test suites run. The rest of this page shows source and result — run
+them in whichever language you keep at hand.
 
-> **Tip — try snippets instantly.** Both implementations also ship an
-> `aontu` command. From a clone you can pipe any example straight in:
-> `echo 'a:1 b:$.a' | node ts/bin/aontu.js` (or `go run ./cmd/aontu`
-> inside `go/`). Installed from npm (`npm i -g aontu`) the command is
-> just `aontu`, which is how the last two sections write it. Running
-> `aontu` with no file starts a REPL. See the
-> [API reference](reference-api.md#command-line-interface).
+### The `aontu` command
+
+Both implementations also ship an `aontu` command, and this page
+writes its CLI moments as transcripts of it. From a clone the command
+is `node ts/bin/aontu.js` (or `go run ./cmd/aontu` from inside `go/`);
+installed from npm (`npm i -g aontu`) it is plain `aontu`, which is
+how the transcripts spell it. Pipe a snippet in:
+
+<!-- test: run -->
+```sh
+$ echo 'a:1 b:$.a' | aontu
+{
+  "a": 1,
+  "b": 1
+}
+```
+
+`b` followed a reference to `a` before printing — even a piped
+one-liner is fully evaluated. Run `aontu` with no file and you get a
+REPL; the [API reference](reference-api.md#command-line-interface)
+covers both.
 
 ## 2. Objects are just keys and values
 
-Aontu source looks like relaxed JSON (it is parsed by
-[`@tabnas/jsonic`](https://github.com/tabnas/jsonic), so quotes, commas,
-and braces are mostly optional):
+Aontu source reads as relaxed JSON (it is parsed by
+[`@tabnas/jsonic`](https://github.com/tabnas/jsonic), so quotes,
+commas and braces are mostly optional). Plain data is legal on its
+own:
 
 ```aontu
 name: Mercury
@@ -91,7 +116,10 @@ rocky: true
 { "name": "Mercury", "order": 1, "rocky": true }
 ```
 
-Nesting works by repeating keys with a colon — `a:b:c:1` is the same as
+No quotes on `Mercury`, no braces, no commas; the output is ordinary
+JSON all the same.
+
+Nesting repeats keys with a colon — `a:b:c:1` means
 `a: { b: { c: 1 } }`:
 
 ```aontu
@@ -105,23 +133,28 @@ server: port: 8080
 { "server": { "host": "localhost", "port": 8080 } }
 ```
 
-Notice the two `server:` lines did not collide — they **merged**. That
-merge is your first unification.
+The two `server:` lines did not collide. They merged, and that merge
+is your first unification.
 
 ## 3. Unification: combining facts
 
-Stating two things about the same place combines them. If they agree (or
-one is more specific), you get the combination. The explicit operator is
-`&`, but for map keys it happens automatically:
+Stating two things about the same place combines them. The explicit
+operator is `&`; between map keys it happens on its own:
 
 ```aontu
 server: { host: localhost }
 server: { port: 8080 }
 ```
 
-→ `{ "server": { "host": "localhost", "port": 8080 } }`
+→
 
-If they *disagree*, you get an error instead of a wrong answer:
+```json
+{ "server": { "host": "localhost", "port": 8080 } }
+```
+
+Where the statements agree, or one is more specific, unification keeps
+the combination. Where they disagree, we want an error, and we get
+one:
 
 ```aontu
 port: 8080
@@ -131,140 +164,158 @@ port: 9090
 → fails with:
 
 ```
+[aontu/scalar_value]: Cannot unify values at path $.port
+
 Cannot unify value: 9090 with value: 8080
 ```
 
-This is the whole point of Aontu: combining information can only ever
-**narrow** toward a single answer or **fail loudly**. It never picks one
-fact over another silently.
+(Trimmed; the real message also quotes both source lines, with a
+caret under each.) Combining information can only narrow toward a
+single answer or fail loudly. Aontu never picks one fact over the
+other silently.
 
 ## 4. Types as values
 
-A bare type name is a value too — it means "any value of this kind":
-
-```aontu
-port: integer
-```
-
-Unify a type with a concrete value and the value wins, *provided it
-fits*:
+A bare type name is a value too — it means "any value of this kind".
+Unify it with a concrete value and the value wins, provided it fits:
 
 ```aontu
 port: integer
 port: 8080
 ```
 
-→ `{ "port": 8080 }`
+→
 
-But:
+```json
+{ "port": 8080 }
+```
+
+And when it does not fit:
 
 ```aontu
 port: integer
 port: "high"
 ```
 
-→ `Cannot unify value: "high" with value: integer`
+→ fails with:
+
+```
+[aontu/no_scalar_unify]: Cannot unify values at path $.port
+
+Cannot unify value: "high" with value: integer
+```
 
 The built-in kinds are `string`, `boolean`, `top` (the catch-all that
-fits anything), and the numeric family: `number`, which covers every
+admits anything), and the numeric family: `number` covers every
 numeric value, over its four leaves `integer`, `float`, `biginteger`
 and `bigdecimal`. Say `number` when you mean "some number", and name a
-leaf when you mean that leaf — `port: integer` will not accept `8080.5`.
-Now your config is starting to carry its own schema.
+leaf when you mean that leaf — `port: integer` will not accept
+`8080.5`. Your config now carries the first piece of its own schema.
 
 ## 5. Exact numbers with `0d`
 
-An ordinary number in Aontu — like an ordinary number in JSON — is a
-binary floating-point value. That is the right choice for a port or a
-timeout, and the wrong one for money and for large identifiers,
-because binary cannot represent every decimal:
+An ordinary Aontu number, like an ordinary JSON number, is a binary
+floating-point value. For a port or a timeout that is fine. For money
+and for large identifiers it is not, because binary cannot represent
+every decimal:
 
 ```aontu
 total: 0.1 + 0.2
 ```
 
-→ `{ "total": 0.30000000000000004 }`
+→
 
-Prefix a number with `0d` and you get an **exact** value instead,
-stored as decimal digits and computed without rounding:
-
-```aontu
-total: 0d0.1 + 0d0.2
+```json
+{ "total": 0.30000000000000004 }
 ```
 
-→ `{ "total": 0.3 }`
+Prefix the literals with `0d` and the arithmetic is exact, stored as
+decimal digits and computed without rounding:
 
-The prefix is only source syntax; the digits generate as an ordinary
-JSON number. Whole digits give a `biginteger` (`0d5`), and a decimal
+<!-- test: run -->
+```sh
+$ echo 'total: 0d0.1 + 0d0.2' | aontu
+{
+  "total": 0.3
+}
+```
+
+The prefix is source syntax only; the digits generate as an ordinary
+JSON number. Whole digits give a `biginteger` (`0d5`); a decimal
 point or an exponent gives a `bigdecimal` (`0d19.99`, `0d1e3`).
-Neither has a size limit worth worrying about.
+Neither has a practical size limit.
 
-The same care shows up as a refusal. If a number cannot be stored
-without silently changing it, Aontu will not store it:
+The same care shows up as a refusal. A literal that cannot be stored
+without silently becoming a different number is not stored:
 
-```aontu
-id: 9007199254740993
-```
+<!-- test: run -->
+```sh
+$ echo 'id: 9007199254740993' | aontu
+[aontu/lossy_integer_literal]: Cannot resolve value at path $.id
 
-→ fails with:
-
-```
 This integer literal, 9007199254740993, is not exactly representable in
 binary64, so storing it would silently round it to a DIFFERENT
 number. Aontu refuses rather than corrupts: write it as a `0d`
 literal to get the exact integer.
+...
+$ echo $?
+1
 ```
 
-That value is 2^53+1, just past the point where doubles start skipping
-whole numbers. Take the hint and the document works again, with the
-exact ID intact:
+That value is 2^53+1, just past where doubles start skipping whole
+numbers. Take the hint:
 
-```aontu
-id: 0d9007199254740993
+<!-- test: run -->
+```sh
+$ echo 'id: 0d9007199254740993' | aontu
+{
+  "id": 9007199254740993
+}
 ```
 
-→ `{ "id": 9007199254740993 }`
-
-One thing to remember when you write the schema: an exact value is
-*not* an `integer`, so constrain it with `biginteger` (or with
-`number`, which accepts any numeric leaf).
+The exact ID survives to the output. One thing to remember when you
+write the schema: an exact value is a `biginteger` or a `bigdecimal`,
+never an `integer`, so constrain it with the exact leaf (or with
+`number`, which admits any numeric leaf).
 
 ## 6. Defaults with `*`
 
-Mark a value as a **default** with `*`. A default is used only if nothing
-more specific is supplied:
+Mark a value as a **default** with `*`. A default is used only when
+nothing more specific is supplied:
 
 ```aontu
 port: *8080 | integer
 ```
 
-The `|` here is **disjunction** — a choice between alternatives
-(`8080` *or* any `integer`). The `*` picks which branch is preferred when
-the choice is otherwise unforced. On its own:
+→
 
-→ `{ "port": 8080 }`
+```json
+{ "port": 8080 }
+```
 
-Override it by unifying a concrete value:
+The `|` is **disjunction**, a choice between alternatives (`8080` or
+any `integer`), and the `*` says which branch to take when nothing
+forces the choice. Unify a concrete value on top and it wins:
 
 ```aontu
 port: *8080 | integer
 port: 9090
 ```
 
-→ `{ "port": 9090 }`
+→
 
-### The default carries its own kind
+```json
+{ "port": 9090 }
+```
 
-It is tempting to read `*8080 | integer` as "an integer, defaulting to
-8080". That is exactly what it is — the branch admits what its type
-says, and nothing wider:
+Now try a float:
 
 ```aontu
 port: *8080 | integer
 port: 1.5
 ```
 
-→ refused:
+→ fails with:
 
 ```
 [aontu/|:empty]: Cannot unify values at path $.port
@@ -272,31 +323,31 @@ port: 1.5
 Empty disjunction. The disjunction has no valid alternatives.
 ```
 
-A concrete value overrides a default only where it is the *same kind* of
-thing. `integer` and `float` are separate leaves under `number`, so
-`1.5` is not an override of `8080` — it is a different kind of number,
-and the disjunction has no branch left.
-
-When you want a default that anything numeric may override, say so in
-the branch:
+An override must be admitted by one of the branches you wrote, and
+`1.5` is a `float`, which `integer` does not admit — why the gate is
+this strict is argued in the
+[explanation](explanation.md#a-preference-is-gated-by-kind-not-by-family).
+When any number should be able to win, say so in the branch:
 
 ```aontu
 port: *8080 | number
 port: 1.5
 ```
 
-→ `{ "port": 1.5 }`
+→
 
-`*value | kind` is the shape to remember: the kind you write is the kind
-you get. What does *not* work is `port: *8080 & integer` — a conjunction
-is not a choice, so that pins the value at `8080` and refuses `9090` as
-well as `1.5`. The rule is spelled out in the
+```json
+{ "port": 1.5 }
+```
+
+`*value | kind` is the shape to remember: the kind you write is the
+kind you get. The full rule, including enums with defaults, is in the
 [language reference](reference-language.md#preference--default-).
 
 ## 7. References
 
-Pull a value from elsewhere in the document with a path. `$.` starts at
-the root:
+Pull a value from elsewhere in the document with a path; `$.` starts
+at the root:
 
 ```aontu
 defaults: timeout: 30
@@ -309,20 +360,29 @@ service:  timeout: $.defaults.timeout
 { "defaults": { "timeout": 30 }, "service": { "timeout": 30 } }
 ```
 
-A leading `.` is relative to the current object, and `key()` gives the
-key a value is stored under — handy for giving records their own name:
+Change the default once and every reader of the path follows. A
+leading `.` is relative to the current object, and `key()` names the
+key a value is stored under — a compact way to give records their own
+name:
 
 ```aontu
 users: alice: { id: key() }
 users: bob:   { id: key() }
 ```
 
-→ `{ "users": { "alice": { "id": "alice" }, "bob": { "id": "bob" } } }`
+→
+
+```json
+{ "users": { "alice": { "id": "alice" }, "bob": { "id": "bob" } } }
+```
+
+Each record read its own key. The [graph tutorial](tutorial-graph.md)
+picks this thread up again, where names become identities.
 
 ## 8. Templates with `&:` (spread)
 
 A `&:` entry inside a map is a **template** unified into every sibling
-key. Define a shape once and apply it everywhere:
+key. Declare a shape once and it applies everywhere:
 
 ```aontu
 servers: {
@@ -345,47 +405,88 @@ servers: {
 }
 ```
 
-`web` overrode the default region; `db` took both defaults. The template
-itself does not appear in the output. Spreads work in lists too
-(`[&:{...}, ...]`).
+`web` overrode the default region; `db` supplied nothing and took both
+defaults; the template itself does not appear in the output. Spreads
+work in lists too (`[&: {...}]`), and §11 leans on that form.
 
 ## 9. Functions
 
-Aontu has a fixed set of built-in functions. A few useful ones:
+Aontu has a fixed set of built-in functions, and no user-defined ones.
+A few of the everyday ones:
 
 ```aontu
 web:   { region: "eu-west" }
-name:  upper(mercury)      # -> "MERCURY"  (ceiling for numbers)
-slug:  lower(Mercury)      # -> "mercury"  (floor for numbers)
-label: a + b + c           # -> "abc"      (+ concatenates / adds)
-round: upper(0d1.1)        # -> 2.0        (exact ceiling, kind kept)
+name:  upper(mercury)      # -> "MERCURY"
+slug:  lower(Mercury)      # -> "mercury"
+label: a + b + c           # -> "abc"
 copy:  copy($.web)         # deep copy of another node
 ```
 
-There are twenty-eight built-ins in all — bounds like `min` and `max`,
-pattern and length constraints, generators that build children, and the
-marks you meet in the next section. You need none of them today. When
-you do, they are tabulated with examples in the
-[language reference](reference-language.md#functions).
+→
+
+```json
+{
+  "copy":  { "region": "eu-west" },
+  "label": "abc",
+  "name":  "MERCURY",
+  "slug":  "mercury",
+  "web":   { "region": "eu-west" }
+}
+```
+
+`+` concatenates strings and adds numbers; `upper` and `lower` double
+as ceiling and floor on numbers, and they keep exact numbers exact
+(`upper(0d1.1)` prints `2.0`, a `bigdecimal` ceiling). There are
+thirty-seven built-ins in all — bounds, pattern and length
+constraints, generators that build children — tabulated with tested
+examples in the [language reference](reference-language.md#functions).
+You need none of the rest today.
 
 ## 10. Sealing a shape with `close`
 
-By default a map is **open**: unifying in extra keys is allowed.
-`close()` forbids that, turning a shape into a strict schema:
+A map is **open** by default: unifying in extra keys is allowed, which
+is what lets separate files contribute separate keys. A schema usually
+wants the opposite. `close()` seals a shape:
 
 ```aontu
 point: close({ x: number, y: number })
 point: { x: 1, y: 2 }
 ```
 
-→ `{ "point": { "x": 1, "y": 2 } }`, but adding `z: 3` would fail with a
-`closed` error. `open()` reverses it.
+→
+
+```json
+{ "point": { "x": 1, "y": 2 } }
+```
+
+Add a key the shape does not declare and the document refuses:
+
+```aontu
+point: close({ x: number, y: number })
+point: { x: 1, y: 2, z: 3 }
+```
+
+→ fails with:
+
+```
+[aontu/closed]: Cannot resolve value at path $.point.z
+
+Cannot add to closed structure.
+```
+
+`open()` reverses it. How open a schema should be is a genuine design
+dial; [closed values](reference-language.md#closed-values-close--open)
+has the mechanics, and the
+[explanation](explanation.md#closed-world-validation-is-a-dial) the
+trade-off.
 
 ## 11. Putting it together
 
-Here is a single document that is schema, defaults, and data at once.
-Save it as `config.aon`; the last two sections use it:
+Time to spend all of it. Here is a single document that is schema,
+defaults and data at once — save it as `config.aon`:
 
+<!-- test: scenario service-config -->
+<!-- test: file config.aon -->
 ```aontu
 # --- schema + defaults (could live in its own file) ---
 service: close({
@@ -405,13 +506,11 @@ service: {
 }
 ```
 
+Run it:
+
+<!-- test: run -->
 ```sh
-aontu config.aon
-```
-
-→
-
-```json
+$ aontu config.aon
 {
   "service": {
     "host": "localhost",
@@ -426,74 +525,68 @@ aontu config.aon
 }
 ```
 
-Two things in that schema are worth a second look, because the obvious
-spelling of each is weaker than it looks.
+Every default is `*value | kind`, the §6 shape, so `port: 9090.5` is
+refused rather than accepted. And `tags` says `[&: string]` where
+`[string]` might look like enough — a list literal is positional, so
+`[string]` constrains element 0 and waves `tags: [public, 7]` through;
+the [explanation](explanation.md#a-list-literal-is-positional) argues
+why it works that way.
 
-Every default is written as `*value | kind`, the shape from §6 — so
-`port: 9090.5` is refused rather than quietly accepted. The kind in the
-branch is the kind you get; nothing has to be repeated outside it.
-
-`tags` uses the spread from §8. `[&: string]` says *every* element is a
-string. The shorter `[string]` would not: a list literal is
-**positional** with an open tail, so it constrains element 0 and lets
-anything follow — `tags: [public, 7]` sails straight through it. Reach
-for the spread whenever you mean "a list of these".
-
-With those two in place the schema really does constrain every field.
-Defaults filled `host`, the data supplied `name`/`port`/`rate`/`tags`,
-`rate` stayed exact all the way to the output, `close` guaranteed no
-stray keys slipped in, and unification combined it all into one answer
-— failing loudly if anything had conflicted.
+With those two spellings in place the schema constrains every field.
+Defaults filled `host`, the data supplied the rest, `rate` stayed exact from
+`0d0.025` to the printed `0.025`, and `close` kept stray keys out —
+one answer, assembled by unification, which would have failed loudly
+had anything conflicted.
 
 ## 12. Asking the document questions
 
 You have written something that says quite a lot. From here on, stop
-reading it and start asking it. The `aontu` command has a verb for each
-question; from a clone, prefix them with `node ts/bin/aontu.js` or
-`go run ./cmd/aontu` as in §1.
+reading it and start asking it. `get` prints one slice of the answer:
 
-`get` prints one slice of the answer:
-
+<!-- test: run -->
 ```sh
-aontu get '$.service.tags' config.aon
-```
-
-```json
+$ aontu get '$.service.tags' config.aon
 [
   "public",
   "http"
 ]
 ```
 
-The path is the same `$.`-rooted path you wrote in §7 — quote it so the
-shell leaves the `$` alone.
+The path is the same `$.`-rooted path §7 used for references — quote
+it so the shell leaves the `$` alone.
 
-`why` is the one to reach for when a value surprises you. It names
+`why` is the verb to reach for when a value surprises you. It names
 every statement that contributed to a path, in source order:
 
+<!-- test: run -->
 ```sh
-aontu why '$.service.port' config.aon
-```
-
-```
+$ aontu why '$.service.port' config.aon
 $.service.port = 9090
   1. *8080|integer  config.aon:5:12
   2. 9090  config.aon:13:9
 ```
 
-Two contributions, and you wrote both: the default with its type
-(`*8080 | integer`) and the data that beat it — each with the line and
-column it came from. Notice the first line is the *whole* written
-value: a contribution is a statement you wrote, not a member of one,
-so the `8080` and the `integer` arrive together as the single value
-they were written as. Ask the same of `$.service.host`, which nothing
-overrode, and only one comes back — the written default,
-`*"localhost"|string`.
+Two contributions, and you wrote both: the default with its type, and
+the data that beat it, each with the line and column it came from. The
+first line is the *whole* written value — a contribution is a
+statement, so the `8080` and the `integer` arrive together, as the
+single value they were written as. Now ask about `host`, which nothing
+overrode:
 
-`get` has `--keys`, `--types` and `--canon` views as well, and there
-are eleven verbs in all. The
-[API reference](reference-api.md#command-line-interface) lists them;
-the [how-to guides](how-to.md) show the tasks they are for.
+<!-- test: run -->
+```sh
+$ aontu why '$.service.host' config.aon
+$.service.host = *"localhost"|string
+  1. *"localhost"|string  config.aon:4:12
+```
+
+One contribution, still wearing its `*`: the default answered only
+because nothing outranked it. `get` has `--keys`, `--types` and
+`--canon` views as well, and the rest of the verb surface is
+tabulated in the
+[API reference](reference-api.md#command-line-interface);
+[query a path](how-to/query-a-path.md) and
+[explain a value](how-to/explain-a-value.md) put these two to work.
 
 ## 13. Validating data with `aontu vet`
 
@@ -501,6 +594,7 @@ Configuration rarely stays in one file: the schema is yours, the data
 arrives from somewhere else. Split `config.aon` at its comment. The
 schema half becomes `service.aon`:
 
+<!-- test: file service.aon -->
 ```aontu
 service: close({
   name:    string
@@ -513,6 +607,7 @@ service: close({
 
 and the data half becomes `prod.aon`:
 
+<!-- test: file prod.aon -->
 ```aontu
 service: {
   name: api
@@ -524,17 +619,16 @@ service: {
 
 `vet` asks whether a data document holds against a schema document:
 
+<!-- test: run -->
 ```sh
-aontu vet service.aon prod.aon
-```
-
-```
+$ aontu vet service.aon prod.aon
 verdict: valid
 ```
 
 Now a second environment arrives, `staging.aon`, written by someone
 else:
 
+<!-- test: file staging.aon -->
 ```aontu
 service: {
   name: search
@@ -543,50 +637,62 @@ service: {
 }
 ```
 
-```sh
-aontu vet service.aon staging.aon
-```
+Vet it:
 
-```
+<!-- test: run -->
+```sh
+$ aontu vet service.aon staging.aon
 verdict: invalid
 
 $.service.tags.1: no_scalar_unify [conflict]
   [aontu/no_scalar_unify]: Cannot unify values at path $.service.tags.1
   data: staging.aon:4:20 (3)
   schema: service.aon:6:16 (string)
+$ echo $?
+1
 ```
 
-Read that from the top. The path `$.service.tags.1` is exactly where
-the trouble is — element 1 of the list, the `3`. Then **two sites**,
-because a conflict is always between two statements and neither one is
-"the error": `data` is what arrived, `3` at line 4 column 20 of
-`staging.aon`; `schema` is what it had to meet, `string` at line 6
-column 16 of `service.aon`. Every finding is sited on both sides like
-this, so you never have to guess which file to open.
+Read the finding from the top. The path `$.service.tags.1` is exactly
+where the trouble is: element 1 of the list, the `3`. Then **two
+sites**, because a conflict is always between two statements and
+neither one owns the blame — `data` is what arrived (`3`, line 4,
+column 20 of `staging.aon`) and `schema` is what it had to meet
+(`string`, line 6, column 16 of `service.aon`). Every finding is sited
+on both sides, so you never guess which file to open. And the exit
+code, `1`, is the verdict class: a CI job needs nothing else.
 
-The `3` was meant to be a tier name; write it as one, and vet agrees:
+The `3` was meant to be a tier name. Write `staging.aon` again, saying
+so:
 
+<!-- test: file staging.aon -->
 ```aontu
+service: {
+  name: search
+  port: 8100
   tags: [internal, tier3]
+}
 ```
 
+<!-- test: run -->
 ```sh
-aontu vet service.aon staging.aon
-```
-
-```
+$ aontu vet service.aon staging.aon
 verdict: valid
 ```
 
-Notice that `staging.aon` never mentions `host` or `rate` and passes
-anyway: the schema's defaults supply them. Unify the two files to see
-what the service actually gets —
+Notice `staging.aon` never mentions `host` or `rate` and passes
+anyway: the schema's defaults stand in. To see what the service
+actually gets, unify the two files — a document that loads both is all
+it takes. Write `stack.aon`:
 
-```sh
-cat service.aon staging.aon | aontu
+<!-- test: file stack.aon -->
+```aontu
+@"service.aon"
+@"staging.aon"
 ```
 
-```json
+<!-- test: run -->
+```sh
+$ aontu stack.aon
 {
   "service": {
     "host": "localhost",
@@ -601,41 +707,81 @@ cat service.aon staging.aon | aontu
 }
 ```
 
-— and one more verdict is worth meeting. Delete `name: search` from
-`staging.aon` and run vet again:
+`@"file"` loads a source file and unifies it in place, which is all
+"multi-file" means here;
+[split a model across files](how-to/split-a-model-across-files.md)
+grows the idea into versioned, vendored dependencies.
 
+`vet` has a third verdict, and it is the one that keeps the loop
+honest. Delete the `name` line from `staging.aon`:
+
+<!-- test: file staging.aon -->
+```aontu
+service: {
+  port: 8100
+  tags: [internal, tier3]
+}
 ```
+
+<!-- test: run -->
+```sh
+$ aontu vet service.aon staging.aon
 verdict: incomplete
 
 $.service.name: mapval_required [incomplete]
   [aontu/mapval_required]: Cannot resolve value at path $.service.name
   schema: service.aon:2:12 (string)
+$ echo $?
+3
 ```
 
 Nothing contradicts anything; the document is simply not finished yet.
-Aontu has kept those two apart all through this tutorial, and `vet`
-keeps them apart in its exit code too: `0` valid, `1` invalid, `3`
-incomplete, `4` the schema itself does not stand up. That is what makes
-it usable as a gate — see [`aontu vet`](reference-api.md#aontu-vet) for
-the JSON and SARIF report forms, `--watch`, and the rest.
+Aontu has kept "wrong" and "unfinished" apart all through this page,
+and `vet` keeps them apart in its exit codes too — one code per
+verdict class, which is what makes it usable as a gate. The codes, the
+JSON and SARIF report forms and `--watch` are specified under
+[`aontu vet`](reference-api.md#aontu-vet), and
+[validate in CI](how-to/validate-in-ci.md) is the recipe.
 
-And that is the loop the whole command surface exists for: **emit** a
+That is the loop the whole verb surface exists for: **emit** a
 document, **vet** it against the truth it has to satisfy, and when it
-fails let the two sites and `aontu why` tell you where to **repair**
-it. You have now done it once by hand — which is the point of doing it
-here, because the last step is the one you have to understand before
-you let a command do it for you.
-
-`aontu set '$.service.port=8080' --entry service.aon --overlay prod.aon
---in-place` is that command; the
-[how-to guides](how-to.md#change-a-value-that-is-already-pinned) show
-what it will and will not rewrite, and why.
+fails, let the two sites and `aontu why` say where to **repair** it.
+You have now run it once by hand, which matters, because repair is the
+step you will eventually hand to a command: `aontu set` rewrites
+overlay files under exactly these rules, and
+[change a pinned value](how-to/change-a-pinned-value.md) shows what it
+will and will not touch.
 
 ## Where to go next
 
-- Have a concrete task? → [How-to guides](how-to.md)
-- Want every rule and edge case? → [Language reference](reference-language.md)
-- Calling Aontu from code, or after the other eight verbs and the MCP
-  server? → [API reference](reference-api.md)
-- Wiring the editor integration? → [Language Server](lsp.md)
-- Curious *how* it works? → [Explanation](explanation.md)
+Your config is a tree. Real systems are graphs: services that depend
+on each other, ownership that must not cycle, schemas that contain
+themselves. The [graph tutorial](tutorial-graph.md) is the second half
+of this one — identity, relations, reachability and recursion, on the
+engine you just used.
+
+For a task you already have, go straight to its guide:
+
+- **Run, embed and integrate** —
+  [call from TypeScript](how-to/call-from-typescript.md),
+  [call from Go](how-to/call-from-go.md),
+  [read a conflict error](how-to/read-a-conflict-error.md)
+- **Templates, defaults and composition** —
+  [provide defaults](how-to/provide-defaults.md),
+  [apply a template to many keys](how-to/apply-a-template-to-many-keys.md)
+- **Schemas and constraints** —
+  [constrain list elements](how-to/constrain-list-elements.md),
+  [make a field optional](how-to/make-a-field-optional.md)
+- **Query, explain and change** —
+  [query a path](how-to/query-a-path.md),
+  [explain a value](how-to/explain-a-value.md)
+- **Validate and evolve** —
+  [validate in CI](how-to/validate-in-ci.md),
+  [gate schema changes](how-to/gate-schema-changes.md)
+- **Modules and multi-file** —
+  [split a model across files](how-to/split-a-model-across-files.md)
+
+Every rule and edge case is in the
+[language reference](reference-language.md); the command and both APIs
+are in the [API reference](reference-api.md); the reasons are in the
+[explanation](explanation.md).

@@ -100,3 +100,14 @@ vet-at-recursion-valid-at-depth	vet	spec: hide({ Node: { v: integer, next?: $.sp
 # in. Before that arm, this exact text -- an engine's own output --
 # unrolled one level per resolve until unify_cycle killed it.
 canon-of-instance-reparses	canon	{"payments_policy":{"chain":{"approver":"lead@acme.example","decision":"approved","then"?:{"approver":"cfo@acme.example","decision":"approved","then"?:{"approver":"audit@acme.example","decision":*"pending"|"pending"|"approved"|"rejected","then"?:$.spec.Step}}},"name":"payments-change"},"spec":{"Policy":{"chain":$.spec.Step,"name":string},"Step":{"approver":re("^[a-z]+@acme[.]example$"),"decision":*"pending"|"pending"|"approved"|"rejected","then"?:$.spec.Step}}}	{"payments_policy":{"chain":{"approver":"lead@acme.example","decision":"approved","then"?:{"approver":"cfo@acme.example","decision":"approved","then"?:{"approver":"audit@acme.example","decision":*"pending"|"pending"|"approved"|"rejected","then"?:$.spec.Step}}},"name":"payments-change"},"spec":{"Policy":{"chain":$.spec.Step,"name":string},"Step":{"approver":re("^[a-z]+@acme[.]example$"),"decision":*"pending"|"pending"|"approved"|"rejected","then"?:$.spec.Step}}}
+
+# vet --at through a LIST-spread recursion: the anchored meet re-resolves
+# the spread template's reference per element, and under a lifted anchor
+# that absolute reference names the SCHEMA's namespace -- the meet context
+# keeps the settled schema root for exactly that walk (RefVal's anchored
+# fallback beside RecurseVal.body's). Before it, the first element died
+# as no_path in TypeScript while Go validated at depth; the anchored meet
+# also drives AT the anchor's path, so both ports locate findings in the
+# schema namespace.
+vet-at-recursion-through-list-spread-valid	vet	spec: hide({Comment: {author: string, replies?: [&: $.spec.Comment]}})	{"author":"a","replies":[{"author":"b"}]}	{"findings":[],"opts":{"at":"$.spec.Comment"},"truncated":false,"verdict":"valid"}
+vet-at-recursion-through-list-spread-refuses	vet	spec: hide({Comment: {author: string, replies?: [&: $.spec.Comment]}})	{"author":"a","replies":[{"author":42}]}	{"findings":[{"class":"conflict","code":"no_scalar_unify","path":"$.spec.Comment.replies.0.author","severity":"error","sites":[{"col":36,"file":"data","len":2,"role":"data","row":1,"src":"42","value":"42"},{"col":31,"file":"schema","len":6,"role":"schema","row":1,"src":"string","value":"string"}]}],"opts":{"at":"$.spec.Comment"},"truncated":false,"verdict":"invalid"}

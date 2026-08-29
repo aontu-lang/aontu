@@ -34,6 +34,9 @@ the [Explanation](explanation.md).
 - [Functions](#functions)
 - [Arithmetic: `add` `sub` `mul` `div` `mod` `rem`](#arithmetic-add-sub-mul-div-mod-rem)
 - [Aggregating: `sum` `least` `greatest`](#aggregating-sum-least-greatest)
+- [Identity: `id(name)`](#identity-idname)
+- [Entity references: `refer(t?)`](#entity-references-refert)
+  - [Declared relations](#declared-relations)
 - [Marks: `type` and `hide`](#marks-type-and-hide)
 - [Closed values: `close` / `open`](#closed-values-close--open)
 - [Source loading `@"…"`](#source-loading-)
@@ -90,6 +93,18 @@ plugins, so the surface syntax is "relaxed JSON".
   naming the `0d` escape, not an approximation — see
   [Exact or refused](#exact-or-refused-lossy-literals).
 - **Booleans** are `true` / `false`; **null** is `null`.
+
+The relaxed forms combine in one document:
+
+```aon
+a: 1 b: 2
+c: Mercury
+d: "hi there"
+```
+
+```json
+{"a":1,"b":2,"c":"Mercury","d":"hi there"}
+```
 
 ## The value lattice
 
@@ -209,9 +224,9 @@ contains a `.` or an exponent, and **biginteger** kind otherwise.
 0d1e3                  → bigdecimal  (0d with an exponent)
 ```
 
-The two families nearly mirror each other, with one asymmetry worth
-remembering: a `.` splits the leaf in both, but an exponent splits it
-only in the `0d` family — `1e3` is an integer, `0d1e3` a bigdecimal.
+The two families nearly mirror each other, with one asymmetry: a `.`
+splits the leaf in both, but an exponent splits it only in the `0d`
+family — `1e3` is an integer, `0d1e3` a bigdecimal.
 
 **Canon rendering.** Canon renders a number so that reparsing it
 yields the same kind again, which takes three markers:
@@ -235,7 +250,7 @@ scientific notation, and **one value has exactly one rendering**:
 scale is presentation, not identity, so `0d0.10`, `0d0.1` and `0d1e-1`
 all parse to the same value and all canon as `0d0.1`.
 
-Points worth knowing:
+Edge cases:
 
 - The same rules apply wherever a numeric value is built — a parsed
   literal, a `$var` binding, a raw value handed to the API — so a given
@@ -260,39 +275,41 @@ An integer literal is stored only if the double format holds it
 *exactly*. One that would be silently rounded is a located error
 instead, and the message names the fix: write it with `0d`.
 
-This is the rule most likely to surprise, because the input that
-triggers it is ordinary JSON. Suppose a dump from an API carries a
-64-bit record ID:
+The input that triggers this rule is ordinary JSON — for example, a
+64-bit record ID in a dump from an API. `id: 9007199254740993` is
+2^53+1, the first whole number a double cannot hold. Storing it anyway
+would yield 9007199254740992, a different ID, with nothing said about
+it. Aontu refuses:
 
-```aontu
-id: 9007199254740993
-```
-
-That value is 2^53+1, the first whole number a double cannot hold.
-Storing it anyway would yield 9007199254740992 — a different ID, with
-nothing said about it. Aontu refuses instead:
-
-```
+<!-- test: scenario lossy-literal -->
+<!-- test: run -->
+```sh
+$ echo 'id: 9007199254740993' | aontu
 [aontu/lossy_integer_literal]: Cannot resolve value at path $.id
 
 This integer literal, 9007199254740993, is not exactly representable in
 binary64, so storing it would silently round it to a DIFFERENT
 number. Aontu refuses rather than corrupts: write it as a `0d`
 literal to get the exact integer.
+...
+$ echo $?
+1
 ```
 
-(That is the TypeScript wording; Go phrases the same refusal a little
+(That is the TypeScript wording; Go phrases the same refusal
 differently. Both name the `0d` escape.)
 
-Take the escape, and the document works again — exactly:
+Take the escape and the document works again, exactly — in generated
+output and in canonical form:
 
-```aontu
-id: 0d9007199254740993
-```
-
-```
-canon      {"id":0d9007199254740993}
-generates  {"id":9007199254740993}
+<!-- test: run -->
+```sh
+$ echo 'id: 0d9007199254740993' | aontu
+{
+  "id": 9007199254740993
+}
+$ echo 'id: 0d9007199254740993' | aontu -c
+{"id":0d9007199254740993}
 ```
 
 One consequence to plan for: the rescued value has **biginteger**
@@ -390,8 +407,19 @@ top level.
 - **Implicit nesting:** a chain of colons builds nested maps —
   `a:b:c:1` → `{"a":{"b":{"c":1}}}`.
 - **Duplicate-key merge:** stating a key twice unifies the two values.
-  `a:{b:1}, a:{c:2}` → `{"a":{"b":1,"c":2}}`; this recurses, so
-  `a:b:c:1 a:b:d:2 a:e:3` → `{"a":{"b":{"c":1,"d":2},"e":3}}`.
+  `a:{b:1}, a:{c:2}` → `{"a":{"b":1,"c":2}}`.
+
+The merge recurses through nesting:
+
+```aon
+a: b: c: 1
+a: b: d: 2
+a: e: 3
+```
+
+```json
+{"a":{"b":{"c":1,"d":2},"e":3}}
+```
 
 Maps are **open** by default (extra keys may be unified in) until sealed
 with [`close`](#closed-values-close--open).
@@ -411,29 +439,36 @@ A list is an ordered sequence.
   numeric key is a key of the element map and never an index into the
   list (`[0:1]` is `[{"0":1}]`), and a chain nests (`[a:b:1]` is
   `[{a:{b:1}}]`).
-
-  ```aon
-  routes: [get: "/health", post: "/orders"]
-  ```
-
-  ```json
-  { "routes": [ { "get": "/health" }, { "post": "/orders" } ] }
-  ```
-
 - Lists unify element-by-element by position (and support `&:` spreads,
   below).
+
+The pair form reads naturally for ordered records:
+
+```aon
+routes: [get: "/health", post: "/orders"]
+```
+
+```json
+{ "routes": [ { "get": "/health" }, { "post": "/orders" } ] }
+```
 
 ## Conjunction `&`
 
 `a & b` is the explicit unification of `a` and `b` — the same operation
 that merges duplicate map keys.
 
+```aon
+a: 1 & integer
+b: {x:1} & {y:2}
+c: {x:{p:1}} & {x:{q:2}}
 ```
-a:1 & integer        → {"a":1}
-a:number & integer   → {"a":integer}
-a:{x:1} & {y:2}      → {"a":{"x":1,"y":2}}
-a:{x:{p:1}} & {x:{q:2}} → {"a":{"x":{"p":1,"q":2}}}
+
+```json
+{"a":1,"b":{"x":1,"y":2},"c":{"x":{"p":1,"q":2}}}
 ```
+
+Two kinds meet to the narrower kind and stay a kind: `number & integer`
+canons as `integer` and does not generate on its own.
 
 Conjunction is commutative, associative, and idempotent. It **distributes
 over disjunction**: `x & (a|b)` tries `x` against each alternative.
@@ -452,9 +487,15 @@ a:1|2|3              → canon {"a":1|2|3}
 Unifying a concrete value selects the matching branch (others become nil
 and drop out):
 
+```aon
+a: 2
+a: 1|2
+b: 2
+b: string|number
 ```
-a:2  a:1|2           → {"a":2}
-a:2  a:string|number → {"a":2}
+
+```json
+{"a":2,"b":2}
 ```
 
 `&` binds tighter than `|`, so `c & b | a` parses as `(c & b) | a`.
@@ -484,12 +525,21 @@ rather than reported, as every other unresolved optional is.
 `*x` marks `x` as **preferred** (a default). In a disjunction the
 preferred branch is chosen unless unification forces another.
 
+```aon
+a: *1 | number
+b: *5
+c: *green | string
+d: *1 | number
+d: 2
 ```
-a:*1|number          → generates {"a":1};  canon {"a":*1|number}
-a:*5                 → {"a":5}              (default with no alternatives)
-a:*green|string      → {"a":"green"}
-a:*1|number  a:2     → {"a":2}              (override beats default)
+
+```json
+{"a":1,"b":5,"c":"green","d":2}
 ```
+
+The preference survives in canonical form — `a` above canons as
+`{"a":*1|number}` — because a default is constraint information, not a
+resolved value.
 
 Defaults propagate through nesting and spreads. `pref(x)` is the
 function form of `*x` (canon `*x`). Preferences can be ranked (a `*` of a
@@ -513,13 +563,18 @@ preference standing (`a:*1.5 & float` and `a:*1.5 & number` are both
 (ADR-007): `(A|B) & *A` is `*A|B`, the same value the direct spelling
 denotes, so the two ways of writing an enum-with-default agree.
 
-```
-a:("1.0"|"1.1") & *"1.0"   → canon {"a":*"1.0"|"1.1"};  generates "1.0"
-a:("1.0"|"1.1") & *"2.0"   → canon {"a":"1.0"|"1.1"}    (names nothing)
+```aon
+a: ("1.0"|"1.1") & *"1.0"
 ```
 
-A preference naming no alternative is dropped: it has nothing to
-prefer, and the default-validity lint below is what reports that shape.
+```json
+{"a":"1.0"}
+```
+
+The canon is `{"a":*"1.0"|"1.1"}`. A preference that names no
+alternative is dropped — it has nothing to prefer — so
+`("1.0"|"1.1") & *"2.0"` canons as `"1.0"|"1.1"`. The default-validity
+lint below is what reports that shape.
 
 **A preference inside a disjunction is gated by admission**
 (ADR-004): an override must be admitted by the disjunction itself —
@@ -534,16 +589,39 @@ bypassed (`*8080 | (integer & min(1024) & max(65535))` refuses `80`
 and accepts `2048`; `*8080 | (integer & neq(80))` refuses `80`). A
 deliberately open default states its openness: `*x | top` admits every
 override. The gate covers scalar preferred values — the same boundary
-as the kind gate below.
+as the kind gate above.
 
+```aon
+a: *8080 | integer
+a: 9090
+b: *8080 | number
+b: 1.5
+c: *8080 | string
+c: 8080
 ```
-a:*8080|integer  a:9090  → {"a":9090}     (same leaf: an alternative admits it)
-a:*8080|integer  a:1.5   → refused        (other leaf: [aontu/|:empty])
-a:*8080|number   a:1.5   → {"a":1.5}      (the branch admits the family)
-k:*'auto'|'literal'|'data'  k:'autoo' → refused   (no alternative admits it)
-port:*8080|(integer&neq(80))  port:80 → refused   (the exclusion is consulted)
-x:*8080|string   x:8080  → {"x":8080}     (the preferred value admits itself)
+
+```json
+{"a":9090,"b":1.5,"c":8080}
 ```
+
+An alternative admits `a`'s override (same leaf); the `number` branch
+admits `b`'s float; the preferred value admits itself at `c`. An
+override nothing admits is the empty disjunction:
+
+<!-- test: scenario enum-gate -->
+<!-- test: run -->
+```sh
+$ echo 'k: *auto | literal | data  k: autoo' | aontu
+[aontu/|:empty]: Cannot unify values at path $.k
+...
+$ echo $?
+1
+```
+
+The refusals follow the same rule at every width: `*8080 | integer`
+met by `1.5` is `[aontu/|:empty]` (the other numeric leaf), and
+`*8080 | (integer & neq(80))` met by `80` is refused because the
+exclusion is consulted, not bypassed.
 
 **This is a breaking change** (2026-08-26, ADR-004). Before it, a
 same-kind concrete peer replaced the preferred value with the other
@@ -558,11 +636,20 @@ value's `superior()`, and a map or a list has none — it is `top` — so
 *any* peer overrides a preferred map or list, including one of another
 kind, and it REPLACES rather than merges:
 
+```aon
+a: *{x:1}
+a: "s"
+b: *{x:1}
+b: {y:2}
 ```
-a:*1      a:"s"    → refused        (scalar: the gate applies)
-a:*{x:1}  a:"s"    → {"a":"s"}      (structural: no gate)
-a:*{x:1}  a:{y:2}  → {"a":{"y":2}}  (replaced, not merged)
+
+```json
+{"a":"s","b":{"y":2}}
 ```
+
+`a` takes the other-kind peer with no gate, and `b` is replaced, not
+merged. The scalar case differs: `a:*1` met by `a:"s"` is refused,
+because the gate applies.
 
 Write `a:{x:*1}` rather than `a:*{x:1}` when you mean "a map whose `x`
 defaults to 1" — the preference belongs on the scalar that has a kind to
@@ -574,13 +661,23 @@ defend. Pinned by the `pref-struct-*` rows in
 A key suffixed with `?` is optional. If it never receives a concrete
 value, it is **dropped from the generated output** instead of erroring.
 
+```aon
+x?: number
+y: Y
+a: {y?:number, z:2}
+a: {}
+b: {y?:number, z:2}
+b: {y:11}
+c: {y?:number, z:*3}
+c: {y:11}
 ```
-{x?:number, y:Y}     → {"y":"Y"}            (x unresolved → dropped)
-{x?:top, y:Y}        → {"y":"Y"}
-a:{y?:number,z:2} a:{}      → {"a":{"z":2}}
-a:{y?:number,z:2} a:{y:11}  → {"a":{"y":11,"z":2}}   (filled → kept)
-a:{y?:number,z:*3} a:{y:11} → {"a":{"y":11,"z":3}}   (default still applies)
+
+```json
+{"a":{"z":2},"b":{"y":11,"z":2},"c":{"y":11,"z":3},"y":"Y"}
 ```
+
+The unresolved `x?` is dropped, `b`'s filled `y` is kept, and `c`'s
+default still applies beside the filled key.
 
 Optionality survives references: a referenced map drops its unresolved
 optional keys too.
@@ -588,17 +685,27 @@ optional keys too.
 ## Spreads `&:`
 
 A `&:` entry is a **template** unified into every other entry of its map
-or list. The template itself is not emitted.
+or list. The template itself is not emitted:
 
+```aon
+c: {&:{x:2}, y:{k:3}, z:{k:4}}
 ```
-c:{&:{x:2}, y:{k:3}, z:{k:4}}
-  → {"c":{"y":{"k":3,"x":2}, "z":{"k":4,"x":2}}}
 
-a:b:{&:string, c:C, d:D}        → applies a type to every value
-a:b:{&:{x:number}, c:{x:1}, d:{x:2}}   → constrains every child
-a:b:{&:{name:key()}, c:{}, d:{}}       → {"c":{"name":"c"},"d":{"name":"d"}}
-a:b:{&:$.tmpl, …}                      → spread a referenced template
-a:b:{&:x:*1|number, c:{x:2}, d:{}}     → defaults per child, overridable
+```json
+{"c":{"y":{"k":3,"x":2},"z":{"k":4,"x":2}}}
+```
+
+A template may be a kind (`&: string`), a constraint map
+(`&: {x:number}`), a referenced value (`&: $.tmpl`), or carry a
+per-child overridable default (`&: x: *1|number`). A template that
+names each child uses `key()`:
+
+```aon
+a: b: {&: {name: key()}, c: {}, d: {}}
+```
+
+```json
+{"a":{"b":{"c":{"name":"c"},"d":{"name":"d"}}}}
 ```
 
 Other forms:
@@ -607,8 +714,16 @@ Other forms:
   `{"a":{"b":{"x":1}}}`.
 - **Top-level:** `a:{} &:{x:1}` → `{"a":{"x":1}}` (applied to every root
   key).
-- **Lists:** `[&:{x:1}, {y:1}, {y:2}]` → `[{y:1,x:1},{y:2,x:1}]`;
-  canon keeps the spread: `[&:{"x":1},{"y":1,"x":1},…]`.
+- **Lists:** the spread applies to every element, and canon keeps the
+  spread entry (`[&:{"x":1},{"y":1,"x":1},…]`):
+
+```aon
+l: [&: {x:1}, {y:1}, {y:2}]
+```
+
+```json
+{"l":[{"y":1,"x":1},{"y":2,"x":1}]}
+```
 
 **Several templates apply independently, per child.** When one bag
 accumulates more than one `&:` template — consecutive spreads, spreads
@@ -620,11 +735,15 @@ references, defaults or `key()` the templates carry. A key one
 template requires is required at every child; a default one template
 carries defaults (and stays overridable) per child.
 
-```
-w: &: {p:integer}
-w: &: {r:integer}
+```aon
+w: &: {p: integer}
+w: &: {r: integer}
 w: x: {p:1, r:5}
-w: y: {p:2, r:6}      → {"w":{"x":{"p":1,"r":5},"y":{"p":2,"r":6}}}
+w: y: {p:2, r:6}
+```
+
+```json
+{"w":{"x":{"p":1,"r":5},"y":{"p":2,"r":6}}}
 ```
 
 ## Generating children: `pack` and `each`
@@ -633,7 +752,7 @@ A spread constrains children that already exist. `pack` and `each`
 **make** them, from data that is already in the model — so the list of
 names and the children built from it cannot drift apart:
 
-```
+```aon
 names: [web, auth, billing]
 
 deploy: close(pack($.names, {
@@ -643,6 +762,14 @@ deploy: close(pack($.names, {
 }))
 
 deploy: billing: replicas: 4      # an override composes as usual
+```
+
+```json
+{"names": ["web", "auth", "billing"],
+ "deploy": {
+   "web":     {"image": "acme/web:1.4.2",     "replicas": 2, "port": 8080},
+   "auth":    {"image": "acme/auth:1.4.2",    "replicas": 2, "port": 8080},
+   "billing": {"image": "acme/billing:1.4.2", "replicas": 4, "port": 8080}}}
 ```
 
 `pack(data, tmpl)` makes one **keyed child** per child of `data`. The
@@ -669,10 +796,14 @@ each of them that child met with `tmpl`. The order is fixed: source
 order for a list, sorted-key order for a map. Written with one
 argument, `each(m)` is a map's children as a list.
 
-```
+```aon
 ports: {http: 80, https: 443}
-open:  each($.ports, integer)      → {"open":[80,443]}
-names: each({b:2, a:1})            → {"names":[1,2]}
+open:  each($.ports, integer)
+names: each({b:2, a:1})
+```
+
+```json
+{"ports":{"http":80,"https":443},"open":[80,443],"names":[1,2]}
 ```
 
 Once fired, generated children are **ordinary children**: a
@@ -703,10 +834,16 @@ evaluation still terminates by construction.
 satisfy** `cond` — keys preserved for a map, order for a list — and
 drops the rest silently:
 
-```
+```aon
 services: {web:{debug:true,port:80}, auth:{port:81}}
-debugged: filter($.services, {debug:true})   → {"web":{...}}
+debugged: filter($.services, {debug:true})
 sidecars: pack($.debugged, {image:"acme/debug:1.0"})
+```
+
+```json
+{"services": {"web": {"debug": true, "port": 80}, "auth": {"port": 81}},
+ "debugged": {"web": {"debug": true, "port": 80}},
+ "sidecars": {"web": {"image": "acme/debug:1.0"}}}
 ```
 
 "Already satisfies" means the meet **changes nothing**: `cond` adds no
@@ -721,10 +858,13 @@ pattern in argument order that `v` unifies with selects its result,
 which is the answer; a trailing argument — the one that makes the
 argument count even — is the default:
 
-```
+```aon
 tier: large
 size: match($.tier, small, {cpu:1}, large, {cpu:8}, {cpu:2})
-  → {"size":{"cpu":8}}
+```
+
+```json
+{"tier":"large","size":{"cpu":8}}
 ```
 
 Patterns are matched by unifiability, so kinds and atoms work as
@@ -758,9 +898,14 @@ narrowed can match an earlier arm than the one it will end up matching.
 A bare `_` is a **hole**: a call holding one waits, and whatever the
 call is unified with fills it.
 
+```aon
+greeting: upper(_) & hello
+x: {&: {m: _ + 2}}
+x: a: m: 1
 ```
-greeting: upper(_) & hello         → {"greeting":"HELLO"}
-x: {&: {m: _ + 2}}   x: a: m: 1    → {"x":{"a":{"m":3}}}
+
+```json
+{"greeting":"HELLO","x":{"a":{"m":3}}}
 ```
 
 The peer goes **into** the call and is not also a constraint on the
@@ -770,11 +915,15 @@ Two holes meeting is an error — neither has a value to fill the other.
 Inside a generator's template, `_` is the **source child** the
 generated one is being made from:
 
-```
+```aon
 ports: {http: 80, https: 443}
 open:  pack($.ports, {port: _, name: key()})
-  → {"open":{"http":{"name":"http","port":80},
-             "https":{"name":"https","port":443}}}
+```
+
+```json
+{"ports": {"http": 80, "https": 443},
+ "open":  {"http":  {"name": "http",  "port": 80},
+           "https": {"name": "https", "port": 443}}}
 ```
 
 A hole belongs to its **nearest enclosing generator** (ADR-005): an
@@ -809,11 +958,19 @@ is still ordinary text, and `_` as a **key** is still a key.
 first argument of the call on the right. The right-hand side may also
 be the bare name of a builtin, which is the short spelling:
 
+```aon
+name:  hello |> upper
+names: [web, auth]
+open:  $.names |> pack({replicas: 2})
 ```
-name:  hello |> upper                 → {"name":"HELLO"}
-open:  $.names |> pack({replicas:2})  → one child per name
-sizes: $.ports |> each |> each        → pipes chain
+
+```json
+{"name": "HELLO",
+ "names": ["web", "auth"],
+ "open": {"web": {"replicas": 2}, "auth": {"replicas": 2}}}
 ```
+
+Pipes chain: `$.ports |> each |> each` is `each(each($.ports))`.
 
 It is **sugar and nothing else** — resolved while the source is read,
 so no value ever holds a pipe and canon never emits the token. Every
@@ -852,12 +1009,25 @@ That is why `$.a.1.0` is the two segments `1` and `0` — how a nested list
 index is written (`a:[[1,2],[3,4]] b:$.a.1.0` → `b:3`) — rather than a
 key spelled `1.0`.
 
-References compose with unification and each other:
+References compose with unification and each other — cross-references,
+chains, and a referenced map met with extra keys:
 
+```aon
+a: {x:1, y:$.b.x}
+b: {x:2, y:$.a.x}
+c: {v:$.d.v}
+d: {v:99}
+q: a: {x:1}
+w: b: $.q.a & {y:2, z:3}
 ```
-cross:  a:{x:1,y:$.b.x} b:{x:2,y:$.a.x}  → a.y=2, b.y=1
-chain:  a:{v:$.b.v} b:{v:$.c.v} c:{v:99} → all v = 99
-merge:  w:b:$.q.a & {y:2,z:3}            → referenced map unified with extra keys
+
+```json
+{"a": {"x": 1, "y": 2},
+ "b": {"x": 2, "y": 1},
+ "c": {"v": 99},
+ "d": {"v": 99},
+ "q": {"a": {"x": 1}},
+ "w": {"b": {"x": 1, "y": 2, "z": 3}}}
 ```
 
 An unresolvable path is an error: `a:$.nope` →
@@ -865,10 +1035,9 @@ An unresolvable path is an error: `a:$.nope` →
 
 ### Recursive references (fixpoints)
 
-A reference to a value **inside that value** is not an error — it is
-the fixpoint. `$.schema.Step` written inside `Step` means "a `Step`,
-by this very definition", and the schema applies at every depth of
-the data:
+A reference to a value **inside that value** is the fixpoint, not an
+error. `$.schema.Step` written inside `Step` means "a `Step`, by this
+very definition", and the schema applies at every depth of the data:
 
 ```aon
 schema: hide({Step: {
@@ -888,8 +1057,8 @@ further. Data is finite, so evaluation terminates; the depth budget
 is the backstop (`recursion_budget`).
 
 **Guardedness is emergent — the data decides, never a static
-analysis.** Under an optional key (`then?:`) the chain simply ends
-where the data ends. A ranked default works the same way:
+analysis.** Under an optional key (`then?:`) the chain ends where
+the data ends. A ranked default works the same way:
 
 ```aon
 schema: hide({Node: {v: integer, next: *null | $.schema.Node}})
@@ -941,10 +1110,15 @@ refuses with `recursion_unexpanded`. A cycle THROUGH other values
 (`a:$.b b:$.a`) is still `path_cycle`: two references chasing each
 other name no definition at all.
 
+For the recipe form see
+[Define a recursive schema](how-to/define-a-recursive-schema.md); the
+live version, with its checks, is
+[use-cases/13-recursive-schema](../use-cases/13-recursive-schema/).
+
 ## Variables `$name`
 
-`$name` (a bare name with no leading dot) is **not** resolved from the
-document — it is supplied by the calling program (see
+`$name` (a bare name with no leading dot) is never resolved from the
+document. The calling program supplies it (see
 [API reference](reference-api.md#variables)). The shared test set binds
 `foo=11`, `bar="hello"`, `flag=true`, `obj={x:1}`:
 
@@ -962,15 +1136,19 @@ An unknown variable is a `Cannot resolve` error.
 `+` adds numbers and concatenates strings; it chains left-to-right.
 Parentheses group sub-expressions and a leading unary `+` is allowed.
 
+```aon
+a: 1+2
+b: 1+2+3
+c: 1.5+2
+d: p+q
+e: p+q+r
+f: (1+2)
+g: (+3+4)
+h: i: j: 10+5
 ```
-x:1+2        → {"x":3}
-x:1+2+3      → {"x":6}
-x:1.5+2      → {"x":3.5}
-x:a+b        → {"x":"ab"}
-x:a+b+c      → {"x":"abc"}
-x:(1+2)      → {"x":3}
-x:(+3+4)     → {"x":7}
-a:b:c:10+5   → {"a":{"b":{"c":15}}}
+
+```json
+{"a":3,"b":6,"c":3.5,"d":"pq","e":"pqr","f":3,"g":7,"h":{"i":{"j":15}}}
 ```
 
 **Result kind: the exact ladder.** `+` never introduces a kind
@@ -1015,6 +1193,21 @@ x:0d0.1+0d0.2+0d0.3    → {"x":0d0.6}    (binary64: 0.6000000000000001)
 x:0d1.23+0d4.567       → {"x":0d5.797}
 ```
 
+The same sums, run through the CLI:
+
+<!-- test: scenario exact-sums -->
+<!-- test: run -->
+```sh
+$ echo 'x: 0d0.1 + 0d0.2' | aontu
+{
+  "x": 0.3
+}
+$ echo 'x: 0d0.1 + 0d0.2 + 0d0.3' | aontu
+{
+  "x": 0.6
+}
+```
+
 A sum too wide to hold is refused, never approximated — see
 [the exactness budget](#the-exactness-budget).
 
@@ -1049,17 +1242,23 @@ string operand concatenates, and the numeric side contributes its
 plain digits with **no `0d` marker** — the marker is canon decoration,
 and it never leaks into a string.
 
-```
-x:q+0d5     → {"x":"q5"}
-x:q+0d0.1   → {"x":"q0.1"}
-x:0d5+q     → {"x":"5q"}
+```aon
+a: q+0d5
+b: q+0d0.1
+c: 0d5+q
+d: q+0d1e3
+e: q+0d1000
 ```
 
-The digits are the value's own rendering minus the marker, so an
-integral bigdecimal keeps its one decimal place: `x:q+0d1e3` is
-`"q1000.0"`, while the biginteger `x:q+0d1000` is `"q1000"`. The plain
-family is unchanged and still coerces with JavaScript rules, which
-drop a trailing `.0`: `x:a+1.0` → `"a1"`, not `"a1.0"`.
+```json
+{"a":"q5","b":"q0.1","c":"5q","d":"q1000.0","e":"q1000"}
+```
+
+The digits are the value's own rendering minus the marker, so the
+integral bigdecimal at `d` keeps its one decimal place while the
+biginteger at `e` does not. The plain family is unchanged and still
+coerces with JavaScript rules, which drop a trailing `.0`:
+`x:a+1.0` → `"a1"`, not `"a1.0"`.
 
 Unary `-` negates a numeric operand exactly. It binds tighter than
 `+`, `&` and `|` — `-1 & integer` is `(-1) & integer` — and, like `+`,
@@ -1133,10 +1332,21 @@ x:upper(0d1.1) & biginteger → error   (rounding does not change the leaf)
 A bigdecimal result is still a bigdecimal, so it keeps the one decimal
 place its leaf always renders, even when the value is whole.
 
-Functions compose with operators and references:
-`upper(a)+b`→`"Ab"`, `lower(1.1)+2`→`3`, `x:foo y:upper($.x)`→`y:"FOO"`,
-`[lower(A),lower(B)]`→`["a","b"]`, and a function may be a preferred
-default: `*upper(foo)`→`"FOO"`.
+Functions compose with operators, references, list elements, and the
+preference mark:
+
+```aon
+a: upper(abc) + def
+b: lower(1.1) + 2
+c: foo
+d: upper($.c)
+e: [lower(A), lower(B)]
+f: *upper(foo)
+```
+
+```json
+{"a":"ABCdef","b":3,"c":"foo","d":"FOO","e":["a","b"],"f":"FOO"}
+```
 
 ## Arithmetic: `add` `sub` `mul` `div` `mod` `rem`
 
@@ -1157,11 +1367,18 @@ is the string `"500m500m"` and nothing complains. `add("500m","500m")`
 is an error, because a function named for a numeric operation has no
 business inventing a string.
 
+```aon
+a: add(1,2)
+b: sub(10,3)
+c: mul(6,7)
 ```
-x:add(1,2)        → {"x":3}          x:add("a","b")  → error, invalid-arg
-x:sub(10,3)       → {"x":7}          x:add(true,1)   → error, invalid-arg
-x:mul(6,7)        → {"x":42}         x:sub(integer,1)→ error, invalid-arg
+
+```json
+{"a":3,"b":7,"c":42}
 ```
+
+A non-number operand is an `invalid-arg` error whatever its shape:
+`add("a","b")`, `add(true,1)` and `sub(integer,1)` are all refused.
 
 **Kind follows the operands** (R5, and the same
 [exact ladder](#the-four-numeric-leaves) `+` uses): integer with
@@ -1180,11 +1397,20 @@ x:add(1.0,0d2)     → error, exact_float_mix — as with `+`
 only in whose sign the answer follows — `rem`'s the dividend's, `mod`'s
 the divisor's. That is the whole reason both exist:
 
+```aon
+a: div(7,2)
+b: div(-7,2)
+c: rem(-7,2)
+d: mod(-7,2)
+e: rem(7,-2)
+f: mod(7,-2)
 ```
-x:div(7,2)   → {"x":3}     x:div(-7,2)  → {"x":-3}   (not -4)
-x:rem(-7,2)  → {"x":-1}    x:mod(-7,2)  → {"x":1}
-x:rem(7,-2)  → {"x":1}     x:mod(7,-2)  → {"x":-1}
+
+```json
+{"a":3,"b":-3,"c":-1,"d":1,"e":1,"f":-1}
 ```
+
+`b` is `-3`, not `-4`: truncation, not flooring.
 
 Three things are refused rather than answered, each because the answer
 would be a value Aontu cannot carry:
@@ -1217,14 +1443,21 @@ the written one: `x:10 |> sub(3)` is `sub(10,3)`, which is `7`.
 bag** — a list or a map — and walks the children the model already
 holds:
 
-```
+```aon
 lines:  [1200, 450, 3000]
-total:  sum($.lines)          → 4650
-lowest: least($.lines)        → 450
-peak:   greatest($.lines)     → 3000
+total:  sum($.lines)
+lowest: least($.lines)
+peak:   greatest($.lines)
 
 hourly: {p50: 12, p95: 40, p99: 91}
-spike:  greatest($.hourly)    → 91
+spike:  greatest($.hourly)
+```
+
+```json
+{"lines": [1200, 450, 3000],
+ "total": 4650, "lowest": 450, "peak": 3000,
+ "hourly": {"p50": 12, "p95": 40, "p99": 91},
+ "spike": 91}
 ```
 
 A map is folded in **sorted-key order** and a list in source order,
@@ -1281,36 +1514,66 @@ services: auth: id(svc_auth) & {
 }
 ```
 
+```json
+{"services": {"auth": {"kind": "service", "port": 8080}}}
+```
+
 **Every node in one evaluation carrying the same id is unified with
 every other.** Declaring two nodes the same entity *means* unifying
 them, so the two descriptions meet and any contradiction between them
-is an ordinary located error:
+is an ordinary located error. Take a catalog file, `catalog.aon`:
 
+<!-- test: scenario id-merge -->
+<!-- test: file catalog.aon -->
 ```aon
-# catalog.aon
 catalog: payments: id(svc_payments) & { owner: "team-pay", tier: 1 }
+```
 
-# deploy.aon
+and a deployment file, `deploy.aon`:
+
+<!-- test: file deploy.aon -->
+```aon
 deploy: eu1: payments: id(svc_payments) & { replicas: 3, tier: 2 }
+```
+
+with an entry file, `main.aon`, that loads both:
+
+<!-- test: file main.aon -->
+```aon
+@"catalog.aon"
+@"deploy.aon"
 ```
 
 Without the ids these two files evaluate together in silence —
 unification is path-aligned, so `tier:1` and `tier:2` are never
 brought into contact and a consumer of `catalog.payments.tier` reads
 a "fact" the deploy layout contradicts. With them, the run fails at
-the two `tier` sites. Identity links that cannot fail are how
-`owl:sameAs` produced silent corruption at web scale; unification
-inverts that.
+the two `tier` sites:
+
+<!-- test: run -->
+```sh
+$ aontu main.aon
+[aontu/scalar_value]: Cannot unify values at path $.deploy.eu1.payments.tier
+...
+$ echo $?
+1
+```
+
+Identity links that cannot fail are how `owl:sameAs` produced silent
+corruption at web scale; unification inverts that.
 
 **The tree stays a tree.** After merging, *every* declared position
 holds the merged value, and generation emits it at each path —
 duplication, exactly as references generate today. Nothing is aliased
 or shared, and the output shape is unchanged:
 
-```
+```aon
 a: id(x) & {k:1}
 b: id(x) & {j:2}
-                    →  {"a":{"j":2,"k":1},"b":{"j":2,"k":1}}
+```
+
+```json
+{"a":{"j":2,"k":1},"b":{"j":2,"k":1}}
 ```
 
 A node with an `id()` is an independent entity; a node without one is
@@ -1378,7 +1641,8 @@ like an entity:
 
 Because every position holds the one merged value, a mark on one
 declaration reaches all of them: `a: hide(id(x) & {k:1})` hides the
-entity, not just that declaration of it.
+entity at every declared position, not only where the wrapper was
+written.
 
 Identity is scoped to **one evaluated document-set**. There is no
 cross-evaluation registry, and ids do not embed versions.
@@ -1396,6 +1660,12 @@ services: {
     dependsOn: [&: refer({kind: service}), svc_auth]
   }
 }
+```
+
+```json
+{"services": {
+   "auth":    {"kind": "service", "port": 8080},
+   "billing": {"dependsOn": ["svc_auth"]}}}
 ```
 
 The list spread applies `refer` to every element, so `dependsOn`
@@ -1441,11 +1711,16 @@ something to check later.
 `refer(t)` does not merely *test* the target against `t`; it unifies
 `t` into it, and into every position of that entity:
 
-```
+```aon
 a: id(x) & {p:1}
 c: id(x) & {q:2}
 b: refer({r:3}) & "x"
-                        →  a and c both {p:1, q:2, r:3}, b is "x"
+```
+
+```json
+{"a": {"p":1, "q":2, "r":3},
+ "c": {"p":1, "q":2, "r":3},
+ "b": "x"}
 ```
 
 Referring to something as a `Service` makes it one — and if it cannot
@@ -1462,8 +1737,10 @@ it.
 ### The `std/system` vocabulary
 
 Ports, components and relations need no syntax — they are schemas, and
-one set of them ships with the engine:
+one set of them ships with the engine. Write this as `system.aon`:
 
+<!-- test: scenario std-system -->
+<!-- test: file system.aon -->
 ```aon
 @"std/system"
 
@@ -1476,6 +1753,19 @@ services: {
     dependsOn: rel($.std.Service) & inverse(dependedOnBy) & acyclic() & [svc_auth]
   }
 }
+```
+
+<!-- test: run -->
+```sh
+$ aontu system.aon
+{
+  "services": {
+    "auth": {
+      "dependedOnBy": [
+        "svc_billing"
+      ],
+      "kind": "service",
+...
 ```
 
 | Schema | Says |
@@ -1494,8 +1784,7 @@ package resolution — so it resolves under every include capability
 except `'none'`, which denies every include by definition. It is
 **experimental** until the vocabulary can be versioned by canon-hash.
 
-Two things about it are worth knowing, because they are the language
-rather than the vocabulary:
+Two of its behaviours are the language rather than the vocabulary:
 
 - **A preferred member is one enum member, with the default role.**
   `direction: *in | out | inout` is a true enum-with-default under the
@@ -1517,14 +1806,17 @@ language knows these names.
 
 ### Declared relations
 
-A relation is declared AT ITS FIELD: [`rel(t)`](#relation-fields-relt)
-says the field's strings are entity addresses and flows `t` into every
-target, and the two GRAPH ATOMS declare the properties that hold over
-the whole edge set:
+A relation is declared AT ITS FIELD: `rel(t)` says the field's strings
+are entity addresses and flows `t` into every target, and the two
+GRAPH ATOMS declare the properties that hold over the whole edge set:
 
 ```aon
 a: id(a) & { dependsOn: rel() & inverse(usedBy) & acyclic() & [b] }
 b: id(b) & { usedBy:    rel() & [a] }
+```
+
+```json
+{"a": {"dependsOn": ["b"]}, "b": {"usedBy": ["a"]}}
 ```
 
 - **`acyclic()`** — the edges under this relation must have no cycle.
@@ -1558,6 +1850,11 @@ written ordinary data ([ADR-010](../ADR.md) — the tree at all levels is
 user space; this retirement discharged that ADR's one grandfather
 clause).
 
+For the working recipes see
+[Check relations](how-to/check-relations.md) and
+[Query reachability](how-to/query-reachability.md); the live version,
+with its checks, is [use-cases/12-relations](../use-cases/12-relations/).
+
 ## Marks: `type` and `hide`
 
 Marks are boolean flags carried on a value (set by `type()` / `hide()`,
@@ -1570,7 +1867,17 @@ In both cases, **a map field whose value is type- or hide-marked is
 omitted when the enclosing map is generated**, while still participating
 in unification. A bare marked value at the top level still generates
 (`type(1) & number`→`1`). `copy()` clears both marks, making the result
-emittable again (`x:type({}) x:y:1 a:copy($.x)`→`{"a":{"y":1}}`).
+emittable again:
+
+```aon
+x: type({})
+x: y: 1
+a: copy($.x)
+```
+
+```json
+{"a":{"y":1}}
+```
 
 **A mark belongs to the field its wrapper was written at** (ADR-005).
 A reference to a `type()`/`hide()`-marked value copies the value with
@@ -1586,17 +1893,25 @@ constrains the referring field without suppressing its emission.
 
 ## Closed values: `close` / `open`
 
-A **closed** map or list rejects any key/element not already present.
+A **closed** map or list refuses any key/element not already present.
+Narrowing an existing key is fine, and `open` lifts the seal:
+
+```aon
+a: close({x:1}) & {x:number}
+b: open(close({x:1})) & {y:2}
+c: close(42)
+```
+
+```json
+{"a":{"x":1},"b":{"x":1,"y":2},"c":42}
+```
+
+`close` on a scalar is a no-op (`c` above), and `close($.x)` closes a
+referenced node. Adding a key or extending a list is refused:
 
 ```
-close({x:1})              → {"x":1}
-close({x:1}) & {x:1}      → {"x":1}
-close({x:1}) & {x:number} → {"x":1}        (narrowing existing keys is fine)
-close({x:1}) & {y:2}      → error: closed   (adding a key is not)
-close([1,2]) & [3,4,5]    → error: closed   (extending a list is not)
-close(42)                 → 42              (scalars: close is a no-op)
-close($.x)                → closes a referenced node
-open(close({x:1})) & {y:2} → {"x":1,"y":2}  (open lifts the seal)
+close({x:1}) & {y:2}      → error: closed
+close([1,2]) & [3,4,5]    → error: closed
 ```
 
 ## Source loading `@"…"`
@@ -1613,6 +1928,42 @@ path has no extension, those two are tried in turn, so `@"foo"` resolves
 a:@"foo.aon"                     → {"a":{"f":11}}      (nested)
 car:@"car.aon" car:{wheels:4}    → merges loaded + local
 @"foo"                           → {"f":11}            (implicit .aon/.aontu)
+```
+
+To see the merge, write `foo.aon`:
+
+<!-- test: scenario include -->
+<!-- test: file foo.aon -->
+```aon
+f: 11
+```
+
+a second file, `car.aon`:
+
+<!-- test: file car.aon -->
+```aon
+doors: 2
+```
+
+and an entry file, `main.aon`, loading both:
+
+<!-- test: file main.aon -->
+```aon
+@"foo.aon"
+car: @"car.aon"
+car: {wheels: 4}
+```
+
+<!-- test: run -->
+```sh
+$ aontu main.aon
+{
+  "car": {
+    "doors": 2,
+    "wheels": 4
+  },
+  "f": 11
+}
 ```
 
 A **relative** path resolves against a configurable base directory: the
@@ -1716,7 +2067,7 @@ module that has no meaning is the same string for every broken module.
 `aontu mod verify` asks the opposite question and **changes nothing**:
 does every locked module still *mean* what the lockfile pins? It is
 the CI gate, because `tidy` cannot be one — rewriting the lockfile is
-tidy's job, so a job that tidies before evaluating simply makes the
+tidy's job, so a job that tidies before evaluating makes the
 lock agree with whatever the store now holds. A store that has drifted
 is reported with both hashes; a project the lockfile does not cover is
 refused rather than verified over nothing.
@@ -1830,7 +2181,19 @@ x:0d0.1+0d0.2          → {"x": 0.3}
 a:0d1000 b:0d1e3       → {"a": 1000, "b": 1000.0}
 ```
 
-The last line is the leaf distinction reaching the output: a
+The last line, run through the CLI's exact emitter:
+
+<!-- test: scenario exact-gen -->
+<!-- test: run -->
+```sh
+$ echo 'a: 0d1000 b: 0d1e3' | aontu
+{
+  "a": 1000,
+  "b": 1000.0
+}
+```
+
+That is the leaf distinction reaching the output: a
 biginteger emits `1000`, and the integral bigdecimal beside it emits
 `1000.0`, because that trailing place is part of a bigdecimal's own
 digits. The plain family behaves the other way — an integral float
@@ -1950,6 +2313,8 @@ widens them is worth a look. Repeating the branch
 (`*warn | warn | error`) states "the default is a first-class member",
 silences the lint, and enforces the same admitted set.
 
+## Errors
+
 Failures surface as messages (thrown as `AontuError` in TS, returned as
 `error` in Go):
 
@@ -2008,28 +2373,23 @@ distinguishable.
 
 ## The constraint algebra (specified)
 
-> **Status: phases 1 and 2 implemented (bounds, `neq`, `re`); the rest
-> specified.** This section is the normative design of capability G1's
-> constraint atoms
-> ([docs/capability-review/g1-constraint-algebra.md](capability-review/g1-constraint-algebra.md),
-> phase 0), re-derived over the four-leaf number tower. The bound
-> atoms `min`/`max`/`above`/`below`, the exclusion `neq` and the
-> pattern `re` are implemented in both engines and pinned by
-> [`test/spec/constraint-bound.tsv`](../test/spec/constraint-bound.tsv)
-> and [`test/spec/constraint-re.tsv`](../test/spec/constraint-re.tsv);
-> violations raise the registered `constraint` code, and a pattern
-> outside the portable subset raises `constraint_pattern`. `length`,
-> `unique` and `must` still parse as `unknown_function` errors; their
-> proposed spec rows live as **drafts** in
-> [`test/spec/draft/`](../test/spec/draft/) and are promoted (after
-> parity probing) as each implementation phase lands. Known phase-1
-> limit: a preference meeting a constraint in a CONJUNCT
-> (`min(1024) & *8080`) does not yet resolve to the default — use the
-> disjunct form (`*8080 | (integer & min(1024))`) today. Under the
-> admission gate (ADR-004) the disjunct form also ENFORCES on
-> override: an out-of-bound peer is refused rather than silently
-> bypassing the constraint branch, so the recommended spelling now
-> both defaults and validates.
+> **Status: implemented.** This section is the normative design of
+> capability G1's constraint atoms
+> ([docs/capability-review/g1-constraint-algebra.md](capability-review/g1-constraint-algebra.md)),
+> re-derived over the four-leaf number tower. All nine atoms — the
+> bounds `min`/`max`/`above`/`below`, the exclusion `neq`, the pattern
+> `re`, the sizing atoms `length` and `unique`, and the evaluate-only
+> `must` — are implemented in both engines, pinned by the
+> [`test/spec/constraint-*.tsv`](../test/spec/) suites. Violations
+> raise the registered `constraint` code, and a pattern outside the
+> portable subset raises `constraint_pattern`. Known limit: a
+> preference meeting a constraint in a CONJUNCT (`min(1024) & *8080`)
+> does not resolve to the default — use the disjunct form
+> (`*8080 | (integer & min(1024))`). Under the admission gate
+> (ADR-004) the disjunct form also ENFORCES on override: an
+> out-of-bound peer is refused rather than silently bypassing the
+> constraint branch, so the recommended spelling both defaults and
+> validates.
 
 ### Vocabulary
 
@@ -2114,7 +2474,7 @@ guessed where it is not:
   admits the point 3 in any numeric leaf, so `neq(3)` (which excludes
   only the integer `3`) does NOT empty it — but
   `integer & min(3) & max(3) & neq(3)` → nil. This is the tower
-  re-derivation of the pre-tower example, and the draft rows pin both
+  re-derivation of the pre-tower example, and the spec rows pin both
   directions.
 - `length(c)` is empty iff `c & integer & min(0)` is.
 - Regex emptiness is deliberately approximate: distinct `re` atoms
@@ -2177,9 +2537,9 @@ composition time. `must` is opaque by construction: that is what Band B
 *means*. In both cases the answer is "not subsumed", so the error is
 always toward reporting a difference that is not there.
 
-**One consequence worth stating outright.** Subsumption is decided over
-the *normalised* residual, so two spellings of one constraint subsume
-each other in both directions. `min(0)&max(10)` and `max(10)&min(0)`
+**Normalisation makes the spelling irrelevant.** Subsumption is decided
+over the *normalised* residual, so two spellings of one constraint
+subsume each other in both directions. `min(0)&max(10)` and `max(10)&min(0)`
 normalise identically, and the canonical atom order below is what makes
 that true by construction rather than by a special case.
 
@@ -2210,7 +2570,7 @@ a: integer & max(10) & min(0) & min(2)
 
 `parse(canon(v)) == v` holds for every atom and every normalisation
 rule: the reparse produces a conjunct of atoms that normalises back
-to the identical residual. Draft rows pin a round-trip and an
+to the identical residual. Spec rows pin a round-trip and an
 order-independence case (`min(0)&max(10)` vs `max(10)&min(0)` →
 identical canon) for each rule.
 
@@ -2326,7 +2686,7 @@ the peer:
 - **strings**: length in **Unicode code points** — not UTF-16 code
   units (TS's native count) and not bytes (Go's): `length(1) & "𝄞"`
   holds, in both implementations. Astral-plane rows are part of the
-  draft suite, not an implementation accident.
+  spec suite, not an implementation accident.
 - **lists**: element count. **maps**: entry count.
 
 Its argument is any integer-domain constraint: `length(3)` means exactly
@@ -2347,11 +2707,21 @@ agreeing with it. `string & length(3)` is a three-character string, and
 members. `min(2) & unique()` and `re("^a") & unique()` are empty for the
 same reason.
 
-**`length` counts what generates.** An optional key that never resolves is
-dropped at generation, so it does not count:
-`length(1) & {x:1, y?:number}` **holds**, because the generated value is
-`{"x":1}`. The constraint is a claim about the data, and the data is
-what comes out.
+**`length` counts what generates.** An optional key that never resolves
+is dropped at generation, so it does not count. The constraint is a
+claim about the data, and the data is what comes out:
+
+```aon
+a: string & length(3)
+a: abc
+b: length(1) & {x:1, y?:number}
+```
+
+```json
+{"a":"abc","b":{"x":1}}
+```
+
+`b` holds because the generated value is `{"x":1}` — one member.
 
 **When the count is decided.** An optional key **survives unification
 carrying its unresolved value** — `{x:1, y?:number}` canonicalises as
@@ -2367,7 +2737,7 @@ when it carries a `type` or `hide` mark, or when it is an optional key
 whose value cannot generate. So:
 
 - **Every optional child settled** — this includes `{x:1, y?:number}`,
-  where the map converges immediately and `y` simply holds an
+  where the map converges immediately and `y` holds an
   unresolved kind. The count is known, and `length` decides at composition
   time like every other atom, `length(1) & {x:1, y?:number}` included.
 - **Some optional child still converging** — `{x:1, y?:$.z}` before `z`
@@ -2397,6 +2767,10 @@ it is grouped. A sizing atom cannot, because meeting further containers
 a: length(2)
 a: {x:1}
 a: {y:2}
+```
+
+```json
+{"a":{"x":1,"y":2}}
 ```
 
 Layering fragments like this is the point of the language, and an atom
@@ -2485,6 +2859,12 @@ services: unique(port) & {
   api:  { port: 8080, name: "api"  }
   auth: { port: 8443, name: "auth" }
 }
+```
+
+```json
+{"services": {
+   "api":  {"port": 8080, "name": "api"},
+   "auth": {"port": 8443, "name": "auth"}}}
 ```
 
 A member with no such key **fails** rather than being skipped:
@@ -2584,8 +2964,11 @@ The key name is not reserved: `type` above is a field called `type`
 that happens to be `type()`-marked. `defs`, `schema` or anything else
 reads the same to the engine.
 
-An out-of-range value is refused at the field that holds it:
+An out-of-range value is refused at the field that holds it. Write
+this as `uint8.aon`:
 
+<!-- test: scenario alias-range -->
+<!-- test: file uint8.aon -->
 ```aon
 type: type({})
 type: { uint8: integer & min(0) & max(255) }
@@ -2593,8 +2976,16 @@ a: $.type.uint8
 a: 300
 ```
 
-fails with `[aontu/constraint]` at `$.a` — `300` does not satisfy
-`max(255)`.
+<!-- test: run -->
+```sh
+$ aontu uint8.aon
+[aontu/constraint]: Cannot unify values at path $.a
+...
+$ echo $?
+1
+```
+
+`300` does not satisfy `max(255)`.
 
 **Name the kind as well as the bounds.** `min(0) & max(255)` alone is a
 bound on *numbers*, so `1.5` satisfies it; a sized integer is
@@ -2612,7 +3003,7 @@ a: 1.5
 { "a": 1.5 }
 ```
 
-Because an alias is just a value, the aliases compose: one can be
+Because an alias is a value, the aliases compose: one can be
 written in terms of another, and a reference to an alias may be met
 with further constraints at the point of use.
 

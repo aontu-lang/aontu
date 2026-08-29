@@ -339,7 +339,41 @@ class RefVal extends FeatureVal_1.FeatureVal {
                     }
                 }
             }
-            // console.log('REFPATH', ctx.cc, pI, refpath, nopath, ctx.root, node)
+            // THE ANCHORED-MEET FALLBACK (vet --at): an absolute reference
+            // inside a lifted subtree names the SCHEMA's namespace, and the
+            // meet's root does not contain it. The settled schema root the
+            // lifter kept (AontuContext._fixroot; see RecurseVal.body) is
+            // the tree such a reference means. Without this, a recursion
+            // re-entering through a list spread died as no_path at the
+            // first element under vet --at, while the map-tail form (whose
+            // residual was minted during schema settling) worked; the Go
+            // port answers the anchored meet from settled structures and
+            // never sees the gap.
+            const fixroot = ctx._fixroot;
+            if (this.absolute && null != fixroot
+                && (nopath || pI !== refpath.length)) {
+                nopath = false;
+                pI = 0;
+                let fnode = fixroot;
+                for (; pI < refpath.length; pI++) {
+                    const part = refpath[pI];
+                    if (true === fnode.isMap || true === fnode.isList) {
+                        fnode = fnode.peg[part];
+                    }
+                    else {
+                        break;
+                    }
+                    if (null == fnode) {
+                        break;
+                    }
+                }
+                if (null != fnode && pI === refpath.length) {
+                    node = fnode;
+                }
+                else {
+                    nopath = true;
+                }
+            }
             if (nopath) {
                 out = (0, err_1.makeNilErr)(ctx, 'no_path', this);
             }

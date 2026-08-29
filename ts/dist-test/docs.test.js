@@ -34,95 +34,270 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-// THE DOCUMENTATION, HELD TO THE ENGINE. The skill sources have been
-// executed since G7 phase 6 (skill.test.ts); the four teaching
-// documents were not, and the 2026-08-21 status report's item 6 asks
-// for exactly this — "run every fenced block in tutorial.md and
-// how-to.md against its stated result".
-//
-// It is worth having because the failure mode is silent and slow: an
+// THE DOCUMENTATION, HELD TO THE ENGINE. Every fenced snippet in the
+// Diátaxis pages is either executed here or carries a visible,
+// reasoned skip — the rule docs/STYLE-GUIDE.md states and this file
+// enforces. The failure mode this exists for is silent and slow: an
 // example that was right when it was written stays in the page after
 // the surface moves under it, and the reader who trusts it is the one
-// who finds out. Every claim these documents make about what a
-// document EVALUATES TO is a claim this file re-derives from the
-// engine rather than from the page.
+// who finds out.
 //
-// Two rules, chosen so neither is brittle:
+// Four layers of checking, from oldest to newest:
 //
-//   1. EVERY example PARSES. A block that does not parse is always a
-//      bug, in a way that a block which does not unify is not — the
-//      teaching documents deliberately show conflicts (`port: 8080`
-//      meeting `port: 9090`), and refusing those would be refusing the
-//      lesson.
-//   2. EVERY example that STATES its result is checked against it. The
-//      convention is an `aontu` fence immediately followed by a `json`
-//      fence, which is how all four documents write it, and the
-//      comparison is structural — the page's whitespace and key order
-//      are the page's business.
+//   1. EVERY self-contained example PARSES. A block that does not
+//      parse is always a bug, in a way that a block which does not
+//      unify is not — the teaching documents deliberately show
+//      conflicts (`port: 8080` meeting `port: 9090`), and refusing
+//      those would be refusing the lesson.
+//   2. EVERY example that STATES its result is checked against it:
+//      an `aontu` fence immediately followed by a `json` fence is a
+//      generate claim, compared structurally — the page's whitespace
+//      and key order are the page's business.
+//   3. MULTI-FILE examples and CLI TRANSCRIPTS are executed through
+//      the directive vocabulary (scenario / file / run / skip — see
+//      docs/STYLE-GUIDE.md, "Code snippets"). A directive is an HTML
+//      comment on its own line immediately before a fence; the sync
+//      to aontu.dev passes comments through and the site renders
+//      them as nothing. What the reader sees is exactly what ran.
+//   4. EVERY tagged fence is ACCOUNTED FOR: covered by one of the
+//      mechanisms above, or skipped with a non-empty reason. What
+//      used to be a silent exclusion (an `@"` include) is now a
+//      failure unless the page scaffolds it or owns the skip.
 //
-// Multi-file examples are excluded: an `@"..."` include resolves
-// against a sibling file the page describes but does not ship.
+// Plus the style gate: the enforceable subset of the banned-phrase
+// list in docs/STYLE-GUIDE.md, applied to prose (never to fences).
 const node_test_1 = require("node:test");
 const Assert = __importStar(require("node:assert"));
 const Fs = __importStar(require("node:fs"));
+const Os = __importStar(require("node:os"));
 const Path = __importStar(require("node:path"));
+const node_child_process_1 = require("node:child_process");
 const aontu_1 = require("../dist/aontu");
 const DOCS_DIR = Path.join(__dirname, '..', '..', 'docs');
-// The four Diátaxis documents plus the map. `explanation.md` writes its
-// blocks unfenced-by-language (they are diagrams and transcripts, not
-// documents), so it contributes nothing and is not listed.
-const PAGES = [
-    'index.md',
-    'tutorial.md',
-    'how-to.md',
-    'reference-language.md',
-];
+const CLI = Path.join(__dirname, '..', 'bin', 'aontu.js');
+// The executed page set: the Diátaxis documents whose fences face the
+// four layers above. `explanation.md` writes its blocks
+// unfenced-by-language (diagrams and quoted transcripts), so it
+// contributes nothing here — but it does face the style gate below.
+// `docs/how-to/` is a directory of per-guide pages; the glob keeps
+// the list honest as guides are added or renamed.
+// DOCS_PAGES=<comma-list> narrows a run to named pages — the tight
+// loop for writing one page — and suspends the corpus-wide floors,
+// which only mean anything over the whole set.
+function narrowed() {
+    const v = process.env.DOCS_PAGES;
+    return null == v || '' === v ? undefined : v.split(',');
+}
+function execPages() {
+    const only = narrowed();
+    if (only) {
+        return only.filter((f) => Fs.existsSync(Path.join(DOCS_DIR, f)));
+    }
+    const fixed = [
+        'index.md',
+        'tutorial.md',
+        'tutorial-graph.md',
+        'reference-language.md',
+        'reference-api.md',
+        'use-cases.md',
+    ].filter((f) => Fs.existsSync(Path.join(DOCS_DIR, f)));
+    const howtoDir = Path.join(DOCS_DIR, 'how-to');
+    const howto = Fs.existsSync(howtoDir)
+        ? Fs.readdirSync(howtoDir).filter((f) => f.endsWith('.md'))
+            .sort().map((f) => Path.join('how-to', f))
+        : [];
+    // The monolithic how-to.md remains in the list only while it still
+    // exists; the split guides replace it.
+    const mono = Fs.existsSync(Path.join(DOCS_DIR, 'how-to.md'))
+        ? ['how-to.md'] : [];
+    return [...fixed, ...mono, ...howto];
+}
+// The style-gated page set: every Diátaxis page plus the reference
+// and contributor documents. STYLE-GUIDE.md itself is exempt — it
+// quotes the banned phrases in order to ban them.
+function stylePages() {
+    const only = narrowed();
+    if (only) {
+        return only.filter((f) => Fs.existsSync(Path.join(DOCS_DIR, f)));
+    }
+    return [...execPages(),
+        'explanation.md', 'trust.md', 'lsp.md',
+        'shared-spec.md', 'test-coverage.md', 'release-and-tag.md',
+    ].filter((f, i, a) => a.indexOf(f) === i)
+        .filter((f) => Fs.existsSync(Path.join(DOCS_DIR, f)));
+}
 // `aon` and `aontu` are both used as the fence tag for an Aontu
-// document; the reference language file uses the first and the
+// document; the reference-language file uses the first and the
 // teaching documents the second.
 const SOURCE_TAGS = new Set(['aon', 'aontu']);
 // LINE ENDINGS ARE THE CHECKOUT'S BUSINESS, not this file's. git on
 // Windows checks out with CRLF by default, and every pattern below
-// anchors on "\n" -- so on a Windows runner the extractor matched
-// ZERO blocks and the suite reported a documentation file with no
-// examples in it rather than a failure. (.gitattributes now pins these
-// files to LF as well, which is the systemic half; this is the half
-// that still holds when the file arrives from a source tarball, an
-// editor that rewrote it, or a copy-paste.)
-//
-// A lone CR is normalised too: it is not a line ending any tool in
-// this repository emits, but a file that has been through a Classic
-// Mac era conversion is exactly the kind of input that should fail
-// loudly on its CONTENT rather than silently on its whitespace.
+// anchors on "\n" — so on a Windows runner the extractor matched ZERO
+// blocks and the suite reported a documentation file with no examples
+// in it rather than a failure. (.gitattributes pins these files to LF
+// as well; this is the half that still holds when the file arrives
+// from a tarball, an editor that rewrote it, or a copy-paste.)
 function lf(text) {
     return text.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
 }
-function blocks(md) {
+// One pass, in document order, collecting scenario-opens and fences,
+// binding each file/run/skip directive to the fence that follows it.
+// A directive with no following fence, or an unknown verb, is a page
+// defect and fails loudly rather than being ignored. A `scenario`
+// directive is a standalone statement — it opens a scenario at its
+// position and may sit directly above the fence directives that
+// populate it.
+function extract(file, md) {
+    const lines = md.split('\n');
     const out = [];
-    const re = /^```([a-z]*)\n([\s\S]*?)^```[ \t]*$/gm;
-    let m;
-    while (null != (m = re.exec(md))) {
-        out.push({ lang: m[1], body: m[2] });
+    let pending;
+    for (let i = 0; i < lines.length; i++) {
+        const dm = lines[i].match(/^<!--\s*test:\s*([a-z]+)\s*(.*?)\s*-->\s*$/);
+        if (dm) {
+            const verb = dm[1];
+            Assert.ok(['scenario', 'file', 'run', 'skip'].includes(verb), `${file}:${i + 1} unknown test directive verb: ${verb}`);
+            if ('scenario' === verb) {
+                Assert.ok('' !== dm[2], `${file}:${i + 1} scenario needs a name`);
+                out.push({ kind: 'scenario', name: dm[2], line: i + 1 });
+                continue;
+            }
+            Assert.ok(undefined === pending, `${file}:${i + 1} directive while another (line ${pending?.line}) ` +
+                `still awaits its fence`);
+            pending = { verb: verb, arg: dm[2], line: i + 1 };
+            continue;
+        }
+        const fm = lines[i].match(/^```([a-z]*)[ \t]*$/);
+        if (fm) {
+            const start = i + 1;
+            const body = [];
+            i++;
+            while (i < lines.length && !/^```[ \t]*$/.test(lines[i])) {
+                body.push(lines[i]);
+                i++;
+            }
+            Assert.ok(i < lines.length, `${file}:${start} unclosed fence`);
+            const b = {
+                lang: fm[1],
+                body: body.join('\n') + (body.length ? '\n' : ''),
+                line: start,
+            };
+            if (pending) {
+                b.directive = pending;
+                pending = undefined;
+            }
+            out.push({ kind: 'block', block: b });
+            continue;
+        }
     }
+    Assert.ok(undefined === pending, `${file}:${pending?.line} directive is not followed by a fence`);
     return out;
 }
 function pages() {
-    return PAGES.map((file) => ({
-        file,
-        blocks: blocks(lf(Fs.readFileSync(Path.join(DOCS_DIR, file), 'utf8'))),
-    }));
+    return execPages().map((file) => {
+        const items = extract(file, lf(Fs.readFileSync(Path.join(DOCS_DIR, file), 'utf8')));
+        return {
+            file, items,
+            blocks: items.filter((x) => 'block' === x.kind)
+                .map((x) => x.block),
+        };
+    });
 }
-// A block the page ships whole. An `@"..."` include names a sibling the
-// prose describes rather than a file this suite can resolve.
+// A block the page ships whole: a source fence with no `@"` include
+// and no file directive (a scenario member is proven by its runs).
 function selfContained(b) {
-    return SOURCE_TAGS.has(b.lang) && !b.body.includes('@"');
+    return SOURCE_TAGS.has(b.lang) && !b.body.includes('@"')
+        && 'file' !== b.directive?.verb;
 }
+function parseTranscript(file, b) {
+    const steps = [];
+    const lines = b.body.replace(/\n$/, '').split('\n');
+    let cur;
+    lines.forEach((ln, i) => {
+        if (ln.startsWith('$ ')) {
+            const cmd = ln.slice(2).trim();
+            if (/^echo \$\?$/.test(cmd)) {
+                Assert.ok(cur, `${file}:${b.line + i + 1} echo $? with no command`);
+                cur = { cmd, expect: [], line: b.line + i + 1, exitOf: cur };
+            }
+            else {
+                cur = { cmd, expect: [], line: b.line + i + 1 };
+            }
+            steps.push(cur);
+        }
+        else {
+            Assert.ok(cur, `${file}:${b.line + i + 1} transcript output before any command`);
+            cur.expect.push(ln);
+        }
+    });
+    return steps;
+}
+// Minimal quote-aware splitter: double and single quotes group words;
+// no escapes, no expansion. Anything needing more is real shell and
+// belongs in a use-case check.sh, not a doc transcript.
+function splitArgs(file, line, s) {
+    const out = [];
+    const re = /"([^"]*)"|'([^']*)'|(\S+)/g;
+    let m;
+    while (null != (m = re.exec(s))) {
+        out.push(m[1] ?? m[2] ?? m[3]);
+    }
+    // Shell features are not modelled — with one exception, the single
+    // pipe of the `echo '<text>' | aontu …` stdin form, which runStep
+    // handles itself before any spawn.
+    const unquoted = s.replace(/'[^']*'|"[^"]*"/g, '');
+    const bare = s.startsWith('echo ')
+        ? unquoted.replace('|', '') : unquoted;
+    Assert.ok(!/[|&;<>`]/.test(bare), `${file}:${line} transcript uses shell features the harness does ` +
+        `not model: simplify, or mark <!-- test: skip … -->\n  ${s}`);
+    return out;
+}
+function norm(s) {
+    return lf(s).split('\n').map((l) => l.replace(/[ \t]+$/, ''))
+        .join('\n').trim();
+}
+// Expected output with `...` wildcard lines: build a regex where a
+// lone `...` matches any (possibly empty) run of lines.
+function matches(expect, got) {
+    const want = norm(expect.join('\n'));
+    const parts = want.split(/^\.\.\.$/m).map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').trim());
+    const re = new RegExp('^' + parts.join('(?:[\\s\\S]*?)') + '$');
+    return re.test(norm(got));
+}
+function runStep(file, dir, step) {
+    let argv = splitArgs(file, step.line, step.cmd);
+    let input;
+    // The one stdin form: echo '<text>' | aontu …
+    if ('echo' === argv[0]) {
+        const pipe = argv.indexOf('|');
+        Assert.ok(1 < pipe && 'aontu' === argv[pipe + 1], `${file}:${step.line} only \`echo '<text>' | aontu …\` is modelled`);
+        input = argv.slice(1, pipe).join(' ');
+        argv = argv.slice(pipe + 1);
+    }
+    Assert.equal(argv[0], 'aontu', `${file}:${step.line} transcript commands start with aontu (or ` +
+        `the echo-pipe form); got: ${step.cmd}`);
+    const aontu = process.env.AONTU?.split(' ');
+    const [bin, ...pre] = aontu ?? [process.execPath, CLI];
+    try {
+        const out = (0, node_child_process_1.execFileSync)(bin, [...pre, ...argv.slice(1)], {
+            cwd: dir, input,
+            env: { ...process.env, NO_COLOR: '1' },
+            encoding: 'utf8',
+            stdio: ['pipe', 'pipe', 'pipe'],
+        });
+        return { out, code: 0 };
+    }
+    catch (e) {
+        const out = String(e.stdout ?? '') + String(e.stderr ?? '');
+        return { out, code: e.status ?? 1 };
+    }
+}
+// ---------------------------------------------------------------------
 (0, node_test_1.describe)('docs', () => {
     // A parse failure in a documented example is never the lesson.
     (0, node_test_1.test)('every-documented-example-parses', () => {
         let checked = 0;
         for (const page of pages()) {
-            page.blocks.forEach((b, i) => {
+            page.blocks.forEach((b) => {
                 if (!selfContained(b)) {
                     return;
                 }
@@ -130,12 +305,15 @@ function selfContained(b) {
                 const aontu = new aontu_1.Aontu();
                 const ctx = aontu.ctx({ collect: true });
                 aontu.parse(b.body, undefined, ctx);
-                Assert.deepEqual(ctx.err.map((e) => e.why), [], `${page.file} block ${i} does not parse:\n${b.body}`);
+                Assert.deepEqual(ctx.err.map((e) => e.why), [], `${page.file}:${b.line} does not parse:\n${b.body}`);
             });
         }
         // The extractor silently matching nothing would make every
-        // assertion above vacuous, so the count is asserted too.
-        Assert.ok(30 < checked, `too few examples extracted: ${checked}`);
+        // assertion above vacuous, so the count is asserted too. Floors
+        // are corpus-wide claims; a DOCS_PAGES run suspends them.
+        if (undefined === narrowed()) {
+            Assert.ok(30 < checked, `too few examples extracted: ${checked}`);
+        }
     });
     // The claim each page makes about what its example EVALUATES TO,
     // re-derived from the engine. Structural comparison: the page owns
@@ -145,16 +323,225 @@ function selfContained(b) {
         for (const page of pages()) {
             page.blocks.forEach((b, i) => {
                 const next = page.blocks[i + 1];
-                if (!selfContained(b) || null == next || 'json' !== next.lang) {
+                if (!selfContained(b) || null == next || 'json' !== next.lang
+                    || null != next.directive) {
                     return;
                 }
                 checked++;
+                b.covered = next.covered = 'pair';
                 const got = new aontu_1.Aontu().generate(b.body);
-                Assert.deepEqual(got, JSON.parse(next.body), `${page.file} block ${i} does not generate what it states:\n` +
+                Assert.deepEqual(got, JSON.parse(next.body), `${page.file}:${b.line} does not generate what it states:\n` +
                     `${b.body}\n--- stated ---\n${next.body}`);
             });
         }
-        Assert.ok(5 < checked, `too few stated results extracted: ${checked}`);
+        if (undefined === narrowed()) {
+            Assert.ok(5 < checked, `too few stated results extracted: ${checked}`);
+        }
+    });
+    // Scenarios and transcripts: the directive vocabulary, executed in
+    // document order per page. A `file` fence is written into the
+    // page's current scenario directory; a `run` fence is a transcript
+    // executed there. On failure the scenario directory is kept and
+    // named, so the failure is reproducible by hand.
+    (0, node_test_1.test)('every-scenario-and-transcript-runs', () => {
+        let scenarios = 0;
+        let commands = 0;
+        for (const page of pages()) {
+            let dir;
+            let scenarioId = '';
+            const open = (id) => {
+                dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-docs-'));
+                scenarioId = id;
+                scenarios++;
+            };
+            for (const item of page.items) {
+                if ('scenario' === item.kind) {
+                    open(item.name);
+                    continue;
+                }
+                const b = item.block;
+                const d = b.directive;
+                if (null == d) {
+                    continue;
+                }
+                if ('file' === d.verb) {
+                    Assert.ok('' !== d.arg, `${page.file}:${d.line} file directive needs a name`);
+                    if (null == dir) {
+                        open('(anonymous)');
+                    }
+                    Assert.ok(!d.arg.includes('..') && !Path.isAbsolute(d.arg), `${page.file}:${d.line} file name escapes the scenario: ${d.arg}`);
+                    const p = Path.join(dir, d.arg);
+                    Fs.mkdirSync(Path.dirname(p), { recursive: true });
+                    Fs.writeFileSync(p, b.body);
+                    b.covered = 'file';
+                }
+                if ('run' === d.verb) {
+                    Assert.equal(b.lang, 'sh', `${page.file}:${d.line} run directives annotate sh fences`);
+                    if (null == dir) {
+                        open('(anonymous)');
+                    }
+                    const steps = parseTranscript(page.file, b);
+                    let prevCode = 0;
+                    for (const step of steps) {
+                        if (step.exitOf) {
+                            const want = step.expect.join('\n').trim();
+                            Assert.equal(String(prevCode), want, `${page.file}:${step.line} [${scenarioId}] exit code: ` +
+                                `command exited ${prevCode}, page states ${want}\n` +
+                                `  scenario dir kept: ${dir}`);
+                            commands++;
+                            continue;
+                        }
+                        const r = runStep(page.file, dir, step);
+                        prevCode = r.code;
+                        commands++;
+                        // A command with no echo $? after it must succeed; one
+                        // with an exit pin may exit however the pin states.
+                        const idx = steps.indexOf(step);
+                        const pinned = steps[idx + 1]?.exitOf === step;
+                        if (!pinned) {
+                            Assert.equal(r.code, 0, `${page.file}:${step.line} [${scenarioId}] ` +
+                                `\`${step.cmd}\` exited ${r.code} with no stated exit\n` +
+                                `${r.out}\n  scenario dir kept: ${dir}`);
+                        }
+                        Assert.ok(matches(step.expect, r.out), `${page.file}:${step.line} [${scenarioId}] output mismatch ` +
+                            `for \`${step.cmd}\`\n--- stated ---\n` +
+                            `${JSON.stringify(step.expect.join('\n'))}\n--- got ---\n` +
+                            `${JSON.stringify(norm(r.out))}\n  scenario dir kept: ${dir}`);
+                    }
+                    b.covered = 'run';
+                }
+                if ('skip' === d.verb) {
+                    Assert.ok('' !== d.arg.trim(), `${page.file}:${d.line} a skip needs its reason`);
+                    b.covered = 'skip';
+                }
+            }
+            // Scenario dirs from fully green pages are transient; a failed
+            // assertion above threw before this cleanup, keeping the dir.
+            if (null != dir) {
+                Fs.rmSync(dir, { recursive: true, force: true });
+            }
+        }
+        // Floors, per the vacuity-guard precedent above. Tuned to the
+        // rewritten set; raise them as the corpus grows.
+        if (undefined === narrowed()) {
+            Assert.ok(4 <= scenarios, `too few scenarios extracted: ${scenarios}`);
+            Assert.ok(10 <= commands, `too few transcript commands: ${commands}`);
+        }
+    });
+    // The accounting layer: every tagged fence is covered or skipped.
+    // Untagged fences make no language claim and are exempt.
+    (0, node_test_1.test)('every-snippet-is-tested-or-owns-its-skip', () => {
+        // Re-derive coverage exactly as the layers above assign it, then
+        // demand a disposition for what remains — reported as one census,
+        // so a page's whole debt is visible in one failure.
+        const untested = [];
+        for (const page of pages()) {
+            page.blocks.forEach((b, i) => {
+                if ('' === b.lang) {
+                    return; // no language claim
+                }
+                const d = b.directive;
+                if (d && ('file' === d.verb || 'run' === d.verb
+                    || 'skip' === d.verb)) {
+                    return; // scenario member, transcript, or owned skip
+                }
+                if (selfContained(b)) {
+                    return; // parse-checked; possibly also a pair
+                }
+                const prev = page.blocks[i - 1];
+                if ('json' === b.lang && null != prev && selfContained(prev)) {
+                    return; // the stated half of a pair
+                }
+                untested.push(`${page.file}:${b.line} (${b.lang})`);
+            });
+        }
+        Assert.deepEqual(untested, [], `snippets with no test and no owned skip — give each a ` +
+            `directive: file/run for execution, or skip with a reason ` +
+            `(docs/STYLE-GUIDE.md, "Code snippets"):\n${untested.join('\n')}`);
+    });
+    // The prose channel names scenario files too: a file directive's
+    // name must appear in a code span in the three lines above it, so
+    // the human channel and the machine channel cannot drift.
+    (0, node_test_1.test)('scenario-files-are-named-in-prose', () => {
+        for (const page of pages()) {
+            const text = lf(Fs.readFileSync(Path.join(DOCS_DIR, page.file), 'utf8'));
+            const lines = text.split('\n');
+            for (const b of page.blocks) {
+                if ('file' !== b.directive?.verb) {
+                    continue;
+                }
+                const at = b.directive.line - 1;
+                const above = lines.slice(Math.max(0, at - 3), at).join('\n');
+                Assert.ok(above.includes('`' + b.directive.arg + '`'), `${page.file}:${b.directive.line} the prose above should name ` +
+                    `\`${b.directive.arg}\` in a code span (STYLE-GUIDE.md)`);
+            }
+        }
+    });
+});
+// ---------------------------------------------------------------------
+// The style gate: the enforceable subset of docs/STYLE-GUIDE.md's
+// banned list, applied to prose only — fences are code, and quoted
+// error text inside them is the engine's business. Phrases whose
+// legitimate technical uses are common (surface as a noun, navigate a
+// tree structure) are left to review; what is listed here is banned
+// in any context these pages produce.
+const BANNED = [
+    [/\bworth noting\b/i, 'worth noting'],
+    [/\bimportant to note\b/i, 'important to note'],
+    [/\bat its core\b/i, 'at its core'],
+    [/\bwhen it comes to\b/i, 'when it comes to'],
+    [/\bdelve\b/i, 'delve'],
+    [/\bdive into\b/i, 'dive into'],
+    [/\brobust\b/i, 'robust'],
+    [/\bseamless(?:ly)?\b/i, 'seamless'],
+    [/\bcomprehensive(?:ly)?\b/i, 'comprehensive'],
+    [/\bholistic\b/i, 'holistic'],
+    [/\bleverag(?:e|es|ed|ing)\b/i, 'leverage'],
+    [/\bfoster(?:s|ed|ing)?\b/i, 'foster'],
+    [/\bshed(?:s|ding)? light on\b/i, 'shed light on'],
+    [/\bpav(?:e|es|ed|ing) the way\b/i, 'pave the way'],
+    [/\bpivotal\b/i, 'pivotal'],
+    [/\btransformative\b/i, 'transformative'],
+    [/\bgame.chang(?:er|ing)\b/i, 'game-changing'],
+    [/\bcutting.edge\b/i, 'cutting-edge'],
+    [/\bgroundbreaking\b/i, 'groundbreaking'],
+    [/\btestament to\b/i, 'testament to'],
+    [/\bparadigm shift\b/i, 'paradigm shift'],
+    [/\bnorth star\b/i, 'north star'],
+    [/\bkey takeaways\b/i, 'key takeaways'],
+    [/\bat the end of the day\b/i, 'at the end of the day'],
+    [/\bload.bearing\b/i, 'load-bearing'],
+    [/\bheavy lifting\b/i, 'heavy lifting'],
+    [/\bnot just\b/i, 'the "not just X" contrast frame'],
+    [/\bhere'?s where it gets interesting\b/i, 'here is where it gets interesting'],
+    [/\bthe right (?:way|answer|tool|question)\b/i, 'the right way/answer/tool/question'],
+];
+// Strip fenced blocks and inline code spans; what remains is prose.
+function prose(md) {
+    return lf(md)
+        .replace(/^```[a-z]*[ \t]*$[\s\S]*?^```[ \t]*$/gm, '')
+        .replace(/`[^`\n]*`/g, '');
+}
+(0, node_test_1.describe)('docs-style', () => {
+    (0, node_test_1.test)('no-banned-phrases-in-prose', () => {
+        const hits = [];
+        for (const file of stylePages()) {
+            const text = prose(Fs.readFileSync(Path.join(DOCS_DIR, file), 'utf8'));
+            text.split('\n').forEach((line, i) => {
+                for (const [re, name] of BANNED) {
+                    if (re.test(line)) {
+                        hits.push(`${file}:${i + 1} "${name}": ${line.trim()}`);
+                    }
+                }
+            });
+        }
+        Assert.deepEqual(hits, [], `banned phrases (docs/STYLE-GUIDE.md):\n${hits.join('\n')}`);
+    });
+    // The guide and this gate must agree; the guide names this block,
+    // so a reader of either finds the other.
+    (0, node_test_1.test)('the-style-guide-names-this-gate', () => {
+        const guide = Fs.readFileSync(Path.join(DOCS_DIR, 'STYLE-GUIDE.md'), 'utf8');
+        Assert.ok(guide.includes('docs.test.ts'), 'STYLE-GUIDE.md should point at this test file');
     });
 });
 //# sourceMappingURL=docs.test.js.map

@@ -32,7 +32,7 @@ The synthesis lives beside this file:
 
 Requirements: Node (per `ts/package.json` engines) with an installed
 `ts/node_modules` (`cd ts && npm install`), plus `python3` (JSON
-assertions in cases 03 and 07) and `git` (case 04's `git#rev` gate).
+assertions in cases 03, 07 and 14) and `git` (case 04's `git#rev` gate).
 Scripts locate the repo root from their own path and honour `AONTU` —
 and, in case 09, `MCP` — to point at a different build.
 
@@ -53,6 +53,7 @@ and, in case 09, `MCP` — to point at a different build.
 | [11-shared-modules](11-shared-modules/) | Shared truth across repos: a schema module vendored into a consumer | `mod tidy`/`verify`/`vendor`/`manifest`, lockfile pins, integrity errors, `#aon1-…` inline pins |
 | [12-relations](12-relations/) | Pipeline DAG: field-declared relations, one line of schema | `rel(t)`, held constraints, `acyclic()`/`inverse(n)` atoms, verdict at generation, `relations`/`reaches` |
 | [13-recursive-schema](13-recursive-schema/) | Approval chain: a schema one reference deep over any-depth data | recursive residuals (`$.spec.Step`), mu-form canon + hash, `recursion_unexpanded`, `vet --at` over plain JSON |
+| [14-jsonschema-export](14-jsonschema-export/) | JSON Schema as the bridge out: MCP inputSchema, OpenAPI, stock validators | `jsonschema --at`/`--strict`/`--format json`, the stderr loss report, exit classes, the money-wire `const` mark |
 
 ## Scope and conventions
 

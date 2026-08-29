@@ -622,9 +622,12 @@ function vet(schemaSrc, dataSrc, opts) {
         // walk, the residual held its peer forever and everything under a
         // recursive field vetted VALID unchecked. The settled schema root
         // is kept on the meet context for exactly that walk
-        // (AontuContext._fixroot; RecurseVal.body falls back to it).
+        // (AontuContext._fixroot; RecurseVal.body and RefVal.find fall
+        // back to it).
         ;
         ctx._fixroot = schemaVal;
+        ctx.path = options.at.replace(/^\$\.?/, '')
+            .split('.').filter((s) => '' !== s);
     }
     const pair = new ConjunctVal_1.ConjunctVal({ peg: [meetAnchor, dataVal] }, ctx);
     const unified = aontu.unify(pair, undefined, ctx);

@@ -1783,6 +1783,55 @@ use-cases/12-relations spells the natural form). The self-typed
 `rel($.spec.Job)` inside `Job` remains with the recursion note's
 rel-side wiring.
 
+### 54. Relation findings misreport when the schema include nests inside the data file [major]
+
+Found 2026-08-29 while writing docs/tutorial-graph.md, probed in the
+TypeScript CLI. With the schema loaded as a NESTED include (overlay ->
+pipeline -> spec, a two-file chain) instead of as a sibling include of
+one root model, a mirrored cycle overlay misreports: generation refuses
+with `[aontu/relation_inverse_missing]` although the mirror entry is
+present, and `aontu relations` emits four inverse-missing findings whose
+relation column shows entity keys (`load:`, `extract:`) instead of the
+relation name, with no `relation_cycle` at all.
+
+Repro shape: `spec.aon` declaring
+`feeds?: rel(...) & acyclic() & inverse(fedBy)`; `pipeline.aon` starting
+with `@"./spec.aon"` plus three jobs with both directions written; an
+overlay file with `@"./pipeline.aon"` plus
+`change: id(job_load) & {feeds: [job_extract]}` and the mirror
+`mirror: id(job_extract) & {fedBy: [job_load]}`. The three-file layout
+(a root including spec and pipeline as siblings) reports the correct
+`relation_cycle` -- use-cases/12-relations and the tutorial both use
+that shape. Cosmetic quirk observed alongside: generation-time relation
+errors at overlay positions append the relation name to the path
+(`$.change.feeds.1.feeds`).
+
+### 55. `why` drops the spread role when template and keys arrive in separate statements [minor]
+
+Found 2026-08-29 while writing docs/how-to/explain-a-value.md, probed in
+the TypeScript CLI. When the `&:` template and the concrete keys sit in
+two separate duplicate `services:` statements, `why` at a templated path
+drops the `(spread)` role annotation; with two spreads contributing to
+one field it displays the merged disjunction as the org contribution's
+value instead of the text the author wrote. The single-block spelling
+(template and keys in one statement) reports roles and sources exactly
+as documented, and the guide uses it.
+
+### 56. `jsonschema` drops `deprecate()` silently, against its own loss contract [minor]
+
+Found 2026-08-29 while building use-cases/14-jsonschema-export, probed
+in both CLIs (which agree). `deprecate(x, meta)` exports as `x` alone:
+no `deprecated: true` keyword (2020-12 has one), and no loss line on
+stderr even under `--strict` -- the one silent drop found while pinning
+the export surface, against the verb's stated rule that nothing is
+dropped in silence. Related boundaries that ARE reported (and now
+documented in docs/how-to/export-json-schema.md): `must()` exports `{}`
+as construct `nil` and takes the conjoined kind with it; a spread
+template crosses as `additionalProperties`/`items` only when it is a
+bare kind; list `length()` exports `minItems`/`maxItems` yet still
+reports a domain-less loss. The case's `check.sh` pins today's
+behaviour; fixing any of these means re-pinning there and in the guide.
+
 ## Elsewhere in this review
 
 Defects verified earlier in the effort and recorded in
