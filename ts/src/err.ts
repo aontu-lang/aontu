@@ -1,6 +1,8 @@
 /* Copyright (c) 2021-2025 Richard Rodger, MIT License */
 
 
+import { sep } from 'node:path'
+
 import { util } from '@tabnas/jsonic'
 
 import { Val, ErrContext } from './type'
@@ -180,7 +182,12 @@ function descErr<NILS extends NilVal | NilVal[]>(
 
 function resolveFile(url: string | undefined) {
   const cwd = process.cwd()
-  let out = url?.replace(cwd + '/', '') ?? '<no-file>'
+  // The PLATFORM'S separator, not '/': a hardcoded slash never matched
+  // a Windows cwd, so every Windows report named the absolute path
+  // where the POSIX report (and the Go CLI, which prints the entry as
+  // typed) named `clash.aon` -- caught by the docs transcript for
+  // reading a conflict error, which pins the relative spelling.
+  let out = url?.replace(cwd + sep, '') ?? '<no-file>'
   out = out === cwd || '' === out ? '<no-file>' : out
   return out
 }
