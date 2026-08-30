@@ -1,0 +1,11 @@
+# 64 (spelling 2 of 3): an ALIAS-valued spread template, same break.
+#
+# run: node ../../../ts/bin/aontu.js subsume reflexivity-alias-spread.aon reflexivity-alias-spread.aon
+# run: aontu-go subsume reflexivity-alias-spread.aon reflexivity-alias-spread.aon
+#
+# expected: verdict: subsumes
+# actual (both ports): verdict: undecided
+#           $.code.fs: sub_path_dependent_spread [compat]
+#           expected: $.%F   actual: $.%F   -- byte-identical
+%F: {n: string}
+code: {fs: {&: %F}}
