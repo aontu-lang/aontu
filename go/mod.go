@@ -63,9 +63,108 @@ func parseModuleRef(spec string) (ModuleRef, bool) {
 	return ModuleRef{Path: m[1], Major: major, Hash: m[3]}, true
 }
 
+// SHAPE IS NOT VALIDITY, and the gap between them was a hole. moduleRe
+// answers "does this string route to the module resolver" -- a ROUTING
+// predicate, and it must stay one, because anything it rejects falls
+// through to the file leg and a stricter pattern would silently
+// re-route documents that work today. But its element class
+// `[A-Za-z0-9._-]` admits `..`, and moduleDir joins elements with
+// filepath.Join, which CLEANS `..` rather than refusing it:
+//
+//	moduleDir("/store/aon_vendor", "corp.example/../../etc/passwd@1")
+//	  -> /store/etc/passwd@1
+//
+// `mod vendor` then copied a tree THERE, outside the project entirely,
+// and reported `verdict: ok`. So validity is a separate question asked
+// separately, after the shape matched, and asked at every site that
+// turns a module path into a directory.
+//
+// The rules are Go's own (golang.org/x/mod/module.CheckPath), for the
+// reason Go has them: a module path becomes a real directory on every
+// platform the toolchain runs on, so it must be a legal one everywhere.
+// Mirrors validateModulePath in ts/src/mod.ts.
+const (
+	moduleMaxPath  = 512
+	moduleMaxElems = 32
+)
+
+// Windows refuses these as file names whatever the extension, so a
+// module path containing one cannot be materialised there at all. The
+// check is on the element up to its first dot, which is where Windows
+// stops looking too.
+var reservedElems = map[string]bool{
+	"con": true, "prn": true, "aux": true, "nul": true,
+	"com1": true, "com2": true, "com3": true, "com4": true, "com5": true,
+	"com6": true, "com7": true, "com8": true, "com9": true,
+	"lpt1": true, "lpt2": true, "lpt3": true, "lpt4": true, "lpt5": true,
+	"lpt6": true, "lpt7": true, "lpt8": true, "lpt9": true,
+}
+
+// validateModulePath is why a module path may not be used as a
+// directory, or "" when it may. The reason is user-facing: it goes in
+// the refusal, because a path refused without saying which rule it
+// broke is a puzzle.
+func validateModulePath(path string) string {
+	if moduleMaxPath < len(path) {
+		return "longer than " + strconv.Itoa(moduleMaxPath) + " characters"
+	}
+
+	elems := strings.Split(path, "/")
+	if moduleMaxElems < len(elems) {
+		return "more than " + strconv.Itoa(moduleMaxElems) + " elements"
+	}
+
+	for _, elem := range elems {
+		if "" == elem {
+			return "an element is empty"
+		}
+		// This one rule kills `.` and `..` -- the traversal -- along
+		// with `.hidden` and `trailing.`. Stating it as the rule rather
+		// than as "no `..`" is deliberate: a check that named the two
+		// dangerous spellings would miss the next one.
+		if strings.HasPrefix(elem, ".") || strings.HasSuffix(elem, ".") {
+			return `an element begins or ends with "."`
+		}
+		if reservedElems[strings.ToLower(strings.Split(elem, ".")[0])] {
+			return "an element is a reserved device name"
+		}
+	}
+
+	return ""
+}
+
+// escapeElem is an element as it is spelled ON DISK. Uppercase is
+// escaped to `!`+lowercase, Go's rule (go.dev/ref/mod, module proxy
+// protocol) and for Go's reason: `github.com/Alice/Widgets` and
+// `github.com/alice/widgets` are two module identities and, on macOS
+// and Windows, ONE directory -- so without this the second module
+// fetched silently clobbers the first, and an unpinned import resolves
+// to whichever won.
+//
+// The WRITTEN path stays the identity; only the directory is escaped.
+func escapeElem(elem string) string {
+	var b strings.Builder
+	for _, r := range elem {
+		if 'A' <= r && r <= 'Z' {
+			b.WriteByte('!')
+			b.WriteRune(r + ('a' - 'A'))
+			continue
+		}
+		b.WriteRune(r)
+	}
+	return b.String()
+}
+
 // moduleDir is the directory a module's files live in, under a store.
+//
+// Callers must have validated the path (validateModulePath); this
+// function cannot refuse, because it answers a location rather than a
+// question, and every caller has a refusal shape of its own.
 func moduleDir(store string, ref ModuleRef) string {
-	parts := append([]string{store}, strings.Split(ref.Path, "/")...)
+	parts := []string{store}
+	for _, elem := range strings.Split(ref.Path, "/") {
+		parts = append(parts, escapeElem(elem))
+	}
 	return filepath.Join(parts...) + "@" + strconv.Itoa(ref.Major)
 }
 
@@ -167,6 +266,18 @@ type moduleResult struct {
 // resolveModule resolves one module import against the local stores.
 func resolveModule(ref ModuleRef, fromDir string, cache string, depth int) moduleResult {
 	name := ref.Path + "@" + strconv.Itoa(ref.Major)
+
+	// THE PATH IS CHECKED BEFORE ANYTHING IS BUILT FROM IT. This is
+	// first because it is a question about the REQUEST, not about the
+	// state of the machine: a path that cannot legally be a directory
+	// is refused identically whether or not the module is present, and
+	// whether or not the depth bound is near.
+	if bad := validateModulePath(ref.Path); "" != bad {
+		return moduleResult{
+			Code: "module_path",
+			Msg:  "module path: " + name + " (" + bad + ")",
+		}
+	}
 
 	if moduleMaxDepth <= depth {
 		return moduleResult{

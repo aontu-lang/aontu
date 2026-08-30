@@ -256,3 +256,31 @@ func TestModuleMainShapes(t *testing.T) {
 		t.Fatalf("want the declared entry, got %q", got)
 	}
 }
+
+// TestValidateModulePathEmptyElement pins the arm no document can
+// reach: moduleRe's element class is `[A-Za-z0-9._-]+`, one character
+// minimum, so a routed path never carries an empty element and the
+// shared rows cannot drive this branch. The rule is still the right one
+// to state -- the next caller of validateModulePath may not come
+// through the regex -- so it is pinned here instead (ADR-002 rule 2b).
+// Twin of `an-empty-path-element-is-refused` in ts/test/mod.test.ts.
+func TestValidateModulePathEmptyElement(t *testing.T) {
+	if got := validateModulePath("corp.example//x"); "an element is empty" != got {
+		t.Fatalf("empty element: %q", got)
+	}
+	if got := validateModulePath(""); "an element is empty" != got {
+		t.Fatalf("empty path: %q", got)
+	}
+
+	// And the rules the shared rows DO drive, asserted here as the
+	// function contract rather than as engine behaviour.
+	if got := validateModulePath("corp.example/x"); "" != got {
+		t.Fatalf("valid path refused: %q", got)
+	}
+	if got := validateModulePath("corp.example/../x"); `an element begins or ends with "."` != got {
+		t.Fatalf("traversal: %q", got)
+	}
+	if got := validateModulePath("corp.example/nul"); "an element is a reserved device name" != got {
+		t.Fatalf("reserved: %q", got)
+	}
+}

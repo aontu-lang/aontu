@@ -1,0 +1,11 @@
+# The vendored module, in the directory an ESCAPED path names: the
+# import spells `Widgets`, and uppercase is escaped to `!`+lowercase on
+# disk, so this is where it lands. Go's rule (go.dev/ref/mod), for
+# Go's reason -- `corp.example/Widgets` and `corp.example/widgets` are
+# two module identities and ONE directory on a case-insensitive
+# filesystem, so without the escape the second one fetched silently
+# clobbers the first.
+mod: {
+  path: "corp.example/Widgets"
+  main: "widgets.aon"
+}

@@ -1,0 +1,2 @@
+kind: "widget"
+count: *1 | integer
