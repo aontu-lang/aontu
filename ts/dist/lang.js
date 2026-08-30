@@ -10,12 +10,29 @@ exports.Site = exports.Lang = void 0;
 const node_fs_1 = require("node:fs");
 const node_path_1 = require("node:path");
 const jsonic_1 = require("@tabnas/jsonic");
+// THE CONFIG-FORMAT READERS (ADR-012). Each is a jsonic plugin for one
+// format, so an included `.toml` or `.yaml` is parsed by a real parser
+// for that format rather than guessed at by this one. `@tabnas/json` is
+// the strict RFC 8259 reader, used for `.json` and `.jsonld`.
+const json_1 = require("@tabnas/json");
+const toml_1 = require("@tabnas/toml");
+const jsonc_1 = require("@tabnas/jsonc");
+const json5_1 = require("@tabnas/json5");
+const yaml_1 = require("@tabnas/yaml");
+const ini_1 = require("@tabnas/ini");
 const debug_1 = require("@tabnas/debug");
 const multisource_1 = require("@tabnas/multisource");
 // TODO: @tabnas/multisource should support virtual fs
 const file_1 = require("@tabnas/multisource/resolver/file");
 const pkg_1 = require("@tabnas/multisource/resolver/pkg");
 const mem_1 = require("@tabnas/multisource/resolver/mem");
+// The Aontu-source processor, TAKEN RATHER THAN ALIASED. The obvious
+// spelling is the alias `aon: 'jsonic'`, which multisource resolves
+// through its own processor map -- but `jsonic` is a FORMAT NAME in
+// the include table now, so that alias resolved to the plain-jsonic
+// DATA reader and every `.aon` include was suddenly parsed without the
+// language in it. Naming the function leaves nothing to collide with.
+const jsonic_2 = require("@tabnas/multisource/processor/jsonic");
 const std_1 = require("./std");
 const mod_1 = require("./mod");
 const expr_1 = require("@tabnas/expr");
@@ -1356,12 +1373,189 @@ help isolate the syntax error.`,
         return rs;
     });
 };
+// INCLUDE_KINDS IS THE RULE FOR WHAT AN INCLUDE MEANS (ADR-012,
+// use-cases/BUGS.md §49). An extension is on this list or it is not
+// read at all, and its entry says WHICH OF TWO THINGS the file is.
+//
+// `source` — Aontu, with everything the language has: types, defaults,
+// references, constraints, its own includes. Two extensions, and they
+// are the ones this project owns.
+//
+// A FORMAT NAME — configuration DATA, parsed by that format's own
+// parser into the JSON value it denotes, which then becomes Aontu
+// values like any other data. Every one of these formats maps onto
+// JSON, which is why one word covers them: a `.toml` file is a map of
+// scalars, lists and maps, and so is the `.aon` file that unifies with
+// it. What the format does NOT get is the language — a `&` in a YAML
+// file is a YAML anchor, not a spread key, because the YAML parser
+// reads it, not this one.
+//
+// The parsers are @tabnas's, one per format, and the Go port uses the
+// same ones (ADR-001): the two implementations agree because they are
+// running the same grammar, not because two hand-written readers were
+// kept in step.
+//
+// This table and go/source.go's includeKinds are the same table.
+const INCLUDE_KINDS = {
+    aon: 'source',
+    aontu: 'source',
+    json: 'json',
+    // JSON-LD is JSON: a `@context` is a key like any other here, and
+    // what it MEANS is the vocabulary's business, not the reader's.
+    jsonld: 'json',
+    jsonc: 'jsonc',
+    json5: 'json5',
+    jsonic: 'jsonic',
+    jsc: 'jsonic',
+    toml: 'toml',
+    yaml: 'yaml',
+    yml: 'yaml',
+    ini: 'ini',
+};
+// `.csv` IS DELIBERATELY ABSENT, and the reason is ADR-001 rather than
+// taste. The two ports' CSV parsers disagree about what a CSV file IS:
+// one answers header-keyed records with string fields, the other raw
+// rows including the header, with numbers parsed. Admitting it would
+// admit a divergence into the one thing this project refuses to have
+// one in. Recorded in ADR-012 and pinned by file.tsv's load-ext-csv.
+// The multisource kind of a path: the LAST segment's extension, without
+// its dot, lowercased -- `''` for a name that has none. The rule is
+// @tabnas/multisource's own extKind (and Go's filepath.Ext), copied
+// rather than imported because it decides what a source IS: a dot in a
+// parent folder (`/my.app/conf`) must not read as an extension.
+function extKindOf(full) {
+    const seg = full.match(/[^\\/]*$/)[0];
+    return (seg.match(/\.([^.]*)$/) || ['', ''])[1].toLowerCase();
+}
+// The refusal message, naming the extension -- because the extension is
+// the whole reason, and a reader told only "not readable" has to guess
+// which part of the path the engine objected to. Byte-identical to Go's
+// extensionMsg.
+function extensionMsg(path, ext) {
+    const which = '' === ext ? 'no extension' : 'extension: .' + ext;
+    return 'include not readable: ' + path + ' (' + which + ')';
+}
+// THE RULE ALSO HOLDS FOR A RESOLVER THIS ENGINE DID NOT WRITE.
+// gateExtension refuses an unlisted extension inside makeModelResolver,
+// which is the default; a HOST may supply its own through
+// `AontuOptions.resolver`, and that one has never heard of
+// INCLUDE_KINDS. Without this the host's resolution would fall to
+// multisource's own default for an unnamed kind, which hands the file
+// back as TEXT — or, for `.js`, EXECUTES it. So the two roads end in
+// one place: whatever chose the source, an extension off the list is
+// refused with the same code and the same message.
+const refuseProcessor = (res) => {
+    // `full` is the one part a host resolution may leave out -- it is the
+    // path the resolver CHOSE, and a resolver that answers from something
+    // other than a filesystem need not have one. The written path always
+    // reaches here, so it is the fallback.
+    const err = new Error(extensionMsg(res.path, extKindOf(res.full ?? res.path)));
+    err.code = 'include_extension';
+    throw err;
+};
+// ONE READER PER FORMAT, BUILT ONCE. These are stateless parsers and
+// building a jsonic instance is not free, so they are made at module
+// load rather than per include. The file name is passed through so a
+// syntax error inside an included `.toml` names the `.toml`.
+const DATA_READERS = (() => {
+    const viaPlugin = (plugin) => {
+        const jsonic = jsonic_1.Jsonic.make().use(plugin);
+        return (src, fileName) => jsonic(src, { fileName });
+    };
+    const toml = viaPlugin(toml_1.Toml);
+    // The strict RFC 8259 reader is its own parser rather than a
+    // plugin, and it is `make().parse` rather than the module's bare
+    // `parse`: only the instance carries the meta bag, and without it
+    // a syntax error in an included `.json` says `<no-file>`.
+    const json = (0, json_1.make)();
+    return {
+        json: (src, fileName) => json.parse(src, { fileName }),
+        jsonc: viaPlugin(jsonc_1.Jsonc),
+        json5: viaPlugin(json5_1.Json5),
+        // Plain jsonic needs no plugin: it IS the base parser.
+        jsonic: (src, fileName) => (0, jsonic_1.Jsonic)(src, { fileName }),
+        toml: (src, fileName) => tomlDates(toml(src, fileName)),
+        yaml: viaPlugin(yaml_1.Yaml),
+        ini: viaPlugin(ini_1.Ini),
+    };
+})();
+/**
+ * A TOML document with its dates as the TEXT they were written as.
+ *
+ * TOML HAS DATES AND JSON DOES NOT, so the reader cannot hand one over
+ * as itself: it answers with a marker object carrying the kind and the
+ * source text. The value that reaches a document is that TEXT, which is
+ * what a JSON document carries for a date anyway — and it is what the
+ * Go port produces too, from a `*TomlTime` holding those same two
+ * fields (`dataToValDepth`, go/source.go). Without this the same file
+ * is a nested map in one port and a string in the other, which is the
+ * class of divergence ADR-012 exists to stop.
+ *
+ * The guard is exact — one key, `__toml__`, holding a `kind` and a
+ * `src` string — so a document whose own data happens to use the name
+ * passes through untouched.
+ */
+function tomlDates(node) {
+    if (Array.isArray(node)) {
+        return node.map(tomlDates);
+    }
+    if (null === node || 'object' !== typeof node) {
+        return node;
+    }
+    const keys = Object.keys(node);
+    const mark = node.__toml__;
+    if (1 === keys.length && '__toml__' === keys[0] && null != mark &&
+        'string' === typeof mark.kind && 'string' === typeof mark.src) {
+        return mark.src;
+    }
+    const out = {};
+    for (const k of keys) {
+        out[k] = tomlDates(node[k]);
+    }
+    return out;
+}
+/**
+ * Read one included file as DATA in the named format.
+ *
+ * The parser hands back the JSON value the file denotes — plain maps,
+ * lists and scalars — and rawToVal turns that into Vals. THE
+ * CONVERSION HAPPENS HERE, not at the top level, because an include is
+ * usually not at the top level: `a: @"conf.toml"` puts the value under
+ * a key, where a raw JavaScript object is something the tree cannot
+ * unify with (the crash that was BUGS §49b).
+ */
+const dataProcessor = (format) => (res) => {
+    res.val = rawToVal(DATA_READERS[format](res.src, res.path));
+};
+/**
+ * The multisource processor map, built FROM the include table so the
+ * two cannot drift: every extension the table names gets the reader
+ * the table names for it, and the two kinds that are not in the table
+ * refuse.
+ */
+function includeProcessors() {
+    const map = {
+        // multisource's fallback for an extension no entry names, so it is
+        // the one that catches whatever the resolver's gate did not.
+        '': refuseProcessor,
+        // ... and the one upstream default that would EXECUTE the file.
+        js: refuseProcessor,
+    };
+    const source = (0, jsonic_2.makeJsonicProcessor)();
+    for (const kind of Object.keys(INCLUDE_KINDS)) {
+        const format = INCLUDE_KINDS[kind];
+        map[kind] = 'source' === format ? source : dataProcessor(format);
+    }
+    return map;
+}
 // SECURITY: under the DEFAULT ('system') include capability this
-// resolver reads any file/package the process can reach — @"path"
-// follows relative paths (`@"../../etc/passwd"`) and symlinks, and
-// @"pkg" can require() arbitrary installed modules — so treat opening
-// an untrusted source as running it. The trust profile (G5,
-// docs/trust.md) is the confinement surface: `trust.include` of
+// resolver reads any file the process can reach — @"path" follows
+// relative paths (`@"../../etc/passwd.aon"`) and symlinks — so treat
+// opening an untrusted source as reading your disk. It no longer RUNS
+// one: @"pkg" could require() an arbitrary installed module until
+// ADR-012, which refuses a `.js` entry point by the same rule that
+// refuses `.txt`. The trust profile (G5, docs/trust.md) is the
+// confinement surface: `trust.include` of
 // 'none', `{ mem }` or `{ root }` restricts what `@"..."` may resolve,
 // and a denied resolution is a deterministic parse-stage
 // `include_denied` error.
@@ -1443,6 +1637,25 @@ function makeModelResolver(options) {
         err.code = 'include_denied';
         throw err;
     };
+    // AN UNREADABLE EXTENSION THROWS, exactly as a denial does, and for
+    // the same reason: a bare-member include (`@"notes.txt"` at the top
+    // of a file) MERGES into the enclosing map, and a nil contributes no
+    // keys, so an injected refusal would vanish and leave a plausible,
+    // silently-partial document. Lang.parse turns the throw into the
+    // parse-stage `include_extension` nil.
+    const refuseExtension = (path, full) => {
+        const err = new Error(extensionMsg(path, extKindOf(full)));
+        err.code = 'include_extension';
+        throw err;
+    };
+    // The gate every leg that RESOLVES A NAME passes through. The std and
+    // module legs do not: both state `kind: 'aon'` because what they
+    // serve is Aontu source by construction, not by its spelling.
+    const gateExtension = (path, full) => {
+        if (undefined === INCLUDE_KINDS[extKindOf(full)]) {
+            refuseExtension(path, full);
+        }
+    };
     // The user cache: whatever the host named, else the platform rule
     // (`modCacheDir`, ts/src/mod.ts) the tooling writes by.
     const modCache = (opts) => {
@@ -1509,6 +1722,11 @@ function makeModelResolver(options) {
         let res = memResolver(path, popts, rule, ctx, jsonic);
         res.path = path;
         if (res.found) {
+            // THE EXTENSION DECIDES HERE TOO. A virtual file set is still a
+            // file set: its keys carry extensions, and the same rule has to
+            // read them, or the mem capability becomes a way to include what
+            // the filesystem would refuse.
+            gateExtension(path, res.full ?? path);
             record(ctx, res.full ?? path, 'mem');
             return res;
         }
@@ -1557,6 +1775,10 @@ function makeModelResolver(options) {
             if (null != rootDir && outsideRoot(rootDir, full)) {
                 deny(path);
             }
+            // After the trust check, not before: a file outside the
+            // confinement root is denied whatever it is called, and answering
+            // "extension" there would say the file exists.
+            gateExtension(path, full);
             // The warning window for the staged default flip (G5 phase 6):
             // under 'system', the CLI supplies trustWarn and the entry root,
             // and every resolution escaping that root names the flag a future
@@ -1579,6 +1801,7 @@ function makeModelResolver(options) {
         res = pkgResolver(path, popts, rule, ctx, jsonic);
         res.path = path;
         if (res.found) {
+            gateExtension(path, res.full);
             if (null != options.trustWarn) {
                 options.trustWarn('pkg', res.full);
             }
@@ -1721,14 +1944,20 @@ function opCharHint(src) {
     return '';
 }
 function rawToVal(n) {
-    if (null == n) {
-        return new NullVal_1.NullVal({ peg: null });
-    }
-    if (true === n.isVal) {
+    if (true === n?.isVal) {
         return n;
     }
     if (Array.isArray(n)) {
         return new ListVal_1.ListVal({ peg: n.map(rawToVal) });
+    }
+    // THE SCALAR ARMS ARE WHERE A CONFIG FILE BECOMES VALUES. Every
+    // format on the include table is read by its own parser into plain
+    // JavaScript -- a string, a number, a map -- and this is the walk
+    // that turns that into Vals (dataProcessor, ADR-012). The two arms
+    // above are the other caller: a raw expression TERM, which the
+    // expression grammar hands over already built.
+    if (null == n) {
+        return new NullVal_1.NullVal({ peg: null });
     }
     const t = typeof n;
     if ('string' === t) {
@@ -1744,14 +1973,20 @@ function rawToVal(n) {
     if ('boolean' === t) {
         return new BooleanVal_1.BooleanVal({ peg: n });
     }
-    if ('object' === t) {
-        const peg = {};
-        for (const k in n) {
-            peg[k] = rawToVal(n[k]);
-        }
-        return new MapVal_1.MapVal({ peg });
+    // AND EVERYTHING ELSE IS A MAP, with no arm after it because there is
+    // nothing after it. Every reader on the include table answers with
+    // the JSON kinds and no others -- probed, including the two that
+    // could plausibly escape them: a big integer comes back a `number`,
+    // and a TOML date is normalised to its text before it gets here. The
+    // one include that could hand over a function was `.js`, which
+    // ADR-012 refuses. `parse_unknown` lived here for that case and has
+    // no producer left in this port; the Go twin keeps its own, where the
+    // type switch really can be handed something unaccounted for.
+    const peg = {};
+    for (const k in n) {
+        peg[k] = rawToVal(n[k]);
     }
-    return new NilVal_1.NilVal({ why: 'parse_unknown' });
+    return new MapVal_1.MapVal({ peg });
 }
 class Lang {
     constructor(options) {
@@ -1771,11 +2006,22 @@ class Lang {
             // works. `.jsonic` is retired (no longer auto-resolved); the
             // default `['jsonic','jsc','json','js']` is overridden here.
             // (Upstream option name is the misspelled `implictExt`.)
+            //
+            // Only these two are SEARCHED for a bare `@"name"`; `.json` and
+            // `.jsonld` are read when NAMED, which is how a vendored
+            // vocabulary is always written.
             implictExt: ['aon', 'aontu'],
-            processor: {
-                aontu: 'jsonic',
-                aon: 'jsonic',
-            }
+            // ONE ENTRY PER EXTENSION THE TABLE NAMES, built from it (see
+            // includeProcessors) so the rule and its wiring cannot drift.
+            //
+            // The upstream defaults are REPLACED, not extended. Its `json`
+            // entry is what made that extension the one that crashed: it
+            // hands back a raw JS object where the aontu grammar produces
+            // Vals, and the tree then met a value it could not convert
+            // (BUGS §49b). Its `js` entry EXECUTES the file, which is not
+            // something an extension should be able to ask for. And its
+            // fallback hands any other file back as TEXT.
+            processor: includeProcessors()
         })
             .use(AontuJsonic);
     }
@@ -1816,16 +2062,15 @@ class Lang {
             }
         }
         catch (e) {
-            if ('include_denied' === e?.code || mod_1.MODULE_REFUSAL_CODES.has(e?.code)) {
-                // A denied include (trust profile, G5): the resolver throws so
-                // a bare-member include cannot vanish in the merge, and the
-                // code survives here as the parse-stage nil the registry
-                // pins (errcodes.tsv: include_denied, class parse).
-                // A denied include (G5) and a module that is missing or fails
-                // its pin (G6 phase 2) are refused the same way, for the same
-                // reason: the resolver THROWS so a bare-member include cannot
-                // vanish in the merge, and the code survives here as the
-                // parse-stage nil the registry pins (errcodes.tsv).
+            if ('include_denied' === e?.code || 'include_extension' === e?.code ||
+                mod_1.MODULE_REFUSAL_CODES.has(e?.code)) {
+                // A denied include (G5), an include whose extension is not read
+                // as Aontu source (ADR-012, INCLUDE_KINDS), and a module that is
+                // missing, fails its pin, or names a path that escapes its store
+                // (G6 phase 2) are refused the same way, for the same reason: the
+                // resolver THROWS so a bare-member include cannot vanish in the
+                // merge, and the code survives here as the parse-stage nil the
+                // registry pins (errcodes.tsv).
                 val = new NilVal_1.NilVal({
                     why: 'parse',
                     err: new NilVal_1.NilVal({

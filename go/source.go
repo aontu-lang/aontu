@@ -5,10 +5,22 @@ package aontu
 import (
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	jsonic "github.com/tabnas/jsonic/go"
 	multisource "github.com/tabnas/multisource/go"
+
+	// THE CONFIG-FORMAT READERS (ADR-012). One parser per format, the
+	// same ones the TypeScript port uses, so an included `.toml` or
+	// `.yaml` is read by a real parser for that format rather than
+	// guessed at by this one.
+	inip "github.com/tabnas/ini/go"
+	jsonp "github.com/tabnas/json/go"
+	json5p "github.com/tabnas/json5/go"
+	jsoncp "github.com/tabnas/jsonc/go"
+	tomlp "github.com/tabnas/toml/go"
+	yamlp "github.com/tabnas/yaml/go"
 )
 
 // fileResolver resolves an @"path" reference by reading from disk,
@@ -16,10 +28,12 @@ import (
 // resolve the full path, try it, then the implicit-extension potentials.
 //
 // SECURITY: @"path" reads any file the process can read — relative paths
-// (`@"../../etc/passwd"`) and symlinks are followed with no containment
-// check. This is intentional for the CLI, but it means a `.aon` source
-// can exfiltrate referenced files; the LSP backs onto this same resolver,
-// so treat opening an untrusted source as you would running it. If you
+// (`@"../../etc/passwd.aon"`) and symlinks are followed with no
+// containment check. This is intentional for the CLI, but it means a
+// `.aon` source can exfiltrate referenced files; the LSP backs onto this
+// same resolver, so treat opening an untrusted source as reading your
+// disk. (It cannot RUN one: includeKinds refuses every extension but the
+// four read as Aontu source, `.js` among them -- ADR-012.) If you
 // embed aontu in a less-trusted context, supply a custom resolver via
 // MultiSourceOptions that confines reads to an allowed root.
 func fileResolver(spec multisource.PathSpec, opts *multisource.MultiSourceOptions, ctx *jsonic.Context) multisource.Resolution {
@@ -59,8 +73,24 @@ func fileResolver(spec multisource.PathSpec, opts *multisource.MultiSourceOption
 	if nil != sink && nil != sink.mem {
 		for _, key := range []string{spec.Full, spec.Path} {
 			if src, ok := sink.mem[key]; ok {
+				// THE EXTENSION DECIDES HERE TOO. A virtual file set is
+				// still a file set: its keys carry extensions, and the
+				// same rule has to read them, or the mem capability
+				// becomes a way to include what the filesystem would
+				// refuse.
+				if ext := extOf(key); "" == includeKinds[ext] {
+					recordExtension(ctx, res.Path, ext)
+					// Named, but not READ: the resolution carries the
+					// key so extensionProcessor's nil names the same
+					// extension the sink recorded, and Src stays empty
+					// because nothing of the file is used.
+					res.Full = key
+					res.Kind = extensionKind
+					res.Found = true
+					return res
+				}
 				res.Full = key
-				res.Kind = strings.TrimPrefix(filepath.Ext(key), ".")
+				res.Kind = extOf(key)
 				res.Src = toValidSource(src)
 				res.Found = true
 				recordDep(sink, key, "mem")
@@ -181,8 +211,21 @@ func fileResolver(spec multisource.PathSpec, opts *multisource.MultiSourceOption
 				"" != sink.warnRoot && outsideRoot(sink.warnRoot, p) {
 				sink.warn("escape", p)
 			}
+			// THE EXTENSION DECIDES WHAT THE BYTES ARE (includeKinds).
+			// After the trust checks, not before: a file outside the
+			// confinement root is denied whatever it is called, and
+			// answering "extension" there would say the file exists.
+			// Before recordDep, because a refused include is not a
+			// dependency -- nothing of it reaches the document.
+			if ext := extOf(p); "" == includeKinds[ext] {
+				recordExtension(ctx, res.Path, ext)
+				res.Full = p
+				res.Kind = extensionKind
+				res.Found = true
+				return res
+			}
 			res.Full = p
-			res.Kind = strings.TrimPrefix(filepath.Ext(p), ".")
+			res.Kind = extOf(p)
 			// Replace invalid UTF-8 as it is READ, exactly as parseBase
 			// does for the entry source -- a loaded file reaches the parser
 			// through the plugin, not through parseBase, so it needs its
@@ -226,6 +269,120 @@ func realOrAbs(p string) string {
 	}
 	return real
 }
+
+// includeKinds IS THE RULE FOR WHAT AN INCLUDE MEANS (ADR-012,
+// use-cases/BUGS.md §49). An extension is on this list or it is not
+// read at all, and its entry says WHICH OF TWO THINGS the file is.
+//
+// `source` -- Aontu, with everything the language has: types, defaults,
+// references, constraints, its own includes. Two extensions, and they
+// are the ones this project owns.
+//
+// A FORMAT NAME -- configuration DATA, parsed by that format's own
+// parser into the JSON value it denotes, which then becomes Aontu
+// values like any other data. Every one of these formats maps onto
+// JSON, which is why one word covers them: a `.toml` file is a map of
+// scalars, lists and maps, and so is the `.aon` file that unifies with
+// it. What the format does NOT get is the language -- a `&` in a YAML
+// file is a YAML anchor, not a spread key, because the YAML parser
+// reads it, not this one.
+//
+// The parsers are @tabnas's, one per format, and the TypeScript port
+// uses the same ones (ADR-001): the two implementations agree because
+// they are running the same grammar, not because two hand-written
+// readers were kept in step.
+//
+// The keys are the multisource kind: the last path segment's extension
+// without its dot, lowercased. This table and ts/src/lang.ts's
+// INCLUDE_KINDS are the same table.
+var includeKinds = map[string]string{
+	"aon":   "source",
+	"aontu": "source",
+
+	"json": "json",
+	// JSON-LD is JSON: a `@context` is a key like any other here, and
+	// what it MEANS is the vocabulary's business, not the reader's.
+	"jsonld": "json",
+	"jsonc":  "jsonc",
+	"json5":  "json5",
+	"jsonic": "jsonic",
+	"jsc":    "jsonic",
+	"toml":   "toml",
+	"yaml":   "yaml",
+	"yml":    "yaml",
+	"ini":    "ini",
+}
+
+// ONE READER PER FORMAT, BUILT ONCE. These are stateless parsers and
+// building a jsonic instance is not free, so they are made at package
+// load rather than per include -- and a dependency that cannot build
+// its own grammar should fail loudly at startup, not on the first
+// document that happens to include a `.toml`.
+var dataReaders = map[string]*jsonic.Jsonic{
+	// The strict RFC 8259 reader.
+	"json":   jsonp.Make(),
+	"jsonc":  usePlugin(jsoncp.Jsonc),
+	"json5":  usePlugin(json5p.Json5),
+	"jsonic": jsonic.Make(),
+	"toml":   tomlp.MakeJsonic(),
+	"yaml":   yamlp.MakeJsonic(),
+	"ini":    inip.MakeJsonic(),
+}
+
+// usePlugin builds a parser for a format published as a jsonic plugin
+// rather than as its own constructor.
+func usePlugin(plugin func(*jsonic.Jsonic, map[string]any) error) *jsonic.Jsonic {
+	j := jsonic.Make()
+	if err := plugin(j, nil); err != nil { //coverage:ignore a plugin that cannot install is a broken dependency, not an input
+		panic("aontu: include format parser: " + err.Error())
+	}
+	return j
+}
+
+// dataProcessor reads one included file as DATA in the named format.
+//
+// The parser hands back the JSON value the file denotes -- plain maps,
+// lists and scalars -- and asVal turns that into Vals. THE CONVERSION
+// HAPPENS HERE, not at the top level, because an include is usually
+// not at the top level: `a: @"conf.toml"` puts the value under a key,
+// where a raw value is something the tree cannot unify with.
+//
+// The file is NAMED to the reader (ParseMeta) so a syntax error inside
+// an included `.toml` points at the `.toml`, and named again on the
+// way out (stampResolved) so every value carries the file it came
+// from -- the same invariant aonProcessor keeps for Aontu source.
+func dataProcessor(format string) multisource.Processor {
+	return func(res *multisource.Resolution, _ *multisource.MultiSourceOptions, _ *jsonic.Context, _ *jsonic.Jsonic) {
+		out, err := dataReaders[format].ParseMeta(res.Src, map[string]any{"fileName": res.Full})
+		if err != nil {
+			// THE PARSE FAILS. res.Err is what the plugin reads to fail
+			// the whole document -- the same channel a syntax error in
+			// an included `.aon` travels -- so a broken `.toml` refuses
+			// rather than becoming an anonymous nil under the key that
+			// included it.
+			//
+			// WHERE THIS PORT IS LESS SPECIFIC THAN THE OTHER, recorded
+			// rather than hidden (DIVERGENCE.md #67): TypeScript's
+			// reader THROWS, so the frame that reader drew -- the
+			// `.toml`, its line, its caret -- is what reaches the user.
+			// Here the outer parse fails afterwards and names its own
+			// `@`. Same verdict, same class, same exit code; different
+			// prose. Routing the inner message through notFoundSink was
+			// tried and does not work: that sink is reachable only from
+			// the RESOLVER (see recordNotFound), and a config format is
+			// parsed here.
+			res.Val = res.Src
+			res.Err = err
+			return
+		}
+		val := dataToVal(out)
+		stampResolved(val, res.Full)
+		res.Val = val
+	}
+}
+
+// extensionKind marks a Resolution whose extension is not on that list.
+const extensionKind = "aontu-extension"
 
 // deniedKind marks a Resolution refused by the trust profile.
 const deniedKind = "aontu-denied"
@@ -345,6 +502,32 @@ func deniedProcessor(res *multisource.Resolution, _ *multisource.MultiSourceOpti
 	res.Val = n
 }
 
+// extensionProcessor injects the include_extension nil (the twin of
+// deniedProcessor): the failure is DETECTED in the resolver, this gives
+// the tree an error value where the include was a value position.
+func extensionProcessor(res *multisource.Resolution, _ *multisource.MultiSourceOptions, _ *jsonic.Context, _ *jsonic.Jsonic) {
+	n := newNil("include_extension")
+	n.msg = extensionMsg(res.Path, extOf(res.Full))
+	res.Val = n
+}
+
+// extOf is the multisource kind of a resolved path: the extension
+// without its dot, lowercased, or "" for a name that has none.
+func extOf(full string) string {
+	return strings.ToLower(strings.TrimPrefix(filepath.Ext(full), "."))
+}
+
+// extensionMsg names the extension, because the extension is the whole
+// reason: a reader who is told only "not readable" has to guess which
+// of the path's parts the engine objected to.
+func extensionMsg(path, ext string) string {
+	which := "no extension"
+	if "" != ext {
+		which = "extension: ." + ext
+	}
+	return "include not readable: " + path + " (" + which + ")"
+}
+
 // notFoundKind marks a Resolution for a source that could not be found.
 const notFoundKind = "aontu-notfound"
 
@@ -404,8 +587,14 @@ const notFoundMetaKey = reservedKeyPrefix + "notfound"
 // Not synchronised, and does not need to be: the sink is allocated per
 // parseBase call and a single parse runs on one goroutine. It never
 // escapes to the cached, shared *jsonic.Jsonic.
+// It carries the CODE as well as the message: a load can fail for two
+// reasons that need different names -- the source was not there
+// (multisource_not_found) or its extension is not read as Aontu source
+// (include_extension, see includeKinds) -- and both have to reach
+// parseBase through this one channel, for the same bare-member reason.
 type notFoundSink struct {
-	msg string
+	msg  string
+	code string
 }
 
 // recordNotFound notes a failed load in the parse's shared sink.
@@ -429,6 +618,30 @@ func recordNotFound(ctx *jsonic.Context, path string) {
 	}
 	if "" == sink.msg {
 		sink.msg = "source not found: " + path
+		sink.code = "multisource_not_found"
+	}
+}
+
+// recordExtension notes a refused extension in the same shared sink, and
+// for the same reason recordNotFound uses it: a bare-member include
+// (`@"notes.txt"` at the top of a file) MERGES into the enclosing map,
+// and a nil contributes no keys, so the injected nil alone would vanish
+// and leave a plausible, silently-partial document.
+//
+// LIKEWISE FROM THE RESOLVER, NOT THE PROCESSOR -- see recordNotFound.
+// First failure wins, across both kinds: one refusal is the diagnosis,
+// and a document with two bad includes has one thing wrong with it.
+func recordExtension(ctx *jsonic.Context, path, ext string) {
+	if nil == ctx || nil == ctx.Meta {
+		return
+	}
+	sink, ok := ctx.Meta[notFoundMetaKey].(*notFoundSink)
+	if !ok || nil == sink { //coverage:ignore parseBase always seats the sink
+		return
+	}
+	if "" == sink.msg {
+		sink.msg = extensionMsg(path, ext)
+		sink.code = "include_extension"
 	}
 }
 
@@ -497,6 +710,107 @@ func stampResolved(node any, full string) {
 	}
 }
 
+// dataToVal turns a config parser's output into Vals.
+//
+// IT IS NOT asVal, and that is the whole point. asVal reads the AONTU
+// parser's own node shape -- the reserved order, optional, spread and
+// position entries a map node carries -- so a map from another parser,
+// which has none of them, reads as EMPTY. This walk takes a foreign
+// value at face value.
+//
+// The twin of ts/src/lang.ts's rawToVal, which needs no such split
+// because JavaScript's object is the same shape either way.
+func dataToVal(node any) Val { return dataToValDepth(node, 0) }
+
+func dataToValDepth(node any, depth int) Val {
+	if depth > maxNodeDepth { //coverage:ignore the readers cannot nest deeper than their own parser allows
+		return newNil("max_depth")
+	}
+	switch n := node.(type) {
+	case nil:
+		return newNull()
+	case *jsonic.OrderedMap:
+		// IN THE ORDER THE FILE WROTE IT. Most of these parsers answer
+		// with an OrderedMap for exactly that reason, and discarding it
+		// would make the key order of a `.toml` include depend on Go's
+		// map iteration, which is deliberately random.
+		mv := newMap()
+		for _, k := range n.Keys {
+			mv.set(k, dataToValDepth(n.Vals[k], depth+1))
+		}
+		return mv
+	case map[string]any:
+		// A parser that answers with a plain map has already lost the
+		// order, so SORT: an arbitrary order that is the same every run
+		// beats Go's, which is not.
+		mv := newMap()
+		keys := make([]string, 0, len(n))
+		for k := range n {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			mv.set(k, dataToValDepth(n[k], depth+1))
+		}
+		return mv
+	case []any:
+		vals := make([]Val, 0, len(n))
+		for _, e := range n {
+			vals = append(vals, dataToValDepth(e, depth+1))
+		}
+		return newList(vals)
+	case *tomlp.TomlTime:
+		// TOML HAS DATES AND JSON DOES NOT, so the reader cannot hand
+		// one over as itself: it answers with this, holding the kind and
+		// the source text. The value that reaches a document is that
+		// TEXT, which is what a JSON document carries for a date anyway
+		// -- and what the TypeScript port produces too, from the
+		// `{__toml__:{kind,src}}` marker its reader answers with
+		// (tomlDates, ts/src/lang.ts). Without this the same file is a
+		// nested map in one port and a string in the other, which is the
+		// class of divergence ADR-012 exists to stop.
+		return newString(n.Src)
+	case string:
+		return newString(n)
+	case bool:
+		return newBoolean(n)
+	case float64:
+		// EVERY READER ANSWERS float64, whatever the file wrote --
+		// probed across all of them, `8080` included. numberVal is what
+		// decides integer from float, and it is the same call the
+		// parsed-literal path makes, so the two ports cannot drift on
+		// where that line falls.
+		return numberVal(n, "", -1)
+	}
+	return newNil("parse_unknown") //coverage:ignore a JSON-shaped value has no other kind
+}
+
+// includeProcessors is the multisource processor map, built FROM the
+// include table so the two cannot drift: every extension the table
+// names gets the reader the table names for it, and the kinds that are
+// not in the table refuse.
+func includeProcessors() map[string]multisource.Processor {
+	procs := map[string]multisource.Processor{
+		// The empty kind is multisource's FALLBACK for an extension no
+		// entry names, so it is the one that must refuse: the resolver
+		// already gates every leg, and this is what keeps a kind that
+		// reached the plugin by some other road from being read by
+		// default.
+		"":            extensionProcessor,
+		extensionKind: extensionProcessor,
+		notFoundKind:  notFoundProcessor,
+		deniedKind:    deniedProcessor,
+	}
+	for kind, format := range includeKinds {
+		if "source" == format {
+			procs[kind] = aonProcessor
+			continue
+		}
+		procs[kind] = dataProcessor(format)
+	}
+	return procs
+}
+
 // msOptions builds the multisource plugin options for the aontu
 // grammar. As of multisource/go v0.1.6 the plugin resolves relative
 // @"file" loads inside a loaded file against that file's own directory
@@ -506,17 +820,14 @@ func stampResolved(node any, full string) {
 func msOptions(base string) map[string]any {
 	return map[string]any{
 		"_opts": &multisource.MultiSourceOptions{
-			Resolver: fileResolver,
-			Path:     base,
-			Processor: map[string]multisource.Processor{
-				"":           aonProcessor,
-				"aon":        aonProcessor,
-				"aontu":      aonProcessor,
-				notFoundKind: notFoundProcessor,
-				deniedKind:   deniedProcessor,
-			},
+			Resolver:  fileResolver,
+			Path:      base,
+			Processor: includeProcessors(),
 			// `.aon` is the preferred Aontu source extension; `.aontu`
 			// also works. `.jsonic` is retired (no longer auto-resolved).
+			// Only these two are SEARCHED for a bare `@"name"`; `.json`
+			// and `.jsonld` are read when named, which is how a
+			// vendored vocabulary is always written.
 			ImplicitExt: []string{".aon", ".aontu"},
 		},
 	}

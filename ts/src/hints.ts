@@ -164,6 +164,7 @@ const hints: Record<string, string> = {
   merge_conflict: 'A version-control conflict marker was found in the source. The\nfile still holds an unresolved merge: resolve it and remove the\n`<<<<<<<`, `=======` and `>>>>>>>` lines before unifying.\n \nExamples:\n  <<<<<<< HEAD  -> nil  # A conflict marker, not a `<` operation;\n  =======       -> nil  # ... nor a chain of `=` characters;\n  >>>>>>> other -> nil  # ... nor a `>` operation.',
 
   include_denied: 'An @"..." include was refused by the active trust profile\n(docs/trust.md). The document asked to read a source the evaluation\'s\ninclude capability does not allow: widen the capability if the read is\nintended, or remove the include if it is not.\n \nExamples:\n  a:@"in-root.aon"    -> {..}  # Inside the confinement root: allowed;\n  a:@"../secret.aon"  -> nil   # ... but escaping the root is denied;\n  a:@"/etc/hostname"  -> nil   # ... and so is an absolute path outside it.',
+  include_extension: 'An @\"...\" include named a file the engine does not read. THE\nEXTENSION DECIDES which of two things a file is: `.aon` and\n`.aontu` are Aontu source, with the whole language in them, and\n`.json`, `.jsonld`, `.jsonc`, `.json5`, `.jsonic`, `.jsc`, `.toml`,\n`.yaml`, `.yml` and `.ini` are configuration DATA, read by that\nformat\'s own parser. Anything else -- and a name with no extension\n-- is refused rather than guessed at: a guess produces a document\nthat looks right and is not.\n \nExamples:\n  a:@\"model.aon\"    -> {..}  # Aontu source;\n  a:@\"server.toml\"  -> {..}  # ... config data, read as TOML;\n  a:@\"notes.txt\"    -> nil   # ... but text is not a document;\n  a:@\"data\"         -> nil   # ... and neither is an unnamed kind.',
 
   func_arity: 'This function was called with the wrong number of arguments:\n{func} takes {want}, but was given {got}.\n \nExamples:\n  upper(\"a\")     -> \"A\"  # One argument, which is what upper takes;\n  upper(\"a\",\"b\") -> nil  # ... so two is a mistake in the source;\n  key()          -> \"\"   # key takes none, or one level count;\n  neq(1,2,3)     -> neq  # ... and neq takes one or more exclusions.',
 
@@ -432,6 +433,7 @@ const codeClasses: Record<string, string> = {
   parse_bad_src: 'parse',
   merge_conflict: 'parse',
   include_denied: 'parse',
+  include_extension: 'parse',
 
   // G3 -- the subsumption query's report vocabulary (class compat):
   // the compat_* codes are its findings, the sub_* codes its undecided

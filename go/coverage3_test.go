@@ -463,9 +463,12 @@ func TestDisjunctSingleMemberGenerates(t *testing.T) {
 }
 
 // recordNotFound guards: no context, and a meta bag without the sink.
+// recordExtension has the same two, for the same reason (ADR-012).
 func TestSourceSinkGuards(t *testing.T) {
 	recordNotFound(nil, "x")
 	recordNotFound(&jsonic.Context{Meta: map[string]any{}}, "x")
+	recordExtension(nil, "x", "txt")
+	recordExtension(&jsonic.Context{Meta: map[string]any{}}, "x", "txt")
 	// Reaching here without a panic is the assertion: both calls must
 	// no-op when there is no sink to write to.
 }

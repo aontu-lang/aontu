@@ -48,6 +48,7 @@ var hints = map[string]string{
 	"parse_bad_src":            "Invalid source provided for parsing. The source must be a non-empty string.",
 	"merge_conflict":           "A version-control conflict marker was found in the source. The\nfile still holds an unresolved merge: resolve it and remove the\n`<<<<<<<`, `=======` and `>>>>>>>` lines before unifying.\n \nExamples:\n  <<<<<<< HEAD  -> nil  # A conflict marker, not a `<` operation;\n  =======       -> nil  # ... nor a chain of `=` characters;\n  >>>>>>> other -> nil  # ... nor a `>` operation.",
 	"include_denied":           "An @\"...\" include was refused by the active trust profile\n(docs/trust.md). The document asked to read a source the evaluation's\ninclude capability does not allow: widen the capability if the read is\nintended, or remove the include if it is not.\n \nExamples:\n  a:@\"in-root.aon\"    -> {..}  # Inside the confinement root: allowed;\n  a:@\"../secret.aon\"  -> nil   # ... but escaping the root is denied;\n  a:@\"/etc/hostname\"  -> nil   # ... and so is an absolute path outside it.",
+	"include_extension":        "An @\"...\" include named a file the engine does not read. THE\nEXTENSION DECIDES which of two things a file is: `.aon` and\n`.aontu` are Aontu source, with the whole language in them, and\n`.json`, `.jsonld`, `.jsonc`, `.json5`, `.jsonic`, `.jsc`, `.toml`,\n`.yaml`, `.yml` and `.ini` are configuration DATA, read by that\nformat's own parser. Anything else -- and a name with no extension\n-- is refused rather than guessed at: a guess produces a document\nthat looks right and is not.\n \nExamples:\n  a:@\"model.aon\"    -> {..}  # Aontu source;\n  a:@\"server.toml\"  -> {..}  # ... config data, read as TOML;\n  a:@\"notes.txt\"    -> nil   # ... but text is not a document;\n  a:@\"data\"         -> nil   # ... and neither is an unnamed kind.",
 	"id_name":                  "The argument to id() is not an entity name. A name starts with a\nletter or `_`, and continues with letters, digits, `_` or `-` --\nNO slash (hierarchy belongs in document structure and kind fields,\nnot in name punctuation) and NO dots: a dot separates an entity\nname from a path inside that entity. A `-` name must be quoted,\nbecause a bare `-` is the minus operator.\n \nExamples:\n  id(svc_auth)   -> id   # Letters, digits and `_` may be bare;\n  id(\"team-pay\") -> id   # ... a `-` name must be quoted;\n  id(svc.auth)   -> nil  # ... a dot is a path separator, not a name;\n  id(1)          -> nil  # ... and a number is not a name at all.",
 	"id_conflict":              "One value was declared to be two different entities. An id() says\nwhat a value IS, so two names on one node is a contradiction, not a\nmerge — the same kind of failure as unifying 1 with 2. Give the node\none name, or give the two names to two nodes.\n \nExamples:\n  id(a) & id(a) & {}  -> {..}  # One entity, said twice;\n  id(a) & {x:1}       -> {..}  # ... an entity with content;\n  id(a) & id(b) & {}  -> nil   # ... but a node cannot be both.",
 	"id_spread":                "A spread template stamps one id() onto every child. `&: id(x) & …`\nsays that EVERY child of the bag is the entity `x`, and identity\nmerging would then unify all of them into one. Use a\npath-dependent name — `id(key())` — to give each child its own,\nor move the id() to the one child that has it.\n \nExamples:\n  {&: id(key()), a:{}, b:{}}  -> {..}  # A name per child;\n  {a: id(x) & {}}             -> {..}  # ... or one named child;\n  {&: id(x), a:{}, b:{}}      -> nil   # ... but not one name for all.",
@@ -150,12 +151,13 @@ var hints = map[string]string{
 // is reference) are documented in the tsv header.
 var codeClasses = map[string]string{
 	// parse -- the source text is malformed or unusable
-	"parse":          "parse",
-	"syntax":         "parse",
-	"parse_unknown":  "parse",
-	"parse_bad_src":  "parse",
-	"merge_conflict": "parse",
-	"include_denied": "parse",
+	"parse":             "parse",
+	"syntax":            "parse",
+	"parse_unknown":     "parse",
+	"parse_bad_src":     "parse",
+	"merge_conflict":    "parse",
+	"include_denied":    "parse",
+	"include_extension": "parse",
 
 	// G3 -- the subsumption query's report vocabulary (class compat):
 	// the compat_* codes are its findings, the sub_* codes its

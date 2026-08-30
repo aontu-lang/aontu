@@ -1983,6 +1983,115 @@ Source files use the `.aon` extension (preferred) or `.aontu`. When the
 path has no extension, those two are tried in turn, so `@"foo"` resolves
 `foo.aon` then `foo.aontu`.
 
+**The extension decides what the file is**, and it says which of two
+things:
+
+| extension | what it is |
+|---|---|
+| `.aon`, `.aontu` | **Aontu source** — the language, with everything in it |
+| `.json`, `.jsonld`, `.jsonc`, `.json5`, `.jsonic`, `.jsc`, `.toml`, `.yaml`, `.yml`, `.ini` | **configuration data**, read by that format's own parser |
+| anything else | refused, by name |
+
+Every one of those formats maps onto JSON, which is why one word covers
+them: a `.toml` file is a map of scalars, lists and maps, and so is the
+`.aon` file that unifies with it. What a data format does not get is
+the language — a `&` in a YAML file is a YAML anchor, not a spread key,
+because the YAML parser reads it, not this one.
+
+Write `vocab.jsonld`:
+
+<!-- test: scenario include-extension -->
+<!-- test: file vocab.jsonld -->
+```
+{"name": "aontu", "tags": ["config", "types"]}
+```
+
+and load it from `main.aon`:
+
+<!-- test: file main.aon -->
+```aon
+schema: @"vocab.jsonld"
+```
+
+<!-- test: run -->
+```sh
+$ aontu main.aon
+{
+  "schema": {
+    "name": "aontu",
+    "tags": [
+      "config",
+      "types"
+    ]
+  }
+}
+```
+
+A config file in any of those formats reads the same way. Write
+`server.toml`:
+
+<!-- test: file server.toml -->
+```
+port = 8080
+hosts = ["a", "b"]
+```
+
+and hold it to a schema in `main.aon`:
+
+<!-- test: file main.aon -->
+```aon
+port: integer
+hosts: [string]
+
+@"server.toml"
+```
+
+<!-- test: run -->
+```sh
+$ aontu main.aon
+{
+  "hosts": [
+    "a",
+    "b"
+  ],
+  "port": 8080
+}
+```
+
+**A format's own semantics are the ones that apply.** INI has no types,
+so `port=8080` read from a `.ini` is the string `"8080"`, and a schema
+wanting a number has to say so. A malformed config file refuses the
+whole document rather than becoming an empty value under the key that
+included it.
+
+Every other extension — and a name with no extension at all — is
+refused by name rather than guessed at. Put prose in `notes.txt`:
+
+<!-- test: file notes.txt -->
+```
+Some notes, in prose.
+```
+
+and ask for it in `main.aon`:
+
+<!-- test: file main.aon -->
+```aon
+notes: @"notes.txt"
+```
+
+<!-- test: run -->
+```sh
+$ aontu main.aon
+include not readable: notes.txt (extension: .txt)
+$ echo $?
+1
+```
+
+A guess would be worse than the refusal, and it was: read as text, a
+vocabulary became a string that a schema then validated nothing
+against; read as Aontu, prose became a parse error at a line nobody
+wrote. Both exited 0.
+
 ```
 @"foo.aon"                       → {"f":11}            (top level)
 a:@"foo.aon"                     → {"a":{"f":11}}      (nested)
