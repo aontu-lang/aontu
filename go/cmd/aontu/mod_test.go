@@ -436,3 +436,63 @@ func TestModVerifyCommand(t *testing.T) {
 		t.Fatalf("tidy over a broken module = %d: %s", code, out)
 	}
 }
+
+// TestModVendorRefusesAnEscapingPath is the regression test for the
+// defect this gate exists to close: `vendor` copied a module tree
+// OUTSIDE the project entirely and reported `verdict: ok`, exit 0.
+//
+// The path routes -- it is domain-shaped and carries a major -- and
+// then `..` elements walked the store path up out of `aon_vendor/`,
+// because filepath.Join CLEANS `..` rather than refusing it. The
+// lockfile is the delivery vehicle: a hostile repository ships one,
+// and vendoring it writes wherever the path points.
+//
+// Asserted on the FILESYSTEM, not on the message. A report that says
+// the right thing while the write still happened is the failure this
+// test exists to catch. Twin of `vendor-refuses-an-escaping-path` in
+// ts/test/mod.test.ts.
+func TestModVendorRefusesAnEscapingPath(t *testing.T) {
+	dir := modProject(t, "")
+	v, _ := aontu.New().Unify(modToolSource)
+	hash := aontu.CanonHash(v)
+
+	// The module sits in the cache under its pin, so the ONLY thing
+	// standing between the lockfile and the copy is the path gate.
+	xdg := filepath.Join(dir, "xdg")
+	cachedir := filepath.Join(xdg, "aontu", "mod", hash)
+	if err := os.MkdirAll(cachedir, 0o755); nil != err {
+		t.Fatal(err)
+	}
+	modWrite(t, filepath.Join(cachedir, "mod.aon"),
+		"mod: {path: \"corp.example/schemas/service\", main: \"service.aon\"}\n")
+	modWrite(t, filepath.Join(cachedir, "service.aon"), modToolSource)
+
+	escaping := "corp.example/../../../outside/pwned@1"
+	modWrite(t, filepath.Join(dir, "mod-lock.aon"),
+		"{\"lock\":{\""+escaping+"\":{\"canon\":\""+hash+
+			"\",\"oci\":\"\",\"v\":\"1.0.0\"}}}\n")
+
+	t.Setenv("XDG_CACHE_HOME", xdg)
+	out, _, code := modRun("vendor", dir)
+
+	// Nothing outside the project, at any of the levels `..` reaches.
+	for _, up := range []string{
+		filepath.Join(dir, "..", "..", "outside"),
+		filepath.Join(dir, "..", "outside"),
+		filepath.Join(dir, "outside"),
+	} {
+		if _, err := os.Stat(up); nil == err {
+			t.Fatalf("wrote outside the project: %s", up)
+		}
+	}
+	// And nothing inside it either: the module is not vendored at all.
+	if _, err := os.Stat(filepath.Join(dir, "aon_vendor")); nil == err {
+		t.Fatalf("want no vendor tree at all:\n%s", out)
+	}
+	if 1 != code {
+		t.Fatalf("want 1 (missing), got %d:\n%s", code, out)
+	}
+	if !strings.Contains(out, escaping+": not fetched") {
+		t.Fatalf("want the refused module named:\n%s", out)
+	}
+}

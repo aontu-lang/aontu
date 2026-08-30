@@ -48,7 +48,9 @@ import {
 } from '@tabnas/multisource/resolver/mem'
 
 import { STD_SOURCES } from './std'
-import { parseModuleRef, resolveModule, modCacheDir } from './mod'
+import {
+  parseModuleRef, resolveModule, modCacheDir, MODULE_REFUSAL_CODES,
+} from './mod'
 
 import {
   Expr,
@@ -2169,9 +2171,7 @@ class Lang {
       }
     }
     catch (e: any) {
-      if ('include_denied' === e?.code ||
-        'module_missing' === e?.code || 'module_integrity' === e?.code ||
-        'module_depth' === e?.code) {
+      if ('include_denied' === e?.code || MODULE_REFUSAL_CODES.has(e?.code)) {
         // A denied include (trust profile, G5): the resolver throws so
         // a bare-member include cannot vanish in the merge, and the
         // code survives here as the parse-stage nil the registry

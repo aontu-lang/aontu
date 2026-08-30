@@ -39,6 +39,50 @@ mod-nested-has-its-own-root	errc	x: @"__FIXTURES__/modself/main.aon"	syntax
 mod-no-major-is-not-a-module	err	x: @"corp.example/schemas/service"	source not found: corp.example/schemas/service
 mod-no-dot-is-not-a-module	err	x: @"local@1"	source not found: local@1
 mod-shaped-is-a-module	err	x: @"corp.example/schemas/service@1"	module not fetched: corp.example/schemas/service@1 (run: aontu mod get)
+# THE PATH GATE. A path that ROUTES here (domain-shaped, with a major)
+# is not yet a path that may become a DIRECTORY. MODULE_RE's element
+# class admits `..`, and pathJoin CLEANS `..` rather than refusing it,
+# so `corp.example/../../etc/passwd@1` named a store directory two
+# levels ABOVE the store -- and `mod vendor` copied a tree there and
+# reported success. The rules are Go's (module.CheckPath), refused
+# before anything is built from the path, and the refusal names the
+# rule that was broken rather than just saying no.
+#
+# The routing predicate is deliberately NOT tightened to do this: what
+# it rejects falls through to the file leg, so a stricter pattern would
+# silently re-route documents that work today. Shape routes; validity
+# refuses.
+mod-path-traversal	errc	x: @"corp.example/../../etc/passwd@1"	module_path
+mod-path-traversal-message	err	x: @"corp.example/../../etc/passwd@1"	module path: corp.example/../../etc/passwd@1 (an element begins or ends with ".")
+mod-path-dot-element	errc	x: @"corp.example/.hidden@1"	module_path
+mod-path-trailing-dot	errc	x: @"corp.example/trailing.@1"	module_path
+# Windows refuses these as file names whatever the extension, so a
+# module path carrying one cannot be materialised there at all -- and a
+# module that resolves on one platform and not another is exactly the
+# machine-dependence docs/trust.md forbids.
+mod-path-reserved-device	errc	x: @"corp.example/nul@1"	module_path
+mod-path-reserved-device-with-ext	errc	x: @"corp.example/CON.aon@1"	module_path
+mod-path-reserved-device-message	err	x: @"corp.example/nul@1"	module path: corp.example/nul@1 (an element is a reserved device name)
+# The bounds are the other half of "a legal directory everywhere": a
+# path no filesystem will hold is refused as a path rather than as an
+# I/O failure whose wording depends on the host.
+mod-path-too-long	errc	x: @"corp.example/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@1"	module_path
+mod-path-too-many-elements	errc	x: @"corp.example/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a@1"	module_path
+# A path that breaks NO rule still routes and still resolves exactly as
+# it did before the gate existed -- the guard that the gate refuses
+# only what it means to.
+mod-path-valid-still-routes	err	x: @"corp.example/schemas/service@1"	module not fetched: corp.example/schemas/service@1 (run: aontu mod get)
+# UPPERCASE IS ESCAPED ON DISK, `!`+lowercase, which is Go's rule
+# (go.dev/ref/mod, module proxy protocol) and is here for Go's reason:
+# `corp.example/Widgets` and `corp.example/widgets` are two module
+# identities and, on macOS and Windows, ONE directory -- so without the
+# escape whichever was written second silently serves both, and an
+# unpinned import resolves to a module it did not name.
+#
+# The WRITTEN path stays the identity: the import below spells
+# `Widgets`, the fixture on disk is `!widgets@1`, and this row resolves
+# only if the two are connected by the escape.
+mod-case-escaped-store	gens	x: @"__FIXTURES__/modcase/main.aon"	{"x":{"w":{"count":3,"kind":"widget"}}}
 # THE MODULE FILE'S OWN EDGES. A module file with no `main` uses the
 # default entry (`main.aon`); one naming an entry that is not there is
 # the same refusal an absent module is, because the module is not

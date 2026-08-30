@@ -76,6 +76,21 @@ function world(store) {
     return { dir, main, hash, cache };
 }
 (0, node_test_1.describe)('mod', () => {
+    // THE EMPTY-ELEMENT ARM, which no document can reach: MODULE_RE's
+    // element class is `[A-Za-z0-9._-]+`, one character minimum, so a
+    // routed path never carries an empty element and the shared rows
+    // cannot drive this branch. The rule is still the right one to state
+    // -- the next caller of validateModulePath may not come through the
+    // regex -- so it is pinned here instead (ADR-002 rule 2b).
+    (0, node_test_1.test)('an-empty-path-element-is-refused', () => {
+        Assert.equal((0, mod_1.validateModulePath)('corp.example//x'), 'an element is empty');
+        Assert.equal((0, mod_1.validateModulePath)(''), 'an element is empty');
+        // And the rules the shared rows DO drive, asserted here as the
+        // function contract rather than as engine behaviour.
+        Assert.equal((0, mod_1.validateModulePath)('corp.example/x'), undefined);
+        Assert.equal((0, mod_1.validateModulePath)('corp.example/../x'), 'an element begins or ends with "."');
+        Assert.equal((0, mod_1.validateModulePath)('corp.example/nul'), 'an element is a reserved device name');
+    });
     (0, node_test_1.test)('cache-is-content-addressed', () => {
         // No vendor copy at all: the module is in the user cache, under its
         // OWN HASH. That is what content-addressed means — a cache hit is
@@ -334,6 +349,60 @@ function world(store) {
         // AND THE LOCKFILE IS LEFT ALONE. A refusal that wrote a lockfile
         // would be the defect with a louder message.
         Assert.equal(Fs.existsSync(Path.join(dir, 'mod-lock.aon')), false);
+    });
+    // THE REGRESSION TEST FOR THE DEFECT THE PATH GATE EXISTS TO CLOSE:
+    // `vendor` copied a module tree OUTSIDE the project entirely and
+    // reported `verdict: ok`, exit 0.
+    //
+    // The path routes -- it is domain-shaped and carries a major -- and
+    // then `..` elements walked the store path up out of `aon_vendor/`,
+    // because pathJoin CLEANS `..` rather than refusing it. The lockfile
+    // is the delivery vehicle: a hostile repository ships one, and
+    // vendoring it writes wherever the path points.
+    //
+    // Asserted on the FILESYSTEM, not on the message. A report that says
+    // the right thing while the write still happened is the failure this
+    // test exists to catch. The Go twin is
+    // TestModVendorRefusesAnEscapingPath.
+    (0, node_test_1.test)('vendor-refuses-an-escaping-path', () => {
+        const escaping = 'corp.example/../../../outside/pwned@1';
+        const hash = (0, aontu_1.canonHash)(new aontu_1.Aontu().unify(MODULE));
+        const dir = project('');
+        // The module sits in the cache under its pin, so the ONLY thing
+        // standing between the lockfile and the copy is the path gate.
+        const xdg = Path.join(dir, 'xdg');
+        const cachedir = Path.join(xdg, 'aontu', 'mod', hash);
+        Fs.mkdirSync(cachedir, { recursive: true });
+        Fs.writeFileSync(Path.join(cachedir, 'mod.aon'), 'mod: {path: "corp.example/schemas/service", main: "service.aon"}\n');
+        Fs.writeFileSync(Path.join(cachedir, 'service.aon'), MODULE);
+        Fs.writeFileSync(Path.join(dir, 'mod-lock.aon'), '{"lock":{"' + escaping + '":{"canon":"' + hash +
+            '","oci":"","v":"1.0.0"}}}\n');
+        const prev = process.env.XDG_CACHE_HOME;
+        process.env.XDG_CACHE_HOME = xdg;
+        let r;
+        try {
+            r = cli(['mod', 'vendor', dir]);
+        }
+        finally {
+            if (undefined === prev) {
+                delete process.env.XDG_CACHE_HOME;
+            }
+            else {
+                process.env.XDG_CACHE_HOME = prev;
+            }
+        }
+        // Nothing outside the project, at any of the levels `..` reaches.
+        for (const up of [
+            Path.join(dir, '..', '..', 'outside'),
+            Path.join(dir, '..', 'outside'),
+            Path.join(dir, 'outside'),
+        ]) {
+            Assert.equal(Fs.existsSync(up), false, 'wrote outside the project: ' + up);
+        }
+        // And nothing inside it either: the module is not vendored at all.
+        Assert.equal(Fs.existsSync(Path.join(dir, 'aon_vendor')), false, r.out);
+        Assert.equal(r.code, 1, r.out);
+        Assert.ok(r.out.includes(escaping + ': not fetched'), r.out);
     });
     // VERIFICATION IS A QUESTION; ANSWERING IT MUST NOT BE AN EDIT
     // (§32). Tidy recomputes and rewrites by design, so a CI job that

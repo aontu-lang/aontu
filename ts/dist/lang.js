@@ -1816,9 +1816,7 @@ class Lang {
             }
         }
         catch (e) {
-            if ('include_denied' === e?.code ||
-                'module_missing' === e?.code || 'module_integrity' === e?.code ||
-                'module_depth' === e?.code) {
+            if ('include_denied' === e?.code || mod_1.MODULE_REFUSAL_CODES.has(e?.code)) {
                 // A denied include (trust profile, G5): the resolver throws so
                 // a bare-member include cannot vanish in the merge, and the
                 // code survives here as the parse-stage nil the registry

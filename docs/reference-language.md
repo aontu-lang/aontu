@@ -2054,6 +2054,31 @@ the path must end in `@<integer>`. Anything else falls through the
 resolver chain exactly as before, so no existing include can be routed
 somewhere new.
 
+**Shape routes; validity refuses.** A path that routes here is not yet
+a path that may become a directory, and a module path becomes a real
+directory on every platform the toolchain runs on. So the path is
+checked before anything is built from it: no element may be empty,
+begin or end with `.`, or be a reserved device name (`nul`, `con`,
+`com1`…), and the path is bounded in length and element count. These
+are Go's module-path rules, adopted for Go's reason.
+
+```
+module path: corp.example/../schemas@1 (an element begins or ends with ".")
+```
+
+The rule against a leading or trailing `.` is what forbids `..`, and it
+is stated as the rule rather than as a ban on the two dangerous
+spellings, which would miss the third. The routing predicate is
+deliberately *not* tightened to do this work: what it rejects falls
+through to the file resolver, so a stricter pattern would silently
+re-route documents that resolve today.
+
+**Uppercase is escaped on disk.** `corp.example/Widgets` and
+`corp.example/widgets` are two module identities and, on a
+case-insensitive filesystem, one directory — so an uppercase letter is
+written `!`+lowercase in the store, Go's rule for Go's reason. The
+written path stays the identity; only the directory is escaped.
+
 **Evaluation never touches the network.** A module resolves from local
 stores only — `aon_vendor/` beside the project's `mod.aon`, then a
 content-addressed user cache — and the cache is consulted only when the

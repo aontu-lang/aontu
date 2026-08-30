@@ -305,8 +305,15 @@ place_pair	errcode	conflict	0.53.0
 # before any Val exists -- so a pipe into something that is not a call
 # is wrong in the TEXT, and no later pass can repair it.
 pipe_target	errcode	parse	0.53.0
-# MODULES (G6 phase 2). Two codes, both class `parse`: a module import
-# is resolved while the source is READ. `module_missing` is a module in
+# MODULES (G6 phase 2). Three codes are class `parse`: a module import
+# is resolved while the source is READ. `module_path` is a module path
+# that is domain-shaped and carries a major -- so it ROUTES here -- but
+# cannot legally be a directory on every platform: an empty element, an
+# element beginning or ending with `.` (which is what forbids `..`), or
+# a reserved device name. Refused before anything is built from it,
+# because `pathJoin` CLEANS `..` rather than refusing it, and a store
+# path built from one escapes the store.
+# `module_missing` is a module in
 # neither local store -- evaluation never touches the network, so
 # fetching is a separate step and the message names it.
 # `module_integrity` is a module that IS there and does not have the
@@ -318,6 +325,7 @@ pipe_target	errcode	parse	0.53.0
 # stack -- a verdict that depends on the machine, which is what
 # docs/trust.md forbids. The bound makes it a stated refusal, exactly
 # as `unify_cycle` does for the same reason.
+module_path	errcode	parse	0.53.1
 module_missing	errcode	parse	0.53.0
 module_integrity	errcode	parse	0.53.0
 module_depth	errcode	budget	0.53.0
