@@ -2172,7 +2172,7 @@ with its `-2` and `-longhand` companions.
 
 ## trials — the flag one port sets and the other does not
 
-### 61. Go's `trialUnify` never sets `ctx.trial`, so `match` and `filter` answer differently in the two ports [critical]
+### 61. Go's `trialUnify` never sets `ctx.trial`, so `match` and `filter` answer differently in the two ports [FIXED 2026-08-30]
 
 Found 2026-08-30 by an adversarial reviewer of the transform-layer
 design, while checking whether unifiability-matching could carry a
@@ -2220,6 +2220,31 @@ default meet in Go — ADR-004 and ADR-011 territory, with ~190 lines of
 does not cover this, not that the change is small: **pref-side rows
 for a trial peer of a different length should land before the fix
 does.**
+
+Status: FIXED 2026-08-30. `trialUnify` saves, sets and restores
+`ctx.trial`, exactly as TypeScript's does -- saved and restored rather
+than merely set, because a trial nested inside a trial must not clear
+the outer one. All five divergent rows and all three agreeing rows in
+the tables above now match between the ports.
+
+**The blast radius the entry warned about did not materialise, and the
+pref rows are why we know rather than hope.** They were written FIRST,
+from the canonical port's answers, and run against Go before the fix:
+`pref-struct-list-default-shorter-peer` and `-longer-peer` failed,
+which is the gap, and the three boundary rows passed. After the fix
+all five pass and the ~190 lines of `pref.tsv` behind them are
+untouched -- so the suite being green today did mean the change is
+contained, once the rows that cover it existed.
+
+Pins: `test/spec/pref.tsv` -- `pref-struct-list-default-shorter-peer`,
+`-longer-peer`, and `-same-length`, `-same-length-one`,
+`-spread-peer` for the boundary (same length still merges leafwise,
+which is ADR-011 R3, and a spread makes the pattern variadic so length
+stops being the question). `test/spec/gen-match.tsv` --
+`match-list-longer-scrutinee-misses`, `-one-vs-empty-misses`,
+`-same-length-hits`, `-spread-pattern-hits`.
+`test/spec/gen-filter.tsv` -- `filter-list-empty-pattern-keeps-none`,
+`-one-element-pattern`, `-top-keeps-both`.
 
 Repro:
 [`repros/trial/go-trial-flag-unset.aon`](repros/trial/go-trial-flag-unset.aon)

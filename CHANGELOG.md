@@ -7,6 +7,35 @@ which implementation each change affects.
 
 ## Unreleased
 
+### `match` and `filter` answered differently in the two ports
+
+Go only. A list is a POSITIONAL structure, so a peer of another length
+cannot narrow it, and both ports carry the same length gate for a
+TRIAL meet. TypeScript's `trialUnify` set the flag that gate reads;
+Go's never did, setting it only on the disjunct-member path — so the
+gate could not fire from a combinator or from the preference
+distribution:
+
+| source | was, in Go | now, both ports |
+|---|---|---|
+| `match([1,2], [], "hit", "miss")` | `"hit"` | `"miss"` |
+| `filter([[1],[1,2]], [])` | every element | none |
+| `a: *[]` / `a: [1]` | `{"a":*[1]}`, exit 0 | refused, `empty` |
+
+`match` selected the other arm and `filter` made the **opposite**
+selection, both silently and at exit 0 — the silent-wrong-output class,
+in the two combinators a transform layer dispatches on, and in the
+operator ADR-004 and ADR-011 are built on.
+
+The fix is one flag, saved and restored so a nested trial cannot clear
+the outer one. Its reach was the real question, since the same call
+drives every `*x & peer` distribution in Go: the preference rows for a
+trial peer of a different length were written from the canonical
+port's answers and run against Go **before** the change, where they
+failed exactly as predicted while the boundary rows passed. After it,
+all pass and the rest of `pref.tsv` is unmoved. Was
+`use-cases/BUGS.md` §61.
+
 ### An entity cannot contain itself
 
 Both implementations, and a new error code: `id_ancestor`, class
