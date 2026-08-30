@@ -2087,6 +2087,61 @@ Repro:
 [`repros/hash/alias-spread-hash-blind.aon`](repros/hash/alias-spread-hash-blind.aon)
 with its `-2` and `-longhand` companions.
 
+## trials — the flag one port sets and the other does not
+
+### 61. Go's `trialUnify` never sets `ctx.trial`, so `match` and `filter` answer differently in the two ports [critical]
+
+Found 2026-08-30 by an adversarial reviewer of the transform-layer
+design, while checking whether unifiability-matching could carry a
+rule layer. It cannot yet: the two ports disagree about what unifies.
+
+| source | TypeScript | Go |
+|---|---|---|
+| `match([1,2], [], "hit", "miss")` | `"miss"` | **`"hit"`** |
+| `match([1], [], "hit", "miss")` | `"miss"` | **`"hit"`** |
+| `filter([[1],[1,2]], [])` | `[]` | **`[[1],[1,2]]`** |
+| `a: *[]` / `a: [1]` | `[aontu/empty]`, exit 1 | **`{"a":*[1]}`, exit 0** |
+| `a: *[1]` / `a: [1,2]` | `[aontu/empty]`, exit 1 | **`{"a":*[1,2]}`, exit 0** |
+
+`match` selects the other arm and `filter` makes the **opposite**
+selection — TypeScript drops every element, Go keeps every element —
+and neither port raises anything. This is the silent-wrong-output
+class, in the two combinators a transform layer would dispatch on.
+
+The agreeing cases draw the boundary and confirm the cause:
+`a: [] a: [1]` merges to `[1]` in both (no trial); `a: *[] a: []`
+gives `*[]` in both (same length); `match([],[],…)` is `"hit"` in both
+(same length); and `match([1,2],[&:integer],…)` is `"hit"` in both (a
+spread makes the pattern variadic).
+
+**Root cause — a one-line omission.** Both ports carry the same gate,
+with the same comment, for the rule §52 regime 4 introduced:
+
+- [`ts/src/val/ListVal.ts`](../ts/src/val/ListVal.ts): `if (true === ctx._trialMode && … this.peg.length !== peer.peg.length) return makeNilErr(ctx, 'list_length', …)`
+- [`go/listval.go`](../go/listval.go): `if pl, ok := peer.(*ListVal); ok && nil != ctx && ctx.trial && … len(l.peg) != len(pl.peg)`
+
+TypeScript's `trialUnify`
+([`ts/src/val/FuncBaseVal.ts`](../ts/src/val/FuncBaseVal.ts)) saves,
+**sets** and restores `ctx._trialMode`. Go's `trialUnify`
+([`go/generate.go`](../go/generate.go)) swaps `ctx.err` and **never
+sets `ctx.trial`**, so the gate it shares with TypeScript can never
+fire from a combinator trial. Go's flag is set on the disjunct-member
+path instead, which is why `[] | [&: T]` behaves and `match`/`filter`
+do not.
+
+**The fix is one line; its blast radius is not.** `go/pref.go` calls
+the same `trialUnify` three times (`:158`, `:200`, `:227`) for the
+`*x & peer` distribution, so setting the flag there changes every
+default meet in Go — ADR-004 and ADR-011 territory, with ~190 lines of
+`test/spec/pref.tsv` behind it. That the suite is green today means it
+does not cover this, not that the change is small: **pref-side rows
+for a trial peer of a different length should land before the fix
+does.**
+
+Repro:
+[`repros/trial/go-trial-flag-unset.aon`](repros/trial/go-trial-flag-unset.aon)
+and its `-pref` companion.
+
 ## Elsewhere in this review
 
 Defects verified earlier in the effort and recorded in
