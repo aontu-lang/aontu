@@ -17,6 +17,14 @@ examples](#worked-examples) came out of a reference implementation of
 the extractors and renderers specified here, run against the real
 documents under [`use-cases/`](../../use-cases/).*
 
+> **Companion.** The order views — the subsumption poset, the meet
+> ladder and the interval panel — are
+> [VIEWS-ORDER.0.md](VIEWS-ORDER.0.md). They are separated because
+> they draw the ORDERS the engine computes rather than the structures
+> it holds, and because one of them is gated on a defect this design
+> work found ([BUGS 64](../../use-cases/BUGS.md)): three of the seven
+> use-case entry documents do not subsume themselves.
+
 ## Problem
 
 A model that is ground truth for a system, and cannot show the system's
@@ -816,16 +824,26 @@ not forty.
 
 Verdict is `ok`, `lossy` or `error`; `--strict` exits 1 on `lossy`.
 
-`hidden_contribution` is not hypothetical. VERIFIED on
-`use-cases/05-rbac-policy/example.aon`: `registry_invariant` is written
-`hide({...})` and is ABSENT from the generated document (top-level keys
-are `permissions`, `roles`, `tenant`), yet its `filter()` result
-contributes an edge to the graph at
-`$.registry_invariant.one_owner_role.owner.grants.0`. A figure built on
-`graphOf` can therefore draw something the document deliberately hides.
-This is the same class G9 Phase 0 closes for `each` / `pick`, it is a
-disclosure hazard the moment a figure is committed to a repository, and
-here it is reported rather than silently drawn.
+`hidden_contribution` is real but **conditional on Phase 0**, and the
+distinction matters enough to state here rather than leave to the
+worked example. On shipped 0.53.0 it cannot happen in
+`use-cases/05-rbac-policy` at all: re-checked 2026-08-30, `graphOf`
+over every entry document of that case (`example.aon`, `roles.aon`,
+`tenant.aon`, `plans.aon`, `permissions.aon`) yields no entity and no
+edge touching `$.registry_invariant...`, and the key is correctly
+absent from the generated JSON. That is the same blind spot
+[Phase 0](#phase-0--the-graphof-conjunct-blind-spot-s) exists to
+close — the extractor does not descend there yet.
+
+Once it does, it reaches a subtree written `hide({...})`, whose whole
+purpose is to say "not output". A figure is committed to a repository,
+so anything drawn is disclosed. **The disclosure hazard is therefore
+created by Phase 0 and must be closed in the same phase**, not
+discovered after it: the loss code, the path in the report and the
+`--strict` refusal land with the conjunct descent, and whether the
+extractor should skip hidden subtrees outright is an
+[open question](#open-questions) that Phase 0 has to answer rather
+than defer.
 
 ### 5. The CLI surface
 
@@ -1557,7 +1575,7 @@ Each refusal names the measurement or the rule that decided it.
 | Phase 0's conjunct arm flips a shipped verdict on a document that wraps a declared relation in a residual — `relations` from pass to fail, `reaches` from `unreachable` to `reaches` | Medium | High | Both flips are corrections and both need rows and a CHANGELOG note. VERIFIED at head with the arm applied: the RBAC model goes from 3 to 13 edges and `reaches owner admin_all` from exit 1 to exit 0; `01-service-catalog` stays at 36 edges and `12-relations` at 6; the full TypeScript suite (4,431 tests) is green. Whether it needs an ADR entry is an open question |
 | The picture is not pinned and never will be: GitHub's Mermaid version lags upstream, dagre and ELK change, graphviz gives no coordinate contract | High | Medium | Stated in the design, in `--help`, and in the emitted comment header. `--check` asserts bytes and says so; nothing claims pixels |
 | ADR-002's 100 % floor over four extractors, three renderers and two ports | High | High | Calibration from this tree: `ts/src/jsonschema.ts` is 511 lines and `go/jsonschema.go` 534 for a single-target emitter with one verb and two flags; `graph.ts` is 148, `reach.ts` 184, `relation.ts` 292, `diff.ts` 196, `agentsmd.ts` 135. The repository's ratio is 19,335 test lines to 30,670 source lines in TypeScript and 15,054 to 23,343 in Go, so every phase estimate below is quoted with the test lines it drags. The first landing is deliberately ONE kind and ONE profile |
-| `graphOf` walks `hide()`-marked subtrees, so a committed figure can disclose what the document hides — VERIFIED on `use-cases/05-rbac-policy`, where `$.registry_invariant...` contributes an edge and is absent from the generated JSON | Medium | High | Reported as `hidden_contribution` with the path, and `--strict` refuses. Whether the extractor should SKIP hidden subtrees by default is an open question; G9 Phase 0 makes the same change for `each`/`pick` and the two should agree |
+| Phase 0's conjunct descent lets `graphOf` reach `hide()`-marked subtrees, so a committed figure discloses what the document hides. NOT reachable on shipped 0.53.0 — re-checked 2026-08-30, no entity or edge in `use-cases/05-rbac-policy` touches `$.registry_invariant...` — so this is a hazard Phase 0 CREATES | High, once Phase 0 lands | High | Reported as `hidden_contribution` with the path, and `--strict` refuses. Whether the extractor should SKIP hidden subtrees by default is an open question; G9 Phase 0 makes the same change for `each`/`pick` and the two should agree |
 | The relation metamodel contains entries that are not predicates. VERIFIED on `use-cases/12-relations/bad/missing-inverse.aon`, where `ctx._reldecls` holds `feeds` plus five entries keyed `metrics`, `extract`, `transform`, `load`, `audit`, each carrying `inv:["fedBy"]`; not reproduced in a minimal document, and no verdict changes because the verb looks up by the edge's key | Medium | Medium | `--relation` is required for `matrix` rather than defaulting to one panel per declared relation, so a phantom entry cannot become a phantom figure. The observation goes in `use-cases/BUGS.md` with the document that shows it |
 | `graphOf`'s edge sort key stops being total once the conjunct arm visits terms at one path. I could NOT construct a witness (probes with stacked `refer()` conjuncts either collapsed or refused), so this is an unproven invariant rather than a demonstrated bug — but the in-code comment that licenses the one-key sort becomes false | Low | Medium | One line per port in the same commit: sort by `(at, from, key, to)`, and update the comment |
 | A matrix or a set panel is unreadable at real scale — a 200-service catalogue, a 60-attribute record set | High | Medium | `--max-rows` REFUSES rather than truncates, and the message names `--at`, `--relation` and `--group-by`; `--max-cols` and `--min-degree` elide with a counted loss row. The defaults (60 rows) have not been chosen against real large data, because the repository contains none |
