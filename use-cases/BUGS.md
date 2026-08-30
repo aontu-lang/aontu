@@ -1845,7 +1845,7 @@ use-cases/12-relations spells the natural form). The self-typed
 `rel($.spec.Job)` inside `Job` remains with the recursion note's
 rel-side wiring.
 
-### 54. Relation findings misreport when the schema include nests inside the data file [major]
+### 54. Relation findings misreport when the schema include nests inside the data file [NOT REPRODUCIBLE 2026-08-30]
 
 Found 2026-08-29 while writing docs/tutorial-graph.md, probed in the
 TypeScript CLI. With the schema loaded as a NESTED include (overlay ->
@@ -1867,6 +1867,36 @@ overlay file with `@"./pipeline.aon"` plus
 that shape. Cosmetic quirk observed alongside: generation-time relation
 errors at overlay positions append the relation name to the path
 (`$.change.feeds.1.feeds`).
+
+Status, 2026-08-30: **does not reproduce**. Left OPEN rather than
+closed, because not reproducing is not the same as knowing what fixed
+it.
+
+This entry is entirely a claim that the NESTED layout differs from the
+SIBLING one. Rebuilt from the repro shape above, the two now emit
+BYTE-IDENTICAL reports:
+
+    $.jobs.extract.feeds.0  feeds: cycle job_extract -> job_report -> job_load -> job_extract
+    $.jobs.extract.feeds.0  feeds: job_report does not list job_extract under fedBy
+    $.jobs.report.feeds.0   feeds: job_load does not list job_report under fedBy
+    $.mirror.feeds.0        feeds: job_report does not list job_extract under fedBy
+
+Every clause inverts: generation refuses with `relation_cycle` and not
+`relation_inverse_missing`, the `relation_cycle` finding IS present,
+and the relation column shows the relation NAME (`feeds:`) rather than
+entity keys. Three readings of the prose were tried -- the cycle in
+the overlay, the cycle in `pipeline.aon` with both directions written,
+and forward-only edges with the mirror supplied by the overlay. The
+last is the only one that raises inverse-missing findings at all, and
+it reports them correctly.
+
+There is no committed repro for this entry -- the description is
+prose, and `repros/` has no relations directory -- so what was
+actually probed cannot be re-run. Several relation fixes landed
+between the filing and now, §53 on 2026-08-29 among them, and one of
+them plausibly closed it; which is not established. **Re-probe against
+the `docs/tutorial-graph.md` draft it was found in before closing, and
+commit the repro this time.**
 
 ### 55. `why` drops the spread role when template and keys arrive in separate statements [PARTLY FIXED 2026-08-30]
 
