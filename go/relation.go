@@ -104,11 +104,6 @@ func relationFindings(decls map[string]*relDecl, graph Graph) []RelationFinding 
 	byRelation := map[string][]Edge{}
 	pairs := map[string]bool{}
 	for _, e := range graph.Edges {
-		if "" == e.From {
-			// An edge outside every entity has no source to be a
-			// relation OF.
-			continue
-		}
 		byRelation[e.Key] = append(byRelation[e.Key], e)
 		pairs[e.Key+" "+e.From+" "+e.To] = true
 	}

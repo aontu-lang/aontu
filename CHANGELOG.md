@@ -7,6 +7,72 @@ which implementation each change affects.
 
 ## Unreleased
 
+### `id()` is removed; `refer()` addresses tree paths
+
+**Breaking, both implementations.** The identity mark gave any node a
+second, global name, and every node in one evaluation carrying that
+name was unified with every other. It is removed
+([ADR-013](ADR.md#adr-013--the-tree-is-the-namespace-there-is-no-identity-mark)).
+
+The collision hazard a global namespace implies is not what decided
+it. The deciding cost is that **a model carrying an `id()` could not be
+instantiated twice**: two mounts of one file were one entity, so a
+per-instance override was a contradiction, and the bare `id()` escape
+hatch did not help — it names itself by its enclosing key, which is the
+same key in both instances. Only the full path disambiguates, which is
+the argument.
+
+**What replaces it.** Bringing two descriptions into contact is a
+reference, written at one of the two sites:
+
+```aon
+catalog: pay: { tier: 1 }
+deploy: pay: $.catalog.pay & { replicas: 3 }
+```
+
+A contradiction between the views is the same located error the shared
+id produced, at the same path, with the same code. The reference is
+directional, which is what stops two unrelated models merging because
+they chose the same word.
+
+**`refer(t?)` keeps everything that made it worth having** — a link
+rather than an embedding, checked existence, constraint flow into the
+target — and now takes a tree address:
+
+```
+$.services.auth   from the document root
+.auth             beside the link itself
+..auth            one level up from there
+```
+
+Relative addressing is new capability, not a consolation: a link
+written `..auth` resolves inside whichever instance holds it, so one
+file mounted at two paths gives two self-contained instances.
+
+**The derived graph is path-native.** There is no entity index, because
+a node's address is its path. A link's source node is derived from
+where the link sits rather than declared by a mark, and `Edge.to` is
+the RESOLVED path — a relative address means a different node from each
+position it is written at, and an edge set whose far ends were
+spellings could not be traversed. The link's own value is still what
+the author wrote. `relations` and `reaches` take and report `$.dotted`
+node paths.
+
+**Removed:** the `id` builtin (the roster goes 41 → 40); the codes
+`id_name`, `id_conflict` and `id_spread`; the identity merge, its
+registry and its rider in `unite`; identity's canon and canon-hash
+wrappers (two documents that differed only in their ids no longer
+differ at all); and the three clearing rules, which existed only to
+stop a global name leaking through a reference clone, a `copy()`, or a
+spread template. Relation predicates are unaffected —
+`inverse(dependedOnBy)` is a vocabulary term, not an address.
+
+**Two long-standing TS/Go divergences close with it**
+(`test/spec/divergent.tsv`): Go's derived graph losing most of its
+edges on a two-view model, and the id-spread refusal pathed differently
+by each port. `AONTU=<go binary> use-cases/01-service-catalog/check.sh`
+now passes all 20 assertions.
+
 ### An include's extension decides what the file is
 
 Both implementations. `@"file"` read a file, and what the engine did

@@ -41,3 +41,13 @@ endpoint-that-names-nothing-is-a-refusal	reaches	a: {dependsOn: [&: refer(), "$.
 # successor -- the search must not walk it twice. Parity-probed.
 a-document-that-does-not-stand-up-has-no-graph	reaches	a: {k: 1}\na: {k: 2}\n	{"ask":{"from":"$.a","to":"$.b"},"errors":[{"class":"conflict","code":"scalar_value","path":"$.a.k","severity":"error","sites":[{"col":8,"file":"","len":1,"role":"data","row":2,"src":"2","value":"2"},{"col":8,"file":"","len":1,"role":"data","row":1,"src":"1","value":"1"}]}],"verdict":"error"}
 a-repeated-edge-is-one-successor	reaches	a: {to: [&: refer(), "$.b", "$.b"]}\nb: {}\n	{"ask":{"from":"$.a","to":"$.b"},"path":["$.a","$.b"],"verdict":"reaches"}
+# ENDPOINTS ARE PATHS (ADR-013), and the grammar is checked before the
+# graph is consulted. A path that names a real node with no edges is a
+# perfectly good question with the answer `unreachable`; only one that
+# names NOTHING refuses. The root is a legitimate endpoint -- a link at
+# the top of a document starts there -- even though `$` is not a
+# refer() target (refer.tsv, `address-root-alone`).
+endpoint-inside-a-list	reaches	a: {list: [{}, {}], dep: refer() & "$.b"}\nb: {}\n	{"ask":{"from":"$.a.list.0","to":"$.b"},"verdict":"unreachable"}
+endpoint-is-the-root	reaches	a: {list: [{}, {}], dep: refer() & "$.b"}\nb: {}\n	{"ask":{"from":"$","to":"$.b"},"verdict":"unreachable"}
+endpoint-unanchored-is-a-refusal	reaches	a: {list: [{}, {}], dep: refer() & "$.b"}\nb: {}\n	{"ask":{"from":"a","to":"$.b"},"errors":[{"class":"reference","code":"refer_unresolved","note":"nodes with links: $.a, $.b","path":"$","severity":"error","sites":[]}],"verdict":"error"}
+endpoint-bad-segment-is-a-refusal	reaches	a: {list: [{}, {}], dep: refer() & "$.b"}\nb: {}\n	{"ask":{"from":"$.a b","to":"$.b"},"errors":[{"class":"reference","code":"refer_unresolved","note":"nodes with links: $.a, $.b","path":"$","severity":"error","sites":[]}],"verdict":"error"}

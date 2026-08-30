@@ -186,3 +186,25 @@ refer-typed-flow-both-ways	gens	a: { to: [&: refer({k:1}), "$.b"] }\nb: { to: [&
 refer-typed-flow-differs-each-way	gens	a: { to: [&: refer({k:1}), "$.b"] }\nb: { to: [&: refer({k:9}), "$.a"] }\n	{"a":{"k":9,"to":["$.b"]},"b":{"k":1,"to":["$.a"]}}
 refer-typed-cycle-of-three	gens	a: { to: [&: refer({k:1}), "$.b"] }\nb: { to: [&: refer({k:1}), "$.c"] }\nc: { to: [&: refer({k:1}), "$.a"] }\n	{"a":{"k":1,"to":["$.b"]},"b":{"k":1,"to":["$.c"]},"c":{"k":1,"to":["$.a"]}}
 refer-typed-self-link	gens	a: { to: [&: refer({k:1}), "$.a"] }\n	{"a":{"k":1,"to":["$.a"]}}
+# The RELATIVE arm validates its segments separately from the absolute
+# one, so it is refused separately too.
+address-relative-bad-char	errc	a: {}\nb: refer() & ".a b"	refer_address
+address-relative-slash	errc	a: {}\nb: refer() & ".a/b"	refer_address
+# A FORWARD link that also FLOWS: the recorded flow is replayed onto
+# each pass, and on the pass that records it the target is not in the
+# tree the replay walks yet.
+flow-forward	gens	b: refer({k:1}) & "$.a"\na: {}	{"a":{"k":1},"b":"$.a"}
+# A FLOW WHOSE TARGET GOES AWAY. The flow is recorded when the address
+# resolves, and replayed onto every later pass; a `move` that takes the
+# target out from under it leaves the record naming a position that is
+# no longer there.
+#
+# The two shapes differ in WHEN the move lands. Moving the target
+# itself takes it before the address ever resolves, so nothing is
+# recorded and the link refuses -- the address, not the flow, is what
+# the document got wrong. Moving the target's PARENT lets the flow
+# resolve and land first, and the replay then finds nothing at the
+# recorded path and skips it: the value went with the move, and the
+# link keeps the address the author wrote.
+flow-target-moved-away	errc	a: {t: {}}\nb: refer({k:1}) & "$.a.t"\na: move($.a.t)	refer_unresolved
+flow-lands-then-its-parent-moves	gens	a: {t: {}}\nb: refer({k:1}) & "$.a.t"\nc: move($.a)	{"b":"$.a.t","c":{"t":{"k":1}}}

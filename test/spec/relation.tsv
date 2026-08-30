@@ -146,3 +146,21 @@ atom-in-list-position	canon	x: [acyclic() & ["a"]]	{"x":[["a"]&acyclic()]}
 # are checked, and one unmirrored edge is flagged once per name --
 # sorted by detail, the report's third tie-breaker.
 two-inverses-one-predicate	relation	ent_a: {links: ["$.ent_b"] & rel() & inverse(back) & inverse(also), back: [], also: []}\nent_b: {back: [], also: []}	{"verdict":"fail","findings":[{"code":"relation_inverse_missing","relation":"links","at":"$.ent_a.links.0","detail":["$.ent_a","$.ent_b","also"]},{"code":"relation_inverse_missing","relation":"links","at":"$.ent_a.links.0","detail":["$.ent_a","$.ent_b","back"]}]}
+# THE PREDICATE NAME is a D-1 name (docs/design/RELATIONS.0.md §3.2) --
+# a relation is a vocabulary term, not an address, so it keeps the
+# name grammar that entity names had before ADR-013 retired them: a
+# letter or `_`, then letters, digits, `_` or `-`. The accepting rows
+# reach generation (an unmet rel is not concrete) rather than a name
+# refusal, which is exactly the distinction being pinned.
+inverse-name-empty	errc	d: rel() & inverse("")	inverse_name
+inverse-name-digit-lead	errc	d: rel() & inverse("9x")	inverse_name
+inverse-name-hyphen-lead	errc	d: rel() & inverse("-x")	inverse_name
+inverse-name-upper	errc	d: rel() & inverse(Abc)	mapval_no_gen
+inverse-name-digits-and-hyphen-inside	errc	d: rel() & inverse("a_b-c1")	mapval_no_gen
+
+# A GRAPH ATOM REFINES ITS HELD VALUE IN PLACE across passes. A chain
+# of references takes several passes to settle, so the atom self-drives
+# with a held value that is not done yet -- and it must refine the same
+# object rather than mint a fresh atom per pass, or the enclosing bags
+# re-open every pass and the model never converges.
+atom-holds-a-chained-reference	canon	d: acyclic() & $.a\na: $.b\nb: $.c\nc: ["$.q"]\nq: {}	{"a":["$.q"],"b":["$.q"],"c":["$.q"],"d":["$.q"]&acyclic(),"q":{}}

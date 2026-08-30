@@ -240,14 +240,6 @@ func computePathFunc(v Val) bool {
 		switch n.name {
 		case "key", "path", "move", "super":
 			return true
-		case "id":
-			// BARE `id()` is named by the enclosing key, so its meaning
-			// depends on where it lands (RELATIONS.0.md §3.1) -- the
-			// no-arg form only; `id(name)` stays constant. The TS twin
-			// sets _isPathDependent in the IdFuncVal constructor.
-			if 0 == len(n.peg) {
-				return true
-			}
 		}
 		for _, a := range n.peg {
 			if hasPathFunc(a) {

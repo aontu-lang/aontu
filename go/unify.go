@@ -187,10 +187,19 @@ func applyFlows(ctx *Ctx, root Val) Val {
 	for _, key := range keys {
 		path := strings.Split(key, "\x00")
 		site, ok := findAt(root, path)
-		// The position may not be in THIS pass's tree yet (a forward
-		// link whose target a later conjunct introduces); the record
-		// survives to the next pass, where it will be.
-		if !ok || nil == site.parent {
+		// A RECORDED PATH THAT NO LONGER RESOLVES is skipped rather
+		// than refused: the record outliving its position is a
+		// question about the tree, and the link that named it answers
+		// it (refer.tsv, `flow-target-moved-away`).
+		//
+		// NO DOCUMENT REACHES IT: a record is written only for a path
+		// that HAD resolved, and unification never takes a node back
+		// out of the tree -- `move` copies and hides its source rather
+		// than removing it, which is the one rearrangement that looked
+		// like it would (probed: the flow still resolves on every
+		// pass, `flow-lands-then-its-parent-moves`). The guard is the
+		// contract for a rearrangement that does.
+		if !ok { //coverage:ignore a recorded path always resolves; see above
 			continue
 		}
 		merged := unite(ctx, site.val, ctx.referflows[key])

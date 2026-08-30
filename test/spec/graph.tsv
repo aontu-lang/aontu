@@ -69,3 +69,6 @@ rel-list-predicate	graph	a: {}\nb: {}\ns: {dependsOn: rel() & ["$.a", "$.b"]}	{"
 rel-map-predicate-is-the-rel-key	graph	a: {}\ns: {uses: rel() & {primary: "$.a"}}	{"edges":[{"from":"$.s","key":"uses","to":"$.a","at":"$.s.uses.primary"}]}
 rel-through-a-schema	graph	S: type({dependsOn?: rel()})\na: {}\ns: $.S & {dependsOn: ["$.a"]}	{"edges":[{"from":"$.s","key":"dependsOn","to":"$.a","at":"$.s.dependsOn.0"}]}
 rel-list-element-edge	graph	q: {}\na: [rel() & "$.q"]	{"edges":[{"from":"$","key":"a","to":"$.q","at":"$.a.0"}]}
+# A LIST-ROOT document: the link has nothing but indices above it, so
+# the source is the root and the relation is unlabelled.
+edge-at-a-list-root	graph	[refer() & "$.0"]	{"edges":[{"from":"$","key":"","to":"$.0","at":"$.0"}]}
