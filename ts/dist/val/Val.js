@@ -454,5 +454,5 @@ function empty(o) {
     return ((Array.isArray(o) && 0 === o.length)
         || (null != o && 'object' === typeof o && 0 === Object.keys(o).length)
         || false);
-} /* node:coverage ignore next 16 */
+} /* node:coverage ignore next 17 */
 //# sourceMappingURL=Val.js.map
