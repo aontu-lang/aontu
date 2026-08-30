@@ -37,9 +37,6 @@ const (
 // rules -- two copies of this walk is how the ports drift.
 func (rv *RefVal) walkFrom(root Val, refpath []string) (Val, walkOutcome) {
 	var node Val = root
-	if nil == node {
-		return nil, walkMissed
-	}
 	for _, part := range refpath {
 		// A PENDING MARK WRAPPER IS TRANSPARENT TO THE WALK: hide()
 		// and type() only mark, and their argument is the structure
