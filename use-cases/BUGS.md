@@ -2142,6 +2142,60 @@ Repro:
 [`repros/trial/go-trial-flag-unset.aon`](repros/trial/go-trial-flag-unset.aon)
 and its `-pref` companion.
 
+## ordering — the one call site that does not use cmpCodePoint
+
+### 62. `pick` orders an astral-keyed map by UTF-16 code units in TypeScript [critical]
+
+Found 2026-08-30 while checking that a transform's generated line order
+is stable across ports. It is not.
+
+```aon
+m: {"\u{1F600}": {v:"astral"}, "\uFFF0": {v:"bmp"}}
+p: pick($.m, v)
+```
+
+| | result |
+|---|---|
+| canon of `m`, both ports | `{"\uFFF0":…,"\u{1F600}":…}` — U+FFF0 first |
+| `each($.m, integer)`, both ports | `[2,1]` — same order |
+| `pick`, **TypeScript** | `["astral","bmp"]` — **U+1F600 first** |
+| `pick`, **Go** | `["bmp","astral"]` — matches canon |
+
+So the map's own order agrees, `each` agrees, and only `pick` moves —
+which means the two functions the language documents as sharing one
+order do not. `go/agg.go` states the contract: "sorted-key order for a
+map — `each`'s order, and for the same reason (a map has no order of
+its own, so the language picks one and states it)". Go honours it;
+TypeScript does not.
+
+**Cause, one line.** `bagChildren` in
+[`ts/src/val/AggFuncVal.ts`](../ts/src/val/AggFuncVal.ts) does
+
+```js
+return Object.keys(data.peg).sort().map((k) => data.peg[k])
+```
+
+A bare `.sort()` is JavaScript's **UTF-16 code-unit** order. U+1F600
+is the surrogate pair `D83D DE00`, and `D83D` sorts below `FFF0`, so
+TypeScript reverses the pair. Go sorts UTF-8 bytes, which *is*
+code-point order. Every other ordering site in the port imports
+`cmpCodePoint` from [`ts/src/keyorder.ts`](../ts/src/keyorder.ts) —
+`agentsmd.ts`, `diff.ts`, `exactjson.ts` and `graph.ts` all do. This
+one call site does not. The fix is `.sort(cmpCodePoint)`.
+
+`bagChildren` also feeds `sum`, `least` and `greatest`, but those fold
+order-insensitively, so `pick` is the only observable divergence.
+
+**Why it matters beyond Unicode.** `pick` is the order-preserving
+projection — the primitive that turns a bag of records into an ordered
+list of generated lines, and the one a code generator leans on for
+exactly that. Two ports, two orders, means one model producing two
+different generated files: an ADR-001 break in the primitive the
+generation story depends on.
+
+Repro:
+[`repros/order/pick-astral-key-order.aon`](repros/order/pick-astral-key-order.aon).
+
 ## Elsewhere in this review
 
 Defects verified earlier in the effort and recorded in
