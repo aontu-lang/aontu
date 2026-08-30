@@ -100,7 +100,7 @@ load-ext-jsonld	gen	x:@"__FIXTURES__/vocab.jsonld"	{"x":{"@context":{"name":"htt
 load-ext-toml	gen	x:@"__FIXTURES__/conf.toml"	{"x":{"host":"local","port":8080,"tags":["a","b"]}}
 load-ext-yaml	gen	x:@"__FIXTURES__/conf.yaml"	{"x":{"host":"local","port":8080,"tags":["a","b"]}}
 load-ext-yml	gen	x:@"__FIXTURES__/conf.yml"	{"x":{"host":"local","port":8080}}
-load-ext-jsonc	gen	x:@"__FIXTURES__/conf.jsonc"	{"x":{"host":"local","port":8080,"tags":["a","b"]}}
+load-ext-jsonc	gen	x:@"__FIXTURES__/conf.jsonc"	{"x":{"host":"local","port":8080,"tags":["a","b"],"tls":true}}
 load-ext-json5	gen	x:@"__FIXTURES__/conf.json5"	{"x":{"host":"local","port":8080,"tags":["a","b"]}}
 load-ext-jsonic	gen	x:@"__FIXTURES__/conf.jsonic"	{"x":{"host":"local","port":8080,"tags":["a","b"]}}
 # INI HAS NO TYPES, so `8080` is the STRING "8080" -- the format's own
@@ -110,7 +110,8 @@ load-ext-jsonic	gen	x:@"__FIXTURES__/conf.jsonic"	{"x":{"host":"local","port":80
 load-ext-ini	gen	x:@"__FIXTURES__/conf.ini"	{"x":{"host":"local","port":"8080"}}
 # CONFIG DATA IS DATA, not the language: what the format reads as a
 # comment is a comment, and nothing in it is an Aontu construct. The
-# `.jsonc` fixture carries both comment forms for that reason.
+# `.jsonc` fixture carries both comment forms for that reason, and a
+# BOOLEAN, which is the one JSON kind the others' payload lacks.
 #
 # `.csv` IS DELIBERATELY NOT ON THE LIST, and this row pins that. The
 # two ports' CSV parsers disagree about what a CSV file even IS -- one

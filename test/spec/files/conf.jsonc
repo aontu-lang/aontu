@@ -3,5 +3,6 @@
   "port": 8080,
   "host": "local",
   /* and the tags */
-  "tags": ["a", "b"]
+  "tags": ["a", "b"],
+  "tls": true
 }

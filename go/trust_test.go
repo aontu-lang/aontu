@@ -289,6 +289,31 @@ func TestTrustDepsIsEmptyWithoutIncludes(t *testing.T) {
 	}
 }
 
+// THE EXTENSION DECIDES INSIDE THE MEM CAPABILITY TOO (ADR-012). A
+// virtual file set is still a file set: its keys carry extensions, and
+// the same rule has to read them, or the capability becomes a way to
+// include what the filesystem would refuse. The shared spec rows cannot
+// reach this leg -- they resolve real files -- so it is pinned here.
+func TestMemCapabilityGatesTheExtension(t *testing.T) {
+	a := New()
+	a.Trust = &TrustOptions{IncludeMem: map[string]string{"/v/notes.txt": "m: 1"}}
+	_, err := a.Parse(`a:@"/v/notes.txt"`)
+	if nil == err {
+		t.Fatal("a .txt in the mem set was read")
+	}
+	if !strings.Contains(err.Error(), "include not readable") ||
+		!strings.Contains(err.Error(), "extension: .txt") {
+		t.Fatalf("err: %v", err)
+	}
+	// ... and a key the table DOES name is read, so the gate is the
+	// extension and not the capability.
+	b := New()
+	b.Trust = &TrustOptions{IncludeMem: map[string]string{"/v/x.aon": "m: 1"}}
+	if _, err := b.Parse(`a:@"/v/x.aon"`); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestTrustDepsNamesTheMemCapability(t *testing.T) {
 	a := New()
 	a.Trust = &TrustOptions{IncludeMem: map[string]string{"/v/x.aon": "m: 1"}}

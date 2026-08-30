@@ -729,8 +729,6 @@ func dataToValDepth(node any, depth int) Val {
 	switch n := node.(type) {
 	case nil:
 		return newNull()
-	case Val:
-		return n //coverage:ignore a config parser never hands back a Val
 	case *jsonic.OrderedMap:
 		// IN THE ORDER THE FILE WROTE IT. Most of these parsers answer
 		// with an OrderedMap for exactly that reason, and discarding it
@@ -776,16 +774,12 @@ func dataToValDepth(node any, depth int) Val {
 		return newString(n)
 	case bool:
 		return newBoolean(n)
-	case int:
-		// The Go readers answer with `int` where the TypeScript ones
-		// answer with a JavaScript number; both are integers, and
-		// numberVal is what decides that on the parsed-literal path too,
-		// so the two ports cannot drift on where the integer/float line
-		// falls.
-		return numberVal(float64(n), "", -1)
-	case int64:
-		return numberVal(float64(n), "", -1) //coverage:ignore no reader answers int64 today
 	case float64:
+		// EVERY READER ANSWERS float64, whatever the file wrote --
+		// probed across all of them, `8080` included. numberVal is what
+		// decides integer from float, and it is the same call the
+		// parsed-literal path makes, so the two ports cannot drift on
+		// where that line falls.
 		return numberVal(n, "", -1)
 	}
 	return newNil("parse_unknown") //coverage:ignore a JSON-shaped value has no other kind
