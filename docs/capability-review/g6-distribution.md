@@ -446,9 +446,21 @@ is required for v1. Two hooks make the registry more than storage:
   constraint solver in resolution reintroduces the
   nondeterminism the review's "no SMT solvers" trap exists to keep
   out.
-- **No project-operated central registry service** — any OCI
+- **No project-operated central REGISTRY service** — any OCI
   registry works; running infrastructure forever is not a language
-  feature.
+  feature. *(Amended 2026-08-30 by
+  [ADR-013](../../ADR.md#adr-013--the-project-operates-one-transparency-log-and-nothing-else),
+  which admits exactly one service and is explicit about what this
+  bullet was right about. The rejection above has two halves: "OCI
+  already provides storage, auth, replication and org familiarity"
+  does NOT apply to a transparency log — a log provides none of those,
+  and OCI provides no log — while "infrastructure the project must run
+  forever" applies unchanged and is the whole cost. A transparency log
+  is not a registry: it stores no artifacts, a build with a lockfile
+  never touches it, and it can be frozen without breaking any lockfile
+  that references it. Those constraints are the ADR, not implementation
+  detail. This bullet still forbids what it always forbade — a hosted
+  place that keeps module bytes. See [G10](g10-transparency.md).)*
 - **No import namespaces or symbol system** — an import stays a
   value unified in place, not a scope; module-scoped identifiers
   are exactly the surface-area creep toward CUE the review warns

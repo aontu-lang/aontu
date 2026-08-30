@@ -126,7 +126,8 @@ could not see the defect.
 | [G7](g7-machine-access.md) | Machine access | B | 7 | 0 | 0 |
 | [G8](g8-generation.md) | Generation | C | 5 | 0 | 0 |
 | [G9](g9-transformation.md) | Declarative transformation | D | 0 | 0 | 9 |
-| | | **total** | **48** | **1** | **9** |
+| [G10](g10-transparency.md) | Transparency log | D | 1 | 0 | 5 |
+| | | **total** | **49** | **1** | **14** |
 
 Against the review's own [sequencing](index.md#sequencing):
 
@@ -1527,3 +1528,47 @@ file is wrong until re-verified against the tree**: the gap documents
 are older and were written before any of it landed, so they cannot be
 evidence of status, but neither can a register nobody re-checked.
 Re-derive from `test/spec/`, `ts/src/`, `go/` and `git log`.
+
+## G10 — a transparency log
+
+Opened 2026-08-30, the same day as G9 and for an unrelated reason:
+[G6](g6-distribution.md) made a module's meaning pinnable, and a
+lockfile is a private memory. Design is
+[g10-transparency.md](g10-transparency.md). It is the only gap that
+admits a service the project must operate, which
+[ADR-013](../../ADR.md#adr-013--the-project-operates-one-transparency-log-and-nothing-else)
+permits **once** and bounds with five constraints — no artifacts, no
+log on the path of a locked build, public replicability in a standard
+format, the client half in both ports under ADR-001, and a stated exit.
+
+**Phase 1 has landed; nothing else has.** The design is a proposal, not
+a commitment, and phases 2–6 are NOT STARTED.
+
+Baseline at drafting, for protocol rule 5: `ls test/spec/*.tsv | wc -l`
+= **97**, `awk -F'\t' 'NF>2 && $0 !~ /^#/' test/spec/*.tsv | wc -l`
+= **3767** (both re-derived 2026-08-30, after G6.2's path-gate rows).
+
+| Phase | Size | Status | Pin |
+|-------|------|--------|-----|
+| **1** — decide and document | S | **LANDED** | [ADR-013](../../ADR.md#adr-013--the-project-operates-one-transparency-log-and-nothing-else) (the project operates one transparency log and nothing else, with the five constraints that bound it), [g10-transparency.md](g10-transparency.md) (the design, its six phases and its five open questions), the [G6 boundary bullet](g6-distribution.md#boundary-what-we-will-not-do) amended **in this same commit** to say what it now means — it still forbids a hosted place that keeps module bytes, and it never applied to a log, because the "OCI already provides storage, auth, replication" half of its reasoning has no purchase on a primitive OCI does not provide. Gap table and [index](index.md) rows. The ADR index at the top of `ADR.md` had drifted — it stopped at ADR-008 while 009–012 existed as sections — and is completed here rather than left one row further wrong. **This entry is ADR-013, not 012**: [ADR-012](../../ADR.md#adr-012--an-includes-extension-decides-what-the-file-is-aontu-source-config-data-or-refused) (include extensions) landed on `main` while this branch was open and took the number, which is the second numbering collision this work has hit — [G9](g9-transformation.md) took the gap number the same way. **No code, and that is the phase**: the leaf schema, the checkpoint format and the `aon1-` scheme id's role in surviving a canon change all become compatibility commitments the moment anything is signed, so they are settled before there is a log to migrate. |
+| **2** — the transparency client, both ports | L | NOT STARTED | `recordHash`, `nodeHash`, `treeHash`, `checkRecord`, `checkTree`, tile decode, note verification, leaf encoding. TypeScript ports upstream's client subset into `aontu-lang/mod`; **Go does not port** — it imports `golang.org/x/mod/sumdb/tlog` behind glue, so the differential test compares Aontu's TypeScript against real upstream Go rather than two readings by one author. New shared spec mode with golden vectors; BSD-3 attribution and `UPSTREAM_GO_MOD.md`. Verification is language behaviour under ADR-001: two ports that disagree about whether a proof verifies is a silent security divergence. |
+| **3** — `mod get` and `mod publish` over OCI | L | NOT STARTED | The two verbs G6.3 could not land. The [ADR-002](../../ADR.md) problem is solved by a seam — a total `ModuleFetch` injected as `ModuleFs` and `ModuleEval` already are, every decision above it, a thin adapter below carrying an argued exclusion. A `(module, version)`-keyed download tree feeding the canon-keyed store, because the canon-hash cannot address a module that has not been fetched yet. **Closes the cache-identity hole** — the user cache is keyed by canon-hash alone, which carries no module path or version — before anything writes the cache. |
+| **4** — trusted publishing, and the gate that already exists | M | NOT STARTED | OIDC from CI binding a release to a workflow identity; `mod manifest --against`'s [G3](g3-subsumption-evolution.md) breaking check wired into publish; a cooldown before a new version is selectable by default. Sequenced ahead of the service deliberately: it addresses first-observation capture and account compromise, which dominate real incident reports and which a log does not address at all. |
+| **5** — the log service | L | NOT STARTED | C2SP `tlog-tiles` static objects plus a `/lookup/` endpoint (Go's actual shape — the tile format carries no key index), a `sumdb/note` checkpoint, a sequencer for the append path. Publisher-asserted leaves; the service never fetches, parses or evaluates. Public schema and auditor in `aontu-lang/mod`; rate limits, quotas, key custody and runbooks in `aontu-lang/system`. **Nothing a client relies on to verify may live in `system`.** |
+| **6** — witnesses and hardening | M | NOT STARTED | Cosignatures, checkpoint gossip, mutation alerting, the git mirror. Last deliberately — at zero third-party publishers witnesses are the most expensive change available and make availability worse — but the checkpoint format must be cosignable from the first leaf, which is not retrofittable. |
+
+**One design was reviewed and not adopted.** A "Forge Tag Transparency
+Registry" proposal — identity from Git tags, the service fetching and
+hashing source trees — was reviewed on 2026-08-30 and rejected on the
+substrate while its transparency layer was kept. Three independent
+grounds, each sufficient: Aontu module paths are domain-based and
+cannot address a forge repository without Go's `?go-get=1` vanity
+protocol, which puts arbitrary DNS holders inside the trust base; its
+security-critical field was a byte-level tree digest, and both ports
+enforce exactly one pin, the canon-hash, with no byte-digest
+verification path anywhere; and every hard problem it carried —
+archive-versus-tree divergence, `.gitattributes`, symlinks, submodules,
+Git LFS, SSRF, decompression bombs, forge quotas, size budgets over a
+Worker isolate — was a consequence of the service downloading source,
+and disappears when it does not. The review's own reasoning is in
+[g10-transparency.md](g10-transparency.md#design-space).
