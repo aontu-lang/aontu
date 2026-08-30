@@ -2265,21 +2265,12 @@ function rawToVal(n: any): Val {
     return new ListVal({ peg: n.map(rawToVal) })
   }
 
-  /* node:coverage disable */
-  // THE SCALAR ARMS LOST THEIR ONLY EXERCISER TO ADR-012, and are kept
-  // (an ADR-002 exclusion, justified here). Until that ruling a `.json`
-  // include arrived as raw JavaScript -- a string, a number, a plain
-  // object -- and this is where it became Vals; now such a file is
-  // parsed as Aontu source and arrives as Vals already, so nothing in
-  // the suite reaches past the two arms above.
-  //
-  // They stay because the alternative is worse than an exclusion. This
-  // is the conversion contract for a raw expression TERM (buildCall,
-  // and the grouping-paren pass-through), and the terms the expression
-  // grammar hands over are Vals and arrays only by present behaviour,
-  // not by any rule this file enforces. Deleting the arms would turn a
-  // corner nothing exercises into a silent `parse_unknown` nil, which
-  // is exactly the class of failure ADR-012 was fixing.
+  // THE SCALAR ARMS ARE WHERE A CONFIG FILE BECOMES VALUES. Every
+  // format on the include table is read by its own parser into plain
+  // JavaScript -- a string, a number, a map -- and this is the walk
+  // that turns that into Vals (dataProcessor, ADR-012). The two arms
+  // above are the other caller: a raw expression TERM, which the
+  // expression grammar hands over already built.
   if (null == n) {
     return new NullVal({ peg: null })
   }
@@ -2305,7 +2296,6 @@ function rawToVal(n: any): Val {
     return new MapVal({ peg })
   }
   return new NilVal({ why: 'parse_unknown' })
-  /* node:coverage enable */
 }
 
 
