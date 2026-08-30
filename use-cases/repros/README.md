@@ -14,10 +14,11 @@ Two cautions:
 - `refer-cycles/refer-in-type-hang.aon` (with its `-schema` companion)
   and `recursion/recursive-spread-conjunct-hangs.aon` do not terminate
   in any practical time — run them under `timeout` as their headers
-  say. `identity/id-names-own-descendant-crashes.aon` terminates, but
-  by overflowing the host stack: in Go that is a `fatal error` the
-  embedding program cannot recover from. `run-all.sh` never executes
-  anything in this tree.
+  say. `identity/id-names-own-descendant-crashes.aon` used to belong
+  beside them, terminating only by overflowing the host stack (in Go a
+  `fatal error` the embedding program cannot recover from); §58 is
+  fixed and it now refuses as `id_ancestor`. `run-all.sh` never
+  executes anything in this tree.
 - Some entries reproduce **by-design** behaviour whose consequence is
   the finding (marked in their headers and in BUGS.md), and
   `enum-default/match-helper-workaround.aon` is deliberately the
@@ -94,6 +95,14 @@ Two cautions:
   both stamp that settled root so the schema site names its file.
   Pinned by `vet.tsv` — `vet-at-alias-chain-valid`, `-inner-kind` and
   `-inner-closed`.
+
+- `identity/` (§58, filed 2026-08-30) is **FIXED** as of 2026-08-30:
+  an `id()` naming a node and its own descendant is refused as
+  `id_ancestor` (class conflict) in both ports, instead of building a
+  value that contains itself and dying on the host stack. Pinned by
+  `id.tsv` — `id-ancestor-names-own-child`,
+  `-names-deeper-descendant`, and the three boundary rows that keep
+  siblings, distinct names and a bare `id()` working.
 
 These are review artifacts. Per ADR-001, the durable home for any
 behaviour contract is a `test/spec/*.tsv` row probed in both ports;

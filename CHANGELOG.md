@@ -7,6 +7,36 @@ which implementation each change affects.
 
 ## Unreleased
 
+### An entity cannot contain itself
+
+Both implementations, and a new error code: `id_ancestor`, class
+`conflict`. Identity merge unifies every node carrying a name with
+every other node carrying it, so naming a node **and its own
+descendant** the same entity asks for a value that contains itself:
+
+    a: id(x) & { b: id(x) }
+
+Both engines built it and died on the HOST stack — TypeScript with a
+bare `Maximum call stack size exceeded` carrying no `[aontu/…]` marker
+for a harness to see, and Go with a `fatal error: stack overflow`,
+which is not recoverable, so an embedding server could not defend
+against a 22-character document. The refusal was the only missing
+piece; the merge had both sites in hand all along.
+
+It is raised in the entity merge's collect half, before the unite that
+would build the value, and lands on the **descendant** — the position
+that cannot stand — naming the ancestor as the finding's other site.
+The boundary is exactly ancestor-to-descendant: sibling positions
+still merge (that is the feature), distinct names still nest, and an
+`id()` on a node alone is untouched.
+
+A separate code rather than `id_conflict` reused, because it is a
+different mistake: `id_conflict` is one node claiming two names, this
+is one name claiming a node and something inside it. That also closes
+a hole the registry could not see — the failure had no code at all, so
+the registry's set-equality check stayed green over a whole
+unhandled class of input. Was `use-cases/BUGS.md` §58.
+
 ### `pick` and `each` agree on one key order again
 
 TypeScript only. `bagChildren` sorted a map's keys with a bare

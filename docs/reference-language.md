@@ -1656,6 +1656,13 @@ Anything that is not a string — a number, a boolean, a map — is not a
 name (`id_name`). Two *different* names on one node is a contradiction,
 not a merge: one node cannot be two entities (`id_conflict`).
 
+One name on a node **and on something inside that node** is also a
+contradiction (`id_ancestor`). Merging them would have to produce a
+value that contains itself, which is not a bad answer but no answer:
+`a: id(x) & {b: id(x)}` is refused at `$.a.b`, the position that
+cannot stand. Sibling positions are the case identity exists for; an
+ancestor and its own descendant are not.
+
 ### Canon and the hash
 
 Canon renders the identity back as the conjunct you wrote, so canon

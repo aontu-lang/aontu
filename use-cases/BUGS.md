@@ -14,7 +14,9 @@ Minimal reproductions live under [`repros/`](repros/), one directory
 per family; each `.aon` carries an `# expected:` / `# actual:` header.
 The nontermination repros (§57 and
 `refer-cycles/refer-in-type-hang.aon`) are marked in-file to be run
-under `timeout`. Severity: **critical** = silent wrong output, unsound vet
+under `timeout`. (`identity/id-names-own-descendant-crashes.aon` used
+to belong beside them, overflowing the host stack; §58 is fixed and it
+now refuses.) Severity: **critical** = silent wrong output, unsound vet
 verdict, or nontermination; **major** = a documented capability fails;
 **minor** = papercut.
 
@@ -1934,7 +1936,7 @@ Repro:
 
 ## identity — id() at its own boundary
 
-### 58. An `id()` naming a node and its own descendant crashes both engines on the host stack [critical]
+### 58. An `id()` naming a node and its own descendant crashes both engines on the host stack [FIXED 2026-08-30]
 
 Found 2026-08-30, same survey as §57, while asking whether the
 evaluated value graph is a tree (a transform layer that walks children
@@ -1981,6 +1983,31 @@ is a DAG with sharing, and one construct can make it cyclic**, which
 is why [`ts/src/walk.ts`](../ts/src/walk.ts) calls its `seen` set "a
 termination guard, not an optimisation". Any walk primitive that
 recurses on `peg` inherits this crash until the refusal lands.
+
+Status: FIXED 2026-08-30. The refusal is `id_ancestor`, class
+`conflict`, raised in the entity merge's COLLECT half -- before the
+`unite` that would build the self-containing value, which is where the
+stack went. It lands on the DESCENDANT, the position that cannot
+stand, and names the ancestor as the finding's other site. A separate
+code rather than `id_conflict` reused, because it is a different
+mistake: `id_conflict` is one node claiming two names, this is one
+name claiming a node and something inside it. That also closes the
+registry hole the entry names -- the failure now has a code, so
+`codeClasses` set-equality is answering for it.
+
+**One narrowing the fix needed, found by an existing test.** The
+ancestor check compares NODES, not just names: a unified tree is a
+graph, so a resolved reference shares its target and a node can be
+reached through itself with nobody having written two `id()`s
+(`TestMergeEntitiesCycleGuards` builds exactly that). One entity at
+one position is fine; the defect is two DISTINCT nodes, one inside the
+other, claiming one name.
+
+Pins: `test/spec/id.tsv` -- `id-ancestor-names-own-child` and
+`-names-deeper-descendant` for the refusal, and
+`-siblings-still-merge`, `-distinct-names-nest`,
+`-id-on-the-node-alone` for the boundary, two of which are the feature
+itself. `test/spec/errcodes.tsv` carries `id_ancestor`.
 
 Repro:
 [`repros/identity/id-names-own-descendant-crashes.aon`](repros/identity/id-names-own-descendant-crashes.aon).

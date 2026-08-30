@@ -418,14 +418,40 @@ function mergeEntities(ctx: AontuContext, root: Val): Val {
   // `write` is which half is running. One function rather than two
   // because the two halves differ in three lines and agree in the walk
   // — and a walk written twice is a walk that drifts.
+  // AN ENTITY CANNOT CONTAIN ITSELF. Identity merge means every node
+  // carrying a name unifies with every other node carrying it, so
+  // naming a node AND ITS OWN DESCENDANT the same entity asks for a
+  // value that contains itself -- `a: id(x) & {b: id(x)}` makes
+  // `a.peg.b === a`. That is not a merge that produces a bad answer;
+  // it is one that produces no answer, and both ports died inside the
+  // unite on the host stack: TypeScript with a bare `Maximum call
+  // stack size exceeded` carrying no `[aontu/...]` marker, and Go with
+  // an unrecoverable `fatal error: stack overflow` an embedding server
+  // cannot defend against (BUGS.md §58).
+  //
+  // The refusal was the only missing piece -- the merge has both sites
+  // in hand. `bad` maps the DESCENDANT position to the nil it becomes,
+  // filled by the collect half (which is where the cycle would form,
+  // so the check runs BEFORE the unite) and applied by the write half.
+  // The descendant is the position that carries the refusal because it
+  // is the one that cannot stand; the ancestor is the other site on
+  // the finding.
+  const bad: Map<any, any> = new Map()
+
   const walk = (node: any, seen: Set<any>, nctx: AontuContext,
-    write: boolean): any => {
+    write: boolean, anc: Map<string, any>): any => {
     if (null == node || true !== node.isVal) {
       return node
     }
 
     const name = (node as any).entity
     if (null != name) {
+      if (write) {
+        const nil = bad.get(node)
+        if (null != nil) {
+          return nil
+        }
+      }
       if (write) {
         // The SUBSTITUTION happens before the seen-guard, not after.
         // Two positions of one entity hold the SAME object once a pass
@@ -441,6 +467,19 @@ function mergeEntities(ctx: AontuContext, root: Val): Val {
         }
       }
       else {
+        // `ancestor !== node` because a unified tree is a GRAPH: a
+        // resolved reference shares its target, so a node can be
+        // reached through ITSELF without anyone having written two
+        // id()s. That is one entity at one position, which is fine.
+        // The defect is two DISTINCT nodes, one inside the other,
+        // claiming one name.
+        const ancestor = anc.get(name)
+        if (undefined !== ancestor && ancestor !== node) {
+          // BEFORE the unite, which is where the self-containing value
+          // would be built and the stack would go.
+          bad.set(node, makeNilErr(nctx, 'id_ancestor', node, ancestor))
+          return node
+        }
         const rep = reg.get(name)
         reg.set(name, null == rep || rep === node ? node :
           unite(nctx, node, rep, 'entity'))
@@ -455,8 +494,12 @@ function mergeEntities(ctx: AontuContext, root: Val): Val {
     seen.add(node)
 
     if ((true === node.isMap || true === node.isList) && null != node.peg) {
+      // The ancestor map is per-PATH, not per-walk: two entities are
+      // siblings when neither contains the other, which is the case
+      // identity exists for.
+      const down = null == name ? anc : new Map(anc).set(name, node)
       for (const k of Object.keys(node.peg)) {
-        const out = walk(node.peg[k], seen, nctx.descend(k), write)
+        const out = walk(node.peg[k], seen, nctx.descend(k), write, down)
         if (write) {
           node.peg[k] = out
         }
@@ -465,7 +508,7 @@ function mergeEntities(ctx: AontuContext, root: Val): Val {
     return node
   }
 
-  walk(root, new Set(), ctx, false)
+  walk(root, new Set(), ctx, false, new Map())
 
   // NOTHING TO APPLY. The collect half is also the "does this document
   // use identity at all?" answer, so a document that never says `id()`
@@ -474,7 +517,7 @@ function mergeEntities(ctx: AontuContext, root: Val): Val {
   if (0 === reg.size) {
     return root
   }
-  return walk(root, new Set(), ctx, true)
+  return walk(root, new Set(), ctx, true, new Map())
 }
 
 
