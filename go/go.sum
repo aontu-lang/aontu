@@ -28,5 +28,7 @@ github.com/tabnas/toml/go v0.5.7 h1:wRFDMmPnFOFzduNwVoXpVNk0mm6/ZRsbT627m7XbeYo=
 github.com/tabnas/toml/go v0.5.7/go.mod h1:8V6BX6o/uVXhl/ujq9WfUUO2weP2cLUAS2Z262Nz+mY=
 github.com/tabnas/yaml/go v0.5.7 h1:2rzYeC3fy4+AV65+3kKf1aRq87Cc+QODQHxQo54r6TI=
 github.com/tabnas/yaml/go v0.5.7/go.mod h1:unSAAv8F3nvhqydIdGoTsqCqk5BPsL/SIl94KWQ7UDU=
+golang.org/x/mod v0.32.0 h1:9F4d3PHLljb6x//jOyokMv3eX+YDeepZSEo3mFJy93c=
+golang.org/x/mod v0.32.0/go.mod h1:SgipZ/3h2Ci89DlEtEXWUk/HteuRin+HHhN+WbNhguU=
 golang.org/x/text v0.34.0 h1:oL/Qq0Kdaqxa1KbNeMKwQq0reLCCaFtqu2eNuSeNHbk=
 golang.org/x/text v0.34.0/go.mod h1:homfLqTYRFyVYemLBFl5GgL/DWEiH5wcsQ5gSh1yziA=

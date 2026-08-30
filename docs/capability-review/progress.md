@@ -90,13 +90,14 @@ the divergence ledger, `Accepted`/`Superseded` in the ADR register).
    all eight are now wrong, by roughly 1,400 to 1,500 rows. A gap
    document should link this line instead: as of this
    register's last update the suite is **98 `.tsv` files, 97
-   row-bearing, 3,873 rows**, in twenty modes — `canon` 870, `errc`
-   727, `gens` 655, `gen` 587, `err` 280, `errcode` 124, `subsume` 102,
+   row-bearing, 3,875 rows**, in twenty modes — `canon` 870, `errc`
+   727, `gens` 657, `gen` 587, `err` 280, `errcode` 124, `subsume` 102,
    `vet` 100, `query` 92, `jsonschema` 57, `why` 56, `hcanon` 44,
    `patch` 42, `graph` 38, `diff` 28, `relation` 23, `hash` 17,
    `reaches` 13, `trim` 11, `agentsmd` 7.
    (Re-derived 2026-08-30, after the defect work of #99, the
-   generation work of #96/#100/#101, and G9 phase 2's `gen-join.tsv`.
+   generation work of #96/#100/#101, G9 phase 2's `gen-join.tsv`, and
+   the merge of #103/#105.
    This line has now been wrong twice for the same reason — it was
    86/85/3,099 before 2026-08-28
    and 91/90/3,495 before today — and both times it was falsifiable
@@ -110,8 +111,8 @@ the divergence ledger, `Accepted`/`Superseded` in the ADR register).
 
 ## Summary
 
-Fifty-two of the sixty-four phases in the table below have moved;
-fifty of those are complete. Two are not. G5 phase 6 is
+Fifty-four of the sixty-five phases in the table below have moved;
+fifty-two of those are complete. Two are not. G5 phase 6 is
 deliberately held for the next major release, a release act rather
 than an engineering one. **G9 phase 0 became partial on 2026-08-30
 without this register saying so**: #99 fixed two of its four named
@@ -136,8 +137,8 @@ the fix was and why the earlier tests could not see the defect.
 | [G7](g7-machine-access.md) | Machine access | B | 7 | 0 | 0 |
 | [G8](g8-generation.md) | Generation | C | 5 | 0 | 0 |
 | [G9](g9-transformation.md) | Declarative transformation | D | 1 | 1 | 7 |
-| [G10](g10-transparency.md) | Transparency log | D | 1 | 0 | 5 |
-| | | **total** | **50** | **2** | **12** |
+| [G10](g10-transparency.md) | Transparency log | D | 2 | 0 | 4 |
+| | | **total** | **52** | **2** | **11** |
 
 Against the review's own [sequencing](index.md#sequencing):
 
@@ -1556,7 +1557,7 @@ permits **once** and bounds with five constraints — no artifacts, no
 log on the path of a locked build, public replicability in a standard
 format, the client half in both ports under ADR-001, and a stated exit.
 
-**Phase 1 has landed; nothing else has.** The design is a proposal, not
+**Phases 1 and 2 have landed.** Phases 3–6 are NOT STARTED, and the
 a commitment, and phases 2–6 are NOT STARTED.
 
 Baseline at drafting, for protocol rule 5: `ls test/spec/*.tsv | wc -l`
@@ -1566,7 +1567,7 @@ Baseline at drafting, for protocol rule 5: `ls test/spec/*.tsv | wc -l`
 | Phase | Size | Status | Pin |
 |-------|------|--------|-----|
 | **1** — decide and document | S | **LANDED** | [ADR-013](../../ADR.md#adr-013--the-project-operates-one-transparency-log-and-nothing-else) (the project operates one transparency log and nothing else, with the five constraints that bound it), [g10-transparency.md](g10-transparency.md) (the design, its six phases and its five open questions), the [G6 boundary bullet](g6-distribution.md#boundary-what-we-will-not-do) amended **in this same commit** to say what it now means — it still forbids a hosted place that keeps module bytes, and it never applied to a log, because the "OCI already provides storage, auth, replication" half of its reasoning has no purchase on a primitive OCI does not provide. Gap table and [index](index.md) rows. The ADR index at the top of `ADR.md` had drifted — it stopped at ADR-008 while 009–012 existed as sections — and is completed here rather than left one row further wrong. **This entry is ADR-013, not 012**: [ADR-012](../../ADR.md#adr-012--an-includes-extension-decides-what-the-file-is-aontu-source-config-data-or-refused) (include extensions) landed on `main` while this branch was open and took the number, which is the second numbering collision this work has hit — [G9](g9-transformation.md) took the gap number the same way. **No code, and that is the phase**: the leaf schema, the checkpoint format and the `aon1-` scheme id's role in surviving a canon change all become compatibility commitments the moment anything is signed, so they are settled before there is a log to migrate. |
-| **2** — the transparency client, both ports | L | NOT STARTED | `recordHash`, `nodeHash`, `treeHash`, `checkRecord`, `checkTree`, tile decode, note verification, leaf encoding. TypeScript ports upstream's client subset into `aontu-lang/mod`; **Go does not port** — it imports `golang.org/x/mod/sumdb/tlog` behind glue, so the differential test compares Aontu's TypeScript against real upstream Go rather than two readings by one author. New shared spec mode with golden vectors; BSD-3 attribution and `UPSTREAM_GO_MOD.md`. Verification is language behaviour under ADR-001: two ports that disagree about whether a proof verifies is a silent security divergence. |
+| **2** — the transparency client, both ports | L | **LANDED** | **The TypeScript half is a PORT; the Go half is not.** TypeScript has no transparency-log library, so [aontu-lang/mod](https://github.com/aontu-lang/mod) translates the client subset of `golang.org/x/mod/sumdb/tlog` and `sumdb/note`. Go HAS the real library, written by the people who run Go's own checksum database, so `go/tlog.go` IMPORTS it behind base64-string boundary conversion — about fifty lines of glue and no second implementation. The consequence is the point: the differential suite compares aontu's TypeScript against GENUINE UPSTREAM GO, not against a second reading of one document by one author. `goref/` in the mod repo links the pinned upstream and emits `vectors/tlog.json` — 689 proof cases plus the dense stored-hash array — copied verbatim to `test/vectors/tlog.json` here so both ports are held to the same bytes; mod's CI re-derives it from the pin and fails on any diff. **The rejections are the contract**: 214 of 268 inclusion cases and 160 of 200 consistency cases expect refusal, and the balance is asserted as a property of the suite in both ports so it cannot drift toward all-acceptances. **Pinned at x/mod v0.32.0**, a constraint rather than a preference: upstream raised its own Go floor to 1.25.0 at v0.34.0 while `go/go.mod` declares `go 1.24.7` and CI runs a `1.24` job, so v0.32.0 is the newest release still declaring `go 1.24.0` — verified by adding it and confirming the directive did not move. Only the VERIFYING half exists on either side: no `ProveRecord`, no `ProveTree`, no signing. A client checks; a log proves. **Two divergences the work found and closed.** (1) Upstream's `tlog.ParseTree` hardcodes the prefix `go.sum database tree` and refuses every other origin (probed), so it cannot parse a checkpoint for any log but Go's — `TlogParseTree` is therefore the one function implemented rather than wrapped, written to match the TypeScript side exactly on which spellings of a tree size are legal, because a checkpoint is compared as TEXT by witnesses and one size must have one spelling. (2) The TypeScript port opened a note NOBODY KNOWN SIGNED with an empty verified list, where upstream returns `UnverifiedNoteError`; the Go tests caught it and upstream's line won — an error forces handling where a doc comment does not, it keeps the Go side a thin wrapper, and it costs the witness story nothing, because a checkpoint always carries the log's own signature so a usable note always has at least one verified signer. Unknown signers ALONGSIDE a known one are still skipped, which is what makes cosignatures additive. **NO SHARED SPEC ROWS YET**, and the reason is a dependency rather than a judgement: the shared suite requires BOTH runners to execute every row, and `ts/` cannot import `@aontu-lang/mod` until it is published to npm. Until then the parity discipline is G6.3's — per-port tests over one shared vector file (`go/tlog_test.go` here; `test/vectors.test.ts` and `test/guards.test.ts` there) — and the shared `tlog` mode lands with the publish. Recorded as a departure rather than left to be noticed. Coverage: 100% in Go with no new exclusions, two arms closed by tests a first draft missed (a reader that fails, a checkpoint whose root is malformed); 100% lines, branches and functions in the mod repo. |
 | **3** — `mod get` and `mod publish` over OCI | L | NOT STARTED | The two verbs G6.3 could not land. The [ADR-002](../../ADR.md) problem is solved by a seam — a total `ModuleFetch` injected as `ModuleFs` and `ModuleEval` already are, every decision above it, a thin adapter below carrying an argued exclusion. A `(module, version)`-keyed download tree feeding the canon-keyed store, because the canon-hash cannot address a module that has not been fetched yet. **Closes the cache-identity hole** — the user cache is keyed by canon-hash alone, which carries no module path or version — before anything writes the cache. |
 | **4** — trusted publishing, and the gate that already exists | M | NOT STARTED | OIDC from CI binding a release to a workflow identity; `mod manifest --against`'s [G3](g3-subsumption-evolution.md) breaking check wired into publish; a cooldown before a new version is selectable by default. Sequenced ahead of the service deliberately: it addresses first-observation capture and account compromise, which dominate real incident reports and which a log does not address at all. |
 | **5** — the log service | L | NOT STARTED | C2SP `tlog-tiles` static objects plus a `/lookup/` endpoint (Go's actual shape — the tile format carries no key index), a `sumdb/note` checkpoint, a sequencer for the append path. Publisher-asserted leaves; the service never fetches, parses or evaluates. Public schema and auditor in `aontu-lang/mod`; rate limits, quotas, key custody and runbooks in `aontu-lang/system`. **Nothing a client relies on to verify may live in `system`.** |

@@ -2043,6 +2043,77 @@ refuses with `[aontu/invalid-arg]` at `$.schema.T.up`, `.name` having
 resolved to `string`. Per-destination instantiation (ADR-005) reaches
 `pack` templates and `&:` spreads but not recursive expansion.
 
+Diagnosed 2026-08-30, still open. Two corrections to the account
+above, and the mechanism.
+
+**IT IS NOT UNBOUNDED, and one budget DOES fire.** The entry says the
+explosion happens inside a pass "so no budget code can fire". The PASS
+budget cannot, but the DEPTH budget (`ctx.budget.depth`, bounding the
+unify call stack) does, as `unify_cycle`. Cost is exponential in it:
+
+    depth budget   4     20     30     36     38      39
+    wall clock    44ms  49ms  175ms  348ms  11.6s   >40s
+
+The default is 1000, roughly 25x past the cliff, which is why it reads
+as a hang. The bound is real and set where it cannot help, because it
+bounds DEPTH -- right for a linear recursion, hopeless for a branching
+one.
+
+**THE SECOND BOUND IS INERT.** `RecurseVal.xc`, the per-path expansion
+count the design's termination argument rests on (RECURSION.0.md
+"Termination", bound 2), reads **0 at every expansion** -- in the
+HEALTHY form too. `recursion_budget` can therefore never fire on this
+path. The healthy case does not need it, because structural descent
+bounds it; that is why nobody noticed.
+
+**THE MECHANISM.** Instrumenting each expansion with its path and its
+peer, on `%T & {}` over depth-2 data:
+
+    #1 at=d                          peer={"kids":[..],"name":"a"}   <- data
+    #2 at=d.kids.0                   peer={"kids":[..],"name":"b"}   <- data
+    #3 at=d.kids.0.kids.0            peer={"name":"c"}               <- data
+    #4 at=d.kids.0.kids.0            peer={"kids"?:[&:$.%T&{}],"name":"c"}
+    #5 at=d.kids.0.kids.0            peer={}
+    #7 at=d.kids.0.kids.0.kids       peer={}
+    #9 at=d.kids.0.kids.0.kids.kids  peer={}
+    ... `kids` forever
+
+The bare `[&: %T]` stops at #3 -- exactly one expansion per data
+level, which is the invariant. Two things go wrong after it:
+
+1. **The expansion is not idempotent when a conjunct survives.** #4
+   meets the OUTPUT of #3 at the same path, and that output carries a
+   fresh `kids?: [&: %T & {}]`. With no conjunct the re-meet is
+   idempotent and the fixpoint settles; with one, the conjunct never
+   collapses, so each pass re-instantiates.
+2. **Past the data, the residual meets its own template.** From #5 the
+   peer is the `{}` the template itself supplies, at `kids` paths no
+   data has. `{}` is a MapVal, so it satisfies the `isMap` gate that
+   licenses an expansion -- an expansion that consumes NO data level.
+   Structural descent never bounds it because nothing is descended.
+
+**Why a map and only a map**, probed across conjunct kinds:
+
+| conjunct | outcome |
+|---|---|
+| none, `& top` | converges, correct -- `top` is ABSORBED, leaving one member |
+| `& {}`, `& {tag:1}` | hangs, either order, optional key or required |
+| `& [1]`, `& string` | terminates by REFUSING, kind conflict at the first recursive position |
+
+So it is not that maps are special: a map is the only conjunct that
+can SURVIVE beside a residual whose body is a map. `top` is compatible
+but absorbed; a list or a scalar is incompatible and refuses. The rule
+the fix needs is therefore about the surviving conjunct, not about
+maps:
+
+> Structure contributed by the residual's own template is not a data
+> level, and must not license an expansion.
+
+Absorbing `{}` the way `top` is absorbed would fix the `& {}` spelling
+and NOT `& {tag:1}` -- which is the spelling a transform layer
+actually needs, per this entry's own closing paragraph. It is a
+papering-over, not the fix.
+
 Repro:
 [`repros/recursion/recursive-spread-conjunct-hangs.aon`](repros/recursion/recursive-spread-conjunct-hangs.aon)
 -- run it under `timeout`, as its header says.
