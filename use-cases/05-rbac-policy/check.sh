@@ -42,13 +42,19 @@ diff -u "$DIR/expected/example.json" "$WORK/eval.out" \
   || fail "example.aon output drifted from expected/example.json"
 ok "example.aon evaluates to the expected policy document"
 
-# 2. Canonical form keeps the policy's meaning: entity identities,
-# the preserved default, and the refer() foreign-key constraints.
+# 2. Canonical form keeps the policy's meaning: the ADDRESSES, the
+# preserved default, and the refer() foreign-key constraints.
+#
+# Since ADR-014 there are no entity identities to keep: a node's name IS
+# its path, so what canon has to preserve is the address a grant was
+# written with. The assertion moved with the mechanism rather than
+# being dropped -- if `$.permissions.admin_all` stopped surviving canon,
+# a round-tripped policy would grant nothing.
 run canon 0 -- --canon "$DIR/example.aon"
-has canon out 'id("admin_all")'
+has canon out '"$.permissions.admin_all"'
 has canon out '*"member"|"member"|"admin"|"owner"'
 has canon out 'refer()'
-ok "canon keeps id(), the * default and refer()"
+ok "canon keeps the grant addresses, the * default and refer()"
 
 # ------------------------------------------------- vetting candidates
 # 3. A well-formed candidate is valid, with no warnings.
@@ -119,18 +125,17 @@ has superuser err '[aontu/closed]'
 has superuser err '$.roles.superuser'
 ok "proposal: new role refused by close() (exhaustive role set)"
 
-# 12. A hallucinated permission is refused (exit 1). 2026-08-26 (the
-# spread application rework): the located refer_unresolved that used to
-# accompany the refusal named the WITNESS COPY inside the hidden
-# registry_invariant filter ($.registry_invariant.one_owner_role...),
-# an artifact of the filter snapshotting its data mid-resolution; the
-# snapshot now waits for a settled source, so on this erroring model
-# the filter never fires and only the (pre-existing, spurious)
-# unify_cycle remains -- see README, "spurious unify_cycle". The
-# real-position refer stays unsurfaced inside the still-open Role
-# disjunction (refer-cycles family, BUGS.md).
+# 12. A hallucinated permission is refused (exit 1), AND THE REFUSAL
+# NOW NAMES THE GRANT. This assertion got sharper with ADR-014, so it
+# is worth saying what it used to be: the located refer_unresolved was
+# unsurfaced inside the still-open Role disjunction, and what reached
+# the surface was a spurious `unify_cycle` the README had to apologise
+# for. Addresses being paths took the identity merge out of the picture
+# and the real finding now arrives at its own position --
+# `$.roles.member.grants.3`, the element the agent invented.
 run halluc 1 -- --include-root "$DIR" "$DIR/proposals/extend-member-grants.aon"
-has halluc err '[aontu/unify_cycle]'
+has halluc err '[aontu/refer_unresolved]'
+has halluc err '$.roles.member.grants.3'
 ok "proposal: unknown permission still refused (diagnostic: see note)"
 
 # 13. The wildcard rule: an unprivileged role granted admin_all dies

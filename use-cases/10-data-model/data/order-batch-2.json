@@ -1,7 +1,7 @@
 {
   "orders": {
     "ord-7004": {
-      "customerId": "cust-1001",
+      "customerId": "$.customers.cust-1001",
       "placed": "2026-08-21",
       "lines": [
         {"sku": "sku-gasket-set", "qty": 1, "unitCents": 10, "amountCents": 10},

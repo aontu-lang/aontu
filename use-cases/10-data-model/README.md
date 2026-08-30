@@ -33,8 +33,8 @@ this README documents.
   links (`order.customerId`, `invoice.orderId`).
 - `seed.aon` — includes the domain; an exact price book in `0d`
   bigdecimals with **pinned sums** (`(0d0.1 + 0d0.2) & 0d0.3` is a
-  theorem, not a comment), seed records declared as entities with
-  `id()`, per-record `must()` arithmetic spot checks, `match()` for
+  theorem, not a comment), per-record `must()` arithmetic spot checks,
+  `match()` for
   price tiers, `pack()` for the receivables bag, `*"open"` default
   order status.
 - `exact-money.aon` — the money schema you *want* (`bigdecimal`), kept
@@ -69,9 +69,13 @@ this README documents.
 - **The float/exact wall holds in both directions**, with one of the
   best error messages I have seen (`exact_float_mix` names both
   operand kinds, both orders, and the fix).
-- **Referential integrity via `id()` + `refer()` works through vet.**
-  A JSON order naming `cust-9999` fails with `refer_unresolved` and
-  the data file:line. Constraints, dangling detection, and batch
+- **Referential integrity via `refer()` works through vet.** A JSON
+  order naming `$.customers.cust-9999` fails with `refer_unresolved`
+  and the data file:line. Since ADR-014 the link is a tree path, so
+  `domain.aon` pins the address SHAPE (`^\$\.customers\.cust-`) and
+  `refer()` at the bag spread pins its existence — the pattern catches
+  a link into the wrong bag, the resolution catches a link to
+  nothing. Constraints, dangling detection, and batch
   merging all compose.
 - **Batch vet is one command.** `vet seed.aon a.json b.json c.aon`
   merges and checks everything, and the exit-code discipline
@@ -255,17 +259,23 @@ cardinality bound at all. An empty `lines: []` order vets as valid.
 intended vocabulary — named `type()` aliases referenced from the
 record types — now works across an `@"..."` include boundary exactly
 as it does in a single file. The 2-file repro in
-`gaps/include-id-key/` emits the fully-unified record in both of its
-historically-broken forms, and check.sh asserts the correct outputs:
+`gaps/include-alias-spread/` emits the fully-unified record, and
+check.sh asserts the output.
 
-1. With `id(key(0))` in the bag spread, evaluation used to fail with a
-   bogus `[aontu/id_name]` naming the unevaluated `id(key(0))` call —
-   a leaked type mark froze the pending `key(0)`.
-2. Without `id(key(0))`, the same combination **silently dropped every
-   affected record from generation** (exit 0, `{"customers": {}}`) —
-   references cloned the still-pending `type()` alias and the clone
-   stamped its mark at the destination after the reference's
-   mark-clearing walk had run.
+This gap had two halves and **only one of them was ever a defect**.
+The half that was: an include whose record type references a named
+alias **silently dropped every affected record from generation**
+(exit 0, `{"customers": {}}`) — references cloned the still-pending
+`type()` alias and the clone stamped its mark at the destination after
+the reference's mark-clearing walk had run. A silent drop looks like
+success, which is what makes it worth a fixture.
+
+The other half wanted `id(key(0))` in the bag spread and died with a
+bogus `[aontu/id_name]`. **ADR-014 removed the identity mark, so that
+half is not a spelling any more** — a record's address is
+`$.customers.cust-1001` and there is nothing to declare. The fixture
+pair collapsed to one and the shared suite dropped its pin
+(`load-alias-idspread`) with it.
 
 References now defer until a pending mark wrapper has resolved at its
 own field, and spread applications are full per-destination

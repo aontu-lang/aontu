@@ -1,0 +1,7 @@
+# Minimal repro, file 2 of 2. Pulling the schema in through an include
+# and adding one record emits the fully-unified record. Historically it
+# emitted NOTHING and said so with exit 0, which is the failure mode
+# worth a fixture: a silent drop looks like success. README, gap 6;
+# shared spec pin: test/spec/file.tsv load-alias-spread.
+@"./vocab.aon"
+customers: "cust-1001": { ledgerId: 5, name: "Acme" }

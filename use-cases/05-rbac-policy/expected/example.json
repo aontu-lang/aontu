@@ -41,7 +41,7 @@
     "admin": {
       "desc": "Day-to-day administration",
       "grants": [
-        "admin_all"
+        "$.permissions.admin_all"
       ],
       "privileged": true,
       "rank": 80,
@@ -50,10 +50,10 @@
     "auditor": {
       "desc": "Read-only compliance access",
       "grants": [
-        "project_read",
-        "member_read",
-        "billing_read",
-        "audit_read"
+        "$.permissions.project_read",
+        "$.permissions.member_read",
+        "$.permissions.billing_read",
+        "$.permissions.audit_read"
       ],
       "privileged": false,
       "rank": 20,
@@ -62,9 +62,9 @@
     "member": {
       "desc": "Regular collaborator",
       "grants": [
-        "project_read",
-        "project_write",
-        "member_read"
+        "$.permissions.project_read",
+        "$.permissions.project_write",
+        "$.permissions.member_read"
       ],
       "privileged": false,
       "rank": 40,
@@ -73,7 +73,7 @@
     "owner": {
       "desc": "Full control; holds the tenant",
       "grants": [
-        "admin_all"
+        "$.permissions.admin_all"
       ],
       "privileged": true,
       "rank": 100,
@@ -94,14 +94,14 @@
     },
     "members": {
       "ada": {
-        "role": "owner"
+        "role": "$.roles.owner"
       },
       "alan": {
         "invitedBy": "ada",
-        "role": "auditor"
+        "role": "$.roles.auditor"
       },
       "grace": {
-        "role": "member"
+        "role": "$.roles.member"
       }
     },
     "name": "Acme Rockets",

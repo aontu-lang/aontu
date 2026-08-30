@@ -89,22 +89,20 @@ the divergence ledger, `Accepted`/`Superseded` in the ADR register).
    gap documents froze a row count into a "nothing may regress" clause;
    all eight are now wrong, by roughly 1,400 to 1,500 rows. A gap
    document should link this line instead: as of this
-   register's last update the suite is **98 `.tsv` files, 97
-   row-bearing, 3,875 rows**, in twenty modes — `canon` 870, `errc`
-   727, `gens` 657, `gen` 587, `err` 280, `errcode` 124, `subsume` 102,
-   `vet` 100, `query` 92, `jsonschema` 57, `why` 56, `hcanon` 44,
-   `patch` 42, `graph` 38, `diff` 28, `relation` 23, `hash` 17,
-   `reaches` 13, `trim` 11, `agentsmd` 7.
-   (Re-derived 2026-08-30, after the defect work of #99, the
-   generation work of #96/#100/#101, G9 phase 2's `gen-join.tsv`, and
-   the merge of #103/#105.
-   This line has now been wrong twice for the same reason — it was
-   86/85/3,099 before 2026-08-28
-   and 91/90/3,495 before today — and both times it was falsifiable
-   in the two commands below, which is the point of carrying them.
-   The lesson is that a count with a reproduction command still needs
-   somebody to run it; the commands are cheap enough to run on any
-   commit that adds rows.)
+   register's last update the suite is **97 `.tsv` files, 96
+   row-bearing, 3,797 rows**, in twenty modes — `canon` 861, `errc`
+   717, `gens` 623, `gen` 587, `err` 276, `errcode` 120, `subsume` 102,
+   `vet` 100, `query` 92, `jsonschema` 57, `why` 52, `patch` 42,
+   `hcanon` 40, `diff` 28, `graph` 25, `relation` 23, `reaches` 19,
+   `hash` 15, `trim` 11, `agentsmd` 7.
+   (Re-derived 2026-08-30, after #102 retired `id()` and deleted
+   `test/spec/id.tsv` with its 84 rows. This line has now been wrong
+   three times, each time within a day of being corrected, and each
+   time it was falsifiable in the two commands below — which is the
+   point of carrying them. The lesson is not that the number is hard
+   to get right: it is that nobody runs a command a document merely
+   offers. A count is only as current as the last commit that touched
+   `test/spec/` and remembered this line.)
    Reproduce with
    `ls test/spec/*.tsv | wc -l` and
    `cat test/spec/*.tsv | grep -P '\t' | grep -vc '^#'`.
