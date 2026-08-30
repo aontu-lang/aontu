@@ -257,4 +257,21 @@ else
   exit 1
 fi
 
+say "the release history, drawn as a subsumption poset"
+# Not a chain. `subsume` decides each pair; the renderer quotients by
+# MUTUAL subsumption (two documents that subsume each other are one
+# node -- the hash is a sufficient identity and never a necessary one),
+# then draws the cover relation. Seven documents, six nodes: v2 is a
+# true generalisation of v1, v3 is comparable with nothing, and two
+# independently written proposals turn out to make the identical schema
+# change. There is no `aontu order` verb yet; see
+# docs/design/VIEWS-ORDER.0.md.
+"${NODE:-node}" "$DIR/../tools/diagram.js" poset --at '$.profile' \
+  "$DIR/profile-v1.aon" "$DIR/profile-v2.aon" "$DIR/profile-v3.aon" \
+  "$DIR/proposals/narrow-email.aon" "$DIR/proposals/require-loyalty.aon" \
+  "$DIR/proposals/v3-remove-phone.aon" "$DIR/proposals/waive-gate.aon" \
+  > "$TMP/diagram-poset.mmd" \
+  || { echo "FAIL: poset diagram did not render"; exit 1; }
+golden "$TMP/diagram-poset.mmd" "$DIR/expected/diagram-poset.mmd"
+
 printf '\nAll %d steps passed.\n' "$step"

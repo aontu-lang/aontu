@@ -1,0 +1,37 @@
+# 63: inside `hide()`, the Go port does not resolve a list spread's
+# template computation; TypeScript does. An ADR-001 parity break with
+# OPPOSITE EXIT CODES on a document neither port reports as wrong.
+#
+# run: node ../../../ts/bin/aontu.js -c hide-blocks-spread-compute-in-go.aon
+# run: aontu-go -c hide-blocks-spread-compute-in-go.aon
+#
+# expected: one answer
+#
+# actual canon (TypeScript) -- mark absorbed, template applied:
+#   {"src":[{"n":"a"}],"u":{"rows":[&:{"o":.n},{"n":"a","o":"a"}]}}
+# actual canon (Go) -- mark kept, `o` still the UNRESOLVED `.n`:
+#   {"src":[{"n":"a"}],"u":{"rows":hide([&:{"o":.n},{"n":"a","o":.n}])}}
+#
+# actual generation (TypeScript): {"src":[{"n":"a"}],"u":{}}   exit 0
+#                                 -- hidden, so correctly dropped
+# actual generation (Go):         [aontu/mapval_no_gen] at $.u.rows
+#                                                             exit 1
+#
+# BOUNDARY, probed. The break needs BOTH the mark and a template that
+# COMPUTES from a relative reference:
+#   [&: {o: .n}] & $.src            without hide()  -> both ports agree
+#   hide([{o: "a"}])                literal list    -> both ports agree
+#   hide([&: {o: "K"}] & $.src)     constant template -> both agree
+#   hide([&: {o: .n}] & $.src)      this file       -> DIVERGE
+#
+# WHY IT MATTERS. `hide()` around a staged intermediate is the natural
+# way to keep scaffolding out of generated output, and staging is
+# required because `pick` over an inline spread expression does not
+# settle. So the obvious spelling of a code-generation transform --
+# compute the lines into a hidden key, project them with `pick` --
+# works in TypeScript and refuses in Go. use-cases/15-code-generation
+# had to drop `hide()` for exactly this reason; its check.sh asserts
+# byte-identical output from both ports and would have shipped a
+# TypeScript-only transform without that assertion.
+src: [{n: "a"}]
+u: {rows: hide([&: {o: .n}] & $.src)}

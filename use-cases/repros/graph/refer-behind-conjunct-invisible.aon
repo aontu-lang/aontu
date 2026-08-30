@@ -1,0 +1,35 @@
+# 65: a `refer()` behind a CONJUNCT is invisible to the entity graph,
+# so `reaches` answers `unreachable` for a link the model states and
+# `relations` checks nothing over it. Both ports agree, so this is a
+# shared defect rather than a parity break.
+#
+# run: node ../../../ts/bin/aontu.js reaches x pp refer-behind-conjunct-invisible.aon
+# run: aontu-go reaches x pp refer-behind-conjunct-invisible.aon
+#
+# expected: verdict: reaches   (a.link is ["pp"], and link is refer()-typed)
+# actual (both ports): verdict: unreachable, exit 1
+#
+# Remove the `unique() &` and the same document answers `reaches`,
+# exit 0, in both ports -- the companion file is that one-token
+# difference.
+#
+# MINIMISED, via graphOf directly:
+#   link: refer() & string                        -> 1 edge
+#   link: [&: refer() & string]                   -> 1 edge
+#   link: unique() & [&: refer() & string]        -> 0 edges
+#
+# So it is the CONJUNCT, not the list and not the spread: graphOf's
+# walk does not descend into conjunct arms, so any relation guarded by
+# a sizing atom, a constraint or any other `&` term drops out of the
+# graph entirely.
+#
+# THIS IS NOT HYPOTHETICAL SPELLING. use-cases/05-rbac-policy writes
+#   grants: unique() & [&: refer() & string]
+# which is the natural way to say "a set of grants, no duplicates". On
+# that model graphOf reports 13 entities and ZERO edges, and
+#   aontu reaches admin admin_all
+# answers `unreachable` although roles.admin.grants is ["admin_all"].
+# The case's own check.sh does not exercise `reaches`, which is why
+# nothing caught it.
+p: id(pp) & {n: 1}
+a: id(x) & {link: unique() & [&: refer() & string], link: ["pp"]}

@@ -1,5 +1,56 @@
 # Use case 01: a company-wide service catalog as system ontology
 
+## The catalog, drawn
+
+Generated from this model by [`../tools/diagram.js`](../tools/diagram.js)
+and pinned as goldens by `check.sh`.
+
+```mermaid
+graph LR
+  n_svc_auth["svc_auth"]
+  n_svc_directory["svc_directory"]
+  n_svc_email["svc_email"]
+  n_svc_gateway["svc_gateway"]
+  n_svc_ledger["svc_ledger"]
+  n_svc_notify["svc_notify"]
+  n_svc_payments["svc_payments"]
+  n_svc_risk["svc_risk"]
+  n_svc_auth -->|"dependsOn"| n_svc_directory
+  n_svc_gateway -->|"dependsOn"| n_svc_auth
+  n_svc_gateway -->|"dependsOn"| n_svc_payments
+  n_svc_notify -->|"dependsOn"| n_svc_email
+  n_svc_payments -->|"dependsOn"| n_svc_auth
+  n_svc_payments -->|"dependsOn"| n_svc_ledger
+  n_svc_payments -->|"dependsOn"| n_svc_notify
+  n_svc_payments -->|"dependsOn"| n_svc_risk
+  n_svc_risk -->|"dependsOn"| n_svc_directory
+```
+
+The same graph as a **dependency-structure matrix**, where a mark at
+(row, column) means the row service depends on the column service:
+
+```
+                 1 2 3 4 5 6 7 8
+svc_auth       1 \ X . . . . . .
+svc_directory  2 . \ . . . . . .
+svc_email      3 . . \ . . . . .
+svc_gateway    4 X . . \ . . X .
+svc_ledger     5 . . . . \ . . .
+svc_notify     6 . . X . . \ . .
+svc_payments   7 X . . . X X \ X
+svc_risk       8 . X . . . . . \
+```
+
+The matrix is the form the empirical literature prefers past about
+twenty vertices — Ghoniem, Fekete and Castagliola (InfoVis 2004) found
+matrices beat node-link for most tasks at that size, with path-finding
+the exception; Sangal et al. (OOPSLA 2005) is the software-dependency
+application. At eight services both are readable, which is the point of
+showing them together: the node-link picture reads as a shape, the
+matrix reads as a table, and only the matrix stays legible as the
+catalog grows.
+
+
 ## Scenario
 
 A Backstage-style service catalog for "Acme": eight services across

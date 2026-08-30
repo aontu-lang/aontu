@@ -2425,6 +2425,194 @@ middle of the row rather than at its end.
 Repro:
 [`repros/order/pick-astral-key-order.aon`](repros/order/pick-astral-key-order.aon).
 
+## marks — what `hide()` stops resolving
+
+### 63. Inside `hide()`, Go does not resolve a spread template's reference [critical]
+
+Found 2026-08-30 by building
+[use case 15](15-code-generation/README.md), whose first draft used the
+obvious spelling and passed in TypeScript.
+
+```aon
+src: [{n: "a"}]
+u: {rows: hide([&: {o: .n}] & $.src)}
+```
+
+| | canon | generate |
+|---|---|---|
+| TypeScript | `{"src":[{"n":"a"}],"u":{"rows":[&:{"o":.n},{"n":"a","o":"a"}]}}` | `{"src":[{"n":"a"}],"u":{}}`, exit 0 |
+| Go | `{"src":[{"n":"a"}],"u":{"rows":hide([&:{"o":.n},{"n":"a","o":.n}])}}` | `[aontu/mapval_no_gen]` at `$.u.rows`, exit 1 |
+
+Read the Go canon closely: the element's `o` is still the
+**unresolved** `.n`, where TypeScript resolved it to `"a"`, and the
+`hide(` wrapper is still there where TypeScript absorbed the mark. So
+under `hide()` the Go port never applies the spread template's
+computation, and everything downstream of it refuses. Opposite exit
+codes on a document neither port reports as wrong.
+
+**Boundary, probed.** The break needs the mark AND a template that
+computes from a relative reference:
+
+| spelling | outcome |
+|---|---|
+| `[&: {o: .n}] & $.src` (no `hide`) | both ports agree |
+| `hide([{o: "a"}])` (literal list) | both ports agree |
+| `hide([&: {o: "K"}] & $.src)` (constant template) | both ports agree |
+| `hide([&: {o: .n}] & $.src)` | **diverge** |
+
+**Why it matters.** `hide()` around a staged intermediate is the
+natural way to keep scaffolding out of a generated value, and staging
+is *required* because `pick` over an inline spread expression does not
+settle. So the obvious spelling of a code-generation transform —
+compute the lines into a hidden key, project them with `pick` — works
+in the canonical implementation and refuses in the port. Use case 15
+had to drop `hide()`; its `check.sh` asserts byte-identical output from
+both ports, and without that assertion the repository would have
+shipped a TypeScript-only transform that looked correct.
+
+Repro:
+[`repros/hide/hide-blocks-spread-compute-in-go.aon`](repros/hide/hide-blocks-spread-compute-in-go.aon).
+
+## subsumption — the law that holds only for one spelling
+
+### 64. A referenced, aliased or recursive spread template breaks reflexivity, in both ports [critical]
+
+Found 2026-08-30 while designing a subsumption poset — a diagram whose
+nodes are documents and whose edges are `subsume` verdicts. Three of
+the seven use-case entry documents do not subsume **themselves**:
+
+| document | self-subsumption |
+|---|---|
+| `01-service-catalog/system.aon` | **undecided** (`sub_path_dependent_spread`, `sub_unresolved`) |
+| `12-relations/model.aon` | **undecided** (`sub_path_dependent_spread`, `sub_unresolved`) |
+| `13-recursive-schema/model.aon` | **undecided** (`sub_unresolved`) |
+| `02-deploy-config/stack.aon` | subsumes |
+| `06-k8s-golden-path/main.aon` | subsumes |
+| `08-feature-flags/system.aon` | subsumes |
+| `15-code-generation/model.aon` | subsumes |
+
+[`test/spec/subsume.tsv`](../test/spec/subsume.tsv) states the rule in
+capitals — "REFLEXIVITY IS A LAW (2026-08-27). Every value admits
+itself, residue included" — and its comment records that this exact
+failure mode was fixed once already (§28): "a constraint inside a
+SPREAD TEMPLATE made a contract non-self-subsumable — expected and
+actual byte-identical, verdict undecided". The class is back, by three
+other spellings.
+
+**Minimised, both ports, three lines each.** The control cases are the
+boundary:
+
+| spelling | verdict |
+|---|---|
+| `defs: {x: {&: integer & min(0)}}` — inline constraint, the case §28 fixed | `subsumes` |
+| `a: {b: 1}` — plain map | `subsumes` |
+| `defs: hide({F: {n: string}})` / `code: {fs: {&: $.defs.F}}` — **reference**-valued template | **`undecided`** `sub_path_dependent_spread` |
+| `%F: {n: string}` / `code: {fs: {&: %F}}` — **alias**-valued template | **`undecided`** `sub_path_dependent_spread` |
+| `spec: hide({Step: {label: string, then?: $.spec.Step}})` / `doc: $.spec.Step & {label: "a"}` — **recursive** | **`undecided`** `sub_unresolved` |
+
+The finding's two operands are byte-identical, which is what makes it
+a bug rather than a conservative answer:
+
+```
+code    : sub_path_dependent_spread
+path    : $.code.fs
+expected: '$.%F'
+actual  : '$.%F'
+```
+
+**What it costs.** §28 already recorded the consequence: `breaking` on
+a non-self-subsumable contract hard-fails and has to be run with
+`--allow-undecided`, "which then masks the genuine undecideds it exists
+to surface". Every layered model in `use-cases/` shares a template by
+reference or alias, because that is the idiom the language is for. The
+fold also destroys decided answers either side of the shared template —
+`1|2|3 ⊒ 1|2` is decided, and a byte-identical shared template beside
+it drags the whole comparison to `undecided`.
+
+**The repair the law implies.** Before folding to `undecided`, compare
+the two operands' **hash forms**; equal means `subsumes`. That is not a
+heuristic — `subsume.tsv` already says "Identity is the HASH FORM" — and
+it runs only where an `undecided` was about to be returned, so it costs
+nothing in the common case.
+
+Repros:
+[`repros/subsume/reflexivity-reference-spread.aon`](repros/subsume/reflexivity-reference-spread.aon),
+[`reflexivity-alias-spread.aon`](repros/subsume/reflexivity-alias-spread.aon),
+[`reflexivity-recursive-ref.aon`](repros/subsume/reflexivity-recursive-ref.aon).
+
+## the entity graph — what a conjunct hides
+
+### 65. A `refer()` behind a conjunct is invisible to the entity graph, so `reaches` answers wrongly [critical]
+
+Found 2026-08-30 while drawing the use cases: the dependency matrix for
+`use-cases/05-rbac-policy` came out **entirely empty** — thirteen
+entities, zero edges — on a model whose whole subject is which role
+grants which permission.
+
+```aon
+p: id(pp) & {n: 1}
+a: id(x) & {link: unique() & [&: refer() & string], link: ["pp"]}
+```
+
+```
+$ aontu reaches x pp guarded.aon     verdict: unreachable   exit 1
+$ aontu reaches x pp control.aon     verdict: reaches       exit 0
+```
+
+The two documents differ by the two tokens `unique() &`. Both ports
+agree in both directions, so this is a shared defect and not a parity
+break.
+
+**Minimised through `graphOf` directly**, which is where the loss
+happens:
+
+| spelling | edges |
+|---|---|
+| `link: refer() & string` | 1 |
+| `link: [&: refer() & string]` | 1 |
+| `link: unique() & [&: refer() & string]` | **0** |
+
+So it is the **conjunct**, not the list and not the spread.
+`graphOf`'s walk does not descend into conjunct arms, so any relation
+guarded by a sizing atom, a constraint, or any other `&` term drops out
+of the graph entirely.
+
+**It is the natural spelling, not a contrived one.**
+[`use-cases/05-rbac-policy/roles.aon`](05-rbac-policy/roles.aon)
+writes
+
+```aon
+grants: unique() & [&: refer() & string]
+```
+
+which is how one says "a set of grants, no duplicates". On that model
+`graphOf` reports 13 entities and 0 edges, and
+
+```
+$ aontu reaches admin admin_all --trust root:. example.aon
+verdict: unreachable
+```
+
+although `roles.admin.grants` evaluates to `["admin_all"]`. `relations`
+answers `verdict: pass` over the same model, having checked nothing.
+The case's own `check.sh` never calls `reaches`, which is why the suite
+is green over it.
+
+**What it costs.** `reaches` and `relations` are check verbs: a wrong
+`unreachable` is a silent false negative in a referential-integrity
+gate, and the guard that causes it (`unique()`) is exactly what a
+careful author adds. G4's referential integrity, the `acyclic()` check
+and the `inverse()` check all read the same graph.
+
+This is the blind spot
+[`docs/design/VIEWS.0.md`](../docs/design/VIEWS.0.md) Phase 0 exists to
+close; recorded here because it is a defect in shipped check verbs on
+its own, independent of whether any diagram is ever drawn.
+
+Repros:
+[`repros/graph/refer-behind-conjunct-invisible.aon`](repros/graph/refer-behind-conjunct-invisible.aon)
+and its `refer-in-list-visible.aon` control.
+
 ## Elsewhere in this review
 
 Defects verified earlier in the effort and recorded in

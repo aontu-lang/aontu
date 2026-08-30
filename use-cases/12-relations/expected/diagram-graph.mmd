@@ -1,0 +1,8 @@
+graph LR
+  n_job_audit["job_audit"]
+  n_job_extract["job_extract"]
+  n_job_load["job_load"]
+  n_job_transform["job_transform"]
+  n_job_extract -->|"feeds"| n_job_transform
+  n_job_transform -->|"feeds"| n_job_audit
+  n_job_transform -->|"feeds"| n_job_load
