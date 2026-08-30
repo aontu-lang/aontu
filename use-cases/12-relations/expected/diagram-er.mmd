@@ -1,4 +1,4 @@
 erDiagram
-  n_job_extract }o--o{ n_job_transform : "feeds"
-  n_job_transform }o--o{ n_job_audit : "feeds"
-  n_job_transform }o--o{ n_job_load : "feeds"
+  n_extract }o--o{ n_transform : "feeds"
+  n_transform }o--o{ n_audit : "feeds"
+  n_transform }o--o{ n_load : "feeds"

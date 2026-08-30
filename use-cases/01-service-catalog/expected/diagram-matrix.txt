@@ -1,9 +1,9 @@
-                 1 2 3 4 5 6 7 8
-svc_auth       1 \ X . . . . . .
-svc_directory  2 . \ . . . . . .
-svc_email      3 . . \ . . . . .
-svc_gateway    4 X . . \ . . X .
-svc_ledger     5 . . . . \ . . .
-svc_notify     6 . . X . . \ . .
-svc_payments   7 X . . . X X \ X
-svc_risk       8 . X . . . . . \
+             1 2 3 4 5 6 7 8
+auth       1 \ X . . . . . .
+directory  2 . \ . . . . . .
+ledger     3 . . \ . . . . .
+payments   4 X . X \ X . . X
+risk       5 . X . . \ . . .
+email      6 . . . . . \ . .
+gateway    7 X . . X . . \ .
+notify     8 . . . . . X . \
