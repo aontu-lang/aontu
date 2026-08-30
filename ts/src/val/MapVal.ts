@@ -439,6 +439,18 @@ class MapVal extends BagVal {
             if ((oval as any)._spr !== spreadId(spread_cj)) {
               let key_spread_cj = spread_cj.spreadClone(peerctx)
 
+              // A SPREAD IS A SPREAD FROM EITHER SIDE. The own-key loop
+              // above marks its template so `why` can say the
+              // contribution came from `&:` rather than from the key;
+              // this arm did not, so the SAME document reported the
+              // role or dropped it depending on whether the template
+              // and the keys were written in one statement or two --
+              // `services: &: {..}` plus `services: {web:{}}` took the
+              // peer path and lost `(spread)` (use-cases/BUGS.md §55).
+              if (undefined !== peerctx.prov) {
+                markSpread(key_spread_cj)
+              }
+
               oval = out.peg[peerkey] =
                 unite(te ? peerctx.clone({ explain: ec(te, 'PSP:' + peerkey) }) : peerctx,
                   oval, key_spread_cj, 'map-peer-spread')

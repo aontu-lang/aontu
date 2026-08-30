@@ -7,6 +7,23 @@ which implementation each change affects.
 
 ## Unreleased
 
+### `why` says `spread` however the statements are spaced
+
+TypeScript only. `why` annotates a contribution that came from a `&:`
+template rather than from the key itself — but only when the template
+and the keys were written in ONE statement. Written as two duplicate
+statements the template arrives from the other side, and that arm
+never marked it, so the same document reported the role or dropped it
+on nothing but the author's spacing. The Go port, and this port's own
+list twin, already marked both sides.
+
+The two-spread half of that entry is untouched and still open: spreads
+written in separate statements are combined before `why` sees them, so
+one contribution is shown carrying the merged value at the first
+template's position. Separating them means changing when spreads
+combine, not what the report walks. Was `use-cases/BUGS.md` §55, now
+partly fixed.
+
 ### A spread template is applied once, however deep the reference
 
 TypeScript only. A bag with `&: {n: key()}`, read through a reference

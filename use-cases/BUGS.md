@@ -1868,7 +1868,7 @@ that shape. Cosmetic quirk observed alongside: generation-time relation
 errors at overlay positions append the relation name to the path
 (`$.change.feeds.1.feeds`).
 
-### 55. `why` drops the spread role when template and keys arrive in separate statements [minor]
+### 55. `why` drops the spread role when template and keys arrive in separate statements [PARTLY FIXED 2026-08-30]
 
 Found 2026-08-29 while writing docs/how-to/explain-a-value.md, probed in
 the TypeScript CLI. When the `&:` template and the concrete keys sit in
@@ -1878,6 +1878,33 @@ one field it displays the merged disjunction as the org contribution's
 value instead of the text the author wrote. The single-block spelling
 (template and keys in one statement) reports roles and sources exactly
 as documented, and the guide uses it.
+
+Status, 2026-08-30. **The role half is FIXED**; the two-spread display
+is still open and is a different defect.
+
+*The role.* `MapVal.unify` marks a spread template so `why` can say the
+contribution came from `&:` rather than from the key -- but only in the
+OWN-KEY arm. Written as two duplicate statements the template arrives
+as a PEER, and that arm did not mark it, so one document reported
+`spread` and the other `literal` on nothing but how the author spaced
+their statements. `ListVal`'s peer arm already marked its template,
+which is what said which side was wrong rather than leaving it a
+choice. Go agreed with the corrected TypeScript already, so both ports
+pass the new rows unchanged. Pins: `test/spec/why.tsv`
+`why-spread-split-statements` and `why-spread-split-untouched`.
+
+*The two-spread display is STILL OPEN, and its cause is not the mark.*
+Several spreads in ONE statement become a ConjunctVal, which the
+recorder already splits into its terms. Spreads in SEPARATE statements
+MEET in the spread combination instead, and the result is a new value
+carrying the first one's site -- so `why` shows one contribution whose
+canon is the merged `*8080|integer&min(1024)` at the position of
+`*8080|integer`: the site is right and the text is not what is written
+there. Showing both authored templates means holding them unmet until
+`why` has seen them, which changes WHEN spreads combine rather than
+what a report walks. That is more than this minor warrants, and it is
+adjacent to the spread machinery §50 just moved, so it is left filed
+rather than bundled in.
 
 ### 56. `jsonschema` drops `deprecate()` silently, against its own loss contract [FIXED 2026-08-30]
 
