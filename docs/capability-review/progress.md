@@ -1452,8 +1452,10 @@ Opened 2026-08-30, after G1–G8 landed. Design is
 [g9-transformation.md](g9-transformation.md); forms (a) and (b) — the
 host program and the Jostraca path — are
 [docs/design/GENERATION-FORMS.0.md](../design/GENERATION-FORMS.0.md).
-**Nothing has landed.** Every row below is NOT STARTED, and the
-document is a design proposal, not a commitment.
+**No transformation capability has landed**, and the document is a
+design proposal, not a commitment. Every row below is NOT STARTED
+except phase 0, the gating defects, which the engine work of #99
+moved to PARTIAL.
 
 Baseline at drafting, for protocol rule 5: `ls test/spec/*.tsv | wc -l`
 = **97**, `awk -F'\t' 'NF>2 && $0 !~ /^#/' test/spec/*.tsv | wc -l` =
@@ -1461,7 +1463,7 @@ Baseline at drafting, for protocol rule 5: `ls test/spec/*.tsv | wc -l`
 
 | Phase | Size | Status | Pin |
 |-------|------|--------|-----|
-| **0** — the gating defects | S | **NOT STARTED** | Six defects found while surveying for this capability and recorded in [use-cases/BUGS.md](../../use-cases/BUGS.md) §57–§62, each with a minimal repro under `use-cases/repros/`. Three are non-termination or crash (§57 recursive spread + map conjunct, both ports; §58 `id()` naming its own descendant, both ports, Go unrecoverable), three are ADR-001 parity breaks (§59 `vet --at` and aliases; §61 Go's `trialUnify` never setting `ctx.trial`, so `match`/`filter` answer differently; §62 `pick` ordering an astral-keyed map by UTF-16 code units in TypeScript), and one is a silent pin failure (§60 the canon-hash blind to an alias used as a spread template). §61 and §62 are in the primitives this design depends on for selection and for line order. |
+| **0** — the gating defects | S | **PARTIAL** | Six defects found while surveying for this capability and recorded in [use-cases/BUGS.md](../../use-cases/BUGS.md) §57–§62, each with a minimal repro under `use-cases/repros/`. **Four are fixed**, in both ports and pinned by shared rows: §58 `id()` naming its own descendant, which crashed both engines on the host stack; and the three ADR-001 parity breaks — §59 `vet --at` losing `%alias` references in Go, §61 Go's `trialUnify` never setting `ctx.trial` so `match`/`filter` answered differently, §62 `pick` ordering an astral-keyed map by UTF-16 code units in TypeScript. The last two are in the primitives this design depends on for selection and for line order. **Two remain**: §57, a recursive spread conjoined with a map, non-terminating in both ports — diagnosed to the mechanism, with one fix attempt reverted for holding in TypeScript only; and §60, the canon-hash blind to an alias used as a spread template, a silent pin failure. |
 | **1** — the vocabulary as a bundled schema | S | **NOT STARTED** | `@"std/code"` served beside `@"std/system"` |
 | **2** — `join` | S | **NOT STARTED** | The string fold; `funcMap` entry, no grammar change |
 | **3** — `form`, the order-preserving map | S/M | **NOT STARTED** | `each` meets and cannot transform; `pack` keys by data and reorders |
