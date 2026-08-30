@@ -12,8 +12,11 @@ node ../../ts/bin/aontu.js <file>       # or the command in # run:
 Two cautions:
 
 - `refer-cycles/refer-in-type-hang.aon` (with its `-schema` companion)
-  does not terminate in any practical time — run it under
-  `timeout 10` as its header says. `run-all.sh` never executes
+  and `recursion/recursive-spread-conjunct-hangs.aon` do not terminate
+  in any practical time — run them under `timeout` as their headers
+  say. `identity/id-names-own-descendant-crashes.aon` terminates, but
+  by overflowing the host stack: in Go that is a `fatal error` the
+  embedding program cannot recover from. `run-all.sh` never executes
   anything in this tree.
 - Some entries reproduce **by-design** behaviour whose consequence is
   the finding (marked in their headers and in BUGS.md), and

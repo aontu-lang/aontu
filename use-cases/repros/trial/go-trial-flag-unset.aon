@@ -1,0 +1,20 @@
+# 61: Go's trialUnify never sets ctx.trial, so the "a literal list
+# admits only a peer of its own length" rule (list_length) fires in
+# TypeScript and never in Go from a combinator or preference trial.
+# The two ports return DIFFERENT VALUES with no error.
+#
+# run: node ../../../ts/bin/aontu.js -c go-trial-flag-unset.aon
+# run: aontu-go -c go-trial-flag-unset.aon
+#
+# expected: one answer
+# actual TS: {"filtered":[],"matched":"miss"}
+# actual GO: {"filtered":[[1],[1,2]],"matched":"hit"}
+#
+# `match` picks the OTHER arm and `filter` makes the OPPOSITE
+# selection -- TypeScript drops every element, Go keeps every element.
+# Neither port raises anything.
+#
+# The preference half is in the -pref companion, where TypeScript
+# ERRORS and Go produces a value.
+matched:  match([1,2], [], "hit", "miss")
+filtered: filter([[1],[1,2]], [])

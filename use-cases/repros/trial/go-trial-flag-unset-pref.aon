@@ -1,0 +1,15 @@
+# 61, the preference half. See go-trial-flag-unset.aon.
+#
+# run: node ../../../ts/bin/aontu.js -c go-trial-flag-unset-pref.aon
+# run: aontu-go -c go-trial-flag-unset-pref.aon
+#
+# expected: one answer
+# actual TS: [aontu/empty]: Cannot unify values at path $.a   (exit 1)
+# actual GO: {"a":*[1],"b":*[1,2]}                            (exit 0)
+#
+# `x: *[]` -- a default empty list later given data -- is an ordinary
+# idiom, and the two ports disagree about whether it holds at all.
+a: *[]
+a: [1]
+b: *[1]
+b: [1,2]

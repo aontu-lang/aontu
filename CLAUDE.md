@@ -22,7 +22,7 @@ Quick reference:
   `ts/test/docs.test.ts` enforces it — every tagged snippet tested or
   skipped with a reason.
 - Forward-looking work is the capability review in
-  `docs/capability-review/` (G1–G8, design) plus
+  `docs/capability-review/` (G1–G9, design) plus
   `docs/capability-review/progress.md` (the register of what has
   landed). **A phase's row in the register changes in the same commit
   that changes its status** — see AGENTS.md, "The capability-review

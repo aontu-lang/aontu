@@ -68,6 +68,13 @@ infrastructure around the lattice, not syntax on top of it.
 
 ## The eight fundamental gaps
 
+> **A ninth was opened later.** G1–G8 are the August 2026 survey.
+> [G9](g9-transformation.md) was opened on 2026-08-30, after all eight
+> had landed, and asks a question the survey did not: once a model is
+> trustworthy, how does the CODE come from it? Its companion for the
+> non-declarative forms is
+> [docs/design/GENERATION-FORMS.0.md](../design/GENERATION-FORMS.0.md).
+
 | # | Gap | Why it changes what the language is | Design doc |
 |---|-----|-------------------------------------|------------|
 | G1 | A real constraint algebra | Makes "type safety through unification" true beyond five kinds; everything else is downstream | [g1-constraint-algebra.md](g1-constraint-algebra.md) |
@@ -78,6 +85,7 @@ infrastructure around the lattice, not syntax on top of it.
 | G6 | A distribution layer | Versioned, integrity-hashed, pinnable modules; truth must be shareable and tamper-evident | [g6-distribution.md](g6-distribution.md) |
 | G7 | A machine-facing access surface | Query, provenance, patch, MCP — agents consume slices, not whole evaluated blobs | [g7-machine-access.md](g7-machine-access.md) |
 | G8 | Generation, on the total side of the fork | N children from data without copies that drift — and without losing the termination guarantee | [g8-generation.md](g8-generation.md) |
+| G9 | Declarative transformation | The model is the source of the CODE — one model, many generated artifacts, each over part of it | [g9-transformation.md](g9-transformation.md) |
 
 ## What Aontu already has right
 
