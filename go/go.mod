@@ -20,4 +20,5 @@ require (
 	github.com/tabnas/directive/go v0.5.2 // indirect
 	github.com/tabnas/hoover/go v0.3.6 // indirect
 	github.com/tabnas/parser/go v0.9.0 // indirect
+	golang.org/x/mod v0.32.0 // indirect
 )
