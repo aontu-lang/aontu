@@ -217,7 +217,49 @@ func schemaFromConstraint(sc *schemaCtx, path []string,
 // which admits anything -- the safe direction for a document that will
 // be checked again by vet, and the direction the loss report exists to
 // make visible.
+// schemaDeprecationText is the record's text keys -- the ones with
+// nothing in 2020-12 to carry them. DEPRECATION_KEYS in
+// ts/src/val/DeprecateFuncVal.ts is the authority on what a record may
+// hold; this is that list, and a key added there without a JSON Schema
+// home belongs here too.
+var schemaDeprecationText = []string{"msg", "use", "since"}
+
+// DEPRECATION IS AN ANNOTATION, and 2020-12 has one: `deprecated`. The
+// export used to drop the whole record in SILENCE -- no keyword, and
+// no loss line even under --strict -- which is the one thing the
+// verb's own contract says it never does (use-cases/BUGS.md §56).
+//
+// The boolean crosses faithfully. The record's STRINGS have no home in
+// 2020-12, so they are reported as a loss rather than invented into
+// `description`: this exporter emits no `description` anywhere, and
+// quietly making it mean "deprecation note" would be a mapping a
+// consumer cannot undo. Mirrors fromVal in ts/src/jsonschema.ts.
 func schemaFromVal(sc *schemaCtx, path []string, v Val) map[string]any {
+	out := schemaFromValInner(sc, path, v)
+
+	if nil != v {
+		if rec := v.deprecRec(); nil != rec && nil != out {
+			said := []string{}
+			for _, k := range schemaDeprecationText {
+				if _, ok := rec[k]; ok {
+					said = append(said, k)
+				}
+			}
+			if 0 < len(said) {
+				sc.lose(path, "deprecate",
+					"JSON Schema 2020-12 has the `deprecated` flag and no field "+
+						"for what it SAYS, so "+strings.Join(said, "/")+
+						" cannot cross; the schema marks the property deprecated "+
+						"and a consumer must read the model for the reason")
+			}
+			out["deprecated"] = true
+		}
+	}
+
+	return out
+}
+
+func schemaFromValInner(sc *schemaCtx, path []string, v Val) map[string]any {
 	if nil == v { //coverage:ignore a bag never holds a nil child
 		// Defensive. Every caller walks a bag's own children, and a bag
 		// holds Vals; the guard is here so a degenerate parse cannot

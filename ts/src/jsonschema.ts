@@ -238,7 +238,44 @@ function fromConstraint(ctx: Ctx, path: string[], c: any): any {
 // (the marker drops LINES, not branches). Go's twin keeps its `nil ==
 // v` arm because a missing map key there yields a typed nil rather
 // than an absent property.
+// DEPRECATION IS AN ANNOTATION, and 2020-12 has one: `deprecated`.
+// The export used to drop the whole record in SILENCE -- no keyword,
+// and no loss line even under --strict -- which is the one thing the
+// verb's own contract says it never does (use-cases/BUGS.md §56).
+//
+// The boolean crosses faithfully. The record's STRINGS (msg, use,
+// since) have no home in 2020-12, so they are reported as a loss
+// rather than invented into `description`: this exporter emits no
+// `description` anywhere, and quietly making it mean "deprecation
+// note" would be a mapping a consumer cannot undo.
 function fromVal(ctx: Ctx, path: string[], v: any): any {
+  const out = fromValInner(ctx, path, v)
+
+  const dep = v?.deprecation
+  if (null != dep && null != out && 'object' === typeof out) {
+    const said = DEPRECATION_TEXT.filter((k) => null != dep[k])
+    if (0 < said.length) {
+      lose(ctx, path, 'deprecate',
+        'JSON Schema 2020-12 has the `deprecated` flag and no field for ' +
+        'what it SAYS, so ' + said.join('/') + ' cannot cross; the ' +
+        'schema marks the property deprecated and a consumer must read ' +
+        'the model for the reason')
+    }
+    return { ...out, deprecated: true }
+  }
+
+  return out
+}
+
+
+// The record's text keys -- the ones with nothing to carry them.
+// `DEPRECATION_KEYS` in DeprecateFuncVal.ts is the authority on what a
+// record may hold; this is that list, and a key added there without a
+// JSON Schema home belongs here too.
+const DEPRECATION_TEXT = ['msg', 'use', 'since']
+
+
+function fromValInner(ctx: Ctx, path: string[], v: any): any {
   // A preference is its inner value plus a DEFAULT. JSON Schema's
   // `default` is annotation rather than constraint -- it does not
   // validate -- which is exactly what a preference is when something

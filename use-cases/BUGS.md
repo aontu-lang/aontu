@@ -1849,7 +1849,7 @@ value instead of the text the author wrote. The single-block spelling
 (template and keys in one statement) reports roles and sources exactly
 as documented, and the guide uses it.
 
-### 56. `jsonschema` drops `deprecate()` silently, against its own loss contract [minor]
+### 56. `jsonschema` drops `deprecate()` silently, against its own loss contract [FIXED 2026-08-30]
 
 Found 2026-08-29 while building use-cases/14-jsonschema-export, probed
 in both CLIs (which agree). `deprecate(x, meta)` exports as `x` alone:
@@ -1863,6 +1863,32 @@ template crosses as `additionalProperties`/`items` only when it is a
 bare kind; list `length()` exports `minItems`/`maxItems` yet still
 reports a domain-less loss. The case's `check.sh` pins today's
 behaviour; fixing any of these means re-pinning there and in the guide.
+
+Status: FIXED 2026-08-30, in both ports and byte-identically.
+`deprecated: true` is emitted -- 2020-12 has the annotation, so the
+FACT crosses faithfully -- and the record's `msg`/`use`/`since` are
+reported as a loss, because the draft has no field for what a
+deprecation says. They are NOT invented into `description`: this
+exporter emits none anywhere, and quietly redefining it as "the
+deprecation note" is a mapping a consumer cannot undo. An empty record
+(`deprecate(x, {})`) therefore loses nothing and reports nothing.
+
+`--strict` now exits 1 on that loss where it used to pass, which is
+the point: the contract is that nothing is dropped in silence.
+
+Pins: `test/spec/jsonschema.tsv` -- `js-deprecate-flag` (the record
+with nothing said: flag, no loss), `js-deprecate-msg-is-a-loss`, and
+`js-deprecate-all-three-keys`. Re-pinned in
+`docs/how-to/export-json-schema.md` and
+`use-cases/14-jsonschema-export/README.md`, as the entry said fixing
+it would require; the use-case's own eight checks are unchanged and
+still pass.
+
+The other boundaries this entry lists -- `must()` exporting `{}`, a
+constrained spread template, list `length()`'s domain-less loss -- are
+untouched. They were already REPORTED, so they are not the contract
+breach; changing them is a design question about the export surface
+rather than a defect.
 
 ### 57. A recursive spread conjoined with a map does not terminate at depth two, in both ports [critical]
 

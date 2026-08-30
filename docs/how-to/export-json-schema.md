@@ -262,9 +262,10 @@ $ echo $?
 says so. The same split decides list templates: `[&: string]`
 crosses as `items`, a constrained element template does not.
 
-Fourth, `deprecate()` is the one silent drop: the inner constraint
-crosses and the deprecation vanishes, with no `deprecated` keyword
-emitted (2020-12 has one) and no loss line. Write `legacy.aon`:
+Fourth, `deprecate()` crosses as the annotation 2020-12 has for it —
+`deprecated: true` — and what the deprecation SAYS does not, because
+the draft has no field for it. That half is reported. Write
+`legacy.aon`:
 
 <!-- test: file legacy.aon -->
 ```aontu
@@ -278,6 +279,7 @@ $ aontu jsonschema --strict legacy.aon
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "properties": {
     "region": {
+      "deprecated": true,
       "pattern": "^[a-z]{2}-[a-z]+-[0-9]$",
       "type": "string"
     }
@@ -287,11 +289,17 @@ $ aontu jsonschema --strict legacy.aon
   ],
   "type": "object"
 }
+lossy: $.region deprecate: JSON Schema 2020-12 has the `deprecated` flag and no field for what it SAYS, so msg/use/since cannot cross; the schema marks the property deprecated and a consumer must read the model for the reason
+$ echo $?
+1
 ```
 
-Even `--strict` passed: as far as the export is concerned, nothing
-was lost. A consumer of the exported schema learns nothing about the
-deprecation, so announce renames through a channel that reaches them.
+A consumer of the exported schema learns that the property is
+deprecated, which is the part that changes what a client does. It does
+not learn the reason, the replacement or the version — `msg`, `use`
+and `since` have nowhere to go in 2020-12 — so `--strict` reports that
+half and exits 1. Announce renames through a channel that carries the
+text.
 
 ## The refusals
 

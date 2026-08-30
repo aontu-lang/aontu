@@ -7,6 +7,24 @@ which implementation each change affects.
 
 ## Unreleased
 
+### `jsonschema` no longer drops `deprecate()` in silence
+
+Both implementations. `deprecate(x, meta)` exported as `x` alone: no
+`deprecated` keyword although 2020-12 has one, and no loss line even
+under `--strict` — against this verb's own rule that nothing is
+dropped in silence. It was the only silent drop in the export surface.
+
+The flag now crosses, because it is exactly the annotation JSON Schema
+has for this. What the deprecation SAYS — the record's `msg`, `use`
+and `since` — has no field in the draft, so it is reported as a loss
+rather than invented into `description`: the exporter emits no
+`description` anywhere, and quietly redefining it as a deprecation
+note is a mapping a consumer cannot undo. A record that says nothing
+(`deprecate(x, {})`) loses nothing and reports nothing.
+
+`aontu jsonschema --strict` consequently exits 1 on a deprecation
+carrying text where it used to pass. Was `use-cases/BUGS.md` §56.
+
 ### `match` and `filter` answered differently in the two ports
 
 Go only. A list is a POSITIONAL structure, so a peer of another length
