@@ -1690,7 +1690,7 @@ function runReaches(argv) {
         }
     }
     if (3 !== rest.length) {
-        process.stderr.write(`aontu: reaches needs two entities and one file\n${REACHES_HELP}\n`);
+        process.stderr.write(`aontu: reaches needs two node paths and one file\n${REACHES_HELP}\n`);
         return 2;
     }
     let src;

@@ -23,7 +23,6 @@ var funcSet = map[string]bool{
 	"min": true, "max": true, "above": true, "below": true, "neq": true,
 	"re": true, "length": true, "unique": true, "must": true,
 	"deprecate": true,
-	"id":        true,
 	"rel":       true,
 	"acyclic":   true,
 	"inverse":   true,
@@ -121,8 +120,7 @@ var funcArity = map[string][2]int{
 	"must":   {2, 2},
 	// G3 phase 4: the value, and its optional deprecation record.
 	"deprecate": {1, 2},
-	// G4 phase 1: the entity name.
-	"id":      {0, 1},
+	// RELATIONS P1/P2: the relation constraint and the graph atoms.
 	"rel":     {0, 1},
 	"acyclic": {0, 0},
 	"inverse": {1, 1},
@@ -449,16 +447,6 @@ func (f *FuncVal) Unify(peer Val, ctx *Ctx) Val {
 		}
 	}
 
-	// BARE id() HOLDS ITS ANSWER FOR PASS ZERO (deferResolve in TS
-	// FuncBaseVal/IdFuncVal): the pre-resolution snapshot a spread of a
-	// type body takes on the first pass must find the id() still open
-	// and path-dependent, so each child resolves its own name at its
-	// own key. It rides the ordinary args-not-done path, residuating as
-	// any unresolved call does.
-	if "id" == f.name && 0 == len(f.peg) && 0 == ctx.cc {
-		pegdone = false
-	}
-
 	// super() over a DIRECT recursion residual never resolves: the
 	// pending call IS the finite answer (docs/design/SUPER.0.md, the
 	// phase boundary), printing as written and refusing at generation
@@ -495,13 +483,9 @@ func (f *FuncVal) Unify(peer Val, ctx *Ctx) Val {
 			default:
 				out = newConjunct([]Val{f, peer})
 			}
-		} else if result.Dc() == DONE && isTop(peer) && "" == peer.entityName() {
-			// The TOP peer is DROPPED as the unit it is — unless it
-			// carries an identity (G4 phase 1), which is content rather
-			// than the unit: `id(x) & id(y)` resolves both sides to a
-			// top, and taking this shortcut would silently keep one name
-			// and lose the other instead of refusing the pair. Mirrors
-			// the same guard in ts/src/val/FuncBaseVal.ts.
+		} else if result.Dc() == DONE && isTop(peer) {
+			// The TOP peer is DROPPED as the unit it is. Mirrors the
+			// same guard in ts/src/val/FuncBaseVal.ts.
 			out = result
 		} else {
 			ctx.slot = base
@@ -619,7 +603,6 @@ func (f *FuncVal) resolve(ctx *Ctx, base []string, args []Val) Val {
 		}
 		out := clonePath(args[0], cp(base))
 		walkMark(out, true, false, true, false) // copy clears marks
-		walkClearEntity(out)                    // ... and identity (G4 rule 2)
 		return out
 	case "key":
 		return keyFunc(ctx, f, base)
@@ -733,43 +716,6 @@ func (f *FuncVal) resolve(ctx *Ctx, base []string, args []Val) Val {
 		}
 		out.setDeprecRec(rec)
 		return out
-	case "id":
-		// G4 phase 1: the identity mark resolves to the UNIT carrying
-		// the name, so `id(x) & v` is `v` with an identity and the
-		// rider in unite does the stamping. Mirrors IdFuncVal.resolve
-		// in ts/src/val/IdFuncVal.ts.
-		var name string
-		if len(args) == 0 {
-			// NAMED BY THE ENCLOSING KEY, late-bound: the last segment
-			// of the path the value is being driven at, by exactly
-			// key()'s discipline (level 0 -- id() sits AT the field's
-			// value where key() sits one level inside it; see keyFunc
-			// for why the deeper of the stored and driving paths is the
-			// truth). At the document root there is no enclosing key to
-			// be named by, and a key outside D-1's name grammar cannot
-			// be an entity name -- both are id_name.
-			// The stored path is authoritative when it is a real
-			// position (clone stamping gives spread copies one); with
-			// no position at all, the driving context is the truth --
-			// the same rule as TS's `positioned`.
-			here := f.path
-			if 0 == len(here) {
-				here = base
-			}
-			if 0 == len(here) || !idNameOK(here[len(here)-1]) {
-				return makeNilErrFull(ctx, "id_name", f, nil, "id", nil)
-			}
-			name = here[len(here)-1]
-		} else {
-			var ok bool
-			name, ok = idName(args[0])
-			if !ok {
-				return makeNilErrFull(ctx, "id_name", f, nil, "id", nil)
-			}
-		}
-		out := newTop()
-		out.setEntityName(name)
-		return out
 	case "acyclic", "inverse":
 		// RELATIONS.0.md §3.3: the graph atoms, conjoined at the field
 		// whose key is the predicate they govern. Mirrors
@@ -778,9 +724,10 @@ func (f *FuncVal) resolve(ctx *Ctx, base []string, args []Val) Val {
 		invname := ""
 		if "inverse" == f.name {
 			// The mirroring predicate is a NAME -- D-1, spelled bare
-			// or quoted, exactly an id() argument's shape.
+			// or quoted. A relation is a vocabulary term, not an
+			// address.
 			var ok bool
-			invname, ok = idName(args[0])
+			invname, ok = predicateName(args[0])
 			if !ok {
 				return makeNilErrFull(ctx, "inverse_name", f, nil, "inverse", nil)
 			}

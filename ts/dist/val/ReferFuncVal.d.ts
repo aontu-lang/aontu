@@ -3,11 +3,13 @@ import { AontuContext } from '../ctx';
 import { FuncBaseVal } from './FuncBaseVal';
 import { FeatureVal } from './FeatureVal';
 export type Address = {
-    name: string;
-    path: string[];
+    absolute: boolean;
+    up: number;
+    parts: string[];
 };
 export declare function parseAddress(s: string): Address | undefined;
-export declare function findEntity(reg: Map<string, Val> | undefined, addr: Address): {
+export declare function addressPath(addr: Address, at: (string | number)[]): string[] | undefined;
+export declare function findAt(root: Val | undefined, path: string[]): {
     parent?: any;
     key?: string;
     val: Val;

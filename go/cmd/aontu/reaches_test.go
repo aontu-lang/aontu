@@ -32,10 +32,10 @@ func reachesFile(t *testing.T, src string) string {
 	return file
 }
 
-const reachesDoc = `a: id(a) & {dependsOn: [&: refer(), b]}
-b: id(b) & {dependsOn: [&: refer(), c], usedBy: [&: refer(), d]}
-c: id(c) & {}
-d: id(d) & {}
+const reachesDoc = `a: {dependsOn: [&: refer(), "$.b"]}
+b: {dependsOn: [&: refer(), "$.c"], usedBy: [&: refer(), "$.d"]}
+c: {}
+d: {}
 `
 
 func TestReachesAnswersWithThePathAndItsExitCode(t *testing.T) {
@@ -43,41 +43,41 @@ func TestReachesAnswersWithThePathAndItsExitCode(t *testing.T) {
 
 	// THE PATH IS THE ANSWER: "yes" is worth little to an operator
 	// asking what a failure would take out.
-	out, _, code := reachesRun("a", "c", file)
+	out, _, code := reachesRun("$.a", "$.c", file)
 	if 0 != code {
 		t.Fatalf("code %d: %s", code, out)
 	}
 	if !strings.Contains(out, "verdict: reaches") ||
-		!strings.Contains(out, "a -> b -> c") {
+		!strings.Contains(out, "$.a -> $.b -> $.c") {
 		t.Fatalf("path missing: %s", out)
 	}
 
 	// An unreachable pair is a FAILED CHECK, not an error: the question
 	// was answered, and the answer was no.
-	out, _, code = reachesRun("c", "a", file)
-	if 1 != code || !strings.Contains(out, "c does not reach a") {
+	out, _, code = reachesRun("$.c", "$.a", file)
+	if 1 != code || !strings.Contains(out, "$.c does not reach $.a") {
 		t.Fatalf("unreachable = %d: %s", code, out)
 	}
 
 	// --relation follows one relation, which is the difference between
 	// "can this reach that at all" and "can it reach it THIS way".
-	if _, _, code = reachesRun("a", "d", file); 0 != code {
+	if _, _, code = reachesRun("$.a", "$.d", file); 0 != code {
 		t.Fatalf("a reaches d over every edge = %d", code)
 	}
 	if _, _, code = reachesRun(
-		"a", "d", "--relation", "dependsOn", file); 1 != code {
+		"$.a", "$.d", "--relation", "dependsOn", file); 1 != code {
 		t.Fatalf("a reaches d over dependsOn alone = %d", code)
 	}
 
 	// An endpoint that names no entity is a REFUSAL, not a `no`:
 	// answering no would report a typo as a fact about the model.
-	out, _, code = reachesRun("a", "nope", file)
+	out, _, code = reachesRun("$.a", "$.nope", file)
 	if 4 != code || !strings.Contains(out, "refer_unresolved") ||
-		!strings.Contains(out, "known entities: a, b, c, d") {
+		!strings.Contains(out, "nodes with links: $.a, $.b, $.c, $.d") {
 		t.Fatalf("bad endpoint = %d: %s", code, out)
 	}
 
-	out, _, code = reachesRun("a", "c", "--format", "json", file)
+	out, _, code = reachesRun("$.a", "$.c", "--format", "json", file)
 	if 0 != code {
 		t.Fatalf("code %d", code)
 	}
@@ -89,7 +89,7 @@ func TestReachesAnswersWithThePathAndItsExitCode(t *testing.T) {
 		t.Fatalf("envelope missing: %s", out)
 	}
 	path, _ := report["path"].([]any)
-	if 3 != len(path) || "a" != path[0] || "c" != path[2] {
+	if 3 != len(path) || "$.a" != path[0] || "$.c" != path[2] {
 		t.Fatalf("path: %v", report["path"])
 	}
 	if _, ok := report["errors"]; ok {
@@ -98,7 +98,7 @@ func TestReachesAnswersWithThePathAndItsExitCode(t *testing.T) {
 
 	// A document that does not stand up has no graph to ask about.
 	broken := reachesFile(t, "a: 1\na: 2\n")
-	out, _, code = reachesRun("a", "b", broken)
+	out, _, code = reachesRun("$.a", "$.b", broken)
 	if 4 != code || !strings.Contains(out, "scalar_value") {
 		t.Fatalf("broken document = %d: %s", code, out)
 	}
@@ -140,10 +140,10 @@ func TestReachesArgumentErrors(t *testing.T) {
 // `a-nil-root-with-no-collected-error-is-reported-not-thrown` in
 // ts/test/cli.test.ts.
 func TestANilRootWithNoCollectedErrorIsReportedNotPanicked(t *testing.T) {
-	file := reachesFile(t, "&: id(root)\nb: id(b) & {n: 1}\n")
+	file := reachesFile(t, "&:\n")
 	for _, args := range [][]string{
 		{"relations", file},
-		{"reaches", "b", "b", file},
+		{"reaches", "$.b", "$.b", file},
 		{"jsonschema", file},
 		{"trim", "--check", file},
 	} {
@@ -154,7 +154,7 @@ func TestANilRootWithNoCollectedErrorIsReportedNotPanicked(t *testing.T) {
 		}
 		// out OR err: jsonschema puts its refusal on stderr, because
 		// stdout is the schema's stream.
-		if !strings.Contains(out.String()+errw.String(), "id_spread") {
+		if !strings.Contains(out.String()+errw.String(), "elided_value") {
 			t.Fatalf("%v did not name the refusal: %s%s",
 				args, out.String(), errw.String())
 		}

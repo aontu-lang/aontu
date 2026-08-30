@@ -32,7 +32,7 @@ func TestReachUnparseableSource(t *testing.T) {
 // this covers `failureFinding`'s fallback itself, which lives in this
 // package and which a cmd-package test does not reach.
 func TestANilRootWithNoCollectedErrorBuildsItsFindingFromTheRoot(t *testing.T) {
-	src := "&: id(root)\nb: id(b) & {n: 1}\n"
+	src := "&:\n"
 	for name, r := range map[string][]VetFinding{
 		"reach":      New().Reach(src, "b", "b", nil).Errors,
 		"relation":   New().RelationCheck(src).Errors,
@@ -41,8 +41,8 @@ func TestANilRootWithNoCollectedErrorBuildsItsFindingFromTheRoot(t *testing.T) {
 		if 1 != len(r) {
 			t.Fatalf("%s: errors %v", name, r)
 		}
-		if "id_spread" != r[0].Code {
-			t.Fatalf("%s: code %q, want id_spread", name, r[0].Code)
+		if "elided_value" != r[0].Code {
+			t.Fatalf("%s: code %q, want elided_value", name, r[0].Code)
 		}
 	}
 }

@@ -1,6 +1,6 @@
 /* Copyright (c) 2025 Richard Rodger, MIT License */
 
-// REACHABILITY OVER THE ENTITY GRAPH (the review's finding J,
+// REACHABILITY OVER THE LINK GRAPH (the review's finding J,
 // use-cases/REVIEW.md): "ship a transitive `reaches(a, b)` check verb".
 //
 // `relations` answers questions about the edge set as a whole --- is it
@@ -41,7 +41,7 @@ export type ReachVerdict = 'reaches' | 'unreachable' | 'error'
 export type ReachReport = {
   verdict: ReachVerdict
 
-  // The path found, as entity names from the source to the
+  // The path found, as `$.dotted` node paths from the source to the
   // destination, both included. Present ONLY on `reaches`: a path is
   // the evidence for the answer, and there is no evidence for a
   // negative one.
@@ -49,7 +49,7 @@ export type ReachReport = {
 
   // WHY the graph could not be looked at, in vet's finding shape (the
   // review's finding F): a document that does not stand up, or an
-  // endpoint that names no entity. Present ONLY on `error`.
+  // endpoint that names no node. Present ONLY on `error`.
   errors?: VetFinding[]
 }
 
@@ -66,14 +66,37 @@ export type ReachOptions = {
 }
 
 
-// The entity an address names --- everything before the first dot. A
-// link into `svc_auth.ports.http` reaches `svc_auth`: reachability is
-// between ENTITIES, and the path inside one says which part of it the
-// link arrives at. Same rule as relation.ts's entityOf, and it has to
-// be, or the two verbs would disagree about what an edge connects.
-function entityOf(addr: string): string {
-  const dot = addr.indexOf('.')
-  return dot < 0 ? addr : addr.slice(0, dot)
+// The segments a `$.dotted` endpoint spells, or undefined when it is
+// not one. Reachability is between TREE POSITIONS (ADR-013), so an
+// endpoint is a path and nothing else --- the same spelling the report
+// prints back.
+export function parseNodePath(s: string): string[] | undefined {
+  if ('$' === s) {
+    return []
+  }
+  if (!s.startsWith('$.')) {
+    return undefined
+  }
+  const parts = s.slice(2).split('.')
+  return parts.every((p) => /^[A-Za-z0-9_-]+$/.test(p)) ? parts : undefined
+}
+
+
+// Whether a path names a node of the evaluated tree. An endpoint that
+// exists but has no edges is a perfectly good question with the answer
+// `unreachable`; only one that names NOTHING is an error.
+function nodeAt(root: any, path: string[]): boolean {
+  let node: any = root
+  for (const seg of path) {
+    if (true !== node?.isMap && true !== node?.isList) {
+      return false
+    }
+    node = node.peg[seg]
+    if (null == node) {
+      return false
+    }
+  }
+  return null != node
 }
 
 
@@ -83,14 +106,14 @@ function endpointFinding(name: string, known: string[]): VetFinding {
     class: 'reference',
     severity: 'error',
     path: '$',
-    // NOT "unreachable". An endpoint that names no entity is a
-    // question the document cannot answer, and answering it `no` would
-    // report a typo as a fact about the model --- the fail-open shape
-    // this review exists to retire.
-    message: `${name} names no entity in this document.`,
+    // NOT "unreachable". An endpoint that names no node is a question
+    // the document cannot answer, and answering it `no` would report a
+    // typo as a fact about the model --- the fail-open shape this
+    // review exists to retire.
+    message: `${name} names no node in this document.`,
     sites: [],
     ...(0 === known.length ? {} : {
-      note: 'known entities: ' + known.join(', '),
+      note: 'nodes with links: ' + known.join(', '),
     }),
   }
 }
@@ -117,12 +140,19 @@ export function reachCheck(
   }
 
   const graph = graphOf(root)
-  const known = graph.entities.map((e) => e.id).sort(cmpCodePoint)
-  const missing = [from, to].filter((n) => !known.includes(n))
+  // The nodes the graph actually touches, for the error note: a
+  // document has every path in it, and listing them all would drown the
+  // one fact a mistyped endpoint needs.
+  const linked = [...new Set(graph.edges
+    .flatMap((e) => [e.from, e.to]))].sort(cmpCodePoint)
+  const missing = [from, to].filter((n) => {
+    const parts = parseNodePath(n)
+    return undefined === parts || !nodeAt(root, parts)
+  })
   if (0 < missing.length) {
     return {
       verdict: 'error',
-      errors: missing.map((n) => endpointFinding(n, known)),
+      errors: missing.map((n) => endpointFinding(n, linked)),
     }
   }
 
@@ -131,12 +161,11 @@ export function reachCheck(
   // both ports.
   const succ = new Map<string, string[]>()
   for (const e of graph.edges) {
-    if ('' === e.from ||
-      (null != options.relation && options.relation !== e.key)) {
+    if (null != options.relation && options.relation !== e.key) {
       continue
     }
     const list = succ.get(e.from)
-    const dest = entityOf(e.to)
+    const dest = e.to
     if (undefined === list) {
       succ.set(e.from, [dest])
     }

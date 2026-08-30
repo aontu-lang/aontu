@@ -39,6 +39,55 @@ type GraphAtomVal struct {
 	held Val
 }
 
+// predicateNameOK is the D-1 relation-predicate grammar
+// (docs/design/RELATIONS.0.md §3.2): a letter or `_`, then letters,
+// digits, `_` or `-`. Entity names are gone with ADR-013; PREDICATE
+// names are not -- a relation is a vocabulary term, not an address.
+// Written as an explicit loop rather than a regexp so the two ports
+// cannot drift on a character class. Mirrors PREDICATE_NAME in
+// ts/src/val/ReferFuncVal.ts.
+func predicateNameOK(s string) bool {
+	if "" == s {
+		return false
+	}
+	for i, r := range s {
+		switch {
+		case 'a' <= r && r <= 'z':
+		case 'A' <= r && r <= 'Z':
+		case '_' == r:
+		case '0' <= r && r <= '9':
+			if 0 == i {
+				return false
+			}
+		case '-' == r:
+			if 0 == i {
+				return false
+			}
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+// predicateName is the predicate name an argument spells, or ok=false
+// when it does not spell one. A bare `dependedOnBy` parses as a string,
+// as does `"dep-on"`; anything else is not a name.
+func predicateName(v Val) (string, bool) {
+	sv, ok := v.(*ScalarVal)
+	if !ok || KindString != sv.kind {
+		return "", false
+	}
+	s, ok := sv.peg.(string)
+	if !ok { //coverage:ignore a string-kind scalar always holds a string
+		return "", false
+	}
+	if !predicateNameOK(s) {
+		return "", false
+	}
+	return s, true
+}
+
 func newGraphAtom(akind, invname string, held Val) *GraphAtomVal {
 	g := &GraphAtomVal{akind: akind, invname: invname, held: held}
 	g.sp = unsited
@@ -65,7 +114,7 @@ func (g *GraphAtomVal) register(ctx *Ctx) {
 		return
 	}
 	seg := g.path[len(g.path)-1]
-	if !idNameOK(seg) {
+	if !predicateNameOK(seg) {
 		return
 	}
 	if nil == ctx.reldecls {

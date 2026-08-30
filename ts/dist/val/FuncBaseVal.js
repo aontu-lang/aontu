@@ -206,12 +206,8 @@ class FuncBaseVal extends FeatureVal_1.FeatureVal {
                 if (pegdone && !this.deferResolve(ctx, newpeg)) {
                     const resolved = this.resolve(ctx, newpeg);
                     // console.log('FUNC-RESOLVED', ctx.cc, resolved?.canon)
-                    // The TOP peer is DROPPED as the unit it is — unless it
-                    // carries an identity (G4 phase 1), which is content rather
-                    // than the unit: `id(x) & id(y)` resolves both sides to a
-                    // top, and taking this shortcut would silently keep one
-                    // name and lose the other instead of refusing the pair.
-                    out = resolved.done && peer.isTop && null == peer.entity ? resolved :
+                    // The TOP peer is DROPPED as the unit it is.
+                    out = resolved.done && peer.isTop ? resolved :
                         (0, unify_1.unite)(te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'PEG') }) : ctx, resolved, peer, 'func-' + this.funcname() + '/' + this.id);
                     (0, utility_1.propagateMarks)(this, out);
                     // TODO: make should handle this using ctx?
@@ -305,11 +301,10 @@ class FuncBaseVal extends FeatureVal_1.FeatureVal {
     }
     // A function may hold its resolution for a later pass even with its
     // arguments settled -- it then rides the ordinary args-not-done
-    // path, residuating as any unresolved call does. Bare id() defers on
-    // marks that only exist after the first pass (IdFuncVal); super()
-    // defers on a recursion residual argument (SuperFuncVal), which is
-    // why the DRIVEN arguments are passed: this.peg still holds the
-    // undriven originals at the decision point.
+    // path, residuating as any unresolved call does. super() defers on a
+    // recursion residual argument (SuperFuncVal), which is why the DRIVEN
+    // arguments are passed: this.peg still holds the undriven originals
+    // at the decision point.
     deferResolve(_ctx, _args) {
         return false;
     }

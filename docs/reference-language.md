@@ -34,8 +34,8 @@ the [Explanation](explanation.md).
 - [Functions](#functions)
 - [Arithmetic: `add` `sub` `mul` `div` `mod` `rem`](#arithmetic-add-sub-mul-div-mod-rem)
 - [Aggregating: `sum` `least` `greatest`](#aggregating-sum-least-greatest)
-- [Identity: `id(name)`](#identity-idname)
-- [Entity references: `refer(t?)`](#entity-references-refert)
+- [Linking: the tree is the namespace](#linking-the-tree-is-the-namespace)
+- [Checked links: `refer(t?)`](#checked-links-refert)
   - [Declared relations](#declared-relations)
 - [Marks: `type` and `hide`](#marks-type-and-hide)
 - [Closed values: `close` / `open`](#closed-values-close--open)
@@ -1312,8 +1312,7 @@ atoms, whose meaning is defined in
 | `open(x)`   | reverse a `close`                             | `open(close({x:1})) & {y:2}`→`{x:1,y:2}` |
 | `move(p)`   | resolve reference `p`, dropping unresolved optional keys | `m:{x?:number,y:Y} n:move($.m)`→`n:{y:"Y"}` |
 | `path(p)`   | resolve a path expression (function form of a reference) | `path(x.a)` (relative), `path($.z.x.a)` (absolute) |
-| `id(name)`  | declare the enclosing value an **entity** called `name`; every node in the evaluation with that name is unified with every other. See [Identity](#identity-idname) | `services: auth: id(svc_auth) & {port:8080}` |
-| `refer(t?)` | constrain a string field to be an **entity address** that resolves; `t`, if given, is unified into the target. The field keeps the address. See [Entity references](#entity-references-refert) | `dependsOn: [&: refer($.std.Service), svc_auth]` |
+| `refer(t?)` | constrain a string field to be a **tree address** that resolves; `t`, if given, is unified into the target. The field keeps the address. See [Checked links](#checked-links-refert) | `dependsOn: [&: refer($.std.Service), "$.services.auth"]` |
 | `pack(d, t)` | one keyed child per child of `d`, each of them `t` cloned at that destination. Keys are the strings of a list, or the keys of a map. See [Generating children](#generating-children-pack-and-each) | `deploy: pack($.names, {replicas:*2\|integer})` |
 | `each(d, t?)` | one list element per child of `d`, each met with `t`. Source order for a list, sorted-key order for a map | `open: each($.ports, integer)` |
 | `filter(d, c)` | the children of `d` that ALREADY satisfy `c` — the meet with `c` changes nothing. Keys kept for a map, order for a list; the rest are dropped, not refused. See [Selecting](#selecting-filter-and-match) | `debugged: filter($.services, {debug:true})` |
@@ -1561,163 +1560,66 @@ function, and this language has no user functions to give it. These
 three are total because the bag is finite, the operation is fixed, and
 each child is visited once — the same argument that makes `each` safe.
 
-## Identity: `id(name)`
+## Linking: the tree is the namespace
 
-A document is a tree, and its only names are tree paths. `id(name)`
-adds a second, **location-independent** name: it declares that the
-value it is written on IS the entity called `name`.
+A document is a tree, and its only names are tree paths. That is
+deliberate, and it is the whole of the addressing story: there is no
+second namespace, no registry of declared names, and nothing a document
+can say that makes two positions one node.
 
+Two consequences follow, and both are what the design is for.
+
+**A model can be instantiated more than once.** Mount the same file at
+two paths and you get two independent nodes, each with its own values:
+
+<!-- test: scenario reuse -->
+<!-- test: file model.aon -->
 ```aon
-services: auth: id(svc_auth) & {
-  kind: service
-  port: 8080
-}
+auth: { port: 80, region: *"eu" | string }
+billing: { dep: refer() & "..auth" }
 ```
-
-```json
-{"services": {"auth": {"kind": "service", "port": 8080}}}
-```
-
-**Every node in one evaluation carrying the same id is unified with
-every other.** Declaring two nodes the same entity *means* unifying
-them, so the two descriptions meet and any contradiction between them
-is an ordinary located error. Take a catalog file, `catalog.aon`:
-
-<!-- test: scenario id-merge -->
-<!-- test: file catalog.aon -->
-```aon
-catalog: payments: id(svc_payments) & { owner: "team-pay", tier: 1 }
-```
-
-and a deployment file, `deploy.aon`:
-
-<!-- test: file deploy.aon -->
-```aon
-deploy: eu1: payments: id(svc_payments) & { replicas: 3, tier: 2 }
-```
-
-with an entry file, `main.aon`, that loads both:
 
 <!-- test: file main.aon -->
 ```aon
-@"catalog.aon"
-@"deploy.aon"
+tenantA: { m: @"model.aon" }
+tenantB: { m: @"model.aon", m: { auth: { region: "us" } } }
 ```
 
-Without the ids these two files evaluate together in silence —
-unification is path-aligned, so `tier:1` and `tier:2` are never
-brought into contact and a consumer of `catalog.payments.tier` reads
-a "fact" the deploy layout contradicts. With them, the run fails at
-the two `tier` sites:
+Each instance resolves its own internal link inside itself, and the
+per-tenant override is an ordinary narrowing rather than a
+contradiction. A global name on `auth` would have made the two
+instances one entity and the second override an error — which is why
+there are no global names.
 
-<!-- test: run -->
-```sh
-$ aontu main.aon
-[aontu/scalar_value]: Cannot unify values at path $.deploy.eu1.payments.tier
-...
-$ echo $?
-1
-```
-
-Identity links that cannot fail are how `owl:sameAs` produced silent
-corruption at web scale; unification inverts that.
-
-**The tree stays a tree.** After merging, *every* declared position
-holds the merged value, and generation emits it at each path —
-duplication, exactly as references generate today. Nothing is aliased
-or shared, and the output shape is unchanged:
+**Bringing two descriptions into contact is something you write.**
+Unification is path-aligned, so a catalog file and a deploy file that
+describe the same real-world thing at different paths do not meet on
+their own. Point one at the other and they do:
 
 ```aon
-a: id(x) & {k:1}
-b: id(x) & {j:2}
+catalog: payments: { owner: "team-pay", tier: 1 }
+deploy: eu1: payments: $.catalog.payments & { replicas: 3, tier: 2 }
 ```
 
-```json
-{"a":{"j":2,"k":1},"b":{"j":2,"k":1}}
-```
+The two `tier` values now meet, and disagree, so the run fails at the
+site that says so. A reference is directional — `deploy` is narrowed,
+`catalog` is not — and that directionality is what keeps two unrelated
+models from silently merging because they happened to choose the same
+word.
 
-A node with an `id()` is an independent entity; a node without one is
-a component of its nearest identified ancestor, addressable only
-relative to it.
+## Checked links: `refer(t?)`
 
-### Names
-
-A name is one or more letters, digits, `_`, `-` or `/`, and **no
-dots** — a dot separates an entity name from a path inside that entity,
-so a dotted name would be ambiguous. `/` parses as bare text and may be
-written unquoted; `-` is not a bare-text character, so a name
-containing one must be quoted:
-
-```
-id(svc_auth)     id(a_1)     id("team-pay")     id("svc.auth") → error
-```
-
-Anything that is not a string — a number, a boolean, a map — is not a
-name (`id_name`). Two *different* names on one node is a contradiction,
-not a merge: one node cannot be two entities (`id_conflict`).
-
-### Canon and the hash
-
-Canon renders the identity back as the conjunct you wrote, so canon
-reparses to the same entity and re-reading is idempotent:
-
-```
-a: id(x) & {k:1}   →  canon  {"a":id("x")&{"k":1}}
-```
-
-This deliberately differs from the `type`/`hide` marks, which canon
-drops: identity is semantic content, not presentation, and the
-[canon-hash](#canonical-form) must see it — two documents that
-disagree about which entity a node is do not mean the same thing.
-
-### What does not carry identity
-
-Three rules keep identity from leaking into values that merely look
-like an entity:
-
-1. **A reference's clone does not carry the id.** `b: $.a & {j:2}`
-   constrains `b`, and does not push `j:2` back into `a`.
-2. **`copy()` clears the id**, as it clears the marks — a copy of an
-   entity is a second value shaped like it.
-3. **A spread template may not stamp a constant id on every child.**
-   `{&: id(svc_thing), a:{}, b:{}}` would declare every child to be one
-   entity; it is refused (`id_spread`). To name each child, use a
-   path-dependent argument — in a map template applied at the child
-   position that is `key(0)`, the child's own key:
-
-   ```aon
-   services: {
-     &: id(key(0))
-     auth:    { port: 8080 }
-     billing: { port: 8081 }
-   }
-   ```
-
-   Plain `key()` reads one level *up*, so in a template it names the
-   bag and every child collides on that one name. That is a defined
-   result rather than a refusal: rule 3 is a syntactic guard on
-   constants, and no parse-time check can know what a computed name
-   will resolve to.
-
-Because every position holds the one merged value, a mark on one
-declaration reaches all of them: `a: hide(id(x) & {k:1})` hides the
-entity at every declared position, not only where the wrapper was
-written.
-
-Identity is scoped to **one evaluated document-set**. There is no
-cross-evaluation registry, and ids do not embed versions.
-
-## Entity references: `refer(t?)`
-
-An [identity](#identity-idname) gives a node a name; `refer` is how one
-part of a document *points at* another by that name and has the
-language check it.
+A reference (`$.a.b`) resolves by *cloning* its target into place, so
+`dependsOn: [$.services.auth]` generates a full copy of the auth node
+where the author meant a name. A bare string generates the name and
+checks nothing. `refer` is the third option: the field keeps the
+address string, and the language checks it.
 
 ```aon
 services: {
-  auth: id(svc_auth) & { kind: service, port: 8080 }
-  billing: id(svc_billing) & {
-    dependsOn: [&: refer({kind: service}), svc_auth]
+  auth: { kind: service, port: 8080 }
+  billing: {
+    dependsOn: [&: refer({kind: service}), "$.services.auth"]
   }
 }
 ```
@@ -1725,62 +1627,64 @@ services: {
 ```json
 {"services": {
    "auth":    {"kind": "service", "port": 8080},
-   "billing": {"dependsOn": ["svc_auth"]}}}
+   "billing": {"dependsOn": ["$.services.auth"]}}}
 ```
 
 The list spread applies `refer` to every element, so `dependsOn`
-generates `["svc_auth"]` — a list of **names**, checked. Neither of the
-two things you could write before does that: a bare string checks
-nothing, and `dependsOn: [$.services.auth]` embeds a full copy of the
-auth node, because a reference resolves by cloning its target.
+generates a list of **addresses**, checked.
 
 `refer(t)` says three things about the string it constrains:
 
-1. It must be an **entity address**.
+1. It must be a **tree address**.
 2. The address must **resolve** in this evaluation.
 3. If `t` is given, `t` is unified **into** the target.
 
 ### Addresses
 
-An address is an entity name, optionally followed by a dot-separated
-path *inside* that entity:
+An address is a path, in the two spellings a reference already uses:
 
 ```
-svc_auth              the entity
-svc_auth.ports.http   a node inside it
+$.services.auth   from the document root
+.auth             beside the link itself
+..auth            one level up from there
 ```
 
-The two addressing schemes divide cleanly: `$.a.b` answers *where* — a
-tree location — and an address answers *what*. Beneath entity
-granularity the tree is authoritative again. The no-dots rule on ids is
-what makes the split unambiguous. Only a string can be an address, and
-a malformed one is refused at once (`refer_address`): no later pass can
-repair it.
+`$.a.b` is absolute. A leading `.` reads the link's own sibling scope,
+and every further dot is one step up — the same reduction a relative
+reference performs. `$` alone is not an address: the whole document has
+no enclosing position, so nothing could be written back into it.
+
+Relative addressing is what makes a model reusable. A link written
+`..auth` means a different node from each position the model is mounted
+at, so the same file instantiated twice gives two self-contained
+instances.
+
+Only a string can be an address, and a malformed one is refused at once
+(`refer_address`): no later pass can repair it. A relative address that
+climbs off the top of the tree is refused the same way — no later pass
+can grow a tree upwards.
 
 ### Existence is decided, not deferred
 
-A `refer` **residuates**: a target may be declared by a later conjunct,
-include or spread, so the constraint retries each pass exactly as a
-forward reference does. But within one evaluation the document-set is
-fixed, so existence *is* decidable — an address that still names
-nothing at the last pass is a located error (`refer_unresolved`), not
-something to check later.
+A `refer` **residuates**: a target may be introduced by a later
+conjunct, include or spread, so the constraint retries each pass
+exactly as a forward reference does. But within one evaluation the
+document-set is fixed, so existence *is* decidable — an address that
+still names nothing at the last pass is a located error
+(`refer_unresolved`), not something to check later.
 
 ### Constraints flow through links
 
 `refer(t)` does not merely *test* the target against `t`; it unifies
-`t` into it, and into every position of that entity:
+`t` into it, at the position the address names:
 
 ```aon
-a: id(x) & {p:1}
-c: id(x) & {q:2}
-b: refer({r:3}) & "x"
+a: {p:1}
+b: refer({r:3}) & "$.a"
 ```
 
 ```json
-{"a": {"p":1, "q":2, "r":3},
- "c": {"p":1, "q":2, "r":3},
- "b": "x"}
+{"a": {"p":1, "r":3}, "b": "$.a"}
 ```
 
 Referring to something as a `Service` makes it one — and if it cannot
@@ -1790,7 +1694,7 @@ lattice guarantee is that more information never falsifies what has
 already been observed.
 
 Constraints written *alongside* a refer constrain the **link**, not the
-target: `refer() & string & re("^svc-") & "svc_auth"` checks the
+target: `refer() & string & re("auth$") & "$.services.auth"` checks the
 address itself. They are held until the address arrives, and then meet
 it.
 
@@ -1805,12 +1709,12 @@ one set of them ships with the engine. Write this as `system.aon`:
 @"std/system"
 
 services: {
-  auth: id(svc_auth) & $.std.Service & {
+  auth: $.std.Service & {
     ports: { http: { protocol: http } }
-    dependedOnBy: rel() & [svc_billing]
+    dependedOnBy: rel() & ["$.services.billing"]
   }
-  billing: id(svc_billing) & $.std.Service & {
-    dependsOn: rel($.std.Service) & inverse(dependedOnBy) & acyclic() & [svc_auth]
+  billing: $.std.Service & {
+    dependsOn: rel($.std.Service) & inverse(dependedOnBy) & acyclic() & ["$.services.auth"]
   }
 }
 ```
@@ -1822,7 +1726,7 @@ $ aontu system.aon
   "services": {
     "auth": {
       "dependedOnBy": [
-        "svc_billing"
+        "$.services.billing"
       ],
       "kind": "service",
 ...
@@ -1867,7 +1771,7 @@ language knows these names.
 ### Declared relations
 
 A relation is declared AT ITS FIELD: `rel(t)` says the field's strings
-are entity addresses and flows `t` into every target, and the two
+are tree addresses and flows `t` into every target, and the two
 GRAPH ATOMS declare the properties that hold over the whole edge set:
 
 ```aon

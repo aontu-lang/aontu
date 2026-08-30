@@ -59,13 +59,6 @@ type RelationReport struct {
 }
 
 // declaredRelation is one declared relation, as the document spells it.
-func entityOfAddr(addr string) string {
-	if i := strings.IndexByte(addr, '.'); 0 <= i {
-		return addr[:i]
-	}
-	return addr
-}
-
 func findCycle(start string, succ map[string][]string, done map[string]bool) []string {
 	stack := []string{}
 	onStack := map[string]bool{}
@@ -117,7 +110,7 @@ func relationFindings(decls map[string]*relDecl, graph Graph) []RelationFinding 
 			continue
 		}
 		byRelation[e.Key] = append(byRelation[e.Key], e)
-		pairs[e.Key+" "+e.From+" "+entityOfAddr(e.To)] = true
+		pairs[e.Key+" "+e.From+" "+e.To] = true
 	}
 
 	// Predicates in sorted order, so the findings arrive the same way
@@ -135,7 +128,7 @@ func relationFindings(decls map[string]*relDecl, graph Graph) []RelationFinding 
 		if decl.acyclic {
 			succ := map[string][]string{}
 			for _, e := range mine {
-				succ[e.From] = append(succ[e.From], entityOfAddr(e.To))
+				succ[e.From] = append(succ[e.From], e.To)
 			}
 			roots := make([]string, 0, len(succ))
 			for from, list := range succ {
@@ -179,7 +172,7 @@ func relationFindings(decls map[string]*relDecl, graph Graph) []RelationFinding 
 		sort.Strings(inverses)
 		for _, inv := range inverses {
 			for _, e := range mine {
-				to := entityOfAddr(e.To)
+				to := e.To
 				if !pairs[inv+" "+to+" "+e.From] {
 					findings = append(findings, RelationFinding{
 						Code:     "relation_inverse_missing",

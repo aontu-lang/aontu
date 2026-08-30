@@ -11,4 +11,5 @@ export type ReachOptions = {
     trust?: TrustOptions;
     relation?: string;
 };
+export declare function parseNodePath(s: string): string[] | undefined;
 export declare function reachCheck(src: string, from: string, to: string, opts?: ReachOptions): ReachReport;

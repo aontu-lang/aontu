@@ -44,57 +44,107 @@ import { top } from './top'
 import { propagateMarks, walk } from '../utility'
 
 
-// A segment of the path INSIDE an entity. The entity name's own
-// grammar (no dots) is what makes the split unambiguous: everything
-// before the first dot names the entity, everything after walks its
-// value.
+// A segment of a tree path: a map key or a list index. The same
+// grammar the rest of the engine spells keys with, and a leading digit
+// is legitimate because a list index is one.
 const ADDR_SEGMENT = /^[A-Za-z0-9_-]+$/
-// The entity half of an address is a D-1 name; the segments after the
-// first dot are keys and list indices, so a leading digit is
-// legitimate THERE and only there.
-const ADDR_NAME = /^[_a-zA-Z][-_a-zA-Z0-9]*$/
+// A RELATION PREDICATE is still a declared D-1 name
+// (docs/design/RELATIONS.0.md §3.2). Entity names are gone with
+// ADR-013; predicate names are not -- a relation is a vocabulary term,
+// not an address.
+const PREDICATE_NAME = /^[_a-zA-Z][-_a-zA-Z0-9]*$/
 
 
 export type Address = {
-  name: string
-  path: string[]
+  // Anchored at the document root (`$.a.b`) rather than at the link's
+  // own position (`.a.b`).
+  absolute: boolean
+  // Parent steps, for a relative address that climbs (`..a` is one).
+  up: number
+  // The written segments, below the anchor.
+  parts: string[]
 }
 
 
 // The address a string spells, or undefined when it does not spell
-// one. `svc_auth` is the entity; `svc_auth.ports.http` is a node
-// inside it — the two addressing schemes reconciled: `$.a.b` answers
-// WHERE, an address answers WHAT, and beneath entity granularity the
-// tree is authoritative again.
+// one. An address is a TREE PATH, in exactly the two spellings a
+// reference uses: `$.services.auth` from the root, `.auth` from the
+// link's own sibling scope. The tree is the only namespace -- which is
+// what makes a model instantiable more than once, each instance
+// resolving its relative links inside itself (ADR-013).
 export function parseAddress(s: string): Address | undefined {
-  const parts = s.split('.')
-  if (!ADDR_NAME.test(parts[0])) {
+  if ('$' === s) {
+    // The whole document is not a relation's target: an address must
+    // name something with a position to be written back into.
     return undefined
   }
-  for (const seg of parts.slice(1)) {
+  if (s.startsWith('$.')) {
+    const parts = s.slice(2).split('.')
+    for (const seg of parts) {
+      if (!ADDR_SEGMENT.test(seg)) {
+        return undefined
+      }
+    }
+    return { absolute: true, up: 0, parts }
+  }
+  if (!s.startsWith('.')) {
+    return undefined
+  }
+  // A relative address: the leading dot anchors it at the sibling
+  // scope, and every FURTHER leading dot is one step up from there --
+  // the same reduction a relative reference's `.` segments perform.
+  let up = 0
+  let rest = s.slice(1)
+  while (rest.startsWith('.')) {
+    up++
+    rest = rest.slice(1)
+  }
+  if ('' === rest) {
+    return undefined
+  }
+  const parts = rest.split('.')
+  for (const seg of parts) {
     if (!ADDR_SEGMENT.test(seg)) {
       return undefined
     }
   }
-  return { name: parts[0], path: parts.slice(1) }
+  return { absolute: false, up, parts }
 }
 
 
-// The value an address names, or undefined when the evaluation does
-// not (yet) have one. Pending is not failure: an entity may be
-// declared by a later conjunct, include or spread, so `refer`
+// The tree path an address resolves to from `at` -- the position of
+// the link itself -- or undefined when a relative address climbs off
+// the top of the tree.
+export function addressPath(
+  addr: Address, at: (string | number)[]
+): string[] | undefined {
+  if (addr.absolute) {
+    return addr.parts
+  }
+  // The SIBLING scope: drop the link's own key, then take the parent
+  // steps. A link at `$.a.b.dep` spelling `.other` means `$.a.b.other`.
+  const cut = at.length - 1 - addr.up
+  if (cut < 0) {
+    return undefined
+  }
+  return at.slice(0, cut).map(String).concat(addr.parts)
+}
+
+
+// The node a tree path names, with the parent and key that hold it so
+// a type flow can be written back. Pending is not failure: the target
+// may be introduced by a later conjunct, include or spread, so `refer`
 // residuates exactly as a forward reference does.
-export function findEntity(
-  reg: Map<string, Val> | undefined, addr: Address
+export function findAt(
+  root: Val | undefined, path: string[]
 ): { parent?: any, key?: string, val: Val } | undefined {
-  const rep: any = reg?.get(addr.name)
-  if (null == rep) {
+  if (null == root || 0 === path.length) {
     return undefined
   }
   let parent: any = undefined
   let key: string | undefined = undefined
-  let val: any = rep
-  for (const seg of addr.path) {
+  let val: any = root
+  for (const seg of path) {
     if (true !== val?.isMap && true !== val?.isList) {
       return undefined
     }
@@ -179,7 +229,7 @@ class ReferVal extends FeatureVal {
   // met, the constraints it holds — TRAVELS with the clone. A spread
   // template holds the FUNCTION, so a template never needs this; a
   // REFERENCE to a value that already contains a resolved link does
-  // (`z: id(a) & {u: refer() & "a"}` then `s: $.z`). Without it the
+  // (`z: {u: refer() & "$.a"}` then `s: $.z`). Without it the
   // clone came back as a bare `refer()` — the address silently
   // dropped, and the copied link resolving to nothing.
   //
@@ -286,11 +336,18 @@ class ReferVal extends FeatureVal {
       this.dc = 0
       return this
     }
-    const reg: Map<string, Val> | undefined = (ctx as any)?.entities
-    const found = findEntity(reg, this.addr)
+    // The address is a TREE PATH, resolved from the link's own
+    // position for a relative one. A climb off the top of the tree can
+    // never be repaired by a later pass, so it refuses at once.
+    const target = addressPath(this.addr, this.path)
+    if (undefined === target) {
+      return makeNilErr(ctx, this.unresolvedcode, this, undefined, 'refer',
+        { addr: this.addrsrc as string })
+    }
+    const found = findAt(ctx?.root, target)
     if (undefined === found) {
-      // PENDING, not failed — until the last pass. An entity may be
-      // declared by a later conjunct, include or spread, so `refer`
+      // PENDING, not failed — until the last pass. The target may be
+      // introduced by a later conjunct, include or spread, so `refer`
       // residuates as a forward reference does; but within ONE
       // evaluation the document-set is fixed, so existence IS
       // decidable, and the final pass is where it is decided. A
@@ -304,29 +361,31 @@ class ReferVal extends FeatureVal {
       return this
     }
 
-    // THE FLOW. `t` is unified into the target and written back, so
-    // every position of the entity carries it after the pass's
-    // identity merge — the same channel the merge itself uses.
+    // THE FLOW. `t` is unified into the target and written back at the
+    // target's own position — one position, because the tree is the
+    // namespace and a path names exactly one node.
     //
-    // RE-ENTRANT ONLY ONCE PER ENTITY (use-cases/BUGS.md §19). Uniting
+    // RE-ENTRANT ONLY ONCE PER TARGET (use-cases/BUGS.md §19). Uniting
     // the target drives the target's OWN subtree, and if the target
     // links back — `a` typed-refers `b`, `b` typed-refers `a`, the
-    // shape every inverse pair has — that drives this entity again,
+    // shape every inverse pair has — that drives this target again,
     // and the two flow into each other until the depth budget or the
     // host stack ends it. `unify_cycle` on a model whose meet plainly
     // converges: `{k:1}` meeting `{k:1}` is a fixpoint, and the
     // evaluator never got far enough to notice.
     //
-    // The guard is the set of entities a flow is currently inside, on
-    // the context. A flow that would re-enter one is SKIPPED, not
-    // failed: the outer flow it is nested in is already uniting that
-    // entity, so the same information arrives by the same channel one
-    // frame up. What each flow contributes is unchanged; only the
-    // order it arrives in is, and unification does not care.
-    const flowing: Set<string> = ((ctx as any)._referflow ??=
-      new Set<string>())
-    if (!this.tval.isTop && !flowing.has(this.addr.name)) {
-      flowing.add(this.addr.name)
+    // The guard is the set of paths a flow is currently inside, on the
+    // context. A flow that would re-enter one is SKIPPED, not failed:
+    // the outer flow it is nested in is already uniting that node, so
+    // the same information arrives by the same channel one frame up.
+    // What each flow contributes is unchanged; only the order it
+    // arrives in is, and unification does not care.
+    const guard = target.join('.')
+    // Seeded on the unify root (ts/src/unify.ts): a `??=` here would
+    // make a fresh set on whichever descended context asked first.
+    const flowing: Set<string> = (ctx as any)._referflow ?? new Set<string>()
+    if (!this.tval.isTop && !flowing.has(guard)) {
+      flowing.add(guard)
       try {
         // The flowed type is CONCRETE at the target: a schema flowing
         // into a value must not make the value a schema. Same reasoning
@@ -334,20 +393,30 @@ class ReferVal extends FeatureVal {
         // says the target IS a Service, not that it is the definition
         // of one — and without it the target silently stopped
         // generating.
-        const merged = unite(ctx, found.val, concreteFlow(ctx, this.tval),
-          'refer-flow')
+        const flow = concreteFlow(ctx, this.tval)
+        const merged = unite(ctx, found.val, flow, 'refer-flow')
         if (true === (merged as any).isNil) {
           return merged
         }
-        if (undefined === found.parent) {
-          reg!.set(this.addr.name, merged)
-        }
-        else {
-          found.parent.peg[found.key as string] = merged
-        }
+        // The write into THIS pass's view, so the rest of the pass sees
+        // it. findAt refuses the empty path, so a resolved target always
+        // has a parent holding it.
+        found.parent.peg[found.key as string] = merged
+        // ... and the RECORD, keyed by the target's path, replayed onto
+        // every later pass by applyFlows in ts/src/unify.ts. A pass
+        // rebuilds subtrees, so the write above does not survive one
+        // when the link sits inside its own target or two nodes link at
+        // each other; the record is what makes the flow reach the
+        // result rather than the tree it was computed from.
+        const flows: Map<string, Val> = (ctx as any).referflows ??
+          new Map<string, Val>()
+        const key = target.join('\x00')
+        const prev = flows.get(key)
+        flows.set(key, null == prev ? flow : unite(ctx, prev, flow,
+          'refer-flow-record'))
       }
       finally {
-        flowing.delete(this.addr.name)
+        flowing.delete(guard)
       }
     }
 
@@ -360,7 +429,13 @@ class ReferVal extends FeatureVal {
     // the set of these stamps. A rel()-minted link also carries its
     // PREDICATE (the rel field's key), so the graph reports a declared
     // relation rather than inferring one from the path.
-    out.link = this.addrsrc
+    //
+    // The stamp is the RESOLVED path, not the written one: a relative
+    // address means a different node from each position it is written
+    // at, and an edge set whose far ends were spellings rather than
+    // nodes could not be traversed. The VALUE stays what the author
+    // wrote --- the link is what it says, the edge is where it goes.
+    out.link = '$.' + target.join('.')
     if (undefined !== this.relkey) {
       out.relkey = this.relkey
     }
@@ -431,7 +506,7 @@ class RelVal extends FeatureVal {
   // index is a number here and a string in Go.
   fieldkey(): string | undefined {
     const seg = this.path[this.path.length - 1]
-    return 'string' === typeof seg && ADDR_NAME.test(seg) ? seg : undefined
+    return 'string' === typeof seg && PREDICATE_NAME.test(seg) ? seg : undefined
   }
 
   // One leaf's residual: the refer machinery carrying rel's codes,

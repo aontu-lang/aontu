@@ -23,20 +23,21 @@
 # Every expectation here was obtained by running BOTH engines and
 # diffing, never by copying one.
 
-reaches-through-a-chain	reaches	a: id(a) & {dependsOn: [&: refer(), b]}\nb: id(b) & {dependsOn: [&: refer(), c]}\nc: id(c) & {}\nd: id(d) & {}\n	{"ask":{"from":"a","to":"c"},"path":["a","b","c"],"verdict":"reaches"}
-reaches-one-edge	reaches	a: id(a) & {dependsOn: [&: refer(), b]}\nb: id(b) & {dependsOn: [&: refer(), c]}\nc: id(c) & {}\nd: id(d) & {}\n	{"ask":{"from":"a","to":"b"},"path":["a","b"],"verdict":"reaches"}
-unreachable-no-path	reaches	a: id(a) & {dependsOn: [&: refer(), b]}\nb: id(b) & {dependsOn: [&: refer(), c]}\nc: id(c) & {}\nd: id(d) & {}\n	{"ask":{"from":"a","to":"d"},"verdict":"unreachable"}
-unreachable-wrong-way	reaches	a: id(a) & {dependsOn: [&: refer(), b]}\nb: id(b) & {dependsOn: [&: refer(), c]}\nc: id(c) & {}\nd: id(d) & {}\n	{"ask":{"from":"c","to":"a"},"verdict":"unreachable"}
-not-reflexive-without-a-cycle	reaches	a: id(a) & {dependsOn: [&: refer(), b]}\nb: id(b) & {dependsOn: [&: refer(), c]}\nc: id(c) & {}\nd: id(d) & {}\n	{"ask":{"from":"a","to":"a"},"verdict":"unreachable"}
-reaches-itself-through-a-cycle	reaches	a: id(a) & {to: [&: refer(), b]}\nb: id(b) & {to: [&: refer(), a]}\n	{"ask":{"from":"a","to":"a"},"path":["a","b","a"],"verdict":"reaches"}
-relation-filter-follows-one-relation	reaches	a: id(a) & {dependsOn: [&: refer(), b]}\nb: id(b) & {dependsOn: [&: refer(), c], usedBy: [&: refer(), d]}\nc: id(c) & {}\nd: id(d) & {}\n	{"ask":{"from":"a","relation":"dependsOn","to":"d"},"verdict":"unreachable"}
-relation-filter-absent-follows-every-edge	reaches	a: id(a) & {dependsOn: [&: refer(), b]}\nb: id(b) & {dependsOn: [&: refer(), c], usedBy: [&: refer(), d]}\nc: id(c) & {}\nd: id(d) & {}\n	{"ask":{"from":"a","to":"d"},"path":["a","b","d"],"verdict":"reaches"}
-shortest-path-is-the-one-reported	reaches	a: id(a) & {to: [&: refer(), b, c]}\nb: id(b) & {to: [&: refer(), d]}\nc: id(c) & {to: [&: refer(), d]}\nd: id(d) & {}\n	{"ask":{"from":"a","to":"d"},"path":["a","b","d"],"verdict":"reaches"}
-an-address-inside-an-entity-reaches-the-entity	reaches	a: id(a) & {to: [&: refer(), "b.parts.one"]}\nb: id(b) & {parts: {one: {n: 1}}}\n	{"ask":{"from":"a","to":"b"},"path":["a","b"],"verdict":"reaches"}
-endpoint-that-names-nothing-is-a-refusal	reaches	a: id(a) & {dependsOn: [&: refer(), b]}\nb: id(b) & {dependsOn: [&: refer(), c]}\nc: id(c) & {}\nd: id(d) & {}\n	{"ask":{"from":"a","to":"zz"},"errors":[{"class":"reference","code":"refer_unresolved","note":"known entities: a, b, c, d","path":"$","severity":"error","sites":[]}],"verdict":"error"}
+reaches-through-a-chain	reaches	a: {dependsOn: [&: refer(), "$.b"]}\nb: {dependsOn: [&: refer(), "$.c"]}\nc: {}\nd: {}\n	{"ask":{"from":"$.a","to":"$.c"},"path":["$.a","$.b","$.c"],"verdict":"reaches"}
+reaches-one-edge	reaches	a: {dependsOn: [&: refer(), "$.b"]}\nb: {dependsOn: [&: refer(), "$.c"]}\nc: {}\nd: {}\n	{"ask":{"from":"$.a","to":"$.b"},"path":["$.a","$.b"],"verdict":"reaches"}
+unreachable-no-path	reaches	a: {dependsOn: [&: refer(), "$.b"]}\nb: {dependsOn: [&: refer(), "$.c"]}\nc: {}\nd: {}\n	{"ask":{"from":"$.a","to":"$.d"},"verdict":"unreachable"}
+unreachable-wrong-way	reaches	a: {dependsOn: [&: refer(), "$.b"]}\nb: {dependsOn: [&: refer(), "$.c"]}\nc: {}\nd: {}\n	{"ask":{"from":"$.c","to":"$.a"},"verdict":"unreachable"}
+not-reflexive-without-a-cycle	reaches	a: {dependsOn: [&: refer(), "$.b"]}\nb: {dependsOn: [&: refer(), "$.c"]}\nc: {}\nd: {}\n	{"ask":{"from":"$.a","to":"$.a"},"verdict":"unreachable"}
+reaches-itself-through-a-cycle	reaches	a: {to: [&: refer(), "$.b"]}\nb: {to: [&: refer(), "$.a"]}\n	{"ask":{"from":"$.a","to":"$.a"},"path":["$.a","$.b","$.a"],"verdict":"reaches"}
+relation-filter-follows-one-relation	reaches	a: {dependsOn: [&: refer(), "$.b"]}\nb: {dependsOn: [&: refer(), "$.c"], usedBy: [&: refer(), "$.d"]}\nc: {}\nd: {}\n	{"ask":{"from":"$.a","relation":"dependsOn","to":"$.d"},"verdict":"unreachable"}
+relation-filter-absent-follows-every-edge	reaches	a: {dependsOn: [&: refer(), "$.b"]}\nb: {dependsOn: [&: refer(), "$.c"], usedBy: [&: refer(), "$.d"]}\nc: {}\nd: {}\n	{"ask":{"from":"$.a","to":"$.d"},"path":["$.a","$.b","$.d"],"verdict":"reaches"}
+shortest-path-is-the-one-reported	reaches	a: {to: [&: refer(), "$.b", "$.c"]}\nb: {to: [&: refer(), "$.d"]}\nc: {to: [&: refer(), "$.d"]}\nd: {}\n	{"ask":{"from":"$.a","to":"$.d"},"path":["$.a","$.b","$.d"],"verdict":"reaches"}
+an-address-reaches-the-node-it-names	reaches	a: {to: [&: refer(), "$.b.parts.one"]}\nb: {parts: {one: {n: 1}}}\n	{"ask":{"from":"$.a","to":"$.b.parts.one"},"path":["$.a","$.b.parts.one"],"verdict":"reaches"}
+an-address-does-not-reach-the-node-above-it	reaches	a: {to: [&: refer(), "$.b.parts.one"]}\nb: {parts: {one: {n: 1}}}\n	{"ask":{"from":"$.a","to":"$.b"},"verdict":"unreachable"}
+endpoint-that-names-nothing-is-a-refusal	reaches	a: {dependsOn: [&: refer(), "$.b"]}\nb: {dependsOn: [&: refer(), "$.c"]}\nc: {}\nd: {}\n	{"ask":{"from":"$.a","to":"$.zz"},"errors":[{"class":"reference","code":"refer_unresolved","note":"nodes with links: $.a, $.b, $.c","path":"$","severity":"error","sites":[]}],"verdict":"error"}
 
 # A document that does not stand up is not a document with an
 # unreachable pair, and two links to the same place are one
 # successor -- the search must not walk it twice. Parity-probed.
-a-document-that-does-not-stand-up-has-no-graph	reaches	a: id(a) & {k: 1}\na: {k: 2}\n	{"ask":{"from":"a","to":"b"},"errors":[{"class":"conflict","code":"scalar_value","path":"$.a.k","severity":"error","sites":[{"col":8,"file":"","len":1,"role":"data","row":2,"src":"2","value":"2"},{"col":16,"file":"","len":1,"role":"data","row":1,"src":"1","value":"1"}]}],"verdict":"error"}
-a-repeated-edge-is-one-successor	reaches	a: id(a) & {to: [&: refer(), b, b]}\nb: id(b) & {}\n	{"ask":{"from":"a","to":"b"},"path":["a","b"],"verdict":"reaches"}
+a-document-that-does-not-stand-up-has-no-graph	reaches	a: {k: 1}\na: {k: 2}\n	{"ask":{"from":"$.a","to":"$.b"},"errors":[{"class":"conflict","code":"scalar_value","path":"$.a.k","severity":"error","sites":[{"col":8,"file":"","len":1,"role":"data","row":2,"src":"2","value":"2"},{"col":8,"file":"","len":1,"role":"data","row":1,"src":"1","value":"1"}]}],"verdict":"error"}
+a-repeated-edge-is-one-successor	reaches	a: {to: [&: refer(), "$.b", "$.b"]}\nb: {}\n	{"ask":{"from":"$.a","to":"$.b"},"path":["$.a","$.b"],"verdict":"reaches"}

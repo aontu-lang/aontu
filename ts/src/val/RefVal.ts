@@ -550,19 +550,12 @@ class RefVal extends FeatureVal {
           walk(out, (_key: string | number | undefined, val: Val) => {
             val.mark.type = false
             val.mark.hide = false
-            // REFERENCES DO NOT CARRY IDENTITY (G4 phase 1, clearing
-            // rule 1). The clone is a copy of an entity, not the
-            // entity: without this, `w:b:$.q.a & {y:2,z:3}` (row
-            // `ref-and-merge`, test/spec/ref.tsv) would push `y:2`
-            // back into `q.a` through the identity merge — pinned
-            // behaviour, silently changed by a mark the author never
-            // wrote at the reference site.
-            //
-            // The LINK is NOT cleared (G4 phase 3): an identity says
-            // what a value IS, so a copy must not be that entity; a
-            // link says what a value POINTS AT, and a copy of a link
-            // points at the same thing.
-            val.entity = undefined
+            // THE LINK IS NOT CLEARED (G4 phase 3): a link says what a
+            // value POINTS AT, and a copy of a link points at the same
+            // thing. An ABSOLUTE address still names the same node from
+            // the copy; a RELATIVE one is read from the copy's own
+            // position, which is what makes a referenced model resolve
+            // its internal links inside the copy (ADR-013).
             return val
           })
           //}

@@ -73,7 +73,6 @@ declare abstract class Val {
     set site(s: Site);
     mark: ValMark;
     deprecation?: Record<string, string>;
-    entity?: string;
     link?: string;
     graph?: any;
     peg: any;

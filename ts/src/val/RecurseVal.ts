@@ -154,9 +154,6 @@ class RecurseVal extends FeatureVal {
       walk(level, (_key: string | number | undefined, v: Val) => {
         v.mark.type = false
         v.mark.hide = false
-        // References do not carry identity (clearing rule 1), and an
-        // expansion is a copy of the definition, not the definition.
-        ; (v as any).entity = undefined
         return v
       })
       bumpRecurse(level, this.xc + 1)

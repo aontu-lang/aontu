@@ -6,7 +6,6 @@ declare function collectDeprecations(root: Val): Array<{
 }>;
 declare function walkBagVals(root: Val, fn: (v: Val, path: string[]) => void): void;
 declare function deprecationMessage(d: Record<string, string>): string;
-declare function constantIdFunc(v: any, seen?: Set<any>): any;
 declare function canonRiders(v: Val): string;
 declare function formatPath(path: Val | string[], absolute?: boolean): string;
 type WalkApply = (key: string | number | undefined, val: Val, parent: Val | undefined, path: (string | number)[]) => Val;
@@ -20,4 +19,4 @@ declare function ec(t: any[] | undefined | null, why: string): (string | null)[]
 declare function explainClose(t: any[] | undefined | null, out?: Val): void;
 declare function formatExplain(t: any[], d?: number): string;
 declare function items(o: any): any[][];
-export { items, propagateMarks, constantIdFunc, canonRiders, collectDeprecations, walkBagVals, deprecationMessage, formatPath, walk, WalkApply, explainOpen, ec, explainClose, formatExplain, };
+export { items, propagateMarks, canonRiders, collectDeprecations, walkBagVals, deprecationMessage, formatPath, walk, WalkApply, explainOpen, ec, explainClose, formatExplain, };

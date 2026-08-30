@@ -481,9 +481,12 @@ func (rv *RefVal) find(ctx *Ctx, snap bool) Val {
 	// walk in TS RefVal.find). With shared func-clone args this also
 	// clears marks on innards shared with the source — as in TS.
 	walkMark(out, true, false, true, false)
-	// REFERENCES DO NOT CARRY IDENTITY (G4 phase 1, clearing rule 1):
-	// the clone is a copy of an entity, not the entity.
-	walkClearEntity(out)
+	// THE LINK IS NOT CLEARED (G4 phase 3): a link says what a value
+	// POINTS AT, and a copy of a link points at the same thing. An
+	// ABSOLUTE address still names the same node from the copy; a
+	// RELATIVE one is read from the copy's own position, which is what
+	// makes a referenced model resolve its internal links inside the
+	// copy (ADR-013).
 	// copy(): the copied root's path is fully replaced by the
 	// destination (TS FuncBaseVal sets out.path = this.path on the
 	// resolved copy), unlike the transplant overlay that keeps deeper

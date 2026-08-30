@@ -20,18 +20,25 @@ import (
 // generates a full copy of the auth node where the author meant a
 // name. `refer` leaves the name and checks it.
 
-// Address is an entity name and, optionally, a path INSIDE that
-// entity: `svc_auth` or `svc_auth.ports.http`. The two addressing
-// schemes reconciled — `$.a.b` answers WHERE, an address answers WHAT,
-// and beneath entity granularity the tree is authoritative again. The
-// no-dots rule on ids makes the split unambiguous.
+// Address is a TREE PATH, in the two spellings a reference uses:
+// `$.services.auth` from the document root, `.auth` from the link's own
+// sibling scope. The tree is the only namespace (ADR-013) -- which is
+// what makes a model instantiable more than once, each instance
+// resolving its relative links inside itself. Mirrors Address in
+// ts/src/val/ReferFuncVal.ts.
 type Address struct {
-	Name string
-	Path []string
+	// Absolute is anchored at the document root rather than at the
+	// link's own position.
+	Absolute bool
+	// Up counts the parent steps of a relative address (`..a` is one).
+	Up int
+	// Parts are the written segments, below the anchor.
+	Parts []string
 }
 
-// addrSegmentOK is the grammar of a path segment inside an entity: the
-// same characters the published grammar's `segment` rule allows.
+// addrSegmentOK is the grammar of a path segment: a map key or a list
+// index, the same characters the published grammar's `segment` rule
+// allows. A leading digit is legitimate, because a list index is one.
 func addrSegmentOK(s string) bool {
 	if "" == s {
 		return false
@@ -52,37 +59,82 @@ func addrSegmentOK(s string) bool {
 // parseAddress is the address a string spells, or ok=false when it does
 // not spell one. Mirrors parseAddress in ts/src/val/ReferFuncVal.ts.
 func parseAddress(s string) (Address, bool) {
-	parts := strings.Split(s, ".")
-	if !idNameOK(parts[0]) {
+	if "$" == s {
+		// The whole document is not a relation's target: an address must
+		// name something with a position to be written back into.
 		return Address{}, false
 	}
-	for _, seg := range parts[1:] {
+	if strings.HasPrefix(s, "$.") {
+		parts := strings.Split(s[2:], ".")
+		for _, seg := range parts {
+			if !addrSegmentOK(seg) {
+				return Address{}, false
+			}
+		}
+		return Address{Absolute: true, Parts: parts}, true
+	}
+	if !strings.HasPrefix(s, ".") {
+		return Address{}, false
+	}
+	// A relative address: the leading dot anchors it at the sibling
+	// scope, and every FURTHER leading dot is one step up from there --
+	// the same reduction a relative reference's `.` segments perform.
+	up := 0
+	rest := s[1:]
+	for strings.HasPrefix(rest, ".") {
+		up++
+		rest = rest[1:]
+	}
+	if "" == rest {
+		return Address{}, false
+	}
+	parts := strings.Split(rest, ".")
+	for _, seg := range parts {
 		if !addrSegmentOK(seg) {
 			return Address{}, false
 		}
 	}
-	return Address{Name: parts[0], Path: parts[1:]}, true
+	return Address{Absolute: false, Up: up, Parts: parts}, true
 }
 
-// entitySite is where an address lands: the value, and the bag slot
-// holding it when the address reaches inside the entity (so the flow
-// can write back).
-type entitySite struct {
+// addressPath is the tree path an address resolves to from `at` -- the
+// position of the link itself -- or ok=false when a relative address
+// climbs off the top of the tree. Mirrors addressPath in
+// ts/src/val/ReferFuncVal.ts.
+func addressPath(addr Address, at []string) ([]string, bool) {
+	if addr.Absolute {
+		return addr.Parts, true
+	}
+	// The SIBLING scope: drop the link's own key, then take the parent
+	// steps. A link at `$.a.b.dep` spelling `.other` means `$.a.b.other`.
+	cut := len(at) - 1 - addr.Up
+	if 0 > cut {
+		return nil, false
+	}
+	out := make([]string, 0, cut+len(addr.Parts))
+	out = append(out, at[:cut]...)
+	out = append(out, addr.Parts...)
+	return out, true
+}
+
+// nodeSite is where an address lands: the value, and the bag slot
+// holding it, so the flow can write back.
+type nodeSite struct {
 	parent Val
 	key    string
 	val    Val
 }
 
-// findEntity is the value an address names, or ok=false when the
-// evaluation does not (yet) have one. Pending is not failure: an entity
-// may be declared by a later conjunct, include or spread.
-func findEntity(ctx *Ctx, addr Address) (entitySite, bool) {
-	rep, ok := ctx.entities[addr.Name]
-	if !ok || nil == rep {
-		return entitySite{}, false
+// findAt is the node a tree path names, or ok=false when the evaluation
+// does not (yet) have one. Pending is not failure: the target may be
+// introduced by a later conjunct, include or spread. Mirrors findAt in
+// ts/src/val/ReferFuncVal.ts.
+func findAt(root Val, path []string) (nodeSite, bool) {
+	if nil == root || 0 == len(path) {
+		return nodeSite{}, false
 	}
-	site := entitySite{val: rep}
-	for _, seg := range addr.Path {
+	site := nodeSite{val: root}
+	for _, seg := range path {
 		var next Val
 		switch n := site.val.(type) {
 		case *MapVal:
@@ -93,9 +145,9 @@ func findEntity(ctx *Ctx, addr Address) (entitySite, bool) {
 			}
 		}
 		if nil == next {
-			return entitySite{}, false
+			return nodeSite{}, false
 		}
-		site = entitySite{parent: site.val, key: seg, val: next}
+		site = nodeSite{parent: site.val, key: seg, val: next}
 	}
 	return site, true
 }
@@ -266,7 +318,15 @@ func (r *ReferVal) settle(ctx *Ctx, site Val) Val {
 		return r
 	}
 
-	found, ok := findEntity(ctx, *r.addr)
+	// The address is a TREE PATH, resolved from the link's own position
+	// for a relative one. A climb off the top of the tree can never be
+	// repaired by a later pass, so it refuses at once.
+	target, tok := addressPath(*r.addr, r.path)
+	if !tok {
+		return makeNilErrFull(ctx, r.unresolvedCode, r, nil, "refer",
+			map[string]string{"addr": r.addrsrc})
+	}
+	found, ok := findAt(ctx.root, target)
 	if !ok {
 		// PENDING, not failed — until the last pass. Within ONE
 		// evaluation the document-set is fixed, so existence IS
@@ -285,32 +345,33 @@ func (r *ReferVal) settle(ctx *Ctx, site Val) Val {
 		return r
 	}
 
-	// THE FLOW. `t` is unified into the target and written back, so
-	// every position of the entity carries it after the pass's identity
-	// merge — the same channel the merge itself uses.
+	// THE FLOW. `t` is unified into the target and written back at the
+	// target's own position — one position, because the tree is the
+	// namespace and a path names exactly one node.
 	//
-	// RE-ENTRANT ONLY ONCE PER ENTITY (use-cases/BUGS.md §19). Uniting
+	// RE-ENTRANT ONLY ONCE PER TARGET (use-cases/BUGS.md §19). Uniting
 	// the target drives the target's OWN subtree, and if the target
 	// links back — `a` typed-refers `b`, `b` typed-refers `a`, the
-	// shape every inverse pair has — that drives this entity again, and
+	// shape every inverse pair has — that drives this target again, and
 	// the two flow into each other until the depth budget or the host
 	// stack ends it. `unify_cycle` on a model whose meet plainly
-	// converges. A flow that would re-enter an entity is SKIPPED, not
+	// converges. A flow that would re-enter a node is SKIPPED, not
 	// failed: the outer flow it is nested in is already uniting that
-	// entity, so the same information arrives by the same channel one
+	// node, so the same information arrives by the same channel one
 	// frame up. Mirrors the guard in ts/src/val/ReferFuncVal.ts.
 	if nil == ctx.referflow {
 		ctx.referflow = map[string]bool{}
 	}
+	guard := strings.Join(target, "\x00")
 	// Released at the END OF THE FLOW, not at the end of settle — a
-	// plain `defer` in this function would hold the entity marked while
+	// plain `defer` in this function would hold the target marked while
 	// the tail below builds the link value and meets `held`, where
 	// TypeScript's try/finally has already released it. A closure gives
 	// `defer` the block scope, arm for arm (ADR-001).
-	if nil != r.tval && !isTop(r.tval) && !ctx.referflow[r.addr.Name] {
+	if nil != r.tval && !isTop(r.tval) && !ctx.referflow[guard] {
 		if bad := func() Val {
-			ctx.referflow[r.addr.Name] = true
-			defer delete(ctx.referflow, r.addr.Name)
+			ctx.referflow[guard] = true
+			defer delete(ctx.referflow, guard)
 
 			// The flowed type is CONCRETE at the target: a schema
 			// flowing into a value must not make the value a schema.
@@ -329,15 +390,30 @@ func (r *ReferVal) settle(ctx *Ctx, site Val) Val {
 			if merged.Nil() {
 				return merged
 			}
+			// The write into THIS pass's view, so the rest of the pass
+			// sees it. findAt refuses the empty path, so a resolved
+			// target always has a parent holding it.
 			switch p := found.parent.(type) {
-			case nil:
-				ctx.entities[r.addr.Name] = merged
 			case *MapVal:
 				p.set(found.key, merged)
 			case *ListVal:
 				if i, err := strconv.Atoi(found.key); nil == err {
 					p.peg[i] = merged
 				}
+			}
+			// ... and the RECORD, keyed by the target's path, replayed
+			// onto every later pass by applyFlows in go/unify.go. A pass
+			// rebuilds subtrees, so the write above does not survive one
+			// when the link sits inside its own target or two nodes link
+			// at each other; the record is what makes the flow reach the
+			// result rather than the tree it was computed from.
+			if nil == ctx.referflows {
+				ctx.referflows = map[string]Val{}
+			}
+			if prev, seen := ctx.referflows[guard]; seen {
+				ctx.referflows[guard] = unite(ctx, prev, flow)
+			} else {
+				ctx.referflows[guard] = flow
 			}
 			return nil
 		}(); nil != bad {
@@ -353,7 +429,12 @@ func (r *ReferVal) settle(ctx *Ctx, site Val) Val {
 	// a literal that happens to look like one. The edge set is exactly
 	// the set of these stamps. A rel()-minted link also carries its
 	// PREDICATE (see base.relkey).
-	out.setLinkAddr(r.addrsrc)
+	// The stamp is the RESOLVED path, not the written one: a relative
+	// address means a different node from each position it is written
+	// at, and an edge set whose far ends were spellings rather than
+	// nodes could not be traversed. The VALUE stays what the author
+	// wrote --- the link is what it says, the edge is where it goes.
+	out.setLinkAddr("$." + strings.Join(target, "."))
 	out.relkey = r.relpred
 	out.sp, out.spu, out.surl = site.pos(), site.posu(), site.srcurl()
 	out.path = cp(r.path)
@@ -426,7 +507,7 @@ func (r *RelVal) fieldkey() string {
 		return ""
 	}
 	seg := r.path[len(r.path)-1]
-	if !idNameOK(seg) {
+	if !predicateNameOK(seg) {
 		return ""
 	}
 	return seg
@@ -434,13 +515,23 @@ func (r *RelVal) fieldkey() string {
 
 // leafRefer is one leaf's residual: the refer machinery carrying rel's
 // codes, predicate and type.
-func (r *RelVal) leafRefer() *ReferVal {
+// One leaf's residual: the refer machinery carrying rel's codes,
+// predicate and type.
+//
+// `at` is the FIELD the rel() is being applied at, which is not always
+// the field it was WRITTEN at: a schema's rel() is instantiated per
+// destination by the spread machinery, and a relative address must be
+// read from the destination. TypeScript gets this from the residual's
+// own path, its clone being re-pathed per destination; this port's
+// RelVal keeps the schema's path, so the driving position is passed in
+// instead. Same answer, arm for arm (ADR-001).
+func (r *RelVal) leafRefer(at []string) *ReferVal {
 	rv := newRefer(r.tval)
 	rv.addrCode = "rel_address"
 	rv.unresolvedCode = "rel_unresolved"
 	rv.relpred = r.fieldkey()
 	rv.sp, rv.spu, rv.surl = r.sp, r.spu, r.surl
-	rv.path = cp(r.path)
+	rv.path = cp(at)
 	return rv
 }
 
@@ -467,7 +558,7 @@ func (r *RelVal) rewrite(ctx *Ctx, container Val) Val {
 		for _, k := range n.keys {
 			ctx.slot = append(cp(base), k)
 			nested = nested || isContainer(n.peg[k])
-			cv := r.rewriteChild(ctx, n.peg[k])
+			cv := r.rewriteChild(ctx, n.peg[k], base)
 			n.peg[k] = cv
 			pending = pending || DONE != cv.Dc()
 		}
@@ -475,7 +566,7 @@ func (r *RelVal) rewrite(ctx *Ctx, container Val) Val {
 		for i, c := range n.peg {
 			ctx.slot = append(cp(base), itoa(i))
 			nested = nested || isContainer(c)
-			cv := r.rewriteChild(ctx, c)
+			cv := r.rewriteChild(ctx, c, base)
 			n.peg[i] = cv
 			pending = pending || DONE != cv.Dc()
 		}
@@ -502,7 +593,7 @@ func (r *RelVal) rewrite(ctx *Ctx, container Val) Val {
 	// refuse it), and only where no spread already stands: a schema's
 	// own template is not this rewrite's to clobber.
 	tmpl := func() Val {
-		lr := Val(r.leafRefer())
+		lr := Val(r.leafRefer(base))
 		if nil == r.held {
 			return lr
 		}
@@ -523,7 +614,7 @@ func (r *RelVal) rewrite(ctx *Ctx, container Val) Val {
 	return out
 }
 
-func (r *RelVal) rewriteChild(ctx *Ctx, child Val) Val {
+func (r *RelVal) rewriteChild(ctx *Ctx, child Val, at []string) Val {
 	// Children here are always Vals: the parse builds Vals, elision
 	// builds a NilVal, and clonePath preserved whatever the container
 	// held.
@@ -536,7 +627,7 @@ func (r *RelVal) rewriteChild(ctx *Ctx, child Val) Val {
 	// through leafRefer and re-stamps identically (rel-over-linked-copy
 	// pins the outcome and the graph agreeing with TS, where clones DO
 	// carry the stamp and the short-circuit lives).
-	leaf := unite(ctx, r.leafRefer(), child)
+	leaf := unite(ctx, r.leafRefer(at), child)
 	// The held constraints apply PER LEAF: a re() on the relation
 	// constrains every address, never the container that holds them
 	// (found by the service catalog, whose re("^svc_") met the whole
@@ -579,9 +670,17 @@ func (r *RelVal) Unify(peer Val, ctx *Ctx) Val {
 	// container itself.
 
 	if sv, ok := peer.(*ScalarVal); ok {
-		// ONE ADDRESS: the scalar-valued field, refer's own shape.
+		// ONE ADDRESS: the scalar-valued field, refer's own shape. The
+		// field IS the position here (there is no container to descend
+		// into), so the driving slot is the base a relative address
+		// reads from -- falling back to the written path when the meet
+		// carries no slot.
 		if KindString == sv.kind {
-			out := unite(ctx, Val(r.leafRefer()), peer)
+			at := ctx.slot
+			if nil == at {
+				at = r.path
+			}
+			out := unite(ctx, Val(r.leafRefer(at)), peer)
 			if nil == r.held {
 				return out
 			}
