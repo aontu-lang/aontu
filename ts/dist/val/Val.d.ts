@@ -102,7 +102,7 @@ declare abstract class Val {
     inspection(_d?: number): string;
 }
 declare function repathInstance(v: any, path: string[]): void;
+declare function spreadId(cj: any): number;
 declare function empty(o: any): boolean;
 export type { ValMark, ValSpec, };
-declare function spreadId(cj: any): number;
 export { spreadId, Val, DONE, SPREAD, EMPTY_ERR, empty, repathInstance, };

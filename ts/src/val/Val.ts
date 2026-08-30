@@ -674,21 +674,6 @@ function pretty(s: string) {
 }
 
 
-function empty(o: any) {
-  return (
-    (Array.isArray(o) && 0 === o.length)
-    || (null != o && 'object' === typeof o && 0 === Object.keys(o).length)
-    || false
-  )
-} /* node:coverage ignore next 16 */
-
-
-
-export type {
-  ValMark,
-  ValSpec,
-}
-
 // THE STABLE IDENTITY OF A SPREAD TEMPLATE, across clones. Every Val
 // takes a fresh `id` when it is constructed, so the bag loops'
 // apply-once mark -- which records WHICH template has already been
@@ -702,6 +687,24 @@ export type {
 function spreadId(cj: any): number {
   return cj._sid ?? (cj._sid = cj.id)
 }
+
+function empty(o: any) {
+  return (
+    (Array.isArray(o) && 0 === o.length)
+    || (null != o && 'object' === typeof o && 0 === Object.keys(o).length)
+    || false
+  )
+} /* node:coverage ignore next 16 */
+
+
+
+
+
+export type {
+  ValMark,
+  ValSpec,
+}
+
 
 
 export {
