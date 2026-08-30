@@ -68,12 +68,19 @@ infrastructure around the lattice, not syntax on top of it.
 
 ## The eight fundamental gaps
 
-> **A ninth was opened later.** G1–G8 are the August 2026 survey.
+> **Two more were opened later.** G1–G8 are the August 2026 survey.
 > [G9](g9-transformation.md) was opened on 2026-08-30, after all eight
 > had landed, and asks a question the survey did not: once a model is
 > trustworthy, how does the CODE come from it? Its companion for the
 > non-declarative forms is
 > [docs/design/GENERATION-FORMS.0.md](../design/GENERATION-FORMS.0.md).
+> [G10](g10-transparency.md) was opened the same day and asks the
+> question G6 left open: G6 made a module's meaning *pinnable*, but a
+> lockfile is a private memory — what makes the FIRST pinning of it
+> public and auditable? It is the one gap that admits a service the
+> project must operate, which
+> [ADR-012](../../ADR.md#adr-012--the-project-operates-one-transparency-log-and-nothing-else)
+> permits once and bounds.
 
 | # | Gap | Why it changes what the language is | Design doc |
 |---|-----|-------------------------------------|------------|
@@ -86,6 +93,7 @@ infrastructure around the lattice, not syntax on top of it.
 | G7 | A machine-facing access surface | Query, provenance, patch, MCP — agents consume slices, not whole evaluated blobs | [g7-machine-access.md](g7-machine-access.md) |
 | G8 | Generation, on the total side of the fork | N children from data without copies that drift — and without losing the termination guarantee | [g8-generation.md](g8-generation.md) |
 | G9 | Declarative transformation | The model is the source of the CODE — one model, many generated artifacts, each over part of it | [g9-transformation.md](g9-transformation.md) |
+| G10 | A transparency log | A lockfile is a private memory; the first resolution of a version needs a public, append-only, auditable record | [g10-transparency.md](g10-transparency.md) |
 
 ## What Aontu already has right
 
