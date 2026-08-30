@@ -56,6 +56,33 @@ and, in case 09, `MCP` — to point at a different build.
 | [14-jsonschema-export](14-jsonschema-export/) | JSON Schema as the bridge out: MCP inputSchema, OpenAPI, stock validators | `jsonschema --at`/`--strict`/`--format json`, the stderr loss report, exit classes, the money-wire `const` mark |
 | [15-code-generation](15-code-generation/) | The model as the source of the code: Go, TypeScript and SQL from one catalogue, each over a slice | list-spread + `pick` line building, backtick target text, `match` type mapping, both-ports byte parity, the missing fold |
 
+## Diagrams
+
+Four cases carry generated diagrams, pinned as goldens by their
+`check.sh` and rendered inline in their README (GitHub draws Mermaid):
+
+| case | views |
+|---|---|
+| [01-service-catalog](01-service-catalog/) | entity graph, dependency-structure matrix |
+| [04-schema-evolution](04-schema-evolution/) | subsumption poset over the releases and proposals |
+| [08-feature-flags](08-feature-flags/) | the meet ladder for one arbitrated value |
+| [12-relations](12-relations/) | entity graph with inverse pairs collapsed, and an ER diagram |
+
+[`tools/diagram.js`](tools/diagram.js) draws them. **There is no
+`aontu view` verb**: the capability is designed in
+[`docs/design/VIEWS.0.md`](../docs/design/VIEWS.0.md) and
+[`VIEWS-ORDER.0.md`](../docs/design/VIEWS-ORDER.0.md) and nothing of it
+is built. The script stands in for it, using only the shipped library —
+`graphOf`, `subsume`, `why` — so the diagrams are real now and the
+design is tested against real models before any of it becomes code. It
+computes no coordinates and sorts everything by code point, so its
+output is deterministic text and a golden diff is a meaningful check.
+
+Drawing the models found two defects that the text verbs had not:
+[BUGS 65](BUGS.md) (a `refer()` behind a conjunct is invisible to the
+entity graph, so `reaches` answers wrongly) and the inverse-doubling
+that makes a raw `graphOf` edge set draw every declared inverse twice.
+
 ## Scope and conventions
 
 - These are **review artifacts, not language-behaviour pins**. Where a
