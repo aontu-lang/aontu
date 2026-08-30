@@ -7,7 +7,7 @@ one makes the **first** pinning of it public, append-only and
 independently auditable. It exists because a design review of a
 proposed "Forge Tag Transparency Registry" found the log sound and its
 substrate wrong for Aontu; that review's decisions are recorded in
-[ADR-012](../../ADR.md#adr-012--the-project-operates-one-transparency-log-and-nothing-else)
+[ADR-013](../../ADR.md#adr-013--the-project-operates-one-transparency-log-and-nothing-else)
 and in [Design space](#design-space) rather than relitigated here.
 Per-phase status will be in the [progress register](progress.md), which
 is authoritative for status; this document is authoritative for design.
@@ -212,7 +212,7 @@ length-prefixed fields — never bare JSON, whose canonicalisation is a
 second specification to get wrong.
 
 **Both pins, with the roles the lockfile already gives them**
-([ADR-012](../../ADR.md#adr-012--the-project-operates-one-transparency-log-and-nothing-else)).
+([ADR-013](../../ADR.md#adr-013--the-project-operates-one-transparency-log-and-nothing-else)).
 `oci` certifies the bytes; `canon` certifies the meaning. Recording
 only the byte digest would log an identity no client checks; recording
 only the canon-hash would put Aontu's *least stable* value in its most
@@ -270,7 +270,7 @@ Evaluation never touches the network — [G5](g5-trust-contract.md)'s
 contract, unchanged. `mod get` consults the log; `mod verify`, `mod
 tidy`, `mod vendor` and every evaluation do not. **A build with a
 lockfile never reaches the service**, which is
-[ADR-012](../../ADR.md#adr-012--the-project-operates-one-transparency-log-and-nothing-else)'s
+[ADR-013](../../ADR.md#adr-013--the-project-operates-one-transparency-log-and-nothing-else)'s
 constraint 2 and the reason a dead log stalls new adoption rather than
 breaking existing projects.
 
@@ -292,7 +292,7 @@ code is a database with extra steps.
   sequences and signs publisher-asserted claims. This is what deletes
   the entire ingestion threat model, and reversing it re-opens all of it.
 - **No artifact storage, ever** — that is the registry
-  [ADR-012](../../ADR.md#adr-012--the-project-operates-one-transparency-log-and-nothing-else)
+  [ADR-013](../../ADR.md#adr-013--the-project-operates-one-transparency-log-and-nothing-else)
   admits no service to become.
 - **No log on the path of a locked build.** Adding a *new* dependency
   may require it; building an existing project may not.
@@ -321,16 +321,16 @@ code is a database with extra steps.
 | An operator appends a *second* contradictory leaf | Low | High — undetectable by proofs alone | Inherent: a Merkle log proves inclusion, never exclusion. Accepted, as Go's sumdb accepts it — but stated in the threat model, with a published auditor SLO and a named owner, not implied |
 | Canon changes and invalidates every `canon` pin | High | Medium — one-time re-pin | The `aon1-` scheme id, already in the string; a bump ships as `aon2-` in new leaves and old leaves stay true |
 | Nobody publishes; the log proves nothing | High | Low | The format is the commitment, not the contents; the client verifier is useful against lockfile-carried proofs with no service running |
-| The key holder is unavailable | Medium | High — the log stops | Custody arrangements are part of standing the service up, not an afterthought; ADR-012 constraint 5's freeze is the floor |
+| The key holder is unavailable | Medium | High — the log stops | Custody arrangements are part of standing the service up, not an afterthought; ADR-013 constraint 5's freeze is the floor |
 | Append-only data cannot be deleted (takedown, erasure) | Low | Medium | Module paths and version strings are attacker-chosen text; Go has run this exposure for years at millions of entries, so it is survivable — but it is a decision recorded before launch, not discovered after |
-| Operating a service pulls the project toward operating more | Medium | High — the thing G6 rejected | ADR-012 admits exactly one and says so; a second needs its own entry |
+| Operating a service pulls the project toward operating more | Medium | High — the thing G6 rejected | ADR-013 admits exactly one and says so; a second needs its own entry |
 
 ## Implementation plan
 
 Spec-first throughout. Nothing may regress a shared row or either
 coverage floor.
 
-**Phase 1 — decide and document (S).** ADR-012, this document, the G6
+**Phase 1 — decide and document (S).** ADR-013, this document, the G6
 boundary amendment, the register rows — one commit, per the register's
 protocol.
 

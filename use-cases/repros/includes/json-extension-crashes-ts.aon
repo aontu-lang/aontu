@@ -6,16 +6,15 @@
 # run: node ../../../ts/bin/aontu.js json-extension-crashes-ts.aon
 # run: aontu-go json-extension-crashes-ts.aon
 #
-# expected: a located refusal, or the value — the same one in both.
-#
-# actual (TypeScript):
-#   Aontu: unexpected error: Cannot convert object to primitive value
-# actual (Go):
+# FIXED 2026-08-30 (ADR-012). Both ports now answer
 #   {"vocab":{"@context":{"name":"http://schema.org/name"},"name":"Ada"}}
 #
-# `.json` alone fails this way rather than falling through to text
-# because it is the one extension carrying an upstream default
-# processor. It is also the extension every published vocabulary ships
-# as, which is why docs/design/ONTOLOGY.0.md §3.1 makes this a
-# prerequisite of that note's phase P1.
+# `.json` alone crashed rather than falling through to text because it
+# is the one extension carrying an upstream default processor, which
+# returns a plain JS object where the aontu grammar produces Vals. It
+# is also the extension every published vocabulary ships as, which is
+# why docs/design/ONTOLOGY.0.md §3.1 made this a prerequisite of that
+# note's phase P1 — now met.
+#
+# The durable pin is test/spec/file.tsv, load-ext-json.
 vocab: @"vocab.json"

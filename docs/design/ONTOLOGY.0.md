@@ -67,34 +67,44 @@ starting line; several rows are worse than expected.
 |---|---|---|---|
 | 1 | `aontu jsonschema` on a constrained map | emits `2020-12` schema with `minimum`, `type`, `required` | **the code-generation path already exists** |
 | 2 | `@"v.aon"` where the file holds JSON | parsed as source, both ports | JSON is a subset of the grammar, so a vocabulary dump is includable *as source* — and this is the **only** extension the two ports agree on |
-| 3 | `@"v.jsonld"` | **TypeScript: the file's raw TEXT, as a string. Go: parsed as source.** | a parity break, silent, exit 0 in both |
-| 4 | `@"v.txt"`, `@"v.dat"`, a name with no extension | same split | TS parses only `.aon`/`.aontu`; Go parses everything |
-| 5 | **`@"v.json"`** | **TypeScript crashes**: `Aontu: unexpected error: Cannot convert object to primitive value`. **Go parses it.** | the one extension that neither parses nor stringifies. See §3.1 |
+| 3 | `@"v.jsonld"` | read as JSON data, both ports | was a parity break: TS handed back the raw TEXT. Settled by ADR-012 |
+| 4 | `@"v.txt"`, `@"v.dat"`, a name with no extension | refused, `include_extension`, both ports | was the same split. Settled by ADR-012 |
+| 5 | **`@"v.json"`** | read as JSON data, both ports | **was a TypeScript crash** with no code, path or site. Settled by ADR-012 |
 | 6 | `relations` on an `id()`/`refer()` document | `verdict: pass` | the graph surface is live |
 
-### 3.1 A defect this design walks straight into
+### 3.1 The prerequisite, now met
 
-Rows 3–5 are not incidental. **Every vocabulary in §5 ships as `.json`
+Rows 3–5 were not incidental. **Every vocabulary in §5 ships as `.json`
 or `.jsonld`**: schema.org's releases are
 `schemaorg-current-https.jsonld`, microformats2 parsers emit JSON, DCMI
 publishes RDF serialisations. Not one of them is a `.aon` file, and
-`.aon` is the only extension the two ports read the same way.
+`.aon` was the only extension the two ports read the same way.
 
-The cause is one line on each side — `ts/src/lang.ts` registers
-`processor: {aontu, aon}`; `go/source.go` also registers the empty kind
-`""`, the fallback for an unrecognised extension — so TypeScript hands
-back a 40 KB *string* where Go hands back a map, both at exit 0. `.json`
-alone crashes, because it is the one extension with an upstream default
-processor: an internal error with no code, no path and no site, the §43
-shape again.
+The cause was one line on each side — `ts/src/lang.ts` registered
+`processor: {aontu, aon}` and let everything else fall through to raw
+TEXT; `go/source.go` also registered the empty kind `""`, the fallback
+for an unrecognised extension, and so parsed everything as source. So
+TypeScript handed back a 40 KB *string* where Go handed back a map,
+both at exit 0. `.json` alone crashed, because it is the one extension
+with an upstream default processor: an internal error with no code, no
+path and no site, the §43 shape again.
 
-Filed as
-[`use-cases/BUGS.md` §49](../../use-cases/BUGS.md#49-an-includes-extension-decides-the-answer-and-the-two-ports-decide-differently-critical).
-It needs a **ruling** before a fix — whether a non-`.aon` include is
-Aontu source, raw text, or a refusal naming the extension — and it is a
-prerequisite of phase P1 below rather than part of it. Nothing in §6's
-projection can be tested until an included vocabulary means the same
-thing in both ports.
+**Ruled and fixed 2026-08-30**, as
+[ADR-012](../../ADR.md#adr-012--an-includes-extension-decides-what-the-file-is-aontu-source-config-data-or-refused):
+the extension says which of two things a file is. `.aon` and `.aontu`
+are Aontu source; `.json` and `.jsonld` — with `.jsonc`, `.json5`,
+`.jsonic`, `.jsc`, `.toml`, `.yaml`, `.yml` and `.ini` — are
+configuration **data**, read by that format's own parser into the JSON
+value it denotes. Every other extension, and a name with no extension,
+is refused by name. A vocabulary is therefore data, not source: what
+it holds is a map of scalars, lists and maps, and nothing in it is an
+Aontu construct. Filed as
+[`use-cases/BUGS.md` §49](../../use-cases/BUGS.md#49-an-includes-extension-decides-the-answer-and-the-two-ports-decide-differently-fixed-2026-08-30).
+
+**P1 below is therefore unblocked**: an included vocabulary now means
+the same thing in both ports, so §6's projection can be tested. What
+P1 still owes is its own work — this only removed the thing standing
+in front of it.
 
 ---
 

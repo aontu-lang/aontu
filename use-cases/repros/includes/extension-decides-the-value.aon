@@ -6,16 +6,17 @@
 # run: node ../../../ts/bin/aontu.js extension-decides-the-value.aon
 # run: aontu-go extension-decides-the-value.aon
 #
-# expected: one value, both ports.
-#
-# actual (TypeScript): the file's raw TEXT as a string —
-#   {"jsonld":"{\"@context\":{\"name\":\"http://schema.org/name\"},…"}
-# actual (Go): the file PARSED as Aontu source —
+# FIXED 2026-08-30 (ADR-012). Both ports now answer
 #   {"jsonld":{"@context":{"name":"http://schema.org/name"},"name":"Ada"}}
 #
-# TypeScript parses an include as source only for `.aon`/`.aontu`
-# (ts/src/lang.ts, `processor: {aontu, aon}`); Go also registers the
-# empty kind "" (go/source.go, msOptions), which is the fallback for an
-# unrecognised extension. Same split for `.txt`, `.dat` and a name with
-# no extension at all. `.aon` is the only extension both ports agree on.
+# `.jsonld` is on the read-as-Aontu list because JSON is a subset of
+# the grammar. Before the ruling TypeScript handed every non-`.aon`
+# file back as raw TEXT (ts/src/lang.ts, `processor: {aontu, aon}`,
+# everything else falling through to multisource's default) while Go
+# parsed everything as Aontu source (go/source.go's msOptions
+# registering the empty kind, the fallback for an unrecognised
+# extension) — so this file was a string in one port and a map in the
+# other, both exiting 0.
+#
+# The durable pin is test/spec/file.tsv, load-ext-*.
 jsonld: @"vocab.jsonld"

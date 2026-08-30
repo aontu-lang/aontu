@@ -2094,9 +2094,15 @@ same thing: what the document being evaluated may reach.
 These four verbs exist to be pointed at source from somewhere else — a
 candidate an agent emitted, a live system dump, the other side of a
 diff — and without a profile they resolve `@"…"` through the default
-chain, which reaches the filesystem and `require()`s a `.js` path.
-**Opening an untrusted source is running it**, so pass a profile
-whenever the source is not yours:
+chain, which reaches anything on the filesystem the process can read.
+**Opening an untrusted source is reading your disk**, so pass a profile
+whenever the source is not yours. (It used to be worse: the chain
+`require()`d a `.js` path, which made it *running* the source.
+[ADR-012](../ADR.md#adr-012--an-includes-extension-decides-what-the-file-is-aontu-source-config-data-or-refused)
+refuses that extension, and every other one outside the table it
+sets: `.aon` and `.aontu` as Aontu source, and `.json`, `.jsonld`,
+`.jsonc`, `.json5`, `.jsonic`, `.jsc`, `.toml`, `.yaml`, `.yml` and
+`.ini` as configuration data.)
 
 <!-- test: skip TypeScript API sample; the API surface is pinned by ts/test/ -->
 ```ts

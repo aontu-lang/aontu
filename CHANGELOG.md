@@ -7,6 +7,60 @@ which implementation each change affects.
 
 ## Unreleased
 
+### An include's extension decides what the file is
+
+Both implementations. `@"file"` read a file, and what the engine did
+with the bytes depended on the extension — differently in each port, so
+the same document and the same file evaluated to different values.
+TypeScript handed every non-`.aon` file back as raw TEXT; Go parsed
+everything as Aontu source; `.json` crashed TypeScript with an
+unhandled internal error carrying no code, path or site.
+
+[ADR-012](ADR.md#adr-012) settles it with one table, and the table says
+which of two things a file is. `.aon` and `.aontu` are **Aontu source**
+— the language, with everything in it. `.json`, `.jsonld`, `.jsonc`,
+`.json5`, `.jsonic`, `.jsc`, `.toml`, `.yaml`, `.yml` and `.ini` are
+**configuration data**, read by that format's own parser:
+
+    port: integer
+    hosts: [string]
+
+    @"server.toml"
+
+Every one of those formats maps onto JSON, which is why one word covers
+them — a `.toml` file is a map of scalars, lists and maps, and so is
+the `.aon` file that unifies with it. What a data format does not get
+is the language: a `&` in a YAML file is a YAML anchor, not a spread
+key, because the YAML parser reads it. **Both ports run the same
+parsers** (@tabnas, one per format), which is what lets the shared spec
+rows hold them to one answer.
+
+A format's own semantics apply: `.ini` has no types, so `port=8080`
+from a `.ini` is the string `"8080"`. `.csv` is deliberately absent —
+the two ports' CSV parsers disagree about what a CSV file is, and
+ADR-001 does not admit that.
+
+Every other extension, and a name with no extension, is refused by
+name:
+
+    include not readable: notes.txt (extension: .txt)
+
+The refusal is `include_extension` (class `parse`), raised in the
+resolver rather than injected as a value, so a bare-member include
+cannot vanish in the merge and leave a plausible, partial document.
+
+**`.js` is no longer includable.** multisource's `js` processor
+`require()`d the file in the evaluating process, so `@"x.js"` was
+arbitrary code execution — the hazard `docs/trust.md`, the MCP server
+and three verbs each warned about. It is now refused by the same rule
+that refuses `.txt`. The TypeScript package leg narrows with it: a
+`@"some-pkg"` resolving to a `.js` entry point refuses. The module
+system (`aon_vendor/`) is unaffected.
+
+This was `use-cases/BUGS.md` §49, and it unblocks
+`docs/design/ONTOLOGY.0.md` phase P1, whose vocabularies all ship as
+`.json` or `.jsonld`.
+
 ### Security: a module path could escape its store
 
 Both implementations. `aontu mod vendor`, given a lockfile naming a

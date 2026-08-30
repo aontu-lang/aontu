@@ -7,6 +7,13 @@ lib-cov
 *.pid
 *.gz
 
+# THE SPEC FIXTURES ARE FIXTURES, whatever they are called. Several of
+# the generic patterns above match a file the shared suite reads by
+# name -- `conf.csv`, and any `.dat` a future row needs -- and a fresh
+# clone missing one would fail that row for the wrong reason: not-found
+# where the row is about what the extension MEANS.
+!test/spec/files/**
+
 pids
 logs
 results

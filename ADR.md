@@ -28,7 +28,8 @@ ADR-NNN**, so the reasoning that led there stays readable.
 | [ADR-009](#adr-009--there-are-no-reserved-path-elements-key-self-and-parent-are-removed) | There are no reserved path elements: `$KEY`, `$SELF` and `$PARENT` are removed | Accepted |
 | [ADR-010](#adr-010--no-magic-keys-or-paths-the-tree-at-all-levels-is-user-space) | No magic keys or paths: the tree at all levels is user space | Accepted |
 | [ADR-011](#adr-011--the-star-is-sugar-the-disjunction-is-the-structure) | The star is sugar; the disjunction is the structure | Accepted |
-| [ADR-012](#adr-012--the-project-operates-one-transparency-log-and-nothing-else) | The project operates one transparency log, and nothing else | Accepted |
+| [ADR-012](#adr-012--an-includes-extension-decides-what-the-file-is-aontu-source-config-data-or-refused) | An include's extension decides what the file is: Aontu source, config data, or refused | Accepted |
+| [ADR-013](#adr-013--the-project-operates-one-transparency-log-and-nothing-else) | The project operates one transparency log, and nothing else | Accepted |
 
 ---
 
@@ -1071,9 +1072,149 @@ another kind. The replace-anything reading stays spellable as
 
 `test/spec/defaults.tsv` (29 rows, both runners) pins the rules;
 `pref_rank_clash` joins the registry.
+
+## ADR-012 — An include's extension decides what the file is: Aontu source, config data, or refused
+
+**Date:** 2026-08-30
+**Status:** Accepted
+
+### Context
+
+`@"file"` reads a file. What the engine did with the bytes depended on
+the file's extension, and the two ports had different rules — so the
+same document and the same file evaluated to different values. Probed
+with the identical content `{"a":1,"b":{"c":2}}` under six names, both
+ports (`use-cases/BUGS.md` §49):
+
+| file | TypeScript | Go |
+|---|---|---|
+| `v.aon` | the map | the map |
+| `v.json` | `Cannot convert object to primitive value` | the map |
+| `v.jsonld` | the content, as a **string** | the map |
+| `v.txt`, `v.dat`, `vnoext` | the content, as a **string** | the map |
+
+One line on each side: `ts/src/lang.ts` registered
+`processor: {aontu, aon}` and let every other extension fall through to
+multisource's default, which hands the file back as raw text;
+`go/source.go` registered the empty kind, the fallback for an
+unrecognised extension, and so parsed everything as Aontu source.
+Either rule is defensible; having both is not, and ADR-001 says so.
+
+`.json` was worse than either. It is the one extension with an upstream
+default processor, which returns a plain JS object where the aontu
+grammar produces Vals, so the tree met a value it could not convert and
+raised an unhandled internal error with no code, no path and no site —
+the shape a harness grepping `[aontu/` cannot see at all.
+
+The grade was critical because the failure is a well-formed WRONG
+document: `schema: @"vocab.jsonld"` gave a map in Go and a string in
+TypeScript, and both exited 0. A document pinning a vendored vocabulary
+validated against the vocabulary in one port and against a 40 KB string
+in the other.
+
+### Decision
+
+**The extension decides, from a fixed table, and it says which of TWO
+things the file is.**
+
+| extension | what it is |
+|---|---|
+| `.aon`, `.aontu` | **Aontu source** — the language, with types, defaults, references, constraints, its own includes |
+| `.json`, `.jsonld`, `.jsonc`, `.json5`, `.jsonic`, `.jsc`, `.toml`, `.yaml`, `.yml`, `.ini` | **configuration data** — parsed by that format's own parser into the JSON value it denotes |
+| anything else, and a name with no extension | refused, by name, with `include_extension` |
+
+```
+include not readable: notes.txt (extension: .txt)
+```
+
+**Every one of those formats maps onto JSON**, which is why one word
+covers them: a `.toml` file is a map of scalars, lists and maps, and so
+is the `.aon` file that unifies with it. What a data format does NOT
+get is the language — a `&` in a YAML file is a YAML anchor, not a
+spread key, because the YAML parser reads it, not this one. A model is
+usually asked to meet configuration somebody else already wrote, and
+"rewrite it into `.aon` first" is not an answer.
+
+**The parsers are @tabnas's, one per format, and BOTH PORTS RUN THE
+SAME ONES.** That is what makes the shared spec rows possible: the two
+implementations agree because they are running one grammar, not because
+two hand-written readers were kept in step. It is also why the table
+can grow without a second round of parity work.
+
+Three alternatives were weighed and refused. Parsing everything as
+Aontu (Go's rule) makes `@"notes.txt"` a parse error at a line the
+author never wrote — and cannot read TOML or YAML at all. Reading
+everything but `.aon` as text (TypeScript's rule) keeps the critical
+shape, the silently stringified vocabulary. Refusing every non-`.aon`
+include is safe and leaves ONTOLOGY P1 with nothing to import.
+
+**`.csv` is deliberately absent, and the reason is ADR-001.** The two
+ports' CSV parsers disagree about what a CSV file even is: `@tabnas/csv`
+answers header-keyed records with string fields, `github.com/tabnas/csv/go`
+answers raw rows including the header, with numbers parsed. Admitting
+it would admit a divergence into the one thing this project refuses to
+have one in. `test/spec/file.tsv`'s `load-ext-csv` pins the refusal, so
+the day the two parsers agree the row is what says so.
+
+**`.jsonld` reads as JSON**, because it is JSON: a `@context` is a key
+like any other here, and what it MEANS is the vocabulary's business,
+not the reader's. That is what `docs/design/ONTOLOGY.0.md` §3.1 needed,
+every vocabulary its phase P1 imports being `.json` or `.jsonld` —
+schema.org ships `schemaorg-current-https.jsonld`, microformats2
+parsers emit JSON, DCMI publishes RDF serialisations.
+
+**The refusal is raised, not injected.** In both ports the decision is
+made in the RESOLVER, not the processor: a bare-member include
+(`@"notes.txt"` at the top of a file) merges into the enclosing map,
+and a nil contributes no keys, so an injected refusal would vanish and
+leave a plausible, silently-partial document — the same reason
+`include_denied` and `multisource_not_found` are raised.
+
+**Trust decides first.** A file outside the confinement root is
+`include_denied` whatever it is called: answering `include_extension`
+there would confirm the file exists.
+
+### Consequences
+
+`.js` IS NO LONGER INCLUDABLE, in either port. multisource's `js`
+processor `require()`s the file in the evaluating process, so
+`@"x.js"` was arbitrary code execution — named as a hazard in
+`docs/trust.md`, in the MCP server, and in `vet`, `diff` and `query`,
+each of which told callers to set a trust profile because of it. It is
+now refused by the same rule that refuses `.txt`. The trust profile is
+still the confinement surface for everything else an include can reach.
+
+The TypeScript package leg narrows with it: `@"some-pkg"` resolving to
+a `.js` entry point now refuses. The Go port has no package leg at all
+(`docs/test-coverage.md`), so this closes a divergence rather than
+opening one, and the module system (G6, `aon_vendor/`) is unaffected —
+a module states `kind: 'aon'` by construction, as the bundled
+vocabulary does.
+
+`include_extension` joins the registry (class `parse`, 0.54.0).
+`test/spec/file.tsv` pins the rule in both runners: every format that
+reads, the extensions that refuse, the extension being NAMED, the four
+bare-member positions where a refusal must not vanish, the precedence
+of not-found over extension, and `.csv`'s absence.
+
+**Two consequences of reading data with a data parser.** A format's own
+semantics are the ones that apply: `.ini` has no types, so `port=8080`
+is the STRING `"8080"` and a schema wanting `port: integer` has to say
+so (pinned by `load-ext-ini`). And a malformed config file refuses the
+document rather than becoming an anonymous nil under the key that
+included it — with one divergence, recorded in `DIVERGENCE.md` #67:
+TypeScript's reader throws, so the frame it drew (the `.toml`, its
+line, its caret) reaches the user, where Go's outer parse fails
+afterwards and names its own `@`. Same verdict, same class, same exit
+code; different prose, which is already the carve-out the shared spec
+makes for messages.
+
+**This adds nine runtime dependencies to each port** — one parser per
+format. They are all @tabnas packages, all pure parsers with no I/O,
+and the browser bundle the playground ships grows with them.
 ---
 
-## ADR-012 — The project operates one transparency log, and nothing else
+## ADR-013 — The project operates one transparency log, and nothing else
 
 **Date:** 2026-08-30
 **Status:** Accepted

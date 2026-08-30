@@ -579,12 +579,41 @@ function capture(fn) {
             },
         });
         Assert.equal(lang.parse('x:@"m0.aon"').canon, '{"x":{"a":1}}');
+        // A `.json` include is AONTU SOURCE (ADR-012), so it arrives as
+        // Vals like any other include -- not as the raw JS object the
+        // upstream json processor used to hand back, which was the one
+        // shape the tree could not convert (BUGS §49b).
         const pkg = new lang_1.Lang().parse('p:@"@tabnas/jsonic/package.json"');
-        Assert.equal(pkg.peg.p.name, '@tabnas/jsonic');
+        Assert.equal(pkg.peg.p.peg.name.peg, '@tabnas/jsonic');
         const none = new lang_1.Lang().parse('a:@');
         Assert.equal(none.canon, 'nil');
         Assert.match(none.err[0].msg, /source not found/);
         Assert.throws(() => new lang_1.Lang().parse('a:@1'));
+        // A HOST-SUPPLIED resolver never passed through gateExtension --
+        // that gate lives inside makeModelResolver, which this replaces --
+        // so the processor map is what holds the rule for it. Without the
+        // refusing entries the kind below would fall to multisource's
+        // default and the file would arrive as TEXT (and a `.js` one would
+        // be require()d), which is exactly what ADR-012 refuses.
+        const host = new lang_1.Lang({
+            resolver: () => ({
+                found: true, path: 'x.txt', full: '/nowhere/x.txt',
+                kind: 'txt', src: 'a:1', search: [],
+            }),
+        });
+        const refused = host.parse('v:@"x.txt"');
+        Assert.equal(refused.canon, 'nil');
+        Assert.equal(refused.err[0].why, 'include_extension');
+        Assert.match(refused.err[0].msg, /extension: \.txt/);
+        // ... and a host resolution with no `full` at all: a resolver that
+        // answers from something other than a filesystem need not have
+        // chosen a path, so the WRITTEN one names the extension.
+        const bare = new lang_1.Lang({
+            resolver: () => ({ found: true, path: 'x.dat', kind: 'dat', src: 'a:1', search: [] }),
+        });
+        const barerefused = bare.parse('v:@"x.dat"');
+        Assert.equal(barerefused.canon, 'nil');
+        Assert.match(barerefused.err[0].msg, /extension: \.dat/);
     });
     (0, node_test_1.test)('raw-value-conversion', () => {
         const lang = new lang_1.Lang();
@@ -596,10 +625,19 @@ function capture(fn) {
         // An elided element is REFUSED, in an implicit top-level list as
         // anywhere else (issue #48). It canons as the nil it now is.
         Assert.equal(lang.parse('1,,2').canon, '[1,nil,2]');
-        // A JSON include arrives as raw JS and is converted kind by kind.
+        // A JSON include is Aontu source (ADR-012), and every JSON kind is
+        // a kind the grammar already has.
         Assert.equal(lang.parse('1, @"' + raw + '"').canon, '[1,{"a":1,"b":"s","c":true,"d":[1,2],"e":null,"f":1.5}]');
-        // A function export has no Val: parse_unknown.
-        Assert.equal(lang.parse('1, @"' + rawfn + '"').canon, '[1,nil]');
+        // A `.js` include is REFUSED, NOT EXECUTED. `.js` is not on
+        // INCLUDE_KINDS, so the resolver throws before anything reads the
+        // file -- where the upstream processor used to require() it in this
+        // process and hand its export to rawToVal as a parse_unknown nil.
+        // The fixture still exports a function, so a regression here would
+        // show as `[1,nil]` again rather than as an error.
+        const js = lang.parse('1, @"' + rawfn + '"');
+        Assert.equal(js.canon, 'nil');
+        Assert.equal(js.err[0].why, 'include_extension');
+        Assert.match(js.err[0].msg, /extension: \.js/);
         // An operator expression in an implicit top-level list is REDUCED,
         // not left as a raw op array: `k2.b` is the relative reference
         // `.k2.b`, which is what it canons as standalone too. Before

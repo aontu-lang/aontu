@@ -79,7 +79,7 @@ infrastructure around the lattice, not syntax on top of it.
 > lockfile is a private memory — what makes the FIRST pinning of it
 > public and auditable? It is the one gap that admits a service the
 > project must operate, which
-> [ADR-012](../../ADR.md#adr-012--the-project-operates-one-transparency-log-and-nothing-else)
+> [ADR-013](../../ADR.md#adr-013--the-project-operates-one-transparency-log-and-nothing-else)
 > permits once and bounds.
 
 | # | Gap | Why it changes what the language is | Design doc |

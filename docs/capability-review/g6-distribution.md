@@ -449,7 +449,7 @@ is required for v1. Two hooks make the registry more than storage:
 - **No project-operated central REGISTRY service** — any OCI
   registry works; running infrastructure forever is not a language
   feature. *(Amended 2026-08-30 by
-  [ADR-012](../../ADR.md#adr-012--the-project-operates-one-transparency-log-and-nothing-else),
+  [ADR-013](../../ADR.md#adr-013--the-project-operates-one-transparency-log-and-nothing-else),
   which admits exactly one service and is explicit about what this
   bullet was right about. The rejection above has two halves: "OCI
   already provides storage, auth, replication and org familiarity"

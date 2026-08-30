@@ -67,3 +67,86 @@ load-not-found-in-loaded-value	err	@"__FIXTURES__/nest_missing_val.aon"	source n
 load-alias-spread	gen	@"__FIXTURES__/alias_schema.aon" customers:{&:$.schema.C} customers:c1:{ledgerId:5}	{"customers":{"c1":{"ledgerId":5}},"schema":{}}
 load-alias-idspread	gen	@"__FIXTURES__/alias_schema.aon" customers:{&:id(key(0))&$.schema.C} customers:c1:{ledgerId:5}	{"customers":{"c1":{"ledgerId":5}},"schema":{}}
 load-alias-top-conjunct	gen	@"__FIXTURES__/alias_top.aon" c1:$.C&{a:5}	{"c1":{"a":5}}
+
+# WHAT AN INCLUDE'S EXTENSION MEANS (ADR-012; use-cases/BUGS.md §49).
+# One rule, in both ports. The extension says which of TWO things the
+# file is:
+#
+#   .aon .aontu                            AONTU SOURCE -- the language,
+#                                          with types, defaults, refs
+#   .json .jsonld .jsonc .json5 .jsonic
+#   .jsc .toml .yaml .yml .ini             CONFIG DATA -- parsed by that
+#                                          format's own parser
+#
+# and every other extension -- and a name with no extension -- is
+# refused by name.
+#
+# The rows exist because the two ports decided this DIFFERENTLY, and
+# both answers were wrong in a way that exits 0. TypeScript handed back
+# every non-`.aon` file as its raw TEXT, so `schema: @"vocab.jsonld"`
+# validated data against a 40 KB string; Go parsed everything as Aontu
+# source, so `@"notes.txt"` parsed prose. `.json` was worse than either:
+# an unhandled internal error with no code, path or site.
+#
+# THE TWO PORTS RUN THE SAME PARSERS (@tabnas, one per format), which is
+# why these rows can be shared at all: they agree because it is one
+# grammar, not because two hand-written readers were kept in step.
+load-ext-json	gen	x:@"__FIXTURES__/vocab.json"	{"x":{"a":1,"b":{"c":2}}}
+load-ext-jsonld	gen	x:@"__FIXTURES__/vocab.jsonld"	{"x":{"@context":{"name":"http://schema.org/name"},"name":"aontu"}}
+# THE CONFIG FORMATS, over one payload so the table reads as one thing.
+# ONTOLOGY.0.md P1 needs the two JSON rows above; the rest are here
+# because a model is usually asked to meet configuration somebody else
+# already wrote, and rewriting it into `.aon` first is not an answer.
+load-ext-toml	gen	x:@"__FIXTURES__/conf.toml"	{"x":{"host":"local","port":8080,"tags":["a","b"]}}
+load-ext-yaml	gen	x:@"__FIXTURES__/conf.yaml"	{"x":{"host":"local","port":8080,"tags":["a","b"]}}
+load-ext-yml	gen	x:@"__FIXTURES__/conf.yml"	{"x":{"host":"local","port":8080}}
+load-ext-jsonc	gen	x:@"__FIXTURES__/conf.jsonc"	{"x":{"cert":null,"host":"local","port":8080,"tags":["a","b"],"tls":true}}
+load-ext-json5	gen	x:@"__FIXTURES__/conf.json5"	{"x":{"host":"local","port":8080,"tags":["a","b"]}}
+load-ext-jsonic	gen	x:@"__FIXTURES__/conf.jsonic"	{"x":{"host":"local","port":8080,"tags":["a","b"]}}
+# INI HAS NO TYPES, so `8080` is the STRING "8080" -- the format's own
+# semantics, not a conversion this engine gets to make. Pinned because
+# it is the one row where a reader would otherwise assume a number, and
+# a schema wanting `port: integer` has to say so.
+load-ext-ini	gen	x:@"__FIXTURES__/conf.ini"	{"x":{"host":"local","port":"8080"}}
+# CONFIG DATA IS DATA, not the language: what the format reads as a
+# comment is a comment, and nothing in it is an Aontu construct. The
+# `.jsonc` fixture carries both comment forms for that reason, and the
+# two JSON kinds the others' payload lacks: a BOOLEAN and a NULL. Every
+# kind a config file can hold is read by some row here.
+#
+# `.csv` IS DELIBERATELY NOT ON THE LIST, and this row pins that. The
+# two ports' CSV parsers disagree about what a CSV file even IS -- one
+# answers header-keyed records with string fields, the other raw rows
+# including the header, with numbers parsed -- so admitting it would
+# admit a divergence, which ADR-001 does not allow. See ADR-012.
+load-ext-csv	err	x:@"__FIXTURES__/conf.csv"	include not readable
+load-ext-text	err	x:@"__FIXTURES__/notes.txt"	include not readable
+load-ext-none	err	x:@"__FIXTURES__/noext"	include not readable
+# The extension is NAMED, because the extension is the whole reason.
+load-ext-names-it	err	x:@"__FIXTURES__/notes.txt"	extension: .txt
+load-ext-names-none	err	x:@"__FIXTURES__/noext"	no extension
+# A refusal must not vanish where a bare-member include merges into the
+# enclosing map and a nil contributes no keys -- the shape that made a
+# missing include produce a clean, plausible, INCOMPLETE document
+# (load-not-found-member above, same reason).
+load-ext-bare	err	a:1 @"__FIXTURES__/notes.txt"	include not readable
+load-ext-bare-first	err	@"__FIXTURES__/notes.txt" a:1	include not readable
+load-ext-nested	err	a:{ @"__FIXTURES__/notes.txt" }	include not readable
+load-ext-list	err	a:[ @"__FIXTURES__/notes.txt" ]	include not readable
+# An unreadable extension on a source that is not there is NOT-FOUND:
+# the file has to exist before its name can be the problem.
+load-ext-missing	err	x:@"__FIXTURES__/no-such-file.txt"	source not found
+# A MALFORMED CONFIG FILE REFUSES THE DOCUMENT, rather than becoming an
+# anonymous nil under the key that included it. Matched on the shared
+# part of the two ports' messages: TypeScript surfaces the frame its
+# reader drew (the .toml, its line, its caret) where Go's outer parse
+# fails afterwards and names its own `@` -- same verdict, same class,
+# same exit code, different prose (DIVERGENCE.md #67).
+load-ext-broken	err	x:@"__FIXTURES__/broken.toml"	unexpected
+# TOML HAS DATES AND JSON DOES NOT, so a date reaches the document as
+# the TEXT it was written as -- which is what a JSON document carries
+# for a date anyway. Both readers answer with a marker holding the kind
+# and the source (a `{__toml__:{..}}` object in TypeScript, a *TomlTime
+# in Go), and both ports normalise it to the source, or the same file
+# would be a nested map in one and a string in the other.
+load-ext-toml-dates	gen	x:@"__FIXTURES__/dates.toml"	{"x":{"day":"1979-05-27","port":8080,"when":"1979-05-27T07:32:00Z"}}

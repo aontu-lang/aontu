@@ -2494,8 +2494,12 @@ func parseWithTrust(src, base, file string, trust *trustSink) (Val, error) {
 		return newMap(), &AontuError{Msg: trust.modMsg, Code: trust.modCode}
 	}
 
+	// The code comes from the sink, not a constant: a load can fail
+	// because the source was not there or because its extension is not
+	// read as Aontu source (includeKinds, source.go), and the two are
+	// different diagnoses reaching parseBase through one channel.
 	if "" != sink.msg {
-		return newMap(), &AontuError{Msg: sink.msg, Code: "multisource_not_found"}
+		return newMap(), &AontuError{Msg: sink.msg, Code: sink.code}
 	}
 
 	if err != nil {

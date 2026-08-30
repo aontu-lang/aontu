@@ -146,8 +146,10 @@ export type VetOptions = {
   // Vet's whole job is to evaluate a document its caller did not
   // write, so the caller must be able to say what that document is
   // allowed to reach: without this the include chain is the default
-  // one, and `@"x.js"` in hostile data is arbitrary code execution in
-  // the validating process. A server passes `{include:'none'}`.
+  // one, and `@"../../etc/passwd.aon"` in hostile data reads whatever
+  // the validating process can. (`@"x.js"` no longer executes --
+  // ADR-012 refuses the extension -- but reading is enough.) A server
+  // passes `{include:'none'}`.
   trust?: TrustOptions
 }
 
