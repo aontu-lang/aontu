@@ -24,7 +24,9 @@ import {
 } from 'node:fs'
 import { join as pathJoin, dirname as pathDirname } from 'node:path'
 
-import { parseModuleRef, moduleDir, lockJson } from './mod'
+import {
+  parseModuleRef, validateModulePath, moduleDir, lockJson,
+} from './mod'
 import { subsume } from './subsume'
 import type { ModuleRef } from './mod'
 
@@ -162,6 +164,30 @@ export function versionCompare(a: string, b: string): number {
 }
 
 
+// A dependency or lockfile key as a module ref this tooling may ACT
+// on, or undefined.
+//
+// Two ways to be unusable, one answer. A key that is not module-shaped
+// names nothing the resolver can find; a key that is shaped but whose
+// path cannot legally be a directory (`..` in it, a reserved device
+// name) must not be turned into one, which is the whole of the
+// traversal fix on this side. Both land in the caller's `missing`
+// bucket, because from the report's point of view they are the same
+// fact: the lockfile names something that cannot be resolved here.
+//
+// A STALE LOCKFILE IS THE REASON THIS EXISTS AT ALL. `resolveModule`
+// gates the evaluator, but `tidy`, `verify` and `vendor` read a
+// lockfile straight off disk -- one that may have been committed
+// before the gate existed -- so the gate has to be here too.
+function usableRef(mod: string): ModuleRef | undefined {
+  const ref = parseModuleRef(mod)
+  if (undefined === ref || undefined !== validateModulePath(ref.path)) {
+    return undefined
+  }
+  return ref
+}
+
+
 // The directory a module is in, in the local stores: the project's
 // vendor tree first, then the cache under the hash the lockfile pins.
 function storeDir(
@@ -245,11 +271,11 @@ export function modTidy(root: string, options: ModToolOptions): ModTidyReport {
       }
       selected[mod] = want
 
-      const ref = parseModuleRef(mod)
+      const ref = usableRef(mod)
       if (undefined === ref) {
-        // A dependency key that is not a module path names nothing this
-        // resolver can find, which is the same answer as a module that
-        // is not there.
+        // A dependency key this tooling cannot act on names nothing
+        // this resolver can find, which is the same answer as a module
+        // that is not there (see usableRef).
         missing.push(mod)
         continue
       }
@@ -278,7 +304,7 @@ export function modTidy(root: string, options: ModToolOptions): ModTidyReport {
     if (missing.includes(mod)) {
       continue
     }
-    const ref = parseModuleRef(mod) as ModuleRef
+    const ref = usableRef(mod) as ModuleRef
     const dir = storeDir(root, ref, previous[mod]?.canon ?? '', options) as string
     const main = pathJoin(dir, mainOf(dir, options))
     // RECOMPUTED, never carried over: the pin is what the module in
@@ -374,7 +400,7 @@ export function modVerify(root: string, options: ModToolOptions):
     .filter((mod) => null == locked[mod]).sort()
 
   for (const mod of Object.keys(locked).sort()) {
-    const ref = parseModuleRef(mod)
+    const ref = usableRef(mod)
     if (undefined === ref) {
       missing.push(mod)
       continue
@@ -422,8 +448,10 @@ export function modVendor(root: string, options: ModToolOptions):
   const vendored: string[] = []
   const missing: string[] = []
 
+  const vendorRoot = pathJoin(root, 'aon_vendor')
+
   for (const mod of Object.keys(locked).sort()) {
-    const ref = parseModuleRef(mod)
+    const ref = usableRef(mod)
     if (undefined === ref) {
       missing.push(mod)
       continue
@@ -435,7 +463,18 @@ export function modVendor(root: string, options: ModToolOptions):
       continue
     }
 
-    const to = moduleDir(pathJoin(root, 'aon_vendor'), ref)
+    // WHY THERE IS NO CONTAINMENT CHECK ON `to`, at the one write site
+    // that copied a tree outside the project: `usableRef` above is the
+    // gate, and after it a store path CANNOT escape. Every element is
+    // non-empty and neither begins nor ends with `.`, so none is `.`
+    // or `..`; MODULE_RE's element class admits no `/`, no `\` and no
+    // leading slash, so no element can re-root the join. A second
+    // lexical check here would be unreachable code, which ADR-002 asks
+    // to be deleted rather than excluded -- so the invariant is pinned
+    // by a test that drives the escape through this verb instead.
+    // ANY NEW CALLER of moduleDir must go through usableRef too;
+    // `mod get` is the next one.
+    const to = moduleDir(vendorRoot, ref)
     if (from !== to) {
       copyTree(from, to)
     }

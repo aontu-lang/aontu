@@ -69,7 +69,9 @@ import {
 } from '@tabnas/multisource/processor/jsonic'
 
 import { STD_SOURCES } from './std'
-import { parseModuleRef, resolveModule, modCacheDir } from './mod'
+import {
+  parseModuleRef, resolveModule, modCacheDir, MODULE_REFUSAL_CODES,
+} from './mod'
 
 import {
   Expr,
@@ -2436,18 +2438,14 @@ class Lang {
     }
     catch (e: any) {
       if ('include_denied' === e?.code || 'include_extension' === e?.code ||
-        'module_missing' === e?.code || 'module_integrity' === e?.code ||
-        'module_depth' === e?.code) {
-        // A denied include (trust profile, G5): the resolver throws so
-        // a bare-member include cannot vanish in the merge, and the
-        // code survives here as the parse-stage nil the registry
-        // pins (errcodes.tsv: include_denied, class parse).
+        MODULE_REFUSAL_CODES.has(e?.code)) {
         // A denied include (G5), an include whose extension is not read
-        // as Aontu source (ADR-012, INCLUDE_KINDS), and a module that
-        // is missing or fails its pin (G6 phase 2) are refused the same
-        // way, for the same reason: the resolver THROWS so a bare-member
-        // include cannot vanish in the merge, and the code survives here
-        // as the parse-stage nil the registry pins (errcodes.tsv).
+        // as Aontu source (ADR-012, INCLUDE_KINDS), and a module that is
+        // missing, fails its pin, or names a path that escapes its store
+        // (G6 phase 2) are refused the same way, for the same reason: the
+        // resolver THROWS so a bare-member include cannot vanish in the
+        // merge, and the code survives here as the parse-stage nil the
+        // registry pins (errcodes.tsv).
         val = new NilVal({
           why: 'parse',
           err: new NilVal({

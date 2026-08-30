@@ -189,6 +189,30 @@ func declaredDeps(file string) map[string]string {
 	return out
 }
 
+// usableRef is a dependency or lockfile key as a module ref this
+// tooling may ACT on, or false.
+//
+// Two ways to be unusable, one answer. A key that is not module-shaped
+// names nothing the resolver can find; a key that is shaped but whose
+// path cannot legally be a directory (`..` in it, a reserved device
+// name) must not be turned into one, which is the whole of the
+// traversal fix on this side. Both land in the caller's `missing`
+// bucket, because from the report's point of view they are the same
+// fact: the lockfile names something that cannot be resolved here.
+//
+// A STALE LOCKFILE IS THE REASON THIS EXISTS AT ALL. resolveModule
+// gates the evaluator, but `tidy`, `verify` and `vendor` read a
+// lockfile straight off disk -- one that may have been committed
+// before the gate existed -- so the gate has to be here too. Mirrors
+// usableRef in ts/src/mod-tool.ts.
+func usableRef(mod string) (ModuleRef, bool) {
+	ref, ok := parseModuleRef(mod)
+	if !ok || "" != validateModulePath(ref.Path) {
+		return ModuleRef{}, false
+	}
+	return ref, true
+}
+
 // modStoreDir is the directory a module is in, in the local stores: the
 // project's vendor tree first, then the cache under the hash the
 // lockfile pins.
@@ -282,11 +306,11 @@ func ModTidy(root, cache string) ModTidyReport {
 			}
 			selected[mod] = want
 
-			ref, ok := parseModuleRef(mod)
+			ref, ok := usableRef(mod)
 			if !ok {
-				// A dependency key that is not a module path names
+				// A dependency key this tooling cannot act on names
 				// nothing this resolver can find, which is the same
-				// answer as a module that is not there.
+				// answer as a module that is not there (see usableRef).
 				missing[mod] = true
 				continue
 			}
@@ -319,7 +343,7 @@ func ModTidy(root, cache string) ModTidyReport {
 		if missing[mod] {
 			continue
 		}
-		ref, _ := parseModuleRef(mod)
+		ref, _ := usableRef(mod)
 		dir := modStoreDir(root, ref, previous[mod].Canon, cache)
 		main := filepath.Join(dir, moduleMain(filepath.Join(dir, "mod.aon"), 0))
 		hash := ""
@@ -419,7 +443,7 @@ func ModVerify(root, cache string) ModVerifyReport {
 	sort.Strings(mods)
 
 	for _, mod := range mods {
-		ref, ok := parseModuleRef(mod)
+		ref, ok := usableRef(mod)
 		if !ok {
 			missing = append(missing, mod)
 			continue
@@ -483,8 +507,10 @@ func ModVendor(root, cache string) ModVendorReport {
 	vendored := []string{}
 	missing := []string{}
 
+	vendorRoot := filepath.Join(root, "aon_vendor")
+
 	for _, mod := range mods {
-		ref, ok := parseModuleRef(mod)
+		ref, ok := usableRef(mod)
 		if !ok {
 			missing = append(missing, mod)
 			continue
@@ -494,7 +520,18 @@ func ModVendor(root, cache string) ModVendorReport {
 			missing = append(missing, mod)
 			continue
 		}
-		to := moduleDir(filepath.Join(root, "aon_vendor"), ref)
+		// WHY THERE IS NO CONTAINMENT CHECK ON `to`, at the one write
+		// site that copied a tree outside the project: usableRef above
+		// is the gate, and after it a store path CANNOT escape. Every
+		// element is non-empty and neither begins nor ends with `.`, so
+		// none is `.` or `..`; moduleRe's element class admits no `/`,
+		// no `\` and no leading slash, so no element can re-root the
+		// join. A second lexical check here would be unreachable code,
+		// which ADR-002 asks to be deleted rather than excluded -- so
+		// the invariant is pinned by a test that drives the escape
+		// through this verb instead. ANY NEW CALLER of moduleDir must
+		// go through usableRef too; `mod get` is the next one.
+		to := moduleDir(vendorRoot, ref)
 		if from != to {
 			if err := copyTree(from, to); nil != err { //coverage:ignore a readable store copies
 				missing = append(missing, mod)

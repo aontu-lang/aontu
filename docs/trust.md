@@ -70,10 +70,11 @@ the code's posture is the operative warning:
 It is no longer worse than that. Until
 [ADR-012](../ADR.md#adr-012--an-includes-extension-decides-what-the-file-is-aontu-source-config-data-or-refused)
 an include named `@"x.js"` was `require()`d in the evaluating process,
-which made opening an untrusted source *running* it. Only four
-extensions are read at all now — `.aon`, `.aontu`, `.json`, `.jsonld`,
-all of them parsed as Aontu source — and everything else is refused by
-name. The TypeScript package leg narrows with that rule: a package
+which made opening an untrusted source *running* it. Twelve
+extensions are read at all now — `.aon` and `.aontu` as Aontu source,
+and `.json`, `.jsonld`, `.jsonc`, `.json5`, `.jsonic`, `.jsc`,
+`.toml`, `.yaml`, `.yml` and `.ini` as configuration data, each read
+by its own parser — and everything else is refused by name. The TypeScript package leg narrows with that rule: a package
 whose entry point is JavaScript no longer resolves.
 
 `options.fs` still does not confine — it feeds source text for parsing

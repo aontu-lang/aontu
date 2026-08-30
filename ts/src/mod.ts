@@ -73,9 +73,94 @@ export function parseModuleRef(spec: string): ModuleRef | undefined {
 }
 
 
+// SHAPE IS NOT VALIDITY, and the gap between them was a hole. MODULE_RE
+// answers "does this string route to the module resolver" -- a
+// ROUTING predicate, and it must stay one, because anything it rejects
+// falls through to the file leg and a stricter pattern would silently
+// re-route documents that work today. But its element class
+// `[A-Za-z0-9._-]` admits `..`, and `moduleDir` joins elements with
+// pathJoin, which CLEANS `..` rather than refusing it:
+//
+//   moduleDir('/store/aon_vendor', 'corp.example/../../etc/passwd@1')
+//     -> /store/etc/passwd@1
+//
+// `mod vendor` then copied a tree THERE, outside the project entirely,
+// and reported `verdict: ok`. So validity is a separate question asked
+// separately, after the shape matched, and asked at every site that
+// turns a module path into a directory.
+//
+// The rules are Go's (golang.org/x/mod/module.CheckPath), for the
+// reason Go has them: a module path becomes a real directory on every
+// platform the toolchain runs on, so it must be a legal one everywhere.
+export const MODULE_MAX_PATH = 512
+export const MODULE_MAX_ELEMS = 32
+
+
+// Windows refuses these as file names whatever the extension, so a
+// module path containing one cannot be materialised there at all. The
+// check is on the element up to its first dot, which is where Windows
+// stops looking too.
+const RESERVED_ELEMS = new Set([
+  'con', 'prn', 'aux', 'nul',
+  'com1', 'com2', 'com3', 'com4', 'com5', 'com6', 'com7', 'com8', 'com9',
+  'lpt1', 'lpt2', 'lpt3', 'lpt4', 'lpt5', 'lpt6', 'lpt7', 'lpt8', 'lpt9',
+])
+
+
+// Why a module path may not be used as a directory, or undefined when
+// it may. The reason is user-facing: it goes in the refusal, because a
+// path refused without saying which rule it broke is a puzzle.
+export function validateModulePath(path: string): string | undefined {
+  if (MODULE_MAX_PATH < path.length) {
+    return 'longer than ' + MODULE_MAX_PATH + ' characters'
+  }
+
+  const elems = path.split('/')
+  if (MODULE_MAX_ELEMS < elems.length) {
+    return 'more than ' + MODULE_MAX_ELEMS + ' elements'
+  }
+
+  for (const elem of elems) {
+    if ('' === elem) {
+      return 'an element is empty'
+    }
+    // This one rule kills `.` and `..` -- the traversal -- along with
+    // `.hidden` and `trailing.`, exactly as Go's does. Stating it as
+    // the rule rather than as "no `..`" is deliberate: a check that
+    // named the two dangerous spellings would miss the next one.
+    if (elem.startsWith('.') || elem.endsWith('.')) {
+      return 'an element begins or ends with "."'
+    }
+    if (RESERVED_ELEMS.has(elem.split('.')[0].toLowerCase())) {
+      return 'an element is a reserved device name'
+    }
+  }
+
+  return undefined
+}
+
+
+// An element as it is spelled ON DISK. Uppercase is escaped to
+// `!`+lowercase, Go's rule (go.dev/ref/mod, module proxy protocol) and
+// for Go's reason: `github.com/Alice/Widgets` and
+// `github.com/alice/widgets` are two module identities and, on macOS
+// and Windows, ONE directory -- so without this the second module
+// fetched silently clobbers the first, and an unpinned import resolves
+// to whichever won.
+//
+// The WRITTEN path stays the identity; only the directory is escaped.
+function escapeElem(elem: string): string {
+  return elem.replace(/[A-Z]/g, (c) => '!' + c.toLowerCase())
+}
+
+
 // The directory a module's files live in, under a store root.
+//
+// Callers must have validated the path (validateModulePath); this
+// function cannot refuse, because it answers a location rather than a
+// question, and every caller has a refusal shape of its own.
 export function moduleDir(store: string, ref: ModuleRef): string {
-  return pathJoin(store, ...ref.path.split('/')) + '@' + ref.major
+  return pathJoin(store, ...ref.path.split('/').map(escapeElem)) + '@' + ref.major
 }
 
 
@@ -248,6 +333,19 @@ export type ModuleFound = {
 }
 
 
+// EVERY code `resolveModule` can refuse with. The list lives HERE,
+// beside the refusals themselves, because the parse layer has to
+// recognise them to turn the throw into a parse-stage nil
+// (ts/src/lang.ts) -- and when that list was written out longhand
+// there, adding a fourth code left it unhandled and the refusal
+// surfaced as `unexpected error` instead of the message it carries.
+// The Go port has no such list (recordModErr takes any code), which is
+// why only this side could drift.
+export const MODULE_REFUSAL_CODES: ReadonlySet<string> = new Set([
+  'module_path', 'module_missing', 'module_integrity', 'module_depth',
+])
+
+
 // A refusal that carries its code to the parse layer, exactly as a
 // denied include does (makeModelResolver's `deny`): the resolver
 // THROWS, so a bare-member module import cannot vanish in the merge and
@@ -266,6 +364,17 @@ export function resolveModule(
   fs: ModuleFs,
   options: ModuleOptions,
 ): ModuleFound {
+  // THE PATH IS CHECKED BEFORE ANYTHING IS BUILT FROM IT. This is
+  // first because it is a question about the REQUEST, not about the
+  // state of the machine: a path that cannot legally be a directory is
+  // refused identically whether or not the module is present, and
+  // whether or not the depth bound is near.
+  const badpath = validateModulePath(ref.path)
+  if (undefined !== badpath) {
+    refuse('module_path',
+      'module path: ' + ref.path + '@' + ref.major + ' (' + badpath + ')')
+  }
+
   if (MODULE_MAX_DEPTH <= (options.depth ?? 0)) {
     refuse('module_depth',
       'module depth: ' + ref.path + '@' + ref.major +

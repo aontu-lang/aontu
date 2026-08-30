@@ -8,6 +8,9 @@ export type ModuleFs = {
     readFileSync: (p: string, enc: string) => string;
 };
 export declare function parseModuleRef(spec: string): ModuleRef | undefined;
+export declare const MODULE_MAX_PATH = 512;
+export declare const MODULE_MAX_ELEMS = 32;
+export declare function validateModulePath(path: string): string | undefined;
 export declare function moduleDir(store: string, ref: ModuleRef): string;
 export declare function projectRoots(from: string, fs: ModuleFs): string[];
 export declare function lockJson(text: string): string;
@@ -28,4 +31,5 @@ export type ModuleFound = {
     full: string;
     src: string;
 };
+export declare const MODULE_REFUSAL_CODES: ReadonlySet<string>;
 export declare function resolveModule(ref: ModuleRef, fromDir: string, fs: ModuleFs, options: ModuleOptions): ModuleFound;

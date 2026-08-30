@@ -1,0 +1,33 @@
+# 57: a recursive list spread CONJOINED WITH A MAP does not terminate
+# at depth two, in BOTH ports. Depth one answers in ~0.12 s; depth two
+# runs unbounded, allocating (563 MB at 21 s, 700 MB at 41 s in
+# TypeScript) rather than spinning, so it is a clone-graph explosion
+# and not a tight loop.
+#
+# The conjunct's CONTENT is irrelevant -- `& {}` is enough. `& top` is
+# fine (absorbed), a bare `[&: %T]` is fine, and the same conjunct
+# written OUTSIDE the spread (`tag?: X` as a sibling key) is fine. The
+# path spelling (`$.schema.T`) hangs identically to the alias.
+#
+# RUN UNDER timeout -- like refer-cycles/refer-in-type-hang.aon, this
+# file does not terminate in any practical time. run-all.sh never
+# executes this tree.
+#
+# run: timeout 20 node ../../../ts/bin/aontu.js recursive-spread-conjunct-hangs.aon
+# run: timeout 20 aontu-go recursive-spread-conjunct-hangs.aon
+#
+# expected: {"d":{"kids":[{"kids":[{"name":"c"}],"name":"b"}],"name":"a"}}
+#           -- or, if the evaluator gives up, the budget_passes /
+#           recursion_budget refusal the trust contract promises
+# actual (both ports): no output, no error, no budget refusal;
+#           killed by timeout
+#
+# Why it matters beyond the spelling: docs/trust.md clause 2 says
+# evaluation terminates, and the pass budget (maxcc = 9, ts/src/unify.ts)
+# bounds the NUMBER of fixpoint passes, not the work inside one. The
+# explosion happens within a pass, so no budget code can fire and the
+# guarantee is not enforced here.
+#
+# Removing the `& {}` makes this file answer in 0.12 s.
+%T: {name: string, kids?: [&: %T & {}]}
+d: %T & {name: a, kids: [{name: b, kids: [{name: c}]}]}

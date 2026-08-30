@@ -1,0 +1,23 @@
+@"./domain.aon"
+
+step: hide(pack($.schema, { d: {
+  k: "record"
+  name: key(2)
+  fields: pick(pack(_, { f: {
+    name: key(2)
+    type: match(_,
+      integer,    { k: "prim", prim: "int" },
+      float,      { k: "prim", prim: "float" },
+      biginteger, { k: "prim", prim: "bigint" },
+      bigdecimal, { k: "prim", prim: "decimal" },
+      string,     { k: "prim", prim: "string" },
+      boolean,    { k: "prim", prim: "bool" },
+      [],         { k: "list", of: { k: "prim", prim: "any" } },
+      {},         { k: "map", key: { k: "prim", prim: "string" },
+                    of: { k: "prim", prim: "any" } },
+      { k: "prim", prim: "any" })
+    default?: _
+  }}), f)
+}}))
+
+units: [ { path: "domain.ts", lang: "typescript", decls: pick($.step, d) } ]

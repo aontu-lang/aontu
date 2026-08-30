@@ -1,0 +1,2 @@
+# The data document for 59. See vet-at-loses-aliases-in-go.aon.
+units: [ { p: "a", fs: [ {n:"x"} ] } ]

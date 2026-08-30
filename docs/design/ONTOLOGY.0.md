@@ -67,9 +67,9 @@ starting line; several rows are worse than expected.
 |---|---|---|---|
 | 1 | `aontu jsonschema` on a constrained map | emits `2020-12` schema with `minimum`, `type`, `required` | **the code-generation path already exists** |
 | 2 | `@"v.aon"` where the file holds JSON | parsed as source, both ports | JSON is a subset of the grammar, so a vocabulary dump is includable *as source* — and this is the **only** extension the two ports agree on |
-| 3 | `@"v.jsonld"` | parsed as Aontu source, both ports | was a parity break: TS handed back the raw TEXT. Settled by ADR-012 |
+| 3 | `@"v.jsonld"` | read as JSON data, both ports | was a parity break: TS handed back the raw TEXT. Settled by ADR-012 |
 | 4 | `@"v.txt"`, `@"v.dat"`, a name with no extension | refused, `include_extension`, both ports | was the same split. Settled by ADR-012 |
-| 5 | **`@"v.json"`** | parsed as Aontu source, both ports | **was a TypeScript crash** with no code, path or site. Settled by ADR-012 |
+| 5 | **`@"v.json"`** | read as JSON data, both ports | **was a TypeScript crash** with no code, path or site. Settled by ADR-012 |
 | 6 | `relations` on an `id()`/`refer()` document | `verdict: pass` | the graph surface is live |
 
 ### 3.1 The prerequisite, now met
@@ -91,9 +91,14 @@ path and no site, the §43 shape again.
 
 **Ruled and fixed 2026-08-30**, as
 [ADR-012](../../ADR.md#adr-012--an-includes-extension-decides-what-the-file-is-aontu-source-config-data-or-refused):
-`.aon`, `.aontu`, `.json` and `.jsonld` are read as Aontu source in
-both ports, because JSON is a subset of the grammar; every other
-extension is refused by name. Filed as
+the extension says which of two things a file is. `.aon` and `.aontu`
+are Aontu source; `.json` and `.jsonld` — with `.jsonc`, `.json5`,
+`.jsonic`, `.jsc`, `.toml`, `.yaml`, `.yml` and `.ini` — are
+configuration **data**, read by that format's own parser into the JSON
+value it denotes. Every other extension, and a name with no extension,
+is refused by name. A vocabulary is therefore data, not source: what
+it holds is a map of scalars, lists and maps, and nothing in it is an
+Aontu construct. Filed as
 [`use-cases/BUGS.md` §49](../../use-cases/BUGS.md#49-an-includes-extension-decides-the-answer-and-the-two-ports-decide-differently-fixed-2026-08-30).
 
 **P1 below is therefore unblocked**: an included vocabulary now means

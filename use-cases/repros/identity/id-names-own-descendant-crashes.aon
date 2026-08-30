@@ -1,0 +1,25 @@
+# 58: an id() naming a node AND one of its own descendants makes the
+# evaluated value graph cyclic, and both engines die on the host stack
+# rather than reporting anything.
+#
+# Identity merge means every node carrying a name unifies with every
+# other node carrying it. Naming a node and its own descendant the
+# same entity therefore asks for a value that CONTAINS ITSELF. The
+# honest answer is a located refusal (an `id_ancestor` conflict, or
+# `id_conflict` reused); what happens instead is a stack overflow.
+#
+# run: node ../../../ts/bin/aontu.js id-names-own-descendant-crashes.aon
+# run: aontu-go id-names-own-descendant-crashes.aon
+#
+# expected: a located [aontu/...] refusal naming the two id() sites
+# actual (TypeScript): "Aontu: unexpected error: Maximum call stack
+#          size exceeded", exit 1 -- and note there is NO [aontu/...]
+#          marker, so a harness grepping for one sees nothing at all
+# actual (Go):         "fatal error: stack overflow", exit 2 --
+#          unrecoverable, so an embedding server cannot catch it
+#
+# Sibling-to-sibling identity merge (`{p: id(x) & {c:1}, q: id(x) &
+# {d:2}}`) is fine, which is the feature working; distinct names are
+# fine; id() on the node alone is fine. Only ancestor-and-descendant
+# crashes, at any nesting distance.
+a: id(x) & { b: id(x) }

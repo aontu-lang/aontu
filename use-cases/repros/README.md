@@ -12,8 +12,11 @@ node ../../ts/bin/aontu.js <file>       # or the command in # run:
 Two cautions:
 
 - `refer-cycles/refer-in-type-hang.aon` (with its `-schema` companion)
-  does not terminate in any practical time — run it under
-  `timeout 10` as its header says. `run-all.sh` never executes
+  and `recursion/recursive-spread-conjunct-hangs.aon` do not terminate
+  in any practical time — run them under `timeout` as their headers
+  say. `identity/id-names-own-descendant-crashes.aon` terminates, but
+  by overflowing the host stack: in Go that is a `fatal error` the
+  embedding program cannot recover from. `run-all.sh` never executes
   anything in this tree.
 - Some entries reproduce **by-design** behaviour whose consequence is
   the finding (marked in their headers and in BUGS.md), and
@@ -55,9 +58,11 @@ Two cautions:
   `constraint-alias.tsv`.
 
 - `includes/` (§49, filed 2026-08-28) is **FIXED** as of 2026-08-30,
-  by the ruling in ADR-012: four extensions are read as Aontu source
-  (`.aon`, `.aontu`, `.json`, `.jsonld`) and every other one — and a
-  name with no extension — is refused by name. Both entries need a
+  by the ruling in ADR-012: `.aon` and `.aontu` are read as Aontu
+  source, ten config formats (`.json`, `.jsonld`, `.jsonc`, `.json5`,
+  `.jsonic`, `.jsc`, `.toml`, `.yaml`, `.yml`, `.ini`) are read as
+  data by their own parsers, and every other one — and a name with no
+  extension — is refused by name. Both entries need a
   fixture beside them, so the directory carries `vocab.json` and
   `vocab.jsonld` — byte-identical, differing only in name, which was
   the whole point. Their pin is `file.tsv`, the `load-ext-*` block.

@@ -12,8 +12,9 @@ or spec rows.
 
 Minimal reproductions live under [`repros/`](repros/), one directory
 per family; each `.aon` carries an `# expected:` / `# actual:` header.
-The one nontermination repro is marked in-file to be run under
-`timeout`. Severity: **critical** = silent wrong output, unsound vet
+The nontermination repros (§57 and
+`refer-cycles/refer-in-type-hang.aon`) are marked in-file to be run
+under `timeout`. Severity: **critical** = silent wrong output, unsound vet
 verdict, or nontermination; **major** = a documented capability fails;
 **minor** = papercut.
 
@@ -1860,6 +1861,364 @@ template crosses as `additionalProperties`/`items` only when it is a
 bare kind; list `length()` exports `minItems`/`maxItems` yet still
 reports a domain-less loss. The case's `check.sh` pins today's
 behaviour; fixing any of these means re-pinning there and in the guide.
+
+### 57. A recursive spread conjoined with a map does not terminate at depth two, in both ports [critical]
+
+Found 2026-08-30 while surveying what a declarative code-generation
+layer could be built on. Recursion through a **list spread** works,
+and so does conjoining anything at a recursive position -- until the
+two meet at depth two, where both engines run unbounded:
+
+```aon
+%T: {name: string, kids?: [&: %T & {}]}
+d: %T & {name: a, kids: [{name: b, kids: [{name: c}]}]}
+```
+
+| spelling | depth 1 | depth 2 |
+|---|---|---|
+| `[&: %T]` | 0.11 s | **0.15 s** |
+| `[&: %T & top]` | 0.11 s | **0.14 s** |
+| `[&: %T & {}]` | 0.13 s | **no answer** |
+| `[&: %T & {tag: X}]` | 0.14 s | **no answer** |
+| `[&: $.schema.T & {tag: X}]` (path form) | 0.15 s | **no answer** |
+| `{name: string, tag?: X, kids?: [&: %T]}` (conjunct OUTSIDE the spread) | 0.16 s | 0.16 s |
+
+(Wall clock for the whole CLI run, node 24, this tree; the point is
+three orders of magnitude, not the third digit.)
+
+So it is not the recursion, not the spread, and not the conjunct's
+content -- `& {}`, which adds nothing, is enough. `& top` is fine
+because top is absorbed rather than kept as a conjunct. Both ports
+behave identically: TypeScript and the Go CLI each answer depth one in
+a sixth of a second and are still running when killed at 20 s on depth two.
+
+It is an ALLOCATION explosion, not a spin: TypeScript holds 563 MB of
+resident memory 21 s in and 700 MB 41 s in, growing steadily at about
+one core. That is the clone-graph signature -- the recursive residual
+and its conjunct being re-instantiated per pass per destination -- and
+not a loop that fails to advance.
+
+**Why this is critical rather than a performance note.**
+[`docs/trust.md`](../docs/trust.md) clause 2 promises that evaluation
+terminates, and the budget taxonomy in
+[`test/spec/budget.tsv`](../test/spec/budget.tsv) promises that giving
+up is *reported* (`budget_passes`, `recursion_budget`, `unify_cycle`)
+rather than silent. Neither holds here, and the reason is structural:
+the pass budget (`maxcc = 9`, `ts/src/unify.ts:545`) bounds the NUMBER
+of fixpoint passes, not the work inside one. The explosion happens
+within a single pass, so no budget code can fire. A document like this
+one hangs the CLI, the LSP, and any agent harness that evaluates
+untrusted input -- which is the case G5 exists to rule out.
+
+The recursion machinery is a week old (§52, fixed 2026-08-29 by
+[`docs/design/RECURSION.0.md`](../docs/design/RECURSION.0.md) P0+P1),
+and the shape here is regime 4's neighbour: `test/spec/recursion.tsv`
+pins `list-depth-*` for the bare spread, and no row conjoins anything
+with the recursive position inside a spread.
+
+**It also blocks the transform layer.** A recursive reference is the
+natural home for an apply-templates analogue -- descent bounded by the
+data, which is exactly the termination argument G8 asks for -- and
+per-node computation at a recursive position is precisely
+`[&: %T & {...}]`. A second, milder defect sits beside it: computation
+written INSIDE a recursive definition is evaluated at the definition
+rather than per instance, so `up: upper(.name)` in
+`hide({T: {name: string, up: upper(.name), kids?: [&: $.schema.T]}})`
+refuses with `[aontu/invalid-arg]` at `$.schema.T.up`, `.name` having
+resolved to `string`. Per-destination instantiation (ADR-005) reaches
+`pack` templates and `&:` spreads but not recursive expansion.
+
+Repro:
+[`repros/recursion/recursive-spread-conjunct-hangs.aon`](repros/recursion/recursive-spread-conjunct-hangs.aon)
+-- run it under `timeout`, as its header says.
+
+## identity — id() at its own boundary
+
+### 58. An `id()` naming a node and its own descendant crashes both engines on the host stack [critical]
+
+Found 2026-08-30, same survey as §57, while asking whether the
+evaluated value graph is a tree (a transform layer that walks children
+needs to know). It is not, and one construct makes it cyclic:
+
+```aon
+a: id(x) & { b: id(x) }
+```
+
+| port | outcome |
+|---|---|
+| TypeScript | `Aontu: unexpected error: Maximum call stack size exceeded`, exit 1 — **no `[aontu/…]` marker**, so a harness that greps for one sees nothing |
+| Go | `runtime: goroutine stack exceeds 1000000000-byte limit` / `fatal error: stack overflow`, exit 2 — Go stack overflow is **not recoverable**, so an embedding server cannot catch it |
+
+Identity merge means every node carrying a name unifies with every
+other node carrying it ([`docs/reference-language.md`](../docs/reference-language.md#identity-idname)),
+so naming a node and its own descendant the same entity asks for a
+value that contains itself, and `a.peg.b === a`. What is missing is
+the refusal, not the detection: the merge has both sites in hand.
+
+The boundary is exactly ancestor-to-descendant. Everything adjacent
+works, which is why this has not been seen:
+
+| spelling | outcome |
+|---|---|
+| `{p: id(x) & {c:1}, q: id(x) & {d:2}}` (siblings) | merges — the feature working |
+| `a: id(x) & {b: id(y) & {c:1}}` (distinct names) | fine |
+| `a: id(x) & {b: {c: 1}}` (id on the node alone) | fine |
+| `a: id(x) & {b: id(x)}` | **crash, both ports** |
+| `a: id(x) & {b: {c: id(x) & {d: 1}}}` (deeper) | **crash, both ports** |
+
+Three things follow. First, it is a
+[trust-contract](../docs/trust.md) breach of the plainest kind: a
+22-character document takes down the CLI, the LSP and the MCP server,
+and the Go side cannot be defended against by the host. Second, the
+error taxonomy has a hole the registry cannot see —
+[`test/spec/errcodes.tsv`](../test/spec/errcodes.tsv) carries
+`id_name`, `id_conflict` and `id_spread`, and this failure has no code
+at all, so `codeClasses` set-equality stays green while a whole class
+of input is unhandled. An `id_ancestor` conflict (or `id_conflict`
+reused, the two sites being exactly what it reports) closes it. Third,
+it bounds what a transform layer may assume: **the evaluated structure
+is a DAG with sharing, and one construct can make it cyclic**, which
+is why [`ts/src/walk.ts`](../ts/src/walk.ts) calls its `seen` set "a
+termination guard, not an optimisation". Any walk primitive that
+recurses on `peg` inherits this crash until the refusal lands.
+
+Repro:
+[`repros/identity/id-names-own-descendant-crashes.aon`](repros/identity/id-names-own-descendant-crashes.aon).
+
+## anchoring — what `--at` can still see
+
+### 59. `vet --at` loses `%alias` references in the Go port [critical]
+
+Found 2026-08-30 while specifying a code-generation vocabulary as an
+Aontu schema — the vocabulary is alias-heavy, and `--at` is how you
+point a validation at one part of a document. The two engines return
+**opposite verdicts and opposite exit codes** for the same inputs:
+
+```aon
+# schema
+%F: close({ n: string })
+%U: close({ p: string, fs: [&: %F] })
+%C: close({ units: [&: %U] })
+code: type(%C)
+
+# data
+units: [ { p: "a", fs: [ {n:"x"} ] } ]
+```
+
+```
+$ aontu      vet --at code schema.aon data.aon    verdict: valid     exit 0
+$ aontu-go   vet --at code schema.aon data.aon    verdict: invalid   exit 1
+                                                  $.code.units.0: no_path [reference]
+                                                  schema: schema.aon:3:24 ($.%U)
+```
+
+Isolated to `--at` alone: removing `type()` still breaks in Go, one
+alias level instead of three still breaks in Go, and dropping `--at`
+(wrapping the data in a `code:` key instead) makes **both** ports say
+valid. The likely cause is that Go's anchor re-roots the schema subtree
+while `%alias` declarations live at the document root (`$.%U`), so
+after anchoring the alias is unreachable; TypeScript's `anchorAt`
+keeps root context.
+
+`--at` is a shared seam, but the break is not, and this was probed
+rather than assumed: `jsonschema --at code` **agrees** between the
+ports over the same document (both render `"items": {}`), and `diff`
+takes no `--at` at all. So it is vet's anchor, not every anchor.
+
+The direction matters. Go REFUSES a document TypeScript ACCEPTS, so a
+pipeline running the Go CLI fails builds the canonical implementation
+passes — and `vet` is the verb whose whole purpose is to be that gate
+(ADR-007, and the `vet ≡ eval` differential in
+[`AGENTS.md`](../AGENTS.md#the-vet--eval-differential)). It is in no
+debt register: not here, not
+[`test/spec/divergent.tsv`](../test/spec/divergent.tsv), not
+[`DIVERGENCE.md`](../DIVERGENCE.md). By the ledger's own rule it does
+not belong in `divergent.tsv` either — that register is for
+divergences that cannot be fixed from this repository right now, and
+this one is Go's `anchorAt`.
+
+Repro:
+[`repros/anchor/vet-at-loses-aliases-in-go.aon`](repros/anchor/vet-at-loses-aliases-in-go.aon)
+with its `-data` companion.
+
+## hashing — what `aon1-` can still see
+
+### 60. The canon-hash is blind to an alias used as a spread template [critical]
+
+Found 2026-08-30, by an adversarial reviewer checking a
+code-generation vocabulary\'s anti-drift story and finding that the pin
+proving it did not discriminate. Both ports, identically — a shared
+defect, not a divergence.
+
+```aon
+# A          %A: close({ n: string })          box: [&: %A]
+# B          %A: close({ n: integer, EXTRA: string })   box: [&: %A]
+# A-longhand box: [&: close({ n: string })]
+```
+
+| document | hash |
+|---|---|
+| A | `aon1-ZaobmDyyIw5ibjA8DREEXj0h7I5SpzZdnSDVE5SGQLM` |
+| B — **different meaning** | `aon1-ZaobmDyyIw5ibjA8DREEXj0h7I5SpzZdnSDVE5SGQLM` — **the same** |
+| A-longhand — **same meaning** | `aon1-p1pejKOs3tEJLbpVHlFa2xXy67X-LwvGI3iK8r0tf74` — **different** |
+
+Backwards on both counts. And A and B really do differ: against
+`box: [{n: "x"}]`, A vets `valid` and B vets `invalid`.
+
+**Root cause, and the exact boundary.** `hcanon` erases alias
+declarations on purpose, and says why
+([`ts/src/hcanon.ts`](../ts/src/hcanon.ts), the `aliasKeys` filter):
+"`aon1-` pins MEANING, so a document written with aliases and the same
+document written longhand must hash to one string". That is
+[`docs/design/ALIASES.0.md`](../docs/design/ALIASES.0.md)\'s own
+sharpest requirement. The erasure is correct **wherever unification
+consumes or substitutes the alias**, and that is every case the suite
+covers:
+
+| use site | canon | erasure |
+|---|---|---|
+| scalar, consumed (`listen: %p` / `listen: 8080`) | `{"listen":8080}` | correct — this is `alias.tsv:alias-hash-erases` and its longhand twin |
+| map, substituted (`a: %A`) | `{"a":{"n":string}}` | correct — twin matches, changed meaning moves the hash |
+| **spread template (`box: [&: %A]`)** | `{"box":[&:$.%A]}` | **broken** |
+
+At a spread template the alias stays **symbolic** in canon as
+`$.%A`. The declaration is erased from the hash form while the
+*reference* survives, so the hash form carries a dangling name with no
+content behind it. Erasure and symbolic survival are each right on
+their own; together they lose the meaning. The fix is to expand the
+alias at its use site when building the hash form, rather than
+dropping the declaration and keeping the reference.
+
+The two `hash` rows in [`test/spec/alias.tsv`](../test/spec/alias.tsv)
+cannot see this: both use the scalar-consumed spelling, where the
+alias is gone before canon runs.
+
+**What it costs.** `aontu hash` is the drift check, and
+[`ts/src/agentsmd.ts`](../ts/src/agentsmd.ts) writes the claim into
+every generated AGENTS.md stanza in the user\'s own repository — "the
+canon-hash: it survives reformatting and **moves on any change of
+meaning**". For any document whose schema is spelled with aliases at a
+spread — the idiom the alias feature exists for — that sentence is
+false, and the failure is silent and in the unsafe direction: a real
+change of meaning reports no change. G6 pins modules by the same
+`#aon1-…` fragment.
+
+`subsume` is **not** fooled — `aontu subsume A B` answers
+`does_not_subsume` with `$.%A.n: compat_narrowed` — so the breaking
+check still sees what the pin misses.
+
+Repro:
+[`repros/hash/alias-spread-hash-blind.aon`](repros/hash/alias-spread-hash-blind.aon)
+with its `-2` and `-longhand` companions.
+
+## trials — the flag one port sets and the other does not
+
+### 61. Go's `trialUnify` never sets `ctx.trial`, so `match` and `filter` answer differently in the two ports [critical]
+
+Found 2026-08-30 by an adversarial reviewer of the transform-layer
+design, while checking whether unifiability-matching could carry a
+rule layer. It cannot yet: the two ports disagree about what unifies.
+
+| source | TypeScript | Go |
+|---|---|---|
+| `match([1,2], [], "hit", "miss")` | `"miss"` | **`"hit"`** |
+| `match([1], [], "hit", "miss")` | `"miss"` | **`"hit"`** |
+| `filter([[1],[1,2]], [])` | `[]` | **`[[1],[1,2]]`** |
+| `a: *[]` / `a: [1]` | `[aontu/empty]`, exit 1 | **`{"a":*[1]}`, exit 0** |
+| `a: *[1]` / `a: [1,2]` | `[aontu/empty]`, exit 1 | **`{"a":*[1,2]}`, exit 0** |
+
+`match` selects the other arm and `filter` makes the **opposite**
+selection — TypeScript drops every element, Go keeps every element —
+and neither port raises anything. This is the silent-wrong-output
+class, in the two combinators a transform layer would dispatch on.
+
+The agreeing cases draw the boundary and confirm the cause:
+`a: [] a: [1]` merges to `[1]` in both (no trial); `a: *[] a: []`
+gives `*[]` in both (same length); `match([],[],…)` is `"hit"` in both
+(same length); and `match([1,2],[&:integer],…)` is `"hit"` in both (a
+spread makes the pattern variadic).
+
+**Root cause — a one-line omission.** Both ports carry the same gate,
+with the same comment, for the rule §52 regime 4 introduced:
+
+- [`ts/src/val/ListVal.ts`](../ts/src/val/ListVal.ts): `if (true === ctx._trialMode && … this.peg.length !== peer.peg.length) return makeNilErr(ctx, 'list_length', …)`
+- [`go/listval.go`](../go/listval.go): `if pl, ok := peer.(*ListVal); ok && nil != ctx && ctx.trial && … len(l.peg) != len(pl.peg)`
+
+TypeScript's `trialUnify`
+([`ts/src/val/FuncBaseVal.ts`](../ts/src/val/FuncBaseVal.ts)) saves,
+**sets** and restores `ctx._trialMode`. Go's `trialUnify`
+([`go/generate.go`](../go/generate.go)) swaps `ctx.err` and **never
+sets `ctx.trial`**, so the gate it shares with TypeScript can never
+fire from a combinator trial. Go's flag is set on the disjunct-member
+path instead, which is why `[] | [&: T]` behaves and `match`/`filter`
+do not.
+
+**The fix is one line; its blast radius is not.** `go/pref.go` calls
+the same `trialUnify` three times (`:158`, `:200`, `:227`) for the
+`*x & peer` distribution, so setting the flag there changes every
+default meet in Go — ADR-004 and ADR-011 territory, with ~190 lines of
+`test/spec/pref.tsv` behind it. That the suite is green today means it
+does not cover this, not that the change is small: **pref-side rows
+for a trial peer of a different length should land before the fix
+does.**
+
+Repro:
+[`repros/trial/go-trial-flag-unset.aon`](repros/trial/go-trial-flag-unset.aon)
+and its `-pref` companion.
+
+## ordering — the one call site that does not use cmpCodePoint
+
+### 62. `pick` orders an astral-keyed map by UTF-16 code units in TypeScript [critical]
+
+Found 2026-08-30 while checking that a transform's generated line order
+is stable across ports. It is not.
+
+```aon
+m: {"\u{1F600}": {v:"astral"}, "\uFFF0": {v:"bmp"}}
+p: pick($.m, v)
+```
+
+| | result |
+|---|---|
+| canon of `m`, both ports | `{"\uFFF0":…,"\u{1F600}":…}` — U+FFF0 first |
+| `each($.m, integer)`, both ports | `[2,1]` — same order |
+| `pick`, **TypeScript** | `["astral","bmp"]` — **U+1F600 first** |
+| `pick`, **Go** | `["bmp","astral"]` — matches canon |
+
+So the map's own order agrees, `each` agrees, and only `pick` moves —
+which means the two functions the language documents as sharing one
+order do not. `go/agg.go` states the contract: "sorted-key order for a
+map — `each`'s order, and for the same reason (a map has no order of
+its own, so the language picks one and states it)". Go honours it;
+TypeScript does not.
+
+**Cause, one line.** `bagChildren` in
+[`ts/src/val/AggFuncVal.ts`](../ts/src/val/AggFuncVal.ts) does
+
+```js
+return Object.keys(data.peg).sort().map((k) => data.peg[k])
+```
+
+A bare `.sort()` is JavaScript's **UTF-16 code-unit** order. U+1F600
+is the surrogate pair `D83D DE00`, and `D83D` sorts below `FFF0`, so
+TypeScript reverses the pair. Go sorts UTF-8 bytes, which *is*
+code-point order. Every other ordering site in the port imports
+`cmpCodePoint` from [`ts/src/keyorder.ts`](../ts/src/keyorder.ts) —
+`agentsmd.ts`, `diff.ts`, `exactjson.ts` and `graph.ts` all do. This
+one call site does not. The fix is `.sort(cmpCodePoint)`.
+
+`bagChildren` also feeds `sum`, `least` and `greatest`, but those fold
+order-insensitively, so `pick` is the only observable divergence.
+
+**Why it matters beyond Unicode.** `pick` is the order-preserving
+projection — the primitive that turns a bag of records into an ordered
+list of generated lines, and the one a code generator leans on for
+exactly that. Two ports, two orders, means one model producing two
+different generated files: an ADR-001 break in the primitive the
+generation story depends on.
+
+Repro:
+[`repros/order/pick-astral-key-order.aon`](repros/order/pick-astral-key-order.aon).
 
 ## Elsewhere in this review
 

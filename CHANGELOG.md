@@ -61,6 +61,45 @@ This was `use-cases/BUGS.md` §49, and it unblocks
 `docs/design/ONTOLOGY.0.md` phase P1, whose vocabularies all ship as
 `.json` or `.jsonld`.
 
+### Security: a module path could escape its store
+
+Both implementations. `aontu mod vendor`, given a lockfile naming a
+module whose path contained `..`, copied that module's source tree
+**outside the project directory** and reported `verdict: ok` with exit
+0. The module-path pattern's element class admits `..`, and `pathJoin`
+/ `filepath.Join` *clean* a `..` element rather than refusing it, so a
+store path built from one resolved above the store:
+
+    corp.example/../../etc/passwd@1   ->   <store>/../etc/passwd@1
+
+Exploitation needs a `mod-lock.aon` supplied by an attacker — a
+hostile repository that is cloned and vendored — and the read path was
+already contained under a `root` trust capability. The write path was
+not contained at all. Affects `aontu@0.53.0` and `go/v0.1.11`.
+
+A module path is now **validated before anything is built from it**, by
+Go's module-path rules: no element may be empty, begin or end with `.`
+(which is what forbids `..`), or be a reserved device name, and the
+path is bounded in length and element count. The refusal is a new code
+`module_path`, and it names the rule that was broken. The same gate
+applies to lockfile and `dep` keys, so a lockfile written before the
+gate existed cannot bypass it.
+
+The routing predicate is unchanged: a path it rejects still falls
+through to the file resolver, so no document that resolves today is
+re-routed.
+
+**Uppercase in a module path is now escaped on disk** as
+`!`+lowercase, Go's proxy rule. `corp.example/Widgets` and
+`corp.example/widgets` were two lockfile identities and one directory
+on macOS and Windows, so whichever was written second silently served
+both. The written path remains the identity.
+
+One parity hole surfaced with the fix and is closed: TypeScript's parse
+layer recognised module refusals from a longhand list of codes, so a
+newly added one surfaced as `unexpected error` where Go printed it
+correctly.
+
 ### The star is sugar; the disjunction is the structure
 
 Both implementations. `a: *x` and `a: *x | super(x)` were two
