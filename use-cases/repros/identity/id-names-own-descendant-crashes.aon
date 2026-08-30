@@ -23,3 +23,10 @@
 # fine; id() on the node alone is fine. Only ancestor-and-descendant
 # crashes, at any nesting distance.
 a: id(x) & { b: id(x) }
+
+# FIXED 2026-08-30: refused as `id_ancestor` (class conflict) in both
+# ports, raised in the entity merge's collect half before the unite
+# that would build the self-containing value. The refusal lands on the
+# descendant and names the ancestor as its other site. Pinned by
+# test/spec/id.tsv id-ancestor-* and test/spec/errcodes.tsv.
+# It terminates now, so it no longer needs `timeout`.

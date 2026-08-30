@@ -18,3 +18,9 @@
 # ERRORS and Go produces a value.
 matched:  match([1,2], [], "hit", "miss")
 filtered: filter([[1],[1,2]], [])
+
+# FIXED 2026-08-30: Go's trialUnify saves, sets and restores ctx.trial,
+# so the list-length gate it shares with TypeScript fires from the
+# combinators and from the preference distribution. Pinned by
+# test/spec/pref.tsv pref-struct-list-default-*, gen-match.tsv
+# match-list-*, and gen-filter.tsv filter-list-*.

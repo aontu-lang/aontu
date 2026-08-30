@@ -61,7 +61,7 @@ func reachEndpointFinding(name string, known []string) VetFinding {
 
 // parseNodePath is the segments a `$.dotted` endpoint spells, or
 // ok=false when it is not one. Reachability is between TREE POSITIONS
-// (ADR-013), so an endpoint is a path and nothing else -- the same
+// (ADR-014), so an endpoint is a path and nothing else -- the same
 // spelling the report prints back. Mirrors parseNodePath in
 // ts/src/reach.ts.
 func parseNodePath(s string) ([]string, bool) {
@@ -105,7 +105,7 @@ func nodeAt(root Val, path []string) bool {
 }
 
 // Reach answers whether `to` is reachable from `from` over the link
-// graph of src. Endpoints are `$.dotted` node paths (ADR-013).
+// graph of src. Endpoints are `$.dotted` node paths (ADR-014).
 func (a *Aontu) Reach(src, from, to string, opts *ReachOptions) ReachReport {
 	options := ReachOptions{}
 	if nil != opts {

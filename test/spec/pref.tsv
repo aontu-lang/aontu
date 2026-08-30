@@ -117,6 +117,26 @@ pref-struct-map-default-refuses-string	errc	a:*{x:1}\na:"s"	empty
 pref-struct-list-default-refuses-string	errc	a:*[1]\na:"s"	empty
 pref-struct-map-default-merges	gens	a:*{x:1}\na:{y:2}	{"a":{"x":1,"y":2}}
 pref-struct-list-default-refuses-number	errc	a:*[1]\na:5	empty
+# A LIST DEFAULT AND A PEER OF A DIFFERENT LENGTH. A list is a
+# POSITIONAL structure, so a peer of another length is not a narrowing
+# of the default -- there is no arm left admitting both -- and the
+# override gate refuses it as `empty`, the same answer as the string
+# and number rows above. These rows exist because the two ports
+# DISAGREED here and the ~190 lines above did not cover it: every row
+# used a peer of the same length, so the length gate the two ports
+# share was never exercised from the preference distribution.
+# TypeScript refused and Go answered `*[1]` / `*[1,2]` at exit 0, which
+# is the silent-wrong-output class in the operator ADR-004 and ADR-011
+# are built on (BUGS.md §61).
+pref-struct-list-default-shorter-peer	errc	a:*[]\na:[1]	empty
+pref-struct-list-default-longer-peer	errc	a:*[1]\na:[1,2]	empty
+# THE BOUNDARY: same length still merges leafwise, which is R3 and the
+# reason the refusal has to be about LENGTH rather than about lists.
+pref-struct-list-default-same-length	canon	a:*[]\na:[]	{"a":*[]}
+pref-struct-list-default-same-length-one	gens	a:*[1]\na:[integer]	{"a":[1]}
+# A SPREAD MAKES THE PATTERN VARIADIC, so it is not a length mismatch
+# at all and the default stands.
+pref-struct-list-default-spread-peer	gens	a:*[1]\na:[&:integer]	{"a":[1]}
 # The scalar direction of the same pairing, for contrast: a scalar
 # default refuses a map, and says so as the emptied disjunction it is
 # (ADR-011 R1; it read `not-scalar-type`, the code of the gate's own

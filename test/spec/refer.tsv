@@ -10,7 +10,7 @@
 # generates a full copy of the auth node where the author meant a name;
 # `link-not-embedding`, one line different, generates the address.
 #
-# An address is a PATH and nothing else (ADR-013): `$.a.b` from the
+# An address is a PATH and nothing else (ADR-014): `$.a.b` from the
 # document root, `.b` from the link's own sibling scope. There is no
 # second namespace, so a model can be instantiated more than once and
 # each instance resolves its own relative links -- the row

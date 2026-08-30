@@ -22,7 +22,7 @@ import (
 
 // Address is a TREE PATH, in the two spellings a reference uses:
 // `$.services.auth` from the document root, `.auth` from the link's own
-// sibling scope. The tree is the only namespace (ADR-013) -- which is
+// sibling scope. The tree is the only namespace (ADR-014) -- which is
 // what makes a model instantiable more than once, each instance
 // resolving its relative links inside itself. Mirrors Address in
 // ts/src/val/ReferFuncVal.ts.

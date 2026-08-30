@@ -1,0 +1,4 @@
+# 65, the control: the same document WITHOUT the `unique() &` guard.
+# Both ports answer `verdict: reaches`, exit 0.
+p: id(pp) & {n: 1}
+a: id(x) & {link: [&: refer() & string], link: ["pp"]}

@@ -70,6 +70,20 @@ edge-str-unicode	gens	a:"é"	{"a":"é"}
 edge-num-separator	gens	a:1_000	{"a":1000}
 edge-quote-kinds	gens	a:'sq' b:`bq`	{"a":"sq","b":"bq"}
 #
+# BACKTICK STRINGS SPAN LINES, and all three quote forms process
+# escapes. The multi-line form is what lets a document carry a block
+# of another language, which the code-generation use case (15) rests
+# on -- and it arrives UNCONFIGURED from the @tabnas defaults, so
+# without these rows a minor bump could remove it with nothing to
+# catch the loss. A literal newline inside "..." or '...' is refused
+# as an unprintable character; inside `...` it is content.
+edge-backtick-multiline	gens	a:`one\ntwo`	{"a":"one\\ntwo"}
+edge-backtick-escapes	gens	a:`x\\ty` b:`q\\`r` c:`s\\\\t`	{"a":"x\\ty","b":"q`r","c":"s\\\\t"}
+# The refusal's MARKER reads `[aontu/unprintable]` -- a @tabnas parser
+# code surfaced under the aontu marker -- while the engine classifies it
+# as `syntax` (class parse), which is what an errc row asserts.
+edge-quoted-newline-refused	errc	a:"one\ntwo"	syntax
+#
 # Lists: closed with residue, null elements, spread canon, and a
 # ref-carried list spread.
 edge-list-closed-residue	errc	a:close([1,number])	listval_required

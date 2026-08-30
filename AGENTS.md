@@ -310,7 +310,7 @@ record them.
 
 Forward-looking design work lives in
 [`docs/capability-review/`](docs/capability-review/index.md): eight gap
-documents (G1–G9), each ending in a numbered implementation plan
+documents (G1–G10), each ending in a numbered implementation plan
 (G9 was opened 2026-08-30, after the original eight had landed).
 **When a phase of one of those plans lands, its row in
 [`docs/capability-review/progress.md`](docs/capability-review/progress.md)

@@ -5,6 +5,7 @@ set -euo pipefail
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO="$DIR/../.."
+NODE="${NODE:-node}"
 AONTU="${AONTU:-node $REPO/ts/bin/aontu.js}"
 
 WORK="$(mktemp -d)"
@@ -192,5 +193,25 @@ ok "proposal: candidate JSON joins the model and relations still pass"
 run badref 1 -- "$DIR/proposals/onboard-badref.aon"
 has badref err '[aontu/rel_unresolved]'
 ok "proposal: a dangling dependsOn address refused by rel()"
+
+# 10. THE CATALOG, DRAWN. The same entity graph the checks above assert
+# over, rendered two ways from `graphOf` alone -- node-link for the
+# shape, and a dependency-structure matrix, which the empirical
+# literature prefers past about twenty vertices (Ghoniem, Fekete and
+# Castagliola, InfoVis 2004; Sangal et al., OOPSLA 2005). Both are
+# deterministic text, so they are pinned like any other golden. There
+# is no `aontu view` verb yet -- see docs/design/VIEWS.0.md -- so this
+# uses the shipped library through use-cases/tools/diagram.js.
+"$NODE" "$DIR/../tools/diagram.js" graph --primary dependsOn \
+  "$DIR/system.aon" > "$WORK/diagram-graph.mmd" \
+  || fail "graph diagram did not render"
+diff -u "$DIR/expected/diagram-graph.mmd" "$WORK/diagram-graph.mmd" \
+  || fail "the graph diagram drifted"
+"$NODE" "$DIR/../tools/diagram.js" matrix --primary dependsOn \
+  "$DIR/system.aon" > "$WORK/diagram-matrix.txt" \
+  || fail "matrix diagram did not render"
+diff -u "$DIR/expected/diagram-matrix.txt" "$WORK/diagram-matrix.txt" \
+  || fail "the matrix diagram drifted"
+ok "the catalog draws: node-link and dependency matrix, both pinned"
 
 echo "all $pass checks passed"

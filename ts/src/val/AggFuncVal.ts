@@ -58,6 +58,7 @@ import { ListVal } from './ListVal'
 import { FuncBaseVal } from './FuncBaseVal'
 import { arith } from './arith'
 import { cmpNumeric } from './numcmp'
+import { cmpCodePoint } from '../keyorder'
 
 
 type AggOp = 'sum' | 'least' | 'greatest'
@@ -72,7 +73,14 @@ function bagChildren(data: any): Val[] | undefined {
     return data.peg as Val[]
   }
   if (true === data?.isMap) {
-    return Object.keys(data.peg).sort().map((k: string) => data.peg[k])
+    // THE ONE MAP-KEY ORDER (../keyorder.ts), not a bare `.sort()`:
+    // JavaScript compares by UTF-16 code unit, so an astral key's
+    // leading surrogate sorts BELOW U+E000-U+FFFF and `pick` answered
+    // in a different order from `each`, from canon, and from Go --
+    // which sorts UTF-8 bytes, i.e. code points. `pick` is the
+    // order-preserving projection, so that was one model producing two
+    // different generated files (BUGS.md 62).
+    return Object.keys(data.peg).sort(cmpCodePoint).map((k: string) => data.peg[k])
   }
   return undefined
 }

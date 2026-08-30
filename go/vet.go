@@ -842,7 +842,18 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 			Findings:  []VetFinding{parseFinding(dataURL, VetRoleData, derr)},
 		}
 	}
-	stampURL(anchor, schemaURL)
+	// STAMP THE WHOLE SETTLED SCHEMA, not just the lifted anchor.
+	// Without `--at` these are the same tree. With it, the anchor is a
+	// subtree and the rest of the schema is still REACHABLE from inside
+	// it -- a `%alias` declaration or a recursive residual's target, both
+	// of which the meet resolves through ctx.fixroot (ref.go, recurse.go).
+	// A node reached that way but never stamped carries no url, and the
+	// report's own rule is that a site whose file the run holds no text
+	// for answers -1:-1 -- so the finding named the right path and could
+	// not point at the schema text it came from (BUGS.md §59).
+	// stampURL only fills a url that is EMPTY, so stamping the superset
+	// never renames a value that came through an include.
+	stampURL(schemaVal, schemaURL)
 	dataURLs := stampURL(dataVal, dataURL)
 	// The projection every site in this report goes through: roles by
 	// url-set membership, names by how the caller reached each document.

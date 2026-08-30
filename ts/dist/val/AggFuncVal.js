@@ -8,6 +8,7 @@ const ListVal_1 = require("./ListVal");
 const FuncBaseVal_1 = require("./FuncBaseVal");
 const arith_1 = require("./arith");
 const numcmp_1 = require("./numcmp");
+const keyorder_1 = require("../keyorder");
 // The children of a bag, in the order the aggregate sees them: source
 // order for a list, sorted-key order for a map -- `each`'s order, and
 // for the same reason (a map has no order of its own, so the language
@@ -17,7 +18,14 @@ function bagChildren(data) {
         return data.peg;
     }
     if (true === data?.isMap) {
-        return Object.keys(data.peg).sort().map((k) => data.peg[k]);
+        // THE ONE MAP-KEY ORDER (../keyorder.ts), not a bare `.sort()`:
+        // JavaScript compares by UTF-16 code unit, so an astral key's
+        // leading surrogate sorts BELOW U+E000-U+FFFF and `pick` answered
+        // in a different order from `each`, from canon, and from Go --
+        // which sorts UTF-8 bytes, i.e. code points. `pick` is the
+        // order-preserving projection, so that was one model producing two
+        // different generated files (BUGS.md 62).
+        return Object.keys(data.peg).sort(keyorder_1.cmpCodePoint).map((k) => data.peg[k]);
     }
     return undefined;
 }

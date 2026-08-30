@@ -14,7 +14,9 @@ Minimal reproductions live under [`repros/`](repros/), one directory
 per family; each `.aon` carries an `# expected:` / `# actual:` header.
 The nontermination repros (§57 and
 `refer-cycles/refer-in-type-hang.aon`) are marked in-file to be run
-under `timeout`. Severity: **critical** = silent wrong output, unsound vet
+under `timeout`. (`identity/id-names-own-descendant-crashes.aon` used
+to belong beside them, overflowing the host stack; §58 is fixed and it
+now refuses.) Severity: **critical** = silent wrong output, unsound vet
 verdict, or nontermination; **major** = a documented capability fails;
 **minor** = papercut.
 
@@ -1628,7 +1630,7 @@ extension, not only `.json`.
 
 ## key() — the enclosing key at a generated or referenced position
 
-### 50. A spread template's `key()`, read through a reference four levels down, refuses in TypeScript and answers in Go [major]
+### 50. A spread template's `key()`, read through a reference four levels down, refuses in TypeScript and answers in Go [FIXED 2026-08-30]
 Found by removing `.$KEY` (ADR-009): the only test covering this shape
 used that spelling, which took the RefVal path and never reached the
 divergence. Translating it to `key()` surfaced this immediately.
@@ -1670,11 +1672,41 @@ A threshold at four is a fixpoint-pass artefact, not a rule anyone
 wrote, which is the argument for calling it a defect rather than a
 divergence to be documented.
 
+Status: FIXED 2026-08-30 in TypeScript. **GO WAS RIGHT**, and the
+evidence settles what the entry called unsettled: Go's four-level
+answer is the agreed THREE-level answer with one more level of
+nesting, character for character.
+
+    3 levels, both ports  {"a":{"b":{"c":{"e":{"x":{"n":"x"}}},"f":{"x":{"n":"x"}}}}}
+    4 levels, Go          {"a":{"b":{"c":{"d":{"e":{"x":{"n":"x"}}}},"f":{"x":{"n":"x"}}}}}
+
+Go is consistent across the threshold; the refusal was the defect,
+exactly as "a threshold at four is a fixpoint-pass artefact" argued.
+
+**The cause is that the apply-once mark is by template IDENTITY, and
+identity does not survive a clone.** The bag loops already keep a
+template from being applied twice: `_spr` on a value records which
+template has been merged into it (MapVal.unify, ListVal.unify). But
+every Val takes a fresh `id` when it is constructed, and a reference
+resolving to a templated bag clones the bag AND its template -- so the
+fresh template matched no mark, and it was applied a SECOND time over
+the value the first application had produced. `n: key()` had already
+answered `"x"`; the template met that string as though it were a map
+and the inner `key()` answered `"n"`, giving `"n"` against `"x"` at
+`$.a.b.f.x.n.n`.
+
+Carrying `_spr` through the clone is NOT enough on its own and was the
+first thing tried: the id it holds is stale either way. A spread
+template now takes a stable identity (`spreadId`, fixed once to the
+template's own id) that clones carry, and the mark compares on that.
+
+Pins: `test/spec/gen-key.tsv` -- `key-spread-through-ref-2` through
+`-5`. The depth ladder IS the row set, because the threshold was the
+defect. `ts/test/val-ref.test.ts` is back at the four levels it was
+written with, having been shallowed to three while this stood.
+
 Repro:
 [`repros/key-func/spread-key-through-deep-ref.aon`](repros/key-func/spread-key-through-deep-ref.aon).
-No shared spec row: a row would have to encode one port's answer, and
-which port is right is exactly what is unsettled. `ts/test/val-ref.test.ts`
-asserts the three-level form and carries a comment pointing here.
 
 ### 51. `key()` is late-bound and `.$KEY` was early-bound — a translation is not always value-preserving [by design, recorded]
 Not a defect. Recorded because ADR-009 asks every `.$KEY` in an existing
@@ -1813,7 +1845,7 @@ use-cases/12-relations spells the natural form). The self-typed
 `rel($.spec.Job)` inside `Job` remains with the recursion note's
 rel-side wiring.
 
-### 54. Relation findings misreport when the schema include nests inside the data file [major]
+### 54. Relation findings misreport when the schema include nests inside the data file [NOT REPRODUCIBLE 2026-08-30]
 
 Found 2026-08-29 while writing docs/tutorial-graph.md, probed in the
 TypeScript CLI. With the schema loaded as a NESTED include (overlay ->
@@ -1836,7 +1868,37 @@ that shape. Cosmetic quirk observed alongside: generation-time relation
 errors at overlay positions append the relation name to the path
 (`$.change.feeds.1.feeds`).
 
-### 55. `why` drops the spread role when template and keys arrive in separate statements [minor]
+Status, 2026-08-30: **does not reproduce**. Left OPEN rather than
+closed, because not reproducing is not the same as knowing what fixed
+it.
+
+This entry is entirely a claim that the NESTED layout differs from the
+SIBLING one. Rebuilt from the repro shape above, the two now emit
+BYTE-IDENTICAL reports:
+
+    $.jobs.extract.feeds.0  feeds: cycle job_extract -> job_report -> job_load -> job_extract
+    $.jobs.extract.feeds.0  feeds: job_report does not list job_extract under fedBy
+    $.jobs.report.feeds.0   feeds: job_load does not list job_report under fedBy
+    $.mirror.feeds.0        feeds: job_report does not list job_extract under fedBy
+
+Every clause inverts: generation refuses with `relation_cycle` and not
+`relation_inverse_missing`, the `relation_cycle` finding IS present,
+and the relation column shows the relation NAME (`feeds:`) rather than
+entity keys. Three readings of the prose were tried -- the cycle in
+the overlay, the cycle in `pipeline.aon` with both directions written,
+and forward-only edges with the mirror supplied by the overlay. The
+last is the only one that raises inverse-missing findings at all, and
+it reports them correctly.
+
+There is no committed repro for this entry -- the description is
+prose, and `repros/` has no relations directory -- so what was
+actually probed cannot be re-run. Several relation fixes landed
+between the filing and now, §53 on 2026-08-29 among them, and one of
+them plausibly closed it; which is not established. **Re-probe against
+the `docs/tutorial-graph.md` draft it was found in before closing, and
+commit the repro this time.**
+
+### 55. `why` drops the spread role when template and keys arrive in separate statements [PARTLY FIXED 2026-08-30]
 
 Found 2026-08-29 while writing docs/how-to/explain-a-value.md, probed in
 the TypeScript CLI. When the `&:` template and the concrete keys sit in
@@ -1847,7 +1909,34 @@ value instead of the text the author wrote. The single-block spelling
 (template and keys in one statement) reports roles and sources exactly
 as documented, and the guide uses it.
 
-### 56. `jsonschema` drops `deprecate()` silently, against its own loss contract [minor]
+Status, 2026-08-30. **The role half is FIXED**; the two-spread display
+is still open and is a different defect.
+
+*The role.* `MapVal.unify` marks a spread template so `why` can say the
+contribution came from `&:` rather than from the key -- but only in the
+OWN-KEY arm. Written as two duplicate statements the template arrives
+as a PEER, and that arm did not mark it, so one document reported
+`spread` and the other `literal` on nothing but how the author spaced
+their statements. `ListVal`'s peer arm already marked its template,
+which is what said which side was wrong rather than leaving it a
+choice. Go agreed with the corrected TypeScript already, so both ports
+pass the new rows unchanged. Pins: `test/spec/why.tsv`
+`why-spread-split-statements` and `why-spread-split-untouched`.
+
+*The two-spread display is STILL OPEN, and its cause is not the mark.*
+Several spreads in ONE statement become a ConjunctVal, which the
+recorder already splits into its terms. Spreads in SEPARATE statements
+MEET in the spread combination instead, and the result is a new value
+carrying the first one's site -- so `why` shows one contribution whose
+canon is the merged `*8080|integer&min(1024)` at the position of
+`*8080|integer`: the site is right and the text is not what is written
+there. Showing both authored templates means holding them unmet until
+`why` has seen them, which changes WHEN spreads combine rather than
+what a report walks. That is more than this minor warrants, and it is
+adjacent to the spread machinery §50 just moved, so it is left filed
+rather than bundled in.
+
+### 56. `jsonschema` drops `deprecate()` silently, against its own loss contract [FIXED 2026-08-30]
 
 Found 2026-08-29 while building use-cases/14-jsonschema-export, probed
 in both CLIs (which agree). `deprecate(x, meta)` exports as `x` alone:
@@ -1861,6 +1950,32 @@ template crosses as `additionalProperties`/`items` only when it is a
 bare kind; list `length()` exports `minItems`/`maxItems` yet still
 reports a domain-less loss. The case's `check.sh` pins today's
 behaviour; fixing any of these means re-pinning there and in the guide.
+
+Status: FIXED 2026-08-30, in both ports and byte-identically.
+`deprecated: true` is emitted -- 2020-12 has the annotation, so the
+FACT crosses faithfully -- and the record's `msg`/`use`/`since` are
+reported as a loss, because the draft has no field for what a
+deprecation says. They are NOT invented into `description`: this
+exporter emits none anywhere, and quietly redefining it as "the
+deprecation note" is a mapping a consumer cannot undo. An empty record
+(`deprecate(x, {})`) therefore loses nothing and reports nothing.
+
+`--strict` now exits 1 on that loss where it used to pass, which is
+the point: the contract is that nothing is dropped in silence.
+
+Pins: `test/spec/jsonschema.tsv` -- `js-deprecate-flag` (the record
+with nothing said: flag, no loss), `js-deprecate-msg-is-a-loss`, and
+`js-deprecate-all-three-keys`. Re-pinned in
+`docs/how-to/export-json-schema.md` and
+`use-cases/14-jsonschema-export/README.md`, as the entry said fixing
+it would require; the use-case's own eight checks are unchanged and
+still pass.
+
+The other boundaries this entry lists -- `must()` exporting `{}`, a
+constrained spread template, list `length()`'s domain-less loss -- are
+untouched. They were already REPORTED, so they are not the contract
+breach; changing them is a design question about the export surface
+rather than a defect.
 
 ### 57. A recursive spread conjoined with a map does not terminate at depth two, in both ports [critical]
 
@@ -1934,7 +2049,7 @@ Repro:
 
 ## identity — id() at its own boundary
 
-### 58. An `id()` naming a node and its own descendant crashes both engines on the host stack [critical]
+### 58. An `id()` naming a node and its own descendant crashes both engines on the host stack [FIXED 2026-08-30]
 
 Found 2026-08-30, same survey as §57, while asking whether the
 evaluated value graph is a tree (a transform layer that walks children
@@ -1982,12 +2097,37 @@ is why [`ts/src/walk.ts`](../ts/src/walk.ts) calls its `seen` set "a
 termination guard, not an optimisation". Any walk primitive that
 recurses on `peg` inherits this crash until the refusal lands.
 
+Status: FIXED 2026-08-30. The refusal is `id_ancestor`, class
+`conflict`, raised in the entity merge's COLLECT half -- before the
+`unite` that would build the self-containing value, which is where the
+stack went. It lands on the DESCENDANT, the position that cannot
+stand, and names the ancestor as the finding's other site. A separate
+code rather than `id_conflict` reused, because it is a different
+mistake: `id_conflict` is one node claiming two names, this is one
+name claiming a node and something inside it. That also closes the
+registry hole the entry names -- the failure now has a code, so
+`codeClasses` set-equality is answering for it.
+
+**One narrowing the fix needed, found by an existing test.** The
+ancestor check compares NODES, not just names: a unified tree is a
+graph, so a resolved reference shares its target and a node can be
+reached through itself with nobody having written two `id()`s
+(`TestMergeEntitiesCycleGuards` builds exactly that). One entity at
+one position is fine; the defect is two DISTINCT nodes, one inside the
+other, claiming one name.
+
+Pins: `test/spec/id.tsv` -- `id-ancestor-names-own-child` and
+`-names-deeper-descendant` for the refusal, and
+`-siblings-still-merge`, `-distinct-names-nest`,
+`-id-on-the-node-alone` for the boundary, two of which are the feature
+itself. `test/spec/errcodes.tsv` carries `id_ancestor`.
+
 Repro:
 [`repros/identity/id-names-own-descendant-crashes.aon`](repros/identity/id-names-own-descendant-crashes.aon).
 
 ## anchoring — what `--at` can still see
 
-### 59. `vet --at` loses `%alias` references in the Go port [critical]
+### 59. `vet --at` loses `%alias` references in the Go port [FIXED 2026-08-30]
 
 Found 2026-08-30 while specifying a code-generation vocabulary as an
 Aontu schema — the vocabulary is alias-heavy, and `--at` is how you
@@ -2036,6 +2176,38 @@ debt register: not here, not
 not belong in `divergent.tsv` either — that register is for
 divergences that cannot be fixed from this repository right now, and
 this one is Go's `anchorAt`.
+
+Status: FIXED 2026-08-30, and the guess above was right about the
+mechanism but wrong about which port was missing a piece. Go already
+HAD the tree — `Ctx.fixroot`, the settled schema root, which vet sets
+under `--at` — and `RecurseVal.body` already read it. What it lacked
+was the second reader: TypeScript's `RefVal.find` falls back to
+`_fixroot` for any absolute reference the meet's root cannot answer,
+and Go's reference walk did not. Go now does the same, with the walk
+factored into `RefVal.walkFrom` so the two roots share one set of
+mark-wrapper and list-index rules rather than growing a second copy to
+drift.
+
+The comment in TypeScript's own fallback asserted that "the Go port
+answers the anchored meet from settled structures and never sees the
+gap". It does see it; that sentence is what this entry cost.
+
+**A second divergence came out of writing the rows**, invisible from
+the CLI because both ports printed the same headline: BOTH stamped the
+schema url onto the LIFTED ANCHOR only, so a node reached through the
+root fallback carried no url at all. Go answered `-1:-1` with no file
+(its rule for a file it holds no text for) and TypeScript gave the
+right coordinates while naming no file — against finding F's
+invariant that every site names the file whose text it excerpts (§25).
+Both now stamp the settled schema root; `stampURL` fills only an EMPTY
+url, so the superset never renames a value that came through an
+include.
+
+Pins: `test/spec/vet.tsv` — `vet-at-alias-chain-valid`,
+`-inner-kind` and `-inner-closed`. Three alias levels, because one
+would not have shown it, and the two invalid rows are the half that
+matters: a fallback resolving to `top` would answer "valid" too, so
+they pin that the alias is still ENFORCED through the anchor.
 
 Repro:
 [`repros/anchor/vet-at-loses-aliases-in-go.aon`](repros/anchor/vet-at-loses-aliases-in-go.aon)
@@ -2113,7 +2285,7 @@ with its `-2` and `-longhand` companions.
 
 ## trials — the flag one port sets and the other does not
 
-### 61. Go's `trialUnify` never sets `ctx.trial`, so `match` and `filter` answer differently in the two ports [critical]
+### 61. Go's `trialUnify` never sets `ctx.trial`, so `match` and `filter` answer differently in the two ports [FIXED 2026-08-30]
 
 Found 2026-08-30 by an adversarial reviewer of the transform-layer
 design, while checking whether unifiability-matching could carry a
@@ -2162,13 +2334,38 @@ does not cover this, not that the change is small: **pref-side rows
 for a trial peer of a different length should land before the fix
 does.**
 
+Status: FIXED 2026-08-30. `trialUnify` saves, sets and restores
+`ctx.trial`, exactly as TypeScript's does -- saved and restored rather
+than merely set, because a trial nested inside a trial must not clear
+the outer one. All five divergent rows and all three agreeing rows in
+the tables above now match between the ports.
+
+**The blast radius the entry warned about did not materialise, and the
+pref rows are why we know rather than hope.** They were written FIRST,
+from the canonical port's answers, and run against Go before the fix:
+`pref-struct-list-default-shorter-peer` and `-longer-peer` failed,
+which is the gap, and the three boundary rows passed. After the fix
+all five pass and the ~190 lines of `pref.tsv` behind them are
+untouched -- so the suite being green today did mean the change is
+contained, once the rows that cover it existed.
+
+Pins: `test/spec/pref.tsv` -- `pref-struct-list-default-shorter-peer`,
+`-longer-peer`, and `-same-length`, `-same-length-one`,
+`-spread-peer` for the boundary (same length still merges leafwise,
+which is ADR-011 R3, and a spread makes the pattern variadic so length
+stops being the question). `test/spec/gen-match.tsv` --
+`match-list-longer-scrutinee-misses`, `-one-vs-empty-misses`,
+`-same-length-hits`, `-spread-pattern-hits`.
+`test/spec/gen-filter.tsv` -- `filter-list-empty-pattern-keeps-none`,
+`-one-element-pattern`, `-top-keeps-both`.
+
 Repro:
 [`repros/trial/go-trial-flag-unset.aon`](repros/trial/go-trial-flag-unset.aon)
 and its `-pref` companion.
 
 ## ordering — the one call site that does not use cmpCodePoint
 
-### 62. `pick` orders an astral-keyed map by UTF-16 code units in TypeScript [critical]
+### 62. `pick` orders an astral-keyed map by UTF-16 code units in TypeScript [FIXED 2026-08-30]
 
 Found 2026-08-30 while checking that a transform's generated line order
 is stable across ports. It is not.
@@ -2217,8 +2414,204 @@ exactly that. Two ports, two orders, means one model producing two
 different generated files: an ADR-001 break in the primitive the
 generation story depends on.
 
+Status: FIXED 2026-08-30 — `bagChildren` sorts with `cmpCodePoint`,
+the order `keyorder.ts` exists to state and the one every other
+emitting site in the port already used. The three pins are
+`test/spec/agg.tsv`: `pick-astral-key-order`, `each-astral-key-order`
+and `pick-astral-key-order-three`, which spans ASCII, BMP and astral
+in one map so the position a bare `.sort()` gets wrong is in the
+middle of the row rather than at its end.
+
 Repro:
 [`repros/order/pick-astral-key-order.aon`](repros/order/pick-astral-key-order.aon).
+
+## marks — what `hide()` stops resolving
+
+### 63. Inside `hide()`, Go does not resolve a spread template's reference [critical]
+
+Found 2026-08-30 by building
+[use case 15](15-code-generation/README.md), whose first draft used the
+obvious spelling and passed in TypeScript.
+
+```aon
+src: [{n: "a"}]
+u: {rows: hide([&: {o: .n}] & $.src)}
+```
+
+| | canon | generate |
+|---|---|---|
+| TypeScript | `{"src":[{"n":"a"}],"u":{"rows":[&:{"o":.n},{"n":"a","o":"a"}]}}` | `{"src":[{"n":"a"}],"u":{}}`, exit 0 |
+| Go | `{"src":[{"n":"a"}],"u":{"rows":hide([&:{"o":.n},{"n":"a","o":.n}])}}` | `[aontu/mapval_no_gen]` at `$.u.rows`, exit 1 |
+
+Read the Go canon closely: the element's `o` is still the
+**unresolved** `.n`, where TypeScript resolved it to `"a"`, and the
+`hide(` wrapper is still there where TypeScript absorbed the mark. So
+under `hide()` the Go port never applies the spread template's
+computation, and everything downstream of it refuses. Opposite exit
+codes on a document neither port reports as wrong.
+
+**Boundary, probed.** The break needs the mark AND a template that
+computes from a relative reference:
+
+| spelling | outcome |
+|---|---|
+| `[&: {o: .n}] & $.src` (no `hide`) | both ports agree |
+| `hide([{o: "a"}])` (literal list) | both ports agree |
+| `hide([&: {o: "K"}] & $.src)` (constant template) | both ports agree |
+| `hide([&: {o: .n}] & $.src)` | **diverge** |
+
+**Why it matters.** `hide()` around a staged intermediate is the
+natural way to keep scaffolding out of a generated value, and staging
+is *required* because `pick` over an inline spread expression does not
+settle. So the obvious spelling of a code-generation transform —
+compute the lines into a hidden key, project them with `pick` — works
+in the canonical implementation and refuses in the port. Use case 15
+had to drop `hide()`; its `check.sh` asserts byte-identical output from
+both ports, and without that assertion the repository would have
+shipped a TypeScript-only transform that looked correct.
+
+Repro:
+[`repros/hide/hide-blocks-spread-compute-in-go.aon`](repros/hide/hide-blocks-spread-compute-in-go.aon).
+
+## subsumption — the law that holds only for one spelling
+
+### 64. A referenced, aliased or recursive spread template breaks reflexivity, in both ports [critical]
+
+Found 2026-08-30 while designing a subsumption poset — a diagram whose
+nodes are documents and whose edges are `subsume` verdicts. Three of
+the seven use-case entry documents do not subsume **themselves**:
+
+| document | self-subsumption |
+|---|---|
+| `01-service-catalog/system.aon` | **undecided** (`sub_path_dependent_spread`, `sub_unresolved`) |
+| `12-relations/model.aon` | **undecided** (`sub_path_dependent_spread`, `sub_unresolved`) |
+| `13-recursive-schema/model.aon` | **undecided** (`sub_unresolved`) |
+| `02-deploy-config/stack.aon` | subsumes |
+| `06-k8s-golden-path/main.aon` | subsumes |
+| `08-feature-flags/system.aon` | subsumes |
+| `15-code-generation/model.aon` | subsumes |
+
+[`test/spec/subsume.tsv`](../test/spec/subsume.tsv) states the rule in
+capitals — "REFLEXIVITY IS A LAW (2026-08-27). Every value admits
+itself, residue included" — and its comment records that this exact
+failure mode was fixed once already (§28): "a constraint inside a
+SPREAD TEMPLATE made a contract non-self-subsumable — expected and
+actual byte-identical, verdict undecided". The class is back, by three
+other spellings.
+
+**Minimised, both ports, three lines each.** The control cases are the
+boundary:
+
+| spelling | verdict |
+|---|---|
+| `defs: {x: {&: integer & min(0)}}` — inline constraint, the case §28 fixed | `subsumes` |
+| `a: {b: 1}` — plain map | `subsumes` |
+| `defs: hide({F: {n: string}})` / `code: {fs: {&: $.defs.F}}` — **reference**-valued template | **`undecided`** `sub_path_dependent_spread` |
+| `%F: {n: string}` / `code: {fs: {&: %F}}` — **alias**-valued template | **`undecided`** `sub_path_dependent_spread` |
+| `spec: hide({Step: {label: string, then?: $.spec.Step}})` / `doc: $.spec.Step & {label: "a"}` — **recursive** | **`undecided`** `sub_unresolved` |
+
+The finding's two operands are byte-identical, which is what makes it
+a bug rather than a conservative answer:
+
+```
+code    : sub_path_dependent_spread
+path    : $.code.fs
+expected: '$.%F'
+actual  : '$.%F'
+```
+
+**What it costs.** §28 already recorded the consequence: `breaking` on
+a non-self-subsumable contract hard-fails and has to be run with
+`--allow-undecided`, "which then masks the genuine undecideds it exists
+to surface". Every layered model in `use-cases/` shares a template by
+reference or alias, because that is the idiom the language is for. The
+fold also destroys decided answers either side of the shared template —
+`1|2|3 ⊒ 1|2` is decided, and a byte-identical shared template beside
+it drags the whole comparison to `undecided`.
+
+**The repair the law implies.** Before folding to `undecided`, compare
+the two operands' **hash forms**; equal means `subsumes`. That is not a
+heuristic — `subsume.tsv` already says "Identity is the HASH FORM" — and
+it runs only where an `undecided` was about to be returned, so it costs
+nothing in the common case.
+
+Repros:
+[`repros/subsume/reflexivity-reference-spread.aon`](repros/subsume/reflexivity-reference-spread.aon),
+[`reflexivity-alias-spread.aon`](repros/subsume/reflexivity-alias-spread.aon),
+[`reflexivity-recursive-ref.aon`](repros/subsume/reflexivity-recursive-ref.aon).
+
+## the entity graph — what a conjunct hides
+
+### 65. A `refer()` behind a conjunct is invisible to the entity graph, so `reaches` answers wrongly [critical]
+
+Found 2026-08-30 while drawing the use cases: the dependency matrix for
+`use-cases/05-rbac-policy` came out **entirely empty** — thirteen
+entities, zero edges — on a model whose whole subject is which role
+grants which permission.
+
+```aon
+p: id(pp) & {n: 1}
+a: id(x) & {link: unique() & [&: refer() & string], link: ["pp"]}
+```
+
+```
+$ aontu reaches x pp guarded.aon     verdict: unreachable   exit 1
+$ aontu reaches x pp control.aon     verdict: reaches       exit 0
+```
+
+The two documents differ by the two tokens `unique() &`. Both ports
+agree in both directions, so this is a shared defect and not a parity
+break.
+
+**Minimised through `graphOf` directly**, which is where the loss
+happens:
+
+| spelling | edges |
+|---|---|
+| `link: refer() & string` | 1 |
+| `link: [&: refer() & string]` | 1 |
+| `link: unique() & [&: refer() & string]` | **0** |
+
+So it is the **conjunct**, not the list and not the spread.
+`graphOf`'s walk does not descend into conjunct arms, so any relation
+guarded by a sizing atom, a constraint, or any other `&` term drops out
+of the graph entirely.
+
+**It is the natural spelling, not a contrived one.**
+[`use-cases/05-rbac-policy/roles.aon`](05-rbac-policy/roles.aon)
+writes
+
+```aon
+grants: unique() & [&: refer() & string]
+```
+
+which is how one says "a set of grants, no duplicates". On that model
+`graphOf` reports 13 entities and 0 edges, and
+
+```
+$ aontu reaches admin admin_all --trust root:. example.aon
+verdict: unreachable
+```
+
+although `roles.admin.grants` evaluates to `["admin_all"]`. `relations`
+answers `verdict: pass` over the same model, having checked nothing.
+The case's own `check.sh` never calls `reaches`, which is why the suite
+is green over it.
+
+**What it costs.** `reaches` and `relations` are check verbs: a wrong
+`unreachable` is a silent false negative in a referential-integrity
+gate, and the guard that causes it (`unique()`) is exactly what a
+careful author adds. G4's referential integrity, the `acyclic()` check
+and the `inverse()` check all read the same graph.
+
+This is the blind spot
+[`docs/design/VIEWS.0.md`](../docs/design/VIEWS.0.md) Phase 0 exists to
+close; recorded here because it is a defect in shipped check verbs on
+its own, independent of whether any diagram is ever drawn.
+
+Repros:
+[`repros/graph/refer-behind-conjunct-invisible.aon`](repros/graph/refer-behind-conjunct-invisible.aon)
+and its `refer-in-list-visible.aon` control.
 
 ## Elsewhere in this review
 

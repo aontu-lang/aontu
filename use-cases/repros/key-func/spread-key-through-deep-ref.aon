@@ -30,3 +30,9 @@
 a: b: c: d: e: $.a.b.f
 a: b: f: &: {n: key()}
 a: b: f: {x: {}}
+
+# FIXED 2026-08-30: Go was right. A spread template now takes a stable
+# identity across clones, so the bag loops' apply-once mark survives a
+# reference's clone and the template is not applied a second time over
+# the value the first application produced. Pinned by
+# test/spec/gen-key.tsv key-spread-through-ref-2..5.

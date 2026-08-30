@@ -41,7 +41,7 @@ type GraphAtomVal struct {
 
 // predicateNameOK is the D-1 relation-predicate grammar
 // (docs/design/RELATIONS.0.md §3.2): a letter or `_`, then letters,
-// digits, `_` or `-`. Entity names are gone with ADR-013; PREDICATE
+// digits, `_` or `-`. Entity names are gone with ADR-014; PREDICATE
 // names are not -- a relation is a vocabulary term, not an address.
 // Written as an explicit loop rather than a regexp so the two ports
 // cannot drift on a character class. Mirrors PREDICATE_NAME in

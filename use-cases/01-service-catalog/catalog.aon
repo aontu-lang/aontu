@@ -3,7 +3,7 @@
 # (deploy.aon) REFERENCES, so the two meet field-by-field at the deploy
 # positions. dependedOnBy (the inverse of dependsOn) is written BY HAND
 # on every target: `aontu relations` checks it, nothing derives it
-# (gap 4). Every address is a tree path (ADR-013).
+# (gap 4). Every address is a tree path (ADR-014).
 catalog: domains: {
   payments: {
     team: "team-payments"

@@ -25,6 +25,11 @@ ADR-NNN**, so the reasoning that led there stays readable.
 | [ADR-006](#adr-006--template-application-is-stateless-and-a-generator-snapshots-a-settled-source) | Template application is stateless, and a generator snapshots a settled source | Accepted |
 | [ADR-007](#adr-007--an-unresolved-disjunction-is-not-a-value-and-vet-asks-the-same-question-the-evaluator-does) | An unresolved disjunction is not a value, and vet asks the same question the evaluator does | Accepted |
 | [ADR-008](#adr-008--constraints-are-named-not-spelled-with-operators) | Constraints are named, not spelled with operators | Accepted |
+| [ADR-009](#adr-009--there-are-no-reserved-path-elements-key-self-and-parent-are-removed) | There are no reserved path elements: `$KEY`, `$SELF` and `$PARENT` are removed | Accepted |
+| [ADR-010](#adr-010--no-magic-keys-or-paths-the-tree-at-all-levels-is-user-space) | No magic keys or paths: the tree at all levels is user space | Accepted |
+| [ADR-011](#adr-011--the-star-is-sugar-the-disjunction-is-the-structure) | The star is sugar; the disjunction is the structure | Accepted |
+| [ADR-012](#adr-012--an-includes-extension-decides-what-the-file-is-aontu-source-config-data-or-refused) | An include's extension decides what the file is: Aontu source, config data, or refused | Accepted |
+| [ADR-013](#adr-013--the-project-operates-one-transparency-log-and-nothing-else) | The project operates one transparency log, and nothing else | Accepted |
 
 ---
 
@@ -1207,8 +1212,133 @@ makes for messages.
 **This adds nine runtime dependencies to each port** — one parser per
 format. They are all @tabnas packages, all pure parsers with no I/O,
 and the browser bundle the playground ships grows with them.
+---
 
-## ADR-013 — The tree is the namespace: there is no identity mark
+## ADR-013 — The project operates one transparency log, and nothing else
+
+**Date:** 2026-08-30
+**Status:** Accepted
+
+### Context
+
+[G6](docs/capability-review/g6-distribution.md) surveyed five ways to
+distribute modules and rejected one by name — *"E. A bespoke hosted
+registry service … infrastructure the project must run forever, and
+OCI already provides storage, auth, replication, and org familiarity"*
+— then restated the rejection as a boundary: **"No project-operated
+central registry service — any OCI registry works; running
+infrastructure forever is not a language feature."** That bullet is the
+only one in G6's boundary list carrying no "in v1" qualifier; its
+neighbours all have one, so the omission was deliberate.
+
+The boundary was right, and it is not what this ADR reverses. G6's
+reasoning has two halves, and only one of them survives contact with a
+transparency log:
+
+| G6's reason to reject a service | Applies to a log? |
+|---|---|
+| OCI already provides storage, auth, replication, org familiarity | **No.** A transparency log provides none of those, and OCI provides no transparency log. There is nothing to reuse. |
+| Infrastructure the project must run forever | **Yes.** Unchanged, and the whole cost. |
+
+What forced the question is what a lockfile cannot do. G6's canon-hash
+pins meaning *for a project that already resolved a version*. It says
+nothing about the **first** resolution — the moment a new machine, a
+new contributor, or an agent session first asks what
+`corp.example/schemas/service@1` at `1.4.2` means. Two developers can
+each hold a lockfile, each verify perfectly, and hold different truths
+under the same name, with nothing in the language able to detect it. A
+lockfile is a private memory; the missing thing is a **public,
+append-only, independently auditable statement** that a given version
+resolved to a given meaning, which no amount of local pinning can
+supply.
+
+A [design review](docs/capability-review/g10-transparency.md) of a
+forge-tag transparency registry found the log sound and the substrate
+wrong. Reviewing it also established that the "forever" cost is
+bounded in a way a registry's is not: a log that stores no artifacts
+can be frozen, replicated by anyone, and audited by software the
+project did not write.
+
+### Decision
+
+**The project operates exactly one service — an append-only
+transparency log over module release records — and the constraints that
+bound its cost are part of the decision, not implementation detail.**
+
+Five constraints, each load-bearing:
+
+1. **It stores no module source, ever.** The log holds hashes and
+   metadata. Artifacts live in OCI registries, which G6's decision
+   already settled and which this ADR does not disturb. A log that
+   began caching artifacts would be the registry G6 rejected, wearing
+   a different name.
+
+2. **A build that has a lockfile never touches it.** Evaluation is
+   hermetic ([G5](docs/capability-review/g5-trust-contract.md)) and
+   stays so; `mod get` consults the log only when *adding* a version
+   the lockfile does not already pin. This is what bounds the failure:
+   if the service dies tomorrow, every existing project keeps
+   building, and only the adoption of new dependencies stalls. A
+   design that put the log on the path of an ordinary build would
+   breach this ADR, not merely inconvenience users.
+
+3. **It is publicly replicable, in a standard format.** Log data is
+   served as C2SP `tlog-tiles` static objects, so third-party
+   auditors and witnesses that already exist can consume it. A
+   bespoke protocol would make "independently auditable" a claim
+   rather than a fact, and would make every auditor the project's own
+   work to write, staff and fund.
+
+4. **Its client half is in both ports, under
+   [ADR-001](#adr-001--typescript-and-go-stay-at-full-parity-driven-by-a-shared-spec).**
+   Checkpoint and proof *verification* is language behaviour: two
+   implementations that disagree about whether a proof verifies is a
+   silent security divergence, the worst class of parity breach. Only
+   the *serving* half — the sequencer, the tile writer — lives in one
+   place, as the MCP server does.
+
+5. **It has a stated exit.** The log can be frozen: its final
+   checkpoint published, its tiles archived, its data mirrored. Every
+   lockfile that references it keeps verifying, because verification
+   is a proof against a checkpoint the lockfile already carries, not a
+   request to a running service. A service that could not be shut down
+   without breaking existing builds would not be admissible under this
+   ADR.
+
+The G6 boundary bullet is amended in the same commit as this entry, to
+say what it now means: no project-operated *registry*; a transparency
+log is not a registry, and is admitted by this ADR under the five
+constraints above.
+
+### Consequences
+
+**We accept a recurring operational obligation** — a signing key with
+custody arrangements, an alert on checkpoint age, and someone to answer
+it. This is the cost, it is real, and constraint 5 is what keeps it
+from being unbounded.
+
+**We accept that the log's value is small until the ecosystem is.** At
+zero third-party publishers it proves almost nothing, and the honest
+reason to build it early is that its *format* becomes a compatibility
+commitment the moment anything is signed — the leaf schema, the
+checkpoint encoding, and the `aon1-` scheme id's role in surviving a
+canon change are all cheaper to get right before there is a log to
+migrate.
+
+**What this does not license.** It admits one service, narrowly scoped.
+It is not a precedent for a hosted evaluator, a package CDN, a hosted
+query surface, or any second service; each would need its own entry
+here. And it does not weaken
+[ADR-002](#adr-002--test-coverage-stays-at-100--in-both-implementations):
+the network code that talks to the log reaches the coverage floor
+through an injected seam, exactly as `ModuleFs` and `ModuleEval`
+already do, or it does not land.
+
+The design, its phases and its open questions are
+[G10](docs/capability-review/g10-transparency.md); status is the
+[progress register](docs/capability-review/progress.md).
+
+## ADR-014 — The tree is the namespace: there is no identity mark
 
 **Date:** 2026-08-30
 **Status:** Accepted

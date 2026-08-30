@@ -1,7 +1,7 @@
 # Use cases
 
 Documentation examples are small on purpose. Systems are not. The
-fourteen models in [`use-cases/`](../use-cases/) close that gap: each
+fifteen models in [`use-cases/`](../use-cases/) close that gap: each
 one is an enterprise-shaped system built as real Aontu documents — a
 service catalog, a schema registry, an RBAC model — and each carries a
 `check.sh` that drives the actual CLI and asserts every outcome, with
@@ -12,7 +12,7 @@ shape lives, running. Run one case, or the whole suite:
 <!-- test: skip runs the full case suite; use-cases/run-all.sh is its own gate, run before every landing -->
 ```sh
 $ ./use-cases/03-api-contract/check.sh   # one case
-$ ./use-cases/run-all.sh                 # all fourteen, one verdict line per case
+$ ./use-cases/run-all.sh                 # all fifteen, one verdict line per case
 ```
 
 The scripts need Node with `ts/node_modules` installed, plus `python3`
@@ -448,6 +448,66 @@ becomes `additionalProperties: false`, and the optional key stays out
 of `required` — with stderr empty, nothing was lost. The three moods
 of the bridge (exact, lossy, refused):
 [`use-cases/14-jsonschema-export/`](../use-cases/14-jsonschema-export/).
+
+## 15 — code generation
+
+The model is the source of the code. One catalogue of record types
+feeds a Go emitter, a TypeScript emitter and a SQL emitter, each
+reading a different slice of it, with every emitted line computed by
+the unifier. Names like `Email` and `credit_cents` are written in the
+model rather than derived, because `upper()` uppercases a whole string
+and there is no case conversion — and because what a type is called in
+a target is a fact about the model, not a rule in a template.
+
+<!-- test: scenario code-generation -->
+
+Write the model and one emitter as `types.aon`:
+
+<!-- test: file types.aon -->
+```aontu
+records: [
+  {name: "Customer", fields: [
+    {n: "id",    t: "string",  go: "ID"}
+    {n: "email", t: "string",  go: "Email"}
+  ]}
+]
+units: [&: {
+  head: `type ` + .name + ` struct {`
+  rows: [&: { out: `\t` + .go + ` ` +
+        match(.t, "string", `string`, "integer", `int64`) +
+        ` \`json:"` + .n + `"\`` }] & .fields
+  body: pick(.rows, out)
+  tail: `}`
+}] & $.records
+```
+
+The struct header and its field lines both come out of the model:
+
+<!-- test: run -->
+```sh
+$ aontu get $.units.0.head types.aon
+"type Customer struct {"
+$ aontu get $.units.0.body types.aon
+[
+  "\tID string `json:\"id\"`",
+  "\tEmail string `json:\"email\"`"
+]
+```
+
+A list spread rather than `pack`, because list order is source order
+and map keys sort by code point. The rows are staged into a key of
+their own because `pick` over an inline spread does not settle.
+
+What is missing is the fold: a spread can put a separator after each
+element, but putting one between N elements needs a reduction over
+strings, and there is none — `sum` is numeric and `+` does not reduce
+a list. So the case assembles the file outside the language, and its
+generated SQL carries a trailing comma that a real parser refuses.
+`join(bag, sep)` is
+[G9 phase 2](capability-review/g9-transformation.md). The three
+emitters, their goldens, and a check that both ports emit identical
+bytes: [`use-cases/15-code-generation/`](../use-cases/15-code-generation/).
+
 
 Where a page in these docs and a use case disagree, the case wins (its
 checks run; the page does not). File the docs bug.

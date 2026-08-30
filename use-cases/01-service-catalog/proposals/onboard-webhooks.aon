@@ -6,7 +6,7 @@
 # [aontu/mapval_spread_required] (README, gap 2).
 #
 # The proposal lands INSIDE the catalog, at the path it is proposing
-# to occupy: an address is a tree path (ADR-013), so a new service is
+# to occupy: an address is a tree path (ADR-014), so a new service is
 # a new position, and the edges naming it name that position.
 @"../system.aon"
 

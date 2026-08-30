@@ -13,7 +13,7 @@ import (
 // GRAPH — the set of checked links, each from one tree position to
 // another.
 //
-// The graph is PATH-NATIVE (ADR-013). There is no second namespace to
+// The graph is PATH-NATIVE (ADR-014). There is no second namespace to
 // index: a node's address is its path, so the node a link starts at is
 // derived from where the link sits rather than declared by a mark.
 //
@@ -42,7 +42,7 @@ type Edge struct {
 }
 
 // Graph is an evaluated document's edge set. There is no entity index,
-// because there is no second namespace to index (ADR-013): a node's
+// because there is no second namespace to index (ADR-014): a node's
 // address is its path.
 type Graph struct {
 	Edges []Edge `json:"edges"`

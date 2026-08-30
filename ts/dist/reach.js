@@ -35,7 +35,7 @@ const vet_1 = require("./vet");
 const graph_1 = require("./graph");
 const keyorder_1 = require("./keyorder");
 // The segments a `$.dotted` endpoint spells, or undefined when it is
-// not one. Reachability is between TREE POSITIONS (ADR-013), so an
+// not one. Reachability is between TREE POSITIONS (ADR-014), so an
 // endpoint is a path and nothing else --- the same spelling the report
 // prints back.
 function parseNodePath(s) {

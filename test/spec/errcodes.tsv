@@ -316,7 +316,7 @@ pipe_target	errcode	parse	0.53.0
 # stack -- a verdict that depends on the machine, which is what
 # docs/trust.md forbids. The bound makes it a stated refusal, exactly
 # as `unify_cycle` does for the same reason.
-module_path	errcode	parse	0.53.1
+module_path	errcode	parse	0.54.0
 module_missing	errcode	parse	0.53.0
 module_integrity	errcode	parse	0.53.0
 module_depth	errcode	budget	0.53.0

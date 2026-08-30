@@ -377,7 +377,7 @@ function residuePaths(v: Val, max: number): string[] {
 // pass's own result here.
 //
 // Keyed by PATH, so there is no registry of names to collide in
-// (ADR-013) -- the key is the position the address resolved to, and
+// (ADR-014) -- the key is the position the address resolved to, and
 // re-uniting the same type at the same position is idempotent, which is
 // what makes replaying every recorded flow every pass correct rather
 // than merely cheap.

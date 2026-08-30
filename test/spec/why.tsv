@@ -118,3 +118,13 @@ why-refer-flow-leaves-the-target-alone	why	catalog: svc: {tier: 1}\ndeploy: wl: 
 # token, and one written token is one contribution.
 why-top-has-no-contribution	why	a: top	$.a	{"conjuncts":[],"value":"top"}
 why-nested-junction-through-a-ref	why	x: 3|(1|2)\na: $.x & 1	$.a	{"conjuncts":[{"canon":"3|(1|2)","role":"literal","site":{"col":4,"file":"","len":1,"row":1},"src":"3"},{"canon":"$.x","role":"ref","site":{"col":4,"file":"","len":1,"row":2},"src":"$"},{"canon":"1","role":"literal","site":{"col":10,"file":"","len":1,"row":2},"src":"1"}],"value":"1"}
+# A SPREAD IS A SPREAD FROM EITHER SIDE. Every row above writes the
+# template and the keys in ONE statement, which is the own-key path.
+# Written as two duplicate statements the template arrives as a PEER,
+# and that arm did not mark it -- so the same document reported the
+# `spread` role or dropped it (reporting `literal`) depending only on
+# how the author spaced their statements (BUGS.md §55). The ListVal
+# twin already marked its peer arm, which is what said which side was
+# wrong.
+why-spread-split-statements	why	services: &:{replicas: *1|integer}\nservices: {auth: {replicas: 3}}	$.services.auth.replicas	{"conjuncts":[{"canon":"*1|integer","role":"spread","site":{"col":24,"file":"","len":1,"row":1},"src":"*"},{"canon":"3","role":"literal","site":{"col":29,"file":"","len":1,"row":2},"src":"3"}],"value":"3"}
+why-spread-split-untouched	why	services: &:{replicas: *1|integer}\nservices: {db: {}}	$.services.db.replicas	{"conjuncts":[{"canon":"*1|integer","role":"spread","site":{"col":24,"file":"","len":1,"row":1},"src":"*"}],"value":"*1|integer"}

@@ -54,6 +54,21 @@ Two capabilities are new enough to deserve doorways of their own:
   the semantics are under
   [Recursive references](reference-language.md#recursive-references-fixpoints).
 
+One more doorway, with a caveat attached:
+
+- **Generate code from a model.** The field names, types and
+  optionality a Go struct or a TypeScript interface needs are already
+  in the model, and the unifier can compute the lines: a list spread
+  over the fields, `match` for the type mapping, and a backtick string
+  to carry the target text. What it cannot yet do is assemble those
+  lines into a file, because that needs a fold over strings. The
+  recipe is [generate code from a model](how-to/generate-code.md); the
+  live version, with three targets and a check that both ports emit
+  identical bytes, is
+  [`use-cases/15-code-generation`](../use-cases/15-code-generation/);
+  the plan for closing the gap is
+  [G9](capability-review/g9-transformation.md).
+
 Tooling:
 
 - [The `aontu` command](reference-api.md#command-line-interface) — one

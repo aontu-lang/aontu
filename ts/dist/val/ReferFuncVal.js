@@ -20,7 +20,7 @@ const utility_1 = require("../utility");
 const ADDR_SEGMENT = /^[A-Za-z0-9_-]+$/;
 // A RELATION PREDICATE is still a declared D-1 name
 // (docs/design/RELATIONS.0.md §3.2). Entity names are gone with
-// ADR-013; predicate names are not -- a relation is a vocabulary term,
+// ADR-014; predicate names are not -- a relation is a vocabulary term,
 // not an address.
 const PREDICATE_NAME = /^[_a-zA-Z][-_a-zA-Z0-9]*$/;
 // The address a string spells, or undefined when it does not spell
@@ -28,7 +28,7 @@ const PREDICATE_NAME = /^[_a-zA-Z][-_a-zA-Z0-9]*$/;
 // reference uses: `$.services.auth` from the root, `.auth` from the
 // link's own sibling scope. The tree is the only namespace -- which is
 // what makes a model instantiable more than once, each instance
-// resolving its relative links inside itself (ADR-013).
+// resolving its relative links inside itself (ADR-014).
 function parseAddress(s) {
     if ('$' === s) {
         // The whole document is not a relation's target: an address must

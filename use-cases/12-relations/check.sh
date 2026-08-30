@@ -8,6 +8,7 @@ set -euo pipefail
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO="$DIR/../.."
+NODE="${NODE:-node}"
 AONTU="${AONTU:-node $REPO/ts/bin/aontu.js}"
 
 WORK="$(mktemp -d)"
@@ -102,5 +103,28 @@ has reach out '$.pipeline.jobs.extract -> $.pipeline.jobs.transform -> $.pipelin
 run noreach 1 -- reaches '$.pipeline.jobs.load' '$.pipeline.jobs.extract' --relation feeds "$DIR/model.aon"
 has noreach out 'verdict: unreachable'
 ok "reaches --relation feeds: downstream yes, upstream no"
+
+# 10. THE PIPELINE, DRAWN, and the inverse collapse that makes it
+# readable. `graphOf` reports every WRITTEN position, so a relation
+# with a declared inverse arrives twice -- `feeds` and `fedBy` give six
+# edges for three logical ones. The renderer collapses each unordered
+# pair and draws the named primary, which is why `--primary feeds`
+# is passed: without it the code-point-least key wins and the pipeline
+# reads backwards. The proper rule -- draw the DECLARING direction --
+# needs the relation declarations, and relation.ts exports findings
+# rather than declarations.
+"$NODE" "$DIR/../tools/diagram.js" graph --primary feeds \
+  "$DIR/model.aon" > "$WORK/diagram-graph.mmd" \
+  || fail "graph diagram did not render"
+diff -u "$DIR/expected/diagram-graph.mmd" "$WORK/diagram-graph.mmd" \
+  || fail "the graph diagram drifted"
+[ "$(grep -c ' -->' "$WORK/diagram-graph.mmd")" -eq 3 ] \
+  || fail "expected three logical edges after the inverse collapse"
+"$NODE" "$DIR/../tools/diagram.js" er --primary feeds \
+  "$DIR/model.aon" > "$WORK/diagram-er.mmd" \
+  || fail "er diagram did not render"
+diff -u "$DIR/expected/diagram-er.mmd" "$WORK/diagram-er.mmd" \
+  || fail "the entity-relationship diagram drifted"
+ok "the pipeline draws: 6 written edges collapse to 3 logical ones"
 
 echo "all $pass checks passed"

@@ -5,7 +5,7 @@
 // document has, besides its value, a GRAPH — the set of checked links,
 // each from one tree position to another.
 //
-// The graph is PATH-NATIVE (ADR-013). There is no second namespace to
+// The graph is PATH-NATIVE (ADR-014). There is no second namespace to
 // index: a node's address is its path, so the entity index the first
 // design carried is exactly the set of paths already in the edges, and
 // the node a link starts at is derived from where the link sits rather

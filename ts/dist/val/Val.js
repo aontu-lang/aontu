@@ -2,6 +2,7 @@
 /* Copyright (c) 2022-2025 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.EMPTY_ERR = exports.SPREAD = exports.DONE = exports.Val = void 0;
+exports.spreadId = spreadId;
 exports.empty = empty;
 exports.repathInstance = repathInstance;
 const node_util_1 = require("node:util");
@@ -133,6 +134,25 @@ class Val {
         }
         if (null != this.deprecation) {
             out.deprecation = this.deprecation;
+        }
+        // THE APPLY-ONCE MARK TRAVELS WITH THE CLONE. `_spr` records which
+        // spread template has already been merged into this value, and the
+        // bag loops read it to keep a template from being applied twice
+        // (MapVal.unify, ListVal.unify). A clone that dropped it looked
+        // un-spread, so a REFERENCE resolving to a templated bag had the
+        // template applied a second time -- over the value the first
+        // application had already produced. With `n: key()` that meant
+        // meeting the answered `"x"` as though it were a map and asking
+        // `key()` again, which answered `"n"`: `$.a.b.f.x.n.n`, "n"
+        // against "x" (use-cases/BUGS.md §50). The Go port carries it and
+        // answered correctly; this is the canonical side catching up.
+        if (null != this._spr) {
+            ;
+            out._spr = this._spr;
+        }
+        if (null != this._sid) {
+            ;
+            out._sid = this._sid;
         }
         // PROVENANCE TRAVELS WITH THE CLONE, exactly as the site does, and
         // for the same reason: a clone of a value the author wrote IS that
@@ -403,9 +423,22 @@ function pretty(s) {
     // .replace(/([^\n]) +/g, '$1')
     );
 }
+// THE STABLE IDENTITY OF A SPREAD TEMPLATE, across clones. Every Val
+// takes a fresh `id` when it is constructed, so the bag loops'
+// apply-once mark -- which records WHICH template has already been
+// merged into a value -- could never match after a clone: a reference
+// resolving to a templated bag clones the bag AND its template, and the
+// fresh template's id matched nothing, so the template was applied a
+// second time over the value the first application had produced
+// (use-cases/BUGS.md §50). The first call fixes the identity to the
+// original's own id; Val.clone carries `_sid`, so every clone of that
+// template answers with it.
+function spreadId(cj) {
+    return cj._sid ?? (cj._sid = cj.id);
+}
 function empty(o) {
     return ((Array.isArray(o) && 0 === o.length)
         || (null != o && 'object' === typeof o && 0 === Object.keys(o).length)
         || false);
-} /* node:coverage ignore next 16 */
+} /* node:coverage ignore next 17 */
 //# sourceMappingURL=Val.js.map

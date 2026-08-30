@@ -463,7 +463,7 @@ class RefVal extends FeatureVal_1.FeatureVal {
                         // thing. An ABSOLUTE address still names the same node from
                         // the copy; a RELATIVE one is read from the copy's own
                         // position, which is what makes a referenced model resolve
-                        // its internal links inside the copy (ADR-013).
+                        // its internal links inside the copy (ADR-014).
                         return val;
                     });
                     //}

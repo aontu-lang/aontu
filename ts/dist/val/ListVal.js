@@ -111,10 +111,10 @@ class ListVal extends BagVal_1.BagVal {
                 // does.
                 let oval;
                 if (!spread_cj.isTop
-                    && child._spr === spread_cj.id) {
+                    && child._spr === (0, Val_1.spreadId)(spread_cj)) {
                     oval = child.done ? child :
                         (0, unify_1.unite)(te ? keyctx.clone({ explain: (0, utility_1.ec)(te, 'PEG:' + key) }) : keyctx, child, TOP, 'list-own');
-                    oval._spr = spread_cj.id;
+                    oval._spr = (0, Val_1.spreadId)(spread_cj);
                 }
                 else {
                     const key_spread_cj = spread_cj.spreadClone(keyctx);
@@ -139,7 +139,7 @@ class ListVal extends BagVal_1.BagVal {
                                         (0, unify_1.unite)(te ? keyctx.clone({ explain: (0, utility_1.ec)(te, 'PEG:' + key) }) : keyctx, child, key_spread_cj, 'list-own');
                     if (!spread_cj.isTop && !oval.isNil) {
                         ;
-                        oval._spr = spread_cj.id;
+                        oval._spr = (0, Val_1.spreadId)(spread_cj);
                     }
                 }
                 out.peg[key] = oval;

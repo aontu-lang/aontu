@@ -1814,7 +1814,7 @@ in Go. It is the edge set:
 
 There is no entity index, because there is no second namespace to
 index: a node's address is its path
-([ADR-013](../ADR.md#adr-013--the-tree-is-the-namespace-there-is-no-identity-mark)).
+([ADR-014](../ADR.md#adr-014--the-tree-is-the-namespace-there-is-no-identity-mark)).
 One entry per checked
 [link](reference-language.md#checked-links-refert):
 

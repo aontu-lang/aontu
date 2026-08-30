@@ -24,6 +24,7 @@ CASES="
 12-relations
 13-recursive-schema
 14-jsonschema-export
+15-code-generation
 "
 
 fail=0

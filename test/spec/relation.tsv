@@ -148,7 +148,7 @@ atom-in-list-position	canon	x: [acyclic() & ["a"]]	{"x":[["a"]&acyclic()]}
 two-inverses-one-predicate	relation	ent_a: {links: ["$.ent_b"] & rel() & inverse(back) & inverse(also), back: [], also: []}\nent_b: {back: [], also: []}	{"verdict":"fail","findings":[{"code":"relation_inverse_missing","relation":"links","at":"$.ent_a.links.0","detail":["$.ent_a","$.ent_b","also"]},{"code":"relation_inverse_missing","relation":"links","at":"$.ent_a.links.0","detail":["$.ent_a","$.ent_b","back"]}]}
 # THE PREDICATE NAME is a D-1 name (docs/design/RELATIONS.0.md §3.2) --
 # a relation is a vocabulary term, not an address, so it keeps the
-# name grammar that entity names had before ADR-013 retired them: a
+# name grammar that entity names had before ADR-014 retired them: a
 # letter or `_`, then letters, digits, `_` or `-`. The accepting rows
 # reach generation (an unmet rel is not concrete) rather than a name
 # refusal, which is exactly the distinction being pinned.

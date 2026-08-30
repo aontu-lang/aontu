@@ -9,7 +9,7 @@
 # The PREDICATE of every edge produced is the key the rel() sits on --
 # declared once, in the schema, never inferred from the path.
 #
-# An address is a TREE PATH (ADR-013): `$.a.b` from the root, `.b` from
+# An address is a TREE PATH (ADR-014): `$.a.b` from the root, `.b` from
 # the link's own sibling scope. A bare word is NOT an address -- it is
 # just a string -- which is why every address here is written as one.
 #

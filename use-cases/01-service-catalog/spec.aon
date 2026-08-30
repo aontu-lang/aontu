@@ -34,7 +34,7 @@ spec: hide({
     # `relations:` block used to -- acyclic dependencies, and a
     # written-out inverse. Data documents stay plain lists.
     #
-    # An address is a TREE PATH (ADR-013), so the held re() says where
+    # An address is a TREE PATH (ADR-014), so the held re() says where
     # a dependency may live rather than how it must be named: a service
     # may only depend on a catalog entry, never on a workload.
     # (Gap 8's history -- refer($.std.Service) dying of unify_cycle,

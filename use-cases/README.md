@@ -1,6 +1,6 @@
 # Use cases: practical validation of Aontu as an agent-facing ground truth
 
-This folder is a **review artifact**: eleven enterprise-shaped use cases,
+This folder is a **review artifact**: fifteen enterprise-shaped use cases,
 each built as real Aontu models and then *executed* against the
 TypeScript CLI (`ts/bin/aontu.js`, the canonical implementation, at the
 in-tree 0.53.0 line). Every case directory carries a `check.sh` that
@@ -54,6 +54,34 @@ and, in case 09, `MCP` — to point at a different build.
 | [12-relations](12-relations/) | Pipeline DAG: field-declared relations, one line of schema | `rel(t)`, held constraints, `acyclic()`/`inverse(n)` atoms, verdict at generation, `relations`/`reaches` |
 | [13-recursive-schema](13-recursive-schema/) | Approval chain: a schema one reference deep over any-depth data | recursive residuals (`$.spec.Step`), mu-form canon + hash, `recursion_unexpanded`, `vet --at` over plain JSON |
 | [14-jsonschema-export](14-jsonschema-export/) | JSON Schema as the bridge out: MCP inputSchema, OpenAPI, stock validators | `jsonschema --at`/`--strict`/`--format json`, the stderr loss report, exit classes, the money-wire `const` mark |
+| [15-code-generation](15-code-generation/) | The model as the source of the code: Go, TypeScript and SQL from one catalogue, each over a slice | list-spread + `pick` line building, backtick target text, `match` type mapping, both-ports byte parity, the missing fold |
+
+## Diagrams
+
+Four cases carry generated diagrams, pinned as goldens by their
+`check.sh` and rendered inline in their README (GitHub draws Mermaid):
+
+| case | views |
+|---|---|
+| [01-service-catalog](01-service-catalog/) | entity graph, dependency-structure matrix |
+| [04-schema-evolution](04-schema-evolution/) | subsumption poset over the releases and proposals |
+| [08-feature-flags](08-feature-flags/) | the meet ladder for one arbitrated value |
+| [12-relations](12-relations/) | entity graph with inverse pairs collapsed, and an ER diagram |
+
+[`tools/diagram.js`](tools/diagram.js) draws them. **There is no
+`aontu view` verb**: the capability is designed in
+[`docs/design/VIEWS.0.md`](../docs/design/VIEWS.0.md) and
+[`VIEWS-ORDER.0.md`](../docs/design/VIEWS-ORDER.0.md) and nothing of it
+is built. The script stands in for it, using only the shipped library —
+`graphOf`, `subsume`, `why` — so the diagrams are real now and the
+design is tested against real models before any of it becomes code. It
+computes no coordinates and sorts everything by code point, so its
+output is deterministic text and a golden diff is a meaningful check.
+
+Drawing the models found two defects that the text verbs had not:
+[BUGS 65](BUGS.md) (a `refer()` behind a conjunct is invisible to the
+entity graph, so `reaches` answers wrongly) and the inverse-doubling
+that makes a raw `graphOf` edge set draw every declared inverse twice.
 
 ## Scope and conventions
 
@@ -77,7 +105,7 @@ and, in case 09, `MCP` — to point at a different build.
   fails or a significant capability is missing for enterprise use;
   **minor** = papercut; **polish** = cosmetic.
 
-> **Note (2026-08-30, [ADR-013](../ADR.md#adr-013--the-tree-is-the-namespace-there-is-no-identity-mark)):**
+> **Note (2026-08-30, [ADR-014](../ADR.md#adr-014--the-tree-is-the-namespace-there-is-no-identity-mark)):**
 > `id()` is removed and `refer()` addresses tree paths. Cases 01 and 12
 > are updated and their `check.sh` passes. The reproductions under
 > `repros/identity/`, `repros/sibling-crosswire/` and

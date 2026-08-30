@@ -34,7 +34,7 @@ import { pendingMarkWrapper } from './RefVal'
 import { ConjunctVal } from './ConjunctVal'
 import { NilVal } from './NilVal'
 import { BagVal } from './BagVal'
-import { repathInstance } from './Val'
+import { repathInstance, spreadId } from './Val'
 import { cmpCodePoint } from '../keyorder'
 import { markSpread } from '../provenance'
 
@@ -306,11 +306,11 @@ class MapVal extends BagVal {
         // No `undefined !== child` here: propagateMarks above already
         // dereferenced it, so a missing child would have thrown there.
         if (!spread_cj.isTop
-          && (child as any)._spr === (spread_cj as any).id) {
+          && (child as any)._spr === spreadId(spread_cj)) {
           oval = child.done ? child :
             unite(te ? keyctx.clone({ explain: ec(te, 'KEY:' + key) }) : keyctx,
               child, TOP, 'map-own')
-          ; (oval as any)._spr = (spread_cj as any).id
+          ; (oval as any)._spr = spreadId(spread_cj)
         }
         else {
           const key_spread_cj = spread_cj.spreadClone(keyctx)
@@ -339,7 +339,7 @@ class MapVal extends BagVal {
                         child, key_spread_cj, 'map-own')
 
           if (!spread_cj.isTop && !oval.isNil) {
-            ; (oval as any)._spr = (spread_cj as any).id
+            ; (oval as any)._spr = spreadId(spread_cj)
           }
         }
 
@@ -404,15 +404,27 @@ class MapVal extends BagVal {
             // Same apply-once discipline as the own-key loop: once the
             // constraint is merged into the value (marked with the
             // constraint's id), later passes only self-unify.
-            if ((oval as any)._spr !== (spread_cj as any).id) {
+            if ((oval as any)._spr !== spreadId(spread_cj)) {
               let key_spread_cj = spread_cj.spreadClone(peerctx)
+
+              // A SPREAD IS A SPREAD FROM EITHER SIDE. The own-key loop
+              // above marks its template so `why` can say the
+              // contribution came from `&:` rather than from the key;
+              // this arm did not, so the SAME document reported the
+              // role or dropped it depending on whether the template
+              // and the keys were written in one statement or two --
+              // `services: &: {..}` plus `services: {web:{}}` took the
+              // peer path and lost `(spread)` (use-cases/BUGS.md §55).
+              if (undefined !== peerctx.prov) {
+                markSpread(key_spread_cj)
+              }
 
               oval = out.peg[peerkey] =
                 unite(te ? peerctx.clone({ explain: ec(te, 'PSP:' + peerkey) }) : peerctx,
                   oval, key_spread_cj, 'map-peer-spread')
 
               if (!spread_cj.isTop && !oval.isNil) {
-                ; (oval as any)._spr = (spread_cj as any).id
+                ; (oval as any)._spr = spreadId(spread_cj)
               }
             }
           }

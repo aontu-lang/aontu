@@ -19,3 +19,24 @@ key-in-nested-generation	gens	n:[x,y]\nd:pack($.n,{m:pack([p],{k:key(),up:key(1)
 each-key-template-conflict	errc	n:[a,b]\no:each($.n,{k:key()})\n	scalar_kind
 key-at-generated-path-canon	canon	n:[a,b]\nd:pack($.n,{k:key()})\n	{"d":{"a":{"k":"a"},"b":{"k":"b"}},"n":["a","b"]}
 ref-reads-generated-key	gens	n:[a]\nd:pack($.n,{k:key()})\ne:$.d.a.k\n	{"d":{"a":{"k":"a"}},"e":"a","n":["a"]}
+# A TEMPLATE IS APPLIED ONCE, however deep the reference that reaches
+# it. `a: b: c: d: e: $.a.b.f` pointing at a bag with `&: {n: key()}`
+# used to REFUSE in TypeScript at four levels and answer in Go, while
+# two and three levels agreed -- a threshold nobody wrote, which is
+# what said it was a defect rather than a divergence (BUGS.md §50).
+#
+# Go was right, and these rows are why we can say so: the four-level
+# answer is the agreed THREE-level answer with one more level of
+# nesting, character for character. The cause was that the bag loops'
+# apply-once mark is by template IDENTITY, and every Val takes a fresh
+# id when constructed -- so a reference cloning a templated bag cloned
+# its template into something the mark could not match, and the
+# template was applied a SECOND time over the value the first
+# application had produced: `n: key()` had answered "x", the template
+# met that string as a map, and the inner key() answered "n".
+#
+# The depth ladder is the row set, because the threshold is the defect.
+key-spread-through-ref-2	gens	a: b: e: $.a.b.f\na: b: f: &: {n: key()}\na: b: f: {x: {}}	{"a":{"b":{"e":{"x":{"n":"x"}},"f":{"x":{"n":"x"}}}}}
+key-spread-through-ref-3	gens	a: b: c: e: $.a.b.f\na: b: f: &: {n: key()}\na: b: f: {x: {}}	{"a":{"b":{"c":{"e":{"x":{"n":"x"}}},"f":{"x":{"n":"x"}}}}}
+key-spread-through-ref-4	gens	a: b: c: d: e: $.a.b.f\na: b: f: &: {n: key()}\na: b: f: {x: {}}	{"a":{"b":{"c":{"d":{"e":{"x":{"n":"x"}}}},"f":{"x":{"n":"x"}}}}}
+key-spread-through-ref-5	gens	a: b: c: d: g: e: $.a.b.f\na: b: f: &: {n: key()}\na: b: f: {x: {}}	{"a":{"b":{"c":{"d":{"g":{"e":{"x":{"n":"x"}}}}},"f":{"x":{"n":"x"}}}}}

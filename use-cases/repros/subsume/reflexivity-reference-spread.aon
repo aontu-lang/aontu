@@ -1,0 +1,14 @@
+# 64 (spelling 1 of 3): a REFERENCE-valued spread template makes a
+# document non-self-subsumable. Both ports.
+#
+# run: node ../../../ts/bin/aontu.js subsume reflexivity-reference-spread.aon reflexivity-reference-spread.aon
+# run: aontu-go subsume reflexivity-reference-spread.aon reflexivity-reference-spread.aon
+#
+# expected: verdict: subsumes  (reflexivity is a law -- see
+#           test/spec/subsume.tsv, "REFLEXIVITY IS A LAW (2026-08-27)")
+# actual (both ports): verdict: undecided
+#           $.code.fs: sub_path_dependent_spread [compat]
+#           expected: $.defs.F
+#           actual:   $.defs.F      <- BYTE-IDENTICAL
+defs: hide({F: {n: string}})
+code: {fs: {&: $.defs.F}}

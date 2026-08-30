@@ -1218,7 +1218,7 @@ describe('coverage3-provenance', () => {
 })
 
 // G4 phase 2 — the ADDRESS grammar, at the shapes no document reaches.
-// An address is a tree path (ADR-013), so what is pinned here is the
+// An address is a tree path (ADR-014), so what is pinned here is the
 // spellings the parser accepts and refuses, and the relative
 // resolution's own edge: a climb off the top of the tree.
 describe('coverage3-address', () => {

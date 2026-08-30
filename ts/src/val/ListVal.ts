@@ -33,7 +33,7 @@ import {
 import { ConjunctVal } from './ConjunctVal'
 import { NilVal } from './NilVal'
 import { BagVal } from './BagVal'
-import { repathInstance } from './Val'
+import { repathInstance, spreadId } from './Val'
 import { markSpread } from '../provenance'
 
 
@@ -168,11 +168,11 @@ class ListVal extends BagVal {
         // does.
         let oval: Val
         if (!spread_cj.isTop
-          && (child as any)._spr === (spread_cj as any).id) {
+          && (child as any)._spr === spreadId(spread_cj)) {
           oval = child.done ? child :
             unite(te ? keyctx.clone({ explain: ec(te, 'PEG:' + key) }) : keyctx,
               child, TOP, 'list-own')
-          ; (oval as any)._spr = (spread_cj as any).id
+          ; (oval as any)._spr = spreadId(spread_cj)
         }
         else {
           const key_spread_cj = spread_cj.spreadClone(keyctx)
@@ -199,7 +199,7 @@ class ListVal extends BagVal {
                         child, key_spread_cj, 'list-own')
 
           if (!spread_cj.isTop && !oval.isNil) {
-            ; (oval as any)._spr = (spread_cj as any).id
+            ; (oval as any)._spr = spreadId(spread_cj)
           }
         }
 

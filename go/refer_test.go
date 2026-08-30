@@ -33,7 +33,7 @@ func TestAddrSegmentOK(t *testing.T) {
 }
 
 func TestParseAddressShapes(t *testing.T) {
-	// An address is a TREE PATH (ADR-013), in the two spellings a
+	// An address is a TREE PATH (ADR-014), in the two spellings a
 	// reference uses. The TS twin is address-spellings in
 	// ts/test/coverage3.test.ts.
 	a, ok := parseAddress("$.services.auth")

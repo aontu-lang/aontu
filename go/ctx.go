@@ -86,7 +86,7 @@ type Ctx struct {
 	// one, so a write made during the pass does not survive a subtree
 	// the pass rebuilds — which is exactly what happens when a link sits
 	// inside its own target, or when two nodes link at each other. Keyed
-	// by PATH, so there is no registry of names to collide in (ADR-013).
+	// by PATH, so there is no registry of names to collide in (ADR-014).
 	// Same lifetime and placement as snapmap above: one evaluation.
 	// Mirrors `ctx.referflows` on the TS unify root ctx.
 	referflows map[string]Val

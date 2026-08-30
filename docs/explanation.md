@@ -296,7 +296,7 @@ instead of in production.
 The language once had a stronger form of this: `id(name)`, a global
 second name, with every node carrying it unified into every other. It
 is retired
-([ADR-013](../ADR.md#adr-013--the-tree-is-the-namespace-there-is-no-identity-mark)).
+([ADR-014](../ADR.md#adr-014--the-tree-is-the-namespace-there-is-no-identity-mark)).
 A reference catches the same contradiction at the same site, and the
 global name cost more than it bought: a model carrying one could not be
 **instantiated twice**, because two mounts of one file were one entity

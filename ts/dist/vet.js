@@ -494,7 +494,18 @@ function vet(schemaSrc, dataSrc, opts) {
             findings: [findingOf(failure, { data: new Set([dataUrl]) })],
         };
     }
-    stampUrl(anchor, schemaUrl);
+    // STAMP THE WHOLE SETTLED SCHEMA, not just the lifted anchor.
+    // Without `--at` these are the same tree. With it, the anchor is a
+    // subtree and the rest of the schema is still REACHABLE from inside
+    // it -- a `%alias` declaration (`[&: %U]`, target `$.%U`) or a
+    // recursive residual's `$.spec.Step`, both of which the meet
+    // resolves through _fixroot (RefVal.find, RecurseVal.body). A node
+    // reached that way but never stamped carries no url, so its site
+    // named no file while excerpting the schema's text -- against the
+    // invariant that every site names the file whose text it shows
+    // (finding F, §25). stampUrl only fills a url that is EMPTY, so
+    // stamping the superset never renames a value read from an include.
+    stampUrl(schemaVal, schemaUrl);
     const dataUrls = stampUrl(dataVal, dataUrl);
     // The projection every site in this report goes through: roles by
     // url-set membership, names by how the caller reached each document.
