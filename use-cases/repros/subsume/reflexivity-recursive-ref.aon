@@ -1,0 +1,16 @@
+# 64 (spelling 3 of 3): a RECURSIVE self-reference, same break, a
+# different code.
+#
+# run: node ../../../ts/bin/aontu.js subsume reflexivity-recursive-ref.aon reflexivity-recursive-ref.aon
+# run: aontu-go subsume reflexivity-recursive-ref.aon reflexivity-recursive-ref.aon
+#
+# expected: verdict: subsumes
+# actual (both ports): verdict: undecided
+#           $.spec.Step.then: sub_unresolved [compat]
+#           expected and actual byte-identical
+#
+# CONTROL, both ports answer `subsumes`: an INLINE constraint in a
+# spread (`defs: {x: {&: integer & min(0)}}`) -- which is the exact
+# case BUGS 28 fixed on 2026-08-27 -- and a plain map (`a: {b: 1}`).
+spec: hide({Step: {label: string, then?: $.spec.Step}})
+doc: $.spec.Step & {label: "a"}

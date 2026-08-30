@@ -2244,6 +2244,73 @@ shipped a TypeScript-only transform that looked correct.
 Repro:
 [`repros/hide/hide-blocks-spread-compute-in-go.aon`](repros/hide/hide-blocks-spread-compute-in-go.aon).
 
+## subsumption — the law that holds only for one spelling
+
+### 64. A referenced, aliased or recursive spread template breaks reflexivity, in both ports [critical]
+
+Found 2026-08-30 while designing a subsumption poset — a diagram whose
+nodes are documents and whose edges are `subsume` verdicts. Three of
+the seven use-case entry documents do not subsume **themselves**:
+
+| document | self-subsumption |
+|---|---|
+| `01-service-catalog/system.aon` | **undecided** (`sub_path_dependent_spread`, `sub_unresolved`) |
+| `12-relations/model.aon` | **undecided** (`sub_path_dependent_spread`, `sub_unresolved`) |
+| `13-recursive-schema/model.aon` | **undecided** (`sub_unresolved`) |
+| `02-deploy-config/stack.aon` | subsumes |
+| `06-k8s-golden-path/main.aon` | subsumes |
+| `08-feature-flags/system.aon` | subsumes |
+| `15-code-generation/model.aon` | subsumes |
+
+[`test/spec/subsume.tsv`](../test/spec/subsume.tsv) states the rule in
+capitals — "REFLEXIVITY IS A LAW (2026-08-27). Every value admits
+itself, residue included" — and its comment records that this exact
+failure mode was fixed once already (§28): "a constraint inside a
+SPREAD TEMPLATE made a contract non-self-subsumable — expected and
+actual byte-identical, verdict undecided". The class is back, by three
+other spellings.
+
+**Minimised, both ports, three lines each.** The control cases are the
+boundary:
+
+| spelling | verdict |
+|---|---|
+| `defs: {x: {&: integer & min(0)}}` — inline constraint, the case §28 fixed | `subsumes` |
+| `a: {b: 1}` — plain map | `subsumes` |
+| `defs: hide({F: {n: string}})` / `code: {fs: {&: $.defs.F}}` — **reference**-valued template | **`undecided`** `sub_path_dependent_spread` |
+| `%F: {n: string}` / `code: {fs: {&: %F}}` — **alias**-valued template | **`undecided`** `sub_path_dependent_spread` |
+| `spec: hide({Step: {label: string, then?: $.spec.Step}})` / `doc: $.spec.Step & {label: "a"}` — **recursive** | **`undecided`** `sub_unresolved` |
+
+The finding's two operands are byte-identical, which is what makes it
+a bug rather than a conservative answer:
+
+```
+code    : sub_path_dependent_spread
+path    : $.code.fs
+expected: '$.%F'
+actual  : '$.%F'
+```
+
+**What it costs.** §28 already recorded the consequence: `breaking` on
+a non-self-subsumable contract hard-fails and has to be run with
+`--allow-undecided`, "which then masks the genuine undecideds it exists
+to surface". Every layered model in `use-cases/` shares a template by
+reference or alias, because that is the idiom the language is for. The
+fold also destroys decided answers either side of the shared template —
+`1|2|3 ⊒ 1|2` is decided, and a byte-identical shared template beside
+it drags the whole comparison to `undecided`.
+
+**The repair the law implies.** Before folding to `undecided`, compare
+the two operands' **hash forms**; equal means `subsumes`. That is not a
+heuristic — `subsume.tsv` already says "Identity is the HASH FORM" — and
+it runs only where an `undecided` was about to be returned, so it costs
+nothing in the common case.
+
+Repros:
+[`repros/subsume/reflexivity-reference-spread.aon`](repros/subsume/reflexivity-reference-spread.aon),
+[`reflexivity-alias-spread.aon`](repros/subsume/reflexivity-alias-spread.aon),
+[`reflexivity-recursive-ref.aon`](repros/subsume/reflexivity-recursive-ref.aon).
+
 ## Elsewhere in this review
 
 Defects verified earlier in the effort and recorded in
