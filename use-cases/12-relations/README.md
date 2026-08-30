@@ -1,5 +1,48 @@
 # 12 — relations: a pipeline DAG, declared once, enforced at generation
 
+## The pipeline, drawn
+
+Both diagrams below are generated from this model by
+[`../tools/diagram.js`](../tools/diagram.js), which reads `graphOf` and
+nothing else, and both are pinned as goldens by `check.sh`. There is no
+`aontu view` verb yet — see
+[`docs/design/VIEWS.0.md`](../../docs/design/VIEWS.0.md).
+
+```mermaid
+graph LR
+  n_job_audit["job_audit"]
+  n_job_extract["job_extract"]
+  n_job_load["job_load"]
+  n_job_transform["job_transform"]
+  n_job_extract -->|"feeds"| n_job_transform
+  n_job_transform -->|"feeds"| n_job_audit
+  n_job_transform -->|"feeds"| n_job_load
+```
+
+**Six written edges, three logical ones.** `graphOf` reports every
+written position, and `feeds` is declared `inverse(fedBy)` with both
+directions written out, so the raw edge set doubles every relation that
+has an inverse. The renderer collapses each unordered pair. Which
+direction survives is chosen by `--primary feeds`: without it the
+code-point-least key wins and the pipeline reads backwards. The proper
+rule — draw the **declaring** direction — needs the relation
+declarations, and `relation.ts` exports findings rather than
+declarations. That is a gap the view design has to close.
+
+The same edges as an entity-relationship diagram:
+
+```mermaid
+erDiagram
+  n_job_extract }o--o{ n_job_transform : "feeds"
+  n_job_transform }o--o{ n_job_audit : "feeds"
+  n_job_transform }o--o{ n_job_load : "feeds"
+```
+
+Cardinality is drawn many-to-many throughout because the model does not
+state one. Drawing a cardinality the model does not assert would be an
+invention.
+
+
 The dedicated exercise of the field-declared relation surface
 (docs/design/RELATIONS.0.md, landed 2026-08-29). Use-case 01 grew its
 relations incidentally, magic-key era included; this model was born on

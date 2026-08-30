@@ -1,0 +1,18 @@
+graph LR
+  n_svc_auth["svc_auth"]
+  n_svc_directory["svc_directory"]
+  n_svc_email["svc_email"]
+  n_svc_gateway["svc_gateway"]
+  n_svc_ledger["svc_ledger"]
+  n_svc_notify["svc_notify"]
+  n_svc_payments["svc_payments"]
+  n_svc_risk["svc_risk"]
+  n_svc_auth -->|"dependsOn"| n_svc_directory
+  n_svc_gateway -->|"dependsOn"| n_svc_auth
+  n_svc_gateway -->|"dependsOn"| n_svc_payments
+  n_svc_notify -->|"dependsOn"| n_svc_email
+  n_svc_payments -->|"dependsOn"| n_svc_auth
+  n_svc_payments -->|"dependsOn"| n_svc_ledger
+  n_svc_payments -->|"dependsOn"| n_svc_notify
+  n_svc_payments -->|"dependsOn"| n_svc_risk
+  n_svc_risk -->|"dependsOn"| n_svc_directory

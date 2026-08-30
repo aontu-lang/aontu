@@ -348,5 +348,21 @@ run trustnone 1 --trust none "$WORK/system.aon"
 has trustnone "include denied" "trust none denies includes"
 ok "trust none: no includes at all (hermetic)"
 
+# THE ARBITRATION, DRAWN. The same ranked layers the checks above
+# assert, as a meet ladder: the descent from `top` through each
+# contribution to the resolved value, one rung per conjunct with its
+# rank, role and source position. `why`'s conjunct list is in the order
+# the recorder saw the meets, NOT rank order, so the renderer sorts --
+# an emitter that trusted the record would draw an arbitration that did
+# not happen. Deterministic text, pinned like any other golden. There
+# is no `aontu view` verb yet; see docs/design/VIEWS-ORDER.0.md.
+"${NODE:-node}" "$DIR/../tools/diagram.js" ladder \
+  --path '$.effective.prod.megacorp.checkout_v2.rollout' \
+  "$DIR/system.aon" > "$TMP/diagram-ladder.mmd" \
+  || die "ladder diagram did not render"
+diff -u "$DIR/expected/diagram-ladder.mmd" "$TMP/diagram-ladder.mmd" \
+  || die "the meet ladder drifted"
+ok "the arbitration draws: three ranked layers, weakest rung first"
+
 echo
 echo "All $PASS checks passed."
