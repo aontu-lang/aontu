@@ -1,18 +1,18 @@
 graph LR
-  n_svc_auth["svc_auth"]
-  n_svc_directory["svc_directory"]
-  n_svc_email["svc_email"]
-  n_svc_gateway["svc_gateway"]
-  n_svc_ledger["svc_ledger"]
-  n_svc_notify["svc_notify"]
-  n_svc_payments["svc_payments"]
-  n_svc_risk["svc_risk"]
-  n_svc_auth -->|"dependsOn"| n_svc_directory
-  n_svc_gateway -->|"dependsOn"| n_svc_auth
-  n_svc_gateway -->|"dependsOn"| n_svc_payments
-  n_svc_notify -->|"dependsOn"| n_svc_email
-  n_svc_payments -->|"dependsOn"| n_svc_auth
-  n_svc_payments -->|"dependsOn"| n_svc_ledger
-  n_svc_payments -->|"dependsOn"| n_svc_notify
-  n_svc_payments -->|"dependsOn"| n_svc_risk
-  n_svc_risk -->|"dependsOn"| n_svc_directory
+  n___catalog_domains_identity_services_auth["auth"]
+  n___catalog_domains_identity_services_directory["directory"]
+  n___catalog_domains_payments_services_ledger["ledger"]
+  n___catalog_domains_payments_services_payments["payments"]
+  n___catalog_domains_payments_services_risk["risk"]
+  n___catalog_domains_platform_services_email["email"]
+  n___catalog_domains_platform_services_gateway["gateway"]
+  n___catalog_domains_platform_services_notify["notify"]
+  n___catalog_domains_identity_services_auth -->|"dependsOn"| n___catalog_domains_identity_services_directory
+  n___catalog_domains_payments_services_payments -->|"dependsOn"| n___catalog_domains_identity_services_auth
+  n___catalog_domains_payments_services_payments -->|"dependsOn"| n___catalog_domains_payments_services_ledger
+  n___catalog_domains_payments_services_payments -->|"dependsOn"| n___catalog_domains_payments_services_risk
+  n___catalog_domains_payments_services_payments -->|"dependsOn"| n___catalog_domains_platform_services_notify
+  n___catalog_domains_payments_services_risk -->|"dependsOn"| n___catalog_domains_identity_services_directory
+  n___catalog_domains_platform_services_gateway -->|"dependsOn"| n___catalog_domains_identity_services_auth
+  n___catalog_domains_platform_services_gateway -->|"dependsOn"| n___catalog_domains_payments_services_payments
+  n___catalog_domains_platform_services_notify -->|"dependsOn"| n___catalog_domains_platform_services_email

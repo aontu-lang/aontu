@@ -10,13 +10,13 @@ nothing else, and both are pinned as goldens by `check.sh`. There is no
 
 ```mermaid
 graph LR
-  n_job_audit["job_audit"]
-  n_job_extract["job_extract"]
-  n_job_load["job_load"]
-  n_job_transform["job_transform"]
-  n_job_extract -->|"feeds"| n_job_transform
-  n_job_transform -->|"feeds"| n_job_audit
-  n_job_transform -->|"feeds"| n_job_load
+  n___pipeline_jobs_audit["audit"]
+  n___pipeline_jobs_extract["extract"]
+  n___pipeline_jobs_load["load"]
+  n___pipeline_jobs_transform["transform"]
+  n___pipeline_jobs_extract -->|"feeds"| n___pipeline_jobs_transform
+  n___pipeline_jobs_transform -->|"feeds"| n___pipeline_jobs_audit
+  n___pipeline_jobs_transform -->|"feeds"| n___pipeline_jobs_load
 ```
 
 **Six written edges, three logical ones.** `graphOf` reports every
@@ -33,9 +33,9 @@ The same edges as an entity-relationship diagram:
 
 ```mermaid
 erDiagram
-  n_job_extract }o--o{ n_job_transform : "feeds"
-  n_job_transform }o--o{ n_job_audit : "feeds"
-  n_job_transform }o--o{ n_job_load : "feeds"
+  n_extract }o--o{ n_transform : "feeds"
+  n_transform }o--o{ n_audit : "feeds"
+  n_transform }o--o{ n_load : "feeds"
 ```
 
 Cardinality is drawn many-to-many throughout because the model does not

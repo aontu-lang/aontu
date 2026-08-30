@@ -102,20 +102,77 @@ function edges(val, primary) {
 }
 
 
+// THE NODE SET IS DERIVED FROM THE EDGES, since ADR-014.
+//
+// This used to read `graphOf(val).entities`, the entity index. There is
+// no index any more: a node's address IS its path, so there is nothing
+// left to index and the removal took the field with it. The node set is
+// therefore every path an edge names at either end, deduplicated.
+//
+// That is a real narrowing and it is the right one. The index listed
+// every DECLARED entity, including one nothing links to; this lists the
+// nodes the relation graph actually connects. A diagram of a relation
+// is a diagram of what participates in it, and an isolated vertex was
+// never carrying information the edges did not.
 function nodes(val) {
-  return A.graphOf(val).entities.map((e) => e.id).sort(cmp)
+  const seen = new Set()
+  for (const e of A.graphOf(val).edges) {
+    seen.add(e.from)
+    seen.add(e.to)
+  }
+  return [...seen].sort(cmp)
 }
 
 
 // A Mermaid identifier: letters, digits and underscore only, so an
-// entity name that is legal in Aontu cannot break the diagram.
+// address that is legal in Aontu cannot break the diagram.
 const mid = (s) => 'n_' + String(s).replace(/[^A-Za-z0-9_]/g, '_')
+
+
+// THE SHORTEST SUFFIX THAT IS STILL UNIQUE, as a node's visible label.
+//
+// Since ADR-014 a node's name IS its path, and the paths in a real
+// model are long: eight nodes labelled
+// `$.catalog.domains.identity.services.auth` and its siblings is a
+// correct diagram nobody can read. The label is therefore the fewest
+// trailing segments that still tell this node from every other in the
+// same diagram -- `auth` where that is unambiguous, `identity.auth`
+// where it is not.
+//
+// The IDENTIFIER stays the full path (`mid` above), so shortening can
+// never merge two nodes; only what a reader sees is shortened. And the
+// rule is a function of the node SET, so a diagram is deterministic
+// while two diagrams of different slices may label the same node
+// differently -- which is correct, because uniqueness is a property of
+// the set being drawn.
+function labels(ns) {
+  const segs = new Map(ns.map((n) => [n, n.replace(/^\$\.?/, '').split('.')]))
+  const out = new Map()
+  for (const n of ns) {
+    const parts = segs.get(n)
+    let label = n
+    for (let take = 1; take <= parts.length; take++) {
+      const cand = parts.slice(parts.length - take).join('.')
+      const clash = ns.some((m) =>
+        m !== n &&
+        segs.get(m).slice(Math.max(0, segs.get(m).length - take)).join('.') === cand)
+      if (!clash) {
+        label = cand
+        break
+      }
+    }
+    out.set(n, label)
+  }
+  return out
+}
 
 
 function graph(val, primary) {
   const out = ['graph LR']
-  for (const n of nodes(val)) {
-    out.push('  ' + mid(n) + '["' + n + '"]')
+  const ns = nodes(val)
+  const lab = labels(ns)
+  for (const n of ns) {
+    out.push('  ' + mid(n) + '["' + lab.get(n) + '"]')
   }
   for (const e of edges(val, primary)) {
     out.push('  ' + mid(e.from) + ' -->|"' + e.label + '"| ' + mid(e.to))
@@ -134,7 +191,8 @@ function matrix(val, primary) {
   const es = edges(val, primary)
   const has = new Set(es.map((e) => e.from + '\u0000' + e.to))
 
-  const label = (n) => n
+  const lab = labels(ns)
+  const label = (n) => lab.get(n)
   const w = Math.max(0, ...ns.map((n) => label(n).length))
   const idx = ns.map((_, i) => String(i + 1))
   const iw = Math.max(1, ...idx.map((s) => s.length))
@@ -161,16 +219,22 @@ function er(val, primary) {
   const out = ['erDiagram']
   const ns = nodes(val)
   const es = edges(val, primary)
+  const lab = labels(ns)
+  // An erDiagram has no separate label: the identifier IS what the
+  // reader sees. So this uses the short form, sanitised -- safe because
+  // `labels` guarantees the short forms are distinct within the set,
+  // which is exactly the uniqueness an identifier needs.
+  const eid = (n) => mid(lab.get(n))
   const joined = new Set()
   for (const e of es) {
     joined.add(e.from)
     joined.add(e.to)
-    out.push('  ' + mid(e.from) + ' }o--o{ ' + mid(e.to) + ' : "' + e.label + '"')
+    out.push('  ' + eid(e.from) + ' }o--o{ ' + eid(e.to) + ' : "' + e.label + '"')
   }
-  // An entity in no relationship still belongs in the diagram.
+  // A node in no relationship still belongs in the diagram.
   for (const n of ns) {
     if (!joined.has(n)) {
-      out.push('  ' + mid(n) + ' {')
+      out.push('  ' + eid(n) + ' {')
       out.push('  }')
     }
   }
