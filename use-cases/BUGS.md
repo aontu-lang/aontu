@@ -12,8 +12,9 @@ or spec rows.
 
 Minimal reproductions live under [`repros/`](repros/), one directory
 per family; each `.aon` carries an `# expected:` / `# actual:` header.
-The one nontermination repro is marked in-file to be run under
-`timeout`. Severity: **critical** = silent wrong output, unsound vet
+The nontermination repros (§57 and
+`refer-cycles/refer-in-type-hang.aon`) are marked in-file to be run
+under `timeout`. Severity: **critical** = silent wrong output, unsound vet
 verdict, or nontermination; **major** = a documented capability fails;
 **minor** = papercut.
 
@@ -1836,6 +1837,129 @@ template crosses as `additionalProperties`/`items` only when it is a
 bare kind; list `length()` exports `minItems`/`maxItems` yet still
 reports a domain-less loss. The case's `check.sh` pins today's
 behaviour; fixing any of these means re-pinning there and in the guide.
+
+### 57. A recursive spread conjoined with a map does not terminate at depth two, in both ports [critical]
+
+Found 2026-08-30 while surveying what a declarative code-generation
+layer could be built on. Recursion through a **list spread** works,
+and so does conjoining anything at a recursive position -- until the
+two meet at depth two, where both engines run unbounded:
+
+```aon
+%T: {name: string, kids?: [&: %T & {}]}
+d: %T & {name: a, kids: [{name: b, kids: [{name: c}]}]}
+```
+
+| spelling | depth 1 | depth 2 |
+|---|---|---|
+| `[&: %T]` | 0.11 s | **0.15 s** |
+| `[&: %T & top]` | 0.11 s | **0.14 s** |
+| `[&: %T & {}]` | 0.13 s | **no answer** |
+| `[&: %T & {tag: X}]` | 0.14 s | **no answer** |
+| `[&: $.schema.T & {tag: X}]` (path form) | 0.15 s | **no answer** |
+| `{name: string, tag?: X, kids?: [&: %T]}` (conjunct OUTSIDE the spread) | 0.16 s | 0.16 s |
+
+(Wall clock for the whole CLI run, node 24, this tree; the point is
+three orders of magnitude, not the third digit.)
+
+So it is not the recursion, not the spread, and not the conjunct's
+content -- `& {}`, which adds nothing, is enough. `& top` is fine
+because top is absorbed rather than kept as a conjunct. Both ports
+behave identically: TypeScript and the Go CLI each answer depth one in
+a sixth of a second and are still running when killed at 20 s on depth two.
+
+It is an ALLOCATION explosion, not a spin: TypeScript holds 563 MB of
+resident memory 21 s in and 700 MB 41 s in, growing steadily at about
+one core. That is the clone-graph signature -- the recursive residual
+and its conjunct being re-instantiated per pass per destination -- and
+not a loop that fails to advance.
+
+**Why this is critical rather than a performance note.**
+[`docs/trust.md`](../docs/trust.md) clause 2 promises that evaluation
+terminates, and the budget taxonomy in
+[`test/spec/budget.tsv`](../test/spec/budget.tsv) promises that giving
+up is *reported* (`budget_passes`, `recursion_budget`, `unify_cycle`)
+rather than silent. Neither holds here, and the reason is structural:
+the pass budget (`maxcc = 9`, `ts/src/unify.ts:545`) bounds the NUMBER
+of fixpoint passes, not the work inside one. The explosion happens
+within a single pass, so no budget code can fire. A document like this
+one hangs the CLI, the LSP, and any agent harness that evaluates
+untrusted input -- which is the case G5 exists to rule out.
+
+The recursion machinery is a week old (§52, fixed 2026-08-29 by
+[`docs/design/RECURSION.0.md`](../docs/design/RECURSION.0.md) P0+P1),
+and the shape here is regime 4's neighbour: `test/spec/recursion.tsv`
+pins `list-depth-*` for the bare spread, and no row conjoins anything
+with the recursive position inside a spread.
+
+**It also blocks the transform layer.** A recursive reference is the
+natural home for an apply-templates analogue -- descent bounded by the
+data, which is exactly the termination argument G8 asks for -- and
+per-node computation at a recursive position is precisely
+`[&: %T & {...}]`. A second, milder defect sits beside it: computation
+written INSIDE a recursive definition is evaluated at the definition
+rather than per instance, so `up: upper(.name)` in
+`hide({T: {name: string, up: upper(.name), kids?: [&: $.schema.T]}})`
+refuses with `[aontu/invalid-arg]` at `$.schema.T.up`, `.name` having
+resolved to `string`. Per-destination instantiation (ADR-005) reaches
+`pack` templates and `&:` spreads but not recursive expansion.
+
+Repro:
+[`repros/recursion/recursive-spread-conjunct-hangs.aon`](repros/recursion/recursive-spread-conjunct-hangs.aon)
+-- run it under `timeout`, as its header says.
+
+## identity — id() at its own boundary
+
+### 58. An `id()` naming a node and its own descendant crashes both engines on the host stack [critical]
+
+Found 2026-08-30, same survey as §57, while asking whether the
+evaluated value graph is a tree (a transform layer that walks children
+needs to know). It is not, and one construct makes it cyclic:
+
+```aon
+a: id(x) & { b: id(x) }
+```
+
+| port | outcome |
+|---|---|
+| TypeScript | `Aontu: unexpected error: Maximum call stack size exceeded`, exit 1 — **no `[aontu/…]` marker**, so a harness that greps for one sees nothing |
+| Go | `runtime: goroutine stack exceeds 1000000000-byte limit` / `fatal error: stack overflow`, exit 2 — Go stack overflow is **not recoverable**, so an embedding server cannot catch it |
+
+Identity merge means every node carrying a name unifies with every
+other node carrying it ([`docs/reference-language.md`](../docs/reference-language.md#identity-idname)),
+so naming a node and its own descendant the same entity asks for a
+value that contains itself, and `a.peg.b === a`. What is missing is
+the refusal, not the detection: the merge has both sites in hand.
+
+The boundary is exactly ancestor-to-descendant. Everything adjacent
+works, which is why this has not been seen:
+
+| spelling | outcome |
+|---|---|
+| `{p: id(x) & {c:1}, q: id(x) & {d:2}}` (siblings) | merges — the feature working |
+| `a: id(x) & {b: id(y) & {c:1}}` (distinct names) | fine |
+| `a: id(x) & {b: {c: 1}}` (id on the node alone) | fine |
+| `a: id(x) & {b: id(x)}` | **crash, both ports** |
+| `a: id(x) & {b: {c: id(x) & {d: 1}}}` (deeper) | **crash, both ports** |
+
+Three things follow. First, it is a
+[trust-contract](../docs/trust.md) breach of the plainest kind: a
+22-character document takes down the CLI, the LSP and the MCP server,
+and the Go side cannot be defended against by the host. Second, the
+error taxonomy has a hole the registry cannot see —
+[`test/spec/errcodes.tsv`](../test/spec/errcodes.tsv) carries
+`id_name`, `id_conflict` and `id_spread`, and this failure has no code
+at all, so `codeClasses` set-equality stays green while a whole class
+of input is unhandled. An `id_ancestor` conflict (or `id_conflict`
+reused, the two sites being exactly what it reports) closes it. Third,
+it bounds what a transform layer may assume: **the evaluated structure
+is a DAG with sharing, and one construct can make it cyclic**, which
+is why [`ts/src/walk.ts`](../ts/src/walk.ts) calls its `seen` set "a
+termination guard, not an optimisation". Any walk primitive that
+recurses on `peg` inherits this crash until the refusal lands.
+
+Repro:
+[`repros/identity/id-names-own-descendant-crashes.aon`](repros/identity/id-names-own-descendant-crashes.aon).
 
 ## Elsewhere in this review
 
