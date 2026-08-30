@@ -256,6 +256,18 @@ list_length	errcode	conflict	0.53.0
 recursion_unexpanded	errcode	incomplete	0.53.0
 recursion_budget	errcode	budget	0.53.0
 id_conflict	errcode	conflict	0.53.0
+# ALL THREE NEW CODES SAY 0.54.0. `module_path` was filed as 0.53.1
+# when it looked like a security patch shipping alone; it lands in the
+# same release as these, and a registry naming a version that never
+# existed is worse than a row that reads later than its commit.
+#
+# `id_ancestor` is the same class for the same reason, and it is a
+# SEPARATE code because it is a different mistake: id_conflict is one
+# node claiming two names, this is one name claiming a node and
+# something inside it -- a value that contains itself, which both
+# engines used to answer with a host stack overflow carrying no code
+# at all (BUGS.md §58).
+id_ancestor	errcode	conflict	0.54.0
 id_spread	errcode	parse	0.53.0
 # THE CHECKED LINK (G4 phase 2, `refer(t?)`). Two codes. `refer_address`
 # is the value met being no address at all -- a non-string, or a string
@@ -332,7 +344,7 @@ pipe_target	errcode	parse	0.53.0
 # stack -- a verdict that depends on the machine, which is what
 # docs/trust.md forbids. The bound makes it a stated refusal, exactly
 # as `unify_cycle` does for the same reason.
-module_path	errcode	parse	0.53.1
+module_path	errcode	parse	0.54.0
 module_missing	errcode	parse	0.53.0
 module_integrity	errcode	parse	0.53.0
 module_depth	errcode	budget	0.53.0

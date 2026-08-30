@@ -196,3 +196,23 @@ id-name-hyphen-interior-ok	gens	a: id("team-pay") & {k:1}	{"a":{"k":1}}
 # D-1 name -- the same rule as the document root: nothing to be named
 # by.
 id-bare-list-element-refused	errc	x: [id() & {k:1}]	id_name
+# AN ENTITY CANNOT CONTAIN ITSELF. Identity merge unifies every node
+# carrying a name with every other node carrying it, so naming a node
+# AND ITS OWN DESCENDANT the same entity asks for a value that contains
+# itself. Both engines used to build it and die on the HOST stack:
+# TypeScript with a bare "Maximum call stack size exceeded" carrying no
+# `[aontu/...]` marker for a harness to see, and Go with a `fatal
+# error: stack overflow` -- which is not recoverable, so an embedding
+# server could not defend against a 22-character document. The refusal
+# was the only missing piece; the merge had both sites in hand all
+# along (BUGS.md §58).
+#
+# The refusal lands on the DESCENDANT, the position that cannot stand.
+id-ancestor-names-own-child	errc	a: id(x) & { b: id(x) }	id_ancestor
+id-ancestor-names-deeper-descendant	errc	a: id(x) & {b: {c: id(x) & {d: 1}}}	id_ancestor
+# THE BOUNDARY IS EXACTLY ANCESTOR-TO-DESCENDANT, and these are the
+# adjacent spellings that must keep working -- two of them are the
+# feature itself, which is why the refusal has to be this narrow.
+id-ancestor-siblings-still-merge	gens	p: id(x) & {c:1}\nq: id(x) & {d:2}	{"p":{"c":1,"d":2},"q":{"c":1,"d":2}}
+id-ancestor-distinct-names-nest	gens	a: id(x) & {b: id(y) & {c:1}}	{"a":{"b":{"c":1}}}
+id-ancestor-id-on-the-node-alone	gens	a: id(x) & {b: {c: 1}}	{"a":{"b":{"c":1}}}

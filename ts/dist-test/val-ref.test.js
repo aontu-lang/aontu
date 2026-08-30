@@ -624,15 +624,17 @@ a: q: v: { m: { w:{}, y:{} } }
             }
         });
         // Pref folding through a spread, read through a reference to a
-        // SIBLING subtree. Written `d: e:` under `.$KEY`; one level shallower
-        // now, because at four levels of destination nesting this shape is a
-        // live parity break in `key()` -- Go answers, TypeScript raises
-        // scalar_value at a DOUBLED path ($.a.b.f.x.n.n), the spread
-        // re-applying inside the already-resolved field. Filed as
-        // use-cases/BUGS.md §50 with the four-level repro; three levels is
-        // the deepest both ports agree on, and is what this asserts.
+        // SIBLING subtree. Back at the FOUR levels it was written with:
+        // this was shallowed to three while §50 stood, because at four the
+        // spread re-applied inside the already-resolved field and
+        // TypeScript raised scalar_value at a doubled path
+        // ($.a.b.f.x.n.n) where Go answered. Fixed 2026-08-30 by giving a
+        // spread template a stable identity across clones, so the bag
+        // loops' apply-once mark survives the reference's clone; the depth
+        // ladder is pinned in test/spec/gen-key.tsv
+        // (key-spread-through-ref-2..5).
         (0, expect_1.expect)(G(`
-a: b: c: e: $.a.b.f
+a: b: c: d: e: $.a.b.f
 
 a: b: f: &: {
    n: key()
@@ -648,7 +650,7 @@ a: b: f: {
 `)).equal({
             a: {
                 b: {
-                    c: { e: { x: { k: 'K', s: 'S', n: 'x', p: true } } },
+                    c: { d: { e: { x: { k: 'K', s: 'S', n: 'x', p: true } } } },
                     f: { x: { k: 'K', s: 'S', n: 'x', p: true } }
                 }
             }

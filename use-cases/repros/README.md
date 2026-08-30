@@ -14,10 +14,11 @@ Two cautions:
 - `refer-cycles/refer-in-type-hang.aon` (with its `-schema` companion)
   and `recursion/recursive-spread-conjunct-hangs.aon` do not terminate
   in any practical time — run them under `timeout` as their headers
-  say. `identity/id-names-own-descendant-crashes.aon` terminates, but
-  by overflowing the host stack: in Go that is a `fatal error` the
-  embedding program cannot recover from. `run-all.sh` never executes
-  anything in this tree.
+  say. `identity/id-names-own-descendant-crashes.aon` used to belong
+  beside them, terminating only by overflowing the host stack (in Go a
+  `fatal error` the embedding program cannot recover from); §58 is
+  fixed and it now refuses as `id_ancestor`. `run-all.sh` never
+  executes anything in this tree.
 - Some entries reproduce **by-design** behaviour whose consequence is
   the finding (marked in their headers and in BUGS.md), and
   `enum-default/match-helper-workaround.aon` is deliberately the
@@ -67,19 +68,49 @@ Two cautions:
   `vocab.jsonld` — byte-identical, differing only in name, which was
   the whole point. Their pin is `file.tsv`, the `load-ext-*` block.
 
-- `key-func/` (§50, filed 2026-08-28) is **open**, and was found by
-  removing `.$KEY` (ADR-009): the only test covering a spread template
-  read through a deep reference used that spelling, whose different code
-  path hid a live parity break in `key()`. There is deliberately no
-  shared spec row — a row would have to encode one port's answer, and
-  which port is right is what is unsettled.
+- `key-func/` (§50, filed 2026-08-28) is **FIXED** as of 2026-08-30,
+  and Go was right. It was found by removing `.$KEY` (ADR-009): the
+  only test covering a spread template read through a deep reference
+  used that spelling, whose different code path hid a live parity
+  break in `key()`. What settled it is that Go's four-level answer is
+  the agreed three-level answer one level deeper, character for
+  character — so the TypeScript refusal was the defect, not a reading.
+  The apply-once mark on a spread is by template identity, and every
+  value takes a fresh id when constructed, so a reference cloning a
+  templated bag defeated it; a template now keeps a stable identity
+  across clones. The row set is the depth ladder itself,
+  `gen-key.tsv` `key-spread-through-ref-2..5`.
 
-- `recursion/` (§52, filed 2026-08-28) is **open**, and a design
+- `recursion/` (§52, filed 2026-08-28) is fixed (2026-08-29, P0+P1);
+  what remains open in that directory is §57, the recursive spread
+  conjoined with a map, which does not terminate. It was a design
   question rather than a patch: every spelling of a recursive schema
   is refused (`path_cycle`), broken at depth one (`scalar_kind` naming
   neither the recursion nor the schema), or silently vacuous (the
   spread-template spelling generates at any depth and checks nothing).
   The design is written: `docs/design/RECURSION.0.md`.
+
+- `order/` (§62, filed 2026-08-30) is **FIXED** as of 2026-08-30:
+  `bagChildren` sorts with `cmpCodePoint`, so `pick` answers in the
+  same order as `each` and as the map's own canon, in both ports.
+  Pinned by `agg.tsv` — `pick-astral-key-order`,
+  `each-astral-key-order` and `pick-astral-key-order-three`.
+
+- `anchor/` (§59, filed 2026-08-30) is **FIXED** as of 2026-08-30: an
+  absolute reference the anchored meet's root cannot answer falls back
+  to the settled schema root in BOTH ports (Go's walk now reads
+  `Ctx.fixroot`, as TypeScript's `RefVal.find` reads `_fixroot`), and
+  both stamp that settled root so the schema site names its file.
+  Pinned by `vet.tsv` — `vet-at-alias-chain-valid`, `-inner-kind` and
+  `-inner-closed`.
+
+- `identity/` (§58, filed 2026-08-30) is **FIXED** as of 2026-08-30:
+  an `id()` naming a node and its own descendant is refused as
+  `id_ancestor` (class conflict) in both ports, instead of building a
+  value that contains itself and dying on the host stack. Pinned by
+  `id.tsv` — `id-ancestor-names-own-child`,
+  `-names-deeper-descendant`, and the three boundary rows that keep
+  siblings, distinct names and a bare `id()` working.
 
 These are review artifacts. Per ADR-001, the durable home for any
 behaviour contract is a `test/spec/*.tsv` row probed in both ports;

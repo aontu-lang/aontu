@@ -70,9 +70,12 @@ Every golden in `expected/` is captured engine output.
 - `length()` on a list is always the domain-less loss — the sizing
   atom has no domain until data arrives, so `[&: integer] &
   length(max(3))` exports `minItems`/`maxItems` and still reports.
-- `deprecate(x, meta)` exports `x` and drops the deprecation without
-  a loss line, although 2020-12 has a `deprecated` keyword to carry
-  it to. The one silent drop found here.
+- `deprecate(x, meta)` exports `x` plus `deprecated: true`, the
+  annotation 2020-12 has for exactly this, and reports the record's
+  `msg`/`use`/`since` as a loss — the draft has no field for what a
+  deprecation SAYS. (Until 2026-08-30 it dropped the whole record in
+  silence: no keyword, no loss line. That was the one silent drop
+  found here, and it was BUGS.md §56.)
 - A default that repeats a disjunct (`*internal | internal | ...`)
   duplicates the entry in the exported `enum`. Write
   `*internal | standard | critical` instead.

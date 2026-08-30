@@ -91,7 +91,23 @@ func mergeEntities(ctx *Ctx, root Val) Val {
 		ctx.entities = map[string]Val{}
 	}
 
-	walkEntities(ctx, root, map[Val]bool{}, false)
+	// AN ENTITY CANNOT CONTAIN ITSELF. Identity merge unifies every node
+	// carrying a name with every other node carrying it, so naming a
+	// node AND ITS OWN DESCENDANT the same entity asks for a value that
+	// contains itself -- `a: id(x) & {b: id(x)}` makes `a.peg["b"]` the
+	// node itself. Both ports used to die building it on the host
+	// stack, and Go's `fatal error: stack overflow` is not recoverable,
+	// so an embedding server could not defend against a 22-character
+	// document (BUGS.md §58).
+	//
+	// `idBad` maps the DESCENDANT position to the nil it becomes. The
+	// collect half fills it -- that is where the cycle would form, so
+	// the check runs BEFORE the unite -- and the write half applies it.
+	// The descendant carries the refusal because it is the position
+	// that cannot stand; the ancestor is the finding's other site.
+	ctx.idBad = map[Val]Val{}
+
+	walkEntities(ctx, root, map[Val]bool{}, false, map[string]Val{})
 
 	// NOTHING TO APPLY. The collect half is also the "does this document
 	// use identity at all?" answer, so a document that never says `id()`
@@ -100,19 +116,28 @@ func mergeEntities(ctx *Ctx, root Val) Val {
 	if 0 == len(ctx.entities) {
 		return root
 	}
-	return walkEntities(ctx, root, map[Val]bool{}, true)
+	return walkEntities(ctx, root, map[Val]bool{}, true, map[string]Val{})
 }
 
 // walkEntities is both halves of the merge; `write` is which one is
 // running. One function rather than two because the two halves differ
 // in three lines and agree in the walk — and a walk written twice is a
 // walk that drifts.
-func walkEntities(ctx *Ctx, node Val, seen map[Val]bool, write bool) Val {
+func walkEntities(ctx *Ctx, node Val, seen map[Val]bool, write bool,
+	anc map[string]Val) Val {
 	if nil == node {
 		return node
 	}
 
-	if name := node.entityName(); "" != name {
+	name := node.entityName()
+	if "" != name {
+		if write {
+			if nil != ctx.idBad {
+				if nil2, ok := ctx.idBad[node]; ok {
+					return nil2
+				}
+			}
+		}
 		if write {
 			// The SUBSTITUTION happens before the seen-guard, not after.
 			// Two positions of one entity hold the SAME object once a
@@ -126,6 +151,19 @@ func walkEntities(ctx *Ctx, node Val, seen map[Val]bool, write bool) Val {
 				node = rep
 			}
 		} else {
+			// `ancestor != node` because a unified tree is a GRAPH: a
+			// resolved reference shares its target, so a node can be
+			// reached through ITSELF without anyone having written two
+			// id()s. That is one entity at one position, which is fine.
+			// The defect is two DISTINCT nodes, one inside the other,
+			// claiming one name.
+			if ancestor, ok := anc[name]; ok && ancestor != node {
+				// BEFORE the unite, which is where the
+				// self-containing value would be built and the
+				// stack would go.
+				ctx.idBad[node] = makeNilErr(ctx, "id_ancestor", node, ancestor)
+				return node
+			}
 			rep, ok := ctx.entities[name]
 			if !ok || rep == node {
 				ctx.entities[name] = node
@@ -142,17 +180,29 @@ func walkEntities(ctx *Ctx, node Val, seen map[Val]bool, write bool) Val {
 	}
 	seen[node] = true
 
+	// The ancestor map is per-PATH, not per-walk: two entities are
+	// siblings when neither contains the other, which is the case
+	// identity exists for.
+	down := anc
+	if "" != name {
+		down = make(map[string]Val, len(anc)+1)
+		for k, v := range anc {
+			down[k] = v
+		}
+		down[name] = node
+	}
+
 	switch n := node.(type) {
 	case *MapVal:
 		for _, k := range n.keys {
-			out := walkEntities(ctx, n.peg[k], seen, write)
+			out := walkEntities(ctx, n.peg[k], seen, write, down)
 			if write {
 				n.peg[k] = out
 			}
 		}
 	case *ListVal:
 		for i, e := range n.peg {
-			out := walkEntities(ctx, e, seen, write)
+			out := walkEntities(ctx, e, seen, write, down)
 			if write {
 				n.peg[i] = out
 			}

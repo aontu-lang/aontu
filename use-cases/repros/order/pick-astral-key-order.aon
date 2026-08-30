@@ -7,8 +7,11 @@
 # run: aontu-go -c pick-astral-key-order.aon
 #
 # expected: one order, the map's own -- U+FFF0 before U+1F600
-# actual TS: "p":["astral","bmp"]     <- U+1F600 first
-# actual GO: "p":["bmp","astral"]     <- U+FFF0 first, matching canon
+# actual:   "p":["bmp","astral"] in BOTH ports -- FIXED 2026-08-30
+#
+# WAS, before the fix:
+#   TS: "p":["astral","bmp"]     <- U+1F600 first
+#   GO: "p":["bmp","astral"]     <- U+FFF0 first, matching canon
 #
 # The canon of `m` is identical in both ports and puts U+FFF0 first,
 # and `each` over the same map answers [2,1] in both. Only pick moves.
@@ -32,3 +35,7 @@
 # in exactly the primitive a code generator depends on.
 m: {"😀": {v:"astral"}, "￰": {v:"bmp"}}
 p: pick($.m, v)
+
+# FIXED 2026-08-30: bagChildren now sorts with cmpCodePoint. Pinned by
+# test/spec/agg.tsv -- pick-astral-key-order, each-astral-key-order and
+# pick-astral-key-order-three (ASCII, BMP and astral in one map).

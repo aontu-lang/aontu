@@ -37,3 +37,10 @@
 %U: close({ p: string, fs: [&: %F] })
 %C: close({ units: [&: %U] })
 code: type(%C)
+
+# FIXED 2026-08-30: Go's RefVal walk now falls back to Ctx.fixroot for
+# an absolute reference the meet root cannot answer -- the same
+# fallback ts/src/val/RefVal.ts has -- and BOTH ports now stamp the
+# settled schema root rather than only the lifted anchor, so the
+# schema site names its file. Pinned by test/spec/vet.tsv:
+# vet-at-alias-chain-valid, -inner-kind, -inner-closed.

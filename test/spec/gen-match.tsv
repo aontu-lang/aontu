@@ -44,3 +44,17 @@ match-none-no-default	errc	t:mid\nz:match($.t,small,{cpu:1},large,{cpu:8})\n	mat
 match-none-single-arm	errc	z:match(1,string,a)\n	match_none
 match-arity-two	errc	z:match(1,string)\n	func_arity
 match-arity-one	errc	z:match(1)\n	func_arity
+# UNIFIABILITY MATCHING IS LENGTH-AWARE FOR LISTS, because a list is a
+# POSITIONAL structure: `[]` is the empty tuple, not "any list". The
+# trial meet the selection runs shares its length gate with the
+# disjunct-member path, and Go's `trialUnify` never set the flag that
+# gate reads -- so `match` selected the OTHER arm and `filter` made the
+# opposite selection, in both cases silently and at exit 0 (BUGS.md
+# §61). The agreeing cases are here too, because they are what says the
+# rule is about length rather than about lists.
+match-list-longer-scrutinee-misses	gens	x:match([1,2],[],"hit","miss")	{"x":"miss"}
+match-list-one-vs-empty-misses	gens	x:match([1],[],"hit","miss")	{"x":"miss"}
+match-list-same-length-hits	gens	x:match([],[],"hit","miss")	{"x":"hit"}
+# A SPREAD MAKES THE PATTERN VARIADIC, so length stops being the
+# question and the arm matches.
+match-list-spread-pattern-hits	gens	x:match([1,2],[&:integer],"hit","miss")	{"x":"hit"}

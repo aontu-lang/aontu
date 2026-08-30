@@ -7,6 +7,164 @@ which implementation each change affects.
 
 ## Unreleased
 
+### `why` says `spread` however the statements are spaced
+
+TypeScript only. `why` annotates a contribution that came from a `&:`
+template rather than from the key itself — but only when the template
+and the keys were written in ONE statement. Written as two duplicate
+statements the template arrives from the other side, and that arm
+never marked it, so the same document reported the role or dropped it
+on nothing but the author's spacing. The Go port, and this port's own
+list twin, already marked both sides.
+
+The two-spread half of that entry is untouched and still open: spreads
+written in separate statements are combined before `why` sees them, so
+one contribution is shown carrying the merged value at the first
+template's position. Separating them means changing when spreads
+combine, not what the report walks. Was `use-cases/BUGS.md` §55, now
+partly fixed.
+
+### A spread template is applied once, however deep the reference
+
+TypeScript only. A bag with `&: {n: key()}`, read through a reference
+four or more levels down, refused with `scalar_value` at a **doubled**
+path (`$.a.b.f.x.n.n`) where Go answered — while two and three levels
+agreed in both ports. A threshold at four is a fixpoint artefact
+rather than a rule anyone wrote, and Go's four-level answer turns out
+to be the agreed three-level answer with one more level of nesting,
+character for character. Go was right.
+
+The bag loops already keep a template from being applied twice, by
+recording which template has been merged into a value. But that mark
+is by template IDENTITY, and every value takes a fresh id when it is
+constructed — so a reference resolving to a templated bag, which
+clones the bag *and* its template, produced a template the mark could
+not match. The template was applied a second time over the value the
+first application had produced: `n: key()` had answered `"x"`, the
+template met that string as though it were a map, and the inner
+`key()` answered `"n"`.
+
+A spread template now takes a stable identity that its clones carry.
+Was `use-cases/BUGS.md` §50.
+
+### `jsonschema` no longer drops `deprecate()` in silence
+
+Both implementations. `deprecate(x, meta)` exported as `x` alone: no
+`deprecated` keyword although 2020-12 has one, and no loss line even
+under `--strict` — against this verb's own rule that nothing is
+dropped in silence. It was the only silent drop in the export surface.
+
+The flag now crosses, because it is exactly the annotation JSON Schema
+has for this. What the deprecation SAYS — the record's `msg`, `use`
+and `since` — has no field in the draft, so it is reported as a loss
+rather than invented into `description`: the exporter emits no
+`description` anywhere, and quietly redefining it as a deprecation
+note is a mapping a consumer cannot undo. A record that says nothing
+(`deprecate(x, {})`) loses nothing and reports nothing.
+
+`aontu jsonschema --strict` consequently exits 1 on a deprecation
+carrying text where it used to pass. Was `use-cases/BUGS.md` §56.
+
+### `match` and `filter` answered differently in the two ports
+
+Go only. A list is a POSITIONAL structure, so a peer of another length
+cannot narrow it, and both ports carry the same length gate for a
+TRIAL meet. TypeScript's `trialUnify` set the flag that gate reads;
+Go's never did, setting it only on the disjunct-member path — so the
+gate could not fire from a combinator or from the preference
+distribution:
+
+| source | was, in Go | now, both ports |
+|---|---|---|
+| `match([1,2], [], "hit", "miss")` | `"hit"` | `"miss"` |
+| `filter([[1],[1,2]], [])` | every element | none |
+| `a: *[]` / `a: [1]` | `{"a":*[1]}`, exit 0 | refused, `empty` |
+
+`match` selected the other arm and `filter` made the **opposite**
+selection, both silently and at exit 0 — the silent-wrong-output class,
+in the two combinators a transform layer dispatches on, and in the
+operator ADR-004 and ADR-011 are built on.
+
+The fix is one flag, saved and restored so a nested trial cannot clear
+the outer one. Its reach was the real question, since the same call
+drives every `*x & peer` distribution in Go: the preference rows for a
+trial peer of a different length were written from the canonical
+port's answers and run against Go **before** the change, where they
+failed exactly as predicted while the boundary rows passed. After it,
+all pass and the rest of `pref.tsv` is unmoved. Was
+`use-cases/BUGS.md` §61.
+
+### An entity cannot contain itself
+
+Both implementations, and a new error code: `id_ancestor`, class
+`conflict`. Identity merge unifies every node carrying a name with
+every other node carrying it, so naming a node **and its own
+descendant** the same entity asks for a value that contains itself:
+
+    a: id(x) & { b: id(x) }
+
+Both engines built it and died on the HOST stack — TypeScript with a
+bare `Maximum call stack size exceeded` carrying no `[aontu/…]` marker
+for a harness to see, and Go with a `fatal error: stack overflow`,
+which is not recoverable, so an embedding server could not defend
+against a 22-character document. The refusal was the only missing
+piece; the merge had both sites in hand all along.
+
+It is raised in the entity merge's collect half, before the unite that
+would build the value, and lands on the **descendant** — the position
+that cannot stand — naming the ancestor as the finding's other site.
+The boundary is exactly ancestor-to-descendant: sibling positions
+still merge (that is the feature), distinct names still nest, and an
+`id()` on a node alone is untouched.
+
+A separate code rather than `id_conflict` reused, because it is a
+different mistake: `id_conflict` is one node claiming two names, this
+is one name claiming a node and something inside it. That also closes
+a hole the registry could not see — the failure had no code at all, so
+the registry's set-equality check stayed green over a whole
+unhandled class of input. Was `use-cases/BUGS.md` §58.
+
+### `pick` and `each` agree on one key order again
+
+TypeScript only. `bagChildren` sorted a map's keys with a bare
+`.sort()`, which is JavaScript's UTF-16 **code unit** order: an astral
+key is a surrogate pair beginning `D800`-`DBFF`, so it sorted below
+everything in U+E000-U+FFFF. `pick` therefore answered in a different
+order from `each`, from the map's own canon, and from Go — which sorts
+UTF-8 bytes, i.e. code points.
+
+`pick` is the order-preserving projection a generator turns a bag of
+records into ordered lines with, so this was one model producing two
+different files. It now sorts with `cmpCodePoint`, the order
+`ts/src/keyorder.ts` exists to state and the one every other emitting
+site in the port already used. `sum`, `least` and `greatest` share
+`bagChildren` but fold order-insensitively, so `pick` was the only
+observable divergence. Was `use-cases/BUGS.md` §62.
+
+### `vet --at` sees a `%alias` again in the Go port
+
+Both implementations. An anchor is a subtree LIFTED out of the schema,
+and an absolute reference inside it — a `%alias` target (`[&: %U]` is
+`$.%U`), or a recursive residual's `$.spec.Step` — names a sibling of
+the document root the lifted subtree no longer has. Go's reference
+walk saw only the meet's root, so an alias-heavy schema under `--at`
+was **invalid in Go and valid in TypeScript**: the Go CLI failing
+builds the canonical implementation passes, in the verb whose whole
+purpose is to be that gate.
+
+Go already had the tree — `Ctx.fixroot`, the settled schema root vet
+sets under `--at` — and `RecurseVal.body` already read it. The
+reference walk now reads it too, as TypeScript's `RefVal.find` does.
+
+**A site fix rides with it, in both ports.** Each stamped the schema
+url onto the lifted anchor alone, so a value reached through the root
+fallback carried no url: Go reported `-1:-1` naming no file, and
+TypeScript gave the right coordinates while naming no file — against
+the rule that every site names the file whose text it excerpts. Both
+now stamp the settled schema root, and stamping fills only an EMPTY
+url, so nothing read through an include is renamed. Was
+`use-cases/BUGS.md` §59.
+
 ### An include's extension decides what the file is
 
 Both implementations. `@"file"` read a file, and what the engine did

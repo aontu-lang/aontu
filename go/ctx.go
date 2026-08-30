@@ -86,6 +86,13 @@ type Ctx struct {
 	// evaluation, one set of entities — mirroring the `entities` map on
 	// the TS unify root ctx.
 	entities map[string]Val
+	// idBad is the ancestor-identity refusal carried between the two
+	// halves of the entity merge: the DESCENDANT position that named
+	// its own ancestor's entity, mapped to the nil it becomes. Filled
+	// by the collect half (before the unite that would build a value
+	// containing itself) and applied by the write half; same lifetime
+	// as `entities`. Mirrors the `bad` map in ts/src/unify.ts.
+	idBad map[Val]Val
 	// referflow is the set of entities a refer(t) type-flow is currently
 	// INSIDE — the Go twin of `ctx._referflow` in
 	// ts/src/val/ReferFuncVal.ts. Uniting a target drives the target's

@@ -29,3 +29,14 @@ filter-data-integer	errc	d:filter(1,integer)\n	filter_data
 filter-data-string	errc	d:filter("s",string)\n	filter_data
 filter-arity-one	errc	d:filter([1])\n	func_arity
 filter-arity-three	errc	d:filter([1],integer,integer)\n	func_arity
+# THE SAME LENGTH RULE, from the other side. `filter(bag, [])` keeps
+# only the elements that unify with the empty tuple, which is none of
+# them -- Go kept EVERY element, the exact opposite selection, because
+# its trial meet never set the flag the length gate reads (BUGS.md
+# §61). The controls are the half that says the rule is about LENGTH:
+# a one-element pattern keeps only the one-element member, and `top`
+# keeps both -- so the empty-pattern row above is not simply "filter
+# drops lists".
+filter-list-empty-pattern-keeps-none	gens	x:filter([[1],[1,2]],[])	{"x":[]}
+filter-list-one-element-pattern	gens	x:filter([[1],[1,2]],[integer])	{"x":[[1]]}
+filter-list-top-keeps-both	gens	x:filter([[1],[1,2]],top)	{"x":[[1],[1,2]]}

@@ -176,10 +176,24 @@ func eachFunc(ctx *Ctx, f *FuncVal, base []string, args []Val) Val {
 // (disjunct.go). Mirrors trialUnify in ts/src/val/FuncBaseVal.ts.
 func trialUnify(ctx *Ctx, a, b Val) Val {
 	saved := ctx.err
+	// AND ctx.trial, which this used to leave alone. The list-length
+	// gate in listval.go is guarded by it -- a trial peer of a
+	// different length cannot narrow a positional structure, so the
+	// trial must fail rather than merge -- and TypeScript's trialUnify
+	// (ts/src/val/FuncBaseVal.ts) has always set the flag. Go set it
+	// only on the disjunct-member path, so the gate could never fire
+	// from a combinator or from the preference distribution: `match`
+	// selected the other arm, `filter` made the OPPOSITE selection, and
+	// `a: *[] a: [1]` answered `*[1]` at exit 0 where the canonical
+	// port refused (BUGS.md §61). Saved and restored, because a trial
+	// nested inside a trial must not clear the outer one.
+	savedTrial := ctx.trial
 	ctx.err = []*NilVal{}
+	ctx.trial = true
 	out := unite(ctx, a, b)
 	failed := 0 < len(ctx.err) || (nil != out && out.Nil())
 	ctx.err = saved
+	ctx.trial = savedTrial
 	if failed {
 		return nil
 	}

@@ -84,7 +84,7 @@ func TestMergeEntitiesRegistryIsSorted(t *testing.T) {
 func TestWalkEntitiesNilNode(t *testing.T) {
 	// A bag slot can hold nil in a hand-built tree; the walk answers it
 	// unchanged rather than dereferencing it.
-	if out := walkEntities(&Ctx{}, nil, map[Val]bool{}, true); nil != out {
+	if out := walkEntities(&Ctx{}, nil, map[Val]bool{}, true, map[string]Val{}); nil != out {
 		t.Error("a nil node should come back as nil")
 	}
 }
@@ -143,7 +143,7 @@ func TestMergeEntitiesCycleGuards(t *testing.T) {
 	holder := newMap()
 	holder.set("p", root)
 	holder.set("q", other)
-	out := walkEntities(ctx2, holder, map[Val]bool{}, true).(*MapVal)
+	out := walkEntities(ctx2, holder, map[Val]bool{}, true, map[string]Val{}).(*MapVal)
 	if out.peg["q"] != Val(root) {
 		t.Fatal("q did not take the representative")
 	}
