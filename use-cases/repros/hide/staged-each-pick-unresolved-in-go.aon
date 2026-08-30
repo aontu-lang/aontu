@@ -1,0 +1,29 @@
+# 63, the second spelling: the SAME defect reached without `hide()`.
+# This is G9 phase 0 item 2, written from the other side -- `pick`
+# over a staged `each` rather than `hide` over a staged spread. Go
+# snapshots the staged producer before its template resolves.
+#
+# run: node ../../../ts/bin/aontu.js staged-each-pick-unresolved-in-go.aon
+# run: aontu-go staged-each-pick-unresolved-in-go.aon
+#
+# expected: one answer
+#
+# actual (TypeScript): {"d":{"x":{"n":"a"}},"r":["a"],
+#                       "s":[{"n":"a","o":"a"}]}          exit 0
+# actual (Go):         [aontu/mapval_no_gen] at $.r        exit 1
+#
+# Go's canon shows the cause -- the template's `.n` is still
+# unresolved where TypeScript resolved it to "a":
+#   TS: {"d":{"x":{"n":"a"}},"r":["a"],"s":[{"n":"a","o":"a"}]}
+#   GO: {"d":{"x":{"n":"a"}},"r":pick([{"n":"a","o":.n}],"o"),
+#        "s":[{"n":"a","o":"a"}]}
+#
+# Note `s` itself is correct in BOTH ports. Only the value Go hands
+# the CONSUMER carries the unresolved template, which is why staging
+# looks like it worked right up until something reads it.
+#
+# Re-probed 2026-08-30 after #99, which fixed G9 phase 0 items 1 and
+# 3. This one and item 4 remain.
+d: {x: {n: "a"}}
+s: each($.d, {o: .n})
+r: pick($.s, o)

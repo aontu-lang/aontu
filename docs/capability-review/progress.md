@@ -89,31 +89,40 @@ the divergence ledger, `Accepted`/`Superseded` in the ADR register).
    gap documents froze a row count into a "nothing may regress" clause;
    all eight are now wrong, by roughly 1,400 to 1,500 rows. A gap
    document should link this line instead: as of this
-   register's last update the suite is **91 `.tsv` files, 90
-   row-bearing, 3,495 rows**, in twenty modes — `canon` 799, `errc`
-   615, `gen` 579, `gens` 531, `err` 252, `errcode` 111, `subsume` 101,
-   `query` 92, `vet` 88, `why` 54, `jsonschema` 54, `hcanon` 43,
-   `patch` 42, `relation` 35, `graph` 28, `diff` 28, `reaches` 13,
-   `hash` 12, `trim` 11, `agentsmd` 7.
-   (Re-derived 2026-08-28. The figures this line carried before —
-   86/85/3,099 in eighteen modes — were stale by four files and 379
-   rows, and omitted `jsonschema` and `reaches` entirely. They were
-   falsifiable in the two commands below, which is the point of
-   carrying them; nobody ran them. `status-2026-08-27.md` had the
-   right counts.)
+   register's last update the suite is **97 `.tsv` files, 96
+   row-bearing, 3,825 rows**, in twenty modes — `canon` 867, `errc`
+   709, `gens` 630, `gen` 587, `err` 280, `errcode` 123, `subsume` 102,
+   `vet` 100, `query` 92, `jsonschema` 57, `why` 56, `hcanon` 43,
+   `patch` 42, `graph` 38, `diff` 28, `relation` 23, `hash` 17,
+   `reaches` 13, `trim` 11, `agentsmd` 7.
+   (Re-derived 2026-08-30, after the defect work of #99 and the
+   generation work of #96/#100/#101. This line has now been wrong
+   twice for the same reason — it was 86/85/3,099 before 2026-08-28
+   and 91/90/3,495 before today — and both times it was falsifiable
+   in the two commands below, which is the point of carrying them.
+   The lesson is that a count with a reproduction command still needs
+   somebody to run it; the commands are cheap enough to run on any
+   commit that adds rows.)
    Reproduce with
    `ls test/spec/*.tsv | wc -l` and
    `cat test/spec/*.tsv | grep -P '\t' | grep -vc '^#'`.
 
 ## Summary
 
-Forty-nine of forty-nine phases have moved; forty-eight of those are
-complete. One is not: G5 phase 6 is deliberately held for the next
-major release, a release act rather than an engineering one. G7 phase 7
-was found partial on 2026-08-21 — its `--jsonl` flag was unreachable in
-the Go port and TTY-gated in the TypeScript one — and was closed on
-2026-08-24; its row records what the fix was and why the earlier tests
-could not see the defect.
+Fifty-one of the sixty-four phases in the table below have moved;
+forty-nine of those are complete. Two are not. G5 phase 6 is
+deliberately held for the next major release, a release act rather
+than an engineering one. **G9 phase 0 became partial on 2026-08-30
+without this register saying so**: #99 fixed two of its four named
+deliverables while closing `use-cases/BUGS.md` §58 and §62, and the
+row was still reading NOT STARTED a day later. That is protocol rule
+1 failing in the direction it is least able to catch — the register
+does not go stale by misrecording what it recorded, it goes stale
+when work lands under a heading that does not name the phase it
+discharges. G7 phase 7 was found partial on 2026-08-21 — its
+`--jsonl` flag was unreachable in the Go port and TTY-gated in the
+TypeScript one — and was closed on 2026-08-24; its row records what
+the fix was and why the earlier tests could not see the defect.
 
 | Gap | Capability | Review phase | Landed | Partial | Not started |
 |-----|-----------|--------------|--------|---------|-------------|
@@ -125,9 +134,9 @@ could not see the defect.
 | [G6](g6-distribution.md) | Distribution | B/C | 5 | 0 | 0 |
 | [G7](g7-machine-access.md) | Machine access | B | 7 | 0 | 0 |
 | [G8](g8-generation.md) | Generation | C | 5 | 0 | 0 |
-| [G9](g9-transformation.md) | Declarative transformation | D | 0 | 0 | 9 |
+| [G9](g9-transformation.md) | Declarative transformation | D | 0 | 1 | 8 |
 | [G10](g10-transparency.md) | Transparency log | D | 1 | 0 | 5 |
-| | | **total** | **49** | **1** | **14** |
+| | | **total** | **49** | **2** | **13** |
 
 Against the review's own [sequencing](index.md#sequencing):
 
@@ -1452,8 +1461,12 @@ Opened 2026-08-30, after G1–G8 landed. Design is
 [g9-transformation.md](g9-transformation.md); forms (a) and (b) — the
 host program and the Jostraca path — are
 [docs/design/GENERATION-FORMS.0.md](../design/GENERATION-FORMS.0.md).
-**Nothing has landed.** Every row below is NOT STARTED, and the
-document is a design proposal, not a commitment.
+**Phase 0 is partial; phases 1–8 have not started**, and the document
+is a design proposal, not a commitment. The corpus the design asks
+for before its later phases are committed to now exists —
+[use-cases/15-code-generation](../../use-cases/15-code-generation/)
+(#100) — but a corpus is evidence, not a phase, and no row below
+cites it as a deliverable.
 
 Baseline at drafting, for protocol rule 5: `ls test/spec/*.tsv | wc -l`
 = **97**, `awk -F'\t' 'NF>2 && $0 !~ /^#/' test/spec/*.tsv | wc -l` =
@@ -1461,7 +1474,7 @@ Baseline at drafting, for protocol rule 5: `ls test/spec/*.tsv | wc -l`
 
 | Phase | Size | Status | Pin |
 |-------|------|--------|-----|
-| **0** — the gating defects | S | **NOT STARTED** | Six defects found while surveying for this capability and recorded in [use-cases/BUGS.md](../../use-cases/BUGS.md) §57–§62, each with a minimal repro under `use-cases/repros/`. Three are non-termination or crash (§57 recursive spread + map conjunct, both ports; §58 `id()` naming its own descendant, both ports, Go unrecoverable), three are ADR-001 parity breaks (§59 `vet --at` and aliases; §61 Go's `trialUnify` never setting `ctx.trial`, so `match`/`filter` answer differently; §62 `pick` ordering an astral-keyed map by UTF-16 code units in TypeScript), and one is a silent pin failure (§60 the canon-hash blind to an alias used as a spread template). §61 and §62 are in the primitives this design depends on for selection and for line order. |
+| **0** — the gating defects | S | **PARTIAL** | **Two of the design's four named deliverables are done, both by #99, which closed them under BUGS numbers rather than under this phase — hence the summary note above.** (1) *`pick` map ordering* — **DONE**: `ts/src/val/AggFuncVal.ts` now uses `cmpCodePoint` where it used a bare `.sort()`, closing [BUGS](../../use-cases/BUGS.md) §62; rows in `test/spec/agg.tsv`. The design calls this genuinely blocking because `join` (phase 2) inherits the same helper, so phase 2 is now unblocked. (3) *`id_ancestor`* — **DONE**: `id()` naming its own ancestor or descendant is refused as `id_ancestor` before the unite instead of dying on the host stack (§58, unrecoverable in Go); `test/spec/id.tsv`, `errcodes.tsv`. The walk's totality argument in §5 of the design depends on this and can now be made. **Not done:** (2) *the staged pipeline* — re-probed 2026-08-30 on `cb58ba9`+#99 and still divergent: `d: {x:{n:"a"}}` with `s: each($.d, {o: .n})` and `r: pick($.s, o)` generates `{"r":["a"]}` in TypeScript and refuses `mapval_no_gen` in Go, whose canon shows `pick([{"n":"a","o":.n}],"o")` — the template's `.n` never resolved. **This is the same root cause as §63** (inside `hide()`, Go does not resolve a spread template's reference), which is recorded separately because it was found from the other side, through use case 15; one fix in `go/func.go`/`go/generate.go` should discharge both, and §63 now says so. (4) *bag membership* — not started: `each({a:1,b?:2,c:hide(3)})` is still `[1,2,3]` in both ports, so `hide`-marked children and unfilled optional keys still flow into every bag. Both ports agree, so this is a semantics decision rather than a parity break, and it is the one place this design changes shipped behaviour. **Of the extras:** the multi-line backtick `gens`/`canon` rows LANDED with #96 (`test/spec/edge.tsv`), and the `vet --at` list-spread alias break is fixed (§59, `test/spec/vet.tsv`). **Still open of the originally-named six:** §57 (recursive spread conjoined with a map does not terminate at depth two) is open by decision — the depth budget fires and cost is exponential in it, so the fix is convergence under a conjunct, not a tighter bound — and §60 (the canon-hash blind to an alias used as a spread template) is untouched, which matters here because the vocabulary of phase 1 is alias-heavy and its anti-drift story is a hash. **§63 is added to this phase's gating set** on the strength of the re-probe above; it was not known when this row was written. |
 | **1** — the vocabulary as a bundled schema | S | **NOT STARTED** | `@"std/code"` served beside `@"std/system"` |
 | **2** — `join` | S | **NOT STARTED** | The string fold; `funcMap` entry, no grammar change |
 | **3** — `form`, the order-preserving map | S/M | **NOT STARTED** | `each` meets and cannot transform; `pack` keys by data and reorders |

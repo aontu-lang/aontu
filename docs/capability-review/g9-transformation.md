@@ -1692,6 +1692,14 @@ Baseline for the register: `ls test/spec/*.tsv | wc -l` = **97**,
 
 ### Phase 0 — the four gating defects (S)
 
+> **Status, 2026-08-30: PARTIAL.** Items 1 (`pick` map ordering) and 3
+> (`id_ancestor`) landed with #99. Item 2 (the staged pipeline) was
+> re-probed after it and still diverges; it has the same root cause as
+> `use-cases/BUGS.md` §63, found later and from the other side. Item 4
+> (bag membership) is untouched. The authority for all of this is
+> [progress.md](progress.md#g9--declarative-transformation), not this
+> section — the text below is the design as written, kept as written.
+
 None is recorded anywhere;
 [`test/spec/divergent.tsv`](../../test/spec/divergent.tsv) has zero
 rows today, so these would be its first entries, and per that file's
