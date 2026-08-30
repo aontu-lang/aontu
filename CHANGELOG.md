@@ -7,6 +7,47 @@ which implementation each change affects.
 
 ## Unreleased
 
+### `pick` and `each` agree on one key order again
+
+TypeScript only. `bagChildren` sorted a map's keys with a bare
+`.sort()`, which is JavaScript's UTF-16 **code unit** order: an astral
+key is a surrogate pair beginning `D800`-`DBFF`, so it sorted below
+everything in U+E000-U+FFFF. `pick` therefore answered in a different
+order from `each`, from the map's own canon, and from Go — which sorts
+UTF-8 bytes, i.e. code points.
+
+`pick` is the order-preserving projection a generator turns a bag of
+records into ordered lines with, so this was one model producing two
+different files. It now sorts with `cmpCodePoint`, the order
+`ts/src/keyorder.ts` exists to state and the one every other emitting
+site in the port already used. `sum`, `least` and `greatest` share
+`bagChildren` but fold order-insensitively, so `pick` was the only
+observable divergence. Was `use-cases/BUGS.md` §62.
+
+### `vet --at` sees a `%alias` again in the Go port
+
+Both implementations. An anchor is a subtree LIFTED out of the schema,
+and an absolute reference inside it — a `%alias` target (`[&: %U]` is
+`$.%U`), or a recursive residual's `$.spec.Step` — names a sibling of
+the document root the lifted subtree no longer has. Go's reference
+walk saw only the meet's root, so an alias-heavy schema under `--at`
+was **invalid in Go and valid in TypeScript**: the Go CLI failing
+builds the canonical implementation passes, in the verb whose whole
+purpose is to be that gate.
+
+Go already had the tree — `Ctx.fixroot`, the settled schema root vet
+sets under `--at` — and `RecurseVal.body` already read it. The
+reference walk now reads it too, as TypeScript's `RefVal.find` does.
+
+**A site fix rides with it, in both ports.** Each stamped the schema
+url onto the lifted anchor alone, so a value reached through the root
+fallback carried no url: Go reported `-1:-1` naming no file, and
+TypeScript gave the right coordinates while naming no file — against
+the rule that every site names the file whose text it excerpts. Both
+now stamp the settled schema root, and stamping fills only an EMPTY
+url, so nothing read through an include is renamed. Was
+`use-cases/BUGS.md` §59.
+
 ### An include's extension decides what the file is
 
 Both implementations. `@"file"` read a file, and what the engine did

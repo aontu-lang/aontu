@@ -1987,7 +1987,7 @@ Repro:
 
 ## anchoring — what `--at` can still see
 
-### 59. `vet --at` loses `%alias` references in the Go port [critical]
+### 59. `vet --at` loses `%alias` references in the Go port [FIXED 2026-08-30]
 
 Found 2026-08-30 while specifying a code-generation vocabulary as an
 Aontu schema — the vocabulary is alias-heavy, and `--at` is how you
@@ -2036,6 +2036,38 @@ debt register: not here, not
 not belong in `divergent.tsv` either — that register is for
 divergences that cannot be fixed from this repository right now, and
 this one is Go's `anchorAt`.
+
+Status: FIXED 2026-08-30, and the guess above was right about the
+mechanism but wrong about which port was missing a piece. Go already
+HAD the tree — `Ctx.fixroot`, the settled schema root, which vet sets
+under `--at` — and `RecurseVal.body` already read it. What it lacked
+was the second reader: TypeScript's `RefVal.find` falls back to
+`_fixroot` for any absolute reference the meet's root cannot answer,
+and Go's reference walk did not. Go now does the same, with the walk
+factored into `RefVal.walkFrom` so the two roots share one set of
+mark-wrapper and list-index rules rather than growing a second copy to
+drift.
+
+The comment in TypeScript's own fallback asserted that "the Go port
+answers the anchored meet from settled structures and never sees the
+gap". It does see it; that sentence is what this entry cost.
+
+**A second divergence came out of writing the rows**, invisible from
+the CLI because both ports printed the same headline: BOTH stamped the
+schema url onto the LIFTED ANCHOR only, so a node reached through the
+root fallback carried no url at all. Go answered `-1:-1` with no file
+(its rule for a file it holds no text for) and TypeScript gave the
+right coordinates while naming no file — against finding F's
+invariant that every site names the file whose text it excerpts (§25).
+Both now stamp the settled schema root; `stampURL` fills only an EMPTY
+url, so the superset never renames a value that came through an
+include.
+
+Pins: `test/spec/vet.tsv` — `vet-at-alias-chain-valid`,
+`-inner-kind` and `-inner-closed`. Three alias levels, because one
+would not have shown it, and the two invalid rows are the half that
+matters: a fallback resolving to `top` would answer "valid" too, so
+they pin that the alias is still ENFORCED through the anchor.
 
 Repro:
 [`repros/anchor/vet-at-loses-aliases-in-go.aon`](repros/anchor/vet-at-loses-aliases-in-go.aon)
@@ -2168,7 +2200,7 @@ and its `-pref` companion.
 
 ## ordering — the one call site that does not use cmpCodePoint
 
-### 62. `pick` orders an astral-keyed map by UTF-16 code units in TypeScript [critical]
+### 62. `pick` orders an astral-keyed map by UTF-16 code units in TypeScript [FIXED 2026-08-30]
 
 Found 2026-08-30 while checking that a transform's generated line order
 is stable across ports. It is not.
@@ -2216,6 +2248,14 @@ list of generated lines, and the one a code generator leans on for
 exactly that. Two ports, two orders, means one model producing two
 different generated files: an ADR-001 break in the primitive the
 generation story depends on.
+
+Status: FIXED 2026-08-30 — `bagChildren` sorts with `cmpCodePoint`,
+the order `keyorder.ts` exists to state and the one every other
+emitting site in the port already used. The three pins are
+`test/spec/agg.tsv`: `pick-astral-key-order`, `each-astral-key-order`
+and `pick-astral-key-order-three`, which spans ASCII, BMP and astral
+in one map so the position a bare `.sort()` gets wrong is in the
+middle of the row rather than at its end.
 
 Repro:
 [`repros/order/pick-astral-key-order.aon`](repros/order/pick-astral-key-order.aon).

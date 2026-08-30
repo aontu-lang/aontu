@@ -335,3 +335,20 @@ vet-at-steps-through-a-sizing-residue	vet	x: length(min(2)) & {a: 1}	2	{"finding
 vet-unique-sees-the-data	vet	labels: [&: string] & unique()	{"labels": ["a", "a"]}	{"findings":[{"actual":"[\\"a\\",\\"a\\"]","class":"conflict","code":"constraint","expected":"unique()","path":"$.labels","severity":"error","sites":[{"col":12,"file":"data","len":1,"role":"data","row":1,"src":"[","value":"[\\"a\\",\\"a\\"]"},{"col":23,"file":"schema","len":6,"role":"schema","row":1,"src":"unique","value":"unique()"}]}],"truncated":false,"verdict":"invalid"}
 vet-must-over-a-container-sees-the-data	vet	s: {t: integer} & must({t: max(60)}, "session too long")	{"s": {"t": 120}}	{"findings":[{"actual":"{\\"t\\":120}","class":"conflict","code":"must","expected":"{\\"t\\":max(60)}","note":"session too long","path":"$.s","severity":"error","sites":[{"col":7,"file":"data","len":1,"role":"data","row":1,"src":"{","value":"{\\"t\\":120}"},{"col":19,"file":"schema","len":-1,"role":"schema","row":1,"src":"","value":"must({\\"t\\":max(60)},\\"session too long\\")"}]}],"truncated":false,"verdict":"invalid"}
 vet-must-over-a-container-admits-the-data	vet	s: {t: integer} & must({t: max(60)}, "session too long")	{"s": {"t": 30}}	{"findings":[],"truncated":false,"verdict":"valid"}
+# AN ANCHOR IS A LIFTED SUBTREE, AND AN ALIAS LIVES AT THE ROOT. A
+# `%name` reference inside the anchored schema (`[&: %U]`, whose target
+# is `$.%U`) names a sibling of the DOCUMENT root, which the lifted
+# subtree does not have. TypeScript answered from ctx._fixroot -- the
+# settled schema root the lifter keeps -- and Go walked only the meet's
+# root, so an alias-heavy schema under `--at` was VALID in TypeScript
+# and INVALID in Go: the canonical port passing what the Go CLI fails,
+# in the one verb whose purpose is to be that gate (BUGS.md §59).
+#
+# THREE ALIAS LEVELS, because one would not have shown it: %C names %U
+# names %F. The invalid rows are the half that matters -- a fallback
+# resolving to `top` would also answer "valid" -- so they pin that the
+# alias is still ENFORCED through the anchor, both the inner scalar
+# kind and the inner close().
+vet-at-alias-chain-valid	vet	%F: close({ n: string })\n%U: close({ p: string, fs: [&: %F] })\n%C: close({ units: [&: %U] })\ncode: type(%C)\n	units: [ { p: "a", fs: [ {n:"x"} ] } ]\n	{"findings":[],"opts":{"at":"$.code"},"truncated":false,"verdict":"valid"}
+vet-at-alias-chain-inner-kind	vet	%F: close({ n: string })\n%U: close({ p: string, fs: [&: %F] })\n%C: close({ units: [&: %U] })\ncode: type(%C)\n	units: [ { p: "a", fs: [ {n:1} ] } ]\n	{"findings":[{"class":"conflict","code":"no_scalar_unify","path":"$.code.units.0.fs.0.n","severity":"error","sites":[{"col":29,"file":"data","len":1,"role":"data","row":1,"src":"1","value":"1"},{"col":16,"file":"schema","len":6,"role":"schema","row":1,"src":"string","value":"string"}]}],"opts":{"at":"$.code"},"truncated":false,"verdict":"invalid"}
+vet-at-alias-chain-inner-closed	vet	%F: close({ n: string })\n%U: close({ p: string, fs: [&: %F] })\n%C: close({ units: [&: %U] })\ncode: type(%C)\n	units: [ { p: "a", fs: [ {n:"x", extra:1} ] } ]\n	{"findings":[{"class":"conflict","code":"closed","path":"$.units.0.fs.0.extra","severity":"error","sites":[{"col":40,"file":"data","len":1,"role":"data","row":1,"src":"1","value":"1"}]}],"opts":{"at":"$.code"},"truncated":false,"verdict":"invalid"}

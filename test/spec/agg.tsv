@@ -120,3 +120,20 @@ pick-key-kind	errc	x:pick([{a:1}],integer)	invalid-arg
 pick-scalar-child	errc	x:pick([1,2],a)	pick_key
 pick-index-out-of-range	errc	x:pick([[9]],3)	pick_key
 pick-arity	errc	x:pick([{a:1}])	func_arity
+# PICK AND EACH SHARE ONE ORDER, and it is CODE POINT order -- the
+# order canon emits and the one keyorder.ts exists to state. TypeScript
+# sorted this one call site with a bare `.sort()`, which is UTF-16 CODE
+# UNIT order: an astral key is a surrogate pair beginning D800-DBFF, so
+# it sorted BELOW U+E000-U+FFFF and `pick` answered in a different order
+# from `each`, from canon, and from Go. `pick` is the order-preserving
+# projection a generator turns a bag of records into ordered lines with,
+# so that was one model producing two different files (BUGS.md 62).
+#
+# The rows are the claim in full: the map's own order, `each`'s and
+# `pick`'s all agree, and all three put U+FFF0 before U+1F600. The
+# three-key row spans the whole range in one order -- ASCII `a`, then
+# BMP U+FFF0, then astral U+1F600 -- which is the ordering a bare
+# `.sort()` gets wrong in the middle.
+pick-astral-key-order	canon	m:{"😀":{v:"astral"},"￰":{v:"bmp"}} p:pick($.m,v)	{"m":{"￰":{"v":"bmp"},"😀":{"v":"astral"}},"p":["bmp","astral"]}
+each-astral-key-order	canon	m:{"😀":1,"￰":2} e:each($.m,integer)	{"e":[2,1],"m":{"￰":2,"😀":1}}
+pick-astral-key-order-three	canon	m:{"😀":{v:1},"￰":{v:2},"a":{v:3}} p:pick($.m,v)	{"m":{"a":{"v":3},"￰":{"v":2},"😀":{"v":1}},"p":[3,2,1]}

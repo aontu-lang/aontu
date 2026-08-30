@@ -20,6 +20,64 @@ type RefVal struct {
 	copyFound bool // copy(): clear all marks on the resolved copy
 }
 
+// walkOutcome says how a reference walk ended: it landed on a value,
+// it missed a segment for good (no_path), or the tree is not settled
+// enough to tell yet and the reference DEFERS to a later pass.
+type walkOutcome int
+
+const (
+	walkFound walkOutcome = iota
+	walkMissed
+	walkDefer
+)
+
+// walkFrom walks refpath from one root. Split out of Unify so the
+// anchored-meet fallback can run the SAME walk against a second root
+// (ctx.fixroot) without duplicating the mark-wrapper and list-index
+// rules -- two copies of this walk is how the ports drift.
+func (rv *RefVal) walkFrom(root Val, refpath []string) (Val, walkOutcome) {
+	var node Val = root
+	if nil == node {
+		return nil, walkMissed
+	}
+	for _, part := range refpath {
+		// A PENDING MARK WRAPPER IS TRANSPARENT TO THE WALK: hide()
+		// and type() only mark, and their argument is the structure
+		// the path names. Without this, two sibling schemas in one
+		// hide() bag deadlock -- the wrapper waits for its argument,
+		// the argument's members wait for references that walk into
+		// the unresolved wrapper (BUGS.md §53's family; the recursive
+		// Policy/Step pair found it again). Mirrors the walk arm in
+		// ts/src/val/RefVal.ts find.
+		if fv, ok := node.(*FuncVal); ok && DONE != fv.dc &&
+			("hide" == fv.name || "type" == fv.name) && 0 < len(fv.peg) {
+			if inner, ok := fv.peg[0].(*MapVal); ok {
+				node = inner
+			}
+		}
+		switch n := node.(type) {
+		case *MapVal:
+			node = n.peg[part]
+		case *ListVal:
+			idx, ok := listIndex(part)
+			if !ok || idx >= len(n.peg) {
+				node = nil
+			} else {
+				node = n.peg[idx]
+			}
+		default:
+			if node.Dc() == DONE {
+				return nil, walkMissed
+			}
+			return nil, walkDefer
+		}
+		if node == nil {
+			return nil, walkMissed
+		}
+	}
+	return node, walkFound
+}
+
 func newRef(terms []any, prefix bool) *RefVal {
 	rv := &RefVal{prefix: prefix}
 	rv.sp = unsited
@@ -348,41 +406,37 @@ func (rv *RefVal) find(ctx *Ctx, snap bool) Val {
 	}
 	refpath = reduceDots(refpath)
 
-	var node Val = ctx.root
-	for _, part := range refpath {
-		// A PENDING MARK WRAPPER IS TRANSPARENT TO THE WALK: hide()
-		// and type() only mark, and their argument is the structure
-		// the path names. Without this, two sibling schemas in one
-		// hide() bag deadlock -- the wrapper waits for its argument,
-		// the argument's members wait for references that walk into
-		// the unresolved wrapper (BUGS.md §53's family; the recursive
-		// Policy/Step pair found it again). Mirrors the walk arm in
-		// ts/src/val/RefVal.ts find.
-		if fv, ok := node.(*FuncVal); ok && DONE != fv.dc &&
-			("hide" == fv.name || "type" == fv.name) && 0 < len(fv.peg) {
-			if inner, ok := fv.peg[0].(*MapVal); ok {
-				node = inner
-			}
+	node, outcome := rv.walkFrom(ctx.root, refpath)
+
+	// THE ANCHORED-MEET FALLBACK (vet --at), the Go side of the block
+	// in ts/src/val/RefVal.ts find. An anchor is a SUBTREE lifted out
+	// of the schema, and an absolute reference inside it names the
+	// document root's namespace -- a `%alias` declaration
+	// (`[&: %U]`, whose target is `$.%U`), or a recursive residual's
+	// `$.spec.Step`. The meet's root is the lifted subtree, which has
+	// no such sibling, so the walk misses and the reference dies as
+	// no_path at the first element.
+	//
+	// ctx.fixroot is the SETTLED schema root the lifter kept for
+	// exactly this (vet.go, and RecurseVal.body in recurse.go, which
+	// already read it). TypeScript's copy of this comment used to say
+	// the Go port "answers the anchored meet from settled structures
+	// and never sees the gap"; it does see it -- an alias-heavy schema
+	// under `vet --at` was INVALID in Go and VALID in TypeScript, which
+	// for the verb whose purpose is to be a CI gate is the worst
+	// direction for a divergence to run (BUGS.md §59).
+	if walkMissed == outcome && rv.absolute && nil != ctx.fixroot &&
+		ctx.fixroot != ctx.root {
+		if fnode, fout := rv.walkFrom(ctx.fixroot, refpath); walkFound == fout {
+			node, outcome = fnode, fout
 		}
-		switch n := node.(type) {
-		case *MapVal:
-			node = n.peg[part]
-		case *ListVal:
-			idx, ok := listIndex(part)
-			if !ok || idx >= len(n.peg) {
-				node = nil
-			} else {
-				node = n.peg[idx]
-			}
-		default:
-			if node.Dc() == DONE {
-				return makeNilErr(ctx, "no_path", rv, nil)
-			}
-			return nil
-		}
-		if node == nil {
-			return makeNilErr(ctx, "no_path", rv, nil)
-		}
+	}
+
+	switch outcome {
+	case walkMissed:
+		return makeNilErr(ctx, "no_path", rv, nil)
+	case walkDefer:
+		return nil
 	}
 
 	// A reference landing on another reference may be a PROVEN mutual

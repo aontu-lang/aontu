@@ -81,6 +81,20 @@ Two cautions:
   spread-template spelling generates at any depth and checks nothing).
   The design is written: `docs/design/RECURSION.0.md`.
 
+- `order/` (§62, filed 2026-08-30) is **FIXED** as of 2026-08-30:
+  `bagChildren` sorts with `cmpCodePoint`, so `pick` answers in the
+  same order as `each` and as the map's own canon, in both ports.
+  Pinned by `agg.tsv` — `pick-astral-key-order`,
+  `each-astral-key-order` and `pick-astral-key-order-three`.
+
+- `anchor/` (§59, filed 2026-08-30) is **FIXED** as of 2026-08-30: an
+  absolute reference the anchored meet's root cannot answer falls back
+  to the settled schema root in BOTH ports (Go's walk now reads
+  `Ctx.fixroot`, as TypeScript's `RefVal.find` reads `_fixroot`), and
+  both stamp that settled root so the schema site names its file.
+  Pinned by `vet.tsv` — `vet-at-alias-chain-valid`, `-inner-kind` and
+  `-inner-closed`.
+
 These are review artifacts. Per ADR-001, the durable home for any
 behaviour contract is a `test/spec/*.tsv` row probed in both ports;
 promoting these repros into rows is follow-up work for maintainers.
