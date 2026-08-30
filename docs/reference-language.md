@@ -1330,7 +1330,7 @@ checked rather than trusted:
 | [aggregates](#aggregating-sum-least-greatest) | 3 | `sum` `least` `greatest` |
 | [projection](#aggregating-sum-least-greatest) | 1 | `pick` |
 | [the string fold](#folding-to-a-string-join) | 1 | `join` |
-| [identity and relations](#identity-idname) | 3 | `rel` `acyclic` `inverse` |
+| [declared relations](#declared-relations) | 3 | `rel` `acyclic` `inverse` |
 | [constraint atoms](#the-constraint-algebra-specified) | 9 | `min` `max` `above` `below` `neq` `re` `length` `unique` `must` |
 
 (The figure here read *thirty-seven* until `join` landed, and had been
