@@ -371,8 +371,7 @@ function applyFlows(ctx, root) {
         // `flow-lands-then-its-parent-moves`). The guard is the contract
         // for a rearrangement that does, and its Go twin in go/unify.go
         // carries the same marker.
-        /* node:coverage ignore next 3 */
-        if (undefined === found) {
+        if (undefined === found) { /* node:coverage ignore next 2 */
             continue;
         }
         const { parent, key: pkey, val: node } = found;
