@@ -497,4 +497,49 @@ describe('grammar', () => {
     }
   })
 
+
+  // THE SAME CHECK THE GBNF GETS, WHICH THE LARK FILE NEVER HAD.
+  //
+  // The test above compares RULE names, so a rule present in both files
+  // passed however wrong its alternation was -- and `name` was wrong:
+  // it was missing `acyclic`, `inverse` and `rel`, three builtins that
+  // landed with G4 and G8 and were added to the gbnf alone. A consumer
+  // parsing with the lark grammar rejected three valid documents, and
+  // every test in this file was green.
+  //
+  // Added with the first new builtin after the gap was noticed (G9
+  // phase 2, `join`), because the cheapest moment to close a hole a
+  // copy drifts through is the next time somebody copies into it.
+  test('the-lark-grammar-names-exactly-the-engine-builtins', () => {
+    const lark = readText(GRAMMAR_DIR, 'aontu.lark')
+    const start = lark.indexOf('\nname:')
+    Assert.ok(-1 < start, 'no name rule in aontu.lark')
+    // Terminated the way the gbnf slice is, and guarded the same way:
+    // a miss from indexOf is -1, and `slice(start, -1)` means
+    // "everything bar the last character", not "to the end".
+    const blank = lark.indexOf('\n\n', start)
+    const end = -1 === blank ? lark.length : blank
+    const slice = lark.slice(start, end)
+    const named = new Set(
+      [...slice.matchAll(/"([a-z]+)"/g)].map((m) => m[1]))
+
+    // The invariant, not a threshold: the slice is ONE rule, so exactly
+    // one line in it opens a rule. Comments start with `//` and
+    // continuation lines with `|`, so neither can be mistaken for one.
+    const opens = (slice.match(/^[a-z_][a-z0-9_]*\s*:/gm) ?? []).length
+    Assert.equal(opens, 1,
+      `the name rule slice spans ${opens} rules (${named.size} names) -- ` +
+      'the terminator probably stopped matching')
+
+    const engine = new Set(BUILTIN_FUNCS)
+    for (const name of engine) {
+      Assert.ok(named.has(name),
+        `builtin missing from aontu.lark: ${name}`)
+    }
+    for (const name of named) {
+      Assert.ok(engine.has(name),
+        `aontu.lark names a function the engine does not have: ${name}`)
+    }
+  })
+
 })

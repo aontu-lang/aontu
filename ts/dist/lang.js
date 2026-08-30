@@ -506,6 +506,11 @@ help isolate the syntax error.`,
         // RECORDS: `sum(pick($.lines, amountCents))`. Not a clever `each`
         // template -- `each` MEETS each child, and a meet cannot select.
         pick: AggFuncVal_1.PickFuncVal,
+        // G9 phase 2: the fold to a STRING. `sum` folds with `add`; this
+        // folds with `+`, so it inherits the one number-to-text rule and
+        // the language does not grow a second. It is the primitive that
+        // turns a bag of computed lines into a file.
+        join: AggFuncVal_1.JoinFuncVal,
     };
     // A dangling operator (`a:1|`, `a:$`, `a:*` at end of input) leaves
     // null/undefined unfilled terms. Junction ops drop them (so `a:1&`
@@ -1825,6 +1830,8 @@ const POSITIONAL_ARG_FUNCS = {
     add: true, sub: true, mul: true, div: true, mod: true, rem: true,
     // The bag and the key are distinct positions.
     pick: true,
+    // The bag and the separator likewise.
+    join: true,
 };
 // [min, max]; a max of -1 is unbounded. Every name in funcMap has an
 // entry, and the arity is a property of the language rather than of
@@ -1870,6 +1877,10 @@ const funcArity = {
     sum: [1, 1], least: [1, 1], greatest: [1, 1],
     // The bag, and the key to take from each of its children.
     pick: [2, 2],
+    // The bag, and OPTIONALLY the separator -- omitted it is `""`, which
+    // makes `join(coll)` concatenation, so no separate `concat` is
+    // needed and the family stays one builtin.
+    join: [1, 2],
 };
 // writtenArgCount counts the arguments as the AUTHOR wrote them.
 //

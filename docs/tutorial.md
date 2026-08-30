@@ -437,9 +437,10 @@ copy:  copy($.web)         # deep copy of another node
 `+` concatenates strings and adds numbers; `upper` and `lower` double
 as ceiling and floor on numbers, and they keep exact numbers exact
 (`upper(0d1.1)` prints `2.0`, a `bigdecimal` ceiling). There are
-thirty-seven built-ins in all — bounds, pattern and length
-constraints, generators that build children — tabulated with tested
-examples in the [language reference](reference-language.md#functions).
+forty-two built-ins in all — bounds, pattern and length
+constraints, generators that build children, `join` to fold a bag into
+a line of text — tabulated with tested examples in the
+[language reference](reference-language.md#functions).
 You need none of the rest today.
 
 ## 10. Sealing a shape with `close`

@@ -11,4 +11,3 @@ export interface Order {
   customerId: string
   totalCents: number
 }
-

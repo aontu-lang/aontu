@@ -1767,6 +1767,15 @@ that merely includes it generates nothing of its own.
 
 ### Phase 2 — `join` (S)
 
+> **Status, 2026-08-30: LANDED**, substantially as written below. The
+> departures are recorded in
+> [progress.md](progress.md#g9--declarative-transformation): `join` is
+> the first builtin that is both staged and defers resolution, so it
+> needed a `make` override; the separator is refused unless it is a
+> string; and phase 0 item 4 turned out not to be a prerequisite,
+> because reusing `bagChildren` keeps `join` behaving exactly as
+> `each` and `pick` do until that item changes all of them together.
+
 `JoinFuncVal` beside `PickFuncVal` in ts/src/val/AggFuncVal.ts and
 `joinBag` in go/agg.go, reusing `bagChildren` and `unpref`. Registry:
 `funcMap`, `funcArity` `[1,2]`, `POSITIONAL_ARG_FUNCS` in TypeScript;

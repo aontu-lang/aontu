@@ -1,14 +1,16 @@
 "use strict";
 /* Copyright (c) 2025 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.GreatestFuncVal = exports.LeastFuncVal = exports.SumFuncVal = exports.PickFuncVal = exports.AggFuncVal = void 0;
+exports.GreatestFuncVal = exports.LeastFuncVal = exports.SumFuncVal = exports.PickFuncVal = exports.JoinFuncVal = exports.AggFuncVal = void 0;
 const err_1 = require("../err");
 const IntegerVal_1 = require("./IntegerVal");
 const ListVal_1 = require("./ListVal");
+const StringVal_1 = require("./StringVal");
 const FuncBaseVal_1 = require("./FuncBaseVal");
 const arith_1 = require("./arith");
 const numcmp_1 = require("./numcmp");
 const keyorder_1 = require("../keyorder");
+const PlusOpVal_1 = require("./PlusOpVal");
 // The children of a bag, in the order the aggregate sees them: source
 // order for a list, sorted-key order for a map -- `each`'s order, and
 // for the same reason (a map has no order of its own, so the language
@@ -192,6 +194,156 @@ class PickFuncVal extends FuncBaseVal_1.FuncBaseVal {
     }
 }
 exports.PickFuncVal = PickFuncVal;
+// Which of the three a value is.
+//
+// `text` -- `+` would take it, so the fold can.
+//
+// `never` -- a SETTLED value that will never become text: a map, a
+// list, a null. This is `join_member`, class `conflict`, and it names
+// the member rather than the call, because "one of these is not a
+// string" is only actionable if you are told which.
+//
+// `notyet` -- an unresolved kind, a top, a stable residue. NOT a join
+// failure at all: the call stays residual and generation reports
+// `mapval_no_gen`, class `incomplete`, exactly as docs/trust.md
+// requires ("a stable residue ... is ordinary incompleteness"). Getting
+// this split wrong in either direction is the defect that matters here:
+// refusing a residue makes `join` unusable inside a schema, and
+// deferring on a map makes a real error arrive as a shrug.
+function memberVerdict(v) {
+    const u = unpref(v);
+    if (undefined !== (0, PlusOpVal_1.plusText)(u)) {
+        return 'text';
+    }
+    if (true === u?.isMap || true === u?.isList || true === u?.isNull) {
+        return 'never';
+    }
+    return 'notyet';
+}
+// The separator is a STRING or it is nothing.
+//
+// A number would render perfectly well through `+`, and is still
+// refused: the separator is not a member of the fold, it is the
+// parameter naming the text between members, and `join(x, 5)` is far
+// likelier a mistake than an intent to separate with "5". `pick`'s key
+// argument draws the same line for the same reason. This is the
+// direction that can be loosened later without breaking a document;
+// the other direction cannot.
+function sepVerdict(v) {
+    const u = unpref(v);
+    if (u?.isVal && u.isScalar) {
+        return 'string' === typeof u.peg ? 'text' : 'never';
+    }
+    if (true === u?.isMap || true === u?.isList || true === u?.isNull) {
+        return 'never';
+    }
+    return 'notyet';
+}
+class JoinFuncVal extends FuncBaseVal_1.FuncBaseVal {
+    constructor(spec, ctx) {
+        super(spec, ctx);
+        this.isJoinFunc = true;
+        // The bag must settle before it is folded, exactly as it must before
+        // it is summed or projected.
+        this.staged = true;
+    }
+    // A `make` OVERRIDE, WHERE ITS AggFuncVal SIBLINGS HAVE NONE, and the
+    // difference is worth stating because it is not arbitrary. `sum`,
+    // `pick` and the rest are staged and nothing more: they residuate
+    // before `unify` reaches the rebuild branch, so a `make` there would
+    // be unreachable code pretending to be a contract, and the base's
+    // `func:<name>` refusal is the loud answer if that ever changes.
+    //
+    // `join` is the first builtin that is BOTH staged AND defers its
+    // resolution (see `deferResolve`). A deferred call has settled
+    // arguments, so it does reach the rebuild branch, and without this it
+    // raised `func:join` on the first document with an unresolved member
+    // — where the Go port residuated and reported `mapval_no_gen`.
+    // Opposite answers on `join($.m, ",")` with `m: [string]`, caught by
+    // running both engines rather than by either test suite. `super` and
+    // bare `id`, the two other deferring calls, each carry the same
+    // override for the same reason.
+    make(_ctx, spec) {
+        return new JoinFuncVal(spec);
+    }
+    funcname() {
+        return 'join';
+    }
+    // The base does not drive: `unify` drives by hand, because a staged
+    // func must advance what it is waiting on every pass rather than only
+    // on the pass it fires.
+    prepare(_ctx, _args) {
+        return null;
+    }
+    unify(peer, ctx) {
+        // BOTH arguments, unlike `pick`, which drives only its bag: `pick`'s
+        // key is a bare word the parser has already made a string, while a
+        // separator is an ordinary expression and `join($.rows, $.sep)` has
+        // to wait for it.
+        const ready = this.driveStagedArgs(ctx, 2);
+        if (!ready || !ctx.settle) {
+            return this.residuate(peer, ctx);
+        }
+        return super.unify(peer, ctx);
+    }
+    // The `notyet` half of the verdict, taken before `resolve` runs: with
+    // arguments settled but a member still a kind, the call rides the
+    // ordinary args-not-done path and residuates, which is what makes an
+    // unresolved member ordinary incompleteness rather than a refusal.
+    deferResolve(_ctx, args) {
+        const children = bagChildren(args?.[0]);
+        if (undefined === children) {
+            // Not a bag at all: let `resolve` say so rather than waiting for
+            // a settling that has already happened.
+            return false;
+        }
+        const sep = args?.[1];
+        if (undefined !== sep && 'notyet' === sepVerdict(sep)) {
+            return true;
+        }
+        return children.some((c) => 'notyet' === memberVerdict(c));
+    }
+    resolve(ctx, args) {
+        const children = bagChildren(args?.[0]);
+        if (undefined === children) {
+            return this.place((0, err_1.makeNilErr)(ctx, 'aggregate_data', this, undefined, 'join'));
+        }
+        // Arity is [1,2], so a second argument is present or the separator
+        // is the empty string -- which makes `join(coll)` concatenation.
+        let sep = '';
+        if (1 < args.length) {
+            if ('text' !== sepVerdict(args[1])) {
+                return this.place((0, err_1.makeNilErr)(ctx, 'invalid-arg', this, undefined, 'join'));
+            }
+            sep = unpref(args[1]).peg;
+        }
+        // NO NIL-MEMBER GUARD, WHERE `sum` HAS ONE, and the difference is
+        // the fold's shape rather than an oversight. `sum` folds with
+        // `arith`, which MINTS a nil part-way through — a non-numeric child
+        // or an overflow — so it has to stop and return it. `join` folds
+        // already-unified values, and a nil among a list's elements
+        // collapses the list before this call resolves: `join([least([])],
+        // ",")` reports `aggregate_empty` at the member's own path,
+        // `$.o.0`, and never reaches here. A guard was written, the
+        // ADR-002 gate found it unexecuted, and probing confirmed no
+        // spelling reaches it, so it is removed rather than excused.
+        const parts = [];
+        for (const child of children) {
+            const u = unpref(child);
+            const text = (0, PlusOpVal_1.plusText)(u);
+            if (undefined === text) {
+                return this.place((0, err_1.makeNilErr)(ctx, 'join_member', this, undefined, 'join', { member: String(u?.canon) }));
+            }
+            parts.push(text);
+        }
+        // Every part is already a string, so this IS the `+` fold seeded
+        // with `""` -- written as one concatenation because a loop of `+`
+        // over settled strings cannot differ from it, and because the Go
+        // twin's strings.Join must produce the same bytes.
+        return this.place(new StringVal_1.StringVal({ peg: parts.join(sep) }));
+    }
+}
+exports.JoinFuncVal = JoinFuncVal;
 // The three the registry names. Each is its operation and nothing else.
 class SumFuncVal extends AggFuncVal {
     constructor(spec, ctx) { super(spec, ctx, 'sum'); }
@@ -205,6 +357,6 @@ class GreatestFuncVal extends AggFuncVal {
     constructor(spec, ctx) {
         super(spec, ctx, 'greatest');
     }
-} /* node:coverage ignore next 9 */
+} /* node:coverage ignore next 10 */
 exports.GreatestFuncVal = GreatestFuncVal;
 //# sourceMappingURL=AggFuncVal.js.map

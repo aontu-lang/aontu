@@ -129,6 +129,7 @@ decimal_budget	errcode	conflict	0.51.0
 pick_key	errcode	conflict	0.53.0
 aggregate_data	errcode	conflict	0.53.0
 aggregate_empty	errcode	conflict	0.53.0
+join_member	errcode	conflict	0.54.0
 divide_by_zero	errcode	conflict	0.53.0
 inexact_divide	errcode	conflict	0.53.0
 float_overflow	errcode	conflict	0.53.0

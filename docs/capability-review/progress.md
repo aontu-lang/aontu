@@ -89,15 +89,16 @@ the divergence ledger, `Accepted`/`Superseded` in the ADR register).
    gap documents froze a row count into a "nothing may regress" clause;
    all eight are now wrong, by roughly 1,400 to 1,500 rows. A gap
    document should link this line instead: as of this
-   register's last update the suite is **97 `.tsv` files, 96
-   row-bearing, 3,825 rows**, in twenty modes — `canon` 867, `errc`
-   709, `gens` 630, `gen` 587, `err` 280, `errcode` 123, `subsume` 102,
-   `vet` 100, `query` 92, `jsonschema` 57, `why` 56, `hcanon` 43,
+   register's last update the suite is **98 `.tsv` files, 97
+   row-bearing, 3,873 rows**, in twenty modes — `canon` 870, `errc`
+   727, `gens` 655, `gen` 587, `err` 280, `errcode` 124, `subsume` 102,
+   `vet` 100, `query` 92, `jsonschema` 57, `why` 56, `hcanon` 44,
    `patch` 42, `graph` 38, `diff` 28, `relation` 23, `hash` 17,
    `reaches` 13, `trim` 11, `agentsmd` 7.
-   (Re-derived 2026-08-30, after the defect work of #99 and the
-   generation work of #96/#100/#101. This line has now been wrong
-   twice for the same reason — it was 86/85/3,099 before 2026-08-28
+   (Re-derived 2026-08-30, after the defect work of #99, the
+   generation work of #96/#100/#101, and G9 phase 2's `gen-join.tsv`.
+   This line has now been wrong twice for the same reason — it was
+   86/85/3,099 before 2026-08-28
    and 91/90/3,495 before today — and both times it was falsifiable
    in the two commands below, which is the point of carrying them.
    The lesson is that a count with a reproduction command still needs
@@ -109,8 +110,8 @@ the divergence ledger, `Accepted`/`Superseded` in the ADR register).
 
 ## Summary
 
-Fifty-one of the sixty-four phases in the table below have moved;
-forty-nine of those are complete. Two are not. G5 phase 6 is
+Fifty-two of the sixty-four phases in the table below have moved;
+fifty of those are complete. Two are not. G5 phase 6 is
 deliberately held for the next major release, a release act rather
 than an engineering one. **G9 phase 0 became partial on 2026-08-30
 without this register saying so**: #99 fixed two of its four named
@@ -134,9 +135,9 @@ the fix was and why the earlier tests could not see the defect.
 | [G6](g6-distribution.md) | Distribution | B/C | 5 | 0 | 0 |
 | [G7](g7-machine-access.md) | Machine access | B | 7 | 0 | 0 |
 | [G8](g8-generation.md) | Generation | C | 5 | 0 | 0 |
-| [G9](g9-transformation.md) | Declarative transformation | D | 0 | 1 | 8 |
+| [G9](g9-transformation.md) | Declarative transformation | D | 1 | 1 | 7 |
 | [G10](g10-transparency.md) | Transparency log | D | 1 | 0 | 5 |
-| | | **total** | **49** | **2** | **13** |
+| | | **total** | **50** | **2** | **12** |
 
 Against the review's own [sequencing](index.md#sequencing):
 
@@ -1461,8 +1462,9 @@ Opened 2026-08-30, after G1–G8 landed. Design is
 [g9-transformation.md](g9-transformation.md); forms (a) and (b) — the
 host program and the Jostraca path — are
 [docs/design/GENERATION-FORMS.0.md](../design/GENERATION-FORMS.0.md).
-**Phase 0 is partial; phases 1–8 have not started**, and the document
-is a design proposal, not a commitment. The corpus the design asks
+**Phase 0 is partial and phase 2 has landed; phases 1 and 3–8 have
+not started**, and the rest of the document is a design proposal, not
+a commitment. The corpus the design asks
 for before its later phases are committed to now exists —
 [use-cases/15-code-generation](../../use-cases/15-code-generation/)
 (#100) — but a corpus is evidence, not a phase, and no row below
@@ -1476,7 +1478,7 @@ Baseline at drafting, for protocol rule 5: `ls test/spec/*.tsv | wc -l`
 |-------|------|--------|-----|
 | **0** — the gating defects | S | **PARTIAL** | **Two of the design's four named deliverables are done, both by #99, which closed them under BUGS numbers rather than under this phase — hence the summary note above.** (1) *`pick` map ordering* — **DONE**: `ts/src/val/AggFuncVal.ts` now uses `cmpCodePoint` where it used a bare `.sort()`, closing [BUGS](../../use-cases/BUGS.md) §62; rows in `test/spec/agg.tsv`. The design calls this genuinely blocking because `join` (phase 2) inherits the same helper, so phase 2 is now unblocked. (3) *`id_ancestor`* — **DONE**: `id()` naming its own ancestor or descendant is refused as `id_ancestor` before the unite instead of dying on the host stack (§58, unrecoverable in Go); `test/spec/id.tsv`, `errcodes.tsv`. The walk's totality argument in §5 of the design depends on this and can now be made. **Not done:** (2) *the staged pipeline* — re-probed 2026-08-30 on `cb58ba9`+#99 and still divergent: `d: {x:{n:"a"}}` with `s: each($.d, {o: .n})` and `r: pick($.s, o)` generates `{"r":["a"]}` in TypeScript and refuses `mapval_no_gen` in Go, whose canon shows `pick([{"n":"a","o":.n}],"o")` — the template's `.n` never resolved. **This is the same root cause as §63** (inside `hide()`, Go does not resolve a spread template's reference), which is recorded separately because it was found from the other side, through use case 15; one fix in `go/func.go`/`go/generate.go` should discharge both, and §63 now says so. (4) *bag membership* — not started: `each({a:1,b?:2,c:hide(3)})` is still `[1,2,3]` in both ports, so `hide`-marked children and unfilled optional keys still flow into every bag. Both ports agree, so this is a semantics decision rather than a parity break, and it is the one place this design changes shipped behaviour. **Of the extras:** the multi-line backtick `gens`/`canon` rows LANDED with #96 (`test/spec/edge.tsv`), and the `vet --at` list-spread alias break is fixed (§59, `test/spec/vet.tsv`). **Still open of the originally-named six:** §57 (recursive spread conjoined with a map does not terminate at depth two) is open by decision — the depth budget fires and cost is exponential in it, so the fix is convergence under a conjunct, not a tighter bound — and §60 (the canon-hash blind to an alias used as a spread template) is untouched, which matters here because the vocabulary of phase 1 is alias-heavy and its anti-drift story is a hash. **§63 is added to this phase's gating set** on the strength of the re-probe above; it was not known when this row was written. |
 | **1** — the vocabulary as a bundled schema | S | **NOT STARTED** | `@"std/code"` served beside `@"std/system"` |
-| **2** — `join` | S | **NOT STARTED** | The string fold; `funcMap` entry, no grammar change |
+| **2** — `join` | S | **LANDED** | `JoinFuncVal` (ts/src/val/AggFuncVal.ts) and `joinBag` (go/agg.go), registered in both tables, both grammars' `name` rule and both LSP lists; `test/spec/gen-join.tsv`, **47 rows executed by both runners**; `errcodes.tsv` +1 (`join_member`, conflict). The design's acceptance case holds: `join([8080,443],"-")` is `"8080-443"` in both ports, an unfired call canons as its call and reparses, and the lark literal check is green after the three missing names were added. **Landed as designed, with three things worth recording.** (1) The `+` fold is not a figure of speech: `plusText` was extracted from `PlusOpVal` and `primStr` was already exported in Go, so the fold and the operator SHARE a renderer and cannot drift into two answers to "how does a number become text". (2) **`join` is the first builtin that is both STAGED and DEFERS its resolution**, and that combination needed a `make` override its `AggFuncVal` siblings do not have — without it TypeScript raised `func:join` where Go residuated, on `join($.m,",")` with `m: [string]`. Found by running both engines, not by either test suite. (3) **The ADR-002 gate found dead code that probing then confirmed**: a nil-member guard, written by analogy with `sum`, is unreachable in `join` and was removed in both ports rather than excused. `sum` folds with `arith`, which MINTS a nil part-way through; `join` folds already-unified values, and a nil among a list's elements collapses the list before the call resolves — `join([least([])],",")` reports `aggregate_empty` at the member's own path and never reaches the fold. (4) The separator is a STRING, refused as `invalid-arg` otherwise, though `+` would render a number perfectly well: it is the parameter naming the text between members rather than a member, `pick`'s key draws the same line, and loosening later breaks no document while tightening would. **Item 4 of phase 0 is NOT a prerequisite and did not land here**: `join` reuses `bagChildren`, so it treats `hide`-marked and unfilled optional children exactly as `each` and `pick` do today, and phase 0 will change all four together rather than leaving `join` alone in a new behaviour. **Downstream:** [use-cases/15-code-generation](../../use-cases/15-code-generation/) changed shape — its transforms now compute the whole FILE rather than its lines, the six-line Python fold in `check.sh` is gone, and the check that proved the gap (the SQL golden REFUSED by a real parser for a trailing comma) is inverted: the SQL now parses and `check.sh` opens it in SQLite and asserts the tables and columns exist. |
 | **3** — `form`, the order-preserving map | S/M | **NOT STARTED** | `each` meets and cannot transform; `pack` keys by data and reorders |
 | **4** — the renderer core and the first two profiles | M | **NOT STARTED** | `render` verb; Go and TypeScript profiles |
 | **5** — the reflection sidecar | M | **NOT STARTED** | The view forms (a), (b) and (c) share; an ADR-001 question first (GENERATION-FORMS.0.md §2) |

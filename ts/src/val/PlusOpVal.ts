@@ -59,6 +59,61 @@ function isBig(k: OpKind): boolean {
 }
 
 
+// Only concrete scalar operands are valid: anything else (kinds, maps,
+// lists, null, top, funcs) must not coerce — the JS `+` would leak
+// internals like "[object Object]" into output. A non-scalar operand
+// leaves the op unresolved, which generate() reports.
+//
+// A pref operand contributes its preferred value (`pref(1)+2`), and
+// therefore that value's kind too.
+function operand(v: any) {
+  while (v?.isPref) {
+    v = v.peg
+  }
+  return v
+}
+
+
+// The operand's LEAF, not the JavaScript type of its peg: integer and
+// float share `number`, while the exact leaves are told apart from each
+// other and from everything else by their own flags. The whole ladder in
+// `operate` dispatches on this and never on `typeof`.
+function opkind(v: any): OpKind | undefined {
+  if (!(v?.isVal && v.isScalar)) {
+    return undefined
+  }
+  if (v.isBigInteger) {
+    return 'biginteger'
+  }
+  if (v.isBigDecimal) {
+    return 'bigdecimal'
+  }
+  if (v.isInteger) {
+    return 'integer'
+  }
+  const t = typeof v.peg
+  return 'number' === t ? 'float' :
+    'string' === t ? 'string' :
+      'boolean' === t ? 'boolean' :
+        undefined
+}
+
+
+// THE TEXT `+` WOULD MAKE OF THIS OPERAND, or undefined if `+` would not
+// take it at all.
+//
+// `join` folds with `+` seeded with `""`, so every member goes through
+// concatenation's string branch — and this is the function that branch
+// calls. Exported so that the fold and the operator cannot drift into
+// two answers to "how does a number become text": there is one
+// rendering, `digits` below, and both reach it here.
+function plusText(v: Val): string | undefined {
+  const o: any = operand(v)
+  const k = opkind(o)
+  return undefined === k ? undefined : digits(o, k)
+}
+
+
 class PlusOpVal extends OpBaseVal {
   isPlusOp = true
 
@@ -80,43 +135,6 @@ class PlusOpVal extends OpBaseVal {
 
 
   operate(ctx: AontuContext, args: Val[]) {
-    // Only concrete scalar operands are valid: anything else (kinds,
-    // maps, lists, null, top, funcs) must not coerce — the JS `+` would
-    // leak internals like "[object Object]" into output. A non-scalar
-    // operand leaves the op unresolved, which generate() reports.
-    const operand = (v: any) => {
-      // A pref operand contributes its preferred value (`pref(1)+2`),
-      // and therefore that value's kind too.
-      while (v?.isPref) {
-        v = v.peg
-      }
-      return v
-    }
-
-    // The operand's LEAF, not the JavaScript type of its peg: integer
-    // and float share `number`, while the exact leaves are told apart
-    // from each other and from everything else by their own flags. The
-    // whole ladder below dispatches on this and never on `typeof`.
-    const opkind = (v: any): OpKind | undefined => {
-      if (!(v?.isVal && v.isScalar)) {
-        return undefined
-      }
-      if (v.isBigInteger) {
-        return 'biginteger'
-      }
-      if (v.isBigDecimal) {
-        return 'bigdecimal'
-      }
-      if (v.isInteger) {
-        return 'integer'
-      }
-      const t = typeof v.peg
-      return 'number' === t ? 'float' :
-        'string' === t ? 'string' :
-          'boolean' === t ? 'boolean' :
-            undefined
-    }
-
     const av: any = operand(args[0])
     const bv: any = operand(args[1])
     const ak = opkind(av)
@@ -251,4 +269,5 @@ function decimal(v: any, k: OpKind): Decimal {
 
 export {
   PlusOpVal,
+  plusText,
 }

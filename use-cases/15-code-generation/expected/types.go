@@ -13,4 +13,3 @@ type Order struct {
 	CustomerID string `json:"customerId"`
 	TotalCents int64 `json:"totalCents"`
 }
-

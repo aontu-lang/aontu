@@ -1,5 +1,5 @@
 ---
-description: Generate target-language source from a model — the shape a transform takes today, the traps in it, and the one primitive that is missing.
+description: Generate target-language source from a model — the shape a transform takes, the traps in it, and how `join` finishes the file.
 group: schemas
 order: 80
 ---
@@ -8,9 +8,8 @@ order: 80
 
 A model that holds the field names, the types and the optionality
 already holds everything a Go struct or a TypeScript interface needs.
-This guide shows how to compute those lines with the unifier, and is
-honest about where the language stops: assembling the lines into a
-file needs a fold over strings, and there is not one yet.
+This guide shows how to compute the whole file with the unifier — the
+lines with a spread, and the assembly with `join`.
 
 For the full worked version — three targets, goldens, and a check that
 both ports emit identical bytes — see
@@ -85,6 +84,72 @@ Each piece is there for a reason:
   what makes `.name` and `.fields` resolvable inside the template, so
   `name` and `fields` appear beside `head` and `body` in the result.
 
+## Fold the lines into a file with `join`
+
+`join(coll, sep?)` is the reduction over strings: every member as
+text, `sep` between them. It folds at whatever scale you point it at —
+once over a record's lines, again over the records — and that is the
+whole of file assembly.
+
+Add two keys to the template and one at the top level. Write this as
+`whole.aon`:
+
+<!-- test: file whole.aon -->
+```aontu
+records: [
+  {name: "Customer", fields: [
+    {n: "id",    t: "string",  go: "ID"}
+    {n: "email", t: "string",  go: "Email"}
+  ]}
+  {name: "Order", fields: [
+    {n: "total", t: "integer", go: "Total"}
+  ]}
+]
+units: [&: {
+  head: `type ` + .name + ` struct {`
+  rows: [&: { out: `\t` + .go + ` ` +
+        match(.t, "string", `string`, "integer", `int64`) }] & .fields
+  body: join(pick(.rows, out), `\n`)
+  tail: `}`
+  text: .head + `\n` + .body + `\n` + .tail
+}] & $.records
+
+file: join(pick($.units, text), `\n\n`) + `\n`
+```
+
+<!-- test: run -->
+```sh
+$ aontu get $.file whole.aon
+"type Customer struct {\n\tID string\n\tEmail string\n}\n\ntype Order struct {\n\tTotal int64\n}\n"
+```
+
+That string **is** the file. `aontu get` answers with JSON, so a host
+still unwraps the string to bytes, but it decides nothing — no
+ordering, no separators, no layout.
+
+Three properties are worth knowing:
+
+- **The separator defaults to `""`**, so `join(coll)` is
+  concatenation. That is why there is no `concat` and no `lines`.
+- **`join([])` is `""`** — concatenation's identity, the parallel of
+  `sum([]) == 0`. An empty record list yields an empty file rather
+  than an error.
+- **It folds with `+`**, so the number-to-text rule is `+`'s own: no
+  `0d` marker, no `.0` float suffix, and a big integer's exact digits.
+
+A member that is settled but not text — a map, a list, a null — is
+`join_member`, refused at the member rather than at generation. A
+member that is merely *unresolved* is not an error at all: the call
+stays residual, so a transform can be written in a schema over data
+that has not arrived.
+
+<!-- test: scenario join-residual -->
+<!-- test: run -->
+```sh
+$ echo 'names: [string]  line: join($.names, ",")' | aontu -c
+{"line":join([string],","),"names":[string]}
+```
+
 ## Put the target's names in the model
 
 `upper()` uppercases a whole string, so it yields `EMAIL`, not
@@ -97,39 +162,13 @@ split every code generator that survived contact with many languages
 arrives at. Writing it down makes a name collision a unification
 conflict instead of a broken identifier at emit time.
 
-## What is missing: the fold
-
-A spread can put a separator **after** each element. Putting one
-**between** N elements is a reduction over strings, and the language
-has none — `sum` is numeric, `+` does not reduce a list, and indexed
-concatenation needs the arity known in advance.
-
-So a generated SQL column list carries a trailing comma and does not
-parse, and assembling lines into a file happens outside Aontu.
-`join(bag, sep)` is
-[G9 phase 2](../capability-review/g9-transformation.md): one entry in
-the function registry, no grammar change.
-
-Until then, fold in the host. The whole of the missing step:
-
-<!-- test: skip shows the host-side fold, which is not an aontu command -->
-```sh
-$ aontu get $.units types.aon | python3 -c '
-import json, sys
-for u in json.load(sys.stdin):
-    print(u["head"]); [print(l) for l in u["body"]]; print(u["tail"])'
-type Customer struct {
-	ID string `json:"id"`
-	Email string `json:"email"`
-}
-```
-
 ## Related
 
 - [Export JSON Schema](export-json-schema.md) — the other bridge out,
   and the one that ships as a verb.
 - [Keep schema out of output](keep-schema-out-of-output.md) — `hide()`
   and marks, and what they do to generation.
-- [G9](../capability-review/g9-transformation.md) — the plan: an
-  output vocabulary that is itself an Aontu schema, a renderer with
-  per-language profiles, and one model feeding several artifacts.
+- [G9](../capability-review/g9-transformation.md) — the plan `join`
+  is phase 2 of: an output vocabulary that is itself an Aontu schema,
+  a renderer with per-language profiles, and one model feeding several
+  artifacts.

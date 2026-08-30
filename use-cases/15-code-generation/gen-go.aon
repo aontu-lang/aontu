@@ -9,15 +9,14 @@
 #                              alphabetically -- silently wrong output
 #                              for a file.
 #
-#   rows: [&: ...] & .fields   the per-field lines, STAGED into
-#                              a key of their own. `pick` over an
-#                              inline spread expression does not
-#                              resolve (it stays a symbolic call);
-#                              staging it into a named sibling makes
-#                              it settle. It cannot be hidden -- see
-#                              the note below.
+#   rows: [&: ...] & .fields   the per-field lines, STAGED into a key
+#                              of their own. `pick` over an inline
+#                              spread expression does not resolve (it
+#                              stays a symbolic call); staging it into
+#                              a named sibling makes it settle.
 #
-#   body: pick(.rows, out)     the projection, in source order.
+#   body: join(pick(.rows, out), ...)   the projection, in source
+#                              order, folded into one string.
 #
 # The source record's keys ride through the meet -- `name`, `fields`
 # and the rest appear beside `head`/`body`/`tail` in the output. That
@@ -26,15 +25,21 @@
 # REPLACING combinator would lose the reference (G9, "Two specialist
 # disagreements, resolved").
 #
-# `rows` IS NOT HIDDEN, AND THAT IS DELIBERATE. The obvious spelling
-# wraps the staged intermediate in `hide()` so the scaffolding stays
-# out of the generated value. It does not survive the parity probe:
-# inside `hide()` the Go port never resolves the spread template's
-# `.n`, so the transform generates in TypeScript and refuses in Go
-# with `mapval_no_gen` -- opposite exit codes on the same document
-# (use-cases/BUGS.md 63). Left unhidden, both ports agree byte for
-# byte, which check.sh asserts. `rows` therefore rides in the
-# evaluated value and the fold ignores it.
+# `join` LANDED (G9 phase 2), AND THIS CASE CHANGED SHAPE FOR IT.
+# Until it did, every LINE was computed by the unifier and the file was
+# assembled by six lines of Python in check.sh, because putting a
+# separator BETWEEN N items is a fold and the language had none. Now
+# `file` below is the whole artifact, one string, computed end to end.
+# The host does not assemble anything; check.sh writes bytes.
+#
+# `rows` IS NOT HIDDEN, AND THAT IS STILL DELIBERATE. The obvious
+# spelling wraps the staged intermediate in `hide()` so the scaffolding
+# stays out of the evaluated value. It does not survive the parity
+# probe: inside `hide()` the Go port never resolves the spread
+# templates `.n`, so the transform generates in TypeScript and refuses
+# in Go with `mapval_no_gen` -- opposite exit codes on the same
+# document (use-cases/BUGS.md 63, still open). Left unhidden, both
+# ports agree byte for byte, which check.sh asserts.
 @"./model.aon"
 
 units: [&: {
@@ -44,6 +49,11 @@ units: [&: {
          match(.t, "string", `string`, "integer", `int64`) +
          ` \`json:"` + .n + `"\``
   }] & .fields
-  body: pick(.rows, out)
+  body: join(pick(.rows, out), `\n`)
   tail: `}`
+  text: .head + `\n` + .body + `\n` + .tail
 }] & $.records
+
+# THE WHOLE FILE, one string. Two blank-line-separated units, and the
+# trailing newline every text file ends with.
+file: join(pick($.units, text), `\n\n`) + `\n`
