@@ -79,15 +79,15 @@ Full documentation is in [`docs/`](docs/):
 
 - [Documentation home](docs/index.md) — start here
 - [Tutorial](docs/tutorial.md) — learn Aontu step by step
-- [How-to guides](docs/how-to.md) — task-focused recipes
+- [How-to guides](docs/how-to/) — task-focused recipes
 - [Language reference](docs/reference-language.md) — every construct and rule
 - [API reference](docs/reference-api.md) — TypeScript & Go APIs, and the CLI
 - [Explanation](docs/explanation.md) — how and why the unifier works
 - [Test coverage](docs/test-coverage.md) — how it is measured, and the numbers
 
 The language has also been put through an executable review —
-[use-cases/](use-cases/) drives eleven enterprise scenarios through the
-real CLI, with verified findings and minimal repros.
+[use-cases/](use-cases/) drives fifteen enterprise scenarios through
+the real CLI, with verified findings and minimal repros.
 
 ## Security and contributing
 

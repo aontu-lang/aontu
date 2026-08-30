@@ -1,6 +1,6 @@
 # Use cases: practical validation of Aontu as an agent-facing ground truth
 
-This folder is a **review artifact**: eleven enterprise-shaped use cases,
+This folder is a **review artifact**: fifteen enterprise-shaped use cases,
 each built as real Aontu models and then *executed* against the
 TypeScript CLI (`ts/bin/aontu.js`, the canonical implementation, at the
 in-tree 0.53.0 line). Every case directory carries a `check.sh` that
@@ -54,6 +54,7 @@ and, in case 09, `MCP` — to point at a different build.
 | [12-relations](12-relations/) | Pipeline DAG: field-declared relations, one line of schema | `rel(t)`, held constraints, `acyclic()`/`inverse(n)` atoms, verdict at generation, `relations`/`reaches` |
 | [13-recursive-schema](13-recursive-schema/) | Approval chain: a schema one reference deep over any-depth data | recursive residuals (`$.spec.Step`), mu-form canon + hash, `recursion_unexpanded`, `vet --at` over plain JSON |
 | [14-jsonschema-export](14-jsonschema-export/) | JSON Schema as the bridge out: MCP inputSchema, OpenAPI, stock validators | `jsonschema --at`/`--strict`/`--format json`, the stderr loss report, exit classes, the money-wire `const` mark |
+| [15-code-generation](15-code-generation/) | The model as the source of the code: Go, TypeScript and SQL from one catalogue, each over a slice | list-spread + `pick` line building, backtick target text, `match` type mapping, both-ports byte parity, the missing fold |
 
 ## Scope and conventions
 
