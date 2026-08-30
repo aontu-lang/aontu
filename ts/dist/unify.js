@@ -343,6 +343,9 @@ function residuePaths(v, max) {
 // re-uniting the same type at the same position is idempotent, which is
 // what makes replaying every recorded flow every pass correct rather
 // than merely cheap.
+//
+// The pass loop is its only caller; it is EXPORTED for the test that
+// pins the unresolved-path guard below (see there).
 function applyFlows(ctx, root) {
     const flows = ctx.referflows;
     // NOTHING TO APPLY is the common case -- a document with no links

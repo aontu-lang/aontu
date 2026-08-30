@@ -381,6 +381,9 @@ function residuePaths(v: Val, max: number): string[] {
 // re-uniting the same type at the same position is idempotent, which is
 // what makes replaying every recorded flow every pass correct rather
 // than merely cheap.
+//
+// The pass loop is its only caller; it is EXPORTED for the test that
+// pins the unresolved-path guard below (see there).
 function applyFlows(ctx: AontuContext, root: Val): Val {
   const flows: Map<string, Val> | undefined = (ctx as any).referflows
   // NOTHING TO APPLY is the common case -- a document with no links
@@ -609,7 +612,5 @@ export {
   Unify,
   unite,
   withDepth,
-  // Exported for the coverage test that pins its unresolved-path guard;
-  // the pass loop is its only caller.
   applyFlows,
 }
