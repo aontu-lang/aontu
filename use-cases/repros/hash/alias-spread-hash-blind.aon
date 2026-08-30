@@ -1,0 +1,27 @@
+# 60: the `aon1-` canon-hash is BLIND to an alias used as a SPREAD
+# TEMPLATE. Two documents with different meanings hash the same, in
+# both ports, and neither matches its own longhand twin -- which is
+# the one property docs/design/ALIASES.0.md calls "the sharpest single
+# row in this list".
+#
+# This file is the FIRST of four; run all four and compare.
+#   alias-spread-hash-blind.aon          this file      %A: n is a string
+#   alias-spread-hash-blind-2.aon        different meaning: n is an integer, plus EXTRA
+#   alias-spread-hash-blind-longhand.aon the expanded twin of THIS file
+#
+# run: node ../../../ts/bin/aontu.js hash alias-spread-hash-blind.aon
+# run: node ../../../ts/bin/aontu.js hash alias-spread-hash-blind-2.aon
+# run: node ../../../ts/bin/aontu.js hash alias-spread-hash-blind-longhand.aon
+#
+# expected: this file and -longhand share a hash (the ALIASES.0.md
+#           rule); -2 has a different one (different meaning)
+# actual (both ports, identically):
+#   this file  aon1-ZaobmDyyIw5ibjA8DREEXj0h7I5SpzZdnSDVE5SGQLM
+#   -2         aon1-ZaobmDyyIw5ibjA8DREEXj0h7I5SpzZdnSDVE5SGQLM   <- SAME, different meaning
+#   -longhand  aon1-p1pejKOs3tEJLbpVHlFa2xXy67X-LwvGI3iK8r0tf74   <- DIFFERENT, same meaning
+#
+# Exactly backwards on both counts. And the two documents really do
+# differ: against `box: [{n: "x"}]`, this file vets `valid` and -2
+# vets `invalid`.
+%A: close({ n: string })
+box: [&: %A]

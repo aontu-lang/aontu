@@ -2017,6 +2017,76 @@ Repro:
 [`repros/anchor/vet-at-loses-aliases-in-go.aon`](repros/anchor/vet-at-loses-aliases-in-go.aon)
 with its `-data` companion.
 
+## hashing — what `aon1-` can still see
+
+### 60. The canon-hash is blind to an alias used as a spread template [critical]
+
+Found 2026-08-30, by an adversarial reviewer checking a
+code-generation vocabulary\'s anti-drift story and finding that the pin
+proving it did not discriminate. Both ports, identically — a shared
+defect, not a divergence.
+
+```aon
+# A          %A: close({ n: string })          box: [&: %A]
+# B          %A: close({ n: integer, EXTRA: string })   box: [&: %A]
+# A-longhand box: [&: close({ n: string })]
+```
+
+| document | hash |
+|---|---|
+| A | `aon1-ZaobmDyyIw5ibjA8DREEXj0h7I5SpzZdnSDVE5SGQLM` |
+| B — **different meaning** | `aon1-ZaobmDyyIw5ibjA8DREEXj0h7I5SpzZdnSDVE5SGQLM` — **the same** |
+| A-longhand — **same meaning** | `aon1-p1pejKOs3tEJLbpVHlFa2xXy67X-LwvGI3iK8r0tf74` — **different** |
+
+Backwards on both counts. And A and B really do differ: against
+`box: [{n: "x"}]`, A vets `valid` and B vets `invalid`.
+
+**Root cause, and the exact boundary.** `hcanon` erases alias
+declarations on purpose, and says why
+([`ts/src/hcanon.ts`](../ts/src/hcanon.ts), the `aliasKeys` filter):
+"`aon1-` pins MEANING, so a document written with aliases and the same
+document written longhand must hash to one string". That is
+[`docs/design/ALIASES.0.md`](../docs/design/ALIASES.0.md)\'s own
+sharpest requirement. The erasure is correct **wherever unification
+consumes or substitutes the alias**, and that is every case the suite
+covers:
+
+| use site | canon | erasure |
+|---|---|---|
+| scalar, consumed (`listen: %p` / `listen: 8080`) | `{"listen":8080}` | correct — this is `alias.tsv:alias-hash-erases` and its longhand twin |
+| map, substituted (`a: %A`) | `{"a":{"n":string}}` | correct — twin matches, changed meaning moves the hash |
+| **spread template (`box: [&: %A]`)** | `{"box":[&:$.%A]}` | **broken** |
+
+At a spread template the alias stays **symbolic** in canon as
+`$.%A`. The declaration is erased from the hash form while the
+*reference* survives, so the hash form carries a dangling name with no
+content behind it. Erasure and symbolic survival are each right on
+their own; together they lose the meaning. The fix is to expand the
+alias at its use site when building the hash form, rather than
+dropping the declaration and keeping the reference.
+
+The two `hash` rows in [`test/spec/alias.tsv`](../test/spec/alias.tsv)
+cannot see this: both use the scalar-consumed spelling, where the
+alias is gone before canon runs.
+
+**What it costs.** `aontu hash` is the drift check, and
+[`ts/src/agentsmd.ts`](../ts/src/agentsmd.ts) writes the claim into
+every generated AGENTS.md stanza in the user\'s own repository — "the
+canon-hash: it survives reformatting and **moves on any change of
+meaning**". For any document whose schema is spelled with aliases at a
+spread — the idiom the alias feature exists for — that sentence is
+false, and the failure is silent and in the unsafe direction: a real
+change of meaning reports no change. G6 pins modules by the same
+`#aon1-…` fragment.
+
+`subsume` is **not** fooled — `aontu subsume A B` answers
+`does_not_subsume` with `$.%A.n: compat_narrowed` — so the breaking
+check still sees what the pin misses.
+
+Repro:
+[`repros/hash/alias-spread-hash-blind.aon`](repros/hash/alias-spread-hash-blind.aon)
+with its `-2` and `-longhand` companions.
+
 ## Elsewhere in this review
 
 Defects verified earlier in the effort and recorded in

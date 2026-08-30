@@ -1,0 +1,4 @@
+# 60, third document: the expanded twin of alias-spread-hash-blind.aon.
+# ALIASES.0.md requires it to hash IDENTICALLY to that file. It does
+# not. See that file's header.
+box: [&: close({ n: string })]
