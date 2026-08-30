@@ -577,9 +577,12 @@ A model whose edges hold, `system.aon`, passes:
 @"./spec.aon"
 services: {
   &: $.spec.Service
-  web: id(web) & { dependsOn: [billing] }
-  billing: id(billing) & { dependsOn: [ledger], usedBy: [web] }
-  ledger: id(ledger) & { usedBy: [billing] }
+  web:     { dependsOn: ["$.services.billing"] }
+  billing: {
+    dependsOn: ["$.services.ledger"]
+    usedBy:    ["$.services.web"]
+  }
+  ledger:  { usedBy: ["$.services.billing"] }
 }
 ```
 
@@ -597,8 +600,8 @@ neither inverse written out, fails on every count at once:
 @"./spec.aon"
 services: {
   &: $.spec.Service
-  auth: id(auth) & { dependsOn: [billing] }
-  billing: id(billing) & { dependsOn: [auth] }
+  auth:    { dependsOn: ["$.services.billing"] }
+  billing: { dependsOn: ["$.services.auth"] }
 }
 ```
 
@@ -607,9 +610,9 @@ services: {
 $ aontu relations bad-system.aon
 verdict: fail
 
-$.services.auth.dependsOn.0  dependsOn: cycle auth -> billing -> auth
-$.services.auth.dependsOn.0  dependsOn: billing does not list auth under usedBy
-$.services.billing.dependsOn.0  dependsOn: auth does not list billing under usedBy
+$.services.auth.dependsOn.0  dependsOn: cycle $.services.auth -> $.services.billing -> $.services.auth
+$.services.auth.dependsOn.0  dependsOn: $.services.billing does not list $.services.auth under usedBy
+$.services.billing.dependsOn.0  dependsOn: $.services.auth does not list $.services.billing under usedBy
 $ echo $?
 1
 ```
@@ -631,8 +634,8 @@ $ echo $?
   argues it.
 - A finding carries `at` (the position of the offending edge), `code`
   (`relation_cycle` or `relation_inverse_missing`), `relation`, and
-  `detail` — for a cycle, the entities it runs through in order; for a
-  missing inverse, `[from, to, inverseName]`. Findings are **sorted by
+  `detail` — for a cycle, the node paths it runs through in order; for
+  a missing inverse, `[from, to, inverseName]`. Findings are **sorted by
   `at`**, so the report diffs cleanly.
 - **The endpoint type is `rel(t)`'s flow**: declared once on the field,
   it flows into each far end at the site, so a conflict or a hole is an
@@ -662,8 +665,8 @@ $ echo $?
 
 ### `aontu reaches`
 
-Ask whether one entity **reaches** another over the entity graph, at
-any remove.
+Ask whether one node **reaches** another over the link graph, at any
+remove. Endpoints are `$.dotted` node paths.
 
 ```
 aontu reaches <from> <to> [--relation <name>] [--format text|json] <file>
@@ -679,10 +682,10 @@ put one edge at a time. Ask it of the `system.aon` model above:
 
 <!-- test: run -->
 ```sh
-$ aontu reaches web ledger system.aon
+$ aontu reaches $.services.web $.services.ledger system.aon
 verdict: reaches
 
-web -> billing -> ledger
+$.services.web -> $.services.billing -> $.services.ledger
 $ echo $?
 0
 ```
@@ -698,17 +701,19 @@ $ echo $?
 - `--relation <name>` follows only edges under that relation — the
   difference between "can this reach that at all" and "can it reach it
   *this way*".
-- A link into part of an entity (`svc/auth.ports.http`) reaches the
-  **entity**: reachability is between entities, and the path inside one
-  says which part of it the link arrives at. Same rule
-  [`relations`](#aontu-relations) uses, and it has to be, or the two
-  verbs would disagree about what an edge connects.
+- A link into part of a node (`$.services.auth.ports.http`) reaches
+  **that node**, not the one above it: reachability is between tree
+  positions, and there is no declared boundary to widen it to. Same
+  rule [`relations`](#aontu-relations) uses, and it has to be, or the
+  two verbs would disagree about what an edge connects.
 - Exit codes: `0` `reaches`, `1` `unreachable`, `4` `error`, `2` usage.
   An unreachable pair is a **failed check**, not an error: the question
   was answered, and the answer was no.
-- **An endpoint that names no entity is a refusal**, reported as
-  `refer_unresolved` with the known entities listed — answering `no`
-  would report a typo as a fact about the model.
+- **An endpoint that names no node is a refusal**, reported as
+  `refer_unresolved` with the linked nodes listed — answering `no`
+  would report a typo as a fact about the model. An endpoint that
+  exists but has no edges is a perfectly good question with the answer
+  `unreachable`.
 - Like acyclicity, this is a verb and **not a lattice constraint**:
   reachability is global and non-monotone, so a citizen asserting
   *non*-reachability could be true and then false as one more edge
@@ -718,33 +723,33 @@ $ echo $?
   the identical `{verdict, path?}` record (plus `errors` on a failed
   run).
 
-In `system.aon` the `usedBy` inverses run the other way, so `ledger`
-reaches `web` in general but not along `dependsOn`:
+In `system.aon` the `usedBy` inverses run the other way, so the ledger
+reaches the web service in general but not along `dependsOn`:
 
 <!-- test: run -->
 ```sh
-$ aontu reaches ledger web system.aon
+$ aontu reaches $.services.ledger $.services.web system.aon
 verdict: reaches
 
-ledger -> billing -> web
-$ aontu reaches ledger web --relation dependsOn system.aon
+$.services.ledger -> $.services.billing -> $.services.web
+$ aontu reaches $.services.ledger $.services.web --relation dependsOn system.aon
 verdict: unreachable
 
-ledger does not reach web
+$.services.ledger does not reach $.services.web
 $ echo $?
 1
 ```
 
-And an endpoint that names no entity refuses rather than answering:
+And an endpoint that names no node refuses rather than answering:
 
 <!-- test: run -->
 ```sh
-$ aontu reaches web ledgr system.aon
+$ aontu reaches $.services.web $.services.ledgr system.aon
 verdict: error
 
 $: refer_unresolved [reference]
-  ledgr names no entity in this document.
-  note: known entities: billing, ledger, web
+  $.services.ledgr names no node in this document.
+  note: nodes with links: $.services.billing, $.services.ledger, $.services.web
 $ echo $?
 4
 ```
@@ -1051,8 +1056,8 @@ $.services.auth.replicas = 3
   is an engine detail.
 - **Provenance travels with a clone.** A value that reached this path
   by being copied from somewhere else — a spread template applied per
-  key, a `pack()` generator's child, a `$ref`, one side of an
-  `id()`-merge — is reported as the value the author wrote, at the line
+  key, a `pack()` generator's child, a `$ref`, a `refer(t)` flow — is
+  reported as the value the author wrote, at the line
   they wrote it on. That is the whole audit question: *which file set
   this?* A clone of a written value is that written value somewhere
   else, so it is named; a value the engine mints on the way is not.
@@ -1794,35 +1799,42 @@ that [`aontu relations`](#aontu-relations) prints — that section has
 the verdicts, the finding fields, and the exit codes.
 
 **The derived graph.** After a unification, an evaluated document's
-identity structure is observable too (G4):
-`result.graph` in TypeScript — also available as the pure function
-`graphOf(val)` — and `Aontu.Graph` in Go. It has two parts:
+link structure is observable too (G4): `result.graph` in TypeScript —
+also available as the pure function `graphOf(val)` — and `Aontu.Graph`
+in Go. It is the edge set:
 
 <!-- test: skip TypeScript API sample; the API surface is pinned by ts/test/ -->
 ```ts
 {
-  entities: [ { id: 'svc/auth', paths: ['$.services.auth'] }, … ],
-  edges:    [ { from: 'svc/billing', key: 'dependsOn',
-                to: 'svc/auth', at: '$.services.billing.dependsOn.0' }, … ],
+  edges: [ { from: '$.services.billing', key: 'dependsOn',
+             to: '$.services.auth',
+             at: '$.services.billing.dependsOn.0' }, … ],
 }
 ```
 
-- **`entities`** is the entity index: each `id(name)` and every tree
-  path that holds it. More than one path is the normal case — the
-  merge puts an entity's value at every position that declared it —
-  and it is why moving an entity to a new path breaks `$.path`
-  references but no entity address.
-- **`edges`** is the edge set: one entry per checked
-  [link](reference-language.md#entity-references-refert). `from` is the
-  entity the link sits inside (empty outside every entity), `key` is
-  the nearest map key below that entity — so a link inside a list is
-  an edge under its relation, not under its index — and `at` is where
-  the link is written.
+There is no entity index, because there is no second namespace to
+index: a node's address is its path
+([ADR-013](../ADR.md#adr-013--the-tree-is-the-namespace-there-is-no-identity-mark)).
+One entry per checked
+[link](reference-language.md#checked-links-refert):
 
-Both are **deterministic**: ids, paths and edges are sorted by
-construction, and both runners re-derive the graph on a fresh engine
-and require the same bytes (`test/spec/graph.tsv`). Impact analysis,
-reachability and entity slices are traversals over these; their
+- **`from`** is the node the link starts at — the link's own position
+  with the relation key and any list indices stripped, so a link inside
+  a list is an edge from the node that holds the list. `$` when the
+  link sits at the top of the document.
+- **`key`** is the relation. A `rel()`-minted link carries its
+  predicate declared; a bare `refer()` has it inferred as the first
+  real key above the link.
+- **`to`** is the **resolved** address, always absolute. A relative
+  address means a different node from each position it is written at,
+  so an edge set whose far ends were spellings could not be traversed —
+  the link's own *value* is still what the author wrote.
+- **`at`** is where the link is written.
+
+It is **deterministic**: edges are sorted by construction, and both
+runners re-derive the graph on a fresh engine and require the same
+bytes (`test/spec/graph.tsv`). Impact analysis, reachability and node
+slices are traversals over it; their
 exposure as verbs and projections is the machine-access layer's.
 
 ### `AontuContext`

@@ -1207,3 +1207,121 @@ makes for messages.
 **This adds nine runtime dependencies to each port** — one parser per
 format. They are all @tabnas packages, all pure parsers with no I/O,
 and the browser bundle the playground ships grows with them.
+
+## ADR-013 — The tree is the namespace: there is no identity mark
+
+**Date:** 2026-08-30
+**Status:** Accepted
+
+### Context
+
+G4 phase 1 gave any node a second, **location-independent** name.
+`id(name)` declared that the enclosing value IS the entity `name`, and
+every node in one evaluation carrying that name was unified with every
+other. It bought three things: two files describing one thing could be
+brought into contact without either naming the other's paths; `refer()`
+had something to address; and the edge set had nodes to connect.
+
+The names lived in one flat, global namespace per evaluation. There was
+no module scoping, by design — G6's boundary refuses import namespaces
+outright — and the name grammar forbade the punctuation namespacing
+usually rides on (no dots, no slash). Two documents that chose the same
+word were one entity.
+
+The obvious cost is a collision between unrelated vendored models, and
+that cost is real but survivable: it is silent only when the two
+descriptions happen to be compatible. The cost that decides it is
+sharper, and it hits a single author with no third party involved:
+
+**A model carrying an `id()` cannot be instantiated twice.**
+
+```
+# model.aon
+user: id(User) & { region: "eu" }
+
+# main.aon
+tenantA: { m: @"model.aon" }
+tenantB: { m: @"model.aon", m: { user: { region: "us" } } }
+  → [aontu/scalar_value] at $.tenantB.m.user.region: "eu" with "us"
+```
+
+Two mounts of one file are one entity, so a per-instance override is a
+contradiction. The escape hatch does not save it: a bare `id()` names
+itself by its enclosing key, which is the *same* key in both instances.
+Only the full path disambiguates — which is the argument, made by the
+feature's own fallback.
+
+### Decision
+
+**`id()` is removed. A node's address is its path, and there is no
+second namespace.**
+
+`refer(t?)` keeps every property that made it worth having — a link
+rather than an embedding, checked existence, constraint flow into the
+target — and takes a **tree address** instead of an entity address:
+`$.services.auth` from the document root, `.auth` from the link's own
+sibling scope, one further step up per further dot. `$` alone is not an
+address: the whole document has no enclosing position to be written
+back into.
+
+The derived graph is path-native. There is no entity index, because
+there is nothing to index; a link's source node is **derived** from
+where the link sits (strip the list indices; the first real key above
+is the relation, its parent the source) rather than declared by a mark.
+`relations` and `reaches` take and report `$.dotted` node paths.
+
+### Consequences
+
+**Cross-file contact is a reference, and directional.** The catalog and
+deploy views meet because one of them says `$.catalog.payments`, and
+the failure is the same located `scalar_value` at the same path that
+the shared id produced. What is lost is bidirectionality — the catalog
+is not narrowed by the deploy — and the ability for two files to agree
+without either naming the other. That second one is exactly the
+mechanism that made a model non-reusable; the two are one property seen
+from opposite sides, and the reuse case is worth more.
+
+**Relative addressing is what makes a model reusable.** A link written
+`..auth` resolves inside whichever instance holds it, so the same file
+mounted at two paths gives two self-contained instances. This is new
+capability, not a consolation: entity addressing could not express it
+at all.
+
+**A link's stamp is the RESOLVED path, not the written spelling.** A
+relative address means a different node from each position it is
+written at, so an edge set whose far ends were spellings could not be
+traversed. The link's own *value* is still what the author wrote — a
+link is what it says, an edge is where it goes.
+
+**The type flow is recorded, not only written.** `refer(t)` unifies `t`
+into a node the meet is not currently at — the one non-local effect in
+the evaluator — and a pass BUILDS a new tree from the old one, so a
+write into the previous pass's tree does not survive a subtree the pass
+rebuilds. That happens whenever a link sits inside its own target, or
+two nodes link at each other (every inverse pair). `applyFlows` replays
+each recorded flow onto the pass's own result, keyed by path. Keyed by
+path is the point: re-uniting the same type at the same position is
+idempotent, so replaying every flow every pass is correct and not
+merely cheap.
+
+**Reachability granularity narrows.** A link into `$.a.ports.http`
+reaches *that node*, not `$.a`. Entity addressing widened it to the
+nearest identified ancestor; with no declared boundary there is nothing
+to widen to. Both verbs agree on the narrower rule, which is what
+matters — they would otherwise disagree about what an edge connects.
+
+**Gone with the mark:** `id_name`, `id_conflict`, `id_spread`; the
+identity merge and its registry; the identity rider in `unite`; the
+canon and canon-hash wrappers (identity was semantic content, so it was
+in the `aon1-` hash — two documents that differed only in their ids no
+longer differ at all); and the three clearing rules, which existed
+solely to stop a global name leaking through a reference clone, a
+`copy()`, or a spread template. The builtin roster goes 41 → 40.
+
+**Relation predicates are unaffected.** `inverse(dependedOnBy)` still
+takes a D-1 name: a relation is a vocabulary term, not an address.
+
+This does not reverse ADR-001 or ADR-002 — both ports and the shared
+spec move together, and coverage stays at 100 %. It does supersede G4
+phase 1 in `docs/capability-review/g4-identity-relations.md`; the
+progress register records the retirement.

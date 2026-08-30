@@ -9,8 +9,9 @@ schema, defaults and data in one document, describing each service
 completely — and each service alone. Nothing in it can say "these
 two files describe the same service", or "this feeds that, never in
 a loop", or "a chain of these, as long as it needs to be". This
-tutorial adds that layer: identity (`id`), declared relations
-(`rel` and the graph atoms), and recursive schemas. Each is a
+tutorial adds that layer: bringing two views into contact,
+declared relations (`rel` and the graph atoms), and recursive
+schemas. Each is a
 statement the engine checks — "payments depends on ledger" becomes
 something that can refuse.
 
@@ -25,19 +26,17 @@ claim at `$.catalog.payments` never meets a claim at
 `$.deploy.eu1.payments`: a forked tier stays confident in both
 files, and one of them is wrong.
 
-`id(name)` gives a value a second name that owes nothing to its
-position: it declares that this value IS the entity called `name`,
-and every node in one evaluation carrying the same id is unified
-with every other. Here are the two views, trimmed from
+Bringing the two into contact is a reference. Here are the two
+views, trimmed from
 [use-case 01](../use-cases/01-service-catalog/) and inlined into
 one document:
 
 ```aontu
-catalog: payments: id(svc_payments) & {
+catalog: payments: {
   owner: "team-payments"
   tier: 1
 }
-deploy: eu1: payments: id(svc_payments) & {
+deploy: eu1: payments: $.catalog.payments & {
   image: "acme/payments:2.14.1"
   replicas: 6
 }
@@ -46,35 +45,33 @@ deploy: eu1: payments: id(svc_payments) & {
 →
 
 ```json
-{"catalog": {"payments": {"image": "acme/payments:2.14.1",
-   "owner": "team-payments", "replicas": 6, "tier": 1}},
+{"catalog": {"payments": {"owner": "team-payments", "tier": 1}},
  "deploy": {"eu1": {"payments": {"image": "acme/payments:2.14.1",
    "owner": "team-payments", "replicas": 6, "tier": 1}}}}
 ```
 
-Both positions now hold the whole service (`image` written only in
-the deploy view, `owner` only in the catalog view), and neither
-view mentions the other's paths. The tree stays a tree: generation
-emits the unified value at each declared position.
-
-Declaring two nodes the same entity *means* unifying them, so a
-disagreement between the views is a located error rather than a
-silent fork:
+The deploy view now holds the whole service, and the two claims
+about `tier` have met. A disagreement between them is a located
+error rather than a silent fork:
 
 <!-- test: run -->
 ```sh
-$ echo 'catalog: pay: id(svc_pay) & {tier:1} deploy: pay: id(svc_pay) & {tier:2}' | aontu
+$ echo 'catalog: pay: {tier:1} deploy: pay: $.catalog.pay & {tier:2}' | aontu
 [aontu/scalar_value]: Cannot unify values at path $.deploy.pay.tier
 ...
 $ echo $?
 1
 ```
 
-Identity links that could never fail are how `owl:sameAs` corrupted
-data at web scale; the
-[reference](reference-language.md#identity-idname) tells that
-story. From here on, "same entity" is a claim the engine holds you
-to.
+A reference is **directional**: `deploy` is narrowed by the catalog,
+and the catalog is not changed by the deploy. That direction is
+deliberate. The alternative — a global name both files declare, with
+every node carrying it merged into every other — reads well until you
+mount the same model twice, at which point the two instances are one
+entity and the second one's overrides are contradictions. The
+[reference](reference-language.md#linking-the-tree-is-the-namespace)
+has the argument; the practical consequence is that a model file is
+reusable, which §2 relies on.
 
 ## 2. Relations: an edge you can trust
 
@@ -102,25 +99,25 @@ spec: hide({
 })
 ```
 
-`rel(t)` turns the field's strings into **entity addresses**: each
-must name an `id()`-declared entity in this evaluation, and the
-type `t` flows into every target, so an edge landing on something
-that is not a job refuses at the edge. The `?` makes the key
+`rel(t)` turns the field's strings into **tree addresses**: each
+must name a node in this evaluation, and the type `t` flows into
+every target, so an edge landing on something that is not a job
+refuses at the edge. The `?` makes the key
 [optional](reference-language.md#optional-keys-) — a job with
 nothing downstream writes nothing. (`JobShape` is a thin stand-in:
 a self-typed `rel($.spec.Job)` inside `Job` is still in design.)
 
-The topology sits in `pipeline.aon` — plain lists of names, one of
-which carries a typo:
+The topology sits in `pipeline.aon` — plain lists of addresses, one
+of which carries a typo:
 
 <!-- test: file pipeline.aon -->
 ```aontu
 pipeline: jobs: {
   &: $.spec.Job
 
-  extract:   id(job_extract) & { feeds: [job_tranform] }
-  transform: id(job_transform) & { feeds: [job_load] }
-  load:      id(job_load) & {}
+  extract:   { feeds: ["$.pipeline.jobs.tranform"] }
+  transform: { feeds: ["$.pipeline.jobs.load"] }
+  load:      {}
 }
 ```
 
@@ -136,15 +133,12 @@ A two-line root, `model.aon`, joins them:
 ```sh
 $ aontu model.aon
 [aontu/rel_unresolved]: Cannot refer value at path $.pipeline.jobs.extract.feeds.0
-
-The address names no entity in this evaluation. Every id()-declared
-name is addressable; nothing else is.
 ...
 $ echo $?
 1
 ```
 
-Without `rel()`, `job_tranform` is a perfectly good string and this
+Without `rel()`, that address is a perfectly good string and this
 pipeline silently loses everything downstream of extract. With it,
 the typo is a located refusal, and existence is decided inside the
 evaluation: an address resolves, or the document refuses. Correct
@@ -155,9 +149,9 @@ the line in `pipeline.aon`:
 pipeline: jobs: {
   &: $.spec.Job
 
-  extract:   id(job_extract) & { feeds: [job_transform] }
-  transform: id(job_transform) & { feeds: [job_load] }
-  load:      id(job_load) & {}
+  extract:   { feeds: ["$.pipeline.jobs.transform"] }
+  transform: { feeds: ["$.pipeline.jobs.load"] }
+  load:      {}
 }
 ```
 
@@ -166,22 +160,24 @@ pipeline: jobs: {
 $ aontu model.aon
 ...
         "feeds": [
-          "job_transform"
+          "$.pipeline.jobs.transform"
         ],
 ...
 ```
 
 ### A constraint held on every address: `re()`
 
-Acme's convention says jobs are named `job_<something>`. Write the
-convention into the declaration, in `spec.aon`:
+Acme's convention says a job may only feed another **job** — not a
+raw dump, which lives elsewhere in the tree. The addresses say where
+each target is, so the convention is a rule about the address. Write
+it into the declaration, in `spec.aon`:
 
 <!-- test: file spec.aon -->
 ```aontu
 spec: hide({
   Job: {
     kind: job
-    feeds?: rel($.spec.JobShape) & re("^job_")
+    feeds?: rel($.spec.JobShape) & re("^\\$\\.pipeline\\.jobs\\.")
   }
 
   JobShape: {
@@ -193,15 +189,17 @@ spec: hide({
 A constraint beside `rel()` constrains the **address string**, and
 it is held onto every element of the list. To watch it work, write
 a change request — a file that includes the model and layers a
-delta on by identity. Propose a new edge, `raw.aon`:
+delta on at the path it applies to. Propose a new edge, `raw.aon`:
 
 <!-- test: file raw.aon -->
 ```aontu
 @"./model.aon"
 
-pipeline: jobs: { raw: id(raw_dump) & {} }
-change: id(job_extract) & {
-  feeds: [job_transform, raw_dump]
+pipeline: {
+  dumps: { raw: { kind: job } }
+  jobs: extract: {
+    feeds: ["$.pipeline.jobs.transform", "$.pipeline.dumps.raw"]
+  }
 }
 ```
 
@@ -210,16 +208,16 @@ change: id(job_extract) & {
 $ aontu raw.aon
 [aontu/constraint]: Cannot unify values at path $.pipeline.jobs.extract.feeds.1
 ...
- Cannot unify value: re("^job_") with value: "raw_dump"
+ Cannot unify value: re("^\\$\\.pipeline\\.jobs\\.") with value: "$.pipeline.dumps.raw"
 ...
 $ echo $?
 1
 ```
 
-`raw_dump` resolves (the entity is real), but its name breaks the
-convention, and the held `re()` refuses the address before the edge
-exists. Naming conventions usually live in a wiki. This one is
-schema.
+`$.pipeline.dumps.raw` resolves, and it is even shaped like a job —
+but it is not *under* `jobs`, the held `re()` refuses the address,
+and the edge never exists. Conventions like this usually live in a
+wiki. This one is schema.
 
 ### The graph atoms: `acyclic()` and `inverse()`
 
@@ -233,8 +231,8 @@ checked treatment, in `spec.aon`:
 spec: hide({
   Job: {
     kind: job
-    feeds?: rel($.spec.JobShape) & re("^job_") & acyclic() & inverse(fedBy)
-    fedBy?: rel($.spec.JobShape) & re("^job_")
+    feeds?: rel($.spec.JobShape) & acyclic() & inverse(fedBy)
+    fedBy?: rel($.spec.JobShape)
   }
 
   JobShape: {
@@ -256,9 +254,12 @@ you, so the data states both directions, in `pipeline.aon`:
 pipeline: jobs: {
   &: $.spec.Job
 
-  extract:   id(job_extract) & { feeds: [job_transform] }
-  transform: id(job_transform) & { fedBy: [job_extract], feeds: [job_load] }
-  load:      id(job_load) & { fedBy: [job_transform] }
+  extract:   { feeds: ["$.pipeline.jobs.transform"] }
+  transform: {
+    fedBy: ["$.pipeline.jobs.extract"]
+    feeds: ["$.pipeline.jobs.load"]
+  }
+  load:      { fedBy: ["$.pipeline.jobs.transform"] }
 }
 ```
 
@@ -270,17 +271,17 @@ $ aontu model.aon
     "jobs": {
       "extract": {
         "feeds": [
-          "job_transform"
+          "$.pipeline.jobs.transform"
         ],
         "kind": "job"
       },
 ...
       "transform": {
         "fedBy": [
-          "job_extract"
+          "$.pipeline.jobs.extract"
         ],
         "feeds": [
-          "job_load"
+          "$.pipeline.jobs.load"
         ],
         "kind": "job"
       }
@@ -306,21 +307,23 @@ A change request makes load feed extract, and its author is careful
 ```aontu
 @"./model.aon"
 
-change: id(job_load) & { feeds: [job_extract] }
-mirror: id(job_extract) & { fedBy: [job_load] }
+pipeline: jobs: {
+  load:    { feeds: ["$.pipeline.jobs.extract"] }
+  extract: { fedBy: ["$.pipeline.jobs.load"] }
+}
 ```
 
 <!-- test: run -->
 ```sh
 $ aontu cycle.aon
-[aontu/relation_cycle]: Cannot relate value at path $.pipeline.jobs.extract.feeds.0
+[aontu/relation_cycle]: Cannot relate value at path $.pipeline.jobs.extract.feeds
 ...
 $ echo $?
 1
 $ aontu relations cycle.aon
 verdict: fail
 
-$.mirror.feeds.0  feeds: cycle job_extract -> job_transform -> job_load -> job_extract
+$.pipeline.jobs.extract.feeds.0  feeds: cycle $.pipeline.jobs.extract -> $.pipeline.jobs.transform -> $.pipeline.jobs.load -> $.pipeline.jobs.extract
 $ echo $?
 1
 ```
@@ -328,7 +331,7 @@ $ echo $?
 The care did not help, which is the point: acyclicity is a property
 of the whole graph, and no local diligence satisfies it. Generation
 refuses at an edge on the loop; the verb names the loop itself,
-closing back on the first entity.
+closing back on the first node.
 
 ### Refusing a missing inverse
 
@@ -341,8 +344,12 @@ unify positionally (the first tutorial's §11 rule). Save it as
 ```aontu
 @"./model.aon"
 
-pipeline: jobs: { metrics: id(job_metrics) & { fedBy: [] } }
-change: id(job_transform) & { feeds: [job_load, job_metrics] }
+pipeline: jobs: {
+  metrics:   { fedBy: [] }
+  transform: {
+    feeds: ["$.pipeline.jobs.load", "$.pipeline.jobs.metrics"]
+  }
+}
 ```
 
 <!-- test: run -->
@@ -350,15 +357,15 @@ change: id(job_transform) & { feeds: [job_load, job_metrics] }
 $ aontu relations metrics.aon
 verdict: fail
 
-$.change.feeds.1  feeds: job_metrics does not list job_transform under fedBy
-$.pipeline.jobs.transform.feeds.1  feeds: job_metrics does not list job_transform under fedBy
+$.pipeline.jobs.transform.feeds.1  feeds: $.pipeline.jobs.metrics does not list $.pipeline.jobs.transform under fedBy
 $ echo $?
 1
 ```
 
-The exact missing entry is named — twice, because the transform
-entity is declared at two positions and each carries the finding.
-Add `job_transform` to the new job's `fedBy` and the model passes.
+The exact missing entry is named, at the position that states the
+edge.
+Add `$.pipeline.jobs.transform` to the new job's `fedBy` and the
+model passes.
 
 ### Reachability
 
@@ -367,14 +374,14 @@ the edge set, and it has its own verb:
 
 <!-- test: run -->
 ```sh
-$ aontu reaches job_extract job_load --relation feeds model.aon
+$ aontu reaches $.pipeline.jobs.extract $.pipeline.jobs.load --relation feeds model.aon
 verdict: reaches
 
-job_extract -> job_transform -> job_load
-$ aontu reaches job_load job_extract --relation feeds model.aon
+$.pipeline.jobs.extract -> $.pipeline.jobs.transform -> $.pipeline.jobs.load
+$ aontu reaches $.pipeline.jobs.load $.pipeline.jobs.extract --relation feeds model.aon
 verdict: unreachable
 
-job_load does not reach job_extract
+$.pipeline.jobs.load does not reach $.pipeline.jobs.extract
 $ echo $?
 1
 ```
@@ -383,8 +390,7 @@ The answer is the path, because the path is what an operator acts
 on; a "no" carries none and exits `1`, so a policy like "nothing in
 the public tier may reach the ledger" can be a CI gate. One
 caution: this model writes both directions, so leaving off
-`--relation` lets `job_load` "reach" `job_extract` by walking
-`fedBy` upstream. A directional question names its relation.
+`--relation` lets load "reach" extract by walking `fedBy` upstream. A directional question names its relation.
 
 The [check-relations](how-to/check-relations.md) and
 [query-reachability](how-to/query-reachability.md) guides turn

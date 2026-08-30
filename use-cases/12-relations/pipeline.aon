@@ -1,28 +1,28 @@
 # pipeline.aon --- the ETL topology: which job feeds which. Both
 # directions are written out -- deriving the inverse FOR the author is
 # generation, not validation, and inverse() only checks -- and every
-# list is a plain list of names: the schema's rel() converts them.
+# list is a plain list of addresses: the schema's rel() checks them.
 pipeline: jobs: {
   &: $.spec.Job
 
-  extract: id(job_extract) & {
+  extract: {
     cmd: "fetch --source api"
-    feeds: [job_transform]
+    feeds: ["$.pipeline.jobs.transform"]
   }
 
-  transform: id(job_transform) & {
+  transform: {
     cmd: "clean --dedup"
-    fedBy: [job_extract]
-    feeds: [job_load, job_audit]
+    fedBy: ["$.pipeline.jobs.extract"]
+    feeds: ["$.pipeline.jobs.load", "$.pipeline.jobs.audit"]
   }
 
-  load: id(job_load) & {
+  load: {
     cmd: "warehouse --commit"
-    fedBy: [job_transform]
+    fedBy: ["$.pipeline.jobs.transform"]
   }
 
-  audit: id(job_audit) & {
+  audit: {
     cmd: "report --daily"
-    fedBy: [job_transform]
+    fedBy: ["$.pipeline.jobs.transform"]
   }
 }

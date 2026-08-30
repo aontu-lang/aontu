@@ -48,7 +48,7 @@ ok "relations: acyclic + inverse both hold on the good model"
 run canon 0 -- --canon "$DIR/model.aon"
 has canon out 'acyclic()'
 has canon out 'inverse("fedBy")'
-has canon out 're("^job_")'
+has canon out 'acyclic()'
 ok "canon: the field-level declarations render reparseably"
 
 # 4. A cycle refuses at GENERATION -- the atoms decide where every
@@ -58,7 +58,7 @@ run cyceval 1 -- "$DIR/bad/cycle.aon"
 has cyceval err '[aontu/relation_cycle]'
 run cycle 1 -- relations "$DIR/bad/cycle.aon"
 has cycle out 'verdict: fail'
-has cycle out 'cycle job_extract -> job_transform -> job_load -> job_extract'
+has cycle out 'cycle $.pipeline.jobs.extract -> $.pipeline.jobs.transform -> $.pipeline.jobs.load -> $.pipeline.jobs.extract'
 ok "cycle: refused at generation, reported by the verb"
 
 # 5. A missing inverse refuses the same way, naming the exact entry.
@@ -66,7 +66,7 @@ run noinveval 1 -- "$DIR/bad/missing-inverse.aon"
 has noinveval err '[aontu/relation_inverse_missing]'
 run noinv 1 -- relations "$DIR/bad/missing-inverse.aon"
 has noinv out 'verdict: fail'
-has noinv out 'job_metrics does not list job_transform under fedBy'
+has noinv out '$.pipeline.jobs.metrics does not list $.pipeline.jobs.transform under fedBy'
 ok "missing inverse: refused at generation, the exact entry named"
 
 # 6. The endpoint type is rel(t)'s flow: a feeds edge landing on a
@@ -82,7 +82,7 @@ ok "wrong kind: rel(t) flow refuses at evaluation, verb answers error"
 # or the document refuses, there is no later.
 run dangle 1 -- "$DIR/bad/dangling.aon"
 has dangle err '[aontu/rel_unresolved]'
-ok "dangling: an address naming no entity refuses"
+ok "dangling: an address naming no node refuses"
 
 # 8. An append from a separate position converts like the originals:
 # the rewrite installed its leaf constraint as the list's element
@@ -96,10 +96,10 @@ has apprel out 'verdict: pass'
 ok "append: a patched-in element converts and the relations still hold"
 
 # 9. Reachability over the same edges: the DAG answers directionally.
-run reach 0 -- reaches job_extract job_load --relation feeds "$DIR/model.aon"
+run reach 0 -- reaches '$.pipeline.jobs.extract' '$.pipeline.jobs.load' --relation feeds "$DIR/model.aon"
 has reach out 'verdict: reaches'
-has reach out 'job_extract -> job_transform -> job_load'
-run noreach 1 -- reaches job_load job_extract --relation feeds "$DIR/model.aon"
+has reach out '$.pipeline.jobs.extract -> $.pipeline.jobs.transform -> $.pipeline.jobs.load'
+run noreach 1 -- reaches '$.pipeline.jobs.load' '$.pipeline.jobs.extract' --relation feeds "$DIR/model.aon"
 has noreach out 'verdict: unreachable'
 ok "reaches --relation feeds: downstream yes, upstream no"
 

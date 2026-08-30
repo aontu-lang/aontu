@@ -4,22 +4,36 @@
 # The JSON is loaded at its own hidden key and pulled in by reference:
 # `... & @"../data/x.json"` written inline fails with
 # [aontu/mapval_spread_required] (README, gap 2).
+#
+# The proposal lands INSIDE the catalog, at the path it is proposing
+# to occupy: an address is a tree path (ADR-013), so a new service is
+# a new position, and the edges naming it name that position.
 @"../system.aon"
 
 candidate: hide(@"../data/candidate-webhooks.json")
 
-proposal: webhooks: id(svc_webhooks) & $.spec.CatalogEntry & $.candidate & {
-  dependsOn: [svc_auth, svc_email]
-}
+catalog: domains: platform: services: {
+  webhooks: $.spec.CatalogEntry & $.candidate & {
+    dependsOn: [
+      "$.catalog.domains.identity.services.auth"
+      "$.catalog.domains.platform.services.email"
+    ]
+  }
 
-# The inverse edges the proposal implies, so `aontu relations` passes.
-# WORKAROUND (README, gap 4): lists unify positionally, so "append"
-# must restate the existing elements verbatim, in order.
-patch: {
-  auth: id(svc_auth) & {
-    dependedOnBy: [svc_gateway, svc_payments, svc_webhooks]
+  # The inverse edges the proposal implies, so `aontu relations`
+  # passes. WORKAROUND (README, gap 4): lists unify positionally, so
+  # "append" must restate the existing elements verbatim, in order.
+  email: {
+    dependedOnBy: [
+      "$.catalog.domains.platform.services.notify"
+      "$.catalog.domains.platform.services.webhooks"
+    ]
   }
-  email: id(svc_email) & {
-    dependedOnBy: [svc_notify, svc_webhooks]
-  }
+}
+catalog: domains: identity: services: auth: {
+  dependedOnBy: [
+    "$.catalog.domains.platform.services.gateway"
+    "$.catalog.domains.payments.services.payments"
+    "$.catalog.domains.platform.services.webhooks"
+  ]
 }

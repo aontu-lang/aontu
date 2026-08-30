@@ -205,20 +205,6 @@ class MapVal extends BagVal_1.BagVal {
             out.dc = this.dc + 1;
             // let newtype = this.type || peer.type
             let spread_cj = out.spread.cj ?? TOP;
-            // The template REFUSED at construction (clearing rule 3, G4
-            // phase 1): the bag itself is that refusal. Returning the nil
-            // here rather than only letting it reach the children is what
-            // makes an EMPTY bag with a bad template an error too — there
-            // are no children to carry it.
-            //
-            // Narrow to THIS code on purpose. A nil spread from any other
-            // cause keeps its existing behaviour of driving every key
-            // (coverage3 `nil-spread-drives-every-key`): a template that has
-            // merely not resolved yet must not permanently kill the bag that
-            // holds it.
-            if ('id_spread' === spread_cj.why) {
-                return spread_cj;
-            }
             // Snapshot a path-dependent *ref* spread to its structural target
             // once (while inner key()/path() funcs are still unresolved), so
             // later fixpoint passes don't re-resolve the ref against the mutated

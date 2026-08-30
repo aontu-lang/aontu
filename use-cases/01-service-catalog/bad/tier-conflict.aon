@@ -1,7 +1,8 @@
 # bad/tier-conflict.aon --- change request CR-4720: an ops overlay
-# claims payments can be tier 2. The catalog says tier 1. Because both
-# statements are about the entity svc_payments, the id-merge brings
-# them into contact and evaluation itself fails.
+# claims payments can be tier 2. The catalog says tier 1, and the
+# deployment view references the catalog's tier, so the overlay's
+# claim meets the catalog's at the deploy position and evaluation
+# itself fails.
 @"../system.aon"
 
-change: cr4720: id(svc_payments) & {tier: 2}
+deploy: regions: eu1: clusters: core: workloads: payments: {tier: 2}

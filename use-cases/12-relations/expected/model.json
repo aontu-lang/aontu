@@ -4,32 +4,32 @@
       "audit": {
         "cmd": "report --daily",
         "fedBy": [
-          "job_transform"
+          "$.pipeline.jobs.transform"
         ],
         "kind": "job"
       },
       "extract": {
         "cmd": "fetch --source api",
         "feeds": [
-          "job_transform"
+          "$.pipeline.jobs.transform"
         ],
         "kind": "job"
       },
       "load": {
         "cmd": "warehouse --commit",
         "fedBy": [
-          "job_transform"
+          "$.pipeline.jobs.transform"
         ],
         "kind": "job"
       },
       "transform": {
         "cmd": "clean --dedup",
         "fedBy": [
-          "job_extract"
+          "$.pipeline.jobs.extract"
         ],
         "feeds": [
-          "job_load",
-          "job_audit"
+          "$.pipeline.jobs.load",
+          "$.pipeline.jobs.audit"
         ],
         "kind": "job"
       }

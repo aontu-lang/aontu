@@ -5,9 +5,9 @@
 @"std/system"
 std: hide({})
 
-infra: paydb: id(res_paydb) & {kind: database}
+infra: paydb: {kind: database}
 
-app: ledger: id(svc_ledger) & {
+app: ledger: {
   kind: service
-  dependsOn: [&: refer($.std.Service), res_paydb]
+  dependsOn: [&: refer($.std.Service), "$.infra.paydb"]
 }

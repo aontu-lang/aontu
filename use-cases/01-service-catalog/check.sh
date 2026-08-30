@@ -32,7 +32,8 @@ has() {
 }
 
 # 1. The whole model evaluates: two views of eight entities, joined by
-# id() alone, against the bundled std/system vocabulary.
+# the field-level relation declarations, against the bundled
+# std/system vocabulary.
 run eval 0 -- "$DIR/system.aon"
 diff -u "$DIR/expected/system.json" "$WORK/eval.out" \
   || fail "system.aon output drifted from expected/system.json"
@@ -40,8 +41,8 @@ ok "system.aon evaluates to the expected merged catalog"
 
 # 2. Identity survives canonical form.
 run canon 0 -- --canon "$DIR/system.aon"
-has canon out 'id("svc_payments")'
-has canon out 'id("svc_email")'
+has canon out 'acyclic()'
+has canon out 'inverse("dependedOnBy")'
 ok "canonical form keeps entity identity"
 
 # 3. The relation checks hold on the good model.
@@ -49,12 +50,15 @@ run rel 0 -- relations "$DIR/system.aon"
 has rel out 'verdict: pass'
 ok "relations: dependsOn acyclic + dependedOnBy inverse both hold"
 
-# 4. One service's slice, as an agent would pull it into context.
-run slice 0 -- get '$.catalog.domains.payments.services.payments' \
+# 4. One service's slice, as an agent would pull it into context. The
+# DEPLOY position is the merged one: the reference runs catalog ->
+# deploy, so a workload carries the org facts as well as its own,
+# while the catalog entry keeps only what the catalog states.
+run slice 0 -- get '$.deploy.regions.eu1.clusters.core.workloads.payments' \
   "$DIR/system.aon"
 diff -u "$DIR/expected/payments-slice.json" "$WORK/slice.out" \
   || fail "payments slice drifted"
-ok "get: payments slice shows catalog AND deploy fields merged"
+ok "get: the deploy slice carries the catalog facts it references"
 
 run keys 0 -- get '$.deploy.regions.eu1.clusters.core.workloads' \
   --keys "$DIR/system.aon"
@@ -62,28 +66,25 @@ diff -u "$DIR/expected/eu1-core-keys.txt" "$WORK/keys.out" \
   || fail "eu1/core workload keys drifted"
 ok "get --keys: eu1/core runs the expected five workloads"
 
-# 5. Provenance across the identity merge. The catalog position of
-# replicas names the deploy.aon site that wrote it...
-run why1 0 -- why '$.catalog.domains.payments.services.payments.replicas' \
+# 5. Provenance across the two views. A workload's own field names
+# the deploy.aon site that wrote it...
+run why1 0 -- why \
+  '$.deploy.regions.eu1.clusters.core.workloads.payments.replicas' \
   "$DIR/system.aon"
 has why1 out 'deploy.aon:'
-ok "why: catalog position of replicas is traced to deploy.aon"
+ok "why: a workload's replicas is traced to deploy.aon"
 
-# ...and the deploy position of tier is no longer SILENT: gap 9's
+# ...and a field it takes from the catalog is not SILENT: gap 9's
 # "(no contributions: nothing met at this path)" over a printed value
-# is gone (the review's finding E). What it names is the schema row
-# that admits the value, in the file that declares it -- one hop short
-# of the catalog.aon literal that selected it, because the id-merge
-# carries the RESOLVED member into this position and the catalog's own
-# meet happened at the catalog path. That narrowing is what remains of
-# gap 9; the falsehood is what is fixed.
+# is gone (the review's finding E). A reference resolves by CLONING,
+# and a clone of a written value IS that written value somewhere else,
+# so the contribution is named at the line an author wrote.
 run why2 0 -- why \
   '$.deploy.regions.eu1.clusters.core.workloads.payments.tier' \
   "$DIR/system.aon"
-has why2 out 'spec.aon:'
 grep -q 'no contributions' "$WORK/why2.out" \
-  && fail 'why2: still silent at the deploy position' || true
-ok "why: deploy position of tier shows the documented one-sidedness"
+  && fail 'why2: silent at the deploy position' || true
+ok "why: a referenced field carries its provenance to the deploy view"
 
 # 6. Instance-of queries over the hand-built flat index.
 run tier1 0 -- get '$.query.tier1' --keys "$DIR/queries/queries.aon"
@@ -101,7 +102,7 @@ run cyceval 1 -- "$DIR/bad/cycle.aon"
 has cyceval err 'relation_cycle'
 run cycle 1 -- relations "$DIR/bad/cycle.aon"
 has cycle out 'verdict: fail'
-has cycle out 'cycle svc_payments -> svc_ledger -> svc_payments'
+has cycle out 'cycle $.catalog.domains.payments.services.ledger -> $.catalog.domains.payments.services.payments -> $.catalog.domains.payments.services.ledger'
 ok "relations: cycle payments->ledger->payments refused and reported"
 
 # 7b. THE DECLARED ENDPOINT TYPE is rel(t)'s flow now: declared once
@@ -117,9 +118,9 @@ ok "relations: rel(t) flow enforces the endpoint type at evaluation"
 # 7c. REACHABILITY, the closure question relations cannot ask one edge
 # at a time: the gateway reaches the ledger through payments, and the
 # path is the answer.
-run reach 0 -- reaches svc_gateway svc_ledger "$DIR/system.aon"
+run reach 0 -- reaches '$.catalog.domains.platform.services.gateway' '$.catalog.domains.payments.services.ledger' "$DIR/system.aon"
 has reach out 'verdict: reaches'
-has reach out 'svc_gateway -> svc_payments -> svc_ledger'
+has reach out '$.catalog.domains.platform.services.gateway -> $.catalog.domains.payments.services.payments -> $.catalog.domains.payments.services.ledger'
 ok "reaches: gateway -> payments -> ledger, with the chain as evidence"
 
 # THE DIRECTION IS THE RELATION'S, not the graph's. This model writes
@@ -127,17 +128,17 @@ ok "reaches: gateway -> payments -> ledger, with the chain as evidence"
 # and EVERYTHING reaches everything: asking a directional question
 # means naming the relation to follow. That is what --relation is for,
 # and the difference between the two runs below is the whole point.
-run reachdep 0 -- reaches svc_gateway svc_ledger --relation dependsOn \
+run reachdep 0 -- reaches '$.catalog.domains.platform.services.gateway' '$.catalog.domains.payments.services.ledger' --relation dependsOn \
   "$DIR/system.aon"
 has reachdep out 'verdict: reaches'
-run noreach 1 -- reaches svc_ledger svc_gateway --relation dependsOn \
+run noreach 1 -- reaches '$.catalog.domains.payments.services.ledger' '$.catalog.domains.platform.services.gateway' --relation dependsOn \
   "$DIR/system.aon"
 has noreach out 'verdict: unreachable'
 ok "reaches --relation dependsOn: one way only, as the estate is layered"
 
 # ...and an endpoint that names no entity is a REFUSAL, not a `no`:
 # answering no would report a typo as a fact about the model.
-run badreach 4 -- reaches svc_gateway svc_nope "$DIR/system.aon"
+run badreach 4 -- reaches '$.catalog.domains.platform.services.gateway' '$.catalog.domains.platform.services.nope' "$DIR/system.aon"
 has badreach out 'refer_unresolved'
 ok "reaches: an endpoint naming no entity is refused, not answered no"
 
@@ -146,14 +147,14 @@ run noinveval 1 -- "$DIR/bad/missing-inverse.aon"
 has noinveval err 'relation_inverse_missing'
 run noinv 1 -- relations "$DIR/bad/missing-inverse.aon"
 has noinv out 'verdict: fail'
-has noinv out 'svc_directory does not list svc_email under dependedOnBy'
+has noinv out '$.catalog.domains.identity.services.directory does not list $.catalog.domains.platform.services.email under dependedOnBy'
 ok "relations: missing dependedOnBy inverse refused and reported"
 
 # 9. Two views disagreeing about one entity is an evaluation error --
-# that is what id() is for.
+# that is what the deployment view's reference is for.
 run conflict 1 -- "$DIR/bad/tier-conflict.aon"
 has conflict err '[aontu/scalar_value]'
-ok "id-merge: tier 1 vs tier 2 on svc_payments refuses to evaluate"
+ok "two views: tier 1 vs tier 2 on payments refuses to evaluate"
 
 # 10. A typed endpoint (refer($.std.Service)) refuses a database
 # target -- in the miniature model where typed refer works (gap 8).
@@ -181,7 +182,7 @@ ok "vet --closed: bad owner, short description, misspelled key all caught"
 run onboard 0 -- "$DIR/proposals/onboard-webhooks.aon"
 run onbrel 0 -- relations "$DIR/proposals/onboard-webhooks.aon"
 has onbrel out 'verdict: pass'
-run onbget 0 -- get '$.proposal.webhooks' "$DIR/proposals/onboard-webhooks.aon"
+run onbget 0 -- get '$.catalog.domains.platform.services.webhooks' "$DIR/proposals/onboard-webhooks.aon"
 diff -u "$DIR/expected/webhooks-proposal.json" "$WORK/onbget.out" \
   || fail "onboarded webhooks entity drifted"
 ok "proposal: candidate JSON joins the model and relations still pass"
@@ -190,6 +191,6 @@ ok "proposal: candidate JSON joins the model and relations still pass"
 # evaluate: rel() decides existence inside one evaluation.
 run badref 1 -- "$DIR/proposals/onboard-badref.aon"
 has badref err '[aontu/rel_unresolved]'
-ok "proposal: dangling dependsOn svc_searchx refused by rel()"
+ok "proposal: a dangling dependsOn address refused by rel()"
 
 echo "all $pass checks passed"

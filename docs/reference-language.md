@@ -1570,7 +1570,8 @@ can say that makes two positions one node.
 Two consequences follow, and both are what the design is for.
 
 **A model can be instantiated more than once.** Mount the same file at
-two paths and you get two independent nodes, each with its own values:
+two paths and you get two independent nodes, each with its own values.
+Write the model as `model.aon`:
 
 <!-- test: scenario reuse -->
 <!-- test: file model.aon -->
@@ -1578,6 +1579,8 @@ two paths and you get two independent nodes, each with its own values:
 auth: { port: 80, region: *"eu" | string }
 billing: { dep: refer() & "..auth" }
 ```
+
+and mount it twice from `main.aon`:
 
 <!-- test: file main.aon -->
 ```aon
@@ -1775,16 +1778,16 @@ are tree addresses and flows `t` into every target, and the two
 GRAPH ATOMS declare the properties that hold over the whole edge set:
 
 ```aon
-a: id(a) & { dependsOn: rel() & inverse(usedBy) & acyclic() & [b] }
-b: id(b) & { usedBy:    rel() & [a] }
+a: { dependsOn: rel() & inverse(usedBy) & acyclic() & ["$.b"] }
+b: { usedBy:    rel() & ["$.a"] }
 ```
 
 ```json
-{"a": {"dependsOn": ["b"]}, "b": {"usedBy": ["a"]}}
+{"a": {"dependsOn": ["$.b"]}, "b": {"usedBy": ["$.a"]}}
 ```
 
 - **`acyclic()`** — the edges under this relation must have no cycle.
-  The error names the entities the cycle runs through, closing back on
+  The error names the nodes the cycle runs through, closing back on
   the first.
 - **`inverse(<name>)`** — for each `a --dependsOn--> b`, `b` must carry
   `a` under `<name>`, as an edge of that relation. The error names the

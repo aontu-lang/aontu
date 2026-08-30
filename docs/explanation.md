@@ -257,45 +257,51 @@ carry its own schema inline without that schema leaking into the output,
 and why `copy()` (which clears the marks) is the way to turn a schema
 node back into emittable data.
 
-## Identity and relations
+## Linking and relations
 
 A document is a tree, and a tree gives every value exactly one name:
-its path. Real models need a second kind of name. The payments service
-is described by the catalog (owner, tier) and by the deployment (image,
-replicas), in two files, under two paths that never mention each other
-— and both descriptions are about one thing. A definition language that
-cannot say so leaves the most consequential fact in the model unstated.
+its path. The payments service is described by the catalog (owner,
+tier) and by the deployment (image, replicas), in two files, under two
+paths that never mention each other — and both descriptions are about
+one thing. Unification is path-aligned, so on their own the two never
+meet, and a contradiction between them survives in silence.
 
-`id(name)` says it, inside the lattice. Identity is a declaration whose
-meaning is unification: every node in one evaluation carrying the same
-name is unified with every other, so declaring two nodes the same
-entity *means* their descriptions meet, field by field. The shape,
-trimmed from the [service catalog use
+Bringing them into contact is a **reference**, which is to say it is
+something an author writes at one of the two sites. The shape, trimmed
+from the [service catalog use
 case](../use-cases/01-service-catalog/):
 
 ```aontu
-catalog: pay: id(svc_pay) & { tier: 1 }
-deploy: pay: id(svc_pay) & { replicas: 3 }
+catalog: pay: { tier: 1 }
+deploy: pay: $.catalog.pay & { replicas: 3 }
 ```
 
 ```json
-{"catalog": {"pay": {"replicas": 3, "tier": 1}},
+{"catalog": {"pay": {"tier": 1}},
  "deploy": {"pay": {"replicas": 3, "tier": 1}}}
 ```
 
-Each position now holds the whole entity, and a contradiction between
-the views — the catalog pinning `tier: 1` where the deployment claims
-`tier: 2` — is an ordinary located error. That failure mode is the
-argument. The alternative design is an identity link bolted on beside
-the data, `owl:sameAs` style, and such a link cannot fail: asserting
+The deploy view now holds the whole service, and a contradiction
+between the views — the catalog pinning `tier: 1` where the deployment
+claims `tier: 2` — is an ordinary located error. That failure mode is
+the argument. The alternative is an identity link bolted on beside the
+data, `owl:sameAs` style, and such a link cannot fail: asserting
 sameness costs nothing to be wrong about, each store keeps its own
 copy, and drift between the copies is found by whoever gets paged.
-`owl:sameAs` earned its reputation for silent corruption exactly this
-way. Making identity a declaration *inside* the operation the engine
-already trusts means
-the sameness claim is re-checked on every contact, and the commonest
-enterprise lie — two systems quietly disagreeing about one thing — dies
-at evaluation instead of in production.
+Making the claim *inside* the operation the engine already trusts means
+it is re-checked on every contact, and the commonest enterprise lie —
+two systems quietly disagreeing about one thing — dies at evaluation
+instead of in production.
+
+The language once had a stronger form of this: `id(name)`, a global
+second name, with every node carrying it unified into every other. It
+is retired
+([ADR-013](../ADR.md#adr-013--the-tree-is-the-namespace-there-is-no-identity-mark)).
+A reference catches the same contradiction at the same site, and the
+global name cost more than it bought: a model carrying one could not be
+**instantiated twice**, because two mounts of one file were one entity
+and the second one's overrides were contradictions. The tree is the
+namespace, and a tree lets you have two of something.
 
 Relations follow the same instinct: an edge is data on a **field**, and
 the field declares what its data means. `rel(t)` on a field says the
@@ -327,9 +333,9 @@ where the edge set is complete — the same settle point the sizing atoms
 use:
 
 ```
-a: id(a) & { feeds: rel() & acyclic() & [b] }
-b: id(b) & { feeds: rel() & [a] }
-    → refused: [aontu/relation_cycle] at $.a.feeds.0
+a: { feeds: rel() & acyclic() & ["$.b"] }
+b: { feeds: rel() & ["$.a"] }
+    → refused: [aontu/relation_cycle] at $.a.feeds
 ```
 
 A declaration that binds at generation also repairs an old
@@ -344,7 +350,7 @@ convention and nothing else in the engine knew at all. Retiring it is
 [ADR-010](../ADR.md#adr-010--no-magic-keys-or-paths-the-tree-at-all-levels-is-user-space):
 **the tree is user space.** A plain, spellable
 key never carries engine-assigned meaning at any depth; reserved
-meaning rides only on syntax an author visibly opts into, which `id()`,
+meaning rides only on syntax an author visibly opts into, which
 `rel()` and the atoms are. The retirement bought two concrete things. A
 document that writes `relations:` today has written ordinary data. And
 because the declarations now live in the lattice, they reach canon and
