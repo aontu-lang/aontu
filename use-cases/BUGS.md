@@ -1961,6 +1961,62 @@ recurses on `peg` inherits this crash until the refusal lands.
 Repro:
 [`repros/identity/id-names-own-descendant-crashes.aon`](repros/identity/id-names-own-descendant-crashes.aon).
 
+## anchoring — what `--at` can still see
+
+### 59. `vet --at` loses `%alias` references in the Go port [critical]
+
+Found 2026-08-30 while specifying a code-generation vocabulary as an
+Aontu schema — the vocabulary is alias-heavy, and `--at` is how you
+point a validation at one part of a document. The two engines return
+**opposite verdicts and opposite exit codes** for the same inputs:
+
+```aon
+# schema
+%F: close({ n: string })
+%U: close({ p: string, fs: [&: %F] })
+%C: close({ units: [&: %U] })
+code: type(%C)
+
+# data
+units: [ { p: "a", fs: [ {n:"x"} ] } ]
+```
+
+```
+$ aontu      vet --at code schema.aon data.aon    verdict: valid     exit 0
+$ aontu-go   vet --at code schema.aon data.aon    verdict: invalid   exit 1
+                                                  $.code.units.0: no_path [reference]
+                                                  schema: schema.aon:3:24 ($.%U)
+```
+
+Isolated to `--at` alone: removing `type()` still breaks in Go, one
+alias level instead of three still breaks in Go, and dropping `--at`
+(wrapping the data in a `code:` key instead) makes **both** ports say
+valid. The likely cause is that Go's anchor re-roots the schema subtree
+while `%alias` declarations live at the document root (`$.%U`), so
+after anchoring the alias is unreachable; TypeScript's `anchorAt`
+keeps root context.
+
+`--at` is a shared seam, but the break is not, and this was probed
+rather than assumed: `jsonschema --at code` **agrees** between the
+ports over the same document (both render `"items": {}`), and `diff`
+takes no `--at` at all. So it is vet's anchor, not every anchor.
+
+The direction matters. Go REFUSES a document TypeScript ACCEPTS, so a
+pipeline running the Go CLI fails builds the canonical implementation
+passes — and `vet` is the verb whose whole purpose is to be that gate
+(ADR-007, and the `vet ≡ eval` differential in
+[`AGENTS.md`](../AGENTS.md#the-vet--eval-differential)). It is in no
+debt register: not here, not
+[`test/spec/divergent.tsv`](../test/spec/divergent.tsv), not
+[`DIVERGENCE.md`](../DIVERGENCE.md). By the ledger's own rule it does
+not belong in `divergent.tsv` either — that register is for
+divergences that cannot be fixed from this repository right now, and
+this one is Go's `anchorAt`.
+
+Repro:
+[`repros/anchor/vet-at-loses-aliases-in-go.aon`](repros/anchor/vet-at-loses-aliases-in-go.aon)
+with its `-data` companion.
+
 ## Elsewhere in this review
 
 Defects verified earlier in the effort and recorded in

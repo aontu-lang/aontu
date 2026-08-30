@@ -1,0 +1,39 @@
+# 59: `vet --at <path>` loses %alias references in the GO port. An
+# ADR-001 parity break: the two engines return OPPOSITE VERDICTS and
+# opposite exit codes for the same schema and the same data.
+#
+# This file is the SCHEMA. The data is its `-data` companion.
+#
+# run: node ../../../ts/bin/aontu.js vet --at code vet-at-loses-aliases-in-go.aon vet-at-loses-aliases-in-go-data.aon
+# run: aontu-go vet --at code vet-at-loses-aliases-in-go.aon vet-at-loses-aliases-in-go-data.aon
+#
+# expected: one verdict, whichever is right
+# actual (TypeScript): verdict: valid                        exit 0
+# actual (Go):         verdict: invalid                      exit 1
+#                      $.code.units.0: no_path [reference]
+#                      [aontu/no_path]: Cannot resolve value at
+#                        path $.code.units.0
+#                      schema: ...:3:24 ($.%U)
+#
+# ISOLATED to `--at` alone:
+#   - remove type()                 -> still breaks in Go
+#   - one alias level instead of 3  -> still breaks in Go
+#   - drop --at, wrap the data in a `code:` key -> BOTH say valid
+#
+# The likely cause is that Go's anchor re-roots the schema subtree
+# while %alias declarations live at the document root ($.%U), so after
+# anchoring the alias is unreachable. TypeScript's anchorAt keeps root
+# context.
+#
+# `--at` is a SHARED seam, but the break is not: probed the same way,
+# `jsonschema --at code` AGREES between the ports (both render
+# `"items": {}`), and `diff` takes no --at at all. So this is vet's
+# anchor, not every anchor.
+#
+# Direction matters for a CI gate: Go REFUSES a document TypeScript
+# accepts, so a pipeline that runs the Go CLI fails builds the
+# canonical implementation passes.
+%F: close({ n: string })
+%U: close({ p: string, fs: [&: %F] })
+%C: close({ units: [&: %U] })
+code: type(%C)
