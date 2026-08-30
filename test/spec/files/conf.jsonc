@@ -4,5 +4,6 @@
   "host": "local",
   /* and the tags */
   "tags": ["a", "b"],
-  "tls": true
+  "tls": true,
+  "cert": null
 }
