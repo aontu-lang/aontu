@@ -2251,6 +2251,11 @@ constraints, defaults, and open disjunctions. Rules:
 
 ## Generation
 
+This section is about producing a **value** from a model. Producing
+target-language **source** from one is a different thing with the same
+name: see [Generate code from a model](how-to/generate-code.md) and
+[G9](capability-review/g9-transformation.md).
+
 `generate` / `Generate` produces a native value (JSON-compatible) and
 requires the model to be **fully concrete**:
 
