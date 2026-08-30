@@ -8,16 +8,16 @@ tenant: {
   name: "Acme Rockets", slug: "acme-rockets", plan: free
   entitlement: { plan: free, sso: false, scim: false, auditLog: false }
   members: {
-    ada:   { role: owner }
-    grace: { role: member }
-    alan:  { role: auditor, invitedBy: ada }
+    ada:   { role: "$.roles.owner" }
+    grace: { role: "$.roles.member" }
+    alan:  { role: "$.roles.auditor", invitedBy: ada }
   }
   security: { mfaRequired: true, sessionTimeoutMinutes: 480 }
 }
 
 audit: hide({
   # Universal quantification as an empty/counted witness set.
-  exactly_one_owner: length(1) & filter($.tenant.members, { role: owner })
+  exactly_one_owner: length(1) & filter($.tenant.members, { role: "$.roles.owner" })
   # Cross-field bound: the member count against the plan-derived cap.
   seats_within_plan: length(max($.tenant.limits.maxSeats)) & $.tenant.members
   # Band-B domain rule with an author message (fires same-layer only).

@@ -1,12 +1,15 @@
 # Permission catalog: the ground truth of what CAN be granted.
 #
-# Every permission is an entity (id per key), so a grant anywhere in
-# the model is a checked foreign key via refer() -- an unknown
-# permission string is a located [aontu/refer_unresolved] error, not a
-# silently dead grant. Names use '/' (not ':') because entity names
-# admit letters, digits, '_', '-' and '/' only.
+# A grant anywhere in the model is a checked foreign key via refer():
+# an address naming no node is a located [aontu/refer_unresolved]
+# error, not a silently dead grant.
+#
+# Since ADR-014 an address is a TREE PATH -- `$.permissions.audit_read`
+# -- so this bag needs no `id()` and carries no second name. The keys
+# below ARE the addresses' last segment, which is why the catalog is
+# still the one place a permission is spelled.
 permissions: {
-  &: id(key(0)) & close({ desc: string, risk: low | medium | high | critical })
+  &: close({ desc: string, risk: low | medium | high | critical })
   project_read:   { desc: "List and read projects",          risk: low }
   project_write:  { desc: "Create and update projects",      risk: medium }
   project_delete: { desc: "Delete projects",                 risk: high }

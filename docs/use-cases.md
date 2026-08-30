@@ -162,14 +162,16 @@ Role: type(
     rank: integer & min(0) & max(100)
     tenantOwner: false
     privileged: false
-    grants: unique() & [&: refer() & string & neq("admin_all")]
+    grants: unique() & [&: refer() & string & neq("$.permissions.admin_all")]
   })
 )
 ```
 
-The unprivileged branch excludes `admin_all` from every grant with one
-`neq()`, so a proposal granting the wildcard to a collaborator role is
-refused. The registry and its attack proposals:
+The unprivileged branch excludes the wildcard from every grant with one
+`neq()`, so a proposal granting it to a collaborator role is refused.
+A grant is a **tree address** (ADR-014), which is what makes `refer()`
+a checked foreign key against the permission catalog rather than a
+string comparison. The registry and its attack proposals:
 [`use-cases/05-rbac-policy/`](../use-cases/05-rbac-policy/).
 
 ## 06 — Kubernetes golden path

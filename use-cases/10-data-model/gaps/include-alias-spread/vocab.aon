@@ -1,0 +1,16 @@
+# Minimal repro, file 1 of 2: a schema whose record type references a
+# named alias ($.schema.T), pulled in through an @ include.
+#
+# This directory used to hold TWO halves, one of them spelling the bag
+# spread `&: id(key(0)) & ...`. ADR-014 removed the identity mark, so
+# that half is not a spelling any more and the pair collapsed to this
+# one. What it still pins is real and unrelated to identity: the
+# reference used to clone the still-pending type() alias and stamp its
+# mark at the destination AFTER the mark-clearing walk, which SILENTLY
+# DROPPED the record -- exit 0, `customers {}`. Fixed 2026-08-26 by the
+# template-clone isolation change (ADR-005).
+schema: {
+  T: type(integer & min(1))
+  Customer: type(close({ id: string, ledgerId: $.schema.T, name: string }))
+}
+customers: { &: $.schema.Customer & { id: key() } }

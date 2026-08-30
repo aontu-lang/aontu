@@ -1,1 +1,1 @@
-{ "invite": { "role": "member" } }
+{ "invite": { "role": "$.roles.member" } }

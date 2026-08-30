@@ -1,9 +1,0 @@
-# Minimal repro, file 1 of 2: a schema whose record type references
-# a named alias ($.schema.T), plus a bag spread that auto-names each
-# record with id(key(0)). Works both directly and through an include
-# (2026-08-26: the include form is fixed, see main.aon).
-schema: {
-  T: type(integer & min(1))
-  Customer: type(close({ id: string, ledgerId: $.schema.T, name: string }))
-}
-customers: { &: id(key(0)) & $.schema.Customer & { id: key() } }

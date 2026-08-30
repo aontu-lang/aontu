@@ -23,13 +23,13 @@
       "grossCents": 4770,
       "id": "inv-3001",
       "netCents": 4008,
-      "orderId": "ord-7001",
+      "orderId": "$.orders.ord-7001",
       "taxCents": 762
     }
   },
   "orders": {
     "ord-7001": {
-      "customerId": "cust-1001",
+      "customerId": "$.customers.cust-1001",
       "id": "ord-7001",
       "lines": [
         {
@@ -49,7 +49,7 @@
       "status": "invoiced"
     },
     "ord-7002": {
-      "customerId": "cust-1002",
+      "customerId": "$.customers.cust-1002",
       "id": "ord-7002",
       "lines": [
         {
@@ -91,11 +91,11 @@
   },
   "receivables": {
     "cust-1001": {
-      "accountFor": "cust-1001",
+      "accountFor": "$.customers.cust-1001",
       "openingCents": 0
     },
     "cust-1002": {
-      "accountFor": "cust-1002",
+      "accountFor": "$.customers.cust-1002",
       "openingCents": 0
     }
   },

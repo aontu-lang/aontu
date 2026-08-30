@@ -1,6 +1,6 @@
 # A ledger sync record whose upstream id is 2^53+1: only the 0d
 # spelling stores it, and it lands as biginteger kind.
-customers: "cust-1003": id("cust-1003") & {
+customers: "cust-1003": {
   ledgerId: 0d9007199254740993
   name: "Baltic Fastener Oy"
   country: "FI"

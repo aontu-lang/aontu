@@ -1,6 +1,0 @@
-# Same schema as vocab.aon but WITHOUT id(key(0)) in the spread.
-schema: {
-  T: type(integer & min(1))
-  Customer: type(close({ id: string, ledgerId: $.schema.T, name: string }))
-}
-customers: { &: $.schema.Customer & { id: key() } }

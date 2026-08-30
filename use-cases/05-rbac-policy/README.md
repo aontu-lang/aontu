@@ -23,7 +23,7 @@ against the real CLI, including the gap repros (asserted at their
 
 | file | carries |
 |---|---|
-| `permissions.aon` | catalog; one `id()` entity per permission, `close()`d record shape, `risk` enum |
+| `permissions.aon` | catalog; `close()`d record shape, `risk` enum. Each key is the last segment of the permission's address |
 | `roles.aon` | `Role` = disjunction of two `close()`d shapes keyed by `privileged`; `close()`d exhaustive registry; `unique()` + `refer()` grants; same-layer `filter()+length()` invariant |
 | `plans.aon` | entitlement as disjunction-of-closed-maps per plan (the tls pattern) |
 | `tenant.aon` | the vet schema: `re()`/`neq()` slug, plain plan enum, `match()`-derived limits and tier, split-spread member records with `refer()` role FK, structural security implication |
@@ -36,18 +36,18 @@ against the real CLI, including the gap repros (asserted at their
 
 ## What worked
 
-- **`id()` + `refer()` as foreign keys is the best feature of the
-  model.** Every permission and role is an entity; every grant and
-  every member's role is a checked address. An unknown role in a
+- **`refer()` as a foreign key is the best feature of the model.**
+  Every grant and every member's role is a checked address — a tree
+  path such as `$.permissions.audit_read` — resolved against the
+  catalog that declares it. An unknown role in a
   tenant document vets `invalid` with a located
   `[aontu/refer_unresolved]` — this is referential integrity JSON
-  Schema simply does not have. (2026-08-26: the *eval-path* proposal
-  `extend-member-grants.aon` still refuses a hallucinated permission
-  with exit 1, but the located refer_unresolved it used to print came
-  from the registry-invariant filter's mid-resolution witness copy —
-  an artifact the spread application rework removed; the surviving
-  diagnostic there is the spurious unify_cycle below. The vet path is
-  unchanged.)
+  Schema simply does not have. (The eval-path proposal
+  `extend-member-grants.aon` refuses a hallucinated permission with
+  exit 1 AND names it: `$.roles.member.grants.3`. That took two goes —
+  a witness-copy artifact removed by the spread application rework in
+  2026-08-26, then the spurious `unify_cycle` that outlived it,
+  removed by ADR-014 along with the identity merge itself.)
 - **`close()` for exhaustiveness** does exactly what the scenario
   needs: `proposals/add-superuser-role.aon` dies with
   `[aontu/closed]: Cannot resolve value at path $.roles.superuser`.
@@ -82,10 +82,11 @@ against the real CLI, including the gap repros (asserted at their
   (`compat_required_added` naming the missing grant), and the exit
   codes (0/1/3/4) make all of this scriptable in CI. Better than
   expected.
-- **Canon preserves policy meaning**: `id("admin_all")`, `refer()`,
-  and the `*"member"|"member"|"admin"|"owner"` default all survive
-  `--canon`, so the canon-hash genuinely covers the *policy*, not
-  just its JSON shadow.
+- **Canon preserves policy meaning**: the grant addresses
+  (`"$.permissions.admin_all"`), `refer()`, and the
+  `*"member"|"member"|"admin"|"owner"` default all survive `--canon`,
+  so the canon-hash genuinely covers the *policy*, not just its JSON
+  shadow.
 
 ## Gaps and friction
 
@@ -337,15 +338,15 @@ should just work.
   first, the error is excellent (`sso: true` vs `false` at the exact
   key) — the difference is whether anything selected the branch
   before it died.
-- `proposals/extend-member-grants.aon` reports a spurious
-  `[aontu/unify_cycle] … Cannot unify value: id(key(0)) with value:
-  id(key(0))`, and its source snippets mix line numbers from
-  `roles.aon` with text from the proposal file. (Until 2026-08-26 a
-  `refer_unresolved` followed it, raised inside the hidden filter's
-  witness copy; the spread application rework's settled-source
-  snapshot removed that artifact, so the unify_cycle is now the whole
-  report — the real-position refer stays unsurfaced inside the
-  still-open Role disjunction, refer-cycles family.)
+- **CLOSED by ADR-014.** `proposals/extend-member-grants.aon` used to
+  report a spurious `[aontu/unify_cycle] … Cannot unify value:
+  id(key(0)) with value: id(key(0))`, with source snippets mixing line
+  numbers from `roles.aon` and text from the proposal file, while the
+  real finding stayed unsurfaced inside the still-open `Role`
+  disjunction. Removing the identity mark removed the merge that
+  produced the cycle, and the refusal now arrives at its own position:
+  `[aontu/refer_unresolved]` at `$.roles.member.grants.3`, the element
+  the agent invented. `check.sh` asserts both the code and the path.
 - Bare strings refuse hyphens (`slug: acme-rockets` →
   `[aontu/unexpected]: unexpected character(s): -`) — fine as a rule,
   but surprising in a model whose natural vocabulary

@@ -175,18 +175,18 @@ has guniq '$.customers'
 ok "unique(ledgerId) catches the duplicate ledgerId across customers"
 
 # 2026-08-26: gap 6 fixed by the template-clone isolation change
-# (ADR-005) — both halves. The id(key(0)) form no longer dies with a
-# bogus id_name, and the id-free form no longer silently drops the
-# record; both emit the fully-unified record. Shared-spec pins:
-# test/spec/file.tsv load-alias-idspread / load-alias-spread.
-run gid 0 -- "$DIR/gaps/include-id-key/main.aon"
+# (ADR-005). This had TWO halves until ADR-014 removed the identity
+# mark and the `id(key(0))` half stopped being a spelling; the shared
+# suite dropped its pin (load-alias-idspread) with it. What remains is
+# the half that was never about identity: an include whose record type
+# references a named alias used to SILENTLY DROP the record -- exit 0,
+# `customers {}` -- which is the failure mode worth a fixture, because
+# a silent drop looks like success. Shared-spec pin: test/spec/file.tsv
+# load-alias-spread.
+run gid 0 -- "$DIR/gaps/include-alias-spread/main.aon"
 has gid '"ledgerId": 5'
 has gid '"id": "cust-1001"'
-ok "fixed: id(key(0)) + include + nested alias emits the record"
-
-run gsilent 0 -- "$DIR/gaps/include-id-key/main-silent.aon"
-has gsilent '"ledgerId": 5'
-ok "fixed: same pattern without id(key(0)) emits the record too"
+ok "fixed: include + nested alias emits the record, not an empty bag"
 
 # 13. THE MONEY WIRE CONVENTION (the review's finding I). Gap 1 said
 # exact money was unreachable from plain JSON. It is reachable -- as a

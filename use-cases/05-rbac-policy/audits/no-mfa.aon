@@ -8,15 +8,15 @@ tenant: {
   name: "Acme Rockets", slug: "acme-rockets", plan: free
   entitlement: { plan: free, sso: false, scim: false, auditLog: false }
   members: {
-    ada:   { role: owner }
-    grace: { role: member }
-    alan:  { role: auditor, invitedBy: ada }
+    ada:   { role: "$.roles.owner" }
+    grace: { role: "$.roles.member" }
+    alan:  { role: "$.roles.auditor", invitedBy: ada }
   }
   security: { mfaRequired: false, sessionTimeoutMinutes: 45 }
 }
 
 audit: hide({
-  exactly_one_owner: length(1) & filter($.tenant.members, { role: owner })
+  exactly_one_owner: length(1) & filter($.tenant.members, { role: "$.roles.owner" })
   seats_within_plan: length(max($.tenant.limits.maxSeats)) & $.tenant.members
   mfa_mandatory: must({ mfaRequired: true },
     "corporate policy CP-114: MFA is mandatory for every tenant") & $.tenant.security
