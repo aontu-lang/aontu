@@ -80,16 +80,6 @@ const EMPTY_ERR: any[] = Object.freeze([]) as unknown as any[]
 let ID = 1000
 
 
-// A fresh Val id, for a carrier that cannot take the one its class
-// fixes: TopVal pins `id = 0` (there is only one top), so a top that
-// must stay distinguishable from it takes one of these instead — the
-// fast path in `unite` returns early on two done Vals with the same
-// id.
-export function nextValId(): number {
-  return ID++
-}
-
-
 abstract class Val {
   // Type-discriminator flags: defaults live on Val.prototype (see
   // bottom of this file). Each subclass overrides only its own

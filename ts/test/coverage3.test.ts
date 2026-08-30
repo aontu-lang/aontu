@@ -40,7 +40,6 @@ import { Provenance, markSpread } from '../dist/provenance'
 import { ReferVal, RelFuncVal, parseAddress, addressPath, findAt } from '../dist/val/ReferFuncVal'
 import { graphOf } from '../dist/graph'
 import { canonRiders } from '../dist/utility'
-import { nextValId } from '../dist/val/Val'
 import {
   candidates as trimCandidates,
   deleteAt as trimDeleteAt,
@@ -1242,7 +1241,10 @@ describe('coverage3-address', () => {
     // paths without an anchor, empty segments, or characters no key
     // spells.
     for (const bad of ['$', '', 'a.b', 'services.auth', '$.', '$.a.',
-      '$..a', '.', '..', '$.a b', '$.a:b', '$.a/b']) {
+      '$..a', '.', '..', '$.a b', '$.a:b', '$.a/b',
+      // ... and the same refusals on the RELATIVE arm, which validates
+      // its segments separately.
+      '.a b', '.a/b', '..a.', '.a..b']) {
       Assert.strictEqual(parseAddress(bad), undefined, bad)
     }
   })

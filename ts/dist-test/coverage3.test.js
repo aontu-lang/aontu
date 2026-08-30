@@ -1057,7 +1057,10 @@ function capture(fn) {
         // paths without an anchor, empty segments, or characters no key
         // spells.
         for (const bad of ['$', '', 'a.b', 'services.auth', '$.', '$.a.',
-            '$..a', '.', '..', '$.a b', '$.a:b', '$.a/b']) {
+            '$..a', '.', '..', '$.a b', '$.a:b', '$.a/b',
+            // ... and the same refusals on the RELATIVE arm, which validates
+            // its segments separately.
+            '.a b', '.a/b', '..a.', '.a..b']) {
             Assert.strictEqual((0, ReferFuncVal_1.parseAddress)(bad), undefined, bad);
         }
     });

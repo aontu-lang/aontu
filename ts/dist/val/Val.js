@@ -2,7 +2,6 @@
 /* Copyright (c) 2022-2025 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.EMPTY_ERR = exports.SPREAD = exports.DONE = exports.Val = void 0;
-exports.nextValId = nextValId;
 exports.empty = empty;
 exports.repathInstance = repathInstance;
 const node_util_1 = require("node:util");
@@ -25,14 +24,6 @@ exports.EMPTY_ERR = EMPTY_ERR;
 // that is acceptable — an id is a small number and is never used as a
 // memory key. TODO: switch to the per-run ctx.vc counter (see ctx.ts).
 let ID = 1000;
-// A fresh Val id, for a carrier that cannot take the one its class
-// fixes: TopVal pins `id = 0` (there is only one top), so a top that
-// must stay distinguishable from it takes one of these instead — the
-// fast path in `unite` returns early on two done Vals with the same
-// id.
-function nextValId() {
-    return ID++;
-}
 class Val {
     get site() {
         return this._site ??= new site_1.Site();

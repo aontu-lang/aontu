@@ -384,7 +384,8 @@
 #
 # ---------------------------------------------------------------------
 #
-# OPEN -- Go's DERIVED GRAPH loses most of its edges on a two-view
+# CLOSED 2026-08-30 by ADR-013 -- Go's DERIVED GRAPH loses most of its
+#   edges on a two-view
 #   id-merged model, so `relations` silently misses a real cycle and
 #   `reaches` would under-answer with it.
 #   issue: none filed yet; found 2026-08-27 while landing the relations
@@ -421,15 +422,22 @@
 #   agrees in both ports. The reproduction is the use case itself,
 #   which is in the tree.
 #
-#   Guarded meanwhile: use-cases/01-service-catalog/check.sh asserts the
-#   cycle, so the Go CLI fails that check today rather than passing it
-#   quietly -- which is the honest state, and how a fix will be noticed.
+#   Guarded meanwhile: use-cases/01-service-catalog/check.sh asserted
+#   the cycle, so the Go CLI failed that check rather than passing it
+#   quietly -- which is how the fix was noticed.
+#
+#   FIXED by removing the cause. The divergence was in "how each port's
+#   identity merge places a link-stamped value at an entity's other
+#   positions"; ADR-013 removes the identity merge, so there are no
+#   other positions and a link is stamped where it is written. Both
+#   ports now report the same cycle over the same edge set, and
+#   `AONTU=<go binary> check.sh` passes all 20 assertions.
 
 #
 # ---------------------------------------------------------------------
 #
-# OPEN -- an id-spread refusal is pathed at `$` by TypeScript and at
-#   `$.&` by Go.
+# CLOSED 2026-08-30 by ADR-013 -- an id-spread refusal is pathed at `$`
+#   by TypeScript and at `$.&` by Go.
 #   issue: none filed yet; found 2026-08-27 while fixing the crash the
 #   same document caused (use-cases/BUGS.md 43). PRE-EXISTING and
 #   engine-level: plain evaluation disagrees the same way, so it is not
@@ -439,13 +447,19 @@
 #   TypeScript: [aontu/id_spread] Cannot resolve value at path $
 #   Go:         [aontu/id_spread] Cannot resolve value at path $.&
 #
-#   Not simply fixed because it is a question about where a bag
+#   Was not simply fixed because it is a question about where a bag
 #   spread's own refusal SITS -- at the bag, or at the `&` entry that
 #   carries it -- which is a language answer rather than a port
-#   difference, and neither port is obviously right. The VERDICT, the
-#   code and the exit agree, which is what a caller acts on; the
-#   per-port tests named in 43 assert those and deliberately not the
-#   path.
+#   difference, and neither port was obviously right.
+#
+#   MOOT since ADR-013: `id_spread` was clearing rule 3, and the rule
+#   existed only to stop one global name being stamped on every child
+#   of a bag. With no global names there is no rule and no code. The
+#   SHAPE the divergence was about -- a nil root carrying no collected
+#   error -- still exists and is still guarded: `&:` alone (an elided
+#   spread value) produces it, and the per-port tests named in BUGS.md
+#   43 now drive that instead. They still assert the verdict, the code
+#   and the exit, and deliberately not the path.
 
 #
 # ---------------------------------------------------------------------
