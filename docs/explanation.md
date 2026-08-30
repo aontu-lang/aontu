@@ -359,7 +359,7 @@ about their relations — under the magic key the declaration's *meaning*
 lived outside the hash's reach, in the verb.
 
 The precise rules are the reference's
-[Identity](reference-language.md#identity-idname) and
+[Linking](reference-language.md#linking-the-tree-is-the-namespace) and
 [Declared relations](reference-language.md#declared-relations)
 sections; the live versions are
 [use-cases/12-relations](../use-cases/12-relations/) (an ETL pipeline

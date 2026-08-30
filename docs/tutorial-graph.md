@@ -585,9 +585,9 @@ of questions to have asked about payments and ledger before 04:11.
   [query reachability](how-to/query-reachability.md),
   [define a recursive schema](how-to/define-a-recursive-schema.md).
 - The rules in full:
-  [identity](reference-language.md#identity-idname),
-  [entity references](reference-language.md#entity-references-refert),
+  [linking](reference-language.md#linking-the-tree-is-the-namespace),
+  [checked links](reference-language.md#checked-links-refert),
   [declared relations](reference-language.md#declared-relations),
   [recursive references](reference-language.md#recursive-references-fixpoints).
-- Why identity refuses where `owl:sameAs` silently merged, and why
+- Why a checked link refuses where `owl:sameAs` silently merged, and why
   the graph checks are verbs: the [explanation](explanation.md).
