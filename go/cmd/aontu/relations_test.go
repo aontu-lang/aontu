@@ -32,12 +32,12 @@ func relationsFile(t *testing.T, src string) string {
 	return file
 }
 
-const relCyclic = `a: id(a) & {dependsOn: rel() & inverse(usedBy) & acyclic() & [b]}
-b: id(b) & {dependsOn: rel() & inverse(usedBy) & acyclic() & [a]}
+const relCyclic = `a: {dependsOn: rel() & inverse(usedBy) & acyclic() & ["$.b"]}
+b: {dependsOn: rel() & inverse(usedBy) & acyclic() & ["$.a"]}
 `
 
-const relClean = `a: id(a) & {dependsOn: rel() & inverse(usedBy) & acyclic() & [b]}
-b: id(b) & {usedBy: rel() & [a]}
+const relClean = `a: {dependsOn: rel() & inverse(usedBy) & acyclic() & ["$.b"]}
+b: {usedBy: rel() & ["$.a"]}
 `
 
 // (The old declared-target rendering is gone with the code: rel(t)
@@ -53,11 +53,11 @@ func TestRelationsVerb(t *testing.T) {
 		t.Fatalf("want 1, got %d:\n%s", code, out)
 	}
 	vetMatch(t, out, `verdict: fail`)
-	vetMatch(t, out, `cycle a -> b -> a`)
-	vetMatch(t, out, `b does not list a under usedBy`)
+	vetMatch(t, out, `cycle \$\.a -> \$\.b -> \$\.a`)
+	vetMatch(t, out, `\$\.b does not list \$\.a under usedBy`)
 
 	// A document that declares nothing has nothing to break.
-	file = relationsFile(t, "a: id(a) & {}\n")
+	file = relationsFile(t, "a: {}\n")
 	out, _, code = relationsRun(file)
 	if 0 != code || "verdict: pass" != strings.TrimSpace(out) {
 		t.Fatalf("want pass/0, got %d:\n%s", code, out)

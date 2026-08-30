@@ -240,14 +240,6 @@ func computePathFunc(v Val) bool {
 		switch n.name {
 		case "key", "path", "move", "super":
 			return true
-		case "id":
-			// BARE `id()` is named by the enclosing key, so its meaning
-			// depends on where it lands (RELATIONS.0.md §3.1) -- the
-			// no-arg form only; `id(name)` stays constant. The TS twin
-			// sets _isPathDependent in the IdFuncVal constructor.
-			if 0 == len(n.peg) {
-				return true
-			}
 		}
 		for _, a := range n.peg {
 			if hasPathFunc(a) {
@@ -738,19 +730,6 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 		spreadCj = out.spread
 	}
 
-	// The template REFUSED at parse (clearing rule 3, G4 phase 1): the
-	// bag itself is that refusal. Returning the nil here rather than
-	// only letting it reach the children is what makes an EMPTY bag
-	// with a bad template an error too — there are no children to carry
-	// it. Narrow to THIS code on purpose: a nil spread from any other
-	// cause keeps its existing behaviour of driving every key. Mirrors
-	// the same arm in ts/src/val/MapVal.ts and ts/src/val/ListVal.ts.
-	// NOT added to ctx.err here: a parse-time refusal is a nil IN THE
-	// TREE, and canon renders it (`{"a":nil}`) exactly as it renders a
-	// bad arity or an unknown function; generation is what reports it.
-	if nv, ok := spreadCj.(*NilVal); ok && "id_spread" == nv.why {
-		return nv
-	}
 
 	// Snapshot a path-dependent ref spread to its structural target once
 	// (see snapshotRefSpread), so later passes don't capture the

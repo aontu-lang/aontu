@@ -3,6 +3,7 @@
 package aontu
 
 import (
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -34,32 +35,6 @@ func unite(ctx *Ctx, a, b Val) Val {
 	if nil != ctx.prov {
 		ctx.prov.record(provPath, a, b, out)
 	}
-	// The IDENTITY survives every meet (G4 phase 1), by the same
-	// channel and for the same reason as the deprecation rider below.
-	// TWO DIFFERENT NAMES on one node is a contradiction, not a merge:
-	// one node cannot be two entities, and the error names both sites.
-	// Mirrors the identity rider in ts/src/unify.ts.
-	if nil != out && !out.Nil() {
-		ae, be := "", ""
-		if nil != a {
-			ae = a.entityName()
-		}
-		if nil != b {
-			be = b.entityName()
-		}
-		if "" != ae && "" != be && ae != be {
-			out = makeNilErr(ctx, "id_conflict", a, b)
-		} else if !isTop(out) {
-			e := ae
-			if "" == e {
-				e = be
-			}
-			if "" != e {
-				out.setEntityName(e)
-			}
-		}
-	}
-
 	// The deprecation record survives EVERY meet (G3 phase 4): the
 	// boolean marks have their own sweeps (conjunct, the bag walks),
 	// but a record lost in one meet shape is a use the tooling never
@@ -180,6 +155,67 @@ const maxUniteDepth = 1000
 // unifyRoot runs the fixpoint loop: repeatedly unify the result with
 // TOP until it converges (Dc == DONE) or an error is collected. ctx.root
 // is refreshed each pass so references resolve against the latest tree.
+// THE TYPE FLOW, APPLIED (G4 phase 2). `refer(t)` unifies `t` INTO the
+// node it addresses, which is a write at a position the meet is not
+// currently at -- the one non-local effect in the evaluator.
+//
+// It cannot be only a write made during the pass. A pass BUILDS a new
+// tree from the old one, and a subtree rebuilt by the pass (which is
+// exactly what happens when the link sits inside its own target, or
+// when two nodes link at each other) drops a write made into the
+// previous one. So each flow is also RECORDED, keyed by the target's
+// path, and re-applied to the pass's own result here.
+//
+// Keyed by PATH, so there is no registry of names to collide in
+// (ADR-014) -- the key is the position the address resolved to, and
+// re-uniting the same type at the same position is idempotent, which is
+// what makes replaying every recorded flow every pass correct rather
+// than merely cheap. Mirrors applyFlows in ts/src/unify.ts.
+func applyFlows(ctx *Ctx, root Val) Val {
+	// NOTHING TO APPLY is the common case -- a document with no links
+	// pays one map length per pass, and the walk never runs.
+	if 0 == len(ctx.referflows) {
+		return root
+	}
+	// Sorted, so two flows landing at overlapping positions arrive in
+	// the same order in both ports (Go map order is random).
+	keys := make([]string, 0, len(ctx.referflows))
+	for k := range ctx.referflows {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		path := strings.Split(key, "\x00")
+		site, ok := findAt(root, path)
+		// A RECORDED PATH THAT NO LONGER RESOLVES is skipped rather
+		// than refused: the record outliving its position is a
+		// question about the tree, and the link that named it answers
+		// it (refer.tsv, `flow-target-moved-away`).
+		//
+		// NO DOCUMENT REACHES IT: a record is written only for a path
+		// that HAD resolved, and unification never takes a node back
+		// out of the tree -- `move` copies and hides its source rather
+		// than removing it, which is the one rearrangement that looked
+		// like it would (probed: the flow still resolves on every
+		// pass, `flow-lands-then-its-parent-moves`). The guard is the
+		// contract for a rearrangement that does.
+		if !ok { //coverage:ignore a recorded path always resolves; see above
+			continue
+		}
+		merged := unite(ctx, site.val, ctx.referflows[key])
+		switch p := site.parent.(type) {
+		case *MapVal:
+			p.set(site.key, merged)
+		case *ListVal:
+			if i, err := strconv.Atoi(site.key); nil == err {
+				p.peg[i] = merged
+			}
+		}
+	}
+	return root
+}
+
+
 func unifyRoot(root Val, ctx *Ctx) Val {
 	if root.Nil() {
 		return root
@@ -240,11 +276,11 @@ func unifyRoot(root Val, ctx *Ctx) Val {
 
 		res = unite(ctx, res, top())
 
-		// The identity merge, after the pass's own unification: the
-		// positions this pass produced are what there is to merge
-		// (identity.go, mirroring the mergeEntities call in the TS pass
-		// loop).
-		res = mergeEntities(ctx, res)
+		// The recorded type flows, re-applied to the tree THIS pass
+		// built: a pass rebuilds subtrees, and a flow written into the
+		// previous pass's tree does not survive that. Mirrors the
+		// applyFlows call in the TS pass loop.
+		res = applyFlows(ctx, res)
 
 		// MULTI-ERROR COLLECTION (G2 phase 6): the pass loop CONTINUES
 		// past an erroring pass, so independent failures a later pass

@@ -32,9 +32,9 @@ std: {
     protocol?: string
   })
 
-  # A node with ports. A Component that is not itself an entity is a
-  # component OF its nearest identified ancestor, which is the
-  # entity/component distinction and needs no mark of its own.
+  # A node with ports. Where a Component sits in the tree is what it
+  # is a component OF -- containment is the document's own structure
+  # and needs no mark of its own.
   Component: type({
     ports?: {&: $.std.Port}
   })

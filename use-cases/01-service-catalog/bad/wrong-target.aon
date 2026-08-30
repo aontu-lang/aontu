@@ -11,6 +11,6 @@
 @"../system.aon"
 
 infra: {
-  bastion: id(svc_bastion) & { kind: host, name: "bastion-eu1" }
-  runner: id(svc_runner) & { hostedOn: rel($.std.Service) & [svc_bastion] }
+  bastion: { kind: host, name: "bastion-eu1" }
+  runner: { hostedOn: rel($.std.Service) & ["$.infra.bastion"] }
 }

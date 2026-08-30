@@ -2,7 +2,6 @@
 /* Copyright (c) 2022-2025 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.EMPTY_ERR = exports.SPREAD = exports.DONE = exports.Val = void 0;
-exports.nextValId = nextValId;
 exports.spreadId = spreadId;
 exports.empty = empty;
 exports.repathInstance = repathInstance;
@@ -26,15 +25,6 @@ exports.EMPTY_ERR = EMPTY_ERR;
 // that is acceptable — an id is a small number and is never used as a
 // memory key. TODO: switch to the per-run ctx.vc counter (see ctx.ts).
 let ID = 1000;
-// A fresh Val id, for the one carrier that cannot take the one its
-// class fixes: TopVal pins `id = 0` (there is only one top), and the
-// identity mark (G4 phase 1) resolves to a top that must NOT collide
-// with it — the fast path in `unite` returns early on two done Vals
-// with the same id, which would drop an identity before the rider
-// could carry it.
-function nextValId() {
-    return ID++;
-}
 class Val {
     get site() {
         return this._site ??= new site_1.Site();
@@ -136,14 +126,10 @@ class Val {
         out.mark = Object.assign({}, this.mark, fullspec.mark ?? {});
         out.mark.type = this.mark.type && (fullspec.mark?.type ?? true);
         out.mark.hide = this.mark.hide && (fullspec.mark?.hide ?? true);
-        // The two IDENTITY riders travel together, under one test: the
-        // entity a value IS, and the address a resolved link POINTS AT.
-        // One guard rather than two because the pair is what a clone
-        // either carries or does not — and because a second test for the
-        // link alone would be a branch no document takes, the reference
-        // clone catching the pending residual before it ever resolves.
-        if (null != this.entity || null != this.link) {
-            out.entity = this.entity;
+        // The LINK rider travels with the clone: the address a resolved
+        // link POINTS AT is part of what the value is, and a copy of a
+        // link is still a link.
+        if (null != this.link) {
             out.link = this.link;
         }
         if (null != this.deprecation) {
@@ -201,7 +187,7 @@ class Val {
     // once per destination child, and each application must own its
     // path-dependent innards — a bare clone shared a call's arguments
     // and a preference's inner value across destinations, so a spread
-    // like `&: id(key(0)) & $.schema.C` resolved its one shared key()
+    // like `&: {k: key(0)} & $.schema.C` resolved its one shared key()
     // at the first child it met (use-cases/BUGS.md §12's id_name form).
     spreadClone(ctx) {
         const out = this.clone(ctx, { dup: true });

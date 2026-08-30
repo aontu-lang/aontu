@@ -1,100 +1,74 @@
-# G4 phase 3: the DERIVED STRUCTURES
+# G4 phase 3: the DERIVED STRUCTURE
 # (docs/capability-review/g4-identity-relations.md). An evaluated
-# document has, besides its value, a GRAPH: an entity index (id -> the
-# tree paths that hold it) and an edge set (the checked links, each
-# from one entity to one address).
+# document has, besides its value, a GRAPH: the set of checked links,
+# each from one tree position to another.
+#
+# The graph is PATH-NATIVE (ADR-014). There is no entity index, because
+# there is no second namespace to index -- a node's address IS its path.
+# The node a link starts at is DERIVED from where the link sits: strip
+# the list indices, and the first real key above the link is the
+# relation, its parent the source. A rel()-minted link carries its
+# predicate DECLARED, and is cut at that key wherever it sits, which is
+# what makes a map-valued relation report the relation rather than the
+# inner label.
 #
 # Mode `graph`, four columns; `expect` is the whole graph as JSON.
 # BOTH runners additionally re-derive it on a fresh engine and require
 # the same bytes: determinism is asserted as a PROPERTY here, not
 # claimed in prose. It is what makes a byte-comparable golden possible
-# at all -- Go map order is random, so ids, paths and edges are sorted
-# by construction rather than by luck.
+# at all -- Go map order is random, so edges are sorted by construction
+# rather than by luck.
 #
-# G4's deliverable is that these exist and are deterministic. What is
-# built on them -- impact analysis ("what reaches svc_auth?"),
-# reachability, entity slices -- is a traversal, and its exposure as
-# verbs and projections belongs to G7. Relation properties
-# (acyclicity, inverse consistency) are phase 5's, and consume exactly
-# this edge set.
+# G4's deliverable is that this exists and is deterministic. What is
+# built on it -- impact analysis ("what reaches $.services.auth?"),
+# reachability, node slices -- is a traversal, and its exposure as verbs
+# and projections belongs to G7. Relation properties (acyclicity,
+# inverse consistency) are phase 5's, and consume exactly this edge set.
 #
 # Every expectation was obtained by the parity probe (AGENTS.md).
-index-one-entity	graph	a: id(svc_auth) & {port:8080}	{"entities":[{"id":"svc_auth","paths":["$.a"]}],"edges":[]}
-index-two-positions	graph	a: id(x) & {k:1}\nb: id(x) & {j:2}	{"entities":[{"id":"x","paths":["$.a","$.b"]}],"edges":[]}
-index-three-positions	graph	a: id(x) & {k:1}\nb: id(x) & {j:2}\nc: id(x) & {m:3}	{"entities":[{"id":"x","paths":["$.a","$.b","$.c"]}],"edges":[]}
-index-sorted-by-id	graph	b: id(zeta) & {}\na: id(alpha) & {}\nc: id(mid) & {}	{"entities":[{"id":"alpha","paths":["$.a"]},{"id":"mid","paths":["$.c"]},{"id":"zeta","paths":["$.b"]}],"edges":[]}
-index-paths-sorted	graph	z: id(x) & {}\na: id(x) & {}\nm: id(x) & {}	{"entities":[{"id":"x","paths":["$.a","$.m","$.z"]}],"edges":[]}
-index-nested-entities	graph	a: id(x) & {p: id(y) & {q:1}}	{"entities":[{"id":"x","paths":["$.a"]},{"id":"y","paths":["$.a.p"]}],"edges":[]}
-index-empty-without-identity	graph	a: {k:1}\nb: [1,2]	{"entities":[],"edges":[]}
-index-entity-in-a-list	graph	a: [id(x) & {k:1}]	{"entities":[{"id":"x","paths":["$.a.0"]}],"edges":[]}
 
-# --- The edge set -----------------------------------------------------
-#
-# `from` is the nearest identified ANCESTOR -- the entity/component
-# distinction, a node without an id being a component of the entity
-# above it -- and `key` is the nearest map key below that ancestor, so
-# a link inside a list is an edge under its relation rather than under
-# its index. A cycle in the data is DATA: the lattice never refuses one
-# (that would be non-monotone), and phase 5's checks read this set.
-edge-from-a-list-spread	graph	services: {\n  auth: id(svc_auth) & {port:8080}\n  billing: id(svc_billing) & {\n    dependsOn: [&: refer(), svc_auth]\n  }\n}	{"entities":[{"id":"svc_auth","paths":["$.services.auth"]},{"id":"svc_billing","paths":["$.services.billing"]}],"edges":[{"from":"svc_billing","key":"dependsOn","to":"svc_auth","at":"$.services.billing.dependsOn.0"}]}
-edge-two-in-one-relation	graph	z: id(a) & {}\ny: id(b) & {}\ns: id(s) & {dependsOn: [&: refer(), a, b]}	{"entities":[{"id":"a","paths":["$.z"]},{"id":"b","paths":["$.y"]},{"id":"s","paths":["$.s"]}],"edges":[{"from":"s","key":"dependsOn","to":"a","at":"$.s.dependsOn.0"},{"from":"s","key":"dependsOn","to":"b","at":"$.s.dependsOn.1"}]}
-edge-key-is-the-relation-not-the-index	graph	z: id(a) & {}\ns: id(s) & {dependsOn: [&: refer(), a]}	{"entities":[{"id":"a","paths":["$.z"]},{"id":"s","paths":["$.s"]}],"edges":[{"from":"s","key":"dependsOn","to":"a","at":"$.s.dependsOn.0"}]}
-edge-map-valued-relation	graph	z: id(a) & {}\ns: id(s) & {uses: {primary: refer() & "a"}}	{"entities":[{"id":"a","paths":["$.z"]},{"id":"s","paths":["$.s"]}],"edges":[{"from":"s","key":"primary","to":"a","at":"$.s.uses.primary"}]}
-edge-outside-every-entity	graph	a: refer() & "x"\nz: id(x) & {}	{"entities":[{"id":"x","paths":["$.z"]}],"edges":[{"from":"","key":"a","to":"x","at":"$.a"}]}
-edge-from-the-nearest-entity	graph	a: id(x) & {p: id(y) & {q: refer() & "x"}}	{"entities":[{"id":"x","paths":["$.a"]},{"id":"y","paths":["$.a.p"]}],"edges":[{"from":"y","key":"q","to":"x","at":"$.a.p.q"}]}
-edge-into-a-node-inside-an-entity	graph	z: id(a) & {ports: {http: 80}}\ns: id(s) & {uses: refer() & "a.ports.http"}	{"entities":[{"id":"a","paths":["$.z"]},{"id":"s","paths":["$.s"]}],"edges":[{"from":"s","key":"uses","to":"a.ports.http","at":"$.s.uses"}]}
-edge-self	graph	s: id(s) & {uses: refer() & "s"}	{"entities":[{"id":"s","paths":["$.s"]}],"edges":[{"from":"s","key":"uses","to":"s","at":"$.s.uses"}]}
-edge-cycle-is-data-not-an-error	graph	a: id(a) & {next: refer() & "b"}\nb: id(b) & {next: refer() & "a"}	{"entities":[{"id":"a","paths":["$.a"]},{"id":"b","paths":["$.b"]}],"edges":[{"from":"a","key":"next","to":"b","at":"$.a.next"},{"from":"b","key":"next","to":"a","at":"$.b.next"}]}
+# --- No links, no edges ----------------------------------------------
+empty-without-links	graph	a: {k:1}\nb: [1,2]	{"edges":[]}
+empty-for-a-plain-string	graph	z: {}\ns: {uses: "$.z"}	{"edges":[]}
 
-# --- What is and is not an edge --------------------------------------
+# --- The cut: where an edge starts, and what relation it is ----------
+edge-under-a-key	graph	z: {}\ns: {uses: refer() & "$.z"}	{"edges":[{"from":"$.s","key":"uses","to":"$.z","at":"$.s.uses"}]}
+edge-key-is-the-relation-not-the-index	graph	z: {}\ns: {dependsOn: [&: refer(), "$.z"]}	{"edges":[{"from":"$.s","key":"dependsOn","to":"$.z","at":"$.s.dependsOn.0"}]}
+edge-two-in-one-relation	graph	z: {}\ny: {}\ns: {dependsOn: [&: refer(), "$.z", "$.y"]}	{"edges":[{"from":"$.s","key":"dependsOn","to":"$.z","at":"$.s.dependsOn.0"},{"from":"$.s","key":"dependsOn","to":"$.y","at":"$.s.dependsOn.1"}]}
+edge-from-a-nested-node	graph	a: {p: {q: refer() & "$.a"}}	{"edges":[{"from":"$.a.p","key":"q","to":"$.a","at":"$.a.p.q"}]}
+edge-at-the-top-of-the-document	graph	a: refer() & "$.z"\nz: {}	{"edges":[{"from":"$","key":"a","to":"$.z","at":"$.a"}]}
+edge-into-a-node-inside-a-node	graph	z: {ports: {http: 80}}\ns: {uses: refer() & "$.z.ports.http"}	{"edges":[{"from":"$.s","key":"uses","to":"$.z.ports.http","at":"$.s.uses"}]}
+edge-self	graph	s: {uses: refer() & "$.s"}	{"edges":[{"from":"$.s","key":"uses","to":"$.s","at":"$.s.uses"}]}
+edge-cycle-is-data-not-an-error	graph	a: {next: refer() & "$.b"}\nb: {next: refer() & "$.a"}	{"edges":[{"from":"$.a","key":"next","to":"$.b","at":"$.a.next"},{"from":"$.b","key":"next","to":"$.a","at":"$.b.next"}]}
+edge-link-with-a-held-constraint	graph	z: {}\ns: {uses: refer() & string & "$.z"}	{"edges":[{"from":"$.s","key":"uses","to":"$.z","at":"$.s.uses"}]}
+
+# --- A relative address is resolved, not spelled ---------------------
 #
-# A checked link is stamped; a plain string that happens to look like
-# an address is not, so nothing has to guess. A CLONE keeps the stamp:
-# an identity says what a value IS, so a copy must not be that entity,
-# but a link says what a value POINTS AT and a copy of a link points at
-# the same thing.
-edge-none-for-a-plain-string	graph	z: id(a) & {}\ns: id(s) & {uses: "a"}	{"entities":[{"id":"a","paths":["$.z"]},{"id":"s","paths":["$.s"]}],"edges":[]}
-edge-none-for-a-ref-clone	graph	z: id(a) & {u: refer() & "a"}\ns: $.z	{"entities":[{"id":"a","paths":["$.z"]}],"edges":[{"from":"","key":"u","to":"a","at":"$.s.u"},{"from":"a","key":"u","to":"a","at":"$.z.u"}]}
-edge-none-for-a-copy	graph	z: id(a) & {u: refer() & "a"}\ns: copy($.z)	{"entities":[{"id":"a","paths":["$.z"]}],"edges":[{"from":"","key":"u","to":"a","at":"$.s.u"},{"from":"a","key":"u","to":"a","at":"$.z.u"}]}
-edge-link-with-a-held-constraint	graph	z: id(a) & {}\ns: id(s) & {uses: refer() & string & "a"}	{"entities":[{"id":"a","paths":["$.z"]},{"id":"s","paths":["$.s"]}],"edges":[{"from":"s","key":"uses","to":"a","at":"$.s.uses"}]}
-graph-of-the-merged-entity	graph	catalog: payments: id(svc_payments) & {owner: "team-pay"}\ndeploy: eu1: payments: id(svc_payments) & {replicas: 3}	{"entities":[{"id":"svc_payments","paths":["$.catalog.payments","$.deploy.eu1.payments"]}],"edges":[]}
-# The ROOT can be the entity, and an entity can BE a link: the index
-# path is `$` and the relation key is empty, because there is no key
-# between the entity and the link.
-index-root-entity	graph	id(x) & {k:1}	{"entities":[{"id":"x","paths":["$"]}],"edges":[]}
-edge-at-the-entity-itself	graph	z: id(a) & {}\ns: id(s) & refer() & "a"	{"entities":[{"id":"a","paths":["$.z"]},{"id":"s","paths":["$.s"]}],"edges":[{"from":"s","key":"","to":"a","at":"$.s"}]}
-# A reference to a value that IS a link clones the link, stamp and all
-# — including when the clone happens after the address has resolved, so
-# what travels is the resolved string rather than a residual.
-edge-ref-to-a-link	graph	z: id(a) & {u: refer() & "a"}\ns: $.z.u	{"entities":[{"id":"a","paths":["$.z"]}],"edges":[{"from":"","key":"s","to":"a","at":"$.s"},{"from":"a","key":"u","to":"a","at":"$.z.u"}]}
-edge-copy-of-a-link	graph	z: id(a) & {u: refer() & "a"}\ns: copy($.z.u)	{"entities":[{"id":"a","paths":["$.z"]}],"edges":[{"from":"","key":"s","to":"a","at":"$.s"},{"from":"a","key":"u","to":"a","at":"$.z.u"}]}
-edge-ref-to-a-link-in-a-map	graph	z: id(a) & {u: refer() & "a"}\ns: {v: $.z.u}	{"entities":[{"id":"a","paths":["$.z"]}],"edges":[{"from":"","key":"v","to":"a","at":"$.s.v"},{"from":"a","key":"u","to":"a","at":"$.z.u"}]}
+# The edge's far end is the PATH the address resolved to, not the text
+# the author wrote: a relative address means a different node from each
+# position it is written at, and an edge set whose far ends were
+# spellings could not be traversed. The link's own VALUE is still what
+# was written -- `gens` in refer.tsv pins that.
+edge-relative-resolves	graph	x: {auth: {}, dep: refer() & ".auth"}	{"edges":[{"from":"$.x","key":"dep","to":"$.x.auth","at":"$.x.dep"}]}
+edge-relative-one-up	graph	x: {auth: {}, billing: {dep: refer() & "..auth"}}	{"edges":[{"from":"$.x.billing","key":"dep","to":"$.x.auth","at":"$.x.billing.dep"}]}
+edge-relative-per-instance	graph	M: {auth: {}, billing: {dep: refer() & "..auth"}}\nT: $.M	{"edges":[{"from":"$.M.billing","key":"dep","to":"$.M.auth","at":"$.M.billing.dep"},{"from":"$.T.billing","key":"dep","to":"$.M.auth","at":"$.T.billing.dep"}]}
+
+# --- Copies and references carry their links -------------------------
 #
-# BARE id() entity sets (RELATIONS.0.md §3.1). The spread-of-type row
-# is the schema idiom: the DEFINITION resolves at its own key too (a
-# type body is an entity named by the schema's key), and each child at
-# its own. The plain-reference row is clearing rule 1: a copy carries
-# values, never identity.
-index-bare-id	graph	services: {payments: id() & {k: 1}}	{"entities":[{"id":"payments","paths":["$.services.payments"]}],"edges":[]}
-index-bare-id-spread	graph	t: {&: id() & {kind: string}, a: {kind: k1}, b: {kind: k2}}	{"entities":[{"id":"a","paths":["$.t.a"]},{"id":"b","paths":["$.t.b"]}],"edges":[]}
-index-bare-id-spread-of-type	graph	S: type(id() & {kind: string})\nsvcs: {&: $.S, payments: {kind: pay}, ledger: {kind: led}}	{"entities":[{"id":"S","paths":["$.S"]},{"id":"ledger","paths":["$.svcs.ledger"]},{"id":"payments","paths":["$.svcs.payments"]}],"edges":[]}
-index-bare-id-plain-ref-copies-no-identity	graph	S: type(id() & {kind: string})\np1: $.S & {kind: a}	{"entities":[{"id":"S","paths":["$.S"]}],"edges":[]}
-edge-into-a-bare-id-entity	graph	p: id() & {k:1}\nq: refer() & "p"	{"entities":[{"id":"p","paths":["$.p"]}],"edges":[{"from":"","key":"q","to":"p","at":"$.q"}]}
-#
-# rel() EDGES: THE PREDICATE IS DECLARED, NEVER INFERRED -- it is the
-# key the rel() sits on. The map-valued row is the fix the inference
-# could not reach: the edge reports under `uses`, where the old
-# nearest-key rule named the inner label `primary`
-# (edge-map-valued-relation above pins the refer() legacy).
-edge-rel-list-predicate	graph	a: id() & {}\nb: id() & {}\ns: id() & {dependsOn: rel() & [a, b]}	{"entities":[{"id":"a","paths":["$.a"]},{"id":"b","paths":["$.b"]},{"id":"s","paths":["$.s"]}],"edges":[{"from":"s","key":"dependsOn","to":"a","at":"$.s.dependsOn.0"},{"from":"s","key":"dependsOn","to":"b","at":"$.s.dependsOn.1"}]}
-edge-rel-map-predicate-is-the-rel-key	graph	a: id() & {}\ns: id() & {uses: rel() & {primary: a}}	{"entities":[{"id":"a","paths":["$.a"]},{"id":"s","paths":["$.s"]}],"edges":[{"from":"s","key":"uses","to":"a","at":"$.s.uses.primary"}]}
-edge-rel-through-a-schema	graph	S: type({dependsOn?: rel()})\na: id() & {}\ns: id() & $.S & {dependsOn: [a]}	{"entities":[{"id":"a","paths":["$.a"]},{"id":"s","paths":["$.s"]}],"edges":[{"from":"s","key":"dependsOn","to":"a","at":"$.s.dependsOn.0"}]}
-# A rel() in LIST-ELEMENT position stamps no predicate (an index is
-# not a D-1 name): the edge takes the path inference's key, exactly as
-# an unlabelled refer() link does, in both ports.
-rel-list-element-edge	graph	q: id() & {}\na: [rel() & q]	{"entities":[{"id":"q","paths":["$.q"]}],"edges":[{"from":"","key":"a","to":"q","at":"$.a.0"}]}
-# A rel() on a key OUTSIDE the D-1 name grammar also stamps nothing --
-# and the path inference then labels the edge with that key anyway:
-# the filter governs the DECLARED predicate, not what inference may
-# still read off the tree.
-rel-nonname-key-edge	graph	q: id() & {}\ns: id(s) & {"a b": rel() & [q]}	{"entities":[{"id":"q","paths":["$.q"]},{"id":"s","paths":["$.s"]}],"edges":[{"from":"s","key":"a b","to":"q","at":"$.s.a b.0"}]}
+# A link says what a value POINTS AT, and a copy of a link points at the
+# same thing, so both a reference clone and a copy() produce a second
+# edge at the second position.
+edge-through-a-ref-clone	graph	z: {u: refer() & "$.z"}\ns: $.z	{"edges":[{"from":"$.s","key":"u","to":"$.z","at":"$.s.u"},{"from":"$.z","key":"u","to":"$.z","at":"$.z.u"}]}
+edge-through-a-copy	graph	z: {u: refer() & "$.z"}\ns: copy($.z)	{"edges":[{"from":"$.s","key":"u","to":"$.z","at":"$.s.u"},{"from":"$.z","key":"u","to":"$.z","at":"$.z.u"}]}
+edge-ref-to-a-link	graph	z: {u: refer() & "$.z"}\ns: $.z.u	{"edges":[{"from":"$","key":"s","to":"$.z","at":"$.s"},{"from":"$.z","key":"u","to":"$.z","at":"$.z.u"}]}
+edge-copy-of-a-link	graph	z: {u: refer() & "$.z"}\ns: copy($.z.u)	{"edges":[{"from":"$","key":"s","to":"$.z","at":"$.s"},{"from":"$.z","key":"u","to":"$.z","at":"$.z.u"}]}
+edge-ref-to-a-link-in-a-map	graph	z: {u: refer() & "$.z"}\ns: {v: $.z.u}	{"edges":[{"from":"$.s","key":"v","to":"$.z","at":"$.s.v"},{"from":"$.z","key":"u","to":"$.z","at":"$.z.u"}]}
+
+# --- rel()-minted links: the predicate is DECLARED -------------------
+rel-list-predicate	graph	a: {}\nb: {}\ns: {dependsOn: rel() & ["$.a", "$.b"]}	{"edges":[{"from":"$.s","key":"dependsOn","to":"$.a","at":"$.s.dependsOn.0"},{"from":"$.s","key":"dependsOn","to":"$.b","at":"$.s.dependsOn.1"}]}
+rel-map-predicate-is-the-rel-key	graph	a: {}\ns: {uses: rel() & {primary: "$.a"}}	{"edges":[{"from":"$.s","key":"uses","to":"$.a","at":"$.s.uses.primary"}]}
+rel-through-a-schema	graph	S: type({dependsOn?: rel()})\na: {}\ns: $.S & {dependsOn: ["$.a"]}	{"edges":[{"from":"$.s","key":"dependsOn","to":"$.a","at":"$.s.dependsOn.0"}]}
+rel-list-element-edge	graph	q: {}\na: [rel() & "$.q"]	{"edges":[{"from":"$","key":"a","to":"$.q","at":"$.a.0"}]}
+# A LIST-ROOT document: the link has nothing but indices above it, so
+# the source is the root and the relation is unlabelled.
+edge-at-a-list-root	graph	[refer() & "$.0"]	{"edges":[{"from":"$","key":"","to":"$.0","at":"$.0"}]}

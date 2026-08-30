@@ -37,11 +37,11 @@ spread-unequal-map-key-3	gen	w:&:{k:key()}\nw:&:{r:integer}\nw:x:{r:5}\nw:y:{r:6
 spread-unequal-map-ref-2	gen	P:hide({d:*1|2})\nS:hide({m:{&:$.P}})\nW:hide($.S&{m:{&:$.P&{n:integer}}})\nw:$.W&{m:{a:{n:1},b:{n:2}}}	{"w":{"m":{"a":{"d":1,"n":1},"b":{"d":1,"n":2}}}}
 # map x ref-arriving x 3.
 spread-unequal-map-ref-3	gen	P:hide({d:*1|2})\nS:hide({m:{&:$.P}})\nW:hide($.S&{m:{&:$.P&{n:integer}}})\nw:$.W&{m:{a:{n:1},b:{n:2},c:{n:3}}}	{"w":{"m":{"a":{"d":1,"n":1},"b":{"d":1,"n":2},"c":{"d":1,"n":3}}}}
-# id-merge x unequal ref spreads (BUGS.md sec 6, the idmerge shape):
-# two views of one id()-merged entity under different ref-arriving
-# templates -- the entity's sibling ports stay independent and both
-# positions emit the merged entity.
-spread-unequal-idmerge	gen	P:hide({d:*1|2})\nS:hide({m:{&:$.P}})\nW:hide({m:{&:$.P&{n:integer}}})\na:{&:$.S}\na:g:id(x)&{m:{u:{n:1},v:{n:2}}}\nb:{&:$.W}\nb:g:id(x)&{}	{"a":{"g":{"m":{"u":{"d":1,"n":1},"v":{"d":1,"n":2}}}},"b":{"g":{"m":{"u":{"d":1,"n":1},"v":{"d":1,"n":2}}}}}
+# unequal ref spreads over one node reached TWICE (BUGS.md sec 6): a
+# node under one ref-arriving template, referenced from under another --
+# the node's sibling children stay independent and both positions emit
+# the same combined value.
+spread-unequal-two-views	gen	P:hide({d:*1|2})\nS:hide({m:{&:$.P}})\nW:hide({m:{&:$.P&{n:integer}}})\na:{&:$.S}\na:g:{m:{u:{n:1},v:{n:2}}}\nb:{&:$.W}\nb:g:$.a.g	{"a":{"g":{"m":{"u":{"d":1,"n":1},"v":{"d":1,"n":2}}}},"b":{"g":{"m":{"u":{"d":1,"n":1},"v":{"d":1,"n":2}}}}}
 # requiredness survives the combine: a key contributed by the OTHER
 # template is still required at every child (fresh per-destination
 # expectation, not the template's own node).

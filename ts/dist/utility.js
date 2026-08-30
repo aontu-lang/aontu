@@ -3,7 +3,6 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.items = items;
 exports.propagateMarks = propagateMarks;
-exports.constantIdFunc = constantIdFunc;
 exports.canonRiders = canonRiders;
 exports.collectDeprecations = collectDeprecations;
 exports.walkBagVals = walkBagVals;
@@ -72,72 +71,19 @@ function deprecationMessage(d) {
         ('string' === typeof d.use ? ' (use ' + d.use + ')' : '') +
         ('string' === typeof d.since ? ' (since ' + d.since + ')' : '');
 }
-// SPREAD TEMPLATES MAY NOT STAMP ONE ID ONTO EVERY CHILD (G4 phase
-// 1, clearing rule 3). `&: id(svc_thing) & {…}` says that every child
-// of the bag IS the entity `svc_thing`, and the identity merge then
-// unifies all of them into one another: an author who wrote a
-// per-child template would get a single merged blob, and any two
-// children that disagreed about a field would fail at a site that
-// explains nothing.
+// The canonical form of a value, wrapped in the RIDER it carries —
+// the deprecation record (G3 phase 4) — reparseably, so
+// `deprecate(x, m)` survives canon. Bags render their children through
+// this (MapVal/ListVal canon), which is where a marked FIELD — the
+// realistic case — lives.
 //
-// A PATH-DEPENDENT argument is allowed, and is how the author says
-// what they meant: `&: id(key()) & {…}` names each child distinctly,
-// resolved per destination by the existing spreadClone machinery.
-// Duck-typed on the `isIdFunc` flag rather than imported: this file
-// is below the Val classes, and the identity function sits above
-// them.
-function constantIdFunc(v, seen) {
-    if (null == v || true !== v.isVal) {
-        return undefined;
-    }
-    const s = seen ?? new Set();
-    if (s.has(v)) {
-        return undefined;
-    }
-    s.add(v);
-    if (true === v.isIdFunc && true !== v.isPathDependent) {
-        return v;
-    }
-    const peg = v.peg;
-    if (null != peg && 'object' === typeof peg) {
-        for (const k of Object.keys(peg)) {
-            const found = constantIdFunc(peg[k], s);
-            if (undefined !== found) {
-                return found;
-            }
-        }
-    }
-    return constantIdFunc(v.spread?.cj, s);
-}
-// The IDENTITY wrapper (G4 phase 1): `id("svc_auth")&{…}`, written
-// as the conjunct an author writes, so canon reparses to the same
-// entity. This deliberately differs from the type/hide MARKS, which
-// canon drops (test/spec/marks.tsv, row `type-canon`): identity is
-// semantic content, and G6's canon-hash must see it — two documents
-// that disagree about which entity a node IS do not mean the same
-// thing and must not hash alike.
-//
-// The name is JSON-quoted whatever it spells: `-` is not a bare-text
-// character (test/spec/op-chars.tsv pins `a:6-2` as a parse error), so
-// an unquoted `id(team-pay)` would not reparse.
-function canonEntity(v) {
-    const c = v.canon;
-    const e = v.entity;
-    return null == e ? c : 'id(' + JSON.stringify(e) + ')&' + c;
-}
-// The canonical form of a value, wrapped in the RIDERS it carries —
-// the identity (G4 phase 1) and the deprecation record (G3 phase 4) —
-// reparseably, so `id(name) & x` and `deprecate(x, m)` survive canon.
-// Bags render their children through this (MapVal/ListVal canon),
-// which is where a marked FIELD — the realistic case — lives.
-//
-// The riders render HERE and not in the value's own `canon` for the
+// The rider renders HERE and not in the value's own `canon` for the
 // same reason the guard at the MapVal call site tests the isVal flag:
 // a bag's canon recursion visits each child once, and a child that
 // wrapped itself as well would render its subtree twice per level —
 // 2^depth on a nested document.
 function canonRiders(v) {
-    const c = canonEntity(v);
+    const c = v.canon;
     const d = v.deprecation;
     if (null == d) {
         return c;

@@ -25,33 +25,35 @@ A Backstage-style catalog for eight services across three teams, where
 the org chart and the runtime each hold facts about the same things.
 `catalog.aon` says what each service *is* (owner, tier, dependencies);
 `deploy.aon` says what each cluster *runs* (image, replicas, ports);
-neither file mentions the other's tree paths. `id(svc_<name>)` declares
-them the same entities, one evaluation merges them field by field, and
-any contradiction between the views is a located error instead of a
-silent fork. The case also drives `refer()` existence checks, declared
-relations, and change requests written as four-line overlay files. The
-same entity, seen from both views:
+and the deployment view references the catalog, so one evaluation
+merges them field by field and any contradiction between the views is a
+located error instead of a silent fork. The case also drives `refer()`
+existence checks, declared relations, and change requests written as
+four-line overlay files. The same service, seen from both views:
 
 ```
 # catalog.aon — the catalog view
-payments: id(svc_payments) & {
+services: payments: {
   tier: 1
   description: "Card payment orchestration and capture API."
-  dependsOn: [svc_ledger, svc_risk, svc_auth, svc_notify]
-  dependedOnBy: [svc_gateway]
+  dependsOn: [
+    "$.services.ledger", "$.services.risk",
+    "$.services.auth", "$.services.notify"
+  ]
+  dependedOnBy: ["$.services.gateway"]
 }
 
 # deploy.aon — the deployment view
-payments: id(svc_payments) & {
+deploy: eu1: payments: $.services.payments & {
   image: "registry.acme.internal/payments:2.14.1"
   replicas: 6
   ports: {http: {number: 8080, protocol: http}}
 }
 ```
 
-Identity alone joins them, and an overlay claiming `tier: 2` for this
-entity refuses with `[aontu/scalar_value]`. The live model, refusals
-included: [`use-cases/01-service-catalog/`](../use-cases/01-service-catalog/).
+The reference joins them, and an overlay claiming `tier: 2` refuses
+with `[aontu/scalar_value]`. The live model, refusals included:
+[`use-cases/01-service-catalog/`](../use-cases/01-service-catalog/).
 
 ## 02 — deploy config
 
@@ -349,8 +351,8 @@ answers the closure question directionally over the same edges. The
 declaration, from the case's `spec.aon`:
 
 ```
-feeds?: rel($.spec.JobShape) & re("^job_") & acyclic() & inverse(fedBy)
-fedBy?: rel($.spec.JobShape) & re("^job_")
+feeds?: rel($.spec.JobShape) & acyclic() & inverse(fedBy)
+fedBy?: rel($.spec.JobShape)
 ```
 
 `rel(t)` makes the field's strings checked entity addresses and flows

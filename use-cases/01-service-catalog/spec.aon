@@ -27,17 +27,21 @@ spec: hide({
     tier: 1 | 2 | 3
     lifecycle: *production | production | experimental | deprecated
     description: string & length(min(10))
-    # Checked entity references, THE RELATION IDIOM (RELATIONS.0.md
-    # P2): rel() sits on the FIELD, so the predicate is the key, the
-    # type flows into every target, the held re() constrains every
-    # address, and the graph atoms declare the properties the old
-    # root-level `relations:` block used to -- acyclic dependencies,
-    # and a written-out inverse. Data documents stay plain lists.
+    # Checked references, THE RELATION IDIOM (RELATIONS.0.md P2):
+    # rel() sits on the FIELD, so the predicate is the key, the type
+    # flows into every target, the held re() constrains every address,
+    # and the graph atoms declare the properties the old root-level
+    # `relations:` block used to -- acyclic dependencies, and a
+    # written-out inverse. Data documents stay plain lists.
+    #
+    # An address is a TREE PATH (ADR-014), so the held re() says where
+    # a dependency may live rather than how it must be named: a service
+    # may only depend on a catalog entry, never on a workload.
     # (Gap 8's history -- refer($.std.Service) dying of unify_cycle,
     # both ends typed dying twice -- is why the flow goes through the
     # refer machinery per leaf; both ends carry the real schema.)
-    dependsOn?: rel($.std.Service) & re("^svc_") & acyclic() & inverse(dependedOnBy)
-    dependedOnBy?: rel($.std.Service) & re("^svc_")
+    dependsOn?: rel($.std.Service) & re("^\\$[.]catalog[.]") & acyclic() & inverse(dependedOnBy)
+    dependedOnBy?: rel($.std.Service) & re("^\\$[.]catalog[.]")
   }
 
   # One workload: what a cluster actually runs. Names $.std.Service

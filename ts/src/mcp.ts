@@ -410,7 +410,7 @@ const TOOLS: ToolDef[] = [
     name: 'relations',
     description:
       'Check the declared relations of a finished model: acyclicity ' +
-      'and inverse consistency over the entity edge set. Returns ' +
+      'and inverse consistency over the link edge set. Returns ' +
       'verdict (pass | fail | error) and relation findings.',
     properties: {
       source: { type: 'string', description: 'The document' },
@@ -430,16 +430,16 @@ const TOOLS: ToolDef[] = [
   {
     name: 'reaches',
     description:
-      'Ask whether one entity reaches another over the entity graph, ' +
+      'Ask whether one node reaches another over the link graph, ' +
       'at any remove — the closure question `relations` cannot ask one ' +
       'edge at a time (blast radius, containment). Returns verdict ' +
       '(reaches | unreachable | error) and, when it reaches, a shortest ' +
-      'path. Transitive, not reflexive: an entity reaches itself only ' +
+      'path. Transitive, not reflexive: a node reaches itself only ' +
       'through a cycle.',
     properties: {
       source: { type: 'string', description: 'The document' },
-      from: { type: 'string', description: 'The entity to start at' },
-      to: { type: 'string', description: 'The entity to look for' },
+      from: { type: 'string', description: 'The node path to start at' },
+      to: { type: 'string', description: 'The node path to look for' },
       relation: {
         type: 'string',
         description: 'Follow only edges under this relation (optional)',

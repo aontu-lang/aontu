@@ -173,10 +173,10 @@ class Aontu {
             // 'internal' NilVal.
             out = uni.res;
             out.deps = pval.deps;
-            // THE DERIVED STRUCTURES (G4 phase 3): the entity index and the
-            // edge set, computed once from the unified tree. Cheap on a
-            // document with no identity — one guarded walk — and the thing
-            // impact analysis and the relation checks are traversals over.
+            // THE DERIVED STRUCTURE (G4 phase 3): the edge set, computed
+            // once from the unified tree. Cheap on a document with no links
+            // — one guarded walk — and the thing impact analysis and the
+            // relation checks are traversals over.
             out.graph = (0, graph_1.graphOf)(out);
             out.err = errs;
             ac.root = out;

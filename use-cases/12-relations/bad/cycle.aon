@@ -4,9 +4,7 @@
 # `aontu relations` reports the same finding.
 @"../model.aon"
 
-change: id(job_load) & {
-  feeds: [job_extract]
-}
-mirror: id(job_extract) & {
-  fedBy: [job_load]
+pipeline: jobs: {
+  load:    { feeds: ["$.pipeline.jobs.extract"] }
+  extract: { fedBy: ["$.pipeline.jobs.load"] }
 }

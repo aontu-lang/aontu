@@ -67,7 +67,6 @@ const KeyFuncVal_1 = require("./val/KeyFuncVal");
 const TypeFuncVal_1 = require("./val/TypeFuncVal");
 const HideFuncVal_1 = require("./val/HideFuncVal");
 const DeprecateFuncVal_1 = require("./val/DeprecateFuncVal");
-const IdFuncVal_1 = require("./val/IdFuncVal");
 const ReferFuncVal_1 = require("./val/ReferFuncVal");
 const GraphAtomVal_1 = require("./val/GraphAtomVal");
 const PackFuncVal_1 = require("./val/PackFuncVal");
@@ -453,15 +452,10 @@ help isolate the syntax error.`,
         // record rides the result (Val.deprecation) and canon renders the
         // call back (canonRiders).
         deprecate: DeprecateFuncVal_1.DeprecateFuncVal,
-        // G4 phase 1: the identity mark. Written as a conjunct
-        // (`id(svc_auth) & {…}`), it resolves to the unit carrying the
-        // name, and every node in one evaluation with that name is
-        // unified with every other.
-        id: IdFuncVal_1.IdFuncVal,
         // G4 phase 2: the checked, typed, LINK-shaped reference. A
-        // constraint on a string field: the string must be an entity
-        // address, the address must resolve, and the optional argument
-        // flows INTO the target. The field keeps the string.
+        // constraint on a string field: the string must be a TREE ADDRESS
+        // (`$.a.b` or `.b`), the address must resolve, and the optional
+        // argument flows INTO the target. The field keeps the string.
         refer: ReferFuncVal_1.ReferFuncVal,
         rel: ReferFuncVal_1.RelFuncVal,
         // RELATIONS P2 (docs/design/RELATIONS.0.md §3.3): the graph
@@ -1849,7 +1843,6 @@ const funcArity = {
     neq: [1, -1],
     must: [2, 2],
     deprecate: [1, 2],
-    id: [0, 1],
     acyclic: [0, 0],
     inverse: [1, 1],
     refer: [0, 1],

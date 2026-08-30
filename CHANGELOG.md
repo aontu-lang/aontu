@@ -7,6 +7,78 @@ which implementation each change affects.
 
 ## Unreleased
 
+### `id()` is removed; `refer()` addresses tree paths
+
+**Breaking, both implementations.** The identity mark gave any node a
+second, global name, and every node in one evaluation carrying that
+name was unified with every other. It is removed
+([ADR-014](ADR.md#adr-014--the-tree-is-the-namespace-there-is-no-identity-mark)).
+
+The collision hazard a global namespace implies is not what decided
+it. The deciding cost is that **a model carrying an `id()` could not be
+instantiated twice**: two mounts of one file were one entity, so a
+per-instance override was a contradiction, and the bare `id()` escape
+hatch did not help — it names itself by its enclosing key, which is the
+same key in both instances. Only the full path disambiguates, which is
+the argument.
+
+**What replaces it.** Bringing two descriptions into contact is a
+reference, written at one of the two sites:
+
+```aon
+catalog: pay: { tier: 1 }
+deploy: pay: $.catalog.pay & { replicas: 3 }
+```
+
+A contradiction between the views is the same located error the shared
+id produced, at the same path, with the same code. The reference is
+directional, which is what stops two unrelated models merging because
+they chose the same word.
+
+**`refer(t?)` keeps everything that made it worth having** — a link
+rather than an embedding, checked existence, constraint flow into the
+target — and now takes a tree address:
+
+```
+$.services.auth   from the document root
+.auth             beside the link itself
+..auth            one level up from there
+```
+
+Relative addressing is new capability, not a consolation: a link
+written `..auth` resolves inside whichever instance holds it, so one
+file mounted at two paths gives two self-contained instances.
+
+**The derived graph is path-native.** There is no entity index, because
+a node's address is its path. A link's source node is derived from
+where the link sits rather than declared by a mark, and `Edge.to` is
+the RESOLVED path — a relative address means a different node from each
+position it is written at, and an edge set whose far ends were
+spellings could not be traversed. The link's own value is still what
+the author wrote. `relations` and `reaches` take and report `$.dotted`
+node paths.
+
+**Removed:** the `id` builtin (the roster goes 41 → 40); the codes
+`id_name`, `id_conflict`, `id_ancestor` and `id_spread`; the identity merge, its
+registry and its rider in `unite`; identity's canon and canon-hash
+wrappers (two documents that differed only in their ids no longer
+differ at all); and the three clearing rules, which existed only to
+stop a global name leaking through a reference clone, a `copy()`, or a
+spread template. Relation predicates are unaffected —
+`inverse(dependedOnBy)` is a vocabulary term, not an address.
+
+`id_ancestor` and its refusal go with the mark. It was added in this
+same unreleased cycle, for a document that named a node and its own
+descendant one entity and made both engines build a value containing
+itself — a host stack overflow with no `[aontu/…]` code, unrecoverable
+in Go. Nothing can ask for that shape now: two positions are one node
+only if they are the same path, and a path does not contain itself.
+
+**Two long-standing TS/Go divergences close with it**
+(`test/spec/divergent.tsv`): Go's derived graph losing most of its
+edges on a two-view model, and the id-spread refusal pathed differently
+by each port. `AONTU=<go binary> use-cases/01-service-catalog/check.sh`
+now passes all 20 assertions.
 ### `why` says `spread` however the statements are spaced
 
 TypeScript only. `why` annotates a contribution that came from a `&:`
@@ -94,36 +166,6 @@ failed exactly as predicted while the boundary rows passed. After it,
 all pass and the rest of `pref.tsv` is unmoved. Was
 `use-cases/BUGS.md` §61.
 
-### An entity cannot contain itself
-
-Both implementations, and a new error code: `id_ancestor`, class
-`conflict`. Identity merge unifies every node carrying a name with
-every other node carrying it, so naming a node **and its own
-descendant** the same entity asks for a value that contains itself:
-
-    a: id(x) & { b: id(x) }
-
-Both engines built it and died on the HOST stack — TypeScript with a
-bare `Maximum call stack size exceeded` carrying no `[aontu/…]` marker
-for a harness to see, and Go with a `fatal error: stack overflow`,
-which is not recoverable, so an embedding server could not defend
-against a 22-character document. The refusal was the only missing
-piece; the merge had both sites in hand all along.
-
-It is raised in the entity merge's collect half, before the unite that
-would build the value, and lands on the **descendant** — the position
-that cannot stand — naming the ancestor as the finding's other site.
-The boundary is exactly ancestor-to-descendant: sibling positions
-still merge (that is the feature), distinct names still nest, and an
-`id()` on a node alone is untouched.
-
-A separate code rather than `id_conflict` reused, because it is a
-different mistake: `id_conflict` is one node claiming two names, this
-is one name claiming a node and something inside it. That also closes
-a hole the registry could not see — the failure had no code at all, so
-the registry's set-equality check stayed green over a whole
-unhandled class of input. Was `use-cases/BUGS.md` §58.
-
 ### `pick` and `each` agree on one key order again
 
 TypeScript only. `bagChildren` sorted a map's keys with a bare
@@ -164,6 +206,7 @@ the rule that every site names the file whose text it excerpts. Both
 now stamp the settled schema root, and stamping fills only an EMPTY
 url, so nothing read through an include is renamed. Was
 `use-cases/BUGS.md` §59.
+
 
 ### An include's extension decides what the file is
 

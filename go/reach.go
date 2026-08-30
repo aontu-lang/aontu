@@ -2,13 +2,14 @@
 
 package aontu
 
-// REACHABILITY OVER THE ENTITY GRAPH (the review's finding J,
+// REACHABILITY OVER THE LINK GRAPH (the review's finding J,
 // use-cases/REVIEW.md) — the Go twin of ts/src/reach.ts. See that file
 // for why this is a verb rather than a constraint, and why it is
 // transitive rather than reflexive-transitive.
 
 import (
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -48,18 +49,63 @@ func reachEndpointFinding(name string, known []string) VetFinding {
 		Class:    "reference",
 		Severity: "error",
 		Path:     "$",
-		Message:  name + " names no entity in this document.",
+		Message:  name + " names no node in this document.",
 		Sites:    []VetSite{},
 	}
 	if 0 < len(known) {
-		note := "known entities: " + strings.Join(known, ", ")
+		note := "nodes with links: " + strings.Join(known, ", ")
 		f.Note = &note
 	}
 	return f
 }
 
-// Reach answers whether `to` is reachable from `from` over the entity
-// graph of src.
+// parseNodePath is the segments a `$.dotted` endpoint spells, or
+// ok=false when it is not one. Reachability is between TREE POSITIONS
+// (ADR-014), so an endpoint is a path and nothing else -- the same
+// spelling the report prints back. Mirrors parseNodePath in
+// ts/src/reach.ts.
+func parseNodePath(s string) ([]string, bool) {
+	if "$" == s {
+		return nil, true
+	}
+	if !strings.HasPrefix(s, "$.") {
+		return nil, false
+	}
+	parts := strings.Split(s[2:], ".")
+	for _, p := range parts {
+		if !addrSegmentOK(p) {
+			return nil, false
+		}
+	}
+	return parts, true
+}
+
+// nodeAt reports whether a path names a node of the evaluated tree. An
+// endpoint that exists but has no edges is a perfectly good question
+// with the answer `unreachable`; only one that names NOTHING is an
+// error. Mirrors nodeAt in ts/src/reach.ts.
+func nodeAt(root Val, path []string) bool {
+	node := root
+	for _, seg := range path {
+		var next Val
+		switch n := node.(type) {
+		case *MapVal:
+			next = n.peg[seg]
+		case *ListVal:
+			if i, err := strconv.Atoi(seg); nil == err && 0 <= i && i < len(n.peg) {
+				next = n.peg[i]
+			}
+		}
+		if nil == next {
+			return false
+		}
+		node = next
+	}
+	return nil != node
+}
+
+// Reach answers whether `to` is reachable from `from` over the link
+// graph of src. Endpoints are `$.dotted` node paths (ADR-014).
 func (a *Aontu) Reach(src, from, to string, opts *ReachOptions) ReachReport {
 	options := ReachOptions{}
 	if nil != opts {
@@ -81,24 +127,26 @@ func (a *Aontu) Reach(src, from, to string, opts *ReachOptions) ReachReport {
 	}
 
 	graph := GraphOf(root)
-	known := make([]string, 0, len(graph.Entities))
-	for _, e := range graph.Entities {
-		known = append(known, e.ID)
-	}
-	sort.Strings(known)
-
-	has := func(name string) bool {
-		for _, k := range known {
-			if k == name {
-				return true
+	// The nodes the graph actually touches, for the error note: a
+	// document has every path in it, and listing them all would drown
+	// the one fact a mistyped endpoint needs.
+	seen := map[string]bool{}
+	linked := []string{}
+	for _, e := range graph.Edges {
+		for _, p := range []string{e.From, e.To} {
+			if !seen[p] {
+				seen[p] = true
+				linked = append(linked, p)
 			}
 		}
-		return false
 	}
+	sort.Strings(linked)
+
 	errs := []VetFinding{}
 	for _, n := range []string{from, to} {
-		if !has(n) {
-			errs = append(errs, reachEndpointFinding(n, known))
+		parts, pok := parseNodePath(n)
+		if !pok || !nodeAt(root, parts) {
+			errs = append(errs, reachEndpointFinding(n, linked))
 		}
 	}
 	if 0 < len(errs) {
@@ -110,10 +158,10 @@ func (a *Aontu) Reach(src, from, to string, opts *ReachOptions) ReachReport {
 	// one in both ports.
 	succ := map[string][]string{}
 	for _, e := range graph.Edges {
-		if "" == e.From || ("" != options.Relation && options.Relation != e.Key) {
+		if "" != options.Relation && options.Relation != e.Key {
 			continue
 		}
-		dest := entityOfAddr(e.To)
+		dest := e.To
 		dup := false
 		for _, d := range succ[e.From] {
 			if d == dest {
@@ -132,7 +180,7 @@ func (a *Aontu) Reach(src, from, to string, opts *ReachOptions) ReachReport {
 	// BREADTH-FIRST, so the path reported is a SHORTEST one, and with
 	// the successors sorted, a determined one.
 	prev := map[string]string{}
-	seen := map[string]bool{}
+	visited := map[string]bool{}
 	front := []string{from}
 	for 0 < len(front) {
 		next := []string{}
@@ -148,8 +196,8 @@ func (a *Aontu) Reach(src, from, to string, opts *ReachOptions) ReachReport {
 					path = append([]string{from}, path...)
 					return ReachReport{Verdict: "reaches", Path: path}
 				}
-				if !seen[dest] {
-					seen[dest] = true
+				if !visited[dest] {
+					visited[dest] = true
 					prev[dest] = node
 					next = append(next, dest)
 				}

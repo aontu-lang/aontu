@@ -384,7 +384,7 @@ const BUILTIN_FUNCS = [
     'above', 'acyclic', 'add', 'below', 'close', 'copy', 'deprecate', 'div',
     'each',
     'filter', 'greatest',
-    'hide', 'id', 'inverse', 'key', 'least', 'length', 'lower',
+    'hide', 'inverse', 'key', 'least', 'length', 'lower',
     'match', 'max', 'min', 'mod', 'move', 'mul', 'must', 'neq', 'open',
     'pack', 'path', 'pick',
     'pref', 're', 'refer', 'rel', 'rem', 'sub', 'sum', 'super', 'type', 'unique',

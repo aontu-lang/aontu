@@ -23,8 +23,8 @@ pipeline where jobs feed jobs. Write it as `spec.aon`:
 spec: hide({
   Job: {
     kind: job
-    feeds?: rel($.spec.JobShape) & re("^job_") & acyclic() & inverse(fedBy)
-    fedBy?: rel($.spec.JobShape) & re("^job_")
+    feeds?: rel($.spec.JobShape) & acyclic() & inverse(fedBy)
+    fedBy?: rel($.spec.JobShape)
   }
   JobShape: { kind: job }
 })
@@ -43,16 +43,17 @@ plain lists of names. Write the topology as `pipeline.aon`:
 @"./spec.aon"
 jobs: {
   &: $.spec.Job
-  extract: id(job_extract) & { feeds: [job_transform] }
-  transform: id(job_transform) & { fedBy: [job_extract], feeds: [job_load] }
-  load: id(job_load) & { fedBy: [job_transform] }
+  extract: { feeds: ["$.jobs.transform"] }
+  transform: { fedBy: ["$.jobs.extract"], feeds: ["$.jobs.load"] }
+  load: { fedBy: ["$.jobs.transform"] }
 }
 ```
 
-Each entry is an [entity](../reference-language.md#identity-idname)
-named by `id()`, and every list is plain. Both directions are written
-out by hand, because `inverse()` only checks that the mirror exists;
-it never writes the mirror for you. Run the checks:
+Every list is plain: each entry is a
+[tree address](../reference-language.md#checked-links-refert), which
+is what `rel()` checks. Both directions are written out by hand,
+because `inverse()` only checks that the mirror exists; it never
+writes the mirror for you. Run the checks:
 
 <!-- test: run -->
 ```sh
@@ -72,8 +73,10 @@ loop. Write the change as `cycle.aon`, patching both directions in:
 <!-- test: file cycle.aon -->
 ```aontu
 @"./pipeline.aon"
-change: id(job_load) & { feeds: [job_extract] }
-mirror: id(job_extract) & { fedBy: [job_load] }
+jobs: {
+  load: { feeds: ["$.jobs.extract"] }
+  extract: { fedBy: ["$.jobs.load"] }
+}
 ```
 
 Every field still unifies (nothing contradicts locally), but the
@@ -83,21 +86,21 @@ located error at an edge on the loop:
 <!-- test: run -->
 ```sh
 $ aontu cycle.aon
-[aontu/relation_cycle]: Cannot relate value at path $.jobs.extract.feeds.0
+[aontu/relation_cycle]: Cannot relate value at path $.jobs.extract.feeds
 ...
 $ echo $?
 1
 ```
 
 The verb reports the same verdict without generating, and names the
-entities the cycle runs through, closing back on the first:
+nodes the cycle runs through, closing back on the first:
 
 <!-- test: run -->
 ```sh
 $ aontu relations cycle.aon
 verdict: fail
 
-$.jobs.extract.feeds.0  feeds: cycle job_extract -> job_transform -> job_load -> job_extract
+$.jobs.extract.feeds.0  feeds: cycle $.jobs.extract -> $.jobs.transform -> $.jobs.load -> $.jobs.extract
 $ echo $?
 1
 ```
@@ -115,8 +118,8 @@ record the feeder on its `fedBy`. Write it as `metrics.aon`:
 ```aontu
 @"./pipeline.aon"
 jobs: {
-  metrics: id(job_metrics) & { fedBy: [] }
-  transform: { feeds: [job_load, job_metrics] }
+  metrics: { fedBy: [] }
+  transform: { feeds: ["$.jobs.load", "$.jobs.metrics"] }
 }
 ```
 
@@ -125,7 +128,7 @@ jobs: {
 $ aontu relations metrics.aon
 verdict: fail
 
-$.jobs.transform.feeds.1  feeds: job_metrics does not list job_transform under fedBy
+$.jobs.transform.feeds.1  feeds: $.jobs.metrics does not list $.jobs.transform under fedBy
 $ echo $?
 1
 ```

@@ -43,7 +43,7 @@ export type RelationFinding = {
   relation: string
   // Where the offending edge is written, as a `$.dotted.path`.
   at: string
-  // For a cycle, the entities it runs through, in the order the walk
+  // For a cycle, the node paths it runs through, in the order the walk
   // found them, closing back on the first. For a missing inverse, the
   // two ends and the relation that should have mirrored it.
   detail: string[]
@@ -73,17 +73,7 @@ export type RelationOptions = {
 }
 
 
-// The entity an address names — everything before the first dot. An
-// edge into `svc_auth.ports.http` is an edge to `svc_auth`: a relation
-// holds between ENTITIES, and the path inside one says which part of it
-// the link reaches.
-function entityOf(addr: string): string {
-  const dot = addr.indexOf('.')
-  return dot < 0 ? addr : addr.slice(0, dot)
-}
-
-
-// The first cycle reachable from `start`, as the entities it runs
+// The first cycle reachable from `start`, as the node paths it runs
 // through, or undefined. Depth-first with the path as the stack, and
 // the successors visited in sorted order, so the cycle a report names
 // is the same one in both ports.
@@ -133,10 +123,6 @@ export function relationFindings(
   const byRelation = new Map<string, Edge[]>()
   const pairs = new Set<string>()
   for (const e of graph.edges) {
-    if ('' === e.from) {
-      // An edge outside every entity has no source to be a relation OF.
-      continue
-    }
     const list = byRelation.get(e.key)
     if (undefined === list) {
       byRelation.set(e.key, [e])
@@ -144,7 +130,7 @@ export function relationFindings(
     else {
       list.push(e)
     }
-    pairs.add(e.key + ' ' + e.from + ' ' + entityOf(e.to))
+    pairs.add(e.key + ' ' + e.from + ' ' + e.to)
   }
 
   // Predicates in sorted order, so the findings arrive the same way
@@ -159,7 +145,7 @@ export function relationFindings(
       const succ = new Map<string, string[]>()
       for (const e of mine) {
         const list = succ.get(e.from)
-        const to = entityOf(e.to)
+        const to = e.to
         if (undefined === list) {
           succ.set(e.from, [to])
         }
@@ -196,7 +182,7 @@ export function relationFindings(
     const inverses = [...decl.inverses].sort(cmpCodePoint)
     for (const inv of inverses) {
       for (const e of mine) {
-        const to = entityOf(e.to)
+        const to = e.to
         if (!pairs.has(inv + ' ' + to + ' ' + e.from)) {
           findings.push({
             code: 'relation_inverse_missing',
@@ -225,7 +211,7 @@ export function relationFindings(
 // The generation hook (Aontu.generate, between unification success
 // and value generation): each finding becomes a LOCATED evaluation
 // error at the offending edge, exactly as an unmet sizing atom
-// refuses at generation. Findings name entities and positions the
+// refuses at generation. Findings name node paths and positions the
 // document spelled, so the walk to the site cannot miss.
 export function relationErrors(ctx: any, root: any): void {
   const decls: Map<string, RelDecl> = ctx._reldecls

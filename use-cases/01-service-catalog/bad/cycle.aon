@@ -5,6 +5,6 @@
 # edge is known -- and `aontu relations` reports the same finding.
 @"../system.aon"
 
-change: cr4711: id(svc_ledger) & {
-  dependsOn: [svc_payments]
+catalog: domains: payments: services: ledger: {
+  dependsOn: ["$.catalog.domains.payments.services.payments"]
 }

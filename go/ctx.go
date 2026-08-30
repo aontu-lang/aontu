@@ -80,26 +80,23 @@ type Ctx struct {
 	// snapshotRefSpread in mapval.go), keyed by the ref's canon + source
 	// position — mirroring the snapmap on the TS unify root ctx.
 	snapmap map[string]Val
-	// entities is the identity registry (G4 phase 1): id -> the
-	// representative value every position carrying that id has been
-	// merged into. Same lifetime and placement as snapmap above — one
-	// evaluation, one set of entities — mirroring the `entities` map on
-	// the TS unify root ctx.
-	entities map[string]Val
-	// idBad is the ancestor-identity refusal carried between the two
-	// halves of the entity merge: the DESCENDANT position that named
-	// its own ancestor's entity, mapped to the nil it becomes. Filled
-	// by the collect half (before the unite that would build a value
-	// containing itself) and applied by the write half; same lifetime
-	// as `entities`. Mirrors the `bad` map in ts/src/unify.ts.
-	idBad map[Val]Val
-	// referflow is the set of entities a refer(t) type-flow is currently
-	// INSIDE — the Go twin of `ctx._referflow` in
+	// referflows records every refer(t) TYPE FLOW: target path -> the
+	// type unified into it, replayed onto each pass's result by
+	// applyFlows in go/unify.go. A pass BUILDS a new tree from the old
+	// one, so a write made during the pass does not survive a subtree
+	// the pass rebuilds — which is exactly what happens when a link sits
+	// inside its own target, or when two nodes link at each other. Keyed
+	// by PATH, so there is no registry of names to collide in (ADR-014).
+	// Same lifetime and placement as snapmap above: one evaluation.
+	// Mirrors `ctx.referflows` on the TS unify root ctx.
+	referflows map[string]Val
+	// referflow is the set of target paths a refer(t) type-flow is
+	// currently INSIDE — the Go twin of `ctx._referflow` in
 	// ts/src/val/ReferFuncVal.ts. Uniting a target drives the target's
 	// own subtree, so a pair that links back at each other flows into
-	// each other without bound; a flow that would re-enter an entity is
+	// each other without bound; a flow that would re-enter a node is
 	// skipped, because the flow one frame up is already uniting it. Same
-	// lifetime as `entities` above: one evaluation.
+	// lifetime as `referflows` above: one evaluation.
 	referflow map[string]bool
 	// slot is the location the next Unify target is being driven at —
 	// the TS ctx.path equivalent. Producers (bag child loops, func arg

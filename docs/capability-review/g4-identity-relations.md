@@ -1,6 +1,15 @@
 # G4: Identity and typed relations
 
-*Status: implemented — all six phases landed in both ports.
+*Status: implemented — all six phases landed in both ports;
+**phase 1 (`id()`) was retired on 2026-08-30 by
+[ADR-014](../../ADR.md#adr-014--the-tree-is-the-namespace-there-is-no-identity-mark)**,
+and phases 2 and 3 were reshaped to address TREE PATHS rather than
+entity names. This document is kept as the design record of what was
+built and why; read ADR-014 for what replaced the identity half of it,
+and the [progress register](progress.md) for the current status of each
+phase. The Problem section below still states the three gaps
+correctly — what changed is the answer to the second one, which is now
+an ordinary reference rather than a global name.
 Per-phase status and the corrections this
 document needs are in the
 [progress register](progress.md), which is authoritative for status;

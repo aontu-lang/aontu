@@ -104,3 +104,11 @@ that makes a raw `graphOf` edge set draw every declared inverse twice.
   verdict, or non-termination; **major** = a documented capability
   fails or a significant capability is missing for enterprise use;
   **minor** = papercut; **polish** = cosmetic.
+
+> **Note (2026-08-30, [ADR-014](../ADR.md#adr-014--the-tree-is-the-namespace-there-is-no-identity-mark)):**
+> `id()` is removed and `refer()` addresses tree paths. Cases 01 and 12
+> are updated and their `check.sh` passes. The reproductions under
+> `repros/identity/`, `repros/sibling-crosswire/` and
+> `repros/refer-cycles/` that spell `id()` are kept as HISTORICAL
+> records of defects in machinery that no longer exists; they do not
+> evaluate against the current engine and nothing runs them.

@@ -7,48 +7,45 @@ import (
 	"strings"
 )
 
-// THE DERIVED STRUCTURES (G4 phase 3,
+// THE DERIVED STRUCTURE (G4 phase 3,
 // docs/capability-review/g4-identity-relations.md, and the Go side of
 // ts/src/graph.ts): an evaluated document has, besides its value, a
-// GRAPH — an entity index (id → the tree paths that hold it) and an
-// edge set (the checked links, each from one entity to one address).
+// GRAPH — the set of checked links, each from one tree position to
+// another.
 //
-// G4's deliverable is that these exist and are DETERMINISTIC. What is
-// built on them — impact analysis ("what reaches svc_auth?"),
-// reachability, context-window-sized entity slices — is a traversal,
-// and its exposure as verbs and projections belongs to G7. Relation
-// properties (acyclicity, inverse consistency) are G4 phase 5's, and
-// consume exactly this edge set.
+// The graph is PATH-NATIVE (ADR-014). There is no second namespace to
+// index: a node's address is its path, so the node a link starts at is
+// derived from where the link sits rather than declared by a mark.
+//
+// G4's deliverable is that this exists and is DETERMINISTIC. What is
+// built on it — impact analysis ("what reaches $.services.auth?"),
+// reachability, context-window-sized slices — is a traversal, and its
+// exposure as verbs and projections belongs to G7. Relation properties
+// (acyclicity, inverse consistency) are G4 phase 5's, and consume
+// exactly this edge set.
 
-// EntityEntry is one id and every tree path that holds it. More than
-// one path is the normal case: the merge puts the entity's value at
-// every position that declared it.
-type EntityEntry struct {
-	ID    string   `json:"id"`
-	Paths []string `json:"paths"`
-}
-
-// Edge is one checked link.
+// Edge is one checked link. Mirrors Edge in ts/src/graph.ts.
 type Edge struct {
-	// From is the entity the link is INSIDE — the nearest identified
-	// ancestor, or "" for a link outside every entity. This is the
-	// entity/component distinction: a node without an id is a component
-	// of its nearest identified ancestor.
+	// From is the node the link starts at, as a `$.dotted.path`: the
+	// link's own position with the relation key and any list indices
+	// stripped. `$` when the link sits at the top of the document.
 	From string `json:"from"`
-	// Key is the RELATION: the nearest map key on the way down from the
-	// entity, so a link inside a list (`dependsOn: [&: refer(),
-	// svc_auth]`) is an edge under `dependsOn` rather than under `0`.
+	// Key is the RELATION: the key the link hangs under, so a link
+	// inside a list (`dependsOn: [refer() & "$.a"]`) is an edge under
+	// `dependsOn` rather than under `0`. A rel()-minted link carries its
+	// predicate declared rather than inferred.
 	Key string `json:"key"`
-	// To is the address, as the link spells it.
+	// To is the address the link resolved to, as a `$.dotted.path`.
 	To string `json:"to"`
 	// At is where the link is, as a `$.dotted.path`.
 	At string `json:"at"`
 }
 
-// Graph is an evaluated document's entity index and edge set.
+// Graph is an evaluated document's edge set. There is no entity index,
+// because there is no second namespace to index (ADR-014): a node's
+// address is its path.
 type Graph struct {
-	Entities []EntityEntry `json:"entities"`
-	Edges    []Edge        `json:"edges"`
+	Edges []Edge `json:"edges"`
 }
 
 func graphPath(path []string) string {
@@ -58,53 +55,59 @@ func graphPath(path []string) string {
 	return "$." + strings.Join(path, ".")
 }
 
-// relationKey is the nearest map key on the path below an entity: list
-// indices are positions within a relation, not relations of their own.
-func relationKey(tail []string) string {
-	for i := len(tail) - 1; 0 <= i; i-- {
-		if !allDigits(tail[i]) {
-			return tail[i]
+// cutEdge is the node a link starts at and the relation it hangs under,
+// derived from the link's own position.
+//
+// A DECLARED predicate (rel()-minted) is authoritative: the link is cut
+// at the key the rel() sat on, wherever that is on the way down, which
+// is what makes a MAP-valued relation report the relation rather than
+// the inner label. Without one the relation is INFERRED: strip the list
+// indices, and the first real key above the link is it. Mirrors `cut`
+// in ts/src/graph.ts.
+func cutEdge(at []string, relkey string) (string, string) {
+	if "" != relkey {
+		for i := len(at) - 1; 0 <= i; i-- {
+			if at[i] == relkey {
+				return graphPath(at[:i]), relkey
+			}
 		}
 	}
-	return ""
+	i := len(at) - 1
+	for ; 0 <= i && allDigits(at[i]); i-- {
+	}
+	if 0 > i {
+		return graphPath(nil), relkey
+	}
+	key := relkey
+	if "" == key {
+		key = at[i]
+	}
+	return graphPath(at[:i]), key
 }
 
 // GraphOf is the graph of an evaluated tree. Walks POSITIONS, not
-// values: two positions of one entity share a value object after the
-// merge, so a walk guarded by object identity would find the entity
-// once and miss every other place it is declared. The guard is
-// therefore the ancestor chain — which is what a cycle actually is.
+// values: a reference or a spread can put one value object at several
+// positions, and a walk guarded by object identity would find the first
+// and miss every other place it is reached. The guard is therefore the
+// ancestor chain — which is what a cycle actually is.
 func GraphOf(root Val) Graph {
-	byID := map[string][]string{}
 	edges := []Edge{}
 	ancestors := map[Val]bool{}
 
-	var visit func(node Val, path []string, entity string, tail []string)
-	visit = func(node Val, path []string, entity string, tail []string) {
+	var visit func(node Val, path []string)
+	visit = func(node Val, path []string) {
 		if nil == node || ancestors[node] {
 			return
 		}
 
-		inside, below := entity, tail
-		if name := node.entityName(); "" != name {
-			byID[name] = append(byID[name], graphPath(path))
-			// A nested entity is not a component of the one above it:
-			// the key path restarts at the identified node.
-			inside, below = name, nil
-		}
-
 		if link := node.linkAddr(); "" != link {
-			// A rel()-minted link carries its PREDICATE -- the key the
-			// rel() sat on, declared in the schema -- and that beats
-			// the path inference, which answered wrongly for
-			// map-valued relations. refer()-minted links keep the
-			// inference until P3 retires them. Mirrors ts/src/graph.ts.
-			key := relationKey(below)
-			if bb, ok := node.(interface{ relKey() string }); ok && "" != bb.relKey() {
-				key = bb.relKey()
+			relkey := ""
+			if bb, ok := node.(interface{ relKey() string }); ok {
+				relkey = bb.relKey()
 			}
+			from, key := cutEdge(path, relkey)
 			edges = append(edges, Edge{
-				From: inside,
+				From: from,
 				Key:  key,
 				To:   link,
 				At:   graphPath(path),
@@ -115,45 +118,33 @@ func GraphOf(root Val) Graph {
 		// the field's value at the field's own position, and the graph
 		// is about the value.
 		if ga, ok := node.(*GraphAtomVal); ok && nil != ga.held {
-			visit(ga.held, path, inside, below)
+			visit(ga.held, path)
 		}
 
 		switch n := node.(type) {
 		case *MapVal:
 			ancestors[node] = true
 			for _, k := range n.keys {
-				visit(n.peg[k], append(cp(path), k), inside, append(cp(below), k))
+				visit(n.peg[k], append(cp(path), k))
 			}
 			delete(ancestors, node)
 		case *ListVal:
 			ancestors[node] = true
 			for i, e := range n.peg {
-				visit(e, append(cp(path), itoa(i)), inside, append(cp(below), itoa(i)))
+				visit(e, append(cp(path), itoa(i)))
 			}
 			delete(ancestors, node)
 		}
 	}
 
-	visit(root, nil, "", nil)
+	visit(root, nil)
 
 	// DETERMINISTIC by construction, not by luck — which matters more
-	// here than anywhere: Go map order is random, so an index built
-	// from one without this would differ run to run and between the
-	// ports (ADR-001).
-	ids := make([]string, 0, len(byID))
-	for id := range byID {
-		ids = append(ids, id)
-	}
-	sort.Strings(ids)
-
-	entities := make([]EntityEntry, 0, len(ids))
-	for _, id := range ids {
-		paths := byID[id]
-		sort.Strings(paths)
-		entities = append(entities, EntityEntry{ID: id, Paths: paths})
-	}
-
+	// here than anywhere: Go map order is random, so anything built from
+	// one without this would differ run to run and between the ports
+	// (ADR-001). Edges sort by the position they are written at, which
+	// is unique — one link, one place.
 	sort.Slice(edges, func(i, j int) bool { return edges[i].At < edges[j].At })
 
-	return Graph{Entities: entities, Edges: edges}
+	return Graph{Edges: edges}
 }

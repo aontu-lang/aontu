@@ -76,7 +76,7 @@ name ::=
     "above" | "acyclic" | "add" | "below" | "close" | "copy" | "deprecate" | "div"
   | "each" | "filter" | "greatest"
   | "hide"
-  | "id" | "inverse" | "key" | "least"
+  | "inverse" | "key" | "least"
   | "length" | "lower" | "match" | "max" | "min" | "mod" | "move"
   | "mul" | "must"
   | "neq"

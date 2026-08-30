@@ -1,7 +1,7 @@
 {
   "dependsOn": [
-    "svc_auth",
-    "svc_email"
+    "$.catalog.domains.identity.services.auth",
+    "$.catalog.domains.platform.services.email"
   ],
   "description": "Outbound webhook delivery with retry and signing.",
   "kind": "service",
