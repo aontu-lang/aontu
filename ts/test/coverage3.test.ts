@@ -27,7 +27,7 @@ import { HideFuncVal } from '../dist/val/HideFuncVal'
 import { MoveFuncVal } from '../dist/val/MoveFuncVal'
 import { PrefFuncVal } from '../dist/val/PrefFuncVal'
 import { TypeFuncVal } from '../dist/val/TypeFuncVal'
-import { Unify } from '../dist/unify'
+import { Unify, applyFlows } from '../dist/unify'
 import { main as cliMain, evalSource } from '../dist/cli'
 import { main as lspMain } from '../dist/lsp-server'
 import { computeDiagnostics, computeHover, LspHandler } from '../dist/lsp'
@@ -1460,6 +1460,55 @@ describe('coverage3-residual-shapes', () => {
     Assert.strictEqual(containsRecurseOf(mk(['n']), ['n'], 9), false)
     Assert.strictEqual(containsRecurseOf(mk(['n']), ['n'], 0), true)
     Assert.strictEqual(containsRecurseOf(mk(['n', 'm']), ['n'], 0), false)
+  })
+
+})
+
+
+// G4 phase 2 — applyFlows' unresolved-path guard. A recorded type flow
+// is written only for a path that HAD resolved, and unification never
+// takes a node back out of the tree, so no document reaches the skip.
+// It is pinned by a direct call rather than an ignore marker: node's
+// `coverage ignore` drops LINES from the report and the gate reads
+// BRANCH records, which survive it. (The Go twin in go/unify.go can use
+// its marker, because that gate counts statements.)
+describe('coverage3-apply-flows', () => {
+
+  test('apply-flows-skips-a-record-that-stops-resolving', () => {
+    const a0 = new Aontu()
+    const ctx: any = a0.ctx({ collect: true })
+    const target: any = new MapVal({ peg: {} }, ctx)
+    const root: any = new MapVal({ peg: { a: target } }, ctx)
+
+    // One record that still resolves, and three that do not: a path
+    // whose key is gone, one that walks THROUGH a scalar, and one whose
+    // first segment names nothing. The live one proves the walk still
+    // applies what it can while the others are skipped.
+    ctx.referflows = new Map<string, any>([
+      ['a', new MapVal({ peg: { k: new IntegerVal({ peg: 1 }, ctx) } }, ctx)],
+      ['gone', new MapVal({ peg: {} }, ctx)],
+      ['a\x00k\x00deeper', new MapVal({ peg: {} }, ctx)],
+      ['nosuch\x00x', new MapVal({ peg: {} }, ctx)],
+    ])
+
+    const out: any = applyFlows(ctx, root)
+    Assert.strictEqual(out, root)
+    // The resolvable record landed ...
+    Assert.strictEqual(out.peg.a.peg.k.peg, 1)
+    // ... and the unresolvable ones added nothing.
+    Assert.strictEqual(out.peg.gone, undefined)
+    Assert.strictEqual(out.peg.nosuch, undefined)
+  })
+
+  test('apply-flows-is-a-no-op-without-records', () => {
+    // The common case: a document with no links pays one property load
+    // per pass and the walk never runs.
+    const a0 = new Aontu()
+    const ctx: any = a0.ctx({ collect: true })
+    const root: any = new MapVal({ peg: {} }, ctx)
+    Assert.strictEqual(applyFlows(ctx, root), root)
+    ctx.referflows = new Map()
+    Assert.strictEqual(applyFlows(ctx, root), root)
   })
 
 })

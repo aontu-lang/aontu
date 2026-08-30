@@ -1239,6 +1239,48 @@ function capture(fn) {
         Assert.strictEqual((0, RecurseVal_1.containsRecurseOf)(mk(['n', 'm']), ['n'], 0), false);
     });
 });
+// G4 phase 2 — applyFlows' unresolved-path guard. A recorded type flow
+// is written only for a path that HAD resolved, and unification never
+// takes a node back out of the tree, so no document reaches the skip.
+// It is pinned by a direct call rather than an ignore marker: node's
+// `coverage ignore` drops LINES from the report and the gate reads
+// BRANCH records, which survive it. (The Go twin in go/unify.go can use
+// its marker, because that gate counts statements.)
+(0, node_test_1.describe)('coverage3-apply-flows', () => {
+    (0, node_test_1.test)('apply-flows-skips-a-record-that-stops-resolving', () => {
+        const a0 = new aontu_1.Aontu();
+        const ctx = a0.ctx({ collect: true });
+        const target = new MapVal_1.MapVal({ peg: {} }, ctx);
+        const root = new MapVal_1.MapVal({ peg: { a: target } }, ctx);
+        // One record that still resolves, and three that do not: a path
+        // whose key is gone, one that walks THROUGH a scalar, and one whose
+        // first segment names nothing. The live one proves the walk still
+        // applies what it can while the others are skipped.
+        ctx.referflows = new Map([
+            ['a', new MapVal_1.MapVal({ peg: { k: new IntegerVal_1.IntegerVal({ peg: 1 }, ctx) } }, ctx)],
+            ['gone', new MapVal_1.MapVal({ peg: {} }, ctx)],
+            ['a\x00k\x00deeper', new MapVal_1.MapVal({ peg: {} }, ctx)],
+            ['nosuch\x00x', new MapVal_1.MapVal({ peg: {} }, ctx)],
+        ]);
+        const out = (0, unify_1.applyFlows)(ctx, root);
+        Assert.strictEqual(out, root);
+        // The resolvable record landed ...
+        Assert.strictEqual(out.peg.a.peg.k.peg, 1);
+        // ... and the unresolvable ones added nothing.
+        Assert.strictEqual(out.peg.gone, undefined);
+        Assert.strictEqual(out.peg.nosuch, undefined);
+    });
+    (0, node_test_1.test)('apply-flows-is-a-no-op-without-records', () => {
+        // The common case: a document with no links pays one property load
+        // per pass and the walk never runs.
+        const a0 = new aontu_1.Aontu();
+        const ctx = a0.ctx({ collect: true });
+        const root = new MapVal_1.MapVal({ peg: {} }, ctx);
+        Assert.strictEqual((0, unify_1.applyFlows)(ctx, root), root);
+        ctx.referflows = new Map();
+        Assert.strictEqual((0, unify_1.applyFlows)(ctx, root), root);
+    });
+});
 // G4 phase 2 — the refer internals no source reaches. The residual is
 // minted where it is used and answers whole shapes, so its per-arm
 // behaviour is exercised here directly: an address that walks into a

@@ -402,20 +402,19 @@ function applyFlows(ctx: AontuContext, root: Val): Val {
     // the tree, and the link that named it answers it
     // (test/spec/refer.tsv, `flow-target-moved-away`).
     //
-    // NO DOCUMENT REACHES IT, which is why the guard below carries an
-    // ignore marker: a record is written only for a path that HAD
-    // resolved, and unification never takes a node back out of the
+    // NO DOCUMENT REACHES IT: a record is written only for a path that
+    // HAD resolved, and unification never takes a node back out of the
     // tree — `move` copies and hides its source rather than removing
     // it, which is the one rearrangement that looked like it would
     // (probed in both ports: the flow still resolves on every pass,
     // `flow-lands-then-its-parent-moves`). The guard is the contract
-    // for a rearrangement that does, and its Go twin in go/unify.go
-    // carries the same marker.
-    //
-    // The marker rides the line BEFORE the block it covers, which is
-    // where this repo puts one (ctx.ts): a comment on the `if` itself
-    // leaves that line's own branch arm in the report.
-    const found = findAt(root, path) /* node:coverage ignore next 3 */
+    // for a rearrangement that does, and it is pinned by a direct call
+    // (`apply-flows-skips-a-record-that-stops-resolving` in
+    // ts/test/coverage3.test.ts) rather than by an ignore marker: node's
+    // `coverage ignore` drops LINES, and the gate reads BRANCH records,
+    // which survive it. The Go twin in go/unify.go can use the marker
+    // because that gate counts statements.
+    const found = findAt(root, path)
     if (undefined === found) {
       continue
     }
@@ -610,4 +609,7 @@ export {
   Unify,
   unite,
   withDepth,
+  // Exported for the coverage test that pins its unresolved-path guard;
+  // the pass loop is its only caller.
+  applyFlows,
 }
