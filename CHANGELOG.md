@@ -7,6 +7,64 @@ which implementation each change affects.
 
 ## Unreleased
 
+### `join(coll, sep?)` — the fold to a string
+
+Both ports. The one primitive between a model and a generated file. A
+spread can put a separator AFTER each element; putting one BETWEEN N
+elements is a reduction over strings, and the language had none — `sum`
+is numeric, `+` does not reduce a list, and indexed concatenation needs
+the arity known in advance. So a generated SQL column list carried a
+trailing comma and did not parse.
+
+```aon
+ports: [8080, 443]
+addr:  join($.ports, "-")     # "8080-443"
+lines: join($.rows, "\n")      # a file
+name:  join($.parts)          # concatenation: the separator defaults to ""
+```
+
+**It folds with `+` seeded with `""`**, exactly as `sum` folds with
+`add` seeded with `0`, and not as a figure of speech: the member
+renderer is the function `+`'s own string branch calls, so the language
+keeps exactly one answer to "how does a number become text" and the two
+cannot drift. No `0d` marker, no `.0` float suffix, a big integer's
+exact digits.
+
+`join([])` is `""` — concatenation's identity, the parallel of
+`sum([]) == 0` and the opposite of `least([])`, which refuses because
+comparison has none. Order is source order for a list and code-point
+key order for a map, which is `each`'s rule and `pick`'s.
+
+**Members are validated before the fold**, and the split matters. A
+settled non-text member — a map, a list, a null — is `join_member`
+(class `conflict`), refused at the member: `+` with a string on the
+left *residuates* on those rather than refusing, so folding blindly
+would report the failure at generation, naming the whole call instead
+of the member. A member that is merely UNRESOLVED is not a join failure
+at all; the call stays residual and generation reports ordinary
+incompleteness, so `join` can be written in a schema over data that has
+not arrived.
+
+The separator must be a string (`invalid-arg` otherwise). A number
+would render perfectly well through `+`, and is still refused: the
+separator is not a member of the fold but the parameter naming the text
+between members, and `pick`'s key argument draws the same line.
+
+One new error code, `join_member`. No grammar change beyond the name
+itself. `test/spec/gen-join.tsv`, 47 rows run by both runners.
+
+Downstream, `use-cases/15-code-generation` changed shape: its
+transforms now compute the whole FILE rather than its lines, the
+host-side fold is gone, and the check that proved the gap — the SQL
+golden REFUSED by a real parser — is inverted. The SQL parses, and
+`check.sh` opens it in SQLite and asserts the tables and columns the
+model describes really exist.
+
+`aontu.lark` also gained `acyclic`, `inverse` and `rel`, which it had
+been missing since those builtins landed: its test compared rule NAMES
+only, so the alternation could drift. It now gets the literal check the
+gbnf grammar has.
+
 ### `id()` is removed; `refer()` addresses tree paths
 
 **Breaking, both implementations.** The identity mark gave any node a

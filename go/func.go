@@ -54,6 +54,10 @@ var funcSet = map[string]bool{
 	// RECORDS. Not a clever each template -- each MEETS each child, and
 	// a meet cannot select.
 	"pick": true,
+	// G9 phase 2: the fold to a STRING. sum folds with add; this folds
+	// with `+`, so it inherits the one number-to-text rule and the
+	// language does not grow a second.
+	"join": true,
 }
 
 // stagedFuncs take THE STAGING RULE (G8 phase 0, see Ctx.settle): they
@@ -67,6 +71,8 @@ var stagedFuncs = map[string]bool{
 	// A total over a bag that is still being merged into is a total of
 	// the wrong bag.
 	"sum": true, "least": true, "greatest": true, "pick": true,
+	// A fold over a bag still being merged into folds the wrong bag.
+	"join": true,
 }
 
 // positionalArgFuncs are the functions whose comma-separated arguments
@@ -82,6 +88,8 @@ var positionalArgFuncs = map[string]bool{
 	"div": true, "mod": true, "rem": true,
 	// The bag and the key are distinct positions.
 	"pick": true,
+	// The bag and the separator likewise.
+	"join": true,
 }
 
 // generatorFuncs hold arguments that must never be driven at the call
@@ -145,6 +153,10 @@ var funcArity = map[string][2]int{
 	"sum": {1, 1}, "least": {1, 1}, "greatest": {1, 1},
 	// The bag, and the key to take from each of its children.
 	"pick": {2, 2},
+	// The bag, and OPTIONALLY the separator -- omitted it is "", which
+	// makes join(coll) concatenation, so no separate concat is needed
+	// and the family stays one builtin.
+	"join": {1, 2},
 }
 
 // writtenArgCount counts the arguments as the AUTHOR wrote them.
@@ -460,6 +472,16 @@ func (f *FuncVal) Unify(peer Val, ctx *Ctx) Val {
 		}
 	}
 
+	// join() HOLDS ITS ANSWER while a member or the separator is still
+	// a kind rather than a value. An unsettled member is not a join
+	// failure -- it is ordinary incompleteness, reported by generation
+	// as mapval_no_gen -- so the call residuates as any unresolved call
+	// does rather than refusing something that has not finished
+	// arriving. Mirrors JoinFuncVal.deferResolve in TS.
+	if "join" == f.name && joinPending(newpeg) {
+		pegdone = false
+	}
+
 	if pegdone {
 		result := f.resolve(ctx, base, newpeg)
 		if result == nil { //coverage:ignore no resolve arm returns nil
@@ -641,6 +663,18 @@ func (f *FuncVal) resolve(ctx *Ctx, base []string, args []Val) Val {
 			return makeNilErr(ctx, "invalid-arg", f, nil)
 		}
 		return project(ctx, f, base, args[0], args[1])
+	case "join":
+		if len(args) < 1 { //coverage:ignore arity {1,2} is refused at parse
+			// UNREACHABLE, and kept for the reason the guards above are.
+			return makeNilErr(ctx, "invalid-arg", f, nil)
+		}
+		// The separator is nil when the call wrote only the bag, which
+		// is what makes join(coll) concatenation.
+		var sep Val
+		if 1 < len(args) {
+			sep = args[1]
+		}
+		return joinBag(ctx, f, base, args[0], sep)
 	case "pref":
 		if len(args) == 0 {
 			return makeNilErr(ctx, "arg", f, nil)

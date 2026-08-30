@@ -21,6 +21,17 @@ declare class PickFuncVal extends FuncBaseVal {
     unify(peer: Val, ctx: AontuContext): Val;
     resolve(ctx: AontuContext, args: Val[]): Val;
 }
+declare class JoinFuncVal extends FuncBaseVal {
+    isJoinFunc: boolean;
+    staged: boolean;
+    constructor(spec: ValSpec, ctx?: AontuContext);
+    make(_ctx: AontuContext, spec: ValSpec): Val;
+    funcname(): string;
+    prepare(_ctx: AontuContext, _args: Val[]): null;
+    unify(peer: Val, ctx: AontuContext): Val;
+    deferResolve(_ctx: AontuContext, args?: Val[]): boolean;
+    resolve(ctx: AontuContext, args: Val[]): Val;
+}
 declare class SumFuncVal extends AggFuncVal {
     constructor(spec: ValSpec, ctx?: AontuContext);
 }
@@ -30,4 +41,4 @@ declare class LeastFuncVal extends AggFuncVal {
 declare class GreatestFuncVal extends AggFuncVal {
     constructor(spec: ValSpec, ctx?: AontuContext);
 }
-export { AggFuncVal, PickFuncVal, SumFuncVal, LeastFuncVal, GreatestFuncVal, };
+export { AggFuncVal, JoinFuncVal, PickFuncVal, SumFuncVal, LeastFuncVal, GreatestFuncVal, };

@@ -7,6 +7,7 @@ import { BooleanVal } from '../val/BooleanVal';
 import { BigIntegerVal } from '../val/BigIntegerVal';
 import { BigDecimalVal } from '../val/BigDecimalVal';
 import { OpBaseVal } from './OpBaseVal';
+declare function plusText(v: Val): string | undefined;
 declare class PlusOpVal extends OpBaseVal {
     isPlusOp: boolean;
     constructor(spec: ValSpec, ctx?: AontuContext);
@@ -15,4 +16,4 @@ declare class PlusOpVal extends OpBaseVal {
     operate(ctx: AontuContext, args: Val[]): BigDecimalVal | BigIntegerVal | BooleanVal | IntegerVal | import("./NilVal").NilVal | NumberVal | StringVal | undefined;
     get canon(): string;
 }
-export { PlusOpVal, };
+export { PlusOpVal, plusText, };

@@ -34,6 +34,7 @@ the [Explanation](explanation.md).
 - [Functions](#functions)
 - [Arithmetic: `add` `sub` `mul` `div` `mod` `rem`](#arithmetic-add-sub-mul-div-mod-rem)
 - [Aggregating: `sum` `least` `greatest`](#aggregating-sum-least-greatest)
+- [Folding to a string: `join`](#folding-to-a-string-join)
 - [Linking: the tree is the namespace](#linking-the-tree-is-the-namespace)
 - [Checked links: `refer(t?)`](#checked-links-refert)
   - [Declared relations](#declared-relations)
@@ -1318,15 +1319,24 @@ never narrows the kind and never yields `-0`.
 
 ## Functions
 
-Aontu provides a fixed set of thirty-seven built-in functions. There
-are no user-defined functions. Nineteen are the general-purpose
-functions tabulated below; six more are
-[the arithmetic family](#arithmetic-add-sub-mul-div-mod-rem) and three
-[the aggregates](#aggregating-sum-least-greatest); and the
-other nine — `min(x)`, `max(x)`, `above(x)`, `below(x)`, `neq(x,...)`,
-`re(p)`, `length(c)`, `unique()` and `must(c,msg)` — are the constraint
-atoms, whose meaning is defined in
-[The constraint algebra](#the-constraint-algebra-specified).
+Aontu provides a fixed set of forty-two built-in functions. There are
+no user-defined functions. The count breaks down so that it can be
+checked rather than trusted:
+
+| group | how many | which |
+|---|---|---|
+| general-purpose | 19 | tabulated below |
+| [arithmetic](#arithmetic-add-sub-mul-div-mod-rem) | 6 | `add` `sub` `mul` `div` `mod` `rem` |
+| [aggregates](#aggregating-sum-least-greatest) | 3 | `sum` `least` `greatest` |
+| [projection](#aggregating-sum-least-greatest) | 1 | `pick` |
+| [the string fold](#folding-to-a-string-join) | 1 | `join` |
+| [identity and relations](#identity-idname) | 3 | `rel` `acyclic` `inverse` |
+| [constraint atoms](#the-constraint-algebra-specified) | 9 | `min` `max` `above` `below` `neq` `re` `length` `unique` `must` |
+
+(The figure here read *thirty-seven* until `join` landed, and had been
+wrong by four since `pick` and the relation trio arrived: the sentence
+named three groups and there were six. The table is the repair — a sum
+whose parts are listed is one a reader can add up.)
 
 | Function    | Effect | Example |
 |-------------|--------|---------|
@@ -1589,6 +1599,97 @@ There is no `fold` combinator and will not be one: a fold takes a
 function, and this language has no user functions to give it. These
 three are total because the bag is finite, the operation is fixed, and
 each child is visited once — the same argument that makes `each` safe.
+
+## Folding to a string: `join`
+
+`join(coll, sep?)` folds a bag into one string: every member rendered
+as text, with `sep` between them. It is the counterpart of `sum` — one
+takes a bag to a number, the other to a string.
+
+<!-- test: scenario join-fold -->
+<!-- test: run -->
+```sh
+$ echo 'ports: [8080, 443]  addr: join($.ports, "-")' | aontu -c
+{"addr":"8080-443","ports":[8080,443]}
+```
+
+**The separator defaults to the empty string**, so `join(coll)` is
+concatenation. That is why there is no `concat` and no `lines`: with a
+separator argument, one function covers both.
+
+<!-- test: run -->
+```sh
+$ echo 'a: join([x, y, z])  b: join([x, y, z], ", ")' | aontu -c
+{"a":"xyz","b":"x, y, z"}
+```
+
+**`join` folds with `+`**, exactly as `sum` folds with `add`. The
+number-to-text rule is therefore `+`'s own and not a second one: no
+`0d` marker, no `.0` float suffix, and the exact digits of a big
+integer.
+
+<!-- test: run -->
+```sh
+$ echo 'a: join([1, 2.0, 0d0.5, true], "|")' | aontu -c
+{"a":"1|2|0.5|true"}
+```
+
+**`join([])` is `""`**, concatenation's identity — the parallel of
+`sum([]) == 0`, and the opposite of `least([])`, which refuses because
+comparison has no identity to answer with.
+
+A map folds in **sorted-key order** and a list in source order, which
+is `each`'s rule and `pick`'s. For a generated file this matters: list
+order is *source* order, so a list is what a transform should build
+its lines in.
+
+<!-- test: run -->
+```sh
+$ echo 'm: {b: B, a: A}  x: join($.m, ",")' | aontu -c
+{"m":{"a":"A","b":"B"},"x":"A,B"}
+```
+
+Composed with `pick`, it is the step that turns a bag of records into
+a line of source:
+
+<!-- test: run -->
+```sh
+$ echo 'cols: [{n: id}, {n: email}]  sql: join(pick($.cols, n), ", ")' | aontu -c
+{"cols":[{"n":"id"},{"n":"email"}],"sql":"id, email"}
+```
+
+**A member that is settled but not text is an error** (`join_member`),
+raised at the member rather than at generation. `+` with a string on
+the left *residuates* on a map or a null rather than refusing, so
+folding blindly would report the failure late and name the whole call
+instead of the member that caused it.
+
+<!-- test: run -->
+```sh
+$ echo 'a: join([{x: 1}], ",")' | aontu
+[aontu/join_member]: Cannot join value at path $.a
+...
+$ echo $?
+1
+```
+
+**A member that is merely unresolved is not an error at all.** The call
+stays residual and generation reports ordinary incompleteness, so
+`join` can be written in a schema over data that has not arrived:
+
+<!-- test: run -->
+```sh
+$ echo 'names: [string]  line: join($.names, ",")' | aontu -c
+{"line":join([string],","),"names":[string]}
+```
+
+The separator must be a **string**. A number would render perfectly
+well through `+` and is still refused: the separator is not a member of
+the fold but the parameter naming the text between members, and
+`join(x, 5)` is far likelier a mistake than an intent (`invalid-arg`).
+
+A value that is not a bag is `aggregate_data`, as it is for the
+aggregates.
 
 ## Linking: the tree is the namespace
 

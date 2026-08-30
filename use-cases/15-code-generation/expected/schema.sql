@@ -3,12 +3,11 @@
 CREATE TABLE "customer" (
   "id" TEXT NOT NULL,
   "email" TEXT,
-  "credit_cents" BIGINT,
+  "credit_cents" BIGINT
 );
 
 CREATE TABLE "order_line" (
   "id" TEXT NOT NULL,
   "customer_id" TEXT NOT NULL,
-  "total_cents" BIGINT NOT NULL,
+  "total_cents" BIGINT NOT NULL
 );
-

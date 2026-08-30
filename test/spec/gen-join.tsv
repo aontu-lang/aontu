@@ -1,0 +1,145 @@
+# THE FOLD TO A STRING: join(coll, sep?) (G9 phase 2,
+# docs/capability-review/g9-transformation.md). One string, being the
+# members of `coll` rendered as text with `sep` between them.
+# Columns: name<TAB>mode<TAB>src<TAB>expect
+#
+# WHY IT EXISTS. A spread can put a separator AFTER each element;
+# putting one BETWEEN N elements is a reduction over strings, and the
+# language had none -- `sum` is numeric, `+` does not reduce a list, and
+# indexed concatenation needs the arity known in advance. So a generated
+# SQL column list carried a trailing comma and did not parse
+# (use-cases/15-code-generation). This is that gap closed.
+#
+# IT FOLDS WITH `+` SEEDED WITH "", exactly as `sum` folds with `add`
+# seeded with `0`, so the number-to-text rows below are `+`'s own rule
+# rather than a second one: no `0d` marker, no R4 `.0` suffix, and the
+# exact digits of a big integer. The renderer is literally shared
+# (plusText in ts/src/val/PlusOpVal.ts, primStr in go/op.go).
+#
+# ORDER is source order for a list and cmpCodePoint-sorted key order for
+# a map -- `each`'s order and `pick`'s, and for the same reason.
+
+# ---- the shape ----
+join-list-sep	gens	o:join([a,b,c],"-")\n	{"o":"a-b-c"}
+join-single	gens	o:join([x],",")\n	{"o":"x"}
+join-multichar-sep	gens	o:join([a,b],", ")\n	{"o":"a, b"}
+join-newline-sep	gens	o:join([a,b],"\\n")\n	{"o":"a\\nb"}
+join-empty-string-members	gens	o:join(["",""],"-")\n	{"o":"-"}
+
+# THE SEPARATOR DEFAULTS TO "", which makes `join(coll)` concatenation.
+# That is why there is no `concat` and no `lines`: ONE BUILTIN, NOT A
+# FAMILY.
+join-list-default-sep	gens	o:join([a,b,c])\n	{"o":"abc"}
+join-empty-no-sep	gens	o:join([])\n	{"o":""}
+
+# THE EMPTY BAG IS "", concatenation's identity -- the exact parallel of
+# `sum([]) == 0`, and the opposite of `least([])`, which refuses because
+# comparison has no identity to answer with.
+join-empty-list	gens	o:join([],",")\n	{"o":""}
+
+# The design's stated acceptance case.
+join-acceptance-numbers	gens	o:join([8080,443],"-")\n	{"o":"8080-443"}
+
+# ---- order ----
+join-map-sorted	gens	m:{b:B,a:A}\no:join($.m,",")\n	{"m":{"a":"A","b":"B"},"o":"A,B"}
+join-map-sorted-canon	canon	m:{b:B,a:A}\no:join($.m,",")\n	{"m":{"a":"A","b":"B"},"o":"A,B"}
+# THE ROW THAT WOULD HAVE CAUGHT PHASE 0'S DEFECT. U+E000 sorts BELOW
+# U+1F600 by code point and ABOVE it by UTF-16 code unit, so a bare
+# JavaScript `.sort()` here answers "z-a" where Go answers "a-z" --
+# one model, two different generated files (use-cases/BUGS.md 62).
+# `join` inherits `pick`'s helper, which is why that had to be fixed
+# first.
+join-astral-key-order	canon	m:{"😀":z,"￰":a}\no:join($.m,"-")\n	{"m":{"￰":"a","😀":"z"},"o":"a-z"}
+
+# ---- the number-to-text rule, which is `+`'s ----
+join-integer-digits	gens	o:join([1,2],",")\n	{"o":"1,2"}
+join-float-digits	gens	o:join([1.0,2.5],",")\n	{"o":"1,2.5"}
+join-boolean	gens	o:join([true,false],",")\n	{"o":"true,false"}
+# No `0d` marker: canon's way of naming the leaf never belongs in text.
+join-biginteger-digits	gens	o:join([0d5],",")\n	{"o":"5"}
+join-bigdecimal-no-marker	gens	o:join([0d0.5],",")\n	{"o":"0.5"}
+# The EXACT digits, not JavaScript's shortest round-tripping form, which
+# would render this as 1152921504606847000 -- a different integer.
+join-exact-integer-digits	gens	o:join([1152921504606846976],",")\n	{"o":"1152921504606846976"}
+# A pref member contributes its preferred value, and therefore its kind.
+join-pref-member	gens	o:join([pref(1),pref(2)],"-")\n	{"o":"1-2"}
+
+# ---- composition ----
+join-of-pick	gens	r:[{n:a},{n:b}]\no:join(pick($.r,n),",")\n	{"o":"a,b","r":[{"n":"a"},{"n":"b"}]}
+join-of-each	gens	m:{x:1,y:2}\no:join(each($.m,integer),"+")\n	{"m":{"x":1,"y":2},"o":"1+2"}
+join-of-pack	gens	n:[a,b]\no:join(pick(pack($.n,{v:1}),v),"-")\n	{"n":["a","b"],"o":"1-1"}
+join-feeds-plus	gens	o:join([a,b],",")+"!"\n	{"o":"a,b!"}
+join-nested	gens	o:join([join([a,b],"-"),c],"+")\n	{"o":"a-b+c"}
+join-ref-sep	gens	s:"-"\no:join([a,b],$.s)\n	{"o":"a-b","s":"-"}
+join-sum-of-join-parts	gens	o:join([a],",")\n	{"o":"a"}
+# THE PLACEHOLDER BELONGS TO THE ENCLOSING GENERATOR. `join` holds no
+# template and binds no `_`, so it is deliberately NOT in
+# `generatorFuncs`/`boundArgStart` in either port -- which is what
+# makes this work. Forgetting that would be the silent failure mode:
+# every existing test passes and the new combinator captures the outer
+# generator's hole (use-cases/BUGS.md 34).
+join-placeholder-is-the-outer-generators	gens	g:{x:[a,b],y:[c]}\no:pack($.g,{v:join(_,",")})\n	{"g":{"x":["a","b"],"y":["c"]},"o":{"x":{"v":"a,b"},"y":{"v":"c"}}}
+# A pref separator contributes its preferred value, as a pref member does.
+join-pref-sep	gens	o:join([a,b],pref("-"))\n	{"o":"a-b"}
+
+# ---- staging ----
+# THE STAGING RULE (G8 phase 0): a fold over a bag still being merged
+# into folds the wrong bag, so the call waits for the model to settle.
+# Without it this answers "a".
+join-staged-source	gens	n:[a]\nn:[a,b]\no:join($.n,",")\n	{"n":["a","b"],"o":"a,b"}
+
+# ---- an unfired call ----
+# It canons as its call, reparses to itself, and hashes identically in
+# both ports -- the same contract every unfired generator keeps.
+join-unfired-canon	canon	m:[string]\no:join($.m,",")\n	{"m":[string],"o":join([string],",")}
+join-unfired-hcanon	hcanon	m:[string]\no:join($.m,",")\n	{"m":[string],"o":join([string],",")}
+
+# ---- THE SETTLED / UNSETTLED SPLIT ----
+# This is the half of the design that is not obvious, and getting it
+# wrong in either direction is the defect that matters.
+#
+# An UNSETTLED member -- an unresolved kind, a top, a preferred
+# disjunct that has not collapsed -- is NOT a join failure. The call
+# stays residual and generation reports it as ordinary incompleteness
+# (`mapval_no_gen`, class incomplete), exactly as docs/trust.md
+# requires. Refusing these would make `join` unusable inside a schema.
+join-unfired-errc	errc	m:[string]\no:join($.m,",")\n	listval_no_gen
+join-unfired-sep-errc	errc	s:string\no:join([a,b],$.s)\n	mapval_no_gen
+join-kind-member-errc	errc	o:join([string],",")\n	mapval_no_gen
+join-top-member-errc	errc	o:join([top],",")\n	mapval_no_gen
+# NOTE the class difference from `sum`, which answers `invalid-arg`
+# (conflict) for this same shape. Both ports agree here, so it is not a
+# parity break; it is `join` calling an uncollapsed disjunction
+# UNFINISHED where `sum` calls it WRONG. `join`'s reading is the one
+# this design argues for -- the value is not yet a value.
+join-preferred-disjunct-unfired	errc	o:join([*1|integer],",")\n	mapval_no_gen
+
+# A SETTLED non-text member is `join_member`, class conflict, and it is
+# refused HERE rather than at generation. `+` with a string on the left
+# RESIDUATES on a map or a null rather than refusing, so folding blindly
+# would report the failure late, naming the whole call instead of the
+# member that caused it.
+join-member-map	errc	o:join([{a:1}],",")\n	join_member
+join-member-list	errc	o:join([[1]],",")\n	join_member
+join-member-null	errc	o:join([null],",")\n	join_member
+join-list-of-lists-refused	errc	o:join([[a],[b]],",")\n	join_member
+join-map-member-in-map-bag	errc	m:{a:{x:1}}\no:join($.m,",")\n	join_member
+# A refusal inside the fold IS the answer, as it is for `sum`: folding
+# on past it would report the wrong reason, or none.
+join-member-conflict	errc	o:join([1+true],",")\n	mapval_no_gen
+
+# ---- the separator is a STRING or it is nothing ----
+# A number would render perfectly well through `+` and is still refused:
+# the separator is not a member of the fold, it is the parameter naming
+# the text between members, and `join(x, 5)` is far likelier a mistake.
+# `pick`'s key argument draws the same line. This is the direction that
+# can be loosened later without breaking a document; the other cannot.
+join-sep-integer	errc	o:join([a],5)\n	invalid-arg
+join-sep-list	errc	o:join([a],[b])\n	invalid-arg
+join-sep-null	errc	o:join([a],null)\n	invalid-arg
+
+# ---- the bag, and the arity ----
+join-data-integer	errc	o:join(1,",")\n	aggregate_data
+join-data-string	errc	o:join("s",",")\n	aggregate_data
+join-arity-zero	errc	o:join()\n	func_arity
+join-arity-three	errc	o:join([a],",","x")\n	func_arity

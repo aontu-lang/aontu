@@ -197,6 +197,20 @@ const hints = {
         '  pick([{a:1},{a:2}], a)   -> [1,2]  # Every child has it;\n' +
         '  pick([{a:1},{b:2}], a)   -> nil    # ... the second does not;\n' +
         '  pick([[9],[8]], 0)       -> [9,8]  # A list child takes an index.',
+    join_member: 'A member of this bag is not text and never will be: `{member}`.\n' +
+        '`join` folds with `+` seeded with the empty string, and `+` with a\n' +
+        'string on the left RESIDUATES on a map, a list or a null rather\n' +
+        'than refusing — so folding blindly would report the failure at\n' +
+        'generation, naming the whole call instead of the member. It is\n' +
+        'refused here, where the member can still be named. A member that\n' +
+        'is merely UNRESOLVED is a different thing: the call stays\n' +
+        'residual and generation reports it as ordinary incompleteness.' +
+        '\n \nExamples:\n' +
+        '  join([1,2], "-")        -> "1-2"  # Numbers render as digits;\n' +
+        '  join([true], ",")       -> "true" # ... so do booleans;\n' +
+        '  join([{a:1}], ",")      -> nil    # A map is not text;\n' +
+        '  join([null], ",")       -> nil    # ... and neither is null;\n' +
+        '  join(pick($.r, n), ",") -> "a,b"  # Project first.',
     aggregate_data: 'This aggregate needs a BAG to fold: a list or a map. `sum`,\n' +
         '`least` and `greatest` walk the children of the value they are\n' +
         'given, so a scalar, a kind or an unresolved reference is not\n' +
@@ -439,6 +453,7 @@ const codeClasses = {
     pick_key: 'conflict',
     aggregate_data: 'conflict',
     aggregate_empty: 'conflict',
+    join_member: 'conflict',
     divide_by_zero: 'conflict',
     inexact_divide: 'conflict',
     float_overflow: 'conflict',

@@ -2588,8 +2588,30 @@ had to drop `hide()`; its `check.sh` asserts byte-identical output from
 both ports, and without that assertion the repository would have
 shipped a TypeScript-only transform that looked correct.
 
-Repro:
-[`repros/hide/hide-blocks-spread-compute-in-go.aon`](repros/hide/hide-blocks-spread-compute-in-go.aon).
+**Same root cause as G9 phase 0 item 2, established 2026-08-30.**
+That deliverable was written from the other side — `pick` over a
+staged `each` rather than `hide` over a staged spread — and names the
+same failure. Re-probed after #99:
+
+```aon
+d: {x: {n: "a"}}
+s: each($.d, {o: .n})
+r: pick($.s, o)
+```
+
+TypeScript generates `{"r":["a"]}`; Go refuses `mapval_no_gen`, and
+its canon reads `pick([{"n":"a","o":.n}],"o")` — the template's `.n`
+never resolved, exactly the signature above. Neither spelling
+involves the other's feature, so the defect is in Go's snapshot of a
+staged producer, not in `hide` or in `pick`. One fix in
+`go/func.go`/`go/generate.go` should close both;
+[G9 phase 0](../docs/capability-review/g9-transformation.md#phase-0--the-four-gating-defects-s)
+is the plan for it.
+
+Repros: the `hide` spelling,
+[`repros/hide/hide-blocks-spread-compute-in-go.aon`](repros/hide/hide-blocks-spread-compute-in-go.aon),
+and the staged-`each` spelling,
+[`repros/hide/staged-each-pick-unresolved-in-go.aon`](repros/hide/staged-each-pick-unresolved-in-go.aon).
 
 ## subsumption — the law that holds only for one spelling
 

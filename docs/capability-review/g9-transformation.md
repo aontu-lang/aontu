@@ -1692,6 +1692,14 @@ Baseline for the register: `ls test/spec/*.tsv | wc -l` = **97**,
 
 ### Phase 0 — the four gating defects (S)
 
+> **Status, 2026-08-30: PARTIAL.** Items 1 (`pick` map ordering) and 3
+> (`id_ancestor`) landed with #99. Item 2 (the staged pipeline) was
+> re-probed after it and still diverges; it has the same root cause as
+> `use-cases/BUGS.md` §63, found later and from the other side. Item 4
+> (bag membership) is untouched. The authority for all of this is
+> [progress.md](progress.md#g9--declarative-transformation), not this
+> section — the text below is the design as written, kept as written.
+
 None is recorded anywhere;
 [`test/spec/divergent.tsv`](../../test/spec/divergent.tsv) has zero
 rows today, so these would be its first entries, and per that file's
@@ -1758,6 +1766,15 @@ negative invalid; both hash the vocabulary identically; a document
 that merely includes it generates nothing of its own.
 
 ### Phase 2 — `join` (S)
+
+> **Status, 2026-08-30: LANDED**, substantially as written below. The
+> departures are recorded in
+> [progress.md](progress.md#g9--declarative-transformation): `join` is
+> the first builtin that is both staged and defers resolution, so it
+> needed a `make` override; the separator is refused unless it is a
+> string; and phase 0 item 4 turned out not to be a prerequisite,
+> because reusing `bagChildren` keeps `join` behaving exactly as
+> `each` and `pick` do until that item changes all of them together.
 
 `JoinFuncVal` beside `PickFuncVal` in ts/src/val/AggFuncVal.ts and
 `joinBag` in go/agg.go, reusing `bagChildren` and `unpref`. Registry:

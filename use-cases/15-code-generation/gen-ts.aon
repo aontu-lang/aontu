@@ -4,15 +4,21 @@
 # TypeScript property keeps the wire name. Optionality becomes `?`,
 # which is `match` on a boolean rather than anything clever.
 #
-# `rows` IS NOT HIDDEN, AND THAT IS DELIBERATE. The obvious spelling
-# wraps the staged intermediate in `hide()` so the scaffolding stays
-# out of the generated value. It does not survive the parity probe:
-# inside `hide()` the Go port never resolves the spread template's
-# `.n`, so the transform generates in TypeScript and refuses in Go
-# with `mapval_no_gen` -- opposite exit codes on the same document
-# (use-cases/BUGS.md 63). Left unhidden, both ports agree byte for
-# byte, which check.sh asserts. `rows` therefore rides in the
-# evaluated value and the fold ignores it.
+# `join` LANDED (G9 phase 2), AND THIS CASE CHANGED SHAPE FOR IT.
+# Until it did, every LINE was computed by the unifier and the file was
+# assembled by six lines of Python in check.sh, because putting a
+# separator BETWEEN N items is a fold and the language had none. Now
+# `file` below is the whole artifact, one string, computed end to end.
+# The host does not assemble anything; check.sh writes bytes.
+#
+# `rows` IS NOT HIDDEN, AND THAT IS STILL DELIBERATE. The obvious
+# spelling wraps the staged intermediate in `hide()` so the scaffolding
+# stays out of the evaluated value. It does not survive the parity
+# probe: inside `hide()` the Go port never resolves the spread
+# template's `.n`, so the transform generates in TypeScript and refuses
+# in Go with `mapval_no_gen` -- opposite exit codes on the same
+# document (use-cases/BUGS.md 63, still open). Left unhidden, both
+# ports agree byte for byte, which check.sh asserts.
 @"./model.aon"
 
 units: [&: {
@@ -21,6 +27,10 @@ units: [&: {
     out: `  ` + .n + match(.req, true, ``, false, `?`) + `: ` +
          match(.t, "string", `string`, "integer", `number`)
   }] & .fields
-  body: pick(.rows, out)
+  body: join(pick(.rows, out), `\n`)
   tail: `}`
+  text: .head + `\n` + .body + `\n` + .tail
 }] & $.records
+
+# THE WHOLE FILE, one string.
+file: join(pick($.units, text), `\n\n`) + `\n`
