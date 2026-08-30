@@ -8,6 +8,7 @@ import { AontuContext } from './ctx'
 import { DONE } from './type'
 
 import { makeNilErr } from './err'
+import { findAt } from './val/ReferFuncVal'
 
 import { NilVal } from './val/NilVal'
 import { hasPlace } from './val/PlaceVal'
@@ -391,23 +392,11 @@ function applyFlows(ctx: AontuContext, root: Val): Val {
   // same order in both ports.
   for (const key of [...flows.keys()].sort()) {
     const path = key.split('\x00')
-    let parent: any = undefined
-    let pkey: string | undefined = undefined
-    let node: any = root
-    for (const seg of path) {
-      if (true !== node?.isMap && true !== node?.isList) {
-        node = undefined
-        break
-      }
-      const next = node.peg[seg]
-      if (null == next) {
-        node = undefined
-        break
-      }
-      parent = node
-      pkey = seg
-      node = next
-    }
+    // The SHARED resolver, the one `refer` itself uses: a second
+    // descent written here would be a second answer to "what does this
+    // path name", and the two would drift (the Go twin calls the same
+    // findAt, arm for arm -- ADR-001).
+    const found = findAt(root, path)
     // A RECORDED PATH THAT NO LONGER RESOLVES is skipped rather than
     // refused: the record outliving its position is a question about
     // the tree, and the link that named it answers it
@@ -422,9 +411,10 @@ function applyFlows(ctx: AontuContext, root: Val): Val {
     // for a rearrangement that does, and its Go twin in go/unify.go
     // carries the same marker.
     /* node:coverage ignore next 3 */
-    if (null == node || undefined === parent) {
+    if (undefined === found) {
       continue
     }
+    const { parent, key: pkey, val: node } = found
     const merged = unite(ctx.descend(pkey as string), node,
       flows.get(key) as Val, 'refer-flow')
     parent.peg[pkey as string] = merged

@@ -5,6 +5,7 @@ exports.withDepth = exports.unite = exports.Unify = void 0;
 const ctx_1 = require("./ctx");
 const type_1 = require("./type");
 const err_1 = require("./err");
+const ReferFuncVal_1 = require("./val/ReferFuncVal");
 const PlaceVal_1 = require("./val/PlaceVal");
 const lang_1 = require("./lang");
 const utility_1 = require("./utility");
@@ -352,23 +353,11 @@ function applyFlows(ctx, root) {
     // same order in both ports.
     for (const key of [...flows.keys()].sort()) {
         const path = key.split('\x00');
-        let parent = undefined;
-        let pkey = undefined;
-        let node = root;
-        for (const seg of path) {
-            if (true !== node?.isMap && true !== node?.isList) {
-                node = undefined;
-                break;
-            }
-            const next = node.peg[seg];
-            if (null == next) {
-                node = undefined;
-                break;
-            }
-            parent = node;
-            pkey = seg;
-            node = next;
-        }
+        // The SHARED resolver, the one `refer` itself uses: a second
+        // descent written here would be a second answer to "what does this
+        // path name", and the two would drift (the Go twin calls the same
+        // findAt, arm for arm -- ADR-001).
+        const found = (0, ReferFuncVal_1.findAt)(root, path);
         // A RECORDED PATH THAT NO LONGER RESOLVES is skipped rather than
         // refused: the record outliving its position is a question about
         // the tree, and the link that named it answers it
@@ -383,9 +372,10 @@ function applyFlows(ctx, root) {
         // for a rearrangement that does, and its Go twin in go/unify.go
         // carries the same marker.
         /* node:coverage ignore next 3 */
-        if (null == node || undefined === parent) {
+        if (undefined === found) {
             continue;
         }
+        const { parent, key: pkey, val: node } = found;
         const merged = unite(ctx.descend(pkey), node, flows.get(key), 'refer-flow');
         parent.peg[pkey] = merged;
     }
