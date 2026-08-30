@@ -27,6 +27,17 @@ import {
 } from '@tabnas/jsonic'
 
 
+// THE CONFIG-FORMAT READERS (ADR-012). Each is a jsonic plugin for one
+// format, so an included `.toml` or `.yaml` is parsed by a real parser
+// for that format rather than guessed at by this one. `@tabnas/json` is
+// the strict RFC 8259 reader, used for `.json` and `.jsonld`.
+import { make as makeJsonParser } from '@tabnas/json'
+import { Toml } from '@tabnas/toml'
+import { Jsonc } from '@tabnas/jsonc'
+import { Json5 } from '@tabnas/json5'
+import { Yaml } from '@tabnas/yaml'
+import { Ini } from '@tabnas/ini'
+
 import { Debug } from '@tabnas/debug'
 
 import {
@@ -46,6 +57,16 @@ import {
 import {
   makeMemResolver
 } from '@tabnas/multisource/resolver/mem'
+
+// The Aontu-source processor, TAKEN RATHER THAN ALIASED. The obvious
+// spelling is the alias `aon: 'jsonic'`, which multisource resolves
+// through its own processor map -- but `jsonic` is a FORMAT NAME in
+// the include table now, so that alias resolved to the plain-jsonic
+// DATA reader and every `.aon` include was suddenly parsed without the
+// language in it. Naming the function leaves nothing to collide with.
+import {
+  makeJsonicProcessor,
+} from '@tabnas/multisource/processor/jsonic'
 
 import { STD_SOURCES } from './std'
 import { parseModuleRef, resolveModule, modCacheDir } from './mod'
@@ -1642,23 +1663,52 @@ help isolate the syntax error.`,
 
 
 // INCLUDE_KINDS IS THE RULE FOR WHAT AN INCLUDE MEANS (ADR-012,
-// use-cases/BUGS.md §49): these extensions are read as Aontu source,
-// and every other one -- and a name with no extension at all -- is
-// refused by name.
+// use-cases/BUGS.md §49). An extension is on this list or it is not
+// read at all, and its entry says WHICH OF TWO THINGS the file is.
 //
-// JSON IS ON THE LIST BECAUSE JSON IS A SUBSET OF THE GRAMMAR: a
-// vendored `.json` or `.jsonld` vocabulary parses as itself, which is
-// what makes importing one possible at all. Nothing else is: a `.txt`
-// or a `.yaml` read as Aontu is either a parse error at a line the
-// author did not write, or -- worse -- a plausible wrong document.
+// `source` — Aontu, with everything the language has: types, defaults,
+// references, constraints, its own includes. Two extensions, and they
+// are the ones this project owns.
 //
-// This list and go/source.go's includeKinds are the same list (ADR-001).
-const INCLUDE_KINDS: { [kind: string]: true } = {
-  aon: true,
-  aontu: true,
-  json: true,
-  jsonld: true,
+// A FORMAT NAME — configuration DATA, parsed by that format's own
+// parser into the JSON value it denotes, which then becomes Aontu
+// values like any other data. Every one of these formats maps onto
+// JSON, which is why one word covers them: a `.toml` file is a map of
+// scalars, lists and maps, and so is the `.aon` file that unifies with
+// it. What the format does NOT get is the language — a `&` in a YAML
+// file is a YAML anchor, not a spread key, because the YAML parser
+// reads it, not this one.
+//
+// The parsers are @tabnas's, one per format, and the Go port uses the
+// same ones (ADR-001): the two implementations agree because they are
+// running the same grammar, not because two hand-written readers were
+// kept in step.
+//
+// This table and go/source.go's includeKinds are the same table.
+const INCLUDE_KINDS: { [kind: string]: string } = {
+  aon: 'source',
+  aontu: 'source',
+
+  json: 'json',
+  // JSON-LD is JSON: a `@context` is a key like any other here, and
+  // what it MEANS is the vocabulary's business, not the reader's.
+  jsonld: 'json',
+  jsonc: 'jsonc',
+  json5: 'json5',
+  jsonic: 'jsonic',
+  jsc: 'jsonic',
+  toml: 'toml',
+  yaml: 'yaml',
+  yml: 'yaml',
+  ini: 'ini',
 }
+
+// `.csv` IS DELIBERATELY ABSENT, and the reason is ADR-001 rather than
+// taste. The two ports' CSV parsers disagree about what a CSV file IS:
+// one answers header-keyed records with string fields, the other raw
+// rows including the header, with numbers parsed. Admitting it would
+// admit a divergence into the one thing this project refuses to have
+// one in. Recorded in ADR-012 and pinned by file.tsv's load-ext-csv.
 
 // The multisource kind of a path: the LAST segment's extension, without
 // its dot, lowercased -- `''` for a name that has none. The rule is
@@ -1696,6 +1746,70 @@ const refuseProcessor = (res: any) => {
   const err: any = new Error(extensionMsg(res.path, extKindOf(res.full ?? res.path)))
   err.code = 'include_extension'
   throw err
+}
+
+
+// ONE READER PER FORMAT, BUILT ONCE. These are stateless parsers and
+// building a jsonic instance is not free, so they are made at module
+// load rather than per include. The file name is passed through so a
+// syntax error inside an included `.toml` names the `.toml`.
+const DATA_READERS: { [format: string]: (src: string, fileName: string) => any } =
+  (() => {
+    const viaPlugin = (plugin: any) => {
+      const jsonic = Jsonic.make().use(plugin)
+      return (src: string, fileName: string) => jsonic(src, { fileName })
+    }
+    // The strict RFC 8259 reader is its own parser rather than a
+    // plugin, and it is `make().parse` rather than the module's bare
+    // `parse`: only the instance carries the meta bag, and without it
+    // a syntax error in an included `.json` says `<no-file>`.
+    const json = makeJsonParser()
+    return {
+      json: (src: string, fileName: string) => json.parse(src, { fileName }),
+      jsonc: viaPlugin(Jsonc),
+      json5: viaPlugin(Json5),
+      // Plain jsonic needs no plugin: it IS the base parser.
+      jsonic: (src: string, fileName: string) => Jsonic(src, { fileName }),
+      toml: viaPlugin(Toml),
+      yaml: viaPlugin(Yaml),
+      ini: viaPlugin(Ini),
+    }
+  })()
+
+/**
+ * Read one included file as DATA in the named format.
+ *
+ * The parser hands back the JSON value the file denotes — plain maps,
+ * lists and scalars — and rawToVal turns that into Vals. THE
+ * CONVERSION HAPPENS HERE, not at the top level, because an include is
+ * usually not at the top level: `a: @"conf.toml"` puts the value under
+ * a key, where a raw JavaScript object is something the tree cannot
+ * unify with (the crash that was BUGS §49b).
+ */
+const dataProcessor = (format: string) => (res: any) => {
+  res.val = rawToVal(DATA_READERS[format](res.src, res.path))
+}
+
+/**
+ * The multisource processor map, built FROM the include table so the
+ * two cannot drift: every extension the table names gets the reader
+ * the table names for it, and the two kinds that are not in the table
+ * refuse.
+ */
+function includeProcessors(): { [kind: string]: any } {
+  const map: { [kind: string]: any } = {
+    // multisource's fallback for an extension no entry names, so it is
+    // the one that catches whatever the resolver's gate did not.
+    '': refuseProcessor,
+    // ... and the one upstream default that would EXECUTE the file.
+    js: refuseProcessor,
+  }
+  const source = makeJsonicProcessor()
+  for (const kind of Object.keys(INCLUDE_KINDS)) {
+    const format = INCLUDE_KINDS[kind]
+    map[kind] = 'source' === format ? source : dataProcessor(format)
+  }
+  return map
 }
 
 
@@ -1815,7 +1929,7 @@ function makeModelResolver(options: any) {
   // module legs do not: both state `kind: 'aon'` because what they
   // serve is Aontu source by construction, not by its spelling.
   const gateExtension = (path: string, full: string): void => {
-    if (true !== INCLUDE_KINDS[extKindOf(full)]) {
+    if (undefined === INCLUDE_KINDS[extKindOf(full)]) {
       refuseExtension(path, full)
     }
   }
@@ -2228,31 +2342,17 @@ class Lang {
         // `.jsonld` are read when NAMED, which is how a vendored
         // vocabulary is always written.
         implictExt: ['aon', 'aontu'],
-        // EVERY INCLUDE_KINDS EXTENSION PARSES AS AONTU SOURCE, and
-        // nothing else runs at all.
+        // ONE ENTRY PER EXTENSION THE TABLE NAMES, built from it (see
+        // includeProcessors) so the rule and its wiring cannot drift.
         //
-        // The upstream defaults are what made `.json` the one extension
-        // that crashed: its `json` entry hands back a raw JS object
-        // where the aontu grammar produces Vals, and the tree then met
-        // an object it could not convert (BUGS §49b). They are replaced
-        // rather than extended -- `js` in particular EXECUTES the file,
-        // which is not something an extension should be able to ask for.
-        //
-        // The three refusing entries are the upstream defaults whose
-        // behaviour -- text, and EXECUTION -- must not be what an
-        // unlisted extension falls back to. The empty kind is
-        // multisource's fallback for an extension no entry names, so it
-        // is the one that catches everything: see refuseProcessor for
-        // what still reaches it once the default resolver has gated.
-        processor: {
-          aontu: 'jsonic',
-          aon: 'jsonic',
-          json: 'jsonic',
-          jsonld: 'jsonic',
-          '': refuseProcessor,
-          js: refuseProcessor,
-          jsc: refuseProcessor,
-        }
+        // The upstream defaults are REPLACED, not extended. Its `json`
+        // entry is what made that extension the one that crashed: it
+        // hands back a raw JS object where the aontu grammar produces
+        // Vals, and the tree then met a value it could not convert
+        // (BUGS §49b). Its `js` entry EXECUTES the file, which is not
+        // something an extension should be able to ask for. And its
+        // fallback hands any other file back as TEXT.
+        processor: includeProcessors()
       })
       .use(AontuJsonic)
   }

@@ -1552,17 +1552,24 @@ names, both ports:
 | `v.dat` | string | the map | refused |
 | `vnoext` | string | the map | refused |
 
-**THE RULING (ADR-012).** The extension decides, from a fixed list:
-`.aon`, `.aontu`, `.json` and `.jsonld` are read as Aontu source, and
-every other extension — and a name with no extension — is refused by
+**THE RULING (ADR-012).** The extension decides, from a fixed table,
+and it says which of two things the file is. `.aon` and `.aontu` are
+Aontu source. `.json`, `.jsonld`, `.jsonc`, `.json5`, `.jsonic`,
+`.jsc`, `.toml`, `.yaml`, `.yml` and `.ini` are configuration DATA,
+read by that format's own parser — every one of them maps onto JSON.
+Every other extension — and a name with no extension — is refused by
 name with `include_extension`:
 
 ```
 include not readable: notes.txt (extension: .txt)
 ```
 
-JSON is on the list because JSON is a subset of the grammar, so a
-vendored vocabulary parses as itself. That is what unblocks
+Both ports run the same parsers, one per format, which is what lets
+these rows be shared at all. `.csv` is deliberately absent: the two
+ports' CSV parsers disagree about what a CSV file is, and ADR-001 does
+not admit that.
+
+JSON reads as data because it IS data. That is what unblocks
 [`docs/design/ONTOLOGY.0.md`](../docs/design/ONTOLOGY.0.md) §3.1, which
 named this a prerequisite of its phase P1: schema.org ships
 `schemaorg-current-https.jsonld`, microformats2 parsers emit JSON, DCMI

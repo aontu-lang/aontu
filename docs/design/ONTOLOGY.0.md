@@ -90,7 +90,7 @@ with an upstream default processor: an internal error with no code, no
 path and no site, the §43 shape again.
 
 **Ruled and fixed 2026-08-30**, as
-[ADR-012](../../ADR.md#adr-012--an-includes-extension-decides-what-the-file-is-four-are-aontu-everything-else-refuses):
+[ADR-012](../../ADR.md#adr-012--an-includes-extension-decides-what-the-file-is-aontu-source-config-data-or-refused):
 `.aon`, `.aontu`, `.json` and `.jsonld` are read as Aontu source in
 both ports, because JSON is a subset of the grammar; every other
 extension is refused by name. Filed as

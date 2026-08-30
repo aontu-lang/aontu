@@ -2098,7 +2098,7 @@ chain, which reaches anything on the filesystem the process can read.
 **Opening an untrusted source is reading your disk**, so pass a profile
 whenever the source is not yours. (It used to be worse: the chain
 `require()`d a `.js` path, which made it *running* the source.
-[ADR-012](../ADR.md#adr-012--an-includes-extension-decides-what-the-file-is-four-are-aontu-everything-else-refuses)
+[ADR-012](../ADR.md#adr-012--an-includes-extension-decides-what-the-file-is-aontu-source-config-data-or-refused)
 refuses that extension, and every other one but `.aon`, `.aontu`,
 `.json` and `.jsonld`.)
 

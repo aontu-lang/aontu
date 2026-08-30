@@ -1,0 +1,7 @@
+{
+  // the port to listen on
+  "port": 8080,
+  "host": "local",
+  /* and the tags */
+  "tags": ["a", "b"]
+}

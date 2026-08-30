@@ -68,7 +68,7 @@ the code's posture is the operative warning:
 > **Treat opening an untrusted source as reading your disk.**
 
 It is no longer worse than that. Until
-[ADR-012](../ADR.md#adr-012--an-includes-extension-decides-what-the-file-is-four-are-aontu-everything-else-refuses)
+[ADR-012](../ADR.md#adr-012--an-includes-extension-decides-what-the-file-is-aontu-source-config-data-or-refused)
 an include named `@"x.js"` was `require()`d in the evaluating process,
 which made opening an untrusted source *running* it. Only four
 extensions are read at all now — `.aon`, `.aontu`, `.json`, `.jsonld`,

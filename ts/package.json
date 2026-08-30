@@ -67,10 +67,16 @@
     "@tabnas/debug": "0.3.2",
     "@tabnas/directive": "0.5.2",
     "@tabnas/expr": "0.5.5",
+    "@tabnas/ini": "0.5.7",
+    "@tabnas/json": "0.5.7",
+    "@tabnas/json5": "0.5.7",
+    "@tabnas/jsonc": "0.5.6",
     "@tabnas/jsonic": "0.6.2",
     "@tabnas/multisource": "0.5.2",
     "@tabnas/parser": "0.8.7",
-    "@tabnas/path": "0.3.2"
+    "@tabnas/path": "0.3.2",
+    "@tabnas/toml": "0.5.7",
+    "@tabnas/yaml": "0.5.7"
   },
   "devDependencies": {
     "@types/node": "26.2.0",
@@ -81,7 +87,8 @@
     "aliases": {
       "@tabnas/multisource/resolver/file": "@tabnas/multisource/dist/resolver/file.js",
       "@tabnas/multisource/resolver/pkg": "@tabnas/multisource/dist/resolver/pkg.js",
-      "@tabnas/multisource/resolver/mem": "@tabnas/multisource/dist/resolver/mem.js"
+      "@tabnas/multisource/resolver/mem": "@tabnas/multisource/dist/resolver/mem.js",
+      "@tabnas/multisource/processor/jsonic": "@tabnas/multisource/dist/processor/jsonic.js"
     }
   }
 }

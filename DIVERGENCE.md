@@ -56,6 +56,33 @@ having been agreed.
   as Go's tables advance. No ledger entry: nothing in this repository can
   change it, and no spec rows pin it.
 
+- **A malformed config file's error PROSE** (ADR-012). Both ports
+  refuse the document, with the same class and the same exit code —
+  what differs is how much they say. TypeScript's format reader throws,
+  so the frame that reader drew reaches the user: the `.toml`, its
+  line, its caret. Go's reader returns an error, which fails the outer
+  parse afterwards, so the frame names the including file's own `@`.
+  Routing the inner message across was tried and does not work: the
+  channel that carries a load failure to `parseBase` (`notFoundSink`)
+  is reachable only from the RESOLVER, and a config format is parsed in
+  the PROCESSOR. Messages are already outside cross-port parity — the
+  shared spec excludes them from its goldens for exactly this reason —
+  and `file.tsv:load-ext-broken` pins what both ports do agree on.
+  Closing it needs a way for a processor to report, which is upstream
+  work in `@tabnas/multisource`.
+
+- **`.csv` is not a readable include** (ADR-012), because the two
+  ports' CSV parsers disagree about what a CSV file is: `@tabnas/csv`
+  answers header-keyed records with string fields,
+  `github.com/tabnas/csv/go` answers raw rows including the header,
+  with numbers parsed. Rather than admit that divergence into
+  documents, the extension is refused in both ports and
+  `file.tsv:load-ext-csv` pins the refusal — so the day the two parsers
+  agree, that row is what says so. Every other config format
+  (`.toml`, `.yaml`, `.yml`, `.ini`, `.jsonc`, `.json5`, `.jsonic`,
+  `.jsc`, `.json`, `.jsonld`) is byte-identical across the ports,
+  because both run the same parser.
+
 ## Previously divergent, now fixed
 
 Kept because how each was closed is worth remembering.
