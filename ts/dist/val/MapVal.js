@@ -270,10 +270,10 @@ class MapVal extends BagVal_1.BagVal {
                 // No `undefined !== child` here: propagateMarks above already
                 // dereferenced it, so a missing child would have thrown there.
                 if (!spread_cj.isTop
-                    && child._spr === spread_cj.id) {
+                    && child._spr === (0, Val_1.spreadId)(spread_cj)) {
                     oval = child.done ? child :
                         (0, unify_1.unite)(te ? keyctx.clone({ explain: (0, utility_1.ec)(te, 'KEY:' + key) }) : keyctx, child, TOP, 'map-own');
-                    oval._spr = spread_cj.id;
+                    oval._spr = (0, Val_1.spreadId)(spread_cj);
                 }
                 else {
                     const key_spread_cj = spread_cj.spreadClone(keyctx);
@@ -299,7 +299,7 @@ class MapVal extends BagVal_1.BagVal {
                                         (0, unify_1.unite)(te ? keyctx.clone({ explain: (0, utility_1.ec)(te, 'KEY:' + key) }) : keyctx, child, key_spread_cj, 'map-own');
                     if (!spread_cj.isTop && !oval.isNil) {
                         ;
-                        oval._spr = spread_cj.id;
+                        oval._spr = (0, Val_1.spreadId)(spread_cj);
                     }
                 }
                 out.peg[key] = oval;
@@ -348,13 +348,13 @@ class MapVal extends BagVal_1.BagVal {
                         // Same apply-once discipline as the own-key loop: once the
                         // constraint is merged into the value (marked with the
                         // constraint's id), later passes only self-unify.
-                        if (oval._spr !== spread_cj.id) {
+                        if (oval._spr !== (0, Val_1.spreadId)(spread_cj)) {
                             let key_spread_cj = spread_cj.spreadClone(peerctx);
                             oval = out.peg[peerkey] =
                                 (0, unify_1.unite)(te ? peerctx.clone({ explain: (0, utility_1.ec)(te, 'PSP:' + peerkey) }) : peerctx, oval, key_spread_cj, 'map-peer-spread');
                             if (!spread_cj.isTop && !oval.isNil) {
                                 ;
-                                oval._spr = spread_cj.id;
+                                oval._spr = (0, Val_1.spreadId)(spread_cj);
                             }
                         }
                     }

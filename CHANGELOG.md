@@ -7,6 +7,29 @@ which implementation each change affects.
 
 ## Unreleased
 
+### A spread template is applied once, however deep the reference
+
+TypeScript only. A bag with `&: {n: key()}`, read through a reference
+four or more levels down, refused with `scalar_value` at a **doubled**
+path (`$.a.b.f.x.n.n`) where Go answered — while two and three levels
+agreed in both ports. A threshold at four is a fixpoint artefact
+rather than a rule anyone wrote, and Go's four-level answer turns out
+to be the agreed three-level answer with one more level of nesting,
+character for character. Go was right.
+
+The bag loops already keep a template from being applied twice, by
+recording which template has been merged into a value. But that mark
+is by template IDENTITY, and every value takes a fresh id when it is
+constructed — so a reference resolving to a templated bag, which
+clones the bag *and* its template, produced a template the mark could
+not match. The template was applied a second time over the value the
+first application had produced: `n: key()` had answered `"x"`, the
+template met that string as though it were a map, and the inner
+`key()` answered `"n"`.
+
+A spread template now takes a stable identity that its clones carry.
+Was `use-cases/BUGS.md` §50.
+
 ### `jsonschema` no longer drops `deprecate()` in silence
 
 Both implementations. `deprecate(x, meta)` exported as `x` alone: no

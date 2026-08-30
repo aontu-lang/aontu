@@ -1630,7 +1630,7 @@ extension, not only `.json`.
 
 ## key() — the enclosing key at a generated or referenced position
 
-### 50. A spread template's `key()`, read through a reference four levels down, refuses in TypeScript and answers in Go [major]
+### 50. A spread template's `key()`, read through a reference four levels down, refuses in TypeScript and answers in Go [FIXED 2026-08-30]
 Found by removing `.$KEY` (ADR-009): the only test covering this shape
 used that spelling, which took the RefVal path and never reached the
 divergence. Translating it to `key()` surfaced this immediately.
@@ -1672,11 +1672,41 @@ A threshold at four is a fixpoint-pass artefact, not a rule anyone
 wrote, which is the argument for calling it a defect rather than a
 divergence to be documented.
 
+Status: FIXED 2026-08-30 in TypeScript. **GO WAS RIGHT**, and the
+evidence settles what the entry called unsettled: Go's four-level
+answer is the agreed THREE-level answer with one more level of
+nesting, character for character.
+
+    3 levels, both ports  {"a":{"b":{"c":{"e":{"x":{"n":"x"}}},"f":{"x":{"n":"x"}}}}}
+    4 levels, Go          {"a":{"b":{"c":{"d":{"e":{"x":{"n":"x"}}}},"f":{"x":{"n":"x"}}}}}
+
+Go is consistent across the threshold; the refusal was the defect,
+exactly as "a threshold at four is a fixpoint-pass artefact" argued.
+
+**The cause is that the apply-once mark is by template IDENTITY, and
+identity does not survive a clone.** The bag loops already keep a
+template from being applied twice: `_spr` on a value records which
+template has been merged into it (MapVal.unify, ListVal.unify). But
+every Val takes a fresh `id` when it is constructed, and a reference
+resolving to a templated bag clones the bag AND its template -- so the
+fresh template matched no mark, and it was applied a SECOND time over
+the value the first application had produced. `n: key()` had already
+answered `"x"`; the template met that string as though it were a map
+and the inner `key()` answered `"n"`, giving `"n"` against `"x"` at
+`$.a.b.f.x.n.n`.
+
+Carrying `_spr` through the clone is NOT enough on its own and was the
+first thing tried: the id it holds is stale either way. A spread
+template now takes a stable identity (`spreadId`, fixed once to the
+template's own id) that clones carry, and the mark compares on that.
+
+Pins: `test/spec/gen-key.tsv` -- `key-spread-through-ref-2` through
+`-5`. The depth ladder IS the row set, because the threshold was the
+defect. `ts/test/val-ref.test.ts` is back at the four levels it was
+written with, having been shallowed to three while this stood.
+
 Repro:
 [`repros/key-func/spread-key-through-deep-ref.aon`](repros/key-func/spread-key-through-deep-ref.aon).
-No shared spec row: a row would have to encode one port's answer, and
-which port is right is exactly what is unsettled. `ts/test/val-ref.test.ts`
-asserts the three-level form and carries a comment pointing here.
 
 ### 51. `key()` is late-bound and `.$KEY` was early-bound — a translation is not always value-preserving [by design, recorded]
 Not a defect. Recorded because ADR-009 asks every `.$KEY` in an existing

@@ -325,6 +325,24 @@ abstract class Val {
       out.deprecation = this.deprecation
     }
 
+    // THE APPLY-ONCE MARK TRAVELS WITH THE CLONE. `_spr` records which
+    // spread template has already been merged into this value, and the
+    // bag loops read it to keep a template from being applied twice
+    // (MapVal.unify, ListVal.unify). A clone that dropped it looked
+    // un-spread, so a REFERENCE resolving to a templated bag had the
+    // template applied a second time -- over the value the first
+    // application had already produced. With `n: key()` that meant
+    // meeting the answered `"x"` as though it were a map and asking
+    // `key()` again, which answered `"n"`: `$.a.b.f.x.n.n`, "n"
+    // against "x" (use-cases/BUGS.md §50). The Go port carries it and
+    // answered correctly; this is the canonical side catching up.
+    if (null != (this as any)._spr) {
+      ; (out as any)._spr = (this as any)._spr
+    }
+    if (null != (this as any)._sid) {
+      ; (out as any)._sid = (this as any)._sid
+    }
+
     // PROVENANCE TRAVELS WITH THE CLONE, exactly as the site does, and
     // for the same reason: a clone of a value the author wrote IS that
     // written value somewhere else, and it carries the author's site,
@@ -671,7 +689,23 @@ export type {
   ValSpec,
 }
 
+// THE STABLE IDENTITY OF A SPREAD TEMPLATE, across clones. Every Val
+// takes a fresh `id` when it is constructed, so the bag loops'
+// apply-once mark -- which records WHICH template has already been
+// merged into a value -- could never match after a clone: a reference
+// resolving to a templated bag clones the bag AND its template, and the
+// fresh template's id matched nothing, so the template was applied a
+// second time over the value the first application had produced
+// (use-cases/BUGS.md §50). The first call fixes the identity to the
+// original's own id; Val.clone carries `_sid`, so every clone of that
+// template answers with it.
+function spreadId(cj: any): number {
+  return cj._sid ?? (cj._sid = cj.id)
+}
+
+
 export {
+  spreadId,
   Val,
   DONE,
   SPREAD,

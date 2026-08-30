@@ -68,14 +68,22 @@ Two cautions:
   `vocab.jsonld` — byte-identical, differing only in name, which was
   the whole point. Their pin is `file.tsv`, the `load-ext-*` block.
 
-- `key-func/` (§50, filed 2026-08-28) is **open**, and was found by
-  removing `.$KEY` (ADR-009): the only test covering a spread template
-  read through a deep reference used that spelling, whose different code
-  path hid a live parity break in `key()`. There is deliberately no
-  shared spec row — a row would have to encode one port's answer, and
-  which port is right is what is unsettled.
+- `key-func/` (§50, filed 2026-08-28) is **FIXED** as of 2026-08-30,
+  and Go was right. It was found by removing `.$KEY` (ADR-009): the
+  only test covering a spread template read through a deep reference
+  used that spelling, whose different code path hid a live parity
+  break in `key()`. What settled it is that Go's four-level answer is
+  the agreed three-level answer one level deeper, character for
+  character — so the TypeScript refusal was the defect, not a reading.
+  The apply-once mark on a spread is by template identity, and every
+  value takes a fresh id when constructed, so a reference cloning a
+  templated bag defeated it; a template now keeps a stable identity
+  across clones. The row set is the depth ladder itself,
+  `gen-key.tsv` `key-spread-through-ref-2..5`.
 
-- `recursion/` (§52, filed 2026-08-28) is **open**, and a design
+- `recursion/` (§52, filed 2026-08-28) is fixed (2026-08-29, P0+P1);
+  what remains open in that directory is §57, the recursive spread
+  conjoined with a map, which does not terminate. It was a design
   question rather than a patch: every spelling of a recursive schema
   is refused (`path_cycle`), broken at depth one (`scalar_kind` naming
   neither the recursion nor the schema), or silently vacuous (the
