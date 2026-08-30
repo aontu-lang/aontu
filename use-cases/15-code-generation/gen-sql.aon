@@ -1,0 +1,37 @@
+# gen-sql.aon --- CREATE TABLE statements from model.aon.
+#
+# Reads the `sql` slice and ignores `go` entirely. Identifiers are
+# QUOTED, because `order` is a reserved word in SQL and a generator
+# that emits it bare produces a file that does not parse -- the
+# reserved-word problem every code generator meets, answered here by
+# always quoting rather than by carrying a word list.
+#
+# THE TRAILING COMMA IS THE POINT. Every column line ends in `,`,
+# including the last, so this output is NOT valid SQL. Nothing in the
+# language can fix it: a separator BETWEEN N items is a fold, and
+# Aontu has no fold over strings -- `sum` is numeric, `+` does not
+# reduce a list, and indexed concatenation needs the arity known in
+# advance. `join(bag, sep)` is G9 phase 2 and it is the whole
+# difference. See README.md, "The one missing primitive".
+#
+# `rows` IS NOT HIDDEN, AND THAT IS DELIBERATE. The obvious spelling
+# wraps the staged intermediate in `hide()` so the scaffolding stays
+# out of the generated value. It does not survive the parity probe:
+# inside `hide()` the Go port never resolves the spread template's
+# `.n`, so the transform generates in TypeScript and refuses in Go
+# with `mapval_no_gen` -- opposite exit codes on the same document
+# (use-cases/BUGS.md 63). Left unhidden, both ports agree byte for
+# byte, which check.sh asserts. `rows` therefore rides in the
+# evaluated value and the fold ignores it.
+@"./model.aon"
+
+units: [&: {
+  head: `CREATE TABLE "` + .sql + `" (`
+  rows: [&: {
+    out: `  "` + .sql + `" ` +
+         match(.t, "string", `TEXT`, "integer", `BIGINT`) +
+         match(.req, true, ` NOT NULL`, false, ``) + `,`
+  }] & .fields
+  body: pick(.rows, out)
+  tail: `);`
+}] & $.records

@@ -64,8 +64,18 @@ plugins, so the surface syntax is "relaxed JSON".
   comments unifies to `{}`.
 - **Keys** may be bare (`host`), and need quoting only if they contain
   separators or operator characters.
-- **Bare strings** need no quotes (`name: Mercury`). Quote with `"…"` or
-  `'…'` to include spaces or special characters (`name: "hi there"`).
+- **Bare strings** need no quotes (`name: Mercury`). Quote with `"…"`,
+  `'…'` or `` `…` `` to include spaces or special characters
+  (`name: "hi there"`). All three are the same kind of value; only
+  what they may contain differs.
+- **Backtick strings may span lines.** `"…"` and `'…'` refuse a
+  literal newline; `` `…` `` accepts one, so a backtick string carries
+  several lines of text as one scalar. This is what lets a document hold a
+  block of another language — a shell script, a template, a fragment
+  of generated source. Escapes are processed in all three forms, so
+  `\t` is a tab and `` \` `` is a literal backtick. A **literal**
+  control character in the source is refused
+  (`[aontu/unprintable]`), including a literal tab: write `\t`.
 - **Numbers** come in two families. A plain JSON number (`1`, `1.5`,
   `1e3`) is stored as an IEEE-754 double and takes `integer` or
   `float` kind; a `0d`-prefixed literal (`0d5`, `0d0.1`) is stored
@@ -93,6 +103,26 @@ plugins, so the surface syntax is "relaxed JSON".
   naming the `0d` escape, not an approximation — see
   [Exact or refused](#exact-or-refused-lossy-literals).
 - **Booleans** are `true` / `false`; **null** is `null`.
+
+A backtick string is how a document holds a block of another
+language. Here `greet.aon` carries a shell script as one value:
+
+<!-- test: scenario backtick-multiline -->
+<!-- test: file greet.aon -->
+```aon
+greet: `#!/bin/sh
+echo "hi"
+`
+tab: `x\ty`
+```
+
+<!-- test: run -->
+```sh
+$ aontu -c greet.aon
+{"greet":"#!/bin/sh\necho \"hi\"\n","tab":"x\ty"}
+$ echo $?
+0
+```
 
 The relaxed forms combine in one document:
 

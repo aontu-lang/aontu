@@ -2196,6 +2196,54 @@ generation story depends on.
 Repro:
 [`repros/order/pick-astral-key-order.aon`](repros/order/pick-astral-key-order.aon).
 
+## marks — what `hide()` stops resolving
+
+### 63. Inside `hide()`, Go does not resolve a spread template's reference [critical]
+
+Found 2026-08-30 by building
+[use case 15](15-code-generation/README.md), whose first draft used the
+obvious spelling and passed in TypeScript.
+
+```aon
+src: [{n: "a"}]
+u: {rows: hide([&: {o: .n}] & $.src)}
+```
+
+| | canon | generate |
+|---|---|---|
+| TypeScript | `{"src":[{"n":"a"}],"u":{"rows":[&:{"o":.n},{"n":"a","o":"a"}]}}` | `{"src":[{"n":"a"}],"u":{}}`, exit 0 |
+| Go | `{"src":[{"n":"a"}],"u":{"rows":hide([&:{"o":.n},{"n":"a","o":.n}])}}` | `[aontu/mapval_no_gen]` at `$.u.rows`, exit 1 |
+
+Read the Go canon closely: the element's `o` is still the
+**unresolved** `.n`, where TypeScript resolved it to `"a"`, and the
+`hide(` wrapper is still there where TypeScript absorbed the mark. So
+under `hide()` the Go port never applies the spread template's
+computation, and everything downstream of it refuses. Opposite exit
+codes on a document neither port reports as wrong.
+
+**Boundary, probed.** The break needs the mark AND a template that
+computes from a relative reference:
+
+| spelling | outcome |
+|---|---|
+| `[&: {o: .n}] & $.src` (no `hide`) | both ports agree |
+| `hide([{o: "a"}])` (literal list) | both ports agree |
+| `hide([&: {o: "K"}] & $.src)` (constant template) | both ports agree |
+| `hide([&: {o: .n}] & $.src)` | **diverge** |
+
+**Why it matters.** `hide()` around a staged intermediate is the
+natural way to keep scaffolding out of a generated value, and staging
+is *required* because `pick` over an inline spread expression does not
+settle. So the obvious spelling of a code-generation transform —
+compute the lines into a hidden key, project them with `pick` — works
+in the canonical implementation and refuses in the port. Use case 15
+had to drop `hide()`; its `check.sh` asserts byte-identical output from
+both ports, and without that assertion the repository would have
+shipped a TypeScript-only transform that looked correct.
+
+Repro:
+[`repros/hide/hide-blocks-spread-compute-in-go.aon`](repros/hide/hide-blocks-spread-compute-in-go.aon).
+
 ## Elsewhere in this review
 
 Defects verified earlier in the effort and recorded in

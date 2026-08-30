@@ -1,0 +1,38 @@
+# model.aon --- the single source three generators read.
+#
+# ONE MODEL, THREE TARGETS, EACH OVER PART OF IT. Every generator in
+# this case reads this file and nothing else, and each uses a
+# different slice: the Go emitter reads `go`, the SQL emitter reads
+# `sql`, and the TypeScript emitter reads neither -- it uses the wire
+# names in `n` directly.
+#
+# NAMING IS MODEL DATA, NOT EMITTER LOGIC. `Email` and `credit_cents`
+# are written here rather than computed, because the language cannot
+# compute them: `upper()` uppercases a WHOLE string, so it yields
+# `EMAIL`, and there is no substring, no case-conversion and no
+# `replace`. That is not only a workaround. It is the "symbol
+# provider" split that every surviving code generator arrives at --
+# what a type is CALLED in a target is a fact about the model, not a
+# rule in the template (docs/capability-review/g9-transformation.md,
+# Prior art). Writing it down also makes a collision a unification
+# conflict rather than a broken identifier at emit time.
+records: [
+  {
+    name: "Customer"
+    sql:  "customer"
+    fields: [
+      {n: "id",     t: "string",  req: true,  go: "ID",     sql: "id"}
+      {n: "email",  t: "string",  req: false, go: "Email",  sql: "email"}
+      {n: "credit", t: "integer", req: false, go: "Credit", sql: "credit_cents"}
+    ]
+  }
+  {
+    name: "Order"
+    sql:  "order_line"
+    fields: [
+      {n: "id",         t: "string",  req: true, go: "ID",         sql: "id"}
+      {n: "customerId", t: "string",  req: true, go: "CustomerID", sql: "customer_id"}
+      {n: "totalCents", t: "integer", req: true, go: "TotalCents", sql: "total_cents"}
+    ]
+  }
+]

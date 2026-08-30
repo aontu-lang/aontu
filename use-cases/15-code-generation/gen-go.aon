@@ -1,0 +1,49 @@
+# gen-go.aon --- Go structs from model.aon.
+#
+# The shape every generator here uses, and why:
+#
+#   [&: {...}] & $.records     a LIST spread, because list order is
+#                              SOURCE order. `pack` keys by data and
+#                              map keys sort by code point, so
+#                              pack-then-pick would emit the records
+#                              alphabetically -- silently wrong output
+#                              for a file.
+#
+#   rows: [&: ...] & .fields   the per-field lines, STAGED into
+#                              a key of their own. `pick` over an
+#                              inline spread expression does not
+#                              resolve (it stays a symbolic call);
+#                              staging it into a named sibling makes
+#                              it settle. It cannot be hidden -- see
+#                              the note below.
+#
+#   body: pick(.rows, out)     the projection, in source order.
+#
+# The source record's keys ride through the meet -- `name`, `fields`
+# and the rest appear beside `head`/`body`/`tail` in the output. That
+# is not sloppiness: a spread MEETS, and the meet is exactly what
+# makes `.name` and `.fields` resolvable inside the template. A
+# REPLACING combinator would lose the reference (G9, "Two specialist
+# disagreements, resolved").
+#
+# `rows` IS NOT HIDDEN, AND THAT IS DELIBERATE. The obvious spelling
+# wraps the staged intermediate in `hide()` so the scaffolding stays
+# out of the generated value. It does not survive the parity probe:
+# inside `hide()` the Go port never resolves the spread template's
+# `.n`, so the transform generates in TypeScript and refuses in Go
+# with `mapval_no_gen` -- opposite exit codes on the same document
+# (use-cases/BUGS.md 63). Left unhidden, both ports agree byte for
+# byte, which check.sh asserts. `rows` therefore rides in the
+# evaluated value and the fold ignores it.
+@"./model.aon"
+
+units: [&: {
+  head: `type ` + .name + ` struct {`
+  rows: [&: {
+    out: `\t` + .go + ` ` +
+         match(.t, "string", `string`, "integer", `int64`) +
+         ` \`json:"` + .n + `"\``
+  }] & .fields
+  body: pick(.rows, out)
+  tail: `}`
+}] & $.records
