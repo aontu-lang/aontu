@@ -1,7 +1,7 @@
 # spec.aon --- the pipeline vocabulary. THE RELATION IS DECLARED ONCE,
 # AT ITS FIELD (RELATIONS.0.md): rel(t) makes the field's strings
-# checked entity addresses and flows t into every target; re() rides
-# as a held constraint onto every address; acyclic() and inverse()
+# checked TREE ADDRESSES and flows t into every target; acyclic() and
+# inverse()
 # are the graph atoms -- lattice-inert declarations whose verdict
 # lands at generation, where every edge is known. Data documents then
 # stay plain JSON-shaped lists.
@@ -15,8 +15,8 @@ spec: hide({
     # schema -- the deadlock that once made this spelling impossible
     # (BUGS.md sec 53) is fixed: the reference walk sees through the
     # pending hide() wrapper.
-    feeds?: rel($.spec.JobShape) & re("^job_") & acyclic() & inverse(fedBy)
-    fedBy?: rel($.spec.JobShape) & re("^job_")
+    feeds?: rel($.spec.JobShape) & acyclic() & inverse(fedBy)
+    fedBy?: rel($.spec.JobShape)
   }
 
   # What the far end of a feeds/fedBy edge must be. A thin shape

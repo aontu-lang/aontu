@@ -2114,6 +2114,53 @@ and NOT `& {tag:1}` -- which is the spelling a transform layer
 actually needs, per this entry's own closing paragraph. It is a
 papering-over, not the fix.
 
+**A FIX THAT PASSED AND WAS WRONG.** The rule above suggests an
+obvious guard: expand at most once per destination, keyed by the
+residual's target and the path it lands on. In
+`ts/src/val/RecurseVal.ts` that is a set of `target + '\0' + path`
+seats carried on the context, checked before an expansion and holding
+the residual beside its peer when the seat is already taken. It works
+-- in TypeScript. All four hanging spellings terminate, `& {tag: 1}`
+stamps the tag on every recursive node, and the suite passes 4500
+tests with the healthy forms unchanged.
+
+The Go port refutes it. Mirrored into `go/recurse.go` and instrumented
+on the same document, the seats are:
+
+    #1  "%T\x00d"
+    #2  "%T\x00d.kids.0"
+    #3  "%T\x00d.kids.0.kids.0"
+    #4  "%T\x00d.kids.0.kids.0.kids"
+    #5  "%T\x00d.kids.0.kids.0.kids.kids"
+    ...
+    #10 "%T\x00d.kids.0.kids.0.kids.kids.kids.kids.kids.kids"
+
+Every seat is distinct, the guard never fires, and Go runs away
+exactly as before. Go does not re-meet at a position the way the
+TypeScript trace above does at `d.kids.0.kids.0` (#3, #4, #5); it
+descends straight into the synthetic `kids` chain, a new position each
+time. The change was reverted rather than landed: a guard that fixes
+one port and no-ops in the other is the divergence ADR-001 exists to
+prevent.
+
+What the failure buys is a sharper reading of the same diagnosis. The
+repeated position is TypeScript's own symptom: its #4 and #5 re-meet
+at `d.kids.0.kids.0`, a path the data does have, and it only reaches
+a synthetic `kids` at #7. Go skips that stall and is past the data by
+#4. What both ports do is the second numbered point above, on its own
+-- **an expansion at a path no data reaches**. A guard keyed on
+position catches the stall, which only one port has, and not the
+expansion, which both have. So the rule stands as written: the fix has
+to recognise template-contributed structure directly.
+
+The marker for that already exists in both ports, and is not usable as
+a gate as it stands. `markSpread` stamps a template's contribution
+`FROM_SPREAD` in TypeScript (`ts/src/provenance.ts`) and `fspr` in Go
+(`go/mapval.go`), which is exactly the origin the rule names -- but
+both are no-ops unless `ctx.prov` holds a recorder, and only `why`
+sets one (`ts/src/query.ts`). Gating expansion on it as written would
+make evaluation depend on whether provenance is being recorded.
+
 Repro:
 [`repros/recursion/recursive-spread-conjunct-hangs.aon`](repros/recursion/recursive-spread-conjunct-hangs.aon)
 -- run it under `timeout`, as its header says.

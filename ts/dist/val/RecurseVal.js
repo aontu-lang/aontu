@@ -101,7 +101,6 @@ class RecurseVal extends FeatureVal_1.FeatureVal {
             (0, utility_1.walk)(level, (_key, v) => {
                 v.mark.type = false;
                 v.mark.hide = false;
-                v.entity = undefined;
                 return v;
             });
             bumpRecurse(level, this.xc + 1);

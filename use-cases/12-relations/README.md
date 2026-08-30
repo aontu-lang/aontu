@@ -50,7 +50,7 @@ the atoms, so it shows the shape with nothing else in the frame.
 
 ## The model
 
-An ETL pipeline: four jobs, each an entity (`id(job_extract)` …), and
+An ETL pipeline: four jobs, each addressed by its tree path, and
 one relation — `feeds`, with its written-out inverse `fedBy`. The
 WHOLE declaration is one line of schema (spec.aon):
 

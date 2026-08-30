@@ -33,20 +33,50 @@ func TestAddrSegmentOK(t *testing.T) {
 }
 
 func TestParseAddressShapes(t *testing.T) {
-	a, ok := parseAddress("svc_auth.ports.http")
-	if !ok || "svc_auth" != a.Name || 2 != len(a.Path) ||
-		"ports" != a.Path[0] || "http" != a.Path[1] {
+	// An address is a TREE PATH (ADR-014), in the two spellings a
+	// reference uses. The TS twin is address-spellings in
+	// ts/test/coverage3.test.ts.
+	a, ok := parseAddress("$.services.auth")
+	if !ok || !a.Absolute || 0 != a.Up || 2 != len(a.Parts) ||
+		"services" != a.Parts[0] || "auth" != a.Parts[1] {
 		t.Fatalf("parseAddress = %+v,%v", a, ok)
 	}
-	if _, ok := parseAddress("svc_auth."); ok {
-		t.Error("a trailing dot is not an address")
+	r, ok := parseAddress("..b.c")
+	if !ok || r.Absolute || 1 != r.Up || 2 != len(r.Parts) ||
+		"b" != r.Parts[0] || "c" != r.Parts[1] {
+		t.Fatalf("parseAddress = %+v,%v", r, ok)
 	}
-	// D-1: the name half is a flat identifier -- no slash.
-	if _, ok := parseAddress("svc/auth.ports"); ok {
-		t.Error("a slashed name is not an address")
+	// What is not an address. `$` alone names the whole document, which
+	// has no position to be written back into; the rest are paths
+	// without an anchor, empty segments, or characters no key spells.
+	for _, bad := range []string{"$", "", "a.b", "services.auth", "$.",
+		"$.a.", "$..a", ".", "..", "$.a b", "$.a/b"} {
+		if _, ok := parseAddress(bad); ok {
+			t.Errorf("parseAddress(%q) = ok, want not", bad)
+		}
 	}
-	if _, ok := parseAddress("a b"); ok {
-		t.Error("a space is not an address")
+}
+
+func TestAddressPathResolution(t *testing.T) {
+	// The TS twin is address-path-resolution in
+	// ts/test/coverage3.test.ts.
+	abs, _ := parseAddress("$.a.b")
+	if p, ok := addressPath(abs, []string{"x", "y", "dep"}); !ok ||
+		2 != len(p) || "a" != p[0] || "b" != p[1] {
+		t.Fatalf("absolute = %v,%v", p, ok)
+	}
+	// A relative one drops the link's OWN key and reads the sibling
+	// scope: a link at $.x.y.dep spelling `.other` means $.x.y.other.
+	sib, _ := parseAddress(".other")
+	if p, ok := addressPath(sib, []string{"x", "y", "dep"}); !ok ||
+		3 != len(p) || "x" != p[0] || "y" != p[1] || "other" != p[2] {
+		t.Fatalf("sibling = %v,%v", p, ok)
+	}
+	// Each further dot is one step further up.
+	up, _ := parseAddress("..other")
+	if p, ok := addressPath(up, []string{"x", "y", "dep"}); !ok ||
+		2 != len(p) || "x" != p[0] || "other" != p[1] {
+		t.Fatalf("one up = %v,%v", p, ok)
 	}
 }
 
@@ -125,10 +155,10 @@ func TestReferMergeNilCombinations(t *testing.T) {
 	}
 
 	// And a peer that already has the address, when this one does not.
-	addr, _ := parseAddress("svc_x")
+	addr, _ := parseAddress("$.svc_x")
 	sited := newRefer(nil)
-	sited.addr, sited.addrsrc = &addr, "svc_x"
-	if out := bare.Unify(sited, ctx).(*ReferVal); "svc_x" != out.addrsrc {
+	sited.addr, sited.addrsrc = &addr, "$.svc_x"
+	if out := bare.Unify(sited, ctx).(*ReferVal); "$.svc_x" != out.addrsrc {
 		t.Errorf("the address should carry across the merge, got %q", out.addrsrc)
 	}
 }
@@ -142,32 +172,57 @@ func TestReferNilPeerIsTheNil(t *testing.T) {
 	}
 }
 
-func TestFindEntityWalksIntoNonBags(t *testing.T) {
-	// An address that descends THROUGH a scalar names nothing: the walk
+func TestFindAtWalksIntoNonBags(t *testing.T) {
+	// A path that descends THROUGH a scalar names nothing: the walk
 	// stops rather than guessing. Reachable from source only as a
 	// pending refer that later refuses, so the walk itself is pinned
-	// here.
-	ctx := &Ctx{entities: map[string]Val{}}
+	// here. The TS twin is find-at-walks-into-non-bags in
+	// ts/test/coverage3.test.ts.
 	m := newMap()
 	m.set("p", newInteger(1))
-	ctx.entities["x"] = m
+	root := newMap()
+	root.set("x", m)
 
-	addr, _ := parseAddress("x.p.q")
-	if _, ok := findEntity(ctx, addr); ok {
+	if _, ok := findAt(root, []string{"x", "p", "q"}); ok {
 		t.Error("a path through a scalar should not resolve")
 	}
-	addr2, _ := parseAddress("x.nope")
-	if _, ok := findEntity(ctx, addr2); ok {
+	if _, ok := findAt(root, []string{"x", "nope"}); ok {
 		t.Error("a missing key should not resolve")
 	}
-	addr3, _ := parseAddress("nosuch")
-	if _, ok := findEntity(ctx, addr3); ok {
-		t.Error("an unknown entity should not resolve")
+	if _, ok := findAt(nil, []string{"x"}); ok {
+		t.Error("no tree should not resolve")
 	}
-	addr4, _ := parseAddress("x.p")
-	site, ok := findEntity(ctx, addr4)
+	// The empty path is `$`, refused as an address because it has no
+	// parent to be written back into.
+	if _, ok := findAt(root, nil); ok {
+		t.Error("the empty path should not resolve")
+	}
+	site, ok := findAt(root, []string{"x", "p"})
 	if !ok || Val(m) != site.parent || "p" != site.key {
-		t.Fatalf("findEntity = %+v,%v", site, ok)
+		t.Fatalf("findAt = %+v,%v", site, ok)
+	}
+}
+
+func TestAddressPathClimbsOffTheTop(t *testing.T) {
+	// A relative address with more parent steps than the link has
+	// ancestors. No later pass can grow the tree upwards, so settle
+	// refuses at once rather than residuating to the last pass. The TS
+	// twin is address-path-resolution / refer-climb-off-the-top-refuses.
+	addr, ok := parseAddress("...z")
+	if !ok {
+		t.Fatal("...z should parse as a relative address")
+	}
+	if _, ok := addressPath(addr, []string{"a", "dep"}); ok {
+		t.Error("a climb off the top should not resolve")
+	}
+
+	ctx := &Ctx{}
+	ctx.root = newMap()
+	r := newRefer(nil)
+	r.addr, r.addrsrc = &addr, "...z"
+	r.path = []string{"a", "dep"}
+	if out := r.settle(ctx, r); !out.Nil() {
+		t.Fatalf("expected a nil, got %s", out.Canon())
 	}
 }
 
@@ -177,14 +232,16 @@ func TestReferFlowRefusalIsTheNil(t *testing.T) {
 	// target. From source the conflict usually lands on a FIELD (the
 	// maps meet and one key disagrees), so the whole-value refusal is
 	// pinned here.
-	ctx := &Ctx{entities: map[string]Val{}}
+	ctx := &Ctx{}
 	m := newMap()
 	m.set("k", newInteger(1))
-	ctx.entities["x"] = m
+	root := newMap()
+	root.set("x", m)
+	ctx.root = root
 
-	addr, _ := parseAddress("x")
+	addr, _ := parseAddress("$.x")
 	r := newRefer(newInteger(1))
-	r.addr, r.addrsrc = &addr, "x"
+	r.addr, r.addrsrc = &addr, "$.x"
 	if out := r.settle(ctx, r); !out.Nil() {
 		t.Fatalf("expected a nil, got %s", out.Canon())
 	}

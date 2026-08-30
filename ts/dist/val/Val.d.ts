@@ -26,7 +26,6 @@ type ValSpec = {
 declare const DONE = -1;
 declare const SPREAD: unique symbol;
 declare const EMPTY_ERR: any[];
-export declare function nextValId(): number;
 declare abstract class Val {
     isVal: boolean;
     isTop: boolean;
@@ -73,7 +72,6 @@ declare abstract class Val {
     set site(s: Site);
     mark: ValMark;
     deprecation?: Record<string, string>;
-    entity?: string;
     link?: string;
     graph?: any;
     peg: any;

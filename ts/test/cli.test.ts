@@ -1010,12 +1010,12 @@ describe('cli-subsume', () => {
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-rel-'))
     const file = Path.join(dir, 'doc.aon')
     Fs.writeFileSync(file,
-      'a: id(a) & {dependsOn: rel() & inverse(usedBy) & acyclic() & [b]}\n' +
-      'b: id(b) & {dependsOn: rel() & inverse(usedBy) & acyclic() & [a]}\n')
+      'a: {dependsOn: rel() & inverse(usedBy) & acyclic() & [\"$.b\"]}\n' +
+      'b: {dependsOn: rel() & inverse(usedBy) & acyclic() & [\"$.a\"]}\n')
     const r = vetCapture(() => Assert.equal(runRelations([file]), 1))
     Assert.match(r.out, /verdict: fail/)
-    Assert.match(r.out, /cycle a -> b -> a/)
-    Assert.match(r.out, /b does not list a under usedBy/)
+    Assert.match(r.out, /cycle \$\.a -> \$\.b -> \$\.a/)
+    Assert.match(r.out, /\$\.b does not list \$\.a under usedBy/)
 
     // (The old declared-target rendering is gone with the code:
     // rel(t) flows at the site and its refusal is the engine's own,
@@ -1023,8 +1023,8 @@ describe('cli-subsume', () => {
 
     // Acyclic AND mirrored: nothing to report.
     Fs.writeFileSync(file,
-      'a: id(a) & {dependsOn: rel() & inverse(usedBy) & acyclic() & [b]}\n' +
-      'b: id(b) & {usedBy: rel() & [a]}\n')
+      'a: {dependsOn: rel() & inverse(usedBy) & acyclic() & [\"$.b\"]}\n' +
+      'b: {usedBy: rel() & [\"$.a\"]}\n')
     Assert.equal(vetCapture(() =>
       Assert.equal(runRelations([file]), 0)
     ).out.trim(), 'verdict: pass')
@@ -1042,8 +1042,8 @@ describe('cli-subsume', () => {
     Assert.equal(rbj.errors[0].code, 'scalar_value')
 
     Fs.writeFileSync(file,
-      'a: id(a) & {dependsOn: rel() & inverse(usedBy) & acyclic() & [b]}\n' +
-      'b: id(b) & {dependsOn: rel() & inverse(usedBy) & acyclic() & [a]}\n')
+      'a: {dependsOn: rel() & inverse(usedBy) & acyclic() & [\"$.b\"]}\n' +
+      'b: {dependsOn: rel() & inverse(usedBy) & acyclic() & [\"$.a\"]}\n')
     const j = vetCapture(() => Assert.equal(
       runRelations(['--format', 'json', file]), 1))
     const report = JSON.parse(j.out)
@@ -1051,7 +1051,7 @@ describe('cli-subsume', () => {
     Assert.equal(report.verdict, 'fail')
     Assert.equal(report.findings.length, 3)
     Assert.equal(report.findings[0].code, 'relation_cycle')
-    Assert.deepEqual(report.findings[0].detail, ['a', 'b', 'a'])
+    Assert.deepEqual(report.findings[0].detail, ['$.a', '$.b', '$.a'])
     // ABSENT, not empty, on a run that stood up: the graph had
     // findings, and nothing stopped the graph being looked at.
     Assert.equal('errors' in report, false)
@@ -1159,59 +1159,59 @@ describe('cli-subsume', () => {
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-rc-'))
     const file = Path.join(dir, 'doc.aon')
     Fs.writeFileSync(file,
-      'a: id(a) & {dependsOn: [&: refer(), b]}\n' +
-      'b: id(b) & {dependsOn: [&: refer(), c], usedBy: [&: refer(), d]}\n' +
-      'c: id(c) & {}\nd: id(d) & {}\n')
+      'a: {dependsOn: [&: refer(), \"$.b\"]}\n' +
+      'b: {dependsOn: [&: refer(), \"$.c\"], usedBy: [&: refer(), \"$.d\"]}\n' +
+      'c: {}\nd: {}\n')
 
     // THE PATH IS THE ANSWER: "yes" is worth little to an operator
     // asking what a failure would take out.
     const hit = vetCapture(() =>
-      Assert.equal(runReaches(['a', 'c', file]), 0))
+      Assert.equal(runReaches(['$.a', '$.c', file]), 0))
     Assert.match(hit.out, /verdict: reaches/)
-    Assert.match(hit.out, /a -> b -> c/)
+    Assert.match(hit.out, /\$\.a -> \$\.b -> \$\.c/)
 
     // An unreachable pair is a FAILED CHECK, not an error: the question
     // was answered, and the answer was no.
     const miss = vetCapture(() =>
-      Assert.equal(runReaches(['c', 'a', file]), 1))
+      Assert.equal(runReaches(['$.c', '$.a', file]), 1))
     Assert.match(miss.out, /verdict: unreachable/)
-    Assert.match(miss.out, /c does not reach a/)
+    Assert.match(miss.out, /\$\.c does not reach \$\.a/)
 
     // --relation follows one relation, which is the difference between
     // "can this reach that at all" and "can it reach it THIS way".
-    vetCapture(() => Assert.equal(runReaches(['a', 'd', file]), 0))
+    vetCapture(() => Assert.equal(runReaches(['$.a', '$.d', file]), 0))
     vetCapture(() => Assert.equal(
-      runReaches(['a', 'd', '--relation', 'dependsOn', file]), 1))
+      runReaches(['$.a', '$.d', '--relation', 'dependsOn', file]), 1))
 
-    // An endpoint that names no entity is a REFUSAL, not a `no`:
+    // An endpoint that names no node is a REFUSAL, not a `no`:
     // answering no would report a typo as a fact about the model.
     const bad = vetCapture(() =>
-      Assert.equal(runReaches(['a', 'nope', file]), 4))
+      Assert.equal(runReaches(['$.a', '$.nope', file]), 4))
     Assert.match(bad.out, /refer_unresolved/)
-    Assert.match(bad.out, /known entities: a, b, c, d/)
+    Assert.match(bad.out, /nodes with links: \$\.a, \$\.b, \$\.c, \$\.d/)
 
     const j = JSON.parse(vetCapture(() => Assert.equal(
-      runReaches(['a', 'c', '--format', 'json', file]), 0)).out)
+      runReaches(['$.a', '$.c', '--format', 'json', file]), 0)).out)
     Assert.equal(j.aontu.verb, 'reaches')
-    Assert.deepEqual(j.path, ['a', 'b', 'c'])
+    Assert.deepEqual(j.path, ['$.a', '$.b', '$.c'])
     Assert.equal('errors' in j, false)
 
     // A `no` carries no path -- there is no evidence for a negative
     // answer -- and a refusal carries its findings instead.
     const jn = JSON.parse(vetCapture(() => Assert.equal(
-      runReaches(['c', 'a', '--format', 'json', file]), 1)).out)
+      runReaches(['$.c', '$.a', '--format', 'json', file]), 1)).out)
     Assert.equal(jn.verdict, 'unreachable')
     Assert.equal('path' in jn, false)
     Assert.equal('errors' in jn, false)
     const je = JSON.parse(vetCapture(() => Assert.equal(
-      runReaches(['a', 'nope', '--format', 'json', file]), 4)).out)
+      runReaches(['$.a', '$.nope', '--format', 'json', file]), 4)).out)
     Assert.equal(je.verdict, 'error')
     Assert.equal(je.errors[0].code, 'refer_unresolved')
     Assert.equal('path' in je, false)
 
     // A --trust the parser ACCEPTS reaches the graph.
     vetCapture(() => Assert.equal(
-      runReaches(['--trust', 'none', 'a', 'c', file]), 0))
+      runReaches(['--trust', 'none', '$.a', '$.c', file]), 0))
 
     // A document that does not stand up has no graph to ask about.
     Fs.writeFileSync(file, 'a: 1\na: 2\n')
@@ -1228,17 +1228,17 @@ describe('cli-subsume', () => {
   // in test/spec/divergent.tsv, so this asserts the CODE and the
   // verdict -- which is what a caller acts on -- rather than the path.
   test('a-nil-root-with-no-collected-error-is-reported-not-thrown', () => {
-    const f = subFiles('&: id(root)\nb: id(b) & {n: 1}\n', 'a:1')
+    const f = subFiles('&:\n', 'a:1')
     for (const run of [
       () => runRelations([f.general]),
-      () => runReaches(['b', 'b', f.general]),
+      () => runReaches(['$.b', '$.b', f.general]),
       () => runJsonSchema([f.general]),
       () => runTrim(['--check', f.general]),
     ]) {
       const r = vetCapture(() => Assert.equal(run(), 4))
       // out OR err: jsonschema puts its refusal on stderr, because
       // stdout is the schema's stream.
-      Assert.match(r.out + r.err, /id_spread/)
+      Assert.match(r.out + r.err, /elided_value/)
     }
   })
 

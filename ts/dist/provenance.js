@@ -13,7 +13,7 @@ exports.FROM_SPREAD = '_fromSpread';
 // which is true of the parsed tree and of nothing derived from it. So
 // every value that reached a path through a CLONE was dark: a default
 // flowing into a `pack()`-generated child, a shape carried by a `$ref`,
-// one side of an id()-merge. `why` answered "(no contributions:
+// a value a spread template stamped. `why` answered "(no contributions:
 // nothing met at this path)" over a value it had just printed, with
 // exit 0 -- a false statement, and the one an audit surface may not
 // make (use-cases/BUGS.md §23, §24).

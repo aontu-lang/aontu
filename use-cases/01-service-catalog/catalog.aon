@@ -1,29 +1,35 @@
 # catalog.aon --- THE CATALOG VIEW: what each service IS -- ownership,
-# tier, purpose, dependencies. Each service carries id(svc_<name>), so
-# the deployment view (deploy.aon) merges with this one field-by-field.
-# dependedOnBy (the inverse of dependsOn) is written BY HAND on every
-# target: `aontu relations` checks it, nothing derives it (gap 4).
+# tier, purpose, dependencies. This view is the one the deployment view
+# (deploy.aon) REFERENCES, so the two meet field-by-field at the deploy
+# positions. dependedOnBy (the inverse of dependsOn) is written BY HAND
+# on every target: `aontu relations` checks it, nothing derives it
+# (gap 4). Every address is a tree path (ADR-014).
 catalog: domains: {
   payments: {
     team: "team-payments"
     services: {
       &: $.spec.CatalogEntry & {owner: "team-payments"}
-      payments: id(svc_payments) & {
+      payments: {
         tier: 1
         description: "Card payment orchestration and capture API."
-        dependsOn: [svc_ledger, svc_risk, svc_auth, svc_notify]
-        dependedOnBy: [svc_gateway]
+        dependsOn: [
+          "$.catalog.domains.payments.services.ledger"
+          "$.catalog.domains.payments.services.risk"
+          "$.catalog.domains.identity.services.auth"
+          "$.catalog.domains.platform.services.notify"
+        ]
+        dependedOnBy: ["$.catalog.domains.platform.services.gateway"]
       }
-      ledger: id(svc_ledger) & {
+      ledger: {
         tier: 1
         description: "Double-entry ledger of record for money movement."
-        dependedOnBy: [svc_payments]
+        dependedOnBy: ["$.catalog.domains.payments.services.payments"]
       }
-      risk: id(svc_risk) & {
+      risk: {
         tier: 2
         description: "Transaction risk scoring and fraud rules engine."
-        dependsOn: [svc_directory]
-        dependedOnBy: [svc_payments]
+        dependsOn: ["$.catalog.domains.identity.services.directory"]
+        dependedOnBy: ["$.catalog.domains.payments.services.payments"]
       }
     }
   }
@@ -31,16 +37,22 @@ catalog: domains: {
     team: "team-identity"
     services: {
       &: $.spec.CatalogEntry & {owner: "team-identity"}
-      auth: id(svc_auth) & {
+      auth: {
         tier: 1
         description: "OAuth2 token issuing and session verification."
-        dependsOn: [svc_directory]
-        dependedOnBy: [svc_gateway, svc_payments]
+        dependsOn: ["$.catalog.domains.identity.services.directory"]
+        dependedOnBy: [
+          "$.catalog.domains.platform.services.gateway"
+          "$.catalog.domains.payments.services.payments"
+        ]
       }
-      directory: id(svc_directory) & {
+      directory: {
         tier: 2
         description: "Employee and customer directory lookups."
-        dependedOnBy: [svc_risk, svc_auth]
+        dependedOnBy: [
+          "$.catalog.domains.payments.services.risk"
+          "$.catalog.domains.identity.services.auth"
+        ]
       }
     }
   }
@@ -48,22 +60,25 @@ catalog: domains: {
     team: "team-platform"
     services: {
       &: $.spec.CatalogEntry & {owner: "team-platform"}
-      gateway: id(svc_gateway) & {
+      gateway: {
         tier: 1
         description: "Public API edge gateway and request routing."
-        dependsOn: [svc_payments, svc_auth]
+        dependsOn: [
+          "$.catalog.domains.payments.services.payments"
+          "$.catalog.domains.identity.services.auth"
+        ]
       }
-      notify: id(svc_notify) & {
+      notify: {
         tier: 3
         lifecycle: experimental
         description: "Customer notification fan-out orchestration."
-        dependsOn: [svc_email]
-        dependedOnBy: [svc_payments]
+        dependsOn: ["$.catalog.domains.platform.services.email"]
+        dependedOnBy: ["$.catalog.domains.payments.services.payments"]
       }
-      email: id(svc_email) & {
+      email: {
         tier: 3
         description: "SMTP delivery with bounce and complaint tracking."
-        dependedOnBy: [svc_notify]
+        dependedOnBy: ["$.catalog.domains.platform.services.notify"]
       }
     }
   }

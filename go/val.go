@@ -125,8 +125,6 @@ type Val interface {
 	setInnerOf(v Val)
 	deprecRec() map[string]string
 	setDeprecRec(rec map[string]string)
-	entityName() string
-	setEntityName(name string)
 	linkAddr() string
 	setLinkAddr(addr string)
 	markedHide() bool
@@ -230,14 +228,7 @@ type base struct {
 	// back reparseably (canonRiders). Mirrors Val.deprecation in
 	// ts/src/val/Val.ts.
 	deprec map[string]string
-	// The IDENTITY (G4 phase 1, `id(name)`): the entity this value IS.
-	// A separate slot for the same reason the deprecation record has one
-	// — a boolean mark cannot hold a name — and carried through meets by
-	// the same rider in unite. Unlike the marks, Canon RENDERS it:
-	// identity is semantic content, and G6's canon-hash must see it.
-	// Empty means anonymous. Mirrors Val.entity in ts/src/val/Val.ts.
-	entity string
-	// The LINK (G4 phase 2/3): the entity address a `refer` resolved
+	// The LINK (G4 phase 2/3): the tree address a `refer` resolved
 	// to, stamped on the string it answers. The string IS the value — a
 	// link, not an embedding — so nothing downstream could otherwise
 	// tell a checked link from a literal that happens to look like one,
@@ -331,8 +322,6 @@ func (b *base) markedType() bool                   { return b.mtype }
 func (b *base) deprecRec() map[string]string       { return b.deprec }
 func (b *base) setDeprecRec(rec map[string]string) { b.deprec = rec }
 
-func (b *base) entityName() string        { return b.entity }
-func (b *base) setEntityName(name string) { b.entity = name }
 
 func (b *base) linkAddr() string        { return b.link }
 func (b *base) relKey() string          { return b.relkey }

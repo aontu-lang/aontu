@@ -144,7 +144,6 @@ func (r *RecurseVal) Unify(peer Val, ctx *Ctx) Val {
 		// are the output.
 		level := clonePath(bodyv, cp(r.path))
 		walkMark(level, true, false, true, false)
-		walkClearEntity(level)
 		bumpRecurse(level, r.xc+1)
 		return unite(ctx, level, peer)
 	}

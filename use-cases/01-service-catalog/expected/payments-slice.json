@@ -1,17 +1,6 @@
 {
-  "dependedOnBy": [
-    "svc_gateway"
-  ],
-  "dependsOn": [
-    "svc_ledger",
-    "svc_risk",
-    "svc_auth",
-    "svc_notify"
-  ],
-  "description": "Card payment orchestration and capture API.",
   "image": "registry.acme.internal/payments:2.14.1",
   "kind": "service",
-  "lifecycle": "production",
   "owner": "team-payments",
   "ports": {
     "http": {

@@ -127,15 +127,6 @@ func hcanonRender(v Val, inh hcanonMarks) string {
 		s = v.Canon()
 	}
 
-	// The IDENTITY is innermost, exactly as canon writes it (G4 phase
-	// 1). It is IN the hash — a node declared `id(svc_auth)` and the
-	// same node declared `id(svc_billing)` describe different systems,
-	// and a pin that could not tell them apart would be a pin on the
-	// shape rather than on the meaning. Mirrors ts/src/hcanon.ts.
-	if e := v.entityName(); "" != e {
-		s = "id(" + jsonString(e) + ")&" + s
-	}
-
 	if mtype && !inh.mtype {
 		s = "type(" + s + ")"
 	}

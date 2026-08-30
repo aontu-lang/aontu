@@ -136,7 +136,6 @@ import { KeyFuncVal } from './val/KeyFuncVal'
 import { TypeFuncVal } from './val/TypeFuncVal'
 import { HideFuncVal } from './val/HideFuncVal'
 import { DeprecateFuncVal } from './val/DeprecateFuncVal'
-import { IdFuncVal } from './val/IdFuncVal'
 import { ReferFuncVal, RelFuncVal } from './val/ReferFuncVal'
 import { AcyclicFuncVal, InverseFuncVal } from './val/GraphAtomVal'
 import { PackFuncVal } from './val/PackFuncVal'
@@ -596,16 +595,10 @@ help isolate the syntax error.`,
     // call back (canonRiders).
     deprecate: DeprecateFuncVal,
 
-    // G4 phase 1: the identity mark. Written as a conjunct
-    // (`id(svc_auth) & {…}`), it resolves to the unit carrying the
-    // name, and every node in one evaluation with that name is
-    // unified with every other.
-    id: IdFuncVal,
-
     // G4 phase 2: the checked, typed, LINK-shaped reference. A
-    // constraint on a string field: the string must be an entity
-    // address, the address must resolve, and the optional argument
-    // flows INTO the target. The field keeps the string.
+    // constraint on a string field: the string must be a TREE ADDRESS
+    // (`$.a.b` or `.b`), the address must resolve, and the optional
+    // argument flows INTO the target. The field keeps the string.
     refer: ReferFuncVal,
     rel: RelFuncVal,
 
@@ -2202,7 +2195,6 @@ const funcArity: Record<string, [number, number]> = {
   neq: [1, -1],
   must: [2, 2],
   deprecate: [1, 2],
-  id: [0, 1],
   acyclic: [0, 0],
   inverse: [1, 1],
   refer: [0, 1],

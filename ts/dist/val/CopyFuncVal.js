@@ -32,13 +32,6 @@ class CopyFuncVal extends FuncBaseVal_1.FuncBaseVal {
                 // console.log('WALK', val)
                 val.mark.type = false;
                 val.mark.hide = false;
-                // `copy()` CLEARS IDENTITY (G4 phase 1, clearing rule 2),
-                // consistent with its clearing of the marks: a copy of an
-                // entity is a second value shaped like it, and leaving the id
-                // on would merge the copy straight back into the original —
-                // making `copy()` a no-op for exactly the values it exists to
-                // detach.
-                val.entity = undefined;
                 return val;
             });
         }

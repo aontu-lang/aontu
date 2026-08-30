@@ -169,7 +169,7 @@ class InverseFuncVal extends FuncBaseVal_1.FuncBaseVal {
     resolve(ctx, args) {
         const a = args[0];
         // The mirroring predicate is a NAME -- D-1, spelled bare or
-        // quoted, exactly an id()'s argument shape.
+        // quoted. A relation is a vocabulary term, not an address.
         if (true !== a?.isScalar || 'string' !== typeof a.peg
             || !GRAPH_ATOM_NAME.test(a.peg)) {
             return (0, err_1.makeNilErr)(ctx, 'inverse_name', this, undefined, 'inverse');

@@ -17,16 +17,13 @@ import (
 func TestGraphOfSurvivesACycle(t *testing.T) {
 	root := newMap()
 	root.set("self", root)
-	root.setEntityName("x")
 	g := GraphOf(root)
-	if 1 != len(g.Entities) || "x" != g.Entities[0].ID {
-		t.Fatalf("entities = %+v", g.Entities)
+	if 0 != len(g.Edges) {
+		t.Fatalf("edges = %+v", g.Edges)
 	}
 	// Once, at the root: the ancestor guard stops the descent the
 	// moment the cycle closes back onto a node already on the path.
-	if 1 != len(g.Entities[0].Paths) || "$" != g.Entities[0].Paths[0] {
-		t.Fatalf("paths = %v", g.Entities[0].Paths)
-	}
+
 }
 
 func TestGraphOfNilNode(t *testing.T) {
@@ -34,9 +31,8 @@ func TestGraphOfNilNode(t *testing.T) {
 	// rather than dereferencing it.
 	root := newMap()
 	root.set("gap", nil)
-	root.setEntityName("x")
 	g := GraphOf(root)
-	if 1 != len(g.Entities) {
-		t.Fatalf("entities = %+v", g.Entities)
+	if 0 != len(g.Edges) {
+		t.Fatalf("edges = %+v", g.Edges)
 	}
 }

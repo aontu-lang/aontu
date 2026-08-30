@@ -64,9 +64,9 @@ angles**:
 - `deploy.aon` — the deployment view: what each cluster *runs*
   (image, replicas, ports), organised by region and cluster.
 
-The two files never mention each other's tree paths. `id(svc_<name>)`
-declares that they describe the same entities, and one evaluation of
-`system.aon` merges them field-by-field. This is the core enterprise
+The deployment view REFERENCES its catalog entry's org facts, so one
+evaluation of `system.aon` brings the two into contact and a drift
+between them fails at the deploy position. This is the core enterprise
 problem: the org chart and the runtime both hold facts about one
 logical thing, and any drift between them should be an *error*, not a
 silent fork. It is also the ground-truth-ontology problem for AI
@@ -80,8 +80,8 @@ and have its own emitted candidates checked (`aontu vet`, `refer()`).
 |---|---|---|
 | `system.aon` | root: joins everything, declares relations | `@"std/system"`, `@"./..."` includes, `hide()`, `$.std.Relation`, `inverse`, `acyclic`, `target` |
 | `spec.aon` | Acme vocabulary over the bundled one | `$.std.Service`, `$.std.Port`, conjunction-as-subclassing, `re`/`min`/`max`/`length` atoms, `*` defaults, optional `?` keys, `refer(t)` with link constraints |
-| `catalog.aon` | catalog view | `id()`, per-domain `&:` spreads stamping owner + schema |
-| `deploy.aon` | deployment view | `id()` from a second tree, defaults (`replicas: *2`) |
+| `catalog.aon` | catalog view | per-domain `&:` spreads stamping owner + schema, `rel()` address lists |
+| `deploy.aon` | deployment view | references into the catalog view, defaults (`replicas: *2`) |
 | `queries/queries.aon` | instance-of queries | `filter`, map union as index |
 | `bad/*.aon` | change requests that must be refused | cycle, missing inverse, cross-view contradiction, wrong-kind endpoint, an unmet declared `target` |
 | `proposals/*.aon` + `data/*.json` | agent-emitted candidates | JSON-as-Aontu, `vet --at --closed`, `refer` existence checks |
@@ -144,9 +144,9 @@ Run it: `./check.sh` (from anywhere; set `AONTU=` to override the CLI).
   whole vocabulary and stamps ownership; `*` defaults filled in
   `replicas: 2`, `direction: "in"`, `lifecycle: "production"`
   everywhere they were not overridden.
-- **Canon keeps identity.** `--canon` renders `id("svc_payments")`
-  back, so the canon-hash distinguishes documents that disagree about
-  identity.
+- **Canon keeps the declarations.** `--canon` renders `acyclic()` and
+  `inverse("dependedOnBy")` back at their fields, so the canon-hash
+  distinguishes documents that disagree about their relations.
 
 ## Gaps and friction
 
@@ -343,8 +343,8 @@ children under the templated map. Identical references on both sides
 are fine. Workaround in `spec.aon`: one shared `$.spec.PortSpec`,
 named identically by `CatalogEntry` and `Workload`, and `Workload`
 also names `$.std.Service` so both views carry the *same* template
-set. This is a landmine for exactly the multi-view merging the id()
-feature exists for.
+set. This was a landmine for exactly the multi-view merging this case is
+about.
 
 ### Gap 8 (critical): `refer($.std.Service)` — the documented idiom — dies of `unify_cycle` at scale
 

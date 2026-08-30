@@ -22,8 +22,8 @@ jobs, both directions written out. The vocabulary goes in `spec.aon`:
 spec: hide({
   Job: {
     kind: job
-    feeds?: rel($.spec.JobShape) & re("^job_") & acyclic() & inverse(fedBy)
-    fedBy?: rel($.spec.JobShape) & re("^job_")
+    feeds?: rel($.spec.JobShape) & acyclic() & inverse(fedBy)
+    fedBy?: rel($.spec.JobShape)
   }
   JobShape: { kind: job }
 })
@@ -37,10 +37,13 @@ to two consumers:
 @"./spec.aon"
 jobs: {
   &: $.spec.Job
-  extract: id(job_extract) & { feeds: [job_transform] }
-  transform: id(job_transform) & { fedBy: [job_extract], feeds: [job_load, job_audit] }
-  load: id(job_load) & { fedBy: [job_transform] }
-  audit: id(job_audit) & { fedBy: [job_transform] }
+  extract: { feeds: ["$.jobs.transform"] }
+  transform: {
+    fedBy: ["$.jobs.extract"]
+    feeds: ["$.jobs.load", "$.jobs.audit"]
+  }
+  load: { fedBy: ["$.jobs.transform"] }
+  audit: { fedBy: ["$.jobs.transform"] }
 }
 ```
 
@@ -48,10 +51,10 @@ Now ask whether the extract job's output ends up in the warehouse:
 
 <!-- test: run -->
 ```sh
-$ aontu reaches job_extract job_load --relation feeds pipeline.aon
+$ aontu reaches $.jobs.extract $.jobs.load --relation feeds pipeline.aon
 verdict: reaches
 
-job_extract -> job_transform -> job_load
+$.jobs.extract -> $.jobs.transform -> $.jobs.load
 $ echo $?
 0
 ```
@@ -68,10 +71,10 @@ upstream no:
 
 <!-- test: run -->
 ```sh
-$ aontu reaches job_load job_extract --relation feeds pipeline.aon
+$ aontu reaches $.jobs.load $.jobs.extract --relation feeds pipeline.aon
 verdict: unreachable
 
-job_load does not reach job_extract
+$.jobs.load does not reach $.jobs.extract
 $ echo $?
 1
 ```
@@ -90,14 +93,14 @@ them, but the unrestricted graph does:
 
 <!-- test: run -->
 ```sh
-$ aontu reaches job_load job_audit pipeline.aon
+$ aontu reaches $.jobs.load $.jobs.audit pipeline.aon
 verdict: reaches
 
-job_load -> job_transform -> job_audit
-$ aontu reaches job_load job_audit --relation feeds pipeline.aon
+$.jobs.load -> $.jobs.transform -> $.jobs.audit
+$ aontu reaches $.jobs.load $.jobs.audit --relation feeds pipeline.aon
 verdict: unreachable
 
-job_load does not reach job_audit
+$.jobs.load does not reach $.jobs.audit
 $ echo $?
 1
 ```
@@ -106,23 +109,23 @@ That is the difference between "are these connected at all" and "can
 this reach that *this way*" — and in a model that writes out its
 inverses, the unrestricted graph connects nearly everything, so
 `--relation` is what makes direction mean anything. The query is
-transitive but never reflexive for free: `reaches job_extract
-job_extract` is true only when a path of one or more edges returns
+transitive but never reflexive for free: `reaches $.jobs.extract
+$.jobs.extract` is true only when a path of one or more edges returns
 home, which reports a cycle rather than reporting nothing.
 
 ## An endpoint that names nothing refuses
 
-An endpoint that names no entity would make `unreachable` a lie about
+An endpoint that names no node would make `unreachable` a lie about
 the model, so the verb refuses instead, and lists what it does know:
 
 <!-- test: run -->
 ```sh
-$ aontu reaches job_extract job_laod pipeline.aon
+$ aontu reaches $.jobs.extract $.jobs.laod pipeline.aon
 verdict: error
 
 $: refer_unresolved [reference]
-  job_laod names no entity in this document.
-  note: known entities: job_audit, job_extract, job_load, job_transform
+  $.jobs.laod names no node in this document.
+  note: nodes with links: $.jobs.audit, $.jobs.extract, $.jobs.load, $.jobs.transform
 $ echo $?
 4
 ```

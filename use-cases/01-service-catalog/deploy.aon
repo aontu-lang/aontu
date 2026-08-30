@@ -1,38 +1,63 @@
 # deploy.aon --- THE DEPLOYMENT VIEW: what each cluster RUNS. The same
-# eight entities as catalog.aon, named by the same id(svc_<name>), laid
-# out by region and cluster. The two trees never mention each other's
-# paths; identity alone joins them (see bad/tier-conflict.aon).
+# eight services as catalog.aon, laid out by region and cluster. Each
+# workload REFERENCES the ORG FACTS of its catalog entry -- owner and
+# tier -- so the two views meet on those and a contradiction between
+# them is a located error (see bad/tier-conflict.aon). It references
+# the facts rather than the whole entry deliberately: the dependency
+# graph is a fact about the CATALOG, and restating it at every cluster
+# would duplicate every edge at a position that has no business
+# owning one. The reference is directional -- the catalog is not
+# changed by what a cluster runs -- which is what lets this file be
+# one of several deployment views over one catalog.
 deploy: regions: {
   eu1: clusters: {
     core: workloads: {
       &: $.spec.Workload
-      payments: id(svc_payments) & {
+      payments: {
+        owner: $.catalog.domains.payments.services.payments.owner
+        tier:  $.catalog.domains.payments.services.payments.tier
+
         image: "registry.acme.internal/payments:2.14.1"
         replicas: 6
         ports: {http: {number: 8080, protocol: http}}
       }
-      ledger: id(svc_ledger) & {
+      ledger: {
+        owner: $.catalog.domains.payments.services.ledger.owner
+        tier:  $.catalog.domains.payments.services.ledger.tier
+
         image: "registry.acme.internal/ledger:1.9.0"
         replicas: 3
         ports: {grpc: {number: 9443, protocol: grpc}}
       }
-      risk: id(svc_risk) & {
+      risk: {
+        owner: $.catalog.domains.payments.services.risk.owner
+        tier:  $.catalog.domains.payments.services.risk.tier
+
         image: "registry.acme.internal/risk:0.31.2"
         ports: {grpc: {number: 9443, protocol: grpc}}
       }
-      auth: id(svc_auth) & {
+      auth: {
+        owner: $.catalog.domains.identity.services.auth.owner
+        tier:  $.catalog.domains.identity.services.auth.tier
+
         image: "registry.acme.internal/auth:5.2.0"
         replicas: 4
         ports: {http: {number: 8443, protocol: https}}
       }
-      directory: id(svc_directory) & {
+      directory: {
+        owner: $.catalog.domains.identity.services.directory.owner
+        tier:  $.catalog.domains.identity.services.directory.tier
+
         image: "registry.acme.internal/directory:3.0.4"
         ports: {http: {number: 8080, protocol: http}}
       }
     }
     edge: workloads: {
       &: $.spec.Workload
-      gateway: id(svc_gateway) & {
+      gateway: {
+        owner: $.catalog.domains.platform.services.gateway.owner
+        tier:  $.catalog.domains.platform.services.gateway.tier
+
         image: "registry.acme.internal/gateway:4.7.3"
         replicas: 8
         ports: {
@@ -45,11 +70,17 @@ deploy: regions: {
   us1: clusters: {
     comms: workloads: {
       &: $.spec.Workload
-      notify: id(svc_notify) & {
+      notify: {
+        owner: $.catalog.domains.platform.services.notify.owner
+        tier:  $.catalog.domains.platform.services.notify.tier
+
         image: "registry.acme.internal/notify:0.12.0"
         ports: {http: {number: 8080, protocol: http}}
       }
-      email: id(svc_email) & {
+      email: {
+        owner: $.catalog.domains.platform.services.email.owner
+        tier:  $.catalog.domains.platform.services.email.tier
+
         image: "registry.acme.internal/email:2.2.7"
         ports: {smtp: {number: 2525, protocol: smtp, direction: out}}
       }

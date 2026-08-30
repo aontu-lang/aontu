@@ -2026,7 +2026,7 @@ function runReaches(argv: string[]): number {
 
   if (3 !== rest.length) {
     process.stderr.write(
-      `aontu: reaches needs two entities and one file\n${REACHES_HELP}\n`)
+      `aontu: reaches needs two node paths and one file\n${REACHES_HELP}\n`)
     return 2
   }
 

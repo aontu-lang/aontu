@@ -8,6 +8,7 @@ import { AontuContext } from './ctx'
 import { DONE } from './type'
 
 import { makeNilErr } from './err'
+import { findAt } from './val/ReferFuncVal'
 
 import { NilVal } from './val/NilVal'
 import { hasPlace } from './val/PlaceVal'
@@ -111,12 +112,11 @@ const unite = (ctx: AontuContext, a: any, b: any, whence: string) => {
             && !a.isMap && !a.isList
             && !a.isConjunct && !a.isDisjunct
             && !a.isRef && !a.isPref && !a.isFunc && !a.isExpect
-            // NOT two TOPs (G4 phase 1): every top has the same
-            // (absent) peg, so this path treated any two as the same
-            // value — true of the unit itself, false of a unit
-            // CARRYING AN IDENTITY, and `id(x) & id(y)` is two of
-            // those. The slow path answers the same thing for two
-            // plain tops, and refuses the pair for two named ones.
+            // NOT two TOPs: every top has the same (absent) peg, so
+            // this path would treat any two as the same value and
+            // return one of them whole — dropping a rider the other
+            // carries. The slow path answers the same thing for two
+            // plain tops, so nothing is lost by declining the shortcut.
             && !a.isTop && !b.isTop
             // NOT two rel residuals (RELATIONS P1) for the same
             // reason: a settled rel is DONE with an absent peg, so
@@ -315,24 +315,6 @@ const unite = (ctx: AontuContext, a: any, b: any, whence: string) => {
     ctx.prov.record(ctx.path, a, b, out)
   }
 
-  // The IDENTITY survives every meet (G4 phase 1), by the same
-  // channel and for the same reason as the deprecation record below.
-  // TWO DIFFERENT NAMES on one node is a contradiction, not a merge:
-  // one node cannot be two entities, and the error names both sites.
-  if (null != out && true === (out as any).isVal && !out.isNil) {
-    const ae = null != a ? a.entity : undefined
-    const be = null != b ? b.entity : undefined
-    if (null != ae && null != be && ae !== be) {
-      out = makeNilErr(ctx, 'id_conflict', a, b)
-    }
-    else if (!out.isTop) {
-      const e = ae ?? be
-      if (null != e) {
-        out.entity = e
-      }
-    }
-  }
-
   // The deprecation record survives EVERY meet (G3 phase 4): the
   // boolean marks have their own sweeps (ConjunctVal, the bag walks),
   // but a record lost in one meet shape is a use the tooling never
@@ -382,142 +364,69 @@ function residuePaths(v: Val, max: number): string[] {
 }
 
 
-// IDENTITY-MERGE (G4 phase 1): every node in one evaluation carrying
-// the same id is unified with every other. Declaring two nodes the
-// same entity MEANS unifying them, so this is not a lookup table —
-// it is a meet, and a contradiction between two declarations is an
-// ordinary conflict naming both sites.
+// THE TYPE FLOW, APPLIED (G4 phase 2). `refer(t)` unifies `t` INTO the
+// node it addresses, which is a write at a position the meet is not
+// currently at -- the one non-local effect in the evaluator.
 //
-// Run once per fixpoint pass, after the pass's own unification: a
-// position picks up the representative, the representative picks up
-// the position, and the two converge across passes exactly as chained
-// references do, inside the same `maxcc` bound.
+// It cannot be only a write made during the pass. A pass BUILDS a new
+// tree from the old one, and `ctx.root` during pass N is pass N-1's
+// result; a subtree rebuilt by pass N (which is exactly what happens
+// when the link sits inside its own target, or when two nodes link at
+// each other) drops a write made into the previous one. So each flow is
+// also RECORDED, keyed by the target's path, and re-applied to the
+// pass's own result here.
 //
-// The tree stays a TREE. Every declared position holds the merged
-// value and generation emits it at each path — duplication, as
-// references generate today. Identity adds addressing, not a new
-// shape.
-// The ctx DESCENDS with the walk, so the merge's meet happens at the
-// position's own path: a contribution `$.b.k` picked up from `$.a.k`
-// is recorded against `$.b.k`, which is where a reader asking `why`
-// stands. Merging under the root ctx instead filed every contribution
-// at the top and left the positions themselves with an empty record —
-// and the Go port, whose bag loops derive the base from the value's
-// own path, already answered the useful way.
-function mergeEntities(ctx: AontuContext, root: Val): Val {
-  const reg: Map<string, Val> = (ctx as any).entities
-
-  // COLLECT, then APPLY — the same walk twice, not two walks. A single
-  // pass merges each position into the representative as it meets it,
-  // which leaves the positions it already passed holding the pre-merge
-  // value: `a: id(x) & {k:1}` kept `{k:1}` while `b: id(x) & {j:2}`
-  // became `{j:2,k:1}`, and the two sites disagreed about what the one
-  // entity is. The representative is therefore settled over the WHOLE
-  // tree before any position is written.
-  //
-  // `write` is which half is running. One function rather than two
-  // because the two halves differ in three lines and agree in the walk
-  // — and a walk written twice is a walk that drifts.
-  // AN ENTITY CANNOT CONTAIN ITSELF. Identity merge means every node
-  // carrying a name unifies with every other node carrying it, so
-  // naming a node AND ITS OWN DESCENDANT the same entity asks for a
-  // value that contains itself -- `a: id(x) & {b: id(x)}` makes
-  // `a.peg.b === a`. That is not a merge that produces a bad answer;
-  // it is one that produces no answer, and both ports died inside the
-  // unite on the host stack: TypeScript with a bare `Maximum call
-  // stack size exceeded` carrying no `[aontu/...]` marker, and Go with
-  // an unrecoverable `fatal error: stack overflow` an embedding server
-  // cannot defend against (BUGS.md §58).
-  //
-  // The refusal was the only missing piece -- the merge has both sites
-  // in hand. `bad` maps the DESCENDANT position to the nil it becomes,
-  // filled by the collect half (which is where the cycle would form,
-  // so the check runs BEFORE the unite) and applied by the write half.
-  // The descendant is the position that carries the refusal because it
-  // is the one that cannot stand; the ancestor is the other site on
-  // the finding.
-  const bad: Map<any, any> = new Map()
-
-  const walk = (node: any, seen: Set<any>, nctx: AontuContext,
-    write: boolean, anc: Map<string, any>): any => {
-    if (null == node || true !== node.isVal) {
-      return node
-    }
-
-    const name = (node as any).entity
-    if (null != name) {
-      if (write) {
-        const nil = bad.get(node)
-        if (null != nil) {
-          return nil
-        }
-      }
-      if (write) {
-        // The SUBSTITUTION happens before the seen-guard, not after.
-        // Two positions of one entity hold the SAME object once a pass
-        // has merged them, so a guard that ran first would visit the
-        // first position, replace it with a newer representative, and
-        // then skip the second as already-seen — leaving it on the
-        // older value. That is exactly what a `refer(t)` flow
-        // produces: it writes a new representative mid-pass, and every
-        // position must take it.
-        const rep: any = reg.get(name)
-        if (null != rep && rep !== node) {
-          node = rep
-        }
-      }
-      else {
-        // `ancestor !== node` because a unified tree is a GRAPH: a
-        // resolved reference shares its target, so a node can be
-        // reached through ITSELF without anyone having written two
-        // id()s. That is one entity at one position, which is fine.
-        // The defect is two DISTINCT nodes, one inside the other,
-        // claiming one name.
-        const ancestor = anc.get(name)
-        if (undefined !== ancestor && ancestor !== node) {
-          // BEFORE the unite, which is where the self-containing value
-          // would be built and the stack would go.
-          bad.set(node, makeNilErr(nctx, 'id_ancestor', node, ancestor))
-          return node
-        }
-        const rep = reg.get(name)
-        reg.set(name, null == rep || rep === node ? node :
-          unite(nctx, node, rep, 'entity'))
-      }
-    }
-
-    // The guard bounds the DESCENT, which is all it was ever for: a
-    // unified tree is a graph, and a subtree is worth walking once.
-    if (seen.has(node)) {
-      return node
-    }
-    seen.add(node)
-
-    if ((true === node.isMap || true === node.isList) && null != node.peg) {
-      // The ancestor map is per-PATH, not per-walk: two entities are
-      // siblings when neither contains the other, which is the case
-      // identity exists for.
-      const down = null == name ? anc : new Map(anc).set(name, node)
-      for (const k of Object.keys(node.peg)) {
-        const out = walk(node.peg[k], seen, nctx.descend(k), write, down)
-        if (write) {
-          node.peg[k] = out
-        }
-      }
-    }
-    return node
-  }
-
-  walk(root, new Set(), ctx, false, new Map())
-
-  // NOTHING TO APPLY. The collect half is also the "does this document
-  // use identity at all?" answer, so a document that never says `id()`
-  // pays for one walk per pass rather than two — and the writing half
-  // never runs over a tree it cannot change.
-  if (0 === reg.size) {
+// Keyed by PATH, so there is no registry of names to collide in
+// (ADR-014) -- the key is the position the address resolved to, and
+// re-uniting the same type at the same position is idempotent, which is
+// what makes replaying every recorded flow every pass correct rather
+// than merely cheap.
+//
+// The pass loop is its only caller; it is EXPORTED for the test that
+// pins the unresolved-path guard below (see there).
+function applyFlows(ctx: AontuContext, root: Val): Val {
+  const flows: Map<string, Val> | undefined = (ctx as any).referflows
+  // NOTHING TO APPLY is the common case -- a document with no links
+  // pays one property load per pass, and the walk never runs.
+  if (null == flows || 0 === flows.size) {
     return root
   }
-  return walk(root, new Set(), ctx, true, new Map())
+  // Sorted, so two flows landing at overlapping positions arrive in the
+  // same order in both ports.
+  for (const key of [...flows.keys()].sort()) {
+    const path = key.split('\x00')
+    // The SHARED resolver, the one `refer` itself uses: a second
+    // descent written here would be a second answer to "what does this
+    // path name", and the two would drift (the Go twin calls the same
+    // findAt, arm for arm -- ADR-001).
+    //
+    // A RECORDED PATH THAT NO LONGER RESOLVES is skipped rather than
+    // refused: the record outliving its position is a question about
+    // the tree, and the link that named it answers it
+    // (test/spec/refer.tsv, `flow-target-moved-away`).
+    //
+    // NO DOCUMENT REACHES IT: a record is written only for a path that
+    // HAD resolved, and unification never takes a node back out of the
+    // tree — `move` copies and hides its source rather than removing
+    // it, which is the one rearrangement that looked like it would
+    // (probed in both ports: the flow still resolves on every pass,
+    // `flow-lands-then-its-parent-moves`). The guard is the contract
+    // for a rearrangement that does, and it is pinned by a direct call
+    // (`apply-flows-skips-a-record-that-stops-resolving` in
+    // ts/test/coverage3.test.ts) rather than by an ignore marker: node's
+    // `coverage ignore` drops LINES, and the gate reads BRANCH records,
+    // which survive it. The Go twin in go/unify.go can use the marker
+    // because that gate counts statements.
+    const found = findAt(root, path)
+    if (undefined === found) {
+      continue
+    }
+    const { parent, key: pkey, val: node } = found
+    const merged = unite(ctx.descend(pkey as string), node,
+      flows.get(key) as Val, 'refer-flow')
+    parent.peg[pkey as string] = merged
+  }
+  return root
 }
 
 
@@ -575,11 +484,17 @@ class Unify {
       // keyed by ref canon + source site, shared across all passes.
       ; (uctx as any).snapmap = new Map()
 
-      // The identity registry (G4 phase 1): id -> the representative
-      // value every position with that id has been merged into. Same
-      // lifetime and placement as the ref-spread snapshot map above —
-      // one evaluation, one set of entities.
-      ; (uctx as any).entities = new Map()
+      // The RECORDED TYPE FLOWS (G4 phase 2): target path -> the type
+      // `refer(t)` unified into it, replayed onto each pass's result by
+      // applyFlows. Seeded HERE, on the unify root, for the reason the
+      // snapshot map above is: a descended context is Object.create'd
+      // from its parent, so a `??=` in the descendant would make its
+      // OWN map and the root would never see what was recorded.
+      ; (uctx as any).referflows = new Map()
+
+      // The re-entrancy guard for those flows: the set of target paths
+      // a flow is currently inside. Same placement, same reason.
+      ; (uctx as any)._referflow = new Set()
 
       const explain = null == ctx?.explain ? undefined : ctx?.explain
       const te = explain && explainOpen(uctx, explain, 'root', res)
@@ -643,9 +558,10 @@ class Unify {
         // conjuncts) are pinned as vet.tsv's multi-* rows in both
         // ports.
 
-        // The identity merge, after the pass's own unification: the
-        // positions this pass produced are what there is to merge.
-        res = mergeEntities(uctx, res)
+        // The recorded type flows, re-applied to the tree THIS pass
+        // built: a pass rebuilds subtrees, and a flow written into the
+        // previous pass's tree does not survive that.
+        res = applyFlows(uctx, res)
 
         // The staging signal for the NEXT pass, rendered here rather
         // than at the top of the loop so a model that is FINISHED is
@@ -696,5 +612,5 @@ export {
   Unify,
   unite,
   withDepth,
-  mergeEntities,
+  applyFlows,
 }
