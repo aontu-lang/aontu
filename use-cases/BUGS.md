@@ -2335,6 +2335,79 @@ Repros:
 [`reflexivity-alias-spread.aon`](repros/subsume/reflexivity-alias-spread.aon),
 [`reflexivity-recursive-ref.aon`](repros/subsume/reflexivity-recursive-ref.aon).
 
+## the entity graph — what a conjunct hides
+
+### 65. A `refer()` behind a conjunct is invisible to the entity graph, so `reaches` answers wrongly [critical]
+
+Found 2026-08-30 while drawing the use cases: the dependency matrix for
+`use-cases/05-rbac-policy` came out **entirely empty** — thirteen
+entities, zero edges — on a model whose whole subject is which role
+grants which permission.
+
+```aon
+p: id(pp) & {n: 1}
+a: id(x) & {link: unique() & [&: refer() & string], link: ["pp"]}
+```
+
+```
+$ aontu reaches x pp guarded.aon     verdict: unreachable   exit 1
+$ aontu reaches x pp control.aon     verdict: reaches       exit 0
+```
+
+The two documents differ by the two tokens `unique() &`. Both ports
+agree in both directions, so this is a shared defect and not a parity
+break.
+
+**Minimised through `graphOf` directly**, which is where the loss
+happens:
+
+| spelling | edges |
+|---|---|
+| `link: refer() & string` | 1 |
+| `link: [&: refer() & string]` | 1 |
+| `link: unique() & [&: refer() & string]` | **0** |
+
+So it is the **conjunct**, not the list and not the spread.
+`graphOf`'s walk does not descend into conjunct arms, so any relation
+guarded by a sizing atom, a constraint, or any other `&` term drops out
+of the graph entirely.
+
+**It is the natural spelling, not a contrived one.**
+[`use-cases/05-rbac-policy/roles.aon`](05-rbac-policy/roles.aon)
+writes
+
+```aon
+grants: unique() & [&: refer() & string]
+```
+
+which is how one says "a set of grants, no duplicates". On that model
+`graphOf` reports 13 entities and 0 edges, and
+
+```
+$ aontu reaches admin admin_all --trust root:. example.aon
+verdict: unreachable
+```
+
+although `roles.admin.grants` evaluates to `["admin_all"]`. `relations`
+answers `verdict: pass` over the same model, having checked nothing.
+The case's own `check.sh` never calls `reaches`, which is why the suite
+is green over it.
+
+**What it costs.** `reaches` and `relations` are check verbs: a wrong
+`unreachable` is a silent false negative in a referential-integrity
+gate, and the guard that causes it (`unique()`) is exactly what a
+careful author adds. G4's referential integrity, the `acyclic()` check
+and the `inverse()` check all read the same graph.
+
+This is the blind spot
+[`docs/design/VIEWS.0.md`](../docs/design/VIEWS.0.md) Phase 0 exists to
+close; recorded here because it is a defect in shipped check verbs on
+its own, independent of whether any diagram is ever drawn.
+
+Repros:
+[`repros/graph/refer-behind-conjunct-invisible.aon`](repros/graph/refer-behind-conjunct-invisible.aon)
+and its `refer-in-list-visible.aon` control.
+
 ## Elsewhere in this review
 
 Defects verified earlier in the effort and recorded in
