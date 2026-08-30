@@ -16,10 +16,12 @@ import (
 // resolve the full path, try it, then the implicit-extension potentials.
 //
 // SECURITY: @"path" reads any file the process can read — relative paths
-// (`@"../../etc/passwd"`) and symlinks are followed with no containment
-// check. This is intentional for the CLI, but it means a `.aon` source
-// can exfiltrate referenced files; the LSP backs onto this same resolver,
-// so treat opening an untrusted source as you would running it. If you
+// (`@"../../etc/passwd.aon"`) and symlinks are followed with no
+// containment check. This is intentional for the CLI, but it means a
+// `.aon` source can exfiltrate referenced files; the LSP backs onto this
+// same resolver, so treat opening an untrusted source as reading your
+// disk. (It cannot RUN one: includeKinds refuses every extension but the
+// four read as Aontu source, `.js` among them -- ADR-012.) If you
 // embed aontu in a less-trusted context, supply a custom resolver via
 // MultiSourceOptions that confines reads to an allowed root.
 func fileResolver(spec multisource.PathSpec, opts *multisource.MultiSourceOptions, ctx *jsonic.Context) multisource.Resolution {
@@ -59,8 +61,24 @@ func fileResolver(spec multisource.PathSpec, opts *multisource.MultiSourceOption
 	if nil != sink && nil != sink.mem {
 		for _, key := range []string{spec.Full, spec.Path} {
 			if src, ok := sink.mem[key]; ok {
+				// THE EXTENSION DECIDES HERE TOO. A virtual file set is
+				// still a file set: its keys carry extensions, and the
+				// same rule has to read them, or the mem capability
+				// becomes a way to include what the filesystem would
+				// refuse.
+				if ext := extOf(key); !includeKinds[ext] {
+					recordExtension(ctx, res.Path, ext)
+					// Named, but not READ: the resolution carries the
+					// key so extensionProcessor's nil names the same
+					// extension the sink recorded, and Src stays empty
+					// because nothing of the file is used.
+					res.Full = key
+					res.Kind = extensionKind
+					res.Found = true
+					return res
+				}
 				res.Full = key
-				res.Kind = strings.TrimPrefix(filepath.Ext(key), ".")
+				res.Kind = extOf(key)
 				res.Src = toValidSource(src)
 				res.Found = true
 				recordDep(sink, key, "mem")
@@ -181,8 +199,21 @@ func fileResolver(spec multisource.PathSpec, opts *multisource.MultiSourceOption
 				"" != sink.warnRoot && outsideRoot(sink.warnRoot, p) {
 				sink.warn("escape", p)
 			}
+			// THE EXTENSION DECIDES WHAT THE BYTES ARE (includeKinds).
+			// After the trust checks, not before: a file outside the
+			// confinement root is denied whatever it is called, and
+			// answering "extension" there would say the file exists.
+			// Before recordDep, because a refused include is not a
+			// dependency -- nothing of it reaches the document.
+			if ext := extOf(p); !includeKinds[ext] {
+				recordExtension(ctx, res.Path, ext)
+				res.Full = p
+				res.Kind = extensionKind
+				res.Found = true
+				return res
+			}
 			res.Full = p
-			res.Kind = strings.TrimPrefix(filepath.Ext(p), ".")
+			res.Kind = extOf(p)
 			// Replace invalid UTF-8 as it is READ, exactly as parseBase
 			// does for the entry source -- a loaded file reaches the parser
 			// through the plugin, not through parseBase, so it needs its
@@ -226,6 +257,29 @@ func realOrAbs(p string) string {
 	}
 	return real
 }
+
+// includeKinds IS THE RULE FOR WHAT AN INCLUDE MEANS (ADR-012,
+// use-cases/BUGS.md §49): these extensions are read as Aontu source,
+// and every other one -- and a name with no extension at all -- is
+// refused by name.
+//
+// JSON IS ON THE LIST BECAUSE JSON IS A SUBSET OF THE GRAMMAR: a
+// vendored `.json` or `.jsonld` vocabulary parses as itself, which is
+// what makes importing one possible at all. Nothing else is: a `.txt`
+// or a `.yaml` read as Aontu is either a parse error at a line the
+// author did not write, or -- worse -- a plausible wrong document.
+//
+// The keys are the multisource kind: the last path segment's extension
+// without its dot, lowercased.
+var includeKinds = map[string]bool{
+	"aon":    true,
+	"aontu":  true,
+	"json":   true,
+	"jsonld": true,
+}
+
+// extensionKind marks a Resolution whose extension is not on that list.
+const extensionKind = "aontu-extension"
 
 // deniedKind marks a Resolution refused by the trust profile.
 const deniedKind = "aontu-denied"
@@ -345,6 +399,32 @@ func deniedProcessor(res *multisource.Resolution, _ *multisource.MultiSourceOpti
 	res.Val = n
 }
 
+// extensionProcessor injects the include_extension nil (the twin of
+// deniedProcessor): the failure is DETECTED in the resolver, this gives
+// the tree an error value where the include was a value position.
+func extensionProcessor(res *multisource.Resolution, _ *multisource.MultiSourceOptions, _ *jsonic.Context, _ *jsonic.Jsonic) {
+	n := newNil("include_extension")
+	n.msg = extensionMsg(res.Path, extOf(res.Full))
+	res.Val = n
+}
+
+// extOf is the multisource kind of a resolved path: the extension
+// without its dot, lowercased, or "" for a name that has none.
+func extOf(full string) string {
+	return strings.ToLower(strings.TrimPrefix(filepath.Ext(full), "."))
+}
+
+// extensionMsg names the extension, because the extension is the whole
+// reason: a reader who is told only "not readable" has to guess which
+// of the path's parts the engine objected to.
+func extensionMsg(path, ext string) string {
+	which := "no extension"
+	if "" != ext {
+		which = "extension: ." + ext
+	}
+	return "include not readable: " + path + " (" + which + ")"
+}
+
 // notFoundKind marks a Resolution for a source that could not be found.
 const notFoundKind = "aontu-notfound"
 
@@ -404,8 +484,14 @@ const notFoundMetaKey = reservedKeyPrefix + "notfound"
 // Not synchronised, and does not need to be: the sink is allocated per
 // parseBase call and a single parse runs on one goroutine. It never
 // escapes to the cached, shared *jsonic.Jsonic.
+// It carries the CODE as well as the message: a load can fail for two
+// reasons that need different names -- the source was not there
+// (multisource_not_found) or its extension is not read as Aontu source
+// (include_extension, see includeKinds) -- and both have to reach
+// parseBase through this one channel, for the same bare-member reason.
 type notFoundSink struct {
-	msg string
+	msg  string
+	code string
 }
 
 // recordNotFound notes a failed load in the parse's shared sink.
@@ -429,6 +515,30 @@ func recordNotFound(ctx *jsonic.Context, path string) {
 	}
 	if "" == sink.msg {
 		sink.msg = "source not found: " + path
+		sink.code = "multisource_not_found"
+	}
+}
+
+// recordExtension notes a refused extension in the same shared sink, and
+// for the same reason recordNotFound uses it: a bare-member include
+// (`@"notes.txt"` at the top of a file) MERGES into the enclosing map,
+// and a nil contributes no keys, so the injected nil alone would vanish
+// and leave a plausible, silently-partial document.
+//
+// LIKEWISE FROM THE RESOLVER, NOT THE PROCESSOR -- see recordNotFound.
+// First failure wins, across both kinds: one refusal is the diagnosis,
+// and a document with two bad includes has one thing wrong with it.
+func recordExtension(ctx *jsonic.Context, path, ext string) {
+	if nil == ctx || nil == ctx.Meta {
+		return
+	}
+	sink, ok := ctx.Meta[notFoundMetaKey].(*notFoundSink)
+	if !ok || nil == sink { //coverage:ignore parseBase always seats the sink
+		return
+	}
+	if "" == sink.msg {
+		sink.msg = extensionMsg(path, ext)
+		sink.code = "include_extension"
 	}
 }
 
@@ -509,14 +619,25 @@ func msOptions(base string) map[string]any {
 			Resolver: fileResolver,
 			Path:     base,
 			Processor: map[string]multisource.Processor{
-				"":           aonProcessor,
-				"aon":        aonProcessor,
-				"aontu":      aonProcessor,
-				notFoundKind: notFoundProcessor,
-				deniedKind:   deniedProcessor,
+				// The empty kind is multisource's FALLBACK for an
+				// extension no entry names, so it is the one that must
+				// refuse: the resolver already gates every leg, and
+				// this is what keeps a kind that reached the plugin by
+				// some other road from being parsed by default.
+				"":            extensionProcessor,
+				"aon":         aonProcessor,
+				"aontu":       aonProcessor,
+				"json":        aonProcessor,
+				"jsonld":      aonProcessor,
+				extensionKind: extensionProcessor,
+				notFoundKind:  notFoundProcessor,
+				deniedKind:    deniedProcessor,
 			},
 			// `.aon` is the preferred Aontu source extension; `.aontu`
 			// also works. `.jsonic` is retired (no longer auto-resolved).
+			// Only these two are SEARCHED for a bare `@"name"`; `.json`
+			// and `.jsonld` are read when named, which is how a
+			// vendored vocabulary is always written.
 			ImplicitExt: []string{".aon", ".aontu"},
 		},
 	}

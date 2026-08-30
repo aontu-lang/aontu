@@ -65,7 +65,16 @@ chain (memory → filesystem → package in TypeScript; filesystem in Go)
 reads anything the process can, the closure is machine-dependent, and
 the code's posture is the operative warning:
 
-> **Treat opening an untrusted source as running it.**
+> **Treat opening an untrusted source as reading your disk.**
+
+It is no longer worse than that. Until
+[ADR-012](../ADR.md#adr-012--an-includes-extension-decides-what-the-file-is-four-are-aontu-everything-else-refuses)
+an include named `@"x.js"` was `require()`d in the evaluating process,
+which made opening an untrusted source *running* it. Only four
+extensions are read at all now — `.aon`, `.aontu`, `.json`, `.jsonld`,
+all of them parsed as Aontu source — and everything else is refused by
+name. The TypeScript package leg narrows with that rule: a package
+whose entry point is JavaScript no longer resolves.
 
 `options.fs` still does not confine — it feeds source text for parsing
 and error context, while the file and package legs read through their

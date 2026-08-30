@@ -7,6 +7,39 @@ which implementation each change affects.
 
 ## Unreleased
 
+### An include's extension decides what the file is
+
+Both implementations. `@"file"` read a file, and what the engine did
+with the bytes depended on the extension — differently in each port, so
+the same document and the same file evaluated to different values.
+TypeScript handed every non-`.aon` file back as raw TEXT; Go parsed
+everything as Aontu source; `.json` crashed TypeScript with an
+unhandled internal error carrying no code, path or site.
+
+[ADR-012](ADR.md#adr-012) settles it with one list. `.aon`, `.aontu`,
+`.json` and `.jsonld` are read as Aontu source — JSON is on it because
+JSON is a subset of the grammar, so a vendored vocabulary parses as
+itself — and every other extension, and a name with no extension, is
+refused by name:
+
+    include not readable: notes.txt (extension: .txt)
+
+The refusal is `include_extension` (class `parse`), raised in the
+resolver rather than injected as a value, so a bare-member include
+cannot vanish in the merge and leave a plausible, partial document.
+
+**`.js` is no longer includable.** multisource's `js` processor
+`require()`d the file in the evaluating process, so `@"x.js"` was
+arbitrary code execution — the hazard `docs/trust.md`, the MCP server
+and three verbs each warned about. It is now refused by the same rule
+that refuses `.txt`. The TypeScript package leg narrows with it: a
+`@"some-pkg"` resolving to a `.js` entry point refuses. The module
+system (`aon_vendor/`) is unaffected.
+
+This was `use-cases/BUGS.md` §49, and it unblocks
+`docs/design/ONTOLOGY.0.md` phase P1, whose vocabularies all ship as
+`.json` or `.jsonld`.
+
 ### The star is sugar; the disjunction is the structure
 
 Both implementations. `a: *x` and `a: *x | super(x)` were two

@@ -51,8 +51,10 @@ export type QueryOptions = {
   // The trust profile this run evaluates under (G5, docs/trust.md).
   // The source arrives from a caller, so the caller must be able to
   // say what it may reach: without this the include chain is the
-  // default one, and `@"x.js"` is arbitrary code execution in the
-  // evaluating process. A server passes `{include:'none'}`.
+  // default one, and `@"../../etc/passwd.aon"` reads whatever the
+  // process can. (`@"x.js"` no longer executes -- ADR-012 refuses the
+  // extension -- but reading is enough.) A server passes
+  // `{include:'none'}`.
   trust?: TrustOptions
 }
 

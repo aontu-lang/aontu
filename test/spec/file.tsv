@@ -67,3 +67,37 @@ load-not-found-in-loaded-value	err	@"__FIXTURES__/nest_missing_val.aon"	source n
 load-alias-spread	gen	@"__FIXTURES__/alias_schema.aon" customers:{&:$.schema.C} customers:c1:{ledgerId:5}	{"customers":{"c1":{"ledgerId":5}},"schema":{}}
 load-alias-idspread	gen	@"__FIXTURES__/alias_schema.aon" customers:{&:id(key(0))&$.schema.C} customers:c1:{ledgerId:5}	{"customers":{"c1":{"ledgerId":5}},"schema":{}}
 load-alias-top-conjunct	gen	@"__FIXTURES__/alias_top.aon" c1:$.C&{a:5}	{"c1":{"a":5}}
+
+# WHAT AN INCLUDE'S EXTENSION MEANS (ADR-012; use-cases/BUGS.md §49).
+# One rule, in both ports: `.aon`, `.aontu`, `.json` and `.jsonld` are
+# read as Aontu source, and every other extension -- and a name with no
+# extension -- is refused by name.
+#
+# The rows exist because the two ports decided this DIFFERENTLY, and
+# both answers were wrong in a way that exits 0. TypeScript handed back
+# every non-`.aon` file as its raw TEXT, so `schema: @"vocab.jsonld"`
+# validated data against a 40 KB string; Go parsed everything as Aontu
+# source, so `@"notes.txt"` parsed prose. `.json` was worse than either:
+# an unhandled internal error with no code, path or site.
+#
+# JSON IS ON THE LIST BECAUSE JSON IS A SUBSET OF THE GRAMMAR -- the two
+# json rows are the ones ONTOLOGY.0.md P1 needs, every vocabulary it
+# imports being `.json` or `.jsonld`.
+load-ext-json	gen	x:@"__FIXTURES__/vocab.json"	{"x":{"a":1,"b":{"c":2}}}
+load-ext-jsonld	gen	x:@"__FIXTURES__/vocab.jsonld"	{"x":{"@context":{"name":"http://schema.org/name"},"name":"aontu"}}
+load-ext-text	err	x:@"__FIXTURES__/notes.txt"	include not readable
+load-ext-none	err	x:@"__FIXTURES__/noext"	include not readable
+# The extension is NAMED, because the extension is the whole reason.
+load-ext-names-it	err	x:@"__FIXTURES__/notes.txt"	extension: .txt
+load-ext-names-none	err	x:@"__FIXTURES__/noext"	no extension
+# A refusal must not vanish where a bare-member include merges into the
+# enclosing map and a nil contributes no keys -- the shape that made a
+# missing include produce a clean, plausible, INCOMPLETE document
+# (load-not-found-member above, same reason).
+load-ext-bare	err	a:1 @"__FIXTURES__/notes.txt"	include not readable
+load-ext-bare-first	err	@"__FIXTURES__/notes.txt" a:1	include not readable
+load-ext-nested	err	a:{ @"__FIXTURES__/notes.txt" }	include not readable
+load-ext-list	err	a:[ @"__FIXTURES__/notes.txt" ]	include not readable
+# An unreadable extension on a source that is not there is NOT-FOUND:
+# the file has to exist before its name can be the problem.
+load-ext-missing	err	x:@"__FIXTURES__/no-such-file.txt"	source not found

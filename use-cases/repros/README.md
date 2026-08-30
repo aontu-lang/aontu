@@ -54,12 +54,13 @@ Two cautions:
   `spread-list.tsv`, the new `container-path.tsv`, and
   `constraint-alias.tsv`.
 
-- `includes/` (§49, filed 2026-08-28) is the one family here that is
-  **open and unruled**: an included file's extension decides what the
-  engine does with the bytes, and the two ports decide differently.
-  Both entries need a fixture beside them, so the directory carries
-  `vocab.json` and `vocab.jsonld` — byte-identical, differing only in
-  name, which is the whole point.
+- `includes/` (§49, filed 2026-08-28) is **FIXED** as of 2026-08-30,
+  by the ruling in ADR-012: four extensions are read as Aontu source
+  (`.aon`, `.aontu`, `.json`, `.jsonld`) and every other one — and a
+  name with no extension — is refused by name. Both entries need a
+  fixture beside them, so the directory carries `vocab.json` and
+  `vocab.jsonld` — byte-identical, differing only in name, which was
+  the whole point. Their pin is `file.tsv`, the `load-ext-*` block.
 
 - `key-func/` (§50, filed 2026-08-28) is **open**, and was found by
   removing `.$KEY` (ADR-009): the only test covering a spread template

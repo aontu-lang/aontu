@@ -114,7 +114,9 @@ export type ToolDef = {
 // applied by each tool for itself. That is deliberate: four of the six
 // original tools once called the library with no profile at all, so a
 // served `@"x.js"` was require()d in the server process, while the
-// module header claimed confinement. A tool that must remember to
+// module header claimed confinement. (That particular include is
+// refused outright now -- ADR-012 -- but a served document could still
+// read every file the server can.) A tool that must remember to
 // confine itself is a tool that eventually forgets, and the forgetting
 // is silent. With the profile arriving as an argument, a tool cannot
 // run unconfined without visibly discarding it.

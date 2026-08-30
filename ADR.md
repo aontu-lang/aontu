@@ -1067,3 +1067,102 @@ another kind. The replace-anything reading stays spellable as
 
 `test/spec/defaults.tsv` (29 rows, both runners) pins the rules;
 `pref_rank_clash` joins the registry.
+
+## ADR-012 — An include's extension decides what the file is; four are Aontu, everything else refuses
+
+**Date:** 2026-08-30
+**Status:** Accepted
+
+### Context
+
+`@"file"` reads a file. What the engine did with the bytes depended on
+the file's extension, and the two ports had different rules — so the
+same document and the same file evaluated to different values. Probed
+with the identical content `{"a":1,"b":{"c":2}}` under six names, both
+ports (`use-cases/BUGS.md` §49):
+
+| file | TypeScript | Go |
+|---|---|---|
+| `v.aon` | the map | the map |
+| `v.json` | `Cannot convert object to primitive value` | the map |
+| `v.jsonld` | the content, as a **string** | the map |
+| `v.txt`, `v.dat`, `vnoext` | the content, as a **string** | the map |
+
+One line on each side: `ts/src/lang.ts` registered
+`processor: {aontu, aon}` and let every other extension fall through to
+multisource's default, which hands the file back as raw text;
+`go/source.go` registered the empty kind, the fallback for an
+unrecognised extension, and so parsed everything as Aontu source.
+Either rule is defensible; having both is not, and ADR-001 says so.
+
+`.json` was worse than either. It is the one extension with an upstream
+default processor, which returns a plain JS object where the aontu
+grammar produces Vals, so the tree met a value it could not convert and
+raised an unhandled internal error with no code, no path and no site —
+the shape a harness grepping `[aontu/` cannot see at all.
+
+The grade was critical because the failure is a well-formed WRONG
+document: `schema: @"vocab.jsonld"` gave a map in Go and a string in
+TypeScript, and both exited 0. A document pinning a vendored vocabulary
+validated against the vocabulary in one port and against a 40 KB string
+in the other.
+
+### Decision
+
+**The extension decides, from a fixed list.** `.aon`, `.aontu`,
+`.json` and `.jsonld` are read as Aontu source. Every other extension —
+and a name with no extension at all — is refused, by name, with
+`include_extension`:
+
+```
+include not readable: notes.txt (extension: .txt)
+```
+
+JSON is on the list because **JSON is a subset of the grammar**: a
+vendored `.json` or `.jsonld` vocabulary parses as itself, with no
+second reader and no conversion step. That is also what
+`docs/design/ONTOLOGY.0.md` §3.1 needed, every vocabulary its phase P1
+imports being one of those two — schema.org ships
+`schemaorg-current-https.jsonld`, microformats2 parsers emit JSON, DCMI
+publishes RDF serialisations.
+
+Three alternatives were weighed and refused. Parsing everything as
+Aontu (Go's rule) makes `@"notes.txt"` a parse error at a line the
+author never wrote. Reading everything but `.aon` as text (TypeScript's
+rule) keeps the critical shape — the silently stringified vocabulary.
+Refusing every non-`.aon` include is safe and leaves ONTOLOGY P1 with
+nothing to import.
+
+**The refusal is raised, not injected.** In both ports the decision is
+made in the RESOLVER, not the processor: a bare-member include
+(`@"notes.txt"` at the top of a file) merges into the enclosing map,
+and a nil contributes no keys, so an injected refusal would vanish and
+leave a plausible, silently-partial document — the same reason
+`include_denied` and `multisource_not_found` are raised.
+
+**Trust decides first.** A file outside the confinement root is
+`include_denied` whatever it is called: answering `include_extension`
+there would confirm the file exists.
+
+### Consequences
+
+`.js` IS NO LONGER INCLUDABLE, in either port. multisource's `js`
+processor `require()`s the file in the evaluating process, so
+`@"x.js"` was arbitrary code execution — named as a hazard in
+`docs/trust.md`, in the MCP server, and in `vet`, `diff` and `query`,
+each of which told callers to set a trust profile because of it. It is
+now refused by the same rule that refuses `.txt`. The trust profile is
+still the confinement surface for everything else an include can reach.
+
+The TypeScript package leg narrows with it: `@"some-pkg"` resolving to
+a `.js` entry point now refuses. The Go port has no package leg at all
+(`docs/test-coverage.md`), so this closes a divergence rather than
+opening one, and the module system (G6, `aon_vendor/`) is unaffected —
+a module states `kind: 'aon'` by construction, as the bundled
+vocabulary does.
+
+`include_extension` joins the registry (class `parse`, 0.54.0).
+`test/spec/file.tsv` pins the rule in both runners: the two JSON forms
+that parse, the extensions that refuse, the extension being NAMED, the
+four bare-member positions where a refusal must not vanish, and the
+precedence of not-found over extension.

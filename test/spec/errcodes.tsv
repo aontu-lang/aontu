@@ -78,6 +78,13 @@ merge_conflict	errcode	parse	0.53.0
 # and raised (never injected as a value) so a bare-member include cannot
 # vanish in the merge.
 include_denied	errcode	parse	0.53.0
+# An @"..." include whose EXTENSION is not one the engine reads as
+# Aontu source (ADR-012, use-cases/BUGS.md §49). `.aon`, `.aontu`,
+# `.json` and `.jsonld` parse; everything else -- and a name with no
+# extension -- is refused by name rather than guessed at. Parse-stage
+# and raised, not injected, for the same bare-member reason
+# include_denied is.
+include_extension	errcode	parse	0.54.0
 # A built-in called with the wrong number of arguments (issue #51).
 # Arity is known for every built-in, so a surplus or missing argument is
 # a mistake in the SOURCE and is refused where the author can see it.

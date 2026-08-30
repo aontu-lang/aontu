@@ -1356,12 +1356,67 @@ help isolate the syntax error.`,
         return rs;
     });
 };
+// INCLUDE_KINDS IS THE RULE FOR WHAT AN INCLUDE MEANS (ADR-012,
+// use-cases/BUGS.md §49): these extensions are read as Aontu source,
+// and every other one -- and a name with no extension at all -- is
+// refused by name.
+//
+// JSON IS ON THE LIST BECAUSE JSON IS A SUBSET OF THE GRAMMAR: a
+// vendored `.json` or `.jsonld` vocabulary parses as itself, which is
+// what makes importing one possible at all. Nothing else is: a `.txt`
+// or a `.yaml` read as Aontu is either a parse error at a line the
+// author did not write, or -- worse -- a plausible wrong document.
+//
+// This list and go/source.go's includeKinds are the same list (ADR-001).
+const INCLUDE_KINDS = {
+    aon: true,
+    aontu: true,
+    json: true,
+    jsonld: true,
+};
+// The multisource kind of a path: the LAST segment's extension, without
+// its dot, lowercased -- `''` for a name that has none. The rule is
+// @tabnas/multisource's own extKind (and Go's filepath.Ext), copied
+// rather than imported because it decides what a source IS: a dot in a
+// parent folder (`/my.app/conf`) must not read as an extension.
+function extKindOf(full) {
+    const seg = full.match(/[^\\/]*$/)[0];
+    return (seg.match(/\.([^.]*)$/) || ['', ''])[1].toLowerCase();
+}
+// The refusal message, naming the extension -- because the extension is
+// the whole reason, and a reader told only "not readable" has to guess
+// which part of the path the engine objected to. Byte-identical to Go's
+// extensionMsg.
+function extensionMsg(path, ext) {
+    const which = '' === ext ? 'no extension' : 'extension: .' + ext;
+    return 'include not readable: ' + path + ' (' + which + ')';
+}
+// THE RULE ALSO HOLDS FOR A RESOLVER THIS ENGINE DID NOT WRITE.
+// gateExtension refuses an unlisted extension inside makeModelResolver,
+// which is the default; a HOST may supply its own through
+// `AontuOptions.resolver`, and that one has never heard of
+// INCLUDE_KINDS. Without this the host's resolution would fall to
+// multisource's own default for an unnamed kind, which hands the file
+// back as TEXT — or, for `.js`, EXECUTES it. So the two roads end in
+// one place: whatever chose the source, an extension off the list is
+// refused with the same code and the same message.
+const refuseProcessor = (res) => {
+    // `full` is the one part a host resolution may leave out -- it is the
+    // path the resolver CHOSE, and a resolver that answers from something
+    // other than a filesystem need not have one. The written path always
+    // reaches here, so it is the fallback.
+    const err = new Error(extensionMsg(res.path, extKindOf(res.full ?? res.path)));
+    err.code = 'include_extension';
+    throw err;
+};
 // SECURITY: under the DEFAULT ('system') include capability this
-// resolver reads any file/package the process can reach — @"path"
-// follows relative paths (`@"../../etc/passwd"`) and symlinks, and
-// @"pkg" can require() arbitrary installed modules — so treat opening
-// an untrusted source as running it. The trust profile (G5,
-// docs/trust.md) is the confinement surface: `trust.include` of
+// resolver reads any file the process can reach — @"path" follows
+// relative paths (`@"../../etc/passwd.aon"`) and symlinks — so treat
+// opening an untrusted source as reading your disk. It no longer RUNS
+// one: @"pkg" could require() an arbitrary installed module until
+// ADR-012, which refuses a `.js` entry point by the same rule that
+// refuses `.txt`. The trust profile (G5, docs/trust.md) is the
+// confinement surface: `trust.include` of
 // 'none', `{ mem }` or `{ root }` restricts what `@"..."` may resolve,
 // and a denied resolution is a deterministic parse-stage
 // `include_denied` error.
@@ -1443,6 +1498,25 @@ function makeModelResolver(options) {
         err.code = 'include_denied';
         throw err;
     };
+    // AN UNREADABLE EXTENSION THROWS, exactly as a denial does, and for
+    // the same reason: a bare-member include (`@"notes.txt"` at the top
+    // of a file) MERGES into the enclosing map, and a nil contributes no
+    // keys, so an injected refusal would vanish and leave a plausible,
+    // silently-partial document. Lang.parse turns the throw into the
+    // parse-stage `include_extension` nil.
+    const refuseExtension = (path, full) => {
+        const err = new Error(extensionMsg(path, extKindOf(full)));
+        err.code = 'include_extension';
+        throw err;
+    };
+    // The gate every leg that RESOLVES A NAME passes through. The std and
+    // module legs do not: both state `kind: 'aon'` because what they
+    // serve is Aontu source by construction, not by its spelling.
+    const gateExtension = (path, full) => {
+        if (true !== INCLUDE_KINDS[extKindOf(full)]) {
+            refuseExtension(path, full);
+        }
+    };
     // The user cache: whatever the host named, else the platform rule
     // (`modCacheDir`, ts/src/mod.ts) the tooling writes by.
     const modCache = (opts) => {
@@ -1509,6 +1583,11 @@ function makeModelResolver(options) {
         let res = memResolver(path, popts, rule, ctx, jsonic);
         res.path = path;
         if (res.found) {
+            // THE EXTENSION DECIDES HERE TOO. A virtual file set is still a
+            // file set: its keys carry extensions, and the same rule has to
+            // read them, or the mem capability becomes a way to include what
+            // the filesystem would refuse.
+            gateExtension(path, res.full ?? path);
             record(ctx, res.full ?? path, 'mem');
             return res;
         }
@@ -1557,6 +1636,10 @@ function makeModelResolver(options) {
             if (null != rootDir && outsideRoot(rootDir, full)) {
                 deny(path);
             }
+            // After the trust check, not before: a file outside the
+            // confinement root is denied whatever it is called, and answering
+            // "extension" there would say the file exists.
+            gateExtension(path, full);
             // The warning window for the staged default flip (G5 phase 6):
             // under 'system', the CLI supplies trustWarn and the entry root,
             // and every resolution escaping that root names the flag a future
@@ -1579,6 +1662,7 @@ function makeModelResolver(options) {
         res = pkgResolver(path, popts, rule, ctx, jsonic);
         res.path = path;
         if (res.found) {
+            gateExtension(path, res.full);
             if (null != options.trustWarn) {
                 options.trustWarn('pkg', res.full);
             }
@@ -1721,14 +1805,29 @@ function opCharHint(src) {
     return '';
 }
 function rawToVal(n) {
-    if (null == n) {
-        return new NullVal_1.NullVal({ peg: null });
-    }
-    if (true === n.isVal) {
+    if (true === n?.isVal) {
         return n;
     }
     if (Array.isArray(n)) {
         return new ListVal_1.ListVal({ peg: n.map(rawToVal) });
+    }
+    /* node:coverage disable */
+    // THE SCALAR ARMS LOST THEIR ONLY EXERCISER TO ADR-012, and are kept
+    // (an ADR-002 exclusion, justified here). Until that ruling a `.json`
+    // include arrived as raw JavaScript -- a string, a number, a plain
+    // object -- and this is where it became Vals; now such a file is
+    // parsed as Aontu source and arrives as Vals already, so nothing in
+    // the suite reaches past the two arms above.
+    //
+    // They stay because the alternative is worse than an exclusion. This
+    // is the conversion contract for a raw expression TERM (buildCall,
+    // and the grouping-paren pass-through), and the terms the expression
+    // grammar hands over are Vals and arrays only by present behaviour,
+    // not by any rule this file enforces. Deleting the arms would turn a
+    // corner nothing exercises into a silent `parse_unknown` nil, which
+    // is exactly the class of failure ADR-012 was fixing.
+    if (null == n) {
+        return new NullVal_1.NullVal({ peg: null });
     }
     const t = typeof n;
     if ('string' === t) {
@@ -1752,6 +1851,7 @@ function rawToVal(n) {
         return new MapVal_1.MapVal({ peg });
     }
     return new NilVal_1.NilVal({ why: 'parse_unknown' });
+    /* node:coverage enable */
 }
 class Lang {
     constructor(options) {
@@ -1771,10 +1871,35 @@ class Lang {
             // works. `.jsonic` is retired (no longer auto-resolved); the
             // default `['jsonic','jsc','json','js']` is overridden here.
             // (Upstream option name is the misspelled `implictExt`.)
+            //
+            // Only these two are SEARCHED for a bare `@"name"`; `.json` and
+            // `.jsonld` are read when NAMED, which is how a vendored
+            // vocabulary is always written.
             implictExt: ['aon', 'aontu'],
+            // EVERY INCLUDE_KINDS EXTENSION PARSES AS AONTU SOURCE, and
+            // nothing else runs at all.
+            //
+            // The upstream defaults are what made `.json` the one extension
+            // that crashed: its `json` entry hands back a raw JS object
+            // where the aontu grammar produces Vals, and the tree then met
+            // an object it could not convert (BUGS §49b). They are replaced
+            // rather than extended -- `js` in particular EXECUTES the file,
+            // which is not something an extension should be able to ask for.
+            //
+            // The three refusing entries are the upstream defaults whose
+            // behaviour -- text, and EXECUTION -- must not be what an
+            // unlisted extension falls back to. The empty kind is
+            // multisource's fallback for an extension no entry names, so it
+            // is the one that catches everything: see refuseProcessor for
+            // what still reaches it once the default resolver has gated.
             processor: {
                 aontu: 'jsonic',
                 aon: 'jsonic',
+                json: 'jsonic',
+                jsonld: 'jsonic',
+                '': refuseProcessor,
+                js: refuseProcessor,
+                jsc: refuseProcessor,
             }
         })
             .use(AontuJsonic);
@@ -1816,18 +1941,19 @@ class Lang {
             }
         }
         catch (e) {
-            if ('include_denied' === e?.code ||
+            if ('include_denied' === e?.code || 'include_extension' === e?.code ||
                 'module_missing' === e?.code || 'module_integrity' === e?.code ||
                 'module_depth' === e?.code) {
                 // A denied include (trust profile, G5): the resolver throws so
                 // a bare-member include cannot vanish in the merge, and the
                 // code survives here as the parse-stage nil the registry
                 // pins (errcodes.tsv: include_denied, class parse).
-                // A denied include (G5) and a module that is missing or fails
-                // its pin (G6 phase 2) are refused the same way, for the same
-                // reason: the resolver THROWS so a bare-member include cannot
-                // vanish in the merge, and the code survives here as the
-                // parse-stage nil the registry pins (errcodes.tsv).
+                // A denied include (G5), an include whose extension is not read
+                // as Aontu source (ADR-012, INCLUDE_KINDS), and a module that
+                // is missing or fails its pin (G6 phase 2) are refused the same
+                // way, for the same reason: the resolver THROWS so a bare-member
+                // include cannot vanish in the merge, and the code survives here
+                // as the parse-stage nil the registry pins (errcodes.tsv).
                 val = new NilVal_1.NilVal({
                     why: 'parse',
                     err: new NilVal_1.NilVal({

@@ -1983,6 +1983,66 @@ Source files use the `.aon` extension (preferred) or `.aontu`. When the
 path has no extension, those two are tried in turn, so `@"foo"` resolves
 `foo.aon` then `foo.aontu`.
 
+**The extension decides what the file is.** Four are read as Aontu
+source — `.aon`, `.aontu`, `.json` and `.jsonld`. JSON is on that list
+because JSON is a subset of the grammar, so a vendored vocabulary
+parses as itself. Write `vocab.jsonld`:
+
+<!-- test: scenario include-extension -->
+<!-- test: file vocab.jsonld -->
+```
+{"name": "aontu", "tags": ["config", "types"]}
+```
+
+and load it from `main.aon`:
+
+<!-- test: file main.aon -->
+```aon
+schema: @"vocab.jsonld"
+```
+
+<!-- test: run -->
+```sh
+$ aontu main.aon
+{
+  "schema": {
+    "name": "aontu",
+    "tags": [
+      "config",
+      "types"
+    ]
+  }
+}
+```
+
+Every other extension — and a name with no extension at all — is
+refused by name rather than guessed at. Put prose in `notes.txt`:
+
+<!-- test: file notes.txt -->
+```
+Some notes, in prose.
+```
+
+and ask for it in `main.aon`:
+
+<!-- test: file main.aon -->
+```aon
+notes: @"notes.txt"
+```
+
+<!-- test: run -->
+```sh
+$ aontu main.aon
+include not readable: notes.txt (extension: .txt)
+$ echo $?
+1
+```
+
+A guess would be worse than the refusal, and it was: read as text, a
+vocabulary became a string that a schema then validated nothing
+against; read as Aontu, prose became a parse error at a line nobody
+wrote. Both exited 0.
+
 ```
 @"foo.aon"                       → {"f":11}            (top level)
 a:@"foo.aon"                     → {"a":{"f":11}}      (nested)
