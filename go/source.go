@@ -761,6 +761,17 @@ func dataToValDepth(node any, depth int) Val {
 			vals = append(vals, dataToValDepth(e, depth+1))
 		}
 		return newList(vals)
+	case *tomlp.TomlTime:
+		// TOML HAS DATES AND JSON DOES NOT, so the reader cannot hand
+		// one over as itself: it answers with this, holding the kind and
+		// the source text. The value that reaches a document is that
+		// TEXT, which is what a JSON document carries for a date anyway
+		// -- and what the TypeScript port produces too, from the
+		// `{__toml__:{kind,src}}` marker its reader answers with
+		// (tomlDates, ts/src/lang.ts). Without this the same file is a
+		// nested map in one port and a string in the other, which is the
+		// class of divergence ADR-012 exists to stop.
+		return newString(n.Src)
 	case string:
 		return newString(n)
 	case bool:

@@ -141,3 +141,10 @@ load-ext-missing	err	x:@"__FIXTURES__/no-such-file.txt"	source not found
 # fails afterwards and names its own `@` -- same verdict, same class,
 # same exit code, different prose (DIVERGENCE.md #67).
 load-ext-broken	err	x:@"__FIXTURES__/broken.toml"	unexpected
+# TOML HAS DATES AND JSON DOES NOT, so a date reaches the document as
+# the TEXT it was written as -- which is what a JSON document carries
+# for a date anyway. Both readers answer with a marker holding the kind
+# and the source (a `{__toml__:{..}}` object in TypeScript, a *TomlTime
+# in Go), and both ports normalise it to the source, or the same file
+# would be a nested map in one and a string in the other.
+load-ext-toml-dates	gen	x:@"__FIXTURES__/dates.toml"	{"x":{"day":"1979-05-27","port":8080,"when":"1979-05-27T07:32:00Z"}}

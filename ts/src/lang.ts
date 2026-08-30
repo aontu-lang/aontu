@@ -1759,6 +1759,7 @@ const DATA_READERS: { [format: string]: (src: string, fileName: string) => any }
       const jsonic = Jsonic.make().use(plugin)
       return (src: string, fileName: string) => jsonic(src, { fileName })
     }
+    const toml = viaPlugin(Toml)
     // The strict RFC 8259 reader is its own parser rather than a
     // plugin, and it is `make().parse` rather than the module's bare
     // `parse`: only the instance carries the meta bag, and without it
@@ -1770,11 +1771,47 @@ const DATA_READERS: { [format: string]: (src: string, fileName: string) => any }
       json5: viaPlugin(Json5),
       // Plain jsonic needs no plugin: it IS the base parser.
       jsonic: (src: string, fileName: string) => Jsonic(src, { fileName }),
-      toml: viaPlugin(Toml),
+      toml: (src: string, fileName: string) => tomlDates(toml(src, fileName)),
       yaml: viaPlugin(Yaml),
       ini: viaPlugin(Ini),
     }
   })()
+
+/**
+ * A TOML document with its dates as the TEXT they were written as.
+ *
+ * TOML HAS DATES AND JSON DOES NOT, so the reader cannot hand one over
+ * as itself: it answers with a marker object carrying the kind and the
+ * source text. The value that reaches a document is that TEXT, which is
+ * what a JSON document carries for a date anyway — and it is what the
+ * Go port produces too, from a `*TomlTime` holding those same two
+ * fields (`dataToValDepth`, go/source.go). Without this the same file
+ * is a nested map in one port and a string in the other, which is the
+ * class of divergence ADR-012 exists to stop.
+ *
+ * The guard is exact — one key, `__toml__`, holding a `kind` and a
+ * `src` string — so a document whose own data happens to use the name
+ * passes through untouched.
+ */
+function tomlDates(node: any): any {
+  if (Array.isArray(node)) {
+    return node.map(tomlDates)
+  }
+  if (null === node || 'object' !== typeof node) {
+    return node
+  }
+  const keys = Object.keys(node)
+  const mark = node.__toml__
+  if (1 === keys.length && '__toml__' === keys[0] && null != mark &&
+    'string' === typeof mark.kind && 'string' === typeof mark.src) {
+    return mark.src
+  }
+  const out: Record<string, any> = {}
+  for (const k of keys) {
+    out[k] = tomlDates(node[k])
+  }
+  return out
+}
 
 /**
  * Read one included file as DATA in the named format.
@@ -2288,14 +2325,20 @@ function rawToVal(n: any): Val {
   if ('boolean' === t) {
     return new BooleanVal({ peg: n })
   }
-  if ('object' === t) {
-    const peg: Record<string, Val> = {}
-    for (const k in n) {
-      peg[k] = rawToVal(n[k])
-    }
-    return new MapVal({ peg })
+  // AND EVERYTHING ELSE IS A MAP, with no arm after it because there is
+  // nothing after it. Every reader on the include table answers with
+  // the JSON kinds and no others -- probed, including the two that
+  // could plausibly escape them: a big integer comes back a `number`,
+  // and a TOML date is normalised to its text before it gets here. The
+  // one include that could hand over a function was `.js`, which
+  // ADR-012 refuses. `parse_unknown` lived here for that case and has
+  // no producer left in this port; the Go twin keeps its own, where the
+  // type switch really can be handed something unaccounted for.
+  const peg: Record<string, Val> = {}
+  for (const k in n) {
+    peg[k] = rawToVal(n[k])
   }
-  return new NilVal({ why: 'parse_unknown' })
+  return new MapVal({ peg })
 }
 
 
