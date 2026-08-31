@@ -112,7 +112,11 @@ func TestSpec(t *testing.T) {
 
 	var files []string
 	for _, e := range entries {
-		if strings.HasSuffix(e.Name(), ".tsv") {
+		// signature.tsv is the DECLARATION, not rows (its lines are the
+		// signature syntax, docs/design/SIGNATURES.0.md); its own gate
+		// is the round-trip in sig_test.go, as ts/test/sig.test.ts is
+		// for the TS port.
+		if strings.HasSuffix(e.Name(), ".tsv") && "signature.tsv" != e.Name() {
 			files = append(files, e.Name())
 		}
 	}

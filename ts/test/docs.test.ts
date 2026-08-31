@@ -520,6 +520,38 @@ describe('docs', () => {
   // The prose channel names scenario files too: a file directive's
   // name must appear in a code span in the three lines above it, so
   // the human channel and the machine channel cannot drift.
+  test('functions-table-signatures-match-the-registry', () => {
+    // THE DRIFT GATE (docs/design/SIGNATURES.0.md): the reference's
+    // functions table renders its signature column from the same
+    // registry the engine parses -- a row whose first cell names a
+    // builtin must BE that builtin's rendered signature (pipes
+    // markdown-escaped). Nobody writes a signature by hand.
+    const { funcSig, renderSig } = require('../dist/sig')
+    const text = Fs.readFileSync(
+      Path.join(DOCS_DIR, 'reference-language.md'), 'utf8')
+    let rows = 0
+    for (const line of text.split('\n')) {
+      const m = line.match(/^\| `([a-z]+)\(([^`]*)\)([^`]*)` \|/)
+      if (null == m || undefined === funcSig[m[1]]) {
+        continue
+      }
+      // Schematic rows (the subsumption table's `neq(S)` and kin) use
+      // meta-variables, not signatures; a signature always carries a
+      // colon.
+      if (!m[2].includes(':') && !m[3].includes(':')) {
+        continue
+      }
+      const cell = (m[1] + '(' + m[2] + ')' + m[3]).replace(/\\[|]/g, '|')
+      Assert.equal(cell, renderSig(funcSig[m[1]]),
+        'functions-table row for ' + m[1])
+      rows++
+    }
+    // The main functions table holds these rows today; a table edit
+    // that drops below this floor is a removal, not drift.
+    Assert.ok(20 <= rows, 'functions-table rows found: ' + rows)
+  })
+
+
   test('scenario-files-are-named-in-prose', () => {
     for (const page of pages()) {
       const text = lf(Fs.readFileSync(

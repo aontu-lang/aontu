@@ -112,7 +112,10 @@ const G = (x) => A.generate(x);
         (0, expect_1.expect)(G('[3.1 4.1 upper($.1)]')).equal([3.1, 4.1, 5]);
         (0, expect_1.expect)(G('[3.1 [4.1, 5.1] upper($.1.1)]')).equal([3.1, [4.1, 5.1], 6]);
         (0, expect_1.expect)(G('x:y:1.5 x:z:upper($.x.y)')).equal({ x: { y: 1.5, z: 2 } });
-        (0, expect_1.expect)(() => G('x:y:a:1.1 x:z:upper($.x.y)')).throws(/invalid/);
+        // A map operand is the signature gate's refusal now
+        // (docs/design/SIGNATURES.0.md): the hint renders the signature
+        // line and names the argument.
+        (0, expect_1.expect)(() => G('x:y:a:1.1 x:z:upper($.x.y)')).throws(/func_arg/);
     });
     (0, node_test_1.test)('upper-numbers-spread', () => {
         (0, expect_1.expect)(G('a:{&:x:upper(1.1)} a:{b:{y:1}}')).equal({ a: { b: { x: 2, y: 1 } } });

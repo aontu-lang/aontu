@@ -276,7 +276,11 @@ type CompletionItem struct {
 func Completions() []CompletionItem {
 	out := []CompletionItem{}
 	for _, f := range aontu.BuiltinFuncNames() {
-		out = append(out, CompletionItem{Label: f, Kind: CompletionFunction, Detail: "Aontu built-in function"})
+		// The detail is the rendered SIGNATURE
+		// (docs/design/SIGNATURES.0.md) -- the same renderer the hints
+		// use, so the completion list cannot drift from the
+		// declaration.
+		out = append(out, CompletionItem{Label: f, Kind: CompletionFunction, Detail: aontu.FuncSignature(f)})
 	}
 	// Kind keywords: `number` is the numeric supertype, with `integer`,
 	// `float`, `biginteger` and `bigdecimal` as its leaves (see the Kind
@@ -293,6 +297,114 @@ func Completions() []CompletionItem {
 		out = append(out, CompletionItem{Label: k, Kind: CompletionKeyword, Detail: "keyword"})
 	}
 	return out
+}
+
+// SignatureInfo, ParameterInfo and SignatureHelpResult are the LSP
+// signatureHelp shapes.
+type ParameterInfo struct {
+	Label string `json:"label"`
+}
+
+type SignatureInfo struct {
+	Label      string          `json:"label"`
+	Parameters []ParameterInfo `json:"parameters"`
+}
+
+type SignatureHelpResult struct {
+	Signatures      []SignatureInfo `json:"signatures"`
+	ActiveSignature int             `json:"activeSignature"`
+	ActiveParameter int             `json:"activeParameter"`
+}
+
+// SignatureHelp answers the declared signature of the ENCLOSING call,
+// served from the registry (docs/design/SIGNATURES.0.md), or nil when
+// the cursor is not inside a builtin's argument list. The enclosing
+// call is found lexically -- scan back from the cursor for the
+// nearest unclosed '(' and read the word before it; commas at that
+// depth count the active parameter, capped at the last slot so a rest
+// tail stays active for every excess argument. Strings are skipped so
+// a paren or comma inside one does not miscount, and the scan stops
+// at the line start, a call being one line in practice. Mirrors
+// computeSignatureHelp in ts/src/lsp.ts.
+func SignatureHelp(text string, line, character int) *SignatureHelpResult {
+	lines := strings.Split(text, "\n")
+	if line < 0 {
+		line = 0
+	}
+	if len(lines) <= line {
+		line = len(lines) - 1
+	}
+	offset := 0
+	for li := 0; li < line; li++ {
+		offset += len(lines[li]) + 1
+	}
+	col := character
+	if col < 0 {
+		col = 0
+	}
+	if len(lines[line]) < col {
+		col = len(lines[line])
+	}
+	offset += col
+
+	depth := 0
+	commas := 0
+	open := -1
+	for i := offset - 1; 0 <= i; i-- {
+		c := text[i]
+		if '"' == c || '\'' == c {
+			for i--; 0 <= i && text[i] != c; i-- {
+			}
+			continue
+		}
+		if ')' == c {
+			depth++
+		} else if '(' == c {
+			if 0 == depth {
+				open = i
+				break
+			}
+			depth--
+		} else if ',' == c && 0 == depth {
+			commas++
+		} else if '\n' == c && 0 == depth {
+			break
+		}
+	}
+	if 0 > open {
+		return nil
+	}
+	start := open
+	for 0 < start && (isWordByte(text[start-1])) {
+		start--
+	}
+	name := text[start:open]
+	label := aontu.FuncSignature(name)
+	if "" == label {
+		return nil
+	}
+	params := aontu.FuncSignatureParams(name)
+	pis := make([]ParameterInfo, 0, len(params))
+	for _, p := range params {
+		pis = append(pis, ParameterInfo{Label: p})
+	}
+	active := commas
+	if last := len(params) - 1; last < active {
+		if 0 > last {
+			last = 0
+		}
+		active = last
+	}
+	return &SignatureHelpResult{
+		Signatures:      []SignatureInfo{{Label: label, Parameters: pis}},
+		ActiveSignature: 0,
+		ActiveParameter: active,
+	}
+}
+
+func isWordByte(c byte) bool {
+	return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') ||
+		('0' <= c && c <= '9') || '_' == c
 }
 
 // lineIndex maps a byte offset to an LSP Position. Line starts are

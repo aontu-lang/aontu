@@ -1,12 +1,18 @@
 # Design: exact typed signatures for the built-in functions
 
-*Status: **PROPOSED** (August 2026). Nothing here is implemented; this
-document records the design and the inventory it rests on, for the
-review that decides it. Revised in that review: the signatures are
-DECLARED in the signature syntax itself, and both ports parse the one
-declaration — the first draft's hand-authored registry per port is now
-among the rejected designs. Convention as in PATHS.0.md: the
-reasoning is the record.*
+*Status: **IMPLEMENTED** (August 2026), in both ports: the
+declaration is `test/spec/signature.tsv`, the parsers are
+`ts/src/sig.ts` and `go/sig.go` (tabnas grammars), the gate is
+`ts/src/siggate.ts` / `go/siggate.go` refusing `func_arg`, the arity
+and positional tables are derived, and the docs table and both LSPs
+(completion detail and signatureHelp) render from the registry.
+Revised in review before implementation: the signatures are DECLARED
+in the signature syntax itself, and both ports parse the one
+declaration — the first draft's hand-authored registry per port is
+among the rejected designs. Deltas measured while implementing are
+recorded beside the text they correct, the tower document's
+convention. Convention as in PATHS.0.md: the reasoning is the
+record.*
 
 ## The problem
 
@@ -93,18 +99,25 @@ the message builder consume:
 
     line = name '(' [ arg {',' arg} ] ')' ':' type
     arg  = [mode] name ['?'] ':' type
-         | '...' name ':' '(' [mode] type {',' [mode] type} ')'
+         | '...' name ':' ( type | '(' [mode] type {',' [mode] type} ')' )
     type = word {'|' word}
     mode = 'capture' | 'template' | 'trial' | 'projector' | 'text'
 
     type ArgSig = {                       // the PARSED form
       name: string, mode: ArgMode, type: string,
-      opt?: boolean, rest?: boolean,
+      opt?: boolean, rest?: boolean, group?: GroupSig[],
     }
 
 `funcArity` and `POSITIONAL_ARG_FUNCS` become derivable from the
 parse, and the parsed registry is the ONE input to the runtime
-signature checker and the error-message builder below.
+signature checker and the error-message builder below. (Implemented:
+a rest slot with a plain type is `neq`'s spelling, so the grammar
+gained that arm and the parsed form a `group` field; the arity
+derivation counts required slots plus a rest slot's group size, and
+the positional set derives as "two or more slots, excluding the
+`constraint` results" — the constraint atoms expand their own comma
+group in `atomArgs`, deliberately before the settled check, which is
+why `must` is not positional and must not become so.)
 Representative declaration lines:
 
     upper(s: string) : string
@@ -133,14 +146,25 @@ row per name in `funcArity` today.
 **Validation reads the registry.** One argument gate, in each port's
 shared function machinery (`FuncBaseVal` / `func.go`), runs before a
 builtin's own logic: written arity (as today, from the registry), and
-for `value`-mode arguments with concrete types, the driven Val's kind
-against the declared type. A failure refuses with a NEW code,
-`func_arg`, whose message renders from the registry: the signature
-line, the offending position by name, what arrived. The specific
-codes that carry more meaning than a shape mismatch (`pack_key`,
-`path_address`, …) STAY — the registry supplies the signature line
-into their hints, it does not flatten the error taxonomy. Before:
-`invalid-arg`. After:
+for `value`-mode arguments whose declared type is scalar-kind words,
+the driven Val's kind against the declared type — `number` admitting
+every numeric leaf and `string` admitting a path, the subsumption
+walk. A failure refuses with a NEW code, `func_arg`, whose message
+renders from the registry: the signature line, the offending position
+by name, what arrived. The specific codes that carry more meaning
+than a shape mismatch (`pack_key`, `path_address`, …) STAY — the
+registry supplies the signature line into their hints, it does not
+flatten the error taxonomy. (Implemented: the MODES do the scoping —
+`projector`, `template`, `trial`, `text` and `capture` slots are
+never gate-read, container words are the bespoke bag codes' to judge,
+and the gate refuses only what it positively identifies: a
+wrong-kinded concrete scalar, a map, a list, or a kind marker in a
+value slot — a preference or residual passes through, which is what
+keeps arith's unpref reading working. `key()` is the one named skip:
+its level meaning lives in `key_level`. The gate took over fifteen
+spec rows that were bare `invalid-arg` — the case family, the
+arithmetic operands, join's separator.) Before: `invalid-arg`.
+After:
 
     pack(d: map|list, template t: any)
       argument 1 (`d`): a number has no children to pack

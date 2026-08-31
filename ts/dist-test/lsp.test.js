@@ -154,6 +154,53 @@ const lsp_server_1 = require("../dist/lsp-server");
             Assert.ok(byLabel.has(want), 'missing ' + want);
         }
     });
+    (0, node_test_1.test)('completion-detail-is-the-signature', () => {
+        // The detail column renders from the registry
+        // (docs/design/SIGNATURES.0.md): the declaration, not a label.
+        const c = (0, lsp_1.computeCompletions)();
+        const byLabel = new Map(c.map(i => [i.label, i]));
+        Assert.equal(byLabel.get('upper')?.detail, 'upper(s: string|number) : string');
+        Assert.equal(byLabel.get('pack')?.detail, 'pack(d: map|list, template t: any) : map');
+        Assert.equal(byLabel.get('path')?.detail, 'path(capture p?: path) : path');
+    });
+    (0, node_test_1.test)('signature-help', () => {
+        const h = new lsp_1.LspHandler();
+        h.handle({ id: 1, method: 'initialize', params: {} });
+        const open = (text) => h.handle({
+            method: 'textDocument/didOpen',
+            params: { textDocument: { uri: 'file:///s.aontu', text } },
+        });
+        const help = (line, character) => h.handle({
+            id: 9, method: 'textDocument/signatureHelp',
+            params: {
+                textDocument: { uri: 'file:///s.aontu' },
+                position: { line, character },
+            },
+        })[0].result;
+        // Inside the call: the declared signature, first parameter active.
+        open('x: pack($.names, {a:1})');
+        let r = help(0, 8);
+        Assert.equal(r.signatures[0].label, 'pack(d: map|list, template t: any) : map');
+        Assert.equal(r.parameters?.length ?? r.signatures[0].parameters.length, 2);
+        Assert.equal(r.activeParameter, 0);
+        // After the comma: the second parameter is active.
+        r = help(0, 18);
+        Assert.equal(r.activeParameter, 1);
+        // A comma or paren inside a string does not miscount.
+        open('x: join(["a,b"], ",")');
+        r = help(0, 20);
+        Assert.equal(r.signatures[0].label, 'join(d: map|list, sep?: string) : string');
+        Assert.equal(r.activeParameter, 1);
+        // Excess arguments cap at the last slot (a rest tail stays live).
+        open('y: add(1, 2, 3)');
+        r = help(0, 14);
+        Assert.equal(r.activeParameter, 1);
+        // Not a builtin call, or no call at all: no help.
+        open('x: notafunc(1)');
+        Assert.equal(help(0, 13), null);
+        open('x: 1');
+        Assert.equal(help(0, 4), null);
+    });
     (0, node_test_1.test)('builtin-funcs-match-engine', () => {
         // Drift guard: every BUILTIN_FUNCS name must be recognised by the
         // parser, and a bogus name must not be.

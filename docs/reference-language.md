@@ -1390,26 +1390,26 @@ recount happened.)
 
 | Function    | Effect | Example |
 |-------------|--------|---------|
-| `upper(x)`  | uppercase a string; **ceiling** of a number, keeping the argument's kind | `upper(abc)`→`"ABC"`, `upper(2)`→ integer `2`, `upper(1.1)`→ float `2`, `upper(0d1.1)`→ bigdecimal `0d2.0` |
-| `lower(x)`  | lowercase a string; **floor** of a number, keeping the argument's kind   | `lower(ABC)`→`"abc"`, `lower(2)`→ integer `2`, `lower(1.9)`→ float `1`, `lower(0d1.9)`→ bigdecimal `0d1.0` |
-| `copy(x)`   | deep copy of a value or referenced node; clears `type`/`hide` marks | `copy({a:1,b:2})`→`{a:1,b:2}`; `copy($.x)` |
-| `key(n)`    | the ancestor key `n` levels up (`0` = own key, default `1` = parent). `n` must be an **integer** (`integer` or `biginteger`); anything else is an error. A level beyond the top of the path yields `""`. | at `a:b:c`: `key()`→`"b"`, `key(0)`→`"c"`, `key(2)`→`"a"`, `key(2.0)`→error |
-| `pref(x)`   | mark `x` as preferred (same as `*x`)          | `pref(1)` canon `*1`; `pref(2),x:3`→`3` |
-| `super(x)`  | the immediate parent type of `x`, structurally: a scalar's kind, a kind's parent, a container of its children's parents | `super(1)` → `integer`, `super(integer)` → `number`, `super({a:1})` → `{a:integer}` |
-| `type(x)`   | mark `x` as a type/schema value               | `type(1) & number`→`1` |
-| `hide(x)`   | mark `x` as hidden                            | `hide(world) & string`→`"world"` |
-| `close(x)`  | seal a map/list against extra keys            | see [closed values](#closed-values-close--open) |
-| `open(x)`   | reverse a `close`                             | `open(close({x:1})) & {y:2}`→`{x:1,y:2}` |
-| `move(p)`   | resolve reference `p`, dropping unresolved optional keys | `m:{x?:number,y:Y} n:move($.m)`→`n:{y:"Y"}` |
-| `path(p?)`  | **capture** `p` as a path value — the spelling, never the resolution; with no argument, the path **kind**. See [First-class paths](#first-class-paths-pathp) | `dep: path(.auth)` generates `".auth"`; `host: path()` |
-| `map()`     | the map **kind**: admits any map, defaults to nothing. See [Container kinds](#container-kinds-map-and-list) | `y: map() & {a:1}`→`{a:1}`; `y: map()`→ error |
-| `list()`    | the list **kind**: admits any list, defaults to nothing | `y: list() & [1]`→`[1]` |
-| `refer(t?)` | constrain a field to a **path value whose address resolves**; `t`, if given, is unified into the target. The field keeps the address. See [Checked links](#checked-links-refert) | `dependsOn: [&: refer($.std.Service), path($.services.auth)]` |
-| `pack(d, t)` | one keyed child per child of `d`, each of them `t` cloned at that destination. Keys are the strings of a list, or the keys of a map. See [Generating children](#generating-children-pack-and-each) | `deploy: pack($.names, {replicas:*2\|integer})` |
-| `each(d, t?)` | one list element per child of `d`, each met with `t`. Source order for a list, sorted-key order for a map | `open: each($.ports, integer)` |
-| `filter(d, c)` | the children of `d` that ALREADY satisfy `c` — the meet with `c` changes nothing. Keys kept for a map, order for a list; the rest are dropped, not refused. See [Selecting](#selecting-filter-and-match) | `debugged: filter($.services, {debug:true})` |
-| `match(v, p, r, …, d?)` | the result of the first pattern `v` unifies with; a trailing argument is the default. No match and no default is an error naming the patterns tried | `size: match($.tier, small, {cpu:1}, {cpu:2})` |
-| `deprecate(x, m)` | mark `x` deprecated; unifies exactly as `x`, and the record `m` (`{msg?, use?, since?}`, all strings; `use` is a path spelled as a string) rides the result through meets, reference clones and spread applications. Canon renders the call back; generation is unchanged. The point-of-use surfaces: a vet `deprecated` warning, the LSP Deprecated tag, and `aontu breaking --allow-deprecated-removal` | `port: deprecate(*8080\|integer, {msg:"renamed", use:"$.listen", since:"2.0.0"})` |
+| `upper(s: string\|number) : string` | uppercase a string; **ceiling** of a number, keeping the argument's kind | `upper(abc)`→`"ABC"`, `upper(2)`→ integer `2`, `upper(1.1)`→ float `2`, `upper(0d1.1)`→ bigdecimal `0d2.0` |
+| `lower(s: string\|number) : string` | lowercase a string; **floor** of a number, keeping the argument's kind   | `lower(ABC)`→`"abc"`, `lower(2)`→ integer `2`, `lower(1.9)`→ float `1`, `lower(0d1.9)`→ bigdecimal `0d1.0` |
+| `copy(v: any) : any` | deep copy of a value or referenced node; clears `type`/`hide` marks | `copy({a:1,b:2})`→`{a:1,b:2}`; `copy($.x)` |
+| `key(up?: integer\|biginteger) : string` | the ancestor key `n` levels up (`0` = own key, default `1` = parent). `n` must be an **integer** (`integer` or `biginteger`); anything else is an error. A level beyond the top of the path yields `""`. | at `a:b:c`: `key()`→`"b"`, `key(0)`→`"c"`, `key(2)`→`"a"`, `key(2.0)`→error |
+| `pref(v: any) : any` | mark `x` as preferred (same as `*x`)          | `pref(1)` canon `*1`; `pref(2),x:3`→`3` |
+| `super(t: any) : any` | the immediate parent type of `x`, structurally: a scalar's kind, a kind's parent, a container of its children's parents | `super(1)` → `integer`, `super(integer)` → `number`, `super({a:1})` → `{a:integer}` |
+| `type(t: any) : any` | mark `x` as a type/schema value               | `type(1) & number`→`1` |
+| `hide(v: any) : any` | mark `x` as hidden                            | `hide(world) & string`→`"world"` |
+| `close(m: any) : any` | seal a map/list against extra keys            | see [closed values](#closed-values-close--open) |
+| `open(m: any) : any` | reverse a `close`                             | `open(close({x:1})) & {y:2}`→`{x:1,y:2}` |
+| `move(v: any) : any` | resolve reference `p`, dropping unresolved optional keys | `m:{x?:number,y:Y} n:move($.m)`→`n:{y:"Y"}` |
+| `path(capture p?: path) : path` | **capture** `p` as a path value — the spelling, never the resolution; with no argument, the path **kind**. See [First-class paths](#first-class-paths-pathp) | `dep: path(.auth)` generates `".auth"`; `host: path()` |
+| `map() : map` | the map **kind**: admits any map, defaults to nothing. See [Container kinds](#container-kinds-map-and-list) | `y: map() & {a:1}`→`{a:1}`; `y: map()`→ error |
+| `list() : list` | the list **kind**: admits any list, defaults to nothing | `y: list() & [1]`→`[1]` |
+| `refer(template t?: any) : constraint` | constrain a field to a **path value whose address resolves**; `t`, if given, is unified into the target. The field keeps the address. See [Checked links](#checked-links-refert) | `dependsOn: [&: refer($.std.Service), path($.services.auth)]` |
+| `pack(d: map\|list, template t: any) : map` | one keyed child per child of `d`, each of them `t` cloned at that destination. Keys are the strings of a list, or the keys of a map. See [Generating children](#generating-children-pack-and-each) | `deploy: pack($.names, {replicas:*2\|integer})` |
+| `each(d: map\|list, template t?: any) : list` | one list element per child of `d`, each met with `t`. Source order for a list, sorted-key order for a map | `open: each($.ports, integer)` |
+| `filter(d: map\|list, trial c: any) : map\|list` | the children of `d` that ALREADY satisfy `c` — the meet with `c` changes nothing. Keys kept for a map, order for a list; the rest are dropped, not refused. See [Selecting](#selecting-filter-and-match) | `debugged: filter($.services, {debug:true})` |
+| `match(s: any, ...pr: (trial any, any), dflt?: any) : any` | the result of the first pattern `v` unifies with; a trailing argument is the default. No match and no default is an error naming the patterns tried | `size: match($.tier, small, {cpu:1}, {cpu:2})` |
+| `deprecate(v: any, r?: map) : any` | mark `x` deprecated; unifies exactly as `x`, and the record `m` (`{msg?, use?, since?}`, all strings; `use` is a path spelled as a string) rides the result through meets, reference clones and spread applications. Canon renders the call back; generation is unchanged. The point-of-use surfaces: a vet `deprecated` warning, the LSP Deprecated tag, and `aontu breaking --allow-deprecated-removal` | `port: deprecate(*8080\|integer, {msg:"renamed", use:"$.listen", since:"2.0.0"})` |
 
 `super(x)` answers the immediate parent type of its **argument**. For
 a concrete scalar that is the scalar's kind, and for a kind it is the
@@ -2784,15 +2784,15 @@ as such. There is no new grammar: atoms are ordinary functions.
 
 | Atom | Band | Meaning |
 |------|------|---------|
-| `min(x)`  | A | value ≥ x (numeric, or string with lexical order) |
-| `max(x)`  | A | value ≤ x |
-| `above(x)`| A | value > x |
-| `below(x)`| A | value < x |
-| `neq(x, ...)` | A | value is none of the listed scalars (leaf-aware) |
-| `re(p)`   | A | string matches pattern p (unanchored, portable subset) |
-| `length(c)`  | A | length/count satisfies integer constraint c |
-| `unique()`| A | members pairwise distinct (list elements, map values) |
-| `must(c, msg)` | B | evaluate-only check with an author message |
+| `min(n: number\|string) : constraint` | A | value ≥ x (numeric, or string with lexical order) |
+| `max(n: number\|string) : constraint` | A | value ≤ x |
+| `above(n: number\|string) : constraint` | A | value > x |
+| `below(n: number\|string) : constraint` | A | value < x |
+| `neq(...vals: number\|string) : constraint` | A | value is none of the listed scalars (leaf-aware) |
+| `re(text p: string) : constraint` | A | string matches pattern p (unanchored, portable subset) |
+| `length(n: number\|constraint) : constraint` | A | length/count satisfies integer constraint c |
+| `unique(projector k?: string) : constraint` | A | members pairwise distinct (list elements, map values) |
+| `must(trial c: any, text msg: string) : constraint` | B | evaluate-only check with an author message |
 
 ### Bounds and the number tower
 
@@ -2904,8 +2904,8 @@ in this sense and are marked; the rest are exact.
 | `re(P)`     | `re(Q)`      | **approximate**: `P ⊆ Q` as a *set of pattern strings*. Adding a pattern narrows, so `re("a") ⊒ re("a")&re("b")` |
 | `length(c)`    | `length(d)`     | `c ⊒ d`, recursively — the count atom reuses this same table over the integer domain |
 | absent `length`/`unique` | present | always — an unsized residual admits every size |
-| `unique()`  | `unique()`   | always (reflexive); nothing else subsumes or is subsumed by it |
-| `must(…)`   | anything     | **never** — a Band B predicate is opaque, so A's admitted set is unknown |
+| `unique(k)` | `unique()`   | always (reflexive); nothing else subsumes or is subsumed by it |
+| `must(f)`   | anything     | **never** — a Band B predicate is opaque, so A's admitted set is unknown |
 | anything    | `must(…)`    | decided by A's other atoms alone; an extra `must` on B can only narrow B |
 | anything    | nil (empty)  | always — the empty set is an instance of everything |
 

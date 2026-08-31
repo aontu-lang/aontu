@@ -22,6 +22,7 @@ import {
 } from '../utility'
 
 import { makeNilErr, AontuError } from '../err'
+import { sigRefuse } from '../siggate'
 
 import {
   top
@@ -272,7 +273,12 @@ class FuncBaseVal extends FeatureVal {
         // console.log('FUNCBASE-PEG', this.id, pegdone, this.peg.map((p: any) => p?.canon))
 
         if (pegdone && !this.deferResolve(ctx, newpeg)) {
-          const resolved = this.resolve(ctx, newpeg)
+          // THE SIGNATURE GATE (docs/design/SIGNATURES.0.md): the
+          // driven arguments against the declared signature, before
+          // the builtin's own logic sees them. See siggate.ts for
+          // what the gate owns and what stays with the builtins.
+          const resolved = sigRefuse(ctx, this, newpeg) ??
+            this.resolve(ctx, newpeg)
           // console.log('FUNC-RESOLVED', ctx.cc, resolved?.canon)
 
           // The TOP peer is DROPPED as the unit it is.

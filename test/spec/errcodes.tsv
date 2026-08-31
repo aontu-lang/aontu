@@ -136,6 +136,13 @@ float_overflow	errcode	conflict	0.53.0
 lossy_integer_literal	errcode	conflict	0.51.0
 arg	errcode	conflict	0.51.0
 invalid-arg	errcode	conflict	0.51.0
+# THE SIGNATURE GATE (docs/design/SIGNATURES.0.md): a driven argument
+# that does not fit the declared signature -- a wrong-kinded scalar, a
+# container or a kind marker in a value slot whose type is scalar-kind
+# words. The hint renders the signature line and names the argument.
+# Class conflict for invalid-arg's reason: the VALUE is what is wrong,
+# where func_arity's parse class says the CALL is.
+func_arg	errcode	conflict	0.55.0
 no_first_arg	errcode	conflict	0.51.0
 key_level	errcode	conflict	0.51.0
 func	errcode	conflict	0.51.0

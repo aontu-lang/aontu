@@ -7,6 +7,7 @@ const type_1 = require("../type");
 const unify_1 = require("../unify");
 const utility_1 = require("../utility");
 const err_1 = require("../err");
+const siggate_1 = require("../siggate");
 const top_1 = require("./top");
 const ConjunctVal_1 = require("../val/ConjunctVal");
 const FeatureVal_1 = require("../val/FeatureVal");
@@ -204,7 +205,12 @@ class FuncBaseVal extends FeatureVal_1.FeatureVal {
                 }
                 // console.log('FUNCBASE-PEG', this.id, pegdone, this.peg.map((p: any) => p?.canon))
                 if (pegdone && !this.deferResolve(ctx, newpeg)) {
-                    const resolved = this.resolve(ctx, newpeg);
+                    // THE SIGNATURE GATE (docs/design/SIGNATURES.0.md): the
+                    // driven arguments against the declared signature, before
+                    // the builtin's own logic sees them. See siggate.ts for
+                    // what the gate owns and what stays with the builtins.
+                    const resolved = (0, siggate_1.sigRefuse)(ctx, this, newpeg) ??
+                        this.resolve(ctx, newpeg);
                     // console.log('FUNC-RESOLVED', ctx.cc, resolved?.canon)
                     // The TOP peer is DROPPED as the unit it is.
                     out = resolved.done && peer.isTop ? resolved :

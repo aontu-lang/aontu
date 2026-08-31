@@ -1,0 +1,61 @@
+# The call surface: one declaration line per built-in function
+# (docs/design/SIGNATURES.0.md). THIS FILE IS THE SOURCE — both ports
+# carry a build-time-inlined copy (ts/src/sigdecl.ts, go/sigdecl.txt;
+# `make sig` regenerates both, and each port's suite asserts its copy
+# is byte-identical with this file) and parse it at initialisation
+# with the signature grammar, a tabnas grammar (ts/src/sig.ts,
+# go/sig.go). The suites also round-trip every line:
+# render(parse(line)) must be the line exactly, in both ports.
+#
+# The syntax (rendered TypeScript-ish, honest about argument MODES):
+#   line = name '(' [ arg {',' arg} ] ')' ':' type
+#   arg  = [mode] name ['?'] ':' type
+#        | '...' name ':' '(' [mode] type {',' [mode] type} ')'
+#   type = word {'|' word}
+#   mode = 'capture' | 'template' | 'trial' | 'projector' | 'text'
+# `value` mode is unmarked. `constraint` is the result word for
+# residuals whose meet depends on the peer; `any` is the honest type
+# where a function is a wrapper.
+upper(s: string|number) : string
+lower(s: string|number) : string
+copy(v: any) : any
+pref(v: any) : any
+super(t: any) : any
+type(t: any) : any
+hide(v: any) : any
+close(m: any) : any
+open(m: any) : any
+move(v: any) : any
+path(capture p?: path) : path
+map() : map
+list() : list
+min(n: number|string) : constraint
+max(n: number|string) : constraint
+above(n: number|string) : constraint
+below(n: number|string) : constraint
+re(text p: string) : constraint
+length(n: number|constraint) : constraint
+key(up?: integer|biginteger) : string
+unique(projector k?: string) : constraint
+neq(...vals: number|string) : constraint
+must(trial c: any, text msg: string) : constraint
+deprecate(v: any, r?: map) : any
+acyclic() : constraint
+inverse(projector k: string) : constraint
+refer(template t?: any) : constraint
+rel(template t?: any) : constraint
+pack(d: map|list, template t: any) : map
+each(d: map|list, template t?: any) : list
+filter(d: map|list, trial c: any) : map|list
+match(s: any, ...pr: (trial any, any), dflt?: any) : any
+add(a: number, b: number) : number
+sub(a: number, b: number) : number
+mul(a: number, b: number) : number
+div(a: number, b: number) : number
+mod(a: number, b: number) : number
+rem(a: number, b: number) : number
+sum(d: map|list) : number
+least(d: map|list) : number
+greatest(d: map|list) : number
+pick(d: map|list, projector k: string|integer) : any
+join(d: map|list, sep?: string) : string

@@ -76,21 +76,33 @@ var stagedFuncs = map[string]bool{
 	"join": true,
 }
 
+// THE SIGNATURE REGISTRY (docs/design/SIGNATURES.0.md). The call
+// surface is DECLARED in test/spec/signature.tsv and parsed by the
+// signature grammar (go/sig.go) from the embedded copy; the arity
+// table and the positional set below are DERIVED from the parse, so
+// the declaration is the one source. ts/src/lang.ts derives the same
+// two tables from the same text.
+
 // positionalArgFuncs are the functions whose comma-separated arguments
 // are distinct POSITIONS rather than one argument list. The parser
 // expands their comma group back into separate arguments (lang.go).
-var positionalArgFuncs = map[string]bool{
-	"deprecate": true, "pack": true, "each": true,
-	"filter": true, "match": true,
-	// Arithmetic takes two OPERANDS, and an operand is a position: sub
-	// is not commutative, so sub(a, b) reaching the engine as one
-	// two-element list would lose which is which.
-	"add": true, "sub": true, "mul": true,
-	"div": true, "mod": true, "rem": true,
-	// The bag and the key are distinct positions.
-	"pick": true,
-	// The bag and the separator likewise.
-	"join": true,
+// Derived: two or more declared argument slots, excluding the residual
+// producers (`constraint` results) -- the constraint atoms make the
+// same expansion in their own constructor (atomArgs, constraint.go,
+// deliberately before the settled check), which is why they are not in
+// this set; `must` is the load-bearing example. Arithmetic is here
+// because sub is not commutative: sub(a, b) reaching the engine as one
+// two-element list would lose which is which.
+var positionalArgFuncs = derivePositional()
+
+func derivePositional() map[string]bool {
+	out := map[string]bool{}
+	for name, sig := range funcSig {
+		if 2 <= len(sig.Args) && "constraint" != sig.Out {
+			out[name] = true
+		}
+	}
+	return out
 }
 
 // generatorFuncs hold arguments that must never be driven at the call
@@ -106,62 +118,37 @@ var generatorFuncs = map[string]bool{
 // funcArity is the permitted WRITTEN argument count of each built-in, as
 // {min, max}; a max of -1 is unbounded. Every name in funcSet has an
 // entry, and the arity is a property of the language rather than of
-// either port -- ts/src/lang.ts carries the same table.
-//
-// Nearly everything takes exactly one. The exceptions earn their place:
-// key() names how many levels UP the path to read, defaulting to the
-// parent when omitted, neq takes a whole set of exclusions, unique()
-// takes none (a property of the container) or a PROJECTOR key, must()
-// takes a check AND the author's message for when it fails, and the
-// arithmetic family takes two operands.
-var funcArity = map[string][2]int{
-	"upper": {1, 1}, "lower": {1, 1}, "copy": {1, 1}, "pref": {1, 1},
-	"super": {1, 1}, "type": {1, 1}, "hide": {1, 1}, "close": {1, 1},
-	"open": {1, 1}, "move": {1, 1},
-	// path takes NO argument (the path kind) or one (the capture);
-	// map and list are kinds only, and element constraints belong
-	// to the spreads, so neither takes any argument at all.
-	"path": {0, 1}, "map": {0, 0}, "list": {0, 0},
-	"min": {1, 1}, "max": {1, 1}, "above": {1, 1}, "below": {1, 1},
-	"re":     {1, 1},
-	"length": {1, 1},
-	"key":    {0, 1},
-	// THE ONE ARGUMENT IS A PROJECTOR: `unique(port)` says no two
-	// members share a `port`. The arity was reserved for it (finding I).
-	"unique": {0, 1},
-	"neq":    {1, -1},
-	"must":   {2, 2},
-	// G3 phase 4: the value, and its optional deprecation record.
-	"deprecate": {1, 2},
-	// RELATIONS P1/P2: the relation constraint and the graph atoms.
-	"rel":     {0, 1},
-	"acyclic": {0, 0},
-	"inverse": {1, 1},
-	// G8 phase 1: the data, and the template to clone per destination.
-	// each() writes the template optionally -- `each(m)` is a map's
-	// children as a list.
-	"pack": {2, 2},
-	"each": {1, 2},
-	// G8 phase 2: the data and the condition; and the scrutinee, then
-	// pattern/result pairs, then an optional default.
-	"filter": {2, 2},
-	"match":  {3, -1},
-	// G4 phase 2: the optional type to flow into the target.
-	"refer": {0, 1},
-	// Two operands, always. Arithmetic has no variadic reading that is
-	// not a fold, and a fold is the recursion this language refuses.
-	"add": {2, 2}, "sub": {2, 2}, "mul": {2, 2},
-	"div": {2, 2}, "mod": {2, 2}, "rem": {2, 2},
-	// One bag. The operation is fixed, so there is nothing else to pass:
-	// a fold's second argument is a FUNCTION, and this language has none
-	// to give it.
-	"sum": {1, 1}, "least": {1, 1}, "greatest": {1, 1},
-	// The bag, and the key to take from each of its children.
-	"pick": {2, 2},
-	// The bag, and OPTIONALLY the separator -- omitted it is "", which
-	// makes join(coll) concatenation, so no separate concat is needed
-	// and the family stays one builtin.
-	"join": {1, 2},
+// either port -- ts/src/lang.ts derives the same table. A required
+// slot counts toward the minimum; a rest slot makes the maximum
+// unbounded and counts its group size (one, for a plain rest type)
+// toward the minimum, which is what gives match its floor of three
+// and neq its floor of one.
+var funcArity = deriveArity()
+
+func deriveArity() map[string][2]int {
+	out := map[string][2]int{}
+	for name, sig := range funcSig {
+		min, max := 0, 0
+		for _, a := range sig.Args {
+			if a.Rest {
+				if nil == a.Group {
+					min++
+				} else {
+					min += len(a.Group)
+				}
+				max = -1
+			} else {
+				if !a.Opt {
+					min++
+				}
+				if -1 != max {
+					max++
+				}
+			}
+		}
+		out[name] = [2]int{min, max}
+	}
+	return out
 }
 
 // writtenArgCount counts the arguments as the AUTHOR wrote them.
@@ -518,7 +505,14 @@ func (f *FuncVal) Unify(peer Val, ctx *Ctx) Val {
 	}
 
 	if pegdone {
-		result := f.resolve(ctx, base, newpeg)
+		// THE SIGNATURE GATE (docs/design/SIGNATURES.0.md): the driven
+		// arguments against the declared signature, before the
+		// builtin's own logic sees them. See siggate.go for what the
+		// gate owns and what stays with the builtins.
+		result := sigRefuse(ctx, f, newpeg)
+		if nil == result {
+			result = f.resolve(ctx, base, newpeg)
+		}
 		if result == nil { //coverage:ignore no resolve arm returns nil
 			result = f
 		}

@@ -139,6 +139,15 @@ helper reads as dead).
 behaviour. Each row is one test case; both `ts/test/spec.test.ts` and
 `go/spec_test.go` load the same files and must produce identical results.
 
+One file is not rows: `test/spec/signature.tsv` is the DECLARED call
+surface of the built-in functions (docs/design/SIGNATURES.0.md,
+ADR-017), one signature line per builtin, parsed by both ports'
+tabnas grammars (`ts/src/sig.ts`, `go/sig.go`). Both runners skip it;
+its gates are the round-trip suites (`ts/test/sig.test.ts`,
+`go/sig_test.go`). After editing it run `make sig` to regenerate the
+build-time-inlined copies (`ts/src/sigdecl.ts`, `go/sigdecl.txt`) —
+the suites assert byte identity, and `make build-ts` runs it for you.
+
 Tab-separated columns: `name <TAB> mode <TAB> src <TAB> expect`
 
 | mode    | assertion                                              |

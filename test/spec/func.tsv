@@ -177,14 +177,14 @@ func-arity-neq-one	gens	a:neq(1)&3	{"a":3}
 # telling them apart is what makes the check possible: `upper("a","b")`
 # is two arguments, `upper(["a","b"])` is one (which upper then refuses
 # for its KIND, not its count).
-func-arity-list-is-one	errc	a:upper(["a","b"])	invalid-arg
+func-arity-list-is-one	errc	a:upper(["a","b"])	func_arg
 # A CORRECT count with a wrong KIND is still invalid-arg -- the arity
 # check does not swallow it, and these rows are what keep the two
 # distinguishable. `lower` had no such row at all: every kind-refusal row
 # used `upper`, so its twin arm went untested.
-func-lower-boolean-arg	errc	a:lower(true)	invalid-arg
-func-lower-list-arg	errc	a:lower([1])	invalid-arg
-func-lower-map-arg	errc	a:lower({})	invalid-arg
+func-lower-boolean-arg	errc	a:lower(true)	func_arg
+func-lower-list-arg	errc	a:lower([1])	func_arg
+func-lower-map-arg	errc	a:lower({})	func_arg
 # --- a call whose target is not a name (status-2026-08-21.md §4) ---
 # `f(1)(2)` and its siblings are calls on something that is not a
 # function name. TypeScript refused them; the Go port returned the LAST
