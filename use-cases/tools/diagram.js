@@ -83,38 +83,23 @@ function edges(val, primary) {
 
   const out = []
   for (const group of pairs.values()) {
-    const keysFrom = new Map()
-    for (const e of group) {
-      const seen = keysFrom.get(e.key)
-      if (null == seen) keysFrom.set(e.key, new Set([e.from]))
-      else seen.add(e.from)
-    }
-
-    // A key written in both directions stands on its own, in both.
-    const mutual = [...keysFrom.keys()].filter((k) => 1 < keysFrom.get(k).size)
-    for (const k of mutual.sort(cmp)) {
-      for (const e of group.filter((x) => x.key === k)) {
-        out.push({ from: e.from, to: e.to, label: k })
-      }
-    }
-
-    // Everything else is the inverse case: one logical edge, drawn in
-    // the direction the named primary predicate is written in;
-    // otherwise the code-point-least key's direction, which is
-    // arbitrary but stable.
-    const rest = group.filter((e) => !mutual.includes(e.key))
-    if (0 === rest.length) continue
-    const keys = [...new Set(rest.map((e) => e.key))].sort(cmp)
+    // ONE KEY WINS THE PAIR, and every edge written under it stands.
+    // The named primary predicate wins; otherwise the code-point-least
+    // key, which is arbitrary but stable. Keeping every edge under the
+    // winner is what preserves a MUTUAL relation -- `a dependsOn b`
+    // with `b dependsOn a` is two facts, and the shortest cycle a
+    // model can have -- while the losing keys are the declared
+    // inverses, implied by the winner and not drawn again.
+    const keys = [...new Set(group.map((e) => e.key))].sort(cmp)
     const chosen = keys.filter((k) => primary.includes(k))
     const winner = 0 < chosen.length ? chosen[0] : keys[0]
-    const lead = rest.filter((e) => e.key === winner)[0]
-    out.push({
-      // With a primary named, the inverse is implied and naming both
-      // just doubles the label. Without one, both are shown, because
-      // picking silently would hide that two predicates are in play.
-      from: lead.from, to: lead.to,
-      label: 0 < chosen.length ? chosen.join('/') : keys.join('/'),
-    })
+    // With a primary named, the inverse is implied and naming both
+    // just doubles the label. Without one, both are shown, because
+    // picking silently would hide that two predicates are in play.
+    const label = 0 < chosen.length ? chosen.join('/') : keys.join('/')
+    for (const e of group.filter((x) => x.key === winner)) {
+      out.push({ from: e.from, to: e.to, label })
+    }
   }
 
   return out.sort((x, y) =>
@@ -223,8 +208,12 @@ function matrix(val, primary) {
   const out = []
   out.push(pad('', w + 2 + iw + 1) + idx.map((s) => lpad(s, iw)).join(' '))
   ns.forEach((n, r) => {
+    // The diagonal is the node itself, and a SELF-DEPENDENCY is drawn
+    // on it: writing the placeholder unconditionally erased the
+    // shortest cycle a model can have, which is exactly the fact a
+    // dependency matrix is read for.
     const cells = ns.map((m, c) =>
-      lpad(r === c ? '\\' : (has.has(n + '\u0000' + m) ? 'X' : '.'), iw))
+      lpad(has.has(n + '\u0000' + m) ? 'X' : (r === c ? '\\' : '.'), iw))
     out.push(pad(label(n), w) + '  ' + lpad(idx[r], iw) + ' ' + cells.join(' '))
   })
   return out.join('\n')
@@ -287,15 +276,24 @@ function tree(val, primary, roots) {
   // label each edge; a tree cannot without becoming unreadable, and
   // walking two relations as though they were one would draw a
   // containment that the model does not state.
-  const kept = edges(val, primary).filter((e) =>
+  const all_edges = edges(val, primary)
+  const kept = all_edges.filter((e) =>
     0 === primary.length
     || e.label.split('/').some((k) => primary.includes(k)))
 
+  // A NAMED RELATION THAT DRAWS NOTHING IS A TYPO, and refused for the
+  // same reason a misspelled `--root` is: an empty tree and a
+  // misspelled name are the same file on disk, so the one that means
+  // nothing must not be renderable.
+  if (0 === kept.length && 0 < all_edges.length) {
+    const have = [...new Set(all_edges.flatMap((e) => e.label.split('/')))]
+    throw new Error('no such relation: ' + primary.join('/')
+      + ' (the graph has ' + have.sort(cmp).join(', ') + ')')
+  }
+
   // The node set is what the drawn relation CONNECTS, the rule the
   // node-link kinds follow above. A `--root` naming anything else is a
-  // typo, and it is refused rather than drawn: an empty tree and a
-  // misspelled address look identical in a golden file, so the one
-  // that means nothing must not be renderable.
+  // typo, and it is refused rather than drawn.
   const ns = new Set()
   for (const e of kept) {
     ns.add(e.from)
@@ -317,8 +315,9 @@ function tree(val, primary, roots) {
   // exactly one is noise; leaving it off where there are two would
   // hide which edge was walked.
   const many = 1 < new Set(kept.map((e) => e.label)).size
+  const byLabel = (a, b) => cmp(lab.get(a), lab.get(b))
 
-  let start
+  let named
   if (0 < roots.length) {
     for (const r of roots) {
       if (!ns.has(r)) {
@@ -327,47 +326,79 @@ function tree(val, primary, roots) {
           + 'graph has ' + all.length + ')')
       }
     }
-    start = roots.slice().sort((a, b) => cmp(lab.get(a), lab.get(b)))
+    named = [...new Set(roots)].sort(byLabel)
   }
   else {
-    const depended = new Set(kept.map((e) => e.to))
-    start = all.filter((n) => !depended.has(n))
-      .sort((a, b) => cmp(lab.get(a), lab.get(b)))
-    // Every node depended upon by another: the graph is one or more
-    // cycles and has no top. Drawing from every node is the honest
-    // answer -- the `(cycle)` marks then say where the loops close.
-    if (0 === start.length) {
-      start = all.slice().sort((a, b) => cmp(lab.get(a), lab.get(b)))
-    }
+    // A root is a node nothing depends on. A SELF-EDGE does not make a
+    // node depended upon for this purpose: a module that names itself
+    // would otherwise stop being a root and take its whole subtree out
+    // of the drawing.
+    const depended = new Set(
+      kept.filter((e) => e.to !== e.from).map((e) => e.to))
+    named = all.filter((n) => !depended.has(n)).sort(byLabel)
   }
 
   const out = []
   const expanded = new Set()
 
-  const walk = (node, prefix, chain) => {
-    const list = kids.get(node) || []
-    list.forEach((edge, i) => {
-      const last = i === list.length - 1
-      const loop = chain.includes(edge.to)
-      const seen = expanded.has(edge.to)
-      const grown = 0 < (kids.get(edge.to) || []).length
-      const mark = loop ? ' (cycle)' : (seen && grown ? ' (*)' : '')
-      out.push(prefix + (last ? '└── ' : '├── ')
-        + lab.get(edge.to)
-        + (many ? ' (' + edge.label + ')' : '')
-        + mark)
-      if (loop || seen) return
-      expanded.add(edge.to)
-      walk(edge.to, prefix + (last ? '    ' : '│   '), [...chain, edge.to])
-    })
-  }
-
-  start.forEach((root, i) => {
-    if (0 < i) out.push('')
+  const draw = (root) => {
+    if (0 < out.length) out.push('')
     out.push(lab.get(root))
     expanded.add(root)
-    walk(root, '', [root])
-  })
+
+    // ITERATIVE, with the ancestor chain carried as a set that is
+    // added to on the way down and removed from on the way up. A
+    // recursive walk is O(depth) stack frames and a deep dependency
+    // chain is a real shape, so the drawing of a model must not depend
+    // on how deep the interpreter lets it go.
+    const chain = new Set([root])
+    const stack = [{ node: root, prefix: '', at: 0 }]
+    while (0 < stack.length) {
+      const frame = stack[stack.length - 1]
+      const list = kids.get(frame.node) || []
+      if (frame.at >= list.length) {
+        chain.delete(frame.node)
+        stack.pop()
+        continue
+      }
+      const edge = list[frame.at++]
+      const last = frame.at === list.length
+      const loop = chain.has(edge.to)
+      const seen = expanded.has(edge.to)
+      const grown = 0 < (kids.get(edge.to) || []).length
+      out.push(frame.prefix + (last ? '└── ' : '├── ')
+        + lab.get(edge.to)
+        + (many ? ' (' + edge.label + ')' : '')
+        + (loop ? ' (cycle)' : (seen && grown ? ' (*)' : '')))
+      if (loop || seen) continue
+      expanded.add(edge.to)
+      chain.add(edge.to)
+      stack.push({
+        node: edge.to,
+        prefix: frame.prefix + (last ? '    ' : '│   '),
+        at: 0,
+      })
+    }
+  }
+
+  for (const root of named) {
+    draw(root)
+  }
+
+  // EVERY NODE IS DRAWN. A component whose nodes all depend on each
+  // other has no node nothing depends on, so the derived roots miss it
+  // entirely -- and a graph with roots elsewhere would drop it in
+  // silence, which is the one thing a drawing must not do. The
+  // least-labelled node left is taken as a root of its own, until
+  // nothing is left. An explicitly named `--root` is a request for one
+  // subtree and is left alone.
+  if (0 === roots.length) {
+    for (const n of all) {
+      if (!expanded.has(n)) {
+        draw(n)
+      }
+    }
+  }
 
   return out.join('\n')
 }
