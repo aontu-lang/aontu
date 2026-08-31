@@ -281,6 +281,25 @@ func (a *Aontu) RelationCheck(src string) RelationReport {
 		return RelationReport{Verdict: "pass", Findings: []RelationFinding{}}
 	}
 
+	// NOR IS A DOCUMENT THAT CANNOT BE GENERATED. Unification can
+	// succeed over a tree that still holds an unsettled disjunction --
+	// more than one alternative admitted, which disjunct_no_gen
+	// refuses at generation -- and the graph walk cannot read inside
+	// one: the links in every alternative are invisible, so a mirror
+	// the document plainly writes is missing from the edge set and
+	// inverse(n) calls it missing. Generation is therefore asked
+	// FIRST, on a collecting context of its own, and what it says is
+	// the answer. Mirrors ts/src/relation.ts.
+	gcopy := *ctx
+	gctx := &gcopy
+	gctx.err = nil
+	gctx.collect = true
+	root.Gen(gctx)
+	if 0 < len(gctx.err) {
+		return RelationReport{Verdict: "error", Findings: []RelationFinding{},
+			Errors: []VetFinding{failureFinding(gctx, a.File, src, root)}}
+	}
+
 	findings := relationFindings(ctx.reldecls, GraphOf(root))
 	verdict := "pass"
 	if 0 < len(findings) {

@@ -182,6 +182,16 @@ of an edge rather than the edge itself.
   A rule that depends on declaration order is not yet a rule, and the
   case says so rather than claiming a guarantee the engine does not
   give.
+- **Two engine defects, found from the other end and fixed.** The
+  model's mirrors were all written and `inverse(n)` said one was
+  missing. Twice, for two unrelated reasons: a discarded disjunction
+  alternative was still asserting its `refer(t)` type on the target
+  ([BUGS 66](../BUGS.md)), and a conjunct member reached through a
+  reference carried the map's path, so a link was stamped with the
+  entity's key as its predicate ([BUGS 67](../BUGS.md)). Neither is a
+  relation defect; a relation check is just what noticed. A third,
+  smaller one came with them: the verdict was pronounced over
+  documents that cannot generate at all ([BUGS 68](../BUGS.md)).
 - **A mutual dependency was invisible to the renderer, and this case
   found it.** `tools/diagram.js` collapses the two written directions
   of a declared inverse into one logical edge, or every relation with

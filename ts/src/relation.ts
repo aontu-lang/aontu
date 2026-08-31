@@ -270,6 +270,26 @@ export function relationCheck(
     return { verdict: 'pass', findings: [] }
   }
 
+  // NOR IS A DOCUMENT THAT CANNOT BE GENERATED. Unification can
+  // succeed over a tree that still holds an unsettled disjunction --
+  // more than one alternative admitted, which `disjunct_no_gen`
+  // refuses at generation -- and the graph walk cannot read inside
+  // one: the links in every alternative are invisible, so a mirror
+  // the document plainly writes is missing from the edge set and
+  // `inverse(n)` calls it missing. Generation is therefore asked
+  // FIRST, on a collecting context of its own, and what it says is
+  // the answer. Generation is what the atoms' verdict lands at, so
+  // this is the same order the engine itself now runs in.
+  const gctx = ctx.clone({ err: [], collect: true })
+  root.gen(gctx)
+  if (0 < gctx.err.length) {
+    return {
+      verdict: 'error',
+      findings: [],
+      errors: [failureFinding(gctx, options.path, root)],
+    }
+  }
+
   const findings = relationFindings(decls, graphOf(root))
   return {
     verdict: 0 === findings.length ? 'pass' : 'fail',

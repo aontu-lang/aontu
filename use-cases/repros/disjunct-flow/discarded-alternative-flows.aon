@@ -1,0 +1,9 @@
+# expected: {"x":{"d":"$.y","k":1},"y":{"z":1}}
+# actual (before the fix): {"x":{"d":"$.y","k":1},"y":{"w":2,"z":1}}
+#
+# A disjunct member trial is a HYPOTHESIS. `refer(t)` asserts `t` on
+# ANOTHER node, so the assertion may only take effect if the member
+# making it survives. `k:1` refuses the second alternative, and the
+# type it asked for -- `{w:2}` -- still landed on `$.y`.
+x: ({ k:1, d?: refer({z:1}) } | { k:2, d?: refer({w:2}) }) & { k:1, d: path($.y) }
+y: { }

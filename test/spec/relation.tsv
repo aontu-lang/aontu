@@ -75,6 +75,21 @@ two-relations-declared	relation	a: {dependsOn: rel() & acyclic() & [path($.b)], 
 # grandfather clause discharged).
 edge-at-the-top-starts-at-the-root	relation	dependsOn: rel() & inverse(usedBy) & [path($.b)]\nb: {}	{"verdict":"fail","findings":[{"code":"relation_inverse_missing","relation":"dependsOn","at":"$.dependsOn.0","detail":["$","$.b","usedBy"]}]}
 broken-document-is-not-blamed-on-relations	relation	d: rel() & acyclic()\na: 1 & 2	{"verdict":"error","findings":[],"errors":[{"code":"scalar_value","class":"conflict","severity":"error","path":"$.a","sites":[{"file":"","row":2,"col":8,"len":1,"role":"data","src":"2","value":"2"},{"file":"","row":2,"col":4,"len":1,"role":"data","src":"1","value":"1"}]}]}
+# ... AND NEITHER IS ONE THAT CANNOT BE GENERATED. Unification can
+# succeed over a tree that still holds an unsettled disjunction, which
+# `disjunct_no_gen` refuses at generation, and the graph walk cannot
+# read inside one: the links in its alternatives are invisible, so a
+# mirror the document writes can be missing from the edge set. The
+# verdict is therefore asked of generation first, and what generation
+# says is the answer -- the same order the engine itself refuses in.
+ungenerable-document-is-not-blamed-on-relations	relation	a: {dependsOn: rel() & inverse(usedBy) & [path($.b)]}\nb: {}\nx: 1 | 2	{"verdict":"error","findings":[],"errors":[{"code":"disjunct_no_gen","class":"incomplete","severity":"error","path":"$.x","sites":[{"file":"","row":3,"col":4,"len":1,"role":"data","src":"1","value":"1|2"}]}]}
+# A MIRROR WRITTEN BY A SECOND STATEMENT OF THE SAME ENTITY. The
+# field's constraint is driven at the entity when the statements
+# merge, and a conjunct member that took the entity's own path stamped
+# a rel()-minted link with the ENTITY's key as its predicate: the
+# mirror was then looked for under a relation nobody declared, and a
+# written one was reported missing.
+inverse-mirror-written-by-a-second-statement	relation	spec: hide({M: {kind: m, dependsOn?: rel($.spec.S) & inverse(usedBy), usedBy?: rel($.spec.S)}, S: {kind: m}})\nr: m: {a: $.spec.M & {dependsOn: [path($.r.m.b)]}, b: $.spec.M & {usedBy: [path($.r.m.a)]}}\nr: m: {b: {dependsOn: [path($.r.m.c)]}, c: $.spec.M & {usedBy: [path($.r.m.b)]}}	{"verdict":"pass","findings":[]}
 relations-key-is-user-space	relation	relations: {dependsOn: 1}\na: {dependsOn: rel() & [path($.a)]}	{"verdict":"pass","findings":[]}
 relations-key-generates-as-data	gens	relations: {dependsOn: 1}	{"relations":{"dependsOn":1}}
 the-worked-example	relation	@"std/system"\n\nservices: {\n  auth: $.std.Service & {}\n  billing: $.std.Service & {dependsOn: rel($.std.Service) & inverse(dependedOnBy) & acyclic() & [path($.services.auth)]}\n}	{"verdict":"fail","findings":[{"code":"relation_inverse_missing","relation":"dependsOn","at":"$.services.billing.dependsOn.0","detail":["$.services.billing","$.services.auth","dependedOnBy"]}]}

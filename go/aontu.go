@@ -268,17 +268,25 @@ func (a *Aontu) GenerateVars(src string, vars map[string]Val) (any, error) {
 	if err != nil {
 		return nil, err
 	}
+	out, gerr := res.Gen(ctx)
+	if gerr != nil {
+		return nil, gerr
+	}
 	// The relation verdict (RELATIONS P2): declarations the graph
 	// atoms registered during unification are decided HERE, where no
 	// more information can arrive -- the sizing atoms' model. A
 	// violated declaration is a located evaluation error at the
-	// offending edge, and generation does not proceed past it.
+	// offending edge, and the generated value is discarded.
+	//
+	// AFTER GENERATION, and only when generation SUCCEEDED. A document
+	// that cannot be generated has no finished model to have a graph
+	// verdict about: an unsettled disjunction leaves alternatives the
+	// graph walk cannot read, so a mirror the document writes is
+	// absent from the edge set and inverse(n) reports it missing -- a
+	// false finding, and one that buried the disjunct_no_gen that
+	// actually stopped the document. Mirrors ts/src/aontu.ts.
 	if rerr := relationErrors(ctx, res); nil != rerr {
 		return nil, rerr
-	}
-	out, gerr := res.Gen(ctx)
-	if gerr != nil {
-		return nil, gerr
 	}
 	return out, nil
 }

@@ -35,9 +35,10 @@ declare class RelVal extends FeatureVal {
     held?: Val;
     constructor(spec: ValSpec, ctx?: AontuContext);
     clone(ctx: AontuContext, spec?: ValSpec): Val;
-    fieldkey(): string | undefined;
-    leafRefer(ctx: AontuContext): ReferVal;
+    fieldkey(ctx: AontuContext): string | undefined;
+    leafRefer(ctx: AontuContext, relkey: string | undefined): ReferVal;
     rewrite(ctx: AontuContext, container: any): Val;
+    rewriteUnder(ctx: AontuContext, container: any, relkey: string | undefined): Val;
     unify(peer: Val, ctx: AontuContext): Val;
     get canon(): string;
 }

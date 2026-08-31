@@ -1,0 +1,9 @@
+# expected: {"x":{"d":"$.y","k":1},"y":{"z":1}}
+# actual (before the fix): [aontu/|:trial-nil]: Cannot resolve value at path $
+#
+# The same leak with the two alternatives asking for CONFLICTING types
+# at one key: the discarded alternative's type was met against the
+# surviving one, the meet emptied, and the engine's INTERNAL trial
+# sentinel reached the user as an error code.
+x: ({ k:1, d?: refer({z:1}) } | { k:2, d?: refer({z:2}) }) & { k:1, d: path($.y) }
+y: { }
