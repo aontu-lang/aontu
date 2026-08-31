@@ -2,8 +2,11 @@
 
 *Status: **PROPOSED** (August 2026). Nothing here is implemented; this
 document records the design and the inventory it rests on, for the
-review that decides it. Convention as in PATHS.0.md: the reasoning is
-the record.*
+review that decides it. Revised in that review: the signatures are
+DECLARED in the signature syntax itself, and both ports parse the one
+declaration — the first draft's hand-authored registry per port is now
+among the rejected designs. Convention as in PATHS.0.md: the
+reasoning is the record.*
 
 ## The problem
 
@@ -69,20 +72,40 @@ a new type language.
 
 ## The design
 
-**One registry, canonical in `ts/src/lang.ts`.** Beside `funcMap`,
-replacing `funcArity` and `POSITIONAL_ARG_FUNCS` as stored facts
-(both become derivable):
+**The signatures are declared, in the syntax itself.** One
+declaration, written in the signature syntax — the declaration is the
+SOURCE, not a rendering of something recorded elsewhere. It lives
+where shared behaviour lives, `test/spec/signature.tsv`: one row per
+builtin, the row's body the declaration line, so the file is at once
+the language artifact and the parity fixture (ADR-001's one file,
+two readers).
 
-    type ArgMode = 'value' | 'capture' | 'template'
-                 | 'trial' | 'projector' | 'text'
-    type ArgSig = {
+**Both ports read and parse it, with a custom tabnas grammar.** The
+signature language is a small grammar built on the `@tabnas` stack
+the aontu grammar itself extends — a jsonic-based grammar in each
+port (`@tabnas/jsonic`, `github.com/tabnas/jsonic/go`), the pair
+whose shared behaviour the house already knows how to pin. Neither
+port authors a table: each carries a build-time-inlined copy of the
+declaration text (the committed-dist pattern; the suite asserts the
+copies are byte-identical with the spec file) and parses it at
+initialisation into the registry — the parsed form the checker and
+the message builder consume:
+
+    line = name '(' [ arg {',' arg} ] ')' ':' type
+    arg  = [mode] name ['?'] ':' type
+         | '...' name ':' '(' [mode] type {',' [mode] type} ')'
+    type = word {'|' word}
+    mode = 'capture' | 'template' | 'trial' | 'projector' | 'text'
+
+    type ArgSig = {                       // the PARSED form
       name: string, mode: ArgMode, type: string,
       opt?: boolean, rest?: boolean,
     }
-    const funcSig: Record<string, { args: ArgSig[], out: string }>
 
-The Go port carries the same table (`go/func.go`), pinned by the
-parity gate below. Representative entries, in the rendered form:
+`funcArity` and `POSITIONAL_ARG_FUNCS` become derivable from the
+parse, and the parsed registry is the ONE input to the runtime
+signature checker and the error-message builder below.
+Representative declaration lines:
 
     upper(s: string) : string
     add(a: number, b: number) : number
@@ -104,7 +127,7 @@ paren is the result. `constraint` is the result word for residuals
 (the meet's outcome depends on the peer); `any` is the honest type
 where the function is a wrapper. `match` is the one signature needing
 a repeat group — `match(s: any, ...pr: (trial any, any), dflt?: any)`
-— and the full table is the implementation's first deliverable, one
+— and the full declaration is the implementation's first deliverable, one
 row per name in `funcArity` today.
 
 **Validation reads the registry.** One argument gate, in each port's
@@ -130,14 +153,24 @@ completion detail becomes the rendered signature and `signatureHelp`
 is served from the registry; the LSP tests compare against the same
 renderer. Nobody writes a signature by hand anywhere, in either port.
 
-**The parity gate is the shared spec, per ADR-001.** A new
-`test/spec/signature.tsv`, one row per builtin: name and rendered
-signature. Both ports render their registry and compare against the
-row — the same machinery that pins unification behaviour pins the
-call surface, and a signature edit in one port fails the other's
-suite until it lands there too.
+**The parity gate is the shared spec, per ADR-001.** The declaration
+ROUND-TRIPS: `render(parse(line))` is the line, normalised. Each
+port's suite parses every `signature.tsv` row with its grammar,
+re-renders, and compares — the same machinery that pins unification
+behaviour pins the two parsers to each other, and a grammar edit in
+one port fails the other's suite until it lands there too. With one
+declaration file and two parsers of it, drift between the ports'
+registries is not merely tested against: it has no place to live —
+which is what the hand-authored tables could never offer.
 
 ## Rejected designs
+
+**A hand-authored registry per port** — this document's own first
+draft: a TS object literal in `lang.ts`, mirrored by hand in
+`go/func.go`, pinned only by a rendered comparison. Mirrored
+literals are `funcArity`'s drift surface with more fields; the
+review that accepted the mode vocabulary rejected the mirroring, and
+the declaration-plus-grammar above replaced it.
 
 **Actual TypeScript declarations as the source** (a `.d.ts`, or
 types alone). Cannot express modes — the one thing the signatures
