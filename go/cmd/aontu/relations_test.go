@@ -32,12 +32,12 @@ func relationsFile(t *testing.T, src string) string {
 	return file
 }
 
-const relCyclic = `a: {dependsOn: rel() & inverse(usedBy) & acyclic() & ["$.b"]}
-b: {dependsOn: rel() & inverse(usedBy) & acyclic() & ["$.a"]}
+const relCyclic = `a: {dependsOn: rel() & inverse(usedBy) & acyclic() & [path($.b)]}
+b: {dependsOn: rel() & inverse(usedBy) & acyclic() & [path($.a)]}
 `
 
-const relClean = `a: {dependsOn: rel() & inverse(usedBy) & acyclic() & ["$.b"]}
-b: {usedBy: rel() & ["$.a"]}
+const relClean = `a: {dependsOn: rel() & inverse(usedBy) & acyclic() & [path($.b)]}
+b: {usedBy: rel() & [path($.a)]}
 `
 
 // (The old declared-target rendering is gone with the code: rel(t)

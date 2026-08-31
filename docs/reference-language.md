@@ -1404,7 +1404,7 @@ recount happened.)
 | `path(p?)`  | **capture** `p` as a path value — the spelling, never the resolution; with no argument, the path **kind**. See [First-class paths](#first-class-paths-pathp) | `dep: path(.auth)` generates `".auth"`; `host: path()` |
 | `map()`     | the map **kind**: admits any map, defaults to nothing. See [Container kinds](#container-kinds-map-and-list) | `y: map() & {a:1}`→`{a:1}`; `y: map()`→ error |
 | `list()`    | the list **kind**: admits any list, defaults to nothing | `y: list() & [1]`→`[1]` |
-| `refer(t?)` | constrain a string field to be a **tree address** that resolves; `t`, if given, is unified into the target. The field keeps the address. See [Checked links](#checked-links-refert) | `dependsOn: [&: refer($.std.Service), "$.services.auth"]` |
+| `refer(t?)` | constrain a field to a **path value whose address resolves**; `t`, if given, is unified into the target. The field keeps the address. See [Checked links](#checked-links-refert) | `dependsOn: [&: refer($.std.Service), path($.services.auth)]` |
 | `pack(d, t)` | one keyed child per child of `d`, each of them `t` cloned at that destination. Keys are the strings of a list, or the keys of a map. See [Generating children](#generating-children-pack-and-each) | `deploy: pack($.names, {replicas:*2\|integer})` |
 | `each(d, t?)` | one list element per child of `d`, each met with `t`. Source order for a list, sorted-key order for a map | `open: each($.ports, integer)` |
 | `filter(d, c)` | the children of `d` that ALREADY satisfy `c` — the meet with `c` changes nothing. Keys kept for a map, order for a list; the rest are dropped, not refused. See [Selecting](#selecting-filter-and-match) | `debugged: filter($.services, {debug:true})` |
@@ -1760,7 +1760,7 @@ Write the model as `model.aon`:
 <!-- test: file model.aon -->
 ```aon
 auth: { port: 80, region: *"eu" | string }
-billing: { dep: refer() & "..auth" }
+billing: { dep: refer() & path(..auth) }
 ```
 
 and mount it twice from `main.aon`:
@@ -1814,35 +1814,48 @@ other call reads its argument's value, `path(p)` reads its spelling.
 The captured spelling is the address grammar `refer` reads —
 `$.a.b` from the document root, `.b` from the sibling scope, one more
 leading dot per parent step — and a bare dotted argument is relative
-(`path(q.r)` captures `.q.r`). A string argument is address *text*:
-`path("$.a")` is the capture `path($.a)`, and an anchorless string
-(`path("auth")`) is refused at once (`path_address`). A number or a
-container argument is refused as `invalid-arg`.
+(`path(q.r)` captures `.q.r`).
 
-`path()` with no argument is the path **kind**: the set of all path
-values. It sits under `string` in the kind lattice, so `string`
-admits a path value and the string constraints apply; and it
-*promotes*: a string value that spells an address is admitted as the
-path value, the mirror of `number & 1`.
+A bare string is **never** a path (ADR-016): the call's own argument
+is the one conversion the language has. A string *literal* argument
+is address text (`path("$.a")` is the capture `path($.a)`); a
+*computed* argument — an expression, a reference to a string —
+evaluates first, and the result converts by the same grammar, which
+is what makes an address buildable:
 
 ```aon
-d: path() & "$.a"     # promotion: the string becomes the path value
-a: {}
+names: { web: {}, db: {} }
+accounts: pack($.names, { for: refer() & path("$.names." + key()) })
 ```
 
 ```json
-{ "a": {}, "d": "$.a" }
+{ "accounts": { "db": {"for": "$.names.db"}, "web": {"for": "$.names.web"} },
+  "names": { "db": {}, "web": {} } }
 ```
+
+Text that is not an address refuses at the call (`path_address`); a
+number or a container argument is refused as `invalid-arg`.
+
+`path()` with no argument is the path **kind**: the set of all path
+values. It sits under `string` in the kind lattice, so `string`
+admits a path value and the string constraints apply to spellings —
+but the kind does **not** promote: `path() & "$.a"` refuses
+(`no_scalar_unify`) exactly as `integer & "x"` does, because outside
+the `path(...)` call a string never becomes a path.
 
 Everything else about a path value is what scalars already do, made
 precise by three rules:
 
-1. **Meets are syntactic.** Two path values meet only when they spell
-   the same address (`path($.a) & path($.b)` is `scalar_value`), and a
-   path value refuses a plain string *literal* (`path($.a) & "$.a"` is
-   `scalar_kind`) exactly as the number tower's leaves refuse each
-   other — promotion happens at the kind, never between two concrete
-   values.
+1. **Meets are syntactic, by the prefix rule.** Two path values meet
+   when one spells a *prefix* of the other — the same anchor, the
+   shorter's segments opening the longer's — and the result is the
+   **longer**: a path can always be told more precisely.
+   `path($.a) & path($.a.b)` is `path($.a.b)`; incomparable
+   spellings (`path($.a) & path($.b)`, or different anchors) refuse
+   (`scalar_value`); and a path value refuses a plain string
+   *literal* (`path($.a) & "$.a"` is `scalar_kind`) exactly as the
+   number tower's leaves refuse each other. Subsumption follows the
+   meet: a prefix subsumes its extensions.
 2. **A path value is data.** `path($.nope)` generates `"$.nope"`:
    existence is `refer`'s contract, not the value's, so a document may
    address things outside this evaluation. `path(p) & refer()` is the
@@ -1854,11 +1867,11 @@ precise by three rules:
 
 The kind settles inside `type()` bodies, which a `refer` cannot
 (see [Checked links](#checked-links-refert)), so a vocabulary can
-declare a path-valued field and plain string data meets it:
+declare a path-valued field for the data to meet:
 
 ```aon
 Service: type({host: path()})
-db: $.Service & {host: "$.hosts.h1"}
+db: $.Service & {host: path($.hosts.h1)}
 hosts: {h1: {}}
 ```
 
@@ -1880,7 +1893,7 @@ address string, and the language checks it.
 services: {
   auth: { kind: service, port: 8080 }
   billing: {
-    dependsOn: [&: refer({kind: service}), "$.services.auth"]
+    dependsOn: [&: refer({kind: service}), path($.services.auth)]
   }
 }
 ```
@@ -1920,12 +1933,13 @@ Relative addressing is what makes a model reusable. A link written
 at, so the same file instantiated twice gives two self-contained
 instances.
 
-Only a string or a [path value](#first-class-paths-pathp) can be an
-address — `refer() & path(.auth)` and `refer() & ".auth"` are the same
-link — and a malformed one is refused at once (`refer_address`): no
-later pass can repair it. A relative address that climbs off the top
-of the tree is refused the same way — no later pass can grow a tree
-upwards.
+Only a [path value](#first-class-paths-pathp) can be an address
+(ADR-016): a bare string never is — `refer() & "$.a"` refuses
+(`refer_address`) — and `path("...")` is the one conversion. A second
+path peer refines the address by the prefix rule
+(`refer() & path($.a) & path($.a.b)` links to `$.a.b`), and a
+relative address that climbs off the top of the tree is refused
+outright — no later pass can grow a tree upwards.
 
 ### Existence is decided, not deferred
 
@@ -1943,7 +1957,7 @@ still names nothing at the last pass is a located error
 
 ```aon
 a: {p:1}
-b: refer({r:3}) & "$.a"
+b: refer({r:3}) & path($.a)
 ```
 
 ```json
@@ -1957,7 +1971,7 @@ lattice guarantee is that more information never falsifies what has
 already been observed.
 
 Constraints written *alongside* a refer constrain the **link**, not the
-target: `refer() & string & re("auth$") & "$.services.auth"` checks the
+target: `refer() & string & re("auth$") & path($.services.auth)` checks the
 address itself. They are held until the address arrives, and then meet
 it.
 
@@ -1974,10 +1988,10 @@ one set of them ships with the engine. Write this as `system.aon`:
 services: {
   auth: $.std.Service & {
     ports: { http: { protocol: http } }
-    dependedOnBy: rel() & ["$.services.billing"]
+    dependedOnBy: rel() & [path($.services.billing)]
   }
   billing: $.std.Service & {
-    dependsOn: rel($.std.Service) & inverse(dependedOnBy) & acyclic() & ["$.services.auth"]
+    dependsOn: rel($.std.Service) & inverse(dependedOnBy) & acyclic() & [path($.services.auth)]
   }
 }
 ```
@@ -2038,8 +2052,8 @@ are tree addresses and flows `t` into every target, and the two
 GRAPH ATOMS declare the properties that hold over the whole edge set:
 
 ```aon
-a: { dependsOn: rel() & inverse(usedBy) & acyclic() & ["$.b"] }
-b: { usedBy:    rel() & ["$.a"] }
+a: { dependsOn: rel() & inverse(usedBy) & acyclic() & [path($.b)] }
+b: { usedBy:    rel() & [path($.a)] }
 ```
 
 ```json

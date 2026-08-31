@@ -37,13 +37,13 @@ to two consumers:
 @"./spec.aon"
 jobs: {
   &: $.spec.Job
-  extract: { feeds: ["$.jobs.transform"] }
+  extract: { feeds: [path($.jobs.transform)] }
   transform: {
-    fedBy: ["$.jobs.extract"]
-    feeds: ["$.jobs.load", "$.jobs.audit"]
+    fedBy: [path($.jobs.extract)]
+    feeds: [path($.jobs.load), path($.jobs.audit)]
   }
-  load: { fedBy: ["$.jobs.transform"] }
-  audit: { fedBy: ["$.jobs.transform"] }
+  load: { fedBy: [path($.jobs.transform)] }
+  audit: { fedBy: [path($.jobs.transform)] }
 }
 ```
 

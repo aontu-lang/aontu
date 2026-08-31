@@ -7,5 +7,5 @@
 @"../system.aon"
 
 catalog: domains: platform: services: email: {
-  dependsOn: ["$.catalog.domains.identity.services.directory"]
+  dependsOn: [path($.catalog.domains.identity.services.directory)]
 }

@@ -3,4 +3,4 @@
 # admin_all from every grant via neq() on the list spread, so this is
 # a located [aontu/constraint] error at the offending element.
 @"../roles.aon"
-roles: member: grants: ["$.permissions.project_read", "$.permissions.project_write", "$.permissions.member_read", "$.permissions.admin_all"]
+roles: member: grants: [path($.permissions.project_read), path($.permissions.project_write), path($.permissions.member_read), path($.permissions.admin_all)]

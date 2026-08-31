@@ -51,10 +51,10 @@ ok "0d0.1 + 0d0.2 is exactly 0d0.3 (the pin in seed.aon holds)"
 
 # 3. A batch of agent-emitted records, one vet command, three files.
 run batch 0 -- vet "$DIR/seed.aon" \
-  "$DIR/data/order-batch-1.json" "$DIR/data/order-batch-2.json" \
+  "$DIR/data/order-batch-1.aon" "$DIR/data/order-batch-2.aon" \
   "$DIR/data/customer-bigid.aon"
 has batch 'verdict: valid'
-ok "batch vet: two JSON order files + one 0d ledger sync, all valid"
+ok "batch vet: two agent-emitted order files + one 0d ledger sync, all valid"
 
 # ...though every seed-based vet also emits a FALSE compat warning on
 # the defaulted status field (README, gap 9). Assert current behaviour
@@ -63,7 +63,7 @@ has batch 'pref_not_instance'
 ok "known diagnostics bug reproduced: spurious pref_not_instance on *\"open\" default"
 
 # 4. Referential integrity: an order naming an undeclared customer.
-run dangle 1 -- vet "$DIR/seed.aon" "$DIR/bad/order-dangling.json"
+run dangle 1 -- vet "$DIR/seed.aon" "$DIR/bad/order-dangling.aon"
 has dangle '[aontu/refer_unresolved]'
 has dangle 'cust-9999'
 ok "dangling customerId refused (refer_unresolved)"

@@ -10,13 +10,16 @@
 # A plain reference (`$.a.b` alone) stays the embedding it has always
 # been -- the row `capture-not-resolution` is the three-way contrast.
 #
-# Meets are SYNTACTIC. Two path values meet only when they spell the
-# same address; a path value and a plain string literal refuse each
-# other exactly as the number tower's leaves do (`1 & 1.0` fails), and
-# promotion happens at the KIND: `path() & "$.a"` admits the string AS
-# the path value, the mirror of `number & 1`. The kind sits UNDER
-# string, so `string` admits a path value and string-typed schemas
-# over address fields keep working.
+# Meets are SYNTACTIC, by the PREFIX rule (ADR-016): two path values
+# meet when one spells a prefix of the other -- same anchor, the
+# shorter's segments opening the longer's -- and the result is the
+# LONGER: a path can always be told more precisely. Incomparable
+# spellings refuse as any two unequal scalars do. A bare string is
+# NEVER a path: `path("...")` -- the call's own string argument -- is
+# the one conversion, so the kind does not promote and refer() refuses
+# a string address outright. The kind still sits UNDER string, so
+# `string` admits a path value and the string constraints apply to
+# spellings.
 #
 # A path value is DATA: existence is refer()'s contract, not the
 # value's -- `path($.nope)` generates. `path($.a) & refer()` is the
@@ -33,6 +36,11 @@ capture-relative	gens	x: {auth:{p:1}, dep: path(.auth)}	{"x":{"auth":{"p":1},"de
 capture-parent-step	gens	x: {auth:{}, b:{dep: path(..auth)}}	{"x":{"auth":{},"b":{"dep":"..auth"}}}
 capture-dotted-is-relative	gens	q:{r:7} p: path(q.r)	{"p":".q.r","q":{"r":7}}
 capture-string-text	gens	a:{} d: path("$.a")	{"a":{},"d":"$.a"}
+# A COMPUTED string argument evaluates first, then converts by the
+# same grammar at resolve (ADR-016): addresses stay buildable.
+computed-string-argument-converts	gens	a:{} d: path("$." + "a")	{"a":{},"d":"$.a"}
+computed-string-argument-bad-address	errc	d: path("no" + "pe")	path_address
+relative-empty-segment	errc	d: path(".a..b")	path_address
 capture-list-index	gens	a:{p:[1,2]} d: path($.a.p.1)	{"a":{"p":[1,2]},"d":"$.a.p.1"}
 capture-not-resolution	gens	a:{p:1} emb: $.a cap: path($.a)	{"a":{"p":1},"cap":"$.a","emb":{"p":1}}
 capture-is-data-target-absent	gens	d: path($.nope)	{"d":"$.nope"}
@@ -41,35 +49,65 @@ capture-is-data-target-absent	gens	d: path($.nope)	{"d":"$.nope"}
 kind-unmet	errc	y: path()	mapval_no_gen
 kind-at-root	errc	path()	no_gen
 kind-admits-value	gens	a:{} d: path() & path($.a)	{"a":{},"d":"$.a"}
-kind-promotes-string	gens	a:{} d: path() & "$.a"	{"a":{},"d":"$.a"}
-kind-promotes-relative	gens	x:{auth:{}, dep: path() & ".auth"}	{"x":{"auth":{},"dep":".auth"}}
-promotion-needs-anchor	errc	d: path() & "auth"	path_address
+kind-refuses-bare-string	errc	a:{} d: path() & "$.a"	no_scalar_unify
+kind-refuses-relative-string	errc	x:{auth:{}, dep: path() & ".auth"}	no_scalar_unify
+kind-refuses-anchorless-string	errc	d: path() & "auth"	no_scalar_unify
 promotion-not-number	errc	d: path() & 1	no_scalar_unify
 string-kind-admits-path	gens	a:{} d: string & path($.a)	{"a":{},"d":"$.a"}
-type-mark-rides-promotion	gens	T: type(path()) & "$.a" a:{} x: 1	{"a":{},"x":1}
-hide-mark-rides-promotion	gens	h: hide(path()) & "$.a" a:{} x: 1	{"a":{},"x":1}
+type-mark-rides-prefix-meet	gens	T: type(path($.a)) & path($.a.b) a:{b:{}} x: 1	{"a":{"b":{}},"x":1}
+hide-mark-rides-prefix-meet	gens	h: hide(path($.a)) & path($.a.b) a:{b:{}} x: 1	{"a":{"b":{}},"x":1}
 super-lifts-to-kind	gens	a:{} b:{} d: super(path($.b)) & path($.a)	{"a":{},"b":{},"d":"$.a"}
 
 # --- Meets are syntactic ---------------------------------------------
 paths-meet-same	gens	a:{} d: path($.a) & path($.a)	{"a":{},"d":"$.a"}
 paths-meet-different	errc	d: path($.a) & path($.b)	scalar_value
 path-vs-string-literal	errc	d: path($.a) & "$.a"	scalar_kind
+prefix-meet-longer-wins	gens	a:{b:{c:1}} d: path($.a) & path($.a.b)	{"a":{"b":{"c":1}},"d":"$.a.b"}
+prefix-meet-either-order	gens	a:{b:{c:1}} d: path($.a.b) & path($.a)	{"a":{"b":{"c":1}},"d":"$.a.b"}
+prefix-meet-relative	gens	x:{auth:{h:{}}, d: path(.auth) & path(.auth.h)}	{"x":{"auth":{"h":{}},"d":".auth.h"}}
+prefix-meet-needs-same-anchor	errc	x:{a:{}, d: path(.a) & path(..a)}	scalar_value
 
 # --- Canon: the call form is the literal -----------------------------
 canon-capture	canon	d: path($.a.b)	{"d":path($.a.b)}
 canon-relative	canon	x:{dep: path(.auth), auth:{}}	{"x":{"auth":{},"dep":path(.auth)}}
 canon-kind	canon	y: path()	{"y":path()}
-canon-promoted	canon	a:{} d: path() & "$.a"	{"a":{},"d":path($.a)}
+canon-prefix-merged	canon	d: path($.a) & path($.a.b)	{"d":path($.a.b)}
 
 # --- The checked link: path names, refer asserts ---------------------
 checked-link	gens	a:{} d: path($.a) & refer()	{"a":{},"d":"$.a"}
 checked-link-edge	graph	a:{} d: path($.a) & refer()	{"edges":[{"from":"$","key":"d","to":"$.a","at":"$.d"}]}
 rel-path-leaf	gens	a: {dependsOn: rel() & [path($.b)]} b:{}	{"a":{"dependsOn":["$.b"]},"b":{}}
 alternatives-are-inert	gens	a:{q:1} y: *path(.a) | path(.b)	{"a":{"q":1},"y":".a"}
+string-never-an-address	errc	a:{} d: refer() & "$.a"	refer_address
+refer-merges-second-path	gens	a:{b:{c:1}} d: refer() & path($.a) & path($.a.b)	{"a":{"b":{"c":1}},"d":"$.a.b"}
+refer-restated-address	gens	a:{} d: refer() & path($.a) & path($.a)	{"a":{},"d":"$.a"}
+two-typed-refers-merge-their-types	gens	a:{} x: refer({p:1}) & refer({q:2}) & path($.a)	{"a":{"p":1,"q":2},"x":"$.a"}
+# With the target ABSENT until a later pass, the two residuals merge
+# while pending -- one refer carrying both types -- and settle once.
+two-typed-refers-merge-while-pending	gens	h: {} y: refer({z:{}}) & path($.h) x: refer({p:1}) & refer({q:2}) & path($.h.z)	{"h":{"z":{"p":1,"q":2}},"x":"$.h.z","y":"$.h"}
+refer-address-conflict	errc	a:{} b:{} d: refer() & path($.a) & path($.b)	scalar_value
+refer-flow-into-merged	gens	a:{b:{p:1}} d: refer({r:3}) & path($.a) & path($.a.b)	{"a":{"b":{"p":1,"r":3}},"d":"$.a.b"}
+held-re-checks-the-link	gens	z:{} s: refer() & re("z$") & path($.z)	{"s":"$.z","z":{}}
+length-admits-a-path	gens	a:{} d: path($.a) & length(3)	{"a":{},"d":"$.a"}
+
+# --- neq over paths: exclusion identity is kind AND spelling ---------
+# `neq(path($.a))` excludes exactly that address -- never a plain
+# string that happens to spell it, which is the ADR-016 distinction
+# stated as a constraint.
+neq-path-excludes-the-address	errc	a:1 x: neq(path($.a)) & path($.a)	constraint
+neq-path-ignores-a-string-spelling	gens	a:1 x: neq(path($.a)) & "$.a"	{"a":1,"x":"$.a"}
+neq-path-admits-another-address	gens	a:1 b:1 x: neq(path($.a)) & path($.b)	{"a":1,"b":1,"x":"$.b"}
+neq-path-exclusions-dedup	gens	a:1 b:1 x: neq(path($.a)) & neq(path($.a)) & path($.b)	{"a":1,"b":1,"x":"$.b"}
+
+# --- Where a string argument is the constraint's own MATERIAL -- a
+# --- re() pattern, a must() message -- a path value stays refused:
+# --- those positions read text, not addresses.
+re-pattern-refuses-a-path	errc	m:1 x: re(path($.m)) & "a"	invalid-arg
+must-message-refuses-a-path	errc	m:1 x: must(re("a"), path($.m)) & "a"	invalid-arg
 
 # --- The kind settles inside a schema (the property refer() lacks,
 # --- G4 phase 4) -----------------------------------------------------
-kind-in-type-body	gens	T: type({d: path()}) x: $.T & {d: "$.a"} a:{}	{"a":{},"x":{"d":"$.a"}}
+kind-in-type-body	gens	T: type({d: path()}) x: $.T & {d: path("$.a")} a:{}	{"a":{},"x":{"d":"$.a"}}
 
 # --- Argument refusals -----------------------------------------------
 arg-map	errc	a:path({b:1})	invalid-arg
@@ -81,3 +119,4 @@ arg-absolute-parent-step	errc	y: path($..a) a:{}	path_address
 # --- Subsumption: string over path, kind over value ------------------
 subsume-string-over-path	subsume	d: string	d: path($.a)	{"findings":[],"verdict":"subsumes"}
 subsume-kind-over-value	subsume	d: path()	d: path($.a)	{"findings":[],"verdict":"subsumes"}
+subsume-prefix-over-extension	subsume	d: path($.a)	d: path($.a.b)	{"findings":[],"verdict":"subsumes"}

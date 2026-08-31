@@ -1545,3 +1545,67 @@ orthogonal to representation and untouched.
 This does not reverse ADR-001 or ADR-002: both ports land together,
 the shared rows live in `test/spec/path.tsv` and
 `test/spec/containerkind.tsv`, and coverage stays at 100 %.
+
+## ADR-016 — A string is never a path: conversion lives in the call, and paths meet by prefix
+
+**Date:** 2026-08-31
+**Status:** Accepted
+
+### Context
+
+ADR-015 made paths first-class but left two bridges to the string era
+standing: the path kind PROMOTED a string that spelled an address
+(`path() & "$.a"` became the path value), and `refer()`/`rel()` still
+accepted a bare string as an address, so every pre-ADR-015 document
+kept evaluating unchanged. The cost of the bridges was the ambiguity
+they preserved: whether `"$.a"` in a document was a path depended on
+what later met it, which is exactly the property a first-class kind
+exists to remove. And two path values could meet only when equal,
+though one address that opens another is not a disagreement — it is
+the same place, told more precisely.
+
+### Decision
+
+**A bare string is never a path.** The one conversion the language
+has is the `path(...)` call's own argument: a string literal converts
+at capture, and a COMPUTED argument — an expression, a reference to a
+string — evaluates first and converts by the same grammar at resolve,
+which keeps addresses buildable (`refer() & path("$.customers." +
+key())`). Everywhere else a string stays a string: the kind does not
+promote (`path() & "$.a"` refuses as `integer & "x"` does), `refer()`
+refuses a string address (`refer_address`), and `rel()` refuses
+string leaves (`rel_address`).
+
+**Paths meet by the prefix rule.** Two path values unify when one
+spells a prefix of the other — same anchor, the shorter's segments
+opening the longer's — and the result is the LONGER. Incomparable
+spellings refuse as unequal scalars (`scalar_value`). Subsumption
+follows the meet: a prefix subsumes its extensions. The refer
+residual folds AFTER plain values (cjo 120000) so sibling paths merge
+before it settles, a second path peer refines a pending address by
+the same rule, and the RESOLVED LINK is itself a path value — a
+string link could not meet its own address re-stated.
+
+The string-domain constraints treat a path value as a string with
+more structure: `re()` and `length()` check the spelling, `neq()`
+takes path arguments and excludes by path identity (kind AND
+spelling — a plain string that happens to spell the address is not
+excluded), and the pattern/message ARGUMENT positions stay
+plain-string-only.
+
+### Consequences
+
+Data documents that carry addresses are Aontu documents now: a JSON
+file cannot spell a path, and the corpus's agent-emitted records
+(01-service-catalog's scaffolder candidate, 05-rbac-policy's audits,
+10-data-model's order batches) moved from `.json` to `.aon` with
+`path(...)` spellings. Canon renders every address as the call
+(`refer(t)&path($.a)`, links as `path($.a)`), because a bare string
+address no longer reparses. `use:` fields in `deprecate()` records
+and other path-SHAPED prose stay strings — nothing checks them as
+addresses, which is now visible in the spelling.
+
+This supersedes ADR-015's promotion paragraph; the shared rows are
+`test/spec/path.tsv` (amended) and the swept `refer`/`rel`/
+`relation`/`graph`/`reach` suites. Both ports land together
+(ADR-001) and coverage stays at 100 % (ADR-002).

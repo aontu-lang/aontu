@@ -15,8 +15,8 @@ candidate: hide(@"../data/candidate-webhooks.json")
 catalog: domains: platform: services: {
   webhooks: $.spec.CatalogEntry & $.candidate & {
     dependsOn: [
-      "$.catalog.domains.identity.services.auth"
-      "$.catalog.domains.platform.services.email"
+      path($.catalog.domains.identity.services.auth)
+      path($.catalog.domains.platform.services.email)
     ]
   }
 
@@ -25,15 +25,15 @@ catalog: domains: platform: services: {
   # "append" must restate the existing elements verbatim, in order.
   email: {
     dependedOnBy: [
-      "$.catalog.domains.platform.services.notify"
-      "$.catalog.domains.platform.services.webhooks"
+      path($.catalog.domains.platform.services.notify)
+      path($.catalog.domains.platform.services.webhooks)
     ]
   }
 }
 catalog: domains: identity: services: auth: {
   dependedOnBy: [
-    "$.catalog.domains.platform.services.gateway"
-    "$.catalog.domains.payments.services.payments"
-    "$.catalog.domains.platform.services.webhooks"
+    path($.catalog.domains.platform.services.gateway)
+    path($.catalog.domains.payments.services.payments)
+    path($.catalog.domains.platform.services.webhooks)
   ]
 }

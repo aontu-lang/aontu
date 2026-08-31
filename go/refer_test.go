@@ -104,9 +104,10 @@ func TestRelValShape(t *testing.T) {
 
 func TestReferValShape(t *testing.T) {
 	r := newRefer(nil)
-	// LAST in a conjunct fold: a refer has to see the string it
-	// constrains, and the string is what the other terms produce.
-	if 45000 != r.cjo() {
+	// AFTER the plain values, BEFORE the sizing atoms (ADR-016):
+	// sibling path values fold together first under the prefix rule,
+	// and the residual then meets one merged address.
+	if 120000 != r.cjo() {
 		t.Errorf("cjo = %d", r.cjo())
 	}
 	if !isTop(r.superior()) {
@@ -128,6 +129,44 @@ func TestReferValShape(t *testing.T) {
 	}
 }
 
+func TestReferValLateDeliveryArms(t *testing.T) {
+	// The second-path and second-held arms are CROSS-PASS arms:
+	// sibling paths and constraints in one conjunct pre-merge at
+	// their own (lower) cjo before the residual folds, so each is
+	// reached only by a late-delivered peer -- a flow into a pending
+	// refer, spread timing. Pinned at the API, as the nil peer above
+	// is. The TS twins are refer-second-path-peer-refines-by-prefix
+	// and refer-holds-a-second-constraint-by-meet in
+	// ts/test/coverage3.test.ts.
+	ctx := &Ctx{root: newMap(), collect: true}
+	r := newRefer(nil)
+	addr, _ := parseAddress("$.q")
+	r.addr, r.addrsrc = &addr, "$.q"
+	refined, ok := r.Unify(newPath("$.q.r"), ctx).(*ReferVal)
+	if !ok || "$.q.r" != refined.addrsrc {
+		t.Fatalf("refined address = %v", refined)
+	}
+	// The prefix rule is symmetric in which side is pending.
+	kept, ok := refined.Unify(newPath("$.q"), ctx).(*ReferVal)
+	if !ok || "$.q.r" != kept.addrsrc {
+		t.Fatalf("kept address = %v", kept)
+	}
+	// Incomparable addresses are the conflict two unequal scalars are.
+	if out := r.Unify(newPath("$.z"), ctx); !out.Nil() {
+		t.Fatalf("incomparable = %s", out.Canon())
+	}
+	// held meets a second late constraint rather than replacing it.
+	h := newRefer(nil)
+	h1, ok := h.Unify(newScalarKind(KindString), ctx).(*ReferVal)
+	if !ok || nil == h1.held {
+		t.Fatalf("first held = %v", h1)
+	}
+	h2, ok := h1.Unify(newScalarKind(KindString), ctx).(*ReferVal)
+	if !ok || nil == h2.held || h2.held.Nil() {
+		t.Fatalf("second held = %v", h2)
+	}
+}
+
 func TestReferMergeNilCombinations(t *testing.T) {
 	ctx := &Ctx{}
 	held := newScalarKind(KindString)
@@ -144,6 +183,15 @@ func TestReferMergeNilCombinations(t *testing.T) {
 	if out := withT.Unify(newRefer(nil), ctx).(*ReferVal); Val(typed) != out.tval {
 		t.Error("a typed refer should keep its type against an untyped peer")
 	}
+	// Both sides typed meet their types. In a document two typed
+	// refers at one position settle independently and their types
+	// flow separately (the two-typed-refers-merge-* rows), so this
+	// corner is the direct API meet, pinned here with the others.
+	typed2 := newMap()
+	typed2.set("k2", newInteger(2))
+	if out := withT.Unify(newRefer(typed2), ctx).(*ReferVal); nil == out.tval || out.tval.Nil() {
+		t.Error("two typed refers should meet their types")
+	}
 
 	withH := newRefer(nil)
 	withH.held = held
@@ -152,6 +200,15 @@ func TestReferMergeNilCombinations(t *testing.T) {
 	}
 	if out := withH.Unify(newRefer(nil), ctx).(*ReferVal); Val(held) != out.held {
 		t.Error("a held refer should keep it against an unheld peer")
+	}
+	// Both sides holding meet their constraints, as both sides typed
+	// meet their types (the two-typed-refers-merge-their-types row).
+	// Constraints in one conjunct pre-merge before either refer folds,
+	// so this corner is a cross-pass delivery, pinned at the API.
+	withH2 := newRefer(nil)
+	withH2.held = newScalarKind(KindString)
+	if out := withH.Unify(withH2, ctx).(*ReferVal); nil == out.held || out.held.Nil() {
+		t.Error("two held refers should meet their held constraints")
 	}
 
 	// And a peer that already has the address, when this one does not.

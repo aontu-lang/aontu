@@ -544,6 +544,16 @@ function stringLeaf(v: any): boolean {
   return true === v?.isScalar && 'string' === typeof v.peg && v.isString
 }
 
+// The VALUE-admission widening of stringLeaf: a path value is a string
+// with more structure (path <: string, ADR-016), so the string-domain
+// constraints admit one -- `refer() & re("auth$")` must still check a
+// link whose value is now a path. The ARGUMENT sites keep the strict
+// test: a pattern, a bound or an exclusion is spelled with a plain
+// string, never a path.
+function stringishLeaf(v: any): boolean {
+  return stringLeaf(v) || (true === v?.isScalar && true === v.isPath)
+}
+
 
 // Scalar identity: leaf AND value, the lattice's own rule (1 and 1.0
 // are different scalars). Exact numeric comparison decides the value
@@ -551,6 +561,12 @@ function stringLeaf(v: any): boolean {
 function sameScalar(a: any, b: any): boolean {
   if (numericLeaf(a) && numericLeaf(b)) {
     return towerRank(a) === towerRank(b) && 0 === cmpNumeric(a, b)
+  }
+  if (true === a?.isPath || true === b?.isPath) {
+    // Path identity is kind AND spelling (ADR-016): `neq(path($.x))`
+    // excludes exactly that address, and never a plain string that
+    // happens to spell it.
+    return true === a?.isPath && true === b?.isPath && a.peg === b.peg
   }
   if (stringLeaf(a) && stringLeaf(b)) {
     return a.peg === b.peg
@@ -745,7 +761,7 @@ class ConstraintVal extends FeatureVal {
       }
       let domain: 'number' | 'string' | undefined = undefined
       for (const a of args) {
-        const d = numericLeaf(a) ? 'number' : stringLeaf(a) ? 'string' : undefined
+        const d = numericLeaf(a) ? 'number' : stringishLeaf(a) ? 'string' : undefined
         if (null == d || (null != domain && d !== domain)) {
           return bad('invalid-arg')
         }
@@ -828,7 +844,7 @@ class ConstraintVal extends FeatureVal {
       return
     }
 
-    const domain = numericLeaf(a) ? 'number' : stringLeaf(a) ? 'string' : undefined
+    const domain = numericLeaf(a) ? 'number' : stringishLeaf(a) ? 'string' : undefined
     if (null == domain) {
       return bad('invalid-arg')
     }
@@ -988,7 +1004,7 @@ class ConstraintVal extends FeatureVal {
       // Only a string among the scalars has a length, and it is counted
       // in CODE POINTS -- not UTF-16 units (this host's native count)
       // and not bytes (Go's). Iterating a string yields code points.
-      if (!stringLeaf(peer)) {
+      if (!stringishLeaf(peer)) {
         return this.fail(ctx, peer)
       }
       if (!stateAdmits(this.count, countVal([...peer.peg].length))) {
@@ -1723,7 +1739,7 @@ function constraintAdmitsScalar(
 // the count.
 function stateAdmits(s: ConstraintState, peer: any): boolean {
   const domainOf = numericLeaf(peer) ? 'number' :
-    stringLeaf(peer) ? 'string' : undefined
+    stringishLeaf(peer) ? 'string' : undefined
 
   if (null == s.domain) {
     // A sizing residual has no domain, and admits any scalar the sizing

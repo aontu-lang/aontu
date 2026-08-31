@@ -298,6 +298,27 @@ func (s *ScalarVal) Unify(peer Val, ctx *Ctx) Val {
 		return pc.Unify(s, ctx)
 	}
 	if ps, ok := peer.(*ScalarVal); ok {
+		// Two path values meet by the PREFIX rule (ADR-016): the longer
+		// when one opens the other, refusal otherwise; the winner
+		// carries both sides' marks, as the equal arm below ratchets
+		// them. Mirrors PathVal.unify in ts/src/val/PathVal.ts.
+		if KindPath == s.kind && KindPath == ps.kind {
+			merged, mok := prefixMeet(s.peg.(string), ps.peg.(string))
+			if !mok {
+				return makeNilErr(ctx, "scalar_value", s, peer)
+			}
+			out, other := s, ps
+			if merged != s.peg.(string) {
+				out, other = ps, s
+			}
+			if other.mtype {
+				out.mtype = true
+			}
+			if other.mhide {
+				out.mhide = true
+			}
+			return out
+		}
 		// Identity is kind AND value (D2). scalarPegSame, not `==`: the
 		// exact leaves hold pointers, and `==` would compare addresses.
 		if ps.kind == s.kind && scalarPegSame(s.kind, ps.peg, s.peg) {
@@ -381,29 +402,6 @@ func (k *ScalarKindVal) Unify(peer Val, ctx *Ctx) Val {
 		return pc.Unify(k, ctx)
 	}
 	if ps, ok := peer.(*ScalarVal); ok {
-		// PROMOTION (PATHS.0.md): the path kind admits a string value
-		// that spells an address AS the path value -- the mirror of
-		// `number & 1`, and the bridge that keeps the schema/data
-		// split intact: the schema writes the kind, plain JSON-shaped
-		// data writes the string, and the meet promotes. The spelling
-		// is kept as written, exactly as refer keeps its addrsrc.
-		if KindPath == k.kind && KindString == ps.kind {
-			str, _ := ps.peg.(string)
-			if _, aok := parseAddress(str); !aok {
-				return makeNilErr(ctx, "path_address", k, peer)
-			}
-			pv := newPath(str)
-			pv.sp, pv.spu, pv.surl = ps.sp, ps.spu, ps.surl
-			pv.stext = ps.stext
-			pv.path = ps.path
-			if k.mtype || ps.mtype {
-				pv.mtype = true
-			}
-			if k.mhide || ps.mhide {
-				pv.mhide = true
-			}
-			return pv
-		}
 		// A kind admits a concrete value of that kind, and a supertype
 		// admits a value of any kind below it (`number & 1.5` is 1.5).
 		if ps.kind == k.kind || kindSubsumes(k.kind, ps.kind) {

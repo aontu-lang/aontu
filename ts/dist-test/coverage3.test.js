@@ -70,6 +70,7 @@ const hcanon_1 = require("../dist/hcanon");
 const query_1 = require("../dist/query");
 const provenance_1 = require("../dist/provenance");
 const ReferFuncVal_1 = require("../dist/val/ReferFuncVal");
+const PathVal_1 = require("../dist/val/PathVal");
 const graph_1 = require("../dist/graph");
 const trim_1 = require("../dist/trim");
 const Val_1 = require("../dist/val/Val");
@@ -435,11 +436,16 @@ function capture(fn) {
         const bout = pfb.prepare(ctx, [new StringVal_1.StringVal({ peg: 'a' })]);
         Assert.equal(bout[0].isNil, true);
         Assert.equal(bout[0].why, 'path_address');
-        // …while a container argument is refused outright.
+        // …while a container argument passes through prepare (a computed
+        // argument is the driving loop's to evaluate, ADR-016) and is
+        // refused at resolve, where a driven non-string always is.
         const pfm = new PathFuncVal_1.PathFuncVal({ peg: [new MapVal_1.MapVal({ peg: {} })] }, ctx);
-        const mout = pfm.prepare(ctx, [new MapVal_1.MapVal({ peg: {} })]);
-        Assert.equal(mout[0].isNil, true);
-        Assert.equal(mout[0].why, 'invalid-arg');
+        const marg = new MapVal_1.MapVal({ peg: {} });
+        const mout = pfm.prepare(ctx, [marg]);
+        Assert.equal(mout[0], marg);
+        const rout = pfm.resolve(ctx, mout);
+        Assert.equal(rout.isNil, true);
+        Assert.equal(rout.why, 'invalid-arg');
     });
     (0, node_test_1.test)('case-func-superior-is-top', () => {
         Assert.equal(new UpperFuncVal_1.UpperFuncVal({ peg: [] }).superior().isTop, true);
@@ -1102,12 +1108,12 @@ function capture(fn) {
 (0, node_test_1.describe)('coverage3-address', () => {
     (0, node_test_1.test)('address-spellings', () => {
         // Absolute, from the root.
-        Assert.deepEqual((0, ReferFuncVal_1.parseAddress)('$.a.b'), { absolute: true, up: 0, parts: ['a', 'b'] });
+        Assert.deepEqual((0, PathVal_1.parseAddress)('$.a.b'), { absolute: true, up: 0, parts: ['a', 'b'] });
         // A list index is a segment like any other.
-        Assert.deepEqual((0, ReferFuncVal_1.parseAddress)('$.a.0'), { absolute: true, up: 0, parts: ['a', '0'] });
+        Assert.deepEqual((0, PathVal_1.parseAddress)('$.a.0'), { absolute: true, up: 0, parts: ['a', '0'] });
         // Relative: the sibling scope, then one step up per further dot.
-        Assert.deepEqual((0, ReferFuncVal_1.parseAddress)('.b'), { absolute: false, up: 0, parts: ['b'] });
-        Assert.deepEqual((0, ReferFuncVal_1.parseAddress)('..b.c'), { absolute: false, up: 1, parts: ['b', 'c'] });
+        Assert.deepEqual((0, PathVal_1.parseAddress)('.b'), { absolute: false, up: 0, parts: ['b'] });
+        Assert.deepEqual((0, PathVal_1.parseAddress)('..b.c'), { absolute: false, up: 1, parts: ['b', 'c'] });
         // What is not an address. `$` alone names the whole document,
         // which has no position to be written back into; the rest are
         // paths without an anchor, empty segments, or characters no key
@@ -1117,22 +1123,22 @@ function capture(fn) {
             // ... and the same refusals on the RELATIVE arm, which validates
             // its segments separately.
             '.a b', '.a/b', '..a.', '.a..b']) {
-            Assert.strictEqual((0, ReferFuncVal_1.parseAddress)(bad), undefined, bad);
+            Assert.strictEqual((0, PathVal_1.parseAddress)(bad), undefined, bad);
         }
     });
     (0, node_test_1.test)('address-path-resolution', () => {
         // An absolute address ignores where it is written.
-        Assert.deepEqual((0, ReferFuncVal_1.addressPath)((0, ReferFuncVal_1.parseAddress)('$.a.b'), ['x', 'y', 'dep']), ['a', 'b']);
+        Assert.deepEqual((0, ReferFuncVal_1.addressPath)((0, PathVal_1.parseAddress)('$.a.b'), ['x', 'y', 'dep']), ['a', 'b']);
         // A relative one drops the link's OWN key and reads the sibling
         // scope: a link at $.x.y.dep spelling `.other` means $.x.y.other.
-        Assert.deepEqual((0, ReferFuncVal_1.addressPath)((0, ReferFuncVal_1.parseAddress)('.other'), ['x', 'y', 'dep']), ['x', 'y', 'other']);
+        Assert.deepEqual((0, ReferFuncVal_1.addressPath)((0, PathVal_1.parseAddress)('.other'), ['x', 'y', 'dep']), ['x', 'y', 'other']);
         // Each further dot is one step further up.
-        Assert.deepEqual((0, ReferFuncVal_1.addressPath)((0, ReferFuncVal_1.parseAddress)('..other'), ['x', 'y', 'dep']), ['x', 'other']);
+        Assert.deepEqual((0, ReferFuncVal_1.addressPath)((0, PathVal_1.parseAddress)('..other'), ['x', 'y', 'dep']), ['x', 'other']);
         // Numeric segments (a list position) render as strings.
-        Assert.deepEqual((0, ReferFuncVal_1.addressPath)((0, ReferFuncVal_1.parseAddress)('.other'), ['x', 0, 'dep']), ['x', '0', 'other']);
+        Assert.deepEqual((0, ReferFuncVal_1.addressPath)((0, PathVal_1.parseAddress)('.other'), ['x', 0, 'dep']), ['x', '0', 'other']);
         // A CLIMB OFF THE TOP is not a pending address — no later pass can
         // grow a tree upwards — so it answers undefined and settle refuses.
-        Assert.strictEqual((0, ReferFuncVal_1.addressPath)((0, ReferFuncVal_1.parseAddress)('...z'), ['a', 'dep']), undefined);
+        Assert.strictEqual((0, ReferFuncVal_1.addressPath)((0, PathVal_1.parseAddress)('...z'), ['a', 'dep']), undefined);
     });
 });
 // THE RESIDUAL SHAPES no source reaches: the clone hooks and names of
@@ -1368,6 +1374,39 @@ function capture(fn) {
         // And an absent peer is the self-drive `unite` substitutes TOP for.
         Assert.strictEqual(r.unify(undefined, ctx), r);
     });
+    (0, node_test_1.test)('refer-second-path-peer-refines-by-prefix', () => {
+        // The residual's second-path arm is a CROSS-PASS arm: sibling
+        // paths in one conjunct pre-merge at their own (lower) cjo before
+        // the residual folds, so this arm only receives its peer through
+        // late delivery -- a flow into a pending refer, spread timing.
+        // Pinned here at the API, as the dispatcher peers above are.
+        const ctx = new aontu_1.Aontu().ctx({ collect: true });
+        ctx.root = new MapVal_1.MapVal({ peg: {} }, ctx);
+        const r = new ReferFuncVal_1.ReferVal({}, ctx);
+        r.addr = (0, PathVal_1.parseAddress)('$.q');
+        r.addrsrc = '$.q';
+        const refined = r.unify(new PathVal_1.PathVal({ peg: '$.q.r' }, ctx), ctx);
+        Assert.strictEqual(refined.addrsrc, '$.q.r');
+        // The prefix rule is symmetric in which side is pending.
+        const kept = refined.unify(new PathVal_1.PathVal({ peg: '$.q' }, ctx), ctx);
+        Assert.strictEqual(kept.addrsrc, '$.q.r');
+        // Incomparable addresses are the conflict two unequal scalars are.
+        const nil = r.unify(new PathVal_1.PathVal({ peg: '$.z' }, ctx), ctx);
+        Assert.strictEqual(true, nil.isNil);
+    });
+    (0, node_test_1.test)('refer-holds-a-second-constraint-by-meet', () => {
+        // Same cross-pass channel as the second-path arm: constraints in
+        // one conjunct merge with each other before the residual folds,
+        // so held's meet arm is only reached by a late-delivered peer.
+        const ctx = new aontu_1.Aontu().ctx({ collect: true });
+        ctx.root = new MapVal_1.MapVal({ peg: {} }, ctx);
+        const r = new ReferFuncVal_1.ReferVal({}, ctx);
+        const r1 = r.unify(new ScalarKindVal_1.ScalarKindVal({ peg: String }, ctx), ctx);
+        Assert.strictEqual(true, null != r1.held);
+        const r2 = r1.unify(new ScalarKindVal_1.ScalarKindVal({ peg: String }, ctx), ctx);
+        Assert.strictEqual(true, null != r2.held);
+        Assert.strictEqual(true, true !== r2.held.isNil);
+    });
     (0, node_test_1.test)('refer-flow-refusal-is-the-nil', () => {
         const a0 = new aontu_1.Aontu();
         const ctx = a0.ctx({ collect: true });
@@ -1375,7 +1414,7 @@ function capture(fn) {
         ctx.root = new MapVal_1.MapVal({ peg: { x: m } }, ctx);
         const r = new ReferFuncVal_1.ReferVal({}, ctx);
         r.tval = new IntegerVal_1.IntegerVal({ peg: 1 }, ctx);
-        r.addr = (0, ReferFuncVal_1.parseAddress)('$.x');
+        r.addr = (0, PathVal_1.parseAddress)('$.x');
         r.addrsrc = '$.x';
         Assert.strictEqual(r.settle(ctx, r).isNil, true);
     });
@@ -1387,7 +1426,7 @@ function capture(fn) {
         const ctx = a0.ctx({ collect: true });
         ctx.root = new MapVal_1.MapVal({ peg: {} }, ctx);
         const r = new ReferFuncVal_1.ReferVal({}, ctx);
-        r.addr = (0, ReferFuncVal_1.parseAddress)('...z');
+        r.addr = (0, PathVal_1.parseAddress)('...z');
         r.addrsrc = '...z';
         r.path = ['a', 'dep'];
         Assert.strictEqual(r.settle(ctx, r).isNil, true);

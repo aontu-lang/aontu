@@ -8,6 +8,6 @@ declare class PathFuncVal extends FuncBaseVal {
     make(_ctx: AontuContext, spec: ValSpec): Val;
     funcname(): string;
     prepare(ctx: AontuContext, args: Val[]): import("./NilVal").NilVal[] | Val[];
-    resolve(ctx: AontuContext, args: Val[]): Val;
+    resolve(ctx: AontuContext, args: Val[]): any;
 }
 export { PathFuncVal, };

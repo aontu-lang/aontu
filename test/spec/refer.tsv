@@ -21,13 +21,13 @@
 # written.
 #
 # Columns: name<TAB>mode<TAB>src<TAB>expect
-link-not-embedding	gens	a: {port:8080}\nb: refer() & "$.a"	{"a":{"port":8080},"b":"$.a"}
+link-not-embedding	gens	a: {port:8080}\nb: refer() & path($.a)	{"a":{"port":8080},"b":"$.a"}
 link-vs-plain-ref	gens	a: {port:8080}\nb: $.a	{"a":{"port":8080},"b":{"port":8080}}
-link-inside-a-node	gens	a: {ports: {http: 80}}\nb: refer() & "$.a.ports.http"	{"a":{"ports":{"http":80}},"b":"$.a.ports.http"}
-link-inside-list	gens	a: {p:[1,2]}\nb: refer() & "$.a.p.1"	{"a":{"p":[1,2]},"b":"$.a.p.1"}
-link-forward	gens	b: refer() & "$.a"\na: {k:1}	{"a":{"k":1},"b":"$.a"}
-link-many-to-one	gens	a: {port:8080}\nb: refer() & "$.a"\nc: refer() & "$.a"	{"a":{"port":8080},"b":"$.a","c":"$.a"}
-link-to-a-hyphen-key	gens	"team-pay": {k:1}\nb: refer() & "$.team-pay"	{"b":"$.team-pay","team-pay":{"k":1}}
+link-inside-a-node	gens	a: {ports: {http: 80}}\nb: refer() & path($.a.ports.http)	{"a":{"ports":{"http":80}},"b":"$.a.ports.http"}
+link-inside-list	gens	a: {p:[1,2]}\nb: refer() & path($.a.p.1)	{"a":{"p":[1,2]},"b":"$.a.p.1"}
+link-forward	gens	b: refer() & path($.a)\na: {k:1}	{"a":{"k":1},"b":"$.a"}
+link-many-to-one	gens	a: {port:8080}\nb: refer() & path($.a)\nc: refer() & path($.a)	{"a":{"port":8080},"b":"$.a","c":"$.a"}
+link-to-a-hyphen-key	gens	"team-pay": {k:1}\nb: refer() & path("$.team-pay")	{"b":"$.team-pay","team-pay":{"k":1}}
 
 # --- Relative addresses ----------------------------------------------
 #
@@ -40,12 +40,12 @@ link-to-a-hyphen-key	gens	"team-pay": {k:1}\nb: refer() & "$.team-pay"	{"b":"$.t
 # with its own value and each resolving its internal link inside
 # itself. Under a global name namespace the two instances were one
 # entity and the second override was a contradiction.
-relative-sibling	gens	x: {auth: {port:80}, dep: refer() & ".auth"}	{"x":{"auth":{"port":80},"dep":".auth"}}
-relative-one-up	gens	x: {auth: {port:80}, billing: {dep: refer() & "..auth"}}	{"x":{"auth":{"port":80},"billing":{"dep":"..auth"}}}
-relative-through-a-copy	gens	M: {auth: {port:80}, billing: {dep: refer() & "..auth"}}\nT: $.M	{"M":{"auth":{"port":80},"billing":{"dep":"..auth"}},"T":{"auth":{"port":80},"billing":{"dep":"..auth"}}}
-relative-per-instance	gens	M: {auth: {port:80, region: *"eu" | string}, billing: {dep: refer() & "..auth"}}\ntenantA: $.M\ntenantB: $.M & {auth:{region:"us"}}	{"M":{"auth":{"port":80,"region":"eu"},"billing":{"dep":"..auth"}},"tenantA":{"auth":{"port":80,"region":"eu"},"billing":{"dep":"..auth"}},"tenantB":{"auth":{"port":80,"region":"us"},"billing":{"dep":"..auth"}}}
-relative-flow-stays-inside	gens	M: {auth: {}, billing: {dep: refer({kind:service}) & "..auth"}}\nT: $.M	{"M":{"auth":{"kind":"service"},"billing":{"dep":"..auth"}},"T":{"auth":{"kind":"service"},"billing":{"dep":"..auth"}}}
-relative-climb-off-the-top	errc	dep: refer() & "..a"	refer_unresolved
+relative-sibling	gens	x: {auth: {port:80}, dep: refer() & path(.auth)}	{"x":{"auth":{"port":80},"dep":".auth"}}
+relative-one-up	gens	x: {auth: {port:80}, billing: {dep: refer() & path(..auth)}}	{"x":{"auth":{"port":80},"billing":{"dep":"..auth"}}}
+relative-through-a-copy	gens	M: {auth: {port:80}, billing: {dep: refer() & path(..auth)}}\nT: $.M	{"M":{"auth":{"port":80},"billing":{"dep":"..auth"}},"T":{"auth":{"port":80},"billing":{"dep":"..auth"}}}
+relative-per-instance	gens	M: {auth: {port:80, region: *"eu" | string}, billing: {dep: refer() & path(..auth)}}\ntenantA: $.M\ntenantB: $.M & {auth:{region:"us"}}	{"M":{"auth":{"port":80,"region":"eu"},"billing":{"dep":"..auth"}},"tenantA":{"auth":{"port":80,"region":"eu"},"billing":{"dep":"..auth"}},"tenantB":{"auth":{"port":80,"region":"us"},"billing":{"dep":"..auth"}}}
+relative-flow-stays-inside	gens	M: {auth: {}, billing: {dep: refer({kind:service}) & path(..auth)}}\nT: $.M	{"M":{"auth":{"kind":"service"},"billing":{"dep":"..auth"}},"T":{"auth":{"kind":"service"},"billing":{"dep":"..auth"}}}
+relative-climb-off-the-top	errc	dep: refer() & path(..a)	refer_unresolved
 
 # --- Constraint flow --------------------------------------------------
 #
@@ -55,12 +55,12 @@ relative-climb-off-the-top	errc	dep: refer() & "..a"	refer_unresolved
 # semantics would be non-monotone -- true, then false as the target
 # grows -- and the lattice guarantee is that more information never
 # falsifies what has been observed.
-flow-adds-to-target	gens	a: {port:8080}\nb: refer({kind:service}) & "$.a"	{"a":{"kind":"service","port":8080},"b":"$.a"}
-flow-inside-a-node	gens	a: {p:{q:1}}\nb: refer({r:2}) & "$.a.p"	{"a":{"p":{"q":1,"r":2}},"b":"$.a.p"}
-flow-kind-constrains	gens	a: {k:1}\nb: refer({k:integer}) & "$.a"	{"a":{"k":1},"b":"$.a"}
-flow-conflict	errc	a: {kind:1}\nb: refer({kind:2}) & "$.a"	scalar_value
-flow-conflict-msg	err	a: {kind:1}\nb: refer({kind:2}) & "$.a"	Cannot unify values at path $.b.kind
-flow-two-refers	gens	a: {k:1}\nb: refer({k:integer}) & refer({j:2}) & "$.a"	{"a":{"j":2,"k":1},"b":"$.a"}
+flow-adds-to-target	gens	a: {port:8080}\nb: refer({kind:service}) & path($.a)	{"a":{"kind":"service","port":8080},"b":"$.a"}
+flow-inside-a-node	gens	a: {p:{q:1}}\nb: refer({r:2}) & path($.a.p)	{"a":{"p":{"q":1,"r":2}},"b":"$.a.p"}
+flow-kind-constrains	gens	a: {k:1}\nb: refer({k:integer}) & path($.a)	{"a":{"k":1},"b":"$.a"}
+flow-conflict	errc	a: {kind:1}\nb: refer({kind:2}) & path($.a)	scalar_value
+flow-conflict-msg	err	a: {kind:1}\nb: refer({kind:2}) & path($.a)	Cannot unify values at path $.b.kind
+flow-two-refers	gens	a: {k:1}\nb: refer({k:integer}) & refer({j:2}) & path($.a)	{"a":{"j":2,"k":1},"b":"$.a"}
 
 # --- Existence --------------------------------------------------------
 #
@@ -71,10 +71,10 @@ flow-two-refers	gens	a: {k:1}\nb: refer({k:integer}) & refer({j:2}) & "$.a"	{"a"
 # LAST pass is where the question is answered. A relative address that
 # climbs off the top of the tree is the one shape refused AT ONCE: no
 # later pass can grow a tree upwards.
-unresolved-node	errc	a: {port:8080}\nb: refer() & "$.nope"	refer_unresolved
-unresolved-node-msg	err	a: {port:8080}\nb: refer() & "$.nope"	Cannot refer value at path $.b
-unresolved-inside-a-node	errc	a: {port:8080}\nb: refer() & "$.a.nope"	refer_unresolved
-unresolved-empty-document	errc	b: refer() & "$.nope"	refer_unresolved
+unresolved-node	errc	a: {port:8080}\nb: refer() & path($.nope)	refer_unresolved
+unresolved-node-msg	err	a: {port:8080}\nb: refer() & path($.nope)	Cannot refer value at path $.b
+unresolved-inside-a-node	errc	a: {port:8080}\nb: refer() & path($.a.nope)	refer_unresolved
+unresolved-empty-document	errc	b: refer() & path($.nope)	refer_unresolved
 
 # --- The address grammar ---------------------------------------------
 #
@@ -88,15 +88,15 @@ address-not-a-boolean	errc	a: {}\nb: refer() & true	refer_address
 address-not-a-map	errc	a: {}\nb: refer() & {q:1}	refer_address
 address-needs-an-anchor	errc	a: {}\nb: refer() & "a"	refer_address
 address-dotted-needs-an-anchor	errc	a: {}\nb: refer() & "a.b"	refer_address
-address-trailing-dot	errc	a: {}\nb: refer() & "$.a."	refer_address
-address-empty-segment	errc	a: {}\nb: refer() & "$.a..p"	refer_address
+address-trailing-dot	errc	a: {}\nb: refer() & path("$.a.")	path_address
+address-empty-segment	errc	a: {}\nb: refer() & path("$.a..p")	path_address
 address-root-alone	errc	a: {}\nb: refer() & "$"	refer_address
 address-bad-char	errc	a: {}\nb: refer() & "$.a b"	refer_address
 address-slash-refused	errc	a: {}\nb: refer() & "$.a/b"	refer_address
 address-msg	err	a: {}\nb: refer() & 1	Cannot refer values at path $.b
 # Segments are keys and list indices, so a leading digit is legitimate.
-address-index-segment	gens	a: {p:[7,8]}\nb: refer() & "$.a.p.0"	{"a":{"p":[7,8]},"b":"$.a.p.0"}
-address-hyphen-segment	gens	a: {"A_b-c1":1}\nb: refer() & "$.a.A_b-c1"	{"a":{"A_b-c1":1},"b":"$.a.A_b-c1"}
+address-index-segment	gens	a: {p:[7,8]}\nb: refer() & path($.a.p.0)	{"a":{"p":[7,8]},"b":"$.a.p.0"}
+address-hyphen-segment	gens	a: {"A_b-c1":1}\nb: refer() & path("$.a.A_b-c1")	{"a":{"A_b-c1":1},"b":"$.a.A_b-c1"}
 
 # --- Constraints on the link itself ----------------------------------
 #
@@ -106,11 +106,11 @@ address-hyphen-segment	gens	a: {"A_b-c1":1}\nb: refer() & "$.a.A_b-c1"	{"a":{"A_
 # rather than parked in a conjunct, because a conjunct rebuilt every
 # pass grows a level every pass. `two-addresses-conflict` is the row
 # that proves they are not simply dropped.
-held-string-kind	gens	a: {k:1}\nb: refer() & string & "$.a"	{"a":{"k":1},"b":"$.a"}
-held-regex-passes	gens	a: {k:1}\nb: refer() & re("a$") & "$.a"	{"a":{"k":1},"b":"$.a"}
-held-regex-refuses	errc	a: {k:1}\nb: refer() & re("^y$") & "$.a"	constraint
-held-wrong-kind	errc	a: {k:1}\nb: refer() & integer & "$.a"	no_scalar_unify
-two-addresses-conflict	errc	a: {k:1}\nb: refer() & "$.a" & "$.b"	scalar_value
+held-string-kind	gens	a: {k:1}\nb: refer() & string & path($.a)	{"a":{"k":1},"b":"$.a"}
+held-regex-passes	gens	a: {k:1}\nb: refer() & re("a$") & path($.a)	{"a":{"k":1},"b":"$.a"}
+held-regex-refuses	errc	a: {k:1}\nb: refer() & re("^y$") & path($.a)	constraint
+held-wrong-kind	errc	a: {k:1}\nb: refer() & integer & path($.a)	no_scalar_unify
+two-addresses-conflict	errc	a: {k:1}\nb: refer() & path($.a) & path($.b)	scalar_value
 
 # --- The design's worked example -------------------------------------
 #
@@ -118,12 +118,12 @@ two-addresses-conflict	errc	a: {k:1}\nb: refer() & "$.a" & "$.b"	scalar_value
 # list is a list of ADDRESSES that the engine checks. This is the shape
 # the Problem section of the design could not produce: strings that
 # check nothing, or references that embed everything.
-spread-over-a-list	gens	services: {\n  auth: {port:8080}\n  billing: {\n    dependsOn: [&: refer(), "$.services.auth"]\n  }\n}	{"services":{"auth":{"port":8080},"billing":{"dependsOn":["$.services.auth"]}}}
-spread-over-a-list-typed	gens	services: {\n  auth: {kind:service, port:8080}\n  billing: {\n    dependsOn: [&: refer({kind:service}), "$.services.auth"]\n  }\n}	{"services":{"auth":{"kind":"service","port":8080},"billing":{"dependsOn":["$.services.auth"]}}}
-spread-over-a-list-miss	errc	services: {\n  auth: {port:8080}\n  billing: {\n    dependsOn: [&: refer(), "$.services.auth", "$.services.payments"]\n  }\n}	refer_unresolved
+spread-over-a-list	gens	services: {\n  auth: {port:8080}\n  billing: {\n    dependsOn: [&: refer(), path($.services.auth)]\n  }\n}	{"services":{"auth":{"port":8080},"billing":{"dependsOn":["$.services.auth"]}}}
+spread-over-a-list-typed	gens	services: {\n  auth: {kind:service, port:8080}\n  billing: {\n    dependsOn: [&: refer({kind:service}), path($.services.auth)]\n  }\n}	{"services":{"auth":{"kind":"service","port":8080},"billing":{"dependsOn":["$.services.auth"]}}}
+spread-over-a-list-miss	errc	services: {\n  auth: {port:8080}\n  billing: {\n    dependsOn: [&: refer(), path($.services.auth), path($.services.payments)]\n  }\n}	refer_unresolved
 # A relative address inside a spread is resolved per ELEMENT, at the
 # element's own position.
-spread-over-a-list-relative	gens	services: {\n  auth: {port:8080}\n  billing: {dependsOn: [&: refer(), "...auth"]}\n}	{"services":{"auth":{"port":8080},"billing":{"dependsOn":["...auth"]}}}
+spread-over-a-list-relative	gens	services: {\n  auth: {port:8080}\n  billing: {dependsOn: [&: refer(), path(...auth)]}\n}	{"services":{"auth":{"port":8080},"billing":{"dependsOn":["...auth"]}}}
 
 # --- Canon and the hash ----------------------------------------------
 #
@@ -131,9 +131,9 @@ spread-over-a-list-relative	gens	services: {\n  auth: {port:8080}\n  billing: {d
 # string, so the hash form sees a link as the string it is.
 canon-residual	canon	b: refer()	{"b":refer()}
 canon-residual-typed	canon	b: refer({kind:service})	{"b":refer({"kind":"service"})}
-canon-resolved	canon	a: {k:1}\nb: refer() & "$.a"	{"a":{"k":1},"b":"$.a"}
+canon-resolved	canon	a: {k:1}\nb: refer() & path($.a)	{"a":{"k":1},"b":path($.a)}
 bare-refer-is-not-concrete	errc	b: refer()	mapval_no_gen
-hcanon-link-is-a-string	hcanon	a: {k:1}\nb: refer() & "$.a"	{"a":{"k":1},"b":"$.a"}
+hcanon-link-is-a-path	hcanon	a: {k:1}\nb: refer() & path($.a)	{"a":{"k":1},"b":path($.a)}
 canon-held-constraint	canon	b: refer() & string	{"b":refer()&string}
 
 # --- Two refers at one position, and the shapes a template makes -----
@@ -143,22 +143,22 @@ canon-held-constraint	canon	b: refer() & string	{"b":refer()&string}
 # clone carries the residual's own state -- the type to flow, the
 # address it has met -- which is what makes `&: refer()` a template
 # rather than one shared constraint.
-merge-refer-untyped-first	gens	a: {k:1}\nb: refer() & refer({j:2}) & "$.a"	{"a":{"j":2,"k":1},"b":"$.a"}
-merge-refer-typed-first	gens	a: {k:1}\nb: refer({j:2}) & refer() & "$.a"	{"a":{"j":2,"k":1},"b":"$.a"}
-merge-refer-both-held	gens	a: {k:1}\nb: (refer() & string) & (refer() & re("a$")) & "$.a"	{"a":{"k":1},"b":"$.a"}
-merge-refer-one-held	gens	a: {k:1}\nb: (refer() & string) & refer() & "$.a"	{"a":{"k":1},"b":"$.a"}
-flow-into-a-list-element	gens	a: {p:[{},{}]}\nb: refer({k:1}) & "$.a.p.0"	{"a":{"p":[{"k":1},{}]},"b":"$.a.p.0"}
-spread-over-a-map	gens	a: {&: refer(), b: "$.z", c: "$.z"}\nz: {}	{"a":{"b":"$.z","c":"$.z"},"z":{}}
-type-through-a-reference	gens	a: {k:1}\nb: refer($.a) & "$.a"	{"a":{"k":1},"b":"$.a"}
+merge-refer-untyped-first	gens	a: {k:1}\nb: refer() & refer({j:2}) & path($.a)	{"a":{"j":2,"k":1},"b":"$.a"}
+merge-refer-typed-first	gens	a: {k:1}\nb: refer({j:2}) & refer() & path($.a)	{"a":{"j":2,"k":1},"b":"$.a"}
+merge-refer-both-held	gens	a: {k:1}\nb: (refer() & string) & (refer() & re("a$")) & path($.a)	{"a":{"k":1},"b":"$.a"}
+merge-refer-one-held	gens	a: {k:1}\nb: (refer() & string) & refer() & path($.a)	{"a":{"k":1},"b":"$.a"}
+flow-into-a-list-element	gens	a: {p:[{},{}]}\nb: refer({k:1}) & path($.a.p.0)	{"a":{"p":[{"k":1},{}]},"b":"$.a.p.0"}
+spread-over-a-map	gens	a: {&: refer(), b: path($.z), c: path($.z)}\nz: {}	{"a":{"b":"$.z","c":"$.z"},"z":{}}
+type-through-a-reference	gens	a: {k:1}\nb: refer($.a) & path($.a)	{"a":{"k":1},"b":"$.a"}
 # A PATH-DEPENDENT template is cloned per destination, so the residual
 # it carries -- the type to flow, the address it has met -- has to
 # travel with the clone. A constant template is SHARED, which is why
 # only this shape reaches the clone path.
-spread-path-dependent-template	gens	z: {}\na: {&: refer({k:key(0)}), p:"$.z"}	{"a":{"p":"$.z"},"z":{"k":"k"}}
+spread-path-dependent-template	gens	z: {}\na: {&: refer({k:key(0)}), p:path($.z)}	{"a":{"p":"$.z"},"z":{"k":"k"}}
 # Two constraints held on ONE refer, accumulated into each other rather
 # than replacing: both still meet the link when the address arrives.
-held-two-constraints	gens	a: {k:1}\nb: refer() & string & re("a$") & "$.a"	{"a":{"k":1},"b":"$.a"}
-held-two-constraints-refused	errc	a: {k:1}\nb: refer() & string & re("^y$") & "$.a"	constraint
+held-two-constraints	gens	a: {k:1}\nb: refer() & string & re("a$") & path($.a)	{"a":{"k":1},"b":"$.a"}
+held-two-constraints-refused	errc	a: {k:1}\nb: refer() & string & re("^y$") & path($.a)	constraint
 # THE FLOWED TYPE IS CONCRETE AT THE TARGET. A schema flowing into a
 # value must not make the value a schema -- the same reasoning as a
 # reference's clone clearing marks: `refer(type(t))` says the target IS
@@ -167,8 +167,8 @@ held-two-constraints-refused	errc	a: {k:1}\nb: refer() & string & re("^y$") & "$
 # `t` being shared by every position that refers to the same thing --
 # and only when there are marks to clear, because cloning an unmarked
 # type would move the site an error names.
-flow-type-mark-cleared	gens	a: {}\nb: refer(type({k:1})) & "$.a"	{"a":{"k":1},"b":"$.a"}
-flow-hide-mark-cleared	gens	a: {}\nb: refer(hide({k:1})) & "$.a"	{"a":{"k":1},"b":"$.a"}
+flow-type-mark-cleared	gens	a: {}\nb: refer(type({k:1})) & path($.a)	{"a":{"k":1},"b":"$.a"}
+flow-hide-mark-cleared	gens	a: {}\nb: refer(hide({k:1})) & path($.a)	{"a":{"k":1},"b":"$.a"}
 
 # A TYPED refer IN BOTH DIRECTIONS (use-cases/BUGS.md §19). The flow
 # unifies `t` into the target, and uniting a target drives the target's
@@ -181,11 +181,11 @@ flow-hide-mark-cleared	gens	a: {}\nb: refer(hide({k:1})) & "$.a"	{"a":{"k":1},"b
 # is now skipped -- the flow it is nested in is already uniting that
 # node -- and what each contributes is unchanged, as the
 # differs-each-way and cycle-of-three rows show. Parity-probed.
-refer-typed-inverse-pair	gens	a: { kind: service, dependsOn:    [&: refer({kind: service}), "$.b"] }\nb: { kind: service, dependedOnBy: [&: refer({kind: service}), "$.a"] }\n	{"a":{"dependsOn":["$.b"],"kind":"service"},"b":{"dependedOnBy":["$.a"],"kind":"service"}}
-refer-typed-flow-both-ways	gens	a: { to: [&: refer({k:1}), "$.b"] }\nb: { to: [&: refer({k:1}), "$.a"] }\n	{"a":{"k":1,"to":["$.b"]},"b":{"k":1,"to":["$.a"]}}
-refer-typed-flow-differs-each-way	gens	a: { to: [&: refer({k:1}), "$.b"] }\nb: { to: [&: refer({k:9}), "$.a"] }\n	{"a":{"k":9,"to":["$.b"]},"b":{"k":1,"to":["$.a"]}}
-refer-typed-cycle-of-three	gens	a: { to: [&: refer({k:1}), "$.b"] }\nb: { to: [&: refer({k:1}), "$.c"] }\nc: { to: [&: refer({k:1}), "$.a"] }\n	{"a":{"k":1,"to":["$.b"]},"b":{"k":1,"to":["$.c"]},"c":{"k":1,"to":["$.a"]}}
-refer-typed-self-link	gens	a: { to: [&: refer({k:1}), "$.a"] }\n	{"a":{"k":1,"to":["$.a"]}}
+refer-typed-inverse-pair	gens	a: { kind: service, dependsOn:    [&: refer({kind: service}), path($.b)] }\nb: { kind: service, dependedOnBy: [&: refer({kind: service}), path($.a)] }\n	{"a":{"dependsOn":["$.b"],"kind":"service"},"b":{"dependedOnBy":["$.a"],"kind":"service"}}
+refer-typed-flow-both-ways	gens	a: { to: [&: refer({k:1}), path($.b)] }\nb: { to: [&: refer({k:1}), path($.a)] }\n	{"a":{"k":1,"to":["$.b"]},"b":{"k":1,"to":["$.a"]}}
+refer-typed-flow-differs-each-way	gens	a: { to: [&: refer({k:1}), path($.b)] }\nb: { to: [&: refer({k:9}), path($.a)] }\n	{"a":{"k":9,"to":["$.b"]},"b":{"k":1,"to":["$.a"]}}
+refer-typed-cycle-of-three	gens	a: { to: [&: refer({k:1}), path($.b)] }\nb: { to: [&: refer({k:1}), path($.c)] }\nc: { to: [&: refer({k:1}), path($.a)] }\n	{"a":{"k":1,"to":["$.b"]},"b":{"k":1,"to":["$.c"]},"c":{"k":1,"to":["$.a"]}}
+refer-typed-self-link	gens	a: { to: [&: refer({k:1}), path($.a)] }\n	{"a":{"k":1,"to":["$.a"]}}
 # The RELATIVE arm validates its segments separately from the absolute
 # one, so it is refused separately too.
 address-relative-bad-char	errc	a: {}\nb: refer() & ".a b"	refer_address
@@ -193,7 +193,7 @@ address-relative-slash	errc	a: {}\nb: refer() & ".a/b"	refer_address
 # A FORWARD link that also FLOWS: the recorded flow is replayed onto
 # each pass, and on the pass that records it the target is not in the
 # tree the replay walks yet.
-flow-forward	gens	b: refer({k:1}) & "$.a"\na: {}	{"a":{"k":1},"b":"$.a"}
+flow-forward	gens	b: refer({k:1}) & path($.a)\na: {}	{"a":{"k":1},"b":"$.a"}
 # A FLOW WHOSE TARGET GOES AWAY. The flow is recorded when the address
 # resolves, and replayed onto every later pass; a `move` that takes the
 # target out from under it leaves the record naming a position that is
@@ -206,5 +206,5 @@ flow-forward	gens	b: refer({k:1}) & "$.a"\na: {}	{"a":{"k":1},"b":"$.a"}
 # resolve and land first, and the replay then finds nothing at the
 # recorded path and skips it: the value went with the move, and the
 # link keeps the address the author wrote.
-flow-target-moved-away	errc	a: {t: {}}\nb: refer({k:1}) & "$.a.t"\na: move($.a.t)	refer_unresolved
-flow-lands-then-its-parent-moves	gens	a: {t: {}}\nb: refer({k:1}) & "$.a.t"\nc: move($.a)	{"b":"$.a.t","c":{"t":{"k":1}}}
+flow-target-moved-away	errc	a: {t: {}}\nb: refer({k:1}) & path($.a.t)\na: move($.a.t)	refer_unresolved
+flow-lands-then-its-parent-moves	gens	a: {t: {}}\nb: refer({k:1}) & path($.a.t)\nc: move($.a)	{"b":"$.a.t","c":{"t":{"k":1}}}

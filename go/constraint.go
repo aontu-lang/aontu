@@ -596,6 +596,12 @@ func orderableScalar(v Val) (sv *ScalarVal, domain string) {
 		return s, "number"
 	case KindString:
 		return s, "string"
+	case KindPath:
+		// A path value is a string with more structure (ADR-016):
+		// orderable by code points, excludable by identity, admitted
+		// by the string domain. The pattern and message ARGUMENT sites
+		// stay strict with their own KindString tests.
+		return s, "string"
 	}
 	return nil, ""
 }
@@ -603,6 +609,13 @@ func orderableScalar(v Val) (sv *ScalarVal, domain string) {
 // sameConstraintScalar is scalar identity — leaf AND value — with the
 // value half decided exactly for numeric leaves.
 func sameConstraintScalar(a, b *ScalarVal) bool {
+	// Path identity is kind AND spelling (ADR-016): `neq(path($.x))`
+	// excludes exactly that address, and never a plain string that
+	// happens to spell it. Mirrors sameScalar in
+	// ts/src/val/ConstraintVal.ts.
+	if KindPath == a.kind || KindPath == b.kind {
+		return a.kind == b.kind && a.peg.(string) == b.peg.(string)
+	}
 	an := a.kind != KindString
 	bn := b.kind != KindString
 	if an && bn {
@@ -702,7 +715,9 @@ func newConstraint(atom string, args []Val, sp int) *ConstraintVal {
 			return bad("arg")
 		}
 		msv, md := orderableScalar(args[1])
-		if nil == msv || "string" != md {
+		if nil == msv || "string" != md || KindPath == msv.kind {
+			// A message is a plain string, never a path (the TS twin's
+			// stringLeaf test is strict).
 			return bad("invalid-arg")
 		}
 		// A check carrying a nil can never be satisfied, so it is refused
@@ -747,7 +762,9 @@ func newConstraint(atom string, args []Val, sp int) *ConstraintVal {
 	// outright rather than inferring a domain from the argument's leaf.
 	if "re" == atom {
 		psv, pd := orderableScalar(args[0])
-		if nil == psv || "string" != pd {
+		if nil == psv || "string" != pd || KindPath == psv.kind {
+			// A pattern is text, never a path (the TS twin's stringLeaf
+			// test is strict), exactly as the must() message below.
 			return bad("invalid-arg")
 		}
 		src := psv.peg.(string)
@@ -970,7 +987,7 @@ func (c *ConstraintVal) admit(peer *ScalarVal, ctx *Ctx) Val {
 		// Only a string among the scalars has a length, and it is
 		// counted in CODE POINTS -- not bytes (this host's native
 		// count) and not UTF-16 units (the TS port's).
-		if KindString != peer.kind {
+		if KindString != peer.kind && KindPath != peer.kind {
 			return c.fail(ctx, peer)
 		}
 		n := utf8.RuneCountInString(peer.peg.(string))

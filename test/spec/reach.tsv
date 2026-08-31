@@ -23,32 +23,32 @@
 # Every expectation here was obtained by running BOTH engines and
 # diffing, never by copying one.
 
-reaches-through-a-chain	reaches	a: {dependsOn: [&: refer(), "$.b"]}\nb: {dependsOn: [&: refer(), "$.c"]}\nc: {}\nd: {}\n	{"ask":{"from":"$.a","to":"$.c"},"path":["$.a","$.b","$.c"],"verdict":"reaches"}
-reaches-one-edge	reaches	a: {dependsOn: [&: refer(), "$.b"]}\nb: {dependsOn: [&: refer(), "$.c"]}\nc: {}\nd: {}\n	{"ask":{"from":"$.a","to":"$.b"},"path":["$.a","$.b"],"verdict":"reaches"}
-unreachable-no-path	reaches	a: {dependsOn: [&: refer(), "$.b"]}\nb: {dependsOn: [&: refer(), "$.c"]}\nc: {}\nd: {}\n	{"ask":{"from":"$.a","to":"$.d"},"verdict":"unreachable"}
-unreachable-wrong-way	reaches	a: {dependsOn: [&: refer(), "$.b"]}\nb: {dependsOn: [&: refer(), "$.c"]}\nc: {}\nd: {}\n	{"ask":{"from":"$.c","to":"$.a"},"verdict":"unreachable"}
-not-reflexive-without-a-cycle	reaches	a: {dependsOn: [&: refer(), "$.b"]}\nb: {dependsOn: [&: refer(), "$.c"]}\nc: {}\nd: {}\n	{"ask":{"from":"$.a","to":"$.a"},"verdict":"unreachable"}
-reaches-itself-through-a-cycle	reaches	a: {to: [&: refer(), "$.b"]}\nb: {to: [&: refer(), "$.a"]}\n	{"ask":{"from":"$.a","to":"$.a"},"path":["$.a","$.b","$.a"],"verdict":"reaches"}
-relation-filter-follows-one-relation	reaches	a: {dependsOn: [&: refer(), "$.b"]}\nb: {dependsOn: [&: refer(), "$.c"], usedBy: [&: refer(), "$.d"]}\nc: {}\nd: {}\n	{"ask":{"from":"$.a","relation":"dependsOn","to":"$.d"},"verdict":"unreachable"}
-relation-filter-absent-follows-every-edge	reaches	a: {dependsOn: [&: refer(), "$.b"]}\nb: {dependsOn: [&: refer(), "$.c"], usedBy: [&: refer(), "$.d"]}\nc: {}\nd: {}\n	{"ask":{"from":"$.a","to":"$.d"},"path":["$.a","$.b","$.d"],"verdict":"reaches"}
-shortest-path-is-the-one-reported	reaches	a: {to: [&: refer(), "$.b", "$.c"]}\nb: {to: [&: refer(), "$.d"]}\nc: {to: [&: refer(), "$.d"]}\nd: {}\n	{"ask":{"from":"$.a","to":"$.d"},"path":["$.a","$.b","$.d"],"verdict":"reaches"}
-an-address-reaches-the-node-it-names	reaches	a: {to: [&: refer(), "$.b.parts.one"]}\nb: {parts: {one: {n: 1}}}\n	{"ask":{"from":"$.a","to":"$.b.parts.one"},"path":["$.a","$.b.parts.one"],"verdict":"reaches"}
-an-address-does-not-reach-the-node-above-it	reaches	a: {to: [&: refer(), "$.b.parts.one"]}\nb: {parts: {one: {n: 1}}}\n	{"ask":{"from":"$.a","to":"$.b"},"verdict":"unreachable"}
-endpoint-that-names-nothing-is-a-refusal	reaches	a: {dependsOn: [&: refer(), "$.b"]}\nb: {dependsOn: [&: refer(), "$.c"]}\nc: {}\nd: {}\n	{"ask":{"from":"$.a","to":"$.zz"},"errors":[{"class":"reference","code":"refer_unresolved","note":"nodes with links: $.a, $.b, $.c","path":"$","severity":"error","sites":[]}],"verdict":"error"}
+reaches-through-a-chain	reaches	a: {dependsOn: [&: refer(), path($.b)]}\nb: {dependsOn: [&: refer(), path($.c)]}\nc: {}\nd: {}\n	{"ask":{"from":"$.a","to":"$.c"},"path":["$.a","$.b","$.c"],"verdict":"reaches"}
+reaches-one-edge	reaches	a: {dependsOn: [&: refer(), path($.b)]}\nb: {dependsOn: [&: refer(), path($.c)]}\nc: {}\nd: {}\n	{"ask":{"from":"$.a","to":"$.b"},"path":["$.a","$.b"],"verdict":"reaches"}
+unreachable-no-path	reaches	a: {dependsOn: [&: refer(), path($.b)]}\nb: {dependsOn: [&: refer(), path($.c)]}\nc: {}\nd: {}\n	{"ask":{"from":"$.a","to":"$.d"},"verdict":"unreachable"}
+unreachable-wrong-way	reaches	a: {dependsOn: [&: refer(), path($.b)]}\nb: {dependsOn: [&: refer(), path($.c)]}\nc: {}\nd: {}\n	{"ask":{"from":"$.c","to":"$.a"},"verdict":"unreachable"}
+not-reflexive-without-a-cycle	reaches	a: {dependsOn: [&: refer(), path($.b)]}\nb: {dependsOn: [&: refer(), path($.c)]}\nc: {}\nd: {}\n	{"ask":{"from":"$.a","to":"$.a"},"verdict":"unreachable"}
+reaches-itself-through-a-cycle	reaches	a: {to: [&: refer(), path($.b)]}\nb: {to: [&: refer(), path($.a)]}\n	{"ask":{"from":"$.a","to":"$.a"},"path":["$.a","$.b","$.a"],"verdict":"reaches"}
+relation-filter-follows-one-relation	reaches	a: {dependsOn: [&: refer(), path($.b)]}\nb: {dependsOn: [&: refer(), path($.c)], usedBy: [&: refer(), path($.d)]}\nc: {}\nd: {}\n	{"ask":{"from":"$.a","relation":"dependsOn","to":"$.d"},"verdict":"unreachable"}
+relation-filter-absent-follows-every-edge	reaches	a: {dependsOn: [&: refer(), path($.b)]}\nb: {dependsOn: [&: refer(), path($.c)], usedBy: [&: refer(), path($.d)]}\nc: {}\nd: {}\n	{"ask":{"from":"$.a","to":"$.d"},"path":["$.a","$.b","$.d"],"verdict":"reaches"}
+shortest-path-is-the-one-reported	reaches	a: {to: [&: refer(), path($.b), path($.c)]}\nb: {to: [&: refer(), path($.d)]}\nc: {to: [&: refer(), path($.d)]}\nd: {}\n	{"ask":{"from":"$.a","to":"$.d"},"path":["$.a","$.b","$.d"],"verdict":"reaches"}
+an-address-reaches-the-node-it-names	reaches	a: {to: [&: refer(), path($.b.parts.one)]}\nb: {parts: {one: {n: 1}}}\n	{"ask":{"from":"$.a","to":"$.b.parts.one"},"path":["$.a","$.b.parts.one"],"verdict":"reaches"}
+an-address-does-not-reach-the-node-above-it	reaches	a: {to: [&: refer(), path($.b.parts.one)]}\nb: {parts: {one: {n: 1}}}\n	{"ask":{"from":"$.a","to":"$.b"},"verdict":"unreachable"}
+endpoint-that-names-nothing-is-a-refusal	reaches	a: {dependsOn: [&: refer(), path($.b)]}\nb: {dependsOn: [&: refer(), path($.c)]}\nc: {}\nd: {}\n	{"ask":{"from":"$.a","to":"$.zz"},"errors":[{"class":"reference","code":"refer_unresolved","note":"nodes with links: $.a, $.b, $.c","path":"$","severity":"error","sites":[]}],"verdict":"error"}
 
 # A document that does not stand up is not a document with an
 # unreachable pair, and two links to the same place are one
 # successor -- the search must not walk it twice. Parity-probed.
 a-document-that-does-not-stand-up-has-no-graph	reaches	a: {k: 1}\na: {k: 2}\n	{"ask":{"from":"$.a","to":"$.b"},"errors":[{"class":"conflict","code":"scalar_value","path":"$.a.k","severity":"error","sites":[{"col":8,"file":"","len":1,"role":"data","row":2,"src":"2","value":"2"},{"col":8,"file":"","len":1,"role":"data","row":1,"src":"1","value":"1"}]}],"verdict":"error"}
-a-repeated-edge-is-one-successor	reaches	a: {to: [&: refer(), "$.b", "$.b"]}\nb: {}\n	{"ask":{"from":"$.a","to":"$.b"},"path":["$.a","$.b"],"verdict":"reaches"}
+a-repeated-edge-is-one-successor	reaches	a: {to: [&: refer(), path($.b), path($.b)]}\nb: {}\n	{"ask":{"from":"$.a","to":"$.b"},"path":["$.a","$.b"],"verdict":"reaches"}
 # ENDPOINTS ARE PATHS (ADR-014), and the grammar is checked before the
 # graph is consulted. A path that names a real node with no edges is a
 # perfectly good question with the answer `unreachable`; only one that
 # names NOTHING refuses. The root is a legitimate endpoint -- a link at
 # the top of a document starts there -- even though `$` is not a
 # refer() target (refer.tsv, `address-root-alone`).
-endpoint-inside-a-list	reaches	a: {list: [{}, {}], dep: refer() & "$.b"}\nb: {}\n	{"ask":{"from":"$.a.list.0","to":"$.b"},"verdict":"unreachable"}
-endpoint-is-the-root	reaches	a: {list: [{}, {}], dep: refer() & "$.b"}\nb: {}\n	{"ask":{"from":"$","to":"$.b"},"verdict":"unreachable"}
-endpoint-unanchored-is-a-refusal	reaches	a: {list: [{}, {}], dep: refer() & "$.b"}\nb: {}\n	{"ask":{"from":"a","to":"$.b"},"errors":[{"class":"reference","code":"refer_unresolved","note":"nodes with links: $.a, $.b","path":"$","severity":"error","sites":[]}],"verdict":"error"}
-endpoint-bad-segment-is-a-refusal	reaches	a: {list: [{}, {}], dep: refer() & "$.b"}\nb: {}\n	{"ask":{"from":"$.a b","to":"$.b"},"errors":[{"class":"reference","code":"refer_unresolved","note":"nodes with links: $.a, $.b","path":"$","severity":"error","sites":[]}],"verdict":"error"}
-endpoint-through-a-scalar-is-a-refusal	reaches	a: {list: [{}, {}], dep: refer() & "$.b"}\nb: {}\n	{"ask":{"from":"$.a.dep.x","to":"$.b"},"errors":[{"class":"reference","code":"refer_unresolved","note":"nodes with links: $.a, $.b","path":"$","severity":"error","sites":[]}],"verdict":"error"}
+endpoint-inside-a-list	reaches	a: {list: [{}, {}], dep: refer() & path($.b)}\nb: {}\n	{"ask":{"from":"$.a.list.0","to":"$.b"},"verdict":"unreachable"}
+endpoint-is-the-root	reaches	a: {list: [{}, {}], dep: refer() & path($.b)}\nb: {}\n	{"ask":{"from":"$","to":"$.b"},"verdict":"unreachable"}
+endpoint-unanchored-is-a-refusal	reaches	a: {list: [{}, {}], dep: refer() & path($.b)}\nb: {}\n	{"ask":{"from":"a","to":"$.b"},"errors":[{"class":"reference","code":"refer_unresolved","note":"nodes with links: $.a, $.b","path":"$","severity":"error","sites":[]}],"verdict":"error"}
+endpoint-bad-segment-is-a-refusal	reaches	a: {list: [{}, {}], dep: refer() & path($.b)}\nb: {}\n	{"ask":{"from":"$.a b","to":"$.b"},"errors":[{"class":"reference","code":"refer_unresolved","note":"nodes with links: $.a, $.b","path":"$","severity":"error","sites":[]}],"verdict":"error"}
+endpoint-through-a-scalar-is-a-refusal	reaches	a: {list: [{}, {}], dep: refer() & path($.b)}\nb: {}\n	{"ask":{"from":"$.a.dep.x","to":"$.b"},"errors":[{"class":"reference","code":"refer_unresolved","note":"nodes with links: $.a, $.b","path":"$","severity":"error","sites":[]}],"verdict":"error"}

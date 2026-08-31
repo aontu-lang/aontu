@@ -32,6 +32,7 @@ import {
   constraintAdmitsScalar,
 } from './val/ConstraintVal'
 import { kindSubsumes } from './val/ScalarKindVal'
+import { prefixMeet } from './val/PathVal'
 import { prefInnerPeg } from './val/PrefVal'
 
 
@@ -412,8 +413,14 @@ export function subsumeNode(
   }
 
   // Concrete scalars subsume only themselves (identity compares kind
-  // as well as value).
+  // as well as value) -- except paths, whose meet is the prefix rule
+  // (ADR-016): a prefix admits every extension of itself, so it
+  // subsumes one, exactly as the meet answers the longer.
   if (true === g?.isScalar) {
+    if (true === g.isPath && true === (s as any)?.isPath &&
+      prefixMeet(g.peg, (s as any).peg) === (s as any).peg) {
+      return 'yes'
+    }
     if (true === s?.isScalar && true === g.same?.(s)) {
       return 'yes'
     }

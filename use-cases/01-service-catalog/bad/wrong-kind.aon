@@ -9,5 +9,5 @@ infra: paydb: {kind: database}
 
 app: ledger: {
   kind: service
-  dependsOn: [&: refer($.std.Service), "$.infra.paydb"]
+  dependsOn: [&: refer($.std.Service), path($.infra.paydb)]
 }

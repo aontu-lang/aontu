@@ -5,9 +5,9 @@
     "plan": "free",
     "entitlement": { "plan": "free", "sso": false, "scim": false, "auditLog": false },
     "members": {
-      "ada": { "role": "$.roles.owner" },
-      "grace": { "role": "$.roles.member" },
-      "alan": { "role": "$.roles.auditor", "invitedBy": "ada" }
+      "ada": { "role": path($.roles.owner) },
+      "grace": { "role": path($.roles.member) },
+      "alan": { "role": path($.roles.auditor), "invitedBy": "ada" }
     },
     "security": { "mfaRequired": false, "sessionTimeoutMinutes": 480 }
   }

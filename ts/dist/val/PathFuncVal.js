@@ -5,7 +5,6 @@ exports.PathFuncVal = void 0;
 const err_1 = require("../err");
 const FuncBaseVal_1 = require("./FuncBaseVal");
 const PathVal_1 = require("./PathVal");
-const ReferFuncVal_1 = require("./ReferFuncVal");
 // The address a reference SPELLS, or undefined when its segments
 // cannot spell one (a variable segment, a parent step after the first
 // named segment). Leading `.` entries in a relative ref's peg are
@@ -60,8 +59,11 @@ class PathFuncVal extends FuncBaseVal_1.FuncBaseVal {
                 return [];
             }
             // The captured spelling, from a reference's segments or from a
-            // string read as address text. Both go through parseAddress, so
-            // what capture admits and what refer reads cannot drift.
+            // string literal read as address text. Both go through
+            // parseAddress, so what capture admits and what refer reads
+            // cannot drift. Anything else -- an expression, a reference to
+            // a string -- is left for the driving loop, and resolve
+            // converts the driven result below.
             let spelling;
             if (true === arg.isRef) {
                 spelling = captureSpelling(arg);
@@ -70,9 +72,9 @@ class PathFuncVal extends FuncBaseVal_1.FuncBaseVal {
                 spelling = arg.peg;
             }
             else {
-                return [(0, err_1.makeNilErr)(ctx, 'invalid-arg', this)];
+                return args;
             }
-            if (undefined === spelling || undefined === (0, ReferFuncVal_1.parseAddress)(spelling)) {
+            if (undefined === spelling || undefined === (0, PathVal_1.parseAddress)(spelling)) {
                 return [(0, err_1.makeNilErr)(ctx, 'path_address', this, arg)];
             }
             return [new PathVal_1.PathVal({ peg: spelling }, ctx)];
@@ -86,7 +88,20 @@ class PathFuncVal extends FuncBaseVal_1.FuncBaseVal {
             out.path = this.path;
             return out;
         }
-        return args[0];
+        const arg = args[0];
+        if (true === arg.isPath || true === arg.isNil) {
+            return arg;
+        }
+        // The COMPUTED argument, driven by the loop above: a string
+        // converts by the address grammar, exactly as a literal does at
+        // capture; anything else was never a path expression.
+        if (true === arg.isScalar && 'string' === typeof arg.peg) {
+            if (undefined === (0, PathVal_1.parseAddress)(arg.peg)) {
+                return (0, err_1.makeNilErr)(ctx, 'path_address', this, arg);
+            }
+            return new PathVal_1.PathVal({ peg: arg.peg }, ctx);
+        }
+        return (0, err_1.makeNilErr)(ctx, 'invalid-arg', this);
     }
 } /* node:coverage ignore next 6 */
 exports.PathFuncVal = PathFuncVal;

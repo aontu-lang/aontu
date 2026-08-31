@@ -115,8 +115,8 @@ of which carries a typo:
 pipeline: jobs: {
   &: $.spec.Job
 
-  extract:   { feeds: ["$.pipeline.jobs.tranform"] }
-  transform: { feeds: ["$.pipeline.jobs.load"] }
+  extract:   { feeds: [path($.pipeline.jobs.tranform)] }
+  transform: { feeds: [path($.pipeline.jobs.load)] }
   load:      {}
 }
 ```
@@ -149,8 +149,8 @@ the line in `pipeline.aon`:
 pipeline: jobs: {
   &: $.spec.Job
 
-  extract:   { feeds: ["$.pipeline.jobs.transform"] }
-  transform: { feeds: ["$.pipeline.jobs.load"] }
+  extract:   { feeds: [path($.pipeline.jobs.transform)] }
+  transform: { feeds: [path($.pipeline.jobs.load)] }
   load:      {}
 }
 ```
@@ -198,7 +198,7 @@ delta on at the path it applies to. Propose a new edge, `raw.aon`:
 pipeline: {
   dumps: { raw: { kind: job } }
   jobs: extract: {
-    feeds: ["$.pipeline.jobs.transform", "$.pipeline.dumps.raw"]
+    feeds: [path($.pipeline.jobs.transform), path($.pipeline.dumps.raw)]
   }
 }
 ```
@@ -208,7 +208,7 @@ pipeline: {
 $ aontu raw.aon
 [aontu/constraint]: Cannot unify values at path $.pipeline.jobs.extract.feeds.1
 ...
- Cannot unify value: re("^\\$\\.pipeline\\.jobs\\.") with value: "$.pipeline.dumps.raw"
+ Cannot unify value: re("^\\$\\.pipeline\\.jobs\\.") with value: path($.pipeline.dumps.raw)
 ...
 $ echo $?
 1
@@ -254,12 +254,12 @@ you, so the data states both directions, in `pipeline.aon`:
 pipeline: jobs: {
   &: $.spec.Job
 
-  extract:   { feeds: ["$.pipeline.jobs.transform"] }
+  extract:   { feeds: [path($.pipeline.jobs.transform)] }
   transform: {
-    fedBy: ["$.pipeline.jobs.extract"]
-    feeds: ["$.pipeline.jobs.load"]
+    fedBy: [path($.pipeline.jobs.extract)]
+    feeds: [path($.pipeline.jobs.load)]
   }
-  load:      { fedBy: ["$.pipeline.jobs.transform"] }
+  load:      { fedBy: [path($.pipeline.jobs.transform)] }
 }
 ```
 
@@ -308,8 +308,8 @@ A change request makes load feed extract, and its author is careful
 @"./model.aon"
 
 pipeline: jobs: {
-  load:    { feeds: ["$.pipeline.jobs.extract"] }
-  extract: { fedBy: ["$.pipeline.jobs.load"] }
+  load:    { feeds: [path($.pipeline.jobs.extract)] }
+  extract: { fedBy: [path($.pipeline.jobs.load)] }
 }
 ```
 
@@ -347,7 +347,7 @@ unify positionally (the first tutorial's §11 rule). Save it as
 pipeline: jobs: {
   metrics:   { fedBy: [] }
   transform: {
-    feeds: ["$.pipeline.jobs.load", "$.pipeline.jobs.metrics"]
+    feeds: [path($.pipeline.jobs.load), path($.pipeline.jobs.metrics)]
   }
 }
 ```

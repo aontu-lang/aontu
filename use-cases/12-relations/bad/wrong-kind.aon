@@ -10,5 +10,5 @@ datasets: raw: {
   kind: dataset
 }
 pipeline: jobs: extract: {
-  fedBy: ["$.datasets.raw"]
+  fedBy: [path($.datasets.raw)]
 }

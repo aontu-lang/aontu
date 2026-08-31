@@ -16,47 +16,47 @@
 # Every expectation was obtained by the parity probe (AGENTS.md).
 #
 # Columns: name<TAB>mode<TAB>src<TAB>expect
-rel-scalar	gens	p: {k:1}\nq: {hostedOn: rel() & "$.p"}	{"p":{"k":1},"q":{"hostedOn":"$.p"}}
-rel-list	gens	a: {}\nb: {}\ns: {dependsOn: rel() & ["$.a", "$.b"]}	{"a":{},"b":{},"s":{"dependsOn":["$.a","$.b"]}}
-rel-map-labelled	gens	a: {}\ns: {uses: rel() & {primary: "$.a"}}	{"a":{},"s":{"uses":{"primary":"$.a"}}}
-rel-two-statements	gens	s: {dependsOn: rel()}\ns: {dependsOn: ["$.x"]}\nx: {}	{"s":{"dependsOn":["$.x"]},"x":{}}
-rel-two-statements-reversed	gens	s: {dependsOn: ["$.x"]}\ns: {dependsOn: rel()}\nx: {}	{"s":{"dependsOn":["$.x"]},"x":{}}
-rel-schema-optional	gens	S: type({dependsOn?: rel()})\na: {}\ns: $.S & {dependsOn: ["$.a"]}	{"a":{},"s":{"dependsOn":["$.a"]}}
+rel-scalar	gens	p: {k:1}\nq: {hostedOn: rel() & path($.p)}	{"p":{"k":1},"q":{"hostedOn":"$.p"}}
+rel-list	gens	a: {}\nb: {}\ns: {dependsOn: rel() & [path($.a), path($.b)]}	{"a":{},"b":{},"s":{"dependsOn":["$.a","$.b"]}}
+rel-map-labelled	gens	a: {}\ns: {uses: rel() & {primary: path($.a)}}	{"a":{},"s":{"uses":{"primary":"$.a"}}}
+rel-two-statements	gens	s: {dependsOn: rel()}\ns: {dependsOn: [path($.x)]}\nx: {}	{"s":{"dependsOn":["$.x"]},"x":{}}
+rel-two-statements-reversed	gens	s: {dependsOn: [path($.x)]}\ns: {dependsOn: rel()}\nx: {}	{"s":{"dependsOn":["$.x"]},"x":{}}
+rel-schema-optional	gens	S: type({dependsOn?: rel()})\na: {}\ns: $.S & {dependsOn: [path($.a)]}	{"a":{},"s":{"dependsOn":["$.a"]}}
 rel-schema-optional-absent	gens	S: type({dependsOn?: rel()})\ns: $.S & {k: 1}	{"s":{"k":1}}
 rel-unmet-canon	canon	S: type({dependsOn?: rel()})\nz: 1	{"S":{"dependsOn"?:rel()},"z":1}
-rel-flow-admits	gens	a: {kind: svc}\ns: {dependsOn: rel({kind: svc}) & ["$.a"]}	{"a":{"kind":"svc"},"s":{"dependsOn":["$.a"]}}
-rel-flow-refuses	errc	a: {kind: db}\ns: {dependsOn: rel({kind: svc}) & ["$.a"]}	scalar_value
+rel-flow-admits	gens	a: {kind: svc}\ns: {dependsOn: rel({kind: svc}) & [path($.a)]}	{"a":{"kind":"svc"},"s":{"dependsOn":["$.a"]}}
+rel-flow-refuses	errc	a: {kind: db}\ns: {dependsOn: rel({kind: svc}) & [path($.a)]}	scalar_value
 rel-address-not-a-string	errc	s: {dependsOn: rel() & [7]}	rel_address
 rel-address-scalar-direct	errc	s: {hostedOn: rel() & 7}	rel_address
 rel-address-unanchored	errc	a: {}\ns: {dependsOn: rel() & [a]}	rel_address
-rel-unresolved	errc	s: {dependsOn: rel() & ["$.nosuch"]}	rel_unresolved
-rel-nested-map	gens	a: {}\ns: {uses: rel() & {tier1: {primary: "$.a"}}}	{"a":{},"s":{"uses":{"tier1":{"primary":"$.a"}}}}
+rel-unresolved	errc	s: {dependsOn: rel() & [path($.nosuch)]}	rel_unresolved
+rel-nested-map	gens	a: {}\ns: {uses: rel() & {tier1: {primary: path($.a)}}}	{"a":{},"s":{"uses":{"tier1":{"primary":"$.a"}}}}
 rel-unmet-required	errc	d: rel()\nz: 1	mapval_no_gen
-rel-meets-rel	gens	x: {kind: a}\ns: {d: rel({kind: a})}\ns: {d: rel()}\ns: {d: ["$.x"]}	{"s":{"d":["$.x"]},"x":{"kind":"a"}}
-rel-holds-a-kind	gens	x: {}\nd: rel() & string & "$.x"	{"d":"$.x","x":{}}
-rel-map-drives	gens	s: {uses: {primary: "$.a"}}\ns: {uses: rel()}\na: {}	{"a":{},"s":{"uses":{"primary":"$.a"}}}
-rel-in-spread-template	gens	T: {&: {d: rel() & ["$.q"]}, s1: {}}\nq: {}	{"T":{"s1":{"d":["$.q"]}},"q":{}}
-rel-meets-nil	errc	q: {}\nd: {x: rel() & "$.q"}\nd: {x: 1 & two}	scalar_kind
+rel-meets-rel	gens	x: {kind: a}\ns: {d: rel({kind: a})}\ns: {d: rel()}\ns: {d: [path($.x)]}	{"s":{"d":["$.x"]},"x":{"kind":"a"}}
+rel-holds-a-kind	gens	x: {}\nd: rel() & string & path($.x)	{"d":"$.x","x":{}}
+rel-map-drives	gens	s: {uses: {primary: path($.a)}}\ns: {uses: rel()}\na: {}	{"a":{},"s":{"uses":{"primary":"$.a"}}}
+rel-in-spread-template	gens	T: {&: {d: rel() & [path($.q)]}, s1: {}}\nq: {}	{"T":{"s1":{"d":["$.q"]}},"q":{}}
+rel-meets-nil	errc	q: {}\nd: {x: rel() & path($.q)}\nd: {x: 1 & two}	scalar_kind
 rel-conjunct-non-string	errc	d: rel() & (1 & "x")	rel_address
-rel-two-at-one-field	gens	x: {k:1}\ns: {d: rel() & rel()}\ns: {d: "$.x"}	{"s":{"d":"$.x"},"x":{"k":1}}
+rel-two-at-one-field	gens	x: {k:1}\ns: {d: rel() & rel()}\ns: {d: path($.x)}	{"s":{"d":"$.x"},"x":{"k":1}}
 rel-two-merged-canon	canon	s: {d: rel({kind:q}) & rel()}	{"s":{"d":rel({"kind":"q"})}}
 rel-two-typed-canon	canon	s: {d: rel({kind:q})}\ns: {d: rel({kind:q})}	{"s":{"d":rel({"kind":"q"})}}
 rel-two-held-canon	canon	s: {d: rel() & string}\ns: {d: rel()}	{"s":{"d":rel()&string}}
 rel-two-held-order-canon	canon	s: {d: rel()}\ns: {d: rel() & string}	{"s":{"d":rel()&string}}
 rel-two-held-both-canon	canon	s: {d: rel() & string}\ns: {d: rel() & string}	{"s":{"d":rel()&string}}
-rel-two-held-resolves	gens	x: {k:1}\ns: {d: rel() & string}\ns: {d: rel()}\ns: {d: "$.x"}	{"s":{"d":"$.x"},"x":{"k":1}}
-rel-in-list-element	gens	q: {}\na: [rel() & "$.q"]	{"a":["$.q"],"q":{}}
-rel-in-list-element-canon	canon	q: {}\na: [rel() & "$.q"]	{"a":["$.q"],"q":{}}
+rel-two-held-resolves	gens	x: {k:1}\ns: {d: rel() & string}\ns: {d: rel()}\ns: {d: path($.x)}	{"s":{"d":"$.x"},"x":{"k":1}}
+rel-in-list-element	gens	q: {}\na: [rel() & path($.q)]	{"a":["$.q"],"q":{}}
+rel-in-list-element-canon	canon	q: {}\na: [rel() & path($.q)]	{"a":[path($.q)],"q":{}}
 rel-two-held-fold-canon	canon	s: {d: rel() & re("a$") & re("^..a")}	{"s":{"d":rel()&re("^..a")&re("a$")}}
-rel-two-held-fold-admits	gens	a: {}\ns: {d: rel() & re("a$") & re("^..a")}\ns: {d: "$.a"}	{"a":{},"s":{"d":"$.a"}}
-rel-held-on-container	errc	a: {}\ns: {d: rel() & min(1)}\ns: {d: ["$.a"]}	constraint
-rel-at-root-unresolved	errc	rel() & "$.nosuch"	rel_unresolved
-rel-at-root-container	errc	rel() & {primary: "$.nosuch"}	rel_unresolved
-rel-restated-after-container	gens	a: {}\ns: {d: rel()}\ns: {d: ["$.a"]}\ns: {d: rel()}	{"a":{},"s":{"d":["$.a"]}}
-rel-over-linked-copy	gens	a: {}\ns: {d: rel() & ["$.a"]}\nt: $.s.d & rel()	{"a":{},"s":{"d":["$.a"]},"t":["$.a"]}
-rel-held-flows-per-leaf	gens	sa: {}\ns: {d: rel() & re("sa$") & ["$.sa"]}	{"s":{"d":["$.sa"]},"sa":{}}
-rel-held-refuses-a-leaf	errc	qa: {}\ns: {d: rel() & re("sa$") & ["$.qa"]}	constraint
+rel-two-held-fold-admits	gens	a: {}\ns: {d: rel() & re("a$") & re("^..a")}\ns: {d: path($.a)}	{"a":{},"s":{"d":"$.a"}}
+rel-held-on-container	errc	a: {}\ns: {d: rel() & min(1)}\ns: {d: [path($.a)]}	constraint
+rel-at-root-unresolved	errc	rel() & path($.nosuch)	rel_unresolved
+rel-at-root-container	errc	rel() & {primary: path($.nosuch)}	rel_unresolved
+rel-restated-after-container	gens	a: {}\ns: {d: rel()}\ns: {d: [path($.a)]}\ns: {d: rel()}	{"a":{},"s":{"d":["$.a"]}}
+rel-over-linked-copy	gens	a: {}\ns: {d: rel() & [path($.a)]}\nt: $.s.d & rel()	{"a":{},"s":{"d":["$.a"]},"t":["$.a"]}
+rel-held-flows-per-leaf	gens	sa: {}\ns: {d: rel() & re("sa$") & [path($.sa)]}	{"s":{"d":["$.sa"]},"sa":{}}
+rel-held-refuses-a-leaf	errc	qa: {}\ns: {d: rel() & re("sa$") & [path($.qa)]}	constraint
 # A RELATIVE address in a rel() is resolved at the LEAF's own position,
 # so a schema applied by a spread gives each destination its own edge.
-rel-relative-per-destination	gens	spec: hide({Job: {kind: job, feeds?: rel($.spec.JobShape)}, JobShape: {kind: job}})\np: jobs: {&: $.spec.Job, a: {feeds: ["..b"]}, b: {}}	{"p":{"jobs":{"a":{"feeds":["..b"],"kind":"job"},"b":{"kind":"job"}}}}
-rel-sibling-shape	gens	spec: hide({Job: {kind: job, feeds?: rel($.spec.JobShape)}, JobShape: {kind: job}})\np: jobs: {&: $.spec.Job, a: {feeds: ["$.p.jobs.b"]}, b: {}}	{"p":{"jobs":{"a":{"feeds":["$.p.jobs.b"],"kind":"job"},"b":{"kind":"job"}}}}
+rel-relative-per-destination	gens	spec: hide({Job: {kind: job, feeds?: rel($.spec.JobShape)}, JobShape: {kind: job}})\np: jobs: {&: $.spec.Job, a: {feeds: [path(..b)]}, b: {}}	{"p":{"jobs":{"a":{"feeds":["..b"],"kind":"job"},"b":{"kind":"job"}}}}
+rel-sibling-shape	gens	spec: hide({Job: {kind: job, feeds?: rel($.spec.JobShape)}, JobShape: {kind: job}})\np: jobs: {&: $.spec.Job, a: {feeds: [path($.p.jobs.b)]}, b: {}}	{"p":{"jobs":{"a":{"feeds":["$.p.jobs.b"],"kind":"job"},"b":{"kind":"job"}}}}

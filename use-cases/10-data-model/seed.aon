@@ -58,7 +58,7 @@ customers: {
 # --- Orders -----------------------------------------------------------
 orders: {
   "ord-7001": {
-    customerId: "$.customers.cust-1001"
+    customerId: path("$.customers.cust-1001")
     status: "invoiced"
     placed: "2026-08-01"
     lines: [
@@ -76,7 +76,7 @@ orders: {
     ]
   }
   "ord-7002": {
-    customerId: "$.customers.cust-1002"
+    customerId: path("$.customers.cust-1002")
     placed: "2026-08-14"
     # status omitted: the *"open" default in domain.aon fills it.
     lines: [
@@ -88,7 +88,7 @@ orders: {
 # --- Invoices ---------------------------------------------------------
 invoices: {
   "inv-3001": {
-    orderId: "$.orders.ord-7001"
+    orderId: path("$.orders.ord-7001")
     currency: "EUR"
     netCents: 4008       # 3998 + 10, the two ord-7001 lines
     taxCents: 762        # 19% VAT, computed OFF-model: no '*' in-model
@@ -108,7 +108,7 @@ invoices: {
 # still real -- a customer bag that lost a member would leave an
 # account addressing nothing, and refer() would say so.
 receivables: pack($.customers, {
-  accountFor: refer() & ("$.customers." + key())
+  accountFor: refer() & path("$.customers." + key())
   openingCents: *0 | integer & min(0)
 })
 

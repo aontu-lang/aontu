@@ -32,8 +32,8 @@ func reachesFile(t *testing.T, src string) string {
 	return file
 }
 
-const reachesDoc = `a: {dependsOn: [&: refer(), "$.b"]}
-b: {dependsOn: [&: refer(), "$.c"], usedBy: [&: refer(), "$.d"]}
+const reachesDoc = `a: {dependsOn: [&: refer(), path($.b)]}
+b: {dependsOn: [&: refer(), path($.c)], usedBy: [&: refer(), path($.d)]}
 c: {}
 d: {}
 `

@@ -43,9 +43,9 @@ plain lists of names. Write the topology as `pipeline.aon`:
 @"./spec.aon"
 jobs: {
   &: $.spec.Job
-  extract: { feeds: ["$.jobs.transform"] }
-  transform: { fedBy: ["$.jobs.extract"], feeds: ["$.jobs.load"] }
-  load: { fedBy: ["$.jobs.transform"] }
+  extract: { feeds: [path($.jobs.transform)] }
+  transform: { fedBy: [path($.jobs.extract)], feeds: [path($.jobs.load)] }
+  load: { fedBy: [path($.jobs.transform)] }
 }
 ```
 
@@ -74,8 +74,8 @@ loop. Write the change as `cycle.aon`, patching both directions in:
 ```aontu
 @"./pipeline.aon"
 jobs: {
-  load: { feeds: ["$.jobs.extract"] }
-  extract: { fedBy: ["$.jobs.load"] }
+  load: { feeds: [path($.jobs.extract)] }
+  extract: { fedBy: [path($.jobs.load)] }
 }
 ```
 
@@ -119,7 +119,7 @@ record the feeder on its `fedBy`. Write it as `metrics.aon`:
 @"./pipeline.aon"
 jobs: {
   metrics: { fedBy: [] }
-  transform: { feeds: ["$.jobs.load", "$.jobs.metrics"] }
+  transform: { feeds: [path($.jobs.load), path($.jobs.metrics)] }
 }
 ```
 

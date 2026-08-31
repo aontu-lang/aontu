@@ -1,0 +1,1 @@
+{ "invite": { "role": path($.roles.member) } }

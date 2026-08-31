@@ -11,9 +11,9 @@ pipeline: jobs: {
   }
   transform: {
     feeds: [
-      "$.pipeline.jobs.load"
-      "$.pipeline.jobs.audit"
-      "$.pipeline.jobs.metrics"
+      path($.pipeline.jobs.load)
+      path($.pipeline.jobs.audit)
+      path($.pipeline.jobs.metrics)
     ]
   }
 }

@@ -58,6 +58,34 @@ func addrSegmentOK(s string) bool {
 
 // parseAddress is the address a string spells, or ok=false when it does
 // not spell one. Mirrors parseAddress in ts/src/val/ReferFuncVal.ts.
+// prefixMeet is the LONGER of two addresses when one spells a prefix
+// of the other (ADR-016): same anchor -- absolute or the same number
+// of parent steps -- and the shorter's segments open the longer's.
+// The meet of two path values, and of a refer's address with a later
+// path peer. Not-ok when the two are incomparable, which refuses as
+// any two unequal scalars do. Mirrors prefixMeet in
+// ts/src/val/PathVal.ts.
+func prefixMeet(a, b string) (string, bool) {
+	pa, aok := parseAddress(a)
+	pb, bok := parseAddress(b)
+	if !aok || !bok { //coverage:ignore pegs are pre-validated by the capture
+		return "", false
+	}
+	if pa.Absolute != pb.Absolute || pa.Up != pb.Up {
+		return "", false
+	}
+	short, long, out := pa, pb, b
+	if len(pb.Parts) < len(pa.Parts) {
+		short, long, out = pb, pa, a
+	}
+	for i := range short.Parts {
+		if short.Parts[i] != long.Parts[i] {
+			return "", false
+		}
+	}
+	return out, true
+}
+
 func parseAddress(s string) (Address, bool) {
 	if "$" == s {
 		// The whole document is not a relation's target: an address must
@@ -189,7 +217,11 @@ func newRefer(tval Val) *ReferVal {
 // LAST in a conjunct fold, as the sizing atoms are: a refer has to see
 // the string it constrains, and the string is what the other terms
 // produce.
-func (r *ReferVal) cjo() int { return 45000 }
+// AFTER the plain values (base 99999), BEFORE the sizing atoms
+// (150000): sibling path values fold together first under the prefix
+// rule, and the residual then meets ONE merged address. Mirrors
+// ReferVal.cjo in ts/src/val/ReferFuncVal.ts.
+func (r *ReferVal) cjo() int { return 120000 }
 
 func (r *ReferVal) superior() Val { return top() }
 
@@ -205,7 +237,9 @@ func (r *ReferVal) Canon() string {
 	if "" == r.addrsrc {
 		return call
 	}
-	return call + "&" + jsonString(r.addrsrc)
+	// The address renders as the path call: a bare string address no
+	// longer reparses (ADR-016), and canon must.
+	return call + "&path(" + r.addrsrc + ")"
 }
 
 func (r *ReferVal) Gen(ctx *Ctx) (any, error) {
@@ -252,21 +286,32 @@ func (r *ReferVal) Unify(peer Val, ctx *Ctx) Val {
 
 	sv, isscalar := peer.(*ScalarVal)
 
-	// A STRING is the ADDRESS, when there is not one yet. It is the
-	// only thing that can be: a link's value is its address. A PATH
-	// value (docs/design/PATHS.0.md) is an address already -- its peg
-	// is the spelling -- so it reads through the same arm.
-	if nil == r.addr && isscalar &&
-		(KindString == sv.kind || KindPath == sv.kind) {
+	// A PATH VALUE is the ADDRESS, when there is not one yet. Only a
+	// path value can be one (ADR-016): a bare string is never a path
+	// -- `path("...")` is the one string conversion, and it happens at
+	// the call, not here. The peg is pre-validated by the capture, so
+	// no parse can fail.
+	if nil == r.addr && isscalar && KindPath == sv.kind {
 		str, _ := sv.peg.(string)
-		addr, aok := parseAddress(str)
-		if !aok {
-			return makeNilErrFull(ctx, r.addrCode, r, peer, "refer",
-				map[string]string{"addr": str})
-		}
+		addr, _ := parseAddress(str)
 		out := r.reshape()
 		out.addr, out.addrsrc = &addr, str
 		out.sp, out.spu, out.surl = sv.sp, sv.spu, sv.surl
+		return out.settle(ctx, peer)
+	}
+
+	// A SECOND path peer refines the address by the prefix rule: the
+	// longer of the two when one opens the other, exactly as two path
+	// values meet on their own. Two incomparable addresses are the
+	// same conflict two unequal scalars are.
+	if nil != r.addr && isscalar && KindPath == sv.kind {
+		merged, mok := prefixMeet(r.addrsrc, sv.peg.(string))
+		if !mok {
+			return makeNilErr(ctx, "scalar_value", r, peer)
+		}
+		addr, _ := parseAddress(merged)
+		out := r.reshape()
+		out.addr, out.addrsrc = &addr, merged
 		return out.settle(ctx, peer)
 	}
 
@@ -277,7 +322,7 @@ func (r *ReferVal) Unify(peer Val, ctx *Ctx) Val {
 	// address, and are held below until there is one to apply them to.
 	_, ismap := peer.(*MapVal)
 	_, islist := peer.(*ListVal)
-	if (isscalar && KindString != sv.kind && KindPath != sv.kind) ||
+	if (isscalar && KindPath != sv.kind) ||
 		ismap || islist {
 		return makeNilErrFull(ctx, r.addrCode, r, peer, "refer", nil)
 	}
@@ -286,8 +331,8 @@ func (r *ReferVal) Unify(peer Val, ctx *Ctx) Val {
 	// residual rather than parked in a conjunct, because a conjunct
 	// rebuilt every pass grows a level every pass; the held constraint
 	// meets the link the moment the address resolves, so
-	// `refer() & "x" & "y"` still conflicts and `refer() & string & "x"`
-	// still passes.
+	// `refer() & re("a") & re("b") & path($.z)` still applies both and
+	// `refer() & string & path($.z)` still passes.
 	out := r.reshape()
 	if nil == r.held {
 		out.held = peer
@@ -425,8 +470,11 @@ func (r *ReferVal) settle(ctx *Ctx, site Val) Val {
 		}
 	}
 
-	// The value IS the address string: a link, not an embedding.
-	out := newString(r.addrsrc)
+	// The value IS the address, as a PATH VALUE (ADR-016): a link, not
+	// an embedding -- and re-stating or refining the address still
+	// meets it, which a string link could not do under the strict
+	// rules.
+	out := newPath(r.addrsrc)
 	copyMarks(out, r)
 	// STAMPED as a link (G4 phase 3): the value is the address string,
 	// so without this nothing downstream could tell a checked link from
@@ -679,7 +727,7 @@ func (r *RelVal) Unify(peer Val, ctx *Ctx) Val {
 		// into), so the driving slot is the base a relative address
 		// reads from -- falling back to the written path when the meet
 		// carries no slot.
-		if KindString == sv.kind || KindPath == sv.kind {
+		if KindPath == sv.kind {
 			at := ctx.slot
 			if nil == at {
 				at = r.path

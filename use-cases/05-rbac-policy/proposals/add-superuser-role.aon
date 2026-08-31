@@ -5,5 +5,5 @@
 roles: superuser: {
   desc: "Emergency break-glass access", rank: 90
   tenantOwner: false, privileged: true
-  grants: ["$.permissions.admin_all"]
+  grants: [path($.permissions.admin_all)]
 }

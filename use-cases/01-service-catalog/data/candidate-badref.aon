@@ -1,0 +1,12 @@
+# The scaffolder's candidate entry, with a dependency address no file
+# writes -- the rel() existence check is what must catch it. An
+# address is a path value (ADR-016), so the scaffolder emits Aontu
+# rather than JSON: a plain string is never an address.
+kind: service
+owner: "team-platform"
+tier: 3
+lifecycle: experimental
+description: "Search indexing pipeline emitted by the scaffolder."
+dependsOn: [
+  path($.catalog.domains.platform.services.searchx)
+]
