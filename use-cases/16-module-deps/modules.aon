@@ -1,0 +1,96 @@
+# modules.aon --- the codebase: twelve modules across four layers, and
+# which module builds on which. Every module names its LAYER SHAPE
+# (spec.aon), which is how it declares its layer and, with it, what it
+# is allowed to depend on.
+#
+# Both directions of every edge are written out. Deriving the inverse
+# FOR the author is generation, not validation, and inverse() only
+# checks -- so a module that is depended upon says so itself, and the
+# two lists are held to each other at generation.
+mods: {
+
+  # --- app: the deployables. Nothing depends on these, which is what
+  # makes them the roots of the dependency tree.
+  cli: $.spec.App & {
+    dir: "cmd/cli"
+    dependsOn: [path($.mods.billing), path($.mods.reports)]
+  }
+
+  server: $.spec.App & {
+    dir: "cmd/server"
+    dependsOn: [
+      path($.mods.billing), path($.mods.catalog), path($.mods.http)
+    ]
+  }
+
+  worker: $.spec.App & {
+    dir: "cmd/worker"
+    dependsOn: [path($.mods.reports), path($.mods.store)]
+  }
+
+  # --- feature: one business capability each.
+  billing: $.spec.Feature & {
+    dir: "feat/billing"
+    usedBy: [path($.mods.cli), path($.mods.server)]
+    dependsOn: [
+      path($.mods.auth), path($.mods.clock), path($.mods.store)
+    ]
+  }
+
+  catalog: $.spec.Feature & {
+    dir: "feat/catalog"
+    usedBy: [path($.mods.server)]
+    dependsOn: [path($.mods.http), path($.mods.store)]
+  }
+
+  reports: $.spec.Feature & {
+    dir: "feat/reports"
+    usedBy: [path($.mods.cli), path($.mods.worker)]
+    dependsOn: [path($.mods.log), path($.mods.store)]
+  }
+
+  # --- core: shared machinery. `auth` depends on `http`, which is a
+  # SIDEWAYS edge and legal: the rule is never upward.
+  auth: $.spec.Core & {
+    dir: "core/auth"
+    usedBy: [path($.mods.billing)]
+    dependsOn: [path($.mods.bytes), path($.mods.http)]
+  }
+
+  http: $.spec.Core & {
+    dir: "core/http"
+    usedBy: [
+      path($.mods.auth), path($.mods.catalog), path($.mods.server)
+    ]
+    dependsOn: [path($.mods.bytes), path($.mods.log)]
+  }
+
+  store: $.spec.Core & {
+    dir: "core/store"
+    usedBy: [
+      path($.mods.billing), path($.mods.catalog), path($.mods.reports),
+      path($.mods.worker)
+    ]
+    dependsOn: [path($.mods.clock), path($.mods.log)]
+  }
+
+  # --- util: leaves, or nearly. `log` on `bytes` is the other legal
+  # sideways edge.
+  bytes: $.spec.Util & {
+    dir: "util/bytes"
+    usedBy: [path($.mods.auth), path($.mods.http), path($.mods.log)]
+  }
+
+  clock: $.spec.Util & {
+    dir: "util/clock"
+    usedBy: [path($.mods.billing), path($.mods.store)]
+  }
+
+  log: $.spec.Util & {
+    dir: "util/log"
+    usedBy: [
+      path($.mods.http), path($.mods.reports), path($.mods.store)
+    ]
+    dependsOn: [path($.mods.bytes)]
+  }
+}

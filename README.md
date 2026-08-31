@@ -86,7 +86,7 @@ Full documentation is in [`docs/`](docs/):
 - [Test coverage](docs/test-coverage.md) — how it is measured, and the numbers
 
 The language has also been put through an executable review —
-[use-cases/](use-cases/) drives fifteen enterprise scenarios through
+[use-cases/](use-cases/) drives sixteen enterprise scenarios through
 the real CLI, with verified findings and minimal repros.
 
 ## Security and contributing

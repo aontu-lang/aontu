@@ -1,0 +1,11 @@
+# bad/dangling.aon --- a dependency on a module nobody wrote. rel()
+# decides existence inside one evaluation: the address resolves or the
+# document refuses (rel_unresolved), and a dependency on a module that
+# does not exist is never a thing to discover later.
+@"../model.aon"
+
+mods: {
+  clock: {
+    dependsOn: [path($.mods.tracing)]
+  }
+}

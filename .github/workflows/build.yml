@@ -105,7 +105,7 @@ jobs:
 
   # THE USE CASES ARE A GATE NOW, AND THIS IS WHY.
   #
-  # `use-cases/run-all.sh` drives the real CLI end to end over fifteen
+  # `use-cases/run-all.sh` drives the real CLI end to end over sixteen
   # worked models -- the only check here that exercises the engine the
   # way a user does, through files, includes, data merges and exit
   # codes, rather than through a spec row. It is therefore the only one

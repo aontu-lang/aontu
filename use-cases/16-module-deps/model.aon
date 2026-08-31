@@ -1,0 +1,5 @@
+# model.aon --- THE ROOT: one evaluation joining the vocabulary and
+# the codebase. The layering rule is enforced by the join itself --
+# there is nothing else to run.
+@"./spec.aon"
+@"./modules.aon"

@@ -1,0 +1,12 @@
+# bad/missing-inverse.aon --- clock depends on bytes and bytes does
+# not say so. The edge is legal by layer (util on util) and closes no
+# loop; what fails is that the mirror was never written. inverse(n)
+# CHECKS the mirror and never writes it, so the two lists cannot drift
+# apart in a document that generates.
+@"../model.aon"
+
+mods: {
+  clock: {
+    dependsOn: [path($.mods.bytes)]
+  }
+}
