@@ -51,7 +51,8 @@
   (let ((kinds '("string" "number" "float" "integer" "boolean" "top" "nil"))
         (literals '("true" "false" "null"))
         (funcs '("upper" "lower" "copy" "key" "pref" "super"
-                 "type" "hide" "move" "path" "close" "open")))
+                 "type" "hide" "move" "path" "close" "open"
+                 "map" "list")))
     `(;; Scalar-kind keywords.
       (,(regexp-opt kinds 'symbols) . font-lock-type-face)
       ;; Literals.

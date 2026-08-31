@@ -26,6 +26,7 @@ func TestKindStringNeverEmpty(t *testing.T) {
 		KindBigDecimal: "bigdecimal",
 		KindBoolean:    "boolean",
 		KindNull:       "null",
+		KindPath:       "path",
 	}
 	for k, w := range want {
 		if got := k.String(); got != w {
@@ -34,7 +35,7 @@ func TestKindStringNeverEmpty(t *testing.T) {
 	}
 	// Every declared Kind is covered above; anything added later without
 	// a String case shows up here as "top" at an unexpected index.
-	for k := KindTop; k <= KindNull; k++ {
+	for k := KindTop; k <= KindPath; k++ {
 		if _, ok := want[k]; !ok {
 			t.Errorf("Kind(%d) = %q has no expectation: extend this table and Kind.String", int(k), k.String())
 		}
@@ -68,6 +69,17 @@ func TestKindLattice(t *testing.T) {
 		if kindSubsumes(KindNumber, k) {
 			t.Errorf("number must not subsume %s", k)
 		}
+	}
+	// The path kind sits under string (docs/design/PATHS.0.md), the one
+	// non-numeric subtype edge in the lattice.
+	if p, ok := kindParent(KindPath); !ok || p != KindString {
+		t.Errorf("kindParent(path) = (%s, %v), want (string, true)", p, ok)
+	}
+	if !kindSubsumes(KindString, KindPath) {
+		t.Error("string should subsume path")
+	}
+	if kindSubsumes(KindPath, KindString) {
+		t.Error("path must not subsume string")
 	}
 	// Distinct leaves are disjoint sets: no common lower bound. This is
 	// the whole of D2 at the kind level — integer/float/biginteger/

@@ -175,6 +175,12 @@ class ListVal extends BagVal_1.BagVal {
                     done = (done && type_1.DONE === oval.dc);
                 }
             }
+            else if (true === peer.isContainerKind) {
+                // The container KIND delegates to its own arm, exactly as a
+                // scalar delegates to a ScalarKindVal peer (MapVal has the
+                // same arm).
+                out = peer.unify(this, ctx);
+            }
             else if (!peer.isTop) {
                 out = (0, err_1.makeNilErr)(ctx, 'list', this, peer);
             }

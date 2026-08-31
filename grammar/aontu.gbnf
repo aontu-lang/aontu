@@ -77,7 +77,7 @@ name ::=
   | "each" | "filter" | "greatest"
   | "hide"
   | "inverse" | "join" | "key" | "least"
-  | "length" | "lower" | "match" | "max" | "min" | "mod" | "move"
+  | "length" | "list" | "lower" | "map" | "match" | "max" | "min" | "mod" | "move"
   | "mul" | "must"
   | "neq"
   | "open" | "pack" | "path" | "pick" | "pref" | "refer" | "rel" | "rem" | "re" | "super"

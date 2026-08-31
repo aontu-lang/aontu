@@ -1455,3 +1455,93 @@ This does not reverse ADR-001 or ADR-002 — both ports and the shared
 spec move together, and coverage stays at 100 %. It does supersede G4
 phase 1 in `docs/capability-review/g4-identity-relations.md`; the
 progress register records the retirement.
+
+## ADR-015 — Paths are first-class values: `path(p)` captures, and a vacuous constructor call is a kind
+
+**Date:** 2026-08-31
+**Status:** Accepted
+
+### Context
+
+An address was a string. `refer(t)` checked one, generation emitted
+one, and the graph read them — but the value model never held one: a
+resolved link was a `StringVal` carrying a side-channel `link` stamp,
+addresses in data were indistinguishable from ordinary strings until a
+`refer` met them, the address grammar was checked at unification time
+rather than parse time, and no tooling could see an address as
+anything but text. Shoving a structured value into a string and
+stamping it is the classic symptom of a missing kind.
+
+At the same time, `path(p)` — the function form of a reference, from
+the language's earliest era — had become fully redundant: every
+spelling it covered has a bare-reference form (`path(x.a)` is `x.a`,
+`path("team-pay")` is `$."team-pay"`), and no document in the
+repository used it. And the kind system had a latent asymmetry: scalar
+kinds default to nothing (`y: string` refuses to generate unmet),
+while the container units default to empty (`y: {}` generates `{}`),
+so "this must be a map, and it must be supplied" had no spelling at
+all.
+
+A sigil for path literals (`%$.a.b`) was considered and rejected: `%`
+is the alias sigil with a third meaning already reserved (IDEAS.md),
+and the recorded principle — G4's design space, option D — is that
+everything a sigil can say, a builtin can say.
+
+### Decision
+
+`path(p)` **captures** its argument: the spelling, never the
+resolution. This is the language's one non-strict argument position,
+and the capture runs in prepare, before the argument is driven. The
+captured value is a scalar of a new kind sitting **under `string`**
+in the kind lattice (`KIND_PARENT` gains one row, exactly as the
+number tower's leaves did), whose peg is the address spelling in the
+grammar `refer` reads. Meets are syntactic — two path values meet
+only when they spell the same address, and a path value refuses a
+plain string literal exactly as the tower's leaves refuse each other.
+Generation emits the address string; canon renders the call back,
+which reparses to the same value.
+
+`path()` with no argument is the path **kind**. It promotes: a string
+value that spells an address is admitted as the path value — the
+mirror of `number & 1`, and the bridge that keeps the schema/data
+split intact (the schema writes the kind, plain JSON-shaped data
+writes the string, the meet promotes). Promotion happens at the kind,
+never between two concrete values. A string that is not an address
+refuses with the new code `path_address` (class `parse`).
+
+`map()` and `list()` are the container **kinds**: they admit exactly
+what the units admit and default to nothing. The convention this
+establishes: **a value constructor's vacuous call is its kind; the
+literal is its unit.** `refer()` is unaffected — it is a constraint,
+not a constructor, and its vacuous form stays the unmet constraint.
+
+`refer` and `rel` accept path values as addresses. Existence stays
+`refer`'s contract: a path value is data (`path($.nope)` generates),
+because a self-checking value would be a global constraint — it would
+keep the pass loop alive, hang inside `type()` bodies exactly as
+`refer` does (G4 phase 4), and stop module fragments that address
+their consumer's tree from standing alone.
+
+Repurposing a shipped builtin is a breaking change, accepted here
+because the old meaning had a complete replacement spelling and zero
+uses; the CHANGELOG carries the migration note.
+
+### Consequences
+
+The verbs separate cleanly: `$.a` embeds, `path($.a)` names,
+`refer()` asserts, `rel()` declares. A vocabulary can declare a
+path-valued field (`type({host: path()})`) and settle, which `refer`
+inside a `type()` body cannot. `map()` unmet and `refer()` unresolved
+are the same flavour of requiredness at the value and graph levels.
+
+Not done here, recorded as future work in
+`docs/design/PATHS.0.md`: the resolved-link stamp (`link`/`relkey` on
+a `StringVal`) is not yet replaced by intrinsic path values, the
+graph still reads stamps rather than values, and the refer flow's
+effect-timing questions (disjunct-branch leaks, generation-time
+preference collapse against unification-time address need) are
+orthogonal to representation and untouched.
+
+This does not reverse ADR-001 or ADR-002: both ports land together,
+the shared rows live in `test/spec/path.tsv` and
+`test/spec/containerkind.tsv`, and coverage stays at 100 %.

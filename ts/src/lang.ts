@@ -151,6 +151,7 @@ import {
 import { PlaceVal } from './val/PlaceVal'
 import { MoveFuncVal } from './val/MoveFuncVal'
 import { PathFuncVal } from './val/PathFuncVal'
+import { MapFuncVal, ListFuncVal } from './val/ContainerKindVal'
 import { PrefFuncVal } from './val/PrefFuncVal'
 import { CloseFuncVal } from './val/CloseFuncVal'
 import { OpenFuncVal } from './val/OpenFuncVal'
@@ -559,6 +560,14 @@ help isolate the syntax error.`,
     move: MoveFuncVal,
     path: PathFuncVal,
     pref: PrefFuncVal,
+
+    // First-class paths and the container kinds
+    // (docs/design/PATHS.0.md). `path(p)` CAPTURES a path as a value;
+    // `path()`, `map()` and `list()` are kinds -- the vacuous
+    // constructor call admits its values and defaults to nothing,
+    // where the container LITERALS `{}`/`[]` default to empty.
+    map: MapFuncVal,
+    list: ListFuncVal,
     close: CloseFuncVal,
     open: OpenFuncVal,
     super: SuperFuncVal,
@@ -2185,7 +2194,11 @@ const POSITIONAL_ARG_FUNCS: Record<string, boolean> = {
 const funcArity: Record<string, [number, number]> = {
   upper: [1, 1], lower: [1, 1], copy: [1, 1], pref: [1, 1],
   super: [1, 1], type: [1, 1], hide: [1, 1], close: [1, 1],
-  open: [1, 1], move: [1, 1], path: [1, 1],
+  open: [1, 1], move: [1, 1],
+  // path takes NO argument (the path kind) or one (the capture);
+  // map and list are kinds only, and element constraints belong to
+  // the spreads, so neither takes any argument at all.
+  path: [0, 1], map: [0, 0], list: [0, 0],
   min: [1, 1], max: [1, 1], above: [1, 1], below: [1, 1], re: [1, 1],
   length: [1, 1],
   key: [0, 1],

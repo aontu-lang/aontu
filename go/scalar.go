@@ -40,6 +40,11 @@ const (
 	KindBigDecimal
 	KindBoolean
 	KindNull
+	// KindPath is the tree-address kind (docs/design/PATHS.0.md): the
+	// value `path(p)` captures. It sits UNDER string in the kind
+	// lattice, and is reached only by the `path()` builtin, as the
+	// exact numeric leaves are reached only by `0d`.
+	KindPath
 )
 
 func (k Kind) String() string {
@@ -60,6 +65,8 @@ func (k Kind) String() string {
 		return "boolean"
 	case KindNull:
 		return "null"
+	case KindPath:
+		return "path"
 	case KindNil:
 		return "nil"
 	}
@@ -81,7 +88,10 @@ var numericLeafKinds = map[Kind]bool{
 // sub, i.e. every value of sub is a value of sup. Today the only such
 // relation is `number` over its numeric leaves.
 func kindSubsumes(sup, sub Kind) bool {
-	return sup == KindNumber && numericLeafKinds[sub]
+	return (sup == KindNumber && numericLeafKinds[sub]) ||
+		// A path IS a string with more structure (PATHS.0.md), so
+		// string-typed schemas over address fields keep admitting.
+		(sup == KindString && KindPath == sub)
 }
 
 // kindParent returns the immediate lattice parent of a kind, and whether
@@ -95,6 +105,9 @@ func kindSubsumes(sup, sub Kind) bool {
 func kindParent(k Kind) (Kind, bool) {
 	if numericLeafKinds[k] {
 		return KindNumber, true
+	}
+	if KindPath == k {
+		return KindString, true
 	}
 	return KindTop, false
 }
@@ -151,6 +164,11 @@ func newScalar(kind Kind, peg any) *ScalarVal {
 }
 
 func newString(s string) *ScalarVal { return newScalar(KindString, s) }
+
+// newPath makes a path VALUE: a scalar of KindPath whose peg is the
+// address spelling, in exactly the grammar refer() reads
+// (docs/design/PATHS.0.md). Meets are syntactic -- by spelling.
+func newPath(s string) *ScalarVal { return newScalar(KindPath, s) }
 func newInteger(i int64) *ScalarVal { return newScalar(KindInteger, i) }
 func newFloat(f float64) *ScalarVal { return newScalar(KindFloat, f) }
 
@@ -221,6 +239,10 @@ func (s *ScalarVal) Canon() string {
 		return "false"
 	case KindNull:
 		return "null"
+	case KindPath:
+		// The call form is the literal syntax for this kind, so canon
+		// renders it back and reparses to the same VALUE.
+		return "path(" + s.peg.(string) + ")"
 	}
 	return ""
 }
@@ -332,7 +354,14 @@ func newScalarKind(k Kind) *ScalarKindVal {
 // stays because the Val interface requires it.
 // (superOf answers for this type before the fallthrough.)
 func (k *ScalarKindVal) superior() Val { return top() } //coverage:ignore
-func (k *ScalarKindVal) Canon() string { return k.kind.String() }
+func (k *ScalarKindVal) Canon() string {
+	// The path kind renders as the vacuous call (PATHS.0.md): the
+	// bare word `path` is an ordinary string, not a keyword.
+	if KindPath == k.kind {
+		return "path()"
+	}
+	return k.kind.String()
+}
 
 func (k *ScalarKindVal) Gen(ctx *Ctx) (any, error) {
 	// Code mirrors the TS FeatureVal.gen choice for residual
@@ -352,6 +381,29 @@ func (k *ScalarKindVal) Unify(peer Val, ctx *Ctx) Val {
 		return pc.Unify(k, ctx)
 	}
 	if ps, ok := peer.(*ScalarVal); ok {
+		// PROMOTION (PATHS.0.md): the path kind admits a string value
+		// that spells an address AS the path value -- the mirror of
+		// `number & 1`, and the bridge that keeps the schema/data
+		// split intact: the schema writes the kind, plain JSON-shaped
+		// data writes the string, and the meet promotes. The spelling
+		// is kept as written, exactly as refer keeps its addrsrc.
+		if KindPath == k.kind && KindString == ps.kind {
+			str, _ := ps.peg.(string)
+			if _, aok := parseAddress(str); !aok {
+				return makeNilErr(ctx, "path_address", k, peer)
+			}
+			pv := newPath(str)
+			pv.sp, pv.spu, pv.surl = ps.sp, ps.spu, ps.surl
+			pv.stext = ps.stext
+			pv.path = ps.path
+			if k.mtype || ps.mtype {
+				pv.mtype = true
+			}
+			if k.mhide || ps.mhide {
+				pv.mhide = true
+			}
+			return pv
+		}
 		// A kind admits a concrete value of that kind, and a supertype
 		// admits a value of any kind below it (`number & 1.5` is 1.5).
 		if ps.kind == k.kind || kindSubsumes(k.kind, ps.kind) {

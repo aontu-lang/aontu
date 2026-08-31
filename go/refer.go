@@ -253,8 +253,11 @@ func (r *ReferVal) Unify(peer Val, ctx *Ctx) Val {
 	sv, isscalar := peer.(*ScalarVal)
 
 	// A STRING is the ADDRESS, when there is not one yet. It is the
-	// only thing that can be: a link's value is its address.
-	if nil == r.addr && isscalar && KindString == sv.kind {
+	// only thing that can be: a link's value is its address. A PATH
+	// value (docs/design/PATHS.0.md) is an address already -- its peg
+	// is the spelling -- so it reads through the same arm.
+	if nil == r.addr && isscalar &&
+		(KindString == sv.kind || KindPath == sv.kind) {
 		str, _ := sv.peg.(string)
 		addr, aok := parseAddress(str)
 		if !aok {
@@ -274,7 +277,8 @@ func (r *ReferVal) Unify(peer Val, ctx *Ctx) Val {
 	// address, and are held below until there is one to apply them to.
 	_, ismap := peer.(*MapVal)
 	_, islist := peer.(*ListVal)
-	if (isscalar && KindString != sv.kind) || ismap || islist {
+	if (isscalar && KindString != sv.kind && KindPath != sv.kind) ||
+		ismap || islist {
 		return makeNilErrFull(ctx, r.addrCode, r, peer, "refer", nil)
 	}
 
@@ -675,7 +679,7 @@ func (r *RelVal) Unify(peer Val, ctx *Ctx) Val {
 		// into), so the driving slot is the base a relative address
 		// reads from -- falling back to the written path when the meet
 		// carries no slot.
-		if KindString == sv.kind {
+		if KindString == sv.kind || KindPath == sv.kind {
 			at := ctx.slot
 			if nil == at {
 				at = r.path

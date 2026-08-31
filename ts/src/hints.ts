@@ -182,6 +182,8 @@ const hints: Record<string, string> = {
   rel_address: 'A rel() field holds tree addresses: one string, a list of strings,\nor a map whose string leaves are addresses. This value can never be\none.\n \nExamples:\n  dependsOn: rel() & ["$.ledger"]  -> {..}  # A list of addresses;\n  hostedOn: rel() & "$.bastion"    -> {..}  # ... or one;\n  dependsOn: rel() & [7]           -> nil   # ... but 7 is not an address.',
   refer_address: 'A refer() was given something that is not a tree address. An address\nis a path: `$.a.b` from the document root, or `.b` from the link\'s own\nsibling scope — and only a STRING can be one.\n \nExamples:\n  refer() & "$.services.auth"  -> ...   # From the root;\n  refer() & ".auth"            -> ...   # ... or beside the link;\n  refer() & "services.auth"    -> nil   # ... but a path needs its anchor;\n  refer() & 1                  -> nil   # ... and a number is not one.',
 
+  path_address: 'This is not a tree address, so it cannot be a path value. An address\nis `$.a.b` from the document root, or `.b` from the sibling scope with\none more leading dot per parent step -- the grammar path() captures\nand path()-the-kind promotes a string through.\n \nExamples:\n  d: path($.services.auth)  -> path($.services.auth)  # A capture;\n  d: path() & ".auth"       -> path(.auth)            # ... a promotion;\n  d: path() & "auth"        -> nil   # ... a path needs its anchor;\n  d: path("$")              -> nil   # ... and the root is not addressable.',
+
   rel_unresolved: 'The address names no node in this evaluation. Every position in the\ndocument is addressable; nothing outside it is.\n \nExamples:\n  p: {}\n  q: rel() & "$.p"       -> {..}  # $.p is a node;\n  q: rel() & "$.nosuch"  -> nil   # ... $.nosuch is not.',
   refer_unresolved: 'A refer() address names no node in this evaluation. Within one\nevaluation the document-set is fixed, so a link to nothing is an error\nrather than something to resolve later: check the spelling, or add the\nnode it was meant to reach. A relative address that climbs off the top\nof the tree lands here too.\n \nExamples:\n  a:{p:1} b:refer()&"$.a"    -> "$.a"    # $.a is a node;\n  a:{p:1} b:refer()&"$.a.p"  -> "$.a.p"  # ... and so is a node inside it;\n  b:refer()&"$.nope"         -> nil      # ... but nothing is here.',
 
@@ -480,6 +482,11 @@ const codeClasses: Record<string, string> = {
   rel_address: 'parse',
   refer_unresolved: 'reference',
   rel_unresolved: 'reference',
+
+  // First-class paths (docs/design/PATHS.0.md): text that is not a
+  // tree address, met by path()'s capture or promotion. The same
+  // class as refer_address, because it is the same mistake.
+  path_address: 'parse',
 
   // G8 phase 1 -- the generation combinators. All three are class
   // `parse`: what is wrong is the CALL as written (data that is not a

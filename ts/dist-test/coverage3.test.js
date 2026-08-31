@@ -96,6 +96,7 @@ const ScalarKindVal_1 = require("../dist/val/ScalarKindVal");
 const FeatureVal_1 = require("../dist/val/FeatureVal");
 const FuncBaseVal_1 = require("../dist/val/FuncBaseVal");
 const PathFuncVal_1 = require("../dist/val/PathFuncVal");
+const ContainerKindVal_1 = require("../dist/val/ContainerKindVal");
 const UpperFuncVal_1 = require("../dist/val/UpperFuncVal");
 const LowerFuncVal_1 = require("../dist/val/LowerFuncVal");
 const ConstraintVal_1 = require("../dist/val/ConstraintVal");
@@ -298,12 +299,13 @@ function capture(fn) {
             Assert.equal(out.isNil, true, name + ': expected a nil');
             Assert.equal(out.why, why, name + ': why');
         }
-        // path() refuses its missing argument in prepare rather than
-        // resolve, since it rewrites the argument before it is driven.
+        // path() with no argument is the path KIND
+        // (docs/design/PATHS.0.md): prepare answers the empty argument
+        // list and resolve mints the kind.
         const pf = new PathFuncVal_1.PathFuncVal({ peg: [] });
         const prepared = pf.prepare(ctx, []);
-        Assert.equal(prepared[0].isNil, true);
-        Assert.equal(prepared[0].why, 'invalid-arg');
+        Assert.equal(prepared.length, 0);
+        Assert.equal(pf.resolve(ctx, prepared).isPathKind, true);
     });
     (0, node_test_1.test)('map-inspection-spread', () => {
         const mv = new MapVal_1.MapVal({ peg: { a: new IntegerVal_1.IntegerVal({ peg: 1 }) } });
@@ -420,22 +422,74 @@ function capture(fn) {
     });
     (0, node_test_1.test)('path-func-argument-shapes', () => {
         const ctx = CTX();
-        // No argument at all.
-        Assert.equal(new PathFuncVal_1.PathFuncVal({ peg: [] }, ctx).resolve(ctx, []).isNil, true);
-        // A scalar argument becomes a relative reference…
-        const pfs = new PathFuncVal_1.PathFuncVal({ peg: [new StringVal_1.StringVal({ peg: 'a' })] }, ctx);
-        const sargs = [new StringVal_1.StringVal({ peg: 'a' })];
-        pfs.prepare(ctx, sargs);
-        Assert.equal(sargs[0].isRef, true);
+        // No argument at all is the path KIND (docs/design/PATHS.0.md).
+        Assert.equal(new PathFuncVal_1.PathFuncVal({ peg: [] }, ctx).resolve(ctx, []).isPathKind, true);
+        // A string argument is ADDRESS TEXT: an anchored spelling
+        // captures, an anchorless one refuses. prepare answers a fresh
+        // argument list -- the parsed one may be shared by clones.
+        const pfs = new PathFuncVal_1.PathFuncVal({ peg: [new StringVal_1.StringVal({ peg: '.a' })] }, ctx);
+        const sout = pfs.prepare(ctx, [new StringVal_1.StringVal({ peg: '.a' })]);
+        Assert.equal(sout[0].isPath, true);
+        Assert.equal(sout[0].peg, '.a');
+        const pfb = new PathFuncVal_1.PathFuncVal({ peg: [new StringVal_1.StringVal({ peg: 'a' })] }, ctx);
+        const bout = pfb.prepare(ctx, [new StringVal_1.StringVal({ peg: 'a' })]);
+        Assert.equal(bout[0].isNil, true);
+        Assert.equal(bout[0].why, 'path_address');
         // …while a container argument is refused outright.
         const pfm = new PathFuncVal_1.PathFuncVal({ peg: [new MapVal_1.MapVal({ peg: {} })] }, ctx);
-        const margs = [new MapVal_1.MapVal({ peg: {} })];
-        pfm.prepare(ctx, margs);
-        Assert.equal(margs[0].isNil, true);
+        const mout = pfm.prepare(ctx, [new MapVal_1.MapVal({ peg: {} })]);
+        Assert.equal(mout[0].isNil, true);
+        Assert.equal(mout[0].why, 'invalid-arg');
     });
     (0, node_test_1.test)('case-func-superior-is-top', () => {
         Assert.equal(new UpperFuncVal_1.UpperFuncVal({ peg: [] }).superior().isTop, true);
         Assert.equal(new LowerFuncVal_1.LowerFuncVal({ peg: [] }).superior().isTop, true);
+    });
+    // The arms unite's fast path hides from source (PATHS.0.md). Two
+    // DONE container kinds with equal (absent) pegs short-circuit in
+    // unite before either unify runs, so the kind-meets-kind arms are
+    // reachable only through the API -- and the Go port needs them (its
+    // dispatcher has no such fast path), so they stay, mirrored, rather
+    // than being deleted as dead.
+    (0, node_test_1.test)('container-kind-api-only-arms', () => {
+        const ctx = CTX();
+        const mk = new ContainerKindVal_1.MapKindVal({}, ctx);
+        Assert.equal(mk.unify(new ContainerKindVal_1.MapKindVal({}, ctx), ctx), mk);
+        const lk = new ContainerKindVal_1.ListKindVal({}, ctx);
+        Assert.equal(lk.unify(new ContainerKindVal_1.ListKindVal({}, ctx), ctx), lk);
+        // same() feeds unite's fast path and disjunct dedupe; the fast
+        // path answers before same() runs for two DONE kinds, so it too
+        // is API-only.
+        Assert.equal(mk.same(lk), false);
+        Assert.equal(mk.same(new ContainerKindVal_1.MapKindVal({}, ctx)), true);
+        Assert.equal(lk.same(mk), false);
+        Assert.equal(lk.same(new ContainerKindVal_1.ListKindVal({}, ctx)), true);
+        // The func shells: resolved on first unify, so make() and
+        // funcname() never run from source.
+        const mf = new ContainerKindVal_1.MapFuncVal({ peg: [] }, ctx);
+        Assert.equal(mf.funcname(), 'map');
+        Assert.equal(mf.make(ctx, { peg: [] }).isMapFunc, true);
+        const lf = new ContainerKindVal_1.ListFuncVal({ peg: [] }, ctx);
+        Assert.equal(lf.funcname(), 'list');
+        Assert.equal(lf.make(ctx, { peg: [] }).isListFunc, true);
+    });
+    // path()'s API-only arms: make() (a path call resolves before any
+    // residuation could clone it), the second prepare (the first pass
+    // always resolves), and a capture whose reference holds no named
+    // segment at all (no source spelling parses to one).
+    (0, node_test_1.test)('path-func-api-only-arms', () => {
+        const ctx = CTX();
+        const pf = new PathFuncVal_1.PathFuncVal({ peg: [] }, ctx);
+        pf.prepared = 1;
+        const made = pf.make(ctx, { peg: [] });
+        Assert.equal(made.isPathFunc, true);
+        Assert.equal(made.prepared, 1);
+        const again = made.prepare(ctx, ['sentinel']);
+        Assert.deepEqual(again, ['sentinel']);
+        const empty = new PathFuncVal_1.PathFuncVal({ peg: [] }, ctx);
+        const out = empty.prepare(ctx, [new RefVal_1.RefVal({ peg: [], prefix: true }, ctx)]);
+        Assert.equal(out[0].isNil, true);
+        Assert.equal(out[0].why, 'path_address');
     });
     (0, node_test_1.test)('func-names-render-in-canon', () => {
         // A parsed-but-unresolved func canonises through funcname().

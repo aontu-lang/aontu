@@ -3,8 +3,40 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PathFuncVal = void 0;
 const err_1 = require("../err");
-const RefVal_1 = require("../val/RefVal");
 const FuncBaseVal_1 = require("./FuncBaseVal");
+const PathVal_1 = require("./PathVal");
+const ReferFuncVal_1 = require("./ReferFuncVal");
+// The address a reference SPELLS, or undefined when its segments
+// cannot spell one (a variable segment, a parent step after the first
+// named segment). Leading `.` entries in a relative ref's peg are
+// parent steps; the spelling is the same grammar refer reads, so one
+// address parser stays the single gate.
+function captureSpelling(rv) {
+    const parts = [];
+    let up = 0;
+    let lead = true;
+    for (const p of rv.peg) {
+        if ('string' !== typeof p) {
+            return undefined;
+        }
+        if ('.' === p) {
+            if (!lead) {
+                return undefined;
+            }
+            up++;
+        }
+        else {
+            lead = false;
+            parts.push(p);
+        }
+    }
+    if (0 === parts.length || (rv.absolute && 0 < up)) {
+        return undefined;
+    }
+    return rv.absolute ?
+        '$.' + parts.join('.') :
+        '.'.repeat(up + 1) + parts.join('.');
+}
 class PathFuncVal extends FuncBaseVal_1.FuncBaseVal {
     constructor(spec, ctx) {
         super(spec, ctx);
@@ -20,30 +52,41 @@ class PathFuncVal extends FuncBaseVal_1.FuncBaseVal {
         return 'path';
     }
     prepare(ctx, args) {
-        let arg = args[0];
         if (0 === this.prepared) {
-            // A missing argument (`path()`) must produce an invalid-arg error
-            // value, as the Go port does -- reading .isScalar off nothing threw
-            // a TypeError that the unifier could only report as an opaque
-            // internal error. Same discipline breach, and same fix, as the one
-            // UpperFuncVal records; path() was missed in that sweep.
+            this.prepared++;
+            const arg = args[0];
+            // The kind form: no argument to capture.
             if (null == arg) {
-                arg = (0, err_1.makeNilErr)(ctx, 'invalid-arg', this);
+                return [];
             }
-            else if (arg.isScalar) {
-                arg = this.place(new RefVal_1.RefVal({ peg: [arg], absolute: false }));
+            // The captured spelling, from a reference's segments or from a
+            // string read as address text. Both go through parseAddress, so
+            // what capture admits and what refer reads cannot drift.
+            let spelling;
+            if (true === arg.isRef) {
+                spelling = captureSpelling(arg);
             }
-            else if (!arg.isRef) {
-                arg = (0, err_1.makeNilErr)(ctx, 'invalid-arg', this);
+            else if (true === arg.isScalar && 'string' === typeof arg.peg) {
+                spelling = arg.peg;
             }
+            else {
+                return [(0, err_1.makeNilErr)(ctx, 'invalid-arg', this)];
+            }
+            if (undefined === spelling || undefined === (0, ReferFuncVal_1.parseAddress)(spelling)) {
+                return [(0, err_1.makeNilErr)(ctx, 'path_address', this, arg)];
+            }
+            return [new PathVal_1.PathVal({ peg: spelling }, ctx)];
         }
-        args[0] = arg;
-        this.prepared++;
         return args;
     }
     resolve(ctx, args) {
-        let out = args[0] ?? (0, err_1.makeNilErr)(ctx, 'arg', this);
-        return out;
+        if (0 === args.length) {
+            const out = new PathVal_1.PathKindVal({}, ctx);
+            out.site = this.site;
+            out.path = this.path;
+            return out;
+        }
+        return args[0];
     }
 } /* node:coverage ignore next 6 */
 exports.PathFuncVal = PathFuncVal;

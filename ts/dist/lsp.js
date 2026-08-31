@@ -374,7 +374,7 @@ const COMPLETION_FUNCTION = 3;
 exports.COMPLETION_FUNCTION = COMPLETION_FUNCTION;
 const COMPLETION_KEYWORD = 14;
 exports.COMPLETION_KEYWORD = COMPLETION_KEYWORD;
-// The twenty-eight built-in functions. Kept in sync with the engine by
+// The built-in functions. Kept in sync with the engine by
 // `lsp.test.ts`, which asserts each is recognised and no others are.
 // The Go port derives its list from the engine's own name set
 // (`BuiltinFuncNames`, go/func.go), which is why a name added there
@@ -384,8 +384,8 @@ const BUILTIN_FUNCS = [
     'above', 'acyclic', 'add', 'below', 'close', 'copy', 'deprecate', 'div',
     'each',
     'filter', 'greatest',
-    'hide', 'inverse', 'join', 'key', 'least', 'length', 'lower',
-    'match', 'max', 'min', 'mod', 'move', 'mul', 'must', 'neq', 'open',
+    'hide', 'inverse', 'join', 'key', 'least', 'length', 'list', 'lower',
+    'map', 'match', 'max', 'min', 'mod', 'move', 'mul', 'must', 'neq', 'open',
     'pack', 'path', 'pick',
     'pref', 're', 'refer', 'rel', 'rem', 'sub', 'sum', 'super', 'type', 'unique',
     'upper',

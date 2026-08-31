@@ -886,6 +886,14 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 		// not party to the failure where TypeScript reported the
 		// container.
 		ctx.slot = dbase
+		// The container KIND delegates to its own arm, exactly as a
+		// scalar delegates to a ScalarKindVal peer (PATHS.0.md).
+		if ck, ok := peer.(*MapKindVal); ok {
+			return ck.Unify(m, ctx)
+		}
+		if ck, ok := peer.(*ListKindVal); ok {
+			return ck.Unify(m, ctx)
+		}
 		return makeNilErr(ctx, "map", m, peer)
 	}
 

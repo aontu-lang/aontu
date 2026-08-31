@@ -280,6 +280,14 @@ func (l *ListVal) Unify(peer Val, ctx *Ctx) Val {
 		// {a:[...]}` reported `$.a.1`, an element that is not party to the
 		// failure, where TypeScript reported `$.a` (BUGS.md 47).
 		ctx.slot = dbase
+		// The container KIND delegates to its own arm, exactly as a
+		// scalar delegates to a ScalarKindVal peer (PATHS.0.md).
+		if ck, ok := peer.(*MapKindVal); ok {
+			return ck.Unify(l, ctx)
+		}
+		if ck, ok := peer.(*ListKindVal); ok {
+			return ck.Unify(l, ctx)
+		}
 		return makeNilErr(ctx, "list", l, peer)
 	}
 

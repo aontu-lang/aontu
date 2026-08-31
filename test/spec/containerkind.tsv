@@ -1,0 +1,57 @@
+# CONTAINER KINDS (docs/design/PATHS.0.md): `map()` and `list()`.
+#
+# `{}` and `[]` are the container UNITS: they admit any map (or list)
+# AND generate empty when nothing arrives. The kinds admit exactly the
+# same values and default to NOTHING, as `string` does -- the spelling
+# of "this must be a map, and it must be supplied", which the unit
+# cannot say (the row pair `unit-defaults-empty` / `kind-unmet` is the
+# contrast). The vacuous constructor call is the kind; the literal is
+# the unit.
+#
+# Neither function takes arguments: element constraints belong to the
+# spreads (`{&: V}`, `[&: V]`), and a second spelling here would
+# drift. A kind mismatch reuses the unit's own refusal codes (`map`,
+# `list`) -- same fact, same code.
+#
+# Every expectation was obtained by running both engines over this
+# corpus and diffing before any row was written (AGENTS.md).
+#
+# Columns: name<TAB>mode<TAB>src<TAB>expect
+
+# --- map() -----------------------------------------------------------
+map-kind-met	gens	y: map() & {a:1}	{"y":{"a":1}}
+map-kind-met-empty	gens	y: map() & {}	{"y":{}}
+map-kind-unmet	errc	y: map()	mapval_no_gen
+map-kind-at-root	errc	map()	no_gen
+unit-defaults-empty	gens	y: {}	{"y":{}}
+map-kind-refuses-list	errc	y: map() & [1]	map
+map-kind-refuses-scalar	errc	y: map() & 1	map
+map-kind-refuses-list-kind	errc	y: map() & list()	map
+map-kind-idempotent	gens	y: map() & map() & {a:1}	{"y":{"a":1}}
+map-kind-after-value	gens	y: {a:1} & map()	{"y":{"a":1}}
+map-kind-after-wrong-value	errc	y: [1] & map()	map
+map-kind-two-statements	gens	s: map() s: {a:1}	{"s":{"a":1}}
+map-kind-with-spread	gens	s: map() & {&: integer} s: {a:1}	{"s":{"a":1}}
+map-kind-under-close	gens	y: close(map() & {a:1})	{"y":{"a":1}}
+map-kind-in-type-body	gens	T: type({d: map()}) x: $.T & {d:{k:1}}	{"x":{"d":{"k":1}}}
+canon-map-kind	canon	y: map()	{"y":map()}
+subsume-map-kind-over-map	subsume	d: map()	d: {a:1}	{"findings":[],"verdict":"subsumes"}
+subsume-map-kind-not-scalar	subsume	d: map()	d: 1	{"findings":[{"code":"compat_narrowed","class":"compat","severity":"error","path":"$.d","sites":[{"file":"general","row":1,"col":4,"len":3,"role":"general","src":"map","value":"map()"},{"file":"specific","row":1,"col":4,"len":1,"role":"specific","src":"1","value":"1"}],"expected":"map()","actual":"1"}],"verdict":"does_not_subsume"}
+super-map-kind-is-top	gens	y: super(map()) & 1	{"y":1}
+
+# --- list() ----------------------------------------------------------
+list-kind-met	gens	y: list() & [1,2]	{"y":[1,2]}
+list-kind-after-value	gens	y: [1] & list()	{"y":[1]}
+list-kind-after-wrong-value	errc	y: {a:1} & list()	list
+list-kind-unmet	errc	y: list()	mapval_no_gen
+list-kind-at-root	errc	list()	no_gen
+list-kind-idempotent	gens	y: list() & list() & [1]	{"y":[1]}
+list-kind-refuses-map	errc	y: list() & {a:1}	list
+list-kind-refuses-scalar	errc	y: list() & "x"	list
+canon-list-kind	canon	y: list()	{"y":list()}
+subsume-list-kind-over-list	subsume	d: list()	d: [1]	{"findings":[],"verdict":"subsumes"}
+subsume-list-kind-not-scalar	subsume	d: list()	d: 1	{"findings":[{"code":"compat_narrowed","class":"compat","severity":"error","path":"$.d","sites":[{"file":"general","row":1,"col":4,"len":4,"role":"general","src":"list","value":"list()"},{"file":"specific","row":1,"col":4,"len":1,"role":"specific","src":"1","value":"1"}],"expected":"list()","actual":"1"}],"verdict":"does_not_subsume"}
+super-list-kind-is-top	gens	y: super(list()) & "s"	{"y":"s"}
+
+# --- Selection by kind: a disjunct of kinds picks by the value -------
+disjunct-of-kinds	gens	y: (map() | list()) & {a:1}	{"y":{"a":1}}

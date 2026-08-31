@@ -47,7 +47,7 @@ edge-var-str-bool-map	gens	x:$bar y:$flag z:$obj	{"x":"hello","y":true,"z":{"x":
 edge-var-big	gens	x:$big	{"x":1152921504606846976}
 edge-var-unknown	errc	x:$nosuchvar	unknown_var
 edge-ref-self-prefix	errc	a:$.a.b	ref
-edge-path-func	gens	p:path(q.r) q:{r:7}	{"p":7,"q":{"r":7}}
+edge-path-func	gens	p:path(q.r) q:{r:7}	{"p":".q.r","q":{"r":7}}
 #
 # The + operator across kinds, and unary minus refusals.
 edge-plus-strings	gens	a:"x"+"y"	{"a":"xy"}

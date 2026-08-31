@@ -78,6 +78,7 @@ const AggFuncVal_1 = require("./val/AggFuncVal");
 const PlaceVal_1 = require("./val/PlaceVal");
 const MoveFuncVal_1 = require("./val/MoveFuncVal");
 const PathFuncVal_1 = require("./val/PathFuncVal");
+const ContainerKindVal_1 = require("./val/ContainerKindVal");
 const PrefFuncVal_1 = require("./val/PrefFuncVal");
 const CloseFuncVal_1 = require("./val/CloseFuncVal");
 const OpenFuncVal_1 = require("./val/OpenFuncVal");
@@ -422,6 +423,13 @@ help isolate the syntax error.`,
         move: MoveFuncVal_1.MoveFuncVal,
         path: PathFuncVal_1.PathFuncVal,
         pref: PrefFuncVal_1.PrefFuncVal,
+        // First-class paths and the container kinds
+        // (docs/design/PATHS.0.md). `path(p)` CAPTURES a path as a value;
+        // `path()`, `map()` and `list()` are kinds -- the vacuous
+        // constructor call admits its values and defaults to nothing,
+        // where the container LITERALS `{}`/`[]` default to empty.
+        map: ContainerKindVal_1.MapFuncVal,
+        list: ContainerKindVal_1.ListFuncVal,
         close: CloseFuncVal_1.CloseFuncVal,
         open: OpenFuncVal_1.OpenFuncVal,
         super: SuperFuncVal_1.SuperFuncVal,
@@ -1840,7 +1848,11 @@ const POSITIONAL_ARG_FUNCS = {
 const funcArity = {
     upper: [1, 1], lower: [1, 1], copy: [1, 1], pref: [1, 1],
     super: [1, 1], type: [1, 1], hide: [1, 1], close: [1, 1],
-    open: [1, 1], move: [1, 1], path: [1, 1],
+    open: [1, 1], move: [1, 1],
+    // path takes NO argument (the path kind) or one (the capture);
+    // map and list are kinds only, and element constraints belong to
+    // the spreads, so neither takes any argument at all.
+    path: [0, 1], map: [0, 0], list: [0, 0],
     min: [1, 1], max: [1, 1], above: [1, 1], below: [1, 1], re: [1, 1],
     length: [1, 1],
     key: [0, 1],

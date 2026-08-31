@@ -671,9 +671,10 @@ func (rv *RefVal) plainRefPath() []string {
 // node's own path (a self/ancestor cycle).
 func (rv *RefVal) isPrefixPath() bool {
 	// The degenerate spelling: every segment empty, so the reference names
-	// nothing and lands back where it started. `path("")` is the way to
-	// write it, and TS treats it as a cycle rather than a miss (issue #38)
-	// -- there is no key to be missing.
+	// nothing and lands back where it started. No source spells it since
+	// path() became the capture (ADR-015) -- `path("")` used to -- but a
+	// caller building a RefVal by hand still can, and TS treats it as a
+	// cycle rather than a miss (issue #38): there is no key to be missing.
 	if len(rv.peg) > 0 {
 		allEmpty := true
 		for _, p := range rv.peg {
