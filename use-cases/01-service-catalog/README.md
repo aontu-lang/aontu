@@ -1,4 +1,4 @@
-# Use case 01: a company-wide service catalog as system ontology
+# 01 — a company-wide service catalog as system ontology
 
 ## The catalog, drawn
 

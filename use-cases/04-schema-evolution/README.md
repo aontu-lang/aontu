@@ -1,4 +1,4 @@
-# Use case 04: schema-evolution governance for a shared customer-profile schema
+# 04 — schema-evolution governance for a shared customer-profile schema
 
 ## The release history, drawn — and it is not a chain
 

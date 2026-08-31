@@ -1,4 +1,4 @@
-# Use case 03: a REST API contract as agent ground truth
+# 03 — a REST API contract as agent ground truth
 
 ## The scenario
 

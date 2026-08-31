@@ -1,4 +1,4 @@
-# Use case 08: feature flags / runtime config (the write-path case)
+# 08 — feature flags / runtime config (the write-path case)
 
 ## The arbitration, drawn
 

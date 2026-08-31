@@ -115,7 +115,7 @@ for. Money crosses the wire as a **decimal string** validated exactly by
 scale. `money-wire.aon` is the schema, `money-convert.aon` writes the
 crossing point out as theorems, and `check.sh` asserts both, plus the
 exported JSON Schema, against the same records. See
-[docs/how-to.md, "Carry exact money over JSON"](../../docs/how-to.md#carry-exact-money-over-json).
+[the "Carry exact money over JSON" how-to](../../docs/how-to/carry-exact-money-over-json.md).
 The finding below stands exactly as written — it is *why* the
 convention exists, and `exact-money.aon` remains the executable form of
 the dead end it describes.
