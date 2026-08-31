@@ -7,6 +7,23 @@ which implementation each change affects.
 
 ## Unreleased
 
+### The use-case corpus is a CI gate
+
+No engine change; one job added to `.github/workflows/build.yml`.
+
+`use-cases/run-all.sh` drives the real CLI end to end over fifteen
+worked models — through files, includes, data merges and exit codes —
+which makes it the only check here that can notice a removed language
+feature still being used by a model. It ran on contributors' machines
+and nowhere else.
+
+The cost arrived with [ADR-014](ADR.md), which removed `id()`: four use
+cases — 01-service-catalog, 05-rbac-policy, 10-data-model and
+12-relations — were left broken on main while every suite stayed green
+and every gate passed, and stayed broken across four merges until #107
+and #109 repaired them. The engine was right; the corpus was never
+asked. This is the job that asks it.
+
 ### `join(coll, sep?)` — the fold to a string
 
 Both ports. The one primitive between a model and a generated file. A
