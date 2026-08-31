@@ -1,4 +1,4 @@
-# Use case 02: multi-environment deployment configuration
+# 02 — multi-environment deployment configuration
 
 A fleet of four services (`web`, `auth`, `billing`, `reports`) deployed
 to three environments (`dev`, `staging`, `prod`) under four layers of

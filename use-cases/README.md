@@ -40,7 +40,7 @@ and, in case 09, `MCP` — to point at a different build.
 
 | Case | Scenario | Aontu surface exercised |
 |------|----------|-------------------------|
-| [01-service-catalog](01-service-catalog/) | Company-wide service catalog as system ontology (two views of the same entities) | `id()`, `refer()`, `relations` (acyclic + inverse), `@"std/system"`, `get`/`why`, vet-gated onboarding |
+| [01-service-catalog](01-service-catalog/) | Company-wide service catalog as system ontology (two views of the same entities) | `refer()` over tree paths, `relations` (acyclic + inverse), `@"std/system"`, `get`/`why`, vet-gated onboarding |
 | [02-deploy-config](02-deploy-config/) | Multi-environment deployment config: org → team → service → env layering | ranked `*`/`**` defaults, includes, `close()`, constraint atoms, `pack`, `filter`, `why` |
 | [03-api-contract](03-api-contract/) | REST API contract as the truth an agent codes against; emit→validate→repair | `vet` (json/sarif/exit classes), `--at`, `--closed`, repair from findings |
 | [04-schema-evolution](04-schema-evolution/) | Governance of a shared schema across v1→v3 | `subsume` profiles, `breaking --against`, `deprecate()`, `aontu_policy.compat`, `hash`, `diff` |

@@ -71,7 +71,7 @@ store layout the resolver expects:
 as directories, `@<major>` suffixed to the last one. When we ran this
 that layout was documented nowhere and we read it out of `ts/src/mod.ts`
 (gap 2); it is now in
-[`how-to.md`](../../docs/how-to.md#vendor-a-module-by-hand) and
+[`how-to/vendor-by-hand.md`](../../docs/how-to/vendor-by-hand.md) and
 [`reference-api.md`](../../docs/reference-api.md#aontu-mod).
 
 **3. `aontu mod tidy` then works exactly as documented.** Exit 0, and

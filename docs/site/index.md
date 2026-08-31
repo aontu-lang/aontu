@@ -413,6 +413,17 @@ returns markdown.
 > **OpenAPI** document, and the site-authored pages beyond the landing
 > page (`/why`, comparisons, community).
 >
+> Since then, out of phase 4: the playground, and the `/use-cases`
+> section — a page per executed case, synced from each
+> `use-cases/<dir>/README.md` the way the documentation set is, with
+> the case table in `use-cases/README.md` supplying the metadata and
+> held to the site's manifest in both directions. The diagrams those
+> cases carry are drawn as static SVG at build time by a renderer in
+> the site repository, because Mermaid lays out in a browser and this
+> build deliberately has none. D6 called `use-cases/` "the interesting
+> middle case" and deferred it until the sync machinery had proven
+> itself; it had.
+>
 > One thing the phase list never anticipated, and which cost the most:
 > the site pinned the newest *published* engine while rendering docs
 > from `main`, and for a while those were `0.52.1` and the `0.53.0`

@@ -1,4 +1,4 @@
-# Use case 07: event/message contracts (the schema-registry case)
+# 07 — event/message contracts (the schema-registry case)
 
 An order service publishes `order.placed`, `order.paid` and
 `order.cancelled` events to a stream. The contract is what a Kafka
