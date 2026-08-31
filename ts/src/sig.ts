@@ -334,7 +334,7 @@ export type {
 // runtime condition. Twin: funcSig in go/sig.go.
 const funcSig: Record<string, FuncSig> = parseSigText(SIGDECL)
 
-
+/* node:coverage ignore next 8 */
 export {
   funcSig,
   parseSigLine,

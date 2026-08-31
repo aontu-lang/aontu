@@ -100,6 +100,7 @@ const PathFuncVal_1 = require("../dist/val/PathFuncVal");
 const ContainerKindVal_1 = require("../dist/val/ContainerKindVal");
 const UpperFuncVal_1 = require("../dist/val/UpperFuncVal");
 const LowerFuncVal_1 = require("../dist/val/LowerFuncVal");
+const BooleanVal_1 = require("../dist/val/BooleanVal");
 const ConstraintVal_1 = require("../dist/val/ConstraintVal");
 const Decimal_1 = require("../dist/val/Decimal");
 const BigIntegerVal_1 = require("../dist/val/BigIntegerVal");
@@ -451,6 +452,21 @@ function capture(fn) {
         const rout = pfm.resolve(ctx, mout);
         Assert.equal(rout.isNil, true);
         Assert.equal(rout.why, 'invalid-arg');
+    });
+    (0, node_test_1.test)('case-func-fallback-arm', () => {
+        // The signature gate refuses every concrete non-string/number
+        // BEFORE resolve, so the case family's fallback arm is reachable
+        // only through a direct call with an exotic argument -- an API
+        // shape, pinned here for both twins (upper's is also reached via
+        // the placeholder rows, lower's only here).
+        const ctx = new ctx_1.AontuContext({});
+        const barg = new BooleanVal_1.BooleanVal({ peg: true });
+        const lout = new LowerFuncVal_1.LowerFuncVal({ peg: [barg] }, ctx).resolve(ctx, [barg]);
+        Assert.equal(lout.isNil, true);
+        Assert.equal(lout.why, 'invalid-arg');
+        const uout = new UpperFuncVal_1.UpperFuncVal({ peg: [barg] }, ctx).resolve(ctx, [barg]);
+        Assert.equal(uout.isNil, true);
+        Assert.equal(uout.why, 'invalid-arg');
     });
     (0, node_test_1.test)('case-func-superior-is-top', () => {
         Assert.equal(new UpperFuncVal_1.UpperFuncVal({ peg: [] }).superior().isTop, true);

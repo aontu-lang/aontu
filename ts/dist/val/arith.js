@@ -31,7 +31,10 @@ function unpref(v) {
     return v;
 }
 function arithKind(v) {
-    if (!(v?.isVal && v.isScalar)) {
+    // Every caller hands a driven Val (an operand past the signature
+    // gate, or a bag member from the aggregate fold), so scalarhood is
+    // the one question -- a container member lands here.
+    if (true !== v?.isScalar) {
         return undefined;
     }
     if (v.isBigInteger) {

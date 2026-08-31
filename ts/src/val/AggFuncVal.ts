@@ -480,12 +480,13 @@ class JoinFuncVal extends FuncBaseVal {
 
     // Arity is [1,2], so a second argument is present or the separator
     // is the empty string -- which makes `join(coll)` concatenation.
+    // The separator's SHAPE is settled before resolve runs: the
+    // signature gate refuses every concrete non-string
+    // (docs/design/SIGNATURES.0.md; join(d: map|list, sep?: string)),
+    // and deferResolve holds the call while sepVerdict answers notyet
+    // -- so a present separator here is text.
     let sep = ''
     if (1 < args.length) {
-      if ('text' !== sepVerdict(args[1])) {
-        return this.place(makeNilErr(ctx, 'invalid-arg', this, undefined,
-          'join'))
-      }
       sep = unpref(args[1]).peg
     }
 

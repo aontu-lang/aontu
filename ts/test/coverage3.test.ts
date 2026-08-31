@@ -80,6 +80,7 @@ import {
 } from '../dist/val/ContainerKindVal'
 import { UpperFuncVal } from '../dist/val/UpperFuncVal'
 import { LowerFuncVal } from '../dist/val/LowerFuncVal'
+import { BooleanVal } from '../dist/val/BooleanVal'
 import { ConstraintVal, MinConstraintVal } from '../dist/val/ConstraintVal'
 import { Decimal, decimalOverBudget } from '../dist/val/Decimal'
 import { BigIntegerVal } from '../dist/val/BigIntegerVal'
@@ -514,6 +515,24 @@ describe('coverage3-funcs', () => {
     const rout: any = pfm.resolve(ctx, mout)
     Assert.equal(rout.isNil, true)
     Assert.equal(rout.why, 'invalid-arg')
+  })
+
+  test('case-func-fallback-arm', () => {
+    // The signature gate refuses every concrete non-string/number
+    // BEFORE resolve, so the case family's fallback arm is reachable
+    // only through a direct call with an exotic argument -- an API
+    // shape, pinned here for both twins (upper's is also reached via
+    // the placeholder rows, lower's only here).
+    const ctx = new AontuContext({})
+    const barg = new BooleanVal({ peg: true })
+    const lout: any =
+      (new LowerFuncVal({ peg: [barg] }, ctx) as any).resolve(ctx, [barg])
+    Assert.equal(lout.isNil, true)
+    Assert.equal(lout.why, 'invalid-arg')
+    const uout: any =
+      (new UpperFuncVal({ peg: [barg] }, ctx) as any).resolve(ctx, [barg])
+    Assert.equal(uout.isNil, true)
+    Assert.equal(uout.why, 'invalid-arg')
   })
 
   test('case-func-superior-is-top', () => {
