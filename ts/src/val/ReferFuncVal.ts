@@ -338,58 +338,77 @@ class ReferVal extends FeatureVal {
     // evaluator never got far enough to notice.
     //
     // The guard is the set of paths a flow is currently inside, on the
-    // context. A flow that would re-enter one is SKIPPED, not failed:
-    // the outer flow it is nested in is already uniting that node, so
-    // the same information arrives by the same channel one frame up.
-    // What each flow contributes is unchanged; only the order it
-    // arrives in is, and unification does not care.
+    // context. A flow that would re-enter one has its MEET skipped:
+    // the outer flow it is nested in is already uniting that node, and
+    // re-entering is what runs the host stack out.
+    //
+    // ITS RECORD IS STILL WRITTEN. The skip used to take the record
+    // with it, on the reasoning that "the same information arrives by
+    // the same channel one frame up" -- true of the outer flow's TYPE,
+    // and false of a nested flow carrying a DIFFERENT one. The outer
+    // flow delivers only its own type, the residual is consumed into a
+    // settled link in the same breath, and nothing re-offers it: the
+    // nested type was lost for good, and which of two flows was the
+    // nested one depended on which link the evaluator happened to
+    // reach first. A layering rule declared on one field and reached
+    // through another module's mirror therefore held in one
+    // declaration order and not in the other (BUGS.md 69).
+    //
+    // Recording it DEFERS the meet to `applyFlows`, which runs at the
+    // top of the tree with no flow in flight and so cannot re-enter
+    // anything -- the channel this record already exists to be.
     const guard = target.join('.')
     // Seeded on the unify root (ts/src/unify.ts): a `??=` here would
     // make a fresh set on whichever descended context asked first.
     const flowing: Set<string> = (ctx as any)._referflow ?? new Set<string>()
-    if (!this.tval.isTop && !flowing.has(guard)) {
-      flowing.add(guard)
-      try {
-        // The flowed type is CONCRETE at the target: a schema flowing
-        // into a value must not make the value a schema. Same reasoning
-        // as a reference's clone clearing marks — `refer($.std.Service)`
-        // says the target IS a Service, not that it is the definition
-        // of one — and without it the target silently stopped
-        // generating.
-        const flow = concreteFlow(ctx, this.tval)
-        const merged = unite(ctx, found.val, flow, 'refer-flow')
-        if (true === (merged as any).isNil) {
-          return merged
+    if (!this.tval.isTop) {
+      // The flowed type is CONCRETE at the target: a schema flowing
+      // into a value must not make the value a schema. Same reasoning
+      // as a reference's clone clearing marks — `refer($.std.Service)`
+      // says the target IS a Service, not that it is the definition
+      // of one — and without it the target silently stopped
+      // generating.
+      const flow = concreteFlow(ctx, this.tval)
+
+      // THE RECORD, keyed by the target's path, replayed onto every
+      // later pass by applyFlows in ts/src/unify.ts. A pass rebuilds
+      // subtrees, so the write below does not survive one when the
+      // link sits inside its own target or two nodes link at each
+      // other; the record is what makes the flow reach the result
+      // rather than the tree it was computed from.
+      const flows: Map<string, Val> = (ctx as any).referflows ??
+        new Map<string, Val>()
+      const key = target.join('\x00')
+      const prev = flows.get(key)
+      flows.set(key, null == prev ? flow : unite(ctx, prev, flow,
+        'refer-flow-record'))
+
+      if (!flowing.has(guard)) {
+        flowing.add(guard)
+        try {
+          const merged = unite(ctx, found.val, flow, 'refer-flow')
+          if (true === (merged as any).isNil) {
+            return merged
+          }
+          // The write into THIS pass's view, so the rest of the pass
+          // sees it. findAt refuses the empty path, so a resolved
+          // target always has a parent holding it.
+          //
+          // NOT FROM INSIDE A TRIAL. A disjunction member is a
+          // HYPOTHESIS, and writing its flow into the live tree
+          // asserts the member's type on another node before the
+          // member is known to survive. The `unite` above still runs:
+          // its nil is how a member legitimately fails. Only the
+          // COMMIT waits, and the surviving member's flow reaches the
+          // tree on the next pass, from the record DisjunctVal stages
+          // and merges for survivors alone.
+          if (true !== (ctx as any)._trialMode) {
+            found.parent.peg[found.key as string] = merged
+          }
         }
-        // The write into THIS pass's view, so the rest of the pass sees
-        // it. findAt refuses the empty path, so a resolved target always
-        // has a parent holding it.
-        // NOT FROM INSIDE A TRIAL. A disjunction member is a
-        // HYPOTHESIS, and writing its flow into the live tree
-        // asserts the member's type on another node before the
-        // member is known to survive. The `unite` above still
-        // runs: its nil is how a member legitimately fails. Only
-        // the COMMIT waits, and the surviving member's flow
-        // reaches the tree on the next pass, from the record
-        // DisjunctVal stages and merges for survivors alone.
-        if (true !== (ctx as any)._trialMode) {
-          found.parent.peg[found.key as string] = merged
+        finally {
+          flowing.delete(guard)
         }
-        // ... and the RECORD, keyed by the target's path, replayed onto
-        // every later pass by applyFlows in ts/src/unify.ts. A pass
-        // rebuilds subtrees, so the write above does not survive one
-        // when the link sits inside its own target or two nodes link at
-        // each other; the record is what makes the flow reach the
-        // result rather than the tree it was computed from.
-        const flows: Map<string, Val> = (ctx as any).referflows ??
-          new Map<string, Val>()
-        const key = target.join('\x00')
-        const prev = flows.get(key)
-        flows.set(key, null == prev ? flow : unite(ctx, prev, flow,
-          'refer-flow-record'))
-      }
-      finally {
-        flowing.delete(guard)
       }
     }
 

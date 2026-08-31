@@ -84,6 +84,27 @@ flow-from-the-second-alternative-lands	gens	x: ({k:1, d?: refer({z:1})} | {k:2, 
 # (flow-two-refers above) with one of them inside a disjunction.
 flow-survivor-merges-with-an-existing-record	gens	a: refer({p:1}) & path($.t)\nb: ({k:1, d?: refer({q:2})} | {k:2, d?: refer({r:3})}) & {k:1, d: path($.t)}\nt: {}	{"a":"$.t","b":{"d":"$.t","k":1},"t":{"p":1,"q":2}}
 
+# A FLOW NESTED INSIDE ANOTHER ONE STILL REACHES ITS TARGET. The meet
+# is skipped where it would re-enter a target a flow is already inside
+# -- that is what stops the evaluator running its own stack out -- and
+# the skip used to take the RECORD with it, on the reasoning that the
+# outer flow delivers the same information one frame up. That is true
+# of the outer flow's TYPE and false of a nested flow carrying a
+# different one, which was then lost for good: whichever link the
+# evaluator happened to reach first decided what the model said, so
+# the same document accepted or refused depending on the order its
+# statements were written in (BUGS.md 69). The record is written
+# whether or not the meet is skipped, so the flow lands through
+# applyFlows instead.
+#
+# Here `a.r` flows {v:1} into `$.b`, whose own `v` is 2. Unsatisfiable,
+# and refused whichever of `a` and `c` is written first.
+flow-nested-in-another-flow-still-lands	errc	c: {r: rel({t:1}) & [path($.b)]}\na: {r: rel({v:1}) & [path($.b)]}\nb: {v: 2, u: rel({t:1}) & [path($.a)]}	scalar_value
+flow-nested-in-another-flow-order-does-not-decide	errc	a: {r: rel({v:1}) & [path($.b)]}\nc: {r: rel({t:1}) & [path($.b)]}\nb: {v: 2, u: rel({t:1}) & [path($.a)]}	scalar_value
+# The same shape where the nested flow is SATISFIABLE: it lands, and
+# the target carries both types whichever order they are written in.
+flow-nested-in-another-flow-lands-both-ways	gens	c: {r: rel({t:1}) & [path($.b)]}\na: {r: rel({v:1}) & [path($.b)]}\nb: {u: rel({t:1}) & [path($.a)]}	{"a":{"r":["$.b"],"t":1},"b":{"t":1,"u":["$.a"],"v":1},"c":{"r":["$.b"]}}
+
 # --- Existence --------------------------------------------------------
 #
 # Integrity is a UNIFICATION-time property, not a vet-time one. Within

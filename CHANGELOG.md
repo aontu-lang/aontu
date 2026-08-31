@@ -7,6 +7,20 @@ which implementation each change affects.
 
 ## Unreleased
 
+### A type flow nested inside another one is deferred, not dropped
+
+Both ports. **Soundness.** `refer(t)`/`rel(t)` skip their meet where it
+would re-enter a target another flow is already inside — the guard that
+stops the evaluator running its own stack out — and the skip took the
+flow's RECORD with it. That is sound only when both flows carry the
+same type: a nested flow carrying a different one was lost for good,
+and which of two flows was the nested one depended on which link the
+evaluator reached first. A rule declared on one field and reached
+through another node's link therefore held in one declaration order
+and not in the other. The record is now written whether or not the
+meet is skipped, so the flow lands through `applyFlows` instead of
+being destroyed; the guard is untouched. (use-cases/BUGS.md 69.)
+
 ### A discarded alternative no longer asserts its types on the model
 
 Both ports. **Soundness.** `refer(t)` and `rel(t)` assert `t` on

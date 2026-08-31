@@ -430,66 +430,79 @@ func (r *ReferVal) settle(ctx *Ctx, site Val) Val {
 	// the tail below builds the link value and meets `held`, where
 	// TypeScript's try/finally has already released it. A closure gives
 	// `defer` the block scope, arm for arm (ADR-001).
-	if nil != r.tval && !isTop(r.tval) && !ctx.referflow[guard] {
-		if bad := func() Val {
-			ctx.referflow[guard] = true
-			defer delete(ctx.referflow, guard)
+	//
+	// A flow that would RE-ENTER a target has its MEET skipped, and its
+	// RECORD written all the same. The skip used to take the record
+	// with it, on the reasoning that the outer flow already unites that
+	// node -- true of the outer flow's TYPE, false of a nested flow
+	// carrying a different one, which was then lost for good and made
+	// the verdict depend on which link the evaluator reached first
+	// (BUGS.md 69). Recording it defers the meet to applyFlows, which
+	// runs with no flow in flight. Mirrors ts/src/val/ReferFuncVal.ts.
+	if nil != r.tval && !isTop(r.tval) {
+		// The flowed type is CONCRETE at the target: a schema flowing
+		// into a value must not make the value a schema. Same reasoning
+		// as a reference's clone clearing marks — `refer($.std.Service)`
+		// says the target IS a Service, not that it is the definition
+		// of one — and without it the target silently stopped
+		// generating. Cloned as well as cleared: `t` is shared by every
+		// position that refers to the same thing.
+		flow := r.tval
+		if hasMark(flow) {
+			flow = clonePath(flow, cp(flow.vpath()))
+			walkMark(flow, true, false, true, false)
+		}
 
-			// The flowed type is CONCRETE at the target: a schema
-			// flowing into a value must not make the value a schema.
-			// Same reasoning as a reference's clone clearing marks —
-			// `refer($.std.Service)` says the target IS a Service, not
-			// that it is the definition of one — and without it the
-			// target silently stopped generating. Cloned as well as
-			// cleared: `t` is shared by every position that refers to
-			// the same thing.
-			flow := r.tval
-			if hasMark(flow) {
-				flow = clonePath(flow, cp(flow.vpath()))
-				walkMark(flow, true, false, true, false)
-			}
-			merged := unite(ctx, found.val, flow)
-			if merged.Nil() {
-				return merged
-			}
-			// The write into THIS pass's view, so the rest of the pass
-			// sees it. findAt refuses the empty path, so a resolved
-			// target always has a parent holding it.
-			//
-			// NOT FROM INSIDE A TRIAL: a disjunction member is a
-			// hypothesis, and writing its flow into the live tree
-			// asserts the member's type on another node before the
-			// member is known to survive. The unite above still runs --
-			// its nil is how a member legitimately fails -- and the
-			// surviving member's flow reaches the tree on the next pass
-			// from the record DisjunctVal stages for survivors alone.
-			if !ctx.trial {
-				switch p := found.parent.(type) {
-				case *MapVal:
-					p.set(found.key, merged)
-				case *ListVal:
-					if i, err := strconv.Atoi(found.key); nil == err {
-						p.peg[i] = merged
+		// THE RECORD, keyed by the target's path, replayed onto every
+		// later pass by applyFlows in go/unify.go. A pass rebuilds
+		// subtrees, so the write below does not survive one when the
+		// link sits inside its own target or two nodes link at each
+		// other; the record is what makes the flow reach the result
+		// rather than the tree it was computed from.
+		if nil == ctx.referflows {
+			ctx.referflows = map[string]Val{}
+		}
+		if prev, seen := ctx.referflows[guard]; seen {
+			ctx.referflows[guard] = unite(ctx, prev, flow)
+		} else {
+			ctx.referflows[guard] = flow
+		}
+
+		if !ctx.referflow[guard] {
+			if bad := func() Val {
+				ctx.referflow[guard] = true
+				defer delete(ctx.referflow, guard)
+
+				merged := unite(ctx, found.val, flow)
+				if merged.Nil() {
+					return merged
+				}
+				// The write into THIS pass's view, so the rest of the
+				// pass sees it. findAt refuses the empty path, so a
+				// resolved target always has a parent holding it.
+				//
+				// NOT FROM INSIDE A TRIAL: a disjunction member is a
+				// hypothesis, and writing its flow into the live tree
+				// asserts the member's type on another node before the
+				// member is known to survive. The unite above still
+				// runs -- its nil is how a member legitimately fails --
+				// and the surviving member's flow reaches the tree on
+				// the next pass from the record DisjunctVal stages for
+				// survivors alone.
+				if !ctx.trial {
+					switch p := found.parent.(type) {
+					case *MapVal:
+						p.set(found.key, merged)
+					case *ListVal:
+						if i, err := strconv.Atoi(found.key); nil == err {
+							p.peg[i] = merged
+						}
 					}
 				}
+				return nil
+			}(); nil != bad {
+				return bad
 			}
-			// ... and the RECORD, keyed by the target's path, replayed
-			// onto every later pass by applyFlows in go/unify.go. A pass
-			// rebuilds subtrees, so the write above does not survive one
-			// when the link sits inside its own target or two nodes link
-			// at each other; the record is what makes the flow reach the
-			// result rather than the tree it was computed from.
-			if nil == ctx.referflows {
-				ctx.referflows = map[string]Val{}
-			}
-			if prev, seen := ctx.referflows[guard]; seen {
-				ctx.referflows[guard] = unite(ctx, prev, flow)
-			} else {
-				ctx.referflows[guard] = flow
-			}
-			return nil
-		}(); nil != bad {
-			return bad
 		}
 	}
 
