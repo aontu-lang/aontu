@@ -167,6 +167,7 @@ const hints: Record<string, string> = {
   include_extension: 'An @\"...\" include named a file the engine does not read. THE\nEXTENSION DECIDES which of two things a file is: `.aon` and\n`.aontu` are Aontu source, with the whole language in them, and\n`.json`, `.jsonld`, `.jsonc`, `.json5`, `.jsonic`, `.jsc`, `.toml`,\n`.yaml`, `.yml` and `.ini` are configuration DATA, read by that\nformat\'s own parser. Anything else -- and a name with no extension\n-- is refused rather than guessed at: a guess produces a document\nthat looks right and is not.\n \nExamples:\n  a:@\"model.aon\"    -> {..}  # Aontu source;\n  a:@\"server.toml\"  -> {..}  # ... config data, read as TOML;\n  a:@\"notes.txt\"    -> nil   # ... but text is not a document;\n  a:@\"data\"         -> nil   # ... and neither is an unnamed kind.',
 
   func_arity: 'This function was called with the wrong number of arguments:\n{func} takes {want}, but was given {got}.\n \nExamples:\n  upper(\"a\")     -> \"A\"  # One argument, which is what upper takes;\n  upper(\"a\",\"b\") -> nil  # ... so two is a mistake in the source;\n  key()          -> \"\"   # key takes none, or one level count;\n  neq(1,2,3)     -> neq  # ... and neq takes one or more exclusions.',
+  func_arg: 'This argument does not fit the function\'s signature:\n \n  {sig}\n  argument {argn} (`{arg}`) was `{got}`.\n \nThe signature is the declared call surface (one line per builtin,\ntest/spec/signature.tsv); an argument slot admits a concrete value\nof its declared kind, `number` admitting every numeric leaf and\n`string` admitting a path.\n \nExamples:\n  upper("a")     -> "A"    # A string fits upper(s: string|number);\n  upper(1)       -> 1      # ... and so does a number;\n  upper(true)    -> nil    # ... but a boolean fits neither word;\n  add([1],2)     -> nil    # ... and a list is no operand.',
 
   elided_value: 'A key or element was written with no value after the colon. An\nelided value is a mistake in the source rather than a null: write\n`null` if that is what was meant, or supply the value.\n \nExamples:\n  a:null  -> null  # An explicit null, which is a value;\n  a:      -> nil   # ... but nothing at all is not;\n  a: b:1  -> {..}  # A colon chain is not an elision;\n  [1,]    -> [1]   # ... nor is a trailing comma.',
 
@@ -577,6 +578,7 @@ const codeClasses: Record<string, string> = {
   lossy_integer_literal: 'conflict',
   arg: 'conflict',
   'invalid-arg': 'conflict',
+  func_arg: 'conflict',
   no_first_arg: 'conflict',
   key_level: 'conflict',
   func: 'conflict',

@@ -1,9 +1,18 @@
 # Design: exact typed signatures for the built-in functions
 
-*Status: **PROPOSED** (August 2026). Nothing here is implemented; this
-document records the design and the inventory it rests on, for the
-review that decides it. Convention as in PATHS.0.md: the reasoning is
-the record.*
+*Status: **IMPLEMENTED** (August 2026), in both ports: the
+declaration is `test/spec/signature.tsv`, the parsers are
+`ts/src/sig.ts` and `go/sig.go` (tabnas grammars), the gate is
+`ts/src/siggate.ts` / `go/siggate.go` refusing `func_arg`, the arity
+and positional tables are derived, and the docs table and both LSPs
+(completion detail and signatureHelp) render from the registry.
+Revised in review before implementation: the signatures are DECLARED
+in the signature syntax itself, and both ports parse the one
+declaration — the first draft's hand-authored registry per port is
+among the rejected designs. Deltas measured while implementing are
+recorded beside the text they correct, the tower document's
+convention. Convention as in PATHS.0.md: the reasoning is the
+record.*
 
 ## The problem
 
@@ -69,20 +78,47 @@ a new type language.
 
 ## The design
 
-**One registry, canonical in `ts/src/lang.ts`.** Beside `funcMap`,
-replacing `funcArity` and `POSITIONAL_ARG_FUNCS` as stored facts
-(both become derivable):
+**The signatures are declared, in the syntax itself.** One
+declaration, written in the signature syntax — the declaration is the
+SOURCE, not a rendering of something recorded elsewhere. It lives
+where shared behaviour lives, `test/spec/signature.tsv`: one row per
+builtin, the row's body the declaration line, so the file is at once
+the language artifact and the parity fixture (ADR-001's one file,
+two readers).
 
-    type ArgMode = 'value' | 'capture' | 'template'
-                 | 'trial' | 'projector' | 'text'
-    type ArgSig = {
+**Both ports read and parse it, with a custom tabnas grammar.** The
+signature language is a small grammar built on the `@tabnas` stack
+the aontu grammar itself extends — a jsonic-based grammar in each
+port (`@tabnas/jsonic`, `github.com/tabnas/jsonic/go`), the pair
+whose shared behaviour the house already knows how to pin. Neither
+port authors a table: each carries a build-time-inlined copy of the
+declaration text (the committed-dist pattern; the suite asserts the
+copies are byte-identical with the spec file) and parses it at
+initialisation into the registry — the parsed form the checker and
+the message builder consume:
+
+    line = name '(' [ arg {',' arg} ] ')' ':' type
+    arg  = [mode] name ['?'] ':' type
+         | '...' name ':' ( type | '(' [mode] type {',' [mode] type} ')' )
+    type = word {'|' word}
+    mode = 'capture' | 'template' | 'trial' | 'projector' | 'text'
+
+    type ArgSig = {                       // the PARSED form
       name: string, mode: ArgMode, type: string,
-      opt?: boolean, rest?: boolean,
+      opt?: boolean, rest?: boolean, group?: GroupSig[],
     }
-    const funcSig: Record<string, { args: ArgSig[], out: string }>
 
-The Go port carries the same table (`go/func.go`), pinned by the
-parity gate below. Representative entries, in the rendered form:
+`funcArity` and `POSITIONAL_ARG_FUNCS` become derivable from the
+parse, and the parsed registry is the ONE input to the runtime
+signature checker and the error-message builder below. (Implemented:
+a rest slot with a plain type is `neq`'s spelling, so the grammar
+gained that arm and the parsed form a `group` field; the arity
+derivation counts required slots plus a rest slot's group size, and
+the positional set derives as "two or more slots, excluding the
+`constraint` results" — the constraint atoms expand their own comma
+group in `atomArgs`, deliberately before the settled check, which is
+why `must` is not positional and must not become so.)
+Representative declaration lines:
 
     upper(s: string) : string
     add(a: number, b: number) : number
@@ -104,20 +140,31 @@ paren is the result. `constraint` is the result word for residuals
 (the meet's outcome depends on the peer); `any` is the honest type
 where the function is a wrapper. `match` is the one signature needing
 a repeat group — `match(s: any, ...pr: (trial any, any), dflt?: any)`
-— and the full table is the implementation's first deliverable, one
+— and the full declaration is the implementation's first deliverable, one
 row per name in `funcArity` today.
 
 **Validation reads the registry.** One argument gate, in each port's
 shared function machinery (`FuncBaseVal` / `func.go`), runs before a
 builtin's own logic: written arity (as today, from the registry), and
-for `value`-mode arguments with concrete types, the driven Val's kind
-against the declared type. A failure refuses with a NEW code,
-`func_arg`, whose message renders from the registry: the signature
-line, the offending position by name, what arrived. The specific
-codes that carry more meaning than a shape mismatch (`pack_key`,
-`path_address`, …) STAY — the registry supplies the signature line
-into their hints, it does not flatten the error taxonomy. Before:
-`invalid-arg`. After:
+for `value`-mode arguments whose declared type is scalar-kind words,
+the driven Val's kind against the declared type — `number` admitting
+every numeric leaf and `string` admitting a path, the subsumption
+walk. A failure refuses with a NEW code, `func_arg`, whose message
+renders from the registry: the signature line, the offending position
+by name, what arrived. The specific codes that carry more meaning
+than a shape mismatch (`pack_key`, `path_address`, …) STAY — the
+registry supplies the signature line into their hints, it does not
+flatten the error taxonomy. (Implemented: the MODES do the scoping —
+`projector`, `template`, `trial`, `text` and `capture` slots are
+never gate-read, container words are the bespoke bag codes' to judge,
+and the gate refuses only what it positively identifies: a
+wrong-kinded concrete scalar, a map, a list, or a kind marker in a
+value slot — a preference or residual passes through, which is what
+keeps arith's unpref reading working. `key()` is the one named skip:
+its level meaning lives in `key_level`. The gate took over fifteen
+spec rows that were bare `invalid-arg` — the case family, the
+arithmetic operands, join's separator.) Before: `invalid-arg`.
+After:
 
     pack(d: map|list, template t: any)
       argument 1 (`d`): a number has no children to pack
@@ -130,14 +177,24 @@ completion detail becomes the rendered signature and `signatureHelp`
 is served from the registry; the LSP tests compare against the same
 renderer. Nobody writes a signature by hand anywhere, in either port.
 
-**The parity gate is the shared spec, per ADR-001.** A new
-`test/spec/signature.tsv`, one row per builtin: name and rendered
-signature. Both ports render their registry and compare against the
-row — the same machinery that pins unification behaviour pins the
-call surface, and a signature edit in one port fails the other's
-suite until it lands there too.
+**The parity gate is the shared spec, per ADR-001.** The declaration
+ROUND-TRIPS: `render(parse(line))` is the line, normalised. Each
+port's suite parses every `signature.tsv` row with its grammar,
+re-renders, and compares — the same machinery that pins unification
+behaviour pins the two parsers to each other, and a grammar edit in
+one port fails the other's suite until it lands there too. With one
+declaration file and two parsers of it, drift between the ports'
+registries is not merely tested against: it has no place to live —
+which is what the hand-authored tables could never offer.
 
 ## Rejected designs
+
+**A hand-authored registry per port** — this document's own first
+draft: a TS object literal in `lang.ts`, mirrored by hand in
+`go/func.go`, pinned only by a rendered comparison. Mirrored
+literals are `funcArity`'s drift surface with more fields; the
+review that accepted the mode vocabulary rejected the mirroring, and
+the declaration-plus-grammar above replaced it.
 
 **Actual TypeScript declarations as the source** (a `.d.ts`, or
 types alone). Cannot express modes — the one thing the signatures

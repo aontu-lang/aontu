@@ -140,7 +140,10 @@ describe('func', function() {
     expect(G('[3.1 4.1 upper($.1)]')).equal([3.1, 4.1, 5])
     expect(G('[3.1 [4.1, 5.1] upper($.1.1)]')).equal([3.1, [4.1, 5.1], 6])
     expect(G('x:y:1.5 x:z:upper($.x.y)')).equal({ x: { y: 1.5, z: 2 } })
-    expect(() => G('x:y:a:1.1 x:z:upper($.x.y)')).throws(/invalid/)
+    // A map operand is the signature gate's refusal now
+    // (docs/design/SIGNATURES.0.md): the hint renders the signature
+    // line and names the argument.
+    expect(() => G('x:y:a:1.1 x:z:upper($.x.y)')).throws(/func_arg/)
   })
 
   test('upper-numbers-spread', () => {

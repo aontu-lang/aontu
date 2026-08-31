@@ -217,11 +217,14 @@ func joinBag(ctx *Ctx, f *FuncVal, base []string, data, sep Val) Val {
 		return makeNilErrFull(ctx, "aggregate_data", f, nil, "join", nil)
 	}
 
+	// The separator's SHAPE is settled before this runs: the signature
+	// gate refuses every concrete non-string
+	// (docs/design/SIGNATURES.0.md; join(d: map|list, sep?: string)),
+	// and joinPending holds the call while joinSep answers notyet -- so
+	// a present separator here is text. Twin: the same deletion in
+	// ts/src/val/AggFuncVal.ts.
 	sepText := ""
 	if nil != sep {
-		if joinText != joinSep(sep) {
-			return makeNilErrFull(ctx, "invalid-arg", f, nil, "join", nil)
-		}
 		sepText, _ = joinTextOf(sep)
 	}
 

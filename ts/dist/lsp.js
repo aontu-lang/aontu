@@ -202,11 +202,78 @@ function initializeResult() {
             textDocumentSync: 1,
             hoverProvider: true,
             completionProvider: {},
+            signatureHelpProvider: { triggerCharacters: ['(', ','] },
         },
         serverInfo: {
             name: 'aontu-lsp',
             version: LSP_VERSION,
         },
+    };
+}
+// signatureHelp: the declared signature of the ENCLOSING call, served
+// from the registry (docs/design/SIGNATURES.0.md). The enclosing call
+// is found lexically -- scan back from the cursor for the nearest
+// unclosed '(' and read the word before it; commas at that depth
+// count the active parameter, capped at the last slot so a rest tail
+// stays active for every excess argument. Strings are skipped so a
+// paren or comma inside one does not miscount, and the scan stops at
+// the line start, a call being one line in practice.
+function computeSignatureHelp(text, pos) {
+    // Position to offset, under the full-sync model: lines are exactly
+    // the text's newlines.
+    const lines = text.split('\n');
+    const line = Math.max(0, Math.min(Number(pos.line) || 0, lines.length - 1));
+    let offset = 0;
+    for (let li = 0; li < line; li++) {
+        offset += lines[li].length + 1;
+    }
+    offset += Math.max(0, Math.min(Number(pos.character) || 0, lines[line].length));
+    let depth = 0;
+    let commas = 0;
+    let open = -1;
+    for (let i = offset - 1; 0 <= i; i--) {
+        const c = text[i];
+        if ('"' === c || "'" === c) {
+            for (i--; 0 <= i && text[i] !== c; i--) { }
+            continue;
+        }
+        if (')' === c) {
+            depth++;
+        }
+        else if ('(' === c) {
+            if (0 === depth) {
+                open = i;
+                break;
+            }
+            depth--;
+        }
+        else if (',' === c && 0 === depth) {
+            commas++;
+        }
+        else if ('\n' === c && 0 === depth) {
+            break;
+        }
+    }
+    if (0 > open) {
+        return null;
+    }
+    let start = open;
+    while (0 < start && /[a-zA-Z0-9_]/.test(text[start - 1])) {
+        start--;
+    }
+    const name = text.slice(start, open);
+    const sig = sig_1.funcSig[name];
+    if (undefined === sig) {
+        return null;
+    }
+    const last = sig.args.length - 1;
+    return {
+        signatures: [{
+                label: (0, sig_1.renderSig)(sig),
+                parameters: sig.args.map((a) => ({ label: (0, sig_1.renderSigArg)(a) })),
+            }],
+        activeSignature: 0,
+        activeParameter: Math.min(commas, 0 <= last ? last : 0),
     };
 }
 function publishDiagnosticsMsg(uri, diagnostics) {
@@ -369,6 +436,7 @@ function valKind(val) {
         return 'scalar';
     return val.constructor.name.replace(/Val$/, '').toLowerCase();
 }
+const sig_1 = require("./sig");
 // LSP CompletionItemKind subset.
 const COMPLETION_FUNCTION = 3;
 exports.COMPLETION_FUNCTION = COMPLETION_FUNCTION;
@@ -405,7 +473,10 @@ const LITERAL_KEYWORDS = ['_', 'true', 'false', 'null', 'top'];
 function computeCompletions() {
     const out = [];
     for (const f of BUILTIN_FUNCS) {
-        out.push({ label: f, kind: COMPLETION_FUNCTION, detail: 'Aontu built-in function' });
+        // The detail is the rendered SIGNATURE (docs/design/SIGNATURES.0.md)
+        // -- the same renderer the hints and the docs table use, so the
+        // completion list cannot drift from the declaration.
+        out.push({ label: f, kind: COMPLETION_FUNCTION, detail: (0, sig_1.renderSig)(sig_1.funcSig[f]) });
     }
     for (const k of KIND_KEYWORDS) {
         out.push({ label: k, kind: COMPLETION_KEYWORD, detail: 'scalar kind' });
@@ -589,6 +660,14 @@ class LspHandler {
             }
             case 'textDocument/completion':
                 return [{ jsonrpc: '2.0', id: msg.id, result: computeCompletions() }];
+            case 'textDocument/signatureHelp': {
+                const uri = msg.params?.textDocument?.uri;
+                const pos = msg.params?.position;
+                const text = null != uri ? this.docs.get(uri) : undefined;
+                const help = (null != text && null != pos)
+                    ? computeSignatureHelp(text, pos) : null;
+                return [{ jsonrpc: '2.0', id: msg.id, result: help }];
+            }
             default:
                 // Unknown request (has an id): reply method-not-found. Unknown
                 // notification: ignore.

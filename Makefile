@@ -1,5 +1,5 @@
 .PHONY: all build test clean build-ts build-go test-ts test-go clean-ts clean-go \
-        publish publish-go check-go-major tags-go reset cov cov-ts cov-go
+        publish publish-go check-go-major tags-go reset cov cov-ts cov-go sig
 
 all: build test
 
@@ -45,8 +45,14 @@ cov-go:
 	cd go && rm -rf covdata bin coverage-unit.out coverage-main.out
 
 # TypeScript (canonical implementation, package lives in ts/)
-build-ts:
+build-ts: sig
 	cd ts && npm run build
+
+# Regenerate the build-time-inlined copies of the signature
+# declaration (ts/src/sigdecl.ts, go/sigdecl.txt) from the shared
+# source test/spec/signature.tsv (docs/design/SIGNATURES.0.md).
+sig:
+	node ts/scripts/sigdecl.cjs
 
 test-ts:
 	cd ts && npm test

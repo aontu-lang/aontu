@@ -172,3 +172,17 @@ func TestKeyFuncDriverDeeper(t *testing.T) {
 		t.Fatalf("key() at a deeper driver must answer the driver's path, got %v", out)
 	}
 }
+
+// The case family's kind-default arm: the signature gate refuses
+// every concrete non-string/number BEFORE resolve, so the arm is
+// reachable only through a direct call with an exotic argument -- an
+// API shape, pinned here as ts/test/coverage3.test.ts pins the TS
+// twins ('case-func-fallback-arm').
+func TestUpperLowerKindDefaultArm(t *testing.T) {
+	ctx := &Ctx{root: newMap()}
+	barg := newScalar(KindBoolean, true)
+	out := upperLower(ctx, []Val{barg}, true)
+	if nv, ok := out.(*NilVal); !ok || "invalid-arg" != nv.why {
+		t.Fatalf("boolean operand: %v", out)
+	}
+}

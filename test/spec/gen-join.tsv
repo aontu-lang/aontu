@@ -134,9 +134,9 @@ join-member-conflict	errc	o:join([1+true],",")\n	mapval_no_gen
 # the text between members, and `join(x, 5)` is far likelier a mistake.
 # `pick`'s key argument draws the same line. This is the direction that
 # can be loosened later without breaking a document; the other cannot.
-join-sep-integer	errc	o:join([a],5)\n	invalid-arg
-join-sep-list	errc	o:join([a],[b])\n	invalid-arg
-join-sep-null	errc	o:join([a],null)\n	invalid-arg
+join-sep-integer	errc	o:join([a],5)\n	func_arg
+join-sep-list	errc	o:join([a],[b])\n	func_arg
+join-sep-null	errc	o:join([a],null)\n	func_arg
 
 # ---- the bag, and the arity ----
 join-data-integer	errc	o:join(1,",")\n	aggregate_data

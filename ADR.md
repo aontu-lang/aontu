@@ -1619,3 +1619,51 @@ This supersedes ADR-015's promotion paragraph; the shared rows are
 `test/spec/path.tsv` (amended) and the swept `refer`/`rel`/
 `relation`/`graph`/`reach` suites. Both ports land together
 (ADR-001) and coverage stays at 100 % (ADR-002).
+
+## ADR-017 — The builtin call surface is declared, parsed by both ports
+
+**Date:** 2026-08-31
+**Status:** Accepted
+
+### Context
+
+The language recorded how many arguments each builtin takes and
+nothing else: a `[min, max]` arity table per port, a second table for
+positional comma groups, hand-rolled per-function argument checks in
+each port with ad-hoc codes, hand-written signature headers in the
+docs, an LSP that could only say "Aontu built-in function", and drift
+gates that compared name sets alone. The cost was measured, not
+theoretical: the `re`-pattern parity gap (TS refused a path value as
+pattern text, Go accepted it) existed precisely because "the pattern
+is string text" lived in two hand-rolled checks instead of one table.
+
+### Decision
+
+**The call surface is DECLARED, in the signature syntax itself**, in
+`test/spec/signature.tsv` — one line per builtin, e.g.
+`pack(d: map|list, template t: any) : map`. The mode vocabulary
+(`value` unmarked; `capture`, `template`, `trial`, `projector`,
+`text`) says what plain pseudo-TypeScript cannot: how each argument
+is READ.
+
+**Both ports parse the one declaration with a custom tabnas
+grammar** (`ts/src/sig.ts`, `go/sig.go` — the same `@tabnas` engine
+the aontu grammar extends), each embedding a build-time-inlined copy
+(`make sig`) asserted byte-identical in its suite. Neither port
+authors a table: the arity and positional tables are DERIVED from
+the parse, the runtime signature gate (`func_arg`, with the rendered
+signature line and the offending argument in its hint) reads it, and
+the docs functions table and both LSPs (completion detail,
+signatureHelp) render from it, drift-gated.
+
+**The parity gate is the round-trip**: `render(parse(line))` is the
+line, checked by both suites over every declaration row. With one
+declaration and two parsers of it, registry drift between the ports
+has no place to live.
+
+### Consequences
+
+Fifteen spec rows moved from bare `invalid-arg` to `func_arg` (the
+case family's operand, the arithmetic operands, join's separator);
+every bespoke code stays. Design and deltas:
+docs/design/SIGNATURES.0.md.

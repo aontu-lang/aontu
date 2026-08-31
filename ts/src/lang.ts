@@ -31,6 +31,9 @@ import {
 // format, so an included `.toml` or `.yaml` is parsed by a real parser
 // for that format rather than guessed at by this one. `@tabnas/json` is
 // the strict RFC 8259 reader, used for `.json` and `.jsonld`.
+import { funcSig } from './sig'
+import type { FuncSig } from './sig'
+
 import { make as makeJsonParser } from '@tabnas/json'
 import { Toml } from '@tabnas/toml'
 import { Jsonc } from '@tabnas/jsonc'
@@ -2163,75 +2166,62 @@ function makeModelResolver(options: any) {
 }
 
 
-// funcArity is the permitted WRITTEN argument count of each built-in, as
+// THE SIGNATURE REGISTRY (docs/design/SIGNATURES.0.md). The call
+// surface is DECLARED in test/spec/signature.tsv and parsed by the
+// signature grammar (ts/src/sig.ts) from the build-time-inlined copy;
+// the arity table and the positional set below are DERIVED from the
+// parsed registry (funcSig, ts/src/sig.ts), so the declaration is the
+// one source. go/func.go derives the same two tables from the same
+// text.
 // The functions whose comma-separated arguments are distinct POSITIONS
 // rather than one argument list. See the func-paren handler above: this
 // is the set whose comma group is expanded back into separate `peg`
-// entries.
-const POSITIONAL_ARG_FUNCS: Record<string, boolean> = {
-  deprecate: true, pack: true, each: true, filter: true, match: true,
-  // Arithmetic takes two OPERANDS, and an operand is a position: `sub`
-  // is not commutative, so `sub(a, b)` reaching the engine as one
-  // two-element list would lose which is which.
-  add: true, sub: true, mul: true, div: true, mod: true, rem: true,
-  // The bag and the key are distinct positions.
-  pick: true,
-  // The bag and the separator likewise.
-  join: true,
+// entries. Derived: two or more declared argument slots, excluding the
+// residual producers (`constraint` results) -- the constraint atoms
+// make the same expansion in their own constructor (`atomArgs`,
+// ConstraintVal.ts, deliberately before the settled check), which is
+// why they are not in this set; `must` is the load-bearing example.
+// Arithmetic is here because `sub` is not commutative: `sub(a, b)`
+// reaching the engine as one two-element list would lose which is
+// which.
+const POSITIONAL_ARG_FUNCS: Record<string, boolean> = {}
+for (const name in funcSig) {
+  if (2 <= funcSig[name].args.length && 'constraint' !== funcSig[name].out) {
+    POSITIONAL_ARG_FUNCS[name] = true
+  }
 }
 
 
 // [min, max]; a max of -1 is unbounded. Every name in funcMap has an
 // entry, and the arity is a property of the language rather than of
-// either port -- go/func.go carries the same table.
-//
-// Nearly everything takes exactly one. The exceptions earn their place:
-// key() names how many levels UP the path to read, defaulting to the
-// parent when omitted, neq takes a whole set of exclusions, unique()
-// takes none (a property of the container) or a PROJECTOR key, must()
-// takes a check AND the author's message for when it fails, and the
-// arithmetic family takes two operands.
-const funcArity: Record<string, [number, number]> = {
-  upper: [1, 1], lower: [1, 1], copy: [1, 1], pref: [1, 1],
-  super: [1, 1], type: [1, 1], hide: [1, 1], close: [1, 1],
-  open: [1, 1], move: [1, 1],
-  // path takes NO argument (the path kind) or one (the capture);
-  // map and list are kinds only, and element constraints belong to
-  // the spreads, so neither takes any argument at all.
-  path: [0, 1], map: [0, 0], list: [0, 0],
-  min: [1, 1], max: [1, 1], above: [1, 1], below: [1, 1], re: [1, 1],
-  length: [1, 1],
-  key: [0, 1],
-  // THE ONE ARGUMENT IS A PROJECTOR: `unique(port)` says no two
-  // members share a `port`. The arity was reserved for it (finding I).
-  unique: [0, 1],
-  neq: [1, -1],
-  must: [2, 2],
-  deprecate: [1, 2],
-  acyclic: [0, 0],
-  inverse: [1, 1],
-  refer: [0, 1],
-  rel: [0, 1],
-  pack: [2, 2],
-  each: [1, 2],
-  filter: [2, 2],
-  // The scrutinee, then pattern/result pairs, then an optional
-  // default: three arguments at least, and any number above that.
-  match: [3, -1],
-  // Two operands, always. Arithmetic has no variadic reading that is
-  // not a fold, and a fold is the recursion this language refuses.
-  add: [2, 2], sub: [2, 2], mul: [2, 2],
-  div: [2, 2], mod: [2, 2], rem: [2, 2],
-  // One bag. The operation is fixed, so there is nothing else to pass:
-  // a fold's second argument is a FUNCTION, and this language has none
-  // to give it.
-  sum: [1, 1], least: [1, 1], greatest: [1, 1],
-  // The bag, and the key to take from each of its children.
-  pick: [2, 2],
-  // The bag, and OPTIONALLY the separator -- omitted it is `""`, which
-  // makes `join(coll)` concatenation, so no separate `concat` is
-  // needed and the family stays one builtin.
-  join: [1, 2],
+// either port -- go/func.go derives the same table. A required slot
+// counts toward the minimum; a rest slot makes the maximum unbounded
+// and counts its group size (one, for a plain rest type) toward the
+// minimum, which is what gives `match` its floor of three and `neq`
+// its floor of one.
+function sigArity(sig: FuncSig): [number, number] {
+  let min = 0
+  let max = 0
+  for (const a of sig.args) {
+    if (true === a.rest) {
+      min += undefined === a.group ? 1 : a.group.length
+      max = -1
+    }
+    else {
+      if (true !== a.opt) {
+        min++
+      }
+      if (-1 !== max) {
+        max++
+      }
+    }
+  }
+  return [min, max]
+}
+
+const funcArity: Record<string, [number, number]> = {}
+for (const name in funcSig) {
+  funcArity[name] = sigArity(funcSig[name])
 }
 
 

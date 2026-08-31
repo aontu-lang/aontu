@@ -99,7 +99,7 @@ edge-expect-top	canon	m:{&:{r:top} a:{}}	{"m":{&:{"r":top},"a":{"r":top}}}
 # open/close, key levels.
 edge-upper-bigint	gens	a:upper(0d2)	{"a":2}
 edge-lower-string	gens	a:lower("QQ")	{"a":"qq"}
-edge-upper-map	errc	a:upper({})	invalid-arg
+edge-upper-map	errc	a:upper({})	func_arg
 edge-move-map	gens	b:{x:1} a:move($.b)	{"a":{"x":1}}
 edge-open-close	gens	a:open(close({x:1}))&{y:2}	{"a":{"x":1,"y":2}}
 edge-key-float-arg	errc	a:key(1.5)	key_level
@@ -227,7 +227,7 @@ edge-pref-noarg	errc	a:pref()	func_arity
 edge-type-noarg	errc	a:type()	func_arity
 edge-hide-noarg	errc	a:hide()	func_arity
 edge-move-noarg	errc	a:move()	func_arity
-edge-upper-bool	errc	a:upper(true)	invalid-arg
+edge-upper-bool	errc	a:upper(true)	func_arg
 edge-close-noarg	errc	a:close()	func_arity
 edge-pref-list	gens	a:pref([1,2]) a:[1,2]	{"a":[1,2]}
 edge-pref-of-disjunct	canon	a:*(1|2)	{"a":*1|2}

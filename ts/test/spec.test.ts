@@ -138,6 +138,11 @@ function loadRows(): Row[] {
   const rows: Row[] = []
   const files = Fs.readdirSync(SPEC_DIR)
     .filter((f) => f.endsWith('.tsv'))
+    // signature.tsv is the DECLARATION, not rows (its lines are the
+    // signature syntax, docs/design/SIGNATURES.0.md); its own gate is
+    // the round-trip in sig.test.ts, as go/sig_test.go is for the Go
+    // port.
+    .filter((f) => 'signature.tsv' !== f)
     .sort()
 
   for (const file of files) {

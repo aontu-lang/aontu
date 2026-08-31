@@ -75,6 +75,9 @@ agg-greatest-empty	errc	x:greatest([])	aggregate_empty
 agg-sum-not-a-bag	errc	x:sum(3)	aggregate_data
 agg-least-not-a-bag	errc	x:least("a")	aggregate_data
 agg-sum-string-member	errc	x:sum(["a"])	invalid-arg
+# A container member reaches the fold's kind check (the signature
+# gate judges the BAG argument's shape, not its members).
+agg-sum-map-member	errc	x:sum([{a:1}])	invalid-arg
 agg-least-string-member	errc	x:least(["a",1])	invalid-arg
 agg-sum-overflow	errc	x:sum([4503599627370496,4503599627370497])	inexact_integer_sum
 agg-arity	errc	x:sum([1],[2])	func_arity

@@ -7,6 +7,31 @@ which implementation each change affects.
 
 ## Unreleased
 
+### The builtin call surface is declared, and checked (ADR-017)
+
+Both ports. The signatures of the built-in functions are now DECLARED
+in the signature syntax itself (`test/spec/signature.tsv`, one line
+per builtin — `pack(d: map|list, template t: any) : map`) and parsed
+by a custom tabnas grammar in each port; the arity and positional
+tables are derived from the parse, and a runtime signature gate
+checks value-mode scalar arguments against the declaration.
+
+- New error code `func_arg` (class `conflict`): a driven argument
+  that does not fit the declared signature. Its hint renders the
+  signature line and names the offending argument. **Breaking**:
+  fifteen refusals that were bare `invalid-arg` now report
+  `func_arg` — `upper`/`lower` operands, the arithmetic operands,
+  `join`'s separator. Every bespoke code (`pack_data`, `pick_key`,
+  `key_level`, the constraint atoms' refusals) is unchanged.
+- The LSP now serves `signatureHelp` (the declared signature of the
+  enclosing call, active parameter tracked) and renders each
+  completion's detail as its signature, in both servers.
+- The reference's functions and constraint-atom tables carry the
+  exact rendered signatures, drift-gated against the registry.
+- The declaration round-trips through both parsers over every line
+  (`render(parse(line))` is the line), pinning the two ports to the
+  one source. `make sig` regenerates the inlined copies.
+
 ### A string is never a path; paths meet by prefix (ADR-016)
 
 Both ports. **Breaking**, tightening ADR-015 below: the string
