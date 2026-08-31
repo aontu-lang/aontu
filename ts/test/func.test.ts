@@ -626,13 +626,14 @@ describe('func', function() {
   test('path-canon', () => {
     const N = (x: string) => new Unify(x, lang).res.canon
     // A string argument is ADDRESS TEXT (docs/design/PATHS.0.md):
-    // capture reads it by the address grammar, so an anchorless
-    // spelling refuses (path_address) instead of resolving a sibling.
-    expect(N('path("foo")')).equal('nil')
-    expect(N('path("foo.bar")')).equal('nil')
+    // capture reads it by the address grammar, and text with no
+    // anchor is RELATIVE -- the address the raw spelling captures.
+    // Text that spells nothing once anchored still refuses.
+    expect(N('path("foo")')).equal('path(.foo)')
+    expect(N('path("foo.bar")')).equal('path(.foo.bar)')
     expect(N('path(".foo")')).equal('path(.foo)')
     expect(N('path("$.a.b")')).equal('path($.a.b)')
-    expect(N('path("foo-bar")')).equal('nil')
+    expect(N('path("foo-bar")')).equal('path(.foo-bar)')
     expect(N('path()')).equal('path()')
     expect(N('path("")')).equal('nil')
   })

@@ -8,6 +8,7 @@ export type Address = {
     parts: string[];
 };
 export declare function parseAddress(s: string): Address | undefined;
+export declare function textAddress(s: string): string;
 export declare function prefixMeet(a: string, b: string): string | undefined;
 declare class PathVal extends ScalarVal {
     isPath: boolean;

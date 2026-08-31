@@ -39,7 +39,14 @@ capture-string-text	gens	a:{} d: path("$.a")	{"a":{},"d":"$.a"}
 # A COMPUTED string argument evaluates first, then converts by the
 # same grammar at resolve (ADR-016): addresses stay buildable.
 computed-string-argument-converts	gens	a:{} d: path("$." + "a")	{"a":{},"d":"$.a"}
-computed-string-argument-bad-address	errc	d: path("no" + "pe")	path_address
+# String text with no anchor is RELATIVE ("q.r" is the address .q.r,
+# the same address the raw spelling captures); only the anchor is
+# supplied, so text that spells nothing once anchored still refuses.
+anchorless-string-argument-is-relative	gens	q:{r:7} p: path("q.r")	{"p":".q.r","q":{"r":7}}
+anchorless-computed-argument-is-relative	gens	d: path("a" + ".b")	{"d":".a.b"}
+anchorless-refer-link-resolves	gens	b:{v:9} x: refer() & path("b")	{"b":{"v":9},"x":".b"}
+computed-string-argument-bad-address	errc	d: path("a." + ".b")	path_address
+empty-string-argument	errc	d: path("")	path_address
 relative-empty-segment	errc	d: path(".a..b")	path_address
 capture-list-index	gens	a:{p:[1,2]} d: path($.a.p.1)	{"a":{"p":[1,2]},"d":"$.a.p.1"}
 capture-not-resolution	gens	a:{p:1} emb: $.a cap: path($.a)	{"a":{"p":1},"cap":"$.a","emb":{"p":1}}
@@ -72,6 +79,7 @@ canon-capture	canon	d: path($.a.b)	{"d":path($.a.b)}
 canon-relative	canon	x:{dep: path(.auth), auth:{}}	{"x":{"auth":{},"dep":path(.auth)}}
 canon-kind	canon	y: path()	{"y":path()}
 canon-prefix-merged	canon	d: path($.a) & path($.a.b)	{"d":path($.a.b)}
+canon-anchorless-string	canon	d: path("auth")	{"d":path(.auth)}
 
 # --- The checked link: path names, refer asserts ---------------------
 checked-link	gens	a:{} d: path($.a) & refer()	{"a":{},"d":"$.a"}

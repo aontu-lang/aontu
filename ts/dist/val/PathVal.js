@@ -3,6 +3,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PathKindVal = exports.PathVal = void 0;
 exports.parseAddress = parseAddress;
+exports.textAddress = textAddress;
 exports.prefixMeet = prefixMeet;
 const err_1 = require("../err");
 const utility_1 = require("../utility");
@@ -55,6 +56,16 @@ function parseAddress(s) {
         }
     }
     return { absolute: false, up, parts };
+}
+// The spelling string TEXT converts by, inside a `path(...)` call:
+// text that carries no anchor is RELATIVE (`"a.b"` is the address
+// `.a.b`), matching the raw form (`path(a.b)` captures `.a.b`). Only
+// the anchor is supplied -- the result still has to parse, so
+// malformed text (`""`, `"a..b"`, a bad `$` spelling) refuses as
+// before. The prefix is not applied to text that claims an anchor:
+// `"$x"` is a broken absolute address, not a relative one.
+function textAddress(s) {
+    return ('$' === s[0] || '.' === s[0]) ? s : '.' + s;
 }
 // The LONGER of two addresses when one spells a prefix of the other
 // (docs/design/PATHS.0.md, amended): same anchor -- absolute or the

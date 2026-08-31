@@ -18,13 +18,14 @@
 // -- see ContainerKindVal for the other half of that convention.
 //
 // A string argument is read by the ADDRESS grammar, not resolved as a
-// segment: `path("$.a")` is the same capture `path($.a)` is. A
-// COMPUTED argument -- an expression, a reference to a string -- is
-// the one shape that does evaluate: the driven result converts by the
-// same grammar at resolve, which is what makes an address buildable
-// (`refer() & path("$.customers." + key())`) while a bare string
-// still never IS one (ADR-016): the conversion happens only inside
-// this call.
+// segment: `path("$.a")` is the same capture `path($.a)` is, and text
+// with no anchor is RELATIVE (`path("a.b")` is `path(.a.b)`, the
+// address the raw spelling captures). A COMPUTED argument -- an
+// expression, a reference to a string -- is the one shape that does
+// evaluate: the driven result converts by the same grammar at
+// resolve, which is what makes an address buildable (`refer() &
+// path("$.customers." + key())`) while a bare string still never IS
+// one (ADR-016): the conversion happens only inside this call.
 
 import type {
   Val,
@@ -38,7 +39,7 @@ import {
 import { makeNilErr } from '../err'
 
 import { FuncBaseVal } from './FuncBaseVal'
-import { PathVal, PathKindVal, parseAddress } from './PathVal'
+import { PathVal, PathKindVal, parseAddress, textAddress } from './PathVal'
 
 
 // The address a reference SPELLS, or undefined when its segments
@@ -120,7 +121,7 @@ class PathFuncVal extends FuncBaseVal {
         spelling = captureSpelling(arg)
       }
       else if (true === arg.isScalar && 'string' === typeof arg.peg) {
-        spelling = arg.peg
+        spelling = textAddress(arg.peg)
       }
       else {
         return args
@@ -152,10 +153,11 @@ class PathFuncVal extends FuncBaseVal {
     // converts by the address grammar, exactly as a literal does at
     // capture; anything else was never a path expression.
     if (true === arg.isScalar && 'string' === typeof arg.peg) {
-      if (undefined === parseAddress(arg.peg)) {
+      const spelling = textAddress(arg.peg)
+      if (undefined === parseAddress(spelling)) {
         return makeNilErr(ctx, 'path_address', this, arg)
       }
-      return new PathVal({ peg: arg.peg }, ctx)
+      return new PathVal({ peg: spelling }, ctx)
     }
     return makeNilErr(ctx, 'invalid-arg', this)
   }

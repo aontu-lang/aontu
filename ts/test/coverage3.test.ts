@@ -486,15 +486,21 @@ describe('coverage3-funcs', () => {
       true)
 
     // A string argument is ADDRESS TEXT: an anchored spelling
-    // captures, an anchorless one refuses. prepare answers a fresh
+    // captures, an anchorless one converts as RELATIVE, and text that
+    // spells nothing once anchored refuses. prepare answers a fresh
     // argument list -- the parsed one may be shared by clones.
     const pfs: any = new PathFuncVal({ peg: [new StringVal({ peg: '.a' })] }, ctx)
     const sout: any = pfs.prepare(ctx, [new StringVal({ peg: '.a' })])
     Assert.equal(sout[0].isPath, true)
     Assert.equal(sout[0].peg, '.a')
 
-    const pfb: any = new PathFuncVal({ peg: [new StringVal({ peg: 'a' })] }, ctx)
-    const bout: any = pfb.prepare(ctx, [new StringVal({ peg: 'a' })])
+    const pfr: any = new PathFuncVal({ peg: [new StringVal({ peg: 'a' })] }, ctx)
+    const relout: any = pfr.prepare(ctx, [new StringVal({ peg: 'a' })])
+    Assert.equal(relout[0].isPath, true)
+    Assert.equal(relout[0].peg, '.a')
+
+    const pfb: any = new PathFuncVal({ peg: [new StringVal({ peg: 'a..b' })] }, ctx)
+    const bout: any = pfb.prepare(ctx, [new StringVal({ peg: 'a..b' })])
     Assert.equal(bout[0].isNil, true)
     Assert.equal(bout[0].why, 'path_address')
 

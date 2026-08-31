@@ -82,8 +82,13 @@ non-strict argument position in the language. The capture runs in
 `prepare`, before the argument is driven, off the reference's own
 segments (`captureSpelling`); a string argument is address text; both
 go through `parseAddress`, so what capture admits and what `refer`
-reads cannot drift. Anchorless text is `path_address`; a number or a
-container is `invalid-arg`. Relative spellings stay relative
+reads cannot drift. Anchorless text was `path_address` as first
+landed. **AMENDED (after ADR-016 landed): anchorless text is
+RELATIVE** — `path("a.b")` converts as `.a.b`, the address the raw
+spelling captures, because only raw reference spellings escape
+evaluation, not string text missing its anchor; text that spells
+nothing once anchored still refuses. A number or a container is
+`invalid-arg`. Relative spellings stay relative
 (`path(q.r)` captures `.q.r`): the value is position-independent
 data, and resolution happens at read sites, which is what preserves
 per-instance behaviour under template cloning.

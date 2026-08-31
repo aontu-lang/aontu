@@ -69,7 +69,7 @@ class PathFuncVal extends FuncBaseVal_1.FuncBaseVal {
                 spelling = captureSpelling(arg);
             }
             else if (true === arg.isScalar && 'string' === typeof arg.peg) {
-                spelling = arg.peg;
+                spelling = (0, PathVal_1.textAddress)(arg.peg);
             }
             else {
                 return args;
@@ -96,10 +96,11 @@ class PathFuncVal extends FuncBaseVal_1.FuncBaseVal {
         // converts by the address grammar, exactly as a literal does at
         // capture; anything else was never a path expression.
         if (true === arg.isScalar && 'string' === typeof arg.peg) {
-            if (undefined === (0, PathVal_1.parseAddress)(arg.peg)) {
+            const spelling = (0, PathVal_1.textAddress)(arg.peg);
+            if (undefined === (0, PathVal_1.parseAddress)(spelling)) {
                 return (0, err_1.makeNilErr)(ctx, 'path_address', this, arg);
             }
-            return new PathVal_1.PathVal({ peg: arg.peg }, ctx);
+            return new PathVal_1.PathVal({ peg: spelling }, ctx);
         }
         return (0, err_1.makeNilErr)(ctx, 'invalid-arg', this);
     }
