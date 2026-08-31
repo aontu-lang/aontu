@@ -3,9 +3,10 @@
 # directions are written, so the inverse holds and nothing here is a
 # loop -- the only thing wrong is the direction through the layers.
 #
-# It refuses at generation with an ordinary [aontu/scalar_value]: the
-# CoreDep shape flowed into catalog by rel() says layer is core or
-# util, catalog says feature, and two unequal literals do not meet.
+# It refuses at generation with an ordinary [aontu/empty]: the CoreDep
+# shape flowed into catalog by rel() says layer is core or util,
+# catalog says feature, and a disjunction with no branch left standing
+# is empty.
 # The architecture rule needs no separate checker because it is not a
 # separate kind of thing.
 #
