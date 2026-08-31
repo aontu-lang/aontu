@@ -332,9 +332,10 @@ export type {
 // at module load: the inlined text is repository content whose parse
 // the round-trip suite gates, so a failure is a build defect, not a
 // runtime condition. Twin: funcSig in go/sig.go.
-const funcSig: Record<string, FuncSig> = parseSigText(SIGDECL)
+const funcSig: Record<string, FuncSig> =
+  parseSigText(SIGDECL) /* node:coverage ignore next 8 */
 
-/* node:coverage ignore next 8 */
+
 export {
   funcSig,
   parseSigLine,

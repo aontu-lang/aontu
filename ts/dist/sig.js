@@ -272,6 +272,6 @@ function parseSigText(text) {
 // at module load: the inlined text is repository content whose parse
 // the round-trip suite gates, so a failure is a build defect, not a
 // runtime condition. Twin: funcSig in go/sig.go.
-const funcSig = parseSigText(sigdecl_1.SIGDECL);
+const funcSig = parseSigText(sigdecl_1.SIGDECL); /* node:coverage ignore next 8 */
 exports.funcSig = funcSig;
 //# sourceMappingURL=sig.js.map

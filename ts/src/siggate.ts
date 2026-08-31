@@ -136,9 +136,9 @@ function sigRefuse(
   }
 
   return undefined
-}
+} /* node:coverage ignore next 4 */
 
-/* node:coverage ignore next 4 */
+
 export {
   sigRefuse,
 }

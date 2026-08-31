@@ -86,5 +86,5 @@ function sigRefuse(ctx, fn, args) {
         }
     }
     return undefined;
-}
+} /* node:coverage ignore next 4 */
 //# sourceMappingURL=siggate.js.map
