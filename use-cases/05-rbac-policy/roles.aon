@@ -21,7 +21,7 @@ Role: type(
     rank: integer & min(0) & max(100)
     tenantOwner: false
     privileged: false
-    grants: unique() & [&: refer() & string & neq("$.permissions.admin_all")]
+    grants: unique() & [&: refer() & string & neq(path($.permissions.admin_all))]
   })
 )
 
@@ -34,22 +34,22 @@ roles: close({
   owner: {
     desc: "Full control; holds the tenant", rank: 100
     tenantOwner: true, privileged: true
-    grants: ["$.permissions.admin_all"]
+    grants: [path($.permissions.admin_all)]
   }
   admin: {
     desc: "Day-to-day administration", rank: 80
     tenantOwner: false, privileged: true
-    grants: ["$.permissions.admin_all"]
+    grants: [path($.permissions.admin_all)]
   }
   member: {
     desc: "Regular collaborator", rank: 40
     tenantOwner: false, privileged: false
-    grants: ["$.permissions.project_read", "$.permissions.project_write", "$.permissions.member_read"]
+    grants: [path($.permissions.project_read), path($.permissions.project_write), path($.permissions.member_read)]
   }
   auditor: {
     desc: "Read-only compliance access", rank: 20
     tenantOwner: false, privileged: false
-    grants: ["$.permissions.project_read", "$.permissions.member_read", "$.permissions.billing_read", "$.permissions.audit_read"]
+    grants: [path($.permissions.project_read), path($.permissions.member_read), path($.permissions.billing_read), path($.permissions.audit_read)]
   }
 })
 

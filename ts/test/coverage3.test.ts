@@ -37,7 +37,8 @@ import { collectDeprecations } from '../dist/utility'
 import { hcanon, canonHash } from '../dist/hcanon'
 import { projectFor } from '../dist/query'
 import { Provenance, markSpread } from '../dist/provenance'
-import { ReferVal, RelFuncVal, parseAddress, addressPath, findAt } from '../dist/val/ReferFuncVal'
+import { ReferVal, RelFuncVal, addressPath, findAt } from '../dist/val/ReferFuncVal'
+import { parseAddress, PathVal } from '../dist/val/PathVal'
 import { graphOf } from '../dist/graph'
 import { canonRiders } from '../dist/utility'
 import {
@@ -497,11 +498,16 @@ describe('coverage3-funcs', () => {
     Assert.equal(bout[0].isNil, true)
     Assert.equal(bout[0].why, 'path_address')
 
-    // …while a container argument is refused outright.
+    // …while a container argument passes through prepare (a computed
+    // argument is the driving loop's to evaluate, ADR-016) and is
+    // refused at resolve, where a driven non-string always is.
     const pfm: any = new PathFuncVal({ peg: [new MapVal({ peg: {} })] }, ctx)
-    const mout: any = pfm.prepare(ctx, [new MapVal({ peg: {} })])
-    Assert.equal(mout[0].isNil, true)
-    Assert.equal(mout[0].why, 'invalid-arg')
+    const marg = new MapVal({ peg: {} })
+    const mout: any = pfm.prepare(ctx, [marg])
+    Assert.equal(mout[0], marg)
+    const rout: any = pfm.resolve(ctx, mout)
+    Assert.equal(rout.isNil, true)
+    Assert.equal(rout.why, 'invalid-arg')
   })
 
   test('case-func-superior-is-top', () => {
@@ -1615,6 +1621,41 @@ describe('coverage3-refer', () => {
     Assert.strictEqual(r.unify(nil, ctx), nil)
     // And an absent peer is the self-drive `unite` substitutes TOP for.
     Assert.strictEqual(r.unify(undefined as any, ctx), r)
+  })
+
+  test('refer-second-path-peer-refines-by-prefix', () => {
+    // The residual's second-path arm is a CROSS-PASS arm: sibling
+    // paths in one conjunct pre-merge at their own (lower) cjo before
+    // the residual folds, so this arm only receives its peer through
+    // late delivery -- a flow into a pending refer, spread timing.
+    // Pinned here at the API, as the dispatcher peers above are.
+    const ctx: any = new Aontu().ctx({ collect: true })
+    ctx.root = new MapVal({ peg: {} }, ctx)
+    const r: any = new ReferVal({}, ctx)
+    r.addr = parseAddress('$.q')
+    r.addrsrc = '$.q'
+    const refined: any = r.unify(new PathVal({ peg: '$.q.r' }, ctx), ctx)
+    Assert.strictEqual(refined.addrsrc, '$.q.r')
+    // The prefix rule is symmetric in which side is pending.
+    const kept: any = refined.unify(new PathVal({ peg: '$.q' }, ctx), ctx)
+    Assert.strictEqual(kept.addrsrc, '$.q.r')
+    // Incomparable addresses are the conflict two unequal scalars are.
+    const nil: any = r.unify(new PathVal({ peg: '$.z' }, ctx), ctx)
+    Assert.strictEqual(true, nil.isNil)
+  })
+
+  test('refer-holds-a-second-constraint-by-meet', () => {
+    // Same cross-pass channel as the second-path arm: constraints in
+    // one conjunct merge with each other before the residual folds,
+    // so held's meet arm is only reached by a late-delivered peer.
+    const ctx: any = new Aontu().ctx({ collect: true })
+    ctx.root = new MapVal({ peg: {} }, ctx)
+    const r: any = new ReferVal({}, ctx)
+    const r1: any = r.unify(new ScalarKindVal({ peg: String }, ctx), ctx)
+    Assert.strictEqual(true, null != r1.held)
+    const r2: any = r1.unify(new ScalarKindVal({ peg: String }, ctx), ctx)
+    Assert.strictEqual(true, null != r2.held)
+    Assert.strictEqual(true, true !== r2.held.isNil)
   })
 
   test('refer-flow-refusal-is-the-nil', () => {

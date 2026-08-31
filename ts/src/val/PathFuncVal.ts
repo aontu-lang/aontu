@@ -18,8 +18,13 @@
 // -- see ContainerKindVal for the other half of that convention.
 //
 // A string argument is read by the ADDRESS grammar, not resolved as a
-// segment: `path("$.a")` is the same capture `path($.a)` is, which is
-// what canon and the promotion meet (`path() & "$.a"`) rely on.
+// segment: `path("$.a")` is the same capture `path($.a)` is. A
+// COMPUTED argument -- an expression, a reference to a string -- is
+// the one shape that does evaluate: the driven result converts by the
+// same grammar at resolve, which is what makes an address buildable
+// (`refer() & path("$.customers." + key())`) while a bare string
+// still never IS one (ADR-016): the conversion happens only inside
+// this call.
 
 import type {
   Val,
@@ -33,8 +38,7 @@ import {
 import { makeNilErr } from '../err'
 
 import { FuncBaseVal } from './FuncBaseVal'
-import { PathVal, PathKindVal } from './PathVal'
-import { parseAddress } from './ReferFuncVal'
+import { PathVal, PathKindVal, parseAddress } from './PathVal'
 
 
 // The address a reference SPELLS, or undefined when its segments
@@ -106,8 +110,11 @@ class PathFuncVal extends FuncBaseVal {
       }
 
       // The captured spelling, from a reference's segments or from a
-      // string read as address text. Both go through parseAddress, so
-      // what capture admits and what refer reads cannot drift.
+      // string literal read as address text. Both go through
+      // parseAddress, so what capture admits and what refer reads
+      // cannot drift. Anything else -- an expression, a reference to
+      // a string -- is left for the driving loop, and resolve
+      // converts the driven result below.
       let spelling: string | undefined
       if (true === arg.isRef) {
         spelling = captureSpelling(arg)
@@ -116,7 +123,7 @@ class PathFuncVal extends FuncBaseVal {
         spelling = arg.peg
       }
       else {
-        return [makeNilErr(ctx, 'invalid-arg', this)]
+        return args
       }
 
       if (undefined === spelling || undefined === parseAddress(spelling)) {
@@ -137,7 +144,20 @@ class PathFuncVal extends FuncBaseVal {
       out.path = this.path
       return out
     }
-    return args[0]
+    const arg: any = args[0]
+    if (true === arg.isPath || true === arg.isNil) {
+      return arg
+    }
+    // The COMPUTED argument, driven by the loop above: a string
+    // converts by the address grammar, exactly as a literal does at
+    // capture; anything else was never a path expression.
+    if (true === arg.isScalar && 'string' === typeof arg.peg) {
+      if (undefined === parseAddress(arg.peg)) {
+        return makeNilErr(ctx, 'path_address', this, arg)
+      }
+      return new PathVal({ peg: arg.peg }, ctx)
+    }
+    return makeNilErr(ctx, 'invalid-arg', this)
   }
 
 } /* node:coverage ignore next 6 */

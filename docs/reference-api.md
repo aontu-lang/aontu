@@ -577,12 +577,12 @@ A model whose edges hold, `system.aon`, passes:
 @"./spec.aon"
 services: {
   &: $.spec.Service
-  web:     { dependsOn: ["$.services.billing"] }
+  web:     { dependsOn: [path($.services.billing)] }
   billing: {
-    dependsOn: ["$.services.ledger"]
-    usedBy:    ["$.services.web"]
+    dependsOn: [path($.services.ledger)]
+    usedBy:    [path($.services.web)]
   }
-  ledger:  { usedBy: ["$.services.billing"] }
+  ledger:  { usedBy: [path($.services.billing)] }
 }
 ```
 
@@ -600,8 +600,8 @@ neither inverse written out, fails on every count at once:
 @"./spec.aon"
 services: {
   &: $.spec.Service
-  auth:    { dependsOn: ["$.services.billing"] }
-  billing: { dependsOn: ["$.services.auth"] }
+  auth:    { dependsOn: [path($.services.billing)] }
+  billing: { dependsOn: [path($.services.auth)] }
 }
 ```
 

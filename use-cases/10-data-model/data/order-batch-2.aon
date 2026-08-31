@@ -1,0 +1,11 @@
+# The second agent-emitted batch (see order-batch-1.aon).
+orders: {
+  "ord-7004": {
+    customerId: path("$.customers.cust-1001")
+    placed: "2026-08-21"
+    lines: [
+      {sku: "sku-gasket-set", qty: 1, unitCents: 10, amountCents: 10},
+      {sku: "sku-seal-ring", qty: 1, unitCents: 20, amountCents: 20}
+    ]
+  }
+}

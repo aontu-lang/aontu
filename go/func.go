@@ -405,6 +405,13 @@ func (f *FuncVal) Unify(peer Val, ctx *Ctx) Val {
 	if f.name == "path" && !f.prepared {
 		f.prepared = true
 		for i, arg := range f.peg {
+			// A reference argument or a string LITERAL is captured
+			// here, before the driving loop; anything else -- an
+			// expression, a reference to a string -- is left for the
+			// loop, and resolve converts the driven result. That is
+			// what makes an address buildable
+			// (`refer() & path("$.customers." + key())`) while a bare
+			// string still never IS one (ADR-016).
 			spelling := ""
 			ok := false
 			if rv, isRef := arg.(*RefVal); isRef {
@@ -413,7 +420,6 @@ func (f *FuncVal) Unify(peer Val, ctx *Ctx) Val {
 				KindString == sv.kind {
 				spelling, ok = sv.peg.(string)
 			} else {
-				f.peg[i] = makeNilErr(ctx, "invalid-arg", f, nil)
 				continue
 			}
 			if _, aok := parseAddress(spelling); !ok || !aok {
@@ -746,8 +752,10 @@ func (f *FuncVal) resolve(ctx *Ctx, base []string, args []Val) Val {
 		return setClosed(ctx, f, args, false)
 	case "path":
 		// path() with no argument is the path KIND; with one, prepare
-		// has already captured the argument as a path value
-		// (docs/design/PATHS.0.md).
+		// captured a reference or a string literal, and a COMPUTED
+		// argument arrives here driven: a string converts by the
+		// address grammar, exactly as a literal does at capture
+		// (docs/design/PATHS.0.md, ADR-016).
 		if len(args) == 0 {
 			k := newScalarKind(KindPath)
 			k.sp, k.spu, k.surl = f.sp, f.spu, f.surl
@@ -755,7 +763,25 @@ func (f *FuncVal) resolve(ctx *Ctx, base []string, args []Val) Val {
 			k.path = f.path
 			return k
 		}
-		return args[0]
+		if sv, ok := args[0].(*ScalarVal); ok {
+			if KindPath == sv.kind {
+				return sv
+			}
+			if KindString == sv.kind {
+				str, _ := sv.peg.(string)
+				if _, aok := parseAddress(str); !aok {
+					return makeNilErr(ctx, "path_address", f, args[0])
+				}
+				pv := newPath(str)
+				pv.sp, pv.spu, pv.surl = f.sp, f.spu, f.surl
+				pv.stext = f.stext
+				return pv
+			}
+		}
+		if args[0].Nil() {
+			return args[0]
+		}
+		return makeNilErr(ctx, "invalid-arg", f, nil)
 	case "map":
 		// The container kinds (docs/design/PATHS.0.md): the vacuous
 		// call admits its values and defaults to nothing, where the

@@ -3,9 +3,13 @@
 *Status: **IMPLEMENTED** (August 2026), in both ports: `path(p)`
 captures, `path()` / `map()` / `list()` are kinds, the shared rows are
 `test/spec/path.tsv` and `test/spec/containerkind.tsv`, and ADR-015
-records the decision. This document works out why the design is what
-it is, what was rejected on the way, and what is deliberately not done
-yet.*
+records the decision. **AMENDED** (ADR-016, later the same review):
+the string bridges are gone — a bare string is never a path, the kind
+does not promote, `refer()`/`rel()` take path values only, the
+`path(...)` call's argument (literal or computed) is the one
+conversion — and path values meet by the PREFIX rule, the longer
+winning. The amendments below sit beside the text they correct, the
+tower document's convention: the reasoning is the record.*
 
 ## The problem
 
@@ -88,18 +92,32 @@ per-instance behaviour under template cloning.
 one row in `KIND_PARENT` under `String` — the same move that put the
 numeric leaves under `number`. Subsumption, the `super()` ladder,
 string constraints and string-typed schemas over address fields all
-follow from that row. `path()` is the kind; it promotes a string that
-spells an address into the path value (`path() & "$.a"` is
-`path($.a)`), the mirror of `number & 1`. Promotion is at the kind
-only: two concrete values of different kinds refuse, exactly as
-`1 & 1.0` does, so `path($.a) & "$.a"` is `scalar_kind` — the
-distinction between a path and a string that looks like one is the
-feature.
+follow from that row. `path()` is the kind; as first landed it
+promoted a string that spelled an address into the path value
+(`path() & "$.a"` as the mirror of `number & 1`). **AMENDED
+(ADR-016): promotion is gone.** The bridge preserved the ambiguity
+the kind exists to remove — whether `"$.a"` was a path depended on
+what later met it — so the kind now refuses a string as any other
+kind does, and the call's own argument (a literal at capture, a
+computed string at resolve) is the one conversion. Two concrete
+values of different kinds still refuse: `path($.a) & "$.a"` is
+`scalar_kind` — the distinction between a path and a string that
+looks like one is the feature.
 
-**Meets are syntactic.** Two path values meet only when they spell
-the same address. Meeting by referent would need resolution inside
-the meet, making the meet position-dependent — the property the
-staging machinery (G8 phase 0) exists to quarantine.
+**Meets are syntactic.** As first landed, two path values met only
+when equal. **AMENDED (ADR-016): they meet by the PREFIX rule** —
+same anchor, the shorter's segments opening the longer's, the LONGER
+the result: one address that opens another is the same place, told
+more precisely. Incomparable spellings refuse as unequal scalars, and
+subsumption follows the meet (a prefix subsumes its extensions).
+Still syntactic throughout: meeting by referent would need resolution
+inside the meet, making the meet position-dependent — the property
+the staging machinery (G8 phase 0) exists to quarantine. Three
+consequences carried the rule through the engine: the refer residual
+folds AFTER plain values (cjo 120000) so sibling paths merge before
+it settles; a second path peer refines a pending address the same
+way; and the RESOLVED LINK is a path value, because a string link
+could not meet its own address re-stated.
 
 **Generation and canon.** A path value generates as its address
 string (the JSON boundary keeps its wire form; the jsonschema
@@ -145,12 +163,12 @@ Probing the engines settled several questions the design leans on:
 
 ## Not done here, deliberately
 
-- **The stamp stays.** A resolved link is still a `StringVal` with
-  `link`/`relkey` stamps; the graph still reads stamps. Replacing
-  them with intrinsic path values (checkedness and resolved target as
-  fields of the value; `graphOf` reading values) is the natural next
-  step and a larger, separate change — it touches graph, canon,
-  clone-carrying and both ports.
+- **The stamp stays — on a path value now.** A resolved link is a
+  `PathVal` carrying the `link`/`relkey` stamps (AMENDED: ADR-016
+  moved the link's value type; a string link could not meet its own
+  address re-stated); the graph still reads the stamps rather than
+  path values in general. Making checkedness fully intrinsic
+  (`graphOf` reading values) remains the next step.
 - **Effect timing is untouched.** Two measured behaviours around
   `refer`'s type flow are representation-independent and remain:
   a `refer(t)` that settles inside a *losing* disjunct branch still

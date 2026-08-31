@@ -5,6 +5,6 @@
 @"../model.aon"
 
 pipeline: jobs: {
-  load:    { feeds: ["$.pipeline.jobs.extract"] }
-  extract: { fedBy: ["$.pipeline.jobs.load"] }
+  load:    { feeds: [path($.pipeline.jobs.extract)] }
+  extract: { fedBy: [path($.pipeline.jobs.load)] }
 }

@@ -1010,8 +1010,8 @@ describe('cli-subsume', () => {
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-rel-'))
     const file = Path.join(dir, 'doc.aon')
     Fs.writeFileSync(file,
-      'a: {dependsOn: rel() & inverse(usedBy) & acyclic() & [\"$.b\"]}\n' +
-      'b: {dependsOn: rel() & inverse(usedBy) & acyclic() & [\"$.a\"]}\n')
+      'a: {dependsOn: rel() & inverse(usedBy) & acyclic() & [path($.b)]}\n' +
+      'b: {dependsOn: rel() & inverse(usedBy) & acyclic() & [path($.a)]}\n')
     const r = vetCapture(() => Assert.equal(runRelations([file]), 1))
     Assert.match(r.out, /verdict: fail/)
     Assert.match(r.out, /cycle \$\.a -> \$\.b -> \$\.a/)
@@ -1023,8 +1023,8 @@ describe('cli-subsume', () => {
 
     // Acyclic AND mirrored: nothing to report.
     Fs.writeFileSync(file,
-      'a: {dependsOn: rel() & inverse(usedBy) & acyclic() & [\"$.b\"]}\n' +
-      'b: {usedBy: rel() & [\"$.a\"]}\n')
+      'a: {dependsOn: rel() & inverse(usedBy) & acyclic() & [path($.b)]}\n' +
+      'b: {usedBy: rel() & [path($.a)]}\n')
     Assert.equal(vetCapture(() =>
       Assert.equal(runRelations([file]), 0)
     ).out.trim(), 'verdict: pass')
@@ -1042,8 +1042,8 @@ describe('cli-subsume', () => {
     Assert.equal(rbj.errors[0].code, 'scalar_value')
 
     Fs.writeFileSync(file,
-      'a: {dependsOn: rel() & inverse(usedBy) & acyclic() & [\"$.b\"]}\n' +
-      'b: {dependsOn: rel() & inverse(usedBy) & acyclic() & [\"$.a\"]}\n')
+      'a: {dependsOn: rel() & inverse(usedBy) & acyclic() & [path($.b)]}\n' +
+      'b: {dependsOn: rel() & inverse(usedBy) & acyclic() & [path($.a)]}\n')
     const j = vetCapture(() => Assert.equal(
       runRelations(['--format', 'json', file]), 1))
     const report = JSON.parse(j.out)
@@ -1159,8 +1159,8 @@ describe('cli-subsume', () => {
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-rc-'))
     const file = Path.join(dir, 'doc.aon')
     Fs.writeFileSync(file,
-      'a: {dependsOn: [&: refer(), \"$.b\"]}\n' +
-      'b: {dependsOn: [&: refer(), \"$.c\"], usedBy: [&: refer(), \"$.d\"]}\n' +
+      'a: {dependsOn: [&: refer(), path($.b)]}\n' +
+      'b: {dependsOn: [&: refer(), path($.c)], usedBy: [&: refer(), path($.d)]}\n' +
       'c: {}\nd: {}\n')
 
     // THE PATH IS THE ANSWER: "yes" is worth little to an operator

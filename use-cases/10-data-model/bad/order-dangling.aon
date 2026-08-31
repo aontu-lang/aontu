@@ -1,0 +1,11 @@
+# An order naming a customer no file declares: the refer() existence
+# check is what must catch it (refer_unresolved, not a string error).
+orders: {
+  "ord-7009": {
+    customerId: path("$.customers.cust-9999")
+    placed: "2026-08-22"
+    lines: [
+      {sku: "sku-seal-ring", qty: 1, unitCents: 20, amountCents: 20}
+    ]
+  }
+}

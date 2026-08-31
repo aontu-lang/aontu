@@ -789,8 +789,8 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
     (0, node_test_1.test)('relations-reports-cycles-and-missing-inverses', () => {
         const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-rel-'));
         const file = Path.join(dir, 'doc.aon');
-        Fs.writeFileSync(file, 'a: {dependsOn: rel() & inverse(usedBy) & acyclic() & [\"$.b\"]}\n' +
-            'b: {dependsOn: rel() & inverse(usedBy) & acyclic() & [\"$.a\"]}\n');
+        Fs.writeFileSync(file, 'a: {dependsOn: rel() & inverse(usedBy) & acyclic() & [path($.b)]}\n' +
+            'b: {dependsOn: rel() & inverse(usedBy) & acyclic() & [path($.a)]}\n');
         const r = vetCapture(() => Assert.equal((0, cli_1.runRelations)([file]), 1));
         Assert.match(r.out, /verdict: fail/);
         Assert.match(r.out, /cycle \$\.a -> \$\.b -> \$\.a/);
@@ -799,8 +799,8 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
         // rel(t) flows at the site and its refusal is the engine's own,
         // pinned in test/spec/relation.tsv.)
         // Acyclic AND mirrored: nothing to report.
-        Fs.writeFileSync(file, 'a: {dependsOn: rel() & inverse(usedBy) & acyclic() & [\"$.b\"]}\n' +
-            'b: {usedBy: rel() & [\"$.a\"]}\n');
+        Fs.writeFileSync(file, 'a: {dependsOn: rel() & inverse(usedBy) & acyclic() & [path($.b)]}\n' +
+            'b: {usedBy: rel() & [path($.a)]}\n');
         Assert.equal(vetCapture(() => Assert.equal((0, cli_1.runRelations)([file]), 0)).out.trim(), 'verdict: pass');
         // A document that does not stand up is not a document with a bad
         // graph -- and since the review's finding F it SAYS SO: exit 4 as
@@ -812,8 +812,8 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
         const rbj = JSON.parse(vetCapture(() => Assert.equal((0, cli_1.runRelations)(['--format', 'json', file]), 4)).out);
         Assert.deepEqual(rbj.findings, []);
         Assert.equal(rbj.errors[0].code, 'scalar_value');
-        Fs.writeFileSync(file, 'a: {dependsOn: rel() & inverse(usedBy) & acyclic() & [\"$.b\"]}\n' +
-            'b: {dependsOn: rel() & inverse(usedBy) & acyclic() & [\"$.a\"]}\n');
+        Fs.writeFileSync(file, 'a: {dependsOn: rel() & inverse(usedBy) & acyclic() & [path($.b)]}\n' +
+            'b: {dependsOn: rel() & inverse(usedBy) & acyclic() & [path($.a)]}\n');
         const j = vetCapture(() => Assert.equal((0, cli_1.runRelations)(['--format', 'json', file]), 1));
         const report = JSON.parse(j.out);
         Assert.equal(report.aontu.verb, 'relations');
@@ -902,8 +902,8 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
     (0, node_test_1.test)('reaches-answers-with-the-path-and-its-exit-code', () => {
         const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-rc-'));
         const file = Path.join(dir, 'doc.aon');
-        Fs.writeFileSync(file, 'a: {dependsOn: [&: refer(), \"$.b\"]}\n' +
-            'b: {dependsOn: [&: refer(), \"$.c\"], usedBy: [&: refer(), \"$.d\"]}\n' +
+        Fs.writeFileSync(file, 'a: {dependsOn: [&: refer(), path($.b)]}\n' +
+            'b: {dependsOn: [&: refer(), path($.c)], usedBy: [&: refer(), path($.d)]}\n' +
             'c: {}\nd: {}\n');
         // THE PATH IS THE ANSWER: "yes" is worth little to an operator
         // asking what a failure would take out.

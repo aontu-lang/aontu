@@ -460,8 +460,8 @@ describe('mcp', () => {
 
 
   test('reaches-tool-answers-the-closure-question', () => {
-    const doc = 'a: {dependsOn: [&: refer(), \"$.b\"]}\n' +
-      'b: {dependsOn: [&: refer(), \"$.c\"], usedBy: [&: refer(), \"$.d\"]}\n' +
+    const doc = 'a: {dependsOn: [&: refer(), path($.b)]}\n' +
+      'b: {dependsOn: [&: refer(), path($.c)], usedBy: [&: refer(), path($.d)]}\n' +
       'c: {}\nd: {}\n'
 
     const hit = payload(callTool('reaches',
@@ -551,8 +551,8 @@ describe('mcp', () => {
     Assert.deepEqual(payload(callTool('relations', { source: 'a: 1' })),
       { verdict: 'pass', findings: [] })
     const cyc = payload(callTool('relations', {
-      source: 'a: {dependsOn: rel() & acyclic() & [\"$.b\"]}\n' +
-        'b: {dependsOn: rel() & acyclic() & [\"$.a\"]}',
+      source: 'a: {dependsOn: rel() & acyclic() & [path($.b)]}\n' +
+        'b: {dependsOn: rel() & acyclic() & [path($.a)]}',
     }))
     Assert.equal(cyc.verdict, 'fail')
     Assert.equal(cyc.findings[0].code, 'relation_cycle')

@@ -1,8 +1,8 @@
 # Agent-emitted proposal: extend the member role with a grant that is
-# NOT in the permission catalog ("$.permissions.billing_refund"). The list spread's
+# NOT in the permission catalog (path($.permissions.billing_refund)). The list spread's
 # refer() makes this a located [aontu/refer_unresolved] error -- a
 # hallucinated permission cannot land. (The first three elements
 # restate the existing grants: lists unify by position, so an
 # extension must repeat the prefix.)
 @"../roles.aon"
-roles: member: grants: ["$.permissions.project_read", "$.permissions.project_write", "$.permissions.member_read", "$.permissions.billing_refund"]
+roles: member: grants: [path($.permissions.project_read), path($.permissions.project_write), path($.permissions.member_read), path($.permissions.billing_refund)]

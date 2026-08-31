@@ -36,80 +36,24 @@ import {
 import { makeNilErr } from '../err'
 
 import { FuncBaseVal } from './FuncBaseVal'
+import {
+  Address,
+  PathVal,
+  parseAddress,
+  prefixMeet,
+} from './PathVal'
 import { FeatureVal } from './FeatureVal'
 import { ConjunctVal } from './ConjunctVal'
-import { StringVal } from './StringVal'
 import { unite } from '../unify'
 import { top } from './top'
 import { propagateMarks, walk } from '../utility'
 
 
-// A segment of a tree path: a map key or a list index. The same
-// grammar the rest of the engine spells keys with, and a leading digit
-// is legitimate because a list index is one.
-const ADDR_SEGMENT = /^[A-Za-z0-9_-]+$/
 // A RELATION PREDICATE is still a declared D-1 name
 // (docs/design/RELATIONS.0.md §3.2). Entity names are gone with
 // ADR-014; predicate names are not -- a relation is a vocabulary term,
 // not an address.
 const PREDICATE_NAME = /^[_a-zA-Z][-_a-zA-Z0-9]*$/
-
-
-export type Address = {
-  // Anchored at the document root (`$.a.b`) rather than at the link's
-  // own position (`.a.b`).
-  absolute: boolean
-  // Parent steps, for a relative address that climbs (`..a` is one).
-  up: number
-  // The written segments, below the anchor.
-  parts: string[]
-}
-
-
-// The address a string spells, or undefined when it does not spell
-// one. An address is a TREE PATH, in exactly the two spellings a
-// reference uses: `$.services.auth` from the root, `.auth` from the
-// link's own sibling scope. The tree is the only namespace -- which is
-// what makes a model instantiable more than once, each instance
-// resolving its relative links inside itself (ADR-014).
-export function parseAddress(s: string): Address | undefined {
-  if ('$' === s) {
-    // The whole document is not a relation's target: an address must
-    // name something with a position to be written back into.
-    return undefined
-  }
-  if (s.startsWith('$.')) {
-    const parts = s.slice(2).split('.')
-    for (const seg of parts) {
-      if (!ADDR_SEGMENT.test(seg)) {
-        return undefined
-      }
-    }
-    return { absolute: true, up: 0, parts }
-  }
-  if (!s.startsWith('.')) {
-    return undefined
-  }
-  // A relative address: the leading dot anchors it at the sibling
-  // scope, and every FURTHER leading dot is one step up from there --
-  // the same reduction a relative reference's `.` segments perform.
-  let up = 0
-  let rest = s.slice(1)
-  while (rest.startsWith('.')) {
-    up++
-    rest = rest.slice(1)
-  }
-  if ('' === rest) {
-    return undefined
-  }
-  const parts = rest.split('.')
-  for (const seg of parts) {
-    if (!ADDR_SEGMENT.test(seg)) {
-      return undefined
-    }
-  }
-  return { absolute: false, up, parts }
-}
 
 
 // The tree path an address resolves to from `at` -- the position of
@@ -195,6 +139,12 @@ function concreteFlow(ctx: AontuContext, t: Val): Val {
 class ReferVal extends FeatureVal {
   isRefer = true
   isGenable = true
+  // AFTER the plain values (base 99999), BEFORE the sizing atoms
+  // (LATE_CJO): sibling path values fold together first under the
+  // prefix rule, and the residual then meets ONE merged address --
+  // without this, `refer() & path($.a) & path($.a.b)` settled on the
+  // first path and the second met the finished link too late.
+  cjo = 120000
 
   // The type to flow into the target; TOP when `refer()` was written
   // with no argument.
@@ -271,24 +221,37 @@ class ReferVal extends FeatureVal {
       return peer
     }
 
-    // A STRING is the ADDRESS, when there is not one yet. It is the
-    // only thing that can be: a link's value is its address.
-    if (undefined === this.addr
-      && true === p.isScalar && 'string' === typeof p.peg) {
-      const addr = parseAddress(p.peg)
-      if (undefined === addr) {
-        return makeNilErr(ctx, this.addrcode, this, peer, 'refer',
-          { addr: p.peg })
-      }
+    // A PATH VALUE is the ADDRESS, when there is not one yet. Only a
+    // path value can be one (PATHS.0.md, amended): a bare string is
+    // never a path -- `path("...")` is the one string conversion, and
+    // it happens at the call, not here. The peg is pre-validated by
+    // the capture, so no parse can fail.
+    if (undefined === this.addr && true === p.isPath) {
+      const addr = parseAddress(p.peg) as Address
       return this.with(ctx, { addr, addrsrc: p.peg }, peer)
     }
 
-    // A value that can never BE a string cannot constrain one either,
-    // and no later pass can repair it — so this arm refuses rather
-    // than defers. A KIND or a constraint is not in it: `string`,
-    // `re("^svc_")` and the like are perfectly good constraints on an
-    // address, and are held below until there is one to apply them to.
-    if ((true === p.isScalar && 'string' !== typeof p.peg)
+    // A SECOND path peer refines the address by the prefix rule: the
+    // longer of the two when one opens the other, exactly as two path
+    // values meet on their own. Two incomparable addresses are the
+    // same conflict two unequal scalars are.
+    if (undefined !== this.addr && true === p.isPath) {
+      const merged = prefixMeet(this.addrsrc as string, p.peg)
+      if (undefined === merged) {
+        return makeNilErr(ctx, 'scalar_value', this, peer)
+      }
+      return this.with(ctx,
+        { addr: parseAddress(merged) as Address, addrsrc: merged }, peer)
+    }
+
+    // A value that can never BE a path cannot be the address, and no
+    // later pass can repair it — so this arm refuses rather than
+    // defers. A bare STRING is in it now (PATHS.0.md, amended):
+    // `path("...")` is the one conversion, at the call. A KIND or a
+    // constraint is not in it: `string`, `re("^svc_")` and the like
+    // are perfectly good constraints on an address, and are held
+    // below until there is one to apply them to.
+    if ((true === p.isScalar && true !== p.isPath)
       || true === p.isMap || true === p.isList) {
       return makeNilErr(ctx, this.addrcode, this, peer, 'refer')
     }
@@ -297,8 +260,8 @@ class ReferVal extends FeatureVal {
     // residual rather than parked in a conjunct, because a conjunct
     // rebuilt every pass grows a level every pass; the held constraint
     // meets the link the moment the address resolves, so
-    // `refer() & "x" & "y"` still conflicts and `refer() & string & "x"`
-    // still passes.
+    // `refer() & re("a") & re("b") & path($.z)` still applies both and
+    // `refer() & string & path($.z)` still passes.
     return this.with(ctx, {
       held: null == this.held ? peer : unite(ctx, this.held, peer, 'refer-held'),
     }, this)
@@ -420,8 +383,11 @@ class ReferVal extends FeatureVal {
       }
     }
 
-    // The value IS the address string: a link, not an embedding.
-    const out: any = new StringVal({ peg: this.addrsrc as string }, ctx)
+    // The value IS the address, as a PATH VALUE (ADR-016): a link,
+    // not an embedding -- and re-stating or refining the address
+    // still meets it, which a string link could not do under the
+    // strict rules.
+    const out: any = new PathVal({ peg: this.addrsrc as string }, ctx)
     out.dc = DONE
     // STAMPED as a link (G4 phase 3): the value is the address string,
     // so without this nothing downstream could tell a checked link from
@@ -449,8 +415,10 @@ class ReferVal extends FeatureVal {
     const t = this.tval.isTop ? '' : this.tval.canon
     const call = 'refer(' + t + ')' +
       (null == this.held ? '' : '&' + this.held.canon)
+    // The address renders as the path call: a bare string address no
+    // longer reparses (PATHS.0.md, amended), and canon must.
     return undefined === this.addrsrc
-      ? call : call + '&' + JSON.stringify(this.addrsrc)
+      ? call : call + '&path(' + this.addrsrc + ')'
   }
 }
 
@@ -609,8 +577,10 @@ class RelVal extends FeatureVal {
     // is the only entrance -- the container hand-offs pass the
     // container itself.
 
-    // ONE ADDRESS: the scalar-valued field, refer's own shape.
-    if (true === p.isScalar && 'string' === typeof p.peg) {
+    // ONE ADDRESS: the scalar-valued field, refer's own shape. A path
+    // value only -- a bare string is never an address (PATHS.0.md,
+    // amended); the scalar arm below refuses it.
+    if (true === p.isPath) {
       const out = unite(ctx, this.leafRefer(ctx), peer, 'rel-scalar')
       return null == this.held ? out
         : unite(ctx, out, this.held, 'rel-held')
@@ -695,9 +665,11 @@ class ReferFuncVal extends FuncBaseVal {
     out.path = this.path
     return out
   }
-} /* node:coverage ignore next 8 */
+} /* node:coverage ignore next 10 */
 
 
+// The address machinery itself (Address, parseAddress, prefixMeet)
+// lives in PathVal, its home since ADR-016 -- import it from there.
 export {
   ReferFuncVal,
   ReferVal,

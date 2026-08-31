@@ -13,23 +13,23 @@ catalog: domains: {
         tier: 1
         description: "Card payment orchestration and capture API."
         dependsOn: [
-          "$.catalog.domains.payments.services.ledger"
-          "$.catalog.domains.payments.services.risk"
-          "$.catalog.domains.identity.services.auth"
-          "$.catalog.domains.platform.services.notify"
+          path($.catalog.domains.payments.services.ledger)
+          path($.catalog.domains.payments.services.risk)
+          path($.catalog.domains.identity.services.auth)
+          path($.catalog.domains.platform.services.notify)
         ]
-        dependedOnBy: ["$.catalog.domains.platform.services.gateway"]
+        dependedOnBy: [path($.catalog.domains.platform.services.gateway)]
       }
       ledger: {
         tier: 1
         description: "Double-entry ledger of record for money movement."
-        dependedOnBy: ["$.catalog.domains.payments.services.payments"]
+        dependedOnBy: [path($.catalog.domains.payments.services.payments)]
       }
       risk: {
         tier: 2
         description: "Transaction risk scoring and fraud rules engine."
-        dependsOn: ["$.catalog.domains.identity.services.directory"]
-        dependedOnBy: ["$.catalog.domains.payments.services.payments"]
+        dependsOn: [path($.catalog.domains.identity.services.directory)]
+        dependedOnBy: [path($.catalog.domains.payments.services.payments)]
       }
     }
   }
@@ -40,18 +40,18 @@ catalog: domains: {
       auth: {
         tier: 1
         description: "OAuth2 token issuing and session verification."
-        dependsOn: ["$.catalog.domains.identity.services.directory"]
+        dependsOn: [path($.catalog.domains.identity.services.directory)]
         dependedOnBy: [
-          "$.catalog.domains.platform.services.gateway"
-          "$.catalog.domains.payments.services.payments"
+          path($.catalog.domains.platform.services.gateway)
+          path($.catalog.domains.payments.services.payments)
         ]
       }
       directory: {
         tier: 2
         description: "Employee and customer directory lookups."
         dependedOnBy: [
-          "$.catalog.domains.payments.services.risk"
-          "$.catalog.domains.identity.services.auth"
+          path($.catalog.domains.payments.services.risk)
+          path($.catalog.domains.identity.services.auth)
         ]
       }
     }
@@ -64,21 +64,21 @@ catalog: domains: {
         tier: 1
         description: "Public API edge gateway and request routing."
         dependsOn: [
-          "$.catalog.domains.payments.services.payments"
-          "$.catalog.domains.identity.services.auth"
+          path($.catalog.domains.payments.services.payments)
+          path($.catalog.domains.identity.services.auth)
         ]
       }
       notify: {
         tier: 3
         lifecycle: experimental
         description: "Customer notification fan-out orchestration."
-        dependsOn: ["$.catalog.domains.platform.services.email"]
-        dependedOnBy: ["$.catalog.domains.payments.services.payments"]
+        dependsOn: [path($.catalog.domains.platform.services.email)]
+        dependedOnBy: [path($.catalog.domains.payments.services.payments)]
       }
       email: {
         tier: 3
         description: "SMTP delivery with bounce and complaint tracking."
-        dependedOnBy: ["$.catalog.domains.platform.services.notify"]
+        dependedOnBy: [path($.catalog.domains.platform.services.notify)]
       }
     }
   }

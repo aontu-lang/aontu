@@ -37,7 +37,7 @@ grammar is [`grammar/aontu.gbnf`](../../grammar/aontu.gbnf) (and
 | `hide(x)` | evaluated, then dropped from the output |
 | `type(x)` | a definition, not a value: it generates nothing |
 | `deprecate(x, {msg:"…"})` | still works, and says so |
-| `refer(t) & "$.a.b"` | a checked LINK: the tree address must resolve, and `t` flows into it |
+| `refer(t) & path($.a.b)` | a checked LINK: the tree address must resolve, and `t` flows into it |
 
 ## Constraints
 

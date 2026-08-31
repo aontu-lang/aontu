@@ -6,5 +6,5 @@
 @"../system.aon"
 
 catalog: domains: payments: services: ledger: {
-  dependsOn: ["$.catalog.domains.payments.services.payments"]
+  dependsOn: [path($.catalog.domains.payments.services.payments)]
 }

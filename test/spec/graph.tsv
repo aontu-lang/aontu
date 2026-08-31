@@ -32,15 +32,15 @@ empty-without-links	graph	a: {k:1}\nb: [1,2]	{"edges":[]}
 empty-for-a-plain-string	graph	z: {}\ns: {uses: "$.z"}	{"edges":[]}
 
 # --- The cut: where an edge starts, and what relation it is ----------
-edge-under-a-key	graph	z: {}\ns: {uses: refer() & "$.z"}	{"edges":[{"from":"$.s","key":"uses","to":"$.z","at":"$.s.uses"}]}
-edge-key-is-the-relation-not-the-index	graph	z: {}\ns: {dependsOn: [&: refer(), "$.z"]}	{"edges":[{"from":"$.s","key":"dependsOn","to":"$.z","at":"$.s.dependsOn.0"}]}
-edge-two-in-one-relation	graph	z: {}\ny: {}\ns: {dependsOn: [&: refer(), "$.z", "$.y"]}	{"edges":[{"from":"$.s","key":"dependsOn","to":"$.z","at":"$.s.dependsOn.0"},{"from":"$.s","key":"dependsOn","to":"$.y","at":"$.s.dependsOn.1"}]}
-edge-from-a-nested-node	graph	a: {p: {q: refer() & "$.a"}}	{"edges":[{"from":"$.a.p","key":"q","to":"$.a","at":"$.a.p.q"}]}
-edge-at-the-top-of-the-document	graph	a: refer() & "$.z"\nz: {}	{"edges":[{"from":"$","key":"a","to":"$.z","at":"$.a"}]}
-edge-into-a-node-inside-a-node	graph	z: {ports: {http: 80}}\ns: {uses: refer() & "$.z.ports.http"}	{"edges":[{"from":"$.s","key":"uses","to":"$.z.ports.http","at":"$.s.uses"}]}
-edge-self	graph	s: {uses: refer() & "$.s"}	{"edges":[{"from":"$.s","key":"uses","to":"$.s","at":"$.s.uses"}]}
-edge-cycle-is-data-not-an-error	graph	a: {next: refer() & "$.b"}\nb: {next: refer() & "$.a"}	{"edges":[{"from":"$.a","key":"next","to":"$.b","at":"$.a.next"},{"from":"$.b","key":"next","to":"$.a","at":"$.b.next"}]}
-edge-link-with-a-held-constraint	graph	z: {}\ns: {uses: refer() & string & "$.z"}	{"edges":[{"from":"$.s","key":"uses","to":"$.z","at":"$.s.uses"}]}
+edge-under-a-key	graph	z: {}\ns: {uses: refer() & path($.z)}	{"edges":[{"from":"$.s","key":"uses","to":"$.z","at":"$.s.uses"}]}
+edge-key-is-the-relation-not-the-index	graph	z: {}\ns: {dependsOn: [&: refer(), path($.z)]}	{"edges":[{"from":"$.s","key":"dependsOn","to":"$.z","at":"$.s.dependsOn.0"}]}
+edge-two-in-one-relation	graph	z: {}\ny: {}\ns: {dependsOn: [&: refer(), path($.z), path($.y)]}	{"edges":[{"from":"$.s","key":"dependsOn","to":"$.z","at":"$.s.dependsOn.0"},{"from":"$.s","key":"dependsOn","to":"$.y","at":"$.s.dependsOn.1"}]}
+edge-from-a-nested-node	graph	a: {p: {q: refer() & path($.a)}}	{"edges":[{"from":"$.a.p","key":"q","to":"$.a","at":"$.a.p.q"}]}
+edge-at-the-top-of-the-document	graph	a: refer() & path($.z)\nz: {}	{"edges":[{"from":"$","key":"a","to":"$.z","at":"$.a"}]}
+edge-into-a-node-inside-a-node	graph	z: {ports: {http: 80}}\ns: {uses: refer() & path($.z.ports.http)}	{"edges":[{"from":"$.s","key":"uses","to":"$.z.ports.http","at":"$.s.uses"}]}
+edge-self	graph	s: {uses: refer() & path($.s)}	{"edges":[{"from":"$.s","key":"uses","to":"$.s","at":"$.s.uses"}]}
+edge-cycle-is-data-not-an-error	graph	a: {next: refer() & path($.b)}\nb: {next: refer() & path($.a)}	{"edges":[{"from":"$.a","key":"next","to":"$.b","at":"$.a.next"},{"from":"$.b","key":"next","to":"$.a","at":"$.b.next"}]}
+edge-link-with-a-held-constraint	graph	z: {}\ns: {uses: refer() & string & path($.z)}	{"edges":[{"from":"$.s","key":"uses","to":"$.z","at":"$.s.uses"}]}
 
 # --- A relative address is resolved, not spelled ---------------------
 #
@@ -49,26 +49,26 @@ edge-link-with-a-held-constraint	graph	z: {}\ns: {uses: refer() & string & "$.z"
 # position it is written at, and an edge set whose far ends were
 # spellings could not be traversed. The link's own VALUE is still what
 # was written -- `gens` in refer.tsv pins that.
-edge-relative-resolves	graph	x: {auth: {}, dep: refer() & ".auth"}	{"edges":[{"from":"$.x","key":"dep","to":"$.x.auth","at":"$.x.dep"}]}
-edge-relative-one-up	graph	x: {auth: {}, billing: {dep: refer() & "..auth"}}	{"edges":[{"from":"$.x.billing","key":"dep","to":"$.x.auth","at":"$.x.billing.dep"}]}
-edge-relative-per-instance	graph	M: {auth: {}, billing: {dep: refer() & "..auth"}}\nT: $.M	{"edges":[{"from":"$.M.billing","key":"dep","to":"$.M.auth","at":"$.M.billing.dep"},{"from":"$.T.billing","key":"dep","to":"$.M.auth","at":"$.T.billing.dep"}]}
+edge-relative-resolves	graph	x: {auth: {}, dep: refer() & path(.auth)}	{"edges":[{"from":"$.x","key":"dep","to":"$.x.auth","at":"$.x.dep"}]}
+edge-relative-one-up	graph	x: {auth: {}, billing: {dep: refer() & path(..auth)}}	{"edges":[{"from":"$.x.billing","key":"dep","to":"$.x.auth","at":"$.x.billing.dep"}]}
+edge-relative-per-instance	graph	M: {auth: {}, billing: {dep: refer() & path(..auth)}}\nT: $.M	{"edges":[{"from":"$.M.billing","key":"dep","to":"$.M.auth","at":"$.M.billing.dep"},{"from":"$.T.billing","key":"dep","to":"$.M.auth","at":"$.T.billing.dep"}]}
 
 # --- Copies and references carry their links -------------------------
 #
 # A link says what a value POINTS AT, and a copy of a link points at the
 # same thing, so both a reference clone and a copy() produce a second
 # edge at the second position.
-edge-through-a-ref-clone	graph	z: {u: refer() & "$.z"}\ns: $.z	{"edges":[{"from":"$.s","key":"u","to":"$.z","at":"$.s.u"},{"from":"$.z","key":"u","to":"$.z","at":"$.z.u"}]}
-edge-through-a-copy	graph	z: {u: refer() & "$.z"}\ns: copy($.z)	{"edges":[{"from":"$.s","key":"u","to":"$.z","at":"$.s.u"},{"from":"$.z","key":"u","to":"$.z","at":"$.z.u"}]}
-edge-ref-to-a-link	graph	z: {u: refer() & "$.z"}\ns: $.z.u	{"edges":[{"from":"$","key":"s","to":"$.z","at":"$.s"},{"from":"$.z","key":"u","to":"$.z","at":"$.z.u"}]}
-edge-copy-of-a-link	graph	z: {u: refer() & "$.z"}\ns: copy($.z.u)	{"edges":[{"from":"$","key":"s","to":"$.z","at":"$.s"},{"from":"$.z","key":"u","to":"$.z","at":"$.z.u"}]}
-edge-ref-to-a-link-in-a-map	graph	z: {u: refer() & "$.z"}\ns: {v: $.z.u}	{"edges":[{"from":"$.s","key":"v","to":"$.z","at":"$.s.v"},{"from":"$.z","key":"u","to":"$.z","at":"$.z.u"}]}
+edge-through-a-ref-clone	graph	z: {u: refer() & path($.z)}\ns: $.z	{"edges":[{"from":"$.s","key":"u","to":"$.z","at":"$.s.u"},{"from":"$.z","key":"u","to":"$.z","at":"$.z.u"}]}
+edge-through-a-copy	graph	z: {u: refer() & path($.z)}\ns: copy($.z)	{"edges":[{"from":"$.s","key":"u","to":"$.z","at":"$.s.u"},{"from":"$.z","key":"u","to":"$.z","at":"$.z.u"}]}
+edge-ref-to-a-link	graph	z: {u: refer() & path($.z)}\ns: $.z.u	{"edges":[{"from":"$","key":"s","to":"$.z","at":"$.s"},{"from":"$.z","key":"u","to":"$.z","at":"$.z.u"}]}
+edge-copy-of-a-link	graph	z: {u: refer() & path($.z)}\ns: copy($.z.u)	{"edges":[{"from":"$","key":"s","to":"$.z","at":"$.s"},{"from":"$.z","key":"u","to":"$.z","at":"$.z.u"}]}
+edge-ref-to-a-link-in-a-map	graph	z: {u: refer() & path($.z)}\ns: {v: $.z.u}	{"edges":[{"from":"$.s","key":"v","to":"$.z","at":"$.s.v"},{"from":"$.z","key":"u","to":"$.z","at":"$.z.u"}]}
 
 # --- rel()-minted links: the predicate is DECLARED -------------------
-rel-list-predicate	graph	a: {}\nb: {}\ns: {dependsOn: rel() & ["$.a", "$.b"]}	{"edges":[{"from":"$.s","key":"dependsOn","to":"$.a","at":"$.s.dependsOn.0"},{"from":"$.s","key":"dependsOn","to":"$.b","at":"$.s.dependsOn.1"}]}
-rel-map-predicate-is-the-rel-key	graph	a: {}\ns: {uses: rel() & {primary: "$.a"}}	{"edges":[{"from":"$.s","key":"uses","to":"$.a","at":"$.s.uses.primary"}]}
-rel-through-a-schema	graph	S: type({dependsOn?: rel()})\na: {}\ns: $.S & {dependsOn: ["$.a"]}	{"edges":[{"from":"$.s","key":"dependsOn","to":"$.a","at":"$.s.dependsOn.0"}]}
-rel-list-element-edge	graph	q: {}\na: [rel() & "$.q"]	{"edges":[{"from":"$","key":"a","to":"$.q","at":"$.a.0"}]}
+rel-list-predicate	graph	a: {}\nb: {}\ns: {dependsOn: rel() & [path($.a), path($.b)]}	{"edges":[{"from":"$.s","key":"dependsOn","to":"$.a","at":"$.s.dependsOn.0"},{"from":"$.s","key":"dependsOn","to":"$.b","at":"$.s.dependsOn.1"}]}
+rel-map-predicate-is-the-rel-key	graph	a: {}\ns: {uses: rel() & {primary: path($.a)}}	{"edges":[{"from":"$.s","key":"uses","to":"$.a","at":"$.s.uses.primary"}]}
+rel-through-a-schema	graph	S: type({dependsOn?: rel()})\na: {}\ns: $.S & {dependsOn: [path($.a)]}	{"edges":[{"from":"$.s","key":"dependsOn","to":"$.a","at":"$.s.dependsOn.0"}]}
+rel-list-element-edge	graph	q: {}\na: [rel() & path($.q)]	{"edges":[{"from":"$","key":"a","to":"$.q","at":"$.a.0"}]}
 # A LIST-ROOT document: the link has nothing but indices above it, so
 # the source is the root and the relation is unlabelled.
-edge-at-a-list-root	graph	[refer() & "$.0"]	{"edges":[{"from":"$","key":"","to":"$.0","at":"$.0"}]}
+edge-at-a-list-root	graph	[refer() & path($.0)]	{"edges":[{"from":"$","key":"","to":"$.0","at":"$.0"}]}

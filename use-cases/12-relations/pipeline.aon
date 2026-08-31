@@ -7,22 +7,22 @@ pipeline: jobs: {
 
   extract: {
     cmd: "fetch --source api"
-    feeds: ["$.pipeline.jobs.transform"]
+    feeds: [path($.pipeline.jobs.transform)]
   }
 
   transform: {
     cmd: "clean --dedup"
-    fedBy: ["$.pipeline.jobs.extract"]
-    feeds: ["$.pipeline.jobs.load", "$.pipeline.jobs.audit"]
+    fedBy: [path($.pipeline.jobs.extract)]
+    feeds: [path($.pipeline.jobs.load), path($.pipeline.jobs.audit)]
   }
 
   load: {
     cmd: "warehouse --commit"
-    fedBy: ["$.pipeline.jobs.transform"]
+    fedBy: [path($.pipeline.jobs.transform)]
   }
 
   audit: {
     cmd: "report --daily"
-    fedBy: ["$.pipeline.jobs.transform"]
+    fedBy: [path($.pipeline.jobs.transform)]
   }
 }

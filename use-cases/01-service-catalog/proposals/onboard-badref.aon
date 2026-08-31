@@ -3,7 +3,7 @@
 # fails the whole evaluation.
 @"../system.aon"
 
-candidate: hide(@"../data/candidate-badref.json")
+candidate: hide(@"../data/candidate-badref.aon")
 
 catalog: domains: platform: services: search:
   $.spec.CatalogEntry & $.candidate

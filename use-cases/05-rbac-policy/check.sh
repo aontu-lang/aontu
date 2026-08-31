@@ -48,49 +48,49 @@ ok "example.aon evaluates to the expected policy document"
 # Since ADR-014 there are no entity identities to keep: a node's name IS
 # its path, so what canon has to preserve is the address a grant was
 # written with. The assertion moved with the mechanism rather than
-# being dropped -- if `$.permissions.admin_all` stopped surviving canon,
+# being dropped -- if `path($.permissions.admin_all)` stopped surviving canon,
 # a round-tripped policy would grant nothing.
 run canon 0 -- --canon "$DIR/example.aon"
-has canon out '"$.permissions.admin_all"'
+has canon out 'path($.permissions.admin_all)'
 has canon out '*"member"|"member"|"admin"|"owner"'
 has canon out 'refer()'
 ok "canon keeps the grant addresses, the * default and refer()"
 
 # ------------------------------------------------- vetting candidates
 # 3. A well-formed candidate is valid, with no warnings.
-run good 0 -- vet "$DIR/tenant.aon" "$DIR/data/tenant-good.json"
+run good 0 -- vet "$DIR/tenant.aon" "$DIR/data/tenant-good.aon"
 has good out 'verdict: valid'
 hasnt good out 'pref_not_instance'
 ok "vet: good tenant is valid and warning-free"
 
 # 4. Conditional shape: a free-plan tenant enabling SSO fails the
 # entitlement disjunction of closed maps.
-run sso 1 -- vet "$DIR/tenant.aon" "$DIR/data/tenant-free-sso.json"
+run sso 1 -- vet "$DIR/tenant.aon" "$DIR/data/tenant-free-sso.aon"
 has sso out 'verdict: invalid'
 has sso out '[aontu/empty]'
 has sso out '$.tenant.entitlement'
 ok "vet: free plan + sso refused by the closed-map disjunction"
 
 # 5. Foreign key: a member holding an undeclared role.
-run role 1 -- vet "$DIR/tenant.aon" "$DIR/data/tenant-unknown-role.json"
+run role 1 -- vet "$DIR/tenant.aon" "$DIR/data/tenant-unknown-role.aon"
 has role out '[aontu/refer_unresolved]'
 ok "vet: unknown role name is a refer_unresolved error"
 
 # 6. Constraint atoms: a reserved slug dies on neq()/re().
-run slug 1 -- vet "$DIR/tenant.aon" "$DIR/data/tenant-bad-slug.json"
+run slug 1 -- vet "$DIR/tenant.aon" "$DIR/data/tenant-bad-slug.aon"
 has slug out '[aontu/constraint]'
 has slug out 'neq("admin"'
 ok "vet: reserved slug refused by neq()+re()"
 
 # 7. Structural implication: no MFA + long sessions fails the
 # security disjunction (the must() form is a silent no-op here).
-run mfa 1 -- vet "$DIR/tenant.aon" "$DIR/data/tenant-no-mfa.json"
+run mfa 1 -- vet "$DIR/tenant.aon" "$DIR/data/tenant-no-mfa.aon"
 has mfa out 'verdict: invalid'
 has mfa out '$.tenant.security'
 ok "vet: no-MFA long-session tenant refused structurally"
 
 # 8. Missing required kind-typed field -> incomplete (exit 3).
-run noname 3 -- vet "$DIR/tenant.aon" "$DIR/data/tenant-no-name.json"
+run noname 3 -- vet "$DIR/tenant.aon" "$DIR/data/tenant-no-name.aon"
 has noname out 'verdict: incomplete'
 has noname out '[aontu/mapval_no_gen]'
 ok "vet: missing name reported incomplete (exit 3)"
@@ -108,12 +108,12 @@ ok "vet: missing name reported incomplete (exit 3)"
 # distributed branch trials surface as scalar_value pairs. Evaluating
 # the same two documents as one reports exactly those conflicts too,
 # which is the point of ADR-007: vet and eval answer the same question.
-run noplan 1 -- vet "$DIR/tenant.aon" "$DIR/data/tenant-no-plan.json"
+run noplan 1 -- vet "$DIR/tenant.aon" "$DIR/data/tenant-no-plan.aon"
 has noplan out '$.tenant.plan: disjunct_no_gen [incomplete]'
 ok "vet: tenant without a plan is refused (disjunct_no_gen)"
 
 # 10. Machine-readable findings carry the same codes.
-run json 1 -- vet --format json "$DIR/tenant.aon" "$DIR/data/tenant-unknown-role.json"
+run json 1 -- vet --format json "$DIR/tenant.aon" "$DIR/data/tenant-unknown-role.aon"
 has json out '"code": "refer_unresolved"'
 has json out '"verdict": "invalid"'
 ok "vet --format json carries the registered error codes"
@@ -200,7 +200,7 @@ ok "repeated form generates the default (member)"
 run plain 1 -- vet "$DIR/exhibits/enum-default-plain.aon" "$DIR/data/invite-superadmin.json"
 has plain out 'verdict: invalid'
 has plain out '[aontu/empty]'
-run plainok 0 -- vet "$DIR/exhibits/enum-default-plain.aon" "$DIR/data/invite-member.json"
+run plainok 0 -- vet "$DIR/exhibits/enum-default-plain.aon" "$DIR/data/invite-member.aon"
 # ...but no longer evaluates on its own: enforcement costs the default.
 # 2026-08-27 (ADR-007): the refusal is now `disjunct_no_gen`, class
 # incomplete -- "more than one alternative still admitted" -- rather

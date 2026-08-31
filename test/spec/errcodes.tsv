@@ -243,9 +243,9 @@ list_length	errcode	conflict	0.53.0
 recursion_unexpanded	errcode	incomplete	0.53.0
 recursion_budget	errcode	budget	0.53.0
 # THE CHECKED LINK (G4 phase 2, `refer(t?)`). Two codes. `refer_address`
-# is the value met being no address at all -- a non-string, or a string
-# that is not one -- class `parse`, because what is wrong is the text
-# and no later pass can repair it. `refer_unresolved` is a well-formed
+# is the value met being no address at all -- anything that is not a
+# path value, bare strings included (ADR-016) -- class `parse`, because
+# what is wrong is the text and no later pass can repair it. `refer_unresolved` is a well-formed
 # address that names nothing in this evaluation -- class `reference`,
 # the same class as `no_path`, because it is the same kind of miss.
 # Integrity is a UNIFICATION-time property: within one evaluation the
@@ -260,8 +260,8 @@ refer_unresolved	errcode	reference	0.53.0
 rel_address	errcode	parse	0.53.0
 rel_unresolved	errcode	reference	0.53.0
 # FIRST-CLASS PATHS (docs/design/PATHS.0.md). One code: text that is
-# not a tree address, met by `path(p)`'s capture or by the promotion
-# meet `path() & "..."`. Class `parse` for refer_address's reason --
+# not a tree address, met by `path(p)`'s capture -- literal or computed
+# argument alike (ADR-016). Class `parse` for refer_address's reason --
 # what is wrong is the text, and no later pass can repair it. An
 # address that names nothing is NOT a path error: a path value is
 # data, and existence stays refer()'s contract.

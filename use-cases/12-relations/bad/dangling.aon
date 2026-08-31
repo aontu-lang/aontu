@@ -4,5 +4,5 @@
 @"../model.aon"
 
 pipeline: jobs: audit: {
-  feeds: ["$.pipeline.jobs.archive"]
+  feeds: [path($.pipeline.jobs.archive)]
 }

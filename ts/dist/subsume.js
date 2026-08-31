@@ -9,6 +9,7 @@ const vet_1 = require("./vet");
 const hcanon_1 = require("./hcanon");
 const ConstraintVal_1 = require("./val/ConstraintVal");
 const ScalarKindVal_1 = require("./val/ScalarKindVal");
+const PathVal_1 = require("./val/PathVal");
 const PrefVal_1 = require("./val/PrefVal");
 const DEFAULT_GENERAL_URL = 'general';
 const DEFAULT_SPECIFIC_URL = 'specific';
@@ -297,8 +298,14 @@ function subsumeNode(state, path, g0, s0) {
         return 'no';
     }
     // Concrete scalars subsume only themselves (identity compares kind
-    // as well as value).
+    // as well as value) -- except paths, whose meet is the prefix rule
+    // (ADR-016): a prefix admits every extension of itself, so it
+    // subsumes one, exactly as the meet answers the longer.
     if (true === g?.isScalar) {
+        if (true === g.isPath && true === s?.isPath &&
+            (0, PathVal_1.prefixMeet)(g.peg, s.peg) === s.peg) {
+            return 'yes';
+        }
         if (true === s?.isScalar && true === g.same?.(s)) {
             return 'yes';
         }

@@ -12,5 +12,5 @@
 
 infra: {
   bastion: { kind: host, name: "bastion-eu1" }
-  runner: { hostedOn: rel($.std.Service) & ["$.infra.bastion"] }
+  runner: { hostedOn: rel($.std.Service) & [path($.infra.bastion)] }
 }

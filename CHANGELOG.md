@@ -7,6 +7,37 @@ which implementation each change affects.
 
 ## Unreleased
 
+### A string is never a path; paths meet by prefix (ADR-016)
+
+Both ports. **Breaking**, tightening ADR-015 below: the string
+bridges are gone. The `path(...)` call's own argument is the one
+conversion — a string literal converts at capture, and a computed
+argument (an expression, a reference to a string) evaluates first and
+converts by the same grammar, so addresses stay buildable:
+
+```aon
+accountFor: refer() & path("$.customers." + key())
+```
+
+Everywhere else a string stays a string: `path() & "$.a"` refuses as
+`integer & "x"` does (the kind no longer promotes), `refer()` refuses
+a string address (`refer_address`), and `rel()` refuses string leaves
+(`rel_address`). Data documents that carry addresses are Aontu
+documents now — a JSON file cannot spell a path — and the corpus's
+agent-emitted records moved from `.json` to `.aon` accordingly.
+
+Two path values unify when one spells a **prefix** of the other, and
+the result is the longer: `path($.a) & path($.a.b)` is
+`path($.a.b)`; incomparable spellings refuse (`scalar_value`);
+subsumption follows (a prefix subsumes its extensions). The refer
+residual folds after plain values so sibling paths merge before it
+settles, a second path peer refines a pending address by the same
+rule, and the resolved link is itself a path value — canon renders
+every address as the call (`refer(t)&path($.a)`). The string-domain
+constraints treat a path as a string with more structure: `re()` and
+`length()` check the spelling, and `neq(path($.x))` excludes by path
+identity.
+
 ### First-class paths and the container kinds: `path(p?)`, `map()`, `list()`
 
 Both ports. **Breaking**: `path(p)` no longer resolves its argument —

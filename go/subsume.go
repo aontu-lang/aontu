@@ -430,8 +430,18 @@ func subsumeNode(st *subState, path []string, g0, s0 Val) string {
 		return subNo
 	}
 
-	// Concrete scalars subsume only themselves.
-	if _, ok := g.(*ScalarVal); ok {
+	// Concrete scalars subsume only themselves -- except paths, whose
+	// meet is the prefix rule (ADR-016): a prefix admits every
+	// extension of itself, so it subsumes one, exactly as the meet
+	// answers the longer. Mirrors the same arm in ts/src/subsume.ts.
+	if gv, ok := g.(*ScalarVal); ok {
+		if sv, ok := s.(*ScalarVal); ok &&
+			KindPath == gv.kind && KindPath == sv.kind {
+			if m, mok := prefixMeet(gv.peg.(string), sv.peg.(string)); mok &&
+				m == sv.peg.(string) {
+				return subYes
+			}
+		}
 		if _, ok := s.(*ScalarVal); ok && valSame(g, s) {
 			return subYes
 		}

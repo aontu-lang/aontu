@@ -334,7 +334,7 @@ use:
 
 ```
 a: { feeds: rel() & acyclic() & ["$.b"] }
-b: { feeds: rel() & ["$.a"] }
+b: { feeds: rel() & [path($.a)] }
     → refused: [aontu/relation_cycle] at $.a.feeds
 ```
 
