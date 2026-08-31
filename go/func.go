@@ -182,11 +182,10 @@ func arityText(lo, hi int) string {
 			return "no arguments or one"
 		}
 		return "one argument or two"
-	// NO {0,0} ARM. unique was the only built-in taking none, and its one
-	// argument is now the projector the arity was reserved for (finding
-	// I), so a phrasing for a count no entry carries would be untested
-	// prose pretending to be tested -- the rule this function's header
-	// states. The arm returns with the table, if one ever does.
+	// The {0,0} arm returned with the container kinds and acyclic()
+	// (ADR-015): map(1) must not claim map takes exactly one.
+	case 0 == hi:
+		return "no arguments"
 	case 2 == hi:
 		return "exactly two arguments"
 	default:

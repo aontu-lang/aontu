@@ -165,6 +165,9 @@ func-arity-two-given	errc	a:upper("x","y")	func_arity
 func-arity-constraint-two	errc	a:min(1,2)	func_arity
 func-arity-key-two	errc	a:key(1,2)	func_arity
 func-arity-msg	err	a:upper("x","y")	upper takes exactly one argument, but was given 2
+# A zero-arity builtin renders its own phrasing: before the {0,0} arm
+# (ADR-015's kinds returned it), map(1) claimed map takes exactly one.
+func-arity-none-msg	err	a:map(1)	map takes no arguments, but was given 1
 # key takes NONE or one (how many levels up the path to read), and neq
 # takes one or more (a set of exclusions). Both are real arities, not
 # exemptions, so both spellings must keep working.
