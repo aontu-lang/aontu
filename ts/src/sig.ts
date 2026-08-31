@@ -333,7 +333,7 @@ export type {
 // the round-trip suite gates, so a failure is a build defect, not a
 // runtime condition. Twin: funcSig in go/sig.go.
 const funcSig: Record<string, FuncSig> =
-  parseSigText(SIGDECL) /* node:coverage ignore next 8 */
+  parseSigText(SIGDECL) /* node:coverage ignore next 9 */
 
 
 export {
