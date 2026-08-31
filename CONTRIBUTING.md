@@ -60,7 +60,7 @@ bypasses trusted publishing entirely.
 
 ## Where use-cases/ fits
 
-[use-cases/](use-cases/) is the executable review: eleven enterprise
+[use-cases/](use-cases/) is the executable review: sixteen enterprise
 scenarios driven through the real CLI, with verified defects in
 [use-cases/BUGS.md](use-cases/BUGS.md) and minimal reproductions under
 [use-cases/repros/](use-cases/repros/). Those repros are **candidates

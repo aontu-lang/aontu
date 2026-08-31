@@ -108,6 +108,14 @@ at generation with both sides named.
  Cannot unify value: "core"|"util" with value: "feature"
 ```
 
+**And it holds for the spelling above, not for its mirror image.**
+Which target shape reaches the far end depends on the order the blocks
+are written in: `bad/upward.aon` writes the offending module first and
+refuses, `bad/upward-swapped.aon` writes its target first and the same
+edge generates. Both are pinned by `check.sh`, the second as a known
+miss. The mechanism is right and the flow that carries it is not
+order-independent yet, which is the largest thing this case found.
+
 ## The model
 
 `spec.aon` is the vocabulary and the rule; `modules.aon` is the
@@ -140,28 +148,40 @@ of an edge rather than the edge itself.
    inverse written; `aontu relations` passes on the same document.
 2. An upward dependency (core on feature) refuses at generation, and
    the message names both layers.
-3. A cycle between two util modules — legal by layer — refuses with a
+3. The same edge with its two blocks swapped still generates — pinned
+   as a known miss, so the corpus says what the engine does and the
+   assertion flips when the flow stops depending on order.
+4. A cycle between two util modules — legal by layer — refuses with a
    located `relation_cycle`, and the verb names the loop it runs
    through.
-4. An edge whose mirror was never written refuses, and the verb names
+5. An edge whose mirror was never written refuses, and the verb names
    the exact absent entry.
-5. A dependency on a module nobody wrote refuses inside the
+6. A dependency on a module nobody wrote refuses inside the
    evaluation (`rel_unresolved`): existence is decided, never
    deferred.
-6. `aontu reaches --relation dependsOn` answers the closure question
+7. `aontu reaches --relation dependsOn` answers the closure question
    both ways: `cli` reaches `bytes` through three hops, and `bytes`
    reaches nothing.
-7. The tree draws: three derived roots, nine elided repeats, pinned
+8. The tree draws: three derived roots, nine elided repeats, pinned
    byte for byte.
-8. `tree --root $.mods.billing` draws one module's own closure, and a
+9. `tree --root $.mods.billing` draws one module's own closure, and a
    `--root` naming no node refuses rather than drawing an empty tree.
-9. The dependency-structure matrix draws, pinned the same way.
-10. The tree of the *cyclic* model terminates, marking the closing
+10. The dependency-structure matrix draws, pinned the same way.
+11. The tree of the *cyclic* model terminates, marking the closing
     edge `(cycle)` instead of recursing into it.
-11. `aontu get` reads a module's layer and directory off the model.
+12. `aontu get` reads a module's layer and directory off the model.
 
 ## Boundaries hit while writing it
 
+- **The layering rule is order-dependent, and that is a defect.**
+  `rel(t)`'s flow into the far end of an edge carries the narrow
+  per-layer shape when the source module's block is written first, and
+  a wider shape when the target's is. The same illegal edge is
+  therefore refused in one spelling and generated in another
+  (`bad/upward.aon` against `bad/upward-swapped.aon`, both pinned).
+  A rule that depends on declaration order is not yet a rule, and the
+  case says so rather than claiming a guarantee the engine does not
+  give.
 - **A mutual dependency was invisible to the renderer, and this case
   found it.** `tools/diagram.js` collapses the two written directions
   of a declared inverse into one logical edge, or every relation with

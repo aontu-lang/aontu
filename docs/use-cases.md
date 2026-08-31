@@ -528,8 +528,12 @@ CoreDep: { kind: mod, layer: "core" | "util" }
 
 An upward edge then refuses at generation as an ordinary conflict
 naming both sides, and a loop between two modules of the *same* layer
-— which the layering allows — refuses under `acyclic()`. The same
-edges are drawn two ways and pinned as goldens: a dependency tree,
+— which the layering allows — refuses under `acyclic()`. The refusal
+is not yet order-independent: which target shape reaches the far end
+of an edge depends on the order the blocks are written in, so the case
+pins both the refusal and, as a known miss, the swapped spelling that
+still generates. The same edges are drawn two ways and pinned as
+goldens: a dependency tree,
 with derived roots and every repeated subtree elided the way
 `cargo tree` elides one, and a dependency-structure matrix. The
 layered codebase, its refusals and its views:

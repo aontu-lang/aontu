@@ -62,6 +62,16 @@ has upward err '[aontu/empty]'
 has upward err 'Cannot unify value: "core"|"util" with value: "feature"'
 ok "upward dependency: core on feature refuses, naming both layers"
 
+# 3b. THE SAME EDGE, WRITTEN THE OTHER WAY ROUND, IS ACCEPTED. Which
+# target shape reaches the far end of an edge depends on the order the
+# blocks are written in, so the rule above holds for the spelling
+# above and not for its mirror image. This assertion pins what the
+# engine does TODAY, as a known miss: it fails, loudly, the day the
+# flow stops depending on declaration order -- which is the point of
+# pinning it.
+run swapped 0 -- "$DIR/bad/upward-swapped.aon"
+ok "KNOWN MISS: the same upward edge, blocks swapped, still generates"
+
 # 4. A cycle between two util modules -- legal by layer, refused by
 # acyclic() -- reports at generation and from the verb, naming the
 # loop it runs through.

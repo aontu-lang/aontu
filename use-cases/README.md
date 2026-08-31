@@ -60,7 +60,9 @@ and, in case 09, `MCP` — to point at a different build.
 ## Diagrams
 
 Five cases carry generated diagrams, pinned as goldens by their
-`check.sh` and rendered inline in their README (GitHub draws Mermaid):
+`check.sh` and rendered inline in their README — as Mermaid, which
+GitHub draws, or as fixed-pitch text where the figure is character
+cells (the dependency tree and the matrix):
 
 | case | views |
 |---|---|
