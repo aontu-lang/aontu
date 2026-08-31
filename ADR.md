@@ -1667,3 +1667,42 @@ Fifteen spec rows moved from bare `invalid-arg` to `func_arg` (the
 case family's operand, the arithmetic operands, join's separator);
 every bespoke code stays. Design and deltas:
 docs/design/SIGNATURES.0.md.
+
+## ADR-018 — The pipe operator is removed
+
+**Date:** 2026-08-31
+**Status:** Accepted
+
+### Context
+
+G8 phase 4 added `|>` as parse-time sugar: `x |> f(a)` WAS `f(x, a)`,
+never reaching a Val, never appearing in canon. The plan had allowed
+dropping the phase if call nesting proved acceptable; it landed
+without adoption evidence either way. What it cost was real grammar:
+a third `|`-family operator with its own (loosest) precedence, a
+carve-out for constraint atoms that already built, an error code for
+piping into a non-call, and — measured while it lived — the one
+spelling in the language that could synthesise an UNSITED value,
+which the `why` and `patch` surfaces then had to special-case.
+
+### Decision
+
+The pipe is removed, fully: the operator from both grammars, the
+call-rebuilding machinery (`pipeTerms`/`pipeCall`, the `callterms`
+riders, Go's `piped` site suppression), `test/spec/pipe.tsv`, the
+`pipe_target` error code (a code removal is an ADR matter — ADR-011
+is the precedent for changing the code contract by ADR), and the
+documentation. Every spelling it covered has the ordinary form:
+`x |> f(a)` is written `f(x, a)`.
+
+### Consequences
+
+Sources using `|>` no longer parse — a breaking change, recorded in
+the CHANGELOG. With the one unsited-value spelling gone, patch's
+span-verification refusal arm is unreachable through `patch`; it is
+KEPT, because splicing without span verification corrupts the file,
+and the last step before a splice becomes its own seam
+(`verifiedSite`) in both ports, unit-tested with conjuncts the engine
+would never produce — the footing `spanHolds` already stood on, and
+no coverage exclusion needed. The G8 phase 4 register row is flipped
+to REMOVED; the design record stands.

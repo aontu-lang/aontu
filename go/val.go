@@ -411,14 +411,6 @@ type NilVal struct {
 	// details parameterises hint text ({src}, {left}, {sum}, ...) and
 	// carries the `key` submessage prefix, mirroring TS NilVal.details.
 	details map[string]string
-	// callterms is the CALL AS WRITTEN, carried by an arity refusal so
-	// a pipe can rebuild it with one more argument on the front (G8
-	// phase 4): `x |> upper()` is `upper(x)`, and the arity this nil
-	// failed on is the arity of a call one argument short of the one
-	// the author actually wrote. Parse-time only; nothing downstream
-	// reads it, and a clone does not carry it. Mirrors the `_callterms`
-	// property ts/src/lang.ts puts on the same nil.
-	callterms []any
 	primary   Val
 	secondary Val
 }

@@ -275,3 +275,42 @@ func TestSpanHoldsRefusesWhatItCannotAccountFor(t *testing.T) {
 		t.Fatalf("utf-16 column did not resolve: %q", spanAt(utf, at(1, 9, 5), "\"old\""))
 	}
 }
+
+// THE LAST STEP BEFORE A SPLICE, taken as a whole: verifiedSite either
+// refuses or names the replacement span. The refusal cannot be reached
+// through patch since ADR-018 — no source spelling leaves a conjunct
+// unsited any more — so it is exercised here the way spanHolds is:
+// with a conjunct the engine would never produce. The TS twin is
+// verifiedsite-refuses-the-span-that-does-not-hold.
+func TestVerifiedSiteRefusesTheSpanThatDoesNotHold(t *testing.T) {
+	src := "a: 42\n"
+
+	// The written conjunct: proceeds to a replacement site.
+	good, gf := verifiedSite(src, "$.a", WhyConjunct{
+		Canon: "42", Role: "literal",
+		Site: WhySite{File: "over.aon", Row: 1, Col: 4, Len: 2}, Src: "42",
+	})
+	if nil != gf {
+		t.Fatalf("the written conjunct must not refuse: %+v", gf)
+	}
+	if nil == good || "42" != good.From || 1 != good.Row {
+		t.Fatalf("wrong replacement site: %+v", good)
+	}
+
+	// The conjunct whose coordinates do not describe this text: the
+	// write-safety refusal, class internal — the recorded span failing
+	// to check out is the engine's fault, never the document's.
+	bad, bf := verifiedSite(src, "$.a", WhyConjunct{
+		Canon: "42", Role: "literal",
+		Site: WhySite{File: "over.aon", Row: 3, Col: 1, Len: 2}, Src: "42",
+	})
+	if nil != bad {
+		t.Fatalf("a span that does not hold must not name a site: %+v", bad)
+	}
+	if nil == bf || "patch_span_mismatch" != bf.Code || "internal" != bf.Class {
+		t.Fatalf("wrong refusal: %+v", bf)
+	}
+	if !strings.Contains(bf.Message, "cannot be verified before writing") {
+		t.Fatalf("wrong message: %q", bf.Message)
+	}
+}

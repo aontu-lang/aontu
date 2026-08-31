@@ -681,10 +681,8 @@ help isolate the syntax error.`,
     addsite(new NilVal({ why: 'incomplete_expression' }), r, ctx)
 
   // Build a call from a NAME and the argument terms as the author
-  // wrote them. Shared by the `func(...)` handler and by the pipe,
-  // which is the same call with one more argument on the front — so
-  // the arity check, the comma-group rule and the raw-value conversion
-  // are stated once and both spellings get all three.
+  // wrote them: the arity check, the comma-group rule and the
+  // raw-value conversion, stated once.
   const buildCall = (r: Rule, ctx: JsonicContext,
     fname: string, argterms: any[]): any => {
     const funcval = funcMap[fname]
@@ -716,12 +714,6 @@ help isolate the syntax error.`,
           want: arityText(arity[0], arity[1]),
           got: '' + got,
         }
-        // The CALL AS WRITTEN rides the refusal (G8 phase 4): a pipe
-        // rebuilds `x |> upper()` as `upper(x)`, and the arity it fails
-        // on here is the arity of a call one argument short of the one
-        // the author actually wrote.
-        nil._callname = fname
-        nil._callterms = argterms
         return addsite(nil, r, ctx)
       }
     }
@@ -752,42 +744,7 @@ help isolate the syntax error.`,
       new NilVal({ why: 'unknown_function' }) :
       new funcval({ peg: args })
 
-    // The call as written, for the pipe to rebuild from. Parse-time
-    // only: nothing downstream reads it, and a clone does not carry it.
-    //
-    // NOT on a constraint atom that BUILT: an atom with its argument
-    // list complete is a residual, not a call waiting for a subject,
-    // and `1 |> neq(2,3)` is asking for `1 & neq(2,3)` -- which is
-    // what `&` is for. (An atom the arity check REFUSED still carries
-    // it, on the nil above: `1 |> min()` is `min(1)`, and that is a
-    // call waiting for a subject.) The Go port cannot rebuild a built
-    // atom at all -- its residual keeps no atom name -- so this is
-    // also what keeps the two ports answering the same thing.
-    if (true !== val.isConstraint) {
-      val._callname = fname
-      val._callterms = argterms
-    }
-
     return val
-  }
-
-
-  // The argument terms `f(...)` would have been written with, had the
-  // piped value been written into it. A comma group is one raw-array
-  // term: for a POSITIONAL function the group is separate arguments,
-  // so the piped value joins them; for a constraint atom the group IS
-  // the argument list, so the piped value joins the list instead.
-  const pipeTerms = (call: any, val: any): any[] => {
-    const written: any[] = call._callterms
-    const group = 1 === written.length && Array.isArray(written[0]) ?
-      written[0] : written
-
-    if (0 === group.length) {
-      return [val]
-    }
-
-    return true === POSITIONAL_ARG_FUNCS[call._callname] ?
-      [val, ...group] : [[val, ...group]]
   }
 
 
@@ -909,41 +866,6 @@ help isolate the syntax error.`,
       return addsite(val, r, ctx)
     },
 
-    // THE PIPE `|>` (G8 phase 4): parse-time sugar and nothing else.
-    // `x |> f(a)` IS `f(x, a)` -- the piped value goes in as the FIRST
-    // argument, Elixir-style, because every Aontu call is data-first
-    // already (`close(x)`, `pack(data, tmpl)`) and a pipe must read the
-    // way the calls it replaces read. It never reaches a Val: by the
-    // time the tree exists the call is an ordinary call, which is why
-    // canon can never emit the token and the two ports' canon stay
-    // byte-identical without either knowing about it.
-    'pipe-infix': (r: Rule, ctx: JsonicContext, _op: Op, terms: any) => {
-      const val = terms[0]
-      const call: any = terms[1]
-
-      if (null == val || null == call) return incompleteNil(r, ctx)
-
-      // The right-hand side is a CALL: either one the func handler
-      // already built, or one it refused for an arity the pipe is about
-      // to satisfy. Both carry what they were written as.
-      if (null != call._callname) {
-        return buildCall(r, ctx, call._callname, pipeTerms(call, val))
-      }
-
-      // ... or a bare NAME, which is the whole point of the short
-      // spelling: `x |> upper` is `upper(x)`. A bare word has already
-      // become a string VALUE by the time an infix operator sees it, so
-      // this is where a string becomes a call.
-      if (true === call?.isScalar && 'string' === typeof call.peg &&
-        null != funcMap[call.peg]) {
-        return buildCall(r, ctx, call.peg, [val])
-      }
-
-      // Anything else is not a call, and a pipe into a non-call is a
-      // mistake in the source rather than a value.
-      return addsite(new NilVal({ why: 'pipe_target' }), r, ctx)
-    },
-
     'func-paren': (r: Rule, ctx: JsonicContext, _op: Op, terms: any) => {
       let val = terms[1]
       const fname = terms[0]
@@ -973,14 +895,6 @@ help isolate the syntax error.`,
 
         'disjunct': {
           infix: true, src: '|', left: 14_000_000, right: 15_000_000
-        },
-
-        // G8 phase 4: the pipe. LOOSEST of all the infix operators, so
-        // `a & b |> f` pipes the whole meet and not just `b` -- a pipe
-        // reads as "and then", which is a statement about everything to
-        // its left. Kept in lock-step with the op table in go/lang.go.
-        'pipe-infix': {
-          infix: true, src: '|>', left: 12_000_000, right: 13_000_000
         },
 
         'plus-infix': {

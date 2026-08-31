@@ -103,12 +103,10 @@ patch-inplace-disjunct-refused	patch	a: integer	{"inPlace":true,"overlay":"a: 1|
 patch-inplace-ambiguous-refused	patch	a: integer	{"inPlace":true,"overlay":"a: 1\\na: 1\\n","set":["$.a=5"]}	{"appended":["\\"a\\": 5"],"codes":["patch_ambiguous","scalar_value"],"overlay":"a: 1\\na: 1\\n\\"a\\": 5\\n","verdict":"invalid"}
 patch-inplace-spread-refused	patch	svc: { a: { r: integer } }	{"inPlace":true,"overlay":"svc: {\\n  &: { r: 3 }\\n  a: {}\\n}\\n","set":["$.svc.a.r=5"]}	{"appended":["\\"svc\\": \\"a\\": \\"r\\": 5"],"codes":["patch_not_editable","scalar_value"],"overlay":"svc: {\\n  &: { r: 3 }\\n  a: {}\\n}\\n\\"svc\\": \\"a\\": \\"r\\": 5\\n","verdict":"invalid"}
 patch-inplace-ref-refused	patch	base: integer\nn: integer	{"inPlace":true,"overlay":"base: 7\\nn: $.base\\n","set":["$.n=5"]}	{"appended":["\\"n\\": 5"],"codes":["patch_not_editable","scalar_value"],"overlay":"base: 7\\nn: $.base\\n\\"n\\": 5\\n","verdict":"invalid"}
-# A contribution with NO EXTENT AT ALL, which the pipe operator makes:
-# `x: hello |> upper` rewrites into a call the parser never sited, so the
-# contribution is literal-role with row, col and len all -1 and an empty
-# src. The guard is load-bearing rather than defensive -- an empty src
-# would PASS the span verification below it (the slice is empty and so is
-# the text it is compared to) and then splice zero characters, INSERTING
-# the new value into the middle of the line instead of replacing
-# anything.
-patch-inplace-no-extent-refused	patch	x: string	{"inPlace":true,"overlay":"x: hello |> upper\\n","set":["$.x=\\"BYE\\""]}	{"appended":["\\"x\\": \\"BYE\\""],"codes":["patch_span_mismatch","scalar_value"],"overlay":"x: hello |> upper\\n\\"x\\": \\"BYE\\"\\n","verdict":"invalid"}
+# (A no-extent row stood here while the pipe existed: `x: hello |>
+# upper` synthesised a contribution the parser never sited, and the
+# span check refused it. ADR-018 removed the pipe, and with it the one
+# spelling that reached that refusal from source; the span
+# verification itself remains in both ports as an exported seam,
+# pinned by unit tests with conjuncts the engine would never produce
+# -- splicing without it would corrupt the file.)

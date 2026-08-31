@@ -160,6 +160,34 @@ const patch_1 = require("../dist/patch");
         // INSERTING the new value instead of replacing anything.
         Assert.strictEqual((0, patch_1.spanHolds)(src, { row: 1, col: 4, len: 0 }, '42'), false);
     });
+    // THE LAST STEP BEFORE A SPLICE, taken as a whole: `verifiedSite`
+    // either refuses or names the replacement span. The refusal cannot
+    // be reached through `patch` since ADR-018 — no source spelling
+    // leaves a conjunct unsited any more — so it is exercised here the
+    // way `spanHolds` is: with a conjunct the engine would never
+    // produce. The Go twin is TestVerifiedSiteRefusesTheSpanThatDoesNotHold.
+    (0, node_test_1.test)('verifiedsite-refuses-the-span-that-does-not-hold', () => {
+        const src = 'a: 42\n';
+        // The written conjunct: proceeds to a replacement site.
+        const good = (0, patch_1.verifiedSite)(src, '$.a', {
+            canon: '42', role: 'literal',
+            site: { file: 'over.aon', row: 1, col: 4, len: 2 }, src: '42',
+        });
+        Assert.strictEqual(good.finding, undefined);
+        Assert.strictEqual(good.site?.from, '42');
+        Assert.strictEqual(good.site?.row, 1);
+        // The conjunct whose coordinates do not describe this text: the
+        // write-safety refusal, class `internal` — the recorded span
+        // failing to check out is the engine's fault, never the document's.
+        const bad = (0, patch_1.verifiedSite)(src, '$.a', {
+            canon: '42', role: 'literal',
+            site: { file: 'over.aon', row: 3, col: 1, len: 2 }, src: '42',
+        });
+        Assert.strictEqual(bad.site, undefined);
+        Assert.strictEqual(bad.finding?.code, 'patch_span_mismatch');
+        Assert.strictEqual(bad.finding?.class, 'internal');
+        Assert.match(bad.finding?.message ?? '', /cannot be verified before writing/);
+    });
     // WHAT DOES THIS TEXT MEAN ON ITS OWN? The check that makes a splice
     // safe, and the one `role === 'literal'` looks like it makes: a
     // COMPOUND value's site names only its opening token, so `min` must

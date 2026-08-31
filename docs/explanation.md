@@ -780,10 +780,12 @@ today.
 - **No user-defined functions.** The function set is fixed (41
   built-ins today, the constraint atoms, the graph atoms, identity and
   the generator combinators included). This keeps the language total
-  and analysable. Of the [`IDEAS.md`](../IDEAS.md) sketches, piping
-  (`|>`) and the placeholder `_` ARE now implemented — as fixed
-  syntax, via the [G8 design](capability-review/g8-generation.md) —
-  while custom functions were considered there and refused: a
+  and analysable. Of the [`IDEAS.md`](../IDEAS.md) sketches, the
+  placeholder `_` IS now implemented — as fixed syntax, via the
+  [G8 design](capability-review/g8-generation.md); the pipe (`|>`)
+  was implemented there too and later removed (ADR-018) as a second
+  spelling of an ordinary call — while custom functions were
+  considered there and refused: a
   recursive function is a fixpoint of the program, and its termination
   is undecidable. [Recursive schemas](#recursive-schemas-and-residuals)
   stand on the other side of that line: they recurse on finite data,

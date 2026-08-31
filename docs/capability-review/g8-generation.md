@@ -2,7 +2,11 @@
 
 *Status: implemented — all five phases landed in both ports: `pack`,
 `each`, `filter`, `match`, the placeholder `_`, and phase 4's `|>`
-pipe (phase 0's defect-fencing half went with G1 phase 0). Per-phase status is in
+pipe (phase 0's defect-fencing half went with G1 phase 0). **Phase 4
+was later REMOVED (ADR-018, 2026-08-31)**: the pipe was a second
+spelling of an ordinary call, and its precedence and atom carve-out
+cost more grammar than the reading bought; the design text below
+stands as the record of what was built and why. Per-phase status is in
 the [progress register](progress.md), which is authoritative for status;
 this document is authoritative for design. Part of the
 [capability review](index.md) (August 2026). This document expands gap

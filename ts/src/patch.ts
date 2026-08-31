@@ -333,34 +333,36 @@ function editableLiteral(
     }
   }
 
-  const one = literals[0]
+  return verifiedSite(overlaySrc, path, literals[0])
+}
 
-  // THE SPAN MUST CHECK OUT, and this is one condition rather than two.
-  //
-  // A first draft tested "no extent" separately from "the text
-  // disagrees", which read as two guards and was really one question
-  // asked twice — with the second half unreachable, since denying
-  // includes means the site comes from evaluating THIS TEXT with
-  // nothing loaded, so its coordinates describe this text by
-  // construction. Merged, the question is reachable through the case
-  // that has no extent at all (`x: hello |> upper` synthesises a call
-  // the parser never sited), so the check is exercised rather than
-  // argued for — and `spanHolds` is exported and tested against sites
-  // the engine would never produce, which is the only way to reach the
-  // half that remains theoretical.
-  //
-  // It is load-bearing either way: a contribution with no `src` would
-  // otherwise splice ZERO characters, INSERTING the new value into the
-  // middle of a line instead of replacing anything.
+
+// THE SPAN MUST CHECK OUT before anything splices. The refusal arm is
+// unreachable through `patch` since ADR-018: the pipe (`x: hello |>
+// upper`) was the one spelling that synthesised a contribution the
+// parser never sited, and denying includes means every WRITTEN
+// contribution's coordinates describe this text by construction. The
+// verification is kept rather than deleted — splicing without it would
+// corrupt the file (a contribution with no `src` would splice ZERO
+// characters, INSERTING the new value into the middle of a line) — and
+// this last step is its own exported seam so the refusal can be tested
+// directly, against conjuncts the engine would never produce, on the
+// same footing as `spanHolds` itself.
+export function verifiedSite(
+  overlaySrc: string,
+  path: string,
+  one: WhyConjunct,
+): { site: PatchReplacement | undefined, finding: VetFinding | undefined } {
   if (!spanHolds(overlaySrc, one.site, one.src)) {
-    return {
-      site: undefined,
-      finding: notEditable('patch_span_mismatch', path,
-        'the overlay does not hold ' + JSON.stringify(one.src) + ' at ' +
-        one.site.row + ':' + one.site.col + ' (len ' + one.site.len +
-        '), so the span cannot be verified before writing',
-        [one]),
-    }
+    const finding = notEditable('patch_span_mismatch', path,
+      'the overlay does not hold ' + JSON.stringify(one.src) + ' at ' +
+      one.site.row + ':' + one.site.col + ' (len ' + one.site.len +
+      '), so the span cannot be verified before writing',
+      [one])
+    // The one internal-class refusal: a recorded span failing to check
+    // out is the engine's fault, never the document's.
+    finding.class = 'internal'
+    return { site: undefined, finding }
   }
 
   // DOES THE SPAN MEAN THE WHOLE CONTRIBUTION?
@@ -479,7 +481,9 @@ function notEditable(
 ): VetFinding {
   return {
     code,
-    class: 'patch_span_mismatch' === code ? 'internal' : 'reference',
+    // Always `reference`; the one internal-class refusal
+    // (patch_span_mismatch) overrides at its call site.
+    class: 'reference',
     severity: 'warning',
     path,
     // No separate `note`: the renderer prints both, and a note that

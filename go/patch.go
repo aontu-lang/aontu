@@ -346,10 +346,6 @@ func spanValue(src string) (canon string, concrete, ok bool) {
 // the finding adds is the reason, which is the whole value of asking
 // for InPlace over a plain append.
 func notEditable(code, path, why string, from []WhyConjunct) VetFinding {
-	class := "reference"
-	if "patch_span_mismatch" == code {
-		class = "internal"
-	}
 	sites := make([]VetSite, len(from))
 	for i, c := range from {
 		sites[i] = VetSite{
@@ -363,7 +359,9 @@ func notEditable(code, path, why string, from []WhyConjunct) VetFinding {
 		}
 	}
 	return VetFinding{
-		Class: class,
+		// Always reference; the one internal-class refusal
+		// (patch_span_mismatch) overrides at its call site.
+		Class: "reference",
 		Code:  code,
 		// No separate Note: the renderer prints both, and a note that
 		// restates its own message is noise wearing a second label.
@@ -475,18 +473,23 @@ func editableLiteral(
 		return nil, &f
 	}
 
-	one := literals[0]
+	return verifiedSite(overlaySrc, path, literals[0])
+}
 
-	// An included file is somebody else's document as far as the
-	// overlay is concerned.
-	// THE SPAN MUST CHECK OUT, and this is one condition rather than
-	// two. The full note is on the canonical port: merging "no extent"
-	// with "the text disagrees" makes the check REACHABLE, through the
-	// case that has no extent at all, instead of half-unreachable.
-	//
-	// It is load-bearing either way: a contribution with no Src would
-	// otherwise splice ZERO bytes, INSERTING the new value into the
-	// middle of a line instead of replacing anything.
+// verifiedSite: THE SPAN MUST CHECK OUT before anything splices. The
+// refusal arm is unreachable through patch since ADR-018 removed the
+// pipe -- the one spelling that synthesised a contribution the parser
+// never sited -- and every WRITTEN contribution's coordinates describe
+// this text by construction. The verification is kept rather than
+// deleted (splicing without it would corrupt the file: a contribution
+// with no Src would splice ZERO bytes, INSERTING the new value into
+// the middle of a line), and this last step is its own seam so the
+// refusal is tested directly, against conjuncts the engine would never
+// produce, on the same footing as spanHolds itself. Full note on the
+// canonical port.
+func verifiedSite(
+	overlaySrc, path string, one WhyConjunct,
+) (*PatchReplacement, *VetFinding) {
 	if !spanHolds(overlaySrc, one.Site, one.Src) {
 		f := notEditable("patch_span_mismatch", path,
 			"the overlay does not hold "+jsonString(one.Src)+" at "+
@@ -494,6 +497,9 @@ func editableLiteral(
 				itoa(one.Site.Len)+"), so the span cannot be verified "+
 				"before writing",
 			[]WhyConjunct{one})
+		// The one internal-class refusal: a recorded span failing to
+		// check out is the engine's fault, never the document's.
+		f.Class = "internal"
 		return nil, &f
 	}
 

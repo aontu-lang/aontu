@@ -7,6 +7,16 @@ which implementation each change affects.
 
 ## Unreleased
 
+### The pipe operator is removed (ADR-018)
+
+Both ports. **Breaking**: `|>` no longer parses. It was parse-time
+sugar — `x |> f(a)` WAS `f(x, a)`, never in canon — and every
+spelling it covered has the ordinary call form. Removed with it: the
+`pipe_target` error code, `test/spec/pipe.tsv`, and the one spelling
+that could synthesise an unsited value (patch's span-verification
+refusal is now unreachable through `patch` and kept as an exported
+seam, `verifiedSite`, unit-tested in both ports).
+
 ### Fixed
 
 - The arity message for a zero-argument builtin, in both ports:

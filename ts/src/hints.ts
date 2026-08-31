@@ -200,7 +200,6 @@ const hints: Record<string, string> = {
 
   place_pair: 'Two placeholders met, and neither has a value to fill the other.\n`_` is a HOLE: it is filled by whatever the call is unified with, so\na call holding one needs a peer that does not. Give one side a\nvalue.\n \nExamples:\n  upper(_) & hello        -> "HELLO"  # The peer fills the hole;\n  _ + 2 & 1               -> 3        # ... whatever the call is;\n  upper(_) & lower(_)     -> nil      # ... but two holes fill nothing.',
 
-  pipe_target: 'The right-hand side of a `|>` is not a function. A pipe puts the\nvalue on its left in as the FIRST argument of the call on its\nright, so the right side has to be one: a call, or the bare name of\na built-in.\n \nExamples:\n  hello |> upper        -> "HELLO"  # A bare name is the call;\n  $.names |> pack({})   -> {..}     # ... or a call with more arguments;\n  1 |> 2                -> nil      # ... but a value is not a function.',
 
   module_path: 'A module import is domain-shaped and carries a major, but its\npath cannot be a directory on every platform the toolchain runs on --\nso it is refused before anything is built from it. An element may not\nbe empty, may not begin or end with `.` (which is what forbids `..`),\nand may not be a reserved device name. These are Go\'s module-path\nrules, for Go\'s reason: a module path becomes a real directory.\n \nExamples:\n  @"corp.example/s@1"        -> {..} # An ordinary path is fine;\n  @"corp.example/../s@1"     -> nil  # ... `..` would escape the store;\n  @"corp.example/nul@1"      -> nil  # ... and Windows has no such file.',
   module_missing: 'A module import names a module that is not in this project. A\nmodule is resolved from LOCAL stores only -- `aon_vendor/` beside the\nproject\'s mod.aon, then the user cache -- because evaluation never\ntouches the network. Fetching is a separate step, and the message\nnames it.\n \nExamples:\n  @"corp.example/s@1"        -> nil  # Not fetched: run aontu mod get;\n  @"./local.aon"             -> {..} # ... a local path is not a module;\n  @"corp.example/s@1#aon1-…" -> {..} # ... and a pin does not fetch it either.',
@@ -509,11 +508,6 @@ const codeClasses: Record<string, string> = {
   // and neither could answer for the other, which is what every
   // conflict is.
   place_pair: 'conflict',
-
-  // G8 phase 4 -- the pipe. Class `parse`: a pipe is sugar resolved
-  // while reading the source, so a pipe into something that is not a
-  // call is wrong in the TEXT and no later pass can repair it.
-  pipe_target: 'parse',
 
   // G6 phase 2 -- modules. Both are class `parse`: a module import is
   // resolved while the source is READ, and neither a module that is

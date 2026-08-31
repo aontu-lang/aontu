@@ -1,5 +1,6 @@
 import type { TrustOptions } from './type';
 import type { VetFinding, VetVerdict } from './vet';
+import type { WhyConjunct } from './provenance';
 export type PatchOptions = {
     entryPath?: string;
     overlayPath?: string;
@@ -37,6 +38,10 @@ export declare function spanHolds(src: string, site: {
     col: number;
     len: number;
 }, expect: string): boolean;
+export declare function verifiedSite(overlaySrc: string, path: string, one: WhyConjunct): {
+    site: PatchReplacement | undefined;
+    finding: VetFinding | undefined;
+};
 export declare function spanValue(src: string): {
     canon: string;
     concrete: boolean;

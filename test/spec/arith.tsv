@@ -92,8 +92,6 @@ arith-mul-bigdecimal	canon	x:mul(0d1.5,0d2.0)	{"x":0d3.0}
 arith-ladder-int-biginteger	canon	x:add(1,0d2)	{"x":0d3}
 arith-ladder-int-bigdecimal	canon	x:mul(2,0d1.5)	{"x":0d3.0}
 arith-pref-operand	canon	x:add(pref(1),2)	{"x":3}
-arith-pipe	canon	x:1 |> add(2)	{"x":3}
-arith-pipe-order	canon	x:10 |> sub(3)	{"x":7}
 # AN OPERAND THAT IS NOT YET RESOLVED residuates and the call is
 # rebuilt (FuncBaseVal.make), which a document written in the natural
 # order -- the derived value above its source -- reaches every time.
