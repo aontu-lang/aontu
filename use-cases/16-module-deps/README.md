@@ -174,14 +174,16 @@ of an edge rather than the edge itself.
 ## Boundaries hit while writing it
 
 - **The layering rule is order-dependent, and that is a defect.**
-  `rel(t)`'s flow into the far end of an edge carries the narrow
-  per-layer shape when the source module's block is written first, and
-  a wider shape when the target's is. The same illegal edge is
-  therefore refused in one spelling and generated in another
+  The same field, `$.mods.auth.dependsOn`, is driven with auth's own
+  narrow target when it is reached directly and with the BASE
+  declaration's four-way one when it is reached through another
+  module's mirror link — so which module the walk reaches first
+  decides whether the narrowing is in play, and the same illegal edge
+  is refused in one spelling and generated in another
   (`bad/upward.aon` against `bad/upward-swapped.aon`, both pinned).
   A rule that depends on declaration order is not yet a rule, and the
   case says so rather than claiming a guarantee the engine does not
-  give.
+  give. [BUGS 69](../BUGS.md) carries the measurement.
 - **Two engine defects, found from the other end and fixed.** The
   model's mirrors were all written and `inverse(n)` said one was
   missing. Twice, for two unrelated reasons: a discarded disjunction

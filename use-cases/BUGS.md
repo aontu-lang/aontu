@@ -2887,10 +2887,32 @@ Both spellings are in the corpus and `check.sh` pins them: the refusal
 as an assertion, the acceptance as a KNOWN MISS that fails the day the
 flow stops depending on declaration order.
 
+WHAT IS ACTUALLY WRONG, as far as it is established. The narrow
+target is not lost on the way to the record; it is never asked for.
+Instrumenting `RelVal.unify` over the two orders shows which target
+shape each `dependsOn` field is driven with:
+
+```
+bad/upward.aon          mods.auth.dependsOn                <- {"kind":"mod","layer":"core"|"util"}
+bad/upward-swapped.aon  mods.catalog.usedBy.0.dependsOn    <- {"kind":"mod","layer":"app"|"feature"|"core"|"util"}
+```
+
+Both name the SAME field — `$.mods.auth.dependsOn`, the second reached
+through catalog's mirror link. Reached directly it carries `CoreDep`,
+auth's own layer-narrowed target, and the upward edge refuses. Reached
+through the link it carries the BASE `Mod` declaration, whose layer is
+the full four-way disjunction, and the same edge passes. The flow is
+therefore computed against a view of the target that has lost the
+target's own narrowing, and which view is in play is decided by which
+module the walk reaches first — which is what makes the verdict depend
+on declaration order.
+
 Status: OPEN. A rule that depends on the order its subjects are
 declared in is not yet a rule, and this is the largest thing the case
 found. Note that it is NOT defect 66: that leak is fixed, and this
-survives the fix.
+survives the fix. The fix belongs where a link's resolved view is
+built, so that a field reached through a link carries the declaration
+the target itself carries.
 
 
 ## Elsewhere in this review
