@@ -77,4 +77,27 @@ func TestSigMalformedDeclarationsAreErrors(t *testing.T) {
 	if _, err := parseSigText("upper(s: string) : string\nupper(s: string) : string\n"); nil == err {
 		t.Fatal("accepted duplicate declaration")
 	}
+	// A malformed line propagates out of the whole-text loader too.
+	if _, err := parseSigText("nope\n"); nil == err {
+		t.Fatal("accepted malformed text")
+	}
+}
+
+func TestSigExportedAccessors(t *testing.T) {
+	// The exported render surface the LSP consumes; cross-package
+	// calls do not count toward this package's ADR-002 floor, so the
+	// accessors are pinned here.
+	if got := FuncSignature("pack"); "pack(d: map|list, template t: any) : map" != got {
+		t.Fatalf("pack signature: %q", got)
+	}
+	if "" != FuncSignature("notafunc") {
+		t.Fatal("notafunc has no signature")
+	}
+	params := FuncSignatureParams("pack")
+	if 2 != len(params) || "d: map|list" != params[0] || "template t: any" != params[1] {
+		t.Fatalf("pack params: %v", params)
+	}
+	if nil != FuncSignatureParams("notafunc") {
+		t.Fatal("notafunc has no params")
+	}
 }

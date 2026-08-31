@@ -83,7 +83,7 @@ const (
 // backtracks the closer for its parent to consume). The errs sink
 // collects word-choice errors (a mode that is not a mode) that token
 // shape cannot catch.
-func makeSigParser(errs *[]string) (*tabnas.Tabnas, error) {
+func makeSigParser(errs *[]string) *tabnas.Tabnas {
 	j := tabnas.Make(tabnas.Options{Rule: &tabnas.RuleOptions{Start: "sig"}})
 
 	err := j.Use(func(j *tabnas.Tabnas, _ map[string]any) error {
@@ -110,11 +110,10 @@ func makeSigParser(errs *[]string) (*tabnas.Tabnas, error) {
 			}
 			return r.U
 		}
+		// Every token the actions read is a #TX word, whose Val is its
+		// string.
 		tokstr := func(t *tabnas.Token) string {
 			s, _ := t.Val.(string)
-			if "" == s {
-				s = t.Src
-			}
 			return s
 		}
 
@@ -281,10 +280,10 @@ func makeSigParser(errs *[]string) (*tabnas.Tabnas, error) {
 
 		return j.Grammar(&tabnas.GrammarSpec{Ref: ref, Rule: rules})
 	})
-	if nil != err {
-		return nil, err
+	if nil != err { //coverage:ignore the grammar is static; registration failure is a build defect
+		panic(err)
 	}
-	return j, nil
+	return j
 }
 
 // parseSigLine parses ONE declaration line. A malformed line is an
@@ -293,10 +292,7 @@ func makeSigParser(errs *[]string) (*tabnas.Tabnas, error) {
 // suite holds the gate). Mirrors parseSigLine in ts/src/sig.ts.
 func parseSigLine(line string) (*FuncSig, error) {
 	var errs []string
-	j, err := makeSigParser(&errs)
-	if nil != err {
-		return nil, err
-	}
+	j := makeSigParser(&errs)
 	out, err := j.Parse(line)
 	if nil != err {
 		return nil, fmt.Errorf("signature: %s: %w", line, err)
@@ -412,7 +408,7 @@ var funcSig = mustParseSigText()
 
 func mustParseSigText() map[string]*FuncSig {
 	reg, err := parseSigText(sigDeclText)
-	if nil != err {
+	if nil != err { //coverage:ignore the embedded text is suite-gated; a parse failure is a build defect
 		panic(err)
 	}
 	return reg
