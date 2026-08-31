@@ -377,12 +377,6 @@ help isolate the syntax error.`,
 		"op": map[string]interface{}{
 			"conjunct": map[string]interface{}{"infix": true, "src": "&", "left": 16000000, "right": 17000000},
 			"disjunct": map[string]interface{}{"infix": true, "src": "|", "left": 14000000, "right": 15000000},
-			// G8 phase 4: the pipe. LOOSEST of all the infix operators,
-			// so `a & b |> f` pipes the whole meet and not just `b` -- a
-			// pipe reads as "and then", which is a statement about
-			// everything to its left. Kept in lock-step with the op
-			// table in ts/src/lang.ts.
-			"pipe-infix":    map[string]interface{}{"infix": true, "src": "|>", "left": 12000000, "right": 13000000},
 			"star":          map[string]interface{}{"prefix": true, "src": "*", "right": 24000000},
 			"dollar-prefix": map[string]interface{}{"prefix": true, "src": "$", "right": 31000000},
 			"dot-infix":     map[string]interface{}{"infix": true, "src": ".", "left": 25000000, "right": 24000000},
@@ -1999,21 +1993,6 @@ func evaluate(r *jsonic.Rule, ctx *jsonic.Context, op *expr.Op, terms []interfac
 		}
 		stampSrc(ov, r)
 		return ov
-	case "pipe-infix":
-		// THE PIPE `|>` (G8 phase 4): parse-time sugar and nothing else.
-		// `x |> f(a)` IS `f(x, a)` -- the piped value goes in as the
-		// FIRST argument, Elixir-style, because every Aontu call is
-		// data-first already (`close(x)`, `pack(data, tmpl)`) and a pipe
-		// must read the way the calls it replaces read. It never reaches
-		// a Val: by the time the tree exists the call is an ordinary
-		// call, which is why canon can never emit the token and the two
-		// ports' canon stay byte-identical without either knowing about
-		// it. Mirrors ts/src/lang.ts.
-		if len(terms) < 2 {
-			return incompleteNil(r)
-		}
-		return pipeCall(r, terms[0], terms[1])
-
 	case "func-paren":
 		// preval injects the function name as a raw string term[0] for
 		// `name(args)`; plain `(expr)` grouping has the inner Val in
@@ -2022,7 +2001,7 @@ func evaluate(r *jsonic.Rule, ctx *jsonic.Context, op *expr.Op, terms []interfac
 		// `unknown_function` NilVal in ts/src/lang.ts func-paren).
 		if len(terms) > 0 {
 			if name, ok := terms[0].(string); ok {
-				return buildCall(r, name, terms[1:], false)
+				return buildCall(r, name, terms[1:])
 			}
 			// A NON-string term[0] with more terms after it is a CALL
 			// whose target is not a name — `f(1)(2)`, `(1)(2)`,
@@ -2570,32 +2549,12 @@ func opCharHint(src string) string {
 }
 
 // buildCall builds a call from a NAME and the argument terms as the
-// author wrote them. Shared by the `func(...)` handler and by the pipe,
-// which is the same call with one more argument on the front -- so the
-// arity check, the comma-group rule and the raw-value conversion are
-// stated once and both spellings get all three. Mirrors buildCall in
-// ts/src/lang.ts.
-// buildCall builds a call from a name and its argument terms.
-//
-// `piped` says whether the call was WRITTEN or SYNTHESISED. A written
-// call takes its position from the rule's opening token, which is the
-// function name -- `min` for `min(1)` -- and that is what a site should
-// point at. A PIPED call has no opening token of its own: `x |> upper`
-// reaches here with the PIPE's rule, whose first token is the pipe's
-// LEFT OPERAND, so taking the position from it sites the synthesised
-// call at `x`. The canonical port never had the choice to get wrong --
-// its buildCall does not site the success value at all, and the written
-// path sites it afterwards (ts/src/lang.ts) -- and Go reported
-// `x: hello |> upper` at 1:4 with src "hello" where TypeScript reported
-// it unsited, which is the same "a minted value is nowhere in
-// particular" rule the arithmetic result rows pin (test/spec/vet.tsv,
-// vet-minted-*). Caught by patch-inplace-no-extent-refused, which needs
-// the two ports to agree on which refusal a spanless contribution earns.
-//
-// The NIL paths keep their site under a pipe in BOTH ports: an
-// unknown function and a bad arity are mistakes in source the author
-// wrote, and the pipe is where they wrote it.
-func buildCall(r *jsonic.Rule, name string, argterms []any, piped bool) Val {
+// author wrote them: the arity check, the comma-group rule and the
+// raw-value conversion, stated once. The call takes its position from
+// the rule's opening token, which is the function name -- `min` for
+// `min(1)` -- and that is what a site should point at. Mirrors
+// buildCall in ts/src/lang.ts.
+func buildCall(r *jsonic.Rule, name string, argterms []any) Val {
 	if !funcSet[name] {
 		n := newNil("unknown_function")
 		if r.ON > 0 {
@@ -2621,9 +2580,6 @@ func buildCall(r *jsonic.Rule, name string, argterms []any, piped bool) Val {
 				"want": arityText(ar[0], ar[1]),
 				"got":  itoa(got),
 			}
-			// The call as written rides the refusal, for the pipe (G8
-			// phase 4, see NilVal.callterms).
-			n.callterms = argterms
 			if r.ON > 0 {
 				n.sp = r.O0.SI
 			}
@@ -2651,7 +2607,7 @@ func buildCall(r *jsonic.Rule, name string, argterms []any, piped bool) Val {
 	}
 
 	sp := -1
-	if r.ON > 0 && !piped {
+	if r.ON > 0 {
 		sp = r.O0.SI
 	}
 
@@ -2662,9 +2618,7 @@ func buildCall(r *jsonic.Rule, name string, argterms []any, piped bool) Val {
 		// exactly what the row and column above already point at. Left
 		// unstamped, Go reported -1 where TypeScript reported 3, and the
 		// shared subsume rows caught it.
-		if !piped {
-			stampSrc(cv, r)
-		}
+		stampSrc(cv, r)
 		return cv
 	}
 
@@ -2675,84 +2629,10 @@ func buildCall(r *jsonic.Rule, name string, argterms []any, piped bool) Val {
 	// conjunct built over it (newConjunct takes its site from its first
 	// term), so `a:super(1)&integer` drew its frame at the key rather
 	// than at the value (issue #41).
-	if r.ON > 0 && !piped {
+	if r.ON > 0 {
 		fv.sp = r.O0.SI
 		stampSrc(fv, r)
 	}
 	return fv
 }
 
-// pipeTerms is the argument terms `f(...)` would have been written with,
-// had the piped value been written into it. A comma group is one
-// raw-slice term: for a POSITIONAL function the group is separate
-// arguments, so the piped value joins them; for a constraint atom the
-// group IS the argument list, so the piped value joins the list instead.
-func pipeTerms(name string, written []any, val any) []any {
-	group := written
-	if 1 == len(written) {
-		if raw, ok := written[0].([]any); ok {
-			group = raw
-		}
-	}
-
-	if 0 == len(group) {
-		return []any{val}
-	}
-
-	if positionalArgFuncs[name] {
-		return append([]any{val}, group...)
-	}
-	return []any{append([]any{val}, group...)}
-}
-
-// pipeCall rebuilds the call on the right of a `|>` with the piped value
-// as its first argument.
-func pipeCall(r *jsonic.Rule, val any, call any) Val {
-	switch c := call.(type) {
-	case *FuncVal:
-		// A built call: its arguments are already Vals, and buildCall
-		// takes them as terms unchanged.
-		written := make([]any, 0, len(c.peg))
-		for _, a := range c.peg {
-			written = append(written, a)
-		}
-		return buildCall(r, c.name, pipeTerms(c.name, written, val), true)
-	case *NilVal:
-		// ... or one the arity check refused for an arity the pipe is
-		// about to satisfy. Both carry what they were written as.
-		if "func_arity" == c.why {
-			return buildCall(r, c.details["func"], pipeTerms(c.details["func"], c.callterms, val), true)
-		}
-		// A call that could not be built at all -- `0 |> f(1)(2)`,
-		// whose target is not a name -- is already refused, and the
-		// pipe must not reclassify it: `pipe_target` says "the thing
-		// on the right is not a call", where the truth is that it IS a
-		// call spelling with no function to call. TypeScript keeps its
-		// unknown_function through the pipe; so does this now.
-		if "unknown_function" == c.why {
-			return c
-		}
-	case *ScalarVal:
-		// ... or a bare NAME, which is the whole point of the short
-		// spelling: `x |> upper` is `upper(x)`. A bare word has already
-		// become a string VALUE by the time an infix operator sees it,
-		// so this is where a string becomes a call.
-		if KindString == c.kind {
-			if name, ok := c.peg.(string); ok && funcSet[name] {
-				return buildCall(r, name, []any{val}, true)
-			}
-		}
-	}
-
-	// Anything else is not a call, and a pipe into a non-call is a
-	// mistake in the source rather than a value. A constraint atom that
-	// BUILT is one of them: an atom with its argument list complete is a
-	// residual rather than a call waiting for a subject, and `1 |>
-	// neq(2,3)` is asking for `1 & neq(2,3)`, which is what `&` is for.
-	n := newNil("pipe_target")
-	if r.ON > 0 {
-		n.sp = r.O0.SI
-	}
-	stampSrc(n, r)
-	return n
-}

@@ -1119,9 +1119,10 @@ what follows is the design, with the costs on the record.
   interpolation.
 - **It is PARSE-TIME SUGAR and reaches no Val.** `` `a${$.b}c` ``
   desugars to `"a" + $.b + "c"`. The precedent is decisive and
-  already in the repository: `|>` is "pure parse-time sugar that
-  never reaches a Val" (G8 phase 4). No new Val kind, no dispatch
-  arm, no canon spelling.
+  already in the repository: `|>` was "pure parse-time sugar that
+  never reaches a Val" (G8 phase 4, since removed by ADR-018 -- the
+  MECHANISM precedent stands even though the operator is gone). No
+  new Val kind, no dispatch arm, no canon spelling.
 - **Canon prints the CONCATENATION**, `"a" + $.b + "c"`. This is
   forced, not chosen: canon must round-trip and converge, the `+`
   form already round-trips, and re-emitting `${...}` would require
