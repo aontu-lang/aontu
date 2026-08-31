@@ -102,3 +102,46 @@ jobs:
             exit 1
           fi
       - run: make cov
+
+  # THE USE CASES ARE A GATE NOW, AND THIS IS WHY.
+  #
+  # `use-cases/run-all.sh` drives the real CLI end to end over fifteen
+  # worked models -- the only check here that exercises the engine the
+  # way a user does, through files, includes, data merges and exit
+  # codes, rather than through a spec row. It is therefore the only one
+  # that can notice a removed language feature still being used by a
+  # model.
+  #
+  # It ran on contributors' machines and nowhere else, and the cost
+  # arrived: ADR-014 (#102) removed id() with every suite green and
+  # every gate passing, and left four use cases broken on main -- 01,
+  # 05, 10 and 12. Nothing in CI evaluated a model that used the feature
+  # it removed, so the corpus stayed red across four merges until #107
+  # and #109 repaired it. The engine was right; the corpus was never
+  # asked.
+  #
+  # One job, on ubuntu: like the coverage gate, this is a property of
+  # the code rather than of the platform the matrix above covers.
+  # python3 is preinstalled and is what the JSON and SQLite assertions
+  # use (sqlite3 through the stdlib module, not the CLI).
+  use-cases:
+    name: Use cases
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.x
+      - run: npm install
+        working-directory: ts
+      # The checks run ts/bin/aontu.js, which loads the COMMITTED
+      # ts/dist. Build first for the same reason the coverage gate does:
+      # an unbuilt tree would grade this branch's models against the
+      # previous branch's engine. Whether the committed build is itself
+      # current is the coverage gate's assertion, not this job's -- one
+      # check, one owner.
+      - run: npm run build
+        working-directory: ts
+      - run: ./run-all.sh
+        working-directory: use-cases
