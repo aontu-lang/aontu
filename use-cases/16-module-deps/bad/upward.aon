@@ -1,0 +1,26 @@
+# bad/upward.aon --- auth (core) grows a dependency on catalog
+# (feature): an UPWARD edge, the one thing the layering forbids. Both
+# directions are written, so the inverse holds and nothing here is a
+# loop -- the only thing wrong is the direction through the layers.
+#
+# It refuses at generation with an ordinary [aontu/empty]: the CoreDep
+# shape flowed into catalog by rel() says layer is core or util,
+# catalog says feature, and a disjunction with no branch left standing
+# is empty.
+# The architecture rule needs no separate checker because it is not a
+# separate kind of thing.
+#
+# Both lists restate their existing elements: lists unify positionally,
+# so an addition is written as the whole list with the new entry last.
+@"../model.aon"
+
+mods: {
+  auth: {
+    dependsOn: [
+      path($.mods.bytes), path($.mods.http), path($.mods.catalog)
+    ]
+  }
+  catalog: {
+    usedBy: [path($.mods.server), path($.mods.auth)]
+  }
+}

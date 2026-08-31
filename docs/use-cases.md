@@ -1,7 +1,7 @@
 # Use cases
 
 Documentation examples are small on purpose. Systems are not. The
-fifteen models in [`use-cases/`](../use-cases/) close that gap: each
+sixteen models in [`use-cases/`](../use-cases/) close that gap: each
 one is an enterprise-shaped system built as real Aontu documents — a
 service catalog, a schema registry, an RBAC model — and each carries a
 `check.sh` that drives the actual CLI and asserts every outcome, with
@@ -12,7 +12,7 @@ shape lives, running. Run one case, or the whole suite:
 <!-- test: skip runs the full case suite; use-cases/run-all.sh is its own gate, run before every landing -->
 ```sh
 $ ./use-cases/03-api-contract/check.sh   # one case
-$ ./use-cases/run-all.sh                 # all fifteen, one verdict line per case
+$ ./use-cases/run-all.sh                 # all sixteen, one verdict line per case
 ```
 
 The scripts need Node with `ts/node_modules` installed, plus `python3`
@@ -510,6 +510,34 @@ generated SQL carries a trailing comma that a real parser refuses.
 emitters, their goldens, and a check that both ports emit identical
 bytes: [`use-cases/15-code-generation/`](../use-cases/15-code-generation/).
 
+
+## 16 — module deps
+
+A codebase's own module graph: twelve modules across four layers,
+where the architecture rule is that nothing may depend on a layer
+above it. The rule is a shape rather than a checking pass. `rel(t)`
+flows its target shape into every module an edge names, so a core
+module's `dependsOn` carries `layer: "core" | "util"` to the far end,
+and a module that says `layer: "feature"` cannot meet it. Each layer
+is one line of schema and one disjunction, from `spec.aon`:
+
+```
+Core:    $.spec.Mod & { layer: "core", dependsOn?: rel($.spec.CoreDep) }
+CoreDep: { kind: mod, layer: "core" | "util" }
+```
+
+An upward edge then refuses at generation as an ordinary conflict
+naming both sides, and a loop between two modules of the *same* layer
+— which the layering allows — refuses under `acyclic()`. The refusal
+is not yet order-independent: which target shape reaches the far end
+of an edge depends on the order the blocks are written in, so the case
+pins both the refusal and, as a known miss, the swapped spelling that
+still generates. The same edges are drawn two ways and pinned as
+goldens: a dependency tree,
+with derived roots and every repeated subtree elided the way
+`cargo tree` elides one, and a dependency-structure matrix. The
+layered codebase, its refusals and its views:
+[`use-cases/16-module-deps/`](../use-cases/16-module-deps/).
 
 Where a page in these docs and a use case disagree, the case wins (its
 checks run; the page does not). File the docs bug.

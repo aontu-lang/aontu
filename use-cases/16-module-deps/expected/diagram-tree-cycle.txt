@@ -1,0 +1,27 @@
+cli
+├── billing
+│   ├── auth
+│   │   ├── bytes
+│   │   │   └── log
+│   │   │       └── bytes (cycle)
+│   │   └── http
+│   │       ├── bytes (*)
+│   │       └── log (*)
+│   ├── clock
+│   └── store
+│       ├── clock
+│       └── log (*)
+└── reports
+    ├── log (*)
+    └── store (*)
+
+server
+├── billing (*)
+├── catalog
+│   ├── http (*)
+│   └── store (*)
+└── http (*)
+
+worker
+├── reports (*)
+└── store (*)

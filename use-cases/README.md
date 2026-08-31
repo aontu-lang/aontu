@@ -1,6 +1,6 @@
 # Use cases: practical validation of Aontu as an agent-facing ground truth
 
-This folder is a **review artifact**: fifteen enterprise-shaped use cases,
+This folder is a **review artifact**: sixteen enterprise-shaped use cases,
 each built as real Aontu models and then *executed* against the
 TypeScript CLI (`ts/bin/aontu.js`, the canonical implementation, at the
 in-tree 0.53.0 line). Every case directory carries a `check.sh` that
@@ -55,11 +55,14 @@ and, in case 09, `MCP` — to point at a different build.
 | [13-recursive-schema](13-recursive-schema/) | Approval chain: a schema one reference deep over any-depth data | recursive residuals (`$.spec.Step`), mu-form canon + hash, `recursion_unexpanded`, `vet --at` over plain JSON |
 | [14-jsonschema-export](14-jsonschema-export/) | JSON Schema as the bridge out: MCP inputSchema, OpenAPI, stock validators | `jsonschema --at`/`--strict`/`--format json`, the stderr loss report, exit classes, the money-wire `const` mark |
 | [15-code-generation](15-code-generation/) | The model as the source of the code: Go, TypeScript and SQL from one catalogue, each over a slice | list-spread + `pick` line building, backtick target text, `match` type mapping, both-ports byte parity, the missing fold |
+| [16-module-deps](16-module-deps/) | A codebase's own module graph: four layers, no upward dependencies, drawn as a dependency tree | `rel(t)` target-shape flow as an architecture rule, `acyclic()`/`inverse(n)`, `reaches`, the tree and matrix views |
 
 ## Diagrams
 
-Four cases carry generated diagrams, pinned as goldens by their
-`check.sh` and rendered inline in their README (GitHub draws Mermaid):
+Five cases carry generated diagrams, pinned as goldens by their
+`check.sh` and rendered inline in their README — as Mermaid, which
+GitHub draws, or as fixed-pitch text where the figure is character
+cells (the dependency tree and the matrix):
 
 | case | views |
 |---|---|
@@ -67,6 +70,7 @@ Four cases carry generated diagrams, pinned as goldens by their
 | [04-schema-evolution](04-schema-evolution/) | subsumption poset over the releases and proposals |
 | [08-feature-flags](08-feature-flags/) | the meet ladder for one arbitrated value |
 | [12-relations](12-relations/) | entity graph with inverse pairs collapsed, and an ER diagram |
+| [16-module-deps](16-module-deps/) | dependency tree with elided repeats and derived roots, dependency-structure matrix |
 
 [`tools/diagram.js`](tools/diagram.js) draws them. **There is no
 `aontu view` verb**: the capability is designed in
@@ -78,10 +82,12 @@ design is tested against real models before any of it becomes code. It
 computes no coordinates and sorts everything by code point, so its
 output is deterministic text and a golden diff is a meaningful check.
 
-Drawing the models found two defects that the text verbs had not:
+Drawing the models found three defects that the text verbs had not:
 [BUGS 65](BUGS.md) (a `refer()` behind a conjunct is invisible to the
-entity graph, so `reaches` answers wrongly) and the inverse-doubling
-that makes a raw `graphOf` edge set draw every declared inverse twice.
+entity graph, so `reaches` answers wrongly), the inverse-doubling
+that makes a raw `graphOf` edge set draw every declared inverse twice,
+and — from case 16 — a collapse that folded a MUTUAL dependency into
+one undirected edge, hiding the shortest cycle a model can have.
 
 ## Scope and conventions
 

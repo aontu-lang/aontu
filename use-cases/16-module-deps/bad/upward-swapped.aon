@@ -1,0 +1,24 @@
+# bad/upward-swapped.aon --- bad/upward.aon with its two blocks in the
+# OPPOSITE order. Same edges, same layers, same mirrors.
+#
+# IT GENERATES. The layering rule is enforced by rel(t)'s flow into
+# the far end of an edge, and which target shape reaches the far end
+# depends on the order the blocks are written in: written source-first
+# the narrow CoreDep shape lands and the upward edge refuses; written
+# target-first a wider shape lands instead and the same edge passes.
+#
+# So this file is a KNOWN MISS, pinned by check.sh as one: the corpus
+# records what the engine does today, and the assertion flips the day
+# the flow stops depending on declaration order.
+@"../model.aon"
+
+mods: {
+  catalog: {
+    usedBy: [path($.mods.server), path($.mods.auth)]
+  }
+  auth: {
+    dependsOn: [
+      path($.mods.bytes), path($.mods.http), path($.mods.catalog)
+    ]
+  }
+}

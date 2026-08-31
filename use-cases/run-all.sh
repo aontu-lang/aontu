@@ -25,6 +25,7 @@ CASES="
 13-recursive-schema
 14-jsonschema-export
 15-code-generation
+16-module-deps
 "
 
 fail=0

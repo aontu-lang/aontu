@@ -1,0 +1,144 @@
+{
+  "mods": {
+    "auth": {
+      "dependsOn": [
+        "$.mods.bytes",
+        "$.mods.http"
+      ],
+      "dir": "core/auth",
+      "kind": "mod",
+      "layer": "core",
+      "usedBy": [
+        "$.mods.billing"
+      ]
+    },
+    "billing": {
+      "dependsOn": [
+        "$.mods.auth",
+        "$.mods.clock",
+        "$.mods.store"
+      ],
+      "dir": "feat/billing",
+      "kind": "mod",
+      "layer": "feature",
+      "usedBy": [
+        "$.mods.cli",
+        "$.mods.server"
+      ]
+    },
+    "bytes": {
+      "dir": "util/bytes",
+      "kind": "mod",
+      "layer": "util",
+      "usedBy": [
+        "$.mods.auth",
+        "$.mods.http",
+        "$.mods.log"
+      ]
+    },
+    "catalog": {
+      "dependsOn": [
+        "$.mods.http",
+        "$.mods.store"
+      ],
+      "dir": "feat/catalog",
+      "kind": "mod",
+      "layer": "feature",
+      "usedBy": [
+        "$.mods.server"
+      ]
+    },
+    "cli": {
+      "dependsOn": [
+        "$.mods.billing",
+        "$.mods.reports"
+      ],
+      "dir": "cmd/cli",
+      "kind": "mod",
+      "layer": "app"
+    },
+    "clock": {
+      "dir": "util/clock",
+      "kind": "mod",
+      "layer": "util",
+      "usedBy": [
+        "$.mods.billing",
+        "$.mods.store"
+      ]
+    },
+    "http": {
+      "dependsOn": [
+        "$.mods.bytes",
+        "$.mods.log"
+      ],
+      "dir": "core/http",
+      "kind": "mod",
+      "layer": "core",
+      "usedBy": [
+        "$.mods.auth",
+        "$.mods.catalog",
+        "$.mods.server"
+      ]
+    },
+    "log": {
+      "dependsOn": [
+        "$.mods.bytes"
+      ],
+      "dir": "util/log",
+      "kind": "mod",
+      "layer": "util",
+      "usedBy": [
+        "$.mods.http",
+        "$.mods.reports",
+        "$.mods.store"
+      ]
+    },
+    "reports": {
+      "dependsOn": [
+        "$.mods.log",
+        "$.mods.store"
+      ],
+      "dir": "feat/reports",
+      "kind": "mod",
+      "layer": "feature",
+      "usedBy": [
+        "$.mods.cli",
+        "$.mods.worker"
+      ]
+    },
+    "server": {
+      "dependsOn": [
+        "$.mods.billing",
+        "$.mods.catalog",
+        "$.mods.http"
+      ],
+      "dir": "cmd/server",
+      "kind": "mod",
+      "layer": "app"
+    },
+    "store": {
+      "dependsOn": [
+        "$.mods.clock",
+        "$.mods.log"
+      ],
+      "dir": "core/store",
+      "kind": "mod",
+      "layer": "core",
+      "usedBy": [
+        "$.mods.billing",
+        "$.mods.catalog",
+        "$.mods.reports",
+        "$.mods.worker"
+      ]
+    },
+    "worker": {
+      "dependsOn": [
+        "$.mods.reports",
+        "$.mods.store"
+      ],
+      "dir": "cmd/worker",
+      "kind": "mod",
+      "layer": "app"
+    }
+  }
+}

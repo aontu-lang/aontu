@@ -23,6 +23,7 @@
 //   node diagram.js graph  [--primary KEY]... <entry.aon>
 //   node diagram.js matrix [--primary KEY]... <entry.aon>
 //   node diagram.js er     [--primary KEY]... <entry.aon>
+//   node diagram.js tree   [--primary KEY]... [--root <$.a.b>]... <entry.aon>
 //   node diagram.js ladder --path <$.a.b> <entry.aon>
 //   node diagram.js poset  [--at <path>] [--profile P] <file.aon>...
 //
@@ -55,50 +56,54 @@ function load(file) {
 // edge. `graphOf` reports every written position, so a relation with a
 // declared inverse arrives twice -- once per direction -- and drawing
 // it raw doubles every such relation.
+//
+// WHAT IS NOT COLLAPSED IS A MUTUAL RELATION: `a dependsOn b` and `b
+// dependsOn a` are two facts under ONE key, and folding them into a
+// single undirected edge erases the shortest cycle a model can have.
+// The collapse is therefore per KEY PAIR rather than per node pair --
+// two keys facing each other are an inverse, one key facing itself is
+// a loop -- which is what makes `acyclic()`'s refusal drawable.
 function edges(val, primary) {
   const g = A.graphOf(val)
-  const seen = new Map()
 
+  // One directed edge per (from, to, key): the same link written at
+  // several positions is one fact about the graph.
+  const directed = new Map()
   for (const e of g.edges) {
-    // The unordered pair is the identity of the logical edge.
+    directed.set(e.from + '\u0000' + e.to + '\u0000' + e.key, e)
+  }
+
+  const pairs = new Map()
+  for (const e of directed.values()) {
     const pair = [e.from, e.to].sort(cmp).join('\u0000')
-    const prev = seen.get(pair)
-    if (null == prev) {
-      seen.set(pair, { from: e.from, to: e.to, keys: [e.key] })
-      continue
-    }
-    if (!prev.keys.includes(e.key)) {
-      prev.keys.push(e.key)
-    }
-    // Direction: the named primary predicate wins; otherwise the
-    // code-point-least key, which is arbitrary but stable.
-    const winner = prev.keys.filter((k) => primary.includes(k)).sort(cmp)[0]
-    if (null != winner) {
-      if (e.key === winner) {
-        prev.from = e.from
-        prev.to = e.to
-      }
-    }
-    else if (cmp(e.key, prev.keys.slice().sort(cmp)[0]) <= 0
-      && e.key === prev.keys.slice().sort(cmp)[0]) {
-      prev.from = e.from
-      prev.to = e.to
+    const group = pairs.get(pair)
+    if (null == group) pairs.set(pair, [e])
+    else group.push(e)
+  }
+
+  const out = []
+  for (const group of pairs.values()) {
+    // ONE KEY WINS THE PAIR, and every edge written under it stands.
+    // The named primary predicate wins; otherwise the code-point-least
+    // key, which is arbitrary but stable. Keeping every edge under the
+    // winner is what preserves a MUTUAL relation -- `a dependsOn b`
+    // with `b dependsOn a` is two facts, and the shortest cycle a
+    // model can have -- while the losing keys are the declared
+    // inverses, implied by the winner and not drawn again.
+    const keys = [...new Set(group.map((e) => e.key))].sort(cmp)
+    const chosen = keys.filter((k) => primary.includes(k))
+    const winner = 0 < chosen.length ? chosen[0] : keys[0]
+    // With a primary named, the inverse is implied and naming both
+    // just doubles the label. Without one, both are shown, because
+    // picking silently would hide that two predicates are in play.
+    const label = 0 < chosen.length ? chosen.join('/') : keys.join('/')
+    for (const e of group.filter((x) => x.key === winner)) {
+      out.push({ from: e.from, to: e.to, label })
     }
   }
 
-  return [...seen.values()]
-    .map((e) => {
-      const keys = e.keys.sort(cmp)
-      // With a primary named, the inverse is implied and naming both
-      // just doubles the label. Without one, both are shown, because
-      // picking silently would hide that two predicates are in play.
-      const chosen = keys.filter((k) => primary.includes(k))
-      return {
-        from: e.from, to: e.to,
-        label: 0 < chosen.length ? chosen.join('/') : keys.join('/'),
-      }
-    })
-    .sort((x, y) => cmp(x.from, y.from) || cmp(x.to, y.to) || cmp(x.label, y.label))
+  return out.sort((x, y) =>
+    cmp(x.from, y.from) || cmp(x.to, y.to) || cmp(x.label, y.label))
 }
 
 
@@ -203,8 +208,12 @@ function matrix(val, primary) {
   const out = []
   out.push(pad('', w + 2 + iw + 1) + idx.map((s) => lpad(s, iw)).join(' '))
   ns.forEach((n, r) => {
+    // The diagonal is the node itself, and a SELF-DEPENDENCY is drawn
+    // on it: writing the placeholder unconditionally erased the
+    // shortest cycle a model can have, which is exactly the fact a
+    // dependency matrix is read for.
     const cells = ns.map((m, c) =>
-      lpad(r === c ? '\\' : (has.has(n + '\u0000' + m) ? 'X' : '.'), iw))
+      lpad(has.has(n + '\u0000' + m) ? 'X' : (r === c ? '\\' : '.'), iw))
     out.push(pad(label(n), w) + '  ' + lpad(idx[r], iw) + ' ' + cells.join(' '))
   })
   return out.join('\n')
@@ -238,6 +247,159 @@ function er(val, primary) {
       out.push('  }')
     }
   }
+  return out.join('\n')
+}
+
+
+// THE DEPENDENCY TREE: the same edges, walked from a root, indented.
+//
+// A dependency graph is a DAG and not a tree -- two modules may share
+// a dependency, and drawing that shared node once under each parent is
+// what makes `cargo tree` and `npm ls` readable rather than
+// exponential. So this is a SPANNING WALK with two honest marks:
+// `(*)` where a subtree is elided because the node was expanded
+// earlier, and `(cycle)` where an edge closes a loop. The first is
+// routine in a correct model -- a diamond is good engineering, not a
+// fault. The second cannot arise from a model whose relation declares
+// `acyclic()`, and is drawn rather than thrown because a renderer that
+// hangs on a hostile input is a renderer that cannot be pointed at
+// one.
+//
+// Which nodes are roots is DERIVED, not asked for: a root is a node
+// nothing depends on. `--root` overrides that to draw one subtree.
+// The order of everything -- roots, children, the choice of which
+// occurrence of a shared node is the expanded one -- follows the label
+// sort, so the drawing is a function of the model alone.
+function tree(val, primary, roots) {
+  // With a primary named, the tree is OVER THAT RELATION. The other
+  // kinds draw every relation at once because a node-link diagram can
+  // label each edge; a tree cannot without becoming unreadable, and
+  // walking two relations as though they were one would draw a
+  // containment that the model does not state.
+  const all_edges = edges(val, primary)
+  const kept = all_edges.filter((e) =>
+    0 === primary.length
+    || e.label.split('/').some((k) => primary.includes(k)))
+
+  // A NAMED RELATION THAT DRAWS NOTHING IS A TYPO, and refused for the
+  // same reason a misspelled `--root` is: an empty tree and a
+  // misspelled name are the same file on disk, so the one that means
+  // nothing must not be renderable.
+  if (0 === kept.length && 0 < all_edges.length) {
+    const have = [...new Set(all_edges.flatMap((e) => e.label.split('/')))]
+    throw new Error('no such relation: ' + primary.join('/')
+      + ' (the graph has ' + have.sort(cmp).join(', ') + ')')
+  }
+
+  // The node set is what the drawn relation CONNECTS, the rule the
+  // node-link kinds follow above. A `--root` naming anything else is a
+  // typo, and it is refused rather than drawn.
+  const ns = new Set()
+  for (const e of kept) {
+    ns.add(e.from)
+    ns.add(e.to)
+  }
+  const all = [...ns].sort(cmp)
+  const lab = labels(all)
+
+  const kids = new Map(all.map((n) => [n, []]))
+  for (const e of kept) {
+    kids.get(e.from).push({ to: e.to, label: e.label })
+  }
+  for (const list of kids.values()) {
+    list.sort((x, y) => cmp(lab.get(x.to), lab.get(y.to)) || cmp(x.label, y.label))
+  }
+
+  // The relation is named on the branch only where more than one is
+  // drawn. Naming the single relation on every line of a tree that has
+  // exactly one is noise; leaving it off where there are two would
+  // hide which edge was walked.
+  const many = 1 < new Set(kept.map((e) => e.label)).size
+  const byLabel = (a, b) => cmp(lab.get(a), lab.get(b))
+
+  let named
+  if (0 < roots.length) {
+    for (const r of roots) {
+      if (!ns.has(r)) {
+        throw new Error('no such node: ' + r
+          + ' (the ' + (0 < primary.length ? primary.join('/') + ' ' : '')
+          + 'graph has ' + all.length + ')')
+      }
+    }
+    named = [...new Set(roots)].sort(byLabel)
+  }
+  else {
+    // A root is a node nothing depends on. A SELF-EDGE does not make a
+    // node depended upon for this purpose: a module that names itself
+    // would otherwise stop being a root and take its whole subtree out
+    // of the drawing.
+    const depended = new Set(
+      kept.filter((e) => e.to !== e.from).map((e) => e.to))
+    named = all.filter((n) => !depended.has(n)).sort(byLabel)
+  }
+
+  const out = []
+  const expanded = new Set()
+
+  const draw = (root) => {
+    if (0 < out.length) out.push('')
+    out.push(lab.get(root))
+    expanded.add(root)
+
+    // ITERATIVE, with the ancestor chain carried as a set that is
+    // added to on the way down and removed from on the way up. A
+    // recursive walk is O(depth) stack frames and a deep dependency
+    // chain is a real shape, so the drawing of a model must not depend
+    // on how deep the interpreter lets it go.
+    const chain = new Set([root])
+    const stack = [{ node: root, prefix: '', at: 0 }]
+    while (0 < stack.length) {
+      const frame = stack[stack.length - 1]
+      const list = kids.get(frame.node) || []
+      if (frame.at >= list.length) {
+        chain.delete(frame.node)
+        stack.pop()
+        continue
+      }
+      const edge = list[frame.at++]
+      const last = frame.at === list.length
+      const loop = chain.has(edge.to)
+      const seen = expanded.has(edge.to)
+      const grown = 0 < (kids.get(edge.to) || []).length
+      out.push(frame.prefix + (last ? '└── ' : '├── ')
+        + lab.get(edge.to)
+        + (many ? ' (' + edge.label + ')' : '')
+        + (loop ? ' (cycle)' : (seen && grown ? ' (*)' : '')))
+      if (loop || seen) continue
+      expanded.add(edge.to)
+      chain.add(edge.to)
+      stack.push({
+        node: edge.to,
+        prefix: frame.prefix + (last ? '    ' : '│   '),
+        at: 0,
+      })
+    }
+  }
+
+  for (const root of named) {
+    draw(root)
+  }
+
+  // EVERY NODE IS DRAWN. A component whose nodes all depend on each
+  // other has no node nothing depends on, so the derived roots miss it
+  // entirely -- and a graph with roots elsewhere would drop it in
+  // silence, which is the one thing a drawing must not do. The
+  // least-labelled node left is taken as a root of its own, until
+  // nothing is left. An explicitly named `--root` is a request for one
+  // subtree and is left alone.
+  if (0 === roots.length) {
+    for (const n of all) {
+      if (!expanded.has(n)) {
+        draw(n)
+      }
+    }
+  }
+
   return out.join('\n')
 }
 
@@ -370,10 +532,12 @@ function main(argv) {
   const kind = argv[0]
   const rest = argv.slice(1)
   const primary = []
+  const roots = []
   let at, profile, path
   const files = []
   for (let i = 0; i < rest.length; i++) {
     if ('--primary' === rest[i]) { primary.push(rest[++i]) }
+    else if ('--root' === rest[i]) { roots.push(rest[++i]) }
     else if ('--at' === rest[i]) { at = rest[++i] }
     else if ('--profile' === rest[i]) { profile = rest[++i] }
     else if ('--path' === rest[i]) { path = rest[++i] }
@@ -390,8 +554,9 @@ function main(argv) {
   if ('graph' === kind) return graph(val, primary)
   if ('matrix' === kind) return matrix(val, primary)
   if ('er' === kind) return er(val, primary)
+  if ('tree' === kind) return tree(val, primary, roots)
   throw new Error('unknown kind: ' + kind
-    + ' (graph | matrix | er | ladder | poset)')
+    + ' (graph | matrix | er | tree | ladder | poset)')
 }
 
 

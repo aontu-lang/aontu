@@ -1,0 +1,18 @@
+# bad/cycle.aon --- bytes comes to depend on log, which already
+# depends on bytes. Both modules are util, so the LAYER is happy: a
+# sideways edge is legal, and what refuses a loop is acyclic(), not
+# the layer. Generation reports a located relation_cycle naming the
+# nodes it runs through.
+@"../model.aon"
+
+mods: {
+  bytes: {
+    dependsOn: [path($.mods.log)]
+  }
+  log: {
+    usedBy: [
+      path($.mods.http), path($.mods.reports), path($.mods.store),
+      path($.mods.bytes)
+    ]
+  }
+}

@@ -7,6 +7,24 @@ which implementation each change affects.
 
 ## Unreleased
 
+### A sixteenth use case: a layered module graph, drawn as a tree
+
+`use-cases/16-module-deps/` models a codebase's own module graph —
+twelve modules across four layers — and enforces "never depend on a
+layer above you" with nothing but unification: `rel(t)` flows a
+per-layer target shape into every module an edge names, so an upward
+edge is a failed meet at the far end rather than a separate checking
+pass. Thirteen assertions, including the layering refusal, a cycle
+between same-layer modules, and both drawn views.
+
+`use-cases/tools/diagram.js` grows a `tree` kind for it: an indented
+dependency tree with derived roots and repeated subtrees elided
+`(*)`, in the manner of `cargo tree`. Writing the case found a defect
+in the tool's edge collapse — a MUTUAL dependency (`a dependsOn b`
+with `b dependsOn a`) folded into one undirected edge, hiding the
+shortest cycle a model can have. The collapse is now per key pair;
+every existing golden is unchanged.
+
 ### The pipe operator is removed (ADR-018)
 
 Both ports. **Breaking**: `|>` no longer parses. It was parse-time

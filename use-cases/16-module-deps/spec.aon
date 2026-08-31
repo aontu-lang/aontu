@@ -1,0 +1,46 @@
+# spec.aon --- the module vocabulary, and the LAYERING RULE, declared
+# once. There is no linter and no plugin here: the rule is a shape,
+# and rel(t) flows that shape into every module a dependency names, so
+# an illegal edge is an ordinary failed meet at the far end.
+#
+# The layers, highest first: app depends on anything, feature on
+# feature and below, core on core and below, util on util alone. The
+# rule is NEVER UPWARD rather than strictly downward -- a core module
+# calling another core module is ordinary engineering -- and what
+# stops a sideways edge from closing a loop is acyclic(), not the
+# layer.
+spec: hide({
+
+  Mod: {
+    kind: mod
+    dir: string
+    layer: "app" | "feature" | "core" | "util"
+
+    # The relation, declared at its field (RELATIONS.0.md): rel(t)
+    # makes the field's entries checked tree addresses and flows t
+    # into every target; acyclic() and inverse() are the graph atoms,
+    # registered during unification and DECIDED at generation, where
+    # every edge is known.
+    dependsOn?: rel($.spec.ModShape) & acyclic() & inverse(usedBy)
+    usedBy?: rel($.spec.ModShape)
+  }
+
+  # What the far end of any edge must be. A thin shape rather than
+  # $.spec.Mod itself: a self-typed rel($.spec.Mod) inside Mod is the
+  # guarded self-reference whose rel-side wiring waits on the
+  # recursion note's next phase.
+  ModShape: { kind: mod }
+
+  # ONE SHAPE PER LAYER, and the whole architecture is the four
+  # disjunctions below. A module declares its layer by naming its
+  # shape; the shape narrows what its dependsOn edges may land on.
+  App:     $.spec.Mod & { layer: "app",     dependsOn?: rel($.spec.AppDep) }
+  Feature: $.spec.Mod & { layer: "feature", dependsOn?: rel($.spec.FeatureDep) }
+  Core:    $.spec.Mod & { layer: "core",    dependsOn?: rel($.spec.CoreDep) }
+  Util:    $.spec.Mod & { layer: "util",    dependsOn?: rel($.spec.UtilDep) }
+
+  AppDep:     { kind: mod, layer: "app" | "feature" | "core" | "util" }
+  FeatureDep: { kind: mod, layer: "feature" | "core" | "util" }
+  CoreDep:    { kind: mod, layer: "core" | "util" }
+  UtilDep:    { kind: mod, layer: "util" }
+})

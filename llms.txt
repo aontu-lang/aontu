@@ -42,7 +42,7 @@
 - [Shared spec suite](test/spec/): the conformance corpus — 3k+
   language-agnostic cases both implementations must satisfy; a third
   implementation claims conformance by passing it
-- [Executable review](use-cases/): eleven enterprise use cases driven
+- [Executable review](use-cases/): sixteen enterprise use cases driven
   through the real CLI, with verified findings and minimal repros
 
 ## Contributing
