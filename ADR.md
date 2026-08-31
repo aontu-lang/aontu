@@ -1576,6 +1576,16 @@ promote (`path() & "$.a"` refuses as `integer & "x"` does), `refer()`
 refuses a string address (`refer_address`), and `rel()` refuses
 string leaves (`rel_address`).
 
+*Amended (same review, after landing):* inside the call, string text
+with NO anchor converts as RELATIVE — `path("a.b")` is `path(.a.b)`,
+the address the raw spelling `path(a.b)` captures — because only raw
+reference spellings are meant to escape evaluation, not string text
+that happens to lack its `$.` or `.`. Only the anchor is supplied:
+text that spells nothing once anchored (an empty string, an empty
+segment, a broken `$` spelling) still refuses (`path_address`). It
+remains true that a bare string is never a path: the conversion, as
+before, happens only inside `path(...)`.
+
 **Paths meet by the prefix rule.** Two path values unify when one
 spells a prefix of the other — same anchor, the shorter's segments
 opening the longer's — and the result is the LONGER. Incomparable

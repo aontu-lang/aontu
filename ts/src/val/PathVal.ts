@@ -104,6 +104,18 @@ export function parseAddress(s: string): Address | undefined {
 }
 
 
+// The spelling string TEXT converts by, inside a `path(...)` call:
+// text that carries no anchor is RELATIVE (`"a.b"` is the address
+// `.a.b`), matching the raw form (`path(a.b)` captures `.a.b`). Only
+// the anchor is supplied -- the result still has to parse, so
+// malformed text (`""`, `"a..b"`, a bad `$` spelling) refuses as
+// before. The prefix is not applied to text that claims an anchor:
+// `"$x"` is a broken absolute address, not a relative one.
+export function textAddress(s: string): string {
+  return ('$' === s[0] || '.' === s[0]) ? s : '.' + s
+}
+
+
 // The LONGER of two addresses when one spells a prefix of the other
 // (docs/design/PATHS.0.md, amended): same anchor -- absolute or the
 // same number of parent steps -- and the shorter's segments open the

@@ -1818,10 +1818,12 @@ leading dot per parent step — and a bare dotted argument is relative
 
 A bare string is **never** a path (ADR-016): the call's own argument
 is the one conversion the language has. A string *literal* argument
-is address text (`path("$.a")` is the capture `path($.a)`); a
-*computed* argument — an expression, a reference to a string —
-evaluates first, and the result converts by the same grammar, which
-is what makes an address buildable:
+is address text (`path("$.a")` is the capture `path($.a)`), and text
+with no anchor is **relative** — `path("auth")` is `path(.auth)`, the
+address the raw spelling captures. A *computed* argument — an
+expression, a reference to a string — evaluates first, and the result
+converts by the same grammar, which is what makes an address
+buildable:
 
 ```aon
 names: { web: {}, db: {} }
@@ -1833,8 +1835,10 @@ accounts: pack($.names, { for: refer() & path("$.names." + key()) })
   "names": { "db": {}, "web": {} } }
 ```
 
-Text that is not an address refuses at the call (`path_address`); a
-number or a container argument is refused as `invalid-arg`.
+Text that spells no address even once anchored — an empty string, an
+empty segment (`"a..b"`), a broken `$` spelling — refuses at the call
+(`path_address`); a number or a container argument is refused as
+`invalid-arg`.
 
 `path()` with no argument is the path **kind**: the set of all path
 values. It sits under `string` in the kind lattice, so `string`

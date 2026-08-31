@@ -419,6 +419,7 @@ func (f *FuncVal) Unify(peer Val, ctx *Ctx) Val {
 			} else if sv, isScalar := arg.(*ScalarVal); isScalar &&
 				KindString == sv.kind {
 				spelling, ok = sv.peg.(string)
+				spelling = textAddress(spelling)
 			} else {
 				continue
 			}
@@ -769,6 +770,7 @@ func (f *FuncVal) resolve(ctx *Ctx, base []string, args []Val) Val {
 			}
 			if KindString == sv.kind {
 				str, _ := sv.peg.(string)
+				str = textAddress(str)
 				if _, aok := parseAddress(str); !aok {
 					return makeNilErr(ctx, "path_address", f, args[0])
 				}

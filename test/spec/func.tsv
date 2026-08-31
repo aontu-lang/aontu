@@ -138,13 +138,12 @@ lower-locale-independent-i	gens	x:lower("I")	{"x":"i"}
 upper-ascii-unchanged	gens	x:upper("abc")	{"x":"ABC"}
 lower-ascii-unchanged	gens	x:lower("ABC")	{"x":"abc"}
 upper-digits-punct-unchanged	gens	x:upper("a1!")	{"x":"A1!"}
-# path() with a SCALAR argument (issue #38). A scalar NAMES a path rather
-# than being one, so it becomes a reference and ordinary resolution
-# answers -- `path("b")` is the value at b, not the string "b", which is
-# what the Go port used to produce. The reference resolves from the ROOT,
-# so a call nested inside a map still names a top-level key.
-path-scalar-name	errc	a:path("b") b:2	path_address
-path-scalar-nested	errc	a:{q:path("b")} b:5	path_address
+# path() with a string argument reads ADDRESS TEXT (issue #38, then
+# ADR-015/016): text with no anchor is RELATIVE, the address the raw
+# spelling captures -- `path("b")` is the capture `path(.b)`, position-
+# independent data, not the value at b.
+path-scalar-name	gens	a:path("b") b:2	{"a":".b","b":2}
+path-scalar-nested	gens	a:{q:path("b")} b:5	{"a":{"q":".b"},"b":5}
 # The wrap happens ONCE, before the arguments are driven. Without that
 # guard a ref argument -- already resolved to its target by the time the
 # call resolves -- gets wrapped a second time, and path($.b) looks up a

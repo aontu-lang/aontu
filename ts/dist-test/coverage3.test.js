@@ -426,14 +426,19 @@ function capture(fn) {
         // No argument at all is the path KIND (docs/design/PATHS.0.md).
         Assert.equal(new PathFuncVal_1.PathFuncVal({ peg: [] }, ctx).resolve(ctx, []).isPathKind, true);
         // A string argument is ADDRESS TEXT: an anchored spelling
-        // captures, an anchorless one refuses. prepare answers a fresh
+        // captures, an anchorless one converts as RELATIVE, and text that
+        // spells nothing once anchored refuses. prepare answers a fresh
         // argument list -- the parsed one may be shared by clones.
         const pfs = new PathFuncVal_1.PathFuncVal({ peg: [new StringVal_1.StringVal({ peg: '.a' })] }, ctx);
         const sout = pfs.prepare(ctx, [new StringVal_1.StringVal({ peg: '.a' })]);
         Assert.equal(sout[0].isPath, true);
         Assert.equal(sout[0].peg, '.a');
-        const pfb = new PathFuncVal_1.PathFuncVal({ peg: [new StringVal_1.StringVal({ peg: 'a' })] }, ctx);
-        const bout = pfb.prepare(ctx, [new StringVal_1.StringVal({ peg: 'a' })]);
+        const pfr = new PathFuncVal_1.PathFuncVal({ peg: [new StringVal_1.StringVal({ peg: 'a' })] }, ctx);
+        const relout = pfr.prepare(ctx, [new StringVal_1.StringVal({ peg: 'a' })]);
+        Assert.equal(relout[0].isPath, true);
+        Assert.equal(relout[0].peg, '.a');
+        const pfb = new PathFuncVal_1.PathFuncVal({ peg: [new StringVal_1.StringVal({ peg: 'a..b' })] }, ctx);
+        const bout = pfb.prepare(ctx, [new StringVal_1.StringVal({ peg: 'a..b' })]);
         Assert.equal(bout[0].isNil, true);
         Assert.equal(bout[0].why, 'path_address');
         // …while a container argument passes through prepare (a computed

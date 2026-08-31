@@ -86,6 +86,19 @@ func prefixMeet(a, b string) (string, bool) {
 	return out, true
 }
 
+// textAddress is the spelling string TEXT converts by, inside a
+// `path(...)` call: text that carries no anchor is RELATIVE ("a.b" is
+// the address ".a.b"), matching the raw form. Only the anchor is
+// supplied -- the result still has to parse, so malformed text ("",
+// "a..b", a bad "$" spelling) refuses as before. Mirrors textAddress
+// in ts/src/val/PathVal.ts.
+func textAddress(s string) string {
+	if strings.HasPrefix(s, "$") || strings.HasPrefix(s, ".") {
+		return s
+	}
+	return "." + s
+}
+
 func parseAddress(s string) (Address, bool) {
 	if "$" == s {
 		// The whole document is not a relation's target: an address must

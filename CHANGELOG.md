@@ -13,7 +13,10 @@ Both ports. **Breaking**, tightening ADR-015 below: the string
 bridges are gone. The `path(...)` call's own argument is the one
 conversion — a string literal converts at capture, and a computed
 argument (an expression, a reference to a string) evaluates first and
-converts by the same grammar, so addresses stay buildable:
+converts by the same grammar. Text with no anchor converts as
+**relative** (`path("a.b")` is `path(.a.b)`, the address the raw
+spelling captures; text that spells nothing once anchored still
+refuses), so addresses stay buildable:
 
 ```aon
 accountFor: refer() & path("$.customers." + key())
