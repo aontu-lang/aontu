@@ -7,6 +7,42 @@ which implementation each change affects.
 
 ## Unreleased
 
+### A discarded alternative no longer asserts its types on the model
+
+Both ports. **Soundness.** `refer(t)` and `rel(t)` assert `t` on
+another node, and a disjunct member trial was transactional over the
+error list but not over the two channels that flow commits through, so
+EVERY alternative's assertion landed on the target and the records were
+met together — leaving the target more constrained than any single
+alternative licenses:
+
+    x: ({k:1, d?: refer({z:1})} | {k:2, d?: refer({w:2})}) & {k:1, d: path($.y)}
+    y: {}
+
+answered `y: {"w":2,"z":1}`, the type of the alternative it discarded,
+and answered with the engine's internal trial sentinel as an error code
+when the two types clashed. A member's flow is part of that member: the
+record is staged per trial and only survivors' records are merged, and
+the write into the live tree waits for the trial to end.
+(use-cases/BUGS.md 66.)
+
+### A conjunct member sits at the junction's own position
+
+TypeScript, restoring parity with Go. `JunctionVal.clone` left its
+members' paths to the context cut, so a member reached through a
+reference took the map's path instead of the field's — which stamped a
+`rel()`-minted link with the ENTITY's key as its predicate, and
+`inverse(n)` then looked for a mirror under a relation nobody declared
+and called a written one missing. (use-cases/BUGS.md 67.)
+
+### A document that cannot be generated is not blamed on its relations
+
+Both ports. The relation verdict is decided after generation and only
+when generation succeeded, and `aontu relations` asks generation first
+and reports what it says. An unsettled disjunction used to surface as a
+false `relation_inverse_missing` that buried the `disjunct_no_gen` that
+actually stopped the document. (use-cases/BUGS.md 68.)
+
 ### A sixteenth use case: a layered module graph, drawn as a tree
 
 `use-cases/16-module-deps/` models a codebase's own module graph —

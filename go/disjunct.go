@@ -62,6 +62,22 @@ func (d *DisjunctVal) Unify(peer Val, ctx *Ctx) Val {
 	var gate []int
 	_, peerIsPref := peer.(*PrefVal)
 	oval := make([]Val, len(d.peg))
+	// A MEMBER'S TYPE FLOW IS PART OF THAT MEMBER. refer(t)/rel(t)
+	// assert t on ANOTHER node, and the assertion may only take effect
+	// if the member that makes it survives: committing every member's
+	// flow puts t_A & t_B on the target, which no reading of A | B
+	// licenses and which leaves the target MORE constrained than
+	// either alternative. The record is staged per trial, like
+	// ctx.err, and only the survivors' records are merged below.
+	// Mirrors ts/src/val/DisjunctVal.ts. The map is SEEDED here rather
+	// than staged only when one already exists: this port makes it
+	// lazily, at the first flow, and a trial that made it would have
+	// its record thrown away with the staging map it was made in.
+	if nil == ctx.referflows {
+		ctx.referflows = map[string]Val{}
+	}
+	savedFlows := ctx.referflows
+	staged := make([]map[string]Val, len(d.peg))
 	for i, m := range d.peg {
 		// Try the member against peer in isolation: a failed trial
 		// must not pollute the real error list, so swap in a throwaway
@@ -72,10 +88,15 @@ func (d *DisjunctVal) Unify(peer Val, ctx *Ctx) Val {
 		ctx.err = trial
 		ctx.trial = true
 		ctx.slot = slot
+		if nil != savedFlows {
+			staged[i] = map[string]Val{}
+			ctx.referflows = staged[i]
+		}
 		r := unite(ctx, m, peer)
 		failed := len(ctx.err) > 0 || r.Nil()
 		ctx.err = saved
 		ctx.trial = savedTrial
+		ctx.referflows = savedFlows
 		if failed {
 			oval[i] = nil
 		} else {
@@ -180,6 +201,24 @@ func (d *DisjunctVal) Unify(peer Val, ctx *Ctx) Val {
 			wrapped.stext = pp.stext
 			wrapped.path = cp(got.vpath())
 			oval[vI] = wrapped
+		}
+	}
+
+	// THE SURVIVORS' FLOWS, AND ONLY THEIRS. Members knocked out by the
+	// trial or by the admission gate above are nil here, so this runs
+	// after both and before they are dropped.
+	if nil != savedFlows {
+		for i, st := range staged {
+			if nil == st || nil == oval[i] {
+				continue
+			}
+			for k, fv := range st {
+				if prev, seen := savedFlows[k]; seen {
+					savedFlows[k] = unite(ctx, prev, fv)
+				} else {
+					savedFlows[k] = fv
+				}
+			}
 		}
 	}
 

@@ -207,18 +207,32 @@ class Aontu {
                 let uval = this.unify(pval, undefined, ac);
                 // console.log('AONTU-GENERATE-UVAL', uval.constructor, uval.mark)
                 if (undefined !== uval && 0 === uval.err.length) {
+                    out = uval.isNil ? (ac.adderr(uval), undefined)
+                        : 0 < ac.err.length ? undefined
+                            : uval.gen(ac);
                     // The relation verdict (RELATIONS P2): declarations the
                     // graph atoms registered during unification are decided
                     // HERE, where no more information can arrive -- the sizing
                     // atoms' model. A violated declaration is a located
-                    // evaluation error at the offending edge, and generation
-                    // does not proceed past it.
-                    if (!uval.isNil) {
+                    // evaluation error at the offending edge, and the generated
+                    // value is discarded below.
+                    //
+                    // AFTER GENERATION, and only when generation SUCCEEDED. A
+                    // document that cannot be generated has no finished model
+                    // to have a graph verdict about: an unsettled disjunction
+                    // leaves alternatives the graph walk cannot read, so a
+                    // mirror the document writes is absent from the edge set
+                    // and `inverse(n)` reports it missing -- a false finding,
+                    // and one that buried the `disjunct_no_gen` that actually
+                    // stopped the document. The check that a broken document is
+                    // not blamed on its relations (`relations` verb, finding F)
+                    // holds here too.
+                    if (!uval.isNil && 0 === ac.err.length) {
                         (0, relation_1.relationErrors)(ac, uval);
+                        if (0 < ac.err.length) {
+                            out = undefined;
+                        }
                     }
-                    out = uval.isNil ? (ac.adderr(uval), undefined)
-                        : 0 < ac.err.length ? undefined
-                            : uval.gen(ac);
                     if (0 < ac.err.length) {
                         if (!ac.collect) {
                             throw new err_1.AontuError(ac.errmsg(), ac.err);

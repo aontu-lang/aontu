@@ -364,7 +364,17 @@ class ReferVal extends FeatureVal {
         // The write into THIS pass's view, so the rest of the pass sees
         // it. findAt refuses the empty path, so a resolved target always
         // has a parent holding it.
-        found.parent.peg[found.key as string] = merged
+        // NOT FROM INSIDE A TRIAL. A disjunction member is a
+        // HYPOTHESIS, and writing its flow into the live tree
+        // asserts the member's type on another node before the
+        // member is known to survive. The `unite` above still
+        // runs: its nil is how a member legitimately fails. Only
+        // the COMMIT waits, and the surviving member's flow
+        // reaches the tree on the next pass, from the record
+        // DisjunctVal stages and merges for survivors alone.
+        if (true !== (ctx as any)._trialMode) {
+          found.parent.peg[found.key as string] = merged
+        }
         // ... and the RECORD, keyed by the target's path, replayed onto
         // every later pass by applyFlows in ts/src/unify.ts. A pass
         // rebuilds subtrees, so the write above does not survive one
@@ -466,24 +476,36 @@ class RelVal extends FeatureVal {
   }
 
   // The predicate: the last segment of the field path the constraint
-  // is being driven at -- when that segment is a D-1 NAME. A relation
+  // is being APPLIED at -- when that segment is a D-1 NAME. A relation
   // predicate is a declared name (RELATIONS.0.md §3.2), so a list
   // index or a key outside the name grammar produces unlabelled
   // links, and the graph falls back to its old inference. The D-1
   // test is also what keeps the two ports' edges identical: a list
   // index is a number here and a string in Go.
-  fieldkey(): string | undefined {
-    const seg = this.path[this.path.length - 1]
+  //
+  // THE PATH COMES FROM THE CONTEXT, not from `this.path`. The val's
+  // own path records where this constraint was CLONED FROM, and the
+  // two part company the moment a second document merges into an
+  // entity: the field's constraint is then driven at the ENTITY, and
+  // `this.path` names the entity while the context names the field.
+  // The predicate became the entity's own key, every link under it
+  // minted an edge starting one level too high, and `inverse(n)`
+  // reported a mirror that was written as missing.
+  fieldkey(ctx: AontuContext): string | undefined {
+    const path: any[] = (ctx as any).path
+    const seg = path[path.length - 1]
     return 'string' === typeof seg && PREDICATE_NAME.test(seg) ? seg : undefined
   }
 
   // One leaf's residual: the refer machinery carrying rel's codes,
-  // predicate and type.
-  leafRefer(ctx: AontuContext): ReferVal {
+  // predicate and type. The predicate is passed IN, because the field
+  // it names is decided where the rewrite starts and must not be
+  // re-read on the way down (see `rewriteUnder`).
+  leafRefer(ctx: AontuContext, relkey: string | undefined): ReferVal {
     const rv = new ReferVal({ tval: this.tval } as any, ctx)
     rv.addrcode = 'rel_address'
     rv.unresolvedcode = 'rel_unresolved'
-    rv.relkey = this.fieldkey()
+    rv.relkey = relkey
     rv.site = this.site
     rv.path = this.path
     return rv
@@ -494,6 +516,18 @@ class RelVal extends FeatureVal {
   // alone, which is what makes a second application (a template
   // re-applied, a later pass) a no-op.
   rewrite(ctx: AontuContext, container: any): Val {
+    return this.rewriteUnder(ctx, container, this.fieldkey(ctx))
+  }
+
+  // The rewrite proper, carrying the predicate decided at the field.
+  // It is decided ONCE, at the top: a map-valued relation
+  // (`dependsOn: {primary: [...]}`) descends through the inner label
+  // and must still report `dependsOn`, which is the whole reason a
+  // link carries a declared predicate rather than letting the graph
+  // infer one from its position.
+  rewriteUnder(
+    ctx: AontuContext, container: any, relkey: string | undefined
+  ): Val {
     const out: any = container.clone(ctx)
     const peg: any = out.peg
     const keys: any[] = Array.isArray(peg)
@@ -507,13 +541,13 @@ class RelVal extends FeatureVal {
       const child: any = peg[k]
       if (true === child.isMap || true === child.isList) {
         nested = true
-        const sub: any = this.rewrite(ctx.descend('' + k), child)
+        const sub: any = this.rewriteUnder(ctx.descend('' + k), child, relkey)
         peg[k] = sub
         pending = pending || true !== sub.done
       }
       else if (undefined === child.link) {
-        let leaf = unite(ctx.descend('' + k), this.leafRefer(ctx), child,
-          'rel-leaf')
+        let leaf = unite(ctx.descend('' + k), this.leafRefer(ctx, relkey),
+          child, 'rel-leaf')
         // The held constraints apply PER LEAF: a re() on the relation
         // constrains every address, never the container that holds
         // them (found by the service catalog, whose re("^svc_") met
@@ -546,7 +580,7 @@ class RelVal extends FeatureVal {
     // refuse it), and only where no spread already stands: a schema's
     // own template is not this rewrite's to clobber.
     if (!nested && null == (out as any).spread.cj) {
-      let tmpl: Val = this.leafRefer(ctx)
+      let tmpl: Val = this.leafRefer(ctx, relkey)
       if (null != this.held) {
         tmpl = new ConjunctVal({ peg: [tmpl, this.held] }, ctx)
       }
@@ -581,7 +615,8 @@ class RelVal extends FeatureVal {
     // value only -- a bare string is never an address (PATHS.0.md,
     // amended); the scalar arm below refuses it.
     if (true === p.isPath) {
-      const out = unite(ctx, this.leafRefer(ctx), peer, 'rel-scalar')
+      const out = unite(ctx, this.leafRefer(ctx, this.fieldkey(ctx)), peer,
+        'rel-scalar')
       return null == this.held ? out
         : unite(ctx, out, this.held, 'rel-held')
     }

@@ -57,6 +57,16 @@ class DisjunctVal extends JunctionVal_1.JunctionVal {
         // before return.
         const savedErr = ctx.err;
         const savedTrialMode = ctx._trialMode;
+        // A MEMBER'S TYPE FLOW IS PART OF THAT MEMBER. `refer(t)`/`rel(t)`
+        // assert `t` on ANOTHER node, and the assertion may only take
+        // effect if the member that makes it survives: committing every
+        // member's flow puts `t_A & t_B` on the target, which no reading
+        // of `A | B` licenses and which leaves the target MORE constrained
+        // than either alternative. The flow record is therefore staged per
+        // trial, like `ctx.err`, and only the survivors' records are
+        // merged into the real one below.
+        const savedFlows = ctx.referflows;
+        const staged = [];
         // C1-inner: tell `makeNilErr` to return TRIAL_NIL in this scope
         // instead of allocating per-failure NilVals. Save/restore so
         // nested DisjunctVal trials (and the outer non-trial code) are
@@ -70,6 +80,10 @@ class DisjunctVal extends JunctionVal_1.JunctionVal {
                 const v = this.peg[vI];
                 const trialErr = [];
                 ctx.err = trialErr;
+                if (undefined !== savedFlows) {
+                    staged[vI] = new Map();
+                    ctx.referflows = staged[vI];
+                }
                 oval[vI] = (0, unify_1.unite)(te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'DIST:' + vI) }) : ctx, v, peer, 'dj-peer');
                 if (0 < trialErr.length) {
                     // C1: failed-trial marker is never user-visible — it just
@@ -133,6 +147,7 @@ class DisjunctVal extends JunctionVal_1.JunctionVal {
         finally {
             ctx._trialMode = savedTrialMode;
             ctx.err = savedErr;
+            ctx.referflows = savedFlows;
         }
         // // // console.log('DISJUNCT-unify-B', this.id, oval.map(v => v.canon))
         // A PREFERENCE CONJOINED WITH A DISJUNCTION IS A PREFERENCE ON THE
@@ -204,6 +219,23 @@ class DisjunctVal extends JunctionVal_1.JunctionVal {
                 }
             }
             // // // console.log('DISJUNCT-unify-D', this.id, oval.map(v => v.canon))
+        }
+        // THE SURVIVORS' FLOWS, AND ONLY THEIRS. Members knocked out by
+        // the trial, by the admission gate or by the dedup above are all
+        // nil here, so this runs after every one of those and before the
+        // filter that drops them.
+        if (undefined !== savedFlows) {
+            for (let vI = 0; vI < staged.length; vI++) {
+                const st = staged[vI];
+                if (undefined === st || true === oval[vI]?.isNil) {
+                    continue;
+                }
+                for (const [k, fv] of st) {
+                    const prev = savedFlows.get(k);
+                    savedFlows.set(k, undefined === prev ? fv
+                        : (0, unify_1.unite)(ctx, prev, fv, 'refer-flow-record'));
+                }
+            }
         }
         // Outside the 1<length block: a SINGLE-member disjunction (e.g. a
         // rankPrefs collapse) whose one member fails the trial or the

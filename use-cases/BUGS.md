@@ -2753,6 +2753,146 @@ Repros:
 [`repros/graph/refer-behind-conjunct-invisible.aon`](repros/graph/refer-behind-conjunct-invisible.aon)
 and its `refer-in-list-visible.aon` control.
 
+## disjunction trials — what a discarded alternative still asserts
+
+### 66. A discarded alternative's `refer(t)`/`rel(t)` type flow lands on the target anyway [critical]
+
+Found 2026-08-31 while writing `use-cases/16-module-deps`, from the
+other end: a module graph whose mirrors were all written reported
+`relation_inverse_missing`. The relation machinery turned out to be
+innocent. Two lines, no relations in sight:
+
+```aon
+x: ({ k:1, d?: refer({z:1}) } | { k:2, d?: refer({w:2}) }) & { k:1, d: path($.y) }
+y: { }
+```
+
+`k:1` refuses the second alternative, so the only surviving one asks
+`refer({z:1})` of `$.y`. The engine answered `y: {"w":2,"z":1}` — the
+type of the alternative it THREW AWAY, met with the type of the one it
+kept. A disjunct member trial was transactional over `ctx.err` and
+`_trialMode` and over nothing else, while `refer(t)` commits through
+two channels that are global to the evaluation: the write of the
+merged target back into the live tree, and the flow RECORD that later
+passes replay. Every member's flow therefore landed, and the records
+were CONJOINED, leaving the target strictly more constrained than any
+single alternative licenses — the opposite direction from what `A | B`
+means.
+
+Make the two types clash at one key and the same leak surfaces as an
+error whose code is the engine's own internal sentinel:
+
+```
+$ aontu discarded-alternative-conflicts.aon
+[aontu/|:trial-nil]: Cannot resolve value at path $
+```
+
+Downstream, the target never collapses out of `DisjunctVal` (both
+alternatives carry the trial nil), the graph walk cannot enter one, and
+the mirror edges inside it are missing from the edge set — which is how
+a written `inverse(n)` mirror came to be reported missing.
+
+Repros: `repros/disjunct-flow/discarded-alternative-flows.aon`,
+`repros/disjunct-flow/discarded-alternative-conflicts.aon`.
+
+Status: FIXED 2026-08-31, both ports. A member's flow is part of that
+member: the flow record is STAGED per trial, exactly as the error list
+is, and only the survivors' records are merged into the real one —
+after the admission gate and the dedup, so a member knocked out there
+is excluded too. The write into the live tree waits for the trial to
+end; the `unite` that computes it still runs, because its nil is how a
+member legitimately fails. Pinned by
+`flow-from-a-discarded-alternative-does-not-land`,
+`flow-discarded-alternative-does-not-conflict` and
+`flow-from-the-second-alternative-lands` (test/spec/refer.tsv).
+
+
+## conjunct members — where a clone says they live
+
+### 67. A conjunct member takes the map's path, so a `rel()`-minted link is stamped with the entity's key [critical]
+
+Found 2026-08-31 in the same case. A module graph split across two
+documents — the second adding an edge to an entity the first declared —
+reported `relation_inverse_missing` for a mirror written in plain
+sight. The edge set showed why:
+
+```
+{"from":"$.r.m","key":"db","to":"$.r.m.log","at":"$.r.m.db.dependsOn.0"}
+```
+
+A link sitting at `$.r.m.db.dependsOn.0` was reported as starting at
+`$.r.m` under a relation called `db` — the entity's own map key, taken
+as the predicate. `JunctionVal.clone` left its members' paths to the
+context cut, and `MapVal.clone` hands a child its path through the spec
+rather than by descending the context, so a conjunct member reached
+through a reference into a position at least as deep as its definition
+carried the MAP's path. `RelVal.fieldkey` reads the last segment of
+that path as the predicate, and got `db`.
+
+Status: FIXED 2026-08-31. A junction's members sit at the junction's
+own position — the rule `repathInstance` already states for the
+instance walk, and what `A & B` means — so `JunctionVal.clone` states
+it for every clone. Go states the same invariant directly (`cloneAt`),
+so the fix restores parity rather than inventing a behaviour. The
+rewrite that wraps a container's leaves now also decides the predicate
+ONCE, where the constraint meets its field, so a map-valued relation
+still reports the relation rather than the inner label. Pinned by
+`inverse-mirror-written-by-a-second-statement` (test/spec/relation.tsv).
+
+
+## verdicts — what may be said about a document that does not finish
+
+### 68. The relation verdict was pronounced over a document that cannot be generated [major]
+
+Found 2026-08-31. Unification can succeed over a tree that still holds
+an unsettled disjunction — `disjunct_no_gen` refuses it at generation —
+and the graph walk cannot read inside one, so links in its alternatives
+are invisible and a written mirror is absent from the edge set. The
+relation verdict ran BEFORE generation, so it reported
+`relation_inverse_missing` and generation never got to say what was
+actually wrong. `aontu relations` did the same, answering `fail` with
+findings that were false rather than `error` with the reason.
+
+Status: FIXED 2026-08-31, both ports. The verdict is asked AFTER
+generation and only when generation succeeded; the verb asks generation
+first on a collecting context of its own and reports what it says. This
+is the rule the verb already stated for a document that does not unify
+("a document that does not stand up is not a document with a bad
+graph"), extended to one that does not generate. Pinned by
+`ungenerable-document-is-not-blamed-on-relations`
+(test/spec/relation.tsv).
+
+
+## relation flow — a rule that depends on where you write it
+
+### 69. `rel(t)`'s target-shape flow is order-dependent, so an illegal edge passes in one spelling [critical]
+
+Found 2026-08-31 by an adversarial audit of `use-cases/16-module-deps`,
+whose whole subject is a layering rule carried by `rel(t)`: a core
+module's `dependsOn` flows `layer: "core" | "util"` into every module
+it names, so an upward edge cannot meet the far end.
+
+It holds for the spelling the case tests and not for its mirror image.
+`bad/upward.aon` writes the offending module first and refuses with
+`[aontu/empty]`; `bad/upward-swapped.aon` is the same file with its two
+blocks in the other order — same edges, same layers, same mirrors — and
+GENERATES. A sweep of the six declaration orders of a four-module
+version accepted three of them. Dumping the flow record after
+unification shows the two orders recording different shapes for the
+same target: `{"kind":"mod","layer":"core"|"util"}` in the refusing
+order, and the wider four-way shape in the accepting one, so the narrow
+per-layer target never reaches the record at all.
+
+Both spellings are in the corpus and `check.sh` pins them: the refusal
+as an assertion, the acceptance as a KNOWN MISS that fails the day the
+flow stops depending on declaration order.
+
+Status: OPEN. A rule that depends on the order its subjects are
+declared in is not yet a rule, and this is the largest thing the case
+found. Note that it is NOT defect 66: that leak is fixed, and this
+survives the fix.
+
+
 ## Elsewhere in this review
 
 Defects verified earlier in the effort and recorded in

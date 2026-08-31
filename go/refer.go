@@ -455,12 +455,22 @@ func (r *ReferVal) settle(ctx *Ctx, site Val) Val {
 			// The write into THIS pass's view, so the rest of the pass
 			// sees it. findAt refuses the empty path, so a resolved
 			// target always has a parent holding it.
-			switch p := found.parent.(type) {
-			case *MapVal:
-				p.set(found.key, merged)
-			case *ListVal:
-				if i, err := strconv.Atoi(found.key); nil == err {
-					p.peg[i] = merged
+			//
+			// NOT FROM INSIDE A TRIAL: a disjunction member is a
+			// hypothesis, and writing its flow into the live tree
+			// asserts the member's type on another node before the
+			// member is known to survive. The unite above still runs --
+			// its nil is how a member legitimately fails -- and the
+			// surviving member's flow reaches the tree on the next pass
+			// from the record DisjunctVal stages for survivors alone.
+			if !ctx.trial {
+				switch p := found.parent.(type) {
+				case *MapVal:
+					p.set(found.key, merged)
+				case *ListVal:
+					if i, err := strconv.Atoi(found.key); nil == err {
+						p.peg[i] = merged
+					}
 				}
 			}
 			// ... and the RECORD, keyed by the target's path, replayed
