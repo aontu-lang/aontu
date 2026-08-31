@@ -26,8 +26,12 @@ const SHARED = Path.join(__dirname, '..', '..', 'test', 'spec', 'signature.tsv')
 describe('sig', () => {
 
   test('sigdecl-is-the-shared-declaration', () => {
+    // Line endings are the checkout's business, not the declaration's:
+    // a CRLF checkout (Windows autocrlf) must compare equal, the same
+    // tolerance the shared spec runner extends to every .tsv.
+    const norm = (s: string) => s.replace(/\r\n/g, '\n')
     const shared = Fs.readFileSync(SHARED, 'utf8')
-    expect(SIGDECL).equal(shared)
+    expect(norm(SIGDECL)).equal(norm(shared))
   })
 
 

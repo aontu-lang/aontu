@@ -2,6 +2,10 @@
 # data-driven test suite parses identically on Windows checkouts.
 *.tsv text eol=lf
 test/spec/files/** text eol=lf
+# The embedded copy of test/spec/signature.tsv (docs/design/
+# SIGNATURES.0.md): byte-compared with it by go/sig_test.go, so it
+# keeps the same line endings on every platform.
+go/sigdecl.txt text eol=lf
 
 # The same rule, for the same reason, over every other file the suite
 # READS AS DATA rather than compiles: the documentation is executed

@@ -22,8 +22,12 @@ func TestSigDeclIsTheSharedDeclaration(t *testing.T) {
 	if nil != err {
 		t.Fatal(err)
 	}
-	if string(shared) != sigDeclText {
-		t.Fatal("go/sigdecl.txt is not byte-identical with " +
+	// Line endings are the checkout's business, not the declaration's:
+	// a CRLF checkout (Windows autocrlf) must compare equal, the same
+	// tolerance the shared spec runner extends to every .tsv.
+	norm := func(s string) string { return strings.ReplaceAll(s, "\r\n", "\n") }
+	if norm(string(shared)) != norm(sigDeclText) {
+		t.Fatal("go/sigdecl.txt does not match " +
 			"test/spec/signature.tsv — run `make sig`")
 	}
 }

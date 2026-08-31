@@ -51,8 +51,12 @@ const lsp_1 = require("../dist/lsp");
 const SHARED = Path.join(__dirname, '..', '..', 'test', 'spec', 'signature.tsv');
 (0, node_test_1.describe)('sig', () => {
     (0, node_test_1.test)('sigdecl-is-the-shared-declaration', () => {
+        // Line endings are the checkout's business, not the declaration's:
+        // a CRLF checkout (Windows autocrlf) must compare equal, the same
+        // tolerance the shared spec runner extends to every .tsv.
+        const norm = (s) => s.replace(/\r\n/g, '\n');
         const shared = Fs.readFileSync(SHARED, 'utf8');
-        (0, expect_1.expect)(sigdecl_1.SIGDECL).equal(shared);
+        (0, expect_1.expect)(norm(sigdecl_1.SIGDECL)).equal(norm(shared));
     });
     (0, node_test_1.test)('every-declaration-line-round-trips', () => {
         for (const rawline of sigdecl_1.SIGDECL.split('\n')) {
