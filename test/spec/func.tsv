@@ -22,8 +22,8 @@ pref-map	gen	x:pref({a:1})	{"x":{"a":1}}
 pref-override	gen	x:pref(2),x:3	{"x":3}
 pref-canon	canon	x:pref(1)	{"x":*1}
 pref-func	gen	x:*upper(foo)	{"x":"FOO"}
-path-ref	gen	z:x:{a:64} z:y:path(x.a)	{"z":{"x":{"a":64},"y":64}}
-path-abs	gen	z:x:{a:65} z:y:path($.z.x.a)	{"z":{"x":{"a":65},"y":65}}
+path-ref	gen	z:x:{a:64} z:y:path(x.a)	{"z":{"x":{"a":64},"y":".x.a"}}
+path-abs	gen	z:x:{a:65} z:y:path($.z.x.a)	{"z":{"x":{"a":65},"y":"$.z.x.a"}}
 move-basic	gen	m:{x?:number,y:Y} n:move($.m)	{"n":{"y":"Y"}}
 move-top	gen	m:{x?:top,y:Y} n:move($.m)	{"n":{"y":"Y"}}
 move-closed	gen	m:close({x?:number,y:Y}) n:move($.m)	{"n":{"y":"Y"}}
@@ -143,17 +143,17 @@ upper-digits-punct-unchanged	gens	x:upper("a1!")	{"x":"A1!"}
 # answers -- `path("b")` is the value at b, not the string "b", which is
 # what the Go port used to produce. The reference resolves from the ROOT,
 # so a call nested inside a map still names a top-level key.
-path-scalar-name	gens	a:path("b") b:2	{"a":2,"b":2}
-path-scalar-nested	gens	a:{q:path("b")} b:5	{"a":{"q":5},"b":5}
+path-scalar-name	errc	a:path("b") b:2	path_address
+path-scalar-nested	errc	a:{q:path("b")} b:5	path_address
 # The wrap happens ONCE, before the arguments are driven. Without that
 # guard a ref argument -- already resolved to its target by the time the
 # call resolves -- gets wrapped a second time, and path($.b) looks up a
 # key named after the VALUE 2 rather than answering it.
-path-ref-arg-unwrapped	gens	a:path($.b) b:2	{"a":2,"b":2}
+path-ref-arg-unwrapped	gens	a:path($.b) b:2	{"a":"$.b","b":2}
 # The degenerate spellings, which follow from treating the scalar as a
 # name: there is no key "1", and the empty path names nothing at all.
-path-scalar-missing	errc	a:path(1)	no_path
-path-empty-cycle	errc	a:path("")	path_cycle
+path-scalar-missing	errc	a:path(1)	invalid-arg
+path-empty-cycle	errc	a:path("")	path_address
 # ARITY (issue #51). Every built-in's argument count is known, so a
 # surplus or missing argument is a mistake in the source and is refused
 # at parse -- where the author can see it, and before any of it is

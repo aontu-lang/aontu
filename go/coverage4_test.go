@@ -69,6 +69,43 @@ func TestLossyBasedLiteralDoubleSign(t *testing.T) {
 	}
 }
 
+// TestContainerKindApiOnlyArms reaches the arms the dispatcher hides
+// from source (docs/design/PATHS.0.md). A DONE kind meeting TOP is
+// absorbed by uniteRaw's fast path before Unify runs, so the top arms
+// are API-only; they stay, mirrored with the TS twins, for callers
+// driving Vals directly. The twin is container-kind-api-only-arms in
+// ts/test/coverage3.test.ts.
+func TestContainerKindApiOnlyArms(t *testing.T) {
+	ctx := &Ctx{root: newMap()}
+	mk := newMapKind()
+	if out := mk.Unify(top(), ctx); out != mk {
+		t.Fatalf("map kind against top: got %T", out)
+	}
+	lk := newListKind()
+	if out := lk.Unify(top(), ctx); out != lk {
+		t.Fatalf("list kind against top: got %T", out)
+	}
+}
+
+// TestRefDegenerateEmptySegments pins the all-empty-segment reference:
+// no source spells it since path() became the capture (ADR-015), but a
+// constructed RefVal still reaches the cycle verdict rather than a
+// miss (issue #38), and deleting the arms would move that refusal to a
+// panic for anyone building Vals.
+func TestRefDegenerateEmptySegments(t *testing.T) {
+	ctx := &Ctx{root: newMap()}
+	rv := newRef([]any{""}, false)
+	rv.path = []string{"y"}
+	out := rv.Unify(top(), ctx)
+	n, ok := out.(*NilVal)
+	if !ok {
+		t.Fatalf("want nil, got %T", out)
+	}
+	if "path_cycle" != n.why {
+		t.Fatalf("why = %q, want path_cycle", n.why)
+	}
+}
+
 // TestFuncNoArgGuardsViaAPI reaches every built-in's missing-argument
 // guard the only way that is left: through the programmatic API
 // (issue #51). The twin is func-no-arg-guards-via-api in
@@ -87,7 +124,6 @@ func TestFuncNoArgGuardsViaAPI(t *testing.T) {
 		{"pref", "arg"},
 		{"type", "arg"},
 		{"hide", "arg"},
-		{"path", "arg"},
 		{"move", "arg"},
 		{"upper", "arg"},
 		{"lower", "arg"},
@@ -103,6 +139,13 @@ func TestFuncNoArgGuardsViaAPI(t *testing.T) {
 		if n.why != tc.why {
 			t.Fatalf("%s: why = %q, want %q", tc.name, n.why, tc.why)
 		}
+	}
+
+	// path() with no argument is the path KIND now
+	// (docs/design/PATHS.0.md), not a missing-argument refusal.
+	pf := newFunc("path", nil)
+	if k, ok := pf.resolve(ctx, nil, nil).(*ScalarKindVal); !ok || KindPath != k.kind {
+		t.Fatalf("path: want the path kind, got %T", pf.resolve(ctx, nil, nil))
 	}
 
 	// The constraint atoms carry their complaint on the residual rather

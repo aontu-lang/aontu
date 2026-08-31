@@ -1,7 +1,7 @@
 "use strict";
 /* Copyright (c) 2021-2025 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ScalarKindVal = exports.Null = exports.Integer = exports.Float = exports.BigInteger = exports.BigDecimal = void 0;
+exports.ScalarKindVal = exports.Path = exports.Null = exports.Integer = exports.Float = exports.BigInteger = exports.BigDecimal = void 0;
 exports.kindParent = kindParent;
 exports.kindSubsumes = kindSubsumes;
 const type_1 = require("../type");
@@ -53,6 +53,16 @@ exports.BigDecimal = BigDecimal;
 class Null {
 }
 exports.Null = Null;
+// A ScalarKind for tree addresses (docs/design/PATHS.0.md): the value
+// a `path(p)` call captures. Sits UNDER string -- an address is a
+// string with more structure, so string-kinded schemas over address
+// fields keep admitting -- while staying a distinct leaf, so a plain
+// string literal and a path value refuse each other exactly as the
+// number tower's leaves do. Reached only by the `path()` builtin, as
+// the exact numeric leaves are reached only by `0d`.
+class Path {
+}
+exports.Path = Path;
 // The immediate lattice parent of each kind marker. A marker absent from
 // this table sits directly under top (string, boolean, null -- and
 // `number` itself, which is the root of the numeric family).
@@ -63,6 +73,7 @@ const KIND_PARENT = new Map([
     [Float, Number],
     [BigInteger, Number],
     [BigDecimal, Number],
+    [Path, String],
 ]);
 // The immediate lattice superior of a kind marker, or undefined when the
 // marker's superior is top.

@@ -1,0 +1,83 @@
+# FIRST-CLASS PATHS (docs/design/PATHS.0.md): `path(p)` CAPTURES the
+# path expression `p` as a value -- the spelling, never the resolution
+# -- and `path()` with no argument is the path KIND. The captured
+# value is a scalar whose generated form is the address string, in
+# exactly the grammar refer() reads: `$.a.b` from the document root,
+# `.b` from the sibling scope, one more leading dot per parent step.
+#
+# This is the one non-strict argument position in the language: every
+# other call reads its argument's value, `path(p)` reads its spelling.
+# A plain reference (`$.a.b` alone) stays the embedding it has always
+# been -- the row `capture-not-resolution` is the three-way contrast.
+#
+# Meets are SYNTACTIC. Two path values meet only when they spell the
+# same address; a path value and a plain string literal refuse each
+# other exactly as the number tower's leaves do (`1 & 1.0` fails), and
+# promotion happens at the KIND: `path() & "$.a"` admits the string AS
+# the path value, the mirror of `number & 1`. The kind sits UNDER
+# string, so `string` admits a path value and string-typed schemas
+# over address fields keep working.
+#
+# A path value is DATA: existence is refer()'s contract, not the
+# value's -- `path($.nope)` generates. `path($.a) & refer()` is the
+# checked link.
+#
+# Every expectation was obtained by running both engines over this
+# corpus and diffing before any row was written (AGENTS.md).
+#
+# Columns: name<TAB>mode<TAB>src<TAB>expect
+
+# --- Capture ---------------------------------------------------------
+capture-absolute	gens	a:{b:1} d: path($.a.b)	{"a":{"b":1},"d":"$.a.b"}
+capture-relative	gens	x: {auth:{p:1}, dep: path(.auth)}	{"x":{"auth":{"p":1},"dep":".auth"}}
+capture-parent-step	gens	x: {auth:{}, b:{dep: path(..auth)}}	{"x":{"auth":{},"b":{"dep":"..auth"}}}
+capture-dotted-is-relative	gens	q:{r:7} p: path(q.r)	{"p":".q.r","q":{"r":7}}
+capture-string-text	gens	a:{} d: path("$.a")	{"a":{},"d":"$.a"}
+capture-list-index	gens	a:{p:[1,2]} d: path($.a.p.1)	{"a":{"p":[1,2]},"d":"$.a.p.1"}
+capture-not-resolution	gens	a:{p:1} emb: $.a cap: path($.a)	{"a":{"p":1},"cap":"$.a","emb":{"p":1}}
+capture-is-data-target-absent	gens	d: path($.nope)	{"d":"$.nope"}
+
+# --- The kind --------------------------------------------------------
+kind-unmet	errc	y: path()	mapval_no_gen
+kind-at-root	errc	path()	no_gen
+kind-admits-value	gens	a:{} d: path() & path($.a)	{"a":{},"d":"$.a"}
+kind-promotes-string	gens	a:{} d: path() & "$.a"	{"a":{},"d":"$.a"}
+kind-promotes-relative	gens	x:{auth:{}, dep: path() & ".auth"}	{"x":{"auth":{},"dep":".auth"}}
+promotion-needs-anchor	errc	d: path() & "auth"	path_address
+promotion-not-number	errc	d: path() & 1	no_scalar_unify
+string-kind-admits-path	gens	a:{} d: string & path($.a)	{"a":{},"d":"$.a"}
+type-mark-rides-promotion	gens	T: type(path()) & "$.a" a:{} x: 1	{"a":{},"x":1}
+hide-mark-rides-promotion	gens	h: hide(path()) & "$.a" a:{} x: 1	{"a":{},"x":1}
+super-lifts-to-kind	gens	a:{} b:{} d: super(path($.b)) & path($.a)	{"a":{},"b":{},"d":"$.a"}
+
+# --- Meets are syntactic ---------------------------------------------
+paths-meet-same	gens	a:{} d: path($.a) & path($.a)	{"a":{},"d":"$.a"}
+paths-meet-different	errc	d: path($.a) & path($.b)	scalar_value
+path-vs-string-literal	errc	d: path($.a) & "$.a"	scalar_kind
+
+# --- Canon: the call form is the literal -----------------------------
+canon-capture	canon	d: path($.a.b)	{"d":path($.a.b)}
+canon-relative	canon	x:{dep: path(.auth), auth:{}}	{"x":{"auth":{},"dep":path(.auth)}}
+canon-kind	canon	y: path()	{"y":path()}
+canon-promoted	canon	a:{} d: path() & "$.a"	{"a":{},"d":path($.a)}
+
+# --- The checked link: path names, refer asserts ---------------------
+checked-link	gens	a:{} d: path($.a) & refer()	{"a":{},"d":"$.a"}
+checked-link-edge	graph	a:{} d: path($.a) & refer()	{"edges":[{"from":"$","key":"d","to":"$.a","at":"$.d"}]}
+rel-path-leaf	gens	a: {dependsOn: rel() & [path($.b)]} b:{}	{"a":{"dependsOn":["$.b"]},"b":{}}
+alternatives-are-inert	gens	a:{q:1} y: *path(.a) | path(.b)	{"a":{"q":1},"y":".a"}
+
+# --- The kind settles inside a schema (the property refer() lacks,
+# --- G4 phase 4) -----------------------------------------------------
+kind-in-type-body	gens	T: type({d: path()}) x: $.T & {d: "$.a"} a:{}	{"a":{},"x":{"d":"$.a"}}
+
+# --- Argument refusals -----------------------------------------------
+arg-map	errc	a:path({b:1})	invalid-arg
+arg-number	errc	a:path(1)	invalid-arg
+arg-variable-segment	errc	k: "b" y: path($.a.$k) a:{b:1}	path_address
+arg-mid-path-dot	errc	x: {a:{b:1}, y: path(.a..b)}	path_address
+arg-absolute-parent-step	errc	y: path($..a) a:{}	path_address
+
+# --- Subsumption: string over path, kind over value ------------------
+subsume-string-over-path	subsume	d: string	d: path($.a)	{"findings":[],"verdict":"subsumes"}
+subsume-kind-over-value	subsume	d: path()	d: path($.a)	{"findings":[],"verdict":"subsumes"}

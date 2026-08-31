@@ -72,8 +72,10 @@ describe('func', function() {
     expect(G('z:x:{a:61} z:y:(.x.a)')).equal({ z: { x: { a: 61 }, y: 61 } })
     expect(G('z:x:{a:62} z:y:.x.a')).equal({ z: { x: { a: 62 }, y: 62 } })
     expect(G('z:x:{a:63} z:y:(x.a)')).equal({ z: { x: { a: 63 }, y: 63 } })
-    expect(G('z:x:{a:64} z:y:path(x.a)')).equal({ z: { x: { a: 64 }, y: 64 } })
-    expect(G('z:x:{a:65} z:y:path($.z.x.a)')).equal({ z: { x: { a: 65 }, y: 65 } })
+    // path() CAPTURES (docs/design/PATHS.0.md): the value is the
+    // address spelling, not the value found there.
+    expect(G('z:x:{a:64} z:y:path(x.a)')).equal({ z: { x: { a: 64 }, y: '.x.a' } })
+    expect(G('z:x:{a:65} z:y:path($.z.x.a)')).equal({ z: { x: { a: 65 }, y: '$.z.x.a' } })
     expect(G('x:{a:4} y:(.x.a)')).equal({ x: { a: 4 }, y: 4 })
     expect(G('x:{a:3} y:($.x.a)')).equal({ x: { a: 3 }, y: 3 })
     expect(G('x:{a:2.7} y:lower($.x.a)')).equal({ x: { a: 2.7 }, y: 2 })
@@ -623,13 +625,15 @@ describe('func', function() {
 
   test('path-canon', () => {
     const N = (x: string) => new Unify(x, lang).res.canon
-    expect(N('path("foo")')).equal('path(.foo)')
-    expect(N('path("foo.bar")')).equal('path(.foo.bar)')
-    expect(N('path("a.b.c")')).equal('path(.a.b.c)')
-    expect(N('path("foo_bar")')).equal('path(.foo_bar)')
-    expect(N('path("foo-bar")')).equal('path(.foo-bar)')
-    expect(N('path("0.1.2")')).equal('path(.0.1.2)')
-    expect(N('path()')).equal('nil')
+    // A string argument is ADDRESS TEXT (docs/design/PATHS.0.md):
+    // capture reads it by the address grammar, so an anchorless
+    // spelling refuses (path_address) instead of resolving a sibling.
+    expect(N('path("foo")')).equal('nil')
+    expect(N('path("foo.bar")')).equal('nil')
+    expect(N('path(".foo")')).equal('path(.foo)')
+    expect(N('path("$.a.b")')).equal('path($.a.b)')
+    expect(N('path("foo-bar")')).equal('nil')
+    expect(N('path()')).equal('path()')
     expect(N('path("")')).equal('nil')
   })
 
@@ -637,8 +641,12 @@ describe('func', function() {
   test('path-number', () => {
     const N = (x: string) => new Unify(x, lang).res.canon
 
-    expect(N('path(0.2)')).equal('path(.0.2)')
-    expect(N('path(1.2)')).equal('path(.1.2)')
+    // A lone float is a NUMBER argument, refused as invalid-arg; a
+    // multi-dot numeric term parses as a reference and captures as a
+    // relative address of numeric segments -- a list index is
+    // addressable, so the segments are legitimate.
+    expect(N('path(0.2)')).equal('nil')
+    expect(N('path(1.2)')).equal('nil')
     expect(N('path(1.2.3)')).equal('path(.1.2.3)')
     expect(N('path(1.2.3.4)')).equal('path(.1.2.3.4)')
 
@@ -646,9 +654,9 @@ describe('func', function() {
     expect(N('path(0.1.2.3)')).equal('path(.0.1.2.3)')
     expect(N('path(0.1.2.3.4)')).equal('path(.0.1.2.3.4)')
 
-    expect(N('path(1.0)')).equal('path(.1.0)')
-    expect(N('path(10.20)')).equal('path(.10.20)')
-    expect(N('path(3.14)')).equal('path(.3.14)')
+    expect(N('path(1.0)')).equal('nil')
+    expect(N('path(10.20)')).equal('nil')
+    expect(N('path(3.14)')).equal('nil')
 
     expect(N('path(.1)')).equal('path(.1)')
   })

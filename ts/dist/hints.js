@@ -135,6 +135,7 @@ const hints = {
     inverse_name: 'The argument to inverse() is not a relation name. The mirroring\npredicate is a D-1 name -- a letter or `_`, then letters, digits,\n`_` or `-` -- spelled bare or quoted.\n \nExamples:\n  inverse(dependedOnBy)  -> inverse  # A name;\n  inverse("dep-on")     -> inverse  # ... quoted when hyphenated;\n  inverse(1)             -> nil      # ... a number is not a name.',
     rel_address: 'A rel() field holds tree addresses: one string, a list of strings,\nor a map whose string leaves are addresses. This value can never be\none.\n \nExamples:\n  dependsOn: rel() & ["$.ledger"]  -> {..}  # A list of addresses;\n  hostedOn: rel() & "$.bastion"    -> {..}  # ... or one;\n  dependsOn: rel() & [7]           -> nil   # ... but 7 is not an address.',
     refer_address: 'A refer() was given something that is not a tree address. An address\nis a path: `$.a.b` from the document root, or `.b` from the link\'s own\nsibling scope — and only a STRING can be one.\n \nExamples:\n  refer() & "$.services.auth"  -> ...   # From the root;\n  refer() & ".auth"            -> ...   # ... or beside the link;\n  refer() & "services.auth"    -> nil   # ... but a path needs its anchor;\n  refer() & 1                  -> nil   # ... and a number is not one.',
+    path_address: 'This is not a tree address, so it cannot be a path value. An address\nis `$.a.b` from the document root, or `.b` from the sibling scope with\none more leading dot per parent step -- the grammar path() captures\nand path()-the-kind promotes a string through.\n \nExamples:\n  d: path($.services.auth)  -> path($.services.auth)  # A capture;\n  d: path() & ".auth"       -> path(.auth)            # ... a promotion;\n  d: path() & "auth"        -> nil   # ... a path needs its anchor;\n  d: path("$")              -> nil   # ... and the root is not addressable.',
     rel_unresolved: 'The address names no node in this evaluation. Every position in the\ndocument is addressable; nothing outside it is.\n \nExamples:\n  p: {}\n  q: rel() & "$.p"       -> {..}  # $.p is a node;\n  q: rel() & "$.nosuch"  -> nil   # ... $.nosuch is not.',
     refer_unresolved: 'A refer() address names no node in this evaluation. Within one\nevaluation the document-set is fixed, so a link to nothing is an error\nrather than something to resolve later: check the spelling, or add the\nnode it was meant to reach. A relative address that climbs off the top\nof the tree lands here too.\n \nExamples:\n  a:{p:1} b:refer()&"$.a"    -> "$.a"    # $.a is a node;\n  a:{p:1} b:refer()&"$.a.p"  -> "$.a.p"  # ... and so is a node inside it;\n  b:refer()&"$.nope"         -> nil      # ... but nothing is here.',
     pack_data: 'The first argument to pack() is not a bag. `pack` makes one child\nper child of its DATA, so the data has to have children: a list of\nnames, or a map whose keys are the names.\n \nExamples:\n  pack([a,b], {x:1})     -> {..}  # A list of names;\n  pack({a:1,b:2}, {x:1}) -> {..}  # ... or a map, keyed by its keys;\n  pack(1, {x:1})         -> nil   # ... but a scalar has no children.',
@@ -378,6 +379,10 @@ const codeClasses = {
     rel_address: 'parse',
     refer_unresolved: 'reference',
     rel_unresolved: 'reference',
+    // First-class paths (docs/design/PATHS.0.md): text that is not a
+    // tree address, met by path()'s capture or promotion. The same
+    // class as refer_address, because it is the same mistake.
+    path_address: 'parse',
     // G8 phase 1 -- the generation combinators. All three are class
     // `parse`: what is wrong is the CALL as written (data that is not a
     // bag, a list element that is not a name), not any pair of values a

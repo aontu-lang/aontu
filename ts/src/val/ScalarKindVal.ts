@@ -64,6 +64,15 @@ class BigDecimal { }
 // A ScalarKind for null.
 class Null { }
 
+// A ScalarKind for tree addresses (docs/design/PATHS.0.md): the value
+// a `path(p)` call captures. Sits UNDER string -- an address is a
+// string with more structure, so string-kinded schemas over address
+// fields keep admitting -- while staying a distinct leaf, so a plain
+// string literal and a path value refuse each other exactly as the
+// number tower's leaves do. Reached only by the `path()` builtin, as
+// the exact numeric leaves are reached only by `0d`.
+class Path { }
+
 
 // The immediate lattice parent of each kind marker. A marker absent from
 // this table sits directly under top (string, boolean, null -- and
@@ -75,6 +84,7 @@ const KIND_PARENT = new Map<any, any>([
   [Float, Number],
   [BigInteger, Number],
   [BigDecimal, Number],
+  [Path, String],
 ])
 
 
@@ -107,6 +117,7 @@ type ScalarConstructor =
   (typeof BigInteger) |
   (typeof BigDecimal) |
   (typeof Null) |
+  (typeof Path) |
   (typeof Integer.constructor)
 
 
@@ -216,6 +227,7 @@ export {
   Float,
   Integer,
   Null,
+  Path,
   ScalarConstructor,
   ScalarKindVal,
   kindParent,

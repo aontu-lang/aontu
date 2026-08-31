@@ -7,6 +7,42 @@ which implementation each change affects.
 
 ## Unreleased
 
+### First-class paths and the container kinds: `path(p?)`, `map()`, `list()`
+
+Both ports. **Breaking**: `path(p)` no longer resolves its argument —
+it **captures** it. The old meaning (resolve a path expression, the
+function form of a reference) was fully redundant: every spelling it
+covered has a bare-reference form (`path(x.a)` is `x.a`,
+`path("team-pay")` is `$."team-pay"`), and the repository held no use
+of it. The new meaning gives addresses a value of their own
+(ADR-015):
+
+```aon
+a: {b: 1}
+emb: $.a.b        # a reference: the value at the path
+cap: path($.a.b)  # a capture: the path itself -> ".a.b" stays a name
+```
+
+A path value is a scalar under `string` in the kind lattice; meets
+are syntactic (by spelling); generation emits the address string;
+canon renders the call back. `path()` with no argument is the path
+**kind**, which promotes a string that spells an address
+(`path() & "$.a"` is `path($.a)`) and settles inside `type()` bodies
+— so a vocabulary can declare a path-valued field and plain string
+data meets it. `refer()` and `rel()` accept path values as
+addresses: `path($.a) & refer()` is the checked link. New error code
+`path_address` (class `parse`).
+
+`map()` and `list()` are the container **kinds**: they admit exactly
+what `{}` and `[]` admit and default to nothing, where the unit
+literals default to empty — the spelling of "a map must be supplied
+here", which no earlier form could say. Mismatches reuse the units'
+own codes (`map`, `list`); neither function takes arguments (element
+constraints belong to the spreads).
+
+Pinned by `test/spec/path.tsv` and `test/spec/containerkind.tsv`;
+design in `docs/design/PATHS.0.md`.
+
 ### The use-case corpus is a CI gate
 
 No engine change; one job added to `.github/workflows/build.yml`.

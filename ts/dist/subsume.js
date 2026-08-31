@@ -253,6 +253,20 @@ function subsumeNode(state, path, g0, s0) {
         record(state, 'compat_narrowed', path, g, s, 'the general kind admits no such value');
         return 'no';
     }
+    // Container kinds (docs/design/PATHS.0.md): `map()` subsumes every
+    // map and itself, `list()` every list. The unit literals (`{}`,
+    // `[]`) already subsume through the container rules; only the kind
+    // former needs an arm.
+    if (true === g?.isContainerKind) {
+        const ga = g;
+        const sa = s;
+        if ((true === ga.isMapKind && (true === sa?.isMap || true === sa?.isMapKind))
+            || (true === ga.isListKind && (true === sa?.isList || true === sa?.isListKind))) {
+            return 'yes';
+        }
+        record(state, 'compat_narrowed', path, g, s, 'the general container kind admits no such value');
+        return 'no';
+    }
     // Constraint residuals.
     if (true === g?.isConstraint) {
         if (true === s?.isConstraint) {

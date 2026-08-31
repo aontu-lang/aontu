@@ -259,6 +259,13 @@ refer_unresolved	errcode	reference	0.53.0
 # carried by the same refer machinery underneath.
 rel_address	errcode	parse	0.53.0
 rel_unresolved	errcode	reference	0.53.0
+# FIRST-CLASS PATHS (docs/design/PATHS.0.md). One code: text that is
+# not a tree address, met by `path(p)`'s capture or by the promotion
+# meet `path() & "..."`. Class `parse` for refer_address's reason --
+# what is wrong is the text, and no later pass can repair it. An
+# address that names nothing is NOT a path error: a path value is
+# data, and existence stays refer()'s contract.
+path_address	errcode	parse	0.54.0
 # RELATION GRAPH CHECKS (G4 phase 5). Two report-layer codes, class
 # `conflict`: the model contradicts a property it declared for itself.
 # NEITHER is a NilVal code -- both are GLOBAL and NON-MONOTONE (an

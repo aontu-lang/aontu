@@ -5,7 +5,7 @@ endif
 
 syn keyword aontuType     string number float integer boolean top nil
 syn keyword aontuConstant true false null
-syn keyword aontuFunction upper lower copy key pref super type hide move path close open
+syn keyword aontuFunction upper lower copy key pref super type hide move path close open map list
 
 syn match  aontuComment  "#.*$"
 syn region aontuString   start=+"+ skip=+\\"+ end=+"+

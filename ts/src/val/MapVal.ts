@@ -434,6 +434,12 @@ class MapVal extends BagVal {
           done = (done && DONE === oval.dc)
         }
       }
+      else if (true === (peer as any).isContainerKind) {
+        // The container KIND delegates to its own arm, exactly as a
+        // scalar delegates to a ScalarKindVal peer: the kind knows to
+        // admit this map, and this map knows nothing about kinds.
+        out = peer.unify(this, ctx) as any
+      }
       else if (!peer.isTop) {
         out = makeNilErr(ctx, 'map', this, peer)
       }

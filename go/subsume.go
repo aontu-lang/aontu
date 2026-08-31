@@ -372,6 +372,29 @@ func subsumeNode(st *subState, path []string, g0, s0 Val) string {
 		return subNo
 	}
 
+	// Container kinds (docs/design/PATHS.0.md): `map()` subsumes every
+	// map and itself, `list()` every list. The unit literals already
+	// subsume through the container rules; only the kind former needs
+	// an arm. Mirrors the same arm in ts/src/subsume.ts.
+	if _, ok := g.(*MapKindVal); ok {
+		switch s.(type) {
+		case *MapVal, *MapKindVal:
+			return subYes
+		}
+		st.record("compat_narrowed", path, g, s,
+			"the general container kind admits no such value")
+		return subNo
+	}
+	if _, ok := g.(*ListKindVal); ok {
+		switch s.(type) {
+		case *ListVal, *ListKindVal:
+			return subYes
+		}
+		st.record("compat_narrowed", path, g, s,
+			"the general container kind admits no such value")
+		return subNo
+	}
+
 	// Constraint residuals.
 	if gc, ok := g.(*ConstraintVal); ok {
 		if sc, ok := s.(*ConstraintVal); ok {

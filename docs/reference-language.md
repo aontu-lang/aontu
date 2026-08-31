@@ -18,6 +18,7 @@ the [Explanation](explanation.md).
 - [Scalar kinds (types)](#scalar-kinds-types)
 - [Maps](#maps)
 - [Lists](#lists)
+- [Container kinds: `map()` and `list()`](#container-kinds-map-and-list)
 - [Conjunction `&`](#conjunction-)
 - [Disjunction `|`](#disjunction-)
 - [Preference / default `*`](#preference--default-)
@@ -36,6 +37,7 @@ the [Explanation](explanation.md).
 - [Aggregating: `sum` `least` `greatest`](#aggregating-sum-least-greatest)
 - [Folding to a string: `join`](#folding-to-a-string-join)
 - [Linking: the tree is the namespace](#linking-the-tree-is-the-namespace)
+- [First-class paths: `path(p?)`](#first-class-paths-pathp)
 - [Checked links: `refer(t?)`](#checked-links-refert)
   - [Declared relations](#declared-relations)
 - [Marks: `type` and `hide`](#marks-type-and-hide)
@@ -196,6 +198,11 @@ A bare kind name is a *type*: the set of all scalars of that kind.
 | `bigdecimal` | any value of *bigdecimal kind* (below)         |
 | `boolean`    | `true` or `false`                              |
 | `top`        | any value at all                               |
+
+The path kind is spelled `path()` rather than a bare word, and sits
+under `string` — see [First-class paths](#first-class-paths-pathp).
+The container kinds are `map()` and `list()` — see
+[Container kinds](#container-kinds-map-and-list).
 
 ### The four numeric leaves
 
@@ -482,6 +489,46 @@ routes: [get: "/health", post: "/orders"]
 ```json
 { "routes": [ { "get": "/health" }, { "post": "/orders" } ] }
 ```
+
+## Container kinds: `map()` and `list()`
+
+`{}` and `[]` are the container *units*: each admits any value of its
+shape, and generates empty when nothing else arrives. `map()` and
+`list()` are the container *kinds*: each admits exactly the same
+values and defaults to nothing, as `string` does. The kind is the
+spelling of "a map must be supplied here" — an unmet unit silently
+manufactures its empty value, an unmet kind refuses to generate.
+
+```aon
+required: map() & {a: 1}
+```
+
+```json
+{ "required": {"a": 1} }
+```
+
+The contrast, unmet:
+
+<!-- test: scenario container-kinds -->
+<!-- test: run -->
+```sh
+$ echo 'y: {}' | aontu -c
+{"y":{}}
+$ echo 'y: map()' | aontu
+[aontu/mapval_no_gen]: Cannot resolve value at path $.y
+...
+$ echo $?
+1
+```
+
+A kind mismatch refuses with the unit's own codes (`[aontu/map]`,
+`[aontu/list]`): `map() & [1]` is the same fact `{} & [1]` reports.
+Neither function takes arguments — element constraints belong to the
+spreads (`{&: V}`, `[&: V]`). The kinds settle inside `type()` bodies,
+meet the unit literals (`map() & {}` is `{}` — an explicitly supplied
+empty map satisfies the kind), and subsume their containers
+(`map()` subsumes `{a:1}`). Pinned by
+[`test/spec/containerkind.tsv`](../test/spec/containerkind.tsv).
 
 ## Conjunction `&`
 
@@ -1319,13 +1366,13 @@ never narrows the kind and never yields `-0`.
 
 ## Functions
 
-Aontu provides a fixed set of forty-two built-in functions. There are
-no user-defined functions. The count breaks down so that it can be
+Aontu provides a fixed set of forty-three built-in functions. There
+are no user-defined functions. The count breaks down so that it can be
 checked rather than trusted:
 
 | group | how many | which |
 |---|---|---|
-| general-purpose | 19 | tabulated below |
+| general-purpose | 20 | tabulated below |
 | [arithmetic](#arithmetic-add-sub-mul-div-mod-rem) | 6 | `add` `sub` `mul` `div` `mod` `rem` |
 | [aggregates](#aggregating-sum-least-greatest) | 3 | `sum` `least` `greatest` |
 | [projection](#aggregating-sum-least-greatest) | 1 | `pick` |
@@ -1336,7 +1383,10 @@ checked rather than trusted:
 (The figure here read *thirty-seven* until `join` landed, and had been
 wrong by four since `pick` and the relation trio arrived: the sentence
 named three groups and there were six. The table is the repair — a sum
-whose parts are listed is one a reader can add up.)
+whose parts are listed is one a reader can add up. It then read
+*forty-two* over a nineteen-row table that held eighteen, so the sum
+was one high on both sides; `map()` and `list()` landing is when the
+recount happened.)
 
 | Function    | Effect | Example |
 |-------------|--------|---------|
@@ -1351,7 +1401,9 @@ whose parts are listed is one a reader can add up.)
 | `close(x)`  | seal a map/list against extra keys            | see [closed values](#closed-values-close--open) |
 | `open(x)`   | reverse a `close`                             | `open(close({x:1})) & {y:2}`→`{x:1,y:2}` |
 | `move(p)`   | resolve reference `p`, dropping unresolved optional keys | `m:{x?:number,y:Y} n:move($.m)`→`n:{y:"Y"}` |
-| `path(p)`   | resolve a path expression (function form of a reference) | `path(x.a)` (relative), `path($.z.x.a)` (absolute) |
+| `path(p?)`  | **capture** `p` as a path value — the spelling, never the resolution; with no argument, the path **kind**. See [First-class paths](#first-class-paths-pathp) | `dep: path(.auth)` generates `".auth"`; `host: path()` |
+| `map()`     | the map **kind**: admits any map, defaults to nothing. See [Container kinds](#container-kinds-map-and-list) | `y: map() & {a:1}`→`{a:1}`; `y: map()`→ error |
+| `list()`    | the list **kind**: admits any list, defaults to nothing | `y: list() & [1]`→`[1]` |
 | `refer(t?)` | constrain a string field to be a **tree address** that resolves; `t`, if given, is unified into the target. The field keeps the address. See [Checked links](#checked-links-refert) | `dependsOn: [&: refer($.std.Service), "$.services.auth"]` |
 | `pack(d, t)` | one keyed child per child of `d`, each of them `t` cloned at that destination. Keys are the strings of a list, or the keys of a map. See [Generating children](#generating-children-pack-and-each) | `deploy: pack($.names, {replicas:*2\|integer})` |
 | `each(d, t?)` | one list element per child of `d`, each met with `t`. Source order for a list, sorted-key order for a map | `open: each($.ports, integer)` |
@@ -1741,6 +1793,81 @@ site that says so. A reference is directional — `deploy` is narrowed,
 models from silently merging because they happened to choose the same
 word.
 
+## First-class paths: `path(p?)`
+
+`path(p)` **captures** the path expression `p` as a value: the
+spelling, never the resolution. A plain reference resolves; a capture
+is the address itself, as data.
+
+```aon
+a: {b: 1}
+emb: $.a.b        # a reference: the value at the path
+cap: path($.a.b)  # a capture: the path itself
+```
+
+```json
+{ "a": {"b": 1}, "cap": "$.a.b", "emb": 1 }
+```
+
+This is the one non-strict argument position in the language: every
+other call reads its argument's value, `path(p)` reads its spelling.
+The captured spelling is the address grammar `refer` reads —
+`$.a.b` from the document root, `.b` from the sibling scope, one more
+leading dot per parent step — and a bare dotted argument is relative
+(`path(q.r)` captures `.q.r`). A string argument is address *text*:
+`path("$.a")` is the capture `path($.a)`, and an anchorless string
+(`path("auth")`) is refused at once (`path_address`). A number or a
+container argument is refused as `invalid-arg`.
+
+`path()` with no argument is the path **kind**: the set of all path
+values. It sits under `string` in the kind lattice, so `string`
+admits a path value and the string constraints apply; and it
+*promotes*: a string value that spells an address is admitted as the
+path value, the mirror of `number & 1`.
+
+```aon
+d: path() & "$.a"     # promotion: the string becomes the path value
+a: {}
+```
+
+```json
+{ "a": {}, "d": "$.a" }
+```
+
+Everything else about a path value is what scalars already do, made
+precise by three rules:
+
+1. **Meets are syntactic.** Two path values meet only when they spell
+   the same address (`path($.a) & path($.b)` is `scalar_value`), and a
+   path value refuses a plain string *literal* (`path($.a) & "$.a"` is
+   `scalar_kind`) exactly as the number tower's leaves refuse each
+   other — promotion happens at the kind, never between two concrete
+   values.
+2. **A path value is data.** `path($.nope)` generates `"$.nope"`:
+   existence is `refer`'s contract, not the value's, so a document may
+   address things outside this evaluation. `path(p) & refer()` is the
+   checked link — see [Checked links](#checked-links-refert).
+3. **Generation and canon.** A path value generates as its address
+   string; its canonical form is the call (`path($.a.b)`), which
+   reparses to the same value — the call form is the literal syntax
+   for this kind.
+
+The kind settles inside `type()` bodies, which a `refer` cannot
+(see [Checked links](#checked-links-refert)), so a vocabulary can
+declare a path-valued field and plain string data meets it:
+
+```aon
+Service: type({host: path()})
+db: $.Service & {host: "$.hosts.h1"}
+hosts: {h1: {}}
+```
+
+```json
+{ "db": {"host": "$.hosts.h1"}, "hosts": {"h1": {}} }
+```
+
+Pinned by [`test/spec/path.tsv`](../test/spec/path.tsv).
+
 ## Checked links: `refer(t?)`
 
 A reference (`$.a.b`) resolves by *cloning* its target into place, so
@@ -1793,10 +1920,12 @@ Relative addressing is what makes a model reusable. A link written
 at, so the same file instantiated twice gives two self-contained
 instances.
 
-Only a string can be an address, and a malformed one is refused at once
-(`refer_address`): no later pass can repair it. A relative address that
-climbs off the top of the tree is refused the same way — no later pass
-can grow a tree upwards.
+Only a string or a [path value](#first-class-paths-pathp) can be an
+address — `refer() & path(.auth)` and `refer() & ".auth"` are the same
+link — and a malformed one is refused at once (`refer_address`): no
+later pass can repair it. A relative address that climbs off the top
+of the tree is refused the same way — no later pass can grow a tree
+upwards.
 
 ### Existence is decided, not deferred
 

@@ -109,6 +109,10 @@ const KIND_TYPE: Record<string, string> = {
   Float: 'number',
   BigDecimal: 'number',
   Number: 'number',
+  // A path value is its address string at the JSON boundary
+  // (docs/design/PATHS.0.md), so the projection says `string` -- the
+  // same lossy-projection rule the exact numeric leaves follow.
+  Path: 'string',
 }
 
 

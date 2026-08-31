@@ -20,6 +20,7 @@ var funcSet = map[string]bool{
 	"upper": true, "lower": true, "copy": true, "key": true,
 	"pref": true, "super": true, "type": true, "hide": true,
 	"move": true, "path": true, "close": true, "open": true,
+	"map": true, "list": true,
 	"min": true, "max": true, "above": true, "below": true, "neq": true,
 	"re": true, "length": true, "unique": true, "must": true,
 	"deprecate": true,
@@ -116,7 +117,11 @@ var generatorFuncs = map[string]bool{
 var funcArity = map[string][2]int{
 	"upper": {1, 1}, "lower": {1, 1}, "copy": {1, 1}, "pref": {1, 1},
 	"super": {1, 1}, "type": {1, 1}, "hide": {1, 1}, "close": {1, 1},
-	"open": {1, 1}, "move": {1, 1}, "path": {1, 1},
+	"open": {1, 1}, "move": {1, 1},
+	// path takes NO argument (the path kind) or one (the capture);
+	// map and list are kinds only, and element constraints belong
+	// to the spreads, so neither takes any argument at all.
+	"path": {0, 1}, "map": {0, 0}, "list": {0, 0},
 	"min": {1, 1}, "max": {1, 1}, "above": {1, 1}, "below": {1, 1},
 	"re":     {1, 1},
 	"length": {1, 1},
@@ -266,6 +271,40 @@ func (f *FuncVal) Gen(ctx *Ctx) (any, error) {
 	return nil, nil
 }
 
+// captureSpelling is the address a reference SPELLS, or not-ok when
+// its segments cannot spell one (a variable segment, a parent step
+// after the first named segment). Leading `.` entries in a relative
+// ref's peg are parent steps; the spelling is the same grammar refer
+// reads, so parseAddress stays the single gate. Mirrors
+// captureSpelling in ts/src/val/PathFuncVal.ts.
+func captureSpelling(rv *RefVal) (string, bool) {
+	parts := []string{}
+	up := 0
+	lead := true
+	for _, p := range rv.peg {
+		seg, isStr := p.(string)
+		if !isStr {
+			return "", false
+		}
+		if "." == seg {
+			if !lead {
+				return "", false
+			}
+			up++
+			continue
+		}
+		lead = false
+		parts = append(parts, seg)
+	}
+	if 0 == len(parts) || (rv.absolute && 0 < up) {
+		return "", false
+	}
+	if rv.absolute {
+		return "$." + strings.Join(parts, "."), true
+	}
+	return strings.Repeat(".", up+1) + strings.Join(parts, "."), true
+}
+
 func (f *FuncVal) Unify(peer Val, ctx *Ctx) Val {
 	if peer == nil {
 		peer = top()
@@ -352,50 +391,39 @@ func (f *FuncVal) Unify(peer Val, ctx *Ctx) Val {
 		return f
 	}
 
-	// path("b") NAMES a path rather than being one: the scalar becomes a
-	// relative reference, which ordinary ref resolution then answers. This
-	// is TS's PathFuncVal.prepare, and it must run HERE -- before the args
-	// are driven -- for the reason TS guards it with `0 === this.prepared`:
-	// once driven, `path($.b)` has already become the scalar its reference
-	// resolved to, and wrapping THAT would look up a key named after the
-	// value. Handing the scalar back unwrapped instead made `a:path("b")
-	// b:2` evaluate to the string "b" rather than 2 -- path() with a
-	// computed name did not work in this port at all -- and left the
-	// degenerate spellings silent where TS refuses them: `path(1)` is a
-	// no_path (there is no key "1"), `path("")` a path_cycle (issue #38).
+	// path(p) CAPTURES p -- the spelling, never the resolution
+	// (docs/design/PATHS.0.md): the one non-strict argument position in
+	// the language. The capture must run HERE, before the args are
+	// driven, for the reason the old wrapping did: once driven,
+	// `path($.b)` has already become the value its reference resolved
+	// to. A reference argument is read off its segments; a string
+	// argument is ADDRESS TEXT; both go through parseAddress, so what
+	// capture admits and what refer reads cannot drift. Anything else
+	// -- a number, a container -- is not a path expression at all and
+	// refuses as invalid-arg. Mirrors PathFuncVal.prepare in
+	// ts/src/val/PathFuncVal.ts.
 	if f.name == "path" && !f.prepared {
 		f.prepared = true
 		for i, arg := range f.peg {
-			// An argument that is neither a scalar (a computed segment
-			// name) nor a ref (a path already) is not a path at all —
-			// `path([1,2])`, `path({a:1})`. TypeScript refuses these
-			// with invalid-arg; this port used to hand the argument
-			// straight back, so `a: path([1,2])` GENERATED the list and
-			// a schema constrained only by it went unchecked
-			// (status-2026-08-21.md section 4, issues #60 and #67 —
-			// #67's `-0` segment reaches this arm through every one of
-			// its spellings, which is why the refusal belongs here at
-			// the argument's KIND rather than in a guard against
-			// particular texts).
-			if _, isRef := arg.(*RefVal); !isRef {
-				if _, isScalar := arg.(*ScalarVal); !isScalar {
-					f.peg[i] = makeNilErr(ctx, "invalid-arg", f, nil)
-					continue
-				}
+			spelling := ""
+			ok := false
+			if rv, isRef := arg.(*RefVal); isRef {
+				spelling, ok = captureSpelling(rv)
+			} else if sv, isScalar := arg.(*ScalarVal); isScalar &&
+				KindString == sv.kind {
+				spelling, ok = sv.peg.(string)
+			} else {
+				f.peg[i] = makeNilErr(ctx, "invalid-arg", f, nil)
+				continue
 			}
-			if sv, ok := arg.(*ScalarVal); ok {
-				rv := newRef([]any{sv}, false)
-				// FROM THE ROOT. TS builds this ref with absolute:false but
-				// never gives it a path, and a relative ref with no path
-				// resolves from the root anyway -- so `a:{q:path("b")}`
-				// finds the root's `b`, not `$.a.b`. Saying absolute here
-				// says that outright, and survives the arg re-pathing below,
-				// which would otherwise hand the ref the call's own location
-				// and make it look one level down.
-				rv.absolute = true
-				rv.sp, rv.spu, rv.surl = f.sp, f.spu, f.surl
-				f.peg[i] = rv
+			if _, aok := parseAddress(spelling); !ok || !aok {
+				f.peg[i] = makeNilErr(ctx, "path_address", f, arg)
+				continue
 			}
+			pv := newPath(spelling)
+			pv.sp, pv.spu, pv.surl = f.sp, f.spu, f.surl
+			pv.stext = f.stext
+			f.peg[i] = pv
 		}
 	}
 
@@ -717,12 +745,32 @@ func (f *FuncVal) resolve(ctx *Ctx, base []string, args []Val) Val {
 	case "open":
 		return setClosed(ctx, f, args, false)
 	case "path":
-		// path(x.a) / path($.a.b): the argument is (or resolves via) a
-		// reference; return the resolved value.
+		// path() with no argument is the path KIND; with one, prepare
+		// has already captured the argument as a path value
+		// (docs/design/PATHS.0.md).
 		if len(args) == 0 {
-			return makeNilErr(ctx, "arg", f, nil)
+			k := newScalarKind(KindPath)
+			k.sp, k.spu, k.surl = f.sp, f.spu, f.surl
+			k.stext = f.stext
+			k.path = f.path
+			return k
 		}
 		return args[0]
+	case "map":
+		// The container kinds (docs/design/PATHS.0.md): the vacuous
+		// call admits its values and defaults to nothing, where the
+		// container literal defaults to empty.
+		k := newMapKind()
+		k.sp, k.spu, k.surl = f.sp, f.spu, f.surl
+		k.stext = f.stext
+		k.path = f.path
+		return k
+	case "list":
+		k := newListKind()
+		k.sp, k.spu, k.surl = f.sp, f.spu, f.surl
+		k.stext = f.stext
+		k.path = f.path
+		return k
 	case "deprecate":
 		// G3 phase 4: unification-transparent — the result IS the
 		// argument, with the record riding it (base.deprec). A nil
