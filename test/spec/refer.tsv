@@ -77,6 +77,12 @@ flow-from-a-discarded-alternative-does-not-land	gens	x: ({k:1, d?: refer({z:1})}
 flow-discarded-alternative-does-not-conflict	gens	x: ({k:1, d?: refer({z:1})} | {k:2, d?: refer({z:2})}) & {k:1, d: path($.y)}\ny: {}	{"x":{"d":"$.y","k":1},"y":{"z":1}}
 # The surviving alternative still flows when it is the SECOND one.
 flow-from-the-second-alternative-lands	gens	x: ({k:1, d?: refer({z:1})} | {k:2, d?: refer({w:2})}) & {k:2, d: path($.y)}\ny: {}	{"x":{"d":"$.y","k":2},"y":{"w":2}}
+# A SURVIVOR'S FLOW MEETS WHAT IS ALREADY RECORDED for the same
+# target: one statement flows into `$.t` outside any trial, and the
+# alternative that survives inside the disjunction adds to it. Both
+# reach the target, which is the same rule two plain refers follow
+# (flow-two-refers above) with one of them inside a disjunction.
+flow-survivor-merges-with-an-existing-record	gens	a: refer({p:1}) & path($.t)\nb: ({k:1, d?: refer({q:2})} | {k:2, d?: refer({r:3})}) & {k:1, d: path($.t)}\nt: {}	{"a":"$.t","b":{"d":"$.t","k":1},"t":{"p":1,"q":2}}
 
 # --- Existence --------------------------------------------------------
 #
