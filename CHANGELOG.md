@@ -7,6 +7,13 @@ which implementation each change affects.
 
 ## Unreleased
 
+### Fixed
+
+- The arity message for a zero-argument builtin, in both ports:
+  `map(1)` now says "map takes no arguments, but was given 1" — the
+  renderer predated the zero-arity builtins (ADR-015's `map()`,
+  `list()`, `acyclic()`) and claimed "exactly one argument".
+
 ### The builtin call surface is declared, and checked (ADR-017)
 
 Both ports. The signatures of the built-in functions are now DECLARED
