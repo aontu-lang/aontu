@@ -2887,10 +2887,65 @@ Both spellings are in the corpus and `check.sh` pins them: the refusal
 as an assertion, the acceptance as a KNOWN MISS that fails the day the
 flow stops depending on declaration order.
 
-Status: OPEN. A rule that depends on the order its subjects are
-declared in is not yet a rule, and this is the largest thing the case
-found. Note that it is NOT defect 66: that leak is fixed, and this
-survives the fix.
+WHAT IS ACTUALLY WRONG, as far as it is established. The narrow
+target is not lost on the way to the record; it is never asked for.
+Instrumenting `RelVal.unify` over the two orders shows which target
+shape each `dependsOn` field is driven with:
+
+```
+bad/upward.aon          mods.auth.dependsOn                <- {"kind":"mod","layer":"core"|"util"}
+bad/upward-swapped.aon  mods.catalog.usedBy.0.dependsOn    <- {"kind":"mod","layer":"app"|"feature"|"core"|"util"}
+```
+
+Both name the SAME field — `$.mods.auth.dependsOn`, the second reached
+through catalog's mirror link. Reached directly it carries `CoreDep`,
+auth's own layer-narrowed target, and the upward edge refuses. Reached
+through the link it carries the BASE `Mod` declaration, whose layer is
+the full four-way disjunction, and the same edge passes. The flow is
+therefore computed against a view of the target that has lost the
+target's own narrowing, and which view is in play is decided by which
+module the walk reaches first — which is what makes the verdict depend
+on declaration order.
+
+THE CAUSE, one level under that. A flow whose meet would RE-ENTER a
+target another flow is already inside is skipped — that guard is what
+stops the evaluator running its own stack out (defect 19) — and the
+skip took the flow's RECORD with it. The guard's justification, "the
+outer flow is already uniting that node, so the same information
+arrives one frame up", holds for the outer flow's TYPE and fails for a
+nested flow carrying a DIFFERENT one: the outer flow delivers only its
+own, the residual is consumed into a settled link in the same breath,
+and no later pass re-offers it. In this model the outer flow is a
+`usedBy` edge's `rel($.spec.ModShape)` = `{kind:mod}` and the nested
+one is `rel($.spec.CoreDep)` = `{kind:mod, layer:"core"|"util"}`,
+which is why the record held the wider shape. Which of two flows is
+the nested one is decided by which link the evaluator reaches first,
+and that is the declaration order.
+
+Three lines reproduce it with no schema and no relations vocabulary,
+differing only in the order of the first two statements:
+
+```aon
+c: { r: rel({t:1}) & [path($.b)] }
+a: { r: rel({v:1}) & [path($.b)] }
+b: { v: 2, u: rel({t:1}) & [path($.a)] }
+```
+
+`a.r` flows `{v:1}` into `$.b`, whose `v` is 2 — unsatisfiable, and
+refused only when `a` is written first. A sweep of the 24 declaration
+orders of a four-module version accepted 12 and refused 12, in both
+ports.
+
+Status: FIXED 2026-09-01, both ports. The record is written whether or
+not the meet is skipped, so a skipped flow is DEFERRED to `applyFlows`
+— which runs at the top of the tree with no flow in flight, and so
+cannot re-enter anything — instead of destroyed. The guard itself is
+untouched, so defect 19 stays fixed. Pinned by
+`flow-nested-in-another-flow-still-lands`,
+`flow-nested-in-another-flow-order-does-not-decide` and
+`flow-nested-in-another-flow-lands-both-ways` (test/spec/refer.tsv),
+and by both spellings of the upward edge in
+`use-cases/16-module-deps/check.sh`.
 
 
 ## Elsewhere in this review

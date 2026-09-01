@@ -108,13 +108,13 @@ at generation with both sides named.
  Cannot unify value: "core"|"util" with value: "feature"
 ```
 
-**And it holds for the spelling above, not for its mirror image.**
-Which target shape reaches the far end depends on the order the blocks
-are written in: `bad/upward.aon` writes the offending module first and
-refuses, `bad/upward-swapped.aon` writes its target first and the same
-edge generates. Both are pinned by `check.sh`, the second as a known
-miss. The mechanism is right and the flow that carries it is not
-order-independent yet, which is the largest thing this case found.
+**And it holds in every spelling** — `bad/upward.aon` writes the
+offending module first, `bad/upward-swapped.aon` writes its target
+first, and both refuse. That is the case's own finding, fixed: which
+target shape reached the far end of an edge used to depend on the
+order the blocks were written in, because a flow nested inside another
+flow had its record dropped rather than deferred ([BUGS
+69](../BUGS.md)). Both spellings are pinned by `check.sh`.
 
 ## The model
 
@@ -173,15 +173,17 @@ of an edge rather than the edge itself.
 
 ## Boundaries hit while writing it
 
-- **The layering rule is order-dependent, and that is a defect.**
-  `rel(t)`'s flow into the far end of an edge carries the narrow
-  per-layer shape when the source module's block is written first, and
-  a wider shape when the target's is. The same illegal edge is
-  therefore refused in one spelling and generated in another
-  (`bad/upward.aon` against `bad/upward-swapped.aon`, both pinned).
-  A rule that depends on declaration order is not yet a rule, and the
-  case says so rather than claiming a guarantee the engine does not
-  give.
+- **The layering rule was order-dependent, which is how this case
+  found the defect behind it.** The same field,
+  `$.mods.auth.dependsOn`, was driven with auth's own narrow target
+  when reached directly and with the BASE declaration's four-way one
+  when reached through another module's mirror link, so the same
+  illegal edge was refused in one spelling and generated in another.
+  The cause was a flow nested inside another flow: its meet is skipped
+  where it would re-enter a target already being flowed into, and the
+  skip took the flow's RECORD with it, so the nested type was lost
+  rather than deferred ([BUGS 69](../BUGS.md)). Fixed, in both ports,
+  and both spellings are now pinned.
 - **Two engine defects, found from the other end and fixed.** The
   model's mirrors were all written and `inverse(n)` said one was
   missing. Twice, for two unrelated reasons: a discarded disjunction
