@@ -1,380 +1,262 @@
 # 05 — RBAC / authorization policy as ground truth
 
-An RBAC model for a multi-tenant SaaS platform, modelled as **data,
-not logic** (the Cedar/OPA-adjacent case): a permission catalog, an
+## Scenario
+
+An RBAC model for a multi-tenant SaaS platform, written as data the
+engine checks rather than as logic: a permission catalog, an
 exhaustive role registry with role→permission grants, tenant plans
 gating features, and agent-emitted candidate documents (tenants, role
-patches) vetted against the model. The point of the exercise: find
-where modelling *policy* as lattice data genuinely stops.
+patches) vetted against all of it.
 
-Why it matters: in an agentic platform the authorization model is the
-single document most in need of a ground truth. An agent that
-hallucinates a permission string, invents a role, or grants the
-wildcard to a collaborator role must be stopped by a machine-checkable
-artifact, not by review. The model here is the registry a PDP
-(OPA/Cedar) would be *compiled from* — the question is how much of the
-policy's own integrity the language can carry.
-
-Run `./check.sh` — 31 assertions, every command below is executed
-against the real CLI, including the gap repros (asserted at their
-*observed* behaviour so the record notices if the engine changes).
+In an agentic platform the authorization model is the document that
+most needs a ground truth. An agent that hallucinates a permission
+string, invents a role, or grants the wildcard to a collaborator role
+has to be stopped by a machine-checkable artifact before a human reads
+the diff. The model here is the registry a policy decision point (OPA,
+Cedar) is compiled from: the catalog, roles, plans and tenants come out
+of `aontu example.aon` as validated, referentially sound JSON, and
+`hash`, `subsume` and `breaking` give the registry the change control
+a PDP does not carry. Authorization decisions
+(`allow(principal, action, resource)`) and rule precedence stay with
+the PDP: unification is commutative, so the model has no "later rule
+wins". Ranked defaults (a `**` org baseline under a `*` team override)
+decide values, and first-match `match()` decides derivations.
 
 ## Layout
 
 | file | carries |
 |---|---|
-| `permissions.aon` | catalog; `close()`d record shape, `risk` enum. Each key is the last segment of the permission's address |
-| `roles.aon` | `Role` = disjunction of two `close()`d shapes keyed by `privileged`; `close()`d exhaustive registry; `unique()` + `refer()` grants; same-layer `filter()+length()` invariant |
-| `plans.aon` | entitlement as disjunction-of-closed-maps per plan (the tls pattern) |
-| `tenant.aon` | the vet schema: `re()`/`neq()` slug, plain plan enum, `match()`-derived limits and tier, split-spread member records with `refer()` role FK, structural security implication |
-| `example.aon` | concrete tenant composed with the schema → `expected/example.json` |
-| `audits/` | same-layer compositions where `filter()+length()`, cross-field `length(max($.ref))` and `must()` actually work |
+| `permissions.aon` | the catalog: a `close()`d record shape per permission with a `risk` enum. Each key is the last segment of the permission's address |
+| `roles.aon` | `Role`, a disjunction of two `close()`d shapes keyed by `privileged`; the `close()`d exhaustive registry; `unique()` + `refer()` grants; the same-layer `filter()`+`length()` registry invariant |
+| `plans.aon` | `Entitlement`, a disjunction of closed maps, one per plan |
+| `tenant.aon` | the vet schema: `re()`/`neq()` slug, plain `plan` enum, `match()`-derived limits and tier, member records with a `refer()` role foreign key, the MFA implication as a disjunction of closed maps |
+| `example.aon` | a concrete tenant composed with the schema; evaluates to `expected/example.json` |
+| `audits/` | the tenant and its counting and domain invariants (`filter()`+`length()`, `length(max($.ref))`, `must()`) in one document |
 | `exhibits/` | the enum-with-default idiom in four spellings; ranked defaults; the registry invariant firing |
-| `proposals/` | agent-emitted registry patches: new role (closed), hallucinated permission (refer), wildcard grant (neq) |
-| `queries/` | hand-maintained set-as-map grant projections for `subsume` |
-| `data/` | tenant candidates, good and bad, as JSON |
+| `proposals/` | agent-emitted registry patches: a new role, a hallucinated permission, a wildcard grant |
+| `queries/` | grant sets as set-as-map projections, for `subsume` |
+| `data/` | tenant candidates, good and bad |
 
-## What worked
+## How the model is designed
 
-- **`refer()` as a foreign key is the best feature of the model.**
-  Every grant and every member's role is a checked address — a tree
-  path such as `$.permissions.audit_read` — resolved against the
-  catalog that declares it. An unknown role in a
-  tenant document vets `invalid` with a located
-  `[aontu/refer_unresolved]` — this is referential integrity JSON
-  Schema simply does not have. (The eval-path proposal
-  `extend-member-grants.aon` refuses a hallucinated permission with
-  exit 1 AND names it: `$.roles.member.grants.3`. That took two goes —
-  a witness-copy artifact removed by the spread application rework in
-  2026-08-26, then the spurious `unify_cycle` that outlived it,
-  removed by ADR-014 along with the identity merge itself.)
-- **`close()` for exhaustiveness** does exactly what the scenario
-  needs: `proposals/add-superuser-role.aon` dies with
-  `[aontu/closed]: Cannot resolve value at path $.roles.superuser`.
-  The role set cannot be extended by accident from any layer.
-- **Conditional shapes (disjunction of closed maps)** carry both
-  "if plan=free then sso=false" *and* the wildcard rule "no role
-  grants admin_all unless privileged". The second is the nicer trick:
-  the unprivileged `Role` branch puts `neq("admin_all")` on the
-  grants **list spread**, i.e. universal quantification over list
-  elements, and a violating patch fails at the exact element:
-  `[aontu/constraint] ... $.roles.member.grants.3 ... Cannot unify
-  value: "admin_all" with value: neq("admin_all")`.
-- **`match()` as tier mapping** derives `limits` and `supportTier`
-  from the data's plan during vet, so candidates cannot contradict
-  plan-derived facts, and `why` explains the derivation with
-  provenance: `$.tenant.supportTier = "community" / 1. match(.plan,
-  "free","community",...) tenant.aon:30:16`.
-- **`must()` failures report beautifully** (when they fire — see
-  gap 4): `[aontu/must] ... The author's message is: corporate policy
-  CP-114: MFA is mandatory for every tenant`.
-- **Same-layer `filter()+length()`** expresses "exactly one owner"
-  as an empty/counted witness set, and `hide()` keeps the check out
-  of the output without suppressing it — `audits/two-owners.aon`
-  fails with the two-owner witness map in the message. (2026-08-26:
-  until the spread application rework, the filter's mid-resolution
-  snapshot re-stamped entity ids inside the hidden witness and the
-  id-merge pulled the hide mark back onto the real role — the
-  `owner` role was silently MISSING from the generated output.
-  `expected/example.json` now carries all four roles.)
-- **`subsume` answers permission-subset** over set-as-map
-  projections, with a real witness on failure
-  (`compat_required_added` naming the missing grant), and the exit
-  codes (0/1/3/4) make all of this scriptable in CI. Better than
-  expected.
-- **Canon preserves policy meaning**: the grant addresses
-  (`"$.permissions.admin_all"`), `refer()`, and the
+Quoted output below is trimmed of ANSI codes and machine-absolute path
+prefixes.
+
+- **Every grant is a checked address.** `refer()` on the grants list
+  spread and on a member's `role` makes each one a foreign key: a tree
+  path such as `$.permissions.audit_read`, resolved against the
+  catalog that declares it. An unknown role in a tenant candidate vets
+  `invalid` with a located `[aontu/refer_unresolved]`, and
+  `proposals/extend-member-grants.aon`, which adds a permission the
+  catalog does not declare, is refused with exit 1 at the element the
+  agent invented, `$.roles.member.grants.3`.
+- **The role set is exhaustive.** `roles` is `close()`d, so no layer
+  can add a role by accident: `proposals/add-superuser-role.aon` dies
+  with `[aontu/closed]: Cannot resolve value at path $.roles.superuser`.
+- **Conditional shapes carry the rules.** `Entitlement` is a
+  disjunction of closed maps, one per plan, so "if plan is free then
+  sso is false" is a shape rather than a rule. `Role` is a disjunction
+  of two closed shapes keyed by `privileged`, and the unprivileged
+  branch puts `neq(path($.permissions.admin_all))` on the grants
+  **list spread**, which applies it to every element.
+- **`match()` derives the plan's facts.** `limits` and `supportTier`
+  are computed from the candidate's `plan` during vet, so a candidate
+  cannot contradict them, and `why` explains the derivation with
+  provenance.
+- **The tenant schema's field contracts.** `slug` is
+  `string & re("^[a-z][a-z0-9-]{1,30}$") & neq(admin, root, system, api)`:
+  the format by pattern, the reserved names by exclusion. `plan` is a
+  plain enum, `free | pro | enterprise`, with no default.
+  `defaultMemberRole` is an enum with a default, in the repeated-branch
+  spelling `*member | member | admin | owner`. The member record is
+  written as two spreads: `close({role: string, invitedBy?: string})`
+  seals the record's keys, and a second spread puts `refer()` on
+  `role`. "No MFA implies short sessions" is a disjunction of closed
+  maps, `close({mfaRequired: true, …}) | close({mfaRequired: false,
+  sessionTimeoutMinutes: … max(60)})`. A bare string stops at a hyphen
+  (`[aontu/unexpected]`), so hyphenated values such as `"acme-rockets"`
+  are quoted.
+- **The enum-with-default idiom.** `exhibits/` writes it in four
+  spellings, each vetted against an invite whose role is `superadmin`
+  and evaluated on its own:
+  - `*member | admin | owner` (`enum-default-naive.aon`) refuses
+    `superadmin` with `[aontu/empty]` and generates `member` when the
+    field is unset. Vet adds a `pref_not_instance` advisory: the
+    default is a member of the admitted set only by being the default.
+  - `*member | member | admin | owner` (`enum-default-repeated.aon`)
+    admits the same set, generates the same default, and carries no
+    advisory. This is the form `tenant.aon` uses.
+  - `path($.roles.member) | admin | owner` (`enum-default-plain.aon`)
+    enforces the set with no default, so the file does not generate on
+    its own: `[aontu/disjunct_no_gen]`.
+  - `(*member | member | admin | owner) & must(member | admin | owner, "…")`
+    (`enum-default-guarded.aon`) enforces under vet and generates
+    `member`.
+
+  `exhibits/rank-default.aon` layers a `**viewer` org baseline under a
+  `*member` team override and generates `member`.
+- **Audits are a stricter layer over the schema.** `audits/*.aon`
+  compose the tenant with its invariants in one document, under
+  `hide()` so they stay out of the output without being suppressed:
+  `exactly_one_owner` is
+  `length(1) & filter($.tenant.members, {role: path($.roles.owner)})`,
+  "for all" written as a counted witness set; `seats_within_plan`
+  bounds the member count by the plan-derived `maxSeats`;
+  `mfa_mandatory` is a `must()` carrying the policy's own words. The
+  tenant schema allows `mfaRequired: false` with a short session;
+  corporate policy in the audit layer does not, and `audits/no-mfa.aon`
+  reports the rule as its author wrote it:
+  `The author's message is: corporate policy CP-114: MFA is mandatory for every tenant`.
+  `audits/two-owners.aon` fails with the two-owner witness map in the
+  message. `roles.aon` carries the same pattern as a registry
+  invariant, `one_owner_role: length(1) & filter($.roles, {tenantOwner: true})`,
+  and `exhibits/registry-two-owners.aon` shows it firing.
+- **Set questions run over set-as-map projections.** `subsume`
+  compares lists positionally, so `queries/*.aon` state grant sets as
+  maps (`grants: {project_read: true, member_read: true}`), kept in
+  step with `roles.aon`. `subsume queries/core-read.aon queries/auditor-grants.aon`
+  answers `subsumes`; the reverse is refused with a witness naming each
+  missing grant (`compat_required_added` at `$.grants.billing_read` and
+  `$.grants.audit_read`). Lists also unify positionally, which is why
+  `proposals/extend-member-grants.aon` restates the three existing
+  grants before adding one.
+- **Canon keeps the policy's meaning.** The grant addresses
+  (`path($.permissions.admin_all)`), `refer()`, and the
   `*"member"|"member"|"admin"|"owner"` default all survive `--canon`,
-  so the canon-hash genuinely covers the *policy*, not just its JSON
-  shadow.
+  so the canon hash covers the policy itself, grants and defaults
+  included.
+- **Vet and evaluation agree.** Vetting a schema against a candidate
+  answers the same question as evaluating the two as one document: a
+  sizing atom or a `must()` written next to a spread counts the data
+  that arrives, and a closed-map branch keyed on a reference to a
+  data-supplied field is selected by that data. Checks 28–31 pin this
+  on small paired documents.
 
-## Gaps and friction
-
-Verbatim outputs below are trimmed of ANSI codes and machine-absolute
-path prefixes.
-
-### 1. An enum with a default is not an enum (critical)
-
-> **2026-08-26: fixed by the preference admission gate (ADR-004) —
-> assertions updated to the new behaviour.** `*member | admin | owner`
-> now refuses `superadmin` (`verdict: invalid`, `[aontu/empty]`,
-> exit 1) and still generates `member` unset — the idiom below works
-> as every consumer believed it did. The repeated-branch spelling
-> silences the (now advisory) `pref_not_instance` warning and keeps
-> the same enforcement, and the ranked-lint false positive at the end
-> of this section is fixed (the effective default unwraps every pref
-> layer). The conjunct-form limits (the `must()`-guarded and
-> enforcement-only conjunct spellings losing the default) remain the
-> documented G1 phase-1 limit. The original finding is kept below as
-> the record.
-
-The single most common schema idiom in policy — a closed role set
-with a default — could not be written. A scalar preference was
-overridable by **any** same-kind value, so the preferred branch
-admitted every string:
+A patch that grants the wildcard to the unprivileged `member` role
+fails at the exact element, against the `neq()` the list spread
+carries:
 
 ```
-$ aontu vet exhibits/enum-default-naive.aon data/invite-superadmin.json
-verdict: valid
-
-$.invite.role: pref_not_instance [compat]
-  the default "member" is not an instance of any alternative of *"member"|"admin"|"owner"
-  schema: exhibits/enum-default-naive.aon:8:18 ("member")
-$ echo $?
-0
+$ aontu --include-root . proposals/member-wildcard.aon
+[aontu/constraint]: Cannot unify values at path $.roles.member.grants.3
+...
+ Cannot unify value: path($.permissions.admin_all) with value: neq(path($.permissions.admin_all))
 ```
 
-`"superadmin"` is **valid** against `*member | admin | owner`. The
-`pref_not_instance` warning fires on every vet of this schema — the
-lint reads `*member` as removed from the alternatives, so the default
-is "not an instance" of `admin|owner`. The documented repeated-branch
-workaround silences the warning and changes nothing else:
+`why` explains the derived support tier, naming the `match()` that
+produced it and the position it was written at:
 
 ```
-$ aontu vet exhibits/enum-default-repeated.aon data/invite-superadmin.json
-verdict: valid          # *member | member | admin | owner — still accepts superadmin
+$ aontu why '$.tenant.supportTier' example.aon
+$.tenant.supportTier = "community"
+  1. ("free"|"pro")|"enterprise"  tenant.aon:15:9
+  2. match(.plan,"free","community","pro","standard","enterprise","dedicated")  tenant.aon:30:16
 ```
 
-The enforcing spelling costs the default (`member | admin | owner`
-refuses `superadmin` with `[aontu/empty]`, but the file no longer
-evaluates alone), and the `must()`-guarded repair hits the documented
-G1 phase-1 limit — a preference meeting a constraint in a conjunct
-does not resolve to the default — so *it* loses generation instead:
+## What check.sh proves
 
-```
-$ aontu exhibits/enum-default-guarded.aon
-[aontu/scalar_value]: Cannot unify values at path $.invite.role
- Cannot unify value: "admin" with value: "member"
-```
+`check.sh` drives the CLI end to end and asserts every outcome: exit
+codes, error and reason codes grepped from the reports, and generated
+documents diffed against the `expected/` goldens.
 
-Even the enforcement-only conjunct `(member|admin|owner) &
-(*member|string)` drops the preference: its canon is
-`{"role":"member"|"admin"|"owner"}` and generation fails. CUE's
-`*"member" | "admin" | "owner"` gives both; Aontu currently makes you
-choose. `tenant.aon` ships the repeated-branch form for
-`defaultMemberRole` (default kept, set open — documented), and the
-plain enum for `plan` (set closed, no default).
+1. `example.aon` evaluates, exit 0, to `expected/example.json`: the
+   catalog, the closed role registry and the concrete tenant, with
+   `limits` and `supportTier` derived by `match()`.
+2. `--canon example.aon` keeps `path($.permissions.admin_all)`, the
+   `*"member"|"member"|"admin"|"owner"` default, and `refer()`.
+3. `vet tenant.aon data/tenant-good.aon` is `verdict: valid`, exit 0,
+   with no `pref_not_instance` warning.
+4. A free-plan tenant enabling SSO (`data/tenant-free-sso.aon`) is
+   `verdict: invalid`, exit 1, `[aontu/empty]` at `$.tenant.entitlement`.
+5. A member holding an undeclared role (`data/tenant-unknown-role.aon`)
+   is refused with `[aontu/refer_unresolved]`, exit 1.
+6. A reserved slug (`data/tenant-bad-slug.aon`) is refused with
+   `[aontu/constraint]` and the `neq("admin", …)` exclusion in the
+   expected form, exit 1.
+7. No MFA with a 480-minute session (`data/tenant-no-mfa.aon`) is
+   `verdict: invalid` at `$.tenant.security`, exit 1.
+8. A candidate without a `name` (`data/tenant-no-name.aon`) is
+   `verdict: incomplete`, exit 3, `[aontu/mapval_no_gen]`.
+9. A candidate without a `plan` (`data/tenant-no-plan.aon`) is
+   refused, exit 1, with `disjunct_no_gen [incomplete]` reported at
+   `$.tenant.plan`.
+10. `vet --format json` on the unknown-role candidate carries
+    `"code": "refer_unresolved"` and `"verdict": "invalid"`, exit 1.
+11. `proposals/add-superuser-role.aon` is refused by the closed
+    registry: `[aontu/closed]` at `$.roles.superuser`, exit 1.
+12. `proposals/extend-member-grants.aon` (a permission the catalog
+    does not declare) is refused with `[aontu/refer_unresolved]` at
+    `$.roles.member.grants.3`, exit 1.
+13. `proposals/member-wildcard.aon` (the wildcard granted to an
+    unprivileged role) is refused with `[aontu/constraint]` at
+    `$.roles.member.grants.3`, exit 1.
+14. `audits/good.aon` evaluates, exit 0: the `filter()`+`length()` and
+    `must()` invariants pass on clean data.
+15. `audits/two-owners.aon` is refused with `[aontu/constraint]` at
+    `$.audit.exactly_one_owner`, exit 1.
+16. `audits/no-mfa.aon` is refused with `[aontu/must]` and the
+    author's message, `corporate policy CP-114: MFA is mandatory for
+    every tenant`, exit 1.
+17. `exhibits/registry-two-owners.aon` is refused with
+    `[aontu/constraint]` at `$.registry_invariant.one_owner_role`,
+    exit 1: `hide()` does not suppress the check.
+18. `*member | admin | owner` (`exhibits/enum-default-naive.aon`)
+    vetted against `data/invite-superadmin.json` is `verdict: invalid`,
+    `[aontu/empty]`, exit 1, with the `pref_not_instance` advisory.
+19. The repeated branch (`exhibits/enum-default-repeated.aon`) is
+    `verdict: invalid`, `[aontu/empty]`, exit 1, with no
+    `pref_not_instance` advisory.
+20. The repeated form evaluated alone generates `"role": "member"`,
+    exit 0.
+21. The plain enum (`exhibits/enum-default-plain.aon`) refuses
+    `superadmin` with `[aontu/empty]`, exit 1, admits
+    `data/invite-member.aon`, exit 0, and evaluated alone is
+    `[aontu/disjunct_no_gen]`, exit 1: there is no default to generate.
+22. The `must()`-guarded form (`exhibits/enum-default-guarded.aon`) is
+    `verdict: invalid` for `superadmin`, exit 1, and evaluated alone
+    generates `"role": "member"`, exit 0.
+23. Ranked preferences (`exhibits/rank-default.aon`): `*member`
+    outweighs `**viewer`, and `"defaultRole": "member"` is generated.
+24. `get '$.tenant.limits' example.aon` matches `expected/limits.json`.
+25. `why '$.tenant.supportTier' example.aon` prints
+    `$.tenant.supportTier = "community"` and names the `match(.plan, …)`
+    in `tenant.aon`.
+26. `subsume queries/core-read.aon queries/auditor-grants.aon` is
+    `verdict: subsumes`, exit 0; the reverse is exit 1 with
+    `compat_required_added`.
+27. The same two grants as lists in different orders
+    (`["project_read", "member_read"]` against the reverse) are
+    `does_not_subsume`, exit 1: lists compare positionally.
+28. A vet schema `x: length(min(1)) & { &: {r: integer} }` against
+    data with one entry is `verdict: valid`, exit 0.
+29. `x: length(max(2)) & { &: {r: integer} }` against three entries is
+    `verdict: invalid` at `$.x`, exit 1.
+30. A closed-map branch keyed on a reference to a data-supplied field
+    (`e: $.Ent & { plan: $.t.p }`, with data `p: "free"` and
+    `e.sso: true`) is `verdict: invalid`, `[aontu/empty]`, exit 1 under
+    vet, and the same composition evaluated as one document reports
+    `[aontu/empty]` too.
+31. `s: {t: integer} & must({t: max(60)}, "session too long")` against
+    `t: 120` is `verdict: invalid` with `session too long` under vet,
+    exit 1, and the same rule and data in one file is `[aontu/must]`,
+    exit 1.
 
-Related wart: with a **ranked** preference the repeated branch does
-not even silence the lint — `defaultMemberRole: **member | member |
-admin | owner` still warns, and the message shows a half-peeled
-preference as the default:
+## Running it
 
-```
-$.tenant.defaultMemberRole: pref_not_instance [compat]
-  the default *"member" is not an instance of any alternative of **"member"|"member"|"admin"|"owner"
-```
+`./check.sh`, from anywhere; set `AONTU=` to point at another build.
+Every step prints a numbered line, and the script stops at the first
+failure. The proposals and audits include their parents from one
+directory up, so run them from the case directory with
+`--include-root .`, as `check.sh` does:
 
-### 2. Counting atoms fold against the wrong layer (critical)
-
-`length` (and everything downstream of it: seat caps, exactly-one
-invariants) only counts entries from its **own document layer**. A
-sizing atom in a schema next to a spread folds against the
-spread-only bag:
-
-```
-$ cat g1.aon
-x: length(min(1)) & { &: {r: integer} }
-$ aontu vet g1.aon g1.json          # data has one entry
-verdict: error
-$.x: constraint [conflict]
-  expected: length(integer&min(1))
-  actual:   {&:{"r":integer}}
-$ echo $?
-4                                    # "the schema is unusable on its own"
-```
-
-and a bound the schema layer happens to satisfy **vanishes
-silently**:
-
-```
-$ cat g2.aon
-x: length(max(2)) & { &: {r: integer} }
-$ aontu vet g2.aon g2.json           # data has THREE entries
-verdict: valid
-```
-
-The same holds across `@` includes, in both directions — with data
-`x: {a:{r:1},b:{r:2},c:{r:3}}` in an included file, `x: length(3)`
-in the includer **fails** (counts 0) and `x: length(max(2))`
-**passes**. This contradicts the reference's "sizing atoms fold last
-… after every value that could contribute a member" for any
-composition that crosses a file or the vet meet; within one document
-(`audits/*.aon`, `roles.aon`) the promise holds and the invariants
-work. Consequence: **a data-dependent counting invariant cannot live
-in a reusable schema.** The model keeps them in same-layer audit
-compositions, which means the guard must be restated wherever data is
-composed.
-
-### 3. Stale references under vet (critical)
-
-A schema branch keyed on a data-supplied field *via a reference*
-silently passes vet — the reference is resolved against the schema
-alone and never re-checked against the merged data:
-
-```
-$ cat g3.aon
-Ent: type( close({ plan: "free", sso: false }) | close({ plan: "pro", sso: boolean }) )
-t: { p: string, e: $.Ent & { plan: $.t.p } }
-$ aontu vet g3.aon g3.json           # data: p="free", e.sso=true
-verdict: valid
-```
-
-The identical composition as one evaluation catches it
-(`[aontu/empty]: Cannot unify values at path $.t.e`). The model
-works around it by requiring candidates to carry
-`entitlement.plan` themselves, so branch selection runs on data-side
-scalars; the reference tie stays for eval-mode consistency. But
-"vet and evaluate disagree about the same composition" is exactly
-what a ground-truth system must not do.
-
-### 4. `must()` is same-layer only, and fails **silently** (critical)
-
-```
-$ cat g4.aon
-s: {t: integer} & must({t: max(60)}, "session too long")
-$ aontu vet g4.aon g4.json           # data: t=120
-verdict: valid
-```
-
-Same file, same rule, same data: `[aontu/must] … session too long`.
-A Band-B check that evaporates when the peer arrives from another
-layer is worse than not having it — the schema *looks* guarded. This
-is why `tenant.aon` states the MFA implication structurally
-(`close({mfaRequired:true, …}) | close({mfaRequired:false,
-sessionTimeoutMinutes: … max(60)})`) — which does fire under vet —
-and `must()` appears only in the audit layer.
-
-### 5. An unresolved disjunction vets as valid (major) — FIXED 2026-08-27
-
-A candidate with **no plan at all** was `verdict: valid` (check 9),
-because `p: a | b` with data `{}` counted as satisfied — while
-evaluating the same document failed, and failed confusingly, as
-`[aontu/scalar_value] … Cannot unify value: "b" with value: "a"`: the
-branches unified with *each other*. That fold was the whole defect.
-Under [ADR-007](../../ADR.md) an unresolved disjunction is incomplete
-residue (`disjunct_no_gen`), which is the class vet keeps, so the
-plan-less candidate is now refused and check 9 asserts the refusal.
-
-Two things travelled with it. The confusing eval message is gone —
-both surfaces now name the disjunction rather than a conflict between
-its own branches. And the cross-field tie below (`entitlement:
-$.Entitlement & {plan: $.tenant.plan}`), described in gap 4 as inert
-under vet, now fires: vet builds its meet from a fresh parse, so the
-reference is no longer spent by the schema-alone pass.
-
-### 6. Quantification stops at "one filter condition deep" (major)
-
-The exercise "every role that has X also has Y" is expressible only
-when X and Y are **scalar fields** of the child (`filter($.roles,
-{tenantOwner: true})` — the empty/counted witness-set pattern).
-Everything derived fails:
-
-- The hole cannot be projected: `pack($.roles, {wildcard:
-  match(_.privileged, …)})` →
-  `Cannot resolve value: . unspellable.privileged`.
-- A relative reference works as a plain field value inside a pack
-  template (`b: .src.p` fine) but **not as a call argument**:
-  `b: match(.src, {p:1}, small, big)` →
-  `[aontu/no_path] … Cannot resolve value: .src` at the nonsense path
-  `$.checks.NaN.b`.
-- Filter conditions cannot see into lists: a spread-carrying
-  condition `filter($.roles, {grants: [&: neq("admin_all")]})` keeps
-  **nothing** (the meet always "changes" the child), so
-  "role whose grants contain X" is not a writable condition.
-- There is no count *accessor*, so two computed counts cannot be
-  compared ("|unprivileged roles| == |unprivileged roles with clean
-  grants|" is unwritable).
-
-The honest workarounds used here: put per-element rules on the
-element (`neq` on the list spread), and turn "for all" into "the
-witness set is empty/size-1" where the condition is scalar. Anything
-past that belongs to the exporter.
-
-### 7. No set operations; grant sets are hand-projected (major)
-
-Grants are naturally sets; lists are positional. `subsume` on the
-same two grants reordered:
-
-```
-$ aontu subsume la.aon lb.aon        # ["project_read","member_read"] vs reversed
-verdict: does_not_subsume
-$.g.0: compat_narrowed [compat]
-  a concrete value subsumes only itself
+```sh
+aontu --include-root . proposals/member-wildcard.aon
+aontu vet tenant.aon data/tenant-unknown-role.aon
 ```
 
-Subset queries work only over **set-as-map** projections
-(`queries/*.aon`), which the language cannot derive from the
-list-shaped grants — they are maintained by hand, in step with
-`roles.aon`, which is exactly the drift a ground-truth system exists
-to prevent. (Positional lists also make grant *extension* awkward:
-`proposals/extend-member-grants.aon` must restate the existing prefix
-to add one grant.) A projection/`each`-into-map operator, or the
-reserved unique-by-projection arity, is the missing piece.
-
-### 8. `refer()` inside a `close()`d spread template never settles (major)
-
-```
-members: { &: close({ role: refer() & string }) }   # + data member
-→ [aontu/mapval_no_gen]: Cannot resolve value at path $.members.ada
-```
-
-Without `close` it works. The model splits the spread —
-`&: close({role: string, invitedBy?: string})` plus `&: {role:
-refer()}` — which keeps both typo-sealing and the FK check (verified
-by check 5 and the `[aontu/closed] … $.members.ada.rolle` typo test
-during development). Undocumented interaction; costs an idiom that
-should just work.
-
-### 9. Error-quality frictions (minor–major)
-
-- A refer failure under a spread is located at the **template**, not
-  the member: `$.tenant.members.role` — which of forty members holds
-  the bad role is not named (the data line/column is, which saves
-  it in practice).
-- A failed disjunction-of-closed-maps prints the *entire* disjunction
-  against the *entire* data map (`empty`, check 4) with no
-  per-branch diagnosis. When a data-side scalar pins the branch
-  first, the error is excellent (`sso: true` vs `false` at the exact
-  key) — the difference is whether anything selected the branch
-  before it died.
-- **CLOSED by ADR-014.** `proposals/extend-member-grants.aon` used to
-  report a spurious `[aontu/unify_cycle] … Cannot unify value:
-  id(key(0)) with value: id(key(0))`, with source snippets mixing line
-  numbers from `roles.aon` and text from the proposal file, while the
-  real finding stayed unsurfaced inside the still-open `Role`
-  disjunction. Removing the identity mark removed the merge that
-  produced the cycle, and the refusal now arrives at its own position:
-  `[aontu/refer_unresolved]` at `$.roles.member.grants.3`, the element
-  the agent invented. `check.sh` asserts both the code and the path.
-- Bare strings refuse hyphens (`slug: acme-rockets` →
-  `[aontu/unexpected]: unexpected character(s): -`) — fine as a rule,
-  but surprising in a model whose natural vocabulary
-  (`acme-rockets`, `team-pay`) is hyphenated. Quote them.
-
-### Rule precedence: not modelled, honestly
-
-Cedar's `forbid` overriding `permit`, or OPA's rule ordering, has no
-lattice counterpart — unification is commutative, so there is no
-"later rule wins". The model's substitutes are: ranked defaults
-(`**` org baseline vs `*` team override — works, check 23) for
-*values*, and first-match `match()` for *derivation*. Neither is
-deny-overrides for decisions. That is the right boundary: a
-deny-override is a decision procedure, not a fact.
-
-## Verdict: does "export to OPA/Cedar" hold up?
-
-Mostly yes — for the **data half**. The catalog, registry, plans and
-tenants come out of `aontu example.aon` as validated, referentially
-sound JSON that compiles directly to Cedar entities or an OPA data
-document, and `hash`/`subsume`/`breaking` give the change-control
-story a PDP lacks. The model stops, and the exporter must take over,
-at: authorization *decisions* (any allow(principal, action,
-resource)), quantified registry invariants beyond scalar-field
-filters, set-typed grant reasoning, and precedence. What does **not**
-hold up today is subtler than that boundary: the three *silent-pass*
-behaviours (counting atoms across layers, `must()` across layers,
-stale references under vet) mean the schema can contain guards that
-look enforced and are not — for a ground-truth system, a guard that
-lies is worse than a missing feature, and those three are the
-findings this use case most wants fixed.
+The how-to guides [Forbid unexpected keys](../../docs/how-to/forbid-unexpected-keys.md),
+[Constrain every element of a list](../../docs/how-to/constrain-list-elements.md),
+[Provide defaults that callers can override](../../docs/how-to/provide-defaults.md)
+and [Keep schema and helper fields out of the output](../../docs/how-to/keep-schema-out-of-output.md)
+walk the `close()`, list-spread, default and `hide()` recipes this case
+runs together.

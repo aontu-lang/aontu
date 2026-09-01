@@ -142,8 +142,8 @@ $ echo $?
 1
 ```
 
-The refusal lands at `$.doc.then.then` — the exact position the data
-ran out — and the error's hint states the repair:
+The refusal lands at `$.doc.then.then` (the exact position the data
+ran out), and the error's hint states the repair:
 
 ```
 Guard the recursion -- an optional key (next?:) drops when nothing
@@ -237,17 +237,12 @@ $ echo $?
 ```
 
 Both findings are located in the schema's namespace at the depth the
-data failed, with the data site beside them. One current limit to
-know: `vet --at` follows recursion that re-enters through a map field
-(`then?:`), but a definition whose recursion re-enters through a list
-template (the `Comment.replies` shape above) is refused under `--at`
-with `[aontu/no_path]` once the list has elements — evaluate such
-data as a full document instead, as the thread example does.
+data failed, with the data site beside them.
 
 The live version of all of this is
 [use-cases/13-recursive-schema](../../use-cases/13-recursive-schema/),
 an approval-chain model whose `check.sh` asserts every moment shown
-here, in both engines. The semantics are specified in [Recursive
+here. The semantics are specified in [Recursive
 references
 (fixpoints)](../reference-language.md#recursive-references-fixpoints),
 mutual recursion and recursive aliases included.

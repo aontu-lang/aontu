@@ -99,10 +99,10 @@ never worse than `set` without it:
 A default (`a: *1`) is not in the table: appending already overrides
 it correctly, so `--in-place` leaves it alone and says nothing.
 
-The last row cuts both ways, and the reverse direction is the trap.
-To change a value that lives in an *included* file, name that file as
-the overlay — but give `--entry` something that constrains the value
-without also pulling the file in. Write a `stack.aon` entry that
+The last row cuts both ways, and the reverse direction is easy to get
+wrong. To change a value that lives in an *included* file, name that
+file as the overlay — but give `--entry` something that constrains the
+value without also pulling the file in. Write a `stack.aon` entry that
 loads `deploy.aon`, the natural arrangement and the wrong one here:
 
 <!-- test: file stack.aon -->

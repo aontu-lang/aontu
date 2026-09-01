@@ -1,12 +1,20 @@
 # 16 — module deps: a layered codebase, drawn as a dependency tree
 
+A codebase's own module graph: twelve modules across four layers
+(`app`, `feature`, `core`, `util`), twenty-one dependencies, and one
+architecture rule, that a module never depends on a module above it.
+Each module is an entity addressed by its tree path; `dependsOn` is a
+declared relation with its written-out inverse `usedBy`; and the
+layering rule is a shape that `rel(t)` flows into the far end of every
+edge, so an illegal edge is an ordinary failed unification. Two views
+are drawn from the same edges: a dependency tree and a
+dependency-structure matrix.
+
 ## The codebase, drawn
 
-Twelve modules, four layers, twenty-one dependencies. The tree below
-is generated from this model by
+The tree below is generated from this model by
 [`../tools/diagram.js`](../tools/diagram.js) and pinned as a golden by
-`check.sh`, like every other artifact here. There is no `aontu view`
-verb yet — see [`docs/design/VIEWS.0.md`](../../docs/design/VIEWS.0.md).
+`check.sh`.
 
 ```
 cli
@@ -43,7 +51,7 @@ no other module names, which for a codebase is exactly its
 deployables. `cli`, `server` and `worker` are what ship.
 
 **`(*)` is a subtree already drawn.** A dependency graph is a DAG and
-not a tree — `store` is reached from four modules — so a full
+not a tree (`store` is reached from four modules), so a full
 expansion would print the same subtree once per path into it, and the
 depth would carry no information. The first occurrence in sort order
 is expanded and every later one is marked, which is what `cargo tree`
@@ -77,12 +85,12 @@ the matrix past about twenty vertices, and Sangal et al. (OOPSLA 2005)
 is the software-dependency application. At twelve modules both are
 readable, which is why the case draws both.
 
-## The layering rule is a shape, not a checker
+## The layering rule is a shape
 
 The architecture invariant is that a module never depends on a module
 above it. `app` may use anything, `feature` may use feature and below,
 `core` may use core and below, `util` may use only util. A sideways
-edge is legal — `auth` calling `http` is ordinary engineering — and
+edge is legal (`auth` calling `http` is ordinary engineering), and
 what stops a sideways edge from closing a loop is `acyclic()`.
 
 The whole rule is four disjunctions, from `spec.aon`:
@@ -108,13 +116,9 @@ at generation with both sides named.
  Cannot unify value: "core"|"util" with value: "feature"
 ```
 
-**And it holds in every spelling** — `bad/upward.aon` writes the
+The rule holds in either spelling: `bad/upward.aon` writes the
 offending module first, `bad/upward-swapped.aon` writes its target
-first, and both refuse. That is the case's own finding, fixed: which
-target shape reached the far end of an edge used to depend on the
-order the blocks were written in, because a flow nested inside another
-flow had its record dropped rather than deferred ([BUGS
-69](../BUGS.md)). Both spellings are pinned by `check.sh`.
+first, and both refuse.
 
 ## The model
 
@@ -137,98 +141,62 @@ for the author would be generation rather than validation, and
 `inverse(n)` only checks, so `store` lists the four modules that use
 it and each of them lists `store`.
 
-Case 12 exercises the same atoms on a four-job pipeline. What this
-case adds is scale enough for the views to matter (twelve modules,
-three roots, shared subtrees) and a rule that constrains the *far end*
-of an edge rather than the edge itself.
+Each `bad/` overlay includes `model.aon` and adds one edge. Lists
+unify positionally, so an overlay restates the list it extends, with
+the new entry last.
+
+[Case 12](../12-relations/) exercises the same atoms on a four-job
+pipeline. What this case adds is scale enough for the views to matter
+(twelve modules, three roots, shared subtrees) and a rule that
+constrains the *far end* of an edge rather than the edge itself. The
+constructs are specified in the language reference under
+[Declared relations](../../docs/reference-language.md#declared-relations).
 
 ## What check.sh proves
 
-1. The model generates: twelve modules, twenty-one legal edges, every
-   inverse written; `aontu relations` passes on the same document.
-2. An upward dependency (core on feature) refuses at generation, and
-   the message names both layers.
-3. The same edge with its two blocks swapped still generates — pinned
-   as a known miss, so the corpus says what the engine does and the
-   assertion flips when the flow stops depending on order.
-4. A cycle between two util modules — legal by layer — refuses with a
-   located `relation_cycle`, and the verb names the loop it runs
-   through.
-5. An edge whose mirror was never written refuses, and the verb names
-   the exact absent entry.
-6. A dependency on a module nobody wrote refuses inside the
-   evaluation (`rel_unresolved`): existence is decided, never
-   deferred.
-7. `aontu reaches --relation dependsOn` answers the closure question
-   both ways: `cli` reaches `bytes` through three hops, and `bytes`
-   reaches nothing.
-8. The tree draws: three derived roots, nine elided repeats, pinned
-   byte for byte.
-9. `tree --root $.mods.billing` draws one module's own closure, and a
-   `--root` naming no node refuses rather than drawing an empty tree.
-10. The dependency-structure matrix draws, pinned the same way.
-11. The tree of the *cyclic* model terminates, marking the closing
-    edge `(cycle)` instead of recursing into it.
-12. `aontu get` reads a module's layer and directory off the model.
-
-## Boundaries hit while writing it
-
-- **The layering rule was order-dependent, which is how this case
-  found the defect behind it.** The same field,
-  `$.mods.auth.dependsOn`, was driven with auth's own narrow target
-  when reached directly and with the BASE declaration's four-way one
-  when reached through another module's mirror link, so the same
-  illegal edge was refused in one spelling and generated in another.
-  The cause was a flow nested inside another flow: its meet is skipped
-  where it would re-enter a target already being flowed into, and the
-  skip took the flow's RECORD with it, so the nested type was lost
-  rather than deferred ([BUGS 69](../BUGS.md)). Fixed, in both ports,
-  and both spellings are now pinned.
-- **Two engine defects, found from the other end and fixed.** The
-  model's mirrors were all written and `inverse(n)` said one was
-  missing. Twice, for two unrelated reasons: a discarded disjunction
-  alternative was still asserting its `refer(t)` type on the target
-  ([BUGS 66](../BUGS.md)), and a conjunct member reached through a
-  reference carried the map's path, so a link was stamped with the
-  entity's key as its predicate ([BUGS 67](../BUGS.md)). Neither is a
-  relation defect; a relation check is just what noticed. A third,
-  smaller one came with them: the verdict was pronounced over
-  documents that cannot generate at all ([BUGS 68](../BUGS.md)).
-- **A mutual dependency was invisible to the renderer, and this case
-  found it.** `tools/diagram.js` collapses the two written directions
-  of a declared inverse into one logical edge, or every relation with
-  an inverse would draw twice. It collapsed by node pair, so `a
-  dependsOn b` together with `b dependsOn a` — one key facing itself,
-  which is the shortest cycle a model can have — folded into a single
-  undirected edge and the loop vanished from every view. The collapse
-  is now per key pair: two keys facing each other are an inverse, one
-  key facing itself is two facts. Every existing golden is unchanged
-  by the fix.
-- **The upward refusal names the layers but not the module.** The
-  message is exact about what conflicted (`"core"|"util"` with
-  `"feature"`) and the path it reports walks the relation
-  (`$.mods.auth.dependsOn.0.usedBy.0.dependsOn.layer`) rather than
-  naming the edge that broke the rule. An author reads the layers and
-  then goes looking. A finding that carried the offending edge would
-  make this a one-glance fix.
-- **The error frame under an include names one file and quotes
-  another.** `bad/dangling.aon` reports `--> spec.aon:24:17` and
-  prints text from the failing document underneath it. Case 12's
-  shipped `bad/dangling.aon` does the same, and a single-file version
-  of the same model reports coherently, so the trigger is the include
-  rather than this model. That is the `site-attribution` family
-  ([`BUGS.md` §25](../BUGS.md)), whose invariant is that a frame
-  quotes the text of the file its header names.
-- **Lists unify positionally**, so each `bad/` overlay restates the
-  list it extends, with the new entry last. Cases 01 and 12 record
-  the same workaround.
-- The views design declines an icicle over the path tree, on the
-  grounds that `get --keys` and `jsonschema` already answer what it
-  would answer ([`VIEWS.0.md`](../../docs/design/VIEWS.0.md),
-  "Boundary"). A dependency tree is a different figure: it is over a
-  *relation*, not over containment, and no shipped verb answers what
-  it shows.
+1. `model.aon` generates and the output matches `expected/model.json`:
+   twelve modules, twenty-one legal edges, every inverse written.
+2. `aontu relations model.aon` answers `verdict: pass` without
+   generating.
+3. `bad/upward.aon` (`auth`, a core module, comes to depend on
+   `catalog`, a feature module) refuses at generation with
+   `[aontu/empty]`, and the message names both layers:
+   `Cannot unify value: "core"|"util" with value: "feature"`.
+4. `bad/upward-swapped.aon`, the same edge with its two blocks written
+   in the other order, refuses with `[aontu/empty]` as well.
+5. `bad/cycle.aon` (`bytes` comes to depend on `log`, which already
+   depends on `bytes`; both are util, so the layer allows it) refuses
+   at generation with `[aontu/relation_cycle]`, and `aontu relations`
+   answers `verdict: fail`, naming the loop:
+   `cycle $.mods.bytes -> $.mods.log -> $.mods.bytes`.
+6. `bad/missing-inverse.aon` (`clock` depends on `bytes`, and `bytes`
+   does not say so) refuses with `[aontu/relation_inverse_missing]`,
+   and the verb names the exact absent entry:
+   `$.mods.bytes does not list $.mods.clock under usedBy`.
+7. `bad/dangling.aon` (a dependency on a module nobody wrote) refuses
+   inside the evaluation with `[aontu/rel_unresolved]`: existence is
+   decided, never deferred.
+8. `aontu reaches --relation dependsOn` answers the closure question
+   both ways: `cli` reaches `bytes` (`verdict: reaches`, with the path
+   `$.mods.cli -> $.mods.billing -> $.mods.auth -> $.mods.bytes`), and
+   `bytes` does not reach `cli` (`verdict: unreachable`, exit code 1).
+9. The dependency tree renders byte for byte to
+   `expected/diagram-tree.txt`: three derived roots, nine elided
+   repeats.
+10. `tree --root $.mods.billing` draws one module's own closure,
+    pinned as `expected/diagram-tree-billing.txt`.
+11. A `--root` naming no node refuses (`no such node: $.mods.nosuch`)
+    rather than drawing an empty tree.
+12. The dependency-structure matrix renders byte for byte to
+    `expected/diagram-matrix.txt`.
+13. The tree of the cyclic model (`bad/cycle.aon`) terminates, marking
+    the closing edge `(cycle)` instead of recursing into it.
+14. `aontu get` reads a module's layer and directory off the model:
+    `$.mods.http.layer` is `"core"` and `$.mods.store.dir` is
+    `"core/store"`.
 
 ## Run
 
-    ./check.sh
+From this directory, `./check.sh` runs all 14 assertions and exits 0.
+It drives the TypeScript CLI (`ts/bin/aontu.js`, or the command in
+`$AONTU`) and can be invoked from any working directory.
