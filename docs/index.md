@@ -66,7 +66,7 @@ Three capabilities have doorways of their own:
 Tooling:
 
 - [The `aontu` command](reference-api.md#command-line-interface) — one
-  binary, thirteen verbs, both implementations. Each verb has its own
+  binary, fourteen verbs, both implementations. Each verb has its own
   reference section:
   - validate: [`vet`](reference-api.md#aontu-vet), wrapped for CI as a
     [GitHub Action](../vet-action/README.md)
@@ -78,7 +78,8 @@ Tooling:
     [`trim`](reference-api.md#aontu-trim)
   - identity and relations:
     [`relations`](reference-api.md#aontu-relations),
-    [`reaches`](reference-api.md#aontu-reaches)
+    [`reaches`](reference-api.md#aontu-reaches),
+    [`view`](reference-api.md#aontu-view)
   - export and pin: [`jsonschema`](reference-api.md#aontu-jsonschema),
     [`hash`](reference-api.md#aontu-hash)
   - distribute and hand over: [`mod`](reference-api.md#aontu-mod),

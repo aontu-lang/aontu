@@ -7,11 +7,12 @@ import * as Fs from 'node:fs'
 import * as Os from 'node:os'
 import * as Path from 'node:path'
 
-import { Aontu } from '../dist/aontu'
+import { Aontu, viewTree } from '../dist/aontu'
 import {
   evalSource, runVet, runSubsume, runBreaking, runTrim, runRelations,
   runJsonSchema,
   runReaches,
+  runView,
   runHash, runGet, runWhy,
   renderWhyText, runSet, runAgentsMd, replCommand,
   watchChange, watchSignature, vetWaiter, deprecatedAt,
@@ -1220,6 +1221,121 @@ describe('cli-subsume', () => {
     Assert.match(broken.out, /scalar_value/)
   })
 
+  // THE TREE VIEW (docs/design/VIEWS.0.md). Go twin:
+  // go/cmd/aontu/view_test.go. What the two ports must AGREE on -- the
+  // rendered text and the refusals -- is test/spec/view.tsv and
+  // use-case 16's goldens; what each port owns (argument handling, exit
+  // codes, rendering) is here.
+  test('view-draws-the-tree-and-its-exit-code', () => {
+    const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-vw-'))
+    const file = Path.join(dir, 'doc.aon')
+    Fs.writeFileSync(file,
+      'cli: {dependsOn: [&: refer(), path($.web), path($.db)]}\n' +
+      'web: {dependsOn: [&: refer(), path($.db)], usedBy: [&: refer(), path($.cli)]}\n' +
+      'db: {dependsOn: [&: refer(), path($.disk)], usedBy: [&: refer(), path($.cli), path($.web)]}\n' +
+      'disk: {}\n')
+    const tree = 'cli\n├── db\n│   └── disk\n└── web\n    └── db (*)\n'
+
+    // THE FIGURE AND NOTHING ELSE on stdout: a redirect is a golden.
+    const drawn = vetCapture(() =>
+      Assert.equal(runView(['tree', '--relation', 'dependsOn', file]), 0))
+    Assert.equal(drawn.out, tree)
+    Assert.equal(drawn.err, '')
+
+    // One subtree, from a named root.
+    const sub = vetCapture(() => Assert.equal(
+      runView(['tree', '--relation', 'dependsOn', '--root', '$.web', file]), 0))
+    Assert.equal(sub.out, 'web\n└── db\n    └── disk\n')
+
+    // A root that is not a node of the drawn graph is a REFUSAL, on
+    // stderr, with nothing on stdout: an empty tree and a typo are the
+    // same file on disk.
+    const bad = vetCapture(() => Assert.equal(
+      runView(['tree', '--relation', 'dependsOn', '--root', '$.nope', file]), 4))
+    Assert.equal(bad.out, '')
+    Assert.match(bad.err, /refer_unresolved/)
+    Assert.match(bad.err, /\$\.nope is not a node of the dependsOn graph/)
+    Assert.match(bad.err, /nodes in the graph: \$\.cli, \$\.db, \$\.disk, \$\.web/)
+
+    // A relation with no edges is refused the same way.
+    const rel = vetCapture(() =>
+      Assert.equal(runView(['tree', '--relation', 'nope', file]), 4))
+    Assert.match(rel.err, /view_relation_unknown/)
+    Assert.match(rel.err, /relations with edges: dependsOn, usedBy/)
+
+    // The machine-readable form carries the figure under the envelope.
+    const j = JSON.parse(vetCapture(() => Assert.equal(
+      runView(['tree', '--relation', 'dependsOn', '--format', 'json', file]),
+      0)).out)
+    Assert.equal(j.aontu.verb, 'view')
+    Assert.equal(j.kind, 'tree')
+    Assert.equal(j.verdict, 'rendered')
+    Assert.equal(j.text, tree.trimEnd())
+    Assert.equal('errors' in j, false)
+
+    // ... and a refusal carries its findings instead of a figure.
+    const je = JSON.parse(vetCapture(() => Assert.equal(
+      runView(['tree', '--root', '$.nope', '--format', 'json', file]),
+      4)).out)
+    Assert.equal(je.verdict, 'error')
+    Assert.equal(je.errors[0].code, 'refer_unresolved')
+    Assert.equal('text' in je, false)
+
+    // A --trust the parser ACCEPTS reaches the graph.
+    vetCapture(() => Assert.equal(
+      runView(['--trust', 'none', 'tree', file]), 0))
+
+    // The packaged binary, end to end: the figure is the goldens'.
+    const r = run(['view', 'tree', '--relation', 'dependsOn', file])
+    Assert.equal(r.code, 0)
+    Assert.equal(r.out, tree)
+
+    // A document that does not stand up has no graph to draw.
+    Fs.writeFileSync(file, 'a: 1\na: 2\n')
+    const broken = vetCapture(() =>
+      Assert.equal(runView(['tree', file]), 4))
+    Assert.match(broken.err, /scalar_value/)
+
+    // The library form, with no options at all: a model with no links
+    // renders an empty figure rather than refusing.
+    Assert.deepEqual(viewTree('a: 1'),
+      { verdict: 'rendered', kind: 'tree', text: '' })
+  })
+
+
+  test('view-usage-errors', () => {
+    const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-vu-'))
+    const file = Path.join(dir, 'doc.aon')
+    Fs.writeFileSync(file, 'a: {dependsOn: [&: refer(), path($.b)]}\nb: {}\n')
+    for (const [args, want] of [
+      [[], /view needs a kind and one file/],
+      [['tree'], /view needs a kind and one file/],
+      [['tree', file, file], /view needs a kind and one file/],
+      [['matrix', file], /unknown view kind matrix/],
+      [['tree', '--bogus', file], /unknown view option --bogus/],
+      [['tree', '--format', 'yaml', file], /--format needs text or json/],
+      [['tree', file, '--format'], /--format needs text or json/],
+      [['tree', file, '--relation'], /--relation needs a name/],
+      [['tree', '--relation', '', file], /--relation needs a name/],
+      [['tree', file, '--root'], /--root needs a node path/],
+      [['tree', Path.join(dir, 'nope.aon')], /cannot read/],
+      [['--trust', 'bogus', 'tree', file], /--trust needs/],
+    ] as [string[], RegExp][]) {
+      const r = vetCapture(() => Assert.equal(runView(args), 2, args.join(' ')))
+      Assert.equal(r.out, '', args.join(' '))
+      Assert.match(r.err, want, args.join(' '))
+    }
+
+    const help = vetCapture(() => Assert.equal(runView(['--help']), 0))
+    Assert.match(help.out, /aontu view tree/)
+
+    // The verb dispatches through main as the FIRST argument.
+    const viaMain = vetCapture(() =>
+      cliMainVet(['node', 'cli', 'view', 'tree', file]))
+    Assert.equal(viaMain.out, 'a\n└── b\n')
+  })
+
+
   // A NIL ROOT WITH AN EMPTY ERROR LIST (use-cases/BUGS.md §43). The
   // id-spread refusal IS the root, so `ctx.err` is empty and every verb
   // that reports "this document does not stand up" used to read
@@ -1232,6 +1348,7 @@ describe('cli-subsume', () => {
     for (const run of [
       () => runRelations([f.general]),
       () => runReaches(['$.b', '$.b', f.general]),
+      () => runView(['tree', f.general]),
       () => runJsonSchema([f.general]),
       () => runTrim(['--check', f.general]),
     ]) {

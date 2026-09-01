@@ -30,7 +30,7 @@ import { srcPath } from './srcpath'
 const ALL_TOOLS = [
   'breaking', 'canon', 'diff', 'get', 'hash', 'jsonschema',
   'reaches', 'relations',
-  'set', 'subsume', 'summary', 'trim', 'vet', 'why',
+  'set', 'subsume', 'summary', 'trim', 'vet', 'view', 'why',
 ]
 
 
@@ -456,6 +456,58 @@ describe('mcp', () => {
       Assert.equal(payload(rv).verdict, 'error')
       Assert.equal(payload(rv).findings[0].code, 'include_denied')
     }
+  })
+
+
+  test('view-tool-draws-the-tree', () => {
+    const doc = 'cli: {dependsOn: [&: refer(), path($.web), path($.db)]}\n' +
+      'web: {dependsOn: [&: refer(), path($.db)], usedBy: [&: refer(), path($.cli)]}\n' +
+      'db: {dependsOn: [&: refer(), path($.disk)], usedBy: [&: refer(), path($.cli), path($.web)]}\n' +
+      'disk: {}\n'
+    const tree = 'cli\n├── db\n│   └── disk\n└── web\n    └── db (*)'
+
+    // THE SAME CONTRACT THE CLI PRINTS: kind, verdict, and the figure.
+    const drawn = payload(callTool('view',
+      { source: doc, kind: 'tree', relation: 'dependsOn' }))
+    Assert.equal(drawn.verdict, 'rendered')
+    Assert.equal(drawn.kind, 'tree')
+    Assert.equal(drawn.text, tree)
+
+    // `kind` defaults to the one kind there is.
+    Assert.equal(payload(callTool('view',
+      { source: doc, relation: 'dependsOn' })).text, tree)
+
+    // Every relation is drawn when none is named, each branch naming
+    // its own: the inverse pair collapses to one edge under both names.
+    Assert.match(payload(callTool('view', { source: doc })).text,
+      /├── db \(dependsOn\/usedBy\)/)
+
+    // A named root draws its subtree alone.
+    Assert.equal(payload(callTool('view',
+      { source: doc, relation: 'dependsOn', root: ['$.web'] })).text,
+      'web\n└── db\n    └── disk')
+
+    // A kind the verb does not draw is a call that could not be made.
+    Assert.equal(callTool('view', { source: doc, kind: 'matrix' }).isError, true)
+
+    // A root that is not a node of the drawn graph, and a document that
+    // does not stand up, are both refusals in vet's finding shape --
+    // with the kind still named, because the report is the answer.
+    const bad = payload(callTool('view', { source: doc, root: ['$.nope'] }))
+    Assert.equal(bad.verdict, 'error')
+    Assert.equal(bad.kind, 'tree')
+    Assert.equal(bad.errors[0].code, 'refer_unresolved')
+    Assert.equal('text' in bad, false)
+    const broken = payload(callTool('view', { source: 'a: 1\na: 2\n' }))
+    Assert.equal(broken.verdict, 'error')
+    Assert.equal(broken.errors[0].code, 'scalar_value')
+
+    // A document the served profile cannot read is refused before the
+    // engine sees it, in the same shape.
+    const denied = payload(callTool('view', { source: '@"./x.aon"\n' }))
+    Assert.equal(denied.verdict, 'error')
+    Assert.equal(denied.kind, 'tree')
+    Assert.equal(denied.errors[0].code, 'include_denied')
   })
 
 

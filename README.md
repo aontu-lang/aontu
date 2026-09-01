@@ -58,8 +58,9 @@ Beyond evaluation the command has a verb for each task around a
 document: `vet` (validate data against a schema), `get` and `why`
 (query, and provenance), `set` (change a value in an overlay, by
 appending or in place), `subsume` and `breaking` (schema evolution),
-`hash` (pin what a document means), `relations` and `reaches` (the
-declared entity graph, and reachability over it), `jsonschema` (export
+`hash` (pin what a document means), `relations`, `reaches` and `view`
+(the declared entity graph: its checks, reachability over it, and its
+dependency tree drawn as text), `jsonschema` (export
 the model as JSON Schema), `trim` (find redundant entries), `mod`
 (dependency closures) and `agentsmd` (an AGENTS.md stanza). The
 library adds a path-addressed `diff`, and an MCP server answers with

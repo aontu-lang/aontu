@@ -4,10 +4,12 @@
 // diagram.js --- draw an Aontu model, using only what SHIPS today.
 //
 // The diagram capability designed in docs/design/VIEWS.0.md and
-// VIEWS-ORDER.0.md is not built: there is no `aontu view` and no
-// `aontu order`. This script stands in for them so the use cases can
-// carry real diagrams now, and so the design is validated against real
-// models before any of it is committed to code.
+// VIEWS-ORDER.0.md is built one kind at a time: the dependency tree is
+// `aontu view tree` (ts/src/view.ts, go/view.go), ported from the
+// `tree` kind this script used to carry, with use-case 16's goldens
+// unchanged. This script stands in for the kinds not yet ported so the
+// use cases can carry real diagrams now, and so the design is validated
+// against real models before it is committed to code.
 //
 // It uses the PUBLIC library surface and nothing else -- `graphOf`,
 // `subsume`, `why` -- exactly as the designs say a view must (a view
@@ -23,7 +25,6 @@
 //   node diagram.js graph  [--primary KEY]... <entry.aon>
 //   node diagram.js matrix [--primary KEY]... <entry.aon>
 //   node diagram.js er     [--primary KEY]... <entry.aon>
-//   node diagram.js tree   [--primary KEY]... [--root <$.a.b>]... <entry.aon>
 //   node diagram.js ladder --path <$.a.b> <entry.aon>
 //   node diagram.js poset  [--at <path>] [--profile P] <file.aon>...
 //
@@ -251,159 +252,6 @@ function er(val, primary) {
 }
 
 
-// THE DEPENDENCY TREE: the same edges, walked from a root, indented.
-//
-// A dependency graph is a DAG and not a tree -- two modules may share
-// a dependency, and drawing that shared node once under each parent is
-// what makes `cargo tree` and `npm ls` readable rather than
-// exponential. So this is a SPANNING WALK with two honest marks:
-// `(*)` where a subtree is elided because the node was expanded
-// earlier, and `(cycle)` where an edge closes a loop. The first is
-// routine in a correct model -- a diamond is good engineering, not a
-// fault. The second cannot arise from a model whose relation declares
-// `acyclic()`, and is drawn rather than thrown because a renderer that
-// hangs on a hostile input is a renderer that cannot be pointed at
-// one.
-//
-// Which nodes are roots is DERIVED, not asked for: a root is a node
-// nothing depends on. `--root` overrides that to draw one subtree.
-// The order of everything -- roots, children, the choice of which
-// occurrence of a shared node is the expanded one -- follows the label
-// sort, so the drawing is a function of the model alone.
-function tree(val, primary, roots) {
-  // With a primary named, the tree is OVER THAT RELATION. The other
-  // kinds draw every relation at once because a node-link diagram can
-  // label each edge; a tree cannot without becoming unreadable, and
-  // walking two relations as though they were one would draw a
-  // containment that the model does not state.
-  const all_edges = edges(val, primary)
-  const kept = all_edges.filter((e) =>
-    0 === primary.length
-    || e.label.split('/').some((k) => primary.includes(k)))
-
-  // A NAMED RELATION THAT DRAWS NOTHING IS A TYPO, and refused for the
-  // same reason a misspelled `--root` is: an empty tree and a
-  // misspelled name are the same file on disk, so the one that means
-  // nothing must not be renderable.
-  if (0 === kept.length && 0 < all_edges.length) {
-    const have = [...new Set(all_edges.flatMap((e) => e.label.split('/')))]
-    throw new Error('no such relation: ' + primary.join('/')
-      + ' (the graph has ' + have.sort(cmp).join(', ') + ')')
-  }
-
-  // The node set is what the drawn relation CONNECTS, the rule the
-  // node-link kinds follow above. A `--root` naming anything else is a
-  // typo, and it is refused rather than drawn.
-  const ns = new Set()
-  for (const e of kept) {
-    ns.add(e.from)
-    ns.add(e.to)
-  }
-  const all = [...ns].sort(cmp)
-  const lab = labels(all)
-
-  const kids = new Map(all.map((n) => [n, []]))
-  for (const e of kept) {
-    kids.get(e.from).push({ to: e.to, label: e.label })
-  }
-  for (const list of kids.values()) {
-    list.sort((x, y) => cmp(lab.get(x.to), lab.get(y.to)) || cmp(x.label, y.label))
-  }
-
-  // The relation is named on the branch only where more than one is
-  // drawn. Naming the single relation on every line of a tree that has
-  // exactly one is noise; leaving it off where there are two would
-  // hide which edge was walked.
-  const many = 1 < new Set(kept.map((e) => e.label)).size
-  const byLabel = (a, b) => cmp(lab.get(a), lab.get(b))
-
-  let named
-  if (0 < roots.length) {
-    for (const r of roots) {
-      if (!ns.has(r)) {
-        throw new Error('no such node: ' + r
-          + ' (the ' + (0 < primary.length ? primary.join('/') + ' ' : '')
-          + 'graph has ' + all.length + ')')
-      }
-    }
-    named = [...new Set(roots)].sort(byLabel)
-  }
-  else {
-    // A root is a node nothing depends on. A SELF-EDGE does not make a
-    // node depended upon for this purpose: a module that names itself
-    // would otherwise stop being a root and take its whole subtree out
-    // of the drawing.
-    const depended = new Set(
-      kept.filter((e) => e.to !== e.from).map((e) => e.to))
-    named = all.filter((n) => !depended.has(n)).sort(byLabel)
-  }
-
-  const out = []
-  const expanded = new Set()
-
-  const draw = (root) => {
-    if (0 < out.length) out.push('')
-    out.push(lab.get(root))
-    expanded.add(root)
-
-    // ITERATIVE, with the ancestor chain carried as a set that is
-    // added to on the way down and removed from on the way up. A
-    // recursive walk is O(depth) stack frames and a deep dependency
-    // chain is a real shape, so the drawing of a model must not depend
-    // on how deep the interpreter lets it go.
-    const chain = new Set([root])
-    const stack = [{ node: root, prefix: '', at: 0 }]
-    while (0 < stack.length) {
-      const frame = stack[stack.length - 1]
-      const list = kids.get(frame.node) || []
-      if (frame.at >= list.length) {
-        chain.delete(frame.node)
-        stack.pop()
-        continue
-      }
-      const edge = list[frame.at++]
-      const last = frame.at === list.length
-      const loop = chain.has(edge.to)
-      const seen = expanded.has(edge.to)
-      const grown = 0 < (kids.get(edge.to) || []).length
-      out.push(frame.prefix + (last ? '└── ' : '├── ')
-        + lab.get(edge.to)
-        + (many ? ' (' + edge.label + ')' : '')
-        + (loop ? ' (cycle)' : (seen && grown ? ' (*)' : '')))
-      if (loop || seen) continue
-      expanded.add(edge.to)
-      chain.add(edge.to)
-      stack.push({
-        node: edge.to,
-        prefix: frame.prefix + (last ? '    ' : '│   '),
-        at: 0,
-      })
-    }
-  }
-
-  for (const root of named) {
-    draw(root)
-  }
-
-  // EVERY NODE IS DRAWN. A component whose nodes all depend on each
-  // other has no node nothing depends on, so the derived roots miss it
-  // entirely -- and a graph with roots elsewhere would drop it in
-  // silence, which is the one thing a drawing must not do. The
-  // least-labelled node left is taken as a root of its own, until
-  // nothing is left. An explicitly named `--root` is a request for one
-  // subtree and is left alone.
-  if (0 === roots.length) {
-    for (const n of all) {
-      if (!expanded.has(n)) {
-        draw(n)
-      }
-    }
-  }
-
-  return out.join('\n')
-}
-
-
 // The meet ladder: the descent from `top` through each contribution to
 // the resolved value. `why`'s conjunct list is in the order the
 // recorder saw the meets, which is NOT rank order, so it is sorted --
@@ -532,12 +380,10 @@ function main(argv) {
   const kind = argv[0]
   const rest = argv.slice(1)
   const primary = []
-  const roots = []
   let at, profile, path
   const files = []
   for (let i = 0; i < rest.length; i++) {
     if ('--primary' === rest[i]) { primary.push(rest[++i]) }
-    else if ('--root' === rest[i]) { roots.push(rest[++i]) }
     else if ('--at' === rest[i]) { at = rest[++i] }
     else if ('--profile' === rest[i]) { profile = rest[++i] }
     else if ('--path' === rest[i]) { path = rest[++i] }
@@ -554,9 +400,8 @@ function main(argv) {
   if ('graph' === kind) return graph(val, primary)
   if ('matrix' === kind) return matrix(val, primary)
   if ('er' === kind) return er(val, primary)
-  if ('tree' === kind) return tree(val, primary, roots)
   throw new Error('unknown kind: ' + kind
-    + ' (graph | matrix | er | tree | ladder | poset)')
+    + ' (graph | matrix | er | ladder | poset; the tree is aontu view tree)')
 }
 
 

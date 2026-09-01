@@ -60,10 +60,13 @@ cells; the others are Mermaid, which GitHub draws:
 | [12-relations](12-relations/) | entity graph with inverse pairs collapsed, and an ER diagram |
 | [16-module-deps](16-module-deps/) | dependency tree with elided repeats and derived roots, dependency-structure matrix |
 
-[`tools/diagram.js`](tools/diagram.js) draws them from the evaluated
-model, through the library's `graphOf`, `subsume` and `why`. It
-computes no coordinates and sorts nodes and edges by code point, so its
-output is deterministic text and a golden diff is a meaningful check.
+The dependency tree is drawn by
+[`aontu view tree`](../docs/reference-api.md#aontu-view);
+[`tools/diagram.js`](tools/diagram.js) draws the others from the
+evaluated model, through the library's `graphOf`, `subsume` and `why`.
+Neither computes a coordinate, and both sort nodes and edges by code
+point, so the output is deterministic text and a golden diff is a
+meaningful check.
 
 ## Scope and conventions
 

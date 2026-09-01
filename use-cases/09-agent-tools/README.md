@@ -173,7 +173,8 @@ The model exercises the full loop:
 16. The MCP server: `initialize` answers with the server name
     `aontu`, `tools/list` matches `expected/mcp-tools.json` (`vet`,
     `get`, `why`, `diff`, `canon`, `summary`, `subsume`, `breaking`,
-    `set`, `relations`, `reaches`, `hash`, `trim`, `jsonschema`), and
+    `set`, `relations`, `reaches`, `view`, `hash`, `trim`,
+    `jsonschema`), and
     the `vet` tool's `inputSchema` requires `schema` and `data`.
 17. `tools/call` of `vet` admits the good call (`valid`, `isError:
     false`) and refuses the bad one with `invalid` and the

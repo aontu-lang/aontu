@@ -7,6 +7,24 @@ which implementation each change affects.
 
 ## Unreleased
 
+### `aontu view tree`: the dependency tree of a relation, drawn by the engine
+
+Both ports. **New verb.** `aontu view tree [--relation <name>]
+[--root <path>]... <file>` draws the link graph of a finished model as
+the dependency tree a reader of `cargo tree` expects: roots derived as
+the nodes nothing depends on, a shared subtree expanded once and
+marked `(*)` after, an edge that closes a loop marked `(cycle)` rather
+than walked, and labels shortened to the least path suffix unique in
+the drawing. A declared inverse pair draws as one edge; a mutual
+relation stays two. A relation with no edges (`view_relation_unknown`,
+new, class `reference`) and a root that is not a node of the drawn
+graph (`refer_unresolved`) are refusals, exit 4, because an empty
+tree and a typo are the same file on disk. Library: `viewTree`
+(TypeScript), `Aontu.ViewTree` (Go); MCP tool `view`; shared rows in
+`test/spec/view.tsv`. It is the `tree` kind of
+`use-cases/tools/diagram.js`, ported: use-case 16's three tree goldens
+are the acceptance test and now come from the verb.
+
 ### A type flow nested inside another one is deferred, not dropped
 
 Both ports. **Soundness.** `refer(t)`/`rel(t)` skip their meet where it

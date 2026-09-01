@@ -42,6 +42,7 @@ Usage: aontu [options] [file]
        aontu trim --check [options] <file>
        aontu relations [options] <file>
        aontu reaches <from> <to> [--relation <name>] [options] <file>
+       aontu view tree [--relation <name>] [--root <path>]... [options] <file>
        aontu jsonschema [--at <path>] [--strict] [options] <file>
        aontu hash [options] <file>
        aontu mod tidy|verify|vendor|manifest [options] [dir]
@@ -753,6 +754,75 @@ $: refer_unresolved [reference]
 $ echo $?
 4
 ```
+
+### `aontu view`
+
+Draw a **figure** of one finished model's link graph, as deterministic
+text a golden diff can check. One kind so far: the dependency **tree**.
+
+```
+aontu view tree [--relation <name>] [--root <path>]... [--format text|json] <file>
+```
+
+The tree is drawn over the same edge set
+[`relations`](#aontu-relations) checks and [`reaches`](#aontu-reaches)
+walks. Draw the `system.aon` model above over its `dependsOn` relation:
+
+<!-- test: run -->
+```sh
+$ aontu view tree --relation dependsOn system.aon
+web
+└── billing
+    └── ledger
+```
+
+- **Roots are derived, not asked for.** A root is a node nothing
+  depends on (a self-edge does not count), so the deployables of a
+  codebase come out at the top without being named. `--root <path>`
+  draws one node's own subtree instead, and is repeatable. A root that
+  is not a node of the drawn graph is refused (`refer_unresolved`)
+  rather than drawn as an empty tree, because an empty tree and a typo
+  are the same file on disk.
+- **A shared subtree is drawn once.** A dependency graph is a DAG, not
+  a tree: a node reached from two parents is expanded under the first
+  and marked `(*)` under every later one, which keeps the drawing
+  linear in the model's size. A repeated leaf is just a leaf.
+- **A cycle is marked, not walked.** An edge that closes a loop prints
+  as `(cycle)` and the walk stops there, so the tree of a model that
+  `acyclic()` refuses still terminates, and shows where.
+- `--relation <name>` draws the tree over that relation alone. Without
+  it every relation is drawn at once, and each branch names its own
+  (`log (logsTo)`) so two relations are never mistaken for one
+  containment. A relation with no edges in the document is refused
+  (`view_relation_unknown`), with the relations that do have edges
+  listed.
+- **A declared inverse is one edge.** `dependsOn` and its `usedBy`
+  mirror arrive as two edges and are drawn as one: under the named
+  relation, or under the code-point-least key with both names in the
+  label when none is named. A *mutual* relation, `a` on `b` and `b` on
+  `a` under one key, stays two edges, because it is the shortest cycle
+  a model can have.
+- **Labels are the shortest unique suffix** of the node's path within
+  the drawing: `auth` where that is unambiguous, `identity.auth` where
+  it is not.
+- **Every node is drawn.** A component whose nodes all depend on each
+  other has no derived root, and is drawn from its least label rather
+  than dropped.
+- Exit codes: `0` rendered, `2` usage, `4` `error` (a document that
+  does not stand up, a relation with no edges, a root that names no
+  node). A document with no edges renders an empty figure and exits
+  `0`. In text form the figure is all that stdout carries, so a
+  redirect is a golden file; `--format json` wraps it as
+  `{kind, text}` under the usual `aontu` envelope, and a refusal
+  carries `errors` in place of `text`.
+- The library form is `viewTree(src, options?)` in TypeScript and
+  `Aontu.ViewTree(src, options)` in Go, returning the identical
+  `{verdict, kind, text?}` record (plus `errors` on a failed run).
+
+The layered codebase in
+[use-cases/16-module-deps](../use-cases/16-module-deps/) pins three
+trees as goldens: the whole graph, one module's closure, and a model
+whose loop the verb marks.
 
 ### `aontu jsonschema`
 
@@ -1585,6 +1655,7 @@ nothing else.
 | `hash` | the [canon-hash](#aontu-hash) pin `{hash}` (plus the hash-form text when `form: true`) |
 | `trim` | the [trim --check](#aontu-trim) report: redundant entries as paths |
 | `reaches` | the [reachability check](#aontu-reaches): the verdict and, when it reaches, a shortest path — the closure question `relations` cannot ask one edge at a time |
+| `view` | the [tree view](#aontu-view): the dependency tree of a relation as text, roots derived, repeats elided, cycles marked |
 | `jsonschema` | the [JSON Schema export](#aontu-jsonschema): the schema, and the `lossy` list naming what it could not say — the bridge to a structured-output API, and to an MCP tool's own `inputSchema` |
 
 Every tool returns **the same JSON contract the CLI prints**, so a

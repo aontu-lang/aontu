@@ -187,6 +187,7 @@ const hints: Record<string, string> = {
 
   rel_unresolved: 'The address names no node in this evaluation. Every position in the\ndocument is addressable; nothing outside it is.\n \nExamples:\n  p: {}\n  q: rel() & "$.p"       -> {..}  # $.p is a node;\n  q: rel() & "$.nosuch"  -> nil   # ... $.nosuch is not.',
   refer_unresolved: 'A refer() address names no node in this evaluation. Within one\nevaluation the document-set is fixed, so a link to nothing is an error\nrather than something to resolve later: check the spelling, or add the\nnode it was meant to reach. A relative address that climbs off the top\nof the tree lands here too.\n \nExamples:\n  a:{p:1} b:refer()&"$.a"    -> "$.a"    # $.a is a node;\n  a:{p:1} b:refer()&"$.a.p"  -> "$.a.p"  # ... and so is a node inside it;\n  b:refer()&"$.nope"         -> nil      # ... but nothing is here.',
+  view_relation_unknown: 'The relation named to the tree view has no edges in this document, so\nthe tree would be empty -- and an empty tree and a misspelled name are\nthe same file on disk. Check the spelling against the relations the\nnote lists, or drop the relation to draw every relation at once.',
 
   pack_data: 'The first argument to pack() is not a bag. `pack` makes one child\nper child of its DATA, so the data has to have children: a list of\nnames, or a map whose keys are the names.\n \nExamples:\n  pack([a,b], {x:1})     -> {..}  # A list of names;\n  pack({a:1,b:2}, {x:1}) -> {..}  # ... or a map, keyed by its keys;\n  pack(1, {x:1})         -> nil   # ... but a scalar has no children.',
 
@@ -482,6 +483,11 @@ const codeClasses: Record<string, string> = {
   rel_address: 'parse',
   refer_unresolved: 'reference',
   rel_unresolved: 'reference',
+
+  // The tree view (docs/design/VIEWS.0.md): a relation that draws
+  // nothing is refused rather than drawn empty. Class `reference`: a
+  // name that does not resolve.
+  view_relation_unknown: 'reference',
 
   // First-class paths (docs/design/PATHS.0.md): text that is not a
   // tree address, met by path()'s capture or promotion. The same

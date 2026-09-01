@@ -29,6 +29,7 @@ const helpText = `Usage: aontu [options] [file]
        aontu trim --check [options] <file>
        aontu relations [options] <file>
        aontu reaches <from> <to> [--relation <name>] [options] <file>
+       aontu view tree [--relation <name>] [--root <path>]... [options] <file>
        aontu jsonschema [--at <path>] [--strict] [options] <file>
        aontu hash [options] <file>
        aontu mod tidy|verify|vendor|manifest [options] [dir]
@@ -148,6 +149,17 @@ Why options:
 
 Why exit codes mirror get's: 0 explained, 1 the path names nothing,
 2 usage, 4 the document does not stand up on its own.
+
+View options:
+  --relation <n>  Draw the tree over this relation only; without it
+                  every relation is drawn, each branch naming its own
+  --root <path>   Draw only the subtree under this node ($.a.b);
+                  repeatable. Without it a root is a node nothing
+                  depends on
+  --format <f>    text (default) or json
+
+View exit codes: 0 rendered, 2 usage, 4 the document does not stand
+up on its own, or a relation or root that names nothing.
 
 Set options:
   --entry <file>    The document the change is checked against
@@ -524,6 +536,9 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, tty bool) int
 	}
 	if 0 < len(args) && "reaches" == args[0] {
 		return runReaches(args[1:], stdout, stderr)
+	}
+	if 0 < len(args) && "view" == args[0] {
+		return runView(args[1:], stdout, stderr)
 	}
 
 	if 0 < len(args) && "trim" == args[0] {

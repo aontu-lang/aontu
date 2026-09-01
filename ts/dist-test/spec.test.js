@@ -96,6 +96,10 @@ Object.defineProperty(exports, "__esModule", { value: true });
  *                object ({out?, code?, note?}, options riding `opts`),
  *                and a canon-shaped VIEW must additionally SUBSUME the
  *                truth it summarises; see test/spec/query.tsv
+ *   mode=view  : viewTree(src, {relation?, roots?}) must equal the
+ *                expect object ({kind, text} or {kind, errors}); the
+ *                options ride `expect.ask` as reaches' do. See
+ *                test/spec/view.tsv
  * Escapes in src/expect: \n -> newline, \t -> tab, \\ -> backslash.
  *
  * gen vs gens: `gen` compares through a JSON decode, so both sides land
@@ -113,6 +117,7 @@ const Path = __importStar(require("node:path"));
 const aontu_1 = require("../dist/aontu");
 const jsonschema_1 = require("../dist/jsonschema");
 const reach_1 = require("../dist/reach");
+const aontu_2 = require("../dist/aontu");
 const hints_1 = require("../dist/hints");
 const IntegerVal_1 = require("../dist/val/IntegerVal");
 const StringVal_1 = require("../dist/val/StringVal");
@@ -396,6 +401,18 @@ function runRow(row) {
         const report = (0, reach_1.reachCheck)(row.src, ask.from, ask.to, null == ask.relation ? undefined : { relation: ask.relation });
         Assert.strictEqual((0, aontu_1.exactJSON)(null == report.errors
             ? report : { ...report, errors: stripProse(report.errors) }), (0, aontu_1.exactJSON)(golden), `reach report mismatch: ${row.name}`);
+    }
+    else if ('view' === row.mode) {
+        // THE TREE VIEW (docs/design/VIEWS.0.md): the drawn text, byte for
+        // byte, or the refusal. The options ride `expect.ask` for the
+        // reason reaches' endpoints do: the same document draws
+        // differently under a relation filter or from a named root.
+        const golden = JSON.parse(row.expect);
+        const ask = golden.ask ?? {};
+        delete golden.ask;
+        const report = (0, aontu_2.viewTree)(row.src, { relation: ask.relation, roots: ask.root });
+        Assert.strictEqual((0, aontu_1.exactJSON)(null == report.errors
+            ? report : { ...report, errors: stripProse(report.errors) }), (0, aontu_1.exactJSON)(golden), `view report mismatch: ${row.name}`);
     }
     else if ('relation' === row.mode) {
         // RELATION GRAPH CHECKS (G4 phase 5): acyclicity and inverse

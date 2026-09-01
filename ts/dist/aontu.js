@@ -1,7 +1,7 @@
 "use strict";
 /* Copyright (c) 2021-2025 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.relationCheck = exports.graphOf = exports.agentsMd = exports.diff = exports.patch = exports.why = exports.get = exports.canonHash = exports.hcanon = exports.trimCheck = exports.subsume = exports.sarifReport = exports.vet = exports.Decimal = exports.exactJSON = exports.formatExplain = exports.util = exports.Lang = exports.colorActive = exports.setColor = exports.AontuError = exports.AontuContext = exports.Aontu = exports.VERSION = void 0;
+exports.viewTree = exports.relationCheck = exports.graphOf = exports.agentsMd = exports.diff = exports.patch = exports.why = exports.get = exports.canonHash = exports.hcanon = exports.trimCheck = exports.subsume = exports.sarifReport = exports.vet = exports.Decimal = exports.exactJSON = exports.formatExplain = exports.util = exports.Lang = exports.colorActive = exports.setColor = exports.AontuError = exports.AontuContext = exports.Aontu = exports.VERSION = void 0;
 exports.runparse = runparse;
 const lang_1 = require("./lang");
 Object.defineProperty(exports, "Lang", { enumerable: true, get: function () { return lang_1.Lang; } });
@@ -43,6 +43,8 @@ const graph_1 = require("./graph");
 Object.defineProperty(exports, "graphOf", { enumerable: true, get: function () { return graph_1.graphOf; } });
 const relation_1 = require("./relation");
 Object.defineProperty(exports, "relationCheck", { enumerable: true, get: function () { return relation_1.relationCheck; } });
+const view_1 = require("./view");
+Object.defineProperty(exports, "viewTree", { enumerable: true, get: function () { return view_1.viewTree; } });
 // VERSION is the Aontu npm package version, and mirrors
 // go/aontu.go's `Version` (which tracks the Go module version
 // separately — the two version series are independent).

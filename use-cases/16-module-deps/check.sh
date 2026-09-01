@@ -39,6 +39,17 @@ draw() {
     || fail "$name drifted from its golden"
 }
 
+# The tree is the engine's own verb. The goldens were pinned by the
+# reference script before the verb existed, and are unchanged: they are
+# the acceptance test for the port.
+view() {
+  local name="$1"; shift
+  $AONTU view "$@" >"$WORK/$name" \
+    || fail "$name did not render"
+  diff -u "$DIR/expected/$name" "$WORK/$name" \
+    || fail "$name drifted from its golden"
+}
+
 # 1. The codebase generates: twelve modules, four layers, every edge
 # legal and every inverse written.
 run eval 0 -- "$DIR/model.aon"
@@ -110,7 +121,7 @@ ok "reaches --relation dependsOn: downstream yes, upstream no"
 # everywhere after. The three deployables are the roots because
 # nothing depends on them -- which the renderer DERIVES from the edge
 # set rather than being told.
-draw diagram-tree.txt tree --primary dependsOn "$DIR/model.aon"
+view diagram-tree.txt tree --relation dependsOn "$DIR/model.aon"
 [ "$(grep -c '(\*)' "$WORK/diagram-tree.txt")" -eq 9 ] \
   || fail "expected nine elided repeats in the tree"
 [ "$(grep -cE '^[a-z]' "$WORK/diagram-tree.txt")" -eq 3 ] \
@@ -119,19 +130,17 @@ ok "the dependency tree draws: three roots, every repeat elided once"
 
 # 9. One subtree, from a named root: what a feature module actually
 # pulls in, which is the question a reviewer of that module has.
-draw diagram-tree-billing.txt tree --primary dependsOn \
+view diagram-tree-billing.txt tree --relation dependsOn \
   --root '$.mods.billing' "$DIR/model.aon"
 ok "tree --root: one module's own closure, drawn alone"
 
 # 10. A misspelled root is refused rather than drawn: an empty tree
 # and a typo look identical in a golden file.
-if "$NODE" "$DIR/../tools/diagram.js" tree --primary dependsOn \
-  --root '$.mods.nosuch' "$DIR/model.aon" >"$WORK/typo.out" 2>"$WORK/typo.err"
-then
-  fail "a --root naming no node should refuse"
-fi
-grep -qF 'no such node: $.mods.nosuch' "$WORK/typo.err" \
-  || { cat "$WORK/typo.err" >&2; fail "the refusal does not name the root"; }
+run typo 4 -- view tree --relation dependsOn \
+  --root '$.mods.nosuch' "$DIR/model.aon"
+[ ! -s "$WORK/typo.out" ] || fail "a refused tree should draw nothing"
+has typo err 'refer_unresolved'
+has typo err '$.mods.nosuch is not a node of the dependsOn graph'
 ok "tree --root: a node that does not exist refuses"
 
 # 11. The same edges as a dependency-structure matrix, which is the
@@ -144,7 +153,7 @@ ok "the dependency-structure matrix draws: twelve modules square"
 # cyclic document still evaluates -- the graph atoms' verdict lands at
 # generation -- so a drawing tool is handed cyclic edge sets in
 # practice, and marks the closing edge instead of recursing into it.
-draw diagram-tree-cycle.txt tree --primary dependsOn "$DIR/bad/cycle.aon"
+view diagram-tree-cycle.txt tree --relation dependsOn "$DIR/bad/cycle.aon"
 has_cycle="$(grep -c '(cycle)' "$WORK/diagram-tree-cycle.txt")"
 [ "$has_cycle" -ge 1 ] \
   || fail "the cyclic model should draw a (cycle) mark"

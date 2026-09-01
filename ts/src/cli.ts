@@ -40,6 +40,8 @@ import type { TrimReport, TrimVerdict } from './trim'
 import type { RelationReport, RelationVerdict } from './relation'
 import { reachCheck } from './reach'
 import type { ReachReport, ReachVerdict } from './reach'
+import { viewTree } from './view'
+import type { ViewReport, ViewVerdict } from './view'
 import type { QueryView } from './query'
 import type { WhyRecord } from './provenance'
 import { agentsMdSplice } from './agentsmd'
@@ -55,6 +57,7 @@ const HELP = `Usage: aontu [options] [file]
        aontu trim --check [options] <file>
        aontu relations [options] <file>
        aontu reaches <from> <to> [--relation <name>] [options] <file>
+       aontu view tree [--relation <name>] [--root <path>]... [options] <file>
        aontu jsonschema [--at <path>] [--strict] [options] <file>
        aontu hash [options] <file>
        aontu mod tidy|verify|vendor|manifest [options] [dir]
@@ -174,6 +177,17 @@ Why options:
 
 Why exit codes mirror get's: 0 explained, 1 the path names nothing,
 2 usage, 4 the document does not stand up on its own.
+
+View options:
+  --relation <n>  Draw the tree over this relation only; without it
+                  every relation is drawn, each branch naming its own
+  --root <path>   Draw only the subtree under this node ($.a.b);
+                  repeatable. Without it a root is a node nothing
+                  depends on
+  --format <f>    text (default) or json
+
+View exit codes: 0 rendered, 2 usage, 4 the document does not stand
+up on its own, or a relation or root that names nothing.
 
 Set options:
   --entry <file>    The document the change is checked against
@@ -1711,6 +1725,18 @@ const REACHES_EXIT: Record<ReachVerdict, number> = {
   error: 4,
 }
 
+const VIEW_HELP =
+  'aontu view tree [--relation <name>] [--root <path>]... <file> (try --help)'
+
+// Two-way: the figure was drawn (0), or the document could not be
+// drawn (4) -- a document that does not stand up, a relation with no
+// edges, a root that names no node. An EMPTY figure is a drawing, not
+// a failure: a model with no links has nothing to draw, honestly.
+const VIEW_EXIT: Record<ViewVerdict, number> = {
+  rendered: 0,
+  error: 4,
+}
+
 const MOD_HELP = 'aontu mod tidy|verify|vendor|manifest [dir] (try --help)'
 
 // The module tooling (G6 phase 3, ts/src/mod-tool.ts). All LOCAL:
@@ -2070,6 +2096,110 @@ function renderReachesJson(report: ReachReport): string {
     aontu: { version: version(), verb: 'reaches' },
     verdict: report.verdict,
     ...(null == report.path ? {} : { path: report.path }),
+    ...(null == report.errors ? {} : { errors: report.errors }),
+  }, 2)
+}
+
+// ---------------------------------------------------------------------
+// The tree view (docs/design/VIEWS.0.md, ts/src/view.ts): the drawn
+// edge set, as text a golden diff can check.
+
+function runView(argv: string[]): number {
+  const trusted = takeTrust(argv)
+  if (null == trusted) {
+    return 2
+  }
+  argv = trusted.argv
+  const trust = trusted.trust
+  const rest: string[] = []
+  let format: SubsumeFormat = 'text'
+  let relation: string | undefined = undefined
+  const roots: string[] = []
+
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i]
+    if ('-h' === arg || '--help' === arg) {
+      process.stdout.write(HELP)
+      return 0
+    }
+    if ('--format' === arg) {
+      const f = argv[++i]
+      if ('text' !== f && 'json' !== f) {
+        process.stderr.write('aontu: --format needs text or json\n')
+        return 2
+      }
+      format = f
+    }
+    else if ('--relation' === arg) {
+      relation = argv[++i]
+      if (null == relation || '' === relation) {
+        process.stderr.write('aontu: --relation needs a name\n')
+        return 2
+      }
+    }
+    else if ('--root' === arg) {
+      const root = argv[++i]
+      if (null == root) {
+        process.stderr.write('aontu: --root needs a node path\n')
+        return 2
+      }
+      roots.push(root)
+    }
+    else if (arg.startsWith('-')) {
+      process.stderr.write(
+        `aontu: unknown view option ${arg} (try --help)\n`)
+      return 2
+    }
+    else {
+      rest.push(arg)
+    }
+  }
+
+  if (2 !== rest.length) {
+    process.stderr.write(
+      `aontu: view needs a kind and one file\n${VIEW_HELP}\n`)
+    return 2
+  }
+  if ('tree' !== rest[0]) {
+    process.stderr.write(
+      `aontu: unknown view kind ${rest[0]} (the kinds are: tree)\n`)
+    return 2
+  }
+
+  let src: string
+  try {
+    src = readFileSync(rest[1], 'utf8')
+  }
+  catch (err: any) {
+    process.stderr.write(`aontu: cannot read ${err.path}: ${err.message}\n`)
+    return 2
+  }
+
+  const report = viewTree(src, {
+    path: rest[1], relation, roots,
+    trust: verbTrust(trust, entryRootOf(rest[1])),
+  })
+  if ('json' === format) {
+    process.stdout.write(renderViewJson(report) + '\n')
+  }
+  else if ('rendered' === report.verdict) {
+    // THE FIGURE AND NOTHING ELSE: stdout is what a golden diff reads,
+    // and a verdict line would be part of every drawing.
+    process.stdout.write(report.text + '\n')
+  }
+  else {
+    process.stderr.write(
+      (report.errors as VetFinding[]).map(renderFinding).join('\n') + '\n')
+  }
+  return VIEW_EXIT[report.verdict]
+}
+
+function renderViewJson(report: ViewReport): string {
+  return exactJSON({
+    aontu: { version: version(), verb: 'view' },
+    kind: report.kind,
+    verdict: report.verdict,
+    ...(null == report.text ? {} : { text: report.text }),
     ...(null == report.errors ? {} : { errors: report.errors }),
   }, 2)
 }
@@ -2903,6 +3033,10 @@ function main(argv: string[]): void {
     return finish(runReaches(argv.slice(3)))
   }
 
+  if ('view' === argv[2]) {
+    return finish(runView(argv.slice(3)))
+  }
+
   if ('trim' === argv[2]) {
     return finish(runTrim(argv.slice(3)))
   }
@@ -2986,7 +3120,7 @@ function main(argv: string[]): void {
   else {
     runStdin(mode, trust).then((code) => finish(code))
   }
-} /* node:coverage ignore next 15 */
+} /* node:coverage ignore next 16 */
 
 
 // No require.main guard here: bin/aontu.js is the executable entry and
@@ -2996,6 +3130,7 @@ function main(argv: string[]): void {
 export {
   evalSource, main, runVet, runSubsume, runBreaking, runTrim, runRelations,
   runReaches,
+  runView,
   runJsonSchema,
   runMod,
   runHash, runGet,

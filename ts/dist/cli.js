@@ -11,6 +11,7 @@ exports.runBreaking = runBreaking;
 exports.runTrim = runTrim;
 exports.runRelations = runRelations;
 exports.runReaches = runReaches;
+exports.runView = runView;
 exports.runJsonSchema = runJsonSchema;
 exports.runMod = runMod;
 exports.runHash = runHash;
@@ -43,6 +44,7 @@ const mod_tool_1 = require("./mod-tool");
 const mod_1 = require("./mod");
 const vet_1 = require("./vet");
 const reach_1 = require("./reach");
+const view_1 = require("./view");
 const agentsmd_1 = require("./agentsmd");
 const HELP = `Usage: aontu [options] [file]
        aontu vet [options] <schema> <data> [more-data...]
@@ -51,6 +53,7 @@ const HELP = `Usage: aontu [options] [file]
        aontu trim --check [options] <file>
        aontu relations [options] <file>
        aontu reaches <from> <to> [--relation <name>] [options] <file>
+       aontu view tree [--relation <name>] [--root <path>]... [options] <file>
        aontu jsonschema [--at <path>] [--strict] [options] <file>
        aontu hash [options] <file>
        aontu mod tidy|verify|vendor|manifest [options] [dir]
@@ -170,6 +173,17 @@ Why options:
 
 Why exit codes mirror get's: 0 explained, 1 the path names nothing,
 2 usage, 4 the document does not stand up on its own.
+
+View options:
+  --relation <n>  Draw the tree over this relation only; without it
+                  every relation is drawn, each branch naming its own
+  --root <path>   Draw only the subtree under this node ($.a.b);
+                  repeatable. Without it a root is a node nothing
+                  depends on
+  --format <f>    text (default) or json
+
+View exit codes: 0 rendered, 2 usage, 4 the document does not stand
+up on its own, or a relation or root that names nothing.
 
 Set options:
   --entry <file>    The document the change is checked against
@@ -1419,6 +1433,15 @@ const REACHES_EXIT = {
     unreachable: 1,
     error: 4,
 };
+const VIEW_HELP = 'aontu view tree [--relation <name>] [--root <path>]... <file> (try --help)';
+// Two-way: the figure was drawn (0), or the document could not be
+// drawn (4) -- a document that does not stand up, a relation with no
+// edges, a root that names no node. An EMPTY figure is a drawing, not
+// a failure: a model with no links has nothing to draw, honestly.
+const VIEW_EXIT = {
+    rendered: 0,
+    error: 4,
+};
 const MOD_HELP = 'aontu mod tidy|verify|vendor|manifest [dir] (try --help)';
 // The module tooling (G6 phase 3, ts/src/mod-tool.ts). All LOCAL:
 // `tidy` resolves the closure from what is in the stores and rewrites
@@ -1729,6 +1752,99 @@ function renderReachesJson(report) {
         aontu: { version: version(), verb: 'reaches' },
         verdict: report.verdict,
         ...(null == report.path ? {} : { path: report.path }),
+        ...(null == report.errors ? {} : { errors: report.errors }),
+    }, 2);
+}
+// ---------------------------------------------------------------------
+// The tree view (docs/design/VIEWS.0.md, ts/src/view.ts): the drawn
+// edge set, as text a golden diff can check.
+function runView(argv) {
+    const trusted = takeTrust(argv);
+    if (null == trusted) {
+        return 2;
+    }
+    argv = trusted.argv;
+    const trust = trusted.trust;
+    const rest = [];
+    let format = 'text';
+    let relation = undefined;
+    const roots = [];
+    for (let i = 0; i < argv.length; i++) {
+        const arg = argv[i];
+        if ('-h' === arg || '--help' === arg) {
+            process.stdout.write(HELP);
+            return 0;
+        }
+        if ('--format' === arg) {
+            const f = argv[++i];
+            if ('text' !== f && 'json' !== f) {
+                process.stderr.write('aontu: --format needs text or json\n');
+                return 2;
+            }
+            format = f;
+        }
+        else if ('--relation' === arg) {
+            relation = argv[++i];
+            if (null == relation || '' === relation) {
+                process.stderr.write('aontu: --relation needs a name\n');
+                return 2;
+            }
+        }
+        else if ('--root' === arg) {
+            const root = argv[++i];
+            if (null == root) {
+                process.stderr.write('aontu: --root needs a node path\n');
+                return 2;
+            }
+            roots.push(root);
+        }
+        else if (arg.startsWith('-')) {
+            process.stderr.write(`aontu: unknown view option ${arg} (try --help)\n`);
+            return 2;
+        }
+        else {
+            rest.push(arg);
+        }
+    }
+    if (2 !== rest.length) {
+        process.stderr.write(`aontu: view needs a kind and one file\n${VIEW_HELP}\n`);
+        return 2;
+    }
+    if ('tree' !== rest[0]) {
+        process.stderr.write(`aontu: unknown view kind ${rest[0]} (the kinds are: tree)\n`);
+        return 2;
+    }
+    let src;
+    try {
+        src = (0, node_fs_1.readFileSync)(rest[1], 'utf8');
+    }
+    catch (err) {
+        process.stderr.write(`aontu: cannot read ${err.path}: ${err.message}\n`);
+        return 2;
+    }
+    const report = (0, view_1.viewTree)(src, {
+        path: rest[1], relation, roots,
+        trust: verbTrust(trust, entryRootOf(rest[1])),
+    });
+    if ('json' === format) {
+        process.stdout.write(renderViewJson(report) + '\n');
+    }
+    else if ('rendered' === report.verdict) {
+        // THE FIGURE AND NOTHING ELSE: stdout is what a golden diff reads,
+        // and a verdict line would be part of every drawing.
+        process.stdout.write(report.text + '\n');
+    }
+    else {
+        process.stderr.write(report.errors.map(renderFinding).join('\n') + '\n');
+    }
+    return VIEW_EXIT[report.verdict];
+}
+function renderViewJson(report) {
+    return (0, aontu_1.exactJSON)({
+        aontu: { version: version(), verb: 'view' },
+        kind: report.kind,
+        verdict: report.verdict,
+        ...(null == report.text ? {} : { text: report.text }),
         ...(null == report.errors ? {} : { errors: report.errors }),
     }, 2);
 }
@@ -2465,6 +2581,9 @@ function main(argv) {
     if ('reaches' === argv[2]) {
         return finish(runReaches(argv.slice(3)));
     }
+    if ('view' === argv[2]) {
+        return finish(runView(argv.slice(3)));
+    }
     if ('trim' === argv[2]) {
         return finish(runTrim(argv.slice(3)));
     }
@@ -2543,5 +2662,5 @@ function main(argv) {
     else {
         runStdin(mode, trust).then((code) => finish(code));
     }
-} /* node:coverage ignore next 15 */
+} /* node:coverage ignore next 16 */
 //# sourceMappingURL=cli.js.map

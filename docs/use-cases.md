@@ -529,9 +529,10 @@ naming both sides, and a loop between two modules of the *same* layer
 — which the layering allows — refuses under `acyclic()`. The case
 pins the refusal in both declaration orders. The same edges are drawn
 two ways and pinned as
-goldens: a dependency tree,
-with derived roots and every repeated subtree elided the way
-`cargo tree` elides one, and a dependency-structure matrix. The
+goldens: a dependency tree, drawn by
+[`aontu view tree`](reference-api.md#aontu-view) with derived roots
+and every repeated subtree elided the way `cargo tree` elides one, and
+a dependency-structure matrix. The
 layered codebase, its refusals and its views:
 [`use-cases/16-module-deps/`](../use-cases/16-module-deps/).
 

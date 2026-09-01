@@ -1,6 +1,9 @@
 # Model views — diagrams from an evaluated document
 
-*Status: PROPOSAL (nothing here is built). Date: 2026-08-30. This note
+*Status: PROPOSAL, with one piece built: the dependency tree is
+`aontu view tree` (`ts/src/view.ts`, `go/view.go`, pinned by
+`test/spec/view.tsv`), ported from the reference script's `tree` kind.
+Nothing else here is built. Date: 2026-08-30. This note
 is the G10 candidate for the [capability
 review](../capability-review/index.md), and it reverses a refusal
 recorded there — [G7](../capability-review/g7-machine-access.md) ruled
