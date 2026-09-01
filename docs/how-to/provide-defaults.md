@@ -99,14 +99,9 @@ $ echo $?
 1
 ```
 
-What does not work is conjoining the two: `replicas: *2 & min(1)`,
-or the whole disjunction met with an outside bound, fails to
-generate with `[aontu/mapval_no_gen]` (a phase-1 limit). Keep the
-bound in the branch. A lone `*5` with no `|` is just a default `5`
-and needs none of this, and the older belt-and-braces spelling
-`integer & (*30 | integer)` still works and still means the same
-thing — before 0.53.0 the outer type was needed to keep the leaf,
-and documents that spell it out keep working unchanged.
+A lone `*5` with no `|` is just a default `5` and needs none of
+this, and the spelling `integer & (*30 | integer)` means the same as
+`*30 | integer`.
 
 ## Layer defaults by rank
 

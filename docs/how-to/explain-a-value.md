@@ -89,7 +89,7 @@ reported as the value the author wrote, where they wrote it.
 
 The contribution rules and roles are specified under [`aontu
 why`](../reference-api.md#aontu-why); the live version asks the same
-question across four files of authority in
+question across four layers of authority in
 [use-cases/02-deploy-config](../../use-cases/02-deploy-config/).
 `why` also names the line that will refuse your next edit — when it
 does, [change the value with an

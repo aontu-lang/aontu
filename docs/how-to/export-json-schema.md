@@ -141,8 +141,8 @@ reference under
 
 ## Read the loss report
 
-Constructs JSON Schema cannot say still export — as the nearest
-admissible schema — and each one is named on stderr with its path and
+Constructs JSON Schema cannot say still export, as the nearest
+admissible schema, and each one is named on stderr with its path and
 construct. Collect the classes in `report.aon`:
 
 <!-- test: file report.aon -->
@@ -200,14 +200,14 @@ $ echo $?
 1
 ```
 
-`--format json` carries the same report as data — `verdict: "lossy"`,
-each loss as `{path, construct, reason}`, the schema embedded — for a
+`--format json` carries the same report as data (`verdict: "lossy"`,
+each loss as `{path, construct, reason}`, the schema embedded) for a
 build step that wants to allowlist specific losses rather than fail
 on any. The `bigdecimal` loss is the one with a way around it:
 [carry exact money over JSON](carry-exact-money-over-json.md) crosses
 the export loss-free as a decimal string with a conversion mark.
 
-## Four edges, probed
+## Four edges
 
 The report above already pins two of them. First, `must()` holds the whole value residual, so `number &
 must(...)` exports `{}` under the construct name `nil` — the check is
@@ -262,8 +262,8 @@ $ echo $?
 says so. The same split decides list templates: `[&: string]`
 crosses as `items`, a constrained element template does not.
 
-Fourth, `deprecate()` crosses as the annotation 2020-12 has for it —
-`deprecated: true` — and what the deprecation SAYS does not, because
+Fourth, `deprecate()` crosses as the annotation 2020-12 has for it,
+`deprecated: true`, and what the deprecation SAYS does not, because
 the draft has no field for it. That half is reported. Write
 `legacy.aon`:
 
@@ -296,8 +296,8 @@ $ echo $?
 
 A consumer of the exported schema learns that the property is
 deprecated, which is the part that changes what a client does. It does
-not learn the reason, the replacement or the version — `msg`, `use`
-and `since` have nowhere to go in 2020-12 — so `--strict` reports that
+not learn the reason, the replacement or the version (`msg`, `use`
+and `since` have nowhere to go in 2020-12), so `--strict` reports that
 half and exits 1. Announce renames through a channel that carries the
 text.
 
@@ -339,7 +339,7 @@ $ echo $?
 ```
 
 That is not a loss to report: the verb exports what a document
-*means*, and this one does not mean anything yet.
+*means*, and this one does not mean anything.
 
 The live version is
 [use-cases/14-jsonschema-export](../../use-cases/14-jsonschema-export/):

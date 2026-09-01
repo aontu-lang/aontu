@@ -77,7 +77,7 @@ a: 1.5
 ```
 
 A sized integer is `integer & min(0) & max(255)`, which is why every
-alias above starts with `integer`. This is the one trap in the idiom.
+alias above starts with `integer`.
 
 Aliases are ordinary values, so they compose: one can be defined in
 terms of another, and a use site can narrow one further

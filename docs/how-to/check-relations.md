@@ -32,8 +32,7 @@ spec: hide({
 
 One conjunction on `feeds` declares the whole contract. `rel(t)`
 makes the field's strings checked entity addresses and flows the
-endpoint type `t` into every target; the `re()` rides onto every
-address as an ordinary constraint; `acyclic()` and `inverse(fedBy)`
+endpoint type `t` into every target; `acyclic()` and `inverse(fedBy)`
 are the graph atoms — declarations that unification carries along
 inert, whose verdict lands at generation. Data documents then stay
 plain lists of names. Write the topology as `pipeline.aon`:
@@ -152,7 +151,7 @@ all. Exit codes are otherwise `0` pass and `1` fail, with
 The atoms are specified in [Declared
 relations](../reference-language.md#declared-relations), the verb
 under [`aontu relations`](../reference-api.md#aontu-relations), and
-the live version, every refusal above asserted in both engines, is
+the live version, with its checks, is
 [use-cases/12-relations](../../use-cases/12-relations/). Once the
 edges hold, ask what they connect: [Query reachability between
 entities](query-reachability.md).

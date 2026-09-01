@@ -1,5 +1,5 @@
 ---
-description: Generate target-language source from a model — the shape a transform takes, the traps in it, and how `join` finishes the file.
+description: Generate target-language source from a model: the shape a transform takes, what to watch for, and how `join` assembles the file.
 group: schemas
 order: 80
 ---
@@ -74,12 +74,8 @@ Each piece is there for a reason:
   keys by data, and map keys sort by code point, so `pack`-then-`pick`
   would emit the fields alphabetically — silently wrong output for a
   file.
-- **The rows are staged into a key.** `pick` over an inline spread
-  expression does not settle; giving it a named sibling to read makes
-  it. Do not wrap that key in `hide()`: the Go port does not resolve a
-  spread template's reference inside a mark
-  ([BUGS 63](../../use-cases/BUGS.md)), so the hidden spelling
-  generates in TypeScript and refuses in Go.
+- **The rows are staged into a key.** The spread writes its result to
+  a named key, `rows`, and `pick` reads that key to project `out`.
 - **The source keys ride through.** A spread meets, and the meet is
   what makes `.name` and `.fields` resolvable inside the template, so
   `name` and `fields` appear beside `head` and `body` in the result.
@@ -153,8 +149,8 @@ $ echo 'names: [string]  line: join($.names, ",")' | aontu -c
 ## Put the target's names in the model
 
 `upper()` uppercases a whole string, so it yields `EMAIL`, not
-`Email`; there is no substring, no case conversion and no `replace`.
-Write the target's spelling as data, as `go: "Email"` does above.
+`Email`. Write the target's spelling as data, as `go: "Email"` does
+above.
 
 That is also the better design. What a type is called in a target is
 a fact about the model rather than a rule in a template, which is the
@@ -164,11 +160,7 @@ conflict instead of a broken identifier at emit time.
 
 ## Related
 
-- [Export JSON Schema](export-json-schema.md) — the other bridge out,
-  and the one that ships as a verb.
+- [Export JSON Schema](export-json-schema.md) — the other bridge out
+  of the model.
 - [Keep schema out of output](keep-schema-out-of-output.md) — `hide()`
   and marks, and what they do to generation.
-- [G9](../capability-review/g9-transformation.md) — the plan `join`
-  is phase 2 of: an output vocabulary that is itself an Aontu schema,
-  a renderer with per-language profiles, and one model feeding several
-  artifacts.

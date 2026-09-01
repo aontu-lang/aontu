@@ -24,7 +24,7 @@ res.canon          // '{"a":nil}' — the failure sits where it happened
 Each collected error is a `NilVal`: the value a failed unification
 leaves behind, carrying its error code (`why`), its full message, and
 the path it failed at. The rest of the document still unifies around
-it, which is what makes the mode useful — one pass, every finding,
+it, which is what makes the mode useful — one pass, every error,
 each located. The [canonical form](see-canonical-form.md) then shows
 `nil` at each failed path, a map of the damage.
 

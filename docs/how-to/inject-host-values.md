@@ -60,9 +60,9 @@ than overrides: `server: { port: $port }` beside
 `server: { port: integer & max(65535) }` checks the injected value
 against the constraint, and a bad injection fails with a located
 conflict. That makes variables a safe seam — the document keeps its
-say. One trap: the exact-leaf constructors take a `bigint`, a
-`Decimal`, or the digits as text — never a host `number`, which
-binary64 has already rounded before the library could look
+say. The exact-leaf constructors take a `bigint`, a `Decimal`, or the
+digits as text, never a host `number`, which binary64 has already
+rounded before the library could look
 ([exact-input constructors](../reference-api.md#variables)).
 
 The constructor tables are in the API reference, for

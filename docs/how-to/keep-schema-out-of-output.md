@@ -135,8 +135,8 @@ $ echo $?
 1
 ```
 
-The refusal prints the offending set — both roles claiming the
-tenant, by name — so the reviewer reads the violation itself rather
+The refusal prints the offending set (both roles claiming the
+tenant, by name), so the reviewer reads the violation itself rather
 than a bare verdict.
 
 Marks are specified in [Marks: `type` and
@@ -145,6 +145,4 @@ Marks are specified in [Marks: `type` and
 constraints — [name a reusable
 constraint](name-a-reusable-constraint.md). The invariant recipe
 runs live in the [RBAC policy](../../use-cases/05-rbac-policy/) use
-case, whose `roles.aon` documents one caveat this page skips: across
-an include or a vet meet, `filter` + `length` can miscount, so keep
-the counted entries and the check in the same document layer.
+case.

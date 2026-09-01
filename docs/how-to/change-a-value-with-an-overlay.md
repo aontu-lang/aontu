@@ -95,10 +95,10 @@ value](change-a-pinned-value.md).
 `--dry-run` writes nothing either way and prints what would have been
 written; exit codes are [`aontu
 vet`](../reference-api.md#aontu-vet)'s verdict classes, so the verb
-gates automation as it stands. Keep the overlay *outside* the entry's
+gates automation on its own. Keep the overlay *outside* the entry's
 include graph — an entry that loads its own overlay counts every
 change twice. The flag-by-flag contract is under [`aontu
 set`](../reference-api.md#aontu-set), and the live version is
 [use-cases/08-feature-flags](../../use-cases/08-feature-flags/),
-where an ops overlay is written by `set` and never by hand, and
-repeated writes of one path leave one line.
+where an ops overlay is written by `set --in-place` and never by
+hand, and repeated writes of one path leave one line.
