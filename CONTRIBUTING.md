@@ -60,10 +60,11 @@ bypasses trusted publishing entirely.
 
 ## Where use-cases/ fits
 
-[use-cases/](use-cases/) is the executable review: sixteen enterprise
-scenarios driven through the real CLI, with verified defects in
-[use-cases/BUGS.md](use-cases/BUGS.md) and minimal reproductions under
-[use-cases/repros/](use-cases/repros/). Those repros are **candidates
+[use-cases/](use-cases/) is sixteen enterprise-shaped systems built as
+real Aontu documents, each with a `check.sh` that drives the CLI and
+asserts every outcome. Defects found while building them are recorded
+in [use-cases/BUGS.md](use-cases/BUGS.md), with minimal reproductions
+under [use-cases/repros/](use-cases/repros/). Those repros are **candidates
 for `test/spec/` rows** — each documents a behaviour that, once fixed
 (or confirmed as designed), should be pinned by a probed shared row.
 They exercise the TypeScript implementation only, so ADR-001 applies:

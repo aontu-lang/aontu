@@ -1,11 +1,9 @@
 # The Aontu trust contract
 
-*Status: normative (v0.53 line). This document states the guarantees an
-agent harness — or any host — may rely on when evaluating an Aontu
-document, and exactly where each guarantee is conditional today. It is
-the written half of capability G5
-([docs/capability-review/g5-trust-contract.md](capability-review/g5-trust-contract.md));
-the tested half lives in the shared spec suite
+*Status: normative. This document states the guarantees an agent
+harness — or any host — may rely on when evaluating an Aontu document,
+and where each guarantee is conditional. It is the written half of the
+contract; the tested half lives in the shared spec suite
 ([test/spec/](../test/spec/)), and anything stated here without a spec
 pin says so plainly.*
 
@@ -34,8 +32,7 @@ instead.
 
 **Where this is conditional.** Input 2 — the include closure — is only
 a well-defined *input* when the resolver is confined, and confinement
-is now a first-class option in **both** implementations, the **trust
-profile** (G5 phase 3):
+is the **trust profile**, an option in **both** implementations:
 `trust: { include: 'none' | {mem} | {root} | 'system' }` on
 `AontuOptions` in TypeScript, `Aontu.Trust` (`TrustOptions`) in Go.
 Under `none`, `{mem}` or `{root}` the closure is explicit and
@@ -60,22 +57,23 @@ entries on the parse result (`val.deps` in TypeScript,
 `Aontu.IncludeDeps` in Go) — which is this clause's "file set" as
 data.
 
-Under the DEFAULT `'system'` capability the old caveat stands: the
-chain (memory → filesystem → package in TypeScript; filesystem in Go)
-reads anything the process can, the closure is machine-dependent, and
-the code's posture is the operative warning:
+Under the DEFAULT `'system'` capability the chain (memory →
+filesystem → package in TypeScript; filesystem in Go) reads anything
+the process can, the closure is machine-dependent, and the code's
+posture is the operative warning:
 
 > **Treat opening an untrusted source as reading your disk.**
 
-It is no longer worse than that. Until
-[ADR-012](../ADR.md#adr-012--an-includes-extension-decides-what-the-file-is-aontu-source-config-data-or-refused)
-an include named `@"x.js"` was `require()`d in the evaluating process,
-which made opening an untrusted source *running* it. Twelve
-extensions are read at all now — `.aon` and `.aontu` as Aontu source,
-and `.json`, `.jsonld`, `.jsonc`, `.json5`, `.jsonic`, `.jsc`,
+Reading, never running. An include's extension decides what the file
+is
+([ADR-012](../ADR.md#adr-012--an-includes-extension-decides-what-the-file-is-aontu-source-config-data-or-refused)):
+twelve extensions are read at all — `.aon` and `.aontu` as Aontu
+source, and `.json`, `.jsonld`, `.jsonc`, `.json5`, `.jsonic`, `.jsc`,
 `.toml`, `.yaml`, `.yml` and `.ini` as configuration data, each read
-by its own parser — and everything else is refused by name. The TypeScript package leg narrows with that rule: a package
-whose entry point is JavaScript no longer resolves.
+by its own parser — and everything else is refused by name, so no
+include is ever executed in the evaluating process. The TypeScript
+package leg follows the same rule: a package whose entry point is
+JavaScript does not resolve.
 
 `options.fs` still does not confine — it feeds source text for parsing
 and error context, while the file and package legs read through their
@@ -101,10 +99,7 @@ Every evaluation halts within deterministic budgets counted in
 | `depth`    | structural recursion depth               | 1000 (`MAXDEPTH`, `ts/src/unify.ts`; `maxUniteDepth`, `go/unify.go`), plus Go's parse-depth guard (`max_depth`). Shared: both engines report `unify_cycle` past it, and `test/spec/budget.tsv` pins the boundary from both sides. |
 
 (The shared 1000 sits above every real document and below both hosts'
-stack limits, chosen when TypeScript — which previously let deep
-nesting hit the V8 stack and report a host-dependent `internal` —
-gained its explicit counter and Go came down from 2000 to match, so
-the budget, not the host, decides the verdict.)
+stack limits, so the budget, not the host, decides the verdict.)
 
 The contract pins *verdicts at default budgets* — every shared spec
 row must produce the same verdict in both implementations — not
@@ -127,8 +122,8 @@ the taxonomy rows: [test/spec/budget.tsv](../test/spec/budget.tsv)):
 
 A *stable* residue — a stuck `1+true`, an unresolved kind — is none of
 these: it is ordinary incompleteness, silent at unify time and a
-generate-time error (`mapval_no_gen` family, class `incomplete`)
-exactly as before. Only genuine cut-off earns `budget_passes`.
+generate-time error (`mapval_no_gen` family, class `incomplete`).
+Only genuine cut-off earns `budget_passes`.
 
 **Pattern matching is bounded by construction, not by a budget.** The
 `re()` atom is the one place the evaluator runs a subsystem whose cost
@@ -150,29 +145,25 @@ the rule is syntactic, so a pattern with a large but polynomial
 backtracking cost is still admitted, and pattern matching remains
 outside the event-counted budgets above.
 
-Two notes on how the budgets behave, and one caveat that remains:
+Two notes on how the budgets behave, and one caveat:
 
 - A chain of plain references resolves one link per pass from the tail
-  in **both** engines (issue #26, closed: Go now defers exactly as the
-  canonical engine does), so the pass budget is part of the shared
+  in **both** engines, so the pass budget is part of the shared
   language surface: nine links fit, ten exhaust it as `budget_passes`,
   pinned by the shared `budget-chain-*` rows in
   [test/spec/budget.tsv](../test/spec/budget.tsv).
-- A cycle wearing a function call is the same cycle. `a:$.b b:upper($.a)`
-  once reported TS `internal` against Go `path_cycle`; both ports now
-  follow function arguments when detecting the cycle (issue #35,
-  closed), and the shape is pinned by the shared
+- A cycle wearing a function call is the same cycle: `a:$.b b:upper($.a)`
+  is `path_cycle` in both ports, which follow function arguments when
+  detecting the cycle. The shape is pinned by the shared
   `path-cycle-func-routed`, `-msg` and `path-cycle-func-chain` rows —
   together with `path-cycle-func-no-cycle`, which pins that an ordinary
   function chain is still not a cycle.
 - `unify_cycle` remains *suspicion*, not proof, which is why it is class
   `budget` and not `reference`: the revisit bound cannot distinguish a
-  genuine cycle from a model too large to settle within it. The
-  specific false positive this caveat used to record — a legal model
-  with more than `MAXCYCLE` sibling conjunct terms at one path, each
-  re-running the TOP self-unify — is fixed by the per-pass `_tcc/_tpi`
-  memo, with a 1200-sibling-term fixture driven through both engines as
-  the regression guard.
+  genuine cycle from a model too large to settle within it. A legal
+  model with more than `MAXCYCLE` sibling conjunct terms at one path
+  does not trip it; a 1200-sibling-term fixture driven through both
+  engines pins that.
 
 ## Clause 3 — Determinism
 
@@ -189,8 +180,8 @@ TypeScript and Go implementations. This is pinned, not promised:
   formatting) using each port's real emitter.
 - Error **codes** are stable and cross-implementation per the
   registry ([test/spec/errcodes.tsv](../test/spec/errcodes.tsv), `errc`
-  rows); thrown-error message text is in cross-port parity (#29 —
-  marker, headline, verbatim hints with injected details, and located
+  rows); thrown-error message text is in cross-port parity (marker,
+  headline, verbatim hints with injected details, and located
   ANSI source frames render identically, byte-guarded by the
   full-message twin tests), while spec rows continue to bind only
   their asserted substrings and codes.
@@ -214,10 +205,7 @@ implementations, at every surface:
 - **LSP**: confined to the **workspace root** by default, from the
   `initialize` params (workspaceFolders, rootUri, rootPath, in that
   order). The capability governs the **whole** server — hover and
-  hover-provenance as well as the diagnostics it publishes (hover once
-  evaluated through the unconfined system resolver beside confined
-  diagnostics, so resting a cursor on an escaping include resolved
-  it). An explicit
+  hover-provenance as well as the diagnostics it publishes. An explicit
   `initializationOptions.aontu.trust.include` of
   `'system'`, `'none'`, `{root}` or `{mem}` widens or narrows it, and
   an unrecognised value confines to nothing rather than silently
@@ -226,29 +214,24 @@ implementations, at every surface:
   uri's path is everything after the literal `file://`, and the leading
   slash of a **drive-letter** path is uri syntax rather than path — so
   `file:///C:/Users/me/project` is the root `C:/Users/me/project`, not
-  `/C:/Users/me/project`. Both ports read it that way (until
-  2026-08-25 neither did, so the confinement an editor on Windows
-  relied on was never applied). **A non-empty authority is not handled**:
-  `file://server/share/x` yields `server/share/x`, a relative string,
-  so a UNC root or a VS Code `wsl.localhost` remote root confines to
-  nothing usable. Both ports do the same thing with it, so this is a
-  gap rather than a divergence, and closing it needs a spelling for the
-  UNC form (`\\server\share`) that neither port has yet.
+  `/C:/Users/me/project`. Both ports read it that way. **A non-empty
+  authority is not handled**: `file://server/share/x` yields
+  `server/share/x`, a relative string, so a UNC root or a VS Code
+  `wsl.localhost` remote root confines to nothing usable. Both ports
+  behave the same way, and neither has a spelling for the UNC form
+  (`\\server\share`).
 - **CLI**: `--trust <system|none|root[:dir]>` and
   `--include-root <dir>`, accepted by the bare command **and by every
-  verb** — `vet`, `subsume`, `breaking`, `get`, `why`, `set`,
-  `relations`, `trim`, `hash`, `agentsmd` — and by the REPL, whose
-  `--jsonl` session honours the capability for `:load`, `:get`, `:why`
-  and bare snippets alike. A verb takes the flags anywhere in its
-  argument tail; a bare `root` means the primary document's own
-  directory, matching the bare command's entry root. The default
-  remains `'system'` **with the warning window** (G5 phase 6, the
-  staged flip): every resolution
-  that escapes the entry file's directory, or goes through package
-  resolution, prints a one-line stderr warning naming the flag a
-  future release will require. The flip itself — entry-root
-  confinement by default, `--trust system` restoring today's
-  behaviour — is scheduled for the next major version.
+  verb**, and by the REPL, whose `--jsonl` session honours the
+  capability for `:load`, `:get`, `:why` and bare snippets alike. A
+  verb takes the flags anywhere in its argument tail; a bare `root`
+  means the primary document's own directory, matching the bare
+  command's entry root. The default is `'system'` **with a warning**:
+  every resolution that escapes the entry file's directory, or goes
+  through package resolution, prints a one-line stderr warning naming
+  the flags. The warning is a deprecation notice: a later major
+  version denies those resolutions by default, and `--trust system`
+  keeps the unconfined chain.
 
 Denied resolution is a located, deterministic parse-stage error
 (`include_denied`) like any other — never a silent skip — and is
@@ -262,22 +245,6 @@ The per-pair revisit bound is NOT profile surface — the Go dispatcher
 has no revisit counter to configure, and a knob one port cannot honour
 would break the parity contract by construction.
 
-### Rules pre-registered for remote includes
-
-Adopted now so the ecosystem never has a permissive interlude;
-enforced the day any remote resolver exists (G6):
-
-1. Remote sources may include only remote sources — never local
-   files, never `$` bindings, never anything environment-derived.
-2. Include paths are literal strings; computed import paths are
-   prohibited (true today by grammar; not yet pinned by a shared row —
-   the two ports currently REFUSE a computed path differently, and the
-   row waits on that alignment).
-3. No credential or header forwarding across origins; anything beyond
-   a bare fetch is explicit opt-in.
-4. Remote resolution is only available under an explicit capability;
-   it never joins `system`.
-
 ## Evaluation consumes the tree
 
 A parsed `Val` tree is **single-use**: `unify`/`generate` refine it in
@@ -285,9 +252,8 @@ place, and reusing a consumed tree (or any node reachable from it) in
 a second evaluation is a *correctness* bug that surfaces as
 nondeterminism — the exact failure mode this contract exists to
 exclude. Parse again (or clone first) for every independent
-evaluation. This is a named rule of the API contract now (see
-[the API reference](reference-api.md#evaluation-consumes-the-tree)),
-not a code-comment caveat.
+evaluation. This is a rule of the API contract (see
+[the API reference](reference-api.md#evaluation-consumes-the-tree)).
 
 ## Refusals
 
@@ -314,6 +280,6 @@ Guarantees are as much about what will never be added:
 | canon byte-stability | every `canon` row (strict equality, both runners) |
 | generated-JSON byte-stability | `gens` rows (docs/shared-spec.md) |
 | graph and relation-verdict byte-stability | [test/spec/graph.tsv](../test/spec/graph.tsv) (`graph` rows — both runners re-derive the entity index and edge set on a fresh engine and require the same bytes) + [test/spec/relation.tsv](../test/spec/relation.tsv) (`relation` verdict rows, both engines) |
-| known open divergences | [test/spec/divergent.tsv](../test/spec/divergent.tsv) — each entry carries its tracking issue. Read the file for the live list rather than a count copied here; as of this revision one entry is `# OPEN` (#24, lone surrogates), and #26/#27/#29/#30/#31/#32/#34/#35 are fixed and closed. Only the Unicode table vintage remains permanent, in DIVERGENCE.md |
+| known open divergences | [test/spec/divergent.tsv](../test/spec/divergent.tsv) — each entry carries its tracking issue; read the file for the live list rather than a count copied here. Only the Unicode table vintage is permanent, in DIVERGENCE.md |
 | resolver posture | SECURITY comment, `ts/src/lang.ts`; this document |
 | single-use trees | reference-api.md rule; `Aontu.parse` / Go `Parse` doc comments |

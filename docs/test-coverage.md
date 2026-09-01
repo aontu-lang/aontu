@@ -60,8 +60,7 @@ The suite's SIZE is deliberately not quoted here: every count of it
 lives in the
 [capability-review progress register](capability-review/progress.md#the-update-protocol),
 rule 5, with its reproduction commands, because a figure kept in two
-places goes wrong in one of them (all eight gap documents froze their
-own, and all eight were wrong within weeks).
+places goes wrong in one of them.
 
 ### What the measurement includes
 
@@ -102,7 +101,7 @@ counts:
 ### One thing the TypeScript measurement does not catch
 
 **A guarded `return` inside a never-taken branch can be reported as
-covered.** Observed in `ts/src/vet.ts` on 2026-08-25: a guard whose
+covered.** Observed in `ts/src/vet.ts`: a guard whose
 condition the branch above made impossible had its `return` attributed
 the same hit count as the enclosing statement — the four source lines
 of the `const`, the `if`, the `return` and the closing brace all read
@@ -295,7 +294,7 @@ marker stopped working.
 | `aontu.go`, `cmd/aontu/main.go` × 2, `cmd/aontu/subsume.go` — `filepath.Abs` / `os.Getwd` guards | Both fail only on an unreadable or deleted working directory, which no test can produce without breaking the runner itself. |
 | `cmd/aontu/main.go` — the `pkg` arm of the trust warning | The Go resolver chain has no package leg to warn about; the arm keeps the two ports' warning code the same shape. |
 | `cmd/aontu/main.go`, `cmd/aontu-lsp/main.go` — `main()` | Executed for real by the `GOCOVERDIR` leg of `make cov-go`; the marker keeps the unit-only profile honest rather than excusing an untested function. |
-| `modtool.go` × 9, `mod.go` — the filesystem arms of the module tooling (G6) | Every one is a second failure of something the line above already succeeded at: a directory the caller just stat'd, a file the listing just named, or a copy into a project the same call chain has already written to. Making any of them fail needs the filesystem to change under the process mid-call. |
+| `modtool.go` × 9, `mod.go` — the filesystem arms of the module tooling | Every one is a second failure of something the line above already succeeded at: a directory the caller just stat'd, a file the listing just named, or a copy into a project the same call chain has already written to. Making any of them fail needs the filesystem to change under the process mid-call. |
 | `cmd/aontu/mod.go` × 2 — the JSON round-trip arms of the report renderer | `Marshal` and `Unmarshal` over a plain struct the command itself built, so neither can fail; the arms exist so a future report shape refuses rather than prints half an object. |
 | `mod.go` — the `strconv` guard after a `\d+` match | The pattern has already vetted the digits, so the conversion cannot reject them — the same family as the `big.Int.SetString` guards above. |
 | `mod.go` — the `Unify` nil guard in the resolver | `Unify` always answers a `Val`; the guard exists so a broken invariant refuses rather than dereferences nil. |
@@ -309,7 +308,7 @@ marker stopped working.
 | `trim.go` — the neither-value-nor-error arm of `parseEntry` | `parseEntry` answers one or the other. (The re-parse arm is listed above.) |
 | `lang.go` × 4 more than listed above — further `j.Use` registrations and digit guards | Same two families: compile-time plugin options that already succeeded at package init, and digit strings a regex or `allDigits` has already vetted. |
 | `relation.go` × 5 — `addressedNode`'s lookup, its two walk guards, its `default` arm, and the caller's nil check | An edge exists only because `refer()` RESOLVED its full address, so the walk cannot miss: an address that does not walk is `refer_unresolved` at unification and the document never reaches the graph — probed for a missing key, a scalar mid-path and an out-of-range index, in both ports. The TypeScript twin has NONE of them, because its marker cannot excuse a branch; it relies on optional chaining, where a Go nil would panic. |
-| `vet.go` — `failureFinding`'s last resort | The fallback for a root that is nil-the-INTERFACE rather than nil-the-value. Every caller's condition is `nil == root \|\| root.Nil() \|\| 0 < len(ctx.err)` and the first arm has never been observed to fire, but a failed type assertion would otherwise dereference nil — the panic that function was fixed to stop (use-cases/BUGS.md 43). |
+| `vet.go` — `failureFinding`'s last resort | The fallback for a root that is nil-the-INTERFACE rather than nil-the-value. Every caller's condition is `nil == root \|\| root.Nil() \|\| 0 < len(ctx.err)` and the first arm has never been observed to fire, but a failed type assertion would otherwise dereference nil — the panic that function was fixed to stop ([use-cases/BUGS.md](../use-cases/BUGS.md), entry 43). |
 
 Regenerate the site list rather than patching rows — the count above is
 whatever `covmerge` reports on the run:
@@ -356,5 +355,5 @@ test that exists only to move the number is worse than the gap it
 closes, because it makes the counter lie.
 
 The probing that drives new rows also keeps finding real parity
-differences rather than hiding them: this round filed #39, #40 and #41,
-each registered rather than pinned or papered over.
+differences rather than hiding them, each registered rather than
+pinned or papered over.

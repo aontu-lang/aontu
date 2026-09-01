@@ -667,9 +667,7 @@ disjunction the star stands for, and the refusal says exactly that —
 
 There is one rule here, and it reaches everything a default can be:
 a scalar, a kind (`super(integer)` is `number`, so `*integer` admits
-`7` and refuses `"s"`), a constraint, a map, a list. It used to be a
-scalar gate with a hole beside it — a preferred map or list had no
-yardstick at all, so any peer overrode one.
+`7` and refuses `"s"`), a constraint, a map, a list.
 
 The surprise is that the two numeric leaves do not mix around a
 preference, even though they share a supertype:
@@ -718,10 +716,10 @@ tempting though it reads: a conjunction is not a choice, so the value is
 pinned at `8080` and `9090` is refused along with `1.5`.
 
 What the tightening costs is named rather than hidden: mixing the
-numeric leaves around a preference is now an error instead of a silent
-widening. `*1.5 & integer` used to answer `integer` and discard a
-default that could never apply; it now says so, and names the line that
-has to change. Only the numeric leaves were ever affected, because only
+numeric leaves around a preference is an error instead of a silent
+widening. `*1.5 & integer` does not answer `integer` and discard a
+default that could never apply; it says so, and names the line that
+has to change. Only the numeric leaves are affected, because only
 they sit under a common supertype — `*"us-east" | string` meeting a
 later `42` was always an empty disjunction.
 
@@ -732,8 +730,7 @@ the cross-kind REFUSAL (`*1` against a map, a string, a boolean, a
 list), `pref-override-within-kind-gens` pins the same-kind override that
 is the same rule from the other side, and the tower's
 `pref-idiom-refuses-other-leaf` / `pref-idiom-number-still-admits` pair
-pins the numeric case that used to be the exception. Both ports agree on
-it byte for byte.
+pins the numeric case. Both ports agree on it byte for byte.
 
 ### A list literal is positional
 
@@ -777,17 +774,15 @@ today.
 
 ## Limitations and trade-offs
 
-- **No user-defined functions.** The function set is fixed (41
-  built-ins today, the constraint atoms, the graph atoms, identity and
-  the generator combinators included). This keeps the language total
-  and analysable. Of the [`IDEAS.md`](../IDEAS.md) sketches, the
-  placeholder `_` IS now implemented — as fixed syntax, via the
-  [G8 design](capability-review/g8-generation.md); the pipe (`|>`)
-  was implemented there too and later removed (ADR-018) as a second
-  spelling of an ordinary call — while custom functions were
-  considered there and refused: a
-  recursive function is a fixpoint of the program, and its termination
-  is undecidable. [Recursive schemas](#recursive-schemas-and-residuals)
+- **No user-defined functions.** The function set is fixed: the
+  built-ins declared in
+  [`test/spec/signature.tsv`](../test/spec/signature.tsv), the
+  constraint atoms, the graph atoms and the generator combinators
+  among them. This keeps the language total and analysable. The
+  placeholder `_` is fixed syntax rather than a function, and custom
+  functions were considered and refused: a recursive function is a
+  fixpoint of the program, and its termination is undecidable.
+  [Recursive schemas](#recursive-schemas-and-residuals)
   stand on the other side of that line: they recurse on finite data,
   never on the program, so the guarantee survives them.
 - **The fixpoint is bounded.** Extremely self-referential models hit the
@@ -799,8 +794,5 @@ today.
 
 - The lattice and unification idea, in much greater depth, in the
   [CUE documentation](https://cuelang.org/docs/concept/the-logic-of-cue/).
-- The design notes behind the two newest capabilities, history and
-  failure modes included: [relations](design/RELATIONS.0.md) and
-  [recursion](design/RECURSION.0.md).
 - The shared test format: [shared-spec.md](shared-spec.md).
 - What the suites actually exercise: [test-coverage.md](test-coverage.md).

@@ -118,7 +118,7 @@ same text, so `gens` stays green if a port hands back a `number` where a
 tests (`ts/test/exactjson.test.ts`, `go/generate_test.go`) instead.
 
 `errc` is `err`'s code-exact counterpart. Thrown-error message text
-is in cross-port parity (#29: marker, headline, verbatim hints,
+is in cross-port parity (marker, headline, verbatim hints,
 source frames — byte-guarded by the full-message twin tests), but an
 `err` row still asserts only a probed shared substring — rows outlive
 renderer changes; the twins pin the renderer. The error *codes* (the `NilVal` `why`, e.g.
@@ -144,7 +144,7 @@ rulings are documented in the file's header.
 
 `vet` rows carry TWO documents and a JSON report.
 [`test/spec/vet.tsv`](../test/spec/vet.tsv) pins the validation verb
-(`aontu vet`, G2): `src` is the schema, the fourth column is the data,
+(`aontu vet`): `src` is the schema, the fourth column is the data,
 and the fifth is the report `vet(schema, data)` must produce. Both sides
 of that comparison are re-emitted through the same serialiser before
 comparing, so the golden may be written in any key order, and the run's

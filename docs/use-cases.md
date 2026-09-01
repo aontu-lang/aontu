@@ -16,8 +16,9 @@ $ ./use-cases/run-all.sh                 # all sixteen, one verdict line per cas
 ```
 
 The scripts need Node with `ts/node_modules` installed, plus `python3`
-and `git` for a few cases. Each case's `README.md` is the long-form
-record, with verbatim CLI output; the sections below compress it.
+and `git` for a few cases. Each case's `README.md` is the worked
+example in full, with verbatim CLI output; the sections below compress
+it.
 
 ## 01 — service catalog
 
@@ -500,13 +501,10 @@ A list spread rather than `pack`, because list order is source order
 and map keys sort by code point. The rows are staged into a key of
 their own because `pick` over an inline spread does not settle.
 
-What is missing is the fold: a spread can put a separator after each
-element, but putting one between N elements needs a reduction over
-strings, and there is none — `sum` is numeric and `+` does not reduce
-a list. So the case assembles the file outside the language, and its
-generated SQL carries a trailing comma that a real parser refuses.
-`join(bag, sep)` is
-[G9 phase 2](capability-review/g9-transformation.md). The three
+`join(coll, sep?)` folds the lines into the file, at two scales: once
+over a record's lines with `\n`, once over the records with a blank
+line between them. The separator falls *between* members, so the
+generated SQL's last column carries no trailing comma. The three
 emitters, their goldens, and a check that both ports emit identical
 bytes: [`use-cases/15-code-generation/`](../use-cases/15-code-generation/).
 
@@ -529,9 +527,8 @@ CoreDep: { kind: mod, layer: "core" | "util" }
 An upward edge then refuses at generation as an ordinary conflict
 naming both sides, and a loop between two modules of the *same* layer
 — which the layering allows — refuses under `acyclic()`. The case
-pins the refusal in both declaration orders: getting the second one to
-hold meant fixing the engine, which used to lose a type flow nested
-inside another one. The same edges are drawn two ways and pinned as
+pins the refusal in both declaration orders. The same edges are drawn
+two ways and pinned as
 goldens: a dependency tree,
 with derived roots and every repeated subtree elided the way
 `cargo tree` elides one, and a dependency-structure matrix. The

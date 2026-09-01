@@ -445,7 +445,7 @@ analysis layer (layer 1) and advertised in `initialize` (layer 2):
   line; a value resolved from a reference is shown at its definition
   site. Hovering a multi-line container or the cursor exactly on a `{`
   brace may not resolve.
-- **Completion** is context-free (no cursor→path awareness yet): it does
+- **Completion** is context-free (no cursor-to-path awareness): it does
   not suggest sibling keys. Adding key completion needs a position→path
   mapping in the analysis layer.
 - **Go-time-out / cancellation, go-to-definition, rename** — not
@@ -455,8 +455,7 @@ analysis layer (layer 1) and advertised in `initialize` (layer 2):
   without touching the analysis layer.
 - **Warnings/info severities** — engine problems are all published as
   `Error`; the one exception is `deprecated`, at Hint severity with the
-  Deprecated tag. The Warning and Information constants exist for
-  future use.
+  Deprecated tag.
 - **Number-canon edge cases** — diagnostic ranges are sized by the
   offending value's canon length; see the *numeric canon* note in
   [`AGENTS.md`](../AGENTS.md) for the documented decimal subset.

@@ -38,7 +38,7 @@ and integrate; templates, defaults and composition; schemas and
 constraints; query, explain and change; validate and evolve; modules
 and multi-file.
 
-Two capabilities are new enough to deserve doorways of their own:
+Three capabilities have doorways of their own:
 
 - **Declare and check relations.** Entities carry identity, the edges
   between them are declared in the model, and the engine checks both.
@@ -53,21 +53,15 @@ Two capabilities are new enough to deserve doorways of their own:
   [`use-cases/13-recursive-schema`](../use-cases/13-recursive-schema/);
   the semantics are under
   [Recursive references](reference-language.md#recursive-references-fixpoints).
-
-One more doorway, with a caveat attached:
-
 - **Generate code from a model.** The field names, types and
   optionality a Go struct or a TypeScript interface needs are already
-  in the model, and the unifier can compute the lines: a list spread
-  over the fields, `match` for the type mapping, and a backtick string
-  to carry the target text. What it cannot yet do is assemble those
-  lines into a file, because that needs a fold over strings. The
+  in the model, and the unifier computes the file: a list spread over
+  the fields, `match` for the type mapping, a backtick string to carry
+  the target text, and `join` to fold the lines into one string. The
   recipe is [generate code from a model](how-to/generate-code.md); the
   live version, with three targets and a check that both ports emit
   identical bytes, is
-  [`use-cases/15-code-generation`](../use-cases/15-code-generation/);
-  the plan for closing the gap is
-  [G9](capability-review/g9-transformation.md).
+  [`use-cases/15-code-generation`](../use-cases/15-code-generation/).
 
 Tooling:
 
@@ -113,8 +107,7 @@ Contract:
 
 - [The trust contract](trust.md) — hermeticity, termination,
   determinism, and sandboxing: what a host may rely on when evaluating
-  an Aontu document, and exactly where each guarantee is conditional
-  today.
+  an Aontu document, and where each guarantee is conditional.
 
 For contributors:
 
@@ -125,14 +118,6 @@ For contributors:
   [shared test specification](shared-spec.md) — how both
   implementations are measured against the one `test/spec/*.tsv`
   suite.
-- [`capability-review/`](capability-review/index.md) — the design
-  documents (G1–G8) behind the verb surface, with the
-  [progress register](capability-review/progress.md) recording what
-  has landed. Deeper analyses of specific behaviours live in
-  [`design/`](design/).
-- [`site/`](site/index.md) — the plan for
-  [aontu.dev](https://aontu.dev), not yet live, where this
-  documentation set is rendered rather than rewritten.
 
 ### Why the split?
 

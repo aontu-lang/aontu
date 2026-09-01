@@ -47,7 +47,7 @@ the [Explanation](explanation.md).
 - [Generation](#generation)
 - [Subsumption](#subsumption)
 - [Errors](#errors)
-- [The constraint algebra (specified)](#the-constraint-algebra-specified)
+- [The constraint algebra](#the-constraint-algebra)
   - [Named constraint aliases](#named-constraint-aliases)
   - [Aliases](#aliases)
 
@@ -714,13 +714,9 @@ met by `1.5` is `[aontu/empty]` (the other numeric leaf), and
 `*8080 | (integer & neq(80))` met by `80` is refused because the
 exclusion is consulted, not bypassed.
 
-**This is a breaking change** (2026-08-26, ADR-004). Before it, a
-same-kind concrete peer replaced the preferred value with the other
-alternatives never consulted, so `k:*'auto'|'literal'|'data'` +
-`k:'autoo'` answered `"autoo"` with exit 0 — the fail-open enum of the
-2026-08 language review (use-cases/REVIEW.md finding A). A document
-that leaned on the open override keeps its meaning by writing the open
-branch explicitly: `*x | top`.
+A document that wants an open override says so by writing the open
+branch explicitly, `*x | top`
+([ADR-004](../ADR.md#adr-004--a-preference-override-must-be-admitted-by-its-disjunction)).
 
 **A structural default is gated too**, by the same rule as every
 other: the peer must pass `super(x)`, and `super({x:1})` is
@@ -743,12 +739,9 @@ b: {x:2}
 because `{x:1}` cannot admit `{x:2}` but its type can. A peer of
 another kind — `a: "s"` — refuses, as the scalar case always did.
 
-**This changed on 2026-08-29** ([ADR-011](../ADR.md#adr-011)). Before
-it, a map or a list had no gate at all: any peer overrode a structural
-default, including one of another kind, and a map that added a key
-REPLACED the default rather than merging with it. A document that
-leaned on the replace-anything reading keeps its meaning by writing
-the open branch explicitly, `*{x:1} | top`.
+A document that wants a structural default any peer may replace says
+so by writing the open branch explicitly, `*{x:1} | top`
+([ADR-011](../ADR.md#adr-011--the-star-is-sugar-the-disjunction-is-the-structure)).
 
 Writing `a:{x:*1}` rather than `a:*{x:1}` is still the clearer
 spelling when you mean "a map whose `x` defaults to 1", and it is what
@@ -1046,10 +1039,9 @@ partially applied, and there is no way to write one that is not
 already inside a call. Unfilled at generation it is an error, exactly
 as `top` is.
 
-**Compatibility.** A bare `_` used to be the string `"_"`. It is a
-hole now — a breaking change, pinned by `test/spec/place.tsv`. Quoted
-`"_"` is still that string, any longer bare word containing it (`_b`)
-is still ordinary text, and `_` as a **key** is still a key.
+A bare `_` is a hole, pinned by `test/spec/place.tsv`. Quoted `"_"`
+is that string, any longer bare word containing it (`_b`) is ordinary
+text, and `_` as a **key** is a key.
 
 ## References and paths
 
@@ -1428,8 +1420,6 @@ recursion residual met by `super` stays a symbolic call — the finite
 spelling of a lift that is itself recursive — which generation
 refuses like any unresolved call, and `super(null)` answers the null
 kind, which canon prints as `null`, the same spelling as the value.
-The full rules are recorded in
-[docs/design/SUPER.0.md](design/SUPER.0.md).
 
 `upper()` and `lower()` round a number without narrowing it: the result
 carries the *argument's* kind, so `upper(2)` is an integer `2` (and
@@ -1535,8 +1525,7 @@ would be a value Aontu cannot carry:
   has no notation for an infinity, so there is nothing `div(7,0)` could
   return (`divide_by_zero`).
 - **A non-finite float result**: `mul(1.0e200,1.0e200)` overflows
-  binary64 (`float_overflow`). The same check now governs `+`, where
-  the sum used to escape as an internal error.
+  binary64 (`float_overflow`). The same check governs `+`.
 - **`div`, `mod` or `rem` over a bigdecimal.** One third has no finite
   decimal form, so exact decimal division either rounds — the one thing
   that leaf exists to prevent — or refuses (`inexact_divide`). Scale to
@@ -1981,11 +1970,6 @@ $ aontu system.aon
 | `$.std.Component` | a node with `ports`, each of which is a `Port` |
 | `$.std.Service` | a Component whose `kind` is `service` |
 
-(The `Relation` schema that used to sit beside these is retired: a
-relation is declared by [`rel(t)` and the graph atoms](#declared-relations)
-at the field itself, so there is nothing left for a vocabulary entry to
-say.)
-
 `@"std/system"` is **bundled with the engine** — no filesystem, no
 package resolution — so it resolves under every include capability
 except `'none'`, which denies every include by definition. It is
@@ -1996,11 +1980,9 @@ Two of its behaviours are the language rather than the vocabulary:
 - **A preferred member is one enum member, with the default role.**
   `direction: *in | out | inout` is a true enum-with-default under the
   admission gate (ADR-004): unset generates `in`, `out` and `inout`
-  override, and any other value is refused (`[aontu/empty]`). It
-  used to be otherwise — the preference held the disjunction open and
-  any other string was admitted — which is exactly the fail-open
-  default the 2026-08 language review retired. A vocabulary that wants
-  an open field says so with a `| top` (or `| string`) branch.
+  override, and any other value is refused (`[aontu/empty]`). A
+  vocabulary that wants an open field says so with a `| top` (or
+  `| string`) branch.
 - **`Service` is written out rather than as `$.std.Component & {kind:
   service}`.** A reference from one member of an included file to
   another does not survive the include, so each schema states itself;
@@ -2502,8 +2484,7 @@ constraints, defaults, and open disjunctions. Rules:
 
 This section is about producing a **value** from a model. Producing
 target-language **source** from one is a different thing with the same
-name: see [Generate code from a model](how-to/generate-code.md) and
-[G9](capability-review/g9-transformation.md).
+name: see [Generate code from a model](how-to/generate-code.md).
 
 `generate` / `Generate` produces a native value (JSON-compatible) and
 requires the model to be **fully concrete**:
@@ -2559,8 +2540,8 @@ shared suite pins those cases byte for byte rather than structurally.
 `A ⊒ B` ("A subsumes B") holds when **every instance the specific
 value B admits, the general value A admits too**. It is the lattice's
 own order, asked as a first-class query: `subsume(general, specific)`
-in both engines ([G3](capability-review/g3-subsumption-evolution.md)),
-running after evaluation on finished trees, never mutating them. The
+in both engines, running after evaluation on finished trees, never
+mutating them. The
 verdict is three-valued plus `error` — `subsumes`, `does_not_subsume`
 (with the failing path and both sides' canons as the witness),
 `undecided` (always with a `sub_*` reason code, never silently), and
@@ -2715,15 +2696,12 @@ In conflict messages the operand later in the source is named first
 ("…value: `<later>` with value: `<earlier>`") so the two sites are
 distinguishable.
 
-## The constraint algebra (specified)
+## The constraint algebra
 
-> **Status: implemented.** This section is the normative design of
-> capability G1's constraint atoms
-> ([docs/capability-review/g1-constraint-algebra.md](capability-review/g1-constraint-algebra.md)),
-> re-derived over the four-leaf number tower. All nine atoms — the
-> bounds `min`/`max`/`above`/`below`, the exclusion `neq`, the pattern
-> `re`, the sizing atoms `length` and `unique`, and the evaluate-only
-> `must` — are implemented in both engines, pinned by the
+> All nine atoms — the bounds `min`/`max`/`above`/`below`, the
+> exclusion `neq`, the pattern `re`, the sizing atoms `length` and
+> `unique`, and the evaluate-only `must` — are implemented in both
+> engines over the four-leaf number tower, pinned by the
 > [`test/spec/constraint-*.tsv`](../test/spec/) suites. Violations
 > raise the registered `constraint` code, and a pattern outside the
 > portable subset raises `constraint_pattern`. Known limit: a
@@ -2828,11 +2806,9 @@ guessed where it is not:
 
 ### Subsumption
 
-*Live in both engines: the
-[G3](capability-review/g3-subsumption-evolution.md) `subsume` query
-implements this table (its per-former rules are in
-[Subsumption](#subsumption) above). It completes phase 0's three
-tables (meet, emptiness, subsumption). One mapping to note: the
+*The `subsume` query implements this table in both engines (its
+per-former rules are in [Subsumption](#subsumption) above). One
+mapping to note: the
 query answers the `must` row's "never" as `undecided` with reason
 `sub_evaluate_only` — the admitted set is opaque, which is honest
 indecision rather than a decided refusal.*
@@ -2846,7 +2822,7 @@ cross-check against the meet table.
 
 **Soundness before completeness.** Where a rule below cannot decide, the
 answer is **not subsumed**, never a guess. That direction is the safe
-one for the query G3 puts on top: a compatibility check that wrongly
+one for the `subsume` query built on it: a compatibility check that wrongly
 reports "breaking" costs a reviewer a second look, while one that
 wrongly reports "compatible" ships the break. Two rules are approximate
 in this sense and are marked; the rest are exact.
@@ -2925,8 +2901,9 @@ Two renderings follow from that round trip rather than from taste:
   *is* the residual the count must satisfy (`length(c)` always meets
   `integer & min(0)`; see [`length` semantics](#length-semantics)).
   Abbreviating it would mean a second set of rules for when the implied
-  parts may be dropped, and canon is a normal form — [G6](capability-review/g6-distribution.md)
-  hashes it — not a pretty-printer.
+  parts may be dropped, and canon is a normal form —
+  [`aontu hash`](reference-api.md#aontu-hash) digests it — not a
+  pretty-printer.
 - **A bare domain is spelled out when nothing implies it.** An order
   atom's argument names its own domain, so `min(2)` need not say
   `number`. A sizing residual carries no order, so `string & length(3)`
@@ -3019,8 +2996,8 @@ because deciding that one pattern excludes another is regex containment
 patterns therefore surfaces against data, not against the schema.
 
 Canon renders the pattern **as written**, never the rewritten form:
-canon round-trips source, and [G6](capability-review/g6-distribution.md)'s
-semantic hash will be taken over canon.
+canon round-trips source, and the semantic hash
+([`aontu hash`](reference-api.md#aontu-hash)) is taken over canon.
 
 ### `length` semantics
 
@@ -3039,8 +3016,8 @@ Its argument is any integer-domain constraint: `length(3)` means exactly
 what makes `length(max(-1))` and `length(1.5)` empty on their own, and what
 canon renders.
 
-Like every other atom's argument, it **residuates** until it settles
-(G1 phase 4): `length($.n)` waits for `$.n`, then checks the count. Only
+Like every other atom's argument, it **residuates** until it settles:
+`length($.n)` waits for `$.n`, then checks the count. Only
 a *settled* argument of the wrong shape — a string, a boolean, a
 contradictory kind — is refused.
 
@@ -3266,7 +3243,7 @@ message family (`Cannot unify value: 99999 with value: max(65535)`),
 with machine-readable `details`: the failing atom, the normalised
 admissible interval/sets, and any `must` message. Codes ride the
 [error-code registry](../test/spec/errcodes.tsv); rendering into
-reports belongs to the vet verb (G2).
+reports belongs to [`aontu vet`](reference-api.md#aontu-vet).
 
 ### Named constraint aliases
 
@@ -3428,8 +3405,8 @@ written, which is what makes the two include shapes differ:
   so there is no second scope for a name to leak out of, and the
   declaration is a declaration of that one document.
 
-Carrying a name across a file boundary *deliberately* is what `export`
-will be for, and it is not built.
+There is no construct for carrying a name across a file boundary
+deliberately.
 
 **The `%` is part of the name.** A quoted `"%a"` is an ordinary key or
 string, and a bare `%` not followed by a name is ordinary text:
