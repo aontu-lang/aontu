@@ -6,6 +6,7 @@ export type ViewVerdict = 'rendered' | 'lossy' | 'error';
 export type ViewKind = 'tree' | 'matrix' | 'graph' | 'layer' | 'sets' | 'layers' | 'ladder' | 'poset';
 export type ViewProfile = 'text' | 'mermaid' | 'dot' | 'er' | 'svg';
 export type ViewOrder = 'canon' | 'partition';
+export type ViewEdges = 'upward' | 'all' | 'none';
 export type ViewLoss = {
     code: string;
     count: number;
@@ -51,6 +52,7 @@ export type ViewOptions = {
     relations?: string[];
     groupBy?: string;
     layers?: string[];
+    edges?: ViewEdges;
     label?: string;
     sets?: string;
     member?: string;

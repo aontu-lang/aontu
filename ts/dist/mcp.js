@@ -433,6 +433,12 @@ const TOOLS = [
                 type: 'string',
                 description: 'graph: label each node with this field (optional)',
             },
+            edges: {
+                type: 'string',
+                description: 'layer: which of the relation\'s edges to draw over the bands -- ' +
+                    'upward (the violations; the default for text and svg), all ' +
+                    '(mermaid\'s default) or none (optional)',
+            },
             layers: {
                 type: 'array',
                 items: { type: 'string' },
@@ -466,6 +472,10 @@ const TOOLS = [
             if (null != a.as && !profiles.includes(a.as)) {
                 return `as must be one of ${profiles.join(', ')}, not ${JSON.stringify(a.as)}`;
             }
+            const edges = ['upward', 'all', 'none'];
+            if (null != a.edges && !edges.includes(a.edges)) {
+                return `edges must be one of ${edges.join(', ')}, not ${JSON.stringify(a.edges)}`;
+            }
             return undefined;
         },
         refuse: (a, finding) => ({ verdict: 'error', kind: a.kind ?? 'tree', loss: [], errors: [finding] }),
@@ -483,6 +493,7 @@ const TOOLS = [
             groupBy: null == a.groupBy ? undefined : str(a.groupBy),
             label: null == a.label ? undefined : str(a.label),
             layers: Array.isArray(a.layers) ? a.layers.map(str) : undefined,
+            edges: null == a.edges ? undefined : a.edges,
             sets: null == a.sets ? undefined : str(a.sets),
             member: null == a.member ? undefined : str(a.member),
             universe: null == a.universe ? undefined : str(a.universe),

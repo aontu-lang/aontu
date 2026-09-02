@@ -186,6 +186,9 @@ View options:
                     layer: one band per value (required)
   --layers <a,b>    layer: the bands in this order, top first; without
                     it the order is derived from the relation
+  --edges <e>       layer: which of the relation's edges to draw over
+                    the bands -- upward (the violations, the default
+                    for text and svg), all (mermaid's default) or none
   --label <k>       graph: label each node with field k
   --sets <path>     sets: the map whose keys are the sets
   --member <k>      sets: the field holding each set's members

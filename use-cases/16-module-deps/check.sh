@@ -165,6 +165,24 @@ view diagram-layer.txt layer --relation dependsOn --group-by layer \
   "$DIR/model.aon"
 view diagram-layer.svg layer --relation dependsOn --group-by layer \
   --as svg "$DIR/model.aon"
+# --edges all draws the relation OVER the bands: the same figure a
+# reader tracing one module's dependencies wants. The default draws
+# the upward edges alone, because those are the violations the bands
+# cannot show on their own.
+view diagram-layer-edges.svg layer --relation dependsOn --group-by layer \
+  --edges all --as svg "$DIR/model.aon"
+run edged 0 -- view layer --relation dependsOn --group-by layer \
+  --edges all "$DIR/model.aon"
+has edged out '# sideways: auth -> http'
+has edged out '# downward: cli -> billing'
+run bare 0 -- view layer --relation dependsOn --group-by layer \
+  --edges none --as mermaid "$DIR/model.aon"
+hasnt() {
+  grep -qF -- "$3" "$WORK/$1.$2" \
+    && { cat "$WORK/$1.$2" >&2; fail "$1: $2 should not contain: $3"; }
+  return 0
+}
+hasnt bare out ' --> '
 has_golden() { grep -qF -- "$2" "$DIR/expected/$1" || fail "$1 lacks: $2"; }
 has_golden diagram-layer.txt '# dependsOn: 19 downward, 2 sideways, 0 upward'
 run layered 0 -- view layer --relation dependsOn --group-by layer \
@@ -187,11 +205,12 @@ sed 's|@"./model.aon"|@"'"$DIR"'/model.aon"|' "$DIR/views.aon" > "$WORK/draw.aon
 $AONTU view --views '$.views' "$WORK/draw.aon" 2>/dev/null \
   || fail "the view document did not draw"
 for figure in diagram-tree.txt diagram-tree.svg diagram-tree-billing.txt \
-  diagram-matrix.txt diagram-matrix.svg diagram-layer.txt diagram-layer.svg; do
+  diagram-matrix.txt diagram-matrix.svg diagram-layer.txt diagram-layer.svg \
+  diagram-layer-edges.svg; do
   diff -u "$DIR/expected/$figure" "$WORK/expected/$figure" \
     || fail "the view document drew $figure differently"
 done
-ok "the view document draws and gates all seven figures in one run"
+ok "the view document draws and gates all eight figures in one run"
 
 # 12. THE RENDERER TERMINATES ON THE MODEL THE ENGINE REFUSES. The
 # cyclic document still evaluates -- the graph atoms' verdict lands at

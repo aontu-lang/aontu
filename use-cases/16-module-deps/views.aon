@@ -54,6 +54,19 @@ views: {
     out: "expected/diagram-matrix.svg"
   }
 
+  # The architecture layers with the DEPENDS EDGES drawn over them:
+  # `--edges all` is the figure a reader tracing one module's
+  # dependencies wants, where the default draws only the upward ones
+  # because those are the violations the bands cannot show themselves.
+  layerEdges: {
+    kind: layer
+    relation: dependsOn
+    groupBy: layer
+    edges: all
+    as: svg
+    out: "expected/diagram-layer-edges.svg"
+  }
+
   # The architecture layers, in the order the relation derives.
   layer: {
     kind: layer

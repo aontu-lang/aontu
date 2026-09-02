@@ -893,7 +893,15 @@ flowchart LR
   on top. `--layers a,b,c` fixes the order (top first) for a model
   whose upward edge makes the layer graph cyclic. The footer counts
   the relation's downward, sideways and upward edges, and names each
-  upward one.
+  edge `--edges` shows. `--edges upward|all|none` chooses which of them
+  the figure draws over the bands: `upward` is the violations, and the
+  default for the fixed grids (`text`, `svg`), because the bands
+  already say which way the rest go; `all` draws the relation itself,
+  which is what a reader tracing one module's dependencies wants, and
+  is `mermaid`'s default since it lays edges out itself; `none` leaves
+  the bands alone. In SVG an upward edge is dashed and alert-coloured,
+  a downward one runs from the bottom of its box to the top of the one
+  it names, and a sideways one dips below the boxes of its band.
 - `sets`: `--sets <path>` names a map whose keys are the sets,
   `--member <key>` the field holding each set's members (a list of
   strings), `--universe <path>` a map or list of every element, so

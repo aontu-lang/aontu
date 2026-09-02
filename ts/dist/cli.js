@@ -210,6 +210,9 @@ View options:
                     layer: one band per value (required)
   --layers <a,b>    layer: the bands in this order, top first; without
                     it the order is derived from the relation
+  --edges <e>       layer: which of the relation's edges to draw over
+                    the bands -- upward (the violations, the default
+                    for text and svg), all (mermaid's default) or none
   --label <k>       graph: label each node with field k
   --sets <path>     sets: the map whose keys are the sets
   --member <k>      sets: the field holding each set's members
@@ -1475,6 +1478,7 @@ const REACHES_EXIT = {
 const VIEW_HELP = 'aontu view <kind> [options] <file>... (try --help)';
 const VIEW_KINDS = ['tree', 'matrix', 'graph', 'layer', 'sets', 'layers', 'ladder', 'poset'];
 const VIEW_PROFILES = ['text', 'mermaid', 'dot', 'er', 'svg'];
+const VIEW_EDGES = ['upward', 'all', 'none'];
 // The figure was drawn (0, `lossy` included: the loss report says
 // what it could not draw, and --strict is the gate on that), or the
 // document could not be drawn (4). An EMPTY figure is a drawing, not
@@ -1827,6 +1831,7 @@ function runView(argv) {
         '--as': 'as', '--at': 'at', '--order': 'order', '--group-by': 'groupBy',
         '--label': 'label', '--sets': 'sets', '--member': 'member',
         '--universe': 'universe', '--profile': 'profile', '--views': 'views',
+        '--edges': 'edges',
     };
     const counted = {
         '--max-rows': 'maxRows', '--max-cols': 'maxCols',
@@ -1930,6 +1935,10 @@ function runView(argv) {
     }
     if (undefined !== opts.order && 'canon' !== opts.order && 'partition' !== opts.order) {
         process.stderr.write('aontu: --order needs canon or partition\n');
+        return 2;
+    }
+    if (undefined !== opts.edges && !VIEW_EDGES.includes(opts.edges)) {
+        process.stderr.write(`aontu: --edges needs one of ${VIEW_EDGES.join(', ')}\n`);
         return 2;
     }
     if (undefined !== opts.profile && !['values', 'defaults', 'gen'].includes(opts.profile)) {

@@ -24,6 +24,8 @@ var viewKinds = []string{"tree", "matrix", "graph", "layer", "sets", "layers", "
 
 var viewProfiles = []string{"text", "mermaid", "dot", "er", "svg"}
 
+var viewEdges = []string{"upward", "all", "none"}
+
 // The figure was drawn (0, `lossy` included: the loss report says what
 // it could not draw, and --strict is the gate on that), or the document
 // could not be drawn (4). An EMPTY figure is a drawing, not a failure:
@@ -70,7 +72,7 @@ func runView(argv []string, stdout, stderr io.Writer) int {
 		"--group-by": &opts.GroupBy, "--label": &opts.Label,
 		"--sets": &opts.Sets, "--member": &opts.Member,
 		"--universe": &opts.Universe, "--profile": &opts.Profile,
-		"--views": &opts.Views,
+		"--views": &opts.Views, "--edges": &opts.Edges,
 	}
 	counted := map[string]*int{
 		"--max-rows": &opts.MaxRows, "--max-cols": &opts.MaxCols,
@@ -174,6 +176,10 @@ func runView(argv []string, stdout, stderr io.Writer) int {
 	}
 	if "" != opts.Order && "canon" != opts.Order && "partition" != opts.Order {
 		io.WriteString(stderr, "aontu: --order needs canon or partition\n")
+		return 2
+	}
+	if "" != opts.Edges && !hasString(viewEdges, opts.Edges) {
+		io.WriteString(stderr, "aontu: --edges needs one of "+strings.Join(viewEdges, ", ")+"\n")
 		return 2
 	}
 	if "" != opts.Profile && !hasString([]string{"values", "defaults", "gen"}, opts.Profile) {

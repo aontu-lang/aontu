@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" class="av" viewBox="0 0 380 632" width="380" height="632" role="img" aria-label="Architecture layers over dependsOn: 4 bands, 0 upward edges">
+<style>.av{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px}.av-t{fill:var(--av-ink,#1f2328)}.av-m{fill:var(--av-muted,#6e7781)}.av-box{fill:var(--av-bg,#f6f8fa);stroke:var(--av-rule,#8c959f);stroke-width:1}.av-cell{fill:var(--av-bg,#f6f8fa);stroke:var(--av-rule-faint,#d0d7de);stroke-width:1}.av-direct{fill:var(--av-ink,#1f2328);stroke:var(--av-rule-faint,#d0d7de);stroke-width:1}.av-closure{fill:var(--av-closure,#9ec5fe);stroke:var(--av-rule-faint,#d0d7de);stroke-width:1}.av-unmirrored{fill:var(--av-warn,#e3b341);stroke:var(--av-rule-faint,#d0d7de);stroke-width:1}.av-line{stroke:var(--av-rule,#8c959f);stroke-width:1;fill:none}.av-up{stroke:var(--av-alert,#d1242f);stroke-width:1.5;fill:none;stroke-dasharray:4 3}.av-dot{fill:var(--av-ink,#1f2328)}.av-hole{fill:var(--av-bg,#f6f8fa);stroke:var(--av-rule-faint,#d0d7de);stroke-width:1}.av-bar{fill:var(--av-bar,#57606a)}</style>
+<rect x="4" y="4" width="372" height="44" class="av-cell"/>
+<text x="12" y="31" class="av-m">app</text>
+<rect x="72" y="14" width="36" height="24" class="av-box"/>
+<text x="78" y="30" class="av-t">cli</text>
+<rect x="118" y="14" width="60" height="24" class="av-box"/>
+<text x="124" y="30" class="av-t">server</text>
+<rect x="188" y="14" width="60" height="24" class="av-box"/>
+<text x="194" y="30" class="av-t">worker</text>
+<rect x="4" y="48" width="372" height="44" class="av-cell"/>
+<text x="12" y="75" class="av-m">feature</text>
+<rect x="72" y="58" width="68" height="24" class="av-box"/>
+<text x="78" y="74" class="av-t">billing</text>
+<rect x="150" y="58" width="68" height="24" class="av-box"/>
+<text x="156" y="74" class="av-t">catalog</text>
+<rect x="228" y="58" width="68" height="24" class="av-box"/>
+<text x="234" y="74" class="av-t">reports</text>
+<rect x="4" y="92" width="372" height="44" class="av-cell"/>
+<text x="12" y="119" class="av-m">core</text>
+<rect x="72" y="102" width="44" height="24" class="av-box"/>
+<text x="78" y="118" class="av-t">auth</text>
+<rect x="126" y="102" width="44" height="24" class="av-box"/>
+<text x="132" y="118" class="av-t">http</text>
+<rect x="180" y="102" width="52" height="24" class="av-box"/>
+<text x="186" y="118" class="av-t">store</text>
+<rect x="4" y="136" width="372" height="44" class="av-cell"/>
+<text x="12" y="163" class="av-m">util</text>
+<rect x="72" y="146" width="52" height="24" class="av-box"/>
+<text x="78" y="162" class="av-t">bytes</text>
+<rect x="134" y="146" width="52" height="24" class="av-box"/>
+<text x="140" y="162" class="av-t">clock</text>
+<rect x="196" y="146" width="36" height="24" class="av-box"/>
+<text x="202" y="162" class="av-t">log</text>
+<defs><marker id="av-arrow" viewBox="0 0 8 8" refX="8" refY="4" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L8 4L0 8Z" fill="var(--av-alert,#d1242f)"/></marker><marker id="av-tip" viewBox="0 0 8 8" refX="8" refY="4" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L8 4L0 8Z" fill="var(--av-rule,#8c959f)"/></marker></defs>
+<path d="M94 126L98 146" class="av-line" marker-end="url(#av-tip)"/>
+<path d="M94 126V132H148V126" class="av-line" marker-end="url(#av-tip)"/>
+<path d="M106 82L94 102" class="av-line" marker-end="url(#av-tip)"/>
+<path d="M106 82L160 146" class="av-line" marker-end="url(#av-tip)"/>
+<path d="M106 82L206 102" class="av-line" marker-end="url(#av-tip)"/>
+<path d="M184 82L148 102" class="av-line" marker-end="url(#av-tip)"/>
+<path d="M184 82L206 102" class="av-line" marker-end="url(#av-tip)"/>
+<path d="M90 38L106 58" class="av-line" marker-end="url(#av-tip)"/>
+<path d="M90 38L262 58" class="av-line" marker-end="url(#av-tip)"/>
+<path d="M148 126L98 146" class="av-line" marker-end="url(#av-tip)"/>
+<path d="M148 126L214 146" class="av-line" marker-end="url(#av-tip)"/>
+<path d="M214 170V176H98V170" class="av-line" marker-end="url(#av-tip)"/>
+<path d="M262 82L214 146" class="av-line" marker-end="url(#av-tip)"/>
+<path d="M262 82L206 102" class="av-line" marker-end="url(#av-tip)"/>
+<path d="M148 38L106 58" class="av-line" marker-end="url(#av-tip)"/>
+<path d="M148 38L184 58" class="av-line" marker-end="url(#av-tip)"/>
+<path d="M148 38L148 102" class="av-line" marker-end="url(#av-tip)"/>
+<path d="M206 126L160 146" class="av-line" marker-end="url(#av-tip)"/>
+<path d="M206 126L214 146" class="av-line" marker-end="url(#av-tip)"/>
+<path d="M218 38L262 58" class="av-line" marker-end="url(#av-tip)"/>
+<path d="M218 38L206 102" class="av-line" marker-end="url(#av-tip)"/>
+<text x="4" y="198" class="av-m"># dependsOn: 19 downward, 2 sideways, 0 upward</text>
+<text x="4" y="218" class="av-m"># downward: auth -&gt; bytes</text>
+<text x="4" y="238" class="av-m"># sideways: auth -&gt; http</text>
+<text x="4" y="258" class="av-m"># downward: billing -&gt; auth</text>
+<text x="4" y="278" class="av-m"># downward: billing -&gt; clock</text>
+<text x="4" y="298" class="av-m"># downward: billing -&gt; store</text>
+<text x="4" y="318" class="av-m"># downward: catalog -&gt; http</text>
+<text x="4" y="338" class="av-m"># downward: catalog -&gt; store</text>
+<text x="4" y="358" class="av-m"># downward: cli -&gt; billing</text>
+<text x="4" y="378" class="av-m"># downward: cli -&gt; reports</text>
+<text x="4" y="398" class="av-m"># downward: http -&gt; bytes</text>
+<text x="4" y="418" class="av-m"># downward: http -&gt; log</text>
+<text x="4" y="438" class="av-m"># sideways: log -&gt; bytes</text>
+<text x="4" y="458" class="av-m"># downward: reports -&gt; log</text>
+<text x="4" y="478" class="av-m"># downward: reports -&gt; store</text>
+<text x="4" y="498" class="av-m"># downward: server -&gt; billing</text>
+<text x="4" y="518" class="av-m"># downward: server -&gt; catalog</text>
+<text x="4" y="538" class="av-m"># downward: server -&gt; http</text>
+<text x="4" y="558" class="av-m"># downward: store -&gt; clock</text>
+<text x="4" y="578" class="av-m"># downward: store -&gt; log</text>
+<text x="4" y="598" class="av-m"># downward: worker -&gt; reports</text>
+<text x="4" y="618" class="av-m"># downward: worker -&gt; store</text>
+</svg>

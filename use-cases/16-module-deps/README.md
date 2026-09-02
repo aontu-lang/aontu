@@ -116,6 +116,13 @@ layer model.aon`, pinned as `expected/diagram-layer.txt`:
 # dependsOn: 19 downward, 2 sideways, 0 upward
 ```
 
+`--edges all` draws the relation over the bands, which is the figure a
+reader tracing one module's dependencies wants; the default draws the
+upward edges alone, because the bands already say which way the rest
+of them go and only a violation needs pointing at.
+
+![The architecture layers with every dependency drawn over them: four bands, arrows from each module down to the ones it depends on](expected/diagram-layer-edges.svg)
+
 The band order is not declared to the verb: it is the partition order
 of the layer-level graph (a layer depends on the layers its modules
 depend on), reversed so the layer nothing depends on is on top, which
@@ -179,7 +186,7 @@ views: {
 }
 ```
 
-`aontu view --views '$.views' --check views.aon` draws all seven from
+`aontu view --views '$.views' --check views.aon` draws all eight from
 one evaluation and gates them together, which is what `check.sh` runs.
 A declaration's keys are the view options -- the command-line flags
 without the dashes -- so the file says exactly what the verb would have
@@ -259,7 +266,7 @@ constructs are specified in the language reference under
     and its footer counts zero cells above the diagonal; the same
     matrix as SVG matches `expected/diagram-matrix.svg`, and `--check`
     against the committed SVG passes.
-12a. `views.aon` declares all seven committed figures as data, and
+12a. `views.aon` declares all eight committed figures as data, and
     `aontu view --views '$.views' --check` gates them in one run: one
     evaluation, all or nothing. The same declarations drawn into a
     scratch directory land the same bytes.

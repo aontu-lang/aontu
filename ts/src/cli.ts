@@ -42,8 +42,8 @@ import { reachCheck } from './reach'
 import type { ReachReport, ReachVerdict } from './reach'
 import { view, viewSet } from './view'
 import type {
-  ViewFigure, ViewKind, ViewLoss, ViewOptions, ViewProfile, ViewReport,
-  ViewSetReport, ViewVerdict,
+  ViewEdges, ViewFigure, ViewKind, ViewLoss, ViewOptions, ViewProfile,
+  ViewReport, ViewSetReport, ViewVerdict,
 } from './view'
 import type { QueryView } from './query'
 import type { WhyRecord } from './provenance'
@@ -217,6 +217,9 @@ View options:
                     layer: one band per value (required)
   --layers <a,b>    layer: the bands in this order, top first; without
                     it the order is derived from the relation
+  --edges <e>       layer: which of the relation's edges to draw over
+                    the bands -- upward (the violations, the default
+                    for text and svg), all (mermaid's default) or none
   --label <k>       graph: label each node with field k
   --sets <path>     sets: the map whose keys are the sets
   --member <k>      sets: the field holding each set's members
@@ -1775,6 +1778,8 @@ const VIEW_KINDS: ViewKind[] =
 
 const VIEW_PROFILES: ViewProfile[] = ['text', 'mermaid', 'dot', 'er', 'svg']
 
+const VIEW_EDGES: ViewEdges[] = ['upward', 'all', 'none']
+
 // The figure was drawn (0, `lossy` included: the loss report says
 // what it could not draw, and --strict is the gate on that), or the
 // document could not be drawn (4). An EMPTY figure is a drawing, not
@@ -2181,6 +2186,7 @@ function runView(argv: string[]): number {
     '--as': 'as', '--at': 'at', '--order': 'order', '--group-by': 'groupBy',
     '--label': 'label', '--sets': 'sets', '--member': 'member',
     '--universe': 'universe', '--profile': 'profile', '--views': 'views',
+    '--edges': 'edges',
   }
   const counted: Record<string, keyof ViewOptions> = {
     '--max-rows': 'maxRows', '--max-cols': 'maxCols',
@@ -2291,6 +2297,11 @@ function runView(argv: string[]): number {
   }
   if (undefined !== opts.order && 'canon' !== opts.order && 'partition' !== opts.order) {
     process.stderr.write('aontu: --order needs canon or partition\n')
+    return 2
+  }
+  if (undefined !== opts.edges && !VIEW_EDGES.includes(opts.edges)) {
+    process.stderr.write(
+      `aontu: --edges needs one of ${VIEW_EDGES.join(', ')}\n`)
     return 2
   }
   if (undefined !== opts.profile && !['values', 'defaults', 'gen'].includes(opts.profile)) {

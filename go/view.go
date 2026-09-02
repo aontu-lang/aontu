@@ -75,6 +75,11 @@ type ViewOptions struct {
 	GroupBy   string
 	Label     string
 	Layers    []string
+	// Edges is which of the relation's edges the layer figure draws:
+	// "upward" (the violations), "all" or "none". Empty means the
+	// profile's own default -- "all" for mermaid, which lays edges out
+	// itself, "upward" for the fixed grids.
+	Edges string
 
 	Sets      string
 	Member    string
@@ -1084,7 +1089,7 @@ type viewBand struct {
 // relation's upward edges named under the figure. See drawLayer in
 // ts/src/view.ts.
 func drawLayer(triples []viewTriple, root Val, relation, groupBy string, layers []string,
-	as string, max int, loss *[]ViewLoss) (string, []VetFinding) {
+	edges, as string, max int, loss *[]ViewLoss) (string, []VetFinding) {
 	if "" == groupBy {
 		return "", []VetFinding{viewFinding("view_group_required", "reference", "$",
 			"The layer diagram needs the field that names each node's layer; name it with --group-by.", "")}
@@ -1197,18 +1202,41 @@ func drawLayer(triples []viewTriple, root Val, relation, groupBy string, layers 
 		}
 		return byPath[a.to].label < byPath[b.to].label
 	})
-	down, side := 0, 0
-	upward := map[viewTriple]bool{}
-	upList := []viewTriple{}
+	down, side, up := 0, 0, 0
+	classed := []viewDrawing{}
 	for _, e := range drawn {
 		fi, ti := level[byPath[e.from].group], level[byPath[e.to].group]
+		way := "upward"
 		if fi < ti {
 			down++
+			way = "downward"
 		} else if fi == ti {
 			side++
+			way = "sideways"
 		} else {
-			upward[e] = true
-			upList = append(upList, e)
+			up++
+		}
+		classed = append(classed, viewDrawing{edge: e, way: way})
+	}
+
+	// WHICH EDGES ARE SHOWN. Mermaid lays edges out itself and drew
+	// every one before this option existed; the fixed grids drew the
+	// upward ones, which are the violations the bands cannot show on
+	// their own.
+	if "" == edges {
+		edges = "upward"
+		if "mermaid" == as {
+			edges = "all"
+		}
+	}
+	shown := []viewDrawing{}
+	if "all" == edges {
+		shown = classed
+	} else if "upward" == edges {
+		for _, c := range classed {
+			if "upward" == c.way {
+				shown = append(shown, c)
+			}
 		}
 	}
 
@@ -1219,14 +1247,15 @@ func drawLayer(triples []viewTriple, root Val, relation, groupBy string, layers 
 		named = "-"
 	}
 	footer := []string{"# " + named + ": " + strconv.Itoa(down) + " downward, " +
-		strconv.Itoa(side) + " sideways, " + strconv.Itoa(len(upList)) + " upward"}
-	for _, e := range upList {
-		footer = append(footer, "# upward: "+byPath[e.from].label+" -> "+byPath[e.to].label)
+		strconv.Itoa(side) + " sideways, " + strconv.Itoa(up) + " upward"}
+	for _, c := range shown {
+		footer = append(footer, "# "+c.way+": "+byPath[c.edge.from].label+
+			" -> "+byPath[c.edge.to].label)
 	}
 	if "svg" == as {
-		return layerSvg(bands, upList, footer,
+		return layerSvg(bands, shown, footer,
 			"Architecture layers"+svgOver(relation)+": "+strconv.Itoa(len(bands))+" bands, "+
-				strconv.Itoa(len(upList))+" upward edges"), nil
+				strconv.Itoa(up)+" upward edges"), nil
 	}
 	out := []string{}
 	if "text" == as {
@@ -1260,11 +1289,12 @@ func drawLayer(triples []viewTriple, root Val, relation, groupBy string, layers 
 			}
 			out = append(out, "  end")
 		}
-		for _, e := range drawn {
-			if upward[e] {
-				out = append(out, "  "+byPath[e.from].id+" -.->|\"upward\"| "+byPath[e.to].id)
+		for _, c := range shown {
+			if "upward" == c.way {
+				out = append(out, "  "+byPath[c.edge.from].id+" -.->|\"upward\"| "+
+					byPath[c.edge.to].id)
 			} else {
-				out = append(out, "  "+byPath[e.from].id+" --> "+byPath[e.to].id)
+				out = append(out, "  "+byPath[c.edge.from].id+" --> "+byPath[c.edge.to].id)
 			}
 		}
 	}
@@ -2160,7 +2190,8 @@ func (a *Aontu) drawLoaded(root Val, ctx *Ctx, gen *viewGen, prov *Provenance,
 			options.GroupBy, options.Label, as, max, loss)
 	}
 	if "layer" == kind {
-		return drawLayer(triples, root, options.Relation, options.GroupBy, options.Layers, as, max, loss)
+		return drawLayer(triples, root, options.Relation, options.GroupBy, options.Layers,
+			options.Edges, as, max, loss)
 	}
 	return drawTree(collapseEdges(triples, options.Relation), options.Relation, options.Roots, max, as)
 }

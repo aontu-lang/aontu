@@ -950,32 +950,40 @@ function drawLayer(triples, root, o, max, loss) {
         || (0, keyorder_1.cmpCodePoint)(node(a.to).label, node(b.to).label));
     let down = 0;
     let side = 0;
-    const upward = [];
-    for (const e of drawn) {
+    const classed = drawn.map((e) => {
         const fi = level.get(node(e.from).group);
         const ti = level.get(node(e.to).group);
         if (fi < ti) {
             down++;
+            return { edge: e, way: 'downward' };
         }
-        else if (fi === ti) {
+        if (fi === ti) {
             side++;
+            return { edge: e, way: 'sideways' };
         }
-        else {
-            upward.push(e);
-        }
-    }
+        return { edge: e, way: 'upward' };
+    });
+    const upward = classed.filter((c) => 'upward' === c.way).length;
+    // WHICH EDGES ARE SHOWN. Mermaid lays edges out itself and drew every
+    // one before this option existed; the fixed grids drew the upward
+    // ones, which are the violations the bands cannot show on their own.
+    const edges = o.edges ?? ('mermaid' === o.as ? 'all' : 'upward');
+    const shown = 'all' === edges ? classed
+        : 'none' === edges ? []
+            : classed.filter((c) => 'upward' === c.way);
     // A document with no edges has no relation to count under; the
     // footer names the absence as the panels do.
     const footer = [`# ${'' === relation ? '-' : relation}: ${down} downward, ` +
-            `${side} sideways, ${upward.length} upward`];
-    for (const e of upward) {
-        footer.push(`# upward: ${node(e.from).label} -> ${node(e.to).label}`);
+            `${side} sideways, ${upward} upward`];
+    for (const c of shown) {
+        footer.push(`# ${c.way}: ${node(c.edge.from).label} -> ` +
+            `${node(c.edge.to).label}`);
     }
     const out = [];
     if ('svg' === o.as) {
         return {
-            text: layerSvg(bands, upward, footer, `Architecture layers${over(relation)}: ${bands.length} bands, ` +
-                `${upward.length} upward edges`),
+            text: layerSvg(bands, shown, footer, `Architecture layers${over(relation)}: ${bands.length} bands, ` +
+                `${upward} upward edges`),
         };
     }
     if ('text' === o.as) {
@@ -999,19 +1007,23 @@ function drawLayer(triples, root, o, max, loss) {
             }
             out.push('  end');
         });
-        for (const e of drawn) {
-            out.push(upward.includes(e)
-                ? `  ${node(e.from).id} -.->|"upward"| ${node(e.to).id}`
-                : `  ${node(e.from).id} --> ${node(e.to).id}`);
+        for (const c of shown) {
+            out.push('upward' === c.way
+                ? `  ${node(c.edge.from).id} -.->|"upward"| ${node(c.edge.to).id}`
+                : `  ${node(c.edge.from).id} --> ${node(c.edge.to).id}`);
         }
     }
     return { text: out.join('\n') };
 }
 // The layers as SVG: one band per row, its modules as boxes laid left
-// to right, and every UPWARD edge drawn as a dashed arrow from its
-// module up to the one it names -- the violation, and nothing else,
-// because the bands already say which way the rest of the edges go.
-function layerSvg(bands, upward, footer, about) {
+// to right, and every SHOWN edge drawn between them -- an upward one
+// dashed and alert-coloured, because it is the violation the bands
+// cannot show on their own; a downward one straight down from the
+// bottom of its box to the top of the one it names; a sideways one
+// dipped below the boxes, since two modules of one band sit on the
+// same line and a straight edge between them would cross whatever
+// stands between.
+function layerSvg(bands, shown, footer, about) {
     const BH = 44;
     const gutter = widest(bands.map((b) => b.name)) * CH + 16;
     const box = new Map();
@@ -1040,16 +1052,35 @@ function layerSvg(bands, upward, footer, about) {
             parts.push(svgText(at.x + 6, at.y + 16, 'av-t', n.label));
         }
     });
-    if (0 < upward.length) {
-        parts.push('<defs><marker id="av-arrow" viewBox="0 0 8 8" refX="8" refY="4" ' +
+    if (0 < shown.length) {
+        parts.push('<defs>' +
+            '<marker id="av-arrow" viewBox="0 0 8 8" refX="8" refY="4" ' +
             'markerWidth="8" markerHeight="8" orient="auto">' +
-            '<path d="M0 0L8 4L0 8Z" fill="var(--av-alert,#d1242f)"/></marker></defs>');
+            '<path d="M0 0L8 4L0 8Z" fill="var(--av-alert,#d1242f)"/></marker>' +
+            '<marker id="av-tip" viewBox="0 0 8 8" refX="8" refY="4" ' +
+            'markerWidth="8" markerHeight="8" orient="auto">' +
+            '<path d="M0 0L8 4L0 8Z" fill="var(--av-rule,#8c959f)"/></marker>' +
+            '</defs>');
     }
-    for (const e of upward) {
-        const from = box.get(e.from);
-        const to = box.get(e.to);
-        parts.push(`<path d="M${from.x + from.w / 2} ${from.y}L${to.x + to.w / 2} ` +
-            `${to.y + 24}" class="av-up" marker-end="url(#av-arrow)"/>`);
+    for (const c of shown) {
+        const from = box.get(c.edge.from);
+        const to = box.get(c.edge.to);
+        const fx = from.x + Math.floor(from.w / 2);
+        const tx = to.x + Math.floor(to.w / 2);
+        if ('upward' === c.way) {
+            parts.push(`<path d="M${fx} ${from.y}L${tx} ${to.y + 24}" ` +
+                'class="av-up" marker-end="url(#av-arrow)"/>');
+        }
+        else if ('downward' === c.way) {
+            parts.push(`<path d="M${fx} ${from.y + 24}L${tx} ${to.y}" ` +
+                'class="av-line" marker-end="url(#av-tip)"/>');
+        }
+        else {
+            // Below the boxes and back up, staying inside the band.
+            const y = from.y + 24;
+            parts.push(`<path d="M${fx} ${y}V${y + 6}H${tx}V${y}" ` +
+                'class="av-line" marker-end="url(#av-tip)"/>');
+        }
     }
     const y1 = 4 + bands.length * BH + 4;
     footer.forEach((f, i) => {
@@ -1682,7 +1713,10 @@ function drawLoaded(root, ctx, gen, prov, kind, as, options, max, loss) {
         }, max, loss);
     }
     if ('layer' === kind) {
-        return drawLayer(triples, root, { relation, groupBy: options.groupBy, layers: options.layers ?? [], as }, max, loss);
+        return drawLayer(triples, root, {
+            relation, groupBy: options.groupBy, layers: options.layers ?? [],
+            edges: options.edges, as,
+        }, max, loss);
     }
     return drawTree(collapse(triples, relation), relation, options.roots ?? [], max, as);
 }
@@ -1705,8 +1739,15 @@ function viewTree(src, opts) {
 // rather than inheriting a default from whoever ran the verb.
 const DECL_TEXT = [
     'kind', 'as', 'out', 'at', 'relation', 'order', 'groupBy', 'label',
-    'sets', 'member', 'universe',
+    'sets', 'member', 'universe', 'edges',
 ];
+// The options whose values are a closed set. A view document is the
+// artifact CI reads, so a typo here is a refusal rather than a silent
+// fall back to the default.
+const DECL_ENUM = {
+    order: ['canon', 'partition'],
+    edges: ['upward', 'all', 'none'],
+};
 const DECL_COUNT = ['maxRows', 'maxCols', 'minDegree', 'minSize'];
 const DECL_FLAG = ['closure'];
 const DECL_LIST = ['roots', 'relations', 'layers'];
@@ -1754,6 +1795,12 @@ function planOf(name, decl, at) {
         }
         else {
             errors.push(documentFinding(`${where}.${key}`, `${key} is not a view option.`, 'options: ' + DECL_KEYS.join(', ')));
+        }
+    }
+    for (const key of Object.keys(DECL_ENUM)) {
+        const value = opts[key];
+        if (undefined !== value && !DECL_ENUM[key].includes(value)) {
+            errors.push(documentFinding(`${where}.${key}`, `${value} is not a ${key}.`, `${key}: ${DECL_ENUM[key].join(', ')}`));
         }
     }
     const kind = opts.kind;

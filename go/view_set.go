@@ -51,7 +51,18 @@ type ViewSetReport struct {
 // the dashes: one vocabulary, three doors.
 var declText = []string{
 	"kind", "as", "out", "at", "relation", "order", "groupBy", "label",
-	"sets", "member", "universe",
+	"sets", "member", "universe", "edges",
+}
+
+// The options whose values are a closed set. A view document is the
+// artifact CI reads, so a typo here is a refusal rather than a silent
+// fall back to the default.
+var declEnum = []struct {
+	key    string
+	values []string
+}{
+	{"order", []string{"canon", "partition"}},
+	{"edges", []string{"upward", "all", "none"}},
 }
 
 var declCount = []string{"maxRows", "maxCols", "minDegree", "minSize"}
@@ -151,6 +162,8 @@ func viewPlanOf(name string, decl any, at string) (*viewPlan, []VetFinding) {
 				opts.Member = text
 			case "universe":
 				opts.Universe = text
+			case "edges":
+				opts.Edges = text
 			}
 		} else if contains(declCount, key) {
 			n, valid := viewCount(value)
@@ -196,6 +209,17 @@ func viewPlanOf(name string, decl any, at string) (*viewPlan, []VetFinding) {
 		} else {
 			errs = append(errs, viewDocumentFinding(where+"."+key,
 				key+" is not a view option.", "options: "+declKeys()))
+		}
+	}
+
+	for _, e := range declEnum {
+		value := opts.Order
+		if "edges" == e.key {
+			value = opts.Edges
+		}
+		if "" != value && !contains(e.values, value) {
+			errs = append(errs, viewDocumentFinding(where+"."+e.key,
+				value+" is not a "+e.key+".", e.key+": "+strings.Join(e.values, ", ")))
 		}
 	}
 

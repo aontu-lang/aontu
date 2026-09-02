@@ -1507,6 +1507,7 @@ describe('cli-subsume', () => {
       [['tree', '--as', 'png', file], /--as needs one of text, mermaid, dot, er, svg/],
       [['tree', '--as', 'dot', file], /view_profile_unknown/],
       [['matrix', '--order', 'random', file], /--order needs canon or partition/],
+      [['layer', '--edges', 'sideways', file], /--edges needs one of upward, all, none/],
       [['poset', '--profile', 'loose', file], /--profile needs values, defaults or gen/],
       [['tree', '--relation', 'a', '--relation', 'b', file], /view tree takes one --relation/],
       [['tree', '--check', file], /--check needs --out/],

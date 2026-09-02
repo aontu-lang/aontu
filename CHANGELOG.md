@@ -7,6 +7,24 @@ which implementation each change affects.
 
 ## Unreleased
 
+### `aontu view layer --edges`: the depends relation over the bands
+
+Both ports. **New option.** The layer figure drew the upward edges
+alone -- the violations the bands cannot show on their own -- and now
+`--edges upward|all|none` chooses. `all` draws the relation itself,
+which is what a reader tracing one module's dependencies wants: in SVG
+a downward edge runs from the bottom of its box to the top of the one
+it names, a sideways edge dips below the boxes of its band, and an
+upward one stays dashed and alert-coloured. `none` leaves the bands
+alone. The default is what each profile drew before: `upward` for the
+fixed grids (`text`, `svg`) and `all` for `mermaid`, which lays edges
+out itself, so no committed figure moves. The text footer names every
+edge the option shows, labelled by its direction. A view document
+takes `edges` like any other option, and its enumerated values -- like
+`order`'s -- are checked there rather than silently falling back.
+`use-cases/16-module-deps` commits the drawn-edges figure as
+`expected/diagram-layer-edges.svg`.
+
 ### `aontu view --views`: the figures a document declares
 
 Both ports. **New surface.** A projection that runs in CI belongs in a
