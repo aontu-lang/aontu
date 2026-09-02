@@ -1,0 +1,185 @@
+{
+  "information_for_contributors": [
+    "Aontu — published grammar (TextMate), for SYNTAX HIGHLIGHTING.",
+    "",
+    "The third consumer of the published surface, beside grammar/aontu.gbnf",
+    "and grammar/aontu.lark: those two constrain a decoder, this one colours",
+    "a reader. One file serves every TextMate host — the VS Code extension",
+    "(editors/vscode), Shiki on aontu.dev, and GitHub's Linguist if and when",
+    "`.aon` clears its usage bar — so a scope added here reaches all of them.",
+    "",
+    "It is a HIGHLIGHTER, not a parser: it accepts more than the language",
+    "does, and is meant to. A file mid-edit must still colour, so nothing",
+    "here refuses. What it must never do is colour a spelling the engine",
+    "rejects AS THOUGH it were valid, which is why the builtin list below is",
+    "the engine's own set and not a hand-picked sample of it.",
+    "",
+    "THE BUILTIN LIST IS A COPY, AND A COPY DRIFTS. aontu.lark carried",
+    "`same` — never a builtin — and was missing `acyclic`, `inverse` and",
+    "`rel` for two releases, with every test green. So the same guard the",
+    "other two grammars have covers this file: ts/test/grammar.test.ts,",
+    "`the-textmate-grammar-names-exactly-the-engine-builtins`, asserts this",
+    "list against BUILTIN_FUNCS in BOTH directions. Add a builtin to the",
+    "engine without adding it here and that test fails.",
+    "",
+    "No `|>`: ADR-018 removed the pipe from the language. (aontu.lark and",
+    "aontu.gbnf still carry it — that is a defect in those two files, not a",
+    "surface this one should reproduce.)"
+  ],
+  "name": "aontu",
+  "displayName": "Aontu",
+  "scopeName": "source.aontu",
+  "aliases": ["aon"],
+  "fileTypes": ["aon", "aontu"],
+  "patterns": [
+    { "include": "#comment" },
+    { "include": "#include-directive" },
+    { "include": "#key" },
+    { "include": "#string" },
+    { "include": "#spread" },
+    { "include": "#builtin" },
+    { "include": "#kind" },
+    { "include": "#constant" },
+    { "include": "#reference" },
+    { "include": "#number" },
+    { "include": "#operator" },
+    { "include": "#punctuation" }
+  ],
+  "repository": {
+    "comment": {
+      "name": "comment.line.number-sign.aontu",
+      "match": "#.*$"
+    },
+
+    "include-directive": {
+      "comment": "@\"path\" pulls in another source. The engine's only import.",
+      "match": "(@)(?=\\s*\")",
+      "captures": {
+        "1": { "name": "keyword.control.import.aontu" }
+      }
+    },
+
+    "key": {
+      "comment": "A map entry's key, bare or quoted, with the optional marker. Listed BEFORE #string so a quoted key does not read as a string, and before #kind so `string: 1` colours `string` as the key it is. Chained keys (`a: b: c: 1`) each match in turn.",
+      "patterns": [
+        {
+          "match": "(\"(?:[^\"\\\\]|\\\\.)*\")\\s*(\\?)?(?=\\s*:)",
+          "captures": {
+            "1": { "name": "entity.name.tag.quoted.aontu" },
+            "2": { "name": "keyword.operator.optional.aontu" }
+          }
+        },
+        {
+          "comment": "No `-`: not a bare-text character (test/spec/op-chars.tsv).",
+          "match": "([A-Za-z_][A-Za-z0-9_]*)\\s*(\\?)?(?=\\s*:)",
+          "captures": {
+            "1": { "name": "entity.name.tag.aontu" },
+            "2": { "name": "keyword.operator.optional.aontu" }
+          }
+        }
+      ]
+    },
+
+    "string": {
+      "name": "string.quoted.double.aontu",
+      "begin": "\"",
+      "beginCaptures": {
+        "0": { "name": "punctuation.definition.string.begin.aontu" }
+      },
+      "end": "\"",
+      "endCaptures": {
+        "0": { "name": "punctuation.definition.string.end.aontu" }
+      },
+      "patterns": [
+        {
+          "name": "constant.character.escape.aontu",
+          "match": "\\\\([\"\\\\/bfnrt]|u[0-9a-fA-F]{4})"
+        },
+        {
+          "name": "invalid.illegal.unknown-escape.aontu",
+          "match": "\\\\."
+        }
+      ]
+    },
+
+    "spread": {
+      "comment": "`&: value` — the map-wide template, distinct from `&` the conjunct.",
+      "match": "(&)(?=\\s*:)",
+      "captures": {
+        "1": { "name": "keyword.control.spread.aontu" }
+      }
+    },
+
+    "builtin": {
+      "comment": "The engine's function registry. `func: name \"(\" ...` in aontu.lark — only these names can be called, so a call to anything else is deliberately left uncoloured rather than dressed up as valid. The prefix family is spelled longest-first (refer|rel|rem|re) to keep the intent legible; the trailing \\b already makes the order immaterial, since a short alternative that swallowed the stem fails the boundary and backtracks.",
+      "match": "\\b(above|acyclic|add|below|close|copy|deprecate|div|each|filter|greatest|hide|inverse|join|key|least|length|list|lower|map|match|max|min|mod|move|mul|must|neq|open|pack|path|pick|pref|refer|rel|rem|re|sub|sum|super|type|unique|upper)\\b(?=\\s*\\()",
+      "captures": {
+        "1": { "name": "support.function.builtin.aontu" }
+      }
+    },
+
+    "kind": {
+      "comment": "Scalar kinds. `number` is the numeric supertype; the rest of the numerics are its leaves.",
+      "name": "support.type.builtin.aontu",
+      "match": "\\b(bigdecimal|biginteger|boolean|float|integer|nil|number|string|top)\\b"
+    },
+
+    "constant": {
+      "patterns": [
+        {
+          "name": "constant.language.aontu",
+          "match": "\\b(true|false|null)\\b"
+        },
+        {
+          "comment": "`_` is a literal of the language as of G8 phase 3, not text.",
+          "name": "constant.language.placeholder.aontu",
+          "match": "(?<![A-Za-z0-9_])_(?![A-Za-z0-9_])"
+        }
+      ]
+    },
+
+    "reference": {
+      "comment": "`$.a.b` resolves from the document root; `.a.b` names a sibling, resolved against the enclosing map. Canon emits the relative form wherever a spread template survives unresolved, so both are real. No conflict with a number: a numeric literal always starts with a digit or `-`, so it matches at an earlier offset and wins there.",
+      "patterns": [
+        {
+          "name": "variable.other.reference.absolute.aontu",
+          "match": "\\$(?:\\.[A-Za-z0-9_]+)*"
+        },
+        {
+          "name": "variable.other.reference.relative.aontu",
+          "match": "(?<![A-Za-z0-9_$.])(?:\\.[A-Za-z0-9_]+)+"
+        }
+      ]
+    },
+
+    "number": {
+      "patterns": [
+        {
+          "comment": "The exact decimal — `0d19.99`. MUST precede the ordinary number: both start at the same `0`, and at equal offsets the first listed pattern wins, so the other order colours the `0` alone and leaves `d19.99` bare.",
+          "name": "constant.numeric.exact.aontu",
+          "match": "-?\\b0d[0-9]+(\\.[0-9]+)?([eE][-+]?[0-9]+)?\\b"
+        },
+        {
+          "name": "constant.numeric.aontu",
+          "match": "-?\\b[0-9]+(\\.[0-9]+)?([eE][-+]?[0-9]+)?\\b"
+        }
+      ]
+    },
+
+    "operator": {
+      "comment": "`&` unify, `|` alternate, `*` prefer, `+` sum.",
+      "name": "keyword.operator.aontu",
+      "match": "[&|*+]"
+    },
+
+    "punctuation": {
+      "patterns": [
+        { "name": "punctuation.definition.map.aontu", "match": "[{}]" },
+        { "name": "punctuation.definition.list.aontu", "match": "[\\[\\]]" },
+        { "name": "punctuation.section.group.aontu", "match": "[()]" },
+        { "name": "punctuation.separator.key-value.aontu", "match": ":" },
+        { "name": "punctuation.separator.comma.aontu", "match": "," }
+      ]
+    }
+  }
+}

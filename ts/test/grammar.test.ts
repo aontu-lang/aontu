@@ -542,4 +542,60 @@ describe('grammar', () => {
     }
   })
 
+  // THE THIRD COPY OF THE BUILTIN SET, HELD THE SAME WAY.
+  //
+  // grammar/aontu.tmLanguage.json colours a reader rather than
+  // constraining a decoder, but its function list is the same
+  // hand-written copy of the same registry, and the copy in the lark
+  // file is exactly the one that drifted -- it carried `same`, and was
+  // missing `acyclic`, `inverse` and `rel` for two releases with every
+  // test in this file green. The failure mode here is the gentler one
+  // and still a lie: a highlighter that colours `same(x)` as a builtin
+  // tells the reader the engine accepts a call it refuses.
+  test('the-textmate-grammar-names-exactly-the-engine-builtins', () => {
+    const tm = JSON.parse(readText(GRAMMAR_DIR, 'aontu.tmLanguage.json'))
+    const match: string = tm.repository?.builtin?.match ?? ''
+    Assert.ok('' !== match, 'no builtin rule in aontu.tmLanguage.json')
+
+    // The alternation, and nothing around it. Anchored on the group the
+    // rule is BUILT from rather than on "every lowercase word in the
+    // regex", so the `\b`s and the `(?=\s*\()` lookahead cannot arrive
+    // here as builtin names -- the reason the other two slices in this
+    // file are guarded, reached by construction instead.
+    const group = /\\b\(([a-z|]+)\)\\b/.exec(match)
+    Assert.ok(null !== group,
+      'the builtin rule is no longer one \\b(a|b|c)\\b alternation -- ' +
+      'the names cannot be read out of it')
+    const named = new Set((group as RegExpExecArray)[1].split('|'))
+
+    const engine = new Set(BUILTIN_FUNCS)
+    for (const name of engine) {
+      Assert.ok(named.has(name),
+        `builtin missing from aontu.tmLanguage.json: ${name}`)
+    }
+    for (const name of named) {
+      Assert.ok(engine.has(name),
+        'aontu.tmLanguage.json names a function the engine does not ' +
+        `have: ${name}`)
+    }
+  })
+
+
+  // The extension ships a COPY, because a VS Code grammar path cannot
+  // leave the extension root (editors/vscode/scripts/sync-grammar.js).
+  // `npm run compile` regenerates it, but nothing forces that script to
+  // have been run before a commit, and a stale copy is invisible: the
+  // extension keeps working, just with the grammar of a month ago. So
+  // the two are compared here rather than the script trusted.
+  test('the-extension-copy-of-the-textmate-grammar-is-the-published-one', () => {
+    const published = readText(GRAMMAR_DIR, 'aontu.tmLanguage.json')
+    const shipped = readText(
+      __dirname, '..', '..', 'editors', 'vscode', 'syntaxes',
+      'aontu.tmLanguage.json')
+    Assert.equal(shipped, published,
+      'editors/vscode/syntaxes/aontu.tmLanguage.json has drifted from ' +
+      'grammar/aontu.tmLanguage.json -- run `npm run sync-grammar` in ' +
+      'editors/vscode')
+  })
+
 })
