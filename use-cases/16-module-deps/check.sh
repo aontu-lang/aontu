@@ -34,6 +34,12 @@ has() {
 # The tree is the engine's own verb. The goldens were pinned by the
 # reference script before the verb existed, and are unchanged: they are
 # the acceptance test for the port.
+hasnt() {
+  grep -qF -- "$3" "$WORK/$1.$2" \
+    && { cat "$WORK/$1.$2" >&2; fail "$1: $2 should not contain: $3"; }
+  return 0
+}
+
 view() {
   local name="$1"; shift
   $AONTU view "$@" >"$WORK/$name" \
@@ -165,12 +171,47 @@ view diagram-layer.txt layer --relation dependsOn --group-by layer \
   "$DIR/model.aon"
 view diagram-layer.svg layer --relation dependsOn --group-by layer \
   --as svg "$DIR/model.aon"
+# --edges all draws the relation OVER the bands: the same figure a
+# reader tracing one module's dependencies wants. The default draws
+# the upward edges alone, because those are the violations the bands
+# cannot show on their own.
+view diagram-layer-edges.svg layer --relation dependsOn --group-by layer \
+  --edges all --as svg "$DIR/model.aon"
+run edged 0 -- view layer --relation dependsOn --group-by layer \
+  --edges all "$DIR/model.aon"
+has edged out '# sideways: auth -> http'
+has edged out '# downward: cli -> billing'
+run bare 0 -- view layer --relation dependsOn --group-by layer \
+  --edges none --as mermaid "$DIR/model.aon"
+hasnt bare out ' --> '
 has_golden() { grep -qF -- "$2" "$DIR/expected/$1" || fail "$1 lacks: $2"; }
 has_golden diagram-layer.txt '# dependsOn: 19 downward, 2 sideways, 0 upward'
 run layered 0 -- view layer --relation dependsOn --group-by layer \
   --layers app,feature,core,util --as mermaid "$DIR/model.aon"
 has layered out 'subgraph g0["app"]'
 ok "the architecture layers draw: four bands, every edge downward or sideways"
+
+# 11c. THE VIEW DOCUMENT: every figure this case commits, declared as
+# data in `views.aon` beside the model rather than as seven shell
+# lines kept in step with it. One evaluation draws all seven, and
+# `--check` is the gate -- all or nothing, so a set whose fourth
+# figure refuses writes none of them. `views` is the document's own
+# key and `--views` says where to look (ADR-010).
+run views 0 -- view --views '$.views' --check "$DIR/views.aon"
+# The same declarations, DRAWN rather than gated: a copy of the
+# document in a scratch directory writes the same seven figures there,
+# because every `out` is resolved against the document's own directory.
+mkdir -p "$WORK/expected"
+sed 's|@"./model.aon"|@"'"$DIR"'/model.aon"|' "$DIR/views.aon" > "$WORK/draw.aon"
+$AONTU view --views '$.views' "$WORK/draw.aon" 2>/dev/null \
+  || fail "the view document did not draw"
+for figure in diagram-tree.txt diagram-tree.svg diagram-tree-billing.txt \
+  diagram-matrix.txt diagram-matrix.svg diagram-layer.txt diagram-layer.svg \
+  diagram-layer-edges.svg; do
+  diff -u "$DIR/expected/$figure" "$WORK/expected/$figure" \
+    || fail "the view document drew $figure differently"
+done
+ok "the view document draws and gates all eight figures in one run"
 
 # 12. THE RENDERER TERMINATES ON THE MODEL THE ENGINE REFUSES. The
 # cyclic document still evaluates -- the graph atoms' verdict lands at

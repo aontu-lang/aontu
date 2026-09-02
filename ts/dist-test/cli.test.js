@@ -1063,6 +1063,104 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
         const unreadable = vetCapture(() => Assert.equal((0, cli_1.runView)(['poset', file, Path.join(dir, 'nope.aon')]), 2));
         Assert.match(unreadable.err, /cannot read/);
     });
+    // THE VIEW DOCUMENT: N figures of one document, declared as data.
+    // What the declarations MEAN, and every refusal, is
+    // test/spec/views.tsv; this is the CLI around them -- where the files
+    // land, the gate, and the all-or-nothing rule.
+    (0, node_test_1.test)('view-document-draws-every-figure-it-declares', () => {
+        const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-vd-'));
+        Fs.writeFileSync(Path.join(dir, 'model.aon'), 'app: {layer: "app", dependsOn: [&: refer(), path($.core)]}\n' +
+            'core: {layer: "core"}\n');
+        const file = Path.join(dir, 'views.aon');
+        Fs.writeFileSync(file, '@"./model.aon"\nviews: {\n' +
+            '  tree: {kind: tree, out: "out/tree.txt"}\n' +
+            '  bands: {kind: layer, groupBy: layer, out: "out/bands.txt"}\n}\n');
+        Fs.mkdirSync(Path.join(dir, 'out'));
+        // EVERY FIGURE, AND THE FILES ARE THE DOCUMENT'S NEIGHBOURS: an
+        // `out` is resolved against the view document's own directory, so
+        // the gate passes from any working directory.
+        const drew = vetCapture(() => Assert.equal((0, cli_1.runView)(['--views', '$.views', '--trust', 'root', file]), 0));
+        Assert.equal(drew.out, '');
+        Assert.match(drew.err, /wrote out\/bands\.txt {2}bands \(layer\)/);
+        Assert.equal(Fs.readFileSync(Path.join(dir, 'out/tree.txt'), 'utf8'), 'app\n└── core\n');
+        // --check gates what was committed, and names every difference.
+        Assert.equal(vetCapture(() => Assert.equal((0, cli_1.runView)(['--views', '$.views', '--check', '--trust', 'root', file]), 0)).err, '');
+        Fs.writeFileSync(Path.join(dir, 'out/tree.txt'), 'drifted\n');
+        Fs.writeFileSync(Path.join(dir, 'out/bands.txt'), 'drifted\n');
+        const gate = vetCapture(() => Assert.equal((0, cli_1.runView)(['--views', '$.views', '--check', '--trust', 'root', file]), 1));
+        Assert.match(gate.err, /out\/tree\.txt differs from the tree figure/);
+        Assert.match(gate.err, /out\/bands\.txt differs from the bands figure/);
+        // A figure that was never committed is a mismatch, not a crash: the
+        // gate is what a first run of --out would have written.
+        Fs.rmSync(Path.join(dir, 'out/tree.txt'));
+        Assert.match(vetCapture(() => Assert.equal((0, cli_1.runView)(['--views', '$.views', '--check', '--trust', 'root', file]), 1)).err, /out\/tree\.txt differs from the tree figure/);
+        // The whole report, machine-readable.
+        const json = JSON.parse(vetCapture(() => Assert.equal((0, cli_1.runView)(['--views', '$.views', '--format', 'json', '--trust', 'root', file]), 0)).out);
+        Assert.equal(json.verdict, 'rendered');
+        Assert.deepEqual(json.views.map((v) => v.name), ['bands', 'tree']);
+        Assert.equal(json.views[1].out, 'out/tree.txt');
+        // ALL OR NOTHING: a set whose second figure refuses writes neither,
+        // and the refusal names the figure it came from.
+        const bad = Path.join(dir, 'bad.aon');
+        Fs.writeFileSync(bad, '@"./model.aon"\nviews: {\n' +
+            '  tree: {kind: tree, out: "out/nope.txt"}\n' +
+            '  small: {kind: tree, maxRows: 1, out: "out/small.txt"}\n}\n');
+        const refused = vetCapture(() => Assert.equal((0, cli_1.runView)(['--views', '$.views', '--trust', 'root', bad]), 2));
+        Assert.match(refused.err, /small \(tree\):/);
+        Assert.match(refused.err, /view_rows_exceeded/);
+        Assert.equal(Fs.existsSync(Path.join(dir, 'out/nope.txt')), false);
+        // A LOSSY set still writes -- the loss report says what it could
+        // not draw, and --strict is the gate on that.
+        const lossy = Path.join(dir, 'lossy.aon');
+        Fs.writeFileSync(lossy, 'a: hide({dependsOn: [&: refer(), path($.b)]})\nb: {}\n' +
+            'views: {t: {kind: tree, out: "out/lossy.txt"}}\n');
+        const loose = vetCapture(() => Assert.equal((0, cli_1.runView)(['--views', '$.views', lossy]), 0));
+        Assert.match(loose.err, /t {2}hidden_contribution {2}1/);
+        Assert.equal(vetCapture(() => Assert.equal((0, cli_1.runView)(['--views', '$.views', '--strict', lossy]), 1)).err.length > 0, true);
+        // THE MACHINE-READABLE FORM OF A REFUSAL: the figures that drew
+        // still carry their bytes, and the one that refused carries its
+        // findings, so a reader of the JSON sees what the run did.
+        const badJson = JSON.parse(vetCapture(() => Assert.equal((0, cli_1.runView)(['--views', '$.views', '--format', 'json', '--trust', 'root', bad]), 2)).out);
+        Assert.equal(badJson.verdict, 'error');
+        Assert.equal(badJson.views[1].name, 'tree');
+        Assert.equal(typeof badJson.views[1].text, 'string');
+        Assert.equal(badJson.views[0].errors[0].code, 'view_rows_exceeded');
+        // A declaration the document cannot answer for is the SET's
+        // refusal, and usage: nothing is drawn at all.
+        const shape = Path.join(dir, 'shape.aon');
+        Fs.writeFileSync(shape, 'views: {a: {kind: tree}}\n');
+        Assert.match(vetCapture(() => Assert.equal((0, cli_1.runView)(['--views', '$.views', shape]), 2)).err, /view_document_shape/);
+        const shapeJson = JSON.parse(vetCapture(() => Assert.equal((0, cli_1.runView)(['--views', '$.views', '--format', 'json', shape]), 2)).out);
+        Assert.deepEqual(shapeJson.views, []);
+        Assert.equal(shapeJson.errors[0].code, 'view_document_shape');
+        // A figure that refuses for the DOCUMENT's sake rather than the
+        // caller's exits 4, as a single figure does.
+        const unknown = Path.join(dir, 'unknown.aon');
+        Fs.writeFileSync(unknown, '@"./model.aon"\n' +
+            'views: {a: {kind: tree, relation: nope, out: "out/a.txt"}}\n');
+        Assert.match(vetCapture(() => Assert.equal((0, cli_1.runView)(['--views', '$.views', '--trust', 'root', unknown]), 4)).err, /view_relation_unknown/);
+    });
+    (0, node_test_1.test)('view-document-usage-errors', () => {
+        const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-vdu-'));
+        const file = Path.join(dir, 'views.aon');
+        Fs.writeFileSync(file, 'views: {a: {kind: tree, out: "a.txt"}}\n');
+        for (const [args, want] of [
+            [['--views', '$.views'], /view --views takes one file/],
+            [['--views', '$.views', file, file], /view --views takes one file/],
+            [['--views', '$.views', '--out', 'x.txt', file],
+                /--out is per figure in a view document/],
+            [['--views', '$.views', Path.join(dir, 'nope.aon')], /cannot read/],
+        ]) {
+            const got = vetCapture(() => Assert.equal((0, cli_1.runView)(args), 2));
+            Assert.match(got.err, want, args.join(' '));
+        }
+        // A DIRECTORY IS NOT A FILE: the write fails and says so, rather
+        // than leaving the set half-written.
+        const blocked = Path.join(dir, 'blocked.aon');
+        Fs.writeFileSync(blocked, 'views: {a: {kind: tree, out: "sub"}}\n');
+        Fs.mkdirSync(Path.join(dir, 'sub'));
+        Assert.match(vetCapture(() => Assert.equal((0, cli_1.runView)(['--views', '$.views', blocked]), 2)).err, /cannot write/);
+    });
     (0, node_test_1.test)('view-usage-errors', () => {
         const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-vu-'));
         const file = Path.join(dir, 'doc.aon');
@@ -1076,6 +1174,7 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
             [['tree', '--as', 'png', file], /--as needs one of text, mermaid, dot, er, svg/],
             [['tree', '--as', 'dot', file], /view_profile_unknown/],
             [['matrix', '--order', 'random', file], /--order needs canon or partition/],
+            [['layer', '--edges', 'sideways', file], /--edges needs one of upward, all, none/],
             [['poset', '--profile', 'loose', file], /--profile needs values, defaults or gen/],
             [['tree', '--relation', 'a', '--relation', 'b', file], /view tree takes one --relation/],
             [['tree', '--check', file], /--check needs --out/],

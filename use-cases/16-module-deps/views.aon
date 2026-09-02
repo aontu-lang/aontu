@@ -1,0 +1,90 @@
+# THE VIEW DOCUMENT (docs/design/VIEWS.0.md, "6. The view document").
+#
+# Every figure this case commits, declared as data beside the model
+# rather than as a shell line that has to be kept in step with it. One
+# evaluation draws all seven; `aontu view --views '$.views' --check
+# views.aon` is the gate, and it is all or nothing -- a set whose
+# fourth figure refuses writes none of them.
+#
+# `views` is this document's own key, not a name the engine knows
+# (ADR-010): `--views` says where to look. The declaration keys are the
+# view options, which are the CLI's flags without the dashes, and
+# `@"std/view"` is the schema for one.
+
+@"std/view"
+@"./model.aon"
+
+# `{&: $.view.Figure}` is std/view's schema for a declaration, spread
+# over every one of them: a misspelled option, a kind that is not a
+# kind, an order that is not an order is refused HERE, at evaluation,
+# rather than by the verb that reads this file afterwards.
+views: {&: $.view.Figure} & {
+
+  # The dependency tree: three derived roots, repeats marked.
+  tree: {
+    kind: tree
+    relation: dependsOn
+    out: "expected/diagram-tree.txt"
+  }
+  treeSvg: {
+    kind: tree
+    relation: dependsOn
+    as: svg
+    out: "expected/diagram-tree.svg"
+  }
+
+  # One module's own closure, from a named root.
+  treeBilling: {
+    kind: tree
+    relation: dependsOn
+    roots: ["$.mods.billing"]
+    out: "expected/diagram-tree-billing.txt"
+  }
+
+  # The dependency-structure matrix: in partition order an acyclic
+  # relation is a lower triangle, and the footer counts the cells
+  # above the diagonal.
+  matrix: {
+    kind: matrix
+    relation: dependsOn
+    order: partition
+    closure: true
+    out: "expected/diagram-matrix.txt"
+  }
+  matrixSvg: {
+    kind: matrix
+    relation: dependsOn
+    order: partition
+    closure: true
+    as: svg
+    out: "expected/diagram-matrix.svg"
+  }
+
+  # The architecture layers with the DEPENDS EDGES drawn over them:
+  # `--edges all` is the figure a reader tracing one module's
+  # dependencies wants, where the default draws only the upward ones
+  # because those are the violations the bands cannot show themselves.
+  layerEdges: {
+    kind: layer
+    relation: dependsOn
+    groupBy: layer
+    edges: all
+    as: svg
+    out: "expected/diagram-layer-edges.svg"
+  }
+
+  # The architecture layers, in the order the relation derives.
+  layer: {
+    kind: layer
+    relation: dependsOn
+    groupBy: layer
+    out: "expected/diagram-layer.txt"
+  }
+  layerSvg: {
+    kind: layer
+    relation: dependsOn
+    groupBy: layer
+    as: svg
+    out: "expected/diagram-layer.svg"
+  }
+}

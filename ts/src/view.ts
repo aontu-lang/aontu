@@ -45,7 +45,7 @@ import { failureFinding, anchorAt } from './vet'
 import type { VetFinding } from './vet'
 import type { TrustOptions } from './type'
 import { graphOf } from './graph'
-import type { Edge } from './graph'
+import type { Graph } from './graph'
 import { cmpCodePoint } from './keyorder'
 import { Provenance } from './provenance'
 import type { WhyConjunct } from './provenance'
@@ -64,6 +64,16 @@ export type ViewKind =
 export type ViewProfile = 'text' | 'mermaid' | 'dot' | 'er' | 'svg'
 
 export type ViewOrder = 'canon' | 'partition'
+
+// Which of the relation's edges the layer figure DRAWS. The bands
+// already say which way every edge goes, so the default shows the ones
+// that break the rule: `upward`. `all` draws the relation over the
+// bands -- what a reader tracing one module's dependencies wants --
+// and `none` leaves the bands alone. The default is `all` for a
+// profile that lays edges out itself (mermaid) and `upward` for the
+// fixed grids (text, svg), which is what each drew before the option
+// existed.
+export type ViewEdges = 'upward' | 'all' | 'none'
 
 // One row of the loss report.
 export type ViewLoss = {
@@ -98,6 +108,33 @@ export type ViewReport = {
   // ONLY on `error`.
   errors?: VetFinding[]
 }
+
+// One figure of a VIEW DOCUMENT: the declaration's key, what it drew,
+// and the file the author says it belongs in.
+export type ViewFigure = {
+  name: string
+  kind: ViewKind
+  // Where the declaration says to write it. The library never writes:
+  // the caller does, and only when every figure of the set rendered.
+  out: string
+  verdict: ViewVerdict
+  text?: string
+  loss: ViewLoss[]
+  errors?: VetFinding[]
+}
+
+
+// N figures of one document, one verdict. `error` if ANY figure
+// refused -- a set of figures of one model is only meaningful whole.
+export type ViewSetReport = {
+  verdict: ViewVerdict
+  views: ViewFigure[]
+  // WHY the set itself could not be read: the document does not stand
+  // up, or the declarations are not the shape a declaration has.
+  // A figure's own refusal rides on the figure.
+  errors?: VetFinding[]
+}
+
 
 export type ViewOptions = {
   // The figure to draw. Absent means `tree`.
@@ -143,6 +180,8 @@ export type ViewOptions = {
   // derived from the relation, which a model with an upward edge
   // cannot settle on its own.
   layers?: string[]
+  // layer: which edges to draw over the bands.
+  edges?: ViewEdges
   // graph: the node label is this field's value rather than the path.
   label?: string
 
@@ -163,6 +202,16 @@ export type ViewOptions = {
   // poset: the subsumption profile, and the further documents.
   profile?: SubsumeProfile
   docs?: ViewDoc[]
+
+  // The file the figure belongs in. THE LIBRARY NEVER WRITES: this is
+  // carried through to the caller, which does -- and, for a view
+  // document, only once every figure of the set rendered.
+  out?: string
+
+  // The VIEW DOCUMENT (VIEWS.0.md, "6. The view document"): the path of
+  // a map whose values declare figures. `viewSet` reads it; `view`
+  // ignores it, because one call draws one figure.
+  views?: string
 }
 
 
@@ -282,7 +331,8 @@ function under(path: string, at: string | undefined): boolean {
 // output". It is reported with its path instead, and `--strict`
 // refuses the figure.
 function triplesOf(
-  edges: Edge[], at: string | undefined, loss: ViewLoss[]): Triple[] {
+  graph: Graph, at: string | undefined, loss: ViewLoss[]): Triple[] {
+  const edges = graph.edges
   const hidden: string[] = []
   const seen = new Map<string, Triple>()
   let positions = 0
@@ -302,6 +352,16 @@ function triplesOf(
     loss.push({
       code: 'hidden_contribution', count: hidden.length,
       detail: hidden.sort(cmpCodePoint),
+    })
+  }
+  // A link under an UNRESOLVED DISJUNCTION is not an edge (ADR-007),
+  // and the figure says so rather than dropping it in silence: the
+  // document has not decided, and a drawing that quietly picked an arm
+  // would be inventing the decision.
+  const undecided = (graph.disjunct ?? []).filter((p) => under(p, at))
+  if (0 < undecided.length) {
+    loss.push({
+      code: 'edges_in_disjunct', count: undecided.length, detail: undecided,
     })
   }
   const out = [...seen.values()].sort((a, b) =>
@@ -1210,7 +1270,10 @@ type Band = { name: string, nodes: GNode[] }
 // the drawing exists to show, and is named under the figure.
 function drawLayer(
   triples: Triple[], root: any,
-  o: { relation?: string, groupBy?: string, layers: string[], as: ViewProfile },
+  o: {
+    relation?: string, groupBy?: string, layers: string[],
+    edges?: ViewEdges, as: ViewProfile,
+  },
   max: number, loss: ViewLoss[]
 ): Figure {
   if (undefined === o.groupBy) {
@@ -1294,34 +1357,50 @@ function drawLayer(
     || cmpCodePoint(node(a.to).label, node(b.to).label))
   let down = 0
   let side = 0
-  const upward: GEdge[] = []
-  for (const e of drawn) {
+  const classed: Drawing[] = drawn.map((e) => {
     const fi = level.get(node(e.from).group as string) as number
     const ti = level.get(node(e.to).group as string) as number
     if (fi < ti) {
       down++
+      return { edge: e, way: 'downward' }
     }
-    else if (fi === ti) {
+    if (fi === ti) {
       side++
+      return { edge: e, way: 'sideways' }
     }
-    else {
-      upward.push(e)
-    }
-  }
+    return { edge: e, way: 'upward' }
+  })
+  const upward = classed.filter((c) => 'upward' === c.way).length
+
+  // WHICH EDGES ARE SHOWN. Mermaid lays edges out itself and drew every
+  // one before this option existed; the fixed grids drew the upward
+  // ones, which are the violations the bands cannot show on their own.
+  const edges = o.edges ?? ('mermaid' === o.as ? 'all' : 'upward')
+  const shown = 'all' === edges ? classed
+    : 'none' === edges ? []
+      : classed.filter((c) => 'upward' === c.way)
 
   // A document with no edges has no relation to count under; the
   // footer names the absence as the panels do.
   const footer = [`# ${'' === relation ? '-' : relation}: ${down} downward, ` +
-    `${side} sideways, ${upward.length} upward`]
-  for (const e of upward) {
-    footer.push(`# upward: ${node(e.from).label} -> ${node(e.to).label}`)
+    `${side} sideways, ${upward} upward`]
+  for (const c of shown) {
+    footer.push(`# ${c.way}: ${node(c.edge.from).label} -> ` +
+      `${node(c.edge.to).label}`)
   }
   const out: string[] = []
   if ('svg' === o.as) {
+    // The description says WHAT WAS DRAWN, because two layer figures of
+    // one model on one page differ by exactly that, and a reader who
+    // cannot see them has only this to tell them apart.
+    const drew = 'all' === edges
+      ? `${shown.length} edges drawn, ${upward} of them upward`
+      : 'none' === edges
+        ? `${upward} upward edges, none drawn`
+        : `${upward} upward edges`
     return {
-      text: layerSvg(bands, upward, footer,
-        `Architecture layers${over(relation)}: ${bands.length} bands, ` +
-        `${upward.length} upward edges`),
+      text: layerSvg(bands, shown, footer,
+        `Architecture layers${over(relation)}: ${bands.length} bands, ${drew}`),
     }
   }
   if ('text' === o.as) {
@@ -1346,21 +1425,30 @@ function drawLayer(
       }
       out.push('  end')
     })
-    for (const e of drawn) {
-      out.push(upward.includes(e)
-        ? `  ${node(e.from).id} -.->|"upward"| ${node(e.to).id}`
-        : `  ${node(e.from).id} --> ${node(e.to).id}`)
+    for (const c of shown) {
+      out.push('upward' === c.way
+        ? `  ${node(c.edge.from).id} -.->|"upward"| ${node(c.edge.to).id}`
+        : `  ${node(c.edge.from).id} --> ${node(c.edge.to).id}`)
     }
   }
   return { text: out.join('\n') }
 }
 
+// One drawn edge of the layer figure, and which way it goes between
+// the bands.
+type Drawing = { edge: GEdge, way: 'downward' | 'sideways' | 'upward' }
+
+
 // The layers as SVG: one band per row, its modules as boxes laid left
-// to right, and every UPWARD edge drawn as a dashed arrow from its
-// module up to the one it names -- the violation, and nothing else,
-// because the bands already say which way the rest of the edges go.
+// to right, and every SHOWN edge drawn between them -- an upward one
+// dashed and alert-coloured, because it is the violation the bands
+// cannot show on their own; a downward one straight down from the
+// bottom of its box to the top of the one it names; a sideways one
+// dipped below the boxes, since two modules of one band sit on the
+// same line and a straight edge between them would cross whatever
+// stands between.
 function layerSvg(
-  bands: Band[], upward: GEdge[], footer: string[], about: string
+  bands: Band[], shown: Drawing[], footer: string[], about: string
 ): string {
   const BH = 44
   const gutter = widest(bands.map((b) => b.name)) * CH + 16
@@ -1390,16 +1478,35 @@ function layerSvg(
       parts.push(svgText(at.x + 6, at.y + 16, 'av-t', n.label))
     }
   })
-  if (0 < upward.length) {
-    parts.push('<defs><marker id="av-arrow" viewBox="0 0 8 8" refX="8" refY="4" ' +
+  if (0 < shown.length) {
+    parts.push('<defs>' +
+      '<marker id="av-arrow" viewBox="0 0 8 8" refX="8" refY="4" ' +
       'markerWidth="8" markerHeight="8" orient="auto">' +
-      '<path d="M0 0L8 4L0 8Z" fill="var(--av-alert,#d1242f)"/></marker></defs>')
+      '<path d="M0 0L8 4L0 8Z" fill="var(--av-alert,#d1242f)"/></marker>' +
+      '<marker id="av-tip" viewBox="0 0 8 8" refX="8" refY="4" ' +
+      'markerWidth="8" markerHeight="8" orient="auto">' +
+      '<path d="M0 0L8 4L0 8Z" fill="var(--av-rule,#8c959f)"/></marker>' +
+      '</defs>')
   }
-  for (const e of upward) {
-    const from = box.get(e.from) as { x: number, y: number, w: number }
-    const to = box.get(e.to) as { x: number, y: number, w: number }
-    parts.push(`<path d="M${from.x + from.w / 2} ${from.y}L${to.x + to.w / 2} ` +
-      `${to.y + 24}" class="av-up" marker-end="url(#av-arrow)"/>`)
+  for (const c of shown) {
+    const from = box.get(c.edge.from) as { x: number, y: number, w: number }
+    const to = box.get(c.edge.to) as { x: number, y: number, w: number }
+    const fx = from.x + Math.floor(from.w / 2)
+    const tx = to.x + Math.floor(to.w / 2)
+    if ('upward' === c.way) {
+      parts.push(`<path d="M${fx} ${from.y}L${tx} ${to.y + 24}" ` +
+        'class="av-up" marker-end="url(#av-arrow)"/>')
+    }
+    else if ('downward' === c.way) {
+      parts.push(`<path d="M${fx} ${from.y + 24}L${tx} ${to.y}" ` +
+        'class="av-line" marker-end="url(#av-tip)"/>')
+    }
+    else {
+      // Below the boxes and back up, staying inside the band.
+      const y = from.y + 24
+      parts.push(`<path d="M${fx} ${y}V${y + 6}H${tx}V${y}" ` +
+        'class="av-line" marker-end="url(#av-tip)"/>')
+    }
   }
   const y1 = 4 + bands.length * BH + 4
   footer.forEach((f, i) => {
@@ -2124,66 +2231,333 @@ export function view(
   if (undefined !== loaded.errors) {
     return done({ errors: loaded.errors })
   }
-  const root = loaded.root
-  const ctx = loaded.ctx
+  return done(drawLoaded(loaded.root, loaded.ctx, undefined, prov,
+    kind, as, options, max, loss))
+}
 
+
+// THE KINDS THAT DRAW FROM A LOADED MODEL, so a view document can load
+// once and draw N figures from the one evaluation. `gen` is the
+// generated value where the caller already holds it -- a view document
+// reads its own declarations out of one -- and undefined where the set
+// panel must generate its own. It is a BOX rather than the value, so
+// that a document generating `undefined` is still a value the panel
+// has rather than one it must recompute.
+function drawLoaded(
+  root: any, ctx: any, gen: { value: any } | undefined,
+  prov: Provenance | undefined,
+  kind: ViewKind, as: ViewProfile, options: ViewOptions,
+  max: number, loss: ViewLoss[]
+): Figure {
   if ('layers' === kind) {
-    return done(drawLayers(prov as Provenance, root, options.path,
-      { ...options, as }, max, loss))
+    return drawLayers(prov as Provenance, root, options.path,
+      { ...options, as }, max, loss)
   }
   if ('sets' === kind) {
     if (undefined === options.sets || undefined === options.member) {
-      return done({
+      return {
         errors: [finding('view_sets_required', 'reference', '$',
           'The set panel needs --sets and --member.')],
-      })
+      }
     }
-    // GENERATION CAN FAIL WHERE UNIFICATION DID NOT: the panel reads
-    // generated values, so a document that is not concrete is an
-    // error here, exactly as `aontu file.aon` on it is.
-    const before = ctx.err.length
-    const gen = root.gen(ctx)
-    if (before < ctx.err.length) {
-      const err: any = ctx.err[before]
-      return done({
-        errors: [finding(err?.why ?? 'unify_failed', 'reference', '$',
-          err?.msg ?? 'The document does not generate.')],
-      })
+    let value = gen?.value
+    if (undefined === gen) {
+      // GENERATION CAN FAIL WHERE UNIFICATION DID NOT: the panel reads
+      // generated values, so a document that is not concrete is an
+      // error here, exactly as `aontu file.aon` on it is.
+      const before = ctx.err.length
+      value = root.gen(ctx)
+      if (before < ctx.err.length) {
+        const err: any = ctx.err[before]
+        return {
+          errors: [finding(err?.why ?? 'unify_failed', 'reference', '$',
+            err?.msg ?? 'The document does not generate.')],
+        }
+      }
     }
-    return done(drawSets(gen, {
+    return drawSets(value, {
       sets: options.sets, member: options.member, universe: options.universe,
       minDegree: options.minDegree, maxCols: options.maxCols, as,
-    }, max, loss))
+    }, max, loss)
   }
 
-  const triples = triplesOf(graphOf(root).edges, options.at, loss)
+  const triples = triplesOf(graphOf(root), options.at, loss)
   const decls: RelDecls = ctx._reldecls
   // An empty relation name is no relation, so both ports read it as
   // "every relation" rather than one that names nothing.
   const relation = options.relation || undefined
   if ('matrix' === kind) {
-    return done(drawMatrix(triples, decls, {
+    return drawMatrix(triples, decls, {
       relation, order: options.order ?? 'canon', closure: true === options.closure,
       as,
-    }, max, loss))
+    }, max, loss)
   }
   if ('graph' === kind) {
-    return done(drawGraph(triples, decls, root, {
+    return drawGraph(triples, decls, root, {
       relations: options.relations ?? [], groupBy: options.groupBy,
       label: options.label, as,
-    }, max, loss))
+    }, max, loss)
   }
   if ('layer' === kind) {
-    return done(drawLayer(triples, root,
-      { relation, groupBy: options.groupBy, layers: options.layers ?? [], as },
-      max, loss))
+    return drawLayer(triples, root, {
+      relation, groupBy: options.groupBy, layers: options.layers ?? [],
+      edges: options.edges, as,
+    }, max, loss)
   }
-  return done(drawTree(
-    collapse(triples, relation), relation, options.roots ?? [], max, as))
+  return drawTree(
+    collapse(triples, relation), relation, options.roots ?? [], max, as)
 }
 
 
 // The tree view of one document: `view` with the kind fixed.
 export function viewTree(src: string, opts?: ViewOptions): ViewReport {
   return view(src, { ...(opts ?? {}), kind: 'tree' })
+}
+
+
+// ---------------------------------------------------------------------
+// The view document (VIEWS.0.md, "6. The view document")
+//
+// A projection that runs in CI belongs in a file. A view document is an
+// ORDINARY document that includes the model and declares its figures as
+// data; `views` is the AUTHOR's key and nothing here knows the name
+// (ADR-010), which is why `--views` names the path.
+//
+// The declaration keys ARE the library's option names, which are the
+// CLI's flag names without the dashes: one vocabulary, three doors. A
+// declaration must name its `kind` and its `out` -- a figure in a file
+// that a review reads should say what it draws and where it goes,
+// rather than inheriting a default from whoever ran the verb.
+
+const DECL_TEXT = [
+  'kind', 'as', 'out', 'at', 'relation', 'order', 'groupBy', 'label',
+  'sets', 'member', 'universe', 'edges',
+]
+
+// The options whose values are a closed set. A view document is the
+// artifact CI reads, so a typo here is a refusal rather than a silent
+// fall back to the default.
+const DECL_ENUM: Record<string, string[]> = {
+  order: ['canon', 'partition'],
+  edges: ['upward', 'all', 'none'],
+}
+const DECL_COUNT = ['maxRows', 'maxCols', 'minDegree', 'minSize']
+const DECL_FLAG = ['closure']
+const DECL_LIST = ['roots', 'relations', 'layers']
+
+const DECL_KEYS = [...DECL_TEXT, ...DECL_COUNT, ...DECL_FLAG, ...DECL_LIST]
+  .sort(cmpCodePoint)
+
+
+function documentFinding(path: string, message: string, note?: string): VetFinding {
+  return finding('view_document_shape', 'reference', path, message, note)
+}
+
+
+// One validated declaration: everything the drawing needs, decided
+// before any figure is drawn, so a document with three bad
+// declarations reports three faults rather than the first.
+type Plan = {
+  name: string
+  kind: ViewKind
+  as: ViewProfile
+  out: string
+  max: number
+  opts: ViewOptions
+}
+
+
+function planOf(name: string, decl: any, at: string): {
+  plan?: Plan, errors: VetFinding[]
+} {
+  const where = `${at}.${name}`
+  const errors: VetFinding[] = []
+  if (null == decl || 'object' !== typeof decl || Array.isArray(decl)) {
+    return { errors: [documentFinding(where, 'A view declaration is not a map.')] }
+  }
+  const opts: ViewOptions = {}
+  for (const key of Object.keys(decl).sort(cmpCodePoint)) {
+    const value = decl[key]
+    if (DECL_TEXT.includes(key)) {
+      if ('string' !== typeof value) {
+        errors.push(documentFinding(`${where}.${key}`, `${key} must be a string.`))
+        continue
+      }
+      (opts as any)[key] = value
+    }
+    else if (DECL_COUNT.includes(key)) {
+      if ('number' !== typeof value || !Number.isInteger(value) || 0 > value) {
+        errors.push(documentFinding(`${where}.${key}`,
+          `${key} must be a whole number, zero or more.`))
+        continue
+      }
+      (opts as any)[key] = value
+    }
+    else if (DECL_FLAG.includes(key)) {
+      if ('boolean' !== typeof value) {
+        errors.push(documentFinding(`${where}.${key}`, `${key} must be true or false.`))
+        continue
+      }
+      (opts as any)[key] = value
+    }
+    else if (DECL_LIST.includes(key)) {
+      if (!Array.isArray(value) || !allStrings(value)) {
+        errors.push(documentFinding(`${where}.${key}`,
+          `${key} must be a list of strings.`))
+        continue
+      }
+      (opts as any)[key] = value
+    }
+    else {
+      errors.push(documentFinding(`${where}.${key}`,
+        `${key} is not a view option.`, 'options: ' + DECL_KEYS.join(', ')))
+    }
+  }
+
+  for (const key of Object.keys(DECL_ENUM)) {
+    const value = (opts as any)[key]
+    if (undefined !== value && !DECL_ENUM[key].includes(value)) {
+      errors.push(documentFinding(`${where}.${key}`,
+        `${value} is not a ${key}.`, `${key}: ${DECL_ENUM[key].join(', ')}`))
+    }
+  }
+
+  const kind = opts.kind
+  if (undefined === kind) {
+    errors.push(documentFinding(where, 'A view declaration must name its kind.',
+      'kinds: ' + Object.keys(PROFILES).join(', ')))
+  }
+  else if (undefined === PROFILES[kind]) {
+    errors.push(documentFinding(`${where}.kind`, `${kind} is not a figure kind.`,
+      'kinds: ' + Object.keys(PROFILES).join(', ')))
+  }
+  else if ('poset' === kind) {
+    // The poset is an order over SEVERAL documents, and a view document
+    // declares figures of the one it includes. `aontu view poset` draws
+    // it, naming the documents on the command line.
+    errors.push(documentFinding(`${where}.kind`,
+      'A view document draws figures of one document; ' +
+      'the poset compares several.'))
+  }
+  const profiles = undefined === kind ? undefined : PROFILES[kind]
+  const as = opts.as ?? profiles?.[0]
+  if (undefined !== profiles && undefined !== as && !profiles.includes(as)) {
+    errors.push(documentFinding(`${where}.as`,
+      `The ${kind} figure does not render as ${as}.`,
+      `profiles: ${profiles.join(', ')}`))
+  }
+  const out = opts.out
+  if (undefined === out || '' === out) {
+    errors.push(documentFinding(where,
+      'A view declaration must name the file it draws into, as out.'))
+  }
+  else if (hasLineBreak(out)) {
+    errors.push(documentFinding(`${where}.out`,
+      'A file name cannot hold a line terminator.'))
+  }
+  if (0 < errors.length) {
+    return { errors }
+  }
+  return {
+    plan: {
+      name, kind: kind as ViewKind, as: as as ViewProfile, out: out as string,
+      max: opts.maxRows || DEFAULT_MAX_ROWS, opts,
+    },
+    errors: [],
+  }
+}
+
+
+// N FIGURES OF ONE DOCUMENT. The document is evaluated ONCE, with the
+// provenance recorder on, and every figure but the ladder draws from
+// that one root; the ladder re-runs `why` by construction.
+//
+// The caller writes the files, and only when the whole set rendered:
+// N figures of one model are only meaningful together, so a set whose
+// third figure refuses must not leave the first two on disk.
+export function viewSet(
+  src: string, opts?: ViewOptions, hooks?: ViewHooks
+): ViewSetReport {
+  const options = opts ?? {}
+  const at = options.views
+  if (undefined === at || '' === at) {
+    return {
+      verdict: 'error', views: [],
+      errors: [documentFinding('$', 'The view document needs the path of ' +
+        'the map that declares the figures; name it with --views.')],
+    }
+  }
+  // ONE EVALUATION, and it is INSTRUMENTED: the layers panel reads the
+  // provenance record, which is written during unification, so a set
+  // that declares one would otherwise need a second run. Recording it
+  // always costs a little and makes the one-evaluation claim true for
+  // every kind but the ladder, which re-runs `why` by construction.
+  const prov = (hooks?.provenance ?? (() => new Provenance()))()
+  const loaded = load(src, options.path, options.trust, prov)
+  if (undefined !== loaded.errors) {
+    return { verdict: 'error', views: [], errors: loaded.errors }
+  }
+  const root = loaded.root
+  const ctx = loaded.ctx
+  // The declarations are part of the document, so reading them
+  // generates it -- and a view document that does not generate has no
+  // figures, exactly as `aontu file.aon` on it has no output.
+  const before = ctx.err.length
+  const value = root.gen(ctx)
+  if (before < ctx.err.length) {
+    const err: any = ctx.err[before]
+    return {
+      verdict: 'error', views: [],
+      errors: [finding(err?.why ?? 'unify_failed', 'reference', '$',
+        err?.msg ?? 'The document does not generate.')],
+    }
+  }
+  const declared = genAt(value, at)
+  if (null == declared || 'object' !== typeof declared || Array.isArray(declared)) {
+    return {
+      verdict: 'error', views: [],
+      errors: [documentFinding(at, 'The view declarations are not a map.')],
+    }
+  }
+
+  const plans: Plan[] = []
+  const errors: VetFinding[] = []
+  for (const name of Object.keys(declared).sort(cmpCodePoint)) {
+    const planned = planOf(name, declared[name], at)
+    errors.push(...planned.errors)
+    if (undefined !== planned.plan) {
+      plans.push(planned.plan)
+    }
+  }
+  if (0 < errors.length) {
+    return { verdict: 'error', views: [], errors }
+  }
+
+  const gen = { value }
+  const views: ViewFigure[] = plans.map((plan) => {
+    const loss: ViewLoss[] = []
+    const each: ViewOptions = {
+      ...plan.opts, path: options.path, trust: options.trust,
+    }
+    const fig: Figure = 'ladder' === plan.kind
+      ? drawLadder(src, each, plan.as, plan.max)
+      : drawLoaded(root, ctx, gen, prov, plan.kind, plan.as, each, plan.max, loss)
+    if (undefined !== fig.errors) {
+      return {
+        name: plan.name, kind: plan.kind, out: plan.out,
+        verdict: 'error' as ViewVerdict, loss: [], errors: fig.errors,
+      }
+    }
+    loss.sort((a, b) => cmpCodePoint(a.code, b.code))
+    const lossy = loss.some((l) => !INFORMATIONAL.includes(l.code))
+    return {
+      name: plan.name, kind: plan.kind, out: plan.out,
+      verdict: (lossy ? 'lossy' : 'rendered') as ViewVerdict,
+      text: fig.text, loss,
+    }
+  })
+
+  const verdict: ViewVerdict = views.some((v) => 'error' === v.verdict)
+    ? 'error' : views.some((v) => 'lossy' === v.verdict) ? 'lossy' : 'rendered'
+  return { verdict, views }
 }

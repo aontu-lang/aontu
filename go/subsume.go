@@ -480,14 +480,31 @@ func subsumeNode(st *subState, path []string, g0, s0 Val) string {
 		return subsumeBag(st, path, listView(gl), listView(sl))
 	}
 
-	// The ladder above is total in practice: every evaluated former is
-	// a scalar, kind, constraint, map, list, disjunct, or top, or is
-	// caught by admission (pref) or the unresolved rule (ref, var,
-	// conjunct, expect, func). The arm is kept because "in practice" is
-	// evaluation's property, not this walk's, and a future value class
-	// (or a nil, see the top rule) must land on an honest `undecided`,
-	// not fall out of the walk with no answer. Pinned by a direct test
+	// THE LADDER IS NOT TOTAL, and the formers that fall past it are the
+	// ones the evaluator MEANS to leave standing: a recursion, a
+	// relation and its graph atom, a refer() target constraint. None of
+	// them describes a set of values a structural walk can compare, so
+	// `undecided` is the honest answer for two DIFFERENT ones.
+	//
+	// For two IDENTICAL ones it is not. REFLEXIVITY IS A LAW -- every
+	// value admits itself -- and identity is the HASH FORM, the same
+	// rule the unresolved branch above applies and for the same reason:
+	// it costs nothing, because it runs only where the answer would
+	// otherwise be `undecided`. Without it a document that declares a
+	// relation, shares a template by reference or alias, or recurses did
+	// not subsume ITSELF, so `breaking` on the idiom the language exists
+	// for hard-failed and had to run --allow-undecided, which masks the
+	// genuine undecideds it exists to surface (use-cases/BUGS.md 64,
+	// and 28 before it).
+	//
+	// A NIL is the exception, and the reason the law is spelled here
+	// rather than in the unresolved rule: a nil is not a value, so it
+	// admits nothing, itself included. Pinned by a direct test
 	// (TestSubsumeNoRuleFold); the TS walk keeps the same fold.
+	if nil != g && nil != s && !g.Nil() && !s.Nil() &&
+		Hcanon(g) == Hcanon(s) {
+		return subYes
+	}
 	st.record("sub_unresolved", path, g, s,
 		"no subsumption rule covers this pair of value formers")
 	return subUndecided
@@ -579,9 +596,21 @@ func subsumeBag(st *subState, path []string, g, s bagView) string {
 		}
 	}
 
+	// Spread templates: a path-dependent template's meaning depends on
+	// where it lands, which no structural comparison can decide -- UNLESS
+	// the two templates are the same template. REFLEXIVITY IS A LAW and
+	// identity is the HASH FORM (the same rule the unresolved branch of
+	// subsumeNode applies): two byte-identical templates admit the same
+	// set wherever they land, so a document with a reference- or
+	// alias-valued template subsumes itself, and the comparison either
+	// side of the template is decided on its own merits rather than
+	// dragged to `undecided` (use-cases/BUGS.md 64).
 	if nil != g.spread || nil != s.spread {
-		if (nil != g.spread && hasPathFunc(g.spread)) ||
-			(nil != s.spread && hasPathFunc(s.spread)) {
+		sameTemplate := nil != g.spread && nil != s.spread &&
+			Hcanon(g.spread) == Hcanon(s.spread)
+		if !sameTemplate &&
+			((nil != g.spread && hasPathFunc(g.spread)) ||
+				(nil != s.spread && hasPathFunc(s.spread))) {
 			gOperand, sOperand := g.val, s.val
 			if nil != g.spread {
 				gOperand = g.spread

@@ -13,7 +13,7 @@ import * as Fs from 'node:fs'
 import * as Os from 'node:os'
 import * as Path from 'node:path'
 
-import { view } from '../dist/view'
+import { view, viewSet } from '../dist/view'
 import type { ViewCompare, ViewPosetDoc } from '../dist/view'
 import { Provenance } from '../dist/provenance'
 
@@ -23,6 +23,26 @@ const write = (dir: string, name: string, src: string): string => {
   Fs.mkdirSync(Path.dirname(file), { recursive: true })
   Fs.writeFileSync(file, src)
   return file
+}
+
+
+// A RECORDER THAT NAMES A PATH THE DOCUMENT DOES NOT HAVE
+// (use-cases/BUGS.md 70, the Go recorder's template ghost), and a
+// record nothing contributed to. This port's recorder writes neither,
+// so a recorder that does is handed in through the seam.
+class Ghostly extends Provenance {
+  record(path: string[], a: any, b: any, out: any): void {
+    super.record(path, a, b, out)
+    const rec: any = this.paths.get(path.join('.'))
+    if (0 < rec.conjuncts.length && !this.paths.has('a.ghost')) {
+      this.paths.set('a.ghost', {
+        conjuncts: [rec.conjuncts[0]], made: new Set(), seen: new Set(),
+      } as any)
+      this.paths.set('a.empty', {
+        conjuncts: [], made: new Set(), seen: new Set(),
+      } as any)
+    }
+  }
 }
 
 
@@ -102,23 +122,17 @@ describe('view', () => {
   // port's recorder writes neither, so a recorder that does is handed
   // in through the seam.
   test('view-layers-skips-paths-the-document-lacks', () => {
-    class Ghostly extends Provenance {
-      record(path: string[], a: any, b: any, out: any): void {
-        super.record(path, a, b, out)
-        const rec: any = this.paths.get(path.join('.'))
-        if (0 < rec.conjuncts.length && !this.paths.has('a.ghost')) {
-          this.paths.set('a.ghost', {
-            conjuncts: [rec.conjuncts[0]], made: new Set(), seen: new Set(),
-          } as any)
-          this.paths.set('a.empty', {
-            conjuncts: [], made: new Set(), seen: new Set(),
-          } as any)
-        }
-      }
-    }
     const r = view('a: {b: 1}', { kind: 'layers' }, { provenance: () => new Ghostly() })
     Assert.equal(r.verdict, 'rendered', JSON.stringify(r.errors))
     Assert.doesNotMatch(r.text as string, /ghost|empty/)
+
+    // The same seam through a VIEW DOCUMENT: its one evaluation is the
+    // instrumented one, so a layers figure it declares reads this
+    // recorder rather than a second run's.
+    const set = viewSet('a: {b: 1}\nviews: {l: {kind: layers, out: "l.txt"}}',
+      { views: '$.views' }, { provenance: () => new Ghostly() })
+    Assert.equal(set.verdict, 'rendered', JSON.stringify(set.errors))
+    Assert.doesNotMatch(set.views[0].text as string, /ghost|empty/)
   })
 
 
@@ -129,6 +143,19 @@ describe('view', () => {
     Assert.equal(r.verdict, 'error')
     Assert.equal(r.errors?.[0].code, 'syntax')
     Assert.deepEqual(r.loss, [])
+  })
+
+
+  // THE VIEW DOCUMENT'S TWO CALLER ERRORS, which the CLI cannot make:
+  // it always passes a path. What the declarations MEAN is
+  // test/spec/views.tsv.
+  test('view-set-needs-the-path-of-its-declarations', () => {
+    for (const opts of [undefined, { views: '' }]) {
+      const r = viewSet('a: 1', opts)
+      Assert.equal(r.verdict, 'error')
+      Assert.deepEqual(r.views, [])
+      Assert.equal(r.errors?.[0].code, 'view_document_shape')
+    }
   })
 
 

@@ -43,6 +43,7 @@ Usage: aontu [options] [file]
        aontu relations [options] <file>
        aontu reaches <from> <to> [--relation <name>] [options] <file>
        aontu view <kind> [options] <file>...
+       aontu view --views <path> [--check] [options] <file>
        aontu jsonschema [--at <path>] [--strict] [options] <file>
        aontu hash [options] <file>
        aontu mod tidy|verify|vendor|manifest [options] [dir]
@@ -430,11 +431,12 @@ spec: hide({Step: {label: string, then?: $.spec.Step}})
 doc: $.spec.Step
 ```
 
-and a `specific.aon` that pins `label` inside the same definition:
+and a `specific.aon` whose step recurses into a DIFFERENT definition:
 
 <!-- test: file specific.aon -->
 ```aontu
-spec: hide({Step: {label: "start", then?: $.spec.Step}})
+spec: hide({Step: {label: "start", then?: $.spec.Other},
+            Other: {label: string}})
 doc: $.spec.Step
 ```
 
@@ -446,13 +448,21 @@ verdict: undecided
 $.spec.Step.then: sub_unresolved [compat]
   no subsumption rule covers this pair of value formers
   expected: $.spec.Step
-  actual:   $.spec.Step
+  actual:   {"label":string}
   general: general.aon:1:42 ($.spec.Step)
-  specific: specific.aon:1:43 ($.spec.Step)
+  specific: specific.aon:2:20 ({"label":string})
 ...
 $ echo $?
 3
 ```
+
+**The same recursion on both sides is decided**, and decided by
+identity: a document that recurses, declares a relation or shares a
+template by reference admits itself, because two values with the same
+**hash form** are the same value. The rule runs only where the answer
+would otherwise be `undecided`, so it narrows nothing else — and
+without it a contract could not be gated against its own earlier
+version at all (`use-cases/BUGS.md` 64).
 
 This is the verdict [`breaking`](#aontu-breaking) fails on by
 default: a gate that cannot decide a recursive contract reports
@@ -843,8 +853,11 @@ flowchart LR
   could not draw or drew differently from the model, one line per
   code with a count: `hidden_contribution` (an edge inside a `hide()`
   subtree, not drawn, because a committed figure discloses what it
-  draws), `unresolved_field` (a node without a value for `--group-by`
-  or `--label`), `cycle_block`, `cols_elided`, and for the poset
+  draws), `edges_in_disjunct` (a link under an unresolved disjunction,
+  which is not a fact — ADR-007 — so the figure reports it rather than
+  picking an arm), `unresolved_field` (a node without a value for
+  `--group-by` or `--label`), `cycle_block`, `cols_elided`, and for the
+  poset
   `order_undecided`, `order_maybe_equal` and `order_intransitive`. Any
   of these makes the verdict `lossy`, which `--strict` turns into exit
   `1`. Three codes are informational and leave the verdict `rendered`:
@@ -892,7 +905,15 @@ flowchart LR
   on top. `--layers a,b,c` fixes the order (top first) for a model
   whose upward edge makes the layer graph cyclic. The footer counts
   the relation's downward, sideways and upward edges, and names each
-  upward one.
+  edge `--edges` shows. `--edges upward|all|none` chooses which of them
+  the figure draws over the bands: `upward` is the violations, and the
+  default for the fixed grids (`text`, `svg`), because the bands
+  already say which way the rest go; `all` draws the relation itself,
+  which is what a reader tracing one module's dependencies wants, and
+  is `mermaid`'s default since it lays edges out itself; `none` leaves
+  the bands alone. In SVG an upward edge is dashed and alert-coloured,
+  a downward one runs from the bottom of its box to the top of the one
+  it names, and a sideways one dips below the boxes of its band.
 - `sets`: `--sets <path>` names a map whose keys are the sets,
   `--member <key>` the field holding each set's members (a list of
   strings), `--universe <path>` a map or list of every element, so
@@ -930,13 +951,107 @@ flowchart LR
   the identical `{verdict, kind, text?, loss, errors?}` record; the
   poset's further documents ride `options.docs` as `{src, path?, name?}`.
 
+**The view document.** A projection that runs in CI belongs in a file.
+`--views <path>` names a map, in an ordinary document that includes the
+model, whose values declare figures: one evaluation, N figures, one
+exit code. The keys of a declaration are the view options — the flags
+without the dashes — and every declaration names its `kind` and the
+`out` file it draws into. `views` is the author's key; nothing in the
+engine knows the name (ADR-010), which is why the path is given. Write
+a `views.aon` beside the `system.aon` above:
+
+<!-- test: file views.aon -->
+```aon
+@"./system.aon"
+
+views: {
+  arch: {
+    kind: matrix
+    relation: dependsOn
+    order: partition
+    closure: true
+    out: "arch.dsm.txt"
+  }
+  map: {
+    kind: graph
+    relation: dependsOn
+    groupBy: owner
+    as: mermaid
+    out: "arch.mmd"
+  }
+}
+```
+
+<!-- test: run -->
+```sh
+$ aontu view --views '$.views' views.aon
+$ aontu view --views '$.views' --check views.aon
+$ echo $?
+0
+```
+
+Each `out` is resolved against the **view document's own directory**,
+so the gate passes from any working directory. Nothing is written
+unless every figure rendered — N figures of one model are only
+meaningful together, so a set whose third figure refuses leaves the
+first two off disk, and its exit code is the worst of the figures'.
+`--check` compares the whole set and names every difference; `--strict`
+turns any figure's loss into exit `1`. A declaration that names an
+option that is not one, gives a value of the wrong shape, or leaves out
+`kind` or `out` is `view_document_shape`, reported for every faulty
+declaration at once and before anything is drawn. The `poset` is
+refused there: it compares several documents and a view document
+declares figures of the one it includes. The library form is
+`viewSet(src, options)` in TypeScript and `Aontu.ViewSet(src, options)`
+in Go, returning `{verdict, views, errors?}` where each view is
+`{name, kind, out, verdict, text?, loss, errors?}` — the caller writes
+the files.
+
+`@"std/view"` is the bundled schema for a declaration, so the same
+mistakes are refused when the document is EVALUATED rather than when
+the verb reads it. Write a `views-typed.aon`:
+
+<!-- test: file views-typed.aon -->
+```aon
+@"std/view"
+@"./system.aon"
+
+views: {&: $.view.Figure} & {
+  arch: {
+    kind: matrix
+    relation: dependsOn
+    order: partition
+    closure: true
+    out: "arch.dsm.txt"
+  }
+}
+```
+
+<!-- test: run -->
+```sh
+$ aontu view --views '$.views' --check views-typed.aon
+$ echo $?
+0
+```
+
+`$.view.Figure` types every option, and a kind that is not a kind, an
+order that is not an order or a count below zero is an ordinary
+unification failure naming `std/view` as the other operand. It is
+optional: a view document that does not include it is read exactly the
+same way, and refused by `view_document_shape` instead. The
+The source is served from the engine, as `std/system` is, so it needs
+no filesystem and resolves under every include capability but
+`'none'`.
+
 The use cases pin one figure of each kind as a golden:
 [01-service-catalog](../use-cases/01-service-catalog/) the graph and
 the matrix, [04-schema-evolution](../use-cases/04-schema-evolution/)
 the poset, [08-feature-flags](../use-cases/08-feature-flags/) the
 ladder, [12-relations](../use-cases/12-relations/) the graph and the
 ER diagram, and [16-module-deps](../use-cases/16-module-deps/) the
-tree, the matrix and the layers. The design is
+tree, the matrix and the layers; 16 also declares all seven of its
+figures in a `views.aon` that its `check.sh` gates in one run. The
+design is
 [docs/design/VIEWS.0.md](design/VIEWS.0.md) and
 [VIEWS-ORDER.0.md](design/VIEWS-ORDER.0.md).
 
@@ -1968,12 +2083,13 @@ is observable as sorted, deduplicated `{ path, capability }` entries —
 hashing and pinning belong to [`aontu hash`](#aontu-hash) and the
 module tooling, [`aontu mod`](#aontu-mod).
 
-**The bundled vocabulary.** `@"std/system"` ([the system
-vocabulary](reference-language.md#the-stdsystem-vocabulary)) is served
-from the engine rather than from disk, so it needs neither the
-filesystem nor package resolution and resolves under every include
-capability except `'none'`. It appears in the manifest with capability
-`std`. A host that wants a different vocabulary supplies its own source
+**The bundled vocabularies.** `@"std/system"` ([the system
+vocabulary](reference-language.md#the-stdsystem-vocabulary)) and
+`@"std/view"` (the schema for a [view document's](#aontu-view)
+declarations) are served from the engine rather than from disk, so they
+need neither the filesystem nor package resolution and resolve under
+every include capability except `'none'`. They appear in the manifest
+with capability `std`. A host that wants a different vocabulary supplies its own source
 under its own name; the bundled one is engine-owned.
 
 **Relation checks.** `relationCheck(src)` in TypeScript and

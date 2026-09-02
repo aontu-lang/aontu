@@ -193,3 +193,29 @@ pref-lint-ranked-clean	vet	role: **member | member | admin | owner	role: admin	{
 # subsumption allows.
 unique-by-key-subsumes	subsume	a:unique(p)	a:unique(p)&unique(q)	{"findings":[],"verdict":"subsumes"}
 unique-by-key-does-not-subsume	subsume	a:unique(p)	a:unique(q)	{"findings":[{"actual":"unique(\\"q\\")","class":"compat","code":"compat_narrowed","expected":"unique(\\"p\\")","path":"$.a","severity":"error","sites":[{"col":3,"file":"general","len":6,"role":"general","row":1,"src":"unique","value":"unique(\\"p\\")"},{"col":3,"file":"specific","len":6,"role":"specific","row":1,"src":"unique","value":"unique(\\"q\\")"}]}],"verdict":"does_not_subsume"}
+#
+# REFLEXIVITY IS A LAW, AT THE WALK'S TAIL TOO (use-cases/BUGS.md 64,
+# and 28 before it). The formers the evaluator MEANS to leave standing
+# -- a recursion, a relation and its graph atom, a refer() target
+# constraint, a path-dependent spread template -- describe no set a
+# structural walk can compare, so two DIFFERENT ones are undecided. Two
+# IDENTICAL ones are the same value: identity is the HASH FORM, and
+# every value admits itself. Without this a document that shares a
+# template by reference or alias, or declares a relation, did not
+# subsume ITSELF, and `breaking` on the idiom the language exists for
+# hard-failed.
+#
+# REFLEXIVITY IS A LAW, AT THE WALK'S TAIL TOO (use-cases/BUGS.md 64,
+# and 28 before it). The formers the evaluator MEANS to leave standing
+# -- a recursion, a relation and its graph atom, a refer() target
+# constraint, a path-dependent spread template -- describe no set a
+# structural walk can compare, so two DIFFERENT ones are undecided. Two
+# IDENTICAL ones are the same value: identity is the HASH FORM, and
+# every value admits itself. Without this a document that shares a
+# template by reference or alias, or declares a relation, did not
+# subsume ITSELF, and `breaking` on the idiom the language exists for
+# hard-failed.
+reflexive-reference-valued-spread-template	subsume	defs: hide({F: {n: string}})\ncode: {fs: {&: $.defs.F}}	defs: hide({F: {n: string}})\ncode: {fs: {&: $.defs.F}}	{"findings":[],"verdict":"subsumes"}
+reflexive-alias-valued-spread-template	subsume	%F: {n: string}\ncode: {fs: {&: %F}}	%F: {n: string}\ncode: {fs: {&: %F}}	{"findings":[],"verdict":"subsumes"}
+reflexive-relation-declaration	subsume	spec: hide({Mod: {kind: "mod", dependsOn?: rel($.spec.Mod) & acyclic() & inverse(usedBy), usedBy?: rel($.spec.Mod)}})\na: $.spec.Mod & {dependsOn: [&: refer($.spec.Mod), path($.b)]}\nb: $.spec.Mod	spec: hide({Mod: {kind: "mod", dependsOn?: rel($.spec.Mod) & acyclic() & inverse(usedBy), usedBy?: rel($.spec.Mod)}})\na: $.spec.Mod & {dependsOn: [&: refer($.spec.Mod), path($.b)]}\nb: $.spec.Mod	{"findings":[],"verdict":"subsumes"}
+different-reference-valued-templates-are-undecided	subsume	defs: hide({F: {n: string}})\ncode: {fs: {&: $.defs.F}}	defs: hide({F: {n: integer}})\ncode: {fs: {&: $.defs.F}}	{"findings":[{"actual":"integer","class":"compat","code":"compat_narrowed","expected":"string","path":"$.defs.F.n","severity":"error","sites":[{"col":20,"file":"general","len":6,"role":"general","row":1,"src":"string","value":"string"},{"col":20,"file":"specific","len":7,"role":"specific","row":1,"src":"integer","value":"integer"}]}],"verdict":"does_not_subsume"}

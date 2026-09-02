@@ -434,7 +434,11 @@ emitted text is doubled in the cell because the escape pass runs first
 
 Spec-rows-first; TypeScript canonical, Go to green on identical rows.
 
-**Phase 0 — BUGS 64 and two seams (S).** The hash-form short-circuit on
+**Phase 0 — BUGS 64 and two seams (S).** *Status: the reflexivity half
+is BUILT (2026-09-02) -- the hash-form law at both folds, in both
+ports, so all fifteen use-case entry documents subsume themselves and
+the poset draws real edges over them. The `subsumeVals` split is not
+built: the poset re-loads each document per pair.* The hash-form short-circuit on
 the fold path; findings on `subsume`'s `error` verdict; a
 `subsumeVals(general, specific, opts)` split so an evaluated pair can be
 compared without re-loading. *Acceptance:* all seven use-case entry
@@ -451,7 +455,12 @@ directory, and the same files supplied in two orders.
 field in both ports; `meetLadder(record)` as a pure function, exercised
 by rows rather than a CLI surface.
 
-**Phase 3 — the bounds accessor and panel extractor (S/M).** A
+**Phase 3 — the bounds accessor and panel extractor (S/M).** *Status:
+NOT BUILT (2026-09-02), and deliberately last: the panel earns its
+keep on a FAILED meet, whose operands live only in the finding, so it
+needs the `--from-report` plumbing of the paragraph above as much as
+the accessor. Drawing the residual at a path that already evaluates is
+the easy half and the less useful one.* A
 read-only accessor over the residual the algebra already normalised, so
 the panel does not re-parse canon; the panel as integer coordinates.
 The phase's assertion is that both ports compute the same integers.

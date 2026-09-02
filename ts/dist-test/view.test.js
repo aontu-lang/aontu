@@ -53,6 +53,24 @@ const write = (dir, name, src) => {
     Fs.writeFileSync(file, src);
     return file;
 };
+// A RECORDER THAT NAMES A PATH THE DOCUMENT DOES NOT HAVE
+// (use-cases/BUGS.md 70, the Go recorder's template ghost), and a
+// record nothing contributed to. This port's recorder writes neither,
+// so a recorder that does is handed in through the seam.
+class Ghostly extends provenance_1.Provenance {
+    record(path, a, b, out) {
+        super.record(path, a, b, out);
+        const rec = this.paths.get(path.join('.'));
+        if (0 < rec.conjuncts.length && !this.paths.has('a.ghost')) {
+            this.paths.set('a.ghost', {
+                conjuncts: [rec.conjuncts[0]], made: new Set(), seen: new Set(),
+            });
+            this.paths.set('a.empty', {
+                conjuncts: [], made: new Set(), seen: new Set(),
+            });
+        }
+    }
+}
 (0, node_test_1.describe)('view', () => {
     // A MULTI-FILE DOCUMENT: the layers panel names the files an include
     // wrote into relative to the entry, and the ladder's rungs sort by
@@ -112,23 +130,15 @@ const write = (dir, name, src) => {
     // port's recorder writes neither, so a recorder that does is handed
     // in through the seam.
     (0, node_test_1.test)('view-layers-skips-paths-the-document-lacks', () => {
-        class Ghostly extends provenance_1.Provenance {
-            record(path, a, b, out) {
-                super.record(path, a, b, out);
-                const rec = this.paths.get(path.join('.'));
-                if (0 < rec.conjuncts.length && !this.paths.has('a.ghost')) {
-                    this.paths.set('a.ghost', {
-                        conjuncts: [rec.conjuncts[0]], made: new Set(), seen: new Set(),
-                    });
-                    this.paths.set('a.empty', {
-                        conjuncts: [], made: new Set(), seen: new Set(),
-                    });
-                }
-            }
-        }
         const r = (0, view_1.view)('a: {b: 1}', { kind: 'layers' }, { provenance: () => new Ghostly() });
         Assert.equal(r.verdict, 'rendered', JSON.stringify(r.errors));
         Assert.doesNotMatch(r.text, /ghost|empty/);
+        // The same seam through a VIEW DOCUMENT: its one evaluation is the
+        // instrumented one, so a layers figure it declares reads this
+        // recorder rather than a second run's.
+        const set = (0, view_1.viewSet)('a: {b: 1}\nviews: {l: {kind: layers, out: "l.txt"}}', { views: '$.views' }, { provenance: () => new Ghostly() });
+        Assert.equal(set.verdict, 'rendered', JSON.stringify(set.errors));
+        Assert.doesNotMatch(set.views[0].text, /ghost|empty/);
     });
     // A document that does not PARSE has no figure either: the parse
     // failure lands on the collecting context, and is the answer.
@@ -137,6 +147,17 @@ const write = (dir, name, src) => {
         Assert.equal(r.verdict, 'error');
         Assert.equal(r.errors?.[0].code, 'syntax');
         Assert.deepEqual(r.loss, []);
+    });
+    // THE VIEW DOCUMENT'S TWO CALLER ERRORS, which the CLI cannot make:
+    // it always passes a path. What the declarations MEAN is
+    // test/spec/views.tsv.
+    (0, node_test_1.test)('view-set-needs-the-path-of-its-declarations', () => {
+        for (const opts of [undefined, { views: '' }]) {
+            const r = (0, view_1.viewSet)('a: 1', opts);
+            Assert.equal(r.verdict, 'error');
+            Assert.deepEqual(r.views, []);
+            Assert.equal(r.errors?.[0].code, 'view_document_shape');
+        }
     });
     // A VERDICT MATRIX THE CHECKER CANNOT BE MADE TO PRODUCE: a chain
     // the closure implies but the checker measured as does_not_subsume

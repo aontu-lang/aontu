@@ -7,6 +7,100 @@ which implementation each change affects.
 
 ## Unreleased
 
+### Subsumption: reflexivity holds for a shared template, a relation and a recursion
+
+Both ports. **Correction** (use-cases/BUGS.md 64, and 28 before it).
+Three of the seven use-case entry documents did not subsume
+THEMSELVES: a spread template written as a reference (`{&: $.defs.F}`)
+or an alias (`{&: %F}`) folded to `sub_path_dependent_spread`, and a
+recursion, a relation declaration or a `refer()` target constraint
+fell past the subsumption ladder to `sub_unresolved` -- with
+byte-identical operands in the finding. Since `breaking` fails on
+`undecided`, gating a contract against its own earlier version needed
+`--allow-undecided`, which masks the genuine undecideds it exists to
+surface.
+
+REFLEXIVITY IS A LAW and identity is the HASH FORM, which
+`test/spec/subsume.tsv` already stated: both folds now answer
+`subsumes` when the two operands have the same hash form. A nil is the
+exception -- it is not a value, so it admits nothing, itself included
+-- and two DIFFERENT templates, relations or recursions still fold, so
+nothing decidable is swept up. The law runs only where the answer would
+otherwise be `undecided`, so the common path is untouched. All fifteen
+use-case entry documents now subsume themselves in both ports, and
+`use-cases/03-api-contract` gates its contract against itself without
+the escape hatch.
+
+### `aontu view layer --edges`: the depends relation over the bands
+
+Both ports. **New option.** The layer figure drew the upward edges
+alone -- the violations the bands cannot show on their own -- and now
+`--edges upward|all|none` chooses. `all` draws the relation itself,
+which is what a reader tracing one module's dependencies wants: in SVG
+a downward edge runs from the bottom of its box to the top of the one
+it names, a sideways edge dips below the boxes of its band, and an
+upward one stays dashed and alert-coloured. `none` leaves the bands
+alone. The default is what each profile drew before: `upward` for the
+fixed grids (`text`, `svg`) and `all` for `mermaid`, which lays edges
+out itself, so no committed figure moves. The text footer names every
+edge the option shows, labelled by its direction. A view document
+takes `edges` like any other option, and its enumerated values -- like
+`order`'s -- are checked there rather than silently falling back.
+`use-cases/16-module-deps` commits the drawn-edges figure as
+`expected/diagram-layer-edges.svg`.
+
+### The figures report a link the document has not decided
+
+Both ports. **New loss code.** `graphOf` gains `disjunct`, the
+positions of links written under an UNRESOLVED DISJUNCTION. Such a link
+is not an edge (ADR-007: an unresolved disjunction is not a value, so a
+link under one of its arms is not a fact), and the walk was right to
+leave it out -- but it left it out in SILENCE, which is the failure the
+views exist to avoid. Every figure now reports it as
+`edges_in_disjunct` with the positions, so `--strict` refuses a figure
+of a document that has not decided. The field is absent when there are
+none, so a graph of a decided document is the shape it always was.
+
+### `std/view`: the bundled schema for a figure declaration
+
+Both ports. **New bundled source.** `@"std/view"` serves
+`$.view.Figure`, the schema for one view-document declaration: every
+option typed, `kind` and the profiles as closed disjunctions, the
+counts non-negative. Spread it over the declarations
+(`views: {&: $.view.Figure} & {...}`) and a misspelled option or a kind
+that is not a kind is refused when the document is evaluated, naming
+`std/view` as the other operand, rather than by the verb that reads it
+afterwards. It is optional; a view document without it is read the same
+way. Like `std/system` the source is served from the engine -- no
+filesystem, no package resolution -- and `test/spec/std-view.tsv` pins
+its canon and canon-hash in both engines, so the two copies cannot
+drift. `use-cases/16-module-deps/views.aon` uses it.
+
+### `aontu view --views`: the figures a document declares
+
+Both ports. **New surface.** A projection that runs in CI belongs in a
+file: `aontu view --views <path> <file>` reads a map of figure
+declarations out of an ordinary document that includes the model, and
+draws every one of them from ONE evaluation. A declaration's keys are
+the view options -- the flags without the dashes -- and each names its
+own `kind` and the `out` file it draws into, resolved against the view
+document's own directory so the gate passes from any working
+directory. `views` is the author's key and nothing in the engine knows
+the name (ADR-010). Nothing is written unless every figure rendered;
+`--check` compares the whole set and names every difference, `--strict`
+turns any figure's loss into exit 1, and the exit code is the worst of
+the figures'. A declaration that names an option that is not one, gives
+a value of the wrong shape, or leaves out `kind` or `out` is the new
+`view_document_shape`, reported for every faulty declaration at once
+and before anything is drawn; the `poset` is refused there, because it
+compares several documents. Library: `viewSet(src, options)`
+(TypeScript), `Aontu.ViewSet(src, options)` (Go), returning
+`{verdict, views, errors?}` -- the caller writes the files.
+`test/spec/views.tsv` (the new `views` mode) pins both ports on the
+declarations, every refusal and every figure's bytes.
+`use-cases/16-module-deps/views.aon` declares all seven of that case's
+figures and its `check.sh` gates them in one run.
+
 ### `aontu view --as svg`: the cell-based figures as SVG
 
 Both ports. **New profile.** `tree`, `matrix`, `layer`, `sets` and

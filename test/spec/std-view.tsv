@@ -1,0 +1,38 @@
+# G-VIEWS: the std/view VOCABULARY (docs/design/VIEWS.0.md, "6. The
+# view document"). A view document declares its figures as data, and a
+# declaration is just a map: std/view is the schema for one, so a typo
+# is refused at EVALUATION, by unification, rather than by the verb
+# that reads the document afterwards. The declaration keys are the view
+# options -- the command-line flags without the dashes.
+#
+# The source is BUNDLED with the engine (ts/src/std.ts, go/std.go): no
+# filesystem, no package resolution, so it is available under every
+# include capability except `none`. The two copies are the same bytes,
+# and vocabulary-canon and vocabulary-hash below pin that in both
+# engines -- they cannot drift without a red suite.
+#
+# A declaration that leaves out `out` does not GENERATE, which is how
+# the vocabulary makes it required: `aontu view --views` reads the
+# declarations out of the generated value, so such a document is
+# refused before a figure is drawn -- and a declaration the author
+# writes without the vocabulary is refused by the verb instead
+# (view_document_shape, test/spec/views.tsv).
+#
+# EXPERIMENTAL until the distribution layer can version it by
+# canon-hash.
+vocabulary-is-served	gens	@"std/view"\nf: $.view.Figure & {kind: tree, out: "a.txt"}	{"f":{"kind":"tree","out":"a.txt"},"view":{}}
+vocabulary-by-file-name	gens	@"std/view.aon"\nf: $.view.Figure & {kind: tree, out: "a.txt"}	{"f":{"kind":"tree","out":"a.txt"},"view":{}}
+vocabulary-generates-nothing-of-its-own	gens	@"std/view"	{"view":{}}
+a-declaration-over-the-spread	gens	@"std/view"\nviews: {&: $.view.Figure} & {a: {kind: matrix, order: partition, closure: true, out: "a.txt"}}	{"view":{},"views":{"a":{"closure":true,"kind":"matrix","order":"partition","out":"a.txt"}}}
+every-option-of-every-kind	gens	@"std/view"\nviews: {&: $.view.Figure} & {\n  a: {kind: tree, relation: dependsOn, roots: ["$.x"], at: "$.y", maxRows: 9, as: svg, out: "a.svg"}\n  b: {kind: graph, relations: ["dependsOn"], groupBy: owner, label: name, as: dot, out: "b.dot"}\n  c: {kind: layer, groupBy: layer, layers: ["app"], edges: all, out: "c.txt"}\n  d: {kind: sets, sets: "$.roles", member: grants, universe: "$.perms", minDegree: 1, maxCols: 2, out: "d.txt"}\n  e: {kind: layers, minSize: 1, out: "e.txt"}\n  g: {kind: ladder, at: "$.z", out: "g.mmd"}\n}	{"view":{},"views":{"a":{"as":"svg","at":"$.y","kind":"tree","maxRows":9,"out":"a.svg","relation":"dependsOn","roots":["$.x"]},"b":{"as":"dot","groupBy":"owner","kind":"graph","label":"name","out":"b.dot","relations":["dependsOn"]},"c":{"edges":"all","groupBy":"layer","kind":"layer","layers":["app"],"out":"c.txt"},"d":{"kind":"sets","maxCols":2,"member":"grants","minDegree":1,"out":"d.txt","sets":"$.roles","universe":"$.perms"},"e":{"kind":"layers","minSize":1,"out":"e.txt"},"g":{"at":"$.z","kind":"ladder","out":"g.mmd"}}}
+a-declaration-without-out-does-not-generate	errc	@"std/view"\nf: $.view.Figure & {kind: tree}	mapval_no_gen
+kind-refuses-the-poset	errc	@"std/view"\nf: $.view.Figure & {kind: poset, out: "a.txt"}	empty
+kind-refuses-a-nonmember	errc	@"std/view"\nf: $.view.Figure & {kind: nope, out: "a.txt"}	empty
+profile-refuses-a-nonmember	errc	@"std/view"\nf: $.view.Figure & {kind: tree, as: png, out: "a.txt"}	empty
+order-refuses-a-nonmember	errc	@"std/view"\nf: $.view.Figure & {kind: matrix, order: random, out: "a.txt"}	empty
+edges-refuses-a-nonmember	errc	@"std/view"\nf: $.view.Figure & {kind: layer, edges: sideways, out: "a.txt"}	empty
+a-count-refuses-a-negative	errc	@"std/view"\nf: $.view.Figure & {kind: tree, maxRows: -1, out: "a.txt"}	constraint
+a-list-option-refuses-a-non-string	errc	@"std/view"\nf: $.view.Figure & {kind: tree, roots: [1], out: "a.txt"}	no_scalar_unify
+out-refuses-a-non-string	errc	@"std/view"\nf: $.view.Figure & {kind: tree, out: 1}	no_scalar_unify
+vocabulary-canon	canon	@"std/view"	{"view":{"Figure":{"as"?:"text"|"mermaid"|"dot"|"er"|"svg","at"?:string,"closure"?:boolean,"edges"?:"upward"|"all"|"none","groupBy"?:string,"kind":"tree"|"matrix"|"graph"|"layer"|"sets"|"layers"|"ladder","label"?:string,"layers"?:[&:string],"maxCols"?:integer&min(0),"maxRows"?:integer&min(0),"member"?:string,"minDegree"?:integer&min(0),"minSize"?:integer&min(0),"order"?:"canon"|"partition","out":string,"relation"?:string,"relations"?:[&:string],"roots"?:[&:string],"sets"?:string,"universe"?:string}}}
+vocabulary-hash	hash	@"std/view"	aon1-MwzRTkDwJiQ35iwLbQqQii-urHGFUNuk9nUjaVsjiiY

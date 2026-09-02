@@ -454,13 +454,29 @@ export function subsumeNode(
       (v: any, k: string) => v.peg[Number(k)])
   }
 
-  // The ladder above is total in practice: every evaluated former is a
-  // scalar, kind, constraint, map, list, disjunct, or top, or is caught
-  // by admission (pref) or unresolved (ref, var, conjunct, expect,
-  // func). The arm is kept because "in practice" is evaluation's
-  // property, not this walk's, and a future value class (or a nil, see
-  // the top rule) must land on an honest `undecided`, not fall out of
-  // the walk with no answer.
+  // THE LADDER IS NOT TOTAL, and the formers that fall past it are the
+  // ones the evaluator MEANS to leave standing: a recursion, a
+  // relation and its graph atom, a `refer()` target constraint. None
+  // of them describes a set of values a structural walk can compare,
+  // so `undecided` is the honest answer for two DIFFERENT ones.
+  //
+  // For two IDENTICAL ones it is not. REFLEXIVITY IS A LAW -- every
+  // value admits itself -- and identity is the HASH FORM, the same
+  // rule the unresolved branch above applies and for the same reason:
+  // it costs nothing, because it runs only where the answer would
+  // otherwise be `undecided`. Without it a document that declares a
+  // relation, shares a template by reference or alias, or recurses did
+  // not subsume ITSELF, so `breaking` on the idiom the language exists
+  // for hard-failed and had to run --allow-undecided, which masks the
+  // genuine undecideds it exists to surface (use-cases/BUGS.md 64,
+  // and 28 before it).
+  //
+  // A NIL is the exception, and the reason the law is spelled here
+  // rather than in `unresolved`: a nil is not a value, so it admits
+  // nothing, itself included.
+  if (true !== g?.isNil && true !== s?.isNil && hcanon(g) === hcanon(s)) {
+    return 'yes'
+  }
   record(state, 'sub_unresolved', path, g, s,
     'no subsumption rule covers this pair of value formers')
   return 'undecided'
@@ -533,11 +549,21 @@ function subsumeBag(
   }
 
   // Spread templates: a path-dependent template's meaning depends on
-  // where it lands, which no structural comparison can decide.
+  // where it lands, which no structural comparison can decide -- UNLESS
+  // the two templates are the same template. REFLEXIVITY IS A LAW and
+  // identity is the HASH FORM (the same rule the unresolved branch of
+  // subsumeNode applies): two byte-identical templates admit the same
+  // set wherever they land, so a document with a reference- or
+  // alias-valued template subsumes itself, and the comparison either
+  // side of the template is decided on its own merits rather than
+  // dragged to `undecided` (use-cases/BUGS.md 64). Where they are NOT
+  // identical, nothing structural can decide them and the fold stands.
   const gcj = g.spread?.cj
   const scj = s.spread?.cj
   if (null != gcj || null != scj) {
-    if (true === gcj?.isPathDependent || true === scj?.isPathDependent) {
+    const sameTemplate = null != gcj && null != scj && hcanon(gcj) === hcanon(scj)
+    if (!sameTemplate &&
+      (true === gcj?.isPathDependent || true === scj?.isPathDependent)) {
       record(state, 'sub_path_dependent_spread', path, gcj ?? g, scj ?? s,
         'a path-dependent spread template cannot be compared structurally')
       worse('undecided')

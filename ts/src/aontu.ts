@@ -24,7 +24,7 @@ import { diff } from './diff'
 import { agentsMd } from './agentsmd'
 import { graphOf } from './graph'
 import { relationCheck, relationErrors } from './relation'
-import { view, viewTree } from './view'
+import { view, viewSet, viewTree } from './view'
 
 
 // VERSION is the Aontu npm package version, and mirrors
@@ -473,6 +473,7 @@ export {
   graphOf,
   relationCheck,
   view,
+  viewSet,
   viewTree,
 }
 

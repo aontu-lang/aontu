@@ -30,6 +30,7 @@ const helpText = `Usage: aontu [options] [file]
        aontu relations [options] <file>
        aontu reaches <from> <to> [--relation <name>] [options] <file>
        aontu view <kind> [options] <file>...
+       aontu view --views <path> [--check] [options] <file>
        aontu jsonschema [--at <path>] [--strict] [options] <file>
        aontu hash [options] <file>
        aontu mod tidy|verify|vendor|manifest [options] [dir]
@@ -152,7 +153,10 @@ Why exit codes mirror get's: 0 explained, 1 the path names nothing,
 
 View kinds: tree, matrix, graph, layer, sets, layers, ladder, poset
 (the poset takes several files). The figure goes to stdout, the loss
-report to stderr.
+report to stderr. With --views it draws every figure a document
+declares as data, from one evaluation: each declaration names its own
+kind and out file, nothing is written unless every figure rendered,
+and --check gates the committed set.
 
 View options:
   --as <profile>    text | mermaid | dot | er | svg, per kind: tree,
@@ -162,6 +166,9 @@ View options:
                     and poset draw mermaid (default) or dot
   --at <path>       Restrict the figure to nodes under this path; the
                     path the ladder draws; where the poset compares
+  --views <path>    Draw every figure the document declares at this
+                    path, one evaluation, all or nothing; each
+                    declaration names its own kind and out file
   -o, --out <file>  Write the figure here instead of stdout
   --check           Exit 1 if --out differs from what would be drawn;
                     nothing is written
@@ -179,6 +186,9 @@ View options:
                     layer: one band per value (required)
   --layers <a,b>    layer: the bands in this order, top first; without
                     it the order is derived from the relation
+  --edges <e>       layer: which of the relation's edges to draw over
+                    the bands -- upward (the violations, the default
+                    for text and svg), all (mermaid's default) or none
   --label <k>       graph: label each node with field k
   --sets <path>     sets: the map whose keys are the sets
   --member <k>      sets: the field holding each set's members

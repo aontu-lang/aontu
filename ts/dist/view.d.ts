@@ -6,6 +6,7 @@ export type ViewVerdict = 'rendered' | 'lossy' | 'error';
 export type ViewKind = 'tree' | 'matrix' | 'graph' | 'layer' | 'sets' | 'layers' | 'ladder' | 'poset';
 export type ViewProfile = 'text' | 'mermaid' | 'dot' | 'er' | 'svg';
 export type ViewOrder = 'canon' | 'partition';
+export type ViewEdges = 'upward' | 'all' | 'none';
 export type ViewLoss = {
     code: string;
     count: number;
@@ -23,6 +24,20 @@ export type ViewReport = {
     loss: ViewLoss[];
     errors?: VetFinding[];
 };
+export type ViewFigure = {
+    name: string;
+    kind: ViewKind;
+    out: string;
+    verdict: ViewVerdict;
+    text?: string;
+    loss: ViewLoss[];
+    errors?: VetFinding[];
+};
+export type ViewSetReport = {
+    verdict: ViewVerdict;
+    views: ViewFigure[];
+    errors?: VetFinding[];
+};
 export type ViewOptions = {
     kind?: ViewKind;
     as?: ViewProfile;
@@ -37,6 +52,7 @@ export type ViewOptions = {
     relations?: string[];
     groupBy?: string;
     layers?: string[];
+    edges?: ViewEdges;
     label?: string;
     sets?: string;
     member?: string;
@@ -46,6 +62,8 @@ export type ViewOptions = {
     minSize?: number;
     profile?: SubsumeProfile;
     docs?: ViewDoc[];
+    out?: string;
+    views?: string;
 };
 export type ViewPosetDoc = {
     src: string;
@@ -63,4 +81,5 @@ export type ViewHooks = {
 };
 export declare function view(src: string, opts?: ViewOptions, hooks?: ViewHooks): ViewReport;
 export declare function viewTree(src: string, opts?: ViewOptions): ViewReport;
+export declare function viewSet(src: string, opts?: ViewOptions, hooks?: ViewHooks): ViewSetReport;
 export {};

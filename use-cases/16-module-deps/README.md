@@ -116,6 +116,13 @@ layer model.aon`, pinned as `expected/diagram-layer.txt`:
 # dependsOn: 19 downward, 2 sideways, 0 upward
 ```
 
+`--edges all` draws the relation over the bands, which is the figure a
+reader tracing one module's dependencies wants; the default draws the
+upward edges alone, because the bands already say which way the rest
+of them go and only a violation needs pointing at.
+
+![The architecture layers with every dependency drawn over them: four bands, arrows from each module down to the ones it depends on](expected/diagram-layer-edges.svg)
+
 The band order is not declared to the verb: it is the partition order
 of the layer-level graph (a layer depends on the layers its modules
 depend on), reversed so the layer nothing depends on is on top, which
@@ -160,6 +167,32 @@ at generation with both sides named.
 The rule holds in either spelling: `bad/upward.aon` writes the
 offending module first, `bad/upward-swapped.aon` writes its target
 first, and both refuse.
+
+## The figures are declared, not scripted
+
+Every figure this case commits is declared in `views.aon`, an ordinary
+document that includes the model:
+
+```
+views: {
+  matrix: {
+    kind: matrix
+    relation: dependsOn
+    order: partition
+    closure: true
+    out: "expected/diagram-matrix.txt"
+  }
+  ...
+}
+```
+
+`aontu view --views '$.views' --check views.aon` draws all eight from
+one evaluation and gates them together, which is what `check.sh` runs.
+A declaration's keys are the view options -- the command-line flags
+without the dashes -- so the file says exactly what the verb would have
+been asked, in a form the review reads and CI enforces. `views` is this
+document's own key: the engine is told where to look and knows nothing
+about the name.
 
 ## The model
 
@@ -233,6 +266,10 @@ constructs are specified in the language reference under
     and its footer counts zero cells above the diagonal; the same
     matrix as SVG matches `expected/diagram-matrix.svg`, and `--check`
     against the committed SVG passes.
+12a. `views.aon` declares all eight committed figures as data, and
+    `aontu view --views '$.views' --check` gates them in one run: one
+    evaluation, all or nothing. The same declarations drawn into a
+    scratch directory land the same bytes.
 12b. The architecture layers render byte for byte to
     `expected/diagram-layer.txt`: four bands in the order the relation
     derives, nineteen edges downward, two sideways, none upward; as

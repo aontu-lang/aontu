@@ -2615,7 +2615,7 @@ and the staged-`each` spelling,
 
 ## subsumption — the law that holds only for one spelling
 
-### 64. A referenced, aliased or recursive spread template breaks reflexivity, in both ports [critical]
+### 64. A referenced, aliased or recursive spread template breaks reflexivity, in both ports [FIXED 2026-09-02]
 
 Found 2026-08-30 while designing a subsumption poset — a diagram whose
 nodes are documents and whose edges are `subsume` verdicts. Three of
@@ -2674,6 +2674,22 @@ the two operands' **hash forms**; equal means `subsumes`. That is not a
 heuristic — `subsume.tsv` already says "Identity is the HASH FORM" — and
 it runs only where an `undecided` was about to be returned, so it costs
 nothing in the common case.
+
+**FIXED 2026-09-02, both ports, at the two sites that fold.** The
+walk's tail — which the ladder reaches for the formers the evaluator
+MEANS to leave standing: a recursion, a relation and its graph atom, a
+`refer()` target constraint — now answers `subsumes` for two operands
+with the same hash form, and a nil is the exception, because a nil is
+not a value and admits nothing, itself included. The path-dependent
+spread template folds only when the two templates are NOT the same
+template, so the comparison either side of a shared template is decided
+on its own merits. All fifteen use-case entry documents subsume
+themselves in both ports, and `use-cases/03-api-contract` no longer
+needs `--allow-undecided` to gate its contract against itself. The rows
+are `reflexive-*` in `test/spec/subsume.tsv` and
+`subsume-identical-recursion-is-reflexive` in `recursion.tsv`; the
+`different-*` rows beside them pin that a genuine difference is still
+`undecided` rather than swept up by the law.
 
 Repros:
 [`repros/subsume/reflexivity-reference-spread.aon`](repros/subsume/reflexivity-reference-spread.aon),

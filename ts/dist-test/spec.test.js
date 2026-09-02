@@ -100,6 +100,10 @@ Object.defineProperty(exports, "__esModule", { value: true });
  *                expect object ({kind, text} or {kind, errors}); the
  *                options ride `expect.ask` as reaches' do. See
  *                test/spec/view.tsv
+ *   mode=views : viewSet(src, {views}) -- the figures a VIEW DOCUMENT
+ *                declares -- must equal the expect object ({verdict,
+ *                views} or {verdict, views, errors}); see
+ *                test/spec/views.tsv
  * Escapes in src/expect: \n -> newline, \t -> tab, \\ -> backslash.
  *
  * gen vs gens: `gen` compares through a JSON decode, so both sides land
@@ -414,6 +418,22 @@ function runRow(row) {
         const report = (0, aontu_2.view)(row.src, ask);
         Assert.strictEqual((0, aontu_1.exactJSON)(null == report.errors
             ? report : { ...report, errors: stripProse(report.errors) }), (0, aontu_1.exactJSON)(golden), `view report mismatch: ${row.name}`);
+    }
+    else if ('views' === row.mode) {
+        // THE VIEW DOCUMENT (VIEWS.0.md, "6. The view document"): N figures
+        // of one document, declared as data, compared as one report --
+        // every figure's bytes and verdict, and every refusal, in the order
+        // the declaration keys sort.
+        const golden = JSON.parse(row.expect);
+        const ask = golden.ask ?? {};
+        delete golden.ask;
+        const report = (0, aontu_2.viewSet)(row.src, ask);
+        Assert.strictEqual((0, aontu_1.exactJSON)({
+            ...report,
+            ...(null == report.errors ? {} : { errors: stripProse(report.errors) }),
+            views: report.views.map((v) => null == v.errors
+                ? v : { ...v, errors: stripProse(v.errors) }),
+        }), (0, aontu_1.exactJSON)(golden), `view set report mismatch: ${row.name}`);
     }
     else if ('relation' === row.mode) {
         // RELATION GRAPH CHECKS (G4 phase 5): acyclicity and inverse

@@ -183,12 +183,22 @@ func matrixSvg(labels, idx []string, grid [][]string, footer, about string) stri
 
 type svgBox struct{ x, y, w int }
 
+// viewDrawing is one drawn edge of the layer figure, and which way it
+// goes between the bands.
+type viewDrawing struct {
+	edge viewTriple
+	way  string
+}
+
 // layerSvg is the layers as SVG: one band per row, its modules as boxes
-// laid left to right, and every UPWARD edge drawn as a dashed arrow
-// from its module up to the one it names -- the violation, and nothing
-// else, because the bands already say which way the rest of the edges
-// go.
-func layerSvg(bands []viewBand, upward []viewTriple, footer []string, about string) string {
+// laid left to right, and every SHOWN edge drawn between them -- an
+// upward one dashed and alert-coloured, because it is the violation the
+// bands cannot show on their own; a downward one straight down from the
+// bottom of its box to the top of the one it names; a sideways one
+// dipped below the boxes, since two modules of one band sit on the same
+// line and a straight edge between them would cross whatever stands
+// between.
+func layerSvg(bands []viewBand, shown []viewDrawing, footer []string, about string) string {
 	const BH = 44
 	names := []string{}
 	for _, b := range bands {
@@ -221,15 +231,31 @@ func layerSvg(bands []viewBand, upward []viewTriple, footer []string, about stri
 			parts = append(parts, svgText(at.x+6, at.y+16, "av-t", n.label, ""))
 		}
 	}
-	if 0 < len(upward) {
-		parts = append(parts, "<defs><marker id=\"av-arrow\" viewBox=\"0 0 8 8\" refX=\"8\" refY=\"4\" "+
+	if 0 < len(shown) {
+		parts = append(parts, "<defs>"+
+			"<marker id=\"av-arrow\" viewBox=\"0 0 8 8\" refX=\"8\" refY=\"4\" "+
 			"markerWidth=\"8\" markerHeight=\"8\" orient=\"auto\">"+
-			"<path d=\"M0 0L8 4L0 8Z\" fill=\"var(--av-alert,#d1242f)\"/></marker></defs>")
+			"<path d=\"M0 0L8 4L0 8Z\" fill=\"var(--av-alert,#d1242f)\"/></marker>"+
+			"<marker id=\"av-tip\" viewBox=\"0 0 8 8\" refX=\"8\" refY=\"4\" "+
+			"markerWidth=\"8\" markerHeight=\"8\" orient=\"auto\">"+
+			"<path d=\"M0 0L8 4L0 8Z\" fill=\"var(--av-rule,#8c959f)\"/></marker>"+
+			"</defs>")
 	}
-	for _, e := range upward {
-		from, to := box[e.from], box[e.to]
-		parts = append(parts, "<path d=\"M"+itoa(from.x+from.w/2)+" "+itoa(from.y)+
-			"L"+itoa(to.x+to.w/2)+" "+itoa(to.y+24)+"\" class=\"av-up\" marker-end=\"url(#av-arrow)\"/>")
+	for _, c := range shown {
+		from, to := box[c.edge.from], box[c.edge.to]
+		fx, tx := from.x+from.w/2, to.x+to.w/2
+		if "upward" == c.way {
+			parts = append(parts, "<path d=\"M"+itoa(fx)+" "+itoa(from.y)+
+				"L"+itoa(tx)+" "+itoa(to.y+24)+"\" class=\"av-up\" marker-end=\"url(#av-arrow)\"/>")
+		} else if "downward" == c.way {
+			parts = append(parts, "<path d=\"M"+itoa(fx)+" "+itoa(from.y+24)+
+				"L"+itoa(tx)+" "+itoa(to.y)+"\" class=\"av-line\" marker-end=\"url(#av-tip)\"/>")
+		} else {
+			// Below the boxes and back up, staying inside the band.
+			y := from.y + 24
+			parts = append(parts, "<path d=\"M"+itoa(fx)+" "+itoa(y)+"V"+itoa(y+6)+
+				"H"+itoa(tx)+"V"+itoa(y)+"\" class=\"av-line\" marker-end=\"url(#av-tip)\"/>")
+		}
 	}
 	y1 := 4 + len(bands)*BH + 4
 	for i, f := range footer {

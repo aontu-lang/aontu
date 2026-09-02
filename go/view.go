@@ -75,6 +75,11 @@ type ViewOptions struct {
 	GroupBy   string
 	Label     string
 	Layers    []string
+	// Edges is which of the relation's edges the layer figure draws:
+	// "upward" (the violations), "all" or "none". Empty means the
+	// profile's own default -- "all" for mermaid, which lays edges out
+	// itself, "upward" for the fixed grids.
+	Edges string
 
 	Sets      string
 	Member    string
@@ -86,6 +91,17 @@ type ViewOptions struct {
 
 	Profile string
 	Docs    []ViewDoc
+
+	// Out is the file the figure belongs in. THE LIBRARY NEVER WRITES:
+	// this is carried through to the caller, which does -- and, for a
+	// view document, only once every figure of the set rendered.
+	Out string
+
+	// Views is the VIEW DOCUMENT's declarations (VIEWS.0.md, "6. The
+	// view document"): the path of a map whose values declare figures.
+	// ViewSet reads it; View ignores it, because one call draws one
+	// figure.
+	Views string
 }
 
 // viewKinds lists each kind's profiles, the first being its default.
@@ -178,7 +194,8 @@ func viewUnder(path, at string) bool {
 // viewTriples is the deduplicated edge set, with the hidden
 // contributions and the out-of-scope edges removed and the loss report
 // told. See triplesOf in ts/src/view.ts.
-func viewTriples(edges []Edge, at string, loss *[]ViewLoss) []viewTriple {
+func viewTriples(graph Graph, at string, loss *[]ViewLoss) []viewTriple {
+	edges := graph.Edges
 	hidden := []string{}
 	seen := map[string]viewTriple{}
 	positions := 0
@@ -196,6 +213,20 @@ func viewTriples(edges []Edge, at string, loss *[]ViewLoss) []viewTriple {
 	if 0 < len(hidden) {
 		sort.Strings(hidden)
 		*loss = append(*loss, ViewLoss{Code: "hidden_contribution", Count: len(hidden), Detail: hidden})
+	}
+	// A link under an UNRESOLVED DISJUNCTION is not an edge (ADR-007),
+	// and the figure says so rather than dropping it in silence: the
+	// document has not decided, and a drawing that quietly picked an arm
+	// would be inventing the decision.
+	undecided := []string{}
+	for _, p := range graph.Disjunct {
+		if viewUnder(p, at) {
+			undecided = append(undecided, p)
+		}
+	}
+	if 0 < len(undecided) {
+		*loss = append(*loss, ViewLoss{Code: "edges_in_disjunct",
+			Count: len(undecided), Detail: undecided})
 	}
 	out := []viewTriple{}
 	for _, t := range seen {
@@ -1073,7 +1104,7 @@ type viewBand struct {
 // relation's upward edges named under the figure. See drawLayer in
 // ts/src/view.ts.
 func drawLayer(triples []viewTriple, root Val, relation, groupBy string, layers []string,
-	as string, max int, loss *[]ViewLoss) (string, []VetFinding) {
+	edges, as string, max int, loss *[]ViewLoss) (string, []VetFinding) {
 	if "" == groupBy {
 		return "", []VetFinding{viewFinding("view_group_required", "reference", "$",
 			"The layer diagram needs the field that names each node's layer; name it with --group-by.", "")}
@@ -1186,18 +1217,41 @@ func drawLayer(triples []viewTriple, root Val, relation, groupBy string, layers 
 		}
 		return byPath[a.to].label < byPath[b.to].label
 	})
-	down, side := 0, 0
-	upward := map[viewTriple]bool{}
-	upList := []viewTriple{}
+	down, side, up := 0, 0, 0
+	classed := []viewDrawing{}
 	for _, e := range drawn {
 		fi, ti := level[byPath[e.from].group], level[byPath[e.to].group]
+		way := "upward"
 		if fi < ti {
 			down++
+			way = "downward"
 		} else if fi == ti {
 			side++
+			way = "sideways"
 		} else {
-			upward[e] = true
-			upList = append(upList, e)
+			up++
+		}
+		classed = append(classed, viewDrawing{edge: e, way: way})
+	}
+
+	// WHICH EDGES ARE SHOWN. Mermaid lays edges out itself and drew
+	// every one before this option existed; the fixed grids drew the
+	// upward ones, which are the violations the bands cannot show on
+	// their own.
+	if "" == edges {
+		edges = "upward"
+		if "mermaid" == as {
+			edges = "all"
+		}
+	}
+	shown := []viewDrawing{}
+	if "all" == edges {
+		shown = classed
+	} else if "upward" == edges {
+		for _, c := range classed {
+			if "upward" == c.way {
+				shown = append(shown, c)
+			}
 		}
 	}
 
@@ -1208,14 +1262,23 @@ func drawLayer(triples []viewTriple, root Val, relation, groupBy string, layers 
 		named = "-"
 	}
 	footer := []string{"# " + named + ": " + strconv.Itoa(down) + " downward, " +
-		strconv.Itoa(side) + " sideways, " + strconv.Itoa(len(upList)) + " upward"}
-	for _, e := range upList {
-		footer = append(footer, "# upward: "+byPath[e.from].label+" -> "+byPath[e.to].label)
+		strconv.Itoa(side) + " sideways, " + strconv.Itoa(up) + " upward"}
+	for _, c := range shown {
+		footer = append(footer, "# "+c.way+": "+byPath[c.edge.from].label+
+			" -> "+byPath[c.edge.to].label)
 	}
 	if "svg" == as {
-		return layerSvg(bands, upList, footer,
-			"Architecture layers"+svgOver(relation)+": "+strconv.Itoa(len(bands))+" bands, "+
-				strconv.Itoa(len(upList))+" upward edges"), nil
+		// The description says WHAT WAS DRAWN, because two layer figures
+		// of one model on one page differ by exactly that, and a reader
+		// who cannot see them has only this to tell them apart.
+		drew := strconv.Itoa(up) + " upward edges"
+		if "all" == edges {
+			drew = strconv.Itoa(len(shown)) + " edges drawn, " + strconv.Itoa(up) + " of them upward"
+		} else if "none" == edges {
+			drew = strconv.Itoa(up) + " upward edges, none drawn"
+		}
+		return layerSvg(bands, shown, footer,
+			"Architecture layers"+svgOver(relation)+": "+strconv.Itoa(len(bands))+" bands, "+drew), nil
 	}
 	out := []string{}
 	if "text" == as {
@@ -1249,11 +1312,12 @@ func drawLayer(triples []viewTriple, root Val, relation, groupBy string, layers 
 			}
 			out = append(out, "  end")
 		}
-		for _, e := range drawn {
-			if upward[e] {
-				out = append(out, "  "+byPath[e.from].id+" -.->|\"upward\"| "+byPath[e.to].id)
+		for _, c := range shown {
+			if "upward" == c.way {
+				out = append(out, "  "+byPath[c.edge.from].id+" -.->|\"upward\"| "+
+					byPath[c.edge.to].id)
 			} else {
-				out = append(out, "  "+byPath[e.from].id+" --> "+byPath[e.to].id)
+				out = append(out, "  "+byPath[c.edge.from].id+" --> "+byPath[c.edge.to].id)
 			}
 		}
 	}
@@ -2096,40 +2160,63 @@ func (a *Aontu) View(src string, opts *ViewOptions) ViewReport {
 	if nil != errs {
 		return done("", errs)
 	}
+	return done(a.drawLoaded(root, ctx, nil, prov, kind, as, &options, max, &loss))
+}
 
+// viewGen boxes a generated value, so a caller that already holds one
+// (a view document reads its declarations out of one) hands it over
+// rather than generating again. See drawLoaded in ts/src/view.ts.
+type viewGen struct {
+	value any
+}
+
+// drawLoaded is THE KINDS THAT DRAW FROM A LOADED MODEL, so a view
+// document can load once and draw N figures from the one evaluation.
+func (a *Aontu) drawLoaded(root Val, ctx *Ctx, gen *viewGen, prov *Provenance,
+	kind, as string, options *ViewOptions, max int, loss *[]ViewLoss) (string, []VetFinding) {
 	if "layers" == kind {
-		return done(drawLayers(prov, root, a.File, options.At, options.MinSize, options.MaxCols, as, max, &loss))
+		return drawLayers(prov, root, a.File, options.At, options.MinSize, options.MaxCols, as, max, loss)
 	}
 	if "sets" == kind {
 		if "" == options.Sets || "" == options.Member {
-			return done("", []VetFinding{viewFinding("view_sets_required", "reference", "$",
-				"The set panel needs --sets and --member.", "")})
+			return "", []VetFinding{viewFinding("view_sets_required", "reference", "$",
+				"The set panel needs --sets and --member.", "")}
 		}
-		gen, gerr := root.Gen(ctx)
-		if nil != gerr {
-			return done("", queryFailed(gerr, "$").Findings)
+		var value any
+		if nil == gen {
+			// GENERATION CAN FAIL WHERE UNIFICATION DID NOT: the panel
+			// reads generated values, so a document that is not concrete
+			// is an error here, exactly as `aontu file.aon` on it is.
+			v, gerr := root.Gen(ctx)
+			if nil != gerr {
+				return "", queryFailed(gerr, "$").Findings
+			}
+			value = v
+		} else {
+			value = gen.value
 		}
-		return done(drawSets(gen, options.Sets, options.Member, options.Universe,
-			options.MinDegree, options.MaxCols, as, max, &loss))
+		return drawSets(value, options.Sets, options.Member, options.Universe,
+			options.MinDegree, options.MaxCols, as, max, loss)
 	}
 
-	triples := viewTriples(GraphOf(root).Edges, options.At, &loss)
+	triples := viewTriples(GraphOf(root), options.At, loss)
 	decls := ctx.reldecls
 	if "matrix" == kind {
 		order := options.Order
 		if "" == order {
 			order = "canon"
 		}
-		return done(drawMatrix(triples, decls, options.Relation, order, options.Closure, as, max, &loss))
+		return drawMatrix(triples, decls, options.Relation, order, options.Closure, as, max, loss)
 	}
 	if "graph" == kind {
-		return done(drawGraph(triples, decls, root, options.Relations,
-			options.GroupBy, options.Label, as, max, &loss))
+		return drawGraph(triples, decls, root, options.Relations,
+			options.GroupBy, options.Label, as, max, loss)
 	}
 	if "layer" == kind {
-		return done(drawLayer(triples, root, options.Relation, options.GroupBy, options.Layers, as, max, &loss))
+		return drawLayer(triples, root, options.Relation, options.GroupBy, options.Layers,
+			options.Edges, as, max, loss)
 	}
-	return done(drawTree(collapseEdges(triples, options.Relation), options.Relation, options.Roots, max, as))
+	return drawTree(collapseEdges(triples, options.Relation), options.Relation, options.Roots, max, as)
 }
 
 // ViewTree is the tree view of one document: View with the kind fixed.

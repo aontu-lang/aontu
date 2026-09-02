@@ -40,9 +40,10 @@ import type { TrimReport, TrimVerdict } from './trim'
 import type { RelationReport, RelationVerdict } from './relation'
 import { reachCheck } from './reach'
 import type { ReachReport, ReachVerdict } from './reach'
-import { view } from './view'
+import { view, viewSet } from './view'
 import type {
-  ViewKind, ViewLoss, ViewOptions, ViewProfile, ViewReport, ViewVerdict,
+  ViewEdges, ViewFigure, ViewKind, ViewLoss, ViewOptions, ViewProfile,
+  ViewReport, ViewSetReport, ViewVerdict,
 } from './view'
 import type { QueryView } from './query'
 import type { WhyRecord } from './provenance'
@@ -60,6 +61,7 @@ const HELP = `Usage: aontu [options] [file]
        aontu relations [options] <file>
        aontu reaches <from> <to> [--relation <name>] [options] <file>
        aontu view <kind> [options] <file>...
+       aontu view --views <path> [--check] [options] <file>
        aontu jsonschema [--at <path>] [--strict] [options] <file>
        aontu hash [options] <file>
        aontu mod tidy|verify|vendor|manifest [options] [dir]
@@ -182,7 +184,10 @@ Why exit codes mirror get's: 0 explained, 1 the path names nothing,
 
 View kinds: tree, matrix, graph, layer, sets, layers, ladder, poset
 (the poset takes several files). The figure goes to stdout, the loss
-report to stderr.
+report to stderr. With --views it draws every figure a document
+declares as data, from one evaluation: each declaration names its own
+kind and out file, nothing is written unless every figure rendered,
+and --check gates the committed set.
 
 View options:
   --as <profile>    text | mermaid | dot | er | svg, per kind: tree,
@@ -192,6 +197,9 @@ View options:
                     and poset draw mermaid (default) or dot
   --at <path>       Restrict the figure to nodes under this path; the
                     path the ladder draws; where the poset compares
+  --views <path>    Draw every figure the document declares at this
+                    path, one evaluation, all or nothing; each
+                    declaration names its own kind and out file
   -o, --out <file>  Write the figure here instead of stdout
   --check           Exit 1 if --out differs from what would be drawn;
                     nothing is written
@@ -209,6 +217,9 @@ View options:
                     layer: one band per value (required)
   --layers <a,b>    layer: the bands in this order, top first; without
                     it the order is derived from the relation
+  --edges <e>       layer: which of the relation's edges to draw over
+                    the bands -- upward (the violations, the default
+                    for text and svg), all (mermaid's default) or none
   --label <k>       graph: label each node with field k
   --sets <path>     sets: the map whose keys are the sets
   --member <k>      sets: the field holding each set's members
@@ -1767,6 +1778,8 @@ const VIEW_KINDS: ViewKind[] =
 
 const VIEW_PROFILES: ViewProfile[] = ['text', 'mermaid', 'dot', 'er', 'svg']
 
+const VIEW_EDGES: ViewEdges[] = ['upward', 'all', 'none']
+
 // The figure was drawn (0, `lossy` included: the loss report says
 // what it could not draw, and --strict is the gate on that), or the
 // document could not be drawn (4). An EMPTY figure is a drawing, not
@@ -1782,6 +1795,7 @@ const VIEW_EXIT: Record<ViewVerdict, number> = {
 const VIEW_USAGE_CODES = [
   'view_kind_unknown', 'view_profile_unknown', 'view_rows_exceeded',
   'view_at_required', 'view_sets_required', 'view_group_required',
+  'view_document_shape',
 ]
 
 const MOD_HELP = 'aontu mod tidy|verify|vendor|manifest [dir] (try --help)'
@@ -2171,7 +2185,8 @@ function runView(argv: string[]): number {
   const valued: Record<string, keyof ViewOptions> = {
     '--as': 'as', '--at': 'at', '--order': 'order', '--group-by': 'groupBy',
     '--label': 'label', '--sets': 'sets', '--member': 'member',
-    '--universe': 'universe', '--profile': 'profile',
+    '--universe': 'universe', '--profile': 'profile', '--views': 'views',
+    '--edges': 'edges',
   }
   const counted: Record<string, keyof ViewOptions> = {
     '--max-rows': 'maxRows', '--max-cols': 'maxCols',
@@ -2258,6 +2273,12 @@ function runView(argv: string[]): number {
     }
   }
 
+  // THE VIEW DOCUMENT draws every figure a document declares, so it
+  // names no kind: the declarations do, one each.
+  if (undefined !== opts.views) {
+    return runViewSet(rest, opts, trust, { format, check, strict, out })
+  }
+
   if (2 > rest.length) {
     process.stderr.write(
       `aontu: view needs a kind and a file\n${VIEW_HELP}\n`)
@@ -2276,6 +2297,11 @@ function runView(argv: string[]): number {
   }
   if (undefined !== opts.order && 'canon' !== opts.order && 'partition' !== opts.order) {
     process.stderr.write('aontu: --order needs canon or partition\n')
+    return 2
+  }
+  if (undefined !== opts.edges && !VIEW_EDGES.includes(opts.edges)) {
+    process.stderr.write(
+      `aontu: --edges needs one of ${VIEW_EDGES.join(', ')}\n`)
     return 2
   }
   if (undefined !== opts.profile && !['values', 'defaults', 'gen'].includes(opts.profile)) {
@@ -2365,6 +2391,133 @@ function runView(argv: string[]): number {
   }
   return strict && 'lossy' === report.verdict ? 1 : VIEW_EXIT[report.verdict]
 }
+
+// `aontu view --views <path> <file>`: every figure the document
+// declares, from one evaluation, all or nothing.
+//
+// A declared `out` is resolved against the DOCUMENT's own directory,
+// not the caller's: a view document is committed beside the figures it
+// gates, and a gate that only passes from one working directory is not
+// a gate.
+function runViewSet(
+  rest: string[], opts: ViewOptions, trust: TrustArg,
+  how: { format: SubsumeFormat, check: boolean, strict: boolean, out?: string }
+): number {
+  if (1 !== rest.length) {
+    process.stderr.write('aontu: view --views takes one file\n')
+    return 2
+  }
+  if (undefined !== how.out) {
+    process.stderr.write(
+      'aontu: --out is per figure in a view document; each declares its own\n')
+    return 2
+  }
+  const file = rest[0]
+  let src: string
+  try {
+    src = readFileSync(file, 'utf8')
+  }
+  catch (err: any) {
+    process.stderr.write(`aontu: cannot read ${err.path}: ${err.message}\n`)
+    return 2
+  }
+
+  const report = viewSet(src, {
+    ...opts, path: file, trust: verbTrust(trust, entryRootOf(file)),
+  })
+
+  if ('json' === how.format) {
+    process.stdout.write(renderViewSetJson(report) + '\n')
+  }
+  else if (undefined !== report.errors) {
+    process.stderr.write(report.errors.map(renderFinding).join('\n') + '\n')
+  }
+  else {
+    for (const fig of report.views) {
+      if (undefined !== fig.errors) {
+        process.stderr.write(`${fig.name} (${fig.kind}):\n` +
+          fig.errors.map(renderFinding).join('\n') + '\n')
+      }
+      else if (0 < fig.loss.length) {
+        process.stderr.write(renderViewLoss(fig.loss)
+          .split('\n').map((l) => `${fig.name}  ${l}`).join('\n') + '\n')
+      }
+    }
+  }
+  if ('error' === report.verdict) {
+    return setExit(report)
+  }
+
+  // EVERY FIGURE RENDERED, so the whole set is written -- or, under
+  // --check, the whole set is compared and every difference named.
+  const dir = dirname(resolve(file))
+  let differ = 0
+  for (const fig of report.views) {
+    const path = resolve(dir, fig.out)
+    const text = fig.text + '\n'
+    if (how.check) {
+      let have: string | undefined = undefined
+      try {
+        have = readFileSync(path, 'utf8')
+      }
+      catch (_err: any) {
+        // Absent is a mismatch.
+      }
+      if (have !== text) {
+        differ++
+        process.stderr.write(
+          `aontu: ${fig.out} differs from the ${fig.name} figure\n`)
+      }
+    }
+    else {
+      try {
+        writeFileSync(path, text, 'utf8')
+      }
+      catch (err: any) {
+        process.stderr.write(`aontu: cannot write ${err.path}: ${err.message}\n`)
+        return 2
+      }
+      if ('json' !== how.format) {
+        process.stderr.write(`wrote ${fig.out}  ${fig.name} (${fig.kind})\n`)
+      }
+    }
+  }
+  if (0 < differ) {
+    return 1
+  }
+  return how.strict && 'lossy' === report.verdict ? 1 : VIEW_EXIT[report.verdict]
+}
+
+
+// A set's exit code is the worst of its figures': a usage refusal
+// anywhere is usage, and any other refusal is the document's fault.
+function setExit(report: ViewSetReport): number {
+  const codes = [
+    ...(report.errors ?? []),
+    ...report.views.flatMap((v) => v.errors ?? []),
+  ].map((e) => e.code)
+  return codes.some((c) => VIEW_USAGE_CODES.includes(c))
+    ? 2 : VIEW_EXIT.error
+}
+
+
+function renderViewSetJson(report: ViewSetReport): string {
+  return exactJSON({
+    aontu: { version: version(), verb: 'view' },
+    verdict: report.verdict,
+    views: report.views.map((v: ViewFigure) => ({
+      name: v.name,
+      kind: v.kind,
+      out: v.out,
+      verdict: v.verdict,
+      ...(null == v.text ? {} : { text: v.text }),
+      loss: v.loss,
+      ...(null == v.errors ? {} : { errors: v.errors }),
+    })),
+    ...(null == report.errors ? {} : { errors: report.errors }),
+  }, 2)
+}
+
 
 // One line per code: the code, the count, and the detail if any.
 function renderViewLoss(loss: ViewLoss[]): string {

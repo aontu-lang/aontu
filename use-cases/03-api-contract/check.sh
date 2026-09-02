@@ -27,6 +27,12 @@ run() {
 }
 
 # has <name> <stream> <fixed-string>
+hasnt() {
+  grep -qF -- "$3" "$WORK/$1.$2" \
+    && { cat "$WORK/$1.$2" >&2; fail "$1: $2 should not contain: $3"; }
+  return 0
+}
+
 has() {
   grep -qF -- "$3" "$WORK/$1.$2" \
     || { cat "$WORK/$1.$2" >&2; fail "$1: $2 does not contain: $3"; }
@@ -301,15 +307,16 @@ run brk 1 -- breaking --against "$DIR/contract.aon" \
 has brk out 'verdict: breaking'
 has brk out 'compat_narrowed'
 has brk out 'PageSize'
-# GAP 10: the contract is not even self-compatible -- every &: spread
-# template is sub_unresolved / sub_path_dependent_spread, so verdict
-# undecided (exit 3) for a byte-identical document. Pin it, and pin
-# the documented escape hatch.
-run brksame 3 -- breaking --against "$DIR/contract.aon" "$DIR/contract.aon"
-has brksame out 'verdict: undecided'
-has brksame out 'sub_path_dependent_spread'
-run brkallow 0 -- breaking --against "$DIR/contract.aon" --allow-undecided \
-  "$DIR/contract.aon"
-ok "breaking: 100->50 refused; self-compare undecided (pinned gap 10)"
+# REFLEXIVITY: the contract is compatible with ITSELF. It was not
+# until 2026-09-02 -- every `&:` spread template read as
+# sub_path_dependent_spread, so a byte-identical document came back
+# undecided (exit 3) and `breaking` on this idiom had to run
+# --allow-undecided, which masks the genuine undecideds it exists to
+# surface (use-cases/BUGS.md 64). Identical templates are now the same
+# template, and the escape hatch is no longer needed here.
+run brksame 0 -- breaking --against "$DIR/contract.aon" "$DIR/contract.aon"
+has brksame out 'verdict: compatible'
+hasnt brksame out 'sub_path_dependent_spread'
+ok "breaking: 100->50 refused; the contract is compatible with itself"
 
 echo "all $pass checks passed"

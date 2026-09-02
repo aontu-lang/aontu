@@ -415,6 +415,15 @@ function hostileModule(dir) {
         const dot = payload((0, mcp_1.callTool)('view', { source: doc, as: 'dot' }));
         Assert.equal(dot.verdict, 'error');
         Assert.equal((dot.errors ?? dot.findings)[0].code, 'view_profile_unknown');
+        // `edges` chooses which of a layer figure's edges are drawn, and a
+        // value that is not one of the three is a call that could not be
+        // made.
+        Assert.match(payload((0, mcp_1.callTool)('view', {
+            source: 'a: {layer: "x", dependsOn: [&: refer(), path($.b)]}\n' +
+                'b: {layer: "y"}\n',
+            kind: 'layer', groupBy: 'layer', edges: 'all',
+        })).text, /# dependsOn: 1 downward/);
+        Assert.equal((0, mcp_1.callTool)('view', { source: doc, edges: 'sideways' }).isError, true);
         // The tree as SVG, through the tool: the figure is the bytes the
         // CLI writes, and the shared rows pin them.
         Assert.match(payload((0, mcp_1.callTool)('view', { source: doc, relation: 'dependsOn', as: 'svg' })).text, /^<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg" class="av" /);

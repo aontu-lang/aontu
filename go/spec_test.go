@@ -663,6 +663,25 @@ func TestSpec(t *testing.T) {
 						t.Fatalf("view report mismatch\n src: %q\n want: %s\n got:  %s",
 							src, want, got)
 					}
+				case "views":
+					// THE VIEW DOCUMENT (VIEWS.0.md, "6. The view
+					// document"): N figures of one document, declared as
+					// data, compared as one report -- every figure's bytes
+					// and verdict, and every refusal, in the order the
+					// declaration keys sort.
+					var golden map[string]any
+					if err := json.Unmarshal([]byte(expect), &golden); err != nil {
+						t.Fatalf("expect is not JSON: %v\n expect: %s", err, expect)
+					}
+					ask, _ := golden["ask"].(map[string]any)
+					delete(golden, "ask")
+					got := specJSON(t, specStripViewsProse(specAsMap(t,
+						New().ViewSet(src, specViewOptions(ask)))))
+					want := specJSON(t, golden)
+					if got != want {
+						t.Fatalf("view set report mismatch\n src: %q\n want: %s\n got:  %s",
+							src, want, got)
+					}
 				case "relation":
 					// RELATION GRAPH CHECKS (G4 phase 5): acyclicity and
 					// inverse consistency over the edge set, compared as
@@ -762,6 +781,19 @@ func specStripProse(out map[string]any, key string) map[string]any {
 		if m, ok := f.(map[string]any); ok {
 			delete(m, "message")
 			delete(m, "hint")
+		}
+	}
+	return out
+}
+
+// specStripViewsProse strips the prose from a view document's report:
+// the set's own findings, and each figure's.
+func specStripViewsProse(out map[string]any) map[string]any {
+	specStripProse(out, "errors")
+	views, _ := out["views"].([]any)
+	for _, v := range views {
+		if m, ok := v.(map[string]any); ok {
+			specStripProse(m, "errors")
 		}
 	}
 	return out
@@ -1205,9 +1237,10 @@ func specViewOptions(ask map[string]any) *ViewOptions {
 		Relation: str("relation"), Roots: list("roots"),
 		Order: str("order"), Closure: closure,
 		Relations: list("relations"), GroupBy: str("groupBy"), Label: str("label"),
-		Layers: list("layers"),
-		Sets:   str("sets"), Member: str("member"), Universe: str("universe"),
+		Layers: list("layers"), Edges: str("edges"),
+		Sets: str("sets"), Member: str("member"), Universe: str("universe"),
 		MinDegree: num("minDegree"), MaxCols: num("maxCols"), MinSize: num("minSize"),
 		Profile: str("profile"), Docs: docs,
+		Out: str("out"), Views: str("views"),
 	}
 }

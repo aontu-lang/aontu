@@ -51,6 +51,14 @@ type Edge struct {
 // address is its path.
 type Graph struct {
 	Edges []Edge `json:"edges"`
+	// Disjunct holds the positions of links written under an UNRESOLVED
+	// DISJUNCTION. ADR-007: an unresolved disjunction is not a value, so
+	// a link beneath one of its arms is not a fact and is not an edge --
+	// but it is not nothing either, and a figure that silently dropped
+	// it would be the failure the views exist to avoid. Absent when
+	// there are none, so a graph of a decided document is the shape it
+	// always was.
+	Disjunct []string `json:"disjunct,omitempty"`
 }
 
 func graphPath(path []string) string {
@@ -97,17 +105,23 @@ func cutEdge(at []string, relkey string) (string, string) {
 // ancestor chain — which is what a cycle actually is.
 func GraphOf(root Val) Graph {
 	edges := []Edge{}
+	disjunct := []string{}
 	ancestors := map[Val]bool{}
 
-	var visit func(node Val, path []string, hidden bool)
-	visit = func(node Val, path []string, hidden bool) {
+	// ONE WALK, with `undecided` saying which side of ADR-007 it is on:
+	// below an unresolved disjunction every link is a position the
+	// document has not decided, and nothing there is an edge.
+	var visit func(node Val, path []string, hidden, undecided bool)
+	visit = func(node Val, path []string, hidden, undecided bool) {
 		if nil == node || ancestors[node] {
 			return
 		}
 
 		hidden = hidden || node.markedHide()
 
-		if link := node.linkAddr(); "" != link {
+		if link := node.linkAddr(); "" != link && undecided {
+			disjunct = append(disjunct, graphPath(path))
+		} else if "" != link {
 			relkey := ""
 			if bb, ok := node.(interface{ relKey() string }); ok {
 				relkey = bb.relKey()
@@ -126,7 +140,7 @@ func GraphOf(root Val) Graph {
 		// the field's value at the field's own position, and the graph
 		// is about the value.
 		if ga, ok := node.(*GraphAtomVal); ok && nil != ga.held {
-			visit(ga.held, path, hidden)
+			visit(ga.held, path, hidden, undecided)
 		}
 
 		switch n := node.(type) {
@@ -136,25 +150,35 @@ func GraphOf(root Val) Graph {
 		case *ConjunctVal:
 			ancestors[node] = true
 			for _, t := range n.peg {
-				visit(t, path, hidden)
+				visit(t, path, hidden, undecided)
+			}
+			delete(ancestors, node)
+		// AN UNRESOLVED DISJUNCTION IS NOT A VALUE (ADR-007), so a link
+		// under one of its arms is not an edge. It is COUNTED, with its
+		// position, so a figure can report what the document leaves
+		// undecided rather than drawing it or dropping it in silence.
+		case *DisjunctVal:
+			ancestors[node] = true
+			for _, arm := range n.peg {
+				visit(arm, path, hidden, true)
 			}
 			delete(ancestors, node)
 		case *MapVal:
 			ancestors[node] = true
 			for _, k := range n.keys {
-				visit(n.peg[k], append(cp(path), k), hidden)
+				visit(n.peg[k], append(cp(path), k), hidden, undecided)
 			}
 			delete(ancestors, node)
 		case *ListVal:
 			ancestors[node] = true
 			for i, e := range n.peg {
-				visit(e, append(cp(path), itoa(i)), hidden)
+				visit(e, append(cp(path), itoa(i)), hidden, undecided)
 			}
 			delete(ancestors, node)
 		}
 	}
 
-	visit(root, nil, false)
+	visit(root, nil, false, false)
 
 	// DETERMINISTIC by construction, not by luck — which matters more
 	// here than anywhere: Go map order is random, so anything built from
@@ -165,5 +189,15 @@ func GraphOf(root Val) Graph {
 	// position, and two links there would have had to unify into one.
 	sort.Slice(edges, func(i, j int) bool { return edges[i].At < edges[j].At })
 
+	if 0 < len(disjunct) {
+		sort.Strings(disjunct)
+		unique := []string{}
+		for i, p := range disjunct {
+			if 0 == i || disjunct[i-1] != p {
+				unique = append(unique, p)
+			}
+		}
+		return Graph{Edges: edges, Disjunct: unique}
+	}
 	return Graph{Edges: edges}
 }
