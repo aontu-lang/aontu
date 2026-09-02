@@ -156,6 +156,9 @@ every existing golden is unchanged.
 Both ports. **Breaking**: `|>` no longer parses. It was parse-time
 sugar — `x |> f(a)` WAS `f(x, a)`, never in canon — and every
 spelling it covered has the ordinary call form. Removed with it: the
+operator in both published grammars (`grammar/aontu.gbnf`,
+`grammar/aontu.lark`), so a constrained decoder cannot be told `|>` is
+legal by the same release that stops parsing it; the
 `pipe_target` error code, `test/spec/pipe.tsv`, and the one spelling
 that could synthesise an unsited value (patch's span-verification
 refusal is now unreachable through `patch` and kept as an exported

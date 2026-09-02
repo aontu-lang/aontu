@@ -20,6 +20,13 @@
         "configuration": "./language-configuration.json"
       }
     ],
+    "grammars": [
+      {
+        "language": "aontu",
+        "scopeName": "source.aontu",
+        "path": "./syntaxes/aontu.tmLanguage.json"
+      }
+    ],
     "configuration": {
       "title": "Aontu",
       "properties": {
@@ -38,7 +45,8 @@
     }
   },
   "scripts": {
-    "compile": "tsc -p ./",
+    "sync-grammar": "node scripts/sync-grammar.js",
+    "compile": "npm run sync-grammar && tsc -p ./",
     "watch": "tsc -p ./ -w",
     "vscode:prepublish": "npm run compile",
     "package": "vsce package",

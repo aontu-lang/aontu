@@ -21,12 +21,20 @@
 
 root ::= ws value ws
 
-value ::= piped
-
-# The pipe is SUGAR: `x |> f(a)` is `f(x, a)`, resolved while reading
-# the source (G8 phase 4). It never reaches a value, so canon never
-# emits it — every canon in the shared suite shows the call.
-piped ::= disjunct ( ws "|>" ws disjunct )*
+# No pipe. `|>` was parse-time sugar (G8 phase 4); ADR-018 removed it,
+# `x |> f(a)` being written `f(x, a)`.
+#
+# That ADR says "the operator from both grammars", and both kept it
+# anyway — the engine, the suite, the error code and the docs were
+# done, these two files were not. Nothing caught it, and nothing here
+# could have: the parity discipline above runs one way, requiring every
+# canon output to PARSE, so a rule canon never emits is unreachable and
+# a test that only reads this file cannot tell a dead rule from a live
+# one. What it cost was the direction that matters to this file's
+# consumer — a decoder constrained by the old text could emit `|>` and
+# have the engine refuse it with `aontu/unexpected`. Fixed before the
+# next release, so no published grammar ever disagreed with its engine.
+value ::= disjunct
 
 disjunct ::= conjunct ( ws "|" ws conjunct )*
 

@@ -31,3 +31,29 @@ go/sigdecl.txt text eol=lf
 *.md text eol=lf
 *.gbnf text eol=lf
 *.lark text eol=lf
+*.tmLanguage.json text eol=lf
+
+# GITHUB'S HIGHLIGHTING, UNTIL LINGUIST HAS THE LANGUAGE.
+#
+# github.com colours a blob only for a language Linguist knows, and
+# Linguist takes a new one at 2000 files per extension indexed in a
+# year, spread across unrepeated repositories. `.aon` is nowhere near
+# that and will not be until the language is used outside this
+# organisation, so the 415 sources here render as plain text.
+#
+# `linguist-language` is the lever that does not wait: it is documented
+# as setting HIGHLIGHTING as well as classification, and YAML is the
+# closest grammar already in Linguist -- `#` comments, `key: value`,
+# quoted strings and numbers all land. It reads two spellings wrong,
+# the `&:` spread (YAML sees an anchor) and the `@"..."` include, which
+# is the price of the other ninety per cent.
+#
+# `-linguist-detectable` keeps the repository's language bar honest
+# while that alias stands: colour the files, do not claim the project
+# is written in YAML.
+#
+# This is a stopgap with an end condition. When grammar/aontu.tmLanguage.json
+# is accepted into Linguist, both lines come out in the same commit --
+# they would then OVERRIDE the real grammar with a worse one.
+*.aon   linguist-language=YAML -linguist-detectable
+*.aontu linguist-language=YAML -linguist-detectable
