@@ -1419,6 +1419,13 @@ describe('cli-subsume', () => {
     Assert.match(gate.err, /out\/tree\.txt differs from the tree figure/)
     Assert.match(gate.err, /out\/bands\.txt differs from the bands figure/)
 
+    // A figure that was never committed is a mismatch, not a crash: the
+    // gate is what a first run of --out would have written.
+    Fs.rmSync(Path.join(dir, 'out/tree.txt'))
+    Assert.match(vetCapture(() => Assert.equal(runView(
+      ['--views', '$.views', '--check', '--trust', 'root', file]), 1)).err,
+      /out\/tree\.txt differs from the tree figure/)
+
     // The whole report, machine-readable.
     const json = JSON.parse(vetCapture(() => Assert.equal(runView(
       ['--views', '$.views', '--format', 'json', '--trust', 'root', file]), 0)).out)

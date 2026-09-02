@@ -26,6 +26,26 @@ const write = (dir: string, name: string, src: string): string => {
 }
 
 
+// A RECORDER THAT NAMES A PATH THE DOCUMENT DOES NOT HAVE
+// (use-cases/BUGS.md 70, the Go recorder's template ghost), and a
+// record nothing contributed to. This port's recorder writes neither,
+// so a recorder that does is handed in through the seam.
+class Ghostly extends Provenance {
+  record(path: string[], a: any, b: any, out: any): void {
+    super.record(path, a, b, out)
+    const rec: any = this.paths.get(path.join('.'))
+    if (0 < rec.conjuncts.length && !this.paths.has('a.ghost')) {
+      this.paths.set('a.ghost', {
+        conjuncts: [rec.conjuncts[0]], made: new Set(), seen: new Set(),
+      } as any)
+      this.paths.set('a.empty', {
+        conjuncts: [], made: new Set(), seen: new Set(),
+      } as any)
+    }
+  }
+}
+
+
 describe('view', () => {
 
   // A MULTI-FILE DOCUMENT: the layers panel names the files an include
@@ -102,23 +122,17 @@ describe('view', () => {
   // port's recorder writes neither, so a recorder that does is handed
   // in through the seam.
   test('view-layers-skips-paths-the-document-lacks', () => {
-    class Ghostly extends Provenance {
-      record(path: string[], a: any, b: any, out: any): void {
-        super.record(path, a, b, out)
-        const rec: any = this.paths.get(path.join('.'))
-        if (0 < rec.conjuncts.length && !this.paths.has('a.ghost')) {
-          this.paths.set('a.ghost', {
-            conjuncts: [rec.conjuncts[0]], made: new Set(), seen: new Set(),
-          } as any)
-          this.paths.set('a.empty', {
-            conjuncts: [], made: new Set(), seen: new Set(),
-          } as any)
-        }
-      }
-    }
     const r = view('a: {b: 1}', { kind: 'layers' }, { provenance: () => new Ghostly() })
     Assert.equal(r.verdict, 'rendered', JSON.stringify(r.errors))
     Assert.doesNotMatch(r.text as string, /ghost|empty/)
+
+    // The same seam through a VIEW DOCUMENT: its one evaluation is the
+    // instrumented one, so a layers figure it declares reads this
+    // recorder rather than a second run's.
+    const set = viewSet('a: {b: 1}\nviews: {l: {kind: layers, out: "l.txt"}}',
+      { views: '$.views' }, { provenance: () => new Ghostly() })
+    Assert.equal(set.verdict, 'rendered', JSON.stringify(set.errors))
+    Assert.doesNotMatch(set.views[0].text as string, /ghost|empty/)
   })
 
 
