@@ -643,26 +643,20 @@ func TestSpec(t *testing.T) {
 							src, want, got)
 					}
 				case "view":
-					// THE TREE VIEW (docs/design/VIEWS.0.md): the drawn
-					// text, byte for byte, or the refusal. The options
-					// ride `expect.ask` for the reason reaches' endpoints
-					// do: the same document draws differently under a
-					// relation filter or from a named root.
+					// THE VIEWS (docs/design/VIEWS.0.md): the drawn text,
+					// byte for byte, the loss report, or the refusal. The
+					// options ride `expect.ask` -- the whole ViewOptions
+					// object, `kind` included -- for the reason reaches'
+					// endpoints do: the same document draws differently
+					// under a relation filter or from a named root.
 					var golden map[string]any
 					if err := json.Unmarshal([]byte(expect), &golden); err != nil {
 						t.Fatalf("expect is not JSON: %v\n expect: %s", err, expect)
 					}
 					ask, _ := golden["ask"].(map[string]any)
 					delete(golden, "ask")
-					rel, _ := ask["relation"].(string)
-					var roots []string
-					if rs, ok := ask["root"].([]any); ok {
-						for _, r := range rs {
-							roots = append(roots, r.(string))
-						}
-					}
 					got := specJSON(t, specStripProse(specAsMap(t,
-						New().ViewTree(src, &ViewOptions{Relation: rel, Roots: roots})),
+						New().View(src, specViewOptions(ask))),
 						"errors"))
 					want := specJSON(t, golden)
 					if got != want {
@@ -1178,4 +1172,42 @@ func jsonEqual(got any, expectJSON string) bool {
 		return false
 	}
 	return reflect.DeepEqual(ga, ea)
+}
+
+// specViewOptions reads a view row's `ask` into ViewOptions: the same
+// keys ts/src/view.ts's ViewOptions has, so a row asks both ports the
+// same question.
+func specViewOptions(ask map[string]any) *ViewOptions {
+	str := func(k string) string { s, _ := ask[k].(string); return s }
+	num := func(k string) int { n, _ := ask[k].(float64); return int(n) }
+	list := func(k string) []string {
+		var out []string
+		if xs, ok := ask[k].([]any); ok {
+			for _, x := range xs {
+				out = append(out, x.(string))
+			}
+		}
+		return out
+	}
+	closure, _ := ask["closure"].(bool)
+	var docs []ViewDoc
+	if ds, ok := ask["docs"].([]any); ok {
+		for _, d := range ds {
+			m := d.(map[string]any)
+			src, _ := m["src"].(string)
+			path, _ := m["path"].(string)
+			name, _ := m["name"].(string)
+			docs = append(docs, ViewDoc{Src: src, Path: path, Name: name})
+		}
+	}
+	return &ViewOptions{
+		Kind: str("kind"), As: str("as"), At: str("at"), MaxRows: num("maxRows"),
+		Relation: str("relation"), Roots: list("roots"),
+		Order: str("order"), Closure: closure,
+		Relations: list("relations"), GroupBy: str("groupBy"), Label: str("label"),
+		Layers: list("layers"),
+		Sets:   str("sets"), Member: str("member"), Universe: str("universe"),
+		MinDegree: num("minDegree"), MaxCols: num("maxCols"), MinSize: num("minSize"),
+		Profile: str("profile"), Docs: docs,
+	}
 }

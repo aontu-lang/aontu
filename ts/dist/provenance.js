@@ -243,6 +243,7 @@ class Provenance {
                 row: v.site.row,
             },
             src: v.site.src,
+            ...(true === v.isPref ? { rank: v.rank } : {}),
         });
     }
     // THE VALUE THAT STANDS at a path is a contribution when nothing met

@@ -7,6 +7,64 @@ which implementation each change affects.
 
 ## Unreleased
 
+### `aontu view`: every figure of the design, drawn by the engine
+
+Both ports. **New kinds, new flags, one verb.** `aontu view <kind>`
+now draws the figures of `docs/design/VIEWS.0.md` and
+`VIEWS-ORDER.0.md` from a finished model, as deterministic text: the
+`tree` (as before), the `matrix` (dependency-structure matrix over one
+relation, `--order canon|partition`, `--closure`, the `!` unmirrored
+mark, a stacked index header at ten rows), the `graph` (node-link, as
+`mermaid`, `dot` or `er`, with `--group-by` and `--label` read off each
+node, a declared inverse's mirror suppressed, injective `n_`/`nq_`
+identifiers and per-code-point escape tables), the `layer`
+(architecture bands from a `--group-by` field, in the derived order or
+`--layers`, upward edges named), the `sets` panel (UpSet over a set
+family: `--sets`, `--member`, `--universe`, `--min-degree`,
+`--max-cols`), the `layers` panel (which document wrote which path,
+from the provenance record, `--min-size`), the `ladder` (the `why`
+record at `--at`, one rung per contribution in rank order) and the
+`poset` (the subsumption order over several files, quotiented by
+mutual subsumption, covers over the closure, undecided pairs dashed).
+Every run carries a LOSS REPORT on stderr (`hidden_contribution`,
+`unresolved_field`, `cycle_block`, `cols_elided`, `order_*`; and the
+informational `edges_deduped`, `inverse_suppressed`, `crossings`),
+which makes the verdict `lossy` and, under `--strict`, exit 1.
+`--out <file>` writes the figure and `--check` gates a committed one;
+`--max-rows` refuses rather than truncates (exit 2); `--as` picks the
+profile; `--at` restricts. Refusals are findings with new codes
+(`view_kind_unknown`, `view_profile_unknown`, `view_rows_exceeded`,
+`view_line_break`, `view_relation_ambiguous`, `view_sets_shape`,
+`view_sets_required`, `view_at_required`, `view_group_required`).
+Library: `view(src, options)` (TypeScript), `Aontu.View(src,
+options)` (Go); the MCP tool `view` takes every kind but the poset.
+`test/spec/view.tsv` pins every kind in both ports. Use cases 01, 04,
+08, 12 and 16 draw their figures with the verb, and 16 gains the
+architecture layers; `use-cases/tools/diagram.js` is retired.
+
+### The graph walk descends a residual conjunction, and flags hidden edges
+
+Both ports. **Correction.** `graphOf` stopped at a residual
+conjunction, so a link inside `unique() & [&: refer(), x]` -- the
+shape every checked member list has -- was not an edge, and a
+`relations` or `reaches` verdict over such a model could say
+`unreachable` for a link the document plainly writes (VIEWS.0.md,
+Phase 0). The walk now descends a `ConjunctVal`'s terms at the same
+position; an unresolved disjunction stays opaque (ADR-007). Edges sort
+on the total key `(at, from, key, to)`, and an edge written inside a
+`hide()`-marked subtree carries `hidden: true`, which the figures
+decline to draw and report instead. This can flip a `reaches` verdict
+from `unreachable` to `reaches`, and the flip is the correction. Two
+engine divergences the figures exposed are recorded as
+use-cases/BUGS.md 70 and 71.
+
+### `WhyConjunct.rank`
+
+Both ports. **Addition.** A `why` contribution that is a preference
+now carries its 0-based `rank` (`*x` is 0, `**x` is 1), the engine's
+own number rather than a count of stars in a canon string; absent for
+anything else.
+
 ### `aontu view tree`: the dependency tree of a relation, drawn by the engine
 
 Both ports. **New verb.** `aontu view tree [--relation <name>]

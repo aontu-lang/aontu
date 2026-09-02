@@ -27,6 +27,10 @@ run() {
 }
 
 # has <name> <stream> <pattern> -- grep -F the captured stream.
+hasnt() {
+  ! grep -qF -- "$3" "$WORK/$1.$2" \
+    || { cat "$WORK/$1.$2" >&2; fail "$1: $2 unexpectedly contains: $3"; }
+}
 has() {
   grep -qF -- "$3" "$WORK/$1.$2" \
     || { cat "$WORK/$1.$2" >&2; fail "$1: $2 does not contain: $3"; }
@@ -199,19 +203,27 @@ ok "proposal: a dangling dependsOn address refused by rel()"
 # shape, and a dependency-structure matrix, which the empirical
 # literature prefers past about twenty vertices (Ghoniem, Fekete and
 # Castagliola, InfoVis 2004; Sangal et al., OOPSLA 2005). Both are
-# deterministic text, so they are pinned like any other golden. There
-# is no `aontu view` verb yet -- see docs/design/VIEWS.0.md -- so this
-# uses the shipped library through use-cases/tools/diagram.js.
-"$NODE" "$DIR/../tools/diagram.js" graph --primary dependsOn \
-  "$DIR/system.aon" > "$WORK/diagram-graph.mmd" \
-  || fail "graph diagram did not render"
-diff -u "$DIR/expected/diagram-graph.mmd" "$WORK/diagram-graph.mmd" \
+# deterministic text, so they are pinned like any other golden
+# (docs/design/VIEWS.0.md). The graph groups the services by the
+# generated `owner`; the matrix is in partition order with the closure
+# marked, so an acyclic relation is a lower triangle. The loss report
+# on stderr carries nothing but the crossing count of the emitted
+# order: since ADR-014 a node is its path, so nothing is declared
+# twice and no edge is collapsed.
+run graph 0 -- view graph --relation dependsOn --group-by owner "$DIR/system.aon"
+diff -u "$DIR/expected/diagram-graph.mmd" "$WORK/graph.out" \
   || fail "the graph diagram drifted"
-"$NODE" "$DIR/../tools/diagram.js" matrix --primary dependsOn \
-  "$DIR/system.aon" > "$WORK/diagram-matrix.txt" \
-  || fail "matrix diagram did not render"
-diff -u "$DIR/expected/diagram-matrix.txt" "$WORK/diagram-matrix.txt" \
+has graph err 'crossings  6'
+hasnt graph err 'edges_deduped'
+run matrix 0 -- view matrix --relation dependsOn --order partition --closure \
+  "$DIR/system.aon"
+diff -u "$DIR/expected/diagram-matrix.txt" "$WORK/matrix.out" \
   || fail "the matrix diagram drifted"
+has matrix out '# above-diagonal direct cells: 0'
+# --check is the CI gate: the committed figure must be what the model
+# draws today, and nothing is written when it is not.
+run gate 0 -- view matrix --relation dependsOn --order partition --closure \
+  --out "$DIR/expected/diagram-matrix.txt" --check "$DIR/system.aon"
 ok "the catalog draws: node-link and dependency matrix, both pinned"
 
 echo "all $pass checks passed"

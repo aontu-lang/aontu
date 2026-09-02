@@ -53,7 +53,7 @@ const HELP = `Usage: aontu [options] [file]
        aontu trim --check [options] <file>
        aontu relations [options] <file>
        aontu reaches <from> <to> [--relation <name>] [options] <file>
-       aontu view tree [--relation <name>] [--root <path>]... [options] <file>
+       aontu view <kind> [options] <file>...
        aontu jsonschema [--at <path>] [--strict] [options] <file>
        aontu hash [options] <file>
        aontu mod tidy|verify|vendor|manifest [options] [dir]
@@ -174,16 +174,48 @@ Why options:
 Why exit codes mirror get's: 0 explained, 1 the path names nothing,
 2 usage, 4 the document does not stand up on its own.
 
-View options:
-  --relation <n>  Draw the tree over this relation only; without it
-                  every relation is drawn, each branch naming its own
-  --root <path>   Draw only the subtree under this node ($.a.b);
-                  repeatable. Without it a root is a node nothing
-                  depends on
-  --format <f>    text (default) or json
+View kinds: tree, matrix, graph, layer, sets, layers, ladder, poset
+(the poset takes several files). The figure goes to stdout, the loss
+report to stderr.
 
-View exit codes: 0 rendered, 2 usage, 4 the document does not stand
-up on its own, or a relation or root that names nothing.
+View options:
+  --as <profile>    text | mermaid | dot | er, per kind: tree, matrix,
+                    sets and layers draw text; graph draws mermaid
+                    (default), dot or er; layer draws text (default)
+                    or mermaid; ladder and poset draw mermaid
+                    (default) or dot
+  --at <path>       Restrict the figure to nodes under this path; the
+                    path the ladder draws; where the poset compares
+  -o, --out <file>  Write the figure here instead of stdout
+  --check           Exit 1 if --out differs from what would be drawn;
+                    nothing is written
+  --strict          Exit 1 when the loss report holds anything beyond
+                    edges_deduped, inverse_suppressed and crossings
+  --max-rows <n>    Refuse a figure above this many rows (default 60)
+  --format <f>      text (default) or json, the whole report
+  --relation <n>    tree, matrix, layer: draw over this relation only;
+                    graph: keep this predicate (repeatable)
+  --root <path>     tree: draw only the subtree under this node;
+                    repeatable
+  --order <o>       matrix: canon (default) or partition
+  --closure         matrix: mark transitively reachable cells +
+  --group-by <k>    graph: one subgraph per distinct value of field k;
+                    layer: one band per value (required)
+  --layers <a,b>    layer: the bands in this order, top first; without
+                    it the order is derived from the relation
+  --label <k>       graph: label each node with field k
+  --sets <path>     sets: the map whose keys are the sets
+  --member <k>      sets: the field holding each set's members
+  --universe <p>    sets: the full element domain, so the empty
+                    column exists
+  --min-degree <n>  sets: drop intersections below this degree
+  --min-size <n>    layers: drop intersections below this many paths
+  --max-cols <n>    sets, layers: elide columns beyond this many
+  --profile <p>     poset: values | defaults (default) | gen
+
+View exit codes: 0 rendered, 1 --check mismatch or lossy under
+--strict, 2 usage or --max-rows exceeded, 4 the document does not stand
+up on its own, or a relation, root or path that names nothing.
 
 Set options:
   --entry <file>    The document the change is checked against
@@ -1433,15 +1465,24 @@ const REACHES_EXIT = {
     unreachable: 1,
     error: 4,
 };
-const VIEW_HELP = 'aontu view tree [--relation <name>] [--root <path>]... <file> (try --help)';
-// Two-way: the figure was drawn (0), or the document could not be
-// drawn (4) -- a document that does not stand up, a relation with no
-// edges, a root that names no node. An EMPTY figure is a drawing, not
+const VIEW_HELP = 'aontu view <kind> [options] <file>... (try --help)';
+const VIEW_KINDS = ['tree', 'matrix', 'graph', 'layer', 'sets', 'layers', 'ladder', 'poset'];
+const VIEW_PROFILES = ['text', 'mermaid', 'dot', 'er'];
+// The figure was drawn (0, `lossy` included: the loss report says
+// what it could not draw, and --strict is the gate on that), or the
+// document could not be drawn (4). An EMPTY figure is a drawing, not
 // a failure: a model with no links has nothing to draw, honestly.
 const VIEW_EXIT = {
     rendered: 0,
+    lossy: 0,
     error: 4,
 };
+// The refusals that are USAGE, not the document's fault: exit 2, as
+// every other verb's usage errors do.
+const VIEW_USAGE_CODES = [
+    'view_kind_unknown', 'view_profile_unknown', 'view_rows_exceeded',
+    'view_at_required', 'view_sets_required', 'view_group_required',
+];
 const MOD_HELP = 'aontu mod tidy|verify|vendor|manifest [dir] (try --help)';
 // The module tooling (G6 phase 3, ts/src/mod-tool.ts). All LOCAL:
 // `tidy` resolves the closure from what is in the stores and rewrites
@@ -1767,8 +1808,22 @@ function runView(argv) {
     const trust = trusted.trust;
     const rest = [];
     let format = 'text';
-    let relation = undefined;
+    let out = undefined;
+    let check = false;
+    let strict = false;
+    const relations = [];
     const roots = [];
+    const opts = {};
+    // A flag that takes a value, read into `opts` by name.
+    const valued = {
+        '--as': 'as', '--at': 'at', '--order': 'order', '--group-by': 'groupBy',
+        '--label': 'label', '--sets': 'sets', '--member': 'member',
+        '--universe': 'universe', '--profile': 'profile',
+    };
+    const counted = {
+        '--max-rows': 'maxRows', '--max-cols': 'maxCols',
+        '--min-degree': 'minDegree', '--min-size': 'minSize',
+    };
     for (let i = 0; i < argv.length; i++) {
         const arg = argv[i];
         if ('-h' === arg || '--help' === arg) {
@@ -1784,11 +1839,12 @@ function runView(argv) {
             format = f;
         }
         else if ('--relation' === arg) {
-            relation = argv[++i];
+            const relation = argv[++i];
             if (null == relation || '' === relation) {
                 process.stderr.write('aontu: --relation needs a name\n');
                 return 2;
             }
+            relations.push(relation);
         }
         else if ('--root' === arg) {
             const root = argv[++i];
@@ -1798,6 +1854,46 @@ function runView(argv) {
             }
             roots.push(root);
         }
+        else if ('-o' === arg || '--out' === arg) {
+            out = argv[++i];
+            if (null == out) {
+                process.stderr.write('aontu: --out needs a file\n');
+                return 2;
+            }
+        }
+        else if ('--check' === arg) {
+            check = true;
+        }
+        else if ('--strict' === arg) {
+            strict = true;
+        }
+        else if ('--closure' === arg) {
+            opts.closure = true;
+        }
+        else if ('--layers' === arg) {
+            const v = argv[++i];
+            if (null == v || '' === v) {
+                process.stderr.write('aontu: --layers needs a comma-separated list\n');
+                return 2;
+            }
+            opts.layers = v.split(',');
+        }
+        else if (undefined !== valued[arg]) {
+            const v = argv[++i];
+            if (null == v || '' === v) {
+                process.stderr.write(`aontu: ${arg} needs a value\n`);
+                return 2;
+            }
+            opts[valued[arg]] = v;
+        }
+        else if (undefined !== counted[arg]) {
+            const v = argv[++i];
+            if (null == v || !/^[0-9]+$/.test(v)) {
+                process.stderr.write(`aontu: ${arg} needs a count\n`);
+                return 2;
+            }
+            opts[counted[arg]] = parseInt(v, 10);
+        }
         else if (arg.startsWith('-')) {
             process.stderr.write(`aontu: unknown view option ${arg} (try --help)\n`);
             return 2;
@@ -1806,38 +1902,109 @@ function runView(argv) {
             rest.push(arg);
         }
     }
-    if (2 !== rest.length) {
-        process.stderr.write(`aontu: view needs a kind and one file\n${VIEW_HELP}\n`);
+    if (2 > rest.length) {
+        process.stderr.write(`aontu: view needs a kind and a file\n${VIEW_HELP}\n`);
         return 2;
     }
-    if ('tree' !== rest[0]) {
-        process.stderr.write(`aontu: unknown view kind ${rest[0]} (the kinds are: tree)\n`);
+    const kind = rest[0];
+    if (!VIEW_KINDS.includes(kind)) {
+        process.stderr.write(`aontu: unknown view kind ${kind} (the kinds are: ${VIEW_KINDS.join(', ')})\n`);
         return 2;
     }
-    let src;
-    try {
-        src = (0, node_fs_1.readFileSync)(rest[1], 'utf8');
-    }
-    catch (err) {
-        process.stderr.write(`aontu: cannot read ${err.path}: ${err.message}\n`);
+    if (undefined !== opts.as && !VIEW_PROFILES.includes(opts.as)) {
+        process.stderr.write(`aontu: --as needs one of ${VIEW_PROFILES.join(', ')}\n`);
         return 2;
     }
-    const report = (0, view_1.viewTree)(src, {
-        path: rest[1], relation, roots,
-        trust: verbTrust(trust, entryRootOf(rest[1])),
+    if (undefined !== opts.order && 'canon' !== opts.order && 'partition' !== opts.order) {
+        process.stderr.write('aontu: --order needs canon or partition\n');
+        return 2;
+    }
+    if (undefined !== opts.profile && !['values', 'defaults', 'gen'].includes(opts.profile)) {
+        process.stderr.write('aontu: --profile needs values, defaults or gen\n');
+        return 2;
+    }
+    if ('poset' !== kind && 2 !== rest.length) {
+        process.stderr.write(`aontu: view ${kind} takes one file\n`);
+        return 2;
+    }
+    if ('graph' === kind) {
+        opts.relations = relations;
+    }
+    else if (1 < relations.length) {
+        process.stderr.write(`aontu: view ${kind} takes one --relation\n`);
+        return 2;
+    }
+    else {
+        opts.relation = relations[0];
+    }
+    if (check && undefined === out) {
+        process.stderr.write('aontu: --check needs --out\n');
+        return 2;
+    }
+    const files = rest.slice(1);
+    const srcs = [];
+    for (const file of files) {
+        try {
+            srcs.push((0, node_fs_1.readFileSync)(file, 'utf8'));
+        }
+        catch (err) {
+            process.stderr.write(`aontu: cannot read ${err.path}: ${err.message}\n`);
+            return 2;
+        }
+    }
+    const report = (0, view_1.view)(srcs[0], {
+        ...opts,
+        kind,
+        path: files[0],
+        roots,
+        trust: verbTrust(trust, entryRootOf(files[0])),
+        docs: files.slice(1).map((path, i) => ({ src: srcs[i + 1], path })),
     });
     if ('json' === format) {
         process.stdout.write(renderViewJson(report) + '\n');
     }
-    else if ('rendered' === report.verdict) {
-        // THE FIGURE AND NOTHING ELSE: stdout is what a golden diff reads,
-        // and a verdict line would be part of every drawing.
-        process.stdout.write(report.text + '\n');
-    }
-    else {
+    else if ('error' === report.verdict) {
         process.stderr.write(report.errors.map(renderFinding).join('\n') + '\n');
     }
-    return VIEW_EXIT[report.verdict];
+    else {
+        // THE FIGURE AND NOTHING ELSE on stdout (or in the file): stdout is
+        // what a golden diff reads, and a verdict line would be part of
+        // every drawing. The loss report goes to stderr, so a figure
+        // written to a file still tells the reader what it could not draw.
+        const text = report.text + '\n';
+        if (undefined === out) {
+            process.stdout.write(text);
+        }
+        else if (check) {
+            let have = undefined;
+            try {
+                have = (0, node_fs_1.readFileSync)(out, 'utf8');
+            }
+            catch (_err) {
+                // Absent is a mismatch.
+            }
+            if (have !== text) {
+                process.stderr.write(`aontu: ${out} differs from the ${kind} figure\n`);
+                return 1;
+            }
+        }
+        else {
+            (0, node_fs_1.writeFileSync)(out, text, 'utf8');
+        }
+        if (0 < report.loss.length) {
+            process.stderr.write(renderViewLoss(report.loss) + '\n');
+        }
+    }
+    if ('error' === report.verdict) {
+        const code = report.errors[0]?.code;
+        return VIEW_USAGE_CODES.includes(code) ? 2 : VIEW_EXIT.error;
+    }
+    return strict && 'lossy' === report.verdict ? 1 : VIEW_EXIT[report.verdict];
+}
+// One line per code: the code, the count, and the detail if any.
+function renderViewLoss(loss) {
+    return loss.map((l) => `${l.code}  ${l.count}` +
+        (undefined === l.detail ? '' : '  ' + l.detail.join(' '))).join('\n');
 }
 function renderViewJson(report) {
     return (0, aontu_1.exactJSON)({
@@ -1845,6 +2012,7 @@ function renderViewJson(report) {
         kind: report.kind,
         verdict: report.verdict,
         ...(null == report.text ? {} : { text: report.text }),
+        loss: report.loss,
         ...(null == report.errors ? {} : { errors: report.errors }),
     }, 2);
 }

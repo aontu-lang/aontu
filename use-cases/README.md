@@ -43,30 +43,28 @@ different build.
 | [13-recursive-schema](13-recursive-schema/) | Approval chain: a schema one reference deep over any-depth data | recursive residuals (`$.spec.Step`), mu-form canon + hash, `recursion_unexpanded`, `vet --at` over plain JSON |
 | [14-jsonschema-export](14-jsonschema-export/) | JSON Schema as the bridge out: MCP inputSchema, OpenAPI, stock validators | `jsonschema --at`/`--strict`/`--format json`, the stderr loss report, exit classes, the money-wire `const` mark |
 | [15-code-generation](15-code-generation/) | The model as the source of the code: Go, TypeScript and SQL from one catalogue, each over a slice | list-spread + `pick` line building, `join` file assembly, backtick target text, `match` type mapping, both-ports byte parity |
-| [16-module-deps](16-module-deps/) | A codebase's own module graph: four layers, no upward dependencies, drawn as a dependency tree | `rel(t)` target-shape flow as an architecture rule, `acyclic()`/`inverse(n)`, `reaches`, the tree and matrix views |
+| [16-module-deps](16-module-deps/) | A codebase's own module graph: four layers, no upward dependencies, drawn as a dependency tree and as the architecture layers | `rel(t)` target-shape flow as an architecture rule, `acyclic()`/`inverse(n)`, `reaches`, the tree, matrix and layer views |
 
 ## Diagrams
 
-Five cases carry generated diagrams, pinned as goldens by their
-`check.sh` and rendered inline in their README. The dependency tree and
-the matrix are fixed-pitch text, because those figures are character
-cells; the others are Mermaid, which GitHub draws:
+Five cases carry generated diagrams, drawn by
+[`aontu view`](../docs/reference-api.md#aontu-view), pinned as goldens
+by their `check.sh` and rendered inline in their README. The tree, the
+matrix and the layers are fixed-pitch text, because those figures are
+character cells; the others are Mermaid, which GitHub draws:
 
 | case | views |
 |---|---|
-| [01-service-catalog](01-service-catalog/) | entity graph, dependency-structure matrix |
-| [04-schema-evolution](04-schema-evolution/) | subsumption poset over the releases and proposals |
-| [08-feature-flags](08-feature-flags/) | the meet ladder for one arbitrated value |
-| [12-relations](12-relations/) | entity graph with inverse pairs collapsed, and an ER diagram |
-| [16-module-deps](16-module-deps/) | dependency tree with elided repeats and derived roots, dependency-structure matrix |
+| [01-service-catalog](01-service-catalog/) | `graph` grouped by owner, `matrix` in partition order with the closure |
+| [04-schema-evolution](04-schema-evolution/) | `poset`: the subsumption order over the releases and proposals |
+| [08-feature-flags](08-feature-flags/) | `ladder`: the meet ladder for one arbitrated value |
+| [12-relations](12-relations/) | `graph` with the declared inverse suppressed, and `graph --as er` |
+| [16-module-deps](16-module-deps/) | `tree` with elided repeats and derived roots, `matrix`, and `layer`: the architecture bands |
 
-The dependency tree is drawn by
-[`aontu view tree`](../docs/reference-api.md#aontu-view);
-[`tools/diagram.js`](tools/diagram.js) draws the others from the
-evaluated model, through the library's `graphOf`, `subsume` and `why`.
-Neither computes a coordinate, and both sort nodes and edges by code
-point, so the output is deterministic text and a golden diff is a
-meaningful check.
+The verb computes no coordinate and sorts nodes and edges by code
+point, so the output is deterministic text, both ports emit the same
+bytes, and a golden diff is a meaningful check. `--check` is the CI
+gate for a committed figure.
 
 ## Scope and conventions
 

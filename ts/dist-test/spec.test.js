@@ -96,7 +96,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
  *                object ({out?, code?, note?}, options riding `opts`),
  *                and a canon-shaped VIEW must additionally SUBSUME the
  *                truth it summarises; see test/spec/query.tsv
- *   mode=view  : viewTree(src, {relation?, roots?}) must equal the
+ *   mode=view  : view(src, {relation?, roots?}) must equal the
  *                expect object ({kind, text} or {kind, errors}); the
  *                options ride `expect.ask` as reaches' do. See
  *                test/spec/view.tsv
@@ -403,14 +403,15 @@ function runRow(row) {
             ? report : { ...report, errors: stripProse(report.errors) }), (0, aontu_1.exactJSON)(golden), `reach report mismatch: ${row.name}`);
     }
     else if ('view' === row.mode) {
-        // THE TREE VIEW (docs/design/VIEWS.0.md): the drawn text, byte for
-        // byte, or the refusal. The options ride `expect.ask` for the
-        // reason reaches' endpoints do: the same document draws
+        // THE VIEWS (docs/design/VIEWS.0.md): the drawn text, byte for
+        // byte, the loss report, or the refusal. The options ride
+        // `expect.ask` -- the whole ViewOptions object, `kind` included --
+        // for the reason reaches' endpoints do: the same document draws
         // differently under a relation filter or from a named root.
         const golden = JSON.parse(row.expect);
         const ask = golden.ask ?? {};
         delete golden.ask;
-        const report = (0, aontu_2.viewTree)(row.src, { relation: ask.relation, roots: ask.root });
+        const report = (0, aontu_2.view)(row.src, ask);
         Assert.strictEqual((0, aontu_1.exactJSON)(null == report.errors
             ? report : { ...report, errors: stripProse(report.errors) }), (0, aontu_1.exactJSON)(golden), `view report mismatch: ${row.name}`);
     }

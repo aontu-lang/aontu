@@ -187,7 +187,25 @@ const hints: Record<string, string> = {
 
   rel_unresolved: 'The address names no node in this evaluation. Every position in the\ndocument is addressable; nothing outside it is.\n \nExamples:\n  p: {}\n  q: rel() & "$.p"       -> {..}  # $.p is a node;\n  q: rel() & "$.nosuch"  -> nil   # ... $.nosuch is not.',
   refer_unresolved: 'A refer() address names no node in this evaluation. Within one\nevaluation the document-set is fixed, so a link to nothing is an error\nrather than something to resolve later: check the spelling, or add the\nnode it was meant to reach. A relative address that climbs off the top\nof the tree lands here too.\n \nExamples:\n  a:{p:1} b:refer()&"$.a"    -> "$.a"    # $.a is a node;\n  a:{p:1} b:refer()&"$.a.p"  -> "$.a.p"  # ... and so is a node inside it;\n  b:refer()&"$.nope"         -> nil      # ... but nothing is here.',
-  view_relation_unknown: 'The relation named to the tree view has no edges in this document, so\nthe tree would be empty -- and an empty tree and a misspelled name are\nthe same file on disk. Check the spelling against the relations the\nnote lists, or drop the relation to draw every relation at once.',
+  view_relation_unknown: 'The relation named to the view has no edges in this document, so\nthe figure would be empty -- and an empty figure and a misspelled name are\nthe same file on disk. Check the spelling against the relations the\nnote lists, or drop the relation to draw every relation at once.',
+
+  view_kind_unknown: 'The figure kind is not one the verb draws. The kinds are tree, matrix,\ngraph, layer, sets, layers, ladder and poset; the note lists them.',
+
+  view_profile_unknown: 'The figure kind does not render into the profile asked for: there is no\ntext form of a node-link drawing and no Mermaid form of a matrix. The\nnote lists the profiles the kind declares; the first is its default.',
+
+  view_rows_exceeded: 'The figure has more rows than --max-rows allows. This is a REFUSAL,\nnot a truncation: a view that quietly omits things is the failure the\nverb exists to avoid. Narrow the figure with --at or --relation, or\nraise the limit.',
+
+  view_line_break: 'A label the figure would draw holds a line terminator (U+000A, U+000D,\nU+2028 or U+2029), and a figure line cannot carry one. Label the node\nwith another field, or drop --label / --group-by.',
+
+  view_relation_ambiguous: 'The document has edges under several relations and the matrix (or the\nlayer diagram) draws exactly one. Name it with --relation; the note\nlists the relations with edges.',
+
+  view_sets_shape: 'The set panel reads generated values: --sets must name a map whose\nvalues each hold the --member field as a list of strings, and\n--universe a map or a list of strings. The path in the finding is the\nvalue that has another shape.',
+
+  view_sets_required: 'The set panel needs both --sets (the map whose keys are the sets) and\n--member (the field holding each set\'s members).',
+
+  view_at_required: 'The meet ladder draws the contributions at ONE path, and none was\nnamed. Pass --at with the path, as `aontu why` takes it.',
+
+  view_group_required: 'The layer diagram puts each node in the band its --group-by field\nnames, and no field was named. Pass --group-by with the field that\nholds each node\'s layer.',
 
   pack_data: 'The first argument to pack() is not a bag. `pack` makes one child\nper child of its DATA, so the data has to have children: a list of\nnames, or a map whose keys are the names.\n \nExamples:\n  pack([a,b], {x:1})     -> {..}  # A list of names;\n  pack({a:1,b:2}, {x:1}) -> {..}  # ... or a map, keyed by its keys;\n  pack(1, {x:1})         -> nil   # ... but a scalar has no children.',
 
@@ -488,6 +506,16 @@ const codeClasses: Record<string, string> = {
   // nothing is refused rather than drawn empty. Class `reference`: a
   // name that does not resolve.
   view_relation_unknown: 'reference',
+  view_kind_unknown: 'reference',
+  view_profile_unknown: 'reference',
+  view_rows_exceeded: 'budget',
+  view_line_break: 'parse',
+  view_relation_ambiguous: 'reference',
+  view_sets_shape: 'reference',
+  view_sets_required: 'reference',
+  view_at_required: 'reference',
+  view_group_required: 'reference',
+
 
   // First-class paths (docs/design/PATHS.0.md): text that is not a
   // tree address, met by path()'s capture or promotion. The same

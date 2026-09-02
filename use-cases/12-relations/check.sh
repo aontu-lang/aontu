@@ -107,24 +107,30 @@ ok "reaches --relation feeds: downstream yes, upstream no"
 # 10. THE PIPELINE, DRAWN, and the inverse collapse that makes it
 # readable. `graphOf` reports every WRITTEN position, so a relation
 # with a declared inverse arrives twice -- `feeds` and `fedBy` give six
-# edges for three logical ones. The renderer collapses each unordered
-# pair and draws the named primary, which is why `--primary feeds`
-# is passed: without it the code-point-least key wins and the pipeline
-# reads backwards. The proper rule -- draw the DECLARING direction --
-# needs the relation declarations, and relation.ts exports findings
-# rather than declarations.
-"$NODE" "$DIR/../tools/diagram.js" graph --primary feeds \
-  "$DIR/model.aon" > "$WORK/diagram-graph.mmd" \
-  || fail "graph diagram did not render"
+# edges for three logical ones. `aontu view graph` reads the relation
+# declarations, so the DECLARING direction is drawn and the mirror is
+# suppressed, counted in the loss report.
+run graph 0 -- view graph "$DIR/model.aon"
+cp "$WORK/graph.out" "$WORK/diagram-graph.mmd"
 diff -u "$DIR/expected/diagram-graph.mmd" "$WORK/diagram-graph.mmd" \
   || fail "the graph diagram drifted"
+# The declared inverse is not drawn twice, and the loss report says so.
+has graph err 'inverse_suppressed  3'
 [ "$(grep -c ' -->' "$WORK/diagram-graph.mmd")" -eq 3 ] \
   || fail "expected three logical edges after the inverse collapse"
-"$NODE" "$DIR/../tools/diagram.js" er --primary feeds \
-  "$DIR/model.aon" > "$WORK/diagram-er.mmd" \
-  || fail "er diagram did not render"
-diff -u "$DIR/expected/diagram-er.mmd" "$WORK/diagram-er.mmd" \
+run er 0 -- view graph --as er "$DIR/model.aon"
+diff -u "$DIR/expected/diagram-er.mmd" "$WORK/er.out" \
   || fail "the entity-relationship diagram drifted"
+# The matrix over the two bad documents shows the defects as glyphs:
+# the missing inverse is `!`, and the cycle is the above-diagonal cell
+# no ordering can remove.
+run mmat 0 -- view matrix --relation feeds --order partition --closure \
+  "$DIR/bad/missing-inverse.aon"
+has mmat out 'transform 4 X X ! \ .'
+run cmat 0 -- view matrix --relation feeds --order partition --closure \
+  "$DIR/bad/cycle.aon"
+has cmat out '# above-diagonal direct cells: 1'
+has cmat err 'cycle_block  1  extract load transform'
 ok "the pipeline draws: 6 written edges collapse to 3 logical ones"
 
 echo "all $pass checks passed"

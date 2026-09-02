@@ -1,8 +1,8 @@
-graph LR
-  n___pipeline_jobs_audit["audit"]
-  n___pipeline_jobs_extract["extract"]
-  n___pipeline_jobs_load["load"]
-  n___pipeline_jobs_transform["transform"]
-  n___pipeline_jobs_extract -->|"feeds"| n___pipeline_jobs_transform
-  n___pipeline_jobs_transform -->|"feeds"| n___pipeline_jobs_audit
-  n___pipeline_jobs_transform -->|"feeds"| n___pipeline_jobs_load
+flowchart LR
+  n_audit["audit"]
+  n_extract["extract"]
+  n_load["load"]
+  n_transform["transform"]
+  n_extract -->|"feeds"| n_transform
+  n_transform -->|"feeds"| n_audit
+  n_transform -->|"feeds"| n_load

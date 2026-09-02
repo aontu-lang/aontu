@@ -29,7 +29,7 @@ const helpText = `Usage: aontu [options] [file]
        aontu trim --check [options] <file>
        aontu relations [options] <file>
        aontu reaches <from> <to> [--relation <name>] [options] <file>
-       aontu view tree [--relation <name>] [--root <path>]... [options] <file>
+       aontu view <kind> [options] <file>...
        aontu jsonschema [--at <path>] [--strict] [options] <file>
        aontu hash [options] <file>
        aontu mod tidy|verify|vendor|manifest [options] [dir]
@@ -150,16 +150,48 @@ Why options:
 Why exit codes mirror get's: 0 explained, 1 the path names nothing,
 2 usage, 4 the document does not stand up on its own.
 
-View options:
-  --relation <n>  Draw the tree over this relation only; without it
-                  every relation is drawn, each branch naming its own
-  --root <path>   Draw only the subtree under this node ($.a.b);
-                  repeatable. Without it a root is a node nothing
-                  depends on
-  --format <f>    text (default) or json
+View kinds: tree, matrix, graph, layer, sets, layers, ladder, poset
+(the poset takes several files). The figure goes to stdout, the loss
+report to stderr.
 
-View exit codes: 0 rendered, 2 usage, 4 the document does not stand
-up on its own, or a relation or root that names nothing.
+View options:
+  --as <profile>    text | mermaid | dot | er, per kind: tree, matrix,
+                    sets and layers draw text; graph draws mermaid
+                    (default), dot or er; layer draws text (default)
+                    or mermaid; ladder and poset draw mermaid
+                    (default) or dot
+  --at <path>       Restrict the figure to nodes under this path; the
+                    path the ladder draws; where the poset compares
+  -o, --out <file>  Write the figure here instead of stdout
+  --check           Exit 1 if --out differs from what would be drawn;
+                    nothing is written
+  --strict          Exit 1 when the loss report holds anything beyond
+                    edges_deduped, inverse_suppressed and crossings
+  --max-rows <n>    Refuse a figure above this many rows (default 60)
+  --format <f>      text (default) or json, the whole report
+  --relation <n>    tree, matrix, layer: draw over this relation only;
+                    graph: keep this predicate (repeatable)
+  --root <path>     tree: draw only the subtree under this node;
+                    repeatable
+  --order <o>       matrix: canon (default) or partition
+  --closure         matrix: mark transitively reachable cells +
+  --group-by <k>    graph: one subgraph per distinct value of field k;
+                    layer: one band per value (required)
+  --layers <a,b>    layer: the bands in this order, top first; without
+                    it the order is derived from the relation
+  --label <k>       graph: label each node with field k
+  --sets <path>     sets: the map whose keys are the sets
+  --member <k>      sets: the field holding each set's members
+  --universe <p>    sets: the full element domain, so the empty
+                    column exists
+  --min-degree <n>  sets: drop intersections below this degree
+  --min-size <n>    layers: drop intersections below this many paths
+  --max-cols <n>    sets, layers: elide columns beyond this many
+  --profile <p>     poset: values | defaults (default) | gen
+
+View exit codes: 0 rendered, 1 --check mismatch or lossy under
+--strict, 2 usage or --max-rows exceeded, 4 the document does not stand
+up on its own, or a relation, root or path that names nothing.
 
 Set options:
   --entry <file>    The document the change is checked against

@@ -42,7 +42,7 @@ Usage: aontu [options] [file]
        aontu trim --check [options] <file>
        aontu relations [options] <file>
        aontu reaches <from> <to> [--relation <name>] [options] <file>
-       aontu view tree [--relation <name>] [--root <path>]... [options] <file>
+       aontu view <kind> [options] <file>...
        aontu jsonschema [--at <path>] [--strict] [options] <file>
        aontu hash [options] <file>
        aontu mod tidy|verify|vendor|manifest [options] [dir]
@@ -757,16 +757,35 @@ $ echo $?
 
 ### `aontu view`
 
-Draw a **figure** of one finished model's link graph, as deterministic
-text a golden diff can check. One kind so far: the dependency **tree**.
+Draw a **figure** of a finished model, as deterministic text a golden
+diff can check: no coordinate is computed, nodes and edges are sorted
+by code point, and both ports emit the same bytes.
 
 ```
-aontu view tree [--relation <name>] [--root <path>]... [--format text|json] <file>
+aontu view <kind> [--as <profile>] [--at <path>] [--out <file> [--check]]
+           [--strict] [--max-rows <n>] [--format text|json] [options] <file>...
 ```
 
-The tree is drawn over the same edge set
-[`relations`](#aontu-relations) checks and [`reaches`](#aontu-reaches)
-walks. Draw the `system.aon` model above over its `dependsOn` relation:
+Eight kinds, each reading one report the engine already produces and
+never the value tree:
+
+| kind | draws | reads | profiles |
+|---|---|---|---|
+| `tree` | the dependency tree of a relation: roots derived, repeats elided, cycles marked | the edge set | `text` |
+| `matrix` | the dependency-structure matrix over one relation, in `canon` or `partition` order, with `--closure` | the edge set and the relation declarations | `text` |
+| `graph` | the node-link drawing, grouped and labelled by fields of the nodes | the edge set, the declarations, the node values | `mermaid`, `dot`, `er` |
+| `layer` | the architecture layers: one band per value of `--group-by`, upward edges named | the edge set and the node values | `text`, `mermaid` |
+| `sets` | the set-intersection panel over a family of sets (UpSet) | the generated value | `text` |
+| `layers` | which document contributed which path | the provenance record | `text` |
+| `ladder` | the meet ladder at one path: every contribution as a rung, in rank order | the [`why`](#aontu-why) record | `mermaid`, `dot` |
+| `poset` | the subsumption order over several documents | [`subsume`](#aontu-subsume), pairwise | `mermaid`, `dot` |
+
+The first profile listed is the kind's default; asking for another is
+a refusal (`view_profile_unknown`), because there is no text form of a
+node-link drawing and no Mermaid form of a matrix.
+
+Draw the `system.aon` model above over its `dependsOn` relation, first
+as the tree, then as the matrix in partition order:
 
 <!-- test: run -->
 ```sh
@@ -776,53 +795,137 @@ web
     └── ledger
 ```
 
-- **Roots are derived, not asked for.** A root is a node nothing
-  depends on (a self-edge does not count), so the deployables of a
-  codebase come out at the top without being named. `--root <path>`
-  draws one node's own subtree instead, and is repeatable. A root that
-  is not a node of the drawn graph is refused (`refer_unresolved`)
-  rather than drawn as an empty tree, because an empty tree and a typo
-  are the same file on disk.
-- **A shared subtree is drawn once.** A dependency graph is a DAG, not
-  a tree: a node reached from two parents is expanded under the first
-  and marked `(*)` under every later one, which keeps the drawing
-  linear in the model's size. A repeated leaf is just a leaf.
-- **A cycle is marked, not walked.** An edge that closes a loop prints
-  as `(cycle)` and the walk stops there, so the tree of a model that
-  `acyclic()` refuses still terminates, and shows where.
-- `--relation <name>` draws the tree over that relation alone. Without
-  it every relation is drawn at once, and each branch names its own
-  (`log (logsTo)`) so two relations are never mistaken for one
-  containment. A relation with no edges in the document is refused
-  (`view_relation_unknown`), with the relations that do have edges
-  listed.
-- **A declared inverse is one edge.** `dependsOn` and its `usedBy`
-  mirror arrive as two edges and are drawn as one: under the named
-  relation, or under the code-point-least key with both names in the
-  label when none is named. A *mutual* relation, `a` on `b` and `b` on
-  `a` under one key, stays two edges, because it is the shortest cycle
-  a model can have.
-- **Labels are the shortest unique suffix** of the node's path within
-  the drawing: `auth` where that is unambiguous, `identity.auth` where
-  it is not.
-- **Every node is drawn.** A component whose nodes all depend on each
-  other has no derived root, and is drawn from its least label rather
-  than dropped.
-- Exit codes: `0` rendered, `2` usage, `4` `error` (a document that
-  does not stand up, a relation with no edges, a root that names no
-  node). A document with no edges renders an empty figure and exits
-  `0`. In text form the figure is all that stdout carries, so a
-  redirect is a golden file; `--format json` wraps it as
-  `{kind, text}` under the usual `aontu` envelope, and a refusal
-  carries `errors` in place of `text`.
-- The library form is `viewTree(src, options?)` in TypeScript and
-  `Aontu.ViewTree(src, options)` in Go, returning the identical
-  `{verdict, kind, text?}` record (plus `errors` on a failed run).
+<!-- test: run -->
+```sh
+$ aontu view matrix --relation dependsOn --order partition --closure system.aon
+          1 2 3
+ledger  1 \ . .
+billing 2 X \ .
+web     3 + X \
+# above-diagonal direct cells: 0
+```
 
-The layered codebase in
-[use-cases/16-module-deps](../use-cases/16-module-deps/) pins three
-trees as goldens: the whole graph, one module's closure, and a model
-whose loop the verb marks.
+A cell at (row, column) is set when the row depends on the column:
+`X` a direct edge, `!` a direct edge whose declared inverse is not
+written back, `+` reachable only transitively, `.` absent, `\` the
+diagonal. In partition order an acyclic relation is a lower triangle,
+and the footer's count of cells above the diagonal is the acyclicity
+proof in the picture's own shape; a cycle survives every ordering as
+an above-diagonal cell, and is reported as `cycle_block`.
+
+The same edges as a node-link drawing, in Mermaid:
+
+<!-- test: run -->
+```sh
+$ aontu view graph --relation dependsOn system.aon
+flowchart LR
+  n_billing["billing"]
+  n_ledger["ledger"]
+  n_web["web"]
+  n_billing -->|"dependsOn"| n_ledger
+  n_web -->|"dependsOn"| n_billing
+```
+
+- **The loss report.** Every run prints, on stderr, what the figure
+  could not draw or drew differently from the model, one line per
+  code with a count: `hidden_contribution` (an edge inside a `hide()`
+  subtree, not drawn, because a committed figure discloses what it
+  draws), `unresolved_field` (a node without a value for `--group-by`
+  or `--label`), `cycle_block`, `cols_elided`, and for the poset
+  `order_undecided`, `order_maybe_equal` and `order_intransitive`. Any
+  of these makes the verdict `lossy`, which `--strict` turns into exit
+  `1`. Three codes are informational and leave the verdict `rendered`:
+  `edges_deduped` (a model declaring each entity at two positions
+  writes each edge twice), `inverse_suppressed` (a declared mirror,
+  implied by the edge drawn) and `crossings` (a property of the emitted
+  order).
+- **`--out <file>` and `--check`.** The figure is written to the file
+  instead of stdout; with `--check` nothing is written and the exit is
+  `1` when the file differs from what would be drawn, which is the CI
+  gate for a committed figure.
+- **`--max-rows <n>`** (default 60) is a refusal, exit `2`, not a
+  truncation; the message names the narrowing options.
+- **`--at <path>`** restricts the edge-derived kinds to nodes under the
+  path, the provenance panel to paths under it, and names the path the
+  ladder draws (required) and where the poset compares.
+- `tree`: `--relation` draws one relation; without it every relation is
+  drawn, each branch naming its own. `--root <path>` (repeatable) draws
+  one subtree; a root that is not a node of the drawn graph is refused
+  (`refer_unresolved`). Roots are derived as the nodes nothing depends
+  on; a shared subtree is expanded once and marked `(*)` after; a
+  closing edge is `(cycle)`; labels are the shortest path suffix unique
+  in the drawing.
+- `matrix`: `--relation` is required unless exactly one relation has
+  edges (`view_relation_ambiguous` otherwise); `--order canon`
+  (label order, the default) or `partition`; `--closure` marks the
+  transitively reachable cells. Ten or more rows stack the index
+  digits in the header.
+- `graph`: `--relation` (repeatable) keeps only those predicates; a
+  declared inverse's mirror is suppressed and counted. `--group-by
+  <field>` puts each node in a subgraph named by that field's value
+  (ids `g0`, `g1`, ... in label order); `--label <field>` labels the
+  node with it, a number or boolean as its canon. Node ids encode the
+  label injectively: `n_` + the name when it is an ASCII identifier,
+  else `nq_` + the name with every other code point as `_` and its
+  hex (`cust-1` is `nq_cust_2d1`, so a name such as `end` or `graph`
+  can never collide with a keyword). Text is escaped per code point:
+  Mermaid as numeric entities (`#34;` for `"`, `#124;` for `|`), DOT
+  as `\"` and `\\`. A label holding a line terminator is refused
+  (`view_line_break`). `--as er` draws Mermaid's `erDiagram`, every
+  relationship many-to-many because the model states no cardinality.
+- `layer`: `--group-by <field>` (required, `view_group_required`)
+  names each node's layer; bands are stacked in the partition order of
+  the layer-level graph, reversed, so the layer nothing depends on is
+  on top. `--layers a,b,c` fixes the order (top first) for a model
+  whose upward edge makes the layer graph cyclic. The footer counts
+  the relation's downward, sideways and upward edges, and names each
+  upward one.
+- `sets`: `--sets <path>` names a map whose keys are the sets,
+  `--member <key>` the field holding each set's members (a list of
+  strings), `--universe <path>` a map or list of every element, so
+  the covered-by-nothing column exists. A member written as an address
+  (`path($.perms.read)`) meets a universe map's key on that address
+  and is shown by its shortest unique suffix. Columns are the exact
+  membership signatures, by degree, then cardinality, then name;
+  `--min-degree <n>` drops the low ones and `--max-cols <n>` elides
+  the rest (`cols_elided`). Both need the document to generate.
+- `layers`: the same panel over the provenance record, sets being the
+  documents and elements the paths each document wrote into. Files are
+  shown relative to the entry document; `--min-size <n>` drops the
+  small intersections.
+- `ladder`: the `why` record at `--at`, one rung per contribution,
+  sorted by rank descending (weakest first, so the winner is the last
+  rung before the value), then by site.
+- `poset`: several files; each pair is compared with `subsume` at
+  `--at` under `--profile values|defaults|gen` (default `defaults`).
+  Documents that subsume each other are one node, labelled `a = b`; an
+  edge is a cover of the transitive closure, upward toward the more
+  general document; an undecided pair with no proven order is a dashed
+  edge labelled with the `sub_*` reason. Labels are the file names
+  without `.aon`.
+- Exit codes: `0` rendered or lossy, `1` a `--check` mismatch or lossy
+  under `--strict`, `2` usage (an unknown kind or profile, a missing
+  required option, `--max-rows` exceeded), `4` error (a document that
+  does not stand up, a relation, root or path that names nothing). A
+  document with nothing to draw renders an empty figure and exits `0`.
+  In text form the figure is all that stdout carries, so a redirect is
+  a golden file; `--format json` wraps the whole report as
+  `{kind, verdict, text, loss}` under the usual `aontu` envelope, and
+  a refusal carries `errors` in place of `text`.
+- The library form is `view(src, options)` in TypeScript (`viewTree`
+  remains for the tree) and `Aontu.View(src, options)` in Go, returning
+  the identical `{verdict, kind, text?, loss, errors?}` record; the
+  poset's further documents ride `options.docs` as `{src, path?, name?}`.
+
+The use cases pin one figure of each kind as a golden:
+[01-service-catalog](../use-cases/01-service-catalog/) the graph and
+the matrix, [04-schema-evolution](../use-cases/04-schema-evolution/)
+the poset, [08-feature-flags](../use-cases/08-feature-flags/) the
+ladder, [12-relations](../use-cases/12-relations/) the graph and the
+ER diagram, and [16-module-deps](../use-cases/16-module-deps/) the
+tree, the matrix and the layers. The design is
+[docs/design/VIEWS.0.md](design/VIEWS.0.md) and
+[VIEWS-ORDER.0.md](design/VIEWS-ORDER.0.md).
 
 ### `aontu jsonschema`
 
@@ -1655,7 +1758,7 @@ nothing else.
 | `hash` | the [canon-hash](#aontu-hash) pin `{hash}` (plus the hash-form text when `form: true`) |
 | `trim` | the [trim --check](#aontu-trim) report: redundant entries as paths |
 | `reaches` | the [reachability check](#aontu-reaches): the verdict and, when it reaches, a shortest path — the closure question `relations` cannot ask one edge at a time |
-| `view` | the [tree view](#aontu-view): the dependency tree of a relation as text, roots derived, repeats elided, cycles marked |
+| `view` | a [figure](#aontu-view) of the document as text: the tree, matrix, graph (mermaid, dot, er), layer, sets, layers or ladder kind, with the loss report; the poset takes several files and is CLI only |
 | `jsonschema` | the [JSON Schema export](#aontu-jsonschema): the schema, and the `lossy` list naming what it could not say — the bridge to a structured-output API, and to an MCP tool's own `inputSchema` |
 
 Every tool returns **the same JSON contract the CLI prints**, so a

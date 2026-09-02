@@ -1,9 +1,16 @@
 # Model views — diagrams from an evaluated document
 
-*Status: PROPOSAL, with one piece built: the dependency tree is
-`aontu view tree` (`ts/src/view.ts`, `go/view.go`, pinned by
-`test/spec/view.tsv`), ported from the reference script's `tree` kind.
-Nothing else here is built. Date: 2026-08-30. This note
+*Status: BUILT (2026-09-02), as `aontu view` in both ports
+(`ts/src/view.ts`, `go/view.go`, pinned by `test/spec/view.tsv`): the
+tree, matrix, graph (mermaid, dot, er), sets and layers kinds, the
+loss report, `--out`/`--check`/`--strict`/`--max-rows`, plus a `layer`
+kind (the architecture bands) and the two order views of
+VIEWS-ORDER.0.md. Not built: the view document (`--views`), the figure
+JSON projection, `std/view`; `--loose` was dropped, since a path-native
+graph (ADR-014) has no loose edge. Where the built verb departs from
+the text below, the verb and [docs/reference-api.md](../reference-api.md)
+are the record. Phase 0 landed with it; see use-cases/BUGS.md 70 and
+71 for the two engine divergences it exposed. Date: 2026-08-30. This note
 is the G10 candidate for the [capability
 review](../capability-review/index.md), and it reverses a refusal
 recorded there — [G7](../capability-review/g7-machine-access.md) ruled

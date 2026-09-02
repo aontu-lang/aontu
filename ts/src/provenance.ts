@@ -55,6 +55,12 @@ export type WhyConjunct = {
   // actually written. Empty when the contribution occupies no source —
   // a value unification minted rather than a document wrote.
   src: string
+  // The PREFERENCE RANK, 0-based, when the contribution is one: `*x`
+  // is 0, `**x` is 1. Absent for anything else. The engine's own
+  // number (PrefVal.rank), so a reader arbitrating between ranked
+  // contributions -- the meet ladder -- need not count stars in a
+  // canon string.
+  rank?: number
 }
 
 export type WhyRecord = {
@@ -338,6 +344,7 @@ export class Provenance {
         row: v.site.row,
       },
       src: v.site.src,
+      ...(true === v.isPref ? { rank: v.rank } : {}),
     })
   }
 

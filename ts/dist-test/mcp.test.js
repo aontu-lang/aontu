@@ -408,8 +408,43 @@ function hostileModule(dir) {
         Assert.match(payload((0, mcp_1.callTool)('view', { source: doc })).text, /├── db \(dependsOn\/usedBy\)/);
         // A named root draws its subtree alone.
         Assert.equal(payload((0, mcp_1.callTool)('view', { source: doc, relation: 'dependsOn', root: ['$.web'] })).text, 'web\n└── db\n    └── disk');
-        // A kind the verb does not draw is a call that could not be made.
-        Assert.equal((0, mcp_1.callTool)('view', { source: doc, kind: 'matrix' }).isError, true);
+        // A kind the verb does not draw, or a profile it does not render
+        // into, is a call that could not be made.
+        Assert.equal((0, mcp_1.callTool)('view', { source: doc, kind: 'poset' }).isError, true);
+        Assert.equal((0, mcp_1.callTool)('view', { source: doc, as: 'svg' }).isError, true);
+        // EVERY OTHER KIND, through the tool, with every option named: the
+        // figures themselves are test/spec/view.tsv's business.
+        const matrix = payload((0, mcp_1.callTool)('view', {
+            source: doc, kind: 'matrix', relation: 'dependsOn', order: 'partition',
+            closure: true, at: '$', maxRows: 10,
+        }));
+        Assert.equal(matrix.verdict, 'rendered');
+        Assert.match(matrix.text, /# above-diagonal direct cells: 0$/);
+        Assert.deepEqual(matrix.loss, []);
+        const graph = payload((0, mcp_1.callTool)('view', {
+            source: 'a: {t: "x", dependsOn: [&: refer(), path($.b)]}\nb: {t: "y"}\n',
+            kind: 'graph', as: 'dot', groupBy: 't', label: 't', relation: 'dependsOn',
+        }));
+        Assert.match(graph.text, /^digraph G \{\n/);
+        const layer = payload((0, mcp_1.callTool)('view', {
+            source: 'a: {t: "x", dependsOn: [&: refer(), path($.b)]}\nb: {t: "y"}\n',
+            kind: 'layer', groupBy: 't', layers: ['x', 'y'],
+        }));
+        Assert.match(layer.text, /^\+-+\+\n\| x  a \|/);
+        const sets = payload((0, mcp_1.callTool)('view', {
+            source: 'r: {a: {m: ["p", "q"]}, b: {m: ["q"]}}\nu: ["p", "q", "z"]\n',
+            kind: 'sets', sets: '$.r', member: 'm', universe: '$.u',
+        }));
+        Assert.match(sets.text, /^# upset  sets=\$\.r\(2\)/);
+        const layers = payload((0, mcp_1.callTool)('view', { source: doc, kind: 'layers' }));
+        Assert.match(layers.text, /^# layers  file=/);
+        const ladder = payload((0, mcp_1.callTool)('view', {
+            source: 'a: *1\na: **2\n', kind: 'ladder', at: '$.a',
+        }));
+        Assert.match(ladder.text, /^graph TD\n/);
+        Assert.equal(payload((0, mcp_1.callTool)('view', {
+            source: doc, kind: 'tree', maxRows: 1,
+        })).errors[0].code, 'view_rows_exceeded');
         // A root that is not a node of the drawn graph, and a document that
         // does not stand up, are both refusals in vet's finding shape --
         // with the kind still named, because the report is the answer.
