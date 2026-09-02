@@ -88,13 +88,16 @@ view: {
   # it belongs; everything else narrows the drawing, and each option
   # belongs to the kinds that read it.
   Figure: type({
-    kind: tree | matrix | graph | layer | sets | layers | ladder
+    kind: doc | tree | matrix | graph | layer | sets | layers | ladder
     out: string
 
     # Every kind.
     as?: text | mermaid | dot | er | svg
     at?: string
     maxRows?: integer & min(0)
+
+    # doc: how many levels of key to draw.
+    depth?: integer & min(0)
 
     # tree, matrix, layer: the relation drawn. graph: the predicates
     # kept. tree: the subtrees drawn.

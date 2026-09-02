@@ -19,7 +19,7 @@ import { tmpdir } from 'node:os'
 import { createInterface } from 'node:readline'
 
 import {
-  Aontu, AontuError, setColor,
+  Aontu, AontuError, setColor, colorActive,
   exactJSON, vet, subsume, trimCheck, relationCheck,
   hcanon, canonHash,
   get, why, patch, agentsMd,
@@ -40,10 +40,10 @@ import type { TrimReport, TrimVerdict } from './trim'
 import type { RelationReport, RelationVerdict } from './relation'
 import { reachCheck } from './reach'
 import type { ReachReport, ReachVerdict } from './reach'
-import { view, viewSet } from './view'
+import { view, viewSet, viewDefaultProfile } from './view'
 import type {
   ViewEdges, ViewFigure, ViewKind, ViewLoss, ViewOptions, ViewProfile,
-  ViewReport, ViewSetReport, ViewVerdict,
+  ViewReport, ViewSetReport, ViewStyle, ViewVerdict,
 } from './view'
 import type { QueryView } from './query'
 import type { WhyRecord } from './provenance'
@@ -190,13 +190,14 @@ kind and out file, nothing is written unless every figure rendered,
 and --check gates the committed set.
 
 View options:
-  --as <profile>    text | mermaid | dot | er | svg, per kind: tree,
-                    matrix, sets and layers draw text (default) or
-                    svg; graph draws mermaid (default), dot or er;
+  --as <profile>    text | mermaid | dot | er | svg, per kind: doc,
+                    tree, matrix, sets and layers draw text (default)
+                    or svg; graph draws mermaid (default), dot or er;
                     layer draws text (default), mermaid or svg; ladder
                     and poset draw mermaid (default) or dot
   --at <path>       Restrict the figure to nodes under this path; the
-                    path the ladder draws; where the poset compares
+                    subtree doc draws; the path the ladder draws;
+                    where the poset compares
   --views <path>    Draw every figure the document declares at this
                     path, one evaluation, all or nothing; each
                     declaration names its own kind and out file
@@ -205,7 +206,20 @@ View options:
                     nothing is written
   --strict          Exit 1 when the loss report holds anything beyond
                     edges_deduped, inverse_suppressed and crossings
+  --depth <n>       doc: how many levels of key to draw (default 3)
   --max-rows <n>    Refuse a figure above this many rows (default 60)
+  --style <s>       auto (default), none, ansi or css. A figure's
+                    marks carry their meaning -- a direct cell, a
+                    closure cell, an upward edge -- and each profile
+                    has one way to show it: SGR escapes for text, CSS
+                    classes for svg. auto picks that mechanism where
+                    the destination can carry it: escapes only on a
+                    terminal (NO_COLOR is honoured), and an svg keeps
+                    the stylesheet that makes it standalone. none
+                    drops both; on svg the classes stay and only the
+                    stylesheet goes, for a host page that has already
+                    bound --av-ink and its kin. Escapes are never
+                    written to a file
   --format <f>      text (default) or json, the whole report
   --relation <n>    tree, matrix, layer: draw over this relation only;
                     graph: keep this predicate (repeatable)
@@ -1774,11 +1788,36 @@ const VIEW_HELP =
   'aontu view <kind> [options] <file>... (try --help)'
 
 const VIEW_KINDS: ViewKind[] =
-  ['tree', 'matrix', 'graph', 'layer', 'sets', 'layers', 'ladder', 'poset']
+  ['doc', 'tree', 'matrix', 'graph', 'layer', 'sets', 'layers', 'ladder',
+    'poset']
 
 const VIEW_PROFILES: ViewProfile[] = ['text', 'mermaid', 'dot', 'er', 'svg']
 
 const VIEW_EDGES: ViewEdges[] = ['upward', 'all', 'none']
+
+// The styles the CLI accepts (VIEWS.0.md, "7. Styling"). `auto` is
+// here and NOT in ViewStyle: resolving it means knowing whether stdout
+// is a terminal, which is the CLI's to know and the library's never --
+// the same division err.ts already draws for the error frames.
+const VIEW_STYLES = ['auto', 'none', 'ansi', 'css']
+
+// `--style auto` resolved, which only the CLI can do. The mechanism is
+// the PROFILE's and the library knows it -- an SVG carries its
+// stylesheet unless told not to, which is what makes a figure stand
+// alone. What the library cannot know is whether the DESTINATION is a
+// terminal, so that is the only thing decided here: escapes on the
+// text profile when stdout is a terminal and NO_COLOR is unset, the
+// same two conditions the error frames use. `undefined` leaves the
+// profile's own default in place.
+function viewStyleOf(
+  asked: string | undefined, as: ViewProfile | undefined
+): ViewStyle | undefined {
+  if (undefined !== asked && 'auto' !== asked) {
+    return asked as ViewStyle
+  }
+  return 'text' === as && true === process.stdout.isTTY && colorActive()
+    ? 'ansi' : undefined
+}
 
 // The figure was drawn (0, `lossy` included: the loss report says
 // what it could not draw, and --strict is the gate on that), or the
@@ -1795,7 +1834,7 @@ const VIEW_EXIT: Record<ViewVerdict, number> = {
 const VIEW_USAGE_CODES = [
   'view_kind_unknown', 'view_profile_unknown', 'view_rows_exceeded',
   'view_at_required', 'view_sets_required', 'view_group_required',
-  'view_document_shape',
+  'view_document_shape', 'view_style_profile', 'view_style_unknown',
 ]
 
 const MOD_HELP = 'aontu mod tidy|verify|vendor|manifest [dir] (try --help)'
@@ -2180,6 +2219,9 @@ function runView(argv: string[]): number {
   const relations: string[] = []
   const roots: string[] = []
   const opts: ViewOptions = {}
+  // The style ASKED FOR, which may be `auto` -- a word ViewStyle does
+  // not have, because resolving it is the CLI's job.
+  let style: string | undefined = undefined
 
   // A flag that takes a value, read into `opts` by name.
   const valued: Record<string, keyof ViewOptions> = {
@@ -2191,6 +2233,7 @@ function runView(argv: string[]): number {
   const counted: Record<string, keyof ViewOptions> = {
     '--max-rows': 'maxRows', '--max-cols': 'maxCols',
     '--min-degree': 'minDegree', '--min-size': 'minSize',
+    '--depth': 'depth',
   }
 
   for (let i = 0; i < argv.length; i++) {
@@ -2227,6 +2270,14 @@ function runView(argv: string[]): number {
       out = argv[++i]
       if (null == out) {
         process.stderr.write('aontu: --out needs a file\n')
+        return 2
+      }
+    }
+    else if ('--style' === arg) {
+      style = argv[++i]
+      if (null == style || !VIEW_STYLES.includes(style)) {
+        process.stderr.write(
+          `aontu: --style needs one of ${VIEW_STYLES.join(', ')}\n`)
         return 2
       }
     }
@@ -2273,9 +2324,26 @@ function runView(argv: string[]): number {
     }
   }
 
+  // ESCAPES NEVER GO INTO A FILE. A pinned golden holding terminal
+  // control codes is not a golden anybody can read, and a byte
+  // comparison against one would fail on the reader's terminal
+  // settings. `auto` resolves to `none` there on its own; asking for
+  // `ansi` explicitly is a usage error rather than a silent downgrade,
+  // so a script that wanted colour is told where it went.
+  if ('ansi' === style && (undefined !== out || undefined !== opts.views)) {
+    process.stderr.write(
+      'aontu: --style ansi writes to a terminal, not to a file\n')
+    return 2
+  }
+
   // THE VIEW DOCUMENT draws every figure a document declares, so it
   // names no kind: the declarations do, one each.
   if (undefined !== opts.views) {
+    // A declaration names its own profile, so the style is left to
+    // each figure's own default; `--style none` still reaches every
+    // one of them, which is how a host page that binds the CSS
+    // variables asks for eight figures without eight stylesheets.
+    opts.style = viewStyleOf(style, undefined)
     return runViewSet(rest, opts, trust, { format, check, strict, out })
   }
 
@@ -2341,6 +2409,7 @@ function runView(argv: string[]): number {
 
   const report = view(srcs[0], {
     ...opts,
+    style: viewStyleOf(style, opts.as ?? viewDefaultProfile(kind)),
     kind,
     path: files[0],
     roots,

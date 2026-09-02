@@ -41,7 +41,7 @@
 import { basename, dirname, isAbsolute, relative, resolve } from 'node:path'
 
 import { Aontu } from './aontu'
-import { failureFinding, anchorAt } from './vet'
+import { failureFinding, anchorAt, throughResidue } from './vet'
 import type { VetFinding } from './vet'
 import type { TrustOptions } from './type'
 import { graphOf } from './graph'
@@ -57,7 +57,8 @@ import type { SubsumeProfile } from './subsume'
 export type ViewVerdict = 'rendered' | 'lossy' | 'error'
 
 export type ViewKind =
-  'tree' | 'matrix' | 'graph' | 'layer' | 'sets' | 'layers' | 'ladder' | 'poset'
+  'tree' | 'matrix' | 'graph' | 'layer' | 'sets' | 'layers' | 'ladder'
+  | 'poset' | 'doc'
 
 // The target grammars. Each kind declares the profiles it can render
 // into, and the first is its default (PROFILES below).
@@ -74,6 +75,68 @@ export type ViewOrder = 'canon' | 'partition'
 // fixed grids (text, svg), which is what each drew before the option
 // existed.
 export type ViewEdges = 'upward' | 'all' | 'none'
+
+// STYLING (VIEWS.0.md, "7. Styling"), which amends that note's colour
+// boundary. Every mark a figure makes already has a reason the
+// extractor established -- a cell is `direct` because the edge is
+// declared, an arrow is `upward` because it runs against the bands --
+// and the SVG profile has published those reasons as classes since it
+// landed, because an SVG cannot be drawn without saying what each
+// shape is. This declares the same vocabulary for the text profile and
+// adds the one thing missing: a way to turn it on at the call.
+//
+// NEITHER MECHANISM STATES A COLOUR, which is what keeps the boundary
+// intact. SGR 31 does not mean red; it means the colour the reader's
+// terminal calls red, which the reader chose. A CSS class states
+// nothing at all, and the stylesheet reads `var(--av-closure, ...)` so
+// a host page's palette wins. A hex triple is the thing that cannot
+// follow a theme, and it stays refused -- no truecolour escape, no
+// 256-colour escape, no `classDef`.
+export type ViewRole =
+  'label' | 'muted' | 'rule' | 'direct' | 'closure' | 'unmirrored'
+  | 'upward' | 'repeat' | 'bar' | 'hole'
+
+// `none` is plain characters, and an SVG carrying its classes but not
+// the embedded stylesheet -- what a host page wants once it has bound
+// the variables and is embedding eight figures. `ansi` is the text
+// profile's mechanism and `css` the SVG's; asking for either on the
+// wrong profile is a usage error.
+//
+// `auto` IS NOT HERE ON PURPOSE. Resolving it means knowing whether
+// the destination is a terminal, which err.ts already settles for the
+// error frames: a library cannot see its destination and a caller who
+// can is the only one who may decide. The CLI maps `auto`; `viewOf`
+// takes a resolved value, so every shared-spec row is deterministic.
+export type ViewStyle = 'none' | 'ansi' | 'css'
+
+// The text profile's mechanism: the eight named colours, `bold` and
+// `dim`, and nothing else. `label` is unstyled -- an entity's own name
+// is the figure's content, not a mark about it.
+const SGR: Record<ViewRole, string> = {
+  label: '', muted: '2', rule: '2', direct: '1', closure: '36',
+  unmirrored: '33', upward: '31', repeat: '2', bar: '36', hole: '2',
+}
+
+// A painter wraps a run of text in its role's mechanism. It NEVER
+// changes the run's length in characters, so every width the renderers
+// computed from the unpainted strings still holds.
+type Paint = (role: ViewRole, text: string) => string
+
+const PLAIN: Paint = (_role, text) => text
+
+const ANSI: Paint = (role, text) =>
+  '' === SGR[role] || '' === text
+    ? text : `\x1b[${SGR[role]}m${text}\x1b[0m`
+
+const painter = (style: ViewStyle): Paint => 'ansi' === style ? ANSI : PLAIN
+
+// The style a figure gets when the caller named none. An SVG carries
+// its stylesheet, which is what makes it standalone and what every
+// pinned golden holds; everything else carries no mechanism, since a
+// library cannot see whether its output is a terminal.
+const styleOf = (
+  style: ViewStyle | undefined, as: ViewProfile
+): ViewStyle => style ?? ('svg' === as ? 'css' : 'none')
 
 // One row of the loss report.
 export type ViewLoss = {
@@ -190,6 +253,10 @@ export type ViewOptions = {
   sets?: string
   member?: string
   universe?: string
+  // doc: how many levels of key below the anchor to draw. Absent
+  // means three, which is the depth at which a model's shape is
+  // legible and its data is not yet enumerated.
+  depth?: number
   // sets: drop intersections below this degree.
   minDegree?: number
   // sets, layers: elide columns beyond this many, counted in the loss
@@ -208,6 +275,14 @@ export type ViewOptions = {
   // document, only once every figure of the set rendered.
   out?: string
 
+  // How the figure is styled (VIEWS.0.md, "7. Styling"). Absent means
+  // `none`: plain characters, and an SVG carrying its classes without
+  // the embedded stylesheet. THE CALLER RESOLVES `auto` -- see
+  // ViewStyle. A figure written to a file is written plain whatever
+  // this says, which the CLI enforces: a pinned golden with terminal
+  // escapes in it is not a golden anybody can read.
+  style?: ViewStyle
+
   // The VIEW DOCUMENT (VIEWS.0.md, "6. The view document"): the path of
   // a map whose values declare figures. `viewSet` reads it; `view`
   // ignores it, because one call draws one figure.
@@ -219,6 +294,7 @@ export type ViewOptions = {
 // global default, because there is no sensible text form of a
 // node-link drawing and no sensible Mermaid form of a matrix.
 const PROFILES: Record<ViewKind, ViewProfile[]> = {
+  doc: ['text', 'svg'],
   tree: ['text', 'svg'],
   matrix: ['text', 'svg'],
   graph: ['mermaid', 'dot', 'er'],
@@ -228,6 +304,14 @@ const PROFILES: Record<ViewKind, ViewProfile[]> = {
   ladder: ['mermaid', 'dot'],
   poset: ['mermaid', 'dot'],
 }
+
+// The profile a kind draws into when none is asked for. The CLI needs
+// it to resolve `--style auto` BEFORE the library runs, since the
+// mechanism is the profile's.
+export function viewDefaultProfile(kind: ViewKind): ViewProfile | undefined {
+  return PROFILES[kind]?.[0]
+}
+
 
 // Loss codes that describe the drawing rather than a gap in it.
 const INFORMATIONAL = ['edges_deduped', 'inverse_suppressed', 'crossings']
@@ -564,11 +648,18 @@ const svgEsc = (s: string): string => escape(s, SVG_ESC)
 
 // The document: a viewBox the size of the figure, the style, and the
 // parts, one per line, so the bytes read as a figure and diff as one.
-function svgDoc(w: number, h: number, about: string, parts: string[]): string {
+function svgDoc(
+  w: number, h: number, about: string, parts: string[], style: ViewStyle
+): string {
+  // The CLASSES are structure and are always written -- a rect that
+  // does not say whether it is a direct cell or a closure cell is not
+  // a figure. What `--style none` drops is the STYLESHEET, for a host
+  // page that has already bound the variables and would otherwise
+  // carry one copy of these rules per embedded figure.
   return [
     `<svg xmlns="http://www.w3.org/2000/svg" class="av" viewBox="0 0 ${w} ${h}" ` +
     `width="${w}" height="${h}" role="img" aria-label="${svgEsc(about)}">`,
-    SVG_STYLE,
+    ...('css' === style ? [SVG_STYLE] : []),
     ...parts,
     '</svg>',
   ].join('\n')
@@ -688,8 +779,9 @@ type TreeRow = { depth: number, text: string, mark: string, parent: number }
 
 function drawTree(
   all: Drawn[], relation: string | undefined, roots: string[], max: number,
-  as: ViewProfile
+  as: ViewProfile, style: ViewStyle
 ): Figure {
+  const paint = painter(style)
   // With a relation named, the tree is OVER THAT RELATION. A node-link
   // diagram can label each edge and so draw every relation at once; a
   // tree cannot without becoming unreadable, and walking two relations
@@ -785,7 +877,8 @@ function drawTree(
       const grown = 0 < (kids.get(edge.to) as Kid[]).length
       const text = label(edge.to) + (many ? ' (' + edge.label + ')' : '')
       const mark = loop ? ' (cycle)' : (seen && grown ? ' (*)' : '')
-      out.push(frame.prefix + (last ? '└── ' : '├── ') + text + mark)
+      out.push(paint('rule', frame.prefix + (last ? '└── ' : '├── '))
+        + text + paint('repeat', mark))
       rows.push({ depth: stack.length, text, mark, parent: frame.row })
       if (loop || seen) {
         continue
@@ -820,7 +913,11 @@ function drawTree(
     }
   }
 
-  return { text: 'svg' === as ? treeSvg(rows, nodes.length) : out.join('\n') }
+  return {
+    text: 'svg' === as
+      ? treeSvg(rows, `Dependency tree: ${nodes.length} nodes`, style)
+      : out.join('\n'),
+  }
 }
 
 
@@ -828,7 +925,9 @@ function drawTree(
 // depth, joined to its parent by a path that drops from the parent's
 // row and turns in to the child. The marks are muted text after the
 // label.
-function treeSvg(rows: (TreeRow | null)[], count: number): string {
+function treeSvg(
+  rows: (TreeRow | null)[], about: string, style: ViewStyle
+): string {
   const U = 24
   const parts: string[] = []
   let width = 0
@@ -848,9 +947,157 @@ function treeSvg(rows: (TreeRow | null)[], count: number): string {
         `</tspan><tspan class="av-m">${svgEsc(r.mark)}</tspan></text>`)
     width = Math.max(width, x + (r.text.length + r.mark.length) * CH)
   })
-  return svgDoc(width + PAD, rows.length * LH + PAD,
-    `Dependency tree: ${count} nodes`, parts)
+  return svgDoc(width + PAD, rows.length * LH + PAD, about, parts, style)
 }
+
+
+// ---------------------------------------------------------------------
+// The document tree
+
+// THE SHAPE OF THE MODEL ITSELF, which no other kind draws. Every
+// other figure here reads a REPORT -- the edge set, the provenance
+// record, the subsumption order -- and so can only draw a document
+// that has links, contributions or peers. A reader meeting a model for
+// the first time wants the plainer thing first: what is in it, and how
+// it is arranged.
+//
+// This is `get --keys --types` as a picture, and it reads the same
+// walk: map keys in code-point order, list indices in order, and a
+// leaf's KIND rather than its value -- the canon of a scalar's type,
+// not the scalar. Values are what the document is for; the shape is
+// what a reader needs before any of them mean anything.
+//
+// DEPTH IS A BOUND, NOT AN ELISION MARK. Below it the subtree is not
+// drawn and the row says how many keys were not drawn, because a tree
+// that stops without saying so is the one thing a structural drawing
+// must not be.
+
+const DEFAULT_DOC_DEPTH = 3
+
+// A node's own children, as the anchor walk sees them: map keys sorted
+// by code point, list indices in order, and nothing for a leaf.
+function docKids(v: any): string[] {
+  const node: any = throughDoc(v)
+  if (true === node?.isMap) {
+    // AN ALIAS DECLARATION IS NOT PART OF THE DOCUMENT
+    // (docs/reference-language.md, "Aliases"): it does not generate
+    // and it does not appear in canon. It IS a key of the root map in
+    // the value tree, which `get --keys` reports and this does not --
+    // a figure of the document's shape that showed `%Cents` beside
+    // `customers` would be drawing the declaration as data
+    // (use-cases/BUGS.md 74).
+    return Object.keys(node.peg)
+      .filter((k) => !k.startsWith('%')).sort(cmpCodePoint)
+  }
+  if (true === node?.isList) {
+    return Object.keys(node.peg).filter((k) => /^[0-9]+$/.test(k))
+  }
+  return []
+}
+
+// A preference wraps its value without being a level of its own, and
+// `anchorAt` already steps through a sizing residue; this is the same
+// unwrapping, for the shape walk.
+function throughDoc(v: any): any {
+  const node = throughResidue(v)
+  return true === node?.isPref ? throughDoc(node.peg) : node
+}
+
+// What a leaf IS, in one short word: its canon, which for a constraint
+// is the constraint and for a scalar its value. Long canons are cut,
+// since the figure is the shape and not the data.
+function docLeaf(v: any): string {
+  // A CONTAINER WITH NOTHING IN IT IS NOT A LEAF, and calling it one
+  // by writing nothing after the key would make it read as a value the
+  // figure declined to describe. Its canon says what it is -- `{}`,
+  // `[]`, or a template a spread wrote and no member filled.
+  const node: any = throughDoc(v)
+  const canon = 'string' === typeof node?.canon ? node.canon : String(node?.canon)
+  return 32 < canon.length ? canon.slice(0, 29) + '...' : canon
+}
+
+
+function drawDoc(
+  root: any,
+  o: { at?: string, depth?: number, as: ViewProfile, style: ViewStyle },
+  max: number, loss: ViewLoss[]
+): Figure {
+  const paint = painter(o.style)
+  const at = o.at ?? '$'
+  const anchor = anchorAt(root, at)
+  if (null == anchor) {
+    return {
+      // The same code and the same sentence `get` answers with: the
+      // question is identical, so a caller that already handles one
+      // handles the other.
+      errors: [finding('no_path', 'reference', at,
+        `The path ${at} names nothing in this document.`)],
+    }
+  }
+  const depth = o.depth ?? DEFAULT_DOC_DEPTH
+  const out: string[] = []
+  const rows: (TreeRow | null)[] = []
+  let elided = 0
+
+  out.push(at)
+  rows.push({ depth: 0, text: at, mark: '', parent: 0 })
+
+  // ITERATIVE, like the dependency tree's walk and for the same
+  // reason: a deep model is a real shape, and the drawing of one must
+  // not depend on how deep the interpreter lets a recursion go.
+  type Frame = { node: any, kids: string[], at: number, prefix: string, row: number }
+  const stack: Frame[] = [
+    { node: anchor, kids: docKids(anchor), at: 0, prefix: '', row: 0 },
+  ]
+  while (0 < stack.length) {
+    const frame = stack[stack.length - 1]
+    if (frame.at >= frame.kids.length) {
+      stack.pop()
+      continue
+    }
+    const key = frame.kids[frame.at++]
+    const last = frame.at === frame.kids.length
+    const child = throughDoc(throughDoc(frame.node).peg[key])
+    const kids = docKids(child)
+    const under = stack.length < depth
+    // A container the depth bound stops at says how many keys are not
+    // drawn; a leaf says what it is.
+    const mark = 0 === kids.length ? spaced(docLeaf(child))
+      : under ? '' : spaced(`(${kids.length})`)
+    if (0 < kids.length && !under) {
+      elided += kids.length
+    }
+    out.push(paint('rule', frame.prefix + (last ? '└── ' : '├── ')) + key +
+      paint('muted', mark))
+    rows.push({ depth: stack.length, text: key, mark, parent: frame.row })
+    if (max < rows.length) {
+      return {
+        errors: [rowsFinding(rows.length, max, '--at or --depth')],
+      }
+    }
+    if (0 < kids.length && under) {
+      stack.push({
+        node: child, kids, at: 0,
+        prefix: frame.prefix + (last ? '    ' : '│   '),
+        row: rows.length - 1,
+      })
+    }
+  }
+  if (0 < elided) {
+    loss.push({ code: 'depth_elided', count: elided })
+  }
+  return {
+    text: 'svg' === o.as
+      ? treeSvg(rows,
+        `Document tree at ${at}: ${rows.length - 1} keys to depth ${depth}`,
+        o.style)
+      : out.join('\n'),
+  }
+}
+
+// A mark is written after the key with one space, and nothing at all
+// when there is nothing to say.
+const spaced = (mark: string): string => '' === mark ? '' : ' ' + mark
 
 
 // ---------------------------------------------------------------------
@@ -925,9 +1172,13 @@ function pickRelation(
 
 function drawMatrix(
   triples: Triple[], decls: RelDecls,
-  o: { relation?: string, order: ViewOrder, closure: boolean, as: ViewProfile },
+  o: {
+    relation?: string, order: ViewOrder, closure: boolean, as: ViewProfile,
+    style: ViewStyle,
+  },
   max: number, loss: ViewLoss[]
 ): Figure {
+  const paint = painter(o.style)
   const picked = pickRelation(o.relation, keysOf(triples))
   if (undefined !== picked.error) {
     return { errors: [picked.error] }
@@ -972,7 +1223,7 @@ function drawMatrix(
   // column stays one character wide.
   for (let d = 0; d < iw; d++) {
     lines.push(' '.repeat(w + 1 + iw + 1) +
-      idx.map((s) => lpad(s, iw)[d]).join(' '))
+      paint('muted', idx.map((s) => lpad(s, iw)[d]).join(' ')))
   }
 
   let above = 0
@@ -992,15 +1243,16 @@ function drawMatrix(
     })
     grid.push(cells)
     lines.push(
-      pad(label(r), w) + ' ' + lpad(idx[ri], iw) + ' ' + cells.join(' '))
+      pad(label(r), w) + ' ' + paint('muted', lpad(idx[ri], iw)) + ' ' +
+      cells.map((g) => paint(CELL_ROLE[g], g)).join(' '))
   })
   const footer = `# above-diagonal direct cells: ${above}`
-  lines.push(footer)
+  lines.push(paint('muted', footer))
   if ('svg' === o.as) {
     return {
       text: matrixSvg(order.map(label), idx, grid, footer,
         `Dependency matrix${over(relation)}: ${order.length} rows, ` +
-        `${above} direct cells above the diagonal`),
+        `${above} direct cells above the diagonal`, o.style),
     }
   }
   return { text: lines.join('\n') }
@@ -1014,9 +1266,19 @@ const CELL_CLASS: Record<string, string> = {
   '.': 'av-cell', '\\': 'av-cell',
 }
 
+// The same five states as ROLES, for the text profile. One table per
+// mechanism rather than one shared one, because the two vocabularies
+// are not in step: SVG needs a class for the empty cell (it draws a
+// rect there) and the text profile has nothing to say about a `.`
+// beyond that it is not a mark.
+const CELL_ROLE: Record<string, ViewRole> = {
+  X: 'direct', '!': 'unmirrored', '+': 'closure',
+  '.': 'muted', '\\': 'rule',
+}
+
 function matrixSvg(
   labels: string[], idx: string[], grid: string[][], footer: string,
-  about: string
+  about: string, style: ViewStyle
 ): string {
   const S = 20
   const w = widest(labels)
@@ -1042,7 +1304,7 @@ function matrixSvg(
   const n = labels.length
   parts.push(svgText(4, y0 + n * S + 16, 'av-m', footer))
   const width = Math.max(gutter + n * S, 4 + footer.length * CH) + PAD
-  return svgDoc(width, y0 + n * S + LH + PAD, about, parts)
+  return svgDoc(width, y0 + n * S + LH + PAD, about, parts, style)
 }
 
 
@@ -1272,7 +1534,7 @@ function drawLayer(
   triples: Triple[], root: any,
   o: {
     relation?: string, groupBy?: string, layers: string[],
-    edges?: ViewEdges, as: ViewProfile,
+    edges?: ViewEdges, as: ViewProfile, style: ViewStyle,
   },
   max: number, loss: ViewLoss[]
 ): Figure {
@@ -1400,20 +1662,35 @@ function drawLayer(
         : `${upward} upward edges`
     return {
       text: layerSvg(bands, shown, footer,
-        `Architecture layers${over(relation)}: ${bands.length} bands, ${drew}`),
+        `Architecture layers${over(relation)}: ${bands.length} bands, ${drew}`,
+        o.style),
     }
   }
   if ('text' === o.as) {
+    const paint = painter(o.style)
     const w = widest(bands.map((b) => b.name))
     const rows = bands.map((b) =>
-      pad(b.name, w) + '  ' + b.nodes.map((n) => n.label).join('  '))
-    const inner = widest(rows)
-    const rule = '+' + '-'.repeat(inner + 2) + '+'
+      paint('muted', pad(b.name, w)) + '  ' +
+      b.nodes.map((n) => n.label).join('  '))
+    const inner = widest(bands.map((b) =>
+      pad(b.name, w) + '  ' + b.nodes.map((n) => n.label).join('  ')))
+    const rule = paint('rule', '+' + '-'.repeat(inner + 2) + '+')
     out.push(rule)
-    for (const row of rows) {
-      out.push('| ' + pad(row, inner) + ' |', rule)
-    }
-    out.push(...footer)
+    rows.forEach((row, i) => {
+      // The row was padded from its UNPAINTED width, which the band
+      // name's escapes do not change; `pad` would count them, so the
+      // padding is computed here and appended.
+      const bare = pad(bands[i].name, w) + '  ' +
+        bands[i].nodes.map((n) => n.label).join('  ')
+      out.push(paint('rule', '|') + ' ' + row +
+        ' '.repeat(inner - bare.length) + ' ' + paint('rule', '|'), rule)
+    })
+    // The first footer line counts; the rest name one edge each, and
+    // an upward edge is the violation the bands cannot show.
+    out.push(paint('muted', footer[0]))
+    footer.slice(1).forEach((f, i) => {
+      out.push(paint('upward' === shown[i].way ? 'upward' : 'muted', f))
+    })
   }
   else {
     const esc = (s: string): string => escape(s, MERMAID_ESC)
@@ -1448,7 +1725,8 @@ type Drawing = { edge: GEdge, way: 'downward' | 'sideways' | 'upward' }
 // same line and a straight edge between them would cross whatever
 // stands between.
 function layerSvg(
-  bands: Band[], shown: Drawing[], footer: string[], about: string
+  bands: Band[], shown: Drawing[], footer: string[], about: string,
+  style: ViewStyle
 ): string {
   const BH = 44
   const gutter = widest(bands.map((b) => b.name)) * CH + 16
@@ -1512,7 +1790,7 @@ function layerSvg(
   footer.forEach((f, i) => {
     parts.push(svgText(4, y1 + i * LH + 14, 'av-m', f))
   })
-  return svgDoc(width, y1 + footer.length * LH + PAD, about, parts)
+  return svgDoc(width, y1 + footer.length * LH + PAD, about, parts, style)
 }
 
 
@@ -1566,38 +1844,47 @@ function columnsOf(
 }
 
 
-function renderPanel(p: Panel): string {
+function renderPanel(p: Panel, style: ViewStyle): string {
+  const paint = painter(style)
   const w = widest(p.names)
-  const out: string[] = [p.header, '']
+  const out: string[] = [paint('muted', p.header), '']
   const most = p.sizes.reduce((m, n) => Math.max(m, n), 0)
   p.names.forEach((n, i) => {
+    // The bar is padded to `most` from its own length, so the pad is
+    // written outside the painted run rather than counted inside it.
+    const bar = '#'.repeat(p.sizes[i])
     out.push(pad(n, w) + '  ' +
-      (p.bars ? pad('#'.repeat(p.sizes[i]), most) + '  ' : '') +
-      String(p.sizes[i]))
+      (p.bars ? paint('bar', bar) + ' '.repeat(most - bar.length) + '  ' : '') +
+      paint('muted', String(p.sizes[i])))
   })
   out.push('')
   p.names.forEach((n, i) => {
-    out.push(pad(n, w) + ' | ' +
-      p.cols.map((c) => c.sig[i] ? '*' : '.').join(' '))
+    out.push(pad(n, w) + ' ' + paint('rule', '|') + ' ' +
+      p.cols.map((c) => c.sig[i] ? paint('direct', '*') : paint('hole', '.'))
+        .join(' '))
   })
-  out.push(pad('', w) + ' +' + '-'.repeat(2 * p.cols.length))
+  out.push(pad('', w) + ' ' + paint('rule', '+' + '-'.repeat(2 * p.cols.length)))
   if (p.bars) {
     const tallest = p.cols.reduce((m, c) => Math.max(m, c.items.length), 0)
-    // The bars, tallest column first; a line ends at its last bar.
+    // The bars, tallest column first; a line ends at its last bar. The
+    // trailing blanks are trimmed BEFORE painting, so an escape can
+    // never be what the trim leaves behind.
     for (let h = tallest; 0 < h; h--) {
-      out.push((pad('', w) + ' |' +
-        p.cols.map((c) => h <= c.items.length ? ' #' : '  ').join(''))
-        .replace(/ +$/, ''))
+      const cells = p.cols.map((c) => h <= c.items.length ? ' #' : '  ')
+        .join('').replace(/ +$/, '')
+      out.push(pad('', w) + ' ' + paint('rule', '|') +
+        cells.replace(/#/g, () => paint('bar', '#')))
     }
   }
   out.push(pad('', w) + '   ' +
-    p.cols.map((c) => String(c.items.length)).join(' '))
+    paint('muted', p.cols.map((c) => String(c.items.length)).join(' ')))
   out.push('')
   p.cols.forEach((c, i) => {
     const shown = 4 < c.items.length && !p.bars
       ? c.items.slice(0, 3).join(' ') + ' ...' : c.items.join(' ')
-    out.push(`  col ${i + 1}${p.bars ? '' : ` (${c.items.length})`}: ${shown}` +
-      (c.sig.some((b) => b) ? '' : p.none))
+    out.push(paint('muted',
+      `  col ${i + 1}${p.bars ? '' : ` (${c.items.length})`}:`) +
+      ` ${shown}` + (c.sig.some((b) => b) ? '' : paint('muted', p.none)))
   })
   return out.join('\n')
 }
@@ -1606,7 +1893,7 @@ function renderPanel(p: Panel): string {
 // The panel as SVG: the set sizes as bars, the intersections as a dot
 // matrix (a filled dot where the set lies in the column), the column
 // cardinalities as bars under it, and the columns' elements as text.
-function panelSvg(p: Panel, about: string): string {
+function panelSvg(p: Panel, about: string, style: ViewStyle): string {
   const w = widest(p.names)
   const most = p.sizes.reduce((m, n) => Math.max(m, n), 0)
   const parts: string[] = [svgText(4, 14, 'av-m', p.header)]
@@ -1651,7 +1938,7 @@ function panelSvg(p: Panel, about: string): string {
   const width = Math.max(gx + p.cols.length * 20,
     gx + (p.bars ? most * 10 + 8 : 0) + 3 * CH,
     4 + widest(lines) * CH, 4 + p.header.length * CH) + PAD
-  return svgDoc(width, yI + lines.length * LH + PAD, about, parts)
+  return svgDoc(width, yI + lines.length * LH + PAD, about, parts, style)
 }
 
 
@@ -1695,7 +1982,7 @@ function drawSets(
   gen: any,
   o: {
     sets: string, member: string, universe?: string,
-    minDegree?: number, maxCols?: number, as: ViewProfile,
+    minDegree?: number, maxCols?: number, as: ViewProfile, style: ViewStyle,
   },
   max: number, loss: ViewLoss[]
 ): Figure {
@@ -1772,8 +2059,8 @@ function drawSets(
   return {
     text: 'svg' === o.as
       ? panelSvg(panel, `Set panel over ${o.sets}: ${names.length} sets, ` +
-        `${elements.size} elements, ${cols.length} intersections`)
-      : renderPanel(panel),
+        `${elements.size} elements, ${cols.length} intersections`, o.style)
+      : renderPanel(panel, o.style),
   }
 }
 
@@ -1791,7 +2078,10 @@ function docName(file: string, entry: string | undefined): string {
 
 function drawLayers(
   prov: Provenance, root: any, entry: string | undefined,
-  o: { at?: string, minSize?: number, maxCols?: number, as: ViewProfile },
+  o: {
+    at?: string, minSize?: number, maxCols?: number, as: ViewProfile,
+    style: ViewStyle,
+  },
   max: number, loss: ViewLoss[]
 ): Figure {
   // Every path something met at AND THE DOCUMENT HAS A VALUE AT,
@@ -1849,8 +2139,8 @@ function drawLayers(
   return {
     text: 'svg' === o.as
       ? panelSvg(panel, `Document layers: ${names.length} documents, ` +
-        `${paths.length} paths, ${cols.length} intersections`)
-      : renderPanel(panel),
+        `${paths.length} paths, ${cols.length} intersections`, o.style)
+      : renderPanel(panel, o.style),
   }
 }
 
@@ -2209,6 +2499,28 @@ export function view(
         `profiles: ${profiles.join(', ')}`)],
     })
   }
+  // ONE MECHANISM PER PROFILE (VIEWS.0.md, "7. Styling"). `ansi` is
+  // the text profile's and `css` the SVG's; asking for one on a
+  // profile that has no way to carry it is a usage error rather than a
+  // silent no-op, so a script that asks for colour and gets none is
+  // told why. `none` is always available -- it is the absence of a
+  // mechanism.
+  const style: ViewStyle = styleOf(options.style, as)
+  const carrier: Record<string, ViewProfile> = { ansi: 'text', css: 'svg' }
+  if (undefined !== carrier[style] && carrier[style] !== as) {
+    return done({
+      errors: [finding('view_style_profile', 'reference', '$',
+        `The ${as} profile cannot carry --style ${style}.`,
+        `${style} is the ${carrier[style]} profile's mechanism`)],
+    })
+  }
+  if (undefined === carrier[style] && 'none' !== style) {
+    return done({
+      errors: [finding('view_style_unknown', 'reference', '$',
+        `${style} is not a style.`, 'styles: auto, none, ansi, css')],
+    })
+  }
+
   // Zero means the default, in both ports.
   const max = options.maxRows || DEFAULT_MAX_ROWS
 
@@ -2249,9 +2561,13 @@ function drawLoaded(
   kind: ViewKind, as: ViewProfile, options: ViewOptions,
   max: number, loss: ViewLoss[]
 ): Figure {
+  const style = styleOf(options.style, as)
+  if ('doc' === kind) {
+    return drawDoc(root, { ...options, as, style }, max, loss)
+  }
   if ('layers' === kind) {
     return drawLayers(prov as Provenance, root, options.path,
-      { ...options, as }, max, loss)
+      { ...options, as, style }, max, loss)
   }
   if ('sets' === kind) {
     if (undefined === options.sets || undefined === options.member) {
@@ -2277,7 +2593,7 @@ function drawLoaded(
     }
     return drawSets(value, {
       sets: options.sets, member: options.member, universe: options.universe,
-      minDegree: options.minDegree, maxCols: options.maxCols, as,
+      minDegree: options.minDegree, maxCols: options.maxCols, as, style,
     }, max, loss)
   }
 
@@ -2289,7 +2605,7 @@ function drawLoaded(
   if ('matrix' === kind) {
     return drawMatrix(triples, decls, {
       relation, order: options.order ?? 'canon', closure: true === options.closure,
-      as,
+      as, style,
     }, max, loss)
   }
   if ('graph' === kind) {
@@ -2301,11 +2617,11 @@ function drawLoaded(
   if ('layer' === kind) {
     return drawLayer(triples, root, {
       relation, groupBy: options.groupBy, layers: options.layers ?? [],
-      edges: options.edges, as,
+      edges: options.edges, as, style,
     }, max, loss)
   }
   return drawTree(
-    collapse(triples, relation), relation, options.roots ?? [], max, as)
+    collapse(triples, relation), relation, options.roots ?? [], max, as, style)
 }
 
 
@@ -2341,7 +2657,7 @@ const DECL_ENUM: Record<string, string[]> = {
   order: ['canon', 'partition'],
   edges: ['upward', 'all', 'none'],
 }
-const DECL_COUNT = ['maxRows', 'maxCols', 'minDegree', 'minSize']
+const DECL_COUNT = ['maxRows', 'maxCols', 'minDegree', 'minSize', 'depth']
 const DECL_FLAG = ['closure']
 const DECL_LIST = ['roots', 'relations', 'layers']
 

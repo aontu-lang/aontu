@@ -3392,6 +3392,15 @@ and it does not appear in canon — so the file above and the file with
 document and produce the same [`aon1-` hash](#canonical-form). That is
 the whole of what an alias is: a name for a value, and nothing else.
 
+**Not inside a spread template, yet.** `{&: {a: %D}}` does not resolve
+the reference: the alias survives into canon as `$.%D` — the refused
+path spelling — and the document's [`aon1-` hash](#canonical-form)
+moves, so the two spellings are *not* the same document there. The
+value still generates correctly in both ports, which is what makes it
+easy to miss. Write the constraint out inside a spread template until
+this is fixed; it is recorded as
+[`use-cases/BUGS.md`](../use-cases/BUGS.md) 73.
+
 **An alias is not a path segment.** `$.%foo` is refused, at any depth:
 the alias namespace and the path namespace are disjoint, and an alias
 is reached by writing `%foo` and only that.

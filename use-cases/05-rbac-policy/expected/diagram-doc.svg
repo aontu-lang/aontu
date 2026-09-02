@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" class="av" viewBox="0 0 460 608" width="460" height="608" role="img" aria-label="Document tree at $: 29 keys to depth 2">
+<style>.av{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px}.av-t{fill:var(--av-ink,#1f2328)}.av-m{fill:var(--av-muted,#6e7781)}.av-box{fill:var(--av-bg,#f6f8fa);stroke:var(--av-rule,#8c959f);stroke-width:1}.av-cell{fill:var(--av-bg,#f6f8fa);stroke:var(--av-rule-faint,#d0d7de);stroke-width:1}.av-direct{fill:var(--av-ink,#1f2328);stroke:var(--av-rule-faint,#d0d7de);stroke-width:1}.av-closure{fill:var(--av-closure,#9ec5fe);stroke:var(--av-rule-faint,#d0d7de);stroke-width:1}.av-unmirrored{fill:var(--av-warn,#e3b341);stroke:var(--av-rule-faint,#d0d7de);stroke-width:1}.av-line{stroke:var(--av-rule,#8c959f);stroke-width:1;fill:none}.av-up{stroke:var(--av-alert,#d1242f);stroke-width:1.5;fill:none;stroke-dasharray:4 3}.av-dot{fill:var(--av-ink,#1f2328)}.av-hole{fill:var(--av-bg,#f6f8fa);stroke:var(--av-rule-faint,#d0d7de);stroke-width:1}.av-bar{fill:var(--av-bar,#57606a)}</style>
+<text x="4" y="14" class="av-t">$</text>
+<path d="M8 20V30H26" class="av-line"/>
+<text x="28" y="34"><tspan class="av-t">Entitlement</tspan><tspan class="av-m"> {&quot;auditLog&quot;:false,&quot;plan&quot;:&quot;fre...</tspan></text>
+<path d="M8 20V50H26" class="av-line"/>
+<text x="28" y="54"><tspan class="av-t">Role</tspan><tspan class="av-m"> {&quot;desc&quot;:string,&quot;grants&quot;:[&amp;:re...</tspan></text>
+<path d="M8 20V70H26" class="av-line"/>
+<text x="28" y="74" class="av-t">permissions</text>
+<path d="M32 80V90H50" class="av-line"/>
+<text x="52" y="94"><tspan class="av-t">admin_all</tspan><tspan class="av-m"> (2)</tspan></text>
+<path d="M32 80V110H50" class="av-line"/>
+<text x="52" y="114"><tspan class="av-t">audit_read</tspan><tspan class="av-m"> (2)</tspan></text>
+<path d="M32 80V130H50" class="av-line"/>
+<text x="52" y="134"><tspan class="av-t">billing_manage</tspan><tspan class="av-m"> (2)</tspan></text>
+<path d="M32 80V150H50" class="av-line"/>
+<text x="52" y="154"><tspan class="av-t">billing_read</tspan><tspan class="av-m"> (2)</tspan></text>
+<path d="M32 80V170H50" class="av-line"/>
+<text x="52" y="174"><tspan class="av-t">member_invite</tspan><tspan class="av-m"> (2)</tspan></text>
+<path d="M32 80V190H50" class="av-line"/>
+<text x="52" y="194"><tspan class="av-t">member_read</tspan><tspan class="av-m"> (2)</tspan></text>
+<path d="M32 80V210H50" class="av-line"/>
+<text x="52" y="214"><tspan class="av-t">project_delete</tspan><tspan class="av-m"> (2)</tspan></text>
+<path d="M32 80V230H50" class="av-line"/>
+<text x="52" y="234"><tspan class="av-t">project_read</tspan><tspan class="av-m"> (2)</tspan></text>
+<path d="M32 80V250H50" class="av-line"/>
+<text x="52" y="254"><tspan class="av-t">project_write</tspan><tspan class="av-m"> (2)</tspan></text>
+<path d="M8 20V270H26" class="av-line"/>
+<text x="28" y="274" class="av-t">registry_invariant</text>
+<path d="M32 280V290H50" class="av-line"/>
+<text x="52" y="294"><tspan class="av-t">one_owner_role</tspan><tspan class="av-m"> (1)</tspan></text>
+<path d="M8 20V310H26" class="av-line"/>
+<text x="28" y="314" class="av-t">roles</text>
+<path d="M32 320V330H50" class="av-line"/>
+<text x="52" y="334"><tspan class="av-t">admin</tspan><tspan class="av-m"> (5)</tspan></text>
+<path d="M32 320V350H50" class="av-line"/>
+<text x="52" y="354"><tspan class="av-t">auditor</tspan><tspan class="av-m"> (5)</tspan></text>
+<path d="M32 320V370H50" class="av-line"/>
+<text x="52" y="374"><tspan class="av-t">member</tspan><tspan class="av-m"> (5)</tspan></text>
+<path d="M32 320V390H50" class="av-line"/>
+<text x="52" y="394"><tspan class="av-t">owner</tspan><tspan class="av-m"> (5)</tspan></text>
+<path d="M8 20V410H26" class="av-line"/>
+<text x="28" y="414" class="av-t">tenant</text>
+<path d="M32 420V430H50" class="av-line"/>
+<text x="52" y="434"><tspan class="av-t">defaultMemberRole</tspan><tspan class="av-m"> *&quot;member&quot;|&quot;member&quot;|&quot;admin&quot;|&quot;o...</tspan></text>
+<path d="M32 420V450H50" class="av-line"/>
+<text x="52" y="454"><tspan class="av-t">entitlement</tspan><tspan class="av-m"> (4)</tspan></text>
+<path d="M32 420V470H50" class="av-line"/>
+<text x="52" y="474"><tspan class="av-t">limits</tspan><tspan class="av-m"> (2)</tspan></text>
+<path d="M32 420V490H50" class="av-line"/>
+<text x="52" y="494"><tspan class="av-t">members</tspan><tspan class="av-m"> (3)</tspan></text>
+<path d="M32 420V510H50" class="av-line"/>
+<text x="52" y="514"><tspan class="av-t">name</tspan><tspan class="av-m"> &quot;Acme Rockets&quot;</tspan></text>
+<path d="M32 420V530H50" class="av-line"/>
+<text x="52" y="534"><tspan class="av-t">plan</tspan><tspan class="av-m"> &quot;free&quot;</tspan></text>
+<path d="M32 420V550H50" class="av-line"/>
+<text x="52" y="554"><tspan class="av-t">security</tspan><tspan class="av-m"> (2)</tspan></text>
+<path d="M32 420V570H50" class="av-line"/>
+<text x="52" y="574"><tspan class="av-t">slug</tspan><tspan class="av-m"> &quot;acme-rockets&quot;</tspan></text>
+<path d="M32 420V590H50" class="av-line"/>
+<text x="52" y="594"><tspan class="av-t">supportTier</tspan><tspan class="av-m"> &quot;community&quot;</tspan></text>
+</svg>

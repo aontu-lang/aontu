@@ -7,6 +7,107 @@ which implementation each change affects.
 
 ## Unreleased
 
+### Every use case opens with its model tree
+
+`use-cases/`. Sixteen worked examples had five figures between them,
+all of them of the five models that happen to have an edge set or a
+version history; the other eleven met a reader with prose and a file
+table. Every case now opens with its model tree, drawn by `view doc`
+and pinned by its own `check.sh` as text and SVG, and its second
+section explains the arrangement -- so the reader meets the shape
+before the argument. The five cases with a subject figure keep it,
+where the prose that explains it is.
+
+Three findings came out of writing them, all recorded in
+`use-cases/BUGS.md`: 72 (an alias through a root-spliced include
+strands a `must()`, in TypeScript only), 73 (an alias inside a spread
+template leaks into canon as `$.%Name` and moves the hash, both ports)
+and 74 (an alias declaration is a key of the root map, so `get --keys`
+lists it).
+
+### `%` aliases, put to work
+
+`use-cases/`. Three cases name a repeated shape instead of repeating
+it: `%CatalogAddr`, `%Owner`, `%Lifecycle` and `%Description` in
+01-service-catalog, `%JobEdge` in 12-relations, and `%Key`, `%Owner`,
+`%Description`, `%Date` in 08-feature-flags' `flag-schema.aon`. Every
+entry document hashes exactly as it did before, which is the claim the
+construct rests on: an alias does not generate and does not appear in
+canon, so naming a value changes nothing but the reading. Where an
+alias could NOT be used the reason is now written down beside the
+duplication rather than left to be rediscovered -- a spread template
+(73), a file boundary, and 10-data-model's `must()`s (72).
+
+### `aontu view doc`: the shape of the model itself
+
+Both ports, a ninth kind. Every other figure the verb draws reads a
+REPORT -- the edge set, the provenance record, the subsumption order --
+so it can only draw a document that HAS links, contributions or peers,
+and draws nothing from one that does not. A reader meeting a model
+wants the plainer thing first: what is in it, and how it is arranged.
+
+`aontu view doc` draws the document's own key tree. `--at` names the
+subtree (default `$`) and `--depth <n>` how many levels below it
+(default 3). It reads the anchor walk, which is the walk `get --keys
+--types` reads: map keys in code-point order, list indices in order, a
+sizing residue and a preference stepped through because neither is a
+level of the shape. A leaf carries its canon cut at 32 characters --
+the kind of thing it is, not its value -- and a container the depth
+bound stops at carries the number of keys not drawn, counted into the
+loss report as `depth_elided`. A tree that stopped without saying so
+would be the one thing a structural drawing must not be.
+
+Profiles `text` and `svg`, `--style` as every other kind, declarable in
+a view document (`kind: doc`, `depth`), and in the MCP `view` tool.
+`std/view`'s `Figure` gains `depth` and `doc`, so its canon and hash
+rows in `test/spec/std-view.tsv` move.
+
+### `aontu view --style`: a figure's marks say what they mean
+
+Both ports. Every mark a figure makes already has a reason the
+extractor established -- a cell is `direct` because the edge is
+declared, `closure` because the pair is only reachable, `unmirrored`
+because the declared inverse is not written back; an arrow is `upward`
+because it runs against the bands; a tree row is `repeat` because the
+subtree was drawn earlier. The SVG profile has published those reasons
+as CSS classes since it landed, because an SVG cannot be drawn without
+saying what each shape is. The `text` profile computed the same
+reasons, spent them on choosing a glyph, and threw them away.
+
+`--style` declares the vocabulary in both and turns it on at the call.
+One mechanism per profile: SGR escapes for `text`, classes and the
+embedded stylesheet for `svg`, nothing for `mermaid`, `dot` and `er`,
+whose renderers lay the figure out. `auto` (the default) picks the
+mechanism where the destination can carry it -- escapes only when
+stdout is a terminal and `NO_COLOR` is unset, and an SVG keeps the
+stylesheet that makes it standalone. `none` drops both; on `svg` the
+classes stay, since they are structure, and only the stylesheet goes,
+which is what a host page wants once it has bound `--av-ink` and its
+kin and is embedding several figures. `ansi` and `css` name a
+mechanism outright, and asking for one on a profile that cannot carry
+it is `view_style_profile` rather than a silent no-op.
+
+Escapes are never written to a file: `--out --style ansi` is refused,
+and `auto` resolves to none there. `auto` is resolved by the CLI and
+is not a value the library takes -- `ts/src/err.ts` already settles
+that division for the error frames, a library cannot see whether its
+output is a terminal, and it keeps every `test/spec/view.tsv` row
+deterministic.
+
+THE COLOUR BOUNDARY IS AMENDED, NARROWLY
+(`docs/design/VIEWS.0.md`, "7. Styling"). Neither mechanism states a
+colour: SGR 31 means the colour the reader's terminal calls red, which
+the reader chose, and a CSS class states nothing at all -- the
+stylesheet reads `var(--av-closure, ...)` so a host page's palette
+wins. A hex triple is the thing that cannot follow a theme, and it
+stays refused: no truecolour escape, no 256-colour escape, no
+`classDef`. A view document still may not carry `style`; a declaration
+says which projection, never how it looks, and one that carries it is
+refused with `view_document_shape` as any other non-option is.
+
+New codes: `view_style_profile`, `view_style_unknown`.
+
+
 ### `view.ts` imported a bare `path`, which no bundler resolves
 
 TypeScript. `src/view.ts` was the only file in the tree importing a

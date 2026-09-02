@@ -47,15 +47,22 @@ different build.
 
 ## Diagrams
 
-Five cases carry generated diagrams, drawn by
-[`aontu view`](../docs/reference-api.md#aontu-view), pinned as goldens
-by their `check.sh` and rendered inline in their README. The tree, the
-matrix and the layers are fixed-pitch text, because those figures are
-character cells, and 01 and 16 pin the same figures as SVG (`--as
-svg`, the same cells drawn to the same integer grid); the others are
-Mermaid, which GitHub draws:
+**Every case opens with its model tree**, drawn by [`aontu view
+doc`](../docs/reference-api.md#aontu-view) and pinned as a golden by
+its own `check.sh`, text and SVG. It is the one figure every document
+can carry: the other kinds read a report — the edge set, the
+provenance record, the subsumption order — and so need the model to
+HAVE links, contributions or peers, while this reads the shape itself.
+The README's second section explains it, so a reader meets the model's
+arrangement before any of its values.
 
-| case | views |
+Five cases carry further diagrams, drawn by the same verb and pinned
+the same way. The tree, the matrix and the layers are fixed-pitch text,
+because those figures are character cells, and 01 and 16 pin the same
+figures as SVG (`--as svg`, the same cells drawn to the same integer
+grid); the others are Mermaid, which GitHub draws:
+
+| case | views beyond the model tree |
 |---|---|
 | [01-service-catalog](01-service-catalog/) | `graph` grouped by owner, `matrix` in partition order with the closure (text and SVG) |
 | [04-schema-evolution](04-schema-evolution/) | `poset`: the subsumption order over the releases and proposals |

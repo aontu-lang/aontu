@@ -47,6 +47,39 @@ Cardinality is drawn many-to-many throughout because the model does not
 state one. Drawing a cardinality the model does not assert would be an
 invention.
 
+## The model tree
+
+`model.aon` is the vocabulary plus the topology. `spec` generates empty
+— it is `hide()`-marked, being schema rather than data — and `pipeline`
+holds the four jobs, each with its `feeds` and `fedBy` address lists.
+
+![The model tree: four jobs and the relation vocabulary they are written in](expected/diagram-doc.svg)
+
+```
+$
+├── %JobEdge rel({"kind":"job"})
+├── pipeline
+│   └── jobs
+│       ├── audit (4)
+│       ├── extract (4)
+│       ├── load (4)
+│       └── transform (4)
+└── spec
+    ├── Job
+    │   ├── cmd string
+    │   ├── fedBy rel({"kind":"job"})
+    │   ├── feeds rel({"kind":"job"})&acyclic()...
+    │   └── kind "job"
+    └── JobShape
+        └── kind "job"
+```
+
+`aontu view doc --depth 3 model.aon` draws it, and `check.sh` pins it
+with `--out --check`. A key with `(n)` after it is a container the
+depth bound stopped at, and `n` is how many keys are not drawn; a
+leaf carries its canon, which is the kind of thing it is rather
+than its value.
+
 ## The model
 
 `model.aon` is the root: one evaluation that includes the vocabulary
@@ -54,8 +87,22 @@ invention.
 one line of schema in `spec.aon`, with the inverse field declared
 `rel` beside it:
 
-    feeds?: rel($.spec.JobShape) & acyclic() & inverse(fedBy)
-    fedBy?: rel($.spec.JobShape)
+```aon
+%JobEdge: rel($.spec.JobShape)
+
+feeds?: %JobEdge & acyclic() & inverse(fedBy)
+fedBy?: %JobEdge
+```
+
+`%JobEdge` is an **alias** — `%name:` at the top level declares one and
+`%name` in value position uses it. It does not generate and does not
+appear in canon, so `spec.aon` with the name and `spec.aon` with
+`rel($.spec.JobShape)` written out at both ends are the same document
+with the same `aon1-` hash. What it buys is that a relation and its
+inverse can no longer be declared over different endpoint types, which
+is a mistake nothing else here would catch: `inverse()` checks that
+every edge is mirrored, not that the two ends agree about what they
+point at.
 
 - `rel(t)` — the field's strings are checked entity addresses, and
   `t` flows into every target. Here `t` is `JobShape`, a thin sibling

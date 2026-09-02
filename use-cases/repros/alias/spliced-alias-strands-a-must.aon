@@ -1,0 +1,31 @@
+# 72: an alias reached through a ROOT-SPLICED include leaves a `must()`
+# written at the use site unresolved, and only in TypeScript.
+#
+# The schema half declares `%Cents` and spreads a `type(close({...}))`
+# over `lines`; this file splices it and adds one member whose
+# `amountCents` carries a `must()`.
+#
+# run: node ../../../ts/bin/aontu.js spliced-alias-strands-a-must.aon
+# run: aontu-go spliced-alias-strands-a-must.aon
+#
+# expected (and what Go answers, exit 0):
+#   {"lines":{"one":{"amountCents":10,"unitCents":10}},"schema":{}}
+#
+# actual, TypeScript, exit 1:
+#   [aontu/mapval_required]: Cannot resolve value at path
+#   $.lines.one.amountCents
+#    Cannot resolve value: 10&must(.unitCents,"no")
+#
+# THREE THINGS ARE NEEDED and dropping any one of them makes it pass in
+# both ports: the alias (write `integer & min(0)` at both use sites and
+# it resolves), the ROOT SPLICE (put the two files' contents in one
+# file and it resolves), and the `must()` at the use site (`max(99)`
+# there, or nothing, resolves). So it is the alias reference surviving
+# the splice into the spread template that leaves the relative-argument
+# constraint a round short of settling.
+
+@"./spliced-alias-strands-a-must-schema.aon"
+
+lines: {
+  one: { unitCents: 10, amountCents: 10 & must(.unitCents, "no") }
+}

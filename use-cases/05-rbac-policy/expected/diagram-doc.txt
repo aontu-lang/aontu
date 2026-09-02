@@ -1,0 +1,30 @@
+$
+├── Entitlement {"auditLog":false,"plan":"fre...
+├── Role {"desc":string,"grants":[&:re...
+├── permissions
+│   ├── admin_all (2)
+│   ├── audit_read (2)
+│   ├── billing_manage (2)
+│   ├── billing_read (2)
+│   ├── member_invite (2)
+│   ├── member_read (2)
+│   ├── project_delete (2)
+│   ├── project_read (2)
+│   └── project_write (2)
+├── registry_invariant
+│   └── one_owner_role (1)
+├── roles
+│   ├── admin (5)
+│   ├── auditor (5)
+│   ├── member (5)
+│   └── owner (5)
+└── tenant
+    ├── defaultMemberRole *"member"|"member"|"admin"|"o...
+    ├── entitlement (4)
+    ├── limits (2)
+    ├── members (3)
+    ├── name "Acme Rockets"
+    ├── plan "free"
+    ├── security (2)
+    ├── slug "acme-rockets"
+    └── supportTier "community"

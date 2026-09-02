@@ -42,4 +42,5 @@ export declare const VET_MAX_ERRORS = 20;
 export declare function displayFile(url: string, label: string, path?: string): string;
 export declare function failureFinding(ctx: any, url?: string, failed?: any): VetFinding;
 export declare function anchorAt(root: any, at: string): Val | undefined;
+export declare function throughResidue(v: any): any;
 export declare function vet(schemaSrc: string, dataSrc: string, opts?: VetOptions): VetReport;

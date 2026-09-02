@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" class="av" viewBox="0 0 180 468" width="180" height="468" role="img" aria-label="Document tree at $: 22 keys to depth 2">
+<style>.av{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px}.av-t{fill:var(--av-ink,#1f2328)}.av-m{fill:var(--av-muted,#6e7781)}.av-box{fill:var(--av-bg,#f6f8fa);stroke:var(--av-rule,#8c959f);stroke-width:1}.av-cell{fill:var(--av-bg,#f6f8fa);stroke:var(--av-rule-faint,#d0d7de);stroke-width:1}.av-direct{fill:var(--av-ink,#1f2328);stroke:var(--av-rule-faint,#d0d7de);stroke-width:1}.av-closure{fill:var(--av-closure,#9ec5fe);stroke:var(--av-rule-faint,#d0d7de);stroke-width:1}.av-unmirrored{fill:var(--av-warn,#e3b341);stroke:var(--av-rule-faint,#d0d7de);stroke-width:1}.av-line{stroke:var(--av-rule,#8c959f);stroke-width:1;fill:none}.av-up{stroke:var(--av-alert,#d1242f);stroke-width:1.5;fill:none;stroke-dasharray:4 3}.av-dot{fill:var(--av-ink,#1f2328)}.av-hole{fill:var(--av-bg,#f6f8fa);stroke:var(--av-rule-faint,#d0d7de);stroke-width:1}.av-bar{fill:var(--av-bar,#57606a)}</style>
+<text x="4" y="14" class="av-t">$</text>
+<path d="M8 20V30H26" class="av-line"/>
+<text x="28" y="34" class="av-t">customers</text>
+<path d="M32 40V50H50" class="av-line"/>
+<text x="52" y="54"><tspan class="av-t">cust-1001</tspan><tspan class="av-m"> (7)</tspan></text>
+<path d="M32 40V70H50" class="av-line"/>
+<text x="52" y="74"><tspan class="av-t">cust-1002</tspan><tspan class="av-m"> (7)</tspan></text>
+<path d="M8 20V90H26" class="av-line"/>
+<text x="28" y="94" class="av-t">invoices</text>
+<path d="M32 100V110H50" class="av-line"/>
+<text x="52" y="114"><tspan class="av-t">inv-3001</tspan><tspan class="av-m"> (6)</tspan></text>
+<path d="M8 20V130H26" class="av-line"/>
+<text x="28" y="134" class="av-t">orders</text>
+<path d="M32 140V150H50" class="av-line"/>
+<text x="52" y="154"><tspan class="av-t">ord-7001</tspan><tspan class="av-m"> (5)</tspan></text>
+<path d="M32 140V170H50" class="av-line"/>
+<text x="52" y="174"><tspan class="av-t">ord-7002</tspan><tspan class="av-m"> (5)</tspan></text>
+<path d="M8 20V190H26" class="av-line"/>
+<text x="28" y="194" class="av-t">pricing</text>
+<path d="M32 200V210H50" class="av-line"/>
+<text x="52" y="214"><tspan class="av-t">book</tspan><tspan class="av-m"> (4)</tspan></text>
+<path d="M32 200V230H50" class="av-line"/>
+<text x="52" y="234"><tspan class="av-t">bundles</tspan><tspan class="av-m"> (2)</tspan></text>
+<path d="M8 20V250H26" class="av-line"/>
+<text x="28" y="254" class="av-t">receivables</text>
+<path d="M32 260V270H50" class="av-line"/>
+<text x="52" y="274"><tspan class="av-t">cust-1001</tspan><tspan class="av-m"> (2)</tspan></text>
+<path d="M32 260V290H50" class="av-line"/>
+<text x="52" y="294"><tspan class="av-t">cust-1002</tspan><tspan class="av-m"> (2)</tspan></text>
+<path d="M8 20V310H26" class="av-line"/>
+<text x="28" y="314" class="av-t">reconcile</text>
+<path d="M32 320V330H50" class="av-line"/>
+<text x="52" y="334"><tspan class="av-t">centsPath</tspan><tspan class="av-m"> 30</tspan></text>
+<path d="M32 320V350H50" class="av-line"/>
+<text x="52" y="354"><tspan class="av-t">exactPath</tspan><tspan class="av-m"> 0d0.3</tspan></text>
+<path d="M8 20V370H26" class="av-line"/>
+<text x="28" y="374" class="av-t">schema</text>
+<path d="M32 380V390H50" class="av-line"/>
+<text x="52" y="394"><tspan class="av-t">Customer</tspan><tspan class="av-m"> (7)</tspan></text>
+<path d="M32 380V410H50" class="av-line"/>
+<text x="52" y="414"><tspan class="av-t">Invoice</tspan><tspan class="av-m"> (6)</tspan></text>
+<path d="M32 380V430H50" class="av-line"/>
+<text x="52" y="434"><tspan class="av-t">Order</tspan><tspan class="av-m"> (5)</tspan></text>
+<path d="M32 380V450H50" class="av-line"/>
+<text x="52" y="454"><tspan class="av-t">OrderLine</tspan><tspan class="av-m"> (4)</tspan></text>
+</svg>

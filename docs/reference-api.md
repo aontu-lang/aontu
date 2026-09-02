@@ -773,14 +773,17 @@ by code point, and both ports emit the same bytes.
 
 ```
 aontu view <kind> [--as <profile>] [--at <path>] [--out <file> [--check]]
-           [--strict] [--max-rows <n>] [--format text|json] [options] <file>...
+           [--strict] [--max-rows <n>] [--depth <n>] [--style <s>]
+           [--format text|json] [options] <file>...
 ```
 
-Eight kinds, each reading one report the engine already produces and
-never the value tree:
+Nine kinds. Eight read a report the engine already produces; `doc`
+reads the shape of the document itself, which is the one thing no
+report holds:
 
 | kind | draws | reads | profiles |
 |---|---|---|---|
+| `doc` | the document's own key tree, to a depth | the anchor walk, as `get --keys --types` reads it | `text`, `svg` |
 | `tree` | the dependency tree of a relation: roots derived, repeats elided, cycles marked | the edge set | `text`, `svg` |
 | `matrix` | the dependency-structure matrix over one relation, in `canon` or `partition` order, with `--closure` | the edge set and the relation declarations | `text`, `svg` |
 | `graph` | the node-link drawing, grouped and labelled by fields of the nodes | the edge set, the declarations, the node values | `mermaid`, `dot`, `er` |
@@ -798,7 +801,8 @@ node-link drawing and no Mermaid form of a matrix.
 a grid of character cells -- as a standalone SVG with the same
 geometry: 8 units per character and 20 per line, every coordinate a
 whole number, so no font is measured and both ports emit the same
-bytes. The figure carries its own style block; a host page sets the
+bytes. The figure carries its own style block (dropped by
+`--style none`, below); a host page sets the
 colours through CSS variables (`--av-ink`, `--av-muted`, `--av-bg`,
 `--av-rule`, `--av-rule-faint`, `--av-closure`, `--av-warn`,
 `--av-alert`, `--av-bar`), and the defaults stand where it sets none.
@@ -865,14 +869,50 @@ flowchart LR
   writes each edge twice), `inverse_suppressed` (a declared mirror,
   implied by the edge drawn) and `crossings` (a property of the emitted
   order).
+- **`--style <s>`** says how a figure carries the MEANING of its
+  marks. Every mark has a reason the extractor established — a direct
+  cell, a closure cell, an unmirrored edge, an upward edge, a repeated
+  subtree — and each profile has one way to show it: SGR escapes for
+  `text`, CSS classes for `svg`. `auto`, the default, picks that
+  mechanism where the destination can carry it: escapes only when
+  stdout is a terminal and `NO_COLOR` is unset, and an SVG keeps the
+  stylesheet that makes it standalone. `none` drops both — on `svg` the
+  classes stay (they are structure, not style) and only the embedded
+  stylesheet goes, which is what a host page wants once it has bound
+  `--av-ink` and its kin and is embedding several figures. `ansi` and
+  `css` name a mechanism outright, and asking for one on a profile that
+  cannot carry it is a usage error (`view_style_profile`) rather than a
+  silent no-op. Escapes are never written to a file: `--out` with
+  `--style ansi` is refused, and `auto` resolves to no escapes there.
+
+  Neither mechanism states a colour, which is why this does not reopen
+  the design's "no colour palette" boundary
+  ([`docs/design/VIEWS.0.md`](design/VIEWS.0.md), "7. Styling"): SGR 31
+  means the colour the reader's terminal calls red, and a CSS class
+  states nothing at all. A hex triple in a figure stays refused, and so
+  does `style` in a view document — a declaration says which
+  projection, never how it looks.
 - **`--out <file>` and `--check`.** The figure is written to the file
   instead of stdout; with `--check` nothing is written and the exit is
   `1` when the file differs from what would be drawn, which is the CI
   gate for a committed figure.
 - **`--max-rows <n>`** (default 60) is a refusal, exit `2`, not a
   truncation; the message names the narrowing options.
+- `doc`: the shape of the model, before any of its values mean
+  anything. Every other kind here needs the document to HAVE something
+  — links, contributions, peers — and draws nothing from one that does
+  not; this draws what is in the document and how it is arranged, which
+  is what a reader meeting a model wants first. `--at` names the
+  subtree (default `$`) and `--depth <n>` how many levels of key below
+  it (default 3). Map keys are in code-point order and list indices in
+  order, exactly as `get --keys` lists them. A leaf carries its canon,
+  cut at 32 characters — the kind of thing it is, not its value. A
+  container the depth bound stops at carries the number of keys not
+  drawn, and they are counted into the loss report as `depth_elided`:
+  a tree that stopped without saying so would be the one thing a
+  structural drawing must not be.
 - **`--at <path>`** restricts the edge-derived kinds to nodes under the
-  path, the provenance panel to paths under it, and names the path the
+  path, names the subtree `doc` draws, the provenance panel to paths under it, and names the path the
   ladder draws (required) and where the poset compares.
 - `tree`: `--relation` draws one relation; without it every relation is
   drawn, each branch naming its own. `--root <path>` (repeatable) draws

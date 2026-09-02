@@ -1,5 +1,7 @@
 # 09 — An AI agent platform's tool registry as ground truth
 
+![The model tree: the tool registry, the argument schemas, and the per-call guard generated from them](expected/diagram-doc.svg)
+
 ## The scenario
 
 An agent platform ("Orion") runs a fleet of LLM agents that call
@@ -26,6 +28,62 @@ The model exercises the full loop:
 5. The `aontu agentsmd` stanza and its `aontu hash` pin.
 
 `./check.sh` runs everything and asserts every outcome (19 checks).
+
+## The model tree
+
+`guard.aon` is the registry plus the runtime guardrail. `tools` is what
+exists and `argschemas` what each call may carry; `guard` is generated
+from them by a `pack()` over the schema map, so a call is vetted at
+`$.guard.<tool>` and the two can never drift. `ToolSpec`, `Role` and
+`SideEffect` are the vocabulary the entries are written in.
+
+```
+$
+├── Role "admin"|"operator"|"analyst"|...
+├── SideEffect "readonly"|"write"|"destructive"
+├── ToolSpec
+│   ├── allowed_roles [&:$.Role]
+│   ├── description string&length(integer&min(24)...
+│   ├── owner re("^[a-z][a-z0-9-]*@corp[.]e...
+│   ├── rate_limit (2)
+│   ├── requires_approval boolean
+│   ├── side_effect "readonly"|"write"|"destructive"
+│   └── timeout_ms integer&min(100)&max(600000)
+├── argschemas
+│   ├── create_ticket (5)
+│   ├── delete_records (3)
+│   ├── http_request (5)
+│   ├── read_file (2)
+│   ├── search_docs (3)
+│   └── send_email (3)
+├── docs
+│   ├── header "| tool | effect | rpm | appr...
+│   └── table (6)
+├── guard
+│   ├── create_ticket (2)
+│   ├── delete_records (2)
+│   ├── http_request (2)
+│   ├── read_file (2)
+│   ├── search_docs (2)
+│   └── send_email (2)
+├── registry
+│   ├── owner "platform-tools@corp.example"
+│   ├── platform "orion"
+│   └── version "1.4.0"
+└── tools
+    ├── create_ticket (7)
+    ├── delete_records (7)
+    ├── http_request (7)
+    ├── read_file (7)
+    ├── search_docs (7)
+    └── send_email (7)
+```
+
+`aontu view doc --depth 2 guard.aon` draws it, and `check.sh` pins it
+with `--out --check`. A key with `(n)` after it is a container the
+depth bound stopped at, and `n` is how many keys are not drawn; a
+leaf carries its canon, which is the kind of thing it is rather
+than its value.
 
 ## How the model is designed
 

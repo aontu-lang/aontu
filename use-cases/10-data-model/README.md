@@ -1,5 +1,7 @@
 # 10 — Enterprise data domain model (customers, orders, invoices, money)
 
+![The model tree: customers, orders, invoices and the pricing book, over one record vocabulary](expected/diagram-doc.svg)
+
 ## Scenario
 
 An order-to-cash domain for a mid-size B2B company: customers with
@@ -18,6 +20,46 @@ This is the ground-truth-ontology use: one document that is
 simultaneously the contract, the checker, and the generator. Money is
 the stress test (the reason `0d` exact decimals exist), and 64-bit
 ids exercise the number tower's disjoint kinds.
+
+## The model tree
+
+`seed.aon` layers the deterministic seed ledger onto the domain model,
+so evaluating it IS the fixture generator. The record bags are
+`customers`, `orders`, `invoices` and `receivables`; `pricing` is the
+exact-money half, and `schema` the vocabulary, which generates empty
+because a type is not data.
+
+```
+$
+├── customers
+│   ├── cust-1001 (7)
+│   └── cust-1002 (7)
+├── invoices
+│   └── inv-3001 (6)
+├── orders
+│   ├── ord-7001 (5)
+│   └── ord-7002 (5)
+├── pricing
+│   ├── book (4)
+│   └── bundles (2)
+├── receivables
+│   ├── cust-1001 (2)
+│   └── cust-1002 (2)
+├── reconcile
+│   ├── centsPath 30
+│   └── exactPath 0d0.3
+└── schema
+    ├── Customer (7)
+    ├── Invoice (6)
+    ├── Order (5)
+    └── OrderLine (4)
+```
+
+`aontu view doc --depth 2 seed.aon` draws it, and `check.sh` pins it
+with `--out --check`. A key with `(n)` after it is a container the
+depth bound stopped at, and `n` is how many keys are not drawn; a
+leaf carries its canon, which is the kind of thing it is rather
+than its value.
 
 ## Model design
 

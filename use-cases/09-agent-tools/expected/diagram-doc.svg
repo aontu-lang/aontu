@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" class="av" viewBox="0 0 412 788" width="412" height="788" role="img" aria-label="Document tree at $: 38 keys to depth 2">
+<style>.av{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px}.av-t{fill:var(--av-ink,#1f2328)}.av-m{fill:var(--av-muted,#6e7781)}.av-box{fill:var(--av-bg,#f6f8fa);stroke:var(--av-rule,#8c959f);stroke-width:1}.av-cell{fill:var(--av-bg,#f6f8fa);stroke:var(--av-rule-faint,#d0d7de);stroke-width:1}.av-direct{fill:var(--av-ink,#1f2328);stroke:var(--av-rule-faint,#d0d7de);stroke-width:1}.av-closure{fill:var(--av-closure,#9ec5fe);stroke:var(--av-rule-faint,#d0d7de);stroke-width:1}.av-unmirrored{fill:var(--av-warn,#e3b341);stroke:var(--av-rule-faint,#d0d7de);stroke-width:1}.av-line{stroke:var(--av-rule,#8c959f);stroke-width:1;fill:none}.av-up{stroke:var(--av-alert,#d1242f);stroke-width:1.5;fill:none;stroke-dasharray:4 3}.av-dot{fill:var(--av-ink,#1f2328)}.av-hole{fill:var(--av-bg,#f6f8fa);stroke:var(--av-rule-faint,#d0d7de);stroke-width:1}.av-bar{fill:var(--av-bar,#57606a)}</style>
+<text x="4" y="14" class="av-t">$</text>
+<path d="M8 20V30H26" class="av-line"/>
+<text x="28" y="34"><tspan class="av-t">Role</tspan><tspan class="av-m"> &quot;admin&quot;|&quot;operator&quot;|&quot;analyst&quot;|...</tspan></text>
+<path d="M8 20V50H26" class="av-line"/>
+<text x="28" y="54"><tspan class="av-t">SideEffect</tspan><tspan class="av-m"> &quot;readonly&quot;|&quot;write&quot;|&quot;destructive&quot;</tspan></text>
+<path d="M8 20V70H26" class="av-line"/>
+<text x="28" y="74" class="av-t">ToolSpec</text>
+<path d="M32 80V90H50" class="av-line"/>
+<text x="52" y="94"><tspan class="av-t">allowed_roles</tspan><tspan class="av-m"> [&amp;:$.Role]</tspan></text>
+<path d="M32 80V110H50" class="av-line"/>
+<text x="52" y="114"><tspan class="av-t">description</tspan><tspan class="av-m"> string&amp;length(integer&amp;min(24)...</tspan></text>
+<path d="M32 80V130H50" class="av-line"/>
+<text x="52" y="134"><tspan class="av-t">owner</tspan><tspan class="av-m"> re(&quot;^[a-z][a-z0-9-]*@corp[.]e...</tspan></text>
+<path d="M32 80V150H50" class="av-line"/>
+<text x="52" y="154"><tspan class="av-t">rate_limit</tspan><tspan class="av-m"> (2)</tspan></text>
+<path d="M32 80V170H50" class="av-line"/>
+<text x="52" y="174"><tspan class="av-t">requires_approval</tspan><tspan class="av-m"> boolean</tspan></text>
+<path d="M32 80V190H50" class="av-line"/>
+<text x="52" y="194"><tspan class="av-t">side_effect</tspan><tspan class="av-m"> &quot;readonly&quot;|&quot;write&quot;|&quot;destructive&quot;</tspan></text>
+<path d="M32 80V210H50" class="av-line"/>
+<text x="52" y="214"><tspan class="av-t">timeout_ms</tspan><tspan class="av-m"> integer&amp;min(100)&amp;max(600000)</tspan></text>
+<path d="M8 20V230H26" class="av-line"/>
+<text x="28" y="234" class="av-t">argschemas</text>
+<path d="M32 240V250H50" class="av-line"/>
+<text x="52" y="254"><tspan class="av-t">create_ticket</tspan><tspan class="av-m"> (5)</tspan></text>
+<path d="M32 240V270H50" class="av-line"/>
+<text x="52" y="274"><tspan class="av-t">delete_records</tspan><tspan class="av-m"> (3)</tspan></text>
+<path d="M32 240V290H50" class="av-line"/>
+<text x="52" y="294"><tspan class="av-t">http_request</tspan><tspan class="av-m"> (5)</tspan></text>
+<path d="M32 240V310H50" class="av-line"/>
+<text x="52" y="314"><tspan class="av-t">read_file</tspan><tspan class="av-m"> (2)</tspan></text>
+<path d="M32 240V330H50" class="av-line"/>
+<text x="52" y="334"><tspan class="av-t">search_docs</tspan><tspan class="av-m"> (3)</tspan></text>
+<path d="M32 240V350H50" class="av-line"/>
+<text x="52" y="354"><tspan class="av-t">send_email</tspan><tspan class="av-m"> (3)</tspan></text>
+<path d="M8 20V370H26" class="av-line"/>
+<text x="28" y="374" class="av-t">docs</text>
+<path d="M32 380V390H50" class="av-line"/>
+<text x="52" y="394"><tspan class="av-t">header</tspan><tspan class="av-m"> &quot;| tool | effect | rpm | appr...</tspan></text>
+<path d="M32 380V410H50" class="av-line"/>
+<text x="52" y="414"><tspan class="av-t">table</tspan><tspan class="av-m"> (6)</tspan></text>
+<path d="M8 20V430H26" class="av-line"/>
+<text x="28" y="434" class="av-t">guard</text>
+<path d="M32 440V450H50" class="av-line"/>
+<text x="52" y="454"><tspan class="av-t">create_ticket</tspan><tspan class="av-m"> (2)</tspan></text>
+<path d="M32 440V470H50" class="av-line"/>
+<text x="52" y="474"><tspan class="av-t">delete_records</tspan><tspan class="av-m"> (2)</tspan></text>
+<path d="M32 440V490H50" class="av-line"/>
+<text x="52" y="494"><tspan class="av-t">http_request</tspan><tspan class="av-m"> (2)</tspan></text>
+<path d="M32 440V510H50" class="av-line"/>
+<text x="52" y="514"><tspan class="av-t">read_file</tspan><tspan class="av-m"> (2)</tspan></text>
+<path d="M32 440V530H50" class="av-line"/>
+<text x="52" y="534"><tspan class="av-t">search_docs</tspan><tspan class="av-m"> (2)</tspan></text>
+<path d="M32 440V550H50" class="av-line"/>
+<text x="52" y="554"><tspan class="av-t">send_email</tspan><tspan class="av-m"> (2)</tspan></text>
+<path d="M8 20V570H26" class="av-line"/>
+<text x="28" y="574" class="av-t">registry</text>
+<path d="M32 580V590H50" class="av-line"/>
+<text x="52" y="594"><tspan class="av-t">owner</tspan><tspan class="av-m"> &quot;platform-tools@corp.example&quot;</tspan></text>
+<path d="M32 580V610H50" class="av-line"/>
+<text x="52" y="614"><tspan class="av-t">platform</tspan><tspan class="av-m"> &quot;orion&quot;</tspan></text>
+<path d="M32 580V630H50" class="av-line"/>
+<text x="52" y="634"><tspan class="av-t">version</tspan><tspan class="av-m"> &quot;1.4.0&quot;</tspan></text>
+<path d="M8 20V650H26" class="av-line"/>
+<text x="28" y="654" class="av-t">tools</text>
+<path d="M32 660V670H50" class="av-line"/>
+<text x="52" y="674"><tspan class="av-t">create_ticket</tspan><tspan class="av-m"> (7)</tspan></text>
+<path d="M32 660V690H50" class="av-line"/>
+<text x="52" y="694"><tspan class="av-t">delete_records</tspan><tspan class="av-m"> (7)</tspan></text>
+<path d="M32 660V710H50" class="av-line"/>
+<text x="52" y="714"><tspan class="av-t">http_request</tspan><tspan class="av-m"> (7)</tspan></text>
+<path d="M32 660V730H50" class="av-line"/>
+<text x="52" y="734"><tspan class="av-t">read_file</tspan><tspan class="av-m"> (7)</tspan></text>
+<path d="M32 660V750H50" class="av-line"/>
+<text x="52" y="754"><tspan class="av-t">search_docs</tspan><tspan class="av-m"> (7)</tspan></text>
+<path d="M32 660V770H50" class="av-line"/>
+<text x="52" y="774"><tspan class="av-t">send_email</tspan><tspan class="av-m"> (7)</tspan></text>
+</svg>

@@ -145,4 +145,18 @@ has dangle err '$.people.alice.email'
   && { cat "$WORK/dangle.out" >&2; fail "dangle: stdout should be empty"; }
 ok "bad: a dangling reference refuses (exit 4), nothing exported"
 
+
+# THE MODEL TREE. The shape of this document, drawn by the one kind
+# that reads no report: `view doc` walks the anchor, exactly as
+# `get --keys --types` does, and stops at a depth that says how many
+# keys it did not draw. The figure at the head of the README is this,
+# and `--check` is the gate that keeps it true.
+run doc 0 -- view doc --depth 3 "$DIR/residue.aon"
+diff -u "$DIR/expected/diagram-doc.txt" "$WORK/doc.out" \
+  || fail "the model tree drifted"
+run docgate 0 -- view doc --depth 3 \
+  --out "$DIR/expected/diagram-doc.txt" --check "$DIR/residue.aon"
+run docsvg 0 -- view doc --depth 3 --as svg \
+  --out "$DIR/expected/diagram-doc.svg" --check "$DIR/residue.aon"
+ok "the model tree draws and is pinned, text and SVG"
 echo "all $pass checks passed"

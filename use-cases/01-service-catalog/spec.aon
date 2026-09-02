@@ -1,10 +1,42 @@
 # spec.aon --- Acme's service vocabulary, layered over @"std/system".
+#
+# THE ADDRESS SHAPE HAS A NAME. `%CatalogAddr` is an alias: `%name:` at
+# the top level declares one, `%name` in value position uses it, and
+# that is the whole of it -- an alias does not generate and does not
+# appear in canon, so this file and the one with the pattern written
+# out at both use sites are the same document and hash the same
+# `aon1-`. It is a name for a value, with no scope, no type and no
+# cost, which is what makes it the right tool for a constraint written
+# twice: the two uses can no longer drift.
+#
+# The declaration must land at the ROOT of the document, so this file
+# is spliced (`@"./spec.aon"` at the top level of system.aon) rather
+# than bound to a key: `a: @"./spec.aon"` would be refused, because
+# the declaration would be at the root of its own file and not of the
+# document that reads it.
 # Not wrapped in type(): historically a type()-marked schema
 # referencing $.std.* failed with [aontu/mapval_no_gen] once included
 # (README, gap 1).  2026-08-26: fixed by the template-clone isolation
 # change (ADR-005), so type() would work here now; hide() is kept as
 # an equally-correct arrangement that also keeps the bag out of
 # output.
+# Where a dependency may live. An address is a TREE PATH (ADR-014), so
+# this says a service may only depend on a catalog entry, never on a
+# workload.
+%CatalogAddr: re("^\\$[.]catalog[.]")
+
+# The three fields the catalog promises about every service, named so
+# that CatalogEntry and CandidateShape cannot drift apart. They have to
+# be spelled twice: CandidateShape is written out self-contained
+# because `vet --at` misattributes findings when the anchored schema
+# contains a PATH reference (README, gap 2). An alias is not a path --
+# `$.%Owner` is refused at any depth, the two namespaces are disjoint
+# -- and it is erased before generation, so it names the shape without
+# reintroducing the reference that gap is about.
+%Owner:       string & re("^team-[a-z]+$")
+%Lifecycle:   *production | production | experimental | deprecated
+%Description: string & length(min(10))
+
 spec: hide({
 
   # The org's port shape: the bundled Port plus a concrete number.
@@ -23,10 +55,10 @@ spec: hide({
   # warn pref_not_instance (README, gap 6).
   CatalogEntry: $.std.Service & {
     ports?: {&: $.spec.PortSpec}
-    owner: string & re("^team-[a-z]+$")
+    owner: %Owner
     tier: 1 | 2 | 3
-    lifecycle: *production | production | experimental | deprecated
-    description: string & length(min(10))
+    lifecycle: %Lifecycle
+    description: %Description
     # Checked references, THE RELATION IDIOM (RELATIONS.0.md P2):
     # rel() sits on the FIELD, so the predicate is the key, the type
     # flows into every target, the held re() constrains every address,
@@ -40,8 +72,8 @@ spec: hide({
     # (Gap 8's history -- refer($.std.Service) dying of unify_cycle,
     # both ends typed dying twice -- is why the flow goes through the
     # refer machinery per leaf; both ends carry the real schema.)
-    dependsOn?: rel($.std.Service) & re("^\\$[.]catalog[.]") & acyclic() & inverse(dependedOnBy)
-    dependedOnBy?: rel($.std.Service) & re("^\\$[.]catalog[.]")
+    dependsOn?: rel($.std.Service) & %CatalogAddr & acyclic() & inverse(dependedOnBy)
+    dependedOnBy?: rel($.std.Service) & %CatalogAddr
   }
 
   # One workload: what a cluster actually runs. Names $.std.Service
@@ -59,10 +91,10 @@ spec: hide({
   # anchored schema contains references (README, gap 2).
   CandidateShape: {
     kind: service
-    owner: string & re("^team-[a-z]+$")
+    owner: %Owner
     tier: 1 | 2 | 3
-    lifecycle: *production | production | experimental | deprecated
-    description: string & length(min(10))
+    lifecycle: %Lifecycle
+    description: %Description
     ports?: {&: {
       direction: *in | in | out | inout
       protocol?: string

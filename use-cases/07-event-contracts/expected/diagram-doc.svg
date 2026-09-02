@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" class="av" viewBox="0 0 436 748" width="436" height="748" role="img" aria-label="Document tree at $: 36 keys to depth 2">
+<style>.av{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px}.av-t{fill:var(--av-ink,#1f2328)}.av-m{fill:var(--av-muted,#6e7781)}.av-box{fill:var(--av-bg,#f6f8fa);stroke:var(--av-rule,#8c959f);stroke-width:1}.av-cell{fill:var(--av-bg,#f6f8fa);stroke:var(--av-rule-faint,#d0d7de);stroke-width:1}.av-direct{fill:var(--av-ink,#1f2328);stroke:var(--av-rule-faint,#d0d7de);stroke-width:1}.av-closure{fill:var(--av-closure,#9ec5fe);stroke:var(--av-rule-faint,#d0d7de);stroke-width:1}.av-unmirrored{fill:var(--av-warn,#e3b341);stroke:var(--av-rule-faint,#d0d7de);stroke-width:1}.av-line{stroke:var(--av-rule,#8c959f);stroke-width:1;fill:none}.av-up{stroke:var(--av-alert,#d1242f);stroke-width:1.5;fill:none;stroke-dasharray:4 3}.av-dot{fill:var(--av-ink,#1f2328)}.av-hole{fill:var(--av-bg,#f6f8fa);stroke:var(--av-rule-faint,#d0d7de);stroke-width:1}.av-bar{fill:var(--av-bar,#57606a)}</style>
+<text x="4" y="14" class="av-t">$</text>
+<path d="M8 20V30H26" class="av-line"/>
+<text x="28" y="34" class="av-t">Envelope</text>
+<path d="M32 40V50H50" class="av-line"/>
+<text x="52" y="54"><tspan class="av-t">correlation_id</tspan><tspan class="av-m"> re(&quot;^[0-9a-f]{8}-[0-9a-f]{4}-...</tspan></text>
+<path d="M32 40V70H50" class="av-line"/>
+<text x="52" y="74"><tspan class="av-t">id</tspan><tspan class="av-m"> integer&amp;min(1)|biginteger&amp;min(1)</tspan></text>
+<path d="M32 40V90H50" class="av-line"/>
+<text x="52" y="94"><tspan class="av-t">source</tspan><tspan class="av-m"> re(&quot;^/[a-z][a-z0-9/-]*$&quot;)</tspan></text>
+<path d="M32 40V110H50" class="av-line"/>
+<text x="52" y="114"><tspan class="av-t">specversion</tspan><tspan class="av-m"> *&quot;1.0&quot;|&quot;1.1&quot;</tspan></text>
+<path d="M32 40V130H50" class="av-line"/>
+<text x="52" y="134"><tspan class="av-t">time</tspan><tspan class="av-m"> re(&quot;^\\d{4}-\\d{2}-\\d{2}T\\d...</tspan></text>
+<path d="M32 40V150H50" class="av-line"/>
+<text x="52" y="154"><tspan class="av-t">type</tspan><tspan class="av-m"> string</tspan></text>
+<path d="M8 20V170H26" class="av-line"/>
+<text x="28" y="174"><tspan class="av-t">Event</tspan><tspan class="av-m"> {&quot;correlation_id&quot;?:re(&quot;^[0-9a...</tspan></text>
+<path d="M8 20V190H26" class="av-line"/>
+<text x="28" y="194" class="av-t">OrderCancelled</text>
+<path d="M32 200V210H50" class="av-line"/>
+<text x="52" y="214"><tspan class="av-t">correlation_id</tspan><tspan class="av-m"> re(&quot;^[0-9a-f]{8}-[0-9a-f]{4}-...</tspan></text>
+<path d="M32 200V230H50" class="av-line"/>
+<text x="52" y="234"><tspan class="av-t">id</tspan><tspan class="av-m"> integer&amp;min(1)|biginteger&amp;min(1)</tspan></text>
+<path d="M32 200V250H50" class="av-line"/>
+<text x="52" y="254"><tspan class="av-t">payload</tspan><tspan class="av-m"> (3)</tspan></text>
+<path d="M32 200V270H50" class="av-line"/>
+<text x="52" y="274"><tspan class="av-t">source</tspan><tspan class="av-m"> re(&quot;^/[a-z][a-z0-9/-]*$&quot;)</tspan></text>
+<path d="M32 200V290H50" class="av-line"/>
+<text x="52" y="294"><tspan class="av-t">specversion</tspan><tspan class="av-m"> *&quot;1.0&quot;|&quot;1.1&quot;</tspan></text>
+<path d="M32 200V310H50" class="av-line"/>
+<text x="52" y="314"><tspan class="av-t">time</tspan><tspan class="av-m"> re(&quot;^\\d{4}-\\d{2}-\\d{2}T\\d...</tspan></text>
+<path d="M32 200V330H50" class="av-line"/>
+<text x="52" y="334"><tspan class="av-t">type</tspan><tspan class="av-m"> &quot;order.cancelled&quot;</tspan></text>
+<path d="M8 20V350H26" class="av-line"/>
+<text x="28" y="354" class="av-t">OrderPaid</text>
+<path d="M32 360V370H50" class="av-line"/>
+<text x="52" y="374"><tspan class="av-t">correlation_id</tspan><tspan class="av-m"> re(&quot;^[0-9a-f]{8}-[0-9a-f]{4}-...</tspan></text>
+<path d="M32 360V390H50" class="av-line"/>
+<text x="52" y="394"><tspan class="av-t">id</tspan><tspan class="av-m"> integer&amp;min(1)|biginteger&amp;min(1)</tspan></text>
+<path d="M32 360V410H50" class="av-line"/>
+<text x="52" y="414"><tspan class="av-t">payload</tspan><tspan class="av-m"> (4)</tspan></text>
+<path d="M32 360V430H50" class="av-line"/>
+<text x="52" y="434"><tspan class="av-t">source</tspan><tspan class="av-m"> re(&quot;^/[a-z][a-z0-9/-]*$&quot;)</tspan></text>
+<path d="M32 360V450H50" class="av-line"/>
+<text x="52" y="454"><tspan class="av-t">specversion</tspan><tspan class="av-m"> *&quot;1.0&quot;|&quot;1.1&quot;</tspan></text>
+<path d="M32 360V470H50" class="av-line"/>
+<text x="52" y="474"><tspan class="av-t">time</tspan><tspan class="av-m"> re(&quot;^\\d{4}-\\d{2}-\\d{2}T\\d...</tspan></text>
+<path d="M32 360V490H50" class="av-line"/>
+<text x="52" y="494"><tspan class="av-t">type</tspan><tspan class="av-m"> &quot;order.paid&quot;</tspan></text>
+<path d="M8 20V510H26" class="av-line"/>
+<text x="28" y="514" class="av-t">OrderPlaced</text>
+<path d="M32 520V530H50" class="av-line"/>
+<text x="52" y="534"><tspan class="av-t">correlation_id</tspan><tspan class="av-m"> re(&quot;^[0-9a-f]{8}-[0-9a-f]{4}-...</tspan></text>
+<path d="M32 520V550H50" class="av-line"/>
+<text x="52" y="554"><tspan class="av-t">id</tspan><tspan class="av-m"> integer&amp;min(1)|biginteger&amp;min(1)</tspan></text>
+<path d="M32 520V570H50" class="av-line"/>
+<text x="52" y="574"><tspan class="av-t">payload</tspan><tspan class="av-m"> (5)</tspan></text>
+<path d="M32 520V590H50" class="av-line"/>
+<text x="52" y="594"><tspan class="av-t">source</tspan><tspan class="av-m"> re(&quot;^/[a-z][a-z0-9/-]*$&quot;)</tspan></text>
+<path d="M32 520V610H50" class="av-line"/>
+<text x="52" y="614"><tspan class="av-t">specversion</tspan><tspan class="av-m"> *&quot;1.0&quot;|&quot;1.1&quot;</tspan></text>
+<path d="M32 520V630H50" class="av-line"/>
+<text x="52" y="634"><tspan class="av-t">time</tspan><tspan class="av-m"> re(&quot;^\\d{4}-\\d{2}-\\d{2}T\\d...</tspan></text>
+<path d="M32 520V650H50" class="av-line"/>
+<text x="52" y="654"><tspan class="av-t">type</tspan><tspan class="av-m"> &quot;order.placed&quot;</tspan></text>
+<path d="M8 20V670H26" class="av-line"/>
+<text x="28" y="674" class="av-t">registry</text>
+<path d="M32 680V690H50" class="av-line"/>
+<text x="52" y="694"><tspan class="av-t">order_cancelled</tspan><tspan class="av-m"> (7)</tspan></text>
+<path d="M32 680V710H50" class="av-line"/>
+<text x="52" y="714"><tspan class="av-t">order_paid</tspan><tspan class="av-m"> (7)</tspan></text>
+<path d="M32 680V730H50" class="av-line"/>
+<text x="52" y="734"><tspan class="av-t">order_placed</tspan><tspan class="av-m"> (7)</tspan></text>
+</svg>

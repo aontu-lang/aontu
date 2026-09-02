@@ -133,6 +133,49 @@ to admit one, would be named under it. A model with an upward edge has
 a cyclic layer graph and no derivable order; `--layers
 app,feature,core,util` names it then.
 
+## The model tree
+
+`model.aon` joins the vocabulary and the codebase. `spec` is the shape
+and the rule, and generates empty because it is `hide()`-marked; `mods`
+is the twelve modules, each with its kind, layer, directory and the two
+sides of its dependency edges.
+
+![The model tree: twelve modules and the layering vocabulary they are written in](expected/diagram-doc.svg)
+
+```
+$
+├── mods
+│   ├── auth (5)
+│   ├── billing (5)
+│   ├── bytes (5)
+│   ├── catalog (5)
+│   ├── cli (5)
+│   ├── clock (5)
+│   ├── http (5)
+│   ├── log (5)
+│   ├── reports (5)
+│   ├── server (5)
+│   ├── store (5)
+│   └── worker (5)
+└── spec
+    ├── App (5)
+    ├── AppDep (2)
+    ├── Core (5)
+    ├── CoreDep (2)
+    ├── Feature (5)
+    ├── FeatureDep (2)
+    ├── Mod (5)
+    ├── ModShape (1)
+    ├── Util (5)
+    └── UtilDep (2)
+```
+
+`aontu view doc --depth 2 model.aon` draws it, and `check.sh` pins it
+with `--out --check`. A key with `(n)` after it is a container the
+depth bound stopped at, and `n` is how many keys are not drawn; a
+leaf carries its canon, which is the kind of thing it is rather
+than its value.
+
 ## The layering rule is a shape
 
 The architecture invariant is that a module never depends on a module
