@@ -194,7 +194,8 @@ func viewUnder(path, at string) bool {
 // viewTriples is the deduplicated edge set, with the hidden
 // contributions and the out-of-scope edges removed and the loss report
 // told. See triplesOf in ts/src/view.ts.
-func viewTriples(edges []Edge, at string, loss *[]ViewLoss) []viewTriple {
+func viewTriples(graph Graph, at string, loss *[]ViewLoss) []viewTriple {
+	edges := graph.Edges
 	hidden := []string{}
 	seen := map[string]viewTriple{}
 	positions := 0
@@ -212,6 +213,20 @@ func viewTriples(edges []Edge, at string, loss *[]ViewLoss) []viewTriple {
 	if 0 < len(hidden) {
 		sort.Strings(hidden)
 		*loss = append(*loss, ViewLoss{Code: "hidden_contribution", Count: len(hidden), Detail: hidden})
+	}
+	// A link under an UNRESOLVED DISJUNCTION is not an edge (ADR-007),
+	// and the figure says so rather than dropping it in silence: the
+	// document has not decided, and a drawing that quietly picked an arm
+	// would be inventing the decision.
+	undecided := []string{}
+	for _, p := range graph.Disjunct {
+		if viewUnder(p, at) {
+			undecided = append(undecided, p)
+		}
+	}
+	if 0 < len(undecided) {
+		*loss = append(*loss, ViewLoss{Code: "edges_in_disjunct",
+			Count: len(undecided), Detail: undecided})
 	}
 	out := []viewTriple{}
 	for _, t := range seen {
@@ -2176,7 +2191,7 @@ func (a *Aontu) drawLoaded(root Val, ctx *Ctx, gen *viewGen, prov *Provenance,
 			options.MinDegree, options.MaxCols, as, max, loss)
 	}
 
-	triples := viewTriples(GraphOf(root).Edges, options.At, loss)
+	triples := viewTriples(GraphOf(root), options.At, loss)
 	decls := ctx.reldecls
 	if "matrix" == kind {
 		order := options.Order

@@ -45,7 +45,7 @@ import { failureFinding, anchorAt } from './vet'
 import type { VetFinding } from './vet'
 import type { TrustOptions } from './type'
 import { graphOf } from './graph'
-import type { Edge } from './graph'
+import type { Graph } from './graph'
 import { cmpCodePoint } from './keyorder'
 import { Provenance } from './provenance'
 import type { WhyConjunct } from './provenance'
@@ -331,7 +331,8 @@ function under(path: string, at: string | undefined): boolean {
 // output". It is reported with its path instead, and `--strict`
 // refuses the figure.
 function triplesOf(
-  edges: Edge[], at: string | undefined, loss: ViewLoss[]): Triple[] {
+  graph: Graph, at: string | undefined, loss: ViewLoss[]): Triple[] {
+  const edges = graph.edges
   const hidden: string[] = []
   const seen = new Map<string, Triple>()
   let positions = 0
@@ -351,6 +352,16 @@ function triplesOf(
     loss.push({
       code: 'hidden_contribution', count: hidden.length,
       detail: hidden.sort(cmpCodePoint),
+    })
+  }
+  // A link under an UNRESOLVED DISJUNCTION is not an edge (ADR-007),
+  // and the figure says so rather than dropping it in silence: the
+  // document has not decided, and a drawing that quietly picked an arm
+  // would be inventing the decision.
+  const undecided = (graph.disjunct ?? []).filter((p) => under(p, at))
+  if (0 < undecided.length) {
+    loss.push({
+      code: 'edges_in_disjunct', count: undecided.length, detail: undecided,
     })
   }
   const out = [...seen.values()].sort((a, b) =>
@@ -2263,7 +2274,7 @@ function drawLoaded(
     }, max, loss)
   }
 
-  const triples = triplesOf(graphOf(root).edges, options.at, loss)
+  const triples = triplesOf(graphOf(root), options.at, loss)
   const decls: RelDecls = ctx._reldecls
   // An empty relation name is no relation, so both ports read it as
   // "every relation" rather than one that names nothing.

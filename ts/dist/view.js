@@ -126,7 +126,8 @@ function under(path, at) {
 // is disclosed, and the subtree's whole purpose is to say "not
 // output". It is reported with its path instead, and `--strict`
 // refuses the figure.
-function triplesOf(edges, at, loss) {
+function triplesOf(graph, at, loss) {
+    const edges = graph.edges;
     const hidden = [];
     const seen = new Map();
     let positions = 0;
@@ -145,6 +146,16 @@ function triplesOf(edges, at, loss) {
         loss.push({
             code: 'hidden_contribution', count: hidden.length,
             detail: hidden.sort(keyorder_1.cmpCodePoint),
+        });
+    }
+    // A link under an UNRESOLVED DISJUNCTION is not an edge (ADR-007),
+    // and the figure says so rather than dropping it in silence: the
+    // document has not decided, and a drawing that quietly picked an arm
+    // would be inventing the decision.
+    const undecided = (graph.disjunct ?? []).filter((p) => under(p, at));
+    if (0 < undecided.length) {
+        loss.push({
+            code: 'edges_in_disjunct', count: undecided.length, detail: undecided,
         });
     }
     const out = [...seen.values()].sort((a, b) => (0, keyorder_1.cmpCodePoint)(a.from, b.from) || (0, keyorder_1.cmpCodePoint)(a.key, b.key)
@@ -1695,7 +1706,7 @@ function drawLoaded(root, ctx, gen, prov, kind, as, options, max, loss) {
             minDegree: options.minDegree, maxCols: options.maxCols, as,
         }, max, loss);
     }
-    const triples = triplesOf((0, graph_1.graphOf)(root).edges, options.at, loss);
+    const triples = triplesOf((0, graph_1.graphOf)(root), options.at, loss);
     const decls = ctx._reldecls;
     // An empty relation name is no relation, so both ports read it as
     // "every relation" rather than one that names nothing.

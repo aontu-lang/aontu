@@ -8,11 +8,17 @@
 #
 # `views` is this document's own key, not a name the engine knows
 # (ADR-010): `--views` says where to look. The declaration keys are the
-# view options, which are the CLI's flags without the dashes.
+# view options, which are the CLI's flags without the dashes, and
+# `@"std/view"` is the schema for one.
 
+@"std/view"
 @"./model.aon"
 
-views: {
+# `{&: $.view.Figure}` is std/view's schema for a declaration, spread
+# over every one of them: a misspelled option, a kind that is not a
+# kind, an order that is not an order is refused HERE, at evaluation,
+# rather than by the verb that reads this file afterwards.
+views: {&: $.view.Figure} & {
 
   # The dependency tree: three derived roots, repeats marked.
   tree: {

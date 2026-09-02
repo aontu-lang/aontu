@@ -1930,6 +1930,14 @@ target: `refer() & string & re("auth$") & path($.services.auth)` checks the
 address itself. They are held until the address arrives, and then meet
 it.
 
+### The bundled vocabularies
+
+Two vocabularies ship with the engine and are served from it rather
+than from disk: `std/system` below, and `std/view` — the schema for
+one declaration of a [view document](reference-api.md#aontu-view),
+`$.view.Figure`, which types every option the verb reads so a typo is
+refused at evaluation.
+
 ### The `std/system` vocabulary
 
 Ports, components and relations need no syntax — they are schemas, and

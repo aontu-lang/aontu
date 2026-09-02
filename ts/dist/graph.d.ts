@@ -8,5 +8,6 @@ export type Edge = {
 };
 export type Graph = {
     edges: Edge[];
+    disjunct?: string[];
 };
 export declare function graphOf(root: Val): Graph;

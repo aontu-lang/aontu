@@ -138,6 +138,17 @@ const write = (dir, name, src) => {
         Assert.equal(r.errors?.[0].code, 'syntax');
         Assert.deepEqual(r.loss, []);
     });
+    // THE VIEW DOCUMENT'S TWO CALLER ERRORS, which the CLI cannot make:
+    // it always passes a path. What the declarations MEAN is
+    // test/spec/views.tsv.
+    (0, node_test_1.test)('view-set-needs-the-path-of-its-declarations', () => {
+        for (const opts of [undefined, { views: '' }]) {
+            const r = (0, view_1.viewSet)('a: 1', opts);
+            Assert.equal(r.verdict, 'error');
+            Assert.deepEqual(r.views, []);
+            Assert.equal(r.errors?.[0].code, 'view_document_shape');
+        }
+    });
     // A VERDICT MATRIX THE CHECKER CANNOT BE MADE TO PRODUCE: a chain
     // the closure implies but the checker measured as does_not_subsume
     // is reported as order_intransitive rather than absorbed, and a

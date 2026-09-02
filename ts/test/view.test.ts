@@ -13,7 +13,7 @@ import * as Fs from 'node:fs'
 import * as Os from 'node:os'
 import * as Path from 'node:path'
 
-import { view } from '../dist/view'
+import { view, viewSet } from '../dist/view'
 import type { ViewCompare, ViewPosetDoc } from '../dist/view'
 import { Provenance } from '../dist/provenance'
 
@@ -129,6 +129,19 @@ describe('view', () => {
     Assert.equal(r.verdict, 'error')
     Assert.equal(r.errors?.[0].code, 'syntax')
     Assert.deepEqual(r.loss, [])
+  })
+
+
+  // THE VIEW DOCUMENT'S TWO CALLER ERRORS, which the CLI cannot make:
+  // it always passes a path. What the declarations MEAN is
+  // test/spec/views.tsv.
+  test('view-set-needs-the-path-of-its-declarations', () => {
+    for (const opts of [undefined, { views: '' }]) {
+      const r = viewSet('a: 1', opts)
+      Assert.equal(r.verdict, 'error')
+      Assert.deepEqual(r.views, [])
+      Assert.equal(r.errors?.[0].code, 'view_document_shape')
+    }
   })
 
 

@@ -455,7 +455,12 @@ directory, and the same files supplied in two orders.
 field in both ports; `meetLadder(record)` as a pure function, exercised
 by rows rather than a CLI surface.
 
-**Phase 3 — the bounds accessor and panel extractor (S/M).** A
+**Phase 3 — the bounds accessor and panel extractor (S/M).** *Status:
+NOT BUILT (2026-09-02), and deliberately last: the panel earns its
+keep on a FAILED meet, whose operands live only in the finding, so it
+needs the `--from-report` plumbing of the paragraph above as much as
+the accessor. Drawing the residual at a path that already evaluates is
+the easy half and the less useful one.* A
 read-only accessor over the residual the algebra already normalised, so
 the panel does not re-parse canon; the panel as integer coordinates.
 The phase's assertion is that both ports compute the same integers.

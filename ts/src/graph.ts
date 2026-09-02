@@ -47,6 +47,13 @@ export type Edge = {
 
 export type Graph = {
   edges: Edge[]
+  // The positions of links written under an UNRESOLVED DISJUNCTION.
+  // ADR-007: an unresolved disjunction is not a value, so a link
+  // beneath one of its arms is not a fact and is not an edge -- but it
+  // is not nothing either, and a figure that silently dropped it would
+  // be the failure the views exist to avoid. Absent when there are
+  // none, so a graph of a decided document is the shape it always was.
+  disjunct?: string[]
 }
 
 
@@ -92,9 +99,14 @@ const cut = (
 // chain — which is what a cycle actually is.
 export function graphOf(root: Val): Graph {
   const edges: Edge[] = []
+  const disjunct: string[] = []
 
+  // ONE WALK, with `undecided` saying which side of ADR-007 it is on:
+  // below an unresolved disjunction every link is a position the
+  // document has not decided, and nothing there is an edge.
   const visit = (
-    node: any, path: string[], ancestors: Set<any>, hidden: boolean
+    node: any, path: string[], ancestors: Set<any>, hidden: boolean,
+    undecided: boolean
   ): void => {
     if (null == node || true !== node.isVal || ancestors.has(node)) {
       return
@@ -104,19 +116,24 @@ export function graphOf(root: Val): Graph {
 
     const link = node.link
     if (null != link) {
-      const { from, key } = cut(path, node.relkey as string | undefined)
-      const edge: Edge = { from, key, to: link, at: formatPath(path) }
-      if (hidden) {
-        edge.hidden = true
+      if (undecided) {
+        disjunct.push(formatPath(path))
       }
-      edges.push(edge)
+      else {
+        const { from, key } = cut(path, node.relkey as string | undefined)
+        const edge: Edge = { from, key, to: link, at: formatPath(path) }
+        if (hidden) {
+          edge.hidden = true
+        }
+        edges.push(edge)
+      }
     }
 
     // A graph atom is TRANSPARENT here (RELATIONS P2): it carries the
     // field's value at the field's own position, and the graph is about
     // the value.
     if (true === node.isGraphAtom && undefined !== node.held) {
-      visit(node.held, path, ancestors, hidden)
+      visit(node.held, path, ancestors, hidden, undecided)
     }
 
     // An unresolved conjunction (a link waiting on a peer that never
@@ -127,7 +144,19 @@ export function graphOf(root: Val): Graph {
     if (true === node.isConjunct && Array.isArray(node.peg)) {
       ancestors.add(node)
       for (const term of node.peg) {
-        visit(term, path, ancestors, hidden)
+        visit(term, path, ancestors, hidden, undecided)
+      }
+      ancestors.delete(node)
+    }
+
+    // AN UNRESOLVED DISJUNCTION IS NOT A VALUE (ADR-007), so a link
+    // under one of its arms is not an edge. Its POSITION is collected
+    // instead, so a figure can report what the document leaves
+    // undecided rather than drawing it or dropping it in silence.
+    if (true === node.isDisjunct && Array.isArray(node.peg)) {
+      ancestors.add(node)
+      for (const arm of node.peg) {
+        visit(arm, path, ancestors, hidden, true)
       }
       ancestors.delete(node)
     }
@@ -135,13 +164,13 @@ export function graphOf(root: Val): Graph {
     if ((true === node.isMap || true === node.isList) && null != node.peg) {
       ancestors.add(node)
       for (const k of Object.keys(node.peg)) {
-        visit(node.peg[k], [...path, k], ancestors, hidden)
+        visit(node.peg[k], [...path, k], ancestors, hidden, undecided)
       }
       ancestors.delete(node)
     }
   }
 
-  visit(root, [], new Set(), false)
+  visit(root, [], new Set(), false, false)
 
   // DETERMINISTIC by construction, not by luck: edges by the position
   // they are written at, which is unique — one link, one place. That
@@ -149,5 +178,8 @@ export function graphOf(root: Val): Graph {
   // two links there would have had to unify into one.
   edges.sort((a, b) => cmpCodePoint(a.at, b.at))
 
+  if (0 < disjunct.length) {
+    return { edges, disjunct: [...new Set(disjunct)].sort(cmpCodePoint) }
+  }
   return { edges }
 }

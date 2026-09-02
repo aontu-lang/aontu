@@ -5,8 +5,11 @@
 tree, matrix, graph (mermaid, dot, er), sets and layers kinds, the
 loss report, `--out`/`--check`/`--strict`/`--max-rows`, plus a `layer`
 kind (the architecture bands) and the two order views of
-VIEWS-ORDER.0.md. The view document (`--views`) landed 2026-09-02, and
-SVG before it. Not built: the figure JSON projection, `std/view`; `--loose` was dropped, since a path-native
+VIEWS-ORDER.0.md. The view document (`--views`), `std/view`, the
+`layer` figure's `--edges` and the `edges_in_disjunct` count landed
+2026-09-02, and SVG before them. Not built: the figure JSON projection
+(the `--format json` report carries the drawn text, not the figure's
+primitives) and VIEWS-ORDER's interval panel; `--loose` was dropped, since a path-native
 graph (ADR-014) has no loose edge. Where the built verb departs from
 the text below, the verb and [docs/reference-api.md](../reference-api.md)
 are the record. Phase 0 landed with it; see use-cases/BUGS.md 70 and
@@ -1618,6 +1621,10 @@ Baseline for the register, re-derived 2026-08-30 per
 
 ### Phase 0 — the `graphOf` conjunct blind spot (S)
 
+*Status: BUILT with the verb; the `edges_in_disjunct` count landed
+2026-09-02 as `Graph.disjunct` (the positions, not a bare count) and
+the figures' loss row.*
+
 The gate for everything else, and worth landing even if no figure is
 ever drawn. A residual CONJUNCTION is transparent to the graph walk:
 its terms sit at the field's own position, so a link inside
@@ -1782,6 +1789,14 @@ gates four figures in `use-cases/16-views/check.sh`; a manifest whose
 third figure fails writes nothing; `run-all.sh` stays green.
 
 ### Phase 5 — `std/view`, published (S)
+
+*Status: BUILT (2026-09-02) as the bundled `@"std/view"` in both ports
+(ts/src/std.ts, go/std.go), pinned by `test/spec/std-view.tsv`. It is
+the schema for a view-document DECLARATION -- `$.view.Figure` -- rather
+than the alias-only vocabulary for a figure the sketch below describes,
+because the figure JSON projection it would name is not built. Nothing
+in the engine reads it: a view document that includes it is refused by
+unification, one that does not is refused by the verb.*
 
 Only after four kinds have exercised whether three primitives are
 enough. The alias-only vocabulary in ts/src/std.ts and go/std.go as the

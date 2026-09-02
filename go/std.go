@@ -58,10 +58,77 @@ std: {
 }
 `
 
+const stdView = `# std/view --- the FIGURE VOCABULARY (VIEWS.0.md, "6. The view
+# document"). A view document declares its figures as data, and a
+# declaration is just a map: this is the schema for one, so a typo is
+# refused where every other mistake in an Aontu document is refused --
+# at evaluation, by unification -- rather than by the verb that reads
+# it afterwards.
+#
+#   @"std/view"
+#   @"./system.aon"
+#
+#   views: {&: $.view.Figure} & {
+#     arch: {kind: matrix, order: partition, out: "docs/arch.dsm.txt"}
+#   }
+#
+# The keys ARE the view options: the command-line flags without the
+# dashes, one vocabulary for the CLI, the library and the file. The
+# poset is not among the kinds, because a view document declares
+# figures of the ONE document it includes and the poset compares
+# several.
+#
+# EXPERIMENTAL until the distribution layer can version it by
+# canon-hash. This file carries no backtick: it is one string literal
+# per port, and Go raw strings have no escape.
+
+view: {
+
+  # One declared figure. The kind says what to draw and out says where
+  # it belongs; everything else narrows the drawing, and each option
+  # belongs to the kinds that read it.
+  Figure: type({
+    kind: tree | matrix | graph | layer | sets | layers | ladder
+    out: string
+
+    # Every kind.
+    as?: text | mermaid | dot | er | svg
+    at?: string
+    maxRows?: integer & min(0)
+
+    # tree, matrix, layer: the relation drawn. graph: the predicates
+    # kept. tree: the subtrees drawn.
+    relation?: string
+    relations?: [&: string]
+    roots?: [&: string]
+
+    # matrix.
+    order?: canon | partition
+    closure?: boolean
+
+    # graph, layer.
+    groupBy?: string
+    label?: string
+    layers?: [&: string]
+    edges?: upward | all | none
+
+    # sets, layers.
+    sets?: string
+    member?: string
+    universe?: string
+    minDegree?: integer & min(0)
+    maxCols?: integer & min(0)
+    minSize?: integer & min(0)
+  })
+}
+`
+
 // stdSources are the bundled sources, by the name a document writes.
 // Both the bare name and the `.aon` spelling resolve, because both are
 // what an author reaches for.
 var stdSources = map[string]string{
 	"std/system":     stdSystem,
 	"std/system.aon": stdSystem,
+	"std/view":       stdView,
+	"std/view.aon":   stdView,
 }

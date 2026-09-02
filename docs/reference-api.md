@@ -853,8 +853,11 @@ flowchart LR
   could not draw or drew differently from the model, one line per
   code with a count: `hidden_contribution` (an edge inside a `hide()`
   subtree, not drawn, because a committed figure discloses what it
-  draws), `unresolved_field` (a node without a value for `--group-by`
-  or `--label`), `cycle_block`, `cols_elided`, and for the poset
+  draws), `edges_in_disjunct` (a link under an unresolved disjunction,
+  which is not a fact — ADR-007 — so the figure reports it rather than
+  picking an arm), `unresolved_field` (a node without a value for
+  `--group-by` or `--label`), `cycle_block`, `cols_elided`, and for the
+  poset
   `order_undecided`, `order_maybe_equal` and `order_intransitive`. Any
   of these makes the verdict `lossy`, which `--strict` turns into exit
   `1`. Three codes are informational and leave the verdict `rendered`:
@@ -1003,6 +1006,42 @@ declares figures of the one it includes. The library form is
 in Go, returning `{verdict, views, errors?}` where each view is
 `{name, kind, out, verdict, text?, loss, errors?}` — the caller writes
 the files.
+
+`@"std/view"` is the bundled schema for a declaration, so the same
+mistakes are refused when the document is EVALUATED rather than when
+the verb reads it. Write a `views-typed.aon`:
+
+<!-- test: file views-typed.aon -->
+```aon
+@"std/view"
+@"./system.aon"
+
+views: {&: $.view.Figure} & {
+  arch: {
+    kind: matrix
+    relation: dependsOn
+    order: partition
+    closure: true
+    out: "arch.dsm.txt"
+  }
+}
+```
+
+<!-- test: run -->
+```sh
+$ aontu view --views '$.views' --check views-typed.aon
+$ echo $?
+0
+```
+
+`$.view.Figure` types every option, and a kind that is not a kind, an
+order that is not an order or a count below zero is an ordinary
+unification failure naming `std/view` as the other operand. It is
+optional: a view document that does not include it is read exactly the
+same way, and refused by `view_document_shape` instead. The
+The source is served from the engine, as `std/system` is, so it needs
+no filesystem and resolves under every include capability but
+`'none'`.
 
 The use cases pin one figure of each kind as a golden:
 [01-service-catalog](../use-cases/01-service-catalog/) the graph and
@@ -2044,12 +2083,13 @@ is observable as sorted, deduplicated `{ path, capability }` entries —
 hashing and pinning belong to [`aontu hash`](#aontu-hash) and the
 module tooling, [`aontu mod`](#aontu-mod).
 
-**The bundled vocabulary.** `@"std/system"` ([the system
-vocabulary](reference-language.md#the-stdsystem-vocabulary)) is served
-from the engine rather than from disk, so it needs neither the
-filesystem nor package resolution and resolves under every include
-capability except `'none'`. It appears in the manifest with capability
-`std`. A host that wants a different vocabulary supplies its own source
+**The bundled vocabularies.** `@"std/system"` ([the system
+vocabulary](reference-language.md#the-stdsystem-vocabulary)) and
+`@"std/view"` (the schema for a [view document's](#aontu-view)
+declarations) are served from the engine rather than from disk, so they
+need neither the filesystem nor package resolution and resolve under
+every include capability except `'none'`. They appear in the manifest
+with capability `std`. A host that wants a different vocabulary supplies its own source
 under its own name; the bundled one is engine-owned.
 
 **Relation checks.** `relationCheck(src)` in TypeScript and

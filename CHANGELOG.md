@@ -49,6 +49,33 @@ takes `edges` like any other option, and its enumerated values -- like
 `use-cases/16-module-deps` commits the drawn-edges figure as
 `expected/diagram-layer-edges.svg`.
 
+### The figures report a link the document has not decided
+
+Both ports. **New loss code.** `graphOf` gains `disjunct`, the
+positions of links written under an UNRESOLVED DISJUNCTION. Such a link
+is not an edge (ADR-007: an unresolved disjunction is not a value, so a
+link under one of its arms is not a fact), and the walk was right to
+leave it out -- but it left it out in SILENCE, which is the failure the
+views exist to avoid. Every figure now reports it as
+`edges_in_disjunct` with the positions, so `--strict` refuses a figure
+of a document that has not decided. The field is absent when there are
+none, so a graph of a decided document is the shape it always was.
+
+### `std/view`: the bundled schema for a figure declaration
+
+Both ports. **New bundled source.** `@"std/view"` serves
+`$.view.Figure`, the schema for one view-document declaration: every
+option typed, `kind` and the profiles as closed disjunctions, the
+counts non-negative. Spread it over the declarations
+(`views: {&: $.view.Figure} & {...}`) and a misspelled option or a kind
+that is not a kind is refused when the document is evaluated, naming
+`std/view` as the other operand, rather than by the verb that reads it
+afterwards. It is optional; a view document without it is read the same
+way. Like `std/system` the source is served from the engine -- no
+filesystem, no package resolution -- and `test/spec/std-view.tsv` pins
+its canon and canon-hash in both engines, so the two copies cannot
+drift. `use-cases/16-module-deps/views.aon` uses it.
+
 ### `aontu view --views`: the figures a document declares
 
 Both ports. **New surface.** A projection that runs in CI belongs in a

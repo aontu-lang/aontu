@@ -34,6 +34,12 @@ has() {
 # The tree is the engine's own verb. The goldens were pinned by the
 # reference script before the verb existed, and are unchanged: they are
 # the acceptance test for the port.
+hasnt() {
+  grep -qF -- "$3" "$WORK/$1.$2" \
+    && { cat "$WORK/$1.$2" >&2; fail "$1: $2 should not contain: $3"; }
+  return 0
+}
+
 view() {
   local name="$1"; shift
   $AONTU view "$@" >"$WORK/$name" \
@@ -177,11 +183,6 @@ has edged out '# sideways: auth -> http'
 has edged out '# downward: cli -> billing'
 run bare 0 -- view layer --relation dependsOn --group-by layer \
   --edges none --as mermaid "$DIR/model.aon"
-hasnt() {
-  grep -qF -- "$3" "$WORK/$1.$2" \
-    && { cat "$WORK/$1.$2" >&2; fail "$1: $2 should not contain: $3"; }
-  return 0
-}
 hasnt bare out ' --> '
 has_golden() { grep -qF -- "$2" "$DIR/expected/$1" || fail "$1 lacks: $2"; }
 has_golden diagram-layer.txt '# dependsOn: 19 downward, 2 sideways, 0 upward'

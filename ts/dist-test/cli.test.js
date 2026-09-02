@@ -1113,11 +1113,22 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
         const loose = vetCapture(() => Assert.equal((0, cli_1.runView)(['--views', '$.views', lossy]), 0));
         Assert.match(loose.err, /t {2}hidden_contribution {2}1/);
         Assert.equal(vetCapture(() => Assert.equal((0, cli_1.runView)(['--views', '$.views', '--strict', lossy]), 1)).err.length > 0, true);
+        // THE MACHINE-READABLE FORM OF A REFUSAL: the figures that drew
+        // still carry their bytes, and the one that refused carries its
+        // findings, so a reader of the JSON sees what the run did.
+        const badJson = JSON.parse(vetCapture(() => Assert.equal((0, cli_1.runView)(['--views', '$.views', '--format', 'json', '--trust', 'root', bad]), 2)).out);
+        Assert.equal(badJson.verdict, 'error');
+        Assert.equal(badJson.views[1].name, 'tree');
+        Assert.equal(typeof badJson.views[1].text, 'string');
+        Assert.equal(badJson.views[0].errors[0].code, 'view_rows_exceeded');
         // A declaration the document cannot answer for is the SET's
         // refusal, and usage: nothing is drawn at all.
         const shape = Path.join(dir, 'shape.aon');
         Fs.writeFileSync(shape, 'views: {a: {kind: tree}}\n');
         Assert.match(vetCapture(() => Assert.equal((0, cli_1.runView)(['--views', '$.views', shape]), 2)).err, /view_document_shape/);
+        const shapeJson = JSON.parse(vetCapture(() => Assert.equal((0, cli_1.runView)(['--views', '$.views', '--format', 'json', shape]), 2)).out);
+        Assert.deepEqual(shapeJson.views, []);
+        Assert.equal(shapeJson.errors[0].code, 'view_document_shape');
         // A figure that refuses for the DOCUMENT's sake rather than the
         // caller's exits 4, as a single figure does.
         const unknown = Path.join(dir, 'unknown.aon');
