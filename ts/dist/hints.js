@@ -139,6 +139,7 @@ const hints = {
     path_address: 'This is not a tree address, so it cannot be a path value. An address\nis `$.a.b` from the document root, or `.b` from the sibling scope with\none more leading dot per parent step -- the grammar path() captures.\nString text with no anchor converts as RELATIVE, and a string\nconverts ONLY through the call\'s own argument.\n \nExamples:\n  d: path("$.services.auth") -> path($.services.auth) # A converted string;\n  d: path("auth")           -> path(.auth)  # ... anchorless text is relative;\n  d: path("a..b")           -> nil   # ... but this spells nothing;\n  d: path("$")              -> nil   # ... and the root is not addressable.',
     rel_unresolved: 'The address names no node in this evaluation. Every position in the\ndocument is addressable; nothing outside it is.\n \nExamples:\n  p: {}\n  q: rel() & "$.p"       -> {..}  # $.p is a node;\n  q: rel() & "$.nosuch"  -> nil   # ... $.nosuch is not.',
     refer_unresolved: 'A refer() address names no node in this evaluation. Within one\nevaluation the document-set is fixed, so a link to nothing is an error\nrather than something to resolve later: check the spelling, or add the\nnode it was meant to reach. A relative address that climbs off the top\nof the tree lands here too.\n \nExamples:\n  a:{p:1} b:refer()&"$.a"    -> "$.a"    # $.a is a node;\n  a:{p:1} b:refer()&"$.a.p"  -> "$.a.p"  # ... and so is a node inside it;\n  b:refer()&"$.nope"         -> nil      # ... but nothing is here.',
+    view_relation_unknown: 'The relation named to the tree view has no edges in this document, so\nthe tree would be empty -- and an empty tree and a misspelled name are\nthe same file on disk. Check the spelling against the relations the\nnote lists, or drop the relation to draw every relation at once.',
     pack_data: 'The first argument to pack() is not a bag. `pack` makes one child\nper child of its DATA, so the data has to have children: a list of\nnames, or a map whose keys are the names.\n \nExamples:\n  pack([a,b], {x:1})     -> {..}  # A list of names;\n  pack({a:1,b:2}, {x:1}) -> {..}  # ... or a map, keyed by its keys;\n  pack(1, {x:1})         -> nil   # ... but a scalar has no children.',
     pack_key: 'A list packed by pack() holds something that is not a string. The\nelements of a packed list ARE the generated keys, and only a string\nis a key — an element keyed by its position would churn every\ngenerated child the moment the list was reordered.\n \nExamples:\n  pack([a,b], {x:1})   -> {..}  # Names;\n  pack(["a b"], {x:1}) -> {..}  # ... a quoted name is still a name;\n  pack([1,2], {x:1})   -> nil   # ... but a number is not one.',
     each_data: 'The first argument to each() is not a bag. `each` makes one list\nelement per child of its DATA, so the data has to have children: a\nlist, or a map whose values become the elements in sorted-key order.\n \nExamples:\n  each([1,2])       -> [..]  # A list, in source order;\n  each({b:2,a:1})   -> [..]  # ... a map, in sorted-key order;\n  each(1)           -> nil   # ... but a scalar has no children.',
@@ -379,6 +380,10 @@ const codeClasses = {
     rel_address: 'parse',
     refer_unresolved: 'reference',
     rel_unresolved: 'reference',
+    // The tree view (docs/design/VIEWS.0.md): a relation that draws
+    // nothing is refused rather than drawn empty. Class `reference`: a
+    // name that does not resolve.
+    view_relation_unknown: 'reference',
     // First-class paths (docs/design/PATHS.0.md): text that is not a
     // tree address, met by path()'s capture or promotion. The same
     // class as refer_address, because it is the same mistake.

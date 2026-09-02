@@ -42,6 +42,7 @@ Usage: aontu [options] [file]
        aontu trim --check [options] <file>
        aontu relations [options] <file>
        aontu reaches <from> <to> [--relation <name>] [options] <file>
+       aontu view tree [--relation <name>] [--root <path>]... [options] <file>
        aontu jsonschema [--at <path>] [--strict] [options] <file>
        aontu hash [options] <file>
        aontu mod tidy|verify|vendor|manifest [options] [dir]
@@ -71,10 +72,10 @@ shorthand `--include-root <dir>`.
   singular, and a second file name is a usage error (exit 2) rather
   than a silent discard. This is what makes a MISTYPED VERB fail
   loudly: `vet2` matches no subcommand, so it falls through as a file
-  name, and `aontu vet2 schema.aon good.json` used to print
-  `good.json` and exit 0 — a plausible pass, in the one place a tool
-  loop reads the exit code to decide whether the data is good. A file
-  genuinely named like a verb is still reachable as `./vet`.
+  name, and `aontu vet2 schema.aon good.json` is a usage error rather
+  than a plausible pass — in the one place a tool loop reads the exit
+  code to decide whether the data is good. A file genuinely named like
+  a verb is still reachable as `./vet`.
 - **Stdin:** `echo 'a:1 b:$.a' | aontu` reads source from the pipe.
 - **REPL:** `aontu` with no file on a terminal starts an interactive
   loop; each line is evaluated and printed.
@@ -754,6 +755,75 @@ $ echo $?
 4
 ```
 
+### `aontu view`
+
+Draw a **figure** of one finished model's link graph, as deterministic
+text a golden diff can check. One kind so far: the dependency **tree**.
+
+```
+aontu view tree [--relation <name>] [--root <path>]... [--format text|json] <file>
+```
+
+The tree is drawn over the same edge set
+[`relations`](#aontu-relations) checks and [`reaches`](#aontu-reaches)
+walks. Draw the `system.aon` model above over its `dependsOn` relation:
+
+<!-- test: run -->
+```sh
+$ aontu view tree --relation dependsOn system.aon
+web
+└── billing
+    └── ledger
+```
+
+- **Roots are derived, not asked for.** A root is a node nothing
+  depends on (a self-edge does not count), so the deployables of a
+  codebase come out at the top without being named. `--root <path>`
+  draws one node's own subtree instead, and is repeatable. A root that
+  is not a node of the drawn graph is refused (`refer_unresolved`)
+  rather than drawn as an empty tree, because an empty tree and a typo
+  are the same file on disk.
+- **A shared subtree is drawn once.** A dependency graph is a DAG, not
+  a tree: a node reached from two parents is expanded under the first
+  and marked `(*)` under every later one, which keeps the drawing
+  linear in the model's size. A repeated leaf is just a leaf.
+- **A cycle is marked, not walked.** An edge that closes a loop prints
+  as `(cycle)` and the walk stops there, so the tree of a model that
+  `acyclic()` refuses still terminates, and shows where.
+- `--relation <name>` draws the tree over that relation alone. Without
+  it every relation is drawn at once, and each branch names its own
+  (`log (logsTo)`) so two relations are never mistaken for one
+  containment. A relation with no edges in the document is refused
+  (`view_relation_unknown`), with the relations that do have edges
+  listed.
+- **A declared inverse is one edge.** `dependsOn` and its `usedBy`
+  mirror arrive as two edges and are drawn as one: under the named
+  relation, or under the code-point-least key with both names in the
+  label when none is named. A *mutual* relation, `a` on `b` and `b` on
+  `a` under one key, stays two edges, because it is the shortest cycle
+  a model can have.
+- **Labels are the shortest unique suffix** of the node's path within
+  the drawing: `auth` where that is unambiguous, `identity.auth` where
+  it is not.
+- **Every node is drawn.** A component whose nodes all depend on each
+  other has no derived root, and is drawn from its least label rather
+  than dropped.
+- Exit codes: `0` rendered, `2` usage, `4` `error` (a document that
+  does not stand up, a relation with no edges, a root that names no
+  node). A document with no edges renders an empty figure and exits
+  `0`. In text form the figure is all that stdout carries, so a
+  redirect is a golden file; `--format json` wraps it as
+  `{kind, text}` under the usual `aontu` envelope, and a refusal
+  carries `errors` in place of `text`.
+- The library form is `viewTree(src, options?)` in TypeScript and
+  `Aontu.ViewTree(src, options)` in Go, returning the identical
+  `{verdict, kind, text?}` record (plus `errors` on a failed run).
+
+The layered codebase in
+[use-cases/16-module-deps](../use-cases/16-module-deps/) pins three
+trees as goldens: the whole graph, one module's closure, and a model
+whose loop the verb marks.
+
 ### `aontu jsonschema`
 
 Export a document as a **JSON Schema** (draft 2020-12), and say what
@@ -938,9 +1008,7 @@ aontu get <path> [-c|--canon] [--keys] [--types] [--depth <n>]
 - The path is what a reference means by `$.a.b` — map keys and
   canonical-decimal list indices, and nothing else, so `$.a.01` names
   nothing here exactly as it names nothing there. A key that *contains*
-  a dot is likewise unreachable, as it is to a reference; the escape
-  spelling is [G4](../docs/capability-review/g4-identity-relations.md)'s
-  to settle for both at once.
+  a dot is likewise unreachable, as it is to a reference.
 - Default output is the fragment's generated JSON; `--canon` is its
   canonical form, and for the root path that is byte-identical to
   `aontu --canon`.
@@ -1510,11 +1578,10 @@ a consumer holding `aon1-oQs6…` can ask a registry index whether the
 module still means what it meant. A reformat, a comment or a file split
 will not move it.
 
-**`get` and `publish` are not in this build.** They are the network
-half of the design (`docs/capability-review/g6-distribution.md`) and
-need a registry client. The CLI names them anyway and says which half
-is missing, because a reader of the design will type them and deserves
-a better answer than "unknown subcommand":
+**`get` and `publish` need a registry client, which this build does
+not ship.** They are the network half of the module tooling. The CLI
+names them anyway and says which half is missing, because a reader
+will type them and deserves a better answer than "unknown subcommand":
 
 ```
 $ aontu mod get
@@ -1588,6 +1655,7 @@ nothing else.
 | `hash` | the [canon-hash](#aontu-hash) pin `{hash}` (plus the hash-form text when `form: true`) |
 | `trim` | the [trim --check](#aontu-trim) report: redundant entries as paths |
 | `reaches` | the [reachability check](#aontu-reaches): the verdict and, when it reaches, a shortest path — the closure question `relations` cannot ask one edge at a time |
+| `view` | the [tree view](#aontu-view): the dependency tree of a relation as text, roots derived, repeats elided, cycles marked |
 | `jsonschema` | the [JSON Schema export](#aontu-jsonschema): the schema, and the `lossy` list naming what it could not say — the bridge to a structured-output API, and to an MCP tool's own `inputSchema` |
 
 Every tool returns **the same JSON contract the CLI prints**, so a
@@ -1598,7 +1666,7 @@ the served trust profile cannot read — answers with its own report and
 reserved for a call that could not be made at all (an unknown tool, a
 malformed argument, a file argument the server cannot serve).
 
-Served evaluation is **confined** (G5, [docs/trust.md](trust.md)): the
+Served evaluation is **confined** ([the trust contract](trust.md)): the
 source arrives from a caller, and `@"..."` is exactly what a server
 must not run unconfined. By default every include is denied
 (`{ include: 'none' }`). Started with **`--root <dir>`**, the server
@@ -1748,7 +1816,7 @@ into a context.
 **filesystem**, then **package** resolution, in that order. The chain
 is unconfined by default — a relative include follows any path the
 process can read — so **treat opening an untrusted source as running
-it**. Confinement is the **`trust` option** (G5, [the trust
+it**. Confinement is the **`trust` option** ([the trust
 contract](trust.md)), in both implementations:
 
 <!-- test: skip TypeScript API sample; the API surface is pinned by ts/test/ -->
@@ -1781,9 +1849,10 @@ the confinement surface.
 is observable as sorted, deduplicated `{ path, capability }` entries —
 `result.deps` in TypeScript, `Aontu.IncludeDeps` in Go — hermeticity's
 "file set" as data (capability is `mem`, `file` or `pkg`). Content
-hashing and pinning belong to the distribution layer (G6).
+hashing and pinning belong to [`aontu hash`](#aontu-hash) and the
+module tooling, [`aontu mod`](#aontu-mod).
 
-**The bundled vocabulary.** `@"std/system"` (G4, [the system
+**The bundled vocabulary.** `@"std/system"` ([the system
 vocabulary](reference-language.md#the-stdsystem-vocabulary)) is served
 from the engine rather than from disk, so it needs neither the
 filesystem nor package resolution and resolves under every include
@@ -1799,7 +1868,7 @@ that [`aontu relations`](#aontu-relations) prints — that section has
 the verdicts, the finding fields, and the exit codes.
 
 **The derived graph.** After a unification, an evaluated document's
-link structure is observable too (G4): `result.graph` in TypeScript —
+link structure is observable too: `result.graph` in TypeScript —
 also available as the pure function `graphOf(val)` — and `Aontu.Graph`
 in Go. It is the edge set:
 
@@ -1869,8 +1938,8 @@ exported from their modules under `dist/val/`.
 
 The four numeric subclasses are the four numeric leaves:
 `IntegerVal` is `integer`, `NumberVal` is `float` (the class name is
-historical — `number` used to name that leaf and is now the pure
-supertype), and `BigIntegerVal` / `BigDecimalVal` are the exact leaves
+historical: `number` is the pure supertype, not a leaf), and
+`BigIntegerVal` / `BigDecimalVal` are the exact leaves
 `biginteger` / `bigdecimal`.
 
 ### Exact numbers and `exactJSON`
@@ -2108,13 +2177,12 @@ candidate an agent emitted, a live system dump, the other side of a
 diff — and without a profile they resolve `@"…"` through the default
 chain, which reaches anything on the filesystem the process can read.
 **Opening an untrusted source is reading your disk**, so pass a profile
-whenever the source is not yours. (It used to be worse: the chain
-`require()`d a `.js` path, which made it *running* the source.
-[ADR-012](../ADR.md#adr-012--an-includes-extension-decides-what-the-file-is-aontu-source-config-data-or-refused)
-refuses that extension, and every other one outside the table it
-sets: `.aon` and `.aontu` as Aontu source, and `.json`, `.jsonld`,
+whenever the source is not yours. Reading, never running: an include's
+extension decides what the file is
+([ADR-012](../ADR.md#adr-012--an-includes-extension-decides-what-the-file-is-aontu-source-config-data-or-refused))
+— `.aon` and `.aontu` as Aontu source, and `.json`, `.jsonld`,
 `.jsonc`, `.json5`, `.jsonic`, `.jsc`, `.toml`, `.yaml`, `.yml` and
-`.ini` as configuration data.)
+`.ini` as configuration data — and every other extension is refused.
 
 <!-- test: skip TypeScript API sample; the API surface is pinned by ts/test/ -->
 ```ts

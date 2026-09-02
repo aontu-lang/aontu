@@ -3,7 +3,7 @@
 # Aontu: JSON Structure unifier
 
 [![npm version](https://img.shields.io/npm/v/aontu.svg)](https://npmjs.com/package/aontu)
-[![build](https://github.com/rjrodger/aontu/actions/workflows/build.yml/badge.svg)](https://github.com/rjrodger/aontu/actions/workflows/build.yml)
+[![build](https://github.com/aontu-lang/aontu/actions/workflows/build.yml/badge.svg)](https://github.com/aontu-lang/aontu/actions/workflows/build.yml)
 
 | ![Voxgig](https://www.voxgig.com/res/img/vgt01r.png) | This open source module is sponsored and supported by [Voxgig](https://www.voxgig.com). |
 |---|---|
@@ -54,20 +54,18 @@ echo 'a:1 b:$.a' | aontu      # read from stdin
 aontu                         # no file on a terminal -> REPL
 ```
 
-The repository's CLI has grown a verb surface beyond evaluation —
-`vet` (validate data against a schema), `get`/`why` (query and
-provenance), `set` (change a value in an overlay, by appending or in
-place), `subsume`/`breaking`, `hash`,
-`relations`, `reaches` (transitive reachability over the entity
-graph), `jsonschema` (export the model as JSON Schema), `trim`,
-`mod` tooling, `agentsmd`, a path-addressed
-`diff` in the API, and an MCP server —
-documented in [docs/reference-api.md](docs/reference-api.md).
-These verbs ship in the **0.53.0** line, published on npm since
-2026-08-28 and as the Go module tag `go/v0.1.11`. The npm badge above
-shows what is currently published, and the
-[progress register](docs/capability-review/progress.md) records
-exactly what has landed.
+Beyond evaluation the command has a verb for each task around a
+document: `vet` (validate data against a schema), `get` and `why`
+(query, and provenance), `set` (change a value in an overlay, by
+appending or in place), `subsume` and `breaking` (schema evolution),
+`hash` (pin what a document means), `relations`, `reaches` and `view`
+(the declared entity graph: its checks, reachability over it, and its
+dependency tree drawn as text), `jsonschema` (export
+the model as JSON Schema), `trim` (find redundant entries), `mod`
+(dependency closures) and `agentsmd` (an AGENTS.md stanza). The
+library adds a path-addressed `diff`, and an MCP server answers with
+the same reports over stdio. All of it is documented in
+[docs/reference-api.md](docs/reference-api.md).
 
 Install with `npm i -g aontu` (Node) or
 `go install github.com/aontu-lang/aontu/go/cmd/aontu@latest` (Go). From a
@@ -85,9 +83,9 @@ Full documentation is in [`docs/`](docs/):
 - [Explanation](docs/explanation.md) — how and why the unifier works
 - [Test coverage](docs/test-coverage.md) — how it is measured, and the numbers
 
-The language has also been put through an executable review —
-[use-cases/](use-cases/) drives sixteen enterprise scenarios through
-the real CLI, with verified findings and minimal repros.
+[use-cases/](use-cases/) holds sixteen enterprise-shaped systems built
+as real Aontu documents, each with a `check.sh` that drives the CLI and
+asserts every outcome.
 
 ## Security and contributing
 

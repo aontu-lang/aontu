@@ -330,3 +330,11 @@ module_path	errcode	parse	0.54.0
 module_missing	errcode	parse	0.53.0
 module_integrity	errcode	parse	0.53.0
 module_depth	errcode	budget	0.53.0
+
+# THE TREE VIEW (`aontu view tree`, docs/design/VIEWS.0.md). A relation
+# named to the view that has no edges in the document is refused rather
+# than drawn empty: an empty tree and a misspelled name are the same
+# file on disk. Class `reference` -- a name that does not resolve. A
+# root that names no node of the drawn graph reuses `refer_unresolved`,
+# the code every verb answers a path that names nothing with.
+view_relation_unknown	errcode	reference	0.54.0

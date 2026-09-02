@@ -1,0 +1,53 @@
+# THE TREE VIEW (`aontu view tree`, docs/design/VIEWS.0.md): the
+# dependency tree of one document's link graph, drawn as text.
+#
+# The reference implementation was the `tree` kind of
+# use-cases/tools/diagram.js, whose output use-case 16 pins as goldens;
+# those goldens are the acceptance test for the port, and these rows
+# are the shared contract behind them: the rendered TEXT, byte for byte,
+# and the refusals.
+#
+# Four columns: name, view, src, expect. The options ride `expect.ask`
+# as {relation?, root?} for the reason reaches' endpoints do -- the
+# same document draws differently under a relation filter or from a
+# named root. The rest of `expect` is the report: {kind, text} on
+# `rendered`, {kind, errors} on `error`, each error minus its prose.
+#
+# What the rows pin:
+#   - a declared inverse pair (dependsOn / usedBy) collapses to ONE edge,
+#     drawn under the named relation, or under the code-point-least key
+#     with every key in the label when no relation is named;
+#   - a shared subtree is expanded once and marked `(*)` after, and only
+#     where it has children of its own -- a repeated leaf is just a leaf;
+#   - an edge that closes a loop is marked `(cycle)` and not walked;
+#   - a root is a node nothing depends on, a self-edge notwithstanding,
+#     and a component with no such node is drawn from its least label;
+#   - a named root draws its subtree alone, duplicates once, and a root
+#     that is not a node of the DRAWN graph is a refusal
+#     (refer_unresolved), as is a relation with no edges
+#     (view_relation_unknown); a document with no edges draws nothing,
+#     which is a rendering and not a refusal;
+#   - an empty relation name means every relation, in both ports;
+#   - a label is the shortest trailing path suffix unique in the drawing.
+#
+# Every expectation below was obtained by running BOTH CLIs
+# (AGENTS.md, "The parity probe").
+
+tree-over-one-relation	view	cli: {dependsOn: [&: refer(), path($.web), path($.db)]}\nweb: {dependsOn: [&: refer(), path($.db)], usedBy: [&: refer(), path($.cli)]}\ndb: {dependsOn: [&: refer(), path($.disk)], usedBy: [&: refer(), path($.cli), path($.web)], logsTo: [&: refer(), path($.log)]}\ndisk: {}\nlog: {}\n	{"ask":{"relation":"dependsOn"},"kind":"tree","text":"cli\\n├── db\\n│   └── disk\\n└── web\\n    └── db (*)","verdict":"rendered"}
+tree-over-every-relation-names-each-branch	view	cli: {dependsOn: [&: refer(), path($.web), path($.db)]}\nweb: {dependsOn: [&: refer(), path($.db)], usedBy: [&: refer(), path($.cli)]}\ndb: {dependsOn: [&: refer(), path($.disk)], usedBy: [&: refer(), path($.cli), path($.web)], logsTo: [&: refer(), path($.log)]}\ndisk: {}\nlog: {}\n	{"ask":{},"kind":"tree","text":"cli\\n├── db (dependsOn/usedBy)\\n│   ├── disk (dependsOn)\\n│   └── log (logsTo)\\n└── web (dependsOn/usedBy)\\n    └── db (dependsOn/usedBy) (*)","verdict":"rendered"}
+tree-empty-relation-means-every-relation	view	cli: {dependsOn: [&: refer(), path($.web), path($.db)]}\nweb: {dependsOn: [&: refer(), path($.db)], usedBy: [&: refer(), path($.cli)]}\ndb: {dependsOn: [&: refer(), path($.disk)], usedBy: [&: refer(), path($.cli), path($.web)], logsTo: [&: refer(), path($.log)]}\ndisk: {}\nlog: {}\n	{"ask":{"relation":""},"kind":"tree","text":"cli\\n├── db (dependsOn/usedBy)\\n│   ├── disk (dependsOn)\\n│   └── log (logsTo)\\n└── web (dependsOn/usedBy)\\n    └── db (dependsOn/usedBy) (*)","verdict":"rendered"}
+tree-from-a-named-root	view	cli: {dependsOn: [&: refer(), path($.web), path($.db)]}\nweb: {dependsOn: [&: refer(), path($.db)], usedBy: [&: refer(), path($.cli)]}\ndb: {dependsOn: [&: refer(), path($.disk)], usedBy: [&: refer(), path($.cli), path($.web)], logsTo: [&: refer(), path($.log)]}\ndisk: {}\nlog: {}\n	{"ask":{"relation":"dependsOn","root":["$.web"]},"kind":"tree","text":"web\\n└── db\\n    └── disk","verdict":"rendered"}
+tree-duplicate-roots-drawn-once	view	cli: {dependsOn: [&: refer(), path($.web), path($.db)]}\nweb: {dependsOn: [&: refer(), path($.db)], usedBy: [&: refer(), path($.cli)]}\ndb: {dependsOn: [&: refer(), path($.disk)], usedBy: [&: refer(), path($.cli), path($.web)], logsTo: [&: refer(), path($.log)]}\ndisk: {}\nlog: {}\n	{"ask":{"relation":"dependsOn","root":["$.web","$.web"]},"kind":"tree","text":"web\\n└── db\\n    └── disk","verdict":"rendered"}
+tree-root-that-names-no-node-is-a-refusal	view	cli: {dependsOn: [&: refer(), path($.web), path($.db)]}\nweb: {dependsOn: [&: refer(), path($.db)], usedBy: [&: refer(), path($.cli)]}\ndb: {dependsOn: [&: refer(), path($.disk)], usedBy: [&: refer(), path($.cli), path($.web)], logsTo: [&: refer(), path($.log)]}\ndisk: {}\nlog: {}\n	{"ask":{"relation":"dependsOn","root":["$.nope"]},"errors":[{"class":"reference","code":"refer_unresolved","note":"nodes in the graph: $.cli, $.db, $.disk, $.web","path":"$","severity":"error","sites":[]}],"kind":"tree","verdict":"error"}
+tree-root-outside-the-relation-is-a-refusal	view	cli: {dependsOn: [&: refer(), path($.web), path($.db)]}\nweb: {dependsOn: [&: refer(), path($.db)], usedBy: [&: refer(), path($.cli)]}\ndb: {dependsOn: [&: refer(), path($.disk)], usedBy: [&: refer(), path($.cli), path($.web)], logsTo: [&: refer(), path($.log)]}\ndisk: {}\nlog: {}\n	{"ask":{"relation":"dependsOn","root":["$.log"]},"errors":[{"class":"reference","code":"refer_unresolved","note":"nodes in the graph: $.cli, $.db, $.disk, $.web","path":"$","severity":"error","sites":[]}],"kind":"tree","verdict":"error"}
+tree-relation-with-no-edges-is-a-refusal	view	cli: {dependsOn: [&: refer(), path($.web), path($.db)]}\nweb: {dependsOn: [&: refer(), path($.db)], usedBy: [&: refer(), path($.cli)]}\ndb: {dependsOn: [&: refer(), path($.disk)], usedBy: [&: refer(), path($.cli), path($.web)], logsTo: [&: refer(), path($.log)]}\ndisk: {}\nlog: {}\n	{"ask":{"relation":"nope"},"errors":[{"class":"reference","code":"view_relation_unknown","note":"relations with edges: dependsOn, logsTo, usedBy","path":"$","severity":"error","sites":[]}],"kind":"tree","verdict":"error"}
+tree-marks-the-edge-that-closes-a-cycle	view	a: {dependsOn: [&: refer(), path($.b)]}\nb: {dependsOn: [&: refer(), path($.a)]}\n	{"ask":{"relation":"dependsOn"},"kind":"tree","text":"a\\n└── b\\n    └── a (cycle)","verdict":"rendered"}
+tree-self-edge-keeps-its-node-a-root	view	a: {dependsOn: [&: refer(), path($.a), path($.b)]}\nb: {}\n	{"ask":{},"kind":"tree","text":"a\\n├── a (cycle)\\n└── b","verdict":"rendered"}
+tree-of-a-document-with-no-edges-is-empty	view	a: 1\n	{"ask":{},"kind":"tree","text":"","verdict":"rendered"}
+tree-root-in-a-document-with-no-edges	view	a: 1\n	{"ask":{"root":["$.a"]},"errors":[{"class":"reference","code":"refer_unresolved","path":"$","severity":"error","sites":[]}],"kind":"tree","verdict":"error"}
+tree-of-a-document-that-does-not-stand-up	view	a: {k: 1}\na: {k: 2}\n	{"ask":{},"errors":[{"class":"conflict","code":"scalar_value","path":"$.a.k","severity":"error","sites":[{"col":8,"file":"","len":1,"role":"data","row":2,"src":"2","value":"2"},{"col":8,"file":"","len":1,"role":"data","row":1,"src":"1","value":"1"}]}],"kind":"tree","verdict":"error"}
+tree-labels-are-the-shortest-unique-suffix	view	top: {dependsOn: [&: refer(), path($.x.auth), path($.y.auth)]}\nx: {auth: {}}\ny: {auth: {}}\n	{"ask":{"relation":"dependsOn"},"kind":"tree","text":"top\\n├── x.auth\\n└── y.auth","verdict":"rendered"}
+tree-relation-in-a-document-with-no-edges	view	a: 1\n	{"ask":{"relation":"dependsOn"},"kind":"tree","text":"","verdict":"rendered"}
+tree-repeated-leaf-is-just-a-leaf	view	cli: {dependsOn: [&: refer(), path($.web), path($.db)]}\nweb: {dependsOn: [&: refer(), path($.db)]}\ndb: {}\n	{"ask":{"relation":"dependsOn"},"kind":"tree","text":"cli\\n├── db\\n└── web\\n    └── db","verdict":"rendered"}
+tree-two-roots-in-label-order	view	b: {dependsOn: [&: refer(), path($.c)]}\na: {dependsOn: [&: refer(), path($.c)]}\nc: {}\n	{"ask":{"relation":"dependsOn"},"kind":"tree","text":"a\\n└── c\\n\\nb\\n└── c","verdict":"rendered"}
+tree-named-roots-in-label-order	view	b: {dependsOn: [&: refer(), path($.c)]}\na: {dependsOn: [&: refer(), path($.c)]}\nc: {}\n	{"ask":{"relation":"dependsOn","root":["$.b","$.a"]},"kind":"tree","text":"a\\n└── c\\n\\nb\\n└── c","verdict":"rendered"}

@@ -10,7 +10,8 @@
 > `breaking` gate schema evolution, `hash` pins what a document means,
 > `set` repairs a value in place, `relations` checks declared entity
 > graphs, `reaches` answers whether one entity reaches another at any
-> remove, `jsonschema` exports the model as JSON Schema and reports
+> remove, `view` draws the dependency tree of a relation as text,
+> `jsonschema` exports the model as JSON Schema and reports
 > what that export cannot carry, and an MCP server exposes the same
 > contracts over stdio. Two
 > implementations (TypeScript, canonical, npm `aontu`; a Go port) are
@@ -37,13 +38,14 @@
 - [Grammars](grammar/): `aontu.gbnf` and `aontu.lark`, the emission
   surface for constrained decoding of canonical Aontu
 
-## Conformance and review
+## Conformance and use cases
 
 - [Shared spec suite](test/spec/): the conformance corpus — 3k+
   language-agnostic cases both implementations must satisfy; a third
   implementation claims conformance by passing it
-- [Executable review](use-cases/): sixteen enterprise use cases driven
-  through the real CLI, with verified findings and minimal repros
+- [Use cases](use-cases/): sixteen enterprise-shaped systems built as
+  real Aontu documents, each with a `check.sh` that drives the CLI and
+  asserts every outcome
 
 ## Contributing
 

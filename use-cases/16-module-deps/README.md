@@ -12,9 +12,8 @@ dependency-structure matrix.
 
 ## The codebase, drawn
 
-The tree below is generated from this model by
-[`../tools/diagram.js`](../tools/diagram.js) and pinned as a golden by
-`check.sh`.
+The tree below is `aontu view tree --relation dependsOn model.aon`,
+pinned as a golden by `check.sh`.
 
 ```
 cli
@@ -183,10 +182,10 @@ constructs are specified in the language reference under
 9. The dependency tree renders byte for byte to
    `expected/diagram-tree.txt`: three derived roots, nine elided
    repeats.
-10. `tree --root $.mods.billing` draws one module's own closure,
-    pinned as `expected/diagram-tree-billing.txt`.
-11. A `--root` naming no node refuses (`no such node: $.mods.nosuch`)
-    rather than drawing an empty tree.
+10. `aontu view tree --root $.mods.billing` draws one module's own
+    closure, pinned as `expected/diagram-tree-billing.txt`.
+11. A `--root` naming no node refuses (`refer_unresolved`, naming
+    `$.mods.nosuch`) rather than drawing an empty tree.
 12. The dependency-structure matrix renders byte for byte to
     `expected/diagram-matrix.txt`.
 13. The tree of the cyclic model (`bad/cycle.aon`) terminates, marking

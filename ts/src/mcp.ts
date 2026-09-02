@@ -48,6 +48,7 @@ import { trimCheck } from './trim'
 import { jsonSchema } from './jsonschema'
 import { relationCheck } from './relation'
 import { reachCheck } from './reach'
+import { viewTree } from './view'
 import { patch } from './patch'
 
 
@@ -452,6 +453,44 @@ const TOOLS: ToolDef[] = [
       reachCheck(str(a.source), str(a.from), str(a.to), {
         path: paths.source,
         relation: null == a.relation ? undefined : str(a.relation),
+      }),
+  },
+  {
+    name: 'view',
+    description:
+      'Draw a figure of the link graph as deterministic text: the ' +
+      'dependency tree of a relation (kind "tree"), roots derived as ' +
+      'the nodes nothing depends on, a repeated subtree elided as (*), ' +
+      'a closing edge marked (cycle). Returns verdict (rendered | ' +
+      'error), kind, and the text.',
+    properties: {
+      source: { type: 'string', description: 'The document' },
+      kind: {
+        type: 'string',
+        description: 'The figure to draw: tree (the default)',
+      },
+      relation: {
+        type: 'string',
+        description: 'Draw the tree over this relation only (optional)',
+      },
+      root: {
+        type: 'array',
+        items: { type: 'string' },
+        description:
+          'Draw only the subtrees under these node paths (optional)',
+      },
+    },
+    required: ['source'],
+    docs: ['source'],
+    check: (a) => null == a.kind || 'tree' === a.kind
+      ? undefined : `kind must be tree, not ${JSON.stringify(a.kind)}`,
+    refuse: (_a, finding) =>
+      ({ verdict: 'error', kind: 'tree', errors: [finding] }),
+    run: (a, _trust, paths) =>
+      viewTree(str(a.source), {
+        path: paths.source,
+        relation: null == a.relation ? undefined : str(a.relation),
+        roots: Array.isArray(a.root) ? a.root.map(str) : undefined,
       }),
   },
   {

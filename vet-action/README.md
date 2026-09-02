@@ -4,10 +4,8 @@ Runs [`aontu vet`](../docs/reference-api.md#aontu-vet) over declared
 (schema, data) pairs in CI: the job fails by verdict class, and the
 report can be emitted as SARIF for GitHub code scanning.
 
-This action lives in the `aontu` repository itself (G2 phase 5 landed
-it here rather than in the separate `aontu-vet-action` repository the
-design sketched, so the action versions in lock-step with the CLI it
-runs).
+This action lives in the `aontu` repository itself, so it versions in
+lock-step with the CLI it runs.
 
 > **Requires aontu 0.53.0 or newer.** The action executes
 > `npx aontu@<version> vet`, and `vet` first ships in **0.53.0** —
@@ -29,7 +27,7 @@ jobs:
           node-version: 24
 
       # Fail the job if deploy.json does not satisfy service.aon.
-      - uses: rjrodger/aontu/vet-action@main
+      - uses: aontu-lang/aontu/vet-action@main
         with:
           schema: service.aon
           data: deploy.json
@@ -37,7 +35,7 @@ jobs:
       # Or: produce SARIF and upload it to code scanning. aontu vet
       # exits by verdict class, so keep the job alive for the upload
       # and re-assert the verdict afterwards.
-      - uses: rjrodger/aontu/vet-action@main
+      - uses: aontu-lang/aontu/vet-action@main
         id: vet
         continue-on-error: true
         with:

@@ -642,6 +642,33 @@ func TestSpec(t *testing.T) {
 						t.Fatalf("reach report mismatch\n src: %q\n want: %s\n got:  %s",
 							src, want, got)
 					}
+				case "view":
+					// THE TREE VIEW (docs/design/VIEWS.0.md): the drawn
+					// text, byte for byte, or the refusal. The options
+					// ride `expect.ask` for the reason reaches' endpoints
+					// do: the same document draws differently under a
+					// relation filter or from a named root.
+					var golden map[string]any
+					if err := json.Unmarshal([]byte(expect), &golden); err != nil {
+						t.Fatalf("expect is not JSON: %v\n expect: %s", err, expect)
+					}
+					ask, _ := golden["ask"].(map[string]any)
+					delete(golden, "ask")
+					rel, _ := ask["relation"].(string)
+					var roots []string
+					if rs, ok := ask["root"].([]any); ok {
+						for _, r := range rs {
+							roots = append(roots, r.(string))
+						}
+					}
+					got := specJSON(t, specStripProse(specAsMap(t,
+						New().ViewTree(src, &ViewOptions{Relation: rel, Roots: roots})),
+						"errors"))
+					want := specJSON(t, golden)
+					if got != want {
+						t.Fatalf("view report mismatch\n src: %q\n want: %s\n got:  %s",
+							src, want, got)
+					}
 				case "relation":
 					// RELATION GRAPH CHECKS (G4 phase 5): acyclicity and
 					// inverse consistency over the edge set, compared as

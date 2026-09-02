@@ -16,6 +16,7 @@ import { diff } from './diff';
 import { agentsMd } from './agentsmd';
 import { graphOf } from './graph';
 import { relationCheck } from './relation';
+import { viewTree } from './view';
 declare const VERSION = "0.53.0";
 declare class Aontu {
     opts: AontuOptions;
@@ -30,5 +31,5 @@ declare function runparse(src: string, lang: Lang, ctx: AontuContext): Val;
 declare const util: {
     runparse: typeof runparse;
 };
-export { VERSION, Aontu, AontuOptions, AontuContext, AontuError, setColor, colorActive, Val, Lang, runparse, util, formatExplain, exactJSON, Decimal, vet, sarifReport, subsume, trimCheck, hcanon, canonHash, get, why, patch, diff, agentsMd, graphOf, relationCheck, };
+export { VERSION, Aontu, AontuOptions, AontuContext, AontuError, setColor, colorActive, Val, Lang, runparse, util, formatExplain, exactJSON, Decimal, vet, sarifReport, subsume, trimCheck, hcanon, canonHash, get, why, patch, diff, agentsMd, graphOf, relationCheck, viewTree, };
 export default Aontu;
