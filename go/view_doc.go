@@ -93,24 +93,11 @@ func docChild(v Val, key string) Val {
 // figure declined to describe. Its canon says what it is -- `{}`, `[]`,
 // or a template a spread wrote and no member filled.
 func docLeaf(v Val) string {
-	node := throughDoc(v)
-	if nil == node {
-		return ""
-	}
-	canon := node.Canon()
+	canon := throughDoc(v).Canon()
 	if 32 < viewLen(canon) {
 		return string([]rune(canon)[:29]) + "..."
 	}
 	return canon
-}
-
-// docSpaced writes a mark after the key with one space, and nothing at
-// all when there is nothing to say.
-func docSpaced(mark string) string {
-	if "" == mark {
-		return ""
-	}
-	return " " + mark
 }
 
 type docFrame struct {
@@ -160,11 +147,15 @@ func drawDoc(root Val, at string, depth int, as, style string, max int,
 		under := len(stack) < depth
 		// A container the depth bound stops at says how many keys are
 		// not drawn; a leaf says what it is.
+		// A leaf says what it is and a stopped container says how many
+		// keys it holds; both are written after the key with one space,
+		// and neither is ever empty (a canon has at least one
+		// character).
 		mark := ""
 		if 0 == len(kids) {
-			mark = docSpaced(docLeaf(child))
+			mark = " " + docLeaf(child)
 		} else if !under {
-			mark = docSpaced("(" + strconv.Itoa(len(kids)) + ")")
+			mark = " (" + strconv.Itoa(len(kids)) + ")"
 			elided += len(kids)
 		}
 		branch := "├── "

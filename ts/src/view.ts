@@ -999,8 +999,11 @@ function docKids(v: any): string[] {
 // `anchorAt` already steps through a sizing residue; this is the same
 // unwrapping, for the shape walk.
 function throughDoc(v: any): any {
+  // Every caller reaches this with a Val the anchor walk handed over,
+  // so the node is never absent and the optional chain that would say
+  // otherwise is an arm no test can take.
   const node = throughResidue(v)
-  return true === node?.isPref ? throughDoc(node.peg) : node
+  return true === node.isPref ? throughDoc(node.peg) : node
 }
 
 // What a leaf IS, in one short word: its canon, which for a constraint
@@ -1011,8 +1014,10 @@ function docLeaf(v: any): string {
   // by writing nothing after the key would make it read as a value the
   // figure declined to describe. Its canon says what it is -- `{}`,
   // `[]`, or a template a spread wrote and no member filled.
-  const node: any = throughDoc(v)
-  const canon = 'string' === typeof node?.canon ? node.canon : String(node?.canon)
+  //
+  // `canon` is a string on every Val, so there is no other-type arm to
+  // take; the cut is the only decision here.
+  const canon: string = throughDoc(v).canon
   return 32 < canon.length ? canon.slice(0, 29) + '...' : canon
 }
 
@@ -1062,8 +1067,11 @@ function drawDoc(
     const under = stack.length < depth
     // A container the depth bound stops at says how many keys are not
     // drawn; a leaf says what it is.
-    const mark = 0 === kids.length ? spaced(docLeaf(child))
-      : under ? '' : spaced(`(${kids.length})`)
+    // A leaf says what it is and a stopped container says how many
+    // keys it holds; both are written after the key with one space,
+    // and neither is ever empty (a canon has at least one character).
+    const mark = 0 === kids.length ? ' ' + docLeaf(child)
+      : under ? '' : ` (${kids.length})`
     if (0 < kids.length && !under) {
       elided += kids.length
     }
@@ -1094,11 +1102,6 @@ function drawDoc(
       : out.join('\n'),
   }
 }
-
-// A mark is written after the key with one space, and nothing at all
-// when there is nothing to say.
-const spaced = (mark: string): string => '' === mark ? '' : ' ' + mark
-
 
 // ---------------------------------------------------------------------
 // The matrix (Ghoniem et al. 2004; Sangal et al. 2005)

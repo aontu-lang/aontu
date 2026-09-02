@@ -155,6 +155,45 @@ describe('coverage2-cli', () => {
   })
 
 
+  // NO_COLOR SET BUT EMPTY does not disable colour -- the one exception
+  // no-color.org states, which err.ts implements and `--style auto`
+  // has to implement too, since it reads the variable itself rather
+  // than through the error frames' gate. And an EXPLICIT style is
+  // returned whatever the destination is, which is the arm every other
+  // test skips: the two refusals below never reach the resolver.
+  test('style-auto-honours-an-empty-no-color-and-an-explicit-style-wins', () => {
+    const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-style3-'))
+    const file = Path.join(dir, 'm.aon')
+    Fs.writeFileSync(file,
+      'a: {dependsOn: [&: refer(), path($.b)]}\nb: {}\n')
+    const desc = Object.getOwnPropertyDescriptor(process, 'stdout')!
+    let out = ''
+    const fake: any = new PassThrough()
+    fake.isTTY = true
+    fake.write = (s: any) => ((out += s), true)
+    Object.defineProperty(process, 'stdout', { value: fake, configurable: true })
+    const no = process.env.NO_COLOR
+    process.env.NO_COLOR = ''
+    try {
+      cliMain(['node', 'cli', 'view', 'tree', file])
+      Assert.match(out, /\x1b\[2m/, 'set-but-empty NO_COLOR keeps colour')
+      // The same run with the style named outright, and named OFF: the
+      // explicit answer is returned before the destination is asked.
+      out = ''
+      cliMain(['node', 'cli', 'view', 'tree', '--style', 'none', file])
+      Assert.equal(out, 'a\n└── b\n')
+    }
+    finally {
+      Object.defineProperty(process, 'stdout', desc)
+      if (undefined === no) { delete process.env.NO_COLOR }
+      else { process.env.NO_COLOR = no }
+      setColor(false)
+      Fs.rmSync(dir, { recursive: true, force: true })
+      process.exitCode = 0
+    }
+  })
+
+
   // The two `--style` refusals, which are the CLI's own and so are not
   // reachable from a shared-spec row: an unknown name, and asking for
   // terminal escapes on a run that writes a FILE. A pinned golden
