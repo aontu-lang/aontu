@@ -104,8 +104,10 @@ func TestViewOverIncludedFiles(t *testing.T) {
 	if "rendered" != layers.Verdict {
 		t.Fatalf("layers = %+v", layers)
 	}
+	// The included file is named relative to the entry, in the host's
+	// own separator.
 	if !strings.Contains(*layers.Text, "# layers  file=entry.aon  documents=2") ||
-		!strings.Contains(*layers.Text, "lib/base.aon") {
+		!strings.Contains(*layers.Text, filepath.Join("lib", "base.aon")) {
 		t.Fatalf("layers text:\n%s", *layers.Text)
 	}
 	if r := a.View(string(src), &ViewOptions{Kind: "layers", MaxRows: 1}); "error" != r.Verdict ||

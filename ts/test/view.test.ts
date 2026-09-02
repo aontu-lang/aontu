@@ -43,7 +43,10 @@ describe('view', () => {
     Assert.equal(layers.verdict, 'rendered')
     Assert.match(layers.text as string,
       /^# layers {2}file=entry\.aon {2}documents=2/)
-    Assert.match(layers.text as string, /lib\/base\.aon/)
+    // The included file is named relative to the entry, in the host's
+    // own separator.
+    Assert.ok((layers.text as string).includes(Path.join('lib', 'base.aon')),
+      layers.text as string)
     Assert.equal(
       view(src, { kind: 'layers', path: entry, trust, maxRows: 1 })
         .errors?.[0].code,

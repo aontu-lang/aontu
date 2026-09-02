@@ -66,7 +66,9 @@ const write = (dir, name, src) => {
         const layers = (0, view_1.view)(src, { kind: 'layers', path: entry, trust });
         Assert.equal(layers.verdict, 'rendered');
         Assert.match(layers.text, /^# layers {2}file=entry\.aon {2}documents=2/);
-        Assert.match(layers.text, /lib\/base\.aon/);
+        // The included file is named relative to the entry, in the host's
+        // own separator.
+        Assert.ok(layers.text.includes(Path.join('lib', 'base.aon')), layers.text);
         Assert.equal((0, view_1.view)(src, { kind: 'layers', path: entry, trust, maxRows: 1 })
             .errors?.[0].code, 'view_rows_exceeded');
         // The rank-1 rung first; then the rank-0 rungs by file -- the FULL
