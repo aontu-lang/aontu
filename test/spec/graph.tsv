@@ -107,6 +107,13 @@ edge-at-a-list-root	graph	[refer() & path($.0)]	{"edges":[{"from":"$","key":"","
 # An unresolved DISJUNCTION is not (ADR-007): a link under an unresolved
 # arm is not a fact. A link inside a hide()-marked subtree is still an
 # edge, flagged `hidden` so a figure can decline to disclose it.
+
+# PHASE 0 (docs/design/VIEWS.0.md): a residual CONJUNCTION is
+# transparent to the walk -- its terms sit at the field's own position,
+# so a link inside `unique() & [&: refer(), x]` is a link of the field.
+# An unresolved DISJUNCTION is not (ADR-007): a link under an unresolved
+# arm is not a fact. A link inside a hide()-marked subtree is still an
+# edge, flagged `hidden` so a figure can decline to disclose it.
 edge-inside-a-residual-conjunct	graph	a: {x: unique() & [&: refer(), path($.b)]}\nb: {}	{"edges":[{"at":"$.a.x.0","from":"$.a","key":"x","to":"$.b"}]}
 edge-inside-a-nested-conjunct	graph	a: {x: unique() & (length(1) & [&: refer(), path($.b)])}\nb: {}	{"edges":[{"at":"$.a.x.0","from":"$.a","key":"x","to":"$.b"}]}
 edge-under-an-unresolved-disjunct-is-not-a-fact	graph	a: {x: [&: refer(), path($.b)] | 1}\nb: {}	{"disjunct":["$.a.x.0"],"edges":[]}

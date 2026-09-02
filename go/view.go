@@ -1268,9 +1268,17 @@ func drawLayer(triples []viewTriple, root Val, relation, groupBy string, layers 
 			" -> "+byPath[c.edge.to].label)
 	}
 	if "svg" == as {
+		// The description says WHAT WAS DRAWN, because two layer figures
+		// of one model on one page differ by exactly that, and a reader
+		// who cannot see them has only this to tell them apart.
+		drew := strconv.Itoa(up) + " upward edges"
+		if "all" == edges {
+			drew = strconv.Itoa(len(shown)) + " edges drawn, " + strconv.Itoa(up) + " of them upward"
+		} else if "none" == edges {
+			drew = strconv.Itoa(up) + " upward edges, none drawn"
+		}
 		return layerSvg(bands, shown, footer,
-			"Architecture layers"+svgOver(relation)+": "+strconv.Itoa(len(bands))+" bands, "+
-				strconv.Itoa(up)+" upward edges"), nil
+			"Architecture layers"+svgOver(relation)+": "+strconv.Itoa(len(bands))+" bands, "+drew), nil
 	}
 	out := []string{}
 	if "text" == as {

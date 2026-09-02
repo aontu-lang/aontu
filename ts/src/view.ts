@@ -1390,10 +1390,17 @@ function drawLayer(
   }
   const out: string[] = []
   if ('svg' === o.as) {
+    // The description says WHAT WAS DRAWN, because two layer figures of
+    // one model on one page differ by exactly that, and a reader who
+    // cannot see them has only this to tell them apart.
+    const drew = 'all' === edges
+      ? `${shown.length} edges drawn, ${upward} of them upward`
+      : 'none' === edges
+        ? `${upward} upward edges, none drawn`
+        : `${upward} upward edges`
     return {
       text: layerSvg(bands, shown, footer,
-        `Architecture layers${over(relation)}: ${bands.length} bands, ` +
-        `${upward} upward edges`),
+        `Architecture layers${over(relation)}: ${bands.length} bands, ${drew}`),
     }
   }
   if ('text' === o.as) {
