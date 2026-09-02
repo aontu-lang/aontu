@@ -43,6 +43,7 @@ Usage: aontu [options] [file]
        aontu relations [options] <file>
        aontu reaches <from> <to> [--relation <name>] [options] <file>
        aontu view <kind> [options] <file>...
+       aontu view --views <path> [--check] [options] <file>
        aontu jsonschema [--at <path>] [--strict] [options] <file>
        aontu hash [options] <file>
        aontu mod tidy|verify|vendor|manifest [options] [dir]
@@ -930,13 +931,71 @@ flowchart LR
   the identical `{verdict, kind, text?, loss, errors?}` record; the
   poset's further documents ride `options.docs` as `{src, path?, name?}`.
 
+**The view document.** A projection that runs in CI belongs in a file.
+`--views <path>` names a map, in an ordinary document that includes the
+model, whose values declare figures: one evaluation, N figures, one
+exit code. The keys of a declaration are the view options — the flags
+without the dashes — and every declaration names its `kind` and the
+`out` file it draws into. `views` is the author's key; nothing in the
+engine knows the name (ADR-010), which is why the path is given. Write
+a `views.aon` beside the `system.aon` above:
+
+<!-- test: file views.aon -->
+```aon
+@"./system.aon"
+
+views: {
+  arch: {
+    kind: matrix
+    relation: dependsOn
+    order: partition
+    closure: true
+    out: "arch.dsm.txt"
+  }
+  map: {
+    kind: graph
+    relation: dependsOn
+    groupBy: owner
+    as: mermaid
+    out: "arch.mmd"
+  }
+}
+```
+
+<!-- test: run -->
+```sh
+$ aontu view --views '$.views' views.aon
+$ aontu view --views '$.views' --check views.aon
+$ echo $?
+0
+```
+
+Each `out` is resolved against the **view document's own directory**,
+so the gate passes from any working directory. Nothing is written
+unless every figure rendered — N figures of one model are only
+meaningful together, so a set whose third figure refuses leaves the
+first two off disk, and its exit code is the worst of the figures'.
+`--check` compares the whole set and names every difference; `--strict`
+turns any figure's loss into exit `1`. A declaration that names an
+option that is not one, gives a value of the wrong shape, or leaves out
+`kind` or `out` is `view_document_shape`, reported for every faulty
+declaration at once and before anything is drawn. The `poset` is
+refused there: it compares several documents and a view document
+declares figures of the one it includes. The library form is
+`viewSet(src, options)` in TypeScript and `Aontu.ViewSet(src, options)`
+in Go, returning `{verdict, views, errors?}` where each view is
+`{name, kind, out, verdict, text?, loss, errors?}` — the caller writes
+the files.
+
 The use cases pin one figure of each kind as a golden:
 [01-service-catalog](../use-cases/01-service-catalog/) the graph and
 the matrix, [04-schema-evolution](../use-cases/04-schema-evolution/)
 the poset, [08-feature-flags](../use-cases/08-feature-flags/) the
 ladder, [12-relations](../use-cases/12-relations/) the graph and the
 ER diagram, and [16-module-deps](../use-cases/16-module-deps/) the
-tree, the matrix and the layers. The design is
+tree, the matrix and the layers; 16 also declares all seven of its
+figures in a `views.aon` that its `check.sh` gates in one run. The
+design is
 [docs/design/VIEWS.0.md](design/VIEWS.0.md) and
 [VIEWS-ORDER.0.md](design/VIEWS-ORDER.0.md).
 

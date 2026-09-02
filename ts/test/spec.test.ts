@@ -66,6 +66,10 @@
  *                expect object ({kind, text} or {kind, errors}); the
  *                options ride `expect.ask` as reaches' do. See
  *                test/spec/view.tsv
+ *   mode=views : viewSet(src, {views}) -- the figures a VIEW DOCUMENT
+ *                declares -- must equal the expect object ({verdict,
+ *                views} or {verdict, views, errors}); see
+ *                test/spec/views.tsv
  * Escapes in src/expect: \n -> newline, \t -> tab, \\ -> backslash.
  *
  * gen vs gens: `gen` compares through a JSON decode, so both sides land
@@ -89,7 +93,7 @@ import {
 } from '../dist/aontu'
 import { jsonSchema } from '../dist/jsonschema'
 import { reachCheck } from '../dist/reach'
-import { view } from '../dist/aontu'
+import { view, viewSet } from '../dist/aontu'
 import { codeClasses } from '../dist/hints'
 import { IntegerVal } from '../dist/val/IntegerVal'
 import { StringVal } from '../dist/val/StringVal'
@@ -482,6 +486,26 @@ function runRow(row: Omit<Row, 'file'> & { file?: string }): void {
         ? report : { ...report, errors: stripProse(report.errors) }),
       exactJSON(golden),
       `view report mismatch: ${row.name}`)
+  }
+  else if ('views' === row.mode) {
+    // THE VIEW DOCUMENT (VIEWS.0.md, "6. The view document"): N figures
+    // of one document, declared as data, compared as one report --
+    // every figure's bytes and verdict, and every refusal, in the order
+    // the declaration keys sort.
+    const golden = JSON.parse(row.expect)
+    const ask = golden.ask ?? {}
+    delete golden.ask
+
+    const report: any = viewSet(row.src, ask)
+    Assert.strictEqual(
+      exactJSON({
+        ...report,
+        ...(null == report.errors ? {} : { errors: stripProse(report.errors) }),
+        views: report.views.map((v: any) => null == v.errors
+          ? v : { ...v, errors: stripProse(v.errors) }),
+      }),
+      exactJSON(golden),
+      `view set report mismatch: ${row.name}`)
   }
   else if ('relation' === row.mode) {
     // RELATION GRAPH CHECKS (G4 phase 5): acyclicity and inverse

@@ -7,6 +7,31 @@ which implementation each change affects.
 
 ## Unreleased
 
+### `aontu view --views`: the figures a document declares
+
+Both ports. **New surface.** A projection that runs in CI belongs in a
+file: `aontu view --views <path> <file>` reads a map of figure
+declarations out of an ordinary document that includes the model, and
+draws every one of them from ONE evaluation. A declaration's keys are
+the view options -- the flags without the dashes -- and each names its
+own `kind` and the `out` file it draws into, resolved against the view
+document's own directory so the gate passes from any working
+directory. `views` is the author's key and nothing in the engine knows
+the name (ADR-010). Nothing is written unless every figure rendered;
+`--check` compares the whole set and names every difference, `--strict`
+turns any figure's loss into exit 1, and the exit code is the worst of
+the figures'. A declaration that names an option that is not one, gives
+a value of the wrong shape, or leaves out `kind` or `out` is the new
+`view_document_shape`, reported for every faulty declaration at once
+and before anything is drawn; the `poset` is refused there, because it
+compares several documents. Library: `viewSet(src, options)`
+(TypeScript), `Aontu.ViewSet(src, options)` (Go), returning
+`{verdict, views, errors?}` -- the caller writes the files.
+`test/spec/views.tsv` (the new `views` mode) pins both ports on the
+declarations, every refusal and every figure's bytes.
+`use-cases/16-module-deps/views.aon` declares all seven of that case's
+figures and its `check.sh` gates them in one run.
+
 ### `aontu view --as svg`: the cell-based figures as SVG
 
 Both ports. **New profile.** `tree`, `matrix`, `layer`, `sets` and

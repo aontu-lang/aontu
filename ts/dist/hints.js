@@ -149,6 +149,7 @@ const hints = {
     view_sets_required: 'The set panel needs both --sets (the map whose keys are the sets) and\n--member (the field holding each set\'s members).',
     view_at_required: 'The meet ladder draws the contributions at ONE path, and none was\nnamed. Pass --at with the path, as `aontu why` takes it.',
     view_group_required: 'The layer diagram puts each node in the band its --group-by field\nnames, and no field was named. Pass --group-by with the field that\nholds each node\'s layer.',
+    view_document_shape: 'A view document declares each figure as a map of view options --\nthe flag names without the dashes -- and every declaration must name\nits `kind` and the `out` file it draws into. This one names an option\nthat is not one, gives a value of the wrong shape, or leaves out what\nevery declaration needs. `aontu view --help` lists the options.',
     pack_data: 'The first argument to pack() is not a bag. `pack` makes one child\nper child of its DATA, so the data has to have children: a list of\nnames, or a map whose keys are the names.\n \nExamples:\n  pack([a,b], {x:1})     -> {..}  # A list of names;\n  pack({a:1,b:2}, {x:1}) -> {..}  # ... or a map, keyed by its keys;\n  pack(1, {x:1})         -> nil   # ... but a scalar has no children.',
     pack_key: 'A list packed by pack() holds something that is not a string. The\nelements of a packed list ARE the generated keys, and only a string\nis a key — an element keyed by its position would churn every\ngenerated child the moment the list was reordered.\n \nExamples:\n  pack([a,b], {x:1})   -> {..}  # Names;\n  pack(["a b"], {x:1}) -> {..}  # ... a quoted name is still a name;\n  pack([1,2], {x:1})   -> nil   # ... but a number is not one.',
     each_data: 'The first argument to each() is not a bag. `each` makes one list\nelement per child of its DATA, so the data has to have children: a\nlist, or a map whose values become the elements in sorted-key order.\n \nExamples:\n  each([1,2])       -> [..]  # A list, in source order;\n  each({b:2,a:1})   -> [..]  # ... a map, in sorted-key order;\n  each(1)           -> nil   # ... but a scalar has no children.',
@@ -402,6 +403,7 @@ const codeClasses = {
     view_sets_required: 'reference',
     view_at_required: 'reference',
     view_group_required: 'reference',
+    view_document_shape: 'reference',
     // First-class paths (docs/design/PATHS.0.md): text that is not a
     // tree address, met by path()'s capture or promotion. The same
     // class as refer_address, because it is the same mistake.

@@ -347,3 +347,4 @@ view_sets_shape	errcode	reference	0.54.0
 view_sets_required	errcode	reference	0.54.0
 view_at_required	errcode	reference	0.54.0
 view_group_required	errcode	reference	0.54.0
+view_document_shape	errcode	reference	0.54.0

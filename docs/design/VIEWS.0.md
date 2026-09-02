@@ -5,8 +5,8 @@
 tree, matrix, graph (mermaid, dot, er), sets and layers kinds, the
 loss report, `--out`/`--check`/`--strict`/`--max-rows`, plus a `layer`
 kind (the architecture bands) and the two order views of
-VIEWS-ORDER.0.md. Not built: the view document (`--views`), the figure
-JSON projection, `std/view`; `--loose` was dropped, since a path-native
+VIEWS-ORDER.0.md. The view document (`--views`) landed 2026-09-02, and
+SVG before it. Not built: the figure JSON projection, `std/view`; `--loose` was dropped, since a path-native
 graph (ADR-014) has no loose edge. Where the built verb departs from
 the text below, the verb and [docs/reference-api.md](../reference-api.md)
 are the record. Phase 0 landed with it; see use-cases/BUGS.md 70 and
@@ -1746,6 +1746,18 @@ ports; the covered-by-nothing column is present by default when
 `$.deploy.prod.workloads.billing.replicas`.
 
 ### Phase 4 — the view document, the MCP tool, and the documentation (M)
+
+*Status: BUILT (2026-09-02), as `aontu view --views <path>` and
+`viewSet` / `Aontu.ViewSet` in both ports, pinned by
+`test/spec/views.tsv` (mode `views`). The MCP tool `view` landed with
+the kinds. Departures from the plan below: the declarations live in a
+new `test/spec/views.tsv` rather than in `view-matrix.tsv`; the
+figures are gated in `use-cases/16-module-deps/views.aon` rather than a
+new `16-views/` case, since the figures to gate are that case's own;
+`docs/how-to/draw-a-model.md` is not written. Every declaration must
+name its `kind` and `out`, which the sketch below leaves implicit, and
+the `poset` is refused inside a view document because it compares
+several.*
 
 `--views <path>` reading a map of view declarations out of an ordinary
 document, one evaluation and N figures, all-or-nothing writing, and

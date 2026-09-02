@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"io"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -38,6 +39,7 @@ var viewUsageCodes = map[string]bool{
 	"view_kind_unknown": true, "view_profile_unknown": true,
 	"view_rows_exceeded": true, "view_at_required": true,
 	"view_sets_required": true, "view_group_required": true,
+	"view_document_shape": true,
 }
 
 func hasString(list []string, s string) bool {
@@ -68,6 +70,7 @@ func runView(argv []string, stdout, stderr io.Writer) int {
 		"--group-by": &opts.GroupBy, "--label": &opts.Label,
 		"--sets": &opts.Sets, "--member": &opts.Member,
 		"--universe": &opts.Universe, "--profile": &opts.Profile,
+		"--views": &opts.Views,
 	}
 	counted := map[string]*int{
 		"--max-rows": &opts.MaxRows, "--max-cols": &opts.MaxCols,
@@ -146,6 +149,12 @@ func runView(argv []string, stdout, stderr io.Writer) int {
 		default:
 			rest = append(rest, arg)
 		}
+	}
+
+	// THE VIEW DOCUMENT draws every figure a document declares, so it
+	// names no kind: the declarations do, one each.
+	if "" != opts.Views {
+		return runViewSet(rest, &opts, trust, format, check, strict, out, stdout, stderr)
 	}
 
 	if 2 > len(rest) {
@@ -247,6 +256,142 @@ func runView(argv []string, stdout, stderr io.Writer) int {
 		return 1
 	}
 	return viewExit[report.Verdict]
+}
+
+// `aontu view --views <path> <file>`: every figure the document
+// declares, from one evaluation, all or nothing.
+//
+// A declared `out` is resolved against the DOCUMENT's own directory,
+// not the caller's: a view document is committed beside the figures it
+// gates, and a gate that only passes from one working directory is not
+// a gate.
+func runViewSet(rest []string, opts *aontu.ViewOptions, trust trustArg,
+	format string, check, strict bool, out string,
+	stdout, stderr io.Writer) int {
+	if 1 != len(rest) {
+		io.WriteString(stderr, "aontu: view --views takes one file\n")
+		return 2
+	}
+	if "" != out {
+		io.WriteString(stderr,
+			"aontu: --out is per figure in a view document; each declares its own\n")
+		return 2
+	}
+	file := rest[0]
+	src, err := os.ReadFile(file)
+	if nil != err {
+		io.WriteString(stderr, "aontu: cannot read "+file+": "+err.Error()+"\n")
+		return 2
+	}
+
+	report := aontuForFileTrust(file, trust).ViewSet(string(src), opts)
+
+	if "json" == format {
+		io.WriteString(stdout, renderViewSetJSON(report)+"\n")
+	} else if 0 < len(report.Errors) {
+		lines := []string{}
+		for _, f := range report.Errors {
+			lines = append(lines, renderFinding(f))
+		}
+		io.WriteString(stderr, strings.Join(lines, "\n")+"\n")
+	} else {
+		for _, fig := range report.Views {
+			if 0 < len(fig.Errors) {
+				lines := []string{}
+				for _, f := range fig.Errors {
+					lines = append(lines, renderFinding(f))
+				}
+				io.WriteString(stderr, fig.Name+" ("+fig.Kind+"):\n"+
+					strings.Join(lines, "\n")+"\n")
+			} else if 0 < len(fig.Loss) {
+				lines := []string{}
+				for _, l := range strings.Split(renderViewLoss(fig.Loss), "\n") {
+					lines = append(lines, fig.Name+"  "+l)
+				}
+				io.WriteString(stderr, strings.Join(lines, "\n")+"\n")
+			}
+		}
+	}
+	if "error" == report.Verdict {
+		return viewSetExit(report)
+	}
+
+	// EVERY FIGURE RENDERED, so the whole set is written -- or, under
+	// --check, the whole set is compared and every difference named.
+	abs, aerr := filepath.Abs(file)
+	if nil != aerr { //coverage:ignore Abs fails only on an unreadable cwd
+		abs = file
+	}
+	dir := filepath.Dir(abs)
+	differ := 0
+	for _, fig := range report.Views {
+		path := fig.Out
+		if !filepath.IsAbs(path) {
+			path = filepath.Join(dir, path)
+		}
+		text := *fig.Text + "\n"
+		if check {
+			have, rerr := os.ReadFile(path)
+			if nil != rerr || string(have) != text {
+				differ++
+				io.WriteString(stderr,
+					"aontu: "+fig.Out+" differs from the "+fig.Name+" figure\n")
+			}
+			continue
+		}
+		if werr := os.WriteFile(path, []byte(text), 0o644); nil != werr {
+			io.WriteString(stderr, "aontu: cannot write "+fig.Out+": "+werr.Error()+"\n")
+			return 2
+		}
+		if "json" != format {
+			io.WriteString(stderr, "wrote "+fig.Out+"  "+fig.Name+" ("+fig.Kind+")\n")
+		}
+	}
+	if 0 < differ {
+		return 1
+	}
+	if strict && "lossy" == report.Verdict {
+		return 1
+	}
+	return viewExit[report.Verdict]
+}
+
+// A set's exit code is the worst of its figures': a usage refusal
+// anywhere is usage, and any other refusal is the document's fault.
+func viewSetExit(report aontu.ViewSetReport) int {
+	all := append([]aontu.VetFinding{}, report.Errors...)
+	for _, v := range report.Views {
+		all = append(all, v.Errors...)
+	}
+	for _, f := range all {
+		if viewUsageCodes[f.Code] {
+			return 2
+		}
+	}
+	return viewExit["error"]
+}
+
+// The machine-readable form of a view document's run. Field order is
+// LEXICOGRAPHIC, the canonical emitter's order.
+type viewSetJSON struct {
+	Aontu   subsumeProducerJSON `json:"aontu"`
+	Errors  []aontu.VetFinding  `json:"errors,omitempty"`
+	Verdict string              `json:"verdict"`
+	Views   []aontu.ViewFigure  `json:"views"`
+}
+
+func renderViewSetJSON(report aontu.ViewSetReport) string {
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	enc.SetIndent("", "  ")
+	_ = enc.Encode(viewSetJSON{
+		Aontu:   subsumeProducerJSON{Verb: "view", Version: aontu.VERSION},
+		Errors:  report.Errors,
+		Verdict: report.Verdict,
+		Views:   report.Views,
+	})
+	return strings.TrimSuffix(buf.String(), "\n")
 }
 
 // One line per code: the code, the count, and the detail if any.

@@ -86,6 +86,17 @@ type ViewOptions struct {
 
 	Profile string
 	Docs    []ViewDoc
+
+	// Out is the file the figure belongs in. THE LIBRARY NEVER WRITES:
+	// this is carried through to the caller, which does -- and, for a
+	// view document, only once every figure of the set rendered.
+	Out string
+
+	// Views is the VIEW DOCUMENT's declarations (VIEWS.0.md, "6. The
+	// view document"): the path of a map whose values declare figures.
+	// ViewSet reads it; View ignores it, because one call draws one
+	// figure.
+	Views string
 }
 
 // viewKinds lists each kind's profiles, the first being its default.
@@ -2096,40 +2107,62 @@ func (a *Aontu) View(src string, opts *ViewOptions) ViewReport {
 	if nil != errs {
 		return done("", errs)
 	}
+	return done(a.drawLoaded(root, ctx, nil, prov, kind, as, &options, max, &loss))
+}
 
+// viewGen boxes a generated value, so a caller that already holds one
+// (a view document reads its declarations out of one) hands it over
+// rather than generating again. See drawLoaded in ts/src/view.ts.
+type viewGen struct {
+	value any
+}
+
+// drawLoaded is THE KINDS THAT DRAW FROM A LOADED MODEL, so a view
+// document can load once and draw N figures from the one evaluation.
+func (a *Aontu) drawLoaded(root Val, ctx *Ctx, gen *viewGen, prov *Provenance,
+	kind, as string, options *ViewOptions, max int, loss *[]ViewLoss) (string, []VetFinding) {
 	if "layers" == kind {
-		return done(drawLayers(prov, root, a.File, options.At, options.MinSize, options.MaxCols, as, max, &loss))
+		return drawLayers(prov, root, a.File, options.At, options.MinSize, options.MaxCols, as, max, loss)
 	}
 	if "sets" == kind {
 		if "" == options.Sets || "" == options.Member {
-			return done("", []VetFinding{viewFinding("view_sets_required", "reference", "$",
-				"The set panel needs --sets and --member.", "")})
+			return "", []VetFinding{viewFinding("view_sets_required", "reference", "$",
+				"The set panel needs --sets and --member.", "")}
 		}
-		gen, gerr := root.Gen(ctx)
-		if nil != gerr {
-			return done("", queryFailed(gerr, "$").Findings)
+		var value any
+		if nil == gen {
+			// GENERATION CAN FAIL WHERE UNIFICATION DID NOT: the panel
+			// reads generated values, so a document that is not concrete
+			// is an error here, exactly as `aontu file.aon` on it is.
+			v, gerr := root.Gen(ctx)
+			if nil != gerr {
+				return "", queryFailed(gerr, "$").Findings
+			}
+			value = v
+		} else {
+			value = gen.value
 		}
-		return done(drawSets(gen, options.Sets, options.Member, options.Universe,
-			options.MinDegree, options.MaxCols, as, max, &loss))
+		return drawSets(value, options.Sets, options.Member, options.Universe,
+			options.MinDegree, options.MaxCols, as, max, loss)
 	}
 
-	triples := viewTriples(GraphOf(root).Edges, options.At, &loss)
+	triples := viewTriples(GraphOf(root).Edges, options.At, loss)
 	decls := ctx.reldecls
 	if "matrix" == kind {
 		order := options.Order
 		if "" == order {
 			order = "canon"
 		}
-		return done(drawMatrix(triples, decls, options.Relation, order, options.Closure, as, max, &loss))
+		return drawMatrix(triples, decls, options.Relation, order, options.Closure, as, max, loss)
 	}
 	if "graph" == kind {
-		return done(drawGraph(triples, decls, root, options.Relations,
-			options.GroupBy, options.Label, as, max, &loss))
+		return drawGraph(triples, decls, root, options.Relations,
+			options.GroupBy, options.Label, as, max, loss)
 	}
 	if "layer" == kind {
-		return done(drawLayer(triples, root, options.Relation, options.GroupBy, options.Layers, as, max, &loss))
+		return drawLayer(triples, root, options.Relation, options.GroupBy, options.Layers, as, max, loss)
 	}
-	return done(drawTree(collapseEdges(triples, options.Relation), options.Relation, options.Roots, max, as))
+	return drawTree(collapseEdges(triples, options.Relation), options.Relation, options.Roots, max, as)
 }
 
 // ViewTree is the tree view of one document: View with the kind fixed.

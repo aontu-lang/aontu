@@ -3,6 +3,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.view = view;
 exports.viewTree = viewTree;
+exports.viewSet = viewSet;
 // THE VIEWS (docs/design/VIEWS.0.md and VIEWS-ORDER.0.md): figures of
 // an evaluated document, drawn as deterministic text a golden diff can
 // check. Seven kinds:
@@ -1625,32 +1626,43 @@ function view(src, opts, hooks) {
     if (undefined !== loaded.errors) {
         return done({ errors: loaded.errors });
     }
-    const root = loaded.root;
-    const ctx = loaded.ctx;
+    return done(drawLoaded(loaded.root, loaded.ctx, undefined, prov, kind, as, options, max, loss));
+}
+// THE KINDS THAT DRAW FROM A LOADED MODEL, so a view document can load
+// once and draw N figures from the one evaluation. `gen` is the
+// generated value where the caller already holds it -- a view document
+// reads its own declarations out of one -- and undefined where the set
+// panel must generate its own. It is a BOX rather than the value, so
+// that a document generating `undefined` is still a value the panel
+// has rather than one it must recompute.
+function drawLoaded(root, ctx, gen, prov, kind, as, options, max, loss) {
     if ('layers' === kind) {
-        return done(drawLayers(prov, root, options.path, { ...options, as }, max, loss));
+        return drawLayers(prov, root, options.path, { ...options, as }, max, loss);
     }
     if ('sets' === kind) {
         if (undefined === options.sets || undefined === options.member) {
-            return done({
+            return {
                 errors: [finding('view_sets_required', 'reference', '$', 'The set panel needs --sets and --member.')],
-            });
+            };
         }
-        // GENERATION CAN FAIL WHERE UNIFICATION DID NOT: the panel reads
-        // generated values, so a document that is not concrete is an
-        // error here, exactly as `aontu file.aon` on it is.
-        const before = ctx.err.length;
-        const gen = root.gen(ctx);
-        if (before < ctx.err.length) {
-            const err = ctx.err[before];
-            return done({
-                errors: [finding(err?.why ?? 'unify_failed', 'reference', '$', err?.msg ?? 'The document does not generate.')],
-            });
+        let value = gen?.value;
+        if (undefined === gen) {
+            // GENERATION CAN FAIL WHERE UNIFICATION DID NOT: the panel reads
+            // generated values, so a document that is not concrete is an
+            // error here, exactly as `aontu file.aon` on it is.
+            const before = ctx.err.length;
+            value = root.gen(ctx);
+            if (before < ctx.err.length) {
+                const err = ctx.err[before];
+                return {
+                    errors: [finding(err?.why ?? 'unify_failed', 'reference', '$', err?.msg ?? 'The document does not generate.')],
+                };
+            }
         }
-        return done(drawSets(gen, {
+        return drawSets(value, {
             sets: options.sets, member: options.member, universe: options.universe,
             minDegree: options.minDegree, maxCols: options.maxCols, as,
-        }, max, loss));
+        }, max, loss);
     }
     const triples = triplesOf((0, graph_1.graphOf)(root).edges, options.at, loss);
     const decls = ctx._reldecls;
@@ -1658,24 +1670,214 @@ function view(src, opts, hooks) {
     // "every relation" rather than one that names nothing.
     const relation = options.relation || undefined;
     if ('matrix' === kind) {
-        return done(drawMatrix(triples, decls, {
+        return drawMatrix(triples, decls, {
             relation, order: options.order ?? 'canon', closure: true === options.closure,
             as,
-        }, max, loss));
+        }, max, loss);
     }
     if ('graph' === kind) {
-        return done(drawGraph(triples, decls, root, {
+        return drawGraph(triples, decls, root, {
             relations: options.relations ?? [], groupBy: options.groupBy,
             label: options.label, as,
-        }, max, loss));
+        }, max, loss);
     }
     if ('layer' === kind) {
-        return done(drawLayer(triples, root, { relation, groupBy: options.groupBy, layers: options.layers ?? [], as }, max, loss));
+        return drawLayer(triples, root, { relation, groupBy: options.groupBy, layers: options.layers ?? [], as }, max, loss);
     }
-    return done(drawTree(collapse(triples, relation), relation, options.roots ?? [], max, as));
+    return drawTree(collapse(triples, relation), relation, options.roots ?? [], max, as);
 }
 // The tree view of one document: `view` with the kind fixed.
 function viewTree(src, opts) {
     return view(src, { ...(opts ?? {}), kind: 'tree' });
+}
+// ---------------------------------------------------------------------
+// The view document (VIEWS.0.md, "6. The view document")
+//
+// A projection that runs in CI belongs in a file. A view document is an
+// ORDINARY document that includes the model and declares its figures as
+// data; `views` is the AUTHOR's key and nothing here knows the name
+// (ADR-010), which is why `--views` names the path.
+//
+// The declaration keys ARE the library's option names, which are the
+// CLI's flag names without the dashes: one vocabulary, three doors. A
+// declaration must name its `kind` and its `out` -- a figure in a file
+// that a review reads should say what it draws and where it goes,
+// rather than inheriting a default from whoever ran the verb.
+const DECL_TEXT = [
+    'kind', 'as', 'out', 'at', 'relation', 'order', 'groupBy', 'label',
+    'sets', 'member', 'universe',
+];
+const DECL_COUNT = ['maxRows', 'maxCols', 'minDegree', 'minSize'];
+const DECL_FLAG = ['closure'];
+const DECL_LIST = ['roots', 'relations', 'layers'];
+const DECL_KEYS = [...DECL_TEXT, ...DECL_COUNT, ...DECL_FLAG, ...DECL_LIST]
+    .sort(keyorder_1.cmpCodePoint);
+function documentFinding(path, message, note) {
+    return finding('view_document_shape', 'reference', path, message, note);
+}
+function planOf(name, decl, at) {
+    const where = `${at}.${name}`;
+    const errors = [];
+    if (null == decl || 'object' !== typeof decl || Array.isArray(decl)) {
+        return { errors: [documentFinding(where, 'A view declaration is not a map.')] };
+    }
+    const opts = {};
+    for (const key of Object.keys(decl).sort(keyorder_1.cmpCodePoint)) {
+        const value = decl[key];
+        if (DECL_TEXT.includes(key)) {
+            if ('string' !== typeof value) {
+                errors.push(documentFinding(`${where}.${key}`, `${key} must be a string.`));
+                continue;
+            }
+            opts[key] = value;
+        }
+        else if (DECL_COUNT.includes(key)) {
+            if ('number' !== typeof value || !Number.isInteger(value) || 0 > value) {
+                errors.push(documentFinding(`${where}.${key}`, `${key} must be a whole number, zero or more.`));
+                continue;
+            }
+            opts[key] = value;
+        }
+        else if (DECL_FLAG.includes(key)) {
+            if ('boolean' !== typeof value) {
+                errors.push(documentFinding(`${where}.${key}`, `${key} must be true or false.`));
+                continue;
+            }
+            opts[key] = value;
+        }
+        else if (DECL_LIST.includes(key)) {
+            if (!Array.isArray(value) || !allStrings(value)) {
+                errors.push(documentFinding(`${where}.${key}`, `${key} must be a list of strings.`));
+                continue;
+            }
+            opts[key] = value;
+        }
+        else {
+            errors.push(documentFinding(`${where}.${key}`, `${key} is not a view option.`, 'options: ' + DECL_KEYS.join(', ')));
+        }
+    }
+    const kind = opts.kind;
+    if (undefined === kind) {
+        errors.push(documentFinding(where, 'A view declaration must name its kind.', 'kinds: ' + Object.keys(PROFILES).join(', ')));
+    }
+    else if (undefined === PROFILES[kind]) {
+        errors.push(documentFinding(`${where}.kind`, `${kind} is not a figure kind.`, 'kinds: ' + Object.keys(PROFILES).join(', ')));
+    }
+    else if ('poset' === kind) {
+        // The poset is an order over SEVERAL documents, and a view document
+        // declares figures of the one it includes. `aontu view poset` draws
+        // it, naming the documents on the command line.
+        errors.push(documentFinding(`${where}.kind`, 'A view document draws figures of one document; ' +
+            'the poset compares several.'));
+    }
+    const profiles = undefined === kind ? undefined : PROFILES[kind];
+    const as = opts.as ?? profiles?.[0];
+    if (undefined !== profiles && undefined !== as && !profiles.includes(as)) {
+        errors.push(documentFinding(`${where}.as`, `The ${kind} figure does not render as ${as}.`, `profiles: ${profiles.join(', ')}`));
+    }
+    const out = opts.out;
+    if (undefined === out || '' === out) {
+        errors.push(documentFinding(where, 'A view declaration must name the file it draws into, as out.'));
+    }
+    else if (hasLineBreak(out)) {
+        errors.push(documentFinding(`${where}.out`, 'A file name cannot hold a line terminator.'));
+    }
+    if (0 < errors.length) {
+        return { errors };
+    }
+    return {
+        plan: {
+            name, kind: kind, as: as, out: out,
+            max: opts.maxRows || DEFAULT_MAX_ROWS, opts,
+        },
+        errors: [],
+    };
+}
+// N FIGURES OF ONE DOCUMENT. The document is evaluated ONCE, with the
+// provenance recorder on, and every figure but the ladder draws from
+// that one root; the ladder re-runs `why` by construction.
+//
+// The caller writes the files, and only when the whole set rendered:
+// N figures of one model are only meaningful together, so a set whose
+// third figure refuses must not leave the first two on disk.
+function viewSet(src, opts, hooks) {
+    const options = opts ?? {};
+    const at = options.views;
+    if (undefined === at || '' === at) {
+        return {
+            verdict: 'error', views: [],
+            errors: [documentFinding('$', 'The view document needs the path of ' +
+                    'the map that declares the figures; name it with --views.')],
+        };
+    }
+    // ONE EVALUATION, and it is INSTRUMENTED: the layers panel reads the
+    // provenance record, which is written during unification, so a set
+    // that declares one would otherwise need a second run. Recording it
+    // always costs a little and makes the one-evaluation claim true for
+    // every kind but the ladder, which re-runs `why` by construction.
+    const prov = (hooks?.provenance ?? (() => new provenance_1.Provenance()))();
+    const loaded = load(src, options.path, options.trust, prov);
+    if (undefined !== loaded.errors) {
+        return { verdict: 'error', views: [], errors: loaded.errors };
+    }
+    const root = loaded.root;
+    const ctx = loaded.ctx;
+    // The declarations are part of the document, so reading them
+    // generates it -- and a view document that does not generate has no
+    // figures, exactly as `aontu file.aon` on it has no output.
+    const before = ctx.err.length;
+    const value = root.gen(ctx);
+    if (before < ctx.err.length) {
+        const err = ctx.err[before];
+        return {
+            verdict: 'error', views: [],
+            errors: [finding(err?.why ?? 'unify_failed', 'reference', '$', err?.msg ?? 'The document does not generate.')],
+        };
+    }
+    const declared = genAt(value, at);
+    if (null == declared || 'object' !== typeof declared || Array.isArray(declared)) {
+        return {
+            verdict: 'error', views: [],
+            errors: [documentFinding(at, 'The view declarations are not a map.')],
+        };
+    }
+    const plans = [];
+    const errors = [];
+    for (const name of Object.keys(declared).sort(keyorder_1.cmpCodePoint)) {
+        const planned = planOf(name, declared[name], at);
+        errors.push(...planned.errors);
+        if (undefined !== planned.plan) {
+            plans.push(planned.plan);
+        }
+    }
+    if (0 < errors.length) {
+        return { verdict: 'error', views: [], errors };
+    }
+    const gen = { value };
+    const views = plans.map((plan) => {
+        const loss = [];
+        const each = {
+            ...plan.opts, path: options.path, trust: options.trust,
+        };
+        const fig = 'ladder' === plan.kind
+            ? drawLadder(src, each, plan.as, plan.max)
+            : drawLoaded(root, ctx, gen, prov, plan.kind, plan.as, each, plan.max, loss);
+        if (undefined !== fig.errors) {
+            return {
+                name: plan.name, kind: plan.kind, out: plan.out,
+                verdict: 'error', loss: [], errors: fig.errors,
+            };
+        }
+        loss.sort((a, b) => (0, keyorder_1.cmpCodePoint)(a.code, b.code));
+        const lossy = loss.some((l) => !INFORMATIONAL.includes(l.code));
+        return {
+            name: plan.name, kind: plan.kind, out: plan.out,
+            verdict: (lossy ? 'lossy' : 'rendered'),
+            text: fig.text, loss,
+        };
+    });
+    const verdict = views.some((v) => 'error' === v.verdict)
+        ? 'error' : views.some((v) => 'lossy' === v.verdict) ? 'lossy' : 'rendered';
+    return { verdict, views };
 }
 //# sourceMappingURL=view.js.map

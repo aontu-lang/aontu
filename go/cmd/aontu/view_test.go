@@ -266,3 +266,148 @@ func TestViewKindsAndTheFlagsAroundTheFigure(t *testing.T) {
 		t.Fatalf("poset = %d: %q", code, stdout)
 	}
 }
+
+// THE VIEW DOCUMENT: N figures of one document, declared as data. What
+// the declarations MEAN, and every refusal, is test/spec/views.tsv;
+// this is the CLI around them -- where the files land, the gate, and
+// the all-or-nothing rule. The TypeScript twin is
+// `view-document-draws-every-figure-it-declares` in ts/test/cli.test.ts.
+func TestViewDocumentDrawsEveryFigureItDeclares(t *testing.T) {
+	dir := t.TempDir()
+	write := func(name, src string) string {
+		file := filepath.Join(dir, name)
+		if err := os.WriteFile(file, []byte(src), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		return file
+	}
+	write("model.aon", "app: {layer: \"app\", dependsOn: [&: refer(), path($.core)]}\ncore: {layer: \"core\"}\n")
+	file := write("views.aon", "@\"./model.aon\"\nviews: {\n"+
+		"  tree: {kind: tree, out: \"out/tree.txt\"}\n"+
+		"  bands: {kind: layer, groupBy: layer, out: \"out/bands.txt\"}\n}\n")
+	if err := os.Mkdir(filepath.Join(dir, "out"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	// EVERY FIGURE, AND THE FILES ARE THE DOCUMENT'S NEIGHBOURS: an
+	// `out` is resolved against the view document's own directory, so
+	// the gate passes from any working directory.
+	out, errs, code := viewRun("--views", "$.views", "--trust", "root", file)
+	if 0 != code || "" != out || !strings.Contains(errs, "wrote out/bands.txt  bands (layer)") {
+		t.Fatalf("draw = %d %q %q", code, out, errs)
+	}
+	drawn, _ := os.ReadFile(filepath.Join(dir, "out", "tree.txt"))
+	if "app\n└── core\n" != string(drawn) {
+		t.Fatalf("tree = %q", drawn)
+	}
+
+	// --check gates what was committed, and names every difference.
+	if _, errs, code = viewRun("--views", "$.views", "--check", "--trust", "root", file); 0 != code || "" != errs {
+		t.Fatalf("check = %d %q", code, errs)
+	}
+	write("out/tree.txt", "drifted\n")
+	write("out/bands.txt", "drifted\n")
+	_, errs, code = viewRun("--views", "$.views", "--check", "--trust", "root", file)
+	if 1 != code || !strings.Contains(errs, "out/tree.txt differs from the tree figure") ||
+		!strings.Contains(errs, "out/bands.txt differs from the bands figure") {
+		t.Fatalf("gate = %d %q", code, errs)
+	}
+
+	// The whole report, machine-readable.
+	out, _, code = viewRun("--views", "$.views", "--format", "json", "--trust", "root", file)
+	var report struct {
+		Verdict string `json:"verdict"`
+		Views   []struct {
+			Name string `json:"name"`
+			Out  string `json:"out"`
+		} `json:"views"`
+	}
+	if err := json.Unmarshal([]byte(out), &report); nil != err {
+		t.Fatalf("json: %v %q", err, out)
+	}
+	if 0 != code || "rendered" != report.Verdict || 2 != len(report.Views) ||
+		"bands" != report.Views[0].Name || "out/tree.txt" != report.Views[1].Out {
+		t.Fatalf("json report = %d %+v", code, report)
+	}
+
+	// ALL OR NOTHING: a set whose second figure refuses writes neither,
+	// and the refusal names the figure it came from.
+	bad := write("bad.aon", "@\"./model.aon\"\nviews: {\n"+
+		"  tree: {kind: tree, out: \"out/nope.txt\"}\n"+
+		"  small: {kind: tree, maxRows: 1, out: \"out/small.txt\"}\n}\n")
+	_, errs, code = viewRun("--views", "$.views", "--trust", "root", bad)
+	if 2 != code || !strings.Contains(errs, "small (tree):") ||
+		!strings.Contains(errs, "view_rows_exceeded") {
+		t.Fatalf("refused = %d %q", code, errs)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "out", "nope.txt")); !os.IsNotExist(err) {
+		t.Fatalf("a refused set left a figure on disk")
+	}
+
+	// A LOSSY set still writes -- the loss report says what it could not
+	// draw, and --strict is the gate on that.
+	lossy := write("lossy.aon", "a: hide({dependsOn: [&: refer(), path($.b)]})\nb: {}\n"+
+		"views: {t: {kind: tree, out: \"out/lossy.txt\"}}\n")
+	if _, errs, code = viewRun("--views", "$.views", lossy); 0 != code ||
+		!strings.Contains(errs, "t  hidden_contribution  1") {
+		t.Fatalf("lossy = %d %q", code, errs)
+	}
+	if _, _, code = viewRun("--views", "$.views", "--strict", lossy); 1 != code {
+		t.Fatalf("strict = %d", code)
+	}
+
+	// A declaration the document cannot answer for is the SET's refusal,
+	// and usage: nothing is drawn at all.
+	shape := write("shape.aon", "views: {a: {kind: tree}}\n")
+	if _, errs, code = viewRun("--views", "$.views", shape); 2 != code ||
+		!strings.Contains(errs, "view_document_shape") {
+		t.Fatalf("shape = %d %q", code, errs)
+	}
+
+	// A figure that refuses for the DOCUMENT's sake rather than the
+	// caller's exits 4, as a single figure does.
+	unknown := write("unknown.aon", "@\"./model.aon\"\n"+
+		"views: {a: {kind: tree, relation: nope, out: \"out/a.txt\"}}\n")
+	if _, errs, code = viewRun("--views", "$.views", "--trust", "root", unknown); 4 != code ||
+		!strings.Contains(errs, "view_relation_unknown") {
+		t.Fatalf("unknown relation = %d %q", code, errs)
+	}
+}
+
+func TestViewDocumentUsageErrors(t *testing.T) {
+	dir := t.TempDir()
+	file := filepath.Join(dir, "views.aon")
+	if err := os.WriteFile(file,
+		[]byte("views: {a: {kind: tree, out: \"a.txt\"}}\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct {
+		args []string
+		want string
+	}{
+		{[]string{"--views", "$.views"}, "view --views takes one file"},
+		{[]string{"--views", "$.views", file, file}, "view --views takes one file"},
+		{[]string{"--views", "$.views", "--out", "x.txt", file},
+			"--out is per figure in a view document"},
+		{[]string{"--views", "$.views", filepath.Join(dir, "nope.aon")}, "cannot read"},
+	} {
+		if _, errs, code := viewRun(c.args...); 2 != code || !strings.Contains(errs, c.want) {
+			t.Fatalf("%v = %d %q, want %q", c.args, code, errs, c.want)
+		}
+	}
+
+	// A DIRECTORY IS NOT A FILE: the write fails and says so, rather
+	// than leaving the set half-written.
+	blocked := filepath.Join(dir, "blocked.aon")
+	if err := os.WriteFile(blocked,
+		[]byte("views: {a: {kind: tree, out: \"sub\"}}\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(filepath.Join(dir, "sub"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if _, errs, code := viewRun("--views", "$.views", blocked); 2 != code ||
+		!strings.Contains(errs, "cannot write") {
+		t.Fatalf("blocked = %d %q", code, errs)
+	}
+}

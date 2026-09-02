@@ -80,6 +80,7 @@ var hints = map[string]string{
 	"view_sets_required":       "The set panel needs both --sets (the map whose keys are the sets) and\n--member (the field holding each set's members).",
 	"view_at_required":         "The meet ladder draws the contributions at ONE path, and none was\nnamed. Pass --at with the path, as `aontu why` takes it.",
 	"view_group_required":      "The layer diagram puts each node in the band its --group-by field\nnames, and no field was named. Pass --group-by with the field that\nholds each node's layer.",
+	"view_document_shape":      "A view document declares each figure as a map of view options --\nthe flag names without the dashes -- and every declaration must name\nits `kind` and the `out` file it draws into. This one names an option\nthat is not one, gives a value of the wrong shape, or leaves out what\nevery declaration needs. `aontu view --help` lists the options.",
 	"func_arity":               "This function was called with the wrong number of arguments:\n{func} takes {want}, but was given {got}.\n \nExamples:\n  upper(\"a\")     -> \"A\"  # One argument, which is what upper takes;\n  upper(\"a\",\"b\") -> nil  # ... so two is a mistake in the source;\n  key()          -> \"\"   # key takes none, or one level count;\n  neq(1,2,3)     -> neq  # ... and neq takes one or more exclusions.",
 	"elided_value":             "A key or element was written with no value after the colon. An\nelided value is a mistake in the source rather than a null: write\n`null` if that is what was meant, or supply the value.\n \nExamples:\n  a:null  -> null  # An explicit null, which is a value;\n  a:      -> nil   # ... but nothing at all is not;\n  a: b:1  -> {..}  # A colon chain is not an elision;\n  [1,]    -> [1]   # ... nor is a trailing comma.",
 	"unify_no_src":             "No source provided for unification. Cannot unify without source values.",
@@ -237,6 +238,7 @@ var codeClasses = map[string]string{
 	"view_sets_required":      "reference",
 	"view_at_required":        "reference",
 	"view_group_required":     "reference",
+	"view_document_shape":     "reference",
 
 	// G4 phase 5 -- the relation graph checks. Class conflict: the model
 	// contradicts a property it declared for itself. Report-layer, so no
