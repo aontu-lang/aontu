@@ -1501,6 +1501,13 @@ Each refusal names the measurement or the rule that decided it.
   suite. It is a phase of its own, after two text kinds have proved the
   figure.
 
+  *Status: BUILT (2026-09-02), as `--as svg` on the cell-based kinds
+  (`tree`, `matrix`, `layer`, `sets`, `layers`) in both ports. Text
+  is not measured: a character is 8 units and a line 20, so every
+  coordinate is an integer from the counts that lay the text figure
+  out, and the shared suite pins the bytes. The escape table has four
+  entries. The node-link kinds stay Mermaid and DOT.*
+
 - **No `why` diagram.** VERIFIED: `aontu why
   '$.deploy.regions.eu1.clusters.core.workloads.payments.replicas'
   system.aon` returns TWO conjuncts, and the existing text output is

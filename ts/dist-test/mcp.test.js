@@ -411,7 +411,13 @@ function hostileModule(dir) {
         // A kind the verb does not draw, or a profile it does not render
         // into, is a call that could not be made.
         Assert.equal((0, mcp_1.callTool)('view', { source: doc, kind: 'poset' }).isError, true);
-        Assert.equal((0, mcp_1.callTool)('view', { source: doc, as: 'svg' }).isError, true);
+        Assert.equal((0, mcp_1.callTool)('view', { source: doc, as: 'png' }).isError, true);
+        const dot = payload((0, mcp_1.callTool)('view', { source: doc, as: 'dot' }));
+        Assert.equal(dot.verdict, 'error');
+        Assert.equal((dot.errors ?? dot.findings)[0].code, 'view_profile_unknown');
+        // The tree as SVG, through the tool: the figure is the bytes the
+        // CLI writes, and the shared rows pin them.
+        Assert.match(payload((0, mcp_1.callTool)('view', { source: doc, relation: 'dependsOn', as: 'svg' })).text, /^<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg" class="av" /);
         // EVERY OTHER KIND, through the tool, with every option named: the
         // figures themselves are test/spec/view.tsv's business.
         const matrix = payload((0, mcp_1.callTool)('view', {

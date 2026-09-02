@@ -1073,7 +1073,7 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
             [['tree', file, file], /view tree takes one file/],
             [['bogus', file], /unknown view kind bogus/],
             [['tree', '--bogus', file], /unknown view option --bogus/],
-            [['tree', '--as', 'svg', file], /--as needs one of text, mermaid, dot, er/],
+            [['tree', '--as', 'png', file], /--as needs one of text, mermaid, dot, er, svg/],
             [['tree', '--as', 'dot', file], /view_profile_unknown/],
             [['matrix', '--order', 'random', file], /--order needs canon or partition/],
             [['poset', '--profile', 'loose', file], /--profile needs values, defaults or gen/],

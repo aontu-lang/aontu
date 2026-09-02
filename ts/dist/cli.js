@@ -179,11 +179,11 @@ View kinds: tree, matrix, graph, layer, sets, layers, ladder, poset
 report to stderr.
 
 View options:
-  --as <profile>    text | mermaid | dot | er, per kind: tree, matrix,
-                    sets and layers draw text; graph draws mermaid
-                    (default), dot or er; layer draws text (default)
-                    or mermaid; ladder and poset draw mermaid
-                    (default) or dot
+  --as <profile>    text | mermaid | dot | er | svg, per kind: tree,
+                    matrix, sets and layers draw text (default) or
+                    svg; graph draws mermaid (default), dot or er;
+                    layer draws text (default), mermaid or svg; ladder
+                    and poset draw mermaid (default) or dot
   --at <path>       Restrict the figure to nodes under this path; the
                     path the ladder draws; where the poset compares
   -o, --out <file>  Write the figure here instead of stdout
@@ -1467,7 +1467,7 @@ const REACHES_EXIT = {
 };
 const VIEW_HELP = 'aontu view <kind> [options] <file>... (try --help)';
 const VIEW_KINDS = ['tree', 'matrix', 'graph', 'layer', 'sets', 'layers', 'ladder', 'poset'];
-const VIEW_PROFILES = ['text', 'mermaid', 'dot', 'er'];
+const VIEW_PROFILES = ['text', 'mermaid', 'dot', 'er', 'svg'];
 // The figure was drawn (0, `lossy` included: the loss report says
 // what it could not draw, and --strict is the gate on that), or the
 // document could not be drawn (4). An EMPTY figure is a drawing, not

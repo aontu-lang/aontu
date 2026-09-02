@@ -114,6 +114,9 @@ ok "reaches --relation dependsOn: downstream yes, upstream no"
 # nothing depends on them -- which the renderer DERIVES from the edge
 # set rather than being told.
 view diagram-tree.txt tree --relation dependsOn "$DIR/model.aon"
+# The same rows as SVG: the same integer grid, drawn -- so the figure
+# the site shows is the figure the gate pins.
+view diagram-tree.svg tree --relation dependsOn --as svg "$DIR/model.aon"
 [ "$(grep -c '(\*)' "$WORK/diagram-tree.txt")" -eq 9 ] \
   || fail "expected nine elided repeats in the tree"
 [ "$(grep -cE '^[a-z]' "$WORK/diagram-tree.txt")" -eq 3 ] \
@@ -142,6 +145,12 @@ ok "tree --root: a node that does not exist refuses"
 # zero IS the acyclicity proof, in the picture's own shape.
 view diagram-matrix.txt matrix --relation dependsOn --order partition \
   --closure "$DIR/model.aon"
+view diagram-matrix.svg matrix --relation dependsOn --order partition \
+  --closure --as svg "$DIR/model.aon"
+# --check is the CI gate for a committed figure, SVG included.
+run svg-gate 0 -- view matrix --relation dependsOn --order partition \
+  --closure --as svg --out "$DIR/expected/diagram-matrix.svg" --check \
+  "$DIR/model.aon"
 ok "the dependency-structure matrix draws: twelve modules square"
 
 # 11b. THE ARCHITECTURE LAYERS, the drawing every layered codebase has
@@ -154,6 +163,8 @@ ok "the dependency-structure matrix draws: twelve modules square"
 # downward, 2 sideways, 0 upward` is the layering rule, counted.
 view diagram-layer.txt layer --relation dependsOn --group-by layer \
   "$DIR/model.aon"
+view diagram-layer.svg layer --relation dependsOn --group-by layer \
+  --as svg "$DIR/model.aon"
 has_golden() { grep -qF -- "$2" "$DIR/expected/$1" || fail "$1 lacks: $2"; }
 has_golden diagram-layer.txt '# dependsOn: 19 downward, 2 sideways, 0 upward'
 run layered 0 -- view layer --relation dependsOn --group-by layer \

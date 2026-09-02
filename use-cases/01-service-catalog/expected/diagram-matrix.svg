@@ -1,0 +1,100 @@
+<svg xmlns="http://www.w3.org/2000/svg" class="av" viewBox="0 0 268 212" width="268" height="212" role="img" aria-label="Dependency matrix over dependsOn: 8 rows, 0 direct cells above the diagonal">
+<style>.av{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px}.av-t{fill:var(--av-ink,#1f2328)}.av-m{fill:var(--av-muted,#6e7781)}.av-box{fill:var(--av-bg,#f6f8fa);stroke:var(--av-rule,#8c959f);stroke-width:1}.av-cell{fill:var(--av-bg,#f6f8fa);stroke:var(--av-rule-faint,#d0d7de);stroke-width:1}.av-direct{fill:var(--av-ink,#1f2328);stroke:var(--av-rule-faint,#d0d7de);stroke-width:1}.av-closure{fill:var(--av-closure,#9ec5fe);stroke:var(--av-rule-faint,#d0d7de);stroke-width:1}.av-unmirrored{fill:var(--av-warn,#e3b341);stroke:var(--av-rule-faint,#d0d7de);stroke-width:1}.av-line{stroke:var(--av-rule,#8c959f);stroke-width:1;fill:none}.av-up{stroke:var(--av-alert,#d1242f);stroke-width:1.5;fill:none;stroke-dasharray:4 3}.av-dot{fill:var(--av-ink,#1f2328)}.av-hole{fill:var(--av-bg,#f6f8fa);stroke:var(--av-rule-faint,#d0d7de);stroke-width:1}.av-bar{fill:var(--av-bar,#57606a)}</style>
+<text x="106" y="14" class="av-m" text-anchor="middle">1</text>
+<text x="126" y="14" class="av-m" text-anchor="middle">2</text>
+<text x="146" y="14" class="av-m" text-anchor="middle">3</text>
+<text x="166" y="14" class="av-m" text-anchor="middle">4</text>
+<text x="186" y="14" class="av-m" text-anchor="middle">5</text>
+<text x="206" y="14" class="av-m" text-anchor="middle">6</text>
+<text x="226" y="14" class="av-m" text-anchor="middle">7</text>
+<text x="246" y="14" class="av-m" text-anchor="middle">8</text>
+<text x="4" y="38" class="av-t">directory</text>
+<text x="88" y="38" class="av-m" text-anchor="end">1</text>
+<rect x="96" y="24" width="20" height="20" class="av-cell"/>
+<path d="M96 24L116 44" class="av-line"/>
+<rect x="116" y="24" width="20" height="20" class="av-cell"/>
+<rect x="136" y="24" width="20" height="20" class="av-cell"/>
+<rect x="156" y="24" width="20" height="20" class="av-cell"/>
+<rect x="176" y="24" width="20" height="20" class="av-cell"/>
+<rect x="196" y="24" width="20" height="20" class="av-cell"/>
+<rect x="216" y="24" width="20" height="20" class="av-cell"/>
+<rect x="236" y="24" width="20" height="20" class="av-cell"/>
+<text x="4" y="58" class="av-t">email</text>
+<text x="88" y="58" class="av-m" text-anchor="end">2</text>
+<rect x="96" y="44" width="20" height="20" class="av-cell"/>
+<rect x="116" y="44" width="20" height="20" class="av-cell"/>
+<path d="M116 44L136 64" class="av-line"/>
+<rect x="136" y="44" width="20" height="20" class="av-cell"/>
+<rect x="156" y="44" width="20" height="20" class="av-cell"/>
+<rect x="176" y="44" width="20" height="20" class="av-cell"/>
+<rect x="196" y="44" width="20" height="20" class="av-cell"/>
+<rect x="216" y="44" width="20" height="20" class="av-cell"/>
+<rect x="236" y="44" width="20" height="20" class="av-cell"/>
+<text x="4" y="78" class="av-t">ledger</text>
+<text x="88" y="78" class="av-m" text-anchor="end">3</text>
+<rect x="96" y="64" width="20" height="20" class="av-cell"/>
+<rect x="116" y="64" width="20" height="20" class="av-cell"/>
+<rect x="136" y="64" width="20" height="20" class="av-cell"/>
+<path d="M136 64L156 84" class="av-line"/>
+<rect x="156" y="64" width="20" height="20" class="av-cell"/>
+<rect x="176" y="64" width="20" height="20" class="av-cell"/>
+<rect x="196" y="64" width="20" height="20" class="av-cell"/>
+<rect x="216" y="64" width="20" height="20" class="av-cell"/>
+<rect x="236" y="64" width="20" height="20" class="av-cell"/>
+<text x="4" y="98" class="av-t">auth</text>
+<text x="88" y="98" class="av-m" text-anchor="end">4</text>
+<rect x="96" y="84" width="20" height="20" class="av-direct"/>
+<rect x="116" y="84" width="20" height="20" class="av-cell"/>
+<rect x="136" y="84" width="20" height="20" class="av-cell"/>
+<rect x="156" y="84" width="20" height="20" class="av-cell"/>
+<path d="M156 84L176 104" class="av-line"/>
+<rect x="176" y="84" width="20" height="20" class="av-cell"/>
+<rect x="196" y="84" width="20" height="20" class="av-cell"/>
+<rect x="216" y="84" width="20" height="20" class="av-cell"/>
+<rect x="236" y="84" width="20" height="20" class="av-cell"/>
+<text x="4" y="118" class="av-t">notify</text>
+<text x="88" y="118" class="av-m" text-anchor="end">5</text>
+<rect x="96" y="104" width="20" height="20" class="av-cell"/>
+<rect x="116" y="104" width="20" height="20" class="av-direct"/>
+<rect x="136" y="104" width="20" height="20" class="av-cell"/>
+<rect x="156" y="104" width="20" height="20" class="av-cell"/>
+<rect x="176" y="104" width="20" height="20" class="av-cell"/>
+<path d="M176 104L196 124" class="av-line"/>
+<rect x="196" y="104" width="20" height="20" class="av-cell"/>
+<rect x="216" y="104" width="20" height="20" class="av-cell"/>
+<rect x="236" y="104" width="20" height="20" class="av-cell"/>
+<text x="4" y="138" class="av-t">risk</text>
+<text x="88" y="138" class="av-m" text-anchor="end">6</text>
+<rect x="96" y="124" width="20" height="20" class="av-direct"/>
+<rect x="116" y="124" width="20" height="20" class="av-cell"/>
+<rect x="136" y="124" width="20" height="20" class="av-cell"/>
+<rect x="156" y="124" width="20" height="20" class="av-cell"/>
+<rect x="176" y="124" width="20" height="20" class="av-cell"/>
+<rect x="196" y="124" width="20" height="20" class="av-cell"/>
+<path d="M196 124L216 144" class="av-line"/>
+<rect x="216" y="124" width="20" height="20" class="av-cell"/>
+<rect x="236" y="124" width="20" height="20" class="av-cell"/>
+<text x="4" y="158" class="av-t">payments</text>
+<text x="88" y="158" class="av-m" text-anchor="end">7</text>
+<rect x="96" y="144" width="20" height="20" class="av-closure"/>
+<rect x="116" y="144" width="20" height="20" class="av-closure"/>
+<rect x="136" y="144" width="20" height="20" class="av-direct"/>
+<rect x="156" y="144" width="20" height="20" class="av-direct"/>
+<rect x="176" y="144" width="20" height="20" class="av-direct"/>
+<rect x="196" y="144" width="20" height="20" class="av-direct"/>
+<rect x="216" y="144" width="20" height="20" class="av-cell"/>
+<path d="M216 144L236 164" class="av-line"/>
+<rect x="236" y="144" width="20" height="20" class="av-cell"/>
+<text x="4" y="178" class="av-t">gateway</text>
+<text x="88" y="178" class="av-m" text-anchor="end">8</text>
+<rect x="96" y="164" width="20" height="20" class="av-closure"/>
+<rect x="116" y="164" width="20" height="20" class="av-closure"/>
+<rect x="136" y="164" width="20" height="20" class="av-closure"/>
+<rect x="156" y="164" width="20" height="20" class="av-direct"/>
+<rect x="176" y="164" width="20" height="20" class="av-closure"/>
+<rect x="196" y="164" width="20" height="20" class="av-closure"/>
+<rect x="216" y="164" width="20" height="20" class="av-direct"/>
+<rect x="236" y="164" width="20" height="20" class="av-cell"/>
+<path d="M236 164L256 184" class="av-line"/>
+<text x="4" y="200" class="av-m"># above-diagonal direct cells: 0</text>
+</svg>

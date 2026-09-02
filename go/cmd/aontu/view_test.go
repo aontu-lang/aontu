@@ -135,7 +135,7 @@ func TestViewUsageErrors(t *testing.T) {
 		{[]string{"tree", file, file}, "view tree takes one file"},
 		{[]string{"bogus", file}, "unknown view kind bogus"},
 		{[]string{"tree", "--bogus", file}, "unknown view option --bogus"},
-		{[]string{"tree", "--as", "svg", file}, "--as needs one of text, mermaid, dot, er"},
+		{[]string{"tree", "--as", "png", file}, "--as needs one of text, mermaid, dot, er, svg"},
 		{[]string{"tree", "--as", "dot", file}, "view_profile_unknown"},
 		{[]string{"matrix", "--order", "random", file}, "--order needs canon or partition"},
 		{[]string{"poset", "--profile", "loose", file}, "--profile needs values, defaults or gen"},
