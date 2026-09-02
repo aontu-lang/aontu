@@ -431,11 +431,12 @@ spec: hide({Step: {label: string, then?: $.spec.Step}})
 doc: $.spec.Step
 ```
 
-and a `specific.aon` that pins `label` inside the same definition:
+and a `specific.aon` whose step recurses into a DIFFERENT definition:
 
 <!-- test: file specific.aon -->
 ```aontu
-spec: hide({Step: {label: "start", then?: $.spec.Step}})
+spec: hide({Step: {label: "start", then?: $.spec.Other},
+            Other: {label: string}})
 doc: $.spec.Step
 ```
 
@@ -447,13 +448,21 @@ verdict: undecided
 $.spec.Step.then: sub_unresolved [compat]
   no subsumption rule covers this pair of value formers
   expected: $.spec.Step
-  actual:   $.spec.Step
+  actual:   {"label":string}
   general: general.aon:1:42 ($.spec.Step)
-  specific: specific.aon:1:43 ($.spec.Step)
+  specific: specific.aon:2:20 ({"label":string})
 ...
 $ echo $?
 3
 ```
+
+**The same recursion on both sides is decided**, and decided by
+identity: a document that recurses, declares a relation or shares a
+template by reference admits itself, because two values with the same
+**hash form** are the same value. The rule runs only where the answer
+would otherwise be `undecided`, so it narrows nothing else — and
+without it a contract could not be gated against its own earlier
+version at all (`use-cases/BUGS.md` 64).
 
 This is the verdict [`breaking`](#aontu-breaking) fails on by
 default: a gate that cannot decide a recursive contract reports

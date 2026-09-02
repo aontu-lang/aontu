@@ -7,6 +7,30 @@ which implementation each change affects.
 
 ## Unreleased
 
+### Subsumption: reflexivity holds for a shared template, a relation and a recursion
+
+Both ports. **Correction** (use-cases/BUGS.md 64, and 28 before it).
+Three of the seven use-case entry documents did not subsume
+THEMSELVES: a spread template written as a reference (`{&: $.defs.F}`)
+or an alias (`{&: %F}`) folded to `sub_path_dependent_spread`, and a
+recursion, a relation declaration or a `refer()` target constraint
+fell past the subsumption ladder to `sub_unresolved` -- with
+byte-identical operands in the finding. Since `breaking` fails on
+`undecided`, gating a contract against its own earlier version needed
+`--allow-undecided`, which masks the genuine undecideds it exists to
+surface.
+
+REFLEXIVITY IS A LAW and identity is the HASH FORM, which
+`test/spec/subsume.tsv` already stated: both folds now answer
+`subsumes` when the two operands have the same hash form. A nil is the
+exception -- it is not a value, so it admits nothing, itself included
+-- and two DIFFERENT templates, relations or recursions still fold, so
+nothing decidable is swept up. The law runs only where the answer would
+otherwise be `undecided`, so the common path is untouched. All fifteen
+use-case entry documents now subsume themselves in both ports, and
+`use-cases/03-api-contract` gates its contract against itself without
+the escape hatch.
+
 ### `aontu view layer --edges`: the depends relation over the bands
 
 Both ports. **New option.** The layer figure drew the upward edges

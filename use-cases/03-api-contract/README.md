@@ -187,10 +187,13 @@ both spellings.
     is `verdict: breaking`, exit 1, with `compat_narrowed` on
     `PageSize` (`expected: integer&min(1)&max(50)`,
     `actual: integer&min(1)&max(100)`). The contract compared against
-    itself is `verdict: undecided`, exit 3: the
-    `[ &: $.entities.User ]` template is path-dependent and is not
-    compared structurally (`sub_path_dependent_spread`), and a gate
-    that accepts that answer passes `--allow-undecided`, exit 0.
+    itself is `verdict: compatible`, exit 0. It was `undecided` until
+    2026-09-02: the `[ &: $.entities.User ]` template is
+    path-dependent, and a path-dependent template was never compared
+    structurally, so a byte-identical document came back undecided and
+    the gate had to pass `--allow-undecided`. Two identical templates
+    are now the same template, by their hash form
+    (use-cases/BUGS.md 64).
 
 ## Running it
 

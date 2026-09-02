@@ -57,11 +57,14 @@ json-alias	gens	%json: null | boolean | number | string | [&: %json] | {&: %json
 canon-symbolic	canon	Node: hide({v: integer, next?: $.Node})\nt: $.Node & {v: 1, next: {v: 2}}	{"Node":{"next"?:$.Node,"v":integer},"t":{"next"?:{"next"?:$.Node,"v":2},"v":1}}
 hash-stable-under-data	hash	Node: hide({v: integer, next?: $.Node})	aon1-5xioH6h8iheHHF6KqorbFfM9BG5oWYLpIO6KldjKOL4
 #
-# --- Subsume: recursive schemas are not yet comparable ----------------
-# The residual is an unresolved value to the subsumption walk, and the
-# existing compat refusal locates it -- a stated "undecided", never a
-# loop (the seen-pair memo is its own phase).
-subsume-undecided	subsume	Node: hide({v: integer, next?: $.Node})	Node: hide({v: integer, next?: $.Node})	{"findings":[{"actual":"$.Node","class":"compat","code":"sub_unresolved","expected":"$.Node","path":"$.Node.next","severity":"error","sites":[{"col":32,"file":"general","len":1,"role":"general","row":1,"src":"$","value":"$.Node"},{"col":32,"file":"specific","len":1,"role":"specific","row":1,"src":"$","value":"$.Node"}]}],"verdict":"undecided"}
+# --- Subsume: a recursion is residue, and reflexivity is a law -----
+# The residual is an unresolved value to the subsumption walk, so two
+# DIFFERENT recursions are a stated "undecided", never a loop (the
+# seen-pair memo is its own phase). Two IDENTICAL ones are the
+# reflexivity law: every value admits itself, and identity is the hash
+# form (use-cases/BUGS.md 64).
+subsume-identical-recursion-is-reflexive	subsume	Node: hide({v: integer, next?: $.Node})	Node: hide({v: integer, next?: $.Node})	{"findings":[],"verdict":"subsumes"}
+subsume-different-recursions-are-undecided	subsume	Node: hide({v: integer, next?: $.Node})	Node: hide({v: integer, next?: $.Other})\nOther: hide({v: integer, next?: $.Other})	{"findings":[{"actual":"$.Other","class":"compat","code":"sub_unresolved","expected":"$.Node","path":"$.Node.next","severity":"error","sites":[{"col":32,"file":"general","len":1,"role":"general","row":1,"src":"$","value":"$.Node"},{"col":32,"file":"specific","len":1,"role":"specific","row":1,"src":"$","value":"$.Other"}]}],"verdict":"undecided"}
 #
 # --- Two schemas, one bag ---------------------------------------------
 # A recursive Step and a Policy that uses it, side by side in one

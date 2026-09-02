@@ -434,7 +434,11 @@ emitted text is doubled in the cell because the escape pass runs first
 
 Spec-rows-first; TypeScript canonical, Go to green on identical rows.
 
-**Phase 0 — BUGS 64 and two seams (S).** The hash-form short-circuit on
+**Phase 0 — BUGS 64 and two seams (S).** *Status: the reflexivity half
+is BUILT (2026-09-02) -- the hash-form law at both folds, in both
+ports, so all fifteen use-case entry documents subsume themselves and
+the poset draws real edges over them. The `subsumeVals` split is not
+built: the poset re-loads each document per pair.* The hash-form short-circuit on
 the fold path; findings on `subsume`'s `error` verdict; a
 `subsumeVals(general, specific, opts)` split so an evaluated pair can be
 compared without re-loading. *Acceptance:* all seven use-case entry
