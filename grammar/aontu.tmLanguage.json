@@ -22,9 +22,8 @@
     "list against BUILTIN_FUNCS in BOTH directions. Add a builtin to the",
     "engine without adding it here and that test fails.",
     "",
-    "No `|>`: ADR-018 removed the pipe from the language. (aontu.lark and",
-    "aontu.gbnf still carry it — that is a defect in those two files, not a",
-    "surface this one should reproduce.)"
+    "No `|>`: ADR-018 removed the pipe from the language, and all three",
+    "published grammars now agree about that."
   ],
   "name": "aontu",
   "displayName": "Aontu",

@@ -15,12 +15,17 @@
 
 root: value
 
-value: piped
-
-// The pipe is SUGAR: `x |> f(a)` is `f(x, a)`, resolved while reading
-// the source (G8 phase 4). It never reaches a value, so canon never
-// emits it — every canon in the shared suite shows the call.
-piped: disjunct ("|>" disjunct)*
+// No pipe. `|>` was parse-time sugar (G8 phase 4); ADR-018 removed it,
+// `x |> f(a)` being written `f(x, a)`.
+//
+// That ADR says "the operator from both grammars", and both kept it
+// anyway — the engine, the suite, the error code and the docs were
+// done, these two files were not. Nothing caught it: a rule nothing
+// derives never matches, so every canon still parsed and every test
+// stayed green while the grammars offered a spelling the parser
+// refuses with `aontu/unexpected`. Fixed before the next release, so
+// no published grammar ever disagreed with its engine.
+value: disjunct
 
 disjunct: conjunct ("|" conjunct)*
 
