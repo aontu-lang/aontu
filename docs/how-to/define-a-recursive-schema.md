@@ -45,11 +45,11 @@ policy: $.spec.Step & {
 ```
 
 `$.spec.Step` written inside `Step` is the whole trick: no marker, no
-unrolled copies, and every level of the chain met the `re()` and got
-the ranked `decision` default. The recursive position expands one
-level per meet with concrete data, so validation descends exactly as
-far as the data does — no maximum depth to configure, no blind spot
-past it.
+unrolled copies, and every level of the chain [met](../unification.md)
+the `re()` and got the ranked `decision` default. The recursive position
+expands one level per meet with concrete data, so validation descends
+exactly as far as the data does — no maximum depth to configure, no
+blind spot past it.
 
 ## Guard the recursion
 

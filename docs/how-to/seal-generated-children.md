@@ -92,10 +92,10 @@ pins each child's *shape*.
 
 ## Seal the set without closing the tree
 
-Sometimes the generated map itself has to stay open: other
-statements merge into it, or overlays you do not control land on it.
-A hidden guard seals from the side — meet a clone of the tree with a
-closed pack of the same table and an empty template:
+Sometimes the generated map itself has to stay open: other statements
+merge into it, or overlays you do not control land on it. A hidden guard
+seals from the side — [meet](../unification.md) a clone of the tree with
+a closed pack of the same table and an empty template:
 
 ```aontu
 environments: hide({ dev: {}, prod: {} })

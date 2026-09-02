@@ -332,11 +332,12 @@ that is briefly unreadable mid-save reports and keeps watching.
 
 #### Vetting a recursive schema
 
-A [recursive schema](reference-language.md#recursive-references-fixpoints)
-needs nothing extra from `vet`: the definition expands one level per
-meet with concrete data, so the checks descend exactly as far as the
-data does, and a finding at depth is located there. The vocabulary
-below is a trimmed version of
+A [recursive
+schema](reference-language.md#recursive-references-fixpoints) needs
+nothing extra from `vet`: the definition expands one level per
+[meet](unification.md) with concrete data, so the checks descend exactly
+as far as the data does, and a finding at depth is located there. The
+vocabulary below is a trimmed version of
 [use-cases/13-recursive-schema](../use-cases/13-recursive-schema/).
 Write it as `chain.aon`:
 
@@ -462,7 +463,7 @@ template by reference admits itself, because two values with the same
 **hash form** are the same value. The rule runs only where the answer
 would otherwise be `undecided`, so it narrows nothing else — and
 without it a contract could not be gated against its own earlier
-version at all (`use-cases/BUGS.md` 64).
+version at all.
 
 This is the verdict [`breaking`](#aontu-breaking) fails on by
 default: a gate that cannot decide a recursive contract reports
@@ -629,50 +630,50 @@ $ echo $?
 ```
 
 - Relations are declared **at the field**, by
-  [`rel(t)` and the graph atoms](reference-language.md#declared-relations):
-  `acyclic()` and `inverse(name)` register the declaration during
-  unification, and the verb reports the verdict over the finished
-  model's edge set. There is no reserved `relations:` key — a document
-  that writes one has written ordinary data (ADR-010).
+ [`rel(t)` and the graph atoms](reference-language.md#declared-relations):
+ `acyclic()` and `inverse(name)` register the declaration during
+ unification, and the verb reports the verdict over the finished
+ model's edge set. There is no reserved `relations:` key — a document
+ that writes one has written ordinary data.
 - **These are not lattice constraints, deliberately.** Both properties
-  are global and non-monotone — one more edge makes an acyclic graph
-  cyclic — so they are facts about a finished model rather than
-  something unification may hold. Generation enforces the same verdict
-  (a located `relation_cycle` / `relation_inverse_missing` at the
-  offending edge); the verb reports it without generating. The
-  [language reference](reference-language.md#declared-relations) states
-  the rule; the [explanation](explanation.md#why-there-is-a-verb-surface)
-  argues it.
+ are global and non-monotone — one more edge makes an acyclic graph
+ cyclic — so they are facts about a finished model rather than
+ something unification may hold. Generation enforces the same verdict
+ (a located `relation_cycle` / `relation_inverse_missing` at the
+ offending edge); the verb reports it without generating. The
+ [language reference](reference-language.md#declared-relations) states
+ the rule; the [explanation](explanation.md#why-there-is-a-verb-surface)
+ argues it.
 - A finding carries `at` (the position of the offending edge), `code`
-  (`relation_cycle` or `relation_inverse_missing`), `relation`, and
-  `detail` — for a cycle, the node paths it runs through in order; for
-  a missing inverse, `[from, to, inverseName]`. Findings are **sorted by
-  `at`**, so the report diffs cleanly.
+ (`relation_cycle` or `relation_inverse_missing`), `relation`, and
+ `detail` — for a cycle, the node paths it runs through in order; for
+ a missing inverse, `[from, to, inverseName]`. Findings are **sorted by
+ `at`**, so the report diffs cleanly.
 - **The endpoint type is `rel(t)`'s flow**: declared once on the field,
-  it flows into each far end at the site, so a conflict or a hole is an
-  ordinary located evaluation error rather than a report row — and a
-  document with a wrong-typed far end answers `verdict: error` here,
-  because it does not stand up at all. (The old `target:` declaration
-  and its `relation_target_unmet` finding are retired with the
-  `relations:` key.)
+ it flows into each far end at the site, so a conflict or a hole is an
+ ordinary located evaluation error rather than a report row — and a
+ document with a wrong-typed far end answers `verdict: error` here,
+ because it does not stand up at all. (The old `target:` declaration
+ and its `relation_target_unmet` finding are retired with the
+ `relations:` key.)
 - `--format json` wraps the same findings with the `aontu` producer
-  block (`verb`, `version`) that every machine-readable report carries.
+ block (`verb`, `version`) that every machine-readable report carries.
 - Exit codes: `0` `pass`, `1` `fail`, `4` `error` (the document does
-  not evaluate), `2` usage. Note these are the verb's own three
-  verdicts, not [`vet`](#aontu-vet)'s five classes — there is no
-  schema on the other side of this question, so `incomplete` has
-  nothing to mean.
+ not evaluate), `2` usage. Note these are the verb's own three
+ verdicts, not [`vet`](#aontu-vet)'s five classes — there is no
+ schema on the other side of this question, so `incomplete` has
+ nothing to mean.
 - **A verdict of `error` says why.** A document that does not stand up
-  has no graph, so it has no relation findings — but the report carries
-  `errors`, the engine's own first failure in the same finding shape
-  [`vet`](#aontu-vet) reports in. `findings` stays the graph's own
-  vocabulary; the two lists answer two different questions, and the
-  `errors` field is present only on the `error` verdict.
+ has no graph, so it has no relation findings — but the report carries
+ `errors`, the engine's own first failure in the same finding shape
+ [`vet`](#aontu-vet) reports in. `findings` stays the graph's own
+ vocabulary; the two lists answer two different questions, and the
+ `errors` field is present only on the `error` verdict.
 - The library form is `relationCheck(src)` in TypeScript and
-  `Aontu.RelationCheck(src)` in Go, returning the identical
-  `{verdict, findings}` record (plus `errors` on a failed run); the
-  derived graph the checks run over is `result.graph` /
-  `Aontu.Graph`, described under [the TypeScript API](#class-aontu).
+ `Aontu.RelationCheck(src)` in Go, returning the identical
+ `{verdict, findings}` record (plus `errors` on a failed run); the
+ derived graph the checks run over is `result.graph` /
+ `Aontu.Graph`, described under [the TypeScript API](#class-aontu).
 
 ### `aontu reaches`
 
@@ -850,115 +851,115 @@ flowchart LR
 ```
 
 - **The loss report.** Every run prints, on stderr, what the figure
-  could not draw or drew differently from the model, one line per
-  code with a count: `hidden_contribution` (an edge inside a `hide()`
-  subtree, not drawn, because a committed figure discloses what it
-  draws), `edges_in_disjunct` (a link under an unresolved disjunction,
-  which is not a fact — ADR-007 — so the figure reports it rather than
-  picking an arm), `unresolved_field` (a node without a value for
-  `--group-by` or `--label`), `cycle_block`, `cols_elided`, and for the
-  poset
-  `order_undecided`, `order_maybe_equal` and `order_intransitive`. Any
-  of these makes the verdict `lossy`, which `--strict` turns into exit
-  `1`. Three codes are informational and leave the verdict `rendered`:
-  `edges_deduped` (a model declaring each entity at two positions
-  writes each edge twice), `inverse_suppressed` (a declared mirror,
-  implied by the edge drawn) and `crossings` (a property of the emitted
-  order).
+ could not draw or drew differently from the model, one line per
+ code with a count: `hidden_contribution` (an edge inside a `hide()`
+ subtree, not drawn, because a committed figure discloses what it
+ draws), `edges_in_disjunct` (a link under an unresolved disjunction,
+ which is not a fact, so the figure reports it rather than
+ picking an arm), `unresolved_field` (a node without a value for
+ `--group-by` or `--label`), `cycle_block`, `cols_elided`, and for the
+ poset
+ `order_undecided`, `order_maybe_equal` and `order_intransitive`. Any
+ of these makes the verdict `lossy`, which `--strict` turns into exit
+ `1`. Three codes are informational and leave the verdict `rendered`:
+ `edges_deduped` (a model declaring each entity at two positions
+ writes each edge twice), `inverse_suppressed` (a declared mirror,
+ implied by the edge drawn) and `crossings` (a property of the emitted
+ order).
 - **`--out <file>` and `--check`.** The figure is written to the file
-  instead of stdout; with `--check` nothing is written and the exit is
-  `1` when the file differs from what would be drawn, which is the CI
-  gate for a committed figure.
+ instead of stdout; with `--check` nothing is written and the exit is
+ `1` when the file differs from what would be drawn, which is the CI
+ gate for a committed figure.
 - **`--max-rows <n>`** (default 60) is a refusal, exit `2`, not a
-  truncation; the message names the narrowing options.
+ truncation; the message names the narrowing options.
 - **`--at <path>`** restricts the edge-derived kinds to nodes under the
-  path, the provenance panel to paths under it, and names the path the
-  ladder draws (required) and where the poset compares.
+ path, the provenance panel to paths under it, and names the path the
+ ladder draws (required) and where the poset compares.
 - `tree`: `--relation` draws one relation; without it every relation is
-  drawn, each branch naming its own. `--root <path>` (repeatable) draws
-  one subtree; a root that is not a node of the drawn graph is refused
-  (`refer_unresolved`). Roots are derived as the nodes nothing depends
-  on; a shared subtree is expanded once and marked `(*)` after; a
-  closing edge is `(cycle)`; labels are the shortest path suffix unique
-  in the drawing.
+ drawn, each branch naming its own. `--root <path>` (repeatable) draws
+ one subtree; a root that is not a node of the drawn graph is refused
+ (`refer_unresolved`). Roots are derived as the nodes nothing depends
+ on; a shared subtree is expanded once and marked `(*)` after; a
+ closing edge is `(cycle)`; labels are the shortest path suffix unique
+ in the drawing.
 - `matrix`: `--relation` is required unless exactly one relation has
-  edges (`view_relation_ambiguous` otherwise); `--order canon`
-  (label order, the default) or `partition`; `--closure` marks the
-  transitively reachable cells. Ten or more rows stack the index
-  digits in the header.
+ edges (`view_relation_ambiguous` otherwise); `--order canon`
+ (label order, the default) or `partition`; `--closure` marks the
+ transitively reachable cells. Ten or more rows stack the index
+ digits in the header.
 - `graph`: `--relation` (repeatable) keeps only those predicates; a
-  declared inverse's mirror is suppressed and counted. `--group-by
-  <field>` puts each node in a subgraph named by that field's value
-  (ids `g0`, `g1`, ... in label order); `--label <field>` labels the
-  node with it, a number or boolean as its canon. Node ids encode the
-  label injectively: `n_` + the name when it is an ASCII identifier,
-  else `nq_` + the name with every other code point as `_` and its
-  hex (`cust-1` is `nq_cust_2d1`, so a name such as `end` or `graph`
-  can never collide with a keyword). Text is escaped per code point:
-  Mermaid as numeric entities (`#34;` for `"`, `#124;` for `|`), DOT
-  as `\"` and `\\`. A label holding a line terminator is refused
-  (`view_line_break`). `--as er` draws Mermaid's `erDiagram`, every
-  relationship many-to-many because the model states no cardinality.
+ declared inverse's mirror is suppressed and counted. `--group-by
+ <field>` puts each node in a subgraph named by that field's value
+ (ids `g0`, `g1`,... in label order); `--label <field>` labels the
+ node with it, a number or boolean as its canon. Node ids encode the
+ label injectively: `n_` + the name when it is an ASCII identifier,
+ else `nq_` + the name with every other code point as `_` and its
+ hex (`cust-1` is `nq_cust_2d1`, so a name such as `end` or `graph`
+ can never collide with a keyword). Text is escaped per code point:
+ Mermaid as numeric entities (`#34;` for `"`, `#124;` for `|`), DOT
+ as `\"` and `\\`. A label holding a line terminator is refused
+ (`view_line_break`). `--as er` draws Mermaid's `erDiagram`, every
+ relationship many-to-many because the model states no cardinality.
 - `layer`: `--group-by <field>` (required, `view_group_required`)
-  names each node's layer; bands are stacked in the partition order of
-  the layer-level graph, reversed, so the layer nothing depends on is
-  on top. `--layers a,b,c` fixes the order (top first) for a model
-  whose upward edge makes the layer graph cyclic. The footer counts
-  the relation's downward, sideways and upward edges, and names each
-  edge `--edges` shows. `--edges upward|all|none` chooses which of them
-  the figure draws over the bands: `upward` is the violations, and the
-  default for the fixed grids (`text`, `svg`), because the bands
-  already say which way the rest go; `all` draws the relation itself,
-  which is what a reader tracing one module's dependencies wants, and
-  is `mermaid`'s default since it lays edges out itself; `none` leaves
-  the bands alone. In SVG an upward edge is dashed and alert-coloured,
-  a downward one runs from the bottom of its box to the top of the one
-  it names, and a sideways one dips below the boxes of its band.
+ names each node's layer; bands are stacked in the partition order of
+ the layer-level graph, reversed, so the layer nothing depends on is
+ on top. `--layers a,b,c` fixes the order (top first) for a model
+ whose upward edge makes the layer graph cyclic. The footer counts
+ the relation's downward, sideways and upward edges, and names each
+ edge `--edges` shows. `--edges upward|all|none` chooses which of them
+ the figure draws over the bands: `upward` is the violations, and the
+ default for the fixed grids (`text`, `svg`), because the bands
+ already say which way the rest go; `all` draws the relation itself,
+ which is what a reader tracing one module's dependencies wants, and
+ is `mermaid`'s default since it lays edges out itself; `none` leaves
+ the bands alone. In SVG an upward edge is dashed and alert-coloured,
+ a downward one runs from the bottom of its box to the top of the one
+ it names, and a sideways one dips below the boxes of its band.
 - `sets`: `--sets <path>` names a map whose keys are the sets,
-  `--member <key>` the field holding each set's members (a list of
-  strings), `--universe <path>` a map or list of every element, so
-  the covered-by-nothing column exists. A member written as an address
-  (`path($.perms.read)`) meets a universe map's key on that address
-  and is shown by its shortest unique suffix. Columns are the exact
-  membership signatures, by degree, then cardinality, then name;
-  `--min-degree <n>` drops the low ones and `--max-cols <n>` elides
-  the rest (`cols_elided`). Both need the document to generate.
+ `--member <key>` the field holding each set's members (a list of
+ strings), `--universe <path>` a map or list of every element, so
+ the covered-by-nothing column exists. A member written as an address
+ (`path($.perms.read)`) meets a universe map's key on that address
+ and is shown by its shortest unique suffix. Columns are the exact
+ membership signatures, by degree, then cardinality, then name;
+ `--min-degree <n>` drops the low ones and `--max-cols <n>` elides
+ the rest (`cols_elided`). Both need the document to generate.
 - `layers`: the same panel over the provenance record, sets being the
-  documents and elements the paths each document wrote into. Files are
-  shown relative to the entry document; `--min-size <n>` drops the
-  small intersections.
+ documents and elements the paths each document wrote into. Files are
+ shown relative to the entry document; `--min-size <n>` drops the
+ small intersections.
 - `ladder`: the `why` record at `--at`, one rung per contribution,
-  sorted by rank descending (weakest first, so the winner is the last
-  rung before the value), then by site.
+ sorted by rank descending (weakest first, so the winner is the last
+ rung before the value), then by site.
 - `poset`: several files; each pair is compared with `subsume` at
-  `--at` under `--profile values|defaults|gen` (default `defaults`).
-  Documents that subsume each other are one node, labelled `a = b`; an
-  edge is a cover of the transitive closure, upward toward the more
-  general document; an undecided pair with no proven order is a dashed
-  edge labelled with the `sub_*` reason. Labels are the file names
-  without `.aon`.
+ `--at` under `--profile values|defaults|gen` (default `defaults`).
+ Documents that subsume each other are one node, labelled `a = b`; an
+ edge is a cover of the transitive closure, upward toward the more
+ general document; an undecided pair with no proven order is a dashed
+ edge labelled with the `sub_*` reason. Labels are the file names
+ without `.aon`.
 - Exit codes: `0` rendered or lossy, `1` a `--check` mismatch or lossy
-  under `--strict`, `2` usage (an unknown kind or profile, a missing
-  required option, `--max-rows` exceeded), `4` error (a document that
-  does not stand up, a relation, root or path that names nothing). A
-  document with nothing to draw renders an empty figure and exits `0`.
-  In text form the figure is all that stdout carries, so a redirect is
-  a golden file; `--format json` wraps the whole report as
-  `{kind, verdict, text, loss}` under the usual `aontu` envelope, and
-  a refusal carries `errors` in place of `text`.
+ under `--strict`, `2` usage (an unknown kind or profile, a missing
+ required option, `--max-rows` exceeded), `4` error (a document that
+ does not stand up, a relation, root or path that names nothing). A
+ document with nothing to draw renders an empty figure and exits `0`.
+ In text form the figure is all that stdout carries, so a redirect is
+ a golden file; `--format json` wraps the whole report as
+ `{kind, verdict, text, loss}` under the usual `aontu` envelope, and
+ a refusal carries `errors` in place of `text`.
 - The library form is `view(src, options)` in TypeScript (`viewTree`
-  remains for the tree) and `Aontu.View(src, options)` in Go, returning
-  the identical `{verdict, kind, text?, loss, errors?}` record; the
-  poset's further documents ride `options.docs` as `{src, path?, name?}`.
+ remains for the tree) and `Aontu.View(src, options)` in Go, returning
+ the identical `{verdict, kind, text?, loss, errors?}` record; the
+ poset's further documents ride `options.docs` as `{src, path?, name?}`.
 
 **The view document.** A projection that runs in CI belongs in a file.
 `--views <path>` names a map, in an ordinary document that includes the
-model, whose values declare figures: one evaluation, N figures, one
-exit code. The keys of a declaration are the view options — the flags
-without the dashes — and every declaration names its `kind` and the
-`out` file it draws into. `views` is the author's key; nothing in the
-engine knows the name (ADR-010), which is why the path is given. Write
-a `views.aon` beside the `system.aon` above:
+model, whose values declare figures: one evaluation, N figures, one exit
+code. The keys of a declaration are the view options — the flags without
+the dashes — and every declaration names its `kind` and the `out` file
+it draws into. `views` is the author's key; nothing in the engine knows
+the name, which is why the path is given. Write a `views.aon` beside the
+`system.aon` above:
 
 <!-- test: file views.aon -->
 ```aon
@@ -1050,10 +1051,7 @@ the poset, [08-feature-flags](../use-cases/08-feature-flags/) the
 ladder, [12-relations](../use-cases/12-relations/) the graph and the
 ER diagram, and [16-module-deps](../use-cases/16-module-deps/) the
 tree, the matrix and the layers; 16 also declares all seven of its
-figures in a `views.aon` that its `check.sh` gates in one run. The
-design is
-[docs/design/VIEWS.0.md](design/VIEWS.0.md) and
-[VIEWS-ORDER.0.md](design/VIEWS-ORDER.0.md).
+figures in a `views.aon` that its `check.sh` gates in one run.
 
 ### `aontu jsonschema`
 
@@ -1816,8 +1814,8 @@ will type them and deserves a better answer than "unknown subcommand":
 
 ```
 $ aontu mod get
-aontu: mod get needs a registry client, which this build does not ship
-(docs/capability-review/g6-distribution.md)
+aontu: mod get needs a registry client, which this build does not ship;
+vendor the module by hand and run 'aontu mod tidy'
 ```
 
 **REPL commands**
@@ -2113,10 +2111,8 @@ in Go. It is the edge set:
 }
 ```
 
-There is no entity index, because there is no second namespace to
-index: a node's address is its path
-([ADR-014](../ADR.md#adr-014--the-tree-is-the-namespace-there-is-no-identity-mark)).
-One entry per checked
+There is no entity index, because there is no second namespace to index:
+a node's address is its path. One entry per checked
 [link](reference-language.md#checked-links-refert):
 
 - **`from`** is the node the link starts at — the link's own position
@@ -2279,8 +2275,8 @@ JSON.stringify(out) // TypeError: Do not know how to serialize a BigInt
   only a true cycle is refused, as in `JSON.stringify`.
 
 The output is byte-identical to the Go port's `encoding/json` with
-`SetEscapeHTML(false)` for the same document; that equivalence is what
-the shared suite's [`gens` mode](shared-spec.md#modes) pins. The `aontu`
+`SetEscapeHTML(false)` for the same document; that equivalence is
+pinned by the test suite both implementations run. The `aontu`
 CLI calls this same export with `indent` of `2`, so there is exactly one
 implementation for the pretty and compact forms to stay in step with.
 
@@ -2405,16 +2401,15 @@ profile [`AontuOptions.trust`](#aontuoptions) takes, and it means the
 same thing: what the document being evaluated may reach.
 
 These four verbs exist to be pointed at source from somewhere else — a
-candidate an agent emitted, a live system dump, the other side of a
-diff — and without a profile they resolve `@"…"` through the default
-chain, which reaches anything on the filesystem the process can read.
-**Opening an untrusted source is reading your disk**, so pass a profile
-whenever the source is not yours. Reading, never running: an include's
-extension decides what the file is
-([ADR-012](../ADR.md#adr-012--an-includes-extension-decides-what-the-file-is-aontu-source-config-data-or-refused))
-— `.aon` and `.aontu` as Aontu source, and `.json`, `.jsonld`,
-`.jsonc`, `.json5`, `.jsonic`, `.jsc`, `.toml`, `.yaml`, `.yml` and
-`.ini` as configuration data — and every other extension is refused.
+candidate an agent emitted, a live system dump, the other side of a diff
+— and without a profile they resolve `@"…"` through the default chain,
+which reaches anything on the filesystem the process can read. **Opening
+an untrusted source is reading your disk**, so pass a profile whenever
+the source is not yours. Reading, never running: an include's extension
+decides what the file is — `.aon` and `.aontu` as Aontu source, and
+`.json`, `.jsonld`, `.jsonc`, `.json5`, `.jsonic`, `.jsc`, `.toml`,
+`.yaml`, `.yml` and `.ini` as configuration data — and every other
+extension is refused.
 
 <!-- test: skip TypeScript API sample; the API surface is pinned by ts/test/ -->
 ```ts
@@ -2555,8 +2550,8 @@ generated output needs:
 
 `json.Marshal` output matches the TypeScript port's
 [`exactJSON`](#exact-numbers-and-exactjson) byte for byte once HTML
-escaping is off (`json.Encoder` + `SetEscapeHTML(false)`); that is the
-equivalence the shared suite's [`gens` mode](shared-spec.md#modes) pins.
+escaping is off (`json.Encoder` + `SetEscapeHTML(false)`); that
+equivalence is pinned by the test suite both implementations run.
 
 ### `Ctx` and errors
 
@@ -2681,5 +2676,4 @@ The shared parser stack is identical: TypeScript uses `@tabnas/jsonic` +
 `@tabnas/{expr,path,multisource,directive,debug}`; Go uses the ports
 `github.com/tabnas/{jsonic,expr,path,multisource,directive}/go`. See
 the [Explanation](explanation.md#two-implementations-one-behaviour) for
-how parity is maintained, and [Test coverage](test-coverage.md) for what
-each suite exercises.
+how parity is maintained.

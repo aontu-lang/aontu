@@ -1552,7 +1552,8 @@ function runMod(argv) {
     const dir = rest[1] ?? '.';
     if ('get' === sub || 'publish' === sub) {
         process.stderr.write('aontu: mod ' + sub + ' needs a registry client, which this build ' +
-            'does not ship (docs/capability-review/g6-distribution.md)\n');
+            'does not ship; vendor the module by hand and run ' +
+            "'aontu mod tidy'\n");
         return 2;
     }
     if (!MOD_SUBS.includes(sub) || 2 < rest.length) {

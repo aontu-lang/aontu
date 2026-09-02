@@ -98,8 +98,8 @@ inspecting them.
 7. Generation is deterministic: two runs of the same transform are
    byte-identical.
 8. The Go port emits the same bytes as the TypeScript engine for all
-   three targets (ADR-001): one model never becomes two different
-   files depending on which engine ran.
+   three targets: one model never becomes two different files
+   depending on which engine ran.
 
 Checks 3, 4 and 8 need a Go toolchain and skip with a note when none
 is present.

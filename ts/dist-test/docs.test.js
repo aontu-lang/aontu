@@ -97,6 +97,7 @@ function execPages() {
         'index.md',
         'tutorial.md',
         'tutorial-graph.md',
+        'unification.md',
         'reference-language.md',
         'reference-api.md',
         'use-cases.md',
@@ -124,6 +125,20 @@ function stylePages() {
         'explanation.md', 'trust.md', 'lsp.md',
         'shared-spec.md', 'test-coverage.md', 'release-and-tag.md',
     ].filter((f, i, a) => a.indexOf(f) === i)
+        .filter((f) => Fs.existsSync(Path.join(DOCS_DIR, f)));
+}
+// The PUBLISHED page set: what a reader who has the tool and not the
+// repository sees. It is stylePages() minus the three contributor
+// documents, and it is the set the internal-reference gate applies to
+// — `shared-spec.md`, `test-coverage.md` and `release-and-tag.md` are
+// written FOR contributors and may cite the records freely.
+function publishedPages() {
+    const only = narrowed();
+    if (only) {
+        return only.filter((f) => Fs.existsSync(Path.join(DOCS_DIR, f)));
+    }
+    return [...execPages(), 'explanation.md', 'trust.md', 'lsp.md']
+        .filter((f, i, a) => a.indexOf(f) === i)
         .filter((f) => Fs.existsSync(Path.join(DOCS_DIR, f)));
 }
 // `aon` and `aontu` are both used as the fence tag for an Aontu
@@ -564,6 +579,75 @@ function prose(md) {
             });
         }
         Assert.deepEqual(hits, [], `banned phrases (docs/STYLE-GUIDE.md):\n${hits.join('\n')}`);
+    });
+    // INTERNAL RECORDS ARE NOT A READER'S BUSINESS (docs/STYLE-GUIDE.md,
+    // "The published set cites nothing internal"). A decision record
+    // argues a choice already made; the rule it decided is what the page
+    // states. A design note and a gap document are proposals, and half of
+    // what they propose does not exist. A reader who has the tool and not
+    // the repository cannot open any of them.
+    //
+    // Applied to the whole file rather than to prose alone -- code fences
+    // AND inline code spans included. A CLI transcript naming an internal
+    // path is the same defect one paragraph up, and it means the ENGINE
+    // prints one; a path in a code span is the same defect wearing
+    // monospace, which is how `use-cases/BUGS.md` sat in the API
+    // reference through a gate that stripped spans first.
+    const INTERNAL_REFS = [
+        [/\bADR-\d+\b/, 'a decision record'],
+        // The bare prose form. `ADR` names a record the reader cannot
+        // open, whether or not a number follows it.
+        [/\b(?:the|an|this|that) ADR\b/i, 'a decision record'],
+        [/\bADR\.md\b/, 'ADR.md'],
+        [/capability-review/, 'the capability review'],
+        // Both spellings: the pages linked design notes as `docs/design/…`
+        // and as a bare `design/…` relative href, and only the first was
+        // listed.
+        [/\bdesign\/[A-Za-z0-9._-]+\.md/, 'a design note'],
+        [/\bDIVERGENCE\.md\b/, 'DIVERGENCE.md'],
+        [/use-cases\/(?:BUGS|REVIEW)\.md/, 'a defect ledger'],
+        [/\bprogress\.md\b/, 'the progress register'],
+        [/\bshared-spec\.md\b/, 'shared-spec.md'],
+        [/\btest-coverage\.md\b/, 'test-coverage.md'],
+        [/\brelease-and-tag\.md\b/, 'release-and-tag.md'],
+        // A LINK to AGENTS.md only. The bare name is what `aontu agentsmd`
+        // writes, so it is the product's surface and stays legal.
+        [/\]\([^)]*AGENTS\.md[^)]*\)/, 'a link to AGENTS.md'],
+    ];
+    // THE USE-CASE READMEs ARE PUBLISHED TOO. The site renders each at
+    // /use-cases/<dir>, so a citation there reaches a reader exactly as
+    // one in docs/ does — and three of them carried an ADR number. The
+    // `repros/` directory is deliberately absent: it is a review
+    // artifact, not a case, and the site does not render it.
+    function useCaseReadmes() {
+        const dir = Path.join(DOCS_DIR, '..', 'use-cases');
+        if (!Fs.existsSync(dir))
+            return [];
+        return Fs.readdirSync(dir)
+            .filter((d) => /^\d\d-/.test(d))
+            .map((d) => Path.join(dir, d, 'README.md'))
+            .filter((f) => Fs.existsSync(f))
+            .sort();
+    }
+    (0, node_test_1.test)('no-internal-design-references', () => {
+        const hits = [];
+        const files = [
+            ...publishedPages().map((f) => Path.join(DOCS_DIR, f)),
+            ...(narrowed() ? [] : useCaseReadmes()),
+        ];
+        for (const path of files) {
+            const file = Path.relative(Path.join(DOCS_DIR, '..'), path);
+            const text = lf(Fs.readFileSync(path, 'utf8'));
+            text.split('\n').forEach((line, i) => {
+                for (const [re, name] of INTERNAL_REFS) {
+                    if (re.test(line)) {
+                        hits.push(`${file}:${i + 1} cites ${name}: ${line.trim()}`);
+                    }
+                }
+            });
+        }
+        Assert.deepEqual(hits, [], 'published pages cite internal records (docs/STYLE-GUIDE.md,\n' +
+            '"The published set cites nothing internal"):\n' + hits.join('\n'));
     });
     // The guide and this gate must agree; the guide names this block,
     // so a reader of either finds the other.

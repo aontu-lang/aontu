@@ -30,6 +30,7 @@ open it. Reach for the part that matches your need:
 | **Learn** the graph layer (identity, relations, reachability) | [Graph tutorial](tutorial-graph.md) |
 | **Accomplish a specific task** you already have in mind       | [How-to guides](how-to/) |
 | **Look up** exact syntax, semantics, options, or API surface  | [Language reference](reference-language.md) · [API reference](reference-api.md) |
+| **Understand unification itself** — meet, top, bottom, the lattice | [Unification](unification.md) |
 | **Understand** how and why the engine works the way it does   | [Explanation](explanation.md) |
 | **See whole systems defined**, each with its checks runnable  | [Use cases](use-cases.md) |
 
@@ -115,10 +116,6 @@ For contributors:
 - [The style guide](STYLE-GUIDE.md) — how these pages are written:
   Diátaxis placement, the voice, the banned-phrase list, and the
   snippet directives under which every example runs.
-- [Test coverage](test-coverage.md) and the
-  [shared test specification](shared-spec.md) — how both
-  implementations are measured against the one `test/spec/*.tsv`
-  suite.
 
 ### Why the split?
 

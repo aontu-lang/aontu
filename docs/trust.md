@@ -64,16 +64,14 @@ posture is the operative warning:
 
 > **Treat opening an untrusted source as reading your disk.**
 
-Reading, never running. An include's extension decides what the file
-is
-([ADR-012](../ADR.md#adr-012--an-includes-extension-decides-what-the-file-is-aontu-source-config-data-or-refused)):
-twelve extensions are read at all — `.aon` and `.aontu` as Aontu
-source, and `.json`, `.jsonld`, `.jsonc`, `.json5`, `.jsonic`, `.jsc`,
-`.toml`, `.yaml`, `.yml` and `.ini` as configuration data, each read
-by its own parser — and everything else is refused by name, so no
-include is ever executed in the evaluating process. The TypeScript
-package leg follows the same rule: a package whose entry point is
-JavaScript does not resolve.
+Reading, never running. An include's extension decides what the file is:
+twelve extensions are read at all — `.aon` and `.aontu` as Aontu source,
+and `.json`, `.jsonld`, `.jsonc`, `.json5`, `.jsonic`, `.jsc`, `.toml`,
+`.yaml`, `.yml` and `.ini` as configuration data, each read by its own
+parser — and everything else is refused by name, so no include is ever
+executed in the evaluating process. The TypeScript package leg follows
+the same rule: a package whose entry point is JavaScript does not
+resolve.
 
 `options.fs` still does not confine — it feeds source text for parsing
 and error context, while the file and package legs read through their
@@ -133,10 +131,9 @@ RE2, which is linear, while TypeScript uses JavaScript's backtracking
 difference unbounded — `(a+)+$` against twenty-nine characters takes 45
 seconds in TypeScript and 0.065s in Go. The *semantic* half of that
 mismatch is handled by normalising the pattern before either engine sees
-it ([ADR-003](../ADR.md#adr-003--host-provided-semantics-are-normalised-not-trusted));
-complexity is the half normalisation cannot reach. Rather than add a budget the
-host engine cannot be asked to respect, the
-[portable subset](reference-language.md#re-and-the-portable-pattern-subset)
+it; complexity is the half normalisation cannot reach. Rather than add a
+budget the host engine cannot be asked to respect, the [portable
+subset](reference-language.md#re-and-the-portable-pattern-subset)
 **refuses the shapes that cause it**: a quantifier may not be applied to
 a group containing a quantifier or an alternation. That keeps this
 clause true in the port that has the problem, at the cost of refusing
@@ -278,8 +275,8 @@ Guarantees are as much about what will never be added:
 | `budget_passes` code, class and "evaluation budget" substring | shared rows — [test/spec/budget.tsv](../test/spec/budget.tsv) `budget-chain-*` (verdicts, code and message substring, both engines); `ts/test/unify.test.ts` and `go/hints_test.go` keep the per-port err-shape guards |
 | code → class registry | [test/spec/errcodes.tsv](../test/spec/errcodes.tsv) + set-equality tests in both runners |
 | canon byte-stability | every `canon` row (strict equality, both runners) |
-| generated-JSON byte-stability | `gens` rows (docs/shared-spec.md) |
+| generated-JSON byte-stability | `gens` rows (both runners) |
 | graph and relation-verdict byte-stability | [test/spec/graph.tsv](../test/spec/graph.tsv) (`graph` rows — both runners re-derive the entity index and edge set on a fresh engine and require the same bytes) + [test/spec/relation.tsv](../test/spec/relation.tsv) (`relation` verdict rows, both engines) |
-| known open divergences | [test/spec/divergent.tsv](../test/spec/divergent.tsv) — each entry carries its tracking issue; read the file for the live list rather than a count copied here. Only the Unicode table vintage is permanent, in DIVERGENCE.md |
+| known open divergences | [test/spec/divergent.tsv](../test/spec/divergent.tsv) — each entry carries its tracking issue; read the file for the live list rather than a count copied here. Only the Unicode table vintage is permanent |
 | resolver posture | SECURITY comment, `ts/src/lang.ts`; this document |
 | single-use trees | reference-api.md rule; `Aontu.parse` / Go `Parse` doc comments |

@@ -27,9 +27,9 @@ in advance.
 
 The three moments of the residual:
 
-- **Evaluation** — met by concrete structure, expand one level
-  (per destination, ADR-005's clone discipline). Data is finite, so
-  expansion terminates; the depth budget is the backstop.
+- **Evaluation** — met by concrete structure, expand one level, per
+  destination and under the same clone discipline a spread uses. Data
+  is finite, so expansion terminates; the depth budget is the backstop.
 - **Canon and the `aon1-` hash** — symbolic: the instance unrolls to
   its data and then says `$.spec.Step`; the definition stays one
   reference deep. A recursive schema's canonical form is finite,

@@ -7,8 +7,8 @@ order: 80
 # Read a conflict error
 
 A conflict message names both operands, and it pays to know which is
-which. For two plain facts meeting at a path, the later-in-source one
-is named first:
+which. For two plain facts [meeting](../unification.md) at a path, the
+later-in-source one is named first:
 
 ```
 Cannot unify value: 2 with value: 1

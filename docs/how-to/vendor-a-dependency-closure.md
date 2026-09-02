@@ -100,7 +100,7 @@ ship:
 <!-- test: run -->
 ```sh
 $ aontu mod get
-aontu: mod get needs a registry client, which this build does not ship (docs/capability-review/g6-distribution.md)
+aontu: mod get needs a registry client, which this build does not ship; vendor the module by hand and run 'aontu mod tidy'
 $ echo $?
 2
 ```

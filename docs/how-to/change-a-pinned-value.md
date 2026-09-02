@@ -126,13 +126,14 @@ $ echo $?
 1
 ```
 
-The overlay's value meets *itself* through the entry's include, so
-the run is refused and nothing is written. `would replace:` (rather
-than `replaced:`) tells you the edit itself was possible and the
-conflict lay elsewhere — here, in the shape of the invocation. Pass
-`schema.aon` as the entry, as the earlier runs do, and the same
-command holds. ([Why the tool refuses the shape instead of detecting
-the collision](../explanation.md#the-emit--validate--repair-loop).)
+The overlay's value [meets](../unification.md) *itself* through the
+entry's include, so the run is refused and nothing is written. `would
+replace:` (rather than `replaced:`) tells you the edit itself was
+possible and the conflict lay elsewhere — here, in the shape of the
+invocation. Pass `schema.aon` as the entry, as the earlier runs do, and
+the same command holds. ([Why the tool refuses the shape instead of
+detecting the
+collision](../explanation.md#the-emit--validate--repair-loop).)
 
 Pair `--in-place` with `--dry-run` to see the rewritten overlay
 without writing it. The full editability rules are under [`aontu

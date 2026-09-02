@@ -169,10 +169,10 @@ Role: type(
 ```
 
 The unprivileged branch excludes the wildcard from every grant with one
-`neq()`, so a proposal granting it to a collaborator role is refused.
-A grant is a **tree address** (ADR-014), which is what makes `refer()`
-a checked foreign key against the permission catalog rather than a
-string comparison. The registry and its attack proposals:
+`neq()`, so a proposal granting it to a collaborator role is refused. A
+grant is a **tree address**, which is what makes `refer()` a checked
+foreign key against the permission catalog rather than a string
+comparison. The registry and its attack proposals:
 [`use-cases/05-rbac-policy/`](../use-cases/05-rbac-policy/).
 
 ## 06 — Kubernetes golden path
@@ -369,10 +369,11 @@ DAG, its refusals, and the append proposal:
 An approval chain: a `Step` is an approver, a decision, and optionally
 the step that follows it. Writing `then?: $.spec.Step` inside `Step`
 means the fixpoint, with no marker and no unrolled copies — the schema
-applies at every depth, expanding one level per meet with concrete
-data, so `vet` descends exactly as far as the data does. Canon and the
-`aon1-` hash stay symbolic: one finite string pins an infinitely deep
-type. The vocabulary, one reference deep, from `schema.aon`:
+applies at every depth, expanding one level per [meet](unification.md)
+with concrete data, so `vet` descends exactly as far as the data does.
+Canon and the `aon1-` hash stay symbolic: one finite string pins an
+infinitely deep type. The vocabulary, one reference deep, from
+`schema.aon`:
 
 ```
 Step: {
