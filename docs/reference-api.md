@@ -875,7 +875,9 @@ flowchart LR
   subtree — and each profile has one way to show it: SGR escapes for
   `text`, CSS classes for `svg`. `auto`, the default, picks that
   mechanism where the destination can carry it: escapes only when
-  stdout is a terminal and `NO_COLOR` is unset, and an SVG keeps the
+  **stdout** is a terminal and `NO_COLOR` is unset (stdout, because
+  that is where the figure goes — the error frames' own colour
+  decision is about stderr), and an SVG keeps the
   stylesheet that makes it standalone. `none` drops both — on `svg` the
   classes stay (they are structure, not style) and only the embedded
   stylesheet goes, which is what a host page wants once it has bound

@@ -136,6 +136,74 @@ function pendingCtx() {
             (0, err_1.setColor)(false);
         }
     });
+    // `--style auto` IS THE CLI'S TO RESOLVE, and the arm that resolves
+    // it to `ansi` needs an interactive stdout, which no other test in
+    // this suite has: everything else runs with stdout captured, which is
+    // the escapes-off arm. Same swap as the stderr test above.
+    (0, node_test_1.test)('an-interactive-stdout-gives-the-text-figure-its-escapes', () => {
+        const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-style-'));
+        const file = Path.join(dir, 'm.aon');
+        Fs.writeFileSync(file, 'a: {dependsOn: [&: refer(), path($.b)]}\nb: {}\n');
+        const desc = Object.getOwnPropertyDescriptor(process, 'stdout');
+        let out = '';
+        const fake = new node_stream_1.PassThrough();
+        fake.isTTY = true;
+        fake.write = (s) => ((out += s), true);
+        Object.defineProperty(process, 'stdout', { value: fake, configurable: true });
+        // The library honours NO_COLOR, and the CI runner may set it.
+        const no = process.env.NO_COLOR;
+        delete process.env.NO_COLOR;
+        (0, err_1.setColor)(undefined);
+        try {
+            (0, cli_1.main)(['node', 'cli', 'view', 'tree', file]);
+        }
+        finally {
+            Object.defineProperty(process, 'stdout', desc);
+            if (undefined !== no) {
+                process.env.NO_COLOR = no;
+            }
+            (0, err_1.setColor)(false);
+            Fs.rmSync(dir, { recursive: true, force: true });
+            process.exitCode = 0;
+        }
+        // The connectors are `rule`, which is SGR 2; the labels are not
+        // styled at all, so the tree's text is unchanged under the escapes.
+        Assert.match(out, /\x1b\[2m/);
+        Assert.equal(out.replace(/\x1b\[[0-9;]*m/g, ''), 'a\n└── b\n');
+    });
+    // The two `--style` refusals, which are the CLI's own and so are not
+    // reachable from a shared-spec row: an unknown name, and asking for
+    // terminal escapes on a run that writes a FILE. A pinned golden
+    // holding control codes is not a golden anybody can read.
+    (0, node_test_1.test)('the-style-flag-refuses-an-unknown-name-and-escapes-into-a-file', () => {
+        const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-style2-'));
+        const file = Path.join(dir, 'm.aon');
+        Fs.writeFileSync(file, 'a: 1\n');
+        const errs = [];
+        const se = process.stderr.write;
+        process.stderr.write = (s) => (errs.push(String(s)), true);
+        const cap = captureOut();
+        // main() sets process.exitCode rather than returning it.
+        const code = (argv) => {
+            process.exitCode = 0;
+            (0, cli_1.main)(['node', 'cli', ...argv]);
+            return process.exitCode;
+        };
+        try {
+            Assert.equal(code(['view', 'tree', '--style', 'nope', file]), 2);
+            Assert.equal(code(['view', 'tree', '--style', 'ansi',
+                '--out', Path.join(dir, 'f.txt'), file]), 2);
+            Assert.equal(code(['view', '--views', '$.v', '--style', 'ansi', file]), 2);
+        }
+        finally {
+            cap.restore();
+            process.stderr.write = se;
+            Fs.rmSync(dir, { recursive: true, force: true });
+        }
+        Assert.match(errs[0], /--style needs one of auto, none, ansi, css/);
+        Assert.match(errs[1], /writes to a terminal, not to a file/);
+        Assert.match(errs[2], /writes to a terminal, not to a file/);
+    });
     (0, node_test_1.test)('repl-in-process', async () => {
         const fakeIn = new node_stream_1.PassThrough();
         fakeIn.isTTY = true;

@@ -1037,8 +1037,16 @@ decide. So `viewOf` takes `none`, `ansi` or `css` and nothing else, and
 the CLI maps `auto` to `ansi` when the profile is `text`, stdout is a
 terminal and `NO_COLOR` is unset; to `css` when the profile is `svg`;
 and to `none` otherwise. That keeps every shared-spec row deterministic
-— a TTY is not a thing `test/spec/view.tsv` can have — and it keeps the
-one policy the repository already has instead of inventing a second.
+— a TTY is not a thing `test/spec/view.tsv` can have.
+
+**STDOUT'S terminal, not `setColor`'s answer.** `setColor` settles the
+ERROR FRAMES, which go to stderr, and reusing its answer for the figure
+gets both common cases wrong: no escapes for `aontu view tree m.aon
+2>/dev/null` at a terminal, and escapes into the pipe for `aontu view
+tree m.aon | less`. So `auto` reads `process.stdout.isTTY` (the
+`*os.File` character-device test in Go) and `NO_COLOR` directly, by the
+rule no-color.org states and `err.ts` implements. Two destinations, two
+questions; the same policy answers each about its own.
 
 **`--out` and `--check` force `none`.** A pinned golden with terminal
 escapes in it is not a golden anybody can read, and a byte comparison

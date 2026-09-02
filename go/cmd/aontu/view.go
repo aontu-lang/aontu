@@ -45,17 +45,19 @@ func viewStyleFor(asked, as string, stdout io.Writer) string {
 	if "" != asked && "auto" != asked {
 		return asked
 	}
-	if "text" == as && nil == colorFor(stdout) && aontu.ColorActive() {
+	// STDOUT'S OWN TERMINAL-NESS, and NO_COLOR read here rather than
+	// through the library's colour gate. The figure goes to STDOUT and
+	// the error frames go to STDERR, and they are not the same
+	// destination: run() has already called SetColor for stderr, so
+	// asking the library would answer the wrong question twice -- no
+	// escapes for `aontu view tree m.aon 2>/dev/null` at a terminal, and
+	// escapes into the pipe for `aontu view tree m.aon | less`. The
+	// NO_COLOR rule is the one no-color.org states: set, to anything but
+	// empty, means no colour.
+	if "text" == as && nil == colorFor(stdout) && "" == os.Getenv("NO_COLOR") {
 		return "ansi"
 	}
 	return ""
-}
-
-// viewDefaultProfile is the profile a kind draws into when none is
-// asked for, so `--style auto` can be resolved before the library runs.
-var viewDefaultProfiles = map[string]string{
-	"doc": "text", "tree": "text", "matrix": "text", "graph": "mermaid", "layer": "text",
-	"sets": "text", "layers": "text", "ladder": "mermaid", "poset": "mermaid",
 }
 
 // The figure was drawn (0, `lossy` included: the loss report says what
@@ -268,7 +270,7 @@ func runView(argv []string, stdout, stderr io.Writer) int {
 	opts.Roots = roots
 	as := opts.As
 	if "" == as {
-		as = viewDefaultProfiles[kind]
+		as = aontu.ViewDefaultProfile(kind)
 	}
 	opts.Style = viewStyleFor(style, as, stdout)
 

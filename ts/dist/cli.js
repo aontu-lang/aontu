@@ -1511,8 +1511,18 @@ function viewStyleOf(asked, as) {
     if (undefined !== asked && 'auto' !== asked) {
         return asked;
     }
-    return 'text' === as && true === process.stdout.isTTY && (0, aontu_1.colorActive)()
-        ? 'ansi' : undefined;
+    // STDOUT'S OWN TERMINAL-NESS, and NO_COLOR read here rather than
+    // through colorActive(). The figure goes to STDOUT and the error
+    // frames go to STDERR, and they are not the same destination: main()
+    // has already called setColor for stderr, so asking colorActive()
+    // would answer the wrong question twice --- no escapes for
+    // `aontu view tree m.aon 2>/dev/null` at a terminal, and escapes
+    // into the pipe for `aontu view tree m.aon | less`. The NO_COLOR
+    // rule is the one no-color.org states and err.ts implements:
+    // set, to anything but empty, means no colour.
+    const no = process.env.NO_COLOR;
+    return 'text' === as && true === process.stdout.isTTY
+        && (null == no || '' === no) ? 'ansi' : undefined;
 }
 // The figure was drawn (0, `lossy` included: the loss report says
 // what it could not draw, and --strict is the gate on that), or the

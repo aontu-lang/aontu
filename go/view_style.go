@@ -83,18 +83,13 @@ func viewStyleOf(style, as string) string {
 	return "none"
 }
 
-// ColorActive reports whether ANSI escapes are wanted: the CLI's
-// SetColor override where it made one, and NO_COLOR otherwise. The
-// view command needs it to resolve `--style auto`, which is the same
-// question the error frames ask -- exported so cmd/aontu can ask it
-// too, since the package boundary is between them and err.ts has no
-// such boundary in the TypeScript port.
-func ColorActive() bool { return colorActive() }
-
-// viewDefaultProfile is the profile a kind draws into when none is
-// asked for. The CLI needs it to resolve `--style auto` BEFORE the
-// library runs, since the mechanism is the profile's.
-func viewDefaultProfile(kind string) string {
+// ViewDefaultProfile is the profile a kind draws into when none is
+// asked for. EXPORTED because cmd/aontu needs it to resolve
+// `--style auto` BEFORE the library runs -- the mechanism is the
+// profile's -- and a second copy of the kind-to-profiles table in the
+// command would be one more thing to keep in step. The TypeScript twin
+// is viewDefaultProfile in ts/src/view.ts, imported by cli.ts.
+func ViewDefaultProfile(kind string) string {
 	if ps, ok := viewProfiles[kind]; ok && 0 < len(ps) {
 		return ps[0]
 	}

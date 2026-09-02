@@ -89,10 +89,18 @@ it is `view_style_profile` rather than a silent no-op.
 
 Escapes are never written to a file: `--out --style ansi` is refused,
 and `auto` resolves to none there. `auto` is resolved by the CLI and
-is not a value the library takes -- `ts/src/err.ts` already settles
-that division for the error frames, a library cannot see whether its
-output is a terminal, and it keeps every `test/spec/view.tsv` row
-deterministic.
+is not a value the library takes -- a library cannot see whether its
+output is a terminal, and keeping the decision out of `viewOf` is what
+keeps every `test/spec/view.tsv` row deterministic.
+
+THE FIGURE'S TERMINAL IS STDOUT'S, not stderr's. `SetColor` settles
+the ERROR FRAMES, which go to stderr, and reusing its answer for the
+figure would have got both common cases wrong: no escapes for
+`aontu view tree m.aon 2>/dev/null` at a terminal, and escapes into
+the pipe for `aontu view tree m.aon | less`. `auto` therefore reads
+`process.stdout.isTTY` (the `*os.File` character-device test in Go)
+and `NO_COLOR` directly, by the rule no-color.org states and `err.ts`
+implements.
 
 THE COLOUR BOUNDARY IS AMENDED, NARROWLY
 (`docs/design/VIEWS.0.md`, "7. Styling"). Neither mechanism states a
