@@ -5,7 +5,7 @@ package (`ts/`, npm `aontu`) and the Go module (`go/`,
 `github.com/aontu-lang/aontu/go`) are versioned independently; entries note
 which implementation each change affects.
 
-## Unreleased
+## Go 0.1.12 — 2026-09-02 · TypeScript 0.54.0
 
 ### Subsumption: reflexivity holds for a shared template, a relation and a recursion
 
