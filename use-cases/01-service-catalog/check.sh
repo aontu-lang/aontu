@@ -224,6 +224,12 @@ has matrix out '# above-diagonal direct cells: 0'
 # draws today, and nothing is written when it is not.
 run gate 0 -- view matrix --relation dependsOn --order partition --closure \
   --out "$DIR/expected/diagram-matrix.txt" --check "$DIR/system.aon"
+# The same matrix as SVG -- the same cells on an integer grid -- is
+# the figure the site shows, and is gated the same way.
+run svg 0 -- view matrix --relation dependsOn --order partition --closure \
+  --as svg "$DIR/system.aon"
+diff -u "$DIR/expected/diagram-matrix.svg" "$WORK/svg.out" \
+  || fail "the matrix SVG drifted"
 ok "the catalog draws: node-link and dependency matrix, both pinned"
 
 echo "all $pass checks passed"

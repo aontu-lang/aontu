@@ -771,18 +771,31 @@ never the value tree:
 
 | kind | draws | reads | profiles |
 |---|---|---|---|
-| `tree` | the dependency tree of a relation: roots derived, repeats elided, cycles marked | the edge set | `text` |
-| `matrix` | the dependency-structure matrix over one relation, in `canon` or `partition` order, with `--closure` | the edge set and the relation declarations | `text` |
+| `tree` | the dependency tree of a relation: roots derived, repeats elided, cycles marked | the edge set | `text`, `svg` |
+| `matrix` | the dependency-structure matrix over one relation, in `canon` or `partition` order, with `--closure` | the edge set and the relation declarations | `text`, `svg` |
 | `graph` | the node-link drawing, grouped and labelled by fields of the nodes | the edge set, the declarations, the node values | `mermaid`, `dot`, `er` |
-| `layer` | the architecture layers: one band per value of `--group-by`, upward edges named | the edge set and the node values | `text`, `mermaid` |
-| `sets` | the set-intersection panel over a family of sets (UpSet) | the generated value | `text` |
-| `layers` | which document contributed which path | the provenance record | `text` |
+| `layer` | the architecture layers: one band per value of `--group-by`, upward edges named | the edge set and the node values | `text`, `mermaid`, `svg` |
+| `sets` | the set-intersection panel over a family of sets (UpSet) | the generated value | `text`, `svg` |
+| `layers` | which document contributed which path | the provenance record | `text`, `svg` |
 | `ladder` | the meet ladder at one path: every contribution as a rung, in rank order | the [`why`](#aontu-why) record | `mermaid`, `dot` |
 | `poset` | the subsumption order over several documents | [`subsume`](#aontu-subsume), pairwise | `mermaid`, `dot` |
 
 The first profile listed is the kind's default; asking for another is
 a refusal (`view_profile_unknown`), because there is no text form of a
 node-link drawing and no Mermaid form of a matrix.
+
+`--as svg` draws the cell-based kinds -- every kind whose text form is
+a grid of character cells -- as a standalone SVG with the same
+geometry: 8 units per character and 20 per line, every coordinate a
+whole number, so no font is measured and both ports emit the same
+bytes. The figure carries its own style block; a host page sets the
+colours through CSS variables (`--av-ink`, `--av-muted`, `--av-bg`,
+`--av-rule`, `--av-rule-faint`, `--av-closure`, `--av-warn`,
+`--av-alert`, `--av-bar`), and the defaults stand where it sets none.
+The matrix fills a direct cell, tints a closure cell, marks an
+unmirrored edge, and rules the diagonal; the layers draw each upward
+edge as a dashed arrow; the panel draws its bars and dots. The
+node-link kinds stay Mermaid and DOT, whose renderers lay them out.
 
 Draw the `system.aon` model above over its `dependsOn` relation, first
 as the tree, then as the matrix in partition order:

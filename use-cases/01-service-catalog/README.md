@@ -124,7 +124,10 @@ The same graph as a **dependency-structure matrix** in partition order
 with the closure marked, `aontu view matrix --relation dependsOn
 --order partition --closure`. A mark at (row, column) means the row
 service depends on the column service: `X` directly, `+` through
-others.
+others. The SVG is the same figure under `--as svg`, the same cells on
+an integer grid, pinned as `expected/diagram-matrix.svg`:
+
+![The dependency-structure matrix, drawn: eight rows in partition order, direct cells filled, the closure tinted, the diagonal ruled](expected/diagram-matrix.svg)
 
 ```
             1 2 3 4 5 6 7 8
@@ -265,8 +268,9 @@ merged model, `get` slices and query results; grep-by-error-code
     no file writes, cannot evaluate: `[aontu/rel_unresolved]`.
 21. The catalog draws: `aontu view graph` grouped by owner and
     `aontu view matrix` in partition order both match their goldens,
-    the matrix has no cell above the diagonal, and `--check` against
-    the committed matrix passes.
+    the matrix has no cell above the diagonal, `--check` against
+    the committed matrix passes, and the matrix as SVG matches
+    `expected/diagram-matrix.svg`.
 
 ## Running it
 

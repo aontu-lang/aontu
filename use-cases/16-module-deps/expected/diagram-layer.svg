@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" class="av" viewBox="0 0 380 212" width="380" height="212" role="img" aria-label="Architecture layers over dependsOn: 4 bands, 0 upward edges">
+<style>.av{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px}.av-t{fill:var(--av-ink,#1f2328)}.av-m{fill:var(--av-muted,#6e7781)}.av-box{fill:var(--av-bg,#f6f8fa);stroke:var(--av-rule,#8c959f);stroke-width:1}.av-cell{fill:var(--av-bg,#f6f8fa);stroke:var(--av-rule-faint,#d0d7de);stroke-width:1}.av-direct{fill:var(--av-ink,#1f2328);stroke:var(--av-rule-faint,#d0d7de);stroke-width:1}.av-closure{fill:var(--av-closure,#9ec5fe);stroke:var(--av-rule-faint,#d0d7de);stroke-width:1}.av-unmirrored{fill:var(--av-warn,#e3b341);stroke:var(--av-rule-faint,#d0d7de);stroke-width:1}.av-line{stroke:var(--av-rule,#8c959f);stroke-width:1;fill:none}.av-up{stroke:var(--av-alert,#d1242f);stroke-width:1.5;fill:none;stroke-dasharray:4 3}.av-dot{fill:var(--av-ink,#1f2328)}.av-hole{fill:var(--av-bg,#f6f8fa);stroke:var(--av-rule-faint,#d0d7de);stroke-width:1}.av-bar{fill:var(--av-bar,#57606a)}</style>
+<rect x="4" y="4" width="372" height="44" class="av-cell"/>
+<text x="12" y="31" class="av-m">app</text>
+<rect x="72" y="14" width="36" height="24" class="av-box"/>
+<text x="78" y="30" class="av-t">cli</text>
+<rect x="118" y="14" width="60" height="24" class="av-box"/>
+<text x="124" y="30" class="av-t">server</text>
+<rect x="188" y="14" width="60" height="24" class="av-box"/>
+<text x="194" y="30" class="av-t">worker</text>
+<rect x="4" y="48" width="372" height="44" class="av-cell"/>
+<text x="12" y="75" class="av-m">feature</text>
+<rect x="72" y="58" width="68" height="24" class="av-box"/>
+<text x="78" y="74" class="av-t">billing</text>
+<rect x="150" y="58" width="68" height="24" class="av-box"/>
+<text x="156" y="74" class="av-t">catalog</text>
+<rect x="228" y="58" width="68" height="24" class="av-box"/>
+<text x="234" y="74" class="av-t">reports</text>
+<rect x="4" y="92" width="372" height="44" class="av-cell"/>
+<text x="12" y="119" class="av-m">core</text>
+<rect x="72" y="102" width="44" height="24" class="av-box"/>
+<text x="78" y="118" class="av-t">auth</text>
+<rect x="126" y="102" width="44" height="24" class="av-box"/>
+<text x="132" y="118" class="av-t">http</text>
+<rect x="180" y="102" width="52" height="24" class="av-box"/>
+<text x="186" y="118" class="av-t">store</text>
+<rect x="4" y="136" width="372" height="44" class="av-cell"/>
+<text x="12" y="163" class="av-m">util</text>
+<rect x="72" y="146" width="52" height="24" class="av-box"/>
+<text x="78" y="162" class="av-t">bytes</text>
+<rect x="134" y="146" width="52" height="24" class="av-box"/>
+<text x="140" y="162" class="av-t">clock</text>
+<rect x="196" y="146" width="36" height="24" class="av-box"/>
+<text x="202" y="162" class="av-t">log</text>
+<text x="4" y="198" class="av-m"># dependsOn: 19 downward, 2 sideways, 0 upward</text>
+</svg>

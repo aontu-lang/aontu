@@ -51,15 +51,17 @@ Five cases carry generated diagrams, drawn by
 [`aontu view`](../docs/reference-api.md#aontu-view), pinned as goldens
 by their `check.sh` and rendered inline in their README. The tree, the
 matrix and the layers are fixed-pitch text, because those figures are
-character cells; the others are Mermaid, which GitHub draws:
+character cells, and 01 and 16 pin the same figures as SVG (`--as
+svg`, the same cells drawn to the same integer grid); the others are
+Mermaid, which GitHub draws:
 
 | case | views |
 |---|---|
-| [01-service-catalog](01-service-catalog/) | `graph` grouped by owner, `matrix` in partition order with the closure |
+| [01-service-catalog](01-service-catalog/) | `graph` grouped by owner, `matrix` in partition order with the closure (text and SVG) |
 | [04-schema-evolution](04-schema-evolution/) | `poset`: the subsumption order over the releases and proposals |
 | [08-feature-flags](08-feature-flags/) | `ladder`: the meet ladder for one arbitrated value |
 | [12-relations](12-relations/) | `graph` with the declared inverse suppressed, and `graph --as er` |
-| [16-module-deps](16-module-deps/) | `tree` with elided repeats and derived roots, `matrix`, and `layer`: the architecture bands |
+| [16-module-deps](16-module-deps/) | `tree` with elided repeats and derived roots, `matrix`, and `layer`: the architecture bands (each as text and SVG) |
 
 The verb computes no coordinate and sorts nodes and edges by code
 point, so the output is deterministic text, both ports emit the same

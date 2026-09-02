@@ -13,7 +13,11 @@ dependency-structure matrix.
 ## The codebase, drawn
 
 The tree below is `aontu view tree --relation dependsOn model.aon`,
-pinned as a golden by `check.sh`.
+pinned as a golden by `check.sh`. Each figure here is pinned twice: as
+the text the verb draws by default, and as the SVG `--as svg` draws
+from the same character grid, which is what the site shows.
+
+![The dependency tree, drawn: three roots, each module one row, the repeats marked](expected/diagram-tree.svg)
 
 ```
 cli
@@ -58,23 +62,32 @@ and `npm ls` do, and for the same reason. Nine edges here land on a
 subtree that is already drawn. A repeat with nothing under it, like
 `bytes`, hides nothing and is drawn plain.
 
-The same edges as a dependency-structure matrix, where a mark at (row,
-column) means the row module depends on the column module:
+The same edges as a dependency-structure matrix, `aontu view matrix
+--relation dependsOn --order partition --closure model.aon`, pinned as
+`expected/diagram-matrix.txt`. A mark at (row, column) means the row
+module depends on the column module: `X` directly, `+` through others.
+In partition order an acyclic relation is a perfect lower triangle, and
+the footer counts the cells above the diagonal: zero is the acyclicity
+proof, in the picture's own shape.
+
+![The dependency-structure matrix, drawn: twelve rows in partition order, direct cells filled, the closure tinted, the diagonal ruled](expected/diagram-matrix.svg)
 
 ```
-             1  2  3  4  5  6  7  8  9 10 11 12
-auth      1  \  .  X  .  .  .  X  .  .  .  .  .
-billing   2  X  \  .  .  .  X  .  .  .  .  X  .
-bytes     3  .  .  \  .  .  .  .  .  .  .  .  .
-catalog   4  .  .  .  \  .  .  X  .  .  .  X  .
-cli       5  .  X  .  .  \  .  .  .  X  .  .  .
-clock     6  .  .  .  .  .  \  .  .  .  .  .  .
-http      7  .  .  X  .  .  .  \  X  .  .  .  .
-log       8  .  .  X  .  .  .  .  \  .  .  .  .
-reports   9  .  .  .  .  .  .  .  X  \  .  X  .
-server   10  .  X  .  X  .  .  X  .  .  \  .  .
-store    11  .  .  .  .  .  X  .  X  .  .  \  .
-worker   12  .  .  .  .  .  .  .  .  X  .  X  \
+                             1 1 1
+           1 2 3 4 5 6 7 8 9 0 1 2
+bytes    1 \ . . . . . . . . . . .
+clock    2 . \ . . . . . . . . . .
+log      3 X . \ . . . . . . . . .
+http     4 X . X \ . . . . . . . .
+store    5 + X X . \ . . . . . . .
+auth     6 X . + X . \ . . . . . .
+catalog  7 + + + X X . \ . . . . .
+reports  8 + + X . X . . \ . . . .
+billing  9 + X + + X X . . \ . . .
+worker  10 + + + . X . . X . \ . .
+cli     11 + + + + + + . X X . \ .
+server  12 + + + X + + X . X . . \
+# above-diagonal direct cells: 0
 ```
 
 The tree answers "what does `cli` pull in, and how deep"; the matrix
@@ -87,6 +100,8 @@ readable, which is why the case draws both.
 **The architecture layers**, the drawing every layered codebase has a
 hand-made copy of, is `aontu view layer --relation dependsOn --group-by
 layer model.aon`, pinned as `expected/diagram-layer.txt`:
+
+![The architecture layers, drawn: four bands, app on top, each module a box in its band](expected/diagram-layer.svg)
 
 ```
 +------------------------------------+
@@ -208,19 +223,21 @@ constructs are specified in the language reference under
    `bytes` does not reach `cli` (`verdict: unreachable`, exit code 1).
 9. The dependency tree renders byte for byte to
    `expected/diagram-tree.txt`: three derived roots, nine elided
-   repeats.
+   repeats; and as SVG to `expected/diagram-tree.svg`.
 10. `aontu view tree --root $.mods.billing` draws one module's own
     closure, pinned as `expected/diagram-tree-billing.txt`.
 11. A `--root` naming no node refuses (`refer_unresolved`, naming
     `$.mods.nosuch`) rather than drawing an empty tree.
 12. The dependency-structure matrix, in partition order with the
     closure, renders byte for byte to `expected/diagram-matrix.txt`,
-    and its footer counts zero cells above the diagonal.
+    and its footer counts zero cells above the diagonal; the same
+    matrix as SVG matches `expected/diagram-matrix.svg`, and `--check`
+    against the committed SVG passes.
 12b. The architecture layers render byte for byte to
     `expected/diagram-layer.txt`: four bands in the order the relation
-    derives, nineteen edges downward, two sideways, none upward; the
-    same figure with `--layers app,feature,core,util --as mermaid`
-    draws the bands as Mermaid subgraphs.
+    derives, nineteen edges downward, two sideways, none upward; as
+    SVG to `expected/diagram-layer.svg`; and with `--layers
+    app,feature,core,util --as mermaid` as Mermaid subgraphs.
 13. The tree of the cyclic model (`bad/cycle.aon`) terminates, marking
     the closing edge `(cycle)` instead of recursing into it.
 14. `aontu get` reads a module's layer and directory off the model:

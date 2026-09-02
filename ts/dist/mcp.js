@@ -398,7 +398,7 @@ const TOOLS = [
             },
             as: {
                 type: 'string',
-                description: 'The target grammar: text, mermaid, dot or er, per kind ' +
+                description: 'The target grammar: text, mermaid, dot, er or svg, per kind ' +
                     '(optional; the kind\'s default otherwise)',
             },
             at: {
@@ -462,7 +462,7 @@ const TOOLS = [
             if (null != a.kind && !kinds.includes(a.kind)) {
                 return `kind must be one of ${kinds.join(', ')}, not ${JSON.stringify(a.kind)}`;
             }
-            const profiles = ['text', 'mermaid', 'dot', 'er'];
+            const profiles = ['text', 'mermaid', 'dot', 'er', 'svg'];
             if (null != a.as && !profiles.includes(a.as)) {
                 return `as must be one of ${profiles.join(', ')}, not ${JSON.stringify(a.as)}`;
             }

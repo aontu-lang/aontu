@@ -21,7 +21,7 @@ const viewHelp = "aontu view <kind> [options] <file>... (try --help)"
 
 var viewKinds = []string{"tree", "matrix", "graph", "layer", "sets", "layers", "ladder", "poset"}
 
-var viewProfiles = []string{"text", "mermaid", "dot", "er"}
+var viewProfiles = []string{"text", "mermaid", "dot", "er", "svg"}
 
 // The figure was drawn (0, `lossy` included: the loss report says what
 // it could not draw, and --strict is the gate on that), or the document

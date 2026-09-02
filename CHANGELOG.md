@@ -7,6 +7,28 @@ which implementation each change affects.
 
 ## Unreleased
 
+### `aontu view --as svg`: the cell-based figures as SVG
+
+Both ports. **New profile.** `tree`, `matrix`, `layer`, `sets` and
+`layers` render as a standalone SVG under the design's integer rule:
+8 units per character, 20 per line, every coordinate a whole number
+from the counts that lay the text figure out, so no font is measured
+and both ports emit the same bytes. Each figure carries its own style
+block and takes its colours from CSS variables (`--av-ink`, `--av-bg`,
+`--av-rule`, `--av-closure`, `--av-warn`, `--av-alert`, `--av-bar`,
+...), with defaults where a host page sets none, and a description in
+`aria-label`. The matrix fills direct cells, tints the closure, marks
+an unmirrored edge and rules the diagonal; the layers draw an upward
+edge as a dashed arrow between its boxes; the panels draw their bars
+and dots. The node-link kinds stay Mermaid and DOT. **Correction**,
+both ports: the `layer` figure of a document with no edges named its
+relation as `undefined` (TypeScript) or as nothing (Go); the footer
+now reads `# -: 0 downward, 0 sideways, 0 upward` in both. A set name
+or element holding a line terminator is refused (`view_line_break`),
+as a layer name already was. `test/spec/view.tsv` pins every figure.
+Use cases 01 and 16 pin their SVG figures beside the text goldens and
+embed them in their READMEs.
+
 ### `aontu view`: every figure of the design, drawn by the engine
 
 Both ports. **New kinds, new flags, one verb.** `aontu view <kind>`
