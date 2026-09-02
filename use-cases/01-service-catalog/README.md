@@ -37,7 +37,7 @@ and have its own emitted candidates checked (`aontu vet`, `rel()`).
 
 Relations are declared on the field that holds them. In `spec.aon`:
 
-```
+```aon
 dependsOn?: rel($.std.Service) & re("^\\$[.]catalog[.]") & acyclic() & inverse(dependedOnBy)
 dependedOnBy?: rel($.std.Service) & re("^\\$[.]catalog[.]")
 ```

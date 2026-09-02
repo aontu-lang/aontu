@@ -5,6 +5,30 @@ package (`ts/`, npm `aontu`) and the Go module (`go/`,
 `github.com/aontu-lang/aontu/go`) are versioned independently; entries note
 which implementation each change affects.
 
+## Unreleased
+
+### `view.ts` imported a bare `path`, which no bundler resolves
+
+TypeScript. `src/view.ts` was the only file in the tree importing a
+Node builtin without the `node:` prefix. Node resolves both spellings,
+so every test and every CLI run passed; a bundler does not, and the
+first thing to build the engine for a browser after the view verb
+landed -- aontu-lang/web's playground, which aliases `node:path`,
+`node:fs`, `node:crypto` and `node:util` to shims -- failed with
+`Could not resolve "path"`. `ts/test/imports.test.ts` now asserts the
+tree has one spelling, since a downstream build failure is a poor
+detector for a one-word typo.
+
+### Documentation: the source fences carry their language
+
+Fences holding Aontu source across `docs/` and the use-case READMEs
+carried no language tag, so aontu.dev rendered them as plaintext beside
+identical source that coloured. Every one that is source now says so
+(`aon`), which brings it under `ts/test/docs.test.ts` -- parse-checked,
+or carrying a stated skip. Two of use case 16's model fragments moved
+from indented blocks to fences for the same reason, and its declared-
+figure snippet no longer elides with `...`, which is not source.
+
 ## Go 0.1.12 — 2026-09-02 · TypeScript 0.54.0
 
 ### Subsumption: reflexivity holds for a shared template, a relation and a recursion

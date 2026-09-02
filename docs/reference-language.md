@@ -1460,7 +1460,7 @@ Maths beyond `+` is spelled with **functions**. The tokens `-` `*` `/`
 `%` stay reserved for the language's own use, so there is no infix
 arithmetic to learn beyond `+` and unary `-`:
 
-```
+```aon
 replicas: mul($.base.replicas, 2)
 spare:    sub($.quota.cpu, $.used.cpu)
 shards:   div($.total, $.per_shard)
@@ -2139,7 +2139,7 @@ Write `vocab.jsonld`:
 
 <!-- test: scenario include-extension -->
 <!-- test: file vocab.jsonld -->
-```
+```json
 {"name": "aontu", "tags": ["config", "types"]}
 ```
 
@@ -2168,7 +2168,7 @@ A config file in any of those formats reads the same way. Write
 `server.toml`:
 
 <!-- test: file server.toml -->
-```
+```toml
 port = 8080
 hosts = ["a", "b"]
 ```
@@ -2345,14 +2345,14 @@ user cache, and a module then resolves from `aon_vendor/` alone.
 declares the module's own path and entry file; the entry defaults to
 `main.aon`:
 
-```
+```aon
 mod: { path: "corp.example/schemas/service", main: "service.aon" }
 ```
 
 `mod-lock.aon` is machine-written in **canonical form** — one line,
 sorted keys, diffable, and (its leaves being scalars) valid JSON:
 
-```
+```aon
 {"lock":{"corp.example/schemas/service@1":{"canon":"aon1-4vJe…","oci":"sha256:6b86…","v":"1.4.2"}}}
 ```
 
@@ -2379,7 +2379,7 @@ not consulted at all: a confined evaluation sees the project's own
 declares what the project wants, under a `dep` map keyed by module
 path:
 
-```
+```aon
 mod: { path: "corp.example/app", main: "main.aon" }
 dep: { "corp.example/schemas/service@1": { v: "1.4.2" } }
 ```

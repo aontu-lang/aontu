@@ -38,7 +38,7 @@
 // other code makes it `lossy`, which `--strict` refuses: a figure that
 // quietly omits things is the failure this capability exists to avoid.
 
-import { basename, dirname, isAbsolute, relative, resolve } from 'path'
+import { basename, dirname, isAbsolute, relative, resolve } from 'node:path'
 
 import { Aontu } from './aontu'
 import { failureFinding, anchorAt } from './vet'

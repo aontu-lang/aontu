@@ -41,7 +41,7 @@ exports.viewSet = viewSet;
 // emitted order, not of the model) -- and leave the verdict `rendered`. Every
 // other code makes it `lossy`, which `--strict` refuses: a figure that
 // quietly omits things is the failure this capability exists to avoid.
-const path_1 = require("path");
+const node_path_1 = require("node:path");
 const aontu_1 = require("./aontu");
 const vet_1 = require("./vet");
 const graph_1 = require("./graph");
@@ -1315,10 +1315,10 @@ function drawSets(gen, o, max, loss) {
 // the entry document's directory, the entry itself by its own name.
 function docName(file, entry) {
     if ('' === file || file === entry) {
-        return undefined === entry ? '-' : (0, path_1.basename)(entry);
+        return undefined === entry ? '-' : (0, node_path_1.basename)(entry);
     }
-    return (0, path_1.isAbsolute)(file) && undefined !== entry
-        ? (0, path_1.relative)((0, path_1.dirname)((0, path_1.resolve)(entry)), file) : file;
+    return (0, node_path_1.isAbsolute)(file) && undefined !== entry
+        ? (0, node_path_1.relative)((0, node_path_1.dirname)((0, node_path_1.resolve)(entry)), file) : file;
 }
 function drawLayers(prov, root, entry, o, max, loss) {
     // Every path something met at AND THE DOCUMENT HAS A VALUE AT,
@@ -1365,7 +1365,7 @@ function drawLayers(prov, root, entry, o, max, loss) {
     }
     cols = elide(cols, o.maxCols, loss);
     const panel = {
-        header: `# layers  file=${undefined === entry ? '-' : (0, path_1.basename)(entry)}` +
+        header: `# layers  file=${undefined === entry ? '-' : (0, node_path_1.basename)(entry)}` +
             `  documents=${names.length}  paths=${paths.length}`,
         names,
         sizes: names.map((n) => members.get(n).size),
@@ -1406,7 +1406,7 @@ function drawLadder(src, options, as, max) {
     if (max < rungs.length) {
         return { errors: [rowsFinding(rungs.length, max, 'a narrower --at')] };
     }
-    const where = (c) => `${(0, path_1.basename)(c.site.file)}:${c.site.row}:${c.site.col}`;
+    const where = (c) => `${(0, node_path_1.basename)(c.site.file)}:${c.site.row}:${c.site.col}`;
     const out = [];
     if ('mermaid' === as) {
         const esc = (s) => escape(s, MERMAID_ESC);
@@ -1662,7 +1662,7 @@ function view(src, opts, hooks) {
             .map((d, i) => ({
             src: d.src, path: d.path,
             label: d.name ?? (undefined === d.path
-                ? `doc${i + 1}` : (0, path_1.basename)(d.path).replace(/\.aon$/, '')),
+                ? `doc${i + 1}` : (0, node_path_1.basename)(d.path).replace(/\.aon$/, '')),
         }));
         return done(drawPoset(docs, options, as, max, loss, compare));
     }
