@@ -84,12 +84,15 @@ describe('view', () => {
       { verdict: 'rendered', kind: 'tree', text: '', loss: [] })
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-view-abs-'))
     const lib = write(dir, 'lib.aon', 'b: 2\n')
-    const r = view(`@"${lib}"\na: 1\n`, {
+    // Spelled with forward slashes: a backslash in a string literal is
+    // an escape, and a Windows path is full of them.
+    const spelled = lib.split(Path.sep).join('/')
+    const r = view(`@"${spelled}"\na: 1\n`, {
       kind: 'layers', trust: { include: 'root', root: dir } as any,
     })
     Assert.equal(r.verdict, 'rendered', JSON.stringify(r.errors))
     Assert.match(r.text as string, /^# layers {2}file=- {2}documents=2/)
-    Assert.ok((r.text as string).includes(lib), r.text as string)
+    Assert.ok((r.text as string).includes('lib.aon'), r.text as string)
   })
 
 
