@@ -60,7 +60,8 @@ document: `vet` (validate data against a schema), `get` and `why`
 appending or in place), `subsume` and `breaking` (schema evolution),
 `hash` (pin what a document means), `relations`, `reaches` and `view`
 (the declared entity graph: its checks, reachability over it, and its
-dependency tree drawn as text), `jsonschema` (export
+figures drawn as text: tree, matrix, graph, layers, sets, the meet
+ladder and the subsumption poset), `jsonschema` (export
 the model as JSON Schema), `trim` (find redundant entries), `mod`
 (dependency closures) and `agentsmd` (an AGENTS.md stanza). The
 library adds a path-addressed `diff`, and an MCP server answers with

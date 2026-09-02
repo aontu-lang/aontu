@@ -1,0 +1,10 @@
++------------------------------------+
+| app      cli  server  worker       |
++------------------------------------+
+| feature  billing  catalog  reports |
++------------------------------------+
+| core     auth  http  store         |
++------------------------------------+
+| util     bytes  clock  log         |
++------------------------------------+
+# dependsOn: 19 downward, 2 sideways, 0 upward

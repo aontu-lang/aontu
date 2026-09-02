@@ -10,6 +10,7 @@ export type WhyConjunct = {
     role: WhyRole;
     site: WhySite;
     src: string;
+    rank?: number;
 };
 export type WhyRecord = {
     conjuncts: WhyConjunct[];

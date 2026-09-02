@@ -338,3 +338,12 @@ module_depth	errcode	budget	0.53.0
 # root that names no node of the drawn graph reuses `refer_unresolved`,
 # the code every verb answers a path that names nothing with.
 view_relation_unknown	errcode	reference	0.54.0
+view_kind_unknown	errcode	reference	0.54.0
+view_profile_unknown	errcode	reference	0.54.0
+view_rows_exceeded	errcode	budget	0.54.0
+view_line_break	errcode	parse	0.54.0
+view_relation_ambiguous	errcode	reference	0.54.0
+view_sets_shape	errcode	reference	0.54.0
+view_sets_required	errcode	reference	0.54.0
+view_at_required	errcode	reference	0.54.0
+view_group_required	errcode	reference	0.54.0

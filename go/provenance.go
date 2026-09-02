@@ -53,6 +53,12 @@ type WhyConjunct struct {
 	// LEXICOGRAPHIC field order, as everywhere the two emitters must
 	// agree byte for byte: src sorts after site.
 	Src string `json:"src"`
+	// Rank is the PREFERENCE RANK, 0-based, when the contribution is
+	// one: `*x` is 0, `**x` is 1. Nil for anything else. The engine's
+	// own number (PrefVal.rank), so a reader arbitrating between ranked
+	// contributions -- the meet ladder -- need not count stars in a
+	// canon string.
+	Rank *int `json:"rank,omitempty"`
 }
 
 type WhyRecord struct {
@@ -284,7 +290,7 @@ func (p *Provenance) contribute(rec *whyPathRecord, v Val) {
 			row, col = rowCol(text, v.pos())
 		}
 	}
-	rec.conjuncts = append(rec.conjuncts, whyContribution{
+	c := whyContribution{
 		WhyConjunct: WhyConjunct{
 			Canon: v.Canon(),
 			Role:  p.whyRole(v),
@@ -294,7 +300,12 @@ func (p *Provenance) contribute(rec *whyPathRecord, v Val) {
 			Src: v.srctext(),
 		},
 		val: v,
-	})
+	}
+	if pv, isp := v.(*PrefVal); isp {
+		rank := pv.rank
+		c.Rank = &rank
+	}
+	rec.conjuncts = append(rec.conjuncts, c)
 }
 
 // stands records THE VALUE THAT STANDS at a path as a contribution when

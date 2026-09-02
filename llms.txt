@@ -10,7 +10,8 @@
 > `breaking` gate schema evolution, `hash` pins what a document means,
 > `set` repairs a value in place, `relations` checks declared entity
 > graphs, `reaches` answers whether one entity reaches another at any
-> remove, `view` draws the dependency tree of a relation as text,
+> remove, `view` draws a model as text (tree, matrix, graph, layers,
+> sets, the meet ladder, the subsumption poset),
 > `jsonschema` exports the model as JSON Schema and reports
 > what that export cannot carry, and an MCP server exposes the same
 > contracts over stdio. Two

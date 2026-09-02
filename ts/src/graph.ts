@@ -38,6 +38,11 @@ export type Edge = {
   // Where the link is, as a `$.dotted.path`, so a report can point at
   // it.
   at: string
+  // Set when the link sits inside a `hide()`-marked subtree. The link
+  // is still checked and still an edge, but a figure that draws it
+  // DISCLOSES what the document hides, so the view extractors skip it
+  // and report it as `hidden_contribution`.
+  hidden?: true
 }
 
 export type Graph = {
@@ -89,38 +94,59 @@ export function graphOf(root: Val): Graph {
   const edges: Edge[] = []
 
   const visit = (
-    node: any, path: string[], ancestors: Set<any>
+    node: any, path: string[], ancestors: Set<any>, hidden: boolean
   ): void => {
     if (null == node || true !== node.isVal || ancestors.has(node)) {
       return
     }
 
+    hidden = hidden || true === node.mark?.hide
+
     const link = node.link
     if (null != link) {
       const { from, key } = cut(path, node.relkey as string | undefined)
-      edges.push({ from, key, to: link, at: formatPath(path) })
+      const edge: Edge = { from, key, to: link, at: formatPath(path) }
+      if (hidden) {
+        edge.hidden = true
+      }
+      edges.push(edge)
     }
 
     // A graph atom is TRANSPARENT here (RELATIONS P2): it carries the
     // field's value at the field's own position, and the graph is about
     // the value.
     if (true === node.isGraphAtom && undefined !== node.held) {
-      visit(node.held, path, ancestors)
+      visit(node.held, path, ancestors, hidden)
+    }
+
+    // An unresolved conjunction (a link waiting on a peer that never
+    // came, a constraint still open) holds its terms at the SAME
+    // position; every link among them is written there, and is an
+    // edge. This is what a match-selected branch or a deferred refer()
+    // looks like after evaluation.
+    if (true === node.isConjunct && Array.isArray(node.peg)) {
+      ancestors.add(node)
+      for (const term of node.peg) {
+        visit(term, path, ancestors, hidden)
+      }
+      ancestors.delete(node)
     }
 
     if ((true === node.isMap || true === node.isList) && null != node.peg) {
       ancestors.add(node)
       for (const k of Object.keys(node.peg)) {
-        visit(node.peg[k], [...path, k], ancestors)
+        visit(node.peg[k], [...path, k], ancestors, hidden)
       }
       ancestors.delete(node)
     }
   }
 
-  visit(root, [], new Set())
+  visit(root, [], new Set(), false)
 
   // DETERMINISTIC by construction, not by luck: edges by the position
-  // they are written at, which is unique — one link, one place.
+  // they are written at, which is unique — one link, one place. That
+  // holds through a conjunction too: its terms share the position, and
+  // two links there would have had to unify into one.
   edges.sort((a, b) => cmpCodePoint(a.at, b.at))
 
   return { edges }

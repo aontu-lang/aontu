@@ -70,7 +70,16 @@ var hints = map[string]string{
 	"path_address":             "This is not a tree address, so it cannot be a path value. An address\nis `$.a.b` from the document root, or `.b` from the sibling scope with\none more leading dot per parent step -- the grammar path() captures.\nString text with no anchor converts as RELATIVE, and a string\nconverts ONLY through the call's own argument.\n \nExamples:\n  d: path(\"$.services.auth\") -> path($.services.auth) # A converted string;\n  d: path(\"auth\")           -> path(.auth)  # ... anchorless text is relative;\n  d: path(\"a..b\")           -> nil   # ... but this spells nothing;\n  d: path(\"$\")              -> nil   # ... and the root is not addressable.",
 	"refer_address":            "A refer() was given something that is not a tree address. An address\nis a PATH VALUE — `path($.a.b)` from the document root, `path(.b)`\nfrom the link's own sibling scope — and only a path value can be one:\na bare string never is, and `path(\"...\")` is the one conversion.\n \nExamples:\n  refer() & path($.services.auth)  -> ...   # From the root;\n  refer() & path(.auth)            -> ...   # ... or beside the link;\n  refer() & \"$.services.auth\"      -> nil   # ... a string is not a path;\n  refer() & 1                      -> nil   # ... and neither is a number.",
 	"refer_unresolved":         "A refer() address names no node in this evaluation. Within one\nevaluation the document-set is fixed, so a link to nothing is an error\nrather than something to resolve later: check the spelling, or add the\nnode it was meant to reach. A relative address that climbs off the top\nof the tree lands here too.\n \nExamples:\n  a:{p:1} b:refer()&\"$.a\"    -> \"$.a\"    # $.a is a node;\n  a:{p:1} b:refer()&\"$.a.p\"  -> \"$.a.p\"  # ... and so is a node inside it;\n  b:refer()&\"$.nope\"         -> nil      # ... but nothing is here.",
-	"view_relation_unknown":    "The relation named to the tree view has no edges in this document, so\nthe tree would be empty -- and an empty tree and a misspelled name are\nthe same file on disk. Check the spelling against the relations the\nnote lists, or drop the relation to draw every relation at once.",
+	"view_relation_unknown":    "The relation named to the view has no edges in this document, so\nthe figure would be empty -- and an empty figure and a misspelled name are\nthe same file on disk. Check the spelling against the relations the\nnote lists, or drop the relation to draw every relation at once.",
+	"view_kind_unknown":        "The figure kind is not one the verb draws. The kinds are tree, matrix,\ngraph, layer, sets, layers, ladder and poset; the note lists them.",
+	"view_profile_unknown":     "The figure kind does not render into the profile asked for: there is no\ntext form of a node-link drawing and no Mermaid form of a matrix. The\nnote lists the profiles the kind declares; the first is its default.",
+	"view_rows_exceeded":       "The figure has more rows than --max-rows allows. This is a REFUSAL,\nnot a truncation: a view that quietly omits things is the failure the\nverb exists to avoid. Narrow the figure with --at or --relation, or\nraise the limit.",
+	"view_line_break":          "A label the figure would draw holds a line terminator (U+000A, U+000D,\nU+2028 or U+2029), and a figure line cannot carry one. Label the node\nwith another field, or drop --label / --group-by.",
+	"view_relation_ambiguous":  "The document has edges under several relations and the matrix (or the\nlayer diagram) draws exactly one. Name it with --relation; the note\nlists the relations with edges.",
+	"view_sets_shape":          "The set panel reads generated values: --sets must name a map whose\nvalues each hold the --member field as a list of strings, and\n--universe a map or a list of strings. The path in the finding is the\nvalue that has another shape.",
+	"view_sets_required":       "The set panel needs both --sets (the map whose keys are the sets) and\n--member (the field holding each set's members).",
+	"view_at_required":         "The meet ladder draws the contributions at ONE path, and none was\nnamed. Pass --at with the path, as `aontu why` takes it.",
+	"view_group_required":      "The layer diagram puts each node in the band its --group-by field\nnames, and no field was named. Pass --group-by with the field that\nholds each node's layer.",
 	"func_arity":               "This function was called with the wrong number of arguments:\n{func} takes {want}, but was given {got}.\n \nExamples:\n  upper(\"a\")     -> \"A\"  # One argument, which is what upper takes;\n  upper(\"a\",\"b\") -> nil  # ... so two is a mistake in the source;\n  key()          -> \"\"   # key takes none, or one level count;\n  neq(1,2,3)     -> neq  # ... and neq takes one or more exclusions.",
 	"elided_value":             "A key or element was written with no value after the colon. An\nelided value is a mistake in the source rather than a null: write\n`null` if that is what was meant, or supply the value.\n \nExamples:\n  a:null  -> null  # An explicit null, which is a value;\n  a:      -> nil   # ... but nothing at all is not;\n  a: b:1  -> {..}  # A colon chain is not an elision;\n  [1,]    -> [1]   # ... nor is a trailing comma.",
 	"unify_no_src":             "No source provided for unification. Cannot unify without source values.",
@@ -218,7 +227,17 @@ var codeClasses = map[string]string{
 	// The tree view (docs/design/VIEWS.0.md): a relation that draws
 	// nothing is refused rather than drawn empty. Class reference: a
 	// name that does not resolve.
-	"view_relation_unknown": "reference",
+	"view_relation_unknown":   "reference",
+	"view_kind_unknown":       "reference",
+	"view_profile_unknown":    "reference",
+	"view_rows_exceeded":      "budget",
+	"view_line_break":         "parse",
+	"view_relation_ambiguous": "reference",
+	"view_sets_shape":         "reference",
+	"view_sets_required":      "reference",
+	"view_at_required":        "reference",
+	"view_group_required":     "reference",
+
 	// G4 phase 5 -- the relation graph checks. Class conflict: the model
 	// contradicts a property it declared for itself. Report-layer, so no
 	// NilVal carries either -- both are global and non-monotone, and a

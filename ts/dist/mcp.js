@@ -378,36 +378,115 @@ const TOOLS = [
     },
     {
         name: 'view',
-        description: 'Draw a figure of the link graph as deterministic text: the ' +
-            'dependency tree of a relation (kind "tree"), roots derived as ' +
-            'the nodes nothing depends on, a repeated subtree elided as (*), ' +
-            'a closing edge marked (cycle). Returns verdict (rendered | ' +
-            'error), kind, and the text.',
+        description: 'Draw a figure of the document as deterministic text. Kinds: ' +
+            'tree (the dependency tree of a relation), matrix (the ' +
+            'dependency matrix, canon or partition order, --closure), graph ' +
+            '(node-link, as mermaid, dot or er), layer (the architecture ' +
+            'layers as stacked bands, groupBy naming the layer field), sets ' +
+            '(the set-intersection ' +
+            'panel over a set family), layers (which document contributed ' +
+            'which path), ladder (the meet ladder at a path). Returns ' +
+            'verdict (rendered | lossy | error), kind, the text, and the ' +
+            'loss report. The poset kind compares several files and is CLI ' +
+            'only.',
         properties: {
             source: { type: 'string', description: 'The document' },
             kind: {
                 type: 'string',
-                description: 'The figure to draw: tree (the default)',
+                description: 'The figure to draw: tree (the default), matrix, graph, layer, ' +
+                    'sets, layers or ladder',
+            },
+            as: {
+                type: 'string',
+                description: 'The target grammar: text, mermaid, dot or er, per kind ' +
+                    '(optional; the kind\'s default otherwise)',
+            },
+            at: {
+                type: 'string',
+                description: 'Restrict the figure to nodes under this path; the path the ' +
+                    'ladder draws (optional)',
             },
             relation: {
                 type: 'string',
-                description: 'Draw the tree over this relation only (optional)',
+                description: 'Draw the tree or matrix over this relation only; keep this ' +
+                    'predicate in the graph (optional)',
             },
             root: {
                 type: 'array',
                 items: { type: 'string' },
                 description: 'Draw only the subtrees under these node paths (optional)',
             },
+            order: {
+                type: 'string',
+                description: 'matrix: canon (the default) or partition (optional)',
+            },
+            closure: {
+                type: 'boolean',
+                description: 'matrix: mark transitively reachable cells (optional)',
+            },
+            groupBy: {
+                type: 'string',
+                description: 'graph: one subgraph per value of this field (optional); ' +
+                    'layer: one band per value (required)',
+            },
+            label: {
+                type: 'string',
+                description: 'graph: label each node with this field (optional)',
+            },
+            layers: {
+                type: 'array',
+                items: { type: 'string' },
+                description: 'layer: the bands in this order, top first (optional)',
+            },
+            sets: {
+                type: 'string',
+                description: 'sets: the map whose keys are the sets',
+            },
+            member: {
+                type: 'string',
+                description: 'sets: the field holding each set\'s members',
+            },
+            universe: {
+                type: 'string',
+                description: 'sets: the full element domain (optional)',
+            },
+            maxRows: {
+                type: 'integer',
+                description: 'Refuse a figure above this many rows (default 60)',
+            },
         },
         required: ['source'],
         docs: ['source'],
-        check: (a) => null == a.kind || 'tree' === a.kind
-            ? undefined : `kind must be tree, not ${JSON.stringify(a.kind)}`,
-        refuse: (_a, finding) => ({ verdict: 'error', kind: 'tree', errors: [finding] }),
-        run: (a, _trust, paths) => (0, view_1.viewTree)(str(a.source), {
+        check: (a) => {
+            const kinds = ['tree', 'matrix', 'graph', 'layer', 'sets', 'layers', 'ladder'];
+            if (null != a.kind && !kinds.includes(a.kind)) {
+                return `kind must be one of ${kinds.join(', ')}, not ${JSON.stringify(a.kind)}`;
+            }
+            const profiles = ['text', 'mermaid', 'dot', 'er'];
+            if (null != a.as && !profiles.includes(a.as)) {
+                return `as must be one of ${profiles.join(', ')}, not ${JSON.stringify(a.as)}`;
+            }
+            return undefined;
+        },
+        refuse: (a, finding) => ({ verdict: 'error', kind: a.kind ?? 'tree', loss: [], errors: [finding] }),
+        run: (a, trust, paths) => (0, view_1.view)(str(a.source), {
+            kind: null == a.kind ? 'tree' : a.kind,
+            as: null == a.as ? undefined : a.as,
+            at: null == a.at ? undefined : str(a.at),
             path: paths.source,
+            trust,
             relation: null == a.relation ? undefined : str(a.relation),
+            relations: null == a.relation ? undefined : [str(a.relation)],
             roots: Array.isArray(a.root) ? a.root.map(str) : undefined,
+            order: null == a.order ? undefined : a.order,
+            closure: true === a.closure,
+            groupBy: null == a.groupBy ? undefined : str(a.groupBy),
+            label: null == a.label ? undefined : str(a.label),
+            layers: Array.isArray(a.layers) ? a.layers.map(str) : undefined,
+            sets: null == a.sets ? undefined : str(a.sets),
+            member: null == a.member ? undefined : str(a.member),
+            universe: null == a.universe ? undefined : str(a.universe),
+            maxRows: 'number' === typeof a.maxRows ? a.maxRows : undefined,
         }),
     },
     {

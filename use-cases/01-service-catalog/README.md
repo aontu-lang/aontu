@@ -88,44 +88,64 @@ that `filter(.index, {tier: 1})` answers over.
 
 ## The catalog, drawn
 
-Generated from this model by [`../tools/diagram.js`](../tools/diagram.js)
-and pinned as goldens by `check.sh`.
+Drawn from this model by
+[`aontu view`](../../docs/reference-api.md#aontu-view) and pinned as
+goldens by `check.sh`. The graph groups the services by their generated
+`owner`, `aontu view graph --relation dependsOn --group-by owner`:
 
 ```mermaid
-graph LR
-  n___catalog_domains_identity_services_auth["auth"]
-  n___catalog_domains_identity_services_directory["directory"]
-  n___catalog_domains_payments_services_ledger["ledger"]
-  n___catalog_domains_payments_services_payments["payments"]
-  n___catalog_domains_payments_services_risk["risk"]
-  n___catalog_domains_platform_services_email["email"]
-  n___catalog_domains_platform_services_gateway["gateway"]
-  n___catalog_domains_platform_services_notify["notify"]
-  n___catalog_domains_identity_services_auth -->|"dependsOn"| n___catalog_domains_identity_services_directory
-  n___catalog_domains_payments_services_payments -->|"dependsOn"| n___catalog_domains_identity_services_auth
-  n___catalog_domains_payments_services_payments -->|"dependsOn"| n___catalog_domains_payments_services_ledger
-  n___catalog_domains_payments_services_payments -->|"dependsOn"| n___catalog_domains_payments_services_risk
-  n___catalog_domains_payments_services_payments -->|"dependsOn"| n___catalog_domains_platform_services_notify
-  n___catalog_domains_payments_services_risk -->|"dependsOn"| n___catalog_domains_identity_services_directory
-  n___catalog_domains_platform_services_gateway -->|"dependsOn"| n___catalog_domains_identity_services_auth
-  n___catalog_domains_platform_services_gateway -->|"dependsOn"| n___catalog_domains_payments_services_payments
-  n___catalog_domains_platform_services_notify -->|"dependsOn"| n___catalog_domains_platform_services_email
+flowchart LR
+  subgraph g0["team-identity"]
+    n_auth["auth"]
+    n_directory["directory"]
+  end
+  subgraph g1["team-payments"]
+    n_ledger["ledger"]
+    n_payments["payments"]
+    n_risk["risk"]
+  end
+  subgraph g2["team-platform"]
+    n_email["email"]
+    n_gateway["gateway"]
+    n_notify["notify"]
+  end
+  n_auth -->|"dependsOn"| n_directory
+  n_gateway -->|"dependsOn"| n_auth
+  n_gateway -->|"dependsOn"| n_payments
+  n_notify -->|"dependsOn"| n_email
+  n_payments -->|"dependsOn"| n_auth
+  n_payments -->|"dependsOn"| n_ledger
+  n_payments -->|"dependsOn"| n_notify
+  n_payments -->|"dependsOn"| n_risk
+  n_risk -->|"dependsOn"| n_directory
 ```
 
-The same graph as a **dependency-structure matrix**, where a mark at
-(row, column) means the row service depends on the column service:
+The same graph as a **dependency-structure matrix** in partition order
+with the closure marked, `aontu view matrix --relation dependsOn
+--order partition --closure`. A mark at (row, column) means the row
+service depends on the column service: `X` directly, `+` through
+others.
 
 ```
-                 1 2 3 4 5 6 7 8
-svc_auth       1 \ X . . . . . .
-svc_directory  2 . \ . . . . . .
-svc_email      3 . . \ . . . . .
-svc_gateway    4 X . . \ . . X .
-svc_ledger     5 . . . . \ . . .
-svc_notify     6 . . X . . \ . .
-svc_payments   7 X . . . X X \ X
-svc_risk       8 . X . . . . . \
+            1 2 3 4 5 6 7 8
+directory 1 \ . . . . . . .
+email     2 . \ . . . . . .
+ledger    3 . . \ . . . . .
+auth      4 X . . \ . . . .
+notify    5 . X . . \ . . .
+risk      6 X . . . . \ . .
+payments  7 + + X X X X \ .
+gateway   8 + + + X + + X \
+# above-diagonal direct cells: 0
 ```
+
+The partition order is a perfect lower triangle, and **that is the
+acyclicity proof**: `above-diagonal direct cells: 0` is not an
+annotation on the picture, it is the picture's shape. The order is a
+layering nobody wrote down -- leaves (`directory`, `email`, `ledger`),
+then `auth`/`notify`/`risk`, then `payments`, then `gateway` -- and
+rows 7 and 8 are the coupling: `gateway` reaches everything through
+two hops.
 
 The matrix is the form the empirical literature prefers past about
 twenty vertices — Ghoniem, Fekete and Castagliola (InfoVis 2004) found
@@ -243,9 +263,10 @@ merged model, `get` slices and query results; grep-by-error-code
     `expected/webhooks-proposal.json`.
 20. `proposals/onboard-badref.aon`, whose candidate depends on a path
     no file writes, cannot evaluate: `[aontu/rel_unresolved]`.
-21. The catalog draws: the node-link graph and the dependency matrix
-    both render from `graphOf` alone through `../tools/diagram.js`,
-    and both are pinned as goldens.
+21. The catalog draws: `aontu view graph` grouped by owner and
+    `aontu view matrix` in partition order both match their goldens,
+    the matrix has no cell above the diagonal, and `--check` against
+    the committed matrix passes.
 
 ## Running it
 

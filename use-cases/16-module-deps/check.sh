@@ -31,14 +31,6 @@ has() {
     || { cat "$WORK/$1.$2" >&2; fail "$1: $2 does not contain: $3"; }
 }
 
-draw() {
-  local name="$1"; shift
-  "$NODE" "$DIR/../tools/diagram.js" "$@" >"$WORK/$name" \
-    || fail "$name did not render"
-  diff -u "$DIR/expected/$name" "$WORK/$name" \
-    || fail "$name drifted from its golden"
-}
-
 # The tree is the engine's own verb. The goldens were pinned by the
 # reference script before the verb existed, and are unchanged: they are
 # the acceptance test for the port.
@@ -145,9 +137,29 @@ ok "tree --root: a node that does not exist refuses"
 
 # 11. The same edges as a dependency-structure matrix, which is the
 # whole surface at once where the tree is one chain at a time (Sangal
-# et al., OOPSLA 2005).
-draw diagram-matrix.txt matrix --primary dependsOn "$DIR/model.aon"
+# et al., OOPSLA 2005). In partition order an acyclic relation is a
+# lower triangle, and the footer counts the cells above the diagonal:
+# zero IS the acyclicity proof, in the picture's own shape.
+view diagram-matrix.txt matrix --relation dependsOn --order partition \
+  --closure "$DIR/model.aon"
 ok "the dependency-structure matrix draws: twelve modules square"
+
+# 11b. THE ARCHITECTURE LAYERS, the drawing every layered codebase has
+# a hand-made copy of: one band per layer, the band nothing depends on
+# at the top, and the rule -- dependencies point DOWN -- read off the
+# bands. The band order is DERIVED from the relation (the layer-level
+# graph in partition order), so it is a function of the model and not
+# of a list kept in step with it; `--layers` names it explicitly when a
+# model with an upward edge cannot settle it. `# dependsOn: 19
+# downward, 2 sideways, 0 upward` is the layering rule, counted.
+view diagram-layer.txt layer --relation dependsOn --group-by layer \
+  "$DIR/model.aon"
+has_golden() { grep -qF -- "$2" "$DIR/expected/$1" || fail "$1 lacks: $2"; }
+has_golden diagram-layer.txt '# dependsOn: 19 downward, 2 sideways, 0 upward'
+run layered 0 -- view layer --relation dependsOn --group-by layer \
+  --layers app,feature,core,util --as mermaid "$DIR/model.aon"
+has layered out 'subgraph g0["app"]'
+ok "the architecture layers draw: four bands, every edge downward or sideways"
 
 # 12. THE RENDERER TERMINATES ON THE MODEL THE ENGINE REFUSES. The
 # cyclic document still evaluates -- the graph atoms' verdict lands at

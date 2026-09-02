@@ -36,32 +36,51 @@ const cut = (at, relkey) => {
 // chain — which is what a cycle actually is.
 function graphOf(root) {
     const edges = [];
-    const visit = (node, path, ancestors) => {
+    const visit = (node, path, ancestors, hidden) => {
         if (null == node || true !== node.isVal || ancestors.has(node)) {
             return;
         }
+        hidden = hidden || true === node.mark?.hide;
         const link = node.link;
         if (null != link) {
             const { from, key } = cut(path, node.relkey);
-            edges.push({ from, key, to: link, at: formatPath(path) });
+            const edge = { from, key, to: link, at: formatPath(path) };
+            if (hidden) {
+                edge.hidden = true;
+            }
+            edges.push(edge);
         }
         // A graph atom is TRANSPARENT here (RELATIONS P2): it carries the
         // field's value at the field's own position, and the graph is about
         // the value.
         if (true === node.isGraphAtom && undefined !== node.held) {
-            visit(node.held, path, ancestors);
+            visit(node.held, path, ancestors, hidden);
+        }
+        // An unresolved conjunction (a link waiting on a peer that never
+        // came, a constraint still open) holds its terms at the SAME
+        // position; every link among them is written there, and is an
+        // edge. This is what a match-selected branch or a deferred refer()
+        // looks like after evaluation.
+        if (true === node.isConjunct && Array.isArray(node.peg)) {
+            ancestors.add(node);
+            for (const term of node.peg) {
+                visit(term, path, ancestors, hidden);
+            }
+            ancestors.delete(node);
         }
         if ((true === node.isMap || true === node.isList) && null != node.peg) {
             ancestors.add(node);
             for (const k of Object.keys(node.peg)) {
-                visit(node.peg[k], [...path, k], ancestors);
+                visit(node.peg[k], [...path, k], ancestors, hidden);
             }
             ancestors.delete(node);
         }
     };
-    visit(root, [], new Set());
+    visit(root, [], new Set(), false);
     // DETERMINISTIC by construction, not by luck: edges by the position
-    // they are written at, which is unique — one link, one place.
+    // they are written at, which is unique — one link, one place. That
+    // holds through a conjunction too: its terms share the position, and
+    // two links there would have had to unify into one.
     edges.sort((a, b) => (0, keyorder_1.cmpCodePoint)(a.at, b.at));
     return { edges };
 }

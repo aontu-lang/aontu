@@ -117,3 +117,5 @@ why-nested-junction-through-a-ref	why	x: 3|(1|2)\na: $.x & 1	$.a	{"conjuncts":[{
 # wrong.
 why-spread-split-statements	why	services: &:{replicas: *1|integer}\nservices: {auth: {replicas: 3}}	$.services.auth.replicas	{"conjuncts":[{"canon":"*1|integer","role":"spread","site":{"col":24,"file":"","len":1,"row":1},"src":"*"},{"canon":"3","role":"literal","site":{"col":29,"file":"","len":1,"row":2},"src":"3"}],"value":"3"}
 why-spread-split-untouched	why	services: &:{replicas: *1|integer}\nservices: {db: {}}	$.services.db.replicas	{"conjuncts":[{"canon":"*1|integer","role":"spread","site":{"col":24,"file":"","len":1,"row":1},"src":"*"}],"value":"*1|integer"}
+
+why-pref-rank	why	a: *1\na: **2\na: integer	$.a	{"conjuncts":[{"canon":"*1","rank":0,"role":"pref","site":{"col":4,"file":"","len":1,"row":1},"src":"*"},{"canon":"**2","rank":1,"role":"pref","site":{"col":4,"file":"","len":1,"row":2},"src":"*"},{"canon":"integer","role":"literal","site":{"col":4,"file":"","len":7,"row":3},"src":"integer"}],"value":"*1"}

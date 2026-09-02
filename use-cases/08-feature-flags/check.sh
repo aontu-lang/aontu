@@ -354,10 +354,10 @@ ok "trust none: no includes at all (hermetic)"
 # rank, role and source position. `why`'s conjunct list is in the order
 # the recorder saw the meets, NOT rank order, so the renderer sorts --
 # an emitter that trusted the record would draw an arbitration that did
-# not happen. Deterministic text, pinned like any other golden. There
-# is no `aontu view` verb yet; see docs/design/VIEWS-ORDER.0.md.
-"${NODE:-node}" "$DIR/../tools/diagram.js" ladder \
-  --path '$.effective.prod.megacorp.checkout_v2.rollout' \
+# not happen. Deterministic text, pinned like any other golden
+# (docs/design/VIEWS-ORDER.0.md).
+$AONTU view ladder \
+  --at '$.effective.prod.megacorp.checkout_v2.rollout' \
   "$DIR/system.aon" > "$TMP/diagram-ladder.mmd" \
   || die "ladder diagram did not render"
 diff -u "$DIR/expected/diagram-ladder.mmd" "$TMP/diagram-ladder.mmd" \

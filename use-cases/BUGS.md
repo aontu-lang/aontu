@@ -2966,3 +2966,64 @@ referenced-shape one was the early-binding difference §51 records);
 `why`'s tutorial mismatch; and the ADR-002
 coverage gate itself flaking red on an untouched tree
 (`ListVal.ts:206-207` branch arms) during this PR's own CI runs.
+
+## views — what the figures exposed in the engines
+
+### 70. The Go port names the entry file for a container an included file wrote [major]
+
+Found 2026-09-02 while bringing `aontu view layers` to parity. The
+panel is the whole provenance record drawn at once, and the record
+disagrees between the ports at CONTAINER paths of included documents.
+Over `use-cases/02-deploy-config/stack.aon` the TypeScript port
+attributes `$.org` to `org-policy.aon` and `$.team` to
+`team-defaults.aon`; the Go port attributes both to `stack.aon`, and
+likewise `$.deploy.dev` and `$.deploy.dev.workloads` to the entry
+rather than to `envs/dev.aon`. Leaves agree: the divergence is only
+the maps and lists an included file wrote.
+
+The cause is in `go/source.go`: `aonProcessor` stamps the resolved
+include's values with the file's path AFTER the jsonic processor has
+merged them, and a bare-member include arrives as a raw container
+whose map and list Vals are built by the parser later, so only the
+scalar leaves are stamped and the containers keep an empty url --
+which `stampURL(parsed, a.File)` then fills with the entry's name.
+`why` at such a path cites the wrong file in Go. The `why.tsv` rows
+did not catch it because every row queries a leaf.
+
+Effect on the views: `aontu view layers` over a multi-file document
+differs between the ports at container paths (over `stack.aon`
+unrestricted, 626 path-file pairs in TypeScript against 610 in Go);
+restricted to `--at '$.deploy.prod'` the two agree, which is what
+use-case 02 pins. Fix: stamp before the merge, or carry the resolved
+path onto the containers the parser builds from the raw include.
+
+### 71. `refer()` beside `neq()` loses the link mark, and which spelling loses it differs by port [major]
+
+Found 2026-09-02 by `aontu view graph` over
+`use-cases/05-rbac-policy/example.aon`, whose grants are written
+`unique() & [&: refer() & string & neq(path($.permissions.admin_all))]`
+for every role but the owner. `graphOf` reports 13 edges in
+TypeScript and 6 in Go: the four `grants` edges of `auditor` and the
+three of `member` -- the lists whose template carries `neq()` -- are
+links in TypeScript and plain path scalars in Go (`linkAddr()` empty).
+
+The inline form disagrees the other way. Over
+
+```
+p: {a: {}, b: {}}
+r: {g: unique() & [&: refer() & string & neq(path($.p.b)), path($.p.a)]}
+s: {g: unique() & [&: refer() & string, path($.p.a)]}
+```
+
+BOTH ports report one edge, `$.s`'s, and none for `$.r`: the checked
+address under `neq()` is not marked as a link in either. So the mark
+depends on the order the fixpoint reaches the atoms in, and the two
+ports reach them differently over the use case. A `reaches` verdict
+over such a document is therefore port-dependent.
+
+Effect on the views: the RBAC `graph`, `matrix --relation grants` and
+`sets` figures are not at parity over `example.aon` (the `sets` panel
+reads generated values and is unaffected; the two edge-derived
+figures draw 9 and 3 `grants` edges respectively). Use-case 05 does
+not pin a figure for that reason. Fix: `refer()`'s link mark must
+survive every meet the checked scalar takes part in, in both ports.

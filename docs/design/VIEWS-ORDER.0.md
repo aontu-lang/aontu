@@ -8,8 +8,11 @@ needs a semantic order over whole documents, a decision procedure for
 that order exposed as a verb, and a canonical form under which two
 spellings of one meaning are one node. Aontu has all three today. Every
 claim marked VERIFIED was run against the built CLIs at 0.53.0 —
-`node ts/bin/aontu.js` and a fresh `go build ./cmd/aontu`. This note is
-design; status belongs in the
+`node ts/bin/aontu.js` and a fresh `go build ./cmd/aontu`. The poset
+and the meet ladder are BUILT (2026-09-02) as `aontu view poset` and
+`aontu view ladder`, with `WhyConjunct.rank` in both ports; the
+interval panel and the `order` verb's `--head` gate are not. This note
+is design; status belongs in the
 [progress register](../capability-review/progress.md).*
 
 ## Problem

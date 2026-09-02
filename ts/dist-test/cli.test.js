@@ -1001,18 +1001,92 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
         Assert.match(broken.err, /scalar_value/);
         // The library form, with no options at all: a model with no links
         // renders an empty figure rather than refusing.
-        Assert.deepEqual((0, aontu_1.viewTree)('a: 1'), { verdict: 'rendered', kind: 'tree', text: '' });
+        Assert.deepEqual((0, aontu_1.viewTree)('a: 1'), { verdict: 'rendered', kind: 'tree', text: '', loss: [] });
+    });
+    // EVERY KIND THROUGH THE VERB, and the flags around the figure:
+    // --out, --check, --strict, the loss report on stderr. What each
+    // figure LOOKS like is test/spec/view.tsv's business; this is the
+    // plumbing.
+    (0, node_test_1.test)('view-kinds-and-the-flags-around-the-figure', () => {
+        const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-vk-'));
+        const file = Path.join(dir, 'doc.aon');
+        Fs.writeFileSync(file, 'cli: {layer: "app", dependsOn: [&: refer(), path($.web), path($.db)]}\n' +
+            'web: {layer: "svc", dependsOn: [&: refer(), path($.db)], usedBy: [&: refer(), path($.cli)]}\n' +
+            'db: {layer: "data", dependsOn: [&: refer(), path($.disk)], usedBy: [&: refer(), path($.cli), path($.web)]}\n' +
+            'disk: {layer: "data", dependsOn: []}\n');
+        // A figure written to a file, then --check agrees with it; a
+        // different figure does not, and nothing is written.
+        const out = Path.join(dir, 'm.txt');
+        const wrote = vetCapture(() => Assert.equal((0, cli_1.runView)(['matrix', '--relation', 'dependsOn', '--out', out, file]), 0));
+        Assert.equal(wrote.out, '');
+        const matrix = Fs.readFileSync(out, 'utf8');
+        Assert.match(matrix, /# above-diagonal direct cells: 3\n$/);
+        vetCapture(() => Assert.equal((0, cli_1.runView)(['matrix', '--relation', 'dependsOn', '--out', out, '--check', file]), 0));
+        const mis = vetCapture(() => Assert.equal((0, cli_1.runView)(['matrix', '--relation', 'dependsOn', '--order', 'partition',
+            '--closure', '--out', out, '--check', file]), 1));
+        Assert.match(mis.err, /differs from the matrix figure/);
+        Assert.equal(Fs.readFileSync(out, 'utf8'), matrix);
+        vetCapture(() => Assert.equal((0, cli_1.runView)(['matrix', '--relation', 'dependsOn', '--out',
+            Path.join(dir, 'none.txt'), '--check', file]), 1));
+        // The loss report on stderr, and --strict refusing it.
+        const hid = Path.join(dir, 'hid.aon');
+        Fs.writeFileSync(hid, 'a: hide({dependsOn: [&: refer(), path($.b)]})\n' +
+            'b: {dependsOn: [&: refer(), path($.c)]}\nc: {}\n');
+        const lossy = vetCapture(() => Assert.equal((0, cli_1.runView)(['tree', hid]), 0));
+        Assert.equal(lossy.out, 'b\n└── c\n');
+        Assert.equal(lossy.err, 'hidden_contribution  1  $.a.dependsOn.0\n');
+        vetCapture(() => Assert.equal((0, cli_1.runView)(['tree', '--strict', hid]), 1));
+        const lj = JSON.parse(vetCapture(() => Assert.equal((0, cli_1.runView)(['tree', '--strict', '--format', 'json', hid]), 1)).out);
+        Assert.equal(lj.verdict, 'lossy');
+        Assert.equal(lj.loss[0].code, 'hidden_contribution');
+        // Every other kind renders through the verb.
+        const g = vetCapture(() => Assert.equal((0, cli_1.runView)(['graph', '--relation', 'dependsOn', '--relation', 'usedBy',
+            '--group-by', 'layer', '--label', 'layer', '--at', '$', file]), 0));
+        Assert.match(g.out, /^flowchart LR\n  subgraph g0\["app"\]/);
+        const er = vetCapture(() => Assert.equal((0, cli_1.runView)(['graph', '--as', 'er', file]), 0));
+        Assert.match(er.out, /^erDiagram\n/);
+        const layer = vetCapture(() => Assert.equal((0, cli_1.runView)(['layer', '--relation', 'dependsOn', '--group-by', 'layer',
+            '--layers', 'app,svc,data', file]), 0));
+        Assert.match(layer.out, /^\+-+\+\n\| app   cli/);
+        const sets = vetCapture(() => Assert.equal((0, cli_1.runView)(['sets', '--sets', '$', '--member', 'dependsOn',
+            '--min-degree', '1', '--max-cols', '2', file]), 0));
+        Assert.match(sets.out, /^# upset  sets=\$\(4\)/);
+        const layers = vetCapture(() => Assert.equal((0, cli_1.runView)(['layers', '--min-size', '1', file]), 0));
+        Assert.match(layers.out, /^# layers  file=doc\.aon  documents=1/);
+        const ladder = vetCapture(() => Assert.equal((0, cli_1.runView)(['ladder', '--at', '$.db.layer', '--as', 'dot', file]), 0));
+        Assert.match(ladder.out, /^digraph G \{/);
+        const other = Path.join(dir, 'other.aon');
+        Fs.writeFileSync(other, 'cli: {layer: string}\n');
+        const poset = vetCapture(() => Assert.equal((0, cli_1.runView)(['poset', '--at', '$.cli.layer', '--profile', 'values',
+            file, other]), 0));
+        Assert.match(poset.out, /n0\["doc"\]\n  n1\["other"\]\n  n0 --> n1\n$/);
+        const unreadable = vetCapture(() => Assert.equal((0, cli_1.runView)(['poset', file, Path.join(dir, 'nope.aon')]), 2));
+        Assert.match(unreadable.err, /cannot read/);
     });
     (0, node_test_1.test)('view-usage-errors', () => {
         const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-vu-'));
         const file = Path.join(dir, 'doc.aon');
         Fs.writeFileSync(file, 'a: {dependsOn: [&: refer(), path($.b)]}\nb: {}\n');
         for (const [args, want] of [
-            [[], /view needs a kind and one file/],
-            [['tree'], /view needs a kind and one file/],
-            [['tree', file, file], /view needs a kind and one file/],
-            [['matrix', file], /unknown view kind matrix/],
+            [[], /view needs a kind and a file/],
+            [['tree'], /view needs a kind and a file/],
+            [['tree', file, file], /view tree takes one file/],
+            [['bogus', file], /unknown view kind bogus/],
             [['tree', '--bogus', file], /unknown view option --bogus/],
+            [['tree', '--as', 'svg', file], /--as needs one of text, mermaid, dot, er/],
+            [['tree', '--as', 'dot', file], /view_profile_unknown/],
+            [['matrix', '--order', 'random', file], /--order needs canon or partition/],
+            [['poset', '--profile', 'loose', file], /--profile needs values, defaults or gen/],
+            [['tree', '--relation', 'a', '--relation', 'b', file], /view tree takes one --relation/],
+            [['tree', '--check', file], /--check needs --out/],
+            [['tree', file, '--out'], /--out needs a file/],
+            [['tree', file, '--at'], /--at needs a value/],
+            [['tree', '--max-rows', 'many', file], /--max-rows needs a count/],
+            [['tree', '--max-rows', '1', file], /view_rows_exceeded/],
+            [['layer', '--layers', '', file], /--layers needs a comma-separated list/],
+            [['layer', '--relation', 'dependsOn', file], /view_group_required/],
+            [['ladder', file], /view_at_required/],
+            [['sets', file], /view_sets_required/],
             [['tree', '--format', 'yaml', file], /--format needs text or json/],
             [['tree', file, '--format'], /--format needs text or json/],
             [['tree', file, '--relation'], /--relation needs a name/],
@@ -1026,7 +1100,7 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
             Assert.match(r.err, want, args.join(' '));
         }
         const help = vetCapture(() => Assert.equal((0, cli_1.runView)(['--help']), 0));
-        Assert.match(help.out, /aontu view tree/);
+        Assert.match(help.out, /aontu view <kind>/);
         // The verb dispatches through main as the FIRST argument.
         const viaMain = vetCapture(() => (0, cli_1.main)(['node', 'cli', 'view', 'tree', file]));
         Assert.equal(viaMain.out, 'a\n└── b\n');

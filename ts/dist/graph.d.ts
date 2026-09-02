@@ -4,6 +4,7 @@ export type Edge = {
     key: string;
     to: string;
     at: string;
+    hidden?: true;
 };
 export type Graph = {
     edges: Edge[];

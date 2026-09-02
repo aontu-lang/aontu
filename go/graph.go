@@ -39,6 +39,11 @@ type Edge struct {
 	To string `json:"to"`
 	// At is where the link is, as a `$.dotted.path`.
 	At string `json:"at"`
+	// Hidden is set when the link sits inside a `hide()`-marked subtree.
+	// The link is still checked and still an edge, but a figure that
+	// draws it DISCLOSES what the document hides, so the view extractors
+	// skip it and report it as `hidden_contribution`.
+	Hidden bool `json:"hidden,omitempty"`
 }
 
 // Graph is an evaluated document's edge set. There is no entity index,
@@ -94,11 +99,13 @@ func GraphOf(root Val) Graph {
 	edges := []Edge{}
 	ancestors := map[Val]bool{}
 
-	var visit func(node Val, path []string)
-	visit = func(node Val, path []string) {
+	var visit func(node Val, path []string, hidden bool)
+	visit = func(node Val, path []string, hidden bool) {
 		if nil == node || ancestors[node] {
 			return
 		}
+
+		hidden = hidden || node.markedHide()
 
 		if link := node.linkAddr(); "" != link {
 			relkey := ""
@@ -107,10 +114,11 @@ func GraphOf(root Val) Graph {
 			}
 			from, key := cutEdge(path, relkey)
 			edges = append(edges, Edge{
-				From: from,
-				Key:  key,
-				To:   link,
-				At:   graphPath(path),
+				From:   from,
+				Key:    key,
+				To:     link,
+				At:     graphPath(path),
+				Hidden: hidden,
 			})
 		}
 
@@ -118,32 +126,43 @@ func GraphOf(root Val) Graph {
 		// the field's value at the field's own position, and the graph
 		// is about the value.
 		if ga, ok := node.(*GraphAtomVal); ok && nil != ga.held {
-			visit(ga.held, path)
+			visit(ga.held, path, hidden)
 		}
 
 		switch n := node.(type) {
+		// An unresolved conjunction holds its terms at the SAME
+		// position; every link among them is written there, and is an
+		// edge.
+		case *ConjunctVal:
+			ancestors[node] = true
+			for _, t := range n.peg {
+				visit(t, path, hidden)
+			}
+			delete(ancestors, node)
 		case *MapVal:
 			ancestors[node] = true
 			for _, k := range n.keys {
-				visit(n.peg[k], append(cp(path), k))
+				visit(n.peg[k], append(cp(path), k), hidden)
 			}
 			delete(ancestors, node)
 		case *ListVal:
 			ancestors[node] = true
 			for i, e := range n.peg {
-				visit(e, append(cp(path), itoa(i)))
+				visit(e, append(cp(path), itoa(i)), hidden)
 			}
 			delete(ancestors, node)
 		}
 	}
 
-	visit(root, nil)
+	visit(root, nil, false)
 
 	// DETERMINISTIC by construction, not by luck — which matters more
 	// here than anywhere: Go map order is random, so anything built from
 	// one without this would differ run to run and between the ports
 	// (ADR-001). Edges sort by the position they are written at, which
 	// is unique — one link, one place.
+	// That holds through a conjunction too: its terms share the
+	// position, and two links there would have had to unify into one.
 	sort.Slice(edges, func(i, j int) bool { return edges[i].At < edges[j].At })
 
 	return Graph{Edges: edges}

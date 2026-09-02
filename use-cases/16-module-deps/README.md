@@ -84,6 +84,33 @@ the matrix past about twenty vertices, and Sangal et al. (OOPSLA 2005)
 is the software-dependency application. At twelve modules both are
 readable, which is why the case draws both.
 
+**The architecture layers**, the drawing every layered codebase has a
+hand-made copy of, is `aontu view layer --relation dependsOn --group-by
+layer model.aon`, pinned as `expected/diagram-layer.txt`:
+
+```
++------------------------------------+
+| app      cli  server  worker       |
++------------------------------------+
+| feature  billing  catalog  reports |
++------------------------------------+
+| core     auth  http  store         |
++------------------------------------+
+| util     bytes  clock  log         |
++------------------------------------+
+# dependsOn: 19 downward, 2 sideways, 0 upward
+```
+
+The band order is not declared to the verb: it is the partition order
+of the layer-level graph (a layer depends on the layers its modules
+depend on), reversed so the layer nothing depends on is on top, which
+is why it agrees with `spec.aon` without reading it. The footer is the
+layering rule, counted -- `auth -> http` and `store -> log` are the two
+sideways edges the rule allows -- and an upward edge, were the model
+to admit one, would be named under it. A model with an upward edge has
+a cyclic layer graph and no derivable order; `--layers
+app,feature,core,util` names it then.
+
 ## The layering rule is a shape
 
 The architecture invariant is that a module never depends on a module
@@ -186,8 +213,14 @@ constructs are specified in the language reference under
     closure, pinned as `expected/diagram-tree-billing.txt`.
 11. A `--root` naming no node refuses (`refer_unresolved`, naming
     `$.mods.nosuch`) rather than drawing an empty tree.
-12. The dependency-structure matrix renders byte for byte to
-    `expected/diagram-matrix.txt`.
+12. The dependency-structure matrix, in partition order with the
+    closure, renders byte for byte to `expected/diagram-matrix.txt`,
+    and its footer counts zero cells above the diagonal.
+12b. The architecture layers render byte for byte to
+    `expected/diagram-layer.txt`: four bands in the order the relation
+    derives, nineteen edges downward, two sideways, none upward; the
+    same figure with `--layers app,feature,core,util --as mermaid`
+    draws the bands as Mermaid subgraphs.
 13. The tree of the cyclic model (`bad/cycle.aon`) terminates, marking
     the closing edge `(cycle)` instead of recursing into it.
 14. `aontu get` reads a module's layer and directory off the model:

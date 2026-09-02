@@ -11,29 +11,30 @@ the frame.
 
 ## The pipeline, drawn
 
-Both diagrams below are generated from this model by
-[`../tools/diagram.js`](../tools/diagram.js), which reads `graphOf` and
-nothing else, and both are pinned as goldens by `check.sh`.
+Both diagrams below are drawn from this model by
+[`aontu view graph`](../../docs/reference-api.md#aontu-view), which
+reads the edge set and the relation declarations and nothing else, and
+both are pinned as goldens by `check.sh`.
 
 ```mermaid
-graph LR
-  n___pipeline_jobs_audit["audit"]
-  n___pipeline_jobs_extract["extract"]
-  n___pipeline_jobs_load["load"]
-  n___pipeline_jobs_transform["transform"]
-  n___pipeline_jobs_extract -->|"feeds"| n___pipeline_jobs_transform
-  n___pipeline_jobs_transform -->|"feeds"| n___pipeline_jobs_audit
-  n___pipeline_jobs_transform -->|"feeds"| n___pipeline_jobs_load
+flowchart LR
+  n_audit["audit"]
+  n_extract["extract"]
+  n_load["load"]
+  n_transform["transform"]
+  n_extract -->|"feeds"| n_transform
+  n_transform -->|"feeds"| n_audit
+  n_transform -->|"feeds"| n_load
 ```
 
 **Six written edges, three logical ones.** `graphOf` reports every
 written position, and `feeds` is declared `inverse(fedBy)` with both
 directions written out, so the raw edge set doubles every relation that
-has an inverse. The renderer collapses each unordered pair. Which
-direction survives is chosen by `--primary feeds`: without it the
-code-point-least key wins and the pipeline reads backwards.
+has an inverse. The verb reads the declaration, draws the DECLARING
+direction and suppresses the mirror, and its loss report says so:
+`inverse_suppressed  3`.
 
-The same edges as an entity-relationship diagram:
+The same edges as an entity-relationship diagram, `--as er`:
 
 ```mermaid
 erDiagram
@@ -110,8 +111,11 @@ The constructs are specified in the language reference under
    and load does not reach extract (`verdict: unreachable`, exit
    code 1).
 10. Both diagrams above render byte-for-byte to
-    `expected/diagram-graph.mmd` and `expected/diagram-er.mmd`, and the
-    graph carries exactly three edges after the inverse collapse.
+    `expected/diagram-graph.mmd` and `expected/diagram-er.mmd`, the
+    graph carries exactly three edges after the inverse collapse, and
+    `aontu view matrix` over the two bad documents shows the defects as
+    glyphs: the missing inverse is `!`, and the cycle is the one cell
+    above the diagonal that no ordering removes (`cycle_block`).
 
 ## Running it
 

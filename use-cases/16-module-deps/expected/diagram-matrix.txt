@@ -1,13 +1,15 @@
-             1  2  3  4  5  6  7  8  9 10 11 12
-auth      1  \  .  X  .  .  .  X  .  .  .  .  .
-billing   2  X  \  .  .  .  X  .  .  .  .  X  .
-bytes     3  .  .  \  .  .  .  .  .  .  .  .  .
-catalog   4  .  .  .  \  .  .  X  .  .  .  X  .
-cli       5  .  X  .  .  \  .  .  .  X  .  .  .
-clock     6  .  .  .  .  .  \  .  .  .  .  .  .
-http      7  .  .  X  .  .  .  \  X  .  .  .  .
-log       8  .  .  X  .  .  .  .  \  .  .  .  .
-reports   9  .  .  .  .  .  .  .  X  \  .  X  .
-server   10  .  X  .  X  .  .  X  .  .  \  .  .
-store    11  .  .  .  .  .  X  .  X  .  .  \  .
-worker   12  .  .  .  .  .  .  .  .  X  .  X  \
+                             1 1 1
+           1 2 3 4 5 6 7 8 9 0 1 2
+bytes    1 \ . . . . . . . . . . .
+clock    2 . \ . . . . . . . . . .
+log      3 X . \ . . . . . . . . .
+http     4 X . X \ . . . . . . . .
+store    5 + X X . \ . . . . . . .
+auth     6 X . + X . \ . . . . . .
+catalog  7 + + + X X . \ . . . . .
+reports  8 + + X . X . . \ . . . .
+billing  9 + X + + X X . . \ . . .
+worker  10 + + + . X . . X . \ . .
+cli     11 + + + + + + . X X . \ .
+server  12 + + + X + + X . X . . \
+# above-diagonal direct cells: 0
