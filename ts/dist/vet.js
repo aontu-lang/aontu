@@ -5,6 +5,7 @@ exports.VET_MAX_ERRORS = void 0;
 exports.displayFile = displayFile;
 exports.failureFinding = failureFinding;
 exports.anchorAt = anchorAt;
+exports.throughResidue = throughResidue;
 exports.vet = vet;
 const aontu_1 = require("./aontu");
 const node_path_1 = require("node:path");
@@ -378,6 +379,10 @@ function anchorAt(root, at) {
     return node;
 }
 // The container inside a settled sizing residue, or the value itself.
+// EXPORTED for the `doc` figure, which walks the same shape the anchor
+// does: a list still carrying a `unique()` is a list, and a drawing
+// that stopped at the residue would omit keys the document plainly
+// has.
 function throughResidue(v) {
     return (0, BagVal_1.sizingResidue)(v)?.bag ?? v;
 }

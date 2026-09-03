@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" class="av" viewBox="0 0 172 508" width="172" height="508" role="img" aria-label="Document tree at $: 24 keys to depth 2">
+<style>.av{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px}.av-t{fill:var(--av-ink,#1f2328)}.av-m{fill:var(--av-muted,#6e7781)}.av-box{fill:var(--av-bg,#f6f8fa);stroke:var(--av-rule,#8c959f);stroke-width:1}.av-cell{fill:var(--av-bg,#f6f8fa);stroke:var(--av-rule-faint,#d0d7de);stroke-width:1}.av-direct{fill:var(--av-ink,#1f2328);stroke:var(--av-rule-faint,#d0d7de);stroke-width:1}.av-closure{fill:var(--av-closure,#9ec5fe);stroke:var(--av-rule-faint,#d0d7de);stroke-width:1}.av-unmirrored{fill:var(--av-warn,#e3b341);stroke:var(--av-rule-faint,#d0d7de);stroke-width:1}.av-line{stroke:var(--av-rule,#8c959f);stroke-width:1;fill:none}.av-up{stroke:var(--av-alert,#d1242f);stroke-width:1.5;fill:none;stroke-dasharray:4 3}.av-dot{fill:var(--av-ink,#1f2328)}.av-hole{fill:var(--av-bg,#f6f8fa);stroke:var(--av-rule-faint,#d0d7de);stroke-width:1}.av-bar{fill:var(--av-bar,#57606a)}</style>
+<text x="4" y="14" class="av-t">$</text>
+<path d="M8 20V30H26" class="av-line"/>
+<text x="28" y="34" class="av-t">mods</text>
+<path d="M32 40V50H50" class="av-line"/>
+<text x="52" y="54"><tspan class="av-t">auth</tspan><tspan class="av-m"> (5)</tspan></text>
+<path d="M32 40V70H50" class="av-line"/>
+<text x="52" y="74"><tspan class="av-t">billing</tspan><tspan class="av-m"> (5)</tspan></text>
+<path d="M32 40V90H50" class="av-line"/>
+<text x="52" y="94"><tspan class="av-t">bytes</tspan><tspan class="av-m"> (5)</tspan></text>
+<path d="M32 40V110H50" class="av-line"/>
+<text x="52" y="114"><tspan class="av-t">catalog</tspan><tspan class="av-m"> (5)</tspan></text>
+<path d="M32 40V130H50" class="av-line"/>
+<text x="52" y="134"><tspan class="av-t">cli</tspan><tspan class="av-m"> (5)</tspan></text>
+<path d="M32 40V150H50" class="av-line"/>
+<text x="52" y="154"><tspan class="av-t">clock</tspan><tspan class="av-m"> (5)</tspan></text>
+<path d="M32 40V170H50" class="av-line"/>
+<text x="52" y="174"><tspan class="av-t">http</tspan><tspan class="av-m"> (5)</tspan></text>
+<path d="M32 40V190H50" class="av-line"/>
+<text x="52" y="194"><tspan class="av-t">log</tspan><tspan class="av-m"> (5)</tspan></text>
+<path d="M32 40V210H50" class="av-line"/>
+<text x="52" y="214"><tspan class="av-t">reports</tspan><tspan class="av-m"> (5)</tspan></text>
+<path d="M32 40V230H50" class="av-line"/>
+<text x="52" y="234"><tspan class="av-t">server</tspan><tspan class="av-m"> (5)</tspan></text>
+<path d="M32 40V250H50" class="av-line"/>
+<text x="52" y="254"><tspan class="av-t">store</tspan><tspan class="av-m"> (5)</tspan></text>
+<path d="M32 40V270H50" class="av-line"/>
+<text x="52" y="274"><tspan class="av-t">worker</tspan><tspan class="av-m"> (5)</tspan></text>
+<path d="M8 20V290H26" class="av-line"/>
+<text x="28" y="294" class="av-t">spec</text>
+<path d="M32 300V310H50" class="av-line"/>
+<text x="52" y="314"><tspan class="av-t">App</tspan><tspan class="av-m"> (5)</tspan></text>
+<path d="M32 300V330H50" class="av-line"/>
+<text x="52" y="334"><tspan class="av-t">AppDep</tspan><tspan class="av-m"> (2)</tspan></text>
+<path d="M32 300V350H50" class="av-line"/>
+<text x="52" y="354"><tspan class="av-t">Core</tspan><tspan class="av-m"> (5)</tspan></text>
+<path d="M32 300V370H50" class="av-line"/>
+<text x="52" y="374"><tspan class="av-t">CoreDep</tspan><tspan class="av-m"> (2)</tspan></text>
+<path d="M32 300V390H50" class="av-line"/>
+<text x="52" y="394"><tspan class="av-t">Feature</tspan><tspan class="av-m"> (5)</tspan></text>
+<path d="M32 300V410H50" class="av-line"/>
+<text x="52" y="414"><tspan class="av-t">FeatureDep</tspan><tspan class="av-m"> (2)</tspan></text>
+<path d="M32 300V430H50" class="av-line"/>
+<text x="52" y="434"><tspan class="av-t">Mod</tspan><tspan class="av-m"> (5)</tspan></text>
+<path d="M32 300V450H50" class="av-line"/>
+<text x="52" y="454"><tspan class="av-t">ModShape</tspan><tspan class="av-m"> (1)</tspan></text>
+<path d="M32 300V470H50" class="av-line"/>
+<text x="52" y="474"><tspan class="av-t">Util</tspan><tspan class="av-m"> (5)</tspan></text>
+<path d="M32 300V490H50" class="av-line"/>
+<text x="52" y="494"><tspan class="av-t">UtilDep</tspan><tspan class="av-m"> (2)</tspan></text>
+</svg>

@@ -1,0 +1,27 @@
+# 73: an alias used inside a SPREAD TEMPLATE is not resolved. Canon
+# emits `$.%D` -- a spelling the language documents as refused -- and
+# the document's `aon1-` hash moves, which falsifies the one law the
+# alias construct rests on.
+#
+# run: node ../../../ts/bin/aontu.js --canon alias-in-spread-template-leaks-into-canon.aon
+# run: node ../../../ts/bin/aontu.js hash alias-in-spread-template-leaks-into-canon.aon
+# run: aontu-go --canon alias-in-spread-template-leaks-into-canon.aon
+#
+# expected canon (what the same document with the constraint written
+# out at the use site gives):
+#   {"m":{&:{"a":re("^x")},"one":{"a":"xy"}}}
+#
+# actual, BOTH ports:
+#   {"m":{&:{"a":$.%D},"one":{"a":"xy"}}}
+#
+# GENERATION IS CORRECT in both ports -- `{"m":{"one":{"a":"xy"}}}` --
+# so this is visible only through canon and the hash. Outside a spread
+# (`a: %D` at the root) the alias resolves and the two spellings hash
+# identically, which is the contrast that isolates it.
+
+%D: string & re("^x")
+
+m: {
+  &: { a: %D }
+  one: { a: "xy" }
+}

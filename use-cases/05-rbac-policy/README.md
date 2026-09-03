@@ -1,5 +1,7 @@
 # 05 — RBAC / authorization policy as ground truth
 
+![The model tree: permissions, roles, plans and the tenant under test](expected/diagram-doc.svg)
+
 ## Scenario
 
 An RBAC model for a multi-tenant SaaS platform, written as data the
@@ -21,6 +23,55 @@ a PDP does not carry. Authorization decisions
 the PDP: unification is commutative, so the model has no "later rule
 wins". Ranked defaults (a `**` org baseline under a `*` team override)
 decide values, and first-match `match()` decides derivations.
+
+## The model tree
+
+`example.aon` joins the four documents the policy is made of.
+`permissions` is the catalog, `roles` the registry that grants from it,
+`tenant` the candidate being vetted against both, and
+`registry_invariant` the audit that runs over the registry. `Role` and
+`Entitlement` are the vocabulary the entries are written in, and they
+carry their canon here rather than a subtree because a type is a value,
+not a container.
+
+```
+$
+├── Entitlement {"auditLog":false,"plan":"fre...
+├── Role {"desc":string,"grants":[&:re...
+├── permissions
+│   ├── admin_all (2)
+│   ├── audit_read (2)
+│   ├── billing_manage (2)
+│   ├── billing_read (2)
+│   ├── member_invite (2)
+│   ├── member_read (2)
+│   ├── project_delete (2)
+│   ├── project_read (2)
+│   └── project_write (2)
+├── registry_invariant
+│   └── one_owner_role (1)
+├── roles
+│   ├── admin (5)
+│   ├── auditor (5)
+│   ├── member (5)
+│   └── owner (5)
+└── tenant
+    ├── defaultMemberRole *"member"|"member"|"admin"|"o...
+    ├── entitlement (4)
+    ├── limits (2)
+    ├── members (3)
+    ├── name "Acme Rockets"
+    ├── plan "free"
+    ├── security (2)
+    ├── slug "acme-rockets"
+    └── supportTier "community"
+```
+
+`aontu view doc --depth 2 example.aon` draws it, and `check.sh` pins it
+with `--out --check`. A key with `(n)` after it is a container the
+depth bound stopped at, and `n` is how many keys are not drawn; a
+leaf carries its canon, which is the kind of thing it is rather
+than its value.
 
 ## Layout
 

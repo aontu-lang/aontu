@@ -157,7 +157,7 @@ func TestViewLayersSkipsPathsTheDocumentLacks(t *testing.T) {
 	prov.paths["a.ghost"] = &whyPathRecord{conjuncts: []whyContribution{ghost}}
 	prov.paths["a.empty"] = &whyPathRecord{}
 	loss := []ViewLoss{}
-	text, ferrs := drawLayers(prov, root, "", "", 0, 0, "text", 60, &loss)
+	text, ferrs := drawLayers(prov, root, "", "", 0, 0, "text", "none", 60, &loss)
 	if nil != ferrs || strings.Contains(text, "ghost") || strings.Contains(text, "empty") {
 		t.Fatalf("layers = %q %v", text, ferrs)
 	}
@@ -191,5 +191,42 @@ func TestViewPosetInjectedVerdicts(t *testing.T) {
 	if _, errs = New().drawPoset(bad, "", "", "dot", 60, &loss, compare); nil == errs ||
 		"view_line_break" != errs[0].Code {
 		t.Fatalf("line break = %v", errs)
+	}
+}
+
+// ViewDefaultProfile is the kind-to-profile table cmd/aontu reads to
+// resolve `--style auto` before the library runs. Its own arms: a kind
+// that has profiles, and one that is not a kind at all.
+func TestViewDefaultProfile(t *testing.T) {
+	for kind, want := range map[string]string{
+		"doc": "text", "tree": "text", "matrix": "text",
+		"graph": "mermaid", "layer": "text", "sets": "text",
+		"layers": "text", "ladder": "mermaid", "poset": "mermaid",
+		"nope": "",
+	} {
+		if got := ViewDefaultProfile(kind); want != got {
+			t.Fatalf("ViewDefaultProfile(%q) = %q, want %q", kind, got, want)
+		}
+	}
+}
+
+// A LIST IS WALKED BY INDEX, and its elements are children of the
+// shape exactly as a map's values are. The shared rows draw a list at
+// the depth bound (where it is counted, not descended); this descends
+// into one, which is the arm that reads the elements themselves.
+func TestViewDocWalksAList(t *testing.T) {
+	a := New()
+	root, _, errs0 := a.viewLoad(`a: [1, {b: "x"}]`, nil)
+	if nil != errs0 {
+		t.Fatal(errs0)
+	}
+	loss := []ViewLoss{}
+	text, errs := drawDoc(root, "$", 3, "text", "none", 60, &loss)
+	if nil != errs {
+		t.Fatal(errs)
+	}
+	want := "$\n└── a\n    ├── 0 1\n    └── 1\n        └── b \"x\""
+	if want != text {
+		t.Fatalf("list walk =\n%q\nwant\n%q", text, want)
 	}
 }

@@ -35,7 +35,7 @@ A missing overlay is the empty overlay, and is created. It now holds
 one path-flattened conjunct — the assignment as a chain of quoted
 keys:
 
-```
+```aon
 "services": "billing": "replicas": 2
 ```
 

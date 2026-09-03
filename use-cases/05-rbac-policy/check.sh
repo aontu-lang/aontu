@@ -309,4 +309,18 @@ has mustsame err '[aontu/must]'
 ok "CLOSED: must() vetoes both same-file and across vet, alike"
 
 echo
+
+# THE MODEL TREE. The shape of this document, drawn by the one kind
+# that reads no report: `view doc` walks the anchor, exactly as
+# `get --keys --types` does, and stops at a depth that says how many
+# keys it did not draw. The figure at the head of the README is this,
+# and `--check` is the gate that keeps it true.
+run doc 0 -- view doc --depth 2 "$DIR/example.aon"
+diff -u "$DIR/expected/diagram-doc.txt" "$WORK/doc.out" \
+  || fail "the model tree drifted"
+run docgate 0 -- view doc --depth 2 \
+  --out "$DIR/expected/diagram-doc.txt" --check "$DIR/example.aon"
+run docsvg 0 -- view doc --depth 2 --as svg \
+  --out "$DIR/expected/diagram-doc.svg" --check "$DIR/example.aon"
+ok "the model tree draws and is pinned, text and SVG"
 echo "all $pass checks passed"

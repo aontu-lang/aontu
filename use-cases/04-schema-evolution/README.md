@@ -1,5 +1,7 @@
 # 04 — schema-evolution governance for a shared customer-profile schema
 
+![The model tree: one released version of the customer profile](expected/diagram-doc.svg)
+
 ## Scenario
 
 A customer-profile schema is the ground truth that dozens of services
@@ -26,6 +28,38 @@ machinery a schema registry needs:
   verdicts, the gen profile, hash stability, and a version string
   carried inside the document.
 - `data/` — instances a service or agent might emit, valid and not.
+
+## The model tree
+
+Each released version is one document of the same shape, which is what
+makes them comparable at all. `profile-v2.aon` is drawn here: the
+`profile` record the gate reasons about, beside `aontu_policy`, the
+waiver block that says which of its findings a reviewer has accepted.
+
+```
+$
+├── aontu_policy
+│   └── compat *"backward"|"forward"|"full"|...
+└── profile
+    ├── consent
+    │   ├── analytics *false|boolean
+    │   └── marketing *false|boolean
+    ├── contact
+    │   ├── phone re("^[+][0-9]{7,15}$")
+    │   └── verified *false|boolean
+    ├── email re("^[^@ ]+@[^@ ]+[.][^@ ]+$")
+    ├── id re("^C[0-9]{7}$")
+    ├── locale re("^[a-z][a-z](?:-[A-Z][A-Z]...
+    ├── name string&length(integer&min(1))
+    ├── phone string
+    └── tier "standard"|"premium"|"enterpr...
+```
+
+`aontu view doc --depth 3 profile-v2.aon` draws it, and `check.sh` pins it
+with `--out --check`. A key with `(n)` after it is a container the
+depth bound stopped at, and `n` is how many keys are not drawn; a
+leaf carries its canon, which is the kind of thing it is rather
+than its value.
 
 ## How the model is designed
 

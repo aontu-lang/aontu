@@ -7,6 +7,8 @@ at any depth. The vocabulary says `then?: $.spec.Step` inside `Step`,
 and that reference means the fixpoint: no marker, no annotation, no
 unrolled copies.
 
+![The model tree: a recursive step schema and the approval chain that instantiates it](expected/diagram-doc.svg)
+
 ## The model
 
 An approval-chain vocabulary (schema.aon): a `Step` is an approver, a
@@ -42,6 +44,37 @@ The three moments of the residual:
   position no finite document can fill (bad/required-tail.aon). The
   engine never analyses the schema for well-foundedness — the data
   decides.
+
+## The model tree
+
+`model.aon` is the schema and one instance of it. The recursion is in
+`spec`, whose step shape names itself through an optional key;
+`payments_policy` is the approval chain that expands it, one level per
+step, ending where the optional key drops.
+
+```
+$
+├── payments_policy
+│   ├── chain
+│   │   ├── approver "lead@acme.example"
+│   │   ├── decision "approved"
+│   │   └── then (3)
+│   └── name "payments-change"
+└── spec
+    ├── Policy
+    │   ├── chain $.spec.Step
+    │   └── name string
+    └── Step
+        ├── approver re("^[a-z]+@acme[.]example$")
+        ├── decision *"pending"|"pending"|"approve...
+        └── then $.spec.Step
+```
+
+`aontu view doc --depth 3 model.aon` draws it, and `check.sh` pins it
+with `--out --check`. A key with `(n)` after it is a container the
+depth bound stopped at, and `n` is how many keys are not drawn; a
+leaf carries its canon, which is the kind of thing it is rather
+than its value.
 
 ## What check.sh proves
 

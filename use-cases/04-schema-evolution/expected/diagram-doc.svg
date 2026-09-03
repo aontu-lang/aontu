@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" class="av" viewBox="0 0 372 328" width="372" height="328" role="img" aria-label="Document tree at $: 15 keys to depth 3">
+<style>.av{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px}.av-t{fill:var(--av-ink,#1f2328)}.av-m{fill:var(--av-muted,#6e7781)}.av-box{fill:var(--av-bg,#f6f8fa);stroke:var(--av-rule,#8c959f);stroke-width:1}.av-cell{fill:var(--av-bg,#f6f8fa);stroke:var(--av-rule-faint,#d0d7de);stroke-width:1}.av-direct{fill:var(--av-ink,#1f2328);stroke:var(--av-rule-faint,#d0d7de);stroke-width:1}.av-closure{fill:var(--av-closure,#9ec5fe);stroke:var(--av-rule-faint,#d0d7de);stroke-width:1}.av-unmirrored{fill:var(--av-warn,#e3b341);stroke:var(--av-rule-faint,#d0d7de);stroke-width:1}.av-line{stroke:var(--av-rule,#8c959f);stroke-width:1;fill:none}.av-up{stroke:var(--av-alert,#d1242f);stroke-width:1.5;fill:none;stroke-dasharray:4 3}.av-dot{fill:var(--av-ink,#1f2328)}.av-hole{fill:var(--av-bg,#f6f8fa);stroke:var(--av-rule-faint,#d0d7de);stroke-width:1}.av-bar{fill:var(--av-bar,#57606a)}</style>
+<text x="4" y="14" class="av-t">$</text>
+<path d="M8 20V30H26" class="av-line"/>
+<text x="28" y="34" class="av-t">aontu_policy</text>
+<path d="M32 40V50H50" class="av-line"/>
+<text x="52" y="54"><tspan class="av-t">compat</tspan><tspan class="av-m"> *&quot;backward&quot;|&quot;forward&quot;|&quot;full&quot;|...</tspan></text>
+<path d="M8 20V70H26" class="av-line"/>
+<text x="28" y="74" class="av-t">profile</text>
+<path d="M32 80V90H50" class="av-line"/>
+<text x="52" y="94" class="av-t">consent</text>
+<path d="M56 100V110H74" class="av-line"/>
+<text x="76" y="114"><tspan class="av-t">analytics</tspan><tspan class="av-m"> *false|boolean</tspan></text>
+<path d="M56 100V130H74" class="av-line"/>
+<text x="76" y="134"><tspan class="av-t">marketing</tspan><tspan class="av-m"> *false|boolean</tspan></text>
+<path d="M32 80V150H50" class="av-line"/>
+<text x="52" y="154" class="av-t">contact</text>
+<path d="M56 160V170H74" class="av-line"/>
+<text x="76" y="174"><tspan class="av-t">phone</tspan><tspan class="av-m"> re(&quot;^[+][0-9]{7,15}$&quot;)</tspan></text>
+<path d="M56 160V190H74" class="av-line"/>
+<text x="76" y="194"><tspan class="av-t">verified</tspan><tspan class="av-m"> *false|boolean</tspan></text>
+<path d="M32 80V210H50" class="av-line"/>
+<text x="52" y="214"><tspan class="av-t">email</tspan><tspan class="av-m"> re(&quot;^[^@ ]+@[^@ ]+[.][^@ ]+$&quot;)</tspan></text>
+<path d="M32 80V230H50" class="av-line"/>
+<text x="52" y="234"><tspan class="av-t">id</tspan><tspan class="av-m"> re(&quot;^C[0-9]{7}$&quot;)</tspan></text>
+<path d="M32 80V250H50" class="av-line"/>
+<text x="52" y="254"><tspan class="av-t">locale</tspan><tspan class="av-m"> re(&quot;^[a-z][a-z](?:-[A-Z][A-Z]...</tspan></text>
+<path d="M32 80V270H50" class="av-line"/>
+<text x="52" y="274"><tspan class="av-t">name</tspan><tspan class="av-m"> string&amp;length(integer&amp;min(1))</tspan></text>
+<path d="M32 80V290H50" class="av-line"/>
+<text x="52" y="294"><tspan class="av-t">phone</tspan><tspan class="av-m"> string</tspan></text>
+<path d="M32 80V310H50" class="av-line"/>
+<text x="52" y="314"><tspan class="av-t">tier</tspan><tspan class="av-m"> &quot;standard&quot;|&quot;premium&quot;|&quot;enterpr...</tspan></text>
+</svg>

@@ -5,6 +5,18 @@
 # are the graph atoms -- lattice-inert declarations whose verdict
 # lands at generation, where every edge is known. Data documents then
 # stay plain JSON-shaped lists.
+# The edge type, named once. `%JobEdge` is an ALIAS -- a name for a
+# value and nothing else: it does not generate and does not appear in
+# canon, so this file and the one with `rel($.spec.JobShape)` written
+# out at both ends are the same document with the same `aon1-` hash.
+# What it buys is that a relation and its inverse can no longer be
+# declared over different endpoint types by a typo.
+#
+# The declaration lands at the ROOT of the document, which is why
+# model.aon splices this file (`@"./spec.aon"` at the top level)
+# rather than binding it to a key.
+%JobEdge: rel($.spec.JobShape)
+
 spec: hide({
 
   Job: {
@@ -15,8 +27,8 @@ spec: hide({
     # schema -- the deadlock that once made this spelling impossible
     # (BUGS.md sec 53) is fixed: the reference walk sees through the
     # pending hide() wrapper.
-    feeds?: rel($.spec.JobShape) & acyclic() & inverse(fedBy)
-    fedBy?: rel($.spec.JobShape)
+    feeds?: %JobEdge & acyclic() & inverse(fedBy)
+    fedBy?: %JobEdge
   }
 
   # What the far end of a feeds/fedBy edge must be. A thin shape

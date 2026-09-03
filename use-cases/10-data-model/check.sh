@@ -267,4 +267,21 @@ has mconv '"vatExact":0d759.6561'
 ok "the wire<->exact conversion, its sign, its scale and its VAT all pin"
 
 echo
+
+# THE MODEL TREE. The shape of this document, drawn by the one kind
+# that reads no report: `view doc` walks the anchor, exactly as
+# `get --keys --types` does, and stops at a depth that says how many
+# keys it did not draw. The figure at the head of the README is this,
+# and `--check` is the gate that keeps it true.
+# The figure is what goes to STDOUT; the loss report goes to stderr,
+# and this run() merges the two, so the redirect is written here.
+$AONTU view doc --depth 2 "$DIR/seed.aon" > "$WORK/doc.out" 2>/dev/null \
+  || fail "the model tree did not draw"
+diff -u "$DIR/expected/diagram-doc.txt" "$WORK/doc.out" \
+  || fail "the model tree drifted"
+run docgate 0 -- view doc --depth 2 \
+  --out "$DIR/expected/diagram-doc.txt" --check "$DIR/seed.aon"
+run docsvg 0 -- view doc --depth 2 --as svg \
+  --out "$DIR/expected/diagram-doc.svg" --check "$DIR/seed.aon"
+ok "the model tree draws and is pinned, text and SVG"
 echo "all $pass checks passed"

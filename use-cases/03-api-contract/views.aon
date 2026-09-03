@@ -1,0 +1,32 @@
+# THE VIEW DOCUMENT (docs/design/VIEWS.0.md, "6. The view document").
+#
+# The figures this case commits, declared as data beside the model
+# rather than as shell lines that have to be kept in step with it. One
+# evaluation draws them all; `aontu view --views '$.views' --check
+# views.aon` is the gate, and it is all or nothing.
+#
+# `views` is this document's own key, not a name the engine knows
+# (ADR-010): `--views` says where to look. The declaration keys are
+# the view options, which are the CLI's flags without the dashes, and
+# `@"std/view"` is the schema for one.
+
+@"std/view"
+@"./contract.aon"
+
+views: {&: $.view.Figure} & {
+
+  # THE MODEL TREE: what is in this document and how it is arranged,
+  # to 2 levels. The shape a reader needs before any value in it
+  # means anything.
+  doc: {
+    kind: doc
+    depth: 2
+    out: "expected/diagram-doc.txt"
+  }
+  docSvg: {
+    kind: doc
+    depth: 2
+    as: svg
+    out: "expected/diagram-doc.svg"
+  }
+}

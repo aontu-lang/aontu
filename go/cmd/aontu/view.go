@@ -20,11 +20,45 @@ import (
 
 const viewHelp = "aontu view <kind> [options] <file>... (try --help)"
 
-var viewKinds = []string{"tree", "matrix", "graph", "layer", "sets", "layers", "ladder", "poset"}
+var viewKinds = []string{"doc", "tree", "matrix", "graph", "layer", "sets", "layers", "ladder", "poset"}
 
 var viewProfiles = []string{"text", "mermaid", "dot", "er", "svg"}
 
 var viewEdges = []string{"upward", "all", "none"}
+
+// The styles the command accepts (VIEWS.0.md, "7. Styling"). `auto` is
+// here and NOT a value the library takes: resolving it means knowing
+// whether stdout is a terminal, which is the command's to know and the
+// library's never -- the same division SetColor already draws for the
+// error frames.
+var viewStyles = []string{"auto", "none", "ansi", "css"}
+
+// viewStyleFor is `--style auto` resolved, which only the command can
+// do. The mechanism is the PROFILE's and the library knows it -- an SVG
+// carries its stylesheet, which is what makes a figure stand alone.
+// What the library cannot know is whether the DESTINATION is a
+// terminal, so that is the only thing decided here: escapes on the text
+// profile when stdout is a terminal and NO_COLOR is unset, the same two
+// conditions the error frames use. An empty answer leaves the profile's
+// own default in place. Mirrors viewStyleOf in ts/src/cli.ts.
+func viewStyleFor(asked, as string, stdout io.Writer) string {
+	if "" != asked && "auto" != asked {
+		return asked
+	}
+	// STDOUT'S OWN TERMINAL-NESS, and NO_COLOR read here rather than
+	// through the library's colour gate. The figure goes to STDOUT and
+	// the error frames go to STDERR, and they are not the same
+	// destination: run() has already called SetColor for stderr, so
+	// asking the library would answer the wrong question twice -- no
+	// escapes for `aontu view tree m.aon 2>/dev/null` at a terminal, and
+	// escapes into the pipe for `aontu view tree m.aon | less`. The
+	// NO_COLOR rule is the one no-color.org states: set, to anything but
+	// empty, means no colour.
+	if "text" == as && nil == colorFor(stdout) && "" == os.Getenv("NO_COLOR") {
+		return "ansi"
+	}
+	return ""
+}
 
 // The figure was drawn (0, `lossy` included: the loss report says what
 // it could not draw, and --strict is the gate on that), or the document
@@ -42,6 +76,7 @@ var viewUsageCodes = map[string]bool{
 	"view_rows_exceeded": true, "view_at_required": true,
 	"view_sets_required": true, "view_group_required": true,
 	"view_document_shape": true,
+	"view_style_profile":  true, "view_style_unknown": true,
 }
 
 func hasString(list []string, s string) bool {
@@ -74,9 +109,13 @@ func runView(argv []string, stdout, stderr io.Writer) int {
 		"--universe": &opts.Universe, "--profile": &opts.Profile,
 		"--views": &opts.Views, "--edges": &opts.Edges,
 	}
+	// The style ASKED FOR, which may be `auto` -- a word ViewOptions
+	// does not carry, because resolving it is the command's job.
+	style := ""
 	counted := map[string]*int{
 		"--max-rows": &opts.MaxRows, "--max-cols": &opts.MaxCols,
 		"--min-degree": &opts.MinDegree, "--min-size": &opts.MinSize,
+		"--depth": &opts.Depth,
 	}
 
 	for i := 0; i < len(argv); i++ {
@@ -113,6 +152,14 @@ func runView(argv []string, stdout, stderr io.Writer) int {
 				return 2
 			}
 			out = argv[i]
+		case "--style" == arg:
+			i++
+			if len(argv) <= i || !hasString(viewStyles, argv[i]) {
+				io.WriteString(stderr,
+					"aontu: --style needs one of "+strings.Join(viewStyles, ", ")+"\n")
+				return 2
+			}
+			style = argv[i]
 		case "--check" == arg:
 			check = true
 		case "--strict" == arg:
@@ -153,9 +200,26 @@ func runView(argv []string, stdout, stderr io.Writer) int {
 		}
 	}
 
+	// ESCAPES NEVER GO INTO A FILE. A pinned golden holding terminal
+	// control codes is not a golden anybody can read, and a byte
+	// comparison against one would fail on the reader's terminal
+	// settings. `auto` resolves to nothing there on its own; asking for
+	// `ansi` explicitly is a usage error rather than a silent
+	// downgrade, so a script that wanted colour is told where it went.
+	if "ansi" == style && ("" != out || "" != opts.Views) {
+		io.WriteString(stderr,
+			"aontu: --style ansi writes to a terminal, not to a file\n")
+		return 2
+	}
+
 	// THE VIEW DOCUMENT draws every figure a document declares, so it
 	// names no kind: the declarations do, one each.
 	if "" != opts.Views {
+		// A declaration names its own profile, so the style is left to
+		// each figure's own default; `--style none` still reaches every
+		// one of them, which is how a host page that binds the CSS
+		// variables asks for eight figures without eight stylesheets.
+		opts.Style = viewStyleFor(style, "", stdout)
 		return runViewSet(rest, &opts, trust, format, check, strict, out, stdout, stderr)
 	}
 
@@ -204,6 +268,11 @@ func runView(argv []string, stdout, stderr io.Writer) int {
 	}
 	opts.Kind = kind
 	opts.Roots = roots
+	as := opts.As
+	if "" == as {
+		as = aontu.ViewDefaultProfile(kind)
+	}
+	opts.Style = viewStyleFor(style, as, stdout)
 
 	files := rest[1:]
 	srcs := []string{}

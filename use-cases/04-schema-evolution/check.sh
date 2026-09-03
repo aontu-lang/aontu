@@ -273,4 +273,19 @@ $AONTU view poset --at '$.profile' \
   || { echo "FAIL: poset diagram did not render"; exit 1; }
 golden "$TMP/diagram-poset.mmd" "$DIR/expected/diagram-poset.mmd"
 
+say "the model tree: the shape of profile-v2.aon, drawn and pinned"
+# The one kind that reads no report: `view doc` walks the anchor,
+# exactly as `get --keys --types` does, and stops at a depth that says
+# how many keys it did not draw. The figure at the head of the README
+# is this, and `--check` is the gate that keeps it true.
+# The figure is what goes to STDOUT; the loss report goes to stderr,
+# and merging the two would compare the golden against both.
+$AONTU view doc --depth 3 "$DIR/profile-v2.aon" > "$TMP/doc.out" 2>/dev/null \
+  || { echo "FAIL: the model tree did not draw"; exit 1; }
+golden "$TMP/doc.out" "$DIR/expected/diagram-doc.txt"
+run 0 "$TMP/docgate.out" $AONTU view doc --depth 3 \
+  --out "$DIR/expected/diagram-doc.txt" --check "$DIR/profile-v2.aon"
+run 0 "$TMP/docsvg.out" $AONTU view doc --depth 3 --as svg \
+  --out "$DIR/expected/diagram-doc.svg" --check "$DIR/profile-v2.aon"
+
 printf '\nAll %d steps passed.\n' "$step"

@@ -9,6 +9,8 @@ check one. The verb exports the unified value as draft 2020-12 to
 stdout and names every loss on stderr. This case drives the bridge in
 its three moods: exact, lossy, refused.
 
+![The model tree: a record whose fields are exactly the constructs the export has to decide about](expected/diagram-doc.svg)
+
 ## The model
 
 Four documents, one per mood plus the money convention:
@@ -46,6 +48,29 @@ whole value residual, so `number & must(...)` exports as `{}` and is
 reported as `nil`.
 
 Every golden in `expected/` is captured engine output.
+
+## The model tree
+
+`residue.aon` is deliberately small and deliberately awkward: every
+field of `report` is a construct the JSON Schema export must either
+carry or drop, and the loss report says which. A `bigdecimal`, a
+spread template, a list template, a concrete string and a `nil`.
+
+```
+$
+└── report
+    ├── amountEur bigdecimal
+    ├── annotations {&:string&length(integer&min(...
+    ├── attempts [&:integer]
+    ├── audit "kept-off-the-wire"
+    └── total nil
+```
+
+`aontu view doc --depth 3 residue.aon` draws it, and `check.sh` pins it
+with `--out --check`. A key with `(n)` after it is a container the
+depth bound stopped at, and `n` is how many keys are not drawn; a
+leaf carries its canon, which is the kind of thing it is rather
+than its value.
 
 ## What check.sh proves
 

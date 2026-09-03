@@ -91,7 +91,7 @@ evaluation. What they are *for* is argued below, in
 
 References make a single pass insufficient. Consider:
 
-```
+```aon
 a: { v: $.b.v }
 b: { v: $.c.v }
 c: { v: 99 }

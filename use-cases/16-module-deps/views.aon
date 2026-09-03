@@ -2,7 +2,7 @@
 #
 # Every figure this case commits, declared as data beside the model
 # rather than as a shell line that has to be kept in step with it. One
-# evaluation draws all seven; `aontu view --views '$.views' --check
+# evaluation draws all eight; `aontu view --views '$.views' --check
 # views.aon` is the gate, and it is all or nothing -- a set whose
 # fourth figure refuses writes none of them.
 #

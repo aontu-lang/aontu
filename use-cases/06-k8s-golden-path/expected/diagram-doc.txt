@@ -1,0 +1,21 @@
+$
+├── deploy
+│   ├── auth (4)
+│   ├── billing (4)
+│   └── web (4)
+├── internal
+│   └── envmaps (3)
+├── platform
+│   ├── baseEnv (3)
+│   ├── namespace "payments"
+│   └── registry "registry.acme.io/payments"
+├── service
+│   ├── auth (4)
+│   ├── billing (4)
+│   └── web (4)
+└── svc
+    ├── extraEnv (3)
+    ├── names (3)
+    ├── ports (3)
+    ├── tier (3)
+    └── version (3)

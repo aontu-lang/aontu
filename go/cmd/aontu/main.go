@@ -159,13 +159,14 @@ kind and out file, nothing is written unless every figure rendered,
 and --check gates the committed set.
 
 View options:
-  --as <profile>    text | mermaid | dot | er | svg, per kind: tree,
-                    matrix, sets and layers draw text (default) or
-                    svg; graph draws mermaid (default), dot or er;
+  --as <profile>    text | mermaid | dot | er | svg, per kind: doc,
+                    tree, matrix, sets and layers draw text (default)
+                    or svg; graph draws mermaid (default), dot or er;
                     layer draws text (default), mermaid or svg; ladder
                     and poset draw mermaid (default) or dot
   --at <path>       Restrict the figure to nodes under this path; the
-                    path the ladder draws; where the poset compares
+                    subtree doc draws; the path the ladder draws;
+                    where the poset compares
   --views <path>    Draw every figure the document declares at this
                     path, one evaluation, all or nothing; each
                     declaration names its own kind and out file
@@ -174,7 +175,20 @@ View options:
                     nothing is written
   --strict          Exit 1 when the loss report holds anything beyond
                     edges_deduped, inverse_suppressed and crossings
+  --depth <n>       doc: how many levels of key to draw (default 3)
   --max-rows <n>    Refuse a figure above this many rows (default 60)
+  --style <s>       auto (default), none, ansi or css. A figure's
+                    marks carry their meaning -- a direct cell, a
+                    closure cell, an upward edge -- and each profile
+                    has one way to show it: SGR escapes for text, CSS
+                    classes for svg. auto picks that mechanism where
+                    the destination can carry it: escapes only on a
+                    terminal (NO_COLOR is honoured), and an svg keeps
+                    the stylesheet that makes it standalone. none
+                    drops both; on svg the classes stay and only the
+                    stylesheet goes, for a host page that has already
+                    bound --av-ink and its kin. Escapes are never
+                    written to a file
   --format <f>      text (default) or json, the whole report
   --relation <n>    tree, matrix, layer: draw over this relation only;
                     graph: keep this predicate (repeatable)

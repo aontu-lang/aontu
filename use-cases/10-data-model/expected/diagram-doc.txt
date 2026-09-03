@@ -1,0 +1,23 @@
+$
+├── customers
+│   ├── cust-1001 (7)
+│   └── cust-1002 (7)
+├── invoices
+│   └── inv-3001 (6)
+├── orders
+│   ├── ord-7001 (5)
+│   └── ord-7002 (5)
+├── pricing
+│   ├── book (4)
+│   └── bundles (2)
+├── receivables
+│   ├── cust-1001 (2)
+│   └── cust-1002 (2)
+├── reconcile
+│   ├── centsPath 30
+│   └── exactPath 0d0.3
+└── schema
+    ├── Customer (7)
+    ├── Invoice (6)
+    ├── Order (5)
+    └── OrderLine (4)

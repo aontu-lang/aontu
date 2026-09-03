@@ -1,0 +1,34 @@
+$
+├── alerts
+│   ├── auth (3)
+│   └── billing (3)
+├── defs
+│   └── workload (9)
+├── deploy
+│   ├── dev (3)
+│   ├── prod (3)
+│   └── staging (3)
+├── envguard
+│   ├── dev (3)
+│   ├── prod (3)
+│   └── staging (3)
+├── environments
+│   ├── dev (2)
+│   ├── prod (2)
+│   └── staging (2)
+├── fleet
+│   ├── auth (3)
+│   ├── billing (3)
+│   ├── reports (3)
+│   └── web (3)
+├── org
+│   ├── name "acme"
+│   ├── registry "registry.acme.internal"
+│   └── runbookBase "https://runbooks.acme.internal"
+├── release
+│   └── tag "2025.34.2"
+├── rollout
+│   └── billingProdMaxSurge 13
+└── team
+    ├── name "payments"
+    └── oncall "#payments-oncall"

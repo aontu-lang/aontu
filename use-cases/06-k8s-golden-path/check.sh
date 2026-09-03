@@ -243,4 +243,21 @@ probe_golden spread-column-deadlock \
 grep -q '"targetPort": 8080' "$DIR/expected/spread-column-deadlock.json" \
   || die "spread-column-deadlock golden lost its point"
 
+
+# THE MODEL TREE. The shape of this document, drawn by the one kind
+# that reads no report: `view doc` walks the anchor, exactly as
+# `get --keys --types` does, and stops at a depth that says how many
+# keys it did not draw. The figure at the head of the README is this,
+# and `--check` is the gate that keeps it true.
+# The figure is what goes to STDOUT; the loss report goes to stderr,
+# and merging the two would compare the golden against both.
+$AONTU view doc --depth 2 "$DIR/main.aon" > "$TMP/doc.out" 2>/dev/null \
+  || die "the model tree did not draw"
+diff -u "$DIR/expected/diagram-doc.txt" "$TMP/doc.out" \
+  || die "the model tree drifted"
+run docgate 0 view doc --depth 2 \
+  --out "$DIR/expected/diagram-doc.txt" --check "$DIR/main.aon"
+run docsvg 0 view doc --depth 2 --as svg \
+  --out "$DIR/expected/diagram-doc.svg" --check "$DIR/main.aon"
+ok "the model tree draws and is pinned, text and SVG"
 echo "all $PASS checks passed"

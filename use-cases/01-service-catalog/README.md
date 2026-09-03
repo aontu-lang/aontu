@@ -1,5 +1,7 @@
 # 01 — a company-wide service catalog as system ontology
 
+![The model tree: two views of one estate, catalog and deploy, over a shared vocabulary](expected/diagram-doc.svg)
+
 ## Scenario
 
 A Backstage-style service catalog for "Acme": eight services across
@@ -23,6 +25,42 @@ agents: an agent must be able to pull one service's complete truth
 into context (`aontu get`), ask where a fact came from (`aontu why`),
 and have its own emitted candidates checked (`aontu vet`, `rel()`).
 
+## The model tree
+
+`system.aon` is one evaluation joining four things: the bundled
+vocabulary (`std`), Acme's own (`spec`), the catalog view and the
+deployment view. `catalog` and `deploy` hold the same services seen
+from different angles — what each one IS, and where each one RUNS —
+and everything below them is domains or regions, then services, then
+fields.
+
+```
+$
+├── %CatalogAddr re("^\\$[.]catalog[.]")
+├── %Description string&length(integer&min(10))
+├── %Lifecycle *"production"|"production"|"e...
+├── %Owner re("^team-[a-z]+$")
+├── catalog
+│   └── domains (3)
+├── deploy
+│   └── regions (2)
+├── spec
+│   ├── CandidateShape (6)
+│   ├── CatalogEntry (8)
+│   ├── PortSpec (3)
+│   └── Workload (4)
+└── std
+    ├── Component (1)
+    ├── Port (2)
+    └── Service (2)
+```
+
+`aontu view doc --depth 2 system.aon` draws it, and `check.sh` pins it
+with `--out --check`. A key with `(n)` after it is a container the
+depth bound stopped at, and `n` is how many keys are not drawn; a
+leaf carries its canon, which is the kind of thing it is rather
+than its value.
+
 ## Model design
 
 | File | Role | Features exercised |
@@ -37,10 +75,26 @@ and have its own emitted candidates checked (`aontu vet`, `rel()`).
 
 Relations are declared on the field that holds them. In `spec.aon`:
 
+```aon
+%CatalogAddr: re("^\\$[.]catalog[.]")
+
+dependsOn?: rel($.std.Service) & %CatalogAddr & acyclic() & inverse(dependedOnBy)
+dependedOnBy?: rel($.std.Service) & %CatalogAddr
 ```
-dependsOn?: rel($.std.Service) & re("^\\$[.]catalog[.]") & acyclic() & inverse(dependedOnBy)
-dependedOnBy?: rel($.std.Service) & re("^\\$[.]catalog[.]")
-```
+
+`%CatalogAddr` is an **alias**: `%name:` at the top level of the
+document declares one, `%name` in value position uses it, and that is
+all it is. An alias does not generate and does not appear in canon, so
+`spec.aon` with the names and `spec.aon` with the pattern written out
+at both use sites are the same document and produce the same `aon1-`
+hash — the change is readability, and the engine cannot tell. What it
+buys is that a relation and its inverse can no longer be given
+different address shapes by a typo. `%Owner`, `%Lifecycle` and
+`%Description` do the same for the three fields `CatalogEntry` and
+`CandidateShape` both promise, which have to be spelled twice because
+the vet anchor is deliberately written out self-contained (gap 2) —
+and an alias is *not* a path (`$.%Owner` is refused at any depth), so
+naming them does not reintroduce the reference that gap is about.
 
 The key is the predicate. `rel($.std.Service)` types every far end,
 and the type flows into each target instead of being repeated at every

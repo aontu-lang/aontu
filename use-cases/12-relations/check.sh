@@ -133,4 +133,18 @@ has cmat out '# above-diagonal direct cells: 1'
 has cmat err 'cycle_block  1  extract load transform'
 ok "the pipeline draws: 6 written edges collapse to 3 logical ones"
 
+
+# THE MODEL TREE. The shape of this document, drawn by the one kind
+# that reads no report: `view doc` walks the anchor, exactly as
+# `get --keys --types` does, and stops at a depth that says how many
+# keys it did not draw. The figure at the head of the README is this,
+# and `--check` is the gate that keeps it true.
+run doc 0 -- view doc --depth 3 "$DIR/model.aon"
+diff -u "$DIR/expected/diagram-doc.txt" "$WORK/doc.out" \
+  || fail "the model tree drifted"
+run docgate 0 -- view doc --depth 3 \
+  --out "$DIR/expected/diagram-doc.txt" --check "$DIR/model.aon"
+run docsvg 0 -- view doc --depth 3 --as svg \
+  --out "$DIR/expected/diagram-doc.svg" --check "$DIR/model.aon"
+ok "the model tree draws and is pinned, text and SVG"
 echo "all $pass checks passed"

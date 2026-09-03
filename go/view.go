@@ -97,6 +97,17 @@ type ViewOptions struct {
 	// view document, only once every figure of the set rendered.
 	Out string
 
+	// Style is how the figure is styled (VIEWS.0.md, "7. Styling").
+	// Empty means the profile's own default: an SVG carries its
+	// stylesheet, everything else carries no mechanism. THE CALLER
+	// RESOLVES `auto` -- a library cannot see whether its output is a
+	// terminal.
+	Style string
+
+	// Depth is how many levels of key below the anchor the `doc`
+	// figure draws. Zero means the default, three, in both ports.
+	Depth int
+
 	// Views is the VIEW DOCUMENT's declarations (VIEWS.0.md, "6. The
 	// view document"): the path of a map whose values declare figures.
 	// ViewSet reads it; View ignores it, because one call draws one
@@ -105,9 +116,10 @@ type ViewOptions struct {
 }
 
 // viewKinds lists each kind's profiles, the first being its default.
-var viewKinds = []string{"tree", "matrix", "graph", "layer", "sets", "layers", "ladder", "poset"}
+var viewKinds = []string{"doc", "tree", "matrix", "graph", "layer", "sets", "layers", "ladder", "poset"}
 
 var viewProfiles = map[string][]string{
+	"doc":    {"text", "svg"},
 	"tree":   {"text", "svg"},
 	"matrix": {"text", "svg"},
 	"graph":  {"mermaid", "dot", "er"},
@@ -498,7 +510,8 @@ type treeFrame struct {
 // drawTree is THE DEPENDENCY TREE: the drawn edges, walked from each
 // root, indented. See drawTree in ts/src/view.ts for the two marks and
 // the root rule.
-func drawTree(all []drawnEdge, relation string, roots []string, max int, as string) (string, []VetFinding) {
+func drawTree(all []drawnEdge, relation string, roots []string, max int, as, style string) (string, []VetFinding) {
+	paint := newPainter(style)
 	kept := all
 	if "" != relation {
 		kept = []drawnEdge{}
@@ -641,7 +654,8 @@ func drawTree(all []drawnEdge, relation string, roots []string, max int, as stri
 			} else if seen && grown {
 				mark = " (*)"
 			}
-			out = append(out, frame.prefix+branch+text+mark)
+			out = append(out, paint.paint(roleRule, frame.prefix+branch)+text+
+				paint.paint(roleRepeat, mark))
 			rows = append(rows, &treeRow{depth: len(stack), text: text, mark: mark, parent: frame.row})
 			if loop || seen {
 				continue
@@ -666,7 +680,7 @@ func drawTree(all []drawnEdge, relation string, roots []string, max int, as stri
 	}
 
 	if "svg" == as {
-		return treeSvg(rows, len(nodes)), nil
+		return treeSvg(rows, "Dependency tree: "+strconv.Itoa(len(nodes))+" nodes", style), nil
 	}
 	return strings.Join(out, "\n"), nil
 }
@@ -755,7 +769,9 @@ func viewPickRelation(relation string, keys []string) (string, *VetFinding) {
 }
 
 func drawMatrix(triples []viewTriple, decls map[string]*relDecl,
-	relation, order string, closure bool, as string, max int, loss *[]ViewLoss) (string, []VetFinding) {
+	relation, order string, closure bool, as, style string, max int,
+	loss *[]ViewLoss) (string, []VetFinding) {
+	paint := newPainter(style)
 	relation, perr := viewPickRelation(relation, viewKeys(triples))
 	if nil != perr {
 		return "", []VetFinding{*perr}
@@ -823,7 +839,8 @@ func drawMatrix(triples []viewTriple, decls map[string]*relDecl,
 		for _, s := range idx {
 			cells = append(cells, string([]rune(viewLpad(s, iw))[d]))
 		}
-		lines = append(lines, strings.Repeat(" ", w+1+iw+1)+strings.Join(cells, " "))
+		lines = append(lines, strings.Repeat(" ", w+1+iw+1)+
+			paint.paint(roleMuted, strings.Join(cells, " ")))
 	}
 
 	above := 0
@@ -850,14 +867,20 @@ func drawMatrix(triples []viewTriple, decls map[string]*relDecl,
 			cells = append(cells, cell)
 		}
 		grid = append(grid, cells)
-		lines = append(lines, viewPad(label(r), w)+" "+viewLpad(idx[ri], iw)+" "+strings.Join(cells, " "))
+		painted := []string{}
+		for _, g := range cells {
+			painted = append(painted, paint.paint(matrixCellRole[g], g))
+		}
+		lines = append(lines, viewPad(label(r), w)+" "+
+			paint.paint(roleMuted, viewLpad(idx[ri], iw))+" "+
+			strings.Join(painted, " "))
 	}
 	footer := "# above-diagonal direct cells: " + strconv.Itoa(above)
-	lines = append(lines, footer)
+	lines = append(lines, paint.paint(roleMuted, footer))
 	if "svg" == as {
 		return matrixSvg(labelled, idx, grid, footer,
 			"Dependency matrix"+svgOver(relation)+": "+strconv.Itoa(len(seq))+" rows, "+
-				strconv.Itoa(above)+" direct cells above the diagonal"), nil
+				strconv.Itoa(above)+" direct cells above the diagonal", style), nil
 	}
 	return strings.Join(lines, "\n"), nil
 }
@@ -1104,7 +1127,7 @@ type viewBand struct {
 // relation's upward edges named under the figure. See drawLayer in
 // ts/src/view.ts.
 func drawLayer(triples []viewTriple, root Val, relation, groupBy string, layers []string,
-	edges, as string, max int, loss *[]ViewLoss) (string, []VetFinding) {
+	edges, as, style string, max int, loss *[]ViewLoss) (string, []VetFinding) {
 	if "" == groupBy {
 		return "", []VetFinding{viewFinding("view_group_required", "reference", "$",
 			"The layer diagram needs the field that names each node's layer; name it with --group-by.", "")}
@@ -1278,30 +1301,49 @@ func drawLayer(triples []viewTriple, root Val, relation, groupBy string, layers 
 			drew = strconv.Itoa(up) + " upward edges, none drawn"
 		}
 		return layerSvg(bands, shown, footer,
-			"Architecture layers"+svgOver(relation)+": "+strconv.Itoa(len(bands))+" bands, "+drew), nil
+			"Architecture layers"+svgOver(relation)+": "+strconv.Itoa(len(bands))+" bands, "+drew,
+			style), nil
 	}
 	out := []string{}
 	if "text" == as {
+		paint := newPainter(style)
 		bandNames := []string{}
 		for _, b := range bands {
 			bandNames = append(bandNames, b.name)
 		}
 		w := viewWidest(bandNames)
+		// The BARE rows are what the widths are computed from; the
+		// painted ones are what is written, and an escape must never
+		// count as a column.
+		bare := []string{}
 		rows := []string{}
 		for _, b := range bands {
 			ls := []string{}
 			for _, n := range b.nodes {
 				ls = append(ls, n.label)
 			}
-			rows = append(rows, viewPad(b.name, w)+"  "+strings.Join(ls, "  "))
+			bare = append(bare, viewPad(b.name, w)+"  "+strings.Join(ls, "  "))
+			rows = append(rows, paint.paint(roleMuted, viewPad(b.name, w))+"  "+
+				strings.Join(ls, "  "))
 		}
-		inner := viewWidest(rows)
-		rule := "+" + strings.Repeat("-", inner+2) + "+"
+		inner := viewWidest(bare)
+		rule := paint.paint(roleRule, "+"+strings.Repeat("-", inner+2)+"+")
 		out = append(out, rule)
-		for _, row := range rows {
-			out = append(out, "| "+viewPad(row, inner)+" |", rule)
+		for i, row := range rows {
+			out = append(out, paint.paint(roleRule, "|")+" "+row+
+				strings.Repeat(" ", inner-viewLen(bare[i]))+" "+
+				paint.paint(roleRule, "|"), rule)
 		}
-		out = append(out, footer...)
+		// The first footer line counts; the rest name one edge each,
+		// and an upward edge is the violation the bands cannot show.
+		out = append(out, paint.paint(roleMuted, footer[0]))
+		for i, f := range footer[1:] {
+			role := roleMuted
+			if "upward" == shown[i].way {
+				role = roleUpward
+			}
+			out = append(out, paint.paint(role, f))
+		}
 	} else {
 		esc := func(s string) string { return viewEscape(s, mermaidEsc) }
 		out = append(out, "flowchart TB")
@@ -1407,9 +1449,10 @@ func viewColumns(names []string, members map[string]map[string]bool,
 	return out
 }
 
-func renderPanel(p viewPanel) string {
+func renderPanel(p viewPanel, style string) string {
+	paint := newPainter(style)
 	w := viewWidest(p.names)
-	out := []string{p.header, ""}
+	out := []string{paint.paint(roleMuted, p.header), ""}
 	most := 0
 	for _, n := range p.sizes {
 		if n > most {
@@ -1419,23 +1462,29 @@ func renderPanel(p viewPanel) string {
 	for i, n := range p.names {
 		line := viewPad(n, w) + "  "
 		if p.bars {
-			line += viewPad(strings.Repeat("#", p.sizes[i]), most) + "  "
+			// The bar is padded to `most` from its own length, so the
+			// pad is written outside the painted run rather than
+			// counted inside it.
+			bar := strings.Repeat("#", p.sizes[i])
+			line += paint.paint(roleBar, bar) + strings.Repeat(" ", most-len(bar)) + "  "
 		}
-		out = append(out, line+strconv.Itoa(p.sizes[i]))
+		out = append(out, line+paint.paint(roleMuted, strconv.Itoa(p.sizes[i])))
 	}
 	out = append(out, "")
 	for i, n := range p.names {
 		cells := []string{}
 		for _, c := range p.cols {
 			if c.sig[i] {
-				cells = append(cells, "*")
+				cells = append(cells, paint.paint(roleDirect, "*"))
 			} else {
-				cells = append(cells, ".")
+				cells = append(cells, paint.paint(roleHole, "."))
 			}
 		}
-		out = append(out, viewPad(n, w)+" | "+strings.Join(cells, " "))
+		out = append(out, viewPad(n, w)+" "+paint.paint(roleRule, "|")+" "+
+			strings.Join(cells, " "))
 	}
-	out = append(out, viewPad("", w)+" +"+strings.Repeat("-", 2*len(p.cols)))
+	out = append(out, viewPad("", w)+" "+
+		paint.paint(roleRule, "+"+strings.Repeat("-", 2*len(p.cols))))
 	if p.bars {
 		tallest := 0
 		for _, c := range p.cols {
@@ -1444,26 +1493,31 @@ func renderPanel(p viewPanel) string {
 			}
 		}
 		// The bars, tallest column first; a line ends at its last bar.
+		// The trailing blanks are trimmed BEFORE painting, so an escape
+		// can never be what the trim leaves behind.
 		for h := tallest; 0 < h; h-- {
-			line := viewPad("", w) + " |"
+			cells := ""
 			for _, c := range p.cols {
 				if h <= len(c.items) {
-					line += " #"
+					cells += " #"
 				} else {
-					line += "  "
+					cells += "  "
 				}
 			}
-			out = append(out, strings.TrimRight(line, " "))
+			cells = strings.TrimRight(cells, " ")
+			out = append(out, viewPad("", w)+" "+paint.paint(roleRule, "|")+
+				strings.ReplaceAll(cells, "#", paint.paint(roleBar, "#")))
 		}
 	}
 	counts := []string{}
 	for _, c := range p.cols {
 		counts = append(counts, strconv.Itoa(len(c.items)))
 	}
-	out = append(out, viewPad("", w)+"   "+strings.Join(counts, " "))
+	out = append(out, viewPad("", w)+"   "+paint.paint(roleMuted, strings.Join(counts, " ")))
 	out = append(out, "")
 	for i, c := range p.cols {
-		out = append(out, "  "+panelColumnLine(p, i, c))
+		out = append(out, paint.paint(roleMuted, "  "+panelColumnHead(p, i, c))+
+			" "+panelColumnItems(p, c)+paint.paint(roleMuted, panelColumnNone(p, c)))
 	}
 	return strings.Join(out, "\n")
 }
@@ -1520,7 +1574,7 @@ func viewStrings(xs []any) ([]string, bool) {
 	return out, true
 }
 
-func drawSets(gen any, sets, member, universe string, minDegree, maxCols int, as string, max int,
+func drawSets(gen any, sets, member, universe string, minDegree, maxCols int, as, style string, max int,
 	loss *[]ViewLoss) (string, []VetFinding) {
 	fam, _ := viewGenAt(gen, sets)
 	family, ok := fam.(map[string]any)
@@ -1634,9 +1688,10 @@ func drawSets(gen any, sets, member, universe string, minDegree, maxCols int, as
 	}
 	if "svg" == as {
 		return panelSvg(panel, "Set panel over "+sets+": "+strconv.Itoa(len(names))+" sets, "+
-			strconv.Itoa(len(elements))+" elements, "+strconv.Itoa(len(cols))+" intersections"), nil
+			strconv.Itoa(len(elements))+" elements, "+strconv.Itoa(len(cols))+" intersections",
+			style), nil
 	}
-	return renderPanel(panel), nil
+	return renderPanel(panel, style), nil
 }
 
 // viewDocName is the file a contribution names, as the panel shows it:
@@ -1666,7 +1721,7 @@ func viewDocName(file, entry string) string {
 // drawLayers is the set panel over the provenance record: every path
 // something met at AND THE DOCUMENT HAS A VALUE AT, by the documents
 // that met there. See drawLayers in ts/src/view.ts.
-func drawLayers(prov *Provenance, root Val, entry, at string, minSize, maxCols int, as string, max int,
+func drawLayers(prov *Provenance, root Val, entry, at string, minSize, maxCols int, as, style string, max int,
 	loss *[]ViewLoss) (string, []VetFinding) {
 	members := map[string]map[string]bool{}
 	paths := []string{}
@@ -1742,9 +1797,10 @@ func drawLayers(prov *Provenance, root Val, entry, at string, minSize, maxCols i
 	}
 	if "svg" == as {
 		return panelSvg(panel, "Document layers: "+strconv.Itoa(len(names))+" documents, "+
-			strconv.Itoa(len(paths))+" paths, "+strconv.Itoa(len(cols))+" intersections"), nil
+			strconv.Itoa(len(paths))+" paths, "+strconv.Itoa(len(cols))+" intersections",
+			style), nil
 	}
-	return renderPanel(panel), nil
+	return renderPanel(panel, style), nil
 }
 
 // ---------------------------------------------------------------------
@@ -2127,6 +2183,24 @@ func (a *Aontu) View(src string, opts *ViewOptions) ViewReport {
 			"The "+kind+" figure does not render as "+as+".",
 			"profiles: "+strings.Join(profiles, ", "))})
 	}
+	// ONE MECHANISM PER PROFILE (VIEWS.0.md, "7. Styling"). `ansi` is
+	// the text profile's and `css` the SVG's; asking for one on a
+	// profile that has no way to carry it is a usage error rather than
+	// a silent no-op, so a script that asks for colour and gets none is
+	// told why. `none` is always available -- it is the absence of a
+	// mechanism.
+	style := viewStyleOf(options.Style, as)
+	carrier, mechanism := viewStyleCarrier[style]
+	if mechanism && carrier != as {
+		return done("", []VetFinding{viewFinding("view_style_profile", "reference", "$",
+			"The "+as+" profile cannot carry --style "+style+".",
+			style+" is the "+carrier+" profile's mechanism")})
+	}
+	if !mechanism && "none" != style {
+		return done("", []VetFinding{viewFinding("view_style_unknown", "reference", "$",
+			style+" is not a style.", "styles: auto, none, ansi, css")})
+	}
+
 	max := options.MaxRows
 	if 0 == max {
 		max = viewDefaultMaxRows
@@ -2174,8 +2248,13 @@ type viewGen struct {
 // document can load once and draw N figures from the one evaluation.
 func (a *Aontu) drawLoaded(root Val, ctx *Ctx, gen *viewGen, prov *Provenance,
 	kind, as string, options *ViewOptions, max int, loss *[]ViewLoss) (string, []VetFinding) {
+	style := viewStyleOf(options.Style, as)
+	if "doc" == kind {
+		return drawDoc(root, options.At, options.Depth, as, style, max, loss)
+	}
 	if "layers" == kind {
-		return drawLayers(prov, root, a.File, options.At, options.MinSize, options.MaxCols, as, max, loss)
+		return drawLayers(prov, root, a.File, options.At, options.MinSize, options.MaxCols,
+			as, style, max, loss)
 	}
 	if "sets" == kind {
 		if "" == options.Sets || "" == options.Member {
@@ -2196,7 +2275,7 @@ func (a *Aontu) drawLoaded(root Val, ctx *Ctx, gen *viewGen, prov *Provenance,
 			value = gen.value
 		}
 		return drawSets(value, options.Sets, options.Member, options.Universe,
-			options.MinDegree, options.MaxCols, as, max, loss)
+			options.MinDegree, options.MaxCols, as, style, max, loss)
 	}
 
 	triples := viewTriples(GraphOf(root), options.At, loss)
@@ -2206,7 +2285,8 @@ func (a *Aontu) drawLoaded(root Val, ctx *Ctx, gen *viewGen, prov *Provenance,
 		if "" == order {
 			order = "canon"
 		}
-		return drawMatrix(triples, decls, options.Relation, order, options.Closure, as, max, loss)
+		return drawMatrix(triples, decls, options.Relation, order, options.Closure,
+			as, style, max, loss)
 	}
 	if "graph" == kind {
 		return drawGraph(triples, decls, root, options.Relations,
@@ -2214,9 +2294,10 @@ func (a *Aontu) drawLoaded(root Val, ctx *Ctx, gen *viewGen, prov *Provenance,
 	}
 	if "layer" == kind {
 		return drawLayer(triples, root, options.Relation, options.GroupBy, options.Layers,
-			options.Edges, as, max, loss)
+			options.Edges, as, style, max, loss)
 	}
-	return drawTree(collapseEdges(triples, options.Relation), options.Relation, options.Roots, max, as)
+	return drawTree(collapseEdges(triples, options.Relation), options.Relation, options.Roots,
+		max, as, style)
 }
 
 // ViewTree is the tree view of one document: View with the kind fixed.

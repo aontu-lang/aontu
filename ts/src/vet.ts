@@ -573,7 +573,11 @@ export function anchorAt(root: any, at: string): Val | undefined {
 
 
 // The container inside a settled sizing residue, or the value itself.
-function throughResidue(v: any): any {
+// EXPORTED for the `doc` figure, which walks the same shape the anchor
+// does: a list still carrying a `unique()` is a list, and a drawing
+// that stopped at the residue would omit keys the document plainly
+// has.
+export function throughResidue(v: any): any {
   return sizingResidue(v)?.bag ?? v
 }
 

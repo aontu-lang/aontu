@@ -183,13 +183,14 @@ kind and out file, nothing is written unless every figure rendered,
 and --check gates the committed set.
 
 View options:
-  --as <profile>    text | mermaid | dot | er | svg, per kind: tree,
-                    matrix, sets and layers draw text (default) or
-                    svg; graph draws mermaid (default), dot or er;
+  --as <profile>    text | mermaid | dot | er | svg, per kind: doc,
+                    tree, matrix, sets and layers draw text (default)
+                    or svg; graph draws mermaid (default), dot or er;
                     layer draws text (default), mermaid or svg; ladder
                     and poset draw mermaid (default) or dot
   --at <path>       Restrict the figure to nodes under this path; the
-                    path the ladder draws; where the poset compares
+                    subtree doc draws; the path the ladder draws;
+                    where the poset compares
   --views <path>    Draw every figure the document declares at this
                     path, one evaluation, all or nothing; each
                     declaration names its own kind and out file
@@ -198,7 +199,20 @@ View options:
                     nothing is written
   --strict          Exit 1 when the loss report holds anything beyond
                     edges_deduped, inverse_suppressed and crossings
+  --depth <n>       doc: how many levels of key to draw (default 3)
   --max-rows <n>    Refuse a figure above this many rows (default 60)
+  --style <s>       auto (default), none, ansi or css. A figure's
+                    marks carry their meaning -- a direct cell, a
+                    closure cell, an upward edge -- and each profile
+                    has one way to show it: SGR escapes for text, CSS
+                    classes for svg. auto picks that mechanism where
+                    the destination can carry it: escapes only on a
+                    terminal (NO_COLOR is honoured), and an svg keeps
+                    the stylesheet that makes it standalone. none
+                    drops both; on svg the classes stay and only the
+                    stylesheet goes, for a host page that has already
+                    bound --av-ink and its kin. Escapes are never
+                    written to a file
   --format <f>      text (default) or json, the whole report
   --relation <n>    tree, matrix, layer: draw over this relation only;
                     graph: keep this predicate (repeatable)
@@ -1476,9 +1490,40 @@ const REACHES_EXIT = {
     error: 4,
 };
 const VIEW_HELP = 'aontu view <kind> [options] <file>... (try --help)';
-const VIEW_KINDS = ['tree', 'matrix', 'graph', 'layer', 'sets', 'layers', 'ladder', 'poset'];
+const VIEW_KINDS = ['doc', 'tree', 'matrix', 'graph', 'layer', 'sets', 'layers', 'ladder',
+    'poset'];
 const VIEW_PROFILES = ['text', 'mermaid', 'dot', 'er', 'svg'];
 const VIEW_EDGES = ['upward', 'all', 'none'];
+// The styles the CLI accepts (VIEWS.0.md, "7. Styling"). `auto` is
+// here and NOT in ViewStyle: resolving it means knowing whether stdout
+// is a terminal, which is the CLI's to know and the library's never --
+// the same division err.ts already draws for the error frames.
+const VIEW_STYLES = ['auto', 'none', 'ansi', 'css'];
+// `--style auto` resolved, which only the CLI can do. The mechanism is
+// the PROFILE's and the library knows it -- an SVG carries its
+// stylesheet unless told not to, which is what makes a figure stand
+// alone. What the library cannot know is whether the DESTINATION is a
+// terminal, so that is the only thing decided here: escapes on the
+// text profile when stdout is a terminal and NO_COLOR is unset, the
+// same two conditions the error frames use. `undefined` leaves the
+// profile's own default in place.
+function viewStyleOf(asked, as) {
+    if (undefined !== asked && 'auto' !== asked) {
+        return asked;
+    }
+    // STDOUT'S OWN TERMINAL-NESS, and NO_COLOR read here rather than
+    // through colorActive(). The figure goes to STDOUT and the error
+    // frames go to STDERR, and they are not the same destination: main()
+    // has already called setColor for stderr, so asking colorActive()
+    // would answer the wrong question twice --- no escapes for
+    // `aontu view tree m.aon 2>/dev/null` at a terminal, and escapes
+    // into the pipe for `aontu view tree m.aon | less`. The NO_COLOR
+    // rule is the one no-color.org states and err.ts implements:
+    // set, to anything but empty, means no colour.
+    const no = process.env.NO_COLOR;
+    return 'text' === as && true === process.stdout.isTTY
+        && (null == no || '' === no) ? 'ansi' : undefined;
+}
 // The figure was drawn (0, `lossy` included: the loss report says
 // what it could not draw, and --strict is the gate on that), or the
 // document could not be drawn (4). An EMPTY figure is a drawing, not
@@ -1493,7 +1538,7 @@ const VIEW_EXIT = {
 const VIEW_USAGE_CODES = [
     'view_kind_unknown', 'view_profile_unknown', 'view_rows_exceeded',
     'view_at_required', 'view_sets_required', 'view_group_required',
-    'view_document_shape',
+    'view_document_shape', 'view_style_profile', 'view_style_unknown',
 ];
 const MOD_HELP = 'aontu mod tidy|verify|vendor|manifest [dir] (try --help)';
 // The module tooling (G6 phase 3, ts/src/mod-tool.ts). All LOCAL:
@@ -1826,6 +1871,9 @@ function runView(argv) {
     const relations = [];
     const roots = [];
     const opts = {};
+    // The style ASKED FOR, which may be `auto` -- a word ViewStyle does
+    // not have, because resolving it is the CLI's job.
+    let style = undefined;
     // A flag that takes a value, read into `opts` by name.
     const valued = {
         '--as': 'as', '--at': 'at', '--order': 'order', '--group-by': 'groupBy',
@@ -1836,6 +1884,7 @@ function runView(argv) {
     const counted = {
         '--max-rows': 'maxRows', '--max-cols': 'maxCols',
         '--min-degree': 'minDegree', '--min-size': 'minSize',
+        '--depth': 'depth',
     };
     for (let i = 0; i < argv.length; i++) {
         const arg = argv[i];
@@ -1871,6 +1920,13 @@ function runView(argv) {
             out = argv[++i];
             if (null == out) {
                 process.stderr.write('aontu: --out needs a file\n');
+                return 2;
+            }
+        }
+        else if ('--style' === arg) {
+            style = argv[++i];
+            if (null == style || !VIEW_STYLES.includes(style)) {
+                process.stderr.write(`aontu: --style needs one of ${VIEW_STYLES.join(', ')}\n`);
                 return 2;
             }
         }
@@ -1915,9 +1971,24 @@ function runView(argv) {
             rest.push(arg);
         }
     }
+    // ESCAPES NEVER GO INTO A FILE. A pinned golden holding terminal
+    // control codes is not a golden anybody can read, and a byte
+    // comparison against one would fail on the reader's terminal
+    // settings. `auto` resolves to `none` there on its own; asking for
+    // `ansi` explicitly is a usage error rather than a silent downgrade,
+    // so a script that wanted colour is told where it went.
+    if ('ansi' === style && (undefined !== out || undefined !== opts.views)) {
+        process.stderr.write('aontu: --style ansi writes to a terminal, not to a file\n');
+        return 2;
+    }
     // THE VIEW DOCUMENT draws every figure a document declares, so it
     // names no kind: the declarations do, one each.
     if (undefined !== opts.views) {
+        // A declaration names its own profile, so the style is left to
+        // each figure's own default; `--style none` still reaches every
+        // one of them, which is how a host page that binds the CSS
+        // variables asks for eight figures without eight stylesheets.
+        opts.style = viewStyleOf(style, undefined);
         return runViewSet(rest, opts, trust, { format, check, strict, out });
     }
     if (2 > rest.length) {
@@ -1976,6 +2047,7 @@ function runView(argv) {
     }
     const report = (0, view_1.view)(srcs[0], {
         ...opts,
+        style: viewStyleOf(style, opts.as ?? (0, view_1.viewDefaultProfile)(kind)),
         kind,
         path: files[0],
         roots,

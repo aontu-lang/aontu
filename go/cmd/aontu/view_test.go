@@ -412,3 +412,100 @@ func TestViewDocumentUsageErrors(t *testing.T) {
 		t.Fatalf("blocked = %d %q", code, errs)
 	}
 }
+
+// THE STYLE FLAG is the command's own, so no shared-spec row reaches
+// it: `test/spec/view.tsv` pins what the LIBRARY does with a resolved
+// style, and these are the arms in front of that.
+func TestViewStyleFlag(t *testing.T) {
+	file := viewFile(t, viewDoc)
+
+	// The figure with its marks' meaning carried as SGR escapes, and
+	// the same figure without: stripping the escapes gives the plain
+	// one back, because a painted run never changes a column.
+	painted, _, code := viewRun("tree", "--relation", "dependsOn",
+		"--style", "ansi", file)
+	if 0 != code || !strings.Contains(painted, "\x1b[2m") {
+		t.Fatalf("style ansi = %q (%d)", painted, code)
+	}
+	plain, _, _ := viewRun("tree", "--relation", "dependsOn",
+		"--style", "none", file)
+	stripped := painted
+	for _, esc := range []string{"\x1b[2m", "\x1b[0m"} {
+		stripped = strings.ReplaceAll(stripped, esc, "")
+	}
+	if stripped != plain {
+		t.Fatalf("stripping the escapes changed the figure:\n%q\n%q",
+			stripped, plain)
+	}
+
+	// A name that is not a style, and the flag with nothing after it.
+	if _, err, code := viewRun("tree", "--style", "nope", file); 2 != code ||
+		!strings.Contains(err, "--style needs one of auto, none, ansi, css") {
+		t.Fatalf("unknown style = %d %q", code, err)
+	}
+	if _, err, code := viewRun("tree", file, "--style"); 2 != code ||
+		!strings.Contains(err, "--style needs one of") {
+		t.Fatalf("style with no value = %d %q", code, err)
+	}
+
+	// ESCAPES NEVER GO INTO A FILE: a pinned golden holding control
+	// codes is not a golden anybody can read, so asking for them on a
+	// run that writes one is a usage error rather than a silent
+	// downgrade.
+	out := filepath.Join(t.TempDir(), "figure.txt")
+	if _, err, code := viewRun("tree", "--style", "ansi",
+		"--out", out, file); 2 != code ||
+		!strings.Contains(err, "writes to a terminal, not to a file") {
+		t.Fatalf("style ansi with --out = %d %q", code, err)
+	}
+	if _, err, code := viewRun("--views", "$.v", "--style", "ansi",
+		file); 2 != code ||
+		!strings.Contains(err, "writes to a terminal, not to a file") {
+		t.Fatalf("style ansi with --views = %d %q", code, err)
+	}
+}
+
+// `--style auto` RESOLVED, which only the command can do. The figure
+// goes to STDOUT, so stdout's own terminal-ness decides -- not the
+// SetColor answer, which is about stderr and the error frames.
+func TestViewStyleAutoReadsStdout(t *testing.T) {
+	// An explicit style is returned whatever the destination is.
+	if got := viewStyleFor("none", "text", os.Stdout); "none" != got {
+		t.Fatalf("an explicit style = %q", got)
+	}
+
+	// A character device is a terminal as far as colorFor is concerned,
+	// which is the same test the error frames use.
+	dev, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0)
+	if nil != err {
+		t.Fatal(err)
+	}
+	defer dev.Close()
+
+	no, had := os.LookupEnv("NO_COLOR")
+	os.Unsetenv("NO_COLOR")
+	defer func() {
+		if had {
+			os.Setenv("NO_COLOR", no)
+		}
+	}()
+	if got := viewStyleFor("auto", "text", dev); "ansi" != got {
+		t.Fatalf("auto on a terminal = %q", got)
+	}
+	// SET, TO ANYTHING BUT EMPTY, means no colour (no-color.org); set
+	// but empty is the documented exception and keeps it.
+	os.Setenv("NO_COLOR", "1")
+	if got := viewStyleFor("auto", "text", dev); "" != got {
+		t.Fatalf("auto under NO_COLOR = %q", got)
+	}
+	os.Setenv("NO_COLOR", "")
+	if got := viewStyleFor("auto", "text", dev); "ansi" != got {
+		t.Fatalf("auto under an empty NO_COLOR = %q", got)
+	}
+	os.Unsetenv("NO_COLOR")
+	// A profile with no text mechanism has nothing to turn on, however
+	// interactive the destination is.
+	if got := viewStyleFor("auto", "mermaid", dev); "" != got {
+		t.Fatalf("auto on mermaid = %q", got)
+	}
+}

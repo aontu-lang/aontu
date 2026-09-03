@@ -65,7 +65,7 @@ var declEnum = []struct {
 	{"edges", []string{"upward", "all", "none"}},
 }
 
-var declCount = []string{"maxRows", "maxCols", "minDegree", "minSize"}
+var declCount = []string{"maxRows", "maxCols", "minDegree", "minSize", "depth"}
 
 var declFlag = []string{"closure"}
 
@@ -181,6 +181,8 @@ func viewPlanOf(name string, decl any, at string) (*viewPlan, []VetFinding) {
 				opts.MinDegree = n
 			case "minSize":
 				opts.MinSize = n
+			case "depth":
+				opts.Depth = n
 			}
 		} else if contains(declFlag, key) {
 			flag, isFlag := value.(bool)

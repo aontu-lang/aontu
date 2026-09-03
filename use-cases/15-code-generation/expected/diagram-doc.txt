@@ -1,0 +1,10 @@
+$
+└── records
+    ├── 0
+    │   ├── fields (3)
+    │   ├── name "Customer"
+    │   └── sql "customer"
+    └── 1
+        ├── fields (3)
+        ├── name "Order"
+        └── sql "order_line"

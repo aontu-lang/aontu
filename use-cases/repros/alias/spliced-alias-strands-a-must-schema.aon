@@ -1,0 +1,18 @@
+# 72 (the schema half): the vocabulary as ALIASES, spliced at the root
+# of the including document.
+#
+# `%Cents` is a name for `integer & min(0)` and nothing else -- it does
+# not generate and it does not appear in canon -- so this file and the
+# one with the constraint written out at both use sites are the same
+# document.
+
+%Cents: integer & min(0)
+
+schema: {
+  Line: type(close({
+    unitCents: %Cents
+    amountCents: %Cents
+  }))
+}
+
+lines: {&: $.schema.Line}

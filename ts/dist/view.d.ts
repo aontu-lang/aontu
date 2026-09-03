@@ -3,10 +3,12 @@ import type { TrustOptions } from './type';
 import { Provenance } from './provenance';
 import type { SubsumeProfile } from './subsume';
 export type ViewVerdict = 'rendered' | 'lossy' | 'error';
-export type ViewKind = 'tree' | 'matrix' | 'graph' | 'layer' | 'sets' | 'layers' | 'ladder' | 'poset';
+export type ViewKind = 'tree' | 'matrix' | 'graph' | 'layer' | 'sets' | 'layers' | 'ladder' | 'poset' | 'doc';
 export type ViewProfile = 'text' | 'mermaid' | 'dot' | 'er' | 'svg';
 export type ViewOrder = 'canon' | 'partition';
 export type ViewEdges = 'upward' | 'all' | 'none';
+export type ViewRole = 'label' | 'muted' | 'rule' | 'direct' | 'closure' | 'unmirrored' | 'upward' | 'repeat' | 'bar' | 'hole';
+export type ViewStyle = 'none' | 'ansi' | 'css';
 export type ViewLoss = {
     code: string;
     count: number;
@@ -57,14 +59,17 @@ export type ViewOptions = {
     sets?: string;
     member?: string;
     universe?: string;
+    depth?: number;
     minDegree?: number;
     maxCols?: number;
     minSize?: number;
     profile?: SubsumeProfile;
     docs?: ViewDoc[];
     out?: string;
+    style?: ViewStyle;
     views?: string;
 };
+export declare function viewDefaultProfile(kind: ViewKind): ViewProfile | undefined;
 export type ViewPosetDoc = {
     src: string;
     path?: string;
