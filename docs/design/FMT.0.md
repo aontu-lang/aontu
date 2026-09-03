@@ -1,9 +1,13 @@
 # aontu fmt — the agreed form of Aontu source
 
-**Status:** PROPOSED. Design only; nothing is built. Every rule in §3
-is a decision to be argued with before a line of it is implemented,
-and the worked examples in §6 are hand-formatted to those rules — they
-are what the formatter *should* print, not what anything printed.
+**Status:** ACCEPTED for implementation, 2026-09-03; nothing is built
+yet. The open questions of §11 were put to the owner the day the note
+was written: X-1, X-2, X-3, X-5 and X-6 decided as recommended, X-7
+decided *against* the recommendation (a spread-only map keeps its
+braces — §3.3 carries the exception), X-4 stands as recommended. The
+worked examples in §6 are hand-formatted to the rules — they are what
+the formatter *should* print, not what anything printed. P1 begins on
+its own branch once this note is merged.
 
 **Origin:** Richard Rodger, 2026-09-03: *"This is not a pretty printer
 of canonical form. This is a source code formatter in the tradition of
@@ -163,6 +167,12 @@ is written as a chain: the value's single pair follows the key,
 recursively. `a: {b: 1}` and `a: b: 1` are one document
 (`aon1-gVzmkHO_…` from both). The root map has no braces at all.
 
+One exception, decided at X-7: **a map whose only entry is a spread
+keeps its braces**, `a: { &: integer }`. The chain `a: &: integer` is
+legal and is the same document, but the braces are what say "this is a
+map shape" — a spread alone reads as a constraint on `a` rather than
+on `a`'s members, which is the opposite of what it does.
+
 The same collapse applies to a list element: a one-key map in list
 position is written as a pair element, `[a:1 b:2]` for
 `[{a:1},{b:2}]` (`aon1-3crbLgG3…` from both), which the language
@@ -198,8 +208,9 @@ statements `s: a: 1` / `s: b: 2` are one document — `aon1-RU6XbBs_…`
 from both — because a key written twice is a meet, and the meet of two
 maps with disjoint keys is their union. The same holds through an
 optional key (`s?: a: 1` / `s?: b: 2`, `aon1-uRZIq3CZ…` either way),
-through a spread (`s: &: integer` / `s: a: 1`, `aon1-RV1jsawl…`), and
-through depth (`s: a: 1` / `s: b: c: 2` / `s: b: d: 3` is
+through a spread (`s: { &: integer }` / `s: a: 1`, `aon1-RV1jsawl…` —
+the repeated spread entry is a one-entry map holding only a spread, so
+by D1's exception it keeps its braces), and through depth (`s: a: 1` / `s: b: c: 2` / `s: b: d: 3` is
 `s: {a: 1, b: {c: 2, d: 3}}`, `aon1-hQg010sm…`). No other language's
 formatter could make this rewrite; in a last-write-wins language the
 second `server:` would erase the first.
@@ -719,12 +730,14 @@ for function, and `test/spec/fmt.tsv` is what they must agree on.
 - **X-1 — Tight colons inside inline maps.** `{ a:1 b:2 }` as the
   origin wrote it, or `{ a: 1 b: 2 }` for one spelling everywhere?
   Recommendation: as written, for the reason in §3.5, and revisit if it
-  generates the bug reports §10 predicts.
+  generates the bug reports §10 predicts. **Decided 2026-09-03:
+  tight.**
 - **X-2 — A cap on repetition.** None, per §3.4, or repeat only up to
   *n* entries and block beyond? Recommendation: none; add a cap only
-  from evidence.
+  from evidence. **Decided 2026-09-03: no cap.**
 - **X-3 — Commas in calls.** Keep them (§3.6) or drop them for
-  consistency with maps and lists? Recommendation: keep.
+  consistency with maps and lists? Recommendation: keep. **Decided
+  2026-09-03: keep.**
 - **X-4 — The lawful tier's edges.** Spreads and optional keys are
   probed equal and included; a map holding an alias *declaration* is
   root-only and never nested, so it does not arise; a map whose
@@ -733,12 +746,13 @@ for function, and `test/spec/fmt.tsv` is what they must agree on.
   with exactly the probed set and a row per exclusion.
 - **X-5 — `style/repeat`.** Worth building, and at what size threshold?
   Recommendation: defer to P4 and decide with the first three lint
-  rules' reception.
+  rules' reception. **Decided 2026-09-03: build it in P4, advisory
+  only; the threshold from the corpus when it lands.**
 - **X-6 — Several files, no flag.** Refuse, or print them concatenated
   as `gofmt` does? Recommendation: refuse; concatenated output is never
-  what anyone wanted.
+  what anyone wanted. **Decided 2026-09-03: refuse.**
 - **X-7 — A chain through a spread.** `a: &: integer` is legal and
   bracket-free; `a: { &: integer }` is the idiom readers know.
-  Recommendation: the chain, by D1, since the braces say nothing the
-  spread does not — but this is the one place the note would accept
-  the idiom over the rule.
+  Recommendation was the chain, by D1. **Decided 2026-09-03: the
+  braces.** §3.3 carries the exception and the reason — a spread alone
+  reads as a constraint on the key rather than on its members.
