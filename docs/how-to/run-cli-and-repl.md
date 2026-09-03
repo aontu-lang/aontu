@@ -77,7 +77,9 @@ left open, so a half-typed `a: {` evaluates to `{"a":{}}` rather than
 waiting for more. Paste whole statements.
 
 Get the command with `npm install -g aontu` (or `npx aontu`) for the
-TypeScript build, or
+TypeScript build; as a built binary for Linux, macOS or Windows from
+the [releases page](https://github.com/aontu-lang/aontu/releases),
+which needs no toolchain and has `aontu-lsp` beside it; or with
 `go install github.com/aontu-lang/aontu/go/cmd/aontu@latest` for Go.
 From a clone: `node ts/bin/aontu.js …`, or `go run ./cmd/aontu …`
 inside `go/`. Both accept the same options and print the same bytes.

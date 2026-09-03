@@ -7,6 +7,7 @@ different mechanisms:
 | --- | --- | --- | --- |
 | npm `aontu` | `ts/package.json` `"version"` | publishing to the registry | `v<version>` |
 | Go `github.com/aontu-lang/aontu/go` | `go/aontu.go` `const VERSION` | **the tag itself** | `go/v<version>` |
+| the Go binaries, `aontu` and `aontu-lsp` | the same `VERSION` | a GitHub Release at the Go tag, by the same run | `go/v<version>` |
 
 That second row is the one that surprises people. A Go module has no
 registry upload step: `proxy.golang.org` serves whatever a tag points at, so
@@ -125,6 +126,46 @@ Moving the Go module to match npm's series would therefore mean editing
 `go/go.mod` **and every consumer's import path**. That is a one-time,
 deliberate migration, not something a release command should do on the fly,
 so the two series stay separate and `make publish` takes a version for each.
+
+## The Go binaries
+
+A Go release also carries the CLI as a download, so that an install
+needs no toolchain. The `binaries` job cross-compiles `cmd/aontu` and
+`cmd/aontu-lsp` for Linux, macOS and Windows on `amd64` and `arm64`,
+pure Go with `CGO_ENABLED=0` and `-trimpath`, one archive per target
+with the licence, plus `SHA256SUMS`; the `release` job puts them on a
+GitHub Release at `go/v<version>`. The script is
+`go/scripts/binaries.sh`, and run by hand with the version and a
+directory it builds the same set for inspection:
+
+```
+go/scripts/binaries.sh 0.1.15 dist
+```
+
+Two jobs, for the reason publish and tag are two: the build runs project
+code with `contents: read` and hands the archives on as an artifact; the
+release job runs `gh` and nothing else, and is the second place
+`contents: write` exists. Both run only on the dispatch path with `go`
+ticked, after the tag, so a release only ever exists for a tag that was
+written. Re-dispatching after a partial run is safe here too: a release
+that already exists has its assets replaced rather than failing the run.
+A prerelease version is marked as one on the releases page.
+
+The binaries print the `VERSION` the commit declares, which `make
+publish` set before tagging, so nothing is stamped at build time; the
+script refuses a version the file does not declare. The `go install`
+path is unchanged, and `go install …@v<version>` builds the same commit.
+
+### The Homebrew tap
+
+The release also carries `aontu.rb`, a formula written with the
+archives' sums. It is not a tap by itself: Homebrew installs from a
+repository named `homebrew-<tap>`, so `brew install aontu-lang/tap/aontu`
+needs `aontu-lang/homebrew-tap` with the file at `Formula/aontu.rb`.
+Seeding it is one copy per release, from the release's assets, and can
+be automated later with a token for that repository. Until the tap
+exists, the archives and `go install` are the install paths the docs
+name.
 
 ## Why publishing and tagging live in the same file
 

@@ -479,7 +479,8 @@ user-facing rules are in
 - Go is `package aontu`; exported API is `New().Parse/Unify/Generate`.
   Run `go vet ./...` and `gofmt` before committing.
 - Go module releases (a Go module in a subdirectory) use git tags of the
-  form `go/vX.Y.Z`.
+  form `go/vX.Y.Z`, and carry the CLI binaries on a GitHub Release at
+  that tag (`go/scripts/binaries.sh`; docs/release-and-tag.md).
 
 ### The site-attribution invariant
 

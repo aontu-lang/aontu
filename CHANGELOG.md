@@ -7,6 +7,20 @@ which implementation each change affects.
 
 ## Unreleased
 
+### Built binaries with every Go release
+
+A Go release now carries the CLI as a download: the publish workflow
+cross-compiles `aontu` and `aontu-lsp` for Linux, macOS and Windows on
+`amd64` and `arm64` (pure Go, `CGO_ENABLED=0`, `-trimpath`), one archive
+per target with the licence, plus `SHA256SUMS` and a Homebrew formula
+written with those sums, and puts them on a GitHub Release at the
+`go/v<version>` tag. The build runs with a read-only token and hands the
+archives to a release job that runs `gh` and nothing else, the split
+the tag job already makes. `go/scripts/binaries.sh` is the script, and
+builds the same set by hand. The README and the CLI how-to name the
+releases page beside `npm` and `go install`; docs/release-and-tag.md
+carries the runbook and what a Homebrew tap needs. Go module.
+
 ### `aontu fmt --lint` -- the style findings (FMT.0.md P4)
 
 `--lint` reports what the formatter points at and never touches, on
