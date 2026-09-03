@@ -6,4 +6,4 @@
 
 @"../contract.aon"
 
-types: { PageSize: max(50) }
+types: PageSize: max(50)

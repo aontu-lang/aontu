@@ -5,15 +5,10 @@
 @"../model.aon"
 
 pipeline: jobs: {
-  metrics: {
-    cmd: "aggregate --hourly"
-    fedBy: []
-  }
-  transform: {
-    feeds: [
-      path($.pipeline.jobs.load)
-      path($.pipeline.jobs.audit)
-      path($.pipeline.jobs.metrics)
-    ]
-  }
+  metrics: { cmd:"aggregate --hourly" fedBy:[] }
+  transform: feeds: [
+    path($.pipeline.jobs.load)
+    path($.pipeline.jobs.audit)
+    path($.pipeline.jobs.metrics)
+  ]
 }

@@ -18,7 +18,6 @@
 %JobEdge: rel($.spec.JobShape)
 
 spec: hide({
-
   Job: {
     kind: job
     cmd: string
@@ -35,7 +34,5 @@ spec: hide({
   # rather than $.spec.Job itself: a self-typed rel($.spec.Job) inside
   # Job is the guarded self-reference whose rel-side wiring waits on
   # the recursion note's next phase.
-  JobShape: {
-    kind: job
-  }
+  JobShape: kind: job
 })

@@ -8,15 +8,14 @@
 # -- so this bag needs no `id()` and carries no second name. The keys
 # below ARE the addresses' last segment, which is why the catalog is
 # still the one place a permission is spelled.
-permissions: {
-  &: close({ desc: string, risk: low | medium | high | critical })
-  project_read:   { desc: "List and read projects",          risk: low }
-  project_write:  { desc: "Create and update projects",      risk: medium }
-  project_delete: { desc: "Delete projects",                 risk: high }
-  member_read:    { desc: "List tenant members",             risk: low }
-  member_invite:  { desc: "Invite new members",              risk: medium }
-  billing_read:   { desc: "Read invoices and plan state",    risk: medium }
-  billing_manage: { desc: "Change plan and payment details", risk: high }
-  audit_read:     { desc: "Read the audit log",              risk: medium }
-  admin_all:      { desc: "Wildcard: every permission",      risk: critical }
-}
+permissions: { &: close({ desc:string risk:low | medium | high | critical }) }
+permissions: project_read: { desc:"List and read projects" risk:low }
+permissions: project_write: { desc:"Create and update projects" risk:medium }
+permissions: project_delete: { desc:"Delete projects" risk:high }
+permissions: member_read: { desc:"List tenant members" risk:low }
+permissions: member_invite: { desc:"Invite new members" risk:medium }
+permissions: billing_read: { desc:"Read invoices and plan state" risk:medium }
+permissions: billing_manage: desc: "Change plan and payment details"
+permissions: billing_manage: risk: high
+permissions: audit_read: { desc:"Read the audit log" risk:medium }
+permissions: admin_all: { desc:"Wildcard: every permission" risk:critical }

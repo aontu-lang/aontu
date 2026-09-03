@@ -9,8 +9,6 @@
 # mark at the destination AFTER the mark-clearing walk, which SILENTLY
 # DROPPED the record -- exit 0, `customers {}`. Fixed 2026-08-26 by the
 # template-clone isolation change (ADR-005).
-schema: {
-  T: type(integer & min(1))
-  Customer: type(close({ id: string, ledgerId: $.schema.T, name: string }))
-}
-customers: { &: $.schema.Customer & { id: key() } }
+schema: T: type(integer & min(1))
+schema: Customer: type(close({ id:string ledgerId:$.schema.T name:string }))
+customers: { &: $.schema.Customer & { id:key() } }

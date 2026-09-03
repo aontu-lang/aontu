@@ -130,8 +130,8 @@ than its value.
 graph TD
   top(("top"))
   c0["***0<br/>spread | flags.aon:32:14"]
-  c1["**5<br/>pref | layers.aon:20:46"]
-  c2["*25<br/>pref | layers.aon:27:29"]
+  c1["**5<br/>pref | layers.aon:20:43"]
+  c2["*25<br/>pref | layers.aon:26:42"]
   val{{"*25"}}
   top --> c0
   c0 --> c1
@@ -178,9 +178,13 @@ contribution -- before drawing.
    case, foreign owner domain, short description, slashed date,
    rollout 150) plus `[aontu/closed]` on the undeclared
    `jira_ticket`. The half-written one is `incomplete` (exit 3,
-   `[aontu/mapval_required]`): a distinct machine-readable state
-   from `invalid`. `--format sarif` emits SARIF 2.1.0 for CI
-   ingestion.
+   `[aontu/mapval_spread_required]`): a distinct machine-readable
+   state from `invalid`. The code should be `mapval_required` -- no
+   spread is involved -- and says "spread" because `Flag` is written
+   one statement per field, so each field reaches the map through a
+   meet, which the engine records as it records a spread template's
+   key (BUGS.md §76; the check pins the gap). `--format sarif` emits
+   SARIF 2.1.0 for CI ingestion.
 5. A resolved flag read back out of the effective view with `get`
    re-validates against the strict schema. `vet --at` re-roots the
    document at the anchor, so a whole view is validated flag by flag.
@@ -217,7 +221,7 @@ contribution -- before drawing.
    $.effective.prod.base.ops_incident_banner.message: constraint [conflict]
      [aontu/constraint]: Cannot unify values at path $.effective.prod.base.ops_incident_banner.message
      data: overlay.aon:3:44 ("this incident message is deliberately way over the eighty character maximum length")
-     schema: flags.aon:87:24 (string&length(integer&min(0)&max(80)))
+     schema: flags.aon:81:24 (string&length(integer&min(0)&max(80)))
    ```
 
    The in-range message `"Elevated 5xx on EU checkout; incident
@@ -253,7 +257,7 @@ contribution -- before drawing.
 
     ```
     $.tenants.megacorp.flags.checkout_v2.rollout = 55
-      1. *25  layers.aon:27:29  (pref)
+      1. *25  layers.aon:26:42  (pref)
       2. 55  overlay.aon:2:59
     ```
 

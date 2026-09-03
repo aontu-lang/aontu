@@ -4,10 +4,9 @@
 # quantifiers double as length bounds where a pattern already exists.
 
 types: hide({
-
   # Prefixed opaque identifiers (Stripe-style): a routing prefix the
   # gateway can dispatch on, then 20 base62 characters.
-  UserId:    re("^usr_[0-9A-Za-z]{20}$")
+  UserId: re("^usr_[0-9A-Za-z]{20}$")
   ProjectId: re("^prj_[0-9A-Za-z]{20}$")
   RequestId: re("^req_[0-9A-Za-z]{20}$")
 
@@ -29,9 +28,9 @@ types: hide({
   DisplayName: string & length(min(1) & max(80))
 
   # Pagination: page is 1-based, page_size is capped by the gateway.
-  Page:     integer & min(1)
+  Page: integer & min(1)
   PageSize: integer & min(1) & max(100)
 
-  Role:       "admin" | "member" | "viewer"
+  Role: "admin" | "member" | "viewer"
   Visibility: "private" | "team" | "public"
 })

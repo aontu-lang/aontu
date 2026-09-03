@@ -1,13 +1,7 @@
-{
-  "tenant": {
-    "slug": "acme-rockets",
-    "plan": "free",
-    "entitlement": { "plan": "free", "sso": false, "scim": false, "auditLog": false },
-    "members": {
-      "ada": { "role": path($.roles.owner) },
-      "grace": { "role": path($.roles.member) },
-      "alan": { "role": path($.roles.auditor), "invitedBy": "ada" }
-    },
-    "security": { "mfaRequired": true, "sessionTimeoutMinutes": 480 }
-  }
-}
+tenant: slug: "acme-rockets"
+tenant: plan: "free"
+tenant: entitlement: { plan:"free" sso:false scim:false auditLog:false }
+tenant: members: ada: role: path($.roles.owner)
+tenant: members: grace: role: path($.roles.member)
+tenant: members: alan: { role:path($.roles.auditor) invitedBy:"ada" }
+tenant: security: { mfaRequired:true sessionTimeoutMinutes:480 }

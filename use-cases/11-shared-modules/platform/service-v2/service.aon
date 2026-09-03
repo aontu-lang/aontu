@@ -11,8 +11,5 @@ spec: close({
     path: *"/healthz" | (string & re("^/"))
     interval_seconds: *15 | (integer & min(5) & max(300))
   }
-  telemetry: {
-    metrics: *true | boolean
-    traces: *false | boolean
-  }
+  telemetry: { metrics:*true | boolean traces:*false | boolean }
 })

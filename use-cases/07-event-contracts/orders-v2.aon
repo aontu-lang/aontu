@@ -15,11 +15,13 @@ OrderPlaced: close($.Envelope & {
     customer_id: re("^cus-[0-9a-f]{8}$")
     total_cents: integer & min(0)
     currency: "EUR" | "USD"
-    lines: [&: close({
-      sku: re("^sku-[a-z0-9-]{4,40}$")
-      qty: integer & min(1)
-      unit_cents: integer & min(0)
-    })]
+    lines: [
+      &: close({
+        sku: re("^sku-[a-z0-9-]{4,40}$")
+        qty: integer & min(1)
+        unit_cents: integer & min(0)
+      })
+    ]
   })
 })
 
@@ -45,8 +47,6 @@ OrderCancelled: close($.Envelope & {
 
 Event: $.OrderPlaced | $.OrderPaid | $.OrderCancelled
 
-registry: {
-  order_placed: $.OrderPlaced
-  order_paid: $.OrderPaid
-  order_cancelled: $.OrderCancelled
-}
+registry: order_placed: $.OrderPlaced
+registry: order_paid: $.OrderPaid
+registry: order_cancelled: $.OrderCancelled

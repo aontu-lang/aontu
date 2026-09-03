@@ -131,7 +131,7 @@ $.registry.order_paid.payload.amount_cents: constraint [conflict]
   expected: integer&min(1)
   actual:   0
   data: data/bad/paid-zero-amount.json:9:21 (0)
-  schema: orders-v1.aon:33:29 (integer&min(1))
+  schema: orders-v1.aon:35:29 (integer&min(1))
 ```
 
 Incomplete data does localise at the union. A paid event that omits
@@ -141,7 +141,7 @@ away on `type` and the residue is named:
 ```
 $.Event.source: mapval_required [incomplete]
   [aontu/mapval_required]: Cannot resolve value at path $.Event.source
-  schema: envelope.aon:30:11 (re("^/[a-z][a-z0-9/-]*$"))
+  schema: envelope.aon:29:11 (re("^/[a-z][a-z0-9/-]*$"))
 ```
 
 A dotted key is out of reach of every path spelling:
@@ -200,8 +200,8 @@ $.OrderCancelled.payload.reason: compat_required_added [compat]
   the general value requires this key; the specific value admits instances without it
   expected: re("^[a-z_]{3,40}$")
   actual:   {"cancelled_by":"customer"|"merchant"|"system","note"?:string,"order_id":re("^ord-[0-9a-f]{8}$")}
-  general: orders-v2.aon:41:13 (re("^[a-z_]{3,40}$"))
-  specific: orders-v1.aon:40:12 ({"cancelled_by":"customer"|"merchant"|"system","note"?:string,"order_id":re("^ord-[0-9a-f]{8}$")})
+  general: orders-v2.aon:43:13 (re("^[a-z_]{3,40}$"))
+  specific: orders-v1.aon:42:12 ({"cancelled_by":"customer"|"merchant"|"system","note"?:string,"order_id":re("^ord-[0-9a-f]{8}$")})
 ```
 
 The report continues under `$.Event` and `$.registry`, which
@@ -221,7 +221,7 @@ to the file that wrote it:
 
 ```
 $.OrderPaid.time = re("^\\d{4}-\\d{2}-\\d{2}T...")
-  1. re("^\\d{4}-\\d{2}-\\d{2}T...")  .../envelope.aon:27:9
+  1. re("^\\d{4}-\\d{2}-\\d{2}T...")  .../envelope.aon:26:9
 ```
 
 `--canon` renders the value without its marks, so the canonical text
@@ -254,7 +254,7 @@ codes, codes grepped from the reports, goldens diffed under
 4. `why '$.OrderPaid.time' orders-v1.aon` names `envelope.aon` as the
    file that wrote the pattern.
 5. Plain evaluation of `orders-v1.aon` exits 1 with
-   `[aontu/disjunct_no_gen]` at `envelope.aon:14:7`: the envelope's
+   `[aontu/disjunct_no_gen]` at `envelope.aon:13:7`: the envelope's
    `id` is a disjunction with no preferred alternative, so the
    contract is a schema to vet against rather than a document to
    generate.

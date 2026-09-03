@@ -6,13 +6,11 @@
 @"../model.aon"
 
 mods: {
-  bytes: {
-    dependsOn: [path($.mods.log)]
-  }
-  log: {
-    usedBy: [
-      path($.mods.http), path($.mods.reports), path($.mods.store),
-      path($.mods.bytes)
-    ]
-  }
+  bytes: dependsOn: [path($.mods.log)]
+  log: usedBy: [
+    path($.mods.http)
+    path($.mods.reports)
+    path($.mods.store)
+    path($.mods.bytes)
+  ]
 }

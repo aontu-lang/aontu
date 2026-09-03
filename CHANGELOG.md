@@ -38,14 +38,33 @@ of those options. Exit 4 for a document that does not parse.
 
 Library: `format(src, {path?}, hooks?)` and `unifiedDiff(name, before,
 after)` in TypeScript; `Aontu.Format(src)` and `aontu.UnifiedDiff` in
-Go. A new spec mode, `fmt` (`test/spec/fmt.tsv`, 103 rows): both
+Go. A new spec mode, `fmt` (`test/spec/fmt.tsv`, 147 rows): both
 runners assert the formatted text byte for byte, that it is a fixed
 point, and -- where the source evaluates -- that the canon-hash is
 unchanged. Gates: every `.aon` under `use-cases/` and
 `test/spec/files/` and every Aontu fence in the documentation formats
-to a fixed point, in both ports. The lawful tier (repeating the prefix,
-`server: host: ...` / `server: port: ...`, which rests on the meet) is
-P2 and has not landed; nothing is merged or split yet.
+to a fixed point, in both ports.
+
+The lawful tier (phase P2), which rests on the meet: a map that does
+not fit on one line is written as one statement per entry, each
+carrying its key again -- `server: host: "0.0.0.0"` / `server: port:
+8080` -- and adjacent statements naming one key are merged back into
+one map when that fits, because a key written twice is a meet and the
+two spellings are one document. Only a plain map in statement
+position; an argument, an operand or a list element keeps its braces.
+Every such rewrite is checked with the engine -- the two spellings
+evaluated in isolation must come to the same canon, the same kinds of
+failure and the same outcome of generation -- and a rewrite the engine
+evaluates differently is not made: the statement keeps its braces.
+That check found two engine defects (use-cases/BUGS.md §75, §76). The
+use-case tree is formatted in place (174 files), and the source
+positions its checks and READMEs quote moved with the text. Two P1
+rules changed on the evidence of the corpus: a call's arguments stay
+on one line however wide only when none holds a container, else the
+last argument hugs the parentheses (`type(close({` ... `}))`) or the
+call is a block, one argument per line; and the author's separators
+in a call are kept, a comma or a space, because the parser reads
+`must((v) => 0 <= v, "...")` as a run of arguments.
 
 ### The grammar, in the notation a person reads, with railroad diagrams
 

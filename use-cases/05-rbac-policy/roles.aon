@@ -15,13 +15,14 @@ Role: type(
     privileged: true
     grants: unique() & [&: refer() & string]
   })
-  |
-  close({
+  | close({
     desc: string
     rank: integer & min(0) & max(100)
     tenantOwner: false
     privileged: false
-    grants: unique() & [&: refer() & string & neq(path($.permissions.admin_all))]
+    grants: unique() & [
+      &: refer() & string & neq(path($.permissions.admin_all))
+    ]
   })
 )
 
@@ -32,24 +33,41 @@ Role: type(
 roles: close({
   &: $.Role
   owner: {
-    desc: "Full control; holds the tenant", rank: 100
-    tenantOwner: true, privileged: true
+    desc: "Full control; holds the tenant"
+    rank: 100
+    tenantOwner: true
+    privileged: true
     grants: [path($.permissions.admin_all)]
   }
   admin: {
-    desc: "Day-to-day administration", rank: 80
-    tenantOwner: false, privileged: true
+    desc: "Day-to-day administration"
+    rank: 80
+    tenantOwner: false
+    privileged: true
     grants: [path($.permissions.admin_all)]
   }
   member: {
-    desc: "Regular collaborator", rank: 40
-    tenantOwner: false, privileged: false
-    grants: [path($.permissions.project_read), path($.permissions.project_write), path($.permissions.member_read)]
+    desc: "Regular collaborator"
+    rank: 40
+    tenantOwner: false
+    privileged: false
+    grants: [
+      path($.permissions.project_read)
+      path($.permissions.project_write)
+      path($.permissions.member_read)
+    ]
   }
   auditor: {
-    desc: "Read-only compliance access", rank: 20
-    tenantOwner: false, privileged: false
-    grants: [path($.permissions.project_read), path($.permissions.member_read), path($.permissions.billing_read), path($.permissions.audit_read)]
+    desc: "Read-only compliance access"
+    rank: 20
+    tenantOwner: false
+    privileged: false
+    grants: [
+      path($.permissions.project_read)
+      path($.permissions.member_read)
+      path($.permissions.billing_read)
+      path($.permissions.audit_read)
+    ]
   }
 })
 
@@ -60,5 +78,5 @@ roles: close({
 # layers"). hide() keeps the check out of generated output while it
 # still evaluates -- and still fails loudly on violation.
 registry_invariant: hide({
-  one_owner_role: length(1) & filter($.roles, { tenantOwner: true })
+  one_owner_role: length(1) & filter($.roles, { tenantOwner:true })
 })

@@ -9,9 +9,7 @@ payments_policy: $.spec.Policy & {
     then: {
       approver: "cfo@acme.example"
       decision: approved
-      then: {
-        approver: "audit@acme.example"
-      }
+      then: approver: "audit@acme.example"
     }
   }
 }

@@ -1,2 +1,2 @@
 # The exact-money quote an .aon data file CAN carry (0d literal).
-quote: { amountEur: 0d10.50, currency: "EUR" }
+quote: { amountEur:0d10.50 currency:"EUR" }

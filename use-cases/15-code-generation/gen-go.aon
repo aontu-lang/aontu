@@ -42,17 +42,21 @@
 # ports agree byte for byte, which check.sh asserts.
 @"./model.aon"
 
-units: [&: {
-  head: `type ` + .name + ` struct {`
-  rows: [&: {
-    out: `\t` + .go + ` ` +
-         match(.t, "string", `string`, "integer", `int64`) +
-         ` \`json:"` + .n + `"\``
-  }] & .fields
-  body: join(pick(.rows, out), `\n`)
-  tail: `}`
-  text: .head + `\n` + .body + `\n` + .tail
-}] & $.records
+units: [
+  &: {
+    head: `type ` + .name + ` struct {`
+    rows: [
+      &: {
+        out: `\t` + .go + ` `
+          + match(.t, "string", `string`, "integer", `int64`)
+          + ` \`json:"` + .n + `"\``
+      }
+    ] & .fields
+    body: join(pick(.rows, out), `\n`)
+    tail: `}`
+    text: .head + `\n` + .body + `\n` + .tail
+  }
+] & $.records
 
 # THE WHOLE FILE, one string. Two blank-line-separated units, and the
 # trailing newline every text file ends with.

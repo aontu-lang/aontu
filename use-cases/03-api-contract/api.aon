@@ -9,55 +9,47 @@
 
 api: {
   &: close({
-    method:  "GET" | "POST" | "PATCH" | "DELETE"
-    path:    re("^/v1/[a-z0-9/{}_-]+$")
+    method: "GET" | "POST" | "PATCH" | "DELETE"
+    path: re("^/v1/[a-z0-9/{}_-]+$")
     summary: string & length(min(8) & max(120))
-    auth:    "bearer" | "none"
-    request?:     top
-    query?:       top
+    auth: "bearer" | "none"
+    request?: top
+    query?: top
     path_params?: top
-    responses:    {}
+    responses: {}
   })
 
-  list_users: {
-    method: "GET", path: "/v1/users", auth: "bearer"
-    summary: "List users, paginated and filterable by role"
-    query: type($.msg.ListUsersQuery)
-    responses: {
-      200: type($.msg.UserPage)
-      401: type($.errors.Envelope)
-    }
-  }
+  list_users: method: "GET"
+  list_users: path: "/v1/users"
+  list_users: auth: "bearer"
+  list_users: summary: "List users, paginated and filterable by role"
+  list_users: query: type($.msg.ListUsersQuery)
+  list_users: responses: 200: type($.msg.UserPage)
+  list_users: responses: 401: type($.errors.Envelope)
 
-  create_user: {
-    method: "POST", path: "/v1/users", auth: "bearer"
-    summary: "Invite a user to the workspace"
-    request: type($.msg.CreateUserRequest)
-    responses: {
-      201: type($.entities.User)
-      400: type($.errors.Envelope)
-      409: type($.errors.Envelope)
-    }
-  }
+  create_user: method: "POST"
+  create_user: path: "/v1/users"
+  create_user: auth: "bearer"
+  create_user: summary: "Invite a user to the workspace"
+  create_user: request: type($.msg.CreateUserRequest)
+  create_user: responses: 201: type($.entities.User)
+  create_user: responses: 400: type($.errors.Envelope)
+  create_user: responses: 409: type($.errors.Envelope)
 
-  get_project: {
-    method: "GET", path: "/v1/projects/{project_id}", auth: "bearer"
-    summary: "Fetch one project by id"
-    path_params: type(close({ project_id: $.types.ProjectId }))
-    responses: {
-      200: type($.entities.Project)
-      404: type($.errors.Envelope)
-    }
-  }
+  get_project: method: "GET"
+  get_project: path: "/v1/projects/{project_id}"
+  get_project: auth: "bearer"
+  get_project: summary: "Fetch one project by id"
+  get_project: path_params: type(close({ project_id:$.types.ProjectId }))
+  get_project: responses: 200: type($.entities.Project)
+  get_project: responses: 404: type($.errors.Envelope)
 
-  create_project: {
-    method: "POST", path: "/v1/projects", auth: "bearer"
-    summary: "Create a project owned by the caller"
-    request: type($.msg.CreateProjectRequest)
-    responses: {
-      201: type($.entities.Project)
-      400: type($.errors.Envelope)
-      409: type($.errors.Envelope)
-    }
-  }
+  create_project: method: "POST"
+  create_project: path: "/v1/projects"
+  create_project: auth: "bearer"
+  create_project: summary: "Create a project owned by the caller"
+  create_project: request: type($.msg.CreateProjectRequest)
+  create_project: responses: 201: type($.entities.Project)
+  create_project: responses: 400: type($.errors.Envelope)
+  create_project: responses: 409: type($.errors.Envelope)
 }

@@ -10,7 +10,6 @@
 # stops a sideways edge from closing a loop is acyclic(), not the
 # layer.
 spec: hide({
-
   Mod: {
     kind: mod
     dir: string
@@ -29,18 +28,18 @@ spec: hide({
   # $.spec.Mod itself: a self-typed rel($.spec.Mod) inside Mod is the
   # guarded self-reference whose rel-side wiring waits on the
   # recursion note's next phase.
-  ModShape: { kind: mod }
+  ModShape: kind: mod
 
   # ONE SHAPE PER LAYER, and the whole architecture is the four
   # disjunctions below. A module declares its layer by naming its
   # shape; the shape narrows what its dependsOn edges may land on.
-  App:     $.spec.Mod & { layer: "app",     dependsOn?: rel($.spec.AppDep) }
-  Feature: $.spec.Mod & { layer: "feature", dependsOn?: rel($.spec.FeatureDep) }
-  Core:    $.spec.Mod & { layer: "core",    dependsOn?: rel($.spec.CoreDep) }
-  Util:    $.spec.Mod & { layer: "util",    dependsOn?: rel($.spec.UtilDep) }
+  App: $.spec.Mod & { layer:"app" dependsOn?:rel($.spec.AppDep) }
+  Feature: $.spec.Mod & { layer:"feature" dependsOn?:rel($.spec.FeatureDep) }
+  Core: $.spec.Mod & { layer:"core" dependsOn?:rel($.spec.CoreDep) }
+  Util: $.spec.Mod & { layer:"util" dependsOn?:rel($.spec.UtilDep) }
 
-  AppDep:     { kind: mod, layer: "app" | "feature" | "core" | "util" }
-  FeatureDep: { kind: mod, layer: "feature" | "core" | "util" }
-  CoreDep:    { kind: mod, layer: "core" | "util" }
-  UtilDep:    { kind: mod, layer: "util" }
+  AppDep: { kind:mod layer:"app" | "feature" | "core" | "util" }
+  FeatureDep: { kind:mod layer:"feature" | "core" | "util" }
+  CoreDep: { kind:mod layer:"core" | "util" }
+  UtilDep: { kind:mod layer:"util" }
 })

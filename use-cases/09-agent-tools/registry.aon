@@ -7,11 +7,7 @@
 # guard.aon at $.guard.<tool> before dispatch (see guard.aon and
 # check.sh for why the wire schemas live there and not here).
 
-registry: {
-  platform: orion
-  version: "1.4.0"
-  owner: "platform-tools@corp.example"
-}
+registry: { platform:orion version:"1.4.0" owner:"platform-tools@corp.example" }
 
 # ----------------------------------------------------------------
 # Vocabulary and the per-tool contract. type() keeps each block out
@@ -53,7 +49,6 @@ ToolSpec: type(close({
 # again): the dispatcher owns runtime defaults, the schema owns the
 # admissible range.
 argschemas: type(close({
-
   search_docs: close({
     query: string & length(min(1) & max(256))
     limit?: integer & min(1) & max(50)
@@ -71,7 +66,8 @@ argschemas: type(close({
     timeout_ms?: integer & min(100) & max(30000)
     # Renamed in 1.4.0; still admitted, but every use is warned on.
     max_redirects?: deprecate(integer & min(0) & max(10), {
-      msg: "renamed", use: "$.argschemas.http_request.redirects"
+      msg: "renamed"
+      use: "$.argschemas.http_request.redirects"
       since: "1.4.0"
     })
     redirects?: integer & min(0) & max(10)
@@ -115,64 +111,66 @@ tools: close(pack($.argschemas, $.ToolSpec))
 # pack/spread template do not resolve today (README, gaps 2 and 3) --
 # so the one-line rule is repeated per tool.
 
-tools: search_docs: {
-  description: "Full-text search over the workspace documentation index."
-  side_effect: readonly
-  requires_approval: match(.side_effect, destructive, true, false)
-  rate_limit: { per_minute: 120, burst: 20 }
-  allowed_roles: [admin, operator, analyst, agent]
-  timeout_ms: 5000
-  owner: "search-infra@corp.example"
-}
+tools: {
+  search_docs: {
+    description: "Full-text search over the workspace documentation index."
+    side_effect: readonly
+    requires_approval: match(.side_effect, destructive, true, false)
+    rate_limit: { per_minute:120 burst:20 }
+    allowed_roles: [admin operator analyst agent]
+    timeout_ms: 5000
+    owner: "search-infra@corp.example"
+  }
 
-tools: read_file: {
-  description: "Read one workspace file below the sandbox root, capped by max_bytes."
-  side_effect: readonly
-  requires_approval: match(.side_effect, destructive, true, false)
-  rate_limit: { per_minute: 240, burst: 40 }
-  allowed_roles: [admin, operator, analyst, agent]
-  timeout_ms: 2000
-  owner: "workspace-core@corp.example"
-}
+  read_file: {
+    description: "Read one workspace file below the sandbox root, capped by max_bytes."
+    side_effect: readonly
+    requires_approval: match(.side_effect, destructive, true, false)
+    rate_limit: { per_minute:240 burst:40 }
+    allowed_roles: [admin operator analyst agent]
+    timeout_ms: 2000
+    owner: "workspace-core@corp.example"
+  }
 
-tools: http_request: {
-  description: "Fetch an https URL through the egress proxy; GET and HEAD only."
-  side_effect: readonly
-  requires_approval: match(.side_effect, destructive, true, false)
-  rate_limit: { per_minute: 60, burst: 10 }
-  allowed_roles: [admin, operator, agent]
-  timeout_ms: 30000
-  owner: "egress-gw@corp.example"
-}
+  http_request: {
+    description: "Fetch an https URL through the egress proxy; GET and HEAD only."
+    side_effect: readonly
+    requires_approval: match(.side_effect, destructive, true, false)
+    rate_limit: { per_minute:60 burst:10 }
+    allowed_roles: [admin operator agent]
+    timeout_ms: 30000
+    owner: "egress-gw@corp.example"
+  }
 
-tools: create_ticket: {
-  description: "Open a tracker ticket in a named project on behalf of the agent."
-  side_effect: write
-  requires_approval: match(.side_effect, destructive, true, false)
-  rate_limit: { per_minute: 30, burst: 5 }
-  allowed_roles: [admin, operator, agent]
-  timeout_ms: 10000
-  owner: "tracker-team@corp.example"
-}
+  create_ticket: {
+    description: "Open a tracker ticket in a named project on behalf of the agent."
+    side_effect: write
+    requires_approval: match(.side_effect, destructive, true, false)
+    rate_limit: { per_minute:30 burst:5 }
+    allowed_roles: [admin operator agent]
+    timeout_ms: 10000
+    owner: "tracker-team@corp.example"
+  }
 
-tools: send_email: {
-  description: "Send mail to one internal corp.example recipient; no external delivery."
-  side_effect: write
-  requires_approval: match(.side_effect, destructive, true, false)
-  rate_limit: { per_minute: 10, burst: 2 }
-  allowed_roles: [admin, operator]
-  timeout_ms: 15000
-  owner: "msg-platform@corp.example"
-}
+  send_email: {
+    description: "Send mail to one internal corp.example recipient; no external delivery."
+    side_effect: write
+    requires_approval: match(.side_effect, destructive, true, false)
+    rate_limit: { per_minute:10 burst:2 }
+    allowed_roles: [admin operator]
+    timeout_ms: 15000
+    owner: "msg-platform@corp.example"
+  }
 
-tools: delete_records: {
-  description: "Bulk-delete records from a governed dataset; dry_run must be explicit."
-  side_effect: destructive
-  requires_approval: match(.side_effect, destructive, true, false)
-  rate_limit: { per_minute: 5, burst: 1 }
-  allowed_roles: [admin]
-  timeout_ms: 60000
-  owner: "data-gov@corp.example"
+  delete_records: {
+    description: "Bulk-delete records from a governed dataset; dry_run must be explicit."
+    side_effect: destructive
+    requires_approval: match(.side_effect, destructive, true, false)
+    rate_limit: { per_minute:5 burst:1 }
+    allowed_roles: [admin]
+    timeout_ms: 60000
+    owner: "data-gov@corp.example"
+  }
 }
 
 # ----------------------------------------------------------------

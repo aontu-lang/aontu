@@ -12,33 +12,53 @@
 # by the portable re() subset (nested quantifier); the alternation
 # rewrite below is accepted.
 
-deploy: &: {
-  apiVersion: "apps/v1"
-  kind: "Deployment"
-  metadata: {
-    name: string & re("^([a-z]|[a-z][a-z0-9-]*[a-z0-9])$") & length(max(63))
-    namespace: "payments"
-  }
-  spec: {
-    replicas: integer & min(1) & max(20)
-    template: spec: containers: [ &: close({
-      name: string & re("^([a-z]|[a-z][a-z0-9-]*[a-z0-9])$")
-      image: string & re("^registry.acme.io/")
-      ports: [ &: { containerPort: integer & min(1024) & max(65535)
-                    port: integer, targetPort: integer
-                    name: string, protocol: "TCP" | "UDP" } ]
-      env: [ &: { name: string & re("^[A-Z][A-Z0-9_]*$"), value: string } ] & unique()
-      resources: {
-        requests: { cpu: string & re("^[0-9]+m$"), memory: string & re("^[0-9]+(Mi|Gi)$") }
-        limits:   { cpu: string & re("^[0-9]+m$"), memory: string & re("^[0-9]+(Mi|Gi)$") }
-      }
-    }) ]
+deploy: {
+  &: {
+    apiVersion: "apps/v1"
+    kind: "Deployment"
+    metadata: {
+      name: string & re("^([a-z]|[a-z][a-z0-9-]*[a-z0-9])$") & length(max(63))
+      namespace: "payments"
+    }
+    spec: {
+      replicas: integer & min(1) & max(20)
+      template: spec: containers: [
+        &: close({
+          name: string & re("^([a-z]|[a-z][a-z0-9-]*[a-z0-9])$")
+          image: string & re("^registry.acme.io/")
+          ports: [
+            &: {
+              containerPort: integer & min(1024) & max(65535)
+              port: integer
+              targetPort: integer
+              name: string
+              protocol: "TCP" | "UDP"
+            }
+          ]
+          env: [&: { name:string & re("^[A-Z][A-Z0-9_]*$") value:string }] & unique()
+          resources: {
+            requests: {
+              cpu: string & re("^[0-9]+m$")
+              memory: string & re("^[0-9]+(Mi|Gi)$")
+            }
+            limits: {
+              cpu: string & re("^[0-9]+m$")
+              memory: string & re("^[0-9]+(Mi|Gi)$")
+            }
+          }
+        })
+      ]
+    }
   }
 }
 
-service: &: {
-  apiVersion: "v1"
-  kind: "Service"
-  metadata: { namespace: "payments" }
-  spec: ports: [ &: { port: integer & min(1024) & max(65535), protocol: "TCP" | "UDP" } ]
+service: {
+  &: {
+    apiVersion: "v1"
+    kind: "Service"
+    metadata: namespace: "payments"
+    spec: ports: [
+      &: { port:integer & min(1024) & max(65535) protocol:"TCP" | "UDP" }
+    ]
+  }
 }

@@ -1,6 +1,5 @@
 # Layer 3: staging overlay.
 
-deploy: staging: workloads: &: {
-  replicas: *2 | integer
-  logLevel: *info | string
+deploy: staging: workloads: {
+  &: { replicas:*2 | integer logLevel:*info | string }
 }

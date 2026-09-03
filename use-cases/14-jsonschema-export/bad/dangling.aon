@@ -3,7 +3,5 @@
 # is no unified value to export, and the verb refuses with exit 4 and
 # [aontu/no_path] -- the same class as any other verb given a document
 # that does not evaluate.
-spec: {
-  owner: $.people.alice.email
-}
+spec: owner: $.people.alice.email
 people: {}

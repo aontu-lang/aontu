@@ -5,5 +5,4 @@
 
 candidate: hide(@"../data/candidate-badref.aon")
 
-catalog: domains: platform: services: search:
-  $.spec.CatalogEntry & $.candidate
+catalog: domains: platform: services: search: $.spec.CatalogEntry & $.candidate

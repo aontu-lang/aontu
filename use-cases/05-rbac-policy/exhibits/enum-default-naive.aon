@@ -6,4 +6,4 @@
 # pref_not_instance advisory: the default is a member of the admitted
 # set only by being the default -- repeat the branch (see
 # enum-default-repeated.aon) to state it as a first-class member.
-invite: { role: *member | admin | owner }
+invite: role: *member | admin | owner

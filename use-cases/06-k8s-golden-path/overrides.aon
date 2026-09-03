@@ -3,7 +3,9 @@
 # plain data: a concrete value beats a ranked default, everything else
 # is untouched.
 
-deploy: billing: spec: replicas: 6                # peak-season capacity
-deploy: web: spec: template: spec: containers: [
-  { resources: limits: cpu: "750m" }              # one field; memory default survives
-]
+deploy: {
+  billing: spec: replicas: 6 # peak-season capacity
+  web: spec: template: spec: containers: [
+    resources: limits: cpu: "750m" # one field; memory default survives
+  ]
+}

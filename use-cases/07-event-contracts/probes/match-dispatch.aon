@@ -8,16 +8,14 @@
 # check.sh pins that. Consumers dispatch client-side instead
 # (read `type`, vet --at $.registry.<type with dots underscored>).
 
-Placed: close({
-  type: "order.placed"
-  total_cents: integer & min(0)
-})
+Placed: close({ type:"order.placed" total_cents:integer & min(0) })
 
-Paid: close({
-  type: "order.paid"
-  amount_cents: integer & min(1)
-})
+Paid: close({ type:"order.paid" amount_cents:integer & min(1) })
 
-Event: match(_,
-  {type: "order.placed"}, $.Placed,
-  {type: "order.paid"}, $.Paid)
+Event: match(
+  _,
+  { type:"order.placed" },
+  $.Placed,
+  { type:"order.paid" },
+  $.Paid
+)

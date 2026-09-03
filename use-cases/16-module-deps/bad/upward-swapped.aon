@@ -12,12 +12,6 @@
 @"../model.aon"
 
 mods: {
-  catalog: {
-    usedBy: [path($.mods.server), path($.mods.auth)]
-  }
-  auth: {
-    dependsOn: [
-      path($.mods.bytes), path($.mods.http), path($.mods.catalog)
-    ]
-  }
+  catalog: usedBy: [path($.mods.server) path($.mods.auth)]
+  auth: dependsOn: [path($.mods.bytes) path($.mods.http) path($.mods.catalog)]
 }

@@ -1632,12 +1632,24 @@ aontu fmt < in.aon > out.aon
   written. Every comment and every blank line between groups stays.
   The formatter never breaks a line, and keeps the author's line breaks
   inside an expression, at their operators.
+- **The prefix is repeated.** A map that does not fit on one line is
+  written as one statement per entry, each carrying its key again:
+  `server: host: "0.0.0.0"` / `server: port: 8080`. A key written
+  twice is a meet, so the two spellings are one document.
+  Adjacent statements naming one key are the same map to the
+  formatter, and are written as one line when that fits. Only a plain
+  map in statement position: a map that is an argument, an operand or
+  a list element keeps its braces, because splitting it would change
+  the document.
 - **It reads the file it is given and no other.** An `@"..."` include
   is a token like any other, so the verb takes no `--trust`.
 - **It checks its own work.** Before a byte is returned the formatted
   text is parsed again and compared with the input, tree to tree; a
   disagreement is refused as the formatter's own defect
-  (`format_check`), and nothing is written.
+  (`format_check`), and nothing is written. Each repeated or merged
+  statement is also evaluated both ways in isolation, and a rewrite the
+  engine evaluates differently is not made: that statement keeps its
+  braces.
 - With no file it reads standard input; with several files it needs
   `--write`, `--list`, `--check` or `--diff`, rather than print them
   as one stream.
@@ -1650,7 +1662,7 @@ A configuration written as it came from JSON, `config.aon`:
 <!-- test: file config.aon -->
 ```aontu
 {
-  "server": { "host": "0.0.0.0", "port": 8080 },
+  "server": { "host": "0.0.0.0", "port": 8080, "tls": { "enabled": true, "cert": "/etc/tls/cert.pem" } },
   "features": ["auth", "metrics"],
   "limits": { "rps": 100, "burst": 200 }
 }
@@ -1659,7 +1671,9 @@ A configuration written as it came from JSON, `config.aon`:
 <!-- test: run -->
 ```sh
 $ aontu fmt config.aon
-server: { host:"0.0.0.0" port:8080 }
+server: host: "0.0.0.0"
+server: port: 8080
+server: tls: { enabled:true cert:"/etc/tls/cert.pem" }
 features: ["auth" "metrics"]
 limits: { rps:100 burst:200 }
 ```

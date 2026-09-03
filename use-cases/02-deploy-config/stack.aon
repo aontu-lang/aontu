@@ -14,9 +14,9 @@
 # pack() below generates one deploy.<env> block per row, so an
 # environment cannot exist in an overlay without existing here.
 environments: hide({
-  dev: { promote: false, domain: "dev.acme.internal" }
-  staging: { promote: true, domain: "staging.acme.internal" }
-  prod: { promote: true, domain: "pay.acme.example" }
+  dev: { promote:false domain:"dev.acme.internal" }
+  staging: { promote:true domain:"staging.acme.internal" }
+  prod: { promote:true domain:"pay.acme.example" }
 })
 
 # One block per environment (_ is the environment's own table row),
@@ -53,7 +53,7 @@ envguard: hide($.deploy & close(pack($.environments, {})))
 # already satisfy {critical: true}; pack() builds one alert route per
 # survivor, so adding a critical service to the catalog creates its
 # paging route in the same commit.
-alerts: pack(filter($.fleet, { critical: true }), {
+alerts: pack(filter($.fleet, { critical:true }), {
   escalate: $.team.oncall
   runbook: $.org.runbookBase + "/" + key()
   env: prod
@@ -63,6 +63,4 @@ alerts: pack(filter($.fleet, { critical: true }), {
 # deploy tree: any computed expression written into a pack()-generated
 # child fails (README, gap 4).  Here, in a plain map, `replicas + 1`
 # works because billing's prod replicas is a concrete pin.
-rollout: {
-  billingProdMaxSurge: $.deploy.prod.workloads.billing.replicas + 1
-}
+rollout: billingProdMaxSurge: $.deploy.prod.workloads.billing.replicas + 1

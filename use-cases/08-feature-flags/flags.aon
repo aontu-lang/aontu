@@ -32,14 +32,12 @@ flags: {
     rollout: ***0
   }
 
-  checkout_v2: {
-    key: "checkout.v2"
-    flag_type: "percentage"
-    owner: "payments-platform@acme.example"
-    description: "One-page checkout flow replacing the 3-step wizard"
-    created: "2026-05-04"
-    expiry: "2026-12-31"
-  }
+  checkout_v2: key: "checkout.v2"
+  checkout_v2: flag_type: "percentage"
+  checkout_v2: owner: "payments-platform@acme.example"
+  checkout_v2: description: "One-page checkout flow replacing the 3-step wizard"
+  checkout_v2: created: "2026-05-04"
+  checkout_v2: expiry: "2026-12-31"
 
   payments_legacy_gateway: {
     key: "payments.legacy-gateway"
@@ -53,26 +51,22 @@ flags: {
     enabled: false
   }
 
-  search_reranker_v3: {
-    key: "search.reranker-v3"
-    flag_type: "boolean"
-    owner: "search-quality@acme.example"
-    description: "ML reranker v3 for organic search results"
-    created: "2026-01-15"
-    # Already expired relative to $.clock.today: the lifecycle rule
-    # in policy.aon refuses any overlay that pins it on.
-    expiry: "2026-06-30"
-  }
+  search_reranker_v3: key: "search.reranker-v3"
+  search_reranker_v3: flag_type: "boolean"
+  search_reranker_v3: owner: "search-quality@acme.example"
+  search_reranker_v3: description: "ML reranker v3 for organic search results"
+  search_reranker_v3: created: "2026-01-15"
+  # Already expired relative to $.clock.today: the lifecycle rule
+  # in policy.aon refuses any overlay that pins it on.
+  search_reranker_v3: expiry: "2026-06-30"
 
-  ui_dark_mode: {
-    key: "ui.dark-mode"
-    flag_type: "variant"
-    owner: "web-experience@acme.example"
-    description: "Dark mode theme experiment arms"
-    created: "2026-03-01"
-    expiry: "2027-03-01"
-    variant: ***"off"
-  }
+  ui_dark_mode: key: "ui.dark-mode"
+  ui_dark_mode: flag_type: "variant"
+  ui_dark_mode: owner: "web-experience@acme.example"
+  ui_dark_mode: description: "Dark mode theme experiment arms"
+  ui_dark_mode: created: "2026-03-01"
+  ui_dark_mode: expiry: "2027-03-01"
+  ui_dark_mode: variant: ***"off"
 
   ops_incident_banner: {
     key: "ops.incident-banner"

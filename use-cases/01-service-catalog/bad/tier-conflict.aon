@@ -5,4 +5,4 @@
 # itself fails.
 @"../system.aon"
 
-deploy: regions: eu1: clusters: core: workloads: payments: {tier: 2}
+deploy: regions: eu1: clusters: core: workloads: payments: tier: 2

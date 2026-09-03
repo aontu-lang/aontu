@@ -5,8 +5,4 @@
 # apart in a document that generates.
 @"../model.aon"
 
-mods: {
-  clock: {
-    dependsOn: [path($.mods.bytes)]
-  }
-}
+mods: clock: dependsOn: [path($.mods.bytes)]

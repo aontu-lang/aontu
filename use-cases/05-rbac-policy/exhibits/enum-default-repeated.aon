@@ -3,4 +3,4 @@
 # 2026-08-26 (the preference admission gate, ADR-004) it is no longer
 # a lint-only workaround: the admitted set is {member, admin, owner}
 # either way, and "superadmin" is refused (asserted by check.sh).
-invite: { role: *member | member | admin | owner }
+invite: role: *member | member | admin | owner

@@ -1,2 +1,2 @@
 # A second platform module: shared naming vocabulary.
-mod: { path: "corp.example/schemas/common", version: "1.2.0", main: "common.aon" }
+mod: { path:"corp.example/schemas/common" version:"1.2.0" main:"common.aon" }

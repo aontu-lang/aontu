@@ -8,11 +8,5 @@
 # BUGS.md sec 7) -- this stacked spelling now vets the correct data as
 # valid, check.sh asserts it, and guardrails.aon's per-environment
 # workaround is optional. Pinned: vet.tsv vet-unequal-spread-depths.
-deploy: &: {
-  workloads: &: {
-    port: integer & min(1024) & max(65535)
-  }
-}
-deploy: prod: workloads: &: {
-  replicas: must(min(2), "prod floor")
-}
+deploy: { &: { workloads:{ &: { port:integer & min(1024) & max(65535) } } } }
+deploy: prod: workloads: { &: { replicas:must(min(2), "prod floor") } }

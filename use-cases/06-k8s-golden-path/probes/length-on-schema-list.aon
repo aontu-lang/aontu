@@ -12,6 +12,6 @@
 # [aontu/constraint], exit 1.  (Length next to already-present elements
 # in one file works fine; the failure needs the generator merge.)
 names: [web]
-col: { web: { http: { containerPort: 8080 } } }
-deploy: pack($.names, { ports: [ &: { containerPort: integer } ] & length(min(1)) })
-deploy: pack($.col, { ports: each(_) })
+col: web: http: containerPort: 8080
+deploy: pack($.names, { ports:[&: { containerPort:integer }] & length(min(1)) })
+deploy: pack($.col, { ports:each(_) })

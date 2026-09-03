@@ -50,7 +50,7 @@ fmt-comment-trailing	fmt	a: 1   # c\n	a: 1 # c\n
 fmt-comment-own-line	fmt	# c\na: 1\n	# c\na: 1\n
 fmt-comment-block-open	fmt	a: { # open\n  b: 1\n}\n	a: { # open\n  b: 1\n}\n
 fmt-comment-block-end	fmt	a: {\n  b: 1\n  c: 2\n  # end\n}\n	a: {\n  b: 1\n  c: 2\n  # end\n}\n
-fmt-comment-holds-block-open	fmt	a: {\n  # first\n  b: 1\n}\n	a: {\n  # first\n  b: 1\n}\n
+fmt-comment-first-entry-repeats	fmt	a: {\n  # first\n  b: 1\n}\n	# first\na: b: 1\n
 fmt-comment-in-chain	fmt	a: {\n  b: 1 # c\n}\n	a: b: 1 # c\n
 fmt-comment-after-closer	fmt	a: {\n  b: 1\n  c: 2\n} # c\n	a: { b:1 c:2 } # c\n
 fmt-comment-in-list	fmt	a: [\n  1 # one\n  2\n]\n	a: [\n  1 # one\n  2\n]\n
@@ -60,18 +60,27 @@ fmt-comment-before-operator	fmt	a: 1 # c\n  & 2\n	a: 1 # c\n  & 2\n
 fmt-comment-in-arguments	fmt	a: f(1, # c\n  2)\n	a: f(\n  1, # c\n  2\n)\n
 fmt-blank-lines-collapse	fmt	a: 1\n\n\n\nb: 2\n	a: 1\n\nb: 2\n
 fmt-blank-lines-trimmed	fmt	\n\na: 1\n\n	a: 1\n
-fmt-blank-lines-in-block	fmt	a: {\n\n  b: 1\n\n\n  c: 2\n\n}\n	a: {\n  b: 1\n\n  c: 2\n}\n
+fmt-blank-lines-in-block	fmt	a: {\n\n  b: 1\n\n\n  c: 2\n\n}\n	a: b: 1\n\na: c: 2\n
 fmt-blank-line-in-list	fmt	a: [1\n\n2]\n	a: [\n  1\n\n  2\n]\n
 fmt-blank-after-comment	fmt	# c\n\na: 1\n	# c\n\na: 1\n
 fmt-operators-spaced	fmt	a:1&2|3+4\n	a: 1 & 2 | 3 + 4\n
 fmt-prefix-tight	fmt	a: * 8080 | 9090\nb: **{ x:1 }\nc: - 1\n	a: *8080 | 9090\nb: **{ x:1 }\nc: -1\n
 fmt-parens-kept	fmt	a: (1 | 2) & 3\nb: ((1))\nc: (1, 2)\n	a: (1 | 2) & 3\nb: ((1))\nc: (1, 2)\n
-fmt-call-commas	fmt	a: match(.t "string" "x")\nb: f(a,b)\n	a: match(.t, "string", "x")\nb: f(a, b)\n
+fmt-call-separators-kept	fmt	a: match(.t "string" "x")\nb: f(a,b)\nc: f(a ,b)\n	a: match(.t "string" "x")\nb: f(a, b)\nc: f(a, b)\n
+fmt-call-lambda-kept	fmt	a: must((v) => 0 <= v, "not negative")\n	a: must((v) => 0 <= v, "not negative")\n
 fmt-call-no-space	fmt	a: type (1)\nb: f ()\n	a: type(1)\nb: f()\n
 fmt-call-hug	fmt	spec: hide({ xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx: 1, b: 2 })\n	spec: hide({\n  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx: 1\n  b: 2\n})\n
 fmt-call-hug-list	fmt	a: unique() & [xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx]\n	a: unique() & [\n  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n]\n
 fmt-call-block	fmt	Role: type(\n  close({ a: 1 })\n  |\n  close({ b: 2 })\n)\n	Role: type(\n  close({ a:1 })\n  | close({ b:2 })\n)\n
 fmt-call-wide-stays	fmt	a: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx & inverse(dependedOnBy) & acyclic()\n	a: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx & inverse(dependedOnBy) & acyclic()\n
+fmt-call-hug-last-map	fmt	a: deprecate(integer & min(0), { msg: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", since: "1.4.0" })\n	a: deprecate(integer & min(0), {\n  msg: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"\n  since: "1.4.0"\n})\n
+fmt-call-hug-expression	fmt	a: close($.E & { type: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", b: 2 })\n	a: close($.E & {\n  type: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"\n  b: 2\n})\n
+fmt-call-hug-not-broken-expression	fmt	a: close($.E &\n  { type: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", b: 2 })\n	a: close(\n  $.E\n  & { type:"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" b:2 }\n)\n
+fmt-call-no-hug-wide-head	fmt	a: match(.p, "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", { x: 1 }, "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", { y: 2 })\n	a: match(\n  .p,\n  "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",\n  { x:1 },\n  "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",\n  { y:2 }\n)\n
+fmt-call-hug-chain	fmt	a: hide(pack($.s, { d: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", e: 2 }))\n	a: hide(pack($.s, {\n  d: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"\n  e: 2\n}))\n
+fmt-call-hug-schema-idiom	fmt	Money: type(close({ amount: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", dec?: "bigdecimal:2" }))\n	Money: type(close({\n  amount: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"\n  dec?: "bigdecimal:2"\n}))\n
+fmt-call-block-separators-kept	fmt	a: match(.p "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" { x: 1 } "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" { y: 2 })\n	a: match(\n  .p\n  "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"\n  { x:1 }\n  "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"\n  { y:2 }\n)\n
+fmt-call-scalars-stay	fmt	a: f("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")\n	a: f("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")\n
 fmt-expr-break-after-operator	fmt	a: 1 &\n   2\n	a: 1\n  & 2\n
 fmt-expr-break-before-operator	fmt	a: 1\n& 2\n	a: 1\n  & 2\n
 fmt-expr-break-blank-line	fmt	a: 1\n\n  | 2\n	a: 1\n  | 2\n
@@ -96,7 +105,6 @@ fmt-lenient-unclosed-list	fmt	a: [\n	a: []\n
 fmt-lenient-stray-closer	fmt	a: 1 }\n	a: 1\n
 fmt-empty-value	fmt	a:\nb: c:\n	a: b: c:\n
 fmt-trailing-commas-statements	fmt	a: 1,\nb: 2,\n	a: 1\nb: 2\n
-fmt-repeat-not-merged	fmt	s: a: 1\ns: b: 2\n	s: a: 1\ns: b: 2\n
 fmt-order-kept	fmt	b: 1\na: 2\n	b: 1\na: 2\n
 fmt-bare-strings-kept	fmt	a: Mercury\nb: "Mercury"\n	a: Mercury\nb: "Mercury"\n
 fmt-text-with-angle	fmt	a: <1\n	a: <1\n
@@ -107,6 +115,49 @@ fmt-comment-lines-in-arguments	fmt	a: f( # a\n  # b\n  1 # c\n  # d\n  , 2)\n	a:
 fmt-blank-lines-around-comma	fmt	a: [1\n\n,\n\n2]\n	a: [\n  1\n\n  2\n]\n
 fmt-call-empty-argument	fmt	a: min(1,,2)\n	a: min(1, nil, 2)\n
 fmt-comment-chain-merge	fmt	a: [\n  {\n    b: 1 # inner\n  } # outer\n]\n	a: [\n  b: 1 # inner # outer\n]\n
+fmt-comment-chain-takes-map-trail	fmt	a: [\n  { b: 1 } # outer\n]\n	a: [\n  b: 1 # outer\n]\n
 fmt-prefix-block	fmt	a: *{ xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx: 1 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx: 2 }\n	a: *{\n  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx: 1\n  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx: 2\n}\n
 fmt-parens-wide	fmt	a: (xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx | xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx)\n	a: (xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx | xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx)\n
 fmt-parens-hug	fmt	a: ({ xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx: 1 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx: 2 })\n	a: ({\n  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx: 1\n  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx: 2\n})\n
+fmt-merge-adjacent	fmt	s: a: 1\ns: b: 2\n	s: { a:1 b:2 }\n
+fmt-merge-chain-and-map	fmt	s: a: 1\ns: { b: 2, c: 3 }\n	s: { a:1 b:2 c:3 }\n
+fmt-merge-deep	fmt	a: b: c: 1\na: b: d: 2\na: e: 3\n	a: { b:{ c:1 d:2 } e:3 }\n
+fmt-merge-not-adjacent	fmt	s: a: 1\nt: 1\ns: b: 2\n	s: a: 1\nt: 1\ns: b: 2\n
+fmt-merge-not-scalars	fmt	s: 1\ns: 2\nt: 1\nt: a: 1\n	s: 1\ns: 2\nt: 1\nt: a: 1\n
+fmt-merge-not-optional-mismatch	fmt	s: a: 1\ns?: b: 2\n	s: a: 1\ns?: b: 2\n
+fmt-merge-optional	fmt	s?: a: 1\ns?: b: 2\n	s?: { a:1 b:2 }\n
+fmt-merge-not-operands	fmt	s: { a: 1 } & { b: 2 }\ns: { c: 3 }\n	s: { a:1 } & { b:2 }\ns: c: 3\n
+fmt-merge-not-include	fmt	s: { @"x.aon" a: 1 }\ns: b: 2\n	s: { @"x.aon" a:1 }\ns: b: 2\n
+fmt-merge-not-opener-comment	fmt	s: { # open\n  a: 1\n}\ns: b: 2\n	s: { # open\n  a: 1\n}\ns: b: 2\n
+fmt-merge-empty-maps	fmt	s: {}\ns: {}\n	s: {}\n
+fmt-merge-spread-and-pair	fmt	s: { &: integer }\ns: a: 1\n	s: { &: integer a:1 }\n
+fmt-merge-not-two-spreads	fmt	s: { &: integer }\ns: { &: string }\n	s: { &: integer }\ns: { &: string }\n
+fmt-merge-then-repeat	fmt	s: a: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"\ns: b: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"\n	s: a: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"\ns: b: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"\n
+fmt-merge-comment-between	fmt	s: a: 1\n# about b\ns: b: 2\n	s: a: 1\n# about b\ns: b: 2\n
+fmt-merge-blank-between	fmt	s: a: 1\n\ns: b: 2\n	s: a: 1\n\ns: b: 2\n
+fmt-merge-trailing-comments	fmt	s: a: 1 # x\ns: b: 2 # y\n	s: a: 1 # x\ns: b: 2 # y\n
+fmt-merge-trail-sinks	fmt	s: { a: 1 } # x\ns: b: 2\n	s: a: 1 # x\ns: b: 2\n
+fmt-merge-not-trail-without-entry	fmt	s: {} # x\ns: b: 2\n	s: {} # x\ns: b: 2\n
+fmt-merge-not-trail-on-comment	fmt	s: {\n  a: 1\n  # end\n} # x\ns: b: 2\n	s: {\n  a: 1\n  # end\n} # x\ns: b: 2\n
+fmt-merge-trails-join	fmt	s: { a: 1 # y\n} # x\ns: b: 2\n	s: a: 1 # y # x\ns: b: 2\n
+fmt-repeat-nested-trail	fmt	a: {\n  b: { yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy: 1, c: 2 } # t\n  d: 3\n}\n	a: b: yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy: 1\na: b: c: 2 # t\na: d: 3\n
+fmt-call-no-hug-empty-call	fmt	a: f({ yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy: 1 }, g())\n	a: f(\n  { yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy:1 },\n  g()\n)\n
+fmt-call-argument-paren	fmt	a: f(({ yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy: 1 }))\n	a: f(\n  ({ yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy:1 })\n)\n
+fmt-call-comment-before-container-argument	fmt	a: f( # c\n  { yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy: 1 })\n	a: f( # c\n  { yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy:1 }\n)\n
+fmt-merge-comment-into-block	fmt	s: a: 1\n# about b\ns: b: [xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx]\n	s: {\n  a: 1\n  # about b\n  b: [\n    xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n    xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n  ]\n}\n
+fmt-repeat-wide-map	fmt	a: { b: { yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy: 1 } c: 2 }\n	a: b: yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy: 1\na: c: 2\n
+fmt-repeat-nested-fits	fmt	a: { b: { c: 1 d: 2 } e: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" }\n	a: b: { c:1 d:2 }\na: e: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"\n
+fmt-repeat-chain	fmt	a: b: { yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy: 1, c: 2 }\n	a: b: yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy: 1\na: b: c: 2\n
+fmt-repeat-optional	fmt	a?: { yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy: 1 b?: 2 }\n	a?: yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy: 1\na?: b?: 2\n
+fmt-repeat-spread	fmt	s: { &: { yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy: integer } a: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" }\n	s: { &: { yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy:integer } }\ns: a: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"\n
+fmt-repeat-not-two-spreads	fmt	s: { &: { yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy: 1 } &: { yyyyyyyyyyyyyyyyyyyy: 2 } }\n	s: {\n  &: { yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy:1 }\n  &: { yyyyyyyyyyyyyyyyyyyy:2 }\n}\n
+fmt-repeat-keeps-trails	fmt	s: {\n  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx: 1 # x\n  b: 2 # y\n}\n	s: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx: 1 # x\ns: b: 2 # y\n
+fmt-repeat-keeps-blank	fmt	s: {\n  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx: 1\n\n  b: 2\n}\n	s: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx: 1\n\ns: b: 2\n
+fmt-repeat-not-end-comment	fmt	s: {\n  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx: 1\n  b: 2\n  # end\n}\n	s: {\n  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx: 1\n  b: 2\n  # end\n}\n
+fmt-repeat-not-long-list	fmt	s: { a: 1, b: [xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx] }\n	s: {\n  a: 1\n  b: [\n    xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n    xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n  ]\n}\n
+fmt-repeat-not-in-list-element	fmt	x: [{ a: { yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy: 1, b: 2 } }]\n	x: [\n  a: {\n    yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy: 1\n    b: 2\n  }\n]\n
+fmt-repeat-not-in-argument	fmt	x: close({ a: { yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy: 1, b: 2 } })\n	x: close({\n  a: {\n    yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy: 1\n    b: 2\n  }\n})\n
+fmt-repeat-not-in-operand	fmt	x: { a: { yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy: 1, b: 2 } } & {}\n	x: {\n  a: {\n    yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy: 1\n    b: 2\n  }\n} & {}\n
+fmt-repeat-in-block	fmt	s: { a: 1, b: [xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx], c: { yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy: 1, d: 2 } }\n	s: {\n  a: 1\n  b: [\n    xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n    xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n  ]\n  c: yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy: 1\n  c: d: 2\n}\n
+fmt-merge-in-block	fmt	s: { a: 1, b: [xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx], c: d: 1, c: e: 2 }\n	s: {\n  a: 1\n  b: [\n    xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n    xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n  ]\n  c: { d:1 e:2 }\n}\n
+fmt-merge-in-block-then-repeat	fmt	s: { a: 1, b: [xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx], c: d: "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy", c: e: 2 }\n	s: {\n  a: 1\n  b: [\n    xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n    xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n  ]\n  c: d: "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"\n  c: e: 2\n}\n

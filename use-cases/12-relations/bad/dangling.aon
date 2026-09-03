@@ -3,6 +3,4 @@
 # document refuses (rel_unresolved), there is no "maybe later".
 @"../model.aon"
 
-pipeline: jobs: audit: {
-  feeds: [path($.pipeline.jobs.archive)]
-}
+pipeline: jobs: audit: feeds: [path($.pipeline.jobs.archive)]

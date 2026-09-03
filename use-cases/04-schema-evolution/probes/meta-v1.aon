@@ -2,7 +2,5 @@
 # string, as a schema registry entry naturally would.  hide() keeps
 # it out of generation, but NOT out of the compatibility compare:
 # bumping the concrete string is itself flagged as a narrowing.
-meta: hide({version: "1.0.0"})
-profile: close({
-  id: string & re("^C[0-9]{7}$")
-})
+meta: hide({ version:"1.0.0" })
+profile: close({ id:string & re("^C[0-9]{7}$") })

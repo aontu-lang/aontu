@@ -2,8 +2,8 @@
 # so this is a located [aontu/closed] error at $.roles.superuser --
 # the role set is exhaustive by construction.
 @"../roles.aon"
-roles: superuser: {
-  desc: "Emergency break-glass access", rank: 90
-  tenantOwner: false, privileged: true
-  grants: [path($.permissions.admin_all)]
-}
+roles: superuser: desc: "Emergency break-glass access"
+roles: superuser: rank: 90
+roles: superuser: tenantOwner: false
+roles: superuser: privileged: true
+roles: superuser: grants: [path($.permissions.admin_all)]

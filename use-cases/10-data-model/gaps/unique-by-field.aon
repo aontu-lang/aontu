@@ -14,6 +14,6 @@
 # expected: [aontu/constraint] at $.customers, exit 1
 # actual:   [aontu/constraint] at $.customers, exit 1
 customers: unique(ledgerId) & {
-  "cust-1001": { ledgerId: 111, name: "Acme" }
-  "cust-1002": { ledgerId: 111, name: "Globex" }
+  "cust-1001": { ledgerId:111 name:"Acme" }
+  "cust-1002": { ledgerId:111 name:"Globex" }
 }

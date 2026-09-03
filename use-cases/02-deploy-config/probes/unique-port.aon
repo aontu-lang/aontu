@@ -8,6 +8,6 @@
 # the atom now takes the projector. Expected: [aontu/constraint], the
 # duplicate 8080 refused.
 fleet: unique(port) & {
-  api:  { port: 8080, image: "acme/api:1" }
-  auth: { port: 8080, image: "acme/auth:1" }
+  api: { port:8080 image:"acme/api:1" }
+  auth: { port:8080 image:"acme/auth:1" }
 }

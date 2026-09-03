@@ -14,10 +14,11 @@
 // trees: a formatter that cannot prove its output is the same document
 // refuses rather than return it.
 //
-// This is the syntactic tier only (P1): whitespace, commas, quotes,
-// bare keys, chains and pair elements, none of which changes the parse
-// tree. The lawful tier -- the repeat-the-prefix rewrite that rests on
-// the meet -- is P2, and lands behind its own local check.
+// Two tiers. The syntactic (P1): whitespace, commas, quotes, bare
+// keys, chains and pair elements, none of which changes the parse
+// tree. The lawful (P2), over it: repeat the prefix, and merge what
+// repeats -- rewrites that rest on the meet, each checked by the meet
+// in isolation and kept only where the engine agrees.
 //
 // Function for function with the TypeScript; the shared behaviour is
 // test/spec/fmt.tsv, executed by both spec runners.
@@ -26,6 +27,7 @@ package aontu
 
 import (
 	"regexp"
+	"sort"
 	"strings"
 	"sync"
 	"unicode/utf8"
@@ -128,7 +130,12 @@ func formatParse(src, file string, sink *[]fmtTok) (Val, *AontuError) {
 	if out == nil {
 		return newMap(), nil
 	}
-	return asVal(out), nil
+	// The paths every value carries from the entry parse
+	// (parseWithTrust): a relation declaration registers at the path
+	// its atom landed on, and the check evaluates what it parses.
+	root := asVal(out)
+	setPaths(root, []string{})
+	return root, nil
 }
 
 // ---------------------------------------------------------------------
@@ -170,6 +177,13 @@ type fmtNode struct {
 
 	// A comment on the last line of this entry.
 	trail string
+
+	// An argument: a comma stood before it (§3.6), rather than a space.
+	sep bool
+
+	// pair: the statements this one replaces, where the lawful tier
+	// merged them, or rewrote something below them.
+	orig []*fmtNode
 }
 
 var (
@@ -318,6 +332,11 @@ func (r *fmtReader) body(close string, opened bool) ([]*fmtNode, string) {
 		last = e
 		opener = false
 		gap = false
+	}
+	// A blank line before the closer is no paragraph break: nothing
+	// follows it, and the layout would drop it anyway.
+	for 0 < len(body) && "blank" == body[len(body)-1].t {
+		body = body[:len(body)-1]
 	}
 	return body, open
 }
@@ -497,6 +516,7 @@ func (r *fmtReader) atom() *fmtNode {
 func (r *fmtReader) seq() []*fmtNode {
 	out := []*fmtNode{}
 	gap := true
+	comma := false
 	for {
 		n := r.name(0)
 		if "" == n || fmtCloser[n] {
@@ -508,9 +528,10 @@ func (r *fmtReader) seq() []*fmtNode {
 		}
 		if "#CA" == n {
 			if gap {
-				out = append(out, &fmtNode{t: "atom", text: "nil"})
+				out = append(out, &fmtNode{t: "atom", text: "nil", sep: comma})
 			}
 			gap = true
+			comma = true
 			r.i++
 			continue
 		}
@@ -519,8 +540,11 @@ func (r *fmtReader) seq() []*fmtNode {
 			r.i++
 			continue
 		}
-		out = append(out, r.value())
+		v := r.value()
+		v.sep = comma
+		out = append(out, v)
 		gap = false
+		comma = false
 	}
 	return out
 }
@@ -667,16 +691,29 @@ func fmtInline(node *fmtNode, tight bool) (string, bool) {
 	}
 }
 
+// Arguments on one line, each after the separator the author wrote
+// (§3.6): a comma stays a comma, and a space a space, because the
+// parser reads `must((v) => 0 <= v, "…")` as a run of arguments too.
 func fmtInlineSeq(items []*fmtNode) (string, bool) {
-	parts := []string{}
-	for _, it := range items {
+	out := ""
+	for k, it := range items {
 		s, ok := fmtInline(it, true)
 		if !ok {
 			return "", false
 		}
-		parts = append(parts, s)
+		if 0 < k {
+			out += fmtSepOf(it)
+		}
+		out += s
 	}
-	return strings.Join(parts, ", "), true
+	return out, true
+}
+
+func fmtSepOf(node *fmtNode) string {
+	if node.sep {
+		return ", "
+	}
+	return " "
 }
 
 // Binary operators spaced, prefixes tight (§3.11). An operand is never
@@ -735,6 +772,29 @@ func (w *fmtWriter) width() int {
 	return fmtWidth(w.line)
 }
 
+// Where the page is, and the lines written since, the current line
+// included: the spelling of one statement, as it stands on the page.
+func (w *fmtWriter) mark() int {
+	return len(w.lines)
+}
+
+func (w *fmtWriter) since(mark int) string {
+	out := []string{}
+	for _, line := range append(append([]string{}, w.lines[mark:]...), w.line) {
+		out = append(out, fmtRtrim(line))
+	}
+	return strings.Join(out, "\n") + "\n"
+}
+
+// The lines since a mark replaced by a text: the spelling before,
+// where a rewrite did not pass its check.
+func (w *fmtWriter) replace(mark int, text string) {
+	lines := strings.Split(text, "\n")
+	lines = lines[:len(lines)-1]
+	w.line = lines[len(lines)-1]
+	w.lines = append(w.lines[:mark], lines[:len(lines)-1]...)
+}
+
 func (w *fmtWriter) finish() string {
 	if !w.started {
 		return ""
@@ -751,8 +811,11 @@ func fmtRtrim(s string) string {
 
 // The entries of a body, one per line at the indentation, with the
 // blank lines the author kept between them (§3.8) -- never at the
-// start or the end.
-func fmtEmitBody(w *fmtWriter, body []*fmtNode, indent int) {
+// start or the end. In STATEMENT position (`stmt`: the root, and the
+// body of a plain map that is itself the value of a statement) a pair
+// is laid out by §3.4, which may repeat its key; anywhere else -- a
+// list, an operand, an argument -- by §3.5 alone.
+func fmtEmitBody(w *fmtWriter, body []*fmtNode, indent int, stmt *fmtStmt) {
 	pending := false
 	count := 0
 	for _, node := range body {
@@ -765,6 +828,10 @@ func fmtEmitBody(w *fmtWriter, body []*fmtNode, indent int) {
 		count++
 		if "comment" == node.t {
 			w.text(node.text)
+			continue
+		}
+		if nil != stmt && "pair" == node.t {
+			fmtEmitStatement(w, node, indent, stmt, "")
 			continue
 		}
 		e := fmtChain(node)
@@ -795,9 +862,9 @@ func fmtEmitValue(w *fmtWriter, node *fmtNode, indent int) {
 		w.text("&: ")
 		fmtEmitValue(w, node.value, indent)
 	case "map":
-		fmtEmitBlock(w, "{", "}", node, indent)
+		fmtEmitBlock(w, "{", "}", node, indent, nil)
 	case "list":
-		fmtEmitBlock(w, "[", "]", node, indent)
+		fmtEmitBlock(w, "[", "]", node, indent, nil)
 	case "expr":
 		fmtEmitExpr(w, node.items, indent)
 	case "call", "paren":
@@ -808,13 +875,17 @@ func fmtEmitValue(w *fmtWriter, node *fmtNode, indent int) {
 }
 
 // A call, or a parenthesis, that has no one-line form or is too wide
-// for the budget. Three shapes. A single container argument hugs the
-// parentheses, `close({` ... `})`, and decides its own lines. Arguments
-// that each have a one-line form stay on the one line however wide it
-// is: the formatter never breaks a line. Otherwise -- an argument that
-// is itself several lines, a comment among the arguments -- the
-// parenthesis opens a block: one argument per line one level in, the
-// closer alone at the opener's level.
+// for the budget. Three shapes. Arguments that are all FLAT -- none
+// holds a container -- stay on the one line however wide it is: a
+// scalar is no narrower on a line of its own, and the formatter never
+// breaks a line. The last argument HUGS the parentheses, `hide({` ...
+// `})`, `close($.E & {` ... `})`, when it is a container, or an
+// expression the author did not break that ends in one, and the
+// arguments before it fit on the opener's line: the container decides
+// its own lines. Otherwise the parenthesis opens a block: one argument
+// per line one level in, the closer alone at the opener's level. A
+// call whose last argument hugs is hugged in turn, `type(close({` ...
+// `}))`: the schema idiom.
 func fmtEmitCall(w *fmtWriter, node *fmtNode, indent int) {
 	items := node.inner
 	open := "("
@@ -822,15 +893,23 @@ func fmtEmitCall(w *fmtWriter, node *fmtNode, indent int) {
 		items = node.args
 		open = node.name + "("
 	}
-	if 1 == len(items) && ("map" == items[0].t || "list" == items[0].t) {
-		w.text(open)
-		fmtEmitValue(w, items[0], indent)
-		w.text(")")
-		return
-	}
-	if one, ok := fmtInlineSeq(items); ok {
+	if one, ok := fmtInlineSeq(items); ok && !fmtAnyHoldsContainer(items) {
 		w.text(open + one + ")")
 		return
+	}
+	if 0 < len(items) && fmtHugs(items[len(items)-1]) {
+		last := items[len(items)-1]
+		head, ok := fmtInlineSeq(items[:len(items)-1])
+		lead := ""
+		if "" != head {
+			lead = head + fmtSepOf(last)
+		}
+		if ok && ("" == head || w.width()+fmtWidth(open+lead) <= formatBudget) {
+			w.text(open + lead)
+			fmtEmitValue(w, last, indent)
+			w.text(")")
+			return
+		}
 	}
 	w.text(open)
 	noted := false
@@ -850,7 +929,7 @@ func fmtEmitCall(w *fmtWriter, node *fmtNode, indent int) {
 		}
 		w.open(indent+2, false)
 		fmtEmitValue(w, it, indent+2)
-		if fmtOperandAfter(items, k) {
+		if next := fmtOperandAfter(items, k); nil != next && next.sep {
 			w.text(",")
 		}
 		noted = false
@@ -859,20 +938,66 @@ func fmtEmitCall(w *fmtWriter, node *fmtNode, indent int) {
 	w.text(")")
 }
 
-// Whether an operand follows position k: a note is not one.
-func fmtOperandAfter(items []*fmtNode, k int) bool {
-	for _, x := range items[k+1:] {
-		if "note" != x.t {
+// Whether a node holds a container anywhere: the argument has a
+// several-line form of its own.
+func fmtHoldsContainer(node *fmtNode) bool {
+	switch node.t {
+	case "map", "list":
+		return true
+	case "call":
+		return fmtAnyHoldsContainer(node.args)
+	case "paren":
+		return fmtAnyHoldsContainer(node.inner)
+	case "expr":
+		return fmtAnyHoldsContainer(node.items)
+	}
+	return false
+}
+
+func fmtAnyHoldsContainer(items []*fmtNode) bool {
+	for _, it := range items {
+		if fmtHoldsContainer(it) {
 			return true
 		}
 	}
 	return false
 }
 
+// Whether a last argument hugs the parentheses: a container; an
+// expression with no break and no comment whose last operand is one;
+// a call whose own last argument does.
+func fmtHugs(node *fmtNode) bool {
+	if "map" == node.t || "list" == node.t {
+		return true
+	}
+	if "call" == node.t {
+		return 0 < len(node.args) && fmtHugs(node.args[len(node.args)-1])
+	}
+	if "expr" != node.t {
+		return false
+	}
+	for _, it := range node.items {
+		if "note" == it.t || ("op" == it.t && it.brk) {
+			return false
+		}
+	}
+	return fmtHugs(node.items[len(node.items)-1])
+}
+
+// The operand that follows position k, if one does: a note is not one.
+func fmtOperandAfter(items []*fmtNode, k int) *fmtNode {
+	for _, x := range items[k+1:] {
+		if "note" != x.t {
+			return x
+		}
+	}
+	return nil
+}
+
 // A container on several lines (§3.5): the opener ends its line, the
 // entries are statements one level in, the closer stands alone. An
 // empty container is inline whatever the budget says.
-func fmtEmitBlock(w *fmtWriter, open, close string, node *fmtNode, indent int) {
+func fmtEmitBlock(w *fmtWriter, open, close string, node *fmtNode, indent int, stmt *fmtStmt) {
 	if 0 == len(node.body) && "" == node.open {
 		w.text(open + close)
 		return
@@ -881,7 +1006,7 @@ func fmtEmitBlock(w *fmtWriter, open, close string, node *fmtNode, indent int) {
 	if "" != node.open {
 		w.text(" " + node.open)
 	}
-	fmtEmitBody(w, node.body, indent+2)
+	fmtEmitBody(w, node.body, indent+2, stmt)
 	w.open(indent, false)
 	w.text(close)
 }
@@ -940,9 +1065,340 @@ func fmtEmitExpr(w *fmtWriter, items []*fmtNode, indent int) {
 	}
 }
 
-func fmtEmit(root []*fmtNode) string {
+// ---------------------------------------------------------------------
+// The lawful tier (§3.4): repeat the prefix, and merge what repeats.
+//
+// Both rewrites rest on the meet. `s: a: 1` / `s: b: 2` is one document
+// with `s: { a:1 b:2 }`, because a key written twice is a meet and the
+// meet of two maps with disjoint keys is their union. So they apply
+// only to a PLAIN map in STATEMENT position -- an entry of the root, or
+// of a map that is itself the plain value of such an entry -- and never
+// to a map that is an operand, an argument or a list element, where
+// splitting it would change the document (`close({a:1})` /
+// `close({b:2})` does not evaluate at all). And every statement the
+// tier rewrites is checked by unification, locally (§7.3): the spelling
+// before and the spelling after must come to the same meet, or the
+// statement keeps the spelling before. The check is the engine's
+// agreement, not the formatter's self-check -- the engine's own repros
+// hold maps whose two spellings it evaluates differently -- so failing
+// it is no refusal.
+
+// The check of one rewrite: the spelling before and the spelling after.
+type fmtMeet func(before, after string) bool
+
+// Statement position: the check, and whether the statement being laid
+// out stands inside one that is checked as a whole, which covers it.
+// Nil anywhere else -- a list, an operand, an argument.
+type fmtStmt struct {
+	meet    fmtMeet
+	covered bool
+}
+
+// The entries of a plain map value: a braced map, or a chain, which is
+// a one-entry map. A map with a comment on its opener keeps its braces
+// (§3.7), so it is not plain here; nor is a map holding an include,
+// which the local check cannot follow.
+func fmtPlainEntries(v *fmtNode) ([]*fmtNode, bool) {
+	if "pair" == v.t {
+		return []*fmtNode{v}, true
+	}
+	if "map" != v.t || "" != v.open {
+		return nil, false
+	}
+	for _, e := range v.body {
+		if "include" == e.t {
+			return nil, false
+		}
+	}
+	return v.body, true
+}
+
+// The entries of a statement as they stand once it is merged into a
+// wider map: its trailing comment sunk onto its last entry, so that it
+// travels with the entry it stood beside. False where the value is not
+// a plain map, or the comment has no entry to sit on.
+func fmtMembers(p *fmtNode) ([]*fmtNode, bool) {
+	entries, ok := fmtPlainEntries(p.value)
+	if !ok || "" == p.trail {
+		return entries, ok
+	}
+	if 0 == len(entries) {
+		return nil, false
+	}
+	last := entries[len(entries)-1]
+	if "pair" != last.t && "spread" != last.t {
+		return nil, false
+	}
+	sunk := *last
+	if "" == last.trail {
+		sunk.trail = p.trail
+	} else {
+		sunk.trail = last.trail + " " + p.trail
+	}
+	return append(append([]*fmtNode{}, entries[:len(entries)-1]...), &sunk), true
+}
+
+// Adjacent statements naming one key, whose values are plain maps, are
+// one map: their entries in order, with the comments and blank lines
+// between the statements travelling with the statement they preceded.
+// Only ADJACENT statements merge -- a `server:` line, something else,
+// then another `server:` line stays as it is, because merging them
+// would move a statement, and the formatter never reorders (§3.13).
+// Nor do two statements merge into a map with two spreads: the engine
+// keeps those as a conjunction, which is not the meet of the two maps.
+// The tree is not changed: a merged statement is a new node that keeps
+// the statements it replaces as its `orig`, its spelling before, and a
+// statement merged somewhere below is copied the same way.
+func fmtMergeRuns(body []*fmtNode) []*fmtNode {
+	out := []*fmtNode{}
+	i := 0
+	for i < len(body) {
+		first := body[i]
+		var entries []*fmtNode
+		ok := false
+		if "pair" == first.t {
+			entries, ok = fmtMembers(first)
+		}
+		if !ok {
+			if "pair" == first.t {
+				out = append(out, fmtMergeDeep(first))
+			} else {
+				out = append(out, first)
+			}
+			i++
+			continue
+		}
+		group := []*fmtNode{first}
+		merged := entries
+		carry := []*fmtNode{}
+		j := i + 1
+		for ; j < len(body); j++ {
+			n := body[j]
+			if "comment" == n.t || "blank" == n.t {
+				carry = append(carry, n)
+				continue
+			}
+			var more []*fmtNode
+			mok := false
+			if "pair" == n.t && n.key == first.key && n.opt == first.opt {
+				more, mok = fmtMembers(n)
+			}
+			if !mok || (fmtSpreads(merged) && fmtSpreads(more)) {
+				break
+			}
+			group = append(append(group, carry...), n)
+			merged = append(append(append([]*fmtNode{}, merged...), carry...), more...)
+			carry = []*fmtNode{}
+		}
+		if 1 == len(group) {
+			out = append(out, fmtMergeDeep(first))
+			i++
+			continue
+		}
+		out = append(out, &fmtNode{
+			t: "pair", key: first.key, opt: first.opt,
+			value: &fmtNode{t: "map", body: fmtMergeRuns(merged)}, orig: group,
+		})
+		i = j - len(carry)
+	}
+	return out
+}
+
+func fmtSpreads(entries []*fmtNode) bool {
+	for _, e := range entries {
+		if "spread" == e.t {
+			return true
+		}
+	}
+	return false
+}
+
+// The merge down a statement's plain-map spine: a chain's inner pair,
+// or the entries of a map value, are statements of the map they are
+// in. The statement itself where nothing below it merged.
+func fmtMergeDeep(p *fmtNode) *fmtNode {
+	v := p.value
+	entries, ok := fmtPlainEntries(v)
+	if !ok {
+		return p
+	}
+	body := fmtMergeRuns(entries)
+	same := len(body) == len(entries)
+	for k := 0; same && k < len(body); k++ {
+		same = body[k] == entries[k]
+	}
+	if same {
+		return p
+	}
+	out := *p
+	out.orig = []*fmtNode{p}
+	if "pair" == v.t {
+		out.value = body[0]
+	} else {
+		value := *v
+		value.body = body
+		out.value = &value
+	}
+	return &out
+}
+
+// The lines of a map repeated under a prefix (§3.4, rule 2): every
+// entry written with the prefix in front of it as one line, or --
+// where an entry's value is a map that does not fit -- repeated further
+// under the longer prefix. Comments and blank lines are kept where
+// they stood. False where an entry cannot be one line: a list that
+// does not fit, a value that spans lines, a comment closing the map
+// (which a repeat could not keep in the map) -- and where the map holds
+// two spreads, which repeated would be two maps, and a different meet.
+type fmtLine struct {
+	t    string
+	text string
+}
+
+func fmtRepeatLines(entries []*fmtNode, prefix string, indent int) ([]fmtLine, bool) {
+	spreads := 0
+	for _, e := range entries {
+		if "spread" == e.t {
+			spreads++
+		}
+	}
+	if 0 == len(entries) || "comment" == entries[len(entries)-1].t || 1 < spreads {
+		return nil, false
+	}
+	out := []fmtLine{}
+	for _, e := range entries {
+		if "blank" == e.t {
+			out = append(out, fmtLine{t: "blank"})
+			continue
+		}
+		if "comment" == e.t {
+			out = append(out, fmtLine{t: "comment", text: e.text})
+			continue
+		}
+		trail := ""
+		if "" != e.trail {
+			trail = " " + e.trail
+		}
+		if "spread" == e.t {
+			// The repeated spread entry is a one-entry map holding only a
+			// spread, so by D1's exception it keeps its braces.
+			s, ok := fmtInline(e.value, true)
+			if !ok || !fmtFits(indent, prefix+"{ &: "+s+" }") {
+				return nil, false
+			}
+			out = append(out, fmtLine{t: "text", text: prefix + "{ &: " + s + " }" + trail})
+			continue
+		}
+		head := prefix + fmtPairHead(e, false)
+		if s, ok := fmtInline(fmtChain(e.value), false); ok && fmtFits(indent, head+s) {
+			out = append(out, fmtLine{t: "text", text: head + s + trail})
+			continue
+		}
+		sub, ok := fmtPlainEntries(e.value)
+		if !ok {
+			return nil, false
+		}
+		lines, ok := fmtRepeatLines(sub, head, indent)
+		if !ok {
+			return nil, false
+		}
+		lines[len(lines)-1].text += trail
+		out = append(out, lines...)
+	}
+	return out, true
+}
+
+func fmtFits(indent int, text string) bool {
+	return indent+fmtWidth(text) <= formatBudget
+}
+
+// A pair in statement position, by §3.4. `prefix` is what stands
+// before it on its line: the heads of the chain it hangs from, not yet
+// written. Its value is laid out by §3.5 unless it is a plain map, and
+// then in this order: a chain, when the map holds exactly one pair
+// (D1); one line, when that fits the budget; the key repeated over the
+// entries, when every entry can be one line that way; a braced block
+// otherwise, whose entries are statements in turn. Whether the
+// statement was rewritten by this tier -- merged, or repeated -- is
+// returned, and the outermost such statement is checked: its spelling
+// on the page against what the syntactic tier writes for the
+// statements it came from, at the same indentation, which is what
+// stays on the page when the check fails.
+func fmtEmitStatement(w *fmtWriter, p *fmtNode, indent int, stmt *fmtStmt, prefix string) bool {
+	mark := w.mark()
+	rewritten := nil != p.orig
+	entries, plain := fmtPlainEntries(p.value)
+	head := prefix + fmtPairHead(p, false)
+	s, one := "", false
+	if plain {
+		s, one = fmtInline(p.value, false)
+	}
+	switch {
+	case !plain:
+		w.text(prefix)
+		fmtEmitValue(w, p, indent)
+	case 1 == len(entries) && "pair" == entries[0].t:
+		inner := fmtEmitStatement(w, entries[0], indent, &fmtStmt{meet: stmt.meet, covered: true}, head)
+		rewritten = inner || rewritten
+	case one && fmtFits(indent, head+s):
+		w.text(head + s)
+	default:
+		lines, ok := fmtRepeatLines(entries, head, indent)
+		if !ok {
+			w.text(head)
+			fmtEmitBlock(w, "{", "}", p.value, indent,
+				&fmtStmt{meet: stmt.meet, covered: stmt.covered || rewritten})
+			break
+		}
+		pending := false
+		count := 0
+		for _, line := range lines {
+			if "blank" == line.t {
+				pending = 0 < count
+				continue
+			}
+			if 0 < count {
+				w.open(indent, pending)
+			}
+			pending = false
+			count++
+			w.text(line.text)
+		}
+		rewritten = true
+	}
+	if "" != p.trail {
+		w.text(" " + p.trail)
+	}
+	if rewritten && !stmt.covered {
+		orig := p.orig
+		if nil == orig {
+			orig = []*fmtNode{p}
+		}
+		before := fmtEmitAt(orig, indent)
+		if !stmt.meet(before, w.since(mark)) {
+			w.replace(mark, before)
+		}
+	}
+	return rewritten
+}
+
+// The syntactic tier's spelling of some statements at an indentation:
+// a rewrite's spelling before.
+func fmtEmitAt(nodes []*fmtNode, indent int) string {
 	w := &fmtWriter{}
-	fmtEmitBody(w, root, 0)
+	fmtEmitBody(w, nodes, indent, nil)
+	return w.finish()
+}
+
+// The document: by the syntactic tier alone, or with the lawful tier
+// over it when given its check.
+func fmtEmit(root []*fmtNode, meet fmtMeet) string {
+	w := &fmtWriter{}
+	if nil == meet {
+		fmtEmitBody(w, root, 0, nil)
+	} else {
+		fmtEmitBody(w, fmtMergeRuns(root), 0, &fmtStmt{meet: meet})
+	}
 	return w.finish()
 }
 
@@ -959,6 +1415,61 @@ var formatSame = formatSameDocument
 func formatSameDocument(root Val, after string) bool {
 	v, err := formatParse(after, "", nil)
 	return nil == err && root.Canon() == v.Canon()
+}
+
+// The check of a lawful rewrite: the spelling before and the spelling
+// after, evaluated in isolation, come to the same canon, the same
+// kinds of failure, and the same outcome of generation (§7.3). Local,
+// so it needs no include and no capability, and it applies whether or
+// not the document as a whole evaluates. The kinds, not the count: how
+// often one unresolved reference is reported depends on the order the
+// meet took. Generation too, because the engine generates from more
+// than the canon: a meet of maps with a nil member has refused a key
+// the same map written once generates. A package variable so the
+// spelling before it keeps can be exercised.
+var formatMeet = formatSameByMeet
+
+func formatSameByMeet(before, after string) bool {
+	return formatMeetOf(before) == formatMeetOf(after)
+}
+
+func formatMeetOf(text string) string {
+	v, perr := formatParse(text, "", nil)
+	if nil != perr { //coverage:ignore a spelling the formatter wrote that does not parse is its defect, and the syntactic check catches those first
+		return "\nsyntax"
+	}
+	res, ctx, err := (&Aontu{}).unifyCtx(v, nil, text)
+	kinds := formatKinds(ctx.err)
+	// The outcome of generation, as GenerateVars decides it: the kinds
+	// of a unification that failed; a nil root's own kind; else the
+	// first refusal of generation or of the relation verdict.
+	outcome := "generated"
+	switch {
+	case nil != err:
+		outcome = kinds
+	case res.Nil():
+		outcome = res.(*NilVal).why
+	default:
+		if _, gerr := res.Gen(ctx); nil != gerr {
+			outcome = gerr.(*AontuError).Code
+		} else if rerr := relationErrors(ctx, res); nil != rerr {
+			outcome = rerr.(*AontuError).Code
+		}
+	}
+	return res.Canon() + "\n" + kinds + "\n" + outcome
+}
+
+func formatKinds(errs []*NilVal) string {
+	whys := []string{}
+	seen := map[string]bool{}
+	for _, e := range errs {
+		if !seen[e.why] {
+			seen[e.why] = true
+			whys = append(whys, e.why)
+		}
+	}
+	sort.Strings(whys)
+	return strings.Join(whys, ",")
 }
 
 func formatDepthFinding() VetFinding {
@@ -1014,13 +1525,17 @@ func (a *Aontu) Format(src string) FormatReport {
 	if rd.deep {
 		return FormatReport{Verdict: "error", Errors: []VetFinding{formatDepthFinding()}}
 	}
-	out := fmtEmit(fmtUnwrap(body))
-	if !formatSame(root, out) {
+	// The syntactic tier first, checked against the parse tree; then
+	// the lawful tier over it, each rewrite checked by the meet.
+	tree := fmtUnwrap(body)
+	plain := fmtEmit(tree, nil)
+	if !formatSame(root, plain) {
 		return FormatReport{
 			Verdict: "error",
-			Errors:  []VetFinding{formatCheckFinding(a.File, root.Canon(), out)},
+			Errors:  []VetFinding{formatCheckFinding(a.File, root.Canon(), plain)},
 		}
 	}
+	out := fmtEmit(tree, formatMeet)
 	return FormatReport{Verdict: "formatted", Text: out, Changed: out != src}
 }
 

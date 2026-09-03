@@ -17,16 +17,16 @@
           "file": "proposals/default-change.aon",
           "len": 1,
           "role": "general",
-          "row": 14,
+          "row": 21,
           "src": "*",
           "value": "*true|boolean"
         },
         {
-          "col": 16,
+          "col": 30,
           "file": "profile-v2.aon",
           "len": 1,
           "role": "specific",
-          "row": 41,
+          "row": 40,
           "src": "*",
           "value": "*false|boolean"
         }

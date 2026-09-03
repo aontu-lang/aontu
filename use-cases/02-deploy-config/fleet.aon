@@ -5,24 +5,8 @@
 # Hidden: the catalog is an input, not deployment output.
 
 fleet: hide({
-  web: {
-    tier: frontend
-    port: 8080
-    critical: false
-  }
-  auth: {
-    tier: backend
-    port: 8081
-    critical: true
-  }
-  billing: {
-    tier: backend
-    port: 8082
-    critical: true
-  }
-  reports: {
-    tier: batch
-    port: 8083
-    critical: false
-  }
+  web: { tier:frontend port:8080 critical:false }
+  auth: { tier:backend port:8081 critical:true }
+  billing: { tier:backend port:8082 critical:true }
+  reports: { tier:batch port:8083 critical:false }
 })

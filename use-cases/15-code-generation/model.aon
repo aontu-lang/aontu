@@ -19,20 +19,20 @@
 records: [
   {
     name: "Customer"
-    sql:  "customer"
+    sql: "customer"
     fields: [
-      {n: "id",     t: "string",  req: true,  go: "ID",     sql: "id"}
-      {n: "email",  t: "string",  req: false, go: "Email",  sql: "email"}
-      {n: "credit", t: "integer", req: false, go: "Credit", sql: "credit_cents"}
+      { n:"id" t:"string" req:true go:"ID" sql:"id" }
+      { n:"email" t:"string" req:false go:"Email" sql:"email" }
+      { n:"credit" t:"integer" req:false go:"Credit" sql:"credit_cents" }
     ]
   }
   {
     name: "Order"
-    sql:  "order_line"
+    sql: "order_line"
     fields: [
-      {n: "id",         t: "string",  req: true, go: "ID",         sql: "id"}
-      {n: "customerId", t: "string",  req: true, go: "CustomerID", sql: "customer_id"}
-      {n: "totalCents", t: "integer", req: true, go: "TotalCents", sql: "total_cents"}
+      { n:"id" t:"string" req:true go:"ID" sql:"id" }
+      { n:"customerId" t:"string" req:true go:"CustomerID" sql:"customer_id" }
+      { n:"totalCents" t:"integer" req:true go:"TotalCents" sql:"total_cents" }
     ]
   }
 ]

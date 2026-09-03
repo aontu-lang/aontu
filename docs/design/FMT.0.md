@@ -1,6 +1,6 @@
 # aontu fmt — the agreed form of Aontu source
 
-**Status:** ACCEPTED for implementation, 2026-09-03. P1 LANDED 2026-09-03 (§7.7); P2–P4 are not built.
+**Status:** ACCEPTED for implementation, 2026-09-03. P1 LANDED 2026-09-03 (§7.7); P2 LANDED 2026-09-03 (§7.8); P3–P4 are not built.
 yet. The open questions of §11 were put to the owner the day the note
 was written: X-1, X-2, X-3, X-5 and X-6 decided as recommended, X-7
 decided *against* the recommendation (a spread-only map keeps its
@@ -632,16 +632,21 @@ and it always applies, conflict or not.
 
 **Lawful rewrites** — the split and the merge of §3.4 — change the
 tree and rely on the meet. Each is checked where it happens: the map
-that was split, and the statements it became, are unified in isolation
-and their canons compared. Local, so it needs no include and no
-capability, and it applies whether or not the document as a whole
-evaluates. The whole-document `aontu hash` equality of P2 is then a
-property of the test suite (§7.4) rather than a runtime check, because
-a document that does not evaluate has no hash to compare.
+that was split, and the statements it became, are evaluated in
+isolation, and their canons, the kinds of failure they collect, and
+the outcome of generating them are compared. Local, so it needs no
+include and no capability, and it applies whether or not the document
+as a whole evaluates. The whole-document `aontu hash` equality of P2
+is then a property of the test suite (§7.4) rather than a runtime
+check, because a document that does not evaluate has no hash to
+compare.
 
-A check that fails is a formatter bug. The verb reports it as one,
-writes nothing, and exits 4 with the two spellings in the message, so
-the report writes itself.
+A check that fails is not a formatter bug, and it is not a refusal
+(amended in P2, §7.8): the statement keeps its syntactic spelling. The
+check is the engine's agreement that the two spellings are one
+document, and the engine's own repros hold maps whose two spellings it
+evaluates differently. The formatter never writes a spelling its
+engine evaluates differently; it does not fix the engine.
 
 ### 7.4 The shared spec
 
@@ -676,7 +681,7 @@ non-adjacent repeat not merged, a number not rewritten.
 |---|---|---|
 | **P0** — the decisions | this note reviewed; §11 answered or deferred explicitly | — |
 | **P1** — layout | the verb in both ports with the syntactic rewrites only: §3.1–3.3, 3.5–3.13; `fmt.tsv`; the corpus idempotence gate; `--write`, `--list`, `--check`, `--diff`. **LANDED 2026-09-03** — `ts/src/format.ts`, `go/format.go`, `test/spec/fmt.tsv` (103 rows); the amendments are in §7.7 | M |
-| **P2** — the lawful tier | §3.4 split and merge, with the local unification check; rows for every exclusion; the use-case tree formatted and `run-all.sh` green | M |
+| **P2** — the lawful tier | §3.4 split and merge, with the local unification check; rows for every exclusion; the use-case tree formatted and `run-all.sh` green. **LANDED 2026-09-03** — `fmt.tsv` at 147 rows, the tree formatted (174 files); the amendments are in §7.8 | M |
 | **P3** — the documentation | every fence formatted and gated; STYLE-GUIDE adopts the form; a how-to, *Format a document*; a reference section, *The formatted form*, published from this note's §3 | M |
 | **P4** — lint | `--lint`, `style/key-case`, `style/repeat`, `--strict` | S/M |
 
@@ -705,7 +710,9 @@ departs from the note. Each is pinned by a row of `fmt.tsv`.
   wide when each has a one-line form (the never-break rule); and a
   block, `type(` / one argument per line / `)`, when an argument is
   itself several lines — a disjunction of closed shapes, a comment
-  among the arguments. The same for a parenthesis.
+  among the arguments. The same for a parenthesis. *Amended in P2
+  (§7.8): the never-break rule for arguments holding a container is
+  withdrawn, and the hug is the last argument's.*
 - **A spread is padded inside braces**, `{ &: integer }`, where a pair
   is tight, `{ a:1 }`: the marker reads as a marker and not as a key,
   and it is how every example in this note and in the use cases writes
@@ -743,6 +750,78 @@ departs from the note. Each is pinned by a row of `fmt.tsv`.
   files, 396 formatted, the 4 that do not parse refused for their
   syntax) and every Aontu fence in the documentation (263) format to a
   fixed point, in both ports; 100 % coverage in both.
+
+### 7.8 P2 as landed
+
+The lawful tier of §3.4, in both ports, and what building it over the
+corpus settled. Each is pinned by a row of `fmt.tsv` or by a case in
+`ts/test/format.test.ts` and `go/format_test.go`.
+
+- **The check is the engine's agreement, and failing it keeps the
+  spelling before** (§7.3, amended). Formatting the use cases found
+  two documents whose two spellings the engine evaluates differently
+  — `use-cases/BUGS.md` §75 (a spread template's `key()` through a
+  reference, TypeScript only) and §76 (a key reaching a map through
+  the meet of two statements is an *expectation*, as a spread's key
+  is, in both ports). A refusal would make those files unformattable
+  for an engine defect; instead the statement stays as the syntactic
+  tier wrote it, which is a fixed point too. §75 is the one file in
+  the repository the two ports format differently, by design of the
+  check: each port defers to its own engine.
+- **The check compares generation as well as the meet.** §76 showed
+  the engine generating from more than the canon: the same canon, and
+  a key refused in one spelling. So the check compares the canon, the
+  kinds of failure collected (kinds, not counts — one unresolved
+  reference is reported once by a block and once per key it reaches
+  by the statements), and the outcome of generation: generated, or
+  the first refusal.
+- **Two spreads never share a map.** `s: { &: A }` / `s: { &: B }`
+  stays two statements, and a map holding two spreads keeps its
+  braces however wide: the engine keeps two spread entries as a
+  conjunction, whose canon is not the meet of the two maps.
+- **A trailing comment travels onto the last entry** of the statement
+  it closed when statements merge (`s: { a: 1 } # x` / `s: b: 2` is
+  `s: a: 1 # x` / `s: b: 2`), and a statement whose comment has no
+  entry to sit on (`s: {} # x`) does not merge. Comments and blank
+  lines *between* merged statements stay between the entries, in the
+  merged map's block or between the repeated lines. A map whose last
+  entry is a comment keeps its braces: the repeat has nowhere to put
+  the comment that keeps it in the map.
+- **Two `fmt.tsv` rows moved.** `fmt-repeat-not-merged` became
+  `fmt-merge-adjacent` (`s: a: 1` / `s: b: 2` is `s: { a:1 b:2 }`
+  now), and `fmt-comment-holds-block-open` became
+  `fmt-comment-first-entry-repeats`: a comment before a map's first
+  entry is repeated with it, as any other entry is.
+- **The repeat is checked once, at the outermost statement it
+  rewrites**, chain heads included: `a: b: { c: 1, d: 2 }` too wide is
+  `a: b: c: 1` / `a: b: d: 2`, and the check compares the whole
+  statement, at its indentation.
+- **Calls, amended.** Formatting the corpus under the never-break rule
+  for arguments produced lines of 200 to 500 columns —
+  `hide(pack($.schema, { d: { … } }))` on one line — so the rule now
+  holds only for *flat* arguments, none of which holds a container: a
+  scalar is no narrower on a line of its own. Otherwise the last
+  argument hugs the parentheses when it is a container, an expression
+  the author did not break that ends in one, or a call whose own last
+  argument hugs — `close($.E & {` … `})`, `type(close({` … `}))`, the
+  schema idiom — and the arguments before it fit on the opener's line;
+  and the call is a block, one argument per line, when none of that
+  holds. `match(.plan, free, close({…}), …)` too wide is a block of
+  seven lines, one argument each: the pairing the author drew with
+  alignment is not a thing a formatter knows.
+- **Separators, amended (§3.6, X-3).** The author's separators in a
+  call are kept — a comma stays a comma, a space stays a space —
+  rather than spaces normalised to commas. The parser reads
+  `must((v) => 0 <= v, "not negative")` as a run of six arguments, and
+  the normalised `must((v), =>, 0, <=, v, "not negative")` is the same
+  tree and no predicate anyone can read. In a block, a comma follows an
+  argument only where the author wrote one.
+- **The gates as landed:** 147 `fmt.tsv` rows; the 400-file corpus and
+  the 263 fences at a fixed point in both ports; the use-case tree
+  formatted in place (174 files changed, the generated `mod-lock.aon`
+  and the repro register left as written) with `run-all.sh` green and
+  the source positions its checks and READMEs quote moved with the
+  text; 100 % coverage in both.
 
 ## 8. Parity and determinism
 
@@ -797,13 +876,20 @@ for function, and `test/spec/fmt.tsv` is what they must agree on.
   from evidence. **Decided 2026-09-03: no cap.**
 - **X-3 — Commas in calls.** Keep them (§3.6) or drop them for
   consistency with maps and lists? Recommendation: keep. **Decided
-  2026-09-03: keep.**
+  2026-09-03: keep.** P2 narrowed it: a comma the author wrote is
+  kept, and one the author did not write is not added (§7.8), because
+  a predicate's tokens are arguments to the parser.
 - **X-4 — The lawful tier's edges.** Spreads and optional keys are
   probed equal and included; a map holding an alias *declaration* is
   root-only and never nested, so it does not arise; a map whose
   repeated key carries a `?` on one line and not another cannot be
   produced by the formatter. Anything else? Recommendation: P2 lands
-  with exactly the probed set and a row per exclusion.
+  with exactly the probed set and a row per exclusion. **Landed
+  2026-09-03 so:** the exclusions are a map with two spreads, one
+  holding an include, one with a comment on its opener or as its last
+  entry, and a statement whose trailing comment has no entry to sit
+  on, each with its row; and two edges the probes did not reach, which
+  the check found and the engine owns (§7.8, BUGS.md §75 and §76).
 - **X-5 — `style/repeat`.** Worth building, and at what size threshold?
   Recommendation: defer to P4 and decide with the first three lint
   rules' reception. **Decided 2026-09-03: build it in P4, advisory

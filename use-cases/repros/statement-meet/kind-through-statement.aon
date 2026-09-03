@@ -1,0 +1,22 @@
+# 76 (the generation face): a non-generable key that reaches a map
+# through the meet of two statements is refused as spread-required
+# residue, where the same key written in the map is ordinary residue
+# -- and the jsonschema export reads the two differently. Both ports.
+#
+# run: node ../../../ts/bin/aontu.js kind-through-statement.aon
+# run: aontu-go kind-through-statement.aon
+# run: node ../../../ts/bin/aontu.js jsonschema --at r kind-through-statement.aon
+#
+# expected: [aontu/mapval_no_gen] at $.r.t, as `r: { t: must(1, "m"),
+#   a: bigdecimal }` gives; and `jsonschema --at r` exporting `a` as
+#   {"type": "number"}, as it does for the braced spelling.
+#
+# actual (both ports): [aontu/mapval_spread_required] at $.r.a --
+#   "Cannot unify value: bigdecimal with value: nil" -- and the export
+#   gives `a` as {} with a loss, "unresolved: this is not a value yet".
+#
+# The formatter's check (FMT.0.md §7.3) compares generation as well as
+# the meet since this was found, so `aontu fmt` keeps the braced
+# spelling of such a map.
+r: { t: must(1, "m") }
+r: a: bigdecimal

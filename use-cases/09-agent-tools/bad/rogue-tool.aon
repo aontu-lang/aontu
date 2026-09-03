@@ -7,7 +7,7 @@ tools: audit_log: {
   description: "Query the audit log for a principal over a time range."
   side_effect: readonly
   requires_approval: false
-  rate_limit: { per_minute: 30, burst: 5 }
+  rate_limit: { per_minute:30 burst:5 }
   allowed_roles: [admin]
   timeout_ms: 10000
   owner: "sec-ops@corp.example"

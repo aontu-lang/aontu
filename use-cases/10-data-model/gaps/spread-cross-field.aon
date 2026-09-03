@@ -12,5 +12,5 @@ invoices: {
     taxCents: integer
     grossCents: integer & must(.netCents + .taxCents, "gross != net + tax")
   }
-  "inv-9001": { netCents: 100, taxCents: 19, grossCents: 119 }
+  "inv-9001": { netCents:100 taxCents:19 grossCents:119 }
 }

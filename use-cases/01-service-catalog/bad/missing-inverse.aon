@@ -6,6 +6,6 @@
 # missing entry.
 @"../system.aon"
 
-catalog: domains: platform: services: email: {
-  dependsOn: [path($.catalog.domains.identity.services.directory)]
-}
+catalog: domains: platform: services: email: dependsOn: [
+  path($.catalog.domains.identity.services.directory)
+]

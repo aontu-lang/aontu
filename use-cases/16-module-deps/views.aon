@@ -18,14 +18,9 @@
 # over every one of them: a misspelled option, a kind that is not a
 # kind, an order that is not an order is refused HERE, at evaluation,
 # rather than by the verb that reads this file afterwards.
-views: {&: $.view.Figure} & {
-
+views: { &: $.view.Figure } & {
   # The dependency tree: three derived roots, repeats marked.
-  tree: {
-    kind: tree
-    relation: dependsOn
-    out: "expected/diagram-tree.txt"
-  }
+  tree: { kind:tree relation:dependsOn out:"expected/diagram-tree.txt" }
   treeSvg: {
     kind: tree
     relation: dependsOn

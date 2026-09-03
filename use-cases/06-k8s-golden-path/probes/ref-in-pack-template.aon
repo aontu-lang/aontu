@@ -6,5 +6,5 @@
 # a NaN key) and failed with [aontu/no_path].  Golden:
 # expected/ref-in-pack-template.json (cpu "250m" per child).  Shared
 # spec pin: test/spec/gen-pack.tsv pack-rel-ref-in-expr.
-names: [web, auth]
-deploy: pack($.names, { cpu_m: 250, cpu: .cpu_m + "m" })
+names: [web auth]
+deploy: pack($.names, { cpu_m:250 cpu:.cpu_m + "m" })

@@ -2,6 +2,6 @@
 # only adds information; null is a value, not a deletion, so writing
 # null over a boolean is [aontu/scalar_kind].  There is no deletion
 # operator (README, "Layer subtraction").
-base: { web: { tracing: true, port: 8080 } }
+base: web: { tracing:true port:8080 }
 override: removes: nothing
 base: web: tracing: null

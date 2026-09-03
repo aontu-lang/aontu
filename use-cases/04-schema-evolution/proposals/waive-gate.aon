@@ -3,15 +3,22 @@
 # Because the breaking verb reads $.aontu_policy.compat from the NEW
 # document, the artifact under review waives its own gate; CI must
 # pass --mode explicitly.  See README "Gaps".
-aontu_policy: hide({compat: "none"})
+aontu_policy: hide({ compat:"none" })
 profile: close({
   id: string & re("^C[0-9]{7}$")
   email: string & re("^[^@ ]+@[^@ ]+[.][^@ ]+$")
   name: string & length(min(1))
-  phone?: deprecate(string, {msg: "free-form phone is unvalidated; write E.164 to contact.phone", use: "$.profile.contact.phone", since: "2.0.0"})
-  contact?: close({phone?: string & re("^[+][0-9]{7,15}$"), verified: *false | boolean})
+  phone?: deprecate(string, {
+    msg: "free-form phone is unvalidated; write E.164 to contact.phone"
+    use: "$.profile.contact.phone"
+    since: "2.0.0"
+  })
+  contact?: close({
+    phone?: string & re("^[+][0-9]{7,15}$")
+    verified: *false | boolean
+  })
   locale?: string & re("^[a-z][a-z](?:-[A-Z][A-Z])?$")
   loyalty: integer & min(0)
   tier: "standard" | "premium" | "enterprise"
-  consent: close({marketing: *false | boolean, analytics: *false | boolean})
+  consent: close({ marketing:*false | boolean analytics:*false | boolean })
 })

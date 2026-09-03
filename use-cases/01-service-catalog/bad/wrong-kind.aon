@@ -5,9 +5,7 @@
 @"std/system"
 std: hide({})
 
-infra: paydb: {kind: database}
+infra: paydb: kind: database
 
-app: ledger: {
-  kind: service
-  dependsOn: [&: refer($.std.Service), path($.infra.paydb)]
-}
+app: ledger: kind: service
+app: ledger: dependsOn: [&: refer($.std.Service) path($.infra.paydb)]

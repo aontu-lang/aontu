@@ -4,7 +4,5 @@
 # `aontu relations` reports the same finding.
 @"../model.aon"
 
-pipeline: jobs: {
-  load:    { feeds: [path($.pipeline.jobs.extract)] }
-  extract: { fedBy: [path($.pipeline.jobs.load)] }
-}
+pipeline: jobs: load: feeds: [path($.pipeline.jobs.extract)]
+pipeline: jobs: extract: fedBy: [path($.pipeline.jobs.load)]

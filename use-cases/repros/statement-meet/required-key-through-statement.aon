@@ -1,0 +1,20 @@
+# 76: a key that reaches a map through the meet of two STATEMENTS is
+# recorded as an expectation, as a spread template's key is, so the
+# residue of a missing field names a spread that exists nowhere. Both
+# ports.
+#
+# run: printf '{"a": "x"}' > cand.json; node ../../../ts/bin/aontu.js vet --at '$.S' --closed required-key-through-statement.aon cand.json
+# run: printf '{"a": "x"}' > cand.json; aontu-go vet --at '$.S' --closed required-key-through-statement.aon cand.json
+#
+# expected: [aontu/mapval_required] for the missing `b`, as the same
+#   schema written as one map gives -- `S: { a: string, b: integer }`.
+#
+# actual (both ports): [aontu/mapval_spread_required] -- "The value
+#   for key b is required (defined in spread)". No spread is written.
+#
+# Found by `aontu fmt` (docs/design/FMT.0.md P2), whose agreed form
+# writes a map that does not fit on one line as one statement per
+# entry: use-cases/08-feature-flags/flag-schema.aon's `Flag` took this
+# shape and its check pins the code that came with it.
+S: a: string
+S: b: integer

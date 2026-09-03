@@ -11,7 +11,7 @@
 # The policy still declares backward: the promise applies within the
 # v3 line.  CI switches the --against target to v3 ancestors once v3
 # is adopted.
-aontu_policy: hide({compat: *backward | forward | full | none})
+aontu_policy: hide({ compat:*backward | forward | full | none })
 
 profile: close({
   id: string & re("^C[0-9]{7}$")
@@ -33,8 +33,5 @@ profile: close({
 
   tier: "standard" | "premium" | "enterprise"
 
-  consent: close({
-    marketing: *false | boolean
-    analytics: *false | boolean
-  })
+  consent: close({ marketing:*false | boolean analytics:*false | boolean })
 })

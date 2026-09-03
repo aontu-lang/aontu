@@ -2,12 +2,12 @@
 #
 # The language has no clock: `today` is data, stamped by CI (or moved
 # through the overlay like any other value).
-clock: { today: "2026-08-26" }
+clock: today: "2026-08-26"
 
 defs: hide({
   # An expired flag that is still concretely enabled.  filter() keeps
   # exactly the children this condition already holds for.
-  Zombie: { expiry: below($.clock.today), enabled: true }
+  Zombie: { expiry:below($.clock.today) enabled:true }
 })
 
 # RULE: expired flags must be disabled -- in the catalog and in every
@@ -21,26 +21,26 @@ defs: hide({
 # switched on by a **rank default alone evades it (README, "Gaps").
 # Every `aontu set` writes a concrete literal, so the WRITE PATH is
 # fully guarded; hand-edits to the env layer are not.
-policy: lifecycle: {
-  &: must(close({}), "expired flags must be disabled")
-  catalog: filter($.flags, $.defs.Zombie)
-  staging: filter($.effective.staging.base, $.defs.Zombie)
-  prod: filter($.effective.prod.base, $.defs.Zombie)
-  prod_megacorp: filter($.effective.prod.megacorp, $.defs.Zombie)
-}
+policy: {
+  lifecycle: { &: must(close({}), "expired flags must be disabled") }
+  lifecycle: catalog: filter($.flags, $.defs.Zombie)
+  lifecycle: staging: filter($.effective.staging.base, $.defs.Zombie)
+  lifecycle: prod: filter($.effective.prod.base, $.defs.Zombie)
+  lifecycle: prod_megacorp: filter($.effective.prod.megacorp, $.defs.Zombie)
 
-# RULE: rollout stays within 0..100.  The catalog cannot carry
-# `integer & min(0) & max(100)` on the field itself: a constraint
-# meeting a ranked default in a conjunct does not resolve, and the
-# disjunct form loses rank arbitration through references (README,
-# "Gaps").  So the range rides here as an audit over concrete pins --
-# which is exactly what every `aontu set` writes.
-policy: rollout_range: {
-  &: must(close({}), "rollout must be an integer in 0..100")
-  catalog_high: filter($.flags, { rollout: above(100) })
-  catalog_low: filter($.flags, { rollout: below(0) })
-  staging_high: filter($.effective.staging.base, { rollout: above(100) })
-  staging_low: filter($.effective.staging.base, { rollout: below(0) })
-  megacorp_high: filter($.effective.prod.megacorp, { rollout: above(100) })
-  megacorp_low: filter($.effective.prod.megacorp, { rollout: below(0) })
+  # RULE: rollout stays within 0..100.  The catalog cannot carry
+  # `integer & min(0) & max(100)` on the field itself: a constraint
+  # meeting a ranked default in a conjunct does not resolve, and the
+  # disjunct form loses rank arbitration through references (README,
+  # "Gaps").  So the range rides here as an audit over concrete pins --
+  # which is exactly what every `aontu set` writes.
+  rollout_range: {
+    &: must(close({}), "rollout must be an integer in 0..100")
+    catalog_high: filter($.flags, { rollout:above(100) })
+    catalog_low: filter($.flags, { rollout:below(0) })
+    staging_high: filter($.effective.staging.base, { rollout:above(100) })
+    staging_low: filter($.effective.staging.base, { rollout:below(0) })
+    megacorp_high: filter($.effective.prod.megacorp, { rollout:above(100) })
+    megacorp_low: filter($.effective.prod.megacorp, { rollout:below(0) })
+  }
 }

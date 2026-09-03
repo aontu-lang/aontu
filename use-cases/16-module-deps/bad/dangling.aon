@@ -4,8 +4,4 @@
 # does not exist is never a thing to discover later.
 @"../model.aon"
 
-mods: {
-  clock: {
-    dependsOn: [path($.mods.tracing)]
-  }
-}
+mods: clock: dependsOn: [path($.mods.tracing)]

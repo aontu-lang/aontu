@@ -1,4 +1,4 @@
 # No internal refs, so any failure is the store layout's, not the
 # reference model's.
 @"corp.example/schemas/common@1"
-spec: { name: string, port: *8080 | integer }
+spec: { name:string port:*8080 | integer }

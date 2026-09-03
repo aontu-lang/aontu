@@ -18,10 +18,7 @@
 # type() keeps the map out of generated output while it still
 # constrains; the export reads straight through the mark.
 
-registry: {
-  platform: hermes
-  version: "1.0.0"
-}
+registry: { platform:hermes version:"1.0.0" }
 
 # The set of tool names is this map's key set, and every map is
 # closed, so a hallucinated argument is a refusal on the Aontu side
@@ -29,7 +26,6 @@ registry: {
 # carry no '*' default: a guardrail enum must force every caller to
 # choose (09's README, gap 1).
 argschemas: type(close({
-
   search_docs: close({
     query: string & length(min(1) & max(256))
     limit?: integer & min(1) & max(50)

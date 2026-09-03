@@ -4,4 +4,4 @@
 # worth a fixture: a silent drop looks like success. README, gap 6;
 # shared spec pin: test/spec/file.tsv load-alias-spread.
 @"./vocab.aon"
-customers: "cust-1001": { ledgerId: 5, name: "Acme" }
+customers: "cust-1001": { ledgerId:5 name:"Acme" }

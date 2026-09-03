@@ -10,7 +10,5 @@
 # `verdict: error` for a document that does not stand up.
 @"../system.aon"
 
-infra: {
-  bastion: { kind: host, name: "bastion-eu1" }
-  runner: { hostedOn: rel($.std.Service) & [path($.infra.bastion)] }
-}
+infra: bastion: { kind:host name:"bastion-eu1" }
+infra: runner: hostedOn: rel($.std.Service) & [path($.infra.bastion)]

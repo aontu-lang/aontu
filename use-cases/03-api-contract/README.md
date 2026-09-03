@@ -153,7 +153,7 @@ both spellings.
    file and the pin.
 6. `why '$.msg.CreateUserRequest.email'` traces the requirement to
    `messages.aon` (the `$.types.Email` reference at
-   `messages.aon:9:12`, then the pattern at `types.aon:15:10`).
+   `messages.aon:8:12`, then the pattern at `types.aon:14:10`).
 7. A well-formed `CreateUserRequest` candidate is `verdict: valid`,
    exit 0.
 8. Wrong types (`"name": 42`, `"send_invite": "true"`) are refused,
@@ -169,7 +169,7 @@ both spellings.
     $.msg.CreateUserRequest.role: empty [conflict]
       [aontu/empty]: Cannot unify values at path $.msg.CreateUserRequest.role
       data: data/create-user-subtle.json:4:11 ("owner")
-      schema: types.aon:35:15 ("admin"|"member"|"viewer")
+      schema: types.aon:34:9 ("admin"|"member"|"viewer")
     ```
 
 10. A missing `name` is `verdict: incomplete`, exit 3, with
@@ -180,7 +180,7 @@ both spellings.
     ```
     $.msg.CreateUserRequest.name: mapval_required [incomplete]
       [aontu/mapval_required]: Cannot resolve value at path $.msg.CreateUserRequest.name
-      schema: types.aon:29:25 (string&length(integer&min(1)&max(80)))
+      schema: types.aon:28:25 (string&length(integer&min(1)&max(80)))
     ```
 
 11. A missing `role`, a required enum, is `incomplete` too, exit 3:

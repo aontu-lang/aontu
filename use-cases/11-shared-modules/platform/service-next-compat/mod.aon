@@ -1,6 +1,2 @@
 # Candidate patch release: compatible widening only.
-mod: {
-  path: "corp.example/schemas/service"
-  version: "1.4.3"
-  main: "service.aon"
-}
+mod: { path:"corp.example/schemas/service" version:"1.4.3" main:"service.aon" }

@@ -13,8 +13,5 @@ srv: {
   }
   # Defaults exercised: port/replicas/tier/healthcheck all come from
   # the module's *prefs.
-  "gift-cards": $.lib.spec & {
-    name: "gift-cards"
-    owner: "promo@corp.example"
-  }
+  "gift-cards": $.lib.spec & { name:"gift-cards" owner:"promo@corp.example" }
 }

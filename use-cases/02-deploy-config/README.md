@@ -149,18 +149,18 @@ than its value.
   ```
   $ aontu why '$.defs.workload.logLevel' stack.aon
   $.defs.workload.logLevel = **"debug"|***"info"|string
-    1. ***"info"|string  .../org-policy.aon:33:15
-    2. **"debug"|string  .../team-defaults.aon:15:27
+    1. ***"info"|string  .../org-policy.aon:31:15
+    2. **"debug"|string  .../team-defaults.aon:12:28
 
   $ aontu why '$.deploy.dev.workloads.web.logLevel' stack.aon
   $.deploy.dev.workloads.web.logLevel = **"debug"|***"info"|string
-    1. **"debug"|***"info"|string  .../team-defaults.aon:15:27
+    1. **"debug"|***"info"|string  .../team-defaults.aon:12:28
 
   $ aontu why '$.deploy.prod.workloads.billing.replicas' stack.aon
   $.deploy.prod.workloads.billing.replicas = 12
-    1. *4|integer  .../envs/prod.aon:11:13  (spread)
-    2. 12  .../envs/prod.aon:18:13
-    3. ***2|integer  .../org-policy.aon:32:15
+    1. *4|integer  .../envs/prod.aon:12:15  (spread)
+    2. 12  .../envs/prod.aon:18:22
+    3. ***2|integer  .../org-policy.aon:30:15
   ```
 
   A value that reached a generated path by being copied is reported as

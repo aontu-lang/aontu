@@ -11,7 +11,4 @@
 # registry.aon cleanly generable.
 @"registry.aon"
 
-guard: pack($.argschemas, close({
-  tool: key()
-  arguments: _
-}))
+guard: pack($.argschemas, close({ tool:key() arguments:_ }))

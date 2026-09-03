@@ -2,4 +2,4 @@
 # ([aontu/empty]) -- but the default is gone, so this file no longer
 # evaluates on its own (generation fails on the open disjunction).
 # Enforcement and a default are mutually exclusive today.
-invite: { role: path($.roles.member) | admin | owner }
+invite: role: path($.roles.member) | admin | owner

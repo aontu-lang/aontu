@@ -11,7 +11,7 @@
 # keyed only on the reference silently passes (see README,
 # "Stale references under vet").
 Entitlement: type(
-    close({ plan: "free",       sso: false,   scim: false,   auditLog: false })
-  | close({ plan: "pro",        sso: boolean, scim: false,   auditLog: boolean })
-  | close({ plan: "enterprise", sso: boolean, scim: boolean, auditLog: true })
+  close({ plan:"free" sso:false scim:false auditLog:false })
+  | close({ plan:"pro" sso:boolean scim:false auditLog:boolean })
+  | close({ plan:"enterprise" sso:boolean scim:boolean auditLog:true })
 )

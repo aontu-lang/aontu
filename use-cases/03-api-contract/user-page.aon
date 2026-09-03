@@ -13,7 +13,7 @@
 # merges the mark on so this file's root is purely the page shape.
 entities: hide({})
 
-items:     [ &: $.entities.User ]
-page:      $.types.Page
+items: [&: $.entities.User]
+page: $.types.Page
 page_size: $.types.PageSize
-total:     integer & min(0)
+total: integer & min(0)

@@ -47,8 +47,8 @@ schema: {
     # spelling is the two-leaf disjunction.
     ledgerId: integer & min(1) | biginteger & min(1)
     name: string & length(min(1) & max(120))
-    country: string & re("^[A-Z]{2}$")                # ISO 3166-1 a2
-    currency: string & re("^[A-Z]{3}$") & neq("XXX", "XTS")  # ISO 4217
+    country: string & re("^[A-Z]{2}$") # ISO 3166-1 a2
+    currency: string & re("^[A-Z]{3}$") & neq("XXX", "XTS") # ISO 4217
     email?: string & re("^[^@ ]+@[^@ ]+[.][a-z][a-z]+$")
     creditLimitCents?: integer & min(0) & max(100000000000)
   }))
@@ -111,6 +111,6 @@ schema: {
 # record's address IS `$.customers.cust-1001` -- so there is nothing
 # left to declare, and the per-record id() calls seed.aon used to
 # carry are gone with it.
-customers: { &: $.schema.Customer & { id: key() } }
-orders:    { &: $.schema.Order    & { id: key(), customerId: refer() } }
-invoices:  { &: $.schema.Invoice  & { id: key(), orderId: refer() } }
+customers: { &: $.schema.Customer & { id:key() } }
+orders: { &: $.schema.Order & { id:key() customerId:refer() } }
+invoices: { &: $.schema.Invoice & { id:key() orderId:refer() } }
