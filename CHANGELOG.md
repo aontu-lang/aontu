@@ -7,6 +7,37 @@ which implementation each change affects.
 
 ## Unreleased
 
+### The grammar, in the notation a person reads, with railroad diagrams
+
+`grammar/aontu.abnf`. The same rules as the GBNF and Lark files, in
+RFC 5234 notation with RFC 7405's case-sensitive `%s"..."` literals --
+a third consumer of one grammar, and the first written for a READER
+rather than a decoder. The language reference publishes it, and draws
+two railroad diagrams from it: how a value COMPOSES, and how one is
+SPELLED. Whitespace is elided from the figures, as railroad diagrams
+conventionally elide it, and the caption says so.
+
+The file is EXECUTED, not merely published. `ts/scripts/abnf.cjs`
+reads it into the same expression tree `ts/test/grammar.test.ts`
+already builds from the GBNF, so the corpus test, the reachability
+walk and the builtin-name check apply to it unchanged rather than
+through a second interpreter -- which is also why the reader lives in
+`scripts/` rather than in the test: `ts/scripts/figures.cjs` needs it
+too. Every canonical-form output in the shared suite parses under it,
+and the same ten excluded forms are refused, `@"..."` includes first
+among them.
+
+One notation decision is load-bearing: a bare `"..."` literal is
+case-INSENSITIVE in RFC 5234, and Aontu is not -- `TRUE` is a bare
+word where `true` is a boolean. The reader refuses one rather than
+guess which was meant, so the file is `%s"..."` throughout.
+
+The renderer states its palette in hex, which no host page can follow;
+the figure generator rewrites each colour to a `--rr-*` CSS variable
+with that hex as its default, and fails the build if a rewrite stops
+matching -- the arrangement the engine's own SVG figures have with
+`--av-ink` and its kin.
+
 ### `aontu view lattice`: the value lattice, with a document on it
 
 Both ports, a tenth kind. What it draws is the LANGUAGE, not the

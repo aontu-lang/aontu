@@ -46,6 +46,7 @@ the [Explanation](explanation.md).
   - [Text: `.txt` and `--text-ext`](#text-txt-and---text-ext)
 - [Operator precedence](#operator-precedence)
 - [Canonical form](#canonical-form)
+- [The published grammar](#the-published-grammar)
 - [Generation](#generation)
 - [Subsumption](#subsumption)
 - [Errors](#errors)
@@ -2658,6 +2659,50 @@ constraints, defaults, and open disjunctions. Rules:
 - Conjunction: `a&b` (e.g. `number&"A"`). Disjunction: `a|b`
   (e.g. `1|2`, `string|number`). Preference: `*x` (e.g. `*1|number`).
 - Spreads keep the `&:` entry: `{&:{"x":2},"y":{…}}`.
+
+## The published grammar
+
+Canon is the shape a grammar can be written for — every key quoted,
+one spelling per construct — and
+[`grammar/aontu.abnf`](../grammar/aontu.abnf) is that grammar, in
+RFC 5234 notation with RFC 7405's case-sensitive `%s"…"` literals.
+The same rules are published for two machine consumers as
+[`aontu.gbnf`](../grammar/aontu.gbnf) and
+[`aontu.lark`](../grammar/aontu.lark); this is the form to read.
+
+It is the **emission surface**: what a document should be allowed to
+write, a superset of JSON plus the operators, constraints and marks
+canon emits. It is **conservative by construction** — it may accept
+less than the parser does, never more — and it makes two deliberate
+exclusions. `@"…"` includes are absent, because a generated document
+should describe values rather than reach for files. So are unquoted
+keys and the other spellings the parser tolerates, because canon does
+not emit them.
+
+The grammar is executed, not merely published: `ts/test/grammar.test.ts`
+reads the file, interprets it, and requires it to accept **every
+canonical-form output in the shared spec suite** — several hundred of
+them — and to refuse the excluded forms. A rule the engine has
+outgrown fails the suite.
+
+### How a value composes
+
+Whitespace is permitted between every element and is not drawn; the
+`ws` rule in the grammar text carries it. Each track is one rule, and a
+box in one is a link to its own track.
+
+![Railroad diagram of the Aontu grammar's structural rules: a value is a disjunction of conjunctions of prefixed sums, and an atom is a map, list, function call, reference, kind, placeholder, scalar or parenthesised value.](figures/aontu-syntax.svg)
+
+### How one is spelled
+
+The scalar forms, the character rules behind a string, the four numeric
+spellings, and whitespace itself.
+
+![Railroad diagram of the Aontu grammar's lexical rules: the kind names, the scalar forms, a string as a quoted run of escaped or unescaped characters, the exact 0d literal, the plain number with its optional fraction and exponent, and whitespace.](figures/aontu-lexical.svg)
+
+The function-name rule is drawn as one node rather than as a fan of
+alternatives; the names are in the grammar text and in
+[Functions](#functions), with what each one means.
 
 ## Generation
 

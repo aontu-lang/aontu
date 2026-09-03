@@ -29,6 +29,7 @@ go/sigdecl.txt text eol=lf
 # and a test that only works under one git configuration is a test that
 # does not work.
 *.md text eol=lf
+*.abnf text eol=lf
 *.gbnf text eol=lf
 *.lark text eol=lf
 *.tmLanguage.json text eol=lf

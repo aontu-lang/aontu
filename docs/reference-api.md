@@ -2003,16 +2003,25 @@ Go API for that.
 
 ### The published grammar
 
-[`grammar/aontu.gbnf`](../grammar/aontu.gbnf) and
-[`grammar/aontu.lark`](../grammar/aontu.lark) publish the **emission
-surface** for constrained decoding. They are conservative by
-construction — they accept less than the parser does, never more — and
-they deliberately exclude `@"..."` includes, because generated
-documents should describe values rather than reach for files.
+Three files, one grammar. [`grammar/aontu.gbnf`](../grammar/aontu.gbnf)
+and [`grammar/aontu.lark`](../grammar/aontu.lark) publish the
+**emission surface** for constrained decoding;
+[`grammar/aontu.abnf`](../grammar/aontu.abnf) says the same thing in
+RFC 5234 notation, for a reader rather than a decoder, and is the one
+the [language reference draws its railroad
+diagrams](reference-language.md#the-published-grammar) from.
+
+All three are conservative by construction — they accept less than the
+parser does, never more — and all three deliberately exclude `@"..."`
+includes, because generated documents should describe values rather
+than reach for files.
 
 The grammar is not a document that drifts: `ts/test/grammar.test.ts`
-reads `aontu.gbnf`, interprets it, and requires it to accept **every
-canonical-form output in the shared spec suite**.
+reads `aontu.gbnf` and `aontu.abnf`, interprets both, and requires each
+to accept **every canonical-form output in the shared spec suite**. The
+function-name list in all three, and in the TextMate grammar the
+editors ship, is checked against the engine's own registry in both
+directions.
 
 ### The skill
 

@@ -330,8 +330,19 @@ function canonCorpus() {
     }
     return out;
 }
+// THE ABNF FORM, READ BY THE SHARED READER. ts/scripts/abnf.cjs turns
+// grammar/aontu.abnf into the SAME expression tree the GBNF parser
+// above produces, so every check in this file -- the reachability walk,
+// the Matcher, the corpus -- applies to it without a second
+// interpreter. The figure generator reads it too, which is why it lives
+// in scripts/ rather than here.
+function abnfRules(text) {
+    const { AbnfReader } = require('../scripts/abnf.cjs');
+    return new AbnfReader(text ?? readText(GRAMMAR_DIR, 'aontu.abnf')).rules();
+}
 (0, node_test_1.describe)('grammar', () => {
     const rules = new GbnfParser(readText(GRAMMAR_DIR, 'aontu.gbnf')).rules();
+    const abnf = abnfRules();
     (0, node_test_1.test)('the-published-grammar-parses', () => {
         Assert.ok(rules.has('root'), 'no root rule');
         // Every referenced rule is defined: a grammar that names a rule it
@@ -416,6 +427,112 @@ function canonCorpus() {
         ]) {
             Assert.equal(accepts(rules, bad), false, `accepted: ${bad}`);
         }
+    });
+    // THE SAME CORPUS, THE SAME MATCHER, THE OTHER NOTATION. The ABNF
+    // form is what the language reference publishes and what the railroad
+    // figures are drawn from, so it has to be the same language as the
+    // GBNF and not a description of it.
+    (0, node_test_1.test)('every-canon-output-parses-under-the-abnf-grammar', () => {
+        const corpus = canonCorpus();
+        Assert.ok(500 < corpus.length, 'canon corpus is suspiciously small');
+        const refused = [];
+        for (const row of corpus) {
+            if (!new Matcher(abnf, row.canon).accepts('root')) {
+                refused.push(`${row.file}:${row.name}: ${row.canon}`);
+            }
+        }
+        Assert.deepEqual(refused, []);
+    });
+    // And the same exclusions, above all the include directive.
+    (0, node_test_1.test)('the-abnf-grammar-refuses-what-it-should', () => {
+        for (const bad of [
+            'a: @"secret.aon"',
+            '@"x"',
+            '{a:1}',
+            '{"a":}',
+            '{"a":1,}',
+            '[1,]',
+            'nope(1)',
+            '{"a":1}}',
+            '$.',
+            '',
+        ]) {
+            Assert.equal(new Matcher(abnf, bad).accepts('root'), false, `accepted: ${bad}`);
+        }
+    });
+    // Every GBNF rule by the same name, so the two files cannot drift in
+    // shape without drifting in names first -- the guard the lark file
+    // has, applied to the third notation. The ABNF has rules of its own
+    // (`unescaped`, and RFC 5234's core rules written out), which is why
+    // this runs one way.
+    (0, node_test_1.test)('the-abnf-grammar-names-the-same-rules', () => {
+        for (const name of rules.keys()) {
+            Assert.ok(abnf.has(name), `rule missing from aontu.abnf: ${name}`);
+        }
+        // Defined and reachable, as the GBNF is held to be.
+        const live = new Set(['root']);
+        for (let grew = true; grew;) {
+            grew = false;
+            for (const name of [...live]) {
+                const rule = abnf.get(name);
+                Assert.ok(null != rule, `undefined abnf rule: ${name}`);
+                const walk = (e) => {
+                    if ('ref' === e.t) {
+                        if (!live.has(e.v)) {
+                            live.add(e.v);
+                            grew = true;
+                        }
+                    }
+                    else if ('seq' === e.t || 'alt' === e.t) {
+                        e.v.forEach(walk);
+                    }
+                    else if ('rep' === e.t) {
+                        walk(e.v);
+                    }
+                };
+                walk(rule);
+            }
+        }
+        for (const name of abnf.keys()) {
+            Assert.ok(live.has(name), `unreachable abnf rule: ${name}`);
+        }
+    });
+    // The fourth copy of the builtin set, held the way the other three
+    // are. The list is the same hand-written copy of the same registry,
+    // and this is the notation a reader of the language reference sees.
+    (0, node_test_1.test)('the-abnf-grammar-names-exactly-the-engine-builtins', () => {
+        const rule = abnf.get('name');
+        Assert.ok(null != rule, 'no name rule in aontu.abnf');
+        // Read off the TREE rather than out of the text: the reader has
+        // already found the rule's boundaries, so there is no terminator
+        // here to stop matching and no slice to run away -- which is the
+        // failure the gbnf and lark slices above are each guarded against.
+        const named = new Set();
+        const walk = (e) => {
+            if ('lit' === e.t) {
+                named.add(e.v);
+            }
+            else if ('alt' === e.t || 'seq' === e.t) {
+                e.v.forEach(walk);
+            }
+        };
+        walk(rule);
+        const engine = new Set(lsp_1.BUILTIN_FUNCS);
+        for (const name of engine) {
+            Assert.ok(named.has(name), `builtin missing from aontu.abnf: ${name}`);
+        }
+        for (const name of named) {
+            Assert.ok(engine.has(name), `aontu.abnf names a function the engine does not have: ${name}`);
+        }
+    });
+    // A BARE LITERAL IS CASE-INSENSITIVE IN RFC 5234, and Aontu is not:
+    // `TRUE` is a bare word where `true` is a boolean. The reader refuses
+    // rather than guess, and this is the refusal -- written against an
+    // inline grammar, since the published file is (and must stay) free of
+    // the spelling.
+    (0, node_test_1.test)('the-abnf-reader-refuses-a-case-insensitive-literal', () => {
+        Assert.throws(() => abnfRules('root = "true"'), /RFC 7405/);
+        Assert.deepEqual([...abnfRules('root = %s"true"').keys()], ['root']);
     });
     // The lark file is the same grammar for a different consumer, and
     // the two drift the moment one is edited alone. Rule NAMES are the
