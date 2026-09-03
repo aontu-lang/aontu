@@ -40,8 +40,18 @@ func throughDoc(v Val) Val {
 	return node
 }
 
-// docKids is a node's own children, as the anchor walk sees them.
-func docKids(v Val) []string {
+// docEntry is one child of a node: the key the figure writes and the
+// value it names.
+type docEntry struct {
+	key   string
+	child Val
+}
+
+// docEntries is a node's own children, as the anchor walk sees them.
+// The key and the child come out of ONE walk rather than a listing
+// followed by a lookup: a second lookup would need a not-found arm that
+// nothing can reach, since every key it is given came from the listing.
+func docEntries(v Val) []docEntry {
 	switch n := throughDoc(v).(type) {
 	case *MapVal:
 		// AN ALIAS DECLARATION IS NOT PART OF THE DOCUMENT
@@ -59,28 +69,17 @@ func docKids(v Val) []string {
 			keys = append(keys, k)
 		}
 		sort.Strings(keys)
-		return keys
-	case *ListVal:
-		keys := []string{}
-		for i := range n.peg {
-			keys = append(keys, strconv.Itoa(i))
+		out := make([]docEntry, 0, len(keys))
+		for _, k := range keys {
+			out = append(out, docEntry{key: k, child: n.peg[k]})
 		}
-		return keys
-	}
-	return []string{}
-}
-
-// docChild is the child a key names, however the node holds it.
-func docChild(v Val, key string) Val {
-	switch n := throughDoc(v).(type) {
-	case *MapVal:
-		return n.peg[key]
+		return out
 	case *ListVal:
-		i, ok := listIndex(key)
-		if !ok || len(n.peg) <= i {
-			return nil
+		out := make([]docEntry, 0, len(n.peg))
+		for i, c := range n.peg {
+			out = append(out, docEntry{key: strconv.Itoa(i), child: c})
 		}
-		return n.peg[i]
+		return out
 	}
 	return nil
 }
@@ -101,8 +100,7 @@ func docLeaf(v Val) string {
 }
 
 type docFrame struct {
-	node   Val
-	kids   []string
+	kids   []docEntry
 	at     int
 	prefix string
 	row    int
@@ -132,18 +130,18 @@ func drawDoc(root Val, at string, depth int, as, style string, max int,
 	// ITERATIVE, like the dependency tree's walk and for the same
 	// reason: a deep model is a real shape, and the drawing of one must
 	// not depend on how deep the interpreter lets a recursion go.
-	stack := []*docFrame{{node: anchor, kids: docKids(anchor), at: 0, prefix: "", row: 0}}
+	stack := []*docFrame{{kids: docEntries(anchor), at: 0, prefix: "", row: 0}}
 	for 0 < len(stack) {
 		frame := stack[len(stack)-1]
 		if frame.at >= len(frame.kids) {
 			stack = stack[:len(stack)-1]
 			continue
 		}
-		key := frame.kids[frame.at]
+		entry := frame.kids[frame.at]
 		frame.at++
 		last := frame.at == len(frame.kids)
-		child := throughDoc(docChild(frame.node, key))
-		kids := docKids(child)
+		child := throughDoc(entry.child)
+		kids := docEntries(child)
 		under := len(stack) < depth
 		// A container the depth bound stops at says how many keys are
 		// not drawn; a leaf says what it is.
@@ -164,15 +162,15 @@ func drawDoc(root Val, at string, depth int, as, style string, max int,
 			branch = "└── "
 			indent = "    "
 		}
-		out = append(out, paint.paint(roleRule, frame.prefix+branch)+key+
+		out = append(out, paint.paint(roleRule, frame.prefix+branch)+entry.key+
 			paint.paint(roleMuted, mark))
-		rows = append(rows, &treeRow{depth: len(stack), text: key, mark: mark, parent: frame.row})
+		rows = append(rows, &treeRow{depth: len(stack), text: entry.key, mark: mark, parent: frame.row})
 		if max < len(rows) {
 			return "", []VetFinding{viewRowsFinding(len(rows), max, "--at or --depth")}
 		}
 		if 0 < len(kids) && under {
 			stack = append(stack, &docFrame{
-				node: child, kids: kids, at: 0,
+				kids: kids, at: 0,
 				prefix: frame.prefix + indent,
 				row:    len(rows) - 1,
 			})
