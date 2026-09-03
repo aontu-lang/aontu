@@ -1884,7 +1884,7 @@ drives the CLI. Human-readable output stays the default.
 
 ```
 $ aontu
-Aontu v0.53.0 REPL — :help for commands, :quit to exit
+Aontu v0.55.0 REPL — :help for commands, :quit to exit
 aontu> port: *8080 | integer
 {
   "port": 8080

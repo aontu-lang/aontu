@@ -54,7 +54,7 @@ Object.defineProperty(exports, "viewTree", { enumerable: true, get: function () 
 // Kept in step with package.json by the `version` npm lifecycle script,
 // which runs on `npm version` / `npm run repo-bump`. version.test.ts
 // fails if the two ever drift.
-const VERSION = '0.54.0';
+const VERSION = '0.55.0';
 exports.VERSION = VERSION;
 // A module file's VALUE, as far as it goes. COLLECTED, not raised: a
 // module file that does not stand up has no `mod.main` to read, and
