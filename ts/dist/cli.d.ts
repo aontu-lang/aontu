@@ -15,7 +15,7 @@ type TrustArg = ({
     kind: 'root';
     dir?: string;
 }) & {
-    textExt?: string[];
+    textExt: string[];
 };
 export type ReplState = {
     mode: Mode;

@@ -217,5 +217,5 @@ function items(o) {
     else {
         return [];
     }
-} /* node:coverage ignore next 18 */
+} /* node:coverage ignore next 20 */
 //# sourceMappingURL=utility.js.map

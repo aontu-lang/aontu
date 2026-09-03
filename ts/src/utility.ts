@@ -284,7 +284,7 @@ function items(o: any) {
   else {
     return []
   }
-} /* node:coverage ignore next 18 */
+} /* node:coverage ignore next 20 */
 
 
 export type { IncludeOptions }

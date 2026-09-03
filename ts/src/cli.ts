@@ -348,7 +348,7 @@ type TrustArg = (
   // verb that threads one and not the other is the G5 defect again --
   // `aontu vet` running under a flag the bare command honoured and it
   // did not.
-) & { textExt?: string[] }
+) & { textExt: string[] }
 
 
 // The one-line warning of the staged default flip. Once per (kind,
@@ -377,8 +377,7 @@ function makeTrustWarn(): (kind: 'escape' | 'pkg', path: string) => void {
 // entryRoot (the entry file's directory, or the working directory for
 // stdin/REPL).
 function trustOpts(trust: TrustArg, entryRoot: string): any {
-  const textExt = trust.textExt ?? []
-  const text = 0 === textExt.length ? {} : { textExt }
+  const text = 0 === trust.textExt.length ? {} : { textExt: trust.textExt }
   switch (trust.kind) {
     case 'none':
       return { ...text, trust: { include: 'none' } }
@@ -405,7 +404,7 @@ function trustOpts(trust: TrustArg, entryRoot: string): any {
 function takeTrust(argv: string[]):
   { argv: string[], trust: TrustArg } | undefined {
   const rest: string[] = []
-  let trust: TrustArg = { kind: 'system-warn' }
+  let trust: TrustArg = { kind: 'system-warn', textExt: [] }
   let textExt: string[] = []
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]
@@ -424,7 +423,7 @@ function takeTrust(argv: string[]):
         process.stderr.write('aontu: --include-root needs a directory\n')
         return undefined
       }
-      trust = { kind: 'root', dir }
+      trust = { kind: 'root', dir, textExt }
     }
     else if ('--text-ext' === arg) {
       const list = null == argv[i + 1] ? undefined : parseTextExt(argv[++i])
@@ -458,13 +457,13 @@ function parseTextExt(arg: string): string[] | undefined {
     }
     out.push(ext)
   }
-  return 0 === out.length ? undefined : out
+  return out
 }
 
 
 // The evaluator options a REPL session's capability means.
 function replTrust(state: ReplState, entryRoot: string): any {
-  return verbOpts(state.trust ?? { kind: 'system-warn' }, entryRoot)
+  return verbOpts(state.trust ?? { kind: 'system-warn', textExt: [] }, entryRoot)
 }
 
 
@@ -491,10 +490,9 @@ function verbTrust(trust: TrustArg, entryRoot: string): any {
 // existed and no engine sees a key it has to ignore.
 function verbOpts(trust: TrustArg, entryRoot: string): any {
   const include = verbTrust(trust, entryRoot)
-  const textExt = trust.textExt ?? []
   return {
     ...(undefined === include ? {} : { trust: include }),
-    ...(0 === textExt.length ? {} : { textExt }),
+    ...(0 === trust.textExt.length ? {} : { textExt: trust.textExt }),
   }
 }
 
@@ -662,7 +660,7 @@ export function replCommand(
       if (':why' === cmd) {
         const report = why(src, path, {
           path: state.name,
-          ...verbOpts(state.trust ?? { kind: 'system-warn' },
+          ...verbOpts(state.trust ?? { kind: 'system-warn', textExt: [] },
             entryRootOf(state.name)),
         })
         return report.ok
@@ -673,7 +671,7 @@ export function replCommand(
         ? 'keys' : 'canon' === state.mode ? 'canon' : 'json'
       const report = get(src, path, {
         view, path: state.name,
-        ...verbOpts(state.trust ?? { kind: 'system-warn' },
+        ...verbOpts(state.trust ?? { kind: 'system-warn', textExt: [] },
           entryRootOf(state.name)),
       })
       return report.ok
@@ -3405,16 +3403,16 @@ function finish(code: number): void {
 // spelling, so the caller owns the usage error.
 function parseTrustArg(value: string): TrustArg | undefined {
   if ('system' === value) {
-    return { kind: 'system' }
+    return { kind: 'system', textExt: [] }
   }
   if ('none' === value) {
-    return { kind: 'none' }
+    return { kind: 'none', textExt: [] }
   }
   if ('root' === value) {
-    return { kind: 'root' }
+    return { kind: 'root', textExt: [] }
   }
   if (value.startsWith('root:') && 'root:'.length < value.length) {
-    return { kind: 'root', dir: value.slice('root:'.length) }
+    return { kind: 'root', dir: value.slice('root:'.length), textExt: [] }
   }
   return undefined
 }
@@ -3438,7 +3436,7 @@ function main(argv: string[]): void {
   // overwritten twice. In a tool loop that reads as a passing
   // validation. Counting them is what lets the refusal below happen.
   const files: string[] = []
-  let trust: TrustArg = { kind: 'system-warn' }
+  let trust: TrustArg = { kind: 'system-warn', textExt: [] }
   let textExt: string[] = []
   // The REPL's SESSION protocol (G7 phase 7): one JSON line per
   // answer, so a harness can drive the session. Named --jsonl rather
@@ -3546,7 +3544,7 @@ function main(argv: string[]): void {
         process.stderr.write('aontu: --include-root needs a directory\n')
         return finish(2)
       }
-      trust = { kind: 'root', dir }
+      trust = { kind: 'root', dir, textExt }
     }
     else if ('--text-ext' === arg) {
       const list = null == args[i + 1] ? undefined : parseTextExt(args[++i])
