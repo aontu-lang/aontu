@@ -7,6 +7,120 @@ which implementation each change affects.
 
 ## Unreleased
 
+### `aontu fmt` -- the lawful tier (FMT.0.md P2)
+
+The lawful tier (phase P2), which rests on the meet: a map that does
+not fit on one line is written as one statement per entry, each
+carrying its key again -- `server: host: "0.0.0.0"` / `server: port:
+8080` -- and adjacent statements naming one key are merged back into
+one map when that fits, because a key written twice is a meet and the
+two spellings are one document. Only a plain map in statement
+position; an argument, an operand or a list element keeps its braces.
+Every such rewrite is checked with the engine -- the two spellings
+evaluated in isolation must come to the same canon, the same kinds of
+failure and the same outcome of generation -- and a rewrite the engine
+evaluates differently is not made: the statement keeps its braces.
+That check found two engine defects (use-cases/BUGS.md §76, §77). The
+use-case tree is formatted in place (174 files), and the source
+positions its checks and READMEs quote moved with the text. Two P1
+rules changed on the evidence of the corpus: a call's arguments stay
+on one line however wide only when none holds a container, else the
+last argument hugs the parentheses (`type(close({` ... `}))`) or the
+call is a block, one argument per line; and the author's separators
+in a call are kept, a comma or a space, because the parser reads
+`must((v) => 0 <= v, "...")` as a run of arguments.
+
+## Go 0.1.14 — 2026-09-03 · TypeScript 0.56.0
+
+### Every verb honours `--text-ext`, and a per-verb test says so
+
+`--text-ext` is the include option that rides WITH the capability:
+both answer what an include may read, and a verb that threads one and
+not the other refuses under a flag the bare command honours. Three
+verbs threaded only the capability, and the ports disagreed in
+opposite directions:
+
+| command | was, TypeScript | was, Go |
+|---|---|---|
+| `view doc --text-ext md` | refused the include | drew the figure |
+| `set --text-ext md` | refused, and wrote nothing | wrote the overlay |
+| `breaking --text-ext md` | compared the documents | refused, exit 4 |
+
+Fixed by routing every one of them through the shared include-options
+helper (`includeOpts` in TypeScript, `aontuForPathTrust` in Go):
+`view`'s loader and its three forwards into `why`, `subsume` and the
+per-figure options; `patch`'s vet; `breaking`'s `Subsume` call and the
+`PolicyCompat` read that finds the document's own mode. `agentsmd` had
+the same hole one level down — it listed a document's keys and then
+reported an EMPTY shape, because the second evaluation the shape comes
+from refused the include the first had honoured.
+
+The test that let this through was a REPRESENTATIVE one: `--text-ext`
+was asserted on `get` alone, which proves the road the flag travels
+and not the engine at the end of it, and every verb has its own
+engine. It is now one case per verb in both ports
+(`every-verb-honours-the-text-extensions`), each asserted twice — the
+verb refuses the include with no flag, and does not refuse it with the
+flag — because an assertion that the flag works, on a verb that never
+reads the include at all, passes for the wrong reason. The capability's
+own per-verb test gained the four verbs it had never named: `reaches`,
+`jsonschema`, `view tree` and `view doc`.
+
+`--text-ext` now appears in the reference's list of the options that
+apply everywhere, where it was missing.
+
+### `aontu hash` says WHY a document does not stand up (Go)
+
+The Go port printed only `nothing to hash`; the canonical port printed
+the engine's own diagnosis under it (the review's finding F), and that
+half was never ported. Both ports now print the finding, byte for
+byte, for every failure — a conflict, a denied include, an unreadable
+extension. Exported as `aontu.EvalFailure`, the Go twin of
+TypeScript's `evalFailure`.
+
+### `aontu fmt` refuses a multi-document source, and the refusal is pinned
+
+Two bags at the top level — `{a:1}` then `{b:2}` — evaluate to a LIST
+of two documents and format to a single map. The formatter's
+self-check catches the difference and writes nothing, identically in
+both ports, so no file is corrupted. A new spec mode, `fmt-refuse`,
+pins the refusal (`test/spec/fmt.tsv`), and
+[FMT.0.md](docs/design/FMT.0.md) §9 records what is still open: the
+refusal is the right failure and its message is not, since it names a
+formatter defect when what it has found is a document class the form
+does not cover.
+
+### Release plumbing, and the records that had gone stale
+
+`make publish` staged `ts/package.json` alone after `npm version` had
+also rewritten `ts/src/aontu.ts` and `make all` had rebuilt `ts/dist`
+from it, so the release commit could claim a version its own source
+and build did not. It fails closed — `ts/test/version.test.ts` catches
+it in the publish job, before `npm publish` — but it fails after the
+tag push, which is the irreversible half. All three paths are staged
+now.
+
+Corrected with it: the reference's REPL banners (one still read
+v0.53.0) and `vet-action`'s default version; the verb count in
+`docs/index.md`; the `view` kinds in `README.md`, `llms.txt` and the
+MCP tool table, none of which named `doc` or `lattice`; `llms.txt` and
+the grammar card on the grammar files, which have been four since the
+ABNF landed; `MODELS.0.md`, which said twice that the formatter does
+not exist; the claim in the changelog and in `FMT.0.md` that the
+documentation fence gate runs in both ports, when it runs in the
+canonical port; and the shared suite's counts in the
+capability-review register, which rule 5 of that register says live
+there and nowhere else — 103 files, 4,245 rows, twenty-four modes.
+
+### Recorded, not fixed
+
+[BUGS.md](use-cases/BUGS.md) §75: the value an `@"file"` expression
+produces DIRECTLY gets a different site in each port — the canonical
+port names the `@` where it was written, the Go port names the
+included file with no coordinates and an absolute path. Every value
+below it agrees. Which port is right is a design question rather than
+a typo, and it is open.
+
 ### `aontu fmt` -- the source formatter, in the tradition of gofmt
 
 `aontu fmt [-w|-l|--check|-d] <file>...`, in both ports: one agreed
@@ -42,29 +156,11 @@ Go. A new spec mode, `fmt` (`test/spec/fmt.tsv`, 147 rows): both
 runners assert the formatted text byte for byte, that it is a fixed
 point, and -- where the source evaluates -- that the canon-hash is
 unchanged. Gates: every `.aon` under `use-cases/` and
-`test/spec/files/` and every Aontu fence in the documentation formats
-to a fixed point, in both ports.
-
-The lawful tier (phase P2), which rests on the meet: a map that does
-not fit on one line is written as one statement per entry, each
-carrying its key again -- `server: host: "0.0.0.0"` / `server: port:
-8080` -- and adjacent statements naming one key are merged back into
-one map when that fits, because a key written twice is a meet and the
-two spellings are one document. Only a plain map in statement
-position; an argument, an operand or a list element keeps its braces.
-Every such rewrite is checked with the engine -- the two spellings
-evaluated in isolation must come to the same canon, the same kinds of
-failure and the same outcome of generation -- and a rewrite the engine
-evaluates differently is not made: the statement keeps its braces.
-That check found two engine defects (use-cases/BUGS.md §75, §76). The
-use-case tree is formatted in place (174 files), and the source
-positions its checks and READMEs quote moved with the text. Two P1
-rules changed on the evidence of the corpus: a call's arguments stay
-on one line however wide only when none holds a container, else the
-last argument hugs the parentheses (`type(close({` ... `}))`) or the
-call is a block, one argument per line; and the author's separators
-in a call are kept, a comma or a space, because the parser reads
-`must((v) => 0 <= v, "...")` as a run of arguments.
+`test/spec/files/` formats to a fixed point in BOTH ports, and every
+Aontu fence in the documentation does so in the canonical port, which
+is where the documentation gate lives. The lawful tier (repeating the prefix,
+`server: host: ...` / `server: port: ...`, which rests on the meet) is
+P2 and has not landed; nothing is merged or split yet.
 
 ### The grammar, in the notation a person reads, with railroad diagrams
 

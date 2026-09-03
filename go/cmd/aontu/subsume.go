@@ -500,7 +500,8 @@ func runBreaking(argv []string, stdout, stderr io.Writer) int {
 		// own mode through an unconfined resolver would confine the
 		// comparison and not the question (use-cases/REVIEW.md finding
 		// G).
-		mode = aontu.PolicyCompatTrust(newSrc, args.file, capability)
+		mode = aontu.PolicyCompatTrust(newSrc, args.file, capability,
+			trust.textExt)
 	}
 	if "" == mode {
 		mode = "backward"
@@ -567,6 +568,7 @@ func runBreaking(argv []string, stdout, stderr io.Writer) int {
 			report := aontu.Subsume(check.generalSrc, check.specificSrc,
 				&aontu.SubsumeOptions{
 					Trust:        capability,
+					TextExt:      trust.textExt,
 					At:           args.at,
 					GeneralURL:   check.generalURL,
 					SpecificURL:  check.specificURL,

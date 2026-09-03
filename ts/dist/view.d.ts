@@ -45,6 +45,7 @@ export type ViewOptions = {
     as?: ViewProfile;
     path?: string;
     trust?: TrustOptions;
+    textExt?: string[];
     at?: string;
     maxRows?: number;
     relation?: string;

@@ -438,13 +438,18 @@ function firstCode(fn) {
             const shut = cli([...args.slice(0, 1), '--trust', 'none', ...args.slice(1)]);
             Assert.notEqual(JSON.stringify([open.code, open.out, open.err]), JSON.stringify([shut.code, shut.out, shut.err]), 'the verb ignored --trust: ' + args.join(' '));
             // The denial itself is named where the verb's report carries a
-            // reason. `relations`, `trim`, `subsume`/`breaking` and `hash`
-            // answer an `error` verdict whose cause the report shape has
-            // nowhere to put -- the review's finding F, open in both ports
+            // reason. `relations`, `trim` and `subsume`/`breaking` answer an
+            // `error` verdict whose cause the report shape has nowhere to
+            // put -- the review's finding F, open in both ports
             // (use-cases/BUGS.md, "relations and trim report verdict:error
             // with zero findings"). What every verb MUST do is honour the
             // capability, which the difference above asserts.
-            if (!/verdict: error|nothing to hash/.test(shut.out + shut.err)) {
+            //
+            // `hash` was exempt here too, on the same grounds, and it no
+            // longer is: it now prints the engine's diagnosis under its
+            // headline in both ports, so it can be held to naming the
+            // denial like everything else.
+            if (!/verdict: error/.test(shut.out + shut.err)) {
                 Assert.match(shut.out + shut.err, /include denied|include_denied/);
             }
         };
@@ -455,9 +460,81 @@ function firstCode(fn) {
         denied(['breaking', '--against', entry, entry]);
         denied(['relations', entry]);
         denied(['trim', '--check', entry]);
+        denied(['reaches', '$.a', '$.a', entry]);
+        denied(['jsonschema', entry]);
+        denied(['view', 'tree', entry]);
+        denied(['view', 'doc', entry]);
         denied(['hash', entry]);
         denied(['agentsmd', entry]);
         denied(['set', '$.z=1', '--entry', entry, '--overlay', overlay]);
+    });
+    // THE OTHER HALF OF THE SAME QUESTION, verb by verb. `--text-ext` is
+    // the include option that rides WITH the capability, and it was
+    // tested on ONE representative verb -- `get`. That is what let three
+    // verbs ship with it dropped: `view` and `set` refused a `.md`
+    // include the bare command read, and Go's `breaking` refused one
+    // TypeScript's honoured. A representative test proves the road the
+    // flag travels, not the engine at the end of it, and every verb has
+    // its own engine.
+    //
+    // Each verb is asserted twice, as above: it REFUSES the include with
+    // no flag, and does not refuse it with the flag. The pair is what
+    // matters -- an assertion that the flag works, on a verb that never
+    // reads the include at all, passes for the wrong reason.
+    //
+    // `fmt` is absent because it takes neither include option, in either
+    // port: it formats source text and self-checks the result, and
+    // resolves nothing. `mod` reads a directory rather than a document.
+    (0, node_test_1.test)('every-verb-honours-the-text-extensions', () => {
+        const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-textext-'));
+        Fs.writeFileSync(Path.join(dir, 'doc.md'), '# hi\n');
+        const entry = Path.join(dir, 'main.aon');
+        Fs.writeFileSync(entry, 'doc: @"./doc.md"\n');
+        const schema = Path.join(dir, 'schema.aon');
+        Fs.writeFileSync(schema, 'doc: string\n');
+        const overlay = Path.join(dir, 'overlay.aon');
+        const REFUSED = /include_extension|include not readable/;
+        const both = (args) => {
+            const bare = cli(args);
+            const wide = cli([...args, '--text-ext', 'md']);
+            Assert.match(bare.out + bare.err, REFUSED, 'the verb read the include with no flag: ' + args.join(' '));
+            Assert.doesNotMatch(wide.out + wide.err, REFUSED, 'the verb dropped --text-ext: ' + args.join(' '));
+            return wide;
+        };
+        both(['vet', schema, entry]);
+        both(['get', '$.doc', entry]);
+        both(['why', '$.doc', entry]);
+        both(['relations', entry]);
+        both(['trim', '--check', entry]);
+        both(['reaches', '$.doc', '$.doc', entry]);
+        both(['jsonschema', entry]);
+        both(['hash', entry]);
+        both(['view', 'tree', entry]);
+        both(['view', 'doc', entry]);
+        both(['view', 'layer', entry]);
+        both(['agentsmd', entry]);
+        both(['set', '$.z=1', '--entry', entry, '--overlay', overlay]);
+        // subsume and breaking answer `verdict: error` for a document that
+        // does not stand up and have nowhere in the report to say why
+        // (use-cases/BUGS.md, the review's finding F), so the refusal is
+        // the verdict rather than a named code.
+        for (const args of [
+            ['subsume', schema, entry],
+            ['breaking', '--against', entry, entry],
+        ]) {
+            Assert.match(cli(args).out, /verdict: error/, 'read the include with no flag: ' + args.join(' '));
+            Assert.doesNotMatch(cli([...args, '--text-ext', 'md']).out, /verdict: error/, 'dropped --text-ext: ' + args.join(' '));
+        }
+        // THE STANZA'S SHAPE IS A SECOND EVALUATION and it takes the same
+        // options: it listed the keys and then reported an empty shape,
+        // because the read it came from refused the include the read above
+        // it had honoured.
+        Assert.match(cli(['agentsmd', entry, '--text-ext', 'md']).out, /- Shape: `\{"doc":string\}`/);
+        // `set` WRITES, so a dropped flag here is not a wrong answer but a
+        // wrong file -- or, as it was, no file where the other port wrote
+        // one.
+        Assert.equal(Fs.readFileSync(overlay, 'utf8'), '"z": 1\n');
+        Fs.rmSync(dir, { recursive: true, force: true });
     });
     // --include-root confines a verb to a directory, the CLI's own
     // root: spelling, and a bare `root` means the document's directory.

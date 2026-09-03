@@ -746,10 +746,22 @@ departs from the note. Each is pinned by a row of `fmt.tsv`.
   somewhere past that; both ports refuse at the same depth, so the CLIs
   agree on the two fixtures that nest to 1200 maps and 1500 calls.
 - **The gates as landed:** 103 `fmt.tsv` rows under the three assertions
-  of §7.4; every `.aon` under `use-cases/` and `test/spec/files/` (400
-  files, 396 formatted, the 4 that do not parse refused for their
-  syntax) and every Aontu fence in the documentation (263) format to a
-  fixed point, in both ports; 100 % coverage in both.
+  of §7.4, and one `fmt-refuse` row (§9's last boundary item); every
+  `.aon` under `use-cases/` and `test/spec/files/` (400 files, 396
+  formatted, the 4 that do not parse refused for their syntax) formats
+  to a fixed point in BOTH ports, and every Aontu fence in the
+  documentation (263) does so in the canonical port, which is where
+  the documentation gate lives; 100 % coverage in both.
+- **No agreed form for a multi-document source.** Two bags at the top
+  level — `{a:1}` on one line, `{b:2}` on the next — evaluate to a
+  LIST of two documents, and the formatter writes them as one map. The
+  self-check catches the difference and refuses under `format_check`,
+  so nothing is written and no file is corrupted; both ports refuse
+  identically (`test/spec/fmt.tsv`, `fmt-refuse-multi-document`). The
+  refusal is the right failure and its message is not: it names a
+  formatter defect and asks for a report, when what it has found is a
+  document class the form does not cover. Open — either the writer
+  learns the shape, or the refusal says what it means.
 
 ### 7.8 P2 as landed
 
@@ -760,15 +772,15 @@ corpus settled. Each is pinned by a row of `fmt.tsv` or by a case in
 - **The check is the engine's agreement, and failing it keeps the
   spelling before** (§7.3, amended). Formatting the use cases found
   two documents whose two spellings the engine evaluates differently
-  — `use-cases/BUGS.md` §75 (a spread template's `key()` through a
-  reference, TypeScript only) and §76 (a key reaching a map through
+  — `use-cases/BUGS.md` §76 (a spread template's `key()` through a
+  reference, TypeScript only) and §77 (a key reaching a map through
   the meet of two statements is an *expectation*, as a spread's key
   is, in both ports). A refusal would make those files unformattable
   for an engine defect; instead the statement stays as the syntactic
-  tier wrote it, which is a fixed point too. §75 is the one file in
+  tier wrote it, which is a fixed point too. §76 is the one file in
   the repository the two ports format differently, by design of the
   check: each port defers to its own engine.
-- **The check compares generation as well as the meet.** §76 showed
+- **The check compares generation as well as the meet.** §77 showed
   the engine generating from more than the canon: the same canon, and
   a key refused in one spelling. So the check compares the canon, the
   kinds of failure collected (kinds, not counts — one unresolved
@@ -816,8 +828,9 @@ corpus settled. Each is pinned by a row of `fmt.tsv` or by a case in
   the normalised `must((v), =>, 0, <=, v, "not negative")` is the same
   tree and no predicate anyone can read. In a block, a comma follows an
   argument only where the author wrote one.
-- **The gates as landed:** 147 `fmt.tsv` rows; the 400-file corpus and
-  the 263 fences at a fixed point in both ports; the use-case tree
+- **The gates as landed:** 154 `fmt.tsv` rows beside P1's `fmt-refuse`
+  row; the 403-file corpus and the 263 fences at a fixed point in both
+  ports; the use-case tree
   formatted in place (174 files changed, the generated `mod-lock.aon`
   and the repro register left as written) with `run-all.sh` green and
   the source positions its checks and READMEs quote moved with the
@@ -842,6 +855,7 @@ for function, and `test/spec/fmt.tsv` is what they must agree on.
   `.toml` include is another language's file; `fmt` formats `.aon` and
   stdin.
 - **No `--fix` for the lint.** §4.3.
+
 
 ## 10. Risks
 
@@ -889,7 +903,7 @@ for function, and `test/spec/fmt.tsv` is what they must agree on.
   holding an include, one with a comment on its opener or as its last
   entry, and a statement whose trailing comment has no entry to sit
   on, each with its row; and two edges the probes did not reach, which
-  the check found and the engine owns (§7.8, BUGS.md §75 and §76).
+  the check found and the engine owns (§7.8, BUGS.md §76 and §77).
 - **X-5 — `style/repeat`.** Worth building, and at what size threshold?
   Recommendation: defer to P4 and decide with the first three lint
   rules' reception. **Decided 2026-09-03: build it in P4, advisory

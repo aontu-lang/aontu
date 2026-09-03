@@ -345,6 +345,26 @@ func TestSpec(t *testing.T) {
 						}
 					}
 
+				case "fmt-refuse":
+					// A SOURCE THE FORMATTER REFUSES, pinned so the
+					// refusal is the same one in both ports. The
+					// self-check compares the document written against
+					// the document read and writes NOTHING when they
+					// differ, so a refusal corrupts no file -- but
+					// which sources it refuses is behaviour, and
+					// behaviour is shared. Mirrors the fmt-refuse mode
+					// of ts/test/spec.test.ts.
+					report := a.Format(src)
+					codes := make([]string, 0, len(report.Errors))
+					for _, f := range report.Errors {
+						codes = append(codes, f.Code)
+					}
+					got := report.Verdict + ":" + strings.Join(codes, ",")
+					if got != expect {
+						t.Fatalf("fmt refusal\n src:  %q\n want: %q\n got:  %q",
+							src, expect, got)
+					}
+
 				case "agentsmd":
 					var agolden struct {
 						Codes  []string `json:"codes"`

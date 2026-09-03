@@ -191,6 +191,60 @@ the canon-hash locally and fails closed — which
 independent observer; it is to make a claim **permanent, public, and
 impossible to silently retract**.
 
+### The artifact channel is superseded, 2026-09-03
+
+**D's OCI channel is foreclosed by a constraint set after this review:
+the project will not run an OCI registry and will not store module
+bytes, and bytes live on the forge.** The transparency layer above is
+unaffected -- what changes is where the artifact comes from.
+
+Read the paragraph above with that in mind, because half its reasoning
+no longer holds. D was preferred to C partly because "an OCI registry is
+contractually obliged to keep bytes that a forge tag is not"; with bytes
+on a forge, that availability argument is gone and the honest position
+is C's own §60 -- the log can prove what a release was without being
+able to provide it. `aontu mod vendor` is the answer, and it is
+consumer-side discipline rather than an ecosystem guarantee.
+
+The three grounds on which C was rejected do not all survive the change
+either. Ground 3 -- that fetching source is the entire cost -- was an
+objection to **the service** downloading source, and a client fetching
+from a forge while the service records only publisher-asserted claims is
+a different proposition. Ground 2 -- that both ports enforce one pin and
+have no byte-digest verification path -- was an objection to **adding**
+one, and the replacement design adds none: `ts/src/mod.ts` already
+checks meaning alone, and the `oci` field is a registry assertion
+nothing local reads. Ground 1, module paths against forge paths, stands
+unchanged.
+
+The successor design, with the three decisions it turns on and a
+sequence whose first phase is decision-independent, is
+[`aontu-lang/system`'s `docs/design/DISTRIBUTION.0.md`](https://github.com/aontu-lang/system/blob/main/docs/design/DISTRIBUTION.0.md).
+**Nothing here is amended until that design is accepted**, per the
+register's protocol that a status changes in the commit that changes it.
+Two consequences are already certain and are recorded so they are not
+discovered late:
+
+- **`aontu mod manifest` is orphaned.** It builds an OCI manifest, with
+  an OCI config media type and a layer of the module's source tree, for
+  a channel that will not exist. It is repurposed to a forge release
+  manifest or retired; either way its `--against` breaking gate is worth
+  keeping, because that gate is [G3](g3-subsumption-evolution.md) and
+  independent of the channel.
+- **The `oci` digest in `mod-lock.aon`** loses the meaning its own
+  comment gives it, "the bytes the registry served".
+
+One defect surfaced while writing the successor, and it is this
+document's to record because it is about what the pin covers. The
+canon-hash covers the **entry file's** evaluated meaning, but
+`mod vendor` copies the whole source tree and `layerFiles` walks the
+whole source tree. **A file evaluation never reaches is unpinned and
+still lands, committed, in a consumer's repository.** Nothing executes
+it -- the trust contract holds -- but an editor, an agent, a generator
+or a later version of the module may read it. A file manifest recorded
+by `tidy` and checked by `verify` closes it as a list comparison rather
+than a second hashing algebra.
+
 ## Proposed design
 
 ### The leaf

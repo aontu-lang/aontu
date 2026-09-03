@@ -89,20 +89,24 @@ the divergence ledger, `Accepted`/`Superseded` in the ADR register).
    gap documents froze a row count into a "nothing may regress" clause;
    all eight are now wrong, by roughly 1,400 to 1,500 rows. A gap
    document should link this line instead: as of this
-   register's last update the suite is **97 `.tsv` files, 96
-   row-bearing, 3,797 rows**, in twenty modes — `canon` 861, `errc`
-   717, `gens` 623, `gen` 587, `err` 276, `errcode` 120, `subsume` 102,
-   `vet` 100, `query` 92, `jsonschema` 57, `why` 52, `patch` 42,
-   `hcanon` 40, `diff` 28, `graph` 25, `relation` 23, `reaches` 19,
-   `hash` 15, `trim` 11, `agentsmd` 7.
-   (Re-derived 2026-08-30, after #102 retired `id()` and deleted
-   `test/spec/id.tsv` with its 84 rows. This line has now been wrong
-   three times, each time within a day of being corrected, and each
-   time it was falsifiable in the two commands below — which is the
-   point of carrying them. The lesson is not that the number is hard
-   to get right: it is that nobody runs a command a document merely
-   offers. A count is only as current as the last commit that touched
-   `test/spec/` and remembered this line.)
+   register's last update the suite is **103 `.tsv` files, 101
+   row-bearing, 4,245 rows**, in twenty-four modes — `canon` 866,
+   `errc` 753, `gens` 669, `gen` 590, `err` 278, `view` 174,
+   `errcode` 135, `subsume` 114, `fmt` 103, `vet` 100, `query` 92,
+   `jsonschema` 57, `why` 52, `patch` 41, `hcanon` 40, `views` 37,
+   `graph` 37, `diff` 28, `relation` 25, `reaches` 19, `hash` 16,
+   `trim` 11, `agentsmd` 7, `fmt-refuse` 1.
+   (Re-derived 2026-09-03, for the 0.56.0 release: `aontu fmt` added
+   `fmt.tsv` and `aontu view` added `view.tsv` and `views.tsv`, and
+   the line had gone stale in exactly the way it predicts below.
+   `divergent.tsv` and `signature.tsv` are the two files that carry no
+   rows. This line has now been wrong four times, each time within a
+   day or two of being corrected, and each time it was falsifiable in
+   the two commands below — which is the point of carrying them. The
+   lesson is not that the number is hard to get right: it is that
+   nobody runs a command a document merely offers. A count is only as
+   current as the last commit that touched `test/spec/` and remembered
+   this line.)
    Reproduce with
    `ls test/spec/*.tsv | wc -l` and
    `cat test/spec/*.tsv | grep -P '\t' | grep -vc '^#'`.
@@ -1561,8 +1565,24 @@ permits **once** and bounds with five constraints — no artifacts, no
 log on the path of a locked build, public replicability in a standard
 format, the client half in both ports under ADR-001, and a stated exit.
 
-**Phases 1 and 2 have landed.** Phases 3–6 are NOT STARTED, and the
-a commitment, and phases 2–6 are NOT STARTED.
+**Phases 1 and 2 have landed. Phases 3–6 are NOT STARTED.** The format
+is the commitment rather than the contents, which is why phase 2 is
+useful with no log running: the client verifies checkpoints and proofs a
+lockfile already carries.
+
+**2026-09-03: phase 3's channel is superseded, and the phase is not
+renamed until the successor is accepted.** A constraint set after this
+gap was drafted rules out running an OCI registry or storing module
+bytes, and puts bytes on the forge, so "`mod get` and `mod publish` over
+OCI" names a channel that will not exist. The reasoning is in
+[g10-transparency.md](g10-transparency.md#the-artifact-channel-is-superseded-2026-09-03)
+and the successor design is
+[`aontu-lang/system`'s `DISTRIBUTION.0.md`](https://github.com/aontu-lang/system/blob/main/docs/design/DISTRIBUTION.0.md),
+which turns on three decisions nobody has taken yet. The rows below are
+left as they are on purpose: a status changes in the commit that changes
+it, and no status has changed. What has changed is that phase 3's pin
+describes a plan its own constraints have overtaken, and a reader should
+know that before costing it.
 
 Baseline at drafting, for protocol rule 5: `ls test/spec/*.tsv | wc -l`
 = **97**, `awk -F'\t' 'NF>2 && $0 !~ /^#/' test/spec/*.tsv | wc -l`

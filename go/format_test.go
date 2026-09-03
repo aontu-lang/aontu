@@ -195,10 +195,10 @@ func TestFormatKeepsTheSpellingTheEngineRefuses(t *testing.T) {
 		t.Fatalf("relation verdict: %q", formatMeetOf(rel))
 	}
 
-	// The engine's own repros: §75 of use-cases/BUGS.md is a map the
+	// The engine's own repros: §76 of use-cases/BUGS.md is a map the
 	// TypeScript port evaluates differently as one map and as three
 	// statements, so the merge is refused there and taken here. Goes
-	// with §75.
+	// with §76.
 	raw, err := os.ReadFile(filepath.Join("..", "use-cases", "repros", "key-func", "spread-key-through-deep-ref.aon"))
 	if err != nil {
 		t.Fatal(err)

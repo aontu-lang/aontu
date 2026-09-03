@@ -183,7 +183,7 @@ contribution -- before drawing.
    spread is involved -- and says "spread" because `Flag` is written
    one statement per field, so each field reaches the map through a
    meet, which the engine records as it records a spread template's
-   key (BUGS.md §76; the check pins the gap). `--format sarif` emits
+   key (BUGS.md §77; the check pins the gap). `--format sarif` emits
    SARIF 2.1.0 for CI ingestion.
 5. A resolved flag read back out of the effective view with `get`
    re-validates against the strict schema. `vet --at` re-roots the

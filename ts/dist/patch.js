@@ -462,6 +462,7 @@ function patch(entrySrc, overlaySrc, assignments, opts) {
     // the caller, "which file" is the whole question.
     const report = (0, vet_1.vet)(entrySrc, overlay, {
         trust: options.trust,
+        textExt: options.textExt,
         schemaPath: options.entryPath,
         dataPath: options.overlayPath,
         schemaUrl: options.entryPath,

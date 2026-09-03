@@ -165,15 +165,19 @@ func TestTrustCliEveryVerbHonoursTheCapability(t *testing.T) {
 			t.Fatalf("the verb ignored --trust: %s", strings.Join(args, " "))
 		}
 		// The denial itself is named where the verb's report carries a
-		// reason. `relations`, `trim`, `subsume`/`breaking` and `hash`
-		// answer an `error` verdict whose cause the report shape has
-		// nowhere to put -- the review's finding F, open in both ports
+		// reason. `relations`, `trim` and `subsume`/`breaking` answer
+		// an `error` verdict whose cause the report shape has nowhere
+		// to put -- the review's finding F, open in both ports
 		// (use-cases/BUGS.md, "relations and trim report verdict:error
 		// with zero findings"). What every verb MUST do is honour the
 		// capability, which the difference above asserts.
+		//
+		// `hash` was exempt here too, on the same grounds, and it no
+		// longer is: it now prints the engine's diagnosis under its
+		// headline in both ports, so it can be held to naming the
+		// denial like everything else.
 		both := shutOut + shutErr
-		if strings.Contains(both, "verdict: error") ||
-			strings.Contains(both, "nothing to hash") {
+		if strings.Contains(both, "verdict: error") {
 			return
 		}
 		if !strings.Contains(both, "include denied") &&
@@ -189,9 +193,116 @@ func TestTrustCliEveryVerbHonoursTheCapability(t *testing.T) {
 	denied("breaking", "--against", entry, entry)
 	denied("relations", entry)
 	denied("trim", "--check", entry)
+	denied("reaches", "$.a", "$.a", entry)
+	denied("jsonschema", entry)
+	denied("view", "tree", entry)
+	denied("view", "doc", entry)
 	denied("hash", entry)
 	denied("agentsmd", entry)
 	denied("set", "$.z=1", "--entry", entry, "--overlay", overlay)
+}
+
+// THE OTHER HALF OF THE SAME QUESTION, verb by verb. `--text-ext` is
+// the include option that rides WITH the capability, and it was tested
+// on ONE representative verb -- `get`. That is what let three verbs
+// ship with it dropped: this port's `breaking` refused a `.md` include
+// the canonical port honoured, and the canonical port's `view` and
+// `set` refused one this port read. A representative test proves the
+// road the flag travels, not the engine at the end of it, and every
+// verb has its own engine.
+//
+// Each verb is asserted twice, as above: it REFUSES the include with
+// no flag, and does not refuse it with the flag. The pair is what
+// matters -- an assertion that the flag works, on a verb that never
+// reads the include at all, passes for the wrong reason.
+//
+// `fmt` is absent because it takes neither include option, in either
+// port: it formats source text and self-checks the result, and
+// resolves nothing. `mod` reads a directory rather than a document.
+// Twin: every-verb-honours-the-text-extensions in ts/test/trust.test.ts.
+func TestTrustCliEveryVerbHonoursTheTextExtensions(t *testing.T) {
+	dir := t.TempDir()
+	write := func(path, src string) {
+		t.Helper()
+		if err := os.WriteFile(path, []byte(src), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write(filepath.Join(dir, "doc.md"), "# hi\n")
+	entry := filepath.Join(dir, "main.aon")
+	write(entry, "doc: @\"./doc.md\"\n")
+	schema := filepath.Join(dir, "schema.aon")
+	write(schema, "doc: string\n")
+	overlay := filepath.Join(dir, "overlay.aon")
+
+	refused := func(s string) bool {
+		return strings.Contains(s, "include_extension") ||
+			strings.Contains(s, "include not readable")
+	}
+
+	both := func(args ...string) {
+		t.Helper()
+		bareOut, bareErr, _ := trustRun(args...)
+		if !refused(bareOut + bareErr) {
+			t.Fatalf("read the include with no flag: %s",
+				strings.Join(args, " "))
+		}
+		wideOut, wideErr, _ := trustRun(append(args, "--text-ext", "md")...)
+		if refused(wideOut + wideErr) {
+			t.Fatalf("dropped --text-ext: %s\n%s",
+				strings.Join(args, " "), wideOut+wideErr)
+		}
+	}
+
+	both("vet", schema, entry)
+	both("get", "$.doc", entry)
+	both("why", "$.doc", entry)
+	both("relations", entry)
+	both("trim", "--check", entry)
+	both("reaches", "$.doc", "$.doc", entry)
+	both("jsonschema", entry)
+	both("hash", entry)
+	both("view", "tree", entry)
+	both("view", "doc", entry)
+	both("view", "layer", entry)
+	both("agentsmd", entry)
+	both("set", "$.z=1", "--entry", entry, "--overlay", overlay)
+
+	// subsume and breaking answer `verdict: error` for a document that
+	// does not stand up and have nowhere in the report to say why
+	// (use-cases/BUGS.md, the review's finding F), so the refusal is
+	// the verdict rather than a named code.
+	for _, args := range [][]string{
+		{"subsume", schema, entry},
+		{"breaking", "--against", entry, entry},
+	} {
+		bareOut, _, _ := trustRun(args...)
+		if !strings.Contains(bareOut, "verdict: error") {
+			t.Fatalf("read the include with no flag: %s",
+				strings.Join(args, " "))
+		}
+		wideOut, _, _ := trustRun(append(args, "--text-ext", "md")...)
+		if strings.Contains(wideOut, "verdict: error") {
+			t.Fatalf("dropped --text-ext: %s\n%s",
+				strings.Join(args, " "), wideOut)
+		}
+	}
+
+	// THE STANZA'S SHAPE IS A SECOND EVALUATION and it takes the same
+	// options: the canonical port listed the keys and then reported an
+	// empty shape, because the read it came from refused the include
+	// the read above it had honoured.
+	stanza, _, _ := trustRun("agentsmd", entry, "--text-ext", "md")
+	if !strings.Contains(stanza, "- Shape: `{\"doc\":string}`") {
+		t.Fatalf("agentsmd shape: %q", stanza)
+	}
+
+	// `set` WRITES, so a dropped flag here is not a wrong answer but a
+	// wrong file -- or, as it was, no file where the other port wrote
+	// one.
+	if b, err := os.ReadFile(overlay); nil != err || "\"z\": 1\n" != string(b) {
+		t.Fatalf("set overlay: %q %v", string(b), err)
+	}
 }
 
 // --include-root confines a verb to a directory, the CLI's own root:

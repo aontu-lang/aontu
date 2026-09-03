@@ -1,4 +1,4 @@
-# 76 (the generation face): a non-generable key that reaches a map
+# 77 (the generation face): a non-generable key that reaches a map
 # through the meet of two statements is refused as spread-required
 # residue, where the same key written in the map is ordinary residue
 # -- and the jsonschema export reads the two differently. Both ports.

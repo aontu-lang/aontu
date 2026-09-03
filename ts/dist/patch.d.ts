@@ -6,6 +6,7 @@ export type PatchOptions = {
     overlayPath?: string;
     inPlace?: boolean;
     trust?: TrustOptions;
+    textExt?: string[];
 };
 export type PatchReplacement = {
     col: number;

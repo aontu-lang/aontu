@@ -156,9 +156,9 @@ function aonFiles(dir, out = []) {
                 '  c: {\n    ' + V + ': 1\n    d: 2\n  }\n',
                 '  c: ' + V + ': 1\n  c: d: 2\n',
             ]]);
-        // The engine's own repros: §75 of use-cases/BUGS.md is a map this
+        // The engine's own repros: §76 of use-cases/BUGS.md is a map this
         // port evaluates differently as one map and as three statements,
-        // so the merge is refused here and taken by Go. Goes with §75.
+        // so the merge is refused here and taken by Go. Goes with §76.
         const repro = Fs.readFileSync(Path.join(repoRoot(), 'use-cases', 'repros', 'key-func', 'spread-key-through-deep-ref.aon'), 'utf8');
         const kept = (0, aontu_1.format)(repro);
         Assert.ok(kept.text.includes('a: b: c: d: e: $.a.b.f\na: b: f: { &: { n:key() } }\na: b: f: x: {}\n'), kept.text);

@@ -138,19 +138,19 @@ ok "bad candidate rejected: constraint (key/owner/desc/date/rollout) + closed (j
 # Incompleteness: a candidate missing required fields is 'incomplete'
 # (exit 3), distinct from a constraint violation (exit 1).
 #
-# THE CODE IS A PINNED GAP (BUGS.md §76). `Flag` is written as one
+# THE CODE IS A PINNED GAP (BUGS.md §77). `Flag` is written as one
 # statement per field, the formatter's form, so each field reaches the
 # map through a meet of statements -- and the engine records a key
 # that arrives that way as an EXPECTATION, exactly as it records a
 # spread template's key, so the residue of a missing field is
 # `mapval_spread_required`, "defined in spread", naming a spread that
 # exists nowhere. Written as one braced map the same schema says
-# `mapval_required`. When §76 is fixed this pin flips back.
+# `mapval_required`. When §77 is fixed this pin flips back.
 run vinc 3 vet --at '$.Flag' --closed "$WORK/flag-schema.aon" \
   "$WORK/data/candidate-incomplete.json"
-has vinc "[aontu/mapval_spread_required]" "incomplete candidate code (§76 pin)"
+has vinc "[aontu/mapval_spread_required]" "incomplete candidate code (§77 pin)"
 grep -q '^Flag: {' "$WORK/flag-schema.aon" \
-  && fail "Flag is a braced map again; the §76 pin above is stale" \
+  && fail "Flag is a braced map again; the §77 pin above is stale" \
   || true
 ok "incomplete candidate: missing enabled/rollout -> incomplete (exit 3)"
 

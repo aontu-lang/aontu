@@ -11,7 +11,8 @@
 > `set` repairs a value in place, `relations` checks declared entity
 > graphs, `reaches` answers whether one entity reaches another at any
 > remove, `view` draws a model as text (tree, matrix, graph, layers,
-> sets, the meet ladder, the subsumption poset),
+> sets, the meet ladder, the subsumption poset, the key document and
+> the value lattice), `fmt` writes the one agreed form,
 > `jsonschema` exports the model as JSON Schema and reports
 > what that export cannot carry, and an MCP server exposes the same
 > contracts over stdio. Two
@@ -36,8 +37,10 @@
 
 - [Aontu skill](docs/skill/SKILL.md): a teaching pack for agents — the
   grammar card, a worked example ladder, and the error-code index
-- [Grammars](grammar/): `aontu.gbnf` and `aontu.lark`, the emission
-  surface for constrained decoding of canonical Aontu
+- [Grammars](grammar/): `aontu.abnf`, the notation a person reads, and
+  `aontu.gbnf`, `aontu.lark` and `aontu.tmLanguage.json` — the emission
+  surface for constrained decoding of canonical Aontu, and the
+  highlighting grammar
 
 ## Conformance and use cases
 

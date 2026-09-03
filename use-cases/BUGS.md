@@ -3171,6 +3171,44 @@ once it has been resolved, as generation and canon already do — or, if
 it must stay for the resolver, hide it from the anchor walk the way a
 `hide()` subtree is hidden.
 
+### 75. An include's ROOT value gets a different site in each port [minor]
+
+Found 2026-09-03 by the per-verb include-options probe. The ports
+diverge, so this is an ADR-001 break rather than a shared defect.
+
+The value an `@"file"` expression produces directly — `$.doc` for
+`doc: @"./doc.md"` — is stamped differently:
+
+```
+$ aontu why '$.doc' inc.aon        # TypeScript
+$.doc = {"k":1}
+  1. {"k":1}  inc.aon:1:6
+$ aontu why '$.doc' inc.aon        # Go
+$.doc = {"k":1}
+  1. {"k":1}
+```
+
+TypeScript names the `@` expression where it was written, in the
+including file, with `src: "@"` and real coordinates. Go names the
+included file by its FULL path, with `row`, `col` and `len` all `-1`
+and an empty `src`. Every value BELOW the root agrees exactly — a
+nested key reports `lib.aon:2:6` in both — so the divergence is one
+value deep, and it is the whole value for a text or data include,
+where the included document has no interior of its own.
+
+Effect: `--format json` from the Go port carries an absolute
+filesystem path into a report meant to be compared between machines,
+and carries no coordinates to go with it. Which port is right is a
+real question rather than a typo: Go's `stampResolved`
+(`go/source.go`) names the file whose text the value excerpts, on
+purpose, for finding F of `use-cases/REVIEW.md` — and that reasoning
+holds for the interior, which is already agreed. It is the root, where
+the value did not come from any span of the included file, that has
+two answers. Fix: decide the root's site once, in
+`docs/design/` where the site contract lives, and hold it with a
+shared spec row; a repo-relative spelling would fix the absolute path
+either way.
+
 ## the formatter — what a rewrite's check exposed
 
 `aontu fmt`'s lawful tier (`docs/design/FMT.0.md` §3.4) merges
@@ -3181,7 +3219,7 @@ same kinds of failure, or the statement keeps its spelling before. The
 check is the engine's agreement, and where the two engines disagree
 the formatted text differs by port. One such disagreement so far.
 
-### 75. §50's document written as one map answers differently in TypeScript [major]
+### 76. §50's document written as one map answers differently in TypeScript [major]
 
 Found 2026-09-03 by the formatter's check over the repro of §50, which
 the check refused to merge in TypeScript and merged in Go.
@@ -3230,7 +3268,7 @@ entry when it is fixed.
 Repro:
 [`repros/key-func/spread-key-through-deep-ref-merged.aon`](repros/key-func/spread-key-through-deep-ref-merged.aon).
 
-### 76. A key written in a second statement is an expectation, so its residue names a spread that exists nowhere [major]
+### 77. A key written in a second statement is an expectation, so its residue names a spread that exists nowhere [major]
 
 Found 2026-09-03 by `aontu fmt`'s lawful tier over the use cases: the
 agreed form writes a map that does not fit on one line as one

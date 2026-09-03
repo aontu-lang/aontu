@@ -1,4 +1,4 @@
-# 75: the document of §50 written as ONE map -- the three statements
+# 76: the document of §50 written as ONE map -- the three statements
 # merged, which is what `aontu fmt` would write for them -- answers
 # differently in TypeScript: the template's key() gives "n" for f.x,
 # not "x". Go answers "x" in both spellings.

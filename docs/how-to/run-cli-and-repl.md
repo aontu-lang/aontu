@@ -49,7 +49,7 @@ and `:quit` (or Ctrl-D) leaves:
 <!-- test: skip interactive REPL session -->
 ```sh
 $ aontu
-Aontu v0.53.0 REPL — :help for commands, :quit to exit
+Aontu v0.56.0 REPL — :help for commands, :quit to exit
 aontu> a:*1|number
 {
   "a": 1

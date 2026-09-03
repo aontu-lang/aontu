@@ -1,8 +1,11 @@
 # Aontu grammar card
 
 Everything the language spells, on one page. The published machine
-grammar is [`grammar/aontu.gbnf`](../../grammar/aontu.gbnf) (and
-`aontu.lark`); this is its human twin.
+grammars are [`grammar/aontu.abnf`](../../grammar/aontu.abnf) — the
+notation a person reads, with railroad diagrams — and
+[`aontu.gbnf`](../../grammar/aontu.gbnf), `aontu.lark` and
+`aontu.tmLanguage.json` for constrained decoding, parsing and
+highlighting; this is their human twin.
 
 ## Values
 
