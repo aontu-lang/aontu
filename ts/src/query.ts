@@ -1,4 +1,5 @@
 /* Copyright (c) 2025 Richard Rodger, MIT License */
+import { includeOpts } from './utility'
 
 // THE QUERY SURFACE (G7 phase 1,
 // docs/capability-review/g7-machine-access.md): select one node of an
@@ -56,6 +57,11 @@ export type QueryOptions = {
   // extension -- but reading is enough.) A server passes
   // `{include:'none'}`.
   trust?: TrustOptions
+
+  // Extensions additionally read as text (the CLI's `--text-ext`).
+  // Rides beside `trust` because it is the other half of what an
+  // include may read.
+  textExt?: string[]
 }
 
 export type QueryReport = {
@@ -271,8 +277,7 @@ export function get(
   const options = opts ?? {}
   const view: QueryView = options.view ?? 'json'
 
-  const aontu = new Aontu(
-    null == options.trust ? undefined : { trust: options.trust })
+  const aontu = new Aontu(includeOpts(options))
   const ctx = aontu.ctx({ collect: true })
   const parseOpts = null == options.path ? undefined : { path: options.path }
   const root: any = aontu.unify(src, parseOpts, ctx)
@@ -336,8 +341,7 @@ export type WhyReport = {
 export function why(
   src: string, path: string, opts?: QueryOptions): WhyReport {
   const options = opts ?? {}
-  const aontu = new Aontu(
-    null == options.trust ? undefined : { trust: options.trust })
+  const aontu = new Aontu(includeOpts(options))
   const prov = new Provenance()
   const ctx = aontu.ctx({ collect: true, prov })
   const parseOpts = null == options.path ? undefined : { path: options.path }

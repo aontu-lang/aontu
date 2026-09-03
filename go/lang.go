@@ -375,8 +375,8 @@ help isolate the syntax error.`,
 
 	if err := j.Use(expr.Expr, map[string]interface{}{
 		"op": map[string]interface{}{
-			"conjunct": map[string]interface{}{"infix": true, "src": "&", "left": 16000000, "right": 17000000},
-			"disjunct": map[string]interface{}{"infix": true, "src": "|", "left": 14000000, "right": 15000000},
+			"conjunct":      map[string]interface{}{"infix": true, "src": "&", "left": 16000000, "right": 17000000},
+			"disjunct":      map[string]interface{}{"infix": true, "src": "|", "left": 14000000, "right": 15000000},
 			"star":          map[string]interface{}{"prefix": true, "src": "*", "right": 24000000},
 			"dollar-prefix": map[string]interface{}{"prefix": true, "src": "$", "right": 31000000},
 			"dot-infix":     map[string]interface{}{"infix": true, "src": ".", "left": 25000000, "right": 24000000},
@@ -2635,4 +2635,3 @@ func buildCall(r *jsonic.Rule, name string, argterms []any) Val {
 	}
 	return fv
 }
-

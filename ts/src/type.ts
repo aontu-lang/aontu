@@ -69,6 +69,14 @@ type AontuOptions = {
   explain?: any[]
   trust?: TrustOptions // Trust profile (G5, docs/trust.md)
 
+  // EXTENSIONS ADDITIONALLY READ AS TEXT, without their dots. `.txt`
+  // is read as text with no option at all; this widens that set for a
+  // host that keeps its prose in `.md`, its queries in `.sql`, or its
+  // templates under some name only it knows. The file's bytes become
+  // one string scalar -- no parser is chosen for it, which is what
+  // makes widening the set safe to offer.
+  textExt?: string[]
+
   // The staged-flip warning window (G5 phase 6, CLI only): under the
   // default 'system' capability the CLI supplies these, and the
   // resolver calls trustWarn for every resolution that escapes

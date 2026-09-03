@@ -21,7 +21,9 @@ import type { Val } from './type'
 import { Aontu, VERSION } from './aontu'
 import { getHint } from './err'
 import { collectNils } from './walk'
-import { collectDeprecations, deprecationMessage } from './utility'
+import { collectDeprecations, deprecationMessage,
+  includeOpts,
+} from './utility'
 import { why } from './query'
 import type { WhyConjunct } from './provenance'
 
@@ -84,13 +86,13 @@ type OutMessage = {
 // functions, syntax errors) produce diagnostics.
 function computeDiagnostics(
   src: string,
-  opts?: { vars?: Record<string, Val>, trust?: any }
+  opts?: { vars?: Record<string, Val>, trust?: any, textExt?: string[] }
 ): Diagnostic[] {
   // The trust profile (G5, docs/trust.md): the LSP is the
   // highest-exposure surface — merely OPENING a hostile .aon file in an
   // editor performs its reads — so the handler confines evaluation to
   // the workspace root and threads the profile through here.
-  const aontu = new Aontu(null == opts?.trust ? {} : { trust: opts.trust })
+  const aontu = new Aontu(includeOpts(opts ?? {}))
 
   let root: any
   let ac: any

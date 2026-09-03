@@ -1,9 +1,10 @@
 "use strict";
-/* Copyright (c) 2025 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.effectiveDefault = effectiveDefault;
 exports.subsumeNode = subsumeNode;
 exports.subsume = subsume;
+/* Copyright (c) 2025 Richard Rodger, MIT License */
+const utility_1 = require("./utility");
 const aontu_1 = require("./aontu");
 const vet_1 = require("./vet");
 const hcanon_1 = require("./hcanon");
@@ -539,7 +540,7 @@ function subsume(generalSrc, specificSrc, opts) {
         specificUrl: options.specificUrl ?? DEFAULT_SPECIFIC_URL,
     };
     const load = (src, path) => {
-        const aontu = new aontu_1.Aontu(null == options.trust ? undefined : { trust: options.trust });
+        const aontu = new aontu_1.Aontu((0, utility_1.includeOpts)(options));
         const ctx = aontu.ctx({ collect: true });
         const v = aontu.unify(src, null == path ? undefined : { path }, ctx);
         if (0 < ctx.err.length || true === v?.isNil) {

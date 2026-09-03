@@ -2088,7 +2088,7 @@ func (a *Aontu) drawPoset(docs []viewPosetDoc, at, profile, as string, max int,
 // viewDocFailure is why a poset could not be drawn: the documents that
 // do not stand up on their own, or the anchor a document lacks.
 func (a *Aontu) viewDocFailure(d viewPosetDoc, at string) []VetFinding {
-	b := aontuForPathTrust(d.path, a.Trust)
+	b := aontuForPathTrust(d.path, a.Trust, a.TextExt)
 	b.File = d.path
 	root, _, errs := b.viewLoad(d.src, nil)
 	if nil != errs {

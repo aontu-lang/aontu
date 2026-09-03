@@ -1,10 +1,11 @@
 "use strict";
-/* Copyright (c) 2025 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.candidates = candidates;
 exports.deleteAt = deleteAt;
 exports.evalCanon = evalCanon;
 exports.trimCheck = trimCheck;
+/* Copyright (c) 2025 Richard Rodger, MIT License */
+const utility_1 = require("./utility");
 // The trim reporter (G3 phase 6,
 // docs/capability-review/g3-subsumption-evolution.md): report REDUNDANT
 // map entries — entries whose removal leaves the evaluated result
@@ -85,7 +86,7 @@ function deleteAt(root, path) {
 // source does not stand up, which for the baseline is the caller's
 // error verdict and for a probe means "load-bearing".
 function evalCanon(src, opts, delPath, sink) {
-    const aontu = new aontu_1.Aontu(null == opts.trust ? undefined : { trust: opts.trust });
+    const aontu = new aontu_1.Aontu((0, utility_1.includeOpts)(opts));
     const ctx = aontu.ctx({ collect: true });
     const parseOpts = null == opts.path ? undefined : { path: opts.path };
     // WHY the run failed, for the one caller that reports it. The

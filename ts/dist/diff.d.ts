@@ -18,5 +18,6 @@ export type DiffOptions = {
     rightPath?: string;
     at?: string;
     trust?: TrustOptions;
+    textExt?: string[];
 };
 export declare function diff(leftSrc: string, rightSrc: string, opts?: DiffOptions): DiffReport;

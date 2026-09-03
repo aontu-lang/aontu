@@ -91,6 +91,10 @@ Options:
                   Every verb takes it too, and a bare root means the
                   document's own directory
   --include-root <dir>  Shorthand for --trust root:<dir>
+  --text-ext <e>  Read these extensions as text too, comma-separated
+                  and without dots (md,sql). .txt needs no flag; a
+                  named format keeps its meaning, and .js stays
+                  refused. Every verb takes it
 
 Mod options:
   --format <f>    text (default) or json
@@ -333,11 +337,18 @@ function evalSource(
 // entry root or goes through package resolution prints a one-line
 // stderr warning naming the flag a future default will require
 // (phase 6, the staged flip).
-type TrustArg =
+type TrustArg = (
   | { kind: 'system-warn' }
   | { kind: 'system' }
   | { kind: 'none' }
   | { kind: 'root', dir?: string }
+  // EXTENSIONS READ AS TEXT ride with the capability rather than
+  // beside it: both answer "what may an include read", both are
+  // stripped by takeTrust before a verb parses its own tail, and a
+  // verb that threads one and not the other is the G5 defect again --
+  // `aontu vet` running under a flag the bare command honoured and it
+  // did not.
+) & { textExt?: string[] }
 
 
 // The one-line warning of the staged default flip. Once per (kind,
@@ -366,15 +377,17 @@ function makeTrustWarn(): (kind: 'escape' | 'pkg', path: string) => void {
 // entryRoot (the entry file's directory, or the working directory for
 // stdin/REPL).
 function trustOpts(trust: TrustArg, entryRoot: string): any {
+  const textExt = trust.textExt ?? []
+  const text = 0 === textExt.length ? {} : { textExt }
   switch (trust.kind) {
     case 'none':
-      return { trust: { include: 'none' } }
+      return { ...text, trust: { include: 'none' } }
     case 'root':
-      return { trust: { include: { root: trust.dir ?? entryRoot } } }
+      return { ...text, trust: { include: { root: trust.dir ?? entryRoot } } }
     case 'system':
-      return {}
+      return { ...text }
     default:  // system-warn: today's default plus the warning window
-      return { trustWarn: makeTrustWarn(), trustWarnRoot: entryRoot }
+      return { ...text, trustWarn: makeTrustWarn(), trustWarnRoot: entryRoot }
   }
 }
 
@@ -393,6 +406,7 @@ function takeTrust(argv: string[]):
   { argv: string[], trust: TrustArg } | undefined {
   const rest: string[] = []
   let trust: TrustArg = { kind: 'system-warn' }
+  let textExt: string[] = []
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]
     if ('--trust' === arg) {
@@ -412,19 +426,45 @@ function takeTrust(argv: string[]):
       }
       trust = { kind: 'root', dir }
     }
+    else if ('--text-ext' === arg) {
+      const list = null == argv[i + 1] ? undefined : parseTextExt(argv[++i])
+      if (null == list) {
+        process.stderr.write(
+          'aontu: --text-ext needs extensions, without dots' +
+          ' (--text-ext md,sql)\n')
+        return undefined
+      }
+      textExt = [...textExt, ...list]
+    }
     else {
       rest.push(arg)
     }
   }
-  return { argv: rest, trust }
+  return { argv: rest, trust: { ...trust, textExt } }
+}
+
+
+// `md,sql` or `.md,.sql` -- the dot is accepted and dropped, because a
+// reader who has just written `@"notes.txt"` reaches for one. An empty
+// element, or anything that is not an extension, is a usage error
+// rather than a silently ignored word: a flag that quietly does
+// nothing is how a document ends up refused with no reason visible.
+function parseTextExt(arg: string): string[] | undefined {
+  const out: string[] = []
+  for (const raw of arg.split(',')) {
+    const ext = raw.trim().replace(/^\./, '').toLowerCase()
+    if ('' === ext || !/^[a-z0-9]+$/.test(ext)) {
+      return undefined
+    }
+    out.push(ext)
+  }
+  return 0 === out.length ? undefined : out
 }
 
 
 // The evaluator options a REPL session's capability means.
 function replTrust(state: ReplState, entryRoot: string): any {
-  const capability = verbTrust(
-    state.trust ?? { kind: 'system-warn' }, entryRoot)
-  return null == capability ? {} : { trust: capability }
+  return verbOpts(state.trust ?? { kind: 'system-warn' }, entryRoot)
 }
 
 
@@ -440,6 +480,21 @@ function verbTrust(trust: TrustArg, entryRoot: string): any {
       return { include: { root: trust.dir ?? entryRoot } }
     default:
       return undefined
+  }
+}
+
+
+// THE INCLUDE OPTIONS A VERB RUNS UNDER, spread into its engine call:
+// the capability above, and the extensions `--text-ext` widened. Both
+// are absent when unset rather than present-and-undefined, so a verb's
+// options bag is byte-identical to what it was before either flag
+// existed and no engine sees a key it has to ignore.
+function verbOpts(trust: TrustArg, entryRoot: string): any {
+  const include = verbTrust(trust, entryRoot)
+  const textExt = trust.textExt ?? []
+  return {
+    ...(undefined === include ? {} : { trust: include }),
+    ...(0 === textExt.length ? {} : { textExt }),
   }
 }
 
@@ -607,7 +662,7 @@ export function replCommand(
       if (':why' === cmd) {
         const report = why(src, path, {
           path: state.name,
-          trust: verbTrust(state.trust ?? { kind: 'system-warn' },
+          ...verbOpts(state.trust ?? { kind: 'system-warn' },
             entryRootOf(state.name)),
         })
         return report.ok
@@ -618,7 +673,7 @@ export function replCommand(
         ? 'keys' : 'canon' === state.mode ? 'canon' : 'json'
       const report = get(src, path, {
         view, path: state.name,
-        trust: verbTrust(state.trust ?? { kind: 'system-warn' },
+        ...verbOpts(state.trust ?? { kind: 'system-warn' },
           entryRootOf(state.name)),
       })
       return report.ok
@@ -901,7 +956,7 @@ function vetOnce(args: VetArgs, trust: TrustArg): number {
 
   for (const source of sources) {
     const report = vet(schemaSrc, source.src, {
-      trust: verbTrust(trust, entryRootOf(args.schema)),
+      ...verbOpts(trust, entryRootOf(args.schema)),
       at: args.at,
       closed: args.closed,
       partial: args.partial,
@@ -1193,7 +1248,7 @@ function runSubsume(argv: string[]): number {
   }
 
   const report = subsume(generalSrc, specificSrc, {
-    trust: verbTrust(trust, entryRootOf(args.general)),
+    ...verbOpts(trust, entryRootOf(args.general)),
     profile: args.profile,
     at: args.at,
     generalUrl: args.general,
@@ -1578,7 +1633,7 @@ function runBreaking(argv: string[]): number {
 
     for (const check of checks) {
       const report = subsume(check.general[0], check.specific[0], {
-        trust: verbTrust(trust, entryRootOf(args.file)),
+        ...verbOpts(trust, entryRootOf(args.file)),
         at: args.at,
         generalUrl: check.general[1],
         specificUrl: check.specific[1],
@@ -1724,7 +1779,7 @@ function runTrim(argv: string[]): number {
   }
 
   const report = trimCheck(src, {
-    path: files[0], trust: verbTrust(trust, entryRootOf(files[0])),
+    path: files[0], ...verbOpts(trust, entryRootOf(files[0])),
   })
   const text = 'json' === format
     ? renderTrimJson(report)
@@ -2110,7 +2165,7 @@ function runRelations(argv: string[]): number {
   }
 
   const report = relationCheck(src, {
-    path: files[0], trust: verbTrust(trust, entryRootOf(files[0])),
+    path: files[0], ...verbOpts(trust, entryRootOf(files[0])),
   })
   const text = 'json' === format
     ? renderRelationsJson(report)
@@ -2178,7 +2233,7 @@ function runReaches(argv: string[]): number {
 
   const report = reachCheck(src, rest[0], rest[1], {
     path: rest[2], relation,
-    trust: verbTrust(trust, entryRootOf(rest[2])),
+    ...verbOpts(trust, entryRootOf(rest[2])),
   })
   const text = 'json' === format
     ? renderReachesJson(report)
@@ -2424,7 +2479,7 @@ function runView(argv: string[]): number {
     kind,
     path: files[0],
     roots,
-    trust: verbTrust(trust, entryRootOf(files[0])),
+    ...verbOpts(trust, entryRootOf(files[0])),
     docs: files.slice(1).map((path, i) => ({ src: srcs[i + 1], path })),
   })
 
@@ -2503,7 +2558,7 @@ function runViewSet(
   }
 
   const report = viewSet(src, {
-    ...opts, path: file, trust: verbTrust(trust, entryRootOf(file)),
+    ...opts, path: file, ...verbOpts(trust, entryRootOf(file)),
   })
 
   if ('json' === how.format) {
@@ -2726,7 +2781,7 @@ function runJsonSchema(argv: string[]): number {
   }
 
   const report = jsonSchema(src, {
-    at, path: files[0], trust: verbTrust(trust, entryRootOf(files[0])),
+    at, path: files[0], ...verbOpts(trust, entryRootOf(files[0])),
   })
 
   if ('json' === format) {
@@ -2819,9 +2874,7 @@ function runHash(argv: string[]): number {
 
   // The file's own directory is the include base, as every verb
   // resolves a named file (vet's aontuForPath rule).
-  const capability = verbTrust(trust, entryRootOf(files[0]))
-  const aontu = new Aontu(
-    null == capability ? undefined : { trust: capability })
+  const aontu = new Aontu(verbOpts(trust, entryRootOf(files[0])))
   const ctx = aontu.ctx({ collect: true })
   const v: any = aontu.unify(src, { path: files[0] }, ctx)
   if (0 < ctx.err.length || true === v?.isNil) {
@@ -2937,7 +2990,7 @@ function runGet(argv: string[]): number {
   }
 
   const report = get(src, path, {
-    view, depth, path: file, trust: verbTrust(trust, entryRootOf(file)),
+    view, depth, path: file, ...verbOpts(trust, entryRootOf(file)),
   })
   if ('json' === format) {
     process.stdout.write(exactJSON({
@@ -3021,7 +3074,7 @@ function runWhy(argv: string[]): number {
   }
 
   const report = why(src, path, {
-    path: file, trust: verbTrust(trust, entryRootOf(file)),
+    path: file, ...verbOpts(trust, entryRootOf(file)),
   })
   if ('json' === format) {
     process.stdout.write(exactJSON({
@@ -3156,7 +3209,7 @@ function runSet(argv: string[]): number {
   }
 
   const report = patch(entrySrc, overlaySrc, assignments, {
-    trust: verbTrust(trust, entryRootOf(entry)),
+    ...verbOpts(trust, entryRootOf(entry)),
     entryPath: entry,
     overlayPath: overlayFile,
     inPlace,
@@ -3291,7 +3344,7 @@ function runAgentsMd(argv: string[]): number {
 
   const report = agentsMd(src, {
     name: files[0], path: files[0],
-    trust: verbTrust(trust, entryRootOf(files[0])),
+    ...verbOpts(trust, entryRootOf(files[0])),
   })
   if (!report.ok) {
     process.stderr.write(
@@ -3386,6 +3439,7 @@ function main(argv: string[]): void {
   // validation. Counting them is what lets the refusal below happen.
   const files: string[] = []
   let trust: TrustArg = { kind: 'system-warn' }
+  let textExt: string[] = []
   // The REPL's SESSION protocol (G7 phase 7): one JSON line per
   // answer, so a harness can drive the session. Named --jsonl rather
   // than the design's --json, which would read as the `:json` output
@@ -3494,6 +3548,16 @@ function main(argv: string[]): void {
       }
       trust = { kind: 'root', dir }
     }
+    else if ('--text-ext' === arg) {
+      const list = null == args[i + 1] ? undefined : parseTextExt(args[++i])
+      if (null == list) {
+        process.stderr.write(
+          'aontu: --text-ext needs extensions, without dots' +
+          ' (--text-ext md,sql)\n')
+        return finish(2)
+      }
+      textExt = [...textExt, ...list]
+    }
     else if (arg.startsWith('-')) {
       process.stderr.write(`aontu: unknown option ${arg} (try --help)\n`)
       return finish(2)
@@ -3518,6 +3582,11 @@ function main(argv: string[]): void {
       ' (try --help)\n')
     return finish(2)
   }
+
+  // The extensions ride with the capability from here on, so the three
+  // entry shapes below (file, REPL, stdin) each get them by threading
+  // the one value they already thread.
+  trust = { ...trust, textExt }
 
   const file = files[0]
   if (null != file) {

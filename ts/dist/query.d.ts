@@ -7,6 +7,7 @@ export type QueryOptions = {
     depth?: number;
     path?: string;
     trust?: TrustOptions;
+    textExt?: string[];
 };
 export type QueryReport = {
     ok: boolean;

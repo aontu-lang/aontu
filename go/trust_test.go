@@ -243,15 +243,15 @@ func TestTrustVerbOptionsConfineTheEngine(t *testing.T) {
 	// and there is no second place for a caller to set it (the
 	// canonical port's get/why are free functions and take it in
 	// options; ADR-001 is a contract on behaviour, not on API shape).
-	open := aontuForPathTrust(entry, nil)
+	open := aontuForPathTrust(entry, nil, nil)
 	if got := open.Get(src, "$.a.secret", nil); !got.OK {
 		t.Fatalf("get, unconfined: %+v", got.Findings)
 	}
-	shut := aontuForPathTrust(entry, none)
+	shut := aontuForPathTrust(entry, none, nil)
 	if got := shut.Get(src, "$.a.secret", nil); got.OK {
 		t.Fatal("get ignored the capability")
 	}
-	if got := aontuForPathTrust(entry, none).Why(src, "$.a.secret"); got.OK {
+	if got := aontuForPathTrust(entry, none, nil).Why(src, "$.a.secret"); got.OK {
 		t.Fatal("why ignored the capability")
 	}
 }
@@ -295,14 +295,18 @@ func TestTrustDepsIsEmptyWithoutIncludes(t *testing.T) {
 // include what the filesystem would refuse. The shared spec rows cannot
 // reach this leg -- they resolve real files -- so it is pinned here.
 func TestMemCapabilityGatesTheExtension(t *testing.T) {
+	// `.csv` rather than `.txt`: the extension this example used is now
+	// READ, as one string scalar, so it no longer demonstrates a gate.
+	// `.csv` is still refused -- and for the ADR-001 reason, which is
+	// the sharpest one to pin here.
 	a := New()
-	a.Trust = &TrustOptions{IncludeMem: map[string]string{"/v/notes.txt": "m: 1"}}
-	_, err := a.Parse(`a:@"/v/notes.txt"`)
+	a.Trust = &TrustOptions{IncludeMem: map[string]string{"/v/rows.csv": "m: 1"}}
+	_, err := a.Parse(`a:@"/v/rows.csv"`)
 	if nil == err {
-		t.Fatal("a .txt in the mem set was read")
+		t.Fatal("a .csv in the mem set was read")
 	}
 	if !strings.Contains(err.Error(), "include not readable") ||
-		!strings.Contains(err.Error(), "extension: .txt") {
+		!strings.Contains(err.Error(), "extension: .csv") {
 		t.Fatalf("err: %v", err)
 	}
 	// ... and a key the table DOES name is read, so the gate is the

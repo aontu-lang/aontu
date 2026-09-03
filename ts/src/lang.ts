@@ -1597,6 +1597,14 @@ help isolate the syntax error.`,
 // references, constraints, its own includes. Two extensions, and they
 // are the ones this project owns.
 //
+// `text` — the file's BYTES, as one string scalar. No parser is
+// chosen, so there is nothing for two ports to disagree about and
+// nothing in the file that can mean anything: `notes: @"notes.txt"`
+// is a document loading prose into a string. `.txt` is the only
+// extension here by default; `AontuOptions.textExt` (the CLI's
+// `--text-ext`) adds others, because which name a project keeps its
+// templates under is the project's business, not this table's.
+//
 // A FORMAT NAME — configuration DATA, parsed by that format's own
 // parser into the JSON value it denotes, which then becomes Aontu
 // values like any other data. Every one of these formats maps onto
@@ -1628,7 +1636,42 @@ const INCLUDE_KINDS: { [kind: string]: string } = {
   yaml: 'yaml',
   yml: 'yaml',
   ini: 'ini',
+
+  txt: 'text',
 }
+
+
+// WHAT AN EXTENSION MEANS, for this parse. The table is the fixed
+// part; `textExt` is the per-parse widening, and it wins over nothing
+// -- a host cannot re-read `.toml` as text, because an extension the
+// table already names has a meaning documents rely on. Undefined is
+// the refusal, and it is the ONE place that decides it: the resolver's
+// gate and the processor map both ask here, so a widening cannot reach
+// one and not the other.
+function includeFormat(
+  ext: string, textExt?: string[]): string | undefined {
+  const known = INCLUDE_KINDS[ext]
+  if (undefined !== known) {
+    return known
+  }
+  // NOT EVEN AS TEXT. `.js` is the extension ADR-012 singles out
+  // because multisource's own default EXECUTES it, and an extension
+  // this project refuses on purpose stays refused however a flag is
+  // spelled -- reading it is harmless, but a widening that can reach
+  // the one name the rule names is a widening whose limit nobody can
+  // state. Go's includeFormat holds the same list, and the two CLIs
+  // are diffed on `--text-ext js` because they once disagreed here.
+  if (REFUSED_EXT.has(ext)) {
+    return undefined
+  }
+  return textExt?.includes(ext) ? 'text' : undefined
+}
+
+
+// Extensions no widening may reach. `js` executes under multisource's
+// default processor; `''` is the no-extension fallback, which names no
+// file type at all.
+const REFUSED_EXT = new Set(['js', ''])
 
 // `.csv` IS DELIBERATELY ABSENT, and the reason is ADR-001 rather than
 // taste. The two ports' CSV parsers disagree about what a CSV file IS:
@@ -1754,13 +1797,20 @@ const dataProcessor = (format: string) => (res: any) => {
   res.val = rawToVal(DATA_READERS[format](res.src, res.path))
 }
 
+// TEXT IS NOT PARSED. The bytes multisource read are the value, so
+// this is the one processor with no reader behind it -- which is why
+// a `.txt` include cannot fail on content, only on being unreadable.
+const textProcessor = (res: any) => {
+  res.val = new StringVal({ peg: res.src })
+}
+
 /**
  * The multisource processor map, built FROM the include table so the
  * two cannot drift: every extension the table names gets the reader
  * the table names for it, and the two kinds that are not in the table
  * refuse.
  */
-function includeProcessors(): { [kind: string]: any } {
+function includeProcessors(textExt?: string[]): { [kind: string]: any } {
   const map: { [kind: string]: any } = {
     // multisource's fallback for an extension no entry names, so it is
     // the one that catches whatever the resolver's gate did not.
@@ -1769,9 +1819,23 @@ function includeProcessors(): { [kind: string]: any } {
     js: refuseProcessor,
   }
   const source = makeJsonicProcessor()
+  const forKind = (kind: string) => {
+    const format = includeFormat(kind, textExt)
+    if ('source' === format) return source
+    if ('text' === format) return textProcessor
+    return dataProcessor(format as string)
+  }
   for (const kind of Object.keys(INCLUDE_KINDS)) {
-    const format = INCLUDE_KINDS[kind]
-    map[kind] = 'source' === format ? source : dataProcessor(format)
+    map[kind] = forKind(kind)
+  }
+  // A WIDENING NEVER OVERWRITES. `js` and the empty fallback refuse
+  // above and stay refusing: `--text-ext js` would otherwise turn the
+  // one extension ADR-012 singles out into a readable one, by a flag
+  // whose whole promise is that it chooses no parser.
+  for (const ext of textExt ?? []) {
+    if (undefined === map[ext]) {
+      map[ext] = textProcessor
+    }
   }
   return map
 }
@@ -1893,7 +1957,7 @@ function makeModelResolver(options: any) {
   // module legs do not: both state `kind: 'aon'` because what they
   // serve is Aontu source by construction, not by its spelling.
   const gateExtension = (path: string, full: string): void => {
-    if (undefined === INCLUDE_KINDS[extKindOf(full)]) {
+    if (undefined === includeFormat(extKindOf(full), options.textExt)) {
       refuseExtension(path, full)
     }
   }
@@ -2308,7 +2372,7 @@ class Lang {
         // (BUGS §49b). Its `js` entry EXECUTES the file, which is not
         // something an extension should be able to ask for. And its
         // fallback hands any other file back as TEXT.
-        processor: includeProcessors()
+        processor: includeProcessors(this.opts.textExt)
       })
       .use(AontuJsonic)
   }

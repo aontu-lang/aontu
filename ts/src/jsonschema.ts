@@ -1,4 +1,5 @@
 /* Copyright (c) 2025 Richard Rodger, MIT License */
+import { includeOpts } from './utility'
 
 // JSON SCHEMA EXPORT (the review's finding I / SUPPORT.md act 2).
 //
@@ -75,6 +76,11 @@ export type SchemaOptions = {
   // its own directory.
   path?: string
   trust?: TrustOptions
+
+  // Extensions additionally read as text (the CLI's `--text-ext`).
+  // Rides beside `trust` because it is the other half of what an
+  // include may read.
+  textExt?: string[]
 }
 
 
@@ -501,7 +507,7 @@ function fromList(ctx: Ctx, path: string[], v: any): any {
 // The verb. Evaluate, anchor, walk, report.
 export function jsonSchema(src: string, options?: SchemaOptions): SchemaReport {
   const opts = options ?? {}
-  const aontu = new Aontu(null == opts.trust ? {} : { trust: opts.trust })
+  const aontu = new Aontu(includeOpts(opts))
 
   // COLLECT MODE, so a syntax error arrives on the context rather than
   // as a throw -- the same failure Go's `parseEntry` hands back as an

@@ -120,19 +120,41 @@ load-ext-ini	gen	x:@"__FIXTURES__/conf.ini"	{"x":{"host":"local","port":"8080"}}
 # including the header, with numbers parsed -- so admitting it would
 # admit a divergence, which ADR-001 does not allow. See ADR-012.
 load-ext-csv	err	x:@"__FIXTURES__/conf.csv"	include not readable
-load-ext-text	err	x:@"__FIXTURES__/notes.txt"	include not readable
 load-ext-none	err	x:@"__FIXTURES__/noext"	include not readable
 # The extension is NAMED, because the extension is the whole reason.
-load-ext-names-it	err	x:@"__FIXTURES__/notes.txt"	extension: .txt
+load-ext-names-it	err	x:@"__FIXTURES__/conf.csv"	extension: .csv
 load-ext-names-none	err	x:@"__FIXTURES__/noext"	no extension
+# TEXT IS THE THIRD THING AN EXTENSION CAN MEAN, beside Aontu source
+# and configuration data: the file's BYTES, as one string scalar. No
+# parser is chosen, so there is nothing here for two ports to disagree
+# about -- which is exactly what `.txt` used to be refused FOR, back
+# when TypeScript handed every unknown extension back as raw text and
+# Go parsed it as source. One reading, stated, is not that.
+load-ext-txt	gen	x:@"__FIXTURES__/notes.txt"	{"x":"These are notes, not a document.\\n"}
+# The bytes are a STRING like any other, so the language's string
+# operations reach them and a schema can constrain them.
+load-ext-txt-string	gen	x:@"__FIXTURES__/notes.txt" x:string	{"x":"These are notes, not a document.\\n"}
+load-ext-txt-upper	gen	x:upper(@"__FIXTURES__/notes.txt")	{"x":"THESE ARE NOTES, NOT A DOCUMENT.\\n"}
+# A text include is not a map, so it cannot be spliced as a bare
+# member: the refusal is the ordinary one for a scalar in map position,
+# not an include rule of its own.
+load-ext-txt-canon	canon	x:@"__FIXTURES__/notes.txt"	{"x":"These are notes, not a document.\\n"}
+# The widening (--text-ext) is a CLI surface and has no spec mode, so
+# the two ports are diffed on it directly rather than pinned here --
+# `--text-ext js` in particular, where they once disagreed: Go read the
+# file as text, TypeScript refused it. What IS shared is that the
+# extension `js` names is refused with no flag at all, which is the
+# invariant the widening must not be able to break.
+load-ext-js	err	x:@"__FIXTURES__/exec.js"	include not readable
+load-ext-js-names-it	err	x:@"__FIXTURES__/exec.js"	extension: .js
 # A refusal must not vanish where a bare-member include merges into the
 # enclosing map and a nil contributes no keys -- the shape that made a
 # missing include produce a clean, plausible, INCOMPLETE document
 # (load-not-found-member above, same reason).
-load-ext-bare	err	a:1 @"__FIXTURES__/notes.txt"	include not readable
-load-ext-bare-first	err	@"__FIXTURES__/notes.txt" a:1	include not readable
-load-ext-nested	err	a:{ @"__FIXTURES__/notes.txt" }	include not readable
-load-ext-list	err	a:[ @"__FIXTURES__/notes.txt" ]	include not readable
+load-ext-bare	err	a:1 @"__FIXTURES__/conf.csv"	include not readable
+load-ext-bare-first	err	@"__FIXTURES__/conf.csv" a:1	include not readable
+load-ext-nested	err	a:{ @"__FIXTURES__/conf.csv" }	include not readable
+load-ext-list	err	a:[ @"__FIXTURES__/conf.csv" ]	include not readable
 # An unreadable extension on a source that is not there is NOT-FOUND:
 # the file has to exist before its name can be the problem.
 load-ext-missing	err	x:@"__FIXTURES__/no-such-file.txt"	source not found

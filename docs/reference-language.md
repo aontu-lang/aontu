@@ -43,6 +43,7 @@ the [Explanation](explanation.md).
 - [Marks: `type` and `hide`](#marks-type-and-hide)
 - [Closed values: `close` / `open`](#closed-values-close--open)
 - [Source loading `@"…"`](#source-loading-)
+  - [Text: `.txt` and `--text-ext`](#text-txt-and---text-ext)
 - [Operator precedence](#operator-precedence)
 - [Canonical form](#canonical-form)
 - [Generation](#generation)
@@ -2254,13 +2255,14 @@ Source files use the `.aon` extension (preferred) or `.aontu`. When the
 path has no extension, those two are tried in turn, so `@"foo"` resolves
 `foo.aon` then `foo.aontu`.
 
-**The extension decides what the file is**, and it says which of two
+**The extension decides what the file is**, and it says which of three
 things:
 
 | extension | what it is |
 |---|---|
 | `.aon`, `.aontu` | **Aontu source** — the language, with everything in it |
 | `.json`, `.jsonld`, `.jsonc`, `.json5`, `.jsonic`, `.jsc`, `.toml`, `.yaml`, `.yml`, `.ini` | **configuration data**, read by that format's own parser |
+| `.txt`, and whatever `--text-ext` names | **text** — the file's bytes, as one string |
 | anything else | refused, by name |
 
 Every one of those formats maps onto JSON, which is why one word covers
@@ -2297,6 +2299,41 @@ $ aontu main.aon
   }
 }
 ```
+
+### Text: `.txt` and `--text-ext`
+
+A `.txt` file is read as **one string**. Nothing parses it, so nothing
+in it can mean anything — which is what makes it the safe third
+category. Write `notes.txt`:
+
+<!-- test: file notes.txt -->
+```
+Deploy freezes over the holiday period.
+```
+
+and load it as a value in `main.aon`:
+
+<!-- test: file main.aon -->
+```aon
+notes: @"notes.txt"
+```
+
+<!-- test: run -->
+```sh
+$ aontu -c main.aon
+{"notes":"Deploy freezes over the holiday period.\n"}
+```
+
+The result is an ordinary string, so the language's string operations
+reach it and a schema can constrain it: `notes: string & length(1)`
+holds, and `upper(@"notes.txt")` uppercases the file.
+
+**Other extensions need an allowance.** `--text-ext md,sql` reads those
+as text too, for a project that keeps its prose in `.md` or its queries
+in `.sql`. Every verb takes it, and the dots are optional
+(`--text-ext .md`). Two limits: an extension the table already names
+keeps its meaning, so `--text-ext toml` does not re-read TOML as a
+string; and `.js` stays refused however the flag is spelled.
 
 A config file in any of those formats reads the same way. Write
 `server.toml`:
@@ -2336,24 +2373,25 @@ whole document rather than becoming an empty value under the key that
 included it.
 
 Every other extension — and a name with no extension at all — is
-refused by name rather than guessed at. Put prose in `notes.txt`:
+refused by name rather than guessed at. Put rows in `rows.csv`:
 
-<!-- test: file notes.txt -->
+<!-- test: file rows.csv -->
 ```
-Some notes, in prose.
+port,host
+8080,local
 ```
 
 and ask for it in `main.aon`:
 
 <!-- test: file main.aon -->
 ```aon
-notes: @"notes.txt"
+rows: @"rows.csv"
 ```
 
 <!-- test: run -->
 ```sh
 $ aontu main.aon
-include not readable: notes.txt (extension: .txt)
+include not readable: rows.csv (extension: .csv)
 $ echo $?
 1
 ```
@@ -2361,7 +2399,10 @@ $ echo $?
 A guess would be worse than the refusal, and it was: read as text, a
 vocabulary became a string that a schema then validated nothing
 against; read as Aontu, prose became a parse error at a line nobody
-wrote. Both exited 0.
+wrote. Both exited 0. Reading a file as text is a category the table
+now *names* — that is what `.txt` is — and the difference is that it is
+stated rather than a fallback for whatever the table failed to
+recognise.
 
 ```
 @"foo.aon"                       → {"f":11}            (top level)

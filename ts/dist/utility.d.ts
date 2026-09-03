@@ -1,4 +1,9 @@
-import type { Val } from './type';
+import type { AontuOptions, TrustOptions, Val } from './type';
+type IncludeOptions = {
+    trust?: TrustOptions;
+    textExt?: string[];
+};
+declare function includeOpts(options: IncludeOptions): Partial<AontuOptions>;
 declare function propagateMarks(source: Val, target: Val): void;
 declare function collectDeprecations(root: Val): Array<{
     val: Val;
@@ -19,4 +24,5 @@ declare function ec(t: any[] | undefined | null, why: string): (string | null)[]
 declare function explainClose(t: any[] | undefined | null, out?: Val): void;
 declare function formatExplain(t: any[], d?: number): string;
 declare function items(o: any): any[][];
-export { items, propagateMarks, canonRiders, collectDeprecations, walkBagVals, deprecationMessage, formatPath, walk, WalkApply, explainOpen, ec, explainClose, formatExplain, };
+export type { IncludeOptions };
+export { includeOpts, items, propagateMarks, canonRiders, collectDeprecations, walkBagVals, deprecationMessage, formatPath, walk, WalkApply, explainOpen, ec, explainClose, formatExplain, };

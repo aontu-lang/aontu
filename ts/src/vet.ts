@@ -36,7 +36,9 @@ import { descErr, getHint } from './err'
 import { ConjunctVal } from './val/ConjunctVal'
 import { walkVals, collectNils } from './walk'
 import { sizingResidue } from './val/BagVal'
-import { collectDeprecations, walkBagVals, deprecationMessage } from './utility'
+import { collectDeprecations, walkBagVals, deprecationMessage,
+  includeOpts,
+} from './utility'
 import { subsumeNode, effectiveDefault } from './subsume'
 // The `--at` refusal is the SAME refusal `get` and `why` give for a
 // path that names nothing, down to the "did you mean" -- so it is that
@@ -151,6 +153,11 @@ export type VetOptions = {
   // ADR-012 refuses the extension -- but reading is enough.) A server
   // passes `{include:'none'}`.
   trust?: TrustOptions
+
+  // Extensions additionally read as text (the CLI's `--text-ext`).
+  // Rides beside `trust` because it is the other half of what an
+  // include may read.
+  textExt?: string[]
 }
 
 
@@ -599,8 +606,7 @@ export function vet(
   // ONE instance, two bases: the path rides on each CALL rather than on
   // the constructor, because the schema and the data may live in
   // different directories (Lang.parse takes `opts.path` per parse).
-  const aontu = new Aontu(
-    null == options.trust ? undefined : { trust: options.trust })
+  const aontu = new Aontu(includeOpts(options))
   const schemaOpts = null == options.schemaPath ?
     undefined : { path: options.schemaPath }
   const dataOpts = null == options.dataPath ?

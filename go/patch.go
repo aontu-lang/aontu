@@ -35,6 +35,10 @@ type PatchOptions struct {
 	// docs/trust.md). Nil means today's default.
 	Trust *TrustOptions
 
+	// TextExt is the extensions additionally read as text (the CLI's
+	// --text-ext), the other half of what an include may read.
+	TextExt []string
+
 	// Where each document CAME FROM, so relative `@"file"` loads
 	// inside them resolve from their own directories.
 	EntryPath   string
@@ -187,6 +191,7 @@ func Patch(
 	// the caller, "which file" is the whole question.
 	report := Vet(entrySrc, overlay, &VetOptions{
 		Trust:      options.Trust,
+		TextExt:    options.TextExt,
 		DataPath:   options.OverlayPath,
 		DataURL:    options.OverlayPath,
 		SchemaPath: options.EntryPath,

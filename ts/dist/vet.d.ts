@@ -37,6 +37,7 @@ export type VetOptions = {
     schemaPath?: string;
     dataPath?: string;
     trust?: TrustOptions;
+    textExt?: string[];
 };
 export declare const VET_MAX_ERRORS = 20;
 export declare function displayFile(url: string, label: string, path?: string): string;

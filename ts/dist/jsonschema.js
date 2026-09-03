@@ -1,7 +1,8 @@
 "use strict";
-/* Copyright (c) 2025 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.jsonSchema = jsonSchema;
+/* Copyright (c) 2025 Richard Rodger, MIT License */
+const utility_1 = require("./utility");
 // JSON SCHEMA EXPORT (the review's finding I / SUPPORT.md act 2).
 //
 // "JSON Schema's decisive 2026 advantage is not its validator ecosystem
@@ -378,7 +379,7 @@ function fromList(ctx, path, v) {
 // The verb. Evaluate, anchor, walk, report.
 function jsonSchema(src, options) {
     const opts = options ?? {};
-    const aontu = new aontu_1.Aontu(null == opts.trust ? {} : { trust: opts.trust });
+    const aontu = new aontu_1.Aontu((0, utility_1.includeOpts)(opts));
     // COLLECT MODE, so a syntax error arrives on the context rather than
     // as a throw -- the same failure Go's `parseEntry` hands back as an
     // error, reached by the branch below. No try/catch here for the same

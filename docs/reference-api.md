@@ -2446,10 +2446,12 @@ candidate an agent emitted, a live system dump, the other side of a diff
 which reaches anything on the filesystem the process can read. **Opening
 an untrusted source is reading your disk**, so pass a profile whenever
 the source is not yours. Reading, never running: an include's extension
-decides what the file is — `.aon` and `.aontu` as Aontu source, and
+decides what the file is — `.aon` and `.aontu` as Aontu source,
 `.json`, `.jsonld`, `.jsonc`, `.json5`, `.jsonic`, `.jsc`, `.toml`,
-`.yaml`, `.yml` and `.ini` as configuration data — and every other
-extension is refused.
+`.yaml`, `.yml` and `.ini` as configuration data, and `.txt` as text
+(the bytes, as one string) — and every other extension is refused.
+`textExt` widens the text set; it cannot re-read a named format, and
+cannot reach `.js`.
 
 <!-- test: skip TypeScript API sample; the API surface is pinned by ts/test/ -->
 ```ts

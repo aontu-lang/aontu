@@ -51,6 +51,7 @@ func replSnippet(state replState) *aontu.Aontu {
 	if err != nil { //coverage:ignore Getwd fails only on a deleted cwd
 		cwd = "."
 	}
+	a.TextExt = state.Trust.textExt
 	if capability := verbTrust(state.Trust, cwd); nil != capability {
 		a.Trust = capability
 	}

@@ -1,7 +1,8 @@
 "use strict";
-/* Copyright (c) 2025 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.diff = diff;
+/* Copyright (c) 2025 Richard Rodger, MIT License */
+const utility_1 = require("./utility");
 // PATH-ADDRESSED DIFF (G7 phase 6,
 // docs/capability-review/g7-machine-access.md): what changed, at which
 // paths, between two documents — the dyff-style answer, which
@@ -127,7 +128,7 @@ function evalSide(aontu, src, path, at) {
 // rather than diffing a wreck.
 function diff(leftSrc, rightSrc, opts) {
     const options = opts ?? {};
-    const aontu = new aontu_1.Aontu(null == options.trust ? undefined : { trust: options.trust });
+    const aontu = new aontu_1.Aontu((0, utility_1.includeOpts)(options));
     const l = evalSide(aontu, leftSrc, options.leftPath, options.at);
     const r = evalSide(aontu, rightSrc, options.rightPath, options.at);
     const findings = [l.finding, r.finding].filter(Boolean);

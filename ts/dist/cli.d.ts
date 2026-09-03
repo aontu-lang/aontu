@@ -5,7 +5,7 @@ declare function evalSource(aontu: Aontu, src: string, mode: Mode): {
     ok: boolean;
     text: string;
 };
-type TrustArg = {
+type TrustArg = ({
     kind: 'system-warn';
 } | {
     kind: 'system';
@@ -14,6 +14,8 @@ type TrustArg = {
 } | {
     kind: 'root';
     dir?: string;
+}) & {
+    textExt?: string[];
 };
 export type ReplState = {
     mode: Mode;

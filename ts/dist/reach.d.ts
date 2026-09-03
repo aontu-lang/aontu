@@ -9,6 +9,7 @@ export type ReachReport = {
 export type ReachOptions = {
     path?: string;
     trust?: TrustOptions;
+    textExt?: string[];
     relation?: string;
 };
 export declare function parseNodePath(s: string): string[] | undefined;
