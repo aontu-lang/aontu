@@ -410,3 +410,59 @@ func TestTrustSinkNilGuards(t *testing.T) {
 		t.Fatalf("a pathless source was filed anyway: %+v", sink.texts)
 	}
 }
+
+// THE WIDENING'S TWO EDGES, both of which the shared spec rows cannot
+// reach: they resolve real files under no flag, and TextExt is an
+// option rather than language.
+func TestTextExtWideningAndItsLimits(t *testing.T) {
+	dir := t.TempDir()
+	write := func(name, body string) string {
+		p := filepath.Join(dir, name)
+		if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+	md := write("doc.md", "# hi\n")
+	js := write("exec.js", "module.exports={pwned:true}\n")
+	toml := write("conf.toml", "port = 8080\n")
+
+	// A WIDENED EXTENSION IS READ AS TEXT. It reaches the fallback
+	// processor rather than a registered one -- the processor map is
+	// built once and the flag is per parse -- so this is the arm that
+	// keeps the resolver's gate and the processor agreeing.
+	a := New()
+	a.TextExt = []string{"md"}
+	v, err := a.Parse(`x:@"` + md + `"`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := v.Canon(); `{"x":"# hi\n"}` != got {
+		t.Fatalf("widened md: %s", got)
+	}
+
+	// NOT EVEN AS TEXT: `js` is the extension ADR-012 singles out,
+	// because multisource's own default would EXECUTE it. No spelling
+	// of the flag reaches it -- and the two ports disagreed here once,
+	// Go reading the file where TypeScript refused it.
+	b := New()
+	b.TextExt = []string{"js"}
+	if _, err := b.Parse(`x:@"` + js + `"`); nil == err ||
+		!strings.Contains(err.Error(), "include not readable") ||
+		!strings.Contains(err.Error(), "extension: .js") {
+		t.Fatalf("js was widened: %v", err)
+	}
+
+	// A WIDENING NEVER OVERWRITES a format the table already names:
+	// documents rely on what `.toml` means, so it stays parsed rather
+	// than becoming its own source text.
+	c := New()
+	c.TextExt = []string{"toml"}
+	tv, err := c.Parse(`x:@"` + toml + `"`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := tv.Canon(); `{"x":{"port":8080}}` != got {
+		t.Fatalf("toml re-read as text: %s", got)
+	}
+}
