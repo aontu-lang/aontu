@@ -1,0 +1,103 @@
+diff --git a/.github/workflows/publish.yml b/.github/workflows/publish.yml
+index d21f6081..d6e0e68c 100644
+--- a/.github/workflows/publish.yml
++++ b/.github/workflows/publish.yml
+@@ -37,6 +37,13 @@
+ #   push: tags v*      the manual path, for a tag pushed by hand. Publishes
+ #                      only; the tag job does not run.
+ #
++# THE GO BINARIES ride the same run (docs/release-and-tag.md, "The Go
++# binaries"): after the tag, a build job cross-compiles the CLI and the
++# LSP server for six targets with contents: read, and a release job puts
++# the archives on a GitHub Release at go/v<VERSION> with contents: write
++# and nothing else running. In this file for the same reason the tags
++# are: a tag pushed with GITHUB_TOKEN starts no other workflow.
++#
+ # VERSION BUMPS ARE NOT AUTOMATED, deliberately. Nothing here commits. It
+ # reads the versions already on the branch and releases exactly those, so the
+ # bump stays a reviewable diff and the release stays a button.
+@@ -364,3 +371,84 @@ jobs:
+           git tag "$TAG"
+           git push origin "refs/tags/$TAG"
+           echo "pushed $TAG" >> "$GITHUB_STEP_SUMMARY"
++
++  # THE BINARIES, so that an install needs no toolchain: the CLI and the
++  # LSP server for Linux, macOS and Windows on amd64 and arm64, one
++  # archive per target, summed, plus the Homebrew formula written with
++  # those sums. Two jobs, for the reason publish and tag are two: this
++  # one runs project code (go build) with contents: read and hands the
++  # archives on as an artifact; the release job runs gh and nothing else.
++  binaries:
++    name: Go binaries
++    needs: [publish, tag]
++    if: ${{ github.event_name == 'workflow_dispatch' && inputs.go }}
++    runs-on: ubuntu-latest
++    timeout-minutes: 15
++
++    permissions:
++      contents: read
++
++    steps:
++      - uses: actions/checkout@v4
++
++      - uses: actions/setup-go@v5
++        with:
++          go-version-file: go/go.mod
++
++      - name: Cross-compile and package
++        env:
++          GO_VERSION: ${{ needs.publish.outputs.go_version }}
++        run: go/scripts/binaries.sh "$GO_VERSION" dist
++
++      - uses: actions/upload-artifact@v4
++        with:
++          name: go-binaries
++          path: go/dist/
++          if-no-files-found: error
++          retention-days: 7
++
++  # Runs gh and nothing else. The tag exists by now (the build job needed
++  # the tag job), and --verify-tag holds the release to it.
++  release:
++    name: GitHub Release
++    needs: [publish, binaries]
++    if: ${{ github.event_name == 'workflow_dispatch' && inputs.go }}
++    runs-on: ubuntu-latest
++    timeout-minutes: 10
++
++    permissions:
++      contents: write
++
++    steps:
++      - uses: actions/download-artifact@v4
++        with:
++          name: go-binaries
++          path: dist
++
++      - name: Release the binaries at the Go tag
++        env:
++          GH_TOKEN: ${{ github.token }}
++          GO_VERSION: ${{ needs.publish.outputs.go_version }}
++        run: |
++          set -euo pipefail
++          TAG="go/v$GO_VERSION"
++          ls -l dist
++
++          # A RE-DISPATCH AFTER A PARTIAL RUN IS SAFE HERE TOO: a release
++          # that already exists has its assets replaced rather than
++          # failing the run that would complete it.
++          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
++            gh release upload "$TAG" dist/* --clobber --repo "$GITHUB_REPOSITORY"
++            echo "replaced the assets of the release at $TAG" >> "$GITHUB_STEP_SUMMARY"
++            exit 0
++          fi
++
++          # A PRERELEASE IS MARKED AS ONE, as npm's next dist-tag marks
++          # the package: the releases page's "latest" stays a release.
++          FLAGS=(--repo "$GITHUB_REPOSITORY" --verify-tag --title "aontu $GO_VERSION (Go CLI)")
++          case "$GO_VERSION" in
++            *-*) FLAGS+=(--prerelease) ;;
++          esac
++          NOTES="Prebuilt \`aontu\` and \`aontu-lsp\` for Linux, macOS and Windows on amd64 and arm64, from the Go module \`go/v$GO_VERSION\`. Unpack the archive for your platform and put the binaries on your PATH. \`SHA256SUMS\` has the sums and \`aontu.rb\` is the Homebrew formula for the tap. The same commit installs with \`go install github.com/aontu-lang/aontu/go/cmd/aontu@v$GO_VERSION\`. The changes are in CHANGELOG.md."
++          gh release create "$TAG" dist/* "${FLAGS[@]}" --notes "$NOTES"
++          echo "released $TAG with $(ls dist | wc -l) assets" >> "$GITHUB_STEP_SUMMARY"
