@@ -144,16 +144,12 @@ d: "hi there"
 Every Aontu value is a point in a lattice ordered from most general to
 most specific:
 
-```
-                 top                 (fits anything)
-        ┌─────────┼─────────┐
-     string     number   boolean …   (kinds / types)
-        │    ┌────┼────┐     │       (number is a pure
-        │    │    │    │     │        supertype over four
-      "ada"  1   1.5 0d0.1 true       numeric leaves — see
-        └────┴────┴────┴─────┘        Scalar kinds)
-                 ⊥  nil / bottom     (no value — a conflict)
-```
+![The value lattice: top at the join; string, number, boolean and null under it; path() under string; integer, float, biginteger and bigdecimal under number; nil at the meet, below every kind.](figures/value-lattice.svg)
+
+The engine draws this figure itself — it is
+[`aontu view lattice`](reference-api.md#aontu-view) over a document
+with no values in it. Run the same verb over your own document and
+each node carries a count of the values that landed there.
 
 - **`top`** is the unit: unifying anything with `top` yields the other
   value. It is what an unconstrained field is.

@@ -59,3 +59,13 @@ super-descent-residual-canon	canon	N:type({v:integer,next?:$.N}) x:super({v:1,n?
 # its own parent is top (the print ambiguity is recorded in SUPER.0.md)
 super-null-kind-canon	canon	x:super(null)	{"x":null}
 super-null-ladder-canon	canon	x:super(super(null))	{"x":top}
+
+# --- the whole kind ladder, in one row, because a FIGURE draws it ---
+# `aontu view lattice` draws this ladder as the value lattice: `top`
+# at the join, the kind families under it, `path()` under `string`,
+# the four numeric leaves under `number`. The figure carries its own
+# copy of the shape (the tables in ts/src/view.ts and
+# go/view_lattice.go), so this row is where the two are held together
+# -- change the ladder and this fails, which is the reminder that the
+# figure has to grow or lose a node with it.
+super-kind-ladder-canon	canon	string: super(string)\npath: super(path())\nnumber: super(number)\ninteger: super(integer)\nfloat: super(float)\nbiginteger: super(biginteger)\nbigdecimal: super(bigdecimal)\nboolean: super(boolean)\nnull: super(super(null))	{"bigdecimal":number,"biginteger":number,"boolean":top,"float":number,"integer":number,"null":top,"number":top,"path":string,"string":top}

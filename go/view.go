@@ -116,18 +116,19 @@ type ViewOptions struct {
 }
 
 // viewKinds lists each kind's profiles, the first being its default.
-var viewKinds = []string{"doc", "tree", "matrix", "graph", "layer", "sets", "layers", "ladder", "poset"}
+var viewKinds = []string{"doc", "lattice", "tree", "matrix", "graph", "layer", "sets", "layers", "ladder", "poset"}
 
 var viewProfiles = map[string][]string{
-	"doc":    {"text", "svg"},
-	"tree":   {"text", "svg"},
-	"matrix": {"text", "svg"},
-	"graph":  {"mermaid", "dot", "er"},
-	"layer":  {"text", "mermaid", "svg"},
-	"sets":   {"text", "svg"},
-	"layers": {"text", "svg"},
-	"ladder": {"mermaid", "dot"},
-	"poset":  {"mermaid", "dot"},
+	"doc":     {"text", "svg"},
+	"lattice": {"text", "svg"},
+	"tree":    {"text", "svg"},
+	"matrix":  {"text", "svg"},
+	"graph":   {"mermaid", "dot", "er"},
+	"layer":   {"text", "mermaid", "svg"},
+	"sets":    {"text", "svg"},
+	"layers":  {"text", "svg"},
+	"ladder":  {"mermaid", "dot"},
+	"poset":   {"mermaid", "dot"},
 }
 
 // Loss codes that describe the drawing rather than a gap in it.
@@ -2251,6 +2252,9 @@ func (a *Aontu) drawLoaded(root Val, ctx *Ctx, gen *viewGen, prov *Provenance,
 	style := viewStyleOf(options.Style, as)
 	if "doc" == kind {
 		return drawDoc(root, options.At, options.Depth, as, style, max, loss)
+	}
+	if "lattice" == kind {
+		return drawLattice(root, options.At, as, style, max, loss)
 	}
 	if "layers" == kind {
 		return drawLayers(prov, root, a.File, options.At, options.MinSize, options.MaxCols,

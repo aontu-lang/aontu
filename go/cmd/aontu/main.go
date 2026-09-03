@@ -156,8 +156,8 @@ Why options:
 Why exit codes mirror get's: 0 explained, 1 the path names nothing,
 2 usage, 4 the document does not stand up on its own.
 
-View kinds: tree, matrix, graph, layer, sets, layers, ladder, poset
-(the poset takes several files). The figure goes to stdout, the loss
+View kinds: doc, lattice, tree, matrix, graph, layer, sets, layers,
+ladder, poset (the poset takes several files). The figure goes to stdout, the loss
 report to stderr. With --views it draws every figure a document
 declares as data, from one evaluation: each declaration names its own
 kind and out file, nothing is written unless every figure rendered,
@@ -165,13 +165,13 @@ and --check gates the committed set.
 
 View options:
   --as <profile>    text | mermaid | dot | er | svg, per kind: doc,
-                    tree, matrix, sets and layers draw text (default)
-                    or svg; graph draws mermaid (default), dot or er;
-                    layer draws text (default), mermaid or svg; ladder
-                    and poset draw mermaid (default) or dot
+                    lattice, tree, matrix, sets and layers draw text
+                    (default) or svg; graph draws mermaid (default),
+                    dot or er; layer draws text (default), mermaid or
+                    svg; ladder and poset draw mermaid (default) or dot
   --at <path>       Restrict the figure to nodes under this path; the
-                    subtree doc draws; the path the ladder draws;
-                    where the poset compares
+                    subtree doc draws; the subtree the lattice counts;
+                    the path the ladder draws; where the poset compares
   --views <path>    Draw every figure the document declares at this
                     path, one evaluation, all or nothing; each
                     declaration names its own kind and out file

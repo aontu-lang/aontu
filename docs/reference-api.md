@@ -778,13 +778,14 @@ aontu view <kind> [--as <profile>] [--at <path>] [--out <file> [--check]]
            [--format text|json] [options] <file>...
 ```
 
-Nine kinds. Eight read a report the engine already produces; `doc`
-reads the shape of the document itself, which is the one thing no
-report holds:
+Ten kinds. Eight read a report the engine already produces; `doc` and
+`lattice` read the document itself, which is the one thing no report
+holds:
 
 | kind | draws | reads | profiles |
 |---|---|---|---|
 | `doc` | the document's own key tree, to a depth | the anchor walk, as `get --keys --types` reads it | `text`, `svg` |
+| `lattice` | the language's value lattice, with a count at every node the document reaches | the anchor walk, and each value's own kind | `text`, `svg` |
 | `tree` | the dependency tree of a relation: roots derived, repeats elided, cycles marked | the edge set | `text`, `svg` |
 | `matrix` | the dependency-structure matrix over one relation, in `canon` or `partition` order, with `--closure` | the edge set and the relation declarations | `text`, `svg` |
 | `graph` | the node-link drawing, grouped and labelled by fields of the nodes | the edge set, the declarations, the node values | `mermaid`, `dot`, `er` |
@@ -854,6 +855,51 @@ flowchart LR
   n_web -->|"dependsOn"| n_billing
 ```
 
+The `lattice` kind draws the LANGUAGE rather than the model. The shape
+is always the same — [the value
+lattice](reference-language.md#the-value-lattice), whatever the
+document holds — and what the document adds is a count at each node
+its own values landed on. Write `ports.aon`:
+
+<!-- test: file ports.aon -->
+```aontu
+host: "0.0.0.0"
+port: 8080
+tls: true
+timeout: 1.5
+retries: integer
+backoff: integer & min(1)
+```
+
+<!-- test: run -->
+```sh
+$ aontu view lattice ports.aon
+                                           top
+                                            │
+      ┌────────────────────────────────┬────┴───────────────────────────┬─────────┐
+ string (1)                         number                         boolean (1)  null
+      │                                │                                │         │
+      ├─────────────┬────────────┬─────┴─────┬────────────┐             │         │
+   path()      integer (2)   float (1)  biginteger   bigdecimal         │         │
+      │             │            │           │            │             │         │
+      └─────────────┴────────────┴──────────┬┴────────────┴─────────────┴─────────┘
+                                           nil
+```
+
+A concrete scalar sits at its kind — `8080` counts at `integer` — and a
+kind written as a schema sits *at* that node, which is why `retries:
+integer` is the second of the two. `backoff` is at neither: `integer &
+min(1)` is a region of the lattice rather than a point, so the figure
+declines to draw it anywhere and names it instead:
+
+```
+lattice_unplaced  1  $.backoff
+```
+
+An unresolved disjunction is unplaced for the same reason: `*8080 |
+9090` is two places at once, and a node that claimed either would be
+claiming something the document does not say.
+
 - **The loss report.** Every run prints, on stderr, what the figure
   could not draw or drew differently from the model, one line per
   code with a count: `hidden_contribution` (an edge inside a `hide()`
@@ -861,8 +907,9 @@ flowchart LR
   draws), `edges_in_disjunct` (a link under an unresolved disjunction,
   which is not a fact, so the figure reports it rather than
   picking an arm), `unresolved_field` (a node without a value for
-  `--group-by` or `--label`), `cycle_block`, `cols_elided`, and for the
-  poset
+  `--group-by` or `--label`), `lattice_unplaced` (a value at no single
+  point of the lattice, named rather than drawn), `cycle_block`,
+  `cols_elided`, and for the poset
   `order_undecided`, `order_maybe_equal` and `order_intransitive`. Any
   of these makes the verdict `lossy`, which `--strict` turns into exit
   `1`. Three codes are informational and leave the verdict `rendered`:

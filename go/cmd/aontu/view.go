@@ -20,7 +20,7 @@ import (
 
 const viewHelp = "aontu view <kind> [options] <file>... (try --help)"
 
-var viewKinds = []string{"doc", "tree", "matrix", "graph", "layer", "sets", "layers", "ladder", "poset"}
+var viewKinds = []string{"doc", "lattice", "tree", "matrix", "graph", "layer", "sets", "layers", "ladder", "poset"}
 
 var viewProfiles = []string{"text", "mermaid", "dot", "er", "svg"}
 
