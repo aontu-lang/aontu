@@ -532,6 +532,12 @@ function runStep(file, dir, step) {
 //                allowed in tutorials only), or that needs a fence
 //                stripper Vale does not have.
 //
+// The banned list is checked TWICE on purpose. Vale matches within a
+// line; this file joins each paragraph first, and these pages wrap near
+// 72 columns, so `worth\nnoting` passes Vale and fails here. Deferring
+// to Vale would make where a line happens to break a way through the
+// gate.
+//
 // That second clause is not a preference. Vale stops skipping fenced
 // blocks part-way through several of these pages -- a list item with an
 // indented continuation reproduces it -- so a rule that must never fire

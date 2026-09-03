@@ -263,10 +263,12 @@ gated set before it was left out:
 The rule behind the list: ban the phrase that adds nothing, never the
 word that names a thing.
 
-**Matching spans a line wrap.** These pages wrap near 72 columns and most
-of the list is multi-word, so both gates join each paragraph before
-matching: `worth\nnoting` fails exactly as `worth noting` does. A gate on
-physical lines would make where a line happens to break a way through it.
+**Matching spans a line wrap, in the local gate.** These pages wrap near
+72 columns and most of the list is multi-word, so `docs.test.ts` joins
+each paragraph before matching: `worth\nnoting` fails exactly as
+`worth noting` does. Vale matches within a line and does not catch that
+one, which is the second reason the local gate carries the list as well
+as Vale rather than deferring to it.
 
 **Patterns** (not mechanically checkable, enforced at review):
 
