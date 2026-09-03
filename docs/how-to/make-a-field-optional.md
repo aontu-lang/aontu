@@ -11,6 +11,7 @@ them anyway teaches producers to send empty strings. Suffix the key
 with `?` instead. An optional field that never receives a concrete
 value is dropped from the output:
 
+<!-- fmt: keep a schema and its data as separate statements -->
 ```aontu
 record: { id: integer, note?: string }
 record: { id: 1 }
@@ -27,6 +28,7 @@ record: { id: 1 }
 Dropped means absent—no `note`, not `note: null`. Supplying a value
 keeps the field, checked against its constraint as usual:
 
+<!-- fmt: keep a schema and its data as separate statements -->
 ```aontu
 record: { id: integer, note?: string }
 record: { id: 1, note: hi }
@@ -45,6 +47,7 @@ An optional key with a [ranked
 default](../reference-language.md#preference--default-) is filled
 rather than dropped, because the default is a concrete value arriving:
 
+<!-- fmt: keep a schema and its data as separate statements -->
 ```aontu
 record: { id: integer, retries?: *3 | integer }
 record: { id: 1 }
@@ -68,8 +71,8 @@ An optional key is still a declared key, so it coexists with
 when it arrives and drops it when it does not:
 
 ```aontu
-config: close({ id: integer, note?: string })
-config: { id: 1 }
+config: close({ id:integer note?:string })
+config: id: 1
 ```
 
 ```json

@@ -20,8 +20,8 @@ its `mod.aon`:
 <!-- test: scenario vendor-by-hand -->
 <!-- test: file mod.aon -->
 ```aontu
-mod: { path: "corp.example/app", main: "main.aon" }
-dep: { "corp.example/schemas/service@1": { v: "1.0.0" } }
+mod: { path:"corp.example/app" main:"main.aon" }
+dep: "corp.example/schemas/service@1": v: "1.0.0"
 ```
 
 and the entry file `main.aon` imports it:
@@ -67,7 +67,7 @@ The directory holds the module's own source tree. Its
 
 <!-- test: file aon_vendor/corp.example/schemas/service@1/mod.aon -->
 ```aontu
-mod: { path: "corp.example/schemas/service", version: "1.0.0", main: "service.aon" }
+mod: { path:"corp.example/schemas/service" version:"1.0.0" main:"service.aon" }
 ```
 
 and its entry file,
@@ -156,8 +156,8 @@ its `mod.aon`:
 <!-- test: scenario verify-unlocked -->
 <!-- test: file mod.aon -->
 ```aontu
-mod: { path: "corp.example/app", main: "main.aon" }
-dep: { "corp.example/schemas/service@1": { v: "1.0.0" } }
+mod: { path:"corp.example/app" main:"main.aon" }
+dep: "corp.example/schemas/service@1": v: "1.0.0"
 ```
 
 <!-- test: run -->
@@ -199,8 +199,8 @@ the rest. A consumer `mod.aon`:
 <!-- test: scenario vendor-transitive -->
 <!-- test: file mod.aon -->
 ```aontu
-mod: { path: "corp.example/app", main: "main.aon" }
-dep: { "corp.example/schemas/service@1": { v: "1.0.0" } }
+mod: { path:"corp.example/app" main:"main.aon" }
+dep: "corp.example/schemas/service@1": v: "1.0.0"
 ```
 
 its entry `main.aon`:
@@ -217,8 +217,8 @@ dependency of its own:
 
 <!-- test: file aon_vendor/corp.example/schemas/service@1/mod.aon -->
 ```aontu
-mod: { path: "corp.example/schemas/service", version: "1.0.0", main: "service.aon" }
-dep: { "corp.example/schemas/common@1": { v: "1.0.0" } }
+mod: { path:"corp.example/schemas/service" version:"1.0.0" main:"service.aon" }
+dep: "corp.example/schemas/common@1": v: "1.0.0"
 ```
 
 and its entry
@@ -253,7 +253,7 @@ wording.) Vendor the dependency flat beside its dependant:
 
 <!-- test: file aon_vendor/corp.example/schemas/common@1/mod.aon -->
 ```aontu
-mod: { path: "corp.example/schemas/common", version: "1.0.0", main: "common.aon" }
+mod: { path:"corp.example/schemas/common" version:"1.0.0" main:"common.aon" }
 ```
 
 with its entry, a shared naming vocabulary, as

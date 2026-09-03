@@ -14,6 +14,7 @@ that made no difference are reported as paths. Write `services.aon`:
 
 <!-- test: scenario find-dead-entries -->
 <!-- test: file services.aon -->
+<!-- fmt: keep the template and the entry in one map, which is what trim reads -->
 ```aontu
 services: {
   &: { tier: standard }
@@ -46,11 +47,7 @@ Delete the dead line yourself—trim only reports—and re-declare
 
 <!-- test: file services.aon -->
 ```aontu
-services: {
-  &: { tier: standard }
-  auth:    { replicas: 3 }
-  billing: { replicas: 1 }
-}
+services: { &: { tier:standard } auth:replicas:3 billing:replicas:1 }
 ```
 
 <!-- test: run -->

@@ -39,7 +39,7 @@ const helpText = `Usage: aontu [options] [file]
        aontu why <path> [options] <file>
        aontu set <path>=<value>... --entry <file> --overlay <file>
        aontu agentsmd [--write <AGENTS.md>] <file>
-       aontu fmt [-w|-l|--check|-d] <file>...
+       aontu fmt [-w|-l|--check|-d|--lint] <file>...
 
 Evaluate an Aontu source file and print the result as JSON.
 With no file on an interactive terminal, start a REPL.
@@ -257,12 +257,15 @@ Fmt options:
   --check         Like --list, and exit 1 when any would: the CI gate
   -d, --diff      Print a unified diff for each file whose form would
                   change
+  --lint          Report the style findings, key case and repeated
+                  shapes, on standard error, and print nothing else
+  --strict        With --lint, and exit 1 when there is a finding
 
 The fmt verb prints one document in the agreed form; with no file it
 reads standard input. Several files need one of the options above.
 
-Fmt exit codes: 0 formatted or clean, 1 a --check file would change,
-2 usage, 4 a document does not parse.
+Fmt exit codes: 0 formatted or clean, 1 a --check file would change or
+a --strict finding, 2 usage, 4 a document does not parse.
 
 REPL commands:
   :help           Show REPL help

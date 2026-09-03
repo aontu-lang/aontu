@@ -51,7 +51,7 @@ Usage: aontu [options] [file]
        aontu why <path> [options] <file>
        aontu set <path>=<value>... --entry <file> --overlay <file>
        aontu agentsmd [--write <AGENTS.md>] <file>
-       aontu fmt [-w|-l|--check|-d] <file>...
+       aontu fmt [-w|-l|--check|-d|--lint] <file>...
 
 Evaluate an Aontu source file and print the result as JSON.
 With no file on an interactive terminal, start a REPL.
@@ -247,11 +247,7 @@ heuristic a single-document error uses. Write a closed schema as
 <!-- test: scenario vet -->
 <!-- test: file service.aon -->
 ```aontu
-service: close({
-  name: string
-  port: *8080 | integer
-  replicas: integer
-})
+service: close({ name:string port:*8080 | integer replicas:integer })
 ```
 
 and a `deploy.json` with one mistyped key and one string where an
@@ -274,7 +270,7 @@ $.service.prot: closed [conflict]
 $.service.replicas: no_scalar_unify [conflict]
   [aontu/no_scalar_unify]: Cannot unify values at path $.service.replicas
   data: deploy.json:2:15 ("3")
-  schema: service.aon:4:13 (integer)
+  schema: service.aon:1:60 (integer)
 $ echo $?
 1
 ```
@@ -432,7 +428,7 @@ answering from hope. Write a `general.aon`:
 <!-- test: scenario subsume-recursive -->
 <!-- test: file general.aon -->
 ```aontu
-spec: hide({Step: {label: string, then?: $.spec.Step}})
+spec: hide({ Step:{ label:string then?:$.spec.Step } })
 doc: $.spec.Step
 ```
 
@@ -440,8 +436,7 @@ and a `specific.aon` whose step recurses into a DIFFERENT definition:
 
 <!-- test: file specific.aon -->
 ```aontu
-spec: hide({Step: {label: "start", then?: $.spec.Other},
-            Other: {label: string}})
+spec: hide({ Step:{ label:"start" then?:$.spec.Other } Other:label:string })
 doc: $.spec.Step
 ```
 
@@ -454,8 +449,8 @@ $.spec.Step.then: sub_unresolved [compat]
   no subsumption rule covers this pair of value formers
   expected: $.spec.Step
   actual:   {"label":string}
-  general: general.aon:1:42 ($.spec.Step)
-  specific: specific.aon:2:20 ({"label":string})
+  general: general.aon:1:40 ($.spec.Step)
+  specific: specific.aon:1:62 ({"label":string})
 ...
 $ echo $?
 3
@@ -581,7 +576,7 @@ spec: hide({
     dependsOn?: rel($.spec.ServiceShape) & acyclic() & inverse(usedBy)
     usedBy?: rel($.spec.ServiceShape)
   }
-  ServiceShape: { kind: service }
+  ServiceShape: kind: service
 })
 ```
 
@@ -590,15 +585,11 @@ A model whose edges hold, `system.aon`, passes:
 <!-- test: file system.aon -->
 ```aontu
 @"./spec.aon"
-services: {
-  &: $.spec.Service
-  web:     { dependsOn: [path($.services.billing)] }
-  billing: {
-    dependsOn: [path($.services.ledger)]
-    usedBy:    [path($.services.web)]
-  }
-  ledger:  { usedBy: [path($.services.billing)] }
-}
+services: { &: $.spec.Service }
+services: web: dependsOn: [path($.services.billing)]
+services: billing: dependsOn: [path($.services.ledger)]
+services: billing: usedBy: [path($.services.web)]
+services: ledger: usedBy: [path($.services.billing)]
 ```
 
 <!-- test: run -->
@@ -613,11 +604,9 @@ neither inverse written out, fails on every count at once:
 <!-- test: file bad-system.aon -->
 ```aontu
 @"./spec.aon"
-services: {
-  &: $.spec.Service
-  auth:    { dependsOn: [path($.services.billing)] }
-  billing: { dependsOn: [path($.services.auth)] }
-}
+services: { &: $.spec.Service }
+services: auth: dependsOn: [path($.services.billing)]
+services: billing: dependsOn: [path($.services.auth)]
 ```
 
 <!-- test: run -->
@@ -1055,22 +1044,16 @@ the name, which is why the path is given. Write a `views.aon` beside the
 ```aon
 @"./system.aon"
 
-views: {
-  arch: {
-    kind: matrix
-    relation: dependsOn
-    order: partition
-    closure: true
-    out: "arch.dsm.txt"
-  }
-  map: {
-    kind: graph
-    relation: dependsOn
-    groupBy: owner
-    as: mermaid
-    out: "arch.mmd"
-  }
-}
+views: arch: kind: matrix
+views: arch: relation: dependsOn
+views: arch: order: partition
+views: arch: closure: true
+views: arch: out: "arch.dsm.txt"
+views: map: kind: graph
+views: map: relation: dependsOn
+views: map: groupBy: owner
+views: map: as: mermaid
+views: map: out: "arch.mmd"
 ```
 
 <!-- test: run -->
@@ -1107,7 +1090,7 @@ the verb reads it. Write a `views-typed.aon`:
 @"std/view"
 @"./system.aon"
 
-views: {&: $.view.Figure} & {
+views: { &: $.view.Figure } & {
   arch: {
     kind: matrix
     relation: dependsOn
@@ -1168,10 +1151,8 @@ tells the reader what it left behind. Write a `contract.aon`:
 <!-- test: scenario jsonschema -->
 <!-- test: file contract.aon -->
 ```aontu
-spec: {
-  name: string & re("^[a-z][a-z0-9-]{2,39}$")
-  tier: *internal | standard | critical
-}
+spec: name: string & re("^[a-z][a-z0-9-]{2,39}$")
+spec: tier: *internal | standard | critical
 ```
 
 <!-- test: run -->
@@ -1276,10 +1257,7 @@ turns the loss into exit 1. Write a recursive `steps.aon`:
 
 <!-- test: file steps.aon -->
 ```aontu
-Step: {
-  approver: string & re("^[a-z]+@acme[.]example$")
-  then?: $.Step
-}
+Step: { approver:string & re("^[a-z]+@acme[.]example$") then?:$.Step }
 ```
 
 <!-- test: run -->
@@ -1341,11 +1319,9 @@ Write an `app.aon` whose spread template supplies defaults:
 <!-- test: scenario query -->
 <!-- test: file app.aon -->
 ```aontu
-services: {
-  &: {replicas: *1 | integer, port: *8080 | integer}
-  auth: {replicas: 3}
-  billing: {}
-}
+services: { &: { replicas:*1 | integer port:*8080 | integer } }
+services: auth: replicas: 3
+services: billing: {}
 ```
 
 <!-- test: run -->
@@ -1421,8 +1397,8 @@ Ask it about the `app.aon` above:
 ```sh
 $ aontu why $.services.auth.replicas app.aon
 $.services.auth.replicas = 3
-  1. *1|integer  app.aon:2:17  (spread)
-  2. 3  app.aon:3:20
+  1. *1|integer  app.aon:1:27  (spread)
+  2. 3  app.aon:2:27
 ```
 
 - A **contribution** is a value the author *wrote* that met something
@@ -1480,9 +1456,7 @@ Write an `entry.aon` that constrains `owner` and pins `replicas`:
 <!-- test: scenario set -->
 <!-- test: file entry.aon -->
 ```aontu
-services: {
-  auth: {owner: string, replicas: 3}
-}
+services: auth: { owner:string replicas:3 }
 ```
 
 <!-- test: run -->
@@ -1502,7 +1476,7 @@ verdict: invalid
 $.services.auth.replicas: scalar_value [conflict]
   [aontu/scalar_value]: Cannot unify values at path $.services.auth.replicas
   data: changes.aon:2:33 (5)
-  schema: entry.aon:2:35 (3)
+  schema: entry.aon:1:41 (3)
 $ echo $?
 1
 ```
@@ -1612,7 +1586,7 @@ Aontu source, so that layout is never argued about and a diff shows
 only what changed.
 
 ```
-aontu fmt [-w|-l|--check|-d] <file>...
+aontu fmt [-w|-l|--check|-d|--lint] <file>...
 aontu fmt < in.aon > out.aon
 ```
 
@@ -1623,6 +1597,8 @@ aontu fmt < in.aon > out.aon
 | `-l`, `--list` | print the name of each file whose form would change |
 | `--check` | like `--list`, and exit 1 when any would: the CI gate |
 | `-d`, `--diff` | print a unified diff for each file whose form would change |
+| `--lint` | report the style findings, key case and repeated shapes, on standard error, and print nothing else |
+| `--strict` | `--lint`, and exit 1 when there is a finding |
 
 - **The form.** Two-space indentation. `key: value`, the colon tight
   to the key. No commas between entries (a call's argument list keeps
@@ -1653,16 +1629,32 @@ aontu fmt < in.aon > out.aon
   statement is also evaluated both ways in isolation, and a rewrite the
   engine evaluates differently is not made: that statement keeps its
   braces.
+- **It points at style, and touches nothing.** `--lint` reports on
+  standard error, one line per finding as `file:line:col: rule:
+  message`, and changes neither the document nor the exit code.
+  `style/key-case` is a bare key holding an underscore or beginning
+  with two capitals, `credit_cents`, `HTTP_PORT`, with the spelling
+  that would follow the form, `creditCents`, `httpPort`; a quoted key
+  that must stay quoted is a deliberate spelling. `style/repeat` is a
+  map or list whose shape is written two or more times in the file
+  and is 40 columns or wider, reported once, at its first site, with
+  the other sites, because a value written twice can drift and an
+  alias names it once. A chain and the braces it stands for are one
+  shape, the order of a map's entries is not part of it, and a repeat
+  inside a repeat is the outer one's. `--strict` is `--lint` with
+  exit 1 when there is a finding.
 - With no file it reads standard input; with several files it needs
-  `--write`, `--list`, `--check` or `--diff`, rather than print them
-  as one stream.
+  `--write`, `--list`, `--check`, `--diff` or `--lint`, rather than
+  print them as one stream.
 - Exit codes: `0` formatted or clean, `1` a `--check` file would
-  change, `2` usage, `4` a document does not parse.
+  change or a `--strict` finding, `2` usage, `4` a document does not
+  parse.
 
 A configuration written as it came from JSON, `config.aon`:
 
 <!-- test: scenario fmt -->
 <!-- test: file config.aon -->
+<!-- fmt: keep the input the transcript formats -->
 ```aontu
 {
   "server": { "host": "0.0.0.0", "port": 8080, "tls": { "enabled": true, "cert": "/etc/tls/cert.pem" } },
@@ -1720,15 +1712,13 @@ To see the pin hold still, write `svc.aon`:
 <!-- test: scenario hash -->
 <!-- test: file svc.aon -->
 ```aontu
-service: {
-  name: "checkout"
-  port: *8080 | integer
-}
+service: { name:"checkout" port:*8080 | integer }
 ```
 
 and `svc-reformat.aon`, the same meaning re-ordered under a comment:
 
 <!-- test: file svc-reformat.aon -->
+<!-- fmt: keep the reordered spelling the hash survives -->
 ```aontu
 # the same meaning, reordered and commented
 service: port: *8080 | integer
@@ -2569,8 +2559,10 @@ agentsMd       // the generated AGENTS.md stanza (see `aontu agentsmd`
                // above): agentsMd(src, {name?}) -> {stanza, ok};
                // Go: (*Aontu).AgentsMd
 format         // the source formatter (see `aontu fmt` above):
-               // format(src, {path?}) -> {verdict, text, changed} or
-               // {verdict, errors}; Go: aontu.New().Format(src)
+               // format(src, {path?, lint?}) -> {verdict, text,
+               // changed, findings} or {verdict, errors}; Go:
+               // aontu.New().Format(src), and FormatWith(src,
+               // FormatOptions{Lint: true}) for the findings
 unifiedDiff    // unifiedDiff(name, before, after): the diff `aontu fmt
                // --diff` prints; Go: aontu.UnifiedDiff
 ```
@@ -2648,7 +2640,7 @@ does exactly this for a file argument.)
 | `UnifyVars`    | `UnifyVars(src string, vars map[string]Val) (Val, error)` | `Unify` with `$name` variables. |
 | `Generate`     | `Generate(src string) (any, error)` | Parse → unify → native Go value. |
 | `GenerateVars` | `GenerateVars(src string, vars map[string]Val) (any, error)` | `Generate` with variables. |
-| `Format`       | `Format(src string) FormatReport` | The source formatter (see [`aontu fmt`](#aontu-fmt)): the agreed form, or the findings. `aontu.UnifiedDiff(name, before, after string) string` is the diff `--diff` prints. |
+| `Format`       | `Format(src string) FormatReport` | The source formatter (see [`aontu fmt`](#aontu-fmt)): the agreed form, or the findings that say why there is none. `FormatWith(src string, opts FormatOptions) FormatReport` is the same with the options: `Lint` fills the report's `Findings`, the style findings of `--lint`. `aontu.UnifiedDiff(name, before, after string) string` is the diff `--diff` prints. |
 
 <!-- test: skip Go API sample; the API surface is pinned by the go/ test suite -->
 ```go

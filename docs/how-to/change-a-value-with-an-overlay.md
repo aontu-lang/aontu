@@ -15,11 +15,9 @@ change that does not hold is refused before any file changes. Write
 <!-- test: scenario change-overlay -->
 <!-- test: file system.aon -->
 ```aontu
-services: {
-  &: { replicas: *1 | integer, tier: *standard | string }
-  auth:    { replicas: 3 }
-  billing: { tier: premium }
-}
+services: { &: { replicas:*1 | integer tier:*standard | string } }
+services: auth: replicas: 3
+services: billing: tier: premium
 ```
 
 Now raise billing's replicas without opening the file:
@@ -36,7 +34,7 @@ one path-flattened conjunct—the assignment as a chain of quoted
 keys:
 
 ```aon
-"services": "billing": "replicas": 2
+services: billing: replicas: 2
 ```
 
 The entry and the overlay together are the changed document.
@@ -79,7 +77,7 @@ verdict: invalid
 $.services.auth.replicas: scalar_value [conflict]
   [aontu/scalar_value]: Cannot unify values at path $.services.auth.replicas
   data: overlay.aon:2:33 (5)
-  schema: system.aon:3:24 (3)
+  schema: system.aon:2:27 (3)
 $ echo $?
 1
 ```

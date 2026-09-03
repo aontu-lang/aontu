@@ -269,7 +269,11 @@ the draft has no field for it. That half is reported. Write
 
 <!-- test: file legacy.aon -->
 ```aontu
-region: deprecate(string & re("^[a-z]{2}-[a-z]+-[0-9]$"), {msg: "renamed", use: "$.zone", since: "2.0.0"})
+region: deprecate(string & re("^[a-z]{2}-[a-z]+-[0-9]$"), {
+  msg: "renamed"
+  use: "$.zone"
+  since: "2.0.0"
+})
 ```
 
 <!-- test: run -->
@@ -322,9 +326,7 @@ dangling reference in `dangling.aon`:
 
 <!-- test: file dangling.aon -->
 ```aontu
-spec: {
-  owner: $.people.alice.email
-}
+spec: owner: $.people.alice.email
 people: {}
 ```
 
@@ -333,7 +335,7 @@ people: {}
 $ aontu jsonschema dangling.aon
 $.spec.owner: no_path [reference]
   [aontu/no_path]: Cannot resolve value at path $.spec.owner
-  data: dangling.aon:2:10 ($.people.alice.email)
+  data: dangling.aon:1:14 ($.people.alice.email)
 $ echo $?
 4
 ```

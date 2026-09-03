@@ -20,6 +20,7 @@ that line, write `clash.aon`:
 
 <!-- test: scenario conflict -->
 <!-- test: file clash.aon -->
+<!-- fmt: keep two writers, one statement each -->
 ```aontu
 a: b: 1
 a: b: 2

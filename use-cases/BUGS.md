@@ -3330,3 +3330,45 @@ template's keys.
 Repros:
 [`repros/statement-meet/required-key-through-statement.aon`](repros/statement-meet/required-key-through-statement.aon),
 [`repros/statement-meet/kind-through-statement.aon`](repros/statement-meet/kind-through-statement.aon).
+
+### 78. A spread template written as a statement of its own is invisible to `trim` [major]
+
+Found 2026-09-03 by the documentation gate of `aontu fmt` (phase P3),
+which put the `trim` how-to's example into the agreed form and watched
+its transcript change its answer. Both ports, the same way.
+
+```
+services: { &: { tier:standard } }
+services: auth: { tier:standard replicas:3 }
+services: billing: replicas: 1
+```
+
+```
+$ aontu trim --check services.aon
+verdict: clean
+```
+
+The same document as one map, `services: { &: { tier: standard },
+auth: { tier: standard, replicas: 3 }, billing: { replicas: 1 } }`,
+answers `verdict: redundant` and names `$.services.auth.tier`, which
+is right: the template supplies `standard` to every entry, so writing
+it on `auth` again changes nothing, which is what `trim` exists to
+say. A key written twice is a meet, and the two spellings are one
+document -- `aontu hash` agrees -- but `trim`'s question, "does
+removing this entry change the document", answers differently
+depending on where the template was written.
+
+The cause is the same wrap as §77: a key that reaches a map through
+the meet of two statements is recorded as an expectation, and the
+redundancy walk does not read a template that arrived that way as
+the template that makes an entry redundant. It is the third face of
+one defect: `vet`'s residue code (§77), the jsonschema export (§77),
+and now `trim`'s verdict.
+
+Effect on the documentation: the `trim` how-to keeps its one-map
+spelling under `fmt: keep`, with this entry's number in the register;
+the fence goes back into the form when the wrap learns where the
+peer came from.
+
+Repro:
+[`repros/statement-meet/trim-through-statement.aon`](repros/statement-meet/trim-through-statement.aon).

@@ -32,10 +32,7 @@ views, trimmed from
 one document:
 
 ```aontu
-catalog: payments: {
-  owner: "team-payments"
-  tier: 1
-}
+catalog: payments: { owner:"team-payments" tier:1 }
 deploy: eu1: payments: $.catalog.payments & {
   image: "acme/payments:2.14.1"
   replicas: 6
@@ -88,14 +85,9 @@ present for unification, absent from output):
 <!-- test: file spec.aon -->
 ```aontu
 spec: hide({
-  Job: {
-    kind: job
-    feeds?: rel($.spec.JobShape)
-  }
+  Job: { kind:job feeds?:rel($.spec.JobShape) }
 
-  JobShape: {
-    kind: job
-  }
+  JobShape: kind: job
 })
 ```
 
@@ -112,13 +104,11 @@ of which carries a typo:
 
 <!-- test: file pipeline.aon -->
 ```aontu
-pipeline: jobs: {
-  &: $.spec.Job
+pipeline: jobs: { &: $.spec.Job }
 
-  extract:   { feeds: [path($.pipeline.jobs.tranform)] }
-  transform: { feeds: [path($.pipeline.jobs.load)] }
-  load:      {}
-}
+pipeline: jobs: extract: feeds: [path($.pipeline.jobs.tranform)]
+pipeline: jobs: transform: feeds: [path($.pipeline.jobs.load)]
+pipeline: jobs: load: {}
 ```
 
 A two-line root, `model.aon`, joins them:
@@ -146,13 +136,11 @@ the line in `pipeline.aon`:
 
 <!-- test: file pipeline.aon -->
 ```aontu
-pipeline: jobs: {
-  &: $.spec.Job
+pipeline: jobs: { &: $.spec.Job }
 
-  extract:   { feeds: [path($.pipeline.jobs.transform)] }
-  transform: { feeds: [path($.pipeline.jobs.load)] }
-  load:      {}
-}
+pipeline: jobs: extract: feeds: [path($.pipeline.jobs.transform)]
+pipeline: jobs: transform: feeds: [path($.pipeline.jobs.load)]
+pipeline: jobs: load: {}
 ```
 
 <!-- test: run -->
@@ -180,9 +168,7 @@ spec: hide({
     feeds?: rel($.spec.JobShape) & re("^\\$\\.pipeline\\.jobs\\.")
   }
 
-  JobShape: {
-    kind: job
-  }
+  JobShape: kind: job
 })
 ```
 
@@ -196,10 +182,11 @@ delta on at the path it applies to. Propose a new edge, `raw.aon`:
 @"./model.aon"
 
 pipeline: {
-  dumps: { raw: { kind: job } }
-  jobs: extract: {
-    feeds: [path($.pipeline.jobs.transform), path($.pipeline.dumps.raw)]
-  }
+  dumps: raw: kind: job
+  jobs: extract: feeds: [
+    path($.pipeline.jobs.transform)
+    path($.pipeline.dumps.raw)
+  ]
 }
 ```
 
@@ -235,9 +222,7 @@ spec: hide({
     fedBy?: rel($.spec.JobShape)
   }
 
-  JobShape: {
-    kind: job
-  }
+  JobShape: kind: job
 })
 ```
 
@@ -251,16 +236,12 @@ you, so the data states both directions, in `pipeline.aon`:
 
 <!-- test: file pipeline.aon -->
 ```aontu
-pipeline: jobs: {
-  &: $.spec.Job
+pipeline: jobs: { &: $.spec.Job }
 
-  extract:   { feeds: [path($.pipeline.jobs.transform)] }
-  transform: {
-    fedBy: [path($.pipeline.jobs.extract)]
-    feeds: [path($.pipeline.jobs.load)]
-  }
-  load:      { fedBy: [path($.pipeline.jobs.transform)] }
-}
+pipeline: jobs: extract: feeds: [path($.pipeline.jobs.transform)]
+pipeline: jobs: transform: fedBy: [path($.pipeline.jobs.extract)]
+pipeline: jobs: transform: feeds: [path($.pipeline.jobs.load)]
+pipeline: jobs: load: fedBy: [path($.pipeline.jobs.transform)]
 ```
 
 <!-- test: run -->
@@ -306,10 +287,8 @@ inverse entry is dutifully written too. Save it as `cycle.aon`:
 ```aontu
 @"./model.aon"
 
-pipeline: jobs: {
-  load:    { feeds: [path($.pipeline.jobs.extract)] }
-  extract: { fedBy: [path($.pipeline.jobs.load)] }
-}
+pipeline: jobs: load: feeds: [path($.pipeline.jobs.extract)]
+pipeline: jobs: extract: fedBy: [path($.pipeline.jobs.load)]
 ```
 
 <!-- test: run -->
@@ -344,10 +323,8 @@ unify positionally (the first tutorial's §11 rule). Save it as
 @"./model.aon"
 
 pipeline: jobs: {
-  metrics:   { fedBy: [] }
-  transform: {
-    feeds: [path($.pipeline.jobs.load), path($.pipeline.jobs.metrics)]
-  }
+  metrics: fedBy: []
+  transform: feeds: [path($.pipeline.jobs.load) path($.pipeline.jobs.metrics)]
 }
 ```
 
@@ -433,9 +410,7 @@ payments: $.spec.Step & {
   then: {
     approver: "cfo@acme.example"
     decision: approved
-    then: {
-      approver: "audit@acme.example"
-    }
+    then: approver: "audit@acme.example"
   }
 }
 ```
@@ -476,15 +451,10 @@ no finite chain can satisfy it. Try it, as `strict.aon`:
 
 <!-- test: file strict.aon -->
 ```aontu
-strict: hide({
-  Step: {
-    approver: string
-    then: $.strict.Step
-  }
-})
+strict: hide({ Step:{ approver:string then:$.strict.Step } })
 doc: $.strict.Step & {
   approver: "lead@acme.example"
-  then: { approver: "cfo@acme.example" }
+  then: approver: "cfo@acme.example"
 }
 ```
 

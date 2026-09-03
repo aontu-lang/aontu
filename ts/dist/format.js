@@ -224,20 +224,21 @@ class Reader {
     // at the root -- a value.
     entry() {
         const n = this.name(0);
+        const at = this.T[this.i].sI;
         if ('#OD_multisource' === n) {
             const text = '@' + normStr(this.T[this.i + 1].src);
             this.i += 2;
-            return { t: 'include', text };
+            return { t: 'include', text, at };
         }
         if ('#E&' === n && '#CL' === this.name(1)) {
             this.i += 2;
-            return { t: 'spread', value: this.value() };
+            return { t: 'spread', value: this.value(), at };
         }
         if (this.atKey()) {
             const tok = this.T[this.i];
             const opt = '#QM' === this.name(1);
             this.i += opt ? 3 : 2;
-            return { t: 'pair', key: keyText(tok), opt, value: this.value() };
+            return { t: 'pair', key: keyText(tok), opt, value: this.value(), at };
         }
         return this.value();
     }
@@ -264,12 +265,13 @@ class Reader {
             if (!this.open(items) && !BINARY[n] && '#LN' !== n && '#CM' !== n) {
                 break;
             }
+            const at = this.T[this.i].sI;
             if ('#E&' === n && '#CL' === this.name(1)) {
                 if (0 === items.length) {
                     // A chain through a spread, `a: &: integer`. The braces are
                     // the agreed spelling (X-7), so it is read as the map it is.
                     this.i += 2;
-                    return { t: 'map', body: [{ t: 'spread', value: this.value() }] };
+                    return { t: 'map', body: [{ t: 'spread', value: this.value(), at }], at };
                 }
                 // A sibling spread in a list, `[1 &: 2]`: this value is complete.
                 break;
@@ -289,7 +291,7 @@ class Reader {
                 // operator, or on a line the value continues past. Otherwise
                 // it trails the statement and the caller attaches it.
                 if (this.open(items) || BINARY[this.name(this.significant())]) {
-                    items.push({ t: 'note', text: this.T[this.i].src });
+                    items.push({ t: 'note', text: this.T[this.i].src, at });
                     this.i++;
                     continue;
                 }
@@ -298,13 +300,13 @@ class Reader {
             if (BINARY[n]) {
                 items.push({
                     t: 'op', text: this.T[this.i].src,
-                    brk: '#LN' === this.name(-1) || '#LN' === this.name(1),
+                    brk: '#LN' === this.name(-1) || '#LN' === this.name(1), at,
                 });
                 this.i++;
                 continue;
             }
             if (PREFIX[n]) {
-                items.push({ t: 'prefix', text: this.T[this.i].src });
+                items.push({ t: 'prefix', text: this.T[this.i].src, at });
                 this.i++;
                 continue;
             }
@@ -312,7 +314,7 @@ class Reader {
                 this.i++;
                 const inner = this.seq();
                 this.i++;
-                items.push({ t: 'paren', inner });
+                items.push({ t: 'paren', inner, at });
                 continue;
             }
             if ('#TX' === n && '#E(' === this.name(1)) {
@@ -320,25 +322,25 @@ class Reader {
                 this.i += 2;
                 const args = this.seq();
                 this.i++;
-                items.push({ t: 'call', name, args });
+                items.push({ t: 'call', name, args, at });
                 continue;
             }
             if ('#OB' === n) {
                 this.i++;
                 const m = this.body('#CB', true);
                 this.i++;
-                items.push({ t: 'map', body: m.body, open: m.open });
+                items.push({ t: 'map', body: m.body, open: m.open, at });
                 continue;
             }
             if ('#OS' === n) {
                 this.i++;
                 const l = this.body('#CS', true);
                 this.i++;
-                items.push({ t: 'list', body: l.body, open: l.open });
+                items.push({ t: 'list', body: l.body, open: l.open, at });
                 continue;
             }
             if ('#OD_multisource' === n) {
-                items.push({ t: 'include', text: '@' + normStr(this.T[this.i + 1].src) });
+                items.push({ t: 'include', text: '@' + normStr(this.T[this.i + 1].src), at });
                 this.i += 2;
                 continue;
             }
@@ -354,7 +356,8 @@ class Reader {
             'note' !== items[0].t) {
             return items[0];
         }
-        return { t: 'expr', items };
+        // An empty value, `a:`, is an expression with nothing in it.
+        return { t: 'expr', items, at: items[0]?.at };
     }
     // Whether the expression so far wants an operand: nothing yet, or an
     // operator, a prefix or a comment last.
@@ -367,6 +370,7 @@ class Reader {
     }
     // The token under the cursor, and the parts glued to it.
     atom() {
+        const at = this.T[this.i].sI;
         let text = atomText(this.T[this.i]);
         this.i++;
         while (GLUE[this.name(0)] &&
@@ -374,7 +378,7 @@ class Reader {
             text += atomText(this.T[this.i]);
             this.i++;
         }
-        return { t: 'atom', text };
+        return { t: 'atom', text, at };
     }
     // A call's arguments, or a parenthesis's contents, up to the closing
     // parenthesis: values separated by commas, with a comment among them
@@ -1077,6 +1081,153 @@ function emit(root, meet) {
     return w.finish();
 }
 // ---------------------------------------------------------------------
+// The lint (§4): what the formatter points at and never touches. Two
+// rules, both advice: the formatter never renames a key (§4.1) and
+// never introduces an alias (§4.2), and a rule with a mechanical fix
+// that keeps the document would belong to §3 instead (§4.3).
+// The shape width at which a repeat is worth an alias (§4.2): below
+// it, `{ a:1 }` twice is the shorter spelling. Measured over the use
+// cases when the lint landed (§7.10).
+const REPEAT_MIN_WIDTH = 40;
+function lintOf(root, text) {
+    const out = [];
+    const nodes = root.map(lintNode);
+    for (const n of nodes) {
+        keyCase(n, text, out);
+    }
+    repeats(nodes, text, out);
+    out.sort((a, b) => a.line - b.line || a.col - b.col);
+    return out;
+}
+// The tree the lint walks: a chain's inner pair as the one-entry map
+// it is, so that `a: {b: 1}` and `a: b: 1` -- one document to the
+// formatter -- are one shape to the lint.
+function lintNode(node) {
+    if ('pair' === node.t && 'pair' === node.value.t) {
+        return { ...node, value: { t: 'map', body: [node.value], at: node.value.at } };
+    }
+    return node;
+}
+function lintChildren(node) {
+    switch (node.t) {
+        case 'pair':
+        case 'spread':
+            return [lintNode(node).value];
+        case 'map':
+        case 'list':
+            return node.body.map(lintNode);
+        case 'call':
+            return node.args;
+        case 'paren':
+            return node.inner;
+        case 'expr':
+            return node.items;
+        default:
+            return [];
+    }
+}
+// Line and column, 1-based, of a source index.
+function lineCol(text, at) {
+    const before = text.slice(0, at);
+    return { line: before.split('\n').length, col: at - before.lastIndexOf('\n') };
+}
+// D4 (§4.1): keys are lower-case words, or CamelCase when a key is
+// several. A bare key holding `_`, or beginning with two capitals, is
+// reported with the spelling that would follow the form; a quoted key
+// is a deliberate spelling and a key of underscores alone names
+// nothing the rule can respell.
+function keyCase(node, text, out) {
+    if ('pair' === node.t && BARE.test(node.key) && /[A-Za-z]/.test(node.key)) {
+        const why = node.key.includes('_') ? 'holds an underscore'
+            : /^[A-Z][A-Z]/.test(node.key) ? 'begins with capitals' : '';
+        if ('' !== why) {
+            out.push({
+                rule: 'style/key-case', ...lineCol(text, node.at),
+                message: `key ${node.key} ${why}; ${camel(node.key)} would follow the form`,
+            });
+        }
+    }
+    for (const child of lintChildren(node)) {
+        keyCase(child, text, out);
+    }
+}
+// The key as lower-case words or CamelCase: `credit_cents` is
+// `creditCents`, `HTTP_PORT` is `httpPort`, `HTTPServer` is
+// `httpServer`, `ID` is `id`.
+function camel(key) {
+    const words = key.split('_').filter((w) => '' !== w)
+        .map((w) => /^[A-Z]+$/.test(w) ? w.toLowerCase() : w);
+    const head = words[0].replace(/^[A-Z]+(?=[A-Z][a-z])/, (run) => run.toLowerCase());
+    return head.charAt(0).toLowerCase() + head.slice(1) +
+        words.slice(1).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join('');
+}
+// D3 (§4.2): a shape written twice can drift, and an alias names it
+// once. Every map or list whose shape recurs in the file, and whose
+// shape is REPEAT_MIN_WIDTH or wider, is reported once, at its first
+// site, with the count and the other sites; the naming is the
+// author's. A repeat inside a repeat is the outer one's: the walk does
+// not descend into a shape it reports.
+function repeats(nodes, text, out) {
+    const counts = new Map();
+    const tally = (node) => {
+        if ('map' === node.t || 'list' === node.t) {
+            const s = shape(node);
+            counts.set(s, (counts.get(s) ?? 0) + 1);
+        }
+        lintChildren(node).forEach(tally);
+    };
+    nodes.forEach(tally);
+    const sites = new Map();
+    const visit = (node) => {
+        if ('map' === node.t || 'list' === node.t) {
+            const s = shape(node);
+            if (2 <= counts.get(s) && REPEAT_MIN_WIDTH <= width(s)) {
+                sites.set(s, (sites.get(s) ?? []).concat([node]));
+                return;
+            }
+        }
+        lintChildren(node).forEach(visit);
+    };
+    nodes.forEach(visit);
+    for (const found of sites.values()) {
+        if (2 <= found.length) {
+            const [first, ...rest] = found.map((n) => lineCol(text, n.at));
+            out.push({
+                rule: 'style/repeat', ...first,
+                message: `this ${found[0].t} is written ${found.length} times (again at ` +
+                    rest.map((p) => p.line + ':' + p.col).join(', ') +
+                    '); an alias would name it once',
+            });
+        }
+    }
+}
+// A node's shape: its spelling with the layout, the comments and, for
+// a map, the order of its entries taken out, so that two spellings of
+// one value are one shape, as they are one canon.
+function shape(node) {
+    switch (node.t) {
+        case 'map':
+            return '{' + node.body.filter(shaped).map((e) => shape(lintNode(e))).sort().join(' ') + '}';
+        case 'list':
+            return '[' + node.body.filter(shaped).map((e) => shape(lintNode(e))).join(' ') + ']';
+        case 'pair':
+            return node.key + (node.opt ? '?' : '') + ':' + shape(node.value);
+        case 'spread':
+            return '&:' + shape(node.value);
+        case 'call':
+            return node.name + '(' + node.args.filter(shaped).map(shape).join(',') + ')';
+        case 'paren':
+            return '(' + node.inner.filter(shaped).map(shape).join(',') + ')';
+        case 'expr':
+            return node.items.filter(shaped).map(shape).join('');
+        default:
+            return node.text;
+    }
+}
+function shaped(node) {
+    return 'comment' !== node.t && 'blank' !== node.t && 'note' !== node.t;
+}
+// ---------------------------------------------------------------------
 // The verb's library surface
 function lf(text) {
     return text.split('\r\n').join('\n');
@@ -1164,7 +1315,10 @@ function format(src, opts, hooks) {
         };
     }
     const out = emit(root, hooks?.meet ?? sameByMeet);
-    return { verdict: 'formatted', text: out, changed: out !== src };
+    return {
+        verdict: 'formatted', text: out, changed: out !== src,
+        findings: opts?.lint ? lintOf(root, text) : [],
+    };
 }
 // The lines of a text, with a marker on the last when the text does
 // not end in a newline: such a line never equals its

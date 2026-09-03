@@ -338,6 +338,11 @@ form: echo '<text>' | aontu …
 
 <!-- test: skip <reason> -->
 Deliberately unexecuted, with a non-empty reason a reviewer can weigh.
+
+<!-- fmt: keep <reason> -->
+The next Aontu fence keeps its spelling rather than the agreed form
+(below), with a non-empty reason a reviewer can weigh. It rides beside
+a test directive, in either order.
 ```
 
 Untouched conventions: a self-contained `aontu`/`aon` fence still
@@ -346,6 +351,17 @@ generate claim (the output must be the engine's, structurally). A
 fence carrying a `file` directive is a scenario member and is excluded
 from pairing. Untagged fences (diagrams, quoted error text) make no
 language claim and are exempt.
+
+**Every Aontu fence is in the agreed form.** What `aontu fmt` writes is
+what the page shows, as Go's documentation is `gofmt`-clean: the gate
+formats every `aontu`/`aon` fence that parses and refuses a page whose
+fence would change. Write the example, run it through `aontu fmt`, and
+paste what comes back. The exception is a fence whose *spelling* is the
+lesson -- two statements that meet, a document split across files, a
+conflict between two writers, the input a transcript formats -- and it
+says so with `fmt: keep` and a reason; a kept fence must still be a
+fixed point of the formatter, and the gate caps how many there are.
+The form itself is in the language reference, "The formatted form".
 
 Two rules of taste:
 

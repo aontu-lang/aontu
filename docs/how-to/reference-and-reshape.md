@@ -10,8 +10,8 @@ A reference pulls another node in and **unifies** with it—it adds,
 it never overrides. That one sentence decides most of what follows:
 
 ```aontu
-base: { region: "us-east", tier: free }
-prod: $.base & { replicas: 3 }
+base: { region:"us-east" tier:free }
+prod: $.base & { replicas:3 }
 ```
 
 ```json
@@ -27,8 +27,8 @@ field instead of adding one—the same base with `prod: $.base &
 <!-- test: scenario reference-conflict -->
 <!-- test: file tier.aon -->
 ```aontu
-base: { region: "us-east", tier: free }
-prod: $.base & { tier: paid }
+base: { region:"us-east" tier:free }
+prod: $.base & { tier:paid }
 ```
 
 <!-- test: run -->
@@ -46,8 +46,8 @@ A conflict, not an override. To let a referrer change a field, the
 base has to offer it as a [default](provide-defaults.md):
 
 ```aontu
-base: { region: "us-east", tier: *free | string }
-prod: $.base & { tier: paid }
+base: { region:"us-east" tier:*free | string }
+prod: $.base & { tier:paid }
 ```
 
 ```json
@@ -68,7 +68,7 @@ The last one reshapes in the strict sense—the value leaves its old
 address:
 
 ```aontu
-m: { x?: number, y: Y }
+m: { x?:number y:Y }
 n: move($.m)
 ```
 

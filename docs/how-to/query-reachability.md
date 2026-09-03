@@ -25,7 +25,7 @@ spec: hide({
     feeds?: rel($.spec.JobShape) & acyclic() & inverse(fedBy)
     fedBy?: rel($.spec.JobShape)
   }
-  JobShape: { kind: job }
+  JobShape: kind: job
 })
 ```
 
@@ -35,16 +35,12 @@ to two consumers:
 <!-- test: file pipeline.aon -->
 ```aontu
 @"./spec.aon"
-jobs: {
-  &: $.spec.Job
-  extract: { feeds: [path($.jobs.transform)] }
-  transform: {
-    fedBy: [path($.jobs.extract)]
-    feeds: [path($.jobs.load), path($.jobs.audit)]
-  }
-  load: { fedBy: [path($.jobs.transform)] }
-  audit: { fedBy: [path($.jobs.transform)] }
-}
+jobs: { &: $.spec.Job }
+jobs: extract: feeds: [path($.jobs.transform)]
+jobs: transform: fedBy: [path($.jobs.extract)]
+jobs: transform: feeds: [path($.jobs.load) path($.jobs.audit)]
+jobs: load: fedBy: [path($.jobs.transform)]
+jobs: audit: fedBy: [path($.jobs.transform)]
 ```
 
 Now ask whether the extract job's output ends up in the warehouse:

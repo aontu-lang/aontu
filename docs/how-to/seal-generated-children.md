@@ -14,12 +14,9 @@ to the generated map while each child's own keys stay open. A typo'd
 override is then absorbed instead of refused:
 
 ```aontu
-names: hide({ web: {}, auth: {} })
+names: hide({ web:{} auth:{} })
 
-deploy: close(pack($.names, {
-  replicas: *1 | integer
-  tier:     *standard | string
-}))
+deploy: close(pack($.names, { replicas:*1 | integer tier:*standard | string }))
 
 deploy: web: replicaz: 3
 ```
@@ -39,11 +36,11 @@ deep-seal spelling closes the template as well, so every generated
 child is sealed too:
 
 ```aontu
-names: hide({ web: {}, auth: {} })
+names: hide({ web:{} auth:{} })
 
 deploy: close(pack($.names, close({
   replicas: *1 | integer
-  tier:     *standard | string
+  tier: *standard | string
 })))
 
 deploy: web: replicas: 3
@@ -66,11 +63,11 @@ replicaz: 3`, as `deploy.aon`:
 <!-- test: scenario deep-seal -->
 <!-- test: file deploy.aon -->
 ```aontu
-names: hide({ web: {}, auth: {} })
+names: hide({ web:{} auth:{} })
 
 deploy: close(pack($.names, close({
   replicas: *1 | integer
-  tier:     *standard | string
+  tier: *standard | string
 })))
 
 deploy: web: replicaz: 3
@@ -98,9 +95,9 @@ seals from the side—[meet](../unification.md) a clone of the tree with
 a closed pack of the same table and an empty template:
 
 ```aontu
-environments: hide({ dev: {}, prod: {} })
+environments: hide({ dev:{} prod:{} })
 
-deploy: pack($.environments, { replicas: *1 | integer })
+deploy: pack($.environments, { replicas:*1 | integer })
 
 envguard: hide($.deploy & close(pack($.environments, {})))
 
@@ -118,9 +115,9 @@ the last line of `guard.aon` to invent one:
 <!-- test: scenario envguard -->
 <!-- test: file guard.aon -->
 ```aontu
-environments: hide({ dev: {}, prod: {} })
+environments: hide({ dev:{} prod:{} })
 
-deploy: pack($.environments, { replicas: *1 | integer })
+deploy: pack($.environments, { replicas:*1 | integer })
 
 envguard: hide($.deploy & close(pack($.environments, {})))
 

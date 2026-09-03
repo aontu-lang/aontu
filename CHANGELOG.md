@@ -7,6 +7,40 @@ which implementation each change affects.
 
 ## Unreleased
 
+### `aontu fmt --lint` -- the style findings (FMT.0.md P4)
+
+`--lint` reports what the formatter points at and never touches, on
+standard error, one line per finding as `file:line:col: rule:
+message`, and prints nothing else; `--strict` is `--lint` with exit 1
+when there is a finding. Two rules, both advice: `style/key-case`, a
+bare key holding an underscore or beginning with two capitals, with
+the spelling that would follow the form (`credit_cents` ->
+`creditCents`, `HTTP_PORT` -> `httpPort`); and `style/repeat`, a map
+or list whose shape is written two or more times in the file and is
+40 columns or wider, reported once at its first site with the other
+sites -- a chain and the braces it stands for are one shape, the order
+of a map's entries is not part of it, and a repeat inside a repeat is
+the outer one's. The threshold was measured over the use cases. In
+the libraries, `format(src, {lint: true})` carries `findings` in its
+report (TypeScript) and `FormatWith(src, FormatOptions{Lint: true})`
+does in Go; the findings are shared behaviour, a `fmt-lint` mode in
+`test/spec/fmt.tsv` with 28 rows.
+
+### The documentation is in the agreed form (FMT.0.md P3)
+
+Every Aontu fence on a published page is what `aontu fmt` writes, and
+`ts/test/docs.test.ts` holds it there: 249 of the 264 fences, with the
+15 whose spelling is the lesson -- two statements meeting, a split or
+reordered document, two writers in a conflict, a lock file, the input
+a transcript formats, a template `trim` reads only beside its entries
+(use-cases/BUGS.md §78) -- marked `<!-- fmt: keep <reason> -->`, a
+directive the style guide now carries beside the test directives. A
+kept fence must still be a fixed point of the formatter, and the gate
+caps how many there are. Two new pages: "The formatted form" in the
+language reference, the form itself in the reference voice, and the
+how-to "Format a document", the verb over one file. One tutorial
+transcript's quoted positions moved with its fence.
+
 ### `aontu fmt` -- the lawful tier (FMT.0.md P2)
 
 The lawful tier (phase P2), which rests on the meet: a map that does

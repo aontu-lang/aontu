@@ -85,7 +85,7 @@ Tooling:
     [`hash`](reference-api.md#aontu-hash)
   - distribute and hand over: [`mod`](reference-api.md#aontu-mod),
     [`agentsmd`](reference-api.md#aontu-agentsmd)
-  - keep in the agreed form: [`fmt`](reference-api.md#aontu-fmt)
+  - keep in the agreed form: [`fmt`](reference-api.md#aontu-fmt) (the form: [The formatted form](reference-language.md#the-formatted-form); the guide: [Format a document](how-to/format-a-document.md))
 
   With no file at all, `aontu` starts a REPL.
 - [Language Server (LSP)](lsp.md). The `aontu-lsp` diagnostics server
@@ -141,9 +141,9 @@ as whole worked systems, each holding a `check.sh` that CI runs.
 
 ```aontu
 # A schema, a default, and data — unified into one result.
-port:    *8080 | integer
-host:    string
-host:    "localhost"
+port: *8080 | integer
+host: string
+host: "localhost"
 ```
 
 Unifying the three lines above yields:

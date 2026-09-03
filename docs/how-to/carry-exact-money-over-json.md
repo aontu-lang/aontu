@@ -16,7 +16,7 @@ arithmetic—no binary rounding, ever. Write this as `money.aon`:
 ```aontu
 subtotal: 0d19.99
 shipping: 0d4.01
-total:    $.subtotal + $.shipping
+total: $.subtotal + $.shipping
 ```
 
 <!-- test: run -->
@@ -39,7 +39,7 @@ exactness the field demands is gone at the door. Put the schema in
 
 <!-- test: file invoice.aon -->
 ```aontu
-invoice: { total: bigdecimal }
+invoice: total: bigdecimal
 ```
 
 and a parsed-and-reserialised number in `invoice.json`:
@@ -57,7 +57,7 @@ verdict: invalid
 $.invoice.total: no_scalar_unify [conflict]
   [aontu/no_scalar_unify]: Cannot unify values at path $.invoice.total
   data: invoice.json:1:23 (0.1)
-  schema: invoice.aon:1:19 (bigdecimal)
+  schema: invoice.aon:1:17 (bigdecimal)
 $ echo $?
 1
 ```
@@ -71,7 +71,7 @@ Replace `invoice.aon` with the string form:
 
 <!-- test: file invoice.aon -->
 ```aontu
-invoice: { total: string & re("^-?[0-9]+\\.[0-9][0-9]$") }
+invoice: total: string & re("^-?[0-9]+\\.[0-9][0-9]$")
 ```
 
 A conforming wire value in `wire.json`:
@@ -100,7 +100,7 @@ $.invoice.total: constraint [conflict]
   expected: re("^-?[0-9]+\\.[0-9][0-9]$")
   actual:   "19.9"
   data: bad.json:1:23 ("19.9")
-  schema: invoice.aon:1:28 (re("^-?[0-9]+\\.[0-9][0-9]$"))
+  schema: invoice.aon:1:26 (re("^-?[0-9]+\\.[0-9][0-9]$"))
 $ echo $?
 1
 ```
@@ -146,9 +146,9 @@ rounded. Put the corner cases in `convert.aon`:
 
 <!-- test: file convert.aon -->
 ```aontu
-amount:         0d3998.19
-refund:         -0d12.05
-sameNumber:     0d10.50 & 0d10.5
+amount: 0d3998.19
+refund: -0d12.05
+sameNumber: 0d10.50 & 0d10.5
 scaleZeroRight: 0d10.0
 ```
 

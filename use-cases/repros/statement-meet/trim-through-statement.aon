@@ -1,0 +1,21 @@
+# 78: a spread template written as a statement of its own is invisible
+# to `trim`: the entry it makes redundant is reported when template and
+# entry share one map, and not when the template is a statement. Both
+# ports.
+#
+# run: node ../../../ts/bin/aontu.js trim --check trim-through-statement.aon
+# run: aontu-go trim --check trim-through-statement.aon
+#
+# expected: verdict: redundant, naming $.services.auth.tier -- as the
+#   same document written as one map gives:
+#     services: { &: { tier: standard }, auth: { tier: standard, replicas: 3 } }
+#
+# actual (both ports): verdict: clean, exit 0.
+#
+# Found by the documentation gate of `aontu fmt` (docs/design/FMT.0.md
+# P3): the `trim` how-to's example took this shape in the agreed form
+# and its transcript changed its answer, so the how-to keeps the
+# one-map spelling.
+services: { &: { tier:standard } }
+services: auth: { tier:standard replicas:3 }
+services: billing: replicas: 1

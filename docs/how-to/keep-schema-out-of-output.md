@@ -13,13 +13,9 @@ enclosing map generates, and still participates in unification. Park
 the schema at its own key and reference it where it should apply:
 
 ```aontu
-_schema: type({ id: integer, name: string })
+_schema: type({ id:integer name:string })
 
-users: {
-  &: $._schema
-  ada: { id: 1, name: ada }
-  bob: { id: 2, name: bob }
-}
+users: { &: $._schema ada:{ id:1 name:ada } bob:{ id:2 name:bob } }
 ```
 
 ```json
@@ -33,13 +29,9 @@ string id in `users.aon`:
 <!-- test: scenario schema-mark -->
 <!-- test: file users.aon -->
 ```aontu
-_schema: type({ id: integer, name: string })
+_schema: type({ id:integer name:string })
 
-users: {
-  &: $._schema
-  ada: { id: 1, name: ada }
-  bob: { id: "two", name: bob }
-}
+users: { &: $._schema ada:{ id:1 name:ada } bob:{ id:"two" name:bob } }
 ```
 
 <!-- test: run -->
@@ -58,8 +50,8 @@ marking `_schema` does nothing to any other field. Mark the field
 the data itself arrives at and you silence the whole thing:
 
 ```aontu
-user: type({ id: integer })
-user: { id: 7 }
+user: type({ id:integer })
+user: id: 7
 ```
 
 ```json
@@ -92,14 +84,12 @@ evaluation, without appearing anywhere in the output, is a hidden
 block—here, "exactly one role holds the tenant":
 
 ```aontu
-roles: {
-  owner:   { tenantOwner: true,  rank: 100 }
-  admin:   { tenantOwner: false, rank: 80 }
-  auditor: { tenantOwner: false, rank: 20 }
-}
+roles: owner: { tenantOwner:true rank:100 }
+roles: admin: { tenantOwner:false rank:80 }
+roles: auditor: { tenantOwner:false rank:20 }
 
 registry_invariant: hide({
-  one_owner: length(1) & filter($.roles, { tenantOwner: true })
+  one_owner: length(1) & filter($.roles, { tenantOwner:true })
 })
 ```
 
@@ -115,14 +105,12 @@ the hidden block fails loudly:
 
 <!-- test: file rbac.aon -->
 ```aontu
-roles: {
-  owner:   { tenantOwner: true,  rank: 100 }
-  admin:   { tenantOwner: true,  rank: 80 }
-  auditor: { tenantOwner: false, rank: 20 }
-}
+roles: owner: { tenantOwner:true rank:100 }
+roles: admin: { tenantOwner:true rank:80 }
+roles: auditor: { tenantOwner:false rank:20 }
 
 registry_invariant: hide({
-  one_owner: length(1) & filter($.roles, { tenantOwner: true })
+  one_owner: length(1) & filter($.roles, { tenantOwner:true })
 })
 ```
 

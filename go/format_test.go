@@ -14,6 +14,7 @@ package aontu
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -215,6 +216,30 @@ func (a *Aontu) mustParse(t *testing.T, src string) Val {
 		t.Fatal(err)
 	}
 	return v
+}
+
+// THE LINT (§4) is asked for, never assumed: without the option the
+// report carries no findings, and with it the findings say where. The
+// rules themselves are pinned row by row in fmt.tsv.
+func TestFormatLintsOnlyWhenAsked(t *testing.T) {
+	a := New()
+	src := "a: 1\r\nHTTP_PORT: 8080\r\n"
+	plain := a.Format(src)
+	if nil == plain.Findings || 0 != len(plain.Findings) {
+		t.Fatalf("unasked: %+v", plain.Findings)
+	}
+	linted := a.FormatWith(src, FormatOptions{Lint: true})
+	// CRLF is read as LF before the lint counts, so the positions are
+	// the file's lines.
+	want := []LintFinding{{Rule: "style/key-case", Line: 2, Col: 1,
+		Message: "key HTTP_PORT holds an underscore; httpPort would follow the form"}}
+	if !reflect.DeepEqual(linted.Findings, want) || "a: 1\nHTTP_PORT: 8080\n" != linted.Text {
+		t.Fatalf("linted: %+v %q", linted.Findings, linted.Text)
+	}
+	// A document that does not format has no findings to report.
+	if bad := a.FormatWith("a: {b", FormatOptions{Lint: true}); "error" != bad.Verdict || nil != bad.Findings {
+		t.Fatalf("error report: %+v", bad)
+	}
 }
 
 func TestUnifiedDiff(t *testing.T) {
