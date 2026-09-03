@@ -1,6 +1,6 @@
 # aontu fmt — the agreed form of Aontu source
 
-**Status:** ACCEPTED for implementation, 2026-09-03. P1 LANDED 2026-09-03 (§7.7); P2 LANDED 2026-09-03 (§7.8); P3–P4 are not built.
+**Status:** ACCEPTED for implementation, 2026-09-03. P1 LANDED 2026-09-03 (§7.7); P2 LANDED 2026-09-03 (§7.8); P3 LANDED 2026-09-03 (§7.9); P4 LANDED 2026-09-03 (§7.10). Every phase has landed.
 yet. The open questions of §11 were put to the owner the day the note
 was written: X-1, X-2, X-3, X-5 and X-6 decided as recommended, X-7
 decided *against* the recommendation (a spread-only map keeps its
@@ -670,9 +670,9 @@ non-adjacent repeat not merged, a number not rewritten.
   an end-to-end proof of P2 on 400 real documents.
 - **The two CLIs agree** byte for byte over the corpus, the parity
   probe this repository already runs for every verb.
-- **Later, the documentation is formatted:** every `aon` fence on a
+- **The documentation is formatted (P3):** every `aon` fence on a
   published page is `fmt`-clean, gated in `docs.test.ts`, as Go's
-  documentation is `gofmt`-clean. That is a large diff and a phase of
+  documentation is `gofmt`-clean. That was a large diff and a phase of
   its own.
 
 ### 7.6 Phases
@@ -682,8 +682,8 @@ non-adjacent repeat not merged, a number not rewritten.
 | **P0** — the decisions | this note reviewed; §11 answered or deferred explicitly | — |
 | **P1** — layout | the verb in both ports with the syntactic rewrites only: §3.1–3.3, 3.5–3.13; `fmt.tsv`; the corpus idempotence gate; `--write`, `--list`, `--check`, `--diff`. **LANDED 2026-09-03** — `ts/src/format.ts`, `go/format.go`, `test/spec/fmt.tsv` (103 rows); the amendments are in §7.7 | M |
 | **P2** — the lawful tier | §3.4 split and merge, with the local unification check; rows for every exclusion; the use-case tree formatted and `run-all.sh` green. **LANDED 2026-09-03** — `fmt.tsv` at 147 rows, the tree formatted (174 files); the amendments are in §7.8 | M |
-| **P3** — the documentation | every fence formatted and gated; STYLE-GUIDE adopts the form; a how-to, *Format a document*; a reference section, *The formatted form*, published from this note's §3 | M |
-| **P4** — lint | `--lint`, `style/key-case`, `style/repeat`, `--strict` | S/M |
+| **P3** — the documentation | every fence formatted and gated; STYLE-GUIDE adopts the form; a how-to, *Format a document*; a reference section, *The formatted form*, published from this note's §3. **LANDED 2026-09-03** — 249 of 264 fences in the form, 15 kept with a reason; §7.9 | M |
+| **P4** — lint | `--lint`, `style/key-case`, `style/repeat`, `--strict`. **LANDED 2026-09-03** — `fmt.tsv` at 183 rows, 28 of them `fmt-lint`; the threshold and the amendments are in §7.10 | S/M |
 
 P1 before P2 on purpose: a formatter that only lays out is already
 useful and already checkable, and the lawful tier is the part with an
@@ -836,6 +836,99 @@ corpus settled. Each is pinned by a row of `fmt.tsv` or by a case in
   the source positions its checks and READMEs quote moved with the
   text; 100 % coverage in both.
 
+### 7.9 P3 as landed
+
+The documentation, in the form. What formatting 264 fences settled.
+
+- **The gate is the form, with a reasoned exception.** The fixed-point
+  gate of P1 became `every-source-fence-is-in-the-agreed-form-or-keeps-
+  its-spelling`: every Aontu fence that parses is what `aontu fmt`
+  writes, or carries `<!-- fmt: keep <reason> -->`, a directive beside
+  the test directives with a non-empty reason, and then must still be
+  a fixed point and not already in the form. The gate caps the kept
+  fences at twenty. STYLE-GUIDE.md carries the rule and the directive.
+- **Fifteen fences keep their spelling**, for six reasons: two
+  statements meeting is the lesson (the tutorial's `server:` pair, the
+  reference's optional-key and spread examples, the how-to for
+  optional fields); the statements the merge law reads as one map; a
+  document split or reordered so the hash can be seen to survive it;
+  two writers with one statement each in the conflict how-to; a lock
+  file shown as the tool writes it; the input the `fmt` transcript
+  formats; and one the engine answers differently in the form, the
+  `trim` how-to's template, which is `use-cases/BUGS.md` §78 (a
+  template written as a statement of its own is invisible to `trim`,
+  in both ports). Of the 192 fences that changed, 147 changed only by the
+  syntactic tier and 45 by the lawful one, and those 45 were read one
+  by one: the repeat form was taken wherever the spelling was not the
+  lesson.
+- **One transcript moved.** The tutorial's `why` transcript quotes
+  source positions that moved with its formatted fence; the corpus
+  positions moved the same way in P2. Nothing else the transcripts
+  print depends on layout.
+- **The reference chapter is §3 in the reference voice**, "The
+  formatted form" in `docs/reference-language.md` after "Canonical
+  form": lines, pairs, braces, the repeat, containers, separators,
+  comments, blank lines, keys and strings, numbers, operators and
+  calls, the root, and what never changes, with P2's amendments folded
+  in. The how-to, `docs/how-to/format-a-document.md`, is the verb over
+  one file: see the form, `--check` and `--write`, what is refused and
+  what is never done. Both pass the prose gate.
+- **The design note's own fences are not gated**, as no working
+  document is; §6's worked examples were hand-formatted before P1 and
+  stay as the note's record.
+
+### 7.10 P4 as landed
+
+The lint, advisory. What building §4 settled.
+
+- **Two rules, one shape of line.** `--lint` reports on standard
+  error, one line per finding in the shape every linter prints,
+  `file:line:col: rule: message`, and prints nothing else; `--strict`
+  is `--lint` with exit 1 when there is a finding, and `--check
+  --strict` is both gates in one step. In the library a finding is
+  `{rule, line, col, message}` under `findings` in the formatted
+  report, present and empty when the lint was not asked for; the Go
+  port adds `FormatWith(src, FormatOptions{Lint})` beside `Format`.
+  The findings are shared behaviour: a `fmt-lint` mode in `fmt.tsv`,
+  `expect` being the CLI's lines without the file name.
+- **`style/key-case` (D4)** reports a bare key that holds `_` or
+  begins with two capitals, with the spelling that would follow the
+  form: `credit_cents` → `creditCents`, `HTTP_PORT` → `httpPort`,
+  `HTTPServer` → `httpServer`, `ID` → `id`. A quoted key that must
+  stay quoted is a deliberate spelling; a quoted key the formatter
+  writes bare is read bare. A key of underscores and digits alone
+  names nothing the rule can respell. The position is the key's, and
+  columns are counted as every verb counts them, in UTF-16 units.
+- **`style/repeat` (D3, X-5)** reports a map or list whose shape
+  recurs in the file two or more times, once, at its first site, with
+  the count and the other sites. The shape is the node's spelling with
+  the layout, the comments and, for a map, the order of its entries
+  taken out, so two spellings of one value are one shape as they are
+  one canon; a chain is the one-entry map it stands for, so `a: b: 1`
+  and `a: { b: 1 }` recur together and the finding sits on the chain's
+  inner key; a repeat inside a repeat is the outer one's, and the walk
+  does not descend into a shape it reports. A list keeps its order,
+  and an optional key is not the key.
+- **The threshold is 40 columns of shape**, measured over the 404
+  documents of the corpus (`use-cases/`, `test/spec/files/`) when the
+  lint landed. At 40: eight findings in five files, among them the
+  `{ n:"id" t:"string" … }` column definition of the code-generation
+  model and the `ports: http: { number:8080 protocol:http }` written
+  under three services, which are the cases D3 describes. At 30:
+  twelve in nine, the four more being one-entry chains and
+  single-reference lists, `[path($.permissions.admin_all)]`, which an
+  alias would make longer. At 50: three in two, and the column
+  definition is lost. The constant is `REPEAT_MIN_WIDTH` in the
+  TypeScript and `fmtRepeatMinWidth` in Go, one number in each port,
+  and a row holds the boundary. `style/key-case` fires 284 times in
+  61 corpus files, most of them the SQL and JSON names the use cases
+  mirror on purpose — which is why the lint is advisory and the corpus
+  is not gated on it.
+- **The positions are the reader's.** The layout tree carries the
+  source index of each node's first token, stamped by the reader
+  (`at`), and the lint is its only consumer. An empty value, `a:`, is
+  an expression with no first token and no position.
+
 ## 8. Parity and determinism
 
 The output is a function of the input bytes and nothing else: no
@@ -907,7 +1000,8 @@ for function, and `test/spec/fmt.tsv` is what they must agree on.
 - **X-5 — `style/repeat`.** Worth building, and at what size threshold?
   Recommendation: defer to P4 and decide with the first three lint
   rules' reception. **Decided 2026-09-03: build it in P4, advisory
-  only; the threshold from the corpus when it lands.**
+  only; the threshold from the corpus when it lands.** Landed at 40
+  columns of shape; the measurement is in §7.10.
 - **X-6 — Several files, no flag.** Refuse, or print them concatenated
   as `gofmt` does? Recommendation: refuse; concatenated output is never
   what anyone wanted. **Decided 2026-09-03: refuse.**

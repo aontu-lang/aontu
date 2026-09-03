@@ -46,6 +46,7 @@ the [Explanation](explanation.md).
   - [Text: `.txt` and `--text-ext`](#text-txt-and---text-ext)
 - [Operator precedence](#operator-precedence)
 - [Canonical form](#canonical-form)
+- [The formatted form](#the-formatted-form)
 - [The published grammar](#the-published-grammar)
 - [Generation](#generation)
 - [Subsumption](#subsumption)
@@ -131,7 +132,8 @@ $ echo $?
 The relaxed forms combine in one document:
 
 ```aon
-a: 1 b: 2
+a: 1
+b: 2
 c: Mercury
 d: "hi there"
 ```
@@ -444,6 +446,7 @@ top level.
 
 The merge recurses through nesting:
 
+<!-- fmt: keep the statements the merge law reads as one map -->
 ```aon
 a: b: c: 1
 a: b: d: 2
@@ -478,7 +481,7 @@ A list is an ordered sequence.
 The pair form reads naturally for ordered records:
 
 ```aon
-routes: [get: "/health", post: "/orders"]
+routes: [get:"/health" post:"/orders"]
 ```
 
 ```json
@@ -495,7 +498,7 @@ spelling of "a map must be supplied here"—an unmet unit silently
 manufactures its empty value, an unmet kind refuses to generate.
 
 ```aon
-required: map() & {a: 1}
+required: map() & { a:1 }
 ```
 
 ```json
@@ -532,8 +535,8 @@ that merges duplicate map keys.
 
 ```aon
 a: 1 & integer
-b: {x:1} & {y:2}
-c: {x:{p:1}} & {x:{q:2}}
+b: { x:1 } & { y:2 }
+c: { x:p:1 } & { x:q:2 }
 ```
 
 ```json
@@ -562,9 +565,9 @@ and drop out):
 
 ```aon
 a: 2
-a: 1|2
+a: 1 | 2
 b: 2
-b: string|number
+b: string | number
 ```
 
 ```json
@@ -651,7 +654,7 @@ Compatible defaults fold—`a:*1` beside `a:*integer` is `*1`.
 the two ways of writing an enum-with-default agree.
 
 ```aon
-a: ("1.0"|"1.1") & *"1.0"
+a: ("1.0" | "1.1") & *"1.0"
 ```
 
 ```json
@@ -719,10 +722,10 @@ key—the preferred value itself admits it—and refuses a value of
 another kind outright:
 
 ```aon
-a: *{x:1}
-a: {y:2}
-b: *{x:1}
-b: {x:2}
+a: *{ x:1 }
+a: y: 2
+b: *{ x:1 }
+b: x: 2
 ```
 
 ```json
@@ -746,6 +749,7 @@ spelling when you mean "a map whose `x` defaults to 1", and it is what
 A key suffixed with `?` is optional. If it never receives a concrete
 value, it is **dropped from the generated output** instead of erroring.
 
+<!-- fmt: keep a schema and its data as separate statements -->
 ```aon
 x?: number
 y: Y
@@ -773,7 +777,7 @@ A `&:` entry is a **template** unified into every other entry of its map
 or list. The template itself is not emitted:
 
 ```aon
-c: {&:{x:2}, y:{k:3}, z:{k:4}}
+c: { &: { x:2 } y:k:3 z:k:4 }
 ```
 
 ```json
@@ -786,7 +790,7 @@ per-child overridable default (`&: x: *1|number`). A template that
 names each child uses `key()`:
 
 ```aon
-a: b: {&: {name: key()}, c: {}, d: {}}
+a: b: { &: { name:key() } c:{} d:{} }
 ```
 
 ```json
@@ -803,7 +807,7 @@ Other forms:
   spread entry (`[&:{"x":1},{"y":1,"x":1},…]`):
 
 ```aon
-l: [&: {x:1}, {y:1}, {y:2}]
+l: [&: { x:1 } y:1 y:2]
 ```
 
 ```json
@@ -820,6 +824,7 @@ references, defaults or `key()` the templates carry. A key one
 template requires is required at every child; a default one template
 carries defaults (and stays overridable) per child.
 
+<!-- fmt: keep two spreads written as separate statements -->
 ```aon
 w: &: {p: integer}
 w: &: {r: integer}
@@ -838,7 +843,7 @@ A spread constrains children that already exist. `pack` and `each`
 names and the children built from it cannot drift apart:
 
 ```aon
-names: [web, auth, billing]
+names: [web auth billing]
 
 deploy: close(pack($.names, {
   image: "acme/" + key() + ":1.4.2"
@@ -846,7 +851,7 @@ deploy: close(pack($.names, {
   port: *8080 | integer
 }))
 
-deploy: billing: replicas: 4      # an override composes as usual
+deploy: billing: replicas: 4 # an override composes as usual
 ```
 
 ```json
@@ -882,9 +887,9 @@ order for a list, sorted-key order for a map. Written with one
 argument, `each(m)` is a map's children as a list.
 
 ```aon
-ports: {http: 80, https: 443}
-open:  each($.ports, integer)
-names: each({b:2, a:1})
+ports: { http:80 https:443 }
+open: each($.ports, integer)
+names: each({ b:2 a:1 })
 ```
 
 ```json
@@ -920,9 +925,9 @@ satisfy** `cond`—keys preserved for a map, order for a list—and
 drops the rest silently:
 
 ```aon
-services: {web:{debug:true,port:80}, auth:{port:81}}
-debugged: filter($.services, {debug:true})
-sidecars: pack($.debugged, {image:"acme/debug:1.0"})
+services: { web:{ debug:true port:80 } auth:port:81 }
+debugged: filter($.services, { debug:true })
+sidecars: pack($.debugged, { image:"acme/debug:1.0" })
 ```
 
 ```json
@@ -945,7 +950,7 @@ argument count even—is the default:
 
 ```aon
 tier: large
-size: match($.tier, small, {cpu:1}, large, {cpu:8}, {cpu:2})
+size: match($.tier, small, { cpu:1 }, large, { cpu:8 }, { cpu:2 })
 ```
 
 ```json
@@ -983,6 +988,7 @@ narrowed can match an earlier arm than the one it will end up matching.
 A bare `_` is a **hole**: a call holding one waits, and whatever the
 call is unified with fills it.
 
+<!-- fmt: keep a template and a key written as separate statements -->
 ```aon
 greeting: upper(_) & hello
 x: {&: {m: _ + 2}}
@@ -1001,8 +1007,8 @@ Inside a generator's template, `_` is the **source child** the
 generated one is being made from:
 
 ```aon
-ports: {http: 80, https: 443}
-open:  pack($.ports, {port: _, name: key()})
+ports: { http:80 https:443 }
+open: pack($.ports, { port:_ name:key() })
 ```
 
 ```json
@@ -1063,12 +1069,12 @@ References compose with unification and each other—cross-references,
 chains, and a referenced map met with extra keys:
 
 ```aon
-a: {x:1, y:$.b.x}
-b: {x:2, y:$.a.x}
-c: {v:$.d.v}
-d: {v:99}
-q: a: {x:1}
-w: b: $.q.a & {y:2, z:3}
+a: { x:1 y:$.b.x }
+b: { x:2 y:$.a.x }
+c: v: $.d.v
+d: v: 99
+q: a: x: 1
+w: b: $.q.a & { y:2 z:3 }
 ```
 
 ```json
@@ -1090,11 +1096,8 @@ error. `$.schema.Step` written inside `Step` means "a `Step`, by this
 very definition", and the schema applies at every depth of the data:
 
 ```aon
-schema: hide({Step: {
-  label: string
-  then?: $.schema.Step
-}})
-doc: $.schema.Step & {label: "start", then: {label: "finish"}}
+schema: hide({ Step:{ label:string then?:$.schema.Step } })
+doc: $.schema.Step & { label:"start" then:label:"finish" }
 ```
 
 ```json
@@ -1111,8 +1114,8 @@ analysis.** Under an optional key (`then?:`) the chain ends where
 the data ends. A ranked default works the same way:
 
 ```aon
-schema: hide({Node: {v: integer, next: *null | $.schema.Node}})
-doc: $.schema.Node & {v: 1, next: {v: 2}}
+schema: hide({ Node:{ v:integer next:*null | $.schema.Node } })
+doc: $.schema.Node & { v:1 next:v:2 }
 ```
 
 ```json
@@ -1144,8 +1147,8 @@ way, and so does a recursive [alias](#aliases-)—which is enough to
 write the JSON value space in one line:
 
 ```aon
-%json: null|boolean|number|string|[&: %json]|{&: %json}
-x: %json & {a: [1, "two", {b: true}]}
+%json: null | boolean | number | string | [&: %json] | { &: %json }
+x: %json & { a:[1 "two" b:true] }
 ```
 
 ```json
@@ -1194,8 +1197,8 @@ belongs to no path:
 
 listen: %port
 listen: 8080
-admin:  %port
-admin:  443
+admin: %port
+admin: 443
 ```
 
 ```json
@@ -1269,13 +1272,9 @@ Aliases are not passed to generated children: a spread template sees the
 name.
 
 ```aon
-%row: { kind: string, id: integer }
+%row: { kind:string id:integer }
 
-table: {
-  &: %row
-  a: { kind: user, id: 1 }
-  b: { kind: user, id: 2 }
-}
+table: { &: %row a:{ kind:user id:1 } b:{ kind:user id:2 } }
 ```
 
 ```json
@@ -1289,14 +1288,14 @@ table: {
 Parentheses group sub-expressions and a leading unary `+` is allowed.
 
 ```aon
-a: 1+2
-b: 1+2+3
-c: 1.5+2
-d: p+q
-e: p+q+r
-f: (1+2)
-g: (+3+4)
-h: i: j: 10+5
+a: 1 + 2
+b: 1 + 2 + 3
+c: 1.5 + 2
+d: p + q
+e: p + q + r
+f: (1 + 2)
+g: ( + 3 + 4)
+h: i: j: 10 + 5
 ```
 
 ```json
@@ -1395,11 +1394,11 @@ plain digits with **no `0d` marker**—the marker is canon decoration,
 and it never leaks into a string.
 
 ```aon
-a: q+0d5
-b: q+0d0.1
-c: 0d5+q
-d: q+0d1e3
-e: q+0d1000
+a: q + 0d5
+b: q + 0d0.1
+c: 0d5 + q
+d: q + 0d1e3
+e: q + 0d1000
 ```
 
 ```json
@@ -1533,7 +1532,7 @@ a: upper(abc) + def
 b: lower(1.1) + 2
 c: foo
 d: upper($.c)
-e: [lower(A), lower(B)]
+e: [lower(A) lower(B)]
 f: *upper(foo)
 ```
 
@@ -1549,8 +1548,8 @@ arithmetic to learn beyond `+` and unary `-`:
 
 ```aon
 replicas: mul($.base.replicas, 2)
-spare:    sub($.quota.cpu, $.used.cpu)
-shards:   div($.total, $.per_shard)
+spare: sub($.quota.cpu, $.used.cpu)
+shards: div($.total, $.per_shard)
 ```
 
 Each takes exactly **two operands**, and both must be numbers. That is
@@ -1561,9 +1560,9 @@ is an error, because a function named for a numeric operation has no
 business inventing a string.
 
 ```aon
-a: add(1,2)
-b: sub(10,3)
-c: mul(6,7)
+a: add(1, 2)
+b: sub(10, 3)
+c: mul(6, 7)
 ```
 
 ```json
@@ -1591,12 +1590,12 @@ only in whose sign the answer follows—`rem`'s the dividend's, `mod`'s
 the divisor's. That is the whole reason both exist:
 
 ```aon
-a: div(7,2)
-b: div(-7,2)
-c: rem(-7,2)
-d: mod(-7,2)
-e: rem(7,-2)
-f: mod(7,-2)
+a: div(7, 2)
+b: div(-7, 2)
+c: rem(-7, 2)
+d: mod(-7, 2)
+e: rem(7, -2)
+f: mod(7, -2)
 ```
 
 ```json
@@ -1633,13 +1632,13 @@ bag**—a list or a map—and walks the children the model already
 holds:
 
 ```aon
-lines:  [1200, 450, 3000]
-total:  sum($.lines)
+lines: [1200 450 3000]
+total: sum($.lines)
 lowest: least($.lines)
-peak:   greatest($.lines)
+peak: greatest($.lines)
 
-hourly: {p50: 12, p95: 40, p99: 91}
-spike:  greatest($.hourly)
+hourly: { p50:12 p95:40 p99:91 }
+spike: greatest($.hourly)
 ```
 
 ```json
@@ -1797,16 +1796,16 @@ Write the model as `model.aon`:
 <!-- test: scenario reuse -->
 <!-- test: file model.aon -->
 ```aon
-auth: { port: 80, region: *"eu" | string }
-billing: { dep: refer() & path(..auth) }
+auth: { port:80 region:*"eu" | string }
+billing: dep: refer() & path(..auth)
 ```
 
 and mount it twice from `main.aon`:
 
 <!-- test: file main.aon -->
 ```aon
-tenantA: { m: @"model.aon" }
-tenantB: { m: @"model.aon", m: { auth: { region: "us" } } }
+tenantA: m: @"model.aon"
+tenantB: { m:@"model.aon" m:auth:region:"us" }
 ```
 
 Each instance resolves its own internal link inside itself, and the
@@ -1821,8 +1820,8 @@ describe the same real-world thing at different paths do not meet on
 their own. Point one at the other and they do:
 
 ```aon
-catalog: payments: { owner: "team-pay", tier: 1 }
-deploy: eu1: payments: $.catalog.payments & { replicas: 3, tier: 2 }
+catalog: payments: { owner:"team-pay" tier:1 }
+deploy: eu1: payments: $.catalog.payments & { replicas:3 tier:2 }
 ```
 
 The two `tier` values now meet, and disagree, so the run fails at the
@@ -1838,9 +1837,9 @@ spelling, never the resolution. A plain reference resolves; a capture
 is the address itself, as data.
 
 ```aon
-a: {b: 1}
-emb: $.a.b        # a reference: the value at the path
-cap: path($.a.b)  # a capture: the path itself
+a: b: 1
+emb: $.a.b # a reference: the value at the path
+cap: path($.a.b) # a capture: the path itself
 ```
 
 ```json
@@ -1863,8 +1862,8 @@ a string—evaluates first, and the result converts by the same grammar,
 which is what makes an address buildable:
 
 ```aon
-names: { web: {}, db: {} }
-accounts: pack($.names, { for: refer() & path("$.names." + key()) })
+names: { web:{} db:{} }
+accounts: pack($.names, { for:refer() & path("$.names." + key()) })
 ```
 
 ```json
@@ -1911,9 +1910,9 @@ The kind settles inside `type()` bodies, which a `refer` cannot
 declare a path-valued field for the data to meet:
 
 ```aon
-Service: type({host: path()})
-db: $.Service & {host: path($.hosts.h1)}
-hosts: {h1: {}}
+Service: type({ host:path() })
+db: $.Service & { host:path($.hosts.h1) }
+hosts: h1: {}
 ```
 
 ```json
@@ -1931,12 +1930,8 @@ checks nothing. `refer` is the third option: the field keeps the
 address string, and the language checks it.
 
 ```aon
-services: {
-  auth: { kind: service, port: 8080 }
-  billing: {
-    dependsOn: [&: refer({kind: service}), path($.services.auth)]
-  }
-}
+services: auth: { kind:service port:8080 }
+services: billing: dependsOn: [&: refer({ kind:service }) path($.services.auth)]
 ```
 
 ```json
@@ -1996,8 +1991,8 @@ still names nothing at the last pass is a located error
 `t` into it, at the position the address names:
 
 ```aon
-a: {p:1}
-b: refer({r:3}) & path($.a)
+a: p: 1
+b: refer({ r:3 }) & path($.a)
 ```
 
 ```json
@@ -2043,15 +2038,9 @@ child's own key, so it can build the address and stand as a value at
 the same time:
 
 ```aon
-services: {
-  auth:    { port: 8080 }
-  billing: { port: 9090 }
-}
-names: [auth, billing]
-links: pack($.names, {
-  to:   refer() & path("$.services." + key())
-  name: key()
-})
+services: { auth:port:8080 billing:port:9090 }
+names: [auth billing]
+links: pack($.names, { to:refer() & path("$.services." + key()) name:key() })
 ```
 
 ```json
@@ -2084,11 +2073,13 @@ one set of them ships with the engine. Write this as `system.aon`:
 
 services: {
   auth: $.std.Service & {
-    ports: { http: { protocol: http } }
+    ports: http: protocol: http
     dependedOnBy: rel() & [path($.services.billing)]
   }
   billing: $.std.Service & {
-    dependsOn: rel($.std.Service) & inverse(dependedOnBy) & acyclic() & [path($.services.auth)]
+    dependsOn: rel($.std.Service) & inverse(dependedOnBy) & acyclic() & [
+      path($.services.auth)
+    ]
   }
 }
 ```
@@ -2142,8 +2133,8 @@ are tree addresses and flows `t` into every target, and the two
 GRAPH ATOMS declare the properties that hold over the whole edge set:
 
 ```aon
-a: { dependsOn: rel() & inverse(usedBy) & acyclic() & [path($.b)] }
-b: { usedBy:    rel() & [path($.a)] }
+a: dependsOn: rel() & inverse(usedBy) & acyclic() & [path($.b)]
+b: usedBy: rel() & [path($.a)]
 ```
 
 ```json
@@ -2226,8 +2217,8 @@ A **closed** map or list refuses any key/element not already present.
 Narrowing an existing key is fine, and `open` lifts the seal:
 
 ```aon
-a: close({x:1}) & {x:number}
-b: open(close({x:1})) & {y:2}
+a: close({ x:1 }) & { x:number }
+b: open(close({ x:1 })) & { y:2 }
 c: close(42)
 ```
 
@@ -2429,7 +2420,7 @@ and an entry file, `main.aon`, loading both:
 ```aon
 @"foo.aon"
 car: @"car.aon"
-car: {wheels: 4}
+car: wheels: 4
 ```
 
 <!-- test: run -->
@@ -2518,12 +2509,13 @@ declares the module's own path and entry file; the entry defaults to
 `main.aon`:
 
 ```aon
-mod: { path: "corp.example/schemas/service", main: "service.aon" }
+mod: { path:"corp.example/schemas/service" main:"service.aon" }
 ```
 
 `mod-lock.aon` is machine-written in **canonical form**—one line,
 sorted keys, diffable, and (its leaves being scalars) valid JSON:
 
+<!-- fmt: keep a lock file, shown as the tool writes it -->
 ```aon
 {"lock":{"corp.example/schemas/service@1":{"canon":"aon1-4vJe…","oci":"sha256:6b86…","v":"1.4.2"}}}
 ```
@@ -2552,8 +2544,8 @@ declares what the project wants, under a `dep` map keyed by module
 path:
 
 ```aon
-mod: { path: "corp.example/app", main: "main.aon" }
-dep: { "corp.example/schemas/service@1": { v: "1.4.2" } }
+mod: { path:"corp.example/app" main:"main.aon" }
+dep: "corp.example/schemas/service@1": v: "1.4.2"
 ```
 
 `aontu mod tidy` walks the closure—each module's own `mod.aon`
@@ -2659,6 +2651,171 @@ constraints, defaults, and open disjunctions. Rules:
 - Conjunction: `a&b` (for example `number&"A"`). Disjunction: `a|b`
   (for example `1|2`, `string|number`). Preference: `*x` (for example `*1|number`).
 - Spreads keep the `&:` entry: `{&:{"x":2},"y":{…}}`.
+
+## The formatted form
+
+`aontu fmt` writes a document in one agreed form, in the tradition of
+`gofmt`, so that layout is never argued about and a diff shows only
+what changed. The form is a spelling of the document and not a change
+to it: what the formatter writes evaluates to the same value, has the
+same canon-hash, and is a fixed point of the formatter. The verb is in
+the [API reference](reference-api.md#aontu-fmt); how to run it on a
+file or gate a repository is a
+[how-to](how-to/format-a-document.md). This section is the form.
+
+**Lines.** Two spaces per level of indentation, never a tab. Line
+endings are `LF`, no line ends in whitespace, and the file ends in one
+newline. A packing budget of 80 columns decides between two legal
+spellings of a value, one line or several, and nothing else: the
+formatter never breaks a line. A string 200 columns wide stays 200
+columns wide, and an expression the author wrote on one line stays on
+it however wide it is.
+
+**Pairs.** A pair is `key: value`, no space before the colon and one
+after, and the key, the colon and the value are never on different
+lines. At statement level every pair has its own line, so `a: 1 b: 2`
+on one line becomes two. Inside an inline container the colon is
+tight, `{ a:1 b:2 }`, and the space between pairs is what separates
+them. An optional key keeps its marker tight, `port?: integer`; a
+spread is `&: value`; an alias declaration is `%Name: value`.
+
+**Braces are for shape, not for nesting.** A pair whose value is a map
+holding exactly one entry is written as a chain: `a: {b: 1}` is
+`a: b: 1`, recursively, and the root map has no braces at all. A
+one-key map in list position is a pair element, `[a:1 b:2]` for
+`[{a:1}, {b:2}]`. A map whose only entry is a spread keeps its braces,
+`a: { &: integer }`, because the braces are what say "a map shape": a
+spread alone reads as a constraint on `a` rather than on its members.
+A map that is an operand or an argument keeps its braces too,
+`a: { b:1 } & T`, `s: close({ a:1 })`: those are expressions, and
+inside them the rules apply again to each entry.
+
+**Repeat the prefix.** A pair in statement position whose value is a
+plain map is laid out in this order: on one line, `key: { a:v b:v }`,
+when that fits the budget and the map holds no comment and no value
+that spans lines; else as one statement per entry, each carrying the
+key again, when every entry is a one-liner that way:
+
+```aon
+server: host: "0.0.0.0"
+server: port: 8080
+server: tls: { enabled:true cert:"/etc/tls/edge/cert.pem" }
+```
+
+and otherwise as a braced block, `key: {` on the pair's line, each
+entry a statement one level in, and `}` alone on its line. The repeat
+is legal because a key written twice is a meet, and the meet of two
+maps with disjoint keys is their union: the three statements above and
+`server: { host: "0.0.0.0", port: 8080, tls: { ... } }` are one document,
+with one canon-hash. It applies recursively, so a nested map that fits
+stays on its line and one that does not repeats further under the
+longer prefix, `a: b: c: 1` / `a: b: d: 2`; there is no cap on how many
+statements a map becomes. Merging goes the other way too: adjacent
+statements naming one key are one map to the formatter, which then
+lays that map out by the same procedure, so `s: a: 1` / `s: b: 2` is
+written `s: { a:1 b:2 }`. Only adjacent statements merge; a `server:`
+line, something else, then another `server:` line stays as it is,
+because the formatter never reorders. A statement's trailing comment
+travels onto the entry it stood beside; comments and blank lines
+between merged statements stay between the entries.
+
+The rule touches nothing but a plain map in statement position. A map
+wrapped in a call is an expression, and splitting it changes the
+document: `s: close({a: 1})` / `s: close({b: 2})` does not evaluate
+where `s: close({a: 1, b: 2})` does. The same holds for an operand of
+`&` or `|`, a list element, a map with a comment on its opening line or
+as its last entry, and a map holding two spreads, which the engine
+keeps as a conjunction. Every repeat and every merge is checked with
+the engine before it is written, the two spellings evaluated in
+isolation and compared, and a rewrite the engine evaluates differently
+is not made: the statement keeps its braces.
+
+**Containers.** A map whose one-line spelling fits is written on one
+line, padded inside the braces and with the colons tight; a list is
+not padded: `limits: { rps:100 burst:200 }`, `ports: [80 443 8080]`,
+`routes: [get:"/health" post:"/orders"]`. A container goes to several
+lines when it does not fit, when it holds a comment, or when an
+element is itself several lines. A list then puts each element on its
+own line one level in, with the closing bracket alone on a line; a map
+in statement position repeats or blocks as above; a map in expression
+position is a braced block, `{` at the end of the line that opens it
+and `}` alone, which is the ordinary spelling of a constrained map:
+
+```aon
+CatalogEntry: $.std.Service & {
+  owner: %Owner
+  tier: 1 | 2 | 3
+  dependsOn?: rel($.std.Service) & %CatalogAddr & acyclic() & inverse(dependedOnBy)
+}
+```
+
+That third line is 83 columns where it sits, and stays so.
+
+Empty containers are `{}` and `[]`, always inline.
+
+**Separators.** No commas between pairs or between elements: a newline
+or a space separates, and commas on input are dropped, trailing ones
+included. Inside a call's argument list the author's separators are
+kept, a comma or a space, with one space after a comma, because the
+parser reads a run of arguments such as `must((v) => 0 <= v, "…")`
+exactly as it reads `match(.t, "string", "x")`.
+
+**Comments.** Every `#` comment is kept, its text untouched. A comment
+on its own line attaches to the statement that follows it and is
+indented to that statement's level; a blank line between the two
+stays. A trailing comment stays on its line, one space after the last
+token, and trailing comments are not aligned into a column. A comment
+inside a container puts the container on several lines, which is the
+only way the comment keeps its place; a comment on the line that opens
+a block stays there, `server: { # what the edge sees`.
+
+**Blank lines.** A blank line is a paragraph break the author chose,
+and the formatter keeps it: any run of blank lines becomes one. None at
+the start or end of a block, none at the start of the file, and one at
+the end, which is the final newline.
+
+**Keys and strings.** A key is bare when it can be: a quoted key whose
+text is a legal bare key, `[A-Za-z_][A-Za-z0-9_]*`, is written bare, so
+`"host": 1` becomes `host: 1`. Quoting that means something is never
+touched: `"a?": 1` is a key named `a?`, where `a?: 1` is an optional
+`a`. A single-quoted string becomes double-quoted, `'plain'` to
+`"plain"`, unless it holds a double quote; a backtick string is
+verbatim, newlines and indentation included; a string's content is
+never changed; and a bare string stays bare, a quoted one quoted.
+
+**Numbers.** A number's source text is copied exactly. `1`, `1.0`,
+`0d1` and `0d1.0` are four kinds, and `1_000`, `0x1f` and `1e3` are
+spellings the author chose.
+
+**Operators and calls.** Binary operators are spaced, `a & b`, `a | b`,
+`a + b`; a preference is tight, `*8080 | 9090`; a call is
+`name(arg, arg)` with no space before the parenthesis and none inside
+it, and an empty argument list is `name()`. References and paths are
+copied as written. Parentheses are the author's: the formatter neither
+adds nor removes a grouping parenthesis. A line break the author put
+inside an expression is kept, at its operator, which then leads its
+continuation line one level in:
+
+```aon
+out: `a` + .b
+  + match(.t, "string", `TEXT`)
+```
+
+A call that does not fit on its line hugs its last argument to the
+parentheses when that argument is a container, an unbroken expression
+that ends in one, or a call whose own last argument hugs, which is the
+schema idiom `type(close({` … `}))`; otherwise the arguments go one per
+line, one level in, with the closing parenthesis alone. Arguments that
+hold no container stay on one line however wide it is: a scalar is no
+narrower on a line of its own.
+
+**The root, and what never changes.** The root map has no braces.
+Includes and alias declarations are statements like any other, kept
+where the author put them and in that order. The formatter never
+reorders a key, an element, an include or a declaration; never renames
+a key; never introduces an alias; never resolves an include or reads a
+file it was not given; never changes a number, a string's content or a
+parenthesis; and never breaks a line.
 
 ## The published grammar
 
@@ -3259,7 +3416,7 @@ claim about the data, and the data is what comes out:
 ```aon
 a: string & length(3)
 a: abc
-b: length(1) & {x:1, y?:number}
+b: length(1) & { x:1 y?:number }
 ```
 
 ```json
@@ -3310,8 +3467,7 @@ it is grouped. A sizing atom cannot, because meeting further containers
 
 ```aon
 a: length(2)
-a: {x:1}
-a: {y:2}
+a: { x:1 y:2 }
 ```
 
 ```json
@@ -3401,8 +3557,8 @@ reserved for it, and is now spent:
 
 ```aon
 services: unique(port) & {
-  api:  { port: 8080, name: "api"  }
-  auth: { port: 8443, name: "auth" }
+  api: { port:8080 name:"api" }
+  auth: { port:8443 name:"auth" }
 }
 ```
 
@@ -3437,11 +3593,9 @@ intersect—never force evaluation—so evaluation order cannot
 change results.
 
 ```aon
-scaling: {
-  floor: 2
-  ceiling: 10
-  target: integer & min($.scaling.floor) & max($.scaling.ceiling)
-}
+scaling: floor: 2
+scaling: ceiling: 10
+scaling: target: integer & min($.scaling.floor) & max($.scaling.ceiling)
 # target normalises to integer&min(2)&max(10) once floor/ceiling resolve
 ```
 
@@ -3484,9 +3638,9 @@ constraint just as a `type()` field can:
 ```aon
 type: type({})
 type: {
-  uint8: integer & min(0)    & max(255)
-  int8:  integer & min(-128) & max(127)
-  port:  integer & min(1)    & max(65535)
+  uint8: integer & min(0) & max(255)
+  int8: integer & min(-128) & max(127)
+  port: integer & min(1) & max(65535)
 }
 
 listen: $.type.port
@@ -3521,7 +3675,7 @@ this as `uint8.aon`:
 <!-- test: file uint8.aon -->
 ```aon
 type: type({})
-type: { uint8: integer & min(0) & max(255) }
+type: uint8: integer & min(0) & max(255)
 a: $.type.uint8
 a: 300
 ```
@@ -3544,7 +3698,7 @@ invites, and the reason the aliases above all lead with `integer`:
 
 ```aon
 loose: type({})
-loose: { byteish: min(0) & max(255) }
+loose: byteish: min(0) & max(255)
 a: $.loose.byteish
 a: 1.5
 ```
@@ -3559,10 +3713,7 @@ with further constraints at the point of use.
 
 ```aon
 type: type({})
-type: {
-  n:  integer & min(0)
-  u8: $.type.n & max(255)
-}
+type: { n:integer & min(0) u8:$.type.n & max(255) }
 
 small: $.type.u8 & max(15)
 small: 12

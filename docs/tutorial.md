@@ -122,6 +122,7 @@ JSON all the same.
 Nesting repeats keys with a colon—`a:b:c:1` means
 `a: { b: { c: 1 } }`:
 
+<!-- fmt: keep two statements meeting is the lesson -->
 ```aontu
 server: host: localhost
 server: port: 8080
@@ -141,6 +142,7 @@ is your first unification.
 Stating two things about the same place combines them. The explicit
 operator is `&`; between map keys it happens on its own:
 
+<!-- fmt: keep two statements meeting is the lesson -->
 ```aontu
 server: { host: localhost }
 server: { port: 8080 }
@@ -351,7 +353,7 @@ at the root:
 
 ```aontu
 defaults: timeout: 30
-service:  timeout: $.defaults.timeout
+service: timeout: $.defaults.timeout
 ```
 
 →
@@ -366,8 +368,7 @@ key a value is stored under—a compact way to give records their own
 name:
 
 ```aontu
-users: alice: { id: key() }
-users: bob:   { id: key() }
+users: { alice:id:key() bob:id:key() }
 ```
 
 →
@@ -385,11 +386,9 @@ A `&:` entry inside a map is a **template** unified into every sibling
 key. Declare a shape once and it applies everywhere:
 
 ```aontu
-servers: {
-  &: { region: *"us-east" | string, active: *true | boolean }
-  web: { region: "eu-west" }
-  db:  {}
-}
+servers: { &: { region:*"us-east" | string active:*true | boolean } }
+servers: web: region: "eu-west"
+servers: db: {}
 ```
 
 (The region names are quoted because a bare string stops at the `-`.)
@@ -415,11 +414,11 @@ Aontu has a fixed set of built-in functions, and no user-defined ones.
 A few of the everyday ones:
 
 ```aontu
-web:   { region: "eu-west" }
-name:  upper(mercury)      # -> "MERCURY"
-slug:  lower(Mercury)      # -> "mercury"
-label: a + b + c           # -> "abc"
-copy:  copy($.web)         # deep copy of another node
+web: region: "eu-west"
+name: upper(mercury) # -> "MERCURY"
+slug: lower(Mercury) # -> "mercury"
+label: a + b + c # -> "abc"
+copy: copy($.web) # deep copy of another node
 ```
 
 →
@@ -450,8 +449,8 @@ is what lets separate files contribute separate keys. A schema usually
 wants the opposite. `close()` seals a shape:
 
 ```aontu
-point: close({ x: number, y: number })
-point: { x: 1, y: 2 }
+point: close({ x:number y:number })
+point: { x:1 y:2 }
 ```
 
 →
@@ -463,8 +462,8 @@ point: { x: 1, y: 2 }
 Add a key the shape does not declare and the document refuses:
 
 ```aontu
-point: close({ x: number, y: number })
-point: { x: 1, y: 2, z: 3 }
+point: close({ x:number y:number })
+point: { x:1 y:2 z:3 }
 ```
 
 → fails with:
@@ -491,20 +490,15 @@ defaults and data at once—save it as `config.aon`:
 ```aontu
 # --- schema + defaults (could live in its own file) ---
 service: close({
-  name:    string
-  host:    *localhost | string
-  port:    *8080      | integer
-  rate:    *0d0.01    | bigdecimal
-  tags:    [&: string]
+  name: string
+  host: *localhost | string
+  port: *8080 | integer
+  rate: *0d0.01 | bigdecimal
+  tags: [&: string]
 })
 
 # --- environment data merged on top ---
-service: {
-  name: api
-  port: 9090
-  rate: 0d0.025
-  tags: [public, http]
-}
+service: { name:api port:9090 rate:0d0.025 tags:[public http] }
 ```
 
 Run it:
@@ -563,8 +557,8 @@ every statement that contributed to a path, in source order:
 ```sh
 $ aontu why '$.service.port' config.aon
 $.service.port = 9090
-  1. *8080|integer  config.aon:5:12
-  2. 9090  config.aon:13:9
+  1. *8080|integer  config.aon:5:9
+  2. 9090  config.aon:11:26
 ```
 
 Two contributions, and you wrote both: the default with its type, and
@@ -578,7 +572,7 @@ overrode:
 ```sh
 $ aontu why '$.service.host' config.aon
 $.service.host = *"localhost"|string
-  1. *"localhost"|string  config.aon:4:12
+  1. *"localhost"|string  config.aon:4:9
 ```
 
 One contribution, still wearing its `*`: the default answered only
@@ -598,11 +592,11 @@ schema half becomes `service.aon`:
 <!-- test: file service.aon -->
 ```aontu
 service: close({
-  name:    string
-  host:    *localhost | string
-  port:    *8080      | integer
-  rate:    *0d0.01    | bigdecimal
-  tags:    [&: string]
+  name: string
+  host: *localhost | string
+  port: *8080 | integer
+  rate: *0d0.01 | bigdecimal
+  tags: [&: string]
 })
 ```
 
@@ -610,12 +604,7 @@ and the data half becomes `prod.aon`:
 
 <!-- test: file prod.aon -->
 ```aontu
-service: {
-  name: api
-  port: 9090
-  rate: 0d0.025
-  tags: [public, http]
-}
+service: { name:api port:9090 rate:0d0.025 tags:[public http] }
 ```
 
 `vet` asks whether a data document holds against a schema document:
@@ -631,11 +620,7 @@ else:
 
 <!-- test: file staging.aon -->
 ```aontu
-service: {
-  name: search
-  port: 8100
-  tags: [internal, 3]
-}
+service: { name:search port:8100 tags:[internal 3] }
 ```
 
 Vet it:
@@ -647,8 +632,8 @@ verdict: invalid
 
 $.service.tags.1: no_scalar_unify [conflict]
   [aontu/no_scalar_unify]: Cannot unify values at path $.service.tags.1
-  data: staging.aon:4:20 (3)
-  schema: service.aon:6:16 (string)
+  data: staging.aon:1:49 (3)
+  schema: service.aon:6:13 (string)
 $ echo $?
 1
 ```
@@ -667,11 +652,7 @@ so:
 
 <!-- test: file staging.aon -->
 ```aontu
-service: {
-  name: search
-  port: 8100
-  tags: [internal, tier3]
-}
+service: { name:search port:8100 tags:[internal tier3] }
 ```
 
 <!-- test: run -->
@@ -718,10 +699,7 @@ calling an unfinished document valid. Delete the `name` line from `staging.aon`:
 
 <!-- test: file staging.aon -->
 ```aontu
-service: {
-  port: 8100
-  tags: [internal, tier3]
-}
+service: { port:8100 tags:[internal tier3] }
 ```
 
 <!-- test: run -->
@@ -731,7 +709,7 @@ verdict: incomplete
 
 $.service.name: mapval_required [incomplete]
   [aontu/mapval_required]: Cannot resolve value at path $.service.name
-  schema: service.aon:2:12 (string)
+  schema: service.aon:2:9 (string)
 $ echo $?
 3
 ```

@@ -38,8 +38,10 @@ services: payments: {
   tier: 1
   description: "Card payment orchestration and capture API."
   dependsOn: [
-    "$.services.ledger", "$.services.risk",
-    "$.services.auth", "$.services.notify"
+    "$.services.ledger"
+    "$.services.risk"
+    "$.services.auth"
+    "$.services.notify"
   ]
   dependedOnBy: ["$.services.gateway"]
 }
@@ -48,7 +50,7 @@ services: payments: {
 deploy: eu1: payments: $.services.payments & {
   image: "registry.acme.internal/payments:2.14.1"
   replicas: 6
-  ports: {http: {number: 8080, protocol: http}}
+  ports: http: { number:8080 protocol:http }
 }
 ```
 
@@ -102,8 +104,8 @@ typo'd key is a conflict, not a silently ignored extra:
 ```aon
 CreateUserRequest: close({
   email: $.types.Email
-  name:  $.types.DisplayName
-  role:  $.types.Role
+  name: $.types.DisplayName
+  role: $.types.Role
   # Invitations send an email unless explicitly suppressed.
   send_invite?: boolean
 })
@@ -157,8 +159,7 @@ Role: type(
     privileged: true
     grants: unique() & [&: refer() & string]
   })
-  |
-  close({
+  | close({
     desc: string
     rank: integer & min(0) & max(100)
     tenantOwner: false
@@ -190,14 +191,15 @@ one authored column into every generated child:
 deploy: close(pack($.svc.names, {
   apiVersion: "apps/v1"
   kind: Deployment
-  metadata: {
-    name: key(2)                            # depth-counted by hand
-  }
+  metadata: name: key(2) # depth-counted by hand
   # ... the rest of the Deployment skeleton ...
 }))
 
-deploy: pack($.svc.version, { spec: template: spec: containers: [ {
-  image: $.platform.registry + "/" + key(6) + ":" + _ } ] })
+deploy: pack($.svc.version, {
+  spec: template: spec: containers: [
+    image: $.platform.registry + "/" + key(6) + ":" + _
+  ]
+})
 ```
 
 The version column becomes the image tag through `_`, and drift in
@@ -271,10 +273,7 @@ schema is generated from the registry, so the two can never drift:
 ```aon
 @"registry.aon"
 
-guard: pack($.argschemas, close({
-  tool: key()
-  arguments: _
-}))
+guard: pack($.argschemas, close({ tool:key() arguments:_ }))
 ```
 
 `close()` survives the `_` clone, so a hallucinated argument on any
@@ -297,10 +296,8 @@ it as `reconcile.aon`:
 
 <!-- test: file reconcile.aon -->
 ```aontu
-reconcile: {
-  centsPath: (10 + 20) & 30              # integer cents: exact
-  exactPath: (0d0.1 + 0d0.2) & 0d0.3    # exact decimals: also exact
-}
+reconcile: centsPath: (10 + 20) & 30 # integer cents: exact
+reconcile: exactPath: (0d0.1 + 0d0.2) & 0d0.3 # exact decimals: also exact
 ```
 
 Evaluate it:
@@ -335,7 +332,7 @@ default in the vendored tree fails evaluation with both hashes named. A single f
 <!-- test: skip a fragment of 11-shared-modules, which resolves against that case's module store; the case's own check.sh runs it -->
 ```aon
 svc: @"corp.example/schemas/service@1#aon1-zFHnyVa1fA--g8hTx8lUUhaKzzRUNI--2nDheIMsSFs"
-svc: spec: { name: "audit-log", owner: "sec-ops@corp.example" }
+svc: spec: { name:"audit-log" owner:"sec-ops@corp.example" }
 ```
 
 A tampered store is refused, with both hashes named:
@@ -382,11 +379,9 @@ infinitely deep type. The vocabulary, one reference deep, from
 `schema.aon`:
 
 ```aon
-Step: {
-  approver: string & re("^[a-z]+@acme[.]example$")
-  decision: *pending | pending | approved | rejected
-  then?: $.spec.Step
-}
+Step: approver: string & re("^[a-z]+@acme[.]example$")
+Step: decision: *pending | pending | approved | rejected
+Step: then?: $.spec.Step
 ```
 
 A *required* recursive tail refuses at generation with
@@ -410,12 +405,10 @@ case's registry):
 
 <!-- test: file registry.aon -->
 ```aontu
-argschemas: {
-  read_file: close({
-    path: string & re("^[A-Za-z0-9._/\\-]+$") & re("^[a-z]") & length(max(512))
-    max_bytes?: integer & min(1) & max(1048576)
-  })
-}
+argschemas: read_file: close({
+  path: string & re("^[A-Za-z0-9._/\\-]+$") & re("^[a-z]") & length(max(512))
+  max_bytes?: integer & min(1) & max(1048576)
+})
 ```
 
 Export it as the tool's `inputSchema`:
@@ -476,19 +469,25 @@ Write the model and one emitter as `types.aon`:
 <!-- test: file types.aon -->
 ```aontu
 records: [
-  {name: "Customer", fields: [
-    {n: "id",    t: "string",  go: "ID"}
-    {n: "email", t: "string",  go: "Email"}
-  ]}
+  {
+    name: "Customer"
+    fields: [{ n:"id" t:"string" go:"ID" } { n:"email" t:"string" go:"Email" }]
+  }
 ]
-units: [&: {
-  head: `type ` + .name + ` struct {`
-  rows: [&: { out: `\t` + .go + ` ` +
-        match(.t, "string", `string`, "integer", `int64`) +
-        ` \`json:"` + .n + `"\`` }] & .fields
-  body: pick(.rows, out)
-  tail: `}`
-}] & $.records
+units: [
+  &: {
+    head: `type ` + .name + ` struct {`
+    rows: [
+      &: {
+        out: `\t` + .go + ` `
+          + match(.t, "string", `string`, "integer", `int64`)
+          + ` \`json:"` + .n + `"\``
+      }
+    ] & .fields
+    body: pick(.rows, out)
+    tail: `}`
+  }
+] & $.records
 ```
 
 The struct header and its field lines both come out of the model:
@@ -527,8 +526,8 @@ and a module that says `layer: "feature"` cannot meet it. Each layer
 is one line of schema and one disjunction, from `spec.aon`:
 
 ```aon
-Core:    $.spec.Mod & { layer: "core", dependsOn?: rel($.spec.CoreDep) }
-CoreDep: { kind: mod, layer: "core" | "util" }
+Core: $.spec.Mod & { layer:"core" dependsOn?:rel($.spec.CoreDep) }
+CoreDep: { kind:mod layer:"core" | "util" }
 ```
 
 An upward edge then refuses at generation as an ordinary conflict naming

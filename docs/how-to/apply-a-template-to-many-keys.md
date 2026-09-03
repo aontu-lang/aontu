@@ -11,11 +11,9 @@ how drift starts. Write it once as a `&:` spread entry—it is
 unified into every other key of the map:
 
 ```aontu
-endpoints: {
-  &: { method: *GET | string, auth: *true | boolean }
-  list:   {}
-  create: { method: POST }
-}
+endpoints: { &: { method:*GET | string auth:*true | boolean } }
+endpoints: list: {}
+endpoints: create: method: POST
 ```
 
 ```json
@@ -31,7 +29,7 @@ ordinary way. (Keys come out sorted, whatever order they were
 written in.) The same entry works in lists:
 
 ```aontu
-a: [&: {x: 1}, {y: 1}, {y: 2}]
+a: [&: { x:1 } y:1 y:2]
 ```
 
 ```json
@@ -53,11 +51,9 @@ CatalogEntry: type({
   description: string
 })
 
-payments: services: {
-  &: $.CatalogEntry & { owner: "team-payments" }
-  payments: { tier: 1, description: "Card capture API." }
-  ledger:   { tier: 1, description: "Ledger of record." }
-}
+payments: services: { &: $.CatalogEntry & { owner:"team-payments" } }
+payments: services: payments: { tier:1 description:"Card capture API." }
+payments: services: ledger: { tier:1 description:"Ledger of record." }
 ```
 
 ```json
@@ -84,11 +80,9 @@ CatalogEntry: type({
   description: string
 })
 
-payments: services: {
-  &: $.CatalogEntry & { owner: "team-payments" }
-  payments: { tier: 1, description: "Card capture API." }
-  ledger:   { tier: 4, description: "Ledger of record." }
-}
+payments: services: { &: $.CatalogEntry & { owner:"team-payments" } }
+payments: services: payments: { tier:1 description:"Card capture API." }
+payments: services: ledger: { tier:4 description:"Ledger of record." }
 ```
 
 <!-- test: run -->

@@ -11,6 +11,7 @@ import (
 	"reflect"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -363,6 +364,28 @@ func TestSpec(t *testing.T) {
 					if got != expect {
 						t.Fatalf("fmt refusal\n src:  %q\n want: %q\n got:  %q",
 							src, expect, got)
+					}
+
+				case "fmt-lint":
+					// THE LINT (docs/design/FMT.0.md §4): the style
+					// findings of --lint, each as `line:col: rule:
+					// message` -- the CLI's line without the file name
+					// -- joined by newlines, and empty when there is
+					// none. The formatter never acts on a finding, so
+					// the text is the fmt rows' business, not this
+					// row's. Mirrors the fmt-lint mode of
+					// ts/test/spec.test.ts.
+					report := a.FormatWith(src, FormatOptions{Lint: true})
+					if "formatted" != report.Verdict {
+						t.Fatalf("does not format: %v\n src: %q", report.Errors, src)
+					}
+					lines := make([]string, 0, len(report.Findings))
+					for _, f := range report.Findings {
+						lines = append(lines, strconv.Itoa(f.Line)+":"+strconv.Itoa(f.Col)+
+							": "+f.Rule+": "+f.Message)
+					}
+					if got := strings.Join(lines, "\n"); got != expect {
+						t.Fatalf("fmt lint\n src:  %q\n want: %q\n got:  %q", src, expect, got)
 					}
 
 				case "agentsmd":

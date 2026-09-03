@@ -12,7 +12,7 @@ disjunction holds the ground between: write the default beside the
 type an override must satisfy:
 
 ```aontu
-timeout: *30 | integer      # 30 unless overridden
+timeout: *30 | integer # 30 unless overridden
 ```
 
 ```json
@@ -111,9 +111,9 @@ beats `**` beats `***`—and a concrete value beats them all, so an
 organisation writes `***`, a team `**`, an environment `*`:
 
 ```aontu
-logLevel: ***info      # org
-logLevel: **debug      # team
-logLevel: *warn        # environment
+logLevel: ***info # org
+logLevel: **debug # team
+logLevel: *warn # environment
 ```
 
 ```json

@@ -16,11 +16,7 @@ Write the schema as `schema.aon`:
 <!-- test: scenario ci-vet -->
 <!-- test: file schema.aon -->
 ```aontu
-user: {
-  id: integer
-  name: string
-  admin: boolean
-}
+user: { id:integer name:string admin:boolean }
 ```
 
 and the data your pipeline produced as `user.json`:
@@ -40,7 +36,7 @@ verdict: invalid
 $.user.id: no_scalar_unify [conflict]
   [aontu/no_scalar_unify]: Cannot unify values at path $.user.id
   data: user.json:1:17 ("seven")
-  schema: schema.aon:2:7 (integer)
+  schema: schema.aon:1:12 (integer)
 $ echo $?
 1
 ```
@@ -67,7 +63,7 @@ verdict: incomplete
 
 $.user.id: mapval_no_gen [incomplete]
   [aontu/mapval_no_gen]: Cannot resolve value at path $.user.id
-  schema: schema.aon:2:7 (integer)
+  schema: schema.aon:1:12 (integer)
 $ echo $?
 3
 ```

@@ -15,18 +15,14 @@ as `base.aon`:
 <!-- test: scenario split-model -->
 <!-- test: file base.aon -->
 ```aontu
-server: {
-  host: string
-  port: *8080 | integer
-  debug: *false | boolean
-}
+server: { host:string port:*8080 | integer debug:*false | boolean }
 ```
 
 the production pins as `override.aon`:
 
 <!-- test: file override.aon -->
 ```aontu
-server: { host: "app.corp.example", port: 8443 }
+server: { host:"app.corp.example" port:8443 }
 ```
 
 and an entry file `main.aon` that loads both:
@@ -69,7 +65,7 @@ and mount it in `lot.aon`, constraints attached:
 <!-- test: file lot.aon -->
 ```aontu
 car: @"./car.aon"
-car: { doors: number, wheels: 4 }
+car: { doors:number wheels:4 }
 ```
 
 <!-- test: run -->

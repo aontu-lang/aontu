@@ -23,9 +23,9 @@ spec: hide({
   }
 })
 
-web: $.spec.Service & {tier: "edge", dependsOn: [path($.api)]}
-api: $.spec.Service & {tier: "core", dependsOn: [path($.store)]}
-store: $.spec.Service & {tier: "core"}
+web: $.spec.Service & { tier:"edge" dependsOn:[path($.api)] }
+api: $.spec.Service & { tier:"core" dependsOn:[path($.store)] }
+store: $.spec.Service & { tier:"core" }
 ```
 
 The tree is the default kind. It derives its roots—a root is a node
@@ -106,10 +106,10 @@ figures down as data, in a `views.aon` that includes the model:
 @"std/view"
 @"./system.aon"
 
-views: {&: $.view.Figure} & {
-  tree: {kind: tree, relation: dependsOn, out: "tree.txt"}
-  matrix: {kind: matrix, relation: dependsOn, order: partition, out: "matrix.txt"}
-  layers: {kind: layer, relation: dependsOn, groupBy: tier, as: svg, out: "layers.svg"}
+views: { &: $.view.Figure } & {
+  tree: { kind:tree relation:dependsOn out:"tree.txt" }
+  matrix: { kind:matrix relation:dependsOn order:partition out:"matrix.txt" }
+  layers: { kind:layer relation:dependsOn groupBy:tier as:svg out:"layers.svg" }
 }
 ```
 

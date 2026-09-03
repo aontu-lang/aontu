@@ -163,6 +163,24 @@ function aonFiles(dir, out = []) {
         const kept = (0, aontu_1.format)(repro);
         Assert.ok(kept.text.includes('a: b: c: d: e: $.a.b.f\na: b: f: { &: { n:key() } }\na: b: f: x: {}\n'), kept.text);
     });
+    // THE LINT (§4) is asked for, never assumed: without the option the
+    // report carries no findings, and with it the findings say where.
+    // The rules themselves are pinned row by row in fmt.tsv.
+    (0, node_test_1.test)('format-lints-only-when-asked', () => {
+        const src = 'a: 1\r\nHTTP_PORT: 8080\r\n';
+        const plain = (0, aontu_1.format)(src);
+        Assert.deepEqual(plain.findings, []);
+        const linted = (0, aontu_1.format)(src, { lint: true });
+        // CRLF is read as LF before the lint counts, so the positions are
+        // the file's lines.
+        Assert.deepEqual(linted.findings, [{
+                rule: 'style/key-case', line: 2, col: 1,
+                message: 'key HTTP_PORT holds an underscore; httpPort would follow the form',
+            }]);
+        Assert.equal(linted.text, 'a: 1\nHTTP_PORT: 8080\n');
+        // A document that does not format has no findings to report.
+        Assert.equal('findings' in (0, aontu_1.format)('a: {b', { lint: true }), false);
+    });
     (0, node_test_1.test)('unified-diff', () => {
         Assert.equal((0, aontu_1.unifiedDiff)('x', 'a\n', 'a\n'), '');
         Assert.equal((0, aontu_1.unifiedDiff)('x', '', ''), '');

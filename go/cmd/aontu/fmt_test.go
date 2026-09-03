@@ -162,6 +162,42 @@ func TestFmtSyntaxErrorExits4(t *testing.T) {
 
 // Standard input, formatted onto standard output, or listed under the
 // name <stdin>.
+// --lint points at the style the formatter never touches: the findings
+// on stderr as `file:line:col: rule: message`, nothing on stdout, and
+// the exit code left alone unless --strict asks.
+func TestFmtLintAndStrict(t *testing.T) {
+	_, files := fmtFiles(t, "credit_cents: 1\n", "x:{y:1}\n")
+	where := files[0] + ":1:1: style/key-case: key credit_cents holds an underscore; " +
+		"creditCents would follow the form\n"
+	out, errw, code := fmtRun("", "--lint", files[0], files[1])
+	if 0 != code || "" != out || where != errw {
+		t.Fatalf("lint: code %d out %q err %q", code, out, errw)
+	}
+	if out, errw, code = fmtRun("", "--lint", files[1]); 0 != code || "" != out+errw {
+		t.Fatalf("lint clean: code %d out %q err %q", code, out, errw)
+	}
+	// --strict is --lint with the exit code: 1 when there is a finding,
+	// 0 when there is none.
+	if _, errw, code = fmtRun("", "--strict", files[0]); 1 != code || where != errw {
+		t.Fatalf("strict: code %d err %q", code, errw)
+	}
+	if _, errw, code = fmtRun("", "--strict", files[1]); 0 != code || "" != errw {
+		t.Fatalf("strict clean: code %d err %q", code, errw)
+	}
+	// With --list the names still go to stdout; --check's 1 and
+	// --strict's 1 are one exit code.
+	out, errw, code = fmtRun("", "--strict", "--list", files[0], files[1])
+	if 1 != code || files[1]+"\n" != out || where != errw {
+		t.Fatalf("strict list: code %d out %q err %q", code, out, errw)
+	}
+	if out, _, code = fmtRun("", "--check", "--lint", files[1]); 1 != code || files[1]+"\n" != out {
+		t.Fatalf("check lint: code %d out %q", code, out)
+	}
+	if raw, _ := os.ReadFile(files[0]); "credit_cents: 1\n" != string(raw) {
+		t.Fatalf("lint wrote the file: %q", raw)
+	}
+}
+
 func TestFmtStdin(t *testing.T) {
 	out, _, code := fmtRun("a:{b:1}\n")
 	if 0 != code || "a: b: 1\n" != out {

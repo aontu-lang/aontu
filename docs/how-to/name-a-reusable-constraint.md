@@ -14,9 +14,9 @@ everything else and emits nothing:
 ```aontu
 type: type({})
 type: {
-  uint8: integer & min(0)    & max(255)
-  int8:  integer & min(-128) & max(127)
-  port:  integer & min(1)    & max(65535)
+  uint8: integer & min(0) & max(255)
+  int8: integer & min(-128) & max(127)
+  port: integer & min(1) & max(65535)
 }
 
 listen: $.type.port
@@ -39,9 +39,9 @@ the same document with `listen: 70000` as `types.aon`:
 ```aontu
 type: type({})
 type: {
-  uint8: integer & min(0)    & max(255)
-  int8:  integer & min(-128) & max(127)
-  port:  integer & min(1)    & max(65535)
+  uint8: integer & min(0) & max(255)
+  int8: integer & min(-128) & max(127)
+  port: integer & min(1) & max(65535)
 }
 
 listen: $.type.port
@@ -67,7 +67,7 @@ Lead with the kind. `min(0) & max(255)` alone bounds a *number*, so
 
 ```aontu
 loose: type({})
-loose: { byteish: min(0) & max(255) }
+loose: byteish: min(0) & max(255)
 a: $.loose.byteish
 a: 1.5
 ```

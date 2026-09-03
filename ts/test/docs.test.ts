@@ -128,6 +128,7 @@ type Block = {
   body: string
   line: number              // 1-based line of the opening fence
   directive?: Directive     // the test: comment immediately above, if any
+  keep?: string             // the fmt: keep reason, where the fence keeps its spelling
   covered?: string          // how a layer accounted for this block
 }
 
@@ -167,8 +168,21 @@ function extract(file: string, md: string): Item[] {
   const lines = md.split('\n')
   const out: Item[] = []
   let pending: Directive | undefined
+  let keep: string | undefined
 
   for (let i = 0; i < lines.length; i++) {
+    // `<!-- fmt: keep <reason> -->`: the next Aontu fence keeps its
+    // spelling rather than the agreed form, for the reason given (the
+    // formatter gate below). It rides beside a test directive.
+    const km = lines[i].match(/^<!--\s*fmt:\s*([a-z]+)\s*(.*?)\s*-->\s*$/)
+    if (km) {
+      Assert.equal(km[1], 'keep', `${file}:${i + 1} unknown fmt directive verb: ${km[1]}`)
+      Assert.ok('' !== km[2], `${file}:${i + 1} fmt: keep needs a reason`)
+      Assert.ok(undefined === keep,
+        `${file}:${i + 1} fmt: keep while another still awaits its fence`)
+      keep = km[2]
+      continue
+    }
     const dm = lines[i].match(/^<!--\s*test:\s*([a-z]+)\s*(.*?)\s*-->\s*$/)
     if (dm) {
       const verb = dm[1]
@@ -204,12 +218,19 @@ function extract(file: string, md: string): Item[] {
         b.directive = pending
         pending = undefined
       }
+      if (undefined !== keep) {
+        Assert.ok(SOURCE_TAGS.has(b.lang),
+          `${file}:${start} fmt: keep above a fence that is not Aontu source`)
+        b.keep = keep
+        keep = undefined
+      }
       out.push({ kind: 'block', block: b })
       continue
     }
   }
   Assert.ok(undefined === pending,
     `${file}:${pending?.line} directive is not followed by a fence`)
+  Assert.ok(undefined === keep, `${file}: fmt: keep is not followed by a fence`)
   return out
 }
 
@@ -534,13 +555,18 @@ describe('docs', () => {
   })
 
 
-  // THE FORMATTER OVER THE FENCES (docs/design/FMT.0.md §7.5): every
-  // Aontu fence that parses formats to a fixed point -- formatted twice,
-  // the second run changes nothing. Whether the fences ARE in the form
-  // is that note's P3, and a separate gate.
-  test('every-source-fence-formats-to-a-fixed-point', () => {
+  // THE FORMATTER OVER THE FENCES (docs/design/FMT.0.md §7.5, P3):
+  // every Aontu fence that parses is in the agreed form -- what
+  // `aontu fmt` writes is what the page shows -- or keeps its spelling
+  // under an `fmt: keep` directive whose reason a reviewer can weigh:
+  // two statements meeting, a split document, a conflict between two
+  // writers, the input a transcript formats. A kept fence still formats
+  // to a fixed point. The failure names the fences, and `aontu fmt`
+  // over the fence body is the fix.
+  test('every-source-fence-is-in-the-agreed-form-or-keeps-its-spelling', () => {
     const failures: string[] = []
     let checked = 0
+    let kept = 0
     for (const page of pages()) {
       for (const b of page.blocks) {
         if (!SOURCE_TAGS.has(b.lang)) {
@@ -551,16 +577,27 @@ describe('docs', () => {
           continue          // does not parse: the parse gate's business
         }
         checked++
-        const again: any = format(r.text)
-        if ('error' === again.verdict || again.text !== r.text) {
+        if (undefined !== b.keep) {
+          kept++
+          const again: any = format(r.text)
+          if ('error' === again.verdict || again.text !== r.text) {
+            failures.push(`${page.file}:${b.line} (kept, not a fixed point)`)
+          }
+          else if (r.text === b.body) {
+            failures.push(`${page.file}:${b.line} (kept, but already in the agreed form)`)
+          }
+        }
+        else if (r.text !== b.body) {
           failures.push(`${page.file}:${b.line}`)
         }
       }
     }
     Assert.deepEqual(failures, [],
-      `fences the formatter does not fix: ${failures.join(', ')}`)
+      `fences not in the agreed form (run aontu fmt over the body, or ` +
+      `mark <!-- fmt: keep <reason> -->): ${failures.join(', ')}`)
     if (undefined === narrowed()) {
-      Assert.ok(200 <= checked, `too few fences formatted: ${checked}`)
+      Assert.ok(200 <= checked, `too few fences checked: ${checked}`)
+      Assert.ok(kept <= 20, `too many fences keep their spelling: ${kept}`)
     }
   })
 

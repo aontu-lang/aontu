@@ -12,18 +12,17 @@ definition inside itself—that reference means the fixpoint, and the
 schema applies at every depth of the data:
 
 ```aontu
-spec: hide({Step: {
-  approver: string & re("^[a-z]+@acme[.]example$")
-  decision: *pending | pending | approved | rejected
-  then?: $.spec.Step
-}})
+spec: hide({
+  Step: {
+    approver: string & re("^[a-z]+@acme[.]example$")
+    decision: *pending | pending | approved | rejected
+    then?: $.spec.Step
+  }
+})
 policy: $.spec.Step & {
   approver: "lead@acme.example"
   decision: approved
-  then: {
-    approver: "cfo@acme.example"
-    then: { approver: "audit@acme.example" }
-  }
+  then: { approver:"cfo@acme.example" then:approver:"audit@acme.example" }
 }
 ```
 
@@ -58,8 +57,8 @@ drops where the data stops. A ranked default guards the same way,
 ending the structure with an explicit value instead of an absence:
 
 ```aontu
-schema: hide({Node: {v: integer, next: *null | $.schema.Node}})
-doc: $.schema.Node & {v: 1, next: {v: 2}}
+schema: hide({ Node:{ v:integer next:*null | $.schema.Node } })
+doc: $.schema.Node & { v:1 next:v:2 }
 ```
 
 ```json
@@ -78,19 +77,15 @@ The recursion also runs through list templates, which is how a
 comment thread types its replies:
 
 ```aontu
-spec: hide({Comment: {
-  author: string
-  text: string
-  replies?: [&: $.spec.Comment]
-}})
+spec: hide({
+  Comment: { author:string text:string replies?:[&: $.spec.Comment] }
+})
 thread: $.spec.Comment & {
   author: "alix"
   text: "ship it"
   replies: [
-    {author: "bo", text: "+1"}
-    {author: "cy", text: "hold on", replies: [
-      {author: "alix", text: "?"}
-    ]}
+    { author:"bo" text:"+1" }
+    { author:"cy" text:"hold on" replies:[{ author:"alix" text:"?" }] }
   ]
 }
 ```
@@ -123,13 +118,10 @@ evaluates, but no finite document can satisfy it. Write this as
 <!-- test: scenario recursion-unguarded -->
 <!-- test: file chain.aon -->
 ```aontu
-spec: hide({Step: {
-  approver: string
-  then: $.spec.Step
-}})
+spec: hide({ Step:{ approver:string then:$.spec.Step } })
 doc: $.spec.Step & {
   approver: "lead@acme.example"
-  then: { approver: "cfo@acme.example" }
+  then: approver: "cfo@acme.example"
 }
 ```
 
@@ -160,11 +152,13 @@ recursion renders symbolically. Put the vocabulary alone in
 <!-- test: scenario recursion-canon -->
 <!-- test: file spec.aon -->
 ```aontu
-spec: hide({Step: {
-  approver: string & re("^[a-z]+@acme[.]example$")
-  decision: *pending | pending | approved | rejected
-  then?: $.spec.Step
-}})
+spec: hide({
+  Step: {
+    approver: string & re("^[a-z]+@acme[.]example$")
+    decision: *pending | pending | approved | rejected
+    then?: $.spec.Step
+  }
+})
 ```
 
 <!-- test: run -->
@@ -227,11 +221,11 @@ $.spec.Step.then.approver: constraint [conflict]
   expected: re("^[a-z]+@acme[.]example$")
   actual:   "EXTERNAL@other.example"
   data: chain-bad.json:5:17 ("EXTERNAL@other.example")
-  schema: spec.aon:2:22 (re("^[a-z]+@acme[.]example$"))
+  schema: spec.aon:3:24 (re("^[a-z]+@acme[.]example$"))
 $.spec.Step.then.decision: empty [conflict]
   [aontu/empty]: Cannot unify values at path $.spec.Step.then.decision
   data: chain-bad.json:6:17 ("maybe")
-  schema: spec.aon:3:13 (*"pending"|"pending"|"approved"|"rejected")
+  schema: spec.aon:4:15 (*"pending"|"pending"|"approved"|"rejected")
 $ echo $?
 1
 ```

@@ -1,6 +1,13 @@
 import type { VetFinding } from './vet';
 export type FormatOptions = {
     path?: string;
+    lint?: boolean;
+};
+export type LintFinding = {
+    rule: 'style/key-case' | 'style/repeat';
+    line: number;
+    col: number;
+    message: string;
 };
 export type FormatHooks = {
     same?: (root: any, after: string) => boolean;
@@ -10,6 +17,7 @@ export type FormatReport = {
     verdict: 'formatted';
     text: string;
     changed: boolean;
+    findings: LintFinding[];
 } | {
     verdict: 'error';
     errors: VetFinding[];

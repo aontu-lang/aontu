@@ -26,6 +26,7 @@ import { graphOf } from './graph'
 import { relationCheck, relationErrors } from './relation'
 import { view, viewSet, viewTree } from './view'
 import { format, unifiedDiff } from './format'
+export type { LintFinding, FormatReport, FormatOptions } from './format'
 
 
 // VERSION is the Aontu npm package version, and mirrors

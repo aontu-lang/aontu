@@ -11,8 +11,8 @@ without comment. That openness is what makes composition work, and it
 is exactly wrong for config. Seal the map with `close`:
 
 ```aontu
-config: close({ host: string, port: integer })
-config: { host: h, port: 1 }
+config: close({ host:string port:integer })
+config: { host:h port:1 }
 ```
 
 ```json
@@ -30,8 +30,8 @@ declare. Write this as `config.aon`:
 <!-- test: scenario closed-map -->
 <!-- test: file config.aon -->
 ```aontu
-config: close({ host: string, port: integer })
-config: { host: h, port: 1, debug: true }
+config: close({ host:string port:integer })
+config: { host:h port:1 debug:true }
 ```
 
 <!-- test: run -->
@@ -50,7 +50,7 @@ would have run in production doing nothing.
 extended deliberately:
 
 ```aontu
-a: open(close({x: 1})) & {y: 2}
+a: open(close({ x:1 })) & { y:2 }
 ```
 
 ```json

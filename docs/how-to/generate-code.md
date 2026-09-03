@@ -44,19 +44,25 @@ Write this as `types.aon`:
 <!-- test: file types.aon -->
 ```aontu
 records: [
-  {name: "Customer", fields: [
-    {n: "id",    t: "string",  go: "ID"}
-    {n: "email", t: "string",  go: "Email"}
-  ]}
+  {
+    name: "Customer"
+    fields: [{ n:"id" t:"string" go:"ID" } { n:"email" t:"string" go:"Email" }]
+  }
 ]
-units: [&: {
-  head: `type ` + .name + ` struct {`
-  rows: [&: { out: `\t` + .go + ` ` +
-        match(.t, "string", `string`, "integer", `int64`) +
-        ` \`json:"` + .n + `"\`` }] & .fields
-  body: pick(.rows, out)
-  tail: `}`
-}] & $.records
+units: [
+  &: {
+    head: `type ` + .name + ` struct {`
+    rows: [
+      &: {
+        out: `\t` + .go + ` `
+          + match(.t, "string", `string`, "integer", `int64`)
+          + ` \`json:"` + .n + `"\``
+      }
+    ] & .fields
+    body: pick(.rows, out)
+    tail: `}`
+  }
+] & $.records
 ```
 
 <!-- test: run -->
@@ -94,22 +100,26 @@ Add two keys to the template and one at the top level. Write this as
 <!-- test: file whole.aon -->
 ```aontu
 records: [
-  {name: "Customer", fields: [
-    {n: "id",    t: "string",  go: "ID"}
-    {n: "email", t: "string",  go: "Email"}
-  ]}
-  {name: "Order", fields: [
-    {n: "total", t: "integer", go: "Total"}
-  ]}
+  {
+    name: "Customer"
+    fields: [{ n:"id" t:"string" go:"ID" } { n:"email" t:"string" go:"Email" }]
+  }
+  { name:"Order" fields:[{ n:"total" t:"integer" go:"Total" }] }
 ]
-units: [&: {
-  head: `type ` + .name + ` struct {`
-  rows: [&: { out: `\t` + .go + ` ` +
-        match(.t, "string", `string`, "integer", `int64`) }] & .fields
-  body: join(pick(.rows, out), `\n`)
-  tail: `}`
-  text: .head + `\n` + .body + `\n` + .tail
-}] & $.records
+units: [
+  &: {
+    head: `type ` + .name + ` struct {`
+    rows: [
+      &: {
+        out: `\t` + .go + ` `
+          + match(.t, "string", `string`, "integer", `int64`)
+      }
+    ] & .fields
+    body: join(pick(.rows, out), `\n`)
+    tail: `}`
+    text: .head + `\n` + .body + `\n` + .tail
+  }
+] & $.records
 
 file: join(pick($.units, text), `\n\n`) + `\n`
 ```

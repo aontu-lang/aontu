@@ -12,7 +12,7 @@ authors learn the difference from data that should have failed:
 
 ```aontu
 tags: [string]
-tags: [core, 7]
+tags: [core 7]
 ```
 
 ```json
@@ -34,7 +34,7 @@ element. Write this as `tags.aon`:
 <!-- test: file tags.aon -->
 ```aontu
 tags: [&: string]
-tags: [core, 7]
+tags: [core 7]
 ```
 
 Now run it:

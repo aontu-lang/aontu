@@ -2515,6 +2515,33 @@ describe('cli-fmt', () => {
     Assert.equal(Fs.readFileSync(f.files[1], 'utf8'), 'x: 1\n')
   })
 
+  // --lint points at the style the formatter never touches: the
+  // findings on stderr as `file:line:col: rule: message`, nothing on
+  // stdout, and the exit code left alone unless --strict asks.
+  test('fmt-lint-and-strict', async () => {
+    const f = fmtFiles('credit_cents: 1\n', 'x:{y:1}\n')
+    const where = `${f.files[0]}:1:1: style/key-case: key credit_cents holds ` +
+      'an underscore; creditCents would follow the form\n'
+    const l = vetCapture(() => Assert.equal(runFmt(['--lint', ...f.files]), 0))
+    Assert.equal(l.out, '')
+    Assert.equal(l.err, where)
+    const clean = vetCapture(() => Assert.equal(runFmt(['--lint', f.files[1]]), 0))
+    Assert.equal(clean.out + clean.err, '')
+    // --strict is --lint with the exit code: 1 when there is a finding,
+    // 0 when there is none.
+    const s = vetCapture(() => Assert.equal(runFmt(['--strict', f.files[0]]), 1))
+    Assert.equal(s.err, where)
+    Assert.equal(vetCapture(() => Assert.equal(runFmt(['--strict', f.files[1]]), 0)).err, '')
+    // With --list the names still go to stdout; --check's 1 and
+    // --strict's 1 are one exit code.
+    const ls = vetCapture(() => Assert.equal(runFmt(['--strict', '--list', ...f.files]), 1))
+    Assert.equal(ls.out, f.files[1] + '\n')
+    Assert.equal(ls.err, where)
+    Assert.equal(vetCapture(() =>
+      Assert.equal(runFmt(['--check', '--lint', f.files[1]]), 1)).out, f.files[1] + '\n')
+    Assert.equal(Fs.readFileSync(f.files[0], 'utf8'), 'credit_cents: 1\n')
+  })
+
   // Standard input, formatted onto standard output, or listed under
   // the name <stdin>.
   test('fmt-stdin', async () => {

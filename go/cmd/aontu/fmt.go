@@ -1,9 +1,10 @@
 /* Copyright (c) 2026 Richard Rodger, MIT License */
 
-// THE SOURCE FORMATTER (docs/design/FMT.0.md P1, the Go side of
+// THE SOURCE FORMATTER (docs/design/FMT.0.md, the Go side of
 // ts/src/cli.ts): one agreed form, in the tradition of gofmt. The verb
-// prints, lists, checks, diffs or rewrites; the form itself is the
-// library's (format.go), and the two ports agree on it row by row in
+// prints, lists, checks, diffs or rewrites, and with --lint points at
+// the style it never touches; the form itself is the library's
+// (format.go), and the two ports agree on it row by row in
 // test/spec/fmt.tsv.
 
 package main
@@ -17,10 +18,10 @@ import (
 	aontu "github.com/aontu-lang/aontu/go"
 )
 
-const fmtHelp = "aontu fmt [-w|-l|--check|-d] <file>... (try --help)"
+const fmtHelp = "aontu fmt [-w|-l|--check|-d|--lint] <file>... (try --help)"
 
 type fmtFlags struct {
-	write, list, check, diff bool
+	write, list, check, diff, lint, strict bool
 }
 
 // The write, a variable so its failure can be exercised: a permission
@@ -45,6 +46,11 @@ func runFmt(argv []string, stdin io.Reader, stdout, stderr io.Writer) int {
 			flags.check = true
 		case "-d" == arg, "--diff" == arg:
 			flags.diff = true
+		case "--lint" == arg:
+			flags.lint = true
+		case "--strict" == arg:
+			flags.lint = true
+			flags.strict = true
 		case strings.HasPrefix(arg, "-"):
 			io.WriteString(stderr, "aontu: unknown fmt option "+arg+" (try --help)\n")
 			return 2
@@ -74,7 +80,7 @@ func runFmt(argv []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	// says what to do with each.
 	if 1 < len(files) && !fmtQuiet(flags) {
 		io.WriteString(stderr, fmt.Sprintf(
-			"aontu: fmt prints one file; with %d, say --write, --list, --check or --diff\n%s\n",
+			"aontu: fmt prints one file; with %d, say --write, --list, --check, --diff or --lint\n%s\n",
 			len(files), fmtHelp))
 		return 2
 	}
@@ -93,19 +99,21 @@ func runFmt(argv []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	return worst
 }
 
-// An option that says what to do with a file that would change, in
-// place of printing it.
+// An option that says what to do with a file, in place of printing
+// it: what to do when its form would change, or the lint.
 func fmtQuiet(flags fmtFlags) bool {
-	return flags.write || flags.list || flags.check || flags.diff
+	return flags.write || flags.list || flags.check || flags.diff || flags.lint
 }
 
 // One document: 0 printed, clean or done; 1 a --check that would
-// change; 2 a file that cannot be written; 4 a document that does not
-// format, with the finding that says why.
+// change, or a --strict finding; 2 a file that cannot be written; 4 a
+// document that does not format, with the finding that says why. The
+// style findings go to standard error, one line each, in the shape
+// every linter prints: `file:line:col: rule: message`.
 func fmtOne(name, src string, flags fmtFlags, stdout, stderr io.Writer) int {
 	a := aontu.New()
 	a.File = name
-	report := a.Format(src)
+	report := a.FormatWith(src, aontu.FormatOptions{Lint: flags.lint})
 	if "error" == report.Verdict {
 		lines := make([]string, 0, len(report.Errors))
 		for _, f := range report.Errors {
@@ -114,12 +122,19 @@ func fmtOne(name, src string, flags fmtFlags, stdout, stderr io.Writer) int {
 		io.WriteString(stderr, "aontu: "+name+" was not formatted\n"+strings.Join(lines, "\n")+"\n")
 		return 4
 	}
+	for _, f := range report.Findings {
+		io.WriteString(stderr, fmt.Sprintf("%s:%d:%d: %s: %s\n", name, f.Line, f.Col, f.Rule, f.Message))
+	}
+	strict := 0
+	if flags.strict && 0 < len(report.Findings) {
+		strict = 1
+	}
 	if !fmtQuiet(flags) {
 		io.WriteString(stdout, report.Text)
 		return 0
 	}
 	if !report.Changed {
-		return 0
+		return strict
 	}
 	if flags.list || flags.check {
 		io.WriteString(stdout, name+"\n")
@@ -136,5 +151,5 @@ func fmtOne(name, src string, flags fmtFlags, stdout, stderr io.Writer) int {
 	if flags.check {
 		return 1
 	}
-	return 0
+	return strict
 }

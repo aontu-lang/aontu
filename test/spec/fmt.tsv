@@ -11,6 +11,11 @@
 # the verdict and the finding codes, joined by a colon and commas.
 # Nothing is written on a refusal, so the file is intact either way --
 # what the row holds is that both ports refuse the same sources.
+#
+# Mode `fmt-lint` pins the style findings of `--lint` (FMT.0.md §4):
+# `expect` is one `line:col: rule: message` per finding -- the CLI's
+# line without the file name -- joined by newlines, empty when there
+# is none. The formatter never acts on a finding.
 
 fmt-pair-padded	fmt	a:1	a: 1\n
 fmt-pairs-one-per-line	fmt	a: 1 b: 2	a: 1\nb: 2\n
@@ -175,3 +180,35 @@ fmt-merge-in-block-then-repeat	fmt	s: { a: 1, b: [xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 # defect is that a document the engine reads has no agreed form.
 # Open: docs/design/FMT.0.md §9, the last boundary item.
 fmt-refuse-multi-document	fmt-refuse	{a:1}\n{b:2}\n	error:format_check
+
+# THE LINT (FMT.0.md §4). Positions are 1-based, of the key or of the
+# container; a map and the chain that spells it are one shape; a
+# repeat inside a repeat is the outer one's.
+fmt-lint-clean	fmt-lint	host: "a"\nport: 1\nCatalogEntry: { dependsOn: [] }\n	
+fmt-lint-key-underscore	fmt-lint	credit_cents: 1\n	1:1: style/key-case: key credit_cents holds an underscore; creditCents would follow the form
+fmt-lint-key-capitals	fmt-lint	HTTP_PORT: 1\nHTTPServer: 2\nID: 3\nXMLHttpRequest: 4\nCatalogEntry: 5\n	1:1: style/key-case: key HTTP_PORT holds an underscore; httpPort would follow the form\n2:1: style/key-case: key HTTPServer begins with capitals; httpServer would follow the form\n3:1: style/key-case: key ID begins with capitals; id would follow the form\n4:1: style/key-case: key XMLHttpRequest begins with capitals; xmlHttpRequest would follow the form
+fmt-lint-key-underscores-only	fmt-lint	_: 1\n__: 2\n_1: 3\n	
+fmt-lint-key-empty-words	fmt-lint	__private: 1\na__b: 2\n_ID_: 3\n	1:1: style/key-case: key __private holds an underscore; private would follow the form\n2:1: style/key-case: key a__b holds an underscore; aB would follow the form\n3:1: style/key-case: key _ID_ holds an underscore; id would follow the form
+fmt-lint-key-quoted-becomes-bare	fmt-lint	"credit_cents": 1\n	1:1: style/key-case: key credit_cents holds an underscore; creditCents would follow the form
+fmt-lint-key-quoted-stays	fmt-lint	"credit-cents": 1\n"A B": 2\n	
+fmt-lint-key-optional	fmt-lint	a_b?: 1\n	1:1: style/key-case: key a_b holds an underscore; aB would follow the form
+fmt-lint-key-in-spread	fmt-lint	&: { a_b: 1 }\n	1:6: style/key-case: key a_b holds an underscore; aB would follow the form
+fmt-lint-key-nested	fmt-lint	a: { b_c: 1 }\nd: e_f: 2\nx: [ { g_h: 1 } ]\ny: close({ i_j: 1 })\nz: ({ k_l: 1 }) & { m_n: 1 }\n	1:6: style/key-case: key b_c holds an underscore; bC would follow the form\n2:4: style/key-case: key e_f holds an underscore; eF would follow the form\n3:8: style/key-case: key g_h holds an underscore; gH would follow the form\n4:12: style/key-case: key i_j holds an underscore; iJ would follow the form\n5:7: style/key-case: key k_l holds an underscore; kL would follow the form\n5:21: style/key-case: key m_n holds an underscore; mN would follow the form
+fmt-lint-key-in-block	fmt-lint	s: {\n  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx: 1\n  b_c: 2\n}\n	3:3: style/key-case: key b_c holds an underscore; bC would follow the form
+fmt-lint-key-non-ascii-before	fmt-lint	a: "é" b_c: 1\n	1:8: style/key-case: key b_c holds an underscore; bC would follow the form
+fmt-lint-repeat-map	fmt-lint	x: { a: "yyyyyyyyyyyyyyyyyyyy" b: "yyyyyyyyyyyyyyyyyyyy" }\ny: { b: "yyyyyyyyyyyyyyyyyyyy", a: "yyyyyyyyyyyyyyyyyyyy" }\n	1:4: style/repeat: this map is written 2 times (again at 2:4); an alias would name it once
+fmt-lint-repeat-list	fmt-lint	x: ["yyyyyyyyyyyyyyyyyyyy" "yyyyyyyyyyyyyyyyyyyy"]\ny: ["yyyyyyyyyyyyyyyyyyyy" "yyyyyyyyyyyyyyyyyyyy"]\n	1:4: style/repeat: this list is written 2 times (again at 2:4); an alias would name it once
+fmt-lint-repeat-three-times	fmt-lint	x: { a: "yyyyyyyyyyyyyyyyyyyy" b: "yyyyyyyyyyyyyyyyyyyy" }\ny: { a: "yyyyyyyyyyyyyyyyyyyy" b: "yyyyyyyyyyyyyyyyyyyy" }\nz: { a: "yyyyyyyyyyyyyyyyyyyy" b: "yyyyyyyyyyyyyyyyyyyy" }\n	1:4: style/repeat: this map is written 3 times (again at 2:4, 3:4); an alias would name it once
+fmt-lint-repeat-below-threshold	fmt-lint	x: { a: 1 }\ny: { a: 1 }\nz: { a: "yyyyyyyyyyyyyyyyyyyy" }\nw: { a: "yyyyyyyyyyyyyyyyyyyy" }\n	
+fmt-lint-repeat-list-order-differs	fmt-lint	x: ["yyyyyyyyyyyyyyyyyyyy" "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"]\ny: ["yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy" "yyyyyyyyyyyyyyyyyyyy"]\n	
+fmt-lint-repeat-optional-differs	fmt-lint	x: { a?: "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy" }\ny: { a: "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy" }\n	
+fmt-lint-repeat-chain-is-a-map	fmt-lint	x: a: "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"\ny: { a: "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy" }\n	1:4: style/repeat: this map is written 2 times (again at 2:4); an alias would name it once
+fmt-lint-repeat-block-is-the-map	fmt-lint	x: {\n  a: "yyyyyyyyyyyyyyyyyyyy"\n  # note\n\n  b: "yyyyyyyyyyyyyyyyyyyy"\n}\ny: { a: "yyyyyyyyyyyyyyyyyyyy" b: "yyyyyyyyyyyyyyyyyyyy" }\n	1:4: style/repeat: this map is written 2 times (again at 7:4); an alias would name it once
+fmt-lint-repeat-in-call-and-list	fmt-lint	x: close({ a: "yyyyyyyyyyyyyyyyyyyy" b: "yyyyyyyyyyyyyyyyyyyy" })\ny: [{ a: "yyyyyyyyyyyyyyyyyyyy" b: "yyyyyyyyyyyyyyyyyyyy" }]\n	1:10: style/repeat: this map is written 2 times (again at 2:5); an alias would name it once
+fmt-lint-repeat-in-operand	fmt-lint	x: { a: "yyyyyyyyyyyyyyyyyyyy" b: "yyyyyyyyyyyyyyyyyyyy" } & { c: 1 }\ny: { c: 1 } & { a: "yyyyyyyyyyyyyyyyyyyy" b: "yyyyyyyyyyyyyyyyyyyy" }\n	1:4: style/repeat: this map is written 2 times (again at 2:15); an alias would name it once
+fmt-lint-repeat-outer-suppresses-inner	fmt-lint	x: [{ a: "yyyyyyyyyyyyyyyyyyyy" b: "yyyyyyyyyyyyyyyyyyyy" } { a: "yyyyyyyyyyyyyyyyyyyy" b: "yyyyyyyyyyyyyyyyyyyy" }]\ny: [{ a: "yyyyyyyyyyyyyyyyyyyy" b: "yyyyyyyyyyyyyyyyyyyy" } { a: "yyyyyyyyyyyyyyyyyyyy" b: "yyyyyyyyyyyyyyyyyyyy" }]\nz: { a: "yyyyyyyyyyyyyyyyyyyy" b: "yyyyyyyyyyyyyyyyyyyy" }\n	1:4: style/repeat: this list is written 2 times (again at 2:4); an alias would name it once
+fmt-lint-repeat-spread-shapes	fmt-lint	x: { &: { n: "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy" } }\ny: { &: { n: "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy" } }\n	1:4: style/repeat: this map is written 2 times (again at 2:4); an alias would name it once
+fmt-lint-repeat-notes-ignored	fmt-lint	x: { f: close(# c\n{ a: "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy" }) g: (# d\n"yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy") h: 1 & # e\n2 }\ny: { f: close({ a: "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy" }) g: ("yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy") h: 1 & 2 }\n	1:4: style/repeat: this map is written 2 times (again at 5:4); an alias would name it once
+fmt-lint-repeat-with-prefix-and-include	fmt-lint	x: [-1 @"yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy" $.a.b]\ny: [-1 @"yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy" $.a.b]\n	1:4: style/repeat: this list is written 2 times (again at 2:4); an alias would name it once
+fmt-lint-both-rules-sorted	fmt-lint	x: { a: "yyyyyyyyyyyyyyyyyyyy" b: "yyyyyyyyyyyyyyyyyyyy" }\ny: { a: "yyyyyyyyyyyyyyyyyyyy" b: "yyyyyyyyyyyyyyyyyyyy" }\nz_z: 1\n	1:4: style/repeat: this map is written 2 times (again at 2:4); an alias would name it once\n3:1: style/key-case: key z_z holds an underscore; zZ would follow the form
+fmt-lint-key-then-repeat-same-site	fmt-lint	a: b_c: { a: "yyyyyyyyyyyyyyyyyyyy" b: "yyyyyyyyyyyyyyyyyyyy" }\nd: { b_c: { a: "yyyyyyyyyyyyyyyyyyyy" b: "yyyyyyyyyyyyyyyyyyyy" } }\n	1:4: style/key-case: key b_c holds an underscore; bC would follow the form\n1:4: style/repeat: this map is written 2 times (again at 2:4); an alias would name it once\n2:6: style/key-case: key b_c holds an underscore; bC would follow the form

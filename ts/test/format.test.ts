@@ -152,6 +152,25 @@ describe('format', () => {
       'a: b: c: d: e: $.a.b.f\na: b: f: { &: { n:key() } }\na: b: f: x: {}\n'), kept.text)
   })
 
+  // THE LINT (§4) is asked for, never assumed: without the option the
+  // report carries no findings, and with it the findings say where.
+  // The rules themselves are pinned row by row in fmt.tsv.
+  test('format-lints-only-when-asked', () => {
+    const src = 'a: 1\r\nHTTP_PORT: 8080\r\n'
+    const plain: any = format(src)
+    Assert.deepEqual(plain.findings, [])
+    const linted: any = format(src, { lint: true })
+    // CRLF is read as LF before the lint counts, so the positions are
+    // the file's lines.
+    Assert.deepEqual(linted.findings, [{
+      rule: 'style/key-case', line: 2, col: 1,
+      message: 'key HTTP_PORT holds an underscore; httpPort would follow the form',
+    }])
+    Assert.equal(linted.text, 'a: 1\nHTTP_PORT: 8080\n')
+    // A document that does not format has no findings to report.
+    Assert.equal('findings' in (format('a: {b', { lint: true }) as any), false)
+  })
+
   test('unified-diff', () => {
     Assert.equal(unifiedDiff('x', 'a\n', 'a\n'), '')
     Assert.equal(unifiedDiff('x', '', ''), '')

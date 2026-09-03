@@ -66,6 +66,7 @@ The gate verbs: vet, breaking, relations, reaches, and hash.
 - [Check that components agree about their relations](check-relations.md). Declare a relation once at the field with rel(), acyclic() and inverse(), and have the whole model's edge set checked.
 - [Query reachability between entities](query-reachability.md). Ask whether one entity reaches another over the declared edges with aontu reaches, and get the path as the answer.
 - [Pin what a document means](pin-a-document-hash.md). Pin a document's meaning to one string with aontu hash, and detect when the meaning moves.
+- [Format a document](format-a-document.md). Put a document in the agreed form with `aontu fmt`, gate a repository on it in CI, and read what the formatter will and will not change.
 
 ## Modules and multi-file
 

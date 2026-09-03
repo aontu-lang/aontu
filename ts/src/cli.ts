@@ -72,7 +72,7 @@ const HELP = `Usage: aontu [options] [file]
        aontu why <path> [options] <file>
        aontu set <path>=<value>... --entry <file> --overlay <file>
        aontu agentsmd [--write <AGENTS.md>] <file>
-       aontu fmt [-w|-l|--check|-d] <file>...
+       aontu fmt [-w|-l|--check|-d|--lint] <file>...
 
 Evaluate an Aontu source file and print the result as JSON.
 With no file on an interactive terminal, start a REPL.
@@ -290,12 +290,15 @@ Fmt options:
   --check         Like --list, and exit 1 when any would: the CI gate
   -d, --diff      Print a unified diff for each file whose form would
                   change
+  --lint          Report the style findings, key case and repeated
+                  shapes, on standard error, and print nothing else
+  --strict        With --lint, and exit 1 when there is a finding
 
 The fmt verb prints one document in the agreed form; with no file it
 reads standard input. Several files need one of the options above.
 
-Fmt exit codes: 0 formatted or clean, 1 a --check file would change,
-2 usage, 4 a document does not parse.
+Fmt exit codes: 0 formatted or clean, 1 a --check file would change or
+a --strict finding, 2 usage, 4 a document does not parse.
 
 REPL commands:
   :help           Show REPL help
@@ -3421,13 +3424,17 @@ function runAgentsMd(argv: string[]): number {
 // the form itself is the library's (ts/src/format.ts), and the two
 // ports agree on it row by row in test/spec/fmt.tsv.
 
-const FMT_HELP = 'aontu fmt [-w|-l|--check|-d] <file>... (try --help)'
+const FMT_HELP = 'aontu fmt [-w|-l|--check|-d|--lint] <file>... (try --help)'
 
-type FmtFlags = { write: boolean, list: boolean, check: boolean, diff: boolean }
+type FmtFlags = {
+  write: boolean, list: boolean, check: boolean, diff: boolean, lint: boolean, strict: boolean,
+}
 
 function runFmt(argv: string[]): number | Promise<number> {
   const files: string[] = []
-  const flags: FmtFlags = { write: false, list: false, check: false, diff: false }
+  const flags: FmtFlags = {
+    write: false, list: false, check: false, diff: false, lint: false, strict: false,
+  }
 
   for (const arg of argv) {
     if ('-h' === arg || '--help' === arg) {
@@ -3445,6 +3452,13 @@ function runFmt(argv: string[]): number | Promise<number> {
     }
     else if ('-d' === arg || '--diff' === arg) {
       flags.diff = true
+    }
+    else if ('--lint' === arg) {
+      flags.lint = true
+    }
+    else if ('--strict' === arg) {
+      flags.lint = true
+      flags.strict = true
     }
     else if (arg.startsWith('-')) {
       process.stderr.write(`aontu: unknown fmt option ${arg} (try --help)\n`)
@@ -3477,7 +3491,7 @@ function runFmt(argv: string[]): number | Promise<number> {
   if (1 < files.length && !fmtQuiet(flags)) {
     process.stderr.write(
       `aontu: fmt prints one file; with ${files.length}, say --write, ` +
-      `--list, --check or --diff\n${FMT_HELP}\n`)
+      `--list, --check, --diff or --lint\n${FMT_HELP}\n`)
     return 2
   }
 
@@ -3496,28 +3510,34 @@ function runFmt(argv: string[]): number | Promise<number> {
   return worst
 }
 
-// An option that says what to do with a file that would change, in
-// place of printing it.
+// An option that says what to do with a file, in place of printing
+// it: what to do when its form would change, or the lint.
 function fmtQuiet(flags: FmtFlags): boolean {
-  return flags.write || flags.list || flags.check || flags.diff
+  return flags.write || flags.list || flags.check || flags.diff || flags.lint
 }
 
 // One document: 0 printed, clean or done; 1 a --check that would
-// change; 2 a file that cannot be written; 4 a document that does not
-// format, with the finding that says why.
+// change, or a --strict finding; 2 a file that cannot be written; 4 a
+// document that does not format, with the finding that says why. The
+// style findings go to standard error, one line each, in the shape
+// every linter prints: `file:line:col: rule: message`.
 function fmtOne(name: string, src: string, flags: FmtFlags): number {
-  const report = format(src, { path: name })
+  const report = format(src, { path: name, lint: flags.lint })
   if ('error' === report.verdict) {
     process.stderr.write(`aontu: ${name} was not formatted\n` +
       report.errors.map(renderFinding).join('\n') + '\n')
     return 4
   }
+  for (const f of report.findings) {
+    process.stderr.write(`${name}:${f.line}:${f.col}: ${f.rule}: ${f.message}\n`)
+  }
+  const strict = flags.strict && 0 < report.findings.length ? 1 : 0
   if (!fmtQuiet(flags)) {
     process.stdout.write(report.text)
     return 0
   }
   if (!report.changed) {
-    return 0
+    return strict
   }
   if (flags.list || flags.check) {
     process.stdout.write(name + '\n')
@@ -3534,7 +3554,7 @@ function fmtOne(name: string, src: string, flags: FmtFlags): number {
       return 2
     }
   }
-  return flags.check ? 1 : 0
+  return flags.check ? 1 : strict
 }
 
 

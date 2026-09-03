@@ -615,6 +615,19 @@ function runRow(row: Omit<Row, 'file'> & { file?: string }): void {
       (report.errors ?? []).map((f: any) => f.code).join(','),
       row.expect, `fmt refusal: ${row.name}`)
   }
+  else if ('fmt-lint' === row.mode) {
+    // THE LINT (docs/design/FMT.0.md §4): the style findings of
+    // --lint, each as `line:col: rule: message` -- the CLI's line
+    // without the file name -- joined by newlines, and empty when
+    // there is none. The formatter never acts on a finding, so the
+    // text is the fmt rows' business, not this row's.
+    const report: any = format(row.src, { lint: true })
+    Assert.strictEqual(report.verdict, 'formatted',
+      `does not format: ${row.name}: ${JSON.stringify(report.errors)}`)
+    Assert.strictEqual(
+      report.findings.map((f: any) => `${f.line}:${f.col}: ${f.rule}: ${f.message}`).join('\n'),
+      row.expect, `fmt lint: ${row.name}`)
+  }
   else if ('agentsmd' === row.mode) {
     const golden = JSON.parse(row.expect)
     const report = agentsMd(row.src,

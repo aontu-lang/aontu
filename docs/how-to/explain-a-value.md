@@ -17,14 +17,12 @@ sites carry each file's name. Write `stack.aon`:
 <!-- test: scenario explain-a-value -->
 <!-- test: file stack.aon -->
 ```aontu
-services: {
-  # the org layer: a default for every service
-  &: { logLevel: ***info | string, replicas: ***1 | integer }
+# the org layer: a default for every service
+services: { &: { logLevel:***info | string replicas:***1 | integer } }
 
-  # the prod layer: stronger defaults and pins
-  auth:    { logLevel: *warn | string, replicas: 3 }
-  billing: {}
-}
+# the prod layer: stronger defaults and pins
+services: auth: { logLevel:*warn | string replicas:3 }
+services: billing: {}
 ```
 
 Ask why `auth` runs three replicas:
@@ -33,8 +31,8 @@ Ask why `auth` runs three replicas:
 ```sh
 $ aontu why $.services.auth.replicas stack.aon
 $.services.auth.replicas = 3
-  1. ***1|integer  stack.aon:3:46  (spread)
-  2. 3  stack.aon:6:50
+  1. ***1|integer  stack.aon:2:53  (spread)
+  2. 3  stack.aon:5:52
 ```
 
 The role in brackets marks a contribution that arrived indirectly:
@@ -49,8 +47,8 @@ The same question at `logLevel` shows the rank ladder mid-argument:
 ```sh
 $ aontu why $.services.auth.logLevel stack.aon
 $.services.auth.logLevel = *"warn"|***"info"|string
-  1. ***"info"|string  stack.aon:3:18  (spread)
-  2. *"warn"|string  stack.aon:6:24
+  1. ***"info"|string  stack.aon:2:27  (spread)
+  2. *"warn"|string  stack.aon:5:28
 ```
 
 The value at the path is the merged disjunction of both defaults;
@@ -67,7 +65,7 @@ author wrote it on:
 ```sh
 $ aontu why $.services.billing.replicas stack.aon
 $.services.billing.replicas = ***1|integer
-  1. ***1|integer  stack.aon:3:46  (spread)
+  1. ***1|integer  stack.aon:2:53  (spread)
 ```
 
 A path that names nothing is a refusal, exactly as it is for `get`:

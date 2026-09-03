@@ -28,6 +28,7 @@ package aontu
 import (
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"unicode/utf8"
@@ -50,13 +51,32 @@ const formatMaxDepth = 1000
 
 // FormatReport is what Format returns: the text in the agreed form and
 // whether it differs from what was given, or the findings that say why
-// the document was not formatted. Field order is LEXICOGRAPHIC, the
-// canonical emitter's order.
+// the document was not formatted; and, when asked, the style findings
+// of the lint. Field order is LEXICOGRAPHIC, the canonical emitter's
+// order.
 type FormatReport struct {
-	Changed bool         `json:"changed"`
-	Errors  []VetFinding `json:"errors,omitempty"`
-	Text    string       `json:"text"`
-	Verdict string       `json:"verdict"`
+	Changed  bool          `json:"changed"`
+	Errors   []VetFinding  `json:"errors,omitempty"`
+	Findings []LintFinding `json:"findings"`
+	Text     string        `json:"text"`
+	Verdict  string        `json:"verdict"`
+}
+
+// FormatOptions: Lint asks for the style findings of the note's §4 --
+// key case, repeated shapes -- beside the text. The formatter never
+// acts on them. Mirrors FormatOptions in ts/src/format.ts.
+type FormatOptions struct {
+	Lint bool
+}
+
+// LintFinding is a style finding: what the formatter points at and
+// never touches. Line and Col are 1-based, of the key or the
+// container.
+type LintFinding struct {
+	Col     int    `json:"col"`
+	Line    int    `json:"line"`
+	Message string `json:"message"`
+	Rule    string `json:"rule"`
 }
 
 // ---------------------------------------------------------------------
@@ -184,6 +204,9 @@ type fmtNode struct {
 	// pair: the statements this one replaces, where the lawful tier
 	// merged them, or rewrote something below them.
 	orig []*fmtNode
+
+	// The source index of the node's first token: the lint's positions.
+	at int
 }
 
 var (
@@ -345,14 +368,15 @@ func (r *fmtReader) body(close string, opened bool) ([]*fmtNode, string) {
 // at the root -- a value.
 func (r *fmtReader) entry() *fmtNode {
 	n := r.name(0)
+	at := r.T[r.i].sI
 	if "#OD_multisource" == n {
 		text := "@" + fmtNormStr(r.T[r.i+1].src)
 		r.i += 2
-		return &fmtNode{t: "include", text: text}
+		return &fmtNode{t: "include", text: text, at: at}
 	}
 	if "#E&" == n && "#CL" == r.name(1) {
 		r.i += 2
-		return &fmtNode{t: "spread", value: r.value()}
+		return &fmtNode{t: "spread", value: r.value(), at: at}
 	}
 	if r.atKey() {
 		tok := r.T[r.i]
@@ -362,7 +386,7 @@ func (r *fmtReader) entry() *fmtNode {
 		} else {
 			r.i += 2
 		}
-		return &fmtNode{t: "pair", key: fmtKeyText(tok), opt: opt, value: r.value()}
+		return &fmtNode{t: "pair", key: fmtKeyText(tok), opt: opt, value: r.value(), at: at}
 	}
 	return r.value()
 }
@@ -392,13 +416,14 @@ func (r *fmtReader) valueAt() *fmtNode {
 		if !r.open(items) && !fmtBinary[n] && "#LN" != n && "#CM" != n {
 			break
 		}
+		at := r.T[r.i].sI
 		if "#E&" == n && "#CL" == r.name(1) {
 			if 0 == len(items) {
 				// A chain through a spread, `a: &: integer`. The braces
 				// are the agreed spelling (X-7), so it is read as the
 				// map it is.
 				r.i += 2
-				return &fmtNode{t: "map", body: []*fmtNode{{t: "spread", value: r.value()}}}
+				return &fmtNode{t: "map", body: []*fmtNode{{t: "spread", value: r.value(), at: at}}, at: at}
 			}
 			// A sibling spread in a list, `[1 &: 2]`: this value is
 			// complete.
@@ -420,7 +445,7 @@ func (r *fmtReader) valueAt() *fmtNode {
 			// operator, or on a line the value continues past. Otherwise
 			// it trails the statement and the caller attaches it.
 			if r.open(items) || fmtBinary[r.name(r.significant())] {
-				items = append(items, &fmtNode{t: "note", text: r.T[r.i].src})
+				items = append(items, &fmtNode{t: "note", text: r.T[r.i].src, at: at})
 				r.i++
 				continue
 			}
@@ -430,12 +455,13 @@ func (r *fmtReader) valueAt() *fmtNode {
 			items = append(items, &fmtNode{
 				t: "op", text: r.T[r.i].src,
 				brk: "#LN" == r.name(-1) || "#LN" == r.name(1),
+				at:  at,
 			})
 			r.i++
 			continue
 		}
 		if fmtPrefix[n] {
-			items = append(items, &fmtNode{t: "prefix", text: r.T[r.i].src})
+			items = append(items, &fmtNode{t: "prefix", text: r.T[r.i].src, at: at})
 			r.i++
 			continue
 		}
@@ -443,7 +469,7 @@ func (r *fmtReader) valueAt() *fmtNode {
 			r.i++
 			inner := r.seq()
 			r.i++
-			items = append(items, &fmtNode{t: "paren", inner: inner})
+			items = append(items, &fmtNode{t: "paren", inner: inner, at: at})
 			continue
 		}
 		if "#TX" == n && "#E(" == r.name(1) {
@@ -451,25 +477,25 @@ func (r *fmtReader) valueAt() *fmtNode {
 			r.i += 2
 			args := r.seq()
 			r.i++
-			items = append(items, &fmtNode{t: "call", name: name, args: args})
+			items = append(items, &fmtNode{t: "call", name: name, args: args, at: at})
 			continue
 		}
 		if "#OB" == n {
 			r.i++
 			body, open := r.body("#CB", true)
 			r.i++
-			items = append(items, &fmtNode{t: "map", body: body, open: open})
+			items = append(items, &fmtNode{t: "map", body: body, open: open, at: at})
 			continue
 		}
 		if "#OS" == n {
 			r.i++
 			body, open := r.body("#CS", true)
 			r.i++
-			items = append(items, &fmtNode{t: "list", body: body, open: open})
+			items = append(items, &fmtNode{t: "list", body: body, open: open, at: at})
 			continue
 		}
 		if "#OD_multisource" == n {
-			items = append(items, &fmtNode{t: "include", text: "@" + fmtNormStr(r.T[r.i+1].src)})
+			items = append(items, &fmtNode{t: "include", text: "@" + fmtNormStr(r.T[r.i+1].src), at: at})
 			r.i += 2
 			continue
 		}
@@ -485,7 +511,12 @@ func (r *fmtReader) valueAt() *fmtNode {
 		"note" != items[0].t {
 		return items[0]
 	}
-	return &fmtNode{t: "expr", items: items}
+	// An empty value, `a:`, is an expression with nothing in it.
+	expr := &fmtNode{t: "expr", items: items}
+	if 0 < len(items) {
+		expr.at = items[0].at
+	}
+	return expr
 }
 
 // Whether the expression so far wants an operand: nothing yet, or an
@@ -500,6 +531,7 @@ func (r *fmtReader) open(items []*fmtNode) bool {
 
 // The token under the cursor, and the parts glued to it.
 func (r *fmtReader) atom() *fmtNode {
+	at := r.T[r.i].sI
 	text := fmtAtomText(r.T[r.i])
 	r.i++
 	for fmtGlue[r.name(0)] &&
@@ -507,7 +539,7 @@ func (r *fmtReader) atom() *fmtNode {
 		text += fmtAtomText(r.T[r.i])
 		r.i++
 	}
-	return &fmtNode{t: "atom", text: text}
+	return &fmtNode{t: "atom", text: text, at: at}
 }
 
 // A call's arguments, or a parenthesis's contents, up to the closing
@@ -1403,6 +1435,238 @@ func fmtEmit(root []*fmtNode, meet fmtMeet) string {
 }
 
 // ---------------------------------------------------------------------
+// The lint (§4): what the formatter points at and never touches. Two
+// rules, both advice: the formatter never renames a key (§4.1) and
+// never introduces an alias (§4.2), and a rule with a mechanical fix
+// that keeps the document would belong to §3 instead (§4.3). Mirrors
+// the lint of ts/src/format.ts.
+
+// The shape width at which a repeat is worth an alias (§4.2): below
+// it, `{ a:1 }` twice is the shorter spelling. Measured over the use
+// cases when the lint landed (§7.10).
+const fmtRepeatMinWidth = 40
+
+var (
+	fmtLetters  = regexp.MustCompile(`[A-Za-z]`)
+	fmtCapitals = regexp.MustCompile(`^[A-Z][A-Z]`)
+	fmtAllCaps  = regexp.MustCompile(`^[A-Z]+$`)
+)
+
+func fmtLintOf(root []*fmtNode, text string) []LintFinding {
+	out := []LintFinding{}
+	nodes := make([]*fmtNode, 0, len(root))
+	for _, n := range root {
+		nodes = append(nodes, fmtLintNode(n))
+	}
+	for _, n := range nodes {
+		fmtKeyCase(n, text, &out)
+	}
+	fmtRepeats(nodes, text, &out)
+	sort.SliceStable(out, func(i, j int) bool {
+		if out[i].Line != out[j].Line {
+			return out[i].Line < out[j].Line
+		}
+		return out[i].Col < out[j].Col
+	})
+	return out
+}
+
+// The tree the lint walks: a chain's inner pair as the one-entry map
+// it is, so that `a: {b: 1}` and `a: b: 1` -- one document to the
+// formatter -- are one shape to the lint.
+func fmtLintNode(node *fmtNode) *fmtNode {
+	if "pair" == node.t && "pair" == node.value.t {
+		chain := *node
+		chain.value = &fmtNode{t: "map", body: []*fmtNode{node.value}, at: node.value.at}
+		return &chain
+	}
+	return node
+}
+
+func fmtLintChildren(node *fmtNode) []*fmtNode {
+	switch node.t {
+	case "pair", "spread":
+		return []*fmtNode{fmtLintNode(node).value}
+	case "map", "list":
+		out := make([]*fmtNode, 0, len(node.body))
+		for _, e := range node.body {
+			out = append(out, fmtLintNode(e))
+		}
+		return out
+	case "call":
+		return node.args
+	case "paren":
+		return node.inner
+	case "expr":
+		return node.items
+	}
+	return nil
+}
+
+// D4 (§4.1): keys are lower-case words, or CamelCase when a key is
+// several. A bare key holding `_`, or beginning with two capitals, is
+// reported with the spelling that would follow the form; a quoted key
+// is a deliberate spelling and a key of underscores alone names
+// nothing the rule can respell.
+func fmtKeyCase(node *fmtNode, text string, out *[]LintFinding) {
+	if "pair" == node.t && fmtBare.MatchString(node.key) && fmtLetters.MatchString(node.key) {
+		why := ""
+		if strings.Contains(node.key, "_") {
+			why = "holds an underscore"
+		} else if fmtCapitals.MatchString(node.key) {
+			why = "begins with capitals"
+		}
+		if "" != why {
+			line, col := rowCol(text, node.at)
+			*out = append(*out, LintFinding{
+				Rule: "style/key-case", Line: line, Col: col,
+				Message: "key " + node.key + " " + why + "; " + fmtCamel(node.key) +
+					" would follow the form",
+			})
+		}
+	}
+	for _, child := range fmtLintChildren(node) {
+		fmtKeyCase(child, text, out)
+	}
+}
+
+// The key as lower-case words or CamelCase: `credit_cents` is
+// `creditCents`, `HTTP_PORT` is `httpPort`, `HTTPServer` is
+// `httpServer`, `ID` is `id`.
+func fmtCamel(key string) string {
+	words := []string{}
+	for _, w := range strings.Split(key, "_") {
+		if "" == w {
+			continue
+		}
+		if fmtAllCaps.MatchString(w) {
+			w = strings.ToLower(w)
+		}
+		words = append(words, w)
+	}
+	// A run of capitals before a capital-led word, `HTTPServer`: the
+	// run is lowered and the word keeps its capital.
+	head := words[0]
+	run := 0
+	for run < len(head) && 'A' <= head[run] && head[run] <= 'Z' {
+		run++
+	}
+	if 2 <= run && run < len(head) && 'a' <= head[run] && head[run] <= 'z' {
+		head = strings.ToLower(head[:run-1]) + head[run-1:]
+	}
+	out := strings.ToLower(head[:1]) + head[1:]
+	for _, w := range words[1:] {
+		out += strings.ToUpper(w[:1]) + w[1:]
+	}
+	return out
+}
+
+// D3 (§4.2): a shape written twice can drift, and an alias names it
+// once. Every map or list whose shape recurs in the file, and whose
+// shape is fmtRepeatMinWidth or wider, is reported once, at its first
+// site, with the count and the other sites; the naming is the
+// author's. A repeat inside a repeat is the outer one's: the walk does
+// not descend into a shape it reports.
+func fmtRepeats(nodes []*fmtNode, text string, out *[]LintFinding) {
+	counts := map[string]int{}
+	var tally func(node *fmtNode)
+	tally = func(node *fmtNode) {
+		if "map" == node.t || "list" == node.t {
+			counts[fmtShape(node)]++
+		}
+		for _, child := range fmtLintChildren(node) {
+			tally(child)
+		}
+	}
+	for _, n := range nodes {
+		tally(n)
+	}
+	order := []string{}
+	sites := map[string][]*fmtNode{}
+	var visit func(node *fmtNode)
+	visit = func(node *fmtNode) {
+		if "map" == node.t || "list" == node.t {
+			s := fmtShape(node)
+			if 2 <= counts[s] && fmtRepeatMinWidth <= fmtWidth(s) {
+				if _, seen := sites[s]; !seen {
+					order = append(order, s)
+				}
+				sites[s] = append(sites[s], node)
+				return
+			}
+		}
+		for _, child := range fmtLintChildren(node) {
+			visit(child)
+		}
+	}
+	for _, n := range nodes {
+		visit(n)
+	}
+	for _, s := range order {
+		found := sites[s]
+		if 2 <= len(found) {
+			line, col := rowCol(text, found[0].at)
+			again := make([]string, 0, len(found)-1)
+			for _, n := range found[1:] {
+				l, c := rowCol(text, n.at)
+				again = append(again, strconv.Itoa(l)+":"+strconv.Itoa(c))
+			}
+			*out = append(*out, LintFinding{
+				Rule: "style/repeat", Line: line, Col: col,
+				Message: "this " + found[0].t + " is written " + strconv.Itoa(len(found)) +
+					" times (again at " + strings.Join(again, ", ") +
+					"); an alias would name it once",
+			})
+		}
+	}
+}
+
+// A node's shape: its spelling with the layout, the comments and, for
+// a map, the order of its entries taken out, so that two spellings of
+// one value are one shape, as they are one canon.
+func fmtShape(node *fmtNode) string {
+	switch node.t {
+	case "map":
+		parts := fmtShapes(node.body, true)
+		sort.Strings(parts)
+		return "{" + strings.Join(parts, " ") + "}"
+	case "list":
+		return "[" + strings.Join(fmtShapes(node.body, true), " ") + "]"
+	case "pair":
+		head := node.key
+		if node.opt {
+			head += "?"
+		}
+		return head + ":" + fmtShape(node.value)
+	case "spread":
+		return "&:" + fmtShape(node.value)
+	case "call":
+		return node.name + "(" + strings.Join(fmtShapes(node.args, false), ",") + ")"
+	case "paren":
+		return "(" + strings.Join(fmtShapes(node.inner, false), ",") + ")"
+	case "expr":
+		return strings.Join(fmtShapes(node.items, false), "")
+	}
+	return node.text
+}
+
+// The shapes of the nodes that have one: not a comment, a blank line
+// or a note. Entries are read as the lint reads them.
+func fmtShapes(nodes []*fmtNode, entries bool) []string {
+	out := []string{}
+	for _, n := range nodes {
+		if "comment" == n.t || "blank" == n.t || "note" == n.t {
+			continue
+		}
+		if entries {
+			n = fmtLintNode(n)
+		}
+		out = append(out, fmtShape(n))
+	}
+	return out
+}
+
+// ---------------------------------------------------------------------
 // The verb's library surface
 
 // The check: the output parses, and to the same tree. Pre-unification
@@ -1506,6 +1770,12 @@ func formatCheckFinding(path, expected, actual string) VetFinding {
 // what `--check` and `--list` report. File names the document in the
 // site of a parse failure. Mirrors format in ts/src/format.ts.
 func (a *Aontu) Format(src string) FormatReport {
+	return a.FormatWith(src, FormatOptions{})
+}
+
+// FormatWith is Format with its options: Lint adds the style findings
+// of `--lint` to the report, which the text never acts on.
+func (a *Aontu) FormatWith(src string, opts FormatOptions) FormatReport {
 	formatMu.Lock()
 	defer formatMu.Unlock()
 
@@ -1536,7 +1806,13 @@ func (a *Aontu) Format(src string) FormatReport {
 		}
 	}
 	out := fmtEmit(tree, formatMeet)
-	return FormatReport{Verdict: "formatted", Text: out, Changed: out != src}
+	report := FormatReport{
+		Verdict: "formatted", Text: out, Changed: out != src, Findings: []LintFinding{},
+	}
+	if opts.Lint {
+		report.Findings = fmtLintOf(tree, text)
+	}
+	return report
 }
 
 // ---------------------------------------------------------------------
