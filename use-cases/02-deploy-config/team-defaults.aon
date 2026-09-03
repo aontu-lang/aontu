@@ -5,18 +5,12 @@
 # into the SAME schema rows org-policy.aon declares -- duplicate keys
 # unify, so this file only states what the team changes.
 
-team: {
-  name: payments
-  oncall: "#payments-oncall"
-}
+team: { name:payments oncall:"#payments-oncall" }
 
 # The team develops with debug logging and tracing on; environments
 # that disagree (staging, prod) say so with a stronger rank.
-defs: workload: logLevel: **debug | string
-defs: workload: tracing: **true | boolean
+defs: workload: { logLevel:**debug | string tracing:**true | boolean }
 
 # The release train currently rolling out.  Hidden: build metadata,
 # not deployment output.
-release: hide({
-  tag: "2025.34.2"
-})
+release: hide({ tag:"2025.34.2" })

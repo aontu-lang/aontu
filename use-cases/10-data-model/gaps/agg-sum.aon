@@ -16,7 +16,7 @@
 # run: aontu gaps/agg-sum.aon
 # expected: {"amounts":[3998,10],"largest":3998,"lines":[...],"total":4008}
 # actual:   {"amounts":[3998,10],"largest":3998,"lines":[...],"total":4008}
-lines: [ { amountCents: 3998 }, { amountCents: 10 } ]
+lines: [amountCents:3998 amountCents:10]
 amounts: pick($.lines, amountCents)
 total: sum($.amounts)
 largest: greatest($.amounts)

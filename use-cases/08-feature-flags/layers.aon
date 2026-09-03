@@ -13,23 +13,18 @@
 
 envs: hide({
   staging: flags: {
-    checkout_v2: { enabled: **true, rollout: **100 }
-    ui_dark_mode: { enabled: **true, variant: **"dusk" }
+    checkout_v2: { enabled:**true rollout:**100 }
+    ui_dark_mode: { enabled:**true variant:**"dusk" }
   }
   prod: flags: {
-    checkout_v2: { enabled: **true, rollout: **5 }
-    ui_dark_mode: { enabled: **true }
+    checkout_v2: { enabled:**true rollout:**5 }
+    ui_dark_mode: enabled: **true
   }
 })
 
 tenants: hide({
-  megacorp: flags: {
-    checkout_v2: { rollout: *25 }
-    ui_dark_mode: { variant: *"midnight" }
-  }
-  starterco: flags: {
-    checkout_v2: { rollout: *0 }
-  }
+  megacorp: flags: { checkout_v2:rollout:*25 ui_dark_mode:variant:*"midnight" }
+  starterco: flags: checkout_v2: rollout: *0
 })
 
 # Effective views: org & env (& tenant).  A reference unifies a copy
@@ -38,9 +33,7 @@ tenants: hide({
 # effective path it reports "(no contributions)" (README, "Gaps").
 effective: {
   staging: base: $.flags & $.envs.staging.flags
-  prod: {
-    base: $.flags & $.envs.prod.flags
-    megacorp: $.flags & $.envs.prod.flags & $.tenants.megacorp.flags
-    starterco: $.flags & $.envs.prod.flags & $.tenants.starterco.flags
-  }
+  prod: base: $.flags & $.envs.prod.flags
+  prod: megacorp: $.flags & $.envs.prod.flags & $.tenants.megacorp.flags
+  prod: starterco: $.flags & $.envs.prod.flags & $.tenants.starterco.flags
 }

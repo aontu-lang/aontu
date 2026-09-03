@@ -8,6 +8,5 @@
 # and evaluation FAILED with [aontu/disjunct_no_gen], the documented
 # G1 phase-1 limit (a preference meeting a constraint in a conjunct
 # did not resolve to the default).
-invite: { role: (*member | member | admin | owner)
-                & must(member | admin | owner,
-                       "role must be one of: member, admin, owner") }
+invite: role: (*member | member | admin | owner)
+  & must(member | admin | owner, "role must be one of: member, admin, owner")

@@ -12,8 +12,4 @@
 @"messages.aon"
 @"api.aon"
 
-meta: {
-  name:      "nimbus-tasks-api"
-  version:   "1.3.0"
-  stability: ga
-}
+meta: { name:"nimbus-tasks-api" version:"1.3.0" stability:ga }

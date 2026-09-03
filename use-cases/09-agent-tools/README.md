@@ -145,11 +145,11 @@ than its value.
     expected: re("^https://")&length(integer&min(0)&max(2048))
     actual:   "http://169.254.169.254/latest/meta-data/"
     data: data/call-http-bad.json:4:12 ("http://169.254.169.254/latest/meta-data/")
-    schema: registry.aon:69:19 (re("^https://")&length(integer&min(0)&max(2048)))
+    schema: registry.aon:64:19 (re("^https://")&length(integer&min(0)&max(2048)))
   $.guard.http_request.method: empty [conflict]
     [aontu/empty]: Cannot unify values at path $.guard.http_request.method
     data: data/call-http-bad.json:5:15 ("DELETE")
-    schema: registry.aon:70:13 ("GET"|"HEAD")
+    schema: registry.aon:65:13 ("GET"|"HEAD")
   ```
 
   Each finding names the line in the call and the line in the schema,
@@ -187,9 +187,9 @@ than its value.
 
    ```
    $.tools.delete_records.requires_approval = true
-     1. type(("readonly"|"write")|"destructive")  registry.aon:28:13
-     2. boolean  registry.aon:34:22
-     3. match(.side_effect,"destructive",true,false)  registry.aon:171:22
+     1. type(("readonly"|"write")|"destructive")  registry.aon:24:13
+     2. boolean  registry.aon:30:22
+     3. match(.side_effect,"destructive",true,false)  registry.aon:168:24
    ```
 
 5. `data/call-search-ok.json` is `verdict: valid`, exit 0.

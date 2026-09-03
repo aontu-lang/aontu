@@ -12,26 +12,24 @@
 
 candidate: hide(@"../data/candidate-webhooks.json")
 
-catalog: domains: platform: services: {
-  webhooks: $.spec.CatalogEntry & $.candidate & {
-    dependsOn: [
-      path($.catalog.domains.identity.services.auth)
-      path($.catalog.domains.platform.services.email)
-    ]
-  }
+catalog: domains: {
+  platform: services: {
+    webhooks: $.spec.CatalogEntry & $.candidate & {
+      dependsOn: [
+        path($.catalog.domains.identity.services.auth)
+        path($.catalog.domains.platform.services.email)
+      ]
+    }
 
-  # The inverse edges the proposal implies, so `aontu relations`
-  # passes. WORKAROUND (README, gap 4): lists unify positionally, so
-  # "append" must restate the existing elements verbatim, in order.
-  email: {
-    dependedOnBy: [
+    # The inverse edges the proposal implies, so `aontu relations`
+    # passes. WORKAROUND (README, gap 4): lists unify positionally, so
+    # "append" must restate the existing elements verbatim, in order.
+    email: dependedOnBy: [
       path($.catalog.domains.platform.services.notify)
       path($.catalog.domains.platform.services.webhooks)
     ]
   }
-}
-catalog: domains: identity: services: auth: {
-  dependedOnBy: [
+  identity: services: auth: dependedOnBy: [
     path($.catalog.domains.platform.services.gateway)
     path($.catalog.domains.payments.services.payments)
     path($.catalog.domains.platform.services.webhooks)

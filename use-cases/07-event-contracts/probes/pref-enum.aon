@@ -11,6 +11,4 @@
 # under vet but still errors under plain eval and loses the default in
 # canon (probes/default-a.aon / default-b.aon -- the phase-1 limit).
 
-E: {
-  v: *"1.0" | "1.1"
-}
+E: v: *"1.0" | "1.1"

@@ -17,11 +17,13 @@ OrderPlaced: close($.Envelope & {
     # Order lines: the element template is INLINE because a
     # referenced template inside a list spread does not resolve
     # under vet --at (pinned in use-case 03, gap 7).
-    lines: [&: close({
-      sku: re("^sku-[a-z0-9-]{4,40}$")
-      qty: integer & min(1)
-      unit_cents: integer & min(0)
-    })]
+    lines: [
+      &: close({
+        sku: re("^sku-[a-z0-9-]{4,40}$")
+        qty: integer & min(1)
+        unit_cents: integer & min(0)
+      })
+    ]
   })
 })
 
@@ -53,8 +55,6 @@ Event: $.OrderPlaced | $.OrderPaid | $.OrderCancelled
 # because a key containing a dot ("order.placed") cannot be
 # addressed by any CLI path spelling (pinned in check.sh); the
 # consumer maps the wire string with tr '.' '_'.
-registry: {
-  order_placed: $.OrderPlaced
-  order_paid: $.OrderPaid
-  order_cancelled: $.OrderCancelled
-}
+registry: order_placed: $.OrderPlaced
+registry: order_paid: $.OrderPaid
+registry: order_cancelled: $.OrderCancelled

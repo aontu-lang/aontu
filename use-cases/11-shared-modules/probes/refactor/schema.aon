@@ -6,10 +6,7 @@ spec: close({
   tier: "critical" | "standard" | *"internal"
   replicas: *2 | (integer & min(1) & max(64))
   port: *8080 | (integer & min(1024) & max(65535))
-  telemetry: {
-    traces: *false | boolean
-    metrics: *true | boolean
-  }
+  telemetry: { traces:*false | boolean metrics:*true | boolean }
   healthcheck: {
     interval_seconds: *15 | (integer & min(5) & max(300))
     path: *"/healthz" | (string & re("^/"))

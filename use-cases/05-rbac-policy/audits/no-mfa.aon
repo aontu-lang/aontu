@@ -4,20 +4,22 @@
 # allows this (short-sessions branch of security), but the stricter
 # audit-layer must() rule CP-114 does not -- this is the must()
 # failure exhibit, showing how the author message is reported.
-tenant: {
-  name: "Acme Rockets", slug: "acme-rockets", plan: free
-  entitlement: { plan: free, sso: false, scim: false, auditLog: false }
-  members: {
-    ada:   { role: path($.roles.owner) }
-    grace: { role: path($.roles.member) }
-    alan:  { role: path($.roles.auditor), invitedBy: ada }
-  }
-  security: { mfaRequired: false, sessionTimeoutMinutes: 45 }
-}
+tenant: name: "Acme Rockets"
+tenant: slug: "acme-rockets"
+tenant: plan: free
+tenant: entitlement: { plan:free sso:false scim:false auditLog:false }
+tenant: members: ada: role: path($.roles.owner)
+tenant: members: grace: role: path($.roles.member)
+tenant: members: alan: { role:path($.roles.auditor) invitedBy:ada }
+tenant: security: { mfaRequired:false sessionTimeoutMinutes:45 }
 
 audit: hide({
-  exactly_one_owner: length(1) & filter($.tenant.members, { role: path($.roles.owner) })
+  exactly_one_owner: length(1) & filter($.tenant.members, {
+    role: path($.roles.owner)
+  })
   seats_within_plan: length(max($.tenant.limits.maxSeats)) & $.tenant.members
-  mfa_mandatory: must({ mfaRequired: true },
-    "corporate policy CP-114: MFA is mandatory for every tenant") & $.tenant.security
+  mfa_mandatory: must(
+    { mfaRequired:true },
+    "corporate policy CP-114: MFA is mandatory for every tenant"
+  ) & $.tenant.security
 })

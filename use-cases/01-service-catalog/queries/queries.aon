@@ -12,6 +12,6 @@ query: {
   index: filter($.catalog.domains.payments.services, {})
     & filter($.catalog.domains.identity.services, {})
     & filter($.catalog.domains.platform.services, {})
-  tier1: filter(.index, {tier: 1})
-  experimental: filter(.index, {lifecycle: experimental})
+  tier1: filter(.index, { tier:1 })
+  experimental: filter(.index, { lifecycle:experimental })
 }

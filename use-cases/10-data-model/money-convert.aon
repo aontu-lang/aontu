@@ -39,7 +39,7 @@ scaleZeroRight: 0d10.0 & bigdecimal
 #    unrounded product. Both are theorems: if `mul` ever disagreed,
 #    this file would refuse rather than print a wrong invoice.
 vatExact: mul(0d3998.19, 0d0.19) & 0d759.6561
-vatCents: mul(399819, 19) & 7596561          # minor units, integer
+vatCents: mul(399819, 19) & 7596561 # minor units, integer
 netPlusVat: 0d3998.19 + 0d759.6561 & 0d4757.8461
 
 # 6. THE WALL STILL HOLDS. An exact number and a binary float do not

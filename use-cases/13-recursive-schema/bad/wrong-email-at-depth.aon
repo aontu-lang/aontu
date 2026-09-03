@@ -9,9 +9,6 @@ payments_policy: $.spec.Policy & {
   chain: {
     approver: "lead@acme.example"
     decision: approved
-    then: {
-      approver: "EXTERNAL@other.example"
-      decision: approved
-    }
+    then: { approver:"EXTERNAL@other.example" decision:approved }
   }
 }

@@ -10,15 +10,10 @@
 @"../model.aon"
 
 pipeline: jobs: {
-  archive: {
-    cmd: "cold --store"
-    fedBy: [path($.pipeline.jobs.transform)]
-  }
-  transform: {
-    feeds: [
-      path($.pipeline.jobs.load)
-      path($.pipeline.jobs.audit)
-      path($.pipeline.jobs.archive)
-    ]
-  }
+  archive: { cmd:"cold --store" fedBy:[path($.pipeline.jobs.transform)] }
+  transform: feeds: [
+    path($.pipeline.jobs.load)
+    path($.pipeline.jobs.audit)
+    path($.pipeline.jobs.archive)
+  ]
 }

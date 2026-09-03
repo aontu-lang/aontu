@@ -3208,3 +3208,125 @@ two answers. Fix: decide the root's site once, in
 `docs/design/` where the site contract lives, and hold it with a
 shared spec row; a repo-relative spelling would fix the absolute path
 either way.
+
+## the formatter — what a rewrite's check exposed
+
+`aontu fmt`'s lawful tier (`docs/design/FMT.0.md` §3.4) merges
+adjacent statements naming one key into one map, and splits a wide
+map into repeated statements, and checks each rewrite by unifying the
+two spellings in isolation: they must come to the same canon and the
+same kinds of failure, or the statement keeps its spelling before. The
+check is the engine's agreement, and where the two engines disagree
+the formatted text differs by port. One such disagreement so far.
+
+### 76. §50's document written as one map answers differently in TypeScript [major]
+
+Found 2026-09-03 by the formatter's check over the repro of §50, which
+the check refused to merge in TypeScript and merged in Go.
+
+§50 was fixed for the spelling its repro uses -- three statements:
+
+```
+a: b: c: d: e: $.a.b.f
+a: b: f: &: {n: key()}
+a: b: f: {x: {}}
+```
+
+The same document as ONE map, which is what the three statements
+mean, is not fixed:
+
+```
+a: b: { c:d:e:$.a.b.f f:{ &: { n:key() } x:{} } }
+```
+
+```
+$ aontu-go merged.aon
+{"a":{"b":{"c":{"d":{"e":{"x":{"n":"x"}}}},"f":{"x":{"n":"x"}}}}}
+
+$ aontu merged.aon
+{"a":{"b":{"c":{"d":{"e":{"x":{"n":"x"}}}},"f":{"x":{"n":"n"}}}}}
+```
+
+Go answers as it does for the split spelling. TypeScript answers
+`"n"` at `$.a.b.f.x.n` -- the same second application of the template
+that §50 diagnosed, now without the refusal: the inner `key()` answers
+`"n"` and nothing meets it against the `"x"` the first application
+gave. The stable template identity of §50's fix carries a clone made
+by a REFERENCE; a template written in the same map as the reference
+that reaches it reaches the bag by another path, and the mark does not
+hold there.
+
+Effect on the formatter: `aontu fmt` keeps the split spelling of
+`repros/key-func/spread-key-through-deep-ref.aon` in TypeScript and
+writes the merged one in Go -- the one file in the repository the two
+ports format differently, and by design of the check: the formatter
+never writes a spelling its engine evaluates differently. Pinned in
+`ts/test/format.test.ts` and `go/format_test.go`
+(`format-keeps-the-spelling-the-engine-refuses`), which go with this
+entry when it is fixed.
+
+Repro:
+[`repros/key-func/spread-key-through-deep-ref-merged.aon`](repros/key-func/spread-key-through-deep-ref-merged.aon).
+
+### 77. A key written in a second statement is an expectation, so its residue names a spread that exists nowhere [major]
+
+Found 2026-09-03 by `aontu fmt`'s lawful tier over the use cases: the
+agreed form writes a map that does not fit on one line as one
+statement per entry, and two use-case checks changed their answer.
+Both ports, the same way.
+
+```
+S: a: string
+S: b: integer
+```
+
+```
+$ printf '{"a": "x"}' > cand.json
+$ aontu vet --at '$.S' --closed schema.aon cand.json
+$.S.b: mapval_spread_required [incomplete]
+  [aontu/mapval_spread_required]: Cannot unify values at path $.S.b
+  The value for key b is required (defined in spread).
+```
+
+Written as one map, `S: { a: string, b: integer }`, the same candidate
+is refused with `mapval_required`, which is the right code: nothing
+here is a spread. The language says the two spellings are one
+document (a key written twice is a meet), and they are -- the canon
+and the generated value agree -- but the residue does not.
+
+**The cause is that a peer-only key is wrapped as an expectation
+whatever the peer is.** A map meeting a peer map carries the peer's
+keys it does not have; one whose value cannot generate on its own (a
+kind, a reference, a constraint) is wrapped as an `ExpectVal`
+(`handleExpectedVal` in `ts/src/val/BagVal.ts`, the peer-only branch
+of `unite` in `go/mapval.go`), so that a spread template's field can
+later be reported as *spread-required* residue rather than plain
+`*_no_gen` (issue #27). The wrap does not know whether the peer was a
+template applied by `&:` or the second of two statements the author
+wrote, and the second statement of `S:` is the peer of the first.
+
+The same wrap has a generation face. `r: { t: must(1, "m") }` /
+`r: a: bigdecimal` refuses at `$.r.a` with `mapval_spread_required`
+("Cannot unify value: bigdecimal with value: nil"), where
+`r: { t: must(1, "m"), a: bigdecimal }` refuses at `$.r.t` with
+`mapval_no_gen`; and `jsonschema --at r` exports `a` as `{}` with an
+"unresolved" loss in the first spelling and as `{"type": "number"}` in
+the second (`use-cases/14-jsonschema-export/residue.aon` is the case
+that found it).
+
+Effect on the formatter: its check of a rewrite compares the outcome of
+generation as well as the meet since this was found, so
+`residue.aon`'s `report` keeps its braces. A schema that only fails
+under `vet` with a candidate is invisible to the check, so
+`08-feature-flags/flag-schema.aon`'s `Flag` is written as statements
+and its check pins `mapval_spread_required` with this entry's number;
+the pin flips back when the wrap learns where the peer came from.
+
+Fix: carry, do not wrap, a peer-only key whose peer is a written
+statement rather than an applied template -- the site that applies a
+spread knows it is one -- and keep the spread-required code for the
+template's keys.
+
+Repros:
+[`repros/statement-meet/required-key-through-statement.aon`](repros/statement-meet/required-key-through-statement.aon),
+[`repros/statement-meet/kind-through-statement.aon`](repros/statement-meet/kind-through-statement.aon).

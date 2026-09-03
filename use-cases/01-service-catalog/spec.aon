@@ -33,12 +33,11 @@
 # `$.%Owner` is refused at any depth, the two namespaces are disjoint
 # -- and it is erased before generation, so it names the shape without
 # reintroducing the reference that gap is about.
-%Owner:       string & re("^team-[a-z]+$")
-%Lifecycle:   *production | production | experimental | deprecated
+%Owner: string & re("^team-[a-z]+$")
+%Lifecycle: *production | production | experimental | deprecated
 %Description: string & length(min(10))
 
 spec: hide({
-
   # The org's port shape: the bundled Port plus a concrete number.
   # Historically this HAD to be the one ports template both views
   # name: different ports templates on the two id-merged views unified
@@ -47,14 +46,14 @@ spec: hide({
   # rework (BUGS.md sec 6) -- unequal by-reference templates now meet
   # each child independently; the single shared template is kept as
   # good style, no longer a required workaround.
-  PortSpec: $.std.Port & {number: integer & min(1) & max(65535)}
+  PortSpec: $.std.Port & { number:integer & min(1) & max(65535) }
 
   # One catalog entry: what the org promises about a service,
   # independent of where it runs. The default lifecycle is repeated as
   # a member because *production|experimental|... makes `aontu vet`
   # warn pref_not_instance (README, gap 6).
   CatalogEntry: $.std.Service & {
-    ports?: {&: $.spec.PortSpec}
+    ports?: { &: $.spec.PortSpec }
     owner: %Owner
     tier: 1 | 2 | 3
     lifecycle: %Lifecycle
@@ -83,7 +82,7 @@ spec: hide({
   Workload: $.std.Service & {
     replicas: *2 | integer & min(1) & max(48)
     image: string & re("^registry[.]acme[.]internal/")
-    ports?: {&: $.spec.PortSpec}
+    ports?: { &: $.spec.PortSpec }
   }
 
   # Vet anchor for agent-emitted candidates: written out
@@ -95,10 +94,12 @@ spec: hide({
     tier: 1 | 2 | 3
     lifecycle: %Lifecycle
     description: %Description
-    ports?: {&: {
-      direction: *in | in | out | inout
-      protocol?: string
-      number: integer & min(1) & max(65535)
-    }}
+    ports?: {
+      &: {
+        direction: *in | in | out | inout
+        protocol?: string
+        number: integer & min(1) & max(65535)
+      }
+    }
   }
 })

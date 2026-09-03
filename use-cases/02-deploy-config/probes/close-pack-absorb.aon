@@ -9,6 +9,6 @@
 # dev {p:false,x:1}, prod {p:true,x:2}.  check.sh pins the CORRECT
 # output against the golden; the shared spec pins it in both engines
 # (test/spec/gen-close.tsv, close-pack-hole-overlay-merges).
-environments: hide({ dev: { p: false }, prod: { p: true } })
-deploy: close(pack($.environments, _ & { x: ***1 | integer }))
+environments: hide({ dev:p:false prod:p:true })
+deploy: close(pack($.environments, _ & { x:***1 | integer }))
 deploy: prod: x: 2

@@ -2,4 +2,4 @@
 # subsumption queries. Grant sets must be re-modelled as maps
 # (set-as-map) because subsume compares lists by position -- see
 # README, "Set operations".
-grants: { "project_read": true, "member_read": true }
+grants: { project_read:true member_read:true }

@@ -201,7 +201,7 @@ produced it and the position it was written at:
 $ aontu why '$.tenant.supportTier' example.aon
 $.tenant.supportTier = "community"
   1. ("free"|"pro")|"enterprise"  tenant.aon:15:9
-  2. match(.plan,"free","community","pro","standard","enterprise","dedicated")  tenant.aon:30:16
+  2. match(.plan,"free","community","pro","standard","enterprise","dedicated")  tenant.aon:35:16
 ```
 
 ## What check.sh proves

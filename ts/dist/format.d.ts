@@ -4,6 +4,7 @@ export type FormatOptions = {
 };
 export type FormatHooks = {
     same?: (root: any, after: string) => boolean;
+    meet?: (before: string, after: string) => boolean;
 };
 export type FormatReport = {
     verdict: 'formatted';

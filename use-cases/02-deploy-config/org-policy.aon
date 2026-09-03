@@ -12,11 +12,9 @@
 # therefore live in guardrails.aon and are enforced with `aontu vet`,
 # not here.
 
-org: {
-  name: acme
-  registry: "registry.acme.internal"
-  runbookBase: "https://runbooks.acme.internal"
-}
+org: name: acme
+org: registry: "registry.acme.internal"
+org: runbookBase: "https://runbooks.acme.internal"
 
 # The one workload shape every service in every environment must have.
 # It is applied close()d by the pack template in stack.aon, so an

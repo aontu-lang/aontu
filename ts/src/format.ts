@@ -13,10 +13,11 @@
 // trees: a formatter that cannot prove its output is the same document
 // refuses rather than return it.
 //
-// This is the syntactic tier only (P1): whitespace, commas, quotes,
-// bare keys, chains and pair elements, none of which changes the parse
-// tree. The lawful tier -- the repeat-the-prefix rewrite that rests on
-// the meet -- is P2, and lands behind its own local check.
+// Two tiers. The syntactic (P1): whitespace, commas, quotes, bare
+// keys, chains and pair elements, none of which changes the parse
+// tree. The lawful (P2), over it: repeat the prefix, and merge what
+// repeats -- rewrites that rest on the meet, each checked by the meet
+// in isolation and kept only where the engine agrees.
 //
 // The Go twin is go/format.go, function for function; the shared
 // behaviour is test/spec/fmt.tsv, executed by both spec runners.
@@ -49,6 +50,7 @@ export type FormatOptions = {
 // takes that arm on its own.
 export type FormatHooks = {
   same?: (root: any, after: string) => boolean
+  meet?: (before: string, after: string) => boolean
 }
 
 export type FormatReport =
@@ -155,6 +157,13 @@ type Node = {
 
   // A comment on the last line of this entry.
   trail?: string
+
+  // An argument: a comma stood before it (§3.6), rather than a space.
+  sep?: boolean
+
+  // pair: the statements this one replaces, where the lawful tier
+  // merged them, or rewrote something below them.
+  orig?: Node[]
 }
 
 const BINARY: Record<string, boolean> = { '#E&': true, '#E|': true, '#E+': true }
@@ -299,6 +308,11 @@ class Reader {
       last = e
       opener = false
       gap = false
+    }
+    // A blank line before the closer is no paragraph break: nothing
+    // follows it, and the layout would drop it anyway.
+    while (0 < body.length && 'blank' === body[body.length - 1].t) {
+      body.pop()
     }
     return { body, open }
   }
@@ -470,6 +484,7 @@ class Reader {
   seq(): Node[] {
     const out: Node[] = []
     let gap = true
+    let comma = false
     for (;;) {
       const n = this.name(0)
       if ('' === n || CLOSER[n]) {
@@ -481,9 +496,10 @@ class Reader {
       }
       if ('#CA' === n) {
         if (gap) {
-          out.push({ t: 'atom', text: 'nil' })
+          out.push({ t: 'atom', text: 'nil', sep: comma })
         }
         gap = true
+        comma = true
         this.i++
         continue
       }
@@ -492,8 +508,11 @@ class Reader {
         this.i++
         continue
       }
-      out.push(this.value())
+      const v = this.value()
+      v.sep = comma
+      out.push(v)
       gap = false
+      comma = false
     }
     return out
   }
@@ -611,16 +630,23 @@ function inline(node: Node, tight: boolean): string | undefined {
   }
 }
 
+// Arguments on one line, each after the separator the author wrote
+// (§3.6): a comma stays a comma, and a space a space, because the
+// parser reads `must((v) => 0 <= v, "…")` as a run of arguments too.
 function inlineSeq(items: Node[]): string | undefined {
-  const parts: string[] = []
-  for (const it of items) {
-    const s = inline(it, true)
+  let out = ''
+  for (let k = 0; k < items.length; k++) {
+    const s = inline(items[k], true)
     if (undefined === s) {
       return undefined
     }
-    parts.push(s)
+    out += (0 === k ? '' : sepOf(items[k])) + s
   }
-  return parts.join(', ')
+  return out
+}
+
+function sepOf(node: Node): string {
+  return node.sep ? ', ' : ' '
 }
 
 // Binary operators spaced, prefixes tight (§3.11). An operand is
@@ -679,6 +705,26 @@ class Writer {
     return width(this.line)
   }
 
+  // Where the page is, and the lines written since, the current line
+  // included: the spelling of one statement, as it stands on the page.
+  mark(): number {
+    return this.lines.length
+  }
+
+  since(mark: number): string {
+    return this.lines.slice(mark).concat([this.line]).map(rtrim).join('\n') + '\n'
+  }
+
+  // The lines since a mark replaced by a text: the spelling before,
+  // where a rewrite did not pass its check.
+  replace(mark: number, text: string): void {
+    const lines = text.split('\n')
+    lines.pop()
+    this.line = lines.pop()!
+    this.lines.length = mark
+    this.lines.push(...lines)
+  }
+
   finish(): string {
     if (!this.started) {
       return ''
@@ -697,8 +743,11 @@ function rtrim(s: string): string {
 
 // The entries of a body, one per line at the indentation, with the
 // blank lines the author kept between them (§3.8) -- never at the
-// start or the end.
-function emitBody(w: Writer, body: Node[], indent: number): void {
+// start or the end. In STATEMENT position (`stmt`: the root, and the
+// body of a plain map that is itself the value of a statement) a pair
+// is laid out by §3.4, which may repeat its key; anywhere else -- a
+// list, an operand, an argument -- by §3.5 alone.
+function emitBody(w: Writer, body: Node[], indent: number, stmt: Stmt | undefined): void {
   let pending = false
   let count = 0
   for (const node of body) {
@@ -711,6 +760,10 @@ function emitBody(w: Writer, body: Node[], indent: number): void {
     count++
     if ('comment' === node.t) {
       w.text(node.text!)
+      continue
+    }
+    if (undefined !== stmt && 'pair' === node.t) {
+      emitStatement(w, node, indent, stmt, '')
       continue
     }
     const e = chain(node)
@@ -745,10 +798,10 @@ function emitValue(w: Writer, node: Node, indent: number): void {
       emitValue(w, node.value!, indent)
       return
     case 'map':
-      emitBlock(w, '{', '}', node, indent)
+      emitBlock(w, '{', '}', node, indent, undefined)
       return
     case 'list':
-      emitBlock(w, '[', ']', node, indent)
+      emitBlock(w, '[', ']', node, indent, undefined)
       return
     case 'expr':
       emitExpr(w, node.items!, indent)
@@ -763,26 +816,35 @@ function emitValue(w: Writer, node: Node, indent: number): void {
 }
 
 // A call, or a parenthesis, that has no one-line form or is too wide
-// for the budget. Three shapes. A single container argument hugs the
-// parentheses, `close({` ... `})`, and decides its own lines. Arguments
-// that each have a one-line form stay on the one line however wide it
-// is: the formatter never breaks a line. Otherwise -- an argument that
-// is itself several lines, a comment among the arguments -- the
-// parenthesis opens a block: one argument per line one level in, the
-// closer alone at the opener's level.
+// for the budget. Three shapes. Arguments that are all FLAT -- none
+// holds a container -- stay on the one line however wide it is: a
+// scalar is no narrower on a line of its own, and the formatter never
+// breaks a line. The last argument HUGS the parentheses, `hide({` ...
+// `})`, `close($.E & {` ... `})`, when it is a container, or an
+// expression the author did not break that ends in one, and the
+// arguments before it fit on the opener's line: the container decides
+// its own lines. Otherwise the parenthesis opens a block: one argument
+// per line one level in, the closer alone at the opener's level. A
+// call whose last argument hugs is hugged in turn, `type(close({` ...
+// `}))`: the schema idiom.
 function emitCall(w: Writer, node: Node, indent: number): void {
   const items = 'call' === node.t ? node.args! : node.inner!
   const open = ('call' === node.t ? node.name! : '') + '('
-  if (1 === items.length && ('map' === items[0].t || 'list' === items[0].t)) {
-    w.text(open)
-    emitValue(w, items[0], indent)
-    w.text(')')
-    return
-  }
   const one = inlineSeq(items)
-  if (undefined !== one) {
+  if (undefined !== one && !items.some(holdsContainer)) {
     w.text(open + one + ')')
     return
+  }
+  const last = items[items.length - 1]
+  if (0 < items.length && hugs(last)) {
+    const head = inlineSeq(items.slice(0, -1))
+    const lead = '' === head ? '' : head + sepOf(last)
+    if (undefined !== head && ('' === head || w.width() + width(open + lead) <= BUDGET)) {
+      w.text(open + lead)
+      emitValue(w, last, indent)
+      w.text(')')
+      return
+    }
   }
   w.text(open)
   let noted = false
@@ -804,7 +866,8 @@ function emitCall(w: Writer, node: Node, indent: number): void {
     }
     w.open(indent + 2, false)
     emitValue(w, it, indent + 2)
-    if (items.slice(k + 1).some((x) => 'note' !== x.t)) {
+    const next = items.slice(k + 1).find((x) => 'note' !== x.t)
+    if (undefined !== next && next.sep) {
       w.text(',')
     }
     noted = false
@@ -813,10 +876,45 @@ function emitCall(w: Writer, node: Node, indent: number): void {
   w.text(')')
 }
 
+// Whether a node holds a container anywhere: the argument has a
+// several-line form of its own.
+function holdsContainer(node: Node): boolean {
+  switch (node.t) {
+    case 'map':
+    case 'list':
+      return true
+    case 'call':
+      return node.args!.some(holdsContainer)
+    case 'paren':
+      return node.inner!.some(holdsContainer)
+    case 'expr':
+      return node.items!.some(holdsContainer)
+    default:
+      return false
+  }
+}
+
+// Whether a last argument hugs the parentheses: a container; an
+// expression with no break and no comment whose last operand is one;
+// a call whose own last argument does.
+function hugs(node: Node): boolean {
+  if ('map' === node.t || 'list' === node.t) {
+    return true
+  }
+  if ('call' === node.t) {
+    return 0 < node.args!.length && hugs(node.args![node.args!.length - 1])
+  }
+  return 'expr' === node.t &&
+    node.items!.every((it) => 'note' !== it.t && !('op' === it.t && it.brk)) &&
+    hugs(node.items![node.items!.length - 1])
+}
+
 // A container on several lines (§3.5): the opener ends its line, the
 // entries are statements one level in, the closer stands alone. An
 // empty container is inline whatever the budget says.
-function emitBlock(w: Writer, open: string, close: string, node: Node, indent: number): void {
+function emitBlock(
+  w: Writer, open: string, close: string, node: Node, indent: number, stmt: Stmt | undefined
+): void {
   if (0 === node.body!.length && undefined === node.open) {
     w.text(open + close)
     return
@@ -825,7 +923,7 @@ function emitBlock(w: Writer, open: string, close: string, node: Node, indent: n
   if (undefined !== node.open) {
     w.text(' ' + node.open)
   }
-  emitBody(w, node.body!, indent + 2)
+  emitBody(w, node.body!, indent + 2, stmt)
   w.open(indent, false)
   w.text(close)
 }
@@ -882,9 +980,280 @@ function emitExpr(w: Writer, items: Node[], indent: number): void {
   }
 }
 
-function emit(root: Node[]): string {
+
+// ---------------------------------------------------------------------
+// The lawful tier (§3.4): repeat the prefix, and merge what repeats.
+//
+// Both rewrites rest on the meet. `s: a: 1` / `s: b: 2` is one document
+// with `s: { a:1 b:2 }`, because a key written twice is a meet and the
+// meet of two maps with disjoint keys is their union. So they apply
+// only to a PLAIN map in STATEMENT position -- an entry of the root, or
+// of a map that is itself the plain value of such an entry -- and never
+// to a map that is an operand, an argument or a list element, where
+// splitting it would change the document (`close({a:1})` /
+// `close({b:2})` does not evaluate at all). And every statement the
+// tier rewrites is checked by unification, locally (§7.3): the spelling
+// before and the spelling after must come to the same meet, or the
+// statement keeps the spelling before. The check is the engine's
+// agreement, not the formatter's self-check -- the engine's own repros
+// hold maps whose two spellings it evaluates differently -- so failing
+// it is no refusal.
+
+// The check of one rewrite: the spelling before and the spelling after.
+type Meet = (before: string, after: string) => boolean
+
+// Statement position: the check, and whether the statement being laid
+// out stands inside one that is checked as a whole, which covers it.
+// Undefined anywhere else -- a list, an operand, an argument.
+type Stmt = { meet: Meet, covered: boolean }
+
+// The entries of a plain map value: a braced map, or a chain, which is
+// a one-entry map. A map with a comment on its opener keeps its braces
+// (§3.7), so it is not plain here; nor is a map holding an include,
+// which the local check cannot follow.
+function plainEntries(v: Node): Node[] | undefined {
+  if ('pair' === v.t) {
+    return [v]
+  }
+  if ('map' !== v.t || undefined !== v.open || v.body!.some((e) => 'include' === e.t)) {
+    return undefined
+  }
+  return v.body
+}
+
+// The entries of a statement as they stand once it is merged into a
+// wider map: its trailing comment sunk onto its last entry, so that it
+// travels with the entry it stood beside. Undefined where the value is
+// not a plain map, or the comment has no entry to sit on.
+function members(p: Node): Node[] | undefined {
+  const entries = plainEntries(p.value!)
+  if (undefined === entries || undefined === p.trail) {
+    return entries
+  }
+  const last = entries[entries.length - 1]
+  if (undefined === last || ('pair' !== last.t && 'spread' !== last.t)) {
+    return undefined
+  }
+  const trail = undefined === last.trail ? p.trail : last.trail + ' ' + p.trail
+  return entries.slice(0, -1).concat([{ ...last, trail }])
+}
+
+// Adjacent statements naming one key, whose values are plain maps, are
+// one map: their entries in order, with the comments and blank lines
+// between the statements travelling with the statement they preceded.
+// Only ADJACENT statements merge -- a `server:` line, something else,
+// then another `server:` line stays as it is, because merging them
+// would move a statement, and the formatter never reorders (§3.13).
+// Nor do two statements merge into a map with two spreads: the engine
+// keeps those as a conjunction, which is not the meet of the two maps.
+// The tree is not changed: a merged statement is a new node that keeps
+// the statements it replaces as its `orig`, its spelling before, and a
+// statement merged somewhere below is copied the same way.
+function mergeRuns(body: Node[]): Node[] {
+  const out: Node[] = []
+  let i = 0
+  while (i < body.length) {
+    const first = body[i]
+    const entries = 'pair' === first.t ? members(first) : undefined
+    if (undefined === entries) {
+      out.push('pair' === first.t ? mergeDeep(first) : first)
+      i++
+      continue
+    }
+    const group = [first]
+    let merged = entries
+    let carry: Node[] = []
+    let j = i + 1
+    for (; j < body.length; j++) {
+      const n = body[j]
+      if ('comment' === n.t || 'blank' === n.t) {
+        carry.push(n)
+        continue
+      }
+      const more = 'pair' === n.t && n.key === first.key && n.opt === first.opt
+        ? members(n) : undefined
+      if (undefined === more || (spreads(merged) && spreads(more))) {
+        break
+      }
+      group.push(...carry, n)
+      merged = merged.concat(carry, more)
+      carry = []
+    }
+    if (1 === group.length) {
+      out.push(mergeDeep(first))
+      i++
+      continue
+    }
+    out.push({
+      t: 'pair', key: first.key, opt: first.opt,
+      value: { t: 'map', body: mergeRuns(merged) }, orig: group,
+    })
+    i = j - carry.length
+  }
+  return out
+}
+
+function spreads(entries: Node[]): boolean {
+  return entries.some((e) => 'spread' === e.t)
+}
+
+// The merge down a statement's plain-map spine: a chain's inner pair,
+// or the entries of a map value, are statements of the map they are
+// in. The statement itself where nothing below it merged.
+function mergeDeep(p: Node): Node {
+  const v = p.value!
+  const entries = plainEntries(v)
+  if (undefined === entries) {
+    return p
+  }
+  const body = mergeRuns(entries)
+  if (body.length === entries.length && body.every((n, k) => n === entries[k])) {
+    return p
+  }
+  return { ...p, value: 'pair' === v.t ? body[0] : { ...v, body }, orig: [p] }
+}
+
+// The lines of a map repeated under a prefix (§3.4, rule 2): every
+// entry written with the prefix in front of it as one line, or --
+// where an entry's value is a map that does not fit -- repeated further
+// under the longer prefix. Comments and blank lines are kept where
+// they stood. Undefined where an entry cannot be one line: a list that
+// does not fit, a value that spans lines, a comment closing the map
+// (which a repeat could not keep in the map) -- and where the map holds
+// two spreads, which repeated would be two maps, and a different meet.
+type Line = { t: 'text' | 'comment' | 'blank', text?: string }
+
+function repeatLines(entries: Node[], prefix: string, indent: number): Line[] | undefined {
+  if (0 === entries.length || 'comment' === entries[entries.length - 1].t ||
+    1 < entries.filter((e) => 'spread' === e.t).length) {
+    return undefined
+  }
+  const out: Line[] = []
+  for (const e of entries) {
+    if ('blank' === e.t) {
+      out.push({ t: 'blank' })
+      continue
+    }
+    if ('comment' === e.t) {
+      out.push({ t: 'comment', text: e.text })
+      continue
+    }
+    const trail = undefined === e.trail ? '' : ' ' + e.trail
+    if ('spread' === e.t) {
+      // The repeated spread entry is a one-entry map holding only a
+      // spread, so by D1's exception it keeps its braces.
+      const s = inline(e.value!, true)
+      if (undefined === s || !fits(indent, prefix + '{ &: ' + s + ' }')) {
+        return undefined
+      }
+      out.push({ t: 'text', text: prefix + '{ &: ' + s + ' }' + trail })
+      continue
+    }
+    const head = prefix + pairHead(e, false)
+    const s = inline(chain(e.value!), false)
+    if (undefined !== s && fits(indent, head + s)) {
+      out.push({ t: 'text', text: head + s + trail })
+      continue
+    }
+    const sub = plainEntries(e.value!)
+    if (undefined === sub) {
+      return undefined
+    }
+    const lines = repeatLines(sub, head, indent)
+    if (undefined === lines) {
+      return undefined
+    }
+    if ('' !== trail) {
+      lines[lines.length - 1].text += trail
+    }
+    out.push(...lines)
+  }
+  return out
+}
+
+function fits(indent: number, text: string): boolean {
+  return indent + width(text) <= BUDGET
+}
+
+// A pair in statement position, by §3.4. `prefix` is what stands
+// before it on its line: the heads of the chain it hangs from, not yet
+// written. Its value is laid out by §3.5 unless it is a plain map, and
+// then in this order: a chain, when the map holds exactly one pair
+// (D1); one line, when that fits the budget; the key repeated over the
+// entries, when every entry can be one line that way; a braced block
+// otherwise, whose entries are statements in turn. Whether the
+// statement was rewritten by this tier -- merged, or repeated -- is
+// returned, and the outermost such statement is checked: its spelling
+// on the page against what the syntactic tier writes for the
+// statements it came from, at the same indentation, which is what
+// stays on the page when the check fails.
+function emitStatement(w: Writer, p: Node, indent: number, stmt: Stmt, prefix: string): boolean {
+  const mark = w.mark()
+  let rewritten = undefined !== p.orig
+  const entries = plainEntries(p.value!)
+  const head = prefix + pairHead(p, false)
+  const s = undefined === entries ? undefined : inline(p.value!, false)
+  if (undefined === entries) {
+    w.text(prefix)
+    emitValue(w, p, indent)
+  }
+  else if (1 === entries.length && 'pair' === entries[0].t) {
+    rewritten = emitStatement(w, entries[0], indent, { meet: stmt.meet, covered: true }, head)
+      || rewritten
+  }
+  else if (undefined !== s && fits(indent, head + s)) {
+    w.text(head + s)
+  }
+  else {
+    const lines = repeatLines(entries, head, indent)
+    if (undefined !== lines) {
+      let pending = false
+      let count = 0
+      for (const line of lines) {
+        if ('blank' === line.t) {
+          pending = 0 < count
+          continue
+        }
+        if (0 < count) {
+          w.open(indent, pending)
+        }
+        pending = false
+        count++
+        w.text(line.text!)
+      }
+      rewritten = true
+    }
+    else {
+      w.text(head)
+      emitBlock(w, '{', '}', p.value!, indent, { meet: stmt.meet, covered: stmt.covered || rewritten })
+    }
+  }
+  if (undefined !== p.trail) {
+    w.text(' ' + p.trail)
+  }
+  if (rewritten && !stmt.covered) {
+    const before = emitAt(p.orig ?? [p], indent)
+    if (!stmt.meet(before, w.since(mark))) {
+      w.replace(mark, before)
+    }
+  }
+  return rewritten
+}
+
+// The syntactic tier's spelling of some statements at an indentation:
+// a rewrite's spelling before.
+function emitAt(nodes: Node[], indent: number): string {
   const w = new Writer()
-  emitBody(w, root, 0)
+  emitBody(w, nodes, indent, undefined)
+  return w.finish()
+}
+
+// The document: by the syntactic tier alone, or with the lawful tier
+// over it when given its check.
+function emit(root: Node[], meet: Meet | undefined): string {
+  const w = new Writer()
+  emitBody(w, undefined === meet ? root : mergeRuns(root), 0,
+    undefined === meet ? undefined : { meet, covered: false })
   return w.finish()
 }
 
@@ -897,11 +1266,40 @@ function lf(text: string): string {
 }
 
 // The check: the output parses, and to the same tree. Pre-unification
-// canon is that tree, positions aside, and every rewrite of this tier
-// leaves it unchanged (§7.3).
+// canon is that tree, positions aside, and every rewrite of the
+// syntactic tier leaves it unchanged (§7.3).
 function sameDocument(root: any, after: string): boolean {
   const p = parseDoc(after, undefined, undefined)
   return undefined === p.errors && root.canon === p.root.canon
+}
+
+// The check of a lawful rewrite: the spelling before and the spelling
+// after, evaluated in isolation, come to the same canon, the same
+// kinds of failure, and the same outcome of generation (§7.3). Local,
+// so it needs no include and no capability, and it applies whether or
+// not the document as a whole evaluates. The kinds, not the count: how
+// often one unresolved reference is reported depends on the order the
+// meet took. Generation too, because the engine generates from more
+// than the canon: a meet of maps with a nil member has refused a key
+// the same map written once generates.
+function sameByMeet(before: string, after: string): boolean {
+  return meetOf(before) === meetOf(after)
+}
+
+function meetOf(text: string): string {
+  const aontu = engine()
+  const ctx = aontu.ctx({ collect: true })
+  const v: any = aontu.unify(text, undefined, ctx)
+  const gen = aontu.ctx({ collect: true })
+  const out = aontu.generate(text, undefined, gen)
+  const outcome = undefined !== out ? 'generated'
+    : 0 < ctx.err.length ? kinds(ctx.err) : gen.err[0].why
+  return v.canon + '\n' + kinds(ctx.err) + '\n' + outcome
+}
+
+function kinds(errs: any[]): string {
+  const whys: string[] = errs.map((e) => e.why)
+  return whys.filter((x, i) => i === whys.indexOf(x)).sort().join(',')
 }
 
 function depthFinding(): VetFinding {
@@ -941,18 +1339,21 @@ export function format(src: string, opts?: FormatOptions, hooks?: FormatHooks): 
     return { verdict: 'error', errors: parsed.errors }
   }
   const reader = new Reader(toks)
-  const root = reader.body('', false).body
+  const root = unwrap(reader.body('', false).body)
   if (reader.deep) {
     return { verdict: 'error', errors: [depthFinding()] }
   }
-  const out = emit(unwrap(root))
+  // The syntactic tier first, checked against the parse tree; then the
+  // lawful tier over it, each rewrite checked by the meet.
+  const plain = emit(root, undefined)
   const same = hooks?.same ?? sameDocument
-  if (!same(parsed.root, out)) {
+  if (!same(parsed.root, plain)) {
     return {
       verdict: 'error',
-      errors: [checkFinding(opts?.path, parsed.root.canon, out)],
+      errors: [checkFinding(opts?.path, parsed.root.canon, plain)],
     }
   }
+  const out = emit(root, hooks?.meet ?? sameByMeet)
   return { verdict: 'formatted', text: out, changed: out !== src }
 }
 

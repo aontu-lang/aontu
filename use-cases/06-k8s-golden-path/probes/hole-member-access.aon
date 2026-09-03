@@ -12,5 +12,5 @@
 # run: aontu probes/hole-member-access.aon
 # expected: manifests.web.portList holds the ports map, exit 0
 # actual:   manifests.web.portList holds the ports map, exit 0
-services: { web: { ports: { http: { containerPort: 8080 } } } }
-manifests: pack($.services, { portList: pick([_], ports) })
+services: web: ports: http: containerPort: 8080
+manifests: pack($.services, { portList:pick([_], ports) })

@@ -5,12 +5,8 @@
 
 @"../contract.aon"
 
-api: {
-  export_workspace: {
-    method: FETCH
-    path: "/v1/export"
-    auth: bearer
-    summary: "Bulk-export the workspace as an archive"
-    responses: { 202: type({}) }
-  }
-}
+api: export_workspace: method: FETCH
+api: export_workspace: path: "/v1/export"
+api: export_workspace: auth: bearer
+api: export_workspace: summary: "Bulk-export the workspace as an archive"
+api: export_workspace: responses: 202: type({})

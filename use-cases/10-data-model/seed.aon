@@ -11,49 +11,43 @@
 # they are theorems: if exact arithmetic drifted, the seed would fail
 # to evaluate rather than emit a wrong price.
 pricing: {
-  book: {
-    "sku-valve-basic": { eur: 0d19.99 }
-    "sku-valve-pro":   { eur: 0d49.90 }
-    "sku-gasket-set":  { eur: 0d0.10 }
-    "sku-seal-ring":   { eur: 0d0.20 }
-  }
+  book: "sku-valve-basic": eur: 0d19.99
+  book: "sku-valve-pro": eur: 0d49.90
+  book: "sku-gasket-set": eur: 0d0.10
+  book: "sku-seal-ring": eur: 0d0.20
   bundles: {
     "service-kit": {
       # gasket + seal. binary64 says 0.30000000000000004; the book
       # says 0d0.3, and the pin makes the engine prove it.
-      eur: ($.pricing.book."sku-gasket-set".eur
-            + $.pricing.book."sku-seal-ring".eur) & 0d0.3
-      tier: match(.eur, max(0d1.0), "accessory", max(0d25.0), "standard",
-                  "premium")
+      eur: (
+        $.pricing.book."sku-gasket-set".eur
+        + $.pricing.book."sku-seal-ring".eur
+      ) & 0d0.3
+      tier: match(.eur, max(0d1.0), "accessory", max(0d25.0), "standard", "premium")
     }
     "pro-pair": {
-      eur: ($.pricing.book."sku-valve-basic".eur
-            + $.pricing.book."sku-valve-pro".eur) & 0d69.89
-      tier: match(.eur, max(0d1.0), "accessory", max(0d25.0), "standard",
-                  "premium")
+      eur: (
+        $.pricing.book."sku-valve-basic".eur
+        + $.pricing.book."sku-valve-pro".eur
+      ) & 0d69.89
+      tier: match(.eur, max(0d1.0), "accessory", max(0d25.0), "standard", "premium")
     }
   }
 }
 
 # --- Customers --------------------------------------------------------
-customers: {
-  "cust-1001": {
-    # 2^53+1: the first whole number binary64 cannot hold. Only the
-    # 0d spelling stores it exactly (README, gap 2).
-    ledgerId: 0d9007199254740993
-    name: "Acme Flow GmbH"
-    country: "DE"
-    currency: "EUR"
-    email: "ap@acmeflow.example"
-    creditLimitCents: 5000000
-  }
-  "cust-1002": {
-    ledgerId: 4503599627370496   # 2^52: safely inside plain integer
-    name: "Nordwind Logistics AB"
-    country: "SE"
-    currency: "SEK"
-  }
-}
+# 2^53+1: the first whole number binary64 cannot hold. Only the
+# 0d spelling stores it exactly (README, gap 2).
+customers: "cust-1001": ledgerId: 0d9007199254740993
+customers: "cust-1001": name: "Acme Flow GmbH"
+customers: "cust-1001": country: "DE"
+customers: "cust-1001": currency: "EUR"
+customers: "cust-1001": email: "ap@acmeflow.example"
+customers: "cust-1001": creditLimitCents: 5000000
+customers: "cust-1002": ledgerId: 4503599627370496 # 2^52: safely inside plain integer
+customers: "cust-1002": name: "Nordwind Logistics AB"
+customers: "cust-1002": country: "SE"
+customers: "cust-1002": currency: "SEK"
 
 # --- Orders -----------------------------------------------------------
 orders: {
@@ -63,38 +57,34 @@ orders: {
     placed: "2026-08-01"
     lines: [
       {
-        sku: "sku-valve-basic", qty: 2, unitCents: 1999,
+        sku: "sku-valve-basic"
+        qty: 2
+        unitCents: 1999
         # No '*', so "qty 2" is spelled as unit + unit -- the honest
         # per-record spot check (README, gap 3).
-        amountCents: 3998 & must(.unitCents + .unitCents,
-                                 "amountCents != 2 x unitCents")
-      },
+        amountCents: 3998 & must(.unitCents + .unitCents, "amountCents != 2 x unitCents")
+      }
       {
-        sku: "sku-gasket-set", qty: 1, unitCents: 10,
+        sku: "sku-gasket-set"
+        qty: 1
+        unitCents: 10
         amountCents: 10 & must(.unitCents, "amountCents != 1 x unitCents")
       }
     ]
   }
-  "ord-7002": {
-    customerId: path("$.customers.cust-1002")
-    placed: "2026-08-14"
-    # status omitted: the *"open" default in domain.aon fills it.
-    lines: [
-      { sku: "sku-seal-ring", qty: 1, unitCents: 20, amountCents: 20 }
-    ]
-  }
+  "ord-7002": customerId: path("$.customers.cust-1002")
+  "ord-7002": placed: "2026-08-14"
+  # status omitted: the *"open" default in domain.aon fills it.
+  "ord-7002": lines: [{ sku:"sku-seal-ring" qty:1 unitCents:20 amountCents:20 }]
 }
 
 # --- Invoices ---------------------------------------------------------
-invoices: {
-  "inv-3001": {
-    orderId: path("$.orders.ord-7001")
-    currency: "EUR"
-    netCents: 4008       # 3998 + 10, the two ord-7001 lines
-    taxCents: 762        # 19% VAT, computed OFF-model: no '*' in-model
-    grossCents: 4770 & must(.netCents + .taxCents,
-                            "grossCents != netCents + taxCents")
-  }
+invoices: "inv-3001": {
+  orderId: path("$.orders.ord-7001")
+  currency: "EUR"
+  netCents: 4008 # 3998 + 10, the two ord-7001 lines
+  taxCents: 762 # 19% VAT, computed OFF-model: no '*' in-model
+  grossCents: 4770 & must(.netCents + .taxCents, "grossCents != netCents + taxCents")
 }
 
 # --- Generated: one receivables account per customer ------------------
@@ -114,7 +104,5 @@ receivables: pack($.customers, {
 
 # --- Reconciliation ---------------------------------------------------
 # The classic decimal identity, stated in both record channels.
-reconcile: {
-  centsPath: (10 + 20) & 30              # integer cents: exact
-  exactPath: (0d0.1 + 0d0.2) & 0d0.3    # exact decimals: also exact
-}
+reconcile: centsPath: (10 + 20) & 30 # integer cents: exact
+reconcile: exactPath: (0d0.1 + 0d0.2) & 0d0.3 # exact decimals: also exact

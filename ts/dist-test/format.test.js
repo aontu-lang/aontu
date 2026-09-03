@@ -128,6 +128,41 @@ function aonFiles(dir, out = []) {
         Assert.equal(ok.verdict, 'formatted');
         Assert.deepEqual(seen, ['{"a":1}', 'a: 1\n']);
     });
+    // THE LAWFUL TIER'S CHECK (FMT.0.md §7.3). A merge or a repeat stays
+    // only where the engine agrees the two spellings meet the same; the
+    // hook stands in for the engine, and sees both spellings.
+    (0, node_test_1.test)('format-keeps-the-spelling-the-engine-refuses', () => {
+        const seen = [];
+        const keep = (0, aontu_1.format)('s: a: 1\ns: b: 2\n', undefined, {
+            meet: (before, after) => (seen.push([before, after]), false),
+        });
+        Assert.equal(keep.verdict, 'formatted');
+        Assert.equal(keep.text, 's: a: 1\ns: b: 2\n');
+        Assert.equal(keep.changed, false);
+        Assert.deepEqual(seen, [['s: a: 1\ns: b: 2\n', 's: { a:1 b:2 }\n']]);
+        const take = (0, aontu_1.format)('s: a: 1\ns: b: 2\n', undefined, { meet: () => true });
+        Assert.equal(take.text, 's: { a:1 b:2 }\n');
+        // A statement inside a block is checked at its indentation, and
+        // only it keeps its spelling before.
+        const W = 'x'.repeat(60);
+        const block = 's: {\n  a: 1\n  b: [\n    ' + W + '\n    ' + W + '\n  ]\n';
+        seen.length = 0;
+        const V = 'y'.repeat(70);
+        const inner = (0, aontu_1.format)(block + '  c: { ' + V + ': 1 d: 2 }\n}\n', undefined, {
+            meet: (before, after) => (seen.push([before, after]), false),
+        });
+        Assert.equal(inner.text, block + '  c: {\n    ' + V + ': 1\n    d: 2\n  }\n}\n');
+        Assert.deepEqual(seen, [[
+                '  c: {\n    ' + V + ': 1\n    d: 2\n  }\n',
+                '  c: ' + V + ': 1\n  c: d: 2\n',
+            ]]);
+        // The engine's own repros: §76 of use-cases/BUGS.md is a map this
+        // port evaluates differently as one map and as three statements,
+        // so the merge is refused here and taken by Go. Goes with §76.
+        const repro = Fs.readFileSync(Path.join(repoRoot(), 'use-cases', 'repros', 'key-func', 'spread-key-through-deep-ref.aon'), 'utf8');
+        const kept = (0, aontu_1.format)(repro);
+        Assert.ok(kept.text.includes('a: b: c: d: e: $.a.b.f\na: b: f: { &: { n:key() } }\na: b: f: x: {}\n'), kept.text);
+    });
     (0, node_test_1.test)('unified-diff', () => {
         Assert.equal((0, aontu_1.unifiedDiff)('x', 'a\n', 'a\n'), '');
         Assert.equal((0, aontu_1.unifiedDiff)('x', '', ''), '');

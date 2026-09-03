@@ -25,17 +25,21 @@
 # ports agree byte for byte, which check.sh asserts.
 @"./model.aon"
 
-units: [&: {
-  head: `CREATE TABLE "` + .sql + `" (`
-  rows: [&: {
-    out: `  "` + .sql + `" ` +
-         match(.t, "string", `TEXT`, "integer", `BIGINT`) +
-         match(.req, true, ` NOT NULL`, false, ``)
-  }] & .fields
-  body: join(pick(.rows, out), `,\n`)
-  tail: `);`
-  text: .head + `\n` + .body + `\n` + .tail
-}] & $.records
+units: [
+  &: {
+    head: `CREATE TABLE "` + .sql + `" (`
+    rows: [
+      &: {
+        out: `  "` + .sql + `" `
+          + match(.t, "string", `TEXT`, "integer", `BIGINT`)
+          + match(.req, true, ` NOT NULL`, false, ``)
+      }
+    ] & .fields
+    body: join(pick(.rows, out), `,\n`)
+    tail: `);`
+    text: .head + `\n` + .body + `\n` + .tail
+  }
+] & $.records
 
 # THE WHOLE FILE, one string.
 file: join(pick($.units, text), `\n\n`) + `\n`

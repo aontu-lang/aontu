@@ -10,7 +10,7 @@
 # git tag), NOT in this document -- a concrete "1.0.0" string would be
 # compared by the breaking gate and read as a narrowing when it bumps.
 # See README "Gaps".
-aontu_policy: hide({compat: *backward | forward | full | none})
+aontu_policy: hide({ compat:*backward | forward | full | none })
 
 profile: close({
   # Customer number: C + 7 digits, assigned by billing at signup.
@@ -31,8 +31,5 @@ profile: close({
 
   # Privacy consent flags; absent flags default to refused, which is
   # safe because a boolean default is only overridable by a boolean.
-  consent: close({
-    marketing: *false | boolean
-    analytics: *false | boolean
-  })
+  consent: close({ marketing:*false | boolean analytics:*false | boolean })
 })

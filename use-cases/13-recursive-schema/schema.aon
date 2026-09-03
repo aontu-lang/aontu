@@ -6,7 +6,6 @@
 # concrete data, stays symbolic in canon and the hash, and refuses at
 # generation only where a REQUIRED recursive position never met data.
 spec: hide({
-
   Step: {
     approver: string & re("^[a-z]+@acme[.]example$")
     decision: *pending | pending | approved | rejected
@@ -17,8 +16,5 @@ spec: hide({
   }
 
   # The whole-policy shape: a named root step.
-  Policy: {
-    name: string
-    chain: $.spec.Step
-  }
+  Policy: { name:string chain:$.spec.Step }
 })

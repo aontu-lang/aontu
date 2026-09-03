@@ -13,77 +13,57 @@ deploy: regions: {
   eu1: clusters: {
     core: workloads: {
       &: $.spec.Workload
-      payments: {
-        owner: $.catalog.domains.payments.services.payments.owner
-        tier:  $.catalog.domains.payments.services.payments.tier
+      payments: owner: $.catalog.domains.payments.services.payments.owner
+      payments: tier: $.catalog.domains.payments.services.payments.tier
 
-        image: "registry.acme.internal/payments:2.14.1"
-        replicas: 6
-        ports: {http: {number: 8080, protocol: http}}
-      }
-      ledger: {
-        owner: $.catalog.domains.payments.services.ledger.owner
-        tier:  $.catalog.domains.payments.services.ledger.tier
+      payments: image: "registry.acme.internal/payments:2.14.1"
+      payments: replicas: 6
+      payments: ports: http: { number:8080 protocol:http }
+      ledger: owner: $.catalog.domains.payments.services.ledger.owner
+      ledger: tier: $.catalog.domains.payments.services.ledger.tier
 
-        image: "registry.acme.internal/ledger:1.9.0"
-        replicas: 3
-        ports: {grpc: {number: 9443, protocol: grpc}}
-      }
-      risk: {
-        owner: $.catalog.domains.payments.services.risk.owner
-        tier:  $.catalog.domains.payments.services.risk.tier
+      ledger: image: "registry.acme.internal/ledger:1.9.0"
+      ledger: replicas: 3
+      ledger: ports: grpc: { number:9443 protocol:grpc }
+      risk: owner: $.catalog.domains.payments.services.risk.owner
+      risk: tier: $.catalog.domains.payments.services.risk.tier
 
-        image: "registry.acme.internal/risk:0.31.2"
-        ports: {grpc: {number: 9443, protocol: grpc}}
-      }
-      auth: {
-        owner: $.catalog.domains.identity.services.auth.owner
-        tier:  $.catalog.domains.identity.services.auth.tier
+      risk: image: "registry.acme.internal/risk:0.31.2"
+      risk: ports: grpc: { number:9443 protocol:grpc }
+      auth: owner: $.catalog.domains.identity.services.auth.owner
+      auth: tier: $.catalog.domains.identity.services.auth.tier
 
-        image: "registry.acme.internal/auth:5.2.0"
-        replicas: 4
-        ports: {http: {number: 8443, protocol: https}}
-      }
-      directory: {
-        owner: $.catalog.domains.identity.services.directory.owner
-        tier:  $.catalog.domains.identity.services.directory.tier
+      auth: image: "registry.acme.internal/auth:5.2.0"
+      auth: replicas: 4
+      auth: ports: http: { number:8443 protocol:https }
+      directory: owner: $.catalog.domains.identity.services.directory.owner
+      directory: tier: $.catalog.domains.identity.services.directory.tier
 
-        image: "registry.acme.internal/directory:3.0.4"
-        ports: {http: {number: 8080, protocol: http}}
-      }
+      directory: image: "registry.acme.internal/directory:3.0.4"
+      directory: ports: http: { number:8080 protocol:http }
     }
     edge: workloads: {
       &: $.spec.Workload
-      gateway: {
-        owner: $.catalog.domains.platform.services.gateway.owner
-        tier:  $.catalog.domains.platform.services.gateway.tier
+      gateway: owner: $.catalog.domains.platform.services.gateway.owner
+      gateway: tier: $.catalog.domains.platform.services.gateway.tier
 
-        image: "registry.acme.internal/gateway:4.7.3"
-        replicas: 8
-        ports: {
-          public: {number: 443, protocol: https}
-          admin: {number: 9901, protocol: http, direction: inout}
-        }
-      }
+      gateway: image: "registry.acme.internal/gateway:4.7.3"
+      gateway: replicas: 8
+      gateway: ports: public: { number:443 protocol:https }
+      gateway: ports: admin: { number:9901 protocol:http direction:inout }
     }
   }
-  us1: clusters: {
-    comms: workloads: {
-      &: $.spec.Workload
-      notify: {
-        owner: $.catalog.domains.platform.services.notify.owner
-        tier:  $.catalog.domains.platform.services.notify.tier
+  us1: clusters: comms: workloads: {
+    &: $.spec.Workload
+    notify: owner: $.catalog.domains.platform.services.notify.owner
+    notify: tier: $.catalog.domains.platform.services.notify.tier
 
-        image: "registry.acme.internal/notify:0.12.0"
-        ports: {http: {number: 8080, protocol: http}}
-      }
-      email: {
-        owner: $.catalog.domains.platform.services.email.owner
-        tier:  $.catalog.domains.platform.services.email.tier
+    notify: image: "registry.acme.internal/notify:0.12.0"
+    notify: ports: http: { number:8080 protocol:http }
+    email: owner: $.catalog.domains.platform.services.email.owner
+    email: tier: $.catalog.domains.platform.services.email.tier
 
-        image: "registry.acme.internal/email:2.2.7"
-        ports: {smtp: {number: 2525, protocol: smtp, direction: out}}
-      }
-    }
+    email: image: "registry.acme.internal/email:2.2.7"
+    email: ports: smtp: { number:2525 protocol:smtp direction:out }
   }
 }

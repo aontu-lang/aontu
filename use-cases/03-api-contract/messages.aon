@@ -4,25 +4,24 @@
 # enforcement under `vet --at` (README, gap 2).
 
 msg: {
-
   CreateUserRequest: close({
     email: $.types.Email
-    name:  $.types.DisplayName
-    role:  $.types.Role
+    name: $.types.DisplayName
+    role: $.types.Role
     # Invitations send an email unless explicitly suppressed.
     send_invite?: boolean
   })
 
   ListUsersQuery: close({
-    page?:      $.types.Page
+    page?: $.types.Page
     page_size?: $.types.PageSize
-    role?:      $.types.Role
+    role?: $.types.Role
     sort?: "name" | "-name" | "created_at" | "-created_at"
   })
 
   CreateProjectRequest: close({
-    slug:        $.types.Slug
-    name:        $.types.DisplayName
+    slug: $.types.Slug
+    name: $.types.DisplayName
     visibility?: $.types.Visibility
   })
 
@@ -31,9 +30,9 @@ msg: {
   # (README, gap 1). check.sh pins the failure; user-page.aon is the
   # working root-anchored duplicate of these four fields.
   UserPage: close({
-    items:     [ &: $.entities.User ]
-    page:      $.types.Page
+    items: [&: $.entities.User]
+    page: $.types.Page
     page_size: $.types.PageSize
-    total:     integer & min(0)
+    total: integer & min(0)
   })
 }

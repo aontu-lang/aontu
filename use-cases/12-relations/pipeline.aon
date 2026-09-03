@@ -5,24 +5,13 @@
 pipeline: jobs: {
   &: $.spec.Job
 
-  extract: {
-    cmd: "fetch --source api"
-    feeds: [path($.pipeline.jobs.transform)]
-  }
+  extract: { cmd:"fetch --source api" feeds:[path($.pipeline.jobs.transform)] }
 
-  transform: {
-    cmd: "clean --dedup"
-    fedBy: [path($.pipeline.jobs.extract)]
-    feeds: [path($.pipeline.jobs.load), path($.pipeline.jobs.audit)]
-  }
+  transform: cmd: "clean --dedup"
+  transform: fedBy: [path($.pipeline.jobs.extract)]
+  transform: feeds: [path($.pipeline.jobs.load) path($.pipeline.jobs.audit)]
 
-  load: {
-    cmd: "warehouse --commit"
-    fedBy: [path($.pipeline.jobs.transform)]
-  }
+  load: { cmd:"warehouse --commit" fedBy:[path($.pipeline.jobs.transform)] }
 
-  audit: {
-    cmd: "report --daily"
-    fedBy: [path($.pipeline.jobs.transform)]
-  }
+  audit: { cmd:"report --daily" fedBy:[path($.pipeline.jobs.transform)] }
 }

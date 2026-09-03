@@ -239,8 +239,8 @@ merged model, `get` slices and query results; grep-by-error-code
    ```
    $ aontu why '$.deploy.regions.eu1.clusters.core.workloads.payments.replicas' system.aon
    $.deploy.regions.eu1.clusters.core.workloads.payments.replicas = 6
-     1. 6  .../deploy.aon:21:19
-     2. *2|(min(1)&max(48)&integer)  .../spec.aon:52:15
+     1. 6  .../deploy.aon:20:27
+     2. *2|(min(1)&max(48)&integer)  .../spec.aon:83:15
    ```
 
 7. `aontu why` on a field the workload takes from the catalog names
@@ -250,8 +250,8 @@ merged model, `get` slices and query results; grep-by-error-code
    ```
    $ aontu why '$.deploy.regions.eu1.clusters.core.workloads.payments.tier' system.aon
    $.deploy.regions.eu1.clusters.core.workloads.payments.tier = 1
-     1. $.catalog.domains.payments.services.payments.tier  .../deploy.aon:18:16  (ref)
-     2. (1|2)|3  .../spec.aon:27:11
+     1. $.catalog.domains.payments.services.payments.tier  .../deploy.aon:17:23  (ref)
+     2. (1|2)|3  .../spec.aon:58:11
    ```
 
 8. The instance-of queries are right: `$.query.tier1` is `auth`,
@@ -307,7 +307,7 @@ merged model, `get` slices and query results; grep-by-error-code
       expected: re("^team-[a-z]+$")
       actual:   "platform crew"
       data: data/candidate-malformed.json:3:12 ("platform crew")
-      schema: spec.aon:62:21 (re("^team-[a-z]+$"))
+      schema: spec.aon:36:18 (re("^team-[a-z]+$"))
     $.teir: closed [conflict]
       [aontu/closed]: Cannot resolve value at path $.teir
       data: data/candidate-malformed.json:4:11 (2)

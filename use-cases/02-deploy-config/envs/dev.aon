@@ -3,6 +3,4 @@
 # own concrete value on top.  Log level is NOT set here: dev inherits
 # the team's **debug default, which check.sh asserts.
 
-deploy: dev: workloads: &: {
-  replicas: *1 | integer
-}
+deploy: dev: workloads: { &: { replicas:*1 | integer } }

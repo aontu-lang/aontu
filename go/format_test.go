@@ -125,6 +125,89 @@ func TestFormatRefusesItsOwnDefect(t *testing.T) {
 	}
 }
 
+// THE LAWFUL TIER'S CHECK (FMT.0.md §7.3). A merge or a repeat stays
+// only where the engine agrees the two spellings meet the same; the
+// check is a package variable so the spelling it keeps can be
+// exercised, and it sees both spellings.
+func TestFormatKeepsTheSpellingTheEngineRefuses(t *testing.T) {
+	orig := formatMeet
+	defer func() { formatMeet = orig }()
+
+	var seen [][2]string
+	formatMeet = func(before, after string) bool {
+		seen = append(seen, [2]string{before, after})
+		return false
+	}
+	keep := New().Format("s: a: 1\ns: b: 2\n")
+	if "formatted" != keep.Verdict || "s: a: 1\ns: b: 2\n" != keep.Text || keep.Changed {
+		t.Fatalf("kept: %+v", keep)
+	}
+	if 1 != len(seen) || "s: a: 1\ns: b: 2\n" != seen[0][0] || "s: { a:1 b:2 }\n" != seen[0][1] {
+		t.Fatalf("seen: %q", seen)
+	}
+
+	formatMeet = func(before, after string) bool { return true }
+	if take := New().Format("s: a: 1\ns: b: 2\n"); "s: { a:1 b:2 }\n" != take.Text {
+		t.Fatalf("taken: %q", take.Text)
+	}
+
+	// A statement inside a block is checked at its indentation, and
+	// only it keeps its spelling before.
+	W := strings.Repeat("x", 60)
+	block := "s: {\n  a: 1\n  b: [\n    " + W + "\n    " + W + "\n  ]\n"
+	seen = nil
+	formatMeet = func(before, after string) bool {
+		seen = append(seen, [2]string{before, after})
+		return false
+	}
+	V := strings.Repeat("y", 70)
+	inner := New().Format(block + "  c: { " + V + ": 1 d: 2 }\n}\n")
+	if block+"  c: {\n    "+V+": 1\n    d: 2\n  }\n}\n" != inner.Text {
+		t.Fatalf("inner: %q", inner.Text)
+	}
+	if 1 != len(seen) || "  c: {\n    "+V+": 1\n    d: 2\n  }\n" != seen[0][0] ||
+		"  c: "+V+": 1\n  c: d: 2\n" != seen[0][1] {
+		t.Fatalf("inner seen: %q", seen)
+	}
+
+	// The real check: the meet, and the kinds of failure, not their
+	// count -- one unresolved reference is reported once by a block
+	// and once per key it reaches by the statements.
+	formatMeet = orig
+	if !formatSameByMeet("s: a: $.t\ns: b: 2\n", "s: { a:$.t b:2 }\n") {
+		t.Fatal("the same unresolved reference")
+	}
+	if formatSameByMeet("s: a: 1\n", "s: a: 2\n") {
+		t.Fatal("a different value")
+	}
+	if !formatSameByMeet("c: { &: $.e }\nc: a: 1\nc: b: 2\n", "c: { &: $.e a:1 b:2 }\n") {
+		t.Fatal("no_path once and no_path thrice are one kind")
+	}
+
+	// The outcome of generation is compared as GenerateVars decides it:
+	// a nil root's own kind, and the relation verdict after a
+	// generation that succeeded.
+	if !formatSameByMeet("nil\n", "nil\n") || !strings.HasSuffix(formatMeetOf("nil\n"), "\nliteral_nil") {
+		t.Fatalf("nil root: %q", formatMeetOf("nil\n"))
+	}
+	rel := "a: { dependsOn: rel() & inverse(usedBy) & [path($.b)] }\nb: {}\n"
+	if !strings.HasSuffix(formatMeetOf(rel), "\nrelation_inverse_missing") {
+		t.Fatalf("relation verdict: %q", formatMeetOf(rel))
+	}
+
+	// The engine's own repros: §76 of use-cases/BUGS.md is a map the
+	// TypeScript port evaluates differently as one map and as three
+	// statements, so the merge is refused there and taken here. Goes
+	// with §76.
+	raw, err := os.ReadFile(filepath.Join("..", "use-cases", "repros", "key-func", "spread-key-through-deep-ref.aon"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if taken := New().Format(string(raw)); !strings.Contains(taken.Text, "a: b: { c:d:e:$.a.b.f f:{ &: { n:key() } x:{} } }\n") {
+		t.Fatalf("repro: %q", taken.Text)
+	}
+}
+
 func (a *Aontu) mustParse(t *testing.T, src string) Val {
 	t.Helper()
 	v, err := a.Parse(src)

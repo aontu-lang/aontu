@@ -21,16 +21,20 @@
 # ports agree byte for byte, which check.sh asserts.
 @"./model.aon"
 
-units: [&: {
-  head: `export interface ` + .name + ` {`
-  rows: [&: {
-    out: `  ` + .n + match(.req, true, ``, false, `?`) + `: ` +
-         match(.t, "string", `string`, "integer", `number`)
-  }] & .fields
-  body: join(pick(.rows, out), `\n`)
-  tail: `}`
-  text: .head + `\n` + .body + `\n` + .tail
-}] & $.records
+units: [
+  &: {
+    head: `export interface ` + .name + ` {`
+    rows: [
+      &: {
+        out: `  ` + .n + match(.req, true, ``, false, `?`) + `: `
+          + match(.t, "string", `string`, "integer", `number`)
+      }
+    ] & .fields
+    body: join(pick(.rows, out), `\n`)
+    tail: `}`
+    text: .head + `\n` + .body + `\n` + .tail
+  }
+] & $.records
 
 # THE WHOLE FILE, one string.
 file: join(pick($.units, text), `\n\n`) + `\n`

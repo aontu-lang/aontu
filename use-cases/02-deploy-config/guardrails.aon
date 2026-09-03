@@ -30,11 +30,15 @@ common: hide({
   }
 })
 
-deploy: dev: workloads: &: $.common.workload
-deploy: staging: workloads: &: $.common.workload
+deploy: {
+  dev: workloads: { &: $.common.workload }
+  staging: workloads: { &: $.common.workload }
 
-# Production additionally has an HA floor, with an author message that
-# is surfaced verbatim when it fires ([aontu/must], probes/must-floor.aon).
-deploy: prod: workloads: &: $.common.workload & {
-  replicas: must(min(2), "prod workloads need >= 2 replicas for zero-downtime rollouts")
+  # Production additionally has an HA floor, with an author message that
+  # is surfaced verbatim when it fires ([aontu/must], probes/must-floor.aon).
+  prod: workloads: {
+    &: $.common.workload & {
+      replicas: must(min(2), "prod workloads need >= 2 replicas for zero-downtime rollouts")
+    }
+  }
 }

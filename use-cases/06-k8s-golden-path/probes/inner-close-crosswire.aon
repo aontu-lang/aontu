@@ -7,7 +7,7 @@
 # expected/inner-close-crosswire.json (web and auth each correctly
 # named).  Shared spec pin: test/spec/gen-close.tsv
 # close-template-keys-per-child.
-names: [web, auth]
-col: { web: { p: 1 }, auth: { p: 2 } }
-deploy: close(pack($.names, close({ name: key(), extra: { p: integer } })))
-deploy: pack($.col, { extra: _ })
+names: [web auth]
+col: { web:p:1 auth:p:2 }
+deploy: close(pack($.names, close({ name:key() extra:p:integer })))
+deploy: pack($.col, { extra:_ })

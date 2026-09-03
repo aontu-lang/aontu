@@ -8,7 +8,7 @@ catalog: domains: {
   payments: {
     team: "team-payments"
     services: {
-      &: $.spec.CatalogEntry & {owner: "team-payments"}
+      &: $.spec.CatalogEntry & { owner:"team-payments" }
       payments: {
         tier: 1
         description: "Card payment orchestration and capture API."
@@ -20,23 +20,19 @@ catalog: domains: {
         ]
         dependedOnBy: [path($.catalog.domains.platform.services.gateway)]
       }
-      ledger: {
-        tier: 1
-        description: "Double-entry ledger of record for money movement."
-        dependedOnBy: [path($.catalog.domains.payments.services.payments)]
-      }
-      risk: {
-        tier: 2
-        description: "Transaction risk scoring and fraud rules engine."
-        dependsOn: [path($.catalog.domains.identity.services.directory)]
-        dependedOnBy: [path($.catalog.domains.payments.services.payments)]
-      }
+      ledger: tier: 1
+      ledger: description: "Double-entry ledger of record for money movement."
+      ledger: dependedOnBy: [path($.catalog.domains.payments.services.payments)]
+      risk: tier: 2
+      risk: description: "Transaction risk scoring and fraud rules engine."
+      risk: dependsOn: [path($.catalog.domains.identity.services.directory)]
+      risk: dependedOnBy: [path($.catalog.domains.payments.services.payments)]
     }
   }
   identity: {
     team: "team-identity"
     services: {
-      &: $.spec.CatalogEntry & {owner: "team-identity"}
+      &: $.spec.CatalogEntry & { owner:"team-identity" }
       auth: {
         tier: 1
         description: "OAuth2 token issuing and session verification."
@@ -59,7 +55,7 @@ catalog: domains: {
   platform: {
     team: "team-platform"
     services: {
-      &: $.spec.CatalogEntry & {owner: "team-platform"}
+      &: $.spec.CatalogEntry & { owner:"team-platform" }
       gateway: {
         tier: 1
         description: "Public API edge gateway and request routing."
@@ -68,18 +64,14 @@ catalog: domains: {
           path($.catalog.domains.identity.services.auth)
         ]
       }
-      notify: {
-        tier: 3
-        lifecycle: experimental
-        description: "Customer notification fan-out orchestration."
-        dependsOn: [path($.catalog.domains.platform.services.email)]
-        dependedOnBy: [path($.catalog.domains.payments.services.payments)]
-      }
-      email: {
-        tier: 3
-        description: "SMTP delivery with bounce and complaint tracking."
-        dependedOnBy: [path($.catalog.domains.platform.services.notify)]
-      }
+      notify: tier: 3
+      notify: lifecycle: experimental
+      notify: description: "Customer notification fan-out orchestration."
+      notify: dependsOn: [path($.catalog.domains.platform.services.email)]
+      notify: dependedOnBy: [path($.catalog.domains.payments.services.payments)]
+      email: tier: 3
+      email: description: "SMTP delivery with bounce and complaint tracking."
+      email: dependedOnBy: [path($.catalog.domains.platform.services.notify)]
     }
   }
 }

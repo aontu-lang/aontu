@@ -14,9 +14,12 @@ platform: hide({
   # service name.  A ranked default (**key(8)|string) at the env list
   # does NOT work: see probes/pref-key-crosswire.aon.
   baseEnv: {
-    LOG_LEVEL:         { name: LOG_LEVEL, value: *info | string }
-    OTEL_EXPORTER_URL: { name: OTEL_EXPORTER_URL, value: "http://otel-collector.observability:4317" }
-    OTEL_SERVICE_NAME: { name: OTEL_SERVICE_NAME }
+    LOG_LEVEL: { name:LOG_LEVEL value:*info | string }
+    OTEL_EXPORTER_URL: {
+      name: OTEL_EXPORTER_URL
+      value: "http://otel-collector.observability:4317"
+    }
+    OTEL_SERVICE_NAME: name: OTEL_SERVICE_NAME
   }
 })
 
@@ -28,7 +31,7 @@ platform: hide({
 # (probes/hide-pack-loss.aon).
 internal: hide({
   envmaps: pack($.svc.extraEnv, _ & copy($.platform.baseEnv) & {
-    OTEL_SERVICE_NAME: { value: key(2) }    # key(2) = the service name
+    OTEL_SERVICE_NAME: value: key(2) # key(2) = the service name
   })
 })
 
@@ -40,26 +43,40 @@ deploy: close(pack($.svc.names, {
   apiVersion: "apps/v1"
   kind: Deployment
   metadata: {
-    name: key(2)                            # depth-counted by hand
+    name: key(2) # depth-counted by hand
     namespace: $.platform.namespace
-    labels: { "app.kubernetes.io/name": key(3), "app.kubernetes.io/managed-by": aontu }
+    labels: {
+      "app.kubernetes.io/name": key(3)
+      "app.kubernetes.io/managed-by": aontu
+    }
   }
   spec: {
-    replicas: *2 | integer                  # bounds live in guardrails.aon:
-                                            # a default AND min/max cannot
-                                            # coexist inline (probes/default-with-bounds.aon)
+    replicas: *2 | integer # bounds live in guardrails.aon:
+    # a default AND min/max cannot
+    # coexist inline (probes/default-with-bounds.aon)
     selector: matchLabels: app: key(4)
     template: {
       metadata: labels: app: key(5)
-      spec: containers: [ {
-        name: key(6)                        # six levels up to the service name
-        image: string                       # required: filled by the version pack
-        ports: [ &: close({ name: string, containerPort: integer & min(1) & max(65535)
-                            port: integer, targetPort: integer, protocol: string }) ] & unique()
-        env: [ &: { name: string } ] & unique()
-        resources: { requests: { cpu: string, memory: string }
-                     limits:   { cpu: string, memory: string } }
-      } ]
+      spec: containers: [
+        {
+          name: key(6) # six levels up to the service name
+          image: string # required: filled by the version pack
+          ports: [
+            &: close({
+              name: string
+              containerPort: integer & min(1) & max(65535)
+              port: integer
+              targetPort: integer
+              protocol: string
+            })
+          ] & unique()
+          env: [&: { name:string }] & unique()
+          resources: {
+            requests: { cpu:string memory:string }
+            limits: { cpu:string memory:string }
+          }
+        }
+      ]
     }
   }
 }))
@@ -69,25 +86,40 @@ deploy: close(pack($.svc.names, {
 # its source row (probes/ref-in-pack-template.aon, probes/hole-member-access.aon),
 # so every per-service attribute arrives through its own pack, keyed by
 # service name, with _ as exactly the value that nested position needs.
-deploy: pack($.svc.version, { spec: template: spec: containers: [ {
-  image: $.platform.registry + "/" + key(6) + ":" + _ } ] })
+deploy: pack($.svc.version, {
+  spec: template: spec: containers: [
+    image: $.platform.registry + "/" + key(6) + ":" + _
+  ]
+})
 
-deploy: pack($.svc.ports, { spec: template: spec: containers: [ {
-  ports: each(_, { protocol: *TCP | string }) } ] })
+deploy: pack($.svc.ports, {
+  spec: template: spec: containers: [ports:each(_, { protocol:*TCP | string })]
+})
 
-deploy: pack($.internal.envmaps, { spec: template: spec: containers: [ {
-  env: each(_) } ] })
+deploy: pack($.internal.envmaps, { spec:template:spec:containers:[env:each(_)] })
 
 # Resource tiers: match() on the tier column value; every quantity is a
 # ranked default so a team may still override one field (overrides.aon).
 # Quantities are strings ("500m", "512Mi"): there is no unit arithmetic,
 # and doubling a tier for prod cannot be computed (probes/multiply.aon,
 # probes/double-from-default.aon) -- the doubled figures are written out.
-deploy: pack($.svc.tier, { spec: template: spec: containers: [ { resources: match(_,
-  small, { requests: { cpu: *"250m"|string,  memory: *"256Mi"|string }
-           limits:   { cpu: *"500m"|string,  memory: *"512Mi"|string } },
-  large, { requests: { cpu: *"1000m"|string, memory: *"1024Mi"|string }
-           limits:   { cpu: *"2000m"|string, memory: *"2048Mi"|string } }) } ] })
+deploy: pack($.svc.tier, {
+  spec: template: spec: containers: [
+    resources: match(
+      _,
+      small,
+      {
+        requests: { cpu:*"250m" | string memory:*"256Mi" | string }
+        limits: { cpu:*"500m" | string memory:*"512Mi" | string }
+      },
+      large,
+      {
+        requests: { cpu:*"1000m" | string memory:*"1024Mi" | string }
+        limits: { cpu:*"2000m" | string memory:*"2048Mi" | string }
+      }
+    )
+  ]
+})
 
 # One Service per entry in the ports column.  The port entries are
 # authored once with the superset of both shapes (containerPort for the
@@ -96,9 +128,9 @@ deploy: pack($.svc.tier, { spec: template: spec: containers: [ { resources: matc
 service: close(pack($.svc.ports, {
   apiVersion: "v1"
   kind: Service
-  metadata: { name: key(2), namespace: $.platform.namespace }
+  metadata: { name:key(2) namespace:$.platform.namespace }
   spec: {
     selector: app: key(3)
-    ports: each(_, { protocol: *TCP | string }) & unique()
+    ports: each(_, { protocol:*TCP | string }) & unique()
   }
 }))

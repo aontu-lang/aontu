@@ -2,7 +2,4 @@
 # its own key with key().  Path-dependent templates cannot be
 # compared structurally by subsume; the verdict must be undecided
 # with sub_path_dependent_spread / sub_unresolved.
-routes: {
-  &: { name: string, shard: string }
-  emea: { name: "emea", shard: "fra1" }
-}
+routes: { &: { name:string shard:string } emea:{ name:"emea" shard:"fra1" } }

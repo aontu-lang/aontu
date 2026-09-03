@@ -1,0 +1,21 @@
+# 76: the document of §50 written as ONE map -- the three statements
+# merged, which is what `aontu fmt` would write for them -- answers
+# differently in TypeScript: the template's key() gives "n" for f.x,
+# not "x". Go answers "x" in both spellings.
+#
+# run: node ../../../ts/bin/aontu.js spread-key-through-deep-ref-merged.aon
+# run: aontu-go spread-key-through-deep-ref-merged.aon
+#
+# expected (both ports, the answer both give the split spelling):
+#   {"a":{"b":{"c":{"d":{"e":{"x":{"n":"x"}}}},"f":{"x":{"n":"x"}}}}}
+#
+# actual (Go): as expected
+# actual (TypeScript):
+#   {"a":{"b":{"c":{"d":{"e":{"x":{"n":"x"}}}},"f":{"x":{"n":"n"}}}}}
+#
+# Found by the formatter's lawful-tier check (docs/design/FMT.0.md
+# §7.3): merging §50's three statements into one map is a rewrite the
+# check refused in TypeScript and accepted in Go, so `aontu fmt`
+# writes that repro differently in the two ports -- the split
+# spelling kept in TypeScript, the merged one in Go.
+a: b: { c:d:e:$.a.b.f f:{ &: { n:key() } x:{} } }

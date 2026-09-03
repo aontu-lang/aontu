@@ -7,18 +7,16 @@
 # per-service value is a conflict, which check.sh demonstrates in
 # probes/conflict.aon.
 
-deploy: prod: workloads: &: {
-  replicas: *4 | integer
-  logLevel: *warn | string
-  tracing: false            # concrete: tracing is never on in prod
-}
+deploy: prod: workloads: {
+  &: {
+    replicas: *4 | integer
+    logLevel: *warn | string
+    tracing: false # concrete: tracing is never on in prod
+  }
 
-# Payments peak capacity: billing runs wider than the env default.
-deploy: prod: workloads: billing: {
-  replicas: 12
-}
+  # Payments peak capacity: billing runs wider than the env default.
+  billing: replicas: 12
 
-# Auth keeps info logging in prod for audit trail correlation.
-deploy: prod: workloads: auth: {
-  logLevel: info
+  # Auth keeps info logging in prod for audit trail correlation.
+  auth: logLevel: info
 }

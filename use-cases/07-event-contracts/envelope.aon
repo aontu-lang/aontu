@@ -4,7 +4,6 @@
 # it (pins `type`, adds `payload`) and then seals it with close().
 
 Envelope: {
-
   # Producer-assigned event id: strictly positive, whole. Snowflake
   # and Kafka-offset style ids are 19 digits and overflow binary64,
   # so the schema must admit BOTH numeric leaves a whole number can

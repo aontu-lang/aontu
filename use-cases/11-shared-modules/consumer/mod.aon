@@ -1,5 +1,5 @@
 # The checkout team's project: what it wants, not what it has.
 # `aontu mod tidy` turns this into mod-lock.aon; `aontu mod vendor`
 # materialises the closure into aon_vendor/ (committed).
-mod: { path: "corp.example/checkout", main: "main.aon" }
-dep: { "corp.example/schemas/service@1": { v: "1.4.2" } }
+mod: { path:"corp.example/checkout" main:"main.aon" }
+dep: "corp.example/schemas/service@1": v: "1.4.2"

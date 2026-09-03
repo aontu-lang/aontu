@@ -4,13 +4,8 @@
 # no FINITE chain can satisfy it, because the last step's `then` is
 # demanded and no data ever arrives there. Generation refuses with
 # recursion_unexpanded at the exact position the chain ran out.
-strict: hide({
-  Step: {
-    approver: string
-    then: $.strict.Step
-  }
-})
+strict: hide({ Step:{ approver:string then:$.strict.Step } })
 doc: $.strict.Step & {
   approver: "lead@acme.example"
-  then: { approver: "cfo@acme.example" }
+  then: approver: "cfo@acme.example"
 }

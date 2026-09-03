@@ -7,6 +7,6 @@
 # Golden: expected/pref-key-crosswire.json (web and auth each carry
 # their own value).  Shared spec pin: test/spec/gen-pack.tsv
 # pack-rankpref-key-per-child.
-col: { web: {}, auth: {} }
-shared: { X: { name: X } }
-out: pack($.col, { env: each($.shared, { value: **key(3) | string }) })
+col: { web:{} auth:{} }
+shared: X: name: X
+out: pack($.col, { env:each($.shared, { value:**key(3) | string }) })

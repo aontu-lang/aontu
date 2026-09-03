@@ -7,6 +7,6 @@
 # the enclosing map: internal: hide({ envmaps: pack(...) })).
 # Golden: expected/hide-pack-loss.json (out.web.got carries a:1).
 # Shared spec pin: test/spec/marks.tsv hide-pack-downstream-pack.
-col: { web: { a: 1 } }
+col: web: a: 1
 envmaps: hide(pack($.col, _))
-out: pack($.envmaps, { got: _ })
+out: pack($.envmaps, { got:_ })

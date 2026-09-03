@@ -6,7 +6,7 @@
 #   * phone is deprecated in place; it still unifies exactly as in v1,
 #     the mark only rides the value and surfaces in vet / LSP / the
 #     breaking verb's --allow-deprecated-removal path.
-aontu_policy: hide({compat: *backward | forward | full | none})
+aontu_policy: hide({ compat:*backward | forward | full | none })
 
 profile: close({
   id: string & re("^C[0-9]{7}$")
@@ -37,8 +37,5 @@ profile: close({
 
   tier: "standard" | "premium" | "enterprise"
 
-  consent: close({
-    marketing: *false | boolean
-    analytics: *false | boolean
-  })
+  consent: close({ marketing:*false | boolean analytics:*false | boolean })
 })

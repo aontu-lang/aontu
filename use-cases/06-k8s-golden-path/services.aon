@@ -10,30 +10,28 @@
 # deploy set ([aontu/closed]), a missing version leaves image: string
 # ungenerable ([aontu/mapval_no_gen]).
 svc: hide({
-  names: [web, auth, billing]
+  names: [web auth billing]
 
-  version: { web: "1.4.2", auth: "0.9.1", billing: "2.0.0" }
+  version: { web:"1.4.2" auth:"0.9.1" billing:"2.0.0" }
 
-  tier: { web: small, auth: small, billing: large }
+  tier: { web:small auth:small billing:large }
 
   # Port entries are authored ONCE with the superset of the Deployment
   # shape (name, containerPort) and the Service shape (port, targetPort):
   # deriving port/targetPort from containerPort deadlocks the model or
   # fails to resolve (probes/spread-column-deadlock.aon).
   ports: {
-    web:     { http: { name: http, containerPort: 8080, port: 8080, targetPort: 8080 } }
-    auth:    { http: { name: http, containerPort: 8081, port: 8081, targetPort: 8081 }
-               grpc: { name: grpc, containerPort: 9090, port: 9090, targetPort: 9090 } }
-    billing: { http: { name: http, containerPort: 8082, port: 8082, targetPort: 8082 } }
+    web: http: { name:http containerPort:8080 port:8080 targetPort:8080 }
+    auth: {
+      http: { name:http containerPort:8081 port:8081 targetPort:8081 }
+      grpc: { name:grpc containerPort:9090 port:9090 targetPort:9090 }
+    }
+    billing: http: { name:http containerPort:8082 port:8082 targetPort:8082 }
   }
 
   # Per-service env additions/overrides, merged over platform.baseEnv at
   # the MAP level (so billing's debug beats the *info default) before the
   # k8s env LIST is generated.  Appending to a generated list directly is
   # impossible: lists unify by position (probes/env-append.aon).
-  extraEnv: {
-    web:     {}
-    auth:    {}
-    billing: { LOG_LEVEL: { name: LOG_LEVEL, value: debug } }
-  }
+  extraEnv: { web:{} auth:{} billing:LOG_LEVEL:{ name:LOG_LEVEL value:debug } }
 })

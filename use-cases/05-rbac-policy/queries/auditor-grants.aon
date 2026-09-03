@@ -1,9 +1,4 @@
 # The auditor role's grant set as a set-as-map projection. Kept by
 # hand, in step with roles.aon -- the language has no operator to
 # derive this projection from the list.
-grants: {
-  "project_read": true
-  "member_read": true
-  "billing_read": true
-  "audit_read": true
-}
+grants: { project_read:true member_read:true billing_read:true audit_read:true }

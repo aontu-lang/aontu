@@ -4,27 +4,26 @@
 # (README, gap 2), and these are vet anchors.
 
 entities: {
-
   User: close({
-    id:         $.types.UserId
-    email:      $.types.Email
-    name:       $.types.DisplayName
-    role:       $.types.Role
-    status:     "active" | "invited" | "suspended"
+    id: $.types.UserId
+    email: $.types.Email
+    name: $.types.DisplayName
+    role: $.types.Role
+    status: "active" | "invited" | "suspended"
     created_at: $.types.Timestamp
     # Optional: present only once the user uploaded one / signed in.
-    avatar_url?:   re("^https://[A-Za-z0-9.-]+/")
+    avatar_url?: re("^https://[A-Za-z0-9.-]+/")
     last_seen_at?: $.types.Timestamp
   })
 
   Project: close({
-    id:           $.types.ProjectId
-    slug:         $.types.Slug
-    name:         $.types.DisplayName
-    owner_id:     $.types.UserId
-    visibility:   $.types.Visibility
-    archived:     boolean
+    id: $.types.ProjectId
+    slug: $.types.Slug
+    name: $.types.DisplayName
+    owner_id: $.types.UserId
+    visibility: $.types.Visibility
+    archived: boolean
     member_count: integer & min(0)
-    created_at:   $.types.Timestamp
+    created_at: $.types.Timestamp
   })
 }

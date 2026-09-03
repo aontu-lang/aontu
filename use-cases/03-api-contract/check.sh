@@ -126,12 +126,12 @@ has vsubtle out '"admin"|"member"|"viewer"'
 # of the one it came from.
 #
 # THE FILE IS types.aon, and that is the second half of the same fix
-# (finding F, BUGS.md §25). The enum is declared in types.aon at 35:15
+# (finding F, BUGS.md §25). The enum is declared in types.aon at 34:9
 # and reached through an include; the site used to carry the ENTRY
 # file's name with the included file's coordinates -- and contract.aon
 # is nineteen lines long, so `contract.aon:35:15` named a line that
 # does not exist. Every site now names the file whose text it excerpts.
-has vsubtle out 'types.aon:35:15'
+has vsubtle out 'types.aon:34:9'
 ok "vet: bad email + bad enum refused; alternatives shown, enum site located"
 
 # Missing required field, non-enum: verdict incomplete, exit 3 -- the

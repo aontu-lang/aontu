@@ -103,18 +103,18 @@ grep -q 'no contributions' "$WORK/why.out" \
 ok "why: envelope-supplied field names the file that wrote it"
 
 # The price of the schema style: the contract never evaluates (and
-# the error snippet quotes the WRONG FILE: header envelope.aon:14,
+# the error snippet quotes the WRONG FILE: header envelope.aon:13,
 # body lines from orders-v1.aon).
 # 2026-08-27 (ADR-007): the refusal is now `disjunct_no_gen` on the
 # envelope's `id: (integer | biginteger) & min(1)` -- an unresolved
 # disjunction is incomplete residue rather than a folded conflict -- so
 # evaluation stops at that field instead of a later constraint. The
 # misattribution pin is unchanged and still the point: the frame header
-# names envelope.aon:14 (which IS where `id` is written) while the
+# names envelope.aon:13 (which IS where `id` is written) while the
 # quoted source lines come from orders-v1.aon.
 run geneval 1 -- "$V1"
 has geneval err '[aontu/disjunct_no_gen]'
-has geneval err 'envelope.aon:14:7'
+has geneval err 'envelope.aon:13:7'
 has geneval err 'customer_id'
 grep -q 'customer_id' "$DIR/envelope.aon" \
   && fail "envelope.aon now holds customer_id; misattribution pin stale" \

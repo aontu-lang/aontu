@@ -24,10 +24,5 @@ schema: {
     # README, "what worked", subsume). The view restates it:
     status: *"open" | string
   })
-  Invoice: type({
-    id: string
-    orderId: string
-    currency: string
-    grossCents: integer
-  })
+  Invoice: type({ id:string orderId:string currency:string grossCents:integer })
 }

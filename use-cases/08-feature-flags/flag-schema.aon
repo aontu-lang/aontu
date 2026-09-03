@@ -34,20 +34,18 @@
 # TEMPLATE, where an alias reference is not resolved and leaks into
 # canon as `$.%Date`, changing the document's `aon1-` hash: BUGS.md 73.
 # Here there is no spread, so the names cost nothing.
-%Key:         string & re("^[a-z][a-z0-9_.\\-]*$") & length(min(3)) & length(max(64))
-%Owner:       string & re("^[a-z0-9._\\-]+@acme\\.example$")
+%Key: string & re("^[a-z][a-z0-9_.\\-]*$") & length(min(3)) & length(max(64))
+%Owner: string & re("^[a-z0-9._\\-]+@acme\\.example$")
 %Description: string & length(min(12)) & length(max(160))
-%Date:        string & re("^\\d{4}-\\d{2}-\\d{2}$")
+%Date: string & re("^\\d{4}-\\d{2}-\\d{2}$")
 
-Flag: {
-  key: %Key
-  flag_type: "boolean" | "percentage" | "variant"
-  owner: %Owner
-  description: %Description
-  created: %Date
-  expiry: %Date
-  enabled: boolean
-  rollout: integer & min(0) & max(100)
-  variant?: string & re("^[a-z][a-z0-9\\-]*$")
-  message?: string & length(max(80))
-}
+Flag: key: %Key
+Flag: flag_type: "boolean" | "percentage" | "variant"
+Flag: owner: %Owner
+Flag: description: %Description
+Flag: created: %Date
+Flag: expiry: %Date
+Flag: enabled: boolean
+Flag: rollout: integer & min(0) & max(100)
+Flag: variant?: string & re("^[a-z][a-z0-9\\-]*$")
+Flag: message?: string & length(max(80))

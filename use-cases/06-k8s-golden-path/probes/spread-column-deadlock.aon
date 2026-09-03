@@ -6,6 +6,6 @@
 # (the snapshot waits for the settled source); check.sh pins the
 # working output as a golden.  Shared-spec pins: gen-pack.tsv
 # pack-over-spread-augmented, gen-each.tsv each-over-spread-augmented.
-ports: { web: { http: { name: http, containerPort: 8080 } } }
-ports: &: &: { port: .containerPort, targetPort: .containerPort }
-out: pack($.ports, { plist: each(_, { protocol: *TCP | string }) })
+ports: web: http: { name:http containerPort:8080 }
+ports: { &: { &: { port:.containerPort targetPort:.containerPort } } }
+out: pack($.ports, { plist:each(_, { protocol:*TCP | string }) })
