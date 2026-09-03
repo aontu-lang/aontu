@@ -1,0 +1,15 @@
+$
+├── pipeline
+│   └── jobs
+│       ├── audit (4)
+│       ├── extract (4)
+│       ├── load (4)
+│       └── transform (4)
+└── spec
+    ├── Job
+    │   ├── cmd string
+    │   ├── fedBy rel({"kind":"job"})
+    │   ├── feeds rel({"kind":"job"})&acyclic()...
+    │   └── kind "job"
+    └── JobShape
+        └── kind "job"

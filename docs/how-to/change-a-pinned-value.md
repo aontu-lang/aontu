@@ -59,7 +59,7 @@ $ echo $?
 
 The file now reads:
 
-```
+```aon
 # the deployment
 replicas: 5   # too many
 port: 0x1F

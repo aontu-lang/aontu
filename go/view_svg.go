@@ -46,12 +46,19 @@ func viewSvgEsc(s string) string { return viewEscape(s, svgEsc) }
 // svgDoc is the document: a viewBox the size of the figure, the style,
 // and the parts, one per line, so the bytes read as a figure and diff
 // as one.
-func svgDoc(w, h int, about string, parts []string) string {
+// The CLASSES are structure and are always written -- a rect that does
+// not say whether it is a direct cell or a closure cell is not a
+// figure. What `--style none` drops is the STYLESHEET, for a host page
+// that has already bound the variables and would otherwise carry one
+// copy of these rules per embedded figure.
+func svgDoc(w, h int, about string, parts []string, style string) string {
 	all := []string{
 		"<svg xmlns=\"http://www.w3.org/2000/svg\" class=\"av\" viewBox=\"0 0 " +
 			itoa(w) + " " + itoa(h) + "\" width=\"" + itoa(w) + "\" height=\"" + itoa(h) +
 			"\" role=\"img\" aria-label=\"" + viewSvgEsc(about) + "\">",
-		svgStyle,
+	}
+	if "css" == style {
+		all = append(all, svgStyle)
 	}
 	all = append(all, parts...)
 	all = append(all, "</svg>")
@@ -111,7 +118,7 @@ type treeRow struct {
 // unit per depth, joined to its parent by a path that drops from the
 // parent's row and turns in to the child. The marks are muted text
 // after the label.
-func treeSvg(rows []*treeRow, count int) string {
+func treeSvg(rows []*treeRow, about, style string) string {
 	const U = 24
 	parts := []string{}
 	width := 0
@@ -134,14 +141,23 @@ func treeSvg(rows []*treeRow, count int) string {
 		}
 		width = maxInt(width, x+(viewLen(r.text)+viewLen(r.mark))*svgCH)
 	}
-	return svgDoc(width+svgPAD, len(rows)*svgLH+svgPAD,
-		"Dependency tree: "+itoa(count)+" nodes", parts)
+	return svgDoc(width+svgPAD, len(rows)*svgLH+svgPAD, about, parts, style)
 }
 
 // ---------------------------------------------------------------------
 // The matrix
 
 // matrixCellClass maps each glyph of the text grid to its cell's class.
+// The same five states as ROLES, for the text profile. One table per
+// mechanism rather than one shared one, because the two vocabularies
+// are not in step: SVG needs a class for the empty cell (it draws a
+// rect there) and the text profile has nothing to say about a `.`
+// beyond that it is not a mark.
+var matrixCellRole = map[string]string{
+	"X": roleDirect, "!": roleUnmirrored, "+": roleClosure,
+	".": roleMuted, "\\": roleRule,
+}
+
 var matrixCellClass = map[string]string{
 	"X": "av-direct", "!": "av-unmirrored", "+": "av-closure",
 	".": "av-cell", "\\": "av-cell",
@@ -150,7 +166,7 @@ var matrixCellClass = map[string]string{
 // matrixSvg is the matrix as SVG: the same glyph grid as cells, each a
 // square whose class is its state, the diagonal drawn as a line
 // through its cell.
-func matrixSvg(labels, idx []string, grid [][]string, footer, about string) string {
+func matrixSvg(labels, idx []string, grid [][]string, footer, about, style string) string {
 	const S = 20
 	w := viewWidest(labels)
 	iw := viewWidest(idx)
@@ -175,7 +191,7 @@ func matrixSvg(labels, idx []string, grid [][]string, footer, about string) stri
 	n := len(labels)
 	parts = append(parts, svgText(4, y0+n*S+16, "av-m", footer, ""))
 	width := maxInt(gutter+n*S, 4+viewLen(footer)*svgCH) + svgPAD
-	return svgDoc(width, y0+n*S+svgLH+svgPAD, about, parts)
+	return svgDoc(width, y0+n*S+svgLH+svgPAD, about, parts, style)
 }
 
 // ---------------------------------------------------------------------
@@ -198,7 +214,7 @@ type viewDrawing struct {
 // dipped below the boxes, since two modules of one band sit on the same
 // line and a straight edge between them would cross whatever stands
 // between.
-func layerSvg(bands []viewBand, shown []viewDrawing, footer []string, about string) string {
+func layerSvg(bands []viewBand, shown []viewDrawing, footer []string, about, style string) string {
 	const BH = 44
 	names := []string{}
 	for _, b := range bands {
@@ -261,7 +277,7 @@ func layerSvg(bands []viewBand, shown []viewDrawing, footer []string, about stri
 	for i, f := range footer {
 		parts = append(parts, svgText(4, y1+i*svgLH+14, "av-m", f, ""))
 	}
-	return svgDoc(width, y1+len(footer)*svgLH+svgPAD, about, parts)
+	return svgDoc(width, y1+len(footer)*svgLH+svgPAD, about, parts, style)
 }
 
 // ---------------------------------------------------------------------
@@ -270,30 +286,42 @@ func layerSvg(bands []viewBand, shown []viewDrawing, footer []string, about stri
 // panelColumnLine is the line naming a column's elements, shared by
 // the text and SVG renderings of the panel.
 func panelColumnLine(p viewPanel, i int, c viewColumn) string {
-	shown := strings.Join(c.items, " ")
-	if 4 < len(c.items) && !p.bars {
-		shown = strings.Join(c.items[:3], " ") + " ..."
-	}
-	line := "col " + itoa(i+1)
+	return panelColumnHead(p, i, c) + " " + panelColumnItems(p, c) +
+		panelColumnNone(p, c)
+}
+
+// The three parts of that line, split because the TEXT profile paints
+// them differently: the head and the "(in no set)" note are muted, the
+// elements are the figure's own content and are left alone.
+func panelColumnHead(p viewPanel, i int, c viewColumn) string {
+	head := "col " + itoa(i+1)
 	if !p.bars {
-		line += " (" + itoa(len(c.items)) + ")"
+		head += " (" + itoa(len(c.items)) + ")"
 	}
-	line += ": " + shown
-	any := false
+	return head + ":"
+}
+
+func panelColumnItems(p viewPanel, c viewColumn) string {
+	if 4 < len(c.items) && !p.bars {
+		return strings.Join(c.items[:3], " ") + " ..."
+	}
+	return strings.Join(c.items, " ")
+}
+
+func panelColumnNone(p viewPanel, c viewColumn) string {
 	for _, b := range c.sig {
-		any = any || b
+		if b {
+			return ""
+		}
 	}
-	if !any {
-		line += p.none
-	}
-	return line
+	return p.none
 }
 
 // panelSvg is the panel as SVG: the set sizes as bars, the
 // intersections as a dot matrix (a filled dot where the set lies in
 // the column), the column cardinalities as bars under it, and the
 // columns' elements as text.
-func panelSvg(p viewPanel, about string) string {
+func panelSvg(p viewPanel, about, style string) string {
 	w := viewWidest(p.names)
 	most := 0
 	for _, n := range p.sizes {
@@ -346,5 +374,5 @@ func panelSvg(p viewPanel, about string) string {
 	}
 	width := maxInt(maxInt(gx+len(p.cols)*20, gx+barW+3*svgCH),
 		maxInt(4+viewWidest(lines)*svgCH, 4+viewLen(p.header)*svgCH)) + svgPAD
-	return svgDoc(width, yI+len(lines)*svgLH+svgPAD, about, parts)
+	return svgDoc(width, yI+len(lines)*svgLH+svgPAD, about, parts, style)
 }

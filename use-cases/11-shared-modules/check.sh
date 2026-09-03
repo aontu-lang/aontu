@@ -337,5 +337,22 @@ grep -qF '"v":"9.9.9"' "$APP4/mod-lock.aon" \
   || die "expected the declared 9.9.9 to be locked verbatim"
 ok "gap reproduced: lockfile records v 9.9.9 over a store tree whose mod.aon says 1.4.2"
 
+
+# THE MODEL TREE. The shape of this document, drawn by the one kind
+# that reads no report: `view doc` walks the anchor, exactly as
+# `get --keys --types` does, and stops at a depth that says how many
+# keys it did not draw. The figure at the head of the README is this,
+# and `--check` is the gate that keeps it true.
+# The figure is what goes to STDOUT; the loss report goes to stderr,
+# and merging the two would compare the golden against both.
+$AONTU view doc --depth 3 "$DIR/consumer/main.aon" > "$TMP/doc.out" 2>/dev/null \
+  || die "the model tree did not draw"
+diff -u "$DIR/expected/diagram-doc.txt" "$TMP/doc.out" \
+  || die "the model tree drifted"
+run docgate 0 view doc --depth 3 \
+  --out "$DIR/expected/diagram-doc.txt" --check "$DIR/consumer/main.aon"
+run docsvg 0 view doc --depth 3 --as svg \
+  --out "$DIR/expected/diagram-doc.svg" --check "$DIR/consumer/main.aon"
+ok "the model tree draws and is pinned, text and SVG"
 echo
 echo "all $PASS checks passed"

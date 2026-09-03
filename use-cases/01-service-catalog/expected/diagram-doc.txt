@@ -1,0 +1,14 @@
+$
+├── catalog
+│   └── domains (3)
+├── deploy
+│   └── regions (2)
+├── spec
+│   ├── CandidateShape (6)
+│   ├── CatalogEntry (8)
+│   ├── PortSpec (3)
+│   └── Workload (4)
+└── std
+    ├── Component (1)
+    ├── Port (2)
+    └── Service (2)

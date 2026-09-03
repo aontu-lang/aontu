@@ -1,0 +1,37 @@
+$
+├── Envelope
+│   ├── correlation_id re("^[0-9a-f]{8}-[0-9a-f]{4}-...
+│   ├── id integer&min(1)|biginteger&min(1)
+│   ├── source re("^/[a-z][a-z0-9/-]*$")
+│   ├── specversion *"1.0"|"1.1"
+│   ├── time re("^\\d{4}-\\d{2}-\\d{2}T\\d...
+│   └── type string
+├── Event {"correlation_id"?:re("^[0-9a...
+├── OrderCancelled
+│   ├── correlation_id re("^[0-9a-f]{8}-[0-9a-f]{4}-...
+│   ├── id integer&min(1)|biginteger&min(1)
+│   ├── payload (3)
+│   ├── source re("^/[a-z][a-z0-9/-]*$")
+│   ├── specversion *"1.0"|"1.1"
+│   ├── time re("^\\d{4}-\\d{2}-\\d{2}T\\d...
+│   └── type "order.cancelled"
+├── OrderPaid
+│   ├── correlation_id re("^[0-9a-f]{8}-[0-9a-f]{4}-...
+│   ├── id integer&min(1)|biginteger&min(1)
+│   ├── payload (4)
+│   ├── source re("^/[a-z][a-z0-9/-]*$")
+│   ├── specversion *"1.0"|"1.1"
+│   ├── time re("^\\d{4}-\\d{2}-\\d{2}T\\d...
+│   └── type "order.paid"
+├── OrderPlaced
+│   ├── correlation_id re("^[0-9a-f]{8}-[0-9a-f]{4}-...
+│   ├── id integer&min(1)|biginteger&min(1)
+│   ├── payload (5)
+│   ├── source re("^/[a-z][a-z0-9/-]*$")
+│   ├── specversion *"1.0"|"1.1"
+│   ├── time re("^\\d{4}-\\d{2}-\\d{2}T\\d...
+│   └── type "order.placed"
+└── registry
+    ├── order_cancelled (7)
+    ├── order_paid (7)
+    └── order_placed (7)

@@ -1,5 +1,7 @@
 # 08 — feature flags / runtime config (the write-path case)
 
+![The model tree: the flag catalog, the layered views, and the operator's overlay](expected/diagram-doc.svg)
+
 ## Scenario
 
 A feature-flag service is the config system that is written most
@@ -11,6 +13,46 @@ the ground truth that constrains the change. So this case exercises
 the write path: `aontu set <path>=<value> --entry base.aon --overlay
 overlay.aon`, run repeatedly, plus `why` for provenance and `--trust`
 for containing a hostile overlay.
+
+## The model tree
+
+`system.aon` is the base plus the overlay an operator writes.
+`flags` is the catalog; `envs` and `tenants` are the override layers,
+`effective` the resolved views built from all three, and `policy` the
+audits that run over them. `clock` is the one input a flag's expiry is
+measured against.
+
+```
+$
+├── clock
+│   └── today "2026-08-26"
+├── defs
+│   └── Zombie (2)
+├── effective
+│   ├── prod (3)
+│   └── staging (1)
+├── envs
+│   ├── prod (1)
+│   └── staging (1)
+├── flags
+│   ├── checkout_v2 (8)
+│   ├── ops_incident_banner (9)
+│   ├── payments_legacy_gateway (8)
+│   ├── search_reranker_v3 (8)
+│   └── ui_dark_mode (9)
+├── policy
+│   ├── lifecycle (4)
+│   └── rollout_range (6)
+└── tenants
+    ├── megacorp (1)
+    └── starterco (1)
+```
+
+`aontu view doc --depth 2 system.aon` draws it, and `check.sh` pins it
+with `--out --check`. A key with `(n)` after it is a container the
+depth bound stopped at, and `n` is how many keys are not drawn; a
+leaf carries its canon, which is the kind of thing it is rather
+than its value.
 
 ## Files
 
@@ -60,6 +102,20 @@ for containing a hostile overlay.
   definition in `flag-schema.aon`, which stays unhidden and outside
   the generated model; the rollout-range audit in `policy.aon` checks
   the catalog, the staging view and the megacorp view.
+- **The field shapes are named, in one of the two files.**
+  `flag-schema.aon` declares `%Key`, `%Owner`, `%Description` and
+  `%Date` as **aliases** — `%name:` at the top level, `%name` in value
+  position — so `created` and `expiry` cannot drift apart. An alias
+  does not generate and does not appear in canon, so the named file
+  and the written-out one are the same document with the same `aon1-`
+  hash. `flags.aon` repeats all four and does not name them, for two
+  reasons worth knowing before reaching for an alias: an alias reaches
+  nothing outside the document it is declared in (there is no
+  construct for carrying a name across a file boundary), and inside a
+  `&:` spread template an alias reference is not resolved — it leaks
+  into canon as `$.%Date` and moves the hash
+  ([BUGS.md 73](../BUGS.md)). Outside a spread it is exactly what it
+  claims to be.
 - **Map keys use `_`, not `.`.** Flags are keyed `checkout_v2`, not
   the public `checkout.v2`: CLI paths for `get`, `why` and `set` split
   on `.`, so the dotted public name is ordinary data in `.key`.

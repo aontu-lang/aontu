@@ -32,7 +32,7 @@ located error instead of a silent fork. The case also drives `refer()`
 existence checks, declared relations, and change requests written as
 four-line overlay files. The same service, seen from both views:
 
-```
+```aon
 # catalog.aon — the catalog view
 services: payments: {
   tier: 1
@@ -99,7 +99,7 @@ incomplete, 4 schema-side error), so a caller can branch before
 reading a byte. A wire message is a `close()`d shape, so a surplus or
 typo'd key is a conflict, not a silently ignored extra:
 
-```
+```aon
 CreateUserRequest: close({
   email: $.types.Email
   name:  $.types.DisplayName
@@ -124,7 +124,7 @@ naming both files, and a `must()` on the new side answers *undecided*
 rename — deprecate in v2, remove in v3. The v2 mark, from
 `profile-v2.aon`:
 
-```
+```aon
 phone?: deprecate(string, {
   msg: "free-form phone is unvalidated; write E.164 to contact.phone"
   use: "$.profile.contact.phone"
@@ -148,7 +148,7 @@ hallucinated permission is a located refusal, and the registry is
 role holds the wildcard unless flagged privileged" is structural — a
 role is a disjunction of two closed shapes:
 
-```
+```aon
 Role: type(
   close({
     desc: string
@@ -186,7 +186,7 @@ set against drift, and `vet` runs the org guardrails over the rendered
 JSON. `pack()` makes a manifest per service, and a second pack merges
 one authored column into every generated child:
 
-```
+```aon
 deploy: close(pack($.svc.names, {
   apiVersion: "apps/v1"
   kind: Deployment
@@ -215,7 +215,7 @@ publishing, consumers vet a whole stream sample with one command, and
 CI refuses a revision that breaks subscribers. Each event type is the
 envelope, narrowed by conjunction and sealed:
 
-```
+```aon
 OrderPaid: close($.Envelope & {
   type: "order.paid"
   payload: close({
@@ -267,7 +267,8 @@ the missing argument; error: unknown tool), and the case drives the
 real `aontu-mcp` server over JSON-RPC too. The wire
 schema is generated from the registry, so the two can never drift:
 
-```
+<!-- test: skip a fragment of 09-agent-tools, whose `registry.aon` this page does not ship; the case's own check.sh runs it -->
+```aon
 @"registry.aon"
 
 guard: pack($.argschemas, close({
@@ -331,10 +332,15 @@ refactor (a byte-hash lockfile breaks on exactly this), and a flipped
 default in the vendored tree fails evaluation with both hashes named. A single file can freeze the hash in the import string, with no
 `mod.aon` and no lockfile — the agent-sandbox mode:
 
-```
+<!-- test: skip a fragment of 11-shared-modules, which resolves against that case's module store; the case's own check.sh runs it -->
+```aon
 svc: @"corp.example/schemas/service@1#aon1-zFHnyVa1fA--g8hTx8lUUhaKzzRUNI--2nDheIMsSFs"
 svc: spec: { name: "audit-log", owner: "sec-ops@corp.example" }
-# a tampered store is refused, both hashes named:
+```
+
+A tampered store is refused, with both hashes named:
+
+```
 module integrity: corp.example/schemas/service@1 expected aon1-zFHnyVa1fA--g8hTx8lUUhaKzzRUNI--2nDheIMsSFs got aon1-NHmNT6r-Lhy8di9BgGNRfgwNFT3r5PgCZxCYnJ4F0Ws
 ```
 
@@ -353,7 +359,7 @@ or the exact absent entry, and `aontu reaches --relation feeds`
 answers the closure question directionally over the same edges. The
 declaration, from the case's `spec.aon`:
 
-```
+```aon
 feeds?: rel($.spec.JobShape) & acyclic() & inverse(fedBy)
 fedBy?: rel($.spec.JobShape)
 ```
@@ -375,7 +381,7 @@ Canon and the `aon1-` hash stay symbolic: one finite string pins an
 infinitely deep type. The vocabulary, one reference deep, from
 `schema.aon`:
 
-```
+```aon
 Step: {
   approver: string & re("^[a-z]+@acme[.]example$")
   decision: *pending | pending | approved | rejected
@@ -520,7 +526,7 @@ module's `dependsOn` carries `layer: "core" | "util"` to the far end,
 and a module that says `layer: "feature"` cannot meet it. Each layer
 is one line of schema and one disjunction, from `spec.aon`:
 
-```
+```aon
 Core:    $.spec.Mod & { layer: "core", dependsOn?: rel($.spec.CoreDep) }
 CoreDep: { kind: mod, layer: "core" | "util" }
 ```

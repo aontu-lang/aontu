@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" class="av" viewBox="0 0 412 648" width="412" height="648" role="img" aria-label="Document tree at $: 31 keys to depth 2">
+<style>.av{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px}.av-t{fill:var(--av-ink,#1f2328)}.av-m{fill:var(--av-muted,#6e7781)}.av-box{fill:var(--av-bg,#f6f8fa);stroke:var(--av-rule,#8c959f);stroke-width:1}.av-cell{fill:var(--av-bg,#f6f8fa);stroke:var(--av-rule-faint,#d0d7de);stroke-width:1}.av-direct{fill:var(--av-ink,#1f2328);stroke:var(--av-rule-faint,#d0d7de);stroke-width:1}.av-closure{fill:var(--av-closure,#9ec5fe);stroke:var(--av-rule-faint,#d0d7de);stroke-width:1}.av-unmirrored{fill:var(--av-warn,#e3b341);stroke:var(--av-rule-faint,#d0d7de);stroke-width:1}.av-line{stroke:var(--av-rule,#8c959f);stroke-width:1;fill:none}.av-up{stroke:var(--av-alert,#d1242f);stroke-width:1.5;fill:none;stroke-dasharray:4 3}.av-dot{fill:var(--av-ink,#1f2328)}.av-hole{fill:var(--av-bg,#f6f8fa);stroke:var(--av-rule-faint,#d0d7de);stroke-width:1}.av-bar{fill:var(--av-bar,#57606a)}</style>
+<text x="4" y="14" class="av-t">$</text>
+<path d="M8 20V30H26" class="av-line"/>
+<text x="28" y="34" class="av-t">api</text>
+<path d="M32 40V50H50" class="av-line"/>
+<text x="52" y="54"><tspan class="av-t">create_project</tspan><tspan class="av-m"> (8)</tspan></text>
+<path d="M32 40V70H50" class="av-line"/>
+<text x="52" y="74"><tspan class="av-t">create_user</tspan><tspan class="av-m"> (8)</tspan></text>
+<path d="M32 40V90H50" class="av-line"/>
+<text x="52" y="94"><tspan class="av-t">get_project</tspan><tspan class="av-m"> (8)</tspan></text>
+<path d="M32 40V110H50" class="av-line"/>
+<text x="52" y="114"><tspan class="av-t">list_users</tspan><tspan class="av-m"> (8)</tspan></text>
+<path d="M8 20V130H26" class="av-line"/>
+<text x="28" y="134" class="av-t">entities</text>
+<path d="M32 140V150H50" class="av-line"/>
+<text x="52" y="154"><tspan class="av-t">Project</tspan><tspan class="av-m"> (8)</tspan></text>
+<path d="M32 140V170H50" class="av-line"/>
+<text x="52" y="174"><tspan class="av-t">User</tspan><tspan class="av-m"> (8)</tspan></text>
+<path d="M8 20V190H26" class="av-line"/>
+<text x="28" y="194" class="av-t">errors</text>
+<path d="M32 200V210H50" class="av-line"/>
+<text x="52" y="214"><tspan class="av-t">Envelope</tspan><tspan class="av-m"> (1)</tspan></text>
+<path d="M8 20V230H26" class="av-line"/>
+<text x="28" y="234" class="av-t">meta</text>
+<path d="M32 240V250H50" class="av-line"/>
+<text x="52" y="254"><tspan class="av-t">name</tspan><tspan class="av-m"> &quot;nimbus-tasks-api&quot;</tspan></text>
+<path d="M32 240V270H50" class="av-line"/>
+<text x="52" y="274"><tspan class="av-t">stability</tspan><tspan class="av-m"> &quot;ga&quot;</tspan></text>
+<path d="M32 240V290H50" class="av-line"/>
+<text x="52" y="294"><tspan class="av-t">version</tspan><tspan class="av-m"> &quot;1.3.0&quot;</tspan></text>
+<path d="M8 20V310H26" class="av-line"/>
+<text x="28" y="314" class="av-t">msg</text>
+<path d="M32 320V330H50" class="av-line"/>
+<text x="52" y="334"><tspan class="av-t">CreateProjectRequest</tspan><tspan class="av-m"> (3)</tspan></text>
+<path d="M32 320V350H50" class="av-line"/>
+<text x="52" y="354"><tspan class="av-t">CreateUserRequest</tspan><tspan class="av-m"> (4)</tspan></text>
+<path d="M32 320V370H50" class="av-line"/>
+<text x="52" y="374"><tspan class="av-t">ListUsersQuery</tspan><tspan class="av-m"> (4)</tspan></text>
+<path d="M32 320V390H50" class="av-line"/>
+<text x="52" y="394"><tspan class="av-t">UserPage</tspan><tspan class="av-m"> (4)</tspan></text>
+<path d="M8 20V410H26" class="av-line"/>
+<text x="28" y="414" class="av-t">types</text>
+<path d="M32 420V430H50" class="av-line"/>
+<text x="52" y="434"><tspan class="av-t">DisplayName</tspan><tspan class="av-m"> string&amp;length(integer&amp;min(1)&amp;...</tspan></text>
+<path d="M32 420V450H50" class="av-line"/>
+<text x="52" y="454"><tspan class="av-t">Email</tspan><tspan class="av-m"> re(&quot;^[A-Za-z0-9._%+-]+@[A-Za-...</tspan></text>
+<path d="M32 420V470H50" class="av-line"/>
+<text x="52" y="474"><tspan class="av-t">Page</tspan><tspan class="av-m"> integer&amp;min(1)</tspan></text>
+<path d="M32 420V490H50" class="av-line"/>
+<text x="52" y="494"><tspan class="av-t">PageSize</tspan><tspan class="av-m"> integer&amp;min(1)&amp;max(100)</tspan></text>
+<path d="M32 420V510H50" class="av-line"/>
+<text x="52" y="514"><tspan class="av-t">ProjectId</tspan><tspan class="av-m"> re(&quot;^prj_[0-9A-Za-z]{20}$&quot;)</tspan></text>
+<path d="M32 420V530H50" class="av-line"/>
+<text x="52" y="534"><tspan class="av-t">RequestId</tspan><tspan class="av-m"> re(&quot;^req_[0-9A-Za-z]{20}$&quot;)</tspan></text>
+<path d="M32 420V550H50" class="av-line"/>
+<text x="52" y="554"><tspan class="av-t">Role</tspan><tspan class="av-m"> &quot;admin&quot;|&quot;member&quot;|&quot;viewer&quot;</tspan></text>
+<path d="M32 420V570H50" class="av-line"/>
+<text x="52" y="574"><tspan class="av-t">Slug</tspan><tspan class="av-m"> re(&quot;^[a-z0-9][a-z0-9-]{1,38}[...</tspan></text>
+<path d="M32 420V590H50" class="av-line"/>
+<text x="52" y="594"><tspan class="av-t">Timestamp</tspan><tspan class="av-m"> re(&quot;^\\d{4}-\\d{2}-\\d{2}T\\d...</tspan></text>
+<path d="M32 420V610H50" class="av-line"/>
+<text x="52" y="614"><tspan class="av-t">UserId</tspan><tspan class="av-m"> re(&quot;^usr_[0-9A-Za-z]{20}$&quot;)</tspan></text>
+<path d="M32 420V630H50" class="av-line"/>
+<text x="52" y="634"><tspan class="av-t">Visibility</tspan><tspan class="av-m"> &quot;private&quot;|&quot;team&quot;|&quot;public&quot;</tspan></text>
+</svg>

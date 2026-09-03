@@ -10,7 +10,18 @@
 # field would be unsatisfiable by any strictly-JSON record (README,
 # gap 1; exact-money.aon is the executable form of that finding).
 #
-# Vocabulary, inlined. The intended shape was named aliases --
+# Vocabulary, inlined. TWO spellings were tried and both are blocked.
+#
+# The `%` ALIAS is the one that should work: `%Cents: integer & min(0)
+# & max(100000000000)` at the root, `%Cents` at each use site. An alias
+# does not generate and does not appear in canon, so the aliased file
+# and this one are the SAME DOCUMENT with the same `aon1-` hash --
+# pure readability, no semantics. It strands the per-record `must()`s
+# in seed.aon instead, and only in TypeScript (README, gap 6 and
+# BUGS.md 72; repros/alias/spliced-alias-strands-a-must.aon is the
+# three-line form).
+#
+# The other spelling was named types --
 #   Country:  type(string & re("^[A-Z]{2}$"))
 #   Currency: type(string & re("^[A-Z]{3}$") & neq("XXX","XTS"))
 #   Cents:    type(integer & min(0) & max(100000000000))

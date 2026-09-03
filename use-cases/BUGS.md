@@ -3043,3 +3043,130 @@ reads generated values and is unaffected; the two edge-derived
 figures draw 9 and 3 `grants` edges respectively). Use-case 05 does
 not pin a figure for that reason. Fix: `refer()`'s link mark must
 survive every meet the checked scalar takes part in, in both ports.
+
+### 72. An alias reached through a root-spliced include strands a `must()` at the use site, in TypeScript only [major]
+
+Found 2026-09-02 while putting `%` aliases to work in the use cases.
+`use-cases/10-data-model/domain.aon` writes its vocabulary out at every
+use site and says so in a comment: the intended shape was named types
+(`$.schema.Cents`), which the include drops (gap 6). An **alias** is
+the other spelling, and the right one — `%Cents` does not generate and
+does not appear in canon, so the file with it and the file with
+`integer & min(0) & max(100000000000)` at every use site are the same
+document and hash the same `aon1-`. Rewriting the vocabulary that way
+should therefore be a pure readability change.
+
+It is not, and the smallest form is
+[`repros/alias/spliced-alias-strands-a-must.aon`](repros/alias/spliced-alias-strands-a-must.aon):
+
+```aon
+# the spliced file
+%Cents: integer & min(0)
+schema: { Line: type(close({ unitCents: %Cents, amountCents: %Cents })) }
+lines: {&: $.schema.Line}
+```
+
+with `lines: { one: { unitCents: 10, amountCents: 10 & must(.unitCents, "no") } }`
+in the including file. Go generates
+`{"lines":{"one":{"amountCents":10,"unitCents":10}}}` and exits 0.
+TypeScript refuses with `[aontu/mapval_required]` at
+`$.lines.one.amountCents`, the residue being
+`10&must(.unitCents,"no")` — the numeric constraints resolved and the
+`must()` did not.
+
+THREE INGREDIENTS, and dropping any one makes both ports agree:
+
+- **the alias** — writing `integer & min(0)` at both use sites resolves;
+- **the root splice** — one file holding both halves resolves;
+- **the `must()` at the use site** — `max(99)` there, or nothing at
+  all, resolves.
+
+So it is the alias reference surviving the splice into the spread
+template that leaves a constraint with a RELATIVE argument one round
+short of settling. On the real document the same shape strands three
+`must()`s and duplicates one of them three times in the residue, which
+suggests the alias reference is unified more than once.
+
+Effect: the vocabulary of use case 10 stays written out, and its
+comment now names this entry rather than only gap 6. Fix: settle the
+alias reference before the spread template is applied, or let the
+relative-argument constraint take one more round after it. Whichever
+port is right, they must agree — a document that generates in one and
+refuses in the other is the failure ADR-001 exists to prevent.
+
+### 73. An alias inside a spread template leaks into canon as `$.%Name`, and moves the hash [major]
+
+Found 2026-09-02, the same day as 72 and by the same work. Both ports
+agree, so this is a shared defect rather than a divergence.
+
+`docs/reference-language.md`, "Aliases", states two laws. The
+declaration "does not generate, and it does not appear in canon — so
+the file above and the file with `integer & min(1) & max(65535)`
+written out at both keys are the same document and produce the same
+`aon1-` hash". And "an alias is not a path segment: `$.%foo` is
+refused, at any depth".
+
+Inside a spread template the alias reference is not resolved, and canon
+emits exactly the refused spelling.
+[`repros/alias/alias-in-spread-template-leaks-into-canon.aon`](repros/alias/alias-in-spread-template-leaks-into-canon.aon):
+
+```aon
+%D: string & re("^x")
+
+m: {
+  &: { a: %D }
+  one: { a: "xy" }
+}
+```
+
+| | canon | `aon1-` |
+|---|---|---|
+| the alias, in a spread | `{"m":{&:{"a":$.%D},…}}` | `…JdP20xkL…` |
+| written out, in a spread | `{"m":{&:{"a":re("^x")},…}}` | `…LNhDrwl8…` |
+| the alias, at the root (`a: %D`) | `{"a":re("^x")}` | `…QBIr_h1E…` |
+| written out, at the root | `{"a":re("^x")}` | `…QBIr_h1E…` |
+
+The last two rows are the law working, and are what isolates this to
+the spread: nothing about `%D` itself is wrong. GENERATION IS CORRECT
+in both ports — `{"m":{"one":{"a":"xy"}}}` — so a document with this
+shape evaluates right and pins wrong, which is the worse of the two
+failure modes: `aontu hash` is what a module lock and an integrity
+check read.
+
+Effect: `use-cases/08-feature-flags/flags.aon` writes four field shapes
+inside its `&:` template and keeps them written out; only
+`flag-schema.aon`, which has no spread, names them. Fix: resolve the
+alias when the template is built, as a path reference in the same
+position already is — or refuse the declaration outright, which the
+`$.%foo` rule suggests was the intent and which would at least not
+produce a wrong pin in silence.
+
+### 74. An alias declaration is a key of the root map, so `get --keys` lists it [minor]
+
+Found 2026-09-02 by `aontu view doc`, which draws the document's own
+key tree. Both ports agree.
+
+`docs/reference-language.md`, "Aliases": the declaration "is not part
+of the document. It does not generate, and it does not appear in
+canon". Both of those hold. It IS a key of the root map in the value
+tree, and the anchor walk reports it, so over
+`use-cases/12-relations/model.aon`:
+
+```
+$ aontu get '$' --keys model.aon
+%JobEdge
+pipeline
+spec
+```
+
+`%JobEdge` is a declaration, and listing it beside the document's own
+two root keys says otherwise. `aontu model.aon` generates only
+`pipeline`, correctly.
+
+Effect: `view doc` filters `%`-prefixed keys, and says why in a comment
+in both ports — a figure of a document's SHAPE that showed `%Cents`
+beside `customers` would be drawing the declaration as data. `get
+--keys` still lists them. Fix: drop the declaration from the root map
+once it has been resolved, as generation and canon already do — or, if
+it must stay for the resolver, hide it from the anchor walk the way a
+`hide()` subtree is hidden.

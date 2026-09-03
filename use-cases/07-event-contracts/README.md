@@ -1,5 +1,7 @@
 # 07 — event/message contracts (the schema-registry case)
 
+![The model tree: the shared envelope, one schema per event type, and the discriminated union over them](expected/diagram-doc.svg)
+
 ## Scenario
 
 An order service publishes `order.placed`, `order.paid` and
@@ -10,6 +12,59 @@ them, and a compatibility gate between contract versions. Producers
 vet before publishing; consumers vet what they receive; CI refuses a
 contract revision that breaks subscribers. This is the bread and
 butter of event-driven enterprise systems.
+
+## The model tree
+
+`orders-v1.aon` is one revision of the contract. `Envelope` is the
+shared head every event carries; `OrderPlaced`, `OrderPaid` and
+`OrderCancelled` are the payload schemas; `Event` is the union a
+consumer vets against, and `registry` the instances the checks drive.
+
+```
+$
+├── Envelope
+│   ├── correlation_id re("^[0-9a-f]{8}-[0-9a-f]{4}-...
+│   ├── id integer&min(1)|biginteger&min(1)
+│   ├── source re("^/[a-z][a-z0-9/-]*$")
+│   ├── specversion *"1.0"|"1.1"
+│   ├── time re("^\\d{4}-\\d{2}-\\d{2}T\\d...
+│   └── type string
+├── Event {"correlation_id"?:re("^[0-9a...
+├── OrderCancelled
+│   ├── correlation_id re("^[0-9a-f]{8}-[0-9a-f]{4}-...
+│   ├── id integer&min(1)|biginteger&min(1)
+│   ├── payload (3)
+│   ├── source re("^/[a-z][a-z0-9/-]*$")
+│   ├── specversion *"1.0"|"1.1"
+│   ├── time re("^\\d{4}-\\d{2}-\\d{2}T\\d...
+│   └── type "order.cancelled"
+├── OrderPaid
+│   ├── correlation_id re("^[0-9a-f]{8}-[0-9a-f]{4}-...
+│   ├── id integer&min(1)|biginteger&min(1)
+│   ├── payload (4)
+│   ├── source re("^/[a-z][a-z0-9/-]*$")
+│   ├── specversion *"1.0"|"1.1"
+│   ├── time re("^\\d{4}-\\d{2}-\\d{2}T\\d...
+│   └── type "order.paid"
+├── OrderPlaced
+│   ├── correlation_id re("^[0-9a-f]{8}-[0-9a-f]{4}-...
+│   ├── id integer&min(1)|biginteger&min(1)
+│   ├── payload (5)
+│   ├── source re("^/[a-z][a-z0-9/-]*$")
+│   ├── specversion *"1.0"|"1.1"
+│   ├── time re("^\\d{4}-\\d{2}-\\d{2}T\\d...
+│   └── type "order.placed"
+└── registry
+    ├── order_cancelled (7)
+    ├── order_paid (7)
+    └── order_placed (7)
+```
+
+`aontu view doc --depth 2 orders-v1.aon` draws it, and `check.sh` pins it
+with `--out --check`. A key with `(n)` after it is a container the
+depth bound stopped at, and `n` is how many keys are not drawn; a
+leaf carries its canon, which is the kind of thing it is rather
+than its value.
 
 ## Files
 

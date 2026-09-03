@@ -8,6 +8,8 @@ it with `aontu get '$.file'`, puts a `DO NOT EDIT` banner in front of
 it, and writes bytes; nothing outside the model decides layout,
 ordering or separators.
 
+![The model tree: the record definitions every generated target is rendered from](expected/diagram-doc.svg)
+
 ## What is generated
 
 | transform | reads | writes | golden |
@@ -21,6 +23,32 @@ the TypeScript emitter reads neither and keeps the wire name in `n`.
 The SQL emitter quotes every identifier, because `order` is a reserved
 word and a generator that emits it bare produces a file that does not
 parse — always quoting is simpler than carrying a word list.
+
+## The model tree
+
+`model.aon` is the whole input to the generators: a list of records,
+each with a name, a SQL table name and its fields. Everything the Go,
+TypeScript and SQL targets emit is rendered from these three keys, so
+the model tree is also the list of things a target must handle.
+
+```
+$
+└── records
+    ├── 0
+    │   ├── fields (3)
+    │   ├── name "Customer"
+    │   └── sql "customer"
+    └── 1
+        ├── fields (3)
+        ├── name "Order"
+        └── sql "order_line"
+```
+
+`aontu view doc --depth 3 model.aon` draws it, and `check.sh` pins it
+with `--out --check`. A key with `(n)` after it is a container the
+depth bound stopped at, and `n` is how many keys are not drawn; a
+leaf carries its canon, which is the kind of thing it is rather
+than its value.
 
 ## The shape of a transform
 

@@ -1,0 +1,15 @@
+$
+├── payments_policy
+│   ├── chain
+│   │   ├── approver "lead@acme.example"
+│   │   ├── decision "approved"
+│   │   └── then (3)
+│   └── name "payments-change"
+└── spec
+    ├── Policy
+    │   ├── chain $.spec.Step
+    │   └── name string
+    └── Step
+        ├── approver re("^[a-z]+@acme[.]example$")
+        ├── decision *"pending"|"pending"|"approve...
+        └── then $.spec.Step

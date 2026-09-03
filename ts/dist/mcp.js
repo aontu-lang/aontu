@@ -456,15 +456,29 @@ const TOOLS = [
                 type: 'string',
                 description: 'sets: the full element domain (optional)',
             },
+            depth: {
+                type: 'integer',
+                description: 'doc: how many levels of key to draw (default 3)',
+            },
             maxRows: {
                 type: 'integer',
                 description: 'Refuse a figure above this many rows (default 60)',
+            },
+            style: {
+                type: 'string',
+                description: 'How the figure carries the meaning of its marks: none, ansi ' +
+                    '(SGR escapes, text only) or css (classes and the embedded ' +
+                    'stylesheet, svg only). Absent means the profile\'s own ' +
+                    'default -- svg keeps its stylesheet, everything else has no ' +
+                    'mechanism. There is no auto here: resolving it needs a ' +
+                    'terminal, which a server does not have (optional)',
             },
         },
         required: ['source'],
         docs: ['source'],
         check: (a) => {
-            const kinds = ['tree', 'matrix', 'graph', 'layer', 'sets', 'layers', 'ladder'];
+            const kinds = ['doc', 'tree', 'matrix', 'graph', 'layer', 'sets',
+                'layers', 'ladder'];
             if (null != a.kind && !kinds.includes(a.kind)) {
                 return `kind must be one of ${kinds.join(', ')}, not ${JSON.stringify(a.kind)}`;
             }
@@ -475,6 +489,10 @@ const TOOLS = [
             const edges = ['upward', 'all', 'none'];
             if (null != a.edges && !edges.includes(a.edges)) {
                 return `edges must be one of ${edges.join(', ')}, not ${JSON.stringify(a.edges)}`;
+            }
+            const styles = ['none', 'ansi', 'css'];
+            if (null != a.style && !styles.includes(a.style)) {
+                return `style must be one of ${styles.join(', ')}, not ${JSON.stringify(a.style)}`;
             }
             return undefined;
         },
@@ -497,7 +515,9 @@ const TOOLS = [
             sets: null == a.sets ? undefined : str(a.sets),
             member: null == a.member ? undefined : str(a.member),
             universe: null == a.universe ? undefined : str(a.universe),
+            depth: 'number' === typeof a.depth ? a.depth : undefined,
             maxRows: 'number' === typeof a.maxRows ? a.maxRows : undefined,
+            style: null == a.style ? undefined : a.style,
         }),
     },
     {

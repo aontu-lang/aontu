@@ -11,6 +11,8 @@ must be a loud, located error rather than a last-writer-wins surprise.
 Everything quoted below is real CLI output (ANSI stripped), reproduced
 by `check.sh`.
 
+![The model tree: three environments, each a fleet of workloads, plus the alert and rollout derivations](expected/diagram-doc.svg)
+
 ## Files
 
 | File | Layer / role |
@@ -27,6 +29,57 @@ by `check.sh`.
 Probes that reach `@"../stack.aon"` resolve an include outside their
 own entry root; the CLI warns once per such include, `--trust system`
 keeps it, and `--include-root` confines it.
+
+## The model tree
+
+`stack.aon` is the entry: four layers of authority unified into one
+document. `deploy` holds one map per environment and each of those a
+map of workloads; `fleet` is the service catalog `pack()` iterates,
+`org`, `team` and `environments` the layers it draws on, and `alerts`,
+`rollout` and `envguard` what the document DERIVES from all of it.
+
+```
+$
+├── alerts
+│   ├── auth (3)
+│   └── billing (3)
+├── defs
+│   └── workload (9)
+├── deploy
+│   ├── dev (3)
+│   ├── prod (3)
+│   └── staging (3)
+├── envguard
+│   ├── dev (3)
+│   ├── prod (3)
+│   └── staging (3)
+├── environments
+│   ├── dev (2)
+│   ├── prod (2)
+│   └── staging (2)
+├── fleet
+│   ├── auth (3)
+│   ├── billing (3)
+│   ├── reports (3)
+│   └── web (3)
+├── org
+│   ├── name "acme"
+│   ├── registry "registry.acme.internal"
+│   └── runbookBase "https://runbooks.acme.internal"
+├── release
+│   └── tag "2025.34.2"
+├── rollout
+│   └── billingProdMaxSurge 13
+└── team
+    ├── name "payments"
+    └── oncall "#payments-oncall"
+```
+
+`aontu view doc --depth 2 stack.aon` draws it, and `check.sh` pins it
+with `--out --check`. A key with `(n)` after it is a container the
+depth bound stopped at, and `n` is how many keys are not drawn; a
+leaf carries its canon, which is the kind of thing it is rather
+than its value.
 
 ## Design: which features carry it
 

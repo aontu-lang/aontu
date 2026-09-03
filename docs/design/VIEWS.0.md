@@ -6,8 +6,10 @@ tree, matrix, graph (mermaid, dot, er), sets and layers kinds, the
 loss report, `--out`/`--check`/`--strict`/`--max-rows`, plus a `layer`
 kind (the architecture bands) and the two order views of
 VIEWS-ORDER.0.md. The view document (`--views`), `std/view`, the
-`layer` figure's `--edges` and the `edges_in_disjunct` count landed
-2026-09-02, and SVG before them. Not built: the figure JSON projection
+`layer` figure's `--edges`, the `edges_in_disjunct` count and
+`--style` ([Styling](#7-styling), which amends the colour boundary)
+and the `doc` kind ([8. The document tree](#8-the-document-tree))
+landed 2026-09-02, and SVG before them. Not built: the figure JSON projection
 (the `--format json` report carries the drawn text, not the figure's
 primitives) and VIEWS-ORDER's interval panel; `--loose` was dropped, since a path-native
 graph (ADR-014) has no loose edge. Where the built verb departs from
@@ -946,6 +948,163 @@ tree on disk or does not; nothing is written unless every figure
 rendered, for the same reason G9 abandons a partial manifest run — N
 figures of one model are only meaningful together.
 
+### 7. Styling
+
+*Added 2026-09-02, amending the "no colour palette" boundary. The
+amendment is narrow and the reason is in the difference between a
+colour and a name for one.*
+
+**What is drawn is not the same question as what it means.** Every mark
+a figure makes already has a reason the renderer computed: this cell
+stands for a declared edge, that one only for a reachable pair, that
+one for an edge whose inverse is missing; this arrow runs the wrong way
+up the layers; this tree row is a subtree drawn earlier. The SVG
+profile has published those reasons since it landed — they are the
+`av-direct`, `av-closure`, `av-unmirrored`, `av-up` classes it writes —
+because an SVG cannot be drawn at all without saying what each shape
+is. The `text` profile computes the same reasons, spends them on
+choosing a glyph, and throws them away.
+
+So the vocabulary already exists, in one profile, undeclared. This
+section declares it in both, and adds the one thing missing: a way to
+turn it on and off at the call.
+
+**The roles are closed and derived.** Ten, and no more without an
+amendment here:
+
+| role | what it marks |
+|---|---|
+| `label` | an entity's own name |
+| `muted` | an index, a legend, a footer, a count |
+| `rule` | a box, a gutter, a connector |
+| `direct` | a mark standing for a declared edge |
+| `closure` | a mark standing for a reachable pair that is not declared |
+| `unmirrored` | a mark whose declared inverse is absent |
+| `upward` | an edge against the layering |
+| `repeat` | a subtree drawn earlier, or a cycle closed |
+| `bar` | a magnitude |
+| `hole` | an absent member of a set |
+
+Nothing here is authored. A role is a fact the extractor already
+established, and no input chooses one — which is what separates this
+from the stylesheet language [Design space](#design-space) F rejects.
+
+**One mechanism per profile, and the profile owns it.**
+
+| profile | mechanism |
+|---|---|
+| `text` | SGR escapes — the eight named colours, `bold` and `dim`, nothing else |
+| `svg` | a CSS class per role, plus an embedded stylesheet that gives each a default and reads it from a CSS variable |
+| `mermaid`, `dot`, `er` | none: their renderers lay the figure out, and `classDef` is what the boundary refuses |
+
+**Why this is not the palette the boundary refuses.** The objection was
+that colour is taste and is theme-dependent. Both mechanisms above are
+INDIRECTIONS THROUGH THE DESTINATION'S OWN PALETTE, and neither states
+a colour:
+
+- SGR 31 does not mean red. It means *the colour the reader's terminal
+  calls red*, which the reader chose. A truecolour escape (`38;2;r;g;b`)
+  would state a colour, and is refused here for exactly the reason the
+  boundary gives.
+- A CSS class states nothing at all. The stylesheet the SVG carries
+  states a default and reads `var(--av-closure, …)`, so a host page
+  that has a palette overrides it and a host page that has none still
+  gets a legible figure.
+
+A hex triple in a figure is the thing that cannot follow a theme, and
+it stays refused. The amendment is that a NAME for a role, resolved by
+whatever renders the figure, is not a hex triple.
+
+**The specifier is `--style`, and it is closed.**
+
+| `--style` | meaning |
+|---|---|
+| `auto` (default) | the profile's mechanism, if the destination can carry it |
+| `none` | no mechanism: plain characters; SVG with its classes but no embedded stylesheet |
+| `ansi` | SGR escapes; a usage error on any profile but `text` |
+| `css` | classes and the stylesheet; a usage error on any profile but `svg` |
+
+`--style none` on the SVG profile is not "unstyled": the classes are
+structure and stay. What it drops is the embedded stylesheet, which is
+what a host page wants when it has already bound the variables and is
+embedding eight figures that would otherwise carry eight copies of the
+same rules.
+
+**`auto` is resolved by the CLI, never by the engine.** `ts/src/err.ts`
+already settles this for error frames: a library cannot see whether its
+output is a terminal, and a caller who can is the only one who may
+decide. So `viewOf` takes `none`, `ansi` or `css` and nothing else, and
+the CLI maps `auto` to `ansi` when the profile is `text`, stdout is a
+terminal and `NO_COLOR` is unset; to `css` when the profile is `svg`;
+and to `none` otherwise. That keeps every shared-spec row deterministic
+— a TTY is not a thing `test/spec/view.tsv` can have.
+
+**STDOUT'S terminal, not `setColor`'s answer.** `setColor` settles the
+ERROR FRAMES, which go to stderr, and reusing its answer for the figure
+gets both common cases wrong: no escapes for `aontu view tree m.aon
+2>/dev/null` at a terminal, and escapes into the pipe for `aontu view
+tree m.aon | less`. So `auto` reads `process.stdout.isTTY` (the
+`*os.File` character-device test in Go) and `NO_COLOR` directly, by the
+rule no-color.org states and `err.ts` implements. Two destinations, two
+questions; the same policy answers each about its own.
+
+**`--out` and `--check` force `none`.** A pinned golden with terminal
+escapes in it is not a golden anybody can read, and a byte comparison
+against one would fail on the reader's terminal settings. A figure
+written to a file is written plain, whatever `--style` says; the flag
+governs what goes to stdout.
+
+**A view document may not carry `style`.** The boundary above stands
+unamended here: a declaration says which projection, and `style` is
+how it looks. A declaration carrying `style` is refused by `std/view`'s
+schema at evaluation and by the verb's own declaration check, with
+`view_document_shape` — the same refusal a misspelled option gets, for
+the same reason.
+
+### 8. The document tree
+
+*Added 2026-09-02. A ninth kind, and the one that does not fit the
+admission rule below without a word about why.*
+
+**The rule this bends.** [Proposed design](#proposed-design) says every
+kind reads a REPORT the engine already produces and never the value
+tree. That rule is what keeps the verb from becoming a second
+evaluator, and it holds for the eight kinds above. It also means the
+verb draws NOTHING from a document with no links, no contributions and
+no peers — which is most documents, and every document on the day
+somebody first opens it.
+
+**What `doc` reads.** The anchor walk: `anchorAt`, which is what
+`aontu get` steps through, and the same keys `get --keys --types`
+lists. That is a report, and it is the one report whose subject is the
+shape rather than the content. It is not a new traversal of the value
+tree; it is the existing one, drawn.
+
+**What it draws.** Map keys in code-point order, list indices in order,
+a sizing residue and a preference stepped through because neither is a
+level of the shape, and an alias declaration omitted because a
+declaration is not part of the document
+([`use-cases/BUGS.md`](../../use-cases/BUGS.md) 74 — `get --keys` still
+lists them). A leaf carries its canon, cut at 32 characters: the kind
+of thing it is, not its value. Values are what a document is FOR; the
+shape is what a reader needs before any of them mean anything.
+
+**`--depth`, and why the bound is loud.** Three levels by default. A
+container the bound stops at carries the number of keys not drawn, and
+they are counted into the loss report as `depth_elided`. A structural
+drawing that stopped without saying so would be worse than no drawing:
+the reader would take the leaf for a leaf. This is the same rule
+`--max-rows` follows by refusing rather than truncating, applied where
+truncation is the point.
+
+**Why every use case now opens with one.** Sixteen worked examples had
+five figures between them, all of them of the five models that happen
+to have an edge set or a version history. The other eleven presented a
+reader with prose and a file table. The model tree is the figure any of
+them can carry, and putting it first — with the second section
+explaining the arrangement — means the reader meets the shape before
+the argument.
+
 ### How this reuses G9 rather than duplicating it
 
 Inherited verbatim, as rules rather than as code:
@@ -1569,10 +1728,15 @@ Each refusal names the measurement or the rule that decided it.
 - **No colour palette, no `classDef`, no node shapes.** Colour is
   taste, is theme-dependent, and is the classic accretion vector. A
   profile may not grow a style field, by the same "without looking at
-  the shape of any node" test that governs G9's profiles.
+  the shape of any node" test that governs G9's profiles. AMENDED
+  2026-09-02 — see [Styling](#7-styling): a NAMED colour is refused
+  exactly as stated here, and an INDIRECTION through the destination's
+  own palette is not one.
 
 - **No view DSL in the model.** A view document declares WHICH
-  PROJECTION, never how it looks.
+  PROJECTION, never how it looks. Unamended: the styling below is a
+  CLI and API specifier, and a view-document declaration that carries
+  `style` is refused.
 
 - **No Excalidraw, tldraw, PlantUML, D2, Structurizr, ArchiMate or
   Vega-Lite target.** Reasons in [Prior art](#prior-art); Vega-Lite is

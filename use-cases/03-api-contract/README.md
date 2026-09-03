@@ -1,5 +1,7 @@
 # 03 — a REST API contract as agent ground truth
 
+![The model tree: endpoints, entities, messages and the shared wire vocabulary](expected/diagram-doc.svg)
+
 ## The scenario
 
 A REST API contract for a project-management SaaS ("Nimbus Tasks"):
@@ -20,6 +22,55 @@ organisation: every client, server, SDK, and test suite derives from
 it. Holding agents to it cheaply turns contract drift, the classic
 integration failure, into a CI error instead of a production
 incident.
+
+## The model tree
+
+`contract.aon` is the whole contract in one evaluation. `types` is the
+wire vocabulary every other branch draws on, `entities` the two records,
+`msg` the request and response bodies, `errors` the one envelope, and
+`api` the four endpoints. The four `api` children are the endpoints an
+agent codes against; each has eight keys of its own.
+
+```
+$
+├── api
+│   ├── create_project (8)
+│   ├── create_user (8)
+│   ├── get_project (8)
+│   └── list_users (8)
+├── entities
+│   ├── Project (8)
+│   └── User (8)
+├── errors
+│   └── Envelope (1)
+├── meta
+│   ├── name "nimbus-tasks-api"
+│   ├── stability "ga"
+│   └── version "1.3.0"
+├── msg
+│   ├── CreateProjectRequest (3)
+│   ├── CreateUserRequest (4)
+│   ├── ListUsersQuery (4)
+│   └── UserPage (4)
+└── types
+    ├── DisplayName string&length(integer&min(1)&...
+    ├── Email re("^[A-Za-z0-9._%+-]+@[A-Za-...
+    ├── Page integer&min(1)
+    ├── PageSize integer&min(1)&max(100)
+    ├── ProjectId re("^prj_[0-9A-Za-z]{20}$")
+    ├── RequestId re("^req_[0-9A-Za-z]{20}$")
+    ├── Role "admin"|"member"|"viewer"
+    ├── Slug re("^[a-z0-9][a-z0-9-]{1,38}[...
+    ├── Timestamp re("^\\d{4}-\\d{2}-\\d{2}T\\d...
+    ├── UserId re("^usr_[0-9A-Za-z]{20}$")
+    └── Visibility "private"|"team"|"public"
+```
+
+`aontu view doc --depth 2 contract.aon` draws it, and `check.sh` pins it
+with `--out --check`. A key with `(n)` after it is a container the
+depth bound stopped at, and `n` is how many keys are not drawn; a
+leaf carries its canon, which is the kind of thing it is rather
+than its value.
 
 ## The model
 

@@ -1,0 +1,39 @@
+$
+├── Role "admin"|"operator"|"analyst"|...
+├── SideEffect "readonly"|"write"|"destructive"
+├── ToolSpec
+│   ├── allowed_roles [&:$.Role]
+│   ├── description string&length(integer&min(24)...
+│   ├── owner re("^[a-z][a-z0-9-]*@corp[.]e...
+│   ├── rate_limit (2)
+│   ├── requires_approval boolean
+│   ├── side_effect "readonly"|"write"|"destructive"
+│   └── timeout_ms integer&min(100)&max(600000)
+├── argschemas
+│   ├── create_ticket (5)
+│   ├── delete_records (3)
+│   ├── http_request (5)
+│   ├── read_file (2)
+│   ├── search_docs (3)
+│   └── send_email (3)
+├── docs
+│   ├── header "| tool | effect | rpm | appr...
+│   └── table (6)
+├── guard
+│   ├── create_ticket (2)
+│   ├── delete_records (2)
+│   ├── http_request (2)
+│   ├── read_file (2)
+│   ├── search_docs (2)
+│   └── send_email (2)
+├── registry
+│   ├── owner "platform-tools@corp.example"
+│   ├── platform "orion"
+│   └── version "1.4.0"
+└── tools
+    ├── create_ticket (7)
+    ├── delete_records (7)
+    ├── http_request (7)
+    ├── read_file (7)
+    ├── search_docs (7)
+    └── send_email (7)

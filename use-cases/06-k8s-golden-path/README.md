@@ -1,5 +1,7 @@
 # 06 — Kubernetes golden path: one service model, N manifests
 
+![The model tree: the compact service model beside the Kubernetes manifests it fans out to](expected/diagram-doc.svg)
+
 ## The scenario
 
 A payments platform team owns `platform.aon`, the golden path: hidden
@@ -20,6 +22,43 @@ unification, so an override composes like editing plain data and a
 contradiction between the model and its policy is a located error.
 
 Everything quoted below is real CLI output (ANSI stripped).
+
+## The model tree
+
+`main.aon` unifies the golden path with what the product team writes.
+The compact model is `svc`; `deploy` and `service` are the Kubernetes
+manifests the machinery in `platform` renders from it, one per service,
+and `internal` is the working shape it renders through.
+
+```
+$
+├── deploy
+│   ├── auth (4)
+│   ├── billing (4)
+│   └── web (4)
+├── internal
+│   └── envmaps (3)
+├── platform
+│   ├── baseEnv (3)
+│   ├── namespace "payments"
+│   └── registry "registry.acme.io/payments"
+├── service
+│   ├── auth (4)
+│   ├── billing (4)
+│   └── web (4)
+└── svc
+    ├── extraEnv (3)
+    ├── names (3)
+    ├── ports (3)
+    ├── tier (3)
+    └── version (3)
+```
+
+`aontu view doc --depth 2 main.aon` draws it, and `check.sh` pins it
+with `--out --check`. A key with `(n)` after it is a container the
+depth bound stopped at, and `n` is how many keys are not drawn; a
+leaf carries its canon, which is the kind of thing it is rather
+than its value.
 
 ## How the model is designed
 

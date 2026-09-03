@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" class="av" viewBox="0 0 412 688" width="412" height="688" role="img" aria-label="Document tree at $: 33 keys to depth 2">
+<style>.av{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px}.av-t{fill:var(--av-ink,#1f2328)}.av-m{fill:var(--av-muted,#6e7781)}.av-box{fill:var(--av-bg,#f6f8fa);stroke:var(--av-rule,#8c959f);stroke-width:1}.av-cell{fill:var(--av-bg,#f6f8fa);stroke:var(--av-rule-faint,#d0d7de);stroke-width:1}.av-direct{fill:var(--av-ink,#1f2328);stroke:var(--av-rule-faint,#d0d7de);stroke-width:1}.av-closure{fill:var(--av-closure,#9ec5fe);stroke:var(--av-rule-faint,#d0d7de);stroke-width:1}.av-unmirrored{fill:var(--av-warn,#e3b341);stroke:var(--av-rule-faint,#d0d7de);stroke-width:1}.av-line{stroke:var(--av-rule,#8c959f);stroke-width:1;fill:none}.av-up{stroke:var(--av-alert,#d1242f);stroke-width:1.5;fill:none;stroke-dasharray:4 3}.av-dot{fill:var(--av-ink,#1f2328)}.av-hole{fill:var(--av-bg,#f6f8fa);stroke:var(--av-rule-faint,#d0d7de);stroke-width:1}.av-bar{fill:var(--av-bar,#57606a)}</style>
+<text x="4" y="14" class="av-t">$</text>
+<path d="M8 20V30H26" class="av-line"/>
+<text x="28" y="34" class="av-t">alerts</text>
+<path d="M32 40V50H50" class="av-line"/>
+<text x="52" y="54"><tspan class="av-t">auth</tspan><tspan class="av-m"> (3)</tspan></text>
+<path d="M32 40V70H50" class="av-line"/>
+<text x="52" y="74"><tspan class="av-t">billing</tspan><tspan class="av-m"> (3)</tspan></text>
+<path d="M8 20V90H26" class="av-line"/>
+<text x="28" y="94" class="av-t">defs</text>
+<path d="M32 100V110H50" class="av-line"/>
+<text x="52" y="114"><tspan class="av-t">workload</tspan><tspan class="av-m"> (9)</tspan></text>
+<path d="M8 20V130H26" class="av-line"/>
+<text x="28" y="134" class="av-t">deploy</text>
+<path d="M32 140V150H50" class="av-line"/>
+<text x="52" y="154"><tspan class="av-t">dev</tspan><tspan class="av-m"> (3)</tspan></text>
+<path d="M32 140V170H50" class="av-line"/>
+<text x="52" y="174"><tspan class="av-t">prod</tspan><tspan class="av-m"> (3)</tspan></text>
+<path d="M32 140V190H50" class="av-line"/>
+<text x="52" y="194"><tspan class="av-t">staging</tspan><tspan class="av-m"> (3)</tspan></text>
+<path d="M8 20V210H26" class="av-line"/>
+<text x="28" y="214" class="av-t">envguard</text>
+<path d="M32 220V230H50" class="av-line"/>
+<text x="52" y="234"><tspan class="av-t">dev</tspan><tspan class="av-m"> (3)</tspan></text>
+<path d="M32 220V250H50" class="av-line"/>
+<text x="52" y="254"><tspan class="av-t">prod</tspan><tspan class="av-m"> (3)</tspan></text>
+<path d="M32 220V270H50" class="av-line"/>
+<text x="52" y="274"><tspan class="av-t">staging</tspan><tspan class="av-m"> (3)</tspan></text>
+<path d="M8 20V290H26" class="av-line"/>
+<text x="28" y="294" class="av-t">environments</text>
+<path d="M32 300V310H50" class="av-line"/>
+<text x="52" y="314"><tspan class="av-t">dev</tspan><tspan class="av-m"> (2)</tspan></text>
+<path d="M32 300V330H50" class="av-line"/>
+<text x="52" y="334"><tspan class="av-t">prod</tspan><tspan class="av-m"> (2)</tspan></text>
+<path d="M32 300V350H50" class="av-line"/>
+<text x="52" y="354"><tspan class="av-t">staging</tspan><tspan class="av-m"> (2)</tspan></text>
+<path d="M8 20V370H26" class="av-line"/>
+<text x="28" y="374" class="av-t">fleet</text>
+<path d="M32 380V390H50" class="av-line"/>
+<text x="52" y="394"><tspan class="av-t">auth</tspan><tspan class="av-m"> (3)</tspan></text>
+<path d="M32 380V410H50" class="av-line"/>
+<text x="52" y="414"><tspan class="av-t">billing</tspan><tspan class="av-m"> (3)</tspan></text>
+<path d="M32 380V430H50" class="av-line"/>
+<text x="52" y="434"><tspan class="av-t">reports</tspan><tspan class="av-m"> (3)</tspan></text>
+<path d="M32 380V450H50" class="av-line"/>
+<text x="52" y="454"><tspan class="av-t">web</tspan><tspan class="av-m"> (3)</tspan></text>
+<path d="M8 20V470H26" class="av-line"/>
+<text x="28" y="474" class="av-t">org</text>
+<path d="M32 480V490H50" class="av-line"/>
+<text x="52" y="494"><tspan class="av-t">name</tspan><tspan class="av-m"> &quot;acme&quot;</tspan></text>
+<path d="M32 480V510H50" class="av-line"/>
+<text x="52" y="514"><tspan class="av-t">registry</tspan><tspan class="av-m"> &quot;registry.acme.internal&quot;</tspan></text>
+<path d="M32 480V530H50" class="av-line"/>
+<text x="52" y="534"><tspan class="av-t">runbookBase</tspan><tspan class="av-m"> &quot;https://runbooks.acme.internal&quot;</tspan></text>
+<path d="M8 20V550H26" class="av-line"/>
+<text x="28" y="554" class="av-t">release</text>
+<path d="M32 560V570H50" class="av-line"/>
+<text x="52" y="574"><tspan class="av-t">tag</tspan><tspan class="av-m"> &quot;2025.34.2&quot;</tspan></text>
+<path d="M8 20V590H26" class="av-line"/>
+<text x="28" y="594" class="av-t">rollout</text>
+<path d="M32 600V610H50" class="av-line"/>
+<text x="52" y="614"><tspan class="av-t">billingProdMaxSurge</tspan><tspan class="av-m"> 13</tspan></text>
+<path d="M8 20V630H26" class="av-line"/>
+<text x="28" y="634" class="av-t">team</text>
+<path d="M32 640V650H50" class="av-line"/>
+<text x="52" y="654"><tspan class="av-t">name</tspan><tspan class="av-m"> &quot;payments&quot;</tspan></text>
+<path d="M32 640V670H50" class="av-line"/>
+<text x="52" y="674"><tspan class="av-t">oncall</tspan><tspan class="av-m"> &quot;#payments-oncall&quot;</tspan></text>
+</svg>

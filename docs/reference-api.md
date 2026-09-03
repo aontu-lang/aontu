@@ -630,50 +630,50 @@ $ echo $?
 ```
 
 - Relations are declared **at the field**, by
- [`rel(t)` and the graph atoms](reference-language.md#declared-relations):
- `acyclic()` and `inverse(name)` register the declaration during
- unification, and the verb reports the verdict over the finished
- model's edge set. There is no reserved `relations:` key — a document
- that writes one has written ordinary data.
+  [`rel(t)` and the graph atoms](reference-language.md#declared-relations):
+  `acyclic()` and `inverse(name)` register the declaration during
+  unification, and the verb reports the verdict over the finished
+  model's edge set. There is no reserved `relations:` key — a document
+  that writes one has written ordinary data.
 - **These are not lattice constraints, deliberately.** Both properties
- are global and non-monotone — one more edge makes an acyclic graph
- cyclic — so they are facts about a finished model rather than
- something unification may hold. Generation enforces the same verdict
- (a located `relation_cycle` / `relation_inverse_missing` at the
- offending edge); the verb reports it without generating. The
- [language reference](reference-language.md#declared-relations) states
- the rule; the [explanation](explanation.md#why-there-is-a-verb-surface)
- argues it.
+  are global and non-monotone — one more edge makes an acyclic graph
+  cyclic — so they are facts about a finished model rather than
+  something unification may hold. Generation enforces the same verdict
+  (a located `relation_cycle` / `relation_inverse_missing` at the
+  offending edge); the verb reports it without generating. The
+  [language reference](reference-language.md#declared-relations) states
+  the rule; the [explanation](explanation.md#why-there-is-a-verb-surface)
+  argues it.
 - A finding carries `at` (the position of the offending edge), `code`
- (`relation_cycle` or `relation_inverse_missing`), `relation`, and
- `detail` — for a cycle, the node paths it runs through in order; for
- a missing inverse, `[from, to, inverseName]`. Findings are **sorted by
- `at`**, so the report diffs cleanly.
+  (`relation_cycle` or `relation_inverse_missing`), `relation`, and
+  `detail` — for a cycle, the node paths it runs through in order; for
+  a missing inverse, `[from, to, inverseName]`. Findings are **sorted by
+  `at`**, so the report diffs cleanly.
 - **The endpoint type is `rel(t)`'s flow**: declared once on the field,
- it flows into each far end at the site, so a conflict or a hole is an
- ordinary located evaluation error rather than a report row — and a
- document with a wrong-typed far end answers `verdict: error` here,
- because it does not stand up at all. (The old `target:` declaration
- and its `relation_target_unmet` finding are retired with the
- `relations:` key.)
+  it flows into each far end at the site, so a conflict or a hole is an
+  ordinary located evaluation error rather than a report row — and a
+  document with a wrong-typed far end answers `verdict: error` here,
+  because it does not stand up at all. (The old `target:` declaration
+  and its `relation_target_unmet` finding are retired with the
+  `relations:` key.)
 - `--format json` wraps the same findings with the `aontu` producer
- block (`verb`, `version`) that every machine-readable report carries.
+  block (`verb`, `version`) that every machine-readable report carries.
 - Exit codes: `0` `pass`, `1` `fail`, `4` `error` (the document does
- not evaluate), `2` usage. Note these are the verb's own three
- verdicts, not [`vet`](#aontu-vet)'s five classes — there is no
- schema on the other side of this question, so `incomplete` has
- nothing to mean.
+  not evaluate), `2` usage. Note these are the verb's own three
+  verdicts, not [`vet`](#aontu-vet)'s five classes — there is no
+  schema on the other side of this question, so `incomplete` has
+  nothing to mean.
 - **A verdict of `error` says why.** A document that does not stand up
- has no graph, so it has no relation findings — but the report carries
- `errors`, the engine's own first failure in the same finding shape
- [`vet`](#aontu-vet) reports in. `findings` stays the graph's own
- vocabulary; the two lists answer two different questions, and the
- `errors` field is present only on the `error` verdict.
+  has no graph, so it has no relation findings — but the report carries
+  `errors`, the engine's own first failure in the same finding shape
+  [`vet`](#aontu-vet) reports in. `findings` stays the graph's own
+  vocabulary; the two lists answer two different questions, and the
+  `errors` field is present only on the `error` verdict.
 - The library form is `relationCheck(src)` in TypeScript and
- `Aontu.RelationCheck(src)` in Go, returning the identical
- `{verdict, findings}` record (plus `errors` on a failed run); the
- derived graph the checks run over is `result.graph` /
- `Aontu.Graph`, described under [the TypeScript API](#class-aontu).
+  `Aontu.RelationCheck(src)` in Go, returning the identical
+  `{verdict, findings}` record (plus `errors` on a failed run); the
+  derived graph the checks run over is `result.graph` /
+  `Aontu.Graph`, described under [the TypeScript API](#class-aontu).
 
 ### `aontu reaches`
 
@@ -774,14 +774,17 @@ by code point, and both ports emit the same bytes.
 
 ```
 aontu view <kind> [--as <profile>] [--at <path>] [--out <file> [--check]]
-           [--strict] [--max-rows <n>] [--format text|json] [options] <file>...
+           [--strict] [--max-rows <n>] [--depth <n>] [--style <s>]
+           [--format text|json] [options] <file>...
 ```
 
-Eight kinds, each reading one report the engine already produces and
-never the value tree:
+Nine kinds. Eight read a report the engine already produces; `doc`
+reads the shape of the document itself, which is the one thing no
+report holds:
 
 | kind | draws | reads | profiles |
 |---|---|---|---|
+| `doc` | the document's own key tree, to a depth | the anchor walk, as `get --keys --types` reads it | `text`, `svg` |
 | `tree` | the dependency tree of a relation: roots derived, repeats elided, cycles marked | the edge set | `text`, `svg` |
 | `matrix` | the dependency-structure matrix over one relation, in `canon` or `partition` order, with `--closure` | the edge set and the relation declarations | `text`, `svg` |
 | `graph` | the node-link drawing, grouped and labelled by fields of the nodes | the edge set, the declarations, the node values | `mermaid`, `dot`, `er` |
@@ -799,7 +802,8 @@ node-link drawing and no Mermaid form of a matrix.
 a grid of character cells -- as a standalone SVG with the same
 geometry: 8 units per character and 20 per line, every coordinate a
 whole number, so no font is measured and both ports emit the same
-bytes. The figure carries its own style block; a host page sets the
+bytes. The figure carries its own style block (dropped by
+`--style none`, below); a host page sets the
 colours through CSS variables (`--av-ink`, `--av-muted`, `--av-bg`,
 `--av-rule`, `--av-rule-faint`, `--av-closure`, `--av-warn`,
 `--av-alert`, `--av-bar`), and the defaults stand where it sets none.
@@ -851,106 +855,142 @@ flowchart LR
 ```
 
 - **The loss report.** Every run prints, on stderr, what the figure
- could not draw or drew differently from the model, one line per
- code with a count: `hidden_contribution` (an edge inside a `hide()`
- subtree, not drawn, because a committed figure discloses what it
- draws), `edges_in_disjunct` (a link under an unresolved disjunction,
- which is not a fact, so the figure reports it rather than
- picking an arm), `unresolved_field` (a node without a value for
- `--group-by` or `--label`), `cycle_block`, `cols_elided`, and for the
- poset
- `order_undecided`, `order_maybe_equal` and `order_intransitive`. Any
- of these makes the verdict `lossy`, which `--strict` turns into exit
- `1`. Three codes are informational and leave the verdict `rendered`:
- `edges_deduped` (a model declaring each entity at two positions
- writes each edge twice), `inverse_suppressed` (a declared mirror,
- implied by the edge drawn) and `crossings` (a property of the emitted
- order).
+  could not draw or drew differently from the model, one line per
+  code with a count: `hidden_contribution` (an edge inside a `hide()`
+  subtree, not drawn, because a committed figure discloses what it
+  draws), `edges_in_disjunct` (a link under an unresolved disjunction,
+  which is not a fact, so the figure reports it rather than
+  picking an arm), `unresolved_field` (a node without a value for
+  `--group-by` or `--label`), `cycle_block`, `cols_elided`, and for the
+  poset
+  `order_undecided`, `order_maybe_equal` and `order_intransitive`. Any
+  of these makes the verdict `lossy`, which `--strict` turns into exit
+  `1`. Three codes are informational and leave the verdict `rendered`:
+  `edges_deduped` (a model declaring each entity at two positions
+  writes each edge twice), `inverse_suppressed` (a declared mirror,
+  implied by the edge drawn) and `crossings` (a property of the emitted
+  order).
+- **`--style <s>`** says how a figure carries the MEANING of its
+  marks. Every mark has a reason the extractor established — a direct
+  cell, a closure cell, an unmirrored edge, an upward edge, a repeated
+  subtree — and each profile has one way to show it: SGR escapes for
+  `text`, CSS classes for `svg`. `auto`, the default, picks that
+  mechanism where the destination can carry it: escapes only when
+  **stdout** is a terminal and `NO_COLOR` is unset (stdout, because
+  that is where the figure goes — the error frames' own colour
+  decision is about stderr), and an SVG keeps the
+  stylesheet that makes it standalone. `none` drops both — on `svg` the
+  classes stay (they are structure, not style) and only the embedded
+  stylesheet goes, which is what a host page wants once it has bound
+  `--av-ink` and its kin and is embedding several figures. `ansi` and
+  `css` name a mechanism outright, and asking for one on a profile that
+  cannot carry it is a usage error (`view_style_profile`) rather than a
+  silent no-op. Escapes are never written to a file: `--out` with
+  `--style ansi` is refused, and `auto` resolves to no escapes there.
+
+  Neither mechanism states a colour, and a figure still cannot name
+  one: SGR 31 means the colour the reader's terminal calls red, and a
+  CSS class states nothing at all. A hex triple in a figure stays refused, and so
+  does `style` in a view document — a declaration says which
+  projection, never how it looks.
 - **`--out <file>` and `--check`.** The figure is written to the file
- instead of stdout; with `--check` nothing is written and the exit is
- `1` when the file differs from what would be drawn, which is the CI
- gate for a committed figure.
+  instead of stdout; with `--check` nothing is written and the exit is
+  `1` when the file differs from what would be drawn, which is the CI
+  gate for a committed figure.
 - **`--max-rows <n>`** (default 60) is a refusal, exit `2`, not a
- truncation; the message names the narrowing options.
+  truncation; the message names the narrowing options.
+- `doc`: the shape of the model, before any of its values mean
+  anything. Every other kind here needs the document to HAVE something
+  — links, contributions, peers — and draws nothing from one that does
+  not; this draws what is in the document and how it is arranged, which
+  is what a reader meeting a model wants first. `--at` names the
+  subtree (default `$`) and `--depth <n>` how many levels of key below
+  it (default 3). Map keys are in code-point order and list indices in
+  order, exactly as `get --keys` lists them. A leaf carries its canon,
+  cut at 32 characters — the kind of thing it is, not its value. A
+  container the depth bound stops at carries the number of keys not
+  drawn, and they are counted into the loss report as `depth_elided`:
+  a tree that stopped without saying so would be the one thing a
+  structural drawing must not be.
 - **`--at <path>`** restricts the edge-derived kinds to nodes under the
- path, the provenance panel to paths under it, and names the path the
- ladder draws (required) and where the poset compares.
+  path, names the subtree `doc` draws, the provenance panel to paths under it, and names the path the
+  ladder draws (required) and where the poset compares.
 - `tree`: `--relation` draws one relation; without it every relation is
- drawn, each branch naming its own. `--root <path>` (repeatable) draws
- one subtree; a root that is not a node of the drawn graph is refused
- (`refer_unresolved`). Roots are derived as the nodes nothing depends
- on; a shared subtree is expanded once and marked `(*)` after; a
- closing edge is `(cycle)`; labels are the shortest path suffix unique
- in the drawing.
+  drawn, each branch naming its own. `--root <path>` (repeatable) draws
+  one subtree; a root that is not a node of the drawn graph is refused
+  (`refer_unresolved`). Roots are derived as the nodes nothing depends
+  on; a shared subtree is expanded once and marked `(*)` after; a
+  closing edge is `(cycle)`; labels are the shortest path suffix unique
+  in the drawing.
 - `matrix`: `--relation` is required unless exactly one relation has
- edges (`view_relation_ambiguous` otherwise); `--order canon`
- (label order, the default) or `partition`; `--closure` marks the
- transitively reachable cells. Ten or more rows stack the index
- digits in the header.
+  edges (`view_relation_ambiguous` otherwise); `--order canon`
+  (label order, the default) or `partition`; `--closure` marks the
+  transitively reachable cells. Ten or more rows stack the index
+  digits in the header.
 - `graph`: `--relation` (repeatable) keeps only those predicates; a
- declared inverse's mirror is suppressed and counted. `--group-by
- <field>` puts each node in a subgraph named by that field's value
- (ids `g0`, `g1`,... in label order); `--label <field>` labels the
- node with it, a number or boolean as its canon. Node ids encode the
- label injectively: `n_` + the name when it is an ASCII identifier,
- else `nq_` + the name with every other code point as `_` and its
- hex (`cust-1` is `nq_cust_2d1`, so a name such as `end` or `graph`
- can never collide with a keyword). Text is escaped per code point:
- Mermaid as numeric entities (`#34;` for `"`, `#124;` for `|`), DOT
- as `\"` and `\\`. A label holding a line terminator is refused
- (`view_line_break`). `--as er` draws Mermaid's `erDiagram`, every
- relationship many-to-many because the model states no cardinality.
+  declared inverse's mirror is suppressed and counted. `--group-by
+  <field>` puts each node in a subgraph named by that field's value
+  (ids `g0`, `g1`, ... in label order); `--label <field>` labels the
+  node with it, a number or boolean as its canon. Node ids encode the
+  label injectively: `n_` + the name when it is an ASCII identifier,
+  else `nq_` + the name with every other code point as `_` and its
+  hex (`cust-1` is `nq_cust_2d1`, so a name such as `end` or `graph`
+  can never collide with a keyword). Text is escaped per code point:
+  Mermaid as numeric entities (`#34;` for `"`, `#124;` for `|`), DOT
+  as `\"` and `\\`. A label holding a line terminator is refused
+  (`view_line_break`). `--as er` draws Mermaid's `erDiagram`, every
+  relationship many-to-many because the model states no cardinality.
 - `layer`: `--group-by <field>` (required, `view_group_required`)
- names each node's layer; bands are stacked in the partition order of
- the layer-level graph, reversed, so the layer nothing depends on is
- on top. `--layers a,b,c` fixes the order (top first) for a model
- whose upward edge makes the layer graph cyclic. The footer counts
- the relation's downward, sideways and upward edges, and names each
- edge `--edges` shows. `--edges upward|all|none` chooses which of them
- the figure draws over the bands: `upward` is the violations, and the
- default for the fixed grids (`text`, `svg`), because the bands
- already say which way the rest go; `all` draws the relation itself,
- which is what a reader tracing one module's dependencies wants, and
- is `mermaid`'s default since it lays edges out itself; `none` leaves
- the bands alone. In SVG an upward edge is dashed and alert-coloured,
- a downward one runs from the bottom of its box to the top of the one
- it names, and a sideways one dips below the boxes of its band.
+  names each node's layer; bands are stacked in the partition order of
+  the layer-level graph, reversed, so the layer nothing depends on is
+  on top. `--layers a,b,c` fixes the order (top first) for a model
+  whose upward edge makes the layer graph cyclic. The footer counts
+  the relation's downward, sideways and upward edges, and names each
+  edge `--edges` shows. `--edges upward|all|none` chooses which of them
+  the figure draws over the bands: `upward` is the violations, and the
+  default for the fixed grids (`text`, `svg`), because the bands
+  already say which way the rest go; `all` draws the relation itself,
+  which is what a reader tracing one module's dependencies wants, and
+  is `mermaid`'s default since it lays edges out itself; `none` leaves
+  the bands alone. In SVG an upward edge is dashed and alert-coloured,
+  a downward one runs from the bottom of its box to the top of the one
+  it names, and a sideways one dips below the boxes of its band.
 - `sets`: `--sets <path>` names a map whose keys are the sets,
- `--member <key>` the field holding each set's members (a list of
- strings), `--universe <path>` a map or list of every element, so
- the covered-by-nothing column exists. A member written as an address
- (`path($.perms.read)`) meets a universe map's key on that address
- and is shown by its shortest unique suffix. Columns are the exact
- membership signatures, by degree, then cardinality, then name;
- `--min-degree <n>` drops the low ones and `--max-cols <n>` elides
- the rest (`cols_elided`). Both need the document to generate.
+  `--member <key>` the field holding each set's members (a list of
+  strings), `--universe <path>` a map or list of every element, so
+  the covered-by-nothing column exists. A member written as an address
+  (`path($.perms.read)`) meets a universe map's key on that address
+  and is shown by its shortest unique suffix. Columns are the exact
+  membership signatures, by degree, then cardinality, then name;
+  `--min-degree <n>` drops the low ones and `--max-cols <n>` elides
+  the rest (`cols_elided`). Both need the document to generate.
 - `layers`: the same panel over the provenance record, sets being the
- documents and elements the paths each document wrote into. Files are
- shown relative to the entry document; `--min-size <n>` drops the
- small intersections.
+  documents and elements the paths each document wrote into. Files are
+  shown relative to the entry document; `--min-size <n>` drops the
+  small intersections.
 - `ladder`: the `why` record at `--at`, one rung per contribution,
- sorted by rank descending (weakest first, so the winner is the last
- rung before the value), then by site.
+  sorted by rank descending (weakest first, so the winner is the last
+  rung before the value), then by site.
 - `poset`: several files; each pair is compared with `subsume` at
- `--at` under `--profile values|defaults|gen` (default `defaults`).
- Documents that subsume each other are one node, labelled `a = b`; an
- edge is a cover of the transitive closure, upward toward the more
- general document; an undecided pair with no proven order is a dashed
- edge labelled with the `sub_*` reason. Labels are the file names
- without `.aon`.
+  `--at` under `--profile values|defaults|gen` (default `defaults`).
+  Documents that subsume each other are one node, labelled `a = b`; an
+  edge is a cover of the transitive closure, upward toward the more
+  general document; an undecided pair with no proven order is a dashed
+  edge labelled with the `sub_*` reason. Labels are the file names
+  without `.aon`.
 - Exit codes: `0` rendered or lossy, `1` a `--check` mismatch or lossy
- under `--strict`, `2` usage (an unknown kind or profile, a missing
- required option, `--max-rows` exceeded), `4` error (a document that
- does not stand up, a relation, root or path that names nothing). A
- document with nothing to draw renders an empty figure and exits `0`.
- In text form the figure is all that stdout carries, so a redirect is
- a golden file; `--format json` wraps the whole report as
- `{kind, verdict, text, loss}` under the usual `aontu` envelope, and
- a refusal carries `errors` in place of `text`.
+  under `--strict`, `2` usage (an unknown kind or profile, a missing
+  required option, `--max-rows` exceeded), `4` error (a document that
+  does not stand up, a relation, root or path that names nothing). A
+  document with nothing to draw renders an empty figure and exits `0`.
+  In text form the figure is all that stdout carries, so a redirect is
+  a golden file; `--format json` wraps the whole report as
+  `{kind, verdict, text, loss}` under the usual `aontu` envelope, and
+  a refusal carries `errors` in place of `text`.
 - The library form is `view(src, options)` in TypeScript (`viewTree`
- remains for the tree) and `Aontu.View(src, options)` in Go, returning
- the identical `{verdict, kind, text?, loss, errors?}` record; the
- poset's further documents ride `options.docs` as `{src, path?, name?}`.
+  remains for the tree) and `Aontu.View(src, options)` in Go, returning
+  the identical `{verdict, kind, text?, loss, errors?}` record; the
+  poset's further documents ride `options.docs` as `{src, path?, name?}`.
 
 **The view document.** A projection that runs in CI belongs in a file.
 `--views <path>` names a map, in an ordinary document that includes the

@@ -1241,6 +1241,7 @@ func specViewOptions(ask map[string]any) *ViewOptions {
 		Sets: str("sets"), Member: str("member"), Universe: str("universe"),
 		MinDegree: num("minDegree"), MaxCols: num("maxCols"), MinSize: num("minSize"),
 		Profile: str("profile"), Docs: docs,
-		Out: str("out"), Views: str("views"),
+		Out: str("out"), Views: str("views"), Style: str("style"),
+		Depth: num("depth"),
 	}
 }

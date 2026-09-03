@@ -1209,6 +1209,14 @@ and it does not appear in canon — so the file above and the file with
 document and produce the same [`aon1-` hash](#canonical-form). That is
 the whole of what an alias is: a name for a value, and nothing else.
 
+**Not inside a spread template, yet.** `{&: {a: %D}}` does not resolve
+the reference: the alias survives into canon as `$.%D` — the refused
+path spelling — and the document's [`aon1-` hash](#canonical-form)
+moves, so the two spellings are *not* the same document there. The
+value still generates correctly in both ports, which is what makes it
+easy to miss. Write the constraint out inside a spread template until
+this is fixed.
+
 **An alias is not a path segment.** `$.%foo` is refused, at any depth:
 the alias namespace and the path namespace are disjoint, and an alias
 is reached by writing `%foo` and only that.
@@ -1540,7 +1548,7 @@ Maths beyond `+` is spelled with **functions**. The tokens `-` `*` `/`
 `%` stay reserved for the language's own use, so there is no infix
 arithmetic to learn beyond `+` and unary `-`:
 
-```
+```aon
 replicas: mul($.base.replicas, 2)
 spare:    sub($.quota.cpu, $.used.cpu)
 shards:   div($.total, $.per_shard)
@@ -2114,16 +2122,16 @@ except `'none'`, which denies every include by definition. It is
 Two of its behaviours are the language rather than the vocabulary:
 
 - **A preferred member is one enum member, with the default role.**
- `direction: *in | out | inout` is a true enum-with-default under the
- admission gate: unset generates `in`, `out` and `inout`
- override, and any other value is refused (`[aontu/empty]`). A
- vocabulary that wants an open field says so with a `| top` (or
- `| string`) branch.
+  `direction: *in | out | inout` is a true enum-with-default under the
+  admission gate: unset generates `in`, `out` and `inout`
+  override, and any other value is refused (`[aontu/empty]`). A
+  vocabulary that wants an open field says so with a `| top` (or
+  `| string`) branch.
 - **`Service` is written out rather than as `$.std.Component & {kind:
- service}`.** A reference from one member of an included file to
- another does not survive the include, so each schema states itself;
- `$.std.Component & $.std.Service` still meets exactly as you would
- expect.
+  service}`.** A reference from one member of an included file to
+  another does not survive the include, so each schema states itself;
+  `$.std.Component & $.std.Service` still meets exactly as you would
+  expect.
 
 Everything here is ordinary unification, so an author who wants a
 different vocabulary writes one the same way — and nothing in the
@@ -2265,7 +2273,7 @@ Write `vocab.jsonld`:
 
 <!-- test: scenario include-extension -->
 <!-- test: file vocab.jsonld -->
-```
+```json
 {"name": "aontu", "tags": ["config", "types"]}
 ```
 
@@ -2294,7 +2302,7 @@ A config file in any of those formats reads the same way. Write
 `server.toml`:
 
 <!-- test: file server.toml -->
-```
+```toml
 port = 8080
 hosts = ["a", "b"]
 ```
@@ -2471,14 +2479,14 @@ user cache, and a module then resolves from `aon_vendor/` alone.
 declares the module's own path and entry file; the entry defaults to
 `main.aon`:
 
-```
+```aon
 mod: { path: "corp.example/schemas/service", main: "service.aon" }
 ```
 
 `mod-lock.aon` is machine-written in **canonical form** — one line,
 sorted keys, diffable, and (its leaves being scalars) valid JSON:
 
-```
+```aon
 {"lock":{"corp.example/schemas/service@1":{"canon":"aon1-4vJe…","oci":"sha256:6b86…","v":"1.4.2"}}}
 ```
 
@@ -2505,7 +2513,7 @@ not consulted at all: a confined evaluation sees the project's own
 declares what the project wants, under a `dep` map keyed by module
 path:
 
-```
+```aon
 mod: { path: "corp.example/app", main: "main.aon" }
 dep: { "corp.example/schemas/service@1": { v: "1.4.2" } }
 ```
