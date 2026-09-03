@@ -347,9 +347,6 @@ func parseTextExt(arg string) ([]string, bool) {
 		}
 		out = append(out, ext)
 	}
-	if 0 == len(out) {
-		return nil, false
-	}
 	return out, true
 }
 
