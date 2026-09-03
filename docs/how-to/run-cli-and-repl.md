@@ -76,11 +76,27 @@ is no continuation prompt, and the permissive parser closes what you
 left open, so a half-typed `a: {` evaluates to `{"a":{}}` rather than
 waiting for more. Paste whole statements.
 
-Get the command with `npm install -g aontu` (or `npx aontu`) for the
-TypeScript build; as a built binary for Linux, macOS or Windows from
-the [releases page](https://github.com/aontu-lang/aontu/releases),
-which needs no toolchain and has `aontu-lsp` beside it; or with
-`go install github.com/aontu-lang/aontu/go/cmd/aontu@latest` for Go.
+Get the command in whichever of these fits the machine. Every one
+installs the same `aontu`, and the Go builds bring `aontu-lsp`, the
+language server, with it.
+
+- `npm install -g aontu` (or `npx aontu`) for the TypeScript build.
+- `curl -fsSL https://aontu.dev/install.sh | sh` on Linux or macOS:
+  the script fetches the release archive for the platform, checks it
+  against the release's `SHA256SUMS`, and puts the binaries in
+  `~/.local/bin`; `AONTU_INSTALL_DIR` and `AONTU_VERSION` change the
+  place and the release.
+- A package from the
+  [releases page](https://github.com/aontu-lang/aontu/releases): a
+  `.deb`, `.rpm` or `.apk`, a zip for Windows, or the archive itself.
+- `docker run --rm -v "$PWD:/work" ghcr.io/aontu-lang/aontu …`, the
+  image on GitHub's registry, for containers and CI.
+- `uses: aontu-lang/aontu/setup-action@main` in a GitHub workflow.
+- `nix run github:aontu-lang/aontu`, or the flake as an input, built
+  from source.
+- `go install github.com/aontu-lang/aontu/go/cmd/aontu@latest` with a
+  Go toolchain.
+
 From a clone: `node ts/bin/aontu.js …`, or `go run ./cmd/aontu …`
 inside `go/`. Both accept the same options and print the same bytes.
 

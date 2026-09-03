@@ -70,10 +70,13 @@ library adds a path-addressed `diff`, and an MCP server answers with
 the same reports over stdio. All of it is documented in
 [docs/reference-api.md](docs/reference-api.md).
 
-Install with `npm i -g aontu` (Node); with a built binary from the
-[releases page](https://github.com/aontu-lang/aontu/releases), `aontu`
-and `aontu-lsp` for Linux, macOS and Windows on `amd64` and `arm64`,
-which needs no toolchain; or with
+Install with `npm i -g aontu` (Node); with
+`curl -fsSL https://aontu.dev/install.sh | sh` on Linux or macOS, which
+puts the Go build of `aontu` and `aontu-lsp` in `~/.local/bin` with no
+toolchain; with a package or archive from the
+[releases page](https://github.com/aontu-lang/aontu/releases), the
+image `ghcr.io/aontu-lang/aontu`, the Nix flake, or the setup action
+`aontu-lang/aontu/setup-action` in a workflow; or with
 `go install github.com/aontu-lang/aontu/go/cmd/aontu@latest` (Go). From a
 clone: `node ts/dist/cli.js …` or, inside `go/`, `go run ./cmd/aontu …`.
 

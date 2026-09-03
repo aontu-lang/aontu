@@ -7,19 +7,30 @@ which implementation each change affects.
 
 ## Unreleased
 
-### Built binaries with every Go release
+### Built binaries and install channels with every Go release
 
-A Go release now carries the CLI as a download: the publish workflow
-cross-compiles `aontu` and `aontu-lsp` for Linux, macOS and Windows on
-`amd64` and `arm64` (pure Go, `CGO_ENABLED=0`, `-trimpath`), one archive
-per target with the licence, plus `SHA256SUMS` and a Homebrew formula
-written with those sums, and puts them on a GitHub Release at the
-`go/v<version>` tag. The build runs with a read-only token and hands the
-archives to a release job that runs `gh` and nothing else, the split
-the tag job already makes. `go/scripts/binaries.sh` is the script, and
-builds the same set by hand. The README and the CLI how-to name the
-releases page beside `npm` and `go install`; docs/release-and-tag.md
-carries the runbook and what a Homebrew tap needs. Go module.
+A Go release now carries the CLI as a download, in every shape an
+install expects. The publish workflow cross-compiles `aontu` and
+`aontu-lsp` for Linux, macOS and Windows on `amd64` and `arm64` (pure
+Go, `CGO_ENABLED=0`, `-trimpath`, reproducible archives), one archive
+per target with the licence, plus `SHA256SUMS`; builds `.deb`, `.rpm`
+and `.apk` packages for both architectures; writes the installer and
+the package-manager manifests from the sums (a Homebrew formula, a
+Scoop manifest, the winget manifests, an AUR `PKGBUILD` with its
+`.SRCINFO`); puts all of it on a GitHub Release at the `go/v<version>`
+tag; and pushes the Linux binaries as `ghcr.io/aontu-lang/aontu`. The
+build runs with a read-only token and hands the files to a release job
+that runs `gh` and nothing else, the split the tag job already makes;
+the image job holds the one `packages: write`. New beside the workflow:
+`go/scripts/install.sh`, the `curl | sh` installer that checks the
+archive against `SHA256SUMS` before placing anything and that the site
+serves at `https://aontu.dev/install.sh`; `setup-action/`, a GitHub
+Action that puts the binaries on a runner's `PATH` on Linux, macOS and
+Windows with no toolchain; and `flake.nix`, the Nix build from source.
+`go/scripts/binaries.sh` and `go/scripts/manifests.sh` build the same
+set by hand. The README and the CLI how-to list the channels;
+docs/release-and-tag.md carries the runbook and what the Homebrew,
+Scoop, winget and AUR channels still need. Go module.
 
 ### `aontu fmt --lint` -- the style findings (FMT.0.md P4)
 
