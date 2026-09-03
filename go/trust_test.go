@@ -427,13 +427,13 @@ func TestTextExtWideningAndItsLimits(t *testing.T) {
 	js := write("exec.js", "module.exports={pwned:true}\n")
 	toml := write("conf.toml", "port = 8080\n")
 
-	// A WIDENED EXTENSION IS READ AS TEXT. It reaches the fallback
-	// processor rather than a registered one -- the processor map is
-	// built once and the flag is per parse -- so this is the arm that
-	// keeps the resolver's gate and the processor agreeing.
+	// srcPath, because these paths are embedded in Aontu SOURCE and a
+	// backslash there is a string escape: on Windows the raw path
+	// arrived as `C:UsersRUNNER~1AppData...`, every separator eaten.
+	// The helper above exists for this and this test did not use it.
 	a := New()
 	a.TextExt = []string{"md"}
-	v, err := a.Parse(`x:@"` + md + `"`)
+	v, err := a.Parse(`x:@"` + srcPath(md) + `"`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -447,7 +447,7 @@ func TestTextExtWideningAndItsLimits(t *testing.T) {
 	// Go reading the file where TypeScript refused it.
 	b := New()
 	b.TextExt = []string{"js"}
-	if _, err := b.Parse(`x:@"` + js + `"`); nil == err ||
+	if _, err := b.Parse(`x:@"` + srcPath(js) + `"`); nil == err ||
 		!strings.Contains(err.Error(), "include not readable") ||
 		!strings.Contains(err.Error(), "extension: .js") {
 		t.Fatalf("js was widened: %v", err)
@@ -458,7 +458,7 @@ func TestTextExtWideningAndItsLimits(t *testing.T) {
 	// than becoming its own source text.
 	c := New()
 	c.TextExt = []string{"toml"}
-	tv, err := c.Parse(`x:@"` + toml + `"`)
+	tv, err := c.Parse(`x:@"` + srcPath(toml) + `"`)
 	if err != nil {
 		t.Fatal(err)
 	}
