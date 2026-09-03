@@ -7,6 +7,46 @@ which implementation each change affects.
 
 ## Unreleased
 
+### `aontu fmt` -- the source formatter, in the tradition of gofmt
+
+`aontu fmt [-w|-l|--check|-d] <file>...`, in both ports: one agreed
+form for Aontu source, so that layout is never argued about and a diff
+shows only what changed (docs/design/FMT.0.md, phase P1 -- the
+syntactic tier). The form: two-space indentation, `key: value` with the
+colon tight to the key, no commas between entries (they stay in a
+call's argument list), braces only where the language needs them -- a
+one-pair map is a chain, `a: b: c: 1`, and a one-key map in a list is a
+pair element, `[a:1 b:2]` -- containers on one line when they fit an
+80-column budget and padded inside braces, `{ a:1 b:2 }`, and as a block
+when they do not. Every comment and every blank-line break the author
+put between groups is kept; keys are bare where they can be; a
+single-quoted string becomes double-quoted unless it holds a double
+quote; numbers are never rewritten; the formatter never breaks a line,
+and keeps the author's breaks inside an expression at their operators.
+
+The formatter reads the token stream the parser reads, so it sees what
+the value tree throws away, and it resolves no include: `@"..."` is a
+token like any other, and the verb takes no `--trust`. Before it
+returns a byte it re-parses what it wrote and compares the two parse
+trees; a disagreement is refused as its own defect (`format_check`,
+class internal) with both spellings in the finding, and nothing is
+written. `--write` rewrites in place, `--list` names the files whose
+form would change, `--check` is the CI gate (exit 1), `--diff` prints a
+unified diff -- a patience diff, byte-identical across the ports. With
+no file the verb reads standard input; with several files it needs one
+of those options. Exit 4 for a document that does not parse.
+
+Library: `format(src, {path?}, hooks?)` and `unifiedDiff(name, before,
+after)` in TypeScript; `Aontu.Format(src)` and `aontu.UnifiedDiff` in
+Go. A new spec mode, `fmt` (`test/spec/fmt.tsv`, 103 rows): both
+runners assert the formatted text byte for byte, that it is a fixed
+point, and -- where the source evaluates -- that the canon-hash is
+unchanged. Gates: every `.aon` under `use-cases/` and
+`test/spec/files/` and every Aontu fence in the documentation formats
+to a fixed point, in both ports. The lawful tier (repeating the prefix,
+`server: host: ...` / `server: port: ...`, which rests on the meet) is
+P2 and has not landed; nothing is merged or split yet.
+
 ### The grammar, in the notation a person reads, with railroad diagrams
 
 `grammar/aontu.abnf`. The same rules as the GBNF and Lark files, in

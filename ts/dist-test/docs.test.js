@@ -474,6 +474,34 @@ function runStep(file, dir, step) {
             `directive: file/run for execution, or skip with a reason ` +
             `(docs/STYLE-GUIDE.md, "Code snippets"):\n${untested.join('\n')}`);
     });
+    // THE FORMATTER OVER THE FENCES (docs/design/FMT.0.md §7.5): every
+    // Aontu fence that parses formats to a fixed point -- formatted twice,
+    // the second run changes nothing. Whether the fences ARE in the form
+    // is that note's P3, and a separate gate.
+    (0, node_test_1.test)('every-source-fence-formats-to-a-fixed-point', () => {
+        const failures = [];
+        let checked = 0;
+        for (const page of pages()) {
+            for (const b of page.blocks) {
+                if (!SOURCE_TAGS.has(b.lang)) {
+                    continue;
+                }
+                const r = (0, aontu_1.format)(b.body);
+                if ('error' === r.verdict) {
+                    continue; // does not parse: the parse gate's business
+                }
+                checked++;
+                const again = (0, aontu_1.format)(r.text);
+                if ('error' === again.verdict || again.text !== r.text) {
+                    failures.push(`${page.file}:${b.line}`);
+                }
+            }
+        }
+        Assert.deepEqual(failures, [], `fences the formatter does not fix: ${failures.join(', ')}`);
+        if (undefined === narrowed()) {
+            Assert.ok(200 <= checked, `too few fences formatted: ${checked}`);
+        }
+    });
     // The prose channel names scenario files too: a file directive's
     // name must appear in a code span in the three lines above it, so
     // the human channel and the machine channel cannot drift.

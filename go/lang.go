@@ -82,7 +82,7 @@ var (
 
 func theLang() *jsonic.Jsonic {
 	theLangOnce.Do(func() {
-		theLangVal = mustMakeLang("")
+		theLangVal = mustMakeLang("", fileResolver)
 	})
 	return theLangVal
 }
@@ -113,7 +113,7 @@ func langForBase(base string) (*jsonic.Jsonic, error) {
 	if j, ok := langCache[base]; ok {
 		return j, nil
 	}
-	j, err := makeLang(base)
+	j, err := makeLang(base, fileResolver)
 	if err != nil { //coverage:ignore makeLang cannot fail — see mustMakeLang
 		return nil, err
 	}
@@ -129,8 +129,8 @@ func langForBase(base string) (*jsonic.Jsonic, error) {
 
 func boolPtr(b bool) *bool { return &b }
 
-func mustMakeLang(base string) *jsonic.Jsonic {
-	j, err := makeLang(base)
+func mustMakeLang(base string, resolver multisource.Resolver) *jsonic.Jsonic {
+	j, err := makeLang(base, resolver)
 	// makeLang's only error sources are its three plugin registrations,
 	// which take compile-time literal options and ignore the base — and
 	// this very call already succeeds at package init.
@@ -160,7 +160,11 @@ func inElem(r *jsonic.Rule) bool {
 	return r != nil && r.Parent != nil && "elem" == r.Parent.Name
 }
 
-func makeLang(base string) (*jsonic.Jsonic, error) {
+// makeLang builds the aontu parser for an include base and a resolver:
+// fileResolver for evaluation, and the formatter's memory stub (format.go),
+// which answers every include with nothing because the formatter reads the
+// file it is given and no other.
+func makeLang(base string, resolver multisource.Resolver) (*jsonic.Jsonic, error) {
 	j := jsonic.Make(jsonic.Options{
 		// Brand parse errors as aontu's, exactly as ts/src/lang.ts does
 		// with `errmsg: { name: 'aontu', suffix: false }`. Without it a
@@ -607,7 +611,7 @@ help isolate the syntax error.`,
 	})
 
 	// MultiSource reads the base only at RESOLVE time, not registration.
-	if err := j.Use(multisource.MultiSource, msOptions(base)); err != nil { //coverage:ignore plugin registration cannot fail
+	if err := j.Use(multisource.MultiSource, msOptions(base, resolver)); err != nil { //coverage:ignore plugin registration cannot fail
 		return nil, err
 	}
 
@@ -2404,18 +2408,7 @@ func parseWithTrust(src, base, file string, trust *trustSink) (Val, error) {
 	// the two-string list ["<<<<<<<","HEAD"] -- an unresolved merge became
 	// a plausible document instead of an error.
 	if off := findConflictMarker(src); off >= 0 {
-		n := newNil("merge_conflict")
-		n.sp = off
-		// The marker's row and column ride along: the canonical port
-		// puts them on the refusal's site, and the validation verb
-		// reports them (vet.go).
-		row, col := rowCol(src, off)
-		return newMap(), &AontuError{
-			Msg:  n.FullMessage(src, file),
-			Code: "merge_conflict",
-			Row:  row,
-			Col:  col,
-		}
+		return newMap(), conflictError(src, file, off)
 	}
 
 	lang, err := langForBase(base)
@@ -2477,30 +2470,7 @@ func parseWithTrust(src, base, file string, trust *trustSink) (Val, error) {
 	}
 
 	if err != nil {
-		// Code mirrors TS, whose jsonic parse errors wrap as an outer
-		// why:'parse' nil holding an inner why:'syntax' nil -- and it is
-		// the INNER syntax code that leads errs() on the thrown error,
-		// so `syntax` is the cross-port first-code for a source that
-		// fails to parse (pinned by error.tsv errc-parse-syntax).
-		//
-		// THE POSITION TRAVELS WITH IT. The parser knows exactly where
-		// it stopped -- it draws a caret there -- and the rendered
-		// message carried the only copy, so `vet --format json`
-		// reported row -1, col -1 for a document whose fault the human
-		// renderer located to the character. A machine-readable report
-		// that says "somewhere in this file" is the one a repair loop
-		// can do nothing with. Both fields are already 1-based here
-		// (tabnas.TabnasError), which is the base a site uses.
-		row, col := -1, -1
-		if je, ok := err.(*jsonic.JsonicError); ok {
-			row, col = je.Row, je.Col
-		}
-		return newMap(), &AontuError{
-			Msg:  err.Error() + opCharHint(src),
-			Code: "syntax",
-			Row:  row,
-			Col:  col,
-		}
+		return newMap(), syntaxError(err, src)
 	}
 	if out == nil {
 		return newMap(), nil
@@ -2518,6 +2488,49 @@ func parseWithTrust(src, base, file string, trust *trustSink) (Val, error) {
 	}
 	setPaths(root, []string{})
 	return root, nil
+}
+
+// conflictError is the refusal of a version-control conflict marker at
+// byte offset off. The marker's row and column ride along: the
+// canonical port puts them on the refusal's site, and the validation
+// verb reports them (vet.go).
+func conflictError(src, file string, off int) *AontuError {
+	n := newNil("merge_conflict")
+	n.sp = off
+	row, col := rowCol(src, off)
+	return &AontuError{
+		Msg:  n.FullMessage(src, file),
+		Code: "merge_conflict",
+		Row:  row,
+		Col:  col,
+	}
+}
+
+// syntaxError is a parse failure as the engine reports it. Code mirrors
+// TS, whose jsonic parse errors wrap as an outer why:'parse' nil holding
+// an inner why:'syntax' nil -- and it is the INNER syntax code that
+// leads errs() on the thrown error, so `syntax` is the cross-port
+// first-code for a source that fails to parse (pinned by error.tsv
+// errc-parse-syntax).
+//
+// THE POSITION TRAVELS WITH IT. The parser knows exactly where it
+// stopped -- it draws a caret there -- and the rendered message carried
+// the only copy, so `vet --format json` reported row -1, col -1 for a
+// document whose fault the human renderer located to the character. A
+// machine-readable report that says "somewhere in this file" is the one
+// a repair loop can do nothing with. Both fields are already 1-based
+// here (tabnas.TabnasError), which is the base a site uses.
+func syntaxError(err error, src string) *AontuError {
+	row, col := -1, -1
+	if je, ok := err.(*jsonic.JsonicError); ok {
+		row, col = je.Row, je.Col
+	}
+	return &AontuError{
+		Msg:  err.Error() + opCharHint(src),
+		Code: "syntax",
+		Row:  row,
+		Col:  col,
+	}
 }
 
 // opCharHint is the targeted parse hint for CUE-trained authors and

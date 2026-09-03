@@ -63,7 +63,8 @@ appending or in place), `subsume` and `breaking` (schema evolution),
 figures drawn as text: tree, matrix, graph, layers, sets, the meet
 ladder and the subsumption poset), `jsonschema` (export
 the model as JSON Schema), `trim` (find redundant entries), `mod`
-(dependency closures) and `agentsmd` (an AGENTS.md stanza). The
+(dependency closures), `agentsmd` (an AGENTS.md stanza) and `fmt` (the
+source formatter, in the tradition of `gofmt`: one agreed form). The
 library adds a path-addressed `diff`, and an MCP server answers with
 the same reports over stdio. All of it is documented in
 [docs/reference-api.md](docs/reference-api.md).

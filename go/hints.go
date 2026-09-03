@@ -150,6 +150,9 @@ var hints = map[string]string{
 
 	// Go-only: TS never raises decimal_syntax.
 	"decimal_syntax": "This 0d literal is not a valid exact number.",
+
+	// The formatter's self-check (docs/design/FMT.0.md).
+	"format_check": "The formatted text is not the same document, so nothing was written.\nThis is a formatter defect: please report it, with the source.",
 }
 
 // codeClasses assigns every error code a CLASS: conflict | incomplete |
@@ -243,6 +246,10 @@ var codeClasses = map[string]string{
 	"view_at_required":        "reference",
 	"view_group_required":     "reference",
 	"view_document_shape":     "reference",
+
+	// The formatter's self-check (docs/design/FMT.0.md): a report-layer
+	// code, class internal -- the formatter, not the document, is wrong.
+	"format_check": "internal",
 
 	// G4 phase 5 -- the relation graph checks. Class conflict: the model
 	// contradicts a property it declared for itself. Report-layer, so no

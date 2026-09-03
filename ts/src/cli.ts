@@ -48,6 +48,7 @@ import type {
 import type { QueryView } from './query'
 import type { WhyRecord } from './provenance'
 import { agentsMdSplice } from './agentsmd'
+import { format, unifiedDiff } from './format'
 
 
 type Mode = 'json' | 'canon'
@@ -69,6 +70,7 @@ const HELP = `Usage: aontu [options] [file]
        aontu why <path> [options] <file>
        aontu set <path>=<value>... --entry <file> --overlay <file>
        aontu agentsmd [--write <AGENTS.md>] <file>
+       aontu fmt [-w|-l|--check|-d] <file>...
 
 Evaluate an Aontu source file and print the result as JSON.
 With no file on an interactive terminal, start a REPL.
@@ -279,6 +281,19 @@ Agentsmd options:
 
 Agentsmd exit codes: 0 generated, 2 usage, 4 the document does not
 stand up on its own.
+
+Fmt options:
+  -w, --write     Rewrite each file in place, when its form would change
+  -l, --list      Print the name of each file whose form would change
+  --check         Like --list, and exit 1 when any would: the CI gate
+  -d, --diff      Print a unified diff for each file whose form would
+                  change
+
+The fmt verb prints one document in the agreed form; with no file it
+reads standard input. Several files need one of the options above.
+
+Fmt exit codes: 0 formatted or clean, 1 a --check file would change,
+2 usage, 4 a document does not parse.
 
 REPL commands:
   :help           Show REPL help
@@ -3394,6 +3409,129 @@ function runAgentsMd(argv: string[]): number {
 // on the parity-probe discipline in AGENTS.md, which derives expected
 // spec values by piping BOTH CLIs and comparing. A truncated pipe there
 // reads as a port divergence.
+// ---------------------------------------------------------------------
+// The source formatter (docs/design/FMT.0.md): one agreed form, in the
+// tradition of gofmt. The verb prints, lists, checks, diffs or rewrites;
+// the form itself is the library's (ts/src/format.ts), and the two
+// ports agree on it row by row in test/spec/fmt.tsv.
+
+const FMT_HELP = 'aontu fmt [-w|-l|--check|-d] <file>... (try --help)'
+
+type FmtFlags = { write: boolean, list: boolean, check: boolean, diff: boolean }
+
+function runFmt(argv: string[]): number | Promise<number> {
+  const files: string[] = []
+  const flags: FmtFlags = { write: false, list: false, check: false, diff: false }
+
+  for (const arg of argv) {
+    if ('-h' === arg || '--help' === arg) {
+      process.stdout.write(HELP)
+      return 0
+    }
+    if ('-w' === arg || '--write' === arg) {
+      flags.write = true
+    }
+    else if ('-l' === arg || '--list' === arg) {
+      flags.list = true
+    }
+    else if ('--check' === arg) {
+      flags.check = true
+    }
+    else if ('-d' === arg || '--diff' === arg) {
+      flags.diff = true
+    }
+    else if (arg.startsWith('-')) {
+      process.stderr.write(`aontu: unknown fmt option ${arg} (try --help)\n`)
+      return 2
+    }
+    else {
+      files.push(arg)
+    }
+  }
+
+  if (0 === files.length) {
+    // Standard input: formatted onto standard output, or listed,
+    // checked and diffed under the name <stdin>. It cannot be written
+    // back.
+    if (flags.write) {
+      process.stderr.write(`aontu: --write needs a file\n${FMT_HELP}\n`)
+      return 2
+    }
+    return new Promise((resolve) => {
+      let src = ''
+      process.stdin.setEncoding('utf8')
+      process.stdin.on('data', (d) => (src += d))
+      process.stdin.on('end', () => resolve(fmtOne('<stdin>', src, flags)))
+    })
+  }
+
+  // Several files onto standard output would be one stream nobody can
+  // split again (the note's X-6): the verb refuses unless an option
+  // says what to do with each.
+  if (1 < files.length && !fmtQuiet(flags)) {
+    process.stderr.write(
+      `aontu: fmt prints one file; with ${files.length}, say --write, ` +
+      `--list, --check or --diff\n${FMT_HELP}\n`)
+    return 2
+  }
+
+  let worst = 0
+  for (const file of files) {
+    let src: string
+    try {
+      src = readFileSync(file, 'utf8')
+    }
+    catch (err: any) {
+      process.stderr.write(`aontu: cannot read ${err.path}: ${err.message}\n`)
+      return 2
+    }
+    worst = Math.max(worst, fmtOne(file, src, flags))
+  }
+  return worst
+}
+
+// An option that says what to do with a file that would change, in
+// place of printing it.
+function fmtQuiet(flags: FmtFlags): boolean {
+  return flags.write || flags.list || flags.check || flags.diff
+}
+
+// One document: 0 printed, clean or done; 1 a --check that would
+// change; 2 a file that cannot be written; 4 a document that does not
+// format, with the finding that says why.
+function fmtOne(name: string, src: string, flags: FmtFlags): number {
+  const report = format(src, { path: name })
+  if ('error' === report.verdict) {
+    process.stderr.write(`aontu: ${name} was not formatted\n` +
+      report.errors.map(renderFinding).join('\n') + '\n')
+    return 4
+  }
+  if (!fmtQuiet(flags)) {
+    process.stdout.write(report.text)
+    return 0
+  }
+  if (!report.changed) {
+    return 0
+  }
+  if (flags.list || flags.check) {
+    process.stdout.write(name + '\n')
+  }
+  if (flags.diff) {
+    process.stdout.write(unifiedDiff(name, src, report.text))
+  }
+  if (flags.write) {
+    try {
+      writeFileSync(name, report.text)
+    }
+    catch (err: any) {
+      process.stderr.write(`aontu: cannot write ${name}: ${err.message}\n`)
+      return 2
+    }
+  }
+  return flags.check ? 1 : 0
+}
+
+
 function finish(code: number): void {
   process.exitCode = code
 }
@@ -3464,6 +3602,9 @@ function main(argv: string[]): void {
   }
   if ('agentsmd' === argv[2]) {
     return finish(runAgentsMd(argv.slice(3)))
+  }
+  if ('fmt' === argv[2]) {
+    return void Promise.resolve(runFmt(argv.slice(3))).then(finish)
   }
 
   if ('set' === argv[2]) {
@@ -3614,6 +3755,6 @@ export {
   runJsonSchema,
   runMod,
   runHash, runGet,
-  runWhy, renderWhyText, runSet, runAgentsMd,
+  runWhy, renderWhyText, runSet, runAgentsMd, runFmt,
   watchChange, watchSignature, vetWaiter, deprecatedAt,
 }

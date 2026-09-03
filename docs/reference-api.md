@@ -51,6 +51,7 @@ Usage: aontu [options] [file]
        aontu why <path> [options] <file>
        aontu set <path>=<value>... --entry <file> --overlay <file>
        aontu agentsmd [--write <AGENTS.md>] <file>
+       aontu fmt [-w|-l|--check|-d] <file>...
 
 Evaluate an Aontu source file and print the result as JSON.
 With no file on an interactive terminal, start a REPL.
@@ -1601,6 +1602,71 @@ point at a file someone else writes prose in.
 Exit codes: `0` generated, `2` usage, `4` the document does not stand
 up on its own.
 
+### `aontu fmt`
+
+The source formatter, in the tradition of `gofmt`: one agreed form for
+Aontu source, so that layout is never argued about and a diff shows
+only what changed.
+
+```
+aontu fmt [-w|-l|--check|-d] <file>...
+aontu fmt < in.aon > out.aon
+```
+
+| option | does |
+|---|---|
+| (none) | print the formatted text; one file, or standard input |
+| `-w`, `--write` | rewrite each file in place, when its form would change |
+| `-l`, `--list` | print the name of each file whose form would change |
+| `--check` | like `--list`, and exit 1 when any would: the CI gate |
+| `-d`, `--diff` | print a unified diff for each file whose form would change |
+
+- **The form.** Two-space indentation. `key: value`, the colon tight
+  to the key. No commas between entries (a call's argument list keeps
+  them). Braces only where the language needs them: a one-pair map is a
+  chain, `a: b: c: 1`, and a one-key map in a list is a pair element,
+  `[a:1 b:2]`. A container on one line when it fits 80 columns, padded
+  inside braces and with the colons tight, `{ a:1 b:2 }`, and as a
+  block when it does not. Keys bare where they can be; a single-quoted
+  string double-quoted unless it holds a double quote; numbers as
+  written. Every comment and every blank line between groups stays.
+  The formatter never breaks a line, and keeps the author's line breaks
+  inside an expression, at their operators.
+- **It reads the file it is given and no other.** An `@"..."` include
+  is a token like any other, so the verb takes no `--trust`.
+- **It checks its own work.** Before a byte is returned the formatted
+  text is parsed again and compared with the input, tree to tree; a
+  disagreement is refused as the formatter's own defect
+  (`format_check`), and nothing is written.
+- With no file it reads standard input; with several files it needs
+  `--write`, `--list`, `--check` or `--diff`, rather than print them
+  as one stream.
+- Exit codes: `0` formatted or clean, `1` a `--check` file would
+  change, `2` usage, `4` a document does not parse.
+
+A configuration written as it came from JSON, `config.aon`:
+
+<!-- test: scenario fmt -->
+<!-- test: file config.aon -->
+```aontu
+{
+  "server": { "host": "0.0.0.0", "port": 8080 },
+  "features": ["auth", "metrics"],
+  "limits": { "rps": 100, "burst": 200 }
+}
+```
+
+<!-- test: run -->
+```sh
+$ aontu fmt config.aon
+server: { host:"0.0.0.0" port:8080 }
+features: ["auth" "metrics"]
+limits: { rps:100 burst:200 }
+```
+
+The formatted text is the same document: `aontu hash` of the two
+agrees, and formatting the formatted text changes nothing.
+
 ### `aontu hash`
 
 The canon-hash: one string that pins what a document *means*, so a
@@ -2485,6 +2551,11 @@ diff           // what changed at which paths between two documents:
 agentsMd       // the generated AGENTS.md stanza (see `aontu agentsmd`
                // above): agentsMd(src, {name?}) -> {stanza, ok};
                // Go: (*Aontu).AgentsMd
+format         // the source formatter (see `aontu fmt` above):
+               // format(src, {path?}) -> {verdict, text, changed} or
+               // {verdict, errors}; Go: aontu.New().Format(src)
+unifiedDiff    // unifiedDiff(name, before, after): the diff `aontu fmt
+               // --diff` prints; Go: aontu.UnifiedDiff
 ```
 
 #### Evaluating a document you did not write
@@ -2560,6 +2631,7 @@ does exactly this for a file argument.)
 | `UnifyVars`    | `UnifyVars(src string, vars map[string]Val) (Val, error)` | `Unify` with `$name` variables. |
 | `Generate`     | `Generate(src string) (any, error)` | Parse → unify → native Go value. |
 | `GenerateVars` | `GenerateVars(src string, vars map[string]Val) (any, error)` | `Generate` with variables. |
+| `Format`       | `Format(src string) FormatReport` | The source formatter (see [`aontu fmt`](#aontu-fmt)): the agreed form, or the findings. `aontu.UnifiedDiff(name, before, after string) string` is the diff `--diff` prints. |
 
 <!-- test: skip Go API sample; the API surface is pinned by the go/ test suite -->
 ```go

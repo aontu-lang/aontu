@@ -39,6 +39,7 @@ const helpText = `Usage: aontu [options] [file]
        aontu why <path> [options] <file>
        aontu set <path>=<value>... --entry <file> --overlay <file>
        aontu agentsmd [--write <AGENTS.md>] <file>
+       aontu fmt [-w|-l|--check|-d] <file>...
 
 Evaluate an Aontu source file and print the result as JSON.
 With no file on an interactive terminal, start a REPL.
@@ -249,6 +250,19 @@ Agentsmd options:
 
 Agentsmd exit codes: 0 generated, 2 usage, 4 the document does not
 stand up on its own.
+
+Fmt options:
+  -w, --write     Rewrite each file in place, when its form would change
+  -l, --list      Print the name of each file whose form would change
+  --check         Like --list, and exit 1 when any would: the CI gate
+  -d, --diff      Print a unified diff for each file whose form would
+                  change
+
+The fmt verb prints one document in the agreed form; with no file it
+reads standard input. Several files need one of the options above.
+
+Fmt exit codes: 0 formatted or clean, 1 a --check file would change,
+2 usage, 4 a document does not parse.
 
 REPL commands:
   :help           Show REPL help
@@ -654,6 +668,9 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, tty bool) int
 	}
 	if 0 < len(args) && "agentsmd" == args[0] {
 		return runAgentsMd(args[1:], stdout, stderr)
+	}
+	if 0 < len(args) && "fmt" == args[0] {
+		return runFmt(args[1:], stdin, stdout, stderr)
 	}
 	if 0 < len(args) && "set" == args[0] {
 		return runSet(args[1:], stdout, stderr)

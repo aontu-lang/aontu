@@ -25,6 +25,7 @@ import { agentsMd } from './agentsmd'
 import { graphOf } from './graph'
 import { relationCheck, relationErrors } from './relation'
 import { view, viewSet, viewTree } from './view'
+import { format, unifiedDiff } from './format'
 
 
 // VERSION is the Aontu npm package version, and mirrors
@@ -475,6 +476,11 @@ export {
   view,
   viewSet,
   viewTree,
+
+  // The source formatter (docs/design/FMT.0.md): the agreed form of a
+  // document, and the unified diff `aontu fmt --diff` prints.
+  format,
+  unifiedDiff,
 }
 
 

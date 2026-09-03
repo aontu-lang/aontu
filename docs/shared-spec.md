@@ -24,7 +24,7 @@ name <TAB> mode <TAB> src <TAB> expect
 | column   | meaning                                                        |
 |----------|----------------------------------------------------------------|
 | `name`   | short identifier for the case (unique within its file)         |
-| `mode`   | `canon`, `gen`, `gens`, `err`, `errc`, `errcode`, `vet`, `subsume`, `query`, `why`, `patch`, `diff`, `agentsmd`, `trim`, `hcanon`, `hash`, `graph`, `relation`, `reaches`, `view` or `views` (see below) |
+| `mode`   | `canon`, `gen`, `gens`, `err`, `errc`, `errcode`, `vet`, `subsume`, `query`, `why`, `patch`, `diff`, `agentsmd`, `trim`, `hcanon`, `hash`, `fmt`, `graph`, `relation`, `reaches`, `view` or `views` (see below) |
 | `src`    | Aontu source text to evaluate                                  |
 | `expect` | the expected result, interpreted according to `mode`          |
 
@@ -74,6 +74,7 @@ name <TAB> agentsmd <TAB> src <TAB> document-name <TAB> expect
 | `graph` | the DERIVED GRAPH of `unify(src)`—the entity index and the edge set—must equal `expect` as JSON, and must be the same bytes again on a fresh engine |
 | `hcanon` | `unify(src)` then its HASH FORM—canon plus the `close()`/`type()`/`hide()` wrappers—must equal `expect`, and that text must round-trip through the engine unchanged |
 | `hash`  | `canonHash(unify(src))` must equal `expect`, the full `aon1-…` pin |
+| `fmt`   | `format(src)`, the source in its agreed form, must equal `expect` **byte for byte**; `expect` must be a fixed point, `format(expect) == expect`; and where `src` evaluates, the canon-hash of `src` and of `expect` must agree, because formatting never changes the document |
 
 Every mode above is dispatched by name in `ts/test/spec.test.ts` and
 mirrored by `go/spec_test.go`—the newer `vet`, `graph`, `relation`
