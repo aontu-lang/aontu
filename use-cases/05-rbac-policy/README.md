@@ -1,4 +1,4 @@
-# 05 — RBAC / authorization policy as ground truth
+# 05. RBAC / authorization policy as ground truth
 
 ![The model tree: permissions, roles, plans and the tenant under test](expected/diagram-doc.svg)
 
@@ -15,7 +15,7 @@ most needs a ground truth. An agent that hallucinates a permission
 string, invents a role, or grants the wildcard to a collaborator role
 has to be stopped by a machine-checkable artifact before a human reads
 the diff. The model here is the registry a policy decision point (OPA,
-Cedar) is compiled from: the catalog, roles, plans and tenants come out
+Cedar) is compiled from: the catalog, roles, plans, and tenants come out
 of `aontu example.aon` as validated, referentially sound JSON, and
 `hash`, `subsume` and `breaking` give the registry the change control
 a PDP does not carry. Authorization decisions

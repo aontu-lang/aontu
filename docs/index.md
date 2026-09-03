@@ -4,14 +4,14 @@ Aontu is a JSON structure **unifier**: a small language (a
 purpose-specific dialect inspired by [CUE](https://cuelang.org/)) and an
 engine that merges partial structures into one consistent result, or
 reports exactly where they conflict. The same source can describe data,
-the schema that constrains it, and the defaults that fill it in — all in
+the schema that constrains it, and the defaults that fill it in—all in
 one notation, all combined by a single operation: *unification*.
 
 This repository ships **two implementations kept in parity**:
 
-- **TypeScript** in [`../ts/`](../ts/) — the canonical implementation,
+- **TypeScript** in [`../ts/`](../ts/)—the canonical implementation,
   published to npm as [`aontu`](https://npmjs.com/package/aontu).
-- **Go** in [`../go/`](../go/) — a port
+- **Go** in [`../go/`](../go/)—a port
   (`github.com/aontu-lang/aontu/go`) that mirrors the core semantics.
 
 Both are checked against one language-agnostic test suite in
@@ -30,7 +30,7 @@ open it. Reach for the part that matches your need:
 | **Learn** the graph layer (identity, relations, reachability) | [Graph tutorial](tutorial-graph.md) |
 | **Accomplish a specific task** you already have in mind       | [How-to guides](how-to/) |
 | **Look up** exact syntax, semantics, options, or API surface  | [Language reference](reference-language.md) · [API reference](reference-api.md) |
-| **Understand unification itself** — meet, top, bottom, the lattice | [Unification](unification.md) |
+| **Understand unification itself**—meet, top, bottom, the lattice | [Unification](unification.md) |
 | **Understand** how and why the engine works the way it does   | [Explanation](explanation.md) |
 | **See whole systems defined**, each with its checks runnable  | [Use cases](use-cases.md) |
 
@@ -66,7 +66,7 @@ Three capabilities have doorways of their own:
 
 Tooling:
 
-- [The `aontu` command](reference-api.md#command-line-interface) — one
+- [The `aontu` command](reference-api.md#command-line-interface). One
   binary, fourteen verbs, both implementations. Each verb has its own
   reference section:
   - validate: [`vet`](reference-api.md#aontu-vet), wrapped for CI as a
@@ -87,33 +87,33 @@ Tooling:
     [`agentsmd`](reference-api.md#aontu-agentsmd)
 
   With no file at all, `aontu` starts a REPL.
-- [Language Server (LSP)](lsp.md) — the `aontu-lsp` diagnostics server
+- [Language Server (LSP)](lsp.md). The `aontu-lsp` diagnostics server
   (TypeScript and Go), how to wire it into an editor, and the reusable
   LSP library API.
-- [The MCP server](reference-api.md#the-mcp-server) — `aontu-mcp`, a
+- [The MCP server](reference-api.md#the-mcp-server). `aontu-mcp`, a
   Model Context Protocol server over stdio, answering with the
   identical reports the CLI prints.
 
 For agents:
 
-- [The Aontu skill](skill/SKILL.md) — an agent-facing teaching pack:
+- [The Aontu skill](skill/SKILL.md). An agent-facing teaching pack:
   the [grammar card](skill/grammar-card.md), a
   [worked example ladder](skill/examples.md) whose documents the test
   suite executes, and the [error-code index](skill/error-codes.md).
-- [The published grammar](reference-language.md#the-published-grammar) —
-  [`grammar/aontu.abnf`](../grammar/aontu.abnf) to read, with railroad
-  diagrams; [`aontu.gbnf`](../grammar/aontu.gbnf) and
-  [`aontu.lark`](../grammar/aontu.lark) for constrained decoding.
+-  [The published
+  grammar](reference-language.md#the-published-grammar)—[`grammar/aontu.abnf`](../grammar/aontu.abnf)
+  to read, with railroad diagrams; [`aontu.gbnf`](../grammar/aontu.gbnf)
+  and [`aontu.lark`](../grammar/aontu.lark) for constrained decoding.
 
 Contract:
 
-- [The trust contract](trust.md) — hermeticity, termination,
+- [The trust contract](trust.md). Hermeticity, termination,
   determinism, and sandboxing: what a host may rely on when evaluating
   an Aontu document, and where each guarantee is conditional.
 
 For contributors:
 
-- [The style guide](STYLE-GUIDE.md) — how these pages are written:
+- [The style guide](STYLE-GUIDE.md). How these pages are written:
   Diátaxis placement, the voice, the banned-phrase list, and the
   snippet directives under which every example runs.
 
@@ -159,7 +159,7 @@ with a precise error rather than silently resolved: the preferred
 branch keeps the kind it names, which is
 [argued in the explanation](explanation.md#a-preference-is-gated-by-kind-not-by-family).
 
-Try it without writing a file — both implementations ship an `aontu`
+Try it without writing a file—both implementations ship an `aontu`
 command that evaluates a file, reads stdin, or starts a REPL:
 
 <!-- test: run -->

@@ -1,4 +1,4 @@
-# 16 — module deps: a layered codebase, drawn as a dependency tree
+# 16. Module deps: a layered codebase, drawn as a dependency tree
 
 A codebase's own module graph: twelve modules across four layers
 (`app`, `feature`, `core`, `util`), twenty-one dependencies, and one
@@ -137,7 +137,7 @@ app,feature,core,util` names it then.
 
 `model.aon` joins the vocabulary and the codebase. `spec` is the shape
 and the rule, and generates empty because it is `hide()`-marked; `mods`
-is the twelve modules, each with its kind, layer, directory and the two
+is the twelve modules, each with its kind, layer, directory, and the two
 sides of its dependency edges.
 
 ![The model tree: twelve modules and the layering vocabulary they are written in](expected/diagram-doc.svg)
@@ -250,10 +250,10 @@ its field:
     dependsOn?: rel($.spec.ModShape) & acyclic() & inverse(usedBy)
     usedBy?: rel($.spec.ModShape)
 
-- `rel(t)` — the field's entries are checked tree addresses, and `t`
+- `rel(t)`—the field's entries are checked tree addresses, and `t`
   flows into every target. Addresses are written `path($.mods.store)`:
   a bare string is never an address.
-- `acyclic()`, `inverse(usedBy)` — the graph atoms: lattice-inert
+- `acyclic()`, `inverse(usedBy)`—the graph atoms: lattice-inert
   declarations, registered during unification and decided at
   generation, where every edge is known.
 

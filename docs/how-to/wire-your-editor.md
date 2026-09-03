@@ -82,7 +82,7 @@ Configure a server whose command is `aontu-lsp` (or
 `node …/aontu-lsp.js`), transport stdio, document selector the
 `aontu` language / `*.aon` glob. No initialization options are
 required. One is available: hover provenance, which appends to each
-hover the contributions record `aontu why` prints — ask for it and
+hover the contributions record `aontu why` prints—ask for it and
 pay a second evaluation per hover, or leave it off and pay nothing
 ([LSP hover provenance](../reference-api.md#lsp-hover-provenance)):
 
@@ -93,7 +93,7 @@ pay a second evaluation per hover, or leave it off and pay nothing
 
 What you will and will not see: the server flags contradictions,
 unresolved references and unknown constructs, and stays silent on
-schemas and partial documents — non-concrete is valid, so your
+schemas and partial documents—non-concrete is valid, so your
 half-written model does not light up red
 ([how diagnostics are
 computed](../lsp.md#how-diagnostics-are-computed)).

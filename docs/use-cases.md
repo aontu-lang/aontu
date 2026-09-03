@@ -2,8 +2,8 @@
 
 Documentation examples are small on purpose. Systems are not. The
 sixteen models in [`use-cases/`](../use-cases/) close that gap: each
-one is an enterprise-shaped system built as real Aontu documents — a
-service catalog, a schema registry, an RBAC model — and each carries a
+one is an enterprise-shaped system built as real Aontu documents—a
+service catalog, a schema registry, an RBAC model—and each carries a
 `check.sh` that drives the actual CLI and asserts every outcome, with
 golden diffs for expected output and error-code greps for expected
 refusals. When a page in these docs shows a shape, this is where that
@@ -20,7 +20,7 @@ and `git` for a few cases. Each case's `README.md` is the worked
 example in full, with verbatim CLI output; the sections below compress
 it.
 
-## 01 — service catalog
+## 01. Service catalog
 
 A Backstage-style catalog for eight services across three teams, where
 the org chart and the runtime each hold facts about the same things.
@@ -56,7 +56,7 @@ The reference joins them, and an overlay claiming `tier: 2` refuses
 with `[aontu/scalar_value]`. The live model, refusals included:
 [`use-cases/01-service-catalog/`](../use-cases/01-service-catalog/).
 
-## 02 — deploy config
+## 02. Deploy config
 
 Four services, three environments, four layers of authority: org
 policy, team defaults, a service catalog, per-environment overlays.
@@ -87,11 +87,11 @@ Statement order never matters, and `aontu why` prints each surviving
 rung with the file and line that wrote it. The full six-file layering:
 [`use-cases/02-deploy-config/`](../use-cases/02-deploy-config/).
 
-## 03 — API contract
+## 03. API contract
 
 A REST contract for a project-management SaaS: entities, endpoints,
 request bodies keyed by status code, one error envelope. It is the
-document an agent codes against and is corrected by — the agent emits
+document an agent codes against and is corrected by—the agent emits
 a candidate body, `aontu vet` reports what fails and where, and the
 case's `repair.py` repairs it mechanically from the `--format json`
 findings. Exit codes are verdict classes (0 valid, 1 invalid, 3
@@ -113,7 +113,7 @@ CreateUserRequest: close({
 contract, the candidates, and the repair loop:
 [`use-cases/03-api-contract/`](../use-cases/03-api-contract/).
 
-## 04 — schema evolution
+## 04. Schema evolution
 
 A shared customer-profile schema across three released versions, with
 a queue of proposed changes. `aontu breaking --against` is the
@@ -121,7 +121,7 @@ governance gate a schema registry needs: additive changes pass, a
 narrowed constraint or an added required key exits 1 with a witness
 naming both files, and a `must()` on the new side answers *undecided*
 (exit 3) rather than guessing. The centrepiece is the two-release
-rename — deprecate in v2, remove in v3. The v2 mark, from
+rename—deprecate in v2, remove in v3. The v2 mark, from
 `profile-v2.aon`:
 
 ```aon
@@ -138,14 +138,14 @@ the v3 deletion while keeping the finding visible at severity
 `warning`. All three versions and the proposal queue:
 [`use-cases/04-schema-evolution/`](../use-cases/04-schema-evolution/).
 
-## 05 — RBAC policy
+## 05. RBAC policy
 
 An authorization model for a multi-tenant SaaS, written as data the
 engine checks: a permission catalog, an exhaustive role registry,
 tenant plans, and agent-emitted candidates vetted against all of it. Every grant is a `refer()`-checked address, so a
 hallucinated permission is a located refusal, and the registry is
 `close()`d, so an invented role dies at review. The security rule "no
-role holds the wildcard unless flagged privileged" is structural — a
+role holds the wildcard unless flagged privileged" is structural—a
 role is a disjunction of two closed shapes:
 
 ```aon
@@ -175,7 +175,7 @@ foreign key against the permission catalog rather than a string
 comparison. The registry and its attack proposals:
 [`use-cases/05-rbac-policy/`](../use-cases/05-rbac-policy/).
 
-## 06 — Kubernetes golden path
+## 06. Kubernetes golden path
 
 A platform team's golden path: product teams edit a 40-line service
 model, and evaluating `main.aon` renders three Deployments and three
@@ -205,7 +205,7 @@ either direction refuses: an entry with no service hits the sealed
 set, a service with no entry leaves `image: string` ungenerable. The
 whole generator: [`use-cases/06-k8s-golden-path/`](../use-cases/06-k8s-golden-path/).
 
-## 07 — event contracts
+## 07. Event contracts
 
 An order service's events, held the way a Kafka schema registry holds
 them: one shared CloudEvents-flavoured envelope, one closed payload
@@ -232,16 +232,16 @@ and `close()` keeps surplus keys off the wire. The contract versions
 and the stream samples:
 [`use-cases/07-event-contracts/`](../use-cases/07-event-contracts/).
 
-## 08 — feature flags
+## 08. Feature flags
 
 The write-path case: a flag catalog with environment and tenant
-overrides, mutated by `aontu set` into an overlay file the reviewed
-base files never absorb. Ten sets of the same path collapse to a
-single overlay line under `--in-place`, `why` attributes the served
-value to the overlay with rank annotations, and a hostile overlay is
-confined by `--trust`. The kill switch is a
-concrete pin in the catalog, so no overlay of any rank can flip it —
-`set` vets before writing and refuses with the pinning site named:
+overrides, mutated by `aontu set` into an overlay file the reviewed base
+files never absorb. Ten sets of the same path collapse to a single
+overlay line under `--in-place`, `why` attributes the served value to
+the overlay with rank annotations, and a hostile overlay is confined by
+`--trust`. The kill switch is a concrete pin in the catalog, so no
+overlay of any rank can flip it—`set` vets before writing and refuses
+with the pinning site named:
 
 ```
 $ aontu set '$.flags.payments_legacy_gateway.enabled=true' --entry base.aon --overlay overlay.aon
@@ -256,7 +256,7 @@ $.flags.payments_legacy_gateway.enabled: scalar_value [conflict]
 Exit 1, and the overlay is untouched (the case asserts both). The full
 write loop: [`use-cases/08-feature-flags/`](../use-cases/08-feature-flags/).
 
-## 09 — agent tools
+## 09. Agent tools
 
 An agent platform's tool registry: six tools with closed argument
 schemas, rate limits, and side-effect classes, plus a runtime
@@ -281,7 +281,7 @@ guard: pack($.argschemas, close({
 tool is a located `[aontu/closed]`. The registry, the calls, and the
 MCP session: [`use-cases/09-agent-tools/`](../use-cases/09-agent-tools/).
 
-## 10 — data model
+## 10. Data model
 
 An order-to-cash domain: customers with 64-bit upstream ledger ids,
 orders, invoices, money. One document is at once the vet schema, the
@@ -292,7 +292,7 @@ could not produce output at all.
 
 <!-- test: scenario exact-money -->
 
-The smallest such theorem, lifted from the case's `seed.aon` — write
+The smallest such theorem, lifted from the case's `seed.aon`—write
 it as `reconcile.aon`:
 
 <!-- test: file reconcile.aon -->
@@ -322,7 +322,7 @@ Binary64 arithmetic answers `0.30000000000000004` here; the pinned
 its failed attempts, kept executable:
 [`use-cases/10-data-model/`](../use-cases/10-data-model/).
 
-## 11 — shared modules
+## 11. Shared modules
 
 The distribution story: a platform team's deployment contract,
 vendored into a consumer repo and held by `mod tidy` / `verify` /
@@ -330,7 +330,7 @@ vendored into a consumer repo and held by `mod tidy` / `verify` /
 pins. The pin survives a byte-different, meaning-identical module
 refactor (a byte-hash lockfile breaks on exactly this), and a flipped
 default in the vendored tree fails evaluation with both hashes named. A single file can freeze the hash in the import string, with no
-`mod.aon` and no lockfile — the agent-sandbox mode:
+`mod.aon` and no lockfile—the agent-sandbox mode:
 
 <!-- test: skip a fragment of 11-shared-modules, which resolves against that case's module store; the case's own check.sh runs it -->
 ```aon
@@ -348,7 +348,7 @@ The `#aon1-` pin resolves, verifies, and refuses a mangled hash with
 the same integrity error. The publish gate and the whole vendoring
 flow: [`use-cases/11-shared-modules/`](../use-cases/11-shared-modules/).
 
-## 12 — relations
+## 12. Relations
 
 An ETL pipeline DAG: four jobs, one relation (`feeds`, with its
 written-out inverse `fedBy`). The whole thing is declared once, at the
@@ -370,11 +370,11 @@ graph atoms are decided at generation, where every edge is known. The
 DAG, its refusals, and the append proposal:
 [`use-cases/12-relations/`](../use-cases/12-relations/).
 
-## 13 — recursive schema
+## 13. Recursive schema
 
 An approval chain: a `Step` is an approver, a decision, and optionally
 the step that follows it. Writing `then?: $.spec.Step` inside `Step`
-means the fixpoint, with no marker and no unrolled copies — the schema
+means the fixpoint, with no marker and no unrolled copies—the schema
 applies at every depth, expanding one level per [meet](unification.md)
 with concrete data, so `vet` descends exactly as far as the data does.
 Canon and the `aon1-` hash stay symbolic: one finite string pins an
@@ -394,7 +394,7 @@ A *required* recursive tail refuses at generation with
 fill; guardedness is emergent, because the data decides. The chain,
 vetted as plain JSON: [`use-cases/13-recursive-schema/`](../use-cases/13-recursive-schema/).
 
-## 14 — JSON Schema export
+## 14. JSON Schema export
 
 JSON Schema is the bridge out: an MCP tool's `inputSchema` must be
 one, structured-output APIs constrain generation to one, OpenAPI
@@ -455,18 +455,18 @@ $ aontu jsonschema --at '$.argschemas.read_file' registry.aon
 
 The two `re()` calls cross as an `allOf` of patterns, the closed map
 becomes `additionalProperties: false`, and the optional key stays out
-of `required` — with stderr empty, nothing was lost. The three moods
+of `required`—with stderr empty, nothing was lost. The three moods
 of the bridge (exact, lossy, refused):
 [`use-cases/14-jsonschema-export/`](../use-cases/14-jsonschema-export/).
 
-## 15 — code generation
+## 15. Code generation
 
 The model is the source of the code. One catalogue of record types
 feeds a Go emitter, a TypeScript emitter and a SQL emitter, each
 reading a different slice of it, with every emitted line computed by
 the unifier. Names like `Email` and `credit_cents` are written in the
 model rather than derived, because `upper()` uppercases a whole string
-and there is no case conversion — and because what a type is called in
+and there is no case conversion—and because what a type is called in
 a target is a fact about the model, not a rule in a template.
 
 <!-- test: scenario code-generation -->
@@ -516,7 +516,7 @@ emitters, their goldens, and a check that both ports emit identical
 bytes: [`use-cases/15-code-generation/`](../use-cases/15-code-generation/).
 
 
-## 16 — module deps
+## 16. Module deps
 
 A codebase's own module graph: twelve modules across four layers,
 where the architecture rule is that nothing may depend on a layer
@@ -531,17 +531,15 @@ Core:    $.spec.Mod & { layer: "core", dependsOn?: rel($.spec.CoreDep) }
 CoreDep: { kind: mod, layer: "core" | "util" }
 ```
 
-An upward edge then refuses at generation as an ordinary conflict
-naming both sides, and a loop between two modules of the *same* layer
-— which the layering allows — refuses under `acyclic()`. The case
-pins the refusal in both declaration orders. The same edges are drawn
-two ways and pinned as
-goldens: a dependency tree, drawn by
-[`aontu view tree`](reference-api.md#aontu-view) with derived roots
-and every repeated subtree elided the way `cargo tree` elides one, and
-a dependency-structure matrix. The
-layered codebase, its refusals and its views:
-[`use-cases/16-module-deps/`](../use-cases/16-module-deps/).
+An upward edge then refuses at generation as an ordinary conflict naming
+both sides, and a loop between two modules of the *same* layer—which the
+layering allows—refuses under `acyclic()`. The case pins the refusal in
+both declaration orders. The same edges are drawn two ways and pinned as
+goldens: a dependency tree, drawn by [`aontu view
+tree`](reference-api.md#aontu-view) with derived roots and every
+repeated subtree elided the way `cargo tree` elides one, and a
+dependency-structure matrix. The layered codebase, its refusals, and its
+views: [`use-cases/16-module-deps/`](../use-cases/16-module-deps/).
 
 Where a page in these docs and a use case disagree, the case wins (its
 checks run; the page does not). File the docs bug.

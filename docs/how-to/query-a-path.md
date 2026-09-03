@@ -7,8 +7,8 @@ order: 10
 # Query a path
 
 An evaluated document is one JSON value, and most questions are about
-one node of it. `aontu get` selects that node by path — the same path
-a reference means by `$.a.b` — and prints it alone. Write
+one node of it. `aontu get` selects that node by path—the same path
+a reference means by `$.a.b`—and prints it alone. Write
 `system.aon`:
 
 <!-- test: scenario query-a-path -->
@@ -34,7 +34,7 @@ $ aontu get $.services.auth system.aon
 
 The `tier` came from the `&:` template, not from the `auth` line: you
 are querying the evaluated document, not the source text. (Evaluation
-is global — unification has no partial mode — so `get` buys you a
+is global—unification has no partial mode—so `get` buys you a
 smaller answer, never a cheaper run.)
 
 Three flags give a smaller answer rather than a smaller slice: the
@@ -52,8 +52,8 @@ $ aontu get $ --depth 1 --canon system.aon
 {"services":top}
 ```
 
-Each view is itself a valid Aontu document that generalises the truth
-— `top` means "no further information at this tier". `--depth` needs
+Each view is itself a valid Aontu document that generalises the
+truth—`top` means "no further information at this tier". `--depth` needs
 `--canon` or `--types`, because JSON has no way to write `top`.
 
 A path that names nothing exits `1` and guesses:

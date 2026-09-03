@@ -1,0 +1,223 @@
+# Terms Vale's dictionary does not know. Entries are REGEXES, so a
+# stem with an optional suffix accepts a family; a bare word accepts
+# only itself.
+#
+# CASE PAIRS ARE ONE ENTRY, WRITTEN AS A REGEX. Listing `Aontu` and
+# `aontu` as two plain lines does not accept both: Vale turns a
+# vocabulary into Vale.Terms, which then enforces ONE spelling over the
+# other, and the first run of this file reported 489 "Use 'aontu'
+# instead of 'Aontu'". `[Aa]ontu` accepts the pair without ruling
+# between them.
+#
+# LISTED ONE BY ONE, never matched by suffix. A pattern like `\w+ise`
+# accepts any word ending in those letters, `madeupise` included, and
+# so punches a hole through the error-level spelling gate this file
+# exists to make usable. Adding a stem by hand is the cost, and the
+# cost is the point.
+
+# Names: products, tools and the papers the docs cite.
+# The surnames are authors of work `unification.md` and
+# `tutorial-graph.md` cite by name.
+
+[Aa]ontu
+Aontu's
+APIs
+Castagliola
+CLI's
+CLIs
+Fekete
+Ghoniem
+grpc
+jsonic
+Kustomize
+lcov
+Makefile's
+Neovim
+npm
+npm's
+protobuf
+Sangal
+SDKs
+SQL's
+TS's
+Voxgig
+
+# The language's own vocabulary.
+# Order theory, the type lattice, and the words the reference uses
+# for what the engine does. Several are coinages this project made
+# and has to spell consistently.
+
+[Aa]cyclicity
+arity
+bigdecimal
+bigdecimal's
+bigdecimals
+biginteger
+bool
+boolean
+[Bb]ooleans
+[Cc]losedness
+combinator
+combinators
+disjunction's
+fixpoint
+fixpoint's
+fixpoints
+goldened
+goldens
+[Hh]ermeticity
+iff
+outvals
+poset
+poset's
+[Rr]eachability
+residuated
+residuates
+residuation
+scalar's
+schema's
+scrutinee
+[Ss]everities
+subgraph
+subgraphs
+subtree
+subtrees
+superset
+supertype
+[Uu]nary
+unexecuted
+ungenerable
+unhit
+unifiability
+unmirrored
+unnarrowed
+unsized
+untyped
+
+# The worked examples' invented world.
+# Fixture names and field names from `use-cases/`, which the
+# READMEs quote in prose as well as in code.
+
+correlation_id
+deployables
+[Ee]num
+[Ee]nv
+healthcheck
+megacorp
+megacorp's
+[Oo]nboarding
+rollout
+specversion
+[Ss][Ss][Oo]
+starterco's
+
+# General computing terms the dictionary lacks.
+
+accessors
+agentic
+allowlist
+backreferences
+buildable
+builtins
+canonicalise
+canonicalises
+cleartext
+codebase's
+codec
+compat
+config
+cwd
+data's
+dedup
+deduplicated
+deduplicates
+deps
+dereference
+dereferenced
+dereferences
+dev
+diffable
+editability
+else's
+emittable
+enablement
+enum's
+enums
+env's
+envs
+erroring
+evaluable
+evaluator's
+fallthrough
+fetch's
+filetype
+footer's
+formatter's
+formatters
+git's
+hostnames
+includable
+include's
+injectable
+injectively
+inlined
+interop
+keyless
+lockfile
+lockfile's
+lookaround
+lossy
+matchers
+misspelt
+multisource
+namespace
+overridable
+params
+parseable
+parser's
+pasteable
+readline
+realpath'd
+recurse
+recurses
+recursing
+reformats
+regexes
+renderer's
+renderers
+reparse
+[Rr]eparseable
+reparses
+reparsing
+repo
+repo's
+repos
+rewriter
+rootPath
+rootUri
+[Ss]andboxing
+serialiser
+shorter's
+stat'd
+[Ss]tderr
+[Ss]tdin
+stdout
+subcommand
+substring
+substrings
+templated
+toolchain
+typo'd
+unreviewed
+unrollings
+unsuffixed
+unescaped
+untrusted
+uppercases
+uri
+uri's
+util
+validators
+vendored
+[Vv]endoring
+workspaceFolders

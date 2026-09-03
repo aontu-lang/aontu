@@ -1,8 +1,8 @@
 # Unification
 
-Aontu has one operation. Every construct in the language — a second
+Aontu has one operation. Every construct in the language—a second
 statement for the same key, an `&`, an included file, a spread applied
-to a child, a schema checked against data — is that one operation
+to a child, a schema checked against data—is that one operation
 under a different spelling. It is called **unification**, and this page
 is what it means.
 
@@ -14,7 +14,7 @@ the rest of the documentation uses: *meet*, *top*, *bottom*, *lattice*,
 ## Values are ordered by how much they say
 
 Start with an ordering rather than an operation. Of any two Aontu
-values, one may be **more specific** than the other — it admits fewer
+values, one may be **more specific** than the other—it admits fewer
 possibilities.
 
 `integer` admits every whole number. `8080` admits one. So `8080` is
@@ -34,10 +34,10 @@ least as specific as both. Written `a & b`. It is the answer to a
 question you ask constantly without noticing: *what is still true if
 both of these hold?*
 
-`integer & 8080` is `8080` — the only whole number that is also `8080`.
+`integer & 8080` is `8080`—the only whole number that is also `8080`.
 `integer & min(1024)` is neither of its operands: it is a third value,
 `integer & min(1024)`, still waiting to be narrowed. A value in that
-state is a **residual** — it holds real information and is not yet one
+state is a **residual**—it holds real information and is not yet one
 concrete answer.
 
 <!-- test: scenario unification-meet -->
@@ -65,10 +65,10 @@ constraint at once.
 An ordering like this needs two endpoints, and both are ordinary
 values you can write.
 
-**`top`** is the most general value: it admits everything. It is what
-an unconstrained field is, and it is the identity of the meet —
-`top & x` is `x`, for every `x`. A field that is still `top` at the end
-of a run says nothing, so it cannot be generated.
+**`top`** is the most general value: it admits everything. It is what an
+unconstrained field is, and it is the identity of the meet—`top & x` is
+`x`, for every `x`. A field that is still `top` at the end of a run says
+nothing, so it cannot be generated.
 
 **`nil`**, also called **bottom** and written `⊥` in order theory, is the most
 specific: it admits nothing. It is what a failed unification produces.
@@ -80,7 +80,7 @@ Every other value sits between them, under the kind it belongs to:
 ![The value lattice: top at the join; string, number, boolean and null under it; path() under string; integer, float, biginteger and bigdecimal under number; nil at the meet, below every kind.](figures/value-lattice.svg)
 
 `"ada"` sits under `string`, `1` under `integer`, `0d0.1` under
-`bigdecimal`, `true` under `boolean` — each one a point below the kind
+`bigdecimal`, `true` under `boolean`—each one a point below the kind
 that admits it, and every one of them above `nil`.
 
 A structure with a top, a bottom, and a meet for every pair is a
@@ -90,7 +90,7 @@ the language reference gives the rules, kind by kind.
 
 ## Three laws, and what they buy you
 
-The meet obeys three laws. They are not decoration — everything Aontu
+The meet obeys three laws. They are not decoration—everything Aontu
 claims about being safe to split, merge and re-order rests on them.
 
 **Idempotent.** `a & a` is `a`. Saying a thing twice says it once.
@@ -181,7 +181,7 @@ than computing with it. **Subsumption** is that question: does `A`
 admit everything `B` admits? Every instance the specific document
 allows, does the general one allow too?
 
-That is `B ⊑ A`, the same relation the meet is built from — and it has
+That is `B ⊑ A`, the same relation the meet is built from—and it has
 an equivalent phrasing in terms of the meet: `A` subsumes `B` exactly
 when `A & B` is `B`. Nothing new is needed to decide it.
 
@@ -195,7 +195,7 @@ answer.
 
 A lattice has a second operation, the **join**: the most *specific*
 value at least as general as both, the answer to "either". Aontu's
-disjunction `a|b` looks like a join and is deliberately not one — it
+disjunction `a|b` looks like a join and is deliberately not one—it
 keeps both alternatives as a value that is still undecided, rather than
 collapsing them to a common supertype. `1|2` stays `1|2`; it does not
 become `integer`.
@@ -207,12 +207,12 @@ depends on.
 
 ## Where to go next
 
-- [The value lattice](reference-language.md#the-value-lattice) — the
+- [The value lattice](reference-language.md#the-value-lattice). The
   normative rules, kind by kind.
-- [Conjunction `&`](reference-language.md#conjunction-) — the operator,
+- [Conjunction `&`](reference-language.md#conjunction-). The operator,
   exhaustively.
-- [Read a conflict error](how-to/read-a-conflict-error.md) — what the
+- [Read a conflict error](how-to/read-a-conflict-error.md). What the
   engine prints when a meet lands on `nil`, and how to find the two
   statements responsible.
-- [Explanation](explanation.md) — why the engine is built the way it
+- [Explanation](explanation.md). Why the engine is built the way it
   is, including where the ordering is deliberately incomplete.

@@ -52,7 +52,7 @@ $ echo $?
 ```
 
 A mark belongs to the field its wrapper was written at, and a
-reference copies the value with the marks cleared — which is why
+reference copies the value with the marks cleared—which is why
 `$._schema` constrains the children without hiding them, and why
 marking `_schema` does nothing to any other field. Mark the field
 the data itself arrives at and you silence the whole thing:
@@ -89,7 +89,7 @@ want it on the page.
 
 The same mark carries policy. A rule that must hold on every
 evaluation, without appearing anywhere in the output, is a hidden
-block — here, "exactly one role holds the tenant":
+block—here, "exactly one role holds the tenant":
 
 ```aontu
 roles: {
@@ -142,7 +142,7 @@ than a bare verdict.
 Marks are specified in [Marks: `type` and
 `hide`](../reference-language.md#marks-type-and-hide). A
 `type()`-marked block is also how you build a vocabulary of named
-constraints — [name a reusable
+constraints—[name a reusable
 constraint](name-a-reusable-constraint.md). The invariant recipe
 runs live in the [RBAC policy](../../use-cases/05-rbac-policy/) use
 case.

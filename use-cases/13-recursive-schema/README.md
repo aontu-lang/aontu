@@ -1,4 +1,4 @@
-# 13 — recursive schema: an approval chain, one reference deep, any data deep
+# 13. Recursive schema: an approval chain, one reference deep, any data deep
 
 An approval chain: each step names an approver and a decision, and
 may hand on to a following step, for as many steps as the policy
@@ -29,20 +29,20 @@ in advance.
 
 The three moments of the residual:
 
-- **Evaluation** — met by concrete structure, expand one level, per
+- **Evaluation**—met by concrete structure, expand one level, per
   destination and under the same clone discipline a spread uses. Data
   is finite, so expansion terminates; the depth budget is the backstop.
-- **Canon and the `aon1-` hash** — symbolic: the instance unrolls to
+- **Canon and the `aon1-` hash**—symbolic: the instance unrolls to
   its data and then says `$.spec.Step`; the definition stays one
   reference deep. A recursive schema's canonical form is finite,
-  reparses to itself, and its hash pins the mu-form — one string for
+  reparses to itself, and its hash pins the mu-form—one string for
   an infinitely deep type.
-- **Generation** — an unexpanded residual in a demanded position
+- **Generation**—an unexpanded residual in a demanded position
   refuses with `[aontu/recursion_unexpanded]`. Guardedness is
   therefore emergent: under `then?:` the refusal is isolated and the
   optional key drops; a required recursive tail refuses at the exact
   position no finite document can fill (bad/required-tail.aon). The
-  engine never analyses the schema for well-foundedness — the data
+  engine never analyses the schema for well-foundedness—the data
   decides.
 
 ## The model tree
@@ -83,12 +83,12 @@ than its value.
    default.
 2. Canon renders the recursion symbolically (`"then"?:$.spec.Step`),
    never unrolled.
-3. The canon reparses to itself — an engine's own output converges to
+3. The canon reparses to itself—an engine's own output converges to
    the same canon, whatever order the reparse resolves in.
 4. `hash schema.aon` answers a single `aon1-` string: the mu-form as
    a schema version pin.
 5. `vet --at '$.spec.Step'` accepts a plain-JSON chain
-   (data/chain-good.json) — no aontu syntax in the data at all.
+   (data/chain-good.json)—no aontu syntax in the data at all.
 6. The same vet refuses data/chain-bad.json one level down, both
    findings located in the schema's namespace
    (`$.spec.Step.then.approver`, `$.spec.Step.then.decision`).

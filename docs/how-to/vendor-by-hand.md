@@ -9,7 +9,7 @@ order: 30
 There is no `aontu mod get`. The network verbs are named and refused
 (see [vendor a dependency closure](vendor-a-dependency-closure.md)),
 and the content-addressed user cache cannot be searched until a
-lockfile pins a hash — so the cold start for every module dependency
+lockfile pins a hash—so the cold start for every module dependency
 is hand-vendoring: put the module's source tree into `aon_vendor/`
 yourself, then let `tidy` pin it. `cp -r` is the distribution
 protocol.
@@ -125,16 +125,16 @@ document and its include closure; comments, whitespace, refactored
 spellings that canon to the same value, `mod.aon` metadata, and files
 the entry never includes all keep the hash, deliberately. Byte-level
 integrity of a distributed artifact is the `oci` digest's job (the
-lockfile carries both pins — see the [language
+lockfile carries both pins—see the [language
 reference](../reference-language.md#modules)); the canon pin answers
 "has the truth changed?", not "are these the same bytes?".
 
-## In CI, verify — do not tidy
+## In CI, verify—do not tidy
 
 `tidy` rewrites the lockfile from whatever the store currently holds,
 so a job that tidies before evaluating makes the lock agree with a
 tampered store and then passes. `aontu mod verify` asks the question
-without answering it by editing — against the still-tampered store:
+without answering it by editing—against the still-tampered store:
 
 <!-- test: run -->
 ```sh
@@ -150,7 +150,7 @@ writes nothing, and exits `1` on any disagreement. Run it beside your
 tests ([validate in CI](validate-in-ci.md) is the surrounding job);
 run `tidy` only when you intend to move a pin, and review its diff
 like code. Nothing to check is not a pass, either. Take a project
-that declares the dependency but never committed a lockfile — only
+that declares the dependency but never committed a lockfile—only
 its `mod.aon`:
 
 <!-- test: scenario verify-unlocked -->
@@ -177,7 +177,7 @@ set, and the line names the repair.
 A vendored module carries its own `mod.aon` and may declare its own
 `dep`. Its imports resolve from its own directory and from every
 enclosing project root, so its dependency goes in the same
-`aon_vendor/` tree, beside it — never nested inside it:
+`aon_vendor/` tree, beside it—never nested inside it:
 
 ```
 project/
@@ -246,7 +246,7 @@ $ echo $?
 
 A module that does not evaluate on its own is refused rather than
 pinned, because every module that fails to evaluate hashes to the
-same string — a lockfile written from one would look like a pin and
+same string—a lockfile written from one would look like a pin and
 mean nothing. (`aontu hash` refuses the same file with the same
 wording.) Vendor the dependency flat beside its dependant:
 `aon_vendor/corp.example/schemas/common@1/mod.aon`:

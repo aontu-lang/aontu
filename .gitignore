@@ -49,3 +49,9 @@ go/coverage*.out
 go/aontu
 go/bin/
 go/covdata/
+
+# Vale's downloaded style packages. The vocabularies under
+# .vale/styles/config/ and the house rule under .vale/styles/Aontu/ are
+# ours and ARE committed; Google/ arrives from the pinned URL in
+# .vale.ini via `vale sync`.
+/.vale/styles/Google/

@@ -1,4 +1,4 @@
-# 06 — Kubernetes golden path: one service model, N manifests
+# 06. Kubernetes golden path: one service model, N manifests
 
 ![The model tree: the compact service model beside the Kubernetes manifests it fans out to](expected/diagram-doc.svg)
 

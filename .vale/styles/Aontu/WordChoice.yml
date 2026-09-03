@@ -1,0 +1,22 @@
+# The parts of Google's word list that are right for this project,
+# carried as our own rule so they can sit at error level.
+#
+# Google.WordListCase itself is a WARNING here (see .vale.ini): it maps
+# `touch` to `tap`, a mobile-UI rule, and it maps `above` and `below` to
+# `preceding` and `following`, which the language reference uses 135
+# times as ordinary cross-references inside one long page.
+#
+# What is left is the one substitution with no such collision. The
+# corpus was already 14 to 6 in favour of `filename` before this rule
+# existed; the rule settles the remaining six rather than introducing a
+# preference.
+extends: substitution
+message: "Use '%s' instead of '%s'."
+link: 'https://developers.google.com/style/word-list'
+level: error
+ignorecase: true
+action:
+  name: replace
+swap:
+  file name: filename
+  file names: filenames

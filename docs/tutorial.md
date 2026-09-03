@@ -3,7 +3,7 @@
 A service config is three documents wearing one file format: the
 values, the rules the values must obey, and the fallbacks for what
 nobody said. Most stacks store the three separately and hope. In Aontu
-they are one document, combined by one operation — unification — and
+they are one document, combined by one operation—unification—and
 the result is a config that can check itself.
 
 That is what we build here, feature by feature, and then interrogate:
@@ -72,7 +72,7 @@ func main() {
 
 The two implementations accept the same source and produce the same
 shape; the parity is pinned by one test suite both implementations
-run. The rest of this page shows source and result — run
+run. The rest of this page shows source and result—run
 them in whichever language you keep at hand.
 
 ### The `aontu` command
@@ -92,7 +92,7 @@ $ echo 'a:1 b:$.a' | aontu
 }
 ```
 
-`b` followed a reference to `a` before printing — even a piped
+`b` followed a reference to `a` before printing—even a piped
 one-liner is fully evaluated. Run `aontu` with no file and you get a
 REPL; the [API reference](reference-api.md#command-line-interface)
 covers both.
@@ -119,7 +119,7 @@ rocky: true
 No quotes on `Mercury`, no braces, no commas; the output is ordinary
 JSON all the same.
 
-Nesting repeats keys with a colon — `a:b:c:1` means
+Nesting repeats keys with a colon—`a:b:c:1` means
 `a: { b: { c: 1 } }`:
 
 ```aontu
@@ -176,7 +176,7 @@ other silently.
 
 ## 4. Types as values
 
-A bare type name is a value too — it means "any value of this kind".
+A bare type name is a value too—it means "any value of this kind".
 Unify it with a concrete value and the value wins, provided it fits:
 
 ```aontu
@@ -209,7 +209,7 @@ The built-in kinds are `string`, `boolean`, `top` (the catch-all that
 admits anything), and the numeric family: `number` covers every
 numeric value, over its four leaves `integer`, `float`, `biginteger`
 and `bigdecimal`. Say `number` when you mean "some number", and name a
-leaf when you mean that leaf — `port: integer` will not accept
+leaf when you mean that leaf—`port: integer` will not accept
 `8080.5`. Your config now carries the first piece of its own schema.
 
 ## 5. Exact numbers with `0d`
@@ -324,7 +324,7 @@ Empty disjunction. The disjunction has no valid alternatives.
 ```
 
 An override must be admitted by one of the branches you wrote, and
-`1.5` is a `float`, which `integer` does not admit — why the gate is
+`1.5` is a `float`, which `integer` does not admit—why the gate is
 this strict is argued in the
 [explanation](explanation.md#a-preference-is-gated-by-kind-not-by-family).
 When any number should be able to win, say so in the branch:
@@ -362,7 +362,7 @@ service:  timeout: $.defaults.timeout
 
 Change the default once and every reader of the path follows. A
 leading `.` is relative to the current object, and `key()` names the
-key a value is stored under — a compact way to give records their own
+key a value is stored under—a compact way to give records their own
 name:
 
 ```aontu
@@ -437,9 +437,9 @@ copy:  copy($.web)         # deep copy of another node
 `+` concatenates strings and adds numbers; `upper` and `lower` double
 as ceiling and floor on numbers, and they keep exact numbers exact
 (`upper(0d1.1)` prints `2.0`, a `bigdecimal` ceiling). There are
-forty-three built-ins in all — bounds, pattern and length
+forty-three built-ins in all—bounds, pattern and length
 constraints, generators that build children, `join` to fold a bag into
-a line of text — tabulated with tested examples in the
+a line of text—tabulated with tested examples in the
 [language reference](reference-language.md#functions).
 You need none of the rest today.
 
@@ -484,7 +484,7 @@ trade-off.
 ## 11. Putting it together
 
 Time to spend all of it. Here is a single document that is schema,
-defaults and data at once — save it as `config.aon`:
+defaults and data at once—save it as `config.aon`:
 
 <!-- test: scenario service-config -->
 <!-- test: file config.aon -->
@@ -528,15 +528,15 @@ $ aontu config.aon
 
 Every default is `*value | kind`, the §6 shape, so `port: 9090.5` is
 refused rather than accepted. And `tags` says `[&: string]` where
-`[string]` might look like enough — a list literal is positional, so
+`[string]` might look like enough—a list literal is positional, so
 `[string]` constrains element 0 and waves `tags: [public, 7]` through;
 the [explanation](explanation.md#a-list-literal-is-positional) argues
 why it works that way.
 
 With those two spellings in place the schema constrains every field.
-Defaults filled `host`, the data supplied the rest, `rate` stayed exact from
-`0d0.025` to the printed `0.025`, and `close` kept stray keys out —
-one answer, assembled by unification, which would have failed loudly
+Defaults filled `host`, the data supplied the rest, `rate` stayed exact
+from `0d0.025` to the printed `0.025`, and `close` kept stray keys
+out—one answer, assembled by unification, which would have failed loudly
 had anything conflicted.
 
 ## 12. Asking the document questions
@@ -553,7 +553,7 @@ $ aontu get '$.service.tags' config.aon
 ]
 ```
 
-The path is the same `$.`-rooted path §7 used for references — quote
+The path is the same `$.`-rooted path §7 used for references—quote
 it so the shell leaves the `$` alone.
 
 `why` is the verb to reach for when a value surprises you. It names
@@ -569,7 +569,7 @@ $.service.port = 9090
 
 Two contributions, and you wrote both: the default with its type, and
 the data that beat it, each with the line and column it came from. The
-first line is the *whole* written value — a contribution is a
+first line is the *whole* written value—a contribution is a
 statement, so the `8080` and the `integer` arrive together, as the
 single value they were written as. Now ask about `host`, which nothing
 overrode:
@@ -656,7 +656,7 @@ $ echo $?
 Read the finding from the top. The path `$.service.tags.1` is exactly
 where the trouble is: element 1 of the list, the `3`. Then **two
 sites**, because a conflict is always between two statements and neither
-one owns the blame — `data` is what arrived (`3`, line 4, column 20 of
+one owns the blame—`data` is what arrived (`3`, line 4, column 20 of
 `staging.aon`) and `schema` is what it had to [meet](unification.md)
 (`string`, line 6, column 16 of `service.aon`). Every finding is sited
 on both sides, so you never guess which file to open. And the exit code,
@@ -682,7 +682,7 @@ verdict: valid
 
 Notice `staging.aon` never mentions `host` or `rate` and passes
 anyway: the schema's defaults stand in. To see what the service
-actually gets, unify the two files — a document that loads both is all
+actually gets, unify the two files—a document that loads both is all
 it takes. Write `stack.aon`:
 
 <!-- test: file stack.aon -->
@@ -713,8 +713,8 @@ $ aontu stack.aon
 [split a model across files](how-to/split-a-model-across-files.md)
 grows the idea into versioned, vendored dependencies.
 
-`vet` has a third verdict, and it is the one that keeps the loop
-honest. Delete the `name` line from `staging.aon`:
+`vet` has a third verdict, and it is the one that stops the loop
+calling an unfinished document valid. Delete the `name` line from `staging.aon`:
 
 <!-- test: file staging.aon -->
 ```aontu
@@ -738,7 +738,7 @@ $ echo $?
 
 Nothing contradicts anything; the document is simply not finished yet.
 Aontu has kept "wrong" and "unfinished" apart all through this page,
-and `vet` keeps them apart in its exit codes too — one code per
+and `vet` keeps them apart in its exit codes too—one code per
 verdict class, which is what makes it usable as a gate. The codes, the
 JSON and SARIF report forms and `--watch` are specified under
 [`aontu vet`](reference-api.md#aontu-vet), and
@@ -758,29 +758,27 @@ will and will not touch.
 Your config is a tree. Real systems are graphs: services that depend
 on each other, ownership that must not cycle, schemas that contain
 themselves. The [graph tutorial](tutorial-graph.md) is the second half
-of this one — identity, relations, reachability and recursion, on the
+of this one—identity, relations, reachability and recursion, on the
 engine you just used.
 
 For a task you already have, go straight to its guide:
 
-- **Run, embed and integrate** —
-  [call from TypeScript](how-to/call-from-typescript.md),
-  [call from Go](how-to/call-from-go.md),
-  [read a conflict error](how-to/read-a-conflict-error.md)
-- **Templates, defaults and composition** —
-  [provide defaults](how-to/provide-defaults.md),
-  [apply a template to many keys](how-to/apply-a-template-to-many-keys.md)
-- **Schemas and constraints** —
-  [constrain list elements](how-to/constrain-list-elements.md),
-  [make a field optional](how-to/make-a-field-optional.md)
-- **Query, explain and change** —
-  [query a path](how-to/query-a-path.md),
+-  **Run, embed and integrate**—[call from
+  TypeScript](how-to/call-from-typescript.md), [call from
+  Go](how-to/call-from-go.md), [read a conflict
+  error](how-to/read-a-conflict-error.md)
+-  **Templates, defaults and composition**—[provide
+  defaults](how-to/provide-defaults.md), [apply a template to many
+  keys](how-to/apply-a-template-to-many-keys.md)
+-  **Schemas and constraints**—[constrain list
+  elements](how-to/constrain-list-elements.md), [make a field
+  optional](how-to/make-a-field-optional.md)
+-  **Query, explain and change**—[query a path](how-to/query-a-path.md),
   [explain a value](how-to/explain-a-value.md)
-- **Validate and evolve** —
-  [validate in CI](how-to/validate-in-ci.md),
+-  **Validate and evolve**—[validate in CI](how-to/validate-in-ci.md),
   [gate schema changes](how-to/gate-schema-changes.md)
-- **Modules and multi-file** —
-  [split a model across files](how-to/split-a-model-across-files.md)
+-  **Modules and multi-file**—[split a model across
+  files](how-to/split-a-model-across-files.md)
 
 Every rule and edge case is in the
 [language reference](reference-language.md); the command and both APIs

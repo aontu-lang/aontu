@@ -8,7 +8,7 @@ order: 10
 
 A schema nobody runs is a comment. The `vet` verb turns yours into a
 gate: it validates data files against a schema document, prints
-located findings, and exits with the verdict class — which is
+located findings, and exits with the verdict class—which is
 everything a pipeline needs to go red for a reason.
 
 Write the schema as `schema.aon`:
@@ -47,7 +47,7 @@ $ echo $?
 
 The finding names both sides, data site first, because the data is
 the side to edit. (To refuse *extra* keys too, wrap the schema in
-`close` — see [Forbid unexpected keys](forbid-unexpected-keys.md).)
+`close`—see [Forbid unexpected keys](forbid-unexpected-keys.md).)
 
 ## The exit code is the verdict class
 
@@ -78,9 +78,9 @@ exit code says so:
 | Exit | Verdict | What the pipeline should do |
 |------|---------|-----------------------------|
 | 0 | `valid` | pass |
-| 1 | `invalid` | fail — the data contradicts the schema; repair the data |
-| 3 | `incomplete` | fail — no contradiction, but required truth is unmet |
-| 4 | `error` | fail loudly — the *schema* side is unusable, never the data's fault |
+| 1 | `invalid` | fail—the data contradicts the schema; repair the data |
+| 3 | `incomplete` | fail—no contradiction, but required truth is unmet |
+| 4 | `error` | fail loudly—the *schema* side is unusable, never the data's fault |
 
 (Exit 2 is usage: a bad flag or an unreadable file.) A blanket
 "non-zero is red" still gates correctly, but keeping 1 and 3 apart

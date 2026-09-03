@@ -64,15 +64,15 @@ a: open(close({x: 1})) & {y: 2}
 
 What to watch for: `close` seals exactly the node it wraps, and only
 that node. Children generated inside it stay open unless you seal
-them too — around a `pack` generator that difference decides whether
+them too—around a `pack` generator that difference decides whether
 a misspelled override is refused or absorbed, and [seal generated
 children deeply](seal-generated-children.md) walks through it. A
 list tail is also not closed by the enclosing map's seal; the
-element template is — see
+element template is—see
 [constrain every element of a list](constrain-list-elements.md).
 
 The semantics are specified in [Closed values: `close` /
 `open`](../reference-language.md#closed-values-close--open).
 Closedness is also the one thing Aontu and JSON Schema say
-identically (`additionalProperties: false`) — see
+identically (`additionalProperties: false`)—see
 [export JSON Schema](export-json-schema.md).

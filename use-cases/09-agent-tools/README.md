@@ -1,4 +1,4 @@
-# 09 — An AI agent platform's tool registry as ground truth
+# 09. An AI agent platform's tool registry as ground truth
 
 ![The model tree: the tool registry, the argument schemas, and the per-call guard generated from them](expected/diagram-doc.svg)
 
@@ -10,17 +10,17 @@ what exists, what arguments a call may carry (and must refuse), what a
 call can cost (side-effect class, rate limit, timeout), and who may
 call it. Today this truth is usually scattered across a TypeScript
 tool file, a JSON Schema, a wiki page and the dispatcher's `if`
-statements — and those copies drift. This is Aontu's home turf: the
+statements—and those copies drift. This is Aontu's home turf: the
 MCP ecosystem's tool-definition problem.
 
 The model exercises the full loop:
 
-1. `registry.aon` — the registry itself: six tools, closed schemas,
+1. `registry.aon`—the registry itself: six tools, closed schemas,
    constraint atoms, enums, generated call schemas, derived fields, a
    derived docs table.
-2. `guard.aon` — the dispatcher's vet entrypoint: one wire schema per
+2. `guard.aon`—the dispatcher's vet entrypoint: one wire schema per
    tool, generated from the registry's argument schemas.
-3. `data/call-*.json` — agent-emitted calls `{tool, arguments}`,
+3. `data/call-*.json`—agent-emitted calls `{tool, arguments}`,
    vetted with `aontu vet --at $.guard.<tool>`: the runtime
    guardrail, asserted by exit code and error code in `check.sh`.
 4. The real `aontu-mcp` server driven over stdio JSON-RPC
@@ -111,7 +111,7 @@ than its value.
   "at least one" is a dispatcher rule rather than a schema one.
 - **`type()` marks** keep every schema out of the generated JSON while
   it still constrains: `aontu registry.aon` emits only the concrete
-  registry (tools, docs) — the golden in `expected/registry.json`.
+  registry (tools, docs)—the golden in `expected/registry.json`.
   `Role`, `SideEffect` and `ToolSpec` are separate top-level marked
   fields, each referenced by absolute path.
 - **Derived truth**: `requires_approval: match(.side_effect,

@@ -1,5 +1,5 @@
 ---
-description: Embed the engine with the Go port — the same three calls, with errors returned instead of thrown.
+description: Embed the engine with the Go port—the same three calls, with errors returned instead of thrown.
 group: run-embed
 order: 30
 ---
@@ -23,7 +23,7 @@ v,   err  = a.Parse("a: number")        // AST, not yet unified
 
 Nothing throws or panics for an ordinary conflict: every method
 returns an `error`, and `Generate` returns `(nil, err)` on any
-unresolved or conflicting value — so check it. Generated output uses
+unresolved or conflicting value—so check it. Generated output uses
 Go's natural types (`map[string]any`, `[]any`, `int64`, `float64`,
 `string`, `bool`, `nil`), plus `*big.Int` and `*Decimal` for the two
 exact leaves, both of which marshal their exact digits as raw JSON
@@ -44,7 +44,7 @@ a := aontu.NewWithBase(filepath.Dir(abs))
 paths are unaffected.
 
 One difference from the TypeScript port to plan around: the Go port
-ships no MCP binary — its role is embedding, so `Get`, `Why`, `Diff`
+ships no MCP binary—its role is embedding, so `Get`, `Why`, `Diff`
 and `AgentsMd` are library calls instead
 ([give an agent an entrypoint](give-an-agent-an-entrypoint.md)).
 For every problem in one pass rather than the first error, use

@@ -1,5 +1,5 @@
 ---
-description: Print what a document means — defaults, disjunctions and all — instead of what it resolves to.
+description: Print what a document means—defaults, disjunctions and all—instead of what it resolves to.
 group: run-embed
 order: 40
 ---
@@ -30,7 +30,7 @@ $ aontu --canon timeout.aon
 
 Generation resolves the default; `--canon` keeps the whole
 default-and-type so you can see what a caller may still override. Where
-information has fully arrived, the two agree — a constraint
+information has fully arrived, the two agree—a constraint
 [met](../unification.md) by a concrete value canons to just the value.
 Write `pinned.aon`:
 
@@ -73,6 +73,6 @@ weight than a debugging view: it is the text the `aon1-` pin is
 derived from, so "same canon" is this project's working definition of
 "same meaning" ([pin a document hash](pin-a-document-hash.md)).
 
-The exhaustive rendering rules — key order, number forms, what
-recursion renders as — are in the language reference under
+The exhaustive rendering rules—key order, number forms, what
+recursion renders as—are in the language reference under
 [Canonical form](../reference-language.md#canonical-form).

@@ -1,0 +1,98 @@
+# The prose gate. Vale over the reader-facing pages, at the levels set
+# in .vale.ini.
+#
+# Separate from build.yml because it is neither a platform check nor a
+# port check: one runner, one job, no matrix. It runs on documentation
+# and configuration changes only, so a code-only pull request does not
+# wait on it.
+name: Docs
+
+# Runs on EVERY branch push, not just main, and the path lists are
+# written out twice.
+#
+# Both of those are scars. GitHub Actions does not support YAML anchors,
+# so the first version of this file -- which shared one path list between
+# the two triggers -- never ran at all. The second version restricted
+# `push` to main and leaned on the `pull_request` trigger for branches,
+# and did not run either: this repository's pull_request events do not
+# fire reliably on a synchronize, so build.yml's own PR run went missing
+# from the same pushes. A gate that reaches a pull request showing green
+# because it never executed is worse than no gate, so this one triggers
+# the way build.yml does.
+on:
+  push:
+    paths:
+      - 'docs/**'
+      - 'use-cases/*/README.md'
+      - 'README.md'
+      - 'ts/README.md'
+      - 'ts/scripts/gated-docs.cjs'
+      - '.vale.ini'
+      - '.vale/**'
+      - '.github/workflows/docs.yml'
+  pull_request:
+    paths:
+      - 'docs/**'
+      - 'use-cases/*/README.md'
+      - 'README.md'
+      - 'ts/README.md'
+      - 'ts/scripts/gated-docs.cjs'
+      - '.vale.ini'
+      - '.vale/**'
+      - '.github/workflows/docs.yml'
+  workflow_dispatch:
+
+jobs:
+  prose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.x'
+
+      # Pinned. Vale ships new rules in the Google package as well as in
+      # the binary, and an unpinned gate turns someone else's release
+      # into a red build on a pull request that touched one word. The
+      # package is pinned by URL in .vale.ini for the same reason.
+      - name: Install Vale
+        env:
+          VALE_VERSION: '3.14.0'
+        run: |
+          curl -sSfL -o vale.tar.gz \
+            "https://github.com/errata-ai/vale/releases/download/v${VALE_VERSION}/vale_${VALE_VERSION}_Linux_64-bit.tar.gz"
+          tar xzf vale.tar.gz vale
+          sudo mv vale /usr/local/bin/
+          vale --version
+
+      # Downloads the Google package into .vale/styles/, which is
+      # gitignored -- the vocabularies under .vale/styles/config/ are
+      # ours and are committed.
+      - name: Sync Vale packages
+        run: vale sync
+
+      # The file list comes from ts/scripts/gated-docs.cjs, the same
+      # module ts/test/docs.test.ts reads, so the two gates cannot
+      # disagree about which pages they cover. It is not expressible as
+      # a Vale config section: Vale selects sections by file extension,
+      # not by path.
+      - name: Prose gate
+        run: vale --minAlertLevel=error $(node ts/scripts/gated-docs.cjs)
+
+      # Warnings and suggestions are reported for the author to read and
+      # do not block; see the demotion notes in .vale.ini for what sits
+      # at which level and why.
+      - name: Full report (advisory)
+        if: always()
+        run: |
+          {
+            echo '## Prose report'
+            echo
+            echo 'Errors block the build. Warnings and suggestions do not.'
+            echo
+            echo '```'
+            vale --no-exit --minAlertLevel=warning \
+              $(node ts/scripts/gated-docs.cjs) 2>&1 | tail -60
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

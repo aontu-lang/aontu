@@ -18,9 +18,9 @@ and may be regarded as a purpose-specific dialect.
 Aontu ships two implementations, kept in parity (structure inspired by
 [`voxgig/util`](https://github.com/voxgig/util)):
 
-- **TypeScript** in [`ts/`](ts/) — the canonical implementation
+- **TypeScript** in [`ts/`](ts/)—the canonical implementation
   (published to npm as `aontu`).
-- **Go** in [`go/`](go/) — a port (`github.com/aontu-lang/aontu/go`) that
+- **Go** in [`go/`](go/)—a port (`github.com/aontu-lang/aontu/go`) that
   mirrors the core unification semantics.
 
 Both are checked against a single, language-agnostic test suite in
@@ -76,13 +76,13 @@ clone: `node ts/dist/cli.js …` or, inside `go/`, `go run ./cmd/aontu …`.
 
 Full documentation is in [`docs/`](docs/):
 
-- [Documentation home](docs/index.md) — start here
-- [Tutorial](docs/tutorial.md) — learn Aontu step by step
-- [How-to guides](docs/how-to/) — task-focused recipes
-- [Language reference](docs/reference-language.md) — every construct and rule
-- [API reference](docs/reference-api.md) — TypeScript & Go APIs, and the CLI
-- [Explanation](docs/explanation.md) — how and why the unifier works
-- [Test coverage](docs/test-coverage.md) — how it is measured, and the numbers
+- [Documentation home](docs/index.md). Start here
+- [Tutorial](docs/tutorial.md). Learn Aontu step by step
+- [How-to guides](docs/how-to/). Task-focused recipes
+- [Language reference](docs/reference-language.md). Every construct and rule
+- [API reference](docs/reference-api.md). TypeScript & Go APIs, and the CLI
+- [Explanation](docs/explanation.md). How and why the unifier works
+- [Test coverage](docs/test-coverage.md). How it is measured, and the numbers
 
 [use-cases/](use-cases/) holds sixteen enterprise-shaped systems built
 as real Aontu documents, each with a `check.sh` that drives the CLI and
@@ -91,7 +91,7 @@ asserts every outcome.
 ## Security and contributing
 
 - **Security**: the evaluator's trust contract
-  ([docs/trust.md](docs/trust.md)) is the security surface — see
+  ([docs/trust.md](docs/trust.md)) is the security surface—see
   [SECURITY.md](SECURITY.md) for scope and how to report privately.
 - **Contributing**: start at [CONTRIBUTING.md](CONTRIBUTING.md), which
   points at [AGENTS.md](AGENTS.md), the full contributor and agent

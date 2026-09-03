@@ -40,17 +40,17 @@ $ echo $?
 1
 ```
 
-Read it top to bottom. The `[aontu/scalar_value]` line carries the
-error code and the path; a hint block restates the rule that was
-broken; then each operand appears with an annotated source frame —
-file, line, column, and the offending text with a caret under it.
-Note the path: a nested conflict reports the leaf values that
-clashed, so `a:b:1` against `a:b:2` is that same one-line message at
-`$.a.b`, not a complaint about `a`.
+Read it top to bottom. The `[aontu/scalar_value]` line carries the error
+code and the path; a hint block restates the rule that was broken; then
+each operand appears with an annotated source frame—file, line, column,
+and the offending text with a caret under it. Note the path: a nested
+conflict reports the leaf values that clashed, so `a:b:1` against
+`a:b:2` is that same one-line message at `$.a.b`, not a complaint about
+`a`.
 
 Where the conflict is reached through a disjunction, a list spread or
 a reference, both operands are still named but the ordering heuristic
-no longer applies — the value "later in source" may have travelled.
+no longer applies—the value "later in source" may have travelled.
 Trust the two source frames, not the order.
 
 An unresolved path is a different failure, with a different code:
@@ -61,7 +61,7 @@ An unresolved path is a different failure, with a different code:
 
 Nothing contradicted anything; a `$.reference` names a key the
 document does not have. (An undefined `$name` variable is
-`[aontu/unknown_var]`, a third case — see [inject host
+`[aontu/unknown_var]`, a third case—see [inject host
 values](inject-host-values.md).)
 
 The error codes, spelled as they render, are catalogued in the

@@ -1,4 +1,4 @@
-# 01 — a company-wide service catalog as system ontology
+# 01. A company-wide service catalog as system ontology
 
 ![The model tree: two views of one estate, catalog and deploy, over a shared vocabulary](expected/diagram-doc.svg)
 
@@ -10,9 +10,9 @@ tier, lifecycle, ports, protocols and `dependsOn` relations. Two
 organisational units describe the **same services from different
 angles**:
 
-- `catalog.aon` — the catalog view: what each service *is* (owner,
+- `catalog.aon`—the catalog view: what each service *is* (owner,
   tier, description, dependencies), organised by domain.
-- `deploy.aon` — the deployment view: what each cluster *runs*
+- `deploy.aon`—the deployment view: what each cluster *runs*
   (image, replicas, ports), organised by region and cluster.
 
 The deployment view REFERENCES its catalog entry's org facts, so one
@@ -28,11 +28,10 @@ and have its own emitted candidates checked (`aontu vet`, `rel()`).
 ## The model tree
 
 `system.aon` is one evaluation joining four things: the bundled
-vocabulary (`std`), Acme's own (`spec`), the catalog view and the
-deployment view. `catalog` and `deploy` hold the same services seen
-from different angles — what each one IS, and where each one RUNS —
-and everything below them is domains or regions, then services, then
-fields.
+vocabulary (`std`), Acme's own (`spec`), the catalog view, and the
+deployment view. `catalog` and `deploy` hold the same services seen from
+different angles—what each one IS, and where each one RUNS—and
+everything below them is domains or regions, then services, then fields.
 
 ```
 $
@@ -85,16 +84,16 @@ dependedOnBy?: rel($.std.Service) & %CatalogAddr
 `%CatalogAddr` is an **alias**: `%name:` at the top level of the
 document declares one, `%name` in value position uses it, and that is
 all it is. An alias does not generate and does not appear in canon, so
-`spec.aon` with the names and `spec.aon` with the pattern written out
-at both use sites are the same document and produce the same `aon1-`
-hash — the change is readability, and the engine cannot tell. What it
-buys is that a relation and its inverse can no longer be given
-different address shapes by a typo. `%Owner`, `%Lifecycle` and
-`%Description` do the same for the three fields `CatalogEntry` and
-`CandidateShape` both promise, which have to be spelled twice because
-the vet anchor is deliberately written out self-contained (gap 2) —
-and an alias is *not* a path (`$.%Owner` is refused at any depth), so
-naming them does not reintroduce the reference that gap is about.
+`spec.aon` with the names and `spec.aon` with the pattern written out at
+both use sites are the same document and produce the same `aon1-`
+hash—the change is readability, and the engine cannot tell. What it buys
+is that a relation and its inverse can no longer be given different
+address shapes by a typo. `%Owner`, `%Lifecycle` and `%Description` do
+the same for the three fields `CatalogEntry` and `CandidateShape` both
+promise, which have to be spelled twice because the vet anchor is
+deliberately written out self-contained (gap 2)—and an alias is *not* a
+path (`$.%Owner` is refused at any depth), so naming them does not
+reintroduce the reference that gap is about.
 
 The key is the predicate. `rel($.std.Service)` types every far end,
 and the type flows into each target instead of being repeated at every
@@ -205,7 +204,7 @@ rows 7 and 8 are the coupling: `gateway` reaches everything through
 two hops.
 
 The matrix is the form the empirical literature prefers past about
-twenty vertices — Ghoniem, Fekete and Castagliola (InfoVis 2004) found
+twenty vertices—Ghoniem, Fekete and Castagliola (InfoVis 2004) found
 matrices beat node-link for most tasks at that size, with path-finding
 the exception; Sangal et al. (OOPSLA 2005) is the software-dependency
 application. At eight services both are readable, which is the point of

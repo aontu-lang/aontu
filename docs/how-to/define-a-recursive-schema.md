@@ -8,7 +8,7 @@ order: 50
 
 An approval chain, a comment thread, a filesystem tree: the data is
 self-similar, and the schema should be written once. Reference the
-definition inside itself — that reference means the fixpoint, and the
+definition inside itself—that reference means the fixpoint, and the
 schema applies at every depth of the data:
 
 ```aontu
@@ -48,7 +48,7 @@ policy: $.spec.Step & {
 unrolled copies, and every level of the chain [met](../unification.md)
 the `re()` and got the ranked `decision` default. The recursive position
 expands one level per meet with concrete data, so validation descends
-exactly as far as the data does — no maximum depth to configure, no
+exactly as far as the data does—no maximum depth to configure, no
 blind spot past it.
 
 ## Guard the recursion
@@ -115,7 +115,7 @@ expanded the schema one more level to meet it.
 
 ## The unguarded tail refuses
 
-Guardedness is emergent — the engine never analyses the schema for
+Guardedness is emergent—the engine never analyses the schema for
 well-foundedness, the data decides. Drop the `?` and the schema still
 evaluates, but no finite document can satisfy it. Write this as
 `chain.aon`:
@@ -178,7 +178,7 @@ aon1-sgTj1hvqaL8vHdKZrlH7eaPbKeE9UW28b9WGBlVW9hw
 The definition stays one reference deep (`"then"?:$.spec.Step`), so
 the `aon1-` hash pins the mu-form of the schema, not any unrolling of
 it. That single string is a version pin for the whole recursive
-vocabulary — data instances unroll to their own depth without moving
+vocabulary—data instances unroll to their own depth without moving
 it.
 
 ## Vet plain JSON at any depth

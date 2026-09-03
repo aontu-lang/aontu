@@ -6,7 +6,7 @@ order: 40
 
 # Reference and reshape other parts of the document
 
-A reference pulls another node in and **unifies** with it — it adds,
+A reference pulls another node in and **unifies** with it—it adds,
 it never overrides. That one sentence decides most of what follows:
 
 ```aontu
@@ -21,7 +21,7 @@ prod: $.base & { replicas: 3 }
 
 `prod` extends the base and the base is untouched. (Note the quotes
 on `"us-east"`: a bare word stops at the `-`.) Now try to *change* a
-field instead of adding one — the same base with `prod: $.base &
+field instead of adding one—the same base with `prod: $.base &
 { tier: paid }`, as `tier.aon`:
 
 <!-- test: scenario reference-conflict -->
@@ -57,14 +57,14 @@ prod: $.base & { tier: paid }
 
 The addressing and reshaping vocabulary, in full:
 
-- `$.a.b` — absolute path from the document root.
-- `.a.b` — path relative to the current map.
-- `key()` — the key the current value is stored under.
-- `copy($.x)` — a deep copy, `type`/`hide` marks cleared.
-- `move($.x)` — a reference that relocates: the source is dropped
+- `$.a.b`—absolute path from the document root.
+- `.a.b`—path relative to the current map.
+- `key()`—the key the current value is stored under.
+- `copy($.x)`—a deep copy, `type`/`hide` marks cleared.
+- `move($.x)`—a reference that relocates: the source is dropped
   from the output, along with any unresolved optional keys.
 
-The last one reshapes in the strict sense — the value leaves its old
+The last one reshapes in the strict sense—the value leaves its old
 address:
 
 ```aontu

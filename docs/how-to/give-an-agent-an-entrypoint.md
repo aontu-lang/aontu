@@ -44,7 +44,7 @@ which survives reformatting and moves on any change of meaning), the
 root keys, the shape, and the `get` / `why` / `vet` / `set` commands
 spelled with a path that actually exists in the document. `--write`
 splices it between the two markers, appending them when absent, and
-touches nothing outside them — so re-run it in the same commit that
+touches nothing outside them—so re-run it in the same commit that
 changes the definition.
 
 The server second. `aontu-mcp` is a second binary of the npm package,
@@ -86,7 +86,7 @@ It also evaluates confined: the source arrives from the caller, so
 
 (Started with `--root <dir>`, the server resolves includes confined
 below that root instead, and accepts file-path arguments under it.)
-The Go port ships no MCP binary — `Get`, `Why`, `Diff` and `AgentsMd`
+The Go port ships no MCP binary—`Get`, `Why`, `Diff` and `AgentsMd`
 are library calls for [embedding](call-from-go.md).
 
 Details of both halves: [`aontu

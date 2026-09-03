@@ -39,7 +39,7 @@ $ aontu --canon config.aon
 ```
 
 Pretty-printed JSON is the default; `--canon` prints the
-[canonical form](see-canonical-form.md) instead — the same document, as
+[canonical form](see-canonical-form.md) instead—the same document, as
 the engine would write it back.
 
 With no file and a terminal on stdin, `aontu` starts a REPL. Each line
@@ -58,7 +58,7 @@ aontu> :quit
 ```
 
 `:load <file>` holds a document so that `:get`, `:keys` and `:why` can
-question it — the same [query](query-a-path.md) and
+question it—the same [query](query-a-path.md) and
 [provenance](explain-a-value.md) surfaces the CLI verbs offer, from
 inside the session. A harness can hold a session too: `--jsonl` drops
 the banner and the prompt and answers each command as one JSON line,
@@ -71,10 +71,10 @@ $ echo 'a:*1|number' | aontu --jsonl
 {"ok":true,"out":"{\n  \"a\": 1\n}"}
 ```
 
-One caution: the REPL evaluates each line as a complete document —
-there is no continuation prompt, and the permissive parser closes
-what you left open, so a half-typed `a: {` evaluates to `{"a":{}}`
-rather than waiting for more. Paste whole statements.
+One caution: the REPL evaluates each line as a complete document—there
+is no continuation prompt, and the permissive parser closes what you
+left open, so a half-typed `a: {` evaluates to `{"a":{}}` rather than
+waiting for more. Paste whole statements.
 
 Get the command with `npm install -g aontu` (or `npx aontu`) for the
 TypeScript build, or

@@ -1,12 +1,12 @@
 ---
-description: Embed the engine in Node with the `Aontu` class — parse, unify and generate from your own code.
+description: Embed the engine in Node with the `Aontu` class—parse, unify and generate from your own code.
 group: run-embed
 order: 20
 ---
 
 # Call Aontu from TypeScript
 
-The npm package `aontu` is not a wrapper around the CLI — the CLI is a
+The npm package `aontu` is not a wrapper around the CLI—the CLI is a
 thin client over the class the package exports. Requires Node ≥ 22.
 Three methods cover most embeddings:
 
@@ -22,7 +22,7 @@ aontu.parse('a: number')        // a Val AST, not yet unified
 ```
 
 `generate` throws an `AontuError` on a conflict, or when the result is
-not fully concrete — a schema is a valid document but not a generable
+not fully concrete—a schema is a valid document but not a generable
 one. When you want to see an unresolved or schema-bearing result
 rather than a final value, take `unify(...).canon`
 ([see the canonical form](see-canonical-form.md)); when you want every
@@ -34,7 +34,7 @@ the package's `exactJSON`, never `JSON.stringify`: a document using
 `0d` exact literals generates `bigint` and `Decimal` values that
 `JSON.stringify` refuses to write
 ([exact numbers](../reference-api.md#exact-numbers-and-exactjson)).
-And treat a parsed `Val` tree as single-use — unification refines it
+And treat a parsed `Val` tree as single-use—unification refines it
 in place, so parse again for every independent evaluation
 ([evaluation consumes the
 tree](../reference-api.md#evaluation-consumes-the-tree)). The string

@@ -1,18 +1,18 @@
 # Tutorial: model the system, not the tree
 
 At 04:11 the ledger database went down, and at 04:12 the payments
-service went with it — a dependency that was real in production and
+service went with it—a dependency that was real in production and
 recorded nowhere. Every config file involved was valid all night.
 
 The [first tutorial](tutorial.md) left you with a config that is
 schema, defaults and data in one document, describing each service
-completely — and each service alone. Nothing in it can say "these
+completely—and each service alone. Nothing in it can say "these
 two files describe the same service", or "this feeds that, never in
 a loop", or "a chain of these, as long as it needs to be". This
 tutorial adds that layer: bringing two views into contact,
 declared relations (`rel` and the graph atoms), and recursive
 schemas. Each is a
-statement the engine checks — "payments depends on ledger" becomes
+statement the engine checks—"payments depends on ledger" becomes
 something that can refuse.
 
 Run snippets as before (from a clone, `node ts/bin/aontu.js`
@@ -65,8 +65,8 @@ $ echo $?
 
 A reference is **directional**: `deploy` is narrowed by the catalog,
 and the catalog is not changed by the deploy. That direction is
-deliberate. The alternative — a global name both files declare, with
-every node carrying it merged into every other — reads well until you
+deliberate. The alternative—a global name both files declare, with
+every node carrying it merged into every other—reads well until you
 mount the same model twice, at which point the two instances are one
 entity and the second one's overrides are contradictions. The
 [reference](reference-language.md#linking-the-tree-is-the-namespace)
@@ -103,11 +103,11 @@ spec: hide({
 must name a node in this evaluation, and the type `t` flows into
 every target, so an edge landing on something that is not a job
 refuses at the edge. The `?` makes the key
-[optional](reference-language.md#optional-keys-) — a job with
+[optional](reference-language.md#optional-keys-)—a job with
 nothing downstream writes nothing. (`JobShape` is a thin stand-in:
 a self-typed `rel($.spec.Job)` inside `Job` is still in design.)
 
-The topology sits in `pipeline.aon` — plain lists of addresses, one
+The topology sits in `pipeline.aon`—plain lists of addresses, one
 of which carries a typo:
 
 <!-- test: file pipeline.aon -->
@@ -167,7 +167,7 @@ $ aontu model.aon
 
 ### A constraint held on every address: `re()`
 
-Acme's convention says a job may only feed another **job** — not a
+Acme's convention says a job may only feed another **job**—not a
 raw dump, which lives elsewhere in the tree. The addresses say where
 each target is, so the convention is a rule about the address. Write
 it into the declaration, in `spec.aon`:
@@ -188,7 +188,7 @@ spec: hide({
 
 A constraint beside `rel()` constrains the **address string**, and
 it is held onto every element of the list. To watch it work, write
-a change request — a file that includes the model and layers a
+a change request—a file that includes the model and layers a
 delta on at the path it applies to. Propose a new edge, `raw.aon`:
 
 <!-- test: file raw.aon -->
@@ -214,10 +214,10 @@ $ echo $?
 1
 ```
 
-`$.pipeline.dumps.raw` resolves, and it is even shaped like a job —
-but it is not *under* `jobs`, the held `re()` refuses the address,
-and the edge never exists. Conventions like this usually live in a
-wiki. This one is schema.
+`$.pipeline.dumps.raw` resolves, and it is even shaped like a job—but it
+is not *under* `jobs`, the held `re()` refuses the address, and the edge
+never exists. Conventions like this usually live in a wiki. This one is
+schema.
 
 ### The graph atoms: `acyclic()` and `inverse()`
 
@@ -243,7 +243,7 @@ spec: hide({
 
 The `feeds?:` line is now the entire relation: checked addresses,
 endpoint type, naming rule, acyclicity, inverse. During unification
-the atoms only *register* the declaration — one more edge can flip
+the atoms only *register* the declaration—one more edge can flip
 either property, so the verdict waits for generation, where every
 edge is known ([the rule](reference-language.md#declared-relations)).
 And `inverse(fedBy)` checks the mirror rather than writing it for
@@ -299,9 +299,8 @@ same verdict without generating anything.
 
 ### Refusing a cycle
 
-A change request makes load feed extract, and its author is careful
-— the inverse entry is dutifully written too. Save it as
-`cycle.aon`:
+A change request makes load feed extract, and its author is careful—the
+inverse entry is dutifully written too. Save it as `cycle.aon`:
 
 <!-- test: file cycle.aon -->
 ```aontu
@@ -401,7 +400,7 @@ and exit code.
 ## 3. A schema as deep as the data
 
 An approval chain is a step that may be followed by another step,
-and the depth belongs to each policy — a schema that hard-codes
+and the depth belongs to each policy—a schema that hard-codes
 three levels is wrong the day someone needs four. Here is the whole
 vocabulary, trimmed from
 [use-case 13](../use-cases/13-recursive-schema/), as `schema.aon`:
@@ -464,14 +463,14 @@ The leaf never states a `decision`, and the ranked default supplied
 `"pending"` three levels down, from a schema one reference deep.
 Mechanically, the self-reference leaves a *residual* (a value still
 waiting for information) at each `then`, and the residual expands
-one level per meet with concrete data — the checks descend exactly
+one level per meet with concrete data—the checks descend exactly
 as far as the chain does, and stop. Data is finite, so evaluation
 terminates.
 
 ### The guard is the `?`
 
 The engine never analyses a schema for well-foundedness; the data
-decides, and what ends the expansion is the `?` on `then?:` — where
+decides, and what ends the expansion is the `?` on `then?:`—where
 the data stops, the optional key drops. Spell the tail required and
 no finite chain can satisfy it. Try it, as `strict.aon`:
 
@@ -573,7 +572,7 @@ hash that pins a recursive schema as one string.
 
 You can now hand the engine plain-looking files and get back
 refusals for a forked fact, a dangling name, a dependency loop, an
-unmirrored edge, and a malformed chain at any depth — a decent set
+unmirrored edge, and a malformed chain at any depth—a decent set
 of questions to have asked about payments and ledger before 04:11.
 
 - The live models this page trimmed:

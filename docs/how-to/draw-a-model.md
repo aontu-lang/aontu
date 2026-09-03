@@ -28,8 +28,8 @@ api: $.spec.Service & {tier: "core", dependsOn: [path($.store)]}
 store: $.spec.Service & {tier: "core"}
 ```
 
-The tree is the default kind. It derives its roots — a root is a node
-nothing depends on — and prints nothing else, so a redirect is a golden
+The tree is the default kind. It derives its roots—a root is a node
+nothing depends on—and prints nothing else, so a redirect is a golden
 file:
 
 <!-- test: run -->
@@ -73,16 +73,16 @@ $ aontu view layer --relation dependsOn --group-by tier system.aon
 ```
 
 The footer is the layering rule, counted: `web -> api` crosses a band
-and `api -> store` stays inside one. An **upward** edge — one that
-points back up the bands — is the violation, and is named under the
+and `api -> store` stays inside one. An **upward** edge—one that
+points back up the bands—is the violation, and is named under the
 figure. `--edges all` draws the whole relation over the bands
 instead, which is what a reader tracing one service's dependencies
 wants.
 
 ## Get an SVG for a web page
 
-The kinds whose text form is a grid of character cells — `tree`,
-`matrix`, `layer`, `sets` and `layers` — also render as a standalone
+The kinds whose text form is a grid of character cells—`tree`,
+`matrix`, `layer`, `sets` and `layers`—also render as a standalone
 SVG that carries its own style block and takes its colours from CSS
 variables, so a page can theme it:
 
@@ -114,8 +114,8 @@ views: {&: $.view.Figure} & {
 ```
 
 `views` is your key, not one the engine knows, so `--views` says where
-to look. Each declaration's keys are the view options — the flags
-without the dashes — and `@"std/view"` is the schema for one, so a
+to look. Each declaration's keys are the view options—the flags
+without the dashes—and `@"std/view"` is the schema for one, so a
 misspelled option or a kind that is not a kind is refused when the
 document is evaluated.
 
@@ -133,7 +133,7 @@ $ echo $?
 differs. Each `out` is resolved against the view document's own
 directory, so the gate passes from any working directory; the
 directory it names must already exist, as it must for `--out`. Nothing
-is written unless every figure rendered — N figures of one model are
+is written unless every figure rendered—N figures of one model are
 only meaningful together.
 
 ## What the figure could not draw
@@ -147,9 +147,9 @@ read rather than truncating it.
 
 ## Related
 
-- [`aontu view`](../reference-api.md#aontu-view) — every kind, every
+- [`aontu view`](../reference-api.md#aontu-view). Every kind, every
   option, the loss codes and the exit codes.
-- [Query a path](query-a-path.md) — read one node instead of drawing
+- [Query a path](query-a-path.md). Read one node instead of drawing
   the whole shape.
-- [Explain a value](explain-a-value.md) — why one value is what it is,
+- [Explain a value](explain-a-value.md). Why one value is what it is,
   which the `ladder` kind draws.

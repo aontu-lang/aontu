@@ -1,5 +1,5 @@
 ---
-description: List every contribution that met at a path — which file, which line, which layer — with aontu why.
+description: List every contribution that met at a path—which file, which line, which layer—with aontu why.
 group: query-change
 order: 20
 ---
@@ -11,7 +11,7 @@ the race. `aontu why` lists every value the author *wrote* that
 [met](../unification.md) at a path, in source order, with the site each
 was written at. The file below is the [deployment
 fleet](../../use-cases/02-deploy-config/) use case trimmed to two layers
-in one file — in the live version the layers are separate files, and the
+in one file—in the live version the layers are separate files, and the
 sites carry each file's name. Write `stack.aon`:
 
 <!-- test: scenario explain-a-value -->
@@ -39,7 +39,7 @@ $.services.auth.replicas = 3
 
 The role in brackets marks a contribution that arrived indirectly:
 `(spread)` is the `&:` template on line 3, applied to this key. The
-concrete `3` carries no role — the author wrote it at the path it
+concrete `3` carries no role—the author wrote it at the path it
 stands at. Contributions are listed in source order (file, row,
 column), not in the order the engine happened to meet them.
 
@@ -59,7 +59,7 @@ rank (see [provide defaults](provide-defaults.md)). `why` shows the
 value *standing* at the path, which is exactly what you need when the
 generated answer surprises you.
 
-A path where only a template ever wrote still answers — the default
+A path where only a template ever wrote still answers—the default
 that stands there is a contribution, and its site is the line the
 author wrote it on:
 
@@ -81,8 +81,8 @@ $ echo $?
 1
 ```
 
-For a program, `--format json` emits the record — `{path, value,
-conjuncts: [{canon, role, site}]}` — with sites in the shape the vet
+For a program, `--format json` emits the record—`{path, value,
+conjuncts: [{canon, role, site}]}`—with sites in the shape the vet
 report uses. Provenance travels with a clone, so a value that reached
 its path through a template, a `pack()` generator, or a `$ref` is
 reported as the value the author wrote, where they wrote it.
@@ -91,6 +91,6 @@ The contribution rules and roles are specified under [`aontu
 why`](../reference-api.md#aontu-why); the live version asks the same
 question across four layers of authority in
 [use-cases/02-deploy-config](../../use-cases/02-deploy-config/).
-`why` also names the line that will refuse your next edit — when it
+`why` also names the line that will refuse your next edit—when it
 does, [change the value with an
 overlay](change-a-value-with-an-overlay.md).
