@@ -7,13 +7,20 @@
 # wait on it.
 name: Docs
 
-# The path lists are written out twice. GitHub Actions does not support
-# YAML anchors -- the file parses locally and the workflow simply never
-# runs, which is how the first version of this reached a pull request
-# with thirteen green checks and no prose gate among them.
+# Runs on EVERY branch push, not just main, and the path lists are
+# written out twice.
+#
+# Both of those are scars. GitHub Actions does not support YAML anchors,
+# so the first version of this file -- which shared one path list between
+# the two triggers -- never ran at all. The second version restricted
+# `push` to main and leaned on the `pull_request` trigger for branches,
+# and did not run either: this repository's pull_request events do not
+# fire reliably on a synchronize, so build.yml's own PR run went missing
+# from the same pushes. A gate that reaches a pull request showing green
+# because it never executed is worse than no gate, so this one triggers
+# the way build.yml does.
 on:
   push:
-    branches: [main]
     paths:
       - 'docs/**'
       - 'use-cases/*/README.md'
@@ -24,7 +31,6 @@ on:
       - '.vale/**'
       - '.github/workflows/docs.yml'
   pull_request:
-    branches: [main]
     paths:
       - 'docs/**'
       - 'use-cases/*/README.md'
@@ -34,6 +40,7 @@ on:
       - '.vale.ini'
       - '.vale/**'
       - '.github/workflows/docs.yml'
+  workflow_dispatch:
 
 jobs:
   prose:
