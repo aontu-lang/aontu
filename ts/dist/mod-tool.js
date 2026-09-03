@@ -101,7 +101,7 @@ function usableRef(mod) {
 // The directory a module is in, in the local stores: the project's
 // vendor tree first, then the cache under the hash the lockfile pins.
 function storeDir(root, ref, hash, options) {
-    const stores = [(0, mod_1.moduleDir)((0, node_path_1.join)(root, 'aon_vendor'), ref)];
+    const stores = [(0, mod_1.moduleDir)((0, node_path_1.join)(root, 'aontu_meta', 'vendor'), ref)];
     if (null != options.cache && '' !== hash) {
         stores.push((0, node_path_1.join)(options.cache, hash));
     }
@@ -109,7 +109,7 @@ function storeDir(root, ref, hash, options) {
 }
 // The lockfile's entries, as written.
 function readLock(root) {
-    const file = (0, node_path_1.join)(root, 'mod-lock.aon');
+    const file = (0, node_path_1.join)(root, 'aontu_meta', 'mod-lock.aon');
     if (!(0, node_fs_1.existsSync)(file)) {
         return {};
     }
@@ -226,7 +226,8 @@ function modTidy(root, options) {
     const uniqueUnevaluable = [...new Set(unevaluable)].sort();
     const held = 0 === uniqueMissing.length && 0 === uniqueUnevaluable.length;
     if (held) {
-        (0, node_fs_1.writeFileSync)((0, node_path_1.join)(root, 'mod-lock.aon'), LOCK_HEADER + lockText(lock, options) + '\n');
+        (0, node_fs_1.mkdirSync)((0, node_path_1.join)(root, 'aontu_meta'), { recursive: true });
+        (0, node_fs_1.writeFileSync)((0, node_path_1.join)(root, 'aontu_meta', 'mod-lock.aon'), LOCK_HEADER + lockText(lock, options) + '\n');
     }
     return {
         verdict: held ? 'ok' :
@@ -316,12 +317,12 @@ function modVerify(root, options) {
         missing: missing.sort(),
     };
 }
-// `aontu mod vendor`: materialise the locked closure into `aon_vendor/`.
+// `aontu mod vendor`: materialise the locked closure into `aontu_meta/vendor/`.
 function modVendor(root, options) {
     const locked = readLock(root);
     const vendored = [];
     const missing = [];
-    const vendorRoot = (0, node_path_1.join)(root, 'aon_vendor');
+    const vendorRoot = (0, node_path_1.join)(root, 'aontu_meta', 'vendor');
     for (const mod of Object.keys(locked).sort()) {
         const ref = usableRef(mod);
         if (undefined === ref) {
@@ -422,13 +423,13 @@ function majorOf(version) {
     return null == m ? '' : m[1];
 }
 // Every file of a module's source tree, relative and forward-slashed.
-// `aon_vendor/` is excluded: a published module carries its own
+// `aontu_meta/vendor/` is excluded: a published module carries its own
 // sources, not a copy of everyone else's -- a consumer resolves the
 // closure itself, and a nested vendor tree would publish the world.
 function layerFiles(dir, prefix = '') {
     const out = [];
     for (const name of (0, node_fs_1.readdirSync)(dir).sort()) {
-        if ('aon_vendor' === name) {
+        if ('aontu_meta' === name) {
             continue;
         }
         const full = (0, node_path_1.join)(dir, name);

@@ -73,5 +73,5 @@ The gate verbs: vet, breaking, relations, reaches, and hash.
 Splitting a model across files and vendoring a dependency closure.
 
 - [Split a model across files](split-a-model-across-files.md). Load other source files with @"path" so a base model and its overrides unify into one document.
-- [Vendor a dependency closure for an offline build](vendor-a-dependency-closure.md). Lock a module closure with aontu mod tidy and copy it into aon_vendor/ so a build resolves every import with no network at all.
-- [Vendor a module by hand](vendor-by-hand.md). Bootstrap a module dependency without a fetch verb by copying its source tree into aon_vendor/ and letting aontu mod tidy pin what it means.
+- [Vendor a dependency closure for an offline build](vendor-a-dependency-closure.md). Lock a module closure with aontu mod tidy and copy it into aontu_meta/vendor/ so a build resolves every import with no network at all.
+- [Vendor a module by hand](vendor-by-hand.md). Bootstrap a module dependency without a fetch verb by copying its source tree into aontu_meta/vendor/ and letting aontu mod tidy pin what it means.

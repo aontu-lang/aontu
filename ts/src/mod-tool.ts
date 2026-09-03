@@ -78,7 +78,7 @@ export type ModVerifyReport = {
 
 export type ModVendorReport = {
   verdict: 'ok' | 'missing'
-  // The modules materialised into `aon_vendor/`, sorted.
+  // The modules materialised into `aontu_meta/vendor/`, sorted.
   vendored: string[]
   // Locked modules present in no store, sorted.
   missing: string[]
@@ -193,7 +193,7 @@ function usableRef(mod: string): ModuleRef | undefined {
 function storeDir(
   root: string, ref: ModuleRef, hash: string, options: ModToolOptions,
 ): string | undefined {
-  const stores = [moduleDir(pathJoin(root, 'aon_vendor'), ref)]
+  const stores = [moduleDir(pathJoin(root, 'aontu_meta', 'vendor'), ref)]
   if (null != options.cache && '' !== hash) {
     stores.push(pathJoin(options.cache, hash))
   }
@@ -203,7 +203,7 @@ function storeDir(
 
 // The lockfile's entries, as written.
 function readLock(root: string): Record<string, ModLock> {
-  const file = pathJoin(root, 'mod-lock.aon')
+  const file = pathJoin(root, 'aontu_meta', 'mod-lock.aon')
   if (!existsSync(file)) {
     return {}
   }
@@ -335,7 +335,8 @@ export function modTidy(root: string, options: ModToolOptions): ModTidyReport {
   const uniqueUnevaluable = [...new Set(unevaluable)].sort()
   const held = 0 === uniqueMissing.length && 0 === uniqueUnevaluable.length
   if (held) {
-    writeFileSync(pathJoin(root, 'mod-lock.aon'),
+    mkdirSync(pathJoin(root, 'aontu_meta'), { recursive: true })
+    writeFileSync(pathJoin(root, 'aontu_meta', 'mod-lock.aon'),
       LOCK_HEADER + lockText(lock, options) + '\n')
   }
 
@@ -441,14 +442,14 @@ export function modVerify(root: string, options: ModToolOptions):
 }
 
 
-// `aontu mod vendor`: materialise the locked closure into `aon_vendor/`.
+// `aontu mod vendor`: materialise the locked closure into `aontu_meta/vendor/`.
 export function modVendor(root: string, options: ModToolOptions):
   ModVendorReport {
   const locked = readLock(root)
   const vendored: string[] = []
   const missing: string[] = []
 
-  const vendorRoot = pathJoin(root, 'aon_vendor')
+  const vendorRoot = pathJoin(root, 'aontu_meta', 'vendor')
 
   for (const mod of Object.keys(locked).sort()) {
     const ref = usableRef(mod)
@@ -593,13 +594,13 @@ function majorOf(version: string): string {
 
 
 // Every file of a module's source tree, relative and forward-slashed.
-// `aon_vendor/` is excluded: a published module carries its own
+// `aontu_meta/vendor/` is excluded: a published module carries its own
 // sources, not a copy of everyone else's -- a consumer resolves the
 // closure itself, and a nested vendor tree would publish the world.
 function layerFiles(dir: string, prefix = ''): string[] {
   const out: string[] = []
   for (const name of readdirSync(dir).sort()) {
-    if ('aon_vendor' === name) {
+    if ('aontu_meta' === name) {
       continue
     }
     const full = pathJoin(dir, name)

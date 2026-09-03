@@ -1,5 +1,5 @@
 ---
-description: Bootstrap a module dependency without a fetch verb by copying its source tree into aon_vendor/ and letting aontu mod tidy pin what it means.
+description: Bootstrap a module dependency without a fetch verb by copying its source tree into aontu_meta/vendor/ and letting aontu mod tidy pin what it means.
 group: modules
 order: 30
 ---
@@ -10,7 +10,7 @@ There is no `aontu mod get`. The network verbs are named and refused
 (see [vendor a dependency closure](vendor-a-dependency-closure.md)),
 and the content-addressed user cache cannot be searched until a
 lockfile pins a hash—so the cold start for every module dependency
-is hand-vendoring: put the module's source tree into `aon_vendor/`
+is hand-vendoring: put the module's source tree into `aontu_meta/vendor/`
 yourself, then let `tidy` pin it. `cp -r` is the distribution
 protocol.
 
@@ -46,7 +46,8 @@ $ echo $?
 
 No lockfile is written; a partial lock would claim a closure that was
 never resolved. So do the fetch's job by hand. The layout is
-`aon_vendor/<module-path>@<major>/` beside your `mod.aon`: each
+`aontu_meta/vendor/<module-path>@<major>/` under your project, beside
+its `mod.aon`: each
 `/`-segment of the module path becomes a directory, and the last
 carries the `@<major>` suffix:
 
@@ -54,26 +55,27 @@ carries the `@<major>` suffix:
 project/
   mod.aon
   main.aon
-  aon_vendor/
-    corp.example/
-      schemas/
-        service@1/
-          mod.aon
-          service.aon
+  aontu_meta/
+    vendor/
+      corp.example/
+        schemas/
+          service@1/
+            mod.aon
+            service.aon
 ```
 
 The directory holds the module's own source tree. Its
-`aon_vendor/corp.example/schemas/service@1/mod.aon`:
+`aontu_meta/vendor/corp.example/schemas/service@1/mod.aon`:
 
-<!-- test: file aon_vendor/corp.example/schemas/service@1/mod.aon -->
+<!-- test: file aontu_meta/vendor/corp.example/schemas/service@1/mod.aon -->
 ```aontu
 mod: { path:"corp.example/schemas/service" version:"1.0.0" main:"service.aon" }
 ```
 
 and its entry file,
-`aon_vendor/corp.example/schemas/service@1/service.aon`:
+`aontu_meta/vendor/corp.example/schemas/service@1/service.aon`:
 
-<!-- test: file aon_vendor/corp.example/schemas/service@1/service.aon -->
+<!-- test: file aontu_meta/vendor/corp.example/schemas/service@1/service.aon -->
 ```aontu
 name: string
 port: *8080 | integer
@@ -102,9 +104,9 @@ The pin is what the hand-vendoring was for. Every later evaluation
 re-derives the vendored module's canon-hash and compares it to the
 locked one, so a change to the module's evaluated meaning is refused
 rather than silently used. Flip the vendored default in
-`aon_vendor/corp.example/schemas/service@1/service.aon`:
+`aontu_meta/vendor/corp.example/schemas/service@1/service.aon`:
 
-<!-- test: file aon_vendor/corp.example/schemas/service@1/service.aon -->
+<!-- test: file aontu_meta/vendor/corp.example/schemas/service@1/service.aon -->
 ```aontu
 name: string
 port: *9090 | integer
@@ -177,19 +179,20 @@ set, and the line names the repair.
 A vendored module carries its own `mod.aon` and may declare its own
 `dep`. Its imports resolve from its own directory and from every
 enclosing project root, so its dependency goes in the same
-`aon_vendor/` tree, beside it—never nested inside it:
+`aontu_meta/vendor/` tree, beside it—never nested inside it:
 
 ```
 project/
   mod.aon
-  aon_vendor/
-    corp.example/
-      schemas/
-        service@1/         # imports common@1
-          mod.aon
-          service.aon
-        common@1/          # flat beside it, not nested inside it
-          mod.aon
+  aontu_meta/
+    vendor/
+      corp.example/
+        schemas/
+          service@1/         # imports common@1
+            mod.aon
+            service.aon
+          common@1/          # flat beside it, not nested inside it
+            mod.aon
           common.aon
 ```
 
@@ -212,20 +215,20 @@ svc: name: "auth"
 ```
 
 a hand-vendored
-`aon_vendor/corp.example/schemas/service@1/mod.aon` that declares a
+`aontu_meta/vendor/corp.example/schemas/service@1/mod.aon` that declares a
 dependency of its own:
 
-<!-- test: file aon_vendor/corp.example/schemas/service@1/mod.aon -->
+<!-- test: file aontu_meta/vendor/corp.example/schemas/service@1/mod.aon -->
 ```aontu
 mod: { path:"corp.example/schemas/service" version:"1.0.0" main:"service.aon" }
 dep: "corp.example/schemas/common@1": v: "1.0.0"
 ```
 
 and its entry
-`aon_vendor/corp.example/schemas/service@1/service.aon`, importing
+`aontu_meta/vendor/corp.example/schemas/service@1/service.aon`, importing
 it:
 
-<!-- test: file aon_vendor/corp.example/schemas/service@1/service.aon -->
+<!-- test: file aontu_meta/vendor/corp.example/schemas/service@1/service.aon -->
 ```aontu
 @"corp.example/schemas/common@1"
 name: string
@@ -249,17 +252,17 @@ pinned, because every module that fails to evaluate hashes to the
 same string—a lockfile written from one would look like a pin and
 mean nothing. (`aontu hash` refuses the same file with the same
 wording.) Vendor the dependency flat beside its dependant:
-`aon_vendor/corp.example/schemas/common@1/mod.aon`:
+`aontu_meta/vendor/corp.example/schemas/common@1/mod.aon`:
 
-<!-- test: file aon_vendor/corp.example/schemas/common@1/mod.aon -->
+<!-- test: file aontu_meta/vendor/corp.example/schemas/common@1/mod.aon -->
 ```aontu
 mod: { path:"corp.example/schemas/common" version:"1.0.0" main:"common.aon" }
 ```
 
 with its entry, a shared naming vocabulary, as
-`aon_vendor/corp.example/schemas/common@1/common.aon`:
+`aontu_meta/vendor/corp.example/schemas/common@1/common.aon`:
 
-<!-- test: file aon_vendor/corp.example/schemas/common@1/common.aon -->
+<!-- test: file aontu_meta/vendor/corp.example/schemas/common@1/common.aon -->
 ```aontu
 name: string & re("^[a-z][a-z0-9-]*$")
 ```

@@ -2489,7 +2489,8 @@ written `!`+lowercase in the store, Go's rule for Go's reason. The
 written path stays the identity; only the directory is escaped.
 
 **Evaluation never touches the network.** A module resolves from local
-stores only—`aon_vendor/` beside the project's `mod.aon`, then a
+stores only—`aontu_meta/vendor/` in the project that declares `mod.aon`,
+then a
 content-addressed user cache—and the cache is consulted only when the
 expected hash is known, because that hash is its key. A module in
 neither store is an error that names the step that fixes it:
@@ -2502,7 +2503,7 @@ The user cache is `$XDG_CACHE_HOME/aontu/mod` where that is set—an
 explicit override wins on every platform—and otherwise the platform's
 own cache location: `%LOCALAPPDATA%\aontu\mod` on Windows,
 `~/.cache/aontu/mod` elsewhere. A host that offers none of those has no
-user cache, and a module then resolves from `aon_vendor/` alone.
+user cache, and a module then resolves from `aontu_meta/vendor/` alone.
 
 **The module file and the lockfile are ordinary Aontu.** `mod.aon`
 declares the module's own path and entry file; the entry defaults to
@@ -2512,7 +2513,7 @@ declares the module's own path and entry file; the entry defaults to
 mod: { path:"corp.example/schemas/service" main:"service.aon" }
 ```
 
-`mod-lock.aon` is machine-written in **canonical form**—one line,
+`aontu_meta/mod-lock.aon` is machine-written in **canonical form**—one line,
 sorted keys, diffable, and (its leaves being scalars) valid JSON:
 
 <!-- fmt: keep a lock file, shown as the tool writes it -->
@@ -2537,7 +2538,7 @@ degenerate mode for single-file and agent-sandbox use.
 
 Under a **root** trust capability (`docs/trust.md`) the user cache is
 not consulted at all: a confined evaluation sees the project's own
-`aon_vendor/` and nothing else, which is what confinement means.
+`aontu_meta/vendor/` and nothing else, which is what confinement means.
 
 **The lockfile is maintained by tooling, not by hand.** `mod.aon`
 declares what the project wants, under a `dep` map keyed by module
@@ -2554,7 +2555,7 @@ selection**: every module is taken at the highest of the minima anyone
 asked for, and never higher. Resolving upgrades nothing, so the answer
 is reproducible and adding one dependency cannot move another. It then
 recomputes each `canon` pin from the module in the store and rewrites
-`mod-lock.aon`; if any module is not in a store, or is in one but does
+`aontu_meta/mod-lock.aon`; if any module is not in a store, or is in one but does
 not evaluate on its own, the lockfile is left alone—a partial lock
 claims a closure that was never resolved, and a pin computed from a
 module that has no meaning is the same string for every broken module.
@@ -2567,7 +2568,7 @@ lock agree with whatever the store now holds. A store that has drifted
 is reported with both hashes; a project the lockfile does not cover is
 refused rather than verified over nothing.
 
-`aontu mod vendor` copies the locked closure into `aon_vendor/` as whole
+`aontu mod vendor` copies the locked closure into `aontu_meta/vendor/` as whole
 source trees, which is what makes a project evaluable with no cache and
 no network at all. It can only find what the lockfile pins—the cache is
 keyed by canon-hash—so `tidy` comes first.

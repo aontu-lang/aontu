@@ -2047,4 +2047,26 @@ function fmtFiles(...srcs) {
         Assert.ok(answer.result, out);
     });
 });
+// --- the old module layout ------------------------------------------
+(0, node_test_1.describe)('cli-mod-layout', () => {
+    // A project that still carries the lockfile or the vendor tree at
+    // its root, from before they moved under aontu_meta/, is told so
+    // once, whatever the verb; nothing there is read.
+    (0, node_test_1.test)('mod-names-the-old-layout', () => {
+        const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-layout-'));
+        Fs.writeFileSync(Path.join(dir, 'mod.aon'), 'mod: { path: "corp.example/app" }\n');
+        Fs.mkdirSync(Path.join(dir, 'aon_vendor'));
+        const r = vetCapture(() => (0, cli_1.runMod)(['verify', dir]));
+        Assert.match(r.err, /aon_vendor\/ and mod-lock\.aon now live under aontu_meta\//);
+        // The lockfile alone at the root is the same hint.
+        const dir2 = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-layout-'));
+        Fs.writeFileSync(Path.join(dir2, 'mod.aon'), 'mod: { path: "corp.example/app" }\n');
+        Fs.writeFileSync(Path.join(dir2, 'mod-lock.aon'), '# mod-lock.aon\n{"lock":{}}\n');
+        Assert.match(vetCapture(() => (0, cli_1.runMod)(['verify', dir2])).err, /now live under aontu_meta\//);
+        // A project on the new layout hears nothing of it.
+        const dir3 = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-layout-'));
+        Fs.writeFileSync(Path.join(dir3, 'mod.aon'), 'mod: { path: "corp.example/app" }\n');
+        Assert.doesNotMatch(vetCapture(() => (0, cli_1.runMod)(['verify', dir3])).err, /aontu_meta\//);
+    });
+});
 //# sourceMappingURL=cli.test.js.map

@@ -75,10 +75,10 @@ Mod options:
 
 Mod subcommands:
   tidy      Resolve the module closure by minimum version selection and
-            rewrite mod-lock.aon in canonical form
-  verify    Check every locked module still means what mod-lock.aon
+            rewrite aontu_meta/mod-lock.aon in canonical form
+  verify    Check every locked module still means what the lockfile
             pins, and change nothing (the CI gate; tidy rewrites)
-  vendor    Materialise the locked closure into aon_vendor/
+  vendor    Materialise the locked closure into aontu_meta/vendor/
   manifest  Print the OCI artifact a publish would push, gated on the
             breaking check against --against
 

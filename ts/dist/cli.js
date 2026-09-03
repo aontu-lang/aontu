@@ -103,10 +103,10 @@ Mod options:
 
 Mod subcommands:
   tidy      Resolve the module closure by minimum version selection and
-            rewrite mod-lock.aon in canonical form
-  verify    Check every locked module still means what mod-lock.aon
+            rewrite aontu_meta/mod-lock.aon in canonical form
+  verify    Check every locked module still means what the lockfile
             pins, and change nothing (the CI gate; tidy rewrites)
-  vendor    Materialise the locked closure into aon_vendor/
+  vendor    Materialise the locked closure into aontu_meta/vendor/
   manifest  Print the OCI artifact a publish would push, gated on the
             breaking check against --against
 
@@ -1682,6 +1682,14 @@ function runMod(argv) {
     if (!MOD_SUBS.includes(sub) || 2 < rest.length) {
         process.stderr.write(`aontu: mod needs tidy, verify, vendor or manifest\n${MOD_HELP}\n`);
         return 2;
+    }
+    // THE OLD LAYOUT IS NAMED, NOT READ. The lockfile and the vendored
+    // closure moved under aontu_meta/; a project that still carries them
+    // at its root would otherwise look untouched by any of these verbs,
+    // which is the one silence worth breaking.
+    if ((0, node_fs_1.existsSync)((0, node_path_1.join)(dir, 'aon_vendor')) || (0, node_fs_1.existsSync)((0, node_path_1.join)(dir, 'mod-lock.aon'))) {
+        process.stderr.write('aontu: aon_vendor/ and mod-lock.aon now live under aontu_meta/: ' +
+            'move them, or run aontu mod tidy and aontu mod vendor\n');
     }
     // `--against` gates a manifest and means nothing to the other two;
     // accepting it there would say it had been honoured.

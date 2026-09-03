@@ -7,6 +7,23 @@ which implementation each change affects.
 
 ## Unreleased
 
+### Generated project state lives under `aontu_meta/`
+
+Everything the tools write into a project now lives in one folder:
+the lockfile is `aontu_meta/mod-lock.aon` and the vendored closure is
+`aontu_meta/vendor/<module-path>@<major>/`, in both ports; `mod.aon`
+and the documents stay at the root, since they are authored. The
+resolver reads the project's `aontu_meta/vendor/` and the user cache
+as before, `mod tidy` creates the folder, `mod manifest` excludes it
+from the published layer, and the `mod` verbs name the old layout (a
+root `mod-lock.aon` or `aon_vendor/`) once when they find it, with
+the two commands that rebuild the new one; nothing there is read. The
+spec fixtures, the shared-modules use case and its repros, the vendor
+how-tos, the API and language references, the ontology and
+distribution design notes and the progress register moved with the
+code, and the `aontu env` design places its pin at
+`aontu_meta/version`. Both implementations.
+
 ### `aontu lsp` and `aontu mcp`: the servers are verbs
 
 The language server is a verb of the CLI in both builds, `aontu lsp`,

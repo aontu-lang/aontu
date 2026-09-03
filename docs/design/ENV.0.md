@@ -109,7 +109,7 @@ order, and the first that answers wins:
 3. **The entry document's pin**, `$.aontu_policy.engine` (§4.2), when
    the invocation names a document. The document wins for the file it
    is in (X-2).
-4. **The project pin**, `.aontu-version` (§4.1), found by walking up
+4. **The project pin**, `aontu_meta/version` (§4.1), found by walking up
    from the working directory to the root. The nearest wins.
 5. **The default**, from `~/.aontu/env.aon` (§5), set by
    `aontu env default`.
@@ -166,9 +166,12 @@ store path, an npm global prefix), because that manager owns it.
 
 ## 4. Pins
 
-### 4.1 `.aontu-version`
+### 4.1 `aontu_meta/version`
 
-A text file in the project root. One pin per line, the series and the
+A text file under the project's `aontu_meta/`, the folder that holds
+everything the tools write into a project (the lockfile and the
+vendored closure live there too; `docs/capability-review/g6-distribution.md`,
+the layout amendment). One pin per line, the series and the
 version separated by a space; `#` starts a comment; blank lines are
 ignored:
 
@@ -180,15 +183,18 @@ npm 0.56.0
 
 A build reads the line for its own series and ignores the other (X-5).
 A line with a bare version and no series is an error that names the
-fix: `.aontu-version:1: "0.56.0" names no series; write "npm 0.56.0"
+fix: `aontu_meta/version:1: "0.56.0" names no series; write "npm 0.56.0"
 or "go 0.56.0"`. The file is found by walking up from the working
 directory; the nearest wins; `aontu env pin <version>` writes or
 rewrites the running build's line in the nearest file, or creates the
 file in the working directory when there is none.
 
-The name follows `.python-version` and `.nvmrc`'s convention rather
-than a new one, so that editors and CI templates that already look for
-such files find it.
+The file lives with the project's other generated state rather than
+as a dotfile at the root: one folder to expect and one to ignore is
+worth more than the editors and CI templates that look for a
+`.python-version`-shaped file, which do not know Aontu anyway. The
+directory is found by walking up for `aontu_meta/version`, and
+`aontu env pin` creates the folder when it is not there.
 
 ### 4.2 `$.aontu_policy.engine`
 
@@ -303,7 +309,7 @@ aontu env                          # the state: front version, the resolved vers
 aontu env list [--available]       # installed versions of this series; with --available, the releases too
 aontu env install <version>|latest [--from <archive>]
 aontu env remove <version>
-aontu env pin <version>|latest     # write this series' line in the nearest .aontu-version
+aontu env pin <version>|latest     # write this series' line in the nearest aontu_meta/version
 aontu env default <version>        # write this series' default in ~/.aontu/env.aon
 aontu env which [<args>...]        # the binary that would run for these arguments, and the reason
 aontu env run <version> -- <args>  # one invocation under a version; `aontu +<version> <args>` is the same
@@ -330,7 +336,7 @@ a person), and `NO_COLOR` as every verb honours it.
 The language server is `aontu lsp`, a verb, so it needs nothing of
 its own (X-7): an editor starts `aontu lsp` in the workspace root,
 the proxy resolves the version from that directory exactly as it does
-for any verb, walking up for `.aontu-version`, and the server that
+for any verb, walking up for `aontu_meta/version`, and the server that
 answers is the engine the project is pinned to. The standalone
 `aontu-lsp` binary, while it ships, resolves the same way when it is
 started in a project directory, as a front binary of one verb.
@@ -355,7 +361,7 @@ aontu 0.1.14 (go), the binary on PATH
 no pin in scope; no default set; running itself
 
 $ aontu env pin 0.1.15
-wrote go 0.1.15 to ./.aontu-version
+wrote go 0.1.15 to ./aontu_meta/version
 
 $ aontu vet schema.aon data.aon
 env: installing go 0.1.15 from https://github.com/aontu-lang/aontu/releases/download/go%2Fv0.1.15
@@ -364,7 +370,7 @@ ok
 
 $ aontu env
 aontu 0.1.14 (go), the binary on PATH
-running 0.1.15: pinned by ./.aontu-version
+running 0.1.15: pinned by ./aontu_meta/version
 
 $ aontu +0.1.14 vet schema.aon data.aon
 ok
@@ -409,7 +415,7 @@ running version into the row.
 
 The rest is host behaviour, files and processes, which the spec does
 not model. Each port carries its own tests, and they are the same
-tests: the resolution order over a fixture tree of `.aontu-version`
+tests: the resolution order over a fixture tree of `aontu_meta/version`
 files and environments; an install against a local copy of the release
 assets (the mock the installer's tests already use); a corrupted sum
 refused; the proxy's exec observed through an injectable runner, as

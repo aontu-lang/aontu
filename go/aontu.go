@@ -330,7 +330,7 @@ func ModCacheDir() string {
 // cache directory means there -- so a rule that knew only the first two
 // left every Windows user with NO cache: `aontu mod get` had nowhere to
 // write, and a module fetched a moment earlier came back "not fetched",
-// resolvable only from a project-local aon_vendor/.
+// resolvable only from a project-local aontu_meta/vendor/.
 //
 // Putting it ABOVE HOME was the first attempt and was wrong: it made an
 // explicitly set HOME unreachable on Windows, which broke the existing

@@ -2,7 +2,7 @@
 # under nested import, and the no_path diagnostic names a PHANTOM
 # path. Run (from this directory):
 #   aontu main.aon
-# The module (aon_vendor/.../service@1/service.aon) hashes and
+# The module (aontu_meta/vendor/.../service@1/service.aon) hashes and
 # evaluates standalone; imported at a nested key its `$.defaults.port`
 # re-roots to THIS document (consistent with reference-language.md:
 # an include "unifies the result in place", `$.a.b` is "absolute path

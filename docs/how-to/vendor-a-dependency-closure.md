@@ -1,5 +1,5 @@
 ---
-description: Lock a module closure with aontu mod tidy and copy it into aon_vendor/ so a build resolves every import with no network at all.
+description: Lock a module closure with aontu mod tidy and copy it into aontu_meta/vendor/ so a build resolves every import with no network at all.
 group: modules
 order: 20
 ---
@@ -9,7 +9,7 @@ order: 20
 An `@"…"` import whose first segment carries a dot and whose path
 ends in `@N` is a module import rather than a file path, and modules
 resolve from local stores only—evaluation never reaches the
-network. The stores are `aon_vendor/` beside your `mod.aon` and a
+network. The stores are `aontu_meta/vendor/` in your project and a
 canon-hash-keyed user cache; `aontu mod get`, the verb that would
 fill them over the network, is named by this build and not shipped.
 Offline is not a mode you enable here. It is the only mode there is.
@@ -35,24 +35,24 @@ The module itself is an ordinary source tree with its own `mod.aon`
 and entry file. Here it already sits in the vendor store—with no
 fetch verb, it arrived by hand, which is its own guide:
 [vendor a module by hand](vendor-by-hand.md). Its
-`aon_vendor/corp.example/schemas/service@1/mod.aon`:
+`aontu_meta/vendor/corp.example/schemas/service@1/mod.aon`:
 
-<!-- test: file aon_vendor/corp.example/schemas/service@1/mod.aon -->
+<!-- test: file aontu_meta/vendor/corp.example/schemas/service@1/mod.aon -->
 ```aontu
 mod: { path:"corp.example/schemas/service" version:"1.4.2" main:"service.aon" }
 ```
 
 and its entry,
-`aon_vendor/corp.example/schemas/service@1/service.aon`:
+`aontu_meta/vendor/corp.example/schemas/service@1/service.aon`:
 
-<!-- test: file aon_vendor/corp.example/schemas/service@1/service.aon -->
+<!-- test: file aontu_meta/vendor/corp.example/schemas/service@1/service.aon -->
 ```aontu
 name: string
 port: *8080 | integer
 ```
 
 `tidy` resolves the closure and writes the lockfile; `vendor` copies
-every locked module into `aon_vendor/` (a tree already there is left
+every locked module into `aontu_meta/vendor/` (a tree already there is left
 alone); evaluation then needs nothing outside the project directory:
 
 <!-- test: run -->
@@ -90,7 +90,7 @@ lock: "corp.example/schemas/service@1": {
 The `canon` pin is the module's meaning, recomputed and compared on
 every later evaluation ([vendor by hand](vendor-by-hand.md) shows
 what that catches); `oci` stays empty until a registry fetch exists
-to fill it. Commit `mod-lock.aon` and `aon_vendor/` together—that
+to fill it. Commit `aontu_meta/mod-lock.aon` and `aontu_meta/vendor/` together—that
 pair is the offline build, the tree to bake into a container image,
 an air-gapped checkout, or an agent sandbox.
 

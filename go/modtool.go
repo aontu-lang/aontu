@@ -217,7 +217,7 @@ func usableRef(mod string) (ModuleRef, bool) {
 // project's vendor tree first, then the cache under the hash the
 // lockfile pins.
 func modStoreDir(root string, ref ModuleRef, hash, cache string) string {
-	stores := []string{moduleDir(filepath.Join(root, "aon_vendor"), ref)}
+	stores := []string{moduleDir(filepath.Join(root, "aontu_meta", "vendor"), ref)}
 	if "" != cache && "" != hash {
 		stores = append(stores, filepath.Join(cache, hash))
 	}
@@ -231,7 +231,7 @@ func modStoreDir(root string, ref ModuleRef, hash, cache string) string {
 
 // readLock is the lockfile's entries, as written.
 func readLock(root string) map[string]ModLock {
-	data, err := os.ReadFile(filepath.Join(root, "mod-lock.aon"))
+	data, err := os.ReadFile(filepath.Join(root, "aontu_meta", "mod-lock.aon"))
 	if nil != err {
 		return map[string]ModLock{}
 	}
@@ -383,7 +383,8 @@ func ModTidy(root, cache string) ModTidyReport {
 
 	held := 0 == len(miss) && 0 == len(unevaluable)
 	if held {
-		_ = os.WriteFile(filepath.Join(root, "mod-lock.aon"),
+		_ = os.MkdirAll(filepath.Join(root, "aontu_meta"), 0o755)
+		_ = os.WriteFile(filepath.Join(root, "aontu_meta", "mod-lock.aon"),
 			[]byte(lockHeader+LockText(lock)+"\n"), 0o600)
 	}
 
@@ -494,7 +495,7 @@ func ModVerify(root, cache string) ModVerifyReport {
 	}
 }
 
-// ModVendor materialises the locked closure into `aon_vendor/`.
+// ModVendor materialises the locked closure into `aontu_meta/vendor/`.
 func ModVendor(root, cache string) ModVendorReport {
 	locked := readLock(root)
 
@@ -507,7 +508,7 @@ func ModVendor(root, cache string) ModVendorReport {
 	vendored := []string{}
 	missing := []string{}
 
-	vendorRoot := filepath.Join(root, "aon_vendor")
+	vendorRoot := filepath.Join(root, "aontu_meta", "vendor")
 
 	for _, mod := range mods {
 		ref, ok := usableRef(mod)
@@ -686,7 +687,7 @@ func majorOf(version string) string {
 }
 
 // layerFiles is every file of a module's source tree, relative and
-// forward-slashed. `aon_vendor/` is excluded: a published module
+// forward-slashed. `aontu_meta/vendor/` is excluded: a published module
 // carries its own sources, not a copy of everyone else's — a consumer
 // resolves the closure itself, and a nested vendor tree would publish
 // the world.
@@ -700,7 +701,7 @@ func layerFiles(dir, prefix string) []string {
 		return entries[i].Name() < entries[j].Name()
 	})
 	for _, e := range entries {
-		if "aon_vendor" == e.Name() {
+		if "aontu_meta" == e.Name() {
 			continue
 		}
 		rel := e.Name()

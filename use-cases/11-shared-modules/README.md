@@ -6,7 +6,7 @@ their service definitions against that contract *from another
 repository*, and an agent working in the checkout repo can trust that
 the contract it sees is the contract the platform team approved. The
 case covers module identity (`corp.example/schemas/service@1`),
-vendoring by hand into `aon_vendor/`, the `mod tidy` / `mod verify` /
+vendoring by hand into `aontu_meta/vendor/`, the `mod tidy` / `mod verify` /
 `mod vendor` / `mod manifest` verbs, canon-hash integrity pins, and the
 publish-time breaking gate.
 
@@ -24,7 +24,7 @@ platform/service-next-compat/   v1.4.3 candidate (compatible widening)
 platform/service-next-breaking/ v1.5.0 candidate (required key added)
 platform/service-v2/            v2.0.0 (same breaking change, major bump)
 consumer/                       the checkout repo: mod.aon, main.aon, gate.aon,
-                                plus the committed mod-lock.aon and aon_vendor/
+                                plus the committed aontu_meta/mod-lock.aon and aontu_meta/vendor/
                                 tree exactly as `aontu mod tidy` + `mod vendor`
                                 left them
 data/                           agent-emitted service candidates (JSON)
@@ -107,13 +107,13 @@ and writes no lockfile rather than a partial one.
 **2. Distribution is a copy.** This build ships no registry client
 (`mod get` and `mod publish` refuse with exit 2), so the platform tree
 is copied by hand into the store layout the resolver expects:
-`consumer/aon_vendor/corp.example/schemas/service@1/`—path segments
+`consumer/aontu_meta/vendor/corp.example/schemas/service@1/`—path segments
 as directories, `@<major>` suffixed to the last one. The layout is
 documented in
 [`how-to/vendor-by-hand.md`](../../docs/how-to/vendor-by-hand.md) and
 [`reference-api.md`](../../docs/reference-api.md#aontu-mod).
 
-**3. `aontu mod tidy` then succeeds.** Exit 0, and `mod-lock.aon` is
+**3. `aontu mod tidy` then succeeds.** Exit 0, and `aontu_meta/mod-lock.aon` is
 written as one canonical, diffable, JSON-parseable line:
 
 ```aon
@@ -126,7 +126,7 @@ the byte. `oci` is empty: the module was copied in rather than
 fetched, so there is no registry digest to record. `aontu mod vendor`
 exits 0 and leaves the already-vendored tree alone.
 
-**4. Evaluation resolves from `aon_vendor/`**, defaults fill, the
+**4. Evaluation resolves from `aontu_meta/vendor/`**, defaults fill, the
 hidden schema stays out of the output, and two consecutive runs (JSON
 and `--canon`) are byte-identical.
 
@@ -145,15 +145,15 @@ and `--canon`) are byte-identical.
 2. Cold start, tidy: `aontu mod tidy` on the same consumer is
    `verdict: missing`, exit 1, names the module and the fix
    (`not fetched (run: aontu mod get)`), and writes no lockfile.
-3. After the platform tree is copied into `aon_vendor/`, `mod tidy` is
+3. After the platform tree is copied into `aontu_meta/vendor/`, `mod tidy` is
    `verdict: ok` and the lockfile it writes is byte-identical to the
-   committed `consumer/mod-lock.aon`.
+   committed `consumer/aontu_meta/mod-lock.aon`.
 4. `mod tidy --format json` matches `expected/tidy.json` (canon pin,
    `v`, empty `oci`), the CLI version line aside.
 5. `mod vendor` leaves the already-vendored module in place,
    `verdict: ok`.
 6. `aontu main.aon` matches `expected/consumer.json`: the consumer
-   evaluates through `aon_vendor/`, `gift-cards` renders with the
+   evaluates through `aontu_meta/vendor/`, `gift-cards` renders with the
    module's defaults (port 8080, replicas 2, tier `internal`, the
    healthcheck and telemetry blocks), and the hidden schema does not
    render.
@@ -171,7 +171,7 @@ and `--canon`) are byte-identical.
     ```
 11. `mod verify` against the tampered store recomputes every pin,
     compares it with the committed lock, writes nothing, and refuses;
-    `mod-lock.aon` is byte-identical afterwards:
+    `aontu_meta/mod-lock.aon` is byte-identical afterwards:
 
     ```
     $ aontu mod verify
@@ -209,7 +209,7 @@ and `--canon`) are byte-identical.
 17. `--trust root:<projectdir>` on that project fails with
     `module not fetched: corp.example/schemas/service@1`: the cache is
     outside the confinement boundary.
-18. `mod vendor` copies cache → `aon_vendor/`, and the confined
+18. `mod vendor` copies cache → `aontu_meta/vendor/`, and the confined
     evaluation then passes with the same output.
 19. The cache is keyed by canon-hash and consulted only once a pin is
     known: with the cache seeded but no lockfile, `mod tidy` is still
@@ -217,7 +217,7 @@ and `--canon`) are byte-identical.
 20. `mod manifest platform/service` matches `expected/manifest-142.txt`:
     a deterministic OCI artifact description (config media type,
     canon-hash and major annotations, sorted layer file list).
-    `aon_vendor/` is not part of the publish layer.
+    `aontu_meta/vendor/` is not part of the publish layer.
 21. Publish gate, compatible: `mod manifest --against platform/service
     platform/service-next-compat` (1.4.3: replicas ceiling widened,
     optional `runbook?:` added) is `verdict: ok`.
@@ -254,7 +254,7 @@ and `--canon`) are byte-identical.
 29. The pin `tidy` locks for the dep-bearing module equals what
     `aontu hash` computes for the same file.
 30. A second vendor tree nested inside the dependency
-    (`…/service@1/aon_vendor/…/common@1/`) is a no-op: same closure,
+    (`…/service@1/aontu_meta/vendor/…/common@1/`) is a no-op: same closure,
     same pin, same output.
 31. A module that does not evaluate on its own is not pinned. With
     `service@1` vendored but `common@1` absent, `tidy` refuses and

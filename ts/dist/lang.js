@@ -1733,7 +1733,7 @@ function makeModelResolver(options) {
             const found = (0, mod_1.resolveModule)(modref, from, modFs(ctx), {
                 // The user cache lives outside any confinement root, so it is
                 // consulted only when nothing confines this evaluation. A
-                // rooted profile sees the project's own `aon_vendor/` and
+                // rooted profile sees the project's own `aontu_meta/vendor/` and
                 // nothing else, which is what `root` means.
                 ...(null == rootDir ? { cache: modCache(options) } : {}),
                 eval: options.mod?.eval,
