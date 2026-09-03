@@ -17,7 +17,7 @@ import { agentsMd } from './agentsmd';
 import { graphOf } from './graph';
 import { relationCheck } from './relation';
 import { view, viewSet, viewTree } from './view';
-declare const VERSION = "0.54.0";
+declare const VERSION = "0.55.0";
 declare class Aontu {
     opts: AontuOptions;
     lang: Lang;
