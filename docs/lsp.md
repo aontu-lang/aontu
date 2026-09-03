@@ -457,5 +457,6 @@ analysis layer (layer 1) and advertised in `initialize` (layer 2):
   `Error`; the one exception is `deprecated`, at Hint severity with the
   Deprecated tag.
 - **Number-canon edge cases** — diagnostic ranges are sized by the
-  offending value's canon length; see the *numeric canon* note in
-  [`AGENTS.md`](../AGENTS.md) for the documented decimal subset.
+  offending value's canon length; see
+  [Canonical form](reference-language.md#canonical-form) for the
+  decimal subset that pins it.

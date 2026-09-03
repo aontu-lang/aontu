@@ -39,6 +39,43 @@ everything else links to it.
 dangerous enough that its rationale stays beside its commands. Say so
 in the page rather than splitting it.
 
+## The published set cites nothing internal
+
+The documentation is written for someone who has the tool and not the
+repository. Two sets of documents exist, and only one of them is
+published:
+
+| Set | Files | Audience |
+|---|---|---|
+| Published | `index.md`, `tutorial*.md`, `unification.md`, `reference-*.md`, `trust.md`, `lsp.md`, `use-cases.md`, `how-to/*.md`, the use-case READMEs | anyone using Aontu |
+| Internal | `ADR.md`, `docs/design/`, `docs/capability-review/`, `DIVERGENCE.md`, `AGENTS.md`, `use-cases/BUGS.md`, `use-cases/REVIEW.md`, `shared-spec.md`, `test-coverage.md`, `release-and-tag.md` | contributors |
+
+**A published page never cites an internal one.** Not as a link, not
+as a parenthetical, not as a bare token. `(ADR-004)` after a rule tells
+a reader nothing they can act on: the decision record argues a choice
+already made, and the rule it decided is what the page is for. State
+the rule and stop.
+
+This runs both ways. A published page may not carry the project's own
+history either — what a figure used to say, which release moved it,
+which bug report prompted the wording. That belongs in the commit
+message, the changelog or the register. A reader wants the language as
+it is today.
+
+**The engine's own output is published text.** A refusal that names a
+design document sends a user somewhere they cannot go, in place of
+telling them what to do — `aontu mod get` did exactly that. A message
+names the repair, not the reasoning; the reasoning stays in the source
+comment beside it, where a contributor reads it.
+
+Two things the rule does *not* catch, because neither is a citation:
+`AGENTS.md` named as the file `aontu agentsmd` writes, and an error
+code or a filename that happens to look internal. Both are the
+product's own surface.
+
+The enforced subset lives in `ts/test/docs.test.ts` (the
+`no-internal-design-references` gate) and fails the build.
+
 ## The voice
 
 The house voice is Richard Rodger's blog register, adapted per
@@ -168,6 +205,12 @@ Two rules of taste:
   command is `aontu`.
 - **unification / unify** — the operation. Not "merging" except when
   introducing the idea to newcomers, and then once.
+- **meet** — the operation named as order theory names it. It is a
+  term of art, so its **first use on any page links to
+  [`unification.md`](unification.md)**; later uses on that page are
+  plain. The same rule covers *top*, *bottom*, *lattice* and
+  *residual*, which that page also defines. A page using "meet" in the
+  ordinary English sense ("the truth is not met yet") links nothing.
 - **refuse / refusal** — what the engine does with bad input. Not
   "reject", not "throw" (except in API contexts where an exception is
   literally thrown).

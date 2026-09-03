@@ -6,13 +6,13 @@ order: 20
 
 # Explain a value
 
-A layered document tells you what won and keeps quiet about who was
-in the race. `aontu why` lists every value the author *wrote* that
-met at a path, in source order, with the site each was written at.
-The file below is the [deployment
-fleet](../../use-cases/02-deploy-config/) use case trimmed to two
-layers in one file — in the live version the layers are separate
-files, and the sites carry each file's name. Write `stack.aon`:
+A layered document tells you what won and keeps quiet about who was in
+the race. `aontu why` lists every value the author *wrote* that
+[met](../unification.md) at a path, in source order, with the site each
+was written at. The file below is the [deployment
+fleet](../../use-cases/02-deploy-config/) use case trimmed to two layers
+in one file — in the live version the layers are separate files, and the
+sites carry each file's name. Write `stack.aon`:
 
 <!-- test: scenario explain-a-value -->
 <!-- test: file stack.aon -->

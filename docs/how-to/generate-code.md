@@ -76,9 +76,10 @@ Each piece is there for a reason:
   file.
 - **The rows are staged into a key.** The spread writes its result to
   a named key, `rows`, and `pick` reads that key to project `out`.
-- **The source keys ride through.** A spread meets, and the meet is
-  what makes `.name` and `.fields` resolvable inside the template, so
-  `name` and `fields` appear beside `head` and `body` in the result.
+- **The source keys ride through.** A spread
+  [meets](../unification.md), and the meet is what makes `.name` and
+  `.fields` resolvable inside the template, so `name` and `fields`
+  appear beside `head` and `body` in the result.
 
 ## Fold the lines into a file with `join`
 

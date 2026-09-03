@@ -252,7 +252,7 @@ its field:
 
 - `rel(t)` — the field's entries are checked tree addresses, and `t`
   flows into every target. Addresses are written `path($.mods.store)`:
-  a bare string is never an address (ADR-016).
+  a bare string is never an address.
 - `acyclic()`, `inverse(usedBy)` — the graph atoms: lattice-inert
   declarations, registered during unification and decided at
   generation, where every edge is known.

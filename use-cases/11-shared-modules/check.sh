@@ -247,7 +247,7 @@ has mod-get 'mod get needs a registry client, which this build does not ship' \
   "network verb refusal"
 run mod-publish 2 mod publish
 has mod-publish 'mod publish needs a registry client' "publish refusal"
-ok "no network verbs: mod get / mod publish refuse with exit 2, naming the design doc"
+ok "no network verbs: mod get / mod publish refuse with exit 2, naming the repair"
 
 # --------------------------- G. vetting agent candidates via the module
 run vet-good 0 vet --at spec "$APP/gate.aon" "$DIR/data/checkout-good.json"

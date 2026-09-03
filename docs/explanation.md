@@ -154,15 +154,15 @@ position, and canon prints each as it was written.
 One residual deserves its own argument, because it looks like the thing
 this engine most loudly refuses. A reference to a value from **inside
 that value** — `$.schema.Step` written inside `Step` — means the
-fixpoint: a `Step`, by this very definition. The engine's cycle
-detector always recognised the shape; what changed is the response.
-Where the prefix test used to refuse with `path_cycle`, it now answers
-a **recursive residual**, a deferred reference carrying its target
-exactly as a constraint atom carries its bound. When concrete data
-meets the residual, it expands the definition one level — per
-destination, under the same clone discipline spreads use — and the
-clone's own self-reference is again a residual. Each meet with data
-consumes one level of data:
+fixpoint: a `Step`, by this very definition. The engine's cycle detector
+always recognised the shape; what changed is the response. Where the
+prefix test used to refuse with `path_cycle`, it now answers a
+**recursive residual**, a deferred reference carrying its target exactly
+as a constraint atom carries its bound. When concrete data
+[meets](unification.md) the residual, it expands the definition one
+level — per destination, under the same clone discipline spreads use —
+and the clone's own self-reference is again a residual. Each meet with
+data consumes one level of data:
 
 ```aontu
 schema: hide({Step: {label: string, then?: $.schema.Step}})
@@ -294,14 +294,12 @@ two systems quietly disagreeing about one thing — dies at evaluation
 instead of in production.
 
 The language once had a stronger form of this: `id(name)`, a global
-second name, with every node carrying it unified into every other. It
-is retired
-([ADR-014](../ADR.md#adr-014--the-tree-is-the-namespace-there-is-no-identity-mark)).
-A reference catches the same contradiction at the same site, and the
-global name cost more than it bought: a model carrying one could not be
-**instantiated twice**, because two mounts of one file were one entity
-and the second one's overrides were contradictions. The tree is the
-namespace, and a tree lets you have two of something.
+second name, with every node carrying it unified into every other. It is
+retired. A reference catches the same contradiction at the same site,
+and the global name cost more than it bought: a model carrying one could
+not be **instantiated twice**, because two mounts of one file were one
+entity and the second one's overrides were contradictions. The tree is
+the namespace, and a tree lets you have two of something.
 
 Relations follow the same instinct: an edge is data on a **field**, and
 the field declares what its data means. `rel(t)` on a field says the
@@ -346,17 +344,16 @@ document did not enforce.
 
 That first design kept its relation declarations under a `relations:`
 key at the document root, a plain key that one verb's pass knew by
-convention and nothing else in the engine knew at all. Retiring it is
-[ADR-010](../ADR.md#adr-010--no-magic-keys-or-paths-the-tree-at-all-levels-is-user-space):
-**the tree is user space.** A plain, spellable
-key never carries engine-assigned meaning at any depth; reserved
-meaning rides only on syntax an author visibly opts into, which
-`rel()` and the atoms are. The retirement bought two concrete things. A
-document that writes `relations:` today has written ordinary data. And
-because the declarations now live in the lattice, they reach canon and
-the `aon1-` hash, so a pin distinguishes two documents that disagree
-about their relations — under the magic key the declaration's *meaning*
-lived outside the hash's reach, in the verb.
+convention and nothing else in the engine knew at all. Retiring it
+follows one rule: **the tree is user space.** A plain, spellable key never carries
+engine-assigned meaning at any depth; reserved meaning rides only on
+syntax an author visibly opts into, which `rel()` and the atoms are. The
+retirement bought two concrete things. A document that writes
+`relations:` today has written ordinary data. And because the
+declarations now live in the lattice, they reach canon and the `aon1-`
+hash, so a pin distinguishes two documents that disagree about their
+relations — under the magic key the declaration's *meaning* lived
+outside the hash's reach, in the verb.
 
 The precise rules are the reference's
 [Linking](reference-language.md#linking-the-tree-is-the-namespace) and
@@ -603,15 +600,14 @@ claim that decays silently as those systems evolve and that no test can
 falsify. Two of the three leaks were found by reading and one while
 writing documentation. None by the suite.
 
-So [ADR-003](../ADR.md#adr-003--host-provided-semantics-are-normalised-not-trusted)
-inverts it: **where a host subsystem supplies semantics, Aontu defines
-the meaning and rewrites the input**, and the host is given only
-constructs it cannot read two ways. `\d` is `[0-9]` because the ADR
-says so, whether or not the hosts happen to agree. What that costs is
-paid at the point of use — `\s` no longer means what a regex habit
-expects in *either* language, and an author has one more small thing to
-learn. The gain is that the guarantee stops depending on what the
-implementer happens to know, and becomes checkable instead: a committed corpus pins
+So Aontu inverts it: **where a host subsystem supplies semantics,
+Aontu defines the meaning and rewrites the input**, and the host is
+given only constructs it cannot read two ways. `\d` is `[0-9]` because
+the language says so, whether or not the hosts happen to agree. What that costs is paid at
+the point of use — `\s` no longer means what a regex habit expects in
+*either* language, and an author has one more small thing to learn. The
+gain is that the guarantee stops depending on what the implementer
+happens to know, and becomes checkable instead: a committed corpus pins
 both normalisers, so a drift fails in whichever port drifted.
 
 The rule is stated generally on purpose, because a date parser, a
@@ -649,9 +645,9 @@ trade-off rather than of a defect.
 
 ### A preference is gated by kind, not by family
 
-Overriding a default is judged by asking the two questions the long
-form asks out loud. `*x` is sugar for `*x | super(x)`
-([ADR-011](../ADR.md#adr-011)), so a peer meets it arm by arm:
+Overriding a default is judged by asking the two questions the long form
+asks out loud. `*x` is sugar for `*x | super(x)`, so a peer meets it arm
+by arm:
 
     *x & peer   ==   (x & peer)  |  (super(x) & peer)
 
@@ -794,5 +790,3 @@ today.
 
 - The lattice and unification idea, in much greater depth, in the
   [CUE documentation](https://cuelang.org/docs/concept/the-logic-of-cue/).
-- The shared test format: [shared-spec.md](shared-spec.md).
-- What the suites actually exercise: [test-coverage.md](test-coverage.md).

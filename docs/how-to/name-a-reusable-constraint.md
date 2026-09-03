@@ -83,7 +83,7 @@ Aliases are ordinary values, so they compose: one can be defined in
 terms of another, and a use site can narrow one further
 (`$.type.uint8 & max(15)`). For a file-local name that skips the
 path entirely, `%port: integer & min(1) & max(65535)` declares an
-[alias](../reference-language.md#aliases) used as bare `%port`.
+[alias](../reference-language.md#aliases-) used as bare `%port`.
 
 The idiom is specified in [Named constraint
 aliases](../reference-language.md#named-constraint-aliases); the
