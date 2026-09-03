@@ -7,10 +7,14 @@
 # wait on it.
 name: Docs
 
+# The path lists are written out twice. GitHub Actions does not support
+# YAML anchors -- the file parses locally and the workflow simply never
+# runs, which is how the first version of this reached a pull request
+# with thirteen green checks and no prose gate among them.
 on:
   push:
     branches: [main]
-    paths: &docs-paths
+    paths:
       - 'docs/**'
       - 'use-cases/*/README.md'
       - 'README.md'
@@ -21,7 +25,15 @@ on:
       - '.github/workflows/docs.yml'
   pull_request:
     branches: [main]
-    paths: *docs-paths
+    paths:
+      - 'docs/**'
+      - 'use-cases/*/README.md'
+      - 'README.md'
+      - 'ts/README.md'
+      - 'ts/scripts/gated-docs.cjs'
+      - '.vale.ini'
+      - '.vale/**'
+      - '.github/workflows/docs.yml'
 
 jobs:
   prose:
