@@ -240,3 +240,100 @@ func TestReplJSONLIsReachableOverAPipe(t *testing.T) {
 		t.Fatalf("want out 1, got %v", last["out"])
 	}
 }
+
+// THE --text-ext FLAG ON THE BARE COMMAND. takeTrust covers the verb
+// road; the bare form parses its own flags, so its arm needs its own
+// case -- the same split that let --trust reach the verbs and not the
+// bare command once.
+func TestRunTextExtFlag(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "doc.md"),
+		[]byte("# hi\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	entry := filepath.Join(dir, "main.aon")
+	if err := os.WriteFile(entry,
+		[]byte("doc: @\"./doc.md\"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var out, errw bytes.Buffer
+	if code := run([]string{"--text-ext", "md", "-c", entry},
+		nil, &out, &errw, true); code != 0 ||
+		!strings.Contains(out.String(), `{"doc":"# hi\n"}`) {
+		t.Fatalf("widened: %d %q %q", code, out.String(), errw.String())
+	}
+
+	// The dotted spelling is the same flag, and two of them accumulate.
+	out.Reset()
+	if code := run([]string{"--text-ext", ".sql", "--text-ext", "md",
+		"-c", entry}, nil, &out, &errw, true); code != 0 ||
+		!strings.Contains(out.String(), `{"doc":"# hi\n"}`) {
+		t.Fatalf("repeated: %d %q", code, out.String())
+	}
+
+	// Every way of spelling it wrong is a usage error rather than a
+	// flag that quietly does nothing.
+	for _, bad := range []string{"", ".", "md,", "a b", "md,,sql"} {
+		errw.Reset()
+		if code := run([]string{"--text-ext", bad, entry},
+			nil, &out, &errw, true); code != 2 ||
+			!strings.Contains(errw.String(), "--text-ext needs extensions") {
+			t.Fatalf("accepted %q: %d %q", bad, code, errw.String())
+		}
+	}
+	// ... including the flag with no value at all.
+	errw.Reset()
+	if code := run([]string{entry, "--text-ext"},
+		nil, &out, &errw, true); code != 2 ||
+		!strings.Contains(errw.String(), "--text-ext needs extensions") {
+		t.Fatalf("trailing flag: %d %q", code, errw.String())
+	}
+}
+
+// THE SAME FLAG ON THE VERB ROAD. takeTrust strips it before a verb
+// parses its own tail, and that is a different arm from the bare
+// command's loop above -- the split that once let `--trust` reach one
+// and not the other.
+func TestRunTextExtOnVerbs(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "doc.md"),
+		[]byte("# hi\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	entry := filepath.Join(dir, "main.aon")
+	if err := os.WriteFile(entry,
+		[]byte("doc: @\"./doc.md\"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var out, errw bytes.Buffer
+	if code := run([]string{"get", "$.doc", "--text-ext", "md", entry},
+		nil, &out, &errw, true); code != 0 ||
+		!strings.Contains(out.String(), "# hi") {
+		t.Fatalf("verb: %d %q %q", code, out.String(), errw.String())
+	}
+
+	// Repeated and dotted, on the verb road too.
+	out.Reset()
+	if code := run([]string{"get", "$.doc", "--text-ext", ".sql",
+		"--text-ext", "md", entry}, nil, &out, &errw, true); code != 0 ||
+		!strings.Contains(out.String(), "# hi") {
+		t.Fatalf("verb repeated: %d %q", code, out.String())
+	}
+
+	for _, bad := range []string{"", ".", "md,", "a b"} {
+		errw.Reset()
+		if code := run([]string{"get", "$.doc", "--text-ext", bad, entry},
+			nil, &out, &errw, true); code != 2 ||
+			!strings.Contains(errw.String(), "--text-ext needs extensions") {
+			t.Fatalf("verb accepted %q: %d %q", bad, code, errw.String())
+		}
+	}
+	errw.Reset()
+	if code := run([]string{"get", "$.doc", entry, "--text-ext"},
+		nil, &out, &errw, true); code != 2 ||
+		!strings.Contains(errw.String(), "--text-ext needs extensions") {
+		t.Fatalf("verb trailing flag: %d %q", code, errw.String())
+	}
+}

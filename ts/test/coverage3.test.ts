@@ -784,14 +784,42 @@ describe('coverage3-lang', () => {
     // be require()d), which is exactly what ADR-012 refuses.
     const host = new Lang({
       resolver: () => ({
+        found: true, path: 'x.csv', full: '/nowhere/x.csv',
+        kind: 'csv', src: 'a:1', search: [],
+      }),
+    } as any)
+    const refused: any = host.parse('v:@"x.csv"')
+    Assert.equal(refused.canon, 'nil')
+    Assert.equal(refused.err[0].why, 'include_extension')
+    Assert.match(refused.err[0].msg, /extension: \.csv/)
+
+    // ... and the same road for a kind the table DOES name as text:
+    // the processor map is built from the table, so a host resolution
+    // of `.txt` arrives as one string scalar rather than being parsed
+    // or refused.
+    const hostText = new Lang({
+      resolver: () => ({
         found: true, path: 'x.txt', full: '/nowhere/x.txt',
         kind: 'txt', src: 'a:1', search: [],
       }),
     } as any)
-    const refused: any = host.parse('v:@"x.txt"')
-    Assert.equal(refused.canon, 'nil')
-    Assert.equal(refused.err[0].why, 'include_extension')
-    Assert.match(refused.err[0].msg, /extension: \.txt/)
+    Assert.equal(hostText.parse('v:@"x.txt"').canon, '{"v":"a:1"}')
+
+    // A WIDENING REACHES THE HOST ROAD TOO, and stops where the table
+    // says: `--text-ext md` reads a host-resolved `.md`, and no
+    // spelling of the flag reaches `.js`, which multisource's own
+    // default would EXECUTE.
+    const hostMd = (ext: string, textExt: string[]) => new Lang({
+      textExt,
+      resolver: () => ({
+        found: true, path: 'x.' + ext, full: '/nowhere/x.' + ext,
+        kind: ext, src: 'a:1', search: [],
+      }),
+    } as any).parse('v:@"x.' + ext + '"')
+    Assert.equal(hostMd('md', ['md']).canon, '{"v":"a:1"}')
+    const widenedJs: any = hostMd('js', ['js'])
+    Assert.equal(widenedJs.canon, 'nil')
+    Assert.match(widenedJs.err[0].msg, /extension: \.js/)
 
     // ... and a host resolution with no `full` at all: a resolver that
     // answers from something other than a filesystem need not have
@@ -1006,6 +1034,71 @@ describe('coverage3-process', () => {
       fs.readFileSync = orig
     }
     Assert.equal(r.out.trim(), '0.0.0')
+  })
+
+  test('include-opts-carries-both-and-omits-neither', () => {
+    // includeOpts is the ONE place the include options reach an engine
+    // (ts/src/utility.ts). Absent means ABSENT rather than
+    // present-and-undefined, so an engine's options bag is what it was
+    // before either option existed.
+    const { includeOpts } = require('../dist/utility')
+    Assert.deepEqual(includeOpts({}), {})
+    Assert.deepEqual(includeOpts({ textExt: [] }), {})
+    Assert.deepEqual(includeOpts({ textExt: ['md'] }), { textExt: ['md'] })
+    Assert.deepEqual(includeOpts({ trust: { include: 'none' } }),
+      { trust: { include: 'none' } })
+    Assert.deepEqual(
+      includeOpts({ trust: { include: 'none' }, textExt: ['md'] }),
+      { trust: { include: 'none' }, textExt: ['md'] })
+  })
+
+  test('cli-text-ext-flag', () => {
+    const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-cov3-txt-'))
+    Fs.writeFileSync(Path.join(dir, 'doc.md'), '# hi\n')
+    Fs.writeFileSync(Path.join(dir, 'rows.csv'), 'a,b\n1,2\n')
+    const file = Path.join(dir, 'main.aon')
+    Fs.writeFileSync(file, 'doc: @"./doc.md"\n')
+
+    // The widening reads it ...
+    Assert.match(
+      capture(() => cliMain(
+        ['node', 'cli', '--text-ext', 'md', '-c', file])).out,
+      /\{"doc":"# hi\\n"\}/)
+
+    // ... the dotted spelling is the same flag ...
+    Assert.match(
+      capture(() => cliMain(
+        ['node', 'cli', '--text-ext', '.md', '-c', file])).out,
+      /\{"doc":"# hi\\n"\}/)
+
+    // ... a verb honours it too, which is the whole reason it rides
+    // with the capability rather than beside it ...
+    Assert.match(
+      capture(() => cliMain(
+        ['node', 'cli', 'get', '$.doc', '--text-ext', 'md', file])).out,
+      /# hi/)
+
+    // ... and every way of spelling it wrong is a usage error rather
+    // than a flag that quietly does nothing.
+    for (const bad of ['', '.', 'md,', 'a b', 'md,,sql']) {
+      Assert.match(
+        capture(() => cliMain(['node', 'cli', '--text-ext', bad, file])).err,
+        /--text-ext needs extensions/, `accepted: ${JSON.stringify(bad)}`)
+      Assert.match(
+        capture(() => cliMain(
+          ['node', 'cli', 'get', '$.doc', '--text-ext', bad, file])).err,
+        /--text-ext needs extensions/, `verb accepted: ${JSON.stringify(bad)}`)
+    }
+    // A trailing flag with no value at all, on both roads.
+    Assert.match(
+      capture(() => cliMain(['node', 'cli', file, '--text-ext'])).err,
+      /--text-ext needs extensions/)
+    Assert.match(
+      capture(() => cliMain(
+        ['node', 'cli', 'get', '$.doc', file, '--text-ext'])).err,
+      /--text-ext needs extensions/)
+
+    Fs.rmSync(dir, { recursive: true, force: true })
   })
 
   test('cli-file-error-path', () => {

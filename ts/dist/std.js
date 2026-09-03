@@ -86,7 +86,8 @@ view: {
   # it belongs; everything else narrows the drawing, and each option
   # belongs to the kinds that read it.
   Figure: type({
-    kind: doc | tree | matrix | graph | layer | sets | layers | ladder
+    kind: doc | lattice | tree | matrix | graph | layer | sets | layers
+      | ladder
     out: string
 
     # Every kind.

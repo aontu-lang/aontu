@@ -84,6 +84,10 @@ Options:
                   Every verb takes it too, and a bare root means the
                   document's own directory
   --include-root <dir>  Shorthand for --trust root:<dir>
+  --text-ext <e>  Read these extensions as text too, comma-separated
+                  and without dots (md,sql). .txt needs no flag; a
+                  named format keeps its meaning, and .js stays
+                  refused. Every verb takes it
 
 Mod options:
   --format <f>    text (default) or json
@@ -175,8 +179,8 @@ Why options:
 Why exit codes mirror get's: 0 explained, 1 the path names nothing,
 2 usage, 4 the document does not stand up on its own.
 
-View kinds: tree, matrix, graph, layer, sets, layers, ladder, poset
-(the poset takes several files). The figure goes to stdout, the loss
+View kinds: doc, lattice, tree, matrix, graph, layer, sets, layers,
+ladder, poset (the poset takes several files). The figure goes to stdout, the loss
 report to stderr. With --views it draws every figure a document
 declares as data, from one evaluation: each declaration names its own
 kind and out file, nothing is written unless every figure rendered,
@@ -184,13 +188,13 @@ and --check gates the committed set.
 
 View options:
   --as <profile>    text | mermaid | dot | er | svg, per kind: doc,
-                    tree, matrix, sets and layers draw text (default)
-                    or svg; graph draws mermaid (default), dot or er;
-                    layer draws text (default), mermaid or svg; ladder
-                    and poset draw mermaid (default) or dot
+                    lattice, tree, matrix, sets and layers draw text
+                    (default) or svg; graph draws mermaid (default),
+                    dot or er; layer draws text (default), mermaid or
+                    svg; ladder and poset draw mermaid (default) or dot
   --at <path>       Restrict the figure to nodes under this path; the
-                    subtree doc draws; the path the ladder draws;
-                    where the poset compares
+                    subtree doc draws; the subtree the lattice counts;
+                    the path the ladder draws; where the poset compares
   --views <path>    Draw every figure the document declares at this
                     path, one evaluation, all or nothing; each
                     declaration names its own kind and out file
@@ -333,15 +337,16 @@ function makeTrustWarn() {
 // entryRoot (the entry file's directory, or the working directory for
 // stdin/REPL).
 function trustOpts(trust, entryRoot) {
+    const text = 0 === trust.textExt.length ? {} : { textExt: trust.textExt };
     switch (trust.kind) {
         case 'none':
-            return { trust: { include: 'none' } };
+            return { ...text, trust: { include: 'none' } };
         case 'root':
-            return { trust: { include: { root: trust.dir ?? entryRoot } } };
+            return { ...text, trust: { include: { root: trust.dir ?? entryRoot } } };
         case 'system':
-            return {};
+            return { ...text };
         default: // system-warn: today's default plus the warning window
-            return { trustWarn: makeTrustWarn(), trustWarnRoot: entryRoot };
+            return { ...text, trustWarn: makeTrustWarn(), trustWarnRoot: entryRoot };
     }
 }
 // EVERY VERB honours the include capability, not just the bare
@@ -356,7 +361,8 @@ function trustOpts(trust, entryRoot) {
 // already printed: the caller answers the usage class.
 function takeTrust(argv) {
     const rest = [];
-    let trust = { kind: 'system-warn' };
+    let trust = { kind: 'system-warn', textExt: [] };
+    let textExt = [];
     for (let i = 0; i < argv.length; i++) {
         const arg = argv[i];
         if ('--trust' === arg) {
@@ -373,18 +379,42 @@ function takeTrust(argv) {
                 process.stderr.write('aontu: --include-root needs a directory\n');
                 return undefined;
             }
-            trust = { kind: 'root', dir };
+            trust = { kind: 'root', dir, textExt };
+        }
+        else if ('--text-ext' === arg) {
+            const list = null == argv[i + 1] ? undefined : parseTextExt(argv[++i]);
+            if (null == list) {
+                process.stderr.write('aontu: --text-ext needs extensions, without dots' +
+                    ' (--text-ext md,sql)\n');
+                return undefined;
+            }
+            textExt = [...textExt, ...list];
         }
         else {
             rest.push(arg);
         }
     }
-    return { argv: rest, trust };
+    return { argv: rest, trust: { ...trust, textExt } };
+}
+// `md,sql` or `.md,.sql` -- the dot is accepted and dropped, because a
+// reader who has just written `@"notes.txt"` reaches for one. An empty
+// element, or anything that is not an extension, is a usage error
+// rather than a silently ignored word: a flag that quietly does
+// nothing is how a document ends up refused with no reason visible.
+function parseTextExt(arg) {
+    const out = [];
+    for (const raw of arg.split(',')) {
+        const ext = raw.trim().replace(/^\./, '').toLowerCase();
+        if ('' === ext || !/^[a-z0-9]+$/.test(ext)) {
+            return undefined;
+        }
+        out.push(ext);
+    }
+    return out;
 }
 // The evaluator options a REPL session's capability means.
 function replTrust(state, entryRoot) {
-    const capability = verbTrust(state.trust ?? { kind: 'system-warn' }, entryRoot);
-    return null == capability ? {} : { trust: capability };
+    return verbOpts(state.trust ?? { kind: 'system-warn', textExt: [] }, entryRoot);
 }
 // The capability a verb's engine runs under. `system` and the staged
 // warning default both mean today's behaviour (no option); the warning
@@ -399,6 +429,18 @@ function verbTrust(trust, entryRoot) {
         default:
             return undefined;
     }
+}
+// THE INCLUDE OPTIONS A VERB RUNS UNDER, spread into its engine call:
+// the capability above, and the extensions `--text-ext` widened. Both
+// are absent when unset rather than present-and-undefined, so a verb's
+// options bag is byte-identical to what it was before either flag
+// existed and no engine sees a key it has to ignore.
+function verbOpts(trust, entryRoot) {
+    const include = verbTrust(trust, entryRoot);
+    return {
+        ...(undefined === include ? {} : { trust: include }),
+        ...(0 === trust.textExt.length ? {} : { textExt: trust.textExt }),
+    };
 }
 // The directory a bare `--trust root` confines to for a verb: the
 // primary document's own, matching the bare command's entry root.
@@ -505,7 +547,7 @@ function replCommand(state, line, read) {
             if (':why' === cmd) {
                 const report = (0, aontu_1.why)(src, path, {
                     path: state.name,
-                    trust: verbTrust(state.trust ?? { kind: 'system-warn' }, entryRootOf(state.name)),
+                    ...verbOpts(state.trust ?? { kind: 'system-warn', textExt: [] }, entryRootOf(state.name)),
                 });
                 return report.ok
                     ? answer(renderWhyText(report.record))
@@ -515,7 +557,7 @@ function replCommand(state, line, read) {
                 ? 'keys' : 'canon' === state.mode ? 'canon' : 'json';
             const report = (0, aontu_1.get)(src, path, {
                 view, path: state.name,
-                trust: verbTrust(state.trust ?? { kind: 'system-warn' }, entryRootOf(state.name)),
+                ...verbOpts(state.trust ?? { kind: 'system-warn', textExt: [] }, entryRootOf(state.name)),
             });
             return report.ok
                 ? answer(report.out)
@@ -746,7 +788,7 @@ function vetOnce(args, trust) {
     const findings = [];
     for (const source of sources) {
         const report = (0, aontu_1.vet)(schemaSrc, source.src, {
-            trust: verbTrust(trust, entryRootOf(args.schema)),
+            ...verbOpts(trust, entryRootOf(args.schema)),
             at: args.at,
             closed: args.closed,
             partial: args.partial,
@@ -985,7 +1027,7 @@ function runSubsume(argv) {
         return 2;
     }
     const report = (0, aontu_1.subsume)(generalSrc, specificSrc, {
-        trust: verbTrust(trust, entryRootOf(args.general)),
+        ...verbOpts(trust, entryRootOf(args.general)),
         profile: args.profile,
         at: args.at,
         generalUrl: args.general,
@@ -1309,7 +1351,7 @@ function runBreaking(argv) {
             const oldPath = old.path;
             for (const check of checks) {
                 const report = (0, aontu_1.subsume)(check.general[0], check.specific[0], {
-                    trust: verbTrust(trust, entryRootOf(args.file)),
+                    ...verbOpts(trust, entryRootOf(args.file)),
                     at: args.at,
                     generalUrl: check.general[1],
                     specificUrl: check.specific[1],
@@ -1439,7 +1481,7 @@ function runTrim(argv) {
         return 2;
     }
     const report = (0, aontu_1.trimCheck)(src, {
-        path: files[0], trust: verbTrust(trust, entryRootOf(files[0])),
+        path: files[0], ...verbOpts(trust, entryRootOf(files[0])),
     });
     const text = 'json' === format
         ? renderTrimJson(report)
@@ -1490,8 +1532,8 @@ const REACHES_EXIT = {
     error: 4,
 };
 const VIEW_HELP = 'aontu view <kind> [options] <file>... (try --help)';
-const VIEW_KINDS = ['doc', 'tree', 'matrix', 'graph', 'layer', 'sets', 'layers', 'ladder',
-    'poset'];
+const VIEW_KINDS = ['doc', 'lattice', 'tree', 'matrix', 'graph', 'layer', 'sets', 'layers',
+    'ladder', 'poset'];
 const VIEW_PROFILES = ['text', 'mermaid', 'dot', 'er', 'svg'];
 const VIEW_EDGES = ['upward', 'all', 'none'];
 // The styles the CLI accepts (VIEWS.0.md, "7. Styling"). `auto` is
@@ -1764,7 +1806,7 @@ function runRelations(argv) {
         return 2;
     }
     const report = (0, aontu_1.relationCheck)(src, {
-        path: files[0], trust: verbTrust(trust, entryRootOf(files[0])),
+        path: files[0], ...verbOpts(trust, entryRootOf(files[0])),
     });
     const text = 'json' === format
         ? renderRelationsJson(report)
@@ -1825,7 +1867,7 @@ function runReaches(argv) {
     }
     const report = (0, reach_1.reachCheck)(src, rest[0], rest[1], {
         path: rest[2], relation,
-        trust: verbTrust(trust, entryRootOf(rest[2])),
+        ...verbOpts(trust, entryRootOf(rest[2])),
     });
     const text = 'json' === format
         ? renderReachesJson(report)
@@ -2052,7 +2094,7 @@ function runView(argv) {
         kind,
         path: files[0],
         roots,
-        trust: verbTrust(trust, entryRootOf(files[0])),
+        ...verbOpts(trust, entryRootOf(files[0])),
         docs: files.slice(1).map((path, i) => ({ src: srcs[i + 1], path })),
     });
     if ('json' === format) {
@@ -2122,7 +2164,7 @@ function runViewSet(rest, opts, trust, how) {
         return 2;
     }
     const report = (0, view_1.viewSet)(src, {
-        ...opts, path: file, trust: verbTrust(trust, entryRootOf(file)),
+        ...opts, path: file, ...verbOpts(trust, entryRootOf(file)),
     });
     if ('json' === how.format) {
         process.stdout.write(renderViewSetJson(report) + '\n');
@@ -2319,7 +2361,7 @@ function runJsonSchema(argv) {
         return 2;
     }
     const report = (0, jsonschema_1.jsonSchema)(src, {
-        at, path: files[0], trust: verbTrust(trust, entryRootOf(files[0])),
+        at, path: files[0], ...verbOpts(trust, entryRootOf(files[0])),
     });
     if ('json' === format) {
         process.stdout.write((0, aontu_1.exactJSON)({
@@ -2402,8 +2444,7 @@ function runHash(argv) {
     }
     // The file's own directory is the include base, as every verb
     // resolves a named file (vet's aontuForPath rule).
-    const capability = verbTrust(trust, entryRootOf(files[0]));
-    const aontu = new aontu_1.Aontu(null == capability ? undefined : { trust: capability });
+    const aontu = new aontu_1.Aontu(verbOpts(trust, entryRootOf(files[0])));
     const ctx = aontu.ctx({ collect: true });
     const v = aontu.unify(src, { path: files[0] }, ctx);
     if (0 < ctx.err.length || true === v?.isNil) {
@@ -2507,7 +2548,7 @@ function runGet(argv) {
         return 2;
     }
     const report = (0, aontu_1.get)(src, path, {
-        view, depth, path: file, trust: verbTrust(trust, entryRootOf(file)),
+        view, depth, path: file, ...verbOpts(trust, entryRootOf(file)),
     });
     if ('json' === format) {
         process.stdout.write((0, aontu_1.exactJSON)({
@@ -2582,7 +2623,7 @@ function runWhy(argv) {
         return 2;
     }
     const report = (0, aontu_1.why)(src, path, {
-        path: file, trust: verbTrust(trust, entryRootOf(file)),
+        path: file, ...verbOpts(trust, entryRootOf(file)),
     });
     if ('json' === format) {
         process.stdout.write((0, aontu_1.exactJSON)({
@@ -2703,7 +2744,7 @@ function runSet(argv) {
         }
     }
     const report = (0, aontu_1.patch)(entrySrc, overlaySrc, assignments, {
-        trust: verbTrust(trust, entryRootOf(entry)),
+        ...verbOpts(trust, entryRootOf(entry)),
         entryPath: entry,
         overlayPath: overlayFile,
         inPlace,
@@ -2823,7 +2864,7 @@ function runAgentsMd(argv) {
     }
     const report = (0, aontu_1.agentsMd)(src, {
         name: files[0], path: files[0],
-        trust: verbTrust(trust, entryRootOf(files[0])),
+        ...verbOpts(trust, entryRootOf(files[0])),
     });
     if (!report.ok) {
         process.stderr.write(report.findings.map(renderFinding).join('\n') + '\n');
@@ -2876,16 +2917,16 @@ function finish(code) {
 // spelling, so the caller owns the usage error.
 function parseTrustArg(value) {
     if ('system' === value) {
-        return { kind: 'system' };
+        return { kind: 'system', textExt: [] };
     }
     if ('none' === value) {
-        return { kind: 'none' };
+        return { kind: 'none', textExt: [] };
     }
     if ('root' === value) {
-        return { kind: 'root' };
+        return { kind: 'root', textExt: [] };
     }
     if (value.startsWith('root:') && 'root:'.length < value.length) {
-        return { kind: 'root', dir: value.slice('root:'.length) };
+        return { kind: 'root', dir: value.slice('root:'.length), textExt: [] };
     }
     return undefined;
 }
@@ -2906,7 +2947,8 @@ function main(argv) {
     // overwritten twice. In a tool loop that reads as a passing
     // validation. Counting them is what lets the refusal below happen.
     const files = [];
-    let trust = { kind: 'system-warn' };
+    let trust = { kind: 'system-warn', textExt: [] };
+    let textExt = [];
     // The REPL's SESSION protocol (G7 phase 7): one JSON line per
     // answer, so a harness can drive the session. Named --jsonl rather
     // than the design's --json, which would read as the `:json` output
@@ -3000,7 +3042,16 @@ function main(argv) {
                 process.stderr.write('aontu: --include-root needs a directory\n');
                 return finish(2);
             }
-            trust = { kind: 'root', dir };
+            trust = { kind: 'root', dir, textExt };
+        }
+        else if ('--text-ext' === arg) {
+            const list = null == args[i + 1] ? undefined : parseTextExt(args[++i]);
+            if (null == list) {
+                process.stderr.write('aontu: --text-ext needs extensions, without dots' +
+                    ' (--text-ext md,sql)\n');
+                return finish(2);
+            }
+            textExt = [...textExt, ...list];
         }
         else if (arg.startsWith('-')) {
             process.stderr.write(`aontu: unknown option ${arg} (try --help)\n`);
@@ -3024,6 +3075,10 @@ function main(argv) {
             ' (try --help)\n');
         return finish(2);
     }
+    // The extensions ride with the capability from here on, so the three
+    // entry shapes below (file, REPL, stdin) each get them by threading
+    // the one value they already thread.
+    trust = { ...trust, textExt };
     const file = files[0];
     if (null != file) {
         finish(runFile(file, mode, trust));

@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" class="av" viewBox="0 0 576 222" width="576" height="222" role="img" aria-label="Value lattice at $: 0 value(s) placed">
+<style>.av{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px}.av-t{fill:var(--av-ink,#1f2328)}.av-m{fill:var(--av-muted,#6e7781)}.av-box{fill:var(--av-bg,#f6f8fa);stroke:var(--av-rule,#8c959f);stroke-width:1}.av-cell{fill:var(--av-bg,#f6f8fa);stroke:var(--av-rule-faint,#d0d7de);stroke-width:1}.av-direct{fill:var(--av-ink,#1f2328);stroke:var(--av-rule-faint,#d0d7de);stroke-width:1}.av-closure{fill:var(--av-closure,#9ec5fe);stroke:var(--av-rule-faint,#d0d7de);stroke-width:1}.av-unmirrored{fill:var(--av-warn,#e3b341);stroke:var(--av-rule-faint,#d0d7de);stroke-width:1}.av-line{stroke:var(--av-rule,#8c959f);stroke-width:1;fill:none}.av-up{stroke:var(--av-alert,#d1242f);stroke-width:1.5;fill:none;stroke-dasharray:4 3}.av-dot{fill:var(--av-ink,#1f2328)}.av-hole{fill:var(--av-bg,#f6f8fa);stroke:var(--av-rule-faint,#d0d7de);stroke-width:1}.av-bar{fill:var(--av-bar,#57606a)}</style>
+<path d="M288 34V51H40V68" class="av-line"/>
+<path d="M40 94V111H40V128" class="av-line"/>
+<path d="M288 34V51H248V68" class="av-line"/>
+<path d="M248 94V111H120V128" class="av-line"/>
+<path d="M248 94V111H192V128" class="av-line"/>
+<path d="M248 94V111H272V128" class="av-line"/>
+<path d="M248 94V111H376V128" class="av-line"/>
+<path d="M288 34V51H472V68" class="av-line"/>
+<path d="M288 34V51H536V68" class="av-line"/>
+<path d="M40 154V171H288V188" class="av-line"/>
+<path d="M120 154V171H288V188" class="av-line"/>
+<path d="M192 154V171H288V188" class="av-line"/>
+<path d="M272 154V171H288V188" class="av-line"/>
+<path d="M376 154V171H288V188" class="av-line"/>
+<path d="M472 94V171H288V188" class="av-line"/>
+<path d="M536 94V171H288V188" class="av-line"/>
+<rect x="268" y="8" width="40" height="26" class="av-cell"/>
+<text x="288" y="26" text-anchor="middle"><tspan class="av-t">top</tspan><tspan class="av-m"></tspan></text>
+<rect x="8" y="68" width="64" height="26" class="av-cell"/>
+<text x="40" y="86" text-anchor="middle"><tspan class="av-t">string</tspan><tspan class="av-m"></tspan></text>
+<rect x="216" y="68" width="64" height="26" class="av-cell"/>
+<text x="248" y="86" text-anchor="middle"><tspan class="av-t">number</tspan><tspan class="av-m"></tspan></text>
+<rect x="436" y="68" width="72" height="26" class="av-cell"/>
+<text x="472" y="86" text-anchor="middle"><tspan class="av-t">boolean</tspan><tspan class="av-m"></tspan></text>
+<rect x="512" y="68" width="48" height="26" class="av-cell"/>
+<text x="536" y="86" text-anchor="middle"><tspan class="av-t">null</tspan><tspan class="av-m"></tspan></text>
+<rect x="8" y="128" width="64" height="26" class="av-cell"/>
+<text x="40" y="146" text-anchor="middle"><tspan class="av-t">path()</tspan><tspan class="av-m"></tspan></text>
+<rect x="84" y="128" width="72" height="26" class="av-cell"/>
+<text x="120" y="146" text-anchor="middle"><tspan class="av-t">integer</tspan><tspan class="av-m"></tspan></text>
+<rect x="164" y="128" width="56" height="26" class="av-cell"/>
+<text x="192" y="146" text-anchor="middle"><tspan class="av-t">float</tspan><tspan class="av-m"></tspan></text>
+<rect x="224" y="128" width="96" height="26" class="av-cell"/>
+<text x="272" y="146" text-anchor="middle"><tspan class="av-t">biginteger</tspan><tspan class="av-m"></tspan></text>
+<rect x="328" y="128" width="96" height="26" class="av-cell"/>
+<text x="376" y="146" text-anchor="middle"><tspan class="av-t">bigdecimal</tspan><tspan class="av-m"></tspan></text>
+<rect x="268" y="188" width="40" height="26" class="av-cell"/>
+<text x="288" y="206" text-anchor="middle"><tspan class="av-t">nil</tspan><tspan class="av-m"></tspan></text>
+</svg>

@@ -379,6 +379,8 @@ const TOOLS = [
     {
         name: 'view',
         description: 'Draw a figure of the document as deterministic text. Kinds: ' +
+            'doc (the shape of the document itself), lattice (the value ' +
+            'lattice, with the document\'s own values placed on it), ' +
             'tree (the dependency tree of a relation), matrix (the ' +
             'dependency matrix, canon or partition order, --closure), graph ' +
             '(node-link, as mermaid, dot or er), layer (the architecture ' +
@@ -393,8 +395,8 @@ const TOOLS = [
             source: { type: 'string', description: 'The document' },
             kind: {
                 type: 'string',
-                description: 'The figure to draw: tree (the default), matrix, graph, layer, ' +
-                    'sets, layers or ladder',
+                description: 'The figure to draw: tree (the default), doc, lattice, matrix, ' +
+                    'graph, layer, sets, layers or ladder',
             },
             as: {
                 type: 'string',
@@ -477,8 +479,8 @@ const TOOLS = [
         required: ['source'],
         docs: ['source'],
         check: (a) => {
-            const kinds = ['doc', 'tree', 'matrix', 'graph', 'layer', 'sets',
-                'layers', 'ladder'];
+            const kinds = ['doc', 'lattice', 'tree', 'matrix', 'graph', 'layer',
+                'sets', 'layers', 'ladder'];
             if (null != a.kind && !kinds.includes(a.kind)) {
                 return `kind must be one of ${kinds.join(', ')}, not ${JSON.stringify(a.kind)}`;
             }

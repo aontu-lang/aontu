@@ -1,4 +1,5 @@
 /* Copyright (c) 2025 Richard Rodger, MIT License */
+import { includeOpts } from './utility'
 
 // REACHABILITY OVER THE LINK GRAPH (the review's finding J,
 // use-cases/REVIEW.md): "ship a transitive `reaches(a, b)` check verb".
@@ -60,6 +61,11 @@ export type ReachOptions = {
   // The include capability this document evaluates under (G5,
   // docs/trust.md).
   trust?: TrustOptions
+
+  // Extensions additionally read as text (the CLI's `--text-ext`).
+  // Rides beside `trust` because it is the other half of what an
+  // include may read.
+  textExt?: string[]
   // Follow only edges under this relation. Absent means follow every
   // edge, which is the whole graph and the commoner question.
   relation?: string
@@ -124,8 +130,7 @@ export function reachCheck(
   src: string, from: string, to: string, opts?: ReachOptions
 ): ReachReport {
   const options = opts ?? {}
-  const aontu = new Aontu(
-    null == options.trust ? undefined : { trust: options.trust })
+  const aontu = new Aontu(includeOpts(options))
   const ctx = aontu.ctx({ collect: true })
   const parseOpts = null == options.path ? undefined : { path: options.path }
   const root: any = aontu.unify(src, parseOpts, ctx)

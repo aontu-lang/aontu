@@ -2,8 +2,11 @@
 
 // THE VIEWS (docs/design/VIEWS.0.md and VIEWS-ORDER.0.md): figures of
 // an evaluated document, drawn as deterministic text a golden diff can
-// check. Seven kinds:
+// check. Nine kinds:
 //
+//   doc      the shape of the document itself
+//   lattice  the language's value lattice, with the document's own
+//            values placed on it
 //   tree     the dependency tree of one relation
 //   matrix   the dependency matrix over one relation, in canon or
 //            partition order, with closure and the unmirrored mark
@@ -58,7 +61,7 @@ export type ViewVerdict = 'rendered' | 'lossy' | 'error'
 
 export type ViewKind =
   'tree' | 'matrix' | 'graph' | 'layer' | 'sets' | 'layers' | 'ladder'
-  | 'poset' | 'doc'
+  | 'poset' | 'doc' | 'lattice'
 
 // The target grammars. Each kind declares the profiles it can render
 // into, and the first is its default (PROFILES below).
@@ -295,6 +298,7 @@ export type ViewOptions = {
 // node-link drawing and no sensible Mermaid form of a matrix.
 const PROFILES: Record<ViewKind, ViewProfile[]> = {
   doc: ['text', 'svg'],
+  lattice: ['text', 'svg'],
   tree: ['text', 'svg'],
   matrix: ['text', 'svg'],
   graph: ['mermaid', 'dot', 'er'],
@@ -971,6 +975,421 @@ function treeSvg(
 // drawn and the row says how many keys were not drawn, because a tree
 // that stops without saying so is the one thing a structural drawing
 // must not be.
+
+// ---------------------------------------------------------------------
+// THE VALUE LATTICE, and where this document's values sit on it.
+//
+// THE SCAFFOLD IS THE LANGUAGE'S, NOT THE DOCUMENT'S: `top` at the
+// join, the four kind families under it, `path()` under `string`, the
+// four numeric leaves under `number`, and `nil` at the meet. Every
+// Aontu document is drawn against the SAME shape, which is what makes
+// two of these figures comparable -- and what makes this a view of the
+// language that a document annotates, rather than a picture assembled
+// out of whatever the document happened to contain.
+//
+// See docs/unification.md for what the ordering means.
+
+// The scaffold: each kind and the one above it. The ENGINE decides
+// which kind sits under which -- kindParent in ts/src/val/ScalarKindVal.ts,
+// and its twin in go/scalar.go -- and a test in each port holds this
+// table to it, so adding a kind to the engine makes the figure grow a
+// node rather than quietly leave one out.
+const LATTICE_PARENT: [string, string][] = [
+  ['string', 'top'],
+  ['path()', 'string'],
+  ['number', 'top'],
+  ['integer', 'number'],
+  ['float', 'number'],
+  ['biginteger', 'number'],
+  ['bigdecimal', 'number'],
+  ['boolean', 'top'],
+  ['null', 'top'],
+]
+
+// The columns, left to right: the MINIMAL kinds, the ones with nothing
+// under them. Everything else is drawn centred over the columns it
+// covers, so this list alone fixes the figure's horizontal order -- and
+// it puts the kinds that reach the bottom from higher up (`boolean`,
+// `null`) on the outside, where their lines pass the numeric fan
+// rather than crossing it.
+const LATTICE_COLS =
+  ['path()', 'integer', 'float', 'biginteger', 'bigdecimal', 'boolean',
+    'null']
+
+// The rows, top to bottom. `top` and `nil` are the endpoints and are
+// not kinds: no `superior()` answers either, and no entry above names
+// them as a parent.
+const LATTICE_ROWS: string[][] = [
+  ['top'],
+  ['string', 'number', 'boolean', 'null'],
+  ['path()', 'integer', 'float', 'biginteger', 'bigdecimal'],
+  ['nil'],
+]
+
+const LATTICE_NODES: string[] =
+  ['top', ...LATTICE_PARENT.map(([name]) => name), 'nil']
+
+// Every node at or above one, itself included.
+function latticeAncestors(name: string): string[] {
+  const out: string[] = [name]
+  for (let at = name; '' !== at;) {
+    const row = LATTICE_PARENT.find(([child]) => child === at)
+    at = undefined === row ? '' : row[1]
+    if ('' !== at) {
+      out.push(at)
+    }
+  }
+  return out
+}
+
+// The columns one node covers: its own if it is minimal, otherwise
+// every column beneath it. `nil` is beneath everything and above
+// nothing, so the walk finds no column under it and the whole width is
+// its span -- which is where it belongs.
+function latticeSpan(name: string): number[] {
+  const own = LATTICE_COLS.indexOf(name)
+  if (-1 !== own) {
+    return [own]
+  }
+  const under = LATTICE_COLS
+    .map((col, i) => latticeAncestors(col).includes(name) ? i : -1)
+    .filter((i) => -1 !== i)
+  return 0 === under.length ? LATTICE_COLS.map((_, i) => i) : under
+}
+
+// True when `parent` is immediately above `child`. NIL IS COVERED BY
+// EVERY MINIMAL KIND: it is the meet of all of them, and the only node
+// the parent table does not name, because nothing in the engine ever
+// answers `nil` as a superior.
+function latticeCovers(parent: string, child: string): boolean {
+  return 'nil' === child
+    ? -1 !== LATTICE_COLS.indexOf(parent)
+    : LATTICE_PARENT.some(([c, p]) => c === child && p === parent)
+}
+
+
+// WHERE ONE VALUE SITS, or undefined for a value that is not at a
+// single point. The answers are the kinds of thing a document holds:
+//
+//   a CONCRETE scalar sits at its kind -- `8080` is an `integer`, and
+//   `superior()` is the lattice's own answer to which;
+//   a KIND MARKER sits AT that kind -- `integer` written as a schema
+//   is the node itself, not a value under it;
+//   everything else -- a constraint, an unresolved disjunction, a
+//   reference -- is not one point. `integer & min(1)` is a REGION of
+//   the lattice and `*8080 | integer` is two places at once, so
+//   drawing either at a node would be a claim the figure cannot
+//   support. Both are counted into the loss report instead.
+function latticePoint(v: any): string | undefined {
+  const node: any = throughDoc(v)
+  if (true === node?.isNil) {
+    return 'nil'
+  }
+  if (true === node?.isTop) {
+    return 'top'
+  }
+  // A kind marker names its own node; a concrete scalar names the node
+  // above it. Either way the name has to BE one of the figure's: a
+  // kind the scaffold does not draw has nowhere to go, and saying so
+  // through the loss report is the only honest answer.
+  const name: string = true === node?.isScalarKind ? String(node.canon)
+    : true === node?.isScalar ? String(node.superior?.().canon) : ''
+  return LATTICE_NODES.includes(name) ? name : undefined
+}
+
+
+// The document's own values, gathered by lattice node. Containers are
+// walked but not placed: a map is not a scalar lattice citizen, and
+// counting one at `top` would put every document's root there.
+function latticeCensus(root: any, at: string):
+  { counts: Map<string, string[]>, unplaced: string[] } {
+  const counts = new Map<string, string[]>()
+  const unplaced: string[] = []
+  const stack: { node: any, path: string }[] = [{ node: root, path: at }]
+  while (0 < stack.length) {
+    const { node, path } = stack.pop() as { node: any, path: string }
+    const kids = docKids(node)
+    if (0 < kids.length) {
+      // A container is a shape, not a point: walk into it and place
+      // what it holds.
+      for (const key of kids) {
+        stack.push({
+          node: throughDoc(throughDoc(node).peg[key]),
+          path: path + '.' + key,
+        })
+      }
+      continue
+    }
+    const point = latticePoint(node)
+    if (undefined === point) {
+      // AN EMPTY CONTAINER IS NEITHER A POINT NOR A SHAPE with
+      // anything in it, and is no more unplaced than `{}` is a value:
+      // skip it rather than report a loss a reader cannot act on.
+      const inner: any = throughDoc(node)
+      if (true !== inner?.isMap && true !== inner?.isList) {
+        unplaced.push(path)
+      }
+      continue
+    }
+    const there = counts.get(point) ?? []
+    there.push(path)
+    counts.set(point, there)
+  }
+  for (const paths of counts.values()) {
+    paths.sort(cmpCodePoint)
+  }
+  unplaced.sort(cmpCodePoint)
+  return { counts, unplaced }
+}
+
+
+// What one node is written as: its name, and the count of the
+// document's values that landed on it. A node with nothing at it is
+// still drawn -- the shape is the language's, and a figure that left
+// the empty nodes out would be a different lattice for every document.
+function latticeCell(counts: Map<string, string[]>, name: string): string {
+  const n = (counts.get(name) ?? []).length
+  return 0 === n ? name : `${name} (${n})`
+}
+
+// The horizontal layout, in characters: one column per minimal kind,
+// each as wide as the widest cell drawn over it plus a gutter, and the
+// centre of each. The spanning nodes are narrower than the span they
+// cover, so none of them needs a width of its own. The gutter is THREE
+// because the SVG draws a box a character wider than its text: two of
+// those characters are the box's own padding and the third is the gap
+// between one box and the next.
+const LATTICE_GUTTER = 3
+
+function latticeCols(counts: Map<string, string[]>):
+  { cx: number[], width: number } {
+  const w = LATTICE_COLS.map((col) => LATTICE_GUTTER + Math.max(
+    ...LATTICE_ROWS.flat()
+      .filter((name) => {
+        const span = latticeSpan(name)
+        return 1 === span.length && col === LATTICE_COLS[span[0]]
+      })
+      .map((name) => latticeCell(counts, name).length)))
+  let x = 0
+  const cx = w.map((n) => {
+    const c = x + Math.floor(n / 2)
+    x += n
+    return c
+  })
+  return { cx, width: x }
+}
+
+// The centre of a node, from the columns it covers.
+function latticeAt(name: string, cx: number[]): number {
+  const span = latticeSpan(name)
+  return Math.round((cx[span[0]] + cx[span[span.length - 1]]) / 2)
+}
+
+
+// The box-drawing glyph for one column of a rule, from the four facts
+// that meet there: whether the rule continues left and right, and
+// whether a stem leaves upward and downward. Deciding it this way is
+// what lets `number` -- which is BOTH one of the many under `top` and
+// the one above the numeric leaves -- come out as the join it is,
+// without a case written for it. The table is total, so no column has
+// to be asked whether it has a glyph.
+const LATTICE_GLYPH: Record<string, string> = {
+  '....': '─', '...d': '│', '..u.': '│', '..ud': '│',
+  '.r..': '─', '.r.d': '┌', '.ru.': '└', '.rud': '├',
+  'l...': '─', 'l..d': '┐', 'l.u.': '┘', 'l.ud': '┤',
+  'lr..': '─', 'lr.d': '┬', 'lru.': '┴', 'lrud': '┼',
+}
+
+// The figure is PAINTED rather than assembled from padded strings: the
+// nodes have to line up with the rules that join them, and a count
+// changes a cell's width -- so the geometry is settled first, in
+// columns, and every glyph is then written at a place already known.
+function latticeText(counts: Map<string, string[]>, style: ViewStyle): string {
+  const paint = painter(style)
+  const { cx, width } = latticeCols(counts)
+  const canvas: string[][] = []
+  const roles: ViewRole[][] = []
+  const put = (y: number, x: number, text: string, role: ViewRole) => {
+    while (canvas.length <= y) {
+      canvas.push(new Array(width).fill(' '))
+      roles.push(new Array(width).fill('label'))
+    }
+    for (let i = 0; i < text.length; i++) {
+      canvas[y][x + i] = text[i]
+      roles[y][x + i] = role
+    }
+  }
+  // A cell is its name and, where the document reached it, the count:
+  // two roles, so a terminal can mute the second without touching the
+  // first.
+  const cell = (y: number, name: string) => {
+    const text = latticeCell(counts, name)
+    const left = latticeAt(name, cx) - Math.floor(text.length / 2)
+    put(y, left, name, 'label')
+    put(y, left + name.length, text.slice(name.length), 'muted')
+  }
+  const stems = (y: number, at: string[]) => {
+    for (const name of at) {
+      put(y, latticeAt(name, cx), '│', 'rule')
+    }
+  }
+  // The rule that joins one row to the next, plus the lines that pass
+  // it by: a kind with nothing under it runs on down the OUTSIDE of the
+  // fan, which the column order guarantees is clear of it.
+  const rule = (y: number, up: string[], down: string[], by: string[]) => {
+    const at = (names: string[]) => names.map((n) => latticeAt(n, cx))
+    const [u, d] = [at(up), at(down)]
+    const lo = Math.min(...u, ...d), hi = Math.max(...u, ...d)
+    for (let x = lo; x <= hi; x++) {
+      put(y, x, LATTICE_GLYPH[
+        (x > lo ? 'l' : '.') + (x < hi ? 'r' : '.') +
+        (u.includes(x) ? 'u' : '.') + (d.includes(x) ? 'd' : '.')], 'rule')
+    }
+    stems(y, by)
+  }
+
+  // Four node rows and three joins. `open` is every node whose line
+  // downward has not been drawn yet, which is what carries `boolean`
+  // and `null` past the numeric row to the bottom rule.
+  let open: string[] = []
+  let y = 0
+  for (let r = 0; r < LATTICE_ROWS.length; r++) {
+    stems(y, open)
+    for (const name of LATTICE_ROWS[r]) {
+      cell(y, name)
+    }
+    open = [...open, ...LATTICE_ROWS[r]]
+    if (LATTICE_ROWS.length - 1 === r) {
+      break
+    }
+    const next = LATTICE_ROWS[r + 1]
+    const parents =
+      open.filter((n) => next.some((k) => latticeCovers(n, k)))
+    const by = open.filter((n) => !parents.includes(n))
+    stems(y + 1, open)
+    rule(y + 2, parents, next, by)
+    open = by
+    y += 3
+  }
+
+  return canvas.map((line, i) => {
+    const bare = line.join('').replace(/\s+$/, '')
+    let out = '', at = 0
+    while (at < bare.length) {
+      let end = at
+      while (end < bare.length && roles[i][end] === roles[i][at]) {
+        end++
+      }
+      out += paint(roles[i][at], bare.slice(at, end))
+      at = end
+    }
+    return out
+  }).join('\n')
+}
+
+
+// The same figure as SVG, off the same column layout, so the two
+// profiles are one drawing in two grammars rather than two drawings.
+// A node the document REACHES is drawn with the ordinary rule stroke
+// (`av-box`) and one it does not with the faint one (`av-cell`),
+// because every node is drawn whether this document reaches it or not
+// and a reader has to see which is which without counting. NO NEW
+// CLASS: those two already mean a box and a faint box, so a host page
+// that themed the other figures gets this one for nothing.
+function latticeSvg(
+  counts: Map<string, string[]>, at: string, style: ViewStyle
+): string {
+  const ROWH = 3 * LH
+  const BOXH = 26
+  const { cx, width } = latticeCols(counts)
+  const parts: string[] = []
+  const rowOf = new Map<string, number>()
+  LATTICE_ROWS.forEach((row, r) => row.forEach((name) => rowOf.set(name, r)))
+  const x = (name: string): number => PAD + latticeAt(name, cx) * CH
+  const y = (name: string): number =>
+    PAD + BOXH / 2 + (rowOf.get(name) as number) * ROWH
+
+  // Edges first, so a box always sits over the lines that reach it.
+  // The horizontal jog is placed just above the CHILD rather than
+  // halfway down, which is what keeps `boolean` and `null` -- three
+  // rows from `top` to `nil` with nothing between -- clear of the
+  // numeric row they pass.
+  const edges: [string, string][] = [...LATTICE_PARENT,
+    ...LATTICE_COLS.map((col): [string, string] => ['nil', col])]
+  for (const [child, parent] of edges) {
+    const y2 = y(child) - BOXH / 2
+    parts.push(svgPath(`M${x(parent)} ${y(parent) + BOXH / 2}` +
+      `V${y2 - (ROWH - BOXH) / 2}H${x(child)}V${y2}`, 'av-line'))
+  }
+
+  for (const name of LATTICE_ROWS.flat()) {
+    const text = latticeCell(counts, name)
+    const w = (text.length + 2) * CH
+    parts.push(svgRect(x(name) - w / 2, y(name) - BOXH / 2, w, BOXH,
+      name === text ? 'av-cell' : 'av-box'))
+    // The name and the count in ONE text element, as the tree does it:
+    // two runs on one baseline, so the count is muted without the
+    // figure having to place it.
+    parts.push(`<text x="${x(name)}" y="${y(name) + 5}" text-anchor="middle">` +
+      `<tspan class="av-t">${svgEsc(name)}</tspan>` +
+      `<tspan class="av-m">${svgEsc(text.slice(name.length))}</tspan></text>`)
+  }
+
+  const placed = [...counts.values()].reduce((n, p) => n + p.length, 0)
+  return svgDoc(width * CH + 2 * PAD,
+    2 * PAD + BOXH + (LATTICE_ROWS.length - 1) * ROWH,
+    `Value lattice at ${at}: ${placed} value(s) placed`, parts, style)
+}
+
+
+// The figure. The row count is fixed -- the lattice is the language's,
+// and no option makes it smaller -- so `--max-rows` below it is still a
+// refusal, because a figure that quietly overran a stated bound is the
+// thing every other kind here refuses to be; the message says raise
+// rather than narrow.
+const LATTICE_LINES = 3 * LATTICE_ROWS.length - 2
+
+function drawLattice(
+  root: any,
+  o: { at?: string, as: ViewProfile, style: ViewStyle },
+  max: number, loss: ViewLoss[]
+): Figure {
+  const at = o.at ?? '$'
+  const anchor = anchorAt(root, at)
+  if (null == anchor) {
+    // The same code and the same sentence `get` answers with, for the
+    // same question.
+    return {
+      errors: [finding('no_path', 'reference', at,
+        `The path ${at} names nothing in this document.`)],
+    }
+  }
+  if (max < LATTICE_LINES) {
+    return {
+      errors: [finding('view_rows_exceeded', 'budget', '$',
+        `The figure has ${LATTICE_LINES} rows, above --max-rows ${max}; ` +
+        'the value lattice is fixed, so raise the limit.',
+        `rows: ${LATTICE_LINES}, max: ${max}`)],
+    }
+  }
+  const { counts, unplaced } = latticeCensus(anchor, at)
+
+  if (0 < unplaced.length) {
+    // NOT A LOSS OF DETAIL BUT A LOSS OF PLACE: these values are real,
+    // and the figure cannot say where they are because they are not
+    // anywhere single. Named, not merely counted -- a reader who sees
+    // `2` wants to know which two.
+    loss.push({
+      code: 'lattice_unplaced', count: unplaced.length, detail: unplaced,
+    })
+  }
+
+  return {
+    text: 'svg' === o.as
+      ? latticeSvg(counts, at, o.style) : latticeText(counts, o.style),
+  }
+}
+
 
 const DEFAULT_DOC_DEPTH = 3
 
@@ -2567,6 +2986,9 @@ function drawLoaded(
   const style = styleOf(options.style, as)
   if ('doc' === kind) {
     return drawDoc(root, { ...options, as, style }, max, loss)
+  }
+  if ('lattice' === kind) {
+    return drawLattice(root, { ...options, as, style }, max, loss)
   }
   if ('layers' === kind) {
     return drawLayers(prov as Provenance, root, options.path,

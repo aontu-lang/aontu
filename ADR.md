@@ -1114,17 +1114,18 @@ in the other.
 
 ### Decision
 
-**The extension decides, from a fixed table, and it says which of TWO
+**The extension decides, from a fixed table, and it says which of THREE
 things the file is.**
 
 | extension | what it is |
 |---|---|
 | `.aon`, `.aontu` | **Aontu source** — the language, with types, defaults, references, constraints, its own includes |
 | `.json`, `.jsonld`, `.jsonc`, `.json5`, `.jsonic`, `.jsc`, `.toml`, `.yaml`, `.yml`, `.ini` | **configuration data** — parsed by that format's own parser into the JSON value it denotes |
+| `.txt`, plus whatever `--text-ext` names | **text** — the file's bytes, as one string scalar |
 | anything else, and a name with no extension | refused, by name, with `include_extension` |
 
 ```
-include not readable: notes.txt (extension: .txt)
+include not readable: rows.csv (extension: .csv)
 ```
 
 **Every one of those formats maps onto JSON**, which is why one word
@@ -1147,6 +1148,33 @@ author never wrote — and cannot read TOML or YAML at all. Reading
 everything but `.aon` as text (TypeScript's rule) keeps the critical
 shape, the silently stringified vocabulary. Refusing every non-`.aon`
 include is safe and leaves ONTOLOGY P1 with nothing to import.
+
+### Amendment, 2026-09-03: text is the third thing an extension can mean
+
+`notes: @"notes.txt"` is a document loading prose into a string, and
+the original ruling refused it — because at the time "unknown
+extension" and "read it as text" were the same case, and reading an
+unknown extension as text is precisely the defect this record was
+written to end. `.txt` was collateral: a legitimate use, refused for
+resembling a bug.
+
+**A third category, `text`: the file's bytes become one string
+scalar.** No parser is chosen, which is the whole reason it is safe to
+add — there is nothing for two implementations to disagree about, so
+the ADR-001 objection that keeps `.csv` out does not apply here. `.txt`
+is in the table; `AontuOptions.textExt` (the CLI's `--text-ext md,sql`,
+honoured by every verb) widens the set, because which name a project
+keeps its templates under is the project's business and not this
+table's.
+
+**A widening never overwrites.** An extension the table already names
+keeps its meaning — `--text-ext toml` cannot re-read TOML as a string,
+because documents rely on what it means today. And `.js` stays refused
+however the flag is spelled: it is the extension this record singles
+out, and a widening that can reach the one name the rule names is a
+widening whose limit nobody can state. Both ports hold that list, and
+the two CLIs are diffed on `--text-ext js` — because they disagreed
+there once, Go reading the file where TypeScript refused it.
 
 **`.csv` is deliberately absent, and the reason is ADR-001.** The two
 ports' CSV parsers disagree about what a CSV file even is: `@tabnas/csv`

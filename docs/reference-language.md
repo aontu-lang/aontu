@@ -43,8 +43,10 @@ the [Explanation](explanation.md).
 - [Marks: `type` and `hide`](#marks-type-and-hide)
 - [Closed values: `close` / `open`](#closed-values-close--open)
 - [Source loading `@"…"`](#source-loading-)
+  - [Text: `.txt` and `--text-ext`](#text-txt-and---text-ext)
 - [Operator precedence](#operator-precedence)
 - [Canonical form](#canonical-form)
+- [The published grammar](#the-published-grammar)
 - [Generation](#generation)
 - [Subsumption](#subsumption)
 - [Errors](#errors)
@@ -143,16 +145,12 @@ d: "hi there"
 Every Aontu value is a point in a lattice ordered from most general to
 most specific:
 
-```
-                 top                 (fits anything)
-        ┌─────────┼─────────┐
-     string     number   boolean …   (kinds / types)
-        │    ┌────┼────┐     │       (number is a pure
-        │    │    │    │     │        supertype over four
-      "ada"  1   1.5 0d0.1 true       numeric leaves — see
-        └────┴────┴────┴─────┘        Scalar kinds)
-                 ⊥  nil / bottom     (no value — a conflict)
-```
+![The value lattice: top at the join; string, number, boolean and null under it; path() under string; integer, float, biginteger and bigdecimal under number; nil at the meet, below every kind.](figures/value-lattice.svg)
+
+The engine draws this figure itself — it is
+[`aontu view lattice`](reference-api.md#aontu-view) over a document
+with no values in it. Run the same verb over your own document and
+each node carries a count of the values that landed there.
 
 - **`top`** is the unit: unifying anything with `top` yields the other
   value. It is what an unconstrained field is.
@@ -2254,13 +2252,14 @@ Source files use the `.aon` extension (preferred) or `.aontu`. When the
 path has no extension, those two are tried in turn, so `@"foo"` resolves
 `foo.aon` then `foo.aontu`.
 
-**The extension decides what the file is**, and it says which of two
+**The extension decides what the file is**, and it says which of three
 things:
 
 | extension | what it is |
 |---|---|
 | `.aon`, `.aontu` | **Aontu source** — the language, with everything in it |
 | `.json`, `.jsonld`, `.jsonc`, `.json5`, `.jsonic`, `.jsc`, `.toml`, `.yaml`, `.yml`, `.ini` | **configuration data**, read by that format's own parser |
+| `.txt`, and whatever `--text-ext` names | **text** — the file's bytes, as one string |
 | anything else | refused, by name |
 
 Every one of those formats maps onto JSON, which is why one word covers
@@ -2297,6 +2296,41 @@ $ aontu main.aon
   }
 }
 ```
+
+### Text: `.txt` and `--text-ext`
+
+A `.txt` file is read as **one string**. Nothing parses it, so nothing
+in it can mean anything — which is what makes it the safe third
+category. Write `notes.txt`:
+
+<!-- test: file notes.txt -->
+```
+Deploy freezes over the holiday period.
+```
+
+and load it as a value in `main.aon`:
+
+<!-- test: file main.aon -->
+```aon
+notes: @"notes.txt"
+```
+
+<!-- test: run -->
+```sh
+$ aontu -c main.aon
+{"notes":"Deploy freezes over the holiday period.\n"}
+```
+
+The result is an ordinary string, so the language's string operations
+reach it and a schema can constrain it: `notes: string & length(1)`
+holds, and `upper(@"notes.txt")` uppercases the file.
+
+**Other extensions need an allowance.** `--text-ext md,sql` reads those
+as text too, for a project that keeps its prose in `.md` or its queries
+in `.sql`. Every verb takes it, and the dots are optional
+(`--text-ext .md`). Two limits: an extension the table already names
+keeps its meaning, so `--text-ext toml` does not re-read TOML as a
+string; and `.js` stays refused however the flag is spelled.
 
 A config file in any of those formats reads the same way. Write
 `server.toml`:
@@ -2336,24 +2370,25 @@ whole document rather than becoming an empty value under the key that
 included it.
 
 Every other extension — and a name with no extension at all — is
-refused by name rather than guessed at. Put prose in `notes.txt`:
+refused by name rather than guessed at. Put rows in `rows.csv`:
 
-<!-- test: file notes.txt -->
+<!-- test: file rows.csv -->
 ```
-Some notes, in prose.
+port,host
+8080,local
 ```
 
 and ask for it in `main.aon`:
 
 <!-- test: file main.aon -->
 ```aon
-notes: @"notes.txt"
+rows: @"rows.csv"
 ```
 
 <!-- test: run -->
 ```sh
 $ aontu main.aon
-include not readable: notes.txt (extension: .txt)
+include not readable: rows.csv (extension: .csv)
 $ echo $?
 1
 ```
@@ -2361,7 +2396,10 @@ $ echo $?
 A guess would be worse than the refusal, and it was: read as text, a
 vocabulary became a string that a schema then validated nothing
 against; read as Aontu, prose became a parse error at a line nobody
-wrote. Both exited 0.
+wrote. Both exited 0. Reading a file as text is a category the table
+now *names* — that is what `.txt` is — and the difference is that it is
+stated rather than a fallback for whatever the table failed to
+recognise.
 
 ```
 @"foo.aon"                       → {"f":11}            (top level)
@@ -2621,6 +2659,50 @@ constraints, defaults, and open disjunctions. Rules:
 - Conjunction: `a&b` (e.g. `number&"A"`). Disjunction: `a|b`
   (e.g. `1|2`, `string|number`). Preference: `*x` (e.g. `*1|number`).
 - Spreads keep the `&:` entry: `{&:{"x":2},"y":{…}}`.
+
+## The published grammar
+
+Canon is the shape a grammar can be written for — every key quoted,
+one spelling per construct — and
+[`grammar/aontu.abnf`](../grammar/aontu.abnf) is that grammar, in
+RFC 5234 notation with RFC 7405's case-sensitive `%s"…"` literals.
+The same rules are published for two machine consumers as
+[`aontu.gbnf`](../grammar/aontu.gbnf) and
+[`aontu.lark`](../grammar/aontu.lark); this is the form to read.
+
+It is the **emission surface**: what a document should be allowed to
+write, a superset of JSON plus the operators, constraints and marks
+canon emits. It is **conservative by construction** — it may accept
+less than the parser does, never more — and it makes two deliberate
+exclusions. `@"…"` includes are absent, because a generated document
+should describe values rather than reach for files. So are unquoted
+keys and the other spellings the parser tolerates, because canon does
+not emit them.
+
+The grammar is executed, not merely published: `ts/test/grammar.test.ts`
+reads the file, interprets it, and requires it to accept **every
+canonical-form output in the shared spec suite** — several hundred of
+them — and to refuse the excluded forms. A rule the engine has
+outgrown fails the suite.
+
+### How a value composes
+
+Whitespace is permitted between every element and is not drawn; the
+`ws` rule in the grammar text carries it. Each track is one rule, and a
+box in one is a link to its own track.
+
+![Railroad diagram of the Aontu grammar's structural rules: a value is a disjunction of conjunctions of prefixed sums, and an atom is a map, list, function call, reference, kind, placeholder, scalar or parenthesised value.](figures/aontu-syntax.svg)
+
+### How one is spelled
+
+The scalar forms, the character rules behind a string, the four numeric
+spellings, and whitespace itself.
+
+![Railroad diagram of the Aontu grammar's lexical rules: the kind names, the scalar forms, a string as a quoted run of escaped or unescaped characters, the exact 0d literal, the plain number with its optional fraction and exponent, and whitespace.](figures/aontu-lexical.svg)
+
+The function-name rule is drawn as one node rather than as a fan of
+alternatives; the names are in the grammar text and in
+[Functions](#functions), with what each one means.
 
 ## Generation
 

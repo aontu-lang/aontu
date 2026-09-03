@@ -1,5 +1,4 @@
 "use strict";
-/* Copyright (c) 2025 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.nearestKey = nearestKey;
 exports.pathParts = pathParts;
@@ -8,6 +7,8 @@ exports.evalFailure = evalFailure;
 exports.noPathFinding = noPathFinding;
 exports.get = get;
 exports.why = why;
+/* Copyright (c) 2025 Richard Rodger, MIT License */
+const utility_1 = require("./utility");
 // THE QUERY SURFACE (G7 phase 1,
 // docs/capability-review/g7-machine-access.md): select one node of an
 // evaluated document by path and render it — the slice an agent asks
@@ -206,7 +207,7 @@ function noPathFinding(root, path) {
 function get(src, path, opts) {
     const options = opts ?? {};
     const view = options.view ?? 'json';
-    const aontu = new aontu_1.Aontu(null == options.trust ? undefined : { trust: options.trust });
+    const aontu = new aontu_1.Aontu((0, utility_1.includeOpts)(options));
     const ctx = aontu.ctx({ collect: true });
     const parseOpts = null == options.path ? undefined : { path: options.path };
     const root = aontu.unify(src, parseOpts, ctx);
@@ -254,7 +255,7 @@ function get(src, path, opts) {
 // per path met, which an instrumented run pays knowingly.
 function why(src, path, opts) {
     const options = opts ?? {};
-    const aontu = new aontu_1.Aontu(null == options.trust ? undefined : { trust: options.trust });
+    const aontu = new aontu_1.Aontu((0, utility_1.includeOpts)(options));
     const prov = new provenance_1.Provenance();
     const ctx = aontu.ctx({ collect: true, prov });
     const parseOpts = null == options.path ? undefined : { path: options.path };

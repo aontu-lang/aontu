@@ -188,6 +188,10 @@ type VetOptions struct {
 	// docs/trust.md). Nil means today's default.
 	Trust *TrustOptions
 
+	// TextExt is the extensions additionally read as text (the CLI's
+	// --text-ext), the other half of what an include may read.
+	TextExt []string
+
 	SchemaPath string
 	DataPath   string
 }
@@ -205,7 +209,8 @@ type VetOptions struct {
 // full system resolver with no way to confine it (the review's finding
 // G) -- and a verb that forgets to set it afterwards is exactly how
 // that happened.
-func aontuForPathTrust(path string, trust *TrustOptions) *Aontu {
+func aontuForPathTrust(
+	path string, trust *TrustOptions, textExt []string) *Aontu {
 	a := New()
 	if "" != path {
 		a = NewWithBase(filepath.Dir(path))
@@ -213,6 +218,12 @@ func aontuForPathTrust(path string, trust *TrustOptions) *Aontu {
 	if nil != trust {
 		a.Trust = trust
 	}
+	// BOTH INCLUDE OPTIONS THROUGH ONE HELPER. `trust` was threaded by
+	// hand into every engine until there were two of them, and the one
+	// site that missed the second refused a `--text-ext` include under
+	// a flag the bare command honoured. Adding a third means editing
+	// here, not everywhere.
+	a.TextExt = textExt
 	return a
 }
 
@@ -674,8 +685,10 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 
 	// TWO instances, because the two documents may live in different
 	// directories and each one's includes resolve from its own.
-	schemaA := aontuForPathTrust(options.SchemaPath, options.Trust)
-	dataA := aontuForPathTrust(options.DataPath, options.Trust)
+	schemaA := aontuForPathTrust(
+		options.SchemaPath, options.Trust, options.TextExt)
+	dataA := aontuForPathTrust(
+		options.DataPath, options.Trust, options.TextExt)
 
 	// 1. The schema alone. If it does not stand up on its own, the data
 	//    is never blamed for it.

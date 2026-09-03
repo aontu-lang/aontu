@@ -70,28 +70,23 @@ an unconstrained field is, and it is the identity of the meet —
 `top & x` is `x`, for every `x`. A field that is still `top` at the end
 of a run says nothing, so it cannot be generated.
 
-**`nil`**, or **bottom** (written `⊥` in the diagram below), is the most
+**`nil`**, also called **bottom** and written `⊥` in order theory, is the most
 specific: it admits nothing. It is what a failed unification produces.
 `1 & 2` is `nil`, because no value is both. `nil` carries the error
 that made it and cannot be generated either.
 
-Every other value sits between them:
+Every other value sits between them, under the kind it belongs to:
 
-```
-                 top                 (admits anything)
-        ┌─────────┼─────────┐
-     string     number   boolean     (kinds)
-        │    ┌────┼────┐     │
-      "ada"  1   1.5 0d0.1 true      (concrete values)
-        └────┴────┴────┴─────┘
-                 ⊥  nil              (admits nothing)
-```
+![The value lattice: top at the join; string, number, boolean and null under it; path() under string; integer, float, biginteger and bigdecimal under number; nil at the meet, below every kind.](figures/value-lattice.svg)
+
+`"ada"` sits under `string`, `1` under `integer`, `0d0.1` under
+`bigdecimal`, `true` under `boolean` — each one a point below the kind
+that admits it, and every one of them above `nil`.
 
 A structure with a top, a bottom, and a meet for every pair is a
 **lattice**, which is where the term comes from. The
 [value lattice](reference-language.md#the-value-lattice) section of
-the language reference gives the full picture, including the four
-numeric kinds.
+the language reference gives the rules, kind by kind.
 
 ## Three laws, and what they buy you
 

@@ -168,7 +168,7 @@ func newString(s string) *ScalarVal { return newScalar(KindString, s) }
 // newPath makes a path VALUE: a scalar of KindPath whose peg is the
 // address spelling, in exactly the grammar refer() reads
 // (docs/design/PATHS.0.md). Meets are syntactic -- by spelling.
-func newPath(s string) *ScalarVal { return newScalar(KindPath, s) }
+func newPath(s string) *ScalarVal   { return newScalar(KindPath, s) }
 func newInteger(i int64) *ScalarVal { return newScalar(KindInteger, i) }
 func newFloat(f float64) *ScalarVal { return newScalar(KindFloat, f) }
 

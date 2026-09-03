@@ -1,4 +1,5 @@
 /* Copyright (c) 2025 Richard Rodger, MIT License */
+import { includeOpts } from './utility'
 
 // RELATION GRAPH VERDICTS (RELATIONS.0.md §3.3, replacing the G4
 // phase 5 magic-key pass): acyclicity and inverse consistency over
@@ -70,6 +71,11 @@ export type RelationOptions = {
   // docs/trust.md). vet's precedent: the verb passes the profile the
   // caller asked for, and an absent option means today's default.
   trust?: TrustOptions
+
+  // Extensions additionally read as text (the CLI's `--text-ext`).
+  // Rides beside `trust` because it is the other half of what an
+  // include may read.
+  textExt?: string[]
 }
 
 
@@ -248,8 +254,7 @@ export function relationErrors(ctx: any, root: any): void {
 export function relationCheck(
   src: string, opts?: RelationOptions): RelationReport {
   const options = opts ?? {}
-  const aontu = new Aontu(
-    null == options.trust ? undefined : { trust: options.trust })
+  const aontu = new Aontu(includeOpts(options))
   const ctx = aontu.ctx({ collect: true })
   const parseOpts = null == options.path ? undefined : { path: options.path }
   const root: any = aontu.unify(src, parseOpts, ctx)

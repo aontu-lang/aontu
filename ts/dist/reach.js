@@ -1,8 +1,9 @@
 "use strict";
-/* Copyright (c) 2025 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.parseNodePath = parseNodePath;
 exports.reachCheck = reachCheck;
+/* Copyright (c) 2025 Richard Rodger, MIT License */
+const utility_1 = require("./utility");
 // REACHABILITY OVER THE LINK GRAPH (the review's finding J,
 // use-cases/REVIEW.md): "ship a transitive `reaches(a, b)` check verb".
 //
@@ -84,7 +85,7 @@ function endpointFinding(name, known) {
 // The reachability check for one document.
 function reachCheck(src, from, to, opts) {
     const options = opts ?? {};
-    const aontu = new aontu_1.Aontu(null == options.trust ? undefined : { trust: options.trust });
+    const aontu = new aontu_1.Aontu((0, utility_1.includeOpts)(options));
     const ctx = aontu.ctx({ collect: true });
     const parseOpts = null == options.path ? undefined : { path: options.path };
     const root = aontu.unify(src, parseOpts, ctx);

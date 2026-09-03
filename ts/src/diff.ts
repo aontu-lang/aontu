@@ -1,4 +1,5 @@
 /* Copyright (c) 2025 Richard Rodger, MIT License */
+import { includeOpts } from './utility'
 
 // PATH-ADDRESSED DIFF (G7 phase 6,
 // docs/capability-review/g7-machine-access.md): what changed, at which
@@ -61,6 +62,11 @@ export type DiffOptions = {
   // extension -- but reading is enough.) A server passes
   // `{include:'none'}`.
   trust?: TrustOptions
+
+  // Extensions additionally read as text (the CLI's `--text-ext`).
+  // Rides beside `trust` because it is the other half of what an
+  // include may read.
+  textExt?: string[]
 }
 
 
@@ -182,8 +188,7 @@ function evalSide(
 export function diff(
   leftSrc: string, rightSrc: string, opts?: DiffOptions): DiffReport {
   const options = opts ?? {}
-  const aontu = new Aontu(
-    null == options.trust ? undefined : { trust: options.trust })
+  const aontu = new Aontu(includeOpts(options))
 
   const l = evalSide(aontu, leftSrc, options.leftPath, options.at)
   const r = evalSide(aontu, rightSrc, options.rightPath, options.at)

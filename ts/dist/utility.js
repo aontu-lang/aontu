@@ -1,6 +1,7 @@
 "use strict";
 /* Copyright (c) 2023-2025 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.includeOpts = includeOpts;
 exports.items = items;
 exports.propagateMarks = propagateMarks;
 exports.canonRiders = canonRiders;
@@ -13,6 +14,13 @@ exports.explainOpen = explainOpen;
 exports.ec = ec;
 exports.explainClose = explainClose;
 exports.formatExplain = formatExplain;
+function includeOpts(options) {
+    return {
+        ...(null == options.trust ? {} : { trust: options.trust }),
+        ...(null == options.textExt || 0 === options.textExt.length
+            ? {} : { textExt: options.textExt }),
+    };
+}
 // Default walk() depth limit. High enough that real configs are never
 // silently truncated (the old default of 32 dropped marks on deeply
 // nested refs/funcs → wrong output), while still bounding runaway or
@@ -209,5 +217,5 @@ function items(o) {
     else {
         return [];
     }
-} /* node:coverage ignore next 18 */
+} /* node:coverage ignore next 20 */
 //# sourceMappingURL=utility.js.map

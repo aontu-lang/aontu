@@ -332,6 +332,7 @@ func vetOnce(args *vetArgs, trust trustArg, stdout, stderr io.Writer) int {
 	for _, source := range sources {
 		report := aontu.Vet(string(schemaSrc), source.src, &aontu.VetOptions{
 			Trust:     verbTrust(trust, entryRootOfFile(args.schema)),
+			TextExt:   trust.textExt,
 			At:        args.at,
 			Closed:    args.closed,
 			Partial:   args.partial,

@@ -41,6 +41,7 @@ type OutMessage = {
 declare function computeDiagnostics(src: string, opts?: {
     vars?: Record<string, Val>;
     trust?: any;
+    textExt?: string[];
 }): Diagnostic[];
 type MarkupContent = {
     kind: 'markdown' | 'plaintext';

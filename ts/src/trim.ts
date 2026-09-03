@@ -1,4 +1,5 @@
 /* Copyright (c) 2025 Richard Rodger, MIT License */
+import { includeOpts } from './utility'
 
 // The trim reporter (G3 phase 6,
 // docs/capability-review/g3-subsumption-evolution.md): report REDUNDANT
@@ -50,6 +51,11 @@ export type TrimOptions = {
   // docs/trust.md). vet's precedent: the verb passes the profile the
   // caller asked for, and an absent option means today's default.
   trust?: TrustOptions
+
+  // Extensions additionally read as text (the CLI's `--text-ext`).
+  // Rides beside `trust` because it is the other half of what an
+  // include may read.
+  textExt?: string[]
 }
 
 
@@ -119,8 +125,7 @@ export function deleteAt(root: any, path: string[]): boolean {
 export function evalCanon(
   src: string, opts: TrimOptions, delPath?: string[],
   sink?: { ctx?: any, failed?: any }): string | undefined {
-  const aontu = new Aontu(
-    null == opts.trust ? undefined : { trust: opts.trust })
+  const aontu = new Aontu(includeOpts(opts))
   const ctx = aontu.ctx({ collect: true })
   const parseOpts = null == opts.path ? undefined : { path: opts.path }
   // WHY the run failed, for the one caller that reports it. The

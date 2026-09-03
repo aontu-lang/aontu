@@ -17,6 +17,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	aontu "github.com/aontu-lang/aontu/go"
@@ -60,6 +61,10 @@ Options:
                   Every verb takes it too, and a bare root means the
                   document's own directory
   --include-root <dir>  Shorthand for --trust root:<dir>
+  --text-ext <e>  Read these extensions as text too, comma-separated
+                  and without dots (md,sql). .txt needs no flag; a
+                  named format keeps its meaning, and .js stays
+                  refused. Every verb takes it
 
 Mod options:
   --format <f>    text (default) or json
@@ -151,8 +156,8 @@ Why options:
 Why exit codes mirror get's: 0 explained, 1 the path names nothing,
 2 usage, 4 the document does not stand up on its own.
 
-View kinds: tree, matrix, graph, layer, sets, layers, ladder, poset
-(the poset takes several files). The figure goes to stdout, the loss
+View kinds: doc, lattice, tree, matrix, graph, layer, sets, layers,
+ladder, poset (the poset takes several files). The figure goes to stdout, the loss
 report to stderr. With --views it draws every figure a document
 declares as data, from one evaluation: each declaration names its own
 kind and out file, nothing is written unless every figure rendered,
@@ -160,13 +165,13 @@ and --check gates the committed set.
 
 View options:
   --as <profile>    text | mermaid | dot | er | svg, per kind: doc,
-                    tree, matrix, sets and layers draw text (default)
-                    or svg; graph draws mermaid (default), dot or er;
-                    layer draws text (default), mermaid or svg; ladder
-                    and poset draw mermaid (default) or dot
+                    lattice, tree, matrix, sets and layers draw text
+                    (default) or svg; graph draws mermaid (default),
+                    dot or er; layer draws text (default), mermaid or
+                    svg; ladder and poset draw mermaid (default) or dot
   --at <path>       Restrict the figure to nodes under this path; the
-                    subtree doc draws; the path the ladder draws;
-                    where the poset compares
+                    subtree doc draws; the subtree the lattice counts;
+                    the path the ladder draws; where the poset compares
   --views <path>    Draw every figure the document declares at this
                     path, one evaluation, all or nothing; each
                     declaration names its own kind and out file
@@ -318,7 +323,34 @@ func emit(a *aontu.Aontu, src, mode string, out, errw io.Writer) int {
 type trustArg struct {
 	kind string // "system-warn", "system", "none", "root"
 	dir  string // root's directory ("" = the entry root)
+	// EXTENSIONS READ AS TEXT ride with the capability rather than
+	// beside it: both answer "what may an include read", both are
+	// stripped by takeTrust before a verb parses its own tail, and a
+	// verb that threads one and not the other is the defect --trust
+	// itself had, where the bare command honoured a flag and the verbs
+	// did not.
+	textExt []string
 }
+
+// parseTextExt reads a --text-ext value: `md,sql` or `.md,.sql`, the
+// dot accepted and dropped because a reader who has just written
+// @"notes.txt" reaches for one. An empty or non-extension element is a
+// usage error rather than a silently ignored word -- a flag that
+// quietly does nothing is how a document ends up refused with no
+// reason visible. The twin is parseTextExt in ts/src/cli.ts.
+func parseTextExt(arg string) ([]string, bool) {
+	out := []string{}
+	for _, raw := range strings.Split(arg, ",") {
+		ext := strings.ToLower(strings.TrimPrefix(strings.TrimSpace(raw), "."))
+		if "" == ext || !textExtRe.MatchString(ext) {
+			return nil, false
+		}
+		out = append(out, ext)
+	}
+	return out, true
+}
+
+var textExtRe = regexp.MustCompile(`^[a-z0-9]+$`)
 
 // parseTrustArg reads a --trust value; ok is false for an unknown
 // spelling, so the caller owns the usage error.
@@ -361,6 +393,10 @@ func makeTrustWarn(stderr io.Writer) func(kind, path string) {
 // applyTrust configures a for the parsed trust argument, with entryRoot
 // the entry file's directory (or the working directory for stdin/REPL).
 func applyTrust(a *aontu.Aontu, trust trustArg, entryRoot string, stderr io.Writer) {
+	// The extensions come first because they are unconditional: every
+	// capability below reads text the same way, and only WHICH files
+	// are reachable differs.
+	a.TextExt = trust.textExt
 	switch trust.kind {
 	case "none":
 		a.Trust = &aontu.TrustOptions{IncludeNone: true}
@@ -392,6 +428,7 @@ func applyTrust(a *aontu.Aontu, trust trustArg, entryRoot string, stderr io.Writ
 func takeTrust(argv []string, stderr io.Writer) ([]string, trustArg, bool) {
 	rest := []string{}
 	trust := trustArg{kind: "system-warn"}
+	textExt := []string{}
 	for i := 0; i < len(argv); i++ {
 		switch {
 		case "--trust" == argv[i]:
@@ -413,10 +450,24 @@ func takeTrust(argv []string, stderr io.Writer) ([]string, trustArg, bool) {
 				return nil, trustArg{}, false
 			}
 			trust = trustArg{kind: "root", dir: argv[i]}
+		case "--text-ext" == argv[i]:
+			i++
+			parsed, ok := []string(nil), false
+			if i < len(argv) {
+				parsed, ok = parseTextExt(argv[i])
+			}
+			if !ok {
+				io.WriteString(stderr,
+					"aontu: --text-ext needs extensions, without dots"+
+						" (--text-ext md,sql)\n")
+				return nil, trustArg{}, false
+			}
+			textExt = append(textExt, parsed...)
 		default:
 			rest = append(rest, argv[i])
 		}
 	}
+	trust.textExt = textExt
 	return rest, trust, true
 }
 
@@ -457,6 +508,7 @@ func aontuForFileTrust(file string, trust trustArg) *aontu.Aontu {
 	if err != nil { //coverage:ignore Abs fails only on an unreadable cwd
 		abs = file
 	}
+	a.TextExt = trust.textExt
 	if capability := verbTrust(trust, filepath.Dir(abs)); nil != capability {
 		a.Trust = capability
 	}
@@ -627,6 +679,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, tty bool) int
 	// validation. Counting them is what lets the refusal below happen.
 	var files []string
 	trust := trustArg{kind: "system-warn"}
+	textExt := []string{}
 
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
@@ -674,6 +727,19 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, tty bool) int
 				return 2
 			}
 			trust = trustArg{kind: "root", dir: args[i]}
+		case "--text-ext":
+			i++
+			parsed, ok := []string(nil), false
+			if i < len(args) {
+				parsed, ok = parseTextExt(args[i])
+			}
+			if !ok {
+				fmt.Fprintln(stderr,
+					"aontu: --text-ext needs extensions, without dots"+
+						" (--text-ext md,sql)")
+				return 2
+			}
+			textExt = append(textExt, parsed...)
 		default:
 			if strings.HasPrefix(arg, "-") {
 				fmt.Fprintf(stderr, "aontu: unknown option %s (try --help)\n", arg)
@@ -698,6 +764,11 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, tty bool) int
 			len(files))
 		return 2
 	}
+
+	// The extensions ride with the capability from here on, so the
+	// three entry shapes below (file, REPL, stdin) each get them by
+	// threading the one value they already thread.
+	trust.textExt = textExt
 
 	file := ""
 	if 0 < len(files) {

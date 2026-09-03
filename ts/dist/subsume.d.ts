@@ -10,6 +10,7 @@ export type SubsumeOptions = {
     generalPath?: string;
     specificPath?: string;
     trust?: TrustOptions;
+    textExt?: string[];
 };
 export type SubsumeReport = {
     verdict: SubsumeVerdict;

@@ -9,7 +9,8 @@ VIEWS-ORDER.0.md. The view document (`--views`), `std/view`, the
 `layer` figure's `--edges`, the `edges_in_disjunct` count and
 `--style` ([Styling](#7-styling), which amends the colour boundary)
 and the `doc` kind ([8. The document tree](#8-the-document-tree))
-landed 2026-09-02, and SVG before them. Not built: the figure JSON projection
+landed 2026-09-02, and SVG before them; the `lattice` kind
+([9. The value lattice](#9-the-value-lattice)) landed 2026-09-03. Not built: the figure JSON projection
 (the `--format json` report carries the drawn text, not the figure's
 primitives) and VIEWS-ORDER's interval panel; `--loose` was dropped, since a path-native
 graph (ADR-014) has no loose edge. Where the built verb departs from
@@ -1104,6 +1105,69 @@ reader with prose and a file table. The model tree is the figure any of
 them can carry, and putting it first — with the second section
 explaining the arrangement — means the reader meets the shape before
 the argument.
+
+### 9. The value lattice
+
+*Added 2026-09-03. A tenth kind, and the second that draws the
+document rather than a report over it — but the FIGURE is not the
+document's at all.*
+
+**What is drawn is the language.** `top` at the join, `string`,
+`number`, `boolean` and `null` under it, `path()` under `string`, the
+four numeric leaves under `number`, `nil` at the meet. That shape is
+drawn WHOLE for every document, including the nodes this one never
+reaches, and it is the whole reason the kind is worth having: two
+figures of two models are comparable, because they are the same figure
+with different annotations. A picture assembled out of whatever the
+document happened to contain would be a different lattice each time,
+and would teach a reader the shape of their own file rather than the
+shape of the language.
+
+**What the document adds** is a count at each node, and nothing else.
+`8080` counts at `integer` because `superior()` says so; `integer`
+written as a schema counts AT `integer`, because a kind marker is the
+node and not a value under it; `top` and `nil`, both of them ordinary
+values a document can write, count at the endpoints. A container is
+walked and not placed: a map is not a scalar lattice citizen, and
+counting one at `top` would put every document's root there.
+
+**A value at no single point is `lattice_unplaced`, and it is a loss
+of PLACE rather than of detail.** `integer & min(1024)` is a region of
+the lattice; `*8080 | integer` is two places at once; a reference is
+wherever it resolves. Drawing any of them at a node would be a claim
+the figure cannot stand behind, so the loss report names the paths
+instead — named, not merely counted, because a reader who sees `2`
+wants to know which two. This is the same rule `--depth` follows by
+counting what it did not draw, applied where the gap is horizontal
+rather than vertical.
+
+**The scaffold is a second copy of the engine's kind table**, which is
+the one real cost. `ts/src/view.ts` and `go/view_lattice.go` each hold
+the parent relation as data, and the engine holds it as `kindParent`.
+`super-kind-ladder-canon` in `test/spec/super.tsv` is where the two are
+held together: it walks the whole ladder through `super()`, so a change
+to the engine's table fails a shared row and the failure says the
+figure has to grow or lose a node. The alternative — deriving the
+figure from the engine at draw time — would have made the COLUMN ORDER
+the engine's business, and the column order is a drawing decision
+(`boolean` and `null` are on the outside so their lines pass the
+numeric fan rather than crossing it).
+
+**`--max-rows` still refuses**, at ten rows, even though no option
+makes the figure smaller and the message can only say raise rather than
+narrow. A figure that quietly overran a stated bound is the one thing
+every other kind here refuses to be, and an exception for the kind
+whose size is fixed would be an exception a reader has to learn.
+
+**Why the documentation now shows it.** The language reference drew the
+value lattice in box characters, and it was wrong: no `path()`, no
+`null`, and the four numeric leaves collapsed into one row of example
+values. A hand-drawn picture of the thing the language is built on is
+a second source of truth that nothing checks.
+[`ts/scripts/figures.cjs`](../../ts/scripts/figures.cjs) now draws
+`docs/figures/value-lattice.svg` from this kind, `make build-ts` runs
+it, and `ts/test/docs.test.ts` refuses a stale commit — the same
+`--check` relationship the use cases have with their own figures.
 
 ### How this reuses G9 rather than duplicating it
 

@@ -489,7 +489,7 @@ function firstCode(fn) {
         const read = (f) => Fs.readFileSync(f, 'utf8');
         const open = (0, cli_1.replCommand)({ mode: 'json', jsonl: true }, ':load ' + entry, read);
         Assert.match(open.out, /outside/);
-        const shut = (0, cli_1.replCommand)({ mode: 'json', jsonl: true, trust: { kind: 'none' } }, ':load ' + entry, read);
+        const shut = (0, cli_1.replCommand)({ mode: 'json', jsonl: true, trust: { kind: 'none', textExt: [] } }, ':load ' + entry, read);
         Assert.match(shut.out, /include denied/);
         Assert.doesNotMatch(shut.out, /outside/);
     });
@@ -549,8 +549,8 @@ function firstCode(fn) {
     (0, node_test_1.test)('nameless-repl-state-roots-at-the-working-directory', () => {
         const held = { mode: 'json', jsonl: false, src: 'a: 1' };
         Assert.match((0, cli_1.replCommand)(held, ':get $.a', () => '').out, /1/);
-        Assert.match((0, cli_1.replCommand)({ ...held, trust: { kind: 'root' } }, ':get $.a', () => '').out, /1/);
-        Assert.match((0, cli_1.replCommand)({ ...held, trust: { kind: 'root' } }, ':why $.a', () => '').out, /1/);
+        Assert.match((0, cli_1.replCommand)({ ...held, trust: { kind: 'root', textExt: [] } }, ':get $.a', () => '').out, /1/);
+        Assert.match((0, cli_1.replCommand)({ ...held, trust: { kind: 'root', textExt: [] } }, ':why $.a', () => '').out, /1/);
     });
 });
 //# sourceMappingURL=trust.test.js.map

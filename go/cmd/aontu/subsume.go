@@ -157,6 +157,7 @@ func runSubsume(argv []string, stdout, stderr io.Writer) int {
 	report := aontu.Subsume(string(generalSrc), string(specificSrc),
 		&aontu.SubsumeOptions{
 			Trust:        verbTrust(trust, entryRootOfFile(args.general)),
+			TextExt:      trust.textExt,
 			Profile:      args.profile,
 			At:           args.at,
 			GeneralURL:   args.general,

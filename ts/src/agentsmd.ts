@@ -1,4 +1,5 @@
 /* Copyright (c) 2025 Richard Rodger, MIT License */
+import { includeOpts } from './utility'
 
 // THE AGENTS.md STANZA (G7 phase 6,
 // docs/capability-review/g7-machine-access.md): generated FROM the
@@ -40,6 +41,11 @@ export type AgentsMdOptions = {
   // The include capability this document evaluates under
   // (G5, docs/trust.md); vet's precedent.
   trust?: TrustOptions
+
+  // Extensions additionally read as text (the CLI's `--text-ext`).
+  // Rides beside `trust` because it is the other half of what an
+  // include may read.
+  textExt?: string[]
 }
 
 
@@ -49,8 +55,7 @@ export function agentsMd(
   const options = opts ?? {}
   const name = options.name ?? 'the definition'
 
-  const aontu = new Aontu(
-    null == options.trust ? undefined : { trust: options.trust })
+  const aontu = new Aontu(includeOpts(options))
   const ctx = aontu.ctx({ collect: true })
   const parseOpts = null == options.path ? undefined : { path: options.path }
   const v: any = aontu.unify(src, parseOpts, ctx)

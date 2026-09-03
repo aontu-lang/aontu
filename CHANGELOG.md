@@ -5,6 +5,106 @@ package (`ts/`, npm `aontu`) and the Go module (`go/`,
 `github.com/aontu-lang/aontu/go`) are versioned independently; entries note
 which implementation each change affects.
 
+## Unreleased
+
+### The grammar, in the notation a person reads, with railroad diagrams
+
+`grammar/aontu.abnf`. The same rules as the GBNF and Lark files, in
+RFC 5234 notation with RFC 7405's case-sensitive `%s"..."` literals --
+a third consumer of one grammar, and the first written for a READER
+rather than a decoder. The language reference publishes it, and draws
+two railroad diagrams from it: how a value COMPOSES, and how one is
+SPELLED. Whitespace is elided from the figures, as railroad diagrams
+conventionally elide it, and the caption says so.
+
+The file is EXECUTED, not merely published. `ts/scripts/abnf.cjs`
+reads it into the same expression tree `ts/test/grammar.test.ts`
+already builds from the GBNF, so the corpus test, the reachability
+walk and the builtin-name check apply to it unchanged rather than
+through a second interpreter -- which is also why the reader lives in
+`scripts/` rather than in the test: `ts/scripts/figures.cjs` needs it
+too. Every canonical-form output in the shared suite parses under it,
+and the same ten excluded forms are refused, `@"..."` includes first
+among them.
+
+One notation decision is load-bearing: a bare `"..."` literal is
+case-INSENSITIVE in RFC 5234, and Aontu is not -- `TRUE` is a bare
+word where `true` is a boolean. The reader refuses one rather than
+guess which was meant, so the file is `%s"..."` throughout.
+
+The renderer states its palette in hex, which no host page can follow;
+the figure generator rewrites each colour to a `--rr-*` CSS variable
+with that hex as its default, and fails the build if a rewrite stops
+matching -- the arrangement the engine's own SVG figures have with
+`--av-ink` and its kin.
+
+### `aontu view lattice`: the value lattice, with a document on it
+
+Both ports, a tenth kind. What it draws is the LANGUAGE, not the
+model: `top` at the join, `string`, `number`, `boolean` and `null`
+under it, `path()` under `string`, the four numeric leaves under
+`number`, and `nil` at the meet -- the same shape for every document,
+including the nodes a given one never reaches. That is the point.
+Two figures of two models are comparable because they are the same
+figure with different annotations; a picture assembled out of whatever
+the document happened to contain would teach a reader the shape of
+their own file rather than the shape of the language.
+
+What the document adds is a count at each node it reaches. A concrete
+scalar counts at its kind, because `superior()` is the lattice's own
+answer to which; a kind marker counts AT that node, because `integer`
+written as a schema is the node and not a value under it; `top` and
+`nil`, both of them values a document can write, count at the
+endpoints. A container is walked and not placed -- a map is not a
+scalar lattice citizen, and counting one at `top` would put every
+document's root there.
+
+A value at no single point is `lattice_unplaced`, and it is a loss of
+PLACE rather than of detail: `integer & min(1024)` is a region of the
+lattice and `*8080 | integer` is two places at once, so the report
+NAMES the paths rather than the figure drawing a node it cannot stand
+behind. Profiles `text` and `svg`, `--at` and `--style` as every other
+kind, declarable in a view document, and `--max-rows` still refuses at
+ten rows even though nothing narrows a figure whose size is fixed.
+
+`test/spec/super.tsv`'s new `super-kind-ladder-canon` is where the
+figure's copy of the kind table is held to the engine's: it walks the
+whole ladder through `super()`, so changing `kindParent` fails a
+shared row rather than leaving a figure quietly out of date.
+
+### The documentation's figures are drawn by the engine
+
+`docs/reference-language.md` drew the value lattice in box characters,
+and it was wrong: no `path()`, no `null`, and the four numeric leaves
+collapsed into a row of example values. A hand-drawn picture of the
+one thing the language is built on is a second source of truth that
+nothing checks.
+
+`ts/scripts/figures.cjs` now draws `docs/figures/value-lattice.svg`
+with the new kind, `make build-ts` runs it, and `ts/test/docs.test.ts`
+refuses a stale commit -- the same relationship the use cases already
+have with their own figures through `--check`. The language reference
+and `docs/unification.md` show it; `docs/STYLE-GUIDE.md` gains the
+rule, which also requires alt text that says what a figure shows.
+
+### `@"notes.txt"` loads a file as a string
+
+Both ports. An include's extension already decided what the file IS --
+`.aon` source, or one of the named data formats -- and every other
+extension was a refusal. TEXT is the third thing it can mean: `.txt`
+needs no flag and unifies as an ordinary string, so
+`notes: @"notes.txt"` is the whole of it.
+
+`--text-ext <e>` widens that to a comma-separated list of extensions
+without dots (`md,sql`), on every verb, so a document can pull in a
+template or a query the same way. A named format keeps its meaning --
+`--text-ext json` does not turn a JSON file into a string -- and `.js`
+stays refused whatever the flag says, because the extension that means
+"executable" is not one a document may reinterpret.
+
+`ADR.md` records the amendment: an extension now names one of three
+things rather than two.
+
 ## Go 0.1.13 — 2026-09-03 · TypeScript 0.55.0
 
 ### Every use case opens with its model tree

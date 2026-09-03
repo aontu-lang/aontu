@@ -105,6 +105,15 @@ type Aontu struct {
 	// embedding API.
 	TrustWarn     func(kind, path string)
 	TrustWarnRoot string
+
+	// TextExt is the extensions additionally read as text, without
+	// their dots. `.txt` is read as text with no option at all; this
+	// widens that set for a host that keeps its prose in `.md`, its
+	// queries in `.sql`, or its templates under some name only it
+	// knows. The file's bytes become one string scalar -- no parser is
+	// chosen for it, which is what makes widening the set safe to
+	// offer. The twin is AontuOptions.textExt in ts/src/type.ts.
+	TextExt []string
 }
 
 // New creates a new Aontu instance. Relative @"file" loads resolve from
@@ -152,6 +161,7 @@ func (a *Aontu) newTrustSink() *trustSink {
 		deps: &deps, texts: map[string]string{},
 		warn: a.TrustWarn, warnRoot: a.TrustWarnRoot,
 		modDepth: a.modDepth, modCache: a.modCacheDir(),
+		textExt: a.TextExt,
 	}
 	if nil != a.Trust {
 		sink.none = a.Trust.IncludeNone

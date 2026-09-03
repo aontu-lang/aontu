@@ -2,7 +2,29 @@
 
 
 
-import type { Val } from './type'
+import type { AontuOptions, TrustOptions, Val } from './type'
+
+
+// THE INCLUDE OPTIONS AN ENGINE HANDS ITS Aontu INSTANCE. Every verb
+// engine builds one, and until there were two such options each did it
+// inline -- `null == options.trust ? undefined : { trust: options.trust }`,
+// written out twelve times. That is fine while there is one option and
+// a latent bug the moment there are two: `textExt` had to reach the
+// same twelve places, and the one it missed refused a `.md` include
+// under a flag the bare command honoured. One function now, so a third
+// include option is threaded once.
+type IncludeOptions = {
+  trust?: TrustOptions
+  textExt?: string[]
+}
+
+function includeOpts(options: IncludeOptions): Partial<AontuOptions> {
+  return {
+    ...(null == options.trust ? {} : { trust: options.trust }),
+    ...(null == options.textExt || 0 === options.textExt.length
+      ? {} : { textExt: options.textExt }),
+  }
+}
 
 
 // Default walk() depth limit. High enough that real configs are never
@@ -262,10 +284,13 @@ function items(o: any) {
   else {
     return []
   }
-} /* node:coverage ignore next 18 */
+} /* node:coverage ignore next 20 */
 
+
+export type { IncludeOptions }
 
 export {
+  includeOpts,
   items,
   propagateMarks,
   canonRiders,
