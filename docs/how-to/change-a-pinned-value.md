@@ -43,7 +43,7 @@ $ echo $?
 1
 ```
 
-Both sites are labelled `data:` — the pin and the contradiction live
+Both sites are labelled `data:`—the pin and the contradiction live
 in the same file, which is exactly why appending cannot help. Add
 `--in-place` and the literal is rewritten instead:
 
@@ -68,7 +68,7 @@ port: 0x1F
 Comments and layout survive, including the one on the edited line,
 because nothing is re-serialised: the span at `(row, col, len)` is
 replaced and every other byte is left exactly as it was. The edit is
-also verified before it is written — a site carries the source text
+also verified before it is written—a site carries the source text
 it claims to cover, and the text at the span must match it. That is
 what makes a hex literal safe to rewrite even though its *value* is
 `31`:
@@ -93,7 +93,7 @@ never worse than `set` without it:
 | `a: min(1)`, `a: 1+2`, `a: {b:1}` | the site names the opening token of a compound, not the whole value | appended, `patch_not_editable` |
 | `a: 1` twice | two statements pin it; there is no single place to edit | appended, `patch_ambiguous` |
 | a `&:` template, a `$ref` | the value comes from elsewhere; edit it there | appended, `patch_not_editable` |
-| `a: integer`, `a: above(0)` | a constraint, not a pin — appending narrows it without discarding it | appended, `patch_not_editable` |
+| `a: integer`, `a: above(0)` | a constraint, not a pin—appending narrows it without discarding it | appended, `patch_not_editable` |
 | anything, when the overlay itself `@"includes"` another document | a loaded literal's position cannot be told from the overlay's own | appended, `patch_not_editable` |
 
 A default (`a: *1`) is not in the table: appending already overrides
@@ -101,7 +101,7 @@ it correctly, so `--in-place` leaves it alone and says nothing.
 
 The last row cuts both ways, and the reverse direction is easy to get
 wrong. To change a value that lives in an *included* file, name that
-file as the overlay — but give `--entry` something that constrains the
+file as the overlay—but give `--entry` something that constrains the
 value without also pulling the file in. Write a `stack.aon` entry that
 loads `deploy.aon`, the natural arrangement and the wrong one here:
 
@@ -129,7 +129,7 @@ $ echo $?
 The overlay's value [meets](../unification.md) *itself* through the
 entry's include, so the run is refused and nothing is written. `would
 replace:` (rather than `replaced:`) tells you the edit itself was
-possible and the conflict lay elsewhere — here, in the shape of the
+possible and the conflict lay elsewhere—here, in the shape of the
 invocation. Pass `schema.aon` as the entry, as the earlier runs do, and
 the same command holds. ([Why the tool refuses the shape instead of
 detecting the

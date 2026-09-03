@@ -1,5 +1,6 @@
 .PHONY: all build test clean build-ts build-go test-ts test-go clean-ts clean-go \
-        publish publish-go check-go-major tags-go reset cov cov-ts cov-go sig
+        publish publish-go check-go-major tags-go reset cov cov-ts cov-go sig \
+        prose
 
 all: build test
 
@@ -8,6 +9,14 @@ build: build-ts build-go
 test: test-ts test-go
 
 clean: clean-ts clean-go
+
+# The prose gate (see docs/STYLE-GUIDE.md). Vale over the reader-facing
+# pages, at the levels set in .vale.ini, on the same file list
+# ts/test/docs.test.ts reads. Requires `vale` on PATH and one
+# `vale sync` to fetch the pinned Google package; CI does both in
+# .github/workflows/docs.yml. Warnings are advisory, errors fail.
+prose:
+	vale --minAlertLevel=error $$(node ts/scripts/gated-docs.cjs)
 
 # Test coverage (see docs/test-coverage.md)
 cov: cov-ts cov-go

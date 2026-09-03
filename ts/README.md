@@ -1,7 +1,7 @@
 # aontu
 
 **JSON structure unifier.** A small language, and an engine that merges
-partial structures into one consistent result — or reports exactly
+partial structures into one consistent result—or reports exactly
 where they conflict.
 
 Schema, defaults and data are the same kind of thing, combined by one
@@ -61,8 +61,8 @@ report.findings  // located, coded, with the sites that conflicted
 
 **Evaluating a document you did not write runs it.** `@"…"` resolves
 through the filesystem and package chain by default, so pass a `trust`
-profile — `{ include: 'none' }`, a virtual file set, or a confined
-root — whenever the source is not yours. See
+profile—`{ include: 'none' }`, a virtual file set, or a confined
+root—whenever the source is not yours. See
 [the trust contract](https://github.com/rjrodger/aontu/blob/main/docs/trust.md).
 
 ## Two implementations, one specification

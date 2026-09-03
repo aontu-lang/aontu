@@ -33,7 +33,7 @@ spec: hide({
 One conjunction on `feeds` declares the whole contract. `rel(t)`
 makes the field's strings checked entity addresses and flows the
 endpoint type `t` into every target; `acyclic()` and `inverse(fedBy)`
-are the graph atoms — declarations that unification carries along
+are the graph atoms—declarations that unification carries along
 inert, whose verdict lands at generation. Data documents then stay
 plain lists of names. Write the topology as `pipeline.aon`:
 
@@ -141,7 +141,7 @@ edge.
 Acyclicity and inverse consistency are deliberately *not* lattice
 constraints: both are global and non-monotone (one more edge can
 make an acyclic graph cyclic), so unification could never hold them
-open honestly. The endpoint *type* is different: `rel(t)` flows `t`
+open at all. The endpoint *type* is different: `rel(t)` flows `t`
 into each far end at the site, so an edge landing on a wrong-shaped
 entity is an ordinary located evaluation error, and the verb answers
 `verdict: error` (exit 4) for a document that does not stand up at

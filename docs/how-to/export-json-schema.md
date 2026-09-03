@@ -9,8 +9,8 @@ order: 70
 JSON Schema is what the rest of the world reads: an MCP tool's
 `inputSchema` must be one, structured-output APIs constrain
 generation to one, OpenAPI embeds one. `aontu jsonschema` exports the
-unified value as draft 2020-12 to stdout — and names every loss on
-stderr, because a converter that quietly dropped a constraint would
+unified value as draft 2020-12 to stdout—and names every loss on
+stderr, because a converter that silently dropped a constraint would
 hand you a schema that admits more than the model does.
 
 ## Export a whole document
@@ -74,7 +74,7 @@ Everything here crossed exactly: `re()` as `pattern`, the scalar
 disjunctions as `enum` with the `*` preference as `default`,
 `length()` on a string as `minLength`/`maxLength`, the optional
 `note` out of `required`, and the root `close()` as
-`additionalProperties: false` — the one thing the two languages say
+`additionalProperties: false`—the one thing the two languages say
 identically. This output is pasteable into an OpenAPI components
 entry with nothing to strip.
 
@@ -134,7 +134,7 @@ closedness the agent must respect crosses without loss: a
 hallucinated argument is a refusal on the Aontu side and
 `additionalProperties: false` on the JSON Schema side. Stderr stayed
 empty for this run because the registry is written in the crossing
-subset — kinds, scalar enums, bounds, `re()`, string `length()`,
+subset—kinds, scalar enums, bounds, `re()`, string `length()`,
 optional keys, `close()`. The full crossing table is in the
 reference under
 [`aontu jsonschema`](../reference-api.md#aontu-jsonschema).
@@ -183,7 +183,7 @@ $ aontu jsonschema --at report report.aon
 }
 ```
 
-That exit was 0 — a lossy export is still an export, so redirecting
+That exit was 0—a lossy export is still an export, so redirecting
 stdout writes a usable schema. The report went to stderr, and
 `--strict` turns it into a failure for pipelines that must not ship
 a schema admitting more than the model does:
@@ -210,7 +210,7 @@ the export loss-free as a decimal string with a conversion mark.
 ## Four edges
 
 The report above already pins two of them. First, `must()` holds the whole value residual, so `number &
-must(...)` exports `{}` under the construct name `nil` — the check is
+must(...)` exports `{}` under the construct name `nil`—the check is
 opaque by construction, and the `number` kind beside it is lost with
 it (a concrete `5 & must(...)` exports `{}` all the same). Second,
 `length()` on a list has no domain until data arrives, so `attempts`
@@ -304,7 +304,7 @@ text.
 ## The refusals
 
 A lossy export exits 0; a run that cannot produce a truthful schema
-at all exits 4, and stdout stays empty — never a partial schema. An
+at all exits 4, and stdout stays empty—never a partial schema. An
 `--at` that names nothing is one such run:
 
 <!-- test: run -->
@@ -345,5 +345,5 @@ The live version is
 [use-cases/14-jsonschema-export](../../use-cases/14-jsonschema-export/):
 a three-tool registry exported per-anchor with empty stderr, a wire
 message exported whole, the money convention crossing intact, and
-every loss class pinned by golden files — including the exports
+every loss class pinned by golden files—including the exports
 re-checked under a stock JSON reader.

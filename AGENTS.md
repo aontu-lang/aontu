@@ -89,9 +89,21 @@ requires every tagged fenced block in the Diátaxis pages (`index.md`,
 the tutorials, `docs/how-to/*.md`, both references, `use-cases.md`)
 to be tested — parse-checked, paired with its stated `json` result,
 scaffolded and run through the scenario/transcript directives, or
-skipped with a written reason — and applies the enforced banned-phrase
-gate to the prose. A narrowed run for one page:
+skipped with a written reason — and applies the style gate to the prose.
+A narrowed run for one page:
 `DOCS_PAGES=tutorial.md node ts/dist-test/docs.test.js`.
+
+**The prose has a second gate.** `make prose` runs
+[Vale](https://vale.sh) over the same pages for spelling, Google's
+conventions and the banned list, at the levels `.vale.ini` sets and with
+a written reason beside every one that is not error. CI runs it in
+`.github/workflows/docs.yml`. The two gates share one file list
+(`ts/scripts/gated-docs.cjs`) and one banned list
+(`.vale/styles/config/vocabularies/Aontu/reject.txt`) so neither can
+drift from the other; `docs/STYLE-GUIDE.md`, "How this guide is
+enforced", says which gate carries which rule and why. Vale needs the
+binary on `PATH` and one `vale sync` to fetch the pinned Google
+package.
 `ts/test/skill.test.ts` does the same for `docs/skill/`. The trust contract —
 hermeticity, termination, determinism, sandboxing, and exactly where
 each is conditional today — is [`docs/trust.md`](docs/trust.md); the
@@ -107,6 +119,7 @@ Both languages at once, from the repo root:
 make build      # build-ts + build-go
 make test       # test-ts  + test-go
 make            # build then test
+make prose      # the Vale prose gate (needs `vale` on PATH)
 ```
 
 Per language:

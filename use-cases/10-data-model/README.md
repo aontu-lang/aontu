@@ -1,4 +1,4 @@
-# 10 — Enterprise data domain model (customers, orders, invoices, money)
+# 10. Enterprise data domain model (customers, orders, invoices, money)
 
 ![The model tree: customers, orders, invoices and the pricing book, over one record vocabulary](expected/diagram-doc.svg)
 
@@ -6,11 +6,11 @@
 
 An order-to-cash domain for a mid-size B2B company: customers with
 64-bit upstream ledger ids, orders with line items, invoices with
-net/tax/gross money, ISO country and currency codes. The model is used
+net/tax/gross money, and ISO country and currency codes. The model is used
 two ways at once:
 
 1. **Schema.** Agent-emitted JSON candidate records (`data/`, `bad/`)
-   are vetted against it in batches — referential integrity included.
+   are vetted against it in batches—referential integrity included.
 2. **Seed-data generator.** Evaluating `seed.aon` *is* generating the
    fixture set: defaults fill in, `pack()` derives one receivables
    account per customer, and every constraint has already held over
@@ -63,30 +63,30 @@ than its value.
 
 ## Model design
 
-- `domain.aon` — record types (`close()`d maps, optional keys `?`,
+- `domain.aon`—record types (`close()`d maps, optional keys `?`,
   `re()` for ISO codes, `neq()` to ban XXX/XTS, `length()` on names,
   `min`/`max` cents bounds), plus the record bags whose `&:` spreads
   apply the types, force `id == key` via `key()`, and attach `refer()`
   links (`order.customerId`, `invoice.orderId`).
-- `seed.aon` — includes the domain; an exact price book in `0d`
+- `seed.aon`—includes the domain; an exact price book in `0d`
   bigdecimals with **pinned sums** (`(0d0.1 + 0d0.2) & 0d0.3` is a
   theorem, not a comment), per-record `must()` arithmetic checks,
   `match()` for price tiers, `pack()` for the receivables bag, `*"open"`
   default order status.
-- `exact-money.aon` — the money schema stated on the exact leaf
+- `exact-money.aon`—the money schema stated on the exact leaf
   (`amountEur: bigdecimal & min(0d0)`). Only a `0d` literal produces
   a `bigdecimal`, and JSON has no such spelling, so an `.aon` record
   satisfies this schema and a strictly-JSON record cannot.
-- `money-wire.aon` — the money schema for a JSON wire: a decimal
+- `money-wire.aon`—the money schema for a JSON wire: a decimal
   string with a fixed scale, an ISO 4217 currency beside it, and an
   optional-but-constant conversion mark (`dec?: "bigdecimal:2"`)
   naming the leaf and the scale. `money-convert.aon` writes the
-  crossing point out as theorems — the sign outside the `0d` prefix,
+  crossing point out as theorems—the sign outside the `0d` prefix,
   scale absent from the value, the scale-0 point that must still be
   written, and exact VAT both ways. The convention has its own guide,
   [Carry exact money over JSON](../../docs/how-to/carry-exact-money-over-json.md).
-- `reporting.aon` — a wider projection; `subsume` proves it sound.
-- `gaps/` — one-file models, each pinning a single behaviour of the
+- `reporting.aon`—a wider projection; `subsume` proves it sound.
+- `gaps/`—one-file models, each pinning a single behaviour of the
   arithmetic and constraint families; see below.
 
 Money on **records** in `domain.aon` is integer minor units (cents),

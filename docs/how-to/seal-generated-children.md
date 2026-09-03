@@ -6,7 +6,7 @@ order: 30
 
 # Seal generated children deeply
 
-`close` seals exactly the node it wraps — it is deliberately
+`close` seals exactly the node it wraps—it is deliberately
 shallow. Around a
 [`pack`](../reference-language.md#generating-children-pack-and-each)
 generator, that means `close(pack(...))` forbids adding *children*
@@ -33,7 +33,7 @@ deploy: web: replicaz: 3
 }
 ```
 
-Exit 0 — and `web` ships with the default `replicas: 1`, the
+Exit 0—and `web` ships with the default `replicas: 1`, the
 misspelled `replicaz` riding along beside it, doing nothing. The
 deep-seal spelling closes the template as well, so every generated
 child is sealed too:
@@ -60,7 +60,7 @@ deploy: web: replicas: 3
 
 The legitimate override composes exactly as before: `web` gets its
 `replicas: 3`, `auth` keeps the defaults. Now misspell it against
-the same sealed shape — the same document with `deploy: web:
+the same sealed shape—the same document with `deploy: web:
 replicaz: 3`, as `deploy.aon`:
 
 <!-- test: scenario deep-seal -->
@@ -86,7 +86,7 @@ $ echo $?
 ```
 
 The child refuses, naming the key. The rule generalises: `close`
-never travels, so seal each level you mean to seal — the outer
+never travels, so seal each level you mean to seal—the outer
 `close(...)` pins the *set* of children, the inner `close({...})`
 pins each child's *shape*.
 
@@ -94,7 +94,7 @@ pins each child's *shape*.
 
 Sometimes the generated map itself has to stay open: other statements
 merge into it, or overlays you do not control land on it. A hidden guard
-seals from the side — [meet](../unification.md) a clone of the tree with
+seals from the side—[meet](../unification.md) a clone of the tree with
 a closed pack of the same table and an empty template:
 
 ```aontu
@@ -112,7 +112,7 @@ deploy: prod: replicas: 3
 ```
 
 `envguard` evaluates on every run and emits nothing. An environment
-that exists nowhere in the table now has nowhere to land — change
+that exists nowhere in the table now has nowhere to land—change
 the last line of `guard.aon` to invent one:
 
 <!-- test: scenario envguard -->

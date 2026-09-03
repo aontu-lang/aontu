@@ -51,7 +51,7 @@ const CLI = Path.join(__dirname, '..', 'bin', 'aontu.js')
 // unfenced-by-language (diagrams and quoted transcripts), so it
 // contributes nothing here — but it does face the style gate below.
 // `docs/how-to/` is a directory of per-guide pages; the glob keeps
-// the list honest as guides are added or renamed.
+// the list current as guides are added or renamed.
 // DOCS_PAGES=<comma-list> narrows a run to named pages — the tight
 // loop for writing one page — and suspends the corpus-wide floors,
 // which only mean anything over the whole set.
@@ -591,70 +591,382 @@ describe('docs', () => {
 
 
 // ---------------------------------------------------------------------
-// The style gate: the enforceable subset of docs/STYLE-GUIDE.md's
-// banned list, applied to prose only — fences are code, and quoted
-// error text inside them is the engine's business. Phrases whose
-// legitimate technical uses are common (surface as a noun, navigate a
-// tree structure) are left to review; what is listed here is banned
-// in any context these pages produce.
+// THE STYLE GATE: docs/STYLE-GUIDE.md, in the half a linter cannot
+// carry. Vale runs the other half in .github/workflows/docs.yml, and
+// the two divide the work deliberately:
+//
+//   Vale         spelling, Google's conventions, the banned list
+//   this file    the banned list again, plus every rule that needs to
+//                know WHICH PAGE it is looking at (first person is
+//                allowed in tutorials only), or that needs a fence
+//                stripper Vale does not have.
+//
+// That second clause is not a preference. Vale stops skipping fenced
+// blocks part-way through several of these pages -- a list item with an
+// indented continuation reproduces it -- so a rule that must never fire
+// inside a code fence cannot be left to Vale. `Google.EmDash` was
+// measured at 11 findings, all 11 false, and is a warning there and an
+// error here for exactly that reason.
+//
+// Prose only, in both gates: fences are code, and quoted engine output
+// inside them is the engine's business.
 
-const BANNED: [RegExp, string][] = [
-  [/\bworth noting\b/i, 'worth noting'],
-  [/\bimportant to note\b/i, 'important to note'],
-  [/\bat its core\b/i, 'at its core'],
-  [/\bwhen it comes to\b/i, 'when it comes to'],
-  [/\bdelve\b/i, 'delve'],
-  [/\bdive into\b/i, 'dive into'],
-  [/\brobust\b/i, 'robust'],
-  [/\bseamless(?:ly)?\b/i, 'seamless'],
-  [/\bcomprehensive(?:ly)?\b/i, 'comprehensive'],
-  [/\bholistic\b/i, 'holistic'],
-  [/\bleverag(?:e|es|ed|ing)\b/i, 'leverage'],
-  [/\bfoster(?:s|ed|ing)?\b/i, 'foster'],
-  [/\bshed(?:s|ding)? light on\b/i, 'shed light on'],
-  [/\bpav(?:e|es|ed|ing) the way\b/i, 'pave the way'],
-  [/\bpivotal\b/i, 'pivotal'],
-  [/\btransformative\b/i, 'transformative'],
-  [/\bgame.chang(?:er|ing)\b/i, 'game-changing'],
-  [/\bcutting.edge\b/i, 'cutting-edge'],
-  [/\bgroundbreaking\b/i, 'groundbreaking'],
-  [/\btestament to\b/i, 'testament to'],
-  [/\bparadigm shift\b/i, 'paradigm shift'],
-  [/\bnorth star\b/i, 'north star'],
-  [/\bkey takeaways\b/i, 'key takeaways'],
-  [/\bat the end of the day\b/i, 'at the end of the day'],
-  [/\bload.bearing\b/i, 'load-bearing'],
-  [/\bheavy lifting\b/i, 'heavy lifting'],
-  [/\bnot just\b/i, 'the "not just X" contrast frame'],
-  [/\bhere'?s where it gets interesting\b/i, 'here is where it gets interesting'],
-  [/\bthe right (?:way|answer|tool|question)\b/i, 'the right way/answer/tool/question'],
-]
+import { createRequire } from 'node:module'
 
-// Strip fenced blocks and inline code spans; what remains is prose.
+const REPO = Path.join(__dirname, '..', '..')
+
+// The banned list, read from the file VALE READS. Keeping one copy is
+// what stops the fast local gate and the CI gate disagreeing about what
+// is banned; a phrase added there is picked up by both.
+const REJECT_FILE = Path.join(
+  REPO, '.vale', 'styles', 'config', 'vocabularies', 'Aontu', 'reject.txt')
+
+// Vale matches reject.txt entries case-insensitively on word
+// boundaries; mirror exactly that, so a phrase cannot pass one gate and
+// fail the other. Global, because the scan uses matchAll: a paragraph
+// can carry two banned phrases and both should be reported.
+function loadBanned(): [RegExp, string][] {
+  return Fs.readFileSync(REJECT_FILE, 'utf8')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => '' !== line && !line.startsWith('#'))
+    .map((pat) => [new RegExp(`\\b(?:${pat})\\b`, 'gi'), pat])
+}
+
+const BANNED: [RegExp, string][] = loadBanned()
+
+
+// CommonMark fence opener: up to three spaces of indent, then three or
+// more backticks or tildes, then an optional info string. A block opened
+// with ~~~ or with four backticks is an ordinary fence, and a stripper
+// that cannot see one reports a banned phrase inside a code block --
+// failing a page the fence exemption says is fine.
+const FENCE_OPEN = /^(\s{0,3})(`{3,}|~{3,})[ \t]*([^`\s]*)[^`]*$/
+
+function fenceCloser(fence: string): RegExp {
+  return new RegExp(`^\\s{0,3}${fence[0]}{${fence.length},}\\s*$`)
+}
+
+
+// Blank out every fenced block, keeping the line count so a reported
+// line number still opens on the offending line.
+function fenceless(md: string): string {
+  const lines = lf(md).split('\n')
+  const out = [...lines]
+
+  for (let i = 0; i < lines.length; i++) {
+    const fm = lines[i].match(FENCE_OPEN)
+    if (!fm) {
+      continue
+    }
+    const closer = fenceCloser(fm[2])
+    out[i] = ''
+    let j = i + 1
+    for (; j < lines.length && !closer.test(lines[j]); j++) {
+      out[j] = ''
+    }
+    if (j < lines.length) {
+      out[j] = ''
+    }
+    i = j
+  }
+
+  return out.join('\n')
+}
+
+
+// Strip frontmatter, fenced blocks, HTML comments and inline code
+// spans; what remains is prose.
+//
+// The comments matter: every `<!-- test: run -->` directive carries an
+// exclamation mark inside `<!`, which is how the first draft of
+// `exclamation-marks-are-rationed` reported 77 of them on one reference
+// page. A directive is machinery, and the site renders it as nothing.
 function prose(md: string): string {
-  return lf(md)
-    .replace(/^```[a-z]*[ \t]*$[\s\S]*?^```[ \t]*$/gm, '')
+  return fenceless(md)
+    .replace(/^---\n[\s\S]*?\n---\n/, '')
+    .replace(/<!--[\s\S]*?-->/g, '')
     .replace(/`[^`\n]*`/g, '')
 }
 
+
+// A paragraph, joined for matching, with each piece's physical line
+// kept.
+type Logical = {
+  text: string
+  starts: number[]
+  lines: number[]
+  pieces: string[]
+}
+
+
+// Markdown treats a newline inside a paragraph as whitespace, and these
+// pages are hard-wrapped near 72 columns -- so "the right\nanswer" is
+// the ORDINARY shape of a multiword phrase here, not an exotic one. A
+// gate matching physical lines misses most of them, which makes where a
+// line happens to wrap a way through it.
+//
+// Lines are trimmed, whitespace-collapsed and joined per paragraph;
+// `starts` maps a match offset back to the physical line, so a hit
+// still names a line the reader can open.
+function logical(text: string): Logical[] {
+  const out: Logical[] = []
+  let pieces: string[] = []
+  let starts: number[] = []
+  let lines: number[] = []
+  let at = 0
+
+  const flush = () => {
+    if (0 < pieces.length) {
+      out.push({ text: pieces.join(' '), starts, lines, pieces })
+      pieces = []
+      starts = []
+      lines = []
+      at = 0
+    }
+  }
+
+  lf(text).split('\n').forEach((line, i) => {
+    if ('' === line.trim()) {
+      flush()
+      return
+    }
+    const piece = line.trim().replace(/\s+/g, ' ')
+    starts.push(at)
+    lines.push(i + 1)
+    pieces.push(piece)
+    at += piece.length + 1
+  })
+  flush()
+
+  return out
+}
+
+
+// Which physical line a match offset fell on.
+function lineAt(para: Logical, index: number): {
+  line: number, text: string
+} {
+  let k = 0
+  for (let n = 0; n < para.starts.length; n++) {
+    if (para.starts[n] <= index) {
+      k = n
+    }
+  }
+  return { line: para.lines[k], text: para.pieces[k] }
+}
+
+
+// THE GATED SET, from the module the Vale invocation reads. Two gates
+// covering different files is two gates that disagree in silence: a
+// page in one and not the other is a page half-checked, and nothing
+// announces it. `ts/scripts/gated-docs.cjs` is the single answer.
+//
+// A narrowed run (DOCS_PAGES=<comma-list>) reports on those pages only,
+// the tight loop for writing one page.
+function stylePaths(): { file: string, abs: string }[] {
+  const only = narrowed()
+  if (only) {
+    return only
+      .map((f) => ({ file: `docs/${f}`, abs: Path.join(DOCS_DIR, f) }))
+      .filter(({ abs }) => Fs.existsSync(abs))
+  }
+  const require = createRequire(__filename)
+  const { gatedDocs } = require(
+    Path.join(REPO, 'ts', 'scripts', 'gated-docs.cjs'))
+  return (gatedDocs() as string[])
+    .map((f) => ({ file: f, abs: Path.join(REPO, f) }))
+}
+
+
 describe('docs-style', () => {
 
+  // The gated set is not empty and did not quietly shrink to the docs
+  // directory: the READMEs and the sixteen published use cases carry
+  // the same rules, and a refactor that dropped them would otherwise
+  // leave every check below passing over less.
+  test('the-gated-set-covers-more-than-docs', () => {
+    if (narrowed()) {
+      return
+    }
+    const files = stylePaths().map((p) => p.file)
+    Assert.ok(60 < files.length, `gated set is ${files.length} files`)
+    Assert.ok(files.includes('README.md'), 'README.md is gated')
+    Assert.ok(files.includes('ts/README.md'), 'ts/README.md is gated')
+    Assert.equal(
+      files.filter((f) => f.startsWith('use-cases/')).length, 16,
+      'the sixteen published use cases are gated')
+  })
+
+
+  // Logical lines, for the reason in logical(): the list is mostly
+  // MULTIWORD and the pages wrap near 72 columns, so a physical-line
+  // scan misses any phrase a wrap happens to split.
+  //
+  // The tests below stay on physical lines on purpose: `we` and `I` are
+  // single tokens no wrap can split, and the em-dash rules are defined
+  // per line rather than per paragraph.
   test('no-banned-phrases-in-prose', () => {
     const hits: string[] = []
-    for (const file of stylePages()) {
-      const text = prose(
-        Fs.readFileSync(Path.join(DOCS_DIR, file), 'utf8'))
-      text.split('\n').forEach((line, i) => {
+    for (const { file, abs } of stylePaths()) {
+      for (const para of logical(prose(Fs.readFileSync(abs, 'utf8')))) {
         for (const [re, name] of BANNED) {
-          if (re.test(line)) {
-            hits.push(`${file}:${i + 1} "${name}": ${line.trim()}`)
+          for (const m of para.text.matchAll(re)) {
+            if (null == m.index) {
+              continue
+            }
+            const { line, text } = lineAt(para, m.index)
+            const hit = `${file}:${line} "${name}": ${text}`
+            if (!hits.includes(hit)) {
+              hits.push(hit)
+            }
           }
         }
-      })
+      }
     }
     Assert.deepEqual(hits, [],
       `banned phrases (docs/STYLE-GUIDE.md):\n${hits.join('\n')}`)
   })
+
+
+  // Google's dash ruling: no space on either side. Vale's own
+  // `Google.EmDash` is a warning because it cannot reliably tell a
+  // fence from prose on these pages, and because it reads a dash
+  // written tight against an inline code span as spaced. This one runs
+  // over the same stripper the rest of the gate uses.
+  test('em-dashes-are-spaced', () => {
+    const hits: string[] = []
+    for (const { file, abs } of stylePaths()) {
+      fenceless(Fs.readFileSync(abs, 'utf8'))
+        .split('\n')
+        .forEach((line, i) => {
+          if (/\s—|—\s|—$|^—/.test(line)) {
+            hits.push(`${file}:${i + 1}: ${line.trim()}`)
+          }
+        })
+    }
+    Assert.deepEqual(hits, [],
+      'an em dash takes no space on either side, and none at a line ' +
+      `break (docs/STYLE-GUIDE.md):\n${hits.join('\n')}`)
+  })
+
+
+  // One em-dash ASIDE per line: a single trailing dash, or one matched
+  // pair around a parenthetical. The guide allows the dash and rations
+  // it, which is the half a reviewer forgets; three on a line is the
+  // stacking the ration exists to stop.
+  test('em-dashes-are-rationed', () => {
+    const hits: string[] = []
+    for (const { file, abs } of stylePaths()) {
+      prose(Fs.readFileSync(abs, 'utf8'))
+        .split('\n')
+        .forEach((line, i) => {
+          const n = (line.match(/—/g) || []).length
+          if (2 < n) {
+            hits.push(`${file}:${i + 1} ${n} em dashes: ${line.trim()}`)
+          }
+        })
+    }
+    Assert.deepEqual(hits, [],
+      'more than one em-dash aside on a line (docs/STYLE-GUIDE.md):\n' +
+      hits.join('\n'))
+  })
+
+
+  // First person, the house rule that .vale.ini switches Google.We and
+  // Google.FirstPerson OFF in favour of. Vale cannot express "only in
+  // tutorials", which is why the rule lives here: switching a Google
+  // rule off in favour of a house rule means the house rule has to be
+  // real, and this test is the receipt.
+  //
+  // STYLE-GUIDE.md voice rule 7: talk to the reader as "you". "We"
+  // appears only in tutorials, walking through code together. "I"
+  // appears nowhere.
+  const TUTORIAL_PAGES = ['docs/tutorial.md', 'docs/tutorial-graph.md']
+
+  test('we-appears-only-in-tutorials', () => {
+    const hits: string[] = []
+    for (const { file, abs } of stylePaths()) {
+      if (TUTORIAL_PAGES.includes(file)) {
+        continue
+      }
+      prose(Fs.readFileSync(abs, 'utf8'))
+        .split('\n')
+        .forEach((line, i) => {
+          const m = line.match(/\b(we|we'(?:ll|ve|re|d)|us|our|ours|let's)\b/i)
+          if (m) {
+            hits.push(`${file}:${i + 1} "${m[1]}": ${line.trim()}`)
+          }
+        })
+    }
+    Assert.deepEqual(hits, [],
+      'first-person plural outside a tutorial ' +
+      `(docs/STYLE-GUIDE.md, voice rule 7):\n${hits.join('\n')}`)
+  })
+
+
+  // "I" is stricter than Google's rule and applies to every page.
+  // I/O is a word, not a pronoun; the negative lookahead keeps it.
+  test('first-person-singular-appears-nowhere', () => {
+    const hits: string[] = []
+    for (const { file, abs } of stylePaths()) {
+      prose(Fs.readFileSync(abs, 'utf8'))
+        .split('\n')
+        .forEach((line, i) => {
+          const m = line.match(
+            /\bI(?!\/O)\b|\bI'(?:m|ve|ll|d)\b|\b(?:my|mine|myself)\b/)
+          if (m) {
+            hits.push(`${file}:${i + 1} "${m[0]}": ${line.trim()}`)
+          }
+        })
+    }
+    Assert.deepEqual(hits, [],
+      'first-person singular in documentation ' +
+      `(docs/STYLE-GUIDE.md, voice rule 7):\n${hits.join('\n')}`)
+  })
+
+
+  // At most one per page, tutorials only, on a genuine payoff. Google
+  // bans them outright, which is why `Google.Exclamation` is a warning
+  // in .vale.ini: it cannot know which page is a tutorial.
+  test('exclamation-marks-are-rationed', () => {
+    const hits: string[] = []
+    for (const { file, abs } of stylePaths()) {
+      // A sentence-ending mark, not every `!` byte: `!=` is an
+      // operator and `![alt](src)` is an image.
+      const n = (prose(Fs.readFileSync(abs, 'utf8'))
+        .match(/\w!(?=\s|$)/g) || []).length
+      if (0 === n) {
+        continue
+      }
+      if (!TUTORIAL_PAGES.includes(file)) {
+        hits.push(`${file}: ${n} outside a tutorial`)
+      }
+      else if (1 < n) {
+        hits.push(`${file}: ${n}, and a tutorial gets one`)
+      }
+    }
+    Assert.deepEqual(hits, [],
+      'exclamation marks: at most one per page, tutorials only ' +
+      `(docs/STYLE-GUIDE.md):\n${hits.join('\n')}`)
+  })
+
+
+  test('no-emoji', () => {
+    const hits: string[] = []
+    for (const { file, abs } of stylePaths()) {
+      lf(Fs.readFileSync(abs, 'utf8'))
+        .split('\n')
+        .forEach((line, i) => {
+          if (/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test(line)) {
+            hits.push(`${file}:${i + 1}: ${line.trim()}`)
+          }
+        })
+    }
+    Assert.deepEqual(hits, [],
+      `emoji are not used in documentation:\n${hits.join('\n')}`)
+  })
+
 
   // INTERNAL RECORDS ARE NOT A READER'S BUSINESS (docs/STYLE-GUIDE.md,
   // "The published set cites nothing internal"). A decision record
@@ -670,71 +982,106 @@ describe('docs-style', () => {
   // monospace, which is how `use-cases/BUGS.md` sat in the API
   // reference through a gate that stripped spans first.
   const INTERNAL_REFS: [RegExp, string][] = [
-    [/\bADR-\d+\b/, 'a decision record'],
+    [/\bADR-\d+\b/g, 'a decision record'],
     // The bare prose form. `ADR` names a record the reader cannot
     // open, whether or not a number follows it.
-    [/\b(?:the|an|this|that) ADR\b/i, 'a decision record'],
-    [/\bADR\.md\b/, 'ADR.md'],
-    [/capability-review/, 'the capability review'],
+    [/\b(?:the|an|this|that) ADR\b/gi, 'a decision record'],
+    [/\bADR\.md\b/g, 'ADR.md'],
+    [/capability-review/g, 'the capability review'],
     // Both spellings: the pages linked design notes as `docs/design/…`
     // and as a bare `design/…` relative href, and only the first was
     // listed.
-    [/\bdesign\/[A-Za-z0-9._-]+\.md/, 'a design note'],
-    [/\bDIVERGENCE\.md\b/, 'DIVERGENCE.md'],
-    [/use-cases\/(?:BUGS|REVIEW)\.md/, 'a defect ledger'],
-    [/\bprogress\.md\b/, 'the progress register'],
-    [/\bshared-spec\.md\b/, 'shared-spec.md'],
-    [/\btest-coverage\.md\b/, 'test-coverage.md'],
-    [/\brelease-and-tag\.md\b/, 'release-and-tag.md'],
+    [/\bdesign\/[A-Za-z0-9._-]+\.md/g, 'a design note'],
+    [/\bDIVERGENCE\.md\b/g, 'DIVERGENCE.md'],
+    [/use-cases\/(?:BUGS|REVIEW)\.md/g, 'a defect ledger'],
+    [/\bprogress\.md\b/g, 'the progress register'],
+    [/\bshared-spec\.md\b/g, 'shared-spec.md'],
+    [/\btest-coverage\.md\b/g, 'test-coverage.md'],
+    [/\brelease-and-tag\.md\b/g, 'release-and-tag.md'],
     // A LINK to AGENTS.md only. The bare name is what `aontu agentsmd`
     // writes, so it is the product's surface and stays legal.
-    [/\]\([^)]*AGENTS\.md[^)]*\)/, 'a link to AGENTS.md'],
+    [/\]\([^)]*AGENTS\.md[^)]*\)/g, 'a link to AGENTS.md'],
   ]
 
-  // THE USE-CASE READMEs ARE PUBLISHED TOO. The site renders each at
-  // /use-cases/<dir>, so a citation there reaches a reader exactly as
-  // one in docs/ does — and three of them carried an ADR number. The
-  // `repros/` directory is deliberately absent: it is a review
-  // artifact, not a case, and the site does not render it.
-  function useCaseReadmes(): string[] {
-    const dir = Path.join(DOCS_DIR, '..', 'use-cases')
-    if (!Fs.existsSync(dir)) return []
-    return Fs.readdirSync(dir)
-      .filter((d) => /^\d\d-/.test(d))
-      .map((d) => Path.join(dir, d, 'README.md'))
-      .filter((f) => Fs.existsSync(f))
-      .sort()
-  }
+  // Written FOR contributors, and free to cite the records: they are
+  // in the style set (the voice is the voice) and out of the citation
+  // set. Everything else stylePaths() returns is published prose --
+  // the site renders each use-case README at /use-cases/<dir>, which is
+  // how three of them once carried a decision-record number.
+  //
+  // The ROOT README is one of them, and `ts/README.md` is not. The root
+  // README is the repository's front page: its reader is looking at the
+  // source, and pointing them at AGENTS.md and the contributor
+  // references is the job. `ts/README.md` is what npm renders to
+  // somebody who has the package and not the repository, so it is held
+  // to the published rule.
+  const CONTRIB = [
+    'docs/shared-spec.md',
+    'docs/test-coverage.md',
+    'docs/release-and-tag.md',
+    'README.md',
+  ]
 
   test('no-internal-design-references', () => {
     const hits: string[] = []
-    const files = [
-      ...publishedPages().map((f) => Path.join(DOCS_DIR, f)),
-      ...(narrowed() ? [] : useCaseReadmes()),
-    ]
-    for (const path of files) {
-      const file = Path.relative(Path.join(DOCS_DIR, '..'), path)
-      const text = lf(Fs.readFileSync(path, 'utf8'))
-      text.split('\n').forEach((line, i) => {
+    for (const { file, abs } of stylePaths()) {
+      if (CONTRIB.includes(file)) {
+        continue
+      }
+      // Paragraph-joined, like the banned list and for the same reason:
+      // "the\nADR" is the ordinary shape of a two-word phrase on pages
+      // wrapped at 72 columns.
+      for (const para of logical(Fs.readFileSync(abs, 'utf8'))) {
         for (const [re, name] of INTERNAL_REFS) {
-          if (re.test(line)) {
-            hits.push(`${file}:${i + 1} cites ${name}: ${line.trim()}`)
+          for (const m of para.text.matchAll(re)) {
+            if (null == m.index) {
+              continue
+            }
+            const { line, text } = lineAt(para, m.index)
+            const hit = `${file}:${line} cites ${name}: ${text}`
+            if (!hits.includes(hit)) {
+              hits.push(hit)
+            }
           }
         }
-      })
+      }
     }
     Assert.deepEqual(hits, [],
       'published pages cite internal records (docs/STYLE-GUIDE.md,\n' +
       '"The published set cites nothing internal"):\n' + hits.join('\n'))
   })
 
-  // The guide and this gate must agree; the guide names this block,
-  // so a reader of either finds the other.
-  test('the-style-guide-names-this-gate', () => {
+
+  // The guide, this gate and Vale's configuration must agree, and each
+  // names the others, so a reader of any one finds the rest.
+  test('the-style-guide-names-both-gates', () => {
     const guide = Fs.readFileSync(
       Path.join(DOCS_DIR, 'STYLE-GUIDE.md'), 'utf8')
     Assert.ok(guide.includes('docs.test.ts'),
       'STYLE-GUIDE.md should point at this test file')
+    Assert.ok(guide.includes('.vale.ini'),
+      'STYLE-GUIDE.md should point at the Vale configuration')
+    Assert.ok(guide.includes('reject.txt'),
+      'STYLE-GUIDE.md should point at the banned list it summarises')
+  })
+
+
+  // The summary in the guide and the list Vale reads are one list; the
+  // guide says so, and this is what makes the claim checkable. Every
+  // section heading in reject.txt has to appear in the guide's summary,
+  // so a whole category cannot be added to one and missed by the other.
+  test('the-guide-summarises-every-banned-category', () => {
+    const guide = Fs.readFileSync(
+      Path.join(DOCS_DIR, 'STYLE-GUIDE.md'), 'utf8').toLowerCase()
+    const missing = Fs.readFileSync(REJECT_FILE, 'utf8')
+      .split('\n')
+      .map((l) => l.match(/^# --- (.+?) -+$/))
+      .filter((m): m is RegExpMatchArray => null != m)
+      .map((m) => m[1].trim().toLowerCase())
+      .filter((h) => !guide.includes(h))
+    Assert.deepEqual(missing, [],
+      'reject.txt categories with no summary in docs/STYLE-GUIDE.md:\n' +
+      missing.join('\n'))
   })
 
 })

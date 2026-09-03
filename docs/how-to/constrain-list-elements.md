@@ -24,7 +24,7 @@ tags: [core, 7]
 }
 ```
 
-The `7` passed because position 1 was never constrained — the two
+The `7` passed because position 1 was never constrained—the two
 lists unified element by element, and the schema list simply ran out.
 
 The collection form is a `&:` spread: a template unified into every
@@ -54,15 +54,15 @@ The path names the exact element, so a thousand-entry list fails at
 Reach for the positional form when the positions genuinely differ (a
 pair, a fixed header) and for `[&: T]` whenever the list is a
 collection. `close` on the enclosing map seals that map's
-keys and leaves the list tail open — the spread is what constrains
+keys and leaves the list tail open—the spread is what constrains
 the elements. Constraints on the list itself (`length`, `unique`)
 sit beside the spread with `&`; see [`length`
 semantics](../reference-language.md#length-semantics).
 
 The constructs are specified in the language reference under
 [Lists](../reference-language.md#lists) and
-[Spreads `&:`](../reference-language.md#spreads-). To keep the map
-around the list honest too, see
+[Spreads `&:`](../reference-language.md#spreads-). To close the map
+around the list too, see
 [forbid unexpected keys](forbid-unexpected-keys.md); a bare-kind
-element template also crosses to JSON Schema as `items` — see
+element template also crosses to JSON Schema as `items`—see
 [export JSON Schema](export-json-schema.md).

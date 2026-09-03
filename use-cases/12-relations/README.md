@@ -1,4 +1,4 @@
-# 12 — relations: a pipeline DAG, declared once, enforced at generation
+# 12. Relations: a pipeline DAG, declared once, enforced at generation
 
 An ETL pipeline of four jobs (extract, transform, load, audit), each
 addressed by its tree path, with one relation between them: `feeds`,
@@ -49,9 +49,10 @@ invention.
 
 ## The model tree
 
-`model.aon` is the vocabulary plus the topology. `spec` generates empty
-— it is `hide()`-marked, being schema rather than data — and `pipeline`
-holds the four jobs, each with its `feeds` and `fedBy` address lists.
+`model.aon` is the vocabulary plus the topology. `spec` generates
+empty—it is `hide()`-marked, being schema rather than data—and
+`pipeline` holds the four jobs, each with its `feeds` and `fedBy`
+address lists.
 
 ![The model tree: four jobs and the relation vocabulary they are written in](expected/diagram-doc.svg)
 
@@ -94,7 +95,7 @@ feeds?: %JobEdge & acyclic() & inverse(fedBy)
 fedBy?: %JobEdge
 ```
 
-`%JobEdge` is an **alias** — `%name:` at the top level declares one and
+`%JobEdge` is an **alias**—`%name:` at the top level declares one and
 `%name` in value position uses it. It does not generate and does not
 appear in canon, so `spec.aon` with the name and `spec.aon` with
 `rel($.spec.JobShape)` written out at both ends are the same document
@@ -104,10 +105,10 @@ is a mistake nothing else here would catch: `inverse()` checks that
 every edge is mirrored, not that the two ends agree about what they
 point at.
 
-- `rel(t)` — the field's strings are checked entity addresses, and
+- `rel(t)`—the field's strings are checked entity addresses, and
   `t` flows into every target. Here `t` is `JobShape`, a thin sibling
   shape (`kind: job`) naming what the far end of every edge must be.
-- `acyclic()`, `inverse(fedBy)` — the graph atoms: lattice-inert
+- `acyclic()`, `inverse(fedBy)`—the graph atoms: lattice-inert
   declarations, registered during unification and decided at
   generation, where every edge is known.
 

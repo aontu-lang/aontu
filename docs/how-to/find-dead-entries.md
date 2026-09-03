@@ -8,7 +8,7 @@ order: 50
 
 Layered files silt up: an entry written before the template existed
 now repeats what the template already says, and deleting it by eye is
-a bet. `aontu trim --check` settles the bet by evaluation — each map
+a bet. `aontu trim --check` settles the bet by evaluation—each map
 entry is deleted in turn, the document re-evaluated, and the entries
 that made no difference are reported as paths. Write `services.aon`:
 
@@ -38,10 +38,10 @@ $ echo $?
 same thing without it. The test is evaluate-and-compare, not pattern
 matching, which covers everything the fixpoint can see: spread
 templates, references, duplicate-key merges. (A removal that makes
-the document *error* is not redundant — the document does not stand
+the document *error* is not redundant—the document does not stand
 up without that entry.)
 
-Delete the dead line yourself — trim only reports — and re-declare
+Delete the dead line yourself—trim only reports—and re-declare
 `services.aon`:
 
 <!-- test: file services.aon -->
@@ -65,7 +65,7 @@ Exit `0` is `clean` and exit `1` is `redundant`, so the verb gates a
 lint job as it stands; `--format json` gives the paths as a
 `redundant` array. Two limits to know: list elements are never
 candidates (removing one renumbers the rest, a different document
-rather than a leaner one), and `--check` is required — a bare `aontu
+rather than a leaner one), and `--check` is required—a bare `aontu
 trim` that silently did something other than trimming would be worse
 than refusing.
 

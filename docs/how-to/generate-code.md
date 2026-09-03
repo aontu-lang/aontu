@@ -1,18 +1,18 @@
 ---
-description: Generate target-language source from a model: the shape a transform takes, what to watch for, and how `join` assembles the file.
+description: "Generate target-language source from a model: the shape a transform takes, what to watch for, and how `join` assembles the file."
 group: schemas
 order: 80
 ---
 
 # Generate code from a model
 
-A model that holds the field names, the types and the optionality
+A model that holds the field names, the types, and the optionality
 already holds everything a Go struct or a TypeScript interface needs.
-This guide shows how to compute the whole file with the unifier — the
+This guide shows how to compute the whole file with the unifier—the
 lines with a spread, and the assembly with `join`.
 
-For the full worked version — three targets, goldens, and a check that
-both ports emit identical bytes — see
+For the full worked version—three targets, goldens, and a check that
+both ports emit identical bytes—see
 [`use-cases/15-code-generation/`](../../use-cases/15-code-generation/).
 
 ## Hold the target text in a backtick string
@@ -72,7 +72,7 @@ Each piece is there for a reason:
 
 - **A list spread, not `pack`.** List order is source order. `pack`
   keys by data, and map keys sort by code point, so `pack`-then-`pick`
-  would emit the fields alphabetically — silently wrong output for a
+  would emit the fields alphabetically—silently wrong output for a
   file.
 - **The rows are staged into a key.** The spread writes its result to
   a named key, `rows`, and `pick` reads that key to project `out`.
@@ -83,10 +83,10 @@ Each piece is there for a reason:
 
 ## Fold the lines into a file with `join`
 
-`join(coll, sep?)` is the reduction over strings: every member as
-text, `sep` between them. It folds at whatever scale you point it at —
-once over a record's lines, again over the records — and that is the
-whole of file assembly.
+`join(coll, sep?)` is the reduction over strings: every member as text,
+`sep` between them. It folds at whatever scale you point it at—once over
+a record's lines, again over the records—and that is the whole of file
+assembly.
 
 Add two keys to the template and one at the top level. Write this as
 `whole.aon`:
@@ -121,20 +121,20 @@ $ aontu get $.file whole.aon
 ```
 
 That string **is** the file. `aontu get` answers with JSON, so a host
-still unwraps the string to bytes, but it decides nothing — no
+still unwraps the string to bytes, but it decides nothing—no
 ordering, no separators, no layout.
 
 Three properties are worth knowing:
 
 - **The separator defaults to `""`**, so `join(coll)` is
   concatenation. That is why there is no `concat` and no `lines`.
-- **`join([])` is `""`** — concatenation's identity, the parallel of
+- **`join([])` is `""`**—concatenation's identity, the parallel of
   `sum([]) == 0`. An empty record list yields an empty file rather
   than an error.
 - **It folds with `+`**, so the number-to-text rule is `+`'s own: no
   `0d` marker, no `.0` float suffix, and a big integer's exact digits.
 
-A member that is settled but not text — a map, a list, a null — is
+A member that is settled but not text—a map, a list, a null—is
 `join_member`, refused at the member rather than at generation. A
 member that is merely *unresolved* is not an error at all: the call
 stays residual, so a transform can be written in a schema over data
@@ -161,7 +161,7 @@ conflict instead of a broken identifier at emit time.
 
 ## Related
 
-- [Export JSON Schema](export-json-schema.md) — the other bridge out
+- [Export JSON Schema](export-json-schema.md)—the other bridge out
   of the model.
-- [Keep schema out of output](keep-schema-out-of-output.md) — `hide()`
+- [Keep schema out of output](keep-schema-out-of-output.md)—`hide()`
   and marks, and what they do to generation.

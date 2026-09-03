@@ -58,25 +58,25 @@ name <TAB> agentsmd <TAB> src <TAB> document-name <TAB> expect
 | `gens`  | `generate(src)` serialised as compact JSON must equal `expect` **byte for byte** |
 | `err`   | `generate(src)` must raise an error whose message contains `expect` |
 | `errc`  | `generate(src)` must raise an error whose FIRST failure's why-code **equals** `expect` |
-| `errcode` | registry row: `name` is an error code, `src` its class, `expect` its since-version — asserted against the engine's code→class table |
+| `errcode` | registry row: `name` is an error code, `src` its class, `expect` its since-version—asserted against the engine's code→class table |
 | `vet`   | five columns: `vet(schema, data)` must produce the report `expect` describes, MINUS each finding's message |
 | `subsume` | five columns: `subsume(general, specific)` must produce the report `expect` describes (verdict + findings), MINUS each finding's message |
 | `query` | five columns: `get(src, path)` must produce the report `expect` describes (`out`, or `code`/`note`; options ride `opts`), and a canon-shaped VIEW must additionally SUBSUME the truth it summarises |
 | `why`   | five columns: `why(src, path)` must produce the record `expect` describes (`value` and the ordered `conjuncts`, or `code`/`note`) |
-| `patch` | five columns: `patch(entry, overlay, set)` must produce the report `expect` describes (`appended`, `overlay`, `verdict`, and `codes` when there are findings), and the result must be ORDER-INDEPENDENT — entry-against-overlay and overlay-against-entry must reach the same verdict |
-| `diff`  | five columns: `diff(left, right)` must produce the report `expect` describes (`changes`, `same`, and `codes` when a document does not stand up), and must be SYMMETRIC — swapping the sides reports the same paths with added and removed exchanged |
+| `patch` | five columns: `patch(entry, overlay, set)` must produce the report `expect` describes (`appended`, `overlay`, `verdict`, and `codes` when there are findings), and the result must be ORDER-INDEPENDENT—entry-against-overlay and overlay-against-entry must reach the same verdict |
+| `diff`  | five columns: `diff(left, right)` must produce the report `expect` describes (`changes`, `same`, and `codes` when a document does not stand up), and must be SYMMETRIC—swapping the sides reports the same paths with added and removed exchanged |
 | `agentsmd` | five columns: the stanza of `agentsMd(src, {name})` must match `expect` BYTE FOR BYTE |
 | `trim`  | `trimCheck(src)` must produce the report `expect` describes (`{redundant, verdict}`) |
-| `relation` | `relationCheck(src)` — acyclicity and inverse consistency over the edge set — must produce the report `expect` describes (`verdict` and the ordered `findings`) |
-| `reaches` | `reachCheck(src, from, to, {relation?})` — transitive reachability over the entity graph — must produce the report `expect` describes (`verdict` and, when it reaches, the shortest `path`). The endpoints ride `expect.ask` as `{from, to, relation?}`, since the same document answers differently for different pairs |
-| `view` | `view(src, ask)` — a figure of the document (tree, matrix, graph, layer, sets, layers, ladder or poset) as text, with the loss report — must produce the report `expect` describes (`kind`, `verdict`, the rendered `text` byte for byte and `loss`, or `errors`). The options ride `expect.ask`, the whole ViewOptions object with `kind`, since the same document draws differently under a relation filter, from a named root, in another order or profile; a poset's further documents ride `ask.docs` as `{src, name}` |
-| `views` | `viewSet(src, ask)` — the figures a VIEW DOCUMENT declares (VIEWS.0.md, "6. The view document"), read out of the evaluated document at `ask.views` — must produce the report `expect` describes: the set's `verdict`, and one entry per figure in declaration-key order carrying its `name`, `kind`, `out`, `verdict`, rendered `text` and `loss`, or its `errors`. A fault in the declarations themselves is the set's own `errors` and no figures at all |
-| `graph` | the DERIVED GRAPH of `unify(src)` — the entity index and the edge set — must equal `expect` as JSON, and must be the same bytes again on a fresh engine |
-| `hcanon` | `unify(src)` then its HASH FORM — canon plus the `close()`/`type()`/`hide()` wrappers — must equal `expect`, and that text must round-trip through the engine unchanged |
+| `relation` | `relationCheck(src)`—acyclicity and inverse consistency over the edge set—must produce the report `expect` describes (`verdict` and the ordered `findings`) |
+| `reaches` | `reachCheck(src, from, to, {relation?})`—transitive reachability over the entity graph—must produce the report `expect` describes (`verdict` and, when it reaches, the shortest `path`). The endpoints ride `expect.ask` as `{from, to, relation?}`, since the same document answers differently for different pairs |
+| `view` | `view(src, ask)`—a figure of the document (tree, matrix, graph, layer, sets, layers, ladder or poset) as text, with the loss report—must produce the report `expect` describes (`kind`, `verdict`, the rendered `text` byte for byte and `loss`, or `errors`). The options ride `expect.ask`, the whole ViewOptions object with `kind`, since the same document draws differently under a relation filter, from a named root, in another order or profile; a poset's further documents ride `ask.docs` as `{src, name}` |
+| `views` | `viewSet(src, ask)`—the figures a VIEW DOCUMENT declares (VIEWS.0.md, "6. The view document"), read out of the evaluated document at `ask.views`—must produce the report `expect` describes: the set's `verdict`, and one entry per figure in declaration-key order carrying its `name`, `kind`, `out`, `verdict`, rendered `text` and `loss`, or its `errors`. A fault in the declarations themselves is the set's own `errors` and no figures at all |
+| `graph` | the DERIVED GRAPH of `unify(src)`—the entity index and the edge set—must equal `expect` as JSON, and must be the same bytes again on a fresh engine |
+| `hcanon` | `unify(src)` then its HASH FORM—canon plus the `close()`/`type()`/`hide()` wrappers—must equal `expect`, and that text must round-trip through the engine unchanged |
 | `hash`  | `canonHash(unify(src))` must equal `expect`, the full `aon1-…` pin |
 
 Every mode above is dispatched by name in `ts/test/spec.test.ts` and
-mirrored by `go/spec_test.go` — the newer `vet`, `graph`, `relation`
+mirrored by `go/spec_test.go`—the newer `vet`, `graph`, `relation`
 and `reaches` modes included. Recursive schemas need no mode of their
 own: their rows live in
 [`test/spec/recursion.tsv`](../test/spec/recursion.tsv) and pin the
@@ -85,11 +85,11 @@ fixpoint through the ordinary modes (mostly `gens` and `errc`).
 For `gen`, the generated value and the expected JSON are compared
 structurally (numeric type and object key order do not matter). That
 comparison is weaker than it looks, and choosing the wrong mode because
-of it is the commonest way to write a row that cannot fail — see
+of it is the commonest way to write a row that cannot fail—see
 [Choosing a mode](#choosing-a-mode).
 
 `gens` is the byte-exact counterpart: no decode happens on either side,
-so the row pins the serialised text — digits, exponent form, key order,
+so the row pins the serialised text—digits, exponent form, key order,
 string escaping and all. Because `gen` normalises both sides through
 JSON, every number lands in a `float64` and two distinct exact integers
 above 2^53 compare *equal*; `gens` is the mode that can tell them apart,
@@ -102,10 +102,10 @@ escaping of `<`, `>` or `&`. The key order is the EMITTER's doing, not
 (ECMAScript hoists canonical array-index keys, ascending), so TypeScript
 sorts in `exactJSON` and Go gets the same order from `encoding/json`,
 which sorts map keys.
-Each runner uses its port's real emitter — aontu's own `exactJSON`
+Each runner uses its port's real emitter—aontu's own `exactJSON`
 export in TypeScript (`JSON.stringify` throws on the `bigint` a
 biginteger generates as), `encoding/json` with `SetEscapeHTML(false)`
-in Go — so a `gens` row pins the bytes a *caller* gets, not bytes
+in Go—so a `gens` row pins the bytes a *caller* gets, not bytes
 invented for the test.
 
 **`canon` pins kind, `gens` pins bytes, `gen` is blind to both.** An
@@ -121,11 +121,11 @@ tests (`ts/test/exactjson.test.ts`, `go/generate_test.go`) instead.
 
 `errc` is `err`'s code-exact counterpart. Thrown-error message text
 is in cross-port parity (marker, headline, verbatim hints,
-source frames — byte-guarded by the full-message twin tests), but an
-`err` row still asserts only a probed shared substring — rows outlive
-renderer changes; the twins pin the renderer. The error *codes* (the `NilVal` `why`, e.g.
+source frames—byte-guarded by the full-message twin tests), but an
+`err` row still asserts only a probed shared substring—rows outlive
+renderer changes; the twins pin the renderer. The error *codes* (the `NilVal` `why`, for example
 `scalar_value`, `no_path`, `mapval_no_gen`) ARE in parity, and an
-`errc` row pins which code a given source raises — TypeScript asserts
+`errc` row pins which code a given source raises—TypeScript asserts
 `errs()[0].why` on the thrown `AontuError`, Go asserts
 `AontuError.Code`. Use `errc` when the point is *which* failure this
 is: notably, the conflict/incomplete distinction ("this data can never
@@ -155,7 +155,7 @@ options ride in the golden under a reserved `opts` key (`at`, `closed`,
 would leave empty.
 
 Each finding's `message` is EXCLUDED from the golden. It is the one part
-of a report that is prose, and prose is not in cross-port parity — the
+of a report that is prose, and prose is not in cross-port parity—the
 same split the `errc` mode makes, and the reason `errc` exists at all.
 Everything else in the report *is* contractual: the verdict, the
 truncation flag, and each finding's code, class, severity, path, sites
@@ -178,10 +178,10 @@ use:
 
 A `vet` golden is JSON, and JSON strings escape their own quotes, so a
 golden carrying a quoted canon (`"value":"\"8080\""`) writes those
-backslashes DOUBLED in the cell — the escape pass above runs first, and
+backslashes DOUBLED in the cell—the escape pass above runs first, and
 un-doubling them is what leaves the JSON intact.
 
-This lets a single row carry multi-line source, e.g.:
+This lets a single row carry multi-line source, for example:
 
 ```
 override	gen	a:*1|number\na:2	{"a":2}
@@ -201,8 +201,8 @@ and expects `{ "a": 2 }`.
 **`canon` pins kind, `gens` pins bytes, and `gen` is blind to both.**
 This is the single most useful thing to know about the suite.
 
-Aontu has four numeric leaf kinds — `integer`, `float`, `biginteger`,
-`bigdecimal` — and JSON has one number type. A `gen` row round-trips the
+Aontu has four numeric leaf kinds—`integer`, `float`, `biginteger`,
+`bigdecimal`—and JSON has one number type. A `gen` row round-trips the
 result through JSON, so the kind is gone before the comparison happens,
 and so is any precision beyond a `float64`. Canon, by contrast, must
 reparse to a value of the *same* kind, so a float-kind scalar always
@@ -213,32 +213,32 @@ renders with a fraction or an exponent:
 | `x:1`   | `{"x":1}` | `{"x":1}` | `{"x":1}`   |
 | `x:1.0` | `{"x":1}` | `{"x":1}` | `{"x":1.0}` |
 
-The two sources are indistinguishable in the two middle columns —
-`gens` pins bytes, and the bytes of an integral float are those of an
-integer — and distinct only in the right-hand one. So:
+The two sources are indistinguishable in the two middle columns—`gens`
+pins bytes, and the bytes of an integral float are those of an
+integer—and distinct only in the right-hand one. So:
 
 > **A behaviour that distinguishes numeric kinds MUST be pinned by a
-> `canon` row or an `err` row — never by `gen` alone. A behaviour that
+> `canon` row or an `err` row—never by `gen` alone. A behaviour that
 > turns on exact digits MUST be pinned by a `gens` row.**
 
 A `gen` row accepts whichever kind the implementation happens to
 produce. It stays green while the kind is wrong, which is exactly how a
-kind defect survives a passing suite — and how one port can drift from
+kind defect survives a passing suite—and how one port can drift from
 the other without any row noticing.
 
-For a value on one of the **exact leaves**, `gen` is worse than weak —
-it is unusable, and the two runners do not even fail the same way. Go
+For a value on one of the **exact leaves**, `gen` is worse than weak—it
+is unusable, and the two runners do not even fail the same way. Go
 marshals and re-decodes both sides into `float64`, so a `gen` row on
 `x:0d9007199254740993` passes against `{"x":9007199254740992}` *and*
 against `{"x":9007199254740993}`; TypeScript compares the generated
 `bigint` with `deepStrictEqual`, which is type-strict, so the same row
 fails against either. Write `gens` (or `canon`) and the question does
 not arise. Every `gen` row that mentions `0d` in the suite today is one
-where no exact value reaches the output at all — the marker is text, a
-map key, or `hide`-marked away.
+where no exact value reaches the output at all—the marker is text, a map
+key, or `hide`-marked away.
 
 - Use `canon` when the point is which kind is *produced*: `x:1.5+1.5`
-  canons to `{"x":3.0}`, whereas its `gen` value is `{"x":3}` — which
+  canons to `{"x":3.0}`, whereas its `gen` value is `{"x":3}`—which
   would pass just as happily if the sum had wrongly come out an
   integer.
 - Use `err` when the point is that a kind is *rejected*:
@@ -251,8 +251,8 @@ map key, or `hide`-marked away.
   above 2^53, since `gen` collapses both to the same `float64`, and the
   only one that checks the JSON text a caller actually receives.
 
-The same blindness applies to everything else JSON flattens — `gen`
-ignores object key order too — but numeric kind is the case that bites,
+The same blindness applies to everything else JSON flattens—`gen`
+ignores object key order too—but numeric kind is the case that bites,
 because it is invisible rather than merely unordered.
 
 The kind rules themselves are pinned by
@@ -273,7 +273,7 @@ reasoning behind them is in
    `spread.tsv` plus the `spread-*.tsv` family take one spread topic per
    file.
 2. Pick the mode that can actually fail for the behaviour you are
-   pinning — see [Choosing a mode](#choosing-a-mode).
+   pinning—see [Choosing a mode](#choosing-a-mode).
 3. **Obtain the expected value by running both implementations and
    requiring them to agree.** Never copy it out of one engine: that
    baselines a divergence as the contract. From the repository root:
@@ -289,22 +289,22 @@ reasoning behind them is in
 
    Neither CLI prints compact JSON, so a `gens` expectation cannot be
    read off these two commands. Probe it through each engine's library
-   instead — `exactJSON(new Aontu().generate(src))` in TypeScript,
+   instead—`exactJSON(new Aontu().generate(src))` in TypeScript,
    `Generate(src)` through an `encoding/json` encoder with
-   `SetEscapeHTML(false)` in Go — and require the two texts to be
+   `SetEscapeHTML(false)` in Go—and require the two texts to be
    byte-identical before writing the row. Use `exactJSON` (exported from
    `aontu`), **not** `JSON.stringify`: the latter throws on the `bigint`
    a biginteger generates as, and it is `exactJSON` that the `gens`
    runner and the CLI both call.
 4. Append the row, then run `make test-ts` and `make test-go`.
-5. Only commit rows that pass in **both** implementations — the spec
+5. Only commit rows that pass in **both** implementations—the spec
    defines shared, agreed behaviour.
 
 ## The divergence ledger
 
 [`test/spec/divergent.tsv`](../test/spec/divergent.tsv) is the opposite
 register: behaviours where the two ports are known to **disagree** and
-which cannot be fixed from this repository right now — because the cause
+which cannot be fixed from this repository right now—because the cause
 is in a pinned dependency, or because which side is correct is still an
 open question.
 

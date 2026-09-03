@@ -20,8 +20,8 @@ timeout: *30 | integer      # 30 unless overridden
 ```
 
 The `*` marks the preferred branch, so with no other statement the
-document generates `30`. A later `timeout: 60` — in the same file or
-merged from another — takes its place:
+document generates `30`. A later `timeout: 60`—in the same file or
+merged from another—takes its place:
 
 ```aontu
 timeout: *30 | integer
@@ -79,7 +79,7 @@ replicas: 12
 ```
 
 Unset, this field generates `2`; `12` is admitted; `40` must be
-refused, because a fleet that quietly accepts `replicas: 40` has no
+refused, because a fleet that silently accepts `replicas: 40` has no
 policy at all. Check it with `replicas.aon`:
 
 <!-- test: file replicas.aon -->
@@ -106,8 +106,8 @@ this, and the spelling `integer & (*30 | integer)` means the same as
 ## Layer defaults by rank
 
 When several layers of authority each want to supply the default,
-stars decide. The fewer the stars, the stronger the default — `*`
-beats `**` beats `***` — and a concrete value beats them all, so an
+stars decide. The fewer the stars, the stronger the default—`*`
+beats `**` beats `***`—and a concrete value beats them all, so an
 organisation writes `***`, a team `**`, an environment `*`:
 
 ```aontu
@@ -128,7 +128,7 @@ silently.
 
 Ranks also order the arms of one disjunction, and there the ladder
 survives elimination: `*1 | **2` generates `1`, and generates `2` once
-something rules `1` out. Adding a rung is therefore safe — it cannot
+something rules `1` out. Adding a rung is therefore safe—it cannot
 take the rungs above it with it.
 
 The marker is specified in [Preference / default
@@ -137,8 +137,8 @@ versions run this at scale: the [feature-flag
 catalog](../../use-cases/08-feature-flags/) arbitrates org, then
 environment, then tenant over the same rank ladder, and the
 [deployment fleet](../../use-cases/02-deploy-config/) layers org,
-team and environment files the same way. Offering a default is also
-how a referenced base lets its referrers differ — see [reference and
-reshape](reference-and-reshape.md) — and when the value is already
+team, and environment files the same way. Offering a default is also
+how a referenced base lets its referrers differ—see [reference and
+reshape](reference-and-reshape.md)—and when the value is already
 pinned concrete, overriding means [changing a pinned
 value](change-a-pinned-value.md) instead.

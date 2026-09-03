@@ -8,7 +8,7 @@ order: 20
 
 An `@"…"` import whose first segment carries a dot and whose path
 ends in `@N` is a module import rather than a file path, and modules
-resolve from local stores only — evaluation never reaches the
+resolve from local stores only—evaluation never reaches the
 network. The stores are `aon_vendor/` beside your `mod.aon` and a
 canon-hash-keyed user cache; `aontu mod get`, the verb that would
 fill them over the network, is named by this build and not shipped.
@@ -32,7 +32,7 @@ svc: name: "auth"
 ```
 
 The module itself is an ordinary source tree with its own `mod.aon`
-and entry file. Here it already sits in the vendor store — with no
+and entry file. Here it already sits in the vendor store—with no
 fetch verb, it arrived by hand, which is its own guide:
 [vendor a module by hand](vendor-by-hand.md). Its
 `aon_vendor/corp.example/schemas/service@1/mod.aon`:
@@ -86,7 +86,7 @@ line:
 The `canon` pin is the module's meaning, recomputed and compared on
 every later evaluation ([vendor by hand](vendor-by-hand.md) shows
 what that catches); `oci` stays empty until a registry fetch exists
-to fill it. Commit `mod-lock.aon` and `aon_vendor/` together — that
+to fill it. Commit `mod-lock.aon` and `aon_vendor/` together—that
 pair is the offline build, the tree to bake into a container image,
 an air-gapped checkout, or an agent sandbox.
 
@@ -94,7 +94,7 @@ Order matters. The user cache is keyed by canon-hash, so `vendor` can
 only find what the lockfile already pins: `tidy` first, `vendor`
 second. A closure `tidy` cannot fully resolve writes no lockfile at
 all (exit `1`, one line per missing module) rather than a partial
-one, and the repair those lines name is honest about what does not
+one, and the repair those lines name says what does not
 ship:
 
 <!-- test: run -->
@@ -163,7 +163,7 @@ $ echo $?
 ```
 
 Every 1.4.1 consumer without an `owner` would stop evaluating, so the
-release is refused under major 1. A major bump lifts the gate — that
+release is refused under major 1. A major bump lifts the gate—that
 is what the major in the module path is for, since no `@1` import can
 ever see a `@2` release.
 

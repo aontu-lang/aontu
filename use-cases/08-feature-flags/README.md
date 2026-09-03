@@ -1,4 +1,4 @@
-# 08 — feature flags / runtime config (the write-path case)
+# 08. Feature flags / runtime config (the write-path case)
 
 ![The model tree: the flag catalog, the layered views, and the operator's overlay](expected/diagram-doc.svg)
 
@@ -60,7 +60,7 @@ than its value.
 |---|---|
 | `flags.aon` | org-wide catalog: 6 flags, owner/expiry regexes, ranked `***` lifecycle defaults, one kill-switch pin, one narrow-only `message?` field |
 | `layers.aon` | `**` environment and `*` tenant layers (hidden), plus the `effective.<env>.<tenant>` views a flag SDK would read |
-| `policy.aon` | `clock.today` (stamped data — the language has no clock), the expired-flag lifecycle audit, the 0..100 rollout audit, both as `filter()` + `must(close({}))` |
+| `policy.aon` | `clock.today` (stamped data—the language has no clock), the expired-flag lifecycle audit, the 0..100 rollout audit, both as `filter()` + `must(close({}))` |
 | `base.aon` | flags + layers + policy: the `--entry` for `set` (it never includes the overlay) |
 | `overlay.aon` | the ops overlay, written only by `aontu set` |
 | `system.aon` | base + overlay: the runtime view served to SDKs; `get`, `why` and evaluation run here |
@@ -104,15 +104,15 @@ than its value.
   the catalog, the staging view and the megacorp view.
 - **The field shapes are named, in one of the two files.**
   `flag-schema.aon` declares `%Key`, `%Owner`, `%Description` and
-  `%Date` as **aliases** — `%name:` at the top level, `%name` in value
-  position — so `created` and `expiry` cannot drift apart. An alias
+  `%Date` as **aliases**—`%name:` at the top level, `%name` in value
+  position—so `created` and `expiry` cannot drift apart. An alias
   does not generate and does not appear in canon, so the named file
   and the written-out one are the same document with the same `aon1-`
   hash. `flags.aon` repeats all four and does not name them, for two
   reasons worth knowing before reaching for an alias: an alias reaches
   nothing outside the document it is declared in (there is no
   construct for carrying a name across a file boundary), and inside a
-  `&:` spread template an alias reference is not resolved — it leaks
+  `&:` spread template an alias reference is not resolved—it leaks
   into canon as `$.%Date` and moves the hash
   ([BUGS.md 73](../BUGS.md)). Outside a spread it is exactly what it
   claims to be.

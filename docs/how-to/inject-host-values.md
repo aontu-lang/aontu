@@ -51,7 +51,7 @@ $ echo $?
 ```
 
 The similar-looking `[aontu/no_path]: Cannot resolve value at path …`
-is the path case — a `$.reference` that names nothing in the document.
+is the path case—a `$.reference` that names nothing in the document.
 Two different mistakes, two different codes
 ([read a conflict error](read-a-conflict-error.md) has the anatomy).
 
@@ -59,7 +59,7 @@ An injected variable is a value like any other, so it unifies rather
 than overrides: `server: { port: $port }` beside
 `server: { port: integer & max(65535) }` checks the injected value
 against the constraint, and a bad injection fails with a located
-conflict. That makes variables a safe seam — the document keeps its
+conflict. That makes variables a safe seam—the document keeps its
 say. The exact-leaf constructors take a `bigint`, a `Decimal`, or the
 digits as text, never a host `number`, which binary64 has already
 rounded before the library could look

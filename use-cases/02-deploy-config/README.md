@@ -1,4 +1,4 @@
-# 02 — multi-environment deployment configuration
+# 02. Multi-environment deployment configuration
 
 A fleet of four services (`web`, `auth`, `billing`, `reports`) deployed
 to three environments (`dev`, `staging`, `prod`) under four layers of
@@ -19,7 +19,7 @@ by `check.sh`.
 |---|---|
 | `org-policy.aon` | org: workload shape (closed), org-rank `***` defaults |
 | `team-defaults.aon` | team: `**` defaults, release train, on-call |
-| `fleet.aon` | service catalog — the source `pack()` iterates |
+| `fleet.aon` | service catalog—the source `pack()` iterates |
 | `envs/{dev,staging,prod}.aon` | overlays: `*` defaults via `&:` spreads + concrete pins |
 | `stack.aon` | entry: includes, `pack()` per env, `envguard`, `filter()` alerts, rollout arithmetic |
 | `guardrails.aon` | org bounds, enforced by `vet` over the **built** output |
@@ -84,7 +84,7 @@ than its value.
 ## Design: which features carry it
 
 - **Ranked preferences are the layering mechanism.** Generation picks
-  the **lowest** rank — the *fewer* stars, the *stronger* the default.
+  the **lowest** rank—the *fewer* stars, the *stronger* the default.
   `*warn` beats `**debug` beats `***info`, in any statement order, and
   a concrete value beats them all (`probes/rank-ladder.aon`). So the
   ladder is: org `***`, team `**`, environment `*`, service pin
@@ -100,7 +100,7 @@ than its value.
 
 - **`pack()` over hidden tables** (`environments`, `fleet`) generates
   the per-env blocks and per-env workloads, so an environment or
-  service cannot exist anywhere except its table — no drift by
+  service cannot exist anywhere except its table—no drift by
   construction. The catalog's static facts arrive through
   `workloads: copy($.fleet)` beside the generator; the pack template
   adds the generated fields (`service: key()` and the image name).
@@ -228,12 +228,12 @@ than its value.
   parse error (`[aontu/unexpected]`, `probes/multiply.aon`), and
   doubling is written `mul($.replicas, 2)`.
 
-- **`set` is unification-honest.** It vets before writing
-  (`verdict: valid` / `wrote:`), and refuses a change that contradicts
-  a pinned value with a located conflict, leaving the file untouched —
-  a safe primitive for an agent to hold. The overlay it writes is a
-  file the entry does not include: `set` composes entry and overlay
-  itself, and an entry that includes both makes the change effective.
+-  **`set` cannot write a contradiction.** It vets before writing (`verdict:
+  valid` / `wrote:`), and refuses a change that contradicts a pinned
+  value with a located conflict, leaving the file untouched—a safe
+  primitive for an agent to hold. The overlay it writes is a file the
+  entry does not include: `set` composes entry and overlay itself, and
+  an entry that includes both makes the change effective.
 
 - **Canon is deterministic.** `--canon` output is goldened
   byte-for-byte in `check.sh`: one line, reparseable, with defaults,

@@ -9,7 +9,7 @@ order: 60
 Inside an Aontu document, money is a
 [`bigdecimal`](../reference-language.md#the-four-numeric-leaves):
 `0d` literals are exact base-10 values and `+` on them is exact
-arithmetic — no binary rounding, ever. Write this as `money.aon`:
+arithmetic—no binary rounding, ever. Write this as `money.aon`:
 
 <!-- test: scenario money-wire -->
 <!-- test: file money.aon -->
@@ -64,7 +64,7 @@ $ echo $?
 
 This refusal is the feature: a schema that admitted `0.1` here would
 be certifying a value the wire already corrupted. The convention that
-works is string decimals at the boundary — the JSON field carries the
+works is string decimals at the boundary—the JSON field carries the
 exact digits as text, and the schema pins its shape with
 [`re`](../reference-language.md#re-and-the-portable-pattern-subset).
 Replace `invoice.aon` with the string form:
@@ -163,21 +163,21 @@ Three details decide whether an implementation of this is correct:
 - **The sign goes outside the prefix.** `"-12.05"` becomes
   `-0d12.05`. `0d-12.05` is not a literal, so a converter that pastes
   the sign after the prefix fails to parse rather than computing the
-  wrong number — the safe direction, but still the detail everyone
+  wrong number—the safe direction, but still the detail everyone
   gets wrong once.
 - **Scale is not part of the value.** `0d10.50` and `0d10.5` are the
   same number and unify; canon prints the shorter one. A serialiser
-  therefore cannot recover `"10.50"` from the value — it formats *to*
+  therefore cannot recover `"10.50"` from the value—it formats *to*
   the scale the schema declared, which is why the mark names a scale
   as well as a leaf.
 - **At scale 0 the point still has to be written.** `0d10` is a
   `biginteger` and the leaves are disjoint, so a scale-0 wire decimal
-  converts to `0d<digits>.0` — never `0d<digits>`, which would refuse
+  converts to `0d<digits>.0`—never `0d<digits>`, which would refuse
   the very schema it was converted for.
 
 The producer formats its exact value into the string; the consumer,
 after `vet` passes, parses the string with a *decimal* parser (never
-`parseFloat`) — in TypeScript the `Decimal` class the engine itself
+`parseFloat`)—in TypeScript the `Decimal` class the engine itself
 uses, in Go `math/big`. Inside the trust boundary, keep the value a
 `0d` exact literal and let Aontu's arithmetic and the [lossy-literal
 refusal](../reference-language.md#exact-or-refused-lossy-literals)
@@ -188,7 +188,7 @@ not the round trip, which is exactly why the wire field is a string.
 
 ## The convention survives export
 
-A bare `bigdecimal` field is a loss on a JSON Schema export — the
+A bare `bigdecimal` field is a loss on a JSON Schema export—the
 exactness has no receiver. The wire form is the way around it:
 [export JSON Schema](export-json-schema.md) covers the verb, and the
 `Money` type crosses whole, mark included:
@@ -225,9 +225,9 @@ pattern would happily accept), `pattern` is what refuses the wrong
 scale. A consumer that never runs Aontu still enforces the wire form,
 and still learns the leaf and the scale from the exported `const`.
 
-A worked end-to-end version — the schema, strictly-JSON records that
+A worked end-to-end version—the schema, strictly-JSON records that
 pass, the three that must not, the exported schema checked against the
-same records, and the conversion written as theorems — is
+same records, and the conversion written as theorems—is
 [use-cases/10-data-model](../../use-cases/10-data-model/)
 (`money-wire.aon` and `money-convert.aon`), with `check.sh` asserting
 every claim on this page.

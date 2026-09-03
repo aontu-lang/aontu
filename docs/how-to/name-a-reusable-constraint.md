@@ -28,7 +28,7 @@ listen: 8080
 ```
 
 The block is absent from the output and present for unification, and
-the key name is not reserved — `type` here is a field that happens to
+the key name is not reserved—`type` here is a field that happens to
 be `type()`-marked, so `defs` or `schema` reads the same.
 
 An out-of-range value is refused at the field that holds it. Write
@@ -60,7 +60,7 @@ $ echo $?
 ```
 
 The refusal states the normalised residual the value had to satisfy,
-not the alias's name — the constraint travelled, the label did not.
+not the alias's name—the constraint travelled, the label did not.
 
 Lead with the kind. `min(0) & max(255)` alone bounds a *number*, so
 `1.5` satisfies it:

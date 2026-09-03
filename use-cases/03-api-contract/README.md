@@ -1,4 +1,4 @@
-# 03 — a REST API contract as agent ground truth
+# 03. A REST API contract as agent ground truth
 
 ![The model tree: endpoints, entities, messages and the shared wire vocabulary](expected/diagram-doc.svg)
 

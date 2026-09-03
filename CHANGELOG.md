@@ -5,6 +5,44 @@ package (`ts/`, npm `aontu`) and the Go module (`go/`,
 `github.com/aontu-lang/aontu/go`) are versioned independently; entries note
 which implementation each change affects.
 
+## Unreleased
+
+### A prose gate, and the copy it found
+
+Documentation. [Vale](https://vale.sh) now runs over the reader-facing
+pages in CI (`.github/workflows/docs.yml`, `make prose`), with the
+binary and the Google package both pinned by version so that somebody
+else's release cannot turn a one-word pull request red. Google's
+conventions are the base for everything `docs/STYLE-GUIDE.md` does not
+rule on, and every rule set below error level carries the count it
+produced on a clean run -- "it reported 30 serial commas, of which 14
+were two-item lists after a comma clause" is a reason; "it was noisy" is
+not.
+
+The banned-phrase list moved out of `ts/test/docs.test.ts` and into
+`.vale/styles/config/vocabularies/Aontu/reject.txt`, which both gates now
+read, and the gated page set moved into `ts/scripts/gated-docs.cjs`,
+which both gates now run. Two gates over different files, or over
+different lists, disagree in silence.
+
+The local gate grew the rules a linter cannot carry: it matches over
+joined paragraphs rather than physical lines (these pages wrap at 72
+columns, so where a line breaks was a way through it), and it now
+enforces em-dash spacing and the aside ration, first person by page kind,
+the exclamation ration, and no emoji. Em-dash spacing is enforced here
+rather than by Vale for a measured reason: Vale stops skipping fenced
+blocks part-way through several of these pages, and reads a dash written
+tight against an inline code span as spaced. Eleven findings, eleven
+false.
+
+What the gate found, all of it now fixed: 1,180 spaced em dashes
+converted to Google's unspaced form; 53 link-list glosses separated from
+their link by a full stop rather than a dash; 16 serial commas; 28 uses
+of banned phrases, `honest` and `quietly` between them; eight Latin
+abbreviations; a stray repeated word in the API reference; two how-to
+pages whose frontmatter was not valid YAML, which is what stopped Vale
+running at all until it was fixed.
+
 ## Go 0.1.13 — 2026-09-03 · TypeScript 0.55.0
 
 ### Every use case opens with its model tree

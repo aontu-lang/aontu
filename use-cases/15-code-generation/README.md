@@ -1,12 +1,12 @@
-# 15 — code generation
+# 15. Code generation
 
 **One model, three generated files, each over a different slice of it.**
-Go structs, TypeScript interfaces and SQL DDL — every file is computed
+Go structs, TypeScript interfaces and SQL DDL—every file is computed
 by the unifier from [`model.aon`](model.aon) and nothing else. Each
 transform's `$.file` is the whole artifact, one string. `check.sh` reads
 it with `aontu get '$.file'`, puts a `DO NOT EDIT` banner in front of
 it, and writes bytes; nothing outside the model decides layout,
-ordering or separators.
+ordering, or separators.
 
 ![The model tree: the record definitions every generated target is rendered from](expected/diagram-doc.svg)
 
@@ -22,12 +22,12 @@ The Go emitter never reads `sql`; the SQL emitter never reads `go`;
 the TypeScript emitter reads neither and keeps the wire name in `n`.
 The SQL emitter quotes every identifier, because `order` is a reserved
 word and a generator that emits it bare produces a file that does not
-parse — always quoting is simpler than carrying a word list.
+parse—always quoting is simpler than carrying a word list.
 
 ## The model tree
 
 `model.aon` is the whole input to the generators: a list of records,
-each with a name, a SQL table name and its fields. Everything the Go,
+each with a name, a SQL table name, and its fields. Everything the Go,
 TypeScript and SQL targets emit is rendered from these three keys, so
 the model tree is also the list of things a target must handle.
 
@@ -68,7 +68,7 @@ Each line of that shape is a decision:
 
 - **A list spread, not `pack`.** List order is *source* order. `pack`
   keys by data and map keys sort by code point, so `pack`-then-`pick`
-  emits the records alphabetically — silently wrong output for a file.
+  emits the records alphabetically—silently wrong output for a file.
 - **Backtick strings carry the target text.** They span lines and
   process escapes, so `\t` and an escaped backtick both work (see
   [Lexical structure](../../docs/reference-language.md#lexical-structure)
@@ -86,7 +86,7 @@ Each line of that shape is a decision:
   `credit_cents` are written in `model.aon` rather than computed:
   `upper()` uppercases a whole string, so the target's spelling belongs
   in the model. What a type is *called* in a target is a fact about
-  the model, not a rule in a template — the "symbol provider" split
+  the model, not a rule in a template—the "symbol provider" split
   that code generators arrive at. Writing the name down also makes a
   collision a unification conflict rather than a broken identifier at
   emit time.

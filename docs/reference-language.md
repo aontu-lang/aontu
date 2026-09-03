@@ -73,7 +73,7 @@ plugins, so the surface syntax is "relaxed JSON".
 - **Backtick strings may span lines.** `"…"` and `'…'` refuse a
   literal newline; `` `…` `` accepts one, so a backtick string carries
   several lines of text as one scalar. This is what lets a document hold a
-  block of another language — a shell script, a template, a fragment
+  block of another language—a shell script, a template, a fragment
   of generated source. Escapes are processed in all three forms, so
   `\t` is a tab and `` \` `` is a literal backtick. A **literal**
   control character in the source is refused
@@ -89,7 +89,7 @@ plugins, so the surface syntax is "relaxed JSON".
   Digits alone give a biginteger (`0d123`); adding a `.` or an
   exponent gives a bigdecimal (`0d0.1`, `0d1e3`). The grammar is
   `0[dD] digits [ "." digits ] [ (e|E) [+-] digits ]`. The sign goes
-  *before* the prefix — `-0d5`, never `0d-5` — and a marker with no
+  *before* the prefix—`-0d5`, never `0d-5`—and a marker with no
   digit after it is not a literal at all: `0d` is the bare string
   `"0d"`, and `0d.5` reads as member access on that string.
 - **Other numeric forms.** Hexadecimal (`0x1f`), octal (`0o17`) and
@@ -97,12 +97,12 @@ plugins, so the surface syntax is "relaxed JSON".
   the plain family, not the exact one. (Only the exact marker also
   accepts its letter in upper case: `0D12` is a literal, `0X1F` is the
   bare string `"0X1F"`.) `_` may separate digits (`1_000_000`,
-  `0d1_000`), but only singly and only *between* digits — a run that
+  `0d1_000`), but only singly and only *between* digits—a run that
   breaks the rule is not a number at all, so `1__0` is the string
   `"1__0"`, not `10`.
 - **A number that cannot be stored exactly is refused.** An integer
   literal the double format would silently round is a located error
-  naming the `0d` escape, not an approximation — see
+  naming the `0d` escape, not an approximation—see
   [Exact or refused](#exact-or-refused-lossy-literals).
 - **Booleans** are `true` / `false`; **null** is `null`.
 
@@ -158,7 +158,7 @@ most specific:
   value. It is what an unconstrained field is.
 - **`nil`** (bottom) is the result of a failed unification. It carries an
   error message and cannot be generated.
-- **Unification** of two values is their *greatest lower bound* — the
+- **Unification** of two values is their *greatest lower bound*—the
   most general value at least as specific as both. If none exists, the
   result is `nil`.
 
@@ -190,7 +190,7 @@ A bare kind name is a *type*: the set of all scalars of that kind.
 | Kind         | Matches                                        |
 |--------------|------------------------------------------------|
 | `string`     | any string                                     |
-| `number`     | any numeric value — the supertype over the four leaves below |
+| `number`     | any numeric value—the supertype over the four leaves below |
 | `integer`    | any value of *integer kind* (below)            |
 | `float`      | any value of *float kind* (below)              |
 | `biginteger` | any value of *biginteger kind* (below)         |
@@ -199,14 +199,14 @@ A bare kind name is a *type*: the set of all scalars of that kind.
 | `top`        | any value at all                               |
 
 The path kind is spelled `path()` rather than a bare word, and sits
-under `string` — see [First-class paths](#first-class-paths-pathp).
-The container kinds are `map()` and `list()` — see
+under `string`—see [First-class paths](#first-class-paths-pathp).
+The container kinds are `map()` and `list()`—see
 [Container kinds](#container-kinds-map-and-list).
 
 ### The four numeric leaves
 
 Every numeric value carries a **kind**, fixed when the value is built,
-and it is the kind — not the magnitude — that decides what the value
+and it is the kind—not the magnitude—that decides what the value
 unifies with. There are four numeric kinds, and `number` is not one of
 them: `number` names the whole family and nothing else, so no value
 ever has `number` kind.
@@ -219,17 +219,17 @@ number                   (a pure supertype — no value has this kind)
 └── bigdecimal   exact, with a point or an exponent     0d0.1 0d1e3
 ```
 
-The two upper leaves hold IEEE-754 doubles — every value a plain JSON
-number can hold exactly — and the source rule below decides which of
+The two upper leaves hold IEEE-754 doubles—every value a plain JSON
+number can hold exactly—and the source rule below decides which of
 them a literal joins. The two lower leaves are reached only by writing
 `0d`, and hold their digits *exactly*: no binary rounding, and no
 precision limit but the [exactness budget](#the-exactness-budget).
 
 The four leaves are **disjoint**. No value belongs to two of them, and
-values of different leaves never unify however equal they look —
-`1 & 1.0`, `5 & 0d5` and `0d5 & 0d5.0` are all conflicts. A cross-leaf
-result would have to pick a kind, and either choice would make `&`
-asymmetric in kind.
+values of different leaves never unify however equal they look—`1 &
+1.0`, `5 & 0d5` and `0d5 & 0d5.0` are all conflicts. A cross-leaf result
+would have to pick a kind, and either choice would make `&` asymmetric
+in kind.
 
 **Leaf by source.** Which leaf a literal lands in is decided by how it
 is written, never by how large it is. A literal *without* the `0d`
@@ -263,7 +263,7 @@ contains a `.` or an exponent, and **biginteger** kind otherwise.
 
 The two families nearly mirror each other, with one asymmetry: a `.`
 splits the leaf in both, but an exponent splits it only in the `0d`
-family — `1e3` is an integer, `0d1e3` a bigdecimal.
+family—`1e3` is an integer, `0d1e3` a bigdecimal.
 
 **Canon rendering.** Canon renders a number so that reparsing it
 yields the same kind again, which takes three markers:
@@ -280,7 +280,7 @@ needed to tell the two exact leaves apart, and it is the same `.0`
 device: **an integral bigdecimal always renders with one decimal
 place.** So `0d1e3` canons as `0d1000.0` while the biginteger `0d1000`
 canons as `0d1000`. Without that, `canon(0d1e3)` would reparse as a
-biginteger — a different lattice point, since the leaves are disjoint.
+biginteger—a different lattice point, since the leaves are disjoint.
 
 Exact values render in plain form at every magnitude, never in
 scientific notation, and **one value has exactly one rendering**:
@@ -289,8 +289,8 @@ all parse to the same value and all canon as `0d0.1`.
 
 Edge cases:
 
-- The same rules apply wherever a numeric value is built — a parsed
-  literal, a `$var` binding, a raw value handed to the API — so a given
+- The same rules apply wherever a numeric value is built—a parsed
+  literal, a `$var` binding, a raw value handed to the API—so a given
   number never has two different kinds depending on where it came from.
   Where there is no source text, condition 1 is vacuous and conditions
   2 and 3 decide.
@@ -302,7 +302,7 @@ Edge cases:
   generated output alike.
 - Aontu has no negative literals: `-` is a prefix operator applied to a
   positive literal. The int64 *minimum* therefore cannot be written as
-  an integer-kind literal — `-9223372036854775808` negates the
+  an integer-kind literal—`-9223372036854775808` negates the
   float-kind literal `9223372036854775808` and stays float kind. Write
   it `-0d9223372036854775808` to hold it exactly, as a biginteger.
 
@@ -312,7 +312,7 @@ An integer literal is stored only if the double format holds it
 *exactly*. One that would be silently rounded is a located error
 instead, and the message names the fix: write it with `0d`.
 
-The input that triggers this rule is ordinary JSON — for example, a
+The input that triggers this rule is ordinary JSON—for example, a
 64-bit record ID in a dump from an API. `id: 9007199254740993` is
 2^53+1, the first whole number a double cannot hold. Storing it anyway
 would yield 9007199254740992, a different ID, with nothing said about
@@ -336,7 +336,7 @@ $ echo $?
 (That is the TypeScript wording; Go phrases the same refusal
 differently. Both name the `0d` escape.)
 
-Take the escape and the document works again, exactly — in generated
+Take the escape and the document works again, exactly—in generated
 output and in canonical form:
 
 <!-- test: run -->
@@ -377,8 +377,8 @@ never reaches unification.
 
 ### The exactness budget
 
-The exact leaves have no precision limit in the ordinary sense — a
-biginteger is as wide as its digits — but a bigdecimal is bounded, so
+The exact leaves have no precision limit in the ordinary sense—a
+biginteger is as wide as its digits—but a bigdecimal is bounded, so
 that a short source cannot demand unbounded work. The bound is one a
 document can rely on:
 
@@ -393,7 +393,7 @@ fits.
 
 Both halves are checked independently, on literals (against the source
 as written, before normalisation) and on every computed result.
-Exceeding either is a located error — *"This exact decimal exceeds the
+Exceeding either is a located error—*"This exact decimal exceeds the
 exactness budget"*. Aontu has no rounding mode and no precision
 context, so a value beyond the budget is refused rather than
 approximated.
@@ -422,7 +422,7 @@ ten thousand digits is an ordinary value.
   `bigdecimal`); two distinct leaves conflict, as do unrelated kinds.
 - **scalar & scalar:** two concrete numbers are the same only when kind
   *and* value match. So `1 & 1.0` is a conflict, and `1|1.0` is a real
-  two-branch disjunction — `(1|1.0) & 1.0` selects the float. Value
+  two-branch disjunction—`(1|1.0) & 1.0` selects the float. Value
   comparison for the exact leaves is over the number, not its
   spelling: `0d1.5 & 0d1.50` is `0d1.5`.
 
@@ -439,8 +439,8 @@ A map is an unordered set of key/value pairs. Braces are optional at the
 top level.
 
 - **Literal:** `a:{b:1,c:2}` → `{"a":{"b":1,"c":2}}`.
-- **Implicit nesting:** a chain of colons builds nested maps —
-  `a:b:c:1` → `{"a":{"b":{"c":1}}}`.
+-  **Implicit nesting:** a chain of colons builds nested maps—`a:b:c:1`
+  → `{"a":{"b":{"c":1}}}`.
 - **Duplicate-key merge:** stating a key twice unifies the two values.
   `a:{b:1}, a:{c:2}` → `{"a":{"b":1,"c":2}}`.
 
@@ -468,7 +468,7 @@ A list is an ordered sequence.
 - **Mixed / nested / of maps:** `[1,two,true]`, `[[1,2],[3,4]]`,
   `[{x:1},{y:2}]` all work.
 - **A pair is a single-key map element:** `[a:1, b:2]` is
-  `[{a:1}, {b:2}]` — the braces are optional for a one-key map in list
+  `[{a:1}, {b:2}]`—the braces are optional for a one-key map in list
   position, and the two spellings are the same document. An optional
   pair carries its `?` into the element (`[a?:1]` is `[{a?:1}]`), a
   numeric key is a key of the element map and never an index into the
@@ -493,7 +493,7 @@ routes: [get: "/health", post: "/orders"]
 shape, and generates empty when nothing else arrives. `map()` and
 `list()` are the container *kinds*: each admits exactly the same
 values and defaults to nothing, as `string` does. The kind is the
-spelling of "a map must be supplied here" — an unmet unit silently
+spelling of "a map must be supplied here"—an unmet unit silently
 manufactures its empty value, an unmet kind refuses to generate.
 
 ```aon
@@ -520,16 +520,16 @@ $ echo $?
 
 A kind mismatch refuses with the unit's own codes (`[aontu/map]`,
 `[aontu/list]`): `map() & [1]` is the same fact `{} & [1]` reports.
-Neither function takes arguments — element constraints belong to the
+Neither function takes arguments—element constraints belong to the
 spreads (`{&: V}`, `[&: V]`). The kinds settle inside `type()` bodies,
-[meet](unification.md) the unit literals (`map() & {}` is `{}` — an
+[meet](unification.md) the unit literals (`map() & {}` is `{}`—an
 explicitly supplied empty map satisfies the kind), and subsume their
 containers (`map()` subsumes `{a:1}`). Pinned by
 [`test/spec/containerkind.tsv`](../test/spec/containerkind.tsv).
 
 ## Conjunction `&`
 
-`a & b` is the explicit unification of `a` and `b` — the same operation
+`a & b` is the explicit unification of `a` and `b`—the same operation
 that merges duplicate map keys.
 
 ```aon
@@ -577,7 +577,7 @@ b: string|number
 
 **An unresolved disjunction has no value**. More than one alternative
 still admitted means the truth is not yet settled, so generation refuses
-with `disjunct_no_gen`, class `incomplete` — the same class a bare
+with `disjunct_no_gen`, class `incomplete`—the same class a bare
 `string` residue answers:
 
 ```
@@ -588,7 +588,7 @@ a:{x:1}|{y:2}        → [aontu/disjunct_no_gen] at $.a
 Two things resolve it: a value that selects an alternative, or a
 preference saying which one holds when nothing else does (below).
 Alternatives that are the *same value* collapse first, so `1|1` and
-`{a:1}|{a:1}` each generate that one value — sameness is structural
+`{a:1}|{a:1}` each generate that one value—sameness is structural
 for maps and lists (container kind, closedness, marks, optional keys,
 then the children).
 
@@ -612,16 +612,16 @@ d: 2
 {"a":1,"b":5,"c":"green","d":2}
 ```
 
-The preference survives in canonical form — `a` above canons as
-`{"a":*1|number}` — because a default is constraint information, not a
+The preference survives in canonical form—`a` above canons as
+`{"a":*1|number}`—because a default is constraint information, not a
 resolved value.
 
 Defaults propagate through nesting and spreads. `pref(x)` is the
 function form of `*x` (canon `*x`). Preferences can be ranked (a `*` of
 a `*` outranks a single `*`); the lowest rank wins when two preferred
-values meet. A ranked preference meets its peers exactly as rank 1 does
-— the **rank-uniform meet**: `a:**1.5 & float` is `1.5` just as `a:*1.5
-& float` is, and `**2|integer` met by a bare `integer` keeps its
+values meet. A ranked preference meets its peers exactly as rank 1
+does—the **rank-uniform meet**: `a:**1.5 & float` is `1.5` just as
+`a:*1.5 & float` is, and `**2|integer` met by a bare `integer` keeps its
 default.
 
 Overriding a default is judged in two steps, and they are the two arms
@@ -634,19 +634,19 @@ and `a:*1.5 & number` are both `1.5`, `a:*8080 & min(1024)` is still
 `*8080`, and `a:*integer & 7` is `*7`.
 
 **Otherwise its type answers, and that is the override.** `a:*8080 &
-9090` is `9090` — `8080` cannot admit it, `integer` can. When neither
+9090` is `9090`—`8080` cannot admit it, `integer` can. When neither
 arm admits the peer, nothing is left of the disjunction and the
 refusal is `empty`: `a:*2 & 3.0`, `a:*2.2 & 3` and `a:*1.5 & integer`
 are all errors, because the numeric leaves are disjoint.
 
-The type is `super(x)`, so the rule reaches every kind of default —
-`super(integer)` is `number`, so `a:*integer & 7` narrows and
+The type is `super(x)`, so the rule reaches every kind of
+default—`super(integer)` is `number`, so `a:*integer & 7` narrows and
 `a:*integer & "s"` refuses.
 
 **Two defaults of the same rank must agree.** `a:*1` beside `a:*7` is
 `pref_rank_clash`, in that spelling and in `a:*1|*7`: the disagreement
 is between the DEFAULTS, and the fix is to rank one of them (`**`).
-Compatible defaults fold — `a:*1` beside `a:*integer` is `*1`.
+Compatible defaults fold—`a:*1` beside `a:*integer` is `*1`.
 
 **A preference conjoined with a disjunction names an alternative**:
 `(A|B) & *A` is `*A|B`, the same value the direct spelling denotes, so
@@ -661,12 +661,12 @@ a: ("1.0"|"1.1") & *"1.0"
 ```
 
 The canon is `{"a":*"1.0"|"1.1"}`. A preference that names no
-alternative is dropped — it has nothing to prefer — so
+alternative is dropped—it has nothing to prefer—so
 `("1.0"|"1.1") & *"2.0"` canons as `"1.0"|"1.1"`. The default-validity
 lint below is what reports that shape.
 
 **A preference inside a disjunction is gated by admission**: an override
-must be admitted by the disjunction itself — by at least one
+must be admitted by the disjunction itself—by at least one
 alternative, or by the preferred value. A preferred branch contributes
 exactly its own value to the admitted set, so `*'auto' | 'literal' |
 'data'` is a true **enum with a default**: unset generates `"auto"`,
@@ -677,7 +677,7 @@ alternative is consulted rather than bypassed (`*8080 | (integer &
 min(1024) & max(65535))` refuses `80` and accepts `2048`; `*8080 |
 (integer & neq(80))` refuses `80`). A deliberately open default states
 its openness: `*x | top` admits every override. The gate covers scalar
-preferred values — the same boundary as the kind gate above.
+preferred values—the same boundary as the kind gate above.
 
 ```aon
 a: *8080 | integer
@@ -717,7 +717,7 @@ branch explicitly, `*x | top`.
 **A structural default is gated too**, by the same rule as every
 other: the peer must pass `super(x)`, and `super({x:1})` is
 `{x:integer}`. A map default therefore MERGES with a map that adds a
-key — the preferred value itself admits it — and refuses a value of
+key—the preferred value itself admits it—and refuses a value of
 another kind outright:
 
 ```aon
@@ -733,7 +733,7 @@ b: {x:2}
 
 `a` keeps its `x` default and gains `y`; `b`'s `x` is overridden,
 because `{x:1}` cannot admit `{x:2}` but its type can. A peer of
-another kind — `a: "s"` — refuses, as the scalar case always did.
+another kind—`a: "s"`—refuses, as the scalar case always did.
 
 A document that wants a structural default any peer may replace says so
 by writing the open branch explicitly, `*{x:1} | top`.
@@ -813,9 +813,9 @@ l: [&: {x:1}, {y:1}, {y:2}]
 ```
 
 **Several templates apply independently, per child.** When one bag
-accumulates more than one `&:` template — consecutive spreads, spreads
+accumulates more than one `&:` template—consecutive spreads, spreads
 from different statements, templates arriving by reference through a
-conjunction or an id-merge — every child meets the combined constraint
+conjunction or an id-merge—every child meets the combined constraint
 of all of them, and only that: children never meet each other's data
 through the templates, whatever mix of literal values, kinds,
 references, defaults or `key()` the templates carry. A key one
@@ -836,7 +836,7 @@ w: y: {p:2, r:6}
 ## Generating children: `pack` and `each`
 
 A spread constrains children that already exist. `pack` and `each`
-**make** them, from data that is already in the model — so the list of
+**make** them, from data that is already in the model—so the list of
 names and the children built from it cannot drift apart:
 
 ```aon
@@ -864,17 +864,17 @@ keys are **data, never position**: for a list, the strings themselves
 (a non-string element is an error, `pack_key`); for a map, its keys.
 Each generated child is `tmpl` cloned at that destination, so `key()`
 and relative references inside the template answer for the child
-rather than for the call. Duplicate keys are not an error — the
+rather than for the call. Duplicate keys are not an error—the
 colliding children unify, exactly as duplicate source keys merge.
 
 **Instantiation is per destination, to the leaves**. The clone a
-destination receives is a *full instance*: nothing in it — not a call's
-arguments, not a preference's inner value, not an operator's operands —
-is shared with the template or with any sibling destination, and every
-path inside it is the destination's. So `close({name: key()})`,
-`**key(1) | string` and `.a + 1` inside a template all answer per child,
-in expressions and call arguments as much as in bare positions; the
-first child's resolution can never answer for the others. The same rule
+destination receives is a *full instance*: nothing in it—not a call's
+arguments, not a preference's inner value, not an operator's operands—is
+shared with the template or with any sibling destination, and every path
+inside it is the destination's. So `close({name: key()})`, `**key(1) |
+string` and `.a + 1` inside a template all answer per child, in
+expressions and call arguments as much as in bare positions; the first
+child's resolution can never answer for the others. The same rule
 instantiates a `filter` condition per trial and a spread constraint
 (`&:`) per application.
 
@@ -898,17 +898,17 @@ destination `&:` spread applies to them, `close()` seals the generated
 shape, references reach into them, and a template may itself contain a
 generator.
 
-Both **wait for the model to settle** before they fire, and fire
-exactly once. A generator's data can still be merged into by a sibling
+Both **wait for the model to settle** before they fire, and fire exactly
+once. A generator's data can still be merged into by a sibling
 statement, an include or a spread after it first looks complete, and
 children generated from a half-merged bag would be missing. The data
 argument's **snapshot waits for the source too**: a reference like
 `pack($.ports, …)` copies its target only once the target has finished
-resolving in the tree, so a source augmented by a spread — even one
-injecting relative references (`ports: &: {port: .containerPort}`) —
-reaches the generator with those references already answered at the
-source. Until it fires, a generator canons as its own call —
-`pack($.n,…)` with the data reference still standing — which reparses
+resolving in the tree, so a source augmented by a spread—even one
+injecting relative references (`ports: &: {port:
+.containerPort}`)—reaches the generator with those references already
+answered at the source. Until it fires, a generator canons as its own
+call—`pack($.n,…)` with the data reference still standing—which reparses
 to the same value.
 
 Neither can recurse. Both iterate a finite bag that already exists, so
@@ -918,7 +918,7 @@ evaluation still terminates by construction.
 ## Selecting: `filter` and `match`
 
 `filter(data, cond)` keeps the children of `data` that **already
-satisfy** `cond` — keys preserved for a map, order for a list — and
+satisfy** `cond`—keys preserved for a map, order for a list—and
 drops the rest silently:
 
 ```aon
@@ -934,16 +934,16 @@ sidecars: pack($.debugged, {image:"acme/debug:1.0"})
 ```
 
 "Already satisfies" means the meet **changes nothing**: `cond` adds no
-information the child did not have. Mere unifiability would not do —
-a map is open, so `{port:81}` unifies with `{debug:true}` by *gaining*
-the key, and a filter that kept everything that could be made to match
-would keep everything. The condition is an ordinary value, so the
-constraint atoms compose with it: `filter($.deploy, {replicas:min(3)})`.
+information the child did not have. Mere unifiability would not do—a map
+is open, so `{port:81}` unifies with `{debug:true}` by *gaining* the
+key, and a filter that kept everything that could be made to match would
+keep everything. The condition is an ordinary value, so the constraint
+atoms compose with it: `filter($.deploy, {replicas:min(3)})`.
 
 `match(v, p1, r1, …, d?)` is a **bounded conditional**. The first
 pattern in argument order that `v` unifies with selects its result,
-which is the answer; a trailing argument — the one that makes the
-argument count even — is the default:
+which is the answer; a trailing argument—the one that makes the
+argument count even—is the default:
 
 ```aon
 tier: large
@@ -958,14 +958,14 @@ Patterns are matched by unifiability, so kinds and atoms work as
 patterns (`match(x, integer, …, string, …)`, `match(n, min(0), …)`).
 There are no guards, no comparisons beyond the atoms, and no
 fallthrough. **No match and no default is an error** naming the
-patterns that were tried, not an empty answer — a default is how a
+patterns that were tried, not an empty answer—a default is how a
 document says the rest was meant to be allowed. An unselected result
 is never evaluated, so a broken arm nobody takes is not an error the
 document has to carry.
 
 **A defaulted scrutinee matches as the value it generates**. A settled
-scrutinee that carries an effective default — a preference, or a
-disjunction holding one — is tested as the innermost preferred value,
+scrutinee that carries an effective default—a preference, or a
+disjunction holding one—is tested as the innermost preferred value,
 not as the still-open preference. So with `side_effect: *readonly |
 write | destructive`, the derivation `match(.side_effect, destructive,
 true, false)` answers `false` when `side_effect` is unset (the effective
@@ -997,7 +997,7 @@ x: a: m: 1
 
 The peer goes **into** the call and is not also a constraint on the
 way out: `upper(_) & hello` is `"HELLO"`, not `"HELLO" & "hello"`.
-Two holes meeting is an error — neither has a value to fill the other.
+Two holes meeting is an error—neither has a value to fill the other.
 
 Inside a generator's template, `_` is the **source child** the
 generated one is being made from:
@@ -1021,12 +1021,13 @@ A hole in a generator's *data* argument is not a binding position, so it
 is still the outer generator's to fill: `pack($.m, {inner: each(_)})`
 iterates the outer source child. And wrapping a generator in a call
 (`close(pack(d, _ & t))`) does not expose the template's hole to the
-wrapper's peers — an overlay statement merges with the generated
+wrapper's peers—an overlay statement merges with the generated
 children, never with the template.
 
-For a `pack` over a list of names, `_` and `key()` are the same thing
-— the name is the key. Over a map they differ: `key()` is the key, `_`
-is the value. In a `filter` condition, `_` is the child being tested.
+For a `pack` over a list of names, `_` and `key()` are the same
+thing—the name is the key. Over a map they differ: `key()` is the key,
+`_` is the value. In a `filter` condition, `_` is the child being
+tested.
 
 A hole is not a function parameter: it cannot be named, passed, or
 partially applied, and there is no way to write one that is not
@@ -1046,21 +1047,21 @@ place.
 |-----------|------------------------------------------------------|---------|
 | `$.a.b`   | absolute path from the document root                 | `a:1 b:$.a` → `b:1` |
 | `.a.b`    | path relative to the current map                     | `z:x:{a:62} z:y:.x.a` → `y:62` |
-| `$.a.1`   | list index — a segment is numeric **only** as a plain decimal integer | `a:[10,20,30] b:$.a.1` → `b:20` |
+| `$.a.1`   | list index—a segment is numeric **only** as a plain decimal integer | `a:[10,20,30] b:$.a.1` → `b:20` |
 
 **Numeric segments are plain decimal integers, and nothing else is.**
 `$.a.1` indexes a list and reaches the key `1`. Every other numeric
-spelling — hex, `0d`, `_` separators, an exponent — addresses the key
+spelling—hex, `0d`, `_` separators, an exponent—addresses the key
 spelled **exactly that way**, because that is what the spelling already
 produces on the key side: `a:{0x0:1}` generates `{"0x0":1}`, not
 `{"0":1}`, so `$.a.0x0` finds it and `$.a.0` does not.
 
 In a path the dot is always the **separator**, never a decimal point.
-That is why `$.a.1.0` is the two segments `1` and `0` — how a nested list
-index is written (`a:[[1,2],[3,4]] b:$.a.1.0` → `b:3`) — rather than a
+That is why `$.a.1.0` is the two segments `1` and `0`—how a nested list
+index is written (`a:[[1,2],[3,4]] b:$.a.1.0` → `b:3`)—rather than a
 key spelled `1.0`.
 
-References compose with unification and each other — cross-references,
+References compose with unification and each other—cross-references,
 chains, and a referenced map met with extra keys:
 
 ```aon
@@ -1107,7 +1108,7 @@ data**, so the checks descend exactly as far as the data does and no
 further. Data is finite, so evaluation terminates; the depth budget
 is the backstop (`recursion_budget`).
 
-**Guardedness is emergent — the data decides, never a static
+**Guardedness is emergent—the data decides, never a static
 analysis.** Under an optional key (`then?:`) the chain ends where
 the data ends. A ranked default works the same way:
 
@@ -1133,7 +1134,7 @@ In [canonical form](#canonical-form) and the `aon1-` hash the
 recursion stays **symbolic**: the instance unrolls to its data and
 then says `$.schema.Step`; the definition stays one reference deep.
 A recursive schema's canon is finite, reparses to itself, and its
-hash pins the mu-form — one string for an infinitely deep type:
+hash pins the mu-form—one string for an infinitely deep type:
 
 ```
 {"doc":{"label":"start","then"?:{"label":"finish","then"?:$.schema.Step}},
@@ -1141,7 +1142,7 @@ hash pins the mu-form — one string for an infinitely deep type:
 ```
 
 Mutual recursion (`A` referencing `B` referencing `A`) works the same
-way, and so does a recursive [alias](#aliases-) — which is enough to
+way, and so does a recursive [alias](#aliases-)—which is enough to
 write the JSON value space in one line:
 
 ```aon
@@ -1156,7 +1157,7 @@ x: %json & {a: [1, "two", {b: true}]}
 [Subsumption](#subsumption) over an unexpanded recursive position
 answers `undecided` rather than guessing. The degenerate
 self-reference with no structure at all (`a: $.a`) is a residual that
-can never expand — its canon is honestly `{"a":$.a}` and generation
+can never expand—its canon is exactly `{"a":$.a}` and generation
 refuses with `recursion_unexpanded`. A cycle THROUGH other values
 (`a:$.b b:$.a`) is still `path_cycle`: two references chasing each
 other name no definition at all.
@@ -1204,14 +1205,14 @@ admin:  443
 ```
 
 **The declaration is not part of the document.** It does not generate,
-and it does not appear in canon — so the file above and the file with
+and it does not appear in canon—so the file above and the file with
 `integer & min(1) & max(65535)` written out at both keys are the same
 document and produce the same [`aon1-` hash](#canonical-form). That is
 the whole of what an alias is: a name for a value, and nothing else.
 
 **Not inside a spread template, yet.** `{&: {a: %D}}` does not resolve
-the reference: the alias survives into canon as `$.%D` — the refused
-path spelling — and the document's [`aon1-` hash](#canonical-form)
+the reference: the alias survives into canon as `$.%D`—the refused
+path spelling—and the document's [`aon1-` hash](#canonical-form)
 moves, so the two spellings are *not* the same document there. The
 value still generates correctly in both ports, which is what makes it
 easy to miss. Write the constraint out inside a spread template until
@@ -1224,7 +1225,7 @@ is reached by writing `%foo` and only that.
 **A declaration sits at the root of the document.** A nested
 `x: { %a: 1 }` is refused: `%a` resolves from the root, so a nested
 declaration would be erased from the output (it *is* a declaration) and
-still unreachable by any reference (it is *not* at the root) — a name
+still unreachable by any reference (it is *not* at the root)—a name
 that exists nowhere.
 
 Where the declaration *lands* is what decides this, not where it was
@@ -1256,7 +1257,7 @@ b: 50%
 An alias resolves exactly the way a path reference does, which is where
 its properties come from rather than from rules of its own:
 
-- **Order is irrelevant** — a use may precede its declaration.
+- **Order is irrelevant**—a use may precede its declaration.
 - **An alias may name another alias**, and a cycle is refused. So is a
   cycle that runs through the document (`%a: $.x` with `x: %a`), because
   there is one reference graph, not two.
@@ -1333,7 +1334,7 @@ The widest operand anywhere in a chain decides, whichever end it
 arrives at: `x:1+2+0d3` → `0d6`. A `*`-preferred operand contributes
 its preferred value's kind. Results never demote, so a biginteger sum
 that would fit an `integer` stays a biginteger, and an integral
-bigdecimal sum stays a bigdecimal — `x:(0d0.5+0d0.5)&0d1.0` is
+bigdecimal sum stays a bigdecimal—`x:(0d0.5+0d0.5)&0d1.0` is
 `0d1.0`, while `& 0d1` is a conflict.
 
 **Exact arithmetic is exact.** Adding bigdecimals aligns the scales
@@ -1361,7 +1362,7 @@ $ echo 'x: 0d0.1 + 0d0.2 + 0d0.3' | aontu
 }
 ```
 
-A sum too wide to hold is refused, never approximated — see
+A sum too wide to hold is refused, never approximated—see
 [the exactness budget](#the-exactness-budget).
 
 **Float and exact never mix.** An exact value never silently becomes a
@@ -1378,7 +1379,7 @@ and `x:(1+2.0)+0d3` both fail.
 
 **Integer sums are exact too.** `integer + integer` is computed
 exactly, and the answer must then satisfy the same storage contract
-its operands did — integral, inside the int64 window, *and* exactly
+its operands did—integral, inside the int64 window, *and* exactly
 representable as a double. A sum that fails any of the three is a
 located error naming the `0d` escape, rather than a rounded value:
 
@@ -1392,7 +1393,7 @@ x:4611686018427387904+4611686018427387904 → error (2^63, past int64)
 
 **String concatenation renders digits, not kinds.** A `+` with a
 string operand concatenates, and the numeric side contributes its
-plain digits with **no `0d` marker** — the marker is canon decoration,
+plain digits with **no `0d` marker**—the marker is canon decoration,
 and it never leaks into a string.
 
 ```aon
@@ -1414,7 +1415,7 @@ coerces with JavaScript rules, which drop a trailing `.0`:
 `x:a+1.0` → `"a1"`, not `"a1.0"`.
 
 Unary `-` negates a numeric operand exactly. It binds tighter than
-`+`, `&` and `|` — `-1 & integer` is `(-1) & integer` — and, like `+`,
+`+`, `&` and `|`—`-1 & integer` is `(-1) & integer`—and, like `+`,
 never narrows the kind and never yields `-0`.
 
 ## Functions
@@ -1446,25 +1447,25 @@ checked rather than trusted:
 | `close(m: any) : any` | seal a map/list against extra keys            | see [closed values](#closed-values-close--open) |
 | `open(m: any) : any` | reverse a `close`                             | `open(close({x:1})) & {y:2}`→`{x:1,y:2}` |
 | `move(v: any) : any` | resolve reference `p`, dropping unresolved optional keys | `m:{x?:number,y:Y} n:move($.m)`→`n:{y:"Y"}` |
-| `path(capture p?: path) : path` | **capture** `p` as a path value — the spelling, never the resolution; with no argument, the path **kind**. See [First-class paths](#first-class-paths-pathp) | `dep: path(.auth)` generates `".auth"`; `host: path()` |
+| `path(capture p?: path) : path` | **capture** `p` as a path value—the spelling, never the resolution; with no argument, the path **kind**. See [First-class paths](#first-class-paths-pathp) | `dep: path(.auth)` generates `".auth"`; `host: path()` |
 | `map() : map` | the map **kind**: admits any map, defaults to nothing. See [Container kinds](#container-kinds-map-and-list) | `y: map() & {a:1}`→`{a:1}`; `y: map()`→ error |
 | `list() : list` | the list **kind**: admits any list, defaults to nothing | `y: list() & [1]`→`[1]` |
 | `refer(template t?: any) : constraint` | constrain a field to a **path value whose address resolves**; `t`, if given, is unified into the target. The field keeps the address. See [Checked links](#checked-links-refert) | `dependsOn: [&: refer($.std.Service), path($.services.auth)]` |
 | `pack(d: map\|list, template t: any) : map` | one keyed child per child of `d`, each of them `t` cloned at that destination. Keys are the strings of a list, or the keys of a map. See [Generating children](#generating-children-pack-and-each) | `deploy: pack($.names, {replicas:*2\|integer})` |
 | `each(d: map\|list, template t?: any) : list` | one list element per child of `d`, each met with `t`. Source order for a list, sorted-key order for a map | `open: each($.ports, integer)` |
-| `filter(d: map\|list, trial c: any) : map\|list` | the children of `d` that ALREADY satisfy `c` — the meet with `c` changes nothing. Keys kept for a map, order for a list; the rest are dropped, not refused. See [Selecting](#selecting-filter-and-match) | `debugged: filter($.services, {debug:true})` |
+| `filter(d: map\|list, trial c: any) : map\|list` | the children of `d` that ALREADY satisfy `c`—the meet with `c` changes nothing. Keys kept for a map, order for a list; the rest are dropped, not refused. See [Selecting](#selecting-filter-and-match) | `debugged: filter($.services, {debug:true})` |
 | `match(s: any, ...pr: (trial any, any), dflt?: any) : any` | the result of the first pattern `v` unifies with; a trailing argument is the default. No match and no default is an error naming the patterns tried | `size: match($.tier, small, {cpu:1}, {cpu:2})` |
 | `deprecate(v: any, r?: map) : any` | mark `x` deprecated; unifies exactly as `x`, and the record `m` (`{msg?, use?, since?}`, all strings; `use` is a path spelled as a string) rides the result through meets, reference clones and spread applications. Canon renders the call back; generation is unchanged. The point-of-use surfaces: a vet `deprecated` warning, the LSP Deprecated tag, and `aontu breaking --allow-deprecated-removal` | `port: deprecate(*8080\|integer, {msg:"renamed", use:"$.listen", since:"2.0.0"})` |
 
 `super(x)` answers the immediate parent type of its **argument**. For
 a concrete scalar that is the scalar's kind, and for a kind it is the
-kind's own parent — `number` sits above the four numeric leaves, so
+kind's own parent—`number` sits above the four numeric leaves, so
 the numeric ladder has a real middle rung. For structured arguments,
 `super` descends: a map lifts to the map of its values' parents (key
 optionality, closedness and any `&:` spread carried over, the spread
 template lifted), a list lifts element by element, a preference lifts
 to its value's parent, a disjunction lifts arm by arm, and a
-constraint lifts to the kind it constrains — its absorbed leaf kind
+constraint lifts to the kind it constrains—its absorbed leaf kind
 when it has one, otherwise the domain its atoms compare in.
 
 <!-- test: scenario super-parent-type -->
@@ -1480,7 +1481,7 @@ $ echo $?
 0
 ```
 
-The result is a type, so it constrains — lifting an example produces
+The result is a type, so it constrains—lifting an example produces
 a schema the example itself satisfies:
 
 <!-- test: scenario super-as-schema -->
@@ -1504,15 +1505,15 @@ root kinds (`number`, `string`, `boolean`), `top` itself, a
 disjunction with an arm that lifts to `top`, and a constraint that
 admits several container kinds (`length(n)` constrains strings, lists
 and maps alike). Two edges are pinned in `test/spec/super.tsv`: a
-recursion residual met by `super` stays a symbolic call — the finite
-spelling of a lift that is itself recursive — which generation
+recursion residual met by `super` stays a symbolic call—the finite
+spelling of a lift that is itself recursive—which generation
 refuses like any unresolved call, and `super(null)` answers the null
 kind, which canon prints as `null`, the same spelling as the value.
 
 `upper()` and `lower()` round a number without narrowing it: the result
 carries the *argument's* kind, so `upper(2)` is an integer `2` (and
 unifies with `integer`) while `upper(1.1)` is a float `2` (and does
-not). On the exact leaves they are exact ceiling and floor — no
+not). On the exact leaves they are exact ceiling and floor—no
 binary arithmetic is involved, and the kind still survives:
 
 ```
@@ -1588,7 +1589,7 @@ x:add(1.0,0d2)     → error, exact_float_mix — as with `+`
 ```
 
 **Integer division truncates toward zero**, and `rem` and `mod` differ
-only in whose sign the answer follows — `rem`'s the dividend's, `mod`'s
+only in whose sign the answer follows—`rem`'s the dividend's, `mod`'s
 the divisor's. That is the whole reason both exist:
 
 ```aon
@@ -1615,8 +1616,8 @@ would be a value Aontu cannot carry:
 - **A non-finite float result**: `mul(1.0e200,1.0e200)` overflows
   binary64 (`float_overflow`). The same check governs `+`.
 - **`div`, `mod` or `rem` over a bigdecimal.** One third has no finite
-  decimal form, so exact decimal division either rounds — the one thing
-  that leaf exists to prevent — or refuses (`inexact_divide`). Scale to
+  decimal form, so exact decimal division either rounds—the one thing
+  that leaf exists to prevent—or refuses (`inexact_divide`). Scale to
   integers first, which is how money should be carried anyway (minor
   units as an integer), or use floats if an approximation is acceptable.
   Note `0d10` is a *biginteger*, not a decimal, so `div(0d10,0d4)` is
@@ -1630,7 +1631,7 @@ exactly.
 ## Aggregating: `sum` `least` `greatest`
 
 `length()` counts a bag; these three fold one. Each takes a **single
-bag** — a list or a map — and walks the children the model already
+bag**—a list or a map—and walks the children the model already
 holds:
 
 ```aon
@@ -1679,7 +1680,7 @@ data does not contain (`aggregate_empty`).
 
 `least` and `greatest` return **one of the elements**, so the answer
 keeps that element's own kind, and they compare with the tower's exact
-comparator rather than through binary64 — `0d9007199254740993` and
+comparator rather than through binary64—`0d9007199254740993` and
 `9007199254740992` share a float image but are correctly ordered here.
 
 A value that is not a bag is `aggregate_data`; a member that is not a
@@ -1689,12 +1690,12 @@ wrote rather than against the `add` inside it.
 There is no `fold` combinator and will not be one: a fold takes a
 function, and this language has no user functions to give it. These
 three are total because the bag is finite, the operation is fixed, and
-each child is visited once — the same argument that makes `each` safe.
+each child is visited once—the same argument that makes `each` safe.
 
 ## Folding to a string: `join`
 
 `join(coll, sep?)` folds a bag into one string: every member rendered
-as text, with `sep` between them. It is the counterpart of `sum` — one
+as text, with `sep` between them. It is the counterpart of `sum`—one
 takes a bag to a number, the other to a string.
 
 <!-- test: scenario join-fold -->
@@ -1725,7 +1726,7 @@ $ echo 'a: join([1, 2.0, 0d0.5, true], "|")' | aontu -c
 {"a":"1|2|0.5|true"}
 ```
 
-**`join([])` is `""`**, concatenation's identity — the parallel of
+**`join([])` is `""`**, concatenation's identity—the parallel of
 `sum([]) == 0`, and the opposite of `least([])`, which refuses because
 comparison has no identity to answer with.
 
@@ -1813,7 +1814,7 @@ tenantB: { m: @"model.aon", m: { auth: { region: "us" } } }
 Each instance resolves its own internal link inside itself, and the
 per-tenant override is an ordinary narrowing rather than a
 contradiction. A global name on `auth` would have made the two
-instances one entity and the second override an error — which is why
+instances one entity and the second override an error—which is why
 there are no global names.
 
 **Bringing two descriptions into contact is something you write.**
@@ -1827,8 +1828,8 @@ deploy: eu1: payments: $.catalog.payments & { replicas: 3, tier: 2 }
 ```
 
 The two `tier` values now meet, and disagree, so the run fails at the
-site that says so. A reference is directional — `deploy` is narrowed,
-`catalog` is not — and that directionality is what keeps two unrelated
+site that says so. A reference is directional—`deploy` is narrowed,
+`catalog` is not—and that directionality is what keeps two unrelated
 models from silently merging because they happened to choose the same
 word.
 
@@ -1849,18 +1850,18 @@ cap: path($.a.b)  # a capture: the path itself
 ```
 
 This is the one non-strict argument position in the language: every
-other call reads its argument's value, `path(p)` reads its spelling.
-The captured spelling is the address grammar `refer` reads —
-`$.a.b` from the document root, `.b` from the sibling scope, one more
-leading dot per parent step — and a bare dotted argument is relative
-(`path(q.r)` captures `.q.r`).
+other call reads its argument's value, `path(p)` reads its spelling. The
+captured spelling is the address grammar `refer` reads—`$.a.b` from the
+document root, `.b` from the sibling scope, one more leading dot per
+parent step—and a bare dotted argument is relative (`path(q.r)` captures
+`.q.r`).
 
 A bare string is **never** a path: the call's own argument is the one
 conversion the language has. A string *literal* argument is address text
 (`path("$.a")` is the capture `path($.a)`), and text with no anchor is
-**relative** — `path("auth")` is `path(.auth)`, the address the raw
-spelling captures. A *computed* argument — an expression, a reference to
-a string — evaluates first, and the result converts by the same grammar,
+**relative**—`path("auth")` is `path(.auth)`, the address the raw
+spelling captures. A *computed* argument—an expression, a reference to
+a string—evaluates first, and the result converts by the same grammar,
 which is what makes an address buildable:
 
 ```aon
@@ -1873,24 +1874,24 @@ accounts: pack($.names, { for: refer() & path("$.names." + key()) })
   "names": { "db": {}, "web": {} } }
 ```
 
-Text that spells no address even once anchored — an empty string, an
-empty segment (`"a..b"`), a broken `$` spelling — refuses at the call
+Text that spells no address even once anchored—an empty string, an
+empty segment (`"a..b"`), a broken `$` spelling—refuses at the call
 (`path_address`); a number or a container argument is refused as
 `invalid-arg`.
 
 `path()` with no argument is the path **kind**: the set of all path
-values. It sits under `string` in the kind lattice, so `string`
-admits a path value and the string constraints apply to spellings —
-but the kind does **not** promote: `path() & "$.a"` refuses
-(`no_scalar_unify`) exactly as `integer & "x"` does, because outside
-the `path(...)` call a string never becomes a path.
+values. It sits under `string` in the kind lattice, so `string` admits a
+path value and the string constraints apply to spellings—but the kind
+does **not** promote: `path() & "$.a"` refuses (`no_scalar_unify`)
+exactly as `integer & "x"` does, because outside the `path(...)` call a
+string never becomes a path.
 
 Everything else about a path value is what scalars already do, made
 precise by three rules:
 
 1. **Meets are syntactic, by the prefix rule.** Two path values meet
-   when one spells a *prefix* of the other — the same anchor, the
-   shorter's segments opening the longer's — and the result is the
+   when one spells a *prefix* of the other—the same anchor, the
+   shorter's segments opening the longer's—and the result is the
    **longer**: a path can always be told more precisely.
    `path($.a) & path($.a.b)` is `path($.a.b)`; incomparable
    spellings (`path($.a) & path($.b)`, or different anchors) refuse
@@ -1901,10 +1902,10 @@ precise by three rules:
 2. **A path value is data.** `path($.nope)` generates `"$.nope"`:
    existence is `refer`'s contract, not the value's, so a document may
    address things outside this evaluation. `path(p) & refer()` is the
-   checked link — see [Checked links](#checked-links-refert).
+   checked link—see [Checked links](#checked-links-refert).
 3. **Generation and canon.** A path value generates as its address
    string; its canonical form is the call (`path($.a.b)`), which
-   reparses to the same value — the call form is the literal syntax
+   reparses to the same value—the call form is the literal syntax
    for this kind.
 
 The kind settles inside `type()` bodies, which a `refer` cannot
@@ -1966,7 +1967,7 @@ $.services.auth   from the document root
 ```
 
 `$.a.b` is absolute. A leading `.` reads the link's own sibling scope,
-and every further dot is one step up — the same reduction a relative
+and every further dot is one step up—the same reduction a relative
 reference performs. `$` alone is not an address: the whole document has
 no enclosing position, so nothing could be written back into it.
 
@@ -1976,18 +1977,18 @@ at, so the same file instantiated twice gives two self-contained
 instances.
 
 Only a [path value](#first-class-paths-pathp) can be an address: a bare
-string never is — `refer() & "$.a"` refuses (`refer_address`) — and
+string never is—`refer() & "$.a"` refuses (`refer_address`)—and
 `path("...")` is the one conversion. A second path peer refines the
 address by the prefix rule (`refer() & path($.a) & path($.a.b)` links to
 `$.a.b`), and a relative address that climbs off the top of the tree is
-refused outright — no later pass can grow a tree upwards.
+refused outright—no later pass can grow a tree upwards.
 
 ### Existence is decided, not deferred
 
 A `refer` **residuates**: a target may be introduced by a later
 conjunct, include or spread, so the constraint retries each pass
 exactly as a forward reference does. But within one evaluation the
-document-set is fixed, so existence *is* decidable — an address that
+document-set is fixed, so existence *is* decidable—an address that
 still names nothing at the last pass is a located error
 (`refer_unresolved`), not something to check later.
 
@@ -2005,7 +2006,7 @@ b: refer({r:3}) & path($.a)
 {"a": {"p":1, "r":3}, "b": "$.a"}
 ```
 
-Referring to something as a `Service` makes it one — and if it cannot
+Referring to something as a `Service` makes it one—and if it cannot
 be, the conflict is an ordinary located error. Check-only semantics
 would be non-monotone (true, then false as the target grows), and the
 lattice guarantee is that more information never falsifies what has
@@ -2020,20 +2021,19 @@ it.
 
 `refer(t)` takes the value the **target** must satisfy. The address
 comes from the `path()` beside it, never from the argument, so
-`refer(key())` does not mean "link to the node this key names". It
-means "the target must unify with whatever `key()` answers here" —
-and `key()` answers with a *string*, so the link is constrained to a
-target that is that string. At the root of a document `key()` is `""`,
-which leaves `refer("")`: a link with no address, which cannot
-generate.
+`refer(key())` does not mean "link to the node this key names". It means
+"the target must unify with whatever `key()` answers here"—and `key()`
+answers with a *string*, so the link is constrained to a target that is
+that string. At the root of a document `key()` is `""`, which leaves
+`refer("")`: a link with no address, which cannot generate.
 
 ```
 link: refer(key())     → [aontu/mapval_no_gen] at $.link
                          value was: refer("")
 ```
 
-**A key does not survive a reference.** `key()` is path-dependent — it
-answers for the destination it lands at — and a reference is a new
+**A key does not survive a reference.** `key()` is path-dependent—it
+answers for the destination it lands at—and a reference is a new
 destination, so referring to a field whose value came from `key()`
 re-fires it at the referring site rather than carrying the target's
 key across. There is no built-in that takes a `path()` value and
@@ -2063,20 +2063,20 @@ links: pack($.names, {
            "billing": {"to": "$.services.billing", "name": "billing"}}}
 ```
 
-`to` is checked — a name with no service refuses — and `name` is the
+`to` is checked—a name with no service refuses—and `name` is the
 same key as an ordinary string.
 
 ### The bundled vocabularies
 
 Two vocabularies ship with the engine and are served from it rather
-than from disk: `std/system` below, and `std/view` — the schema for
+than from disk: `std/system` below, and `std/view`—the schema for
 one declaration of a [view document](reference-api.md#aontu-view),
 `$.view.Figure`, which types every option the verb reads so a typo is
 refused at evaluation.
 
 ### The `std/system` vocabulary
 
-Ports, components and relations need no syntax — they are schemas, and
+Ports, components and relations need no syntax—they are schemas, and
 one set of them ships with the engine. Write this as `system.aon`:
 
 <!-- test: scenario std-system -->
@@ -2114,8 +2114,8 @@ $ aontu system.aon
 | `$.std.Component` | a node with `ports`, each of which is a `Port` |
 | `$.std.Service` | a Component whose `kind` is `service` |
 
-`@"std/system"` is **bundled with the engine** — no filesystem, no
-package resolution — so it resolves under every include capability
+`@"std/system"` is **bundled with the engine**—no filesystem, no
+package resolution—so it resolves under every include capability
 except `'none'`, which denies every include by definition. It is
 **experimental** until the vocabulary can be versioned by canon-hash.
 
@@ -2134,7 +2134,7 @@ Two of its behaviours are the language rather than the vocabulary:
   expect.
 
 Everything here is ordinary unification, so an author who wants a
-different vocabulary writes one the same way — and nothing in the
+different vocabulary writes one the same way—and nothing in the
 language knows these names.
 
 ### Declared relations
@@ -2152,10 +2152,10 @@ b: { usedBy:    rel() & [path($.a)] }
 {"a": {"dependsOn": ["$.b"]}, "b": {"usedBy": ["$.a"]}}
 ```
 
-- **`acyclic()`** — the edges under this relation must have no cycle.
+- **`acyclic()`**—the edges under this relation must have no cycle.
   The error names the nodes the cycle runs through, closing back on
   the first.
-- **`inverse(<name>)`** — for each `a --dependsOn--> b`, `b` must carry
+- **`inverse(<name>)`**—for each `a --dependsOn--> b`, `b` must carry
   `a` under `<name>`, as an edge of that relation. The error names the
   exact missing entry. Writing the inverse **for** you is generation,
   not validation, and is not done here.
@@ -2171,12 +2171,12 @@ never falsifies what has already been observed, so a constraint that
 could be true and then false is not one the lattice may hold. During
 unification the atoms only REGISTER the declaration (the predicate is
 the key they sit on) and ride the field's value; the verdict lands at
-GENERATION — where no more information can arrive — as a located
+GENERATION—where no more information can arrive—as a located
 `relation_cycle` or `relation_inverse_missing` at the offending edge,
 exactly as an unmet sizing atom refuses. `aontu relations <file>`
 reports the same findings without generating, and the library exposes
-`relationCheck(src)`. The closure question — does `a` reach `b` at any
-remove? — is a separate verb, [`aontu reaches`](reference-api.md#aontu-reaches).
+`relationCheck(src)`. The closure question—does `a` reach `b` at any
+remove?—is a separate verb, [`aontu reaches`](reference-api.md#aontu-reaches).
 
 There is no reserved `relations:` key: a document that writes one has
 written ordinary data. The tree is user space at every level.
@@ -2212,13 +2212,13 @@ a: copy($.x)
 
 **A mark belongs to the field its wrapper was written at**. A reference
 to a `type()`/`hide()`-marked value copies the value with the marks
-cleared — and that holds however the wrapper resolves: a reference that
+cleared—and that holds however the wrapper resolves: a reference that
 lands on a still-unresolved `type()`/`hide()` call waits for it to
 resolve at its *own* field rather than copying the call, so the marks
 can never be re-stamped at the referring site. In particular `m:
 hide(pack(...))` hides the field `m` exactly as `hide({literal map})`
-does — the generated children stay usable downstream (`out: pack($.m,
-{got:_})` emits their values) — and a `type()`-marked alias referenced
+does—the generated children stay usable downstream (`out: pack($.m,
+{got:_})` emits their values)—and a `type()`-marked alias referenced
 inside another `type()` body constrains the referring field without
 suppressing its emission.
 
@@ -2248,7 +2248,7 @@ close([1,2]) & [3,4,5]    → error: closed
 ## Source loading `@"…"`
 
 `@"path"` loads and parses another source file, then unifies the result
-in place — so external files merge like any other value.
+in place—so external files merge like any other value.
 
 Source files use the `.aon` extension (preferred) or `.aontu`. When the
 path has no extension, those two are tried in turn, so `@"foo"` resolves
@@ -2259,14 +2259,14 @@ things:
 
 | extension | what it is |
 |---|---|
-| `.aon`, `.aontu` | **Aontu source** — the language, with everything in it |
+| `.aon`, `.aontu` | **Aontu source**—the language, with everything in it |
 | `.json`, `.jsonld`, `.jsonc`, `.json5`, `.jsonic`, `.jsc`, `.toml`, `.yaml`, `.yml`, `.ini` | **configuration data**, read by that format's own parser |
 | anything else | refused, by name |
 
 Every one of those formats maps onto JSON, which is why one word covers
 them: a `.toml` file is a map of scalars, lists and maps, and so is the
 `.aon` file that unifies with it. What a data format does not get is
-the language — a `&` in a YAML file is a YAML anchor, not a spread key,
+the language—a `&` in a YAML file is a YAML anchor, not a spread key,
 because the YAML parser reads it, not this one.
 
 Write `vocab.jsonld`:
@@ -2335,7 +2335,7 @@ wanting a number has to say so. A malformed config file refuses the
 whole document rather than becoming an empty value under the key that
 included it.
 
-Every other extension — and a name with no extension at all — is
+Every other extension—and a name with no extension at all—is
 refused by name rather than guessed at. Put prose in `notes.txt`:
 
 <!-- test: file notes.txt -->
@@ -2455,13 +2455,13 @@ re-route documents that resolve today.
 
 **Uppercase is escaped on disk.** `corp.example/Widgets` and
 `corp.example/widgets` are two module identities and, on a
-case-insensitive filesystem, one directory — so an uppercase letter is
+case-insensitive filesystem, one directory—so an uppercase letter is
 written `!`+lowercase in the store, Go's rule for Go's reason. The
 written path stays the identity; only the directory is escaped.
 
 **Evaluation never touches the network.** A module resolves from local
-stores only — `aon_vendor/` beside the project's `mod.aon`, then a
-content-addressed user cache — and the cache is consulted only when the
+stores only—`aon_vendor/` beside the project's `mod.aon`, then a
+content-addressed user cache—and the cache is consulted only when the
 expected hash is known, because that hash is its key. A module in
 neither store is an error that names the step that fixes it:
 
@@ -2469,8 +2469,8 @@ neither store is an error that names the step that fixes it:
 module not fetched: corp.example/schemas/service@1 (run: aontu mod get)
 ```
 
-The user cache is `$XDG_CACHE_HOME/aontu/mod` where that is set — an
-explicit override wins on every platform — and otherwise the platform's
+The user cache is `$XDG_CACHE_HOME/aontu/mod` where that is set—an
+explicit override wins on every platform—and otherwise the platform's
 own cache location: `%LOCALAPPDATA%\aontu\mod` on Windows,
 `~/.cache/aontu/mod` elsewhere. A host that offers none of those has no
 user cache, and a module then resolves from `aon_vendor/` alone.
@@ -2483,7 +2483,7 @@ declares the module's own path and entry file; the entry defaults to
 mod: { path: "corp.example/schemas/service", main: "service.aon" }
 ```
 
-`mod-lock.aon` is machine-written in **canonical form** — one line,
+`mod-lock.aon` is machine-written in **canonical form**—one line,
 sorted keys, diffable, and (its leaves being scalars) valid JSON:
 
 ```aon
@@ -2493,7 +2493,7 @@ sorted keys, diffable, and (its leaves being scalars) valid JSON:
 Each entry carries two pins with distinct roles: `oci` certifies *these
 are the bytes the registry served*; `canon` certifies *this is the
 meaning that was reviewed*. Only the second can be checked without the
-registry, and it is the one evaluation checks — by unifying the module
+registry, and it is the one evaluation checks—by unifying the module
 **standalone** and comparing its [canon-hash](#canonical-form):
 
 ```
@@ -2502,7 +2502,7 @@ module integrity: corp.example/schemas/service@1 expected aon1-4vJe… got aon1-
 
 The pin survives comments, whitespace, formatting and refactoring; it
 breaks on any semantic change in the module's transitive closure. An
-inline `#aon1-…` fragment is the same check without a lockfile — the
+inline `#aon1-…` fragment is the same check without a lockfile—the
 degenerate mode for single-file and agent-sandbox use.
 
 Under a **root** trust capability (`docs/trust.md`) the user cache is
@@ -2518,40 +2518,40 @@ mod: { path: "corp.example/app", main: "main.aon" }
 dep: { "corp.example/schemas/service@1": { v: "1.4.2" } }
 ```
 
-`aontu mod tidy` walks the closure — each module's own `mod.aon`
-contributes its declarations — and resolves it by **minimum version
+`aontu mod tidy` walks the closure—each module's own `mod.aon`
+contributes its declarations—and resolves it by **minimum version
 selection**: every module is taken at the highest of the minima anyone
 asked for, and never higher. Resolving upgrades nothing, so the answer
 is reproducible and adding one dependency cannot move another. It then
 recomputes each `canon` pin from the module in the store and rewrites
 `mod-lock.aon`; if any module is not in a store, or is in one but does
-not evaluate on its own, the lockfile is left alone — a partial lock
+not evaluate on its own, the lockfile is left alone—a partial lock
 claims a closure that was never resolved, and a pin computed from a
 module that has no meaning is the same string for every broken module.
 
 `aontu mod verify` asks the opposite question and **changes nothing**:
 does every locked module still *mean* what the lockfile pins? It is
-the CI gate, because `tidy` cannot be one — rewriting the lockfile is
+the CI gate, because `tidy` cannot be one—rewriting the lockfile is
 tidy's job, so a job that tidies before evaluating makes the
 lock agree with whatever the store now holds. A store that has drifted
 is reported with both hashes; a project the lockfile does not cover is
 refused rather than verified over nothing.
 
-`aontu mod vendor` copies the locked closure into `aon_vendor/` as
-whole source trees, which is what makes a project evaluable with no
-cache and no network at all. It can only find what the lockfile pins —
-the cache is keyed by canon-hash — so `tidy` comes first.
+`aontu mod vendor` copies the locked closure into `aon_vendor/` as whole
+source trees, which is what makes a project evaluable with no cache and
+no network at all. It can only find what the lockfile pins—the cache is
+keyed by canon-hash—so `tidy` comes first.
 
 A module that publishes itself declares a version too, and the **major
 an import spells lives inside it**: `version: "1.4.2"` publishes as
-`@1`. `aontu mod manifest` prints the OCI artifact a publish would push
-— the config media type, the source tree that is the layer, and the
-annotations carrying path, version and canon-hash — and `--against` a
+`@1`. `aontu mod manifest` prints the OCI artifact a publish would
+push—the config media type, the source tree that is the layer, and the
+annotations carrying path, version and canon-hash—and `--against` a
 prior version's tree runs the
-[breaking](reference-api.md#aontu-breaking) check between them. A
-change that is breaking under an unchanged major refuses; a major bump
-is where breaking is allowed, because a consumer of `@1` never sees
-`@2` unless it asks.
+[breaking](reference-api.md#aontu-breaking) check between them. A change
+that is breaking under an unchanged major refuses; a major bump is where
+breaking is allowed, because a consumer of `@1` never sees `@2` unless
+it asks.
 
 That annotation is what makes "has the truth changed?" cheap: it is the
 same canon-hash the lockfile pins, so a consumer compares one string
@@ -2602,7 +2602,7 @@ constraints, defaults, and open disjunctions. Rules:
   This applies to **canon only**. String concatenation is unaffected:
   `a+1.0` is still `"a1"`.
 - **Exact values carry the `0d` marker**, with any sign in front of
-  it, in plain form at every magnitude — never scientific. An integral
+  it, in plain form at every magnitude—never scientific. An integral
   bigdecimal keeps one decimal place, which is what distinguishes it
   from the biginteger of the same value:
 
@@ -2618,8 +2618,8 @@ constraints, defaults, and open disjunctions. Rules:
   generated output alike.
 - Kinds render lowercase: `number`, `integer`, `float`, `biginteger`,
   `bigdecimal`, `string`, `boolean`.
-- Conjunction: `a&b` (e.g. `number&"A"`). Disjunction: `a|b`
-  (e.g. `1|2`, `string|number`). Preference: `*x` (e.g. `*1|number`).
+- Conjunction: `a&b` (for example `number&"A"`). Disjunction: `a|b`
+  (for example `1|2`, `string|number`). Preference: `*x` (for example `*1|number`).
 - Spreads keep the `&:` entry: `{&:{"x":2},"y":{…}}`.
 
 ## Generation
@@ -2663,13 +2663,13 @@ $ echo 'a: 0d1000 b: 0d1e3' | aontu
 That is the leaf distinction reaching the output: a
 biginteger emits `1000`, and the integral bigdecimal beside it emits
 `1000.0`, because that trailing place is part of a bigdecimal's own
-digits. The plain family behaves the other way — an integral float
+digits. The plain family behaves the other way—an integral float
 loses its point, so `b:2.0` generates `2`.
 
 The native values follow: `bigint` and `Decimal` in TypeScript,
 `*big.Int` and `*aontu.Decimal` in Go, each carrying the exact value.
 TypeScript's `JSON.stringify` cannot serialise a `bigint`, so the
-library exports its own exact emitter (`exactJSON`) — the one the
+library exports its own exact emitter (`exactJSON`)—the one the
 `aontu` command uses.
 
 Object key order is not significant in generated output, and within
@@ -2684,7 +2684,7 @@ value B admits, the general value A admits too**. It is the lattice's
 own order, asked as a first-class query: `subsume(general, specific)`
 in both engines, running after evaluation on finished trees, never
 mutating them. The
-verdict is three-valued plus `error` — `subsumes`, `does_not_subsume`
+verdict is three-valued plus `error`—`subsumes`, `does_not_subsume`
 (with the failing path and both sides' canons as the witness),
 `undecided` (always with a `sub_*` reason code, never silently), and
 `error` for a source that does not stand up on its own. Findings reuse
@@ -2711,7 +2711,7 @@ lowest-ranked one (generation picks the lowest rank: `a:**1|*2`
 generates `2`). Equal-rank preferences that disagree make the
 effective default indeterminate (`sub_default_indeterminate`,
 undecided). Adding a default where none existed is compatible;
-changing or removing one is `compat_default_changed` — previously
+changing or removing one is `compat_default_changed`—previously
 generable documents materialise differently or become incomplete.
 
 ### Rules, by value former
@@ -2719,15 +2719,15 @@ generable documents materialise differently or become incomplete.
 | A (general) | B (specific) | A ⊒ B |
 |-------------|--------------|-------|
 | `top` | anything | yes |
-| preference `*x` | — | compares as what it admits (its superior type); its default value is the profiles' business, not the value set's |
-| unresolved residue (reference, variable, unreduced conjunct or function) on either side | — | `undecided` (`sub_unresolved`): there is no admitted set to compare |
+| preference `*x` |—| compares as what it admits (its superior type); its default value is the profiles' business, not the value set's |
+| unresolved residue (reference, variable, unreduced conjunct or function) on either side |—| `undecided` (`sub_unresolved`): there is no admitted set to compare |
 | anything | disjunction | every specific alternative must be admitted by A; a concrete failing alternative is a witness (`compat_narrowed`), a non-concrete one is `undecided` (`sub_disjunct_distribution`) |
-| disjunction | non-disjunction | some general alternative must admit B member-wise; failure with concrete B is a witness, otherwise `undecided` (`sub_disjunct_distribution`) — member-wise failure is not proof, the distribution case |
+| disjunction | non-disjunction | some general alternative must admit B member-wise; failure with concrete B is a witness, otherwise `undecided` (`sub_disjunct_distribution`)—member-wise failure is not proof, the distribution case |
 | scalar kind | scalar kind or scalar | the general kind admits the specific kind (`number ⊒ integer`) or the scalar's kind; distinct leaves are disjoint |
 | scalar kind | constraint residual | the kind covers the residual's domain: `number` admits any numeric residual, a numeric leaf kind admits a residual pinned to that leaf, `string` admits any pattern residual |
 | constraint residual | constraint residual | per the constraint algebra's own [subsumption table](#subsumption-1); a `must` on the general side is `undecided` (`sub_evaluate_only`) |
 | constraint residual | scalar | membership, with `must` again `undecided`; `unique()` and `length` demands admit no scalar |
-| concrete scalar | concrete scalar | identity — a concrete value subsumes only itself (kind included) |
+| concrete scalar | concrete scalar | identity—a concrete value subsumes only itself (kind included) |
 | map | map | see below; anything else is `compat_narrowed` |
 | list | list | element-wise by position, with the same required/optional shape as maps |
 
@@ -2753,7 +2753,7 @@ before the walk begins.
   template compares as `top`, so a general-only template does not
   subsume an open specific bag). A specific-only template narrows the
   specific side and refuses nothing. A **path-dependent** template
-  (one whose meaning depends on where it lands — `key()`, a
+  (one whose meaning depends on where it lands—`key()`, a
   reference) cannot be compared structurally:
   `sub_path_dependent_spread`, undecided.
 - Under the `gen` profile, `type`/`hide` marks must agree on
@@ -2768,14 +2768,14 @@ The `at` option anchors both documents at one path before comparing
 The relation also powers an advisory lint: the validation verb reports a
 `pref_not_instance` finding (severity `warning`, class `compat`) when a
 disjunction's effective default is not an instance of any **remaining**
-alternative. Under the admission gate this is no longer a soundness hole
-— the preferred branch contributes its own value to the admitted set, so
-`level: *wran | info | warn | debug` is a well-defined enum `{wran,
-info, warn, debug}` defaulting to `wran` — but that spelling is also
+alternative. Under the admission gate this is no longer a soundness
+hole—the preferred branch contributes its own value to the admitted set,
+so `level: *wran | info | warn | debug` is a well-defined enum `{wran,
+info, warn, debug}` defaulting to `wran`—but that spelling is also
 exactly the shape of a *typo'd* default (`*warn` was probably meant),
 which nothing at meet time can distinguish. The warning flags the
 boundary: a default drawn from the written alternatives (`*8080 |
-integer`) is silent, a default that widens them is worth a look.
+integer`) is silent; a default that widens them is what the warning reports.
 Repeating the branch (`*warn | warn | error`) states "the default is a
 first-class member", silences the lint, and enforces the same admitted
 set.
@@ -2804,16 +2804,16 @@ Failures surface as messages (thrown as `AontuError` in TS, returned as
 
 **Every built-in has a fixed arity, checked at parse.** Nearly all take
 exactly one argument; the two exceptions are `key`, which takes none or
-one (how many levels up the path to read — none means the parent), and
+one (how many levels up the path to read—none means the parent), and
 `neq`, which takes one or more exclusions. A wrong count is a mistake in
 the source and is refused before anything is evaluated.
 
-**An elided value is refused.** A key, element or spread written with
+**An elided value is refused.** A key, element, or spread written with
 nothing after its colon (`a:`, `a?:`, `[,]`, `[1,,2]`, `x:$obj&:`) is a
 mistake in the source
-rather than a null — writing it as a null made the mistake
+rather than a null—writing it as a null made the mistake
 indistinguishable from a deliberate `a:null`. The error names the key or
-index, not the container — except for a spread, which has no key of its
+index, not the container—except for a spread, which has no key of its
 own and so refuses the map it belongs to.
 
 Three things that look similar are not elisions and keep working: an
@@ -2822,13 +2822,13 @@ pair), and a trailing comma (`[1,]`, `{a:1,}`).
 
 A comma group and a written list are different counts:
 `upper("a","b")` is two arguments and is refused, while
-`upper(["a","b"])` is one — a list, which `upper` then refuses for its
+`upper(["a","b"])` is one—a list, which `upper` then refuses for its
 kind rather than its count.
 
 A **version-control conflict marker** is refused before the parse. None
 of `<`, `=` and `>` is an operator, so a marker line would otherwise be
 read as ordinary text and `<<<<<<< HEAD` would parse into the list
-`["<<<<<<<","HEAD"]` — an unresolved merge quietly becoming a plausible
+`["<<<<<<<","HEAD"]`—an unresolved merge silently becoming a plausible
 document. The match is git's exact shape: seven `<`, `=` or `>` at the
 start of a line, followed by the end of the line or a space before the
 branch label. A document may still write those characters freely
@@ -2840,15 +2840,15 @@ distinguishable.
 
 ## The constraint algebra
 
-> All nine atoms — the bounds `min`/`max`/`above`/`below`, the
+> All nine atoms—the bounds `min`/`max`/`above`/`below`, the
 > exclusion `neq`, the pattern `re`, the sizing atoms `length` and
-> `unique`, and the evaluate-only `must` — are implemented in both
+> `unique`, and the evaluate-only `must`—are implemented in both
 > engines over the four-leaf number tower, pinned by the
 > [`test/spec/constraint-*.tsv`](../test/spec/) suites. Violations
 > raise the registered `constraint` code, and a pattern outside the
 > portable subset raises `constraint_pattern`. Known limit: a
 > preference meeting a constraint in a CONJUNCT (`min(1024) & *8080`)
-> does not resolve to the default — use the disjunct form
+> does not resolve to the default—use the disjunct form
 > (`*8080 | (integer & min(1024))`). Under the admission gate
 > the disjunct form also ENFORCES on override: an
 > out-of-bound peer is refused rather than silently bypassing the
@@ -2857,9 +2857,9 @@ distinguishable.
 
 ### Vocabulary
 
-Nine builtins join the function registry. Eight are **Band A** — full
+Nine builtins join the function registry. Eight are **Band A**—full
 lattice citizens with defined meet, emptiness, subsumption, and
-canonical form. One is **Band B** — evaluate-only, honestly reported
+canonical form. One is **Band B**—evaluate-only, and reported
 as such. There is no new grammar: atoms are ordinary functions.
 
 | Atom | Band | Meaning |
@@ -2884,7 +2884,7 @@ supertype `number`):
    numeric bound constrains the value's mathematical position and is
    satisfied by ANY numeric leaf at an admissible position:
    `min(0) & 0d5` is `0d5`, `above(1) & 1.5` is `1.5`. Comparison is
-   exact across leaves — every binary64 is exactly a rational, so a
+   exact across leaves—every binary64 is exactly a rational, so a
    `float` compares with an exact decimal without rounding, in both
    implementations. A numeric bound implies the kind `number` (the
    supertype); it never narrows the peer's leaf.
@@ -2893,9 +2893,9 @@ supertype `number`):
    canonical texts denoting the same bound point. When two endpoints
    at the SAME point meet (`min(1) & min(1.0)`), the survivor is the
    one whose leaf sits lowest in the tower order
-   `integer < float < biginteger < bigdecimal` — a deterministic
+   `integer < float < biginteger < bigdecimal`—a deterministic
    choice both implementations make identically.
-3. **`neq` excludes by scalar identity — leaf and value** — because
+3. **`neq` excludes by scalar identity—leaf and value**—because
    that is what scalar identity means in the lattice (`1 & 1.0` is a
    conflict; `1|1.0` keeps both alternatives). `neq(1)` excludes the
    integer `1` and admits the float `1.0`. To exclude a point on the
@@ -2908,7 +2908,7 @@ and yields nil.
 
 ### The meet
 
-`atom & atom` (same domain) is symbolic — decided at
+`atom & atom` (same domain) is symbolic—decided at
 schema-composition time, before any data arrives:
 
 | Meet | Result |
@@ -2916,13 +2916,13 @@ schema-composition time, before any data arrives:
 | interval & interval | intersection: `min(0) & min(5)` → `min(5)`; `min(2) & max(10) & max(7)` → `min(2)&max(7)` |
 | `neq` & `neq` | exclusion-set union, arguments sorted |
 | `re` & `re` | regex-set accumulation (patterns sorted; never simplified) |
-| `length(c1)` & `length(c2)` | `length(c1 & c2)` — the count atom reuses the numeric algebra recursively |
+| `length(c1)` & `length(c2)` | `length(c1 & c2)`—the count atom reuses the numeric algebra recursively |
 | bound & kind | domain narrowing: `integer & min(0)` keeps both (interval gains the integral-domain flag); `number & min(0)` keeps `min(0)` (already implied); `string & min(0)` → nil |
 | bound & concrete scalar | membership by exact comparison → the scalar, or a two-site nil |
 | bound & `must` | both kept; `must` stays opaque |
 
-Meets are commutative and idempotent by construction — normalisation,
-not term order, defines the result — so the lattice guarantee is
+Meets are commutative and idempotent by construction—normalisation,
+not term order, defines the result—so the lattice guarantee is
 preserved.
 
 ### Emptiness
@@ -2932,17 +2932,17 @@ guessed where it is not:
 
 - Empty interval: `min(5) & max(3)` → nil, both sites reported.
 - Integral gap: an integral-domain interval containing no integral
-  value — `integer & above(1) & below(2)` → nil. (Applies when the
+  value—`integer & above(1) & below(2)` → nil. (Applies when the
   domain is narrowed by `integer` or `biginteger`.)
 - Point deletion **requires a narrowed leaf**: `min(3) & max(3)`
   admits the point 3 in any numeric leaf, so `neq(3)` (which excludes
-  only the integer `3`) does NOT empty it — but
+  only the integer `3`) does NOT empty it—but
   `integer & min(3) & max(3) & neq(3)` → nil. This is the tower
   re-derivation of the pre-tower example, and the spec rows pin both
   directions.
 - `length(c)` is empty iff `c & integer & min(0)` is.
 - Regex emptiness is deliberately approximate: distinct `re` atoms
-  accumulate and are never declared empty — sound (no false
+  accumulate and are never declared empty—sound (no false
   conflicts), incomplete (some contradictions surface only against
   data).
 
@@ -2952,14 +2952,14 @@ guessed where it is not:
 per-former rules are in [Subsumption](#subsumption) above). One
 mapping to note: the
 query answers the `must` row's "never" as `undecided` with reason
-`sub_evaluate_only` — the admitted set is opaque, which is honest
-indecision rather than a decided refusal.*
+`sub_evaluate_only`—the admitted set is opaque, which is
+undecided rather than refused.*
 
 `A ⊒ B` ("A subsumes B", B is an instance of A) holds when **every
 value B admits, A admits too**. It is the lattice's own order, and for
 this algebra it is decided per atom family rather than by search. Three
 properties make it useful: it is reflexive (`A ⊒ A`), transitive, and
-`A ⊒ B` exactly when `A & B` is `B` — so an implementation has a free
+`A ⊒ B` exactly when `A & B` is `B`—so an implementation has a free
 cross-check against the meet table.
 
 **Soundness before completeness.** Where a rule below cannot decide, the
@@ -2971,21 +2971,21 @@ in this sense and are marked; the rest are exact.
 
 | A (general) | B (specific) | A ⊒ B when |
 |-------------|--------------|------------|
-| no kind     | any          | always — an unnarrowed residual admits every leaf its domain has |
-| `number`    | any numeric leaf, or a numeric residual | always — the supertype admits every leaf |
+| no kind     | any          | always—an unnarrowed residual admits every leaf its domain has |
+| `number`    | any numeric leaf, or a numeric residual | always—the supertype admits every leaf |
 | leaf `k`    | leaf `k'`    | `k == k'`; distinct leaves are disjoint, so neither subsumes the other |
 | interval    | interval     | A's interval contains B's: A's lower endpoint is at or below B's, A's upper at or above, and where endpoints coincide A's may not be the open one |
 | interval    | concrete scalar | the scalar is admitted by A (the membership rule of the meet) |
 | no bound on a side | any    | an absent endpoint is ±∞ and contains everything |
-| `neq(S)`    | `neq(T)`     | `S ⊆ T` — excluding *fewer* values is more general. `neq(1) ⊒ neq(1,2)` |
+| `neq(S)`    | `neq(T)`     | `S ⊆ T`—excluding *fewer* values is more general. `neq(1) ⊒ neq(1,2)` |
 | `neq(S)`    | concrete scalar | the scalar is in neither S nor excluded by A's other atoms |
 | `re(P)`     | `re(Q)`      | **approximate**: `P ⊆ Q` as a *set of pattern strings*. Adding a pattern narrows, so `re("a") ⊒ re("a")&re("b")` |
-| `length(c)`    | `length(d)`     | `c ⊒ d`, recursively — the count atom reuses this same table over the integer domain |
-| absent `length`/`unique` | present | always — an unsized residual admits every size |
+| `length(c)`    | `length(d)`     | `c ⊒ d`, recursively—the count atom reuses this same table over the integer domain |
+| absent `length`/`unique` | present | always—an unsized residual admits every size |
 | `unique(k)` | `unique()`   | always (reflexive); nothing else subsumes or is subsumed by it |
-| `must(f)`   | anything     | **never** — a Band B predicate is opaque, so A's admitted set is unknown |
+| `must(f)`   | anything     | **never**—a Band B predicate is opaque, so A's admitted set is unknown |
 | anything    | `must(…)`    | decided by A's other atoms alone; an extra `must` on B can only narrow B |
-| anything    | nil (empty)  | always — the empty set is an instance of everything |
+| anything    | nil (empty)  | always—the empty set is an instance of everything |
 
 A whole residual subsumes another when **every** row above holds for the
 corresponding atom families, and the domains agree (a numeric residual
@@ -2994,7 +2994,7 @@ never subsumes a string one, or a container one).
 **Why the two approximations are where they are.** `re` compares
 patterns as *text* because deciding that `^a` admits everything `^ab`
 admits is regex containment, which this algebra deliberately does not
-do — the same ruling that stops two `re` atoms being declared empty at
+do—the same ruling that stops two `re` atoms being declared empty at
 composition time. `must` is opaque by construction: that is what Band B
 *means*. In both cases the answer is "not subsumed", so the error is
 always toward reporting a difference that is not there.
@@ -3020,9 +3020,9 @@ by the meet rules above).
 ### Canonical form
 
 A residual constraint renders as its normalised atoms joined by `&`
-in a fixed order — **kind, lower bound (`min`/`above`), upper bound
+in a fixed order—**kind, lower bound (`min`/`above`), upper bound
 (`max`/`below`), `neq` (arguments sorted), `re` (patterns sorted),
-`length`, `unique`, `must`** — no spaces, reparseable, endpoint leaves
+`length`, `unique`, `must`**—no spaces, reparseable, endpoint leaves
 preserved:
 
 ```aon
@@ -3038,14 +3038,14 @@ identical canon) for each rule.
 
 Two renderings follow from that round trip rather than from taste:
 
-- **`length`'s argument renders unabridged**, implied parts and all:
-  `length(3)` canonicalises to `length(integer&min(3)&max(3))`, because that
-  *is* the residual the count must satisfy (`length(c)` always meets
-  `integer & min(0)`; see [`length` semantics](#length-semantics)).
-  Abbreviating it would mean a second set of rules for when the implied
-  parts may be dropped, and canon is a normal form —
-  [`aontu hash`](reference-api.md#aontu-hash) digests it — not a
-  pretty-printer.
+-  **`length`'s argument renders unabridged**, implied parts and all:
+  `length(3)` canonicalises to `length(integer&min(3)&max(3))`, because
+  that *is* the residual the count must satisfy (`length(c)` always
+  meets `integer & min(0)`; see [`length`
+  semantics](#length-semantics)). Abbreviating it would mean a second
+  set of rules for when the implied parts may be dropped, and canon is a
+  normal form—[`aontu hash`](reference-api.md#aontu-hash) digests it—not
+  a pretty-printer.
 - **A bare domain is spelled out when nothing implies it.** An order
   atom's argument names its own domain, so `min(2)` need not say
   `number`. A sizing residual carries no order, so `string & length(3)`
@@ -3057,13 +3057,13 @@ Two renderings follow from that round trip rather than from taste:
 `re(p)` admits a string matching `p`. Matching is **unanchored** in
 both implementations, so `re("el")` admits `"hello"`; anchor with `^`
 and `$` to constrain the whole string. The string kind is implied, so
-`string & re("x")` canonicalises to `re("x")` — the same rule that
+`string & re("x")` canonicalises to `re("x")`—the same rule that
 makes `number & min(0)` canonicalise to `min(0)`.
 
 A pattern must mean the same thing in both implementations **and cost
 about the same to evaluate**, and the two host regex engines guarantee
 neither: TypeScript compiles with JavaScript's backtracking `RegExp`, Go
-with RE2 — a different language, in a different complexity class, over a
+with RE2—a different language, in a different complexity class, over a
 different alphabet.
 
 Aontu therefore **defines** the pattern language and rewrites your
@@ -3093,7 +3093,7 @@ form reaches a host engine.
 | `\A` / `\z` | `^` / `$` |
 
 These are the small ASCII sets deliberately. **`\s` is those six
-characters only** — it does *not* match U+00A0 or the other Unicode
+characters only**—it does *not* match U+00A0 or the other Unicode
 spaces, though JavaScript's `\s` does, because a non-breaking space in
 a config value is a mistake worth catching rather than a space worth
 accepting in silence. Matching counts **code points**, not UTF-16 code
@@ -3104,7 +3104,7 @@ units, in both implementations.
 | Construct | Why |
 |-----------|-----|
 | backreferences `\1`–`\9`, `\k<name>` | RE2 has no equivalent, and a pattern using one is not a regular expression at all |
-| lookaround `(?=)` `(?!)` `(?<=)` `(?<!)` | same — not in RE2 |
+| lookaround `(?=)` `(?!)` `(?<=)` `(?<!)` | same—not in RE2 |
 | any `(?…)` but `(?:` | named groups are spelled `(?P<n>` in RE2 and `(?<n>` in JavaScript; inline flags change the meaning of everything after them |
 | `\p{…}`, `\x{…}`, `\u`, `\Z` | spelled differently, or read as a literal by one engine |
 | POSIX classes `[[:alpha:]]` | RE2 only |
@@ -3112,7 +3112,7 @@ units, in both implementations.
 | a repeat count above **1000** (`a{1001}`, `a{2,1001}`) | RE2 refuses to compile it and JavaScript accepts it, so the same schema was valid in one implementation and not the other. The bound is **Aontu's**, checked in the normaliser before either engine sees the pattern, which is why the refusal is the same in both |
 | a quantifier applied to `^`, `$`, `\b` or `\B` | there is nothing to repeat: JavaScript under the `u` flag calls it a syntax error, RE2 quantifies the assertion and matches |
 | a `{` that opens no counted quantifier (`x{y}`), or a `}` that closes none | JavaScript reads each as a lone quantifier bracket and refuses; RE2 reads both as literals |
-| a quantifier on a group containing a quantifier or an alternation | **cost, not meaning** — see below |
+| a quantifier on a group containing a quantifier or an alternation | **cost, not meaning**—see below |
 
 The last one is different in kind. `(a+)+$` against twenty-nine `a`s and
 a `!` takes **45 seconds** in JavaScript and 0.065s under RE2, growing
@@ -3120,7 +3120,7 @@ exponentially; a regex match is counted by no evaluator budget ([the
 trust contract](trust.md), clause 2), so without this rule an untrusted
 schema could stall the TypeScript evaluator indefinitely. Rewriting
 cannot fix a complexity difference, so this one is refused rather than
-normalised. `(?:a|b)+` is caught by it too, though it is safe — deciding
+normalised. `(?:a|b)+` is caught by it too, though it is safe—deciding
 that two alternation branches cannot both match is real work. Write
 `[ab]+`. Unquantified groups, top-level alternation, `(?:ab)+`, `(a)(b)`
 and `(a)+` all pass, and a quantifier inside a character class is a
@@ -3132,9 +3132,10 @@ whole table, so an author never has to find this page to recover.
 Patterns **accumulate** and are never simplified: `re("x") & re("a")`
 keeps both (sorted by pattern text in canon), and a value must match
 every one. Two `re` atoms are never declared empty at composition time,
-because deciding that one pattern excludes another is regex containment
-— which this algebra deliberately does not do. A contradiction between
-patterns therefore surfaces against data, not against the schema.
+because deciding that one pattern excludes another is regex
+containment—which this algebra deliberately does not do. A contradiction
+between patterns therefore surfaces against data, not against the
+schema.
 
 Canon renders the pattern **as written**, never the rewritten form:
 canon round-trips source, and the semantic hash
@@ -3145,7 +3146,7 @@ canon round-trips source, and the semantic hash
 `length` applies to strings, lists, and maps, with the domain fixed by
 the peer:
 
-- **strings**: length in **Unicode code points** — not UTF-16 code
+- **strings**: length in **Unicode code points**—not UTF-16 code
   units (TS's native count) and not bytes (Go's): `length(1) & "𝄞"`
   holds, in both implementations. Astral-plane rows are part of the
   spec suite, not an implementation accident.
@@ -3153,17 +3154,17 @@ the peer:
 
 Its argument is any integer-domain constraint: `length(3)` means exactly
 3; `length(min(2) & max(5))` means between 2 and 5. Every argument meets
-`integer & min(0)` — a count is a non-negative whole number — which is
+`integer & min(0)`—a count is a non-negative whole number—which is
 what makes `length(max(-1))` and `length(1.5)` empty on their own, and what
 canon renders.
 
 Like every other atom's argument, it **residuates** until it settles:
 `length($.n)` waits for `$.n`, then checks the count. Only
-a *settled* argument of the wrong shape — a string, a boolean, a
-contradictory kind — is refused.
+a *settled* argument of the wrong shape—a string, a boolean, a
+contradictory kind—is refused.
 
-A sizing residual has **no domain of its own** — a count says nothing
-about what is counted — so meeting a kind *sets* one rather than merely
+A sizing residual has **no domain of its own**—a count says nothing
+about what is counted—so meeting a kind *sets* one rather than merely
 agreeing with it. `string & length(3)` is a three-character string, and
 `number & length(3)` is empty, because a number has neither a length nor
 members. `min(2) & unique()` and `re("^a") & unique()` are empty for the
@@ -3183,11 +3184,11 @@ b: length(1) & {x:1, y?:number}
 {"a":"abc","b":{"x":1}}
 ```
 
-`b` holds because the generated value is `{"x":1}` — one member.
+`b` holds because the generated value is `{"x":1}`—one member.
 
 **When the count is decided.** An optional key **survives unification
-carrying its unresolved value** — `{x:1, y?:number}` canonicalises as
-`{"x":1,"y"?:number}` — and is dropped only in generation
+carrying its unresolved value**—`{x:1, y?:number}` canonicalises as
+`{"x":1,"y"?:number}`—and is dropped only in generation
 (`BagVal.gen`). It is tempting to conclude that the count is therefore
 unknowable until generation, and that `length` must wait for a drop. It
 must not: nothing in the fixpoint performs that drop, so an atom waiting
@@ -3198,11 +3199,11 @@ is decided before generation runs. A member is skipped by generation
 when it carries a `type` or `hide` mark, or when it is an optional key
 whose value cannot generate. So:
 
-- **Every optional child settled** — this includes `{x:1, y?:number}`,
+- **Every optional child settled**—this includes `{x:1, y?:number}`,
   where the map converges immediately and `y` holds an
   unresolved kind. The count is known, and `length` decides at composition
   time like every other atom, `length(1) & {x:1, y?:number}` included.
-- **Some optional child still converging** — `{x:1, y?:$.z}` before `z`
+- **Some optional child still converging**—`{x:1, y?:$.z}` before `z`
   resolves, where the child's fate genuinely is not yet decided. `length`
   **residuates**: it stays in place and is retried, exactly as an
   arithmetic operator with a non-concrete operand does.
@@ -3242,8 +3243,8 @@ the order atoms fold before containers, the sizing atoms after every
 value that could contribute a member. The size is then read once, from
 the merged container.
 
-Written order does not matter — `a: {x:1} a: {y:2} a: length(2)` is the
-same value — which is the property the sort order exists to guarantee.
+Written order does not matter—`a: {x:1} a: {y:2} a: length(2)` is the
+same value—which is the property the sort order exists to guarantee.
 
 **`must` folds last for the same reason**, and the slot is named for
 what the three atoms share rather than for sizing alone: `length`,
@@ -3261,11 +3262,11 @@ An atom that decided when its own conjunct settled decided too early
 there, and `vet` then reported `valid` for data the evaluator refuses.
 
 So a sizing verdict is taken only when **more members cannot change
-it** — members accumulate under unification, they are never removed:
+it**—members accumulate under unification, they are never removed:
 
 | reading | permanent? | what happens |
 |---|---|---|
-| an upper bound **violated** | yes — more members only add | refuse now |
+| an upper bound **violated** | yes—more members only add | refuse now |
 | an upper bound **satisfied** | no | the atom stays on the value |
 | a lower bound **satisfied** | yes | that reading is spent |
 | a lower bound **violated** | no | the atom stays on the value |
@@ -3273,12 +3274,12 @@ it** — members accumulate under unification, they are never removed:
 | distinctness **so far** | no | the atom stays on the value |
 
 Anything provisional **residuates**, exactly as an atom over a container
-that has not settled does, and is decided at **generation** — which is
+that has not settled does, and is decided at **generation**—which is
 where nothing more can arrive. So `length(min(1)) & {&: {r: integer}}`
 no longer refuses the schema it was written for, and
 `length(max(2)) & {&: {r: integer}}` no longer passes three records.
 A residuated atom is visible in [canon](#canonical-form), which is the
-honest rendering: the value really does still carry the constraint.
+correct rendering: the value really does still carry the constraint.
 
 ### `unique` semantics
 
@@ -3287,14 +3288,14 @@ distinct**, compared by **canonical form**: two members are the same
 member exactly when their canons are equal.
 
 Canon is the right yardstick because it is already this language's
-normal form for "the same value" — `ConstraintVal.same` compares canons,
+normal form for "the same value"—`ConstraintVal.same` compares canons,
 and `DisjunctVal` deduplicates members that way. It is deterministic,
 byte-identical across the two implementations (every `canon` spec row
 pins that), and it is defined for *every* value, which scalar identity
 is not.
 
-For scalar members it reduces exactly to scalar identity — leaf *and*
-value — because canon round-trips kind: `1` and `1.0` canon differently,
+For scalar members it reduces exactly to scalar identity—leaf *and*
+value—because canon round-trips kind: `1` and `1.0` canon differently,
 so `[1, 1.0]` is distinct under the number tower, exactly as `1 & 1.0`
 is a conflict. For **container** members it gives structural equality
 without a separate rule: `[{x:1},{x:1}]` is not unique, because both
@@ -3306,14 +3307,14 @@ It applies to two shapes:
 - **maps**: the entry *values* are pairwise distinct. (Keys are
   distinct by construction, so there is nothing to check there.)
 
-Any other peer — a string, a number, a boolean, `null` — is a domain
+Any other peer—a string, a number, a boolean, `null`—is a domain
 conflict: no scalar has members. The members it does compare are the
 members that *generate*, the same set `length` counts, so a `hide`n entry
 and a dropped optional are not members here either.
 
 **`unique(k)` is uniqueness by projection.** "No two services share a
 port" compares one field of each member rather than the whole member,
-and the atom's single argument is that projector — the arity was
+and the atom's single argument is that projector—the arity was
 reserved for it, and is now spent:
 
 ```aon
@@ -3332,7 +3333,7 @@ services: unique(port) & {
 A member with no such key **fails** rather than being skipped:
 distinctness that cannot be shown is distinctness the collection does
 not have, and skipping would let one keyless record hide a duplicate.
-A member that is not a map fails for the same reason — it has no key
+A member that is not a map fails for the same reason—it has no key
 to project.
 
 `unique(a) & unique(b)` demands **both**; the keys accumulate rather
@@ -3341,8 +3342,8 @@ axis of distinctness and dropping either would silently weaken the
 constraint. Canon renders them sorted after the bare atom
 (`unique()&unique("a")&unique("b")`), so two documents saying the same
 thing render the same string. In subsumption, a general `unique(k)`
-needs the same key on the specific side — distinctness on `port` says
-nothing about distinctness on `name` — while a specific that adds a
+needs the same key on the specific side—distinctness on `port` says
+nothing about distinctness on `name`—while a specific that adds a
 key still subsumes, because more distinctness is narrower.
 
 ### Cross-field bounds and residuation
@@ -3350,7 +3351,7 @@ key still subsumes, because more distinctness is narrower.
 An atom whose argument contains an unresolved reference, or whose
 peer is not yet concrete, **residuates**: no error, stays in place,
 re-evaluated on later fixpoint passes. Atoms only ever suspend or
-intersect — never force evaluation — so evaluation order cannot
+intersect—never force evaluation—so evaluation order cannot
 change results.
 
 ```aon
@@ -3374,7 +3375,7 @@ residuates until its peer is concrete, then requires the peer to
 unify with `c`; on failure the author's message is attached to the
 nil (`NilVal.details`). `must` never participates in emptiness or
 subsumption, and any report including one states that the check was
-evaluate-only — the honest channel for domain rules beyond the
+evaluate-only—the channel for domain rules beyond the
 algebra.
 
 ### Errors
@@ -3390,7 +3391,7 @@ reports belongs to [`aontu vet`](reference-api.md#aontu-vet).
 
 The algebra has no `int8`, `uint16` or `port` keyword, and does not
 need one. A constraint is an ordinary value, so a name for one is an
-ordinary field — and a `type()`-marked block gives you a library of
+ordinary field—and a `type()`-marked block gives you a library of
 them that unifies like everything else and emits nothing.
 
 This section names constraints by their **path** (`$.type.port`). For
@@ -3490,7 +3491,7 @@ small: 12
 ```
 
 `u8` is written in terms of `n`, and `small` narrows `u8` again where
-it is used. Nothing here is special to constraints — it is the meet,
+it is used. Nothing here is special to constraints—it is the meet,
 applied to values that happen to be constraints.
 
 A value that violates the composition is refused against the whole

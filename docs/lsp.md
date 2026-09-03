@@ -29,9 +29,9 @@ to run the server. Wiring it into an editor is a task, and lives in the
 
 The server provides three features:
 
-- **Diagnostics** — unification problems published as you edit.
-- **Hover** — the resolved value and kind under the cursor.
-- **Completion** — the built-in functions, scalar-kind keywords and
+- **Diagnostics**—unification problems published as you edit.
+- **Hover**—the resolved value and kind under the cursor.
+- **Completion**—the built-in functions, scalar-kind keywords and
   literals.
 
 **Diagnostics**: open or edit an Aontu document and it
@@ -42,15 +42,15 @@ It reports *genuine errors* only:
 
 | Source                  | Diagnostic?                                   |
 |-------------------------|-----------------------------------------------|
-| `a:1 a:2`               | yes — `scalar_value` conflict                 |
-| `a:1 & string`          | yes — `no_scalar_unify`                        |
-| `x:foo(1)`              | yes — `unknown_function`                       |
-| `a:$.missing`           | yes — `no_path`                                |
-| `b: refer() & path("$.nope")` | yes — `refer_unresolved` (a `rel()` member naming no entity: `rel_unresolved`) |
-| `a:string`              | **no** — a non-concrete schema is valid        |
-| `a:{b:string, c:1}`     | **no** — partial/constraint documents are valid |
-| `port:*8080 \| integer` | **no** — defaults and disjunctions are valid    |
-| `a: $.a`                | **no** — a recursive reference is a valid schema |
+| `a:1 a:2`               | yes—`scalar_value` conflict                 |
+| `a:1 & string`          | yes—`no_scalar_unify`                        |
+| `x:foo(1)`              | yes—`unknown_function`                       |
+| `a:$.missing`           | yes—`no_path`                                |
+| `b: refer() & path("$.nope")` | yes—`refer_unresolved` (a `rel()` member naming no entity: `rel_unresolved`) |
+| `a:string`              | **no**—a non-concrete schema is valid        |
+| `a:{b:string, c:1}`     | **no**—partial/constraint documents are valid |
+| `port:*8080 \| integer` | **no**—defaults and disjunctions are valid    |
+| `a: $.a`                | **no**—a recursive reference is a valid schema |
 
 This distinction is deliberate: Aontu documents are frequently schemas or
 partial fragments, which are *not concrete* but are *not errors*. The
@@ -68,17 +68,17 @@ native Deprecated tag (2), so editors strike it through without
 shouting.
 
 **Hover** reads the *unified* tree, so hovering a value shows what it
-resolves to: e.g. hovering `8080` in `port: 8080` shows `8080` with kind
+resolves to: hovering `8080` in `port: 8080` shows `8080` with kind
 *integer*; hovering `string` in a schema shows kind *type*. Hover targets
 concrete values (scalars, kinds, references), not containers.
 
 **Completion** offers a context-free list (clients filter by the typed
-prefix): the built-in functions — the engine's full roster, 41 today,
-the constraint atoms (`min`, `re`, `length`, …) and the entity and
-relation atoms (`id`, `refer`, `rel`, `acyclic`, `inverse`) included —
-the scalar-kind keywords (`string`, `number`, `integer`, `float`,
-`biginteger`, `bigdecimal`, `boolean`) and the
-literals (`_`, `true`, `false`, `null`, `top`).
+prefix): the built-in functions—the engine's full roster, 41 today, the
+constraint atoms (`min`, `re`, `length`, …) and the entity and relation
+atoms (`id`, `refer`, `rel`, `acyclic`, `inverse`) included—the
+scalar-kind keywords (`string`, `number`, `integer`, `float`,
+`biginteger`, `bigdecimal`, `boolean`) and the literals (`_`, `true`,
+`false`, `null`, `top`).
 
 
 ## Architecture: library vs. server
@@ -116,7 +116,7 @@ state machine are both unit-testable with no I/O.
 You can consume any layer directly:
 
 - embed **layer 1** to lint Aontu source in your own tool;
-- embed **layer 2** to run the server over a non-stdio transport (e.g. a
+- embed **layer 2** to run the server over a non-stdio transport (for example a
   socket or an in-process channel) by feeding it decoded JSON-RPC objects;
 - run **layer 3** as a ready-made stdio server for an editor.
 
@@ -205,8 +205,8 @@ import {
 Analyse one document of Aontu source and return its diagnostics. A valid
 document (including a non-concrete schema) returns `[]`.
 
-- `src: string` — the document text.
-- `opts?: { vars?: Record<string, Val> }` — optional `$name` variable
+- `src: string`—the document text.
+- `opts?: { vars?: Record<string, Val> }`—optional `$name` variable
   bindings, the same map accepted by the engine's runner context.
 
 `Diagnostic` is LSP-shaped:
@@ -264,12 +264,12 @@ const handler = new LspHandler()
 const replies: OutMessage[] = handler.handle({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} })
 ```
 
-- `handle(msg: Message): OutMessage[]` — process one message; returns the
+- `handle(msg: Message): OutMessage[]`—process one message; returns the
   messages to send back (a response for a request, notifications such as
   `textDocument/publishDiagnostics` for document events, or `[]`).
-- `get shouldExit(): boolean` — true once an `exit` notification arrives.
-- `get exitCode(): number` — `0` if `shutdown` preceded `exit`, else `1`.
-- `doc(uri: string): string | undefined` — current text of an open
+- `get shouldExit(): boolean`—true once an `exit` notification arrives.
+- `get exitCode(): number`—`0` if `shutdown` preceded `exit`, else `1`.
+- `doc(uri: string): string | undefined`—current text of an open
   document (handy in tests).
 
 #### `class FrameCodec` (server helper)
@@ -331,7 +331,7 @@ the engine via `aontu.BuiltinFuncNames()`.
 The transport-agnostic protocol state machine (mirrors `LspHandler`).
 
 - `NewHandler() *Handler`
-- `(*Handler) Handle(m Message) []Out` — process one message, return
+- `(*Handler) Handle(m Message) []Out`—process one message, return
   messages to send.
 - `(*Handler) ShouldExit() bool`, `(*Handler) ExitCode() int`,
   `(*Handler) Doc(uri string) (string, bool)`.
@@ -394,16 +394,16 @@ The analysis layer turns source into diagnostics in three steps:
 2. **Walk for `NilVal`s.** Traverse the unified result tree and collect
    every `NilVal` node. The rule: in Aontu a `NilVal` in the
    *result* is always a real error (a conflict, an unresolved reference,
-   an unknown function, …). Valid-but-non-concrete values — scalar kinds
-   like `string`, unresolved references, conjuncts — are **not** `NilVal`s,
+   an unknown function, …). Valid-but-non-concrete values—scalar kinds
+   like `string`, unresolved references, conjuncts—are **not** `NilVal`s,
    so schemas and partial documents produce no diagnostics. Nodes are
    de-duplicated by identity.
 3. **Map to LSP.** Each `NilVal` carries a source position (1-based
    row/col in TS; a byte offset in Go) and the offending value's canon.
    These become a 0-based LSP range whose end extends across the canon
-   length. The message is the engine's full error text — the
+   length. The message is the engine's full error text—the
    `[aontu/<code>]` marker line, the hint, and the located source
-   frames — identical in both languages.
+   frames—identical in both languages.
 
 A hard **syntax error** (which prevents producing a tree) is reported as a
 single diagnostic with code `parse`, positioned where the parser failed if
@@ -436,8 +436,8 @@ Both libraries are unit-tested (`ts/test/lsp.test.ts`,
 
 ## Limitations and extension points
 
-Current scope is diagnostics, hover and completion. The layered design
-makes additions localised — most new features are implemented once in the
+Current scope is diagnostics, hover, and completion. The layered design
+makes additions localised—most new features are implemented once in the
 analysis layer (layer 1) and advertised in `initialize` (layer 2):
 
 - **Hover** targets concrete values (scalars, kinds, references), not
@@ -448,15 +448,15 @@ analysis layer (layer 1) and advertised in `initialize` (layer 2):
 - **Completion** is context-free (no cursor-to-path awareness): it does
   not suggest sibling keys. Adding key completion needs a position→path
   mapping in the analysis layer.
-- **Go-time-out / cancellation, go-to-definition, rename** — not
+- **Go-time-out / cancellation, go-to-definition, rename**—not
   implemented; unknown requests get a `-32601` reply.
-- **Incremental sync** — the server uses Full document sync for
+- **Incremental sync**—the server uses Full document sync for
   simplicity; range-based incremental edits could be added in the handler
   without touching the analysis layer.
-- **Warnings/info severities** — engine problems are all published as
+- **Warnings/info severities**—engine problems are all published as
   `Error`; the one exception is `deprecated`, at Hint severity with the
   Deprecated tag.
-- **Number-canon edge cases** — diagnostic ranges are sized by the
+- **Number-canon edge cases**—diagnostic ranges are sized by the
   offending value's canon length; see
   [Canonical form](reference-language.md#canonical-form) for the
   decimal subset that pins it.

@@ -1,4 +1,4 @@
-# 04 — schema-evolution governance for a shared customer-profile schema
+# 04. Schema-evolution governance for a shared customer-profile schema
 
 ![The model tree: one released version of the customer profile](expected/diagram-doc.svg)
 
@@ -13,21 +13,21 @@ versions and a queue of proposals, and drives the evolution verbs
 (`subsume`, `breaking`, `hash`, the MCP `diff` tool) as the governance
 machinery a schema registry needs:
 
-- `profile-v1.aon` — v1.0.0: closed customer record (id, email, name,
+- `profile-v1.aon`—v1.0.0: closed customer record (id, email, name,
   free-form `phone?`, strict `tier` enum, consent flags with safe
   defaults), plus the `aontu_policy.compat` declaration.
-- `profile-v2.aon` — v2.0.0: additive minor (optional `locale`,
+- `profile-v2.aon`—v2.0.0: additive minor (optional `locale`,
   optional validated `contact` block) and `phone` marked
   `deprecate(string, {msg, use, since})`.
-- `profile-v3.aon` — v3.0.0, a major: `phone` removed, required
+- `profile-v3.aon`—v3.0.0, a major: `phone` removed, required
   `region` added.
-- `proposals/` — the PR queue: a narrowed constraint, an added
+- `proposals/`—the PR queue: a narrowed constraint, an added
   required key, a default flip, the staged deprecated-removal, and an
   adversarial PR that waives its own gate.
-- `probes/` — small paired documents, one question each: undecided
+- `probes/`—small paired documents, one question each: undecided
   verdicts, the gen profile, hash stability, and a version string
   carried inside the document.
-- `data/` — instances a service or agent might emit, valid and not.
+- `data/`—instances a service or agent might emit, valid and not.
 
 ## The model tree
 
@@ -91,7 +91,7 @@ than its value.
   `$.aontu_policy.compat` from the new document, and `--mode` on the
   command line takes precedence over it (see
   [`aontu breaking`](../../docs/reference-api.md#aontu-breaking)).
-- The **version number lives in the file name and the git tag, not in
+- The **version number lives in the filename and the git tag, not in
   the document**: a concrete version string is compared like any other
   value, so a whole-document gate reads a bump as a narrowing. The
   `probes/meta-*.aon` pair shows this below, and `--at` anchors the
@@ -174,7 +174,7 @@ When the instance uses the field, the site is the data's:
 role (`schema` or `data`) is carried in `--format json`, so tooling
 can tell the two apart; the exit code is 0 either way.
 
-## The release history, drawn — and it is not a chain
+## The release history, drawn—and it is not a chain
 
 ```mermaid
 %% aontu subsumption poset  at=$.profile  profile=defaults  documents=7  nodes=6
@@ -196,14 +196,14 @@ means the upper document **admits everything** the lower one does.
 Three things a reader gets here that seven `subsume` runs do not:
 
 - **v3 is attached to nothing.** It neither generalises nor narrows v1
-  or v2 — the structural signature of a major break, at a glance rather
+  or v2—the structural signature of a major break, at a glance rather
   than inferred from a version number.
 - **`require-loyalty` and `waive-gate` are one node.** Two
   independently written proposals that subsume each other at this
   anchor, so they make the identical schema change. No diff between
   them would say that: they differ in comments and in one policy value.
 - **Seven documents, six nodes.** The collapse is by *mutual
-  subsumption*, not by hash — two documents can mean the same thing and
+  subsumption*, not by hash—two documents can mean the same thing and
   hash differently, so a diagram keyed on the canon-hash alone would
   draw a two-cycle and call it a partial order.
 
@@ -303,7 +303,7 @@ reports diffed against the `expected/` goldens.
     `close`/`hide`/`deprecate` marks; `--canon` prints the value
     without them.
 31. `aontu diff profile-v2.aon profile-v3.aon` is a usage refusal, exit
-    2 ("a mistyped verb reads as a file name"). The change list comes
+    2 ("a mistyped verb reads as a filename"). The change list comes
     from the MCP server's `diff` tool, called over stdio with JSON-RPC,
     and matches `expected/diff-v2-v3.json`: `removed $.profile.phone`
     with its deprecate canon, `added $.profile.region`. The tool's own

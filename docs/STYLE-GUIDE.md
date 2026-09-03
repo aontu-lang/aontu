@@ -1,22 +1,63 @@
 # Documentation style guide
 
 How the Aontu documentation is written. This guide is normative for
-`docs/*.md`, `docs/how-to/*.md`, the use-case READMEs, and the prose
-on [aontu.dev](https://aontu.dev) (whose authored pages cite this file
-from `aontu-lang/web`'s AGENTS.md). It exists so that a page written
-next year sounds like a page written this year, and so that a reviewer
-can point at a rule instead of arguing taste.
+`docs/*.md`, `docs/how-to/*.md`, the sixteen use-case READMEs, the two
+package READMEs, and the prose on [aontu.dev](https://aontu.dev) (whose
+authored pages cite this file from `aontu-lang/web`'s AGENTS.md). It
+exists so that a page written next year sounds like a page written this
+year, and so that a reviewer can point at a rule instead of arguing
+taste.
 
-Three sources feed it, in priority order:
+Three sources feed it, in a fixed priority order. The same order is
+encoded in `.vale.ini`, and every rule switched off there names the
+reason:
 
-1. **This file.** Where it rules, it rules.
+    house voice  ->  Google  ->  Vale defaults
+
+1. **This file.** Where it rules, it rules. The house voice is Richard
+   Rodger's blog register, and the places it wins are listed with their
+   reasons rather than left as silent exceptions: first-person plural in
+   tutorials, British spellings, quotation punctuation outside the
+   quotes, and the parenthesis ration.
 2. The [Google developer documentation style
-   guide](https://developers.google.com/style) for everything this
-   file does not cover: second person, present tense, active voice,
+   guide](https://developers.google.com/style) for everything this file
+   does not cover: second person, present tense, active voice,
    sentence-style capitalisation in headings, serial commas, one idea
-   per sentence.
-3. The register table below decides the fights between the two voices
-   the docs blend: Google's plainness and the house voice.
+   per sentence, dash spacing.
+3. [Vale](https://vale.sh) defaults, which mostly means spelling.
+
+## How this guide is enforced
+
+Two gates check it, both in CI, and they read one file list
+(`ts/scripts/gated-docs.cjs`) and one banned list
+(`.vale/styles/config/vocabularies/Aontu/reject.txt`) so that neither can
+drift from the other:
+
+| Gate | Runs | Checks |
+|---|---|---|
+| `make prose` (Vale) | `.github/workflows/docs.yml` | spelling, Google's conventions, and the banned list, at the levels set in `.vale.ini` |
+| `ts/test/docs.test.ts` | `make test` | the banned list again, em-dash spacing and the ration, the first-person rules, the exclamation ration, no emoji, no internal-document citations, and that every code snippet executes |
+
+The gated set is the reader-facing one: the Diátaxis pages, the how-to
+guides, the three contributor references that ship under `docs/`, the
+sixteen published use cases, and `README.md` and `ts/README.md`. Design
+notes, the capability review, the defect ledgers and the repro corpus are
+working documents, and they are out.
+
+**A Google rule sitting below error level was tried at error first and
+found wrong for these pages.** `.vale.ini` records what each produced on
+a clean run. Two of them are worth knowing about, because the reason is
+not taste:
+
+- `Google.EmDash` reported 11 findings and all 11 were false. Vale stops
+  skipping fenced blocks part-way through several of these pages, so four
+  were inside code fences; the other seven were dashes correctly written
+  tight against an inline code span, which Vale reads as spaced once it
+  strips the span. Dash spacing is enforced by `docs.test.ts` instead,
+  over the project's own fence stripper.
+- `Google.OxfordComma` reported 30, of which 16 were real three-item
+  lists and were fixed. The other 14 are two-item lists sitting after a
+  comma clause, which the rule cannot tell from a list.
 
 ## The structure: Diátaxis, enforced by placement
 
@@ -30,9 +71,9 @@ page may do:
 | Reference | `reference-language.md`, `reference-api.md`, `trust.md`, `lsp.md`, `shared-spec.md`, `test-coverage.md` | state facts exhaustively and dryly, pin claims to tests | narrate, persuade, teach |
 | Explanation | `explanation.md` | argue, compare, admit trade-offs, tell the design's story | be the only place a fact lives |
 
-One fact appears in all four kinds at different altitudes — met in the
+One fact appears in all four kinds at different altitudes—met in the
 tutorial, used in a how-to, specified in the reference, argued in the
-explanation — but the normative statement lives in the reference and
+explanation—but the normative statement lives in the reference and
 everything else links to it.
 
 `release-and-tag.md` is a deliberate exception: an operator document
@@ -57,14 +98,14 @@ already made, and the rule it decided is what the page is for. State
 the rule and stop.
 
 This runs both ways. A published page may not carry the project's own
-history either — what a figure used to say, which release moved it,
+history either—what a figure used to say, which release moved it,
 which bug report prompted the wording. That belongs in the commit
 message, the changelog or the register. A reader wants the language as
 it is today.
 
 **The engine's own output is published text.** A refusal that names a
 design document sends a user somewhere they cannot go, in place of
-telling them what to do — `aontu mod get` did exactly that. A message
+telling them what to do—`aontu mod get` did exactly that. A message
 names the repair, not the reasoning; the reasoning stays in the source
 comment beside it, where a contributor reads it.
 
@@ -73,8 +114,21 @@ Two things the rule does *not* catch, because neither is a citation:
 code or a filename that happens to look internal. Both are the
 product's own surface.
 
+The rule runs one way. Internal documents cite each other and cite the
+documentation freely, because a decision record that does not show its
+working is not a decision record. Only the direction out of the published
+set is closed.
+
+Two documents in the gated set are exempt, because their reader is a
+contributor: `shared-spec.md`, `test-coverage.md` and
+`release-and-tag.md`, which ship under `docs/`, and the **root
+`README.md`**, which is the repository's front page and whose job
+includes pointing at AGENTS.md. `ts/README.md` is not exempt: npm renders
+it to somebody who has the package and not the repository.
+
 The enforced subset lives in `ts/test/docs.test.ts` (the
-`no-internal-design-references` gate) and fails the build.
+`no-internal-design-references` gate) and fails the build. Vale does not
+carry this one, because the file sets differ.
 
 ## The voice
 
@@ -85,9 +139,9 @@ its stock phrases. Ten habits, with the register they apply in:
 1. **Open with a concrete fact or a plainly stated problem, then a
    short dry beat.** Tutorials and how-tos. Reference pages open by
    stating what the thing is.
-2. **Introduce code with a short colon-terminated sentence** —
-   "Write this as `schema.aon`:", "Now vet it:". Never "The following
-   code snippet demonstrates". Everywhere.
+2.  **Introduce code with a short colon-terminated sentence**—"Write
+   this as `schema.aon`:", "Now vet it:". Never "The following code
+   snippet demonstrates". Everywhere.
 3. **After a code block, point at the one interesting thing.** Do not
    recap the code. Everywhere.
 4. **Parentheses carry definitions, caveats, and at most one dry
@@ -116,49 +170,149 @@ genuine payoff.
 ## Banned phrases and patterns
 
 These read as generated filler. Do not use them, in any document,
-including commit messages that quote the docs. The enforced subset
-lives in `ts/test/docs.test.ts` (the `docs-style` block) and fails the
-build; the full list is normative here.
+including commit messages that quote the docs.
 
-**Words and phrases**: worth noting · it's important to note · at its
-core · when it comes to · let's break it down · here's where it gets
-interesting · delve · dive into · robust · seamless · comprehensive ·
-holistic · leverage · harness (verb) · foster · navigate (figurative)
-· landscape (figurative) · realm · testament to · pivotal ·
-transformative · game-changing · cutting-edge · groundbreaking ·
-underscore (verb) · shed light on · pave the way · unpack · surface
-(verb, for insights) · lean into · load-bearing · doing the heavy
-lifting · doing the work (of prose about prose) · the right
-way/answer/tool/question · at the end of the day · paradigm shift ·
-north star · key takeaways · best practices (name the practice
-instead).
+**The list itself lives in
+`.vale/styles/config/vocabularies/Aontu/reject.txt`**, one regular
+expression per line. That file is the single source of truth: Vale reads
+it in CI, and `ts/test/docs.test.ts` (the `docs-style` block) reads the
+same file rather than keeping a second copy, so the two gates cannot
+disagree about what is banned. Add a phrase there and both pick it up.
+What follows is a reader's summary of it, not a second list; every phrase
+is shown as code so that quoting a banned phrase in this guide does not
+fail the gate.
 
-**Patterns**:
-- The contrast frame "not just X, it's Y" / "It's not about X, it's
-  about Y", and its cousin "not X — it is Y". One per page at most;
-  zero is better. Say what the thing is.
-- Announcing structure before delivering it ("There are three things
-  to understand").
+It draws on two sources: the original house list, and
+[claudisms.ai](https://claudisms.ai/), a catalogue of the patterns that
+mark machine-written prose.
+
+**Filler and false emphasis**: `worth noting` · `important to note` ·
+`it cannot be overstated` · `at its core` · `when it comes to` ·
+`let's break it down` · `here's where it gets interesting` ·
+`because it matters`.
+
+**Inflated vocabulary**: `delve` · `dive into` · `robust` · `seamless` ·
+`comprehensive` · `holistic` · `intricate` · `leverage` · `foster` ·
+`shed light on` · `pave the way` · `pivotal` · `transformative` ·
+`game-changing` · `cutting-edge` · `groundbreaking` · `testament to` ·
+`paradigm shift` · `realm` · `landscape of` · `navigate` · `unpack` ·
+`lean into` · `throughline` · `double-click on` · `mature setup`.
+
+**Consultant register**: `north star` · `key takeaways` ·
+`best practices` (name the practice instead) · `at the end of the day` ·
+`pressure-test` · `right-size` · `strategic imperative` ·
+`three things to know` · `dispatches from` · `best operators` ·
+`lessons learned`.
+
+**Metaphor inflation**: `load-bearing` · `heavy lifting` ·
+`is doing the work` · `different physics` · `hits hardest` ·
+`quietly` (say `silently`, which is the term of art for a failure that
+reports nothing, and is what all nine sites this replaced meant).
+
+**The contrast frame and its cousins**: `not just` · `not only X but Y` ·
+`it's not about` · `the whole game` · `the entire point` ·
+`the only thing that matters`. Say what the thing is.
+
+**False singularity and crowned superlatives**:
+`the right way/answer/tool/question` · `the best thing you can do` ·
+`if I had to pick` · `what struck me` · `stuck with me` ·
+`struck a chord` · `hit a nerve` · `we've seen this movie`.
+
+**Reflective pose**: `sit with` · `worth exploring/considering/asking` ·
+`keeps coming back to` · `that's the tell` · `where I landed`.
+
+**Invented observation about people**: `most people` ·
+`everyone I've worked with` · `a lot of folks` · `nobody I know`. If it
+did not happen, do not claim to have noticed it.
+
+**Signposting**: `let's explore` · `now let's turn to` · `moving on to` ·
+`in today's rapidly evolving` · `reflecting a broader trend` ·
+`marking a significant shift` · `great question`.
+
+**Requires approval per use.** `honest`, and every form of it, is banned
+differently from the rest. The word is fine English; it is on the list
+because it had become a tic across this project and jostraca alike, where
+it flattered a sentence rather than said anything the sentence did not
+already say: `the honest rendering`, `the honest gap`, `keeps the copies
+honest`. Nineteen uses came out the day the line was added and none of
+them was missed.
+
+**The gate is absolute, and the lack of an inline exemption is the
+point.** There is no `allow` comment and no suppression either gate would
+honour, because an escape hatch that exists is an escape hatch that gets
+used, and this is a word that is easy to reach for. A use the author
+wants kept is approved by changing `reject.txt`: one line, in one file,
+visible in review, which is where an approval belongs.
+
+### What is not banned, and why
+
+Several entries on the source lists are deliberately absent, because they
+name things this project documents. A gate that fires on the subject
+matter is a gate people learn to switch off. Each was measured over the
+gated set before it was left out:
+
+| Not banned | Hits | Because |
+|---|---|---|
+| `surface` | 71 | `the API surface`, `the emission surface` is how the reference describes an interface. The banned sense is the verb, for insights, and no rule can tell them apart. |
+| `harness` | 5 | Every use is the noun: `a test harness`, `an agent harness`. The banned sense is the verb. |
+| `underscore` | 2 | Both uses are about a literal `_` in a key. The banned sense is "to emphasise". |
+| `the point is` | 4 | `use it when the point is which failure this is` is a clause doing work, not the filler opener `The point is, ...`. |
+| `guarantee` | 19 | Order theory: `the lattice guarantee`, `where each guarantee is conditional`. `Google.ExcessiveClaims` is a warning here for the same reason. |
+| `above`, `below` | 135 | Ordinary cross-references inside single long reference pages. Google's accessibility point is real, and `Google.WordListCase` reports them as a warning. |
+
+The rule behind the list: ban the phrase that adds nothing, never the
+word that names a thing.
+
+**Matching spans a line wrap.** These pages wrap near 72 columns and most
+of the list is multi-word, so both gates join each paragraph before
+matching: `worth\nnoting` fails exactly as `worth noting` does. A gate on
+physical lines would make where a line happens to break a way through it.
+
+**Patterns** (not mechanically checkable, enforced at review):
+
+- Announcing structure before delivering it ("There are three things to
+  understand").
 - Restating the question before answering it.
 - A closing one-liner that restates the thesis.
 - Stacked short declaratives (four or more in a row).
-- Superlative self-ranking ("the most important thing", "the part
-  that matters most").
+- Superlative self-ranking ("the most important thing", "the part that
+  matters most").
+- A list of `**Bold term**: explanation` pairs, which is the single most
+  recognisable machine-written list. Write sentences, or a table.
 
 **Punctuation rulings**:
-- Em dashes are allowed — the house voice uses them — but sparingly:
-  never more than one per sentence, and prefer a comma or parentheses
-  when the aside is mild. (A source that banned them outright also
-  banned the voice this guide adopts; the phrases above are the part
-  of that list this project takes.)
+
+- Em dashes are allowed, and take **no space on either side**:
+  `a dash—like this`. That is Google's ruling
+  ([dashes](https://developers.google.com/style/dashes)), adopted in the
+  commit that converted 1,180 spaced dashes across the gated set. They
+  stay **rationed to one aside per line**: either a single dash before a
+  trailing clause, or one matched pair around a parenthetical, never
+  both and never two asides. `docs.test.ts` enforces both halves, for the
+  reason given under "How this guide is enforced". Prefer a comma or
+  parentheses when the aside is mild.
+- In a link list, separate the link from its gloss with a full stop, not
+  a dash: `- [Draw a model](how-to/draw-a-model.md). Renders the tree...`.
+- A dash between a heading's number or label and its subject is a
+  separator, not an aside, and neither spacing reads well once the dash
+  closes up. A numbered section takes a full stop
+  (`## 01. Service catalog`); a label takes a colon
+  (`## Clause 1: hermeticity`).
+- Exclamation marks: at most one per page, in tutorials only, on a
+  genuine payoff.
 - No emoji in documentation.
 - Sentence-style capitalisation in headings (Google style).
+- British spellings (`-ise`, `-isation`, `colour`). Google style is US
+  English; this is one of the places the house voice wins, and
+  `Google.Spelling` is switched off in `.vale.ini` for it. Actual
+  misspellings are still caught: `Vale.Spelling` runs at error against
+  `accept.txt`, which names 201 domain terms.
 
 ## Code snippets: every one is tested
 
 A fenced snippet in a Diátaxis page is either executed by
 `ts/test/docs.test.ts` or carries a visible, reasoned skip. The
-directive vocabulary — an HTML comment on its own line immediately
+directive vocabulary—an HTML comment on its own line immediately
 before the fence:
 
 ```markdown
@@ -203,22 +357,22 @@ Two rules of taste:
 
 - The language and project are **Aontu** (capital A) in prose; the
   command is `aontu`.
-- **unification / unify** — the operation. Not "merging" except when
+- **unification / unify**—the operation. Not "merging" except when
   introducing the idea to newcomers, and then once.
-- **meet** — the operation named as order theory names it. It is a
+- **meet**—the operation named as order theory names it. It is a
   term of art, so its **first use on any page links to
   [`unification.md`](unification.md)**; later uses on that page are
   plain. The same rule covers *top*, *bottom*, *lattice* and
   *residual*, which that page also defines. A page using "meet" in the
   ordinary English sense ("the truth is not met yet") links nothing.
-- **refuse / refusal** — what the engine does with bad input. Not
+- **refuse / refusal**—what the engine does with bad input. Not
   "reject", not "throw" (except in API contexts where an exception is
   literally thrown).
-- **verdict** — vet's answer (valid / invalid / incomplete / error).
-- **residual** — a value still waiting for information. Define it on
+- **verdict**—vet's answer (valid / invalid / incomplete / error).
+- **residual**—a value still waiting for information. Define it on
   first use in any page that needs it; the definition of record is in
   the explanation.
-- **entity, identity, relation, edge, predicate** — per the language
+- **entity, identity, relation, edge, predicate**—per the language
   reference's Identity and Declared relations sections.
 - Spell error codes as they render: `[aontu/relation_cycle]`.
 
@@ -243,7 +397,24 @@ argument.
 ## Updating this guide
 
 Change it the way behaviour changes: in the same commit as the first
-page that follows the new rule, with the reasoning in the commit
-message. The enforced phrase list in `docs.test.ts` and this file must
-agree; the test names this file so a drift is a build failure with a
-pointer.
+page that follows the new rule, with the reasoning in the commit message.
+
+To ban a phrase, add the regular expression to
+`.vale/styles/config/vocabularies/Aontu/reject.txt` and summarise it in
+the list above. Both gates pick it up from that one file; there is no
+second list to update, and `docs.test.ts` checks that every `# --- … ---`
+category in `reject.txt` has a summary here, so a whole category cannot
+be added to one and missed by the other.
+
+To change a Google rule's level, edit `.vale.ini` and write down what the
+rule produced on a clean run. "It was noisy" is not a reason; "it reported
+30 serial commas, of which 14 were two-item lists after a comma clause"
+is. A rule demoted without that note reads later as an oversight, and
+gets re-promoted by somebody repeating the work.
+
+To accept a word the spelling gate does not know, add it to `accept.txt`
+in the same directory, one stem at a time. Never add a suffix pattern:
+`\w+ise` accepts `madeupise` too, and punches a hole through the gate
+the file exists to make usable. Write a case pair as one regular
+expression (`[Aa]ontu`), because two plain lines make Vale enforce one
+spelling over the other.

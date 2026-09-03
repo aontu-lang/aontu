@@ -1,5 +1,5 @@
 ---
-description: Gather every problem in one pass with `collect: true` (TypeScript) or `Check` (Go) instead of stopping at the first.
+description: "Gather every problem in one pass with `collect: true` (TypeScript) or `Check` (Go) instead of stopping at the first."
 group: run-embed
 order: 70
 ---
@@ -7,7 +7,7 @@ order: 70
 # Collect errors instead of throwing
 
 `generate` throws on the first surfaced error, which suits a build
-step and fails a linter — an editor wants every problem in one pass,
+step and fails a linter—an editor wants every problem in one pass,
 each with its location. Pass `collect: true` and read the result's
 `err` array:
 
@@ -24,7 +24,7 @@ res.canon          // '{"a":nil}' — the failure sits where it happened
 Each collected error is a `NilVal`: the value a failed unification
 leaves behind, carrying its error code (`why`), its full message, and
 the path it failed at. The rest of the document still unifies around
-it, which is what makes the mode useful — one pass, every error,
+it, which is what makes the mode useful—one pass, every error,
 each located. The [canonical form](see-canonical-form.md) then shows
 `nil` at each failed path, a map of the damage.
 
@@ -38,7 +38,7 @@ problems := aontu.New().Check("a:1\na:2")
 // every problem: source position, error code, full message
 ```
 
-Both language servers are this mode with a protocol around it — the
+Both language servers are this mode with a protocol around it—the
 diagnostics your editor shows are a walk over the collected `NilVal`s
 ([how diagnostics are
 computed](../lsp.md#how-diagnostics-are-computed)). A valid but

@@ -45,7 +45,7 @@ verdict: compatible
 ```
 
 Additive and optional, so every v1-valid document is still admitted.
-A proposal that *requires* a new key is a different story — write it
+A proposal that *requires* a new key is a different story—write it
 as `require-owner.aon`:
 
 <!-- test: file require-owner.aon -->
@@ -82,7 +82,7 @@ a pattern rejects any v1 document with a plain string there.
 ## The query underneath
 
 `breaking` is [subsumption](../reference-language.md#subsumption)
-pointed at history: the new version must **subsume** the old — admit
+pointed at history: the new version must **subsume** the old—admit
 every instance the old admitted. The query is a verb of its own when
 you want to compare two arbitrary documents rather than versions:
 
@@ -99,7 +99,7 @@ programmatic gates.
 ## In CI
 
 `--against` also takes `git#<rev>`, so the gate needs no copies of
-old versions lying around — it materialises the revision's tree and
+old versions lying around—it materialises the revision's tree and
 evaluates the old document from there, includes and all:
 
 <!-- test: skip requires a git checkout; the live version is use-cases/04-schema-evolution/check.sh -->
@@ -125,7 +125,7 @@ flags earn their keep in practice: `--at <path>` anchors the
 comparison at the contract, so a version string at the top level
 stops self-breaking the gate on every release, and
 `--allow-deprecated-removal` admits the removal of a field the old
-version already marked `deprecate()` — the supported rename path.
+version already marked `deprecate()`—the supported rename path.
 All of it is specified under [`aontu
 breaking`](../reference-api.md#aontu-breaking).
 

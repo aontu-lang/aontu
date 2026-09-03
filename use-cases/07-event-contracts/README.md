@@ -1,4 +1,4 @@
-# 07 — event/message contracts (the schema-registry case)
+# 07. Event/message contracts (the schema-registry case)
 
 ![The model tree: the shared envelope, one schema per event type, and the discriminated union over them](expected/diagram-doc.svg)
 
@@ -110,7 +110,7 @@ than its value.
   `Event:` would unify (intersect) the two unions rather than extend
   one, so each revision is a full copy of its predecessor plus the
   delta, and `breaking --against`, anchored at the union with
-  `--at '$.Event'`, is what keeps the copies honest.
+  `--at '$.Event'`, is what keeps the copies in step.
 
 Vetting is anchored. One command vets a whole stream sample at the
 union, `vet --at '$.Event' orders-v1.aon data/stream/*.json`, with

@@ -1,4 +1,4 @@
-# 11 — Shared truth across repos: distributing a schema module
+# 11. Shared truth across repos: distributing a schema module
 
 **Scenario.** A platform team owns the service deployment contract for
 `corp.example`. Application teams (here, the checkout team) validate
@@ -52,8 +52,8 @@ that way (`probes/nested-ref/` shows the refusal).
 
 `consumer/main.aon` is a consumer repository's entry: it imports the
 platform team's module and writes its own services against it. `lib` is
-what the module brought — the deployment spec, with its defaults and
-bounds — and `srv` is what this repository owns.
+what the module brought—the deployment spec, with its defaults and
+bounds—and `srv` is what this repository owns.
 
 ```
 $
@@ -107,7 +107,7 @@ and writes no lockfile rather than a partial one.
 **2. Distribution is a copy.** This build ships no registry client
 (`mod get` and `mod publish` refuse with exit 2), so the platform tree
 is copied by hand into the store layout the resolver expects:
-`consumer/aon_vendor/corp.example/schemas/service@1/` — path segments
+`consumer/aon_vendor/corp.example/schemas/service@1/`—path segments
 as directories, `@<major>` suffixed to the last one. The layout is
 documented in
 [`how-to/vendor-by-hand.md`](../../docs/how-to/vendor-by-hand.md) and
@@ -193,7 +193,7 @@ and `--canon`) are byte-identical.
     ```
 13. Refactor: replacing the vendored `service.aon` with the two files
     in `probes/refactor/` (an entry delegating to a reordered,
-    recommented `schema.aon`) gives new bytes and a new file count,
+    re-commented `schema.aon`) gives new bytes and a new file count,
     and after re-tidy the pin is back to `aon1-zFHnyVa1…` with the
     rendered output unchanged. The pin hashes the module's meaning, so
     a refactor that preserves meaning preserves the pin.
