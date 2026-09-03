@@ -28,3 +28,15 @@ as an artifact; `release` runs `gh` and nothing else, with
 scripts, the docs and the changelog entry are already on the branch;
 this patch is the part of the same change that the push could not
 carry.
+
+## build-yml-typescript-budget.patch
+
+The TypeScript matrix job's budget in `.github/workflows/build.yml`,
+six minutes to twelve, with npm's download cache kept across runs
+(`actions/setup-node` with `cache: npm`, keyed on `ts/package.json`
+since the lockfile is not committed). On a slow registry hour the
+`npm install` step took three to five minutes, and the six-minute
+budget cut the tests off while they were still passing; the Go jobs,
+the coverage gate and the use-case job on the same commits were green,
+and so was main's own run an hour earlier. The budget change is the
+fix; the cache is what makes the slow hour rarer.
