@@ -12,7 +12,7 @@
 
 ;; Major mode for editing Aontu (https://github.com/rjrodger/aontu)
 ;; source files (`.aon', also `.aontu'), with optional integration with
-;; the Aontu language server (`aontu-lsp') for diagnostics, hover and
+;; the Aontu language server (`aontu lsp') for diagnostics, hover and
 ;; completion.
 ;;
 ;; LSP integration works with both Eglot (built into Emacs 29+) and
@@ -28,7 +28,7 @@
   :group 'languages
   :prefix "aontu-")
 
-(defcustom aontu-lsp-command '("aontu-lsp")
+(defcustom aontu-lsp-command '("aontu" "lsp")
   "Command (program and arguments) that launches the Aontu language server."
   :type '(repeat string)
   :group 'aontu)

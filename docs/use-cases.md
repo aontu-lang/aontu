@@ -266,7 +266,7 @@ guardrail that vets each `{tool, arguments}` call at `$.guard.<tool>`.
 The four vet verdicts are a dispatcher's decision table (valid:
 dispatch; invalid: refuse, feed the findings back; incomplete: ask for
 the missing argument; error: unknown tool), and the case drives the
-real `aontu-mcp` server over JSON-RPC too. The wire
+real `aontu mcp` server over JSON-RPC too. The wire
 schema is generated from the registry, so the two can never drift:
 
 <!-- test: skip a fragment of 09-agent-tools, whose `registry.aon` this page does not ship; the case's own check.sh runs it -->

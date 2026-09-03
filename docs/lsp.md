@@ -91,7 +91,7 @@ state machine are both unit-testable with no I/O.
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │ 3. Server (transport)        ts/src/lsp-server.ts             │
-│    stdio Content-Length      go/cmd/aontu-lsp/main.go         │
+│    stdio Content-Length      go/lsp/serve.go                  │
 │    JSON-RPC framing only                                      │
 └───────────────┬─────────────────────────────────────────────┘
                 │ decoded message objects
@@ -111,7 +111,7 @@ state machine are both unit-testable with no I/O.
 |-------|------------|----|
 | 1. Analysis | `computeDiagnostics(src)` in `ts/src/lsp.ts` | `lsp.Diagnostics(src)` in `go/lsp/lsp.go` (over `aontu.Check`) |
 | 2. Handler | `LspHandler` in `ts/src/lsp.ts` | `lsp.Handler` in `go/lsp/handler.go` |
-| 3. Server | `ts/src/lsp-server.ts` → `aontu-lsp` bin | `go/cmd/aontu-lsp/main.go` → `aontu-lsp` binary |
+| 3. Server | `ts/src/lsp-server.ts` → `aontu lsp` (and the `aontu-lsp` bin) | `go/lsp/serve.go` → `aontu lsp` (and the `aontu-lsp` binary) |
 
 You can consume any layer directly:
 
@@ -142,32 +142,21 @@ JSON-RPC at all.
 
 ## Running the server
 
-The server reads LSP/JSON-RPC from **stdin** and writes to **stdout**;
-diagnostic logging (if any) goes to **stderr**. Editors normally launch it
-with no arguments.
+The server is the `lsp` verb of the CLI in both builds. It reads
+LSP/JSON-RPC from **stdin** and writes to **stdout**; diagnostic
+logging (if any) goes to **stderr**. Editors launch it with no
+arguments beyond the verb:
 
-**TypeScript** (Node ≥ 22):
-
-<!-- test: skip build-and-launch commands for a long-running stdio server; the transport is round-trip tested in ts/test/lsp.test.ts -->
+<!-- test: skip a long-running stdio server; the transport is round-trip tested in ts/test/lsp.test.ts and go/lsp/serve_test.go, and the verb in both CLI suites -->
 ```sh
-cd ts && npm install && npm run build
-node ts/bin/aontu-lsp.js
-# or, once installed (npm i -g aontu), the bin:
-aontu-lsp
+aontu lsp
 ```
 
-**Go**:
-
-<!-- test: skip build-and-launch commands for a long-running stdio server; the transport is round-trip tested in go/cmd/aontu-lsp/main_test.go -->
-```sh
-cd go && go build -o aontu-lsp ./cmd/aontu-lsp
-./aontu-lsp
-# or run without building:
-go run ./cmd/aontu-lsp
-```
-
-Both binaries are named `aontu-lsp` and are byte-for-byte interchangeable
-from a client's point of view.
+The standalone binaries still ship and run the same server, for
+configurations that name them: `aontu-lsp` from the npm package
+(`node ts/bin/aontu-lsp.js` from a checkout), and `cmd/aontu-lsp` in
+the Go module (`go run ./cmd/aontu-lsp` inside `go/`). The two builds
+are byte-for-byte interchangeable from a client's point of view.
 
 
 ## Editor configuration
@@ -176,8 +165,8 @@ Ready-made plugins for **VS Code**, **Emacs** and **Vim/Neovim** live in
 [`editors/`](../editors/), and the manual wiring recipes for VS Code,
 Neovim and any other LSP client have moved to the
 [wire your editor](how-to/wire-your-editor.md) guide. The facts a client
-needs: command `aontu-lsp`, transport stdio, document selector the
-`aontu` language (`.aon` is the preferred extension, `.aontu` also
+needs: command `aontu` with the argument `lsp`, transport stdio,
+document selector the `aontu` language (`.aon` is the preferred extension, `.aontu` also
 works, `.jsonic` is retired), and no configuration options.
 
 
@@ -276,7 +265,7 @@ const replies: OutMessage[] = handler.handle({ jsonrpc: '2.0', id: 1, method: 'i
 
 Exported from `ts/src/lsp-server.ts`. A byte-level Content-Length codec
 that drives an `LspHandler`; injectable `write`/`onExit` make it testable
-without real stdio. Most users want the `aontu-lsp` binary instead.
+without real stdio. Most users want `aontu lsp` instead.
 
 ### Go library
 
@@ -430,7 +419,7 @@ The two servers are kept in lock-step:
 
 Both libraries are unit-tested (`ts/test/lsp.test.ts`,
 `go/lsp/lsp_test.go`) and each server has a transport round-trip test
-(`go/cmd/aontu-lsp/main_test.go`, and the `FrameCodec` test in
+(`go/lsp/serve_test.go`, and the `FrameCodec` test in
 `ts/test/lsp.test.ts`).
 
 

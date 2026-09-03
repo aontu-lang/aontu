@@ -52,6 +52,8 @@ Usage: aontu [options] [file]
        aontu set <path>=<value>... --entry <file> --overlay <file>
        aontu agentsmd [--write <AGENTS.md>] <file>
        aontu fmt [-w|-l|--check|-d|--lint] <file>...
+       aontu lsp
+       aontu mcp [--root <dir>]
 
 Evaluate an Aontu source file and print the result as JSON.
 With no file on an interactive terminal, start a REPL.
@@ -2013,18 +2015,33 @@ aontu> a:1|2|3
 aontu> :quit
 ```
 
+### `aontu lsp`
+
+```
+aontu lsp
+```
+
+The language server, over standard input and output: LSP, which is
+JSON-RPC with Content-Length framing, until the client says exit. Both
+builds serve it, byte-for-byte alike from a client's point of view;
+editors launch it with no arguments beyond the verb, and `--help` is
+the only option. The standalone `aontu-lsp` binary runs the same
+server. What it reports, and the library beneath it, are on
+[the LSP page](lsp.md); wiring a client is in
+[wire your editor](how-to/wire-your-editor.md).
+
 ### The MCP server
 
 ```
-aontu-mcp [--root <dir>]
+aontu mcp [--root <dir>]
 ```
 
 A Model Context Protocol server over stdio (newline-delimited
-JSON-RPC 2.0), shipped as a second binary of the npm package. It
-follows the language server's three-layer split
-([docs/lsp.md](lsp.md)): the tools and the protocol are a
-transport-free library (`ts/src/mcp.ts`), the binary is stdio and
-nothing else.
+JSON-RPC 2.0), the `mcp` verb of the npm build's CLI; the standalone
+`aontu-mcp` binary of the package runs the same server. It follows the
+language server's three-layer split ([docs/lsp.md](lsp.md)): the
+tools and the protocol are a transport-free library
+(`ts/src/mcp.ts`), the verb is stdio and nothing else.
 
 | Tool | Answers |
 |------|---------|
@@ -2067,9 +2084,9 @@ refused with `isError: true`; the `initialize` handshake's
 `tools/list` advertises the `<name>Path` properties only when they are
 served. The package-resolver leg is enabled by neither posture.
 
-The Go port ships no separate MCP server—its role is embedding the
-same library calls, and `Get`, `Why`, `Diff` and `AgentsMd` are in the
-Go API for that.
+The Go port ships no MCP server: its `aontu mcp` says so and exits 2.
+Its role is embedding the same library calls, and `Get`, `Why`, `Diff`
+and `AgentsMd` are in the Go API for that.
 
 ### The published grammar
 

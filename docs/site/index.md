@@ -320,7 +320,7 @@ Agent-facing, all generated, none hand-edited:
 | `/<page>.md` | the built HTML, converted (`tools/gen-markdown.mjs`) |
 | `/errors`, `/errors/<code>`, `/errors.json`, `/errors/<code>.json` | `test/spec/errcodes.tsv` → `src/data/error-codes.json` |
 | `/skills`, `/skills/aontu` | `node_modules/aontu/skill/` |
-| `/.well-known/mcp` | the six `aontu-mcp` tools — `vet`, `get`, `why`, `diff`, `canon`, `summary` |
+| `/.well-known/mcp` | the six `aontu mcp` tools — `vet`, `get`, `why`, `diff`, `canon`, `summary` |
 | `/grammar/aontu.gbnf`, `/grammar/aontu.lark` | `node_modules/aontu/grammar/` |
 | `/versions.json` | the pin, plus the engine's own `VERSION`, spec-suite size and error-code count |
 | `/openapi.json`, `/openapi.yaml`, `/api` | `src/openapi.ts` |

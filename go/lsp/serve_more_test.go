@@ -3,7 +3,7 @@
 // Coverage for the stdio server's error paths: framing failures, bad
 // JSON bodies, and write errors (see docs/test-coverage.md).
 
-package main
+package lsp
 
 import (
 	"bufio"
@@ -12,14 +12,12 @@ import (
 	"errors"
 	"strings"
 	"testing"
-
-	"github.com/aontu-lang/aontu/go/lsp"
 )
 
 // A non-EOF read error is logged and stops the loop with exit 1.
 func TestServeReadError(t *testing.T) {
 	var out, logw bytes.Buffer
-	if code := serve(errReader{}, &out, &logw); code != 1 ||
+	if code := Serve(errReader{}, &out, &logw); code != 1 ||
 		!strings.Contains(logw.String(), "read error") {
 		t.Fatalf("read error: %d %q", code, logw.String())
 	}
@@ -29,7 +27,7 @@ func TestServeReadError(t *testing.T) {
 func TestServeBadJSON(t *testing.T) {
 	var out, logw bytes.Buffer
 	in := strings.NewReader(frame("{"))
-	if code := serve(in, &out, &logw); code != 1 ||
+	if code := Serve(in, &out, &logw); code != 1 ||
 		!strings.Contains(logw.String(), "bad message") {
 		t.Fatalf("bad json: %d %q", code, logw.String())
 	}
@@ -43,7 +41,7 @@ func TestServeWriteError(t *testing.T) {
 	in := strings.NewReader(
 		frame(`{"jsonrpc":"2.0","id":1,"method":"initialize"}`) +
 			frame(`{"jsonrpc":"2.0","id":2,"method":"initialize"}`))
-	if code := serve(in, failWriter{}, &logw); code != 1 ||
+	if code := Serve(in, failWriter{}, &logw); code != 1 ||
 		!strings.Contains(logw.String(), "write error") {
 		t.Fatalf("write error: %d %q", code, logw.String())
 	}
@@ -72,7 +70,7 @@ func TestReadMessageFraming(t *testing.T) {
 // any bytes are framed.
 func TestWriteMessageMarshalError(t *testing.T) {
 	w := bufio.NewWriter(&bytes.Buffer{})
-	if err := writeMessage(w, lsp.Out{JSONRPC: "2.0", Result: json.RawMessage("{")}); err == nil {
+	if err := writeMessage(w, Out{JSONRPC: "2.0", Result: json.RawMessage("{")}); err == nil {
 		t.Fatalf("invalid RawMessage must fail to marshal")
 	}
 }

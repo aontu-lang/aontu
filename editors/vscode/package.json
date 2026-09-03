@@ -32,14 +32,14 @@
       "properties": {
         "aontu.server.command": {
           "type": "string",
-          "default": "aontu-lsp",
-          "description": "Command used to launch the Aontu language server. Use an absolute path, or `node` with `aontu.server.args` pointing at dist/lsp-server.js."
+          "default": "aontu",
+          "description": "Command used to launch the Aontu language server; `aontu.server.args` supplies the `lsp` verb. Use an absolute path, or `node` with `aontu.server.args` pointing at dist/lsp-server.js."
         },
         "aontu.server.args": {
           "type": "array",
           "items": { "type": "string" },
-          "default": [],
-          "description": "Arguments passed to the Aontu language server command."
+          "default": ["lsp"],
+          "description": "Arguments passed to the Aontu language server command; `lsp` is the verb that serves."
         }
       }
     }

@@ -18,10 +18,10 @@ Getting Aontu into your process or pipeline, and its answers out.
 - [Call Aontu from Go](call-from-go.md). Embed the engine with the Go port—the same three calls, with errors returned instead of thrown.
 - [See the canonical form](see-canonical-form.md). Print what a document means—defaults, disjunctions and all—instead of what it resolves to.
 - [Inject values from the host program](inject-host-values.md). Fill `$name` variables from the calling program to parameterise a model from code.
-- [Give an agent an entrypoint to a definition](give-an-agent-an-entrypoint.md). Generate a ground-truth stanza with `aontu agentsmd` and serve the verbs over MCP with `aontu-mcp`.
+- [Give an agent an entrypoint to a definition](give-an-agent-an-entrypoint.md). Generate a ground-truth stanza with `aontu agentsmd` and serve the verbs over MCP with `aontu mcp`.
 - [Collect errors instead of throwing](collect-errors.md). Gather every problem in one pass with `collect: true` (TypeScript) or `Check` (Go) instead of stopping at the first.
 - [Read a conflict error](read-a-conflict-error.md). What a conflict message names, in what order, and how to tell a conflict from an unresolved path.
-- [Wire your editor](wire-your-editor.md). Connect `aontu-lsp` to VS Code, Neovim, or any LSP client for diagnostics as you type.
+- [Wire your editor](wire-your-editor.md). Connect `aontu lsp` to VS Code, Neovim, or any LSP client for diagnostics as you type.
 
 ## Templates, defaults and composition
 

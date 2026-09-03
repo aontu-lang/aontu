@@ -2002,4 +2002,49 @@ function fmtFiles(...srcs) {
         Assert.equal(r.out, 'a: b: 1\n');
     });
 });
+// --- the servers as verbs -------------------------------------------
+(0, node_test_1.describe)('cli-servers', () => {
+    // The dispatch, seen through the injectable pair: the CLI hands the
+    // process to the server and gives no answer of its own.
+    (0, node_test_1.test)('lsp-and-mcp-verbs-dispatch-to-the-servers', () => {
+        const calls = [];
+        const servers = {
+            lsp: () => void calls.push('lsp'),
+            mcp: (argv) => void calls.push('mcp ' + argv.join(' ')),
+        };
+        vetCapture(() => (0, cli_1.main)(['node', 'cli', 'lsp'], servers));
+        vetCapture(() => (0, cli_1.main)(['node', 'cli', 'mcp', '--root', '/tmp'], servers));
+        Assert.deepEqual(calls, ['lsp', 'mcp --root /tmp']);
+        // --help is the CLI's help; an argument to lsp is a usage error.
+        const h = vetCapture(() => {
+            (0, cli_1.main)(['node', 'cli', 'lsp', '--help'], servers);
+            Assert.equal(process.exitCode, 0);
+        });
+        Assert.ok(h.out.includes('aontu lsp'));
+        const u = vetCapture(() => {
+            (0, cli_1.main)(['node', 'cli', 'lsp', 'extra'], servers);
+            Assert.equal(process.exitCode, 2);
+        });
+        Assert.match(u.err, /lsp takes no arguments/);
+        Assert.equal(calls.length, 2);
+    });
+    // The real servers behind the verbs, through the executable entry:
+    // one initialize round trip each.
+    (0, node_test_1.test)('lsp-verb-serves-lsp-over-stdio', () => {
+        const frame = (s) => `Content-Length: ${Buffer.byteLength(s)}\r\n\r\n${s}`;
+        const input = frame('{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}') +
+            frame('{"jsonrpc":"2.0","id":2,"method":"shutdown"}') +
+            frame('{"jsonrpc":"2.0","method":"exit"}');
+        const out = (0, node_child_process_1.execFileSync)(process.execPath, [CLI, 'lsp'], { input }).toString();
+        Assert.ok(out.includes('"serverInfo"'), out);
+        Assert.ok(out.startsWith('Content-Length:'), out);
+    });
+    (0, node_test_1.test)('mcp-verb-serves-mcp-over-stdio', () => {
+        const input = '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}\n';
+        const out = (0, node_child_process_1.execFileSync)(process.execPath, [CLI, 'mcp'], { input }).toString();
+        const answer = JSON.parse(out.trim().split('\n')[0]);
+        Assert.equal(answer.id, 1);
+        Assert.ok(answer.result, out);
+    });
+});
 //# sourceMappingURL=cli.test.js.map

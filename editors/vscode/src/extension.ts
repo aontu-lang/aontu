@@ -1,7 +1,7 @@
 /* Copyright (c) 2025 Richard Rodger, MIT License */
 
 // VS Code extension: thin client that launches the Aontu language server
-// (aontu-lsp) and connects it to .aon / .aontu files. All language
+// (aontu lsp) and connects it to .aon / .aontu files. All language
 // intelligence lives in the server; this file only wires it up.
 
 import * as vscode from 'vscode'
@@ -16,11 +16,11 @@ let client: LanguageClient | undefined
 
 export function activate(_context: vscode.ExtensionContext) {
   const cfg = vscode.workspace.getConfiguration('aontu')
-  const command = cfg.get<string>('server.command', 'aontu-lsp')
-  const args = cfg.get<string[]>('server.args', [])
+  const command = cfg.get<string>('server.command', 'aontu')
+  const args = cfg.get<string[]>('server.args', ['lsp'])
 
   // SPAWN THROUGH A SHELL ON WINDOWS, and only there. npm installs the
-  // server's entry point as the shim `aontu-lsp.cmd`, and
+  // command's entry point as the shim `aontu.cmd`, and
   // vscode-languageclient spawns with child_process and no `shell`
   // option — CreateProcess will not execute a .cmd, so the default
   // command this extension ships never started at all on Windows, on

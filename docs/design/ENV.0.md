@@ -64,9 +64,10 @@ version manager, from the first release that carries it.
 ## 2. What `aontu env` promises
 
 1. **One binary.** The `aontu` on `PATH` is a complete engine of its
-   own version *and* the multiplexer for every other. A fresh install
-   works with nothing downloaded; a pinned project works with one
-   download, made once.
+   own version, the editor's language server (`aontu lsp`) *and* the
+   multiplexer for every other version. A fresh install works with
+   nothing downloaded; a pinned project works with one download, made
+   once.
 2. **A pin is a promise the engine keeps, not a hint.** A project
    that pins a version runs that version, from the command line, from
    the editor, and in CI, and the engine verifies the pin it is run
@@ -87,6 +88,9 @@ version manager, from the first release that carries it.
 7. **The language changes by one declaration**, `$.aontu_policy.engine`
    (§4.2), beside the `compat` promise the `breaking` verb already
    reads. Nothing else in the language knows the manager exists.
+   Nothing else in the CLI does either: `aontu lsp` and `aontu mcp`
+   are verbs like the rest, and the proxy resolves before it knows
+   which verb it is running.
 8. **No shell hook, no `PATH` rewriting, no shims** (X-1). Removing
    `~/.aontu` removes everything but the front binary.
 
@@ -323,20 +327,22 @@ a person), and `NO_COLOR` as every verb honours it.
 
 ## 8. The language server
 
-`aontu-lsp` is a proxy as `aontu` is (X-7): started by an editor, it
-resolves the version from the directory it was started in, walking up
-for `.aontu-version` as the CLI does, and runs that version's server,
-so the diagnostics in the editor come from the engine the project is
-pinned to. Editors start a language server in the workspace root,
-which is where a project pin is. What it cannot do is read the
-document pin before the handshake: the `initialize` request carries
-the root, but reading it means reading standard input that the real
-server then needs, so the first release resolves from the directory
-only, and a document whose pin disagrees reports `engine_version` in
-its diagnostics, as it would from the command line (X-10 for the
-relay that could do better). The server's `initialize` answer names
-its version in `serverInfo`, so an editor can show which engine it
-got.
+The language server is `aontu lsp`, a verb, so it needs nothing of
+its own (X-7): an editor starts `aontu lsp` in the workspace root,
+the proxy resolves the version from that directory exactly as it does
+for any verb, walking up for `.aontu-version`, and the server that
+answers is the engine the project is pinned to. The standalone
+`aontu-lsp` binary, while it ships, resolves the same way when it is
+started in a project directory, as a front binary of one verb.
+
+What the proxy cannot do for either is read the document pin before
+the handshake: the `initialize` request carries the root, but reading
+it means reading standard input that the real server then needs, so
+the first release resolves from the directory only, and a document
+whose pin disagrees reports `engine_version` in its diagnostics, as it
+would from the command line (X-10 for the relay that could do better).
+The server's `initialize` answer names its version in `serverInfo`, so
+an editor can show which engine it got.
 
 ## 9. Worked example
 
@@ -423,7 +429,7 @@ touching the network or the real home directory in a test.
 | phase | scope | size |
 | --- | --- | --- |
 | **P1** — the store and the proxy | `~/.aontu`, `env.aon`, resolution order without the document pin, exec and spawn, `+version`, `AONTU_VERSION`; `env`, `list`, `install`, `remove`, `pin`, `default`, `which`, `run`; the Go series from releases and the npm series from the registry; auto-install and offline; both ports; `--format json` | L |
-| **P2** — the promise | `$.aontu_policy.engine`, the pre-evaluation read in the proxy, `engine_version` in both evaluators with spec rows, the error-code registry entry; `aontu-lsp` as a proxy | M |
+| **P2** — the promise | `$.aontu_policy.engine`, the pre-evaluation read in the proxy, `engine_version` in both evaluators with spec rows, the error-code registry entry; the standalone `aontu-lsp` binary resolving as the verb does | M |
 | **P3** — the front binary | `aontu env self update` and `self version`; the step-aside rule for package-manager installs; Windows spawn semantics verified on the Windows runners; `install --from`; `list --available` | M |
 | **P4** — the documentation | the how-to "Manage engine versions"; the CLI reference; the install channels' pages saying that every channel installs the manager; `docs/release-and-tag.md` on what a release must carry for `env` to find it | S |
 
@@ -453,7 +459,9 @@ document pin, and the language change deserves its own review.
   directories? Recommendation: `~/.aontu`. **Decided 2026-09-03:
   `~/.aontu`.**
 - **X-7 — The language server.** Proxied too, or not? Recommendation:
-  proxied. **Decided 2026-09-03: proxied.**
+  proxied. **Decided 2026-09-03: proxied**, and made ordinary the same
+  day: `aontu lsp` became a verb of the CLI, so the server is proxied
+  because every verb is (§8).
 - **X-8 — Self-update.** In the first release, later, or never?
   Recommendation: the first release. **Decided 2026-09-03: the first
   release** (it is P3 of this note's phases, in the first release

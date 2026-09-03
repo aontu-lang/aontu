@@ -7,6 +7,22 @@ which implementation each change affects.
 
 ## Unreleased
 
+### `aontu lsp` and `aontu mcp`: the servers are verbs
+
+The language server is a verb of the CLI in both builds, `aontu lsp`,
+and the MCP server is one of the npm build, `aontu mcp [--root <dir>]`:
+the one command on `PATH` is the editor's and the agent's server too,
+and a version manager has one thing to resolve. The Go server loop
+moved from `cmd/aontu-lsp` into the `go/lsp` package as `Serve`, so
+the verb and the binary run one function; the TypeScript verb runs
+the same `main` the bin does. The standalone `aontu-lsp` and
+`aontu-mcp` binaries still ship and run the same servers, for the
+configurations that name them; the Go build's `aontu mcp` says the
+server is the npm build's and exits 2. Help text stays identical
+across the builds. The editor plugins (VS Code, Emacs, Vim/Neovim)
+default to `aontu lsp`; the editor how-to, the LSP page, the agent
+how-to and the API reference name the verbs. Both implementations.
+
 ### Built binaries and install channels with every Go release
 
 A Go release now carries the CLI as a download, in every shape an

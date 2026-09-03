@@ -64,8 +64,9 @@ figures drawn as text: tree, matrix, graph, layers, sets, the meet
 ladder, the subsumption poset, the key document and the value
 lattice), `jsonschema` (export
 the model as JSON Schema), `trim` (find redundant entries), `mod`
-(dependency closures), `agentsmd` (an AGENTS.md stanza) and `fmt` (the
-source formatter, in the tradition of `gofmt`: one agreed form). The
+(dependency closures), `agentsmd` (an AGENTS.md stanza), `fmt` (the
+source formatter, in the tradition of `gofmt`: one agreed form), `lsp`
+(the language server) and `mcp` (the MCP server, npm build). The
 library adds a path-addressed `diff`, and an MCP server answers with
 the same reports over stdio. All of it is documented in
 [docs/reference-api.md](docs/reference-api.md).

@@ -30,9 +30,9 @@ import type { McpRequest, McpResponse } from './mcp'
 import { VERSION } from './aontu'
 
 
-const USAGE = 'aontu-mcp - Aontu MCP server (stdio, NDJSON JSON-RPC)\n' +
+const USAGE = 'aontu mcp - Aontu MCP server (stdio, NDJSON JSON-RPC)\n' +
   '\n' +
-  '  aontu-mcp [--root <dir>]\n' +
+  '  aontu mcp [--root <dir>]\n' +
   '\n' +
   '  --root <dir>  Serve <name>Path file arguments and resolve\n' +
   '                @"..." includes, confined below <dir>\n' +
@@ -41,6 +41,7 @@ const USAGE = 'aontu-mcp - Aontu MCP server (stdio, NDJSON JSON-RPC)\n' +
 
 
 // The startup arguments. Parsed here rather than in bin/aontu-mcp.js
+// or the CLI's mcp verb
 // so the parsing is import-testable; unknown options REFUSE rather
 // than warn, because a server whose operator typo'd --root must not
 // come up quietly unconfined.

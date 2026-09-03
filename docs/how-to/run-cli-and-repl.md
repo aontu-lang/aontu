@@ -77,8 +77,8 @@ left open, so a half-typed `a: {` evaluates to `{"a":{}}` rather than
 waiting for more. Paste whole statements.
 
 Get the command in whichever of these fits the machine. Every one
-installs the same `aontu`, and the Go builds bring `aontu-lsp`, the
-language server, with it.
+installs the same `aontu`, whose `lsp` verb is the editor's language
+server (the Go builds bring the standalone `aontu-lsp` binary too).
 
 - `npm install -g aontu` (or `npx aontu`) for the TypeScript build.
 - `curl -fsSL https://aontu.dev/install.sh | sh` on Linux or macOS:
