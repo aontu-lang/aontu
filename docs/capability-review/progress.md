@@ -1561,8 +1561,24 @@ permits **once** and bounds with five constraints — no artifacts, no
 log on the path of a locked build, public replicability in a standard
 format, the client half in both ports under ADR-001, and a stated exit.
 
-**Phases 1 and 2 have landed.** Phases 3–6 are NOT STARTED, and the
-a commitment, and phases 2–6 are NOT STARTED.
+**Phases 1 and 2 have landed. Phases 3–6 are NOT STARTED.** The format
+is the commitment rather than the contents, which is why phase 2 is
+useful with no log running: the client verifies checkpoints and proofs a
+lockfile already carries.
+
+**2026-09-03: phase 3's channel is superseded, and the phase is not
+renamed until the successor is accepted.** A constraint set after this
+gap was drafted rules out running an OCI registry or storing module
+bytes, and puts bytes on the forge, so "`mod get` and `mod publish` over
+OCI" names a channel that will not exist. The reasoning is in
+[g10-transparency.md](g10-transparency.md#the-artifact-channel-is-superseded-2026-09-03)
+and the successor design is
+[`aontu-lang/system`'s `DISTRIBUTION.0.md`](https://github.com/aontu-lang/system/blob/main/docs/design/DISTRIBUTION.0.md),
+which turns on three decisions nobody has taken yet. The rows below are
+left as they are on purpose: a status changes in the commit that changes
+it, and no status has changed. What has changed is that phase 3's pin
+describes a plan its own constraints have overtaken, and a reader should
+know that before costing it.
 
 Baseline at drafting, for protocol rule 5: `ls test/spec/*.tsv | wc -l`
 = **97**, `awk -F'\t' 'NF>2 && $0 !~ /^#/' test/spec/*.tsv | wc -l`
