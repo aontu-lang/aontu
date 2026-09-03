@@ -75,6 +75,12 @@ export type PatchOptions = {
   // The include capability this document evaluates under
   // (G5, docs/trust.md); vet's precedent.
   trust?: TrustOptions
+  // The extensions an include additionally reads as text (the CLI's
+  // --text-ext). It rides WITH the capability, never beside it: this
+  // verb threaded the capability and not the extension, so `set`
+  // refused an include -- and wrote nothing -- under a flag the bare
+  // command honoured.
+  textExt?: string[]
 }
 
 
@@ -578,6 +584,7 @@ export function patch(
   // the caller, "which file" is the whole question.
   const report: VetReport = vet(entrySrc, overlay, {
     trust: options.trust,
+    textExt: options.textExt,
     schemaPath: options.entryPath,
     dataPath: options.overlayPath,
     schemaUrl: options.entryPath,

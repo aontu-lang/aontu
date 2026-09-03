@@ -724,14 +724,18 @@ func subsumeDefaultsWalk(st *subState, path []string, g, s Val) string {
 // canonical port keeps the same reader beside its verb (ts/src/cli.ts
 // policyCompat).
 func PolicyCompat(src, path string) string {
-	return PolicyCompatTrust(src, path, nil)
+	return PolicyCompatTrust(src, path, nil, nil)
 }
 
 // PolicyCompatTrust is PolicyCompat under an explicit include
-// capability, so a verb reading a document's own policy reads it the
-// same way it evaluates everything else.
-func PolicyCompatTrust(src, path string, trust *TrustOptions) string {
-	a := aontuForPathTrust(path, trust, nil)
+// capability AND the extensions read as text, so a verb reading a
+// document's own policy reads it the same way it evaluates everything
+// else. Both options, never one: this took `trust` alone, so a
+// `breaking` whose mode declaration arrived through a `--text-ext`
+// include read no mode at all and silently fell back to backward.
+func PolicyCompatTrust(
+	src, path string, trust *TrustOptions, textExt []string) string {
+	a := aontuForPathTrust(path, trust, textExt)
 	v, err := a.Unify(src)
 	if err != nil || nil == v || v.Nil() {
 		return ""

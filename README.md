@@ -61,7 +61,8 @@ appending or in place), `subsume` and `breaking` (schema evolution),
 `hash` (pin what a document means), `relations`, `reaches` and `view`
 (the declared entity graph: its checks, reachability over it, and its
 figures drawn as text: tree, matrix, graph, layers, sets, the meet
-ladder and the subsumption poset), `jsonschema` (export
+ladder, the subsumption poset, the key document and the value
+lattice), `jsonschema` (export
 the model as JSON Schema), `trim` (find redundant entries), `mod`
 (dependency closures), `agentsmd` (an AGENTS.md stanza) and `fmt` (the
 source formatter, in the tradition of `gofmt`: one agreed form). The

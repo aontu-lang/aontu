@@ -60,10 +60,13 @@ With no file and piped input, read the source from stdin.
 ```
 
 The elided remainder lists every option; the per-verb sections below
-carry the same lists. Two options apply everywhere: `--trust <t>`
+carry the same lists. Three options apply everywhere: `--trust <t>`
 (the include capability—`system`, `none`, or `root[:dir]`; see
-[`AontuOptions`](#aontuoptions) for what each admits) and its
-shorthand `--include-root <dir>`.
+[`AontuOptions`](#aontuoptions) for what each admits), its
+shorthand `--include-root <dir>`, and `--text-ext <ext>[,<ext>]`
+(extensions an include additionally reads as text; repeatable, and a
+leading dot is optional). The last rides WITH the capability rather
+than beside it: both answer what an include may read.
 
 **Behaviour**
 
@@ -1994,7 +1997,7 @@ drives the CLI. Human-readable output stays the default.
 
 ```
 $ aontu
-Aontu v0.55.0 REPL — :help for commands, :quit to exit
+Aontu v0.56.0 REPL — :help for commands, :quit to exit
 aontu> port: *8080 | integer
 {
   "port": 8080
@@ -2034,7 +2037,7 @@ nothing else.
 | `hash` | the [canon-hash](#aontu-hash) pin `{hash}` (plus the hash-form text when `form: true`) |
 | `trim` | the [trim --check](#aontu-trim) report: redundant entries as paths |
 | `reaches` | the [reachability check](#aontu-reaches): the verdict and, when it reaches, a shortest path—the closure question `relations` cannot ask one edge at a time |
-| `view` | a [figure](#aontu-view) of the document as text: the tree, matrix, graph (mermaid, dot, er), layer, sets, layers or ladder kind, with the loss report; the poset takes several files and is CLI only |
+| `view` | a [figure](#aontu-view) of the document as text: the tree, matrix, graph (mermaid, dot, er), layer, sets, layers, ladder, doc or lattice kind, with the loss report; the poset takes several files and is CLI only |
 | `jsonschema` | the [JSON Schema export](#aontu-jsonschema): the schema, and the `lossy` list naming what it could not say—the bridge to a structured-output API, and to an MCP tool's own `inputSchema` |
 
 Every tool returns **the same JSON contract the CLI prints**, so a

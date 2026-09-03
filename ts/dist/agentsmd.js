@@ -36,7 +36,13 @@ function agentsMd(src, opts) {
         return { findings: [(0, query_2.evalFailure)(ctx)], ok: false, stanza: '' };
     }
     const keys = true === v.isMap ? Object.keys(v.peg).sort(keyorder_1.cmpCodePoint) : [];
-    const shape = (0, query_1.get)(src, '$', { view: 'types', depth: 2, path: options.path });
+    // THE SHAPE IS A SECOND EVALUATION, and it runs under the same
+    // include options as the first. Taking `path` alone made it a
+    // narrower reader than the stanza around it: a document whose keys
+    // arrive through a `--text-ext` include listed those keys and then
+    // reported an EMPTY shape, because the read the shape came from
+    // refused the include the read above it had just honoured.
+    const shape = (0, query_1.get)(src, '$', { view: 'types', depth: 2, path: options.path, ...(0, utility_1.includeOpts)(options) });
     // A REAL path, so the example command works as written: the first
     // root key when there is one, the root itself when there is not.
     const example = 0 < keys.length ? '$.' + keys[0] : '$';

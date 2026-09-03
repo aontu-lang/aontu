@@ -18,7 +18,7 @@ import { graphOf } from './graph';
 import { relationCheck } from './relation';
 import { view, viewSet, viewTree } from './view';
 import { format, unifiedDiff } from './format';
-declare const VERSION = "0.55.0";
+declare const VERSION = "0.56.0";
 declare class Aontu {
     opts: AontuOptions;
     lang: Lang;
