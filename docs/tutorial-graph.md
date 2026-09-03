@@ -20,11 +20,11 @@ stands in for `aontu`). Every output here is the engine's own.
 
 ## 1. Two views of one service
 
-The catalog team records what `payments` *is*; the platform team
-records what actually *runs*. Unification is path-aligned, so a
-claim at `$.catalog.payments` never meets a claim at
-`$.deploy.eu1.payments`: a forked tier stays confident in both
-files, and one of them is wrong.
+The catalog team records what `payments` *is*; the platform team records
+what actually *runs*. Unification is path-aligned, so a claim at
+`$.catalog.payments` never [meets](unification.md) a claim at
+`$.deploy.eu1.payments`: a forked tier stays confident in both files,
+and one of them is wrong.
 
 Bringing the two into contact is a reference. Here are the two
 views, trimmed from

@@ -30,6 +30,7 @@ the [Explanation](explanation.md).
 - [References and paths](#references-and-paths)
   - [Recursive references (fixpoints)](#recursive-references-fixpoints)
 - [Variables `$name`](#variables-name)
+- [Aliases `%`](#aliases-)
 - [The `+` operator and grouping](#the--operator-and-grouping)
 - [Functions](#functions)
 - [Arithmetic: `add` `sub` `mul` `div` `mod` `rem`](#arithmetic-add-sub-mul-div-mod-rem)
@@ -49,7 +50,6 @@ the [Explanation](explanation.md).
 - [Errors](#errors)
 - [The constraint algebra](#the-constraint-algebra)
   - [Named constraint aliases](#named-constraint-aliases)
-  - [Aliases](#aliases)
 
 ---
 
@@ -428,12 +428,10 @@ ten thousand digits is an ordinary value.
 
 No operator or function narrows a kind: see
 [`+`](#the--operator-and-grouping) and
-[`upper()`/`lower()`](#functions). For the reasoning behind the model —
-why the bound is int64, why canon carries a `.0`, and how the two
-implementations are held in step — see the
-[number model design note](design/number-model.md); for why `number`
-became a supertype and where the exact leaves came from, see
-[the number tower](design/number-tower.md).
+[`upper()`/`lower()`](#functions). The int64 window, the `.0` canon
+suffix and the `0d` marker are stated in
+[the four numeric leaves](#the-four-numeric-leaves) and
+[Canonical form](#canonical-form).
 
 ## Maps
 
@@ -524,9 +522,9 @@ A kind mismatch refuses with the unit's own codes (`[aontu/map]`,
 `[aontu/list]`): `map() & [1]` is the same fact `{} & [1]` reports.
 Neither function takes arguments — element constraints belong to the
 spreads (`{&: V}`, `[&: V]`). The kinds settle inside `type()` bodies,
-meet the unit literals (`map() & {}` is `{}` — an explicitly supplied
-empty map satisfies the kind), and subsume their containers
-(`map()` subsumes `{a:1}`). Pinned by
+[meet](unification.md) the unit literals (`map() & {}` is `{}` — an
+explicitly supplied empty map satisfies the kind), and subsume their
+containers (`map()` subsumes `{a:1}`). Pinned by
 [`test/spec/containerkind.tsv`](../test/spec/containerkind.tsv).
 
 ## Conjunction `&`
@@ -577,10 +575,10 @@ b: string|number
 
 `&` binds tighter than `|`, so `c & b | a` parses as `(c & b) | a`.
 
-**An unresolved disjunction has no value** (ADR-007). More than one
-alternative still admitted means the truth is not yet settled, so
-generation refuses with `disjunct_no_gen`, class `incomplete` — the
-same class a bare `string` residue answers:
+**An unresolved disjunction has no value**. More than one alternative
+still admitted means the truth is not yet settled, so generation refuses
+with `disjunct_no_gen`, class `incomplete` — the same class a bare
+`string` residue answers:
 
 ```
 a:1|2                → [aontu/disjunct_no_gen] at $.a
@@ -619,16 +617,16 @@ The preference survives in canonical form — `a` above canons as
 resolved value.
 
 Defaults propagate through nesting and spreads. `pref(x)` is the
-function form of `*x` (canon `*x`). Preferences can be ranked (a `*` of a
-`*` outranks a single `*`); the lowest rank wins when two preferred
-values meet. A ranked preference meets its peers exactly as rank 1
-does — the **rank-uniform meet** (ADR-004): `a:**1.5 & float` is `1.5`
-just as `a:*1.5 & float` is, and `**2|integer` met by a bare `integer`
-keeps its default.
+function form of `*x` (canon `*x`). Preferences can be ranked (a `*` of
+a `*` outranks a single `*`); the lowest rank wins when two preferred
+values meet. A ranked preference meets its peers exactly as rank 1 does
+— the **rank-uniform meet**: `a:**1.5 & float` is `1.5` just as `a:*1.5
+& float` is, and `**2|integer` met by a bare `integer` keeps its
+default.
 
 Overriding a default is judged in two steps, and they are the two arms
-of the disjunction `*x` stands for ([ADR-011](../ADR.md#adr-011)):
-`*x & peer` is `(x & peer) | (super(x) & peer)`.
+of the disjunction `*x` stands for: `*x & peer` is `(x & peer) |
+(super(x) & peer)`.
 
 **The preferred value answers first.** A peer it still admits leaves
 the preference standing, narrowed to what survived: `a:*1.5 & float`
@@ -650,9 +648,9 @@ The type is `super(x)`, so the rule reaches every kind of default —
 is between the DEFAULTS, and the fix is to rank one of them (`**`).
 Compatible defaults fold — `a:*1` beside `a:*integer` is `*1`.
 
-**A preference conjoined with a disjunction names an alternative**
-(ADR-007): `(A|B) & *A` is `*A|B`, the same value the direct spelling
-denotes, so the two ways of writing an enum-with-default agree.
+**A preference conjoined with a disjunction names an alternative**:
+`(A|B) & *A` is `*A|B`, the same value the direct spelling denotes, so
+the two ways of writing an enum-with-default agree.
 
 ```aon
 a: ("1.0"|"1.1") & *"1.0"
@@ -667,20 +665,19 @@ alternative is dropped — it has nothing to prefer — so
 `("1.0"|"1.1") & *"2.0"` canons as `"1.0"|"1.1"`. The default-validity
 lint below is what reports that shape.
 
-**A preference inside a disjunction is gated by admission**
-(ADR-004): an override must be admitted by the disjunction itself —
-by at least one alternative, or by the preferred value. A preferred
-branch contributes exactly its own value to the admitted set, so
-`*'auto' | 'literal' | 'data'` is a true **enum with a default**:
-unset generates `"auto"`, `'literal'` and `'data'` override, and
-anything else is the empty disjunction (`[aontu/empty]`). A wider
-alternative admits a wider override (`*8080 | integer` accepts any
-integer), and a constraint alternative is consulted rather than
-bypassed (`*8080 | (integer & min(1024) & max(65535))` refuses `80`
-and accepts `2048`; `*8080 | (integer & neq(80))` refuses `80`). A
-deliberately open default states its openness: `*x | top` admits every
-override. The gate covers scalar preferred values — the same boundary
-as the kind gate above.
+**A preference inside a disjunction is gated by admission**: an override
+must be admitted by the disjunction itself — by at least one
+alternative, or by the preferred value. A preferred branch contributes
+exactly its own value to the admitted set, so `*'auto' | 'literal' |
+'data'` is a true **enum with a default**: unset generates `"auto"`,
+`'literal'` and `'data'` override, and anything else is the empty
+disjunction (`[aontu/empty]`). A wider alternative admits a wider
+override (`*8080 | integer` accepts any integer), and a constraint
+alternative is consulted rather than bypassed (`*8080 | (integer &
+min(1024) & max(65535))` refuses `80` and accepts `2048`; `*8080 |
+(integer & neq(80))` refuses `80`). A deliberately open default states
+its openness: `*x | top` admits every override. The gate covers scalar
+preferred values — the same boundary as the kind gate above.
 
 ```aon
 a: *8080 | integer
@@ -715,8 +712,7 @@ met by `1.5` is `[aontu/empty]` (the other numeric leaf), and
 exclusion is consulted, not bypassed.
 
 A document that wants an open override says so by writing the open
-branch explicitly, `*x | top`
-([ADR-004](../ADR.md#adr-004--a-preference-override-must-be-admitted-by-its-disjunction)).
+branch explicitly, `*x | top`.
 
 **A structural default is gated too**, by the same rule as every
 other: the peer must pass `super(x)`, and `super({x:1})` is
@@ -739,9 +735,8 @@ b: {x:2}
 because `{x:1}` cannot admit `{x:2}` but its type can. A peer of
 another kind — `a: "s"` — refuses, as the scalar case always did.
 
-A document that wants a structural default any peer may replace says
-so by writing the open branch explicitly, `*{x:1} | top`
-([ADR-011](../ADR.md#adr-011--the-star-is-sugar-the-disjunction-is-the-structure)).
+A document that wants a structural default any peer may replace says so
+by writing the open branch explicitly, `*{x:1} | top`.
 
 Writing `a:{x:*1}` rather than `a:*{x:1}` is still the clearer
 spelling when you mean "a map whose `x` defaults to 1", and it is what
@@ -872,16 +867,16 @@ and relative references inside the template answer for the child
 rather than for the call. Duplicate keys are not an error — the
 colliding children unify, exactly as duplicate source keys merge.
 
-**Instantiation is per destination, to the leaves** (ADR-005). The
-clone a destination receives is a *full instance*: nothing in it —
-not a call's arguments, not a preference's inner value, not an
-operator's operands — is shared with the template or with any sibling
-destination, and every path inside it is the destination's. So
-`close({name: key()})`, `**key(1) | string` and `.a + 1` inside a
-template all answer per child, in expressions and call arguments as
-much as in bare positions; the first child's resolution can never
-answer for the others. The same rule instantiates a `filter`
-condition per trial and a spread constraint (`&:`) per application.
+**Instantiation is per destination, to the leaves**. The clone a
+destination receives is a *full instance*: nothing in it — not a call's
+arguments, not a preference's inner value, not an operator's operands —
+is shared with the template or with any sibling destination, and every
+path inside it is the destination's. So `close({name: key()})`,
+`**key(1) | string` and `.a + 1` inside a template all answer per child,
+in expressions and call arguments as much as in bare positions; the
+first child's resolution can never answer for the others. The same rule
+instantiates a `filter` condition per trial and a spread constraint
+(`&:`) per application.
 
 `each(data, tmpl?)` makes one **list element** per child of `data`,
 each of them that child met with `tmpl`. The order is fixed: source
@@ -968,17 +963,17 @@ document says the rest was meant to be allowed. An unselected result
 is never evaluated, so a broken arm nobody takes is not an error the
 document has to carry.
 
-**A defaulted scrutinee matches as the value it generates** (ADR-004).
-A settled scrutinee that carries an effective default — a preference,
-or a disjunction holding one — is tested as the innermost preferred
-value, not as the still-open preference. So with
-`side_effect: *readonly | write | destructive`, the derivation
-`match(.side_effect, destructive, true, false)` answers `false` when
-`side_effect` is unset (the effective value is `"readonly"`), and
-`true` only when it is genuinely `destructive`. Before this rule a
-pattern could *select* an arm by overriding the default, deriving a
-value that contradicted the one generated beside it. A pref-free open
-disjunction still matches by plain unifiability.
+**A defaulted scrutinee matches as the value it generates**. A settled
+scrutinee that carries an effective default — a preference, or a
+disjunction holding one — is tested as the innermost preferred value,
+not as the still-open preference. So with `side_effect: *readonly |
+write | destructive`, the derivation `match(.side_effect, destructive,
+true, false)` answers `false` when `side_effect` is unset (the effective
+value is `"readonly"`), and `true` only when it is genuinely
+`destructive`. Before this rule a pattern could *select* an arm by
+overriding the default, deriving a value that contradicted the one
+generated beside it. A pref-free open disjunction still matches by plain
+unifiability.
 
 Both wait for the model to settle before they answer, for the reason
 `pack` and `each` do: a bag that is still being merged into is the
@@ -1018,17 +1013,16 @@ open:  pack($.ports, {port: _, name: key()})
            "https": {"name": "https", "port": 443}}}
 ```
 
-A hole belongs to its **nearest enclosing generator** (ADR-005): an
-outer generator's fill pass never reaches into a nested generator's
-template (or a `filter`'s condition), so in
-`pack($.envs, {services: pack($.fleet, {v: _})})` the inner `_` is
-the fleet entry, not the env. A hole in a generator's *data* argument
-is not a binding position, so it is still the outer generator's to
-fill: `pack($.m, {inner: each(_)})` iterates the outer source child.
-And wrapping a generator in a call (`close(pack(d, _ & t))`) does not
-expose the template's hole to the wrapper's peers — an overlay
-statement merges with the generated children, never with the
-template.
+A hole belongs to its **nearest enclosing generator**: an outer
+generator's fill pass never reaches into a nested generator's template
+(or a `filter`'s condition), so in `pack($.envs, {services:
+pack($.fleet, {v: _})})` the inner `_` is the fleet entry, not the env.
+A hole in a generator's *data* argument is not a binding position, so it
+is still the outer generator's to fill: `pack($.m, {inner: each(_)})`
+iterates the outer source child. And wrapping a generator in a call
+(`close(pack(d, _ & t))`) does not expose the template's hole to the
+wrapper's peers — an overlay statement merges with the generated
+children, never with the template.
 
 For a `pack` over a list of names, `_` and `key()` are the same thing
 — the name is the key. Over a map they differ: `key()` is the key, `_`
@@ -1147,7 +1141,7 @@ hash pins the mu-form — one string for an infinitely deep type:
 ```
 
 Mutual recursion (`A` referencing `B` referencing `A`) works the same
-way, and so does a recursive [alias](#aliases) — which is enough to
+way, and so does a recursive [alias](#aliases-) — which is enough to
 write the JSON value space in one line:
 
 ```aon
@@ -1187,6 +1181,108 @@ a:$foo & number      → {"a":11}            (variables unify like values)
 ```
 
 An unknown variable is a `Cannot resolve` error.
+
+## Aliases `%`
+
+An **alias** is a name for a value, written with a leading `%`.
+`%name:` at the top level of a file declares one; `%name` in value
+position uses it. Unlike a [reference](#references-and-paths), which
+spells a path into the tree, an alias names the value directly and
+belongs to no path:
+
+```aon
+%port: integer & min(1) & max(65535)
+
+listen: %port
+listen: 8080
+admin:  %port
+admin:  443
+```
+
+```json
+{ "listen": 8080, "admin": 443 }
+```
+
+**The declaration is not part of the document.** It does not generate,
+and it does not appear in canon — so the file above and the file with
+`integer & min(1) & max(65535)` written out at both keys are the same
+document and produce the same [`aon1-` hash](#canonical-form). That is
+the whole of what an alias is: a name for a value, and nothing else.
+
+**Not inside a spread template, yet.** `{&: {a: %D}}` does not resolve
+the reference: the alias survives into canon as `$.%D` — the refused
+path spelling — and the document's [`aon1-` hash](#canonical-form)
+moves, so the two spellings are *not* the same document there. The
+value still generates correctly in both ports, which is what makes it
+easy to miss. Write the constraint out inside a spread template until
+this is fixed.
+
+**An alias is not a path segment.** `$.%foo` is refused, at any depth:
+the alias namespace and the path namespace are disjoint, and an alias
+is reached by writing `%foo` and only that.
+
+**A declaration sits at the root of the document.** A nested
+`x: { %a: 1 }` is refused: `%a` resolves from the root, so a nested
+declaration would be erased from the output (it *is* a declaration) and
+still unreachable by any reference (it is *not* at the root) — a name
+that exists nowhere.
+
+Where the declaration *lands* is what decides this, not where it was
+written, which is what makes the two include shapes differ:
+
+- `a: @"f.aon"` is **refused** if `f.aon` declares an alias. The
+  declaration is at the root of its own file but not of the document,
+  and left writable a `%b` in the *including* file is what `f.aon`'s own
+  `%b` would reach.
+- `@"f.aon"` spliced at the root is **accepted**. There is one root map,
+  so there is no second scope for a name to leak out of, and the
+  declaration is a declaration of that one document.
+
+There is no construct for carrying a name across a file boundary
+deliberately.
+
+**The `%` is part of the name.** A quoted `"%a"` is an ordinary key or
+string, and a bare `%` not followed by a name is ordinary text:
+
+```aon
+a: "%foo"
+b: 50%
+```
+
+```json
+{ "a": "%foo", "b": "50%" }
+```
+
+An alias resolves exactly the way a path reference does, which is where
+its properties come from rather than from rules of its own:
+
+- **Order is irrelevant** — a use may precede its declaration.
+- **An alias may name another alias**, and a cycle is refused. So is a
+  cycle that runs through the document (`%a: $.x` with `x: %a`), because
+  there is one reference graph, not two.
+- **Two declarations of one name unify**, exactly as two statements for
+  one key do: `%n: 1` with `%n: integer` is `1`, and `%n: 1` with
+  `%n: 2` is a conflict.
+- **A use of an undeclared name is refused**, naming the name.
+
+Aliases are not passed to generated children: a spread template sees the
+*expansion*, so children are constrained by the value and acquire no
+name.
+
+```aon
+%row: { kind: string, id: integer }
+
+table: {
+  &: %row
+  a: { kind: user, id: 1 }
+  b: { kind: user, id: 2 }
+}
+```
+
+```json
+{ "table": { "a": { "kind": "user", "id": 1 },
+             "b": { "kind": "user", "id": 2 } } }
+```
 
 ## The `+` operator and grouping
 
@@ -1336,14 +1432,6 @@ checked rather than trusted:
 | [the string fold](#folding-to-a-string-join) | 1 | `join` |
 | [declared relations](#declared-relations) | 3 | `rel` `acyclic` `inverse` |
 | [constraint atoms](#the-constraint-algebra-specified) | 9 | `min` `max` `above` `below` `neq` `re` `length` `unique` `must` |
-
-(The figure here read *thirty-seven* until `join` landed, and had been
-wrong by four since `pick` and the relation trio arrived: the sentence
-named three groups and there were six. The table is the repair — a sum
-whose parts are listed is one a reader can add up. It then read
-*forty-two* over a nineteen-row table that held eighteen, so the sum
-was one high on both sides; `map()` and `list()` landing is when the
-recount happened.)
 
 | Function    | Effect | Example |
 |-------------|--------|---------|
@@ -1767,14 +1855,13 @@ The captured spelling is the address grammar `refer` reads —
 leading dot per parent step — and a bare dotted argument is relative
 (`path(q.r)` captures `.q.r`).
 
-A bare string is **never** a path (ADR-016): the call's own argument
-is the one conversion the language has. A string *literal* argument
-is address text (`path("$.a")` is the capture `path($.a)`), and text
-with no anchor is **relative** — `path("auth")` is `path(.auth)`, the
-address the raw spelling captures. A *computed* argument — an
-expression, a reference to a string — evaluates first, and the result
-converts by the same grammar, which is what makes an address
-buildable:
+A bare string is **never** a path: the call's own argument is the one
+conversion the language has. A string *literal* argument is address text
+(`path("$.a")` is the capture `path($.a)`), and text with no anchor is
+**relative** — `path("auth")` is `path(.auth)`, the address the raw
+spelling captures. A *computed* argument — an expression, a reference to
+a string — evaluates first, and the result converts by the same grammar,
+which is what makes an address buildable:
 
 ```aon
 names: { web: {}, db: {} }
@@ -1888,13 +1975,12 @@ Relative addressing is what makes a model reusable. A link written
 at, so the same file instantiated twice gives two self-contained
 instances.
 
-Only a [path value](#first-class-paths-pathp) can be an address
-(ADR-016): a bare string never is — `refer() & "$.a"` refuses
-(`refer_address`) — and `path("...")` is the one conversion. A second
-path peer refines the address by the prefix rule
-(`refer() & path($.a) & path($.a.b)` links to `$.a.b`), and a
-relative address that climbs off the top of the tree is refused
-outright — no later pass can grow a tree upwards.
+Only a [path value](#first-class-paths-pathp) can be an address: a bare
+string never is — `refer() & "$.a"` refuses (`refer_address`) — and
+`path("...")` is the one conversion. A second path peer refines the
+address by the prefix rule (`refer() & path($.a) & path($.a.b)` links to
+`$.a.b`), and a relative address that climbs off the top of the tree is
+refused outright — no later pass can grow a tree upwards.
 
 ### Existence is decided, not deferred
 
@@ -1929,6 +2015,56 @@ Constraints written *alongside* a refer constrain the **link**, not the
 target: `refer() & string & re("auth$") & path($.services.auth)` checks the
 address itself. They are held until the address arrives, and then meet
 it.
+
+### The argument is a template, not an address
+
+`refer(t)` takes the value the **target** must satisfy. The address
+comes from the `path()` beside it, never from the argument, so
+`refer(key())` does not mean "link to the node this key names". It
+means "the target must unify with whatever `key()` answers here" —
+and `key()` answers with a *string*, so the link is constrained to a
+target that is that string. At the root of a document `key()` is `""`,
+which leaves `refer("")`: a link with no address, which cannot
+generate.
+
+```
+link: refer(key())     → [aontu/mapval_no_gen] at $.link
+                         value was: refer("")
+```
+
+**A key does not survive a reference.** `key()` is path-dependent — it
+answers for the destination it lands at — and a reference is a new
+destination, so referring to a field whose value came from `key()`
+re-fires it at the referring site rather than carrying the target's
+key across. There is no built-in that takes a `path()` value and
+yields its last segment.
+
+Generate the link and the name together instead, from the one place
+the key is already in hand. Inside a `pack` template `key()` is the
+child's own key, so it can build the address and stand as a value at
+the same time:
+
+```aon
+services: {
+  auth:    { port: 8080 }
+  billing: { port: 9090 }
+}
+names: [auth, billing]
+links: pack($.names, {
+  to:   refer() & path("$.services." + key())
+  name: key()
+})
+```
+
+```json
+{"services": {"auth": {"port": 8080}, "billing": {"port": 9090}},
+ "names": ["auth", "billing"],
+ "links": {"auth":    {"to": "$.services.auth",    "name": "auth"},
+           "billing": {"to": "$.services.billing", "name": "billing"}}}
+```
+
+`to` is checked — a name with no service refuses — and `name` is the
+same key as an ordinary string.
 
 ### The bundled vocabularies
 
@@ -1987,7 +2123,7 @@ Two of its behaviours are the language rather than the vocabulary:
 
 - **A preferred member is one enum member, with the default role.**
   `direction: *in | out | inout` is a true enum-with-default under the
-  admission gate (ADR-004): unset generates `in`, `out` and `inout`
+  admission gate: unset generates `in`, `out` and `inout`
   override, and any other value is refused (`[aontu/empty]`). A
   vocabulary that wants an open field says so with a `| top` (or
   `| string`) branch.
@@ -2043,9 +2179,7 @@ reports the same findings without generating, and the library exposes
 remove? — is a separate verb, [`aontu reaches`](reference-api.md#aontu-reaches).
 
 There is no reserved `relations:` key: a document that writes one has
-written ordinary data ([ADR-010](../ADR.md) — the tree at all levels is
-user space; this retirement discharged that ADR's one grandfather
-clause).
+written ordinary data. The tree is user space at every level.
 
 For the working recipes see
 [Check relations](how-to/check-relations.md) and
@@ -2076,17 +2210,17 @@ a: copy($.x)
 {"a":{"y":1}}
 ```
 
-**A mark belongs to the field its wrapper was written at** (ADR-005).
-A reference to a `type()`/`hide()`-marked value copies the value with
-the marks cleared — and that holds however the wrapper resolves:
-a reference that lands on a still-unresolved `type()`/`hide()` call
-waits for it to resolve at its *own* field rather than copying the
-call, so the marks can never be re-stamped at the referring site. In
-particular `m: hide(pack(...))` hides the field `m` exactly as
-`hide({literal map})` does — the generated children stay usable
-downstream (`out: pack($.m, {got:_})` emits their values) — and a
-`type()`-marked alias referenced inside another `type()` body
-constrains the referring field without suppressing its emission.
+**A mark belongs to the field its wrapper was written at**. A reference
+to a `type()`/`hide()`-marked value copies the value with the marks
+cleared — and that holds however the wrapper resolves: a reference that
+lands on a still-unresolved `type()`/`hide()` call waits for it to
+resolve at its *own* field rather than copying the call, so the marks
+can never be re-stamped at the referring site. In particular `m:
+hide(pack(...))` hides the field `m` exactly as `hide({literal map})`
+does — the generated children stay usable downstream (`out: pack($.m,
+{got:_})` emits their values) — and a `type()`-marked alias referenced
+inside another `type()` body constrains the referring field without
+suppressing its emission.
 
 ## Closed values: `close` / `open`
 
@@ -2631,20 +2765,20 @@ The `at` option anchors both documents at one path before comparing
 
 ### Default validity
 
-The relation also powers an advisory lint: the validation verb reports
-a `pref_not_instance` finding (severity `warning`, class `compat`)
-when a disjunction's effective default is not an instance of any
-**remaining** alternative. Under the admission gate (ADR-004) this is
-no longer a soundness hole — the preferred branch contributes its own
-value to the admitted set, so `level: *wran | info | warn | debug` is
-a well-defined enum `{wran, info, warn, debug}` defaulting to `wran` —
-but that spelling is also exactly the shape of a *typo'd* default
-(`*warn` was probably meant), which nothing at meet time can
-distinguish. The warning flags the boundary: a default drawn from the
-written alternatives (`*8080 | integer`) is silent, a default that
-widens them is worth a look. Repeating the branch
-(`*warn | warn | error`) states "the default is a first-class member",
-silences the lint, and enforces the same admitted set.
+The relation also powers an advisory lint: the validation verb reports a
+`pref_not_instance` finding (severity `warning`, class `compat`) when a
+disjunction's effective default is not an instance of any **remaining**
+alternative. Under the admission gate this is no longer a soundness hole
+— the preferred branch contributes its own value to the admitted set, so
+`level: *wran | info | warn | debug` is a well-defined enum `{wran,
+info, warn, debug}` defaulting to `wran` — but that spelling is also
+exactly the shape of a *typo'd* default (`*warn` was probably meant),
+which nothing at meet time can distinguish. The warning flags the
+boundary: a default drawn from the written alternatives (`*8080 |
+integer`) is silent, a default that widens them is worth a look.
+Repeating the branch (`*warn | warn | error`) states "the default is a
+first-class member", silences the lint, and enforces the same admitted
+set.
 
 ## Errors
 
@@ -2716,7 +2850,7 @@ distinguishable.
 > preference meeting a constraint in a CONJUNCT (`min(1024) & *8080`)
 > does not resolve to the default — use the disjunct form
 > (`*8080 | (integer & min(1024))`). Under the admission gate
-> (ADR-004) the disjunct form also ENFORCES on override: an
+> the disjunct form also ENFORCES on override: an
 > out-of-bound peer is refused rather than silently bypassing the
 > constraint branch, so the recommended spelling both defaults and
 > validates.
@@ -2933,9 +3067,8 @@ with RE2 — a different language, in a different complexity class, over a
 different alphabet.
 
 Aontu therefore **defines** the pattern language and rewrites your
-pattern into a form neither engine can read two ways
-([ADR-003](../ADR.md#adr-003--host-provided-semantics-are-normalised-not-trusted)).
-Only the rewritten form reaches a host engine.
+pattern into a form neither engine can read two ways. Only the rewritten
+form reaches a host engine.
 
 **What `re` accepts**
 
@@ -2976,7 +3109,7 @@ units, in both implementations.
 | `\p{…}`, `\x{…}`, `\u`, `\Z` | spelled differently, or read as a literal by one engine |
 | POSIX classes `[[:alpha:]]` | RE2 only |
 | empty classes `[]`, `[^]` | a never-matching class in JavaScript, a parse error in RE2 |
-| a repeat count above **1000** (`a{1001}`, `a{2,1001}`) | RE2 refuses to compile it and JavaScript accepts it, so the same schema was valid in one implementation and not the other. The bound is **Aontu's**, checked in the normaliser before either engine sees the pattern, which is why the refusal is the same in both ([ADR-003](../ADR.md#adr-003--host-provided-semantics-are-normalised-not-trusted)) |
+| a repeat count above **1000** (`a{1001}`, `a{2,1001}`) | RE2 refuses to compile it and JavaScript accepts it, so the same schema was valid in one implementation and not the other. The bound is **Aontu's**, checked in the normaliser before either engine sees the pattern, which is why the refusal is the same in both |
 | a quantifier applied to `^`, `$`, `\b` or `\B` | there is nothing to repeat: JavaScript under the `u` flag calls it a syntax error, RE2 quantifies the assertion and matches |
 | a `{` that opens no counted quantifier (`x{y}`), or a `}` that closes none | JavaScript reads each as a lone quantifier bracket and refuses; RE2 reads both as literals |
 | a quantifier on a group containing a quantifier or an alternation | **cost, not meaning** — see below |
@@ -3258,7 +3391,12 @@ reports belongs to [`aontu vet`](reference-api.md#aontu-vet).
 The algebra has no `int8`, `uint16` or `port` keyword, and does not
 need one. A constraint is an ordinary value, so a name for one is an
 ordinary field — and a `type()`-marked block gives you a library of
-them that unifies like everything else and emits nothing:
+them that unifies like everything else and emits nothing.
+
+This section names constraints by their **path** (`$.type.port`). For
+the name-only spelling, `%port`, see [Aliases `%`](#aliases-); the two
+are the same idea reached two ways, and a `%` alias may hold a
+constraint just as a `type()` field can:
 
 ```aon
 type: type({})
@@ -3366,104 +3504,3 @@ Cannot unify value: 20 with value: integer&min(0)&max(15)
 `min(0)` are present because `20` still has to satisfy them. That
 normalised form is what `vet --format json` reports as `expected`, and
 what the value's [canon](#canonical-form) states.
-
-### Aliases
-
-The `type()` block above is a *map* of names, so every use spells the
-path to it. An **alias** is the name on its own. `%name:` at the top
-level of a file declares one; `%name` in value position uses it:
-
-```aon
-%port: integer & min(1) & max(65535)
-
-listen: %port
-listen: 8080
-admin:  %port
-admin:  443
-```
-
-```json
-{ "listen": 8080, "admin": 443 }
-```
-
-**The declaration is not part of the document.** It does not generate,
-and it does not appear in canon — so the file above and the file with
-`integer & min(1) & max(65535)` written out at both keys are the same
-document and produce the same [`aon1-` hash](#canonical-form). That is
-the whole of what an alias is: a name for a value, and nothing else.
-
-**Not inside a spread template, yet.** `{&: {a: %D}}` does not resolve
-the reference: the alias survives into canon as `$.%D` — the refused
-path spelling — and the document's [`aon1-` hash](#canonical-form)
-moves, so the two spellings are *not* the same document there. The
-value still generates correctly in both ports, which is what makes it
-easy to miss. Write the constraint out inside a spread template until
-this is fixed; it is recorded as
-[`use-cases/BUGS.md`](../use-cases/BUGS.md) 73.
-
-**An alias is not a path segment.** `$.%foo` is refused, at any depth:
-the alias namespace and the path namespace are disjoint, and an alias
-is reached by writing `%foo` and only that.
-
-**A declaration sits at the root of the document.** A nested
-`x: { %a: 1 }` is refused: `%a` resolves from the root, so a nested
-declaration would be erased from the output (it *is* a declaration) and
-still unreachable by any reference (it is *not* at the root) — a name
-that exists nowhere.
-
-Where the declaration *lands* is what decides this, not where it was
-written, which is what makes the two include shapes differ:
-
-- `a: @"f.aon"` is **refused** if `f.aon` declares an alias. The
-  declaration is at the root of its own file but not of the document,
-  and left writable a `%b` in the *including* file is what `f.aon`'s own
-  `%b` would reach.
-- `@"f.aon"` spliced at the root is **accepted**. There is one root map,
-  so there is no second scope for a name to leak out of, and the
-  declaration is a declaration of that one document.
-
-There is no construct for carrying a name across a file boundary
-deliberately.
-
-**The `%` is part of the name.** A quoted `"%a"` is an ordinary key or
-string, and a bare `%` not followed by a name is ordinary text:
-
-```aon
-a: "%foo"
-b: 50%
-```
-
-```json
-{ "a": "%foo", "b": "50%" }
-```
-
-An alias resolves exactly the way a path reference does, which is where
-its properties come from rather than from rules of its own:
-
-- **Order is irrelevant** — a use may precede its declaration.
-- **An alias may name another alias**, and a cycle is refused. So is a
-  cycle that runs through the document (`%a: $.x` with `x: %a`), because
-  there is one reference graph, not two.
-- **Two declarations of one name unify**, exactly as two statements for
-  one key do: `%n: 1` with `%n: integer` is `1`, and `%n: 1` with
-  `%n: 2` is a conflict.
-- **A use of an undeclared name is refused**, naming the name.
-
-Aliases are not passed to generated children: a spread template sees the
-*expansion*, so children are constrained by the value and acquire no
-name.
-
-```aon
-%row: { kind: string, id: integer }
-
-table: {
-  &: %row
-  a: { kind: user, id: 1 }
-  b: { kind: user, id: 2 }
-}
-```
-
-```json
-{ "table": { "a": { "kind": "user", "id": 1 },
-             "b": { "kind": "user", "id": 2 } } }
-```

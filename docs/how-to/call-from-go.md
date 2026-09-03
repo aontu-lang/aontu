@@ -53,5 +53,5 @@ For every problem in one pass rather than the first error, use
 The full surface is the [Go API
 reference](../reference-api.md#go-api); to parameterise a model from
 code, [inject host values](inject-host-values.md). The two ports
-answer alike by construction — the [shared
-spec](../shared-spec.md) is what pins it.
+answer alike by construction, and one shared test suite is what pins
+it.

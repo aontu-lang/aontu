@@ -84,10 +84,11 @@ $ aontu lot.aon
 }
 ```
 
-The loaded file never learns it was mounted: its `doors: 4` meets the
-local `doors: number` the way any two conjuncts meet, and a conflict
-between a loaded value and a local one is a normal unification error
-(read one with [read a conflict error](read-a-conflict-error.md)).
+The loaded file never learns it was mounted: its `doors: 4`
+[meets](../unification.md) the local `doors: number` the way any two
+conjuncts meet, and a conflict between a loaded value and a local one is
+a normal unification error (read one with [read a conflict
+error](read-a-conflict-error.md)).
 
 Watch the paths. A relative include resolves against the including
 file's own directory (the CLI starts the chain at the entry file's

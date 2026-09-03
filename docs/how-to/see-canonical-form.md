@@ -29,9 +29,10 @@ $ aontu --canon timeout.aon
 ```
 
 Generation resolves the default; `--canon` keeps the whole
-default-and-type so you can see what a caller may still override.
-Where information has fully arrived, the two agree — a constraint met
-by a concrete value canons to just the value. Write `pinned.aon`:
+default-and-type so you can see what a caller may still override. Where
+information has fully arrived, the two agree — a constraint
+[met](../unification.md) by a concrete value canons to just the value.
+Write `pinned.aon`:
 
 <!-- test: file pinned.aon -->
 ```aontu

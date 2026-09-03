@@ -71,8 +71,8 @@ func main() {
 ```
 
 The two implementations accept the same source and produce the same
-shape; the parity is pinned by a [shared spec](shared-spec.md) both
-test suites run. The rest of this page shows source and result — run
+shape; the parity is pinned by one test suite both implementations
+run. The rest of this page shows source and result — run
 them in whichever language you keep at hand.
 
 ### The `aontu` command
@@ -655,12 +655,12 @@ $ echo $?
 
 Read the finding from the top. The path `$.service.tags.1` is exactly
 where the trouble is: element 1 of the list, the `3`. Then **two
-sites**, because a conflict is always between two statements and
-neither one owns the blame — `data` is what arrived (`3`, line 4,
-column 20 of `staging.aon`) and `schema` is what it had to meet
+sites**, because a conflict is always between two statements and neither
+one owns the blame — `data` is what arrived (`3`, line 4, column 20 of
+`staging.aon`) and `schema` is what it had to [meet](unification.md)
 (`string`, line 6, column 16 of `service.aon`). Every finding is sited
-on both sides, so you never guess which file to open. And the exit
-code, `1`, is the verdict class: a CI job needs nothing else.
+on both sides, so you never guess which file to open. And the exit code,
+`1`, is the verdict class: a CI job needs nothing else.
 
 The `3` was meant to be a tier name. Write `staging.aon` again, saying
 so:

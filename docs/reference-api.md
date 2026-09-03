@@ -332,11 +332,12 @@ that is briefly unreadable mid-save reports and keeps watching.
 
 #### Vetting a recursive schema
 
-A [recursive schema](reference-language.md#recursive-references-fixpoints)
-needs nothing extra from `vet`: the definition expands one level per
-meet with concrete data, so the checks descend exactly as far as the
-data does, and a finding at depth is located there. The vocabulary
-below is a trimmed version of
+A [recursive
+schema](reference-language.md#recursive-references-fixpoints) needs
+nothing extra from `vet`: the definition expands one level per
+[meet](unification.md) with concrete data, so the checks descend exactly
+as far as the data does, and a finding at depth is located there. The
+vocabulary below is a trimmed version of
 [use-cases/13-recursive-schema](../use-cases/13-recursive-schema/).
 Write it as `chain.aon`:
 
@@ -462,7 +463,7 @@ template by reference admits itself, because two values with the same
 **hash form** are the same value. The rule runs only where the answer
 would otherwise be `undecided`, so it narrows nothing else — and
 without it a contract could not be gated against its own earlier
-version at all (`use-cases/BUGS.md` 64).
+version at all.
 
 This is the verdict [`breaking`](#aontu-breaking) fails on by
 default: a gate that cannot decide a recursive contract reports
@@ -633,7 +634,7 @@ $ echo $?
   `acyclic()` and `inverse(name)` register the declaration during
   unification, and the verb reports the verdict over the finished
   model's edge set. There is no reserved `relations:` key — a document
-  that writes one has written ordinary data (ADR-010).
+  that writes one has written ordinary data.
 - **These are not lattice constraints, deliberately.** Both properties
   are global and non-monotone — one more edge makes an acyclic graph
   cyclic — so they are facts about a finished model rather than
@@ -858,7 +859,7 @@ flowchart LR
   code with a count: `hidden_contribution` (an edge inside a `hide()`
   subtree, not drawn, because a committed figure discloses what it
   draws), `edges_in_disjunct` (a link under an unresolved disjunction,
-  which is not a fact — ADR-007 — so the figure reports it rather than
+  which is not a fact, so the figure reports it rather than
   picking an arm), `unresolved_field` (a node without a value for
   `--group-by` or `--label`), `cycle_block`, `cols_elided`, and for the
   poset
@@ -887,11 +888,9 @@ flowchart LR
   silent no-op. Escapes are never written to a file: `--out` with
   `--style ansi` is refused, and `auto` resolves to no escapes there.
 
-  Neither mechanism states a colour, which is why this does not reopen
-  the design's "no colour palette" boundary
-  ([`docs/design/VIEWS.0.md`](design/VIEWS.0.md), "7. Styling"): SGR 31
-  means the colour the reader's terminal calls red, and a CSS class
-  states nothing at all. A hex triple in a figure stays refused, and so
+  Neither mechanism states a colour, and a figure still cannot name
+  one: SGR 31 means the colour the reader's terminal calls red, and a
+  CSS class states nothing at all. A hex triple in a figure stays refused, and so
   does `style` in a view document — a declaration says which
   projection, never how it looks.
 - **`--out <file>` and `--check`.** The figure is written to the file
@@ -995,12 +994,12 @@ flowchart LR
 
 **The view document.** A projection that runs in CI belongs in a file.
 `--views <path>` names a map, in an ordinary document that includes the
-model, whose values declare figures: one evaluation, N figures, one
-exit code. The keys of a declaration are the view options — the flags
-without the dashes — and every declaration names its `kind` and the
-`out` file it draws into. `views` is the author's key; nothing in the
-engine knows the name (ADR-010), which is why the path is given. Write
-a `views.aon` beside the `system.aon` above:
+model, whose values declare figures: one evaluation, N figures, one exit
+code. The keys of a declaration are the view options — the flags without
+the dashes — and every declaration names its `kind` and the `out` file
+it draws into. `views` is the author's key; nothing in the engine knows
+the name, which is why the path is given. Write a `views.aon` beside the
+`system.aon` above:
 
 <!-- test: file views.aon -->
 ```aon
@@ -1092,10 +1091,7 @@ the poset, [08-feature-flags](../use-cases/08-feature-flags/) the
 ladder, [12-relations](../use-cases/12-relations/) the graph and the
 ER diagram, and [16-module-deps](../use-cases/16-module-deps/) the
 tree, the matrix and the layers; 16 also declares all seven of its
-figures in a `views.aon` that its `check.sh` gates in one run. The
-design is
-[docs/design/VIEWS.0.md](design/VIEWS.0.md) and
-[VIEWS-ORDER.0.md](design/VIEWS-ORDER.0.md).
+figures in a `views.aon` that its `check.sh` gates in one run.
 
 ### `aontu jsonschema`
 
@@ -1858,8 +1854,8 @@ will type them and deserves a better answer than "unknown subcommand":
 
 ```
 $ aontu mod get
-aontu: mod get needs a registry client, which this build does not ship
-(docs/capability-review/g6-distribution.md)
+aontu: mod get needs a registry client, which this build does not ship;
+vendor the module by hand and run 'aontu mod tidy'
 ```
 
 **REPL commands**
@@ -2155,10 +2151,8 @@ in Go. It is the edge set:
 }
 ```
 
-There is no entity index, because there is no second namespace to
-index: a node's address is its path
-([ADR-014](../ADR.md#adr-014--the-tree-is-the-namespace-there-is-no-identity-mark)).
-One entry per checked
+There is no entity index, because there is no second namespace to index:
+a node's address is its path. One entry per checked
 [link](reference-language.md#checked-links-refert):
 
 - **`from`** is the node the link starts at — the link's own position
@@ -2321,8 +2315,8 @@ JSON.stringify(out) // TypeError: Do not know how to serialize a BigInt
   only a true cycle is refused, as in `JSON.stringify`.
 
 The output is byte-identical to the Go port's `encoding/json` with
-`SetEscapeHTML(false)` for the same document; that equivalence is what
-the shared suite's [`gens` mode](shared-spec.md#modes) pins. The `aontu`
+`SetEscapeHTML(false)` for the same document; that equivalence is
+pinned by the test suite both implementations run. The `aontu`
 CLI calls this same export with `indent` of `2`, so there is exactly one
 implementation for the pretty and compact forms to stay in step with.
 
@@ -2447,16 +2441,15 @@ profile [`AontuOptions.trust`](#aontuoptions) takes, and it means the
 same thing: what the document being evaluated may reach.
 
 These four verbs exist to be pointed at source from somewhere else — a
-candidate an agent emitted, a live system dump, the other side of a
-diff — and without a profile they resolve `@"…"` through the default
-chain, which reaches anything on the filesystem the process can read.
-**Opening an untrusted source is reading your disk**, so pass a profile
-whenever the source is not yours. Reading, never running: an include's
-extension decides what the file is
-([ADR-012](../ADR.md#adr-012--an-includes-extension-decides-what-the-file-is-aontu-source-config-data-or-refused))
-— `.aon` and `.aontu` as Aontu source, and `.json`, `.jsonld`,
-`.jsonc`, `.json5`, `.jsonic`, `.jsc`, `.toml`, `.yaml`, `.yml` and
-`.ini` as configuration data — and every other extension is refused.
+candidate an agent emitted, a live system dump, the other side of a diff
+— and without a profile they resolve `@"…"` through the default chain,
+which reaches anything on the filesystem the process can read. **Opening
+an untrusted source is reading your disk**, so pass a profile whenever
+the source is not yours. Reading, never running: an include's extension
+decides what the file is — `.aon` and `.aontu` as Aontu source, and
+`.json`, `.jsonld`, `.jsonc`, `.json5`, `.jsonic`, `.jsc`, `.toml`,
+`.yaml`, `.yml` and `.ini` as configuration data — and every other
+extension is refused.
 
 <!-- test: skip TypeScript API sample; the API surface is pinned by ts/test/ -->
 ```ts
@@ -2597,8 +2590,8 @@ generated output needs:
 
 `json.Marshal` output matches the TypeScript port's
 [`exactJSON`](#exact-numbers-and-exactjson) byte for byte once HTML
-escaping is off (`json.Encoder` + `SetEscapeHTML(false)`); that is the
-equivalence the shared suite's [`gens` mode](shared-spec.md#modes) pins.
+escaping is off (`json.Encoder` + `SetEscapeHTML(false)`); that
+equivalence is pinned by the test suite both implementations run.
 
 ### `Ctx` and errors
 
@@ -2723,5 +2716,4 @@ The shared parser stack is identical: TypeScript uses `@tabnas/jsonic` +
 `@tabnas/{expr,path,multisource,directive,debug}`; Go uses the ports
 `github.com/tabnas/{jsonic,expr,path,multisource,directive}/go`. See
 the [Explanation](explanation.md#two-implementations-one-behaviour) for
-how parity is maintained, and [Test coverage](test-coverage.md) for what
-each suite exercises.
+how parity is maintained.

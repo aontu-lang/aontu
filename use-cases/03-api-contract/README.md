@@ -243,8 +243,7 @@ both spellings.
     path-dependent, and a path-dependent template was never compared
     structurally, so a byte-identical document came back undecided and
     the gate had to pass `--allow-undecided`. Two identical templates
-    are now the same template, by their hash form
-    (use-cases/BUGS.md 64).
+    are now the same template, by their hash form.
 
 ## Running it
 
