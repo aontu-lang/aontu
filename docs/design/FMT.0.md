@@ -1,6 +1,6 @@
 # aontu fmt — the agreed form of Aontu source
 
-**Status:** ACCEPTED for implementation, 2026-09-03; nothing is built
+**Status:** ACCEPTED for implementation, 2026-09-03. P1 LANDED 2026-09-03 (§7.7); P2–P4 are not built.
 yet. The open questions of §11 were put to the owner the day the note
 was written: X-1, X-2, X-3, X-5 and X-6 decided as recommended, X-7
 decided *against* the recommendation (a spread-only map keeps its
@@ -675,7 +675,7 @@ non-adjacent repeat not merged, a number not rewritten.
 | phase | delivers | size |
 |---|---|---|
 | **P0** — the decisions | this note reviewed; §11 answered or deferred explicitly | — |
-| **P1** — layout | the verb in both ports with the syntactic rewrites only: §3.1–3.3, 3.5–3.13; `fmt.tsv`; the corpus idempotence gate; `--write`, `--list`, `--check`, `--diff` | M |
+| **P1** — layout | the verb in both ports with the syntactic rewrites only: §3.1–3.3, 3.5–3.13; `fmt.tsv`; the corpus idempotence gate; `--write`, `--list`, `--check`, `--diff`. **LANDED 2026-09-03** — `ts/src/format.ts`, `go/format.go`, `test/spec/fmt.tsv` (103 rows); the amendments are in §7.7 | M |
 | **P2** — the lawful tier | §3.4 split and merge, with the local unification check; rows for every exclusion; the use-case tree formatted and `run-all.sh` green | M |
 | **P3** — the documentation | every fence formatted and gated; STYLE-GUIDE adopts the form; a how-to, *Format a document*; a reference section, *The formatted form*, published from this note's §3 | M |
 | **P4** — lint | `--lint`, `style/key-case`, `style/repeat`, `--strict` | S/M |
@@ -683,6 +683,66 @@ non-adjacent repeat not merged, a number not rewritten.
 P1 before P2 on purpose: a formatter that only lays out is already
 useful and already checkable, and the lawful tier is the part with an
 open question against it (X-2, X-4).
+
+### 7.7 P1 as landed
+
+What the implementation settled that §3 left open, and where it
+departs from the note. Each is pinned by a row of `fmt.tsv`.
+
+- **Line breaks inside an expression are kept** (§3.11 said nothing).
+  The formatter never breaks a line, and it does not join lines the
+  author broke either: a break at a binary operator stays, `gofmt`'s
+  own rule. The break is normalised to *before* the operator, which
+  then leads its continuation line — `a: 1` / `  | 2` — because a
+  disjunction of alternatives reads as the list it is. The continuation
+  is one level in when the expression follows a key on its line, and
+  level with the first operand when the expression has the line to
+  itself (an argument of a block call). A comment inside an expression
+  ends its line and the value continues one level in.
+- **A call has three shapes** (§3.5 gave one). Its one-line form when
+  that fits; a single container argument hugging the parentheses,
+  `hide({` … `})`, when it does not; the arguments on one line however
+  wide when each has a one-line form (the never-break rule); and a
+  block, `type(` / one argument per line / `)`, when an argument is
+  itself several lines — a disjunction of closed shapes, a comment
+  among the arguments. The same for a parenthesis.
+- **A spread is padded inside braces**, `{ &: integer }`, where a pair
+  is tight, `{ a:1 }`: the marker reads as a marker and not as a key,
+  and it is how every example in this note and in the use cases writes
+  it.
+- **An empty list slot is `nil`.** `[1,,2]` is `[1,nil,2]` to the
+  parser, so dropping the comma would drop an element; the formatter
+  writes the element the parser read. A map's stray comma is nothing.
+- **A chain through a spread takes the braces**, `a: &: integer` →
+  `a: { &: integer }`: X-7 named the braces the agreed form, so the
+  bracket-free spelling is read as the map it is.
+- **§3.8, corrected.** A blank line between a comment and the statement
+  it precedes is the author's and stays, as §3.7 says; §3.8's "none
+  between a comment and the statement it attaches to" was the opposite
+  claim and is withdrawn.
+- **The self-check refuses under its own code**, `format_check`, class
+  `internal`, with the input's parse tree in `expected` and the text it
+  would have written in `actual` (P5's two spellings). The check is
+  injectable — a hook in TypeScript, a package variable in Go — so the
+  refusal is exercised by the suites without a formatter that is wrong.
+- **The file names are `format.ts` and `format.go`**, not `fmt.*` (§8):
+  a Go file named `fmt.go` reads as the standard package.
+- **`--diff` is a patience diff**, written the same way in both ports
+  so the two CLIs print identical bytes; not always the shortest edit
+  script, and linear in space.
+- **CRLF is a change.** The input is read with `\r\n` as `\n`, the
+  output is LF, and `--check` reports the file.
+- **A depth budget.** A document nested more than 1000 levels deep —
+  the evaluation budget, past which unification itself refuses — is
+  refused with `max_depth` rather than read: the layout is recursive,
+  as the tree it reads is, and the canonical port's stack gives out
+  somewhere past that; both ports refuse at the same depth, so the CLIs
+  agree on the two fixtures that nest to 1200 maps and 1500 calls.
+- **The gates as landed:** 103 `fmt.tsv` rows under the three assertions
+  of §7.4; every `.aon` under `use-cases/` and `test/spec/files/` (400
+  files, 396 formatted, the 4 that do not parse refused for their
+  syntax) and every Aontu fence in the documentation (263) format to a
+  fixed point, in both ports; 100 % coverage in both.
 
 ## 8. Parity and determinism
 

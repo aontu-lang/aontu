@@ -40,7 +40,7 @@ import * as Os from 'node:os'
 import * as Path from 'node:path'
 import { execFileSync } from 'node:child_process'
 
-import { Aontu } from '../dist/aontu'
+import { Aontu, format } from '../dist/aontu'
 
 
 const DOCS_DIR = Path.join(__dirname, '..', '..', 'docs')
@@ -531,6 +531,37 @@ describe('docs', () => {
       `snippets with no test and no owned skip — give each a ` +
       `directive: file/run for execution, or skip with a reason ` +
       `(docs/STYLE-GUIDE.md, "Code snippets"):\n${untested.join('\n')}`)
+  })
+
+
+  // THE FORMATTER OVER THE FENCES (docs/design/FMT.0.md §7.5): every
+  // Aontu fence that parses formats to a fixed point -- formatted twice,
+  // the second run changes nothing. Whether the fences ARE in the form
+  // is that note's P3, and a separate gate.
+  test('every-source-fence-formats-to-a-fixed-point', () => {
+    const failures: string[] = []
+    let checked = 0
+    for (const page of pages()) {
+      for (const b of page.blocks) {
+        if (!SOURCE_TAGS.has(b.lang)) {
+          continue
+        }
+        const r: any = format(b.body)
+        if ('error' === r.verdict) {
+          continue          // does not parse: the parse gate's business
+        }
+        checked++
+        const again: any = format(r.text)
+        if ('error' === again.verdict || again.text !== r.text) {
+          failures.push(`${page.file}:${b.line}`)
+        }
+      }
+    }
+    Assert.deepEqual(failures, [],
+      `fences the formatter does not fix: ${failures.join(', ')}`)
+    if (undefined === narrowed()) {
+      Assert.ok(200 <= checked, `too few fences formatted: ${checked}`)
+    }
   })
 
 

@@ -342,6 +342,13 @@ view_kind_unknown	errcode	reference	0.54.0
 view_profile_unknown	errcode	reference	0.54.0
 view_style_profile	errcode	reference	0.55.0
 view_style_unknown	errcode	reference	0.55.0
+
+# THE FORMATTER (docs/design/FMT.0.md). One report-layer code, class
+# `internal`: the formatter re-parses what it is about to write and
+# compares the two parse trees, and a disagreement is a defect of the
+# formatter, never of the document -- nothing is written, and the
+# finding carries both spellings.
+format_check	errcode	internal	0.56.0
 view_rows_exceeded	errcode	budget	0.54.0
 view_line_break	errcode	parse	0.54.0
 view_relation_ambiguous	errcode	reference	0.54.0

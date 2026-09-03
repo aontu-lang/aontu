@@ -85,6 +85,7 @@ Tooling:
     [`hash`](reference-api.md#aontu-hash)
   - distribute and hand over: [`mod`](reference-api.md#aontu-mod),
     [`agentsmd`](reference-api.md#aontu-agentsmd)
+  - keep in the agreed form: [`fmt`](reference-api.md#aontu-fmt)
 
   With no file at all, `aontu` starts a REPL.
 - [Language Server (LSP)](lsp.md). The `aontu-lsp` diagnostics server

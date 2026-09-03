@@ -142,6 +142,7 @@ const hints = {
     view_relation_unknown: 'The relation named to the view has no edges in this document, so\nthe figure would be empty -- and an empty figure and a misspelled name are\nthe same file on disk. Check the spelling against the relations the\nnote lists, or drop the relation to draw every relation at once.',
     view_kind_unknown: 'The figure kind is not one the verb draws. The kinds are tree, matrix,\ngraph, layer, sets, layers, ladder and poset; the note lists them.',
     view_profile_unknown: 'The figure kind does not render into the profile asked for: there is no\ntext form of a node-link drawing and no Mermaid form of a matrix. The\nnote lists the profiles the kind declares; the first is its default.',
+    format_check: 'The formatted text is not the same document, so nothing was written.\nThis is a formatter defect: please report it, with the source.',
     view_style_profile: 'Each profile has ONE way to carry the meaning of a figure\'s marks:\nSGR escapes for text, CSS classes for svg. Asking for the other one is\na usage error rather than a silent no-op. `none` works everywhere.',
     view_style_unknown: 'The styles are none, ansi and css, plus `auto` at the command line,\nwhich the command resolves before the library runs: whether the\ndestination is a terminal is not something a library can see.',
     view_rows_exceeded: 'The figure has more rows than --max-rows allows. This is a REFUSAL,\nnot a truncation: a view that quietly omits things is the failure the\nverb exists to avoid. Narrow the figure with --at or --relation, or\nraise the limit.',
@@ -400,6 +401,9 @@ const codeClasses = {
     view_profile_unknown: 'reference',
     view_style_profile: 'reference',
     view_style_unknown: 'reference',
+    // The formatter's self-check (docs/design/FMT.0.md): a report-layer
+    // code, class internal -- the formatter, not the document, is wrong.
+    format_check: 'internal',
     view_rows_exceeded: 'budget',
     view_line_break: 'parse',
     view_relation_ambiguous: 'reference',

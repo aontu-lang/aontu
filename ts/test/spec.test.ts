@@ -70,6 +70,11 @@
  *                declares -- must equal the expect object ({verdict,
  *                views} or {verdict, views, errors}); see
  *                test/spec/views.tsv
+ *   mode=fmt   : format(src) must write expect BYTE FOR BYTE; expect
+ *                must be a fixed point, format(expect) == expect; and
+ *                where src evaluates, the canon-hash of src and of
+ *                expect must agree -- the same document (FMT.0.md,
+ *                docs/design). See test/spec/fmt.tsv
  * Escapes in src/expect: \n -> newline, \t -> tab, \\ -> backslash.
  *
  * gen vs gens: `gen` compares through a JSON decode, so both sides land
@@ -89,7 +94,7 @@ import * as Path from 'node:path'
 import {
   Aontu, exactJSON, vet, subsume, trimCheck, hcanon, canonHash, get, why,
   graphOf, relationCheck,
-  patch, diff, agentsMd,
+  patch, diff, agentsMd, format,
 } from '../dist/aontu'
 import { jsonSchema } from '../dist/jsonschema'
 import { reachCheck } from '../dist/reach'
@@ -251,6 +256,38 @@ function assertCanonConverges(row: Omit<Row, 'file'> & { file?: string }): void 
 // hcanon(unify(parse(hcanon(v)))) == hcanon(v). A hash over a rendering
 // that drifted on re-parse would pin nothing, so every hcanon row
 // asserts it, exactly as every canon row asserts convergence.
+// THE SAME DOCUMENT (FMT.0.md P2): where the source evaluates, its
+// formatted form evaluates to the same canon-hash. A source that does
+// not stand up on its own -- an include of a file that is not there,
+// a value that never resolves -- has no hash to compare, and the
+// fixed-point assertion above is what holds it.
+function assertFormatSameDocument(
+  row: Omit<Row, 'file'> & { file?: string }): void {
+  const a1 = rowAontu(row)
+  const c1 = makeVarsCtx(a1)
+  c1.collect = true
+  let v1: any
+  try {
+    v1 = a1.unify(row.src, undefined, c1)
+  }
+  catch {
+    // An include in value position with no file behind it THROWS out
+    // of the resolver rather than collecting (a defect of the include
+    // path, not of the row): no hash either way.
+    return
+  }
+  if (0 < c1.err.length || true === v1.isNil) {
+    return
+  }
+  const a2 = rowAontu(row)
+  const c2 = makeVarsCtx(a2)
+  c2.collect = true
+  const v2: any = a2.unify(row.expect, undefined, c2)
+  Assert.strictEqual(canonHash(v2), canonHash(v1),
+    `formatting moved the hash: ${row.name}`)
+}
+
+
 function assertHcanonRoundTrips(
   row: Omit<Row, 'file'> & { file?: string }): void {
   const a1 = rowAontu(row)
@@ -325,6 +362,10 @@ const TRUST_FILES: Record<string, boolean> = {
   'mod.tsv': true,
   // alias.tsv's two include rows load a fixture, for the same reason.
   'alias.tsv': true,
+  // fmt.tsv's include rows name files that are not there, so that the
+  // hash comparison is skipped for them rather than made through a
+  // resolver that reads the working directory.
+  'fmt.tsv': true,
 }
 
 function rowAontu(row: { file?: string }): Aontu {
@@ -548,6 +589,17 @@ function runRow(row: Omit<Row, 'file'> & { file?: string }): void {
   }
   else if ('hash' === row.mode) {
     Assert.strictEqual(canonHash(a0.unify(row.src, undefined, ctx)), row.expect)
+  }
+  else if ('fmt' === row.mode) {
+    const report: any = format(row.src)
+    Assert.strictEqual(report.verdict, 'formatted',
+      `does not format: ${row.name}: ${JSON.stringify(report.errors)}`)
+    Assert.strictEqual(report.text, row.expect)
+    // THE AGREED FORM IS A FIXED POINT: formatting it again changes
+    // nothing, or there would be two agreed forms.
+    Assert.strictEqual((format(row.expect) as any).text, row.expect,
+      `not a fixed point: ${row.name}`)
+    assertFormatSameDocument(row)
   }
   else if ('agentsmd' === row.mode) {
     const golden = JSON.parse(row.expect)

@@ -198,7 +198,7 @@ func TestSpec(t *testing.T) {
 				// the same reason file.tsv's do, and alias.tsv's two
 				// include rows for the same reason again.
 				if "include-trust.tsv" == file || "file.tsv" == file ||
-					"mod.tsv" == file || "alias.tsv" == file {
+					"mod.tsv" == file || "alias.tsv" == file || "fmt.tsv" == file {
 					a.Trust = &TrustOptions{IncludeRoot: fixturesDir}
 				}
 				vars := specVars()
@@ -316,6 +316,33 @@ func TestSpec(t *testing.T) {
 					}
 					if got := CanonHash(v); got != expect {
 						t.Fatalf("hash mismatch\n src:  %q\n want: %s\n got:  %s", src, expect, got)
+					}
+
+				case "fmt":
+					// The formatter (docs/design/FMT.0.md): the text is
+					// what fmt writes; the agreed form is a fixed point;
+					// and where the source evaluates, its formatted form
+					// is the same document, by canon-hash. Mirrors the
+					// fmt mode of ts/test/spec.test.ts.
+					report := a.Format(src)
+					if "formatted" != report.Verdict {
+						t.Fatalf("does not format: %v\n src: %q", report.Errors, src)
+					}
+					if report.Text != expect {
+						t.Fatalf("fmt mismatch\n src:  %q\n want: %q\n got:  %q", src, expect, report.Text)
+					}
+					if again := a.Format(expect); "formatted" != again.Verdict || again.Text != expect {
+						t.Fatalf("not a fixed point\n want: %q\n got:  %q", expect, again.Text)
+					}
+					v1, err := a.UnifyVars(src, vars)
+					if err == nil && nil != v1 && !v1.Nil() {
+						v2, err2 := a.UnifyVars(expect, vars)
+						if err2 != nil || nil == v2 || v2.Nil() {
+							t.Fatalf("the formatted form does not evaluate: %v\n text: %q", err2, expect)
+						}
+						if CanonHash(v1) != CanonHash(v2) {
+							t.Fatalf("formatting moved the hash\n src:  %q\n text: %q", src, expect)
+						}
 					}
 
 				case "agentsmd":

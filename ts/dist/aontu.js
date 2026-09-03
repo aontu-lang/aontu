@@ -1,7 +1,7 @@
 "use strict";
 /* Copyright (c) 2021-2025 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.viewTree = exports.viewSet = exports.view = exports.relationCheck = exports.graphOf = exports.agentsMd = exports.diff = exports.patch = exports.why = exports.get = exports.canonHash = exports.hcanon = exports.trimCheck = exports.subsume = exports.sarifReport = exports.vet = exports.Decimal = exports.exactJSON = exports.formatExplain = exports.util = exports.Lang = exports.colorActive = exports.setColor = exports.AontuError = exports.AontuContext = exports.Aontu = exports.VERSION = void 0;
+exports.unifiedDiff = exports.format = exports.viewTree = exports.viewSet = exports.view = exports.relationCheck = exports.graphOf = exports.agentsMd = exports.diff = exports.patch = exports.why = exports.get = exports.canonHash = exports.hcanon = exports.trimCheck = exports.subsume = exports.sarifReport = exports.vet = exports.Decimal = exports.exactJSON = exports.formatExplain = exports.util = exports.Lang = exports.colorActive = exports.setColor = exports.AontuError = exports.AontuContext = exports.Aontu = exports.VERSION = void 0;
 exports.runparse = runparse;
 const lang_1 = require("./lang");
 Object.defineProperty(exports, "Lang", { enumerable: true, get: function () { return lang_1.Lang; } });
@@ -47,6 +47,9 @@ const view_1 = require("./view");
 Object.defineProperty(exports, "view", { enumerable: true, get: function () { return view_1.view; } });
 Object.defineProperty(exports, "viewSet", { enumerable: true, get: function () { return view_1.viewSet; } });
 Object.defineProperty(exports, "viewTree", { enumerable: true, get: function () { return view_1.viewTree; } });
+const format_1 = require("./format");
+Object.defineProperty(exports, "format", { enumerable: true, get: function () { return format_1.format; } });
+Object.defineProperty(exports, "unifiedDiff", { enumerable: true, get: function () { return format_1.unifiedDiff; } });
 // VERSION is the Aontu npm package version, and mirrors
 // go/aontu.go's `Version` (which tracks the Go module version
 // separately — the two version series are independent).

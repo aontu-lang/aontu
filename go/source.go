@@ -881,10 +881,10 @@ func includeProcessors() map[string]multisource.Processor {
 // (via the jsonic context meta), matching the canonical TypeScript
 // @tabnas/multisource, so aonProcessor delegates the parse to the stock
 // JsonicProcessor and only adds the naming above.
-func msOptions(base string) map[string]any {
+func msOptions(base string, resolver multisource.Resolver) map[string]any {
 	return map[string]any{
 		"_opts": &multisource.MultiSourceOptions{
-			Resolver:  fileResolver,
+			Resolver:  resolver,
 			Path:      base,
 			Processor: includeProcessors(),
 			// `.aon` is the preferred Aontu source extension; `.aontu`

@@ -14,7 +14,7 @@ import {
   runReaches,
   runView,
   runHash, runGet, runWhy,
-  renderWhyText, runSet, runAgentsMd, replCommand,
+  renderWhyText, runSet, runAgentsMd, runFmt, replCommand,
   watchChange, watchSignature, vetWaiter, deprecatedAt,
   main as cliMainVet,
 } from '../dist/cli'
@@ -2405,4 +2405,140 @@ describe('cli-repair-loop', () => {
     }
   })
 
+})
+
+
+// --- the fmt verb (docs/design/FMT.0.md P1) ---------------------------
+
+// What the two ports must AGREE on -- the form -- is pinned by
+// test/spec/fmt.tsv; what each port owns (argument handling, exit
+// codes, what goes to which stream, the file rewritten or not) is here.
+
+function fmtFiles(...srcs: string[]): { dir: string, files: string[] } {
+  const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-fmt-'))
+  const files = srcs.map((src, i) => {
+    const file = Path.join(dir, `d${i}.aon`)
+    Fs.writeFileSync(file, src)
+    return file
+  })
+  return { dir, files }
+}
+
+describe('cli-fmt', () => {
+  test('fmt-prints-one-file', async () => {
+    const f = fmtFiles('a:{b:1}\n', 'x: 1\n')
+    // THE FORM AND NOTHING ELSE on stdout: a redirect is the file.
+    const r = vetCapture(() => Assert.equal(runFmt([f.files[0]]), 0))
+    Assert.equal(r.out, 'a: b: 1\n')
+    Assert.equal(r.err, '')
+    // A file already in the form prints unchanged, and is not touched.
+    const clean = vetCapture(() => Assert.equal(runFmt([f.files[1]]), 0))
+    Assert.equal(clean.out, 'x: 1\n')
+    Assert.equal(Fs.readFileSync(f.files[0], 'utf8'), 'a:{b:1}\n')
+  })
+
+  test('fmt-list-check-diff', async () => {
+    const f = fmtFiles('a:{b:1}\n', 'x: 1\n')
+    // --list names the files whose form would change; --check is the
+    // same list and exit 1 when it is not empty.
+    const l = vetCapture(() => Assert.equal(runFmt(['--list', ...f.files]), 0))
+    Assert.equal(l.out, f.files[0] + '\n')
+    const c = vetCapture(() => Assert.equal(runFmt(['--check', ...f.files]), 1))
+    Assert.equal(c.out, f.files[0] + '\n')
+    Assert.equal(vetCapture(() =>
+      Assert.equal(runFmt(['--check', f.files[1]]), 0)).out, '')
+    // --diff is the unified diff, per file that would change.
+    const d = vetCapture(() => Assert.equal(runFmt(['-d', ...f.files]), 0))
+    Assert.equal(d.out,
+      `--- a/${f.files[0]}\n+++ b/${f.files[0]}\n@@ -1,1 +1,1 @@\n-a:{b:1}\n+a: b: 1\n`)
+    // Nothing was written by any of them.
+    Assert.equal(Fs.readFileSync(f.files[0], 'utf8'), 'a:{b:1}\n')
+  })
+
+  test('fmt-write', async () => {
+    const f = fmtFiles('a:{b:1}\n', 'x: 1\n')
+    const before = Fs.statSync(f.files[1]).mtimeMs
+    const w = vetCapture(() => Assert.equal(runFmt(['-w', ...f.files]), 0))
+    Assert.equal(w.out, '')
+    Assert.equal(Fs.readFileSync(f.files[0], 'utf8'), 'a: b: 1\n')
+    // A file already in the form is left alone, not rewritten.
+    Assert.equal(Fs.statSync(f.files[1]).mtimeMs, before)
+    // --list with --write says what was rewritten.
+    Fs.writeFileSync(f.files[0], 'a:{b:1}\n')
+    const lw = vetCapture(() => Assert.equal(runFmt(['-l', '--write', f.files[0]]), 0))
+    Assert.equal(lw.out, f.files[0] + '\n')
+    Assert.equal(Fs.readFileSync(f.files[0], 'utf8'), 'a: b: 1\n')
+    // A file that cannot be written back is reported, exit 2. The
+    // write is made to fail from here: a permission that would stop it
+    // is one the user running the suite may not be subject to.
+    Fs.writeFileSync(f.files[0], 'a:{b:1}\n')
+    const fs = require('node:fs')
+    const real = fs.writeFileSync
+    fs.writeFileSync = () => {
+      throw new Error('EACCES: permission denied')
+    }
+    try {
+      const bad = vetCapture(() => Assert.equal(runFmt(['-w', f.files[0]]), 2))
+      Assert.match(bad.err, /cannot write .*EACCES/)
+    }
+    finally {
+      fs.writeFileSync = real
+    }
+    Assert.equal(Fs.readFileSync(f.files[0], 'utf8'), 'a:{b:1}\n')
+  })
+
+  test('fmt-usage-errors-exit-2', async () => {
+    const f = fmtFiles('a:1\n', 'b:1\n')
+    // Several files onto stdout is refused: say what to do with each.
+    const two = vetCapture(() => Assert.equal(runFmt(f.files), 2))
+    Assert.match(two.err, /fmt prints one file; with 2, say --write/)
+    Assert.equal(two.out, '')
+    vetCapture(() => Assert.equal(runFmt(['--bogus', f.files[0]]), 2))
+    vetCapture(() => Assert.equal(runFmt(['-w']), 2))
+    vetCapture(() => Assert.equal(runFmt([Path.join(f.dir, 'missing.aon')]), 2))
+    Assert.equal(vetCapture(() =>
+      Assert.equal(runFmt(['--help']), 0)).out.includes('aontu fmt'), true)
+  })
+
+  // A document that does not parse is not formatted: exit 4, the
+  // finding on stderr, nothing on stdout, nothing written -- and the
+  // other files given with it are still done.
+  test('fmt-syntax-error-exits-4', async () => {
+    const f = fmtFiles('a: {b\n', 'x:1\n')
+    const r = vetCapture(() => Assert.equal(runFmt([f.files[0]]), 4))
+    Assert.equal(r.out, '')
+    Assert.match(r.err, /was not formatted/)
+    Assert.match(r.err, /syntax \[parse\]/)
+    const both = vetCapture(() => Assert.equal(runFmt(['-w', ...f.files]), 4))
+    Assert.equal(both.out, '')
+    Assert.equal(Fs.readFileSync(f.files[0], 'utf8'), 'a: {b\n')
+    Assert.equal(Fs.readFileSync(f.files[1], 'utf8'), 'x: 1\n')
+  })
+
+  // Standard input, formatted onto standard output, or listed under
+  // the name <stdin>.
+  test('fmt-stdin', async () => {
+    const out = execFileSync(process.execPath, [CLI, 'fmt'], { input: 'a:{b:1}\n' })
+    Assert.equal(out.toString(), 'a: b: 1\n')
+    let code = 0
+    let listed = ''
+    try {
+      execFileSync(process.execPath, [CLI, 'fmt', '--check'], { input: 'a:{b:1}\n' })
+    }
+    catch (err: any) {
+      code = err.status
+      listed = err.stdout.toString()
+    }
+    Assert.equal(code, 1)
+    Assert.equal(listed, '<stdin>\n')
+  })
+
+  test('fmt-dispatches-from-main', async () => {
+    const f = fmtFiles('a:{b:1}\n')
+    const r = vetCapture(() => cliMainVet(['node', 'aontu', 'fmt', f.files[0]]))
+    // The verb is asynchronous through main (stdin is one of its
+    // sources), so the capture sees the write on the next turn.
+    await new Promise((resolve) => setImmediate(resolve))
+    Assert.equal(r.out, 'a: b: 1\n')
+  })
 })
