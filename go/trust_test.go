@@ -219,10 +219,10 @@ func TestTrustVerbOptionsConfineTheEngine(t *testing.T) {
 	// document, so that leg runs the resolver too. It answers "" for a
 	// document that does not stand up, which a denied include makes it.
 	policy := "aontu_policy: { compat: \"forward\" }\n" + src
-	if m := PolicyCompatTrust(policy, entry, nil); "forward" != m {
+	if m := PolicyCompatTrust(policy, entry, nil, nil); "forward" != m {
 		t.Fatalf("policy, unconfined: %q", m)
 	}
-	if m := PolicyCompatTrust(policy, entry, none); "" != m {
+	if m := PolicyCompatTrust(policy, entry, none, nil); "" != m {
 		t.Fatalf("policy ignored trust: %q", m)
 	}
 

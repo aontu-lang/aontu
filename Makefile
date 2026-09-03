@@ -141,7 +141,14 @@ publish:
 	fi
 	$(MAKE) all
 	@# package-lock.json is gitignored in this repo, so only package.json moves.
-	@if [ -n "$(V)" ];   then git add ts/package.json; fi
+	@# THREE PATHS, not one: `npm version` rewrites ts/src/aontu.ts's VERSION
+	@# constant too (the postversion hook), and `make all` above rebuilds
+	@# ts/dist from it -- both of which are committed. Staging package.json
+	@# alone left the release commit claiming a version its own source and
+	@# build did not, which ts/test/version.test.ts catches in the publish
+	@# job, AFTER the tag push and before `npm publish`. It fails closed, and
+	@# it fails late; staging all three is what makes it not happen.
+	@if [ -n "$(V)" ];   then git add ts/package.json ts/src/aontu.ts ts/dist; fi
 	@if [ -n "$(GOV)" ]; then git add go/aontu.go; fi
 	git commit -m "release:$(if $(V), npm $(V))$(if $(GOV), go $(GOV))"
 	git push origin main

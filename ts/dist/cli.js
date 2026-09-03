@@ -48,6 +48,7 @@ const reach_1 = require("./reach");
 const view_1 = require("./view");
 const agentsmd_1 = require("./agentsmd");
 const format_1 = require("./format");
+const utility_1 = require("./utility");
 const HELP = `Usage: aontu [options] [file]
        aontu vet [options] <schema> <data> [more-data...]
        aontu subsume [options] <general> <specific>
@@ -1223,15 +1224,17 @@ function oldVersion(spec, file) {
 // The document's own compatibility declaration: `$.aontu_policy.compat`,
 // a disjunction whose default is the declared mode. Undefined when the
 // key is absent or does not spell a mode.
-function policyCompat(newSrc, path, trust) {
+function policyCompat(newSrc, path, include) {
     const aontu = new aontu_1.Aontu();
     const ctx = aontu.ctx({ collect: true });
     // The declaration is read by EVALUATING the document, so this leg
-    // runs the include resolver too and has to run it under the verb's
-    // capability -- a `breaking --trust none` that read its own mode
-    // through an unconfined resolver would confine the comparison and
-    // not the question (use-cases/REVIEW.md finding G).
-    const v = aontu.unify(newSrc, { path, ...(null == trust ? {} : { trust }) }, ctx);
+    // runs the include resolver too and has to run it under BOTH of the
+    // verb's include options -- a `breaking --trust none` that read its
+    // own mode through an unconfined resolver would confine the
+    // comparison and not the question (use-cases/REVIEW.md finding G),
+    // and one that took the capability alone read no mode at all when
+    // the declaration arrived through a `--text-ext` include.
+    const v = aontu.unify(newSrc, { path, ...(0, utility_1.includeOpts)(include) }, ctx);
     if (0 < ctx.err.length || true === v?.isNil) {
         return undefined;
     }
@@ -1324,7 +1327,7 @@ function runBreaking(argv) {
     // neither means backward, the index's framing (v1-valid documents
     // stay valid).
     const mode = args.mode ??
-        policyCompat(newSrc, args.file, verbTrust(trust, entryRootOf(args.file))) ??
+        policyCompat(newSrc, args.file, verbOpts(trust, entryRootOf(args.file))) ??
         'backward';
     if ('none' === mode) {
         // The document declares no compatibility promise: nothing to check.

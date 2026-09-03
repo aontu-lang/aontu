@@ -56,8 +56,10 @@ with no path, erased before canon
 **Nothing holds their text to the form.** The source is a string
 constant in `ts/src/std.ts` and `go/std.go`, byte-identical across the
 ports (pinned by `test/spec/std-system.tsv` and `std-view.tsv` through
-its canon and hash), but no gate says it is formatted or lint-clean —
-there is no formatter yet to say so.
+its canon and hash). `aontu fmt` landed in 0.56.0 and its corpus gate
+covers every `.aon` under `use-cases/` and `test/spec/files/`; the
+standard library is not in that set, so no gate yet says it is
+formatted or lint-clean.
 
 ## 2. The prefix
 
@@ -143,7 +145,7 @@ Written to the form as it stands, the system model reads:
 system: { port: %port  component: %component  service: %service }
 ```
 
-*(Argument, hand-formatted: the formatter does not exist yet, and the
+*(Argument, hand-formatted: written before `aontu fmt` landed, and the
 `&: %port` inside braces is X-7 of FMT.0.md as decided.)* The last
 line is [ALIASES.0.md](ALIASES.0.md)'s shorthand written out —
 `{ %port, %component, %service }` once the shorthand exists — and it

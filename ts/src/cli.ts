@@ -49,6 +49,8 @@ import type { QueryView } from './query'
 import type { WhyRecord } from './provenance'
 import { agentsMdSplice } from './agentsmd'
 import { format, unifiedDiff } from './format'
+import { includeOpts } from './utility'
+import type { IncludeOptions } from './utility'
 
 
 type Mode = 'json' | 'canon'
@@ -1485,15 +1487,18 @@ function oldVersion(spec: string, file: string): OldVersion | undefined {
 // a disjunction whose default is the declared mode. Undefined when the
 // key is absent or does not spell a mode.
 function policyCompat(
-  newSrc: string, path: string, trust: any): BreakingMode | undefined {
+  newSrc: string, path: string, include: IncludeOptions
+): BreakingMode | undefined {
   const aontu = new Aontu()
   const ctx = aontu.ctx({ collect: true })
   // The declaration is read by EVALUATING the document, so this leg
-  // runs the include resolver too and has to run it under the verb's
-  // capability -- a `breaking --trust none` that read its own mode
-  // through an unconfined resolver would confine the comparison and
-  // not the question (use-cases/REVIEW.md finding G).
-  const v: any = aontu.unify(newSrc, { path, ...(null == trust ? {} : { trust }) }, ctx)
+  // runs the include resolver too and has to run it under BOTH of the
+  // verb's include options -- a `breaking --trust none` that read its
+  // own mode through an unconfined resolver would confine the
+  // comparison and not the question (use-cases/REVIEW.md finding G),
+  // and one that took the capability alone read no mode at all when
+  // the declaration arrived through a `--text-ext` include.
+  const v: any = aontu.unify(newSrc, { path, ...includeOpts(include) }, ctx)
   if (0 < ctx.err.length || true === v?.isNil) {
     return undefined
   }
@@ -1596,7 +1601,8 @@ function runBreaking(argv: string[]): number {
   // stay valid).
   const mode: BreakingMode =
     args.mode ??
-    policyCompat(newSrc, args.file, verbTrust(trust, entryRootOf(args.file))) ??
+    policyCompat(newSrc, args.file,
+      verbOpts(trust, entryRootOf(args.file))) ??
     'backward'
 
   if ('none' === mode) {

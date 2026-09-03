@@ -32,6 +32,9 @@ const REPO = 'https://github.com/aontu-lang/aontu/blob/main/'
 // [file, from, to]. `file` is relative to the staged tree.
 const REWRITES = [
   ['skill/grammar-card.md',
+    '](../../grammar/aontu.abnf)',
+    '](../grammar/aontu.abnf)'],
+  ['skill/grammar-card.md',
     '](../../grammar/aontu.gbnf)',
     '](../grammar/aontu.gbnf)'],
   ['skill/error-codes.md',

@@ -89,20 +89,24 @@ the divergence ledger, `Accepted`/`Superseded` in the ADR register).
    gap documents froze a row count into a "nothing may regress" clause;
    all eight are now wrong, by roughly 1,400 to 1,500 rows. A gap
    document should link this line instead: as of this
-   register's last update the suite is **97 `.tsv` files, 96
-   row-bearing, 3,797 rows**, in twenty modes — `canon` 861, `errc`
-   717, `gens` 623, `gen` 587, `err` 276, `errcode` 120, `subsume` 102,
-   `vet` 100, `query` 92, `jsonschema` 57, `why` 52, `patch` 42,
-   `hcanon` 40, `diff` 28, `graph` 25, `relation` 23, `reaches` 19,
-   `hash` 15, `trim` 11, `agentsmd` 7.
-   (Re-derived 2026-08-30, after #102 retired `id()` and deleted
-   `test/spec/id.tsv` with its 84 rows. This line has now been wrong
-   three times, each time within a day of being corrected, and each
-   time it was falsifiable in the two commands below — which is the
-   point of carrying them. The lesson is not that the number is hard
-   to get right: it is that nobody runs a command a document merely
-   offers. A count is only as current as the last commit that touched
-   `test/spec/` and remembered this line.)
+   register's last update the suite is **103 `.tsv` files, 101
+   row-bearing, 4,245 rows**, in twenty-four modes — `canon` 866,
+   `errc` 753, `gens` 669, `gen` 590, `err` 278, `view` 174,
+   `errcode` 135, `subsume` 114, `fmt` 103, `vet` 100, `query` 92,
+   `jsonschema` 57, `why` 52, `patch` 41, `hcanon` 40, `views` 37,
+   `graph` 37, `diff` 28, `relation` 25, `reaches` 19, `hash` 16,
+   `trim` 11, `agentsmd` 7, `fmt-refuse` 1.
+   (Re-derived 2026-09-03, for the 0.56.0 release: `aontu fmt` added
+   `fmt.tsv` and `aontu view` added `view.tsv` and `views.tsv`, and
+   the line had gone stale in exactly the way it predicts below.
+   `divergent.tsv` and `signature.tsv` are the two files that carry no
+   rows. This line has now been wrong four times, each time within a
+   day or two of being corrected, and each time it was falsifiable in
+   the two commands below — which is the point of carrying them. The
+   lesson is not that the number is hard to get right: it is that
+   nobody runs a command a document merely offers. A count is only as
+   current as the last commit that touched `test/spec/` and remembered
+   this line.)
    Reproduce with
    `ls test/spec/*.tsv | wc -l` and
    `cat test/spec/*.tsv | grep -P '\t' | grep -vc '^#'`.

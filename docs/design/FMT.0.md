@@ -739,10 +739,12 @@ departs from the note. Each is pinned by a row of `fmt.tsv`.
   somewhere past that; both ports refuse at the same depth, so the CLIs
   agree on the two fixtures that nest to 1200 maps and 1500 calls.
 - **The gates as landed:** 103 `fmt.tsv` rows under the three assertions
-  of §7.4; every `.aon` under `use-cases/` and `test/spec/files/` (400
-  files, 396 formatted, the 4 that do not parse refused for their
-  syntax) and every Aontu fence in the documentation (263) format to a
-  fixed point, in both ports; 100 % coverage in both.
+  of §7.4, and one `fmt-refuse` row (§9's last boundary item); every
+  `.aon` under `use-cases/` and `test/spec/files/` (400 files, 396
+  formatted, the 4 that do not parse refused for their syntax) formats
+  to a fixed point in BOTH ports, and every Aontu fence in the
+  documentation (263) does so in the canonical port, which is where
+  the documentation gate lives; 100 % coverage in both.
 
 ## 8. Parity and determinism
 
@@ -763,6 +765,16 @@ for function, and `test/spec/fmt.tsv` is what they must agree on.
   `.toml` include is another language's file; `fmt` formats `.aon` and
   stdin.
 - **No `--fix` for the lint.** §4.3.
+- **No agreed form for a multi-document source.** Two bags at the top
+  level — `{a:1}` on one line, `{b:2}` on the next — evaluate to a
+  LIST of two documents, and the formatter writes them as one map. The
+  self-check catches the difference and refuses under `format_check`,
+  so nothing is written and no file is corrupted; both ports refuse
+  identically (`test/spec/fmt.tsv`, `fmt-refuse-multi-document`). The
+  refusal is the right failure and its message is not: it names a
+  formatter defect and asks for a report, when what it has found is a
+  document class the form does not cover. Open — either the writer
+  learns the shape, or the refusal says what it means.
 
 ## 10. Risks
 

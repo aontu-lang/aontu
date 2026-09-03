@@ -71,8 +71,11 @@ func runHash(argv []string, stdout, stderr io.Writer) int {
 		// A document that does not stand up on its own has no meaning
 		// to pin, and a hash of a broken evaluation would be a pin that
 		// silently agrees with every other broken evaluation.
+		// WHY it does not stand up, not just that it does not: the same
+		// diagnosis `aontu <file>` prints (the review's finding F).
 		io.WriteString(stderr,
-			"aontu: "+files[0]+" does not evaluate on its own; nothing to hash\n")
+			"aontu: "+files[0]+" does not evaluate on its own; nothing to hash\n"+
+				renderFinding(aontu.EvalFailure(uerr))+"\n")
 		return 4
 	}
 

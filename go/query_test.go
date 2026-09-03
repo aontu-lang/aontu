@@ -9,6 +9,7 @@
 package aontu
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -135,5 +136,28 @@ func TestQueryNestedConjunctKeepsItsParens(t *testing.T) {
 	}))
 	if got := queryProject(root, QueryCanon, 99); `{"d":(1&2)|3}` != got {
 		t.Fatalf("canon view: %s", got)
+	}
+}
+
+// EvalFailure is the exported spelling of the one finding a document
+// that does not stand up answers with, and its only caller lives in
+// another package (cmd/aontu's `hash`), so nothing here would reach it
+// otherwise. Twin: the evalFailure cases in ts/test/query.test.ts.
+func TestEvalFailureIsTheEnginesOwnDiagnosis(t *testing.T) {
+	a := New()
+	if _, err := a.Unify("a:1 a:2"); nil != err {
+		f := EvalFailure(err)
+		if "$" != f.Path || "error" != f.Severity || "" == f.Code {
+			t.Fatalf("conflict finding: %+v", f)
+		}
+	} else {
+		t.Fatal("a:1 a:2 unified")
+	}
+
+	// An error the engine did not shape carries the generic code, the
+	// arm queryFailed reaches for a nil AontuError.
+	if f := EvalFailure(errors.New("plain")); "unify_failed" != f.Code ||
+		"The document does not evaluate." != f.Message {
+		t.Fatalf("plain error finding: %+v", f)
 	}
 }

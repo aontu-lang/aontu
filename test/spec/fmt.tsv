@@ -6,6 +6,11 @@
 # the Go port. Escapes: \n newline, \t tab, \\ backslash.
 #
 # Columns: name<TAB>fmt<TAB>src<TAB>expect
+#
+# Mode `fmt-refuse` pins a source the formatter REFUSES: `expect` is
+# the verdict and the finding codes, joined by a colon and commas.
+# Nothing is written on a refusal, so the file is intact either way --
+# what the row holds is that both ports refuse the same sources.
 
 fmt-pair-padded	fmt	a:1	a: 1\n
 fmt-pairs-one-per-line	fmt	a: 1 b: 2	a: 1\nb: 2\n
@@ -110,3 +115,12 @@ fmt-comment-chain-merge	fmt	a: [\n  {\n    b: 1 # inner\n  } # outer\n]\n	a: [\n
 fmt-prefix-block	fmt	a: *{ xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx: 1 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx: 2 }\n	a: *{\n  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx: 1\n  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx: 2\n}\n
 fmt-parens-wide	fmt	a: (xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx | xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx)\n	a: (xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx | xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx)\n
 fmt-parens-hug	fmt	a: ({ xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx: 1 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx: 2 })\n	a: ({\n  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx: 1\n  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx: 2\n})\n
+
+# A MULTI-DOCUMENT SOURCE -- two top-level bags, which the unifier
+# reads as a list of two documents -- formats to a single map, and
+# the self-check catches it: `{a:1}\n{b:2}` evaluates to
+# [{"a":1},{"b":2}] and the written text to {"a":1,"b":2}. Refused
+# in both ports rather than written, so no file is corrupted; the
+# defect is that a document the engine reads has no agreed form.
+# Open: docs/design/FMT.0.md §9, the last boundary item.
+fmt-refuse-multi-document	fmt-refuse	{a:1}\n{b:2}\n	error:format_check

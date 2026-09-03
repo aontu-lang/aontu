@@ -385,6 +385,17 @@ func queryFailed(err error, path string) QueryReport {
 	}
 }
 
+// EvalFailure is the ONE FINDING a document that does not stand up
+// answers with: the engine's own diagnosis, in the finding shape every
+// verb renders. Exported for the verbs outside this package that
+// evaluate before they can do anything at all -- cmd/aontu's `hash`,
+// which said only THAT the document does not evaluate and never why,
+// while the canonical port printed the diagnosis (the review's finding
+// F). Twin: evalFailure in ts/src/query.ts.
+func EvalFailure(err error) VetFinding {
+	return queryFailed(err, "$").Findings[0]
+}
+
 // WhyReport is the whole answer: the record, or G2-shaped findings.
 type WhyReport struct {
 	Findings []VetFinding `json:"findings"`

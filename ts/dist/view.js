@@ -53,6 +53,7 @@ const keyorder_1 = require("./keyorder");
 const provenance_1 = require("./provenance");
 const query_1 = require("./query");
 const subsume_1 = require("./subsume");
+const utility_1 = require("./utility");
 // The text profile's mechanism: the eight named colours, `bold` and
 // `dim`, and nothing else. `label` is unstyled -- an entity's own name
 // is the figure's content, not a mark about it.
@@ -1959,7 +1960,7 @@ function drawLadder(src, options, as, max) {
             errors: [finding('view_at_required', 'reference', '$', 'The ladder needs the path to draw; name it with --at.')],
         };
     }
-    const rep = (0, query_1.why)(src, options.at, { path: options.path, trust: options.trust });
+    const rep = (0, query_1.why)(src, options.at, { path: options.path, trust: options.trust, textExt: options.textExt });
     if (undefined === rep.record) {
         return { errors: rep.findings };
     }
@@ -2006,7 +2007,7 @@ const compareBySubsume = (general, specific, options) => {
     const r = (0, subsume_1.subsume)(general.src, specific.src, {
         at: options.at, profile: options.profile,
         generalPath: general.path, specificPath: specific.path,
-        trust: options.trust,
+        trust: options.trust, textExt: options.textExt,
     });
     return { verdict: r.verdict, code: r.findings[0]?.code ?? 'undecided' };
 };
@@ -2162,7 +2163,7 @@ function drawPoset(docs, options, as, max, loss, compare) {
 // on their own, each with its own finding, or the anchor a document
 // lacks.
 function docFailure(d, options) {
-    const loaded = load(d.src, d.path, options.trust, undefined);
+    const loaded = load(d.src, d.path, options, undefined);
     if (undefined !== loaded.errors) {
         return loaded.errors;
     }
@@ -2174,8 +2175,8 @@ function docFailure(d, options) {
 // One evaluation, parsed and unified separately so the provenance
 // recorder can stamp the parsed tree before the fixpoint runs (`why`'s
 // precedent).
-function load(src, path, trust, prov) {
-    const aontu = new aontu_1.Aontu(null == trust ? undefined : { trust });
+function load(src, path, include, prov) {
+    const aontu = new aontu_1.Aontu((0, utility_1.includeOpts)(include));
     const ctx = aontu.ctx({ collect: true, prov });
     const parseOpts = null == path ? undefined : { path };
     const parsed = aontu.parse(src, parseOpts, ctx);
@@ -2253,7 +2254,7 @@ function view(src, opts, hooks) {
     }
     const prov = 'layers' === kind
         ? (hooks?.provenance ?? (() => new provenance_1.Provenance()))() : undefined;
-    const loaded = load(src, options.path, options.trust, prov);
+    const loaded = load(src, options.path, options, prov);
     if (undefined !== loaded.errors) {
         return done({ errors: loaded.errors });
     }
@@ -2470,7 +2471,7 @@ function viewSet(src, opts, hooks) {
     // always costs a little and makes the one-evaluation claim true for
     // every kind but the ladder, which re-runs `why` by construction.
     const prov = (hooks?.provenance ?? (() => new provenance_1.Provenance()))();
-    const loaded = load(src, options.path, options.trust, prov);
+    const loaded = load(src, options.path, options, prov);
     if (undefined !== loaded.errors) {
         return { verdict: 'error', views: [], errors: loaded.errors };
     }
@@ -2512,6 +2513,7 @@ function viewSet(src, opts, hooks) {
         const loss = [];
         const each = {
             ...plan.opts, path: options.path, trust: options.trust,
+            textExt: options.textExt,
         };
         const fig = 'ladder' === plan.kind
             ? drawLadder(src, each, plan.as, plan.max)

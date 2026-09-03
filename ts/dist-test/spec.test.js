@@ -513,6 +513,18 @@ function runRow(row) {
         Assert.strictEqual((0, aontu_1.format)(row.expect).text, row.expect, `not a fixed point: ${row.name}`);
         assertFormatSameDocument(row);
     }
+    else if ('fmt-refuse' === row.mode) {
+        // A SOURCE THE FORMATTER REFUSES, pinned so the refusal is the
+        // same one in both ports. The formatter's own self-check compares
+        // the document it wrote against the document it read and writes
+        // NOTHING when they differ, so a refusal here corrupts no file --
+        // but which sources it refuses is behaviour, and behaviour is
+        // shared. `expect` is the verdict and the finding codes, joined by
+        // a colon and commas.
+        const report = (0, aontu_1.format)(row.src);
+        Assert.strictEqual(report.verdict + ':' +
+            (report.errors ?? []).map((f) => f.code).join(','), row.expect, `fmt refusal: ${row.name}`);
+    }
     else if ('agentsmd' === row.mode) {
         const golden = JSON.parse(row.expect);
         const report = (0, aontu_1.agentsMd)(row.src, '' === row.data ? undefined : { name: row.data });

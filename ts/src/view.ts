@@ -55,6 +55,8 @@ import type { WhyConjunct } from './provenance'
 import { why, pathParts } from './query'
 import { subsume } from './subsume'
 import type { SubsumeProfile } from './subsume'
+import { includeOpts } from './utility'
+import type { IncludeOptions } from './utility'
 
 
 export type ViewVerdict = 'rendered' | 'lossy' | 'error'
@@ -213,6 +215,12 @@ export type ViewOptions = {
   // The include capability this document evaluates under
   // (docs/trust.md).
   trust?: TrustOptions
+  // The extensions an include additionally reads as text (the CLI's
+  // --text-ext). It rides WITH the capability everywhere, never beside
+  // it: both answer "what may an include read", and a verb that
+  // threads one and not the other refuses under a flag the bare
+  // command honours -- which is exactly what this verb did.
+  textExt?: string[]
   // Restrict the figure to nodes (or paths) under this path. For the
   // ladder it is the path drawn, and required; for the poset it is
   // where the documents are compared.
@@ -2586,7 +2594,8 @@ function drawLadder(
         'The ladder needs the path to draw; name it with --at.')],
     }
   }
-  const rep = why(src, options.at, { path: options.path, trust: options.trust })
+  const rep = why(src, options.at,
+    { path: options.path, trust: options.trust, textExt: options.textExt })
   if (undefined === rep.record) {
     return { errors: rep.findings }
   }
@@ -2663,7 +2672,7 @@ const compareBySubsume: ViewCompare = (general, specific, options) => {
   const r = subsume(general.src, specific.src, {
     at: options.at, profile: options.profile,
     generalPath: general.path, specificPath: specific.path,
-    trust: options.trust,
+    trust: options.trust, textExt: options.textExt,
   })
   return { verdict: r.verdict, code: r.findings[0]?.code ?? 'undecided' }
 }
@@ -2834,7 +2843,7 @@ function drawPoset(
 // on their own, each with its own finding, or the anchor a document
 // lacks.
 function docFailure(d: Doc, options: ViewOptions): VetFinding[] {
-  const loaded = load(d.src, d.path, options.trust, undefined)
+  const loaded = load(d.src, d.path, options, undefined)
   if (undefined !== loaded.errors) {
     return loaded.errors
   }
@@ -2856,10 +2865,11 @@ type Loaded = { root?: any, ctx?: any, errors?: VetFinding[] }
 // recorder can stamp the parsed tree before the fixpoint runs (`why`'s
 // precedent).
 function load(
-  src: string, path: string | undefined, trust: TrustOptions | undefined,
+  src: string, path: string | undefined,
+  include: IncludeOptions,
   prov: Provenance | undefined
 ): Loaded {
-  const aontu = new Aontu(null == trust ? undefined : { trust })
+  const aontu = new Aontu(includeOpts(include))
   const ctx = aontu.ctx({ collect: true, prov })
   const parseOpts = null == path ? undefined : { path }
   const parsed: any = aontu.parse(src, parseOpts, ctx)
@@ -2961,7 +2971,7 @@ export function view(
 
   const prov = 'layers' === kind
     ? (hooks?.provenance ?? (() => new Provenance()))() : undefined
-  const loaded = load(src, options.path, options.trust, prov)
+  const loaded = load(src, options.path, options, prov)
   if (undefined !== loaded.errors) {
     return done({ errors: loaded.errors })
   }
@@ -3234,7 +3244,7 @@ export function viewSet(
   // always costs a little and makes the one-evaluation claim true for
   // every kind but the ladder, which re-runs `why` by construction.
   const prov = (hooks?.provenance ?? (() => new Provenance()))()
-  const loaded = load(src, options.path, options.trust, prov)
+  const loaded = load(src, options.path, options, prov)
   if (undefined !== loaded.errors) {
     return { verdict: 'error', views: [], errors: loaded.errors }
   }
@@ -3279,6 +3289,7 @@ export function viewSet(
     const loss: ViewLoss[] = []
     const each: ViewOptions = {
       ...plan.opts, path: options.path, trust: options.trust,
+      textExt: options.textExt,
     }
     const fig: Figure = 'ladder' === plan.kind
       ? drawLadder(src, each, plan.as, plan.max)

@@ -67,7 +67,7 @@ Three capabilities have doorways of their own:
 Tooling:
 
 - [The `aontu` command](reference-api.md#command-line-interface). One
-  binary, fourteen verbs, both implementations. Each verb has its own
+  binary, fifteen verbs, both implementations. Each verb has its own
   reference section:
   - validate: [`vet`](reference-api.md#aontu-vet), wrapped for CI as a
     [GitHub Action](../vet-action/README.md)
