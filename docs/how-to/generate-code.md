@@ -161,7 +161,7 @@ conflict instead of a broken identifier at emit time.
 
 ## Related
 
-- [Export JSON Schema](export-json-schema.md)—the other bridge out
+- [Export JSON Schema](export-json-schema.md). The other bridge out
   of the model.
-- [Keep schema out of output](keep-schema-out-of-output.md)—`hide()`
+- [Keep schema out of output](keep-schema-out-of-output.md). `hide()`
   and marks, and what they do to generation.

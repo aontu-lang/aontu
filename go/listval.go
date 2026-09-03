@@ -179,7 +179,6 @@ func (l *ListVal) Unify(peer Val, ctx *Ctx) Val {
 		spreadCj = out.spread
 	}
 
-
 	// Driven base (see the matching comment in MapVal.Unify).
 	dbase := ctx.slot
 	if dbase == nil {

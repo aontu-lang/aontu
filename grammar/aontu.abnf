@@ -1,0 +1,155 @@
+; Aontu --- published grammar (ABNF, RFC 5234 + RFC 7405).
+;
+; The same language as grammar/aontu.gbnf, rule for rule and name for
+; name, in the notation an RFC reader expects. The GBNF form is for a
+; constrained decoder; THIS form is for a person, and for the railroad
+; diagram in the language reference, which is generated from this file
+; (ts/scripts/figures.cjs).
+;
+; It covers the DOCUMENTED EMISSION SURFACE: what a model should be
+; allowed to write, which is a superset of JSON plus the operators,
+; constraints and marks the language's own canonical form emits. It is
+; CONSERVATIVE BY CONSTRUCTION --- it may accept less than the parser
+; does, never more. The same two deliberate exclusions the GBNF has:
+;
+;   - `@"..."` includes. A generated document should describe values,
+;     not reach for files.
+;   - Unquoted keys and the other spellings the parser tolerates.
+;     Canon quotes every key, and one spelling is what a grammar is
+;     for.
+;
+; TWO NOTATION CHOICES worth stating, because both are load-bearing.
+;
+; EVERY LITERAL IS CASE-SENSITIVE, spelled `%s"..."` (RFC 7405). A
+; plain `"..."` is case-INSENSITIVE in RFC 5234, and Aontu is not:
+; `TRUE` is a bare word and `true` is a boolean. The reader in
+; ts/scripts/abnf.cjs refuses a bare quoted string rather than guess
+; which was meant.
+;
+; ALTERNATION IS ORDERED. RFC 5234's `/` is formally unordered, and
+; the consumers of this file (a PEG-style matcher here, a railroad
+; renderer) take the first branch that matches. Where one spelling is
+; a prefix of another the longer comes first --- `exact` before
+; `number`, `refer` before `rem` before `re`, `biginteger` before
+; `boolean` --- so the ordered reading and the unordered one accept
+; the same language. ts/test/grammar.test.ts holds this file to the
+; whole canon corpus of test/spec/*.tsv, which is what proves it.
+
+root      = ws value ws
+
+; No pipe. `|>` was parse-time sugar; it was removed, `x |> f(a)`
+; being written `f(x, a)`.
+value     = disjunct
+
+disjunct  = conjunct *( ws %s"|" ws conjunct )
+
+conjunct  = prefixed *( ws %s"&" ws prefixed )
+
+; A preference marks the alternative a generation picks.
+prefixed  = %s"*" ws prefixed / sum
+
+sum       = atom *( ws %s"+" ws atom )
+
+atom      = map
+          / list
+          / func
+          / ref
+          / kind
+          / place
+          / scalar
+          / %s"(" ws value ws %s")"
+
+map       = %s"{" ws [ entry *( ws %s"," ws entry ) ws ] %s"}"
+
+entry     = spread / pair
+
+; The template every key of the bag must also satisfy.
+spread    = %s"&" ws %s":" ws value
+
+pair      = string ws [ %s"?" ] ws %s":" ws value
+
+; A list ELEMENT is a value, not a pair --- only the template is keyed.
+list      = %s"[" ws [ element *( ws %s"," ws element ) ws ] %s"]"
+
+element   = spread / value
+
+; The builtins, applied. The name set is closed on purpose: an unknown
+; function is a parse-time error in the engine, so a grammar that
+; allowed any name would over-approximate.
+func      = name %s"(" ws [ value *( ws %s"," ws value ) ws ] %s")"
+
+; ORDER MATTERS where one name is a prefix of another: `refer` is
+; listed before `re`, and `rem` before `re` as well.
+name      = %s"above" / %s"acyclic" / %s"add" / %s"below" / %s"close"
+          / %s"copy" / %s"deprecate" / %s"div"
+          / %s"each" / %s"filter" / %s"greatest"
+          / %s"hide"
+          / %s"inverse" / %s"join" / %s"key" / %s"least"
+          / %s"length" / %s"list" / %s"lower" / %s"map" / %s"match"
+          / %s"max" / %s"min" / %s"mod" / %s"move"
+          / %s"mul" / %s"must"
+          / %s"neq"
+          / %s"open" / %s"pack" / %s"path" / %s"pick" / %s"pref"
+          / %s"refer" / %s"rel" / %s"rem" / %s"re" / %s"super"
+          / %s"sub" / %s"sum"
+          / %s"type"
+          / %s"unique" / %s"upper"
+
+; A path reference, absolute from the document root. At least one
+; segment: a bare `$` is an incomplete expression, not a reference.
+; A RELATIVE reference has no `$`: `.n` names a sibling, resolved
+; against the enclosing map rather than the document root. Canon emits
+; one wherever a spread template survives unresolved, so a grammar
+; without it cannot parse this engine's own output. No conflict with
+; `number`: a numeric literal always starts with a digit or `-`.
+ref       = %s"$" 1*( %s"." segment ) / 1*( %s"." segment )
+
+; No `-`: it is not a bare-text character (test/spec/op-chars.tsv pins
+; `a:6-2` as a parse error), so admitting it would over-approximate.
+segment   = 1*( ALPHA / DIGIT / %s"_" )
+
+; The placeholder: a hole a call is filled through. BARE only --- `"_"`
+; is an ordinary string, and a longer bare word containing it is
+; ordinary text.
+place     = %s"_"
+
+; `biginteger` before `bigdecimal` is not required (they differ at the
+; fourth character), but `biginteger` before `boolean` is: see the
+; ordered-alternation note above.
+kind      = %s"biginteger" / %s"bigdecimal" / %s"boolean" / %s"float"
+          / %s"integer" / %s"number" / %s"string" / %s"top" / %s"nil"
+
+; `exact` before `number`, or `0d5` would match `number` as the single
+; digit `0` and leave `d5` unconsumed.
+scalar    = string / exact / number / %s"true" / %s"false" / %s"null"
+
+string    = DQUOTE *char DQUOTE
+
+char      = unescaped / %x5C escape
+
+; Every code point but the quote and the backslash, which is what the
+; GBNF's `[^"\\]` says. Control characters included: canon writes them
+; escaped, and a grammar that refused them would refuse less than the
+; parser accepts in the one direction this file may not.
+unescaped = %x00-21 / %x23-5B / %x5D-10FFFF
+
+escape    = DQUOTE / %x5C / %s"/" / %s"b" / %s"f" / %s"n" / %s"r"
+          / %s"t" / %s"u" hex hex hex hex
+
+hex       = DIGIT / %x41-46 / %x61-66
+
+; The exact leaves: arbitrary precision, spelled with the 0d marker.
+exact     = [ %s"-" ] %s"0d" digits [ %s"." digits ] [ exponent ]
+
+number    = [ %s"-" ] digits [ %s"." digits ] [ exponent ]
+
+exponent  = ( %s"e" / %s"E" ) [ %s"-" / %s"+" ] digits
+
+digits    = 1*DIGIT
+
+ws        = *( %x20 / %x09 / %x0A / %x0D )
+
+; RFC 5234's core rules, written out so this file stands alone.
+ALPHA     = %x41-5A / %x61-7A
+DIGIT     = %x30-39
+DQUOTE    = %x22

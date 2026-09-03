@@ -730,7 +730,6 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 		spreadCj = out.spread
 	}
 
-
 	// Snapshot a path-dependent ref spread to its structural target once
 	// (see snapshotRefSpread), so later passes don't capture the
 	// source's own resolved key()/path() literals.

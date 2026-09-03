@@ -16,5 +16,6 @@ export type SchemaOptions = {
     at?: string;
     path?: string;
     trust?: TrustOptions;
+    textExt?: string[];
 };
 export declare function jsonSchema(src: string, options?: SchemaOptions): SchemaReport;

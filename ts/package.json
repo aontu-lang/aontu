@@ -79,6 +79,7 @@
     "@tabnas/yaml": "0.5.7"
   },
   "devDependencies": {
+    "@tabnas/railroad": "0.3.6",
     "@types/node": "26.2.0",
     "memfs": "4.68.1",
     "typescript": "7.0.2"

@@ -1,9 +1,10 @@
 "use strict";
-/* Copyright (c) 2025 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.relationFindings = relationFindings;
 exports.relationErrors = relationErrors;
 exports.relationCheck = relationCheck;
+/* Copyright (c) 2025 Richard Rodger, MIT License */
+const utility_1 = require("./utility");
 // RELATION GRAPH VERDICTS (RELATIONS.0.md §3.3, replacing the G4
 // phase 5 magic-key pass): acyclicity and inverse consistency over
 // the edge set, DECLARED by the graph atoms -- `acyclic()` and
@@ -184,7 +185,7 @@ function relationErrors(ctx, root) {
 // same verdict generation enforces.
 function relationCheck(src, opts) {
     const options = opts ?? {};
-    const aontu = new aontu_1.Aontu(null == options.trust ? undefined : { trust: options.trust });
+    const aontu = new aontu_1.Aontu((0, utility_1.includeOpts)(options));
     const ctx = aontu.ctx({ collect: true });
     const parseOpts = null == options.path ? undefined : { path: options.path };
     const root = aontu.unify(src, parseOpts, ctx);

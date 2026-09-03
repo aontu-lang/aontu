@@ -101,9 +101,9 @@ For agents:
   [worked example ladder](skill/examples.md) whose documents the test
   suite executes, and the [error-code index](skill/error-codes.md).
 -  [The published
-  grammar](reference-api.md#the-published-grammar)—[`grammar/aontu.gbnf`](../grammar/aontu.gbnf)
-  and [`grammar/aontu.lark`](../grammar/aontu.lark), the emission
-  surface for constrained decoding.
+  grammar](reference-language.md#the-published-grammar)—[`grammar/aontu.abnf`](../grammar/aontu.abnf)
+  to read, with railroad diagrams; [`aontu.gbnf`](../grammar/aontu.gbnf)
+  and [`aontu.lark`](../grammar/aontu.lark) for constrained decoding.
 
 Contract:
 

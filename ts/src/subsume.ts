@@ -1,4 +1,5 @@
 /* Copyright (c) 2025 Richard Rodger, MIT License */
+import { includeOpts } from './utility'
 
 // Subsumption as a first-class query (G3 phases 1-2,
 // docs/capability-review/g3-subsumption-evolution.md): does the GENERAL
@@ -55,6 +56,11 @@ export type SubsumeOptions = {
   // docs/trust.md). vet's precedent: the verb passes the profile the
   // caller asked for, and an absent option means today's default.
   trust?: TrustOptions
+
+  // Extensions additionally read as text (the CLI's `--text-ext`).
+  // Rides beside `trust` because it is the other half of what an
+  // include may read.
+  textExt?: string[]
 }
 
 export type SubsumeReport = {
@@ -699,8 +705,7 @@ export function subsume(
   }
 
   const load = (src: string, path?: string): any => {
-    const aontu = new Aontu(
-      null == options.trust ? undefined : { trust: options.trust })
+    const aontu = new Aontu(includeOpts(options))
     const ctx = aontu.ctx({ collect: true })
     const v: any = aontu.unify(
       src, null == path ? undefined : { path }, ctx)

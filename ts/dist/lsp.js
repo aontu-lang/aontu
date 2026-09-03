@@ -37,7 +37,7 @@ function computeDiagnostics(src, opts) {
     // highest-exposure surface — merely OPENING a hostile .aon file in an
     // editor performs its reads — so the handler confines evaluation to
     // the workspace root and threads the profile through here.
-    const aontu = new aontu_1.Aontu(null == opts?.trust ? {} : { trust: opts.trust });
+    const aontu = new aontu_1.Aontu((0, utility_1.includeOpts)(opts ?? {}));
     let root;
     let ac;
     try {

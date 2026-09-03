@@ -9,6 +9,7 @@ export type TrimReport = {
 export type TrimOptions = {
     path?: string;
     trust?: TrustOptions;
+    textExt?: string[];
 };
 export declare function candidates(v: any, path: string[], out: string[][]): void;
 export declare function deleteAt(root: any, path: string[]): boolean;

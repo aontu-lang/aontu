@@ -561,7 +561,7 @@ describe('trust-cli', () => {
     Assert.match(open.out, /outside/)
 
     const shut = replCommand(
-      { mode: 'json', jsonl: true, trust: { kind: 'none' } },
+      { mode: 'json', jsonl: true, trust: { kind: 'none', textExt: [] } },
       ':load ' + entry, read)
     Assert.match(shut.out, /include denied/)
     Assert.doesNotMatch(shut.out, /outside/)
@@ -628,11 +628,11 @@ describe('trust-cli', () => {
     const held = { mode: 'json' as const, jsonl: false, src: 'a: 1' }
     Assert.match(replCommand(held, ':get $.a', () => '').out, /1/)
     Assert.match(
-      replCommand({ ...held, trust: { kind: 'root' as const } },
+      replCommand({ ...held, trust: { kind: 'root' as const, textExt: [] } },
         ':get $.a', () => '').out,
       /1/)
     Assert.match(
-      replCommand({ ...held, trust: { kind: 'root' as const } },
+      replCommand({ ...held, trust: { kind: 'root' as const, textExt: [] } },
         ':why $.a', () => '').out,
       /1/)
   })

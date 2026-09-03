@@ -215,7 +215,6 @@ func applyFlows(ctx *Ctx, root Val) Val {
 	return root
 }
 
-
 func unifyRoot(root Val, ctx *Ctx) Val {
 	if root.Nil() {
 		return root

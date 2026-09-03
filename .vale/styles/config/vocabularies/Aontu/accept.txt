@@ -211,6 +211,7 @@ typo'd
 unreviewed
 unrollings
 unsuffixed
+unescaped
 untrusted
 uppercases
 uri

@@ -322,7 +322,6 @@ func (b *base) markedType() bool                   { return b.mtype }
 func (b *base) deprecRec() map[string]string       { return b.deprec }
 func (b *base) setDeprecRec(rec map[string]string) { b.deprec = rec }
 
-
 func (b *base) linkAddr() string        { return b.link }
 func (b *base) relKey() string          { return b.relkey }
 func (b *base) setLinkAddr(addr string) { b.link = addr }
@@ -410,7 +409,7 @@ type NilVal struct {
 	attempt string
 	// details parameterises hint text ({src}, {left}, {sum}, ...) and
 	// carries the `key` submessage prefix, mirroring TS NilVal.details.
-	details map[string]string
+	details   map[string]string
 	primary   Val
 	secondary Val
 }

@@ -30,6 +30,10 @@ type SubsumeOptions struct {
 	// docs/trust.md). Nil means today's default.
 	Trust *TrustOptions
 
+	// TextExt is the extensions additionally read as text (the CLI's
+	// --text-ext), the other half of what an include may read.
+	TextExt []string
+
 	Profile     string // "values" | "defaults" (default) | "gen"
 	At          string // compare at this path of both documents
 	GeneralURL  string // provenance label for general sites
@@ -727,7 +731,7 @@ func PolicyCompat(src, path string) string {
 // capability, so a verb reading a document's own policy reads it the
 // same way it evaluates everything else.
 func PolicyCompatTrust(src, path string, trust *TrustOptions) string {
-	a := aontuForPathTrust(path, trust)
+	a := aontuForPathTrust(path, trust, nil)
 	v, err := a.Unify(src)
 	if err != nil || nil == v || v.Nil() {
 		return ""
@@ -798,7 +802,7 @@ func Subsume(generalSrc, specificSrc string, opts *SubsumeOptions) SubsumeReport
 	broken := SubsumeReport{Verdict: SubsumeError, Findings: []VetFinding{}}
 
 	load := func(src, path string) Val {
-		a := aontuForPathTrust(path, options.Trust)
+		a := aontuForPathTrust(path, options.Trust, options.TextExt)
 		v, err := a.Unify(src)
 		if err != nil || nil == v || v.Nil() {
 			return nil

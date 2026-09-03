@@ -917,6 +917,42 @@ function stylePaths() {
         Assert.deepEqual(hits, [], 'published pages cite internal records (docs/STYLE-GUIDE.md,\n' +
             '"The published set cites nothing internal"):\n' + hits.join('\n'));
     });
+    // A FIGURE IS DRAWN BY THE ENGINE, NEVER BY HAND. A picture of the
+    // value lattice written in box characters is a second source of
+    // truth for the one thing the language is built on, and the one that
+    // used to be here was wrong about `path()` and the numeric leaves.
+    // `ts/scripts/figures.cjs` draws the committed files, `make build-ts`
+    // runs it, and this is the gate that catches a stale commit.
+    (0, node_test_1.test)('the-committed-figures-are-what-the-engine-draws', () => {
+        const { FIGURES, OUT, draw } = require('../scripts/figures.cjs');
+        for (const name of Object.keys(FIGURES)) {
+            const file = Path.join(OUT, name);
+            Assert.ok(Fs.existsSync(file), `docs/figures/${name} is missing`);
+            Assert.strictEqual(lf(Fs.readFileSync(file, 'utf8')), lf(draw(name)), `docs/figures/${name} is stale: run \`make build-ts\``);
+        }
+    });
+    // Every figure the published pages show must be one of those, and
+    // carry alt text: a reader who cannot see it still has to be told
+    // what it says.
+    (0, node_test_1.test)('every-figure-is-generated-and-described', () => {
+        const { FIGURES } = require('../scripts/figures.cjs');
+        const hits = [];
+        for (const page of publishedPages()) {
+            const text = lf(Fs.readFileSync(Path.join(DOCS_DIR, page), 'utf8'));
+            for (const m of text.matchAll(/!\[([^\]]*)\]\(([^)]*)\)/g)) {
+                const [, alt, src] = m;
+                if (!src.startsWith('figures/') ||
+                    undefined === FIGURES[src.slice('figures/'.length)]) {
+                    hits.push(`${page}: ${src} is not a generated figure`);
+                }
+                if (40 > alt.length) {
+                    hits.push(`${page}: ${src} needs alt text that says what it shows`);
+                }
+            }
+        }
+        Assert.deepEqual(hits, [], 'figures must be generated and described (docs/STYLE-GUIDE.md,\n' +
+            '"Figures are drawn by the engine"):\n' + hits.join('\n'));
+    });
     // The guide, this gate and Vale's configuration must agree, and each
     // names the others, so a reader of any one finds the rest.
     (0, node_test_1.test)('the-style-guide-names-both-gates', () => {

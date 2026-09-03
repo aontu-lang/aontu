@@ -56,6 +56,7 @@ cov-go:
 # TypeScript (canonical implementation, package lives in ts/)
 build-ts: sig
 	cd ts && npm run build
+	node ts/scripts/figures.cjs
 
 # Regenerate the build-time-inlined copies of the signature
 # declaration (ts/src/sigdecl.ts, go/sigdecl.txt) from the shared

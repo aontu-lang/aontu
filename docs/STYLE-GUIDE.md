@@ -355,6 +355,25 @@ Two rules of taste:
 - Lift examples from the use cases wherever one fits. A reader who
   follows the link finds the same shape, alive, with its checks.
 
+## Figures are drawn by the engine
+
+A picture of how Aontu works is a claim about Aontu, and a claim drawn
+by hand goes stale silently. **Every figure in a published page is
+generated** — declared in `ts/scripts/figures.cjs`, written to
+`docs/figures/`, rebuilt by `make build-ts`, and held to the engine by
+`ts/test/docs.test.ts`.
+
+- A page shows one with `![alt](figures/<name>.svg)`. The alt text says
+  what the figure *shows*, in a sentence, not what it is called: a
+  reader who cannot see it gets the same information.
+- To add one, add an entry to `FIGURES` and run `make build-ts`. The
+  gate refuses a figure a page names but the table does not have.
+- Box-drawing pictures are still fine where they are *output* — a
+  transcript of a `view` figure under a `test: run` directive is the
+  engine's own bytes, checked like any other transcript. What is
+  banned is the hand-drawn one, which is a second source of truth for
+  something the engine already knows.
+
 ## Terminology
 
 - The language and project are **Aontu** (capital A) in prose; the

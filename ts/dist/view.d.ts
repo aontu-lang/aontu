@@ -3,7 +3,7 @@ import type { TrustOptions } from './type';
 import { Provenance } from './provenance';
 import type { SubsumeProfile } from './subsume';
 export type ViewVerdict = 'rendered' | 'lossy' | 'error';
-export type ViewKind = 'tree' | 'matrix' | 'graph' | 'layer' | 'sets' | 'layers' | 'ladder' | 'poset' | 'doc';
+export type ViewKind = 'tree' | 'matrix' | 'graph' | 'layer' | 'sets' | 'layers' | 'ladder' | 'poset' | 'doc' | 'lattice';
 export type ViewProfile = 'text' | 'mermaid' | 'dot' | 'er' | 'svg';
 export type ViewOrder = 'canon' | 'partition';
 export type ViewEdges = 'upward' | 'all' | 'none';

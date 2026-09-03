@@ -147,9 +147,9 @@ read rather than truncating it.
 
 ## Related
 
-- [`aontu view`](../reference-api.md#aontu-view)—every kind, every
+- [`aontu view`](../reference-api.md#aontu-view). Every kind, every
   option, the loss codes and the exit codes.
-- [Query a path](query-a-path.md)—read one node instead of drawing
+- [Query a path](query-a-path.md). Read one node instead of drawing
   the whole shape.
-- [Explain a value](explain-a-value.md)—why one value is what it is,
+- [Explain a value](explain-a-value.md). Why one value is what it is,
   which the `ladder` kind draws.

@@ -1,9 +1,10 @@
 "use strict";
-/* Copyright (c) 2025 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AGENTSMD_END = exports.AGENTSMD_BEGIN = void 0;
 exports.agentsMd = agentsMd;
 exports.agentsMdSplice = agentsMdSplice;
+/* Copyright (c) 2025 Richard Rodger, MIT License */
+const utility_1 = require("./utility");
 // THE AGENTS.md STANZA (G7 phase 6,
 // docs/capability-review/g7-machine-access.md): generated FROM the
 // definition, so the prose entrypoint cannot drift from the formal
@@ -27,7 +28,7 @@ exports.AGENTSMD_END = '<!-- aontu:end -->';
 function agentsMd(src, opts) {
     const options = opts ?? {};
     const name = options.name ?? 'the definition';
-    const aontu = new aontu_1.Aontu(null == options.trust ? undefined : { trust: options.trust });
+    const aontu = new aontu_1.Aontu((0, utility_1.includeOpts)(options));
     const ctx = aontu.ctx({ collect: true });
     const parseOpts = null == options.path ? undefined : { path: options.path };
     const v = aontu.unify(src, parseOpts, ctx);

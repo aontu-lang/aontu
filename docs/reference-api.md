@@ -309,7 +309,7 @@ anything) turns colour off for every caller of the library, the command
 additionally turns it off when its own stderr is not a terminal, and
 `--jsonl` turns it off unconditionally—a JSONL answer is machine-read
 by definition. A piped report therefore never carries terminal control
-codes into a log, a CI annotation, or a parser.
+codes into a log, a CI annotation or a parser.
 
 `--format sarif` emits the report as SARIF 2.1.0, the interchange form
 CI systems ingest (GitHub code scanning upload, PR annotation)—a
@@ -458,7 +458,7 @@ $ echo $?
 ```
 
 **The same recursion on both sides is decided**, and decided by
-identity: a document that recurses, declares a relation, or shares a
+identity: a document that recurses, declares a relation or shares a
 template by reference admits itself, because two values with the same
 **hash form** are the same value. The rule runs only where the answer
 would otherwise be `undecided`, so it narrows nothing else—and
@@ -777,13 +777,14 @@ aontu view <kind> [--as <profile>] [--at <path>] [--out <file> [--check]]
            [--format text|json] [options] <file>...
 ```
 
-Nine kinds. Eight read a report the engine already produces; `doc`
-reads the shape of the document itself, which is the one thing no
-report holds:
+Ten kinds. Eight read a report the engine already produces; `doc` and
+`lattice` read the document itself, which is the one thing no report
+holds:
 
 | kind | draws | reads | profiles |
 |---|---|---|---|
 | `doc` | the document's own key tree, to a depth | the anchor walk, as `get --keys --types` reads it | `text`, `svg` |
+| `lattice` | the language's value lattice, with a count at every node the document reaches | the anchor walk, and each value's own kind | `text`, `svg` |
 | `tree` | the dependency tree of a relation: roots derived, repeats elided, cycles marked | the edge set | `text`, `svg` |
 | `matrix` | the dependency-structure matrix over one relation, in `canon` or `partition` order, with `--closure` | the edge set and the relation declarations | `text`, `svg` |
 | `graph` | the node-link drawing, grouped and labelled by fields of the nodes | the edge set, the declarations, the node values | `mermaid`, `dot`, `er` |
@@ -853,6 +854,51 @@ flowchart LR
   n_web -->|"dependsOn"| n_billing
 ```
 
+The `lattice` kind draws the LANGUAGE rather than the model. The shape
+is always the same—[the value
+lattice](reference-language.md#the-value-lattice), whatever the
+document holds—and what the document adds is a count at each node
+its own values landed on. Write `ports.aon`:
+
+<!-- test: file ports.aon -->
+```aontu
+host: "0.0.0.0"
+port: 8080
+tls: true
+timeout: 1.5
+retries: integer
+backoff: integer & min(1)
+```
+
+<!-- test: run -->
+```sh
+$ aontu view lattice ports.aon
+                                           top
+                                            │
+      ┌────────────────────────────────┬────┴───────────────────────────┬─────────┐
+ string (1)                         number                         boolean (1)  null
+      │                                │                                │         │
+      ├─────────────┬────────────┬─────┴─────┬────────────┐             │         │
+   path()      integer (2)   float (1)  biginteger   bigdecimal         │         │
+      │             │            │           │            │             │         │
+      └─────────────┴────────────┴──────────┬┴────────────┴─────────────┴─────────┘
+                                           nil
+```
+
+A concrete scalar sits at its kind—`8080` counts at `integer`—and a
+kind written as a schema sits *at* that node, which is why `retries:
+integer` is the second of the two. `backoff` is at neither: `integer &
+min(1)` is a region of the lattice rather than a point, so the figure
+declines to draw it anywhere and names it instead:
+
+```
+lattice_unplaced  1  $.backoff
+```
+
+An unresolved disjunction is unplaced for the same reason: `*8080 |
+9090` is two places at once, and a node that claimed either would be
+claiming something the document does not say.
+
 - **The loss report.** Every run prints, on stderr, what the figure
   could not draw or drew differently from the model, one line per
   code with a count: `hidden_contribution` (an edge inside a `hide()`
@@ -860,8 +906,9 @@ flowchart LR
   draws), `edges_in_disjunct` (a link under an unresolved disjunction,
   which is not a fact, so the figure reports it rather than
   picking an arm), `unresolved_field` (a node without a value for
-  `--group-by` or `--label`), `cycle_block`, `cols_elided`, and for the
-  poset
+  `--group-by` or `--label`), `lattice_unplaced` (a value at no single
+  point of the lattice, named rather than drawn), `cycle_block`,
+  `cols_elided`, and for the poset
   `order_undecided`, `order_maybe_equal` and `order_intransitive`. Any
   of these makes the verdict `lossy`, which `--strict` turns into exit
   `1`. Three codes are informational and leave the verdict `rendered`:
@@ -1842,7 +1889,7 @@ it on the breaking check.
 compare**—no download, no parse. The canon-hash in the annotation is
 the same string `tidy` locks and [`aontu hash`](#aontu-hash) prints, so
 a consumer holding `aon1-oQs6…` can ask a registry index whether the
-module still means what it meant. A reformat, a comment, or a file split
+module still means what it meant. A reformat, a comment or a file split
 will not move it.
 
 **`get` and `publish` need a registry client, which this build does
@@ -1953,16 +2000,25 @@ Go API for that.
 
 ### The published grammar
 
-[`grammar/aontu.gbnf`](../grammar/aontu.gbnf) and
-[`grammar/aontu.lark`](../grammar/aontu.lark) publish the **emission
-surface** for constrained decoding. They are conservative by
-construction—they accept less than the parser does, never more—and
-they deliberately exclude `@"..."` includes, because generated
-documents should describe values rather than reach for files.
+Three files, one grammar. [`grammar/aontu.gbnf`](../grammar/aontu.gbnf)
+and [`grammar/aontu.lark`](../grammar/aontu.lark) publish the
+**emission surface** for constrained decoding;
+[`grammar/aontu.abnf`](../grammar/aontu.abnf) says the same thing in
+RFC 5234 notation, for a reader rather than a decoder, and is the one
+the [language reference draws its railroad
+diagrams](reference-language.md#the-published-grammar) from.
+
+All three are conservative by construction—they accept less than the
+parser does, never more—and all three deliberately exclude `@"..."`
+includes, because generated documents should describe values rather
+than reach for files.
 
 The grammar is not a document that drifts: `ts/test/grammar.test.ts`
-reads `aontu.gbnf`, interprets it, and requires it to accept **every
-canonical-form output in the shared spec suite**.
+reads `aontu.gbnf` and `aontu.abnf`, interprets both, and requires each
+to accept **every canonical-form output in the shared spec suite**. The
+function-name list in all three, and in the TextMate grammar the
+editors ship, is checked against the engine's own registry in both
+directions.
 
 ### The skill
 
@@ -2444,9 +2500,11 @@ chain, which reaches anything on the filesystem the process can read.
 **Opening an untrusted source is reading your disk**, so pass a profile
 whenever the source is not yours. Reading, never running: an include's
 extension decides what the file is—`.aon` and `.aontu` as Aontu source,
-and `.json`, `.jsonld`, `.jsonc`, `.json5`, `.jsonic`, `.jsc`, `.toml`,
-`.yaml`, `.yml` and `.ini` as configuration data—and every other
-extension is refused.
+`.json`, `.jsonld`, `.jsonc`, `.json5`, `.jsonic`, `.jsc`, `.toml`,
+`.yaml`, `.yml` and `.ini` as configuration data, and `.txt` as text
+(the bytes, as one string)—and every other extension is refused.
+`textExt` widens the text set; it cannot re-read a named format, and
+cannot reach `.js`.
 
 <!-- test: skip TypeScript API sample; the API surface is pinned by ts/test/ -->
 ```ts

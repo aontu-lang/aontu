@@ -78,7 +78,7 @@ func fileResolver(spec multisource.PathSpec, opts *multisource.MultiSourceOption
 				// same rule has to read them, or the mem capability
 				// becomes a way to include what the filesystem would
 				// refuse.
-				if ext := extOf(key); "" == includeKinds[ext] {
+				if ext := extOf(key); "" == includeFormat(ext, sink) {
 					recordExtension(ctx, res.Path, ext)
 					// Named, but not READ: the resolution carries the
 					// key so extensionProcessor's nil names the same
@@ -217,7 +217,7 @@ func fileResolver(spec multisource.PathSpec, opts *multisource.MultiSourceOption
 			// answering "extension" there would say the file exists.
 			// Before recordDep, because a refused include is not a
 			// dependency -- nothing of it reaches the document.
-			if ext := extOf(p); "" == includeKinds[ext] {
+			if ext := extOf(p); "" == includeFormat(ext, sink) {
 				recordExtension(ctx, res.Path, ext)
 				res.Full = p
 				res.Kind = extensionKind
@@ -311,6 +311,45 @@ var includeKinds = map[string]string{
 	"yaml":   "yaml",
 	"yml":    "yaml",
 	"ini":    "ini",
+
+	// TEXT: the file's BYTES, as one string scalar. No parser is
+	// chosen, so there is nothing for two ports to disagree about --
+	// `notes: @"notes.txt"` is a document loading prose into a string.
+	// AontuOptions.TextExt (the CLI's --text-ext) adds more extensions
+	// to this category, because which name a project keeps its
+	// templates under is the project's business, not this table's.
+	"txt": "text",
+}
+
+// includeFormat is what an extension MEANS for this parse: the fixed
+// table, widened by the sink's TextExt. A widening never overwrites --
+// an extension the table already names has a meaning documents rely
+// on, and `js` in particular stays refused by the same rule that
+// refuses it today. "" is the refusal, and this is the ONE place that
+// decides it, so the resolver's gate and the processor cannot
+// disagree. The twin is includeFormat in ts/src/lang.ts.
+func includeFormat(ext string, sink *trustSink) string {
+	if known := includeKinds[ext]; "" != known {
+		return known
+	}
+	// NOT EVEN AS TEXT. `js` is the extension ADR-012 singles out
+	// because multisource's own default EXECUTES it, and an extension
+	// this project refuses on purpose stays refused however a flag is
+	// spelled. The empty kind names no file type at all. The twin list
+	// is REFUSED_EXT in ts/src/lang.ts; the two CLIs are diffed on
+	// `--text-ext js` because they once disagreed here -- Go read the
+	// file, TypeScript refused it.
+	if "js" == ext || "" == ext {
+		return ""
+	}
+	if nil != sink {
+		for _, allowed := range sink.textExt {
+			if allowed == ext {
+				return "text"
+			}
+		}
+	}
+	return ""
 }
 
 // ONE READER PER FORMAT, BUILT ONCE. These are stateless parsers and
@@ -422,6 +461,11 @@ type trustSink struct {
 	modCache string
 	modCode  string
 	modMsg   string
+	// Extensions additionally read as text (AontuOptions.TextExt, the
+	// CLI's --text-ext). Rides on the sink because it is the other half
+	// of what an include may read, and the sink is the channel the
+	// resolver already consults per parse.
+	textExt []string
 }
 
 func trustSinkOf(ctx *jsonic.Context) *trustSink {
@@ -505,10 +549,27 @@ func deniedProcessor(res *multisource.Resolution, _ *multisource.MultiSourceOpti
 // extensionProcessor injects the include_extension nil (the twin of
 // deniedProcessor): the failure is DETECTED in the resolver, this gives
 // the tree an error value where the include was a value position.
-func extensionProcessor(res *multisource.Resolution, _ *multisource.MultiSourceOptions, _ *jsonic.Context, _ *jsonic.Jsonic) {
+func extensionProcessor(res *multisource.Resolution, _ *multisource.MultiSourceOptions, ctx *jsonic.Context, _ *jsonic.Jsonic) {
+	// A WIDENED EXTENSION ARRIVES HERE, not at a registered processor:
+	// the map is built once at grammar registration and --text-ext is
+	// per parse, so `md` has no entry and falls to this fallback. The
+	// sink is the same one the resolver's gate consulted, which is what
+	// keeps the two answers identical.
+	if "text" == includeFormat(extOf(res.Full), trustSinkOf(ctx)) {
+		textProcessor(res, nil, ctx, nil)
+		return
+	}
 	n := newNil("include_extension")
 	n.msg = extensionMsg(res.Path, extOf(res.Full))
 	res.Val = n
+}
+
+// TEXT IS NOT PARSED. The bytes the resolver read are the value, so
+// this is the one processor with no reader behind it -- a text include
+// cannot fail on content, only on being unreadable. The twin is
+// textProcessor in ts/src/lang.ts.
+func textProcessor(res *multisource.Resolution, _ *multisource.MultiSourceOptions, _ *jsonic.Context, _ *jsonic.Jsonic) {
+	res.Val = newString(res.Src)
 }
 
 // extOf is the multisource kind of a resolved path: the extension
@@ -802,11 +863,14 @@ func includeProcessors() map[string]multisource.Processor {
 		deniedKind:    deniedProcessor,
 	}
 	for kind, format := range includeKinds {
-		if "source" == format {
+		switch format {
+		case "source":
 			procs[kind] = aonProcessor
-			continue
+		case "text":
+			procs[kind] = textProcessor
+		default:
+			procs[kind] = dataProcessor(format)
 		}
-		procs[kind] = dataProcessor(format)
 	}
 	return procs
 }
