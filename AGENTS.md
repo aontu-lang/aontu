@@ -476,6 +476,33 @@ user-facing rules are in
 
 ## Conventions
 
+### Module and package are different words
+
+**A module is imported. A package is published.** They are not
+synonyms, and the codebase currently gets this wrong in one visible
+place — the `aontu mod` verbs operate on packages.
+
+- A **module** is a language element: what `@"acme.example/schema@1"`
+  names, what `resolveModule` resolves, what `canonHash` pins, what
+  unifies into a document.
+- A **package** is a unit of publication: a versioned, signed archive
+  of one or more modules, usually exactly one. It is what a repository
+  stores, what a version and a signature cover, what a quota counts,
+  and what is retracted or tombstoned.
+
+Write "package repository", "publish a package", "the package's
+dependencies". Never "module registry" or "publish a module". The rule
+applies to code comments, identifiers, error messages, commit messages
+and documentation alike; `docs/STYLE-GUIDE.md` carries the same rule
+for published prose.
+
+**Go uses the two words the other way round** — its module is the
+published collection and its package is a directory inside one. Aontu
+cannot follow, because "module" is already the language element in both
+ports, in the import syntax and in `MODULE_RE`. So a phrase that sounds
+right to a Go user may be wrong here: check which side of the
+import/publish line the thing is on rather than trusting the ear.
+
 - Keep new TypeScript code in the style of the surrounding `ts/src` files.
 - Go is `package aontu`; exported API is `New().Parse/Unify/Generate`.
   Run `go vet ./...` and `gofmt` before committing.
