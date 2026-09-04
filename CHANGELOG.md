@@ -7,6 +7,20 @@ which implementation each change affects.
 
 ## Unreleased
 
+### `make install`: the clone on `PATH`
+
+`make install` at the repository root puts both builds on `PATH` from
+the clone, each by its own toolchain: `make install-ts` links the
+checkout as the global npm package (`npm link`, so `make build-ts`
+updates the command in place) and `make install-go` runs `go install`
+for `aontu` and `aontu-lsp`. Both builds provide `aontu`, so `PATH`
+order decides which one answers and `aontu --version` says which did.
+The README, the CLI how-to, the API reference and AGENTS.md name the
+targets. The from-a-clone command in the README and the API reference
+is now `node ts/bin/aontu.js`, the executable entry; the `dist/cli.js`
+they named has no entry guard and printed nothing. Both
+implementations.
+
 ### Generated project state lives under `aontu_meta/`
 
 Everything the tools write into a project now lives in one folder:

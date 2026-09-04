@@ -29,8 +29,9 @@ implementations). See [AGENTS.md](AGENTS.md) and
 [docs/shared-spec.md](docs/shared-spec.md).
 
 ```sh
-make build   # build both (ts + go)
-make test    # test both against the shared spec
+make build     # build both (ts + go)
+make test      # test both against the shared spec
+make install   # put both builds on PATH from this clone (npm link, go install)
 ```
 
 ### Repository layout
@@ -79,7 +80,10 @@ toolchain; with a package or archive from the
 image `ghcr.io/aontu-lang/aontu`, the Nix flake, or the setup action
 `aontu-lang/aontu/setup-action` in a workflow; or with
 `go install github.com/aontu-lang/aontu/go/cmd/aontu@latest` (Go). From a
-clone: `node ts/dist/cli.js …` or, inside `go/`, `go run ./cmd/aontu …`.
+clone, `make install` puts both builds on `PATH`: `make install-ts` links
+the checkout as the global npm package and `make install-go` runs
+`go install` for the two commands. Without installing:
+`node ts/bin/aontu.js …` or, inside `go/`, `go run ./cmd/aontu …`.
 
 ## Documentation
 

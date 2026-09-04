@@ -2146,12 +2146,15 @@ one that does not pays nothing. Diagnostics are unchanged either way.
 **Getting the command**
 
 - **TypeScript:** the npm package declares a `bin` named `aontu`
-  (`dist/cli.js`), so `npm install -g aontu` (or `npx aontu`) provides
-  it. From a clone: `node ts/dist/cli.js …`.
+  (`bin/aontu.js`), so `npm install -g aontu` (or `npx aontu`) provides
+  it. From a clone: `make install-ts`, an `npm link` of the checkout,
+  or `node ts/bin/aontu.js …` without installing.
 - **Go:** `go install github.com/aontu-lang/aontu/go/cmd/aontu@latest`, or
-  from a clone: `go run ./cmd/aontu …` (inside `go/`).
+  from a clone: `make install-go`, a `go install` of `aontu` and
+  `aontu-lsp`, or `go run ./cmd/aontu …` inside `go/`.
 
-Both commands accept the same options and produce the same results.
+`make install` at the root of a clone does both. Both commands accept
+the same options and produce the same results.
 
 ---
 

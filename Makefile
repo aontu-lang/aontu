@@ -1,4 +1,5 @@
 .PHONY: all build test clean build-ts build-go test-ts test-go clean-ts clean-go \
+        install install-ts install-go \
         publish publish-go check-go-major tags-go reset cov cov-ts cov-go sig \
         prose
 
@@ -9,6 +10,32 @@ build: build-ts build-go
 test: test-ts test-go
 
 clean: clean-ts clean-go
+
+# INSTALL FROM THE CLONE, EACH BUILD BY ITS OWN TOOLCHAIN.
+#
+#   make install       # both
+#   make install-ts    # npm link: the global `aontu` IS this checkout
+#   make install-go    # go install: a build of ./cmd/aontu and ./cmd/aontu-lsp
+#
+# The two builds ship the same commands under the same names, and each
+# toolchain puts them where it always does -- npm's global bin
+# (`npm prefix -g`/bin, so this needs the write access `npm install -g`
+# needs) and Go's (`go env GOBIN`, else GOPATH/bin). With both installed,
+# PATH order decides which `aontu` answers and `aontu --version` says
+# which did: the npm series or the Go series. The TypeScript install is
+# a LINK, so `make build-ts` updates it in place; the Go install is a
+# build, so rerun `make install-go` after a change. Undo with
+# `npm uninstall -g aontu` and by deleting the two Go binaries.
+install: install-ts install-go
+
+install-ts: build-ts
+	cd ts && npm link --no-audit --no-fund
+	@echo "install-ts: aontu, aontu-lsp and aontu-mcp in $$(npm prefix -g)/bin link to $(CURDIR)/ts"
+
+install-go:
+	cd go && go install ./cmd/aontu ./cmd/aontu-lsp
+	@bin=$$(cd go && go env GOBIN); [ -n "$$bin" ] || bin=$$(cd go && go env GOPATH)/bin; \
+	  echo "install-go: aontu and aontu-lsp built into $$bin"
 
 # The prose gate (see docs/STYLE-GUIDE.md). Vale over the reader-facing
 # pages, at the levels set in .vale.ini, on the same file list

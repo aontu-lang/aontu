@@ -119,6 +119,7 @@ Both languages at once, from the repo root:
 make build      # build-ts + build-go
 make test       # test-ts  + test-go
 make            # build then test
+make install    # install-ts + install-go: this clone on PATH (npm link, go install)
 make prose      # the Vale prose gate (needs `vale` on PATH)
 ```
 
