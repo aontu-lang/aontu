@@ -859,7 +859,7 @@ pref member's admitted contribution to a disjunction is exactly its
 own value, not its kind.
 
 **And the preference machinery was re-founded on it (2026-08-29,
-[ADR-011](../../ADR.md#adr-011), docs/design/DEFAULTS.0.md).** `*x` is
+[ADR-011](../../ADR.md#adr-011--the-star-is-sugar-the-disjunction-is-the-structure), docs/design/DEFAULTS.0.md).** `*x` is
 sugar for `*x | super(x)`, so the meet distributes over that
 disjunction — `(x & peer) | (super(x) & peer)` — instead of testing
 whether the peer resolves to exactly the gate. The preferred value
@@ -1516,6 +1516,25 @@ hits the recursion hazard the container types were capped for —
 VERIFIED, even a valid instance refuses), which makes the declaration
 vocabulary a lowering onto it rather than the only path.
 
+**A third amendment, 2026-09-04**, records the template surface and
+moves the rule layer's centre. Four prototypes of a generator for a
+production backend's twelve lambda handlers were built and **none of
+them contained an apply-templates** — each computed every fragment in
+place, with the target code inside Aontu strings, so the output shape
+was welded to that one target. The surface that replaces them writes
+the rule table as data (`build: [{mode?, match, body}, ...]`) and
+dispatches with `apply(select, table, mode?)`; a repeated or
+conditional fragment becomes its own template whose body is plain
+target text, and a conditional is an empty node-set rather than an
+invented directive. The generator is then a file in the target's own
+syntax, `//:` comments carrying the Aontu: VERIFIED, **12 of 12
+handlers byte-identical**, the desugaring round-trips in both
+directions, and the template file has 0 TypeScript syntax errors. It
+runs today only as an expansion — see the phase 1 note below for the
+four engine facts that decide the rule layer must be a builtin — and
+Go refuses that expansion outright on
+[BUGS.md §63](../../use-cases/BUGS.md).
+
 | Phase | Size | Status | Pin |
 |-------|------|--------|-----|
 | **0** — the gating defects | S | **PARTIAL** (re-probed 2026-09-04; see the design's amendment — item 3 is VOID under ADR-014, item 4 is now the plan's first phase) | Six defects found while surveying for this capability and recorded in [use-cases/BUGS.md](../../use-cases/BUGS.md) §57–§62, each with a minimal repro under `use-cases/repros/`. **Four are fixed**, in both ports and pinned by shared rows: §58 `id()` naming its own descendant, which crashed both engines on the host stack (that fix and its `test/spec/id.tsv` pin are since SUPERSEDED by ADR-014: `id()` is removed, and no document can ask for the shape); and the three ADR-001 parity breaks — §59 `vet --at` losing `%alias` references in Go, §61 Go's `trialUnify` never setting `ctx.trial` so `match`/`filter` answered differently, §62 `pick` ordering an astral-keyed map by UTF-16 code units in TypeScript. The last two are in the primitives this design depends on for selection and for line order. **Two remain**: §57, a recursive spread conjoined with a map, non-terminating in both ports — diagnosed to the mechanism, with one fix attempt reverted for holding in TypeScript only; and §60, the canon-hash blind to an alias used as a spread template, a silent pin failure. |
@@ -1524,7 +1543,7 @@ vocabulary a lowering onto it rather than the only path.
 | **3** — `form`, the order-preserving map | S/M | **NOT STARTED** | `each` meets and cannot transform; `pack` keys by data and reorders |
 | **4** — the renderer core and the first two profiles | M | **NOT STARTED** | The `render` verb; the Go and TypeScript profiles; and, per the second amendment, a fragment entry point plus a two-field `aontu:lang/text` profile, which is the executable form of "a new language is data". The fold reads a piece's `at` where the design counted recursion depth. |
 | **5** — the reflection sidecar | M | **NOT STARTED** | The view forms (a), (b) and (c) share; an ADR-001 question first (GENERATION-FORMS.0.md §2) |
-| **6** — `walk`, the manifest, and the verb | M | **NOT STARTED** | One run over N outputs, and where the fragment algebra pays off: `walk` plus `match` plus fragments is apply-templates with its result tree, so the acceptance case is a target the declaration vocabulary does NOT fit. **The name is unsettled and is decided before phase 4**: this row says `aontu gen` with a `std/gen` manifest, the design says `aontu render` with the manifest under `@"aontu:code"`, and it names a verb, an MCP tool, a file in each port, help text the suite asserts identical across the builds, and every transcript in the reference. |
+| **6** — `apply`, the manifest, and the verb | M | **NOT STARTED** | One run over N outputs, and where the fragment algebra pays off: dispatch plus fragments is apply-templates with its result tree, so the acceptance case is a target the declaration vocabulary does NOT fit. **Re-scoped by the third amendment (2026-09-04)**: it ships `apply(select, table, mode?)` over a table written as data — `build: [{mode?, match, body}, ...]` — rather than `walk(data, tmpl)` with the rules encoded in `match` argument positions, and it gains a second acceptance case, a RECURSIVE rule set, because that is the one case no amount of user-space work reaches. **The name is unsettled and is decided before phase 4**: this row says `aontu gen` with a `std/gen` manifest, the design says `aontu render` with the manifest under `@"aontu:code"`, and it names a verb, an MCP tool, a file in each port, help text the suite asserts identical across the builds, and every transcript in the reference. |
 | **7** — the Jostraca bridge | M | **NOT STARTED** | Phases 1–5 carry no Jostraca dependency, so this cannot block the language work |
 | **8** — string interpolation | M/L | **NOT STARTED** | The parser phase; deferred behind evidence that `join` did not suffice |
 
@@ -1536,9 +1555,21 @@ rather than of the design: **Aontu evaluates data where it sits**, so
 a rule set holding a template with a relative reference fails
 `no_path` before any dispatch happens (VERIFIED). The design's answer
 is the `&:` spread and the hidden-capture idiom, both of which work
-today and neither of which needs new grammar. That answer should be
-re-tested against a real transform corpus before phases 6–8 are
-committed to.
+today and neither of which needs new grammar.
+
+**That answer has now been re-tested against a real transform corpus,
+and it does not stretch to the rule layer.** The design's third
+amendment (2026-09-04) builds four successive template surfaces against
+the twelve handlers of a production backend and reports that the
+spread carries a template's references correctly but cannot dispatch
+one: `_` does not bind inside a spread template, a staged `match`
+scrutinee written against the element does not resolve there, and
+`pack` — which does bind `_`, and does dispatch — refuses a list, so
+every list-shaped node-set is out of reach. A rule table can therefore
+be inlined at each use site but not held as a value, which means a
+recursive rule set has no finite expansion at all. Phases 6–8 are
+committed to on that basis: the dispatch is a builtin, and the surface
+that desugars to it comes after.
 
 ## Corrections outstanding in the gap documents
 
