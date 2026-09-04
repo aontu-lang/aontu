@@ -29,7 +29,13 @@ ADR-NNN**, so the reasoning that led there stays readable.
 | [ADR-010](#adr-010--no-magic-keys-or-paths-the-tree-at-all-levels-is-user-space) | No magic keys or paths: the tree at all levels is user space | Accepted |
 | [ADR-011](#adr-011--the-star-is-sugar-the-disjunction-is-the-structure) | The star is sugar; the disjunction is the structure | Accepted |
 | [ADR-012](#adr-012--an-includes-extension-decides-what-the-file-is-aontu-source-config-data-or-refused) | An include's extension decides what the file is: Aontu source, config data, or refused | Accepted |
-| [ADR-013](#adr-013--the-project-operates-one-transparency-log-and-nothing-else) | The project operates one transparency log, and nothing else | Accepted |
+| [ADR-013](#adr-013--the-project-operates-one-transparency-log-and-nothing-else) | The project operates one transparency log, and nothing else | Superseded in part by [ADR-019](#adr-019--the-project-stores-module-bytes-and-federates-the-log) |
+| [ADR-014](#adr-014--the-tree-is-the-namespace-there-is-no-identity-mark) | The tree is the namespace: there is no identity mark | Accepted |
+| [ADR-015](#adr-015--paths-are-first-class-values-pathp-captures-and-a-vacuous-constructor-call-is-a-kind) | Paths are first-class values: `path(p)` captures, and a vacuous constructor call is a kind | Accepted |
+| [ADR-016](#adr-016--a-string-is-never-a-path-conversion-lives-in-the-call-and-paths-meet-by-prefix) | A string is never a path: conversion lives in the call, and paths meet by prefix | Accepted |
+| [ADR-017](#adr-017--the-builtin-call-surface-is-declared-parsed-by-both-ports) | The builtin call surface is declared, parsed by both ports | Accepted |
+| [ADR-018](#adr-018--the-pipe-operator-is-removed) | The pipe operator is removed | Accepted |
+| [ADR-019](#adr-019--the-project-stores-module-bytes-and-federates-the-log) | The project stores module bytes, and federates the log | Accepted |
 
 ---
 
@@ -1245,7 +1251,14 @@ and the browser bundle the playground ships grows with them.
 ## ADR-013 — The project operates one transparency log, and nothing else
 
 **Date:** 2026-08-30
-**Status:** Accepted
+**Status:** Superseded in part, 2026-09-04, by
+[ADR-019](#adr-019--the-project-stores-module-bytes-and-federates-the-log).
+Constraint 1 ("it stores no module source, ever") is reversed, and the
+service this entry admits is no longer the one the project runs: the log
+federates to Sigstore and a module repository takes its place.
+Constraints 2 to 5 survive verbatim and bind the repository instead —
+they were the reason this entry was admissible, and ADR-019 inherits
+rather than relaxes them.
 
 ### Context
 
@@ -1734,3 +1747,146 @@ and the last step before a splice becomes its own seam
 would never produce — the footing `spanHolds` already stood on, and
 no coverage exclusion needed. The G8 phase 4 register row is flipped
 to REMOVED; the design record stands.
+
+---
+
+## ADR-019 — The project stores module bytes, and federates the log
+
+**Date:** 2026-09-04
+**Status:** Accepted
+
+### Context
+
+[ADR-013](#adr-013--the-project-operates-one-transparency-log-and-nothing-else)
+admitted exactly one service and bound it with five constraints, the
+first of which was that it stores no module source, ever — "a log that
+began caching artifacts would be the registry
+[G6](docs/capability-review/g6-distribution.md) rejected, wearing a
+different name." That sentence was right about the risk and wrong about
+the arithmetic, and both halves are worth stating.
+
+**What the no-bytes position cost.** A design note written under the
+constraint states the consequence in its own first section: Go's
+integrity comes from its checksum database, Go's availability comes from
+a proxy that stores module bytes, and refusing to store bytes means a
+record can prove what a release *was* without being able to hand it
+over. A log proves; it does not serve. The answer offered was
+`aontu_meta/vendor/`, which is consumer-side discipline rather than an
+ecosystem guarantee. A commissioned survey of the field then found the
+availability answer incomplete, and named the second hole: with no
+stored bytes there is nowhere to put the mutable metadata channel —
+withdrawal, advisories, revocation — that every mature ecosystem ended
+up needing.
+
+**What the arithmetic turned out to be.** G6 rejected a hosted registry
+as "infrastructure the project must run forever", and ADR-013 conceded
+that half of the reasoning applies to a log "unchanged, and the whole
+cost". Costed against current object-storage rates, storage is not the
+expense at any scale this project will reach: a hundred thousand stored
+versions sits inside a free tier, and a million costs single-digit
+dollars a month. Egress, which is the line item that makes a package
+CDN expensive, is zero on the chosen provider. The design note carries
+the table.
+
+The cost that is real is not infrastructure. **A repository that stores
+what other people publish is a moderation venue**, and that obligation
+is denominated in a named human rather than in dollars. It is accepted
+here explicitly rather than discovered later.
+
+Two developments made the reversal cheaper than it would have been when
+ADR-013 was written. Sigstore's Rekor v2 reached general availability
+and is served as C2SP `tlog-tiles` static objects with `sumdb/note`
+checkpoints — the exact format the client half already verifies against
+689 upstream-generated vectors. And the artifact channel ADR-013
+assumed, an OCI registry, was foreclosed by a later constraint, leaving
+the artifact question open rather than settled.
+
+### Decision
+
+**The project stores module bytes, and operates a module repository
+instead of a transparency log.** Attestation federates to Sigstore.
+
+ADR-013's constraint 1 is reversed. Its constraints 2 to 5 are inherited
+verbatim and bind the repository, because they are what made an operated
+service admissible at all:
+
+1. **A build that has a lockfile never touches it.** Evaluation stays
+   hermetic; the repository is consulted only when *adding* a version
+   the lockfile does not already pin. If the service dies tomorrow,
+   every existing project keeps building.
+2. **It is publicly replicable, in a standard format.** The read path is
+   static, content-addressed objects in a GOPROXY-shaped layout, served
+   from a bucket with no code on the read path. Mirroring is a directory
+   copy, which is the property that makes constraint 4 real.
+3. **Its client half is in both ports, under
+   [ADR-001](#adr-001--typescript-and-go-stay-at-full-parity-driven-by-a-shared-spec).**
+   Pin checking and proof verification are language behaviour. Only the
+   publish path lives in one place.
+4. **It has a stated exit.** The bucket can be frozen and mirrored, and
+   a frozen mirror still *serves* — a stronger exit than the log's,
+   which could only prove.
+
+Three constraints are new, and are the ones this entry adds rather than
+inherits:
+
+5. **The service fetches nothing, parses nothing and evaluates nothing.**
+   A publisher uploads; the repository stores. This is what keeps the
+   entire ingestion threat model deleted — no forge adapters, no SSRF
+   allowlist, no observation queue, no negative caching — and reversing
+   it re-opens all of it. A repository that evaluated submissions would
+   be running attacker-chosen input through the evaluator on a server.
+6. **It operates no transparency log.** Identity, signing and the log
+   are Sigstore's: Fulcio for publisher identity, Rekor v2 for the log,
+   the Sigstore bundle as the stored proof, the TUF trust root for
+   rotation. This retires key custody, checkpoint signing, witness
+   recruitment, and the unanswered objection that a Worker's secrets are
+   readable by whatever is deployed to that Worker.
+7. **Withdrawal changes selection, not history.** A retracted or
+   tombstoned version stops being selected and stops being served, but
+   the record of what was published — its pins and its signature bundle
+   — is retained and stays verifiable. Erasure is reserved for content
+   that cannot lawfully be retained, and leaves a tombstone behind.
+
+### Consequences
+
+**We accept a moderation obligation**: an abuse contact, a named
+responder, a stated turnaround, and a takedown runbook that exists
+before the first public publish rather than after the first incident.
+The storage provider is itself a host with its own removal process, so a
+project whose only takedown path runs through its provider has account
+suspension as a failure mode, which takes down every module at once.
+This is the recurring cost, and it does not shrink with automation.
+
+**We accept a second checkable pin.** The archive digest becomes a pin a
+client can verify before parsing, alongside the canon-hash it verifies
+after evaluating. This is a gain rather than a complication — it gives
+back a cheap pre-parse gate, which is the answer to the objection that
+hashing meaning makes the evaluator the verification surface — but the
+order is now a specified behaviour in both ports, not an implementation
+detail, and a client that checks only the cheap pin is a defect.
+
+**We do not accept provenance as a control.** The survey's finding
+stands and is not softened by adopting more of Sigstore: no mainstream
+package manager verifies provenance at install by default, and malicious
+packages shipped with cryptographically valid attestations twice in
+2026. Sigstore is adopted for tooling reuse and forensics. No safety
+claim is made to users on its basis.
+
+**What this does not license.** It admits one service, narrowly scoped,
+exactly as ADR-013 did — and it is the *replacement* for that service,
+not an addition to it. It is not a precedent for a hosted evaluator, a
+query surface, a hosted build, or a second service; each would need its
+own entry. It does not weaken
+[ADR-002](#adr-002--test-coverage-stays-at-100--in-both-implementations):
+the network code reaches the coverage floor through an injected seam, as
+`ModuleFs` and `ModuleEval` already do, or it does not land. And it does
+not disturb [G5](docs/capability-review/g5-trust-contract.md): no
+include is ever executed in the evaluating process, and a repository
+changes where bytes come from, never what they are allowed to do.
+
+The G6 boundary bullet and the
+[G10](docs/capability-review/g10-transparency.md) boundary are amended
+in the same commit as this entry. The design, its cost model, its
+registry-management policy and its open questions are `REPOSITORY.0.md`
+in `aontu-lang/system`; status is the
+[progress register](docs/capability-review/progress.md).

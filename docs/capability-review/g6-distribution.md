@@ -461,6 +461,20 @@ is required for v1. Two hooks make the registry more than storage:
   that references it. Those constraints are the ADR, not implementation
   detail. This bullet still forbids what it always forbade — a hosted
   place that keeps module bytes. See [G10](g10-transparency.md).)*
+  *(Amended again 2026-09-04 by
+  [ADR-019](../../ADR.md#adr-019--the-project-stores-module-bytes-and-federates-the-log):
+  **the remaining half now goes too.** The project stores module bytes
+  and operates a repository, and the log it was admitted for is
+  federated to Sigstore rather than run — one service, and a different
+  one. What survives of this bullet is its true premise, that running
+  infrastructure forever is a cost and not a feature. What it got wrong
+  was the size of the cost: storage of a million module versions is
+  single-digit dollars a month and egress is free on the chosen
+  provider, so the recurring bill is a moderation obligation with a
+  named human attached, not a hosting bill. The other half of the
+  original reasoning, "OCI already provides storage, auth, replication
+  and org familiarity", is moot — the constraint that put bytes on a
+  forge foreclosed the OCI channel before this decision was taken.)*
 - **No import namespaces or symbol system** — an import stays a
   value unified in place, not a scope; module-scoped identifiers
   are exactly the surface-area creep toward CUE the review warns
