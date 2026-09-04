@@ -2780,6 +2780,79 @@ side effect only until that split is stated; nothing is written until
 `render`, and `emit` returns a value like everything else in the
 language.
 
+### How a selector resolves, and why it cannot be counted
+
+`emit(.client, <table>)` raises the question directly: written where it
+sits — inside a `{match, body}` record, inside a list — there is no
+`client` key anywhere in scope. **A selector is not resolved
+lexically.** VERIFIED, that spelling is `no_path`: from inside a spread
+template over a map's list, both `.nm` and `..nm` fail to see the
+enclosing map's `nm`.
+
+**A selector is part of a body, so it resolves against the node the
+enclosing template matched** — the same rule as the body's `${.pin}`
+holes, and the same one sentence covers both. `emit(.client, T)` inside
+the file template means *the `client` field of the service this
+template matched*. In the expansion the node is captured as a hidden
+sibling and the selector is rewritten against it (`.client` becomes
+`.s.client`), which is mechanical only because the expander knows the
+depth it just generated.
+
+**The engine already resolves "where the value lands" — but by
+COUNTING, and counting does not compose.** Two probes, and both ports
+agree on both:
+
+| spelling, from inside `[&: {q: …}] & .ls` in a map holding `nm` | outcome |
+| --- | --- |
+| `.nm`, `..nm` | `no_path` |
+| `...nm` | resolves — element, list, enclosing map |
+
+So positional resolution exists and is exact. But the count is taken
+against wherever the value comes to rest, and a staged result carries
+its pending template with it. Enrich a node-set with a relative
+reference and consume it in a second spread:
+
+```aon
+e1: [&: {svc: ...s.name}] & .s.ls      # correct on its own
+a1: [&: {'#': [`P=` + ..p + ` S=` + ..svc]}] & .e1
+```
+
+and the first template re-roots at the second's position — VERIFIED,
+`no_path` at `$.top.k.a1.svc`, in both ports, empty list or not. The
+same chain with an ABSOLUTE reference (`$.nm` rather than `...s.name`)
+composes correctly. **A relative reference does not survive being
+consumed elsewhere.**
+
+That is the argument for the builtin stated from the selector's side.
+`emit` binds a body to a **named origin — the node it matched — rather
+than to a number of dots**, so composing two dispatches cannot shift
+what a reference means. Counting is exactly the brittleness that makes
+the expansion unreadable and the reason it cannot be written by hand.
+
+**The nesting rule that follows.** An inline table nested in a body
+creates a nesting XSLT never had, since its templates are flat. Inside
+a nested template, `.x` is the INNER node; an inner template does not
+reach the outer one, because the only spelling that could is a dot
+count, and the probe above says a count does not survive the
+composition. **The selector is the channel**: it is evaluated at the
+outer node, and what it selects is all the inner template sees. That is
+XSLT's rule too — `select` is the only thing an applied template is
+given — and it is what the handlers use:
+`filter(.on.file.events, {source: 's3'})` is evaluated at the service,
+and the gateway template sees only the event.
+
+**Open question: there is no `with-param`.** XSLT passes extra context
+to an applied template; this design has no answer, and the handlers did
+not need one. The natural Aontu spelling is to enrich the node-set
+before dispatch, since a node-set is an ordinary value —
+`emit([&: {svc: <the name>}] & .client, T)`, with the template matching
+`{pin: string, svc: string}`. **That is precisely the composition the
+probe above shows failing today**, and it is the same failure for the
+same reason. Under a builtin that binds a named node the enrichment's
+reference resolves at the matched node rather than by count, so the
+spelling should work — but it is unverified, and phase 6 either
+demonstrates it or ships a parameter.
+
 ### There is no `mode`, because a table is a value
 
 XSLT has two distinct constructs and they are easily conflated. A
@@ -2912,7 +2985,11 @@ put it. A spread template re-roots — `[&: {l: .pin}] & .listen` is how
 the earlier prototypes worked at all — but a stored value referenced by
 path does not. **This is the decisive argument for `emit()` as a
 builtin.** A builtin instantiates the body against the node it matched;
-nothing in user space can.
+nothing in user space can. The selector side of the same fact, with its
+own probes, is
+[above](#how-a-selector-resolves-and-why-it-cannot-be-counted): the
+positional resolution that does exist is a dot COUNT, and a count does
+not survive being consumed by a second dispatch.
 
 **2. Dispatch itself works, under `pack` and only under `pack`.**
 VERIFIED: `pack(nodes, {s: hide(_), '#': match(.s, <pattern>,
@@ -2964,7 +3041,7 @@ gating generation, but it remains an ADR-001 break in its own right.
 | **1** (`aontu:code`) | Unchanged. The vocabulary is what a body's pieces are checked against, and it is what `emit`'s return type names. |
 | **3** (`form`) | Strengthened, and its evidence is now specific: the four routes closed in fact 2 are all "the value is there and the engine will not settle it inline". |
 | **4** (the renderer) | Unchanged, and confirmed: `emit` returns the flat piece list the fold already reads, so the renderer needs nothing new to consume a rule set's output. |
-| **6** (`walk`) | **Re-scoped, and it is the load-bearing phase.** It ships `emit(select, table)` — dispatch against a list of `{match, body}` records, first match wins, bodies instantiated against the matched node, result flat — rather than `walk(data, tmpl)` with the table encoded in `match` argument positions. No `mode` argument and no `mode` key: a mode is a named table. Descent stays: `emit` with no explicit selection is the children, which is how a recursive rule set walks a tree. The totality argument of [§2](#2-the-rule-layer--apply-templates-in-the-engine) is unchanged, since it is about the structure descended, not about how rules are spelled. |
+| **6** (`walk`) | **Re-scoped, and it is the load-bearing phase.** It ships `emit(select, table)` — dispatch against a list of `{match, body}` records, first match wins, bodies instantiated against the matched node, result flat — rather than `walk(data, tmpl)` with the table encoded in `match` argument positions. No `mode` argument and no `mode` key: a mode is a named table. A body — its selectors included — binds to a NAMED origin, the node the template matched, rather than to a dot count, because a count does not survive composition. Descent stays: `emit` with no explicit selection is the children, which is how a recursive rule set walks a tree. It also settles whether enriching a node-set before dispatch is enough to pass outer context to an inner template, or whether a parameter is needed. The totality argument of [§2](#2-the-rule-layer--apply-templates-in-the-engine) is unchanged, since it is about the structure descended, not about how rules are spelled. |
 | **new, after 6** | The template surface: the marker comment, the indentation rule, the escape for a target line that begins with the marker, the desugaring, and `fmt` over a template file. It is a sugar with one rule and a round-trip test, and it cannot be written before `emit` exists, because it desugars to `emit`. |
 
 The acceptance case for phase 6 stands as
