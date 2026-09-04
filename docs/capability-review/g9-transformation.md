@@ -2853,6 +2853,63 @@ reference resolves at the matched node rather than by count, so the
 spelling should work — but it is unverified, and phase 6 either
 demonstrates it or ships a parameter.
 
+**A selector is a VALUE, and `path()` is the wrong tool for it.** The
+question the spelling invites is whether `emit`'s first argument should
+be an address — `path(.client)`, XSLT's `select="..."` — rather than an
+expression. It should not, and the reasons compound.
+
+`.client` is an ordinary relative reference in an ordinary strict
+argument position: it resolves before `emit` sees it, and what `emit`
+receives is a list. **Nothing about the argument position is special.**
+The single special rule is that `emit` instantiates a body against the
+matched node, and the selector is INSIDE the body — an element of the
+enclosing template's `body` list — so it re-roots along with the holes.
+One rule, both behaviours. And because each instantiation is its own
+copy, the selector is evaluated once per matched node in that node's
+context, which is exactly what XSLT means by evaluating `select` at the
+current node.
+
+A capture buys nothing and costs several things:
+
+1. **It is the spelling wherever it is written.** VERIFIED:
+   `path(.client)` generates `".client"` at the document root, nested
+   two deep, and inside a spread template alike. It does not answer
+   "relative to what" — it postpones the question and hands it to
+   whoever dereferences.
+2. **Nothing dereferences a path value.** VERIFIED: with
+   `cap: path(.client)`, `use: $.cap` is `".client"`, the address.
+   `refer()` constrains an address to resolve and the field keeps the
+   address. `emit` would need a dereference step the language
+   deliberately does not have.
+3. **It would be the second non-strict argument position.** The
+   language reference calls `path(p)` "the one non-strict argument
+   position in the language", and the call itself is the marker.
+   `emit(.client, T)` would be non-strict invisibly, which is the kind
+   of reserved meaning [ADR-010](../../ADR.md#adr-010--no-magic-keys-or-paths-the-tree-at-all-levels-is-user-space)
+   exists to keep out of the tree.
+4. **It would defeat the descent's totality argument.**
+   [§2](#2-the-rule-layer--apply-templates-in-the-engine) rests on
+   links not being edges: `refer`/`rel` create no structural edge, and
+   the descent follows `peg` only. An address-valued selector makes
+   `emit` a traversal of the LINK graph, which the design explicitly
+   permits to be cyclic, so it would need a visited set and a declared
+   visit order rather than being a fold over a finite tree.
+5. **A value selector is strictly more expressive, and it is why there
+   is no XPath here.** `filter(.on.file.events, {source: 's3'})` is a
+   computed node-set. An address would need a predicate sub-language
+   beside it — which is XSLT's XPath, and the second pattern language
+   this design refuses. `filter`, `pick`, `pack` and patterns-by-
+   unifiability already do that work with no new grammar, and every
+   other builtin — `match`'s patterns included — takes values too.
+
+**Where `path()` does belong is the other side of the call.**
+[§2](#2-the-rule-layer--apply-templates-in-the-engine) requires the
+render report to record (node path, rule index) for every emitted
+piece, and that node path is a captured spelling used as data —
+meetable by the prefix rule, and a path value rather than a bare
+string. `path()` is the right type for what `emit` REPORTS and the
+wrong type for what it is GIVEN.
+
 ### There is no `mode`, because a table is a value
 
 XSLT has two distinct constructs and they are easily conflated. A
@@ -3041,7 +3098,7 @@ gating generation, but it remains an ADR-001 break in its own right.
 | **1** (`aontu:code`) | Unchanged. The vocabulary is what a body's pieces are checked against, and it is what `emit`'s return type names. |
 | **3** (`form`) | Strengthened, and its evidence is now specific: the four routes closed in fact 2 are all "the value is there and the engine will not settle it inline". |
 | **4** (the renderer) | Unchanged, and confirmed: `emit` returns the flat piece list the fold already reads, so the renderer needs nothing new to consume a rule set's output. |
-| **6** (`walk`) | **Re-scoped, and it is the load-bearing phase.** It ships `emit(select, table)` — dispatch against a list of `{match, body}` records, first match wins, bodies instantiated against the matched node, result flat — rather than `walk(data, tmpl)` with the table encoded in `match` argument positions. No `mode` argument and no `mode` key: a mode is a named table. A body — its selectors included — binds to a NAMED origin, the node the template matched, rather than to a dot count, because a count does not survive composition. Descent stays: `emit` with no explicit selection is the children, which is how a recursive rule set walks a tree. It also settles whether enriching a node-set before dispatch is enough to pass outer context to an inner template, or whether a parameter is needed. The totality argument of [§2](#2-the-rule-layer--apply-templates-in-the-engine) is unchanged, since it is about the structure descended, not about how rules are spelled. |
+| **6** (`walk`) | **Re-scoped, and it is the load-bearing phase.** It ships `emit(select, table)` — dispatch against a list of `{match, body}` records, first match wins, bodies instantiated against the matched node, result flat — rather than `walk(data, tmpl)` with the table encoded in `match` argument positions. No `mode` argument and no `mode` key: a mode is a named table. A body — its selectors included — binds to a NAMED origin, the node the template matched, rather than to a dot count, because a count does not survive composition. Descent stays: `emit` with no explicit selection is the children, which is how a recursive rule set walks a tree. The selector is a VALUE in an ordinary strict argument position, never a captured address: `path()` is the type of what the run REPORTS (the provenance node path), not of what `emit` is given. It also settles whether enriching a node-set before dispatch is enough to pass outer context to an inner template, or whether a parameter is needed. The totality argument of [§2](#2-the-rule-layer--apply-templates-in-the-engine) is unchanged, since it is about the structure descended, not about how rules are spelled. |
 | **new, after 6** | The template surface: the marker comment, the indentation rule, the escape for a target line that begins with the marker, the desugaring, and `fmt` over a template file. It is a sugar with one rule and a round-trip test, and it cannot be written before `emit` exists, because it desugars to `emit`. |
 
 The acceptance case for phase 6 stands as
