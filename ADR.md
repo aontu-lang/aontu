@@ -2327,13 +2327,13 @@ evaluation budget applies. That budget is therefore now a **server**
 requirement and not only a client one.
 
 **We accept that subsumption does not cover defaults.** If
-`port: integer = 8080` becomes `= 9090`, the admitted set is unchanged,
-so the check passes — and every consumer relying on the default gets a
-different value. That is the hostile-value class arriving through a
-compatible release. The publish check needs a defaults report alongside
-subsumption, surfaced and acknowledged rather than silently allowed;
-this is named here because it is the gap a reader would otherwise
-assume closed.
+`port: integer & *8080` becomes `integer & *9090`, the admitted set is
+unchanged, so the check passes — and every consumer relying on the
+default gets a different value. That is the hostile-value class arriving
+through a compatible release. The publish check needs a defaults report
+alongside subsumption, surfaced and acknowledged rather than silently
+allowed; this is named here because it is the gap a reader would
+otherwise assume closed.
 
 **We accept a migration diagnostic.** With `./` mandatory, a bare
 `@"foo.aon"` classifies as a package and would fail with "package not
@@ -2342,11 +2342,20 @@ mistake. A reference whose final segment carries a known file extension
 and no `./` refuses with *"local files need a `./` prefix"*. Routing
 stays a shape rule; only the error is special-cased.
 
-**Aliases do not create contradictions.** An earlier draft claimed two
-versions of one package meeting in a document would conflict. They do
-not: with compatibility enforced, `1.2 ∧ 1.4` is simply `1.2`, the
-narrower. Different subtrees is the ordinary usage; meeting is also
-well-defined.
+**Aliased versions must occupy different subtrees, and defaults are
+why.** Constraints meet without trouble — `integer & 8080` is `8080`,
+the narrower — so it is tempting to say two aliased versions can safely
+meet. **They cannot, and the reason is the paragraph above.** Two
+defaults of the same rank do not unify: `*8080 & *9090` refuses with
+`pref_rank_clash`, because defaults are not ordered by subsumption and
+so have no meet. The consumer can rank one (`**9090`) to say
+deliberately which layer is weaker, and otherwise the two versions must
+never meet.
+
+This is one gap, not two. Defaults sit outside the subsumption order,
+which is both why the publish check cannot see a changed default and why
+two versions carrying different defaults contradict rather than
+combining.
 
 **What this supersedes and what survives.** ADR-020's part 2 (two
 admission tiers), part 3 (a host must prove ownership and issue a
