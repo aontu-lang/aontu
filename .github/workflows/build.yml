@@ -7,7 +7,13 @@ on: ['push', 'pull_request']
 jobs:
   build-ts:
     name: TypeScript
-    timeout-minutes: 6
+    # Twelve, not six: `npm install` resolves the tree on every run
+    # (package-lock.json is not committed) and has taken three to five
+    # minutes on a slow registry hour, which left the six-minute budget
+    # no room for the tests they were still passing. The npm cache
+    # below keeps the downloads across runs; the budget keeps a slow
+    # hour from reading as a failure.
+    timeout-minutes: 12
     strategy:
       fail-fast: false
       matrix:
@@ -23,6 +29,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
+          cache: npm
+          cache-dependency-path: ts/package.json
       - run: npm install
       - run: npm run build
       - run: npm test
