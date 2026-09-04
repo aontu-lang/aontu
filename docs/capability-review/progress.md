@@ -1637,6 +1637,28 @@ exactly the reason it applies here — so the signing subject is recorded
 at first publish and a change of subject is cooldown-gated rather than
 routine.
 
+**A second service is admitted in the same commit**, as
+[ADR-021](../../ADR.md#adr-021--the-project-hosts-private-packages-with-authenticated-reads):
+the project **hosts private packages behind authenticated reads**. This
+goes through ADR-019's "each would need its own entry" clause rather
+than around it, and the boundary bullets that forbade it — G6's
+"no private-registry auth design in v1" and this gap's "no private-module
+or auth design in v1" — are amended and reversed respectively in the
+same commit. No row moves: nothing is built, and phase 3's verbs are
+still NOT STARTED.
+
+The shape is what keeps it admissible. **The public read path is
+unchanged** — static objects, no code, still mirrorable — and the
+private tier is additive: a Worker authenticates and redirects to a
+presigned URL, never serving bytes itself. Membership is delegated to
+the forge exactly as ownership already is, so the project runs no
+accounts, teams or invitations. And **ADR-019's constraint 1 survives
+verbatim**, which is the load-bearing part: a locked build contacts
+neither service, so even a paid, authenticated tier cannot stop anybody
+building. What is genuinely new is custody of confidential
+configuration, an availability commitment, and metering — recorded in
+the entry as costs rather than left to be discovered.
+
 Baseline at drafting, for protocol rule 5: `ls test/spec/*.tsv | wc -l`
 = **97**, `awk -F'\t' 'NF>2 && $0 !~ /^#/' test/spec/*.tsv | wc -l`
 = **3767** (both re-derived 2026-08-30, after G6.2's path-gate rows).

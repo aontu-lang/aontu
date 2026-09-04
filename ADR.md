@@ -37,6 +37,7 @@ ADR-NNN**, so the reasoning that led there stays readable.
 | [ADR-018](#adr-018--the-pipe-operator-is-removed) | The pipe operator is removed | Accepted |
 | [ADR-019](#adr-019--the-project-stores-module-bytes-and-federates-the-log) | The project stores module bytes, and federates the log | Accepted |
 | [ADR-020](#adr-020--a-module-path-is-domainpath-and-the-domain-is-a-proved-namespace) | A module path is `<domain>/<path>`, and the domain is a proved namespace | Accepted |
+| [ADR-021](#adr-021--the-project-hosts-private-packages-with-authenticated-reads) | The project hosts private packages, with authenticated reads | Accepted |
 
 ---
 
@@ -1877,7 +1878,11 @@ claim is made to users on its basis.
 exactly as ADR-013 did — and it is the *replacement* for that service,
 not an addition to it. It is not a precedent for a hosted evaluator, a
 query surface, a hosted build, or a second service; each would need its
-own entry. It does not weaken
+own entry. *(One since has:
+[ADR-021](#adr-021--the-project-hosts-private-packages-with-authenticated-reads)
+admits a hosted private tier through this clause rather than around it,
+and inherits constraint 1 — a locked build contacts neither service.)*
+It does not weaken
 [ADR-002](#adr-002--test-coverage-stays-at-100--in-both-implementations):
 the network code reaches the coverage floor through an injected seam, as
 `ModuleFs` and `ModuleEval` already do, or it does not land. And it does
@@ -2079,3 +2084,129 @@ scope for the reason G6 gave.
 The design is `REPOSITORY.0.md` in `aontu-lang/system` — §3a for the two
 tiers, §3b for the rename, §7.6 for repojacking and what it costs;
 status is the [progress register](docs/capability-review/progress.md).
+
+---
+
+## ADR-021 — The project hosts private packages, with authenticated reads
+
+**Date:** 2026-09-04
+**Status:** Accepted
+
+### Context
+
+[ADR-019](#adr-019--the-project-stores-module-bytes-and-federates-the-log)
+admits exactly one service and says plainly what it does not license:
+it "is not a precedent for a hosted evaluator, a query surface, a hosted
+build, or a second service; each would need its own entry." A hosted
+private tier is such a second service. This is that entry.
+
+The design note reached the opposite conclusion first, and the reasoning
+is worth keeping because it is the list of obligations this entry now
+carries rather than avoids. Three objections were raised against a
+private tier: it appeared to reverse the static read path that makes the
+public design cheap, mirrorable and structurally resistant to
+denial of service; it means holding other people's confidential
+configuration, where a breach is categorically worse than for public
+data; and it brings accounts, billing, support and availability
+commitments — an operational business rather than a language feature.
+
+The first objection turned out to rest on a false choice. A private tier
+does not have to *replace* the static read path; it can sit beside it.
+The second and third are real and are accepted below as costs rather
+than dissolved.
+
+What makes the tier tractable is that the two hardest parts are already
+solved by decisions taken for other reasons.
+[ADR-020](#adr-020--a-module-path-is-domainpath-and-the-domain-is-a-proved-namespace)
+established that identity is delegated to the forge rather than
+operated, which supplies an answer to "who may read this" without the
+project running accounts. And ADR-019's constraint 1 — a build with a
+lockfile never contacts the service — means an outage of a paid,
+authenticated service still cannot stop anybody's build.
+
+### Decision
+
+**The project hosts private packages and serves them over authenticated
+reads.** The public tier is unchanged; the private tier is additive.
+
+Seven constraints bound it, and they are the decision rather than
+implementation detail:
+
+1. **The public read path is unchanged and stays mirrorable.** Static
+   objects, no code, and every anonymous public request still costs at
+   most one object read. A change that degrades the public path in order
+   to serve the private one breaches this entry.
+
+2. **Authentication is delegated, never operated.** Who may read a
+   tier-A private package is whoever may read the corresponding forge
+   repository; the forge already maintains that and already handles
+   joiners and leavers. The project runs no accounts, teams,
+   invitations, seats, or role administration of its own.
+
+3. **No long-lived read credentials.** CI authenticates by OIDC, as
+   publishing already does; humans get short browser-initiated sessions.
+   npm spent late 2025 revoking exactly this class of credential, and
+   reintroducing it here would be adopting what that ecosystem had just
+   removed.
+
+4. **The authenticating code never serves bytes.** It checks a
+   credential and issues a short-lived presigned URL; content travels
+   from object storage to the client. Cost and latency stay flat in
+   package size, and egress stays free.
+
+5. **A locked build still never contacts the service.** ADR-019's
+   constraint 1 survives verbatim, so a vendored or cached private
+   package builds offline exactly as a public one does — and an outage
+   of a *paid* service still cannot break a build, which is what keeps
+   the availability commitment bounded.
+
+6. **A private package is indistinguishable from a non-existent one.**
+   An unauthorised reader gets the same answer, in the same time, with
+   no public listing and no index entry. A distinguishable refusal would
+   disclose the name, which is the substance of what is being protected.
+
+7. **The exit is export, not mirror.** ADR-019's stated exit was to
+   freeze the bucket and let anyone mirror it, and private data cannot
+   be published to a mirror. Every customer can therefore export
+   everything they have stored, at any time, without asking — designed
+   in from the first version rather than added when somebody leaves.
+
+### Consequences
+
+**We accept custody of confidential configuration.** Infrastructure
+topology, IAM shapes, internal hostnames and allowed-origin lists are
+exactly the material this language is used to express. A breach is
+categorically worse than for public data, and the obligations that
+follow — encryption at rest, access logs the customer can read, and a
+breach-notification duty measured in hours — are part of the decision,
+not operational detail to settle later.
+
+**We accept that some denial-of-service surface returns.** The public
+tier's structural defence is that no anonymous request makes the service
+do work. An authentication endpoint is anonymous-reachable and does
+work, so it is rate-limited separately from the public path and ordered
+to reject cheaply before it checks expensively. This is a bounded
+exception to a property the public path keeps in full.
+
+**We accept an operational business.** A status page, an availability
+commitment, support, billing and usage metering. This is the real cost
+and it is not technical. Two consequences reach the design and so are
+recorded here: **metering must exist from the first private version**,
+because billing retrofitted onto unmetered history is guesswork; and
+**the free public tier must not subsidise an unbounded private one**, so
+quotas and the missing hard spend cap apply to both.
+
+**What this does not license.** It admits a second service, narrowly
+scoped, and is not a precedent for a third. It does not admit a hosted
+evaluator, a hosted build, or a query surface — each would still need
+its own entry. It does not weaken
+[ADR-002](#adr-002--test-coverage-stays-at-100--in-both-implementations):
+the client half reaches the coverage floor through an injected seam like
+every other network path, or it does not land. And it does not touch
+[G5](docs/capability-review/g5-trust-contract.md): a private package is
+data on the same terms as a public one, and where its bytes came from
+changes nothing about what they are permitted to do.
+
+The design, its seven constraints and the four questions it leaves open
+are `REPOSITORY.0.md` §10.6 in `aontu-lang/system`; status is the
+[progress register](docs/capability-review/progress.md).

@@ -417,8 +417,12 @@ code is a database with extra steps.
   cosignable from the first leaf, because that is not retrofittable.
 - **No forge-tag identity, and no `?go-get=1` vanity resolution** — see
   [Design space](#design-space) C.
-- **No private-module or auth design in v1**, inheriting G6's boundary
-  for G6's reason.
+- ~~**No private-module or auth design in v1**~~ — *reversed 2026-09-04
+  by [ADR-021](../../ADR.md#adr-021--the-project-hosts-private-packages-with-authenticated-reads),
+  which hosts private packages behind authenticated reads as a second
+  service, bounded by seven constraints. The public read path is
+  unchanged and still mirrorable; the private tier is additive, and a
+  locked build still contacts neither.*
 - **No approval of what a module contains.** The log records that a
   claim was made, not that it was good. Publisher trustworthiness,
   malware and a compromised maintainer's *new* version are all outside

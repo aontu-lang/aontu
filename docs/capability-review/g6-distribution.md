@@ -449,6 +449,17 @@ is required for v1. Two hooks make the registry more than storage:
 - **No private-registry auth design in v1** — ambient OCI
   credentials (docker login) suffice to start; a credential surface
   designed in haste becomes an exfiltration channel.
+  *(Amended 2026-09-04 by
+  [ADR-021](../../ADR.md#adr-021--the-project-hosts-private-packages-with-authenticated-reads),
+  which admits authenticated reads for hosted private packages. **The
+  warning survives and is the reason for the shape**: the credential
+  surface is delegated rather than designed — read access to a tier-A
+  private package is read access to the corresponding forge repository,
+  so there are no accounts, teams or invitations of ours to become that
+  exfiltration channel. What is designed is a short-lived session and an
+  OIDC exchange, neither of which is a stored credential. The OCI
+  channel this bullet assumed is separately gone, foreclosed before
+  [ADR-019](../../ADR.md#adr-019--the-project-stores-module-bytes-and-federates-the-log).)*
 - **No signing or provenance attestation in v1** — dual pins give
   tamper-evidence; signatures answer "who", a separable problem
   with mature OCI ecosystem answers (sigstore) to adopt later.
