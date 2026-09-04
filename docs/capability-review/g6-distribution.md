@@ -264,6 +264,16 @@ in the path. An import is still just `@"…"` — the string's *shape*
 routes it, so the grammar is untouched and every existing include
 keeps its exact behaviour:
 
+*(Refined 2026-09-04 by
+[ADR-020](../../ADR.md#adr-020--a-module-path-is-domainpath-and-the-domain-is-a-proved-namespace),
+which settles **which** domains. The shape below is unchanged and needs
+no amendment — `github.com/alice/widgets@1` already matches it, so the
+convention costs no grammar, no pattern and no spec row. What ADR-020
+adds sits above the language, in what a repository will accept for
+publication: forge namespaces first, proved by the OIDC claim the forge
+issues, and verified domains later. A module resolved locally or from a
+vendor tree is unaffected, which is why nothing here moves.)*
+
 ```aon
 # Module import: domain-shaped first segment + @<major>.
 service: @"corp.example/schemas/service@1"
@@ -439,6 +449,17 @@ is required for v1. Two hooks make the registry more than storage:
 - **No private-registry auth design in v1** — ambient OCI
   credentials (docker login) suffice to start; a credential surface
   designed in haste becomes an exfiltration channel.
+  *(Amended 2026-09-04 by
+  [ADR-021](../../ADR.md#adr-021--the-project-hosts-private-packages-with-authenticated-reads),
+  which admits authenticated reads for hosted private packages. **The
+  warning survives and is the reason for the shape**: the credential
+  surface is delegated rather than designed — read access to a tier-A
+  private package is read access to the corresponding forge repository,
+  so there are no accounts, teams or invitations of ours to become that
+  exfiltration channel. What is designed is a short-lived session and an
+  OIDC exchange, neither of which is a stored credential. The OCI
+  channel this bullet assumed is separately gone, foreclosed before
+  [ADR-019](../../ADR.md#adr-019--the-project-stores-module-bytes-and-federates-the-log).)*
 - **No signing or provenance attestation in v1** — dual pins give
   tamper-evidence; signatures answer "who", a separable problem
   with mature OCI ecosystem answers (sigstore) to adopt later.
@@ -461,6 +482,20 @@ is required for v1. Two hooks make the registry more than storage:
   that references it. Those constraints are the ADR, not implementation
   detail. This bullet still forbids what it always forbade — a hosted
   place that keeps module bytes. See [G10](g10-transparency.md).)*
+  *(Amended again 2026-09-04 by
+  [ADR-019](../../ADR.md#adr-019--the-project-stores-module-bytes-and-federates-the-log):
+  **the remaining half now goes too.** The project stores module bytes
+  and operates a repository, and the log it was admitted for is
+  federated to Sigstore rather than run — one service, and a different
+  one. What survives of this bullet is its true premise, that running
+  infrastructure forever is a cost and not a feature. What it got wrong
+  was the size of the cost: storage of a million module versions is
+  single-digit dollars a month and egress is free on the chosen
+  provider, so the recurring bill is a moderation obligation with a
+  named human attached, not a hosting bill. The other half of the
+  original reasoning, "OCI already provides storage, auth, replication
+  and org familiarity", is moot — the constraint that put bytes on a
+  forge foreclosed the OCI channel before this decision was taken.)*
 - **No import namespaces or symbol system** — an import stays a
   value unified in place, not a scope; module-scoped identifiers
   are exactly the surface-area creep toward CUE the review warns

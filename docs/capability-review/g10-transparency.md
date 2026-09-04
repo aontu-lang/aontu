@@ -245,6 +245,57 @@ or a later version of the module may read it. A file manifest recorded
 by `tidy` and checked by `verify` closes it as a list comparison rather
 than a second hashing algebra.
 
+### The channel is settled: bytes are stored, 2026-09-04
+
+The successor design was not accepted as written. What was accepted
+instead reverses its founding constraint:
+[ADR-019](../../ADR.md#adr-019--the-project-stores-module-bytes-and-federates-the-log)
+stores module bytes in a project-operated repository and federates the
+log to Sigstore. The design is `REPOSITORY.0.md` in
+[`aontu-lang/system`](https://github.com/aontu-lang/system/blob/main/docs/design/REPOSITORY.0.md).
+Three consequences land on this document.
+
+**Phase 5 is retired rather than deferred.** The log service this gap
+designed will not be built, because Rekor v2 is served in the format
+phase 2 already verifies — C2SP `tlog-tiles` with `sumdb/note`
+checkpoints. The client half is unaffected and its value goes up: it
+becomes the verifier for a log somebody else runs and staffs.
+
+**The availability argument returns, and this time it is collectable.**
+Design D was preferred to C partly because an OCI registry is obliged to
+keep bytes a forge tag is not; the superseding note above recorded that
+this reasoning had been lost. It is restored by a different route. The
+repository serves the bytes, and `aontu_meta/vendor/` drops back to
+being a hedge.
+
+**Both pins become real.** The leaf below records `oci` and `canon`, and
+the objection has always been that `oci` names an identity no client
+checks. Under a repository the field is the stored archive's digest, and
+a client checks it *before parsing* — which also answers the survey's
+sharper complaint that hashing meaning makes the evaluator the
+verification surface. The leaf shape stands; what changes is that its
+first field is now load-bearing.
+
+**Rejection ground 1 is retired.** The superseding note above recorded
+that grounds 2 and 3 had fallen and that "ground 1, module paths against
+forge paths, stands unchanged". It no longer does. The approved naming
+convention is `<domain>/<path>`, with forge hosts admitted first and
+verified domains later, and it dissolves the ground rather than trading
+against it. `github.com/alice/widgets` **is** domain-shaped — `MODULE_RE`
+matches it today, unamended — so nothing is reshaped; and the path is a
+**name rather than a fetch instruction**, so `?go-get=1` is not needed
+either. Bytes always come from the repository, nothing resolves a domain
+at install time, and the arbitrary DNS holders this ground existed to
+keep out of the trust base are therefore not in it. Ownership is proved
+at publish instead, by the OIDC claim the forge already issues and
+Fulcio already carries in the certificate. All three grounds on which
+design C's substrate was rejected have now been answered — none of them
+by design C.
+
+The pin-covers-only-the-entry-file defect above is unchanged and more
+urgent: unpinned files now land in the project's own bucket rather than
+on somebody else's forge.
+
 ## Proposed design
 
 ### The leaf
@@ -345,9 +396,17 @@ code is a database with extra steps.
 - **No source fetching, parsing or evaluation by the service.** It
   sequences and signs publisher-asserted claims. This is what deletes
   the entire ingestion threat model, and reversing it re-opens all of it.
-- **No artifact storage, ever** — that is the registry
-  [ADR-013](../../ADR.md#adr-013--the-project-operates-one-transparency-log-and-nothing-else)
-  admits no service to become.
+- ~~**No artifact storage, ever**~~ — *reversed 2026-09-04 by
+  [ADR-019](../../ADR.md#adr-019--the-project-stores-module-bytes-and-federates-the-log),
+  which stores module bytes in a repository and federates the log to
+  Sigstore. The bullet was written to stop a log drifting into a
+  registry by accretion, and that danger was real; what it got wrong was
+  the price, because storage is single-digit dollars a month at any
+  scale this project will reach and egress is free on the chosen
+  provider. The bullet below it — no source fetching, parsing or
+  evaluation by the service — is what actually held the ingestion threat
+  model shut, it is unchanged, and it now carries the weight this one
+  used to share.*
 - **No log on the path of a locked build.** Adding a *new* dependency
   may require it; building an existing project may not.
 - **No bespoke proof protocol.** C2SP `tlog-tiles` and `tlog-checkpoint`,
@@ -358,8 +417,12 @@ code is a database with extra steps.
   cosignable from the first leaf, because that is not retrofittable.
 - **No forge-tag identity, and no `?go-get=1` vanity resolution** — see
   [Design space](#design-space) C.
-- **No private-module or auth design in v1**, inheriting G6's boundary
-  for G6's reason.
+- ~~**No private-module or auth design in v1**~~ — *reversed 2026-09-04
+  by [ADR-021](../../ADR.md#adr-021--the-project-hosts-private-packages-with-authenticated-reads),
+  which hosts private packages behind authenticated reads as a second
+  service, bounded by seven constraints. The public read path is
+  unchanged and still mirrorable; the private tier is additive, and a
+  locked build still contacts neither.*
 - **No approval of what a module contains.** The log records that a
   claim was made, not that it was good. Publisher trustworthiness,
   malware and a compromised maintainer's *new* version are all outside

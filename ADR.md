@@ -29,7 +29,15 @@ ADR-NNN**, so the reasoning that led there stays readable.
 | [ADR-010](#adr-010--no-magic-keys-or-paths-the-tree-at-all-levels-is-user-space) | No magic keys or paths: the tree at all levels is user space | Accepted |
 | [ADR-011](#adr-011--the-star-is-sugar-the-disjunction-is-the-structure) | The star is sugar; the disjunction is the structure | Accepted |
 | [ADR-012](#adr-012--an-includes-extension-decides-what-the-file-is-aontu-source-config-data-or-refused) | An include's extension decides what the file is: Aontu source, config data, or refused | Accepted |
-| [ADR-013](#adr-013--the-project-operates-one-transparency-log-and-nothing-else) | The project operates one transparency log, and nothing else | Accepted |
+| [ADR-013](#adr-013--the-project-operates-one-transparency-log-and-nothing-else) | The project operates one transparency log, and nothing else | Superseded in part by [ADR-019](#adr-019--the-project-stores-module-bytes-and-federates-the-log) |
+| [ADR-014](#adr-014--the-tree-is-the-namespace-there-is-no-identity-mark) | The tree is the namespace: there is no identity mark | Accepted |
+| [ADR-015](#adr-015--paths-are-first-class-values-pathp-captures-and-a-vacuous-constructor-call-is-a-kind) | Paths are first-class values: `path(p)` captures, and a vacuous constructor call is a kind | Accepted |
+| [ADR-016](#adr-016--a-string-is-never-a-path-conversion-lives-in-the-call-and-paths-meet-by-prefix) | A string is never a path: conversion lives in the call, and paths meet by prefix | Accepted |
+| [ADR-017](#adr-017--the-builtin-call-surface-is-declared-parsed-by-both-ports) | The builtin call surface is declared, parsed by both ports | Accepted |
+| [ADR-018](#adr-018--the-pipe-operator-is-removed) | The pipe operator is removed | Accepted |
+| [ADR-019](#adr-019--the-project-stores-module-bytes-and-federates-the-log) | The project stores module bytes, and federates the log | Accepted |
+| [ADR-020](#adr-020--a-module-path-is-domainpath-and-the-domain-is-a-proved-namespace) | A module path is `<domain>/<path>`, and the domain is a proved namespace | Accepted |
+| [ADR-021](#adr-021--the-project-hosts-private-packages-with-authenticated-reads) | The project hosts private packages, with authenticated reads | Accepted |
 
 ---
 
@@ -1245,7 +1253,14 @@ and the browser bundle the playground ships grows with them.
 ## ADR-013 — The project operates one transparency log, and nothing else
 
 **Date:** 2026-08-30
-**Status:** Accepted
+**Status:** Superseded in part, 2026-09-04, by
+[ADR-019](#adr-019--the-project-stores-module-bytes-and-federates-the-log).
+Constraint 1 ("it stores no module source, ever") is reversed, and the
+service this entry admits is no longer the one the project runs: the log
+federates to Sigstore and a module repository takes its place.
+Constraints 2 to 5 survive verbatim and bind the repository instead —
+they were the reason this entry was admissible, and ADR-019 inherits
+rather than relaxes them.
 
 ### Context
 
@@ -1734,3 +1749,464 @@ and the last step before a splice becomes its own seam
 would never produce — the footing `spanHolds` already stood on, and
 no coverage exclusion needed. The G8 phase 4 register row is flipped
 to REMOVED; the design record stands.
+
+---
+
+## ADR-019 — The project stores module bytes, and federates the log
+
+**Date:** 2026-09-04
+**Status:** Accepted
+
+### Context
+
+[ADR-013](#adr-013--the-project-operates-one-transparency-log-and-nothing-else)
+admitted exactly one service and bound it with five constraints, the
+first of which was that it stores no module source, ever — "a log that
+began caching artifacts would be the registry
+[G6](docs/capability-review/g6-distribution.md) rejected, wearing a
+different name." That sentence was right about the risk and wrong about
+the arithmetic, and both halves are worth stating.
+
+**What the no-bytes position cost.** A design note written under the
+constraint states the consequence in its own first section: Go's
+integrity comes from its checksum database, Go's availability comes from
+a proxy that stores module bytes, and refusing to store bytes means a
+record can prove what a release *was* without being able to hand it
+over. A log proves; it does not serve. The answer offered was
+`aontu_meta/vendor/`, which is consumer-side discipline rather than an
+ecosystem guarantee. A commissioned survey of the field then found the
+availability answer incomplete, and named the second hole: with no
+stored bytes there is nowhere to put the mutable metadata channel —
+withdrawal, advisories, revocation — that every mature ecosystem ended
+up needing.
+
+**What the arithmetic turned out to be.** G6 rejected a hosted registry
+as "infrastructure the project must run forever", and ADR-013 conceded
+that half of the reasoning applies to a log "unchanged, and the whole
+cost". Costed against current object-storage rates, storage is not the
+expense at any scale this project will reach: a hundred thousand stored
+versions sits inside a free tier, and a million costs single-digit
+dollars a month. Egress, which is the line item that makes a package
+CDN expensive, is zero on the chosen provider. The design note carries
+the table.
+
+The cost that is real is not infrastructure. **A repository that stores
+what other people publish is a moderation venue**, and that obligation
+is denominated in a named human rather than in dollars. It is accepted
+here explicitly rather than discovered later.
+
+Two developments made the reversal cheaper than it would have been when
+ADR-013 was written. Sigstore's Rekor v2 reached general availability
+and is served as C2SP `tlog-tiles` static objects with `sumdb/note`
+checkpoints — the exact format the client half already verifies against
+689 upstream-generated vectors. And the artifact channel ADR-013
+assumed, an OCI registry, was foreclosed by a later constraint, leaving
+the artifact question open rather than settled.
+
+### Decision
+
+**The project stores module bytes, and operates a module repository
+instead of a transparency log.** Attestation federates to Sigstore.
+
+ADR-013's constraint 1 is reversed. Its constraints 2 to 5 are inherited
+verbatim and bind the repository, because they are what made an operated
+service admissible at all:
+
+1. **A build that has a lockfile never touches it.** Evaluation stays
+   hermetic; the repository is consulted only when *adding* a version
+   the lockfile does not already pin. If the service dies tomorrow,
+   every existing project keeps building.
+2. **It is publicly replicable, in a standard format.** The read path is
+   static, content-addressed objects in a GOPROXY-shaped layout, served
+   from a bucket with no code on the read path. Mirroring is a directory
+   copy, which is the property that makes constraint 4 real.
+3. **Its client half is in both ports, under
+   [ADR-001](#adr-001--typescript-and-go-stay-at-full-parity-driven-by-a-shared-spec).**
+   Pin checking and proof verification are language behaviour. Only the
+   publish path lives in one place.
+4. **It has a stated exit.** The bucket can be frozen and mirrored, and
+   a frozen mirror still *serves* — a stronger exit than the log's,
+   which could only prove.
+
+Three constraints are new, and are the ones this entry adds rather than
+inherits:
+
+5. **The service fetches nothing, parses nothing and evaluates nothing.**
+   A publisher uploads; the repository stores. This is what keeps the
+   entire ingestion threat model deleted — no forge adapters, no SSRF
+   allowlist, no observation queue, no negative caching — and reversing
+   it re-opens all of it. A repository that evaluated submissions would
+   be running attacker-chosen input through the evaluator on a server.
+6. **It operates no transparency log.** Identity, signing and the log
+   are Sigstore's: Fulcio for publisher identity, Rekor v2 for the log,
+   the Sigstore bundle as the stored proof, the TUF trust root for
+   rotation. This retires key custody, checkpoint signing, witness
+   recruitment, and the unanswered objection that a Worker's secrets are
+   readable by whatever is deployed to that Worker.
+7. **Withdrawal changes selection, not history.** A retracted or
+   tombstoned version stops being selected and stops being served, but
+   the record of what was published — its pins and its signature bundle
+   — is retained and stays verifiable. Erasure is reserved for content
+   that cannot lawfully be retained, and leaves a tombstone behind.
+
+### Consequences
+
+**We accept a moderation obligation**: an abuse contact, a named
+responder, a stated turnaround, and a takedown runbook that exists
+before the first public publish rather than after the first incident.
+The storage provider is itself a host with its own removal process, so a
+project whose only takedown path runs through its provider has account
+suspension as a failure mode, which takes down every module at once.
+This is the recurring cost, and it does not shrink with automation.
+
+**We accept a second checkable pin.** The archive digest becomes a pin a
+client can verify before parsing, alongside the canon-hash it verifies
+after evaluating. This is a gain rather than a complication — it gives
+back a cheap pre-parse gate, which is the answer to the objection that
+hashing meaning makes the evaluator the verification surface — but the
+order is now a specified behaviour in both ports, not an implementation
+detail, and a client that checks only the cheap pin is a defect.
+
+**We do not accept provenance as a control.** The survey's finding
+stands and is not softened by adopting more of Sigstore: no mainstream
+package manager verifies provenance at install by default, and malicious
+packages shipped with cryptographically valid attestations twice in
+2026. Sigstore is adopted for tooling reuse and forensics. No safety
+claim is made to users on its basis.
+
+**What this does not license.** It admits one service, narrowly scoped,
+exactly as ADR-013 did — and it is the *replacement* for that service,
+not an addition to it. It is not a precedent for a hosted evaluator, a
+query surface, a hosted build, or a second service; each would need its
+own entry. *(One since has:
+[ADR-021](#adr-021--the-project-hosts-private-packages-with-authenticated-reads)
+admits a hosted private tier through this clause rather than around it,
+and inherits constraint 1 — a locked build contacts neither service.)*
+It does not weaken
+[ADR-002](#adr-002--test-coverage-stays-at-100--in-both-implementations):
+the network code reaches the coverage floor through an injected seam, as
+`ModuleFs` and `ModuleEval` already do, or it does not land. And it does
+not disturb [G5](docs/capability-review/g5-trust-contract.md): no
+include is ever executed in the evaluating process, and a repository
+changes where bytes come from, never what they are allowed to do.
+
+The G6 boundary bullet and the
+[G10](docs/capability-review/g10-transparency.md) boundary are amended
+in the same commit as this entry. The design, its cost model, its
+registry-management policy and its open questions are `REPOSITORY.0.md`
+in `aontu-lang/system`; status is the
+[progress register](docs/capability-review/progress.md).
+
+---
+
+## ADR-020 — A module path is `<domain>/<path>`, and the domain is a proved namespace
+
+**Date:** 2026-09-04
+**Status:** Accepted
+
+### Context
+
+[G6](docs/capability-review/g6-distribution.md) settled that a module
+path is domain-based, CUE/Go-style, with the major version in the path,
+and `MODULE_RE` in both ports has enforced a domain-shaped first segment
+since. What was never settled is **which domains**, and the gap was
+load-bearing in a way that only became visible once
+[ADR-019](#adr-019--the-project-stores-module-bytes-and-federates-the-log)
+gave the project somewhere to publish to.
+
+Two problems sat in that gap.
+
+**Ownership was unprovable.** A domain-shaped name ties identity to DNS
+control, which is the structural reason Go and Cargo were immune to
+dependency confusion. But nothing checked it. A commissioned survey put
+the requirement precisely: bind trust to a first-seen key or first-seen
+resolution, "not to whoever controls the DNS at fetch time", because
+domain ownership is a fact about today rather than about when a module
+was published.
+
+**Addressing a forge appeared to require putting DNS in the trust base.**
+The one ground on which the forge-tag registry design was rejected and
+which survived every later revision was that domain-based paths "cannot
+address a forge repository without Go's `?go-get=1` vanity protocol,
+which puts arbitrary DNS holders inside the trust base". A later design
+note compounded this by rejecting `github.com/alice/widgets` as a
+spelling that "discards the domain-shaped identity" — which is not true,
+and `MODULE_RE` matching it unamended is the proof.
+
+### Decision
+
+**Every module path is `<domain>/<path>`. The domain is a namespace the
+publisher must prove, and it is never resolved.**
+
+Five parts, each load-bearing:
+
+1. **The path is a name, not a fetch instruction.** Bytes always come
+   from the repository, whatever the path says. Nothing performs DNS
+   resolution on a module path at install time. This is what separates
+   the convention from Go's, and it is what retires the rejection ground
+   above rather than trading against it.
+
+2. **Admission is tiered.** Tier A is forge namespaces —
+   `github.com/<org>/<repo>`, `gitlab.com/<group>[/<subgroup>…]/<project>`
+   and their equivalents — and is what exists first. Tier B is verified
+   domains, `corp.example/schemas/service`, and comes later.
+
+3. **A host is admissible only when publishing from it both proves
+   namespace ownership cryptographically at publish time and issues a
+   stable identifier for that namespace which is never reused.** GitHub
+   Actions' OIDC token carries a `repository` claim and GitLab's a
+   `project_path`, both of which Fulcio records in the issued
+   certificate; GitHub's `repository_id` and `repository_owner_id`, and
+   GitLab's `project_id` and `namespace_id`, supply the second half. A
+   forge with no OIDC cannot be admitted, because there would be nothing
+   to check; **a forge that publishes only paths cannot be admitted
+   either**, because names are recycled and part 4 would have nothing
+   durable to record. The allowlist is the output of this rule, not a
+   curated list, so admitting a new host is a factual question rather
+   than a policy argument.
+
+4. **Ownership is checked per publish, and the signing subject is
+   recorded — as an identifier pair, never as a name.** To publish
+   `github.com/alice/widgets@1` the signing certificate must carry
+   `repository = alice/widgets`. There is no account, no name
+   reservation, and no squatting policy, because a name nobody can prove
+   they own is a name nobody can publish. But the namespace check alone
+   cannot tell a legitimate transfer from a hostile one — see the
+   repojacking consequence below — so **the subject is the pair
+   `(owner_id, repository_id)`**, recorded at a path's first publish,
+   with a later change of that pair treated as an event rather than a
+   routine publish. A subject defined by name would inherit the very
+   problem it exists to solve.
+
+5. **No module is unnamespaced.** Namespacing is a property of the name
+   rather than a feature the repository adds, so it cannot be opted out
+   of or forgotten.
+
+6. **A rename is a new module plus one signed forward link, and nothing
+   follows it automatically.** The old path publishes a `moved`
+   declaration in a new, higher version — Go's `retract` shape — naming
+   the destination and signed by the namespace it is leaving. Resolution
+   of a moved module *refuses*, naming the destination; it never
+   redirects, because a name that quietly means something else is the
+   failure this entry exists to prevent. A moved path is then frozen
+   against further publication by anyone.
+
+### Consequences
+
+**We accept that a tier-A name is bound to its forge.** A publisher who
+leaves GitHub changes the module path, and a changed path is a new
+module identity. Go accepts the same cost. Tier B is the graduation
+path, and graduating is the rename part 6 describes.
+
+The rename is cheaper here than in Go for a reason worth recording: the
+canon-hash covers the evaluated value and contains no module path, so a
+module republished byte-identically at a new path keeps **the same
+pin**. A rename is continuity of meaning with a discontinuity of name.
+Locked builds never notice one, because the old path's objects are never
+deleted and a build with a lockfile does not consult the repository.
+And when both paths appear in one closure, unification is idempotent, so
+two identical copies unify rather than colliding as duplicate types
+would — the case that makes renames painful in Go is mild in a data
+language, which is why a consumer-side alias is deferred rather than
+built.
+
+**We accept repojacking as the cost of a forge-shaped name.** A
+per-publish namespace check cannot distinguish an abandoned account
+taken over from one legitimately transferred, and GitHub retires a
+namespace only above 100 clones at rename time. This is documented as
+hitting Go hardest of any ecosystem, for exactly the reason it applies
+here: Go module paths are forge paths. Two properties of this design
+blunt it — no published version can be altered, because the service
+never fetches from a forge, and every existing lockfile is pinned by
+meaning and digest — but a taken-over namespace can still publish a
+*new* version. Recording the signing subject (part 4) and gating a
+subject change behind cooldown is the mitigation, and it is a lever Go
+does not have because admission is ours to decide. Part 6's freeze
+closes the rename-shaped half of the window outright.
+
+**We accept the forge's identifier promise as an inherited invariant.**
+Defining the subject as `(owner_id, repository_id)` makes the control
+decidable with no threshold to tune: a workflow rename, a repository
+rename, an owner rename and a new commit all leave the pair untouched,
+while a transfer moves the owner half and a delete-and-recreate moves
+both. The false positive that made this look hard — ordinary workflow
+maintenance reading as a takeover — cannot occur, because a Fulcio
+identity names a workflow but the subject does not. The same primitive
+was reached independently by Microsoft Entra, which migrated GitHub
+Actions federated credentials to immutable subjects against this exact
+attack. What we accept in exchange is that the pair's immutability is
+the forge's promise rather than a cryptographic property: it is
+documented, and load-bearing for other people's security as well as
+ours, but a host that broke it would silently turn every recorded
+subject into a mismatch.
+
+**We accept a case rule.** `MODULE_RE` restricts the domain to lowercase
+but admits mixed case in path elements, and forge namespaces are
+case-insensitive for lookup, so `github.com/Alice/Widgets` and
+`github.com/alice/widgets` would otherwise be two names for one
+repository. Tier-A elements are normalised to lowercase at publish, and
+a path colliding case-insensitively with an existing one is refused.
+
+**We accept that per-host shape is data, not inference.** GitHub
+namespaces are exactly two segments; GitLab subgroups are
+variable-depth, so the boundary between project and subdirectory cannot
+be derived from the string and is recorded at publish.
+
+**The naming rule itself costs nothing to build.** `MODULE_RE` accepts a
+tier-A path today and `validateModulePath` already applies Go's rules,
+so parts 1 to 5 are repository admission policy rather than a language
+change. A local, vendored or privately-hosted module keeps whatever
+domain-shaped path it has, and nothing that evaluates today stops
+evaluating. No shared spec row changes, because no language behaviour
+changes.
+
+**Part 6 is the exception, and it is language work.** `moved` is a field
+in `mod.aon`, which resolution already reads locally, and `module_moved`
+is an addition to the error-code contract. Both land in both ports under
+[ADR-001](#adr-001--typescript-and-go-stay-at-full-parity-driven-by-a-shared-spec),
+and because the check is local — a vendored module can carry `moved` —
+it is expressible as shared spec rows, unlike the network verbs that
+G6 phase 3 had to cover by CLI parity instead. A code *removal* is
+already settled as a decision-record matter
+([ADR-011](#adr-011--the-star-is-sugar-the-disjunction-is-the-structure)
+is the precedent); this addition is recorded here so it is deliberate
+rather than incidental.
+
+**What this does not license.** It does not admit resolution of a module
+path over the network, in any tier, for any purpose — that is part 1,
+and reversing it reinstates the trust-base objection this entry exists
+to retire. It does not make a moved name follow automatically, which is
+part 6 and the same objection wearing a friendlier face. It does not
+make ownership a claim the publisher asserts rather than proves. And it
+is not a private-module or authentication design, which stays out of
+scope for the reason G6 gave.
+
+The design is `REPOSITORY.0.md` in `aontu-lang/system` — §3a for the two
+tiers, §3b for the rename, §7.6 for repojacking and what it costs;
+status is the [progress register](docs/capability-review/progress.md).
+
+---
+
+## ADR-021 — The project hosts private packages, with authenticated reads
+
+**Date:** 2026-09-04
+**Status:** Accepted
+
+### Context
+
+[ADR-019](#adr-019--the-project-stores-module-bytes-and-federates-the-log)
+admits exactly one service and says plainly what it does not license:
+it "is not a precedent for a hosted evaluator, a query surface, a hosted
+build, or a second service; each would need its own entry." A hosted
+private tier is such a second service. This is that entry.
+
+The design note reached the opposite conclusion first, and the reasoning
+is worth keeping because it is the list of obligations this entry now
+carries rather than avoids. Three objections were raised against a
+private tier: it appeared to reverse the static read path that makes the
+public design cheap, mirrorable and structurally resistant to
+denial of service; it means holding other people's confidential
+configuration, where a breach is categorically worse than for public
+data; and it brings accounts, billing, support and availability
+commitments — an operational business rather than a language feature.
+
+The first objection turned out to rest on a false choice. A private tier
+does not have to *replace* the static read path; it can sit beside it.
+The second and third are real and are accepted below as costs rather
+than dissolved.
+
+What makes the tier tractable is that the two hardest parts are already
+solved by decisions taken for other reasons.
+[ADR-020](#adr-020--a-module-path-is-domainpath-and-the-domain-is-a-proved-namespace)
+established that identity is delegated to the forge rather than
+operated, which supplies an answer to "who may read this" without the
+project running accounts. And ADR-019's constraint 1 — a build with a
+lockfile never contacts the service — means an outage of a paid,
+authenticated service still cannot stop anybody's build.
+
+### Decision
+
+**The project hosts private packages and serves them over authenticated
+reads.** The public tier is unchanged; the private tier is additive.
+
+Seven constraints bound it, and they are the decision rather than
+implementation detail:
+
+1. **The public read path is unchanged and stays mirrorable.** Static
+   objects, no code, and every anonymous public request still costs at
+   most one object read. A change that degrades the public path in order
+   to serve the private one breaches this entry.
+
+2. **Authentication is delegated, never operated.** Who may read a
+   tier-A private package is whoever may read the corresponding forge
+   repository; the forge already maintains that and already handles
+   joiners and leavers. The project runs no accounts, teams,
+   invitations, seats, or role administration of its own.
+
+3. **No long-lived read credentials.** CI authenticates by OIDC, as
+   publishing already does; humans get short browser-initiated sessions.
+   npm spent late 2025 revoking exactly this class of credential, and
+   reintroducing it here would be adopting what that ecosystem had just
+   removed.
+
+4. **The authenticating code never serves bytes.** It checks a
+   credential and issues a short-lived presigned URL; content travels
+   from object storage to the client. Cost and latency stay flat in
+   package size, and egress stays free.
+
+5. **A locked build still never contacts the service.** ADR-019's
+   constraint 1 survives verbatim, so a vendored or cached private
+   package builds offline exactly as a public one does — and an outage
+   of a *paid* service still cannot break a build, which is what keeps
+   the availability commitment bounded.
+
+6. **A private package is indistinguishable from a non-existent one.**
+   An unauthorised reader gets the same answer, in the same time, with
+   no public listing and no index entry. A distinguishable refusal would
+   disclose the name, which is the substance of what is being protected.
+
+7. **The exit is export, not mirror.** ADR-019's stated exit was to
+   freeze the bucket and let anyone mirror it, and private data cannot
+   be published to a mirror. Every customer can therefore export
+   everything they have stored, at any time, without asking — designed
+   in from the first version rather than added when somebody leaves.
+
+### Consequences
+
+**We accept custody of confidential configuration.** Infrastructure
+topology, IAM shapes, internal hostnames and allowed-origin lists are
+exactly the material this language is used to express. A breach is
+categorically worse than for public data, and the obligations that
+follow — encryption at rest, access logs the customer can read, and a
+breach-notification duty measured in hours — are part of the decision,
+not operational detail to settle later.
+
+**We accept that some denial-of-service surface returns.** The public
+tier's structural defence is that no anonymous request makes the service
+do work. An authentication endpoint is anonymous-reachable and does
+work, so it is rate-limited separately from the public path and ordered
+to reject cheaply before it checks expensively. This is a bounded
+exception to a property the public path keeps in full.
+
+**We accept an operational business.** A status page, an availability
+commitment, support, billing and usage metering. This is the real cost
+and it is not technical. Two consequences reach the design and so are
+recorded here: **metering must exist from the first private version**,
+because billing retrofitted onto unmetered history is guesswork; and
+**the free public tier must not subsidise an unbounded private one**, so
+quotas and the missing hard spend cap apply to both.
+
+**What this does not license.** It admits a second service, narrowly
+scoped, and is not a precedent for a third. It does not admit a hosted
+evaluator, a hosted build, or a query surface — each would still need
+its own entry. It does not weaken
+[ADR-002](#adr-002--test-coverage-stays-at-100--in-both-implementations):
+the client half reaches the coverage floor through an injected seam like
+every other network path, or it does not land. And it does not touch
+[G5](docs/capability-review/g5-trust-contract.md): a private package is
+data on the same terms as a public one, and where its bytes came from
+changes nothing about what they are permitted to do.
+
+The design, its seven constraints and the four questions it leaves open
+are `REPOSITORY.0.md` §10.6 in `aontu-lang/system`; status is the
+[progress register](docs/capability-review/progress.md).
