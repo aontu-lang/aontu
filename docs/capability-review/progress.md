@@ -1553,9 +1553,17 @@ a table of escapes. Two further findings: **whitespace control needs no
 trim markers at all**, because a marker line is not an output line, so
 the problem every template engine grows `{%- -%}` for is absent by
 construction; and **output escaping is missing**, VERIFIED — a service
-named `o'brien` generates TypeScript `tsc` rejects — so phase 4's
-profiles gain `str()`, a value the renderer spells as a target string
-literal. The generator is
+named `o'brien` generates TypeScript `tsc` rejects with nine errors.
+The answer is `esc(src, variant?)`, an ordinary string builtin beside
+`upper`/`lower` with no renderer coupling: no variant is the C escape
+in its JSON canonical form, which covers a dozen languages, and a
+variant names a CONVENTION rather than a language (`sq`, `sql`,
+`shell`, `xml`, `uri`, `regex`), because several languages share one
+and one language has several. It is the author's call rather than the
+profile's, because in the template layer the author writes the quotes
+and the renderer cannot see a hole's position — where a transform emits
+a DECLARATION the renderer still spells the literal. VERIFIED against
+`tsc`: 0 errors escaped, 9 unescaped. The generator is
 then a file in the target's own syntax, `//-` comments carrying the
 Aontu: VERIFIED, **12 of 12 handlers byte-identical**, the desugaring
 round-trips in both directions, and the template file has 0 TypeScript

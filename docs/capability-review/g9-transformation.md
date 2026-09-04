@@ -3151,7 +3151,7 @@ destroys them silently. The canonical form quotes them explicitly
 check catches the damage — but the surface has to say so, because the
 first person bitten will not guess.
 
-### String escapes: settled in the canonical form, open in the output
+### String escapes: settled in the canonical form, `esc()` in the output
 
 The canonical form is settled by the per-line quote above. The OUTPUT
 is not, and this is the oldest bug in code generation.
@@ -3163,28 +3163,72 @@ VERIFIED, with a service named `o'brien` and a pin of `it's,a:pin`:
   seneca.client({type:'sqs',pin:'it's,a:pin'})
 ```
 
-`tsc` rejects it with four errors. Interpolation without escaping
+`tsc` rejects it with nine errors. Interpolation without escaping
 generates broken code, and where the data is less benign it generates
 whatever the data says.
 
-**Escaping is a LANGUAGE fact, so it belongs in the profile, not the
-template** — which is exactly what the declaration vocabulary already
-gets right: a transform emits a VALUE and the renderer spells the
-literal, escapes included, per
-[§3](#3-the-renderer-and-the-language-profiles). The fragment layer is
-where an author hand-spells, so it needs the same thing: a hole that
-carries a value to be spelled as a string literal in the target,
-`<-str(.pin)->`, with the profile doing the quoting.
+**Two layers, two mechanisms, and each has its own reason.** Where a
+transform emits a DECLARATION, the renderer spells the literal —
+quotes, escapes and all — per
+[§3](#3-the-renderer-and-the-language-profiles), because there the
+renderer is building the literal and knows the position. **In the
+template layer the AUTHOR writes the quotes**, so only the author knows
+which convention applies; the profile cannot, because a hole's position
+is not something the renderer sees. Escaping there is therefore an
+author-called function, not a profile behaviour.
 
-**Unescaped stays the default**, and the HTML lesson does not transfer.
-Autoescaping is right for HTML because the output is one grammar with
-one escape; here a hole lands in identifier, type, number, path and
-whole-statement positions across many grammars, and a blanket escape is
-wrong in most of them. What generalises instead is the layering: **a
-generator built on the declaration vocabulary never hand-spells a
-literal and so never has this bug at all.** Fragments are the escape
-hatch for what the vocabulary does not cover, and `str()` is the price
-of the hatch. Phase 4 ships it with the profiles.
+```
+esc(src: string, variant?: string) : string
+```
+
+`esc()` is an ordinary string builtin — it sits beside `upper` and
+`lower`, returns a string, composes with `+`, and has no renderer
+coupling at all, so it could land before the profiles do. The name is
+free: it is in neither port's function table.
+
+**With no variant it is the C escape, JSON canonical** — `\\`, `\"`,
+`\n`, `\r`, `\t`, `\b`, `\f`, and control characters as `\uXXXX`.
+That one convention covers TypeScript, JavaScript, Java, C, C++, C#,
+Go, Rust, Swift, Kotlin, Scala and JSON itself, which is why it is the
+default rather than a lookup.
+
+**A variant names an escape CONVENTION, not a language.** That is the
+whole reason it is a variant and not part of the profile: several
+languages share one convention, and one language has several — a
+C-family string literal escapes differently in each quote, and SQL
+spells a literal one way and an identifier another. The initial set,
+each justified by a target this design already names:
+
+| variant | convention | needed by |
+| --- | --- | --- |
+| *(none)* | C / JSON, double-quoted | the TypeScript and Go profiles, and JSON output |
+| `sq` | single-quoted C-family | the handlers themselves — they write `pin:'…'` |
+| `sql` | `''` doubling, standard SQL | the SQL profile |
+| `shell` | POSIX single-quote, `'` → `'\''` | generated scripts |
+| `xml` | the five entities; covers HTML | any markup target |
+| `uri` | percent-encoding | generated URLs and paths |
+| `regex` | metacharacters (`regex`, not `re`, which is a builtin) | patterns built from model data |
+
+**An unknown variant is a located refusal at the call**, never a
+pass-through, by the same rule as every other named code in the
+language. New conventions are added by name — Terraform's `$${`/`%%{`
+is the obvious next one — rather than by teaching the profile a new
+behaviour.
+
+VERIFIED, against `tsc`: the same two values through `esc(_, sq)` and
+`esc(_)` produce `'o\'brien'`, `'it\'s,a:pin'` and
+`"say \"hi\"\\then\tgo"` — **0 errors, against 9 for the unescaped
+output.**
+
+**Unescaped stays the default at the hole**, and the HTML lesson does
+not transfer. Autoescaping is right for HTML because the output is one
+grammar with one escape; here a hole lands in identifier, type, number,
+path and whole-statement positions across many grammars, and a blanket
+escape is wrong in most of them. What generalises instead is the
+layering above: **a generator built on the declaration vocabulary never
+hand-spells a literal and so never has this bug at all.** Fragments are
+the escape hatch for what the vocabulary does not cover, and `esc()` is
+the price of the hatch.
 
 **No line of target code appears inside an Aontu string.** That is the
 difference from every earlier attempt, and it is what the rule layer
@@ -3285,7 +3329,7 @@ gating generation, but it remains an ADR-001 break in its own right.
 | --- | --- |
 | **1** (`aontu:code`) | Unchanged. The vocabulary is what a body's pieces are checked against, and it is what `emit`'s return type names. |
 | **3** (`form`) | Strengthened, and its evidence is now specific: the four routes closed in fact 2 are all "the value is there and the engine will not settle it inline". |
-| **4** (the renderer) | Unchanged, and confirmed — `emit` returns the flat piece list the fold already reads — but it GAINS one deliverable: `str()`, a piece carrying a value the renderer spells as a target string literal, escapes included. Without it a hand-spelled literal generates broken code, VERIFIED. |
+| **4** (the renderer) | Unchanged, and confirmed — `emit` returns the flat piece list the fold already reads. The renderer keeps spelling DECLARATION literals; hand-spelled ones in the template layer are the author's, through `esc(src, variant?)`, an ordinary string builtin with no renderer coupling that could land earlier. Without it a hand-spelled literal generates broken code, VERIFIED. |
 | **6** (`walk`) | **Re-scoped, and it is the load-bearing phase.** It ships `emit(select, table)` — dispatch against a list of `{match, body}` records, first match wins, bodies instantiated against the matched node, result flat — rather than `walk(data, tmpl)` with the table encoded in `match` argument positions. No `mode` argument and no `mode` key: a mode is a named table. A body — its selectors included — binds to a NAMED origin, the node the template matched, rather than to a dot count, because a count does not survive composition. Descent stays: `emit` with no explicit selection is the children, which is how a recursive rule set walks a tree. The selector is a VALUE in an ordinary strict argument position, never a captured address: `path()` is the type of what the run REPORTS (the provenance node path), not of what `emit` is given. It also settles whether enriching a node-set before dispatch is enough to pass outer context to an inner template, or whether a parameter is needed. The totality argument of [§2](#2-the-rule-layer--apply-templates-in-the-engine) is unchanged, since it is about the structure descended, not about how rules are spelled. |
 | **new, after 6** | The template surface: the marker (the target's comment token plus a dash), the indentation rule, the PROFILE-CHOSEN hole (`<-expr->` by default; no pair is safe in every language, and `${}` is the worst of them), the parse check that turns a collision into a located refusal, the per-line quote that makes every line representable, the fixpoint rule that is the residual escape, the trailing-whitespace hazard, the desugaring, and `fmt` over a template file. It is a sugar with one rule and a round-trip test, and it cannot be written before `emit` exists, because it desugars to `emit`. |
 
