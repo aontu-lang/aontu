@@ -859,7 +859,7 @@ pref member's admitted contribution to a disjunction is exactly its
 own value, not its kind.
 
 **And the preference machinery was re-founded on it (2026-08-29,
-[ADR-011](../../ADR.md#adr-011), docs/design/DEFAULTS.0.md).** `*x` is
+[ADR-011](../../ADR.md#adr-011--the-star-is-sugar-the-disjunction-is-the-structure), docs/design/DEFAULTS.0.md).** `*x` is
 sugar for `*x | super(x)`, so the meet distributes over that
 disjunction — `(x & peer) | (super(x) & peer)` — instead of testing
 whether the peer resolves to exactly the gate. The preferred value
@@ -1516,15 +1516,34 @@ hits the recursion hazard the container types were capped for —
 VERIFIED, even a valid instance refuses), which makes the declaration
 vocabulary a lowering onto it rather than the only path.
 
+**A third amendment, 2026-09-04**, moves the rule layer out of the gap
+document and into two design notes, on the pattern
+[GENERATION-FORMS.0.md](../design/GENERATION-FORMS.0.md) already set:
+[EMIT.0.md](../design/EMIT.0.md) (`emit(select, table)` — the table as
+data, the flat result, no `mode`, selector resolution, and the four
+engine facts that make the dispatch a builtin) and
+[TEMPLATE.0.md](../design/TEMPLATE.0.md) (the target-syntax surface —
+the `//-` marker, `replace` in place of an inline hole, the two static
+checks, `esc`/`usc` and escape-by-default, the per-line quote,
+whitespace control). What prompted them: four prototypes of a generator
+for a production backend's twelve Lambda handlers were built and **none
+contained an apply-templates**. The fifth does, and reproduces all
+twelve byte-identically. **Phase 6 is re-scoped** to ship `emit` rather
+than `walk(data, tmpl)`, and gains a second acceptance case — a
+recursive rule set, the one case no amount of user-space work reaches.
+The surface follows it as a new phase. Go refuses the expansion the
+notes were verified through, on
+[BUGS.md §63](../../use-cases/BUGS.md).
+
 | Phase | Size | Status | Pin |
 |-------|------|--------|-----|
 | **0** — the gating defects | S | **PARTIAL** (re-probed 2026-09-04; see the design's amendment — item 3 is VOID under ADR-014, item 4 is now the plan's first phase) | Six defects found while surveying for this capability and recorded in [use-cases/BUGS.md](../../use-cases/BUGS.md) §57–§62, each with a minimal repro under `use-cases/repros/`. **Four are fixed**, in both ports and pinned by shared rows: §58 `id()` naming its own descendant, which crashed both engines on the host stack (that fix and its `test/spec/id.tsv` pin are since SUPERSEDED by ADR-014: `id()` is removed, and no document can ask for the shape); and the three ADR-001 parity breaks — §59 `vet --at` losing `%alias` references in Go, §61 Go's `trialUnify` never setting `ctx.trial` so `match`/`filter` answered differently, §62 `pick` ordering an astral-keyed map by UTF-16 code units in TypeScript. The last two are in the primitives this design depends on for selection and for line order. **Two remain**: §57, a recursive spread conjoined with a map, non-terminating in both ports — diagnosed to the mechanism, with one fix attempt reverted for holding in TypeScript only; and §60, the canon-hash blind to an alias used as a spread template, a silent pin failure. |
 | **1** — the vocabulary as a bundled schema | S | **NOT STARTED** | `@"aontu:code"`, which **needs [MODELS.0.md](../design/MODELS.0.md)'s M0 first** for the `aontu:` resolver leg, and which grows by the flat fragment nodes of the second amendment. **Re-verified implementable with no edits, 2026-09-04**: the vocabulary text extracted from the design vets a full instance `valid` and a bad `prim`, a bad `%Name` and a nested container `invalid`, in both ports; an includer generates only its own keys; the hash is byte-identical across the ports. |
 | **2** — `join` | S | **LANDED** | `JoinFuncVal` (ts/src/val/AggFuncVal.ts) and `joinBag` (go/agg.go), registered in both tables, both grammars' `name` rule and both LSP lists; `test/spec/gen-join.tsv`, **47 rows executed by both runners**; `errcodes.tsv` +1 (`join_member`, conflict). The design's acceptance case holds: `join([8080,443],"-")` is `"8080-443"` in both ports, an unfired call canons as its call and reparses, and the lark literal check is green after the three missing names were added. **Landed as designed, with three things worth recording.** (1) The `+` fold is not a figure of speech: `plusText` was extracted from `PlusOpVal` and `primStr` was already exported in Go, so the fold and the operator SHARE a renderer and cannot drift into two answers to "how does a number become text". (2) **`join` is the first builtin that is both STAGED and DEFERS its resolution**, and that combination needed a `make` override its `AggFuncVal` siblings do not have — without it TypeScript raised `func:join` where Go residuated, on `join($.m,",")` with `m: [string]`. Found by running both engines, not by either test suite. (3) **The ADR-002 gate found dead code that probing then confirmed**: a nil-member guard, written by analogy with `sum`, is unreachable in `join` and was removed in both ports rather than excused. `sum` folds with `arith`, which MINTS a nil part-way through; `join` folds already-unified values, and a nil among a list's elements collapses the list before the call resolves — `join([least([])],",")` reports `aggregate_empty` at the member's own path and never reaches the fold. (4) The separator is a STRING, refused as `invalid-arg` otherwise, though `+` would render a number perfectly well: it is the parameter naming the text between members rather than a member, `pick`'s key draws the same line, and loosening later breaks no document while tightening would. **Item 4 of phase 0 is NOT a prerequisite and did not land here**: `join` reuses `bagChildren`, so it treats `hide`-marked and unfilled optional children exactly as `each` and `pick` do today, and phase 0 will change all four together rather than leaving `join` alone in a new behaviour. **Downstream:** [use-cases/15-code-generation](../../use-cases/15-code-generation/) changed shape — its transforms now compute the whole FILE rather than its lines, the six-line Python fold in `check.sh` is gone, and the check that proved the gap (the SQL golden REFUSED by a real parser for a trailing comma) is inverted: the SQL now parses and `check.sh` opens it in SQLite and asserts the tables and columns exist. |
 | **3** — `form`, the order-preserving map | S/M | **NOT STARTED** | `each` meets and cannot transform; `pack` keys by data and reorders |
-| **4** — the renderer core and the first two profiles | M | **NOT STARTED** | The `render` verb; the Go and TypeScript profiles; and, per the second amendment, a fragment entry point plus a two-field `aontu:lang/text` profile, which is the executable form of "a new language is data". The fold reads a piece's `at` where the design counted recursion depth. |
+| **4** — the renderer core and the first two profiles | M | **NOT STARTED** | The `render` verb; the Go and TypeScript profiles; and, per the second amendment, a fragment entry point plus a two-field `aontu:lang/text` profile, which is the executable form of "a new language is data". The fold reads a piece's `at` where the design counted recursion depth. Plus the three string builtins of [TEMPLATE.0.md](../design/TEMPLATE.0.md) — `esc(src, variant?)` (escaping is ON for a `replace` value, with `esc:` an optional key naming the variant), its left inverse `usc`, `rep(src, re, sub)` over `re()`'s own portable subset, and `split(src, sep)` — which have no renderer coupling and may land earlier; without them a hand-spelled literal generates broken code, VERIFIED (`tsc` rejects an unescaped `o'brien` with nine errors, and accepts the escaped form). |
 | **5** — the reflection sidecar | M | **NOT STARTED** | The view forms (a), (b) and (c) share; an ADR-001 question first (GENERATION-FORMS.0.md §2) |
-| **6** — `walk`, the manifest, and the verb | M | **NOT STARTED** | One run over N outputs, and where the fragment algebra pays off: `walk` plus `match` plus fragments is apply-templates with its result tree, so the acceptance case is a target the declaration vocabulary does NOT fit. **The name is unsettled and is decided before phase 4**: this row says `aontu gen` with a `std/gen` manifest, the design says `aontu render` with the manifest under `@"aontu:code"`, and it names a verb, an MCP tool, a file in each port, help text the suite asserts identical across the builds, and every transcript in the reference. |
+| **6** — `emit`, the manifest, and the verb | M | **NOT STARTED** | One run over N outputs, and where the fragment algebra pays off: dispatch plus fragments is apply-templates with its result tree, so the acceptance case is a target the declaration vocabulary does NOT fit. **Re-scoped by the third amendment (2026-09-04)**: it ships `emit(select, table)` over a table written as data — `[{match, body}, ...]`, inline at the site or held under a name — rather than `walk(data, tmpl)` with the rules encoded in `match` argument positions. Two-ary, with no `mode` argument and no `mode` key, because a mode is a named table; the result is FLAT, which is what the fragment algebra's own no-nesting ruling requires. It gains a second acceptance case, a RECURSIVE rule set, because that is the one case no amount of user-space work reaches. **The verb is `aontu render`, DECIDED 2026-09-04** ([EMIT.0.md D7](../design/EMIT.0.md#d7-the-verb-is-aontu-render)), closing the disagreement between this row's `aontu gen` and the design's `aontu render`: `generate()` already means the Val tree's JSON projection, and `mapval_no_gen`/`listval_no_gen` are codes users meet constantly, so `gen` would carry two meanings in one tool. The manifest is under `@"aontu:code"`; this row's `std/gen` died with the `aontu:` rename. It names a verb, an MCP tool, a file in each port, help text the suite asserts identical across the builds, and every transcript in the reference. **Specified in [EMIT.0.md](../design/EMIT.0.md)**, with the surface that desugars to it in [TEMPLATE.0.md](../design/TEMPLATE.0.md); read those before starting, not this row. |
 | **7** — the Jostraca bridge | M | **NOT STARTED** | Phases 1–5 carry no Jostraca dependency, so this cannot block the language work |
 | **8** — string interpolation | M/L | **NOT STARTED** | The parser phase; deferred behind evidence that `join` did not suffice |
 
@@ -1536,9 +1555,21 @@ rather than of the design: **Aontu evaluates data where it sits**, so
 a rule set holding a template with a relative reference fails
 `no_path` before any dispatch happens (VERIFIED). The design's answer
 is the `&:` spread and the hidden-capture idiom, both of which work
-today and neither of which needs new grammar. That answer should be
-re-tested against a real transform corpus before phases 6–8 are
-committed to.
+today and neither of which needs new grammar.
+
+**That answer has now been re-tested against a real transform corpus,
+and it does not stretch to the rule layer.** The design's third
+amendment (2026-09-04) builds four successive template surfaces against
+the twelve handlers of a production backend and reports that the
+spread carries a template's references correctly but cannot dispatch
+one: `_` does not bind inside a spread template, a staged `match`
+scrutinee written against the element does not resolve there, and
+`pack` — which does bind `_`, and does dispatch — refuses a list, so
+every list-shaped node-set is out of reach. A rule table can therefore
+be inlined at each use site but not reached by reference, which means
+a recursive rule set has no finite expansion at all. Phases 6–8 are
+committed to on that basis: the dispatch is a builtin, and the surface
+that desugars to it comes after.
 
 ## Corrections outstanding in the gap documents
 
