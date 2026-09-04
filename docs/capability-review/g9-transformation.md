@@ -2532,3 +2532,167 @@ correction is reachable in the phases as they stand.
   write effect — `fmt -w`, `agentsmd --write`, `mod tidy`,
   `mod vendor`, `set --overlay` and `view --out` all write today.
 
+---
+
+## Worked assessment 2026-09-04: a production backend
+
+*The four worked examples above are built from this repository's own
+[`use-cases/`](../../use-cases/). This one is not: it is
+[voxgig/podmind](https://github.com/voxgig/podmind)'s `backend/`, a
+deployed Seneca service on AWS Lambda, read at `ab7f333`. It is the
+first external evidence this design has, and it is evidence of a
+particular kind — a project that already runs the pipeline this design
+proposes, with the pieces in different places. Every VERIFIED claim
+below was run against `node ts/bin/aontu.js` at 0.56.0.*
+
+### What the project does today
+
+```
+model/*.jsonic (5 files, ~540 lines, plus a common model from npm)
+  -- voxgig-model, an evaluator -->
+model/model.json (1577 lines)
+  -- three builder scripts, named in model/.model-config/ -->
+  -- each ~15 lines, calling @voxgig/build's EnvLambda.* -->
+gen/serverless/*.yml (4 files, 542 lines)   src/handler/lambda/*.ts (10 files)
+```
+
+A hand-written `serverless.yml` then pulls the generated YAML in with
+`functions: ${file(./gen/serverless/srv.yml)}` and
+`resources: Resources: ${file(./gen/serverless/res.yml)}`.
+
+That is [D5 and D7](#the-owners-decisions) already in production: one
+model, many outputs, several target languages, one run.
+
+### Finding 1 — the model layer is already Aontu, and needs no work
+
+The `.jsonic` files are Aontu documents under the old extension: `@`
+includes, `&:` spreads, `$.` references, preference marks. **VERIFIED
+at 0.56.0**: with the one external include (`@voxgig/podmind-common`)
+reconstructed from the committed `model.json`, the current engine
+evaluates the model and reproduces **all twelve services and the whole
+`msg` section byte-identically** against the committed output. The
+remaining differences — `main.shape`, `main.conf.port`, the entity
+field sets — are all supplied by that external model and absent from
+the reconstruction, not engine behaviour.
+
+One detail from the probe is worth keeping, because it is the kind of
+thing a migration trips on: the reconstruction only completed once the
+shape's scalar leaves were written as **preferences**. A shape supplies
+defaults that a service overrides — `monitor` turns `api.web.active`
+off — and a literal cannot be overridden. Generated JSON cannot carry
+that mark, so a model reconstructed from its own output is not the
+model.
+
+So the migration is an extension rename and a version bump, not a
+rewrite. Everything that follows is about the layer *after* the model.
+
+### Finding 2 — the generator holds facts the model does not
+
+VERIFIED by grep across the whole backend: `role:
+BasicPodmindLambdaRole` and `memorySize: 1024` appear in **no model
+file, no conf file and no hand-written YAML** — only in generated
+output. They come from `@voxgig/build`. The IAM role that `srv.yml`
+references is *defined*, ninety lines of it, by the same generator in
+`res.yml`.
+
+So this system's memory budget per function and its IAM naming
+convention are decisions living in a Node library, not in the document
+that is supposed to be ground truth. That is the disease this
+capability review exists to remove, one layer further out than the
+design had looked: [G8](g8-generation.md) removed the copy inside a
+document, G9 removes it between the document and what is derived from
+it, and here it is between the document and *the generator's own
+defaults*.
+
+**This is the cheapest available win and it needs none of G9.** Moving
+`memorySize`, the role name and the timeout into the model is a model
+change, available today, and it makes the model more nearly ground
+truth whatever generates from it afterwards.
+
+### Finding 3 — the two targets are exactly the two the fragment algebra was added for
+
+**The serverless YAML is indentation-as-syntax**, which
+[Open questions](#open-questions) named as the acid test of the
+indentation design and which the
+[second amendment](#amendment-2026-09-04-second-aontucode-and-the-fragment-algebra)
+answers. It is not a mild case: `srv.yml` nests a list inside a map
+inside a map —
+
+```yaml
+auth:
+  handler: dist/handler/lambda/auth.handler
+  timeout: 30
+  events:
+    - http:
+        path: "/api/public/auth"
+        method: POST
+```
+
+— which is four depths and a list marker, with every level structural.
+A flat, depth-tagged fragment renders it directly; a declaration
+vocabulary has no node for any of it.
+
+**The lambda handlers are not declaration-shaped.** A handler is an
+import, a small function, and an exported async arrow whose body is
+real code. Under the declaration vocabulary alone the whole file is one
+`{k:"text"}` blob — an escape, counted as loss, opaque to `diff` and
+`subsume`, and unable to render to a second target. Under the fragment
+algebra it is composed lines, and the ten handlers differ from each
+other only in a name and one optional `complete()` body, which is
+precisely a `walk` plus `match` over the service list.
+
+### Finding 4 — the builders are form (a), and the split is already there
+
+Each build script is about fifteen lines: it names an output folder and
+calls one `EnvLambda` function. All the work is in `@voxgig/build`.
+Comparing the evaluated `auth` service against its generated YAML,
+every field is either a direct read or a concatenation the language can
+already do today:
+
+| generated | from the model |
+|---|---|
+| `handler: dist/handler/lambda/auth.handler` | `env.lambda.handler.path.prefix` + name + `.suffix` |
+| `timeout: 30` | `env.lambda.timeout` |
+| `path: "/api/public/auth"` | `api.web.path.prefix` + `.area` + name + `.suffix` |
+| `method: POST` | `api.web.method` |
+| `cors: false` | `api.web.cors.active` |
+| `role`, `memorySize` | **nowhere** — finding 2 |
+
+The split this design predicts — derivation to the transform, layout to
+the renderer — is the split the project already has. The line is just
+drawn inside a Node library rather than between a document and a
+renderer, which is why the derivation half is invisible and untestable
+today.
+
+### What it would take, by phase
+
+| what | needs |
+|---|---|
+| The model | nothing (finding 1) |
+| `memorySize`, `role`, timeouts as model facts | nothing (finding 2) |
+| `srv.yml` — twelve services, four depths | phase 1 (fragments), 3 (`form`, for source order), 4 (renderer, `aontu:lang/text` profile) |
+| The ten lambda handlers | the same, plus phase 6 (`walk` + `match` over the service list) |
+| `res.yml` — 306 lines of CloudFormation from the entity and conf sections | the same, and it is the largest single piece of real work: the AWS knowledge in `EnvLambda` becomes a transform |
+| Four files and ten handlers in one run | phase 6 (the manifest), which is `.model-config`'s builder registry in another spelling |
+| Regenerating over a tree that also holds hand-written files | phase 7 — `serverless.yml` is hand-written beside the generated tree, so protected regions are not optional for this consumer |
+
+### What this use case adds to the design
+
+- **A third profile with a waiting consumer.** "Which target ships
+  third" is an open question here; this project answers it with YAML,
+  and answers it with 542 lines of it that a real deployment depends
+  on.
+- **Evidence for the manifest, before it is built.** `.model-config`'s
+  builder registry, three named entries loaded by path, is the manifest
+  of [§6](#6-the-manifest-d5-iv-d7) with the outputs named as Node
+  modules instead of as transforms. The shape is confirmed; what
+  changes is what sits behind each name.
+- **A caution the design should carry.** The honest sizing is that
+  `res.yml` is not a formatting exercise: `EnvLambda` knows DynamoDB
+  table shapes, IAM policy statements and S3 bucket conventions, and
+  moving that into a transform is real work with a real risk of getting
+  a deployed system wrong. The migration order that follows from
+  findings 1 and 2 is therefore: fix the model first, which is free;
+  then take `srv.yml`, which is the smallest artifact and the most
+  mechanical; and leave `res.yml` until the renderer has been proven on
+  the other two.
