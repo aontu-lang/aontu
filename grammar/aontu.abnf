@@ -82,7 +82,7 @@ func      = name %s"(" ws [ value *( ws %s"," ws value ) ws ] %s")"
 ; listed before `re`, and `rem` before `re` as well.
 name      = %s"above" / %s"acyclic" / %s"add" / %s"below" / %s"close"
           / %s"copy" / %s"deprecate" / %s"div"
-          / %s"each" / %s"filter" / %s"greatest"
+          / %s"each" / %s"emit" / %s"filter" / %s"greatest"
           / %s"hide"
           / %s"inverse" / %s"join" / %s"key" / %s"least"
           / %s"length" / %s"list" / %s"lower" / %s"map" / %s"match"

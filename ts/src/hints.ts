@@ -222,6 +222,18 @@ const hints: Record<string, string> = {
 
   match_none: 'No pattern matched, and there is no default. `match` tries each\npattern in the order written and takes the first the value unifies\nwith; the value {value} unified with none of {tried}. Add a trailing\ndefault — the argument after the last pair — if the rest was meant\nto be allowed.\n \nExamples:\n  match(1, integer, ok)             -> "ok"   # The first pattern matches;\n  match(x, integer, ok, other)      -> "other"  # ... or the default does;\n  match(x, integer, ok)             -> nil    # ... but nothing here does.',
 
+  emit_data: 'The first argument to emit() is not a bag. `emit` visits the\nchildren of its SELECTION, so the selection has to have children: a\nlist of nodes, or a map whose values are the nodes.\n \nExamples:\n  emit([{k:1}], {match:{k:1},body:[a]})   -> [..]  # A list of nodes;\n  emit({x:{k:1}}, {match:{k:1},body:[a]}) -> [..]  # ... or a map of them;\n  emit(1, {match:{k:1},body:[a]})         -> nil   # ... but not a scalar.',
+
+  emit_table: 'The second argument to emit() is not a rule table. A table is a\nLIST of templates, tried in order; a single template may be written\nas the map itself, which is that list of one.\n \nExamples:\n  emit($.n, [{match:integer,body:[a]}]) -> [..]  # A table of rules;\n  emit($.n, {match:integer,body:[a]})   -> [..]  # ... or one rule alone;\n  emit($.n, integer)                    -> nil   # ... but not a value.',
+
+  emit_template: 'A template in an emit() table is not a rule. Every rule is a map\nnaming both a `match` — the pattern the node is tried against — and a\n`body`, the pieces to emit. A rule with no pattern would claim every\nnode by accident; one with no body would claim a node and emit\nnothing.\n \nExamples:\n  {match: {kind: sqs}, body: [a]}  # A rule;\n  {match: {kind: sqs}}             # ... but a pattern is not one;\n  {body: [a]}                      # ... nor is a body alone.',
+
+  emit_body: 'A template body in an emit() table is not a list. A body is the\nSEQUENCE of pieces the matched node emits, so it is written as a\nlist even when it holds one piece — which is what lets bodies\ncompose, since a body element that is itself a list splices.\n \nExamples:\n  {match: integer, body: [a]}    -> [..]  # One piece;\n  {match: integer, body: [a,b]}  -> [..]  # ... or several;\n  {match: integer, body: a}      -> nil   # ... but not a bare value.',
+
+  emit_ref: 'A template body names {ref}, and the node it matched cannot\nanswer it. Inside a body a relative reference is a field of the\nMATCHED NODE — `.pin` is that node\'s `pin` — so the node has to have\nthe field; the node was {value}. An absolute reference (`$.x`) reads\nthe document root instead, and is untouched.\n \nExamples:\n  {match:{pin:string}, body:[.pin]}  -> [..]  # A field of the node;\n  {match:{pin:string}, body:[$.z]}   -> [..]  # ... or the root;\n  {match:{pin:string}, body:[.port]} -> nil   # ... but not a field it\n                                             #     has not got.',
+
+  emit_none: 'No template matched a node, and there is no catch-all. `emit`\ntries each template in the order written and takes the first the\nnode unifies with; the node {value} unified with none of {tried}.\nAdd a template whose `match` is `any` — last, since the first match\nwins — if the rest of the selection was meant to be allowed.\n \nExamples:\n  emit([1], [{match:integer,body:[a]}])  -> [..]  # A pattern matches;\n  emit([x], [{match:any,body:[a]}])      -> [..]  # ... or a catch-all;\n  emit([x], [{match:integer,body:[a]}])  -> nil   # ... but nothing here.',
+
   place_pair: 'Two placeholders met, and neither has a value to fill the other.\n`_` is a HOLE: it is filled by whatever the call is unified with, so\na call holding one needs a peer that does not. Give one side a\nvalue.\n \nExamples:\n  upper(_) & hello        -> "HELLO"  # The peer fills the hole;\n  _ + 2 & 1               -> 3        # ... whatever the call is;\n  upper(_) & lower(_)     -> nil      # ... but two holes fill nothing.',
 
 
@@ -548,6 +560,18 @@ const codeClasses: Record<string, string> = {
   // meet, reported once for the whole form.
   filter_data: 'parse',
   match_none: 'conflict',
+
+  // G9 phase 6 -- apply-templates. The four shape codes are class
+  // `parse`: what is wrong is the CALL as written -- a selection with
+  // no children, a table that is not one, a rule missing a half.
+  // `emit_none` is class `conflict` for `match_none`'s reason: the
+  // node and every pattern written for it disagreed.
+  emit_data: 'parse',
+  emit_table: 'parse',
+  emit_template: 'parse',
+  emit_body: 'parse',
+  emit_none: 'conflict',
+  emit_ref: 'conflict',
 
   // G8 phase 3 -- the placeholder. Class `conflict`: two values met
   // and neither could answer for the other, which is what every

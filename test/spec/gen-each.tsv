@@ -41,3 +41,10 @@ each-arity-three	errc	o:each([1],integer,integer)\n	func_arity
 # the spread-injected relative reference arrives resolved and the
 # elements carry the augmented values. Parity-probed.
 each-over-spread-augmented	gens	ports:{a:{containerPort:1}}\nports:&:{port:.containerPort}\nout:each($.ports)\n	{"out":[{"containerPort":1,"port":1}],"ports":{"a":{"containerPort":1,"port":1}}}
+# A HOLE IN THE DATA ARGUMENT IS FILLED BY THE PEER, exactly as it is
+# in an unstaged call (`"hello" & upper(_)`). `_` is never done -- it is
+# FILLED -- so a generator gated on its data being done stayed residual
+# for ever and answered *_no_gen; the gate now passes a placeheld call
+# through to the fill. Against TOP there is nothing to fill with, and a
+# placeheld generator waits exactly as the hole itself does.
+each-place-data	gens	o:['a'] & each(_)\n	{"o":["a"]}

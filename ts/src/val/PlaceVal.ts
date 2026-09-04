@@ -73,10 +73,10 @@ class PlaceVal extends ValBase {
 
 
 // A HOLE BELONGS TO ITS NEAREST ENCLOSING GENERATOR. A `_` inside a
-// generator's template (pack/each, arg 1) or condition (filter, arg 1)
-// is that generator's to bind — "_ is the source child" — so neither
-// the hole test nor the fill walk may cross into those arguments from
-// outside. Before this boundary, `close(pack(d, _ & t))` reported a
+// generator's template (pack/each, arg 1), condition (filter, arg 1)
+// or rule table (emit, arg 1) is that generator's to bind — "_ is the
+// source child" — so neither the hole test nor the fill walk may cross
+// into those arguments from outside. Before this boundary, `close(pack(d, _ & t))` reported a
 // hole to the OUTER call, so an ordinary overlay statement was
 // absorbed into the template instead of merging with the generated
 // child (use-cases/BUGS.md §10), and an outer pack's fill pass
@@ -85,7 +85,7 @@ class PlaceVal extends ValBase {
 // so it stays visible: a hole there is an outer hole as before.
 function boundArgStart(v: any): number {
   return true === v.isPackFunc || true === v.isEachFunc ||
-    true === v.isFilterFunc ? 1 : Infinity
+    true === v.isFilterFunc || true === v.isEmitFunc ? 1 : Infinity
 }
 
 
@@ -183,10 +183,12 @@ function rebuild(v: Val, peg: any, ctx: AontuContext): Val {
   out.peg = peg
   out.dc = 0
   return out
-} /* node:coverage ignore next 8 */
+} /* node:coverage ignore next 10 */
 
 
 export {
+  boundArgStart,
+  rebuild,
   hasPlace,
   fillPlace,
   PlaceVal,

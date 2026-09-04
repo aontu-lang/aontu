@@ -7,6 +7,45 @@ which implementation each change affects.
 
 ## Unreleased
 
+### `emit`: apply-templates as an engine builtin
+
+`emit(select, table)` applies a rule table to a selection of nodes. For
+every node, in order, the first template whose `match` the node unifies
+with is taken and its `body` instantiated against that node; the answer
+is one flat list of pieces, and a body element that is itself a list
+splices rather than nesting. Inside a body `_` is the matched node and a
+relative reference is a field of it, while an absolute reference still
+reads the document root. A table is a list of `{match, body}` maps, or
+the map itself for a table of one. An empty selection emits nothing,
+which is the whole conditional mechanism; no match is an error naming
+the patterns tried, rather than a silent copy of the node.
+
+A named table is written as an `emit` whose selection is a hole —
+`%wire: emit(_, {match: …, body: […]})` — because a call's template
+argument is the one position the language never drives, and a table
+written as an ordinary field is evaluated where it sits. Passing the
+nodes by call (`emit($.listen, %wire)`) or by meet (`$.listen & %wire`)
+is the same dispatch, and a named table may name itself: a rule set that
+walks a nested model into nested output. Recursion is bounded by the
+selection, which is finite and already in the model.
+
+Six codes: `emit_data`, `emit_table`, `emit_template`, `emit_body`,
+`emit_none`, `emit_ref`. `test/spec/gen-emit.tsv`, the reference's
+[Transforming](docs/reference-language.md#transforming-emit) section, and
+the four published grammars. Both implementations.
+
+### A generator whose data is a hole is filled by its peer
+
+`["a"] & pack(_, {x:1})` could not be written: it answered `*_no_gen` in
+both ports, while the unstaged `"hello" & upper(_)` filled as
+documented. A hole is never `done` — it is filled — so gating a staged
+generator on its data argument being done held the call residual for
+ever and the fill was never reached. `pack`, `each`, `filter` and `emit`
+now pass a placeheld call through to the fill once a peer has arrived;
+against `top` they wait exactly as the hole itself does. Both
+implementations.
+
+
 ### `make install`: the clone on `PATH`
 
 `make install` at the repository root puts both builds on `PATH` from

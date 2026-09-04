@@ -32,6 +32,7 @@ var funcSet = map[string]bool{
 	"each":      true,
 	"filter":    true,
 	"match":     true,
+	"emit":      true,
 	// The arithmetic family (the review's finding I). Maths beyond `+`
 	// arrives as FUNCTIONS -- `-` `*` `/` `%` stay reserved -- and the
 	// family is numeric where the operator is polymorphic, which is
@@ -69,6 +70,9 @@ var funcSet = map[string]bool{
 // FuncBaseVal subclasses.
 var stagedFuncs = map[string]bool{
 	"key": true, "pack": true, "each": true, "filter": true, "match": true,
+	// A dispatch over a selection still being merged into dispatches
+	// over the wrong selection.
+	"emit": true,
 	// A total over a bag that is still being merged into is a total of
 	// the wrong bag.
 	"sum": true, "least": true, "greatest": true, "pick": true,
@@ -113,6 +117,10 @@ func derivePositional() map[string]bool {
 // patterns -- is driven by hand instead (stagedDrive).
 var generatorFuncs = map[string]bool{
 	"pack": true, "each": true, "filter": true, "match": true,
+	// emit's TABLE is templates: driving it would resolve a body's
+	// references at the call site, the one position a body is never
+	// used at.
+	"emit": true,
 }
 
 // funcArity is the permitted WRITTEN argument count of each built-in, as
@@ -320,7 +328,17 @@ func (f *FuncVal) Unify(peer Val, ctx *Ctx) Val {
 		// the settle pass: it is what the model has to settle, so
 		// leaving it standing until settle would guarantee the model was
 		// still moving when settle arrived.
-		ready := stagedDrive(ctx, f, base) && ctx.settle
+		// A HOLE IS NOT AN UNREADY ARGUMENT (G8 phase 3). `_` is never
+		// done: it is FILLED, and the peer is what fills it, so gating
+		// on doneness alone held every placeheld generator residual for
+		// ever and the fill below was never reached (`["a"] &
+		// pack(_, {x:1})` was `*_no_gen`, while the unstaged
+		// `"hello" & upper(_)` filled as documented). Against TOP there
+		// is nothing to fill with, so a placeheld generator waits
+		// exactly as the hole itself does. Twin: stagedReady in
+		// ts/src/val/FuncBaseVal.ts.
+		driven := stagedDrive(ctx, f, base)
+		ready := (driven || (!isTop(peer) && hasPlace(f))) && ctx.settle
 
 		if !ready {
 			f.notdone()
@@ -664,6 +682,8 @@ func (f *FuncVal) resolve(ctx *Ctx, base []string, args []Val) Val {
 		return filterFunc(ctx, f, base, args)
 	case "match":
 		return matchFunc(ctx, f, base, args)
+	case "emit":
+		return emitFunc(ctx, f, base, args)
 	case "add", "sub", "mul", "div", "mod", "rem":
 		// resolve is only reached once every argument has settled, so
 		// arith may name a bad operand rather than waiting for it.

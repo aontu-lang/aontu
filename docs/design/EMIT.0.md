@@ -325,7 +325,8 @@ evaluated at 0.56.0, and rendered:
   ordinary value — and that is precisely the composition fact 1 shows
   failing today. Under a builtin that binds a named node it should
   work, but it is unverified: phase 6 either demonstrates it or ships a
-  parameter.
+  parameter. (Still open after the landing below: enriching a node-set
+  with `pack`/`each` and dispatching over the result is untried.)
 - **Descent.** `emit` with no explicit selection should be the node's
   children, which is how a recursive rule set walks a tree. The
   totality argument in G9 §2 is unchanged, since it is about the
@@ -333,6 +334,72 @@ evaluated at 0.56.0, and rendered:
 - **Provenance.** G9 §2 requires (node path, rule index) per emitted
   piece. That is what makes rule coverage, shadowing and source maps
   possible, and retrofitting it is what XSLT never managed.
+
+## What phase 6 established
+
+The builtin landed in both ports, `emit(s: map|list, template t:
+map|list) : list`, with the shared rows in `test/spec/gen-emit.tsv` and
+six codes in the registry. Four things the note could not settle from
+outside the engine were settled by building it.
+
+**A named table is a PLACEHELD `emit`, and that closes fact 1.** The
+note's decisive fact — a table reached by reference does not re-root
+its bodies' relative references — is not repaired by binding at the use
+site, because the definition site drives the table first and the
+references have already missed by then. Nothing in the language holds a
+value unevaluated at a document position; what does hold one is a
+CALL's template argument, which is never driven. `%wire: emit(_, T)` is
+that position with the selection left open:
+
+```aon
+%wire: emit(_, {match: {pin: string}, body: [ … ]})
+…
+a: emit($.listen, %wire)
+b: $.client & %wire
+```
+
+Both spellings are the same dispatch: `emit` follows a reference in its
+table argument and reads a placeheld `emit` as the table it holds, and
+the meet form is the ordinary hole fill. **A mode is a named table**
+(D4) survives exactly as written, with the name carrying the hole.
+
+**A placeheld generator was never filled, and that was an engine
+defect.** `["a"] & pack(_, {x:1})` answered `*_no_gen` in both ports
+while the unstaged `"hello" & upper(_)` filled as documented: `_` is
+never `done`, so a staged generator's readiness gate held it residual
+for ever and the fill was never reached. The gate now passes a
+placeheld call through when a peer has arrived (`stagedReady` /
+`stagedDrive`, both ports); against TOP it waits exactly as the hole
+does. `pack`, `each` and `filter` gain the fill with `emit`, and the
+rows are pinned in each combinator's spec file.
+
+**A body's relative reference is BOUND, and a miss is `emit_ref`.**
+Binding rather than re-pathing is what makes a computed selection work:
+the nodes of `filter(…)` are values that live nowhere, so there is no
+position for a dot count to be taken from. Only a chain of plain names
+is a field — a parent step and a variable segment are refused at the
+node rather than left to resolve somewhere else, which is the failure
+mode the binding exists to remove. The walk stops at a nested
+generator's binding argument, so an inner table's `.x` is the inner
+node and the outer node reaches it only through the SELECTOR, which is
+D5's nesting rule.
+
+**A nested dispatch is driven where it is met.** Left standing, it
+resolved a pass later and arrived as a list INSIDE the list, which
+would have undone the flat algebra. It is driven through `unite`, so a
+rule set that walks into itself without descending is charged to the
+depth budget and refused as `unify_cycle` — recursion is bounded by the
+selection, which is finite and already in the model.
+
+**Fact 4 did not reproduce.** The two-level staged dispatch that
+exhausted nine passes did so as an INLINED expansion; the builtin
+dispatches inside one resolution, so the recursive rule set above
+settles inside the default budget. No flag is needed, and the phase
+does not raise the default.
+
+**Acceptance case 2 is met** (the recursive rule set, `emit-recursive`);
+case 1, a target the declaration vocabulary does not fit, waits on the
+`replace`/`esc` layer and the `render` verb.
 
 ## Acceptance
 

@@ -27,6 +27,7 @@ the [Explanation](explanation.md).
 - [Generating children: `pack` and `each`](#generating-children-pack-and-each)
 - [Selecting: `filter` and `match`](#selecting-filter-and-match)
 - [The placeholder `_`](#the-placeholder-_)
+- [Transforming: `emit`](#transforming-emit)
 - [References and paths](#references-and-paths)
   - [Recursive references (fixpoints)](#recursive-references-fixpoints)
 - [Variables `$name`](#variables-name)
@@ -1023,7 +1024,10 @@ generator's fill pass never reaches into a nested generator's template
 pack($.fleet, {v: _})})` the inner `_` is the fleet entry, not the env.
 A hole in a generator's *data* argument is not a binding position, so it
 is still the outer generator's to fill: `pack($.m, {inner: each(_)})`
-iterates the outer source child. And wrapping a generator in a call
+iterates the outer source child. A generator whose data is a hole is
+filled by its **peer**, exactly as an unstaged call is—`["a"] &
+pack(_, {x:1})` packs the list—which is what lets a rule table be
+named (see [Transforming](#transforming-emit)). And wrapping a generator in a call
 (`close(pack(d, _ & t))`) does not expose the template's hole to the
 wrapper's peers—an overlay statement merges with the generated
 children, never with the template.
@@ -1041,6 +1045,128 @@ as `top` is.
 A bare `_` is a hole, pinned by `test/spec/place.tsv`. Quoted `"_"`
 is that string, any longer bare word containing it (`_b`) is ordinary
 text, and `_` as a **key** is a key.
+
+## Transforming: `emit`
+
+`emit(select, table)` applies a **rule table** to a selection of nodes.
+For every node, in order, the first template whose `match` the node
+unifies with is taken, and its `body` is instantiated against that
+node. The answer is one flat list of pieces:
+
+```aon
+services: [{ kind:sqs pin:"srv:a" } { kind:http path:"/a" }]
+
+lines: emit($.services, [
+  { match:kind:sqs body:["listen(" + .pin + ")"] }
+  { match:kind:http body:["serve(" + .path + ")"] }
+])
+```
+
+```json
+{"services": [{"kind": "sqs", "pin": "srv:a"}, {"kind": "http", "path": "/a"}],
+ "lines": ["listen(srv:a)", "serve(/a)"]}
+```
+
+A **table is a list of templates**, tried in order, and each template
+is a map naming both a `match` and a `body`. A table of one may be
+written as the template map itself. Both keys are required: a template
+with no pattern would claim every node by accident, and one with no
+body would claim a node and emit nothing.
+
+**The body is a list, and the result is flat.** A body element that is
+itself a list splices into the answer rather than nesting, which is
+what lets one dispatch compose into another.
+
+**Two things inside a body name the matched node**: `_` is the node,
+and a *relative* reference is a field of it—`.pin` is that node's
+`pin`. An absolute reference (`$.x`) is untouched and still reads the
+document root. A relative reference the node cannot answer is an error
+(`emit_ref`) reported against the node, not a miss somewhere else:
+inside a body, only a chain of plain names is a field, so a parent step
+has no answer at a node that is an origin rather than a position.
+
+**An empty selection emits nothing**, and that is the whole conditional
+mechanism—there is no `when` directive because there is nothing for one
+to do. A dispatch over a `filter` that selects nothing contributes
+nothing:
+
+```aon
+services: [{ name:web logs:[] }]
+lines: emit($.services, {
+  match: name: string
+  body: [
+    "start " + .name
+    emit(filter(.logs, { level:debug }), { match:level:debug body:["debug on"] })
+  ]
+})
+```
+
+```json
+{"services": [{"name": "web", "logs": []}], "lines": ["start web"]}
+```
+
+**No match is an error** (`emit_none`), naming the patterns that were
+tried, rather than an empty answer or a copy of the node. A template
+whose `match` is `any`, written last, is how a document says the rest
+of the selection was meant to be allowed.
+
+### A named table
+
+A table written as an ordinary field is evaluated where it sits, so the
+relative references in its bodies resolve there and miss. The position
+that holds a table unevaluated is the one position the language never
+drives: a call's template argument. Write the table as an `emit` whose
+**selection is a hole**, and it is a rule set waiting for its nodes:
+
+```aon
+%wire: emit(_, { match:pin:string body:["client(" + .pin + ")"] })
+
+listen: [pin:"srv:a"]
+client: [pin:"srv:b"]
+
+a: emit($.listen, %wire)
+b: $.client & %wire
+```
+
+```json
+{"listen": [{"pin": "srv:a"}], "client": [{"pin": "srv:b"}],
+ "a": ["client(srv:a)"], "b": ["client(srv:b)"]}
+```
+
+Passing the nodes by call and by meet are the same dispatch. A named
+table is also how one rule set serves two outputs: naming a value is
+something the language already does, so no keyword is needed for it.
+
+### Recursion, and what bounds it
+
+A named table may name **itself**, which is how a rule set walks a
+nested structure into nested output:
+
+```aon
+tree: [{ name:a kids:[{ name:b kids:[] }] }]
+
+%walk: emit(_, {
+  match: name: string
+  body: ["<" + .name + ">" emit(.kids, %walk) "</" + .name + ">"]
+})
+
+out: emit($.tree, %walk)
+```
+
+```json
+{"tree": [{"name": "a", "kids": [{"name": "b", "kids": []}]}],
+ "out": ["<a>", "<b>", "</b>", "</a>"]}
+```
+
+`emit` is the one form here that recurses, and what bounds it is the
+**selection**: each dispatch descends into a finite bag that already
+exists in the model, and a selection that empties emits nothing. A rule
+set that walks into itself without descending is refused as a spent
+depth budget, like any other runaway descent.
+
+Like the other combinators, `emit` waits for the model to settle before
+it fires: a selection that is still being merged into is the wrong set
+of nodes to dispatch over. Until it fires it canons as its own call.
 
 ## References and paths
 
@@ -1452,6 +1578,7 @@ checked rather than trusted:
 | `each(d: map\|list, template t?: any) : list` | one list element per child of `d`, each met with `t`. Source order for a list, sorted-key order for a map | `open: each($.ports, integer)` |
 | `filter(d: map\|list, trial c: any) : map\|list` | the children of `d` that ALREADY satisfy `c`—the meet with `c` changes nothing. Keys kept for a map, order for a list; the rest are dropped, not refused. See [Selecting](#selecting-filter-and-match) | `debugged: filter($.services, {debug:true})` |
 | `match(s: any, ...pr: (trial any, any), dflt?: any) : any` | the result of the first pattern `v` unifies with; a trailing argument is the default. No match and no default is an error naming the patterns tried | `size: match($.tier, small, {cpu:1}, {cpu:2})` |
+| `emit(s: map\|list, template t: map\|list) : list` | one flat list of pieces from a selection and a rule table: for each node, the first template whose `match` it unifies with, its `body` instantiated at that node. See [Transforming](#transforming-emit) | `lines: emit($.services, {match:{pin:string}, body:[.pin]})` |
 | `deprecate(v: any, r?: map) : any` | mark `x` deprecated; unifies exactly as `x`, and the record `m` (`{msg?, use?, since?}`, all strings; `use` is a path spelled as a string) rides the result through meets, reference clones and spread applications. Canon renders the call back; generation is unchanged. The point-of-use surfaces: a vet `deprecated` warning, the LSP Deprecated tag, and `aontu breaking --allow-deprecated-removal` | `port: deprecate(*8080\|integer, {msg:"renamed", use:"$.listen", since:"2.0.0"})` |
 
 `super(x)` answers the immediate parent type of its **argument**. For

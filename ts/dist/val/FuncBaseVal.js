@@ -97,6 +97,22 @@ class FuncBaseVal extends FeatureVal_1.FeatureVal {
         }
         return alldone;
     }
+    // THE STAGED READINESS GATE, stated once for the generators that
+    // drive their own data argument. Such a func fires when the model
+    // has settled AND that argument is done -- EXCEPT when the argument
+    // is a HOLE and a PEER has arrived to fill it. `_` is never done: it
+    // is FILLED, and the peer is what fills it, so gating on doneness
+    // alone held every placeheld generator residual for ever and the
+    // fill in `unify` below was never reached (`["a"] & pack(_, {x:1})`
+    // was `*_no_gen`, while the unstaged `"hello" & upper(_)` filled as
+    // documented -- an undriven `_` makes an ordinary call's `pegdone`
+    // false, and a generator's prepare() forces it true). Against TOP
+    // there is nothing to fill with, so a placeheld generator waits
+    // exactly as the hole itself does.
+    stagedReady(peer, ctx, count) {
+        const ready = this.driveStagedArgs(ctx, count);
+        return (ready || (!peer.isTop && (0, PlaceVal_1.hasPlace)(this))) && true === ctx.settle;
+    }
     // THE PER-DESTINATION INSTANTIATION RULE (ADR-005). The default
     // clone shares the argument array AND the argument Vals — pinned
     // sharing for the move()/copy() ghost artifacts (test/spec/func.tsv,

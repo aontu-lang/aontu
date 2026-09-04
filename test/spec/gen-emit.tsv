@@ -1,0 +1,132 @@
+# TRANSFORMATION: emit(select, table) (G9 phase 6,
+# docs/design/EMIT.0.md). Apply-templates: for every node of `select`,
+# in order, the first template whose `match` the node unifies with is
+# taken and its `body` instantiated AGAINST THAT NODE.
+# Columns: name<TAB>mode<TAB>src<TAB>expect
+#
+# THE RESULT IS FLAT, and that is a constraint rather than a
+# convenience: a body element that is itself a list SPLICES, which is
+# what makes a nested dispatch compose into one sequence rather than a
+# tree of them.
+#
+# Every expectation below was obtained by running BOTH engines and
+# diffing, error text included.
+# DISPATCH. First match wins, in TABLE ORDER, by unifiability -- the
+# same question `match` and `filter` ask, answered the same way. A
+# table of one may be written as the template map itself, told apart
+# by kind.
+emit-dispatch	gens	s:[{k:sqs,p:'a:1'},{k:http,u:'/x'}]\no:emit($.s,[{match:{k:sqs},body:['L:'+.p]},{match:{k:http},body:['S:'+.u]}])\n	{"o":["L:a:1","S:/x"],"s":[{"k":"sqs","p":"a:1"},{"k":"http","u":"/x"}]}
+emit-first-match-wins	gens	s:[{k:sqs}]\no:emit($.s,[{match:{},body:[first]},{match:{k:sqs},body:[second]}])\n	{"o":["first"],"s":[{"k":"sqs"}]}
+emit-table-one-map	gens	s:[{k:sqs}]\no:emit($.s,{match:{k:sqs},body:[one]})\n	{"o":["one"],"s":[{"k":"sqs"}]}
+emit-body-order	gens	s:[{k:1},{k:2}]\no:emit($.s,[{match:{k:1},body:[a,b]},{match:{k:2},body:[c]}])\n	{"o":["a","b","c"],"s":[{"k":1},{"k":2}]}
+# ORDER IS FIXED the way canon already fixes it: source order for a
+# list, sorted-key order for a map.
+emit-map-selection	gens	s:{b:{k:2},a:{k:1}}\no:emit($.s,{match:{k:integer},body:[.k]})\n	{"o":[1,2],"s":{"a":{"k":1},"b":{"k":2}}}
+# AN EMPTY SELECTION EMITS NOTHING, and that is the whole conditional
+# mechanism -- it is why no `when` directive exists. A dispatch over a
+# filter that selects nothing is the conditional written as data.
+emit-empty-selection	gens	o:emit([],{match:{},body:[x]})\n	{"o":[]}
+emit-empty-map-selection	gens	o:emit({},{match:{},body:[x]})\n	{"o":[]}
+emit-of-filter	gens	s:[{k:1,src:s3},{k:2,src:sqs}]\no:emit(filter($.s,{src:s3}),{match:{k:integer},body:[.k]})\n	{"o":[1],"s":[{"k":1,"src":"s3"},{"k":2,"src":"sqs"}]}
+emit-of-filter-none	gens	s:[{k:2,src:sqs}]\no:emit(filter($.s,{src:s3}),{match:{k:integer},body:[.k]})\n	{"o":[],"s":[{"k":2,"src":"sqs"}]}
+# SPLICING, and the nesting it makes possible.
+emit-splice	gens	s:[{k:1}]\no:emit($.s,{match:{k:1},body:[[a,b],c]})\n	{"o":["a","b","c"],"s":[{"k":1}]}
+emit-nested-inline	gens	s:[{k:1,c:[{n:x},{n:y}]}]\no:emit($.s,{match:{k:1},body:[open,emit(.c,{match:{n:string},body:[.n]}),close]})\n	{"o":["open","x","y","close"],"s":[{"c":[{"n":"x"},{"n":"y"}],"k":1}]}
+# A NESTED TABLE IS THE INNER emit's, and its SELECTOR is the channel:
+# argument 0 is bound at the outer node, everything past it is the
+# inner dispatch's to bind. A nested selector that is ABSOLUTE binds
+# nothing at all, and the outer node reaches the inner rules through
+# what the selector selects, exactly as it does when the selector is
+# relative.
+emit-nested-absolute-selection	gens	s:[{p:x}]\nt:[{q:y}]\no:emit($.s,{match:{p:string},body:[.p,emit($.t,{match:{q:string},body:[.q]})]})\n	{"o":["x","y"],"s":[{"p":"x"}],"t":[{"q":"y"}]}
+# THE TWO BINDINGS. `_` is the matched node; a RELATIVE reference is a
+# field of it. The binding is emit's, not path resolution's: a
+# relative path is a count taken wherever a value comes to rest, and
+# the nodes of a computed selection come to rest nowhere. An ABSOLUTE
+# reference is untouched and still reads the document root.
+emit-place	gens	s:[{k:1}]\no:emit($.s,{match:{k:1},body:[_]})\n	{"o":[{"k":1}],"s":[{"k":1}]}
+emit-relative-ref	gens	s:[{p:'a:1'}]\no:emit($.s,{match:{p:string},body:[.p]})\n	{"o":["a:1"],"s":[{"p":"a:1"}]}
+emit-relative-ref-deep	gens	s:[{m:{p:x}}]\no:emit($.s,{match:{m:{p:string}},body:[.m.p]})\n	{"o":["x"],"s":[{"m":{"p":"x"}}]}
+emit-absolute-ref	gens	z:Z\ns:[{k:1}]\no:emit($.s,{match:{k:1},body:[$.z]})\n	{"o":["Z"],"s":[{"k":1}],"z":"Z"}
+# A NAMED TABLE IS A PLACEHELD `emit`. A table written at a document
+# position is DRIVEN there -- a body's relative references resolve
+# against wherever it sits and miss -- so the position that holds one
+# unevaluated is the one position the language never drives: a call's
+# template argument. `emit(_, T)` is that position with the selection
+# left open, and it reads as what it is, an apply-templates waiting
+# for its nodes. Passing them by call and by meet are the same
+# dispatch. This is also XSLT's MODE, with no keyword: a mode is a
+# table used from several sites, and naming a value is something the
+# language already does.
+emit-named-table-two-sites	gens	%t:emit(_,{match:{p:string},body:['P:'+.p]})\nl:[{p:a}]\nc:[{p:b}]\no:emit($.l,%t)\nu:emit($.c,%t)\n	{"c":[{"p":"b"}],"l":[{"p":"a"}],"o":["P:a"],"u":["P:b"]}
+emit-meet-form	gens	%t:emit(_,{match:{p:string},body:['P:'+.p]})\nl:[{p:a}]\no:$.l & %t\n	{"l":[{"p":"a"}],"o":["P:a"]}
+# AND THIS IS WHY THE DISPATCH IS A BUILTIN. A rule set that names
+# itself walks a nested tree into nested output -- the first example
+# in every XSLT tutorial, and not expressible at any length as an
+# inlined expansion, because a template that reaches itself has no
+# finite one. Termination is the SELECTION's: each dispatch descends
+# into a finite bag that already exists, and a selection that empties
+# emits nothing.
+emit-recursive	gens	t:[{n:a,c:[{n:b,c:[]},{n:c,c:[]}]}]\n%w:emit(_,{match:{n:string},body:['<'+.n+'>',emit(.c,%w),'</'+.n+'>']})\no:emit($.t,%w)\n	{"o":["<a>","<b>","</b>","<c>","</c>","</a>"],"t":[{"c":[{"c":[],"n":"b"},{"c":[],"n":"c"}],"n":"a"}]}
+# THE SHAPE CODES, all class `parse`: what is wrong is the CALL as the
+# author wrote it. A rule needs both halves -- one with no pattern
+# would claim every node by accident, one with no body would claim a
+# node and emit nothing -- and a body is a list even when it holds one
+# piece, which is what lets bodies splice.
+emit-data-integer	errc	o:emit(1,{match:{},body:[x]})\n	emit_data
+emit-data-string	errc	o:emit('s',{match:{},body:[x]})\n	emit_data
+emit-table-scalar	errc	o:emit([{k:1}],integer)\n	emit_table
+emit-template-not-map	errc	o:emit([{k:1}],[integer])\n	emit_template
+emit-template-no-match	errc	o:emit([{k:1}],{body:[x]})\n	emit_template
+emit-template-in-list-no-match	errc	o:emit([{k:1}],[{body:[x]}])\n	emit_template
+emit-template-no-body	errc	o:emit([{k:1}],{match:{k:1}})\n	emit_template
+emit-body-not-list	errc	o:emit([{k:1}],{match:{k:1},body:x})\n	emit_body
+# NO MATCH IS AN ERROR, not an empty answer, and the report names the
+# patterns that were tried -- the admissible-alternatives shape.
+# XSLT's built-in rule copies an unhandled node's string value into
+# the result, which for code output means model data landing silently
+# in the middle of a source file; it is the single worst default in
+# the prior art and it is refused. A template whose `match` is `any`,
+# written last, is how a document says it meant to allow the rest.
+emit-none	errc	o:emit([{k:1}],{match:{k:2},body:[x]})\n	emit_none
+emit-none-tried	err	o:emit([{k:1}],{match:{k:2},body:[x]})\n	unified with none of {"k":2}
+# A REFERENCE THE NODE CANNOT ANSWER is reported against the NODE,
+# where the author can see what was tried, rather than missing
+# somewhere else as no_path. Only a chain of plain names is a field: a
+# parent step has no answer at a node that is an origin rather than a
+# position.
+emit-ref-missing	errc	o:emit([{k:1}],{match:{k:1},body:[.nope]})\n	emit_ref
+emit-ref-parent-step	errc	o:emit([{k:1}],{match:{k:1},body:[..k]})\n	emit_ref
+# UNFIRED, a dispatch canons as its CALL, which reparses to the same
+# value -- so canon convergence holds for a model that has not
+# finished. Reaching that state takes a selection that never settles
+# (`1+true` is the stuck operation budget.tsv uses), because a
+# dispatch whose selection settles fires.
+emit-unfired-canon	canon	s:[1+true]\no:emit($.s,{match:{},body:[x]})\n	{"o":emit($.s,{"body":["x"],"match":{}}),"s":[1+true]}
+emit-literal-canon	canon	o:emit([{k:1}],{match:{k:1},body:[x]})\n	{"o":["x"]}
+# A VARIABLE PATH SEGMENT is not a name until something resolves it, and
+# the binding happens before that: `$bar` is bound to "hello" for the
+# shared rows, and the field it would name is refused at the node rather
+# than left to resolve somewhere else.
+emit-ref-var-segment	errc	o:emit([{hello:1}],{match:{hello:integer},body:[.$bar]})\n	emit_ref
+# A BODY ELEMENT IS AN ORDINARY VALUE, and the node binding reaches
+# through whatever it is written as -- a map, a nested list, a
+# preference, a conjunct, a disjunct. A disjunct that stays open is
+# refused at generation exactly as one written anywhere else is; the
+# binding does not make it concrete.
+emit-body-map	gens	s:[{p:x,q:y}]\no:emit($.s,{match:{p:string},body:[{a:.p,b:.q}]})\n	{"o":[{"a":"x","b":"y"}],"s":[{"p":"x","q":"y"}]}
+emit-body-list-ref	gens	s:[{p:x,q:y}]\no:emit($.s,{match:{p:string},body:[[.p,.q]]})\n	{"o":["x","y"],"s":[{"p":"x","q":"y"}]}
+emit-body-pref	gens	s:[{p:x}]\no:emit($.s,{match:{p:string},body:[*.p|string]})\n	{"o":["x"],"s":[{"p":"x"}]}
+emit-body-conjunct	gens	s:[{p:x}]\no:emit($.s,{match:{p:string},body:[.p & string]})\n	{"o":["x"],"s":[{"p":"x"}]}
+emit-body-disjunct	errc	s:[{p:x}]\no:emit($.s,{match:{p:string},body:[.p | y]})\n	disjunct_no_gen
+# A NODE NEED NOT BE A RECORD. Anything with a pattern that admits it
+# dispatches; a scalar node simply has no field for a reference to name.
+emit-scalar-nodes	gens	o:emit([1,2],{match:integer,body:[n]})\n	{"o":["n","n"]}
+emit-ref-scalar-node	errc	o:emit([1],{match:integer,body:[.a]})\n	emit_ref
+emit-ref-list-index	gens	s:[{l:[a,b]}]\no:emit($.s,{match:{l:list()},body:[.l.1]})\n	{"o":["b"],"s":[{"l":["a","b"]}]}
+emit-ref-list-index-past-end	errc	s:[{l:[a]}]\no:emit($.s,{match:{l:list()},body:[.l.9]})\n	emit_ref
+emit-ref-through-scalar	errc	s:[{p:x}]\no:emit($.s,{match:{p:string},body:[.p.q]})\n	emit_ref
+# A CALL IS NOT A TABLE. `emit`'s table argument is never driven, so a
+# generator written there arrives as the call it is, and a call is
+# neither a list of rules nor one rule.
+emit-table-call	errc	o:emit([{k:1}],pack([a],{x:1}))\n	emit_table

@@ -10,6 +10,7 @@ declare class FuncBaseVal extends FeatureVal {
     validateArgs(args: Val[], min: number): void;
     make(ctx: AontuContext, _spec: ValSpec): Val;
     driveStagedArgs(ctx: AontuContext, count: number): boolean;
+    stagedReady(peer: Val, ctx: AontuContext, count: number): boolean;
     clone(ctx: AontuContext, spec?: ValSpec): Val;
     residuate(peer: Val, ctx: AontuContext): Val;
     unify(peer: Val, ctx: AontuContext): Val;

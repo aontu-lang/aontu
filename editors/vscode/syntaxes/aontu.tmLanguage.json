@@ -111,7 +111,7 @@
 
     "builtin": {
       "comment": "The engine's function registry. `func: name \"(\" ...` in aontu.lark — only these names can be called, so a call to anything else is deliberately left uncoloured rather than dressed up as valid. The prefix family is spelled longest-first (refer|rel|rem|re) to keep the intent legible; the trailing \\b already makes the order immaterial, since a short alternative that swallowed the stem fails the boundary and backtracks.",
-      "match": "\\b(above|acyclic|add|below|close|copy|deprecate|div|each|filter|greatest|hide|inverse|join|key|least|length|list|lower|map|match|max|min|mod|move|mul|must|neq|open|pack|path|pick|pref|refer|rel|rem|re|sub|sum|super|type|unique|upper)\\b(?=\\s*\\()",
+      "match": "\\b(above|acyclic|add|below|close|copy|deprecate|div|each|emit|filter|greatest|hide|inverse|join|key|least|length|list|lower|map|match|max|min|mod|move|mul|must|neq|open|pack|path|pick|pref|refer|rel|rem|re|sub|sum|super|type|unique|upper)\\b(?=\\s*\\()",
       "captures": {
         "1": { "name": "support.function.builtin.aontu" }
       }

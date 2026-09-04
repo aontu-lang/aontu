@@ -8,6 +8,8 @@ declare class PlaceVal extends ValBase {
     get canon(): string;
     superior(): Val;
 }
+declare function boundArgStart(v: any): number;
 declare function hasPlace(v: Val): boolean;
 declare function fillPlace(v: Val, fill: Val, ctx: AontuContext): Val;
-export { hasPlace, fillPlace, PlaceVal, };
+declare function rebuild(v: Val, peg: any, ctx: AontuContext): Val;
+export { boundArgStart, rebuild, hasPlace, fillPlace, PlaceVal, };

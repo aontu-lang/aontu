@@ -59,3 +59,4 @@ least(d: map|list) : number
 greatest(d: map|list) : number
 pick(d: map|list, projector k: string|integer) : any
 join(d: map|list, sep?: string) : string
+emit(s: map|list, template t: map|list) : list
