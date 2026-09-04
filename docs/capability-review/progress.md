@@ -1532,7 +1532,15 @@ a name, so the rule layer carries one concept where XSLT carries two.
 And because the table argument is an expression, a template can be
 written inline **where its output appears** — the marker keeps its own
 indentation and a body line is verbatim, so a template indented to its
-place in the generated file produces exactly that. The generator is
+place in the generated file produces exactly that; a table of one may
+be written as the template map itself. The surface also has to stop
+borrowing sequences from the target: `${}` is not a safe hole (VERIFIED
+twice on this project's own material — the backend's serverless bucket
+name, and a generated file holding a template literal, which collides
+on the backtick the canonical form quoted with as well), so the hole is
+PROFILE DATA chosen for inertness in the target, the canonical quote is
+chosen per line so every line is representable, and the residual escape
+is the fixpoint rule rather than a table of escapes. The generator is
 then a file in the target's own syntax, `//:` comments carrying the
 Aontu: VERIFIED, **12 of 12 handlers byte-identical**, the desugaring
 round-trips in both directions, and the template file has 0 TypeScript

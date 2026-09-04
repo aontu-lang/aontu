@@ -2770,6 +2770,13 @@ Three rules complete it:
   the engine rather than in user space, which is what D4(iii)
   requires.
 
+**A single template may be written as a map.** The table is a list, but
+the second argument also accepts one template map — the list of one —
+because a map is never a list and the two are told apart by kind,
+exactly as `match()` tells its patterns apart. Every inline site in the
+generator below is one template, so this is the common case, and it
+saves a bracket pair at each end.
+
 **Why `emit` and not `apply`.** `apply` is XSLT's word and carries the
 lineage, but in a language that has functions it is read as function
 application, which this is not. `emit` says what the call produces —
@@ -2945,29 +2952,32 @@ written at the call site — which means a template can be written
 **exactly where its output appears**, indented to match, with no new
 mechanism at all. The whole generator for the twelve handlers is then
 one file, in the target's own syntax, with `//:` line comments (`#:`
-in YAML and Python, `--:` in SQL) carrying the Aontu:
+in YAML and Python, `--:` in SQL) carrying the Aontu and `/*:expr*/`
+for an inline hole — see
+[below](#the-sugar-borrows-three-sequences-and-each-one-collides) for
+why the hole is profile data rather than one fixed spelling:
 
 ```ts
 //: @"./model.aon"
 //: @"./wire.aon"
 //: svc: $.main.srv & $.wire & pack($.main.srv, {name: key()})
-//: files: emit($.svc, [{ match: {name: string}, body: [
+//: files: emit($.svc, {match: {name: string}, body: [
 import { getSeneca } from '../../env/lambda/lambda'
 
 function complete(seneca: any) {
-  //: emit(.listen, [{ match: {pin: string}, body: [
-  seneca.listen({type:'sqs',pin:'${.pin}'})
-  //: ]}]),
-  //: emit(.client, [{ match: {pin: string}, body: [
-  seneca.client({type:'sqs',pin:'${.pin}'})
-  //: ]}]),
-  //: emit(filter(.on.file.events, {source: 's3'}), [{ match: {source: 's3', msg: string}, body: [
+  //: emit(.listen, {match: {pin: string}, body: [
+  seneca.listen({type:'sqs',pin:'/*:.pin*/'})
+  //: ]}),
+  //: emit(.client, {match: {pin: string}, body: [
+  seneca.client({type:'sqs',pin:'/*:.pin*/'})
+  //: ]}),
+  //: emit(filter(.on.file.events, {source: 's3'}), {match: {source: 's3', msg: string}, body: [
 
   const makeGatewayHandler = seneca.export('s3-store/makeGatewayHandler')
   seneca
     .act('sys:gateway,kind:lambda,add:hook,hook:handler', {
-       handler: makeGatewayHandler('${.msg}') })
-  //: ]}]),
+       handler: makeGatewayHandler('/*:.msg*/') })
+  //: ]}),
 }
 
 exports.handler = async (
@@ -2975,13 +2985,13 @@ exports.handler = async (
   context:any
 ) => {
   
-  let seneca = await getSeneca('${.name}', complete)
+  let seneca = await getSeneca('/*:.name*/', complete)
   
   let handler = seneca.export('gateway-lambda/handler')
   let res = await handler(event, context)
   return res
 }
-//: ]}])
+//: ]})
 ```
 
 Two small rules make the placement work, and both belong to the sugar
@@ -2997,6 +3007,62 @@ with the marker, which needs an escape the surface must name.
 Inline and named are the same construct, so the choice is ordinary:
 write the table at the site when one site uses it, give it a name when
 several do.
+
+### The sugar borrows three sequences, and each one collides
+
+`${expr}` is not a safe spelling for a hole, and this project's own
+material breaks it twice.
+
+**YAML.** The assessed backend's model carries the bucket name
+`podmind01-backend01-file02-${self:provider.stage}`, and a hand-written
+serverless template has to EMIT `${self:provider.stage}` verbatim.
+VERIFIED: with `${}` as the hole, the desugaring eats it —
+`` `  bucket: podmind01-backend01-file02-` + self:provider.stage + `` ``.
+
+**TypeScript.** A generated file holding a template literal —
+`` log(`handler ${name} ready`) `` — collides twice: on `${}`, and on
+the BACKTICK the canonical form used to quote a line. The second is
+worse, because it made the line unrepresentable at all, hole or no
+hole; the desugaring refused it outright.
+
+So the sugar borrows three sequences from the target's own space, and
+each needs a rule rather than a constant:
+
+| borrowed | collides with | rule |
+| --- | --- | --- |
+| the line marker | a target comment line that starts with it | profile data (already), plus the escape below |
+| the inline hole | TS and JS template literals, shell, serverless, Terraform, Groovy, Kotlin | **profile data**, not a language constant |
+| the canonical quote | any target line holding a backtick | chosen **per line** |
+
+**The hole is profile data, and the test is inertness in the target —
+the same test that chose the line marker.** Where the target has an
+INLINE comment form, that is the natural pick, because then a hole is
+inert by construction rather than by luck: `/*:expr*/` for TypeScript,
+so the hole is a comment and the template file stays valid TypeScript.
+VERIFIED: the generator above rewritten with `/*: */` holes and re-run
+— 12 of 12 byte-identical, round trip identical, 0 syntax errors.
+Targets with no inline comment form — YAML, Python, shell — take a
+profile-chosen sequence and lean on the escape below.
+
+**The quote is chosen per line, so every line is representable.** Raw
+backticks need no escaping and read best, so a line takes one unless it
+holds a backtick, in which case it takes the escaping quote with `\`
+and `"` escaped. VERIFIED, the template literal above survives as
+`` "  log(`handler ${name} ready`)" ``. This is the one place the
+canonical form is allowed to be less pretty, because representability
+beats readability in a form no one writes by hand.
+
+**The residual escape needs no new syntax.** A line that still cannot
+be written verbatim — one starting with the marker, or holding the
+profile's hole opener — is written in a marker line AS its canonical
+element, and the re-sugaring leaves it there because it TESTS the round
+trip: it rebuilds the target line, desugars the rebuild, and accepts it
+only if that reproduces the canonical line. **The sugar is therefore
+defined as the fixpoint of the two transforms rather than by a table of
+escapes**, and an un-representable line is simply one the fixpoint
+leaves alone. VERIFIED on a YAML template mixing a hole, an ordinary
+line and a literal `${self:provider.stage}` line: round trip identical,
+with only the third line left in canonical form.
 
 **No line of target code appears inside an Aontu string.** That is the
 difference from every earlier attempt, and it is what the rule layer
@@ -3099,7 +3165,7 @@ gating generation, but it remains an ADR-001 break in its own right.
 | **3** (`form`) | Strengthened, and its evidence is now specific: the four routes closed in fact 2 are all "the value is there and the engine will not settle it inline". |
 | **4** (the renderer) | Unchanged, and confirmed: `emit` returns the flat piece list the fold already reads, so the renderer needs nothing new to consume a rule set's output. |
 | **6** (`walk`) | **Re-scoped, and it is the load-bearing phase.** It ships `emit(select, table)` — dispatch against a list of `{match, body}` records, first match wins, bodies instantiated against the matched node, result flat — rather than `walk(data, tmpl)` with the table encoded in `match` argument positions. No `mode` argument and no `mode` key: a mode is a named table. A body — its selectors included — binds to a NAMED origin, the node the template matched, rather than to a dot count, because a count does not survive composition. Descent stays: `emit` with no explicit selection is the children, which is how a recursive rule set walks a tree. The selector is a VALUE in an ordinary strict argument position, never a captured address: `path()` is the type of what the run REPORTS (the provenance node path), not of what `emit` is given. It also settles whether enriching a node-set before dispatch is enough to pass outer context to an inner template, or whether a parameter is needed. The totality argument of [§2](#2-the-rule-layer--apply-templates-in-the-engine) is unchanged, since it is about the structure descended, not about how rules are spelled. |
-| **new, after 6** | The template surface: the marker comment, the indentation rule, the escape for a target line that begins with the marker, the desugaring, and `fmt` over a template file. It is a sugar with one rule and a round-trip test, and it cannot be written before `emit` exists, because it desugars to `emit`. |
+| **new, after 6** | The template surface: the marker comment, the indentation rule, the PROFILE-CHOSEN inline hole (`${}` is not safe — it is TS, shell, serverless and Terraform syntax), the per-line quote that makes every line representable, the fixpoint rule that is the residual escape, the desugaring, and `fmt` over a template file. It is a sugar with one rule and a round-trip test, and it cannot be written before `emit` exists, because it desugars to `emit`. |
 
 The acceptance case for phase 6 stands as
 [the second amendment](#amendment-2026-09-04-second-aontucode-and-the-fragment-algebra)
