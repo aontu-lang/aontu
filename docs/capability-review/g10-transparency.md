@@ -276,6 +276,22 @@ sharper complaint that hashing meaning makes the evaluator the
 verification surface. The leaf shape stands; what changes is that its
 first field is now load-bearing.
 
+**Rejection ground 1 is retired.** The superseding note above recorded
+that grounds 2 and 3 had fallen and that "ground 1, module paths against
+forge paths, stands unchanged". It no longer does. The approved naming
+convention is `<domain>/<path>`, with forge hosts admitted first and
+verified domains later, and it dissolves the ground rather than trading
+against it. `github.com/alice/widgets` **is** domain-shaped — `MODULE_RE`
+matches it today, unamended — so nothing is reshaped; and the path is a
+**name rather than a fetch instruction**, so `?go-get=1` is not needed
+either. Bytes always come from the repository, nothing resolves a domain
+at install time, and the arbitrary DNS holders this ground existed to
+keep out of the trust base are therefore not in it. Ownership is proved
+at publish instead, by the OIDC claim the forge already issues and
+Fulcio already carries in the certificate. All three grounds on which
+design C's substrate was rejected have now been answered — none of them
+by design C.
+
 The pin-covers-only-the-entry-file defect above is unchanged and more
 urgent: unpinned files now land in the project's own bucket rather than
 on somebody else's forge.

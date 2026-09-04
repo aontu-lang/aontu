@@ -1600,6 +1600,22 @@ settled it and the registry-management policy it creates, is
 [`REPOSITORY.0.md`](https://github.com/aontu-lang/system/blob/main/docs/design/REPOSITORY.0.md).
 Two rows change status below, and phases 1, 2, 4 and 6 do not.
 
+**The naming convention is settled in the same commit**, as
+[ADR-020](../../ADR.md#adr-020--a-module-path-is-domainpath-and-the-domain-is-a-proved-namespace):
+a module path is `<domain>/<path>`, the domain is a namespace the
+publisher proves rather than a location anything resolves, and admission
+is tiered — forge namespaces now, verified domains later. **It retires
+the last of the three grounds on which design C's substrate was
+rejected**, ground 1, which held that a domain-shaped path could not
+address a forge without putting arbitrary DNS holders in the trust base;
+see [g10-transparency.md](g10-transparency.md#the-channel-is-settled-bytes-are-stored-2026-09-04).
+No row moves for it and no code changes: `MODULE_RE` matches
+`github.com/alice/widgets@1` today, `validateModulePath` already applies
+Go's rules, and the convention is repository admission policy rather
+than language behaviour — so no shared spec row is added or altered, and
+the [G6 identity section](g6-distribution.md#module-identity-and-import-syntax)
+is annotated rather than amended.
+
 Baseline at drafting, for protocol rule 5: `ls test/spec/*.tsv | wc -l`
 = **97**, `awk -F'\t' 'NF>2 && $0 !~ /^#/' test/spec/*.tsv | wc -l`
 = **3767** (both re-derived 2026-08-30, after G6.2's path-gate rows).

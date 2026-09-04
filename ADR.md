@@ -36,6 +36,7 @@ ADR-NNN**, so the reasoning that led there stays readable.
 | [ADR-017](#adr-017--the-builtin-call-surface-is-declared-parsed-by-both-ports) | The builtin call surface is declared, parsed by both ports | Accepted |
 | [ADR-018](#adr-018--the-pipe-operator-is-removed) | The pipe operator is removed | Accepted |
 | [ADR-019](#adr-019--the-project-stores-module-bytes-and-federates-the-log) | The project stores module bytes, and federates the log | Accepted |
+| [ADR-020](#adr-020--a-module-path-is-domainpath-and-the-domain-is-a-proved-namespace) | A module path is `<domain>/<path>`, and the domain is a proved namespace | Accepted |
 
 ---
 
@@ -1889,4 +1890,117 @@ The G6 boundary bullet and the
 in the same commit as this entry. The design, its cost model, its
 registry-management policy and its open questions are `REPOSITORY.0.md`
 in `aontu-lang/system`; status is the
+[progress register](docs/capability-review/progress.md).
+
+---
+
+## ADR-020 — A module path is `<domain>/<path>`, and the domain is a proved namespace
+
+**Date:** 2026-09-04
+**Status:** Accepted
+
+### Context
+
+[G6](docs/capability-review/g6-distribution.md) settled that a module
+path is domain-based, CUE/Go-style, with the major version in the path,
+and `MODULE_RE` in both ports has enforced a domain-shaped first segment
+since. What was never settled is **which domains**, and the gap was
+load-bearing in a way that only became visible once
+[ADR-019](#adr-019--the-project-stores-module-bytes-and-federates-the-log)
+gave the project somewhere to publish to.
+
+Two problems sat in that gap.
+
+**Ownership was unprovable.** A domain-shaped name ties identity to DNS
+control, which is the structural reason Go and Cargo were immune to
+dependency confusion. But nothing checked it. A commissioned survey put
+the requirement precisely: bind trust to a first-seen key or first-seen
+resolution, "not to whoever controls the DNS at fetch time", because
+domain ownership is a fact about today rather than about when a module
+was published.
+
+**Addressing a forge appeared to require putting DNS in the trust base.**
+The one ground on which the forge-tag registry design was rejected and
+which survived every later revision was that domain-based paths "cannot
+address a forge repository without Go's `?go-get=1` vanity protocol,
+which puts arbitrary DNS holders inside the trust base". A later design
+note compounded this by rejecting `github.com/alice/widgets` as a
+spelling that "discards the domain-shaped identity" — which is not true,
+and `MODULE_RE` matching it unamended is the proof.
+
+### Decision
+
+**Every module path is `<domain>/<path>`. The domain is a namespace the
+publisher must prove, and it is never resolved.**
+
+Five parts, each load-bearing:
+
+1. **The path is a name, not a fetch instruction.** Bytes always come
+   from the repository, whatever the path says. Nothing performs DNS
+   resolution on a module path at install time. This is what separates
+   the convention from Go's, and it is what retires the rejection ground
+   above rather than trading against it.
+
+2. **Admission is tiered.** Tier A is forge namespaces —
+   `github.com/<org>/<repo>`, `gitlab.com/<group>[/<subgroup>…]/<project>`
+   and their equivalents — and is what exists first. Tier B is verified
+   domains, `corp.example/schemas/service`, and comes later.
+
+3. **A host is admissible only when publishing from it proves namespace
+   ownership cryptographically, at publish time.** GitHub Actions' OIDC
+   token carries a `repository` claim and GitLab's a `project_path`,
+   both of which Fulcio records in the issued certificate. A forge with
+   no OIDC cannot be admitted, because there would be nothing to check.
+   The allowlist is the output of this rule, not a curated list, so
+   admitting a new host is a factual question rather than a policy
+   argument.
+
+4. **Ownership is checked per publish, never registered once.** To
+   publish `github.com/alice/widgets@1` the signing certificate must
+   carry `repository = alice/widgets`. There is no account, no name
+   reservation, and no squatting policy, because a name nobody can prove
+   they own is a name nobody can publish.
+
+5. **No module is unnamespaced.** Namespacing is a property of the name
+   rather than a feature the repository adds, so it cannot be opted out
+   of or forgotten.
+
+### Consequences
+
+**We accept that a tier-A name is bound to its forge.** A publisher who
+leaves GitHub changes the module path, and a changed path is a new
+module identity. Go accepts the same cost. Tier B is the graduation
+path, but graduating is a rename, so an alias or retract-and-redirect
+story is owed before the first publisher needs one.
+
+**We accept a case rule.** `MODULE_RE` restricts the domain to lowercase
+but admits mixed case in path elements, and forge namespaces are
+case-insensitive for lookup, so `github.com/Alice/Widgets` and
+`github.com/alice/widgets` would otherwise be two names for one
+repository. Tier-A elements are normalised to lowercase at publish, and
+a path colliding case-insensitively with an existing one is refused.
+
+**We accept that per-host shape is data, not inference.** GitHub
+namespaces are exactly two segments; GitLab subgroups are
+variable-depth, so the boundary between project and subdirectory cannot
+be derived from the string and is recorded at publish.
+
+**What this costs to build now is nothing.** `MODULE_RE` accepts a
+tier-A path today and `validateModulePath` already applies Go's rules,
+so this is repository admission policy rather than a language change. A
+local, vendored or privately-hosted module keeps whatever domain-shaped
+path it has, and nothing that evaluates today stops evaluating. Under
+[ADR-001](#adr-001--typescript-and-go-stay-at-full-parity-driven-by-a-shared-spec)
+this matters: no shared spec row changes, because no language behaviour
+changes.
+
+**What this does not license.** It does not admit resolution of a module
+path over the network, in any tier, for any purpose — that is part 1,
+and reversing it reinstates the trust-base objection this entry exists
+to retire. It does not make ownership a claim the publisher asserts
+rather than proves. And it is not a private-module or authentication
+design, which stays out of scope for the reason G6 gave.
+
+The design, the two tiers and the details they still owe are
+`REPOSITORY.0.md` §3a in `aontu-lang/system`; status is the
 [progress register](docs/capability-review/progress.md).

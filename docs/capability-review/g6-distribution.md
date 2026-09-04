@@ -264,6 +264,16 @@ in the path. An import is still just `@"…"` — the string's *shape*
 routes it, so the grammar is untouched and every existing include
 keeps its exact behaviour:
 
+*(Refined 2026-09-04 by
+[ADR-020](../../ADR.md#adr-020--a-module-path-is-domainpath-and-the-domain-is-a-proved-namespace),
+which settles **which** domains. The shape below is unchanged and needs
+no amendment — `github.com/alice/widgets@1` already matches it, so the
+convention costs no grammar, no pattern and no spec row. What ADR-020
+adds sits above the language, in what a repository will accept for
+publication: forge namespaces first, proved by the OIDC claim the forge
+issues, and verified domains later. A module resolved locally or from a
+vendor tree is unaffected, which is why nothing here moves.)*
+
 ```aon
 # Module import: domain-shaped first segment + @<major>.
 service: @"corp.example/schemas/service@1"
