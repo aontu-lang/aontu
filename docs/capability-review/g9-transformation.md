@@ -2520,7 +2520,15 @@ correction is reachable in the phases as they stand.
   `trust.include`'s confinement. A scaffolder whose templates ship
   **inside the engine**, as the bundled models do, has neither
   problem — it reads nothing from disk and confines its writes the way
-  `render --out` does. Decided by: whether project setup is a real
-  gap, which the module and `aontu env` work will answer before this
-  design needs to.
+  `render --out` does. **Answered, 2026-09-04:**
+  [INIT.0.md](../design/INIT.0.md) designs `aontu init` on exactly
+  that footing — templates as bundled source constants, no filesystem
+  read, no Jostraca, and the opposite lifecycle to `render` (it writes
+  once and refuses a second run, where generation writes every time and
+  must reason about what it finds). D3 is unaffected: the bridge still
+  drives Jostraca, because generation is the repeated run over
+  hand-edited files and that is what Jostraca is for. That note also
+  corrects this design's claim that `render` is the first verb with a
+  write effect — `fmt -w`, `agentsmd --write`, `mod tidy`,
+  `mod vendor`, `set --overlay` and `view --out` all write today.
 
