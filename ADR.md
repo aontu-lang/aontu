@@ -38,6 +38,7 @@ ADR-NNN**, so the reasoning that led there stays readable.
 | [ADR-019](#adr-019--the-project-stores-module-bytes-and-federates-the-log) | The project stores module bytes, and federates the log | Accepted |
 | [ADR-020](#adr-020--a-module-path-is-domainpath-and-the-domain-is-a-proved-namespace) | A module path is `<domain>/<path>`, and the domain is a proved namespace | Accepted |
 | [ADR-021](#adr-021--the-project-hosts-private-packages-with-authenticated-reads) | The project hosts private packages, with authenticated reads | Accepted |
+| [ADR-022](#adr-022--compatibility-is-computed-so-the-major-leaves-the-name) | Compatibility is computed, so the major leaves the name | Accepted |
 
 ---
 
@@ -1837,6 +1838,16 @@ inherits:
    allowlist, no observation queue, no negative caching — and reversing
    it re-opens all of it. A repository that evaluated submissions would
    be running attacker-chosen input through the evaluator on a server.
+   *(Amended same day by
+   [ADR-022](#adr-022--compatibility-is-computed-so-the-major-leaves-the-name):
+   **the fetching half is untouched** and is what deletes the ingestion
+   threat model. Evaluation is now permitted **at publish only** — on
+   authenticated input, under a deterministic budget, once per publish —
+   so that backwards compatibility can be enforced rather than trusted.
+   Never at read, never on unauthenticated input. The concern this
+   clause names is answered rather than dismissed: publication requires
+   a proved namespace, so the input is not attacker-chosen in the sense
+   that mattered when the service also held no bytes.)*
 6. **It operates no transparency log.** Identity, signing and the log
    are Sigstore's: Fulcio for publisher identity, Rekor v2 for the log,
    the Sigstore bundle as the stored proof, the TUF trust root for
@@ -1902,7 +1913,14 @@ in `aontu-lang/system`; status is the
 ## ADR-020 — A module path is `<domain>/<path>`, and the domain is a proved namespace
 
 **Date:** 2026-09-04
-**Status:** Accepted
+**Status:** Superseded in part, same day, by
+[ADR-022](#adr-022--compatibility-is-computed-so-the-major-leaves-the-name).
+**The major version leaves the path**, because subsumption decides
+backwards compatibility and the repository enforces it — so the naming
+scheme no longer has to make the unsafe substitution unspellable. Parts
+2, 3, 4 and 6 are unchanged, and part 1 is reinforced rather than
+disturbed: with the major gone, the last piece of resolution semantics
+leaves the string, and the path is purely a name.
 
 ### Context
 
@@ -2210,3 +2228,139 @@ changes nothing about what they are permitted to do.
 The design, its seven constraints and the four questions it leaves open
 are `REPOSITORY.0.md` §10.6 in `aontu-lang/system`; status is the
 [progress register](docs/capability-review/progress.md).
+
+---
+
+## ADR-022 — Compatibility is computed, so the major leaves the name
+
+**Date:** 2026-09-04
+**Status:** Accepted
+
+### Context
+
+[ADR-020](#adr-020--a-module-path-is-domainpath-and-the-domain-is-a-proved-namespace)
+put the major version in the path, Go-style, and the design note called
+that "what makes MVS sound". **That overstated it**, and the correction
+is the whole of this entry.
+
+Minimum version selection **substitutes upward**: a dependency that asks
+for `core` 1.1.0 is handed 1.3.0 when something else asked for that, and
+it was never tested against it. So MVS is only safe under the *import
+compatibility rule* — a newer version must work wherever an older one
+did. Nor can the claim travel with each requirement, because **MVS has
+no upper bounds**: npm's `^1.1.0` says "and not 2.x", while an MVS
+requirement is a bare minimum. The compatibility claim has to come from
+somewhere else entirely, and putting the major in the name is one way to
+supply it: `@1` and `@2` become different packages, so the unsafe
+substitution is unspellable.
+
+It is not the only way, and for this project it is the weaker one.
+
+**In Go, a SemVer major is a promise the toolchain cannot check.**
+Nothing verifies that v1.3.0 really is compatible with v1.1.0; the
+version number is trusted. Most major bumps are therefore precautionary
+— published because the author *thinks* something broke.
+
+**Here it is decidable.** [G3](docs/capability-review/g3-subsumption-evolution.md)
+subsumption answers exactly the question the rule asks: does every
+instance the old version admits, the new one admit too? Two properties
+make that compose:
+
+- **Subsumption is transitive**, so checking each version against only
+  its immediate predecessor establishes compatibility with *every*
+  predecessor. One check per publish, not one per pair.
+- **Unification is monotone** — loosening a conjunct loosens the meet —
+  so pairwise-enforced compatibility yields **closure-wide**
+  compatibility with no extra work.
+
+One premise also changed underneath the earlier reasoning.
+[ADR-019](#adr-019--the-project-stores-module-bytes-and-federates-the-log)
+made the repository store the source, so "the service does not have the
+bytes" is no longer a reason it cannot check anything.
+
+### Decision
+
+**Compatibility is computed and enforced, so the major leaves the name.**
+
+1. **A package path carries no major version.**
+   `corp.example/schemas/service`, not `corp.example/schemas/service@1`.
+
+2. **The repository refuses a publish that is not backwards compatible
+   with its predecessor**, decided by subsumption rather than asserted
+   by a version number. A genuine break therefore requires a new name,
+   chosen by the publisher — but only when the break is real and
+   verified, not whenever an author fears one.
+
+3. **ADR-019's constraint 5 is amended.** The service still **fetches
+   nothing** — that is what keeps the ingestion threat model deleted,
+   and it is untouched — but it **may evaluate at publish**: on
+   authenticated input only, under a deterministic budget, one
+   evaluation per publish. Never at read, and never on unauthenticated
+   input.
+
+4. **Every reference self-describes**, and nothing is inferred from
+   absence:
+
+   | Form | Means |
+   |---|---|
+   | `corp.example/schemas/service` | a package |
+   | `./f.aon`, `../g.json`, `/abs/h.aon` | a local file |
+   | `alias:legacy` | a package alias |
+
+   A local file reference **must** carry `./`, `../` or `/`. This is
+   what removes the ambiguity the major used to resolve by accident: a
+   bare `foo.aon` is domain-shaped enough to look like a package, and
+   the leading `./` is what tells the two apart.
+
+5. **Coexistence is by alias, declared by the consumer.** A project that
+   genuinely needs two versions of one package names the second itself,
+   rather than every publisher encoding "somebody might need two of me"
+   in their name forever.
+
+### Consequences
+
+**We accept an evaluator on the publish path.** A server-side evaluator
+defect becomes reachable by an authenticated publisher. It is bounded by
+three things — publication requires a proved namespace under ADR-020, it
+is one evaluation per publish rather than per read, and the deterministic
+evaluation budget applies. That budget is therefore now a **server**
+requirement and not only a client one.
+
+**We accept that subsumption does not cover defaults.** If
+`port: integer = 8080` becomes `= 9090`, the admitted set is unchanged,
+so the check passes — and every consumer relying on the default gets a
+different value. That is the hostile-value class arriving through a
+compatible release. The publish check needs a defaults report alongside
+subsumption, surfaced and acknowledged rather than silently allowed;
+this is named here because it is the gap a reader would otherwise
+assume closed.
+
+**We accept a migration diagnostic.** With `./` mandatory, a bare
+`@"foo.aon"` classifies as a package and would fail with "package not
+found", which is the wrong message for what will be the commonest
+mistake. A reference whose final segment carries a known file extension
+and no `./` refuses with *"local files need a `./` prefix"*. Routing
+stays a shape rule; only the error is special-cased.
+
+**Aliases do not create contradictions.** An earlier draft claimed two
+versions of one package meeting in a document would conflict. They do
+not: with compatibility enforced, `1.2 ∧ 1.4` is simply `1.2`, the
+narrower. Different subtrees is the ordinary usage; meeting is also
+well-defined.
+
+**What this supersedes and what survives.** ADR-020's part 2 (two
+admission tiers), part 3 (a host must prove ownership and issue a
+stable identifier), part 4 (the subject is an identifier pair) and part
+6 (renames by one signed forward link) are unchanged. Its part 1 — the
+path is a name and never a fetch instruction — is not merely unchanged
+but reinforced, since dropping the major removes the last piece of
+resolution semantics from the string. Only the major-in-path element
+goes.
+
+**What this does not license.** Evaluation at read, in any tier, for any
+purpose. Evaluation of unauthenticated input. And it does not weaken
+ADR-019's constraint 5 on **fetching**, which is the half that deletes
+the ingestion threat model and is untouched here.
+
+The design is `CLI.0.md` §3.3 and `REPOSITORY.0.md` §3a in
+`aontu-lang/system`.
