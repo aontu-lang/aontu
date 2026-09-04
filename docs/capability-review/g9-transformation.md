@@ -3065,7 +3065,8 @@ profiles choose otherwise.
 VERIFIED with the new marker and hole: the generator above re-run — 12
 of 12 byte-identical, round trip identical, 0 syntax errors; and the
 two collisions that started this pass through untouched, `${…}` in
-YAML and a whole TypeScript template literal.
+YAML and a whole TypeScript template literal. A wider survey, and what it
+settles, is [below](#no-hole-is-safe-everywhere-so-the-surface-refuses-rather-than-guesses).
 
 **The quote is chosen per line, so every line is representable.** Raw
 backticks need no escaping and read best, so a line takes one unless it
@@ -3086,6 +3087,104 @@ escapes**, and an un-representable line is simply one the fixpoint
 leaves alone. VERIFIED on a YAML template mixing a hole, an ordinary
 line and a literal `${self:provider.stage}` line: round trip identical,
 with only the third line left in canonical form.
+
+### No hole is safe everywhere, so the surface refuses rather than guesses
+
+The corpus measurement above is evidence for three languages, and it
+should not be read as more. Tested against realistic lines from twenty
+languages, **`<-expr->` breaks in ten of twenty-five** — and `${expr}`
+breaks a different, overlapping set. There is no universally safe ASCII
+pair, and a design that picks one and moves on is wrong somewhere it
+has not looked.
+
+| clean | breaks |
+| --- | --- |
+| TypeScript, JavaScript, Go, Python, Rust, Java, Kotlin, PHP, Clojure, C++ (idiomatic), SQL, shell, YAML, JSON | Haskell, Scala, Elixir, Erlang, F#, OCaml, Coq, R, Markdown and other prose, C++ (`if (i<-1) return p->q;`), HTML comments |
+
+The breaks are not exotic. `xs <- mapM (\x -> f x) ys` is ordinary
+Haskell; `for (k <- m) yield k -> v` is ordinary Scala; `x <- c(1,2); 3
+-> y` is ordinary R, which has both operators.
+
+**So the design's contribution is not the spelling. It is the
+refusal.** Every hole's content must parse as an Aontu expression, and
+a file where one does not is refused at desugar time, naming the line
+and the hole it could not read. VERIFIED against the same survey: the
+check catches **ten of the eleven breaking lines** — ` mapM (\x `,
+` m) yield k `, ` xs, do: (case x do 1 `, ` L], fun(Y) `, ` (fun y `,
+` (fun x `, ` H; exact (fun x `, ` c(1,2); 3 `, `1) return p` and
+`b -` are none of them Aontu. A collision that would have corrupted a
+generated file silently becomes a located error before anything is
+generated, which is [G5](g5-trust-contract.md)'s posture applied to the
+surface.
+
+**The residual is stated, not hidden.** One survey line survives the
+check: the prose `the flow is ingest <- store -> embed`, whose hole
+reads ` store ` — a perfectly good Aontu bare word. No delimiter-based
+template surface can do better than this, and it is why the hole is
+profile data with a per-file override rather than a constant: the
+author of a prose or ML-family target picks a pair their output does
+not contain, and the parse check covers the rest.
+
+### Whitespace control: the problem is absent, and one hazard is not
+
+Every template engine grows trim markers — Jinja's `{%- -%}`, Go
+templates' `{{- -}}`, ERB's `<%- -%>` — because a control construct
+occupies a line and that line's newline leaks into the output. **This
+surface has none and needs none: a marker line is not an output line
+at all**, so a construct cannot leak anything. VERIFIED by the
+handlers, which reproduce byte-identically including two blank lines
+and two lines that are two spaces and nothing else, with no trim
+markers anywhere.
+
+Indentation, the other half, is right by construction: a body line is
+verbatim and a template is written where its output appears, so
+`  seneca.listen(…)` is indented two spaces because that is where it
+belongs in the generated file. The residual is one template used at two
+depths, and that is what the fragment algebra's `at` is for —
+re-indentation on splice is the RENDERER's, not a template directive.
+Unverified: the shared-table probe used one depth.
+
+**The hazard is the template file's own trailing whitespace.** Those
+two-space lines are significant, and an editor set to trim on save
+destroys them silently. The canonical form quotes them explicitly
+(`` `  `, ``), so it is the artifact of record and a desugar-and-compare
+check catches the damage — but the surface has to say so, because the
+first person bitten will not guess.
+
+### String escapes: settled in the canonical form, open in the output
+
+The canonical form is settled by the per-line quote above. The OUTPUT
+is not, and this is the oldest bug in code generation.
+
+VERIFIED, with a service named `o'brien` and a pin of `it's,a:pin`:
+
+```
+  let s = await getSeneca('o'brien', complete)
+  seneca.client({type:'sqs',pin:'it's,a:pin'})
+```
+
+`tsc` rejects it with four errors. Interpolation without escaping
+generates broken code, and where the data is less benign it generates
+whatever the data says.
+
+**Escaping is a LANGUAGE fact, so it belongs in the profile, not the
+template** — which is exactly what the declaration vocabulary already
+gets right: a transform emits a VALUE and the renderer spells the
+literal, escapes included, per
+[§3](#3-the-renderer-and-the-language-profiles). The fragment layer is
+where an author hand-spells, so it needs the same thing: a hole that
+carries a value to be spelled as a string literal in the target,
+`<-str(.pin)->`, with the profile doing the quoting.
+
+**Unescaped stays the default**, and the HTML lesson does not transfer.
+Autoescaping is right for HTML because the output is one grammar with
+one escape; here a hole lands in identifier, type, number, path and
+whole-statement positions across many grammars, and a blanket escape is
+wrong in most of them. What generalises instead is the layering: **a
+generator built on the declaration vocabulary never hand-spells a
+literal and so never has this bug at all.** Fragments are the escape
+hatch for what the vocabulary does not cover, and `str()` is the price
+of the hatch. Phase 4 ships it with the profiles.
 
 **No line of target code appears inside an Aontu string.** That is the
 difference from every earlier attempt, and it is what the rule layer
@@ -3186,9 +3285,9 @@ gating generation, but it remains an ADR-001 break in its own right.
 | --- | --- |
 | **1** (`aontu:code`) | Unchanged. The vocabulary is what a body's pieces are checked against, and it is what `emit`'s return type names. |
 | **3** (`form`) | Strengthened, and its evidence is now specific: the four routes closed in fact 2 are all "the value is there and the engine will not settle it inline". |
-| **4** (the renderer) | Unchanged, and confirmed: `emit` returns the flat piece list the fold already reads, so the renderer needs nothing new to consume a rule set's output. |
+| **4** (the renderer) | Unchanged, and confirmed — `emit` returns the flat piece list the fold already reads — but it GAINS one deliverable: `str()`, a piece carrying a value the renderer spells as a target string literal, escapes included. Without it a hand-spelled literal generates broken code, VERIFIED. |
 | **6** (`walk`) | **Re-scoped, and it is the load-bearing phase.** It ships `emit(select, table)` — dispatch against a list of `{match, body}` records, first match wins, bodies instantiated against the matched node, result flat — rather than `walk(data, tmpl)` with the table encoded in `match` argument positions. No `mode` argument and no `mode` key: a mode is a named table. A body — its selectors included — binds to a NAMED origin, the node the template matched, rather than to a dot count, because a count does not survive composition. Descent stays: `emit` with no explicit selection is the children, which is how a recursive rule set walks a tree. The selector is a VALUE in an ordinary strict argument position, never a captured address: `path()` is the type of what the run REPORTS (the provenance node path), not of what `emit` is given. It also settles whether enriching a node-set before dispatch is enough to pass outer context to an inner template, or whether a parameter is needed. The totality argument of [§2](#2-the-rule-layer--apply-templates-in-the-engine) is unchanged, since it is about the structure descended, not about how rules are spelled. |
-| **new, after 6** | The template surface: the marker comment, the indentation rule, the PROFILE-CHOSEN inline hole (`${}` is not safe — it is TS, shell, serverless and Terraform syntax), the per-line quote that makes every line representable, the fixpoint rule that is the residual escape, the desugaring, and `fmt` over a template file. It is a sugar with one rule and a round-trip test, and it cannot be written before `emit` exists, because it desugars to `emit`. |
+| **new, after 6** | The template surface: the marker (the target's comment token plus a dash), the indentation rule, the PROFILE-CHOSEN hole (`<-expr->` by default; no pair is safe in every language, and `${}` is the worst of them), the parse check that turns a collision into a located refusal, the per-line quote that makes every line representable, the fixpoint rule that is the residual escape, the trailing-whitespace hazard, the desugaring, and `fmt` over a template file. It is a sugar with one rule and a round-trip test, and it cannot be written before `emit` exists, because it desugars to `emit`. |
 
 The acceptance case for phase 6 stands as
 [the second amendment](#amendment-2026-09-04-second-aontucode-and-the-fragment-algebra)

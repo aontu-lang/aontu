@@ -1539,12 +1539,23 @@ twice on this project's own material — the backend's serverless bucket
 name, and a generated file holding a template literal, which collides
 on the backtick the canonical form quoted with as well), so the hole is
 PROFILE DATA: the marker is the target's comment token plus a dash
-(`//-`, `#-`, `---`) and the hole is `<-expr->`, measured absent as a
-pair from every corpus here — deliberately not the target's inline
-comment, since a comment is what a formatter feels free to move. The
-canonical quote is chosen per line so every line is representable, and
-the residual escape is the fixpoint rule rather than a table of
-escapes. The generator is
+(`//-`, `#-`, `---`) and the hole is `<-expr->` — deliberately not the
+target's inline comment, since a comment is what a formatter feels free
+to move. **No pair is safe in every language**: tested against
+realistic lines from twenty of them, `<-expr->` breaks in ten of
+twenty-five and `${expr}` breaks a different overlapping set, so the
+surface's contribution is the REFUSAL rather than the spelling — every
+hole's content must parse as an Aontu expression, which catches ten of
+the eleven breaking lines and turns a silent corruption into a located
+error. The canonical quote is chosen per line so every line is
+representable, and the residual escape is the fixpoint rule rather than
+a table of escapes. Two further findings: **whitespace control needs no
+trim markers at all**, because a marker line is not an output line, so
+the problem every template engine grows `{%- -%}` for is absent by
+construction; and **output escaping is missing**, VERIFIED — a service
+named `o'brien` generates TypeScript `tsc` rejects — so phase 4's
+profiles gain `str()`, a value the renderer spells as a target string
+literal. The generator is
 then a file in the target's own syntax, `//-` comments carrying the
 Aontu: VERIFIED, **12 of 12 handlers byte-identical**, the desugaring
 round-trips in both directions, and the template file has 0 TypeScript
