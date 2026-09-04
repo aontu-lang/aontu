@@ -173,27 +173,37 @@ pass-through. It earns its place beyond generation: reading a value
 back out of a generated artifact, or out of an external one, is the
 same operation.
 
-### Replacements are escaped by default
+### Escaping is ON; `esc:` is an optional key
 
-**A `replace` value is escaped**, with the variant the template
-declares. That is the right posture for a code generator and it costs
-nothing: the escape is a **no-op on any value that was already safe**,
-and a fix on the rest. VERIFIED for the worked generator — no service
-name and no message carries a character `esc(_, sq)` would change, so
-the twelve files are byte-identical either way.
+**Every `replace` value is escaped.** That is the default and it is not
+opt-in — a generator that interpolates unescaped data is the bug this
+whole section exists to close, so the safe behaviour is the one you get
+by writing nothing.
 
-The variant is declared **once per template**:
+It costs nothing: the escape is a **no-op on any value that was already
+safe**, and a fix on the rest. VERIFIED for the worked generator — no
+service name and no message carries a character `esc(_, sq)` would
+change, so the twelve files are byte-identical either way.
+
+**`esc:` is therefore an OPTIONAL key that names the variant**, not a
+switch that turns escaping on:
 
 ```aon
-{match: …, esc: sq, replace: {PIN: .pin}, body: [ … ]}
+{match: …, replace: {PIN: .pin}, body: [ … ]}            # escaped, C / JSON
+{match: …, esc: sq, replace: {PIN: .pin}, body: [ … ]}   # escaped, single-quoted
+{match: …, esc: none, replace: {…}, body: [ … ]}         # the explicit opt-out
 ```
 
-with the C default when `esc:` is absent, and `esc: none` as the
-explicit opt-out for a replacement that is not going into a literal.
+The handlers carry `esc: sq` throughout because every literal in them
+is single-quoted, which is exactly the case the C default does not
+cover. `esc: none` is for a replacement that is not going into a
+literal at all — an identifier or a whole statement — and it is the
+only way to get an unescaped value, so it is visible in the template
+rather than implied by its absence.
 
 **No metadata on the value, and that is deliberate.** The obvious
 alternative is to mark a string as already-escaped so `emit` can skip
-the default — but a new value mark has parity, canon-hash and `fmt`
+the default when the author escaped it themselves — but a new value mark has parity, canon-hash and `fmt`
 consequences in both ports, and marks leak:
 [BUGS §79](../../use-cases/BUGS.md) is a live case of `join` folding a
 `hide`-marked child into returned text. Declaring the variant on the

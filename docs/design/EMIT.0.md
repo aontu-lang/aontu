@@ -41,15 +41,16 @@ produces three artifacts from one model, and three tables read better
 than one table with a discriminator in every pattern.
 
 ```aon
-[ {match: <pattern>, replace?: {<KEY>: <expr>, …}, body: [ … ]}, … ]
+[ {match: <pattern>, esc?: <variant>, replace?: {<KEY>: <expr>, …}, body: [ … ]}, … ]
 ```
 
 `match` is an ordinary Aontu value used as a pattern, matched by
 unifiability, exactly as `match()` and `filter()` already use one.
 **This adds no second rule engine and no second pattern language.**
 `body` is a list of output pieces. `replace` is
-[TEMPLATE.0.md](TEMPLATE.0.md)'s substitution map and is specified
-there.
+[TEMPLATE.0.md](TEMPLATE.0.md)'s substitution map and `esc` names the
+escape variant its values take; both are specified there, including the
+rule that escaping is ON and `esc` is optional.
 
 **A single template may be written as the map itself** — the list of
 one — because a map is never a list and the two are told apart by kind,
@@ -59,7 +60,7 @@ worked generator is one template, so this is the common case.
 ## D2. `emit(select, table)`, and the result is flat
 
 ```
-emit(select: any, table: [&: {match: any, replace?: {}, body: [&: any]}]) : [&: %piece]
+emit(select: any, table: [&: {match: any, esc?: string, replace?: {}, body: [&: any]}]) : [&: %piece]
 ```
 
 For every node in `select`, in order: try the table's templates in list
