@@ -1025,9 +1025,9 @@ pack($.fleet, {v: _})})` the inner `_` is the fleet entry, not the env.
 A hole in a generator's *data* argument is not a binding position, so it
 is still the outer generator's to fill: `pack($.m, {inner: each(_)})`
 iterates the outer source child. A generator whose data is a hole is
-filled by its **peer**, exactly as an unstaged call is—`["a"] &
-pack(_, {x:1})` packs the list—which is what lets a rule table be
-named (see [Transforming](#transforming-emit)). And wrapping a generator in a call
+filled by its **peer**, exactly as any other call is—`["a"] &
+pack(_, {x:1})` packs the list—which is what lets a rule table be named
+(see [Transforming](#transforming-emit)). And wrapping a generator in a call
 (`close(pack(d, _ & t))`) does not expose the template's hole to the
 wrapper's peers—an overlay statement merges with the generated
 children, never with the template.
