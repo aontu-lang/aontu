@@ -174,6 +174,14 @@ top of a document, and its aliases are in scope. The alias
 `%port` and the path `$.system.port` are the same value, declared
 once.
 
+**A third model is proposed, and it is what the gate below is for.**
+[G9](../capability-review/g9-transformation.md) specifies
+`@"aontu:code"`, the output vocabulary a code-generation transform
+produces: twenty-odd aliases against this note's four, which makes it
+both the first real test of the no-shared-name rule and the reason to
+write that rule before there is a collision to report. Its phase 1
+waits on M0 for the resolver leg.
+
 **Language-supplied models must not share an alias name.** Two
 spliced files that both declare `%port` do not collide — their
 declarations *meet*, silently if the values are compatible and as a

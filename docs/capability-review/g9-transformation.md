@@ -478,14 +478,14 @@ dependency order.
 ```
   model.aon
     -- a transform, written in ORDINARY AONTU (pack/match/pick/join) -->
-  a %Code instance         <-- VETTED against @"std/code" (D1)
+  a %Code instance         <-- VETTED against @"aontu:code" (D1)
     -- render(), a pure fold with a language PROFILE -->
   text units + a loss report
     -- the jostraca bridge (D3) -->
   one Project, one generate(), N files on disk (D7)
 ```
 
-### 1. The output vocabulary — `@"std/code"`
+### 1. The output vocabulary — `@"aontu:code"`
 
 A bundled Aontu schema, served from the engine as `std/system` already
 is (ts/src/std.ts, go/std.go, same bytes, pinned by a canon and a hash
@@ -580,7 +580,7 @@ because ts/src/std.ts holds it in a template literal and go/std.go in
 a raw string that has no escape (ts/src/std.ts:13-14 states the rule).
 
 ```aon
-# std/code --- THE OUTPUT VOCABULARY (G9).
+# aontu:code --- THE OUTPUT VOCABULARY (G9).
 #
 # An Aontu transform evaluates to an instance of this schema; the
 # `render` verb turns the instance into bytes. Because it is an
@@ -589,11 +589,11 @@ a raw string that has no escape (ts/src/std.ts:13-14 states the rule).
 # is reached through a one-line wrapper (VERIFIED against std/system,
 # which is bundled the same way):
 #
-#   $ echo '@"std/code"' > code.aon
+#   $ echo '@"aontu:code"' > code.aon
 #   $ aontu vet code.aon result.aon
 #
-# `aontu vet @"std/code" result.aon` is NOT a command -- it fails with
-# ENOENT on a file literally named `@"std/code"`.
+# `aontu vet @"aontu:code" result.aon` is NOT a command -- it fails with
+# ENOENT on a file literally named `@"aontu:code"`.
 #
 # TWO ESCAPES. {k:"text", lang, text} carries verbatim target syntax;
 # `x` is an open per-backend rider. A render report counts both.
@@ -745,7 +745,7 @@ VERIFIED, and each is a spec row rather than a paragraph of advice.
    included" — and its one grandfathered exception, `relations:`, was
    discharged the day before this document was drafted. So `render`
    defaults `--at` to `$`, not to `$.code`. The `code:` key means
-   something only because `@"std/code"` declares it, in user space,
+   something only because `@"aontu:code"` declares it, in user space,
    opted into by inclusion — which is exactly the carve-out ADR-010
    makes for libraries. A document that nests its result elsewhere
    passes `--at` explicitly.
@@ -1229,7 +1229,7 @@ One document names the N outputs, and it is an Aontu document, so it
 is vettable like anything else:
 
 ```aon
-@"std/code"
+@"aontu:code"
 @"./model.aon"
 
 outputs: [
@@ -1747,7 +1747,7 @@ answer identically in both ports; the full suite is green.
 
 ### Phase 1 — the vocabulary, as a bundled schema (S)
 
-The `@"std/code"` text of [§1](#1-the-output-vocabulary--stdcode)
+The `@"aontu:code"` text of [§1](#1-the-output-vocabulary--aontucode)
 added to `ts/src/std.ts` (a `STD_CODE` constant plus two
 `STD_SOURCES` entries) and `go/std.go` (the same bytes), containing no
 backtick and no backslash. Nothing else in either engine changes: no
@@ -1843,7 +1843,7 @@ reserved-word escaper and the banner. No engine, no I/O: the profile
 arrives as a plain object. Then `go/render.go` as its twin, function
 for function, as `go/jsonschema.go` mirrors `ts/src/jsonschema.ts` —
 and the parity probe run on every case before a single expectation is
-recorded. Profiles `std/lang/ts` and `std/lang/go` bundled in
+recorded. Profiles `aontu:lang/ts` and `aontu:lang/go` bundled in
 ts/src/std.ts and go/std.go, byte-identical, pinned by a `hash` row
 each.
 
@@ -2162,7 +2162,7 @@ against the 97 / 3755 the plan above records.
 
 ### What was re-verified, and what it settles
 
-**Phase 1 is implementable exactly as [§1](#1-the-output-vocabulary--stdcode)
+**Phase 1 is implementable exactly as [§1](#1-the-output-vocabulary--aontucode)
 writes it, with no edits.** The vocabulary text was extracted from this
 document and run at 0.56.0. VERIFIED, both ports agreeing on every
 line: a full instance — record with checks, an optional field, a list
@@ -2226,7 +2226,7 @@ and the line between them.
 
 **(iii) The verb name is unsettled between this document and the
 register.** Here it is `aontu render` with the manifest under
-`@"std/code"`; [progress.md](progress.md#g9--declarative-transformation)'s
+`@"aontu:code"`; [progress.md](progress.md#g9--declarative-transformation)'s
 phase 6 row says `aontu gen` with a `std/gen` manifest. It names a
 verb, an MCP tool, a source file in each port, help text that the
 suite asserts byte-identical across the builds, and every executable
@@ -2266,3 +2266,219 @@ decision D1–D7 stand exactly as written. The re-basing is about
 ORDER and about four places where the text no longer matches the
 tree — not about the design, which the corpus has since given
 independent evidence for.
+
+---
+
+## Amendment 2026-09-04 (second): `aontu:code`, and the fragment algebra
+
+*Two owner corrections, taken in order. The first is a rename with a
+dependency behind it. The second is a design correction: the mechanism
+that makes the XSLT algorithm worth having — composing text fragments
+in a structured way — is specified in [§3](#3-the-renderer-and-the-language-profiles)
+and is absent from [§1](#1-the-output-vocabulary--aontucode), so a
+transform cannot reach it. Everything VERIFIED below was run on
+2026-09-04 against both CLIs at 0.56.0 / go 0.1.14.*
+
+### 1. The vocabulary is `@"aontu:code"`
+
+[MODELS.0.md](../design/MODELS.0.md) settles the naming for every
+language-supplied model: the `aontu:` prefix, Node's device, a
+spelling no relative path or module path can reach, so the resolver
+routes on it before any other leg and never touches the filesystem.
+`std/code` was the old family name and had both confusions the prefix
+exists to prevent. It is renamed here, and in
+[VIEWS.0.md](../design/VIEWS.0.md) and the register; the profiles
+become `aontu:lang/ts` and `aontu:lang/go`.
+
+Three consequences, none of them cosmetic:
+
+- **Phase 1 now depends on MODELS M0**, which builds the `aontu:`
+  resolver leg. `aontu:code` cannot be served before there is a
+  scheme to serve it from. M0 is independent of `fmt` and is
+  recommended to go first anyway, so this is a sequencing note, not a
+  new obstacle — but phase 1 must not be started as though it were
+  self-contained.
+- **The vocabulary adopts the model conventions.** Lower-case alias
+  names (`%unit`, `%decl`, `%field`, not `%Unit`, `%Decl`, `%Field`);
+  the root key names the model, which `code:` already satisfies; the
+  source is `aontu fmt`-clean and `--lint`-clean, both now shipped, so
+  that gate is available on the day the model lands rather than
+  waiting; and `aontu:code` joins the no-shared-alias-name gate across
+  the bundled set, where its twenty-odd names make it the model most
+  likely to collide with a later one.
+- **If the manifest survives phase 6's naming question it is
+  `aontu:gen`**, which is one more reason to settle that question
+  before phase 4 rather than after.
+
+### 2. Any language: the algebra is in the renderer and not in the vocabulary
+
+The owner's second correction is that generation must reach any
+language, and that the XSLT-shaped algorithm was chosen to enable
+exactly that, by composing text fragments in a structured way. Held
+against the design as written, that is not what it delivers, and the
+gap is precise.
+
+**[§3](#3-the-renderer-and-the-language-profiles) already specifies a
+fragment algebra.** `nest(body)` renders at `depth + 1` and produces
+no bytes; `line(body)` concatenates inline pieces and prepends the
+depth prefix; a blank line is a terminator and never padding; an
+inline piece may not contain a line terminator, which is the rule that
+makes the fold total; a block-level `raw` node is the only node that
+may carry one, with `reindent: false` for text where column 0 is
+contractual.
+
+**[§1](#1-the-output-vocabulary--aontucode) contains none of it.**
+`%Decl` is six declaration kinds plus `%Text`, and `%Text` is
+`close({k: "text", lang, text})` — a flat blob with no depth and no
+`reindent`. So `line`, `nest`, `blank` and `raw` are internal to the
+renderer, produced only by lowering a declaration, and **a transform
+has no way to emit them**.
+
+What follows is the whole of the problem. A target the declaration
+vocabulary does not fit — a Python module, a YAML manifest, a
+Terraform file, a Makefile, a shell script, a Dockerfile, anything
+whose artifact is not a list of type declarations — is reachable only
+through `{k:"text"}`: one opaque blob, its layout baked in at
+construction, counted in `lossy[]`, opaque to `diff`, `subsume` and
+`breaking`, and unable to render to more than one target. "Any
+language" is then true only in the sense that any bytes fit in a blob,
+which is the OpenAPI Generator failure mode this design names and
+refuses — refused by *counting* it rather than by offering an
+alternative.
+
+**And it defeats the rule layer.** apply-templates exists so that each
+matched node emits a fragment and the fragments compose. If the only
+general-purpose emission is an opaque blob, the rule layer is exactly
+as general as the declaration vocabulary, and the XSLT analogy stops
+at selection — the half the language already had in `match`.
+
+### The correction: the fragment is a vocabulary node, and it is FLAT
+
+Make the algebra reachable. A fragment is an ordered list of pieces,
+each carrying its own depth:
+
+```aon
+%inline: string & re("^[^\n\r]*$") | %ref
+%line:   close({ k: "line",  at: *0 | integer & min(0) & max(64), of: [&: %inline] })
+%blank:  close({ k: "blank", n: *1 | integer & min(1) & max(16) })
+%raw:    close({ k: "raw",   at: *0 | integer & min(0) & max(64),
+                 text: string, reindent: *true | boolean })
+%piece:  %line | %blank | %raw
+%frag:   close({ k: "frag", of: [&: %piece] })
+```
+
+`%decl` gains `%frag`, and `%body` becomes `%frag | {k:"abstract"}`.
+
+**Flat, not a tree, and this was decided by probe rather than by
+taste.** The obvious spelling nests — a `%nest` node holding pieces,
+mutually recursive with `%frag` — and VERIFIED, it does not work: with
+that shape *even a valid instance* vets `invalid` in both ports. It is
+the recursion hazard [§1](#1-the-output-vocabulary--aontucode) already
+measured and capped the container types for, arriving from the other
+direction. Depth as an integer on each piece removes it completely.
+
+Flat is also the better fit, for three reasons that are not about
+avoiding a defect:
+
+- **It is what `walk` produces.** `walk(data, tmpl)` yields a
+  pre-order LIST. A flat list of depth-tagged lines falls straight out
+  of a pre-order walk; a tree would have to be reassembled, and the
+  language has no combinator that reassembles one.
+- **The two levels already exist.** `join` composes the inline pieces
+  of one line; the list holds the lines. Nothing new is needed in the
+  language for either.
+- **Indentation stays structural.** `at` is a small bounded integer,
+  never whitespace inside the text, so the renderer still owns every
+  prefix and [§3](#3-the-renderer-and-the-language-profiles)'s
+  algorithm is unchanged — it reads `at` where it currently counts
+  recursion depth.
+
+**VERIFIED, both ports agreeing on every line**, on the schema above:
+
+| case | result |
+|---|---|
+| A Python class: two nesting levels, a `%ref` inline, a blank, a `raw` at `reindent: false` | `valid` |
+| A line whose inline piece contains `\n` | `invalid`, at the node |
+| A line with `at: -1` | `invalid`, at the node |
+| `aontu hash` over the schema | byte-identical across the ports |
+
+The second row is the one worth pausing on: **the rule §3 states as a
+renderer check becomes a `vet` error at the node**, before any
+rendering runs, because it is expressible as a constraint on a string.
+That is D1's whole claim — the result is an instance of the output
+vocabulary and the vocabulary is an Aontu schema — applied to the one
+invariant the renderer's totality argument rests on.
+
+### What this does to Resolution 1
+
+It does not reverse it. Taking the three reasons in turn:
+
+- **Reason (i) is dead.** It was conditioned in its own words on
+  "at text level, *and with no `join`*" — forty nodes for a forty-line
+  struct. `join` landed in phase 2, and a fragment holds lines rather
+  than characters, so a forty-line struct is one rule emitting lines,
+  or one `form` over fields.
+- **Reason (ii) survives and is answered.** A fragment asserts less
+  than a `%record` and far more than "this is a string": the piece
+  kinds are closed, the depth is bounded, a `%ref` is checked, and no
+  inline piece may carry a terminator. The vetting prize is graded,
+  not lost.
+- **Reason (iii) argues FOR the fragment.** Layout baked into the leaf
+  at construction time is exactly what a flat `{k:"text"}` blob does.
+  `at` plus a renderer-owned prefix is what prevents it.
+
+Restated, then: **the declaration vocabulary is a LOWERING onto the
+fragment algebra, and the fragment algebra is the vocabulary's floor.**
+The renderer already lowers `%record` into lines and nests through the
+profile; this makes the target of that lowering public. One fold, one
+indentation algorithm, one escape table, no second renderer, and a
+transform mixes both in a single unit — declarations where the
+vocabulary fits, fragments where it does not.
+
+### What it changes downstream
+
+- **Loss accounting gains a third tier, and this is the honest part.**
+  Today the count is binary: a declaration is fine, an escape is loss.
+  With fragments it is three — a declaration checked against the
+  target's shape, a fragment that is structured, re-indentable and
+  terminator-checked but says nothing about target syntax, and an
+  opaque `raw` that says nothing at all. Report the three separately
+  and let `--strict` refuse on the opaque tier. "How much of this
+  generator is escapes" becomes a real measurement instead of a
+  yes-or-no.
+- **The indentation-as-syntax open question is answered rather than
+  deferred.** YAML and Python are named in
+  [Open questions](#open-questions) as the acid test of the
+  indentation design. With `at` explicit and inline pieces
+  terminator-free, structural indentation is precisely what the
+  renderer provides — VERIFIED above on a Python class with two
+  levels. They stop being the hard case and become the case the
+  algebra was built for.
+- **A fragment-only target needs almost no profile.** Two fields:
+  `indent`, and the escape table. Naming conventions, reserved words,
+  the primitive type map and `prec`/`child_prec` all serve the
+  declaration lowering, so a profile's size is proportional to how
+  much of the declaration vocabulary a target uses. That is what makes
+  "a new language is data" true rather than aspirational.
+- **`%body` stops being a dead end.** It is `%text | {k:"abstract"}`
+  today on the argument that a transform cannot compute a body. A
+  transform cannot compute *semantics*; it can compose *lines*, which
+  is what a body is made of.
+- **Phase 1 grows by the fragment nodes** and stays small. **Phase 4
+  gains no renderer work** — it already implements this algorithm —
+  only the entry point that renders a fragment directly. **Phase 6 is
+  where it pays off**, because `walk` plus `match` plus fragments is
+  apply-templates with its result tree, which is the thing the rule
+  layer was for.
+
+### What still bounds "any language"
+
+Stated plainly, because the claim should not be oversold in the other
+direction. Fragments buy structure and indentation, not target-language
+correctness: nothing checks that the Python is valid Python. There is
+still no line-width or wrapping concept, so the model decides where
+lines break. There is still no formatter subprocess. And escaping,
+comment forms and identifier rules remain per-language profile data.
+The ceiling is real — but it is the ceiling of a composition mechanism
+rather than of an enumerated list of supported shapes, and that is the
+difference the correction buys.
