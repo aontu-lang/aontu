@@ -2286,10 +2286,42 @@ bytes" is no longer a reason it cannot check anything.
    `corp.example/schemas/service`, not `corp.example/schemas/service@1`.
 
 2. **The repository refuses a publish that is not backwards compatible
-   with its predecessor**, decided by subsumption rather than asserted
-   by a version number. A genuine break therefore requires a new name,
-   chosen by the publisher — but only when the break is real and
-   verified, not whenever an author fears one.
+   with its predecessor**, decided rather than asserted by a version
+   number. **Compatibility has three components, and all three must
+   hold:**
+
+   | | Requires | Answered by |
+   |---|---|---|
+   | **Acceptance** | The new version admits every document the old one admitted | Subsumption |
+   | **Determination** | Every position the old version resolved to a value, the new one still resolves | Canonical-form comparison |
+   | **Agreement** | Where both resolve a position, they resolve it to the same value | Canonical-form comparison |
+
+   Together these say what a consumer actually needs: **any document
+   that evaluated successfully under the old version evaluates
+   successfully under the new one, to the same value.**
+
+   Subsumption alone gives only the first, and an earlier draft of this
+   entry stopped there and called it strict. It is not. `a: integer`
+   subsumes `a: 8080` — the check passes — while the old version
+   produces `{"a": 8080}` and the new one refuses with
+   `[aontu/mapval_no_gen]`, so a consumer who supplied nothing had a
+   working build and now has an error. Acceptance and outcome are
+   different questions, and for a language whose payload is a *value*
+   it is outcome that consumers depend on.
+
+   Components 2 and 3 are a structural walk rather than a new theory:
+   evaluate both versions standalone, take `hcanon` of each, and
+   classify every difference as **constraint-only** (outcome-neutral,
+   passes) or **outcome-affecting** (a determined value appeared,
+   vanished or changed). **The check is conservative: where it cannot
+   prove a difference outcome-neutral, it refuses.** For packages with
+   conditional or computed structure, "for every consumer input" is not
+   decidable in general, and refusing is the correct direction for a
+   guarantee that claims to be strict.
+
+   A genuine break therefore requires a new name, chosen by the
+   publisher — but only when the break is real and verified, not
+   whenever an author fears one.
 
 3. **ADR-019's constraint 5 is amended.** The service still **fetches
    nothing** — that is what keeps the ingestion threat model deleted,
@@ -2326,14 +2358,20 @@ is one evaluation per publish rather than per read, and the deterministic
 evaluation budget applies. That budget is therefore now a **server**
 requirement and not only a client one.
 
-**We accept that subsumption does not cover defaults.** If
-`port: integer & *8080` becomes `integer & *9090`, the admitted set is
-unchanged, so the check passes — and every consumer relying on the
-default gets a different value. That is the hostile-value class arriving
-through a compatible release. The publish check needs a defaults report
-alongside subsumption, surfaced and acknowledged rather than silently
-allowed; this is named here because it is the gap a reader would
-otherwise assume closed.
+**Defaults are covered by component 3, not left as a gap.** An earlier
+draft of this entry recorded "subsumption does not cover defaults" as an
+accepted hole: `port: integer & *8080` becoming `integer & *9090` leaves
+the admitted set identical, so a subsumption-only check passes while
+every consumer relying on the default gets a different value. That is
+the hostile-value class arriving through a nominally compatible release,
+and it is not something to accept — it is the reason the definition has
+three parts. Agreement refuses it.
+
+**We accept that "declared" still needs a shape.** A publisher who
+genuinely intends an outcome change has two possible routes — a new
+name, or an acknowledgement that consumers see at resolve time — and
+this entry does not choose between them. What it fixes is that the
+change cannot happen *silently*.
 
 **We accept a migration diagnostic.** With `./` mandatory, a bare
 `@"foo.aon"` classifies as a package and would fail with "package not
@@ -2342,20 +2380,23 @@ mistake. A reference whose final segment carries a known file extension
 and no `./` refuses with *"local files need a `./` prefix"*. Routing
 stays a shape rule; only the error is special-cased.
 
-**Aliased versions must occupy different subtrees, and defaults are
-why.** Constraints meet without trouble — `integer & 8080` is `8080`,
-the narrower — so it is tempting to say two aliased versions can safely
-meet. **They cannot, and the reason is the paragraph above.** Two
-defaults of the same rank do not unify: `*8080 & *9090` refuses with
-`pref_rank_clash`, because defaults are not ordered by subsumption and
-so have no meet. The consumer can rank one (`**9090`) to say
-deliberately which layer is weaker, and otherwise the two versions must
-never meet.
+**Aliased versions may meet, and component 3 is why.** An earlier
+draft required separate subtrees. Constraints meet without trouble —
+`integer & 8080` is `8080`, the narrower — but two aliased versions
+could still clash on a **default**, and under a subsumption-only
+definition nothing prevented it: `*8080 & *9090` refuses with
+`pref_rank_clash`, defaults having no meet of their own.
 
-This is one gap, not two. Defaults sit outside the subsumption order,
-which is both why the publish check cannot see a changed default and why
-two versions carrying different defaults contradict rather than
-combining.
+**Component 3 removes the restriction**: versions
+sharing a name now agree wherever both determine a value, so the clash
+cannot arise between them. A consumer may still rank a default
+(`**9090`) to state deliberately which layer is weaker, but nothing
+forces the separation.
+
+The reasoning here reversed twice while this entry was drafted, and why
+is worth recording: **whether two versions can meet is downstream of
+whether the compatibility check covers outcomes.** It was never an
+independent question about aliases.
 
 **What this supersedes and what survives.** ADR-020's part 2 (two
 admission tiers), part 3 (a host must prove ownership and issue a
