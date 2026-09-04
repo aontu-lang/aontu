@@ -561,7 +561,7 @@ made `std/diagram` a bundled schema in Phase 1; another kept the plot
 document internal and said so in its own open questions. **Internal in
 v1, published later, and the construction is now settled by
 measurement.** The obvious spelling — a `type()`-marked anchor, copying
-`std/code`'s arrangement — makes the figure INVISIBLE to the thing that
+`aontu:code`'s arrangement — makes the figure INVISIBLE to the thing that
 has to read it. VERIFIED, both spellings, on a two-file reproducer:
 
 ```
@@ -594,11 +594,11 @@ $ aontu user.aon -> {"my":1,"plot":{"nodes":[{"id":"a","label":"A"}]}}
 ```
 
 No pollution, full generation, and the check still runs by unification.
-This is a departure from `std/code`'s own arrangement and the reason is
+This is a departure from `aontu:code`'s own arrangement and the reason is
 that a code IR is walked by a renderer inside the process, where a
 figure has to be readable back out with `get` and `--format json`. It
 is recorded here because a future `std/view` must be built this way,
-and because anyone who wants to read a `std/code` result out of a
+and because anyone who wants to read a `aontu:code` result out of a
 document will hit the same `null`.
 
 **Disagreement 4 — how many kinds?** Between them the three designs
@@ -1192,7 +1192,7 @@ Inherited verbatim, as rules rather than as code:
 
 Not inherited, and the reason each time:
 
-- **`std/code`, `render`, `join`, `form`, `walk` and the Jostraca
+- **`aontu:code`, `render`, `join`, `form`, `walk` and the Jostraca
   bridge.** None exists. This capability is buildable today from
   `graphOf`, `generate()` and `Provenance`, and making it wait on nine
   unbuilt phases would be a queue rather than a foundation.
