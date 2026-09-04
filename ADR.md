@@ -1955,23 +1955,61 @@ Five parts, each load-bearing:
    admitting a new host is a factual question rather than a policy
    argument.
 
-4. **Ownership is checked per publish, never registered once.** To
-   publish `github.com/alice/widgets@1` the signing certificate must
-   carry `repository = alice/widgets`. There is no account, no name
-   reservation, and no squatting policy, because a name nobody can prove
-   they own is a name nobody can publish.
+4. **Ownership is checked per publish, and the signing subject is
+   recorded.** To publish `github.com/alice/widgets@1` the signing
+   certificate must carry `repository = alice/widgets`. There is no
+   account, no name reservation, and no squatting policy, because a name
+   nobody can prove they own is a name nobody can publish. But the
+   namespace check alone cannot tell a legitimate transfer from a
+   hostile one — see the repojacking consequence below — so the subject
+   that first published a path is recorded, and a later change of
+   subject is an event rather than a routine publish.
 
 5. **No module is unnamespaced.** Namespacing is a property of the name
    rather than a feature the repository adds, so it cannot be opted out
    of or forgotten.
+
+6. **A rename is a new module plus one signed forward link, and nothing
+   follows it automatically.** The old path publishes a `moved`
+   declaration in a new, higher version — Go's `retract` shape — naming
+   the destination and signed by the namespace it is leaving. Resolution
+   of a moved module *refuses*, naming the destination; it never
+   redirects, because a name that quietly means something else is the
+   failure this entry exists to prevent. A moved path is then frozen
+   against further publication by anyone.
 
 ### Consequences
 
 **We accept that a tier-A name is bound to its forge.** A publisher who
 leaves GitHub changes the module path, and a changed path is a new
 module identity. Go accepts the same cost. Tier B is the graduation
-path, but graduating is a rename, so an alias or retract-and-redirect
-story is owed before the first publisher needs one.
+path, and graduating is the rename part 6 describes.
+
+The rename is cheaper here than in Go for a reason worth recording: the
+canon-hash covers the evaluated value and contains no module path, so a
+module republished byte-identically at a new path keeps **the same
+pin**. A rename is continuity of meaning with a discontinuity of name.
+Locked builds never notice one, because the old path's objects are never
+deleted and a build with a lockfile does not consult the repository.
+And when both paths appear in one closure, unification is idempotent, so
+two identical copies unify rather than colliding as duplicate types
+would — the case that makes renames painful in Go is mild in a data
+language, which is why a consumer-side alias is deferred rather than
+built.
+
+**We accept repojacking as the cost of a forge-shaped name.** A
+per-publish namespace check cannot distinguish an abandoned account
+taken over from one legitimately transferred, and GitHub retires a
+namespace only above 100 clones at rename time. This is documented as
+hitting Go hardest of any ecosystem, for exactly the reason it applies
+here: Go module paths are forge paths. Two properties of this design
+blunt it — no published version can be altered, because the service
+never fetches from a forge, and every existing lockfile is pinned by
+meaning and digest — but a taken-over namespace can still publish a
+*new* version. Recording the signing subject (part 4) and gating a
+subject change behind cooldown is the mitigation, and it is a lever Go
+does not have because admission is ours to decide. Part 6's freeze
+closes the rename-shaped half of the window outright.
 
 **We accept a case rule.** `MODULE_RE` restricts the domain to lowercase
 but admits mixed case in path elements, and forge namespaces are
@@ -1985,22 +2023,35 @@ namespaces are exactly two segments; GitLab subgroups are
 variable-depth, so the boundary between project and subdirectory cannot
 be derived from the string and is recorded at publish.
 
-**What this costs to build now is nothing.** `MODULE_RE` accepts a
+**The naming rule itself costs nothing to build.** `MODULE_RE` accepts a
 tier-A path today and `validateModulePath` already applies Go's rules,
-so this is repository admission policy rather than a language change. A
-local, vendored or privately-hosted module keeps whatever domain-shaped
-path it has, and nothing that evaluates today stops evaluating. Under
-[ADR-001](#adr-001--typescript-and-go-stay-at-full-parity-driven-by-a-shared-spec)
-this matters: no shared spec row changes, because no language behaviour
+so parts 1 to 5 are repository admission policy rather than a language
+change. A local, vendored or privately-hosted module keeps whatever
+domain-shaped path it has, and nothing that evaluates today stops
+evaluating. No shared spec row changes, because no language behaviour
 changes.
+
+**Part 6 is the exception, and it is language work.** `moved` is a field
+in `mod.aon`, which resolution already reads locally, and `module_moved`
+is an addition to the error-code contract. Both land in both ports under
+[ADR-001](#adr-001--typescript-and-go-stay-at-full-parity-driven-by-a-shared-spec),
+and because the check is local — a vendored module can carry `moved` —
+it is expressible as shared spec rows, unlike the network verbs that
+G6 phase 3 had to cover by CLI parity instead. A code *removal* is
+already settled as a decision-record matter
+([ADR-011](#adr-011--the-star-is-sugar-the-disjunction-is-the-structure)
+is the precedent); this addition is recorded here so it is deliberate
+rather than incidental.
 
 **What this does not license.** It does not admit resolution of a module
 path over the network, in any tier, for any purpose — that is part 1,
 and reversing it reinstates the trust-base objection this entry exists
-to retire. It does not make ownership a claim the publisher asserts
-rather than proves. And it is not a private-module or authentication
-design, which stays out of scope for the reason G6 gave.
+to retire. It does not make a moved name follow automatically, which is
+part 6 and the same objection wearing a friendlier face. It does not
+make ownership a claim the publisher asserts rather than proves. And it
+is not a private-module or authentication design, which stays out of
+scope for the reason G6 gave.
 
-The design, the two tiers and the details they still owe are
-`REPOSITORY.0.md` §3a in `aontu-lang/system`; status is the
-[progress register](docs/capability-review/progress.md).
+The design is `REPOSITORY.0.md` in `aontu-lang/system` — §3a for the two
+tiers, §3b for the rename, §7.6 for repojacking and what it costs;
+status is the [progress register](docs/capability-review/progress.md).

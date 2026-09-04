@@ -1609,12 +1609,33 @@ the last of the three grounds on which design C's substrate was
 rejected**, ground 1, which held that a domain-shaped path could not
 address a forge without putting arbitrary DNS holders in the trust base;
 see [g10-transparency.md](g10-transparency.md#the-channel-is-settled-bytes-are-stored-2026-09-04).
-No row moves for it and no code changes: `MODULE_RE` matches
+The naming rule moves no row and needs no code: `MODULE_RE` matches
 `github.com/alice/widgets@1` today, `validateModulePath` already applies
-Go's rules, and the convention is repository admission policy rather
-than language behaviour — so no shared spec row is added or altered, and
-the [G6 identity section](g6-distribution.md#module-identity-and-import-syntax)
+Go's rules, and it is repository admission policy rather than language
+behaviour — so no shared spec row is added or altered, and the
+[G6 identity section](g6-distribution.md#module-identity-and-import-syntax)
 is annotated rather than amended.
+
+**Its rename story is the one part that is language work**, and it lands
+in phase 3 with the verbs. A module leaves a namespace by publishing
+`moved` in a new, higher version of its own `mod.aon` — Go's `retract`
+shape — and resolution of a moved module **refuses**, naming the
+destination, rather than redirecting; a name that quietly means
+something else is the failure the convention exists to prevent. That
+adds a `mod.aon` field and the `module_moved` refusal code to both
+ports, and because the check is local it is expressible as shared spec
+rows, unlike the network behaviour phase 3 must cover by CLI parity.
+The register records it here rather than moving a status, because
+nothing has landed.
+
+Two consequences are recorded now so they are not found later. The
+canon-hash contains no module path, so a module republished at a new
+path keeps the same pin and locked builds never notice a rename. And a
+per-publish namespace check cannot tell a legitimate transfer from
+**repojacking** — the attack documented as hitting Go hardest, for
+exactly the reason it applies here — so the signing subject is recorded
+at first publish and a change of subject is cooldown-gated rather than
+routine.
 
 Baseline at drafting, for protocol rule 5: `ls test/spec/*.tsv | wc -l`
 = **97**, `awk -F'\t' 'NF>2 && $0 !~ /^#/' test/spec/*.tsv | wc -l`
