@@ -1538,10 +1538,14 @@ borrowing sequences from the target: `${}` is not a safe hole (VERIFIED
 twice on this project's own material — the backend's serverless bucket
 name, and a generated file holding a template literal, which collides
 on the backtick the canonical form quoted with as well), so the hole is
-PROFILE DATA chosen for inertness in the target, the canonical quote is
-chosen per line so every line is representable, and the residual escape
-is the fixpoint rule rather than a table of escapes. The generator is
-then a file in the target's own syntax, `//:` comments carrying the
+PROFILE DATA: the marker is the target's comment token plus a dash
+(`//-`, `#-`, `---`) and the hole is `<-expr->`, measured absent as a
+pair from every corpus here — deliberately not the target's inline
+comment, since a comment is what a formatter feels free to move. The
+canonical quote is chosen per line so every line is representable, and
+the residual escape is the fixpoint rule rather than a table of
+escapes. The generator is
+then a file in the target's own syntax, `//-` comments carrying the
 Aontu: VERIFIED, **12 of 12 handlers byte-identical**, the desugaring
 round-trips in both directions, and the template file has 0 TypeScript
 syntax errors. It runs today only as an expansion — see the phase 1

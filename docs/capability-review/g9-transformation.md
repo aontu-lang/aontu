@@ -2951,33 +2951,33 @@ The table argument is an expression, so it can be a list literal
 written at the call site — which means a template can be written
 **exactly where its output appears**, indented to match, with no new
 mechanism at all. The whole generator for the twelve handlers is then
-one file, in the target's own syntax, with `//:` line comments (`#:`
-in YAML and Python, `--:` in SQL) carrying the Aontu and `/*:expr*/`
+one file, in the target's own syntax, with `//-` line comments (`#-`
+in YAML and Python, `---` in SQL) carrying the Aontu and `<-expr->`
 for an inline hole — see
 [below](#the-sugar-borrows-three-sequences-and-each-one-collides) for
-why the hole is profile data rather than one fixed spelling:
+where both spellings come from:
 
 ```ts
-//: @"./model.aon"
-//: @"./wire.aon"
-//: svc: $.main.srv & $.wire & pack($.main.srv, {name: key()})
-//: files: emit($.svc, {match: {name: string}, body: [
+//- @"./model.aon"
+//- @"./wire.aon"
+//- svc: $.main.srv & $.wire & pack($.main.srv, {name: key()})
+//- files: emit($.svc, {match: {name: string}, body: [
 import { getSeneca } from '../../env/lambda/lambda'
 
 function complete(seneca: any) {
-  //: emit(.listen, {match: {pin: string}, body: [
-  seneca.listen({type:'sqs',pin:'/*:.pin*/'})
-  //: ]}),
-  //: emit(.client, {match: {pin: string}, body: [
-  seneca.client({type:'sqs',pin:'/*:.pin*/'})
-  //: ]}),
-  //: emit(filter(.on.file.events, {source: 's3'}), {match: {source: 's3', msg: string}, body: [
+  //- emit(.listen, {match: {pin: string}, body: [
+  seneca.listen({type:'sqs',pin:'<-.pin->'})
+  //- ]}),
+  //- emit(.client, {match: {pin: string}, body: [
+  seneca.client({type:'sqs',pin:'<-.pin->'})
+  //- ]}),
+  //- emit(filter(.on.file.events, {source: 's3'}), {match: {source: 's3', msg: string}, body: [
 
   const makeGatewayHandler = seneca.export('s3-store/makeGatewayHandler')
   seneca
     .act('sys:gateway,kind:lambda,add:hook,hook:handler', {
-       handler: makeGatewayHandler('/*:.msg*/') })
-  //: ]}),
+       handler: makeGatewayHandler('<-.msg->') })
+  //- ]}),
 }
 
 exports.handler = async (
@@ -2985,13 +2985,13 @@ exports.handler = async (
   context:any
 ) => {
   
-  let seneca = await getSeneca('/*:.name*/', complete)
+  let seneca = await getSeneca('<-.name->', complete)
   
   let handler = seneca.export('gateway-lambda/handler')
   let res = await handler(event, context)
   return res
 }
-//: ]})
+//- ]})
 ```
 
 Two small rules make the placement work, and both belong to the sugar
@@ -3030,19 +3030,42 @@ each needs a rule rather than a constant:
 
 | borrowed | collides with | rule |
 | --- | --- | --- |
-| the line marker | a target comment line that starts with it | profile data (already), plus the escape below |
-| the inline hole | TS and JS template literals, shell, serverless, Terraform, Groovy, Kotlin | **profile data**, not a language constant |
+| the line marker | a target comment line that starts with it | the target's comment token **plus a dash** — `//-`, `#-`, `---` |
+| the inline hole | `${}` is TS and JS template literals, shell, serverless, Terraform, Groovy, Kotlin | `<-expr->`, and **profile data**, not a language constant |
 | the canonical quote | any target line holding a backtick | chosen **per line** |
 
-**The hole is profile data, and the test is inertness in the target —
-the same test that chose the line marker.** Where the target has an
-INLINE comment form, that is the natural pick, because then a hole is
-inert by construction rather than by luck: `/*:expr*/` for TypeScript,
-so the hole is a comment and the template file stays valid TypeScript.
-VERIFIED: the generator above rewritten with `/*: */` holes and re-run
-— 12 of 12 byte-identical, round trip identical, 0 syntax errors.
-Targets with no inline comment form — YAML, Python, shell — take a
-profile-chosen sequence and lean on the escape below.
+**The marker is the target's comment token plus a dash.** `//-`, `#-`,
+`---`, and the block form `/*- ... */` where the language has no line
+comment. One rule, derivable for a language the profile table has never
+seen, and quieter on the page than a colon — which matters, because a
+generator file is mostly marker lines and mostly read rather than
+written.
+
+**The hole is `<-expr->`, and it is deliberately NOT the target's
+inline comment.** An inline comment looks like the perfect hole — inert
+in the target by construction — and it is the wrong choice, because a
+comment is exactly what a target-language formatter feels free to move,
+reflow or re-indent. One relocated hole is a silently wrong generator,
+and the failure appears only after someone runs the target's own
+formatter over the template. Editors and highlighters have the same
+licence.
+
+`<-` and `->` are each common alone — Go channels, Rust and Python
+return types, C and PHP member access, Java and Kotlin lambdas — but
+what matters is the PAIR on one line, and that is measurably absent.
+MEASURED over this project's own corpora — `aontu/ts/src`, `aontu/go`,
+the assessed backend, and the site — **zero lines carry the pair**,
+against 262 `${` lines in `aontu/ts/src` alone, 48 in the backend's
+generated YAML and 119 across the site. Go is the sharp case and it
+makes the point: 3 bare `<-` and 274 bare `->`, and not one line with
+both. It stays profile data all the same, because the pair does occur
+in Haskell do-blocks, Scala for-comprehensions and Elixir, and those
+profiles choose otherwise.
+
+VERIFIED with the new marker and hole: the generator above re-run — 12
+of 12 byte-identical, round trip identical, 0 syntax errors; and the
+two collisions that started this pass through untouched, `${…}` in
+YAML and a whole TypeScript template literal.
 
 **The quote is chosen per line, so every line is representable.** Raw
 backticks need no escaping and read best, so a line takes one unless it
@@ -3075,7 +3098,7 @@ list arms — are two templates here, two Aontu lines between them.
 **Nothing in the mechanism is about handlers.** `emit`, `match`, `body`
 and the marker comment are the whole vocabulary; what makes this file
 produce lambda handlers is the target text in it. The same constructs
-over the same model produce the serverless YAML with `#:` as the
+over the same model produce the serverless YAML with `#-` as the
 marker.
 
 **It is a sugar, not a second language.** The desugaring is one rule —
