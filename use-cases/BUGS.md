@@ -2613,6 +2613,48 @@ Repros: the `hide` spelling,
 and the staged-`each` spelling,
 [`repros/hide/staged-each-pick-unresolved-in-go.aon`](repros/hide/staged-each-pick-unresolved-in-go.aon).
 
+### 79. `join` folds a hidden child into the text it returns, in both ports [critical]
+
+Found 2026-09-04 while re-basing the
+[G9 plan](../docs/capability-review/g9-transformation.md) on what had
+landed. Not a divergence: one behaviour, wrong in both ports.
+
+```aon
+m: {a: "keep", b: hide("SECRET-not-for-output")}
+leak: join($.m, "\n")
+opt: join({x: "one", y?: "two"}, "-")
+```
+
+Both ports generate `"m":{"a":"keep"}` — the mark is honoured — and
+`"leak":"keep\nSECRET-not-for-output"`, which is the value the mark
+was asked to withhold, written into a string the document hands out.
+`"opt":"one-two"` folds an unfilled optional key the same way, and an
+unfilled optional is not a value at all.
+
+The mechanism is known and is not new: `bagChildren` does not consult
+the mark, so `each`, `pick` and now `join` all read a bag that
+generation does not. **The consequence is new, and it is why this has
+its own entry.** `each` and `pick` produce values, and a wrong
+aggregate over numbers is a wrong number. `join` produces TEXT, it
+landed in [G9 phase 2](../docs/capability-review/progress.md#g9--declarative-transformation),
+and [`docs/how-to/generate-code.md`](../docs/how-to/generate-code.md)
+documents it as the way to assemble a generated file — so the same
+mechanism now writes a value marked hidden into generated source, and
+`hide()` is the mark whose entire purpose is to keep a value out of
+output.
+
+The fix is already specified: **G9 phase 0 item 4**, `each`, `pick`,
+`join` and `form` skip `hide`-marked children and unfilled optional
+keys, landing together with rows pinning the changed behaviour on the
+shipped verbs and a CHANGELOG note. That item was written when `join`
+did not exist and was deferred on the reasoning that `join` "treats
+`hide`-marked and unfilled optional children exactly as `each` and
+`pick` do today". It does, and that is now the defect rather than the
+justification.
+
+Repro:
+[`repros/hide/join-carries-a-hidden-value.aon`](repros/hide/join-carries-a-hidden-value.aon).
+
 ## subsumption — the law that holds only for one spelling
 
 ### 64. A referenced, aliased or recursive spread template breaks reflexivity, in both ports [FIXED 2026-09-02]

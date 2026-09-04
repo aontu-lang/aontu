@@ -1,0 +1,30 @@
+# 79: `join` folds a hide()-marked child into the string it returns, so
+# a value the model marked hidden lands in ASSEMBLED TEXT even though
+# the same value is correctly dropped from the generated JSON. Both
+# ports, identically -- this is not a divergence, it is one behaviour
+# that is wrong in both.
+#
+# run: node ../../../ts/bin/aontu.js join-carries-a-hidden-value.aon
+# run: aontu-go join-carries-a-hidden-value.aon
+#
+# expected: `leak` is "keep", the hidden member skipped as it is in `m`
+# actual:   "leak":"keep\nSECRET-not-for-output"   in BOTH ports
+#
+# `m` itself generates {"a":"keep"} -- the mark works. `join` reads the
+# same bag through bagChildren, which does not consult the mark, so the
+# fold sees a member generation does not.
+#
+# This is G9 phase 0 item 4 (bag membership: each/pick/join/form must
+# skip hide-marked and unfilled-optional children), and it is why that
+# item outranks the rest of phase 0 now. When the item was written
+# `join` did not exist and the consequence was a wrong aggregate over
+# numbers; `join` landed in G9 phase 2 and is the documented way to
+# assemble a generated file (docs/how-to/generate-code.md), so the
+# consequence is now a hidden value written into generated source.
+#
+# The same reading applies to an unfilled optional key: `b?: 2` is not
+# a value, and `join` folds it too.
+
+m: {a: "keep", b: hide("SECRET-not-for-output")}
+leak: join($.m, "\n")
+opt: join({x: "one", y?: "two"}, "-")

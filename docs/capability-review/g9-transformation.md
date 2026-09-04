@@ -2086,3 +2086,183 @@ ADR-011 exist; fix it in the same commit.
   that reads a file can fail for a filesystem reason. Decided by:
   whether Phase 4's `\n`-escaped rows prove unreviewable at the
   eight-line cap.
+
+---
+
+## Amendment 2026-09-04: the plan, re-based on what landed
+
+*Everything above is the design as drafted against 0.53.0, when
+nothing had been built and the plan could assume a clean field. Two
+phases have since moved, three facts underneath the design have
+changed, and the idiom the design recommends was re-probed against the
+tree at 0.56.0. [progress.md](progress.md) remains authoritative for
+STATUS; this amendment is authoritative for the PLAN, and where it
+contradicts the eight phases above, it wins. Every claim marked
+VERIFIED below was run on 2026-09-04 against `node ts/bin/aontu.js`
+and a fresh `go build ./cmd/aontu` at 0.56.0 / go 0.1.14.*
+
+### What moved
+
+`join` landed (phase 2). Phase 0 is partial. And the corpus the design
+asked for exists: [use-cases/15-code-generation](../../use-cases/15-code-generation/)
+generates Go, TypeScript and SQL from one model — **and it is at
+parity, VERIFIED today**: `aontu get '$.file'` over its three
+transforms is byte-identical from both CLIs (262, 175 and 238 bytes).
+That is worth more than it looks. It means the phases below are not
+building toward an unproven capability; a working, port-agreed
+transform already exists, and what remains is to give it a checked
+vocabulary, an order-preserving map, and a renderer.
+
+### Three facts changed underneath the design
+
+**1. ADR-014 removed `id()`, so phase 0 item 3 is VOID — and the walk
+totality argument gets stronger, not weaker.** Item 3 was to refuse an
+`id()` naming its own ancestor, which crashed both hosts' stacks. The
+mark no longer exists and no document can ask for the shape. The
+consequence reaches further than one deleted work item:
+[§2](#2-the-rule-layer--apply-templates-in-the-engine) argues `walk`'s
+totality by listing four reasons the reachable set is not a tree and
+closing the only true `peg` cycle among them — and that cycle was
+reachable ONLY through `id()`. **The argument now holds by
+construction.** `walk_cycle` stays in phase 6 as a backstop for a
+shape no document can write, which is a cheaper thing to justify than
+a defence against one it can.
+
+**2. `join` landed, and phase 0 item 4 changed from a deferred
+tidy-up into the most urgent item in the plan.** Item 4 makes `each`,
+`pick`, `join` and `form` skip `hide`-marked children and unfilled
+optional keys. It was deferred when `join` landed, on the recorded
+reasoning that `join` "treats `hide`-marked and unfilled optional
+children exactly as `each` and `pick` do today" — true, and now the
+defect rather than the justification. VERIFIED, both ports,
+identically:
+
+```aon
+m: {a: "keep", b: hide("SECRET-not-for-output")}
+leak: join($.m, "\n")
+```
+```
+"m":{"a":"keep"}                        <- the mark is honoured
+"leak":"keep\nSECRET-not-for-output"    <- and ignored by the fold
+```
+
+`each` and `pick` produce values, and a wrong aggregate over numbers
+is a wrong number. `join` produces TEXT; it is what
+[`docs/how-to/generate-code.md`](../how-to/generate-code.md) documents
+as the way to assemble a generated file; so the same mechanism now
+writes a value marked hidden into generated source. An unfilled
+optional folds the same way (`join({x:"one", y?:"two"}, "-")` is
+`"one-two"`). Recorded as [BUGS.md §79](../../use-cases/BUGS.md) with
+a repro.
+
+**3. The baseline moved.** Protocol rule 5, re-derived 2026-09-04:
+`ls test/spec/*.tsv | wc -l` = **103**,
+`awk -F'\t' 'NF>2 && $0 !~ /^#/' test/spec/*.tsv | wc -l` = **4324**,
+against the 97 / 3755 the plan above records.
+
+### What was re-verified, and what it settles
+
+**Phase 1 is implementable exactly as [§1](#1-the-output-vocabulary--stdcode)
+writes it, with no edits.** The vocabulary text was extracted from this
+document and run at 0.56.0. VERIFIED, both ports agreeing on every
+line: a full instance — record with checks, an optional field, a list
+of `ref`, an enum with a valued member, a `{k:"text"}` decl — vets
+`valid`; `prim: "nope"` vets `invalid`; a `%Name` of `"9bad"` vets
+`invalid`; a nested `list of list` vets `invalid`, which is the
+depth cap doing its job at the node rather than in the evaluator; a
+document that merely includes the vocabulary generates only its own
+keys; and `aontu hash` over it is byte-identical across the ports.
+This is the one phase that needs no discovery.
+
+**Phase 0 item 2 still diverges, and a third spelling reaches it.**
+Beside the two in [BUGS.md §63](../../use-cases/BUGS.md), VERIFIED:
+`p: pack($.m, {src: hide(_), d: ...})` / `v: pick($.p, "d")` /
+`j: join($.v, ", ")` generates in TypeScript and refuses
+`mapval_no_gen` in Go. Three spellings, one root cause, one fix.
+
+**The traps the design names are all still live**, VERIFIED at 0.56.0
+in both ports: `pack` re-sorts a map keyed with the service
+catalogue's own `payments, ledger, risk` into `ledger, payments,
+risk`, which is [§4](#4-the-language-additions-d4)'s whole argument
+for `form`; `key()` inside a nested template returns the template's
+own key, not the source's; a list of records still refuses
+`pack_key`.
+
+### Four corrections to the text above
+
+**(i) `pick(pack(...))` and the hidden-capture idiom do not compose,
+in EITHER port.** [Current state](#current-state) presents both as
+working building blocks, and it is right about each alone. Composed
+they fail: VERIFIED, `pick(pack($.m, {src: hide(_), d: "x" + .src.n}),
+"d")` is `mapval_no_gen` at the `pick` in both ports. The reason is
+structural rather than a defect — a relative reference resolves
+against the bag it sits in, and `pick` lifts the value out of that
+bag — and §63 already records the general form ("`pick` over an inline
+spread expression does not settle"). But the consequence for this
+design was not drawn: **the recommended idiom needs the staged
+two-statement repair, and the staged repair is exactly what item 2
+diverges on.** So until item 2 lands, the design's own recommended
+idiom is a TypeScript-only capability. That is the second reason
+phase 0 comes before everything.
+
+**(ii) The idiom that works today is not the idiom this document
+teaches.** The corpus computes its files with a list spread and a
+projection —
+
+```aon
+rows: [&: { out: `\t` + .go + ` ` + match(.t, "string", `string`, ...) }] & .fields
+body: join(pick(.rows, out), `\n`)
+```
+
+— where [spelling rule 3](#five-spelling-rules-the-vocabulary-imposes-each-found-by-probe)
+warns an author off `&:` for building declarations. Both are correct
+and the distinction has to be stated where an author meets it: rule 3
+is about building CLOSED VOCABULARY NODES, where a template's
+scaffolding keys collide with `close()` at every node; the corpus
+builds an intermediate whose only consumer is `pick`, where they
+cannot. Left as it is, an author reads the rule, reads the use case,
+and gets opposite advice. The how-to owes one paragraph naming both
+and the line between them.
+
+**(iii) The verb name is unsettled between this document and the
+register.** Here it is `aontu render` with the manifest under
+`@"std/code"`; [progress.md](progress.md#g9--declarative-transformation)'s
+phase 6 row says `aontu gen` with a `std/gen` manifest. It names a
+verb, an MCP tool, a source file in each port, help text that the
+suite asserts byte-identical across the builds, and every executable
+transcript in the reference. **Decide it before phase 4**, which is
+where the first user-visible name lands.
+
+**(iv) `docs/design/EMISSION.0.md` is named in the landing obligation
+of every phase and does not exist.** What exists is
+[GENERATION-FORMS.0.md](../design/GENERATION-FORMS.0.md), covering
+forms (a) and (b) only. Either the obligation is corrected to name it,
+or the design note is written in phase 1 — but a phase must not land
+citing a file nobody wrote.
+
+### The revised order
+
+Phase 0 splits, because its two open items have nothing in common but
+their number: one is a shipped-behaviour change in both ports, the
+other a Go-only staging fix. Phases 1 and 0b touch disjoint files and
+can run in either order or together. Everything after that keeps the
+design's dependency order.
+
+| # | Phase | Size | Why here |
+|---|---|---|---|
+| **0a** | Bag membership: `each`/`pick`/`join` skip `hide`-marked and unfilled-optional children | S | **First, alone, and ahead of the vocabulary.** It is the only item with a consequence in shipped code (BUGS §79), it changes observable behaviour on two shipped verbs plus `join`, which landed on 2026-08-30, and nothing else in the plan depends on it — so it should not wait behind work that does. `form` inherits the rule when it arrives rather than being retrofitted. Rows pinning the CHANGED behaviour on `each` and `pick`, a CHANGELOG note, and the `hide` repro inverted into a spec row |
+| **0b** | The staged snapshot: Go defers as TypeScript's `argsnap` does | S | Closes BUGS §63 in all three spellings and makes the recommended idiom available in Go. Pin every spelling — `hide` over a staged spread, `pick` over a staged `each`, and the `pack`/`pick`/`join` chain above — in both ports |
+| **1** | The vocabulary as a bundled schema | S | **Verified ready, no edits.** Disjoint from 0b (`std.ts`/`std.go` only), so it can go in parallel. `std-code.tsv` (canon, hash) and `ir-vet.tsv` in the existing five-column `vet` mode — no new spec mode |
+| **3** | `form`, the order-preserving map | S/M | Unchanged. `boundArgStart` in both ports is the silent omission; the nesting rows are not optional. Inherits 0a's membership rule by construction |
+| **4** | The renderer core and the first two profiles | M | Unchanged, and it is where the verb name (correction iii) becomes public. The first phase whose output is bytes rather than values |
+| **5** | The reflection sidecar | M | Unchanged, and the Go accessor surface (`go/val.go` exports five methods and no fields) is its own ADR-001 item landing BEFORE the injection, not a footnote inside it |
+| **6** | `walk`, the manifest, and the verb | M | Unchanged, with one simplification banked: the totality argument no longer rests on a defect fix (change 1), so `walk_cycle` is a backstop rather than a load-bearing refusal |
+| **7** | The Jostraca bridge | M | Unchanged. Still carries the two cross-repository asks; still cannot block phases 1–6 |
+| **8** | String interpolation | M/L | Unchanged: last, alone, behind a version gate. The multi-line backtick rows the design wants "in phase 0 regardless" go with 0a, since that is now the first phase to land |
+
+**What this does not change.** The five parts of the proposed design,
+the boundary, the vocabulary text, the renderer algorithm and every
+decision D1–D7 stand exactly as written. The re-basing is about
+ORDER and about four places where the text no longer matches the
+tree — not about the design, which the corpus has since given
+independent evidence for.
