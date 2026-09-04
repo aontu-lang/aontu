@@ -798,12 +798,12 @@ is apply-templates, with the recursion in the engine and none in user
 space, which is exactly what D4(iii) requires.
 
 **The spelling above is superseded.** The
-[third amendment](#template-surface-2026-09-04-build-and-apply-templates-in-the-engine)
+[third amendment](#template-surface-2026-09-04-emit-and-apply-templates-in-the-engine)
 keeps every word of the argument that follows and changes how a rule
-table is written: as a list of `{mode?, match, body}` records the
-document holds, dispatched by `apply(select, table, mode?)`, rather
-than as the argument positions of a `match` call. Read the formula
-above as the shape of the thing, not as the syntax.
+table is written: as a list of `{match, body}` records, dispatched by
+`emit(select, table)`, rather than as the argument positions of a
+`match` call. Read the formula above as the shape of the thing, not as
+the syntax.
 
 **The totality argument, and it must be real.** ts/src/walk.ts
 describes its seen-set as "a termination guard, not an optimisation",
@@ -2705,7 +2705,7 @@ today.
   mechanical; and leave `res.yml` until the renderer has been proven on
   the other two.
 
-## Template surface 2026-09-04: `build:`, and apply-templates in the engine
+## Template surface 2026-09-04: `emit()`, and apply-templates in the engine
 
 The prior art section calls apply-templates the thing worth keeping
 from XSLT, and [§2](#2-the-rule-layer--apply-templates-in-the-engine)
@@ -2725,71 +2725,119 @@ verifies against the same twelve handlers, and the two engine facts
 that decide whether the rule layer can be user-space or must be a
 builtin.
 
-### `build:` is the rule table, and it is data
+### `emit(select, table)`, and its type
 
-[§2](#2-the-rule-layer--apply-templates-in-the-engine) writes the rule
-table as the arguments of a `match` call:
+A **table** is a list of templates, `[{match, body}, ...]`. `match` is
+an ordinary Aontu value used as a pattern, exactly as `match()` and
+`filter()` already use one. `body` is a list of lines.
 
-```aon
-join(walk($.model, match(_, <pattern>, <emit>, ..., <default>)), "\n")
+`emit(select, table)` is the dispatch. For every node in `select`, in
+order, it tries the table's templates in list order, takes the first
+whose `match` the node unifies with, and instantiates that template's
+`body` **against that node** — the body's relative references resolve
+at the node, not where the body was written.
+
+```
+emit(select: any, table: [&: {match: any, body: [&: any]}]) : [&: %piece]
 ```
 
-That encodes each rule in an argument position. A rule table written
-instead as a **list of records** — `build: [{mode?, match, body}, ...]`
-— is the same table with three properties the argument form does not
-have: a template is addressable, a template can carry keys of its own
-(a mode, later a priority or a name), and the table is a value the
-document can hold several of. The last matters immediately: the
-assessed backend produces three artifacts from one model, and three
-tables read better than one table with a discriminator in every
-pattern.
+**The result is FLAT, and that is a constraint rather than a
+convenience.** A body written in a document nests one level wherever an
+`emit` appears in it; the builtin splices those results in, so what
+comes back is a flat sequence of pieces. Today, with a line as a plain
+string, that is `[&: string]`. Under
+[the fragment algebra](#amendment-2026-09-04-second-aontucode-and-the-fragment-algebra)
+it is `[&: %piece]` — `%line` with its `at` depth, `%blank`, `%raw`,
+`%inline`. The algebra is flat because the nested spelling refuses even
+a valid instance in both ports (VERIFIED); a dispatch that returned a
+tree would undo that decision, so it does not.
 
-So the rule layer's two constructs are:
+Three rules complete it:
 
-- **`build: [ {mode?: string, match: any, body: [...]} , ... ]`** — a
-  list of templates. `match` is an ordinary Aontu value used as a
-  pattern, exactly as `match()` and `filter()` already use one. `body`
-  is a list of lines, and a nested list splices, which is the result
-  tree fragment of [the fragment
-  algebra](#amendment-2026-09-04-second-aontucode-and-the-fragment-algebra).
-- **`apply(select, table, mode?)`** — dispatch. Every node in `select`
-  is matched against `table`, first match wins, and the bodies splice
-  in place in node order. An empty selection emits nothing.
+- **No match is an error.** XSLT's built-in rule copies an unhandled
+  node's string value into the result, which for code output means
+  model data landing silently in the middle of a source file. That is
+  the single worst default in the prior art and it is refused.
+- **An empty `select` emits nothing.** This is the whole conditional
+  mechanism, and it is what removes the invented `when` directive the
+  earlier prototypes kept reaching for. A handler emits the gateway
+  block only when the service has an S3 event; written as
+  apply-templates that is
+  `emit(filter(.on.file.events, {source: 's3'}), <table>)`, which
+  selects nothing for the ten services that have none. There is no
+  branch to write, and none to read.
+- **A body may itself `emit`.** That is the recursion, and it lives in
+  the engine rather than in user space, which is what D4(iii)
+  requires.
 
-**The table is written explicitly, not found by name.** An implicit
-`$.build` would be the only name in the language that resolves without
-being written, and a document with three outputs wants three tables,
-not one table and a discriminator. Two more characters per site buys
-both.
+**Why `emit` and not `apply`.** `apply` is XSLT's word and carries the
+lineage, but in a language that has functions it is read as function
+application, which this is not. `emit` says what the call produces —
+output fragments — is one syllable like `pack`, `pick`, `join`,
+`match` and `hide`, and pairs with the vocabulary: `emit` produces
+`aontu:code` pieces and `render` turns them into bytes. It reads as a
+side effect only until that split is stated; nothing is written until
+`render`, and `emit` returns a value like everything else in the
+language.
 
-**A conditional is an empty node-set.** This is the property that
-removes the invented `when` directive the earlier prototypes kept
-reaching for. A handler emits the gateway block only when the service
-has an S3 event; written as apply-templates that is
-`apply(filter(.on.file.events, {source: 's3'}), $.build, gateway)`,
-which selects nothing for the ten services that have none. There is no
-branch to write, and none to read.
+### There is no `mode`, because a table is a value
 
-### The surface: a target file whose target code is target code
+XSLT has two distinct constructs and they are easily conflated. A
+**named** template (`<xsl:template name="x">`, invoked by
+`<xsl:call-template>`) is a subroutine with no pattern. A **mode**
+(`<xsl:template match="p" mode="toc">`, selected by
+`<xsl:apply-templates mode="toc">`) is a second traversal of the same
+nodes producing different output. The handlers need the second: a
+`listen` entry and a `client` entry are both `{pin: string}` and
+differ only in which output the caller wants.
 
-The document above is written in the target's own syntax. A `//:` line
-comment (`#:` in YAML and Python, `--:` in SQL) carries Aontu source
-verbatim; every other line is a line of output, with `${expr}` for a
-hole. The whole generator for the twelve handlers is then one file:
+An earlier spelling of this section gave a template a `mode` key and
+`emit` a third argument. **Both are unnecessary.** Because a table is
+an ordinary value, a mode is a table with a name, and naming a value
+is something the language already does:
+
+```aon
+wiretpl: [{ match: {pin: string}, body: [ ... ] }]
+...
+emit(.listen, $.wiretpl)
+emit(.client, $.wiretpl)
+```
+
+VERIFIED, one table used from two sites. So the rule layer has **one**
+concept where XSLT has two: a named template is a table of one used
+from one site, a mode is a table used from several, and neither needs
+a keyword. `emit` stays two-ary.
+
+### Templates go where their output goes
+
+The table argument is an expression, so it can be a list literal
+written at the call site — which means a template can be written
+**exactly where its output appears**, indented to match, with no new
+mechanism at all. The whole generator for the twelve handlers is then
+one file, in the target's own syntax, with `//:` line comments (`#:`
+in YAML and Python, `--:` in SQL) carrying the Aontu:
 
 ```ts
 //: @"./model.aon"
 //: @"./wire.aon"
 //: svc: $.main.srv & $.wire & pack($.main.srv, {name: key()})
-//: files: apply($.svc, $.build)
-//: build: [
-//: { match: {name: string}, body: [
+//: files: emit($.svc, [{ match: {name: string}, body: [
 import { getSeneca } from '../../env/lambda/lambda'
 
 function complete(seneca: any) {
-//: apply(.listen, $.build, listen),
-//: apply(.client, $.build, client),
-//: apply(filter(.on.file.events, {source: 's3'}), $.build, gateway),
+  //: emit(.listen, [{ match: {pin: string}, body: [
+  seneca.listen({type:'sqs',pin:'${.pin}'})
+  //: ]}]),
+  //: emit(.client, [{ match: {pin: string}, body: [
+  seneca.client({type:'sqs',pin:'${.pin}'})
+  //: ]}]),
+  //: emit(filter(.on.file.events, {source: 's3'}), [{ match: {source: 's3', msg: string}, body: [
+
+  const makeGatewayHandler = seneca.export('s3-store/makeGatewayHandler')
+  seneca
+    .act('sys:gateway,kind:lambda,add:hook,hook:handler', {
+       handler: makeGatewayHandler('${.msg}') })
+  //: ]}]),
 }
 
 exports.handler = async (
@@ -2803,22 +2851,22 @@ exports.handler = async (
   let res = await handler(event, context)
   return res
 }
-//: ] }
-//: { mode: listen, match: {pin: string}, body: [
-  seneca.listen({type:'sqs',pin:'${.pin}'})
-//: ] }
-//: { mode: client, match: {pin: string}, body: [
-  seneca.client({type:'sqs',pin:'${.pin}'})
-//: ] }
-//: { mode: gateway, match: {source: 's3', msg: string}, body: [
-
-  const makeGatewayHandler = seneca.export('s3-store/makeGatewayHandler')
-  seneca
-    .act('sys:gateway,kind:lambda,add:hook,hook:handler', {
-       handler: makeGatewayHandler('${.msg}') })
-//: ] }
-//: ]
+//: ]}])
 ```
+
+Two small rules make the placement work, and both belong to the sugar
+rather than to the engine. A marker is recognised **after leading
+whitespace and keeps its own indentation** through the round trip. And
+a body line's text is taken verbatim, so a template written at the
+indentation of its OUTPUT produces exactly that indentation — the
+`seneca.listen` line is indented two spaces here because that is where
+it belongs in the generated file, not because of where its template
+sits. The one edge the rule leaves is a target line that itself begins
+with the marker, which needs an escape the surface must name.
+
+Inline and named are the same construct, so the choice is ordinary:
+write the table at the site when one site uses it, give it a name when
+several do.
 
 **No line of target code appears inside an Aontu string.** That is the
 difference from every earlier attempt, and it is what the rule layer
@@ -2826,13 +2874,13 @@ buys: a fragment that repeats or is conditional becomes its own
 template, and a template's body is plain target text. The repeated
 `seneca.listen` line and the conditional gateway block — the two pieces
 the previous prototype carried as backtick strings and a `match` with
-list arms — are two templates here, four lines of Aontu between them.
+list arms — are two templates here, two Aontu lines between them.
 
-**Nothing in the mechanism is about handlers.** `build`, `match`,
-`mode`, `apply` and the marker comment are the whole vocabulary; what
-makes this file produce lambda handlers is the target text in it. The
-same four constructs over the same model produce the serverless YAML
-with `#:` as the marker.
+**Nothing in the mechanism is about handlers.** `emit`, `match`, `body`
+and the marker comment are the whole vocabulary; what makes this file
+produce lambda handlers is the target text in it. The same constructs
+over the same model produce the serverless YAML with `#:` as the
+marker.
 
 **It is a sugar, not a second language.** The desugaring is one rule —
 a marked line is Aontu source, an unmarked line is a list element — and
@@ -2855,14 +2903,14 @@ The canonical document was expanded to Aontu the shipped engine runs
 ### Four engine facts, and what each decides
 
 **1. A referenced body does not re-root its relative references, so a
-rule table cannot be a value today.** Writing the table once and
-dispatching against it by reference is the whole point of `build:`. It
-does not evaluate: a body held at `$.build.0.body` whose line reads
+table cannot be reached by reference today.** Writing a table once and
+dispatching against it by name is what makes a mode free. It does not
+evaluate: a body held at `$.wiretpl.0.body` whose line reads
 `` `A:` + ..s.v `` fails `no_path` *at the definition site*, because
 the reference resolves where it was written, not where the dispatch
 put it. A spread template re-roots — `[&: {l: .pin}] & .listen` is how
 the earlier prototypes worked at all — but a stored value referenced by
-path does not. **This is the decisive argument for `apply()` as a
+path does not. **This is the decisive argument for `emit()` as a
 builtin.** A builtin instantiates the body against the node it matched;
 nothing in user space can.
 
@@ -2885,14 +2933,14 @@ than interleaved in node order. For these three sites one template
 matches each and the two agree, but the approximation is real and it is
 the second thing the builtin removes.
 
-**3. Static inlining cannot express a recursive template.** Since the
-table cannot be a value (fact 1), the expansion inlines each body at
-each apply site — and a template that reaches itself has no finite
-expansion. The prototype expander detects the re-entry and refuses
-rather than looping; a nested tree walked into nested output, which is
-the first example in every XSLT tutorial, is **not expressible on
-today's engine at any length**. This is not a DX complaint. It is the
-capability the rule layer exists to add.
+**3. Static inlining cannot express a recursive template.** Since a
+table cannot be reached by reference (fact 1), the expansion inlines
+each body at each site — and a template that reaches itself has no
+finite expansion. The prototype expander detects the re-entry and
+refuses rather than looping; a nested tree walked into nested output,
+which is the first example in every XSLT tutorial, is **not
+expressible on today's engine at any length**. This is not a DX
+complaint. It is the capability the rule layer exists to add.
 
 **4. The pass budget is not sized for this.** Two levels of staged
 dispatch over twelve services exhausted the default nine fixpoint
@@ -2913,10 +2961,11 @@ gating generation, but it remains an ADR-001 break in its own right.
 
 | Phase | Change |
 | --- | --- |
-| **1** (`aontu:code`) | Unchanged. The vocabulary is what a body's lines are checked against. |
+| **1** (`aontu:code`) | Unchanged. The vocabulary is what a body's pieces are checked against, and it is what `emit`'s return type names. |
 | **3** (`form`) | Strengthened, and its evidence is now specific: the four routes closed in fact 2 are all "the value is there and the engine will not settle it inline". |
-| **6** (`walk`) | **Re-scoped, and it is the load-bearing phase.** It ships `apply(select, table, mode?)` — dispatch against a table of `{mode?, match, body}` records, first match wins, bodies instantiated against the matched node — rather than `walk(data, tmpl)` with the table encoded in `match` arguments. Descent stays: `apply` with no explicit selection is the children, which is how a recursive rule set walks a tree. The totality argument of [§2](#2-the-rule-layer--apply-templates-in-the-engine) is unchanged, since it is about the structure descended, not about how rules are spelled. |
-| **new, after 6** | The template surface: the marker comment, the desugaring, and `fmt` over a template file. It is a sugar with one rule and a round-trip test, and it cannot be written before `apply` exists, because it desugars to `apply`. |
+| **4** (the renderer) | Unchanged, and confirmed: `emit` returns the flat piece list the fold already reads, so the renderer needs nothing new to consume a rule set's output. |
+| **6** (`walk`) | **Re-scoped, and it is the load-bearing phase.** It ships `emit(select, table)` — dispatch against a list of `{match, body}` records, first match wins, bodies instantiated against the matched node, result flat — rather than `walk(data, tmpl)` with the table encoded in `match` argument positions. No `mode` argument and no `mode` key: a mode is a named table. Descent stays: `emit` with no explicit selection is the children, which is how a recursive rule set walks a tree. The totality argument of [§2](#2-the-rule-layer--apply-templates-in-the-engine) is unchanged, since it is about the structure descended, not about how rules are spelled. |
+| **new, after 6** | The template surface: the marker comment, the indentation rule, the escape for a target line that begins with the marker, the desugaring, and `fmt` over a template file. It is a sugar with one rule and a round-trip test, and it cannot be written before `emit` exists, because it desugars to `emit`. |
 
 The acceptance case for phase 6 stands as
 [the second amendment](#amendment-2026-09-04-second-aontucode-and-the-fragment-algebra)
