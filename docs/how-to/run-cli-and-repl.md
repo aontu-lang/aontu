@@ -97,8 +97,14 @@ server (the Go builds bring the standalone `aontu-lsp` binary too).
 - `go install github.com/aontu-lang/aontu/go/cmd/aontu@latest` with a
   Go toolchain.
 
-From a clone: `node ts/bin/aontu.js …`, or `go run ./cmd/aontu …`
-inside `go/`. Both accept the same options and print the same bytes.
+From a clone, `make install` puts both builds on `PATH`, each by its
+own toolchain: `make install-ts` links the checkout as the global npm
+package, so `make build-ts` updates the command in place, and
+`make install-go` runs `go install` for `aontu` and `aontu-lsp`. Both
+builds provide `aontu`, so `PATH` order decides which one answers and
+`aontu --version` says which did. Without installing:
+`node ts/bin/aontu.js …`, or `go run ./cmd/aontu …` inside `go/`. Both
+accept the same options and print the same bytes.
 
 The full option, verb and REPL-command tables are in the
 [CLI reference](../reference-api.md#command-line-interface). To keep
