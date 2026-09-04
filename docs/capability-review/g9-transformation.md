@@ -2252,11 +2252,11 @@ design's dependency order.
 |---|---|---|---|
 | **0a** | Bag membership: `each`/`pick`/`join` skip `hide`-marked and unfilled-optional children | S | **First, alone, and ahead of the vocabulary.** It is the only item with a consequence in shipped code (BUGS §79), it changes observable behaviour on two shipped verbs plus `join`, which landed on 2026-08-30, and nothing else in the plan depends on it — so it should not wait behind work that does. `form` inherits the rule when it arrives rather than being retrofitted. Rows pinning the CHANGED behaviour on `each` and `pick`, a CHANGELOG note, and the `hide` repro inverted into a spec row |
 | **0b** | The staged snapshot: Go defers as TypeScript's `argsnap` does | S | Closes BUGS §63 in all three spellings and makes the recommended idiom available in Go. Pin every spelling — `hide` over a staged spread, `pick` over a staged `each`, and the `pack`/`pick`/`join` chain above — in both ports |
-| **1** | The vocabulary as a bundled schema | S | **Verified ready, no edits.** Disjoint from 0b (`std.ts`/`std.go` only), so it can go in parallel. `std-code.tsv` (canon, hash) and `ir-vet.tsv` in the existing five-column `vet` mode — no new spec mode |
+| **1** | The vocabulary as a bundled schema | S | **Verified ready**, and it grows by the fragment nodes of the second amendment; it needs [MODELS.0.md](../design/MODELS.0.md)'s M0 first, for the `aontu:` resolver leg. Otherwise disjoint from 0b (`std.ts`/`std.go` only), so it can go in parallel. `std-code.tsv` (canon, hash) and `ir-vet.tsv` in the existing five-column `vet` mode — no new spec mode |
 | **3** | `form`, the order-preserving map | S/M | Unchanged. `boundArgStart` in both ports is the silent omission; the nesting rows are not optional. Inherits 0a's membership rule by construction |
-| **4** | The renderer core and the first two profiles | M | Unchanged, and it is where the verb name (correction iii) becomes public. The first phase whose output is bytes rather than values |
+| **4** | The renderer core and the first two profiles | M | The algorithm is unchanged; the fold reads `at` instead of counting depth, and a fragment entry point plus a two-field `aontu:lang/text` profile land with it. Where the verb name (correction iii) becomes public, and the first phase whose output is bytes rather than values |
 | **5** | The reflection sidecar | M | Unchanged, and the Go accessor surface (`go/val.go` exports five methods and no fields) is its own ADR-001 item landing BEFORE the injection, not a footnote inside it |
-| **6** | `walk`, the manifest, and the verb | M | Unchanged, with one simplification banked: the totality argument no longer rests on a defect fix (change 1), so `walk_cycle` is a backstop rather than a load-bearing refusal |
+| **6** | `walk`, the manifest, and the verb | M | One simplification banked: the totality argument no longer rests on a defect fix (change 1), so `walk_cycle` is a backstop rather than a load-bearing refusal. Its acceptance case becomes a target the declaration vocabulary does not fit |
 | **7** | The Jostraca bridge | M | Unchanged. Still carries the two cross-repository asks; still cannot block phases 1–6 |
 | **8** | String interpolation | M/L | Unchanged: last, alone, behind a version gate. The multi-line backtick rows the design wants "in phase 0 regardless" go with 0a, since that is now the first phase to land |
 
@@ -2482,3 +2482,45 @@ comment forms and identifier rules remain per-language profile data.
 The ceiling is real — but it is the ceiling of a composition mechanism
 rather than of an enumerated list of supported shapes, and that is the
 difference the correction buys.
+
+### The phases, with the fragment algebra folded in
+
+The order above is unchanged. What each phase now delivers differs,
+and the deltas are small because the renderer already implements the
+algorithm — what changes is who can reach it.
+
+| phase | delta |
+|---|---|
+| **0a** | Unchanged. |
+| **0b** | Unchanged. |
+| **1** | The vocabulary grows the five fragment nodes (`%inline`, `%line`, `%blank`, `%raw`, `%frag`), `%decl` gains `%frag` and `%body` becomes `%frag \| {k:"abstract"}`. `ir-vet.tsv` grows by roughly ten rows and they are the cheapest high-value rows in the phase: a valid fragment, a line whose piece carries `\n` (**invalid at the node** — the renderer invariant checked before any renderer exists), `at` below zero and above its bound, a `raw` at `reindent: false`, and a `%ref` inline. Everything else about the phase stands, including that it needs no new spec mode. Its dependency on [MODELS.0.md](../design/MODELS.0.md) M0 is the only new prerequisite in the plan. |
+| **3** | Unchanged, and now better motivated: `form` over a record's fields is how a transform builds a list of `%line`s in source order. |
+| **4** | **No new renderer algorithm** — [§3](#3-the-renderer-and-the-language-profiles) is implemented as written, with one substitution: the fold reads `at` where it would have counted recursion depth, which is strictly simpler. What is added is the **entry point**: `render` accepts a unit whose `decls` are fragments and folds them directly, without a declaration lowering. Two things to pin. (i) A **fragment-only profile** — `indent` and the escape table, nothing else — rendered against a fragment unit, which is the executable form of the claim that a profile's size is proportional to how much of the declaration vocabulary a target uses; call it `aontu:lang/text` and make it the third profile rather than a fourth language. (ii) `render.tsv` rows for depth, blank runs, `raw` with and without `reindent`, and a line assembled by `join`. |
+| **5** | Unchanged. The sidecar's four facts feed the declaration lowering; a fragment transform reads the model like any other. |
+| **6** | **Where it pays off, and the acceptance case changes.** `walk` plus `match` plus fragments is apply-templates with its result tree: each matched node emits `%line`s at a depth, the list concatenates in pre-order, and the renderer serialises. The acceptance case should therefore be a target the declaration vocabulary does **not** fit — a Python module or a YAML manifest from the same model that produces the Go and TypeScript units — because that is the claim the rule layer exists to support, and a phase that only re-derives declaration output has not tested it. |
+| **7** | Unchanged, and slightly less exposed: a fragment unit is bytes like any other, so the bridge sees no new shape. |
+| **8** | Unchanged. Interpolation composes a line's inline pieces more cheaply than `+`, which is a convenience over the algebra rather than a prerequisite for it. |
+
+**One thing the fragment algebra does not change.** It adds no
+combinator, no grammar and no builtin. `walk` and `form` were already
+in the plan; `join` has landed; the nodes are schema. The whole
+correction is reachable in the phases as they stand.
+
+### Open question added by this amendment
+
+- **Scaffolding, and whether it is Jostraca's.** Neither this design
+  nor [GENERATION-FORMS.0.md](../design/GENERATION-FORMS.0.md) has a
+  story for starting a project — there is no `aontu init`, in either
+  CLI, and nothing creates a `mod.aon` or an `aontu_meta/`. Jostraca
+  owns exactly the primitives that job wants (folder structure,
+  `Copy`, `Fragment`), and the G9 bridge deliberately uses none of
+  them: it passes `raw: true` so that Jostraca templates nothing, and
+  the two `from` reads are already flagged in
+  [Open questions](#open-questions) as filesystem reads outside
+  `trust.include`'s confinement. A scaffolder whose templates ship
+  **inside the engine**, as the bundled models do, has neither
+  problem — it reads nothing from disk and confines its writes the way
+  `render --out` does. Decided by: whether project setup is a real
+  gap, which the module and `aontu env` work will answer before this
+  design needs to.
+
