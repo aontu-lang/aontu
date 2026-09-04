@@ -2,7 +2,7 @@
 
 *Design note, 2026-09-04. The sugar that desugars to
 [EMIT.0.md](EMIT.0.md)'s `emit`, and the three string builtins it needs
-— `esc`, `usc` and `rep`. Companion to
+— `esc`, `usc`, `rep` and `split`. Companion to
 [G9](../capability-review/g9-transformation.md), which is the plan.
 Every claim marked VERIFIED was run against the built CLIs at 0.56.0
 and, for output claims, against
@@ -216,7 +216,7 @@ that means two templates. A per-key override would need a spelling that
 does not collide with a genuine list value, and none of the obvious
 ones read well; recorded rather than invented.
 
-## D5. `rep`: one regexp language, used to derive names
+## D5. `rep` and `split`: deriving names
 
 ```
 rep(src: string, re: string, sub: string) : string
@@ -246,8 +246,8 @@ unknown variant: a pattern outside the subset refuses at the call, and
 a `sub` naming a group the pattern does not have refuses rather than
 expanding to nothing.
 
-**And an honest limit, measured.** `rep` does not close the motivating
-case on its own:
+**`rep` does not close the motivating case on its own**, and it is
+worth being exact about why:
 
 | step | result |
 | --- | --- |
@@ -256,12 +256,56 @@ case on its own:
 | wanted | `QueueAimIngestProcessEpisode` |
 
 A string substitution cannot change case, and `upper`/`lower` are
-whole-string. **Per-word capitalisation is the gap `rep` reveals rather
-than fills**, and there are two candidate answers: case operators in
-`sub` (sed and Perl spell them `\u`/`\U`, which departs from the
-JavaScript model this note adopts), or a case builtin beside `upper`
-and `lower`. Recorded, not chosen — the corpus asks for it, so it
-should be settled with `rep` rather than after it.
+whole-string. What is missing is per-WORD capitalisation.
+
+### `split`, and the chain that closes it
+
+```
+split(src: string, sep: string | re(…)) : [&: string]
+```
+
+A plain string separator is a LITERAL; an `re(…)` argument is a
+pattern. That asymmetry with `rep` is deliberate — splitting is usually
+on a literal, replacing is usually by pattern — and it removes the trap
+where `split(v, ".")` silently splits on every character.
+
+Three rules the chain below depends on: **an empty separator yields
+characters**; a separator that does not occur yields the whole string
+as one element; and empty fields are preserved, so `join` is its
+inverse.
+
+With `split`, the motivating case closes **using a phase already in the
+plan and no case operator at all**:
+
+```aon
+title: join(form(split(w, ""), match(key(), "0", upper(_), _)), "")
+name:  `Queue` + join(form(split(.pin, re(`[:,]`)), <title>), "")
+```
+
+VERIFIED by simulating the chain over the real pin: it produces
+`QueueAimIngestProcessEpisode` exactly.
+
+Two engine facts make it work, and one of them is why `form` is in the
+plan at all:
+
+- **`key()` resolves inside a list spread and yields the index** —
+  VERIFIED, `[&: {k: key()}] & [{w:'aim'},{w:'ingest'}]` gives `k` of
+  `"0"` and `"1"`. That is what lets a per-element transform know it is
+  looking at the first character.
+- **`pack` over a list of strings REORDERS** — VERIFIED,
+  `pick(pack(['aim','ingest','process','episode'], …), u)` returns
+  `AIM, EPISODE, INGEST, PROCESS`, sorted. So the map has to be
+  `form`, the order-preserving map of
+  [G9](../capability-review/g9-transformation.md) phase 3, which is
+  exactly the gap that phase records.
+
+**So `split` is the one new builtin the case needs**, and it earns its
+place independently — splitting a path, a pin or a version string is
+not a generator-only operation. A `title()`-style builtin is then
+**sugar over a capability that exists** rather than a missing
+primitive, which is a much better place for it: the chain above is
+five calls and doubly nested to capitalise a word, so the sugar is
+still worth having, but nothing is blocked without it.
 
 ## D6. The canonical quote is chosen per line
 

@@ -2735,8 +2735,8 @@ Aontu.
 | Phase | Change |
 | --- | --- |
 | **1** (`aontu:code`) | Unchanged. The vocabulary is what a body's pieces are checked against, and what `emit`'s return type names. |
-| **3** (`form`) | Strengthened, with specific evidence: the routes closed in EMIT.0.md's fact 2 are all "the value is there and the engine will not settle it inline". |
-| **4** (the renderer) | Unchanged, and confirmed — `emit` returns the flat piece list the fold already reads. `esc`, `usc` and `rep` are ordinary string builtins with no renderer coupling and can land earlier. |
+| **3** (`form`) | Strengthened twice. The routes closed in EMIT.0.md's fact 2 are all "the value is there and the engine will not settle it inline"; and TEMPLATE.0.md's name-derivation chain needs `form` specifically, because `pack` over a list of strings REORDERS — VERIFIED, `aim, ingest, process, episode` comes back sorted. |
+| **4** (the renderer) | Unchanged, and confirmed — `emit` returns the flat piece list the fold already reads. `esc`, `usc`, `rep` and `split` are ordinary string builtins with no renderer coupling and can land earlier. |
 | **6** (`walk`) | **Re-scoped, and it is the load-bearing phase.** It ships `emit(select, table)` per EMIT.0.md rather than `walk(data, tmpl)` with the rules encoded in `match` argument positions, and gains a second acceptance case — a RECURSIVE rule set — because that is the one case no amount of user-space work reaches. |
 | **new, after 6** | The template surface of TEMPLATE.0.md. It is a sugar with one rule and a round-trip test, and it cannot be written before `emit` exists, because it desugars to `emit`. |
 
