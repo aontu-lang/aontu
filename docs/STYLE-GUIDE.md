@@ -394,6 +394,19 @@ generated** — declared in `ts/scripts/figures.cjs`, written to
 
 - The language and project are **Aontu** (capital A) in prose; the
   command is `aontu`.
+- **module / package**—these are not synonyms and must never be
+  swapped. A **module** is a language element: what `@"…"` names, what
+  an import resolves, what the canon-hash pins, what unifies into a
+  document. A **package** is a unit of publication: a versioned,
+  signed archive of one or more modules, usually one. So a module is
+  *imported* and a package is *published*; a package is what a
+  repository stores, a version bears, a quota counts and a signature
+  covers. Write "package repository", "publish a package", "the
+  package's dependencies"; never "module registry" or "publish a
+  module". **Go uses the two words the other way round**, so a
+  sentence that reads naturally to a Go user may be wrong here — check
+  which side of the import/publish line the thing sits on rather than
+  trusting the ear.
 - **unification / unify**—the operation. Not "merging" except when
   introducing the idea to newcomers, and then once.
 - **meet**—the operation named as order theory names it. It is a
