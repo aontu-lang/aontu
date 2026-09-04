@@ -37,6 +37,7 @@ the [Explanation](explanation.md).
 - [Arithmetic: `add` `sub` `mul` `div` `mod` `rem`](#arithmetic-add-sub-mul-div-mod-rem)
 - [Aggregating: `sum` `least` `greatest`](#aggregating-sum-least-greatest)
 - [Folding to a string: `join`](#folding-to-a-string-join)
+- [Text: `esc` `usc` `rep` `split`](#text-esc-usc-rep-split)
 - [Linking: the tree is the namespace](#linking-the-tree-is-the-namespace)
 - [First-class paths: `path(p?)`](#first-class-paths-pathp)
 - [Checked links: `refer(t?)`](#checked-links-refert)
@@ -1906,6 +1907,107 @@ the fold but the parameter naming the text between members, and
 
 A value that is not a bag is `aggregate_data`, as it is for the
 aggregates.
+
+## Text: `esc` `usc` `rep` `split`
+
+Four ordinary string functions. They return values and compose with
+`+`, and they know nothing about generation—but they are what a
+generator needs, because a generator interpolates values into literals
+and derives names from data.
+
+### `esc(s, variant?)` and `usc(s, variant?)`
+
+`esc` makes a string safe to place inside a literal; `usc` reads it
+back out. **A variant names a convention, not a language**: several
+languages share one convention, and one language has several—a C-family
+literal escapes differently in each quote, and SQL spells a literal one
+way and an identifier another.
+
+| variant | convention |
+|---------|------------|
+| *(none)* | C / JSON, double-quoted—TypeScript, JavaScript, Java, C, C++, C#, Go, Rust, Swift, Kotlin, Scala and JSON itself |
+| `sq` | single-quoted C-family |
+| `sql` | standard SQL, which doubles the quote |
+| `shell` | POSIX single-quote |
+| `xml` | the five entities; covers HTML |
+| `uri` | percent-encoding, RFC 3986 |
+| `regex` | the metacharacters the pattern subset admits |
+
+```aon
+plain: esc("plain text")
+inner: esc("it\'s", sq)
+table: esc("o\'brien", sql)
+markup: esc("<a>&", xml)
+address: esc("a b/c", uri)
+pattern: esc("a.b", regex)
+```
+
+```json
+{"plain": "plain text", "inner": "it\\'s", "table": "o''brien",
+ "markup": "&lt;a&gt;&amp;", "address": "a%20b%2Fc", "pattern": "a\\.b"}
+```
+
+**Escaping a value that was already safe changes nothing**, which is
+what makes it cheap enough to do by default. An unknown variant is
+refused at the call (`esc_variant`) rather than passed through, so a new
+convention arrives by name rather than by a silent change in what an
+existing one does.
+
+**`usc` is the left inverse, and it is partial.** `usc(esc(s))` is `s`
+for every `s` and every convention. The other direction does not hold:
+several spellings escape to one value, so `esc(usc(t))` is `t` only for
+canonically escaped `t`. Text with no original—a truncated code-point
+escape, an escape the convention does not define, a lone quote where the
+convention doubles it—is refused (`usc_malformed`) rather than answered
+with a different string.
+
+### `rep(s, pattern, sub)`
+
+Every match of `pattern` in `s` replaced by `sub`. The pattern is the
+**same portable subset [`re`](#re-and-the-portable-pattern-subset)
+takes**, so a document has one regexp language rather than two. The
+substitution is `$1` to `$9` for the numbered groups, `$&` for the whole
+match and `$$` for a literal `$`.
+
+```aon
+day: rep("2026-09-04", "([0-9]+)-([0-9]+)-([0-9]+)", "$3/$2/$1")
+words: rep("aim:ingest,process:episode", "[,:]", " ")
+```
+
+```json
+{"day": "04/09/2026", "words": "aim ingest process episode"}
+```
+
+**It replaces every match**—a replace-the-first default silently does
+the wrong thing in a generator that normalises separators, and anchoring
+the pattern is how a document asks for one. A `$` naming nothing, or a group the pattern
+has not got, is refused (`rep_sub`) rather than expanded to the empty
+string: a file written with a hole in it and no complaint is the failure
+that refusal exists to close.
+
+### `split(s, sep)`
+
+The fields of `s`. **A plain string separator is a literal and an
+`re(…)` argument is a pattern**—the asymmetry with `rep` is deliberate,
+since splitting is usually on a literal, and it removes the trap where
+`split(v, ".")` silently cuts between every character.
+
+```aon
+fields: split("a,,b", ",")
+chars: split("abc", "")
+runs: split("a1b22c", re("[0-9]+"))
+whole: split("abc", ",")
+```
+
+```json
+{"fields": ["a", "", "b"], "chars": ["a", "b", "c"],
+ "runs": ["a", "b", "c"], "whole": ["abc"]}
+```
+
+Empty fields are **preserved**, so `join` is the inverse:
+`join(split(s, sep), sep)` is `s`. An empty separator yields the code
+points, and a separator that does not occur yields the whole string as
+one field.
 
 ## Linking: the tree is the namespace
 

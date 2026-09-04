@@ -1,142 +1,96 @@
-# Terms Vale's dictionary does not know. Entries are REGEXES, so a
-# stem with an optional suffix accepts a family; a bare word accepts
-# only itself.
+
+
+
+
+
+
+
+
 #
-# CASE PAIRS ARE ONE ENTRY, WRITTEN AS A REGEX. Listing `Aontu` and
+#
 # `aontu` as two plain lines does not accept both: Vale turns a
-# vocabulary into Vale.Terms, which then enforces ONE spelling over the
-# other, and the first run of this file reported 489 "Use 'aontu'
-# instead of 'Aontu'". `[Aa]ontu` accepts the pair without ruling
-# between them.
-#
-# LISTED ONE BY ONE, never matched by suffix. A pattern like `\w+ise`
-# accepts any word ending in those letters, `madeupise` included, and
-# so punches a hole through the error-level spelling gate this file
-# exists to make usable. Adding a stem by hand is the cost, and the
-# cost is the point.
-
-# Names: products, tools and the papers the docs cite.
-# The surnames are authors of work `unification.md` and
 # `tutorial-graph.md` cite by name.
-
+# accepts any word ending in those letters, `madeupise` included, and
+# and has to spell consistently.
+# between them.
+# CASE PAIRS ARE ONE ENTRY, WRITTEN AS A REGEX. Listing `Aontu` and
+# cost is the point.
+# exists to make usable. Adding a stem by hand is the cost, and the
+# Fixture names and field names from `use-cases/`, which the
+# for what the engine does. Several are coinages this project made
+# General computing terms the dictionary lacks.
+# instead of 'Aontu'". `[Aa]ontu` accepts the pair without ruling
+# LISTED ONE BY ONE, never matched by suffix. A pattern like `\w+ise`
+# Names: products, tools and the papers the docs cite.
+# only itself.
+# Order theory, the type lattice, and the words the reference uses
+# other, and the first run of this file reported 489 "Use 'aontu'
+# READMEs quote in prose as well as in code.
+# so punches a hole through the error-level spelling gate this file
+# stem with an optional suffix accepts a family; a bare word accepts
+# Terms Vale's dictionary does not know. Entries are REGEXES, so a
+# The language's own vocabulary.
+# The surnames are authors of work `unification.md` and
+# The worked examples' invented world.
+# vocabulary into Vale.Terms, which then enforces ONE spelling over the
+[Aa]cyclicity
 [Aa]ontu
+[Bb]ooleans
+[Cc]losedness
+[Ee]num
+[Ee]nv
+[Hh]ermeticity
+[Oo]nboarding
+[Rr]eachability
+[Rr]eparseable
+[Ss][Ss][Oo]
+[Ss]andboxing
+[Ss]everities
+[Ss]tderr
+[Ss]tdin
+[Uu]nary
+[Vv]endoring
+accessors
+agentic
+allowlist
 Aontu's
 APIs
-Castagliola
-CLI's
-CLIs
-Fekete
-Ghoniem
-grpc
-jsonic
-Kustomize
-lcov
-Makefile's
-Neovim
-npm
-npm's
-protobuf
-Sangal
-SDKs
-SQL's
-TS's
-Voxgig
-
-# The language's own vocabulary.
-# Order theory, the type lattice, and the words the reference uses
-# for what the engine does. Several are coinages this project made
-# and has to spell consistently.
-
-[Aa]cyclicity
 arity
+backreferences
 bigdecimal
 bigdecimal's
 bigdecimals
 biginteger
 bool
 boolean
-[Bb]ooleans
-[Cc]losedness
-combinator
-combinators
-disjunction's
-fixpoint
-fixpoint's
-fixpoints
-goldened
-goldens
-[Hh]ermeticity
-iff
-outvals
-poset
-poset's
-[Rr]eachability
-residuated
-residuates
-residuation
-scalar's
-schema's
-scrutinee
-[Ss]everities
-subgraph
-subgraphs
-subtree
-subtrees
-superset
-supertype
-[Uu]nary
-unexecuted
-ungenerable
-unhit
-unifiability
-unmirrored
-unnarrowed
-unsized
-untyped
-
-# The worked examples' invented world.
-# Fixture names and field names from `use-cases/`, which the
-# READMEs quote in prose as well as in code.
-
-correlation_id
-deployables
-[Ee]num
-[Ee]nv
-healthcheck
-megacorp
-megacorp's
-[Oo]nboarding
-rollout
-specversion
-[Ss][Ss][Oo]
-starterco's
-
-# General computing terms the dictionary lacks.
-
-accessors
-agentic
-allowlist
-backreferences
 buildable
 builtins
 canonicalise
 canonicalises
+Castagliola
 cleartext
+CLI's
+CLIs
 codebase's
 codec
+combinator
+combinators
 compat
 config
+correlation_id
 cwd
 data's
 dedup
 deduplicated
 deduplicates
+deployables
 deps
 dereference
 dereferenced
 dereferences
 dev
 diffable
+disjunction's
 editability
 else's
 emittable
@@ -149,33 +103,57 @@ erroring
 evaluable
 evaluator's
 fallthrough
+Fekete
 fetch's
 filetype
+fixpoint
+fixpoint's
+fixpoints
 footer's
 formatter's
 formatters
+Ghoniem
 git's
+goldened
+goldens
+grpc
+healthcheck
 hostnames
+iff
 includable
 include's
 injectable
 injectively
 inlined
 interop
+jsonic
 keyless
+Kustomize
+lcov
 lockfile
 lockfile's
 lookaround
 lossy
+Makefile's
 matchers
+megacorp
+megacorp's
+metacharacters
 misspelt
 multisource
 namespace
+Neovim
+npm
+npm's
+outvals
 overridable
 params
 parseable
 parser's
 pasteable
+poset
+poset's
+protobuf
 readline
 realpath'd
 recurse
@@ -186,38 +164,61 @@ regexes
 renderer's
 renderers
 reparse
-[Rr]eparseable
 reparses
 reparsing
 repo
 repo's
 repos
+residuated
+residuates
+residuation
 rewriter
+rollout
 rootPath
 rootUri
-[Ss]andboxing
+Sangal
+scalar's
+schema's
+scrutinee
+SDKs
 serialiser
 shorter's
+specversion
+SQL's
+starterco's
 stat'd
-[Ss]tderr
-[Ss]tdin
 stdout
 subcommand
+subgraph
+subgraphs
 substring
 substrings
+subtree
+subtrees
+superset
+supertype
 templated
 toolchain
+TS's
 typo'd
+unescaped
+unexecuted
+ungenerable
+unhit
+unifiability
+unmirrored
+unnarrowed
 unreviewed
 unrollings
+unsized
 unsuffixed
-unescaped
 untrusted
+untyped
 uppercases
 uri
 uri's
 util
 validators
 vendored
-[Vv]endoring
+Voxgig
 workspaceFolders

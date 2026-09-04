@@ -301,6 +301,24 @@ each_data	errcode	parse	0.53.0
 # the patterns that were tried.
 filter_data	errcode	parse	0.53.0
 match_none	errcode	conflict	0.53.0
+# THE STRING BUILTINS (G9 phase 6, `esc` `usc` `rep` `split`). Five
+# codes, all class `parse`: what is wrong is the CALL as the author
+# wrote it. `esc_variant` is a variant naming no convention -- the
+# names are a closed set, and an unknown one is refused rather than
+# passed through, which is what keeps a new convention arriving by name
+# rather than by a silent change of behaviour. `usc_malformed` is text
+# the convention could not have produced: `usc` is the LEFT inverse and
+# it is partial, so input with no original is refused rather than
+# answered with a different string. `rep_pattern` is a pattern outside
+# the subset `re()` takes, and `rep_sub` a substitution naming a group
+# the pattern has not got -- expanding it to nothing would write a file
+# with a hole in it and say nothing. `split_sep` is a separator that is
+# neither a literal string nor an `re(...)`.
+esc_variant	errcode	parse	0.57.0
+usc_malformed	errcode	parse	0.57.0
+rep_pattern	errcode	parse	0.57.0
+rep_sub	errcode	parse	0.57.0
+split_sep	errcode	parse	0.57.0
 # APPLY-TEMPLATES (G9 phase 6, `emit`). Four shape codes, all class
 # `parse`: what is wrong is the CALL as the author wrote it.
 # `emit_data` is a selection with no children to visit; `emit_table` a

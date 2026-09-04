@@ -147,6 +147,9 @@ import { FilterFuncVal } from './val/FilterFuncVal'
 import { MatchFuncVal } from './val/MatchFuncVal'
 import { EmitFuncVal } from './val/EmitFuncVal'
 import {
+  EscFuncVal, UscFuncVal, RepFuncVal, SplitFuncVal,
+} from './val/StrFuncVal'
+import {
   AddFuncVal, SubFuncVal, MulFuncVal, DivFuncVal, ModFuncVal, RemFuncVal,
 } from './val/ArithFuncVal'
 import {
@@ -677,6 +680,16 @@ help isolate the syntax error.`,
     // relative resolution that does exist is a dot count that does not
     // survive a second dispatch (docs/design/EMIT.0.md).
     emit: EmitFuncVal,
+
+    // G9 phase 6: the string builtins the rule layer needs. `esc`
+    // makes a value safe inside a literal and `usc` reads it back;
+    // `rep` and `split` derive names from model data. All four are
+    // ordinary string functions -- they know nothing about generation,
+    // which is why they can land before the renderer does.
+    esc: EscFuncVal,
+    usc: UscFuncVal,
+    rep: RepFuncVal,
+    split: SplitFuncVal,
   }
 
 

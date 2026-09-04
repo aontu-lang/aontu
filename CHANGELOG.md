@@ -7,6 +7,44 @@ which implementation each change affects.
 
 ## Unreleased
 
+### Text: `esc`, `usc`, `rep` and `split`
+
+Four string builtins, and the ones a generator needs: it interpolates
+values into literals and derives names from data.
+
+`esc(s, variant?)` makes a string safe inside a literal and
+`usc(s, variant?)` reads it back out. A variant names a **convention,
+not a language** — several languages share one, and one language has
+several. With no variant it is the C escape, JSON canonical, which
+covers TypeScript, JavaScript, Java, C, C++, C#, Go, Rust, Swift,
+Kotlin, Scala and JSON itself; the named conventions are `sq`, `sql`,
+`shell`, `xml`, `uri` and `regex`. Escaping a value that was already
+safe changes nothing, and an unknown variant is refused at the call
+rather than passed through. `usc` is the left inverse and it is
+partial: `usc(esc(s))` is `s` for every `s`, while text with no
+original is refused rather than answered with a different string.
+
+`rep(s, pattern, sub)` replaces **every** match; the pattern is the
+same portable subset `re` takes, and the substitution is `$1`–`$9`,
+`$&` and `$$`. A `$` naming nothing is refused rather than expanded to
+the empty string. `split(s, sep)` cuts a string into fields: a plain
+string separator is a literal and an `re(…)` argument is a pattern,
+empty fields are preserved so `join` is the inverse, and an empty
+separator yields the code points.
+
+Both ports spell every convention and both matching loops out by hand
+rather than borrowing a host library, because the hosts disagree about
+every part of the job: `JSON.stringify` escapes what Go's
+`encoding/json` does not, `encodeURIComponent` is not RFC 3986,
+JavaScript's split inserts a pattern's capture groups where Go's does
+not, and the two read a substitution template differently. 99 shared
+rows in `test/spec/str.tsv`, five codes — `esc_variant`,
+`usc_malformed`, `rep_pattern`, `rep_sub`, `split_sep` — the four
+published grammars, the LSP, and a
+[Text](docs/reference-language.md#text-esc-usc-rep-split) section in the
+language reference. Both implementations.
+
+
 ### `emit`: apply-templates as an engine builtin
 
 `emit(select, table)` applies a rule table to a selection of nodes. For

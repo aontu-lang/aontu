@@ -75,6 +75,7 @@ const EachFuncVal_1 = require("./val/EachFuncVal");
 const FilterFuncVal_1 = require("./val/FilterFuncVal");
 const MatchFuncVal_1 = require("./val/MatchFuncVal");
 const EmitFuncVal_1 = require("./val/EmitFuncVal");
+const StrFuncVal_1 = require("./val/StrFuncVal");
 const ArithFuncVal_1 = require("./val/ArithFuncVal");
 const AggFuncVal_1 = require("./val/AggFuncVal");
 const PlaceVal_1 = require("./val/PlaceVal");
@@ -523,6 +524,15 @@ help isolate the syntax error.`,
         // relative resolution that does exist is a dot count that does not
         // survive a second dispatch (docs/design/EMIT.0.md).
         emit: EmitFuncVal_1.EmitFuncVal,
+        // G9 phase 6: the string builtins the rule layer needs. `esc`
+        // makes a value safe inside a literal and `usc` reads it back;
+        // `rep` and `split` derive names from model data. All four are
+        // ordinary string functions -- they know nothing about generation,
+        // which is why they can land before the renderer does.
+        esc: StrFuncVal_1.EscFuncVal,
+        usc: StrFuncVal_1.UscFuncVal,
+        rep: StrFuncVal_1.RepFuncVal,
+        split: StrFuncVal_1.SplitFuncVal,
     };
     // A dangling operator (`a:1|`, `a:$`, `a:*` at end of input) leaves
     // null/undefined unfilled terms. Junction ops drop them (so `a:1&`

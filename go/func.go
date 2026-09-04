@@ -33,6 +33,10 @@ var funcSet = map[string]bool{
 	"filter":    true,
 	"match":     true,
 	"emit":      true,
+	"esc":       true,
+	"usc":       true,
+	"rep":       true,
+	"split":     true,
 	// The arithmetic family (the review's finding I). Maths beyond `+`
 	// arrives as FUNCTIONS -- `-` `*` `/` `%` stay reserved -- and the
 	// family is numeric where the operator is polymorphic, which is
@@ -684,6 +688,14 @@ func (f *FuncVal) resolve(ctx *Ctx, base []string, args []Val) Val {
 		return matchFunc(ctx, f, base, args)
 	case "emit":
 		return emitFunc(ctx, f, base, args)
+	case "esc":
+		return escFunc(ctx, f, args)
+	case "usc":
+		return uscFunc(ctx, f, args)
+	case "rep":
+		return repFunc(ctx, f, args)
+	case "split":
+		return splitFunc(ctx, f, base, args)
 	case "add", "sub", "mul", "div", "mod", "rem":
 		// resolve is only reached once every argument has settled, so
 		// arith may name a bad operand rather than waiting for it.

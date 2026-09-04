@@ -82,7 +82,7 @@ func      = name %s"(" ws [ value *( ws %s"," ws value ) ws ] %s")"
 ; listed before `re`, and `rem` before `re` as well.
 name      = %s"above" / %s"acyclic" / %s"add" / %s"below" / %s"close"
           / %s"copy" / %s"deprecate" / %s"div"
-          / %s"each" / %s"emit" / %s"filter" / %s"greatest"
+          / %s"each" / %s"emit" / %s"esc" / %s"filter" / %s"greatest"
           / %s"hide"
           / %s"inverse" / %s"join" / %s"key" / %s"least"
           / %s"length" / %s"list" / %s"lower" / %s"map" / %s"match"
@@ -90,10 +90,11 @@ name      = %s"above" / %s"acyclic" / %s"add" / %s"below" / %s"close"
           / %s"mul" / %s"must"
           / %s"neq"
           / %s"open" / %s"pack" / %s"path" / %s"pick" / %s"pref"
-          / %s"refer" / %s"rel" / %s"rem" / %s"re" / %s"super"
+          / %s"refer" / %s"rel" / %s"rem" / %s"rep" / %s"re" / %s"split"
+          / %s"super"
           / %s"sub" / %s"sum"
           / %s"type"
-          / %s"unique" / %s"upper"
+          / %s"unique" / %s"upper" / %s"usc"
 
 ; A path reference, absolute from the document root. At least one
 ; segment: a bare `$` is an incomplete expression, not a reference.
