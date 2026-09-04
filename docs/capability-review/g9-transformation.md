@@ -2231,14 +2231,18 @@ cannot. Left as it is, an author reads the rule, reads the use case,
 and gets opposite advice. The how-to owes one paragraph naming both
 and the line between them.
 
-**(iii) The verb name is unsettled between this document and the
-register.** Here it is `aontu render` with the manifest under
-`@"aontu:code"`; [progress.md](progress.md#g9--declarative-transformation)'s
-phase 6 row says `aontu gen` with a `std/gen` manifest. It names a
-verb, an MCP tool, a source file in each port, help text that the
-suite asserts byte-identical across the builds, and every executable
-transcript in the reference. **Decide it before phase 4**, which is
-where the first user-visible name lands.
+**(iii) The verb name — DECIDED 2026-09-04: `aontu render`.** This
+document and the register had disagreed, `aontu render` with the
+manifest under `@"aontu:code"` against `aontu gen` with a `std/gen`
+manifest. `render` wins on a collision the other spelling could not
+avoid: `generate()` is already the library function that projects the
+Val tree to JSON, and `mapval_no_gen`/`listval_no_gen` are codes users
+meet constantly, so `aontu gen` would mean model → FILES in a tool
+where `generate()` means tree → JSON. `render` is also already the name
+of the fold it wraps. The reasoning and the flag surface are in
+[EMIT.0.md D7](../design/EMIT.0.md#d7-the-verb-is-aontu-render); the
+`std/gen` half of the disagreement was stale anyway, having died with
+the `aontu:` rename.
 
 **(iv) `docs/design/EMISSION.0.md` is named in the landing obligation
 of every phase and does not exist.** What exists is

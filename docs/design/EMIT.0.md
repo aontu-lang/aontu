@@ -217,6 +217,52 @@ is a captured spelling used as data, meetable by the prefix rule. It is
 the type of what a run REPORTS and the wrong type for what `emit` is
 GIVEN.
 
+## D7. The verb is `aontu render`
+
+Decided 2026-09-04, closing
+[G9](../capability-review/g9-transformation.md)'s open question (iii),
+which had this document saying `aontu render` and the register's phase
+6 row saying `aontu gen`.
+
+```
+aontu render [--profile <name|file>] [--at <path>]
+             [--out <dir> | --stdout] [--check] <file>
+```
+
+`--check` is the CI form: render, compare against what is on disk, and
+report rather than write — the same shape `fmt --check` and `trim
+--check` already have.
+
+**`gen` collides with a meaning the codebase already has.**
+`generate()` is the library function that projects the Val tree to
+JSON; it has its own section in
+[GENERATION-FORMS.0.md](GENERATION-FORMS.0.md), and `mapval_no_gen` and
+`listval_no_gen` are error codes users meet constantly and shared rows
+pin. `aontu gen` would mean model → FILES while `generate()` means tree
+→ JSON, in one tool, with `no_gen` errors between them. Two saved
+characters do not pay for that.
+
+**`render` is already the name of the thing the verb does.** The layer
+split is written down:
+[`emit`](#d2-emitselect-table-and-the-result-is-flat) produces
+`aontu:code` pieces and `render(value, profile) -> RenderReport` folds
+them to bytes. When the library function is `render`, the verb that
+wraps it is `render`.
+
+**House style agrees.** The existing verbs — `vet`, `subsume`,
+`breaking`, `trim`, `relations`, `reaches`, `view`, `jsonschema`,
+`hash`, `mod`, `get`, `why`, `set`, `agentsmd`, `init`, `lsp`, `mcp` —
+are full words except `fmt` and `mod`, both universal abbreviations.
+`gen` is not one.
+
+**What the decision commits.** The name appears as a verb in both
+CLIs, an MCP tool, a source file in each port, help text the suite
+asserts byte-identical across the builds, and every executable
+transcript in the reference. The manifest goes under `@"aontu:code"`,
+not `std/gen` — that spelling died with the
+[`aontu:` rename](MODELS.0.md) and was stale in the register
+independently of this choice.
+
 ## What it takes: four engine facts
 
 The canonical form does not evaluate on the shipped engine. Each reason
