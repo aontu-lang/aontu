@@ -49,7 +49,7 @@ has() { # has NAME PATTERN LABEL
   }
 }
 
-VENDORED=aon_vendor/corp.example/schemas/service@1
+VENDORED=aontu_meta/vendor/corp.example/schemas/service@1
 
 # ------------------------------------------------ A. hand distribution
 # Pristine consumer (no vendor tree, no lockfile): the state of a repo
@@ -71,20 +71,20 @@ run tidy-cold 1 mod tidy "$APP"
 has tidy-cold 'verdict: missing' "cold tidy reports missing"
 has tidy-cold 'corp.example/schemas/service@1: not fetched (run: aontu mod get)' \
   "missing module names the fix"
-[ ! -e "$APP/mod-lock.aon" ] || die "cold tidy must not write a partial lockfile"
+[ ! -e "$APP/aontu_meta/mod-lock.aon" ] || die "cold tidy must not write a partial lockfile"
 ok "cold start: tidy exits 1, names the module and the fix, writes no lockfile"
 
 # Distribution is a copy: no fetch verb exists, so the platform tree is
 # placed into the vendor store by hand, at the layout the resolver
-# expects (aon_vendor/<host>/<path>@<major>/ -- documented nowhere; see
+# expects (aontu_meta/vendor/<host>/<path>@<major>/ -- documented nowhere; see
 # README gap on first-contact vendoring).
-mkdir -p "$APP/aon_vendor/corp.example/schemas"
+mkdir -p "$APP/aontu_meta/vendor/corp.example/schemas"
 cp -r "$DIR/platform/service" "$APP/$VENDORED"
 
 run tidy 0 mod tidy "$APP"
 has tidy 'verdict: ok' "tidy resolves after hand-vendoring"
-diff -u "$DIR/consumer/mod-lock.aon" "$APP/mod-lock.aon" \
-  || die "fresh lockfile differs from the committed consumer/mod-lock.aon"
+diff -u "$DIR/consumer/aontu_meta/mod-lock.aon" "$APP/aontu_meta/mod-lock.aon" \
+  || die "fresh lockfile differs from the committed consumer/aontu_meta/mod-lock.aon"
 ok "tidy writes the lockfile; committed lockfile has not drifted"
 
 run tidy-json 0 mod tidy --format json "$APP"
@@ -98,13 +98,13 @@ run vendor 0 mod vendor "$APP"
 has vendor 'verdict: ok' "vendor verdict"
 ok "vendor: already-vendored module left in place, verdict ok"
 
-PIN="$(grep -o 'aon1-[A-Za-z0-9_-]*' "$APP/mod-lock.aon")"
+PIN="$(grep -o 'aon1-[A-Za-z0-9_-]*' "$APP/aontu_meta/mod-lock.aon")"
 
 # ------------------------------------------- B. evaluation, hermetic
 run eval1 0 "$APP/main.aon"
 diff -u "$DIR/expected/consumer.json" "$TMP/eval1.out" \
   || die "consumer output differs from expected/consumer.json"
-ok "consumer evaluates through aon_vendor; defaults fill; schema hidden"
+ok "consumer evaluates through aontu_meta/vendor; defaults fill; schema hidden"
 
 run eval2 0 "$APP/main.aon"
 cmp -s "$TMP/eval1.out" "$TMP/eval2.out" \
@@ -136,19 +136,19 @@ ok "tampered vendored module: evaluation refused, expected vs got hashes named"
 # `mod verify` is the read-only check: it recomputes every pin from the
 # store, compares it against the committed lock, and writes nothing.
 # This is what a CI job runs before it evaluates.
-LOCK_BEFORE="$(cat "$APP/mod-lock.aon")"
+LOCK_BEFORE="$(cat "$APP/aontu_meta/mod-lock.aon")"
 run verify-tamper 1 mod verify "$APP"
 has verify-tamper 'verdict: mismatch' "verify refuses the tampered store"
 has verify-tamper "corp.example/schemas/service@1: pinned $PIN but the store means aon1-" \
   "mismatch names pinned vs computed"
-[ "$LOCK_BEFORE" = "$(cat "$APP/mod-lock.aon")" ] \
+[ "$LOCK_BEFORE" = "$(cat "$APP/aontu_meta/mod-lock.aon")" ] \
   || die "mod verify must not rewrite the lockfile"
 ok "mod verify: tampered store reported, exit 1, lockfile untouched"
 
 # tidy, by contrast, is the verb whose job IS to write the lockfile, so
 # it recomputes the pin as documented -- which is why verify exists.
 run tidy-tamper 0 mod tidy "$APP"
-PIN2="$(grep -o 'aon1-[A-Za-z0-9_-]*' "$APP/mod-lock.aon")"
+PIN2="$(grep -o 'aon1-[A-Za-z0-9_-]*' "$APP/aontu_meta/mod-lock.aon")"
 [ "$PIN2" != "$PIN" ] || die "expected tidy to re-pin the tampered meaning"
 ok "gotcha reproduced: tidy silently re-pins tampered content (verdict ok)"
 
@@ -158,7 +158,7 @@ ok "gotcha reproduced: tidy silently re-pins tampered content (verdict ok)"
 rm "$APP/$VENDORED/service.aon"
 cp "$DIR/probes/refactor/service.aon" "$DIR/probes/refactor/schema.aon" "$APP/$VENDORED/"
 run tidy-refactor 0 mod tidy "$APP"
-PIN3="$(grep -o 'aon1-[A-Za-z0-9_-]*' "$APP/mod-lock.aon")"
+PIN3="$(grep -o 'aon1-[A-Za-z0-9_-]*' "$APP/aontu_meta/mod-lock.aon")"
 [ "$PIN3" = "$PIN" ] || die "refactor moved the canon pin: $PIN3 != $PIN"
 run eval-refactor 0 "$APP/main.aon"
 cmp -s "$TMP/eval1.out" "$TMP/eval-refactor.out" \
@@ -169,8 +169,8 @@ ok "pin survives refactor: file split + reorder + comments, same hash, same outp
 # Single-file agent-sandbox mode: no mod.aon, no lockfile, the hash
 # frozen in the import string itself.
 INLINE="$TMP/inline"
-mkdir -p "$INLINE/aon_vendor/corp.example/schemas"
-cp -r "$DIR/platform/service" "$INLINE/aon_vendor/corp.example/schemas/service@1"
+mkdir -p "$INLINE/aontu_meta/vendor/corp.example/schemas"
+cp -r "$DIR/platform/service" "$INLINE/aontu_meta/vendor/corp.example/schemas/service@1"
 printf 'svc: @"corp.example/schemas/service@1#%s"\nsvc: spec: { name: "audit-log", owner: "sec-ops@corp.example" }\n' \
   "$PIN" > "$INLINE/pinned.aon"
 run pin-get 0 get '$.svc.spec.port' "$INLINE/pinned.aon"
@@ -191,7 +191,8 @@ cp "$DIR/platform/service/mod.aon" "$DIR/platform/service/service.aon" \
   "$XDG_CACHE_HOME/aontu/mod/$PIN/"
 APP2="$TMP/app2"
 mkdir -p "$APP2"
-cp "$DIR/consumer/mod.aon" "$DIR/consumer/main.aon" "$DIR/consumer/mod-lock.aon" "$APP2/"
+cp "$DIR/consumer/mod.aon" "$DIR/consumer/main.aon" "$APP2/"
+mkdir -p "$APP2/aontu_meta" && cp "$DIR/consumer/aontu_meta/mod-lock.aon" "$APP2/aontu_meta/"
 
 run cache-eval 0 "$APP2/main.aon"
 cmp -s "$TMP/eval1.out" "$TMP/cache-eval.out" \
@@ -208,7 +209,7 @@ run vendor-cache 0 mod vendor "$APP2"
 run root-vendored 0 --trust "root:$APP2" "$APP2/main.aon"
 cmp -s "$TMP/eval1.out" "$TMP/root-vendored.out" \
   || die "trust-root output differs after vendoring"
-ok "mod vendor copies cache -> aon_vendor; --trust root then evaluates"
+ok "mod vendor copies cache -> aontu_meta/vendor; --trust root then evaluates"
 
 # Cold bootstrap: cache seeded but no lockfile.  The cache is keyed by
 # hash and tidy has no hash yet, so the cache cannot seed a project.
@@ -266,10 +267,10 @@ ok "vet: rogue candidate refused -- name/owner constraints and closed() violatio
 # nearest one, so a dependency vendored beside its dependant is found
 # (BUGS.md 31a).
 TAPP="$TMP/tapp"
-mkdir -p "$TAPP/aon_vendor/corp.example/schemas"
+mkdir -p "$TAPP/aontu_meta/vendor/corp.example/schemas"
 cp "$DIR/probes/transitive/app/mod.aon" "$DIR/probes/transitive/app/main.aon" "$TAPP/"
-cp -r "$DIR/probes/transitive/service-dep" "$TAPP/aon_vendor/corp.example/schemas/service@1"
-cp -r "$DIR/probes/transitive/common" "$TAPP/aon_vendor/corp.example/schemas/common@1"
+cp -r "$DIR/probes/transitive/service-dep" "$TAPP/aontu_meta/vendor/corp.example/schemas/service@1"
+cp -r "$DIR/probes/transitive/common" "$TAPP/aontu_meta/vendor/corp.example/schemas/common@1"
 
 run tidy-trans 0 mod tidy "$TAPP"
 has tidy-trans 'corp.example/schemas/common@1 1.2.0' \
@@ -277,26 +278,26 @@ has tidy-trans 'corp.example/schemas/common@1 1.2.0' \
 ok "MVS: common@1 selected at 1.2.0, the highest of the declared minima"
 
 FLATPIN="$(grep -o '"corp.example/schemas/service@1":{"canon":"aon1-[A-Za-z0-9_-]*' \
-  "$TAPP/mod-lock.aon" | grep -o 'aon1-[A-Za-z0-9_-]*$')"
+  "$TAPP/aontu_meta/mod-lock.aon" | grep -o 'aon1-[A-Za-z0-9_-]*$')"
 
 run eval-trans 0 "$TAPP/main.aon"
 ok "flat-vendored transitive dep evaluates: common@1 found beside service@1"
 
 # The pin tidy locked is a real pin: `aontu hash` -- which refuses any
 # file that does not evaluate on its own -- agrees with it exactly.
-run hash-trans 0 hash "$TAPP/aon_vendor/corp.example/schemas/service@1/service.aon"
+run hash-trans 0 hash "$TAPP/aontu_meta/vendor/corp.example/schemas/service@1/service.aon"
 [ "$(cat "$TMP/hash-trans.out")" = "$FLATPIN" ] \
   || die "aontu hash of the dep-bearing module differs from its locked pin"
 ok "tidy's pin for the dep-bearing module equals what aontu hash computes"
 
 # The old workaround -- a second vendor tree nested inside the vendored
 # module -- is now a no-op: same closure, therefore the same pin.
-mkdir -p "$TAPP/aon_vendor/corp.example/schemas/service@1/aon_vendor/corp.example/schemas"
+mkdir -p "$TAPP/aontu_meta/vendor/corp.example/schemas/service@1/aontu_meta/vendor/corp.example/schemas"
 cp -r "$DIR/probes/transitive/common" \
-  "$TAPP/aon_vendor/corp.example/schemas/service@1/aon_vendor/corp.example/schemas/common@1"
+  "$TAPP/aontu_meta/vendor/corp.example/schemas/service@1/aontu_meta/vendor/corp.example/schemas/common@1"
 run tidy-nested 0 mod tidy "$TAPP"
 NESTPIN="$(grep -o '"corp.example/schemas/service@1":{"canon":"aon1-[A-Za-z0-9_-]*' \
-  "$TAPP/mod-lock.aon" | grep -o 'aon1-[A-Za-z0-9_-]*$')"
+  "$TAPP/aontu_meta/mod-lock.aon" | grep -o 'aon1-[A-Za-z0-9_-]*$')"
 [ "$NESTPIN" = "$FLATPIN" ] \
   || die "a nested vendor tree of the same module moved the pin: $NESTPIN != $FLATPIN"
 run eval-nested 0 "$TAPP/main.aon"
@@ -305,35 +306,35 @@ ok "nesting a vendor tree inside the dependency is now a no-op: same pin, same o
 # A module that cannot evaluate is not pinned at all: tidy refuses it
 # rather than locking canonHash(nil), which every broken module shares.
 BAPP="$TMP/bapp"
-mkdir -p "$BAPP/aon_vendor/corp.example/schemas"
+mkdir -p "$BAPP/aontu_meta/vendor/corp.example/schemas"
 cp "$DIR/probes/transitive/app/mod.aon" "$DIR/probes/transitive/app/main.aon" "$BAPP/"
-cp -r "$DIR/probes/transitive/service-dep" "$BAPP/aon_vendor/corp.example/schemas/service@1"
+cp -r "$DIR/probes/transitive/service-dep" "$BAPP/aontu_meta/vendor/corp.example/schemas/service@1"
 run tidy-unevaluable 4 mod tidy "$BAPP"
 has tidy-unevaluable 'verdict: error' "unevaluable module is an error"
 has tidy-unevaluable 'corp.example/schemas/service@1: does not evaluate on its own; nothing to pin' \
   "refusal names the module and the reason"
-[ ! -e "$BAPP/mod-lock.aon" ] || die "tidy must not write a lockfile it cannot fill"
+[ ! -e "$BAPP/aontu_meta/mod-lock.aon" ] || die "tidy must not write a lockfile it cannot fill"
 ok "tidy refuses to pin a module it cannot evaluate (no canonHash(nil) pin)"
 
 # Internal absolute refs: fine standalone, broken at a nested key.
 RAPP="$TMP/rapp"
-mkdir -p "$RAPP/aon_vendor/corp.example/schemas/service@1"
-cp "$DIR/platform/service/mod.aon" "$RAPP/aon_vendor/corp.example/schemas/service@1/"
-cp "$DIR/probes/nested-ref/service.aon" "$RAPP/aon_vendor/corp.example/schemas/service@1/"
+mkdir -p "$RAPP/aontu_meta/vendor/corp.example/schemas/service@1"
+cp "$DIR/platform/service/mod.aon" "$RAPP/aontu_meta/vendor/corp.example/schemas/service@1/"
+cp "$DIR/probes/nested-ref/service.aon" "$RAPP/aontu_meta/vendor/corp.example/schemas/service@1/"
 cp "$DIR/probes/transitive/app/main.aon" "$RAPP/"
-run hash-ref 0 hash "$RAPP/aon_vendor/corp.example/schemas/service@1/service.aon"
+run hash-ref 0 hash "$RAPP/aontu_meta/vendor/corp.example/schemas/service@1/service.aon"
 run eval-ref 1 "$RAPP/main.aon"
 has eval-ref 'aontu/no_path' "internal ref breaks under nested import"
 ok "gap reproduced: module-internal \$.ref evaluates standalone, no_path when nested"
 
 # ------------------------- I. version bookkeeping is not cross-checked
 APP4="$TMP/app4"
-mkdir -p "$APP4/aon_vendor/corp.example/schemas"
+mkdir -p "$APP4/aontu_meta/vendor/corp.example/schemas"
 cp "$DIR/consumer/main.aon" "$APP4/"
 sed 's/"1.4.2"/"9.9.9"/' "$DIR/consumer/mod.aon" > "$APP4/mod.aon"
 cp -r "$DIR/platform/service" "$APP4/$VENDORED"
 run tidy-vfake 0 mod tidy "$APP4"
-grep -qF '"v":"9.9.9"' "$APP4/mod-lock.aon" \
+grep -qF '"v":"9.9.9"' "$APP4/aontu_meta/mod-lock.aon" \
   || die "expected the declared 9.9.9 to be locked verbatim"
 ok "gap reproduced: lockfile records v 9.9.9 over a store tree whose mod.aon says 1.4.2"
 

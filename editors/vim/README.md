@@ -24,11 +24,12 @@ it.
 
 ## Language server (Neovim)
 
-Ensure `aontu-lsp` is on your `PATH` (`npm install -g aontu`). On Windows
-that entry point is the shim `aontu-lsp.cmd`, and an LSP client that
-spawns without a shell cannot execute it — name `aontu-lsp.cmd`
-explicitly, or point the command at `node` with the server script as its
-argument, as the examples below do. On opening a
+Ensure `aontu` is on your `PATH` (`npm install -g aontu`, or any install
+channel); the server is its `lsp` verb. On Windows the npm entry point
+is the shim `aontu.cmd`, and an LSP client that spawns without a shell
+cannot execute it — name `aontu.cmd` explicitly, or point the command
+at `node` with the server script as its argument, as the examples
+below do. On opening a
 `.aon` file the plugin starts the server via Neovim's built-in LSP client.
 
 Customise or disable:
@@ -46,7 +47,7 @@ local lspconfig = require('lspconfig')
 if not configs.aontu then
   configs.aontu = {
     default_config = {
-      cmd = { 'aontu-lsp' },
+      cmd = { 'aontu', 'lsp' },
       filetypes = { 'aontu' },
       root_dir = lspconfig.util.find_git_ancestor,
     },
@@ -58,5 +59,5 @@ lspconfig.aontu.setup({})
 ## Vim 8 / other clients
 
 This plugin provides filetype detection and syntax only on classic Vim.
-Wire `aontu-lsp` into your LSP client of choice (vim-lsp, coc.nvim, ALE)
+Wire `aontu lsp` into your LSP client of choice (vim-lsp, coc.nvim, ALE)
 using its stdio server interface. See [`docs/lsp.md`](../../docs/lsp.md).

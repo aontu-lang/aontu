@@ -32,7 +32,7 @@ func modtoolProject(t *testing.T, dep string, extra func(dir string)) string {
 
 func modtoolVendor(t *testing.T, dir, path string, files map[string]string) {
 	t.Helper()
-	p := filepath.Join(append([]string{dir, "aon_vendor"},
+	p := filepath.Join(append([]string{dir, "aontu_meta", "vendor"},
 		strings.Split(path, "/")...)...)
 	if err := os.MkdirAll(p, 0o755); nil != err {
 		t.Fatal(err)
@@ -44,7 +44,7 @@ func modtoolVendor(t *testing.T, dir, path string, files map[string]string) {
 
 func lockLine(t *testing.T, root string) string {
 	t.Helper()
-	data, err := os.ReadFile(filepath.Join(root, "mod-lock.aon"))
+	data, err := os.ReadFile(filepath.Join(root, "aontu_meta", "mod-lock.aon"))
 	if nil != err {
 		t.Fatal(err)
 	}
@@ -137,7 +137,7 @@ func TestModTidyMissingModule(t *testing.T) {
 		if "missing" != r.Verdict || 1 != len(r.Missing) || dep != r.Missing[0] {
 			t.Fatalf("%s: verdict %q missing %v", dep, r.Verdict, r.Missing)
 		}
-		if _, err := os.Stat(filepath.Join(dir, "mod-lock.aon")); nil == err {
+		if _, err := os.Stat(filepath.Join(dir, "aontu_meta", "mod-lock.aon")); nil == err {
 			t.Fatalf("%s: lockfile written", dep)
 		}
 	}
@@ -201,7 +201,7 @@ func TestModTidyRecomputesCanonAndCarriesOci(t *testing.T) {
 					"main: \"service.aon\"}\n",
 				"service.aon": modSource,
 			})
-			write(t, filepath.Join(d, "mod-lock.aon"), lockHeader+
+			write(t, filepath.Join(d, "aontu_meta", "mod-lock.aon"), lockHeader+
 				"{\"lock\":{\"corp.example/schemas/service@1\":{\"canon\":\"aon1-stale\","+
 				"\"oci\":\"sha256:6b86\",\"v\":\"1.0.0\"}}}\n")
 		})
@@ -265,7 +265,7 @@ func TestModReadLockAnswersNothingForWhatItCannotRead(t *testing.T) {
 		"{\"other\":{}}\n",
 	} {
 		dir := t.TempDir()
-		write(t, filepath.Join(dir, "mod-lock.aon"), text)
+		write(t, filepath.Join(dir, "aontu_meta", "mod-lock.aon"), text)
 		if lock := readLock(dir); 0 != len(lock) {
 			t.Fatalf("%q gave %v", text, lock)
 		}
@@ -295,7 +295,7 @@ func TestModVendorMaterialisesTheWholeTree(t *testing.T) {
 	write(t, filepath.Join(store, "service.aon"), modSource)
 	write(t, filepath.Join(store, "part", "extra.aon"), "extra: true\n")
 
-	write(t, filepath.Join(dir, "mod-lock.aon"), lockHeader+
+	write(t, filepath.Join(dir, "aontu_meta", "mod-lock.aon"), lockHeader+
 		"{\"lock\":{\"corp.example/schemas/service@1\":{\"canon\":\""+hash+
 		"\",\"oci\":\"\",\"v\":\"1.4.2\"}}}\n")
 
@@ -304,7 +304,7 @@ func TestModVendorMaterialisesTheWholeTree(t *testing.T) {
 		t.Fatalf("verdict %q vendored %v missing %v", r.Verdict, r.Vendored, r.Missing)
 	}
 
-	to := filepath.Join(dir, "aon_vendor", "corp.example", "schemas", "service@1")
+	to := filepath.Join(dir, "aontu_meta", "vendor", "corp.example", "schemas", "service@1")
 	for name, want := range map[string]string{
 		"service.aon": modSource,
 		"part" + string(os.PathSeparator) + "extra.aon": "extra: true\n",
@@ -327,7 +327,7 @@ func TestModVendorReportsWhatNoStoreHas(t *testing.T) {
 	// Two failures with the same answer: a key that does not route as a
 	// module path, and one that routes to nothing any store holds.
 	dir := t.TempDir()
-	write(t, filepath.Join(dir, "mod-lock.aon"),
+	write(t, filepath.Join(dir, "aontu_meta", "mod-lock.aon"),
 		"{\"lock\":{\"corp.example/absent@1\":{\"canon\":\"aon1-x\",\"oci\":\"\",\"v\":\"1\"},"+
 			"\"not-a-module\":{\"canon\":\"y\",\"oci\":\"\",\"v\":\"1\"}}}\n")
 	r := ModVendor(dir, "")
@@ -405,7 +405,7 @@ func TestModManifestIsWhatAPublishWouldPush(t *testing.T) {
 func TestModManifestLayerExcludesTheVendorCopy(t *testing.T) {
 	// A module is a TREE, so nested directories are in the layer. A
 	// published module carries its own sources and not a copy of
-	// everyone else's, so `aon_vendor/` is not: a consumer resolves the
+	// everyone else's, so `aontu_meta/vendor/` is not: a consumer resolves the
 	// closure itself, and vendoring it here would publish the world.
 	dir := modtoolPublishable(t, "1.1.0", modSource)
 	if err := os.MkdirAll(filepath.Join(dir, "part"), 0o755); nil != err {
@@ -531,7 +531,7 @@ const modNilPin = "aon1-XaOkx_EXlEJ1tMhinEkWQDYl1aSmVzoB7LA_Dp0u2-Y"
 // A VENDORED MODULE IS A PROJECT INSIDE A PROJECT (the review's finding
 // H, use-cases/BUGS.md §31). `mod vendor` produces a FLAT tree, so a
 // module's own dependency sits beside it in the consumer's
-// `aon_vendor/` -- but the module carries its own `mod.aon`, which used
+// `aontu_meta/vendor/` -- but the module carries its own `mod.aon`, which used
 // to stop the upward walk there, and the nested import answered
 // `module not fetched` for a module sitting one directory away. The
 // TypeScript twin is
@@ -611,7 +611,7 @@ func TestModTidyRefusesAnUnevaluableModule(t *testing.T) {
 	}
 	// AND THE LOCKFILE IS LEFT ALONE. A refusal that wrote a lockfile
 	// would be the defect with a louder message.
-	if _, err := os.Stat(filepath.Join(dir, "mod-lock.aon")); nil == err {
+	if _, err := os.Stat(filepath.Join(dir, "aontu_meta", "mod-lock.aon")); nil == err {
 		t.Fatal("a refused tidy wrote a lockfile")
 	}
 }
@@ -631,14 +631,14 @@ func TestModVerify(t *testing.T) {
 						" main: \"service.aon\"}\n",
 					"service.aon": "name: string\nport: *8080 | integer\n",
 				})
-			svcDir = filepath.Join(d, "aon_vendor", "corp.example", "schemas",
+			svcDir = filepath.Join(d, "aontu_meta", "vendor", "corp.example", "schemas",
 				"service@1", "service.aon")
 		})
 
 	if "ok" != ModTidy(dir, "").Verdict {
 		t.Fatal("tidy did not hold")
 	}
-	lock, err := os.ReadFile(filepath.Join(dir, "mod-lock.aon"))
+	lock, err := os.ReadFile(filepath.Join(dir, "aontu_meta", "mod-lock.aon"))
 	if nil != err {
 		t.Fatal(err)
 	}
@@ -660,7 +660,7 @@ func TestModVerify(t *testing.T) {
 	// THE LOCKFILE IS UNTOUCHED, which is the whole difference from
 	// tidy: a gate that rewrote what it was checking would pass every
 	// time.
-	now, err := os.ReadFile(filepath.Join(dir, "mod-lock.aon"))
+	now, err := os.ReadFile(filepath.Join(dir, "aontu_meta", "mod-lock.aon"))
 	if nil != err || string(lock) != string(now) {
 		t.Fatal("verify rewrote the lockfile")
 	}
@@ -731,7 +731,7 @@ func TestModVerifyReportsWhatNoStoreHolds(t *testing.T) {
 	// not an edit to the lockfile — and none of them is a mismatch,
 	// which would claim the store means something else.
 	dir := t.TempDir()
-	write(t, filepath.Join(dir, "mod-lock.aon"), lockHeader+
+	write(t, filepath.Join(dir, "aontu_meta", "mod-lock.aon"), lockHeader+
 		"{\"lock\":{\"corp.example/absent@1\":{\"canon\":\"aon1-x\",\"oci\":\"\",\"v\":\"1\"},"+
 		"\"corp.example/hollow@1\":{\"canon\":\"aon1-y\",\"oci\":\"\",\"v\":\"1\"},"+
 		"\"not-a-module\":{\"canon\":\"aon1-z\",\"oci\":\"\",\"v\":\"1\"}}}\n")

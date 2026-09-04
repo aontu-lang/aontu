@@ -23,7 +23,7 @@ exports.resolveModule = resolveModule;
 //   local:   @"./fragment.aon"        <- unchanged, not a module
 //
 // EVALUATION NEVER TOUCHES THE NETWORK. Resolution reads local stores
-// only: `aon_vendor/` beside the project's `mod.aon`, then a
+// only: `aontu_meta/vendor/` beside the project's `mod.aon`, then a
 // content-addressed user cache keyed by canon-hash. Fetching is a
 // separate, explicit tool step, and a module that is in neither store
 // is an evaluation error that says so.
@@ -64,7 +64,7 @@ function parseModuleRef(spec) {
 // `[A-Za-z0-9._-]` admits `..`, and `moduleDir` joins elements with
 // pathJoin, which CLEANS `..` rather than refusing it:
 //
-//   moduleDir('/store/aon_vendor', 'corp.example/../../etc/passwd@1')
+//   moduleDir('/store/aontu_meta/vendor', 'corp.example/../../etc/passwd@1')
 //     -> /store/etc/passwd@1
 //
 // `mod vendor` then copied a tree THERE, outside the project entirely,
@@ -138,9 +138,9 @@ function moduleDir(store, ref) {
 // root being a directory holding a `mod.aon`. This used to answer with
 // the NEAREST one alone, and the plural is the fix, because a
 // VENDORED MODULE IS A PROJECT INSIDE A PROJECT. A module in
-// `aon_vendor/` carries its own `mod.aon`, which stopped the upward
+// `aontu_meta/vendor/` carries its own `mod.aon`, which stopped the upward
 // walk there, so a nested import resolved against the vendored
-// module's own directory: a tree with no `aon_vendor/` of its own, and
+// module's own directory: a tree with no `aontu_meta/vendor/` of its own, and
 // therefore a `module not fetched` for a dependency sitting flat
 // beside it in the CONSUMER's vendor tree — the only layout `mod
 // vendor` produces (use-cases/BUGS.md §31).
@@ -230,7 +230,7 @@ function modCacheDirFor(platform, env) {
     return undefined;
 }
 function lockHash(root, ref, fs) {
-    const file = (0, node_path_1.join)(root, 'mod-lock.aon');
+    const file = (0, node_path_1.join)(root, 'aontu_meta', 'mod-lock.aon');
     if (!fs.existsSync(file)) {
         return undefined;
     }
@@ -296,7 +296,7 @@ function resolveModule(ref, fromDir, fs, options) {
     // which is right: the consumer's lock is what its build is pinned to.
     const expect = ref.hash ??
         roots.map((r) => lockHash(r, ref, fs)).find((h) => null != h);
-    const stores = roots.map((r) => moduleDir((0, node_path_1.join)(r, 'aon_vendor'), ref));
+    const stores = roots.map((r) => moduleDir((0, node_path_1.join)(r, 'aontu_meta', 'vendor'), ref));
     if (null != options.cache && null != expect) {
         // Content-addressed: the cache is keyed by the hash, so a cache hit
         // is already the right MEANING before anything is read from it.

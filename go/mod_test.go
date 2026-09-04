@@ -30,7 +30,7 @@ func modWorld(t *testing.T, store string) (dir, main, hash, cache string) {
 	v, _ := New().Unify(modSource)
 	hash = CanonHash(v)
 
-	moddir := filepath.Join(dir, "aon_vendor", "corp.example", "schemas", "service@1")
+	moddir := filepath.Join(dir, "aontu_meta", "vendor", "corp.example", "schemas", "service@1")
 	if "cache" == store {
 		moddir = filepath.Join(cache, hash)
 	}
@@ -51,6 +51,9 @@ func modWorld(t *testing.T, store string) (dir, main, hash, cache string) {
 
 func write(t *testing.T, file, src string) {
 	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(file), 0o755); nil != err {
+		t.Fatal(err)
+	}
 	if err := os.WriteFile(file, []byte(src), 0o600); nil != err {
 		t.Fatal(err)
 	}
@@ -77,7 +80,7 @@ func TestModCacheIsContentAddressed(t *testing.T) {
 }
 
 func TestModCacheNotConsultedUnderRoot(t *testing.T) {
-	// A confined evaluation sees the project's own aon_vendor/ and
+	// A confined evaluation sees the project's own aontu_meta/vendor/ and
 	// nothing else: the cache lives outside any root (docs/trust.md).
 	dir, main, _, cache := modWorld(t, "cache")
 	a := New()

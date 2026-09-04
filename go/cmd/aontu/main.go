@@ -40,6 +40,8 @@ const helpText = `Usage: aontu [options] [file]
        aontu set <path>=<value>... --entry <file> --overlay <file>
        aontu agentsmd [--write <AGENTS.md>] <file>
        aontu fmt [-w|-l|--check|-d|--lint] <file>...
+       aontu lsp
+       aontu mcp [--root <dir>]
 
 Evaluate an Aontu source file and print the result as JSON.
 With no file on an interactive terminal, start a REPL.
@@ -73,10 +75,10 @@ Mod options:
 
 Mod subcommands:
   tidy      Resolve the module closure by minimum version selection and
-            rewrite mod-lock.aon in canonical form
-  verify    Check every locked module still means what mod-lock.aon
+            rewrite aontu_meta/mod-lock.aon in canonical form
+  verify    Check every locked module still means what the lockfile
             pins, and change nothing (the CI gate; tidy rewrites)
-  vendor    Materialise the locked closure into aon_vendor/
+  vendor    Materialise the locked closure into aontu_meta/vendor/
   manifest  Print the OCI artifact a publish would push, gated on the
             breaking check against --against
 
@@ -266,6 +268,16 @@ reads standard input. Several files need one of the options above.
 
 Fmt exit codes: 0 formatted or clean, 1 a --check file would change or
 a --strict finding, 2 usage, 4 a document does not parse.
+
+The lsp verb runs the language server over standard input and output
+(LSP: JSON-RPC with Content-Length framing) until the client exits;
+editors launch it with no arguments. The standalone aontu-lsp binary
+runs the same server.
+
+The mcp verb runs the Model Context Protocol server over standard
+input and output (newline-delimited JSON-RPC), confined below --root
+when one is given. It is part of the npm build, as the standalone
+aontu-mcp binary is.
 
 REPL commands:
   :help           Show REPL help
@@ -674,6 +686,12 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, tty bool) int
 	}
 	if 0 < len(args) && "fmt" == args[0] {
 		return runFmt(args[1:], stdin, stdout, stderr)
+	}
+	if 0 < len(args) && "lsp" == args[0] {
+		return runLsp(args[1:], stdin, stdout, stderr)
+	}
+	if 0 < len(args) && "mcp" == args[0] {
+		return runMcp(args[1:], stdout, stderr)
 	}
 	if 0 < len(args) && "set" == args[0] {
 		return runSet(args[1:], stdout, stderr)

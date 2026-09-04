@@ -23,10 +23,10 @@ Or with `use-package` and a local path:
 
 ## Language server
 
-Ensure the `aontu-lsp` server is on your `exec-path`:
+Ensure `aontu` is on your `exec-path`; the server is its `lsp` verb:
 
 ```sh
-npm install -g aontu      # provides aontu-lsp
+npm install -g aontu      # or any install channel
 ```
 
 …or customise the command (e.g. to run from a checkout):
@@ -34,7 +34,7 @@ npm install -g aontu      # provides aontu-lsp
 ```elisp
 (setq aontu-lsp-command '("node" "/abs/path/to/aontu/ts/dist/lsp-server.js"))
 ;; or the Go binary:
-(setq aontu-lsp-command '("/abs/path/to/aontu-lsp"))
+(setq aontu-lsp-command '("/abs/path/to/aontu" "lsp"))
 ```
 
 Then, in a `.aon` buffer:

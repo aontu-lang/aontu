@@ -479,7 +479,15 @@ user-facing rules are in
 - Go is `package aontu`; exported API is `New().Parse/Unify/Generate`.
   Run `go vet ./...` and `gofmt` before committing.
 - Go module releases (a Go module in a subdirectory) use git tags of the
-  form `go/vX.Y.Z`.
+  form `go/vX.Y.Z`, and carry the CLI binaries, packages and the
+  package-manager manifests on a GitHub Release at that tag, and the
+  image on GHCR (`go/scripts/binaries.sh`; docs/release-and-tag.md).
+- Inside an Aontu project, everything the tools generate lives under
+  `aontu_meta/`: the lockfile `aontu_meta/mod-lock.aon`, the vendored
+  closure `aontu_meta/vendor/`, and by design the engine pin
+  `aontu_meta/version`. `mod.aon` and the documents stay at the root.
+  New tooling that writes into a project writes there
+  (docs/capability-review/g6-distribution.md, the layout amendment).
 
 ### The site-attribution invariant
 

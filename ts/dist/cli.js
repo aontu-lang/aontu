@@ -40,6 +40,8 @@ const node_os_1 = require("node:os");
 const node_readline_1 = require("node:readline");
 const aontu_1 = require("./aontu");
 const report_sarif_1 = require("./report-sarif");
+const lsp_server_1 = require("./lsp-server");
+const mcp_server_1 = require("./mcp-server");
 const jsonschema_1 = require("./jsonschema");
 const mod_tool_1 = require("./mod-tool");
 const mod_1 = require("./mod");
@@ -66,6 +68,8 @@ const HELP = `Usage: aontu [options] [file]
        aontu set <path>=<value>... --entry <file> --overlay <file>
        aontu agentsmd [--write <AGENTS.md>] <file>
        aontu fmt [-w|-l|--check|-d|--lint] <file>...
+       aontu lsp
+       aontu mcp [--root <dir>]
 
 Evaluate an Aontu source file and print the result as JSON.
 With no file on an interactive terminal, start a REPL.
@@ -99,10 +103,10 @@ Mod options:
 
 Mod subcommands:
   tidy      Resolve the module closure by minimum version selection and
-            rewrite mod-lock.aon in canonical form
-  verify    Check every locked module still means what mod-lock.aon
+            rewrite aontu_meta/mod-lock.aon in canonical form
+  verify    Check every locked module still means what the lockfile
             pins, and change nothing (the CI gate; tidy rewrites)
-  vendor    Materialise the locked closure into aon_vendor/
+  vendor    Materialise the locked closure into aontu_meta/vendor/
   manifest  Print the OCI artifact a publish would push, gated on the
             breaking check against --against
 
@@ -292,6 +296,16 @@ reads standard input. Several files need one of the options above.
 
 Fmt exit codes: 0 formatted or clean, 1 a --check file would change or
 a --strict finding, 2 usage, 4 a document does not parse.
+
+The lsp verb runs the language server over standard input and output
+(LSP: JSON-RPC with Content-Length framing) until the client exits;
+editors launch it with no arguments. The standalone aontu-lsp binary
+runs the same server.
+
+The mcp verb runs the Model Context Protocol server over standard
+input and output (newline-delimited JSON-RPC), confined below --root
+when one is given. It is part of the npm build, as the standalone
+aontu-mcp binary is.
 
 REPL commands:
   :help           Show REPL help
@@ -1668,6 +1682,14 @@ function runMod(argv) {
     if (!MOD_SUBS.includes(sub) || 2 < rest.length) {
         process.stderr.write(`aontu: mod needs tidy, verify, vendor or manifest\n${MOD_HELP}\n`);
         return 2;
+    }
+    // THE OLD LAYOUT IS NAMED, NOT READ. The lockfile and the vendored
+    // closure moved under aontu_meta/; a project that still carries them
+    // at its root would otherwise look untouched by any of these verbs,
+    // which is the one silence worth breaking.
+    if ((0, node_fs_1.existsSync)((0, node_path_1.join)(dir, 'aon_vendor')) || (0, node_fs_1.existsSync)((0, node_path_1.join)(dir, 'mod-lock.aon'))) {
+        process.stderr.write('aontu: aon_vendor/ and mod-lock.aon now live under aontu_meta/: ' +
+            'move them, or run aontu mod tidy and aontu mod vendor\n');
     }
     // `--against` gates a manifest and means nothing to the other two;
     // accepting it there would say it had been honoured.
@@ -3057,6 +3079,30 @@ function fmtOne(name, src, flags) {
     }
     return flags.check ? 1 : strict;
 }
+// The real pair takes the process's own stdin and stdout, which no
+// in-process test can lend it; the executable-entry tests in
+// cli.test.ts run each through a child process instead, so these two
+// lines are excluded from the in-process count, as the stdio wiring
+// of lsp-server.ts is.
+/* node:coverage ignore next 4 */
+const SERVERS = {
+    lsp: () => void (0, lsp_server_1.main)(),
+    mcp: (argv) => void (0, mcp_server_1.main)(undefined, undefined, undefined, undefined, argv),
+};
+// undefined: the server took the process; a number: an answer the CLI
+// gives itself, --help or a usage error.
+function runLsp(argv, servers) {
+    for (const arg of argv) {
+        if ('-h' === arg || '--help' === arg) {
+            process.stdout.write(HELP);
+            return 0;
+        }
+        process.stderr.write(`aontu: lsp takes no arguments (try --help)\n`);
+        return 2;
+    }
+    servers.lsp();
+    return undefined;
+}
 function finish(code) {
     process.exitCode = code;
 }
@@ -3077,7 +3123,7 @@ function parseTrustArg(value) {
     }
     return undefined;
 }
-function main(argv) {
+function main(argv, servers = SERVERS) {
     // COLOUR OFF WHEN THE DESTINATION IS NOT A TERMINAL. Error frames
     // hardcoded their ANSI escapes, so a piped report and a `--jsonl`
     // answer carried terminal control codes into whatever read them (the
@@ -3124,6 +3170,13 @@ function main(argv) {
     }
     if ('fmt' === argv[2]) {
         return void Promise.resolve(runFmt(argv.slice(3))).then(finish);
+    }
+    if ('lsp' === argv[2]) {
+        const code = runLsp(argv.slice(3), servers);
+        return undefined === code ? undefined : finish(code);
+    }
+    if ('mcp' === argv[2]) {
+        return servers.mcp(argv.slice(3));
     }
     if ('set' === argv[2]) {
         return finish(runSet(argv.slice(3)));

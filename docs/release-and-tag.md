@@ -7,6 +7,7 @@ different mechanisms:
 | --- | --- | --- | --- |
 | npm `aontu` | `ts/package.json` `"version"` | publishing to the registry | `v<version>` |
 | Go `github.com/aontu-lang/aontu/go` | `go/aontu.go` `const VERSION` | **the tag itself** | `go/v<version>` |
+| the Go binaries, `aontu` and `aontu-lsp` | the same `VERSION` | a GitHub Release at the Go tag, and the image on GHCR, by the same run | `go/v<version>` |
 
 That second row is the one that surprises people. A Go module has no
 registry upload step: `proxy.golang.org` serves whatever a tag points at, so
@@ -125,6 +126,70 @@ Moving the Go module to match npm's series would therefore mean editing
 `go/go.mod` **and every consumer's import path**. That is a one-time,
 deliberate migration, not something a release command should do on the fly,
 so the two series stay separate and `make publish` takes a version for each.
+
+## The Go binaries
+
+A Go release also carries the CLI as a download, so that an install
+needs no toolchain. The `binaries` job cross-compiles `cmd/aontu` and
+`cmd/aontu-lsp` for Linux, macOS and Windows on `amd64` and `arm64`,
+pure Go with `CGO_ENABLED=0` and `-trimpath`, one archive per target
+with the licence, plus `SHA256SUMS`; packages them for Linux; and
+writes the installer and the package-manager manifests from the sums
+(the next section). The `release` job puts all of it on a GitHub
+Release at `go/v<version>`, and the `image` job pushes the Linux
+binaries to GHCR. The script is `go/scripts/binaries.sh`, and run by
+hand with the version and a directory it builds the same set for
+inspection:
+
+```
+go/scripts/binaries.sh 0.1.15 dist
+```
+
+Three jobs, for the reason publish and tag are two: the build runs
+project code with `contents: read` and hands the files on as an
+artifact; the release job runs `gh` and nothing else, and is the second
+place `contents: write` exists; the image job holds `packages: write`
+and copies files into an image that runs nothing at build time. All
+run only on the dispatch path with `go` ticked, after the tag, so a
+release only ever exists for a tag that was written. Re-dispatching
+after a partial run is safe here too: a release that already exists
+has its assets replaced rather than failing the run, and an image tag
+is simply pushed again. A prerelease version is marked as one on the
+releases page and is not tagged `latest` on the registry.
+
+The binaries print the `VERSION` the commit declares, which `make
+publish` set before tagging, so nothing is stamped at build time; the
+script refuses a version the file does not declare. The `go install`
+path is unchanged, and `go install …@v<version>` builds the same commit.
+
+### The install channels
+
+What a Go release carries, and what each channel still needs. The
+channels that need nothing outside this repository are live from the
+first release that carries them; the ones that need a repository of
+their own are ready to seed, one copy per release from the release's
+assets, until that is automated with a token for the repository.
+
+| channel | on the release | needs |
+| --- | --- | --- |
+| `curl -fsSL https://aontu.dev/install.sh \| sh` | `install.sh`, the copy of `go/scripts/install.sh` | the site serves the same file from its `public/` directory, synced from the engine |
+| the setup action, `aontu-lang/aontu/setup-action` | nothing: it runs the installer from its own checkout | nothing |
+| `ghcr.io/aontu-lang/aontu:<version>` and `:latest` | pushed by the `image` job from `go/scripts/Dockerfile` | nothing |
+| `.deb`, `.rpm`, `.apk` for `amd64` and `arm64` | built by `nfpm` in `binaries.sh` | nothing; an apt or yum repository would be a separate decision |
+| `nix run github:aontu-lang/aontu` | nothing: `flake.nix` builds from source | `vendorHash` in `flake.nix` updated when `go.mod` or `go.sum` change; `nix build` names the new one |
+| Homebrew, `brew install aontu-lang/tap/aontu` | `aontu.rb`, the formula with the sums | the repository `aontu-lang/homebrew-tap`, with the file at `Formula/aontu.rb` |
+| Scoop, `scoop install aontu` | `aontu.json`, with `checkver` and `autoupdate` | a bucket repository, `aontu-lang/scoop-bucket`, with the file in `bucket/`; Scoop's `checkver` then follows the releases |
+| `winget`, `winget install AontuLang.Aontu` | `aontu_<version>_winget.tar.gz`, the three manifests in the `manifests/a/AontuLang/Aontu/<version>/` layout | a pull request to `microsoft/winget-pkgs` per release, by hand or with `wingetcreate` |
+| AUR, `aontu-bin` | `aontu_<version>_aur.tar.gz`, `PKGBUILD` and `.SRCINFO` | an AUR account and a push of the two files per release |
+
+The manifests are written by `go/scripts/manifests.sh`, which
+`binaries.sh` runs last, from `SHA256SUMS`; run by hand with the version
+and the directory it rewrites them. Every URL in them carries the tag
+with its slash encoded, `go%2Fv<version>`, which is how GitHub serves a
+release asset under a tag with a slash. Tools that read the latest
+release from GitHub's API are unaffected by the tag's shape; the ones
+that parse tag names as versions are the reason the release title
+carries the plain version.
 
 ## Why publishing and tagging live in the same file
 

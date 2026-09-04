@@ -375,7 +375,7 @@ not a breakage.
 
 Evaluation never touches the network. The module resolver slots
 into the existing chain — memory → **module** → filesystem →
-package — and reads only local stores: `aon_vendor/` in the
+package — and reads only local stores: `aontu_meta/vendor/` in the
 project, then a content-addressed user cache
 (`~/.cache/aontu/mod`, keyed by canon-hash). The memory resolver
 stays first so sandboxes and the spec suite can stub module paths
@@ -386,8 +386,8 @@ evaluation. Fetching is a separate, explicit tool step:
 
 ```
 aontu mod get           # fetch deps into the cache, verify both pins
-aontu mod tidy          # resolve MVS, rewrite mod-lock.aon
-aontu mod vendor        # materialise the closure into aon_vendor/
+aontu mod tidy          # resolve MVS, rewrite aontu_meta/mod-lock.aon
+aontu mod vendor        # materialise the closure into aontu_meta/vendor/
 aontu mod publish       # package + push the current module
 aontu hash [file]       # print the canon-hash of a file/module
 ```
@@ -515,7 +515,7 @@ runners, new rows in `test/spec/hcanon.tsv` (or a sibling
 pinning") and is independently useful with no registry.
 
 **Phase 2 — module identity and local resolution (M). LANDED.**
-Module-path routing in the resolver chain, `mod.aon`/`mod-lock.aon`
+Module-path routing in the resolver chain, `mod.aon`/`aontu_meta/mod-lock.aon`
 reading, vendor-dir and cache lookup, integrity verification, and the
 error shapes — three rather than two, the third being the depth bound
 verification needs (see the [register](progress.md)). Spec rows stay
@@ -602,3 +602,27 @@ built is already keyed by the hash the annotation carries. See the
   substitute a pinned module. Whether shadowing requires an
   explicit opt-in is a [G5](g5-trust-contract.md) capability-surface
   question this design defers.
+
+## Amendment 2026-09-03: generated state under `aontu_meta/`
+
+Everything the tools write into a project lives in one folder,
+`aontu_meta/`, and nothing authored does. Today that is the lockfile,
+`aontu_meta/mod-lock.aon`, and the vendored closure,
+`aontu_meta/vendor/<module-path>@<major>/`; the engine pin of
+`docs/design/ENV.0.md` joins them as `aontu_meta/version` when it is
+built. `mod.aon` stays at the root, because it is the declaration a
+person writes, as `go.mod` and `package.json` are, and the project root
+is still found by walking up to it.
+
+Why one folder: a reader of a repository sees one place to expect
+generated files and one place to ignore, a container image or a sandbox
+copies one tree, and a new tool that needs to write into a project has
+a home without a new convention each time. The resolver's stores are
+unchanged in kind: the project's `aontu_meta/vendor/` first, then the
+user cache; `manifest` excludes `aontu_meta/` from the published layer
+as it excluded `aon_vendor/`, for the same reason.
+
+The old layout, `aon_vendor/` and `mod-lock.aon` at the root, is not
+read. The `mod` verbs name it once when they find it, with the two
+commands that rebuild the new one, and the fixtures, the use cases and
+the documentation moved with the code.

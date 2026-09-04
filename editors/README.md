@@ -1,6 +1,6 @@
 # Aontu editor integrations
 
-Editor plugins that connect to the Aontu language server (`aontu-lsp`) for
+Editor plugins that connect to the Aontu language server (`aontu lsp`) for
 diagnostics, hover and completion on `.aon` (preferred) and `.aontu`
 files. All language intelligence lives in the server — see
 [`docs/lsp.md`](../docs/lsp.md); these plugins are thin clients.
@@ -21,6 +21,6 @@ holds the copy to the original. Vim and Emacs keep their own native syntax
 files, which the table above counts.
 
 Each subdirectory has its own README with install and configuration. All
-default to launching `aontu-lsp` from `PATH` (`npm install -g aontu`), and
-all allow overriding the command to run the server from a checkout
-(`node .../ts/dist/lsp-server.js`) or the Go binary.
+default to launching `aontu lsp` from `PATH` (`npm install -g aontu`, or
+any install channel), and all allow overriding the command to run the
+server from a checkout (`node .../ts/dist/lsp-server.js`) or a Go build.

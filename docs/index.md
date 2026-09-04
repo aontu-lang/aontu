@@ -91,7 +91,7 @@ Tooling:
 - [Language Server (LSP)](lsp.md). The `aontu-lsp` diagnostics server
   (TypeScript and Go), how to wire it into an editor, and the reusable
   LSP library API.
-- [The MCP server](reference-api.md#the-mcp-server). `aontu-mcp`, a
+- [The MCP server](reference-api.md#the-mcp-server). `aontu mcp`, a
   Model Context Protocol server over stdio, answering with the
   identical reports the CLI prints.
 

@@ -16,7 +16,7 @@ import {
   runHash, runGet, runWhy,
   renderWhyText, runSet, runAgentsMd, runFmt, replCommand,
   watchChange, watchSignature, vetWaiter, deprecatedAt,
-  main as cliMainVet,
+  main as cliMainVet, runMod,
 } from '../dist/cli'
 
 
@@ -2567,5 +2567,81 @@ describe('cli-fmt', () => {
     // sources), so the capture sees the write on the next turn.
     await new Promise((resolve) => setImmediate(resolve))
     Assert.equal(r.out, 'a: b: 1\n')
+  })
+})
+
+
+// --- the servers as verbs -------------------------------------------
+
+describe('cli-servers', () => {
+  // The dispatch, seen through the injectable pair: the CLI hands the
+  // process to the server and gives no answer of its own.
+  test('lsp-and-mcp-verbs-dispatch-to-the-servers', () => {
+    const calls: string[] = []
+    const servers = {
+      lsp: () => void calls.push('lsp'),
+      mcp: (argv: string[]) => void calls.push('mcp ' + argv.join(' ')),
+    }
+    vetCapture(() => cliMainVet(['node', 'cli', 'lsp'], servers))
+    vetCapture(() => cliMainVet(['node', 'cli', 'mcp', '--root', '/tmp'], servers))
+    Assert.deepEqual(calls, ['lsp', 'mcp --root /tmp'])
+    // --help is the CLI's help; an argument to lsp is a usage error.
+    const h = vetCapture(() => {
+      cliMainVet(['node', 'cli', 'lsp', '--help'], servers)
+      Assert.equal(process.exitCode, 0)
+    })
+    Assert.ok(h.out.includes('aontu lsp'))
+    const u = vetCapture(() => {
+      cliMainVet(['node', 'cli', 'lsp', 'extra'], servers)
+      Assert.equal(process.exitCode, 2)
+    })
+    Assert.match(u.err, /lsp takes no arguments/)
+    Assert.equal(calls.length, 2)
+  })
+
+  // The real servers behind the verbs, through the executable entry:
+  // one initialize round trip each.
+  test('lsp-verb-serves-lsp-over-stdio', () => {
+    const frame = (s: string) => `Content-Length: ${Buffer.byteLength(s)}\r\n\r\n${s}`
+    const input =
+      frame('{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}') +
+      frame('{"jsonrpc":"2.0","id":2,"method":"shutdown"}') +
+      frame('{"jsonrpc":"2.0","method":"exit"}')
+    const out = execFileSync(process.execPath, [CLI, 'lsp'], { input }).toString()
+    Assert.ok(out.includes('"serverInfo"'), out)
+    Assert.ok(out.startsWith('Content-Length:'), out)
+  })
+
+  test('mcp-verb-serves-mcp-over-stdio', () => {
+    const input = '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}\n'
+    const out = execFileSync(process.execPath, [CLI, 'mcp'], { input }).toString()
+    const answer = JSON.parse(out.trim().split('\n')[0])
+    Assert.equal(answer.id, 1)
+    Assert.ok(answer.result, out)
+  })
+})
+
+
+// --- the old module layout ------------------------------------------
+
+describe('cli-mod-layout', () => {
+  // A project that still carries the lockfile or the vendor tree at
+  // its root, from before they moved under aontu_meta/, is told so
+  // once, whatever the verb; nothing there is read.
+  test('mod-names-the-old-layout', () => {
+    const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-layout-'))
+    Fs.writeFileSync(Path.join(dir, 'mod.aon'), 'mod: { path: "corp.example/app" }\n')
+    Fs.mkdirSync(Path.join(dir, 'aon_vendor'))
+    const r = vetCapture(() => runMod(['verify', dir]))
+    Assert.match(r.err, /aon_vendor\/ and mod-lock\.aon now live under aontu_meta\//)
+    // The lockfile alone at the root is the same hint.
+    const dir2 = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-layout-'))
+    Fs.writeFileSync(Path.join(dir2, 'mod.aon'), 'mod: { path: "corp.example/app" }\n')
+    Fs.writeFileSync(Path.join(dir2, 'mod-lock.aon'), '# mod-lock.aon\n{"lock":{}}\n')
+    Assert.match(vetCapture(() => runMod(['verify', dir2])).err, /now live under aontu_meta\//)
+    // A project on the new layout hears nothing of it.
+    const dir3 = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-layout-'))
+    Fs.writeFileSync(Path.join(dir3, 'mod.aon'), 'mod: { path: "corp.example/app" }\n')
+    Assert.doesNotMatch(vetCapture(() => runMod(['verify', dir3])).err, /aontu_meta\//)
   })
 })

@@ -971,7 +971,7 @@ Two boundaries, so the rule cuts where intended:
   or it gets a function.
 - ADR-009's removal is ratified as an instance of this rule rather
   than a one-off.
-- File-system conventions (`mod-lock.aon`, `aon_vendor/`) are outside
+- File-system conventions (`aontu_meta/mod-lock.aon`, `aontu_meta/vendor/`) are outside
   the tree and outside this rule.
 
 ### Enforcement
@@ -1215,7 +1215,7 @@ still the confinement surface for everything else an include can reach.
 The TypeScript package leg narrows with it: `@"some-pkg"` resolving to
 a `.js` entry point now refuses. The Go port has no package leg at all
 (`docs/test-coverage.md`), so this closes a divergence rather than
-opening one, and the module system (G6, `aon_vendor/`) is unaffected —
+opening one, and the module system (G6, `aontu_meta/vendor/`) is unaffected —
 a module states `kind: 'aon'` by construction, as the bundled
 vocabulary does.
 

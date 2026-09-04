@@ -1,15 +1,15 @@
 # Aontu for VS Code
 
 Language support for [Aontu](../../README.md) — diagnostics, hover and
-completion — by launching the `aontu-lsp` language server and connecting
+completion — by launching the language server, `aontu lsp`, and connecting
 it to `.aon` and `.aontu` files.
 
 ## Prerequisites
 
-Install the language server so `aontu-lsp` is on your `PATH`:
+Install the CLI so `aontu` is on your `PATH`; the server is its `lsp` verb:
 
 ```sh
-npm install -g aontu            # provides the `aontu-lsp` binary
+npm install -g aontu            # or any install channel
 ```
 
 Or point the extension at a checkout (see configuration below).
@@ -29,7 +29,7 @@ Extension Development Host, and open a `.aon` file.
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `aontu.server.command` | `aontu-lsp` | Command to launch the server. |
+| `aontu.server.command` | `aontu` | Command to launch the server; `aontu.server.args` defaults to `["lsp"]`. |
 | `aontu.server.args` | `[]` | Arguments for the command. |
 
 To run the TypeScript server directly from a repo checkout without
@@ -42,11 +42,11 @@ installing the binary:
 }
 ```
 
-To use the Go server, set `aontu.server.command` to the built `aontu-lsp`
-binary's absolute path.
+To use the Go server, set `aontu.server.command` to a Go build of
+`aontu` by absolute path and keep `aontu.server.args` as `["lsp"]`.
 
 **On Windows the server is spawned through a shell**, because npm
-installs the entry point as the shim `aontu-lsp.cmd` and `CreateProcess`
+installs the entry point as the shim `aontu.cmd` and `CreateProcess`
 will not execute a `.cmd` directly. Nothing changes on macOS or Linux.
 One consequence worth knowing if you set `aontu.server.args`: on Windows
 those arguments pass through `cmd.exe`, so an argument containing spaces

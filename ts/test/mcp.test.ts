@@ -916,7 +916,7 @@ describe('mcp', () => {
     Assert.equal(mcpMain(stdin, write, exit, '9', ['--help'],
       (l: string) => void errs.push(l)), undefined)
     Assert.equal(code, 0)
-    Assert.match(lines[0], /aontu-mcp \[--root <dir>\]/)
+    Assert.match(lines[0], /aontu mcp \[--root <dir>\]/)
 
     // A bad option refuses at startup: a server whose operator typo'd
     // --root must not come up quietly unconfined.

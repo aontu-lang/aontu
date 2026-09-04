@@ -8,8 +8,8 @@
 # file.tsv's do — a module is resolved from the filesystem, so proving
 # it needs a filesystem.
 #
-# EVALUATION NEVER TOUCHES THE NETWORK: resolution reads `aon_vendor/`
-# beside the project's `mod.aon` and a content-addressed user cache, and
+# EVALUATION NEVER TOUCHES THE NETWORK: resolution reads
+# `aontu_meta/vendor/` beside the project's `mod.aon` and a content-addressed user cache, and
 # nothing else. A module in neither store is an error that names the
 # fetch step; a module whose MEANING disagrees with its pin is an
 # integrity error naming both hashes.

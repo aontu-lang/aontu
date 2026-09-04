@@ -757,7 +757,7 @@ function hostileModule(dir) {
         // --help answers usage and exits 0, with no codec to serve.
         Assert.equal((0, mcp_server_1.main)(stdin, write, exit, '9', ['--help'], (l) => void errs.push(l)), undefined);
         Assert.equal(code, 0);
-        Assert.match(lines[0], /aontu-mcp \[--root <dir>\]/);
+        Assert.match(lines[0], /aontu mcp \[--root <dir>\]/);
         // A bad option refuses at startup: a server whose operator typo'd
         // --root must not come up quietly unconfined.
         Assert.equal((0, mcp_server_1.main)(stdin, write, exit, '9', ['--zig'], (l) => void errs.push(l)), undefined);

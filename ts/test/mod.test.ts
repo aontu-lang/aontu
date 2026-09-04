@@ -20,6 +20,14 @@ import { modCacheDirFor, validateModulePath } from '../dist/mod'
 
 import { srcPath } from './srcpath'
 
+// The lockfile lives under aontu_meta/, which a test that writes one by
+// hand has to create first, as `mod tidy` does.
+function writeLock(dir: string, text: string): void {
+  Fs.mkdirSync(Path.join(dir, 'aontu_meta'), { recursive: true })
+  Fs.writeFileSync(Path.join(dir, 'aontu_meta', 'mod-lock.aon'), text)
+}
+
+
 
 
 const MODULE = 'name: string\nport: *8080 | integer\n'
@@ -44,7 +52,7 @@ function world(store: 'vendor' | 'cache'): {
   const hash = canonHash(new Aontu().unify(MODULE))
 
   const moddir = 'vendor' === store
-    ? Path.join(dir, 'aon_vendor', 'corp.example', 'schemas', 'service@1')
+    ? Path.join(dir, 'aontu_meta', 'vendor', 'corp.example', 'schemas', 'service@1')
     : Path.join(cache, hash)
   Fs.mkdirSync(moddir, { recursive: true })
   Fs.writeFileSync(Path.join(moddir, 'mod.aon'),
@@ -97,7 +105,7 @@ describe('mod', () => {
 
 
   test('cache-is-not-consulted-under-a-root', () => {
-    // A confined evaluation sees the project's own aon_vendor/ and
+    // A confined evaluation sees the project's own aontu_meta/vendor/ and
     // nothing else: the cache lives outside any root, so a rooted
     // profile that would have to reach it reports the module missing
     // instead. (docs/trust.md: confinement is about what may be READ.)
@@ -244,7 +252,7 @@ describe('mod', () => {
     // The same channel, missing: a store the host's filesystem does not
     // have is a module that is not fetched, not a crash on the stat.
     const w = world('vendor')
-    Fs.rmSync(Path.join(w.dir, 'aon_vendor'), { recursive: true })
+    Fs.rmSync(Path.join(w.dir, 'aontu_meta', 'vendor'), { recursive: true })
     const a0 = new Aontu({ fs: Fs } as any)
     Assert.throws(
       () => a0.generate('x: @"' + srcPath(w.main) + '"'),
@@ -344,7 +352,7 @@ describe('mod-tool', () => {
   }
 
   function vendor(dir: string, path: string, files: Record<string, string>) {
-    const p = Path.join(dir, 'aon_vendor', ...path.split('/'))
+    const p = Path.join(dir, 'aontu_meta', 'vendor', ...path.split('/'))
     Fs.mkdirSync(p, { recursive: true })
     for (const name of Object.keys(files)) {
       Fs.writeFileSync(Path.join(p, name), files[name])
@@ -355,7 +363,7 @@ describe('mod-tool', () => {
   // A VENDORED MODULE IS A PROJECT INSIDE A PROJECT (the review's
   // finding H, use-cases/BUGS.md §31). `mod vendor` produces a FLAT
   // tree, so a module's own dependency sits beside it in the
-  // consumer's `aon_vendor/` -- but the module carries its own
+  // consumer's `aontu_meta/vendor/` -- but the module carries its own
   // `mod.aon`, which used to stop the upward walk there, and the
   // nested import answered `module not fetched` for a module sitting
   // one directory away. The Go twin is
@@ -416,7 +424,7 @@ describe('mod-tool', () => {
     Assert.ok(r.out.includes('does not evaluate on its own'), r.out)
     // AND THE LOCKFILE IS LEFT ALONE. A refusal that wrote a lockfile
     // would be the defect with a louder message.
-    Assert.equal(Fs.existsSync(Path.join(dir, 'mod-lock.aon')), false)
+    Assert.equal(Fs.existsSync(Path.join(dir, 'aontu_meta', 'mod-lock.aon')), false)
   })
 
 
@@ -425,7 +433,7 @@ describe('mod-tool', () => {
   // reported `verdict: ok`, exit 0.
   //
   // The path routes -- it is domain-shaped and carries a major -- and
-  // then `..` elements walked the store path up out of `aon_vendor/`,
+  // then `..` elements walked the store path up out of `aontu_meta/vendor/`,
   // because pathJoin CLEANS `..` rather than refusing it. The lockfile
   // is the delivery vehicle: a hostile repository ships one, and
   // vendoring it writes wherever the path points.
@@ -447,7 +455,7 @@ describe('mod-tool', () => {
     Fs.writeFileSync(Path.join(cachedir, 'mod.aon'),
       'mod: {path: "corp.example/schemas/service", main: "service.aon"}\n')
     Fs.writeFileSync(Path.join(cachedir, 'service.aon'), MODULE)
-    Fs.writeFileSync(Path.join(dir, 'mod-lock.aon'),
+    writeLock(dir,
       '{"lock":{"' + escaping + '":{"canon":"' + hash +
       '","oci":"","v":"1.0.0"}}}\n')
 
@@ -475,7 +483,7 @@ describe('mod-tool', () => {
       Assert.equal(Fs.existsSync(up), false, 'wrote outside the project: ' + up)
     }
     // And nothing inside it either: the module is not vendored at all.
-    Assert.equal(Fs.existsSync(Path.join(dir, 'aon_vendor')), false, r.out)
+    Assert.equal(Fs.existsSync(Path.join(dir, 'aontu_meta', 'vendor')), false, r.out)
     Assert.equal(r.code, 1, r.out)
     Assert.ok(r.out.includes(escaping + ': not fetched'), r.out)
   })
@@ -495,14 +503,14 @@ describe('mod-tool', () => {
       }))
 
     Assert.equal(cli(['mod', 'tidy', dir]).code, 0)
-    const lock = Fs.readFileSync(Path.join(dir, 'mod-lock.aon'), 'utf8')
+    const lock = Fs.readFileSync(Path.join(dir, 'aontu_meta', 'mod-lock.aon'), 'utf8')
 
     const clean = cli(['mod', 'verify', dir])
     Assert.equal(clean.code, 0, clean.out)
     Assert.ok(clean.out.includes(': verified'), clean.out)
 
     // Tamper, and ask again.
-    const svc = Path.join(dir, 'aon_vendor', 'corp.example', 'schemas',
+    const svc = Path.join(dir, 'aontu_meta', 'vendor', 'corp.example', 'schemas',
       'service@1', 'service.aon')
     Fs.writeFileSync(svc,
       Fs.readFileSync(svc, 'utf8').replace('8080', '9090'))
@@ -514,7 +522,7 @@ describe('mod-tool', () => {
     // THE LOCKFILE IS UNTOUCHED, which is the whole difference from
     // tidy: a gate that rewrote what it was checking would pass every
     // time.
-    Assert.equal(Fs.readFileSync(Path.join(dir, 'mod-lock.aon'), 'utf8'), lock)
+    Assert.equal(Fs.readFileSync(Path.join(dir, 'aontu_meta', 'mod-lock.aon'), 'utf8'), lock)
 
     // A module that no longer stands up at all says so, rather than
     // reporting the hash of nil as though it were a meaning.
@@ -577,7 +585,7 @@ describe('mod-tool', () => {
   // TestModVerifyReportsWhatNoStoreHolds.
   test('verify-reports-what-no-store-holds', () => {
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-mod-'))
-    Fs.writeFileSync(Path.join(dir, 'mod-lock.aon'),
+    writeLock(dir,
       '# mod-lock.aon (generated by `aontu mod tidy`; do not edit)\n' +
       '{"lock":{"corp.example/absent@1":{"canon":"aon1-x","oci":"","v":"1"},' +
       '"corp.example/hollow@1":{"canon":"aon1-y","oci":"","v":"1"},' +
@@ -619,7 +627,7 @@ describe('mod-tool', () => {
     Assert.equal(r.code, 0, r.err)
     Assert.ok(r.out.includes('verdict: ok'))
 
-    const lock = Fs.readFileSync(Path.join(dir, 'mod-lock.aon'), 'utf8')
+    const lock = Fs.readFileSync(Path.join(dir, 'aontu_meta', 'mod-lock.aon'), 'utf8')
     // A HEADER the file's own reader skips, then ONE canonical line —
     // sorted keys, no spaces — which is also the JSON the resolver
     // reads a pin back from.
@@ -684,7 +692,7 @@ describe('mod-tool', () => {
     Assert.equal(r.code, 0, r.err)
     Assert.equal(r.out.trim(), 'verdict: ok')
     Assert.equal(
-      Fs.readFileSync(Path.join(dir, 'mod-lock.aon'), 'utf8').split('\n')[1],
+      Fs.readFileSync(Path.join(dir, 'aontu_meta', 'mod-lock.aon'), 'utf8').split('\n')[1],
       '{"lock":{}}')
   })
 
@@ -747,7 +755,7 @@ describe('mod-tool', () => {
           'mod: {path: "corp.example/schemas/service", main: "service.aon"}\n',
         'service.aon': MODULE,
       })
-      Fs.writeFileSync(Path.join(d, 'mod-lock.aon'),
+      writeLock(d,
         '# mod-lock.aon (generated by `aontu mod tidy`; do not edit)\n' +
         '{"lock":{"corp.example/schemas/service@1":{"canon":"aon1-stale",' +
         '"oci":"sha256:6b86","v":"1.0.0"}}}\n')
@@ -785,7 +793,7 @@ describe('mod-tool', () => {
       '{"lock":{"corp.example/s@1":{"canon":1,"oci":2,"v":3}}}\n',
     ]) {
       const dir = project('')
-      Fs.writeFileSync(Path.join(dir, 'mod-lock.aon'), text)
+      writeLock(dir, text)
       const r = cli(['mod', 'vendor', dir])
       Assert.equal(r.out.trim().split('\n')[0], 'verdict: ' +
         (text.startsWith('{"lock"') ? 'missing' : 'ok'), r.out)
@@ -797,7 +805,7 @@ describe('mod-tool', () => {
     // Distinct from the key that is not a module path at all: this one
     // routes, and there is simply nothing behind it.
     const dir = project('')
-    Fs.writeFileSync(Path.join(dir, 'mod-lock.aon'),
+    writeLock(dir,
       '{"lock":{"corp.example/absent@1":{"canon":"aon1-x","oci":"","v":"1"}}}\n')
     const r = cli(['mod', 'vendor', dir])
     Assert.equal(r.code, 1)
@@ -812,7 +820,7 @@ describe('mod-tool', () => {
     Fs.mkdirSync(Path.join(w.cache, w.hash, 'part'), { recursive: true })
     Fs.writeFileSync(Path.join(w.cache, w.hash, 'part', 'extra.aon'),
       'extra: true\n')
-    Fs.writeFileSync(Path.join(w.dir, 'mod-lock.aon'),
+    writeLock(w.dir,
       '{"lock":{"corp.example/schemas/service@1":{"canon":"' + w.hash +
       '","oci":"","v":"1.4.2"}}}\n')
 
@@ -823,7 +831,7 @@ describe('mod-tool', () => {
     process.env.XDG_CACHE_HOME = xdg
     try {
       Assert.equal(cli(['mod', 'vendor', w.dir]).code, 0)
-      Assert.equal(Fs.readFileSync(Path.join(w.dir, 'aon_vendor', 'corp.example',
+      Assert.equal(Fs.readFileSync(Path.join(w.dir, 'aontu_meta', 'vendor', 'corp.example',
         'schemas', 'service@1', 'part', 'extra.aon'), 'utf8'), 'extra: true\n')
     }
     finally {
@@ -845,7 +853,7 @@ describe('mod-tool', () => {
     const r = cli(['mod', 'tidy', dir])
     Assert.equal(r.code, 1)
     Assert.ok(r.out.includes('corp.example/absent@1: not fetched'), r.out)
-    Assert.equal(Fs.existsSync(Path.join(dir, 'mod-lock.aon')), false)
+    Assert.equal(Fs.existsSync(Path.join(dir, 'aontu_meta', 'mod-lock.aon')), false)
   })
 
 
@@ -854,7 +862,7 @@ describe('mod-tool', () => {
     // content-addressed means, and it is why `vendor` needs a lockfile
     // while `tidy` needs a store.
     const w = world('cache')
-    Fs.writeFileSync(Path.join(w.dir, 'mod-lock.aon'),
+    writeLock(w.dir,
       '# mod-lock.aon (generated by `aontu mod tidy`; do not edit)\n' +
       '{"lock":{"corp.example/schemas/service@1":{"canon":"' + w.hash +
       '","oci":"","v":"1.4.2"}}}\n')
@@ -867,7 +875,7 @@ describe('mod-tool', () => {
     try {
       const r = cli(['mod', 'vendor', w.dir])
       Assert.equal(r.code, 0, r.err)
-      Assert.ok(Fs.existsSync(Path.join(w.dir, 'aon_vendor', 'corp.example',
+      Assert.ok(Fs.existsSync(Path.join(w.dir, 'aontu_meta', 'vendor', 'corp.example',
         'schemas', 'service@1', 'service.aon')))
     }
     finally {
@@ -883,7 +891,7 @@ describe('mod-tool', () => {
 
   test('vendor-reports-what-no-store-has', () => {
     const dir = project('')
-    Fs.writeFileSync(Path.join(dir, 'mod-lock.aon'),
+    writeLock(dir,
       '{"lock":{"nope@1":{"canon":"x","oci":"","v":"1"},' +
       '"not-a-module":{"canon":"y","oci":"","v":"1"}}}\n')
     const r = cli(['mod', 'vendor', dir])
@@ -991,7 +999,7 @@ describe('mod-tool', () => {
   test('the-layer-is-the-source-tree-without-the-vendor-copy', () => {
     // A module is a TREE, so nested directories are in the layer. A
     // published module carries its own sources and not a copy of
-    // everyone else's, so `aon_vendor/` is not: a consumer resolves the
+    // everyone else's, so `aontu_meta/vendor/` is not: a consumer resolves the
     // closure itself, and vendoring it here would publish the world.
     const dir = publishable('1.1.0', MODULE, (d) => {
       Fs.mkdirSync(Path.join(d, 'part'))

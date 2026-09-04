@@ -7,6 +7,64 @@ which implementation each change affects.
 
 ## Unreleased
 
+### Generated project state lives under `aontu_meta/`
+
+Everything the tools write into a project now lives in one folder:
+the lockfile is `aontu_meta/mod-lock.aon` and the vendored closure is
+`aontu_meta/vendor/<module-path>@<major>/`, in both ports; `mod.aon`
+and the documents stay at the root, since they are authored. The
+resolver reads the project's `aontu_meta/vendor/` and the user cache
+as before, `mod tidy` creates the folder, `mod manifest` excludes it
+from the published layer, and the `mod` verbs name the old layout (a
+root `mod-lock.aon` or `aon_vendor/`) once when they find it, with
+the two commands that rebuild the new one; nothing there is read. The
+spec fixtures, the shared-modules use case and its repros, the vendor
+how-tos, the API and language references, the ontology and
+distribution design notes and the progress register moved with the
+code, and the `aontu env` design places its pin at
+`aontu_meta/version`. Both implementations.
+
+### `aontu lsp` and `aontu mcp`: the servers are verbs
+
+The language server is a verb of the CLI in both builds, `aontu lsp`,
+and the MCP server is one of the npm build, `aontu mcp [--root <dir>]`:
+the one command on `PATH` is the editor's and the agent's server too,
+and a version manager has one thing to resolve. The Go server loop
+moved from `cmd/aontu-lsp` into the `go/lsp` package as `Serve`, so
+the verb and the binary run one function; the TypeScript verb runs
+the same `main` the bin does. The standalone `aontu-lsp` and
+`aontu-mcp` binaries still ship and run the same servers, for the
+configurations that name them; the Go build's `aontu mcp` says the
+server is the npm build's and exits 2. Help text stays identical
+across the builds. The editor plugins (VS Code, Emacs, Vim/Neovim)
+default to `aontu lsp`; the editor how-to, the LSP page, the agent
+how-to and the API reference name the verbs. Both implementations.
+
+### Built binaries and install channels with every Go release
+
+A Go release now carries the CLI as a download, in every shape an
+install expects. The publish workflow cross-compiles `aontu` and
+`aontu-lsp` for Linux, macOS and Windows on `amd64` and `arm64` (pure
+Go, `CGO_ENABLED=0`, `-trimpath`, reproducible archives), one archive
+per target with the licence, plus `SHA256SUMS`; builds `.deb`, `.rpm`
+and `.apk` packages for both architectures; writes the installer and
+the package-manager manifests from the sums (a Homebrew formula, a
+Scoop manifest, the winget manifests, an AUR `PKGBUILD` with its
+`.SRCINFO`); puts all of it on a GitHub Release at the `go/v<version>`
+tag; and pushes the Linux binaries as `ghcr.io/aontu-lang/aontu`. The
+build runs with a read-only token and hands the files to a release job
+that runs `gh` and nothing else, the split the tag job already makes;
+the image job holds the one `packages: write`. New beside the workflow:
+`go/scripts/install.sh`, the `curl | sh` installer that checks the
+archive against `SHA256SUMS` before placing anything and that the site
+serves at `https://aontu.dev/install.sh`; `setup-action/`, a GitHub
+Action that puts the binaries on a runner's `PATH` on Linux, macOS and
+Windows with no toolchain; and `flake.nix`, the Nix build from source.
+`go/scripts/binaries.sh` and `go/scripts/manifests.sh` build the same
+set by hand. The README and the CLI how-to list the channels;
+docs/release-and-tag.md carries the runbook and what the Homebrew,
+Scoop, winget and AUR channels still need. Go module.
+
 ### `aontu fmt --lint` -- the style findings (FMT.0.md P4)
 
 `--lint` reports what the formatter points at and never touches, on

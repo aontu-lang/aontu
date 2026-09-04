@@ -51,5 +51,9 @@ declare function renderWhyText(record: WhyRecord): string;
 declare function runSet(argv: string[]): number;
 declare function runAgentsMd(argv: string[]): number;
 declare function runFmt(argv: string[]): number | Promise<number>;
-declare function main(argv: string[]): void;
+type Servers = {
+    lsp: () => void;
+    mcp: (argv: string[]) => void;
+};
+declare function main(argv: string[], servers?: Servers): void;
 export { evalSource, main, runVet, runSubsume, runBreaking, runTrim, runRelations, runReaches, runView, runJsonSchema, runMod, runHash, runGet, runWhy, renderWhyText, runSet, runAgentsMd, runFmt, watchChange, watchSignature, vetWaiter, deprecatedAt, };

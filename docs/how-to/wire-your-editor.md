@@ -1,27 +1,29 @@
 ---
-description: Connect `aontu-lsp` to VS Code, Neovim, or any LSP client for diagnostics as you type.
+description: Connect `aontu lsp` to VS Code, Neovim, or any LSP client for diagnostics as you type.
 group: run-embed
 order: 90
 ---
 
 # Wire your editor
 
-Both implementations ship `aontu-lsp`, a Language Server Protocol
-server that reports unification problems as diagnostics while you
-type, with hover and completion beside them. Ready-made plugins for
-VS Code, Emacs and Vim/Neovim live in [`editors/`](../../editors/),
-each a thin client that launches the binary, with install steps in
-its README. The recipes below are for wiring a client yourself.
+Both implementations serve the Language Server Protocol from the
+command itself, `aontu lsp`: unification problems as diagnostics
+while you type, with hover and completion beside them. Ready-made
+plugins for VS Code, Emacs and Vim/Neovim live in
+[`editors/`](../../editors/), each a thin client that launches the
+server, with install steps in its README. The recipes below are for
+wiring a client yourself.
 
-The facts every client needs: the command is `aontu-lsp`, the
-transport is stdio, and the document selector is the `aontu` language
-(`.aon` is the preferred extension, `.aontu` also works, `.jsonic` is
-retired). The server has no configuration options.
+The facts every client needs: the command is `aontu` with the one
+argument `lsp`, the transport is stdio, and the document selector is
+the `aontu` language (`.aon` is the preferred extension, `.aontu` also
+works, `.jsonic` is retired). The server has no configuration options.
+The standalone `aontu-lsp` binary that earlier configurations name
+still ships and runs the same server.
 
-Get the binary with `npm install -g aontu` (the package ships
-`aontu-lsp` beside `aontu`), or build the Go one with
-`go build -o aontu-lsp ./cmd/aontu-lsp` inside `go/`. The two are
-interchangeable from a client's point of view
+Get the command any way the [CLI guide](run-cli-and-repl.md) lists:
+`npm install -g aontu`, a built binary, or `go install`. The two builds
+are interchangeable from a client's point of view
 ([running the server](../lsp.md#running-the-server)).
 
 ## VS Code
@@ -36,27 +38,25 @@ import { workspace, ExtensionContext } from 'vscode'
 import { LanguageClient, TransportKind } from 'vscode-languageclient/node'
 
 export function activate(_ctx: ExtensionContext) {
-  const serverModule = '/abs/path/to/aontu/ts/bin/aontu-lsp.js' // or the Go binary
+  const server = { command: 'aontu', args: ['lsp'], transport: TransportKind.stdio }
   const client = new LanguageClient(
     'aontu',
     'Aontu',
-    {
-      run:   { module: serverModule, transport: TransportKind.stdio },
-      debug: { module: serverModule, transport: TransportKind.stdio },
-    },
+    { run: server, debug: server },
     { documentSelector: [{ scheme: 'file', language: 'aontu' }] },
   )
   client.start()
 }
 ```
 
-For the Go binary, use
-`{ command: '/abs/path/to/aontu-lsp', transport: TransportKind.stdio }`
-instead of `module`.
+From a checkout, use
+`{ module: '/abs/path/to/aontu/ts/bin/aontu-lsp.js', transport: TransportKind.stdio }`
+for the TypeScript server, or `command: '/abs/path/to/go/aontu'` with
+the same `args` for a Go build.
 
 ## Neovim (built-in LSP)
 
-<!-- test: skip Neovim configuration; the server contract is pinned by ts/test/lsp.test.ts and go/cmd/aontu-lsp/main_test.go -->
+<!-- test: skip Neovim configuration; the server contract is pinned by ts/test/lsp.test.ts and go/lsp/serve_test.go -->
 ```lua
 vim.filetype.add({ extension = { aon = 'aontu', aontu = 'aontu' } })
 
@@ -64,8 +64,8 @@ vim.api.nvim_create_autocmd('FileType', {
   pattern = 'aontu',
   callback = function(args)
     vim.lsp.start({
-      name = 'aontu-lsp',
-      cmd = { 'aontu-lsp' },           -- or { 'node', '/abs/path/ts/bin/aontu-lsp.js' }
+      name = 'aontu',
+      cmd = { 'aontu', 'lsp' },        -- or { 'node', '/abs/path/ts/bin/aontu-lsp.js' }
       root_dir = vim.fs.dirname(args.file),
     })
   end,
@@ -78,8 +78,8 @@ highlighting.
 
 ## Any LSP client
 
-Configure a server whose command is `aontu-lsp` (or
-`node …/aontu-lsp.js`), transport stdio, document selector the
+Configure a server whose command is `aontu` with the argument `lsp`
+(or `node …/aontu-lsp.js`), transport stdio, document selector the
 `aontu` language / `*.aon` glob. No initialization options are
 required. One is available: hover provenance, which appends to each
 hover the contributions record `aontu why` prints—ask for it and

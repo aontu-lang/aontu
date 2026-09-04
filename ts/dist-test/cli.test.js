@@ -2002,4 +2002,71 @@ function fmtFiles(...srcs) {
         Assert.equal(r.out, 'a: b: 1\n');
     });
 });
+// --- the servers as verbs -------------------------------------------
+(0, node_test_1.describe)('cli-servers', () => {
+    // The dispatch, seen through the injectable pair: the CLI hands the
+    // process to the server and gives no answer of its own.
+    (0, node_test_1.test)('lsp-and-mcp-verbs-dispatch-to-the-servers', () => {
+        const calls = [];
+        const servers = {
+            lsp: () => void calls.push('lsp'),
+            mcp: (argv) => void calls.push('mcp ' + argv.join(' ')),
+        };
+        vetCapture(() => (0, cli_1.main)(['node', 'cli', 'lsp'], servers));
+        vetCapture(() => (0, cli_1.main)(['node', 'cli', 'mcp', '--root', '/tmp'], servers));
+        Assert.deepEqual(calls, ['lsp', 'mcp --root /tmp']);
+        // --help is the CLI's help; an argument to lsp is a usage error.
+        const h = vetCapture(() => {
+            (0, cli_1.main)(['node', 'cli', 'lsp', '--help'], servers);
+            Assert.equal(process.exitCode, 0);
+        });
+        Assert.ok(h.out.includes('aontu lsp'));
+        const u = vetCapture(() => {
+            (0, cli_1.main)(['node', 'cli', 'lsp', 'extra'], servers);
+            Assert.equal(process.exitCode, 2);
+        });
+        Assert.match(u.err, /lsp takes no arguments/);
+        Assert.equal(calls.length, 2);
+    });
+    // The real servers behind the verbs, through the executable entry:
+    // one initialize round trip each.
+    (0, node_test_1.test)('lsp-verb-serves-lsp-over-stdio', () => {
+        const frame = (s) => `Content-Length: ${Buffer.byteLength(s)}\r\n\r\n${s}`;
+        const input = frame('{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}') +
+            frame('{"jsonrpc":"2.0","id":2,"method":"shutdown"}') +
+            frame('{"jsonrpc":"2.0","method":"exit"}');
+        const out = (0, node_child_process_1.execFileSync)(process.execPath, [CLI, 'lsp'], { input }).toString();
+        Assert.ok(out.includes('"serverInfo"'), out);
+        Assert.ok(out.startsWith('Content-Length:'), out);
+    });
+    (0, node_test_1.test)('mcp-verb-serves-mcp-over-stdio', () => {
+        const input = '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}\n';
+        const out = (0, node_child_process_1.execFileSync)(process.execPath, [CLI, 'mcp'], { input }).toString();
+        const answer = JSON.parse(out.trim().split('\n')[0]);
+        Assert.equal(answer.id, 1);
+        Assert.ok(answer.result, out);
+    });
+});
+// --- the old module layout ------------------------------------------
+(0, node_test_1.describe)('cli-mod-layout', () => {
+    // A project that still carries the lockfile or the vendor tree at
+    // its root, from before they moved under aontu_meta/, is told so
+    // once, whatever the verb; nothing there is read.
+    (0, node_test_1.test)('mod-names-the-old-layout', () => {
+        const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-layout-'));
+        Fs.writeFileSync(Path.join(dir, 'mod.aon'), 'mod: { path: "corp.example/app" }\n');
+        Fs.mkdirSync(Path.join(dir, 'aon_vendor'));
+        const r = vetCapture(() => (0, cli_1.runMod)(['verify', dir]));
+        Assert.match(r.err, /aon_vendor\/ and mod-lock\.aon now live under aontu_meta\//);
+        // The lockfile alone at the root is the same hint.
+        const dir2 = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-layout-'));
+        Fs.writeFileSync(Path.join(dir2, 'mod.aon'), 'mod: { path: "corp.example/app" }\n');
+        Fs.writeFileSync(Path.join(dir2, 'mod-lock.aon'), '# mod-lock.aon\n{"lock":{}}\n');
+        Assert.match(vetCapture(() => (0, cli_1.runMod)(['verify', dir2])).err, /now live under aontu_meta\//);
+        // A project on the new layout hears nothing of it.
+        const dir3 = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-layout-'));
+        Fs.writeFileSync(Path.join(dir3, 'mod.aon'), 'mod: { path: "corp.example/app" }\n');
+        Assert.doesNotMatch(vetCapture(() => (0, cli_1.runMod)(['verify', dir3])).err, /aontu_meta\//);
+    });
+});
 //# sourceMappingURL=cli.test.js.map

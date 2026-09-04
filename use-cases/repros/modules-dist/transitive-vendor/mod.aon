@@ -4,14 +4,14 @@
 # module's own mod.aon used to stop the upward walk for the store, so
 # `@"corp.example/schemas/common@1"` -- imported by service@1, which is
 # itself imported from here -- resolved against
-# aon_vendor/corp.example/schemas/service@1/ and found no aon_vendor/
+# aontu_meta/vendor/corp.example/schemas/service@1/ and found no aontu_meta/vendor/
 # there, failing `module not fetched` even though common@1 IS vendored
 # flat beside it. The resolver now walks to EVERY enclosing mod.aon
 # root (projectRoots in ts/src/mod.ts, go/mod.go) and tries each root's
 # store and lockfile in turn, so the flat layout `mod vendor` produces
 # is the layout a nested import reads -- and the workaround (nesting a
-# second aon_vendor/ inside the dependency) is no longer needed, which
-# matters because `mod manifest` strips aon_vendor/ from the layer.
+# second aontu_meta/vendor/ inside the dependency) is no longer needed, which
+# matters because `mod manifest` strips aontu_meta/vendor/ from the layer.
 #
 # (b) `tidy` no longer pins a module it cannot evaluate. It used to lock
 # canon aon1-XaOkx_EXlEJ1tMhinEkWQDYl1aSmVzoB7LA_Dp0u2-Y -- the

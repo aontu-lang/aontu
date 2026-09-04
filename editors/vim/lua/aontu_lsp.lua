@@ -4,9 +4,9 @@
 local M = {}
 
 function M.start()
-  local cmd = vim.g.aontu_lsp_cmd or { "aontu-lsp" }
+  local cmd = vim.g.aontu_lsp_cmd or { "aontu", "lsp" }
   vim.lsp.start({
-    name = "aontu-lsp",
+    name = "aontu",
     cmd = cmd,
     root_dir = vim.fs.dirname(vim.api.nvim_buf_get_name(0)),
   })

@@ -1,0 +1,76 @@
+# THE SETUP ACTION (docs/release-and-tag.md, "The install channels"):
+# the aontu CLI and the LSP server on a runner's PATH from a GitHub
+# Release, with no toolchain. The Linux and macOS path runs the
+# installer beside this action (go/scripts/install.sh); the Windows
+# path does the same in PowerShell with the zip.
+#
+#   - uses: aontu-lang/aontu/setup-action@main
+#     with:
+#       version: 0.1.15        # or latest, the default
+#   - run: aontu fmt --check *.aon
+
+name: 'Setup Aontu'
+description: 'Put the aontu CLI and aontu-lsp on PATH from a GitHub Release, with no toolchain'
+
+inputs:
+  version:
+    description: 'The Go release to install: latest, or a version such as 0.1.15'
+    required: false
+    default: 'latest'
+  install-dir:
+    description: 'Where the binaries go; it is added to PATH. Defaults to a directory under the runner temp'
+    required: false
+    default: ''
+
+outputs:
+  version:
+    description: 'The version installed'
+    value: ${{ steps.install.outputs.version || steps.install-windows.outputs.version }}
+
+runs:
+  using: composite
+  steps:
+    - name: Install aontu
+      if: runner.os != 'Windows'
+      id: install
+      shell: bash
+      env:
+        AONTU_VERSION: ${{ inputs.version }}
+        AONTU_INSTALL_DIR: ${{ inputs.install-dir || format('{0}/aontu-bin', runner.temp) }}
+      run: |
+        set -euo pipefail
+        sh "$GITHUB_ACTION_PATH/../go/scripts/install.sh"
+        echo "$AONTU_INSTALL_DIR" >> "$GITHUB_PATH"
+        echo "version=$("$AONTU_INSTALL_DIR/aontu" --version)" >> "$GITHUB_OUTPUT"
+
+    - name: Install aontu (Windows)
+      if: runner.os == 'Windows'
+      id: install-windows
+      shell: pwsh
+      env:
+        AONTU_VERSION: ${{ inputs.version }}
+        AONTU_INSTALL_DIR: ${{ inputs.install-dir || format('{0}\aontu-bin', runner.temp) }}
+      run: |
+        $ErrorActionPreference = 'Stop'
+        $repo = 'aontu-lang/aontu'
+        $version = $env:AONTU_VERSION
+        if ($version -eq 'latest') {
+          $latest = Invoke-RestMethod "https://api.github.com/repos/$repo/releases/latest"
+          $version = $latest.tag_name -replace '^go/v', ''
+        }
+        $arch = if ($env:RUNNER_ARCH -eq 'ARM64') { 'arm64' } else { 'amd64' }
+        $name = "aontu_${version}_windows_$arch"
+        $base = "https://github.com/$repo/releases/download/go%2Fv$version"
+        $dir = $env:AONTU_INSTALL_DIR
+        New-Item -ItemType Directory -Force -Path $dir | Out-Null
+        Invoke-WebRequest "$base/$name.zip" -OutFile "$dir\$name.zip"
+        Invoke-WebRequest "$base/SHA256SUMS" -OutFile "$dir\SHA256SUMS"
+        $line = Get-Content "$dir\SHA256SUMS" | Where-Object { $_ -match "  $name\.zip$" }
+        if (-not $line) { throw "SHA256SUMS has no entry for $name.zip" }
+        $want = ($line -split ' ')[0]
+        $got = (Get-FileHash "$dir\$name.zip" -Algorithm SHA256).Hash.ToLower()
+        if ($got -ne $want) { throw "checksum mismatch for $name.zip" }
+        Expand-Archive "$dir\$name.zip" -DestinationPath $dir -Force
+        Move-Item "$dir\$name\aontu.exe", "$dir\$name\aontu-lsp.exe" -Destination $dir -Force
+        Add-Content -Path $env:GITHUB_PATH -Value $dir
+        Add-Content -Path $env:GITHUB_OUTPUT -Value "version=$version"

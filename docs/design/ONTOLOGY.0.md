@@ -132,12 +132,12 @@ guarantee in trust.md would become conditional.
 **The answer already exists in the repository: a vocabulary is a
 module.** G6 built exactly this machinery for a different reason:
 
-- `mod tidy` resolves the closure and writes `mod-lock.aon`, pinning
+- `mod tidy` resolves the closure and writes `aontu_meta/mod-lock.aon`, pinning
   every dependency by `aon1-` hash — **this is where the network is
   touched, at tool time, by a human or CI, never during evaluation**;
 - `mod verify` re-checks that every locked module still means what the
   lock pins, and changes nothing (the CI gate);
-- `mod vendor` materialises the closure into `aon_vendor/`;
+- `mod vendor` materialises the closure into `aontu_meta/vendor/`;
 - evaluation then reads only local files through the ordinary `@"…"`.
 
 **This is the whole answer to "how do we `@import` these?"** Not a new
@@ -326,8 +326,8 @@ The brief asks how `@import` should be spelled. Given §4, the honest
 answer is that **most of it is not new syntax at all**:
 
 ```
-# mod-lock.aon pins it; aon_vendor/ holds it; this is just an include.
-%schema: @"aon_vendor/schemaorg/30.0/schema.aon"
+# aontu_meta/mod-lock.aon pins it; aontu_meta/vendor/ holds it; this is just an include.
+%schema: @"aontu_meta/vendor/schemaorg/30.0/schema.aon"
 
 Person: %schema.Person & {
   name:  string
@@ -341,7 +341,7 @@ language-side:
 1. **A converter**, `aontu vocab import <url|file> --as <name>` —
    fetches (at tool time), projects per §6, writes an `.aon` module,
    records the source URL, the release version and the projection's own
-   version in the file, and pins it in `mod-lock.aon`.
+   version in the file, and pins it in `aontu_meta/mod-lock.aon`.
 2. **A namespace convention** so the projection is legible: one module
    per vocabulary release, classes as top-level `type()`-marked names.
 
@@ -368,7 +368,7 @@ it. Aontu today has strong **module** versioning and almost no
 
 | Mechanism | What it does |
 |---|---|
-| `mod tidy` | minimum version selection over the module closure, writing `mod-lock.aon` |
+| `mod tidy` | minimum version selection over the module closure, writing `aontu_meta/mod-lock.aon` |
 | `mod verify` | every locked module still means what the lock pins — an `aon1-` integrity check |
 | `breaking --against <file\|git#rev>` | is this change breaking, against a prior version of the same document |
 | `subsume <general> <specific>` | does the general admit everything the specific does |

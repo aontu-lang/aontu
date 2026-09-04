@@ -116,7 +116,7 @@ func fileResolver(spec multisource.PathSpec, opts *multisource.MultiSourceOption
 			depth = sink.modDepth
 			// The user cache lives outside any confinement root, so it
 			// is consulted only when nothing confines this evaluation. A
-			// rooted profile sees the project's own `aon_vendor/` and
+			// rooted profile sees the project's own `aontu_meta/vendor/` and
 			// nothing else, which is what `root` means.
 			if "" == sink.root {
 				cache = sink.modCache

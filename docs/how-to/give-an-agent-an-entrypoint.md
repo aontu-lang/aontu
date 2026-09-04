@@ -1,5 +1,5 @@
 ---
-description: Generate a ground-truth stanza with `aontu agentsmd` and serve the verbs over MCP with `aontu-mcp`.
+description: Generate a ground-truth stanza with `aontu agentsmd` and serve the verbs over MCP with `aontu mcp`.
 group: run-embed
 order: 60
 ---
@@ -45,13 +45,14 @@ splices it between the two markers, appending them when absent, and
 touches nothing outside them—so re-run it in the same commit that
 changes the definition.
 
-The server second. `aontu-mcp` is a second binary of the npm package,
-speaking Model Context Protocol over stdio. Point a harness at it the
+The server second. `aontu mcp` is the `mcp` verb of the npm package's
+command, speaking Model Context Protocol over stdio (the standalone
+`aontu-mcp` binary runs the same server). Point a harness at it the
 way you point it at any stdio MCP server:
 
 <!-- test: skip MCP client configuration; the served contract is pinned by ts/test/mcp.test.ts -->
 ```json
-{ "mcpServers": { "aontu": { "command": "aontu-mcp" } } }
+{ "mcpServers": { "aontu": { "command": "aontu", "args": ["mcp"] } } }
 ```
 
 It serves `vet`, `get`, `why`, `diff`, `canon`, `summary` and the

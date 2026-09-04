@@ -19,6 +19,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
+	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -26,6 +28,9 @@ import (
 )
 
 const modHelp = "aontu mod tidy|verify|vendor|manifest [dir] (try --help)"
+
+const legacyLayoutHint = "aontu: aon_vendor/ and mod-lock.aon now live under aontu_meta/: " +
+	"move them, or run aontu mod tidy and aontu mod vendor\n"
 
 func runMod(argv []string, stdout, stderr io.Writer) int {
 	var rest []string
@@ -82,6 +87,16 @@ func runMod(argv []string, stdout, stderr io.Writer) int {
 		io.WriteString(stderr,
 			"aontu: mod needs tidy, verify, vendor or manifest\n"+modHelp+"\n")
 		return 2
+	}
+
+	// THE OLD LAYOUT IS NAMED, NOT READ. The lockfile and the vendored
+	// closure moved under aontu_meta/; a project that still carries them
+	// at its root would otherwise look untouched by any of these verbs,
+	// which is the one silence worth breaking.
+	if _, err := os.Stat(filepath.Join(dir, "aon_vendor")); nil == err {
+		io.WriteString(stderr, legacyLayoutHint)
+	} else if _, err := os.Stat(filepath.Join(dir, "mod-lock.aon")); nil == err {
+		io.WriteString(stderr, legacyLayoutHint)
 	}
 
 	// `--against` gates a manifest and means nothing to the other two;

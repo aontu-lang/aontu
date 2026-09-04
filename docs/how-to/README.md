@@ -18,10 +18,10 @@ Getting Aontu into your process or pipeline, and its answers out.
 - [Call Aontu from Go](call-from-go.md). Embed the engine with the Go port—the same three calls, with errors returned instead of thrown.
 - [See the canonical form](see-canonical-form.md). Print what a document means—defaults, disjunctions and all—instead of what it resolves to.
 - [Inject values from the host program](inject-host-values.md). Fill `$name` variables from the calling program to parameterise a model from code.
-- [Give an agent an entrypoint to a definition](give-an-agent-an-entrypoint.md). Generate a ground-truth stanza with `aontu agentsmd` and serve the verbs over MCP with `aontu-mcp`.
+- [Give an agent an entrypoint to a definition](give-an-agent-an-entrypoint.md). Generate a ground-truth stanza with `aontu agentsmd` and serve the verbs over MCP with `aontu mcp`.
 - [Collect errors instead of throwing](collect-errors.md). Gather every problem in one pass with `collect: true` (TypeScript) or `Check` (Go) instead of stopping at the first.
 - [Read a conflict error](read-a-conflict-error.md). What a conflict message names, in what order, and how to tell a conflict from an unresolved path.
-- [Wire your editor](wire-your-editor.md). Connect `aontu-lsp` to VS Code, Neovim, or any LSP client for diagnostics as you type.
+- [Wire your editor](wire-your-editor.md). Connect `aontu lsp` to VS Code, Neovim, or any LSP client for diagnostics as you type.
 
 ## Templates, defaults and composition
 
@@ -73,5 +73,5 @@ The gate verbs: vet, breaking, relations, reaches, and hash.
 Splitting a model across files and vendoring a dependency closure.
 
 - [Split a model across files](split-a-model-across-files.md). Load other source files with @"path" so a base model and its overrides unify into one document.
-- [Vendor a dependency closure for an offline build](vendor-a-dependency-closure.md). Lock a module closure with aontu mod tidy and copy it into aon_vendor/ so a build resolves every import with no network at all.
-- [Vendor a module by hand](vendor-by-hand.md). Bootstrap a module dependency without a fetch verb by copying its source tree into aon_vendor/ and letting aontu mod tidy pin what it means.
+- [Vendor a dependency closure for an offline build](vendor-a-dependency-closure.md). Lock a module closure with aontu mod tidy and copy it into aontu_meta/vendor/ so a build resolves every import with no network at all.
+- [Vendor a module by hand](vendor-by-hand.md). Bootstrap a module dependency without a fetch verb by copying its source tree into aontu_meta/vendor/ and letting aontu mod tidy pin what it means.
