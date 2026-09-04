@@ -1946,24 +1946,32 @@ Five parts, each load-bearing:
    and their equivalents — and is what exists first. Tier B is verified
    domains, `corp.example/schemas/service`, and comes later.
 
-3. **A host is admissible only when publishing from it proves namespace
-   ownership cryptographically, at publish time.** GitHub Actions' OIDC
-   token carries a `repository` claim and GitLab's a `project_path`,
-   both of which Fulcio records in the issued certificate. A forge with
-   no OIDC cannot be admitted, because there would be nothing to check.
-   The allowlist is the output of this rule, not a curated list, so
-   admitting a new host is a factual question rather than a policy
-   argument.
+3. **A host is admissible only when publishing from it both proves
+   namespace ownership cryptographically at publish time and issues a
+   stable identifier for that namespace which is never reused.** GitHub
+   Actions' OIDC token carries a `repository` claim and GitLab's a
+   `project_path`, both of which Fulcio records in the issued
+   certificate; GitHub's `repository_id` and `repository_owner_id`, and
+   GitLab's `project_id` and `namespace_id`, supply the second half. A
+   forge with no OIDC cannot be admitted, because there would be nothing
+   to check; **a forge that publishes only paths cannot be admitted
+   either**, because names are recycled and part 4 would have nothing
+   durable to record. The allowlist is the output of this rule, not a
+   curated list, so admitting a new host is a factual question rather
+   than a policy argument.
 
 4. **Ownership is checked per publish, and the signing subject is
-   recorded.** To publish `github.com/alice/widgets@1` the signing
-   certificate must carry `repository = alice/widgets`. There is no
-   account, no name reservation, and no squatting policy, because a name
-   nobody can prove they own is a name nobody can publish. But the
-   namespace check alone cannot tell a legitimate transfer from a
-   hostile one — see the repojacking consequence below — so the subject
-   that first published a path is recorded, and a later change of
-   subject is an event rather than a routine publish.
+   recorded — as an identifier pair, never as a name.** To publish
+   `github.com/alice/widgets@1` the signing certificate must carry
+   `repository = alice/widgets`. There is no account, no name
+   reservation, and no squatting policy, because a name nobody can prove
+   they own is a name nobody can publish. But the namespace check alone
+   cannot tell a legitimate transfer from a hostile one — see the
+   repojacking consequence below — so **the subject is the pair
+   `(owner_id, repository_id)`**, recorded at a path's first publish,
+   with a later change of that pair treated as an event rather than a
+   routine publish. A subject defined by name would inherit the very
+   problem it exists to solve.
 
 5. **No module is unnamespaced.** Namespacing is a property of the name
    rather than a feature the repository adds, so it cannot be opted out
@@ -2010,6 +2018,22 @@ meaning and digest — but a taken-over namespace can still publish a
 subject change behind cooldown is the mitigation, and it is a lever Go
 does not have because admission is ours to decide. Part 6's freeze
 closes the rename-shaped half of the window outright.
+
+**We accept the forge's identifier promise as an inherited invariant.**
+Defining the subject as `(owner_id, repository_id)` makes the control
+decidable with no threshold to tune: a workflow rename, a repository
+rename, an owner rename and a new commit all leave the pair untouched,
+while a transfer moves the owner half and a delete-and-recreate moves
+both. The false positive that made this look hard — ordinary workflow
+maintenance reading as a takeover — cannot occur, because a Fulcio
+identity names a workflow but the subject does not. The same primitive
+was reached independently by Microsoft Entra, which migrated GitHub
+Actions federated credentials to immutable subjects against this exact
+attack. What we accept in exchange is that the pair's immutability is
+the forge's promise rather than a cryptographic property: it is
+documented, and load-bearing for other people's security as well as
+ours, but a host that broke it would silently turn every recorded
+subject into a mismatch.
 
 **We accept a case rule.** `MODULE_RE` restricts the domain to lowercase
 but admits mixed case in path elements, and forge namespaces are
