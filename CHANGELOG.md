@@ -7,6 +7,23 @@ which implementation each change affects.
 
 ## Unreleased
 
+### The Go error frame's gutter matches the canonical port's
+
+An error's excerpt numbers its lines in a gutter two spaces wide plus
+the number, right-aligned to the widest line number the frame shows.
+The Go port used a fixed three-wide field instead, which agreed with
+TypeScript only while every shown number had one digit: from row eight
+upward the two engines printed the same error with differently indented
+excerpts, and the caret — whose indent is the gutter's own width —
+moved with it. Every document longer than nine lines framed differently
+in Go than in TypeScript.
+
+The rule is now the canonical port's in both. `test/spec/error.tsv`
+carries a row per width, and `TestFrameGutterWidth` / `frame-gutter-width`
+pin the whole message byte-for-byte in each port against the same
+literals. Go only.
+
+
 ### Text: `esc`, `usc`, `rep` and `split`
 
 Four string builtins, and the ones a generator needs: it interpolates

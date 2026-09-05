@@ -90,8 +90,8 @@ the divergence ledger, `Accepted`/`Superseded` in the ADR register).
    all eight are now wrong, by roughly 1,400 to 1,500 rows. A gap
    document should link this line instead: as of this
    register's last update the suite is **105 `.tsv` files, 103
-   row-bearing, 4,482 rows**, in twenty-five modes — `canon` 872,
-   `errc` 807, `gens` 755, `gen` 590, `err` 279, `view` 174, `fmt` 154,
+   row-bearing, 4,485 rows**, in twenty-five modes — `canon` 872,
+   `errc` 807, `gens` 755, `gen` 590, `err` 282, `view` 174, `fmt` 154,
    `errcode` 146, `subsume` 114, `vet` 100, `query` 92, `jsonschema`
    57, `why` 52, `patch` 41, `hcanon` 40, `views` 37, `graph` 37,
    `fmt-lint` 28, `diff` 28, `relation` 25, `reaches` 19, `hash` 16,
