@@ -276,6 +276,12 @@ they publish.
 M0 can go first and should: it is a breaking rename of an EXPERIMENTAL
 surface, and the sooner it happens the fewer documents it breaks.
 
+**Split, 2026-09-05** ([RENDER.0.md](RENDER.0.md) P0): the resolver
+leg — an `aontu:` name served from the bundled table before any other
+leg — lands first and alone, because `@"aontu:code"` needs it and
+nothing about the rename; the rename of `std/system` and `std/view`,
+with X-1 decided, follows on its own commit.
+
 ## 8. Open questions
 
 - **X-1 — Do `std/system` and `std/view` keep resolving for a
