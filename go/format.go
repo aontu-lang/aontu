@@ -176,6 +176,10 @@ type fmtNode struct {
 	// value; spread: the value.
 	key   string
 	opt   bool
+	// pair: written with `=`, the alias declaration operator, rather
+	// than a colon. The spelling is the parse's -- a colon after an
+	// alias name is a refused document, and the formatter keeps it one.
+	alias bool
 	value *fmtNode
 
 	// map, list: the entries, and the comment on the opener's line.
@@ -381,12 +385,13 @@ func (r *fmtReader) entry() *fmtNode {
 	if r.atKey() {
 		tok := r.T[r.i]
 		opt := "#QM" == r.name(1)
+		sep := 1
 		if opt {
-			r.i += 3
-		} else {
-			r.i += 2
+			sep = 2
 		}
-		return &fmtNode{t: "pair", key: fmtKeyText(tok), opt: opt, value: r.value(), at: at}
+		alias := "=" == r.T[r.i+sep].src
+		r.i += sep + 1
+		return &fmtNode{t: "pair", key: fmtKeyText(tok), opt: opt, alias: alias, value: r.value(), at: at}
 	}
 	return r.value()
 }
@@ -644,6 +649,11 @@ func fmtWidth(s string) int {
 
 func fmtPairHead(node *fmtNode, tight bool) string {
 	head := node.key
+	// An alias declaration is `%name = value` at every width: the `=` is
+	// an operator, and operators are spaced (§3.2).
+	if node.alias {
+		return head + " = "
+	}
 	if node.opt {
 		head += "?"
 	}
@@ -1228,7 +1238,7 @@ func fmtMergeRuns(body []*fmtNode) []*fmtNode {
 			continue
 		}
 		out = append(out, &fmtNode{
-			t: "pair", key: first.key, opt: first.opt,
+			t: "pair", key: first.key, opt: first.opt, alias: first.alias,
 			value: &fmtNode{t: "map", body: fmtMergeRuns(merged)}, orig: group,
 		})
 		i = j - len(carry)

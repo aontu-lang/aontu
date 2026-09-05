@@ -19,7 +19,7 @@
 # (`a: %D` at the root) the alias resolves and the two spellings hash
 # identically, which is the contrast that isolates it.
 
-%D: string & re("^x")
+%D = string & re("^x")
 
 m: {
   &: { a: %D }

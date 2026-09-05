@@ -50,9 +50,31 @@ const spreadKey = reservedKeyPrefix + "spread"
 const optionalKey = reservedKeyPrefix + "optional"
 
 // aliasKeysKey is the sentinel holding this map's ALIAS DECLARATIONS
-// -- `%name:` pairs, which bind a file-local name and are not fields
+// -- `%name = value` pairs, which bind a file-local name and are not fields
 // of the document. Twin of aontu_alias_keys in ts/src/lang.ts.
 const aliasKeysKey = reservedKeyPrefix + "aliaskeys"
+
+// aliasColonKey is the sentinel holding the declarations SPELLED WITH A
+// COLON -- the form before 0.58.0 -- each with the source position of
+// its name. Read where the map is converted, which writes the refusal
+// in the value's place. Twin of aontu_alias_colon in ts/src/lang.ts.
+const aliasColonKey = reservedKeyPrefix + "aliascolon"
+
+// aliasColonDecl is one such declaration: the key, and where its name
+// sits, for the frame.
+type aliasColonDecl struct {
+	key string
+	sp  int
+}
+
+// aliasEqAt records, per lexer, the source index of the `=` that follows
+// an alias name -- THE DECLARATION OPERATOR (docs/design/ALIASES.0.md,
+// X-1 as settled 2026-09-05). Decided where the name is claimed and
+// consumed at that index, so an entry never outlives the next text
+// position. Keyed by the Lex because the text hook is one function
+// shared by every parse, and parses run concurrently. Twin of the
+// `aontu_eq_at` mark on the TS lexer.
+var aliasEqAt sync.Map
 const posKey = reservedKeyPrefix + "pos"
 
 // srcKey rides beside posKey: the map rule's open-token SOURCE TEXT,
@@ -261,7 +283,7 @@ help isolate the syntax error.`,
 				// THE ALIAS SIGIL (docs/design/ALIASES.0.md §4). `%` is
 				// part of an alias's name, so the name is one lexeme
 				// wherever it appears and its meaning is decided by
-				// POSITION: a binding in key position (`%uint8: …`
+				// POSITION: a binding in key position (`%uint8 = …`
 				// declares), a use in value position (`listen: %uint8`
 				// refers). Consume claims the run whole for the same
 				// reason the exact literal below does -- the text
@@ -1334,14 +1356,27 @@ func trackOrder(r *jsonic.Rule, _ *jsonic.Context) {
 	// property of the map is also what carries it through a meet, the
 	// way optional keys are carried.
 	if r.O0 != nil && r.O0.Tin != jsonic.TinST && aliasRe.MatchString(key) {
-		// Always recorded here; whether the map is ALLOWED to carry
-		// declarations is decided on the VALUE (MapVal.Unify), not at the
-		// parse. The parse cannot see it: an INCLUDED file's declarations
-		// are at the root of their own text, and only once the loaded map
-		// is placed does it become apparent that root is not the
-		// document's. Twin of the collection in ts/src/lang.ts.
-		ak, _ := m[aliasKeysKey].([]string)
-		m[aliasKeysKey] = append(ak, key)
+		if r.O1 != nil && r.O1.Use != nil && true == r.O1.Use["aontu_eq"] {
+			// Always recorded here; whether the map is ALLOWED to carry
+			// declarations is decided on the VALUE (MapVal.Unify), not at
+			// the parse. The parse cannot see it: an INCLUDED file's
+			// declarations are at the root of their own text, and only
+			// once the loaded map is placed does it become apparent that
+			// root is not the document's. Twin of the collection in
+			// ts/src/lang.ts.
+			ak, _ := m[aliasKeysKey].([]string)
+			m[aliasKeysKey] = append(ak, key)
+		} else {
+			// DECLARED WITH A COLON: the spelling before 0.58.0. Refused
+			// rather than read as the ordinary key `%foo` the text would
+			// otherwise become -- a document written for the old form
+			// would then generate a "%foo" field and every `%foo` use
+			// would resolve to nothing, and neither says why. The refusal
+			// is written where the map is converted, sited at the name,
+			// and nothing is recorded as an alias.
+			ac, _ := m[aliasColonKey].([]aliasColonDecl)
+			m[aliasColonKey] = append(ac, aliasColonDecl{key: key, sp: r.O0.SI})
+		}
 	}
 
 	// An optional pair (key?:value): the custom alt bypasses jsonic's
@@ -1463,6 +1498,41 @@ func tsTextCheck(l *jsonic.Lex) *jsonic.LexCheckResult {
 	start := pnt.SI
 	if start >= pnt.Len {
 		return nil
+	}
+	src := l.Src
+
+	// THE DECLARATION OPERATOR. At an alias name, look past horizontal
+	// space for a lone `=` and remember where it is; the alias value def
+	// then claims the name exactly as before. `=` is special ONLY there:
+	// `foo = 1` stays the list it always was, and `a: x=y` the text
+	// `x=y`. Mirrors the alias arm of the text check hook in
+	// ts/src/lang.ts, decision for decision.
+	if '%' == src[start] {
+		if m := aliasRe.FindString(src[start:]); "" != m {
+			j := start + len(m)
+			for j < len(src) && (' ' == src[j] || '\t' == src[j]) {
+				j++
+			}
+			if j < len(src) && '=' == src[j] && (j+1 >= len(src) || '=' != src[j+1]) {
+				aliasEqAt.Store(l, j)
+			}
+			return nil
+		}
+	}
+
+	// The `=` the arm above marked: the separator of a declaration, as
+	// a colon token whose source is `=`. The pair rule is then the pair
+	// rule, and the formatter writes the spelling it read. Marked in Use
+	// so the pair rule can tell it from a colon, which no longer declares.
+	if '=' == src[start] {
+		if at, ok := aliasEqAt.Load(l); ok && at.(int) == start {
+			aliasEqAt.Delete(l)
+			tkn := l.Token("#CL", jsonic.TinCL, "=", "=")
+			tkn.Use = map[string]any{"aontu_eq": true}
+			pnt.SI += 1
+			pnt.CI += 1
+			return &jsonic.LexCheckResult{Done: true, Token: tkn}
+		}
 	}
 
 	sI, sawQuote := scanTextExtent(l, start, false)
@@ -2254,12 +2324,29 @@ func asValDepth(node any, depth int) Val {
 			en.sp = mv.sp
 			return en
 		}
+		// A declaration spelled with a colon (the pair rule records them)
+		// becomes the refusal, in place of whatever followed the colon
+		// and sited at the NAME rather than at the map, so the frame
+		// points at the spelling to change. Twin of the map rule's pass
+		// over aontu_alias_colon in ts/src/lang.ts.
+		colon := map[string]int{}
+		if ac, ok := n[aliasColonKey].([]aliasColonDecl); ok {
+			for _, d := range ac {
+				colon[d.key] = d.sp
+			}
+		}
 		ord, _ := n[orderKey].([]string)
 		for _, k := range ord {
 			// Skip an order entry with no value: the multisource mark "@"
 			// is recorded in order but injects its content under real keys.
 			v, ok := n[k]
 			if !ok {
+				continue
+			}
+			if sp, bad := colon[k]; bad {
+				en := newNil("alias_colon")
+				en.sp = sp
+				mv.set(k, en)
 				continue
 			}
 			if isElidedNode(v) {

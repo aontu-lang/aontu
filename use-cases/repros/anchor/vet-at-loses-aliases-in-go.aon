@@ -33,9 +33,9 @@
 # Direction matters for a CI gate: Go REFUSES a document TypeScript
 # accepts, so a pipeline that runs the Go CLI fails builds the
 # canonical implementation passes.
-%F: close({ n: string })
-%U: close({ p: string, fs: [&: %F] })
-%C: close({ units: [&: %U] })
+%F = close({ n: string })
+%U = close({ p: string, fs: [&: %F] })
+%C = close({ units: [&: %U] })
 code: type(%C)
 
 # FIXED 2026-08-30: Go's RefVal walk now falls back to Ctx.fixroot for

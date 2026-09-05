@@ -171,6 +171,8 @@ const hints: Record<string, string> = {
 
   elided_value: 'A key or element was written with no value after the colon. An\nelided value is a mistake in the source rather than a null: write\n`null` if that is what was meant, or supply the value.\n \nExamples:\n  a:null  -> null  # An explicit null, which is a value;\n  a:      -> nil   # ... but nothing at all is not;\n  a: b:1  -> {..}  # A colon chain is not an elision;\n  [1,]    -> [1]   # ... nor is a trailing comma.',
 
+  alias_colon: 'An alias is declared with `=`: write `%name = value`. Until 0.57.0\nthe declaration was spelled with a colon, `%name: value`, and that\nform is refused rather than read as an ordinary key -- a document\nwritten for the old spelling fails here, at the declaration, instead\nof gaining a key named `%name` and a use that resolves to nothing.\n \nExamples:\n  %u8 = integer & min(0)  -> {..}  # Declares %u8, which a: %u8 uses;\n  %u8: integer            -> nil   # The form before 0.58.0, refused;\n  "%u8": 1                -> {..}  # A quoted key is an ordinary key.',
+
 
 
 
@@ -627,6 +629,7 @@ const codeClasses: Record<string, string> = {
   pref_implicit_bag: 'parse',
   alias_not_toplevel: 'parse',
   alias_in_path: 'parse',
+  alias_colon: 'parse',
   not_number: 'parse',
   negative: 'parse',
   decimal_syntax: 'parse',

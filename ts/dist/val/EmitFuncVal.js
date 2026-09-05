@@ -20,7 +20,7 @@ function tableTemplates(table) {
     // relative references resolve against wherever it sits and miss --
     // so the position that holds one unevaluated is the one position the
     // language already never drives: a call's template argument.
-    // `%wire: emit(_, [ … ])` is that position with the selection left
+    // `%wire = emit(_, [ … ])` is that position with the selection left
     // open, and it reads as what it is, an apply-templates waiting for
     // its nodes: `emit(.listen, %wire)` passes them, `.listen & %wire`
     // fills the hole, and both are the same dispatch.

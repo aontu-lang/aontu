@@ -108,7 +108,7 @@ Write `services.aon` with both taken up:
 
 <!-- test: file services.aon -->
 ```aontu
-%Limits: { cpu:"500m" memory:"256Mi" restart:"always" }
+%Limits = { cpu:"500m" memory:"256Mi" restart:"always" }
 services: { web:limits:%Limits auth:limits:%Limits }
 maxReplicas: 4
 ```

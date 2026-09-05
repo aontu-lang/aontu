@@ -74,7 +74,7 @@ Read against `ts/src/{unify,graph,relation}.ts`,
    The engine's own comment: "Nothing in the engine knows the name
    `relations`; this pass does, and says so." The language has no
    other reserved key — spreads are `&:`, optionality is `?:`,
-   aliases are `%name:` — and this one is load-bearing for a whole
+   aliases are `%name = value` — and this one is load-bearing for a whole
    capability. ADR-010 now forbids the shape outright and carries this
    key as its one grandfathered violation.
 

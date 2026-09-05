@@ -15,7 +15,7 @@
 # The declaration lands at the ROOT of the document, which is why
 # model.aon splices this file (`@"./spec.aon"` at the top level)
 # rather than binding it to a key.
-%JobEdge: rel($.spec.JobShape)
+%JobEdge = rel($.spec.JobShape)
 
 spec: hide({
   Job: {

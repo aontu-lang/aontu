@@ -286,14 +286,14 @@ open by default, where a "property" is a key *inside* a map.
 | `rdfs:label`, `rdfs:comment` | documentation, not value — kept beside, not inside |
 | a property with `domainIncludes: C` | a key on `C`'s map |
 | `rangeIncludes: Text` | `string` (or a constraint) as the key's value |
-| `rdfs:subClassOf` | conjunction: `%Employee: %Person & { … }` — **unification IS subclassing** |
+| `rdfs:subClassOf` | conjunction: `%Employee = %Person & { … }` — **unification IS subclassing** |
 | a controlled vocabulary (SKOS) | a disjunction of literals, `"a" \| "b" \| "c"` |
 | `u-`/`dt-` microformat kinds | `re(…)` constraints |
 | an entity link | `refer()` — already checked, already typed |
 
 **Unification is the part that fits unusually well.** In RDF,
 `subClassOf` is an inference rule that needs a reasoner. In aontu,
-`%Employee: %Person & {employeeId: string}` *is* the subclass, checked
+`%Employee = %Person & {employeeId: string}` *is* the subclass, checked
 by the evaluator, with no reasoner and no open-world assumption to
 reconcile. Multiple inheritance is `&` of several parents, and it
 either unifies or it is a located conflict — which is a better answer
@@ -327,7 +327,7 @@ answer is that **most of it is not new syntax at all**:
 
 ```
 # aontu_meta/mod-lock.aon pins it; aontu_meta/vendor/ holds it; this is just an include.
-%schema: @"aontu_meta/vendor/schemaorg/30.0/schema.aon"
+%schema = @"aontu_meta/vendor/schemaorg/30.0/schema.aon"
 
 Person: %schema.Person & {
   name:  string
@@ -440,7 +440,7 @@ composition of what exists, and it turns a yes/no gate into the answer
 CI actually wants.
 
 **A version is a value, not a comment.** If a schema declares
-`%version: "1.3.0"` as an ordinary alias or a marked field, then it
+`%version = "1.3.0"` as an ordinary alias or a marked field, then it
 canons, it hashes, it unifies — and `breaking` can *require* that a
 breaking change carries a major bump rather than merely reporting that
 one occurred. The rule "the version must move when the meaning moves"

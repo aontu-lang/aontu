@@ -19,7 +19,7 @@ recursion *mechanism*, with termination bounded by the data.
 
 | spelling | today |
 |---|---|
-| `Node: {v: integer, next?: $.Node}` — also via map spread, also inside `type()`, also as a guarded alias (`%t: {v: integer, next?: %t}`) | `path_cycle` |
+| `Node: {v: integer, next?: $.Node}` — also via map spread, also inside `type()`, also as a guarded alias (`%t = {v: integer, next?: %t}`) | `path_cycle` |
 | mutual `A: {b?: $.B}` / `B: {a?: $.A}` | `path_cycle` at the second hop |
 | `Node: hide({v: integer, next: null \| $.Node})` | base case works; one level of real nesting dies as `scalar_kind`, naming neither the recursion nor the schema |
 | `Node: hide({v: integer, kids: [] \| [&: $.Node]})` | generates at any depth and checks **nothing** |
@@ -126,7 +126,7 @@ type, and the sharpest statement of what this buys the agent-tooling
 goal:
 
 ```
-%json: null | boolean | number | string | [&: %json] | {&: %json}
+%json = null | boolean | number | string | [&: %json] | {&: %json}
 
 payload: %json
 payload: { user: { id: 1, tags: [admin, [nested, true]] } }
@@ -170,7 +170,7 @@ $ aontu vet menu-schema.aon menu.json
 
 - **Aliases**: free. `%t` is `$.%t` by construction (ALIASES.0.md), so
   a self-referential alias residuates by the same prefix rule. The
-  three pinned alias CYCLE rows (`%a: %a` and kin) are unguarded and
+  three pinned alias CYCLE rows (`%a = %a` and kin) are unguarded and
   keep refusing — see §6.
 - **Spreads**: the vehicle, not a special case — expansion IS
   per-destination template instantiation, sharing ADR-005's clone

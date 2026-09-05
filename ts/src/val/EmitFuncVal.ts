@@ -49,7 +49,7 @@
 // An EMPTY selection, by contrast, emits nothing -- which is the whole
 // conditional mechanism, and why no `when` directive exists.
 //
-// A NAMED TABLE IS A PLACEHELD `emit` (`%wire: emit(_, T)`). A table
+// A NAMED TABLE IS A PLACEHELD `emit` (`%wire = emit(_, T)`). A table
 // written at a document position is DRIVEN there, so its bodies'
 // relative references resolve against wherever it sits and miss;
 // nothing in the language holds a value unevaluated at such a
@@ -104,7 +104,7 @@ function tableTemplates(table: Val | undefined): Template[] | string {
   // relative references resolve against wherever it sits and miss --
   // so the position that holds one unevaluated is the one position the
   // language already never drives: a call's template argument.
-  // `%wire: emit(_, [ … ])` is that position with the selection left
+  // `%wire = emit(_, [ … ])` is that position with the selection left
   // open, and it reads as what it is, an apply-templates waiting for
   // its nodes: `emit(.listen, %wire)` passes them, `.listen & %wire`
   // fills the hole, and both are the same dispatch.

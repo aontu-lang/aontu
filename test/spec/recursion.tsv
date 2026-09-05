@@ -51,7 +51,7 @@ list-alternative-still-merges	gens	a: [] a: [1]	{"a":[1]}
 mutual-pair	gens	Person: hide({name: string, employer?: $.Company})\nCompany: hide({title: string, staff: {&: $.Person}})\nacme: $.Company & {title: "Acme", staff: {sam: {name: "Sam"}}}	{"acme":{"staff":{"sam":{"employer":{"staff":{}},"name":"Sam"}},"title":"Acme"}}
 #
 # --- JSON itself, as a guarded alias ---------------------------------
-json-alias	gens	%json: null | boolean | number | string | [&: %json] | {&: %json}\npayload: %json\npayload: {user: {id: 1, tags: [admin, [nested, true]]}}	{"payload":{"user":{"id":1,"tags":["admin",["nested",true]]}}}
+json-alias	gens	%json = null | boolean | number | string | [&: %json] | {&: %json}\npayload: %json\npayload: {user: {id: 1, tags: [admin, [nested, true]]}}	{"payload":{"user":{"id":1,"tags":["admin",["nested",true]]}}}
 #
 # --- Canon and the hash: symbolic, never expanded --------------------
 canon-symbolic	canon	Node: hide({v: integer, next?: $.Node})\nt: $.Node & {v: 1, next: {v: 2}}	{"Node":{"next"?:$.Node,"v":integer},"t":{"next"?:{"next"?:$.Node,"v":2},"v":1}}

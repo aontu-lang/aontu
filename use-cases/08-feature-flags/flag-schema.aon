@@ -20,7 +20,7 @@
 # re-roots the document at the anchor (README, "Gaps").  So the check
 # extracts each resolved flag with `get` and vets it against $.Flag.
 
-# THE FIELD SHAPES, NAMED. `%name:` at the top level declares an
+# THE FIELD SHAPES, NAMED. `%name = value` at the top level declares an
 # alias; `%name` in value position uses it. An alias does not generate
 # and does not appear in canon, so this file and the one with every
 # constraint written out are the same document with the same `aon1-`
@@ -34,10 +34,10 @@
 # TEMPLATE, where an alias reference is not resolved and leaks into
 # canon as `$.%Date`, changing the document's `aon1-` hash: BUGS.md 73.
 # Here there is no spread, so the names cost nothing.
-%Key: string & re("^[a-z][a-z0-9_.\\-]*$") & length(min(3)) & length(max(64))
-%Owner: string & re("^[a-z0-9._\\-]+@acme\\.example$")
-%Description: string & length(min(12)) & length(max(160))
-%Date: string & re("^\\d{4}-\\d{2}-\\d{2}$")
+%Key = string & re("^[a-z][a-z0-9_.\\-]*$") & length(min(3)) & length(max(64))
+%Owner = string & re("^[a-z0-9._\\-]+@acme\\.example$")
+%Description = string & length(min(12)) & length(max(160))
+%Date = string & re("^\\d{4}-\\d{2}-\\d{2}$")
 
 Flag: key: %Key
 Flag: flag_type: "boolean" | "percentage" | "variant"

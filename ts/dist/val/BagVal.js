@@ -18,7 +18,7 @@ class BagVal extends FeatureVal_1.FeatureVal {
         this.isGenable = true;
         this.closed = false;
         this.optionalKeys = [];
-        // ALIAS DECLARATIONS, by key. `%uint8: …` binds a name for this file
+        // ALIAS DECLARATIONS, by key. `%uint8 = …` binds a name for this file
         // and is not a field of the document: it does not generate and does
         // not appear in canon, so a document using aliases and its expanded
         // twin are the SAME document and hash identically

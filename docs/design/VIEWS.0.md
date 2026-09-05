@@ -565,7 +565,7 @@ measurement.** The obvious spelling — a `type()`-marked anchor, copying
 has to read it. VERIFIED, both spellings, on a two-file reproducer:
 
 ```
-# voc.aon:  %Node: close({id: string, label: string})
+# voc.aon:  %Node = close({id: string, label: string})
 #           plot: type(close({nodes: [&: %Node]}))
 # fig.aon:  @"./voc.aon"
 #           plot: {nodes: [{id: "a", label: "A"}]}
@@ -584,8 +584,8 @@ where every shape is a `%Name` and the anchor is the author's own key.
 VERIFIED:
 
 ```
-# voc3.aon: %Node: close({id: string, label: string})
-#           %Plot: close({nodes: [&: %Node]})
+# voc3.aon: %Node = close({id: string, label: string})
+#           %Plot = close({nodes: [&: %Node]})
 # user.aon: @"./voc3.aon"
 #           my: 1
 #           plot: %Plot & {nodes: [{id: "a", label: "A"}]}

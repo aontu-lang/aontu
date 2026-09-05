@@ -148,6 +148,10 @@ type Node = {
   // value; spread: the value.
   key?: string
   opt?: boolean
+  // pair: written with `=`, the alias declaration operator, rather than
+  // a colon. The spelling is the parse's -- a colon after an alias name
+  // is a refused document, and the formatter keeps it one.
+  alias?: boolean
   value?: Node
 
   // map, list: the entries, and the comment on the opener's line.
@@ -349,8 +353,9 @@ class Reader {
     if (this.atKey()) {
       const tok = this.T[this.i]
       const opt = '#QM' === this.name(1)
+      const alias = '=' === this.T[this.i + (opt ? 2 : 1)].src
       this.i += opt ? 3 : 2
-      return { t: 'pair', key: keyText(tok), opt, value: this.value(), at }
+      return { t: 'pair', key: keyText(tok), opt, alias, value: this.value(), at }
     }
     return this.value()
   }
@@ -590,6 +595,11 @@ function width(s: string): number {
 }
 
 function pairHead(node: Node, tight: boolean): string {
+  // An alias declaration is `%name = value` at every width: the `=` is
+  // an operator, and operators are spaced (§3.2).
+  if (node.alias) {
+    return node.key! + ' = '
+  }
   return node.key! + (node.opt ? '?' : '') + (tight ? ':' : ': ')
 }
 
@@ -1104,7 +1114,7 @@ function mergeRuns(body: Node[]): Node[] {
       continue
     }
     out.push({
-      t: 'pair', key: first.key, opt: first.opt,
+      t: 'pair', key: first.key, opt: first.opt, alias: first.alias,
       value: { t: 'map', body: mergeRuns(merged) }, orig: group,
     })
     i = j - carry.length

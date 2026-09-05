@@ -1,6 +1,6 @@
 # spec.aon --- Acme's service vocabulary, layered over @"std/system".
 #
-# THE ADDRESS SHAPE HAS A NAME. `%CatalogAddr` is an alias: `%name:` at
+# THE ADDRESS SHAPE HAS A NAME. `%CatalogAddr` is an alias: `%name = value` at
 # the top level declares one, `%name` in value position uses it, and
 # that is the whole of it -- an alias does not generate and does not
 # appear in canon, so this file and the one with the pattern written
@@ -23,7 +23,7 @@
 # Where a dependency may live. An address is a TREE PATH (ADR-014), so
 # this says a service may only depend on a catalog entry, never on a
 # workload.
-%CatalogAddr: re("^\\$[.]catalog[.]")
+%CatalogAddr = re("^\\$[.]catalog[.]")
 
 # The three fields the catalog promises about every service, named so
 # that CatalogEntry and CandidateShape cannot drift apart. They have to
@@ -33,9 +33,9 @@
 # `$.%Owner` is refused at any depth, the two namespaces are disjoint
 # -- and it is erased before generation, so it names the shape without
 # reintroducing the reference that gap is about.
-%Owner: string & re("^team-[a-z]+$")
-%Lifecycle: *production | production | experimental | deprecated
-%Description: string & length(min(10))
+%Owner = string & re("^team-[a-z]+$")
+%Lifecycle = *production | production | experimental | deprecated
+%Description = string & length(min(10))
 
 spec: hide({
   # The org's port shape: the bundled Port plus a concrete number.

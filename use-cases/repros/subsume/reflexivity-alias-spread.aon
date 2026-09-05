@@ -7,5 +7,5 @@
 # actual (both ports): verdict: undecided
 #           $.code.fs: sub_path_dependent_spread [compat]
 #           expected: $.%F   actual: $.%F   -- byte-identical
-%F: {n: string}
+%F = {n: string}
 code: {fs: {&: %F}}

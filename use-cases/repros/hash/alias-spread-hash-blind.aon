@@ -5,7 +5,7 @@
 # row in this list".
 #
 # This file is the FIRST of four; run all four and compare.
-#   alias-spread-hash-blind.aon          this file      %A: n is a string
+#   alias-spread-hash-blind.aon          this file      %A = n is a string
 #   alias-spread-hash-blind-2.aon        different meaning: n is an integer, plus EXTRA
 #   alias-spread-hash-blind-longhand.aon the expanded twin of THIS file
 #
@@ -23,5 +23,5 @@
 # Exactly backwards on both counts. And the two documents really do
 # differ: against `box: [{n: "x"}]`, this file vets `valid` and -2
 # vets `invalid`.
-%A: close({ n: string })
+%A = close({ n: string })
 box: [&: %A]

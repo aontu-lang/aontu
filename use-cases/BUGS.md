@@ -1985,7 +1985,7 @@ and so does conjoining anything at a recursive position -- until the
 two meet at depth two, where both engines run unbounded:
 
 ```aon
-%T: {name: string, kids?: [&: %T & {}]}
+%T = {name: string, kids?: [&: %T & {}]}
 d: %T & {name: a, kids: [{name: b, kids: [{name: c}]}]}
 ```
 
@@ -2254,9 +2254,9 @@ point a validation at one part of a document. The two engines return
 
 ```aon
 # schema
-%F: close({ n: string })
-%U: close({ p: string, fs: [&: %F] })
-%C: close({ units: [&: %U] })
+%F = close({ n: string })
+%U = close({ p: string, fs: [&: %F] })
+%C = close({ units: [&: %U] })
 code: type(%C)
 
 # data
@@ -2341,8 +2341,8 @@ proving it did not discriminate. Both ports, identically — a shared
 defect, not a divergence.
 
 ```aon
-# A          %A: close({ n: string })          box: [&: %A]
-# B          %A: close({ n: integer, EXTRA: string })   box: [&: %A]
+# A          %A = close({ n: string })          box: [&: %A]
+# B          %A = close({ n: integer, EXTRA: string })   box: [&: %A]
 # A-longhand box: [&: close({ n: string })]
 ```
 
@@ -2689,7 +2689,7 @@ boundary:
 | `defs: {x: {&: integer & min(0)}}` — inline constraint, the case §28 fixed | `subsumes` |
 | `a: {b: 1}` — plain map | `subsumes` |
 | `defs: hide({F: {n: string}})` / `code: {fs: {&: $.defs.F}}` — **reference**-valued template | **`undecided`** `sub_path_dependent_spread` |
-| `%F: {n: string}` / `code: {fs: {&: %F}}` — **alias**-valued template | **`undecided`** `sub_path_dependent_spread` |
+| `%F = {n: string}` / `code: {fs: {&: %F}}` — **alias**-valued template | **`undecided`** `sub_path_dependent_spread` |
 | `spec: hide({Step: {label: string, then?: $.spec.Step}})` / `doc: $.spec.Step & {label: "a"}` — **recursive** | **`undecided`** `sub_unresolved` |
 
 The finding's two operands are byte-identical, which is what makes it
@@ -3103,7 +3103,7 @@ It is not, and the smallest form is
 
 ```aon
 # the spliced file
-%Cents: integer & min(0)
+%Cents = integer & min(0)
 schema: { Line: type(close({ unitCents: %Cents, amountCents: %Cents })) }
 lines: {&: $.schema.Line}
 ```
@@ -3153,7 +3153,7 @@ emits exactly the refused spelling.
 [`repros/alias/alias-in-spread-template-leaks-into-canon.aon`](repros/alias/alias-in-spread-template-leaks-into-canon.aon):
 
 ```aon
-%D: string & re("^x")
+%D = string & re("^x")
 
 m: {
   &: { a: %D }

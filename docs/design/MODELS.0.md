@@ -130,14 +130,14 @@ Written to the form as it stands, the system model reads:
 ```
 # aontu:system --- the system vocabulary. ...
 
-%port: type({
+%port = type({
   direction: *in | out | inout
   protocol?: string
 })
 
-%component: type({ ports?: { &: %port } })
+%component = type({ ports?: { &: %port } })
 
-%service: type({
+%service = type({
   kind: service
   ports?: { &: %port }
 })
@@ -207,11 +207,15 @@ sides sigilled, key the local name and value the exported one:
 {%} = @"types.aon"                   # every export
 ```
 
-**Why it should not be spelled that way.** The same note's §10 argues,
-correctly, that the declaration needs no `=` — `%foo: value` already
-parses — and that once `=` goes, the destructure is the one form left
-wanting a spelling. It names `%{ … }: …` as available (a parse error
-today). This note takes that up:
+**Why it should not be spelled that way.** The same note's §10 argued
+that the declaration needs no `=` — `%foo: value` already parsed — and
+that once `=` goes, the destructure is the one form left wanting a
+spelling. It named `%{ … }: …` as available (a parse error today).
+*That premise fell on 2026-09-05: X-1 was settled for `=`, so a
+declaration is `%foo = value` and the destructure's `=` is the same
+operator rather than a second one. The `%{ … }:` spelling below no
+longer has that reason; it is kept as the alternative it is, to be
+weighed on its own merits at P2.* This note takes it up:
 
 ```
 %{ sysport: %port }: @"aontu:system"     # rename: local %sysport is the model's %port
@@ -227,7 +231,7 @@ wildcard, and `*` can carry it: on the key side of a pair it has no
 other meaning, where in value position it is the preference marker.
 
 **Why the rename has to be at the import and not after it.** Under
-today's P1, `%u8: %port` after a splice is legal — alias-of-alias —
+today's P1, `%u8 = %port` after a splice is legal — alias-of-alias —
 but it does not solve the case at the origin. If two modules both
 declare `%port`, the two declarations have *already met* by the time
 any later line runs; the local rename can only name the meet. The

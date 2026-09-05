@@ -1120,7 +1120,7 @@ drives: a call's template argument. Write the table as an `emit` whose
 **selection is a hole**, and it is a rule set waiting for its nodes:
 
 ```aon
-%wire: emit(_, { match:pin:string body:["client(" + .pin + ")"] })
+%wire = emit(_, { match:pin:string body:["client(" + .pin + ")"] })
 
 listen: [pin:"srv:a"]
 client: [pin:"srv:b"]
@@ -1146,7 +1146,7 @@ nested structure into nested output:
 ```aon
 tree: [{ name:a kids:[{ name:b kids:[] }] }]
 
-%walk: emit(_, {
+%walk = emit(_, {
   match: name: string
   body: ["<" + .name + ">" emit(.kids, %walk) "</" + .name + ">"]
 })
@@ -1274,7 +1274,7 @@ way, and so does a recursive [alias](#aliases-)—which is enough to
 write the JSON value space in one line:
 
 ```aon
-%json: null | boolean | number | string | [&: %json] | { &: %json }
+%json = null | boolean | number | string | [&: %json] | { &: %json }
 x: %json & { a:[1 "two" b:true] }
 ```
 
@@ -1314,13 +1314,15 @@ An unknown variable is a `Cannot resolve` error.
 ## Aliases `%`
 
 An **alias** is a name for a value, written with a leading `%`.
-`%name:` at the top level of a file declares one; `%name` in value
-position uses it. Unlike a [reference](#references-and-paths), which
-spells a path into the tree, an alias names the value directly and
-belongs to no path:
+`%name = value` at the top level of a file declares one; `%name` in
+value position uses it. The `=` is the declaration operator, and it is
+an operator nowhere else: `foo = 1` without the sigil is not a
+declaration, and `a: x=y` is the text `x=y`. Unlike a
+[reference](#references-and-paths), which spells a path into the tree,
+an alias names the value directly and belongs to no path:
 
 ```aon
-%port: integer & min(1) & max(65535)
+%port = integer & min(1) & max(65535)
 
 listen: %port
 listen: 8080
@@ -1338,6 +1340,13 @@ and it does not appear in canon—so the file above and the file with
 document and produce the same [`aon1-` hash](#canonical-form). That is
 the whole of what an alias is: a name for a value, and nothing else.
 
+**A colon does not declare.** `%name: value` was the declaration form
+until 0.57.0. It is now refused, with the code `alias_colon`, rather
+than read as an ordinary key named `%name`—which is what the text would
+otherwise become, and which would generate a `"%name"` field and leave
+every `%name` use resolving to nothing, neither of them saying why. The
+refusal points at the name; write `=`.
+
 **Not inside a spread template, yet.** `{&: {a: %D}}` does not resolve
 the reference: the alias survives into canon as `$.%D`—the refused
 path spelling—and the document's [`aon1-` hash](#canonical-form)
@@ -1351,7 +1360,7 @@ the alias namespace and the path namespace are disjoint, and an alias
 is reached by writing `%foo` and only that.
 
 **A declaration sits at the root of the document.** A nested
-`x: { %a: 1 }` is refused: `%a` resolves from the root, so a nested
+`x: { %a = 1 }` is refused: `%a` resolves from the root, so a nested
 declaration would be erased from the output (it *is* a declaration) and
 still unreachable by any reference (it is *not* at the root)—a name
 that exists nowhere.
@@ -1387,11 +1396,11 @@ its properties come from rather than from rules of its own:
 
 - **Order is irrelevant**—a use may precede its declaration.
 - **An alias may name another alias**, and a cycle is refused. So is a
-  cycle that runs through the document (`%a: $.x` with `x: %a`), because
+  cycle that runs through the document (`%a = $.x` with `x: %a`), because
   there is one reference graph, not two.
 - **Two declarations of one name unify**, exactly as two statements for
-  one key do: `%n: 1` with `%n: integer` is `1`, and `%n: 1` with
-  `%n: 2` is a conflict.
+  one key do: `%n = 1` with `%n = integer` is `1`, and `%n = 1` with
+  `%n = 2` is a conflict.
 - **A use of an undeclared name is refused**, naming the name.
 
 Aliases are not passed to generated children: a spread template sees the
@@ -1399,7 +1408,7 @@ Aliases are not passed to generated children: a spread template sees the
 name.
 
 ```aon
-%row: { kind:string id:integer }
+%row = { kind:string id:integer }
 
 table: { &: %row a:{ kind:user id:1 } b:{ kind:user id:2 } }
 ```
@@ -2907,7 +2916,7 @@ lines. At statement level every pair has its own line, so `a: 1 b: 2`
 on one line becomes two. Inside an inline container the colon is
 tight, `{ a:1 b:2 }`, and the space between pairs is what separates
 them. An optional key keeps its marker tight, `port?: integer`; a
-spread is `&: value`; an alias declaration is `%Name: value`.
+spread is `&: value`; an alias declaration is `%Name = value`.
 
 **Braces are for shape, not for nesting.** A pair whose value is a map
 holding exactly one entry is written as a chain: `a: {b: 1}` is
