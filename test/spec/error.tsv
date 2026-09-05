@@ -26,12 +26,14 @@ errc-no-gen-root	errc	number	no_gen
 errc-reference-no-path	errc	a:$.b	no_path
 #
 # Stage parity for invalid sources (#31): a source that fails to PARSE
-# leads with code `syntax` in both engines; the once-divergent k-x:1
-# (bare key with an op char) parses to ["k",nil] in BOTH engines now
-# and fails at generate with `negative` -- this row is the regression
-# fence for the divergence the old DIVERGENCE.md entry recorded.
-errc-parse-syntax	errc	a:k-x	syntax
-errc-parse-negative	errc	k-x:1	negative
+# leads with code `syntax` in both engines, and one that parses but
+# fails to GENERATE leads with the generate-stage code. The
+# once-divergent `k-x:1` (a bare key with an op char) was the fence for
+# the divergence the old DIVERGENCE.md entry recorded; since 0.58.0 `-`
+# is text, so `k-x` is a key and `a:k-x` a string (op-chars.tsv), and
+# the fence moves to a shape that still fails at each stage.
+errc-parse-syntax	errc	a:6*2	syntax
+errc-parse-negative	errc	a:-x	negative
 #
 # Message-parity rows (#29): the thrown error's marker, headline, full
 # hint text (worked examples AND {placeholder} injection), source

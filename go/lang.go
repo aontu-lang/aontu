@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"unicode"
 	"unicode/utf8"
 
 	expr "github.com/tabnas/expr/go"
@@ -54,17 +55,23 @@ const optionalKey = reservedKeyPrefix + "optional"
 // of the document. Twin of aontu_alias_keys in ts/src/lang.ts.
 const aliasKeysKey = reservedKeyPrefix + "aliaskeys"
 
-// aliasColonKey is the sentinel holding the declarations SPELLED WITH A
-// COLON -- the form before 0.58.0 -- each with the source position of
-// its name. Read where the map is converted, which writes the refusal
-// in the value's place. Twin of aontu_alias_colon in ts/src/lang.ts.
-const aliasColonKey = reservedKeyPrefix + "aliascolon"
+// keyRefusalsKey is the sentinel holding this map's KEY REFUSALS: a
+// declaration SPELLED WITH A COLON (the form before 0.58.0) and a key
+// the bare-text rule refuses (`x=y: 1`), each with the code, the source
+// position to site it at and its details. Read where the map is
+// converted, which writes the refusal in the value's place. Twin of
+// aontu_key_refusals in ts/src/lang.ts.
+const keyRefusalsKey = reservedKeyPrefix + "keyrefusals"
 
-// aliasColonDecl is one such declaration: the key, and where its name
-// sits, for the frame.
-type aliasColonDecl struct {
-	key string
-	sp  int
+// keyRefusal is one such refusal: the key, the code, where to site it
+// (the name, or the offending character of the key), the source text
+// of the site, and the hint's details.
+type keyRefusal struct {
+	key     string
+	why     string
+	sp      int
+	src     string
+	details map[string]string
 }
 
 // aliasEqAt records, per lexer, the source index of the `=` that follows
@@ -75,6 +82,7 @@ type aliasColonDecl struct {
 // shared by every parse, and parses run concurrently. Twin of the
 // `aontu_eq_at` mark on the TS lexer.
 var aliasEqAt sync.Map
+
 const posKey = reservedKeyPrefix + "pos"
 
 // srcKey rides beside posKey: the map rule's open-token SOURCE TEXT,
@@ -240,11 +248,13 @@ help isolate the syntax error.`,
 		// stamps aontu's sentinels onto it (order, position, source)
 		// so asValDepth converts it exactly as a braced map converts.
 		List: &jsonic.ListOptions{Pair: boolPtr(true)},
-		// See tsTextCheck: unquoted text must run through quote chars
-		// (`x:tail` + "`" is the text "tail`"), as in the TS lexer.
+		// See tsTextCheck: the text stage of the bare-text rule (a run
+		// is letters, digits, `-` and `_`, or it is refused), and the
+		// alias name and its `=`, as in the TS lexer's text check hook.
 		Text: &jsonic.TextOptions{Check: tsTextCheck},
-		// See tsNumCheck: a numeric prefix of a larger text token is
-		// not a number ("100'sq'" is one text token), as in TS.
+		// See tsNumCheck: a numeric prefix of a larger run is not a
+		// number (`100'sq'` is one refused run, `2026-09-05` one
+		// string), as in TS.
 		Number: &jsonic.NumberOptions{
 			// Sep must be restated: passing any NumberOptions with an
 			// empty Sep DISABLES separators ("Empty string disables" —
@@ -643,6 +653,21 @@ help isolate the syntax error.`,
 // listSpread marks the &: spread value within a parsed list slice.
 type listSpread struct{ val Val }
 
+// elemKeyRules holds the single-key element's key to THE MAP'S RULES:
+// a key the map rule would refuse (a colon declaration, a bare-text
+// refusal) is refused in the element too, in the value's place and
+// sited at the key, rather than generated as `[{"x=y": 1}]`; and a
+// declaration is a declaration IN the element, which is where
+// MapVal.Unify refuses it -- a list element is not the top level. Twin
+// of the elem rule's bc in ts/src/lang.ts.
+func elemKeyRules(m map[string]any, ktkn, sep *jsonic.Token, key string) {
+	if kr, ok := keyRefusalOf(ktkn, sep, key); ok {
+		m[keyRefusalsKey] = []keyRefusal{kr}
+	} else if isAliasDecl(ktkn, sep, key) {
+		m[aliasKeysKey] = []string{key}
+	}
+}
+
 func elemSpread(r *jsonic.Rule, _ *jsonic.Context) {
 	// A PAIR IN LIST POSITION IS A SINGLE-KEY MAP ELEMENT (the rule
 	// optional.tsv's block states; ts/src/lang.ts builds the element in
@@ -664,6 +689,7 @@ func elemSpread(r *jsonic.Rule, _ *jsonic.Context) {
 				m[posKey] = r.Prev.O0.SI
 				m[srcKey] = r.Prev.O0.Src
 			}
+			elemKeyRules(m, r.Prev.O0, r.O1, key)
 			list[len(list)-1] = m
 		}
 		return
@@ -684,6 +710,7 @@ func elemSpread(r *jsonic.Rule, _ *jsonic.Context) {
 					m[posKey] = r.O0.SI
 					m[srcKey] = r.O0.Src
 				}
+				elemKeyRules(m, r.O0, r.O1, key)
 			}
 		}
 		return
@@ -1355,28 +1382,25 @@ func trackOrder(r *jsonic.Rule, _ *jsonic.Context) {
 	// riding the value would erase the referring field too. Being a
 	// property of the map is also what carries it through a meet, the
 	// way optional keys are carried.
-	if r.O0 != nil && r.O0.Tin != jsonic.TinST && aliasRe.MatchString(key) {
-		if r.O1 != nil && r.O1.Use != nil && true == r.O1.Use["aontu_eq"] {
-			// Always recorded here; whether the map is ALLOWED to carry
-			// declarations is decided on the VALUE (MapVal.Unify), not at
-			// the parse. The parse cannot see it: an INCLUDED file's
-			// declarations are at the root of their own text, and only
-			// once the loaded map is placed does it become apparent that
-			// root is not the document's. Twin of the collection in
-			// ts/src/lang.ts.
-			ak, _ := m[aliasKeysKey].([]string)
-			m[aliasKeysKey] = append(ak, key)
-		} else {
-			// DECLARED WITH A COLON: the spelling before 0.58.0. Refused
-			// rather than read as the ordinary key `%foo` the text would
-			// otherwise become -- a document written for the old form
-			// would then generate a "%foo" field and every `%foo` use
-			// would resolve to nothing, and neither says why. The refusal
-			// is written where the map is converted, sited at the name,
-			// and nothing is recorded as an alias.
-			ac, _ := m[aliasColonKey].([]aliasColonDecl)
-			m[aliasColonKey] = append(ac, aliasColonDecl{key: key, sp: r.O0.SI})
-		}
+	if kr, ok := keyRefusalOf(r.O0, r.O1, key); ok {
+		// A KEY REFUSAL is written where the map is converted, in the
+		// value's place and sited at the key, so the frame points at the
+		// spelling to change. A declaration spelled with a colon is
+		// refused rather than read as the ordinary key `%foo` the text
+		// would otherwise become -- a document written for the old form
+		// would then generate a "%foo" field and every `%foo` use would
+		// resolve to nothing, and neither says why.
+		krs, _ := m[keyRefusalsKey].([]keyRefusal)
+		m[keyRefusalsKey] = append(krs, kr)
+	} else if isAliasDecl(r.O0, r.O1, key) {
+		// Always recorded here; whether the map is ALLOWED to carry
+		// declarations is decided on the VALUE (MapVal.Unify), not at
+		// the parse. The parse cannot see it: an INCLUDED file's
+		// declarations are at the root of their own text, and only once
+		// the loaded map is placed does it become apparent that root is
+		// not the document's. Twin of the collection in ts/src/lang.ts.
+		ak, _ := m[aliasKeysKey].([]string)
+		m[aliasKeysKey] = append(ak, key)
 	}
 
 	// An optional pair (key?:value): the custom alt bypasses jsonic's
@@ -1439,6 +1463,49 @@ func keyOf(t *jsonic.Token) string {
 	return t.Src
 }
 
+// isAliasDecl reports whether a pair is an ALIAS DECLARATION: its key
+// token is an alias name (the lexeme the alias def produced -- a quoted
+// `"%a"` arrives as TinST and is an ordinary key) and its separator is
+// the declaration operator `=`, marked by the text hook. Twin of
+// isAliasDecl in ts/src/lang.ts.
+func isAliasDecl(ktkn, sep *jsonic.Token, key string) bool {
+	return ktkn != nil && ktkn.Tin != jsonic.TinST && aliasRe.MatchString(key) &&
+		sep != nil && sep.Use != nil && true == sep.Use["aontu_eq"]
+}
+
+// keyRefusalOf decides THE KEY REFUSALS a pair may carry, from its key
+// TOKEN -- never from the key text alone, since a quoted `"%a"` or
+// `"x=y"` is an ordinary key: a declaration spelled with a colon
+// (alias_colon, sited at the name) and a key the bare-text rule
+// refuses (bare_punct, sited at the offending character -- its first
+// occurrence in the key, since every character before it is text and
+// it is not). False for an ordinary key, and for a declaration, which
+// is a binding (isAliasDecl), not a refusal. Asked FIRST by the pair
+// rule and by elemSpread, before the declaration is, so a pair in list
+// position is held to the map's rules. Twin of keyRefusalOf in
+// ts/src/lang.ts.
+func keyRefusalOf(ktkn, sep *jsonic.Token, key string) (keyRefusal, bool) {
+	if ktkn == nil || ktkn.Tin == jsonic.TinST {
+		return keyRefusal{}, false
+	}
+	if aliasRe.MatchString(key) {
+		if isAliasDecl(ktkn, sep, key) {
+			return keyRefusal{}, false
+		}
+		return keyRefusal{key: key, why: "alias_colon", sp: ktkn.SI, src: ktkn.Src}, true
+	}
+	if ch, bad := ktkn.Use["aontu_bad"].(string); bad {
+		return keyRefusal{
+			key:     key,
+			why:     "bare_punct",
+			sp:      ktkn.SI + strings.Index(key, ch),
+			src:     ch,
+			details: map[string]string{"char": ch, "text": key},
+		}, true
+	}
+	return keyRefusal{}, false
+}
+
 // refuseAliasSegment refuses an ALIAS NAME USED AS A PATH SEGMENT --
 // `$.%foo` -- returning the nil to raise, or nil when the terms are
 // clean. The alias namespace and the path namespace are disjoint: an
@@ -1483,16 +1550,18 @@ func refuseAliasSegment(terms []any, r *jsonic.Rule) *NilVal {
 	return nv
 }
 
-// tsTextCheck reproduces the TS lexer's treatment of quote characters
-// inside unquoted text. The TS text matcher's ender set is space, line,
-// ender, fixed and comment starters — NOT string quote chars — so
-// `x:tail` + "`" lexes as the text "tail`". The Go port's text matcher
-// also stops at StringChars, which would then hand the stray quote to
-// the string matcher (unterminated-string error). When a quote appears
-// mid-text, emit the full TS-style text token here; otherwise defer to
-// the default matcher (which also handles value keywords). A quote at
-// the *start* of a value never reaches the text stage — the string
-// matcher runs first — so string literals are unaffected.
+// tsTextCheck is the TEXT stage of the bare-text rule, and the place
+// an alias name and the declaration operator are read (below). It runs
+// before the default text matcher at every text position, exactly as
+// the text check hook does in ts/src/lang.ts, arm for arm.
+//
+// THE BARE-TEXT RULE. A bare string holds letters, digits, `-` and `_`,
+// and nothing else. Every other punctuation character is either SYNTAX,
+// where the grammar gives it a meaning, or an ERROR where it does not
+// -- never silently part of a string. `x=y`, `6/2`, `50%` and `>10`
+// were all bare strings once, each a well-formed wrong document, and
+// each is refused now, naming the character (bare_punct). See
+// scanBareRun for the classification.
 func tsTextCheck(l *jsonic.Lex) *jsonic.LexCheckResult {
 	pnt := l.Cursor()
 	start := pnt.SI
@@ -1503,10 +1572,10 @@ func tsTextCheck(l *jsonic.Lex) *jsonic.LexCheckResult {
 
 	// THE DECLARATION OPERATOR. At an alias name, look past horizontal
 	// space for a lone `=` and remember where it is; the alias value def
-	// then claims the name exactly as before. `=` is special ONLY there:
-	// `foo = 1` stays the list it always was, and `a: x=y` the text
-	// `x=y`. Mirrors the alias arm of the text check hook in
-	// ts/src/lang.ts, decision for decision.
+	// then claims the name exactly as before. `=` is syntax ONLY there:
+	// anywhere else it is punctuation outside its syntax, and the scan
+	// below refuses it (`foo = 1`, `a: x=y`). Mirrors the alias arm of
+	// the text check hook in ts/src/lang.ts, decision for decision.
 	if '%' == src[start] {
 		if m := aliasRe.FindString(src[start:]); "" != m {
 			j := start + len(m)
@@ -1535,134 +1604,224 @@ func tsTextCheck(l *jsonic.Lex) *jsonic.LexCheckResult {
 		}
 	}
 
-	sI, sawQuote := scanTextExtent(l, start, false)
-
-	// No mid-text quote: the default text matcher produces the same
-	// token (and handles value keywords).
-	if !sawQuote || sI == start {
+	// THE `0d` LITERAL is the exact def's, which claims the run whole in
+	// matchText -- `.` and exponent sign included -- so it is neither
+	// carved nor refused here first. The `0d` arm's place in the TS hook:
+	// before the scan, and only where the literal grammar matches.
+	if '0' == src[start] && start+1 < len(src) &&
+		('d' == src[start+1] || 'D' == src[start+1]) &&
+		exactLiteralRe.MatchString(src[start:]) {
 		return nil
 	}
 
-	msrc := l.Src[start:sI]
-	tkn := l.Token("#TX", jsonic.TinTX, msrc, msrc)
-	pnt.SI += len(msrc)
-	pnt.CI += utf8.RuneCountInString(msrc)
-	return &jsonic.LexCheckResult{Done: true, Token: tkn}
-}
+	// THE BARE-TEXT RULE (scanBareRun). Last, so that a name, a
+	// declaration operator and an exact literal are read before a run is
+	// judged as text. The run is never empty: every ender is a token an
+	// earlier matcher claims, so the text stage only opens on a
+	// character the scan classifies as text or as bad.
+	run := scanBareRun(l, start, false)
+	msrc := src[start:run.end]
 
-// scanTextExtent scans forward from start using the TS lexer's text
-// ender set — space, line, ender, fixed tokens and comment starters,
-// but NOT quote chars — returning the extent end and whether a quote
-// char was passed through. With expo set, an exponent sign continues
-// the scan (`1e-7` — number-check extents only; plain text stops at
-// the fixed `-`).
-func scanTextExtent(l *jsonic.Lex, start int, expo bool) (int, bool) {
-	cfg := l.Config
-	src := l.Src
-	sI := start
-	sawQuote := false
-	for sI < len(src) {
-		ch, chSize := utf8.DecodeRuneInString(src[sI:])
-		if (cfg.SpaceLex && cfg.SpaceChars[ch]) ||
-			(cfg.LineLex && cfg.LineChars[ch]) ||
-			cfg.EnderChars[ch] {
-			break
-		}
-		rest := src[sI:]
-		fixed := false
-		for _, fs := range cfg.FixedSorted {
-			if strings.HasPrefix(rest, fs) {
-				fixed = true
-				break
-			}
-		}
-		if fixed {
-			// An exponent sign is part of a numeric token (`1e-7`), not
-			// a fixed operator token — the TS number pattern consumes
-			// it before the ender check.
-			if expo && (ch == '-' || ch == '+') && sI > start && sI+chSize < len(src) {
-				prev := src[sI-1]
-				next := src[sI+chSize]
-				if (prev == 'e' || prev == 'E') && next >= '0' && next <= '9' {
-					sI += chSize
-					continue
+	if run.bad >= 0 {
+		// BAD: the run is refused whole, sited at the character. As a
+		// VALUE the token's function builds the refusal at the parse,
+		// where the rule carries the position. As a KEY the token is read
+		// for its source alone, so the mark in Use is what the pair rule
+		// reads to write the refusal where the map is converted.
+		off := run.bad - start
+		ch := run.ch
+		tkn := l.Token("#VL", jsonic.TinVL,
+			jsonic.TokenValFunc(func(r *jsonic.Rule, _ *jsonic.Context) any {
+				nv := newNil("bare_punct")
+				if r.ON > 0 {
+					nv.sp = r.O0.SI + off
 				}
-			}
-			break
-		}
-		if cfg.CommentLex {
-			cmt := false
-			for _, cs := range cfg.CommentLine {
-				if strings.HasPrefix(rest, cs) {
-					cmt = true
-					break
-				}
-			}
-			if !cmt {
-				for _, cb := range cfg.CommentBlock {
-					if strings.HasPrefix(rest, cb[0]) {
-						cmt = true
-						break
-					}
-				}
-			}
-			if cmt {
-				break
-			}
-		}
-		if cfg.StringLex && cfg.StringChars[ch] {
-			sawQuote = true
-		}
-		sI += chSize
+				nv.setSrctext(ch)
+				nv.details = map[string]string{"char": ch, "text": msrc}
+				return nv
+			}), msrc)
+		tkn.Use = map[string]any{"aontu_bad": ch}
+		pnt.SI += len(msrc)
+		pnt.CI += utf8.RuneCountInString(msrc)
+		return &jsonic.LexCheckResult{Done: true, Token: tkn}
 	}
-	return sI, sawQuote
+
+	// CLEAN, with a `-` past its start (`team-payments`, `2026-09-05`):
+	// claimed here as one text token, because the default matcher's
+	// ender set would carve the run at the `-` (the negation prefix's
+	// fixed token). Any other clean run is the default matcher's, which
+	// also reads the value keywords and the `_` hole.
+	if strings.Contains(msrc, "-") {
+		tkn := l.Token("#TX", jsonic.TinTX, msrc, msrc)
+		pnt.SI += len(msrc)
+		pnt.CI += utf8.RuneCountInString(msrc)
+		return &jsonic.LexCheckResult{Done: true, Token: tkn}
+	}
+	return nil
 }
 
-// tsNumCheck suppresses the number matcher when the full TS-style text
-// extent at this position is not entirely numeric: the TS lexer only
-// lexes a number when the whole token is one, whereas the Go port's
-// matcher would take the numeric prefix ("100'sq'" must be the single
-// text token "100'sq'", not the number 100 followed by 'sq').
+// bareRun is what scanBareRun found: where the run ends, the byte
+// offset of its first BAD character (-1 when the run is clean) and that
+// character.
+type bareRun struct {
+	end int
+	bad int
+	ch  string
+}
+
+// scanBareRun classifies each character of the run at start three
+// ways, in this order: TEXT continues the run; an ENDER stops it;
+// anything else is BAD. The ender set is the lexer's own (textEnderAt),
+// so it cannot drift from the grammar. A bad run is still scanned to
+// its ender, so the refusal claims the whole spelling and the lexer
+// never reads the tail of it as syntax.
+//
+// `-` is text wherever the scan sees it. A run never STARTS on one:
+// `-` is the sign of a number and the negation prefix, a fixed token
+// the fixed matcher claims before either scanning stage can run, so
+// `a:-1` is the negation of 1 and `a:6-2` the string. The `+` of an
+// exponent (`1e+2`) is admitted only with expo set -- by the NUMBER
+// stage's scan, the one stage that can make a number of it. Twin of
+// scanBareRun in ts/src/lang.ts, decision for decision.
+func scanBareRun(l *jsonic.Lex, start int, expo bool) bareRun {
+	src := l.Src
+	i := start
+	bad := -1
+	ch := ""
+	for i < len(src) {
+		r, w := utf8.DecodeRuneInString(src[i:])
+		if bareTextChar(r) {
+			i += w
+			continue
+		}
+		if expo && '+' == r && start < i && i+1 < len(src) {
+			p, n := src[i-1], src[i+1]
+			if ('e' == p || 'E' == p) && '0' <= n && n <= '9' {
+				i++
+				continue
+			}
+		}
+		if textEnderAt(l, i, r) {
+			break
+		}
+		if -1 == bad {
+			bad = i
+			ch = string(r)
+		}
+		i += w
+	}
+	return bareRun{end: i, bad: bad, ch: ch}
+}
+
+// bareTextChar is the TEXT class: a letter, a digit, `_` and `-`.
+// Beyond ASCII a letter, a digit or a combining mark is text (`café`);
+// a dash, a symbol or a space of any other kind is not.
+func bareTextChar(r rune) bool {
+	if r < 128 {
+		return ('0' <= r && r <= '9') ||
+			('a' <= r && r <= 'z') ||
+			('A' <= r && r <= 'Z') ||
+			'_' == r ||
+			'-' == r
+	}
+	return unicode.IsLetter(r) || unicode.IsNumber(r) || unicode.IsMark(r)
+}
+
+// textEnderAt reports whether the lexer's own text ender is at pos: a
+// space or line char, an ender char, a fixed token or a comment starter
+// -- each read from the config, as the text matcher reads it. ch is the
+// rune at pos.
+func textEnderAt(l *jsonic.Lex, pos int, ch rune) bool {
+	cfg := l.Config
+	if (cfg.SpaceLex && cfg.SpaceChars[ch]) ||
+		(cfg.LineLex && cfg.LineChars[ch]) ||
+		cfg.EnderChars[ch] {
+		return true
+	}
+	rest := l.Src[pos:]
+	for _, fs := range cfg.FixedSorted {
+		if strings.HasPrefix(rest, fs) {
+			return true
+		}
+	}
+	if cfg.CommentLex {
+		for _, cs := range cfg.CommentLine {
+			if strings.HasPrefix(rest, cs) {
+				return true
+			}
+		}
+		for _, cb := range cfg.CommentBlock {
+			if strings.HasPrefix(rest, cb[0]) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// tsNumCheck is the NUMBER stage of the bare-text rule. The matcher
+// runs before the text matcher and reads a number up to the next ender
+// -- and `-` is an ender, being the negation prefix's fixed token, so it
+// would take the `2026` of `2026-09-05` and leave `-09-05` to the
+// grammar; and it takes a numeric PREFIX where the TS matcher requires
+// the whole run (`100'sq'`). The hook scans the whole run first and
+// declines for the matcher wherever the run is not its to lex: a run
+// with a bad character (the text stage refuses it), a run that is not
+// entirely a number (`2026-09-05`, `6-2` are text). Twin of the number
+// check hook in ts/src/lang.ts.
 func tsNumCheck(l *jsonic.Lex) *jsonic.LexCheckResult {
 	pnt := l.Cursor()
 	start := pnt.SI
 	if start >= pnt.Len {
 		return nil
 	}
-	sI, _ := scanTextExtent(l, start, true)
-	if sI == start {
-		return nil
+	// A run no number can open declines for the matcher in one byte
+	// read. A DIGIT opens a number here and nothing else: the sign and
+	// the dot open the matcher's own grammar, but they are fixed tokens
+	// (the prefix operators and member access), claimed before this
+	// hook can run.
+	c := l.Src[start]
+	if !('0' <= c && c <= '9') {
+		return notANumber
 	}
-	if fullNumeric(l.Src[start:sI]) {
-		// A base-prefixed integer beyond int64 (0xffffffffffffffff)
-		// overflows the standard number matcher into a text fallback,
-		// but is a finite float in JS — construct the numeric token
-		// here with the JS value (big-int digits, float64 precision).
-		src := l.Src[start:sI]
-		// This branch builds the token itself and so never reaches the
-		// Number.Exclude hook — apply the separator rule here too, or a
-		// big base-prefixed literal would keep accepting `0x_...` after
-		// the small ones stopped (and diverge from TS, which excludes
-		// every magnitude in one place).
-		if numberExcluded(src) {
-			return &jsonic.LexCheckResult{Done: true, Token: nil}
-		}
-		s := strings.ReplaceAll(src, "_", "")
-		if basedNumeric(s) {
-			if _, ierr := strconv.ParseInt(s, 0, 64); ierr != nil {
-				if f, ok := basedFloat(s); ok {
-					tkn := l.Token("#NR", jsonic.TinNR, f, src)
-					pnt.SI = sI
-					pnt.CI += sI - start
-					return &jsonic.LexCheckResult{Done: true, Token: tkn}
-				}
+	run := scanBareRun(l, start, true)
+	if run.bad >= 0 {
+		return notANumber
+	}
+	src := l.Src[start:run.end]
+	if !fullNumeric(src) {
+		return notANumber
+	}
+	// A base-prefixed integer beyond int64 (0xffffffffffffffff)
+	// overflows the standard number matcher into a text fallback, but
+	// is a finite float in JS — construct the numeric token here with
+	// the JS value (big-int digits, float64 precision).
+	//
+	// This branch builds the token itself and so never reaches the
+	// Number.Exclude hook — apply the separator rule here too, or a big
+	// base-prefixed literal would keep accepting `0x_...` after the
+	// small ones stopped (and diverge from TS, which excludes every
+	// magnitude in one place).
+	if numberExcluded(src) {
+		return notANumber
+	}
+	s := strings.ReplaceAll(src, "_", "")
+	if basedNumeric(s) {
+		if _, ierr := strconv.ParseInt(s, 0, 64); ierr != nil {
+			if f, ok := basedFloat(s); ok {
+				tkn := l.Token("#NR", jsonic.TinNR, f, src)
+				pnt.SI = run.end
+				pnt.CI += run.end - start
+				return &jsonic.LexCheckResult{Done: true, Token: tkn}
 			}
 		}
-		return nil
 	}
-	// Not a complete number: let the text matcher take the extent.
-	return &jsonic.LexCheckResult{Done: true, Token: nil}
+	return nil
 }
+
+// notANumber is the number hook's result where the run is not the
+// matcher's to lex: the text stage reads it.
+var notANumber = &jsonic.LexCheckResult{Done: true}
 
 // sepInvalid reports whether a matched number source breaks the digit
 // separator rule: a separator is legal only as a SINGLE separator
@@ -1756,10 +1915,9 @@ func basedFloat(s string) (float64, bool) {
 // and base-prefixed integers beyond int64 are still numeric (JS
 // Number('0xffffffffffffffff') is a finite float).
 func fullNumeric(src string) bool {
+	// src opens on a digit (tsNumCheck admits nothing else), so it is
+	// never empty once the separators are gone.
 	s := strings.ReplaceAll(src, "_", "")
-	if s == "" {
-		return false
-	}
 	if basedNumeric(s) {
 		return true
 	}
@@ -2324,15 +2482,17 @@ func asValDepth(node any, depth int) Val {
 			en.sp = mv.sp
 			return en
 		}
-		// A declaration spelled with a colon (the pair rule records them)
-		// becomes the refusal, in place of whatever followed the colon
-		// and sited at the NAME rather than at the map, so the frame
-		// points at the spelling to change. Twin of the map rule's pass
-		// over aontu_alias_colon in ts/src/lang.ts.
-		colon := map[string]int{}
-		if ac, ok := n[aliasColonKey].([]aliasColonDecl); ok {
-			for _, d := range ac {
-				colon[d.key] = d.sp
+		// A KEY REFUSAL (the pair rule records them: a declaration
+		// spelled with a colon, a key the bare-text rule refuses) becomes
+		// the refusal, in place of whatever followed the colon and sited
+		// at the KEY rather than at the map -- at the offending character
+		// of it, where there is one -- so the frame points at the
+		// spelling to change. Twin of the map rule's pass over
+		// aontu_key_refusals in ts/src/lang.ts.
+		refused := map[string]keyRefusal{}
+		if krs, ok := n[keyRefusalsKey].([]keyRefusal); ok {
+			for _, kr := range krs {
+				refused[kr.key] = kr
 			}
 		}
 		ord, _ := n[orderKey].([]string)
@@ -2343,9 +2503,13 @@ func asValDepth(node any, depth int) Val {
 			if !ok {
 				continue
 			}
-			if sp, bad := colon[k]; bad {
-				en := newNil("alias_colon")
-				en.sp = sp
+			if kr, bad := refused[k]; bad {
+				en := newNil(kr.why)
+				en.sp = kr.sp
+				en.setSrctext(kr.src)
+				if nil != kr.details {
+					en.details = kr.details
+				}
 				mv.set(k, en)
 				continue
 			}

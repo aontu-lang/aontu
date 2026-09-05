@@ -13,8 +13,10 @@ measured and sound and lost anyway, to the reason a declaration should
 not look like a field: an alias is a note to the reader of the source,
 not a key of the document, and a reader should tell the two apart
 without knowing the sigil's rules. So `%foo = 1` declares, `=` is an
-operator only there (§10's break is exactly as narrow as it measured:
-`foo = 1` is still the list, `a: x=y` still the text), and the colon
+operator only there (§10's break is exactly as narrow as it measured,
+and narrower still since the bare-text rule settled the same day:
+`foo = 1` and `a: x=y` are refused as punctuation outside its syntax,
+`bare_punct`, rather than read as a list and a string), and the colon
 form is **refused** with `alias_colon` rather than read as a key. The
 examples below are written in the settled form; §3, §10 and the X-1
 row keep the colon where they record what was measured and argued.

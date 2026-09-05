@@ -173,6 +173,8 @@ const hints: Record<string, string> = {
 
   alias_colon: 'An alias is declared with `=`: write `%name = value`. Until 0.57.0\nthe declaration was spelled with a colon, `%name: value`, and that\nform is refused rather than read as an ordinary key -- a document\nwritten for the old spelling fails here, at the declaration, instead\nof gaining a key named `%name` and a use that resolves to nothing.\n \nExamples:\n  %u8 = integer & min(0)  -> {..}  # Declares %u8, which a: %u8 uses;\n  %u8: integer            -> nil   # The form before 0.58.0, refused;\n  "%u8": 1                -> {..}  # A quoted key is an ordinary key.',
 
+  bare_punct: 'A bare string holds letters, digits, `-` and `_`, and nothing else.\nThis one holds `{char}`, in `{text}`. Every other punctuation\ncharacter is either syntax or an error, never silently part of a\nstring: a value that needs one is written quoted, and a `>` or `<`\nthat was meant as a bound is written as min(x), max(x), above(x) or\nbelow(x).\n \nExamples:\n  a: team-payments  -> "team-payments"  # `-` and `_` are text;\n  a: 2026-09-05     -> "2026-09-05"     # ... digits included;\n  a: x=y            -> nil              # `=` is not;\n  a: "x=y"          -> "x=y"            # ... so quote it;\n  a: >10            -> nil              # Not an operator: write above(10).',
+
 
 
 
@@ -630,6 +632,7 @@ const codeClasses: Record<string, string> = {
   alias_not_toplevel: 'parse',
   alias_in_path: 'parse',
   alias_colon: 'parse',
+  bare_punct: 'parse',
   not_number: 'parse',
   negative: 'parse',
   decimal_syntax: 'parse',

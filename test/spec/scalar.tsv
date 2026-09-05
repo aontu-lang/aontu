@@ -69,14 +69,12 @@ surrogate-escaped-unifies-literal	gen	x:"\\u{d83d}\\u{de00}"\nx:"😀"	{"x":"�
 surrogate-map-key	gen	"\\u{d83d}\\u{de00}":1	{"😀":1}
 surrogate-list-element	gen	x:["\\u{d83d}\\u{de00}"]	{"x":["😀"]}
 surrogate-nested-map-leaf	gen	a:{b:"\\u{d83d}\\u{de00}"}	{"a":{"b":"😀"}}
-# Bare/unquoted text processes no escapes, so the backslash stays
-# literal. This agreed across ports throughout and must keep agreeing --
-# a fix inside the string matcher that reaches here has overreached.
+# Bare/unquoted text processes no escapes -- and, since 0.58.0, cannot
+# hold a backslash at all: the bare-text rule refuses it (op-chars.tsv),
+# so the lone-surrogate question never arises outside a string. This
+# agreed across ports throughout and must keep agreeing -- a fix inside
+# the string matcher that reaches here has overreached.
 #
-# Note the asymmetry in the escaping: SRC passes through the runner's
-# unescape only, so `\\ud800` is the six characters \ud800. EXPECT passes
-# through unescape AND THEN JSON.parse, so it needs `\\\\ud800` -- four
-# backslashes -- to end at one literal backslash. Written with two, the
-# expect becomes a JSON \u escape and the row asserts a LONE SURROGATE
-# instead of the literal text, which is the opposite of the claim.
-surrogate-bare-text-untouched	gen	x:a\\ud800	{"x":"a\\\\ud800"}
+# SRC passes through the runner's unescape only, so `\\ud800` is the six
+# characters \ud800.
+surrogate-bare-text-refused	errc	x:a\\ud800	bare_punct

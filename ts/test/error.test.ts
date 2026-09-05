@@ -414,7 +414,7 @@ describe('error', function() {
   })
 
 
-  // A raw parse value reaching a func's peg (issue #49). `pref(1-3)`
+  // A raw parse value reaching a func's peg (issue #49). `pref(1 -3)`
   // hands the handler the plain numbers 1 and -3 rather than Vals, and a
   // func's peg is unified element by element, so a raw one reached
   // `arg.unify(...)` and threw -- which the unifier's catch-all then
@@ -428,7 +428,7 @@ describe('error', function() {
   it('raw-func-arg-is-not-internal', () => {
     let err: any = undefined
     try {
-      new Aontu().generate('a:pref(1-3)')
+      new Aontu().generate('a:pref(1 -3)')
     }
     catch (e: any) {
       err = e
@@ -437,14 +437,23 @@ describe('error', function() {
       throw new Error('expected error')
     }
     // Refused as a wrong argument COUNT once arity is checked (#51):
-    // `1-3` is two arguments, and pref takes one. Either way the point
-    // stands -- an ordinary refusal, naming the mistake, rather than an
-    // `internal` verdict or a TypeError escaping the unifier.
+    // `1 -3` is two arguments, and pref takes one (written with the
+    // space: `1-3` is one bare string since the bare-text rule). Either
+    // way the point stands -- an ordinary refusal, naming the mistake,
+    // rather than an `internal` verdict or a TypeError escaping the
+    // unifier.
     expect(err.message).match(/aontu\/func_arity/)
 
-    // The two shapes that threw a TypeError past the unifier resolve.
-    const out: any = new Aontu().generate('x:(([]%))')
-    expect(JSON.stringify(out.x)).equal('[[],"%"]')
+    // The shape that threw a TypeError past the unifier resolves -- to
+    // the bare-text refusal of its `%`, an ordinary verdict.
+    let err2: any = undefined
+    try {
+      new Aontu().generate('x:(([]%))')
+    }
+    catch (e: any) {
+      err2 = e
+    }
+    expect(err2?.message).match(/aontu\/bare_punct/)
   })
 
 

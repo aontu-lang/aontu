@@ -99,6 +99,7 @@ pref_implicit_bag	errcode	parse	0.53.0
 alias_not_toplevel	errcode	parse	0.53.0
 alias_in_path	errcode	parse	0.53.0
 alias_colon	errcode	parse	0.58.0
+bare_punct	errcode	parse	0.58.0
 not_number	errcode	parse	0.51.0
 negative	errcode	parse	0.51.0
 decimal_syntax	errcode	parse	0.51.0

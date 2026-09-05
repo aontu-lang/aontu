@@ -7,6 +7,36 @@ which implementation each change affects.
 
 ## Unreleased
 
+### A bare string is letters, digits, `-` and `_`, and nothing else
+
+Every other punctuation character is either syntax, where the grammar
+gives it a meaning, or an error where it does not — never silently
+part of a string. `a: x=y`, `a: 6/2`, `b: 50%`, `a: >10`, `a: x"y`,
+`foo = 1` and the rest were all bare strings, each a well-formed wrong
+document; each is now refused with the new code `bare_punct`, which
+names the character and points at it, and whose hint says to quote
+the value or, for a `<` or `>` that was meant as a bound, to write
+`min`, `max`, `above` or `below`. Keys are held to the same rule. The
+`>`/`<` parse-error hint stays for the case that is still a syntax
+error, a `>` between two values (`a: number > 0`).
+
+`-` and `_` are text. `owner: team-payments`, `on: 2026-09-05` and an
+`a-b:` key were errors — the `-` was carved off as the negation
+prefix — and are bare strings now; `-` at the start of a run is still
+the sign of a number, `1e-2` is still a number, and `+` is still the
+sum. Two rows the old rule pinned move with it: `a:6-2` is the string
+`"6-2"` rather than an error, and the three rows that pinned a quote
+character inside a bare string pin its refusal instead.
+`test/spec/op-chars.tsv` is rewritten around the rule, one row per
+character, and the rows elsewhere that pinned punctuation in bare text
+move with it: a stray `%` (alias.tsv), a marker look-alike such as
+`<<<<<<` (merge-conflict.tsv, refused as punctuation rather than read
+as a document), `x//y` (edge.tsv), a bare backslash (scalar.tsv) and
+`0d-5` (number-tower.tsv, the string `"0d-5"` now). A pair in list
+position is held to the same key rules as a pair in a map: `[x=y: 1]`
+and `[%a: 1]` are refused rather than generated, and `[%a = 1]` is a
+declaration that is not at the top level. Both implementations.
+
 ### An alias is declared with `=`
 
 `%name = value` declares an alias; `%name: value` no longer does. The
@@ -18,8 +48,9 @@ anyway, to the reason a declaration should not look like a field: an
 alias is a note to the reader of the source, not a key of the document,
 and a reader — human or agent — should be able to tell the two apart
 without knowing the sigil's rules. So the operator is `=`, and it is an
-operator only there: `foo = 1` is the list it always was, `a: x=y` is
-the text `x=y`, and `%name == 1` is not a declaration.
+operator only there: `foo = 1` and `a: x=y` are not declarations (nor
+values—a `=` outside a declaration is refused by the bare-string rule
+above), and `%name == 1` is not a declaration either.
 
 The colon form is **refused**, with the new code `alias_colon` and a
 hint that says what to write. Not read as an ordinary key named

@@ -229,11 +229,114 @@ const ALIAS_RE = /^%[A-Za-z_][A-Za-z0-9_]*/
 // THE DECLARATION OPERATOR. `%name = value` declares; the `=` is the
 // pair's separator, lexed as the colon token so the declaration then
 // parses as a pair whose key is the alias name (ALIASES.0.md X-1, as
-// settled 2026-09-05). `=` is special ONLY there: `foo = 1` stays the
-// list it always was, and `a: x=y` stays the text `x=y`.
+// settled 2026-09-05). `=` is syntax ONLY there: anywhere else it is
+// punctuation outside its syntax, and the bare-text scan below refuses
+// it (`foo = 1`, `a: x=y`).
 const CC_EQ = 61
 const CC_SP = 32
 const CC_TAB = 9
+
+// THE BARE-TEXT RULE. A bare string holds letters, digits, `-` and `_`,
+// and nothing else. Every other punctuation character is either SYNTAX,
+// where the grammar gives it a meaning, or an ERROR where it does not
+// -- never silently part of a string. `x=y`, `6/2`, `50%` and `>10`
+// were all bare strings once, each a well-formed wrong document, and
+// each is refused now, naming the character (bare_punct).
+//
+// scanBareRun classifies each character of a run three ways, in this
+// order: TEXT continues the run; an ENDER stops it; anything else is
+// BAD. The ender set is the lexer's own -- space, line, fixed tokens,
+// comment starters -- read from the config its text matcher was built
+// from, so it cannot drift from the grammar. A bad run is still scanned
+// to its ender, so the refusal claims the whole spelling and the lexer
+// never reads the tail of it as syntax.
+//
+// `-` is text wherever the scan sees it. A run never STARTS on one:
+// `-` is the sign of a number and the negation prefix, a fixed token
+// the fixed matcher claims before either scanning stage can run, so
+// `a:-1` is the negation of 1 and `a:6-2` the string. The `+` of an
+// exponent (`1e+2`) is admitted only by the NUMBER stage's scan, the
+// one stage that can make a number of it. Mirrors scanBareRun in
+// go/lang.go, decision for decision.
+const CC_9 = 57
+const CC_A = 65
+const CC_Z = 90
+const CC_a = 97
+const CC_z = 122
+const CC_E = 69
+const CC_e = 101
+const CC_US = 95
+const CC_MINUS = 45
+const CC_PLUS = 43
+
+// Beyond ASCII a letter, a digit or a combining mark is text (`café`);
+// a dash, a symbol or a space of any other kind is not.
+const UNICODE_TEXT_RE = /^[\p{L}\p{N}\p{M}]$/u
+
+function textChar(c: number): boolean {
+  return (CC_0 <= c && c <= CC_9) ||
+    (CC_a <= c && c <= CC_z) ||
+    (CC_A <= c && c <= CC_Z) ||
+    CC_US === c ||
+    CC_MINUS === c ||
+    (127 < c && UNICODE_TEXT_RE.test(String.fromCodePoint(c)))
+}
+
+// The lexer's text ender, at i. The regexp is the text matcher's own
+// ender alternation (cfg.rePart.ender) made sticky, built once per
+// config and cached on it.
+function enderAt(cfg: any, src: string, i: number): boolean {
+  let re: RegExp = cfg.aontu_ender_re
+  if (null == re) {
+    re = cfg.aontu_ender_re = new RegExp(cfg.rePart.ender.join(''), 'y')
+  }
+  re.lastIndex = i
+  return re.test(src)
+}
+
+// Where the run ends, the index of its first BAD character (-1 when the
+// run is clean) and that character.
+type BareRun = { end: number, bad: number, ch: string }
+
+function scanBareRun(cfg: any, src: string, start: number, expo: boolean): BareRun {
+  let i = start
+  let bad = -1
+  let ch = ''
+  while (i < src.length) {
+    const c = src.codePointAt(i) as number
+    const w = 0xffff < c ? 2 : 1
+    if (textChar(c)) {
+      i += w
+      continue
+    }
+    if (expo && CC_PLUS === c && start < i) {
+      const p = src.charCodeAt(i - 1)
+      const n = src.charCodeAt(i + 1)
+      if ((CC_e === p || CC_E === p) && CC_0 <= n && n <= CC_9) {
+        i += 1
+        continue
+      }
+    }
+    if (enderAt(cfg, src, i)) {
+      break
+    }
+    if (-1 === bad) {
+      bad = i
+      ch = String.fromCodePoint(c)
+    }
+    i += w
+  }
+  return { end: i, bad, ch }
+}
+
+// A run the number matcher may lex: its own number grammar, less the
+// fraction -- `.` is a fixed token, so a run never holds one, and the
+// matcher reads it past the run by itself (`1.5` is the run `1`).
+const NUMBER_RUN_RE =
+  /^[-+]?(?:0(?:[xX][0-9a-fA-F_]+|[oO][0-7_]+|[bB][01_]+)|[0-9][0-9_]*(?:[eE][-+]?[0-9][0-9_]*)?)$/
+
+// The number matcher's hook result where the run is not its to lex.
+const NOT_A_NUMBER = { done: true, token: undefined }
 
 let AontuJsonic: Plugin = function AontuLang(jsonic: Jsonic) {
 
@@ -315,6 +418,35 @@ let AontuJsonic: Plugin = function AontuLang(jsonic: Jsonic) {
       // matched case-insensitively so the rule does not depend on which
       // prefix spellings the engine accepts.
       exclude: /__|^[-+]?0[xXoObB]_|_$/,
+
+      // THE NUMBER STAGE OF THE BARE-TEXT RULE. The matcher runs before
+      // the text matcher and reads a number up to the next ender -- and
+      // `-` is an ender, being the negation prefix's fixed token, so it
+      // would take the `2026` of `2026-09-05` and leave `-09-05` to the
+      // grammar. The hook scans the whole run first and declines for
+      // the matcher wherever the run is not its to lex: a run with a
+      // bad character (the text stage refuses it), a run that is not a
+      // number at all (`2026-09-05`, `6-2` are text). Twin of tsNumCheck
+      // in go/lang.go.
+      check: (lex: any) => {
+        const pnt = lex.pnt
+        const src = lex.src
+        // The hook makes the matcher a candidate at every position, so
+        // the common case -- a run no number can open -- declines for it
+        // in one char read. A DIGIT opens a number here and nothing
+        // else: the sign and the dot open the matcher's own grammar, but
+        // they are fixed tokens (the prefix operators and member
+        // access), claimed before this hook can run.
+        const c = src.charCodeAt(pnt.sI)
+        if (!(CC_0 <= c && c <= CC_9)) {
+          return NOT_A_NUMBER
+        }
+        const run = scanBareRun(lex.cfg, src, pnt.sI, true)
+        if (-1 !== run.bad || !NUMBER_RUN_RE.test(src.slice(pnt.sI, run.end))) {
+          return NOT_A_NUMBER
+        }
+        return undefined
+      },
     },
   })
 
@@ -369,11 +501,11 @@ let AontuJsonic: Plugin = function AontuLang(jsonic: Jsonic) {
         // the token's source text (`0d1: 5` yields the key `0d1`), so a
         // declaration reads as the key `%uint8`, while a value position
         // calls the function below and gets the reference.
-        if (CC_PCT === src.charCodeAt(pnt.sI)) {
-          const ares = ALIAS_RE.exec(lex.refwd())
-          if (null == ares) {
-            return undefined
-          }
+        // A `%` that opens no name (`%`, `%1`, `50%`) falls through to
+        // the bare-text scan below, which refuses it.
+        const ares = CC_PCT === src.charCodeAt(pnt.sI) ?
+          ALIAS_RE.exec(lex.refwd()) : null
+        if (null != ares) {
           const asrc = ares[0]
 
           // A lone `=` after the name, across horizontal space only, is
@@ -421,61 +553,150 @@ let AontuJsonic: Plugin = function AontuLang(jsonic: Jsonic) {
           return { done: true, token: eqtkn }
         }
 
-        if (CC_0 !== src.charCodeAt(pnt.sI)) {
-          return undefined
-        }
-        const c1 = src.charCodeAt(pnt.sI + 1)
-        if (CC_d !== c1 && CC_D !== c1) {
-          return undefined
+        if (CC_0 === src.charCodeAt(pnt.sI)) {
+          const c1 = src.charCodeAt(pnt.sI + 1)
+          if (CC_d === c1 || CC_D === c1) {
+            // BIG_LITERAL_RE is `^`-anchored and read against the
+            // forward source (memoized per position by refwd), which is
+            // what lets it claim the `.` of `0d1.5`. A `0d` run it does
+            // not match falls through to the bare-text scan below.
+            const res = BIG_LITERAL_RE.exec(lex.refwd())
+            if (null != res) {
+              const msrc = res[0]
+              // The token value is a FUNCTION so Val construction
+              // happens at parse time, where the rule and context needed
+              // for the site exist (jsonic calls a #VL token's function
+              // value with them). A `0d` literal never spans a line, so
+              // only the source and column positions advance.
+              const tkn = lex.token(
+                '#VL',
+                (r: Rule, ctx: JsonicContext) => addsite(bigVal(res), r, ctx),
+                msrc,
+                pnt)
+              pnt.sI += msrc.length
+              pnt.cI += msrc.length
+              return { done: true, token: tkn }
+            }
+          }
         }
 
-        // BIG_LITERAL_RE is `^`-anchored and read against the forward
-        // source (memoized per position by refwd), which is what lets
-        // it claim the `.` of `0d1.5`.
-        const res = BIG_LITERAL_RE.exec(lex.refwd())
-        if (null == res) {
-          return undefined
+        // THE BARE-TEXT RULE (scanBareRun). Last, so that a name, a
+        // declaration operator and an exact literal are read before a
+        // run is judged as text.
+        // The run is never empty: every ender is a token an earlier
+        // matcher claims, so the text stage only opens on a character
+        // the scan classifies as text or as bad.
+        const run = scanBareRun(lex.cfg, src, pnt.sI, false)
+        const msrc = src.slice(pnt.sI, run.end)
+
+        if (-1 !== run.bad) {
+          // BAD: the run is refused whole, sited at the character (the
+          // mark in `use` is what tokenSite reads). As a VALUE the
+          // token's function builds the refusal at the parse, where the
+          // rule carries the position. As a KEY the token is read for
+          // its source alone, so the mark is what the pair and elem
+          // rules read to write the refusal where the map is built.
+          const ch = run.ch
+          const tkn = lex.token(
+            '#VL',
+            (r: Rule, ctx: JsonicContext) => {
+              const nv: any = addsite(new NilVal({ why: 'bare_punct' }), r, ctx)
+              nv.details = { char: ch, text: msrc }
+              return nv
+            },
+            msrc,
+            pnt,
+            { aontu_bad: ch })
+          pnt.sI += msrc.length
+          pnt.cI += msrc.length
+          return { done: true, token: tkn }
         }
 
-        const msrc = res[0]
-        // The token value is a FUNCTION so Val construction happens at
-        // parse time, where the rule and context needed for the site
-        // exist (jsonic calls a #VL token's function value with them).
-        // A `0d` literal never spans a line, so only the source and
-        // column positions advance.
-        const tkn = lex.token(
-          '#VL',
-          (r: Rule, ctx: JsonicContext) => addsite(bigVal(res), r, ctx),
-          msrc,
-          pnt)
-        pnt.sI += msrc.length
-        pnt.cI += msrc.length
-        return { done: true, token: tkn }
+        // CLEAN, with a `-` past its start (`team-payments`,
+        // `2026-09-05`): claimed here as one text token, because the
+        // default matcher's ender set would carve the run at the `-`.
+        // Any other clean run is the default matcher's, which also reads
+        // the value keywords and the `_` hole.
+        if (-1 !== msrc.indexOf('-')) {
+          const tkn = lex.token('#TX', msrc, msrc, pnt)
+          pnt.sI += msrc.length
+          pnt.cI += msrc.length
+          return { done: true, token: tkn }
+        }
+
+        return undefined
       },
     },
   })
 
   // TODO: refactor Val constructor
   // let addsite = (v: Val, p: string[]) => (v.path = [...(p || [])], v)
-  let addsite = (v: Val, r: Rule, ctx: JsonicContext) => {
+  // WHERE A TOKEN SITES A VALUE: the token's own position and text --
+  // except for a token the bare-text rule marked (`aontu_bad`), which
+  // sites at the offending CHARACTER. Its column is the character's
+  // first occurrence in the run (every character before it is text,
+  // and it is not), and its text is the character alone. Read here and
+  // nowhere else, so a value sited from such a token lands on the
+  // character however many times the parse re-sites it.
+  //
+  // A TOKEN WITH NO TEXT IS NO SPAN, in both ports, and the extent is
+  // DERIVED from the text rather than read from the token's own `len`
+  // — so the Go twin, whose token has no len field, computes the
+  // identical number with utf16Len and nothing has to be kept in step.
+  type TokenSite = { row: number, col: number, src: string, len: number }
+  const NO_SITE: TokenSite = { row: -1, col: -1, src: '', len: -1 }
+  const tokenSite = (tkn: any): TokenSite => {
+    const src: string = tkn.src
+    const bad = tkn.use?.aontu_bad
+    if (null != bad) {
+      const ch = '' + bad
+      return { row: tkn.rI, col: tkn.cI + src.indexOf(ch), src: ch, len: ch.length }
+    }
+    return { row: tkn.rI, col: tkn.cI, src, len: '' === src ? -1 : src.length }
+  }
+  const siteAt = (v: Val, ts: TokenSite): Val => {
+    v.site.row = ts.row
+    v.site.col = ts.col
+    v.site.src = ts.src
+    v.site.len = ts.len
+    return v
+  }
 
-    v.site.row = null == r.o0 ? -1 : r.o0.rI
-    v.site.col = null == r.o0 ? -1 : r.o0.cI
-    v.site.url = ctx.meta.multisource ? ctx.meta.multisource.path : ''
-    // The source text, from the SAME token the row and column above
+  let addsite = (v: Val, r: Rule, ctx: JsonicContext) => {
+    // The source text comes from the SAME token the row and column
     // come from. jsonic has carried it all along; not reading it is
     // what left a site uneditable (ts/src/site.ts).
-    //
-    // A TOKEN WITH NO TEXT IS NO SPAN, in both ports, and the extent is
-    // DERIVED from the text rather than read from the token's own `len`
-    // — so the Go twin, whose token has no len field, computes the
-    // identical number with utf16Len and nothing has to be kept in step.
-    v.site.src = null == r.o0 ? '' : r.o0.src
-    v.site.len = '' === v.site.src ? -1 : v.site.src.length
+    siteAt(v, null == r.o0 ? NO_SITE : tokenSite(r.o0))
+    v.site.url = ctx.meta.multisource ? ctx.meta.multisource.path : ''
     // A keyed rule always carries a path array; a keyless one has none.
     v.path = r.k ? [...r.k.path] : []
 
     return v
+  }
+
+  // THE KEY REFUSALS a pair may carry, decided from its key TOKEN --
+  // never from the key text alone, since a quoted `"%a"` or `"x=y"` is
+  // an ordinary key: a declaration spelled with a colon (alias_colon),
+  // and a key the bare-text rule refuses (bare_punct). Undefined for an
+  // ordinary key, and for a declaration (`%a = 1`), which is a binding
+  // (isAliasDecl), not a refusal. Asked FIRST by the pair rule and by
+  // the elem rule, before the declaration is, so a pair in list
+  // position is held to the map's rules.
+  const isAliasDecl = (ktkn: any, sep: any): boolean =>
+    null != ktkn && VL === ktkn.tin && ALIAS_RE.test('' + ktkn.src) &&
+    true === sep?.use?.aontu_eq
+  const keyRefusalOf = (ktkn: any, sep: any):
+    { why: string, details?: Record<string, any> } | undefined => {
+    if (null == ktkn || VL !== ktkn.tin) {
+      return undefined
+    }
+    const kname = '' + ktkn.src
+    if (ALIAS_RE.test(kname)) {
+      return isAliasDecl(ktkn, sep) ? undefined : { why: 'alias_colon' }
+    }
+    const bad = ktkn.use?.aontu_bad
+    return null == bad ? undefined :
+      { why: 'bare_punct', details: { char: '' + bad, text: kname } }
   }
 
 
@@ -1166,17 +1387,8 @@ help isolate the syntax error.`,
         }
 
         if (null != valnode && 'object' === typeof valnode && valnode.site) {
-          let st = r.o0
-          valnode.site.row = st.rI
-          valnode.site.col = st.cI
+          siteAt(valnode, tokenSite(r.o0))
           valnode.site.url = ctx.meta.multisource && ctx.meta.multisource.path
-          // No `?? ''` and no empty-text arm here: this branch runs only
-          // for a rule that HAS an open token, and a token that opens a
-          // value always carries text — the coverage gate refuses both
-          // guards as dead. The unset case is the one above, where r.o0
-          // itself can be absent.
-          valnode.site.src = st.src
-          valnode.site.len = st.src.length
         }
         // else { ERROR? }
 
@@ -1260,16 +1472,18 @@ help isolate the syntax error.`,
           return undefined
         }
 
-        // A declaration spelled with a colon (the pair rule records
-        // them) becomes the refusal, in place of whatever followed the
-        // colon and sited at the NAME rather than at the map, so the
-        // frame points at the spelling to change.
-        for (const { key, tkn } of (r.u.aontu_alias_colon ?? []) as any[]) {
-          const en: any = addsite(new NilVal({ why: 'alias_colon' }), r, ctx)
-          en.site.row = tkn.rI
-          en.site.col = tkn.cI
-          en.site.src = '' + tkn.src
-          en.site.len = en.site.src.length
+        // A KEY REFUSAL (the pair rule records them: a declaration
+        // spelled with a colon, a key the bare-text rule refuses) becomes
+        // the refusal, in place of whatever followed the colon and sited
+        // at the KEY rather than at the map -- at the offending character
+        // of it, where there is one -- so the frame points at the
+        // spelling to change.
+        for (const { key, tkn, why, details } of
+          (r.u.aontu_key_refusals ?? []) as any[]) {
+          const en: any = siteAt(addsite(new NilVal({ why }), r, ctx), tokenSite(tkn))
+          if (null != details) {
+            en.details = details
+          }
           en.path = [...(r.k?.path ?? []), key]
           mo[key] = en
         }
@@ -1454,32 +1668,29 @@ help isolate the syntax error.`,
         // Being a property of the map is also what carries it through a
         // meet, the way optional keys are carried.
         const ktkn: any = rule.o0
-        if (null != ktkn && VL === ktkn.tin && ALIAS_RE.test('' + ktkn.src)) {
-          const holder: any = rule.parent
-          const aname = '' + ktkn.src
-          const sep: any = rule.o1
-
-          if (true === sep?.use?.aontu_eq) {
-            // Always recorded here; whether the map is ALLOWED to carry
-            // declarations is decided on the VALUE (MapVal.unify), not at
-            // the parse. The parse cannot see it: an INCLUDED file's
-            // declarations are at the root of their own text, and only
-            // once the loaded map is placed does it become apparent that
-            // root is not the document's.
-            holder.u.aontu_alias_keys = (holder.u.aontu_alias_keys || [])
-            holder.u.aontu_alias_keys.push(aname)
-          }
-          else {
-            // DECLARED WITH A COLON: the spelling before 0.58.0. Refused
-            // rather than read as the ordinary key `%foo` the text would
-            // otherwise become -- a document written for the old form
-            // would then generate a "%foo" field and every `%foo` use
-            // would resolve to nothing, and neither says why. The refusal
-            // is written where the map is built, sited at the name, and
-            // nothing is recorded as an alias.
-            holder.u.aontu_alias_colon = (holder.u.aontu_alias_colon || [])
-            holder.u.aontu_alias_colon.push({ key: aname, tkn: ktkn })
-          }
+        const holder: any = rule.parent
+        const kr = keyRefusalOf(ktkn, rule.o1)
+        if (null != kr) {
+          // A KEY REFUSAL (keyRefusalOf) is written where the map is
+          // built, in the value's place and sited at the key, so the
+          // frame points at the spelling to change. A declaration
+          // spelled with a colon is refused rather than read as the
+          // ordinary key `%foo` the text would otherwise become -- a
+          // document written for the old form would then generate a
+          // "%foo" field and every `%foo` use would resolve to nothing,
+          // and neither says why.
+          holder.u.aontu_key_refusals = (holder.u.aontu_key_refusals || [])
+          holder.u.aontu_key_refusals.push({ key: '' + ktkn.src, tkn: ktkn, ...kr })
+        }
+        else if (isAliasDecl(ktkn, rule.o1)) {
+          // Always recorded here; whether the map is ALLOWED to carry
+          // declarations is decided on the VALUE (MapVal.unify), not at
+          // the parse. The parse cannot see it: an INCLUDED file's
+          // declarations are at the root of their own text, and only
+          // once the loaded map is placed does it become apparent that
+          // root is not the document's.
+          holder.u.aontu_alias_keys = (holder.u.aontu_alias_keys || [])
+          holder.u.aontu_alias_keys.push('' + ktkn.src)
         }
 
         if (rule.u.spread) {
@@ -1648,19 +1859,47 @@ help isolate the syntax error.`,
         // mistake, not an empty value.
         if (true === rule.u.pair) {
           const key = '' + rule.u.key
+          // The key TOKEN: the optional spelling's sits on the elem rule
+          // before this one (`[x?: 1]` is two elem rules).
+          const ktkn: any = true === rule.u.aontu_optional_elem ?
+            rule.prev.o0 : rule.o0
           let v: any = rule.child.node
+          const kr = keyRefusalOf(ktkn, rule.o1)
           if (null == v) {
             v = addsite(new NilVal({ why: 'elided_value' }), rule, ctx)
             v.path = [...(rule.k?.path ?? []),
               '' + rule.node.length, key]
           }
+          // THE KEY IS HELD TO THE MAP'S RULES: a key the map rule would
+          // refuse (a colon declaration, a bare-text refusal) is refused
+          // here too, in the value's place and sited at the key, rather
+          // than generated as the element `[{"x=y": 1}]`.
+          else if (null != kr) {
+            v = siteAt(addsite(new NilVal({ why: kr.why }), rule, ctx), tokenSite(ktkn))
+            if (null != kr.details) {
+              v.details = kr.details
+            }
+            v.path = [...(rule.k?.path ?? []),
+              '' + rule.node.length, key]
+          }
           const mv: any = addsite(
             new MapVal({ peg: { [key]: v } }), rule, ctx)
+          // The element's path is the list's plus its index, as any
+          // element's is (and as the Go port paths it): the map rule's
+          // "is this the top level" test reads the path, so an element
+          // of a top-level list must not read as the root.
+          mv.path = [...(rule.k?.path ?? []), '' + rule.node.length]
           // `[a?: 1]` is `[{a?: 1}]`: the key is optional IN the
           // element, so the two spellings stay one rule apart rather
           // than two behaviours apart.
           if (true === rule.u.aontu_optional_elem) {
             mv.optionalKeys = [key]
+          }
+          // ... and a declaration is a declaration IN the element, which
+          // is where MapVal.unify refuses it: a list element is not the
+          // top level.
+          if (isAliasDecl(ktkn, rule.o1)) {
+            mv.aliasKeys = [key]
           }
           rule.node.push(mv)
         }

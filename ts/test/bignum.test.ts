@@ -159,15 +159,16 @@ describe('bignum-literal', () => {
   })
 
   test('sign-is-the-unary-prefix', () => {
-    // D3 accepts `-0d5` and refuses `0d-5`. The sign is the existing
-    // unary-minus operator, so the literal itself never carries one --
-    // which is what keeps `0d1 +0d2` an addition rather than an
-    // implicit list of `0d1` and a signed literal.
+    // D3 accepts `-0d5` and does not read `0d-5` as a literal. The sign
+    // is the existing unary-minus operator, so the literal itself never
+    // carries one -- which is what keeps `0d1 +0d2` an addition rather
+    // than an implicit list of `0d1` and a signed literal. `0d-5` is a
+    // bare string, as `6-2` is (test/spec/op-chars.tsv).
     Assert.equal(canon('x:-0d5'), '{"x":-0d5}')
     Assert.equal(canon('x:-0d1.5'), '{"x":-0d1.5}')
     Assert.equal(canon('x:-0d0'), '{"x":0d0}')
     Assert.equal(canon('x:-0d0.0'), '{"x":0d0.0}')
-    Assert.throws(() => canon('x:0d-5'))
+    Assert.equal(canon('x:0d-5'), '{"x":"0d-5"}')
   })
 
   test('a-bare-0d-is-not-an-exact-leaf', () => {

@@ -39,19 +39,21 @@ must-kept-canon	canon	x:must(1,"m")&must(1,"m")	{"x":must(1,"m")&must(1,"m")}
 # Argument discipline: exactly two arguments (a parse-time arity
 # check, like every builtin since c8b4c54), the message a string, and
 # a check that already holds a nil refused as an ARGUMENT -- blaming
-# the check for the mistake, not the data it would fail against.
+# the check for the mistake, not the data it would fail against. The
+# nil is `-x`, a negated string, held in a list so that a disjunct
+# cannot drop the arm that carries it.
 must-arity-low	errc	a:must(1)	func_arity
 must-arity-high	errc	a:must(1,2,3)	func_arity
 must-msg-not-string	errc	a:must(1,2) a:1	invalid-arg
-must-holds-nil	errc	a:must([1-x],"m")	invalid-arg
-must-holds-nil-map	errc	a:must({k:[1-x]},"m")	invalid-arg
-must-holds-nil-disjunct	errc	a:must((1-x)|1,"m")	invalid-arg
-must-holds-nil-nested	errc	a:must([[1-x]],"m")	invalid-arg
+must-holds-nil	errc	a:must([-x],"m")	invalid-arg
+must-holds-nil-map	errc	a:must({k:[-x]},"m")	invalid-arg
+must-holds-nil-disjunct	errc	a:must([-x]|1,"m")	invalid-arg
+must-holds-nil-nested	errc	a:must([[-x]],"m")	invalid-arg
 must-container-arg	gen	a:must({k:1},"m") a:{k:1}	{"a":{"k":1}}
 must-container-arg-reject	err	a:must({k:1},"shape must match") a:{k:2}	shape must match
 must-list-arg	gen	a:must([1,2],"m") a:[1,2]	{"a":[1,2]}
-must-holds-nil-deep	errc	a:must({k:{j:[1-x]}},"m")	invalid-arg
-must-holds-nil-in-disjunct-list	errc	a:must([1|(1-x)],"m")	invalid-arg
+must-holds-nil-deep	errc	a:must({k:{j:[-x]}},"m")	invalid-arg
+must-holds-nil-in-disjunct-list	errc	a:must([1|[-x]],"m")	invalid-arg
 
 # A CHECK THAT MUTATES IS A CONTRADICTION IN TERMS.
 #

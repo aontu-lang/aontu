@@ -426,8 +426,8 @@ exact-quoted-is-string	gen	x:"0d5"	{"x":"0d5"}
 # access -- the source becomes a path reference and fails to resolve.
 exact-leading-dot-err	err	x:0d.5	Cannot resolve value
 # `0d-5`: the sign belongs before the prefix. The literal never sees the
-# `-`, and no rule alternative accepts it there.
-exact-inner-sign-err	err	x:0d-5	unexpected character(s): -
+# `-`; the run is a bare string, as `6-2` is (op-chars.tsv).
+exact-inner-sign-is-text	gen	x:0d-5	{"x":"0d-5"}
 # A separator closing a run, or repeated inside one, ends the literal
 # early and leaves a stray `_` -- the same refusal `1_` already gets.
 exact-trailing-separator-err	err	x:0d1_	unexpected character(s): _
