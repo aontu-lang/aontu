@@ -10,7 +10,7 @@ Per-phase status and the corrections this document needs are in the
 this document is authoritative for design. Part of the
 [capability review](index.md) (August 2026). This document expands gap
 G6 — growing `@"…"` file inclusion into module identity, versioning,
-registry distribution, and semantic integrity hashing over Aontu's
+registry distribution, and semantic integrity hashing over aontu's
 canonical form. Sibling documents own adjacent surfaces — see
 [Boundary](#boundary-what-we-will-not-do).*
 
@@ -19,7 +19,7 @@ canonical form. Sibling documents own adjacent surfaces — see
 Textual file inclusion is a single-project mechanism. A ground truth
 earns the name only if it can travel — across repositories, teams,
 and agent sessions — and remains tamper-evident while it travels.
-Today Aontu has neither an identity for a shareable unit of truth,
+Today aontu has neither an identity for a shareable unit of truth,
 nor a version to name a moment in its evolution, nor an integrity
 check to prove the truth received is the truth reviewed.
 
@@ -96,7 +96,7 @@ this document's.
 
 What is missing is one coherent layer: module identity, a version
 scheme, a lockfile, a distribution channel that does not execute
-code, and — the differentiator Aontu's canonical form makes nearly
+code, and — the differentiator aontu's canonical form makes nearly
 free — a semantic integrity hash that survives refactors and
 comments but breaks on any semantic change in the transitive
 include closure.
@@ -177,7 +177,7 @@ Four things structurally block the capability:
   dependencies, does. The cost: Dhall has no versioning or
   discovery at all — every upgrade edits every import site, and
   content addresses carry no "what changed" narrative. Dhall pays a
-  normalisation pass per hash; Aontu's existing canon makes the
+  normalisation pass per hash; aontu's existing canon makes the
   same idea nearly free. No unification-family language has it.
 - **CUE — modules v3 and the Central Registry.** Domain-based
   module paths with the major version in the path (`@v0`),
@@ -198,7 +198,7 @@ Four things structurally block the capability:
 - **buf / BSR.** Breaking-change checks enforced server-side at
   publish time — the precedent for registry hooks that refuse a
   push whose semantics regress, which
-  [G3](g3-subsumption-evolution.md) makes computable for Aontu
+  [G3](g3-subsumption-evolution.md) makes computable for aontu
   rather than heuristic.
 - **Agent practice.** Context7's resolve-then-query pattern shows
   agents preferring a named, versioned authority over parametric
@@ -291,9 +291,9 @@ A string routes to the module resolver only when it matches
 `@<integer>` major). Anything else falls through to the existing
 chain unchanged, so no current spec row can be affected.
 
-### Module file and lockfile — written in Aontu
+### Module file and lockfile — written in aontu
 
-The module file is ordinary Aontu, validated against a schema the
+The module file is ordinary aontu, validated against a schema the
 toolchain ships (the language dogfooding its own validation verb,
 [G2](g2-validation-verb.md)):
 
@@ -308,7 +308,7 @@ dep: {
 }
 ```
 
-The lockfile is machine-written Aontu **in canonical form** — one
+The lockfile is machine-written aontu **in canonical form** — one
 line, sorted keys, diffable, and parseable by the language itself:
 
 ```aon
@@ -319,7 +319,7 @@ line, sorted keys, diffable, and parseable by the language itself:
 Each entry carries **two** pins with distinct roles: the OCI digest
 certifies *these are the bytes the registry served* (transport
 tamper-evidence, free from OCI); the canon-hash certifies *this is
-the meaning that was reviewed* (semantic tamper-evidence, Aontu's
+the meaning that was reviewed* (semantic tamper-evidence, aontu's
 contribution). Version selection is Minimum Version Selection —
 deterministic without a solver; the lockfile *confirms* the
 resolution rather than determining it.
@@ -341,7 +341,7 @@ unify-level canon with two additions that close its semantic gaps:
   `hide(x)`, `type(x)`.
 
 Both additions reuse existing parseable syntax, so the hash form
-remains valid Aontu source and round-trips:
+remains valid aontu source and round-trips:
 `hcanon(unify(parse(hcanon(v)))) == hcanon(v)` is a spec-suite
 property. The hash is scoped to *post-unification* canon only —
 parse-level canon parenthesisation differs between TS and Go

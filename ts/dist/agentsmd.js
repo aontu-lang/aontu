@@ -50,7 +50,7 @@ function agentsMd(src, opts) {
         exports.AGENTSMD_BEGIN,
         '## Ground truth: `' + name + '`',
         '',
-        'The values below are DERIVED from `' + name + '`, an Aontu',
+        'The values below are DERIVED from `' + name + '`, an aontu',
         'definition. Do not restate them here — read them from the source,',
         'which is the only copy that cannot go stale.',
         '',

@@ -215,7 +215,7 @@ const TOOLS: ToolDef[] = [
     description:
       'Select one node of an evaluated document by path and render it: ' +
       'generated JSON by default, or the canon, types, keys or ' +
-      'depth-elided view. A view other than json is a valid Aontu ' +
+      'depth-elided view. A view other than json is a valid aontu ' +
       'document that subsumes the truth it summarises.',
     properties: {
       src: { type: 'string', description: 'The document' },
@@ -388,7 +388,7 @@ const TOOLS: ToolDef[] = [
             path: { type: 'string', description: 'The path ($.a.b)' },
             value: {
               type: 'string',
-              description: 'The value, as Aontu source text',
+              description: 'The value, as aontu source text',
             },
           },
           required: ['path', 'value'],
@@ -1082,7 +1082,7 @@ export function callTool(
 // startup grant, not a per-call negotiation, so initialize is where a
 // caller learns whether `<name>Path` arguments are served.
 export function serverInstructions(root?: string): string {
-  return 'Aontu tools take document TEXT arguments and answer the ' +
+  return 'aontu tools take document TEXT arguments and answer the ' +
     'same JSON reports the aontu CLI prints with --format json. ' +
     (null == root
       ? 'Evaluation is confined: includes (@"...") are denied, and ' +

@@ -30,7 +30,7 @@ else about them. The whole recorded shape of the call surface is:
   `filter_data`, `path_address`, a bare `invalid-arg` for the rest).
 - The docs carry hand-written headers (`pack(d, t)`, `refer(t?)`) in
   the reference's functions table; nothing gates them against the
-  engine. The LSP completes names with the generic detail "Aontu
+  engine. The LSP completes names with the generic detail "aontu
   built-in function" and offers no signature help. The drift gates
   that exist compare NAME SETS only.
 

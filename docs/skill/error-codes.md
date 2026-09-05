@@ -1,6 +1,6 @@
 # What a refusal means
 
-Every Aontu error carries a **code**, and every code has a **class**.
+Every aontu error carries a **code**, and every code has a **class**.
 The class says what kind of thing went wrong, which is what decides
 your next move. The full registry — every code, its class, and the
 version it appeared in — is

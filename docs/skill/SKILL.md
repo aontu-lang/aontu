@@ -1,23 +1,23 @@
 ---
 name: aontu
 description: >-
-  Write, check and query Aontu definitions — a JSON superset where
+  Write, check and query aontu definitions — a JSON superset where
   documents UNIFY instead of overwriting. Use when a repository holds
   `.aon` files, when configuration must satisfy a schema rather than
   merely parse, or when you need to ask what a configuration says at a
   path and why it says it.
 ---
 
-# Aontu
+# aontu
 
-Aontu is JSON plus a lattice. Two documents do not override each
+aontu is JSON plus a lattice. Two documents do not override each
 other, they **unify**: the result is the most specific value that
 satisfies both, or an error naming the contradiction. That makes a
 definition checkable, queryable and safe to change.
 
 Start here:
 
-- Every JSON document is an Aontu document. Write JSON, then add
+- Every JSON document is an aontu document. Write JSON, then add
   what JSON cannot say.
 - [`grammar-card.md`](grammar-card.md) — the whole surface on one
   page.

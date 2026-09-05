@@ -230,7 +230,7 @@ func normaliseEscape(n rune, at func(int) rune, i int, inClass bool) (string, st
 	}
 	if 'p' == n || 'P' == n {
 		return "", "a Unicode class (\\" + string(n) + "), which JavaScript reads as a" +
-			" literal \"" + string(n) + "\" without a flag Aontu does not set", 0
+			" literal \"" + string(n) + "\" without a flag aontu does not set", 0
 	}
 	if 'Z' == n {
 		return "", "\\Z, which RE2 does not accept and JavaScript reads as a" +

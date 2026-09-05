@@ -12,15 +12,15 @@ and, for output claims, against
 
 ## D1. One rule
 
-A generator is a file in the TARGET's syntax. **A marked line is Aontu
+A generator is a file in the TARGET's syntax. **A marked line is aontu
 source; every other line is a line of output.** That is the entire
-desugaring, and it round-trips: a marked line becomes Aontu verbatim,
+desugaring, and it round-trips: a marked line becomes aontu verbatim,
 an unmarked line becomes a list element in the enclosing template's
 `body`.
 
 Nothing else is borrowed from the target's space at the line level, and
-nothing target-shaped is borrowed into Aontu: **no line of target code
-appears inside an Aontu string.**
+nothing target-shaped is borrowed into aontu: **no line of target code
+appears inside an aontu string.**
 
 ## D2. The marker is the target's comment token plus a dash
 
@@ -465,6 +465,6 @@ expansion necessary and the builtin unavoidable.
 - **The marker's own escape.** A target line beginning with the marker
   falls to the fixpoint rule, which works but is not obvious; the
   surface phase should say so in one line of documentation.
-- **`fmt` over a template file.** The canonical form is Aontu and
+- **`fmt` over a template file.** The canonical form is aontu and
   formats today; the template form needs a rule for how far `fmt` may
   reach into marker lines without touching body lines.

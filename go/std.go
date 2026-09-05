@@ -61,7 +61,7 @@ std: {
 const stdView = `# std/view --- the FIGURE VOCABULARY (VIEWS.0.md, "6. The view
 # document"). A view document declares its figures as data, and a
 # declaration is just a map: this is the schema for one, so a typo is
-# refused where every other mistake in an Aontu document is refused --
+# refused where every other mistake in an aontu document is refused --
 # at evaluation, by unification -- rather than by the verb that reads
 # it afterwards.
 #

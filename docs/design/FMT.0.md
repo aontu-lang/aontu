@@ -1,4 +1,4 @@
-# aontu fmt — the agreed form of Aontu source
+# aontu fmt — the agreed form of aontu source
 
 **Status:** ACCEPTED for implementation, 2026-09-03. P1 LANDED 2026-09-03 (§7.7); P2 LANDED 2026-09-03 (§7.8); P3 LANDED 2026-09-03 (§7.9); P4 LANDED 2026-09-03 (§7.10). Every phase has landed.
 yet. The open questions of §11 were put to the owner the day the note
@@ -33,7 +33,7 @@ published documentation — 8,508 lines. Claims about what the formatter
 
 ## 1. Two forms, two jobs
 
-Aontu already has one mechanical spelling of a document: the canonical
+aontu already has one mechanical spelling of a document: the canonical
 form, `aontu -c`. It is not this. Canon answers a different question,
 and the two must not be confused, because a formatter that borrowed
 canon's rules would destroy the thing a formatter exists to keep.
@@ -148,7 +148,7 @@ spread is `&: value`. An alias declaration is `%Name: value`.
 
 ### 3.3 Braces are for shape, not for nesting
 
-Aontu does not need a brace to say "inside": `a: b: c: 1` is
+aontu does not need a brace to say "inside": `a: b: c: 1` is
 `{"a":{"b":{"c":1}}}`, and the parser builds the same tree from either
 spelling. The formatter uses that everywhere it can, because every
 brace it does not write is a closer it does not have to stack:
@@ -203,7 +203,7 @@ server: {                                 server: host: "0.0.0.0"
 ```
 
 This is the suggestion at the origin of this note, and it is legal
-only because of what Aontu is. `s: {a: 1, b: 2}` and the two
+only because of what aontu is. `s: {a: 1, b: 2}` and the two
 statements `s: a: 1` / `s: b: 2` are one document — `aon1-RU6XbBs_…`
 from both — because a key written twice is a meet, and the meet of two
 maps with disjoint keys is their union. The same holds through an
@@ -749,7 +749,7 @@ departs from the note. Each is pinned by a row of `fmt.tsv`.
   of §7.4, and one `fmt-refuse` row (§9's last boundary item); every
   `.aon` under `use-cases/` and `test/spec/files/` (400 files, 396
   formatted, the 4 that do not parse refused for their syntax) formats
-  to a fixed point in BOTH ports, and every Aontu fence in the
+  to a fixed point in BOTH ports, and every aontu fence in the
   documentation (263) does so in the canonical port, which is where
   the documentation gate lives; 100 % coverage in both.
 - **No agreed form for a multi-document source.** Two bags at the top
@@ -842,7 +842,7 @@ The documentation, in the form. What formatting 264 fences settled.
 
 - **The gate is the form, with a reasoned exception.** The fixed-point
   gate of P1 became `every-source-fence-is-in-the-agreed-form-or-keeps-
-  its-spelling`: every Aontu fence that parses is what `aontu fmt`
+  its-spelling`: every aontu fence that parses is what `aontu fmt`
   writes, or carries `<!-- fmt: keep <reason> -->`, a directive beside
   the test directives with a non-empty reason, and then must still be
   a fixed point and not already in the form. The gate caps the kept
@@ -944,7 +944,7 @@ for function, and `test/spec/fmt.tsv` is what they must agree on.
   The first option is the end of "an agreed form".
 - **No line breaking.** §3.1.
 - **No reordering, renaming, aliasing, or resolving.** §3.13.
-- **No formatting of what is not Aontu.** A `.json`, `.yaml` or
+- **No formatting of what is not aontu.** A `.json`, `.yaml` or
   `.toml` include is another language's file; `fmt` formats `.aon` and
   stdin.
 - **No `--fix` for the lint.** §4.3.

@@ -1,7 +1,7 @@
-# The Aontu trust contract
+# The aontu trust contract
 
 *Status: normative. This document states the guarantees an agent
-harness—or any host—may rely on when evaluating an Aontu document,
+harness—or any host—may rely on when evaluating an aontu document,
 and where each guarantee is conditional. It is the written half of the
 contract; the tested half lives in the shared spec suite
 ([test/spec/](../test/spec/)), and anything stated here without a spec
@@ -65,7 +65,7 @@ posture is the operative warning:
 > **Treat opening an untrusted source as reading your disk.**
 
 Reading, never running. An include's extension decides what the file is:
-thirteen extensions are read at all—`.aon` and `.aontu` as Aontu
+thirteen extensions are read at all—`.aon` and `.aontu` as aontu
 source; `.json`, `.jsonld`, `.jsonc`, `.json5`, `.jsonic`, `.jsc`,
 `.toml`, `.yaml`, `.yml` and `.ini` as configuration data, each read by
 its own parser; and `.txt` as text, which chooses no parser at all—and
@@ -80,11 +80,11 @@ and error context, while the file and package legs read through their
 own channels.
 
 **The JSON-superset guarantee, stated precisely.** Every JSON document
-*parses* as Aontu. That is the whole claim. It does not say "behaves
+*parses* as aontu. That is the whole claim. It does not say "behaves
 identically to a JSON parser": the number tower refuses what JSON
 silently corrupts, so `{"x":9007199254740993}`—a literal binary64
 cannot carry exactly—is a loud `lossy_integer_literal` error in
-Aontu where `JSON.parse` would round it. Refusal-over-corruption is a
+aontu where `JSON.parse` would round it. Refusal-over-corruption is a
 feature of the contract, not an exception to it.
 
 ## Clause 2: termination

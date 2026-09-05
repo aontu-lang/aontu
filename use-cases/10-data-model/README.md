@@ -102,7 +102,7 @@ with both kinds named:
 ```
 [aontu/exact_float_mix]: Cannot add value at path $.delta
 
-Aontu cannot mix an exact number with a binary float.
+aontu cannot mix an exact number with a binary float.
 Here the operands are bigdecimal and float, in that order.
 ```
 
@@ -239,7 +239,7 @@ rounds them, and `--canon` keeps the `0d` prefix and the exact value.
     ```
 
 11. `data/quote-0d.json`, which spells the amount `0d10.50`, vets as
-    valid, because `vet` parses `.json` data files with the Aontu
+    valid, because `vet` parses `.json` data files with the aontu
     parser, and a strict JSON parser rejects the same file. Both
     halves are asserted.
 12. `aontu vet --at '$.schema.Customer' domain.aon

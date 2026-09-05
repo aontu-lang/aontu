@@ -12,7 +12,7 @@
 # run: aontu-go id-names-own-descendant-crashes.aon
 #
 # expected: a located [aontu/...] refusal naming the two id() sites
-# actual (TypeScript): "Aontu: unexpected error: Maximum call stack
+# actual (TypeScript): "aontu: unexpected error: Maximum call stack
 #          size exceeded", exit 1 -- and note there is NO [aontu/...]
 #          marker, so a harness grepping for one sees nothing at all
 # actual (Go):         "fatal error: stack overflow", exit 2 --

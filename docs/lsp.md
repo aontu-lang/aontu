@@ -1,8 +1,8 @@
-# Aontu Language Server (LSP)
+# aontu Language Server (LSP)
 
 Both implementations ship a [Language Server
 Protocol](https://microsoft.github.io/language-server-protocol/) server
-that reports Aontu unification problems as editor diagnostics while you
+that reports aontu unification problems as editor diagnostics while you
 type. As required by the project's parity rule, the TypeScript and Go
 servers are built the same way, advertise the same capabilities, and
 produce identical diagnostic text for the same source.
@@ -34,7 +34,7 @@ The server provides three features:
 - **Completion**—the built-in functions, scalar-kind keywords and
   literals.
 
-**Diagnostics**: open or edit an Aontu document and it
+**Diagnostics**: open or edit an aontu document and it
 publishes a list of problems, each with a precise source range, severity,
 an engine error code (`code`), and a human-readable message.
 
@@ -52,7 +52,7 @@ It reports *genuine errors* only:
 | `port:*8080 \| integer` | **no**—defaults and disjunctions are valid    |
 | `a: $.a`                | **no**—a recursive reference is a valid schema |
 
-This distinction is deliberate: Aontu documents are frequently schemas or
+This distinction is deliberate: aontu documents are frequently schemas or
 partial fragments, which are *not concrete* but are *not errors*. The
 server flags only contradictions and unresolved/unknown constructs. See
 [How diagnostics are computed](#how-diagnostics-are-computed).
@@ -115,7 +115,7 @@ state machine are both unit-testable with no I/O.
 
 You can consume any layer directly:
 
-- embed **layer 1** to lint Aontu source in your own tool;
+- embed **layer 1** to lint aontu source in your own tool;
 - embed **layer 2** to run the server over a non-stdio transport (for example a
   socket or an in-process channel) by feeding it decoded JSON-RPC objects;
 - run **layer 3** as a ready-made stdio server for an editor.
@@ -191,7 +191,7 @@ import {
 
 #### `computeDiagnostics(src, opts?) => Diagnostic[]`
 
-Analyse one document of Aontu source and return its diagnostics. A valid
+Analyse one document of aontu source and return its diagnostics. A valid
 document (including a non-concrete schema) returns `[]`.
 
 - `src: string`—the document text.
@@ -381,7 +381,7 @@ The analysis layer turns source into diagnostics in three steps:
 1. **Unify.** Parse and run the fixpoint unification over the whole
    document (in error-collecting mode; it never throws on conflicts).
 2. **Walk for `NilVal`s.** Traverse the unified result tree and collect
-   every `NilVal` node. The rule: in Aontu a `NilVal` in the
+   every `NilVal` node. The rule: in aontu a `NilVal` in the
    *result* is always a real error (a conflict, an unresolved reference,
    an unknown function, …). Valid-but-non-concrete values—scalar kinds
    like `string`, unresolved references, conjuncts—are **not** `NilVal`s,

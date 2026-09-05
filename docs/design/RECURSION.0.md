@@ -9,7 +9,7 @@ A tree of categories, a menu of menus, a linked chain of approvals, an
 AST, JSON itself — the shapes agents most need schemas for are
 recursive, and every formal-spec neighbour the ontology note wants to
 import (TypeScript types, IDL, JSON Schema's `$ref`) writes recursion
-routinely. Aontu currently has no working spelling for it. This note
+routinely. aontu currently has no working spelling for it. This note
 proposes one rule that turns the existing cycle *detector* into the
 recursion *mechanism*, with termination bounded by the data.
 

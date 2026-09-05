@@ -49,7 +49,7 @@ the only production users can never touch the new surface.
 
 JSON Schema's decisive 2026 advantage is not its validator ecosystem —
 it is that **every major LLM provider's structured-output API natively
-constrains generation to JSON Schema**. Aontu's GBNF grammar serves
+constrains generation to JSON Schema**. aontu's GBNF grammar serves
 only self-hosted stacks. Without a JSON Schema *export*, aontu cannot
 ride the native structured-output path and then apply `vet` as the
 semantic gate — the hybrid an enterprise would actually deploy — and

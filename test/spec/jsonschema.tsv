@@ -7,7 +7,7 @@
 # nothing else, so without an export a model cannot ride that path and
 # then be `vet`ted as the semantic gate -- and an MCP tool's
 # `inputSchema`, which the protocol REQUIRES to be JSON Schema, cannot
-# be derived from an Aontu tool model at all.
+# be derived from an aontu tool model at all.
 #
 # EVERY EXPECTATION HERE WAS OBTAINED BY RUNNING BOTH ENGINES AND
 # DIFFING. The expect object is the schema AND the loss report, because
@@ -19,11 +19,11 @@
 # WHAT CROSSES EXACTLY: kinds to types, concrete scalars to `const`, a
 # disjunction of scalars to `enum` (and its preference to `default`),
 # bounds to minimum/maximum with the OPEN endpoints as the exclusive
-# keywords, `re` to `pattern` (Aontu's portable subset is a subset of
+# keywords, `re` to `pattern` (aontu's portable subset is a subset of
 # ECMA-262, which is what JSON Schema reads), `neq` to `not: {enum}`,
 # `length` to minLength/maxLength or minItems/maxItems, `unique()` to
 # uniqueItems, optional keys to an absence from `required`, and -- the
-# one Aontu and JSON Schema say identically -- `close()` to
+# one aontu and JSON Schema say identically -- `close()` to
 # `additionalProperties: false`. A spread is
 # `additionalProperties: <template>`, which is what it means; a written
 # list is a TUPLE, so prefixItems plus items:false.

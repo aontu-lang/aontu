@@ -11,7 +11,7 @@ the [progress register](progress.md), which is authoritative for status;
 this document is authoritative for design. Part of the
 [capability review](index.md) (August 2026). This document expands gap
 G8 — producing N similar children from data without copies that drift,
-while keeping the guarantee that Aontu evaluation always terminates.
+while keeping the guarantee that aontu evaluation always terminates.
 It resolves the fork sketched in IDEAS.md: total generator combinators
 (`each`/`pack`/`filter`/`match`), placeholder arguments, and pipe
 sugar are adopted; user-defined functions and recursion are refused.
@@ -22,7 +22,7 @@ pre-registered here, not designed.*
 
 Producing N similar children from data — one block per service, per
 region, per replica — is the bread-and-butter of systems definition.
-Aontu's spread (`&:`) applies a template to children that already
+aontu's spread (`&:`) applies a template to children that already
 exist; nothing in the language can *generate* a child, compute a key
 from data, or select a subset. The result is that humans and agents
 copy-paste, and the copies drift — which defeats ground-truth-ness
@@ -228,7 +228,7 @@ comprehensions; the staging rule must be made principled first.
 **D. `def()` — namespaced user functions without recursion.** The
 IDEAS.md sketch, restricted to non-recursive bodies to preserve
 totality. Deferred entirely, not merely postponed to a phase:
-Aontu already has an abstraction mechanism native to its semantics —
+aontu already has an abstraction mechanism native to its semantics —
 a named, `hide()`-marked template applied by spread, reference, or
 (with this design) a combinator, with `_` supplying the per-use
 argument. `def()` adds call syntax, a namespace scheme, arity errors,
@@ -308,7 +308,7 @@ implementations and runs). `tmpl` unifies with each element; omitted,
 maps, order preserved for lists); children that fail are dropped, not
 errors — the test runs under trial mode (`ctx._trialMode`,
 ts/src/ctx.ts), the same mechanism disjunction uses. `cond` is any
-Aontu value, so [G1](g1-constraint-algebra.md) atoms compose:
+aontu value, so [G1](g1-constraint-algebra.md) atoms compose:
 `filter($.deploy, {replicas: min(3)})`.
 
 *This paragraph said "unify with" until phase 2 landed, and the
@@ -372,7 +372,7 @@ already composes with functions and references
 `image` line above. Interpolation syntax (`"acme/\(name)"`) is
 refused: it adds lexer states and canon escaping rules to buy a
 second spelling of something the language has — and `+` chains are
-the easier form for constrained generation of Aontu by models.
+the easier form for constrained generation of aontu by models.
 
 **The staging rule (replacing the delay hack).** One rule, spec-
 pinned, governs when generation happens: *a value whose answer
@@ -460,7 +460,7 @@ into test/spec/*.tsv.
 3. **Division or modulo by zero is a hard error for exact kinds.** A
    ground-truth language has no business manufacturing infinity: a
    definition that divides by zero is wrong, and the evaluator
-   should say so with a located nil. Aontu cannot even represent the
+   should say so with a located nil. aontu cannot even represent the
    alternative — there is no way to write a non-finite number, an
    overflowing literal being a `not_number` error nil — so
    propagating one out of arithmetic would invent a value no
@@ -469,8 +469,8 @@ into test/spec/*.tsv.
    a number-kind operand the operation follows IEEE-754 binary64,
    with the JSON-superset constraint still biting: an infinite or
    NaN result is a located error, not a value, unless and until
-   Aontu gains a notation for them (docs/design/number-model.md,
-   known edge 4). This is the one point where Aontu must depart from
+   aontu gains a notation for them (docs/design/number-model.md,
+   known edge 4). This is the one point where aontu must depart from
    boru, which has `inf`/`nan` literals precisely because it is not
    a JSON superset.
 5. **Kind contagion extends to every new operator.** Rule R5 — no
@@ -627,7 +627,7 @@ combinators.
   `each`, which generator's child does an inner `_` bind? Innermost-
   binder lexical scoping is the presumption, but the alternative
   (an explicit depth argument mirroring `key(n)`) is more
-  Aontu-like. *(The stated decision criterion — nested-generator
+  aontu-like. *(The stated decision criterion — nested-generator
   models occurring in practice before Phase 3 — expired: Phase 3
   landed without such models forcing the question, so
   innermost-binder stands as the shipped presumption and the depth

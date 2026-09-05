@@ -30,7 +30,7 @@ import type { McpRequest, McpResponse } from './mcp'
 import { VERSION } from './aontu'
 
 
-const USAGE = 'aontu mcp - Aontu MCP server (stdio, NDJSON JSON-RPC)\n' +
+const USAGE = 'aontu mcp - aontu MCP server (stdio, NDJSON JSON-RPC)\n' +
   '\n' +
   '  aontu mcp [--root <dir>]\n' +
   '\n' +

@@ -1,6 +1,6 @@
-# Aontu
+# aontu
 
-> Aontu is a JSON-superset unification language and validation gate for
+> aontu is a JSON-superset unification language and validation gate for
 > AI-agent ground truth. One document can carry data, the schema that
 > constrains it, and the defaults that fill it in; a single operation —
 > unification — combines them or reports exactly where they conflict,
@@ -24,7 +24,7 @@
 
 - [Documentation home](docs/index.md): the map of the documentation and
   a 30-second taste of the language
-- [Tutorial](docs/tutorial.md): learn Aontu from zero — unification,
+- [Tutorial](docs/tutorial.md): learn aontu from zero — unification,
   types, exact numbers, defaults, references, templates, vet
 - [Language reference](docs/reference-language.md): every construct and
   rule — the exhaustive, dry source of truth for the language
@@ -35,11 +35,11 @@
 
 ## Agent-facing
 
-- [Aontu skill](docs/skill/SKILL.md): a teaching pack for agents — the
+- [aontu skill](docs/skill/SKILL.md): a teaching pack for agents — the
   grammar card, a worked example ladder, and the error-code index
 - [Grammars](grammar/): `aontu.abnf`, the notation a person reads, and
   `aontu.gbnf`, `aontu.lark` and `aontu.tmLanguage.json` — the emission
-  surface for constrained decoding of canonical Aontu, and the
+  surface for constrained decoding of canonical aontu, and the
   highlighting grammar
 
 ## Conformance and use cases
@@ -48,7 +48,7 @@
   language-agnostic cases both implementations must satisfy; a third
   implementation claims conformance by passing it
 - [Use cases](use-cases/): sixteen enterprise-shaped systems built as
-  real Aontu documents, each with a `check.sh` that drives the CLI and
+  real aontu documents, each with a `check.sh` that drives the CLI and
   asserts every outcome
 
 ## Contributing

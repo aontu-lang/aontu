@@ -70,7 +70,7 @@ than its value.
 | `deploy.aon` | deployment view | references into the catalog view, defaults (`replicas: *2`) |
 | `queries/queries.aon` | instance-of queries | `filter`, map union as index |
 | `bad/*.aon` | change requests that must be refused | cycle, missing inverse, cross-view contradiction, wrong-kind endpoint, wrong-kind `rel()` target |
-| `proposals/*.aon` + `data/*` | agent-emitted candidates | JSON-as-Aontu, `vet --at --closed`, `rel()` existence checks |
+| `proposals/*.aon` + `data/*` | agent-emitted candidates | JSON-as-aontu, `vet --at --closed`, `rel()` existence checks |
 
 Relations are declared on the field that holds them. In `spec.aon`:
 
@@ -126,7 +126,7 @@ unify positionally, so a proposal that adds an inverse entry restates
 the target's `dependedOnBy` list in full and in order
 (`proposals/onboard-webhooks.aon`).
 
-Agent-emitted JSON is already Aontu. `data/candidate-webhooks.json` is
+Agent-emitted JSON is already aontu. `data/candidate-webhooks.json` is
 used twice unmodified: vetted against `$.spec.CandidateShape`, the
 candidate's shape written out self-contained, and loaded at a hidden
 key in `proposals/onboard-webhooks.aon` and pulled into the catalog by

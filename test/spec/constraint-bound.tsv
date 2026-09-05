@@ -121,7 +121,7 @@ residual-no-gen-msg	err	a:min(0)	Cannot resolve value: min(0)
 # operators, and the parse error now redirects CUE-trained authors
 # (and agents) to the bound functions.
 errc-opchar-syntax	errc	a:number > 0	syntax
-opchar-hint	err	a:number > 0	The > and < characters are not Aontu operators: write the bound functions min(x), max(x), above(x), below(x) instead.
+opchar-hint	err	a:number > 0	The > and < characters are not aontu operators: write the bound functions min(x), max(x), above(x), below(x) instead.
 # An invalid atom reached as the PEER of a meet, rather than as the
 # driving side: the residual carries its complaint and the meet reports
 # it with the `constrain` attempt. Order matters, which is why this needs

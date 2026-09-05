@@ -29,7 +29,7 @@ exports.main = main;
 const node_fs_1 = require("node:fs");
 const mcp_1 = require("./mcp");
 const aontu_1 = require("./aontu");
-const USAGE = 'aontu mcp - Aontu MCP server (stdio, NDJSON JSON-RPC)\n' +
+const USAGE = 'aontu mcp - aontu MCP server (stdio, NDJSON JSON-RPC)\n' +
     '\n' +
     '  aontu mcp [--root <dir>]\n' +
     '\n' +

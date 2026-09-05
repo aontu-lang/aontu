@@ -7,8 +7,8 @@ DNS — are broken out in [`manual-tasks.md`](manual-tasks.md).*
 
 The domain `aontu.dev` is owned. The site it should serve is the
 project site for [`aontu-lang/aontu`](https://github.com/aontu-lang/aontu):
-what Aontu is, the documentation set, and — with equal weight — the
-machine surfaces an agent needs to use Aontu without a human in the
+what aontu is, the documentation set, and — with equal weight — the
+machine surfaces an agent needs to use aontu without a human in the
 loop.
 
 The template is **[tabnas.dev](https://tabnas.dev)** (`tabnas/web`): an
@@ -29,7 +29,7 @@ seam for that is real, not aspirational — see [Theming](#theming).
 tabnas.dev is written for humans and agents at once, and aontu has the
 stronger claim to that shape: the
 [capability review](../capability-review/index.md) exists precisely
-because the question was "what does Aontu lack in order to serve as
+because the question was "what does aontu lack in order to serve as
 ground truth *for agents*". G7 built the machine-facing access surface —
 `get`, `why`, `set`, the delivery skin. A site that documents that work
 in prose alone would be answering its own brief in the wrong format.
@@ -90,7 +90,7 @@ same reason. A hand-written second copy of the docs on a website is that
 failure with a public URL on it.
 
 **So: `docs/*.md` is synced into the site repo, generated and committed,
-and rendered.** Site-only pages — the landing page, "why Aontu", the
+and rendered.** Site-only pages — the landing page, "why aontu", the
 community and comparison pages — are authored in the site repo, because
 they have no counterpart in the engine repo to drift from.
 
@@ -302,14 +302,14 @@ Reader-facing:
 
 | Route | Content |
 |---|---|
-| `/` | What Aontu is, the 30-second taste, install |
+| `/` | What aontu is, the 30-second taste, install |
 | `/why` | Why unification rather than merge/override — site-authored |
 | `/docs` | The Diátaxis set, synced (D3) |
 | `/docs/tutorial`, `/docs/how-to`, `/docs/reference-language`, `/docs/reference-api`, `/docs/explanation` | ditto |
 | `/docs/trust` | The trust contract |
 | `/docs/lsp` | Language server + editor wiring |
 | `/tools` | CLI verbs, LSP, MCP server, `vet-action`, editor plugins |
-| `/comparisons` | Aontu vs CUE, JSON Schema, Jsonnet, Dhall — site-authored |
+| `/comparisons` | aontu vs CUE, JSON Schema, Jsonnet, Dhall — site-authored |
 | `/community`, `/faq`, `/sponsors` | Site-authored |
 
 Agent-facing, all generated, none hand-edited:
@@ -332,7 +332,7 @@ agent would come to this domain at all rather than to GitHub:
 **`/grammar/aontu.gbnf` is a stable URL for a constrained-decoding
 grammar.** The repo holds it and a test pins it to accept every
 canonical form the shared suite produces; a model host that wants to
-emit valid Aontu needs to *fetch* it, and a raw GitHub URL is not a
+emit valid aontu needs to *fetch* it, and a raw GitHub URL is not a
 contract.
 
 **`/errors/<code>` is the registry, not a copy of it.** 111 codes with a

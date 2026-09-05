@@ -6,7 +6,7 @@ order: 40
 
 # Name a reusable constraint
 
-Aontu has no `uint8`, `int8` or `port` keyword, and does not need
+aontu has no `uint8`, `int8` or `port` keyword, and does not need
 one: a constraint is a value, so a name for one is a field. A
 `type()`-marked block gives you a library of them that unifies like
 everything else and emits nothing:

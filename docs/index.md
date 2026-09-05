@@ -1,6 +1,6 @@
-# Aontu documentation
+# aontu documentation
 
-Aontu is a JSON structure **unifier**: a small language (a
+aontu is a JSON structure **unifier**: a small language (a
 purpose-specific dialect inspired by [CUE](https://cuelang.org/)) and an
 engine that merges partial structures into one consistent result, or
 reports exactly where they conflict. The same source can describe data,
@@ -26,7 +26,7 @@ open it. Reach for the part that matches your need:
 
 | If you want to…                                               | Read |
 |---------------------------------------------------------------|------|
-| **Learn** Aontu from zero by building something, step by step | [Tutorial](tutorial.md) |
+| **Learn** aontu from zero by building something, step by step | [Tutorial](tutorial.md) |
 | **Learn** the graph layer (identity, relations, reachability) | [Graph tutorial](tutorial-graph.md) |
 | **Accomplish a specific task** you already have in mind       | [How-to guides](how-to/) |
 | **Look up** exact syntax, semantics, options, or API surface  | [Language reference](reference-language.md) · [API reference](reference-api.md) |
@@ -97,7 +97,7 @@ Tooling:
 
 For agents:
 
-- [The Aontu skill](skill/SKILL.md). An agent-facing teaching pack:
+- [The aontu skill](skill/SKILL.md). An agent-facing teaching pack:
   the [grammar card](skill/grammar-card.md), a
   [worked example ladder](skill/examples.md) whose documents the test
   suite executes, and the [error-code index](skill/error-codes.md).
@@ -110,7 +110,7 @@ Contract:
 
 - [The trust contract](trust.md). Hermeticity, termination,
   determinism, and sandboxing: what a host may rely on when evaluating
-  an Aontu document, and where each guarantee is conditional.
+  an aontu document, and where each guarantee is conditional.
 
 For contributors:
 

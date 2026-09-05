@@ -1,7 +1,7 @@
 # Shared test specification (`test/spec/*.tsv`)
 
 The `test/spec/` directory holds the **language-agnostic** unit tests
-that both the TypeScript (`ts/`) and Go (`go/`) implementations of Aontu
+that both the TypeScript (`ts/`) and Go (`go/`) implementations of aontu
 must satisfy. They are plain tab-separated-value (TSV) files so they can
 be parsed trivially and identically from any language.
 
@@ -25,7 +25,7 @@ name <TAB> mode <TAB> src <TAB> expect
 |----------|----------------------------------------------------------------|
 | `name`   | short identifier for the case (unique within its file)         |
 | `mode`   | `canon`, `gen`, `gens`, `err`, `errc`, `errcode`, `vet`, `subsume`, `query`, `why`, `patch`, `diff`, `agentsmd`, `trim`, `hcanon`, `hash`, `fmt`, `fmt-refuse`, `fmt-lint`, `graph`, `relation`, `reaches`, `view` or `views` (see below) |
-| `src`    | Aontu source text to evaluate                                  |
+| `src`    | aontu source text to evaluate                                  |
 | `expect` | the expected result, interpreted according to `mode`          |
 
 Seven modes take a FIFTH column. `vet` validates a data document
@@ -204,7 +204,7 @@ and expects `{ "a": 2 }`.
 **`canon` pins kind, `gens` pins bytes, and `gen` is blind to both.**
 This is the single most useful thing to know about the suite.
 
-Aontu has four numeric leaf kinds—`integer`, `float`, `biginteger`,
+aontu has four numeric leaf kinds—`integer`, `float`, `biginteger`,
 `bigdecimal`—and JSON has one number type. A `gen` row round-trips the
 result through JSON, so the kind is gone before the comparison happens,
 and so is any precision beyond a `float64`. Canon, by contrast, must

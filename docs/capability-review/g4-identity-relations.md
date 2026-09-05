@@ -24,7 +24,7 @@ surfaces — see [Boundary](#boundary-what-we-will-not-do).*
 
 ## Problem
 
-Systems are graphs; Aontu documents are trees whose only names are
+Systems are graphs; aontu documents are trees whose only names are
 tree paths. Every relation except containment must be smuggled in as
 data, and the language can check nothing about it. Consider what an
 author writes today:
@@ -148,7 +148,7 @@ never be emitted directly.
 - **JSON-LD `@id`** gives entities globally unique IRIs so the
   same entity can be referenced and merged across documents. The
   cost is the RDF stack and its open-world semantics — the stance
-  Aontu deliberately rejects for validation.
+  aontu deliberately rejects for validation.
 - **`owl:sameAs`** is the cautionary tale: full-substitutability
   identity links with no conflict detection produced silent
   corruption at web scale. Unification inverts this — declaring
@@ -176,7 +176,7 @@ never be emitted directly.
   gets identity by element name with no constraint checking. The
   lesson: primitives as vocabulary, not syntax.
 - **Protobuf field numbers** (via buf): stable identity independent
-  of names makes renames non-breaking. In Aontu, a key rename today
+  of names makes renames non-breaking. In aontu, a key rename today
   silently breaks every `$.path` reference to it.
 - **CUE structural cycles** (survey caution): graph-shaped values
   were a major source of evaluator complexity in the evalv3

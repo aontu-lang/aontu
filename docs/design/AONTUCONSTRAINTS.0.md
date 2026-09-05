@@ -1,4 +1,4 @@
-# Aontu Constraint Machinery — Gap Analysis and Design
+# aontu Constraint Machinery — Gap Analysis and Design
 
 **Status:** Discovery draft — **superseded in part; the §2 baseline is
 stale.** Written against **Go port v0.1.6**. As of `aontu@0.53.0` /
@@ -26,7 +26,7 @@ via its `boru:parselang` module (pinned at `go/` v0.1.6)
 
 ## 1. Purpose
 
-Aontu occupies the rarest point in the configuration-language design space:
+aontu occupies the rarest point in the configuration-language design space:
 commutative, order-independent unification with defaults inside the value
 lattice, in a terminating (non-Turing-complete) language. Of the widely
 used config languages only CUE shares that core; Nickel approximates it
@@ -44,7 +44,7 @@ be: unification.
 
 This note originates downstream — boru's upstream-first rule means
 nothing is fixed behind a shim there; changes land here and flow down by
-version bump. Aontu's Go port has full language parity with the TS
+version bump. aontu's Go port has full language parity with the TS
 canonical implementation and both run the shared specs in `test/spec`,
 so every change lands as spec rows first, then twice.
 

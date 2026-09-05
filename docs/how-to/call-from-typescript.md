@@ -4,7 +4,7 @@ group: run-embed
 order: 20
 ---
 
-# Call Aontu from TypeScript
+# Call aontu from TypeScript
 
 The npm package `aontu` is not a wrapper around the CLI—the CLI is a
 thin client over the class the package exports. Requires Node ≥ 22.
@@ -45,4 +45,4 @@ library forms of the CLI verbs: `vet`, `get`, `why`, `subsume`, …)
 is the [TypeScript API reference](../reference-api.md#typescript-api).
 To parameterise a model from code, [inject host
 values](inject-host-values.md); for the Go port,
-[call Aontu from Go](call-from-go.md).
+[call aontu from Go](call-from-go.md).

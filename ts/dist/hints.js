@@ -90,7 +90,7 @@ const hints = {
         '  grouping     (...)  (?:...)      alternation  a|b\n' +
         '  anchors      ^  $  \\A  \\z  \\b  \\B\n' +
         ' \n' +
-        'Aontu DEFINES the abbreviations rather than inheriting either\n' +
+        'aontu DEFINES the abbreviations rather than inheriting either\n' +
         'host regex engine, so they mean the same in both ports:\n' +
         '  \\d [0-9]   \\w [0-9A-Za-z_]   \\s [ \\t\\n\\r\\f\\v]   . [^\\n]\n' +
         'Note \\s is these six ASCII characters only -- not U+00A0.\n' +
@@ -124,7 +124,7 @@ const hints = {
     'parse_bad_src': 'Invalid source provided for parsing. The source must be a non-empty string.',
     merge_conflict: 'A version-control conflict marker was found in the source. The\nfile still holds an unresolved merge: resolve it and remove the\n`<<<<<<<`, `=======` and `>>>>>>>` lines before unifying.\n \nExamples:\n  <<<<<<< HEAD  -> nil  # A conflict marker, not a `<` operation;\n  =======       -> nil  # ... nor a chain of `=` characters;\n  >>>>>>> other -> nil  # ... nor a `>` operation.',
     include_denied: 'An @"..." include was refused by the active trust profile\n(docs/trust.md). The document asked to read a source the evaluation\'s\ninclude capability does not allow: widen the capability if the read is\nintended, or remove the include if it is not.\n \nExamples:\n  a:@"in-root.aon"    -> {..}  # Inside the confinement root: allowed;\n  a:@"../secret.aon"  -> nil   # ... but escaping the root is denied;\n  a:@"/etc/hostname"  -> nil   # ... and so is an absolute path outside it.',
-    include_extension: 'An @\"...\" include named a file the engine does not read. THE\nEXTENSION DECIDES which of two things a file is: `.aon` and\n`.aontu` are Aontu source, with the whole language in them, and\n`.json`, `.jsonld`, `.jsonc`, `.json5`, `.jsonic`, `.jsc`, `.toml`,\n`.yaml`, `.yml` and `.ini` are configuration DATA, read by that\nformat\'s own parser. Anything else -- and a name with no extension\n-- is refused rather than guessed at: a guess produces a document\nthat looks right and is not.\n \nExamples:\n  a:@\"model.aon\"    -> {..}  # Aontu source;\n  a:@\"server.toml\"  -> {..}  # ... config data, read as TOML;\n  a:@\"notes.txt\"    -> nil   # ... but text is not a document;\n  a:@\"data\"         -> nil   # ... and neither is an unnamed kind.',
+    include_extension: 'An @\"...\" include named a file the engine does not read. THE\nEXTENSION DECIDES which of two things a file is: `.aon` and\n`.aontu` are aontu source, with the whole language in them, and\n`.json`, `.jsonld`, `.jsonc`, `.json5`, `.jsonic`, `.jsc`, `.toml`,\n`.yaml`, `.yml` and `.ini` are configuration DATA, read by that\nformat\'s own parser. Anything else -- and a name with no extension\n-- is refused rather than guessed at: a guess produces a document\nthat looks right and is not.\n \nExamples:\n  a:@\"model.aon\"    -> {..}  # aontu source;\n  a:@\"server.toml\"  -> {..}  # ... config data, read as TOML;\n  a:@\"notes.txt\"    -> nil   # ... but text is not a document;\n  a:@\"data\"         -> nil   # ... and neither is an unnamed kind.',
     func_arity: 'This function was called with the wrong number of arguments:\n{func} takes {want}, but was given {got}.\n \nExamples:\n  upper(\"a\")     -> \"A\"  # One argument, which is what upper takes;\n  upper(\"a\",\"b\") -> nil  # ... so two is a mistake in the source;\n  key()          -> \"\"   # key takes none, or one level count;\n  neq(1,2,3)     -> neq  # ... and neq takes one or more exclusions.',
     func_arg: 'This argument does not fit the function\'s signature:\n \n  {sig}\n  argument {argn} (`{arg}`) was `{got}`.\n \nThe signature is the declared call surface (one line per builtin,\ntest/spec/signature.tsv); an argument slot admits a concrete value\nof its declared kind, `number` admitting every numeric leaf and\n`string` admitting a path.\n \nExamples:\n  upper("a")     -> "A"    # A string fits upper(s: string|number);\n  upper(1)       -> 1      # ... and so does a number;\n  upper(true)    -> nil    # ... but a boolean fits neither word;\n  add([1],2)     -> nil    # ... and a list is no operand.',
     elided_value: 'A key or element was written with no value after the colon. An\nelided value is a mistake in the source rather than a null: write\n`null` if that is what was meant, or supply the value.\n \nExamples:\n  a:null  -> null  # An explicit null, which is a value;\n  a:      -> nil   # ... but nothing at all is not;\n  a: b:1  -> {..}  # A colon chain is not an elision;\n  [1,]    -> [1]   # ... nor is a trailing comma.',
@@ -183,7 +183,7 @@ const hints = {
     decimal_budget: 'This exact decimal exceeds the exactness budget: at most 4096\n' +
         'coefficient digits and an absolute scale of at most 4096. The\n' +
         'budget applies to computed results as well as to literals.\n' +
-        'Aontu never rounds, so a value beyond the budget is refused\n' +
+        'aontu never rounds, so a value beyond the budget is refused\n' +
         'rather than approximated.' +
         '\n \nExamples:\n' +
         '  0d1e1000000000    -> nil  # Scale far beyond the budget;\n' +
@@ -191,7 +191,7 @@ const hints = {
         '  0d1e-1            -> 0d0.1  # Well within it.',
     lossy_integer_literal: 'This integer literal, {src}, is not exactly representable in\n' +
         'binary64, so storing it would silently round it to a DIFFERENT\n' +
-        'number. Aontu refuses rather than corrupts: write it as a `0d`\n' +
+        'number. aontu refuses rather than corrupts: write it as a `0d`\n' +
         'literal to get the exact integer.\n' +
         'The rule is exactness, not magnitude -- a literal far outside the\n' +
         'int64 window is still a value when it lands exactly on a binary64.' +
@@ -201,7 +201,7 @@ const hints = {
         '  0d9007199254740993 -> 0d9007199254740993  # ... the exact escape;\n' +
         '  0x7fffffffffffffff -> nil    # 2^63-1 rounds up to 2^63;\n' +
         '  100000000000000000000 -> 1e20 # 10^20 is huge and exact.',
-    exact_float_mix: 'Aontu cannot mix an exact number with a binary float.\n' +
+    exact_float_mix: 'aontu cannot mix an exact number with a binary float.\n' +
         'Here the operands are {left} and {right}, in that order.\n' +
         'A big type never silently becomes a binary float, in either\n' +
         'operand order -- binary64 cannot hold every exact value, so the\n' +
@@ -256,7 +256,7 @@ const hints = {
         '  least([])          -> nil  # ... but nothing is the least of none;\n' +
         '  least([0])         -> 0    # A written floor answers.',
     divide_by_zero: 'Division by zero. `div`, `mod` and `rem` refuse a zero divisor in\n' +
-        'every numeric leaf, including binary floats: Aontu is a JSON\n' +
+        'every numeric leaf, including binary floats: aontu is a JSON\n' +
         'superset with no notation for an infinity, so there is no value\n' +
         'the operation could answer with. A definition that divides by zero\n' +
         'is wrong, and this says so where it is written rather than\n' +
@@ -278,7 +278,7 @@ const hints = {
         '  div(10.0, 4.0)     -> 2.5    # ... or binary64, approximate;\n' +
         '  mul(0d10.0, 0d4.0) -> 0d40.0 # Multiplication IS exact and stays.',
     float_overflow: 'This result is not a finite binary64 number, so it is not a value\n' +
-        'Aontu can carry. There is no notation for an infinity or a NaN in\n' +
+        'aontu can carry. There is no notation for an infinity or a NaN in\n' +
         'a JSON superset, and no JSON a generator could emit for one, so\n' +
         'the operation is refused where it is written rather than escaping\n' +
         'as an internal error or an unserialisable value.\n' +
@@ -291,7 +291,7 @@ const hints = {
     inexact_integer_sum: 'The `integer` leaf holds a value only when it is integral, within\n' +
         'the int64 range, and exactly representable in binary64. This\n' +
         'result is not: {sum}.\n' +
-        'Aontu computes integers exactly and refuses to store a rounded\n' +
+        'aontu computes integers exactly and refuses to store a rounded\n' +
         'answer -- write `0d<digits>` for an exact integer beyond that\n' +
         'window.' +
         '\n \nExamples:\n' +

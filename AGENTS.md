@@ -1,6 +1,6 @@
-# Aontu — agent & contributor guide
+# aontu — agent & contributor guide
 
-Aontu is a JSON structure unifier (a purpose-specific dialect inspired by
+aontu is a JSON structure unifier (a purpose-specific dialect inspired by
 [CUE](https://cuelang.org/)). This repository ships **two implementations
 kept in parity**:
 
@@ -11,7 +11,7 @@ Three decisions govern everything below and are recorded in
 [`ADR.md`](ADR.md): **ADR-001** (the two implementations stay at full
 parity, proved by the shared spec), **ADR-002** (coverage stays at
 100 % in both, with every exclusion justified in the source), and
-**ADR-003** (where a host subsystem supplies semantics, Aontu defines
+**ADR-003** (where a host subsystem supplies semantics, aontu defines
 the meaning and rewrites the input rather than trusting the host). Read
 those before proposing a change that touches one implementation only,
 that adds code no test reaches, or that hands a value to a host library
@@ -497,7 +497,7 @@ and documentation alike; `docs/STYLE-GUIDE.md` carries the same rule
 for published prose.
 
 **Go uses the two words the other way round** — its module is the
-published collection and its package is a directory inside one. Aontu
+published collection and its package is a directory inside one. aontu
 cannot follow, because "module" is already the language element in both
 ports, in the import syntax and in `MODULE_RE`. So a phrase that sounds
 right to a Go user may be wrong here: check which side of the
@@ -510,7 +510,7 @@ import/publish line the thing is on rather than trusting the ear.
   form `go/vX.Y.Z`, and carry the CLI binaries, packages and the
   package-manager manifests on a GitHub Release at that tag, and the
   image on GHCR (`go/scripts/binaries.sh`; docs/release-and-tag.md).
-- Inside an Aontu project, everything the tools generate lives under
+- Inside an aontu project, everything the tools generate lives under
   `aontu_meta/`: the lockfile `aontu_meta/mod-lock.aon`, the vendored
   closure `aontu_meta/vendor/`, and by design the engine pin
   `aontu_meta/version`. `mod.aon` and the documents stay at the root.

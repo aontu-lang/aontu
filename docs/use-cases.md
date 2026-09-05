@@ -2,7 +2,7 @@
 
 Documentation examples are small on purpose. Systems are not. The
 sixteen models in [`use-cases/`](../use-cases/) close that gap: each
-one is an enterprise-shaped system built as real Aontu documents—a
+one is an enterprise-shaped system built as real aontu documents—a
 service catalog, a schema registry, an RBAC model—and each carries a
 `check.sh` that drives the actual CLI and asserts every outcome, with
 golden diffs for expected output and error-code greps for expected

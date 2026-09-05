@@ -2,9 +2,9 @@
 
 *Status: **IMPLEMENTED** (August 2026), in both ports, through the
 phases below — Phases 0–7 as planned plus the unplanned Phase 8,
-which closed #21. Direction decided — Aontu mirrors boru's
+which closed #21. Direction decided — aontu mirrors boru's
 number type structure; this document works out how, and records the
-implications and the places where Aontu must deviate. It builds on
+implications and the places where aontu must deviate. It builds on
 [number-model.md](number-model.md), whose six rules (R1–R6) each
 *extend* to the new leaves rather than change, and supersedes parts of
 the [G1](../capability-review/g1-constraint-algebra.md) boundary.*
@@ -18,12 +18,12 @@ The tense below is the design's own — read it as the decision, and the
 amendments as the outcome.*
 
 Every behavioural claim about boru below was verified by building and
-running its CLI from a local clone; every claim about Aontu's current
+running its CLI from a local clone; every claim about aontu's current
 behaviour was verified against both implementations.
 
 ## The decision
 
-Aontu adopts the structure of boru's `Scalar/Number` subtree:
+aontu adopts the structure of boru's `Scalar/Number` subtree:
 
 ```
 number                        (becomes a pure supertype)
@@ -49,10 +49,10 @@ later.
 ## Why unification changes the design
 
 Boru is an evaluator: values are computed, compared, and printed.
-Aontu is a unifier: values are points in a lattice obeying laws —
+aontu is a unifier: values are points in a lattice obeying laws —
 `a & a == a`, `a & b == b & a`, and canon is a function of the value.
 Three boru behaviours, all verified live, are incompatible with those
-laws, and Aontu must deviate on each:
+laws, and aontu must deviate on each:
 
 1. **Boru preserves decimal scale in rendering but not in identity.**
    `0d0.10 eq 0d0.1` is true, yet `0d0.10` renders back as `0d0.10`.
@@ -60,7 +60,7 @@ laws, and Aontu must deviate on each:
    impossible where canon must be a function of the value: if they
    are the same value they must render identically, and if they were
    distinct values then `0d0.10 & 0d0.1` would have to *fail* while
-   being numerically equal. So Aontu normalises at parse: trailing
+   being numerically equal. So aontu normalises at parse: trailing
    zeros dropped, exponents folded, one rendering per value. Scale is
    presentation, not value, in a unification lattice.
 
@@ -69,19 +69,19 @@ laws, and Aontu must deviate on each:
    threaded through *every* decimal operation, not just division —
    verified: `0d1234567890123456789012345678901234.5 add 0d0` loses
    its fraction. Boru needs this because it has division; rounding
-   somewhere is unavoidable. Aontu's entire numeric operator surface
+   somewhere is unavoidable. aontu's entire numeric operator surface
    is `+`, `upper()`/`lower()` (ceiling/floor), and unary minus — all
-   of which are **exact** in scaled-decimal arithmetic. Aontu
+   of which are **exact** in scaled-decimal arithmetic. aontu
    therefore adopts *exact-always* semantics: no context, no rounding
    mode, no `with-decimal` machinery — and where boru rounds
-   silently, Aontu errors loudly (a spec-fixed coefficient budget,
+   silently, aontu errors loudly (a spec-fixed coefficient budget,
    below). For a ground-truth language, silent rounding is precisely
    the failure mode the exact leaves exist to eliminate.
 
-3. **Boru's `eq` crosses leaves; Aontu's unification must not.**
+3. **Boru's `eq` crosses leaves; aontu's unification must not.**
    In boru, `5 eq 0d5` and `0.5 eq 0d0.5` are true (comparison
    projects both sides to an exact rational) while `0.1 eq 0d0.1` is
-   honestly false. Aontu's landed R3 discipline is that concrete
+   honestly false. aontu's landed R3 discipline is that concrete
    scalars of different kinds never unify (`1 & 1.0` errors), and the
    tower keeps it: `5 & 0d5` is an error. The argument is not purism:
    if cross-leaf unification succeeded, the result would have to
@@ -135,13 +135,13 @@ compare `*big.Int` pointers, silently breaking dedup and unification
 Accepted: `[+-]? 0[dD] digits [. digits] [(e|E) [+-] digits]`, with
 single `_` separators between digits (the landed separator rule
 applies unchanged). Leaf choice follows the source, mirroring both
-boru and Aontu's own R1 precedent (`.` in source decides): a `0d`
+boru and aontu's own R1 precedent (`.` in source decides): a `0d`
 literal containing `.`, `e`, or `E` is bigdecimal; digits only is
 biginteger.
 
 Two boru edges are deliberately not mirrored: `0d-5` evaluates in
 boru only through a text-fallback accident (its own matcher rejects
-it) — Aontu rejects it cleanly, the sign belongs before the prefix
+it) — aontu rejects it cleanly, the sign belongs before the prefix
 (`-0d5`); and `0d.5` / bare `0d` are not literals at all. *(As
 landed — and as `docs/reference-language.md` documents — they are
 not syntax ERRORS either: a marker with no digit after it falls
@@ -249,7 +249,7 @@ hot path of every disjunct dedup.
 
 `-0d0` and `-0d0.0` normalise to `0d0` everywhere (AST, gen, canon).
 Deviation from boru, which preserves `-0d0.0` through rendering and
-gives it a totalOrder slot. Aontu has no total-order surface, R2 is
+gives it a totalOrder slot. aontu has no total-order surface, R2 is
 a landed rule, and JSON has no negative zero.
 
 ### D6 — arithmetic: the exact ladder, exact-always, loud limits
@@ -292,7 +292,7 @@ rows.
 keep the argument's kind (R5). Unary minus negates exactly. Results
 never demote (`0d7 + -0d2` is biginteger `0d5`, mirroring boru).
 
-Where boru consults its 34-digit context, Aontu instead enforces an
+Where boru consults its 34-digit context, aontu instead enforces an
 **exactness budget**: a fixed, spec-pinned limit on *both* the
 coefficient digits *and* the absolute scale of any bigdecimal
 (proposed: 4096 each), enforced at parse time, through every
@@ -343,7 +343,7 @@ existence: an integer-source literal (decimal or base-prefixed)
 whose value cannot be held exactly becomes a located parse-time
 error whose hint names the fix — *"write `0d<digits>` for an exact
 integer"*. Boru's equivalent error suggests only an approximate
-float, even though its own `0d` form would be exact (verified); Aontu
+float, even though its own `0d` form would be exact (verified); aontu
 should not repeat that missed opportunity.
 
 This flips four rows to `err`: the three G1-sanctioned hex rows
@@ -439,7 +439,7 @@ float64, whatever the digits say. The R1 assertion is untouched: the
 - **Go:** biginteger is `*big.Int` (pointer, mandatorily — a
   non-pointer `big.Int` in an `any` marshals as `{}`, verified);
   bigdecimal is a small struct `(coeff *big.Int, scale int32)`.
-  **No apd dependency**: apd exists to round, and Aontu never
+  **No apd dependency**: apd exists to round, and aontu never
   rounds. Exact add/negate/ceil/floor over coefficient-and-scale is
   a few dozen lines.
 - **TypeScript:** biginteger is a native `bigint`; bigdecimal is a
@@ -649,7 +649,7 @@ docs). The genuinely novel work is: two Val leaves ×2 ports, the
 lexer matcher ×2, exact scaled arithmetic (~dozens of lines, no
 dependencies), the TS JSON emitter, and the `gens` runner mode ×2.
 Boru's version cost far more — apd, contexts, `with-decimal`, a
-render-parity saga — and Aontu escapes almost all of it for one
+render-parity saga — and aontu escapes almost all of it for one
 reason worth stating plainly: **its operator surface is tiny, and
 every operation it has is exact.** The tower's price scales with the
 operator surface, which is an argument for G8's maths-as-functions
@@ -757,7 +757,7 @@ were written in; the amendments record where the plan met the code.
   its README).
 - **Conversion functions.** With cross-leaf unification refused,
   deliberate conversion (`0d5` to integer 5) has no spelling. Boru's
-  `convert` + accuracy-mode design is the reference; in Aontu this
+  `convert` + accuracy-mode design is the reference; in aontu this
   is function territory and belongs with G8's roster, not the tower.
 - **`biginteger` vs `integer` subtyping.** The tower makes them
   disjoint (mirror). The alternative — `integer ⊑ biginteger`, every

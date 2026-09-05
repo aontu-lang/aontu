@@ -864,6 +864,28 @@ function stylePaths() {
         Assert.deepEqual(hits, [], 'first-person singular in documentation ' +
             `(docs/STYLE-GUIDE.md, voice rule 7):\n${hits.join('\n')}`);
     });
+    // THE NAME IS "aontu": lowercase, no fada. Not a house-style whim —
+    // "Aontú" is the Irish word the name came from and kept coming back
+    // in prose as though it were the name, so the pages disagreed with
+    // the command, the package and each other. `prose()` strips fences
+    // and code spans, which is what leaves the exported API (`Aontu`,
+    // `AontuError`, Go's `aontu.Aontu`) alone: those are identifiers and
+    // renaming them would break code rather than fix prose.
+    (0, node_test_1.test)('the-name-is-spelled-aontu', () => {
+        const hits = [];
+        for (const { file, abs } of stylePaths()) {
+            prose(Fs.readFileSync(abs, 'utf8'))
+                .split('\n')
+                .forEach((line, i) => {
+                const m = line.match(/Aont[uú]/);
+                if (m) {
+                    hits.push(`${file}:${i + 1} "${m[0]}": ${line.trim()}`);
+                }
+            });
+        }
+        Assert.deepEqual(hits, [], 'the name is "aontu", lowercase and with no fada ' +
+            `(docs/STYLE-GUIDE.md, Terminology):\n${hits.join('\n')}`);
+    });
     // At most one per page, tutorials only, on a genuine payoff. Google
     // bans them outright, which is why `Google.Exclamation` is a warning
     // in .vale.ini: it cannot know which page is a tutorial.

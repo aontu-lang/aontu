@@ -20,7 +20,7 @@ harness that evaluates a definition it did not write needs four
 promises: evaluation touches nothing outside its declared inputs
 (hermeticity), it always finishes (termination), it always gives the
 same answer (determinism), and a hostile input cannot make the
-evaluator do harm (sandboxing). Aontu today has good bones for all
+evaluator do harm (sandboxing). aontu today has good bones for all
 four and a written guarantee for none — and one of them, hermeticity,
 is currently false.
 
@@ -204,19 +204,19 @@ What structurally blocks the capability:
 should be generated regardless of the environment" — with external
 input confined to explicit `--ext-str` variables and top-level
 arguments. The cost: the guarantee lives in prose and code review,
-not in an enforced capability surface. Aontu's `$` variables already
+not in an enforced capability surface. aontu's `$` variables already
 match the input model; the lesson is to *test* the claim.
 
 **Starlark** shows determinism as an engineering discipline:
 deterministic iteration order, values frozen after module
 evaluation, no recursion, all errors fatal. Frozen values enable
-safe parallel reuse — the opposite of Aontu's single-use mutable
+safe parallel reuse — the opposite of aontu's single-use mutable
 trees — but freezing an existing mutating unifier is a rewrite; the
 adoptable part is pinning observable ordering in the spec suite.
 
 **Dhall** contributes two things. Totality — "if an expression
 type-checks then evaluating it always succeeds in finite time" — is
-the headline Aontu should be able to print, with explicit fuel where
+the headline aontu should be able to print, with explicit fuel where
 structural totality is not enough. And its import-sandbox rules are
 the reference design for the day includes go remote: remote imports
 may only transitively import other remote resources (never local

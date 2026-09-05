@@ -5,7 +5,7 @@ partial structures into one consistent result—or reports exactly
 where they conflict.
 
 Schema, defaults and data are the same kind of thing, combined by one
-operation: *unification*. Any JSON document is already valid Aontu, so
+operation: *unification*. Any JSON document is already valid aontu, so
 an agent's output can be checked against a definition with no
 conversion step.
 
@@ -80,7 +80,7 @@ the same thing in a Node agent harness and a Go gateway.
 - [API and CLI reference](https://github.com/rjrodger/aontu/blob/main/docs/reference-api.md)
 - [Agent skill](https://github.com/rjrodger/aontu/blob/main/docs/skill/SKILL.md)
 
-Aontu is inspired by [CUE](https://cuelang.org/), as a
+aontu is inspired by [CUE](https://cuelang.org/), as a
 purpose-specific dialect.
 
 ## License

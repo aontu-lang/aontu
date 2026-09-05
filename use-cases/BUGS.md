@@ -997,7 +997,7 @@ assert the capability rather than hover failing everywhere.
 ## arithmetic — a non-finite result with no code, and no way to say it
 
 ### 39. A float sum that overflows escapes as an internal error, differently in each port [major]
-`1.0e308 + 1.0e308` is not a value Aontu can carry — the language is a
+`1.0e308 + 1.0e308` is not a value aontu can carry — the language is a
 JSON superset with no notation for an infinity, and no JSON a generator
 could emit for one. Neither port said so. TypeScript crashed with
 `[aontu/internal]` ("Internal error during unification"), which is the
@@ -1557,7 +1557,7 @@ names, both ports:
 
 **THE RULING (ADR-012).** The extension decides, from a fixed table,
 and it says which of two things the file is. `.aon` and `.aontu` are
-Aontu source. `.json`, `.jsonld`, `.jsonc`, `.json5`, `.jsonic`,
+aontu source. `.json`, `.jsonld`, `.jsonc`, `.json5`, `.jsonic`,
 `.jsc`, `.toml`, `.yaml`, `.yml` and `.ini` are configuration DATA,
 read by that format's own parser — every one of them maps onto JSON.
 Every other extension — and a name with no extension — is refused by
@@ -1585,7 +1585,7 @@ registered `processor: {aontu, aon}` and let every other extension fall
 through to multisource's default, which hands the file back as raw
 TEXT; `go/source.go`'s `msOptions` also registered the empty kind `""`,
 the fallback for an unrecognised extension, so Go parsed everything as
-Aontu source. Either rule is defensible; having both is not, and
+aontu source. Either rule is defensible; having both is not, and
 ADR-001 says so.
 
 *(b) The crash.* `.json` is the one extension with an upstream default
@@ -2179,7 +2179,7 @@ a: id(x) & { b: id(x) }
 
 | port | outcome |
 |---|---|
-| TypeScript | `Aontu: unexpected error: Maximum call stack size exceeded`, exit 1 — **no `[aontu/…]` marker**, so a harness that greps for one sees nothing |
+| TypeScript | `aontu: unexpected error: Maximum call stack size exceeded`, exit 1 — **no `[aontu/…]` marker**, so a harness that greps for one sees nothing |
 | Go | `runtime: goroutine stack exceeds 1000000000-byte limit` / `fatal error: stack overflow`, exit 2 — Go stack overflow is **not recoverable**, so an embedding server cannot catch it |
 
 Identity merge means every node carrying a name unifies with every
@@ -2248,7 +2248,7 @@ Repro:
 ### 59. `vet --at` loses `%alias` references in the Go port [FIXED 2026-08-30]
 
 Found 2026-08-30 while specifying a code-generation vocabulary as an
-Aontu schema — the vocabulary is alias-heavy, and `--at` is how you
+aontu schema — the vocabulary is alias-heavy, and `--at` is how you
 point a validation at one part of a document. The two engines return
 **opposite verdicts and opposite exit codes** for the same inputs:
 

@@ -79,7 +79,7 @@ merge_conflict	errcode	parse	0.53.0
 # vanish in the merge.
 include_denied	errcode	parse	0.53.0
 # An @"..." include whose EXTENSION is not one the engine reads as
-# Aontu source (ADR-012, use-cases/BUGS.md §49). `.aon`, `.aontu`,
+# aontu source (ADR-012, use-cases/BUGS.md §49). `.aon`, `.aontu`,
 # `.json` and `.jsonld` parse; everything else -- and a name with no
 # extension -- is refused by name rather than guessed at. Parse-stage
 # and raised, not injected, for the same bare-member reason

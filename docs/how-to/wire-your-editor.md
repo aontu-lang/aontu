@@ -41,7 +41,7 @@ export function activate(_ctx: ExtensionContext) {
   const server = { command: 'aontu', args: ['lsp'], transport: TransportKind.stdio }
   const client = new LanguageClient(
     'aontu',
-    'Aontu',
+    'aontu',
     { run: server, debug: server },
     { documentSelector: [{ scheme: 'file', language: 'aontu' }] },
   )

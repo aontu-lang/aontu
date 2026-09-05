@@ -213,7 +213,7 @@ than a broken one.
 
 Public, empty (no auto-generated README — the scaffold brings its own),
 MIT to match the org. Description: *Source of aontu.dev — the project
-site and documentation for Aontu.*
+site and documentation for aontu.*
 
 **This blocks B1/B2 and all site work.** It is the one task that gates
 everything.

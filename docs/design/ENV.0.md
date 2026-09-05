@@ -26,7 +26,7 @@ what `aontu env` *should* do are argument, and are marked as such.
 
 Four situations, each ordinary:
 
-1. A repository of Aontu documents was written against one engine
+1. A repository of aontu documents was written against one engine
    version and is evaluated by many machines: developers' laptops, CI,
    a generator in a build. Every one of them should run the same
    engine, or a document that evaluates on one machine fails on
@@ -192,7 +192,7 @@ file in the working directory when there is none.
 The file lives with the project's other generated state rather than
 as a dotfile at the root: one folder to expect and one to ignore is
 worth more than the editors and CI templates that look for a
-`.python-version`-shaped file, which do not know Aontu anyway. The
+`.python-version`-shaped file, which do not know aontu anyway. The
 directory is found by walking up for `aontu_meta/version`, and
 `aontu env pin` creates the folder when it is not there.
 
@@ -246,7 +246,7 @@ pin latest` resolves `latest` and writes the number it resolved to.
 
 ```
 ~/.aontu/
-  env.aon                       # the settings, an Aontu document
+  env.aon                       # the settings, an aontu document
   versions/
     go/0.1.15/                  # a release archive, unpacked and verified
       aontu  aontu-lsp  LICENSE  .verified
@@ -499,7 +499,7 @@ document pin, and the language change deserves its own review.
 
 ## 12. Boundary: what this will not do
 
-- Not a package manager for Aontu modules: that is `aontu mod`, and
+- Not a package manager for aontu modules: that is `aontu mod`, and
   a version of the engine is not a dependency of a document.
 - Not a Node or Go version manager. The npm build needs Node, and
   whichever Node is on `PATH` runs it; that is npm's world.

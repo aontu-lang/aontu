@@ -3,7 +3,7 @@
 *Status: design proposal. Part of the
 [capability review](index.md), opened August 2026 after G1–G8 landed.
 This document expands a gap the original eight did not name: turning
-an evaluated Aontu model into OUTPUT CODE — TypeScript, Go, SQL,
+an evaluated aontu model into OUTPUT CODE — TypeScript, Go, SQL,
 YAML, OpenAPI — in three forms that must all feel native to the
 language. Form (a) is a host program consuming the model; form (b) is
 driving [jostraca](https://github.com/jostraca/jostraca) as a library;
@@ -49,7 +49,7 @@ schema: {
 }
 ```
 
-The wanted artifact is fifteen lines of TypeScript. Aontu cannot
+The wanted artifact is fifteen lines of TypeScript. aontu cannot
 produce a byte of it. `generate()` returns JSON and nothing else; a
 document evaluates to a value, and there is no verb, no library
 function and no vocabulary that turns a value into target-language
@@ -62,7 +62,7 @@ it at the boundary.
 
 **Second failing example, and this one is not a missing feature but a
 missing shape.** The obvious repair is to build the text in the model.
-Aontu can already hold a code template as a value — VERIFIED,
+aontu can already hold a code template as a value — VERIFIED,
 backtick strings are multi-line and process escapes in both ports:
 
 ```
@@ -111,7 +111,7 @@ someone else's repository. XSLT's answer to this is its defining
 trick: a stylesheet is itself an instance of its own output vocabulary
 (XML), with instructions distinguished by namespace, so literal result
 elements pass through and can be validated against the output schema.
-Aontu has no analogue, and without one, the "transformation layer"
+aontu has no analogue, and without one, the "transformation layer"
 would be a text templating engine with a lattice bolted to the front —
 the failure mode every prior art below shares.
 
@@ -132,7 +132,7 @@ What exists is more than it looks like, and most of it is reusable.
   as `{}`. So a transform CAN introspect a schema. The mechanism is
   that `PackFuncVal`'s key walk reads the bag's keys while the
   `type()` mark only affects `gen` (ts/src/val/BagVal.ts).
-- **`match()` discriminates Aontu kinds by trial meet.** VERIFIED:
+- **`match()` discriminates aontu kinds by trial meet.** VERIFIED:
   `match(_, integer, "int", string, "string", boolean, "bool", [],
   "list", {}, "map", "any")` classifies correctly, because `match`
   selects by unifiability (ts/src/val/MatchFuncVal.ts) and the four
@@ -326,13 +326,13 @@ grounds. The G8 boundary holds here.
 **C. A second evaluator — an XSLT-shaped rule engine with its own
 semantics.** A stylesheet document, its own pattern language, its own
 priority scheme, its own conflict resolution. Rejected: it is a second
-language to specify, teach and keep in TS/Go parity, and Aontu already
+language to specify, teach and keep in TS/Go parity, and aontu already
 has a pattern language whose patterns are values and whose match test
 is unification. Reinventing that is surface-area creep of exactly the
 kind [index.md](index.md) names.
 
 **D. Emit JSON Schema (or OpenAPI) and generate from that.** Zero new
-Aontu surface; hand off to the mature ecosystem. Rejected on evidence
+aontu surface; hand off to the mature ecosystem. Rejected on evidence
 this repository already has: `aontu jsonschema` exists and its whole
 `SchemaLoss` machinery exists *because* JSON Schema cannot carry what
 the model says. Routing code generation through a strictly weaker
@@ -340,8 +340,8 @@ vocabulary discards the constraints, the identity, the relations and
 the closedness dial — which is most of what makes the model worth
 generating from.
 
-**E. A neutral output vocabulary, expressed as an Aontu schema, that a
-transform written in ordinary Aontu produces, that the unifier vets,
+**E. A neutral output vocabulary, expressed as an aontu schema, that a
+transform written in ordinary aontu produces, that the unifier vets,
 that a tooling renderer turns into bytes, and that Jostraca writes.**
 The costs are real and stated: the transform reads a schema through
 `pack`/`match` rather than through a reflection API; four facts are
@@ -350,7 +350,7 @@ never produce byte-for-byte what `gofmt` would.
 
 **Recommendation: E.** It is the only option that keeps the XSLT
 property — the result is an instance of the output vocabulary, and the
-output vocabulary is an Aontu schema, so the result is checked by the
+output vocabulary is an aontu schema, so the result is checked by the
 same unifier that produced it — while refusing all four of XSLT's
 failures and reusing rather than reimplementing Jostraca.
 
@@ -359,13 +359,13 @@ failures and reusing rather than reimplementing Jostraca.
 The following are settled. They are recorded here with their reasons
 so that a later reader does not re-derive them.
 
-**D1 — the transform is Aontu; the result is shaped like the target
+**D1 — the transform is aontu; the result is shaped like the target
 language.** "The XSLT analogue exists in the output target language,
 yet is syntax neutral" describes the RESULT TREE, not the transform
 file. The result is a document of declarations, types, fields,
 functions and comments, which a renderer turns into bytes. It is
 syntax-neutral because the output vocabulary is neutral. And because
-the output vocabulary is itself an Aontu schema, a transform result
+the output vocabulary is itself an aontu schema, a transform result
 can be VETTED by unification against the vocabulary it claims to
 speak — the analogue of XSLT validating literal result elements
 against the output schema, and better, because it is the same
@@ -392,13 +392,13 @@ $.code.units.0.decls.0: empty [conflict]
 stays JSON-valued. A new CLI verb plus a library — the precedent is
 ts/src/jsonschema.ts and ts/src/agentsmd.ts, engine functions with CLI
 verbs and MCP tools over them — walks the evaluated model and renders
-bytes. Aontu documents never evaluate to a file; they evaluate to a
+bytes. aontu documents never evaluate to a file; they evaluate to a
 MODEL OF the output, and the tooling renders it.
 
-**D3 — Aontu drives Jostraca as a library**, in both ports (`jostraca`
+**D3 — aontu drives Jostraca as a library**, in both ports (`jostraca`
 on npm, `github.com/jostraca/jostraca/go`). Jostraca owns file
 writing, folder structure, three-way merge, `Slot`/`Inject` and
-protected regions; Aontu reimplements none of it.
+protected regions; aontu reimplements none of it.
 
 **D4 — four clauses of the [G8 boundary](g8-generation.md#boundary-what-we-will-not-do)
 are opened**, and only these four: (i) a fold over strings —
@@ -487,7 +487,7 @@ dependency order.
 
 ### 1. The output vocabulary — `@"aontu:code"`
 
-A bundled Aontu schema, served from the engine as `std/system` already
+A bundled aontu schema, served from the engine as `std/system` already
 is (ts/src/std.ts, go/std.go, same bytes, pinned by a canon and a hash
 row). It is ONE vocabulary, not a family: variation is carried by
 `x?: {}`, an open map on every node keyed by backend name, which is
@@ -582,7 +582,7 @@ a raw string that has no escape (ts/src/std.ts:13-14 states the rule).
 ```aon
 # aontu:code --- THE OUTPUT VOCABULARY (G9).
 #
-# An Aontu transform evaluates to an instance of this schema; the
+# An aontu transform evaluates to an instance of this schema; the
 # `render` verb turns the instance into bytes. Because it is an
 # ordinary schema, a transform result is CHECKED by unification.
 # `vet` takes FILE PATHS, not include expressions, so the vocabulary
@@ -763,7 +763,7 @@ answer "does this attach to the next declaration or the previous
 one", which is what makes every AST-printer's comment handling a bug
 farm. **`statement`/`expression`/`block`**: the LCD trap in its purest
 form; a function body is `{k:"text"}` or `{k:"abstract"}`, because a
-transform cannot compute a body anyway — the only thing an Aontu
+transform cannot compute a body anyway — the only thing an aontu
 document produces is data, so a body is always a string the transform
 assembled, and modelling it as an expression tree buys nothing and
 costs a per-target expression printer in two ports.
@@ -836,7 +836,7 @@ and only one of them is a true cycle:
    res.peg.a`. VERIFIED, both ports die:
 
    ```
-   TS: Aontu: unexpected error: Maximum call stack size exceeded
+   TS: aontu: unexpected error: Maximum call stack size exceeded
    GO: runtime: goroutine stack exceeds 1000000000-byte limit
        fatal error: stack overflow          (unrecoverable)
    ```
@@ -962,7 +962,7 @@ A profile declares: `indent` (unit and width, width bounded 0..16 so
 no port can differ on a repeat count); comment forms (line, block,
 doc, each `{open?, prefix?, close?}`); string quoting and an escape
 table **keyed by decimal code point** — a literal control character
-cannot be an Aontu key (`aontu/unprintable`), and a character-keyed
+cannot be an aontu key (`aontu/unprintable`), and a character-keyed
 table would make replacement ORDER significant, where a per-code-point
 lookup has no order at all; identifier character classes drawn from a
 closed named set (no regular expressions: docs/trust.md already names
@@ -1174,8 +1174,8 @@ AGENTS.md already gives for the `@tabnas` pins: the spec suite will
 assert *through* Jostraca's public API — the `existing.txt` policy
 defaults, the `Inject` marker pair, the merge conflict marker text,
 the `.jostraca/generated/` baseline layout — and none of that is
-versioned API. `^0.34.0` would let a Jostraca patch turn an Aontu spec
-row red with no Aontu commit.
+versioned API. `^0.34.0` would let a Jostraca patch turn an aontu spec
+row red with no aontu commit.
 
 **A pin-equality guard lands with it, and covers `@tabnas` too.**
 Nothing today checks that the two ports' shared pins agree. They
@@ -1191,7 +1191,7 @@ neither can be deleted quietly.
 TypeScript the `require('jostraca')` happens inside the function body,
 not at module top level, so `require('aontu')` does not pull the
 generator. In Go the bridge is its own package —
-`github.com/aontu-lang/aontu/go/emit` — so a consumer embedding Aontu
+`github.com/aontu-lang/aontu/go/emit` — so a consumer embedding aontu
 for unification alone never links Jostraca. **The LSP may never reach
 it**, asserted mechanically by walking the require graph of
 `dist/lsp-server.js` and by `go list -deps` on go/lsp: an editor
@@ -1201,7 +1201,7 @@ plugin must never be able to write files.
 runtime dependencies are zero, but it imports `memfs` unconditionally
 at module load for a capability used only when `mem: true`. VERIFIED
 by `du`: that closure is 15 MB (`@jsonjoy.com` alone is 14 MB) against
-1.4 MB for Aontu's entire `@tabnas` parser stack. That is an 11x
+1.4 MB for aontu's entire `@tabnas` parser stack. That is an 11x
 install growth for a capability a normal render never uses, and it is
 also a parity absurdity — Jostraca's Go port ships its own `MemFS`
 backed by a string-keyed map and needs no dependency at all. Lazy
@@ -1212,18 +1212,18 @@ today, while four modules import it unconditionally) into
 **What the bridge does, and what it does not.** It receives the render
 report — N units, each a path and a byte string — and builds ONE
 Jostraca `Project` containing all N as folders and files, then makes
-ONE `generate()` call. Aontu contributes no file writing, no diff, no
+ONE `generate()` call. aontu contributes no file writing, no diff, no
 merge, no protected-region format. `agentsMdSplice` stays what it is —
-a 20-line marker replacement for Aontu's own AGENTS.md stanza —
+a 20-line marker replacement for aontu's own AGENTS.md stanza —
 and is explicitly NOT generalised into a second protected-region
-mechanism that would put Aontu and Jostraca in competition over the
+mechanism that would put aontu and Jostraca in competition over the
 same file. `Inject` is the sanctioned spelling.
 
 `Content` templates unconditionally in Jostraca, so a `$$path$$`
-sequence appearing in Aontu-generated bytes would be silently
+sequence appearing in aontu-generated bytes would be silently
 substituted. The bridge therefore passes `raw: true` (a small addition
 on the Jostraca side); until it exists, the bridge passes an empty
-model. Without this, "Aontu owns the bytes" is not true — Jostraca
+model. Without this, "aontu owns the bytes" is not true — Jostraca
 gets the last edit, invisibly.
 
 **Dry run needs no new Jostraca feature.** `mem: true` plus
@@ -1232,7 +1232,7 @@ bespoke dry-run reporter would not.
 
 ### 6. The manifest (D5 iv, D7)
 
-One document names the N outputs, and it is an Aontu document, so it
+One document names the N outputs, and it is an aontu document, so it
 is vettable like anything else:
 
 ```aon
@@ -2006,7 +2006,7 @@ mode; a `use-cases/15-generate/` directory following the
 the phase's row in
 [`docs/capability-review/progress.md`](progress.md) changing in the
 **same commit** that changes its status. **ADR-012** is required —
-"Aontu depends on Jostraca, and the dependency is data" — because this
+"aontu depends on Jostraca, and the dependency is data" — because this
 is a cross-repository coupling that changes the install story and adds
 a dependency to a project that has taken seven in its life; without an
 ADR a future maintainer will reverse it in good faith. ADR.md's index
@@ -2035,7 +2035,7 @@ ADR-011 exist; fix it in the same commit.
   without it (the vocabulary has no `prim:"number"`, and the
   reflection sidecar reports the true kind), but it would remove the
   sidecar's `kind` field for the common case.
-- **A `doc(x, "text")` builtin.** Aontu has no comment recovery and
+- **A `doc(x, "text")` builtin.** aontu has no comment recovery and
   never will without a CST, so doc comments in generated code must be
   MODEL DATA. `%Doc` is in the vocabulary but today a transform can
   only supply doc text it wrote itself. A `doc()` builtin mirroring
@@ -2417,7 +2417,7 @@ The second row is the one worth pausing on: **the rule §3 states as a
 renderer check becomes a `vet` error at the node**, before any
 rendering runs, because it is expressible as a constraint on a string.
 That is D1's whole claim — the result is an instance of the output
-vocabulary and the vocabulary is an Aontu schema — applied to the one
+vocabulary and the vocabulary is an aontu schema — applied to the one
 invariant the renderer's totality argument rests on.
 
 ### What this does to Resolution 1
@@ -2574,9 +2574,9 @@ A hand-written `serverless.yml` then pulls the generated YAML in with
 That is [D5 and D7](#the-owners-decisions) already in production: one
 model, many outputs, several target languages, one run.
 
-### Finding 1 — the model layer is already Aontu, and needs no work
+### Finding 1 — the model layer is already aontu, and needs no work
 
-The `.jsonic` files are Aontu documents under the old extension: `@`
+The `.jsonic` files are aontu documents under the old extension: `@`
 includes, `&:` spreads, `$.` references, preference marks. **VERIFIED
 at 0.56.0**: with the one external include (`@voxgig/podmind-common`)
 reconstructed from the committed `model.json`, the current engine
@@ -2728,11 +2728,11 @@ notes, on the pattern this document already uses for
 the [assessed backend](#worked-assessment-2026-09-04-a-production-backend)'s
 twelve Lambda handlers were built, and **none contained an
 apply-templates** — each was a functional transformation with the
-target code inside Aontu strings, so the output shape was welded to
+target code inside aontu strings, so the output shape was welded to
 that one target and the rule layer was never exercised. The fifth does
 contain one, and reproduces all twelve handlers byte-identically from a
 generator written in TypeScript with `//-` comments carrying the
-Aontu.
+aontu.
 
 **What it changes here.**
 

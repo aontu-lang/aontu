@@ -10,7 +10,7 @@ what exists, what arguments a call may carry (and must refuse), what a
 call can cost (side-effect class, rate limit, timeout), and who may
 call it. Today this truth is usually scattered across a TypeScript
 tool file, a JSON Schema, a wiki page and the dispatcher's `if`
-statements—and those copies drift. This is Aontu's home turf: the
+statements—and those copies drift. This is aontu's home turf: the
 MCP ecosystem's tool-definition problem.
 
 The model exercises the full loop:

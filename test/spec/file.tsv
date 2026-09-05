@@ -84,7 +84,7 @@ load-alias-top-conjunct	gen	@"__FIXTURES__/alias_top.aon" c1:$.C&{a:5}	{"c1":{"a
 # The rows exist because the two ports decided this DIFFERENTLY, and
 # both answers were wrong in a way that exits 0. TypeScript handed back
 # every non-`.aon` file as its raw TEXT, so `schema: @"vocab.jsonld"`
-# validated data against a 40 KB string; Go parsed everything as Aontu
+# validated data against a 40 KB string; Go parsed everything as aontu
 # source, so `@"notes.txt"` parsed prose. `.json` was worse than either:
 # an unhandled internal error with no code, path or site.
 #
@@ -109,7 +109,7 @@ load-ext-jsonic	gen	x:@"__FIXTURES__/conf.jsonic"	{"x":{"host":"local","port":80
 # a schema wanting `port: integer` has to say so.
 load-ext-ini	gen	x:@"__FIXTURES__/conf.ini"	{"x":{"host":"local","port":"8080"}}
 # CONFIG DATA IS DATA, not the language: what the format reads as a
-# comment is a comment, and nothing in it is an Aontu construct. The
+# comment is a comment, and nothing in it is an aontu construct. The
 # `.jsonc` fixture carries both comment forms for that reason, and the
 # two JSON kinds the others' payload lacks: a BOOLEAN and a NULL. Every
 # kind a config file can hold is read by some row here.
@@ -124,7 +124,7 @@ load-ext-none	err	x:@"__FIXTURES__/noext"	include not readable
 # The extension is NAMED, because the extension is the whole reason.
 load-ext-names-it	err	x:@"__FIXTURES__/conf.csv"	extension: .csv
 load-ext-names-none	err	x:@"__FIXTURES__/noext"	no extension
-# TEXT IS THE THIRD THING AN EXTENSION CAN MEAN, beside Aontu source
+# TEXT IS THE THIRD THING AN EXTENSION CAN MEAN, beside aontu source
 # and configuration data: the file's BYTES, as one string scalar. No
 # parser is chosen, so there is nothing here for two ports to disagree
 # about -- which is exactly what `.txt` used to be refused FOR, back

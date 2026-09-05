@@ -1,4 +1,4 @@
-# Comments: only # line comments are valid Aontu syntax
+# Comments: only # line comments are valid aontu syntax
 # Columns: name<TAB>mode<TAB>src<TAB>expect ; mode: canon|gen|err ; escapes: \n \t \\
 hash-trailing	gen	a:1 # comment	{"a":1}
 hash-lines	gen	# header\na:1\n# footer	{"a":1}
