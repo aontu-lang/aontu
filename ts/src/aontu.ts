@@ -287,7 +287,7 @@ class Aontu {
       if (err instanceof AontuError || true === err.aontu) {
         throw err
       }
-      const unex = new AontuError('Aontu: unexpected error: ' + err.message)
+      const unex = new AontuError('aontu: unexpected error: ' + err.message)
       Object.assign(unex, err)
       unex.stack = err.stack
       throw unex

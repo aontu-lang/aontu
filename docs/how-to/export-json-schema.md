@@ -131,7 +131,7 @@ $ aontu jsonschema --at '$.argschemas.search_docs' tools.aon
 
 The export reads straight through the `type()` mark, and the
 closedness the agent must respect crosses without loss: a
-hallucinated argument is a refusal on the Aontu side and
+hallucinated argument is a refusal on the aontu side and
 `additionalProperties: false` on the JSON Schema side. Stderr stayed
 empty for this run because the registry is written in the crossing
 subset—kinds, scalar enums, bounds, `re()`, string `length()`,

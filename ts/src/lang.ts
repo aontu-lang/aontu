@@ -2296,7 +2296,7 @@ function opCharHint(src: string): string {
       q = c
     }
     else if ('<' === c || '>' === c) {
-      return '\nThe > and < characters are not Aontu operators: write the ' +
+      return '\nThe > and < characters are not aontu operators: write the ' +
         'bound functions min(x), max(x), above(x), below(x) instead.'
     }
   }

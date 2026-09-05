@@ -180,9 +180,9 @@ $.id: lossy_integer_literal [conflict]
 ```
 
 Plain evaluation of the same file prints the full explanation
-("Aontu refuses rather than corrupts: write it as a `0d` literal").
+("aontu refuses rather than corrupts: write it as a `0d` literal").
 The exact spelling, `0d9223372036854775807`, vets valid against
-`(integer | biginteger) & min(1)`. It is Aontu syntax rather than
+`(integer | biginteger) & min(1)`. It is aontu syntax rather than
 JSON, and a strict JSON parser refuses the file that carries it.
 
 Contract versions are gated by `breaking --against`. A revision that
@@ -306,7 +306,7 @@ codes, codes grepped from the reports, goldens diffed under
 20. `data/ids/paid-id-19digit-0d.json` (`0d9223372036854775807`) at
     `$.registry.order_paid` is `verdict: valid`, exit 0.
 21. `data/ids/paid-id-19digit-0d.json` is refused by Python's strict
-    `json.load`: the `0d` spelling is Aontu syntax, not JSON.
+    `json.load`: the `0d` spelling is aontu syntax, not JSON.
 22. `probes/pref-enum.aon` (`v: *"1.0" | "1.1"`) against
     `data/probe-v99.json` (`"9.9"`): `verdict: invalid`, exit 1,
     `[aontu/empty]`, plus a `pref_not_instance` advisory that the

@@ -3,7 +3,7 @@
 *Design note, 2026-08-30. Companion to
 [G9](../capability-review/g9-transformation.md), which is the plan for
 form (c), the declarative transformation layer. This note covers the
-other two forms an Aontu model can become output code — a host program
+other two forms an aontu model can become output code — a host program
 reading the model directly, and driving
 [jostraca](https://github.com/jostraca/jostraca) as a library — and
 argues that both are nearer than they look, with one exception that is
@@ -188,7 +188,7 @@ attribute its output. None of that is a language change.
 Jostraca is by the same author, ships TypeScript-canonical with a Go
 port in feature parity, and pins behaviour with a shared cross-stack
 corpus — the same discipline as this repository. It already owns
-everything Aontu should not build: file writing, folder structure,
+everything aontu should not build: file writing, folder structure,
 three-way merge against the previous generate, `Slot`/`Inject`,
 protected regions, exclusion, and an in-memory mode
 (`{mem: true}` with `result.vol()`) that makes a generation testable
@@ -203,14 +203,14 @@ Two things are genuinely needed:
 
 1. **Exact numerics.** `generate()` can return `bigint` and `Decimal`
    for the exact leaves, and Jostraca's substitution `JSON.stringify`s
-   an object-valued match. Either Aontu offers a plain projection that
+   an object-valued match. Either aontu offers a plain projection that
    downgrades the exact leaves, or Jostraca learns the two types. The
    former is cleaner: the lossiness decision belongs where the type
    information is.
 2. **A schema for the Jostraca model.** This is the strongest argument
    for the pairing and it should lead the story. Jostraca's model is
    untyped and its failure mode is *silent* — an unmatched `$$a.b.c$$`
-   is left verbatim in the emitted file. An Aontu document that both
+   is left verbatim in the emitted file. An aontu document that both
    computes the model and constrains it turns "a literal `$$app.name$$`
    shipped to production" into a unification error before any file is
    written.
@@ -220,7 +220,7 @@ hands Jostraca **one** `Project` containing all N outputs in a single
 `generate()` call, so its merge and exclusion logic sees the whole
 tree and one consistent snapshot of the model backs every file.
 
-**Where the ownership line falls.** Aontu renders the output
+**Where the ownership line falls.** aontu renders the output
 vocabulary to text and never touches the filesystem — the engine
 returns units and the CLI writes them, which is the rule
 `aontu set` already follows for the same reason (an engine that
@@ -232,7 +232,7 @@ merge is explicitly not "every generated line survives": a region the
 user deleted and the generator did not touch stays deleted, and a file
 still holding conflict markers is skipped entirely on the next run.
 A driver should surface a conflicted file as a first-class outcome
-rather than swallowing it. Where Aontu only partly owns a file,
+rather than swallowing it. Where aontu only partly owns a file,
 `Inject` — marker-scoped and deterministic — is the right primitive
 and `merge` is not.
 

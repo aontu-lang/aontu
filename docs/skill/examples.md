@@ -1,4 +1,4 @@
-# Aontu by example
+# aontu by example
 
 The ladder: start with the JSON you already know, add one thing at a
 time. Every rung is a valid document.

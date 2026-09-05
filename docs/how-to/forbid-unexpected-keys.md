@@ -73,6 +73,6 @@ element template is—see
 
 The semantics are specified in [Closed values: `close` /
 `open`](../reference-language.md#closed-values-close--open).
-Closedness is also the one thing Aontu and JSON Schema say
+Closedness is also the one thing aontu and JSON Schema say
 identically (`additionalProperties: false`)—see
 [export JSON Schema](export-json-schema.md).

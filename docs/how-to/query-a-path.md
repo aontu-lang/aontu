@@ -50,7 +50,7 @@ $ aontu get $ --depth 1 --canon system.aon
 {"services":top}
 ```
 
-Each view is itself a valid Aontu document that generalises the
+Each view is itself a valid aontu document that generalises the
 truth—`top` means "no further information at this tier". `--depth` needs
 `--canon` or `--types`, because JSON has no way to write `top`.
 

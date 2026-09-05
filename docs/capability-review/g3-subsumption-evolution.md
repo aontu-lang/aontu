@@ -16,7 +16,7 @@ surfaces — see [Boundary](#boundary-what-we-will-not-do).*
 
 Ground truth is a claim about *time*. Agents cache and act on stale
 snapshots of a definition; the definition evolves underneath them; and
-today Aontu cannot answer the one question that makes evolution safe:
+today aontu cannot answer the one question that makes evolution safe:
 *does the new truth still honour the old one?* The lattice makes the
 principled answer nearly free — a value's instances are exactly the
 values below it in the ordering — yet no API, verb, or builtin exposes
@@ -109,7 +109,7 @@ with the mark surfaced as a warning at every point of use. Finally,
 the same missing relation is the entailment query agents need
 directly: "does spec A still guarantee invariant B?" is
 `subsume(B, A)` — if A is an instance of B, everything A admits, B
-admits. The fact-check pass ranked this family Aontu's most
+admits. The fact-check pass ranked this family aontu's most
 defensible differentiator; none of it exists until the relation is an
 operation.
 
@@ -183,7 +183,7 @@ The ordering exists operationally; the relation does not.
   bare boolean with documented false negatives, and CUE's production
   history shows defaults and closedness — the two non-lattice-pure
   features — are where the semantics rot; their interactions with
-  disjunction forced the multi-year evaluator rewrite. Aontu carries
+  disjunction forced the multi-year evaluator rewrite. aontu carries
   the same trio plus ranked preferences and spreads.
 - **Confluent Schema Registry** contributes the policy vocabulary:
   BACKWARD (default), FORWARD, FULL, and `*_TRANSITIVE` variants,
@@ -194,7 +194,7 @@ The ordering exists operationally; the relation does not.
   lesson — `reserved` field numbers and deprecate-before-remove make
   retirement a staged, mechanical process. Both are curated rule
   catalogues, not computed relations; the null-hypothesis trap in
-  [index.md](index.md) says Aontu's answer must be the principled
+  [index.md](index.md) says aontu's answer must be the principled
   version.
 - **Kubernetes and Terraform deprecation workflows** set the
   point-of-use bar: warnings surfaced by every client, naming the
@@ -441,7 +441,7 @@ port: deprecate(*8080 | integer, {
 
 A key rename remains two findings (removal plus addition) — protobuf
 makes renames safe through name-independent field numbers, and the
-analogous move for Aontu is [G4](g4-identity-relations.md)'s stable
+analogous move for aontu is [G4](g4-identity-relations.md)'s stable
 identity mark, not anything G3 adds. Deprecate-then-remove is the
 supported rename path meanwhile.
 

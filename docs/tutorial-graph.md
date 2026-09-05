@@ -475,7 +475,7 @@ A required tail is a schema for documents that cannot exist.
 ### Vetting a chain you did not write
 
 The chains that matter arrive from outside (an approval tool, an
-agent) as plain JSON. Here is one with no Aontu syntax in it at
+agent) as plain JSON. Here is one with no aontu syntax in it at
 all, `review.json`:
 
 <!-- test: file review.json -->

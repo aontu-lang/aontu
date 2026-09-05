@@ -5,6 +5,30 @@ package (`ts/`, npm `aontu`) and the Go module (`go/`,
 `github.com/aontu-lang/aontu/go`) are versioned independently; entries note
 which implementation each change affects.
 
+## Unreleased
+
+### The name is `aontu`: lowercase, no fada
+
+The project was written three ways at once — `aontu` in the command,
+`Aontu` through the prose, `Aontú` wherever the Irish word it came from
+surfaced — and a project whose claim is that one definition is spelled
+one way should manage it for its own name. It is now `aontu`
+everywhere it is used as the name: the documentation set, the how-to
+guides, the use cases, both READMEs, and the strings the engine itself
+prints. The REPL banner, `--help`, the `agentsmd` stanza, the MCP
+server's tool descriptions and nine error-code hints all say `aontu`,
+and the transcripts quoting them in the docs moved with them.
+
+Two things keep a capital, because both are identifiers rather than the
+name: the exported API (`Aontu`, `AontuOptions`, `AontuContext`,
+`AontuError`, Go's `aontu.Aontu`) and the Vale style directory. The
+rule is in [STYLE-GUIDE.md](docs/STYLE-GUIDE.md) and held by
+`ts/test/docs.test.ts` (`the-name-is-spelled-aontu`), which reads the
+gated set through the same fence stripper the other prose rules use —
+so the API survives and the prose cannot drift back. Both
+implementations.
+
+
 ## Go 0.1.15 — 2026-09-05 · TypeScript 0.57.0
 
 ### The Go error frame's gutter matches the canonical port's

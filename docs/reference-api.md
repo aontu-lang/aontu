@@ -55,7 +55,7 @@ Usage: aontu [options] [file]
        aontu lsp
        aontu mcp [--root <dir>]
 
-Evaluate an Aontu source file and print the result as JSON.
+Evaluate an aontu source file and print the result as JSON.
 With no file on an interactive terminal, start a REPL.
 With no file and piped input, read the source from stdin.
 ...
@@ -1199,7 +1199,7 @@ $ aontu jsonschema --at spec contract.aon
 becomes `const`; a disjunction of scalars becomes `enum`, and its
 preference becomes `default`; bounds become `minimum`/`maximum`, with
 the open endpoints as 2020-12's `exclusiveMinimum`/`exclusiveMaximum`;
-`re` becomes `pattern` (Aontu's portable subset is a subset of
+`re` becomes `pattern` (aontu's portable subset is a subset of
 ECMA-262, which is what JSON Schema reads, so no translation happens);
 `neq` becomes `not: {enum: …}`; `length` becomes
 `minLength`/`maxLength` on a string and `minItems`/`maxItems`
@@ -1216,7 +1216,7 @@ without loss.
 **What does not cross is REPORTED, never dropped in silence.** A
 converter that silently lost a constraint would hand its caller a schema
 that admits *more* than the model does, which is the failure this
-language exists to refuse. So each loss carries its path, the Aontu
+language exists to refuse. So each loss carries its path, the aontu
 construct's own name, and one sentence saying what the schema says
 instead:
 
@@ -1240,7 +1240,7 @@ The losses, and why each is one:
 
 The exact-leaf loss is the one with a way around it. Money carried as a
 **decimal string** with a conversion mark exports without loss—the
-pattern and the mark both cross—and stays exact on the Aontu side:
+pattern and the mark both cross—and stays exact on the aontu side:
 see [Carry exact money over JSON](how-to/carry-exact-money-over-json.md).
 
 **A recursive position is residue, and exports as residue.** JSON
@@ -1348,7 +1348,7 @@ The mistyped path is exit 1 with a suggestion, not an empty render: a
 missing key and an empty value are different answers.
 
 **The projections are lattice abstractions.** Each view is a valid
-Aontu document that *subsumes the truth*—generalisation, never
+aontu document that *subsumes the truth*—generalisation, never
 distortion:
 
 | flag | view |
@@ -1498,7 +1498,7 @@ wrote: changes.aon
 - The assignment becomes a **path-flattened conjunct**—`$.a.b=1`
   is appended as `"a": "b": 1`, keys quoted so a segment may be a
   word the grammar spells otherwise, a number, or hold a space. The
-  text is split at the *first* `=`; everything after it is Aontu
+  text is split at the *first* `=`; everything after it is aontu
   source, so a value may contain one.
 - This needs no rewriter, and damages nothing: an overlay entry is
   just another conjunct, and unification is order-independent, so
@@ -1584,7 +1584,7 @@ up on its own.
 ### `aontu fmt`
 
 The source formatter, in the tradition of `gofmt`: one agreed form for
-Aontu source, so that layout is never argued about and a diff shows
+aontu source, so that layout is never argued about and a diff shows
 only what changed.
 
 ```
@@ -1751,7 +1751,7 @@ additions that close its semantic gaps:
 | a `type`- or `hide`-marked value | `1` | `type(1)`, `hide(1)` |
 
 Both reuse existing parseable syntax, so the hash form is itself valid
-Aontu source and round-trips—`hcanon(unify(parse(hcanon(v)))) ==
+aontu source and round-trips—`hcanon(unify(parse(hcanon(v)))) ==
 hcanon(v)` is asserted for every row of `test/spec/hcanon.tsv`, in both
 implementations. Marks propagate to every descendant at unification, so
 a wrapper is emitted only where a mark *starts*. User-facing `canon` is
@@ -2012,7 +2012,7 @@ drives the CLI. Human-readable output stays the default.
 
 ```
 $ aontu
-Aontu v0.56.0 REPL — :help for commands, :quit to exit
+aontu v0.56.0 REPL — :help for commands, :quit to exit
 aontu> port: *8080 | integer
 {
   "port": 8080
@@ -2371,7 +2371,7 @@ historical: `number` is the pure supertype, not a leaf), and
 the `0d` exact literals returns two of them that `JSON.stringify` cannot
 write:
 
-| Aontu kind   | Source     | `generate()` returns |
+| aontu kind   | Source     | `generate()` returns |
 |--------------|------------|----------------------|
 | `integer`    | `x:5`      | `number`, or `bigint` past `Number.MAX_SAFE_INTEGER` (see below) |
 | `float`      | `x:1.5`    | `number`             |
@@ -2608,7 +2608,7 @@ diff—and without a profile they resolve `@"…"` through the default
 chain, which reaches anything on the filesystem the process can read.
 **Opening an untrusted source is reading your disk**, so pass a profile
 whenever the source is not yours. Reading, never running: an include's
-extension decides what the file is—`.aon` and `.aontu` as Aontu source,
+extension decides what the file is—`.aon` and `.aontu` as aontu source,
 `.json`, `.jsonld`, `.jsonc`, `.json5`, `.jsonic`, `.jsc`, `.toml`,
 `.yaml`, `.yml` and `.ini` as configuration data, and `.txt` as text
 (the bytes, as one string)—and every other extension is refused.
@@ -2713,7 +2713,7 @@ concrete type `Gen` returns, or by `Canon`.
 `Generate` returns Go's natural types, and the two exact leaves come out
 as the two types that can hold them exactly:
 
-| Aontu kind   | Source     | `Generate` returns |
+| aontu kind   | Source     | `Generate` returns |
 |--------------|------------|--------------------|
 | `integer`    | `x:5`      | `int64`            |
 | `float`      | `x:1.5`    | `float64`          |

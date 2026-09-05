@@ -6,7 +6,7 @@
 # two additions that close its semantic gaps, a closed map or list
 # wrapped as close({...}) / close([...]) and the type/hide marks
 # rendered as type(x) / hide(x). Both reuse parseable syntax, so the
-# hash form is valid Aontu source; every hcanon row additionally
+# hash form is valid aontu source; every hcanon row additionally
 # asserts the ROUND-TRIP property that makes the hash meaningful,
 # hcanon(unify(parse(hcanon(v)))) == hcanon(v), in both runners.
 #

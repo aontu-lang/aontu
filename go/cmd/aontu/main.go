@@ -43,7 +43,7 @@ const helpText = `Usage: aontu [options] [file]
        aontu lsp
        aontu mcp [--root <dir>]
 
-Evaluate an Aontu source file and print the result as JSON.
+Evaluate an aontu source file and print the result as JSON.
 With no file on an interactive terminal, start a REPL.
 With no file and piped input, read the source from stdin.
 
@@ -575,7 +575,7 @@ func repl(
 		prompt = ""
 	} else {
 		fmt.Fprintf(out,
-			"Aontu v%s REPL — :help for commands, :quit to exit\n", aontu.VERSION)
+			"aontu v%s REPL — :help for commands, :quit to exit\n", aontu.VERSION)
 	}
 	// The closing newline is for a HUMAN, so it is written only for
 	// one: it moves the terminal off the prompt line the loop left

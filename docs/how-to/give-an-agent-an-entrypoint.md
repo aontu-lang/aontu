@@ -7,7 +7,7 @@ order: 60
 # Give an agent an entrypoint to a definition
 
 An agent working against a model needs two things: a stanza to read
-before it starts, and a service to question while it works. Aontu
+before it starts, and a service to question while it works. aontu
 ships both halves, and neither is written by hand.
 
 The stanza first. `aontu agentsmd` derives it from the source, so it

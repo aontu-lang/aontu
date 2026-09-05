@@ -1,6 +1,6 @@
-# Use cases: practical validation of Aontu as an agent-facing ground truth
+# Use cases: practical validation of aontu as an agent-facing ground truth
 
-Sixteen enterprise-shaped use cases, each built as real Aontu models and
+Sixteen enterprise-shaped use cases, each built as real aontu models and
 *executed* against the TypeScript CLI (`ts/bin/aontu.js`, the canonical
 implementation). Every case directory carries a `check.sh` that drives
 the verbs (`vet`, `subsume`, `breaking`, `get`, `why`, `set`, `hash`,
@@ -26,7 +26,7 @@ different build.
 
 ## The cases
 
-| Case | Scenario | Aontu surface exercised |
+| Case | Scenario | aontu surface exercised |
 |------|----------|-------------------------|
 | [01-service-catalog](01-service-catalog/) | Company-wide service catalog as system ontology (two views of the same entities) | `refer()` over tree paths, `relations` (acyclic + inverse), `@"std/system"`, `get`/`why`, vet-gated onboarding |
 | [02-deploy-config](02-deploy-config/) | Multi-environment deployment config: org → team → service → env layering | ranked `*`/`**` defaults, includes, `close()`, constraint atoms, `pack`, `filter`, `why` |

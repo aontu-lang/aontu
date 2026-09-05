@@ -1,4 +1,4 @@
-# Aontu: a critical review against the agent-ground-truth goal
+# aontu: a critical review against the agent-ground-truth goal
 
 *2026-08-26. Everything asserted here was established by execution
 against the in-tree TypeScript implementation (v0.53.0 line,
@@ -57,7 +57,7 @@ of three walls, all verified down to minimal repros:
    from the working tree, silently un-gating every non-entry file on
    the multi-file layout every real model uses.
 
-The consumer evidence closes the argument. Aontu's flagship users
+The consumer evidence closes the argument. aontu's flagship users
 employ it as *jsonic with imports, spreads, and defaults* — and keep
 every load-bearing semantic (enums, field constraints, validation,
 relationships, access policy) in strings, downstream code, or prose.

@@ -11,11 +11,11 @@ the reference for depth. Every example is executed by
 
 ## Run, embed and integrate
 
-Getting Aontu into your process or pipeline, and its answers out.
+Getting aontu into your process or pipeline, and its answers out.
 
 - [Run a file or start a REPL](run-cli-and-repl.md). Evaluate a file, read from stdin, or question a document interactively with the `aontu` command.
-- [Call Aontu from TypeScript](call-from-typescript.md). Embed the engine in Node with the `Aontu` class—parse, unify and generate from your own code.
-- [Call Aontu from Go](call-from-go.md). Embed the engine with the Go port—the same three calls, with errors returned instead of thrown.
+- [Call aontu from TypeScript](call-from-typescript.md). Embed the engine in Node with the `Aontu` class—parse, unify and generate from your own code.
+- [Call aontu from Go](call-from-go.md). Embed the engine with the Go port—the same three calls, with errors returned instead of thrown.
 - [See the canonical form](see-canonical-form.md). Print what a document means—defaults, disjunctions and all—instead of what it resolves to.
 - [Inject values from the host program](inject-host-values.md). Fill `$name` variables from the calling program to parameterise a model from code.
 - [Give an agent an entrypoint to a definition](give-an-agent-an-entrypoint.md). Generate a ground-truth stanza with `aontu agentsmd` and serve the verbs over MCP with `aontu mcp`.
@@ -42,7 +42,7 @@ Saying what data must look like, from optional keys to recursive shapes.
 - [Make a field optional](make-a-field-optional.md). Suffix a key with `?` so a field that never receives a value is dropped instead of erroring.
 - [Name a reusable constraint](name-a-reusable-constraint.md). Build a `uint8`/`port` vocabulary as a `type()`-marked block of ordinary fields.
 - [Define a recursive schema](define-a-recursive-schema.md). Reference a definition inside itself to get a schema that applies at every depth of the data.
-- [Carry exact money over JSON](carry-exact-money-over-json.md). Keep money exact inside Aontu and cross JSON as a fixed-scale decimal string with a conversion mark.
+- [Carry exact money over JSON](carry-exact-money-over-json.md). Keep money exact inside aontu and cross JSON as a fixed-scale decimal string with a conversion mark.
 - [Export JSON Schema](export-json-schema.md). Export a model as JSON Schema 2020-12 with `aontu jsonschema`, and read the loss report it owes you.
 - [Generate code from a model](generate-code.md). Generate target-language source from a model: the shape a transform takes, what to watch for, and how `join` assembles the file.
 

@@ -72,7 +72,7 @@ re-nonportable-hex-brace-escape	errc	a:re("a\\\\x{41}")&"x"	constraint_pattern
 re-nonportable-unterminated-class	errc	a:re("[abc")&"x"	constraint_pattern
 re-nonportable-trailing-backslash	errc	a:re("\\\\")&"x"	constraint_pattern
 re-nonportable-trailing-backslash-msg	err	a:re("\\\\")&"x"	a trailing backslash
-# ABBREVIATIONS ARE NORMALISED, NOT REFUSED (ADR-003). Aontu DEFINES
+# ABBREVIATIONS ARE NORMALISED, NOT REFUSED (ADR-003). aontu DEFINES
 # what each abbreviation means and rewrites both hosts to it, so neither
 # host's reading is inherited:
 #   \\d [0-9]   \\w [0-9A-Za-z_]   \\s [ \\t\\n\\r\\f\\v]   . [^\\n]
@@ -86,7 +86,7 @@ re-normalise-space-negated	gen	a:re("^\\\\S+$") a:abc	{"a":"abc"}
 re-normalise-word	gen	a:re("^\\\\w+$") a:a_1	{"a":"a_1"}
 re-normalise-digit-in-class	gen	a:re("^[\\\\dx]+$") a:"1x"	{"a":"1x"}
 # The definition BITES: U+00A0 is whitespace to JavaScript and not to
-# RE2, and Aontu's \\s excludes it in both. A non-breaking space in a
+# RE2, and aontu's \\s excludes it in both. A non-breaking space in a
 # config value is a mistake to catch, not a space to accept silently.
 re-normalise-space-excludes-nbsp	errc	a:re("^\\\\s$") a:" "	constraint
 # Canon renders the pattern AS WRITTEN, never the normalised form: canon
@@ -179,7 +179,7 @@ re-invalid-atom-residual	errc	a:re("(?=x)y")	mapval_no_gen
 # JavaScript accepts any count, so `re("^a{1001}$")` was VALID in
 # TypeScript and an `error` verdict in Go -- the host's own compile
 # failure reaching the user, which is exactly what ADR-003 exists to
-# prevent. The bound is Aontu's now, checked before either engine
+# prevent. The bound is aontu's now, checked before either engine
 # compiles. 1000 is still accepted, so the cap is a boundary, not a
 # retreat.
 # At the cap the pattern COMPILES, so a mismatch is an ordinary

@@ -7,7 +7,7 @@
 and project scaffolding. It is used for neither today, and the second
 half of the question found a real gap: the language has modules, a
 generated-state folder and a designed version manager, and no answer to
-"start a new Aontu project". The gap was recorded as an open question in
+"start a new aontu project". The gap was recorded as an open question in
 [g9-transformation.md](../capability-review/g9-transformation.md); this
 note answers it.
 
@@ -38,7 +38,7 @@ four lines of text, every one of which the engine already knows how to
 write.
 
 **For the agent mission it is worse than an inconvenience.** An agent
-asked to set up an Aontu project has to infer the layout from examples,
+asked to set up an aontu project has to infer the layout from examples,
 and every inference is a place to get it wrong quietly: a `mod.aon`
 without `main`, a lockfile written by hand, a version pin with no
 series (which [ENV.0.md §4.1](ENV.0.md) already has to raise an error
@@ -48,7 +48,7 @@ definition of every file involved.
 
 ## 2. What a project is, probed
 
-The minimum that makes a directory an Aontu project is two files:
+The minimum that makes a directory an aontu project is two files:
 
 ```
 mod.aon      mod: { path: "corp.example/hello", main: "main.aon" }
@@ -97,7 +97,7 @@ and prints what it wrote and the next command to run.
 An existing `mod.aon` in the target directory means the directory is
 already a project, and `init` stops with a located message naming it.
 Any other file it is about to write that already exists is the same
-refusal. A non-empty directory is otherwise fine: initialising Aontu
+refusal. A non-empty directory is otherwise fine: initialising aontu
 inside an existing repository is the normal case, not the exception.
 No flag overrides this — a scaffolder that can destroy work is a
 scaffolder nobody runs in a directory that matters, and the recovery

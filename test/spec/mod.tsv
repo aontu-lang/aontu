@@ -93,7 +93,7 @@ mod-default-entry	gens	x: @"__FIXTURES__/modnomain/main.aon"	{"x":{"svc":{"name"
 mod-entry-not-there	errc	x: @"__FIXTURES__/modbadmain/main.aon"	module_missing
 mod-file-unreadable-uses-default	gens	x: @"__FIXTURES__/moduglymod/main.aon"	{"x":{"svc":{"name":"auth","port":8080}}}
 # A LOCKFILE IS GENERATED, and only a generated one is read: canonical
-# Aontu whose leaves are scalars IS JSON, so a hand-edited lockfile
+# aontu whose leaves are scalars IS JSON, so a hand-edited lockfile
 # that is no longer canonical does not parse — and an entry with no
 # `canon` pin has nothing to check. Neither is an error: what is
 # missing is the PIN, and a module with no pin is simply unpinned.

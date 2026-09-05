@@ -1,6 +1,6 @@
-# Explanation: how and why Aontu works
+# Explanation: how and why aontu works
 
-This document is discursive. It explains the ideas behind Aontu and the
+This document is discursive. It explains the ideas behind aontu and the
 shape of the implementation, and argues some of the trade-offs. It is the
 place to build a mental model; for precise rules use the
 [Language reference](reference-language.md), and for recipes the how-to
@@ -10,7 +10,7 @@ guides listed in the [index](index.md).
 
 Most configuration stacks use *three* different mechanisms: a schema
 language to say what is allowed, a defaults mechanism to fill gaps, and a
-merge/override step to layer environments. Aontu—following
+merge/override step to layer environments. aontu—following
 [CUE](https://cuelang.org/)—collapses all three into a single
 operation, **unification**, by making types, defaults, and data the *same
 kind of thing*: values in a lattice.
@@ -183,7 +183,7 @@ because the [limitations below](#limitations-and-trade-offs) refuse
 user-defined functions on termination grounds. The two rulings are
 consistent because they license different recursions. A recursive
 *function* is a fixpoint of the program, and whether its expansion ends
-is undecidable—admitting one would demote "every Aontu program
+is undecidable—admitting one would demote "every aontu program
 terminates" to "most do", and
 [Termination is part of the offer](#termination-is-part-of-the-offer)
 says what that demotion costs. A recursive *schema* is structural
@@ -315,7 +315,7 @@ heuristic answered wrongly for map-valued relations, which meant two of
 an edge's three parts were guesses and only the object was written.
 Declaration also buys the property `vet` needs: with the schema side
 carrying the `rel()`, a data document is plain JSON-shaped, links and
-all, with no Aontu spelling in it.
+all, with no aontu spelling in it.
 
 The graph properties are where the lattice draws a line worth arguing.
 `acyclic()` and `inverse(name)`, conjoined at the same field, declare
@@ -513,7 +513,7 @@ than mislead a reader silently.
 
 Schema languages usually take a global stance on unknown keys: JSON
 Schema is open until you write `additionalProperties: false`, protobuf
-is closed and you work around it. Aontu cannot take a global stance,
+is closed and you work around it. aontu cannot take a global stance,
 because the same tree is schema and data at once and at different
 stages of completion. A half-written definition has to be allowed to be
 incomplete while the finished one beside it is allowed to be strict,
@@ -600,8 +600,8 @@ claim that decays silently as those systems evolve and that no test can
 falsify. Two of the three leaks were found by reading and one while
 writing documentation. None by the suite.
 
-So Aontu inverts it: **where a host subsystem supplies semantics,
-Aontu defines the meaning and rewrites the input**, and the host is
+So aontu inverts it: **where a host subsystem supplies semantics,
+aontu defines the meaning and rewrites the input**, and the host is
 given only constructs it cannot read two ways. `\d` is `[0-9]` because
 the language says so, whether or not the hosts happen to agree. What that costs is paid at
 the point of use—`\s` no longer means what a regex habit expects in

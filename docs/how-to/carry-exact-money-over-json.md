@@ -1,12 +1,12 @@
 ---
-description: Keep money exact inside Aontu and cross JSON as a fixed-scale decimal string with a conversion mark.
+description: Keep money exact inside aontu and cross JSON as a fixed-scale decimal string with a conversion mark.
 group: schemas
 order: 60
 ---
 
 # Carry exact money over JSON
 
-Inside an Aontu document, money is a
+Inside an aontu document, money is a
 [`bigdecimal`](../reference-language.md#the-four-numeric-leaves):
 `0d` literals are exact base-10 values and `+` on them is exact
 arithmetic—no binary rounding, ever. Write this as `money.aon`:
@@ -31,7 +31,7 @@ $ aontu money.aon
 
 The problem is the wire. A `bigdecimal` schema cannot be satisfied by
 a plain JSON number, by design: `JSON.parse` has already turned `0.1`
-into a binary64 `float` before Aontu ever sees it, and [the numeric
+into a binary64 `float` before aontu ever sees it, and [the numeric
 leaves are
 disjoint](../reference-language.md#the-four-numeric-leaves), so the
 exactness the field demands is gone at the door. Put the schema in
@@ -179,9 +179,9 @@ The producer formats its exact value into the string; the consumer,
 after `vet` passes, parses the string with a *decimal* parser (never
 `parseFloat`)—in TypeScript the `Decimal` class the engine itself
 uses, in Go `math/big`. Inside the trust boundary, keep the value a
-`0d` exact literal and let Aontu's arithmetic and the [lossy-literal
+`0d` exact literal and let aontu's arithmetic and the [lossy-literal
 refusal](../reference-language.md#exact-or-refused-lossy-literals)
-protect it. Note the asymmetry: Aontu's own generated JSON *writes*
+protect it. Note the asymmetry: aontu's own generated JSON *writes*
 an exact value's digits faithfully (the `24.0` above), but a standard
 JSON reader hands them back as a float. Exactness survives writing,
 not the round trip, which is exactly why the wire field is a string.
@@ -222,7 +222,7 @@ $ aontu jsonschema --at '$.Money' money-wire.aon
 `type` and `pattern` do different jobs here and both are needed:
 `type: "string"` is what refuses a bare JSON number (whose *text* the
 pattern would happily accept), `pattern` is what refuses the wrong
-scale. A consumer that never runs Aontu still enforces the wire form,
+scale. A consumer that never runs aontu still enforces the wire form,
 and still learns the leaf and the scale from the exported `const`.
 
 A worked end-to-end version—the schema, strictly-JSON records that

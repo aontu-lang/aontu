@@ -5,17 +5,17 @@ Per-phase status and pins
 are in the [progress register](progress.md), which is authoritative for
 status; this document is authoritative for design. Part of the
 [capability review](index.md) (August 2026). This document expands gap
-G2 — turning Aontu from an evaluator of its own files into a guardrail
+G2 — turning aontu from an evaluator of its own files into a guardrail
 that validates external data — with alternatives, an explicit boundary,
 risks, and an implementation plan.*
 
 ## Problem
 
-The canonical agent loop is *emit, validate, repair*. Aontu's CLI
+The canonical agent loop is *emit, validate, repair*. aontu's CLI
 (ts/src/cli.ts) supports none of it: it evaluates one file (or stdin)
 to JSON or canonical form, full stop. There is no way to hand the
 engine a definition and a separate piece of concrete data and ask "is
-this data admissible?". Because Aontu is a JSON superset, the
+this data admissible?". Because aontu is a JSON superset, the
 unification machinery needed is already present — what is missing is
 the verb, and the machine-readable contract around it.
 
@@ -71,7 +71,7 @@ The user wants `aontu vet system.aon live.json --at $.services` and
 to learn that `$.services.auth.image` conflicts — `"auth:v2.4"`
 observed at live.json:1, `"auth:v2.3"` declared at system.aon:6 — a
 located drift report. Today the dump must be hand-edited into an
-Aontu file that happens to nest under `services`, and the result is
+aontu file that happens to nest under `services`, and the result is
 still prose.
 
 The deeper defect is the output contract. The survey's repair-loop
@@ -80,7 +80,7 @@ above all the admissible alternatives ("what would have unified
 here") — drives an agent's ability to self-correct; one benchmark
 reports gains of tens of percentage points from alternatives alone
 (a single-benchmark figure, per the critique pass, but the direction
-is corroborated). Aontu's errors carry two sites and a why-code but
+is corroborated). aontu's errors carry two sites and a why-code but
 enumerate nothing: not the expected kind, not the closed struct's key
 set, not the surviving disjunct branches. And the spec suite
 conflates the two fundamentally different negative verdicts: in
@@ -94,9 +94,9 @@ the truth requires" are different answers.
 What exists and is reusable:
 
 - **Unification of external JSON is free.** Any JSON document is
-  valid Aontu source, so "validate data against schema" is "unify two
+  valid aontu source, so "validate data against schema" is "unify two
   parsed values and inspect the result". Parsing the data file with
-  the Aontu parser gives every node a site (`{row, col, url}`), so
+  the aontu parser gives every node a site (`{row, col, url}`), so
   external data slots into the two-site error model as-is.
 - **Collect mode.** `AontuOptions.collect` (ts/src/aontu.ts,
   ts/src/ctx.ts) accumulates errors on `result.err` instead of
@@ -194,7 +194,7 @@ system.
 `cat schema.aon data.json | aontu` as the validation story. Zero
 cost; but sites collapse into one synthetic document, there is no
 report contract, no verdict classes, no anchor, and the identity
-claim ("Aontu is a gate") stays false. Rejected.
+claim ("aontu is a gate") stays false. Rejected.
 
 **B. A thin `vet` verb, text output only (cue parity).** Add the CLI
 pairing, reuse `descErr`. Small (mostly ts/src/cli.ts); but it
@@ -269,7 +269,7 @@ Semantics, in order:
    constraint's own arguments and an array's `length`, which handed
    back a JavaScript number as the anchor and made every document
    valid.)
-3. Parse each data file with the Aontu parser, so every data node
+3. Parse each data file with the aontu parser, so every data node
    carries `{row, col, url}` sites pointing into the data file. A data
    file that does NOT parse is the data's fault: verdict `invalid`,
    with one `parse`-class finding carrying the parser's own code and a
@@ -513,7 +513,7 @@ byte-identical JSON for the same inputs, pinned by spec rows.
 - **No subsumption or breaking checks.** "Does v2 still admit v1?"
   is [G3](g3-subsumption-evolution.md)'s verb.
 - **No lint-rule plugin framework.** Governance rules are ordinary
-  Aontu files unified over the target; a Spectral-style engine is
+  aontu files unified over the target; a Spectral-style engine is
   surface-area creep toward CUE, a trap in [index.md](index.md).
 - **No executable hooks in validation.** No callbacks or shell-outs
   on findings — deterministic and total, per the
@@ -676,10 +676,10 @@ implementation.
 - **YAML ingestion.** Live dumps are often YAML. Accepting it means a
   site-accurate YAML parser in *both* implementations, or a
   documented `yq`-style conversion step; parser cost decides. *(All
-  six phases landed without it: vet ingests Aontu source — and so
+  six phases landed without it: vet ingests aontu source — and so
   any JSON — only. Still open, and still additive.)*
 - ~~**Relaxed versus strict data parsing.**~~ **Decided: full
-  grammar.** A data file is ordinary Aontu source, so a candidate may
+  grammar.** A data file is ordinary aontu source, so a candidate may
   refine the truth (`replicas: min(2)`) rather than only satisfy it —
   vet's contract is "validate a **contribution**". This is what makes
   the verb compose with layering instead of standing outside it, and

@@ -15,7 +15,7 @@ corrections this document needs are in the
 this document is authoritative for design. Part of the
 [capability review](index.md) (August 2026). This document expands gap
 G7 — query, provenance, patch, and delivery: the surfaces through
-which agents consume an Aontu definition as ground truth — with
+which agents consume an aontu definition as ground truth — with
 alternatives, an explicit boundary, risks, and an implementation
 plan.*
 
@@ -23,7 +23,7 @@ plan.*
 
 Agents do not consume ground truth by evaluating whole files into one
 JSON blob. They hold lightweight identifiers, retrieve task-sized
-slices on demand, ask why a value holds, and patch by path. Aontu
+slices on demand, ask why a value holds, and patch by path. aontu
 today supports none of these: the CLI (ts/src/cli.ts) evaluates one
 file to JSON or canonical form, full stop, and the evaluated output
 is a terminal artifact rather than a knowledge substrate.
@@ -53,7 +53,7 @@ is no way to follow it. Nor is there a cheaper first look: no
 keys-only listing ("what services exist?"), no types-only view
 ("what shape must a service have?"), no depth limit.
 
-Second failure: provenance. Layered definitions are Aontu's home
+Second failure: provenance. Layered definitions are aontu's home
 ground:
 
 ```aon
@@ -102,7 +102,7 @@ Finally, delivery. There is no MCP server, so none of the above is
 reachable from an agent harness; the REPL is human-only (no
 structured per-command protocol); and no machine-consumable grammar is
 published, so constrained decoding — now production infrastructure
-— cannot guarantee syntactically valid Aontu emission. Aontu is a
+— cannot guarantee syntactically valid aontu emission. aontu is a
 low-resource language for every model, and the llms.txt post-mortem
 shows a file sitting in a repo is advisory unless tools actively
 pull it into agent loops. *(Every delivery gap this paragraph names
@@ -203,7 +203,7 @@ language with resolvers, far beyond path selection.
 learned that a language without a standard machine API cannot
 anchor a toolchain; Structurizr — the nearest commercial neighbour
 — already ships an MCP server so agents can inspect architecture
-models. Neither has constraint checking worth the name; Aontu's
+models. Neither has constraint checking worth the name; aontu's
 differentiator is that its slices are *unified, validated* values.
 Cost of the SysML route: an enormous REST/CRUD spec surface.
 
@@ -216,7 +216,7 @@ counter-example that motivates doing this early; CUE is on its
 second evaluator partly to retrofit error tracking.
 
 **Terraform plan.** Diff-as-explanation works — until noise
-destroys trust. Deterministic canon already gives Aontu
+destroys trust. Deterministic canon already gives aontu
 noise-free diffs; the design must protect that, not add it.
 
 **Grammar-constrained decoding.** Lark CFGs are accepted by
@@ -320,7 +320,7 @@ nearest-key suggestion); `get` invents no error format.
 
 ### Projections are lattice abstractions
 
-The three projections are defined so that each emits a *valid Aontu
+The three projections are defined so that each emits a *valid aontu
 document that subsumes the truth* — generalisation, never
 distortion:
 

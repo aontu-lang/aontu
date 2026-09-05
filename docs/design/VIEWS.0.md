@@ -243,7 +243,7 @@ argument for derivation and against authoring.
 four nested levels — system context, container, component, code — with
 the explicit advice to stop at level three. Its contribution to this
 design is not a notation but a ruling: the useful lever is choosing the
-level of abstraction, which for an Aontu model is `--at` plus a
+level of abstraction, which for an aontu model is `--at` plus a
 grouping field, not a new node vocabulary.
 
 **Structurizr** (the DSL and the workspace format) is the closest
@@ -255,7 +255,7 @@ means adopting a fourth ecosystem. What survives is its shape:
 **views are a projection of one model, declared as data**.
 
 **ArchiMate** (The Open Group) and **SysML v2** (OMG, whose textual
-notation carries a normative grammar) are both derivable from an Aontu
+notation carries a normative grammar) are both derivable from an aontu
 model in principle and both are vocabulary-import problems rather than
 drawing problems: the work is declaring which of sixty-odd element
 types each entity is, for the benefit of an existing enterprise-
@@ -348,7 +348,7 @@ top of the extracted matrix, so a forbidden dependency is a marked
 cell. MacCormack, Rusnak and Baldwin (*Management Science* 52(7), 2006)
 used the same instrument empirically on open-source and proprietary
 codebases. Every one of those systems had to invent its rule language
-because the matrix was extracted from code that had none. Aontu already
+because the matrix was extracted from code that had none. aontu already
 ships `rel()`, `acyclic()`, `inverse()`, `must()` and `reaches`, in the
 same document as the model. **The DSM is the one classical software-
 architecture instrument whose missing half this repository already
@@ -390,7 +390,7 @@ and offer exact data-side reductions, not to pretend.
 **Bundling and arcs.** Holten (IEEE TVCG 12(5), 2006) introduced
 hierarchical edge bundling, whose data model — a containment hierarchy
 plus a non-hierarchical adjacency over its leaves — is a literal
-description of an Aontu document with entities. Wattenberg (IEEE
+description of an aontu document with entities. Wattenberg (IEEE
 InfoVis 2002) introduced arc diagrams, which are node-link drawings
 with the node order as the only free parameter, and are therefore the
 one node-link form that survives an integer-geometry rule. Both are
@@ -429,10 +429,10 @@ model through a grammar of graphics" is a different product from "draw
 the model", and every view it unlocks needs the canonical ordering pass
 this design deliberately restricts to one exact algorithm.
 
-**Lattices, which is what Aontu actually is.** Ganter and Wille
+**Lattices, which is what aontu actually is.** Ganter and Wille
 (*Formal Concept Analysis*, Springer 1999) is the closest theoretical
 neighbour: a formal context of objects and attributes induces a
-concept lattice, drawn as a Hasse diagram, and Aontu's meet is a
+concept lattice, drawn as a Hasse diagram, and aontu's meet is a
 lattice meet. This is the most tempting experimental view in the whole
 survey and it is declined, with a measurement rather than a wave.
 VERIFIED, on the real corpus: the RBAC roles-by-grants context (4
@@ -449,7 +449,7 @@ already emits.
 **Constraint domains.** Fages, Soliman and Coolen (*Constraints* 9(4),
 2004; CLPGUI) draw variable domains as bars that shrink under
 propagation. This is the nearest thing in the literature to drawing a
-meet, and Aontu could draw it EXACTLY rather than illustratively,
+meet, and aontu could draw it EXACTLY rather than illustratively,
 because the meet of two intervals is their intersection and emptiness
 is decided eagerly. It is declined for v1 on a measurement, in
 [Boundary](#boundary-what-we-will-not-do).
@@ -493,7 +493,7 @@ This is the smallest useful thing and it is most of what people ask
 for. Rejected as the WHOLE design, because it declines the brief: a
 node-link drawing is the most conventional form there is, the
 literature's own answer above twenty vertices is the matrix, and the
-two questions an Aontu model can answer that nothing else can — which
+two questions an aontu model can answer that nothing else can — which
 permission is granted by nothing, which document decides this value —
 are not node-link questions.
 
@@ -741,7 +741,7 @@ form, the identifier prefixes and the escape table.
 
 **Identifiers are encoded, never mangled and never refused.** Entity
 names are `/[_a-zA-Z][-_a-zA-Z0-9]*/` (ts/src/val/IdFuncVal.ts's
-`ID_NAME`), so a legal Aontu name may contain hyphens and
+`ID_NAME`), so a legal aontu name may contain hyphens and
 [`use-cases/10-data-model/seed.aon`](../../use-cases/10-data-model/seed.aon)
 declares `id("cust-1001")`. A design that refuses what it cannot spell
 would refuse a whole use case. The encoder is injective by
@@ -784,7 +784,7 @@ buys a legible file. Node ids are NOT ordinal, because a node id is
 compared across revisions by `--check`.
 
 **Escaping is one pass, per code point, from a table keyed by DECIMAL
-CODE POINT.** A literal control character cannot be an Aontu key
+CODE POINT.** A literal control character cannot be an aontu key
 (`aontu/unprintable`), and a character-keyed table would make
 replacement order significant where a per-code-point lookup has no
 order at all. `mermaid`: 34 → `#34;`, 35 → `#35;`, 38 → `#38;`, 60 →

@@ -1,6 +1,6 @@
 <a name="top"></a>
 
-# Aontu: JSON Structure unifier
+# aontu: JSON Structure unifier
 
 [![npm version](https://img.shields.io/npm/v/aontu.svg)](https://npmjs.com/package/aontu)
 [![build](https://github.com/aontu-lang/aontu/actions/workflows/build.yml/badge.svg)](https://github.com/aontu-lang/aontu/actions/workflows/build.yml)
@@ -15,7 +15,7 @@ and may be regarded as a purpose-specific dialect.
 
 ## Implementations
 
-Aontu ships two implementations, kept in parity (structure inspired by
+aontu ships two implementations, kept in parity (structure inspired by
 [`voxgig/util`](https://github.com/voxgig/util)):
 
 - **TypeScript** in [`ts/`](ts/)—the canonical implementation
@@ -90,7 +90,7 @@ the checkout as the global npm package and `make install-go` runs
 Full documentation is in [`docs/`](docs/):
 
 - [Documentation home](docs/index.md). Start here
-- [Tutorial](docs/tutorial.md). Learn Aontu step by step
+- [Tutorial](docs/tutorial.md). Learn aontu step by step
 - [How-to guides](docs/how-to/). Task-focused recipes
 - [Language reference](docs/reference-language.md). Every construct and rule
 - [API reference](docs/reference-api.md). TypeScript & Go APIs, and the CLI
@@ -98,7 +98,7 @@ Full documentation is in [`docs/`](docs/):
 - [Test coverage](docs/test-coverage.md). How it is measured, and the numbers
 
 [use-cases/](use-cases/) holds sixteen enterprise-shaped systems built
-as real Aontu documents, each with a `check.sh` that drives the CLI and
+as real aontu documents, each with a `check.sh` that drives the CLI and
 asserts every outcome.
 
 ## Security and contributing

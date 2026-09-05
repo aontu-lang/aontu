@@ -49,7 +49,7 @@ and `:quit` (or Ctrl-D) leaves:
 <!-- test: skip interactive REPL session -->
 ```sh
 $ aontu
-Aontu v0.56.0 REPL — :help for commands, :quit to exit
+aontu v0.56.0 REPL — :help for commands, :quit to exit
 aontu> a:*1|number
 {
   "a": 1
@@ -109,5 +109,5 @@ accept the same options and print the same bytes.
 The full option, verb and REPL-command tables are in the
 [CLI reference](../reference-api.md#command-line-interface). To keep
 the answers inside a program instead of a terminal,
-[call Aontu from TypeScript](call-from-typescript.md) or
+[call aontu from TypeScript](call-from-typescript.md) or
 [from Go](call-from-go.md).

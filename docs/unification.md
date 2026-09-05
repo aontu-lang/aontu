@@ -1,6 +1,6 @@
 # Unification
 
-Aontu has one operation. Every construct in the language—a second
+aontu has one operation. Every construct in the language—a second
 statement for the same key, an `&`, an included file, a spread applied
 to a child, a schema checked against data—is that one operation
 under a different spelling. It is called **unification**, and this page
@@ -13,7 +13,7 @@ the rest of the documentation uses: *meet*, *top*, *bottom*, *lattice*,
 
 ## Values are ordered by how much they say
 
-Start with an ordering rather than an operation. Of any two Aontu
+Start with an ordering rather than an operation. Of any two aontu
 values, one may be **more specific** than the other—it admits fewer
 possibilities.
 
@@ -56,7 +56,7 @@ chose between them and never overwrote one with another; it asked what
 satisfies all three.
 
 "Meet" is the standard name for this operation in order theory, and
-Aontu's error messages use it. When you read *"a constraint is the meet
+aontu's error messages use it. When you read *"a constraint is the meet
 of bound atoms"*, it is this: the one value that carries every
 constraint at once.
 
@@ -90,7 +90,7 @@ the language reference gives the rules, kind by kind.
 
 ## Three laws, and what they buy you
 
-The meet obeys three laws. They are not decoration—everything Aontu
+The meet obeys three laws. They are not decoration—everything aontu
 claims about being safe to split, merge and re-order rests on them.
 
 **Idempotent.** `a & a` is `a`. Saying a thing twice says it once.
@@ -191,10 +191,10 @@ runs it between a document and its own earlier version, which is what
 makes "is this schema change breaking?" a question with a mechanical
 answer.
 
-## What Aontu does not have
+## What aontu does not have
 
 A lattice has a second operation, the **join**: the most *specific*
-value at least as general as both, the answer to "either". Aontu's
+value at least as general as both, the answer to "either". aontu's
 disjunction `a|b` looks like a join and is deliberately not one—it
 keeps both alternatives as a value that is still undecided, rather than
 collapsing them to a common supertype. `1|2` stays `1|2`; it does not

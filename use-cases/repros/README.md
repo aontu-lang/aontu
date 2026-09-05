@@ -59,7 +59,7 @@ Two cautions:
   `constraint-alias.tsv`.
 
 - `includes/` (§49, filed 2026-08-28) is **FIXED** as of 2026-08-30,
-  by the ruling in ADR-012: `.aon` and `.aontu` are read as Aontu
+  by the ruling in ADR-012: `.aon` and `.aontu` are read as aontu
   source, ten config formats (`.json`, `.jsonld`, `.jsonc`, `.json5`,
   `.jsonic`, `.jsc`, `.toml`, `.yaml`, `.yml`, `.ini`) are read as
   data by their own parsers, and every other one — and a name with no

@@ -1,6 +1,6 @@
 # Documentation style guide
 
-How the Aontu documentation is written. This guide is normative for
+How the aontu documentation is written. This guide is normative for
 `docs/*.md`, `docs/how-to/*.md`, the sixteen use-case READMEs, the two
 package READMEs, and the prose on [aontu.dev](https://aontu.dev) (whose
 authored pages cite this file from `aontu-lang/web`'s AGENTS.md). It
@@ -88,7 +88,7 @@ published:
 
 | Set | Files | Audience |
 |---|---|---|
-| Published | `index.md`, `tutorial*.md`, `unification.md`, `reference-*.md`, `trust.md`, `lsp.md`, `use-cases.md`, `how-to/*.md`, the use-case READMEs | anyone using Aontu |
+| Published | `index.md`, `tutorial*.md`, `unification.md`, `reference-*.md`, `trust.md`, `lsp.md`, `use-cases.md`, `how-to/*.md`, the use-case READMEs | anyone using aontu |
 | Internal | `ADR.md`, `docs/design/`, `docs/capability-review/`, `DIVERGENCE.md`, `AGENTS.md`, `use-cases/BUGS.md`, `use-cases/REVIEW.md`, `shared-spec.md`, `test-coverage.md`, `release-and-tag.md` | contributors |
 
 **A published page never cites an internal one.** Not as a link, not
@@ -352,7 +352,7 @@ fence carrying a `file` directive is a scenario member and is excluded
 from pairing. Untagged fences (diagrams, quoted error text) make no
 language claim and are exempt.
 
-**Every Aontu fence is in the agreed form.** What `aontu fmt` writes is
+**Every aontu fence is in the agreed form.** What `aontu fmt` writes is
 what the page shows, as Go's documentation is `gofmt`-clean: the gate
 formats every `aontu`/`aon` fence that parses and refuses a page whose
 fence would change. Write the example, run it through `aontu fmt`, and
@@ -373,7 +373,7 @@ Two rules of taste:
 
 ## Figures are drawn by the engine
 
-A picture of how Aontu works is a claim about Aontu, and a claim drawn
+A picture of how aontu works is a claim about aontu, and a claim drawn
 by hand goes stale silently. **Every figure in a published page is
 generated** — declared in `ts/scripts/figures.cjs`, written to
 `docs/figures/`, rebuilt by `make build-ts`, and held to the engine by
@@ -392,8 +392,19 @@ generated** — declared in `ts/scripts/figures.cjs`, written to
 
 ## Terminology
 
-- The language and project are **Aontu** (capital A) in prose; the
-  command is `aontu`.
+- The language and project are **aontu**: lowercase, no fada, in prose
+  and in headings alike. Not "Aontu", not "Aontú" — that is the Irish
+  word the name comes from, and it is not the name. It is spelled the
+  way you type it, because a project whose claim is that one definition
+  is spelled one way should manage it for its own name. Enforced by
+  `ts/test/docs.test.ts` (`the-name-is-spelled-aontu`).
+
+  Two things keep a capital, and both are identifiers rather than the
+  name: the engine's exported API (`Aontu`, `AontuOptions`,
+  `AontuContext`, `AontuError`, and Go's `aontu.Aontu`), and the Vale
+  style and vocabulary directory `.vale/styles/…/Aontu`, which is a
+  Vale style name. Renaming either would break code rather than change
+  prose.
 - **module / package**—these are not synonyms and must never be
   swapped. A **module** is a language element: what `@"…"` names, what
   an import resolves, what the canon-hash pins, what unifies into a

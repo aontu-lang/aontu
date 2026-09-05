@@ -78,7 +78,7 @@ const HELP = `Usage: aontu [options] [file]
        aontu lsp
        aontu mcp [--root <dir>]
 
-Evaluate an Aontu source file and print the result as JSON.
+Evaluate an aontu source file and print the result as JSON.
 With no file on an interactive terminal, start a REPL.
 With no file and piped input, read the source from stdin.
 
@@ -729,7 +729,7 @@ function runRepl(initialMode: Mode, jsonl: boolean, trust: TrustArg): void {
 
   if (!jsonl) {
     process.stdout.write(
-      `Aontu v${version()} REPL — :help for commands, :quit to exit\n`)
+      `aontu v${version()} REPL — :help for commands, :quit to exit\n`)
   }
   rl.prompt()
 

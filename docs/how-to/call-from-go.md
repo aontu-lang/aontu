@@ -4,7 +4,7 @@ group: run-embed
 order: 30
 ---
 
-# Call Aontu from Go
+# Call aontu from Go
 
 The Go port is a library first: module `github.com/aontu-lang/aontu/go`,
 package `aontu`, kept in parity with the canonical TypeScript engine

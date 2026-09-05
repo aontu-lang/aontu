@@ -1,6 +1,6 @@
 # Language reference
 
-Complete, exhaustive description of the Aontu language: lexical
+Complete, exhaustive description of the aontu language: lexical
 structure, every value form and operator, evaluation order, the
 canonical form, and generation rules. Behaviour stated here is verified
 by the shared [`test/spec/*.tsv`](../test/spec/) suite and holds in both
@@ -60,8 +60,8 @@ the [Explanation](explanation.md).
 
 ## Lexical structure
 
-Aontu source is parsed by
-[`@tabnas/jsonic`](https://github.com/tabnas/jsonic) with Aontu-specific
+aontu source is parsed by
+[`@tabnas/jsonic`](https://github.com/tabnas/jsonic) with aontu-specific
 plugins, so the surface syntax is "relaxed JSON".
 
 - **Whitespace** separates tokens; newlines and commas are
@@ -146,7 +146,7 @@ d: "hi there"
 
 ## The value lattice
 
-Every Aontu value is a point in a lattice ordered from most general to
+Every aontu value is a point in a lattice ordered from most general to
 most specific:
 
 ![The value lattice: top at the join; string, number, boolean and null under it; path() under string; integer, float, biginteger and bigdecimal under number; nil at the meet, below every kind.](figures/value-lattice.svg)
@@ -302,7 +302,7 @@ Edge cases:
 - Negative zero never survives, in any leaf: `-0.0` normalises to
   `0.0`, `-0d0` to `0d0`, and `-0d0.0` to `0d0.0`, in canon and in
   generated output alike.
-- Aontu has no negative literals: `-` is a prefix operator applied to a
+- aontu has no negative literals: `-` is a prefix operator applied to a
   positive literal. The int64 *minimum* therefore cannot be written as
   an integer-kind literal—`-9223372036854775808` negates the
   float-kind literal `9223372036854775808` and stays float kind. Write
@@ -318,7 +318,7 @@ The input that triggers this rule is ordinary JSON—for example, a
 64-bit record ID in a dump from an API. `id: 9007199254740993` is
 2^53+1, the first whole number a double cannot hold. Storing it anyway
 would yield 9007199254740992, a different ID, with nothing said about
-it. Aontu refuses:
+it. aontu refuses:
 
 <!-- test: scenario lossy-literal -->
 <!-- test: run -->
@@ -328,7 +328,7 @@ $ echo 'id: 9007199254740993' | aontu
 
 This integer literal, 9007199254740993, is not exactly representable in
 binary64, so storing it would silently round it to a DIFFERENT
-number. Aontu refuses rather than corrupts: write it as a `0d`
+number. aontu refuses rather than corrupts: write it as a `0d`
 literal to get the exact integer.
 ...
 $ echo $?
@@ -396,7 +396,7 @@ fits.
 Both halves are checked independently, on literals (against the source
 as written, before normalisation) and on every computed result.
 Exceeding either is a located error—*"This exact decimal exceeds the
-exactness budget"*. Aontu has no rounding mode and no precision
+exactness budget"*. aontu has no rounding mode and no precision
 context, so a value beyond the budget is refused rather than
 approximated.
 
@@ -1544,7 +1544,7 @@ never narrows the kind and never yields `-0`.
 
 ## Functions
 
-Aontu provides a fixed set of forty-three built-in functions. There
+aontu provides a fixed set of forty-three built-in functions. There
 are no user-defined functions. The count breaks down so that it can be
 checked rather than trusted:
 
@@ -1733,7 +1733,7 @@ f: mod(7, -2)
 `b` is `-3`, not `-4`: truncation, not flooring.
 
 Three things are refused rather than answered, each because the answer
-would be a value Aontu cannot carry:
+would be a value aontu cannot carry:
 
 - **A zero divisor**, in every leaf including floats. A JSON superset
   has no notation for an infinity, so there is nothing `div(7,0)` could
@@ -2477,7 +2477,7 @@ things:
 
 | extension | what it is |
 |---|---|
-| `.aon`, `.aontu` | **Aontu source**—the language, with everything in it |
+| `.aon`, `.aontu` | **aontu source**—the language, with everything in it |
 | `.json`, `.jsonld`, `.jsonc`, `.json5`, `.jsonic`, `.jsc`, `.toml`, `.yaml`, `.yml`, `.ini` | **configuration data**, read by that format's own parser |
 | `.txt`, and whatever `--text-ext` names | **text**—the file's bytes, as one string |
 | anything else | refused, by name |
@@ -2615,7 +2615,7 @@ $ echo $?
 
 A guess would be worse than the refusal, and it was: read as text, a
 vocabulary became a string that a schema then validated nothing
-against; read as Aontu, prose became a parse error at a line nobody
+against; read as aontu, prose became a parse error at a line nobody
 wrote. Both exited 0. Reading a file as text is a category the table
 now *names*—that is what `.txt` is—and the difference is that it is
 stated rather than a fallback for whatever the table failed to
@@ -2734,7 +2734,7 @@ own cache location: `%LOCALAPPDATA%\aontu\mod` on Windows,
 `~/.cache/aontu/mod` elsewhere. A host that offers none of those has no
 user cache, and a module then resolves from `aontu_meta/vendor/` alone.
 
-**The module file and the lockfile are ordinary Aontu.** `mod.aon`
+**The module file and the lockfile are ordinary aontu.** `mod.aon`
 declares the module's own path and entry file; the entry defaults to
 `main.aon`:
 
@@ -3078,14 +3078,14 @@ Whitespace is permitted between every element and is not drawn; the
 `ws` rule in the grammar text carries it. Each track is one rule, and a
 box in one is a link to its own track.
 
-![Railroad diagram of the Aontu grammar's structural rules: a value is a disjunction of conjunctions of prefixed sums, and an atom is a map, list, function call, reference, kind, placeholder, scalar or parenthesised value.](figures/aontu-syntax.svg)
+![Railroad diagram of the aontu grammar's structural rules: a value is a disjunction of conjunctions of prefixed sums, and an atom is a map, list, function call, reference, kind, placeholder, scalar or parenthesised value.](figures/aontu-syntax.svg)
 
 ### How one is spelled
 
 The scalar forms, the character rules behind a string, the four numeric
 spellings, and whitespace itself.
 
-![Railroad diagram of the Aontu grammar's lexical rules: the kind names, the scalar forms, a string as a quoted run of escaped or unescaped characters, the exact 0d literal, the plain number with its optional fraction and exponent, and whitespace.](figures/aontu-lexical.svg)
+![Railroad diagram of the aontu grammar's lexical rules: the kind names, the scalar forms, a string as a quoted run of escaped or unescaped characters, the exact 0d literal, the plain number with its optional fraction and exponent, and whitespace.](figures/aontu-lexical.svg)
 
 The function-name rule is drawn as one node rather than as a fan of
 alternatives; the names are in the grammar text and in
@@ -3535,7 +3535,7 @@ neither: TypeScript compiles with JavaScript's backtracking `RegExp`, Go
 with RE2—a different language, in a different complexity class, over a
 different alphabet.
 
-Aontu therefore **defines** the pattern language and rewrites your
+aontu therefore **defines** the pattern language and rewrites your
 pattern into a form neither engine can read two ways. Only the rewritten
 form reaches a host engine.
 
@@ -3551,7 +3551,7 @@ form reaches a host engine.
 | anchors | `^` `$` `\A` `\z` `\b` `\B` |
 | control | `\t \n \r \f \v` |
 
-**Aontu defines the abbreviations**, and inherits neither host's:
+**aontu defines the abbreviations**, and inherits neither host's:
 
 | written | means | 
 |---|---|
@@ -3578,7 +3578,7 @@ units, in both implementations.
 | `\p{…}`, `\x{…}`, `\u`, `\Z` | spelled differently, or read as a literal by one engine |
 | POSIX classes `[[:alpha:]]` | RE2 only |
 | empty classes `[]`, `[^]` | a never-matching class in JavaScript, a parse error in RE2 |
-| a repeat count above **1000** (`a{1001}`, `a{2,1001}`) | RE2 refuses to compile it and JavaScript accepts it, so the same schema was valid in one implementation and not the other. The bound is **Aontu's**, checked in the normaliser before either engine sees the pattern, which is why the refusal is the same in both |
+| a repeat count above **1000** (`a{1001}`, `a{2,1001}`) | RE2 refuses to compile it and JavaScript accepts it, so the same schema was valid in one implementation and not the other. The bound is **aontu's**, checked in the normaliser before either engine sees the pattern, which is why the refusal is the same in both |
 | a quantifier applied to `^`, `$`, `\b` or `\B` | there is nothing to repeat: JavaScript under the `u` flag calls it a syntax error, RE2 quantifies the assertion and matches |
 | a `{` that opens no counted quantifier (`x{y}`), or a `}` that closes none | JavaScript reads each as a lone quantifier bracket and refuses; RE2 reads both as literals |
 | a quantifier on a group containing a quantifier or an alternation | **cost, not meaning**—see below |
@@ -3836,7 +3836,7 @@ contract](trust.md), clause 2).
 
 ### Band B: `must`
 
-`must(c, msg)` wraps any Aontu value as an evaluate-only check: it
+`must(c, msg)` wraps any aontu value as an evaluate-only check: it
 residuates until its peer is concrete, then requires the peer to
 unify with `c`; on failure the author's message is attached to the
 nil (`NilVal.details`). `must` never participates in emptiness or

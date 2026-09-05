@@ -1,6 +1,6 @@
 # Test coverage
 
-Aontu holds **100 % coverage in both implementations**—Go statement
+aontu holds **100 % coverage in both implementations**—Go statement
 coverage, TypeScript line, branch and function coverage—as a
 [recorded decision](../ADR.md#adr-002--test-coverage-stays-at-100--in-both-implementations),
 not an aspiration. This page explains how that is measured, what the

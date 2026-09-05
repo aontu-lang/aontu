@@ -207,7 +207,7 @@ is legitimate there).
 Because the schema carries the `rel()`, **data files are plain
 JSON-shaped documents** — the property `vet` needs: a data document
 with `dependsOn: ["ledger"]` validates against the schema with no
-Aontu spelling in it at all.
+aontu spelling in it at all.
 
 ### 3.3 Relation properties — atoms, not a magic key
 

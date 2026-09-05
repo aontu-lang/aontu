@@ -178,7 +178,7 @@ it.
 ## Vet plain JSON at any depth
 
 The same anchored vet that checks flat records checks recursive ones,
-against data that carries no Aontu syntax at all. With `spec.aon`
+against data that carries no aontu syntax at all. With `spec.aon`
 still in place, put a chain in `chain-good.json`:
 
 <!-- test: file chain-good.json -->

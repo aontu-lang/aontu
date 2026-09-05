@@ -70,7 +70,7 @@ scaling: {
 }
 ```
 
-`$.scaling.floor` is an ordinary Aontu reference
+`$.scaling.floor` is an ordinary aontu reference
 (`test/spec/ref.tsv`), but there is no constraint value for it to
 parameterise.
 
@@ -201,7 +201,7 @@ residual kind must define its own gen behaviour.
   an insufficiently-instantiated function suspends as a passive
   constraint and re-fires as unification refines values, with
   determinacy conditions worked out — the principled version of
-  Aontu's existing defer-and-retry loops.
+  aontu's existing defer-and-retry loops.
 - **Semantic subtyping** (Frisch/Castagna) is the warning label:
   general negation is sound only atop months of emptiness-procedure
   machinery, twice over for TS and Go. Scalar negation does not
@@ -254,7 +254,7 @@ language's recorded design principle; it keeps the grammar — the
 acquisition cost for both humans and models — frozen; and it makes
 TS/Go parity a registry-entry exercise rather than a parser project.
 The familiarity gap is mitigable at low cost: a targeted parse hint
-("`>` is not an Aontu operator; write `min(0)` / `above(0)`") in
+("`>` is not an aontu operator; write `min(0)` / `above(0)`") in
 `ts/src/hints.ts` / `go/hints.go`, plus the published grammar and
 examples that G7 owns.
 
@@ -395,7 +395,7 @@ generation is an error, exactly like an unresolved kind today.
 
 ### Band B: `must`
 
-`must(c, msg)` wraps any Aontu value `c` as an evaluate-only check:
+`must(c, msg)` wraps any aontu value `c` as an evaluate-only check:
 it residuates until its peer is concrete, then requires the peer to
 unify with `c`; on failure the author's message is attached to the
 nil. `must` never participates in emptiness or subsumption, and any
@@ -437,7 +437,7 @@ messages arrived with phase 5.)*
 
 ### Numbers: decide and bound the defect
 
-Decision: Aontu **keeps IEEE-754 double semantics** — and removes
+Decision: aontu **keeps IEEE-754 double semantics** — and removes
 the *silent* part of the defect. An integer-source literal whose
 double representation is not exact becomes a located parse-time
 error (`lossy_integer_literal`) instead of rounding. As landed the

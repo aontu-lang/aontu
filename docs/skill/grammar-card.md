@@ -1,4 +1,4 @@
-# Aontu grammar card
+# aontu grammar card
 
 Everything the language spells, on one page. The published machine
 grammars are [`grammar/aontu.abnf`](../../grammar/aontu.abnf) — the

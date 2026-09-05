@@ -6,7 +6,7 @@ opened 2026-08-30. This document expands a gap G1–G9 did not name:
 one makes the **first** pinning of it public, append-only and
 independently auditable. It exists because a design review of a
 proposed "Forge Tag Transparency Registry" found the log sound and its
-substrate wrong for Aontu; that review's decisions are recorded in
+substrate wrong for aontu; that review's decisions are recorded in
 [ADR-013](../../ADR.md#adr-013--the-project-operates-one-transparency-log-and-nothing-else)
 and in [Design space](#design-space) rather than relitigated here.
 Per-phase status will be in the [progress register](progress.md), which
@@ -158,12 +158,12 @@ is where its replication property actually pays.
 from Git tags; the service resolves a tag, fetches a tree, canonicalises
 and hashes it. Rejected on three independent grounds, each sufficient:
 
-- **Aontu module paths cannot address a forge repository.** Identity is
+- **aontu module paths cannot address a forge repository.** Identity is
   domain-based (`corp.example/schemas/service@1`); there is no function
   from that to a GitHub repository. Supplying one means Go's
   `?go-get=1` vanity-import protocol, which puts arbitrary DNS holders
   inside the trust base the forge allowlist exists to bound.
-- **The digest would be one no Aontu client checks.** The proposal's
+- **The digest would be one no aontu client checks.** The proposal's
   security-critical field is a byte-level canonical-tree SHA-256. Both
   ports enforce exactly one pin, the canon-hash, and have no
   byte-digest verification path anywhere.
@@ -320,7 +320,7 @@ second specification to get wrong.
 ([ADR-013](../../ADR.md#adr-013--the-project-operates-one-transparency-log-and-nothing-else)).
 `oci` certifies the bytes; `canon` certifies the meaning. Recording
 only the byte digest would log an identity no client checks; recording
-only the canon-hash would put Aontu's *least stable* value in its most
+only the canon-hash would put aontu's *least stable* value in its most
 permanent place — G6's own risk register predicted a canon change would
 invalidate every pin, and G1 duly did it. The `aon1-` scheme id is what
 makes that survivable: a canon change ships as `aon2-` in *new* leaves,
@@ -456,7 +456,7 @@ protocol.
 decode, note verification and the leaf encoding. TypeScript: a port of
 upstream's client subset into `aontu-lang/mod`. Go: **not** a port —
 `go/` imports `golang.org/x/mod/sumdb/tlog` and `note` behind glue, so
-the differential test compares Aontu's TypeScript against real upstream
+the differential test compares aontu's TypeScript against real upstream
 Go rather than two readings by the same author. A new shared spec mode
 carrying golden vectors. BSD-3 attribution and `UPSTREAM_GO_MOD.md`.
 Useful with no service running: it verifies proofs a lockfile carries.
@@ -487,7 +487,7 @@ mutation alerting, the git mirror.
 ## Open questions
 
 - **Does the lockfile carry proof material, or only the index?**
-  `mod-lock.aon` is machine-written canonical Aontu read by both ports
+  `mod-lock.aon` is machine-written canonical aontu read by both ports
   *without an evaluator*, pinned by shared fixtures and a byte-diffed
   parity probe. Embedding an inclusion proof and checkpoint is
   therefore a landed-format migration in two implementations, not a new

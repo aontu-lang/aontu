@@ -6,7 +6,7 @@ their renderers, profiles and determinism rules. This note covers the
 strand no other configuration language can offer, because drawing it
 needs a semantic order over whole documents, a decision procedure for
 that order exposed as a verb, and a canonical form under which two
-spellings of one meaning are one node. Aontu has all three today. Every
+spellings of one meaning are one node. aontu has all three today. Every
 claim marked VERIFIED was run against the built CLIs at 0.53.0 —
 `node ts/bin/aontu.js` and a fresh `go build ./cmd/aontu`. The poset
 and the meet ladder are BUILT (2026-09-02) as `aontu view poset` and
@@ -17,7 +17,7 @@ is design; status belongs in the
 
 ## Problem
 
-Aontu computes lattice facts continuously and reports every one of them
+aontu computes lattice facts continuously and reports every one of them
 as a line of text about a single pair, or a single path. `subsume`
 decides the order between two documents. `why` returns the meet chain
 that produced a value. The constraint algebra normalises a residual to
@@ -150,7 +150,7 @@ the one that looks trivial does not.
 Analysis* (ACM TOSEM 5(2), 1996) and Krone & Snelting (ICSE 1994) take
 `#ifdef`-governed source pieces as objects and configuration symbols as
 attributes, and read configuration structure and interferences off the
-lattice. Aontu's layered documents are the same problem with better
+lattice. aontu's layered documents are the same problem with better
 syntax. The lineage — Snelting & Tip (TOPLAS 2000), Godin & Mili,
 Al-Msie'deen et al. on feature location — reports the same payoff
 consistently: finding anomalies in a structure, not constructing one.
@@ -159,7 +159,7 @@ consistently: finding anomalies in a structure, not constructing one.
 State-of-the-Art of Set Visualization* (CGF 35, 2016), reports the
 Euler/Venn family "very limited in scalability and visual accuracy",
 and every area-proportional generator (eulerAPE, Edeap) is a
-search-based optimiser. The natural Aontu set question — which layer
+search-based optimiser. The natural aontu set question — which layer
 contributed which keys — has seven-plus layers in
 `use-cases/02-deploy-config` alone. VIEWS.0.md answers it with an
 intersection matrix instead, which is correct.
@@ -170,7 +170,7 @@ shrinking under propagation; for interval constraints the standard
 picture is pruning on a number line (Benhamou & Granvilliers,
 *Handbook of Constraint Programming* ch. 16). There is no established
 idiom for "here is why this meet is **empty**", which is the picture an
-Aontu conflict wants, and it needs no layout.
+aontu conflict wants, and it needs no layout.
 
 **The comparison that matters.** YAML, JSON, Jsonnet, HCL, Starlark and
 Dhall have no semantic order over whole documents, no decision
@@ -190,7 +190,7 @@ something only this engine computes.
 | Concept lattice (FCA) | the objects; no attributes, no incidence | **research bet**, behind a flag |
 
 **Why the configuration space is refused, and it is not taste.** A
-feature model denotes a set of configurations; Aontu denotes that set
+feature model denotes a set of configurations; aontu denotes that set
 plus a preference preorder over it, and no feature-modelling notation
 has the second half. The picture would be genuinely novel. It is
 refused because **the engine does not compute the set**: disjunction
@@ -351,12 +351,12 @@ And it still does not ship, for four reasons:
    draws something a scaling and a threshold suggested about a sample.
    With eight objects, `owner=team-payments ⟹ tier<=2` is supported by
    three services and is almost certainly coincidence, and a diagram
-   renders it with the same authority as the real equivalence. Aontu's
+   renders it with the same authority as the real equivalence. aontu's
    claim is that a picture of the model is a picture of something
    checked. This one would not be.
 
 **Verdict: a research bet behind `--experimental`.** If built, three
-things are fixed in advance — the scaling is written in Aontu as an
+things are fixed in advance — the scaling is written in aontu as an
 ordinary document vetted against a bundled vocabulary, so the modelling
 act is reproducible and diffable; the layout is attribute-additive, the
 one place here where a real layout has a closed form; and `--max-nodes`
@@ -401,7 +401,7 @@ emitted text is doubled in the cell because the escape pass runs first
   geometry because its geometry has a closed form over a canonical
   sort, and for no other reason.
 - **No Euler or Venn generation** — every generator is an iterative
-  optimiser, and the question Aontu has is above the family's
+  optimiser, and the question aontu has is above the family's
   scalability ceiling. VIEWS.0.md's intersection matrix answers it.
 - **No configuration-space enumeration.** The engine computes one
   trajectory, not the space.

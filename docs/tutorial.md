@@ -2,7 +2,7 @@
 
 A service config is three documents wearing one file format: the
 values, the rules the values must obey, and the fallbacks for what
-nobody said. Most stacks store the three separately and hope. In Aontu
+nobody said. Most stacks store the three separately and hope. In aontu
 they are one document, combined by one operation—unification—and
 the result is a config that can check itself.
 
@@ -15,7 +15,7 @@ test suite, and every output is the engine's.
 
 ## 1. Set up
 
-If Aontu is already installed, skip to [§2](#2-objects-are-just-keys-and-values).
+If aontu is already installed, skip to [§2](#2-objects-are-just-keys-and-values).
 
 ### TypeScript
 
@@ -40,7 +40,7 @@ console.log(aontu.generate('hello: world'))
 // { hello: 'world' }
 ```
 
-`generate` takes Aontu source text and returns a plain JavaScript
+`generate` takes aontu source text and returns a plain JavaScript
 value. That is the whole API surface you need today.
 
 ### Go
@@ -99,7 +99,7 @@ covers both.
 
 ## 2. Objects are just keys and values
 
-Aontu source reads as relaxed JSON (it is parsed by
+aontu source reads as relaxed JSON (it is parsed by
 [`@tabnas/jsonic`](https://github.com/tabnas/jsonic), so quotes,
 commas and braces are mostly optional). Plain data is legal on its
 own:
@@ -173,7 +173,7 @@ Cannot unify value: 9090 with value: 8080
 
 (Trimmed; the real message also quotes both source lines, with a
 caret under each.) Combining information can only narrow toward a
-single answer or fail loudly. Aontu never picks one fact over the
+single answer or fail loudly. aontu never picks one fact over the
 other silently.
 
 ## 4. Types as values
@@ -216,7 +216,7 @@ leaf when you mean that leaf—`port: integer` will not accept
 
 ## 5. Exact numbers with `0d`
 
-An ordinary Aontu number, like an ordinary JSON number, is a binary
+An ordinary aontu number, like an ordinary JSON number, is a binary
 floating-point value. For a port or a timeout that is fine. For money
 and for large identifiers it is not, because binary cannot represent
 every decimal:
@@ -257,7 +257,7 @@ $ echo 'id: 9007199254740993' | aontu
 
 This integer literal, 9007199254740993, is not exactly representable in
 binary64, so storing it would silently round it to a DIFFERENT
-number. Aontu refuses rather than corrupts: write it as a `0d`
+number. aontu refuses rather than corrupts: write it as a `0d`
 literal to get the exact integer.
 ...
 $ echo $?
@@ -410,7 +410,7 @@ work in lists too (`[&: {...}]`), and §11 leans on that form.
 
 ## 9. Functions
 
-Aontu has a fixed set of built-in functions, and no user-defined ones.
+aontu has a fixed set of built-in functions, and no user-defined ones.
 A few of the everyday ones:
 
 ```aontu
@@ -715,7 +715,7 @@ $ echo $?
 ```
 
 Nothing contradicts anything; the document is simply not finished yet.
-Aontu has kept "wrong" and "unfinished" apart all through this page,
+aontu has kept "wrong" and "unfinished" apart all through this page,
 and `vet` keeps them apart in its exit codes too—one code per
 verdict class, which is what makes it usable as a gate. The codes, the
 JSON and SARIF report forms and `--watch` are specified under

@@ -11,7 +11,7 @@ what they **should** do are argument, and are marked as such.
 
 ## 1. The goal, in three parts
 
-An agent writing software needs three things, and Aontu is positioned
+An agent writing software needs three things, and aontu is positioned
 to supply all three from **one** artefact:
 
 1. **A specification it cannot misread.** Not prose, not a README: a
@@ -51,7 +51,7 @@ G1–G8 already landed most of the substrate:
 | **G7** machine access | `get`, `why`, `jsonschema`, `agentsmd` — the surfaces an agent reads. |
 | **G8** generation | `pack`, `each`, `filter` — deriving many values from one template. |
 
-**The `refer()`/`id()` layer is the point to notice.** Aontu already has
+**The `refer()`/`id()` layer is the point to notice.** aontu already has
 entity identity and checked, typed links between entities. That is the
 part of an ontology that most schema languages lack, and it was built
 for a different reason. This design is largely about *feeding* it.
@@ -92,13 +92,13 @@ path and no site, the §43 shape again.
 **Ruled and fixed 2026-08-30**, as
 [ADR-012](../../ADR.md#adr-012--an-includes-extension-decides-what-the-file-is-aontu-source-config-data-or-refused):
 the extension says which of two things a file is. `.aon` and `.aontu`
-are Aontu source; `.json` and `.jsonld` — with `.jsonc`, `.json5`,
+are aontu source; `.json` and `.jsonld` — with `.jsonc`, `.json5`,
 `.jsonic`, `.jsc`, `.toml`, `.yaml`, `.yml` and `.ini` — are
 configuration **data**, read by that format's own parser into the JSON
 value it denotes. Every other extension, and a name with no extension,
 is refused by name. A vocabulary is therefore data, not source: what
 it holds is a map of scalars, lists and maps, and nothing in it is an
-Aontu construct. Filed as
+aontu construct. Filed as
 [`use-cases/BUGS.md` §49](../../use-cases/BUGS.md#49-an-includes-extension-decides-the-answer-and-the-two-ports-decide-differently-fixed-2026-08-30).
 
 **P1 below is therefore unblocked**: an included vocabulary now means
@@ -174,7 +174,7 @@ optionally **Comment, Subproperty Of, Domain, Range, Domain Includes,
 Range Includes, Member Of, Equivalent Property**. Term URIs resolve to
 RDF schemas for programmatic use.
 
-That attribute set maps almost directly onto an Aontu record — see §6.
+That attribute set maps almost directly onto an aontu record — see §6.
 
 ### schema.org
 
@@ -211,7 +211,7 @@ are deliberately weaker than `rdfs:domain` / `rdfs:range`.** They are
 not constraints that license inference. schema.org's own OWL export has
 to convert them with `owl:unionOf` to make them formal. That weakness
 is a **feature** for this design: it is already the "good enough"
-posture the brief asks for, and it maps onto Aontu's open-by-default
+posture the brief asks for, and it maps onto aontu's open-by-default
 maps without pretending to more rigour than exists.
 
 ### microformats2
@@ -237,7 +237,7 @@ annotation by another name:
 | `dt-` | date-time, with parsing rules |
 | `e-` | embedded HTML (both `html` and `value`) |
 
-`u-` and `dt-` are directly expressible as Aontu constraints
+`u-` and `dt-` are directly expressible as aontu constraints
 (`re(…)` for URL shape, a date pattern for `dt-`). **`p-`/`u-`/`dt-`/
 `e-` is a four-element type system that happens to be spelled as a
 naming convention** — and mapping it into the constraint algebra loses
@@ -256,31 +256,31 @@ Researched and ranked by what they would actually buy:
 | **OWL / RDFS** | not to *import* but to understand: `subClassOf` is the only cross-vocabulary relation that must survive projection. |
 | **SHACL / ShEx** | the RDF world's *validation* layer. Closest in spirit to `vet`, and the right place to look for prior art on shapes-as-constraints. |
 | **JSON Schema** | already a target (`aontu jsonschema`); should become a **source** too. |
-| **CDDL** (RFC 8610) | concise data definitions for CBOR/JSON; unusually close to Aontu's own grammar. |
+| **CDDL** (RFC 8610) | concise data definitions for CBOR/JSON; unusually close to aontu's own grammar. |
 
 **Prior art that should be read before building any of this: LinkML.**
 It defines schemas in one place and compiles them to OWL, JSON Schema,
 SHACL and more — the same "one source, many targets" shape this design
 proposes, with years of experience in biomedical and government data.
-Where LinkML is a schema language that emits ontology artefacts, Aontu
+Where LinkML is a schema language that emits ontology artefacts, aontu
 would be a *unifier* that ingests them; the question worth asking is
 whether LinkML should be an import format rather than a competitor.
 
 ---
 
-## 6. The projection: RDF is a graph, Aontu is a tree
+## 6. The projection: RDF is a graph, aontu is a tree
 
 This is where "good enough is good enough" has to be made precise,
 because the impedance mismatch is real and cannot be wished away.
 
 **The mismatch.** RDF is a set of triples over a global namespace with
 no inherent nesting, multiple inheritance, and properties that exist
-independently of any class. Aontu is a tree of maps with unification,
+independently of any class. aontu is a tree of maps with unification,
 open by default, where a "property" is a key *inside* a map.
 
 **What projects cleanly:**
 
-| RDF / vocabulary | Aontu |
+| RDF / vocabulary | aontu |
 |---|---|
 | a class | a `type()`-marked map, or an alias (`%Person`) |
 | `rdfs:label`, `rdfs:comment` | documentation, not value — kept beside, not inside |
@@ -292,7 +292,7 @@ open by default, where a "property" is a key *inside* a map.
 | an entity link | `refer()` — already checked, already typed |
 
 **Unification is the part that fits unusually well.** In RDF,
-`subClassOf` is an inference rule that needs a reasoner. In Aontu,
+`subClassOf` is an inference rule that needs a reasoner. In aontu,
 `%Employee: %Person & {employeeId: string}` *is* the subclass, checked
 by the evaluator, with no reasoner and no open-world assumption to
 reconcile. Multiple inheritance is `&` of several parents, and it
@@ -303,7 +303,7 @@ than silent inconsistency.
 
 - **Open-world semantics.** RDF says "absence is not denial"; `vet`
   says a required key is missing. These are different logics and the
-  projection must pick one. **Pick Aontu's**, and say so.
+  projection must pick one. **Pick aontu's**, and say so.
 - **Reasoning.** No transitive closure, no `owl:sameAs`, no
   entailment. `reaches` answers reachability over *declared* relations;
   it is not a reasoner and should not pretend to be.
@@ -317,7 +317,7 @@ artefact — and it must say so in the file it produces.** Not a live
 binding to the vocabulary. This is exactly the "good enough" the brief
 asks for, and being explicit about the loss is what makes it safe:
 an agent reading the projection must be able to tell that
-`schema:Person` here means *what Aontu could represent of* the 30.0
+`schema:Person` here means *what aontu could represent of* the 30.0
 release of `schema:Person`, pinned by hash.
 
 ### The proposed surface
@@ -361,7 +361,7 @@ The brief is right that this is a gap, and it is a bigger one than it
 first looks. Everything in §§5–6 assumes a vocabulary *has* a version
 (schema.org 30.0, DCMI 2020-01-20), and everything in §§9–10 assumes a
 spec can change without silently invalidating what was generated from
-it. Aontu today has strong **module** versioning and almost no
+it. aontu today has strong **module** versioning and almost no
 **schema** versioning, and the two are not the same thing.
 
 ### 7.1 What exists
@@ -406,7 +406,7 @@ answers yes/no. Real evolution distinguishes:
 | **full** | both | mixed fleets |
 
 Avro and Protobuf make this explicit because distributed systems need
-it. **Aontu can already compute it and does not name it:** `subsume A B`
+it. **aontu can already compute it and does not name it:** `subsume A B`
 and `subsume B A` are exactly the two directions, so backward, forward
 and full compatibility are derivable *today* from machinery that
 landed for another purpose. That is a naming and surfacing job, not a
@@ -456,7 +456,7 @@ and nothing else. Resist anything smarter; version-aware name
 resolution is where schema languages go to die.
 
 **Migration as a document.** A migration from v1 to v2 is itself an
-Aontu document: a mapping from old paths to new, expressible with the
+aontu document: a mapping from old paths to new, expressible with the
 existing `set`/`get`/reference machinery, checkable by vetting the
 *result* against v2. This wants no new language feature and would be a
 good early test of whether the generation story (§9) holds up.
@@ -487,7 +487,7 @@ first time the spec changes.
 ## 8. Formal specifications: TLA+, Lean, TypeScript, IDL
 
 The brief's framing is right: **good enough is good enough**, and the
-useful question is *direction*. For each, Aontu is either a **source**
+useful question is *direction*. For each, aontu is either a **source**
 (it emits) or a **sink** (it ingests), and confusing the two is how
 this kind of integration usually fails.
 
@@ -496,10 +496,10 @@ this kind of integration usually fails.
 | **TypeScript types** | **both** | Emit `.d.ts` from a spec — structural, unions, optionals, literal types all map. Ingest a *subset* of `.d.ts` back (interfaces, unions, primitives). | Conditional types, mapped types, inference. Ingesting arbitrary TS is a compiler project. |
 | **JSON Schema** | **both** | Already emitted (probe 1). Ingesting is tractable and high-value — it is how most APIs are described. | `$dynamicRef`, full `unevaluatedProperties` semantics. |
 | **IDL** (Protobuf, Thrift, Avro, CDDL, ASN.1) | **source** | Emit `.proto`/`.cddl` from a spec. Field numbering is the only real design question, and `breaking` already knows about compatibility. | Ingesting is possible but low-value — IDL is *less* expressive than the spec, so the round trip loses the constraints that matter. |
-| **TLA+** | **sink, narrowly** | Take the **state shape** and **invariants** from a spec and emit a TLA+ skeleton; take model-checker *output* back as data (`tla2json` exists). | Temporal logic, fairness, liveness. Aontu has no notion of *time* or *step*, and trust.md forbids adding one. |
-| **Lean** | **sink, narrowly** | Emit structure definitions. Lean 4 has JSON Schema derivation with proofs (`lean4-json-schema`), so the bridge is `jsonschema`, not a direct one. | Proofs. Aontu is not a proof assistant and should not gesture at being one. |
+| **TLA+** | **sink, narrowly** | Take the **state shape** and **invariants** from a spec and emit a TLA+ skeleton; take model-checker *output* back as data (`tla2json` exists). | Temporal logic, fairness, liveness. aontu has no notion of *time* or *step*, and trust.md forbids adding one. |
+| **Lean** | **sink, narrowly** | Emit structure definitions. Lean 4 has JSON Schema derivation with proofs (`lean4-json-schema`), so the bridge is `jsonschema`, not a direct one. | Proofs. aontu is not a proof assistant and should not gesture at being one. |
 
-**The honest summary: Aontu is a good *source* and a poor *sink* for
+**The honest summary: aontu is a good *source* and a poor *sink* for
 the formal systems, and the reverse for the data-description ones.**
 The reason is expressiveness. Emitting to a weaker language is a
 projection you control; ingesting from a stronger one is a compiler you
@@ -509,7 +509,7 @@ and treat TLA+/Lean as *adjacent* — hand them a state shape, take back
 a verdict, do not try to be them.
 
 **Where TLA+ genuinely earns its place** is the one thing this design
-cannot do: Aontu describes *states*, never *transitions*. A spec can
+cannot do: aontu describes *states*, never *transitions*. A spec can
 say what a valid order looks like; it cannot say that an order may go
 `pending → paid → shipped` but never `shipped → pending`. If protocol
 correctness matters, that is TLA+'s job, and the integration is to
@@ -556,11 +556,11 @@ Its spec format is hierarchical JSON:
 with `in` / `args` / `out` / `err` / `match`, and the sentinels
 `"__NULL__"`, `"__UNDEF__"`, `"__EXISTS__"`.
 
-**This is a generation target, and Aontu already generates JSON.** The
+**This is a generation target, and aontu already generates JSON.** The
 integration is not an API — it is `aontu` emitting an omni spec file.
 
 **Why this delivers *independent* validation.** The omni runner has
-never heard of Aontu. It reads JSON and executes it against an
+never heard of aontu. It reads JSON and executes it against an
 implementation in any of 24 languages. So the chain is:
 
 ```
@@ -632,11 +632,11 @@ Nothing should be built before these are answered.
 
 Stating these is what keeps the design honest:
 
-- **Aontu does not become a reasoner.** No entailment, no transitive
+- **aontu does not become a reasoner.** No entailment, no transitive
   closure over imported vocabularies, no OWL profiles.
-- **Aontu does not become a proof assistant.** Lean is adjacent, not a
+- **aontu does not become a proof assistant.** Lean is adjacent, not a
   target.
-- **Aontu does not model time or state transitions.** That is TLA+'s
+- **aontu does not model time or state transitions.** That is TLA+'s
   job, permanently — trust.md forbids a clock.
 - **No network at evaluation.** Ever. §4.
 - **Not a complete import of any vocabulary.** A projection is lossy by

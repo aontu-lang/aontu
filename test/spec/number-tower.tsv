@@ -511,7 +511,7 @@ bigint-disjunct-pick-canon	canon	x:(0d1|0d2)&0d2	{"x":0d2}
 # what follows is the edges -- exactness, the integer storage contract,
 # no-demotion, chaining, and upper()/lower() on every numeric leaf.
 #
-# EXACT ADDITION IS ALIGN-AND-ADD, WITH NO ROUNDING ANYWHERE. Aontu has
+# EXACT ADDITION IS ALIGN-AND-ADD, WITH NO ROUNDING ANYWHERE. aontu has
 # no rounding mode and no precision context (D6), so the only question a
 # sum can raise is whether the exact answer fits the budget.
 #

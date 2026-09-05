@@ -165,7 +165,7 @@ question, and it is not free.
 
 ### Order independence
 
-Aontu is commutative — that is the language's central claim. So an
+aontu is commutative — that is the language's central claim. So an
 alias must be usable **before its declaration**:
 
 ```
@@ -175,7 +175,7 @@ listen: %uint8
 
 must mean what the reverse order means. Anything else introduces a
 reading order into a language that has none, and would be the first
-place in Aontu where moving two lines changes the answer.
+place in aontu where moving two lines changes the answer.
 
 **An alias resolves the way a path reference resolves.** `$.b.u8` is
 not looked up as the parser walks either: it stays an unresolved node
@@ -715,7 +715,7 @@ deliberately, and which appears nowhere in this corpus either.
 **On this evidence the break is close to free.** One caveat the
 evidence cannot cover: this repository is not a representative corpus.
 `X=Y` is the natural spelling of a query string, a feature flag and an
-environment variable, and Aontu is a *configuration* language — the
+environment variable, and aontu is a *configuration* language — the
 places those appear are exactly the documents this repo does not
 contain. A wider corpus check is cheap and should precede P1.
 

@@ -413,7 +413,7 @@ edge-neg-neg-gen	gens	a:--0d5	{"a":5}
 # engine (issue #49). `(([]%))` is a grouping paren whose value is a raw
 # parse array, and it was passed straight to addsite, which wrote a site
 # onto it and threw a TypeError that escaped the unifier entirely --
-# "Aontu: unexpected error", not an aontu verdict at all.
+# "aontu: unexpected error", not an aontu verdict at all.
 #
 # What these rows pin is that the shape is HANDLED, not that its output
 # is meaningful: `[[],"%"]` is what a `%` with nothing to do becomes, and

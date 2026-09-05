@@ -22,7 +22,7 @@ designs it. Four successive prototypes of a generator for those twelve
 handlers were built, and **not one of them contained an
 apply-templates**. Each was a functional transformation — a `pack`
 whose template computed every fragment in place, with the target code
-carried inside Aontu strings — so the output shape was welded to that
+carried inside aontu strings — so the output shape was welded to that
 one target and the rule layer was never exercised.
 
 The absence is the finding. The design's own centre had not been tried,
@@ -44,7 +44,7 @@ than one table with a discriminator in every pattern.
 [ {match: <pattern>, esc?: <variant>, replace?: {<KEY>: <expr>, …}, body: [ … ]}, … ]
 ```
 
-`match` is an ordinary Aontu value used as a pattern, matched by
+`match` is an ordinary aontu value used as a pattern, matched by
 unifiability, exactly as `match()` and `filter()` already use one.
 **This adds no second rule engine and no second pattern language.**
 `body` is a list of output pieces. `replace` is
@@ -307,7 +307,7 @@ break in its own right.
 
 ## Verified against the worked generator
 
-The canonical document was expanded to Aontu the shipped engine runs,
+The canonical document was expanded to aontu the shipped engine runs,
 evaluated at 0.56.0, and rendered:
 
 | property | result |
@@ -320,7 +320,7 @@ evaluated at 0.56.0, and rendered:
 ## Open
 
 - **There is no `with-param`.** XSLT passes extra context to an applied
-  template; the handlers did not need it. The natural Aontu spelling is
+  template; the handlers did not need it. The natural aontu spelling is
   to enrich the node-set before dispatch, since a node-set is an
   ordinary value — and that is precisely the composition fact 1 shows
   failing today. Under a builtin that binds a named node it should

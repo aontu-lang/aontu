@@ -180,7 +180,7 @@ function normaliseEscape(n, src, i, inClass) {
     }
     if ('p' === n || 'P' === n) {
         return ['', 'a Unicode class (\\' + n + '), which JavaScript reads as a' +
-                ' literal "' + n + '" without a flag Aontu does not set', 0];
+                ' literal "' + n + '" without a flag aontu does not set', 0];
     }
     if ('Z' === n) {
         return ['', '\\Z, which RE2 does not accept and JavaScript reads as a' +

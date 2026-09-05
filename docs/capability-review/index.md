@@ -1,8 +1,8 @@
-# Capability review: Aontu as a systems ground truth for agents
+# Capability review: aontu as a systems ground truth for agents
 
 *Status: review (August 2026). This document records a survey of the
 literature, comparable languages, and industry practice, asking one
-question: what fundamental capabilities does Aontu lack to fulfil its
+question: what fundamental capabilities does aontu lack to fulfil its
 stated purpose — a systems-definition language and ground truth for
 agents? Each identified gap has a companion design document (G1–G8,
 linked below) with alternatives, boundaries, risks, and an
@@ -24,15 +24,15 @@ fact-checking pass over the combined findings.
 
 ## The verdict in brief
 
-Aontu's kernel is the right bet, and the survey validates it from
+aontu's kernel is the right bet, and the survey validates it from
 several independent directions. The lattice guarantee — any observed
 field value holds for the final result; merging is commutative,
 idempotent, and fails loudly on conflict — is exactly the property that
 makes a definition trustworthy in a way markdown can never be. The
 closed-world validation stance is the one the semantic-web community
-needed two separate languages (OWL, then SHACL) to reach; Aontu has it
+needed two separate languages (OWL, then SHACL) to reach; aontu has it
 as a per-node dial. The JSON-superset surface means agent-emitted JSON
-is already valid Aontu. And the dual TypeScript/Go implementation with a
+is already valid aontu. And the dual TypeScript/Go implementation with a
 shared machine-readable spec suite is an unusual asset: the same
 semantics embeddable in Node agent harnesses and Go gateways.
 
@@ -62,7 +62,7 @@ actually gets deployed at decision boundaries — AWS chose Cedar for
 agent authorisation explicitly for determinism and analysability.
 **Nobody has fused the two: a language that is simultaneously the spec
 agents read and the gate that validates their output.** That is the
-position Aontu targets, and the survey's clearest conclusion is that
+position aontu targets, and the survey's clearest conclusion is that
 the fusion is won or lost on the capabilities below — mostly
 infrastructure around the lattice, not syntax on top of it.
 
@@ -85,9 +85,9 @@ infrastructure around the lattice, not syntax on top of it.
 | # | Gap | Why it changes what the language is | Design doc |
 |---|-----|-------------------------------------|------------|
 | G1 | A real constraint algebra | Makes "type safety through unification" true beyond five kinds; everything else is downstream | [g1-constraint-algebra.md](g1-constraint-algebra.md) |
-| G2 | The validation verb | Turns Aontu from expression evaluator into agent guardrail (emit → validate → repair) | [g2-validation-verb.md](g2-validation-verb.md) |
+| G2 | The validation verb | Turns aontu from expression evaluator into agent guardrail (emit → validate → repair) | [g2-validation-verb.md](g2-validation-verb.md) |
 | G3 | Subsumption as a query; schema evolution | Ground truth is a claim about time; the lattice makes compatibility checking nearly free | [g3-subsumption-evolution.md](g3-subsumption-evolution.md) |
-| G4 | Identity and typed relations | Systems are graphs; Aontu documents are trees with document-scoped paths | [g4-identity-relations.md](g4-identity-relations.md) |
+| G4 | Identity and typed relations | Systems are graphs; aontu documents are trees with document-scoped paths | [g4-identity-relations.md](g4-identity-relations.md) |
 | G5 | A specified trust contract | Hermeticity, termination, determinism, sandboxing — constitutive for unattended agent evaluation | [g5-trust-contract.md](g5-trust-contract.md) |
 | G6 | A distribution layer | Versioned, integrity-hashed, pinnable modules; truth must be shareable and tamper-evident | [g6-distribution.md](g6-distribution.md) |
 | G7 | A machine-facing access surface | Query, provenance, patch, MCP — agents consume slices, not whole evaluated blobs | [g7-machine-access.md](g7-machine-access.md) |
@@ -95,7 +95,7 @@ infrastructure around the lattice, not syntax on top of it.
 | G9 | Declarative transformation | The model is the source of the CODE — one model, many generated artifacts, each over part of it | [g9-transformation.md](g9-transformation.md) |
 | G10 | A transparency log | A lockfile is a private memory; the first resolution of a version needs a public, append-only, auditable record | [g10-transparency.md](g10-transparency.md) |
 
-## What Aontu already has right
+## What aontu already has right
 
 These are assets the review recommends protecting — several have no
 equivalent in CUE:
@@ -106,7 +106,7 @@ equivalent in CUE:
   shared spec.
 - **Closed-world validation with a per-node dial** — `close()`/`open()`,
   including closed *lists*, which CUE's structs don't cover.
-- **JSON-superset surface** — any JSON document is valid Aontu, so
+- **JSON-superset surface** — any JSON document is valid aontu, so
   agent output can be unified directly against a definition with no
   conversion. This is the substrate for a `vet` operation (G2) and
   dramatically lowers the LLM learning cliff for a low-resource
@@ -130,7 +130,7 @@ equivalent in CUE:
   directions.
 - **Native variant modelling** — disjunction is a variation point,
   preference is the default variant. SysML v2 had to bolt on
-  `variation`/`variant` keywords for what Aontu's core already
+  `variation`/`variant` keywords for what aontu's core already
   expresses compositionally.
 - **In-memory resolver and host-injected `$name` variables** — good
   bones for sandboxed, parameterised agent evaluation.
@@ -177,7 +177,7 @@ behaviour.
 
 The canonical agent loop — *emit, validate, repair* — currently has no
 entry point: the CLI evaluates one file to JSON, full stop. Because
-Aontu is a JSON superset, `aontu vet schema.aon candidate.json` is
+aontu is a JSON superset, `aontu vet schema.aon candidate.json` is
 nearly free to implement (unify + closedness + report), and it changes
 the language's identity from evaluator to gate. The same verb, pointed
 at a live system dump, is drift detection. The output contract matters
@@ -190,7 +190,7 @@ self-correct.
 ### G3 — Subsumption as a first-class query; schema evolution
 
 Ground truth is a claim about *time*: agents act on stale snapshots,
-and the truth evolves. Aontu's lattice makes the principled version of
+and the truth evolves. aontu's lattice makes the principled version of
 compatibility checking nearly free: new schema subsumes old ⇒ backward
 compatible; the reverse ⇒ forward compatible; both ⇒ full. Exposing
 subsumption — as a builtin, a CLI verb
@@ -198,12 +198,12 @@ subsumption — as a builtin, a CLI verb
 powers versioned evolution, default-validity checking, CUE-style trim,
 and the entailment queries agents actually need. Paired with a
 deprecation mark surfaced at point of use, it gives shared schemas a
-complete evolution story. The fact-check pass ranked this Aontu's most
+complete evolution story. The fact-check pass ranked this aontu's most
 defensible differentiator.
 
 ### G4 — Cross-document identity and first-class typed relations
 
-Systems are graphs; Aontu documents are trees with document-scoped
+Systems are graphs; aontu documents are trees with document-scoped
 paths. Today the language cannot say "this `dependsOn` target must
 exist and be a Service", cannot declare or check an inverse relation,
 cannot forbid a cyclic dependency path, and cannot merge two files
@@ -246,7 +246,7 @@ must be shareable across repos, teams, and agent sessions, and
 tamper-evident when it travels. The ecosystem default is settled —
 versioned modules with lockfiles, distributed over OCI registries.
 The differentiator on top: Dhall-style **semantic integrity hashes
-computed over Aontu's canonical form**. A pin hashes the *meaning*,
+computed over aontu's canonical form**. A pin hashes the *meaning*,
 not the bytes — refactors and comments don't break it; any semantic
 change anywhere in the transitive closure does. One honest caveat the
 design must resolve: canon today is deterministic *syntax*, not a
@@ -254,7 +254,7 @@ unique semantic normal form (`number|integer` denotes the same value
 set as `number` — `DisjunctVal` drops only `same()` alternatives —
 yet the two canon differently), so hashing requires either a
 subsumption-based minimisation step before the hash or the weaker,
-clearly-labelled claim of a canonical-text hash. Aontu's existing
+clearly-labelled claim of a canonical-text hash. aontu's existing
 canon still makes either variant nearly free, and no
 unification-family language has it.
 
@@ -280,7 +280,7 @@ decoding.
 Producing N similar children from data — one block per service, per
 region, per replica — is the bread-and-butter of systems definition.
 Without it, humans and agents copy-paste, and the copies drift, which
-defeats ground-truth-ness from inside. Aontu's spread applies a schema
+defeats ground-truth-ness from inside. aontu's spread applies a schema
 to children that exist; nothing can *generate* children, compute a
 key, or interpolate a string. This is also the language's deepest
 identity question: every credible safety story surveyed (Dhall,
@@ -288,7 +288,7 @@ Starlark, CEL, Cedar) lands on the same side — a ground truth
 evaluated unattended by agents must terminate by construction. Take
 comprehension power from total combinators
 (`each`/`pack`/`filter`/`match`) and bounded evaluation budgets, and
-treat "Aontu evaluation always terminates, deterministically" as a
+treat "aontu evaluation always terminates, deterministically" as a
 headline, spec-guaranteed feature.
 
 ## Traps to refuse
@@ -303,21 +303,21 @@ these is a documented failure mode in an adjacent system:
   dual-implementation language whose product is deterministic answers.
 - **Temporal/behavioural logic in the language.** "Replicas eventually
   converge" is inexpressible in a value lattice by construction.
-  Represent state machines as ordinary Aontu data and export to
+  Represent state machines as ordinary aontu data and export to
   TLA+/P — be the structural front end, not the model checker.
 - **General negation/complement.** Sound only atop semantic-subtyping
   machinery that costs months across two implementations. Scalar-level
   negation (`!=`, not-in-set) composes fine within the bounds algebra.
 - **Surface-area creep toward CUE.** Every stratum CUE added raised
   its floor; its highest-profile adopter (Dagger) dropped it as users'
-  number-one complaint. Aontu's small, JSON-superset surface is a
+  number-one complaint. aontu's small, JSON-superset surface is a
   moat — especially for LLMs, where grammar size is acquisition cost.
   Also heed CUE's deepest scar before deepening types: pin down the
   interactions of `*`, closedness, and spreads in the spec suite
   first; those are the non-lattice-pure features that forced CUE's
   multi-year evaluator rewrite.
 - **Ignoring the null hypothesis.** The strongest competitor for
-  "ground truth for agents" is JSON Schema 2020-12 plus prose. Aontu's
+  "ground truth for agents" is JSON Schema 2020-12 plus prose. aontu's
   answer must be stated explicitly and delivered mechanically:
   merge-as-unification, subsumption-as-compatibility, located two-site
   conflicts, semantic hashing — the things JSON Schema structurally
