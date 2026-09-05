@@ -2749,3 +2749,30 @@ The [§2](#2-the-rule-layer--apply-templates-in-the-engine) formula
 EMIT.0.md's spelling. Every word of the totality argument that follows
 it stands: it is about the structure descended, not about how rules are
 spelled.
+
+## Amendment 2026-09-05 (fourth): the render plan
+
+[RENDER.0.md](../design/RENDER.0.md) is the plan for the remaining
+phases, with `aontu render` as the spine, on the pattern the third
+amendment set for the rule layer. It inherits [§1](#1-the-output-vocabulary--aontucode),
+[§3](#3-the-renderer-and-the-language-profiles) and [§6](#6-the-manifest-d5-iv-d7)
+and departs from them in ten named places (its §9). The ones that
+change what a reader of this document would otherwise plan against:
+
+| Here | There |
+| --- | --- |
+| §3's `line(body)` right-trims space and tab | no trim: a body line is verbatim, because TEMPLATE.0.md D8's two-space lines are significant (RENDER D3) |
+| the second amendment's `%piece` is three records | a bare string is a piece — a line at depth 0, terminator-checked at the node (RENDER D2) |
+| §6's manifest document, `--manifest`, and the `aontu:gen` name | the unit is the manifest: `path`, `lang`, `pkg`, `profile?`; `at` is replaced by the coverage report (RENDER D4) |
+| `--profile <name\|file>` applied to every unit | a profile declares its `lang`; `--profile <file>` repeats and matches by it; a fragment-only unit needs no profile (RENDER D5) |
+| `--stdout` | one unit's bytes, or `--unit <path>`; `--check <dir>` needs no `--out` (RENDER D8) |
+| phase 1 "needs MODELS M0 first" | needs M0's resolver leg only; the rename of the two shipped models follows on its own (RENDER P0) |
+| phases 1, 4 and 6 as written | re-cut as P0–P7 around the verb; the surface phase is numbered **9**; phases 5, 7 and 8 leave the critical path with a recommendation each (RENDER §4, §7) |
+| `docs/design/EMISSION.0.md`; "ADR-012 is required" for Jostraca | the note is RENDER.0.md; ADR-012 is taken, and the bridge, if it proceeds, takes the next free number |
+
+The first usable `aontu render` is P0–P4 — the resolver leg, the
+vocabulary with fragments, the `join` mark fix, the fragment fold with
+the `text` profile, and the verb — and it is the release that ends
+the 0.57.0 documentation skew. Acceptance case 1 is met there; the
+declaration lowering and the two language profiles follow as P5, and
+the template surface as P8.
