@@ -332,9 +332,9 @@ record them.
 ### The capability-review progress register
 
 Forward-looking design work lives in
-[`docs/capability-review/`](docs/capability-review/index.md): eight gap
+[`docs/capability-review/`](docs/capability-review/index.md): ten gap
 documents (G1–G10), each ending in a numbered implementation plan
-(G9 was opened 2026-08-30, after the original eight had landed).
+(G9 and G10 were opened 2026-08-30, after the original eight had landed).
 **When a phase of one of those plans lands, its row in
 [`docs/capability-review/progress.md`](docs/capability-review/progress.md)
 changes in the same commit** — the register is the single record of what
@@ -378,10 +378,8 @@ duplicate-key merge, spreads `&:`, optional keys `a?:`, `close`/`open`),
 lists (incl. `&:` spreads), conjunction (`&`), disjunction (`|`),
 preference/defaults (`*`), references (`$.a.b`, relative `.x.a`,
 cross/chained refs), `$name` variables, the `+` operator (and
-parenthesised grouping), all eighteen built-in functions (`upper`,
-`lower`, `copy`, `key`, `pref`, `super`, `type`, `hide`, `close`,
-`open`, `move`, `path`, and the constraint atoms `min`, `max`,
-`above`, `below`, `neq`, `re`), type/hide marks, and `@"file"` source loading
+parenthesised grouping), every built-in function declared in
+`test/spec/signature.tsv` (48 at 2026-09-05, `upper` to `split`), type/hide marks, and `@"file"` source loading
 via the multisource plugin — plus `parse`, `unify`, `generate` and
 `canon`.
 
