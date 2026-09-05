@@ -1,10 +1,12 @@
 # Version-control conflict markers (issue #5).
 #
-# None of `<`, `=` or `>` is an aontu operator, so a marker line is
-# ordinary text: `<<<<<<< HEAD` parsed happily into the two-string list
-# ["<<<<<<<","HEAD"] and an unresolved merge became a plausible DOCUMENT
-# rather than an error. A file in that state is never what the author
-# meant, so it is refused before the parse, with a code of its own.
+# None of `<`, `=` or `>` is an aontu operator, so a marker line was
+# ordinary text once: `<<<<<<< HEAD` parsed happily into the two-string
+# list ["<<<<<<<","HEAD"] and an unresolved merge became a plausible
+# DOCUMENT rather than an error. Since 0.58.0 the bare-text rule refuses
+# such a run anyway (op-chars.tsv), but with a code that says nothing
+# about merges. A file in that state is never what the author meant, so
+# it is refused before the parse, with a code of its own.
 #
 # Columns: name<TAB>mode<TAB>src<TAB>expect ; modes: errc|err|gens
 #
@@ -17,17 +19,21 @@ conflict-whole	errc	<<<<<<< HEAD\na:1\n=======\na:2\n>>>>>>> other	merge_conflic
 conflict-later-line	errc	a:1\n=======\nb:2	merge_conflict
 conflict-msg	err	<<<<<<< HEAD	conflict marker
 #
-# ... and what must NOT be refused. The run length and the line start are
-# both load-bearing: a document may legitimately hold these characters,
-# and refusing one that does would be a worse bug than the one being
-# fixed. Each row below is a shape that LOOKS like a marker somewhere.
+# ... and what must NOT be refused AS A CONFLICT. The run length and
+# the line start are both load-bearing: a document may legitimately hold
+# these characters, and refusing one that does as a merge would be a
+# worse bug than the one being fixed. Each row below is a shape that
+# LOOKS like a marker somewhere. Quoted, it is a string. Bare, it is
+# refused too -- by the bare-text rule, `<` and `=` being punctuation
+# outside any syntax -- but with THAT code, never this one.
 conflict-not-quoted-open	gens	a:"<<<<<<<"	{"a":"<<<<<<<"}
 conflict-not-quoted-sep	gens	a:"======="	{"a":"======="}
 conflict-not-inside-string	gens	x:"a=======b"	{"x":"a=======b"}
 # Six is not seven, and eight is not seven.
-conflict-not-six	gens	a:<<<<<<	{"a":"<<<<<<"}
-conflict-not-eight	gens	<<<<<<<< toomany	["<<<<<<<<","toomany"]
-# A marker must start the LINE: indented, it is a run of text again.
-conflict-not-indented	gens	 <<<<<<< indented	["<<<<<<<","indented"]
+conflict-not-six	errc	a:<<<<<<	bare_punct
+conflict-not-eight	errc	<<<<<<<< toomany	bare_punct
+# A marker must start the LINE: indented, it is a run of text again --
+# one the bare-text rule refuses.
+conflict-not-indented	errc	 <<<<<<< indented	bare_punct
 # Seven followed by something other than a space is not the git shape.
-conflict-not-glued	gens	a:1 b:=======x	{"a":1,"b":"=======x"}
+conflict-not-glued	errc	a:1 b:=======x	bare_punct

@@ -69,12 +69,18 @@ plugins, so the surface syntax is "relaxed JSON".
   equivalent.
 - **Comments** begin with `#` and run to end of line. A file of only
   comments unifies to `{}`.
-- **Keys** may be bare (`host`), and need quoting only if they contain
-  separators or operator characters.
-- **Bare strings** need no quotes (`name: Mercury`). Quote with `"…"`,
-  `'…'` or `` `…` `` to include spaces or special characters
-  (`name: "hi there"`). All three are the same kind of value; only
-  what they may contain differs.
+- **Bare strings** need no quotes (`name: Mercury`), and may hold
+  letters, digits, `-` and `_`—and nothing else. So `owner:
+  team-payments`, `on: 2026-09-05` and `id: user_42` are bare strings.
+  Every other punctuation character is either syntax, where the
+  grammar gives it a meaning, or an error where it does not: `x=y`,
+  `6/2`, `50%` and `>10` are refused with `[aontu/bare_punct]`, which
+  names the character, rather than read as strings. Quote with `"…"`,
+  `'…'` or `` `…` `` to include spaces or any other character
+  (`name: "hi there"`, `ratio: "6/2"`). All three are the same kind of
+  value; only what they may contain differs.
+- **Keys** follow the same rule: bare when they hold only letters,
+  digits, `-` and `_` (`host`, `a-b`), quoted otherwise.
 - **Backtick strings may span lines.** `"…"` and `'…'` refuse a
   literal newline; `` `…` `` accepts one, so a backtick string carries
   several lines of text as one scalar. This is what lets a document hold a
@@ -1317,7 +1323,10 @@ An **alias** is a name for a value, written with a leading `%`.
 `%name = value` at the top level of a file declares one; `%name` in
 value position uses it. The `=` is the declaration operator, and it is
 an operator nowhere else: `foo = 1` without the sigil is not a
-declaration, and `a: x=y` is the text `x=y`. Unlike a
+declaration, and neither it nor `a: x=y` is a value—a `=` outside a
+declaration is punctuation outside its syntax, refused with
+`[aontu/bare_punct]` (see [Lexical structure](#lexical-structure)).
+Unlike a
 [reference](#references-and-paths), which spells a path into the tree,
 an alias names the value directly and belongs to no path:
 
@@ -1380,11 +1389,13 @@ There is no construct for carrying a name across a file boundary
 deliberately.
 
 **The `%` is part of the name.** A quoted `"%a"` is an ordinary key or
-string, and a bare `%` not followed by a name is ordinary text:
+string, and a `%` anywhere but on an alias name is refused like any
+other stray punctuation (`b: 50%` is `[aontu/bare_punct]`; write
+`"50%"`):
 
 ```aon
 a: "%foo"
-b: 50%
+b: "50%"
 ```
 
 ```json
@@ -3303,14 +3314,15 @@ A comma group and a written list are different counts:
 `upper(["a","b"])` is one—a list, which `upper` then refuses for its
 kind rather than its count.
 
-A **version-control conflict marker** is refused before the parse. None
-of `<`, `=` and `>` is an operator, so a marker line would otherwise be
-read as ordinary text and `<<<<<<< HEAD` would parse into the list
-`["<<<<<<<","HEAD"]`—an unresolved merge silently becoming a plausible
-document. The match is git's exact shape: seven `<`, `=` or `>` at the
-start of a line, followed by the end of the line or a space before the
-branch label. A document may still write those characters freely
-anywhere else, quoted or not (`a:"<<<<<<<"`, `a:<<<<<<`).
+A **version-control conflict marker** is refused before the parse, with
+a code of its own, `merge_conflict`. A marker line would otherwise fall
+to the bare-string rule—`<` and `=` are punctuation outside any
+syntax—and be refused as a stray character, which says nothing about
+the merge that left it there. The match is git's exact shape: seven
+`<`, `=` or `>` at the start of a line, followed by the end of the line
+or a space before the branch label. A document may still write those
+characters anywhere else in a quoted string (`a:"<<<<<<<"`); a bare
+`a:<<<<<<` is refused, but as `bare_punct`, never as a conflict.
 
 In conflict messages the operand later in the source is named first
 ("…value: `<later>` with value: `<earlier>`") so the two sites are

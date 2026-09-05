@@ -790,25 +790,39 @@ func TestRound3Stragglers(t *testing.T) {
 	}
 }
 
-// The custom lex matchers' entry guards, and the comment-starter stops
-// inside scanTextExtent, on a hand-built lexer.
+// The custom lex matchers' entry guards, and the ender stops inside
+// scanBareRun that the aontu grammar itself never reaches (an ender
+// char, a block-comment starter), on a hand-built lexer.
 func TestLexMatcherGuards(t *testing.T) {
 	cfg := jsonic.DefaultLexConfig()
 	le := jsonic.NewLex("", cfg)
 	if tsTextCheck(le) != nil || tsNumCheck(le) != nil {
 		t.Fatalf("matchers must decline at end of input")
 	}
+	// At a run no number can open, the number hook declines FOR the
+	// matcher (the text stage reads the run); at a fixed token, which
+	// the fixed matcher would have claimed first, it has nothing to say.
+	lx := jsonic.NewLex("x", cfg)
+	if r := tsNumCheck(lx); r == nil || !r.Done || r.Token != nil {
+		t.Fatalf("number check must decline for the matcher at text")
+	}
+	// A sign opens no number HERE (in the grammar it is a fixed token,
+	// claimed before the number hook can run), and an ender char -- a
+	// hand-built config's, the grammar sets none -- stops a run.
 	cfg.EnderChars = map[rune]bool{',': true}
-	lc := jsonic.NewLex(",", cfg)
-	if tsNumCheck(lc) != nil {
-		t.Fatalf("number check must decline on an ender")
+	lc := jsonic.NewLex("-,", cfg)
+	if r := tsNumCheck(lc); r == nil || !r.Done || r.Token != nil {
+		t.Fatalf("number check must decline for the matcher at a sign")
+	}
+	if run := scanBareRun(lc, 1, false); run.end != 1 {
+		t.Fatalf("an ender char must stop the run, got %d", run.end)
 	}
 	cfg2 := jsonic.DefaultLexConfig()
 	cfg2.CommentLine = []string{"#"}
 	cfg2.CommentBlock = [][2]string{{"/*", "*/"}}
 	lb := jsonic.NewLex("x/*y*/", cfg2)
-	if sI, _ := scanTextExtent(lb, 0, false); sI != 1 {
-		t.Fatalf("block comment must stop the text extent, got %d", sI)
+	if run := scanBareRun(lb, 0, false); run.end != 1 || run.bad != -1 {
+		t.Fatalf("block comment must stop the run, got %+v", run)
 	}
 }
 

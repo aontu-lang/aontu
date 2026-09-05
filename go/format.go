@@ -174,8 +174,8 @@ type fmtNode struct {
 
 	// pair: the key as it will be written, the optional marker, and the
 	// value; spread: the value.
-	key   string
-	opt   bool
+	key string
+	opt bool
 	// pair: written with `=`, the alias declaration operator, rather
 	// than a colon. The spelling is the parse's -- a colon after an
 	// alias name is a refused document, and the formatter keeps it one.

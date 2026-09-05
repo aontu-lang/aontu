@@ -1,15 +1,71 @@
-# Operator characters: + & | * . $ ? are operators; / and % are plain text
-# Columns: name<TAB>mode<TAB>src<TAB>expect ; mode: canon|gen|err ; escapes: \n \t \\
-slash-text	gen	a:6/2	{"a":"6/2"}
-percent-text	gen	a:6%2	{"a":"6%2"}
-minus-infix-err	err	a:6-2	unexpected character(s): -
-star-infix-err	err	a:6*2	unexpected character(s): *
+# Bare text and the punctuation characters.
+# Columns: name<TAB>mode<TAB>src<TAB>expect ; mode: canon|gen|gens|err|errc ; escapes: \n \t \\
+#
+# A BARE STRING HOLDS LETTERS, DIGITS, `-` AND `_`, AND NOTHING ELSE. Every
+# other punctuation character is either syntax where the grammar gives it
+# a meaning -- `{}[](),:` `&|*+` `.` `$` `?` `@` `#`, the quotes, `%` on an
+# alias name, `=` after one -- or an error where it does not. Never
+# silently part of a string: `x=y`, `6/2`, `50%` and `>10` were all bare
+# strings once, each a well-formed wrong document, and each is refused
+# now with `bare_punct` naming the character. A value that needs one is
+# quoted.
+#
+# `-` and `_` are text, which makes `team-payments`, `2026-09-05` and an
+# `a-b` key legal bare; `-` at the START of a run is still the sign of a
+# number and the negation prefix, and `+` is still the sum.
+bare-hyphen-text	gen	a: team-payments	{"a":"team-payments"}
+bare-hyphen-digits	gen	a: 2026-09-05	{"a":"2026-09-05"}
+bare-hyphen-after-digit	gen	a: 6-2	{"a":"6-2"}
+bare-hyphen-trailing	gen	a: x-	{"a":"x-"}
+bare-hyphen-key	gen	a-b: 1	{"a-b":1}
+bare-underscore-text	gen	a: x_y	{"a":"x_y"}
+bare-unicode-letters	gen	a: café	{"a":"café"}
+# ... beyond the first plane too: a letter is text, a symbol is not.
+bare-astral-letter	gen	a: 𝒳	{"a":"𝒳"}
+astral-symbol-refused	errc	a: x😀	bare_punct
 negative	gen	a:-1	{"a":-1}
 positive	gen	a:+1	{"a":1}
 plus	gen	a:1+2	{"a":3}
+exponent-minus-is-a-number	gen	a: 1e-2	{"a":0.01}
+exponent-plus-is-a-number	gen	a: 1e+2	{"a":100}
+exponent-upper-plus-is-a-number	gen	a: 1E+2	{"a":100}
+# ... and only there: a `+` after the marker with no digit after it is
+# the sum, of the two strings `1e` and `x`.
+exponent-plus-without-digits-is-a-sum	gen	a: 1e+x	{"a":"1ex"}
+hex-is-a-number	gen	a: 0x1f	{"a":31}
+separator-run-is-text	gen	a: 1__0	{"a":"1__0"}
 paren-group	gen	a:(1)	{"a":1}
-quote-in-text	gen	a:x"y	{"a":"x\\"y"}
-backtick-in-text	gen	x:tail`	{"x":"tail`"}
-backtick-in-text-canon	canon	x:tail`	{"x":"tail`"}
-num-quote-juxta	gen	a:100'b'	{"a":"100'b'"}
+star-infix-err	err	a:6*2	unexpected character(s): *
+#
+# THE REFUSALS, one per character the old lexer absorbed into text.
+slash-refused	errc	a:6/2	bare_punct
+percent-refused	errc	a:6%2	bare_punct
+percent-trailing-refused	errc	b: 50%	bare_punct
+equals-refused	errc	a: x=y	bare_punct
+equals-top-level-refused	errc	foo = 1	bare_punct
+double-equals-refused	errc	a == 1	bare_punct
+bang-refused	errc	a: x!	bare_punct
+tilde-refused	errc	a: ~x	bare_punct
+semicolon-refused	errc	a: x;y	bare_punct
+caret-refused	errc	a: x^y	bare_punct
+backslash-refused	errc	a: x\\y	bare_punct
+greater-refused	errc	a: >10	bare_punct
+less-refused	errc	a: <10	bare_punct
+quote-in-text-refused	errc	a:x"y	bare_punct
+backtick-in-text-refused	errc	x:tail`	bare_punct
+num-quote-juxta-refused	errc	a:100'b'	bare_punct
+unicode-dash-refused	errc	a: x—y	bare_punct
+bad-key-refused	errc	x=y: 1	bare_punct
+bad-key-path	err	x=y: 1	at path $.x=y
+# A pair in list position is held to the same key rule: `[x=y: 1]` is
+# refused, not generated as the element `{"x=y":1}`, and pathed through
+# the element's index.
+bad-key-in-list-refused	errc	[x=y: 1]	bare_punct
+bad-key-in-list-path	err	x: [x=y: 1]	at path $.x.0.x=y
+# The refusal names the character and points at it.
+equals-refused-names-the-char	err	a: x=y	This one holds `=`, in `x=y`
+equals-refused-site	err	a: x=y	--> <no-file>:1:5
+# Quoted, every one of them is a value.
+slash-quoted	gen	a:"6/2"	{"a":"6/2"}
+equals-quoted	gen	a: "x=y"	{"a":"x=y"}
 dotted-bare-key-err	err	k2.b K:1	Cannot resolve value

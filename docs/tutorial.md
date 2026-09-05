@@ -391,8 +391,6 @@ servers: web: region: "eu-west"
 servers: db: {}
 ```
 
-(The region names are quoted because a bare string stops at the `-`.)
-
 →
 
 ```json

@@ -64,16 +64,17 @@ alias-quoted-key-is-an-ordinary-key	gens	"%a": 1	{"%a":1}
 # space or none, is the separator of a declaration.
 alias-eq-adjacent	gens	%foo=1\na: %foo	{"a":1}
 alias-eq-spaced-wide	gens	%foo   =   1\na: %foo	{"a":1}
-# `=` is special ONLY after an alias name. Everywhere else it is the
-# text it always was: a spaced `=` at the top level is the three-element
-# list it parsed as before (ALIASES.0.md §3 row 5), an adjacent one is
-# part of a bare string (row 2), and a quoted `"%a"` is a string, not a
-# name, so no declaration follows it.
-alias-eq-needs-an-alias-name	gens	foo = 1	["foo","=",1]
-alias-eq-inside-text	gens	a: x=y	{"a":"x=y"}
-alias-eq-after-quoted-key-is-text	gens	"%a" = 1	["%a","=",1]
-# `==` is not the operator: the name is a bare reference at the top
-# level, unresolved, and the `==` is text.
+# `=` is syntax ONLY after an alias name. Everywhere else it is an
+# error, as every punctuation character outside its syntax is
+# (op-chars.tsv): `foo = 1` is not a declaration and not the list it
+# once parsed as, and a quoted `"%a"` is a string, not a name, so no
+# declaration follows it.
+alias-eq-needs-an-alias-name	errc	foo = 1	bare_punct
+alias-eq-inside-text	errc	a: x=y	bare_punct
+alias-eq-after-quoted-key-is-refused	errc	"%a" = 1	bare_punct
+# `==` is not the operator either: nothing is declared, so the name
+# resolves to nothing (and the `==` itself is refused as punctuation,
+# op-chars.tsv `double-equals-refused`).
 alias-double-equals-is-not-a-declaration	errc	%foo == 1	no_path
 #
 # THE COLON FORM IS REFUSED. `%foo: value` declared until 0.57.0. It is
@@ -86,6 +87,13 @@ alias-colon-declaration-refused	errc	%foo: 1\na: %foo	alias_colon
 alias-colon-declaration-path	err	%foo: 1\na: %foo	at path $.%foo
 alias-colon-declaration-alone	errc	%foo: 1	alias_colon
 alias-colon-declaration-frame	err	%foo: 1	--> <no-file>:1:1
+# A pair in list position is held to the same rules: the colon form is
+# refused in an element too, and a declaration there is a declaration
+# IN the element, which is not the top level.
+alias-colon-in-list-refused	errc	[%foo: 1]	alias_colon
+alias-colon-in-list-path	err	x: [%foo: 1, b: 2]	at path $.x.0.%foo
+alias-declaration-in-list-refused	errc	[%foo = 1]	alias_not_toplevel
+alias-declaration-in-list-path	err	x: [%foo = 1]	at path $.x.0.%foo
 # The quoted key is unaffected: `"%a": 1` is a key, and stays one.
 #
 # CYCLES. Three shapes, and the third is the one the sigil creates: it
@@ -121,13 +129,16 @@ alias-nested-declaration-path	err	x: {%a = 1}	at path $.x.%a
 alias-in-spread-template	gens	%row = {kind: string}\nt: {&: %row, a: {kind: user}}	{"t":{"a":{"kind":"user"}}}
 #
 # THE SIGIL CLAIMS A NAME AND NOTHING ELSE. A `%` that is not followed
-# by an identifier is not an alias and stays exactly the bare text it
-# is today -- which is what keeps the reservation as narrow as the
-# corpus measurement said it was (0 of 345 files).
-alias-bare-sigil-is-text	gens	a: %	{"a":"%"}
-alias-sigil-digit-is-text	gens	a: %1	{"a":"%1"}
-alias-trailing-sigil-is-text	gens	a: 50%	{"a":"50%"}
-alias-interior-sigil-is-text	gens	a: b%c	{"a":"b%c"}
+# by an identifier is not an alias -- and, since 0.58.0, not text
+# either: `%` outside a name is punctuation outside its syntax, refused
+# by the bare-text rule (op-chars.tsv) rather than absorbed into a
+# string. The reservation is as narrow as the corpus measurement said
+# it was (0 of 345 files); what changed is that a stray sigil is now
+# SAID, not silently kept.
+alias-bare-sigil-is-refused	errc	a: %	bare_punct
+alias-sigil-digit-is-refused	errc	a: %1	bare_punct
+alias-trailing-sigil-is-refused	errc	a: 50%	bare_punct
+alias-interior-sigil-is-refused	errc	a: b%c	bare_punct
 #
 # AN ALIAS IS NOT A PATH SEGMENT. The alias namespace and the path
 # namespace are disjoint: an alias is reached by writing `%foo`, and

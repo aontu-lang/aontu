@@ -334,7 +334,10 @@ edge-list-spread-merge	gens	a:[&:integer,&:min(0),1,2]	{"a":[1,2]}
 edge-list-spread-only-canon	canon	a:[&:integer]	{"a":[&:integer]}
 edge-list-spread-conjunct-arg	gens	a:[&:integer&min(0),1,2]	{"a":[1,2]}
 edge-text-comment-line	canon	a:x#y	{"a":"x"}
-edge-text-slashes-not-comment	canon	a:x//y	{"a":"x//y"}
+# `//` is not a comment starter: the run reaches the lexer WHOLE, and is
+# refused whole by the bare-text rule (op-chars.tsv) -- the refusal
+# names `x//y`, which a comment would have cut to `x`.
+edge-text-slashes-not-comment	err	a:x//y	This one holds `/`, in `x//y`
 edge-text-comment-block-syntax	errc	a:x/*y*/	syntax
 edge-op-dangling-minus	errc	a:-	incomplete_expression
 edge-op-dangling-plus	errc	a:+	incomplete_expression
@@ -416,11 +419,12 @@ edge-neg-neg-gen	gens	a:--0d5	{"a":5}
 # "aontu: unexpected error", not an aontu verdict at all.
 #
 # What these rows pin is that the shape is HANDLED, not that its output
-# is meaningful: `[[],"%"]` is what a `%` with nothing to do becomes, and
-# both engines have always agreed on it. The value of the rows is that a
-# crash cannot come back unnoticed.
-edge-group-raw-array	gens	x:(([]%))	{"x":[[],"%"]}
-edge-group-raw-array-func	gens	a:close(([]%))	{"a":[[],"%"]}
+# is meaningful: `[[],"%"]` was what a `%` with nothing to do became, and
+# since 0.58.0 the `%` is refused by the bare-text rule (op-chars.tsv)
+# -- by both engines, through the same raw-array path. The value of the
+# rows is that a crash cannot come back unnoticed.
+edge-group-raw-array	errc	x:(([]%))	bare_punct
+edge-group-raw-array-func	errc	a:close(([]%))	bare_punct
 # The same conversion on the ARGUMENT side, where a func's peg is unified
 # element by element and a raw element reached `arg.unify(...)`.
 edge-group-nested-paren	gens	a:((1))	{"a":1}
