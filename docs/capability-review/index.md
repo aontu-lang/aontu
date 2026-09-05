@@ -4,12 +4,12 @@
 literature, comparable languages, and industry practice, asking one
 question: what fundamental capabilities does aontu lack to fulfil its
 stated purpose — a systems-definition language and ground truth for
-agents? Each identified gap has a companion design document (G1–G8,
+agents? Each identified gap has a companion design document (G1–G10,
 linked below) with alternatives, boundaries, risks, and an
 implementation plan.*
 
 > **Where the work stands** is recorded in the
-> [progress register](progress.md) — every numbered phase of G1–G8,
+> [progress register](progress.md) — every numbered phase of G1–G10,
 > its status, and the artifact that proves it. This index and the gap
 > documents describe what *should* be built and were written before any
 > of it landed; the register is the only place that says what *has*
@@ -348,10 +348,14 @@ skin, multi-error collection), and the whole of G5's machinery (the
 trust profile in both ports at every surface, deterministic budgets,
 the include manifest), with shared rows for all of it. Outstanding in
 A: only G5.6's default flip, a next-major release act whose warning
-window already ships. **Phases B and C have since landed too** — G7.7's
-Go `--jsonl` gap, named here when this paragraph was last corrected,
-closed on 2026-08-24, so G5.6 is now the register's only partial and it
-is a release decision rather than more code. This paragraph was written
+window already ships. **The numbered phases of B and C have since
+landed too** — G7.7's Go `--jsonl` gap, named here when this paragraph
+was last corrected, closed on 2026-08-24 — but two unnumbered Phase C
+items have not: incremental LSP is not built and belongs to no plan
+(both servers use full document sync), and JSON Schema interop is
+export only. And G5.6 is no longer the register's only partial: G9 and
+G10, opened after this paragraph was written, carry partials of their
+own (2026-09-05). This paragraph was written
 before any of the work and is kept only for the sequencing rationale
 above it; the [progress register](progress.md#summary) carries the
 actual state, and the dated status reports carry what driving the
@@ -366,7 +370,7 @@ Checked against this repository at review time (TS v0.49.0 line).
 **Several have since moved — the review's own work changed them
 — and are marked inline; the rest still hold as written.**
 
-- ~~Exactly 12 builtin functions~~ **now 28** — this correction
+- ~~Exactly 12 builtin functions~~ **now 48** — this correction
   itself rotted once, reading "17" for three days after G1's later
   atoms, G3's `deprecate`, G4's `id`/`refer` and G8's four
   combinators had landed. Hard-wired in the parser's `funcMap`
@@ -375,13 +379,18 @@ Checked against this repository at review time (TS v0.49.0 line).
   `open`, `super` — plus G1's nine constraint atoms, `deprecate`,
   `id`, `refer`, and `pack`/`each`/`filter`/`match`. (`ExpectVal` is
   internal spread-required machinery, not a user-callable function.)
+  Re-counted 2026-09-05 from `test/spec/signature.tsv`, the declared
+  surface since ADR-017: the roster just listed is the 2026-08-25 one;
+  `id` has since gone (ADR-014), and `rel`, `acyclic`, `inverse`, `map`,
+  `list`, the six arithmetic functions, `sum`/`least`/`greatest`,
+  `pick`, `join`, `emit`, `esc`, `usc`, `rep` and `split` have arrived.
 - Scalar constraints are kind-only; `a: number > 0` fails to parse
   (verified by running the CLI). **Still true as written — there is no
   operator sugar — but bounds themselves now exist in function form
   (`a: number & min(0)`), so the underlying gap is partly closed.**
 - ~~45 shared spec files (~426 rows; modes `canon`/`gen`/`err`)~~
   **the suite has grown roughly sevenfold and its three modes are
-  eighteen**; the
+  twenty-five**; the
   Go runner executes every row with no skip list. Counts move with
   every capability phase, so they are kept in one place with their
   reproduction commands — see the
