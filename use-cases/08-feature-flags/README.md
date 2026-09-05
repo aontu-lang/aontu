@@ -104,7 +104,7 @@ than its value.
   the catalog, the staging view and the megacorp view.
 - **The field shapes are named, in one of the two files.**
   `flag-schema.aon` declares `%Key`, `%Owner`, `%Description` and
-  `%Date` as **aliases**—`%name:` at the top level, `%name` in value
+  `%Date` as **aliases**—`%name = value` at the top level, `%name` in value
   position—so `created` and `expiry` cannot drift apart. An alias
   does not generate and does not appear in canon, so the named file
   and the written-out one are the same document with the same `aon1-`

@@ -3,9 +3,15 @@
 #
 # Columns: name<TAB>mode<TAB>src<TAB>expect
 #
-# `%name:` at file level DECLARES; `%name` in value position REFERS.
-# One lexeme, and its meaning is decided by position -- a binding in key
-# position, a use in value position.
+# `%name = value` at file level DECLARES; `%name` in value position
+# REFERS. One lexeme, and its meaning is decided by position -- a
+# binding before the declaration operator, a use in value position.
+#
+# THE DECLARATION OPERATOR IS `=` (docs/design/ALIASES.0.md X-1, as
+# settled 2026-09-05). The lexer reads a lone `=` after an alias name as
+# the pair's separator, so a declaration parses as a pair whose key is
+# the name; `=` is special nowhere else. The colon form that declared
+# until 0.57.0 is REFUSED, not read as a key -- see the block below.
 #
 # THE WHOLE IMPLEMENTATION IS THAT AN ALIAS REFERENCE *IS* A PATH
 # REFERENCE. `%uint8` is `$.%uint8`: root-absolute, one segment, spelled
@@ -17,35 +23,35 @@
 # a check on that claim as on the feature.
 #
 # Every expectation was obtained by running BOTH engines and diffing.
-alias-basic	gens	%foo: 1\na: %foo	{"a":1}
+alias-basic	gens	%foo = 1\na: %foo	{"a":1}
 # ORDER INDEPENDENCE, for exactly the reason paths have it: the
 # reference stays unresolved and the fixpoint settles it over passes,
 # so a declaration BELOW its use is found without a second scan.
-alias-use-before-declare	gens	a: %foo\n%foo: 1	{"a":1}
+alias-use-before-declare	gens	a: %foo\n%foo = 1	{"a":1}
 # The motivating case: a named constraint, which is what the whole note
 # was written for.
-alias-constraint-admits	gens	%u8: integer & min(0) & max(255)\na: %u8\na: 200	{"a":200}
-alias-constraint-refuses	errc	%u8: integer & min(0) & max(255)\na: %u8\na: 300	constraint
-alias-constraint-refuses-path	err	%u8: integer & min(0) & max(255)\na: %u8\na: 300	at path $.a
+alias-constraint-admits	gens	%u8 = integer & min(0) & max(255)\na: %u8\na: 200	{"a":200}
+alias-constraint-refuses	errc	%u8 = integer & min(0) & max(255)\na: %u8\na: 300	constraint
+alias-constraint-refuses-path	err	%u8 = integer & min(0) & max(255)\na: %u8\na: 300	at path $.a
 # ALIAS OF ALIAS, which is the useful case and the one that makes
 # cycles possible at all.
-alias-of-alias	gens	%a: %b\n%b: 2\nx: %a	{"x":2}
+alias-of-alias	gens	%a = %b\n%b = 2\nx: %a	{"x":2}
 # REDECLARATION UNIFIES, because that is what two statements for one
 # name already do -- no separate rule.
-alias-redeclare-unifies	gens	%n: 1\n%n: integer\na: %n	{"a":1}
-alias-redeclare-conflicts	errc	%n: 1\n%n: 2\na: %n	scalar_value
-alias-redeclare-composes	gens	%p: integer\n%p: min(1) & max(65535)\na: %p\na: 8080	{"a":8080}
+alias-redeclare-unifies	gens	%n = 1\n%n = integer\na: %n	{"a":1}
+alias-redeclare-conflicts	errc	%n = 1\n%n = 2\na: %n	scalar_value
+alias-redeclare-composes	gens	%p = integer\n%p = min(1) & max(65535)\na: %p\na: 8080	{"a":8080}
 #
 # ERASURE. A declaration is not a field of the document: it does not
 # generate, and it does not appear in canon.
-alias-declaration-not-generated	gens	%foo: 1\na: %foo	{"a":1}
-alias-declaration-not-in-canon	canon	%foo: 1\na: %foo	{"a":1}
-alias-constraint-not-in-canon	canon	%u8: integer & min(0)\na: %u8\na: 5	{"a":5}
+alias-declaration-not-generated	gens	%foo = 1\na: %foo	{"a":1}
+alias-declaration-not-in-canon	canon	%foo = 1\na: %foo	{"a":1}
+alias-constraint-not-in-canon	canon	%u8 = integer & min(0)\na: %u8\na: 5	{"a":5}
 # THE SHARPEST ROW IN THE SET. `aon1-` pins MEANING, so a document
 # written with aliases and the same document written longhand must hash
 # to ONE string -- otherwise an alias is not a name for a value, it is a
 # change to the document. Both spellings, both ports, one digest.
-alias-hash-erases	hash	%p: integer & min(1) & max(65535)\nlisten: %p\nlisten: 8080	aon1-bF4zbDjth-hU42yPNAFky3BNNgLFBKrXUnAttNuoDHE
+alias-hash-erases	hash	%p = integer & min(1) & max(65535)\nlisten: %p\nlisten: 8080	aon1-bF4zbDjth-hU42yPNAFky3BNNgLFBKrXUnAttNuoDHE
 alias-hash-longhand-twin	hash	listen: integer & min(1) & max(65535)\nlisten: 8080	aon1-bF4zbDjth-hU42yPNAFky3BNNgLFBKrXUnAttNuoDHE
 #
 # THE SIGIL IS PART OF THE NAME, so a QUOTED key that merely starts with
@@ -53,6 +59,34 @@ alias-hash-longhand-twin	hash	listen: integer & min(1) & max(65535)\nlisten: 808
 # token is what separates them, never the key text.
 alias-quoted-string-is-not-a-reference	gens	a: "%foo"	{"a":"%foo"}
 alias-quoted-key-is-an-ordinary-key	gens	"%a": 1	{"%a":1}
+#
+# THE DECLARATION OPERATOR. A lone `=` after the name, across horizontal
+# space or none, is the separator of a declaration.
+alias-eq-adjacent	gens	%foo=1\na: %foo	{"a":1}
+alias-eq-spaced-wide	gens	%foo   =   1\na: %foo	{"a":1}
+# `=` is special ONLY after an alias name. Everywhere else it is the
+# text it always was: a spaced `=` at the top level is the three-element
+# list it parsed as before (ALIASES.0.md §3 row 5), an adjacent one is
+# part of a bare string (row 2), and a quoted `"%a"` is a string, not a
+# name, so no declaration follows it.
+alias-eq-needs-an-alias-name	gens	foo = 1	["foo","=",1]
+alias-eq-inside-text	gens	a: x=y	{"a":"x=y"}
+alias-eq-after-quoted-key-is-text	gens	"%a" = 1	["%a","=",1]
+# `==` is not the operator: the name is a bare reference at the top
+# level, unresolved, and the `==` is text.
+alias-double-equals-is-not-a-declaration	errc	%foo == 1	no_path
+#
+# THE COLON FORM IS REFUSED. `%foo: value` declared until 0.57.0. It is
+# not read as an ordinary key named `%foo` -- which is what the key text
+# would otherwise become, and which would generate a "%foo" field and
+# leave every `%foo` use resolving to nothing, neither of them saying
+# why. Refused at the declaration, sited at the name, and nothing is
+# recorded as an alias, so a use of the name is refused too.
+alias-colon-declaration-refused	errc	%foo: 1\na: %foo	alias_colon
+alias-colon-declaration-path	err	%foo: 1\na: %foo	at path $.%foo
+alias-colon-declaration-alone	errc	%foo: 1	alias_colon
+alias-colon-declaration-frame	err	%foo: 1	--> <no-file>:1:1
+# The quoted key is unaffected: `"%a": 1` is a key, and stays one.
 #
 # CYCLES. Three shapes, and the third is the one the sigil creates: it
 # runs through the TREE, so it exists in neither namespace's graph
@@ -63,9 +97,9 @@ alias-quoted-key-is-an-ordinary-key	gens	"%a": 1	{"%a":1}
 # direct cycle moves stage with it -- refused at generation as
 # recursion_unexpanded. The pair and through-the-tree cycles are
 # chase-detected VALUE cycles and keep path_cycle.
-alias-cycle-direct	errc	%a: %a\nx: %a	recursion_unexpanded
-alias-cycle-pair	errc	%a: %b\n%b: %a\nx: %a	path_cycle
-alias-cycle-mixed-through-the-tree	errc	%a: $.x\nx: %a	path_cycle
+alias-cycle-direct	errc	%a = %a\nx: %a	recursion_unexpanded
+alias-cycle-pair	errc	%a = %b\n%b = %a\nx: %a	path_cycle
+alias-cycle-mixed-through-the-tree	errc	%a = $.x\nx: %a	path_cycle
 #
 # AN UNDECLARED ALIAS IS REFUSED, naming the name rather than silently
 # becoming the bare string it used to be.
@@ -77,14 +111,14 @@ alias-undeclared-refused	errc	a: %nosuch	no_path
 # from the output (it is a declaration) and still unreachable by any
 # reference (it is not at the root) -- a name that silently exists
 # nowhere. Pathed at the declaration, not at the enclosing map.
-alias-nested-declaration-refused	errc	x: {%a: 1}	alias_not_toplevel
-alias-nested-declaration-path	err	x: {%a: 1}	at path $.x.%a
+alias-nested-declaration-refused	errc	x: {%a = 1}	alias_not_toplevel
+alias-nested-declaration-path	err	x: {%a = 1}	at path $.x.%a
 #
 # ALIASES ARE NOT PASSED TO CHILDREN: a spread template sees the
 # EXPANSION, so children are constrained by the value and acquire no
 # name. That is what keeps aliases erasable -- if a child could carry
 # one, canon could not erase it.
-alias-in-spread-template	gens	%row: {kind: string}\nt: {&: %row, a: {kind: user}}	{"t":{"a":{"kind":"user"}}}
+alias-in-spread-template	gens	%row = {kind: string}\nt: {&: %row, a: {kind: user}}	{"t":{"a":{"kind":"user"}}}
 #
 # THE SIGIL CLAIMS A NAME AND NOTHING ELSE. A `%` that is not followed
 # by an identifier is not an alias and stays exactly the bare text it
@@ -103,7 +137,7 @@ alias-interior-sigil-is-text	gens	a: b%c	{"a":"b%c"}
 # not a second way to write it. Left writable, `$.%b` inside an included
 # file would reach the INCLUDER's `%b` rather than its own.
 alias-in-path-refused	errc	a: $.%foo	alias_in_path
-alias-in-path-refused-when-declared	errc	%foo: 1\na: $.%foo	alias_in_path
+alias-in-path-refused-when-declared	errc	%foo = 1\na: $.%foo	alias_in_path
 alias-after-root-refused	errc	a: $%foo	alias_in_path
 # The sigil is refused at ANY depth of the path, not only in the first
 # segment. The two are separate arms in the Go port (`dot-prefix` and
@@ -111,10 +145,10 @@ alias-after-root-refused	errc	a: $%foo	alias_in_path
 # second from going unexercised.
 alias-in-path-refused-deeper	errc	b: {c: 2}\na: $.b.%foo	alias_in_path
 # The control: an ordinary path is untouched by the guard.
-alias-ordinary-path-unaffected	gens	%foo: 1\nb: {c: 2}\na: $.b.c\nz: %foo	{"a":2,"b":{"c":2},"z":1}
+alias-ordinary-path-unaffected	gens	%foo = 1\nb: {c: 2}\na: $.b.c\nz: %foo	{"a":2,"b":{"c":2},"z":1}
 # A NUMERIC segment reaches the guard too, and cannot be an alias
 # name -- the arm that says so needs a row or it reads as dead code.
-alias-numeric-path-segment	gens	%foo: 1\nb: [7,8]\na: $.b.1\nz: %foo	{"a":8,"b":[7,8],"z":1}
+alias-numeric-path-segment	gens	%foo = 1\nb: [7,8]\na: $.b.1\nz: %foo	{"a":8,"b":[7,8],"z":1}
 #
 # WHERE A DECLARATION LANDS IS WHAT DECIDES IT, not where it was
 # written. Both ports collect `%name` keys at the parse and refuse on
@@ -141,5 +175,5 @@ alias-include-under-key-path	err	a: @"__FIXTURES__/alias_sigil.aon"	at path $.a.
 # roots actually meet, so it is where the rule is observable: the
 # schema's alias carries the constraint, the data's alias carries the
 # value, and the check is against the meet of the two.
-alias-vet-across-documents	vet	%p: integer & min(1) & max(65535)\nlisten: %p	%q: 8080\nlisten: %q	{"findings":[],"truncated":false,"verdict":"valid"}
-alias-vet-across-documents-refuses	vet	%p: integer & min(1) & max(65535)\nlisten: %p	%q: 70000\nlisten: %q	{"findings":[{"actual":"70000","class":"conflict","code":"constraint","expected":"integer&min(1)&max(65535)","path":"$.listen","severity":"error","sites":[{"col":5,"file":"data","len":5,"role":"data","row":1,"src":"70000","value":"70000"},{"col":15,"file":"schema","len":-1,"role":"schema","row":1,"src":"","value":"integer&min(1)&max(65535)"}]}],"truncated":false,"verdict":"invalid"}
+alias-vet-across-documents	vet	%p = integer & min(1) & max(65535)\nlisten: %p	%q = 8080\nlisten: %q	{"findings":[],"truncated":false,"verdict":"valid"}
+alias-vet-across-documents-refuses	vet	%p = integer & min(1) & max(65535)\nlisten: %p	%q = 70000\nlisten: %q	{"findings":[{"actual":"70000","class":"conflict","code":"constraint","expected":"integer&min(1)&max(65535)","path":"$.listen","severity":"error","sites":[{"col":6,"file":"data","len":5,"role":"data","row":1,"src":"70000","value":"70000"},{"col":16,"file":"schema","len":-1,"role":"schema","row":1,"src":"","value":"integer&min(1)&max(65535)"}]}],"truncated":false,"verdict":"invalid"}

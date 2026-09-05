@@ -75,13 +75,13 @@ than its value.
 Relations are declared on the field that holds them. In `spec.aon`:
 
 ```aon
-%CatalogAddr: re("^\\$[.]catalog[.]")
+%CatalogAddr = re("^\\$[.]catalog[.]")
 
 dependsOn?: rel($.std.Service) & %CatalogAddr & acyclic() & inverse(dependedOnBy)
 dependedOnBy?: rel($.std.Service) & %CatalogAddr
 ```
 
-`%CatalogAddr` is an **alias**: `%name:` at the top level of the
+`%CatalogAddr` is an **alias**: `%name = value` at the top level of the
 document declares one, `%name` in value position uses it, and that is
 all it is. An alias does not generate and does not appear in canon, so
 `spec.aon` with the names and `spec.aon` with the pattern written out at

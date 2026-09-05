@@ -7,6 +7,36 @@ which implementation each change affects.
 
 ## Unreleased
 
+### An alias is declared with `=`
+
+`%name = value` declares an alias; `%name: value` no longer does. The
+proposal behind aliases spelled the declaration with `=`, and P1 landed
+the colon form instead, on the argument that `%name` was already a
+legal key and a colon cost no new operator (docs/design/ALIASES.0.md
+X-1 and §10). That argument was measured and it was sound, and it lost
+anyway, to the reason a declaration should not look like a field: an
+alias is a note to the reader of the source, not a key of the document,
+and a reader — human or agent — should be able to tell the two apart
+without knowing the sigil's rules. So the operator is `=`, and it is an
+operator only there: `foo = 1` is the list it always was, `a: x=y` is
+the text `x=y`, and `%name == 1` is not a declaration.
+
+The colon form is **refused**, with the new code `alias_colon` and a
+hint that says what to write. Not read as an ordinary key named
+`%name` — which is what the text would otherwise become, and which
+would generate a `"%name"` field and leave every `%name` use resolving
+to nothing, neither of them saying why. The refusal points at the name.
+
+`aontu fmt` writes `%name = value`, and keeps a colon where it read
+one, since a colon after an alias name is now a refused document and
+the formatter never changes what a document means. The language
+reference, the tutorial, the skill card, the three use cases that name
+a repeated shape (01, 08, 12) and the design notes move with it; the
+published grammar is untouched, since a declaration is erased from
+canon and the grammar covers canon. `test/spec/alias.tsv` gains the
+rows that pin the operator, its narrowness, and the refusal. Both
+implementations.
+
 ### The name is `aontu`: lowercase, no fada
 
 The project was written three ways at once — `aontu` in the command,

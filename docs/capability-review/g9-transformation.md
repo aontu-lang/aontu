@@ -516,7 +516,7 @@ reproducer of an **unrecorded ADR-001 break**:
 
 ```aon
 # p7.aon
-%F: close({ n: string })
+%F = close({ n: string })
 code: { fs: [&: %F] }
 # p7d.aon
 fs: [ {n:"x"} ]
@@ -609,16 +609,16 @@ a raw string that has no escape (ts/src/std.ts:13-14 states the rule).
 # EXPERIMENTAL until the distribution layer can version it by
 # canon-hash (the std/system marking, for the same reason).
 
-%Name: string & re("^[A-Za-z_][A-Za-z0-9_]*$") & length(min(1) & max(255))
+%Name = string & re("^[A-Za-z_][A-Za-z0-9_]*$") & length(min(1) & max(255))
 
-%Text: close({ k: "text", lang: string & length(min(1)), text: string })
+%Text = close({ k: "text", lang: string & length(min(1)), text: string })
 
-%Doc: close({
+%Doc = close({
   text: string
   deprecated?: close({ msg?: string, use?: string, since?: string })
 })
 
-%Check:
+%Check =
   close({ c: "min",    n: number, exclusive: *false | boolean })
 | close({ c: "max",    n: number, exclusive: *false | boolean })
 | close({ c: "re",     p: string })
@@ -627,19 +627,19 @@ a raw string that has no escape (ts/src/std.ts:13-14 states the rule).
 | close({ c: "ne",     of: [&: string | number | boolean] })
 | close({ c: "must",   note: string })
 
-%Prim: close({ k: "prim",
+%Prim = close({ k: "prim",
   prim: "string"|"int"|"bigint"|"float"|"decimal"|"bool"|"null"|"any" })
-%Ref:  close({ k: "ref", name: %Name, unit?: string })
-%Leaf: %Prim | %Ref | %Text
+%Ref =  close({ k: "ref", name: %Name, unit?: string })
+%Leaf = %Prim | %Ref | %Text
 
-%Type: %Leaf
+%Type = %Leaf
 | close({ k: "list", of: %Leaf })
 | close({ k: "map",  key: %Leaf, of: %Leaf })
 | close({ k: "opt",  of: %Leaf })
 | close({ k: "union", of: [&: %Leaf] })
 | close({ k: "lit",  of: [&: string | number | boolean | null] })
 
-%Field: close({
+%Field = close({
   name: %Name
   type: %Type
   optional: *false | boolean
@@ -650,29 +650,29 @@ a raw string that has no escape (ts/src/std.ts:13-14 states the rule).
   x?: {}
 })
 
-%Member: close({ name: %Name, value?: string | number, doc?: %Doc, x?: {} })
-%Param:  close({ name: %Name, type: %Type,
+%Member = close({ name: %Name, value?: string | number, doc?: %Doc, x?: {} })
+%Param =  close({ name: %Name, type: %Type,
                  default?: string|number|boolean|null, x?: {} })
-%Body:   %Text | close({ k: "abstract" })
+%Body =   %Text | close({ k: "abstract" })
 
-%Record: close({ k: "record", name: %Name, doc?: %Doc, open: *false | boolean,
+%Record = close({ k: "record", name: %Name, doc?: %Doc, open: *false | boolean,
                  fields: [&: %Field], entity?: string,
                  check?: [&: %Check], x?: {} })
-%Enum:   close({ k: "enum", name: %Name, doc?: %Doc,
+%Enum =   close({ k: "enum", name: %Name, doc?: %Doc,
                  members: [&: %Member], x?: {} })
-%Alias:  close({ k: "alias", name: %Name, doc?: %Doc, type: %Type,
+%Alias =  close({ k: "alias", name: %Name, doc?: %Doc, type: %Type,
                  check?: [&: %Check], x?: {} })
-%Const:  close({ k: "const", name: %Name, doc?: %Doc, type?: %Type,
+%Const =  close({ k: "const", name: %Name, doc?: %Doc, type?: %Type,
                  value: string|number|boolean|null, x?: {} })
-%Func:   close({ k: "func", name: %Name, doc?: %Doc, params: [&: %Param],
+%Func =   close({ k: "func", name: %Name, doc?: %Doc, params: [&: %Param],
                  returns?: %Type, body: %Body, x?: {} })
 
-%Decl: %Record | %Enum | %Alias | %Const | %Func | %Text
+%Decl = %Record | %Enum | %Alias | %Const | %Func | %Text
 
-%Import: close({ from: string & length(min(1)), names?: [&: %Name],
+%Import = close({ from: string & length(min(1)), names?: [&: %Name],
                  alias?: %Name, x?: {} })
 
-%Unit: close({
+%Unit = close({
   path: string & length(min(1))
   lang: string & length(min(1))
   pkg?: string
@@ -682,7 +682,7 @@ a raw string that has no escape (ts/src/std.ts:13-14 states the rule).
   x?: {}
 })
 
-%Source: close({ path?: string, hash?: string & re("^aon1-[A-Za-z0-9_-]+$") })
+%Source = close({ path?: string, hash?: string & re("^aon1-[A-Za-z0-9_-]+$") })
 
 code: type(close({ source?: %Source, units: [&: %Unit] }))
 ```
@@ -2369,13 +2369,13 @@ Make the algebra reachable. A fragment is an ordered list of pieces,
 each carrying its own depth:
 
 ```aon
-%inline: string & re("^[^\n\r]*$") | %ref
-%line:   close({ k: "line",  at: *0 | integer & min(0) & max(64), of: [&: %inline] })
-%blank:  close({ k: "blank", n: *1 | integer & min(1) & max(16) })
-%raw:    close({ k: "raw",   at: *0 | integer & min(0) & max(64),
+%inline = string & re("^[^\n\r]*$") | %ref
+%line =   close({ k: "line",  at: *0 | integer & min(0) & max(64), of: [&: %inline] })
+%blank =  close({ k: "blank", n: *1 | integer & min(1) & max(16) })
+%raw =    close({ k: "raw",   at: *0 | integer & min(0) & max(64),
                  text: string, reindent: *true | boolean })
-%piece:  %line | %blank | %raw
-%frag:   close({ k: "frag", of: [&: %piece] })
+%piece =  %line | %blank | %raw
+%frag =   close({ k: "frag", of: [&: %piece] })
 ```
 
 `%decl` gains `%frag`, and `%body` becomes `%frag | {k:"abstract"}`.

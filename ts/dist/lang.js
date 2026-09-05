@@ -125,10 +125,18 @@ const CC_d = 100;
 const CC_D = 68;
 // THE ALIAS SIGIL. `%` is part of an alias's name, so the name is one
 // lexeme wherever it appears and its meaning is decided by position:
-// a BINDING in key position (`%uint8: …` declares), a USE in value
+// a BINDING in key position (`%uint8 = …` declares), a USE in value
 // position (`listen: %uint8` refers). docs/design/ALIASES.0.md §4.
 const CC_PCT = 37;
 const ALIAS_RE = /^%[A-Za-z_][A-Za-z0-9_]*/;
+// THE DECLARATION OPERATOR. `%name = value` declares; the `=` is the
+// pair's separator, lexed as the colon token so the declaration then
+// parses as a pair whose key is the alias name (ALIASES.0.md X-1, as
+// settled 2026-09-05). `=` is special ONLY there: `foo = 1` stays the
+// list it always was, and `a: x=y` stays the text `x=y`.
+const CC_EQ = 61;
+const CC_SP = 32;
+const CC_TAB = 9;
 let AontuJsonic = function AontuLang(jsonic) {
     jsonic.use(asPlugin(path_1.Path));
     // Only # line comments are valid Aontu syntax (see
@@ -261,6 +269,19 @@ let AontuJsonic = function AontuLang(jsonic) {
                         return undefined;
                     }
                     const asrc = ares[0];
+                    // A lone `=` after the name, across horizontal space only, is
+                    // the declaration operator. Decided HERE, where the name is
+                    // claimed, and only its position is kept: the very next text
+                    // position is that `=`, since nothing but space sits between,
+                    // so the mark cannot outlive its one use. `==` is not it.
+                    let j = pnt.sI + asrc.length;
+                    while (j < src.length &&
+                        (CC_SP === src.charCodeAt(j) || CC_TAB === src.charCodeAt(j))) {
+                        j++;
+                    }
+                    if (CC_EQ === src.charCodeAt(j) && CC_EQ !== src.charCodeAt(j + 1)) {
+                        lex.aontu_eq_at = j;
+                    }
                     const atkn = lex.token('#VL', 
                     // AN ALIAS REFERENCE IS A PATH REFERENCE. `%uint8` is
                     // `$.%uint8`: root-absolute, one segment, spelled with the
@@ -273,6 +294,18 @@ let AontuJsonic = function AontuLang(jsonic) {
                     pnt.sI += asrc.length;
                     pnt.cI += asrc.length;
                     return { done: true, token: atkn };
+                }
+                // The `=` the alias arm above marked: the separator of a
+                // declaration, as a colon token whose source is `=`. The pair rule
+                // is then the pair rule, and the formatter writes the spelling it
+                // read. Marked in `use` so the pair rule can tell it from a colon,
+                // which no longer declares.
+                if (CC_EQ === src.charCodeAt(pnt.sI) && lex.aontu_eq_at === pnt.sI) {
+                    delete lex.aontu_eq_at;
+                    const eqtkn = lex.token('#CL', undefined, '=', pnt, { aontu_eq: true });
+                    pnt.sI += 1;
+                    pnt.cI += 1;
+                    return { done: true, token: eqtkn };
                 }
                 if (CC_0 !== src.charCodeAt(pnt.sI)) {
                     return undefined;
@@ -993,6 +1026,19 @@ help isolate the syntax error.`,
                 r.node = addsite(new NilVal_1.NilVal({ why: 'elided_value' }), r, ctx);
                 return undefined;
             }
+            // A declaration spelled with a colon (the pair rule records
+            // them) becomes the refusal, in place of whatever followed the
+            // colon and sited at the NAME rather than at the map, so the
+            // frame points at the spelling to change.
+            for (const { key, tkn } of (r.u.aontu_alias_colon ?? [])) {
+                const en = addsite(new NilVal_1.NilVal({ why: 'alias_colon' }), r, ctx);
+                en.site.row = tkn.rI;
+                en.site.col = tkn.cI;
+                en.site.src = '' + tkn.src;
+                en.site.len = en.site.src.length;
+                en.path = [...(r.k?.path ?? []), key];
+                mo[key] = en;
+            }
             //  Handle defered conjuncts, e.g. `{x:1 @"foo"}`
             if (mo.___merge) {
                 let mop = { ...mo };
@@ -1145,14 +1191,28 @@ help isolate the syntax error.`,
             if (null != ktkn && VL === ktkn.tin && ALIAS_RE.test('' + ktkn.src)) {
                 const holder = rule.parent;
                 const aname = '' + ktkn.src;
-                // Always recorded here; whether the map is ALLOWED to carry
-                // declarations is decided on the VALUE (MapVal.unify), not at
-                // the parse. The parse cannot see it: an INCLUDED file's
-                // declarations are at the root of their own text, and only
-                // once the loaded map is placed does it become apparent that
-                // root is not the document's.
-                holder.u.aontu_alias_keys = (holder.u.aontu_alias_keys || []);
-                holder.u.aontu_alias_keys.push(aname);
+                const sep = rule.o1;
+                if (true === sep?.use?.aontu_eq) {
+                    // Always recorded here; whether the map is ALLOWED to carry
+                    // declarations is decided on the VALUE (MapVal.unify), not at
+                    // the parse. The parse cannot see it: an INCLUDED file's
+                    // declarations are at the root of their own text, and only
+                    // once the loaded map is placed does it become apparent that
+                    // root is not the document's.
+                    holder.u.aontu_alias_keys = (holder.u.aontu_alias_keys || []);
+                    holder.u.aontu_alias_keys.push(aname);
+                }
+                else {
+                    // DECLARED WITH A COLON: the spelling before 0.58.0. Refused
+                    // rather than read as the ordinary key `%foo` the text would
+                    // otherwise become -- a document written for the old form
+                    // would then generate a "%foo" field and every `%foo` use
+                    // would resolve to nothing, and neither says why. The refusal
+                    // is written where the map is built, sited at the name, and
+                    // nothing is recorded as an alias.
+                    holder.u.aontu_alias_colon = (holder.u.aontu_alias_colon || []);
+                    holder.u.aontu_alias_colon.push({ key: aname, tkn: ktkn });
+                }
             }
             if (rule.u.spread) {
                 rule.node[type_1.SPREAD] =

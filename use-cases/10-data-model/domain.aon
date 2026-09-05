@@ -12,7 +12,7 @@
 #
 # Vocabulary, inlined. TWO spellings were tried and both are blocked.
 #
-# The `%` ALIAS is the one that should work: `%Cents: integer & min(0)
+# The `%` ALIAS is the one that should work: `%Cents = integer & min(0)
 # & max(100000000000)` at the root, `%Cents` at each use site. An alias
 # does not generate and does not appear in canon, so the aliased file
 # and this one are the SAME DOCUMENT with the same `aon1-` hash --

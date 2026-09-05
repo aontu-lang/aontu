@@ -29,5 +29,5 @@
 # guarantee is not enforced here.
 #
 # Removing the `& {}` makes this file answer in 0.12 s.
-%T: {name: string, kids?: [&: %T & {}]}
+%T = {name: string, kids?: [&: %T & {}]}
 d: %T & {name: a, kids: [{name: b, kids: [{name: c}]}]}

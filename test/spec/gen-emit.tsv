@@ -58,8 +58,8 @@ emit-absolute-ref	gens	z:Z\ns:[{k:1}]\no:emit($.s,{match:{k:1},body:[$.z]})\n	{"
 # dispatch. This is also XSLT's MODE, with no keyword: a mode is a
 # table used from several sites, and naming a value is something the
 # language already does.
-emit-named-table-two-sites	gens	%t:emit(_,{match:{p:string},body:['P:'+.p]})\nl:[{p:a}]\nc:[{p:b}]\no:emit($.l,%t)\nu:emit($.c,%t)\n	{"c":[{"p":"b"}],"l":[{"p":"a"}],"o":["P:a"],"u":["P:b"]}
-emit-meet-form	gens	%t:emit(_,{match:{p:string},body:['P:'+.p]})\nl:[{p:a}]\no:$.l & %t\n	{"l":[{"p":"a"}],"o":["P:a"]}
+emit-named-table-two-sites	gens	%t = emit(_,{match:{p:string},body:['P:'+.p]})\nl:[{p:a}]\nc:[{p:b}]\no:emit($.l,%t)\nu:emit($.c,%t)\n	{"c":[{"p":"b"}],"l":[{"p":"a"}],"o":["P:a"],"u":["P:b"]}
+emit-meet-form	gens	%t = emit(_,{match:{p:string},body:['P:'+.p]})\nl:[{p:a}]\no:$.l & %t\n	{"l":[{"p":"a"}],"o":["P:a"]}
 # AND THIS IS WHY THE DISPATCH IS A BUILTIN. A rule set that names
 # itself walks a nested tree into nested output -- the first example
 # in every XSLT tutorial, and not expressible at any length as an
@@ -67,7 +67,7 @@ emit-meet-form	gens	%t:emit(_,{match:{p:string},body:['P:'+.p]})\nl:[{p:a}]\no:$
 # finite one. Termination is the SELECTION's: each dispatch descends
 # into a finite bag that already exists, and a selection that empties
 # emits nothing.
-emit-recursive	gens	t:[{n:a,c:[{n:b,c:[]},{n:c,c:[]}]}]\n%w:emit(_,{match:{n:string},body:['<'+.n+'>',emit(.c,%w),'</'+.n+'>']})\no:emit($.t,%w)\n	{"o":["<a>","<b>","</b>","<c>","</c>","</a>"],"t":[{"c":[{"c":[],"n":"b"},{"c":[],"n":"c"}],"n":"a"}]}
+emit-recursive	gens	t:[{n:a,c:[{n:b,c:[]},{n:c,c:[]}]}]\n%w = emit(_,{match:{n:string},body:['<'+.n+'>',emit(.c,%w),'</'+.n+'>']})\no:emit($.t,%w)\n	{"o":["<a>","<b>","</b>","<c>","</c>","</a>"],"t":[{"c":[{"c":[],"n":"b"},{"c":[],"n":"c"}],"n":"a"}]}
 # THE SHAPE CODES, all class `parse`: what is wrong is the CALL as the
 # author wrote it. A rule needs both halves -- one with no pattern
 # would claim every node by accident, one with no body would claim a

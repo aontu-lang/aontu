@@ -17,7 +17,7 @@ type MapVal struct {
 	spread   Val      // &: spread constraint applied to every key (nil if none)
 	optional []string // keys marked optional (a?:1) — dropped if unresolved
 
-	// ALIAS DECLARATIONS, by key. `%uint8: …` binds a name for this
+	// ALIAS DECLARATIONS, by key. `%uint8 = …` binds a name for this
 	// file and is not a field of the document: it does not generate and
 	// does not appear in canon, so a document using aliases and its
 	// longhand twin are the SAME document and hash identically

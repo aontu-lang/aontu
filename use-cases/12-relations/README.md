@@ -89,13 +89,13 @@ one line of schema in `spec.aon`, with the inverse field declared
 `rel` beside it:
 
 ```aon
-%JobEdge: rel($.spec.JobShape)
+%JobEdge = rel($.spec.JobShape)
 
 feeds?: %JobEdge & acyclic() & inverse(fedBy)
 fedBy?: %JobEdge
 ```
 
-`%JobEdge` is an **alias**—`%name:` at the top level declares one and
+`%JobEdge` is an **alias**—`%name = value` at the top level declares one and
 `%name` in value position uses it. It does not generate and does not
 appear in canon, so `spec.aon` with the name and `spec.aon` with
 `rel($.spec.JobShape)` written out at both ends are the same document

@@ -6,7 +6,7 @@
 # one with the constraint written out at both use sites are the same
 # document.
 
-%Cents: integer & min(0)
+%Cents = integer & min(0)
 
 schema: {
   Line: type(close({

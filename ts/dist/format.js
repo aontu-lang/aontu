@@ -237,8 +237,9 @@ class Reader {
         if (this.atKey()) {
             const tok = this.T[this.i];
             const opt = '#QM' === this.name(1);
+            const alias = '=' === this.T[this.i + (opt ? 2 : 1)].src;
             this.i += opt ? 3 : 2;
-            return { t: 'pair', key: keyText(tok), opt, value: this.value(), at };
+            return { t: 'pair', key: keyText(tok), opt, alias, value: this.value(), at };
         }
         return this.value();
     }
@@ -466,6 +467,11 @@ function width(s) {
     return Array.from(s).length;
 }
 function pairHead(node, tight) {
+    // An alias declaration is `%name = value` at every width: the `=` is
+    // an operator, and operators are spaced (§3.2).
+    if (node.alias) {
+        return node.key + ' = ';
+    }
     return node.key + (node.opt ? '?' : '') + (tight ? ':' : ': ');
 }
 // The one-line spelling of a node, or undefined where it has none: a
@@ -927,7 +933,7 @@ function mergeRuns(body) {
             continue;
         }
         out.push({
-            t: 'pair', key: first.key, opt: first.opt,
+            t: 'pair', key: first.key, opt: first.opt, alias: first.alias,
             value: { t: 'map', body: mergeRuns(merged) }, orig: group,
         });
         i = j - carry.length;

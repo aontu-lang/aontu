@@ -421,7 +421,7 @@ func stagedDrive(ctx *Ctx, f *FuncVal, base []string) bool {
 // THAT NODE. The result is one flat list; a body element that is
 // itself a list SPLICES, which is what makes a nested emit compose.
 //
-// A NAMED TABLE IS A PLACEHELD emit (`%wire: emit(_, T)`). A table
+// A NAMED TABLE IS A PLACEHELD emit (`%wire = emit(_, T)`). A table
 // written at a document position is DRIVEN there, so its bodies'
 // relative references resolve against wherever it sits and miss;
 // nothing in the language holds a value unevaluated at such a position,

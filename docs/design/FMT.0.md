@@ -144,7 +144,7 @@ container (§3.5) the colon is tight, `{ a:1 b:2 }`, and the space
 between pairs is what separates them.
 
 Optional keys keep the marker tight to the key, `port?: integer`. A
-spread is `&: value`. An alias declaration is `%Name: value`.
+spread is `&: value`. An alias declaration is `%Name = value`.
 
 ### 3.3 Braces are for shape, not for nesting
 
@@ -411,7 +411,7 @@ the kind, and `0x1f → 31` loses the base the author was thinking in.
 
 ### 3.12 The root
 
-The root map has no braces. `@"…"` includes and `%Name:` alias
+The root map has no braces. `@"…"` includes and `%Name = value` alias
 declarations are statements like any other, kept where the author put
 them and in that order: a file that starts with its includes, then its
 aliases, then its body reads well, and the formatter has no reason to
@@ -452,7 +452,7 @@ changing the exit code unless `--strict` is given.
 ### 4.2 Aliases for what recurs
 
 **D3.** A value written twice is a value that can drift. An alias,
-`%Owner: string & re("^team-[a-z]+$")`, names it once, generates
+`%Owner = string & re("^team-[a-z]+$")`, names it once, generates
 nothing and changes no hash — the use cases already lean on this. The
 suggestion is to prefer one wherever a shape recurs.
 

@@ -21,8 +21,8 @@ product (both ports, byte-identical) found four disagreements:
 |---|---|---|
 | peer `1.5` | refuses `no_scalar_unify` | refuses `\|:empty` |
 | peer `*7` | refuses `scalar_value` | answers `*7` |
-| `%x: {p:1}`, peer `{q:2}` | `{q:2}` — default dropped | `{q:2} \| {p:integer,q:2}` |
-| `%x: {p:1}`, peer `"s"` | `"s"` — default dropped | refuses |
+| `%x = {p:1}`, peer `{q:2}` | `{q:2}` — default dropped | `{q:2} \| {p:integer,q:2}` |
+| `%x = {p:1}`, peer `"s"` | `"s"` — default dropped | refuses |
 
 and two more the long form exposed by construction: `*integer` gated
 nothing (any peer won, including a string), and a rank ladder inside
@@ -74,7 +74,7 @@ merely added a key REPLACED the default rather than merging with it.
 Under R1 and R4 together the bag meets the peer as the bag it is, and
 the leafwise behaviour falls out with no rule of its own:
 
-| `%x: {p:1}` | before | after | why |
+| `%x = {p:1}` | before | after | why |
 |---|---|---|---|
 | alone | `{p:1}` | `{p:1}` | — |
 | `& {q:2}` | `{q:2}` — `p` lost | `{p:1, q:2}` | first arm: maps merge, so the default admits it |

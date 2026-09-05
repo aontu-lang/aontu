@@ -106,7 +106,7 @@ fmt-wide-atom-unbreakable	fmt	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 fmt-wide-empty-container	fmt	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx: {}\n	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx: {}\n
 fmt-wide-key-inline-map	fmt	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx: { a:1 }\n	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx: a: 1\n
 fmt-refs-verbatim	fmt	x: $.pricing.book."sku-seal-ring".eur\ny: .n\nz: $name\nw: %N\nv: $.a.0\n	x: $.pricing.book."sku-seal-ring".eur\ny: .n\nz: $name\nw: %N\nv: $.a.0\n
-fmt-alias-declaration	fmt	%N: string & min(1)\na: %N\n	%N: string & min(1)\na: %N\n
+fmt-alias-declaration	fmt	%N = string & min(1)\na: %N\n	%N = string & min(1)\na: %N\n
 fmt-include-root	fmt	@"x.aon"\na: 1\n	@"x.aon"\na: 1\n
 fmt-include-value	fmt	a: @"y.aon" & {b:1}\nb: @'z.aon'\n	a: @"y.aon" & { b:1 }\nb: @"z.aon"\n
 fmt-include-in-braces	fmt	a: { @"x.aon" b: 1 }\n	a: { @"x.aon" b:1 }\n

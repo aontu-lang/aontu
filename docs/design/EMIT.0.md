@@ -348,11 +348,11 @@ its bodies' relative references — is not repaired by binding at the use
 site, because the definition site drives the table first and the
 references have already missed by then. Nothing in the language holds a
 value unevaluated at a document position; what does hold one is a
-CALL's template argument, which is never driven. `%wire: emit(_, T)` is
+CALL's template argument, which is never driven. `%wire = emit(_, T)` is
 that position with the selection left open:
 
 ```aon
-%wire: emit(_, {match: {pin: string}, body: [ … ]})
+%wire = emit(_, {match: {pin: string}, body: [ … ]})
 …
 a: emit($.listen, %wire)
 b: $.client & %wire

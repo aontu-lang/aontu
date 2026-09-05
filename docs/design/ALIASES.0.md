@@ -6,6 +6,19 @@ destructure (P2) are not. `%` is the alias sigil, carried through the
 declaration, the use site, `export`, the destructuring form and the
 shorthand; there is no `import` verb.
 
+**X-1 settled 2026-09-05: the declaration operator is `=`**, the
+proposal's own spelling. P1 had landed the colon form §10 recommends
+(`%foo: 1`, "no new operator, no lexing break"), and that argument was
+measured and sound and lost anyway, to the reason a declaration should
+not look like a field: an alias is a note to the reader of the source,
+not a key of the document, and a reader should tell the two apart
+without knowing the sigil's rules. So `%foo = 1` declares, `=` is an
+operator only there (§10's break is exactly as narrow as it measured:
+`foo = 1` is still the list, `a: x=y` still the text), and the colon
+form is **refused** with `alias_colon` rather than read as a key. The
+examples below are written in the settled form; §3, §10 and the X-1
+row keep the colon where they record what was measured and argued.
+
 **What P1 turned out to be.** An alias reference IS a path reference:
 `%uint8` is `$.%uint8`, root-absolute and one segment. Everything §4
 asks for then comes from the reference machinery the language already
@@ -40,15 +53,16 @@ such.
 
 Three parts, as given:
 
-1. **Alias declaration.** `%foo: 1` means that `%foo`, appearing in a
+1. **Alias declaration.** `%foo = 1` means that `%foo`, appearing in a
    value expression, denotes `1`. Aliases are **local to the file that
    declares them**.
 
-   *The proposal as given spelled this `%foo = 1`, and X-1 (§10) is
-   whether the `=` is needed at all now that `%` is reserved —
-   `%foo: 1` already parses as an ordinary key. Examples throughout
-   this note use the colon form, which is where §10 lands; nothing else
-   in the design depends on which way X-1 goes.*
+   *The proposal as given spelled this `%foo = 1`. X-1 (§10) asked
+   whether the `=` was needed at all once `%` was reserved —
+   `%foo: 1` already parsed as an ordinary key — and P1 landed that
+   colon form; on 2026-09-05 the question was settled the other way,
+   for `=`, and the colon form is refused. Nothing else in the design
+   depends on which way X-1 went.*
 2. **`export({ %uint8, %port })`** declares which aliases a file
    publishes.
 3. **The destructure.** `{ %uint8, %port } = @"types.aon"` binds a
@@ -71,7 +85,7 @@ listen: $.type.uint8
 listen: 200
 
 # proposed
-%uint8: integer & min(0) & max(255)
+%uint8 = integer & min(0) & max(255)
 listen: %uint8
 listen: 200
 ```
@@ -152,7 +166,7 @@ already resolving references away, so the machinery is the right shape.
 
 ### Substitution, not assignment
 
-`%uint8: integer & min(0) & max(255)` followed by `listen: %uint8`
+`%uint8 = integer & min(0) & max(255)` followed by `listen: %uint8`
 must mean exactly what `listen: integer & min(0) & max(255)` means —
 including at the *site* level, since a conflict reports the site that
 wrote the value. **Decision point A-1: what does a finding point at
@@ -170,7 +184,7 @@ alias must be usable **before its declaration**:
 
 ```
 listen: %uint8
-%uint8: integer & min(0) & max(255)
+%uint8 = integer & min(0) & max(255)
 ```
 
 must mean what the reverse order means. Anything else introduces a
@@ -203,17 +217,17 @@ rules and its own error codes, none of which the language needs.
 ### Cycles
 
 **May an alias reference another alias? Yes** —
-`%u8: integer & %bounds` with `%bounds: min(0) & max(255)` is the useful
+`%u8 = integer & %bounds` with `%bounds = min(0) & max(255)` is the useful
 case, and it is what makes cycles possible at all. Three shapes have to
 be refused, and they are not all the same shape:
 
 ```
-%a: %a                         # 1. direct self-reference
+%a = %a                         # 1. direct self-reference
 
-%a: %b
-%b: %a                         # 2. an alias cycle
+%a = %b
+%b = %a                         # 2. an alias cycle
 
-%a: $.x
+%a = $.x
 x:  %a                         # 3. a MIXED cycle, through the tree
 ```
 
@@ -245,7 +259,7 @@ carried everywhere a name goes — the declaration, the use site,
 `export`, the destructuring pattern and the shorthand.
 
 ```
-%uint8: integer & min(0) & max(255)
+%uint8 = integer & min(0) & max(255)
 listen: %uint8
 ```
 
@@ -291,9 +305,9 @@ what a file produces.
 
 ```
 # types.aon
-%uint8: integer & min(0) & max(255)
-%port:  integer & min(1) & max(65535)
-%secret: string                        # declared, deliberately not exported
+%uint8 = integer & min(0) & max(255)
+%port =  integer & min(1) & max(65535)
+%secret = string                        # declared, deliberately not exported
 
 export({ %uint8, %port })
 
@@ -423,7 +437,7 @@ exact about why**, because a plausible reading says it cannot. If
 references were then *substituted*, `export` would receive a map of
 plain keys to expanded values, with no sigils anywhere — unable to tell
 an alias from a key, so `export({ uint8: 1 })` would be
-indistinguishable from `export({ %uint8 })` when `%uint8: 1`.
+indistinguishable from `export({ %uint8 })` when `%uint8 = 1`.
 
 **It does not, because an alias reference is a node, not its
 expansion.** `%uint8` resolves the way `$.b.u8` does —
@@ -473,18 +487,18 @@ declarations, exactly as a key does. This keeps order-independence and
 means a redeclaration is not an error by itself:
 
 ```
-%port: integer                 # → %port denotes integer & min(1) & max(65535)
-%port: min(1) & max(65535)
+%port = integer                 # → %port denotes integer & min(1) & max(65535)
+%port = min(1) & max(65535)
 ```
 
 ```
-%n: 1
-%n: integer                    # → 1, since integer & 1 = 1
+%n = 1
+%n = integer                    # → 1, since integer & 1 = 1
 ```
 
 ```
-%n: 1
-%n: 2                          # conflict: 1 & 2 has no value
+%n = 1
+%n = 2                          # conflict: 1 & 2 has no value
 ```
 
 The conflict is reported at the declarations, not at some later use
@@ -493,8 +507,8 @@ files can also both contribute — a local `%port` and an imported one
 meet in the same way:
 
 ```
-%port: integer
-{ %port } = @"types.aon"       # types.aon exports %port: integer & min(1) & max(65535)
+%port = integer
+{ %port } = @"types.aon"       # types.aon exports %port = integer & min(1) & max(65535)
                                # → %port denotes the meet of both
 ```
 
@@ -509,7 +523,7 @@ imports it by name. Nowhere else:
 
 ```
 # a.aon
-%t: integer & min(0)
+%t = integer & min(0)
 inner: @"b.aon"                # b.aon does NOT see %t
 ```
 
@@ -528,7 +542,7 @@ A declaration must sit at the **document** root. Not the *file* root —
 the document's — and the difference is the whole of this rule:
 
 ```
-x: { %a: 1 }                   # refused: alias_not_toplevel at $.x.%a
+x: { %a = 1 }                   # refused: alias_not_toplevel at $.x.%a
 ```
 
 `%a` resolves from the root, so a nested declaration would be erased
@@ -544,7 +558,7 @@ that root is not the document's:
 
 ```
 # f.aon
-%b: integer & min(1)
+%b = integer & min(1)
 q: %b
 q: 7
 ```
@@ -586,7 +600,7 @@ Scope is lexical and **does not descend into generated children**. A
 spread template or a generator sees the *expansion*, never the alias:
 
 ```
-%row: { kind: string, id: integer }
+%row = { kind: string, id: integer }
 
 table: {
   &: %row                      # every child meets the EXPANSION
@@ -605,7 +619,7 @@ not acquire `%row` as a name, and nothing inside them can write `%row`
 unless the file itself declared it. Same for `pack`/`each`:
 
 ```
-%tmpl: { replicas: *2 | integer }
+%tmpl = { replicas: *2 | integer }
 
 deploy: pack($.names, %tmpl)   # the template is the expansion
 ```
@@ -623,7 +637,7 @@ impose.** Three properties together:
    no application, so no way to build a function.
 2. **No recursion.** The alias reference graph must be acyclic — §4
    refuses a cycle at resolution, and the check is on the graph, not
-   just on direct self-reference, so `%a: %b` with `%b: %a` is refused
+   just on direct self-reference, so `%a = %b` with `%b = %a` is refused
    too.
 3. **Finite name set.** A file declares finitely many aliases, and each
    expansion step consumes one name from that set without adding any.
@@ -636,9 +650,9 @@ preprocessor, which gets its (limited) power from arguments.
 **But expansion can still explode, and that is the real hazard:**
 
 ```
-%a0: 1
-%a1: { x: %a0, y: %a0 }
-%a2: { x: %a1, y: %a1 }
+%a0 = 1
+%a1 = { x: %a0, y: %a0 }
+%a2 = { x: %a1, y: %a1 }
 # … %aN expands to 2^N copies of %a0
 ```
 
@@ -763,6 +777,15 @@ would be a new construct).
 option.** The syntax was the expensive part of this proposal; the sigil
 may have made it free.
 
+**Outcome.** P1 took the third option, and it held for a week. On
+2026-09-05 X-1 was settled for the first — `%foo = 1` — by the
+proposal's author, on the ground the third option's own caveat names:
+a declaration and a key spelled alike, told apart only by the sigil,
+is the confusion and not the point. The measured break stayed as small
+as this section says: `=` is lexed as the separator only immediately
+after an alias name, so rows 2 and 5 are unchanged, and the destructure
+(§6) gets its `=` for free rather than as a second operator.
+
 ## 11. Non-goals
 
 - **No computation.** An alias substitutes a value expression; it takes
@@ -802,8 +825,8 @@ Sketch only, since §9 is open:
   `svc: @"f.aon"` and `svc: { %a } = @"f.aon"` must **generate
   identically**, differing only in what is bound.
 - **Failure modes (§7):** redeclaration meeting rather than erroring
-  (`%n: 1` with `%n: integer` → 1) and conflicting when it cannot
-  (`%n: 1` with `%n: 2`); an alias unavailable in an included file; an
+  (`%n = 1` with `%n = integer` → 1) and conflicting when it cannot
+  (`%n = 1` with `%n = 2`); an alias unavailable in an included file; an
   alias not reaching spread or generator children, pinned by the
   children carrying the expansion's constraint but no name; a cycle
   through two aliases refused, not just direct self-reference.
@@ -833,7 +856,10 @@ Sketch only, since §9 is open:
 declaration is spelled `%foo: …`, the ordinary key syntax in the
 namespace the sigil creates — so there is no `=` operator, no lexing
 break beyond the sigil itself, and §10's compatibility argument is
-moot for what shipped. T-1 does not bite yet either: without `export`
+moot for what shipped. *(That was P1 as it landed on 2026-08-28. X-1
+was reversed on 2026-09-05 — the declaration is `%foo = …`, the colon
+form is refused — see the status note and §10's outcome; the rest of
+this paragraph stands.)* T-1 does not bite yet either: without `export`
 there is no cross-file expansion, and the doubling ladder it worries
 about is bounded by one file. **Both remain open for P2**, where the
 destructure needs `=` and imported aliases make expansion unbounded.
