@@ -41,7 +41,7 @@ inputs:
       the Action by ref cannot silently acquire a newer CLI. (0.52.1
       and earlier have no `vet` verb at all.)
     required: false
-    default: '0.56.0'
+    default: '0.57.0'
 
 outputs:
   exit-code:

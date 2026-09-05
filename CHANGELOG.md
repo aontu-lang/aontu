@@ -5,7 +5,7 @@ package (`ts/`, npm `aontu`) and the Go module (`go/`,
 `github.com/aontu-lang/aontu/go`) are versioned independently; entries note
 which implementation each change affects.
 
-## Unreleased
+## Go 0.1.15 — 2026-09-05 · TypeScript 0.57.0
 
 ### The Go error frame's gutter matches the canonical port's
 
