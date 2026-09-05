@@ -234,8 +234,21 @@ the document, not two, and the subset's linear-time guarantee matters
 more here than in a constraint: a generator runs this over model data.
 
 **`sub` is a substitution string in the JavaScript spelling** — `$1`…
-`$9` for numbered groups, `$&` for the whole match, `$$` for a literal
-`$`, and `$<name>` for a group RE2 named with `(?P<name>…)`.
+`$9` for numbered groups, `$&` for the whole match, and `$$` for a
+literal `$`.
+
+**Corrected during implementation: there is no `$<name>`.** This note
+first listed one, for a group RE2 names with `(?P<name>…)`. The pattern
+subset REFUSES `(?` other than `(?:` — the two engines spell a named
+group differently (`(?P<n>` against `(?<n>`) and normalisation cannot
+answer with one string both accept — so a named group is not a thing a
+pattern here can have, and a substitution spelling for one names
+nothing that can exist. `$1`…`$9` are the groups.
+
+**Also corrected: `[:,]` is outside the subset**, and so is any class
+opening `[:`, which is read as the start of a POSIX class. `re()`
+refuses it identically, which is the point — one regexp language, one
+refusal. The class is written `[,:]`.
 
 **It replaces every match.** `re()` is unanchored and a
 replace-the-first default is a footgun in a generator that normalises
@@ -251,7 +264,7 @@ worth being exact about why:
 
 | step | result |
 | --- | --- |
-| `rep(.pin, "[:,]", " ")` | `aim ingest process episode` |
+| `rep(.pin, "[,:]", " ")` | `aim ingest process episode` |
 | `upper(…)` | `AIM INGEST PROCESS EPISODE` |
 | wanted | `QueueAimIngestProcessEpisode` |
 
@@ -306,6 +319,35 @@ not a generator-only operation. A `title()`-style builtin is then
 primitive, which is a much better place for it: the chain above is
 five calls and doubly nested to capitalise a word, so the sugar is
 still worth having, but nothing is blocked without it.
+
+### What landed
+
+`esc`, `usc`, `rep` and `split` are in both ports as ordinary string
+builtins, with 99 shared rows in `test/spec/str.tsv` and five codes —
+`esc_variant`, `usc_malformed`, `rep_pattern`, `rep_sub`, `split_sep`.
+Beyond the two corrections above, three things the note left implicit
+are now decided:
+
+- **Both ports spell every convention out by hand.** Neither host's
+  library agrees with the other's: `JSON.stringify` escapes what Go's
+  `encoding/json` does not, and `encodeURIComponent` leaves `!'()*`
+  where RFC 3986 percent-encodes them. A generated file has to be
+  byte-identical whichever engine wrote it.
+- **`rep` and `split` carry their own matching loops**, in the
+  semantics Go's `regexp` package defines. JavaScript INSERTS a
+  pattern's capture groups into a split result where Go does not, reads
+  `$1x` as group 1 then `x` where an Expand-style template reads the
+  name `1x`, and disagrees about empty matches at the ends. The loops
+  are written once and the TypeScript port reaches Go's answer.
+- **`usc` refuses a lone surrogate.** `\uD83D` with no partner is not a
+  character Go can carry, so answering one in TypeScript would be a
+  divergence in the one direction this pair exists to remove. A valid
+  pair combines; a lone one is `usc_malformed`.
+
+The chain D5 closes with — `join(form(split(…), …), "")` — still waits
+on `form`, which is G9 phase 3. `split` is the part of it that landed
+here, and it earns its place on its own: splitting a path, a pin or a
+version string is not a generator-only operation.
 
 ## D6. The canonical quote is chosen per line
 

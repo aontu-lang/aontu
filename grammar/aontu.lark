@@ -63,16 +63,17 @@ element: spread
 func: name "(" [value ("," value)*] ")"
 
 name: "above" | "acyclic" | "add" | "below" | "close" | "copy" | "deprecate" | "div"
-    | "each" | "filter" | "greatest"
+    | "each" | "emit" | "esc" | "filter" | "greatest"
     | "hide"
     | "inverse" | "join" | "key" | "least"
     | "length" | "list" | "lower" | "map" | "match" | "max" | "min" | "mod" | "move"
     | "mul" | "must"
     | "neq"
-    | "open" | "pack" | "path" | "pick" | "pref" | "refer" | "rel" | "rem" | "re" | "super"
+    | "open" | "pack" | "path" | "pick" | "pref" | "refer" | "rel" | "rem" | "rep" | "re"
+    | "split" | "super"
     | "sub" | "sum"
     | "type"
-    | "unique" | "upper"
+    | "unique" | "upper" | "usc"
 
 // At least one segment: a bare `$` is an incomplete expression.
 //

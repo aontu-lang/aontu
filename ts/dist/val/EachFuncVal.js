@@ -40,8 +40,7 @@ class EachFuncVal extends FuncBaseVal_1.FuncBaseVal {
         // ONE argument is driven: the data. The template is not (see
         // prepare above), and driveStagedArgs answers whether the data has
         // settled -- the other half of "ready to fire".
-        const ready = this.driveStagedArgs(ctx, 1);
-        if (!ready || !ctx.settle) {
+        if (!this.stagedReady(peer, ctx, 1)) {
             return this.residuate(peer, ctx);
         }
         return super.unify(peer, ctx);

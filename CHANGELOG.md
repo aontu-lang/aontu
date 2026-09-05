@@ -5,7 +5,101 @@ package (`ts/`, npm `aontu`) and the Go module (`go/`,
 `github.com/aontu-lang/aontu/go`) are versioned independently; entries note
 which implementation each change affects.
 
-## Unreleased
+## Go 0.1.15 — 2026-09-05 · TypeScript 0.57.0
+
+### The Go error frame's gutter matches the canonical port's
+
+An error's excerpt numbers its lines in a gutter two spaces wide plus
+the number, right-aligned to the widest line number the frame shows.
+The Go port used a fixed three-wide field instead, which agreed with
+TypeScript only while every shown number had one digit: from row eight
+upward the two engines printed the same error with differently indented
+excerpts, and the caret — whose indent is the gutter's own width —
+moved with it. Every document longer than nine lines framed differently
+in Go than in TypeScript.
+
+The rule is now the canonical port's in both. `test/spec/error.tsv`
+carries a row per width, and `TestFrameGutterWidth` / `frame-gutter-width`
+pin the whole message byte-for-byte in each port against the same
+literals. Go only.
+
+
+### Text: `esc`, `usc`, `rep` and `split`
+
+Four string builtins, and the ones a generator needs: it interpolates
+values into literals and derives names from data.
+
+`esc(s, variant?)` makes a string safe inside a literal and
+`usc(s, variant?)` reads it back out. A variant names a **convention,
+not a language** — several languages share one, and one language has
+several. With no variant it is the C escape, JSON canonical, which
+covers TypeScript, JavaScript, Java, C, C++, C#, Go, Rust, Swift,
+Kotlin, Scala and JSON itself; the named conventions are `sq`, `sql`,
+`shell`, `xml`, `uri` and `regex`. Escaping a value that was already
+safe changes nothing, and an unknown variant is refused at the call
+rather than passed through. `usc` is the left inverse and it is
+partial: `usc(esc(s))` is `s` for every `s`, while text with no
+original is refused rather than answered with a different string.
+
+`rep(s, pattern, sub)` replaces **every** match; the pattern is the
+same portable subset `re` takes, and the substitution is `$1`–`$9`,
+`$&` and `$$`. A `$` naming nothing is refused rather than expanded to
+the empty string. `split(s, sep)` cuts a string into fields: a plain
+string separator is a literal and an `re(…)` argument is a pattern,
+empty fields are preserved so `join` is the inverse, and an empty
+separator yields the code points.
+
+Both ports spell every convention and both matching loops out by hand
+rather than borrowing a host library, because the hosts disagree about
+every part of the job: `JSON.stringify` escapes what Go's
+`encoding/json` does not, `encodeURIComponent` is not RFC 3986,
+JavaScript's split inserts a pattern's capture groups where Go's does
+not, and the two read a substitution template differently. 99 shared
+rows in `test/spec/str.tsv`, five codes — `esc_variant`,
+`usc_malformed`, `rep_pattern`, `rep_sub`, `split_sep` — the four
+published grammars, the LSP, and a
+[Text](docs/reference-language.md#text-esc-usc-rep-split) section in the
+language reference. Both implementations.
+
+
+### `emit`: apply-templates as an engine builtin
+
+`emit(select, table)` applies a rule table to a selection of nodes. For
+every node, in order, the first template whose `match` the node unifies
+with is taken and its `body` instantiated against that node; the answer
+is one flat list of pieces, and a body element that is itself a list
+splices rather than nesting. Inside a body `_` is the matched node and a
+relative reference is a field of it, while an absolute reference still
+reads the document root. A table is a list of `{match, body}` maps, or
+the map itself for a table of one. An empty selection emits nothing,
+which is the whole conditional mechanism; no match is an error naming
+the patterns tried, rather than a silent copy of the node.
+
+A named table is written as an `emit` whose selection is a hole —
+`%wire: emit(_, {match: …, body: […]})` — because a call's template
+argument is the one position the language never drives, and a table
+written as an ordinary field is evaluated where it sits. Passing the
+nodes by call (`emit($.listen, %wire)`) or by meet (`$.listen & %wire`)
+is the same dispatch, and a named table may name itself: a rule set that
+walks a nested model into nested output. Recursion is bounded by the
+selection, which is finite and already in the model.
+
+Six codes: `emit_data`, `emit_table`, `emit_template`, `emit_body`,
+`emit_none`, `emit_ref`. `test/spec/gen-emit.tsv`, the reference's
+[Transforming](docs/reference-language.md#transforming-emit) section, and
+the four published grammars. Both implementations.
+
+### A generator whose data is a hole is filled by its peer
+
+`["a"] & pack(_, {x:1})` could not be written: it answered `*_no_gen` in
+both ports, while the unstaged `"hello" & upper(_)` filled as
+documented. A hole is never `done` — it is filled — so gating a staged
+generator on its data argument being done held the call residual for
+ever and the fill was never reached. `pack`, `each`, `filter` and `emit`
+now pass a placeheld call through to the fill once a peer has arrived;
+against `top` they wait exactly as the hole itself does. Both
+implementations.
+
 
 ### `make install`: the clone on `PATH`
 

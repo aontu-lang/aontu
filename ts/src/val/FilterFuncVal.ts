@@ -83,9 +83,7 @@ class FilterFuncVal extends FuncBaseVal {
 
 
   unify(peer: Val, ctx: AontuContext): Val {
-    const ready = this.driveStagedArgs(ctx, 1)
-
-    if (!ready || !ctx.settle) {
+    if (!this.stagedReady(peer, ctx, 1)) {
       return this.residuate(peer, ctx)
     }
 

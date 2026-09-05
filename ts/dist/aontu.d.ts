@@ -19,7 +19,7 @@ import { relationCheck } from './relation';
 import { view, viewSet, viewTree } from './view';
 import { format, unifiedDiff } from './format';
 export type { LintFinding, FormatReport, FormatOptions } from './format';
-declare const VERSION = "0.56.0";
+declare const VERSION = "0.57.0";
 declare class Aontu {
     opts: AontuOptions;
     lang: Lang;

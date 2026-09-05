@@ -111,6 +111,35 @@ func TestFullMessageTwinFramed(t *testing.T) {
 	}
 }
 
+// TestFrameGutterWidth pins the excerpt gutter: two spaces, then the
+// line number RIGHT-ALIGNED to the widest number the frame shows, which
+// is always the value's row plus two. A FIXED three-wide field agreed
+// with TypeScript only while every shown number had one digit, so from
+// row eight upward the two ports printed the same error with differently
+// indented excerpts -- and the caret, whose indent is the gutter's own
+// width, moved with it. Both literals below are the CANONICAL port's
+// output; the TS twin with the same literals is frame-gutter-width in
+// ts/test/error.test.ts.
+func TestFrameGutterWidth(t *testing.T) {
+	for _, c := range []struct {
+		name string
+		rows int
+		want string
+	}{
+		{"two-digit", 10, "[aontu/scalar_kind]: Cannot unify values at path $.bad\n\nLiteral scalar values of different kinds cannot unify.\n \nExamples:\n  1 & 1   -> 1    # Does unify (equal Integers);\n  1 & a   -> nil  # Does not unify (Kinds: Integer & String);\n  1 & 1.0 -> nil  # Does not unify (kinds: Integer & Float).\n\n Cannot unify value: true with value: 1\n  \u001b[34m--> <no-file>:10:10\n\u001b[34m   8 | \u001b[0m\n\u001b[34m   9 | \u001b[0m\n\u001b[34m  10 | \u001b[0mbad: 1 & true\n                \u001b[34m^ value was: true\u001b[0m\n\u001b[34m  11 | \u001b[0m\n\u001b[34m  12 | \u001b[0m\n\n Cannot unify value: 1 with value: true\n  \u001b[34m--> <no-file>:10:6\n\u001b[34m   8 | \u001b[0m\n\u001b[34m   9 | \u001b[0m\n\u001b[34m  10 | \u001b[0mbad: 1 & true\n            \u001b[34m^ value was: 1\u001b[0m\n\u001b[34m  11 | \u001b[0m\n\u001b[34m  12 | \u001b[0m\n"},
+		{"three-digit", 98, "[aontu/scalar_kind]: Cannot unify values at path $.bad\n\nLiteral scalar values of different kinds cannot unify.\n \nExamples:\n  1 & 1   -> 1    # Does unify (equal Integers);\n  1 & a   -> nil  # Does not unify (Kinds: Integer & String);\n  1 & 1.0 -> nil  # Does not unify (kinds: Integer & Float).\n\n Cannot unify value: true with value: 1\n  \u001b[34m--> <no-file>:98:10\n\u001b[34m   96 | \u001b[0m\n\u001b[34m   97 | \u001b[0m\n\u001b[34m   98 | \u001b[0mbad: 1 & true\n                 \u001b[34m^ value was: true\u001b[0m\n\u001b[34m   99 | \u001b[0m\n\u001b[34m  100 | \u001b[0m\n\n Cannot unify value: 1 with value: true\n  \u001b[34m--> <no-file>:98:6\n\u001b[34m   96 | \u001b[0m\n\u001b[34m   97 | \u001b[0m\n\u001b[34m   98 | \u001b[0mbad: 1 & true\n             \u001b[34m^ value was: 1\u001b[0m\n\u001b[34m   99 | \u001b[0m\n\u001b[34m  100 | \u001b[0m\n"},
+	} {
+		_, err := New().Generate(strings.Repeat("\n", c.rows-1) + "bad: 1 & true\n")
+		if err == nil {
+			t.Fatalf("%s: expected error", c.name)
+		}
+		if got := err.Error(); got != c.want {
+			t.Fatalf("%s: full message mismatch\n want: %q\n got:  %q",
+				c.name, c.want, got)
+		}
+	}
+}
+
 func TestFullMessageTwin(t *testing.T) {
 	_, err := New().Generate("a:1 a:2")
 	if err == nil {

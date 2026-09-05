@@ -21,6 +21,7 @@ package aontu
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -634,12 +635,27 @@ func (n *NilVal) frame(src, file, attempt string, v, other Val) string {
 	// 1 -- which is most of them in a real document -- framed with the
 	// lines AFTER the mistake and none of the lines before it, and the
 	// two ports' messages differed by those lines.
+	//
+	// THE GUTTER IS TWO SPACES PLUS THE NUMBER RIGHT-ALIGNED to the
+	// widest line number the frame shows, which is always the last one
+	// (row+2). A fixed %3d agreed with TS only while every shown number
+	// had one digit: from row 8 upward the two ports printed the same
+	// error with differently indented excerpts, and the caret moved with
+	// the gutter, so the frames disagreed on every document past nine
+	// lines. The two leading spaces are the `-->` header's own indent,
+	// which is what lines the frame up under it.
+	gutter := len(strconv.Itoa(row + 2))
+	excerpt := func(r int) {
+		fmt.Fprintf(&b, "%s  %*d | %s%s\n",
+			ansi("\x1b[34m"), gutter, r, ansi("\x1b[0m"), line(r))
+	}
+
 	for r := row - 2; r < row; r++ {
 		if 1 <= r {
-			fmt.Fprintf(&b, "%s%3d | %s%s\n", ansi("\x1b[34m"), r, ansi("\x1b[0m"), line(r))
+			excerpt(r)
 		}
 	}
-	fmt.Fprintf(&b, "%s%3d | %s%s\n", ansi("\x1b[34m"), row, ansi("\x1b[0m"), line(row))
+	excerpt(row)
 
 	keyPrefix := ""
 	if k := n.details["key"]; k != "" {
@@ -649,15 +665,17 @@ func (n *NilVal) frame(src, file, attempt string, v, other Val) string {
 	if caretCol < 1 { //coverage:ignore rowCol never returns a column below 1
 		caretCol = 1
 	}
-	b.WriteString(strings.Repeat(" ", 6+caretCol-1))
+	// The caret sits under the source column, so its indent is the
+	// gutter's own width: two spaces, the number, and " | ".
+	b.WriteString(strings.Repeat(" ", 2+gutter+3+caretCol-1))
 	b.WriteString(ansi("\x1b[34m") + "^ ")
 	b.WriteString(keyPrefix)
 	b.WriteString("value was: ")
 	b.WriteString(v.Canon())
 	b.WriteString(ansi("\x1b[0m") + "\n")
 
-	fmt.Fprintf(&b, "%s%3d | %s%s\n", ansi("\x1b[34m"), row+1, ansi("\x1b[0m"), line(row+1))
-	fmt.Fprintf(&b, "%s%3d | %s%s\n", ansi("\x1b[34m"), row+2, ansi("\x1b[0m"), line(row+2))
+	excerpt(row + 1)
+	excerpt(row + 2)
 	return b.String()
 }
 

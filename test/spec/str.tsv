@@ -1,0 +1,167 @@
+# THE STRING BUILTINS (G9 phase 6, docs/design/TEMPLATE.0.md D4, D5).
+#
+#   esc(s, variant?)      make `s` safe inside a literal
+#   usc(s, variant?)      read it back out
+#   rep(s, pattern, sub)  replace every match
+#   split(s, sep)         a list of fields
+#
+# Columns: name<TAB>mode<TAB>src<TAB>expect
+#
+# Every expectation below was obtained by running BOTH engines and
+# diffing. That matters more here than almost anywhere else in the
+# suite: the host functions these could have been built from disagree
+# about every part of the job -- `JSON.stringify` escapes what Go's
+# encoding/json does not, `encodeURIComponent` is not RFC 3986,
+# JavaScript's split INSERTS a pattern's capture groups where Go's does
+# not, and the two read a substitution template differently. So both
+# ports spell every convention and both matching loops out by hand, and
+# these rows are what holds them to the same answer.
+
+# THE DEFAULT CONVENTION IS THE C ESCAPE, JSON CANONICAL, which covers
+# TypeScript, JavaScript, Java, C, C++, C#, Go, Rust, Swift, Kotlin,
+# Scala and JSON itself -- one convention rather than a lookup. A
+# control character with no short form becomes `\uXXXX`; a character
+# that was already safe is untouched, which is what makes escaping by
+# default cost nothing.
+esc-c-quote	gens	o: esc("say \\"hi\\"")\n	{"o":"say \\\\\\"hi\\\\\\""}
+esc-c-backslash	gens	o: esc("a\\\\b")\n	{"o":"a\\\\\\\\b"}
+esc-c-newline	gens	o: esc("a\\nb")\n	{"o":"a\\\\nb"}
+esc-c-tab	gens	o: esc("a\\tb")\n	{"o":"a\\\\tb"}
+esc-c-all-control-shorthands	gens	o: esc(usc("a\\\\rb\\\\bc\\\\fd\\\\te"))\n	{"o":"a\\\\rb\\\\bc\\\\fd\\\\te"}
+esc-c-control-hex	gens	o: esc(usc("a\\\\u0001b"))\n	{"o":"a\\\\u0001b"}
+esc-safe-is-noop	gens	o: esc("plain text 123")\n	{"o":"plain text 123"}
+esc-empty	gens	o: esc("")\n	{"o":""}
+esc-non-ascii-untouched	gens	o: esc("café")\n	{"o":"café"}
+# A VARIANT NAMES A CONVENTION, NOT A LANGUAGE, and that is why it is a
+# variant rather than something a renderer knows: several languages
+# share one convention and one language has several -- a C-family
+# literal escapes differently in each quote, and SQL spells a literal
+# one way and an identifier another. `esc(s, regex)` is the one whose
+# output is itself checked by another part of the language: it always
+# answers a pattern the portable subset accepts.
+esc-sq	gens	o: esc('it\\'s', sq)\n	{"o":"it\\\\'s"}
+esc-sq-leaves-double-quote	gens	o: esc("say \\"hi\\"", sq)\n	{"o":"say \\"hi\\""}
+esc-sql	gens	o: esc('o\\'brien', sql)\n	{"o":"o''brien"}
+esc-shell	gens	o: esc('a\\'b', shell)\n	{"o":"a'\\\\''b"}
+esc-xml	gens	o: esc("<a x=\\"1\\">&", xml)\n	{"o":"&lt;a x=&quot;1&quot;&gt;&amp;"}
+esc-uri	gens	o: esc("a b/c?d=e&f", uri)\n	{"o":"a%20b%2Fc%3Fd%3De%26f"}
+esc-uri-unreserved-untouched	gens	o: esc("aZ0-._~", uri)\n	{"o":"aZ0-._~"}
+esc-uri-utf8-bytes	gens	o: esc("é", uri)\n	{"o":"%C3%A9"}
+esc-uri-three-byte	gens	o: esc("日", uri)\n	{"o":"%E6%97%A5"}
+esc-uri-four-byte	gens	o: esc("😀", uri)\n	{"o":"%F0%9F%98%80"}
+esc-regex	gens	o: esc("a.b*c(d)", regex)\n	{"o":"a\\\\.b\\\\*c\\\\(d\\\\)"}
+esc-regex-output-is-a-pattern	gens	o: "a.b" & re("^" + esc("a.b", regex) + "$")\n	{"o":"a.b"}
+# AN UNKNOWN VARIANT IS A REFUSAL AT THE CALL, never a pass-through: a
+# new convention arrives by NAME rather than by a silent change in what
+# an existing one does.
+esc-variant-unknown	errc	o: esc("a", pascal)\n	esc_variant
+esc-variant-not-a-string	errc	o: esc("a", 1)\n	func_arg
+esc-source-not-a-string	errc	o: esc(1)\n	func_arg
+esc-source-preference	errc	o: esc(*1|integer)\n	invalid-arg
+# `usc` IS THE LEFT INVERSE, AND IT IS PARTIAL. `usc(esc(s))` is `s`
+# for every `s` and every convention -- the rows below are that law, one
+# per variant. The other direction does not hold: several spellings
+# escape to one value, so `esc(usc(t))` is `t` only for canonically
+# escaped `t`.
+usc-round-trip-c	gens	o: usc(esc("say \\"hi\\"\\nx"))\n	{"o":"say \\"hi\\"\\nx"}
+usc-round-trip-sq	gens	o: usc(esc('it\\'s\\nx', sq), sq)\n	{"o":"it's\\nx"}
+usc-round-trip-sql	gens	o: usc(esc('o\\'brien', sql), sql)\n	{"o":"o'brien"}
+usc-round-trip-shell	gens	o: usc(esc('a\\'b', shell), shell)\n	{"o":"a'b"}
+usc-round-trip-xml	gens	o: usc(esc("<a>&'\\"", xml), xml)\n	{"o":"<a>&'\\""}
+usc-round-trip-uri	gens	o: usc(esc("a b/é", uri), uri)\n	{"o":"a b/é"}
+usc-uri-three-byte	gens	o: usc(esc("日", uri), uri)\n	{"o":"日"}
+usc-uri-four-byte	gens	o: usc(esc("😀", uri), uri)\n	{"o":"😀"}
+usc-round-trip-regex	gens	o: usc(esc("a.b*c", regex), regex)\n	{"o":"a.b*c"}
+usc-code-point-escape	gens	o: usc("a\\\\u0041b")\n	{"o":"aAb"}
+usc-c-backslash	gens	o: usc("a\\\\\\\\b")\n	{"o":"a\\\\b"}
+usc-c-quote	gens	o: usc("a\\\\\\"b")\n	{"o":"a\\"b"}
+usc-surrogate-pair	gens	o: usc("\\\\ud83d\\\\ude00")\n	{"o":"😀"}
+# TEXT WITH NO ORIGINAL IS REFUSED rather than answered with a
+# different string. A lone surrogate is refused in both ports because it
+# is not a character either can carry; a lone quote is refused where the
+# convention doubles it, because its meaning depends on what was meant
+# to follow; and a bare `&` is refused because it opens an entity, where
+# a bare regex metacharacter passes because it does not.
+usc-lone-surrogate	errc	o: usc("\\\\ud83d")\n	usc_malformed
+usc-lone-low-surrogate	errc	o: usc("\\\\udc00")\n	usc_malformed
+usc-high-surrogate-unpaired	errc	o: usc("\\\\ud83d\\\\u0041")\n	usc_malformed
+usc-non-hex-escape	errc	o: usc("a\\\\uZZZZ")\n	usc_malformed
+usc-truncated-escape	errc	o: usc("a\\\\u12")\n	usc_malformed
+usc-undefined-escape	errc	o: usc("a\\\\qb")\n	usc_malformed
+usc-trailing-backslash	errc	o: usc("a\\\\")\n	usc_malformed
+usc-sql-lone-quote	errc	o: usc('o\\'brien', sql)\n	usc_malformed
+usc-shell-lone-quote	errc	o: usc('a\\'b', shell)\n	usc_malformed
+usc-xml-bare-ampersand	errc	o: usc("a&b", xml)\n	usc_malformed
+usc-xml-unknown-entity	errc	o: usc("a&nbsp;b", xml)\n	usc_malformed
+usc-uri-bad-percent	errc	o: usc("a%zz", uri)\n	usc_malformed
+usc-uri-invalid-utf8	errc	o: usc("%FF", uri)\n	usc_malformed
+usc-uri-percent-at-end	errc	o: usc("a%", uri)\n	usc_malformed
+usc-uri-truncated-sequence	errc	o: usc("%E6", uri)\n	usc_malformed
+usc-uri-bad-continuation	errc	o: usc("%E6%41%A5", uri)\n	usc_malformed
+usc-uri-overlong	errc	o: usc("%C0%80", uri)\n	usc_malformed
+usc-uri-encoded-surrogate	errc	o: usc("%ED%A0%80", uri)\n	usc_malformed
+usc-regex-undefined-escape	errc	o: usc("a\\\\zb", regex)\n	usc_malformed
+usc-variant-unknown	errc	o: usc("a", pascal)\n	esc_variant
+# `rep` REPLACES EVERY MATCH. A replace-the-first default is a footgun
+# in a generator that normalises separators, and anchoring is how a
+# document asks for one. The pattern is the portable subset `re()`
+# takes, so one document has one regexp language; the substitution is
+# `$1`..`$9`, `$&` and `$$`, and nothing else.
+rep-literal	gens	o: rep("a-b-c", "-", "+")\n	{"o":"a+b+c"}
+rep-class	gens	o: rep("aim:ingest,process:episode", "[,:]", " ")\n	{"o":"aim ingest process episode"}
+rep-groups	gens	o: rep("2026-09-04", "([0-9]+)-([0-9]+)-([0-9]+)", "$3/$2/$1")\n	{"o":"04/09/2026"}
+rep-escaped-metacharacter-group	gens	o: rep("a.b", "(\\\\.)", "[$1]")\n	{"o":"a[.]b"}
+rep-whole-match	gens	o: rep("abc", "b", "[$&]")\n	{"o":"a[b]c"}
+rep-literal-dollar	gens	o: rep("ab", "b", "$$")\n	{"o":"a$"}
+rep-every-match	gens	o: rep("aaa", "a", "b")\n	{"o":"bbb"}
+rep-no-match	gens	o: rep("abc", "z", "-")\n	{"o":"abc"}
+rep-empty-matches	gens	o: rep("abc", "x*", "-")\n	{"o":"-a-b-c-"}
+rep-empty-match-astral	gens	o: rep("😀", "x*", "-")\n	{"o":"-😀-"}
+rep-anchored-is-one	gens	o: rep("aaa", "^a", "-")\n	{"o":"-aa"}
+rep-empty-source	gens	o: rep("", "a*", "-")\n	{"o":"-"}
+rep-unmatched-group-is-empty	gens	o: rep("b", "(a)|(b)", "[$1$2]")\n	{"o":"[b]"}
+# A SUBSTITUTION NAMING NOTHING IS A REFUSAL, not an expansion to the
+# empty string: a generator that writes a file with a hole in it and
+# says nothing is the failure this refusal exists to close. `$0` names
+# nothing -- the whole match is `$&`.
+rep-pattern-outside-subset	errc	o: rep("a", "(?=a)", "x")\n	rep_pattern
+rep-pattern-host-refuses	errc	o: rep("a", "a**", "x")\n	rep_pattern
+rep-sub-missing-group	errc	o: rep("a", "a", "$1")\n	rep_sub
+rep-sub-dangling-dollar	errc	o: rep("a", "a", "x$")\n	rep_sub
+rep-sub-zero-group	errc	o: rep("a", "(a)", "$0")\n	rep_sub
+rep-source-not-a-string	errc	o: rep(1, "a", "b")\n	func_arg
+rep-pattern-not-a-string	errc	o: rep("a", 1, "b")\n	invalid-arg
+rep-sub-not-a-string	errc	o: rep("a", "a", 1)\n	invalid-arg
+usc-source-preference	errc	o: usc(*1|integer)\n	invalid-arg
+# A PLAIN STRING SEPARATOR IS A LITERAL and an `re(...)` is a pattern.
+# The asymmetry with `rep` is deliberate -- splitting is usually on a
+# literal -- and it removes the trap where `split(v, ".")` silently cuts
+# between every character. Empty fields are PRESERVED, so `join` is the
+# inverse; an empty separator yields the code points, not the UTF-16
+# units a host split would give.
+split-literal	gens	o: split("a,b,c", ",")\n	{"o":["a","b","c"]}
+split-empty-fields-kept	gens	o: split("a,,b", ",")\n	{"o":["a","","b"]}
+split-leading-and-trailing	gens	o: split(",a,", ",")\n	{"o":["","a",""]}
+split-no-occurrence	gens	o: split("abc", ",")\n	{"o":["abc"]}
+split-empty-separator-is-characters	gens	o: split("abc", "")\n	{"o":["a","b","c"]}
+split-empty-separator-code-points	gens	o: split("aé", "")\n	{"o":["a","é"]}
+split-pattern	gens	o: split("a1b22c", re("[0-9]+"))\n	{"o":["a","b","c"]}
+split-pattern-empty-match	gens	o: split("abc", re("x*"))\n	{"o":["a","b","c"]}
+split-join-round-trip	gens	o: join(split("a,,b,", ","), ",")\n	{"o":"a,,b,"}
+split-sep-number	errc	o: split("a,b", 1)\n	split_sep
+split-sep-list	errc	o: split("a", [1])\n	split_sep
+split-source-not-a-string	errc	o: split(1, ",")\n	func_arg
+split-source-preference	errc	o: split(*1|integer, ",")\n	invalid-arg
+# THE CHAIN THE DESIGN NAMES: a generator derives names as much as it
+# interpolates them, and these are the steps that get from a pin to the
+# words a derived name is built out of.
+rep-then-upper	gens	o: upper(rep("aim:ingest,process:episode", "[,:]", " "))\n	{"o":"AIM INGEST PROCESS EPISODE"}
+split-of-rep	gens	o: split(rep("aim:ingest,process:episode", "[,:]", " "), " ")\n	{"o":["aim","ingest","process","episode"]}
+# UNFIRED, a string call canons as its CALL, which reparses to the same
+# value -- so canon convergence holds for a model that has not
+# finished. Reaching that state takes an argument that never settles
+# (`1+true` is the stuck operation budget.tsv uses).
+esc-unsettled-source-canon	canon	o: esc(1 + true)\n	{"o":esc(1+true)}
+usc-unsettled-source-canon	canon	o: usc(1 + true)\n	{"o":usc(1+true)}
+rep-unsettled-source-canon	canon	o: rep(1 + true, "a", "b")\n	{"o":rep(1+true,"a","b")}
+split-unsettled-source-canon	canon	o: split(1 + true, ",")\n	{"o":split(1+true,",")}

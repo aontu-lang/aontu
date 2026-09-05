@@ -301,6 +301,49 @@ each_data	errcode	parse	0.53.0
 # the patterns that were tried.
 filter_data	errcode	parse	0.53.0
 match_none	errcode	conflict	0.53.0
+# THE STRING BUILTINS (G9 phase 6, `esc` `usc` `rep` `split`). Five
+# codes, all class `parse`: what is wrong is the CALL as the author
+# wrote it. `esc_variant` is a variant naming no convention -- the
+# names are a closed set, and an unknown one is refused rather than
+# passed through, which is what keeps a new convention arriving by name
+# rather than by a silent change of behaviour. `usc_malformed` is text
+# the convention could not have produced: `usc` is the LEFT inverse and
+# it is partial, so input with no original is refused rather than
+# answered with a different string. `rep_pattern` is a pattern outside
+# the subset `re()` takes, and `rep_sub` a substitution naming a group
+# the pattern has not got -- expanding it to nothing would write a file
+# with a hole in it and say nothing. `split_sep` is a separator that is
+# neither a literal string nor an `re(...)`.
+esc_variant	errcode	parse	0.57.0
+usc_malformed	errcode	parse	0.57.0
+rep_pattern	errcode	parse	0.57.0
+rep_sub	errcode	parse	0.57.0
+split_sep	errcode	parse	0.57.0
+# APPLY-TEMPLATES (G9 phase 6, `emit`). Four shape codes, all class
+# `parse`: what is wrong is the CALL as the author wrote it.
+# `emit_data` is a selection with no children to visit; `emit_table` a
+# second argument that is neither a list of rules nor the one rule map
+# that stands for a list of one; `emit_template` a table entry missing
+# `match` or `body` (a rule with no pattern would claim every node by
+# accident, one with no body would claim a node and emit nothing); and
+# `emit_body` a body that is not a list, when a body is the SEQUENCE a
+# node emits. `emit_none` is class `conflict` for `match_none`'s
+# reason -- the node and every pattern written for it disagreed --
+# and it is an error rather than an empty answer because XSLT's
+# built-in rule, which copies an unhandled node's text into the
+# output, means model data landing silently inside a source file.
+# `emit_ref` is class `conflict` too: a body named a field and the node
+# it matched has not got one. A body's relative reference is BOUND to
+# the node rather than resolved by a path count -- a count is taken
+# wherever a value comes to rest, and the nodes of a computed selection
+# come to rest nowhere -- so a reference that misses is answered here,
+# against the node, instead of missing somewhere else as `no_path`.
+emit_data	errcode	parse	0.57.0
+emit_table	errcode	parse	0.57.0
+emit_template	errcode	parse	0.57.0
+emit_body	errcode	parse	0.57.0
+emit_none	errcode	conflict	0.57.0
+emit_ref	errcode	conflict	0.57.0
 # THE PLACEHOLDER (G8 phase 3, `_`). One code, class `conflict`: two
 # placeheld calls met and neither has a value to fill the other, so
 # there is nothing to pick between them. A hole with a value on the

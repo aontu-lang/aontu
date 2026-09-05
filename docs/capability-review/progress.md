@@ -89,16 +89,18 @@ the divergence ledger, `Accepted`/`Superseded` in the ADR register).
    gap documents froze a row count into a "nothing may regress" clause;
    all eight are now wrong, by roughly 1,400 to 1,500 rows. A gap
    document should link this line instead: as of this
-   register's last update the suite is **103 `.tsv` files, 101
-   row-bearing, 4,245 rows**, in twenty-four modes — `canon` 866,
-   `errc` 753, `gens` 669, `gen` 590, `err` 278, `view` 174,
-   `errcode` 135, `subsume` 114, `fmt` 103, `vet` 100, `query` 92,
-   `jsonschema` 57, `why` 52, `patch` 41, `hcanon` 40, `views` 37,
-   `graph` 37, `diff` 28, `relation` 25, `reaches` 19, `hash` 16,
+   register's last update the suite is **105 `.tsv` files, 103
+   row-bearing, 4,485 rows**, in twenty-five modes — `canon` 872,
+   `errc` 807, `gens` 755, `gen` 590, `err` 282, `view` 174, `fmt` 154,
+   `errcode` 146, `subsume` 114, `vet` 100, `query` 92, `jsonschema`
+   57, `why` 52, `patch` 41, `hcanon` 40, `views` 37, `graph` 37,
+   `fmt-lint` 28, `diff` 28, `relation` 25, `reaches` 19, `hash` 16,
    `trim` 11, `agentsmd` 7, `fmt-refuse` 1.
-   (Re-derived 2026-09-03, for the 0.56.0 release: `aontu fmt` added
-   `fmt.tsv` and `aontu view` added `view.tsv` and `views.tsv`, and
-   the line had gone stale in exactly the way it predicts below.
+   (Re-derived 2026-09-04, when `gen-emit.tsv` landed the rule layer's
+   dispatch and `str.tsv` its string builtins; before that, 2026-09-03 for the 0.56.0 release, where
+   `aontu fmt` added `fmt.tsv` and `aontu view` added `view.tsv` and
+   `views.tsv`, and the line had gone stale in exactly the way it
+   predicts below.
    `divergent.tsv` and `signature.tsv` are the two files that carry no
    rows. This line has now been wrong four times, each time within a
    day or two of being corrected, and each time it was falsifiable in
@@ -113,8 +115,8 @@ the divergence ledger, `Accepted`/`Superseded` in the ADR register).
 
 ## Summary
 
-Fifty-four of the sixty-five phases in the table below have moved;
-fifty-two of those are complete. Two are not. G5 phase 6 is
+Fifty-five of the sixty-five phases in the table below have moved;
+fifty-two of those are complete. Three are not. G5 phase 6 is
 deliberately held for the next major release, a release act rather
 than an engineering one. **G9 phase 0 became partial on 2026-08-30
 without this register saying so**: #99 fixed two of its four named
@@ -138,9 +140,9 @@ the fix was and why the earlier tests could not see the defect.
 | [G6](g6-distribution.md) | Distribution | B/C | 5 | 0 | 0 |
 | [G7](g7-machine-access.md) | Machine access | B | 7 | 0 | 0 |
 | [G8](g8-generation.md) | Generation | C | 5 | 0 | 0 |
-| [G9](g9-transformation.md) | Declarative transformation | D | 1 | 1 | 7 |
+| [G9](g9-transformation.md) | Declarative transformation | D | 1 | 2 | 6 |
 | [G10](g10-transparency.md) | Transparency log | D | 2 | 0 | 4 |
-| | | **total** | **52** | **2** | **11** |
+| | | **total** | **52** | **3** | **10** |
 
 Against the review's own [sequencing](index.md#sequencing):
 
@@ -1471,9 +1473,9 @@ Opened 2026-08-30, after G1–G8 landed. Design is
 [g9-transformation.md](g9-transformation.md); forms (a) and (b) — the
 host program and the Jostraca path — are
 [docs/design/GENERATION-FORMS.0.md](../design/GENERATION-FORMS.0.md).
-**Phase 0 is partial and phase 2 has landed; phases 1 and 3–8 have
-not started**, and the rest of the document is a design proposal, not
-a commitment. The corpus the design asks
+**Phase 0 and phase 6 are partial and phase 2 has landed; phases 1,
+3–5, 7 and 8 have not started**, and the rest of the document is a
+design proposal, not a commitment. The corpus the design asks
 for before its later phases are committed to now exists —
 [use-cases/15-code-generation](../../use-cases/15-code-generation/)
 (#100) — but a corpus is evidence, not a phase, and no row below
@@ -1482,7 +1484,7 @@ cites it as a deliverable.
 Baseline at drafting, for protocol rule 5: `ls test/spec/*.tsv | wc -l`
 = **97**, `awk -F'\t' 'NF>2 && $0 !~ /^#/' test/spec/*.tsv | wc -l` =
 **3755** (both re-derived 2026-08-30). At **2026-09-04** the same two
-commands give **103** and **4324**.
+commands give **105** and **4482**.
 
 **The plan was re-based on 2026-09-04** and the design carries the
 re-basing as its own dated amendment, which is authoritative for the
@@ -1543,7 +1545,7 @@ notes were verified through, on
 | **3** — `form`, the order-preserving map | S/M | **NOT STARTED** | `each` meets and cannot transform; `pack` keys by data and reorders |
 | **4** — the renderer core and the first two profiles | M | **NOT STARTED** | The `render` verb; the Go and TypeScript profiles; and, per the second amendment, a fragment entry point plus a two-field `aontu:lang/text` profile, which is the executable form of "a new language is data". The fold reads a piece's `at` where the design counted recursion depth. Plus the three string builtins of [TEMPLATE.0.md](../design/TEMPLATE.0.md) — `esc(src, variant?)` (escaping is ON for a `replace` value, with `esc:` an optional key naming the variant), its left inverse `usc`, `rep(src, re, sub)` over `re()`'s own portable subset, and `split(src, sep)` — which have no renderer coupling and may land earlier; without them a hand-spelled literal generates broken code, VERIFIED (`tsc` rejects an unescaped `o'brien` with nine errors, and accepts the escaped form). |
 | **5** — the reflection sidecar | M | **NOT STARTED** | The view forms (a), (b) and (c) share; an ADR-001 question first (GENERATION-FORMS.0.md §2) |
-| **6** — `emit`, the manifest, and the verb | M | **NOT STARTED** | One run over N outputs, and where the fragment algebra pays off: dispatch plus fragments is apply-templates with its result tree, so the acceptance case is a target the declaration vocabulary does NOT fit. **Re-scoped by the third amendment (2026-09-04)**: it ships `emit(select, table)` over a table written as data — `[{match, body}, ...]`, inline at the site or held under a name — rather than `walk(data, tmpl)` with the rules encoded in `match` argument positions. Two-ary, with no `mode` argument and no `mode` key, because a mode is a named table; the result is FLAT, which is what the fragment algebra's own no-nesting ruling requires. It gains a second acceptance case, a RECURSIVE rule set, because that is the one case no amount of user-space work reaches. **The verb is `aontu render`, DECIDED 2026-09-04** ([EMIT.0.md D7](../design/EMIT.0.md#d7-the-verb-is-aontu-render)), closing the disagreement between this row's `aontu gen` and the design's `aontu render`: `generate()` already means the Val tree's JSON projection, and `mapval_no_gen`/`listval_no_gen` are codes users meet constantly, so `gen` would carry two meanings in one tool. The manifest is under `@"aontu:code"`; this row's `std/gen` died with the `aontu:` rename. It names a verb, an MCP tool, a file in each port, help text the suite asserts identical across the builds, and every transcript in the reference. **Specified in [EMIT.0.md](../design/EMIT.0.md)**, with the surface that desugars to it in [TEMPLATE.0.md](../design/TEMPLATE.0.md); read those before starting, not this row. |
+| **6** — `emit`, the manifest, and the verb | M | **PARTIAL 2026-09-04** | **`emit(select, table)` has landed in both ports**; the manifest and the `aontu render` verb have not, so the phase is partial and acceptance case 1 (a target the declaration vocabulary does not fit) waits on them. `ts/src/val/EmitFuncVal.ts` and `go/generate.go`, registered as a staged generator in both (`ts/src/lang.ts`, `go/func.go`), declared in `test/spec/signature.tsv` as `emit(s: map|list, template t: map|list) : list`. `test/spec/gen-emit.tsv` (45 rows) plus six codes in `errcodes.tsv` — `emit_data`, `emit_table`, `emit_template`, `emit_body`, `emit_none`, `emit_ref` — every expectation obtained by running BOTH engines and diffing, error text included. Reference: [Transforming: `emit`](../reference-language.md#transforming-emit); the outcome is recorded in [EMIT.0.md](../design/EMIT.0.md#what-phase-6-established). **Four things the design could not settle from outside the engine.** (1) **A named table is a PLACEHELD `emit`.** The note's decisive fact — a table reached by reference does not re-root its bodies' relative references — is not repaired by binding at the use site, because the DEFINITION site drives the table first and the references have already missed. Nothing in the language holds a value unevaluated at a document position; what does is a call's template argument, so `%wire: emit(_, T)` is that position with the selection left open. `emit($.listen, %wire)` and `$.listen & %wire` are the same dispatch, and D4's "a mode is a named table" survives exactly as written. (2) **A placeheld generator was never filled** — `["a"] & pack(_, {x:1})` answered `*_no_gen` in both ports while the unstaged `"hello" & upper(_)` filled as documented, because `_` is never `done` and the staged readiness gate held the call residual for ever. Fixed for `pack`, `each`, `filter` and `emit` together (`stagedReady` / `stagedDrive`); rows in each combinator's spec file. (3) **A body's relative reference is BOUND to the node, and a miss is `emit_ref`** reported against the node: binding rather than re-pathing is what makes a computed selection work, since the nodes of `filter(…)` live nowhere and there is no position for a dot count to be taken from. The walk stops at a nested generator's binding argument, which is D5's nesting rule. (4) **A nested dispatch is driven where it is met**, or it resolves a pass later and arrives as a list INSIDE the list; driven through `unite`, so a rule set that walks into itself without descending is refused as a spent depth budget. **Fact 4 did not reproduce**: the pass exhaustion was the INLINED expansion's, and the recursive rule set settles inside the default budget, so no flag is needed. **Acceptance case 2 is met** — `emit-recursive` walks a nested model into nested output, the case fact 3 says no amount of user-space work reaches. **The string builtins landed next**, in the same phase: `esc`, `usc`, `rep` and `split` (`ts/src/escape.ts`, `ts/src/val/StrFuncVal.ts`, `go/escape.go`, `go/strfunc.go`), 99 rows in `test/spec/str.tsv` and five more codes — `esc_variant`, `usc_malformed`, `rep_pattern`, `rep_sub`, `split_sep`. Both ports spell every escape convention and both matching loops out BY HAND rather than borrowing a host library, because the hosts disagree about every part of the job: `JSON.stringify` escapes what Go's `encoding/json` does not, `encodeURIComponent` is not RFC 3986, JavaScript's split INSERTS a pattern's capture groups where Go's does not, and the two read a substitution template differently. Two corrections to [TEMPLATE.0.md](../design/TEMPLATE.0.md) fell out of building it: there is no `$<name>` substitution, because the pattern subset refuses named groups and a spelling for one names something that cannot exist; and the note's own `[:,]` is outside the subset, since a class opening `[:` reads as a POSIX class — `re()` refuses it identically, which is the point. **Still not in this landing**: `replace`/`esc` INSIDE `emit`, the manifest under `@"aontu:code"`, and the `render` verb. |
 | **7** — the Jostraca bridge | M | **NOT STARTED** | Phases 1–5 carry no Jostraca dependency, so this cannot block the language work |
 | **8** — string interpolation | M/L | **NOT STARTED** | The parser phase; deferred behind evidence that `join` did not suffice |
 

@@ -4,6 +4,7 @@ package aontu
 
 import (
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -338,6 +339,11 @@ func stagedArgIdx(f *FuncVal) []int {
 	switch f.name {
 	case "pack", "each":
 		return []int{0}
+	case "emit":
+		// The SELECTION only. The table is templates, instantiated at
+		// each matched node, so its bodies may hold a `_` or a relative
+		// reference -- neither of which has an answer at the call site.
+		return []int{0}
 	case "filter":
 		// The DATA only. The condition is a template, tested against
 		// each child at that child's position, so it may hold a `_` or
@@ -399,4 +405,411 @@ func stagedDrive(ctx *Ctx, f *FuncVal, base []string) bool {
 		ready = ready && f.peg[i].Dc() == DONE
 	}
 	return ready
+}
+
+// TRANSFORMATION: emit(select, table) (G9 phase 6, the Go side of
+// ts/src/val/EmitFuncVal.ts, docs/design/EMIT.0.md). Apply-templates,
+// with the dispatch in the engine and none of it in user space.
+//
+//	emit($.services, [
+//	  {match: {kind: sqs},  body: [`listen(` + .pin + `)`]}
+//	  {match: {kind: http}, body: [`serve(` + .path + `)`]}
+//	])
+//
+// For every node of select, in order, the first template whose match
+// the node unifies with is taken and its body instantiated AGAINST
+// THAT NODE. The result is one flat list; a body element that is
+// itself a list SPLICES, which is what makes a nested emit compose.
+//
+// A NAMED TABLE IS A PLACEHELD emit (`%wire: emit(_, T)`). A table
+// written at a document position is DRIVEN there, so its bodies'
+// relative references resolve against wherever it sits and miss;
+// nothing in the language holds a value unevaluated at such a position,
+// and what does hold one is a CALL's template argument.
+// `emit(.listen, %wire)` follows the reference and reads the table out
+// of the placeheld call; `.listen & %wire` fills the hole. Both are the
+// same dispatch, and it is what lets a rule set name ITSELF.
+//
+// TERMINATION IS THE SELECTION's. Unlike pack and each, this one
+// recurses -- a nested model walked into nested output is the
+// capability the rule layer exists to add -- so the bound is not "it
+// cannot call itself" but "each dispatch descends into a finite bag
+// that already exists, and a selection that empties emits nothing". A
+// rule set that walks into itself WITHOUT descending is charged to the
+// depth budget and refused as unify_cycle, like any other runaway
+// descent.
+
+// emitTemplate is one entry of the rule table: the pattern to try and
+// the body to instantiate.
+type emitTemplate struct {
+	match Val
+	body  *ListVal
+}
+
+// emitTemplates reads the table, or the code naming what is wrong with
+// it. A map is one template; a list is many; a PLACEHELD emit is a
+// named table (see the TS tableTemplates comment) and its own table is
+// the table. A reference has been followed by emitFunc before this.
+func emitTemplates(table Val) ([]emitTemplate, string) {
+	switch t := table.(type) {
+	case *FuncVal:
+		if "emit" == t.name && 1 < len(t.peg) {
+			return emitTemplates(t.peg[1])
+		}
+	case *MapVal:
+		one, bad := oneEmitTemplate(t)
+		if "" != bad {
+			return nil, bad
+		}
+		return []emitTemplate{one}, ""
+	case *ListVal:
+		out := make([]emitTemplate, 0, len(t.peg))
+		for _, el := range t.peg {
+			m, ok := el.(*MapVal)
+			if !ok {
+				return nil, "emit_template"
+			}
+			one, bad := oneEmitTemplate(m)
+			if "" != bad {
+				return nil, bad
+			}
+			out = append(out, one)
+		}
+		return out, ""
+	}
+	return nil, "emit_table"
+}
+
+// oneEmitTemplate reads one rule. Both keys are required: a template
+// with no pattern would match everything by accident, and one with no
+// body would emit nothing while claiming a node.
+func oneEmitTemplate(m *MapVal) (emitTemplate, string) {
+	match, hasMatch := m.peg["match"]
+	body, hasBody := m.peg["body"]
+	if !hasMatch || !hasBody || nil == match || nil == body {
+		return emitTemplate{}, "emit_template"
+	}
+	list, ok := body.(*ListVal)
+	if !ok {
+		return emitTemplate{}, "emit_body"
+	}
+	return emitTemplate{match: match, body: list}, ""
+}
+
+// nodeField is the field of node a reference names, or nil when it
+// names none. Only a chain of plain NAMES is a field: a parent step has
+// no answer at a node that is an origin rather than a position, and a
+// variable segment is not a name until something resolves it -- both
+// are refused here rather than left to resolve somewhere else, which is
+// the failure mode the binding exists to remove.
+func nodeField(rv *RefVal, node Val) Val {
+	cur := node
+	for _, seg := range rv.peg {
+		name, ok := seg.(string)
+		if !ok || "." == name {
+			return nil
+		}
+		switch n := cur.(type) {
+		case *MapVal:
+			child, has := n.peg[name]
+			if !has || nil == child {
+				return nil
+			}
+			cur = child
+		case *ListVal:
+			i, err := strconv.Atoi(name)
+			if nil != err || i < 0 || len(n.peg) <= i {
+				return nil
+			}
+			cur = n.peg[i]
+		default:
+			return nil
+		}
+	}
+	return cur
+}
+
+// hasNodeRef reports whether v holds a relative reference for the node
+// binding to replace. Asked first so a body with no substitutions is
+// never needlessly rebuilt -- the identity behaviour fillPlace has.
+// Stops at a nested generator's binding arguments for the reason
+// bindNode does.
+func hasNodeRef(v Val) bool {
+	switch n := v.(type) {
+	case *RefVal:
+		return !n.absolute
+	case *FuncVal:
+		bound := boundArgStart(n)
+		for i, a := range n.peg {
+			if bound <= i {
+				break
+			}
+			if hasNodeRef(a) {
+				return true
+			}
+		}
+	case *PlusOpVal:
+		for _, a := range n.peg {
+			if hasNodeRef(a) {
+				return true
+			}
+		}
+	case *ConjunctVal:
+		for _, a := range n.peg {
+			if hasNodeRef(a) {
+				return true
+			}
+		}
+	case *DisjunctVal:
+		for _, a := range n.peg {
+			if hasNodeRef(a) {
+				return true
+			}
+		}
+	case *PrefVal:
+		return hasNodeRef(n.peg)
+	case *MapVal:
+		for _, k := range n.keys {
+			if hasNodeRef(n.peg[k]) {
+				return true
+			}
+		}
+	case *ListVal:
+		for _, e := range n.peg {
+			if hasNodeRef(e) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// bindNode is v with every relative reference replaced by the field of
+// node it names. The binding is done HERE rather than left to path
+// resolution: a relative path is a COUNT taken wherever the value comes
+// to rest, and the nodes of a computed selection (filter(...)) come to
+// rest nowhere -- there is no position for a count to be taken from. An
+// ABSOLUTE reference is untouched and still reads the document root.
+//
+// The walk stops at a nested generator's own binding argument
+// (boundArgStart): a rule table nested in a body is the INNER emit's to
+// bind, so .x inside it is the inner node. What crosses the boundary is
+// the nested call's SELECTOR, which is argument 0 -- the selector is
+// the channel. `fail` keeps the first reference the node could not
+// answer, for the located error.
+func bindNode(v Val, node Val, fail *string) Val {
+	if rv, ok := v.(*RefVal); ok && !rv.absolute {
+		found := nodeField(rv, node)
+		if nil == found {
+			if "" == *fail {
+				*fail = rv.Canon()
+			}
+			return v
+		}
+		return clonePath(found, cp(rv.path))
+	}
+	if !hasNodeRef(v) {
+		return v
+	}
+
+	switch n := v.(type) {
+	case *FuncVal:
+		out := *n
+		out.peg = bindNodeArgs(n.peg, node, fail, boundArgStart(n))
+		out.dc = 0
+		return &out
+	case *PlusOpVal:
+		out := *n
+		out.peg = bindNodeEach(n.peg, node, fail)
+		out.dc = 0
+		return &out
+	case *ConjunctVal:
+		out := *n
+		out.peg = bindNodeEach(n.peg, node, fail)
+		out.dc = 0
+		return &out
+	case *DisjunctVal:
+		out := *n
+		out.peg = bindNodeEach(n.peg, node, fail)
+		out.dc = 0
+		return &out
+	case *PrefVal:
+		out := *n
+		out.peg = bindNode(n.peg, node, fail)
+		out.dc = 0
+		return &out
+	case *MapVal:
+		out := *n
+		out.keys = cp(n.keys)
+		out.peg = map[string]Val{}
+		for _, k := range n.keys {
+			out.peg[k] = bindNode(n.peg[k], node, fail)
+		}
+		out.dc = 0
+		return &out
+	case *ListVal:
+		out := *n
+		out.peg = bindNodeEach(n.peg, node, fail)
+		out.dc = 0
+		return &out
+	}
+
+	// UNREACHABLE: hasNodeRef above answered true, and it answers true
+	// only for the kinds this switch covers. The return is here because
+	// Go needs one.
+	return v //coverage:ignore hasNodeRef true implies a case above
+}
+
+func bindNodeEach(vals []Val, node Val, fail *string) []Val {
+	return bindNodeArgs(vals, node, fail, len(vals))
+}
+
+// bindNodeArgs binds the first `bound` values and carries the rest
+// through unchanged -- the generator-template boundary of the FuncVal
+// arm above.
+func bindNodeArgs(vals []Val, node Val, fail *string, bound int) []Val {
+	out := make([]Val, 0, len(vals))
+	for i, v := range vals {
+		if bound <= i {
+			out = append(out, v)
+			continue
+		}
+		out = append(out, bindNode(v, node, fail))
+	}
+	return out
+}
+
+// emitSplice appends v to out, flattening a list into its elements:
+// the fragment algebra is FLAT, so a body element that is itself a list
+// splices rather than nesting.
+func emitSplice(v Val, out []Val) []Val {
+	if l, ok := v.(*ListVal); ok {
+		for _, el := range l.peg {
+			out = emitSplice(el, out)
+		}
+		return out
+	}
+	return append(out, v)
+}
+
+func emitFunc(ctx *Ctx, f *FuncVal, base []string, args []Val) Val {
+	var sel Val = top()
+	if 0 < len(args) {
+		sel = args[0]
+	}
+	nodes, bad := eachValues(sel)
+	if "" != bad {
+		// eachValues names each's code; emit answers for itself.
+		return makeNilErr(ctx, "emit_data", f, nil)
+	}
+
+	var table Val
+	if 1 < len(args) {
+		table = args[1]
+	}
+	// A NAMED TABLE IS REACHED BY REFERENCE, and the reference -- not
+	// the table -- is what is followed. Followed HERE rather than in
+	// the staged drive, which waits for a SETTLED target: a table is a
+	// template, a template holding a hole never settles, and waiting
+	// for one would mean the dispatch never fires.
+	if rv, ok := table.(*RefVal); ok {
+		ctx.slot = base
+		table = unite(ctx, rv, top())
+	}
+
+	templates, bad := emitTemplates(table)
+	if "" != bad {
+		return makeNilErr(ctx, bad, f, nil)
+	}
+
+	pieces := []Val{}
+	for _, node := range nodes {
+		tmpl, tried := emitDispatch(ctx, base, node, templates)
+		if nil == tmpl {
+			return makeNilErrFull(ctx, "emit_none", f, nil, "resolve",
+				map[string]string{
+					"value": node.Canon(),
+					"tried": strings.Join(tried, " "),
+				})
+		}
+
+		fail := ""
+		pieces = emitInstantiate(ctx, base, node, *tmpl, pieces, &fail)
+		if "" != fail {
+			return makeNilErrFull(ctx, "emit_ref", f, nil, "resolve",
+				map[string]string{
+					"ref":   fail,
+					"value": node.Canon(),
+				})
+		}
+	}
+
+	// THE PIECES ARE PATHED WHERE THEY LAND, once the splicing has
+	// settled how many there are. A piece keeps no trace of the body it
+	// was written in: the body is a template, and a template's parse
+	// position is the one place it is never used.
+	for i, p := range pieces {
+		// setPaths, not clonePath: the piece is already this
+		// instantiation's own clone, and cloning it again would overlay
+		// its stored tail on the new location -- the TS twin is
+		// repathInstance, which rewrites in place.
+		setPaths(p, append(cp(base), itoa(i)))
+	}
+
+	out := newList(pieces)
+	out.setvpath(cp(base))
+	return out
+}
+
+// emitDispatch answers the first template the node unifies with, in
+// table order -- the same question match and filter ask, answered the
+// same way. Answers the patterns tried when nothing matched, for the
+// located error.
+func emitDispatch(ctx *Ctx, base []string, node Val,
+	templates []emitTemplate) (*emitTemplate, []string) {
+	tried := []string{}
+	for i := range templates {
+		tried = append(tried, templates[i].match.Canon())
+		ctx.slot = base
+		// The trial is against CLONES: unite refines a bag in place
+		// against a TOP peer, and a pattern that failed must be
+		// untouched for the next node.
+		if nil != trialUnify(ctx, clonePath(node, base),
+			clonePath(templates[i].match, base)) {
+			return &templates[i], nil
+		}
+	}
+	return nil, tried
+}
+
+// emitInstantiate instantiates one body at the node and SPLICES its
+// pieces into the output. A full instance to the leaves (instanceClone,
+// ADR-005), because a bare clone shares the inner structure of any call
+// in the body and the first node's resolution would answer for every
+// node; then the two bindings, relative references and the hole, both
+// to the node.
+func emitInstantiate(ctx *Ctx, base []string, node Val, tmpl emitTemplate,
+	out []Val, fail *string) []Val {
+	for _, el := range tmpl.body.peg {
+		islot := append(cp(base), itoa(len(out)))
+		inst := instanceClone(el, islot)
+		piece := fillPlace(bindNode(inst, node, fail), node)
+
+		// A NESTED DISPATCH IS DRIVEN HERE, not left for the next pass.
+		// Its selection is bound and the model has settled, so it has
+		// everything it needs -- and it must answer NOW, because what
+		// makes the result flat is splicing its pieces into this one.
+		// Left standing, a nested emit resolved a pass later, as a list
+		// INSIDE the list, and the fragment algebra is flat. Through
+		// unite rather than by hand: a rule set that walks into itself
+		// for ever is charged to the depth budget and refused as
+		// unify_cycle, like any other runaway descent.
+		if piece.Dc() != DONE {
+			ctx.slot = islot
+			piece = unite(ctx, piece, top())
+		}
+
+		out = emitSplice(piece, out)
+	}
+	return out
 }
