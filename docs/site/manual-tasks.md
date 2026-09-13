@@ -40,7 +40,7 @@ test that made it say so deleted the caveat when the pin caught up.
 | C1 | `aontu-lang/web` created | **done** |
 | C2 | Claude GitHub App on the org | **done** |
 | C3 | Repository settings, branch protection, CodeQL | open |
-| C4 | Org-rename leftovers | Go module **renamed**; badges + `prepack.js` open |
+| C4 | Org-rename leftovers | module path, badges, `prepack.js` **done**; SARIF URI open |
 | C5 | Sponsorship treatment | open — needs a decision |
 | D1 | npm trusted-publisher record after the rename | **done** — proven by the 0.53.0 release |
 
@@ -249,26 +249,31 @@ Match the template's posture:
 Not site work, but the site will publish whichever answer it finds
 ([plan D7](index.md#d7--the-identity-questions-the-site-will-force)).
 
-**The module path is done** — `github.com/aontu-lang/aontu/go`, in
-`go/go.mod` and every import, install line and doc that stated it. Two
-references to the old owner are left standing, and both want a
-credential or a click before the URL can honestly change:
+**The module path, the badges and `prepack.js` are done.** The module
+path is `github.com/aontu-lang/aontu/go`, in `go/go.mod` and every
+import, install line and doc that stated it. `README.md` carries two
+badges, npm version and build, and the build badge already names
+`aontu-lang` — the Coveralls, Snyk, DeepScan and CodeClimate badges
+this task was once gated on do not exist, so no service needs
+re-pointing. `ts/scripts/prepack.js` sets `REPO` to
+`https://github.com/aontu-lang/aontu/blob/main/`.
 
-| Where | What it says | Why it is still yours |
+Five references to the old owner are left, and not one of them is a
+badge:
+
+| Where | What it says | Why it still stands |
 |---|---|---|
-| `README.md` badges | `rjrodger/aontu` — build, coverage, Snyk, DeepScan, CodeClimate | Each badge is a *service* registered against the old path. Rewriting the URL first breaks the badge; re-point the project in Coveralls, Snyk, DeepScan and CodeClimate, then the URL follows. |
-| `ts/scripts/prepack.js` | `REPO = 'https://github.com/rjrodger/aontu/blob/main/'`, baked into every published tarball's `skill/error-codes.md` | A repository URL, not a module path, and GitHub redirects it. Safe to change on your word — it just wants a release to take effect. |
+| `ts/src/report-sarif.ts`, `go/report_sarif.go` | `informationUri: "https://github.com/rjrodger/aontu"` | A published wire identifier, in every SARIF the vet verb has ever emitted, held byte-identical across the two ports by the golden `test/spec/files/vet-sarif/expect.sarif`. Changing it means all three files plus a rebuild of the committed `ts/dist` — a deliberate edit, not a sweep. |
+| `ts/src/mod-tool.ts`, `go/modtool.go` | the OCI annotation keys `com.github.rjrodger.aontu.canon` and `.major` | Also published wire format, and reasoned about: OCI asks a custom key to be the reverse DNS of a domain its author controls, and the register records the choice as a deliberate departure ("Departures recorded by G6.4", item 2). aontu.dev being live now weakens the reason given there, which is what makes moving them an ADR rather than a sweep. |
+| `editors/vscode/package.json` | `"publisher": "rjrodger"` | A Marketplace account identity, not a URL. It changes when the account does, and not before. |
+| `vet-action/action.yml` | `author: 'rjrodger'` | A person. Correct as it stands. |
+| `web/playground.template.html` | the GitHub and Docs links in the playground footer | A plain repository URL, and the one of the five that wants nothing but a rebuild. It is held because the rebuild is `node web/build/build.mjs`, not `make build-ts`, and the committed `aontu-bundle.js` and `playground.html` were bundled by an esbuild this checkout does not resolve to: regenerating them today rewrites about 2,300 lines that have nothing to do with the links. Pin the bundler first. |
 
-A third sits alongside them: `go/report_sarif.go` and its TypeScript
-twin both emit `informationUri: "https://github.com/rjrodger/aontu"`,
-held byte-identical across the two ports by the golden
-`test/spec/files/vet-sarif/expect.sarif`. Changing it means all three
-files plus a rebuild of the committed `ts/dist` — a deliberate edit, not
-a sweep.
-
-**Hand back:** say the word and the `prepack.js` constant and the SARIF
-URI go in one commit; the badges after you have re-pointed the four
-services.
+**Hand back:** say the word and the SARIF `informationUri` moves — the
+two sources, the golden, the `ts/dist` rebuild, and the `aontu-bundle.js`
+and `playground.html` that inline it, in one commit. The annotation keys
+want an ADR, not a word; the playground links want the bundler pinned;
+the other two want nothing.
 
 ### C5. Decide the sponsorship treatment
 
@@ -328,11 +333,29 @@ about five minutes.
 trusted publisher, no `NPM_TOKEN`. It only *consumes* `aontu` from the
 public registry. Listed so its absence reads as a decision.
 
-### D3. Reserve the `aontu` npm org — optional
+### D3. Create the `aontu` npm org
 
 The package `aontu` is unscoped and yours, and the plan keeps it that
-way. Creating the free `aontu` org anyway costs nothing and stops
-someone else publishing `@aontu/anything` with your name on it.
+way. The org is a separate need, and it is no longer optional: the
+module system publishes under `@aontu`, so the free org has to exist
+before the first scoped publish. That first package is `@aontu/mod`,
+the transparency client, unpublished at 0.1.0. Stopping someone else
+publishing `@aontu/anything` with your name on it is now the second
+reason rather than the only one.
+
+This gates the module system's first publish, not the site — nothing
+on aontu.dev resolves a scoped name.
+
+Create it at <https://www.npmjs.com/org/create> (the Free plan; scoped
+public packages cost nothing), then check rather than assume, because
+an org name someone else already holds is refused rather than queued:
+
+```sh
+npm org ls aontu           # expect your account, role owner
+```
+
+**Hand back:** confirmation the org exists, or the name it had to
+become instead.
 
 ---
 
@@ -355,12 +378,15 @@ the site is serving from the apex.
 
 What is left, in the order it will hurt if ignored:
 
-1. **C4** — the README badges and `prepack.js`'s `REPO` constant still
-   name the old owner. The badges need their services re-pointed first;
-   the constant is a word from you.
-2. **B5 / C5** — the analytics token (or a "no"), and where the
+1. **D3** — the free `aontu` npm org. `@aontu/mod` cannot publish until
+   it exists, and it is the module system's first scoped package.
+2. **C4** — the SARIF `informationUri` still names the old owner, and
+   so do the OCI annotation keys `mod manifest` writes. The first is a
+   word from you; the second is an ADR. The badges and `prepack.js` are
+   done.
+3. **B5 / C5** — the analytics token (or a "no"), and where the
    sponsorship goes.
-3. **C3** — branch protection and CodeQL on `aontu-lang/web`. It has no
+4. **C3** — branch protection and CodeQL on `aontu-lang/web`. It has no
    workflows by design; connecting Workers Builds gave it the one check
    it does have, a real `npm ci && npm run build` on every pull request.
 
