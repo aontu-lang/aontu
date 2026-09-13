@@ -381,6 +381,7 @@ func TestTrustCliEveryVerbRefusesABadSpelling(t *testing.T) {
 		{"hash", entry},
 		{"agentsmd", entry},
 		{"set", "$.z=1", "--entry", entry, "--overlay", overlay},
+		{"mod", "tidy", root},
 	}
 	for _, tail := range tails {
 		args := append([]string{tail[0], "--trust", "everything"}, tail[1:]...)

@@ -12,7 +12,7 @@ import { computeDiagnostics, LspHandler } from '../dist/lsp'
 import {
   main as cliMain, replCommand,
   runVet, runGet, runWhy, runSubsume, runBreaking, runRelations, runTrim,
-  runHash, runAgentsMd, runSet,
+  runHash, runAgentsMd, runSet, runMod,
 } from '../dist/cli'
 
 import { srcPath } from './srcpath'
@@ -620,6 +620,7 @@ describe('trust-cli', () => {
       ['agentsmd', () => runAgentsMd([bad, 'everything', entry])],
       ['set', () => runSet(
         [bad, 'everything', '$.z=1', '--entry', entry, '--overlay', overlay])],
+      ['mod', () => runMod([bad, 'everything', 'tidy', w.root])],
     ]
     for (const [name, run] of runs) {
       const r = capture(() => Assert.equal(run(), 2, name))
