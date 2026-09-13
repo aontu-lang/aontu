@@ -1982,6 +1982,24 @@ Lowercase a string, or a run of it; **floor** of a number, keeping the argument'
 
 Example: `lower(ABC)`→`"abc"`, `lower("FOO",1,-1)`→`"Foo"`, `lower("FOOBAR",-3,-1)`→`"fooBAR"`, `lower(1.9)`→ float `1`
 
+### `lowerdecls(decls: list, profile: map) : list`
+
+Declarations as target text, one `line` node per line. A declaration
+is a `record`, `enum`, `alias`, `const` or `func`; the profile spells
+it, so one list renders to every language a profile is written for. A
+blank line separates one declaration from the next.
+
+Example: `lowerdecls([{k:"alias" name:"user_id" type:{k:"prim" prim:"string"}}], p)`
+
+### `lowerloss(decls: list, profile: map) : list`
+
+What `lowerdecls` could not carry across, for the same pair of
+arguments: a `tier`, the `construct` that lost something, the `path`
+to it and the `reason`. An empty list is a lowering that gave up
+nothing.
+
+Example: a union under a Go profile → `[{tier:1 construct:"union" ...}]`
+
 ### `map() : map`
 
 The map **kind**: admits any map, defaults to nothing. See [Container kinds](#container-kinds-map-and-list).

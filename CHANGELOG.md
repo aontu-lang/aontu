@@ -5,6 +5,45 @@ package (`ts/`, npm `aontu`) and the Go module (`go/`,
 `github.com/aontu-lang/aontu/go`) are versioned independently; entries note
 which implementation each change affects.
 
+## Unreleased
+
+### The declaration lowering is a function, and its output is a tree
+
+`lowerdecls(decls, profile)` takes a list of declarations — `record`,
+`enum`, `alias`, `const`, `func` — and a language profile, and answers
+`line` component nodes. The same list under two profiles is two
+languages from one source:
+
+```
+t: lowerdecls(%decls, %typescript)   # export interface UserAccount {
+g: lowerdecls(%decls, %go)           # type UserAccount struct {
+```
+
+The bytes are the ones `aontu render` writes for the same declarations,
+blank line between declarations included, so a generator can move from
+an `aontu:code` unit to a component tree without its output changing.
+
+`lowerloss(decls, profile)` answers what the target could not carry,
+for the same pair of arguments: a `tier`, the `construct`, the `path`
+and the `reason`. An empty list is a lowering that gave up nothing. A
+Go union, for instance, becomes `any` and says so.
+
+*Both implementations.*
+
+### A partial type form no longer spells `undefined` into a type
+
+TypeScript only, and a defect a supplied profile could reach before
+this release. A profile whose type form set some keys and not others —
+`union: {prec:1 childPrec:2}`, no `open` or `close` — read `undefined`
+for the missing ones and concatenated it:
+
+```
+export type Kind = undefinedstring | numberundefined;
+```
+
+A form that is present but partial now takes the same defaults as one
+that is absent, which is what the Go port already did.
+
 ## Go 0.1.21 — 2026-09-12 · TypeScript 0.63.0
 
 ### A component's text span may be empty, and a bare string is `content`

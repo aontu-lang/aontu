@@ -284,6 +284,30 @@ grep -q 'Placed \*string `json:"placed,omitempty"`' "$DIR/expected/render/go/dom
   || fail "the Go golden lost the optional pointer"
 ok "the schema renders as TypeScript and Go, held by render --check"
 
+# 14a. THE SAME DECLARATIONS, THE OTHER ROAD. xf-domain-cmp.aon
+# includes the transform unchanged and sends its declarations through
+# `lowerdecls` instead of a unit, so the deliverable is a component
+# tree rather than bytes aontu writes. A tree is not rendered: what is
+# held here is the bytes it carries, against the same golden, and that
+# both ports build it identically.
+$AONTU get out "$DIR/xf-domain-cmp.aon" 2>/dev/null > "$WORK/tree.json" \
+  || fail "the component spelling of xf-domain did not evaluate"
+node -e '
+  const tree = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"))
+  const out = []
+  const walk = (n) => {
+    if ("Line" === n.cmp) { out.push((n.props.indent ?? "") + (n.props.src ?? "") + "\n") }
+    else if ("Content" === n.cmp) { out.push(n.props.src ?? "") }
+    n.children.forEach(walk)
+  }
+  walk(tree)
+  process.stdout.write(out.join(""))
+' "$WORK/tree.json" > "$WORK/tree.ts" \
+  || fail "the component tree could not be walked"
+diff -u "$DIR/expected/render/domain.ts" "$WORK/tree.ts" \
+  || fail "lowerdecls carries different bytes from the aontu:code unit"
+ok "lowerdecls carries the same bytes as the declaration spelling"
+
 # 15. WHAT THE TRANSFORM DID NOT READ. `render --coverage` measures the
 # model against what the run resolved: the three record bags are the
 # schema's DATA, and a transform that walks the record TYPES consumes
@@ -320,9 +344,15 @@ if command -v go >/dev/null 2>&1; then
   diff -u "$WORK/cover.out" "$WORK/cover-go.out" \
     || fail "the two ports disagree about coverage (ADR-001)"
   ok "the Go port reports the same coverage"
+  "$GOBIN" get out "$DIR/xf-domain-cmp.aon" 2>/dev/null > "$WORK/tree.go.json" \
+    || fail "the Go port did not evaluate the component spelling"
+  diff -u "$WORK/tree.json" "$WORK/tree.go.json" \
+    || fail "the two ports build different lowered trees (ADR-001)"
+  ok "both ports lower the declarations to the same tree"
 else
   skip "the Go port renders the same bytes for both transforms (no go toolchain)"
   skip "the Go port reports the same coverage (no go toolchain)"
+  skip "both ports lower the declarations to the same tree (no go toolchain)"
 fi
 
 echo

@@ -1,7 +1,8 @@
 # Retiring `aontu:code`: the component tree as the only output
 
-**Status:** PROPOSED, 2026-09-13. Design and plan; nothing below is
-built. Status of every phase it names lives in the
+**Status:** PROPOSED, 2026-09-13; P1 LANDED the same day and §10 says
+what it cost. The rest is design and plan. Status of every phase this
+note names lives in the
 [progress register](../capability-review/progress.md), never here.
 
 **Origin:** Richard Rodger, 2026-09-13: *"Our aim is to retire and
@@ -240,15 +241,21 @@ what ADR-023's retirement sanctioned before it was itself retired.
 Being straight about this is the point of the section. Four capabilities
 go, and two of them matter.
 
-- **Loss tiers — reduced, not kept.** `render` reports tier 1 (a
-  construct the target cannot enforce, such as a `%check` with no
-  equivalent), tier 2 (a fragment where a declaration was wanted) and
-  tier 3 (text, which the target cannot vet). A function has no report
-  channel. **Argument:** `lower` refuses tier 1 as `invalid-arg` at the
-  call, where the argument is in hand and the site is the author's, and
-  tiers 2 and 3 disappear along with the fragment algebra that produced
-  them. That is a real reduction: a document can no longer ask "what
-  did this generation give up".
+- **Loss tiers — re-homed, and this note's first proposal for them was
+  wrong.** `render` reports tier 1 (a construct the target cannot
+  enforce), tier 2 (a fragment where a declaration was wanted) and
+  tier 3 (text, which the target cannot vet). This section first
+  proposed that `lower` refuse tier 1 as `invalid-arg` at the call.
+  **That is wrong, and reading the loss sites is what showed it:**
+  `ts/src/lower.ts` raises tier 1 for a reserved-word rename
+  (`class` → `class_`), a Go union falling back to `any`, a Go literal
+  type falling back to its primitive and a Go open struct — every one
+  of them a DEGRADATION THAT STILL PRODUCES VALID CODE. Refusing them
+  would turn four working features into errors. **What landed instead**
+  is a second function over the same pair of arguments: `lowerdecls`
+  answers the nodes and `lowerloss` answers the report, so a document
+  that cares can vet it and one that does not pays nothing. Tiers 2 and
+  3 disappear with the fragment algebra that produced them.
 - **The provenance trace — gone.** `RenderTrace` maps a rendered piece
   to the model node and rule that produced it. There is no verb left to
   carry it. `why` answers the neighbouring question about a value, and
@@ -340,11 +347,37 @@ option; `cmpTree` argued into the supported surface; `cmptree-gen
 --check <dir>`. Nothing on the aontu side can be deleted until
 `--check` exists here.
 
-**P1 — `lower()`.** Retarget `ln` to a `Line` node; front the existing
-lowering as a function; declare it in `test/spec/signature.tsv`; port
-`render.tsv`'s declaration rows to `lower` rows. Both ports, one spec.
-The `aontu:code` declaration schema stays, minus `%unit`, `%source`
-and `%import`.
+**P1 — `lowerdecls()` and `lowerloss()`.** LANDED; `lower` was taken by
+the case function, so the compound follows `copyfiles` and `listitems`.
+The retarget was the one helper this section predicted: `ln` builds a
+`Line` node instead of a fragment piece, and the existing lowering is
+otherwise untouched. Declared in `test/spec/signature.tsv` and pinned by
+`test/spec/lowerdecls.tsv`; the profiles in those rows are compact and
+inline, because the rows pin the FUNCTION and `aontu-profile.tsv`
+already pins the bundled profiles. The `aontu:code` declaration schema
+stays, minus `%unit`, `%source` and `%import`.
+
+*Found by the shared spec, and the Go port was right:* a type form that
+is PRESENT BUT PARTIAL — `union: {prec:1 childPrec:2}`, no `open` or
+`close` — read `undefined` in TypeScript and spelled it into the type
+(`export type Kind = undefinedstring | numberundefined;`), where Go's
+map lookup answered `""`. Reachable today through `render --profile`
+with such a profile, so it is a pre-existing defect and not this
+phase's. Fixed in the type-form lookup, TypeScript only, per AGENTS.md.
+
+**P1a — the profile by name.** `lowerdecls` takes a profile MAP, not a
+language name, because a function cannot reach the engine: resolving
+`"typescript"` means evaluating `aontu:render/lang/typescript`, and
+`val/` importing the engine is a cycle CommonJS would answer with a
+half-built module. A document therefore writes
+`@"aontu:render/lang/go"` and passes `$.aontu.render.Lang`, and a
+document wanting TWO bundled languages cannot, because the second
+include meets the first at the same path and conflicts. The fix is the
+house pattern one more time — the EVALUATED profiles inlined as data,
+beside `sigdecl.ts` and `aontumodel.ts`, with a drift test that
+evaluates the `.aon` sources and compares. Until then two languages in
+one document means writing one profile out, which `lowerdecls-two-languages`
+pins.
 
 **P2 — `resolve()`.** The whole-tree walk, the `Ref` and `Imports`
 nodes, the external-reference spelling, the unresolved-reference

@@ -89,6 +89,12 @@ than its value.
   scale absent from the value, the scale-0 point that must still be
   written, and exact VAT both ways. The convention has its own guide,
   [Carry exact money over JSON](../../docs/how-to/carry-exact-money-over-json.md).
+- `xf-domain-cmp.aon`: the same declarations, the other road. It
+  includes the transform unchanged and sends `pick($.step, d)` through
+  `lowerdecls`, which spells each declaration for a profile and
+  answers `line` component nodes. The deliverable is then a tree a
+  generator engine consumes rather than bytes `aontu render` writes,
+  and `check.sh` holds the bytes it carries to the same golden.
 - `xf-domain.aon`: the schema as code: `pack(type($.schema), …)` walks
   each record type into an `aontu:code` record whose field types come
   from `match()` over the schema's kinds, and `aontu render` lowers
@@ -316,10 +322,16 @@ rounds them, and `--canon` keeps the `0d` prefix and the exact value.
     `ledgerId` as `LedgerID`, `lines` as `[]OrderLine` and an optional
     field as `*string` with `omitempty`; the Go port renders the same
     bytes for both transforms.
+30. `aontu get out xf-domain-cmp.aon` carries the bytes of
+    `expected/render/domain.ts`: the same transform, its declarations
+    sent through `lowerdecls` instead of a unit, so the deliverable is
+    a component tree rather than bytes `aontu render` writes.
+31. Both ports lower those declarations to the same tree, byte for
+    byte.
 
 ## Running it
 
-From this directory, `./check.sh` runs all 32 assertions and exits 0.
+From this directory, `./check.sh` runs all 36 assertions and exits 0.
 It drives the TypeScript CLI (`ts/bin/aontu.js`, or the command in
 `$AONTU`), and every refusal is asserted by exit code and machine code
 rather than by error prose. Three verbs by hand:

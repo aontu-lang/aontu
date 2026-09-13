@@ -85,7 +85,7 @@ name ::=
   | "each" | "emit" | "esc" | "filter" | "greatest"
   | "hide"
   | "inverse" | "join" | "key" | "least"
-  | "length" | "listitems" | "list" | "lower" | "map" | "match" | "maybe" | "max" | "min" | "mod" | "move"
+  | "length" | "listitems" | "list" | "lowerdecls" | "lowerloss" | "lower" | "map" | "match" | "maybe" | "max" | "min" | "mod" | "move"
   | "mul" | "must"
   | "neq"
   | "open" | "pack" | "parse" | "path" | "pick" | "pref" | "refer" | "rel" | "rem" | "rep" | "re"

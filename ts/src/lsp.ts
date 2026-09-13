@@ -421,7 +421,7 @@ const BUILTIN_FUNCS = [
   'each', 'emit', 'esc',
   'file', 'filter', 'folder', 'fragment', 'greatest',
   'hide', 'inject', 'inverse', 'join', 'key', 'least', 'length', 'line',
-  'list', 'listitems', 'lower',
+  'list', 'listitems', 'lower', 'lowerdecls', 'lowerloss',
   'map', 'match', 'max', 'maybe', 'min', 'mod', 'move', 'mul', 'must', 'neq',
   'nom', 'open',
   'pack', 'parse', 'path', 'pick',

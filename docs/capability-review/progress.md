@@ -1759,6 +1759,46 @@ rather than by range, because `bnf` 0.1.11 peer-asks for `parser`
 The worked use is `aontu:system`'s `Semver`, recorded in the G4 phase 4
 row above.
 
+**BEYOND THE PHASES: the declaration lowering as a call, 2026-09-13.**
+Not a phase of the design above either, and the first step of
+[UNITS-AND-TREES.1.md](../design/UNITS-AND-TREES.1.md), which is the
+plan for retiring `aontu:code`'s unit list and making the component
+tree the only output road. Its P1: **`lowerdecls(decls, profile)`**
+takes a declaration list — `record`, `enum`, `alias`, `const`, `func` —
+and a language profile, and answers `Line` component nodes;
+**`lowerloss(decls, profile)`** answers what the target could not carry
+for the same pair. Both ports (64 -> 66 builtins), declared in
+`test/spec/signature.tsv` and pinned by `test/spec/lowerdecls.tsv`
+(22 rows, every expectation from the canonical port). **The claim the
+phase rests on is that what `aontu:code` carries is a LOWERING, and a
+lowering is a function rather than an output vocabulary** — so
+`ts/src/lower.ts` and `go/lower.go` are re-fronted rather than
+rewritten: the whole lowering already emitted through one helper,
+`ln(at, text)`, and retargeting it to a `Line` node was the change.
+The four bundled profiles are untouched. VERIFIED byte-identical
+against the unit road on a record-plus-alias document, the blank line
+between declarations included. **Two findings.** (1) **The note's own
+first proposal for loss was wrong and reading the loss sites is what
+showed it:** it said `lower` should refuse tier 1 as `invalid-arg`, but
+tier 1 covers a reserved-word rename, a Go union falling back to `any`,
+a Go literal type and a Go open struct — every one a degradation that
+still produces valid code, so refusing them would turn four working
+features into errors. `lowerloss` is what landed instead. (2) **The
+shared spec found a latent TypeScript defect and the Go port was
+right**, which is the case AGENTS.md names: a type form PRESENT BUT
+PARTIAL (`union: {prec:1 childPrec:2}`, no `open`/`close`) read
+`undefined` in TypeScript and spelled it into the type
+(`export type Kind = undefinedstring | numberundefined;`) where Go's
+map lookup answered `""`. Reachable through `render --profile` before
+this change, so pre-existing; fixed in the type-form lookup,
+TypeScript only.
+**What P1 does NOT do:** a profile is a MAP, not a language name,
+because resolving a name means evaluating a bundled module and `val/`
+importing the engine is a CommonJS cycle — so two bundled languages in
+one document still needs one profile written out. The note's P1a is
+that gap, and `render` is untouched: nothing is deleted until P0's
+jostraca-side `--check` exists.
+
 **Read before starting phase 1.** Every one of the seven parallel
 specifications behind this design was returned SERIOUS or FATAL by an
 adversarial review, and the rule layer — the heart of the XSLT
