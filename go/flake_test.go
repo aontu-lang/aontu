@@ -10,35 +10,37 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"sort"
+	"strings"
 	"testing"
 )
 
 // buildGoModule hashes the NAR serialisation of `go mod vendor` output,
-// so flake.nix's vendorHash is recomputable from the Go toolchain alone.
-// A nix build stays the ground truth: this tracks what nixpkgs hashes
-// today.
+// so vendorhash.txt is recomputable here. A nix build is the ground
+// truth.
 func TestFlakeVendorHashMatchesTheModuleTree(t *testing.T) {
-	// The tree carries no platform, and one runner avoids per-platform
-	// file-mode and line-ending noise.
+	// One runner: the tree carries no platform.
 	if "linux" != runtime.GOOS {
 		t.Skip("vendorHash is platform-independent; asserted on linux")
 	}
 
-	src, err := os.ReadFile(filepath.Join("..", "flake.nix"))
+	// Not flake.nix: Go keys the test cache on files under the package
+	// dir, so a hash a level up stays (cached) while corrupt.
+	raw, err := os.ReadFile("vendorhash.txt")
 	if err != nil {
-		t.Fatalf("read flake.nix: %v", err)
+		t.Fatalf("read vendorhash.txt: %v", err)
 	}
-	m := regexp.MustCompile(`vendorHash = "(sha256-[^"]+)"`).FindSubmatch(src)
-	if nil == m {
-		t.Fatal("flake.nix declares no vendorHash")
+	want := strings.TrimSpace(string(raw))
+	if !strings.HasPrefix(want, "sha256-") {
+		t.Fatalf("vendorhash.txt is not an SRI sha256: %q", want)
 	}
-	want := string(m[1])
 
 	dir := filepath.Join(t.TempDir(), "vendor")
-	out, err := exec.Command("go", "mod", "vendor", "-o", dir).CombinedOutput()
+	cmd := exec.Command("go", "mod", "vendor", "-o", dir)
+	// `go mod vendor` refuses to run under a contributor's go.work.
+	cmd.Env = append(os.Environ(), "GOWORK=off")
+	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("go mod vendor: %v\n%s", err, out)
 	}
@@ -48,14 +50,13 @@ func TestFlakeVendorHashMatchesTheModuleTree(t *testing.T) {
 		t.Fatalf("hash vendor tree: %v", err)
 	}
 	if want != got {
-		t.Fatalf("flake.nix vendorHash is stale after a go.mod or go.sum "+
-			"change.\n  flake.nix: %s\n  module tree: %s\n"+
-			"Set vendorHash to the second value.", want, got)
+		t.Fatalf("go/vendorhash.txt is stale after a go.mod or go.sum "+
+			"change.\n  vendorhash.txt: %s\n  module tree:    %s\n"+
+			"Write the second value into go/vendorhash.txt.", want, got)
 	}
 }
 
-// Nix archive serialisation, hashed as nix hashes a recursive output:
-// sha256 of the archive, SRI encoded.
+// Nix archive serialisation, sha256 of the archive, SRI encoded.
 func narHashSRI(root string) (string, error) {
 	h := sha256.New()
 	narStr(h, "nix-archive-1")
