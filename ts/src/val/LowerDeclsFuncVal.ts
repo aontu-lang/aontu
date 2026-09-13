@@ -48,7 +48,7 @@ function lineNode(piece: any, profile: any, ctx: AontuContext): Val {
   }
   else if ('line' === piece.k) {
     text = piece.n[0]
-    at = piece.at ?? 0
+    at = piece.at
   }
 
   const peg: Record<string, Val> = {
@@ -166,27 +166,24 @@ class LowerDeclsFuncVal extends FuncBaseVal {
 } /* node:coverage ignore next 3 */
 
 
-function lowerDeclsFuncClass(loss: boolean): any {
-  class LowerDecls extends LowerDeclsFuncVal {
-    constructor(spec: ValSpec, ctx?: AontuContext) {
-      super(loss, spec, ctx)
-    }
-
-    make(_ctx: AontuContext, spec: ValSpec): Val {
-      return new LowerDecls(spec)
-    }
+// NEITHER OVERRIDES make. FuncBaseVal calls it only where the peg is
+// not done and the peer is TOP, and stagedReady drives both arguments
+// to done before a staged func resolves at all, so an override here
+// would be unreachable.
+class LowerDeclsFunc extends LowerDeclsFuncVal {
+  constructor(spec: ValSpec, ctx?: AontuContext) {
+    super(false, spec, ctx)
   }
-  return LowerDecls
 }
 
-
-const LowerDeclsFunc = lowerDeclsFuncClass(false)
-const LowerLossFunc = lowerDeclsFuncClass(true)
+class LowerLossFunc extends LowerDeclsFuncVal {
+  constructor(spec: ValSpec, ctx?: AontuContext) {
+    super(true, spec, ctx)
+  }
+} /* node:coverage ignore next 6 */
 
 
 export {
-  DECL_KINDS,
   LowerDeclsFunc,
   LowerLossFunc,
-  LowerDeclsFuncVal,
 }

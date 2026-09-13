@@ -1,7 +1,6 @@
 import type { Val, ValSpec } from '../type';
 import { AontuContext } from '../ctx';
 import { FuncBaseVal } from './FuncBaseVal';
-declare const DECL_KINDS: string[];
 declare class LowerDeclsFuncVal extends FuncBaseVal {
     isLowerDeclsFunc: boolean;
     staged: boolean;
@@ -11,6 +10,10 @@ declare class LowerDeclsFuncVal extends FuncBaseVal {
     unify(peer: Val, ctx: AontuContext): Val;
     resolve(ctx: AontuContext, args: Val[]): Val;
 }
-declare const LowerDeclsFunc: any;
-declare const LowerLossFunc: any;
-export { DECL_KINDS, LowerDeclsFunc, LowerLossFunc, LowerDeclsFuncVal, };
+declare class LowerDeclsFunc extends LowerDeclsFuncVal {
+    constructor(spec: ValSpec, ctx?: AontuContext);
+}
+declare class LowerLossFunc extends LowerDeclsFuncVal {
+    constructor(spec: ValSpec, ctx?: AontuContext);
+}
+export { LowerDeclsFunc, LowerLossFunc, };

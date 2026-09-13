@@ -1,7 +1,7 @@
 "use strict";
 /* Copyright (c) 2026 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.LowerDeclsFuncVal = exports.LowerLossFunc = exports.LowerDeclsFunc = exports.DECL_KINDS = void 0;
+exports.LowerLossFunc = exports.LowerDeclsFunc = void 0;
 const err_1 = require("../err");
 const lower_1 = require("../lower");
 const MapVal_1 = require("./MapVal");
@@ -12,7 +12,6 @@ const FuncBaseVal_1 = require("./FuncBaseVal");
 // The kinds a profile's lowering spells. The fragment algebra's own
 // kinds are not here: a component tree states a line directly.
 const DECL_KINDS = ['record', 'enum', 'alias', 'const', 'func'];
-exports.DECL_KINDS = DECL_KINDS;
 function pad(profile, at) {
     const indent = profile.indent ?? { unit: ' ', width: 2 };
     return (indent.unit ?? ' ').repeat((indent.width ?? 2) * at);
@@ -28,7 +27,7 @@ function lineNode(piece, profile, ctx) {
     }
     else if ('line' === piece.k) {
         text = piece.n[0];
-        at = piece.at ?? 0;
+        at = piece.at;
     }
     const peg = {
         src: new StringVal_1.StringVal({ peg: text }, ctx),
@@ -120,20 +119,20 @@ class LowerDeclsFuncVal extends FuncBaseVal_1.FuncBaseVal {
         return this.place(new ListVal_1.ListVal({ peg: out }, ctx));
     }
 } /* node:coverage ignore next 3 */
-exports.LowerDeclsFuncVal = LowerDeclsFuncVal;
-function lowerDeclsFuncClass(loss) {
-    class LowerDecls extends LowerDeclsFuncVal {
-        constructor(spec, ctx) {
-            super(loss, spec, ctx);
-        }
-        make(_ctx, spec) {
-            return new LowerDecls(spec);
-        }
+// NEITHER OVERRIDES make. FuncBaseVal calls it only where the peg is
+// not done and the peer is TOP, and stagedReady drives both arguments
+// to done before a staged func resolves at all, so an override here
+// would be unreachable.
+class LowerDeclsFunc extends LowerDeclsFuncVal {
+    constructor(spec, ctx) {
+        super(false, spec, ctx);
     }
-    return LowerDecls;
 }
-const LowerDeclsFunc = lowerDeclsFuncClass(false);
 exports.LowerDeclsFunc = LowerDeclsFunc;
-const LowerLossFunc = lowerDeclsFuncClass(true);
+class LowerLossFunc extends LowerDeclsFuncVal {
+    constructor(spec, ctx) {
+        super(true, spec, ctx);
+    }
+} /* node:coverage ignore next 6 */
 exports.LowerLossFunc = LowerLossFunc;
 //# sourceMappingURL=LowerDeclsFuncVal.js.map
