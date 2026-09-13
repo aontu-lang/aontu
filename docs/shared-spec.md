@@ -24,18 +24,20 @@ name <TAB> mode <TAB> src <TAB> expect
 | column   | meaning                                                        |
 |----------|----------------------------------------------------------------|
 | `name`   | short identifier for the case (unique within its file)         |
-| `mode`   | `canon`, `gen`, `gens`, `err`, `errc`, `errcode`, `vet`, `subsume`, `query`, `why`, `patch`, `diff`, `agentsmd`, `trim`, `hcanon`, `hash`, `fmt`, `fmt-refuse`, `fmt-lint`, `graph`, `relation`, `reaches`, `view`, `views`, `render` or `template` (see below) |
+| `mode`   | `canon`, `gen`, `gens`, `err`, `errc`, `errcode`, `vet`, `subsume`, `query`, `why`, `patch`, `diff`, `agentsmd`, `trim`, `hcanon`, `hash`, `jsonschema`, `fmt`, `fmt-refuse`, `fmt-lint`, `fmt-template`, `fmt-template-lint`, `graph`, `relation`, `reaches`, `view`, `views`, `render` or `template` (see below) |
 | `src`    | aontu source text to evaluate                                  |
 | `expect` | the expected result, interpreted according to `mode`          |
 
-Seven modes take a FIFTH column. `vet` validates a data document
+Nine modes take a FIFTH column. `vet` validates a data document
 against a schema document, `subsume` compares two documents, `query`
 and `why` each select a path within one, and `patch` carries the
 overlay and the assignments as a JSON object, `diff` carries the
-second document, and `agentsmd` carries the name to call the
-document, so each has a second input: `src` is the schema (or the general document, or the
-document), the fourth column is the data (or the specific document, or
-the path), and `expect` moves to the fifth. Every other mode reads the first four columns and ignores
+second document, `agentsmd` carries the name to call the document, and
+`fmt-template` and `fmt-template-lint` each carry the marker that opens
+an aontu line, so each has a second input: `src` is the schema (or the
+general document, or the document), the fourth column is the data (or
+the specific document, or the path, or the marker), and `expect` moves
+to the fifth. Every other mode reads the first four columns and ignores
 anything after them, which is what makes the extra column additive
 rather than a format change:
 
@@ -47,6 +49,8 @@ name <TAB> why <TAB> src <TAB> path <TAB> expect
 name <TAB> patch <TAB> entry <TAB> {overlay,set} <TAB> expect
 name <TAB> diff <TAB> left <TAB> {right,at} <TAB> expect
 name <TAB> agentsmd <TAB> src <TAB> document-name <TAB> expect
+name <TAB> fmt-template <TAB> src <TAB> marker <TAB> expect
+name <TAB> fmt-template-lint <TAB> src <TAB> marker <TAB> expect
 ```
 
 ### Modes
@@ -76,9 +80,12 @@ name <TAB> agentsmd <TAB> src <TAB> document-name <TAB> expect
 | `graph` | the DERIVED GRAPH of `unify(src)` (the entity index and the edge set) must equal `expect` as JSON, and must be the same bytes again on a fresh engine |
 | `hcanon` | `unify(src)` then its HASH FORM (canon plus the `close()`/`type()`/`hide()` wrappers) must equal `expect`, and that text must round-trip through the engine unchanged |
 | `hash`  | `canonHash(unify(src))` must equal `expect`, the full `aon1-…` pin |
+| `jsonschema` | `jsonSchema(src)` must produce the report `expect` describes: the translated `schema` as JSON Schema 2020-12, the `lossy` list of what the translation could not carry, the `verdict`, and `errors` when the document does not stand up |
 | `fmt`   | `format(src)`, the source in its agreed form, must equal `expect` **byte for byte**; `expect` must be a fixed point, `format(expect) == expect`; and where `src` evaluates, the canon-hash of `src` and of `expect` must agree, because formatting never changes the document |
 | `fmt-refuse` | `format(src)` must be refused: `expect` is the verdict and the finding codes, joined by a colon and commas (`error:format_check`), so that both ports refuse the same sources; nothing is written on a refusal |
 | `fmt-lint` | `format(src, {lint: true})` must format, and its style findings, one `line:col: rule: message` per finding joined by newlines and empty when there is none, must equal `expect` |
+| `fmt-template` | five columns: `format(src, {template: marker})` must format the GENERATOR, and its text must equal `expect` byte for byte, with `expect` a fixed point under the same marker. The fourth column is the marker that opens an aontu line, so a block comment marker is as testable as a line one |
+| `fmt-template-lint` | five columns: `format(src, {template: marker, lint: true})` must format, and its style findings, in the shape `fmt-lint` pins them, must equal `expect`. What the row is for is the COLUMN a finding reports: a site is in the template, not in the document the template carries |
 
 Every mode above is dispatched by name in `ts/test/spec.test.ts` and
 mirrored by `go/spec_test.go`: the newer `vet`, `graph`, `relation`
