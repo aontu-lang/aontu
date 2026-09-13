@@ -515,9 +515,9 @@ const REPO = Path.join(__dirname, '..', '..');
 // what stops the fast local gate and the CI gate disagreeing about what
 // is banned; a phrase added there is picked up by both.
 const REJECT_FILE = Path.join(REPO, '.vale', 'styles', 'config', 'vocabularies', 'Aontu', 'reject.txt');
-// Vale reads every non-blank line as a pattern, headings included: a
-// vocabulary file has no comment syntax. A heading is inert; a line
-// that is only `#` is not, and is refused.
+// Vale reads every non-blank line as a pattern: a vocabulary file has
+// no comment syntax. A heading is inert; a line that is only `#` bans
+// the character, and is refused.
 function loadBanned() {
     const lines = Fs.readFileSync(REJECT_FILE, 'utf8')
         .split('\n')
@@ -531,7 +531,6 @@ function loadBanned() {
     return lines.map((pat) => [new RegExp(`\\b(?:${pat})\\b`, 'gi'), pat]);
 }
 const BANNED = loadBanned();
-// An emptied list leaves the phrase gate iterating nothing.
 if (0 === BANNED.length) {
     throw new Error(`${REJECT_FILE} loaded no patterns; the phrase gate is off`);
 }
@@ -562,11 +561,12 @@ function fenceless(md) {
     }
     return out.join('\n');
 }
-// The delimiter is a RUN of backticks, and it stops at a newline: an
-// unpaired one would take the lines to the next with it.
-const CODE_SPAN = /(`+)(?:[^`\n]|(?!\1)`)*\1/g;
-// A bare warning sign or arrow is text presentation; a keycap or a
-// flag sits in no symbol block.
+// The delimiter is a RUN of backticks, maximal at both ends, and stops
+// at a newline. Without either guard the match shrinks or runs on, and
+// the prose it removes was never a code span.
+const CODE_SPAN = /(?<!`)(`+)(?!`)(?:[^`\n]|(?!\1)`)*(?<!`)\1(?!`)/g;
+// A warning sign or arrow is text presentation; a keycap or a flag
+// sits in no symbol block.
 const EMOJI = /\p{Emoji_Presentation}|\uFE0F|\u20E3|[\u{1F1E6}-\u{1F1FF}]/u;
 // `I` is a pronoun only capitalised, since a lone `i` is the one in
 // `i.e.`; `my` is one however it falls. `I/O` is neither.
@@ -576,19 +576,23 @@ function firstSingular(line) {
     const found = line.match(FIRST_I) || line.match(FIRST_MY);
     return found ? found[0] : null;
 }
-// A sentence can close its markup after the mark; `!=` ends nothing.
-const EXCLAMATION = /\w!(?=[*_"'\u2019\u201d)\]]*(?:\s|$))/gm;
+// Every mark except `!=` and the `!` opening an image.
+const EXCLAMATION = /!(?![=[])/g;
+// A span that wraps once, which CODE_SPAN's newline bound leaves whole.
+// The newline is kept, so a reported line still points at the author's.
+const CODE_WRAP = /(?<!`)(`+)(?!`)[^`\n]*\n[^`\n]*(?<!`)\1(?!`)/g;
 function prose(md) {
     return fenceless(md)
         .replace(/^---\n[\s\S]*?\n---\n/, '')
         .replace(/<!--[\s\S]*?-->/g, '')
-        .replace(CODE_SPAN, '');
+        .replace(CODE_SPAN, '')
+        .replace(CODE_WRAP, (m) => m.replace(/[^\n]/g, ''));
 }
 // Markdown needs no blank line before a block, so `## Something worth`
-// above `noting this` joined and reported `worth noting`. A heading, a
-// table row and a rule close as well as open.
-const OPENS = /^\s*(?:[-*+] |\d+[.)] |#{1,6} |>|\||`{3,}|~{3,})/;
-const CLOSES = /^\s*(?:#{1,6} |\||(?:[-*_] *){3,}$)/;
+// above `noting this` joined and reported `worth noting`. A heading,
+// table row and rule close as well as open.
+const OPENS = /^\s*(?:[-*+] |\d+[.)] |#{1,6} |>|\|[^|]*\||`{3,}|~{3,})/;
+const CLOSES = /^\s*(?:#{1,6} |\|[^|]*\||(?:[-*_] *){3,}$)/;
 function logical(text) {
     const out = [];
     let pieces = [];
@@ -838,6 +842,9 @@ function stylePaths() {
         };
         claim('' === '``a `b` c``'.replace(CODE_SPAN, ''), 'multi-backtick span');
         claim('x  y' === 'x `my` y'.replace(CODE_SPAN, ''), 'single-backtick span');
+        claim('````not just```' === '````not just```'.replace(CODE_SPAN, ''), 'a shorter closing run is not a code span');
+        claim('a \n b' === 'a `x !(y ==\nz)` b'.replace(CODE_SPAN, '')
+            .replace(CODE_WRAP, (m) => m.replace(/[^\n]/g, '')).replace(/ +/g, ' '), 'a span that wraps once is still a span');
         claim('an odd ` mark\nand my line' ===
             'an odd ` mark\nand my line'.replace(CODE_SPAN, ''), 'an unpaired backtick does not swallow the next line');
         for (const text of ['\u26A0', '\u2713', '\u2194', '\u2020']) {
@@ -855,11 +862,14 @@ function stylePaths() {
         const bang = (text) => (text.match(EXCLAMATION) || []).length;
         claim(1 === bang('It works **now!** Next'), 'mark before bold close');
         claim(1 === bang('He said "Done!" then'), 'mark before a quote');
+        claim(1 === bang('Really?!'), 'mark after another mark');
+        claim(2 === bang('Great!!'), 'two marks are two marks');
         claim(0 === bang('if (a != b)'), '!= is an operator');
         claim(0 === bang('![alt](src)'), 'an image is not a mark');
         const joins = (md, phrase) => logical(md).some((para) => para.text.includes(phrase));
         claim(!joins('## Something worth\nnoting this', 'worth noting'), 'a heading is not the paragraph under it');
         claim(!joins('| a | worth |\n| noting | b |', 'worth | | noting'), 'a table row is not the row above it');
+        claim(joins('| This explanation is worth\nnoting here', 'worth noting'), 'one pipe is a sentence, not a table row');
         claim(joins('a sentence worth\nnoting here', 'worth noting'), 'a wrapped paragraph still joins');
         claim(joins('- an item worth\n  noting here', 'worth noting'), 'a wrapped list item still joins');
         const banned = (text) => BANNED.some(([re]) => {
