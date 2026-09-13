@@ -131,9 +131,9 @@ the divergence ledger, `Accepted`/`Superseded` in the ADR register).
 ## Summary
 
 Seventy-two of the seventy-five phases in the table below have moved;
-sixty-three of those are complete, three are partial, four were landed
-and then superseded, retired or removed by an ADR, and two were retired
-by an ADR before they started. G5 phase 6 is
+sixty-three of those are complete, three are partial, three were landed
+and then superseded, retired or removed by an ADR, and three were
+retired by an ADR before they started. G5 phase 6 is
 deliberately held for the next major release, a release act rather
 than an engineering one. **G9 phase 0 became partial on 2026-08-30
 without this register saying so**: #99 fixed two of its four named
@@ -163,10 +163,12 @@ the fix was and why the earlier tests could not see the defect.
 | | | **total** | **63** | **3** | **3** | **6** |
 
 *Retired* counts the rows whose status is SUPERSEDED, RETIRED or
-REMOVED — G4.0 and G4.1 (ADR-014), G8.4 (ADR-018), G10.5 (ADR-019),
-and G9.5 and G9.8 (ADR-023, retired before they started; G9.7 was
-retired with them and LANDED on 2026-09-11, so it counts on the other
-side and ADR-023 is itself retired). A
+REMOVED, and they fall on two sides. Three landed first — G4.0 and
+G4.1 (ADR-014), G8.4 (ADR-018). Three were retired before any of them
+was built — G10.5 (ADR-019, whose log service "will not be built"),
+and G9.5 and G9.8 (ADR-023, each recorded as "Nothing was built";
+G9.7 was retired with them and LANDED on 2026-09-11, so it counts on
+the other side and ADR-023 is itself retired). A
 phase that landed and was then taken out by an ADR is neither landed
 nor not started — nor is one an ADR closed before any of it was built
 — and until 2026-09-05 this table
