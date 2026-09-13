@@ -1824,7 +1824,7 @@ $.services.auth.replicas = 3
   *inside* one written value, which meet at the same path as that
   value resolves. A **conjunct** is the exception in the other
   direction: `a & b`, or the merge of two duplicate keys, is the
-  statement that several separately-written values must all hold, so
+  statement that several separately written values must all hold, so
   it expands into one contribution each.
 - **Roles**: `literal`, `spread` (a template applied to this key),
   `ref` (the reference itself, whose canon names its target) and
@@ -2409,7 +2409,7 @@ aontu hash [--form] [--format text|json] <file.aon>
 - The hash is
   `"aon1-" + base64url(SHA-256(UTF-8(hcanon(unify(file)))))`, where
   `hcanon` is the **hash form**: see below. `aon1-` is a scheme id, so
-  a future semantically-stronger normal form is an upgrade rather than
+  a future semantically stronger normal form is an upgrade rather than
   a breakage.
 - The document is evaluated **standalone**: its own `@"file"` closure
   resolved and unified at its own root, before any consumer context.

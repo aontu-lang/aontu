@@ -4759,7 +4759,7 @@ Five things to know before writing one:
 - **The refusals are deliberate.** More than one alternative, a member
   count that does not match the parts, a duplicate member name, and a
   leading member whose own rule builds a value are all refused where the
-  grammar is declared rather than built into a differently-shaped value.
+  grammar is declared rather than built into a differently shaped value.
 
 **Either builder nests inside the other.** An `@array` is a member of
 an `@object`, an element of another `@array`, or an object's only
