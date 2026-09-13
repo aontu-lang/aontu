@@ -33,15 +33,22 @@ class AbnfFuncVal extends FuncBaseVal_1.FuncBaseVal {
     }
 }
 exports.AbnfFuncVal = AbnfFuncVal;
+// A tree node is just the map {rule, src, kids}, so it needs no case of
+// its own. Keys are sorted so both ports build the same member order.
 function astVal(node, ctx) {
-    const kids = node.kids.map((k, i) => astVal(k, ctx.descend('kids').descend(String(i))));
-    return new MapVal_1.MapVal({
-        peg: {
-            rule: new StringVal_1.StringVal({ peg: node.rule }, ctx),
-            src: new StringVal_1.StringVal({ peg: node.src }, ctx),
-            kids: new ListVal_1.ListVal({ peg: kids }, ctx),
-        }
-    }, ctx);
+    if ('string' === typeof node) {
+        return new StringVal_1.StringVal({ peg: node }, ctx);
+    }
+    if (Array.isArray(node)) {
+        return new ListVal_1.ListVal({
+            peg: node.map((e, i) => astVal(e, ctx.descend(String(i)))),
+        }, ctx);
+    }
+    const peg = {};
+    for (const k of Object.keys(node).sort()) {
+        peg[k] = astVal(node[k], ctx.descend(k));
+    }
+    return new MapVal_1.MapVal({ peg }, ctx);
 }
 class ParseFuncVal extends FuncBaseVal_1.FuncBaseVal {
     constructor(spec, ctx) {

@@ -94,3 +94,56 @@ shape-selects-one-field-by-rule	gens	G: hide(abnf("media = \\"@\\" type \\"/\\" 
 shape-a-repetition-is-one-child-each	gens	G: hide(abnf("dur = \\"P\\" seg *seg\\nseg = num unit\\nnum = 1*DIGIT\\nunit = \\"h\\" / \\"m\\" / \\"s\\"\\nDIGIT = %x30-39\\n"))\nt: hide(parse($.G, "P1h30m45s"))\nsegs: pick($.t.kids, src)	{"segs":["1h","30m","45s"]}
 # The classic dotted quad, four children of one rule.
 shape-a-dotted-quad	gens	G: hide(abnf("ip = \\"#\\" o \\".\\" o \\".\\" o \\".\\" o\\no = 1*3DIGIT\\nDIGIT = %x30-39\\n"))\nt: hide(parse($.G, "#192.168.0.1"))\noctets: pick($.t.kids, src)	{"octets":["192","168","0","1"]}
+#
+# VALUE ANNOTATIONS -- a grammar says what it BUILDS (ADR-033, amended
+# 2026-09-12). A trailing RFC 5234 comment on a production names the
+# shape: `; @object <names...>` one member per part that produces a
+# value, `; @array` every such part as an element in order. The
+# annotation is about the OUTPUT only -- delete every one and the same
+# inputs parse, which is what the unannotated rows above still pin.
+parse-object-answers-a-map	gens	G: hide(abnf(`\nver = maj "." min "." pat   ; @object maj min pat\nmaj = 1*DIGIT\nmin = 1*DIGIT\npat = 1*DIGIT\nDIGIT = %x30-39\n`))\na: parse($.G, "1.2.30")	{"a":{"maj":"1","min":"2","pat":"30"}}
+parse-array-answers-a-list	gens	G: hide(abnf(`\npair = a "," b   ; @array\na = 1*DIGIT\nb = 1*ALPHA\nALPHA = %x61-7A\nDIGIT = %x30-39\n`))\na: parse($.G, "1,xy")	{"a":["1","xy"]}
+# A part whose own rule is annotated NESTS, so shapes compose.
+parse-object-nests-an-annotated-member	gens	G: hide(abnf(`\ntop = name "=" inner   ; @object name inner\nname = 1*ALPHA\ninner = maj "." min   ; @object maj min\nmaj = 1*DIGIT\nmin = 1*DIGIT\nALPHA = %x61-7A\nDIGIT = %x30-39\n`))\na: parse($.G, "ab=1.2")	{"a":{"inner":{"maj":"1","min":"2"},"name":"ab"}}
+parse-array-of-objects	gens	G: hide(abnf(`\nlist = "[" item *( "," item ) "]"   ; @array\nitem = k "=" v   ; @object k v\nk = 1*ALPHA\nv = 1*DIGIT\nALPHA = %x61-7A\nDIGIT = %x30-39\n`))\na: parse($.G, "[a=1,b=2]")	{"a":[{"k":"a","v":"1"},{"k":"b","v":"2"}]}
+# A repetition contributes one element per item, so a list comes out a
+# list rather than the run's text.
+parse-array-collects-a-repetition	gens	G: hide(abnf(`\nlist = item *( "," item )   ; @array\nitem = 1*DIGIT\nDIGIT = %x30-39\n`))\na: parse($.G, "1,2,3")	{"a":["1","2","3"]}
+# THE ANNOTATION ANSWERS THE LEADING FOLD. `shape-a-leading-field-loses-
+# its-name` above needs a leading terminal to keep `maj` addressable;
+# naming the members keeps it with no terminal at all.
+parse-annotation-keeps-the-leading-field	gens	G: hide(abnf(`\nver = maj "." min "." pat   ; @object maj min pat\nmaj = 1*DIGIT\nmin = 1*DIGIT\npat = 1*DIGIT\nDIGIT = %x30-39\n`))\nt: hide(parse($.G, "1.2.30"))\nfirst: $.t.maj	{"first":"1"}
+# The empty cases, which follow from "names one member per part": a run
+# that matched nothing contributes nothing, and an absent option is the
+# empty string rather than a missing key.
+parse-array-of-an-empty-run-is-empty	gens	G: hide(abnf(`\ntop = "x" *i   ; @array\ni = 1*DIGIT\nDIGIT = %x30-39\n`))\na: parse($.G, "x")	{"a":[]}
+parse-object-naming-nothing-is-an-empty-map	gens	G: hide(abnf(`\ntop = "x"   ; @object\n`))\na: parse($.G, "x")	{"a":{}}
+parse-object-absent-option-member-is-empty-text	gens	G: hide(abnf(`\ns = m "." n [ "-" p ]   ; @object m n p\nm = 1*DIGIT\nn = 1*DIGIT\np = 1*ALPHA\nALPHA = %x61-7A\nDIGIT = %x30-39\n`))\na: parse($.G, "1.2")	{"a":{"m":"1","n":"2","p":""}}
+# EVERY LEAF IS STILL TEXT. The annotation chooses the CONTAINER; there
+# is no scalar form, so a digit run is the string it matched and meeting
+# a number refuses.
+parse-a-built-leaf-is-still-text	gens	G: hide(abnf(`\nver = maj "." min   ; @object maj min\nmaj = 1*DIGIT\nmin = 1*DIGIT\nDIGIT = %x30-39\n`))\nt: hide(parse($.G, "1.30"))\na: $.t.min & "30"	{"a":"30"}
+parse-a-built-leaf-does-not-meet-a-number	errc	G: hide(abnf(`\nver = maj "." min   ; @object maj min\nmaj = 1*DIGIT\nmin = 1*DIGIT\nDIGIT = %x30-39\n`))\nt: hide(parse($.G, "1.30"))\na: $.t.min & 30	scalar_kind
+# The CONSTRAINT form is unmoved: it never builds the value, so an
+# annotated grammar checks exactly as an unannotated one does.
+parse-constraint-admits-under-an-annotated-grammar	gens	G: hide(abnf(`\nver = maj "." min   ; @object maj min\nmaj = 1*DIGIT\nmin = 1*DIGIT\nDIGIT = %x30-39\n`))\na: "1.2" & parse($.G)	{"a":"1.2"}
+# THE REFUSALS ARE THE DESIGN. Several rewrites happen between the rule
+# the author wrote and the parser emitted; where one would make the
+# annotation describe something else, the compile fails at the
+# DECLARATION rather than building a differently-shaped value.
+abnf-refuses-an-annotation-with-two-alternatives	errc	a: abnf(`\nv = a / b   ; @object x\na = 1*DIGIT\nb = 1*ALPHA\nALPHA = %x61-7A\nDIGIT = %x30-39\n`)	abnf_grammar
+abnf-refuses-a-member-count-that-does-not-match	errc	a: abnf(`\nv = a "." b   ; @object a\na = 1*DIGIT\nb = 1*DIGIT\nDIGIT = %x30-39\n`)	abnf_grammar
+abnf-refuses-a-leading-member-that-builds-a-value	errc	a: abnf(`\nlist = item *( "," item )   ; @array\nitem = k "=" v   ; @object k v\nk = 1*ALPHA\nv = 1*DIGIT\nALPHA = %x61-7A\nDIGIT = %x30-39\n`)	abnf_grammar
+abnf-refuses-a-duplicate-member-name	errc	a: abnf(`\ntop = a b   ; @object value value\na = 1*ALPHA\nb = 1*DIGIT\nALPHA = %x61-7A\nDIGIT = %x30-39\n`)	abnf_grammar
+# A RULE THAT BUILDS A VALUE CONTRIBUTES NO TEXT to whatever contains
+# it: the object lands in `kids` where you expect, and the enclosing
+# node's `src` is short of it. Mixing the two is supported; just do not
+# read `src` on a node that contains an annotated rule.
+parse-a-value-building-rule-contributes-no-text	gens	G: hide(abnf(`\ndoc = head ":" body\nhead = 1*ALPHA\nbody = d   ; @object d\nd = 1*DIGIT\nALPHA = %x61-7A\nDIGIT = %x30-39\n`))\nt: hide(parse($.G, "ab:7"))\nsrc: $.t.src\ninner: $.t.kids.2	{"inner":{"d":"7"},"src":"ab:"}
+# A NESTED `; @array` -- the three shapes that were out of parity until
+# @tabnas/parser 0.9.7 (tabnas/abnf#63). Go dropped the member, added a
+# spurious leading element, or answered a list where a map was asked
+# for. These rows go red against the older pins.
+parse-array-nests-in-an-object	gens	G: hide(abnf(`\ntop = "@" a b   ; @object a b\na = 1*ALPHA\nb = "[" x *( "," x ) "]"   ; @array\nx = 1*DIGIT\nALPHA = %x61-7A\nDIGIT = %x30-39\n`))\na: parse($.G, "@ab[1,2]")	{"a":{"a":"ab","b":["1","2"]}}
+parse-array-nests-in-an-array	gens	G: hide(abnf(`\ntop = "<" b *( ";" b ) ">"   ; @array\nb = "[" x *( "," x ) "]"   ; @array\nx = 1*DIGIT\nDIGIT = %x30-39\n`))\na: parse($.G, "<[1,2];[3]>")	{"a":[["1","2"],["3"]]}
+parse-array-is-an-objects-only-member	gens	G: hide(abnf(`\ntop = "@" b   ; @object b\nb = "[" x *( "," x ) "]"   ; @array\nx = 1*DIGIT\nDIGIT = %x30-39\n`))\na: parse($.G, "@[1,2]")	{"a":{"b":["1","2"]}}

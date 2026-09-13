@@ -67,7 +67,7 @@ rep(s: string, text p: string, text sub: string) : string
 split(s: string, sep: string|constraint) : list
 emit(s: map|list, template t: map|list) : list
 abnf(g: string) : string
-parse(g: string, v?: string) : map|constraint
+parse(g: string, v?: string) : map|list|constraint
 nom(name: string, style?: string|list, acronyms?: list) : string|map
 translate(s: string, from: string, to?: string) : string
 project(spec?: string|map, children?: list) : map

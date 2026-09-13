@@ -1703,11 +1703,49 @@ also pin the one shape rule a grammar author must know -- a
 production's leading element folds into the parent, so its field loses
 its name unless the production starts with a terminal -- which is
 identical in both engines and therefore the compiler's property, not a
-parity break. Reaching the engine's own value builders (`@object$`,
-`@array$`, `@push$`, `@setval$`, `@value$`) would answer that and the
-text-only leaves together, and no ABNF front-end path reaches them in
-either port; the upstream request is
-[GRAMMAR-SHAPE.0.md](../design/GRAMMAR-SHAPE.0.md). The
+parity break. **2026-09-12: A GRAMMAR NOW SAYS WHAT IT BUILDS, in both
+ports** ([ADR-033](../../ADR.md#adr-033--a-grammar-is-a-string-and-parsing-is-a-function),
+amended). The upstream request
+[GRAMMAR-SHAPE.0.md](../design/GRAMMAR-SHAPE.0.md) was answered by
+`@tabnas/abnf` 0.4.11 as a VALUE ANNOTATION carried in an RFC 5234
+comment — `; @object maj min pat` names one member per part that
+produces a value, `; @array` takes every such part as an element — with
+0.4.12 completing it for repetitions. All three pins moved, exactly and
+identically in both ports (`abnf` 0.4.13, `parser` 0.9.7, `bnf`
+0.1.15); the `path($.z.x.a)` regression that forced the exact 0.9.0 pin
+is gone at 0.9.6. `astVal` is now a value converter in both
+(`ts/src/val/AbnfFuncVal.ts`, `go/abnf.go`) — a tree node is just the
+map `{rule, src, kids}`, so string, list and map are the whole function
+and the tree needs no case of its own, with keys sorted because Go
+ranges a map in no order. `parse` is declared `map|list|constraint`.
+Nineteen rows in `test/spec/abnf.tsv`, every expectation from the parity
+probe; the `shape-*` rows are unannotated and UNCHANGED, which is what
+pins the opt-in. Reference:
+[A grammar can say what it builds](../reference-language.md#a-grammar-can-say-what-it-builds).
+**Three departures worth reading.** (1) The Go host answers a built map
+as its own `*tabnas.OrderedMap` while a tree node is a plain map, so
+`go/grammar.go` flattens at the seam (`plain`) rather than teaching
+`astVal` a host type — ADR-003 applied literally, and what keeps the two
+`astVal`s twins. (2) The leading fold is ANSWERED, not removed: naming a
+member keeps it, and where the fold would erase an annotated value the
+compile REFUSES with a diagnostic naming the rule. (3) **The probe caught a
+real upstream defect before a row was written.** A nested `; @array` —
+an `@array` as a member of an `@object`, an element of another
+`@array`, or an object's only member — was dropped, duplicated, or
+answered the wrong KIND in Go, so two candidate rows were REJECTED
+rather than baselined. The fault was `@tabnas/parser`'s Go `@push$`
+re-publishing a grown slice header to its parent unconditionally, which
+overwrote the enclosing map or list; filed as
+[tabnas/abnf#63](https://github.com/tabnas/abnf/issues/63), fixed in
+[tabnas/parser#169](https://github.com/tabnas/parser/pull/169), and
+released as `parser` 0.9.7 / `abnf` 0.4.13 — which is what the pins
+above require. All three shapes carry rows now, and the ledger entry is
+gone. **Still
+wanted:** the scalar annotation, so a leaf can be a number rather than
+its text — `@value$` is reachable from `@tabnas/bnf` and named by no
+ABNF grammar, so `"30"` is still a string. The whole landing, with the
+measurements, is
+[GRAMMAR-SHAPE.1.md](../design/GRAMMAR-SHAPE.1.md). The
 parse is BOUNDED at 100 000 steps through the host engine's
 cancellation hook, for the reason `re()` carries the ReDoS guard: a
 grammar is strictly more expressive than the pattern subset that guard

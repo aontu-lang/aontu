@@ -60,7 +60,8 @@ the [Explanation](explanation.md).
 - [Errors](#errors)
 - [Grammars: `abnf()` and `parse()`](#grammars-abnf-and-parse)
   - [A grammar reads better in backticks](#a-grammar-reads-better-in-backticks)
-  - [Shaping the tree](#shaping-the-tree)
+  - [A grammar can say what it builds](#a-grammar-can-say-what-it-builds)
+  - [Shaping an unannotated tree](#shaping-an-unannotated-tree)
 - [The constraint algebra](#the-constraint-algebra)
   - [Named constraint aliases](#named-constraint-aliases)
 
@@ -2059,9 +2060,9 @@ One keyed child per child of `d`, each of them `t` cloned at that destination. K
 
 Example: `deploy: pack($.names, {replicas:*2|integer})`
 
-### `parse(g: string, v?: string) : map|constraint`
+### `parse(g: string, v?: string) : map|list|constraint`
 
-Parse a string under a grammar and answer the syntax tree. With no value, the grammar as a **constraint** on whatever meets it, answering that value unchanged. A failure to parse is a failure to unify. See [grammars](#grammars-abnf-and-parse).
+Parse a string under a grammar and answer what the grammar says it builds: the syntax tree, or the map or list a **value annotation** asks for. With no value, the grammar as a **constraint** on whatever meets it, answering that value unchanged. A failure to parse is a failure to unify. See [grammars](#grammars-abnf-and-parse).
 
 Example: `parse($.G, "12")` → `{rule:"v" src:"12" kids:[...]}`; `*"" | parse($.G)`
 
@@ -4636,7 +4637,115 @@ is a list of rules, and ABNF ignores a blank line. The bundled
 grammars with `\n` escapes, because its text is held in a raw string
 literal in each port and a raw string cannot contain a backtick.
 
-### Shaping the tree
+### A grammar can say what it builds
+
+The tree is the default, not the only answer. A **value annotation**, a
+trailing comment on a production, says what that rule should build
+instead. Write this as `build.aon`:
+
+<!-- test: scenario abnf-build -->
+<!-- test: file build.aon -->
+```aon
+G: hide(
+  abnf(
+    `
+ver = maj "." min "." pat   ; @object maj min pat
+maj = 1*DIGIT
+min = 1*DIGIT
+pat = 1*DIGIT
+DIGIT = %x30-39
+`
+  )
+)
+
+v: parse($.G, "1.2.30")
+```
+
+<!-- test: run -->
+```sh
+$ aontu build.aon
+{
+  "v": {
+    "maj": "1",
+    "min": "2",
+    "pat": "30"
+  }
+}
+```
+
+Nothing in `1.2.30` spells `maj`. The keys come from the comment, and
+`; @object` names one member per part of the rule that produces a value:
+a rule reference, a group or a repetition. A literal produces nothing
+and is never named, which is why `"."` is not a member and three
+references take three names.
+
+**`; @array` names nothing** and takes every part that produces a value
+as an element, in order. Shapes compose, because a part whose own rule
+is annotated is assigned whole. Write this as `list.aon`:
+
+<!-- test: scenario abnf-list -->
+<!-- test: file list.aon -->
+```aon
+G: hide(
+  abnf(
+    `
+list = "[" entry *( "," entry ) "]"   ; @array
+entry = key "=" val   ; @object key val
+key = 1*ALPHA
+val = 1*DIGIT
+ALPHA = %x61-7A
+DIGIT = %x30-39
+`
+  )
+)
+
+entries: parse($.G, "[width=10,height=20]")
+```
+
+<!-- test: run -->
+```sh
+$ aontu list.aon
+{
+  "entries": [
+    {
+      "key": "width",
+      "val": "10"
+    },
+    {
+      "key": "height",
+      "val": "20"
+    }
+  ]
+}
+```
+
+A repetition contributes one element per item, so a list comes out a
+list rather than the run's matched text.
+
+Five things to know before writing one:
+
+- **It is about the output, never the language.** A comment is the one
+  place in RFC 5234 that carries no meaning of its own, so delete every
+  annotation and the same inputs parse. You get the tree back.
+- **Every leaf is still text.** The annotation chooses the container,
+  and there is no scalar form, so `"30"` is a string and stays one.
+- **The leading fold is answered, not removed.** Naming a member keeps
+  it, so the `"v"` the next section needs is unnecessary here. Where the
+  fold would erase a member's own built value the compile is REFUSED,
+  with a diagnostic naming the rule and what to write instead.
+- **A rule that builds a value contributes no text** to whatever
+  contains it. Mixing the two is supported; just do not read `src` on a
+  node that contains an annotated rule.
+- **The refusals are deliberate.** More than one alternative, a member
+  count that does not match the parts, a duplicate member name, and a
+  leading member whose own rule builds a value are all refused where the
+  grammar is declared rather than built into a differently-shaped value.
+
+**Either builder nests inside the other.** An `@array` is a member of
+an `@object`, an element of another `@array`, or an object's only
+member, and answers the same value in both engines.
+
+### Shaping an unannotated tree
 
 The answer is the RAW tree, so a document that wants natural structure
 builds it with the language's own verbs. Three do the work:
@@ -4697,11 +4806,11 @@ field keeps its name. Both engines do this identically, so it is a
 property of the grammar compiler rather than a difference between the
 ports.
 
-One more limit follows from reading a tree rather than a value: every
-leaf is the **text** the rule matched, so `"30"` is a string and stays
-one, and nothing here turns it into `30`. Naming the engine's own value
-builders from the grammar would answer that and the fold above together,
-and the grammar compiler cannot yet express them as data.
+Both limits belong to the tree, and the annotation above answers the
+first: name the members and the leading field keeps its name with no
+terminal in front of it. The second it does not answer. Every leaf is
+the **text** the rule matched, so `"30"` is a string under either
+spelling, and nothing turns it into `30`.
 
 ## The constraint algebra
 

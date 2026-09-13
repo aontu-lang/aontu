@@ -1,6 +1,6 @@
 {
   "name": "aontu",
-  "version": "0.62.0",
+  "version": "0.63.0",
   "main": "dist/aontu.js",
   "type": "commonjs",
   "types": "dist/aontu.d.ts",
@@ -64,8 +64,8 @@
     "LICENSE"
   ],
   "dependencies": {
-    "@tabnas/abnf": "0.4.7",
-    "@tabnas/bnf": "0.1.10",
+    "@tabnas/abnf": "0.4.13",
+    "@tabnas/bnf": "0.1.15",
     "@tabnas/debug": "0.3.2",
     "@tabnas/directive": "0.5.2",
     "@tabnas/expr": "0.5.5",
@@ -75,7 +75,7 @@
     "@tabnas/jsonc": "0.5.6",
     "@tabnas/jsonic": "0.6.2",
     "@tabnas/multisource": "0.5.2",
-    "@tabnas/parser": "0.9.0",
+    "@tabnas/parser": "0.9.7",
     "@tabnas/path": "0.3.2",
     "@tabnas/toml": "0.5.7",
     "@tabnas/yaml": "0.5.7"

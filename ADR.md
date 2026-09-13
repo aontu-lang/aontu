@@ -3195,7 +3195,8 @@ Nothing re-adds their prose, and nothing now checks it.
 
 **Date:** 2026-09-09
 **Status:** Accepted *(Amended 2026-09-10: the one-argument constraint
-form, and `Semver` rebuilt on it.)*
+form, and `Semver` rebuilt on it. Amended 2026-09-12: a grammar may now
+choose its own output shape, so `parse(g, v)` answers a map OR a list.)*
 
 ### Context
 
@@ -3270,26 +3271,35 @@ itself.
   for `parser` 0.9.1, and 0.9.1 regresses `path($.z.x.a)` in
   TypeScript alone (it captures `.x.a`), which ADR-001 makes fatal.
   A range would have let a fresh install cross that line silently.
-- **The answer is the RAW AST**, which is verbose and whose `src` is
-  the concatenation of matched tokens rather than a slice of the input.
-  Shaping it is the next step and it needs the host compiler to grow
-  one thing: `ActionsMap` values are host callbacks today, so nothing
-  connects an ABNF production to the engine's own native-value builders
-  (`@array$`, `@push$`, `@object$`). A document cannot write a
-  callback, so until a builtin can be named as DATA the output shape is
-  not something a `.aon` file can choose.
-- **Shaping the tree is the LANGUAGE's job, for now.** `pick` projects
-  one field of every child, `filter` selects children by rule, `join`
-  folds a one-element selection back to a scalar; five small grammars
-  work it through in the reference and the `shape-*` rows pin it. Two
-  limits are recorded rather than worked around: a production's leading
-  element folds into the parent (so its field loses its name unless the
-  production starts with a terminal), and every leaf is the TEXT the
-  rule matched, so `"30"` never becomes `30`. Both are identical in the
-  two engines, so both are properties of the grammar compiler. The fix
-  belongs upstream, in the ABNF front-end, which alone knows its own
-  desugaring: the request is
-  [GRAMMAR-SHAPE.0.md](docs/design/GRAMMAR-SHAPE.0.md).
+- **The answer is what the GRAMMAR says it is** (amended 2026-09-12).
+  An unannotated production still answers the raw AST, verbose and with
+  `src` the concatenation of matched tokens rather than a slice of the
+  input. A production carrying a **value annotation** — a trailing RFC
+  5234 comment, `; @object <names…>` or `; @array` — answers the map or
+  list it names instead, built by the engine's own native-value builders
+  (`@object$`, `@array$`, `@key$`, `@setval$`, `@push$`). The original
+  consequence here said a document could not choose the output shape
+  until a builtin could be named as DATA. That is what
+  [GRAMMAR-SHAPE.0.md](docs/design/GRAMMAR-SHAPE.0.md) asked upstream
+  for and what `@tabnas/abnf` 0.4.11 delivered: the compiled grammar
+  names the builders and carries no closures, so a document chooses its
+  shape by writing a comment.
+- **The annotation is about the OUTPUT, never the language.** A comment
+  is the one place in RFC 5234 that carries no meaning of its own, so
+  deleting every annotation leaves the same inputs parsing and gives the
+  tree back. That is a compatibility commitment: the `shape-*` rows are
+  unannotated and unchanged.
+- **Shaping an unannotated tree is still the LANGUAGE's job.** `pick`
+  projects one field of every child, `filter` selects children by rule,
+  `join` folds a one-element selection back to a scalar; the `shape-*`
+  rows pin it. Two limits went with it and only one is gone: a
+  production's leading element folds into the parent, so an unannotated
+  field loses its name unless the production starts with a terminal —
+  an annotation names the member and keeps it, and where the fold would
+  erase an annotated value the compile REFUSES rather than mis-building.
+  Every leaf is still the TEXT the rule matched, so `"30"` never
+  becomes `30`: the annotation chooses the container and there is no
+  scalar form. That is the remaining upstream ask.
 - **A parser is a constraint, and it is not a TRANSFORMING one.**
   `parse(g)` preserves its peer, as every other atom in the algebra
   does, which is what keeps it idempotent and order-independent under

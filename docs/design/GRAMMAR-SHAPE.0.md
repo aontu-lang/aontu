@@ -2,7 +2,11 @@
 
 **Status:** an UPSTREAM REQUEST against `@tabnas/abnf` (and
 `github.com/tabnas/abnf/go`), written from aontu's side. Nothing here is
-a change to aontu.
+a change to aontu. **ANSWERED 2026-09-12** — `@tabnas/abnf` 0.4.11
+carries the request as a value annotation in an RFC 5234 comment, and
+0.4.12 completes it for repetitions. §8 says what arrived and what did
+not; the aontu-side review is
+[GRAMMAR-SHAPE.1.md](GRAMMAR-SHAPE.1.md).
 
 **Date:** 2026-09-10
 **Against:** `@tabnas/parser` 0.9.0, `@tabnas/abnf` 0.4.7, `@tabnas/bnf`
@@ -181,8 +185,40 @@ tn.parse('1.2.30').kids.map((k) => k.rule)   // ['DIGIT','min','pat']
 aontu ships the tree and shapes it in the language: `pick` projects one
 field of every child, `filter` selects children by rule, `join` folds a
 one-element selection back to a scalar. That is documented under
-["Shaping the tree"](../reference-language.md#shaping-the-tree) and
+["Shaping an unannotated tree"](../reference-language.md#shaping-an-unannotated-tree)
+and
 pinned by the `shape-*` rows in `test/spec/abnf.tsv`, including a row
 for the leading fold so the limit is recorded rather than worked around
 silently. It reads acceptably and it costs a walk per field, and it
 cannot answer §4.2 at all: a version part stays `"30"`, never `30`.
+
+## 8. What arrived
+
+`@tabnas/abnf` 0.4.11 answered §5 with a value annotation carried in a
+trailing RFC 5234 comment, and 0.4.12 made a repetition collect into
+one. Two words: `; @object <names…>` names one member per part that
+produces a value, and `; @array` names nothing and takes every such
+part as an element. Values nest, and the output is pure data.
+
+Against the four guarantees §5 asked for: **opt-in** holds (an
+unannotated grammar compiles unchanged, and every row of
+[`test/spec/abnf.tsv`](../../test/spec/abnf.tsv) still passes);
+**pure data** holds (an annotated grammar converts with an empty `ref`
+map and no closures); **both ports** holds, pinned upstream by shared
+fixtures compared byte for byte; and **named fields survive** — by the
+second route the request offered, the annotation carrying the name,
+rather than by fixing the fold. §4.1's fold is still there and is now a
+REFUSAL naming the rule rather than a silent renaming.
+
+§4.2 is untouched. There is no scalar annotation, so `@value$` stays
+unreachable from ABNF and every leaf is still the text the rule
+matched.
+
+**None of it is reachable from aontu today**, because both ports pin
+`abnf` 0.4.7 and the feature needs 0.4.12, which requires `parser`
+≥ 0.9.6 and `bnf` ≥ 0.1.15. Moving the pin is measured as safe and
+exposes a latent defect in `astVal` in both ports.
+[GRAMMAR-SHAPE.1.md](GRAMMAR-SHAPE.1.md) is that review, and it carries
+the decision aontu owes.
+
+Until the pin moves, §7 above is still what aontu ships.

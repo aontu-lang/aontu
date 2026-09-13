@@ -2,6 +2,8 @@
 
 package aontu
 
+import "sort"
+
 // The grammar pair, ADR-033. Twin of ts/src/val/AbnfFuncVal.ts.
 
 func grammarSource(ctx *Ctx, f *FuncVal, g Val) Val {
@@ -109,22 +111,33 @@ func holdParse(f *FuncVal, base []string, peer Val) Val {
 	}
 }
 
+// A tree node is just the map {rule, src, kids}, so it needs no case of
+// its own. Keys are sorted because Go ranges a map in no order, and both
+// ports must build the same member order.
 func astVal(node any) Val {
-	m, _ := node.(map[string]any)
+	switch n := node.(type) {
+	case string:
+		return newString(n)
 
-	rule, _ := m["rule"].(string)
-	src, _ := m["src"].(string)
-
-	rawkids, _ := m["kids"].([]any)
-	kids := make([]Val, 0, len(rawkids))
-	for _, k := range rawkids {
-		kids = append(kids, astVal(k))
+	case []any:
+		elems := make([]Val, 0, len(n))
+		for _, e := range n {
+			elems = append(elems, astVal(e))
+		}
+		return newList(elems)
 	}
 
+	m, _ := node.(map[string]any)
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
 	out := newMap()
-	out.set("rule", newString(rule))
-	out.set("src", newString(src))
-	out.set("kids", newList(kids))
+	for _, k := range keys {
+		out.set(k, astVal(m[k]))
+	}
 	return out
 }
 

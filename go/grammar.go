@@ -72,7 +72,36 @@ func parseWith(grammar *tabnas.Tabnas, text string) (any, string) {
 	if err != nil {
 		return nil, firstLine(err.Error())
 	}
-	return node, ""
+	return plain(node), ""
+}
+
+// The host spells a built map as its own OrderedMap and a tree node as a
+// plain map; flattening keeps astVal the twin of the TypeScript.
+func plain(node any) any {
+	switch n := node.(type) {
+	case *tabnas.OrderedMap:
+		out := make(map[string]any, len(n.Vals))
+		for k, v := range n.Vals {
+			out[k] = plain(v)
+		}
+		return out
+
+	case map[string]any:
+		out := make(map[string]any, len(n))
+		for k, v := range n {
+			out[k] = plain(v)
+		}
+		return out
+
+	case []any:
+		out := make([]any, 0, len(n))
+		for _, v := range n {
+			out = append(out, plain(v))
+		}
+		return out
+	}
+
+	return node
 }
 
 // Both ports report the host's own first line.

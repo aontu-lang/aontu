@@ -216,7 +216,7 @@ assets, until that is automated with a token for the repository.
 | the setup action, `aontu-lang/aontu/setup-action` | nothing: it runs the installer from its own checkout | nothing |
 | `ghcr.io/aontu-lang/aontu:<version>` and `:latest` | pushed by the `image` job from `go/scripts/Dockerfile` | nothing |
 | `.deb`, `.rpm`, `.apk` for `amd64` and `arm64` | built by `nfpm` in `binaries.sh` | nothing; an apt or yum repository would be a separate decision |
-| `nix run github:aontu-lang/aontu` | nothing: `flake.nix` builds from source | `vendorHash` in `flake.nix` updated when `go.mod` or `go.sum` change; `nix build` names the new one |
+| `nix run github:aontu-lang/aontu` | nothing: `flake.nix` builds from source | `go/vendorhash.txt` updated when `go.mod` or `go.sum` change, which `flake.nix` reads. `TestFlakeVendorHashMatchesTheModuleTree` in `go/flake_test.go` recomputes it and fails with the value to write; `nix build` names it too |
 | Homebrew, `brew install aontu-lang/tap/aontu` | `aontu.rb`, the formula with the sums | the repository `aontu-lang/homebrew-tap`, with the file at `Formula/aontu.rb` |
 | Scoop, `scoop install aontu` | `aontu.json`, with `checkver` and `autoupdate` | a bucket repository, `aontu-lang/scoop-bucket`, with the file in `bucket/`; Scoop's `checkver` then follows the releases |
 | `winget`, `winget install AontuLang.Aontu` | `aontu_<version>_winget.tar.gz`, the three manifests in the `manifests/a/AontuLang/Aontu/<version>/` layout | a pull request to `microsoft/winget-pkgs` per release, by hand or with `wingetcreate` |

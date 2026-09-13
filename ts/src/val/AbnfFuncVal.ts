@@ -46,16 +46,25 @@ class AbnfFuncVal extends FuncBaseVal {
 }
 
 
+// A tree node is just the map {rule, src, kids}, so it needs no case of
+// its own. Keys are sorted so both ports build the same member order.
 function astVal(node: any, ctx: AontuContext): Val {
-  const kids: Val[] = node.kids.map(
-    (k: any, i: number) => astVal(k, ctx.descend('kids').descend(String(i))))
-  return new MapVal({
-    peg: {
-      rule: new StringVal({ peg: node.rule }, ctx),
-      src: new StringVal({ peg: node.src }, ctx),
-      kids: new ListVal({ peg: kids }, ctx),
-    }
-  }, ctx)
+  if ('string' === typeof node) {
+    return new StringVal({ peg: node }, ctx)
+  }
+
+  if (Array.isArray(node)) {
+    return new ListVal({
+      peg: node.map(
+        (e: any, i: number) => astVal(e, ctx.descend(String(i)))),
+    }, ctx)
+  }
+
+  const peg: Record<string, Val> = {}
+  for (const k of Object.keys(node).sort()) {
+    peg[k] = astVal(node[k], ctx.descend(k))
+  }
+  return new MapVal({ peg }, ctx)
 }
 
 
