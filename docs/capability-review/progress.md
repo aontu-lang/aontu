@@ -1769,7 +1769,7 @@ and a language profile, and answers `Line` component nodes;
 **`lowerloss(decls, profile)`** answers what the target could not carry
 for the same pair. Both ports (64 -> 66 builtins), declared in
 `test/spec/signature.tsv` and pinned by `test/spec/lowerdecls.tsv`
-(22 rows, every expectation from the canonical port). **The claim the
+(26 rows, every expectation from the canonical port). **The claim the
 phase rests on is that what `aontu:code` carries is a LOWERING, and a
 lowering is a function rather than an output vocabulary** — so
 `ts/src/lower.ts` and `go/lower.go` are re-fronted rather than
@@ -1798,6 +1798,18 @@ importing the engine is a CommonJS cycle — so two bundled languages in
 one document still needs one profile written out. The note's P1a is
 that gap, and `render` is untouched: nothing is deleted until P0's
 jostraca-side `--check` exists.
+**2026-09-13, the same day: P1 IS NOW A WAYPOINT, not a destination.**
+The note's three open questions were put to the owner and answered
+([UNITS-AND-TREES.1.md §12a](../design/UNITS-AND-TREES.1.md#12a-the-three-decisions-answered-2026-09-13)):
+the declaration schema does NOT survive, so `lowerdecls`, `lowerloss`,
+both lowerings and the four bundled profiles are themselves deleted at
+the end of the plan and a generator writes target text; the provenance
+trace gets its own verb, `aontu trace`, the plan's only new published
+surface; and every component prop is checked. P1's value is unchanged
+and is what it was built for — it lets the unit road be removed before
+the declaration road is, so the corpus migrates once rather than twice
+— but P1a is now optional and `resolve()` is cancelled. Nothing below
+the note's P0 starts without the ADR it requires.
 
 **Read before starting phase 1.** Every one of the seven parallel
 specifications behind this design was returned SERIOUS or FATAL by an
