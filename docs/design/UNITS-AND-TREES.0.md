@@ -1,7 +1,13 @@
 # Units and trees: what `aontu:code` holds that a component tree cannot
 
-**Status:** ANALYSIS, 2026-09-12. No phase, no register row, nothing
-proposed for building. This note exists because the question below has
+**Status:** ANALYSIS, 2026-09-12. **Its conclusion has since been
+overruled**: on 2026-09-13 the owner directed that the unit list be
+retired and the component tree become the only output road, and
+[UNITS-AND-TREES.1.md](UNITS-AND-TREES.1.md) is the design for that.
+This note stands as the measurement `.1` builds on — what a unit
+carries is unchanged by the decision to stop carrying it that way — and
+`.1` §4 records where this note was too pessimistic. No phase, no
+register row, nothing proposed for building. This note exists because the question below has
 been asked twice and re-derived from scratch both times, and because
 the answer is a layering rather than a preference. Status of the two
 surfaces it compares lives in the
