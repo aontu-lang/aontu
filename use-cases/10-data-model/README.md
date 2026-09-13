@@ -80,7 +80,7 @@ than its value.
 - `exact-money.aon`: the money schema stated on the exact leaf
   (`amountEur: bigdecimal & min(0d0)`). Only a `0d` literal produces
   a `bigdecimal`, and JSON has no such spelling, so an `.aon` record
-  satisfies this schema and a strictly-JSON record cannot.
+  satisfies this schema and a strictly JSON record cannot.
 - `money-wire.aon` (the money schema for a JSON wire: a decimal
   string with a fixed scale, an ISO 4217 currency beside it, and an
   optional-but-constant conversion mark (`dec?: "bigdecimal:2"`)

@@ -1,7 +1,7 @@
 .PHONY: all build test clean build-ts build-go test-ts test-go clean-ts clean-go \
         install install-ts install-go \
         publish publish-go check-go-major tags-go reset cov cov-ts cov-go sig \
-        helpdoc aontu prose comments hooks
+        helpdoc aontu prose prose-counts comments hooks
 
 all: build test
 
@@ -59,6 +59,12 @@ hooks:
 # .github/workflows/docs.yml. Warnings are advisory, errors fail.
 prose:
 	vale --minAlertLevel=error $$(node ts/scripts/gated-docs.cjs)
+	node ts/scripts/vale-counts.cjs
+
+# Re-measure what .vale.ini records, after a change to the pages or to
+# the rules moves the numbers.
+prose-counts:
+	node ts/scripts/vale-counts.cjs --write
 
 # Test coverage (see docs/test-coverage.md). The two gates run SIDE BY
 # SIDE: each is a property of its own port, neither reads the other's

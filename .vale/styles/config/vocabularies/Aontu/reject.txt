@@ -1,10 +1,22 @@
 # The banned list. Entries are REGEXES, matched case-insensitively on
 # word boundaries, and each one fails CI as Vale.Avoid.
-#
+
+# EVERY NON-BLANK LINE IS A PATTERN, these comments included: Vale has
+# no comment syntax in a vocabulary file. A heading is safe because its
+# text appears on no page, and ts/test/docs.test.ts reads them the same
+# way rather than skipping them, so the two gates cannot come to ban
+# different things. A line that is only "#" is NOT safe: it bans the
+# character, and reports `owner/repo#13` as an error. Separate sections
+# with a BLANK line, never with a bare hash.
+
+# Write an apostrophe as `['’]`. A plain `'?` matches `lets` and
+# `let's` and walks straight past `let’s`, which is what a word
+# processor, a website and most of these pages produce.
+
 # THIS FILE IS THE SINGLE SOURCE OF TRUTH. ts/test/docs.test.ts reads it
 # rather than holding its own copy, so the fast local gate and the CI
 # prose gate cannot disagree. Add a phrase here and both pick it up.
-#
+
 # Sources: the original house list in docs/STYLE-GUIDE.md, plus the
 # additions carried over from the jostraca guide and claudisms.ai.
 # Entries from those lists that collide with this project's own
@@ -18,8 +30,8 @@ important to note
 it cannot be overstated
 at its core
 when it comes to
-let'?s break it down
-here'?s where it gets interesting
+let['’]?s break it down
+here['’]?s where it gets interesting
 because it matters
 
 # --- Inflated vocabulary -----------------------------------------------
@@ -78,7 +90,7 @@ quietly
 # --- The contrast frame and its cousins --------------------------------
 not just
 not only .{0,40}\bbut\b
-it'?s not about
+it['’]?s not about
 the whole game
 the entire point
 the only thing that (?:matters|changed)
@@ -91,41 +103,41 @@ what (?:struck|got) me
 stuck with me
 struck a chord
 (?:hit|struck) a nerve
-we'?ve seen this movie
-we'?ve been here before
+we['’]?ve seen this movie
+we['’]?ve been here before
 
 # --- Reflective pose ---------------------------------------------------
 sit with
 worth (?:exploring|considering|a look|asking|talking about)
 keeps? coming back to
-that'?s the tell
+that['’]?s the tell
 where I landed
 
 # --- Invented observation about people ---------------------------------
 most people
-everyone I'?ve worked with
+everyone I['’]?ve worked with
 a lot of folks
 nobody I know
 
 # --- Requires approval per use -----------------------------------------
-#
+
 # Not filler in the way the rest of this list is: the word is fine in
 # ordinary English. It is here because it had become a verbal tic across
 # this project and jostraca alike -- "the honest rendering", "the honest
 # gap", "keeps the copies honest" -- where it flattered a sentence rather
 # than said anything the sentence did not already say. Nineteen uses came
 # out the day this line was added, and none of them was missed.
-#
+
 # There is no inline exemption for it, deliberately: an escape hatch that
 # exists gets used. A use the author wants kept is approved by editing
 # this line, which is visible in review.
 honest(y|ly)?
 
 # --- Signposting -------------------------------------------------------
-let'?s explore
-now let'?s turn to
+let['’]?s explore
+now let['’]?s turn to
 moving on to
-in today'?s rapidly evolving
+in today['’]?s rapidly evolving
 reflecting a broader trend
 marking a significant shift
 great question

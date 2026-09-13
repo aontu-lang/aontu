@@ -583,15 +583,29 @@ const REPO = Path.join(__dirname, '..', '..')
 const REJECT_FILE = Path.join(
   REPO, '.vale', 'styles', 'config', 'vocabularies', 'Aontu', 'reject.txt')
 
+// Vale reads every non-blank line as a pattern, headings included: a
+// vocabulary file has no comment syntax. A heading is inert; a line
+// that is only `#` is not, and is refused.
 function loadBanned(): [RegExp, string][] {
-  return Fs.readFileSync(REJECT_FILE, 'utf8')
+  const lines = Fs.readFileSync(REJECT_FILE, 'utf8')
     .split('\n')
     .map((line) => line.trim())
-    .filter((line) => '' !== line && !line.startsWith('#'))
-    .map((pat) => [new RegExp(`\\b(?:${pat})\\b`, 'gi'), pat])
+    .filter((line) => '' !== line)
+  const bare = lines.filter((line) => '#' === line)
+  if (0 < bare.length) {
+    throw new Error(
+      `${REJECT_FILE} has ${bare.length} line(s) that are only "#". ` +
+      'Vale reads that as a pattern banning the character.')
+  }
+  return lines.map((pat) => [new RegExp(`\\b(?:${pat})\\b`, 'gi'), pat])
 }
 
 const BANNED: [RegExp, string][] = loadBanned()
+
+// An emptied list leaves the phrase gate iterating nothing.
+if (0 === BANNED.length) {
+  throw new Error(`${REJECT_FILE} loaded no patterns; the phrase gate is off`)
+}
 
 
 const FENCE_OPEN = /^(\s{0,3})(`{3,}|~{3,})[ \t]*([^`\s]*)[^`]*$/
@@ -628,12 +642,40 @@ function fenceless(md: string): string {
 }
 
 
+// The delimiter is a RUN of backticks, and it stops at a newline: an
+// unpaired one would take the lines to the next with it.
+const CODE_SPAN = /(`+)(?:[^`\n]|(?!\1)`)*\1/g
+
+// A bare warning sign or arrow is text presentation; a keycap or a
+// flag sits in no symbol block.
+const EMOJI = /\p{Emoji_Presentation}|\uFE0F|\u20E3|[\u{1F1E6}-\u{1F1FF}]/u
+
+// `I` is a pronoun only capitalised, since a lone `i` is the one in
+// `i.e.`; `my` is one however it falls. `I/O` is neither.
+const FIRST_I = /\bI(?!\/O)\b|\bI'(?:m|ve|ll|d)\b/
+const FIRST_MY = /\b(?:my|mine|myself)\b/i
+
+function firstSingular(line: string): string | null {
+  const found = line.match(FIRST_I) || line.match(FIRST_MY)
+  return found ? found[0] : null
+}
+
+// A sentence can close its markup after the mark; `!=` ends nothing.
+const EXCLAMATION = /\w!(?=[*_"'\u2019\u201d)\]]*(?:\s|$))/gm
+
 function prose(md: string): string {
   return fenceless(md)
     .replace(/^---\n[\s\S]*?\n---\n/, '')
     .replace(/<!--[\s\S]*?-->/g, '')
-    .replace(/`[^`\n]*`/g, '')
+    .replace(CODE_SPAN, '')
 }
+
+
+// Markdown needs no blank line before a block, so `## Something worth`
+// above `noting this` joined and reported `worth noting`. A heading, a
+// table row and a rule close as well as open.
+const OPENS = /^\s*(?:[-*+] |\d+[.)] |#{1,6} |>|\||`{3,}|~{3,})/
+const CLOSES = /^\s*(?:#{1,6} |\||(?:[-*_] *){3,}$)/
 
 
 // A paragraph, joined for matching, with each piece's physical line
@@ -668,11 +710,17 @@ function logical(text: string): Logical[] {
       flush()
       return
     }
+    if (OPENS.test(line)) {
+      flush()
+    }
     const piece = line.trim().replace(/\s+/g, ' ')
     starts.push(at)
     lines.push(i + 1)
     pieces.push(piece)
     at += piece.length + 1
+    if (CLOSES.test(line)) {
+      flush()
+    }
   })
   flush()
 
@@ -797,10 +845,9 @@ describe('docs-style', () => {
       prose(Fs.readFileSync(abs, 'utf8'))
         .split('\n')
         .forEach((line, i) => {
-          const m = line.match(
-            /\bI(?!\/O)\b|\bI'(?:m|ve|ll|d)\b|\b(?:my|mine|myself)\b/)
+          const m = firstSingular(line)
           if (m) {
-            hits.push(`${file}:${i + 1} "${m[0]}": ${line.trim()}`)
+            hits.push(`${file}:${i + 1} "${m}": ${line.trim()}`)
           }
         })
     }
@@ -834,7 +881,7 @@ describe('docs-style', () => {
       // A sentence-ending mark, not every `!` byte: `!=` is an
       // operator and `![alt](src)` is an image.
       const n = (prose(Fs.readFileSync(abs, 'utf8'))
-        .match(/\w!(?=\s|$)/g) || []).length
+        .match(EXCLAMATION) || []).length
       if (0 === n) {
         continue
       }
@@ -857,7 +904,7 @@ describe('docs-style', () => {
       lf(Fs.readFileSync(abs, 'utf8'))
         .split('\n')
         .forEach((line, i) => {
-          if (/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test(line)) {
+          if (EMOJI.test(line)) {
             hits.push(`${file}:${i + 1}: ${line.trim()}`)
           }
         })
@@ -920,6 +967,65 @@ describe('docs-style', () => {
     Assert.deepEqual(hits, [],
       'published pages cite internal records (docs/STYLE-GUIDE.md,\n' +
       '"The published set cites nothing internal"):\n' + hits.join('\n'))
+  })
+
+
+  // A clean run cannot tell a working rule from a broken one. Each case
+  // is a defect these rules carried.
+  test('the-checks-catch-what-they-claim', () => {
+    const faults: string[] = []
+    const claim = (ok: boolean, what: string) => {
+      if (!ok) {
+        faults.push(what)
+      }
+    }
+
+    claim('' === '``a `b` c``'.replace(CODE_SPAN, ''), 'multi-backtick span')
+    claim('x  y' === 'x `my` y'.replace(CODE_SPAN, ''), 'single-backtick span')
+    claim('an odd ` mark\nand my line' ===
+      'an odd ` mark\nand my line'.replace(CODE_SPAN, ''),
+      'an unpaired backtick does not swallow the next line')
+
+    for (const text of ['\u26A0', '\u2713', '\u2194', '\u2020']) {
+      claim(!EMOJI.test(text), `text-presentation symbol ${text} is not emoji`)
+    }
+    for (const text of ['\u{1F680}', '1\uFE0F\u20E3', '\u{1F1EC}\u{1F1E7}',
+      '\u00A9\uFE0F', '\u2197\uFE0F']) {
+      claim(EMOJI.test(text), `${text} is emoji`)
+    }
+
+    claim(null != firstSingular('My grammar is strict.'), 'My opens a sentence')
+    claim(null != firstSingular('Mine is stricter.'), 'Mine opens a sentence')
+    claim(null == firstSingular('The disk I/O is buffered.'), 'I/O is not a pronoun')
+    claim(null == firstSingular('A unify step, i.e. a merge.'), 'the i of i.e.')
+    claim(null != firstSingular('Then I ran it.'), 'a capital I is a pronoun')
+
+    const bang = (text: string) => (text.match(EXCLAMATION) || []).length
+    claim(1 === bang('It works **now!** Next'), 'mark before bold close')
+    claim(1 === bang('He said "Done!" then'), 'mark before a quote')
+    claim(0 === bang('if (a != b)'), '!= is an operator')
+    claim(0 === bang('![alt](src)'), 'an image is not a mark')
+
+    const joins = (md: string, phrase: string) =>
+      logical(md).some((para) => para.text.includes(phrase))
+    claim(!joins('## Something worth\nnoting this', 'worth noting'),
+      'a heading is not the paragraph under it')
+    claim(!joins('| a | worth |\n| noting | b |', 'worth | | noting'),
+      'a table row is not the row above it')
+    claim(joins('a sentence worth\nnoting here', 'worth noting'),
+      'a wrapped paragraph still joins')
+    claim(joins('- an item worth\n  noting here', 'worth noting'),
+      'a wrapped list item still joins')
+
+    const banned = (text: string) => BANNED.some(([re]) => {
+      re.lastIndex = 0
+      return re.test(text)
+    })
+    claim(banned('so let\u2019s break it down'), 'a curly apostrophe')
+    claim(banned("so let's break it down"), 'a straight apostrophe')
+
+    Assert.deepEqual(faults, [],
+      `these rules no longer catch what they claim:\n${faults.join('\n')}`)
   })
 
 
