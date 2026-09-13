@@ -39,7 +39,7 @@ drift from the other:
 |---|---|---|
 | `make prose` (Vale) | `.github/workflows/docs.yml` | spelling, Google's conventions, and the banned list, at the levels set in `.vale.ini` |
 | `ts/test/docs.test.ts` | `make test` | the banned list again, the no-em-dash rule, the first-person rules, the exclamation ration, no emoji, no internal-document citations, that every code snippet executes, and that every internal markdown link resolves |
-| `ts/scripts/vale-counts.cjs` | `make prose` | that every count in `.vale.ini`, and the total below, are what Vale reports |
+| `ts/scripts/vale-counts.cjs` | `make prose`, `.github/workflows/docs.yml` | that every count in `.vale.ini`, and the total below, are what Vale reports |
 
 The gated set is the reader-facing one: the Diátaxis pages, the how-to
 guides, the three contributor references that ship under `docs/`, the
