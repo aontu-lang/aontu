@@ -39,6 +39,7 @@ drift from the other:
 |---|---|---|
 | `make prose` (Vale) | `.github/workflows/docs.yml` | spelling, Google's conventions, and the banned list, at the levels set in `.vale.ini` |
 | `ts/test/docs.test.ts` | `make test` | the banned list again, the no-em-dash rule, the first-person rules, the exclamation ration, no emoji, no internal-document citations, that every code snippet executes, and that every internal markdown link resolves |
+| `ts/scripts/vale-counts.cjs` | `make prose` | that every count in `.vale.ini`, and the total below, are what Vale reports |
 
 The gated set is the reader-facing one: the Diátaxis pages, the how-to
 guides, the three contributor references that ship under `docs/`, the
@@ -54,15 +55,23 @@ against the target file's own headings, under GitHub's slug rules.
 
 **A Google rule sitting below error level was tried at error first and
 found wrong for these pages.** `.vale.ini` records what each produced on
-a clean run. Two of them are worth knowing about, because the reason is
-not taste:
+a clean run: 3851 alerts across 72 files. Two of them are worth knowing
+about, because the reason is not taste:
 
 - `Google.EmDash` is disabled because its spacing rule is redundant
   under the house ban. The local documentation gate checks prose
   after stripping code and quoted output.
-- `Google.OxfordComma` reported 30, of which 16 were real three-item
-  lists and were fixed. The other 14 are two-item lists sitting after a
-  comma clause, which the rule cannot tell from a list.
+- `Google.OxfordComma` reported real three-item lists, and they were
+  fixed. The 36 that remain are two-item lists sitting after a comma
+  clause, which the rule cannot tell from a list.
+
+**Those numbers are measured, not remembered.** They were written by
+hand once and were out by a factor of two the next time anybody
+checked, which is the one thing a recorded count exists to prevent.
+`node ts/scripts/vale-counts.cjs` reads every one of them, and the total
+above, against a live Vale run and fails on any difference; `--write`
+re-measures. A rule switched off is measured with it switched back on,
+because the count is the evidence for switching it off.
 
 ## The structure: Diátaxis, enforced by placement
 
@@ -474,9 +483,11 @@ be added to one and missed by the other.
 
 To change a Google rule's level, edit `.vale.ini` and write down what the
 rule produced on a clean run. "It was noisy" is not a reason; "it reported
-30 serial commas, of which 14 were two-item lists after a comma clause"
+36 serial commas, every one a two-item list after a comma clause"
 is. A rule demoted without that note reads later as an oversight, and
-gets re-promoted by somebody repeating the work.
+gets re-promoted by somebody repeating the work. Run `make prose-counts`
+afterwards: the note is checked against a live run, so a number typed
+from memory fails.
 
 To accept a word the spelling gate does not know, add it to `accept.txt`
 in the same directory, one stem at a time. Never add a suffix pattern:

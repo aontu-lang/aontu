@@ -77,7 +77,7 @@ counts:
 -  **TypeScript entry points are thin wrappers.** `bin/aontu.js` and
   `bin/aontu-lsp.js` hold the shebang and the `main(process.argv)`
   call (the two things no in-process run can execute) so `src/cli.ts` and
-  `src/lsp-server.ts` are ordinary, fully-measurable modules.
+  `src/lsp-server.ts` are ordinary, fully measurable modules.
 - **The gate reads lcov, not the summary table.** Node's built-in
   coverage reporter attributes the accessors `tsc` emits for
   `export { X }` to the import lines and then counts one of them unhit

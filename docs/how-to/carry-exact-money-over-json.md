@@ -225,7 +225,7 @@ pattern would happily accept), `pattern` is what refuses the wrong
 scale. A consumer that never runs aontu still enforces the wire form,
 and still learns the leaf and the scale from the exported `const`.
 
-A worked end-to-end version (the schema, strictly-JSON records that
+A worked end-to-end version (the schema, strictly JSON records that
 pass, the three that must not, the exported schema checked against the
 same records, and the conversion written as theorems) is
 [use-cases/10-data-model](../../use-cases/10-data-model/)
