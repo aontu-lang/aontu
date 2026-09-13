@@ -4,8 +4,8 @@
 what it cost. **§12's three open questions were ANSWERED by the owner
 on 2026-09-13, and the ADR §12 asks for is written:
 [ADR-038](../../ADR.md#adr-038--the-component-tree-is-the-only-output-road-and-aontu-knows-no-languages).
-§12a records the answers**; §1, §2, §3, §5, §6, §9,
-§10 and §11 carry what the answers changed. **§6 carries one thing the
+§12a records the answers**; §1, §2, §3, §5, §6, §9, §10 and §11 carry
+what the answers changed. **§6 carries one thing the
 answers exposed and this note had missed:** `aontu:render` also holds
 the profile schema `template` and `fmt` vet against, so it splits
 rather than goes. The rest is design and
@@ -494,9 +494,14 @@ fragment-only, so it exercises §4 and nothing of §2 or §3.
 
 **P5 — delete, and it is now the bulk of the work.** The `render` verb
 and its help, `ts/src/render.ts` and `go/render.go`, the `RenderReport`
-types, the five `render_*` error codes and their hints, and the four
-spec files §11 names. Then, because §12a answer 1 says so, everything
-P1 was built to preserve: `lowerdecls` and `lowerloss`,
+types, and the spec files §11 names. **The five `render_*` error codes
+are NOT among them**: AGENTS.md makes codes append-only and
+`spec-errcodes-registry` asserts set equality with each engine's
+`codeClasses` table, so they stay registered with their classes, keep
+their hints, and stop being raisable.
+
+Then, because §12a answer 1 says so, everything P1 was built to
+preserve: `lowerdecls` and `lowerloss`,
 `ts/src/lower.ts` and `go/lower.go` apart from whatever §3a keeps, the
 lowering half of `aontu:render` with the two lowering profiles, and
 `aontu/code/code.aon` and its Go twin ENTIRELY rather than reduced.
@@ -542,7 +547,9 @@ named instead, which is checkable at any commit.
 | `aontu/render/render.aon` | kept | **SPLIT** — the lowering half goes, the `template` half stays (§6) |
 | `aontu/code/code.aon` and its Go twin | reduced to the declaration schema | **deleted entirely**, both copies |
 | `ts/src/val/LowerDeclsFuncVal.ts`, `go/lowerdecls.go` | — (P1, landed after the table) | **deleted**; P1 is a waypoint |
-| `test/spec/render.tsv`, `aontu-code.tsv`, `aontu-profile.tsv`, `lowerdecls.tsv` | ported, reduced, kept, — | **deleted** |
+| `test/spec/render.tsv`, `aontu-code.tsv`, `lowerdecls.tsv` | ported, reduced, — | **deleted** |
+| `test/spec/aontu-profile.tsv` | kept | **SPLIT** — the `text`/`markdown` hash and generate rows, `shape-hash` and the `profile-*` shape rows pin what survives; the `lowering`/`case` refusals and the four TypeScript/Go rows go |
+| `test/spec/errcodes.tsv` | — | **UNTOUCHED** — codes are append-only, so the five `render_*` rows stay registered with their classes |
 | `ts/test/render.test.ts`, `go/cmd/aontu/render_test.go`, `go/render_test.go` | deleted or ported | **deleted** |
 | the prop schema (P3), `aontu trace` (P6), the `--check` tool (P0) | — | **new**, both ports plus jostraca |
 

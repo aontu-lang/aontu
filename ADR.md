@@ -63,7 +63,7 @@ capability decision is the phase rows it governed in
 | [ADR-032](#adr-032--code-comments-are-sparse-and-terse-intent-lives-in-names-requirements-live-in-documents) | Code comments are sparse and terse: intent lives in names, requirements live in documents | Accepted |
 | [ADR-033](#adr-033--a-grammar-is-a-string-and-parsing-is-a-function) | A grammar is a string, and parsing is a function | Accepted |
 | [ADR-034](#adr-034--absence-is-a-value-and-maybe-is-where-it-is-made) | Absence is a value, and `maybe` is where it is made | Accepted |
-| [ADR-035](#adr-035--a-language-is-configured-in-its-profile-and-a-marker-may-name-its-closer) | A language is configured in its profile, and a marker may name its closer | Accepted |
+| [ADR-035](#adr-035--a-language-is-configured-in-its-profile-and-a-marker-may-name-its-closer) | A language is configured in its profile, and a marker may name its closer | Superseded in part by [ADR-038](#adr-038--the-component-tree-is-the-only-output-road-and-aontu-knows-no-languages) |
 | [ADR-036](#adr-036--a-bundled-model-is-a-file-in-aontu-not-a-string-in-each-port) | A bundled model is a file in `aontu/`, not a string in each port | Accepted |
 | [ADR-037](#adr-037--two-lists-concatenate-under--and-a-sum-of-an-absence-is-absent) | Two lists concatenate under `+`, and a sum of an absence is absent | Accepted |
 | [ADR-038](#adr-038--the-component-tree-is-the-only-output-road-and-aontu-knows-no-languages) | The component tree is the only output road, and aontu knows no languages | Accepted |
@@ -3455,7 +3455,13 @@ One site in the shared machinery covers them all.
 ## ADR-035 — A language is configured in its profile, and a marker may name its closer
 
 **Date:** 2026-09-11
-**Status:** Accepted
+**Status:** Superseded in part, 2026-09-13, by
+[ADR-038](#adr-038--the-component-tree-is-the-only-output-road-and-aontu-knows-no-languages).
+"Three verbs, one file" becomes two: `render` goes, so `template` and
+`fmt` are the readers, and a profile no longer configures a lowering.
+Everything else survives verbatim and is what ADR-038 preserves — the
+marker with its optional closer, markdown as a known language, the
+`template` block, and one file declaring a language once.
 
 ### Context
 
@@ -3773,8 +3779,12 @@ design that answers it, and this entry is the decision it asks for.
 **The component tree is the only output road.** The `render` verb goes,
 and with it `%unit`, `%source`, `%import` and the fragment algebra
 (`%frag`, `%line`, `%blank`, `%raw`, `%piece`). A document that
-generates files builds `project`/`folder`/`file`/`line`/`content` and
-nothing else.
+generates files builds a COMPONENT TREE and nothing else. "Nothing
+else" bars the other roads, not the other components: all ten
+primitives are on it — `project`, `folder`, `file`, `content`, `line`,
+`fragment`, `slot`, `inject`, `copyfiles`, `listitems` — and the
+file-touching four are the capability the tree has and the unit road
+never did.
 
 **aontu holds no language knowledge.** The declaration vocabulary —
 `%record`, `%enum`, `%alias`, `%const`, `%func`, `%field`, `%type`,
@@ -3836,6 +3846,13 @@ going with the renderer that implements it.
   a breaking change to the CLI and to every document that imports
   `aontu:code`. The register's G9 rows and `docs/reference-*.md` are
   downstream of this entry.
+- **The five `render_*` error codes stay registered.** AGENTS.md makes
+  codes append-only and never renamed, and the `spec-errcodes-registry`
+  row asserts SET EQUALITY between `test/spec/errcodes.tsv` and each
+  engine's `codeClasses` table — so a retired code stays in both or
+  neither, and append-only decides which. They keep their classes and
+  stop being raisable, which is what retirement means for a code. No
+  deletion this entry sanctions reaches the registry.
 - **The staging is not here.** What order the deletions happen in,
   what jostraca must ship first, and what the corpus migration touches
   live in `docs/design/UNITS-AND-TREES.1.md` §10, which is a plan and

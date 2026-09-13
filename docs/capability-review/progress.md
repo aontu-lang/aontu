@@ -1802,8 +1802,11 @@ jostraca-side `--check` exists.
 The note's three open questions were put to the owner and answered
 ([UNITS-AND-TREES.1.md §12a](../design/UNITS-AND-TREES.1.md#12a-the-three-decisions-answered-2026-09-13)):
 the declaration schema does NOT survive, so `lowerdecls`, `lowerloss`,
-both lowerings and the four bundled profiles are themselves deleted at
-the end of the plan and a generator writes target text; the provenance
+both lowerings and the two LOWERING profiles are themselves deleted at
+the end of the plan and a generator writes target text (`text` and
+`markdown` carry no lowering and stay, with the `template` half of the
+profile vocabulary that `fmt` and `template` read —
+[ADR-038](../../ADR.md#adr-038--the-component-tree-is-the-only-output-road-and-aontu-knows-no-languages)); the provenance
 trace gets its own verb, `aontu trace`, the plan's only new published
 surface; and every component prop is checked. P1's value is unchanged
 and is what it was built for — it lets the unit road be removed before
