@@ -2080,6 +2080,12 @@ const VIEW_USAGE_CODES = [
 const MOD_HELP = 'aontu mod tidy|verify|vendor|manifest [dir] (try --help)'
 
 function runMod(argv: string[]): number {
+  const trusted = takeTrust(argv)
+  if (null == trusted) {
+    return 2
+  }
+  argv = trusted.argv
+  const trust = trusted.trust
   const rest: string[] = []
   let format: SubsumeFormat = 'text'
   let against: string | undefined
@@ -2145,11 +2151,13 @@ function runMod(argv: string[]): number {
     return 2
   }
 
+  const modopts = modToolOptions(trust, resolve(dir))
+
   const report =
-    'tidy' === sub ? modTidy(dir, modToolOptions()) :
-      'verify' === sub ? modVerify(dir, modToolOptions()) :
-        'vendor' === sub ? modVendor(dir, modToolOptions()) :
-          modManifest(dir, modToolOptions(), against)
+    'tidy' === sub ? modTidy(dir, modopts) :
+      'verify' === sub ? modVerify(dir, modopts) :
+        'vendor' === sub ? modVendor(dir, modopts) :
+          modManifest(dir, modopts, against)
 
   process.stdout.write(('json' === format ?
     exactJSON({ aontu: { version: version(), verb: 'mod ' + sub }, ...report },
@@ -2188,11 +2196,16 @@ const MOD_EXIT: Record<ModVerdict, number> = {
 // The tooling's evaluator: the same standalone evaluation the module
 // resolver verifies with (ts/src/mod.ts), and for the same reason —
 // only the engine can say what a module MEANS.
-function modToolOptions() {
+function modToolOptions(trust: TrustArg, entryRoot: string) {
+  const opts = verbOpts(trust, entryRoot)
+  // The user cache lives outside any confinement root, so a confined
+  // run reads the vendor tree only -- as the evaluator's own module
+  // leg already does when a root is set.
+  const rooted = null != (opts.trust as any)?.include?.root
   return {
-    cache: modCacheDir(),
+    ...(rooted ? {} : { cache: modCacheDir() }),
     eval: (src: string, path: string) => {
-      const a0 = new Aontu()
+      const a0 = new Aontu(opts)
       const ctx = a0.ctx({ collect: true })
       const val: any = a0.unify(src, { path }, ctx)
       return {

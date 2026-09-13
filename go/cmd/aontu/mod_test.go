@@ -239,6 +239,15 @@ func TestModArguments(t *testing.T) {
 		!strings.Contains(errw, "unknown mod option") {
 		t.Fatalf("bad option = %d: %s", code, errw)
 	}
+	// Every verb takes the trust options (docs/trust.md).
+	for _, flag := range [][]string{{"--trust", "none"}, {"--include-root", "."},
+		{"--text-ext", "md"}} {
+		args := append(append([]string{}, flag...), "tidy")
+		if _, errw, code := modRun(args...); 2 == code &&
+			strings.Contains(errw, "unknown mod option") {
+			t.Fatalf("%v refused: %s", flag, errw)
+		}
+	}
 	// `--against` gates a manifest and means nothing to the other two;
 	// accepting it there would say it had been honoured.
 	if _, errw, code := modRun("tidy", "--against", "x"); 2 != code ||

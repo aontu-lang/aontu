@@ -2479,59 +2479,77 @@ Repro:
 [`repros/hash/alias-spread-hash-blind.aon`](repros/hash/alias-spread-hash-blind.aon)
 with its `-2` and `-longhand` companions.
 
-### 95. An element type behind a spread renders three ways across the two ports [critical]
+### 95. A refer residual drops the conjunct it was declared with [FIXED 2026-09-13]
 
 Found 2026-09-12, auditing the module system. **An ADR-001 divergence
-on the pin itself**, and the first one the parity ledger has carried on
-the hash form.
+on the pin itself** — the first the parity ledger has carried on the
+hash form — and one defect of the pair is in BOTH ports.
 
-Declare a list element type once, as `refer() & path()`, inside a
-`type()`-marked `close()`. Put the spread that carries it behind any
-other constraint atom — `unique(n)` below; `length(min(1))` and
-`unique(name)` do it too — and the same six-line document renders three
-different forms, at the instantiated element's own element type:
+Declare a list element type once, as `refer() & path()`. Put a second
+spread carrying it behind another constraint atom and the same document
+renders three ways at the instantiated element's own element type:
 
 ```
-TS 0.59.0   "refuse"?:[&:refer()&refer()&path(), …]
-TS 0.62.0   "refuse"?:[&:refer()&refer(), …]
-Go 0.1.20   "refuse"?:[&:refer()&path(), …]
+TS 0.59.0 - 0.62.0   "r"?:[&:refer()&refer(), …]
+Go 0.1.15 - 0.1.20   "r"?:[&:refer()&refer()&path(), …]
+declared, and correct         [&:refer()&path(), …]
 ```
 
-**Go renders the declaration. Both TypeScript releases double the
-`refer()`, and 0.60.0 additionally drops the `path()`.** Three hashes
-follow: `aon1-dtZWsnl…`, `aon1-FRBRFZbF…`, `aon1-TudW0mv…`. Remove the
-`unique(n) &` and all three agree. In-tree TypeScript at HEAD answers
-as 0.62.0 does.
+**Two defects compose**, and each is provable alone.
 
-**What it is not.** It is not a lost constraint. Acceptance is
-unaffected: both ports refuse a non-address and a dangling address at
-this element with the same codes (`refer_address`, `refer_unresolved`),
-and on the largest document that carries the shape — the 62-check
-specification in
-[`aontu-lang/system`](https://github.com/aontu-lang/system) — every one
-of the 39 vector verdicts holds under the newest TypeScript, with the
-pin as the single failing check. Nor has TypeScript's form stopped
-discriminating `path()`: strike the conjunct from that specification's
-schema and TypeScript's hash moves too. The defect is in where the
-conjunct is placed in the rendered form, not in whether it is carried.
+**The dropped `path()`, TypeScript only.** `unite`'s identical-shape
+short-circuit returns `a` whenever `a.constructor === b.constructor &&
+a.peg === b.peg` and both are DONE. A `ReferVal` keeps all of its state
+in `tval`, `addr`, `addrsrc` and `held` and NOTHING in `peg`, so `peg`
+is `undefined` on every instance and any two settled refers match
+vacuously: `b` is discarded whole and `ReferVal.unify` never runs. The
+guard already carried `!a.isRel` for the twin class — a settled rel is
+DONE with an absent peg for exactly the same reason — and `isRefer` was
+simply missed. Go has no such short-circuit, which is the only reason
+Go kept the `path()`. It needs no template to show:
 
-**Why it matters.** The canon-hash is the module system's second pin,
-and ADR-019 makes checking it mandatory rather than optional. A
-lockfile written by one port therefore fails the other's `mod verify`
-over an untouched store, for exactly the shape a schema of ordered,
-refusal-naming steps has. Neither CI matrix sees it: `hcanon.tsv`
-carries 53 rows and none of them mentions `path(`, and the parity
+```
+a: [&: refer() & path()]
+a: [&: refer() & path()]
+z: {e:1}
+a: [path($.z.e)]
+```
+
+**The doubled `refer()`, both ports.** `unite` lets the right operand
+drive when it `isRefer`, and `isRefer` is set on the settled `ReferVal`
+but not on the unevaluated `refer()` call. So a call meeting a residual
+reaches `ReferVal.unify` as a peer that matches no arm, falls to the
+catch-all, and is frozen into `held` as written — where `canon` prints
+it as a second `refer()`. A residual must never hold an unresolved
+call; the call drives, and the residual meets what it becomes.
+
+**Why it mattered.** The canon-hash is the module system's second pin,
+and ADR-019 makes checking it mandatory rather than optional, so a
+lockfile written by one port failed the other's `mod verify` over an
+untouched store — for exactly the shape a schema of ordered,
+refusal-naming steps has. Neither CI matrix saw it: `hcanon.tsv`
+carried 53 rows and none of them mentioned `path(`, and the parity
 ledger contributes no executable rows by design.
 
-**Which form is right.** ADR-001 makes TypeScript canonical *where
-neither is obviously broken*, which does not reach here: a conjunct
-written once and rendered twice is broken on its face, and both
-TypeScript releases do it. The fix is to make TypeScript render what
-the declaration says, as Go does, and to pin both the duplicate and
-the dropped conjunct with shared `hcanon` rows before either port
-moves.
+**Acceptance was never affected.** Both ports refuse a non-address and
+a dangling address at this element with the same codes
+(`refer_address`, `refer_unresolved`), and on the largest document that
+carries the shape — the 62-check specification in
+[`aontu-lang/system`](https://github.com/aontu-lang/system) — all 39
+vector verdicts held throughout, with the pin as the only failing
+check. What was lost was a conjunct in the rendered form, not a
+constraint in the meet.
 
-Status: OPEN. Repro:
+**Fixed 2026-09-13**, both ports, by the two changes the two defects
+ask for: `!a.isRefer` joins the short-circuit's exclusion list in
+`ts/src/unify.ts`, and `ReferVal.unify` in each port drives a func peer
+instead of holding it. Pinned by five rows in `test/spec/hcanon.tsv` —
+`hcanon-refer-keeps-its-conjunct` and its `hash` twin for the
+short-circuit alone, and `hcanon-refer-conjunct-behind-a-spread` with
+its `canon` and `hash` twins for both defects together. The
+specification's own pin moves with the fix: both ports now answer
+`aon1-utCnJAwb…` where they answered `aon1-yVCc…` and `aon1-wyMpq…`.
+Repro:
 [`repros/hash/conjunct-behind-a-spread.aon`](repros/hash/conjunct-behind-a-spread.aon).
 
 ## trials — the flag one port sets and the other does not
@@ -4140,3 +4158,54 @@ deliberately not half-fixed: a rule that holds for `[&: string]` and
 not for `[&: string|number]` is worse than one that refuses uniformly. `docs/reference-language.md` states the
 containing-map half ("It cannot make a containing map vanish") and the
 constrained-list half.
+
+## the mod verbs — what a pin is minted from, and under what capability
+
+Two entries, found 2026-09-13 while wiring the trust contract into the
+module tooling. They compound: the first makes a confinement silently
+wrong, so neither could be fixed alone.
+
+### 96. `mod manifest` minted a pin from an evaluation that failed [critical]
+
+Both ports, with no flag involved. `modManifest` took the eval's `hash`
+and never asked its `ok`, so a module whose entry file contradicts
+itself was published as `verdict: ok`, exit 0, with a canon-hash
+annotation on the artifact:
+
+```
+mod.aon    mod: {path: "corp.example/broken", version: "1.0.0"}
+main.aon   a: 1
+           a: 2
+```
+
+`aontu main.aon` refuses this with `scalar_value`, and `mod tidy`
+already refuses to pin a dependency that does not evaluate — the verb
+that MINTS the pin was the one that did not check. The hash was not a
+constant: it varied with the broken content, so it looked like a
+meaning.
+
+**Fixed 2026-09-13**, both ports, by asking `ok` before minting and
+returning the report's existing `error` shape with an empty canon, the
+way `tidy` refuses. Pinned by
+`manifest-refuses-to-mint-a-pin-for-a-module-that-does-not-evaluate`
+and Go's `TestModManifestRefusesAnUnevaluableModule`.
+
+### 97. The `mod` verbs refused `--trust`, so vendored code ran unconfined [major]
+
+Both ports. `runMod` parsed `--format` and `--against` and rejected
+everything else dashed, so `aontu mod tidy --trust none` answered
+`unknown mod option --trust` — while the CLI help and
+[`docs/trust.md`](../docs/trust.md) both said the flags are "accepted by
+the bare command **and by every verb**", and `--text-ext` was refused
+the same way. The verbs evaluate third-party module source out of the
+vendor tree, so the one place confinement is most wanted was the one
+place it could not be asked for.
+
+**Fixed 2026-09-13**, both ports, by taking the flags as every other
+verb does and threading the capability into the evaluator each verb
+builds. Go gained `ModOptions` to carry it, mirroring TypeScript's
+`ModToolOptions`; the four exported `Mod*` functions take it in place
+of the bare cache string. Under a root the user cache is left out, as
+the evaluator's own module leg already does. Pinned by
+`the-mod-verbs-take-the-trust-options`, Go's
+`TestModManifestUnderAConfinement`, and a CLI row in each port.

@@ -80,3 +80,16 @@ hash-scalar-literals	hash	b1: true b2: false b3: null	aon1-0wZFCmFTJ5f1gFAGr0k5M
 hash-key-code-point-order	hash	k1: {"é":1, "z":2, "A":3, "𝄞":4}	aon1-pbCUPrT2LydjBG5RrpO569NTzLeUYxihDjCt5ttAllE
 hash-disjunct-of-closes	hash	x2: close({a:1})|close({b:2})|3	aon1-hfQQvOevqdorffmuuVBhE10DCtRnOsJAi4xckhr4z0U
 hash-deprecate-record-multi	hash	d2: deprecate(close({k:1}),{msg:"gone",since:"1.2.3",use:"$.e"})	aon1-GHXZeHa_UKDFpMt0iONUR-oQdmlvq3UD31nI7zR7iPQ
+
+# A refer residual keeps every conjunct it met (BUGS.md 95). Two
+# settled refers at one position merge; they are NOT interchangeable
+# because a refer's state is tval/addr/held and its peg is absent.
+hcanon-refer-keeps-its-conjunct	hcanon	a: [&: refer() & path()]  a: [&: refer() & path()]  z: {e:1}  a: [path($.z.e)]	{"a":[&:refer()&path(),path($.z.e)],"z":{"e":1}}
+hash-refer-keeps-its-conjunct	hash	a: [&: refer() & path()]  a: [&: refer() & path()]  z: {e:1}  a: [path($.z.e)]	aon1-xJiIfXOOpgTVTK6ZbkuHJx2DOpSkvwbaYOuy5Au2m7M
+
+# The same, through a spread template applied behind another atom:
+# the instantiated element type must equal the declared one, and a
+# residual must not hold an unresolved call (a doubled refer()).
+hcanon-refer-conjunct-behind-a-spread	hcanon	T: type({S: close({n: integer  r?: unique() & [&: refer() & path()]})  O: close({s: unique(n) & [&: $.T.S]})})  e: {c:1}  o: $.T.O & {s: [{n:1  r: [path($.e.c)]}]}	{"T":type({"O":close({"s":[&:$.T.S]&unique("n")}),"S":close({"n":integer,"r"?:[&:refer()&path()]&unique()})}),"e":{"c":1},"o":close({"s":[&:$.T.S,close({"n":1,"r"?:[&:refer()&path(),path($.e.c)]&unique()})]&unique("n")})}
+canon-refer-conjunct-behind-a-spread	canon	T: type({S: close({n: integer  r?: unique() & [&: refer() & path()]})  O: close({s: unique(n) & [&: $.T.S]})})  e: {c:1}  o: $.T.O & {s: [{n:1  r: [path($.e.c)]}]}	{"T":{"O":{"s":[&:$.T.S]&unique("n")},"S":{"n":integer,"r"?:[&:refer()&path()]&unique()}},"e":{"c":1},"o":{"s":[&:$.T.S,{"n":1,"r"?:[&:refer()&path(),path($.e.c)]&unique()}]&unique("n")}}
+hash-refer-conjunct-behind-a-spread	hash	T: type({S: close({n: integer  r?: unique() & [&: refer() & path()]})  O: close({s: unique(n) & [&: $.T.S]})})  e: {c:1}  o: $.T.O & {s: [{n:1  r: [path($.e.c)]}]}	aon1-ddOxDFGwqOOjTuNphUYPOmQFvD8Hn6J4z7ojt3ylV_A

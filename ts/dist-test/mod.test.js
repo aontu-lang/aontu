@@ -279,6 +279,35 @@ function world(store) {
         // would be the defect with a louder message.
         Assert.equal(Fs.existsSync(Path.join(dir, 'aontu_meta', 'mod-lock.aon')), false);
     });
+    (0, node_test_1.test)('manifest-refuses-to-mint-a-pin-for-a-module-that-does-not-evaluate', () => {
+        const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-modtool-'));
+        Fs.writeFileSync(Path.join(dir, 'mod.aon'), 'mod: {path: "corp.example/app", version: "1.0.0"}\n');
+        // Contradicts itself: no meaning, so nothing to pin.
+        Fs.writeFileSync(Path.join(dir, 'main.aon'), 'a: 1\na: 2\n');
+        const r = cli(['mod', 'manifest', '--format', 'json', dir]);
+        Assert.equal(r.code, 4, r.out);
+        const report = JSON.parse(r.out);
+        Assert.equal(report.verdict, 'error');
+        Assert.equal(report.canon, '');
+    });
+    (0, node_test_1.test)('the-mod-verbs-take-the-trust-options', () => {
+        const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-modtool-'));
+        Fs.writeFileSync(Path.join(dir, 'mod.aon'), 'mod: {path: "corp.example/app", version: "1.0.0"}\n');
+        Fs.writeFileSync(Path.join(Path.dirname(dir), 'modtool-outside.aon'), 'secret: "leaked"\n');
+        Fs.writeFileSync(Path.join(dir, 'main.aon'), 'x: @"../modtool-outside.aon"\n');
+        // Unconfined the include is read, so a pin is minted.
+        const open = JSON.parse(cli(['mod', 'manifest', '--format', 'json', dir]).out);
+        Assert.equal(open.verdict, 'ok');
+        Assert.notEqual(open.canon, '');
+        // Confined it is denied, and a denied module has no meaning to pin.
+        for (const flag of [['--trust', 'none'], ['--include-root', dir]]) {
+            const shut = cli(['mod', 'manifest', '--format', 'json', ...flag, dir]);
+            Assert.equal(shut.code, 4, shut.out);
+            Assert.equal(JSON.parse(shut.out).verdict, 'error');
+        }
+        // An option that is genuinely unknown is still refused.
+        Assert.equal(cli(['mod', 'tidy', '--nonsense', dir]).code, 2);
+    });
     (0, node_test_1.test)('vendor-refuses-an-escaping-path', () => {
         const escaping = 'corp.example/../../../outside/pwned@1';
         const hash = (0, aontu_1.canonHash)(new aontu_1.Aontu().unify(MODULE));

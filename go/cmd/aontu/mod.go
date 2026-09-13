@@ -21,6 +21,10 @@ const legacyLayoutHint = "aontu: aon_vendor/ and mod-lock.aon now live under aon
 	"move them, or run aontu mod tidy and aontu mod vendor\n"
 
 func runMod(argv []string, stdout, stderr io.Writer) int {
+	argv, trust, trustOK := takeTrust(argv, stderr)
+	if !trustOK {
+		return 2
+	}
 	var rest []string
 	format := "text"
 	against := ""
@@ -90,29 +94,41 @@ func runMod(argv []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 
-	cache := aontu.ModCacheDir()
+	abs, err := filepath.Abs(dir)
+	if nil != err { //coverage:ignore Abs fails only on an unreadable cwd
+		abs = dir
+	}
+	opts := &aontu.ModOptions{
+		Trust:   verbTrust(trust, abs),
+		TextExt: trust.textExt,
+	}
+	// The user cache lives outside any confinement root, so a confined
+	// run reads the vendor tree only.
+	if nil == opts.Trust || "" == opts.Trust.IncludeRoot {
+		opts.Cache = aontu.ModCacheDir()
+	}
 
 	switch sub {
 	case "tidy":
-		report := aontu.ModTidy(dir, cache)
+		report := aontu.ModTidy(dir, opts)
 		io.WriteString(stdout, modRender(sub, format, report.Verdict,
 			modTidyLines(report), report.Missing, report)+"\n")
 		return modExit(report.Verdict)
 
 	case "verify":
-		report := aontu.ModVerify(dir, cache)
+		report := aontu.ModVerify(dir, opts)
 		io.WriteString(stdout, modRender(sub, format, report.Verdict,
 			modVerifyLines(report), report.Missing, report)+"\n")
 		return modExit(report.Verdict)
 
 	case "manifest":
-		report := aontu.ModManifest(dir, against)
+		report := aontu.ModManifest(dir, against, opts)
 		io.WriteString(stdout, modRender(sub, format, report.Verdict,
 			modManifestLines(report), nil, report)+"\n")
 		return modExit(report.Verdict)
 	}
 
-	report := aontu.ModVendor(dir, cache)
+	report := aontu.ModVendor(dir, opts)
 	io.WriteString(stdout, modRender(sub, format, report.Verdict,
 		report.Vendored, report.Missing, report)+"\n")
 	return modExit(report.Verdict)
