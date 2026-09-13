@@ -1,10 +1,12 @@
 # THE FLAKE (docs/release-and-tag.md, "The install channels"): the
 # aontu CLI and the LSP server from source, for `nix run
 # github:aontu-lang/aontu` and for the flake as an input. The version
-# is the one go/aontu.go declares; vendorHash is the hash of the
-# vendored Go modules, and `nix build` names the new one whenever
-# go.mod or go.sum change. No lock file is committed: run `nix flake
-# lock` where nix is, and commit it, to pin nixpkgs.
+# is the one go/aontu.go declares; the vendorHash of the vendored Go
+# modules is go/vendorhash.txt, which `nix build` names anew whenever
+# go.mod or go.sum change and go/flake_test.go recomputes. It sits
+# beside the module it describes so the Go test cache tracks it. No
+# lock file is committed: run `nix flake lock` where nix is, and commit
+# it, to pin nixpkgs.
 {
   description = "Aontu, the unifying configuration language: the aontu CLI and the aontu-lsp language server";
 
@@ -18,6 +20,8 @@
       versionLine = lib.findFirst (line: lib.hasPrefix "const VERSION = " line) null
         (lib.splitString "\n" (builtins.readFile ./go/aontu.go));
       version = builtins.head (builtins.match "const VERSION = \"([^\"]+)\".*" versionLine);
+      vendorHash = builtins.replaceStrings [ "\n" ] [ "" ]
+        (builtins.readFile ./go/vendorhash.txt);
     in {
       packages = forAll (system: pkgs: rec {
         aontu = pkgs.buildGoModule {
@@ -26,7 +30,7 @@
           src = ./.;
           modRoot = "go";
           subPackages = [ "cmd/aontu" "cmd/aontu-lsp" ];
-          vendorHash = "sha256-cOG/iwHodkLC8uYXCgSXpXKINX2oMtP76apzkmSYLdU=";
+          inherit vendorHash;
           CGO_ENABLED = 0;
           ldflags = [ "-s" "-w" ];
           # The suite runs in CI (make test) and takes a minute; the
