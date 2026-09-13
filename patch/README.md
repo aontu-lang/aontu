@@ -24,12 +24,10 @@ them to a run. The script compares them and fails on drift.
 the only thing missing is the CI half: until this step exists a branch
 that skips the local target can move a number without anything noticing.
 
-`ts/scripts/vale-counts.cjs` is already on `main`, but the numbers it
-reads are not yet right there: `main` records 3851 alerts where Vale
-reports 3853, drift that accumulated because nothing in CI was
-checking. Run `make prose` before applying this patch. If it fails,
-land the correction first, or the new step fails on its first run;
-[#215](https://github.com/aontu-lang/aontu/pull/215) carries it.
+`ts/scripts/vale-counts.cjs` and the numbers it reads are both on
+`main`, where `make prose` passes, so the patch applies as it stands.
+Run `make prose` first anyway: a drift landed there once already, and
+this step exists because nothing in CI was watching for the next one.
 
 Apply it with:
 
