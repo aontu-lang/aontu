@@ -2,8 +2,10 @@
 
 **Status:** PROPOSED, 2026-09-13; P1 LANDED the same day and §10 says
 what it cost. **§12's three open questions were ANSWERED by the owner
-on 2026-09-13 and §12a records the answers**; §1, §2, §3, §5, §6, §9,
-§10 and §11 carry what the answers changed. **§6 carries one thing the
+on 2026-09-13, and the ADR §12 asks for is written:
+[ADR-038](../../ADR.md#adr-038--the-component-tree-is-the-only-output-road-and-aontu-knows-no-languages).
+§12a records the answers**; §1, §2, §3, §5, §6, §9, §10 and §11 carry
+what the answers changed. **§6 carries one thing the
 answers exposed and this note had missed:** `aontu:render` also holds
 the profile schema `template` and `fmt` vet against, so it splits
 rather than goes. The rest is design and
@@ -57,7 +59,7 @@ and §5.
 
 > **SUPERSEDED 2026-09-13, and P1 is transitional.** The owner chose to
 > drop the declaration schema as well, so `lowerdecls`/`lowerloss`, the
-> declaration vocabulary and the four bundled profiles all go in the
+> declaration vocabulary and the two LOWERING profiles all go in the
 > end. This section is why the lowering-as-a-function step was worth
 > taking anyway: it is what lets the unit road be removed before the
 > declaration road is, so the corpus migrates once rather than twice.
@@ -343,7 +345,10 @@ Deleting `aontu:render` wholesale would therefore break the published
 otherwise touches. **The template-profile schema and its loader split
 out and STAY**; only the lowering half of `aontu:render` goes, and the
 loader moves out of the render module before the render module is
-deleted. P5 carries this.
+deleted. The `text` and `markdown` profiles stay with it — neither has
+a `lowering`, and markdown's marker is
+[ADR-035](../../ADR.md#adr-035--a-language-is-configured-in-its-profile-and-a-marker-may-name-its-closer)'s
+own decision. P5 carries this.
 
 ## 7. The check story
 
@@ -489,11 +494,16 @@ fragment-only, so it exercises §4 and nothing of §2 or §3.
 
 **P5 — delete, and it is now the bulk of the work.** The `render` verb
 and its help, `ts/src/render.ts` and `go/render.go`, the `RenderReport`
-types, the five `render_*` error codes and their hints, and the four
-spec files §11 names. Then, because §12a answer 1 says so, everything
-P1 was built to preserve: `lowerdecls` and `lowerloss`,
+types, and the spec files §11 names. **The five `render_*` error codes
+are NOT among them**: AGENTS.md makes codes append-only and
+`spec-errcodes-registry` asserts set equality with each engine's
+`codeClasses` table, so they stay registered with their classes, keep
+their hints, and stop being raisable.
+
+Then, because §12a answer 1 says so, everything P1 was built to
+preserve: `lowerdecls` and `lowerloss`,
 `ts/src/lower.ts` and `go/lower.go` apart from whatever §3a keeps, the
-lowering half of `aontu:render` with the four bundled profiles, and
+lowering half of `aontu:render` with the two lowering profiles, and
 `aontu/code/code.aon` and its Go twin ENTIRELY rather than reduced.
 `aontu:code` is not renamed; it is removed.
 
@@ -532,15 +542,18 @@ named instead, which is checkable at any commit.
 |---|---|---|
 | `ts/src/render.ts`, `go/render.go` | deleted | **deleted** |
 | `ts/src/lower.ts`, `go/lower.go` | kept, re-fronted | **deleted**, bar whatever §3a keeps |
-| `aontu/render/lang/*.aon` | kept — the profiles are the lowering | **deleted**; there is nothing left to spell |
+| `aontu/render/lang/typescript.aon`, `go.aon` | kept — the profiles are the lowering | **deleted**; there is nothing left to spell |
+| `aontu/render/lang/text.aon`, `markdown.aon` | kept | **KEPT** — no lowering in either; they are `template`/`fmt` profiles ([ADR-035](../../ADR.md#adr-035--a-language-is-configured-in-its-profile-and-a-marker-may-name-its-closer)) |
 | `aontu/render/render.aon` | kept | **SPLIT** — the lowering half goes, the `template` half stays (§6) |
 | `aontu/code/code.aon` and its Go twin | reduced to the declaration schema | **deleted entirely**, both copies |
 | `ts/src/val/LowerDeclsFuncVal.ts`, `go/lowerdecls.go` | — (P1, landed after the table) | **deleted**; P1 is a waypoint |
-| `test/spec/render.tsv`, `aontu-code.tsv`, `aontu-profile.tsv`, `lowerdecls.tsv` | ported, reduced, kept, — | **deleted** |
+| `test/spec/render.tsv`, `aontu-code.tsv`, `lowerdecls.tsv` | ported, reduced, — | **deleted** |
+| `test/spec/aontu-profile.tsv` | kept | **SPLIT** — the `text`/`markdown` hash and generate rows, `shape-hash` and the `profile-*` shape rows pin what survives; the `lowering`/`case` refusals and the four TypeScript/Go rows go |
+| `test/spec/errcodes.tsv` | — | **UNTOUCHED** — codes are append-only, so the five `render_*` rows stay registered with their classes |
 | `ts/test/render.test.ts`, `go/cmd/aontu/render_test.go`, `go/render_test.go` | deleted or ported | **deleted** |
 | the prop schema (P3), `aontu trace` (P6), the `--check` tool (P0) | — | **new**, both ports plus jostraca |
 
-So **both renderers, both lowerings, all four bundled profiles, the
+So **both renderers, both lowerings, the two lowering profiles, the
 `aontu:code` schema in both copies and four whole spec files go**,
 against three new surfaces, one of which is jostraca's. That is a much
 larger deletion and a much smaller construction than this note first
@@ -556,12 +569,18 @@ every new line arrives with it.
 
 ## 12. What this needs before it starts
 
-**An ADR.** This reverses G9 Resolution 1 — which chose the declaration
-vocabulary over a Jostraca-shaped plan and demoted the plan to
-"something the bridge builds, never something a transform writes" — and
-it removes a published verb and a published vocabulary. The register's
-G9 rows and `docs/reference-*.md` are downstream of that entry, not of
-this note.
+**An ADR. WRITTEN 2026-09-13 as
+[ADR-038](../../ADR.md#adr-038--the-component-tree-is-the-only-output-road-and-aontu-knows-no-languages).**
+It reverses G9 Resolution 1 — which chose the declaration vocabulary
+over a Jostraca-shaped plan and demoted the plan to "something the
+bridge builds, never something a transform writes" — and it removes a
+published verb and a published vocabulary. The register's G9 rows and
+`docs/reference-*.md` are downstream of that entry, not of this note.
+
+**Read the two together in one direction only.** ADR-038 decides the
+DESTINATION and nothing else; this note is the plan for reaching it,
+and a plan changes as plans do. Where they disagree, the entry wins and
+this note is wrong.
 
 ## 12a. The three decisions, ANSWERED 2026-09-13
 
@@ -574,13 +593,17 @@ true by being overruled.
 Against §2's recommendation. `%record`, `%enum`, `%alias`, `%const`,
 `%func`, `%field`, `%type` and `%check` go with `%unit`, and with them
 `lowerdecls`, `lowerloss`, `ts/src/lower.ts`, `go/lower.go` and the
-four bundled profiles. A generator writes target text.
+two lowering profiles. A generator writes target text.
 
 *What it buys:* aontu becomes a model-and-tree language with NO
-language knowledge in it at all — no profiles, no acronym sets, no
-reserved-word tables, no type expressions. The seam §5 draws moves:
+language knowledge in it at all — no acronym sets, no reserved-word
+tables, no case rules, no type expressions. The seam §5 draws moves:
 aontu knows neither languages nor files, and the generator author knows
-both. §11 names what goes.
+both. §11 names what goes. What a profile still says is where a
+language's marker, extensions and indentation live for `template` and
+`fmt`, which is
+[ADR-035](../../ADR.md#adr-035--a-language-is-configured-in-its-profile-and-a-marker-may-name-its-closer)
+and is untouched.
 
 *What it costs, stated plainly:* one model rendering to two languages
 with each language's own casing, acronym and optionality rules. That is
@@ -611,7 +634,8 @@ it is versionable, and a silently dropped `indent`, `mode` or
   and `cmptree-gen --check` are changes to that repository, and nothing
   in P1a-P6 can be deleted until they ship. Who does that work, and
   when, belongs in an issue.
-- **The ADR above is not written.** Nothing below P0 should start
-  without it, and it now has more to record than when this note was
-  first drafted: the decision to remove the declaration vocabulary is a
-  larger reversal of G9 Resolution 1 than removing the unit list was.
+- **The vocabulary needs a name.** ADR-038 says `aontu:render` cannot
+  keep a name built on a verb that no longer exists, and does not
+  choose the replacement. It is what `template` and `fmt` vet a
+  `--profile` against, so it is read by people who never generated
+  anything.

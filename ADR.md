@@ -63,9 +63,10 @@ capability decision is the phase rows it governed in
 | [ADR-032](#adr-032--code-comments-are-sparse-and-terse-intent-lives-in-names-requirements-live-in-documents) | Code comments are sparse and terse: intent lives in names, requirements live in documents | Accepted |
 | [ADR-033](#adr-033--a-grammar-is-a-string-and-parsing-is-a-function) | A grammar is a string, and parsing is a function | Accepted |
 | [ADR-034](#adr-034--absence-is-a-value-and-maybe-is-where-it-is-made) | Absence is a value, and `maybe` is where it is made | Accepted |
-| [ADR-035](#adr-035--a-language-is-configured-in-its-profile-and-a-marker-may-name-its-closer) | A language is configured in its profile, and a marker may name its closer | Accepted |
+| [ADR-035](#adr-035--a-language-is-configured-in-its-profile-and-a-marker-may-name-its-closer) | A language is configured in its profile, and a marker may name its closer | Superseded in part by [ADR-038](#adr-038--the-component-tree-is-the-only-output-road-and-aontu-knows-no-languages) |
 | [ADR-036](#adr-036--a-bundled-model-is-a-file-in-aontu-not-a-string-in-each-port) | A bundled model is a file in `aontu/`, not a string in each port | Accepted |
 | [ADR-037](#adr-037--two-lists-concatenate-under--and-a-sum-of-an-absence-is-absent) | Two lists concatenate under `+`, and a sum of an absence is absent | Accepted |
+| [ADR-038](#adr-038--the-component-tree-is-the-only-output-road-and-aontu-knows-no-languages) | The component tree is the only output road, and aontu knows no languages | Accepted |
 
 ---
 
@@ -3454,7 +3455,13 @@ One site in the shared machinery covers them all.
 ## ADR-035 — A language is configured in its profile, and a marker may name its closer
 
 **Date:** 2026-09-11
-**Status:** Accepted
+**Status:** Superseded in part, 2026-09-13, by
+[ADR-038](#adr-038--the-component-tree-is-the-only-output-road-and-aontu-knows-no-languages).
+"Three verbs, one file" becomes two: `render` goes, so `template` and
+`fmt` are the readers, and a profile no longer configures a lowering.
+Everything else survives verbatim and is what ADR-038 preserves — the
+marker with its optional closer, markdown as a known language, the
+`template` block, and one file declaring a language once.
 
 ### Context
 
@@ -3722,3 +3729,160 @@ text, and one more thing to know.
 selection. Targeted at this shape and it needs no absence rule, but it
 answers only for `emit`: a heading over a `sort` or an `each` would
 still have nowhere to live.
+
+
+---
+
+## ADR-038 — The component tree is the only output road, and aontu knows no languages
+
+**Date:** 2026-09-13
+**Status:** Accepted
+
+### Context
+
+[G9 Resolution 1](docs/capability-review/g9-transformation.md) was
+taken between two drafts of the same thing. One proposed a vocabulary
+of units, declarations, types and fields; the other a Jostraca-shaped
+plan of project/folder/file/content nodes. *"They cannot both be the
+output vocabulary."* The declaration vocabulary won, and the plan was
+demoted to *"a data structure the bridge builds in the host from the
+render report — never something a transform writes."* Three reasons:
+at text level one output line is one plan node, the vocabulary could
+assert almost nothing, and the layout was the host's to decide.
+
+Every one of those reasons was conditioned on facts that have since
+changed. `join` landed, so a forty-line struct is one rule emitting
+lines rather than forty nodes. `+` concatenates lists
+([ADR-037](#adr-037--two-lists-concatenate-under--and-a-sum-of-an-absence-is-absent)).
+The components landed as aontu functions in both ports, pinned by
+`test/spec/cmp.tsv`, which is what
+[ADR-023](#adr-023--g9-completes-at-the-renderer-the-reflection-sidecar-the-jostraca-bridge-and-string-interpolation-are-retired)'s
+retirement records — so a transform DOES write the plan now, and the
+sentence that demoted it is describing a world that no longer exists.
+G9's own amendment says *"It does not reverse it"*; that sentence is
+what this entry makes false.
+
+What the project has instead is FOUR roads to generated output:
+declarations under `%unit`, the fragment algebra, the `#-` template
+marker, and the component tree. Three of them spell one road's worth
+of capability three ways, and every one of them has to be learned,
+documented, tested in both ports and kept in parity.
+
+`docs/design/UNITS-AND-TREES.0.md` measured what a unit carries that a
+tree does not, and found one thing: a unit's `path` is module identity,
+so moving `app/geo.ts` to `app/deep/geo.ts` rewrites a derived
+`"../lib/geo"` to `"../../lib/geo"`. `UNITS-AND-TREES.1.md` is the
+design that answers it, and this entry is the decision it asks for.
+
+### Decision
+
+**The component tree is the only output road.** The `render` verb goes,
+and with it `%unit`, `%source`, `%import` and the fragment algebra
+(`%frag`, `%line`, `%blank`, `%raw`, `%piece`). A document that
+generates files builds a COMPONENT TREE and nothing else. "Nothing
+else" bars the other roads, not the other components: all ten
+primitives are on it — `project`, `folder`, `file`, `content`, `line`,
+`fragment`, `slot`, `inject`, `copyfiles`, `listitems` — and the
+file-touching four are the capability the tree has and the unit road
+never did.
+
+**aontu holds no language knowledge.** The declaration vocabulary —
+`%record`, `%enum`, `%alias`, `%const`, `%func`, `%field`, `%type`,
+`%check` — goes with the units, and so does the lowering that spells
+it: `ts/src/lower.ts`, `go/lower.go`, `lowerdecls`, `lowerloss` and the
+TypeScript and Go profiles. A generator writes target text. After this
+there are no acronym sets, no reserved-word tables, no case rules and
+no type expressions anywhere in either port.
+
+**The seam moves, and this is what it costs.** It ran between aontu,
+which knew languages, and jostraca, which knows files. It now runs
+below both: aontu knows neither, and the generator author knows both.
+
+**The profile survives, in the half
+[ADR-035](#adr-035--a-language-is-configured-in-its-profile-and-a-marker-may-name-its-closer)
+decided.** `%profile`'s `lang`, `indent`, `comment` and `template` are
+what `aontu template` and `aontu fmt` read through the shared
+`loadProfiles`, and they stay, as do the `text` and `markdown`
+profiles. `lowering`, `ident`, `types` and `str` go. The vocabulary is
+renamed out of `aontu:render`, which would otherwise name a verb that
+no longer exists.
+
+**Provenance keeps a verb.** `aontu trace <file>` over the component
+tree replaces what `RenderTrace` answered, in both ports, rather than
+going with the renderer that implements it.
+
+### Consequences
+
+- **One model rendering to two languages is given up, knowingly.**
+  `use-cases/10-data-model/xf-domain.aon` derives `idUrl: string` and
+  ``IDURL string `json:"id_url"` `` from one `%decls` list, each with
+  its own language's casing, acronym and optionality rules. There is no
+  successor: a generator wanting both writes the text twice. This is
+  the single largest thing the entry costs and it is not mitigated
+  anywhere.
+- **ADR-035 keeps the half that answers, and loses the half that
+  lowers.** "The profile is where a language is configured" holds for
+  `template` and `fmt` exactly as written — one file, three verbs, the
+  marker declared once. What it no longer configures is a lowering,
+  because there is none. Its module naming moves for the second time:
+  `aontu:profile` became `aontu:render`, and `aontu:render` is not a
+  name a project without a `render` verb should carry.
+- **`loadProfiles` leaves the render module before the render module
+  goes.** It is shared by three verbs and vets against the profile
+  vocabulary; deleting `render` first would take `template --profile`
+  and `fmt --profile` with it.
+- **[ADR-028](#adr-028--every-language-supplied-schema-is-named-under-aontu)
+  and [ADR-036](#adr-036--a-bundled-model-is-a-file-in-aontu-not-a-string-in-each-port)
+  hold, and lose instances.** Schemas are still named under `aontu:`
+  and bundled models are still files in `aontu/`; `aontu:code` and
+  three of its neighbours simply stop existing. Neither rule is
+  weakened by having fewer things to govern.
+- **[ADR-001](#adr-001--typescript-and-go-stay-at-full-parity-driven-by-a-shared-spec)
+  and [ADR-002](#adr-002--test-coverage-stays-at-100--in-both-implementations)
+  hold throughout.** Every deletion is symmetric across the ports, the
+  shared spec loses the rows that pinned what is gone, and the surviving
+  lines keep their coverage.
+- **A published verb and a published vocabulary are removed.** This is
+  a breaking change to the CLI and to every document that imports
+  `aontu:code`. The register's G9 rows and `docs/reference-*.md` are
+  downstream of this entry.
+- **The five `render_*` error codes stay registered.** AGENTS.md makes
+  codes append-only and never renamed, and the `spec-errcodes-registry`
+  row asserts SET EQUALITY between `test/spec/errcodes.tsv` and each
+  engine's `codeClasses` table — so a retired code stays in both or
+  neither, and append-only decides which. They keep their classes and
+  stop being raisable, which is what retirement means for a code. No
+  deletion this entry sanctions reaches the registry.
+- **The staging is not here.** What order the deletions happen in,
+  what jostraca must ship first, and what the corpus migration touches
+  live in `docs/design/UNITS-AND-TREES.1.md` §10, which is a plan and
+  changes as plans do. This entry decides the destination only.
+
+**Enforcement.** The gate is the absence of a second road: no future
+change re-introduces an output vocabulary alongside the component tree,
+and no future change puts a language table — casing, acronyms, reserved
+words, type spellings — back into either port. A phase that wants
+either supersedes this entry rather than amending a row.
+
+### Alternatives rejected
+
+**Keep the declaration vocabulary as a function's argument.** This is
+what `UNITS-AND-TREES.1.md` §2 proposed and what its P1 built and
+landed: `lowerdecls(decls, profile)` answering component nodes, so the
+unit LIST dies and the declarations survive as input. It works, it is
+byte-identical to the unit road, and it was rejected anyway — it keeps
+a language table in aontu permanently, and keeps two things a document
+must learn where the point is to have one. P1 stays useful as the step
+that lets the unit road go before the declaration road does, so the
+corpus migrates once rather than twice.
+
+**Move the declaration layer into jostraca.** Its `explanation.md`
+argues it is not a template dialect and that components are function
+calls in the host language; a `Record` component needing a language
+profile would be a second language inside it, for one consumer. The
+ask list this design puts to jostraca contains no profiles for that
+reason.
+
+**Keep `render` as a deprecated alias.** Two roads is the thing being
+removed. An alias that still works is still a road, still documented,
+still tested in both ports, and still the one a reader finds first.
