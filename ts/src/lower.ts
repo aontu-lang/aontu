@@ -192,8 +192,14 @@ export function literal(v: any, ctx: LowerCtx): string {
 
 type Expr = { text: string, prec: number }
 
+// A PARTIAL FORM TAKES THE SAME DEFAULTS AS AN ABSENT ONE. Read raw,
+// a form that sets only `prec` answers undefined for `open`, and
+// `undefined + text` spells it into the type.
 function form(ctx: LowerCtx, name: string): any {
-  return ctx.profile.types?.[name] ?? { open: '', close: '', prec: 9, childPrec: 0 }
+  return {
+    open: '', close: '', prec: 9, childPrec: 0,
+    ...(ctx.profile.types?.[name] ?? {}),
+  }
 }
 
 function under(inner: Expr, f: any): string {

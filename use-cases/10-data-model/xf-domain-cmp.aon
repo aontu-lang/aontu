@@ -1,0 +1,12 @@
+# xf-domain-cmp.aon --- xf-domain.aon's declarations, the other road.
+#
+# The transform is unchanged and included: what differs is where its
+# declarations go. `lowerdecls` spells them for a profile and answers
+# `line` nodes, so the deliverable is a COMPONENT TREE a generator
+# engine consumes rather than a unit list `aontu render` writes.
+# check.sh holds the bytes this tree carries to the same golden the
+# unit spelling renders.
+@"./xf-domain.aon"
+@"aontu:render/lang/typescript"
+
+out: file("domain.ts", lowerdecls(pick($.step, d), $.aontu.render.Lang))

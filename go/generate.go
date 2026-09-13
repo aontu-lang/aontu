@@ -8,7 +8,6 @@ import (
 	"strings"
 )
 
-
 // packKeys is the keys a data bag names, or the code naming what is
 // wrong with it. For a list the strings themselves are the keys: keys
 // are DATA, never position, or reordering the list would churn every
@@ -84,7 +83,6 @@ func packFunc(ctx *Ctx, f *FuncVal, base []string, args []Val) Val {
 	out.setvpath(cp(base))
 	return out
 }
-
 
 // trialUnify is a TRIAL meet: does a unify with b, and if so as what?
 // Failure is an ANSWER rather than an error, so the error list is
@@ -220,6 +218,8 @@ func stagedArgIdx(f *FuncVal) []int {
 	switch f.name {
 	case "pack", "each":
 		return []int{0}
+	case "lowerdecls", "lowerloss":
+		return []int{0, 1}
 	case "emit":
 		// The SELECTION only. The table is templates, instantiated at
 		// each matched node, so its bodies may hold a `_` or a relative
@@ -267,7 +267,6 @@ func stagedDrive(ctx *Ctx, f *FuncVal, base []string) bool {
 	}
 	return ready
 }
-
 
 // emitTemplate is one entry of the rule table: the pattern to try, the
 // body to instantiate, and -- docs/design/TEMPLATE.0.md D3 and D4 --

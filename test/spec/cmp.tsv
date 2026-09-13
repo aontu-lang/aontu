@@ -71,3 +71,13 @@ cmp-children-past-the-gate	errc	y: {a: *}\nx: folder("s", $.y.a)	invalid-arg
 translate-src-past-the-gate	errc	y: {a: *}\nx: translate($.y.a, "a", "b")	invalid-arg
 translate-from-past-the-gate	errc	y: {a: *}\nx: translate("a", $.y.a, "b")	invalid-arg
 translate-to-past-the-gate	errc	y: {a: *}\nx: translate("a", "a", $.y.a)	invalid-arg
+cmp-line-empty-span	gens	x: line("")	{"x":{"children":[],"cmp":"Line","props":{"src":""}}}
+cmp-content-empty-span	gens	x: content("")	{"x":{"children":[],"cmp":"Content","props":{"src":""}}}
+cmp-bare-string-child	gens	x: file("a.ts", ["export {}"])	{"x":{"children":[{"children":[],"cmp":"Content","props":{"src":"export {}"}}],"cmp":"File","props":{"name":"a.ts"}}}
+cmp-bare-string-mixed	gens	x: file("a.ts", [line("a") "b" content("c")])	{"x":{"children":[{"children":[],"cmp":"Line","props":{"src":"a"}},{"children":[],"cmp":"Content","props":{"src":"b"}},{"children":[],"cmp":"Content","props":{"src":"c"}}],"cmp":"File","props":{"name":"a.ts"}}}
+cmp-bare-string-spliced	gens	x: file("a.ts", [["a" "b"]])	{"x":{"children":[{"children":[],"cmp":"Content","props":{"src":"a"}},{"children":[],"cmp":"Content","props":{"src":"b"}}],"cmp":"File","props":{"name":"a.ts"}}}
+cmp-bare-string-in-fragment	gens	x: fragment("h.ts", ["a"])	{"x":{"children":[{"children":[],"cmp":"Content","props":{"src":"a"}}],"cmp":"Fragment","props":{"from":"h.ts"}}}
+cmp-folder-name-not-empty-still	errc	x: folder("")	invalid-arg
+cmp-project-folder-not-empty	errc	x: project({folder: ""})	invalid-arg
+cmp-bare-string-needs-content	errc	x: folder("s", ["oops"])	invalid-arg
+cmp-bare-string-not-in-project	errc	x: project("b", ["oops"])	invalid-arg

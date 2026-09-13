@@ -23,12 +23,12 @@ const CMP_DEF = {
         children: ['content', 'line', 'fragment', 'inject', 'listitems', 'copyfiles'],
     },
     content: {
-        cmp: 'Content', text: 'src', req: true,
+        cmp: 'Content', text: 'src', req: true, span: true,
         children: [],
     },
     // A span with a newline added, which is the whole difference.
     line: {
-        cmp: 'Line', text: 'src', req: true,
+        cmp: 'Line', text: 'src', req: true, span: true,
         children: [],
     },
     // A file read from disk with its `<[SLOT]>` markers filled.
@@ -72,6 +72,15 @@ function nodeCmp(v) {
     // names, so read it back through the one table.
     return (undefined === name) ? undefined : BY_CMP[name];
 }
+function cmpNode(cmp, props, children, ctx) {
+    const node = new MapVal_1.MapVal({ peg: { cmp: new StringVal_1.StringVal({ peg: cmp }, ctx), props, children } }, ctx);
+    node.closed = true;
+    return node;
+}
+// A bare string child is this: what a template body line desugars to.
+function contentNode(src, ctx) {
+    return cmpNode(CMP_DEF.content.cmp, new MapVal_1.MapVal({ peg: { src: new StringVal_1.StringVal({ peg: src }, ctx) } }, ctx), new ListVal_1.ListVal({ peg: [] }, ctx), ctx);
+}
 function propText(props, key) {
     const v = props?.peg?.[key];
     return (true === v?.isScalar && 'string' === typeof v.peg) ? v.peg : undefined;
@@ -107,11 +116,12 @@ class CmpFuncVal extends FuncBaseVal_1.FuncBaseVal {
         }
         if (undefined !== def.text) {
             const text = propText(props, def.text);
-            if (def.req && (undefined === text || '' === text)) {
+            if (def.req &&
+                (undefined === text || ('' === text && true !== def.span))) {
                 return (0, err_1.makeNilErr)(ctx, 'invalid-arg', this, props, def.text);
             }
             if (!def.req && undefined !== props.peg?.[def.text] &&
-                undefined === text) {
+                (undefined === text || ('' === text && true !== def.span))) {
                 return (0, err_1.makeNilErr)(ctx, 'invalid-arg', this, props, def.text);
             }
         }
@@ -140,6 +150,15 @@ class CmpFuncVal extends FuncBaseVal_1.FuncBaseVal {
                         }
                         continue;
                     }
+                    const text = (true === kid?.isScalar &&
+                        'string' === typeof kid.peg) ? kid.peg : undefined;
+                    if (undefined !== text) {
+                        if (!def.children.includes('content')) {
+                            return kid;
+                        }
+                        flat.push(contentNode(text, ctx));
+                        continue;
+                    }
                     const kcmp = nodeCmp(kid);
                     if (undefined === kcmp || !def.children.includes(kcmp)) {
                         return kid;
@@ -157,15 +176,7 @@ class CmpFuncVal extends FuncBaseVal_1.FuncBaseVal {
         else {
             return (0, err_1.makeNilErr)(ctx, 'invalid-arg', this, kids, 'children');
         }
-        const node = new MapVal_1.MapVal({
-            peg: {
-                cmp: new StringVal_1.StringVal({ peg: def.cmp }, ctx),
-                props,
-                children,
-            }
-        }, ctx);
-        node.closed = true;
-        return this.place(node);
+        return this.place(cmpNode(def.cmp, props, children, ctx));
     }
 } /* node:coverage ignore next 3 */
 exports.CmpFuncVal = CmpFuncVal;

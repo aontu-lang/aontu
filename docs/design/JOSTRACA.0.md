@@ -476,7 +476,9 @@ ports gained the arm, and a row pins the message.
 
 Two of them, and a premise of one that has gone stale since it was
 written. The spike settles neither decision: a spike is evidence, and
-the decision is the owner's.
+the decision is the owner's. A third question the spike raised and did
+not answer — what the component tree leaves `aontu:code` to do — is
+[UNITS-AND-TREES.0.md](UNITS-AND-TREES.0.md).
 
 **[ADR-023](../../ADR.md#adr-023--g9-completes-at-the-renderer-the-reflection-sidecar-the-jostraca-bridge-and-string-interpolation-are-retired)
 retired the Jostraca bridge, and the spike does not reopen it.**

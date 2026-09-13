@@ -12,6 +12,9 @@ type cmpDef struct {
 	// The prop a bare string argument fills, and whether it is required.
 	text string
 	req  bool
+	// Whether that prop is a SPAN of target text rather than a name. A
+	// blank line is a span; a folder called "" is a mistake.
+	span bool
 	// A prop that must be present and must be a list.
 	bag string
 	// The children this component admits, by aontu function name. Empty
@@ -33,11 +36,11 @@ var cmpDefs = map[string]cmpDef{
 		children: []string{"content", "line", "fragment", "inject", "listitems", "copyfiles"},
 	},
 	"content": {
-		cmp: "Content", text: "src", req: true,
+		cmp: "Content", text: "src", req: true, span: true,
 		children: []string{},
 	},
 	"line": {
-		cmp: "Line", text: "src", req: true,
+		cmp: "Line", text: "src", req: true, span: true,
 		children: []string{},
 	},
 	"fragment": {
@@ -75,7 +78,6 @@ func init() {
 	}
 }
 
-// nodeCmp answers the aontu name of the component a value is a node of.
 func nodeCmp(v Val) (string, bool) {
 	m, ok := v.(*MapVal)
 	if !ok {
@@ -93,8 +95,33 @@ func cmpPropText(props *MapVal, key string) (string, bool) {
 	return stringPeg(props.peg[key])
 }
 
+func cmpAdmits(def cmpDef, fname string) bool {
+	for _, c := range def.children {
+		if c == fname {
+			return true
+		}
+	}
+	return false
+}
+
+func cmpNode(cmp string, props *MapVal, children *ListVal) *MapVal {
+	node := newMap()
+	node.set("cmp", newString(cmp))
+	node.set("props", props)
+	node.set("children", children)
+	node.closed = true
+	return node
+}
+
+func contentNode(src string) *MapVal {
+	props := newMap()
+	props.set("src", newString(src))
+	return cmpNode(cmpDefs["content"].cmp, props, newList([]Val{}))
+}
+
 // cmpFlatten splices nested lists and refuses a child the component
-// does not admit, answering the offending value.
+// does not admit, answering the offending value. A bare string is
+// `content` sugar, which is what a template body line desugars to.
 func cmpFlatten(def cmpDef, list []Val, out *[]Val) Val {
 	for _, kid := range list {
 		if inner, ok := kid.(*ListVal); ok {
@@ -103,18 +130,18 @@ func cmpFlatten(def cmpDef, list []Val, out *[]Val) Val {
 			}
 			continue
 		}
+		if text, isText := stringPeg(kid); isText {
+			if !cmpAdmits(def, "content") {
+				return kid
+			}
+			*out = append(*out, contentNode(text))
+			continue
+		}
 		kcmp, ok := nodeCmp(kid)
 		if !ok {
 			return kid
 		}
-		admitted := false
-		for _, c := range def.children {
-			if c == kcmp {
-				admitted = true
-				break
-			}
-		}
-		if !admitted {
+		if !cmpAdmits(def, kcmp) {
 			return kid
 		}
 		*out = append(*out, kid)
@@ -158,10 +185,11 @@ func cmpFunc(ctx *Ctx, f *FuncVal, args []Val) Val {
 
 	if "" != def.text {
 		text, ok := cmpPropText(props, def.text)
-		if def.req && (!ok || "" == text) {
+		empty := "" == text && !def.span
+		if def.req && (!ok || empty) {
 			return makeNilErrFull(ctx, "invalid-arg", f, props, def.text, nil)
 		}
-		if _, written := props.peg[def.text]; !def.req && written && !ok {
+		if _, written := props.peg[def.text]; !def.req && written && (!ok || empty) {
 			return makeNilErrFull(ctx, "invalid-arg", f, props, def.text, nil)
 		}
 	}
@@ -186,10 +214,5 @@ func cmpFunc(ctx *Ctx, f *FuncVal, args []Val) Val {
 		}
 	}
 
-	node := newMap()
-	node.set("cmp", newString(def.cmp))
-	node.set("props", props)
-	node.set("children", newList(kids))
-	node.closed = true
-	return node
+	return cmpNode(def.cmp, props, newList(kids))
 }

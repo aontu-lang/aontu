@@ -161,8 +161,14 @@ function literal(v, ctx) {
     }
     return (0, exactjson_1.exactJSON)(v);
 }
+// A PARTIAL FORM TAKES THE SAME DEFAULTS AS AN ABSENT ONE. Read raw,
+// a form that sets only `prec` answers undefined for `open`, and
+// `undefined + text` spells it into the type.
 function form(ctx, name) {
-    return ctx.profile.types?.[name] ?? { open: '', close: '', prec: 9, childPrec: 0 };
+    return {
+        open: '', close: '', prec: 9, childPrec: 0,
+        ...(ctx.profile.types?.[name] ?? {}),
+    };
 }
 function under(inner, f) {
     return inner.prec < f.childPrec ? '(' + inner.text + ')' : inner.text;

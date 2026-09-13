@@ -25,9 +25,11 @@ type CmpDef = {
   children: string[]
   text?: string
   // Whether that prop is required. `project`'s folder is the one that
-  // is not: Jostraca defaults it to `.`, and the data path must not be
-  // stricter than the component it drives.
+  // is not: Jostraca defaults it to `.`.
   req: boolean
+  // Whether that prop is a SPAN of target text rather than a name. A
+  // blank line is a span; a folder called "" is a mistake.
+  span?: boolean
   // A prop that must be present and must be a list.
   bag?: string
 }
@@ -48,12 +50,12 @@ const CMP_DEF: Record<string, CmpDef> = {
     children: ['content', 'line', 'fragment', 'inject', 'listitems', 'copyfiles'],
   },
   content: {
-    cmp: 'Content', text: 'src', req: true,
+    cmp: 'Content', text: 'src', req: true, span: true,
     children: [],
   },
   // A span with a newline added, which is the whole difference.
   line: {
-    cmp: 'Line', text: 'src', req: true,
+    cmp: 'Line', text: 'src', req: true, span: true,
     children: [],
   },
   // A file read from disk with its `<[SLOT]>` markers filled.
@@ -100,6 +102,24 @@ function nodeCmp(v: any): string | undefined {
 }
 
 
+function cmpNode(cmp: string, props: Val, children: Val,
+  ctx: AontuContext): MapVal {
+  const node = new MapVal({ peg: { cmp: new StringVal({ peg: cmp }, ctx), props, children } }, ctx)
+  node.closed = true
+  return node
+}
+
+
+// A bare string child is this: what a template body line desugars to.
+function contentNode(src: string, ctx: AontuContext): MapVal {
+  return cmpNode(
+    CMP_DEF.content.cmp,
+    new MapVal({ peg: { src: new StringVal({ peg: src }, ctx) } }, ctx),
+    new ListVal({ peg: [] }, ctx),
+    ctx)
+}
+
+
 function propText(props: any, key: string): string | undefined {
   const v: any = props?.peg?.[key]
   return (true === v?.isScalar && 'string' === typeof v.peg) ? v.peg : undefined
@@ -109,9 +129,7 @@ function propText(props: any, key: string): string | undefined {
 class CmpFuncVal extends FuncBaseVal {
   isCmpFunc = true
 
-  // The component this call builds: the function's own name, which is
-  // also the `cmp` key of the node and the Jostraca component the
-  // bridge looks up.
+  // The function's own name, which is also the node's `cmp` key.
   cmp: string
 
   constructor(
@@ -153,11 +171,12 @@ class CmpFuncVal extends FuncBaseVal {
 
     if (undefined !== def.text) {
       const text = propText(props, def.text)
-      if (def.req && (undefined === text || '' === text)) {
+      if (def.req &&
+        (undefined === text || ('' === text && true !== def.span))) {
         return makeNilErr(ctx, 'invalid-arg', this, props, def.text)
       }
       if (!def.req && undefined !== (props as any).peg?.[def.text] &&
-        undefined === text) {
+        (undefined === text || ('' === text && true !== def.span))) {
         return makeNilErr(ctx, 'invalid-arg', this, props, def.text)
       }
     }
@@ -188,6 +207,15 @@ class CmpFuncVal extends FuncBaseVal {
             }
             continue
           }
+          const text = (true === (kid as any)?.isScalar &&
+            'string' === typeof (kid as any).peg) ? (kid as any).peg : undefined
+          if (undefined !== text) {
+            if (!def.children.includes('content')) {
+              return kid
+            }
+            flat.push(contentNode(text, ctx))
+            continue
+          }
           const kcmp = nodeCmp(kid)
           if (undefined === kcmp || !def.children.includes(kcmp)) {
             return kid
@@ -206,17 +234,7 @@ class CmpFuncVal extends FuncBaseVal {
       return makeNilErr(ctx, 'invalid-arg', this, kids, 'children')
     }
 
-    const node = new MapVal({
-      peg: {
-        cmp: new StringVal({ peg: def.cmp }, ctx),
-        props,
-        children,
-      }
-    }, ctx)
-
-    node.closed = true
-
-    return this.place(node)
+    return this.place(cmpNode(def.cmp, props, children, ctx))
   }
 
 } /* node:coverage ignore next 3 */

@@ -6,6 +6,7 @@ type CmpDef = {
     children: string[];
     text?: string;
     req: boolean;
+    span?: boolean;
     bag?: string;
 };
 declare const CMP_DEF: Record<string, CmpDef>;

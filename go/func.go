@@ -19,33 +19,35 @@ var funcSet = map[string]bool{
 	"map": true, "list": true,
 	// ADR-034.
 	"maybe": true,
-	"min": true, "max": true, "above": true, "below": true, "neq": true,
+	"min":   true, "max": true, "above": true, "below": true, "neq": true,
 	"re": true, "length": true, "unique": true, "must": true,
-	"deprecate": true,
-	"rel":       true,
-	"acyclic":   true,
-	"inverse":   true,
-	"refer":     true,
-	"pack":      true,
-	"each":      true,
-	"filter":    true,
-	"match":     true,
-	"emit":      true,
-	"esc":       true,
-	"usc":       true,
-	"rep":       true,
-	"split":     true,
-	"nom":       true,
-	"translate": true,
-	"add": true,
-	"sub": true,
-	"mul": true,
-	"div": true,
-	"mod": true,
-	"rem": true,
-	"sum":      true,
-	"least":    true,
-	"greatest": true,
+	"deprecate":  true,
+	"rel":        true,
+	"acyclic":    true,
+	"inverse":    true,
+	"refer":      true,
+	"pack":       true,
+	"each":       true,
+	"filter":     true,
+	"match":      true,
+	"emit":       true,
+	"esc":        true,
+	"usc":        true,
+	"rep":        true,
+	"split":      true,
+	"nom":        true,
+	"translate":  true,
+	"lowerdecls": true,
+	"lowerloss":  true,
+	"add":        true,
+	"sub":        true,
+	"mul":        true,
+	"div":        true,
+	"mod":        true,
+	"rem":        true,
+	"sum":        true,
+	"least":      true,
+	"greatest":   true,
 	// Projection, which is what lets the aggregates reach a bag of
 	// RECORDS. Not a clever each template -- each MEETS each child, and
 	// a meet cannot select.
@@ -55,7 +57,7 @@ var funcSet = map[string]bool{
 	// G9 phase 2: the fold to a STRING. sum folds with add; this folds
 	// with `+`, so it inherits the one number-to-text rule and the
 	// language does not grow a second.
-	"join": true,
+	"join":  true,
 	"abnf":  true,
 	"parse": true,
 }
@@ -63,18 +65,21 @@ var funcSet = map[string]bool{
 var stagedFuncs = map[string]bool{
 	"key": true, "pack": true, "each": true, "filter": true,
 	"match": true,
-	"emit": true,
-	"sum": true, "least": true, "greatest": true, "pick": true,
+	"emit":  true,
+	"sum":   true, "least": true, "greatest": true, "pick": true,
 	"sort": true,
 	// A fold over a bag still being merged into folds the wrong bag.
 	"join": true,
+	// Both arguments are data and must settle before a declaration can
+	// be spelled: a half-unified type lowers to the wrong text.
+	"lowerdecls": true,
+	"lowerloss":  true,
 }
 
 var foldFuncs = map[string]bool{
 	"sum": true, "least": true, "greatest": true, "pick": true, "join": true,
 	"sort": true,
 }
-
 
 var positionalArgFuncs = derivePositional()
 
@@ -175,8 +180,8 @@ func BuiltinFuncNames() []string {
 // to done, then resolve() computes the result; otherwise it defers.
 type FuncVal struct {
 	base
-	name string
-	peg  []Val // arguments
+	name     string
+	peg      []Val // arguments
 	prepared bool
 }
 
@@ -547,6 +552,10 @@ func (f *FuncVal) resolve(ctx *Ctx, base []string, args []Val) Val {
 		return order(ctx, f, base, args[0], argAt(args, 1), argAt(args, 2))
 	case "nom":
 		return nomFunc(ctx, f, args)
+	case "lowerdecls":
+		return lowerDeclsFunc(ctx, f, args, false)
+	case "lowerloss":
+		return lowerDeclsFunc(ctx, f, args, true)
 	case "translate":
 		return translateFunc(ctx, f, args)
 	case "project", "folder", "file", "content", "line", "fragment",
