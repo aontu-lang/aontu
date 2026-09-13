@@ -502,7 +502,24 @@ export function modManifest(
   }
 
   const newSrc = readFileSync(main, 'utf8')
-  const canon = options.eval(newSrc, main).hash
+  const got = options.eval(newSrc, main)
+
+  // Nothing to pin: `tidy` refuses the same way.
+  if (!got.ok) {
+    return {
+      verdict: 'error',
+      mod,
+      version: self.version,
+      canon: '',
+      config: MODULE_CONFIG_MEDIA_TYPE,
+      files: [],
+      annotations: {},
+      missing: [self.main],
+      findings: [],
+    }
+  }
+
+  const canon = got.hash
 
   const report: ModManifestReport = {
     verdict: 'ok',

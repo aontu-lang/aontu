@@ -265,6 +265,14 @@ func (r *ReferVal) Unify(peer Val, ctx *Ctx) Val {
 		return makeNilErrFull(ctx, r.addrCode, r, peer, "refer", nil)
 	}
 
+	// A residual never HOLDS an unresolved call: the call drives, and
+	// the residual meets what it becomes. Held-as-written would freeze
+	// a `refer()` of its own into the canon, twice over. Mirrors
+	// ReferVal.unify in ts/src/val/ReferFuncVal.ts.
+	if isFunc(peer) {
+		return peer.Unify(r, ctx)
+	}
+
 	out := r.reshape()
 	if nil == r.held {
 		out.held = peer

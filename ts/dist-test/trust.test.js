@@ -527,6 +527,7 @@ function firstCode(fn) {
             ['hash', () => (0, cli_1.runHash)([bad, 'everything', entry])],
             ['agentsmd', () => (0, cli_1.runAgentsMd)([bad, 'everything', entry])],
             ['set', () => (0, cli_1.runSet)([bad, 'everything', '$.z=1', '--entry', entry, '--overlay', overlay])],
+            ['mod', () => (0, cli_1.runMod)([bad, 'everything', 'tidy', w.root])],
         ];
         for (const [name, run] of runs) {
             const r = capture(() => Assert.equal(run(), 2, name));

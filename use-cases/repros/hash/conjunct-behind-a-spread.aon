@@ -1,0 +1,25 @@
+# 95: a refer residual dropped the conjunct it was declared with.
+# FIXED 2026-09-13, both ports. The element type is declared
+# `refer() & path()` once; before the fix the instantiated copy read
+# `refer()&refer()` in TypeScript and `refer()&refer()&path()` in Go,
+# so the two ports computed different canon-hashes for one document.
+# Two defects composed: unite's identical-shape short-circuit
+# discarded one of two settled refers (TypeScript only, because a
+# refer's state lives off `peg`), and an unevaluated refer() call met
+# by a residual was frozen into `held` as written (both ports).
+#
+# run: node ../../../ts/bin/aontu.js hash --form conjunct-behind-a-spread.aon
+# run: aontu-go hash --form conjunct-behind-a-spread.aon
+#
+# expected: both ports render the element type as `refer()&path()`,
+#           which is what the declaration says, and agree on the hash
+#           aon1-TudW0mv_f7DbNicW0HaXqHLrH3vRSwmPcJOW6YCj2AY.
+# actual:   as expected since the fix. Pinned by five rows in
+#           test/spec/hcanon.tsv; remove the `unique(n) &` and the
+#           shape never diverged at all.
+T: type({
+  Step: close({ n: integer  refuse?: [&: refer() & path()] })
+  Op: close({ steps: unique(n) & [&: $.T.Step] })
+})
+errors: { e: 1 }
+ops: { acquire: $.T.Op & { steps: [{ n: 1  refuse: [path($.errors.e)] }] } }

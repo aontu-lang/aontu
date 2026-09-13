@@ -351,7 +351,22 @@ function modManifest(root, options, against) {
         };
     }
     const newSrc = (0, node_fs_1.readFileSync)(main, 'utf8');
-    const canon = options.eval(newSrc, main).hash;
+    const got = options.eval(newSrc, main);
+    // Nothing to pin: `tidy` refuses the same way.
+    if (!got.ok) {
+        return {
+            verdict: 'error',
+            mod,
+            version: self.version,
+            canon: '',
+            config: exports.MODULE_CONFIG_MEDIA_TYPE,
+            files: [],
+            annotations: {},
+            missing: [self.main],
+            findings: [],
+        };
+    }
+    const canon = got.hash;
     const report = {
         verdict: 'ok',
         mod,

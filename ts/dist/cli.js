@@ -1764,6 +1764,12 @@ const VIEW_USAGE_CODES = [
 ];
 const MOD_HELP = 'aontu mod tidy|verify|vendor|manifest [dir] (try --help)';
 function runMod(argv) {
+    const trusted = takeTrust(argv);
+    if (null == trusted) {
+        return 2;
+    }
+    argv = trusted.argv;
+    const trust = trusted.trust;
     const rest = [];
     let format = 'text';
     let against;
@@ -1819,10 +1825,11 @@ function runMod(argv) {
         process.stderr.write('aontu: --against is a manifest option\n');
         return 2;
     }
-    const report = 'tidy' === sub ? (0, mod_tool_1.modTidy)(dir, modToolOptions()) :
-        'verify' === sub ? (0, mod_tool_1.modVerify)(dir, modToolOptions()) :
-            'vendor' === sub ? (0, mod_tool_1.modVendor)(dir, modToolOptions()) :
-                (0, mod_tool_1.modManifest)(dir, modToolOptions(), against);
+    const modopts = modToolOptions(trust, (0, node_path_1.resolve)(dir));
+    const report = 'tidy' === sub ? (0, mod_tool_1.modTidy)(dir, modopts) :
+        'verify' === sub ? (0, mod_tool_1.modVerify)(dir, modopts) :
+            'vendor' === sub ? (0, mod_tool_1.modVendor)(dir, modopts) :
+                (0, mod_tool_1.modManifest)(dir, modopts, against);
     process.stdout.write(('json' === format ?
         (0, aontu_1.exactJSON)({ aontu: { version: version(), verb: 'mod ' + sub }, ...report }, 2) :
         modText(sub, report)) + '\n');
@@ -1843,11 +1850,16 @@ const MOD_EXIT = {
 // The tooling's evaluator: the same standalone evaluation the module
 // resolver verifies with (ts/src/mod.ts), and for the same reason —
 // only the engine can say what a module MEANS.
-function modToolOptions() {
+function modToolOptions(trust, entryRoot) {
+    const opts = verbOpts(trust, entryRoot);
+    // The user cache lives outside any confinement root, so a confined
+    // run reads the vendor tree only -- as the evaluator's own module
+    // leg already does when a root is set.
+    const rooted = null != opts.trust?.include?.root;
     return {
-        cache: (0, mod_1.modCacheDir)(),
+        ...(rooted ? {} : { cache: (0, mod_1.modCacheDir)() }),
         eval: (src, path) => {
-            const a0 = new aontu_1.Aontu();
+            const a0 = new aontu_1.Aontu(opts);
             const ctx = a0.ctx({ collect: true });
             const val = a0.unify(src, { path }, ctx);
             return {

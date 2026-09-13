@@ -67,6 +67,7 @@ const unite = (ctx: AontuContext, a: any, b: any, whence: string) => {
             && !a.isConjunct && !a.isDisjunct
             && !a.isRef && !a.isPref && !a.isFunc && !a.isExpect
             && !a.isTop && !b.isTop
+            && !a.isRefer
             && !a.isRel && !a.isGraphAtom && !a.isRecurse) {
           // The deprecation record survives the fast path too (G3):
           // `deprecate(5) & 5` short-circuits here.

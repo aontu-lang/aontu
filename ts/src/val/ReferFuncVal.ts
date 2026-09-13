@@ -181,6 +181,10 @@ class ReferVal extends FeatureVal {
       return makeNilErr(ctx, this.addrcode, this, peer, 'refer')
     }
 
+    if (true === p.isFunc) {
+      return peer.unify(this, ctx)
+    }
+
     return this.with(ctx, {
       held: null == this.held ? peer : unite(ctx, this.held, peer, 'refer-held'),
     }, this)

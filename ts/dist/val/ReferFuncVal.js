@@ -129,6 +129,9 @@ class ReferVal extends FeatureVal_1.FeatureVal {
             || true === p.isMap || true === p.isList) {
             return (0, err_1.makeNilErr)(ctx, this.addrcode, this, peer, 'refer');
         }
+        if (true === p.isFunc) {
+            return peer.unify(this, ctx);
+        }
         return this.with(ctx, {
             held: null == this.held ? peer : (0, unify_1.unite)(ctx, this.held, peer, 'refer-held'),
         }, this);

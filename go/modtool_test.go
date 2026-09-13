@@ -84,7 +84,7 @@ func TestModTidyWritesTheLockfile(t *testing.T) {
 			})
 		})
 
-	r := ModTidy(dir, "")
+	r := ModTidy(dir, nil)
 	if "ok" != r.Verdict || 1 != len(r.Lock) {
 		t.Fatalf("verdict %q lock %v", r.Verdict, r.Lock)
 	}
@@ -105,7 +105,7 @@ func TestModTidyWithNoModuleFileLocksNothing(t *testing.T) {
 	// lockfile is still written, and says so: an empty closure is a
 	// resolved closure.
 	dir := t.TempDir()
-	r := ModTidy(dir, "")
+	r := ModTidy(dir, nil)
 	if "ok" != r.Verdict || 0 != len(r.Lock) {
 		t.Fatalf("verdict %q lock %v", r.Verdict, r.Lock)
 	}
@@ -117,7 +117,7 @@ func TestModTidyWithNoModuleFileLocksNothing(t *testing.T) {
 func TestModTidyMissingModule(t *testing.T) {
 	for _, dep := range []string{"corp.example/absent@1", "not-a-module"} {
 		dir := modtoolProject(t, "\""+dep+"\": {v: \"1.0.0\"}", nil)
-		r := ModTidy(dir, "")
+		r := ModTidy(dir, nil)
 		if "missing" != r.Verdict || 1 != len(r.Missing) || dep != r.Missing[0] {
 			t.Fatalf("%s: verdict %q missing %v", dep, r.Verdict, r.Missing)
 		}
@@ -148,7 +148,7 @@ func TestModTidySelectsMaxOfMinima(t *testing.T) {
 			})
 		})
 
-	r := ModTidy(dir, "")
+	r := ModTidy(dir, nil)
 	if "ok" != r.Verdict {
 		t.Fatalf("verdict %q missing %v", r.Verdict, r.Missing)
 	}
@@ -179,7 +179,7 @@ func TestModTidyRecomputesCanonAndCarriesOci(t *testing.T) {
 				"\"oci\":\"sha256:6b86\",\"v\":\"1.0.0\"}}}\n")
 		})
 
-	r := ModTidy(dir, "")
+	r := ModTidy(dir, nil)
 	v, _ := New().Unify(modSource)
 	if CanonHash(v) != r.Lock[0].Canon {
 		t.Fatalf("canon %q", r.Lock[0].Canon)
@@ -198,7 +198,7 @@ func TestModTidyPinsNothingWithoutAnEntryFile(t *testing.T) {
 			"mod.aon": "mod: {path: \"corp.example/s\", main: \"gone.aon\"}\n",
 		})
 	})
-	r := ModTidy(dir, "")
+	r := ModTidy(dir, nil)
 	if "ok" != r.Verdict || "" != r.Lock[0].Canon {
 		t.Fatalf("verdict %q canon %q", r.Verdict, r.Lock[0].Canon)
 	}
@@ -219,12 +219,12 @@ func TestModDeclaredDepsIgnoresWhatIsNotADepBlock(t *testing.T) {
 		dir := t.TempDir()
 		file := filepath.Join(dir, "mod.aon")
 		write(t, file, src)
-		if deps := declaredDeps(file); 0 != len(deps) {
+		if deps := declaredDeps(file, nil); 0 != len(deps) {
 			t.Fatalf("%q gave %v", src, deps)
 		}
 	}
 	// And a file that is not there at all.
-	if deps := declaredDeps(filepath.Join(t.TempDir(), "gone.aon")); 0 != len(deps) {
+	if deps := declaredDeps(filepath.Join(t.TempDir(), "gone.aon"), nil); 0 != len(deps) {
 		t.Fatalf("missing file gave %v", deps)
 	}
 }
@@ -267,7 +267,7 @@ func TestModVendorMaterialisesTheWholeTree(t *testing.T) {
 		"{\"lock\":{\"corp.example/schemas/service@1\":{\"canon\":\""+hash+
 		"\",\"oci\":\"\",\"v\":\"1.4.2\"}}}\n")
 
-	r := ModVendor(dir, cache)
+	r := ModVendor(dir, &ModOptions{Cache: cache})
 	if "ok" != r.Verdict || 1 != len(r.Vendored) {
 		t.Fatalf("verdict %q vendored %v missing %v", r.Verdict, r.Vendored, r.Missing)
 	}
@@ -286,7 +286,7 @@ func TestModVendorMaterialisesTheWholeTree(t *testing.T) {
 	// Vendoring again finds the module in the vendor tree, which is
 	// where it already is: a store that is its own destination is left
 	// alone rather than copied onto itself.
-	if r2 := ModVendor(dir, cache); "ok" != r2.Verdict {
+	if r2 := ModVendor(dir, &ModOptions{Cache: cache}); "ok" != r2.Verdict {
 		t.Fatalf("second vendor: %q", r2.Verdict)
 	}
 }
@@ -296,7 +296,7 @@ func TestModVendorReportsWhatNoStoreHas(t *testing.T) {
 	write(t, filepath.Join(dir, "aontu_meta", "mod-lock.aon"),
 		"{\"lock\":{\"corp.example/absent@1\":{\"canon\":\"aon1-x\",\"oci\":\"\",\"v\":\"1\"},"+
 			"\"not-a-module\":{\"canon\":\"y\",\"oci\":\"\",\"v\":\"1\"}}}\n")
-	r := ModVendor(dir, "")
+	r := ModVendor(dir, nil)
 	if "missing" != r.Verdict || 2 != len(r.Missing) {
 		t.Fatalf("verdict %q missing %v", r.Verdict, r.Missing)
 	}
@@ -326,7 +326,7 @@ func modtoolPublishable(t *testing.T, version, src string) string {
 
 func TestModManifestIsWhatAPublishWouldPush(t *testing.T) {
 	dir := modtoolPublishable(t, "1.1.0", modSource)
-	r := ModManifest(dir, "")
+	r := ModManifest(dir, "", nil)
 
 	if "ok" != r.Verdict {
 		t.Fatalf("verdict %q missing %v", r.Verdict, r.Missing)
@@ -372,7 +372,7 @@ func TestModManifestLayerExcludesTheVendorCopy(t *testing.T) {
 	modtoolVendor(t, dir, "corp.example/other@1",
 		map[string]string{"mod.aon": "mod: {path: \"x\"}\n"})
 
-	files := ModManifest(dir, "").Files
+	files := ModManifest(dir, "", nil).Files
 	if 3 != len(files) || "mod.aon" != files[0] ||
 		"part/extra.aon" != files[1] || "service.aon" != files[2] {
 		t.Fatalf("files %v", files)
@@ -380,20 +380,20 @@ func TestModManifestLayerExcludesTheVendorCopy(t *testing.T) {
 }
 
 func TestModManifestNeedsAVersionAndAnEntry(t *testing.T) {
-	noVersion := ModManifest(modtoolPublishable(t, "", modSource), "")
+	noVersion := ModManifest(modtoolPublishable(t, "", modSource), "", nil)
 	if "error" != noVersion.Verdict ||
 		1 != len(noVersion.Missing) || "mod.version" != noVersion.Missing[0] {
 		t.Fatalf("verdict %q missing %v", noVersion.Verdict, noVersion.Missing)
 	}
 
-	noEntry := ModManifest(modtoolPublishable(t, "1.0.0", ""), "")
+	noEntry := ModManifest(modtoolPublishable(t, "1.0.0", ""), "", nil)
 	if "error" != noEntry.Verdict ||
 		1 != len(noEntry.Missing) || "service.aon" != noEntry.Missing[0] {
 		t.Fatalf("verdict %q missing %v", noEntry.Verdict, noEntry.Missing)
 	}
 
 	// A directory with no module file at all declares neither.
-	bare := ModManifest(t.TempDir(), "")
+	bare := ModManifest(t.TempDir(), "", nil)
 	if "error" != bare.Verdict || 3 != len(bare.Missing) {
 		t.Fatalf("verdict %q missing %v", bare.Verdict, bare.Missing)
 	}
@@ -406,7 +406,7 @@ func TestModManifestGateRefusesABreakingVersion(t *testing.T) {
 	prior := modtoolPublishable(t, "1.0.0", modSource)
 	next := modtoolPublishable(t, "1.1.0", modSource+"region: *\"eu\" | string\n")
 
-	r := ModManifest(next, prior)
+	r := ModManifest(next, prior, nil)
 	if "breaking" != r.Verdict || 1 > len(r.Findings) {
 		t.Fatalf("verdict %q findings %v", r.Verdict, r.Findings)
 	}
@@ -415,7 +415,7 @@ func TestModManifestGateRefusesABreakingVersion(t *testing.T) {
 	}
 
 	// And a compatible change passes the same gate.
-	ok := ModManifest(modtoolPublishable(t, "1.2.0", "name: string\n"), prior)
+	ok := ModManifest(modtoolPublishable(t, "1.2.0", "name: string\n"), prior, nil)
 	if "ok" != ok.Verdict || 0 != len(ok.Findings) {
 		t.Fatalf("verdict %q findings %v", ok.Verdict, ok.Findings)
 	}
@@ -428,7 +428,7 @@ func TestModManifestMajorBumpIsWhereBreakingIsAllowed(t *testing.T) {
 	prior := modtoolPublishable(t, "1.0.0", modSource)
 	next := modtoolPublishable(t, "2.0.0", modSource+"region: string\n")
 
-	r := ModManifest(next, prior)
+	r := ModManifest(next, prior, nil)
 	if "ok" != r.Verdict || "corp.example/schemas/service@2" != r.Mod {
 		t.Fatalf("verdict %q mod %q", r.Verdict, r.Mod)
 	}
@@ -436,7 +436,7 @@ func TestModManifestMajorBumpIsWhereBreakingIsAllowed(t *testing.T) {
 
 func TestModManifestPriorWithNoEntryCannotBeGatedAgainst(t *testing.T) {
 	r := ModManifest(modtoolPublishable(t, "1.1.0", modSource),
-		modtoolPublishable(t, "1.0.0", ""))
+		modtoolPublishable(t, "1.0.0", ""), nil)
 	if "error" != r.Verdict ||
 		1 != len(r.Missing) || "service.aon" != r.Missing[0] {
 		t.Fatalf("verdict %q missing %v", r.Verdict, r.Missing)
@@ -451,7 +451,7 @@ func TestModManifestGateCanBeUndecided(t *testing.T) {
 	prior := modtoolPublishable(t, "1.0.0", "a: min(1)\n")
 	next := modtoolPublishable(t, "1.1.0", "a: must(min(1), \"m\")\n")
 
-	r := ModManifest(next, prior)
+	r := ModManifest(next, prior, nil)
 	if "undecided" != r.Verdict {
 		t.Fatalf("verdict %q findings %v", r.Verdict, r.Findings)
 	}
@@ -468,7 +468,7 @@ func TestModSelfIgnoresWhatIsNotAModuleDeclaration(t *testing.T) {
 	} {
 		dir := t.TempDir()
 		write(t, filepath.Join(dir, "mod.aon"), src)
-		r := ModManifest(dir, "")
+		r := ModManifest(dir, "", nil)
 		if "error" != r.Verdict || 3 != len(r.Missing) {
 			t.Fatalf("%q gave verdict %q missing %v", src, r.Verdict, r.Missing)
 		}
@@ -505,7 +505,7 @@ func TestModTransitiveVendorResolves(t *testing.T) {
 		"lib: hide(@\"corp.example/schemas/service@1\")\n"+
 			"svc: $.lib.spec & {name: \"checkout\"}\n")
 
-	report := ModTidy(dir, "")
+	report := ModTidy(dir, nil)
 	if "ok" != report.Verdict {
 		t.Fatalf("tidy verdict: %s %+v", report.Verdict, report)
 	}
@@ -533,6 +533,37 @@ func TestModTransitiveVendorResolves(t *testing.T) {
 	}
 }
 
+// Twin of manifest-refuses-to-mint-a-pin... in ts/test/mod.test.ts.
+func TestModManifestRefusesAnUnevaluableModule(t *testing.T) {
+	dir := modtoolPublishable(t, "1.0.0", "a: 1\na: 2\n")
+	r := ModManifest(dir, "", nil)
+	if "error" != r.Verdict || "" != r.Canon {
+		t.Fatalf("verdict %q canon %q", r.Verdict, r.Canon)
+	}
+}
+
+// Twin of the-mod-verbs-take-the-trust-options in ts/test/mod.test.ts.
+func TestModManifestUnderAConfinement(t *testing.T) {
+	dir := modtoolPublishable(t, "1.0.0", "x: @\"../modtool-outside.aon\"\n")
+	write(t, filepath.Join(filepath.Dir(dir), "modtool-outside.aon"),
+		"secret: \"leaked\"\n")
+
+	open := ModManifest(dir, "", nil)
+	if "ok" != open.Verdict || "" == open.Canon {
+		t.Fatalf("unconfined: verdict %q canon %q", open.Verdict, open.Canon)
+	}
+
+	for _, opts := range []*ModOptions{
+		{Trust: &TrustOptions{IncludeNone: true}},
+		{Trust: &TrustOptions{IncludeRoot: dir}},
+	} {
+		shut := ModManifest(dir, "", opts)
+		if "error" != shut.Verdict || "" != shut.Canon {
+			t.Fatalf("confined: verdict %q canon %q", shut.Verdict, shut.Canon)
+		}
+	}
+}
+
 func TestModTidyRefusesAnUnevaluableModule(t *testing.T) {
 	dir := modtoolProject(t,
 		"\"corp.example/schemas/service@1\": {v: \"1.4.2\"}", func(d string) {
@@ -545,7 +576,7 @@ func TestModTidyRefusesAnUnevaluableModule(t *testing.T) {
 				})
 		})
 
-	report := ModTidy(dir, "")
+	report := ModTidy(dir, nil)
 	if "error" != report.Verdict || 1 != len(report.Unevaluable) {
 		t.Fatalf("tidy: %+v", report)
 	}
@@ -570,7 +601,7 @@ func TestModVerify(t *testing.T) {
 				"service@1", "service.aon")
 		})
 
-	if "ok" != ModTidy(dir, "").Verdict {
+	if "ok" != ModTidy(dir, nil).Verdict {
 		t.Fatal("tidy did not hold")
 	}
 	lock, err := os.ReadFile(filepath.Join(dir, "aontu_meta", "mod-lock.aon"))
@@ -578,14 +609,14 @@ func TestModVerify(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	clean := ModVerify(dir, "")
+	clean := ModVerify(dir, nil)
 	if "ok" != clean.Verdict || 1 != len(clean.Verified) {
 		t.Fatalf("clean verify: %+v", clean)
 	}
 
 	// Tamper, and ask again.
 	write(t, svcDir, "name: string\nport: *9090 | integer\n")
-	bad := ModVerify(dir, "")
+	bad := ModVerify(dir, nil)
 	if "mismatch" != bad.Verdict || 1 != len(bad.Mismatched) {
 		t.Fatalf("tampered verify: %+v", bad)
 	}
@@ -601,7 +632,7 @@ func TestModVerify(t *testing.T) {
 	}
 
 	write(t, svcDir, "a: 1\na: 2\n")
-	broken := ModVerify(dir, "")
+	broken := ModVerify(dir, nil)
 	if "mismatch" != broken.Verdict || "" != broken.Mismatched[0].Got {
 		t.Fatalf("broken verify: %+v", broken)
 	}
@@ -618,17 +649,17 @@ func TestModVerifyRefusesAnUncoveredProject(t *testing.T) {
 				})
 		})
 
-	bare := ModVerify(dir, "")
+	bare := ModVerify(dir, nil)
 	if "unlocked" != bare.Verdict || 1 != len(bare.Unlocked) ||
 		"corp.example/schemas/service@1" != bare.Unlocked[0] {
 		t.Fatalf("no lockfile: %+v", bare)
 	}
 
 	// Tidy writes it, and the same question now passes.
-	if "ok" != ModTidy(dir, "").Verdict {
+	if "ok" != ModTidy(dir, nil).Verdict {
 		t.Fatal("tidy did not hold")
 	}
-	if r := ModVerify(dir, ""); "ok" != r.Verdict || 0 != len(r.Unlocked) {
+	if r := ModVerify(dir, nil); "ok" != r.Verdict || 0 != len(r.Unlocked) {
 		t.Fatalf("after tidy: %+v", r)
 	}
 
@@ -636,7 +667,7 @@ func TestModVerifyRefusesAnUncoveredProject(t *testing.T) {
 		"mod: {path: \"corp.example/app\"}\ndep: {"+
 			"\"corp.example/schemas/service@1\": {v: \"1.4.2\"}, "+
 			"\"corp.example/schemas/later@1\": {v: \"1.0.0\"}}\n")
-	stale := ModVerify(dir, "")
+	stale := ModVerify(dir, nil)
 	if "unlocked" != stale.Verdict || 1 != len(stale.Unlocked) ||
 		"corp.example/schemas/later@1" != stale.Unlocked[0] {
 		t.Fatalf("stale lockfile: %+v", stale)
@@ -659,7 +690,7 @@ func TestModVerifyReportsWhatNoStoreHolds(t *testing.T) {
 		"mod.aon": "mod: {path: \"corp.example/hollow\", main: \"hollow.aon\"}\n",
 	})
 
-	r := ModVerify(dir, "")
+	r := ModVerify(dir, nil)
 	if "missing" != r.Verdict || 3 != len(r.Missing) || 0 != len(r.Mismatched) {
 		t.Fatalf("verdict %q missing %v mismatched %v",
 			r.Verdict, r.Missing, r.Mismatched)
