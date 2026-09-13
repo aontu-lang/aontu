@@ -1834,12 +1834,13 @@ the end of the plan and a generator writes target text (`text` and
 `markdown` carry no lowering and stay, with the `template` half of the
 profile vocabulary that `fmt` and `template` read —
 [ADR-038](../../ADR.md#adr-038--the-component-tree-is-the-only-output-road-and-aontu-knows-no-languages)); the provenance
-trace gets its own verb, `aontu trace`, the plan's only new published
-surface; and every component prop is checked. P1's value is unchanged
+trace gets its own verb, `aontu trace`, the plan's only new VERB
+though not its only new surface; and every component prop is checked. P1's value is unchanged
 and is what it was built for — it lets the unit road be removed before
 the declaration road is, so the corpus migrates once rather than twice
-— but P1a is now optional and `resolve()` is cancelled. Nothing below
-the note's P0 starts without the ADR it requires.
+— but P1a is now optional and `resolve()` is cancelled. The ADR the
+note required is written: ADR-038, which decides the destination and
+leaves the staging to the note.
 
 **Read before starting phase 1.** Every one of the seven parallel
 specifications behind this design was returned SERIOUS or FATAL by an
