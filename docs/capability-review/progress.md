@@ -1841,6 +1841,20 @@ the declaration road is, so the corpus migrates once rather than twice
 — but P1a is now optional and `resolve()` is cancelled. The ADR the
 note required is written: ADR-038, which decides the destination and
 leaves the staging to the note.
+**2026-09-13, also the same day: P0 IS DONE and nothing blocks.**
+`jostraca` v0.38.0 answered all three of the note's §5 asks — `raw` on
+`Content` and `Line` with a whole-tree `cmpTree` option, `cmpTree` as a
+supported surface, and the drift check — and two of them beyond the
+ask. The drift check is NOT the `cmptree-gen --check <dir>` flag the
+note asked for: it is a generation mode in the published package,
+`Jostraca().check(opts, root)` and `(*J).Check(Options, root)`,
+answering a `CheckResult` as data, and proved against
+`test/system/rb-solar` here at sixteen files across nine generators
+with a hand edit and a deletion as controls. Beyond the ask: a props
+type per component with all ten exported, which gives P3's schema a
+source to derive from, and the duplicate output path refused, which
+closes the gap the note's §6 recorded. The order to work is now P3,
+P4, P6, P5.
 
 **Read before starting phase 1.** Every one of the seven parallel
 specifications behind this design was returned SERIOUS or FATAL by an

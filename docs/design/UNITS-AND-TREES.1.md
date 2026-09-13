@@ -1,16 +1,18 @@
 # Retiring `aontu:code`: the component tree as the only output
 
-**Status:** PROPOSED, 2026-09-13; P1 LANDED the same day and §10 says
-what it cost. **§12's three open questions were ANSWERED by the owner
-on 2026-09-13, and the ADR §12 asks for is written:
-[ADR-038](../../ADR.md#adr-038--the-component-tree-is-the-only-output-road-and-aontu-knows-no-languages).
-§12a records the answers**; §1, §2, §3, §5, §6, §9, §10 and §11 carry
-what the answers changed. **§6 carries one thing the
-answers exposed and this note had missed:** `aontu:render` also holds
-the profile schema `template` and `fmt` vet against, so it splits
-rather than goes. The rest is design and
-plan. Status of every phase this note names lives in the
-[progress register](../capability-review/progress.md), never here.
+**Status:** PROPOSED, 2026-09-13. **P1 LANDED** and §10 says what it
+cost. **§12's three open questions were ANSWERED by the owner and the
+ADR §12 asks for is written:**
+[ADR-038](../../ADR.md#adr-038--the-component-tree-is-the-only-output-road-and-aontu-knows-no-languages);
+§12a records the answers, and §1, §2, §3, §5, §6, §9, §10 and §11
+carry what they changed. **P0 IS DONE** — jostraca v0.38.0 answered all three
+asks and two of them beyond the ask, so NOTHING BLOCKS: §5 and §7 say
+what arrived, and the drift check arrived as an API rather than the CLI
+flag §7 asked for. **§6 carries one thing the answers exposed and this
+note had missed:** `aontu:render` also holds the profile schema
+`template` and `fmt` vet against, so it splits rather than goes. The
+rest is design and plan. Status of every phase this note names lives in
+the [progress register](../capability-review/progress.md), never here.
 
 **Origin:** Richard Rodger, 2026-09-13: *"Our aim is to retire and
 remove code units, and rely entirely on jostraca. To this end we can
@@ -253,7 +255,12 @@ drift guard that reads `src/cmp/` and fails on an unreachable
 component. That repository's `docs/design/AONTU.0.md` records the
 pipeline as verified end to end.
 
-Three asks, and the first is already on their own list:
+**ANSWERED 2026-09-13, all of them, in `jostraca` v0.38.0**
+([#73](https://github.com/jostraca/jostraca/pull/73)). The list below
+is the ask as it was put; what arrived is under it, and one of the
+three arrived in a different shape from the one asked for.
+
+Three asks, and the first was already on their own list:
 
 1. **`raw: true` on `Content`, or a `cmpTree` option that sets it for
    every node.** `Content` templates unconditionally, so a `$$path$$`
@@ -270,6 +277,41 @@ Three asks, and the first is already on their own list:
    known consumer". This design makes that consumer aontu's only output
    road, which is the argument the note asks for.
 3. **A prop schema, or an explicit statement that there is none.** §9.
+
+**What arrived, VERIFIED against `origin/main` at `ae8e282`.**
+
+1. `raw` on `Content` and `Line`, plus `cmpTree(tree, {raw: true})` for
+   a whole tree — the option sets `raw` BENEATH a node's own props, so
+   a tree that wants templating in one node keeps it. It reaches
+   `Content` and `Line` only; the other eight refuse a `raw` they have
+   no use for.
+2. `cmpTree` is a supported surface: both reference pages, an executed
+   how-to, tests in both ports.
+3. **The prop schema arrived as TYPES, which is more than was asked
+   for.** Every component declares what it reads and the package
+   exports all ten — `ProjectProps`, `FolderProps`, `FileProps`,
+   `ContentProps`, `LineProps`, `SlotProps`, `InjectProps`,
+   `FragmentProps`, `CopyFilesProps`, `ListItemsProps` — with `cmp()`
+   generic so the declaration reaches the caller. §9 says what this
+   changes for P3.
+
+**And the drift check, which is the one that changed shape.** §7 asked
+for `cmptree-gen --check <dir>`, a flag on a script. What landed is a
+GENERATION MODE in the published package: `Jostraca().check(opts, root)`
+and `(*J).Check(Options, root)` generate into memory, compare with the
+folder, and answer a `CheckResult` — `folder`, `checked`, `drift`,
+`files` — as data. Their reasoning is worth keeping: a flag on
+`tools/cmptree-gen.js` made a general capability look like one
+consumer's integration detail and left it outside the package. It is
+proved against `test/system/rb-solar` here: sixteen files across nine
+generators, byte-identical, with a hand edit and a deletion as
+controls.
+
+**Two things beyond the ask.** Two `File` components resolving to one
+output path are now refused, naming the path and both components — at
+the build phase, so it covers every road in. That is the duplicate
+detection §6 records as the open gap, closed. And seven TS-Go
+divergences were closed at the data path.
 
 **Not asked for: a declaration layer.** Jostraca gains no profiles, no
 acronym sets, no reserved-word tables and no type expressions. That
@@ -317,7 +359,9 @@ go, and two of them matter.
   unit and piece, and a tree has neither, so what an entry is keyed by
   is the first question. **It is the only new VERB.** It is not the only
   new surface: §11 counts three, the prop schema (§9) and jostraca's
-  `cmptree-gen --check` (§5) being the other two.
+  drift check (§5) being the other two — and the drift check has since
+  SHIPPED, as `Jostraca().check()` rather than the CLI flag §7 asked
+  for.
 - **`--coverage`'s dead-model report — gone.** `RenderCoverage.dead`
   named the shallowest model paths no render read. `reaches` and
   `trim --check` cover part of it; the render-specific part goes.
@@ -326,8 +370,10 @@ go, and two of them matter.
   jostraca's `cmpTree` already refuses an absolute or upward
   `Project.folder`, and `validName` refuses a `..` segment in a `File`
   or `Folder` name — a check `AONTU.0.md` §3a records adding *because*
-  the data path made it reachable. Duplicate detection is the gap, and
-  is a `cmpTree` ask if it matters.
+  the data path made it reachable. Duplicate detection was the gap and
+  is CLOSED (§5): two `File` components resolving to one output path
+  are refused, naming the path and both components, at the build phase
+  so it covers every road in.
 
 One thing people expect to lose and does not: **the byte-for-byte
 drift gate** (§7). The language lowering was the second until §12a's
@@ -362,13 +408,30 @@ against a committed Rails app: seven Ruby files from `RUBY_GENS`, plus
 
 **Argument.** jostraca has the parts: a memory filesystem (`mem`), a
 `dryrun` mode, a `diff` mode that forces the write off, a
-`write: false` mode, and a run report — with how-to pages for
-generating in memory, previewing a run, reporting what a run did, and
-testing a generator. The replacement is `aontu gen.aon | cmptree-gen
---check <dir>`: generate into memory, compare against the tree on disk,
-exit non-zero on drift. **That is a jostraca-side tool change, and it
-should be built and proved against rb-solar before a single line of
-`render` is deleted.**
+`write: false` mode, and a run report. This section asked for
+`aontu gen.aon | cmptree-gen --check <dir>` — a flag on a script — and
+said it should be built and proved against rb-solar before a line of
+`render` is deleted.
+
+**SHIPPED 2026-09-13, in a better shape than the ask.** jostraca
+v0.38.0 makes the drift check a GENERATION MODE in the published
+package rather than a flag on a tool: `Jostraca().check(opts, root)`
+and `(*J).Check(Options, root)` generate into memory, compare with the
+folder, and answer a `CheckResult` — `folder`, `checked`, `drift`,
+`files` — as DATA rather than as an exit code. Their reason for moving
+it is the right one: a flag on `tools/cmptree-gen.js` made a general
+capability look like one consumer's integration detail. It is proved
+against `test/system/rb-solar` — sixteen files across nine generators,
+byte-identical, with a hand edit and a deletion as controls — so the
+"proved before `render` is deleted" condition is MET, and met on this
+repository's own hardest case.
+
+**What that leaves for aontu.** The four consumers still have to move
+from `render --check <dir>` to a call, and a result-as-data is a
+different integration from an exit code: something on this side turns
+`CheckResult.drift` into the non-zero exit a `check.sh` needs. That is
+P4's work, not a jostraca ask, and it is smaller than the verb it
+replaces.
 
 ## 8. The trust boundary gets stronger
 
@@ -418,6 +481,18 @@ learn or wrongly refuse. That is versionable; a silently dropped
 not less.** With no declaration vocabulary left, the component props
 are the only typed surface anywhere in the output path.
 
+**2026-09-13: the coupling this accepted is now typed at its source,
+which changes how P3 is BUILT and not what it decides.** jostraca
+v0.38.0 exports a props type per component (§5), so the ten shapes have
+one authoritative declaration instead of living in a page of prose that
+aontu transcribes. The coupling does not go away — aontu is two ports
+and Go cannot read a TypeScript type, so `test/spec/cmp.tsv` still
+carries the schema both engines check against — but the schema now has
+a source to be DERIVED from and drift-tested against, which is the
+house pattern already used for `sigdecl.ts` and `aontumodel.ts`. A prop
+jostraca adds shows up as a failing drift test rather than as a wrongly
+refused call in someone's document.
+
 ## 10. Staging
 
 Ordered so that nothing is deleted before its replacement is proved.
@@ -430,10 +505,24 @@ P2 is largely cancelled, P1 is a waypoint, and the only phase that
 builds a new published surface is P6, the trace verb. The phases below
 keep their numbers so the register's rows do not have to be renamed.
 
-**P0 — jostraca (blocking).** `raw` on `Content` or the `cmpTree`
-option; `cmpTree` argued into the supported surface; `cmptree-gen
---check <dir>`. Nothing on the aontu side can be deleted until
-`--check` exists here.
+**AND P0 IS DONE, so nothing blocks.** The order to work is P3, P4, P6,
+P5, with P1a optional between P4 and P5 if the migration wants it. P6
+is numbered last and ordered before P5's deletions, for the reason its
+entry gives.
+
+**P0 — jostraca. DONE 2026-09-13**, in `jostraca` v0.38.0
+([#73](https://github.com/jostraca/jostraca/pull/73)), VERIFIED against
+`origin/main` at `ae8e282`. All three asks answered and two of them
+beyond the ask: `raw` on `Content` and `Line` plus
+`cmpTree(tree, {raw: true})`; `cmpTree` a supported surface;
+`Jostraca().check(opts, root)` and `(*J).Check(Options, root)` as a
+generation mode answering a `CheckResult` — NOT the `cmptree-gen
+--check <dir>` flag this note asked for, and §7 says why theirs is the
+better shape. Beyond the ask: a props type per component, all ten
+exported (§9), and the duplicate output path refused (§6). **The
+"nothing is deleted until `--check` exists" condition is met**, and met
+against `test/system/rb-solar` — sixteen files, nine generators,
+byte-identical, with a hand edit and a deletion as controls.
 
 **P1 — `lowerdecls()` and `lowerloss()`.** LANDED; `lower` was taken by
 the case function, so the compound follows `copyfiles` and `listitems`.
@@ -551,7 +640,8 @@ named instead, which is checkable at any commit.
 | `test/spec/aontu-profile.tsv` | kept | **SPLIT** — the `text`/`markdown` hash and generate rows, `shape-hash` and the `profile-*` shape rows pin what survives; the `lowering`/`case` refusals and the four TypeScript/Go rows go |
 | `test/spec/errcodes.tsv` | — | **UNTOUCHED** — codes are append-only, so the five `render_*` rows stay registered with their classes |
 | `ts/test/render.test.ts`, `go/cmd/aontu/render_test.go`, `go/render_test.go` | deleted or ported | **deleted** |
-| the prop schema (P3), `aontu trace` (P6), the `--check` tool (P0) | — | **new**, both ports plus jostraca |
+| the prop schema (P3), `aontu trace` (P6) | — | **new**, both ports |
+| the drift check (P0) | — | **DONE** — `Jostraca().check()`, jostraca v0.38.0 |
 
 So **both renderers, both lowerings, the two lowering profiles, the
 `aontu:code` schema in both copies and four whole spec files go**,
@@ -630,10 +720,8 @@ it is versionable, and a silently dropped `indent`, `mode` or
 
 - **Is the relative-specifier helper worth a builtin?** §3a. Decide
   during P4, when the migrated generators show whether they need it.
-- **P0 lands in `jostraca/jostraca`, not here.** The `raw: true` fix
-  and `cmptree-gen --check` are changes to that repository, and nothing
-  in P1a-P6 can be deleted until they ship. Who does that work, and
-  when, belongs in an issue.
+- ~~**P0 lands in `jostraca/jostraca`, not here.**~~ DONE: v0.38.0,
+  2026-09-13. See P0 and §5.
 - **The vocabulary needs a name.** ADR-038 says `aontu:render` cannot
   keep a name built on a verb that no longer exists, and does not
   choose the replacement. It is what `template` and `fmt` vet a
