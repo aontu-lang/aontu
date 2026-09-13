@@ -2,8 +2,11 @@
 
 **Status:** PROPOSED, 2026-09-13; P1 LANDED the same day and §10 says
 what it cost. **§12's three open questions were ANSWERED by the owner
-on 2026-09-13 and §12a records the answers**; §1, §2, §3, §6, §9, §10
-and §11 carry what the answers changed. The rest is design and
+on 2026-09-13 and §12a records the answers**; §1, §2, §3, §5, §6, §9,
+§10 and §11 carry what the answers changed. **§6 carries one thing the
+answers exposed and this note had missed:** `aontu:render` also holds
+the profile schema `template` and `fmt` vet against, so it splits
+rather than goes. The rest is design and
 plan. Status of every phase this note names lives in the
 [progress register](../capability-review/progress.md), never here.
 
@@ -266,14 +269,18 @@ Three asks, and the first is already on their own list:
    road, which is the argument the note asks for.
 3. **A prop schema, or an explicit statement that there is none.** §9.
 
-**Not asked for: a declaration layer.** §2 keeps the lowering in aontu,
-so jostraca gains no profiles, no acronym sets, no reserved-word
-tables and no type expressions. That is deliberate. Jostraca's
-`explanation.md` argues it is not a template dialect and that
-components are function calls in the host language; a `Record`
+**Not asked for: a declaration layer.** Jostraca gains no profiles, no
+acronym sets, no reserved-word tables and no type expressions. That
+conclusion SURVIVES §12a's first answer; the reason this section gave
+for it does not. It reached it from §2 keeping the lowering in aontu,
+and there is no lowering left to keep — so the seam does not stay where
+this section put it. **It moves, and §12a says where: aontu knows
+neither languages nor files, and the generator author knows both.**
+Jostraca is unaffected either way, which is why the ask list above is
+unchanged. Its `explanation.md` argues it is not a template dialect and
+that components are function calls in the host language; a `Record`
 component needing a language profile would be a second language inside
-it, for one consumer. **Argument:** the seam is right where it is —
-aontu knows languages, jostraca knows files.
+it, for one consumer.
 
 **No dependency either way.** The contract stays the JSON shape and the
 integration stays a pipe, which is what `AONTU.0.md` §4 records and
@@ -306,8 +313,9 @@ go, and two of them matter.
   published surface — both ports, shared rows, its own design. It has
   to be DESIGNED rather than ported: `RenderTrace` keys an entry by
   unit and piece, and a tree has neither, so what an entry is keyed by
-  is the first question. **This is now the only genuinely new surface
-  in the plan**, everything else being a deletion or a re-spelling.
+  is the first question. **It is the only new VERB.** It is not the only
+  new surface: §11 counts three, the prop schema (§9) and jostraca's
+  `cmptree-gen --check` (§5) being the other two.
 - **`--coverage`'s dead-model report — gone.** `RenderCoverage.dead`
   named the shallowest model paths no render read. `reaches` and
   `trim --check` cover part of it; the render-specific part goes.
@@ -319,8 +327,23 @@ go, and two of them matter.
   the data path made it reachable. Duplicate detection is the gap, and
   is a `cmpTree` ask if it matters.
 
-Two things people expect to lose and do not: **the byte-for-byte
-drift gate** (§7) and **the language lowering** (§2).
+One thing people expect to lose and does not: **the byte-for-byte
+drift gate** (§7). The language lowering was the second until §12a's
+first answer; it goes.
+
+**One thing that must NOT go with it, and this note missed it until
+review.** `aontu:render` is not only the lowering's vocabulary. Its
+`template` member — `template.marker` and `template.ext`,
+`aontu/render/render.aon` — is the schema `loadProfiles` vets a
+`--profile` document against, and `loadProfiles` is shared by THREE
+verbs: `render`, `template` and `fmt` (`ts/src/cli.ts`, and
+`go/cmd/aontu/render.go` called from `template.go` and `fmt.go`).
+Deleting `aontu:render` wholesale would therefore break the published
+`template --profile` and `fmt --profile`, neither of which this design
+otherwise touches. **The template-profile schema and its loader split
+out and STAY**; only the lowering half of `aontu:render` goes, and the
+loader moves out of the render module before the render module is
+deleted. P5 carries this.
 
 ## 7. The check story
 
@@ -465,48 +488,63 @@ rb-solar's nine. rb-solar is the acceptance case: it is
 fragment-only, so it exercises §4 and nothing of §2 or §3.
 
 **P5 — delete, and it is now the bulk of the work.** The `render` verb
-and its help, `ts/src/render.ts` (580) and `go/render.go` (764), the
-`RenderReport` types, the five `render_*` error codes and their hints,
-and the spec rows §11 counts. Then, because §12a answer 1 says so,
-everything P1 was built to preserve: `lowerdecls` and `lowerloss`,
-`ts/src/lower.ts` (586) and `go/lower.go` (822) apart from whatever
-§3a keeps, the four bundled profiles and `aontu:render`, and
+and its help, `ts/src/render.ts` and `go/render.go`, the `RenderReport`
+types, the five `render_*` error codes and their hints, and the four
+spec files §11 names. Then, because §12a answer 1 says so, everything
+P1 was built to preserve: `lowerdecls` and `lowerloss`,
+`ts/src/lower.ts` and `go/lower.go` apart from whatever §3a keeps, the
+lowering half of `aontu:render` with the four bundled profiles, and
 `aontu/code/code.aon` and its Go twin ENTIRELY rather than reduced.
 `aontu:code` is not renamed; it is removed.
 
-**P6 — `aontu trace`.** The provenance verb §6 now keeps. Last,
-because it traces the tree the earlier phases settle, and because it is
-the one phase that adds surface rather than removing it. Design first:
-a `RenderTrace` entry is keyed by unit and piece, and a tree has
-neither.
+**P5 has one prerequisite inside itself, and §6 states it.**
+`loadProfiles` and the `template.marker`/`template.ext` schema serve
+`template --profile` and `fmt --profile`, which this design does not
+touch. They come OUT of the render module and out of `aontu:render`
+first, with their own rows, and only then does the rest go. A P5 that
+starts by deleting `render.ts` takes two unrelated published verbs with
+it.
+
+**P6 — `aontu trace`.** The provenance verb §6 now keeps. NUMBERED last
+and ORDERED before P5's deletions, which is not a contradiction: it
+keeps the register's rows stable while obeying this section's own
+invariant. `RenderTrace` is implemented by the renderers P5 deletes, so
+running P6 after P5 would drop the capability §12a's second answer
+keeps — the one thing the ordering rule above exists to prevent. Design
+first, and the design is the hard part: a `RenderTrace` entry is keyed
+by unit and piece, and a tree has neither.
 
 ## 11. The removal ledger
 
-Measured on `f057465`, and **RE-CUT 2026-09-13**: §12a's first answer
-moves most of the "kept" column into "deleted", because the
-declarations go with the units.
+**RE-CUT 2026-09-13**: §12a's first answer moves most of the "kept"
+column into "deleted", because the declarations go with the units.
 
-| | lines | fate as first proposed | fate as DECIDED |
-|---|---|---|---|
-| `ts/src/render.ts` | 580 | deleted | **deleted** |
-| `go/render.go` | 764 | deleted | **deleted** |
-| `ts/src/lower.ts` | 586 | kept, re-fronted | **deleted**, bar whatever §3a keeps |
-| `go/lower.go` | 822 | kept | **deleted**, bar the same |
-| `aontu/render/lang/*.aon` + `render.aon` | 306 | kept — the profiles are the lowering | **deleted**; there is nothing left to spell |
-| `aontu/code/code.aon` (+ Go twin) | 140 | reduced to the declaration schema | **deleted entirely** |
-| `ts/src/val/LowerDeclsFuncVal.ts` + `go/lowerdecls.go` | 315 | — (P1, landed after the table) | **deleted**; P1 is a waypoint |
-| `test/spec/render.tsv` | 189 rows | ported | **deleted** |
-| `test/spec/aontu-code.tsv` | 66 rows | reduced | **deleted** |
-| `test/spec/aontu-profile.tsv` | 51 rows | kept | **deleted** with the profiles |
-| `test/spec/lowerdecls.tsv` | 26 rows | — | **deleted** with P1 |
-| `ts/test/render.test.ts`, `go/cmd/aontu/render_test.go`, `go/render_test.go` | 573 | deleted or ported | **deleted** |
-| the prop schema (P3), `aontu trace` (P6), the `--check` tool (P0) | — | — | **new**, both ports plus jostraca |
+**No sizes, and that is deliberate.** The first cut of this table
+carried per-file line counts and per-file row counts, summed them, and
+the sum was wrong: it counted the spec files' comment and blank lines
+as rows, roughly doubling the spec figure. AGENTS.md puts suite-size
+figures in the progress register and nowhere else, for exactly the
+reason this table demonstrated — a frozen count rots, and a rotted
+count in a design document is read as a requirement. What is deleted is
+named instead, which is checkable at any commit.
 
-So **3513 lines of engine source and 332 spec rows go** (580 + 764 +
-586 + 822 + 306 + 140 + 315; 189 + 66 + 51 + 26), plus 573 lines of
-test, against three new surfaces. That is a much larger deletion and a
-much smaller construction than this note first planned, which is the
-shape §12a's first answer buys.
+| | fate as first proposed | fate as DECIDED |
+|---|---|---|
+| `ts/src/render.ts`, `go/render.go` | deleted | **deleted** |
+| `ts/src/lower.ts`, `go/lower.go` | kept, re-fronted | **deleted**, bar whatever §3a keeps |
+| `aontu/render/lang/*.aon` | kept — the profiles are the lowering | **deleted**; there is nothing left to spell |
+| `aontu/render/render.aon` | kept | **SPLIT** — the lowering half goes, the `template` half stays (§6) |
+| `aontu/code/code.aon` and its Go twin | reduced to the declaration schema | **deleted entirely**, both copies |
+| `ts/src/val/LowerDeclsFuncVal.ts`, `go/lowerdecls.go` | — (P1, landed after the table) | **deleted**; P1 is a waypoint |
+| `test/spec/render.tsv`, `aontu-code.tsv`, `aontu-profile.tsv`, `lowerdecls.tsv` | ported, reduced, kept, — | **deleted** |
+| `ts/test/render.test.ts`, `go/cmd/aontu/render_test.go`, `go/render_test.go` | deleted or ported | **deleted** |
+| the prop schema (P3), `aontu trace` (P6), the `--check` tool (P0) | — | **new**, both ports plus jostraca |
+
+So **both renderers, both lowerings, all four bundled profiles, the
+`aontu:code` schema in both copies and four whole spec files go**,
+against three new surfaces, one of which is jostraca's. That is a much
+larger deletion and a much smaller construction than this note first
+planned, which is the shape §12a's first answer buys.
 
 Net line count is not the measure and this table is not an argument
 that the change is small. `ts/src/cli.ts`'s render verb, `hints.ts`,
@@ -542,7 +580,7 @@ four bundled profiles. A generator writes target text.
 language knowledge in it at all — no profiles, no acronym sets, no
 reserved-word tables, no type expressions. The seam §5 draws moves:
 aontu knows neither languages nor files, and the generator author knows
-both. §11 measures it at 3513 lines of engine source.
+both. §11 names what goes.
 
 *What it costs, stated plainly:* one model rendering to two languages
 with each language's own casing, acronym and optionality rules. That is
@@ -569,9 +607,10 @@ it is versionable, and a silently dropped `indent`, `mode` or
 
 - **Is the relative-specifier helper worth a builtin?** §3a. Decide
   during P4, when the migrated generators show whether they need it.
-- **P0 is blocked on access, not on design.** The `raw: true` fix and
-  `cmptree-gen --check` need push to `jostraca/jostraca`; the session
-  that wrote this note had read access only.
+- **P0 lands in `jostraca/jostraca`, not here.** The `raw: true` fix
+  and `cmptree-gen --check` are changes to that repository, and nothing
+  in P1a-P6 can be deleted until they ship. Who does that work, and
+  when, belongs in an issue.
 - **The ADR above is not written.** Nothing below P0 should start
   without it, and it now has more to record than when this note was
   first drafted: the decision to remove the declaration vocabulary is a
