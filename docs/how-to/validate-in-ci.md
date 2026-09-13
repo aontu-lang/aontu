@@ -120,7 +120,7 @@ verdict class and can hand the SARIF to code scanning:
 ```yaml
 steps:
   - uses: actions/checkout@v4
-  - uses: rjrodger/aontu/vet-action@main
+  - uses: aontu-lang/aontu/vet-action@main
     with:
       schema: schema.aon
       data: user.json

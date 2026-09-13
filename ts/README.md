@@ -63,7 +63,7 @@ report.findings  // located, coded, with the sites that conflicted
 through the filesystem and package chain by default, so pass a `trust`
 profile (`{ include: 'none' }`, a virtual file set, or a confined
 root) whenever the source is not yours. See
-[the trust contract](https://github.com/rjrodger/aontu/blob/main/docs/trust.md).
+[the trust contract](https://github.com/aontu-lang/aontu/blob/main/docs/trust.md).
 
 ## Two implementations, one specification
 
@@ -74,11 +74,11 @@ the same thing in a Node agent harness and a Go gateway.
 
 ## Documentation
 
-- [Documentation home](https://github.com/rjrodger/aontu/blob/main/docs/index.md)
-- [Tutorial](https://github.com/rjrodger/aontu/blob/main/docs/tutorial.md)
-- [Language reference](https://github.com/rjrodger/aontu/blob/main/docs/reference-language.md)
-- [API and CLI reference](https://github.com/rjrodger/aontu/blob/main/docs/reference-api.md)
-- [Agent skill](https://github.com/rjrodger/aontu/blob/main/docs/skill/SKILL.md)
+- [Documentation home](https://github.com/aontu-lang/aontu/blob/main/docs/index.md)
+- [Tutorial](https://github.com/aontu-lang/aontu/blob/main/docs/tutorial.md)
+- [Language reference](https://github.com/aontu-lang/aontu/blob/main/docs/reference-language.md)
+- [API and CLI reference](https://github.com/aontu-lang/aontu/blob/main/docs/reference-api.md)
+- [Agent skill](https://github.com/aontu-lang/aontu/blob/main/docs/skill/SKILL.md)
 
 aontu is inspired by [CUE](https://cuelang.org/), as a
 purpose-specific dialect.

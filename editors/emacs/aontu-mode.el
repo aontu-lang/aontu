@@ -3,14 +3,14 @@
 ;; Copyright (c) 2025 Richard Rodger, MIT License
 
 ;; Author: Richard Rodger
-;; URL: https://github.com/rjrodger/aontu
+;; URL: https://github.com/aontu-lang/aontu
 ;; Version: 0.1.0
 ;; Package-Requires: ((emacs "27.1"))
 ;; Keywords: languages, aontu
 
 ;;; Commentary:
 
-;; Major mode for editing Aontu (https://github.com/rjrodger/aontu)
+;; Major mode for editing Aontu (https://github.com/aontu-lang/aontu)
 ;; source files (`.aon', also `.aontu'), with optional integration with
 ;; the Aontu language server (`aontu lsp') for diagnostics, hover and
 ;; completion.

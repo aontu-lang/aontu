@@ -2490,8 +2490,8 @@ spread carrying it behind another constraint atom and the same document
 renders three ways at the instantiated element's own element type:
 
 ```
-TS 0.59.0 - 0.62.0   "r"?:[&:refer()&refer(), …]
-Go 0.1.15 - 0.1.20   "r"?:[&:refer()&refer()&path(), …]
+TS 0.59.0 - 0.63.0   "r"?:[&:refer()&refer(), …]
+Go 0.1.15 - 0.1.21   "r"?:[&:refer()&refer()&path(), …]
 declared, and correct         [&:refer()&path(), …]
 ```
 
@@ -4165,7 +4165,7 @@ Two entries, found 2026-09-13 while wiring the trust contract into the
 module tooling. They compound: the first makes a confinement silently
 wrong, so neither could be fixed alone.
 
-### 96. `mod manifest` minted a pin from an evaluation that failed [critical]
+### 96. `mod manifest` minted a pin from an evaluation that failed [FIXED 2026-09-13]
 
 Both ports, with no flag involved. `modManifest` took the eval's `hash`
 and never asked its `ok`, so a module whose entry file contradicts
@@ -4190,7 +4190,7 @@ way `tidy` refuses. Pinned by
 `manifest-refuses-to-mint-a-pin-for-a-module-that-does-not-evaluate`
 and Go's `TestModManifestRefusesAnUnevaluableModule`.
 
-### 97. The `mod` verbs refused `--trust`, so vendored code ran unconfined [major]
+### 97. The `mod` verbs refused `--trust`, so vendored code ran unconfined [FIXED 2026-09-13]
 
 Both ports. `runMod` parsed `--format` and `--against` and rejected
 everything else dashed, so `aontu mod tidy --trust none` answered

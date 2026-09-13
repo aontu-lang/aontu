@@ -44,6 +44,78 @@ export type Kind = undefinedstring | numberundefined;
 A form that is present but partial now takes the same defaults as one
 that is absent, which is what the Go port already did.
 
+### A refer residual keeps the conjunct it was declared with
+
+A list element type declared once as `refer() & path()`, met by a second
+spread behind another constraint atom, rendered three ways at the
+instantiated element: `refer()&refer()` in TypeScript,
+`refer()&refer()&path()` in Go, and the declared `refer()&path()` in
+neither. Two defects composed.
+
+`unite`'s identical-shape short-circuit discarded a settled `ReferVal`
+whole. A refer keeps its state in `tval`, `addr`, `addrsrc` and `held`
+and none of it in `peg`, so any two settled refers matched vacuously and
+`ReferVal.unify` never ran; `!a.isRefer` now joins `!a.isRel` in the
+guard, which carried the twin class for the same reason. And a `refer()`
+call meeting a residual matched no arm of `ReferVal.unify`, fell to the
+catch-all and was frozen into `held` as written, where `canon` printed it
+a second time. A residual never holds an unresolved call: the call
+drives, and the residual meets what it becomes.
+
+Acceptance never moved — both ports refused a non-address and a dangling
+address with the same codes throughout — but the canon-hash is the module
+system's second pin and ADR-019 makes checking it mandatory, so a
+lockfile written by one port failed the other's `mod verify` over an
+untouched store. **An `aon1-` hash recorded from `aontu@0.63.0` or
+`go/v0.1.21` changes under the next release** wherever a document carries
+this shape: `aontu-lang/system`'s `spec/registry.aon` answered
+`aon1-wyMpq…` in TypeScript and `aon1-yVCc…` in Go, and answers
+`aon1-utCnJAwb…` in both. Five rows in `test/spec/hcanon.tsv`;
+[BUGS.md §95](use-cases/BUGS.md).
+
+*Both implementations.*
+
+### `mod manifest` asks the evaluation whether it succeeded
+
+`modManifest` took the eval's `hash` and never asked its `ok`, so a
+module whose entry file contradicts itself was published as `verdict:
+ok`, exit 0, with a canon-hash annotation on the artifact:
+
+```
+mod.aon    mod: {path: "corp.example/broken", version: "1.0.0"}
+main.aon   a: 1
+           a: 2
+```
+
+The hash varied with the broken content, so it looked like a meaning.
+`aontu main.aon` refuses that module with `scalar_value` and `mod tidy`
+already refused to pin a dependency that does not evaluate; the verb that
+mints the pin was the one that did not check. It now returns the report's
+existing `error` shape with an empty canon, the way `tidy` refuses.
+[BUGS.md §96](use-cases/BUGS.md).
+
+*Both implementations.*
+
+### The `mod` verbs take `--trust`, `--include-root` and `--text-ext`
+
+`runMod` parsed `--format` and `--against` and rejected everything else
+dashed, so `aontu mod tidy --trust none` answered `unknown mod option
+--trust` while the CLI help and [`docs/trust.md`](docs/trust.md) both said
+the flags are accepted by the bare command and by every verb. The verbs
+evaluate third-party source out of the vendor tree, so vendored code was
+evaluated at the default `system` capability and the one place
+confinement is most wanted was the one place it could not be asked for.
+
+The flags are now taken as every other verb takes them, and the
+capability reaches the evaluator each verb builds instead of being
+accepted and ignored. Go gains `ModOptions` to carry it, mirroring
+TypeScript's `ModToolOptions`; all four exported `Mod*` functions take
+it, in place of the bare cache string three of them carried and the
+manifest never had. Under a root the user cache is left out, as the
+evaluator's own module leg already does. [BUGS.md §97](use-cases/BUGS.md).
+
+*Both implementations.*
+
 ## Go 0.1.21 — 2026-09-12 · TypeScript 0.63.0
 
 ### A component's text span may be empty, and a bare string is `content`

@@ -273,10 +273,13 @@ visible, so they want settling before launch rather than after:
   without re-pointing the service breaks the badge rather than fixes it.
   A site that links its own source still has to pick one, and each of
   those is a link the site would inherit.
-- **npm stays unscoped.** `aontu` is published and the name is held;
-  there is no reason to move to `@aontu/aontu`. Worth *reserving* the
-  `aontu` npm org anyway so `@aontu/*` cannot be squatted (see
-  manual task D3).
+- **The engine stays unscoped; the module system does not.** `aontu` is
+  published and the name is held, so there is no reason to move to
+  `@aontu/aontu`. The `aontu` npm org is still needed, and as a
+  prerequisite rather than a nicety: the transparency client publishes
+  as `@aontu/mod`, and the free org has to exist before that first
+  scoped publish. Blocking a squatter on `@aontu/*` is the second
+  reason now, not the only one (see manual task D3).
 - **The Voxgig sponsorship banner** in `README.md` — decide whether it
   appears on the site, and where. tabnas.dev's answer is a `/sponsors`
   page rather than a masthead.

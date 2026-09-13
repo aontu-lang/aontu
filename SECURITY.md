@@ -29,7 +29,7 @@ release ships.
 **Do not open a public issue for an exploitable defect.** Use GitHub's
 private vulnerability reporting for this repository:
 
-- <https://github.com/rjrodger/aontu/security/advisories/new>
+- <https://github.com/aontu-lang/aontu/security/advisories/new>
 
 That goes directly and privately to the maintainer,
 [@rjrodger](https://github.com/rjrodger). A report is most useful as a
