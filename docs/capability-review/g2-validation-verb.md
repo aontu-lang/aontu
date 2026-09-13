@@ -631,13 +631,13 @@ shelling out; `--format sarif` and `--watch` in both CLIs; the SARIF
 golden in test/spec/files/vet-sarif/ (message text and producer
 version redacted, the same carve-outs the JSON report makes).
 **Departure:** the Action ships in THIS repository as the composite
-`vet-action/` (`rjrodger/aontu/vet-action@<ref>`), not as the separate
-`aontu-vet-action` repository named above — in-repo it versions in
-lock-step with the CLI it runs, and a subdirectory action is directly
-referenceable, so the separate repository bought nothing but drift
-risk. Watch polls mtime+size rather than using a native watcher, which
-is what "re-run on file mtime change" turns out to mean once editor
-save strategies (inode replacement) enter the picture.
+`vet-action/` (`aontu-lang/aontu/vet-action@<ref>`), not as the
+separate `aontu-vet-action` repository named above — in-repo it
+versions in lock-step with the CLI it runs, and a subdirectory action
+is directly referenceable, so the separate repository bought nothing
+but drift risk. Watch polls mtime+size rather than using a native
+watcher, which is what "re-run on file mtime change" turns out to mean
+once editor save strategies (inode replacement) enter the picture.
 
 **Phase 6 — multi-error collection (L, engine).** LANDED, in both
 ports, and far smaller than its L sizing: removing the

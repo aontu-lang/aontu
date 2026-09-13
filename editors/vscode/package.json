@@ -5,7 +5,7 @@
   "version": "0.1.0",
   "publisher": "rjrodger",
   "license": "MIT",
-  "repository": { "type": "git", "url": "git://github.com/rjrodger/aontu.git" },
+  "repository": { "type": "git", "url": "https://github.com/aontu-lang/aontu.git" },
   "engines": { "vscode": "^1.75.0" },
   "categories": ["Programming Languages"],
   "icon": "icon.png",
