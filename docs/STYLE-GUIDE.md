@@ -322,7 +322,7 @@ State the input, the check, the result, and any limit on that result.
   English; this is one of the places the house voice wins, and
   `Google.Spelling` is switched off in `.vale.ini` for it. Actual
   misspellings are still caught: `Vale.Spelling` runs at error against
-  `accept.txt`, which names 237 domain terms.
+  `accept.txt`, which names 209 domain terms.
 
 ## Code snippets: every one is tested
 

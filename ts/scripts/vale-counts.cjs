@@ -17,7 +17,10 @@ const NEXT = /(\ba\s+)(\d+)(st|nd|rd|th)\b/
 
 
 // The vocabulary size is a count like any other, and nothing measured
-// it.
+// it. A `#` line accepts nothing: Vale has no comment syntax here, so
+// the line is a pattern, and a pattern starting with `#` matches no
+// bare word. Counting lines instead of terms is how this first went
+// wrong.
 function vocabulary() {
   const dir = Path.join(REPO, '.vale', 'styles', 'config', 'vocabularies')
   if (!Fs.existsSync(dir)) return null
@@ -25,7 +28,7 @@ function vocabulary() {
     const file = Path.join(dir, name, 'accept.txt')
     if (Fs.existsSync(file)) {
       return Fs.readFileSync(file, 'utf8').split('\n')
-        .filter((l) => '' !== l.trim()).length
+        .filter((l) => '' !== l.trim() && !l.trimStart().startsWith('#')).length
     }
   }
   return null
@@ -157,8 +160,11 @@ function report(write) {
       const [line, col] = block.at[found.index]
       edits.push({ line, col, was: found[1], text: String(terms) })
     }
+    // Only in the block that states the size: another comment saying
+    // `a 2nd pass` is not this claim, and --write would rewrite it.
+    if (!TERMS.test(block.text)) continue
     for (const found of block.text.matchAll(new RegExp(NEXT, 'g'))) {
-      if (Number(found[2]) === 1 + terms) continue
+      if (Number(found[2]) === 1 + terms && found[3] === ordinal(1 + terms)) continue
       wrong.push(`.vale.ini: calls the next term the ${found[2]}${found[3]}, the vocabulary accepts ${terms}`)
       const at = found.index + found[1].length
       const [line, col] = block.at[at]
