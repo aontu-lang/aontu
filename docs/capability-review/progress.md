@@ -1937,9 +1937,28 @@ neither engine parses the target, and the ALL-OR-NOTHING write, since
 `render --out` rendered the whole set before writing any of it while
 jostraca writes as it walks. The climbing-path refusal itself survives
 and is still checked.
-**Still to migrate:** `10-data-model`, which is the hard one — it is
-the declaration road, and ADR-038 answer 1 leaves it no successor —
-and `17-lambda-handlers`.
+**P4 IS COMPLETE, 2026-09-14.** `17-lambda-handlers` (thirteen files
+from both its canonical and its template form) and `10-data-model`
+followed, and the whole corpus is green: eighteen use-cases and
+rb-solar.
+**`10-data-model` is where ADR-038's cost is actually paid.**
+`xf-order.aon` rendered ONE declaration list as both TypeScript and Go,
+with each language's casing, acronyms and optionality coming from the
+bundled profile. It now writes both texts, and the Go casing is
+`nom(.n, pascal, $.acronyms)` spelled in the transform — the acronym
+set that made `id` into `ID` and `ledgerId` into `LedgerID` is a list
+in the document now. Byte-identical in both languages. The facts are
+still shared; only the spelling is written twice, which is exactly what
+§12a said it would cost. `xf-domain-cmp.aon` is removed: it was P1's
+`lowerdecls` receipt, and P5 deletes `lowerdecls`.
+**`17-lambda-handlers` is what SPECIFIES P6.** Its trace check held the
+strongest claim in the corpus — every line came from a rule, named by
+the rule set, the model node, and `#0` for a table written inline at
+the call. Those three keys are what a trace entry owes, and the check
+is skipped with them written into it rather than deleted. The note's §6
+says "a `RenderTrace` entry is keyed by unit and piece, and a tree has
+neither"; half of that is wrong, because a tree has FILES and `unit`
+was a file path all along. It is `piece` that has no successor.
 **And the open question this leaves:** the byte gate needs jostraca or
 it skips, and this DOES reach CI — `use-cases/run-all.sh` runs rb-solar
 as well as the numbered cases, and the build job runs `run-all.sh`.

@@ -18,32 +18,30 @@
 @"./domain.aon"
 
 step: hide(pack(type($.schema), {
-  d: {
-    k: "record"
-    name: key(2)
-    fields: pick(
-      pack(_, {
-        f: {
-          name: key(2)
-          type: match(
-            _,
-            integer,
-            { k:"prim" prim:"int" },
-            biginteger,
-            { k:"prim" prim:"bigint" },
-            string,
-            { k:"prim" prim:"string" },
-            boolean,
-            { k:"prim" prim:"bool" },
-            [],
-            { k:"list" n:{ k:"prim" prim:"any" } },
-            { k:"prim" prim:"any" }
-          )
-        }
-      }),
-      f
+  d: "export interface " + key(1) + " {\n"
+    + join(
+      pick(
+        pack(_, {
+          f: "  " + key(1) + ": "
+            + match(
+              _,
+              integer, "number",
+              biginteger, "bigint",
+              string, "string",
+              boolean, "boolean",
+              [], "unknown[]",
+              "unknown"
+            )
+            + ";"
+        }),
+        f
+      ),
+      "\n"
     )
-  }
+    + "\n}"
 }))
 
-aontu: Code: units: [{ path:"domain.ts" lang:"typescript" decls:pick($.step, d) }]
+# ONE `line` HOLDING THE WHOLE FILE. A blank line SEPARATES the
+# records, so the file is a join rather than a node per record: a
+# `line` per record would need to know which one is last.
+out: file("domain.ts", [line(join(pick($.step, d), "\n\n"))])

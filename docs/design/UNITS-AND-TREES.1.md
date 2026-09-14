@@ -635,6 +635,13 @@ sixteen files byte-identical through jostraca, with a hand edit and a
 restore as controls; `check.sh` is 8 of 8. The byte gate is
 `tools/cmptree-check.js`: the tree on stdin, jostraca required at run
 time, exit 3 when it is absent so the check skips rather than fails.
+**P4 IS COMPLETE, 2026-09-14**: the whole corpus is on the component
+road and green — eighteen use-cases and rb-solar. `10-data-model` is
+where §12a's first answer is actually paid: `xf-order.aon` writes
+TypeScript and Go separately now, with Go's casing spelled
+`nom(.n, pascal, $.acronyms)` in the transform where the bundled
+profile's acronym set used to do it. Both byte-identical.
+
 **`15-code-generation` is migrated too**, its eleven checks passing
 with jostraca and ten of them without — the five that need bytes skip.
 Its loss report and its all-or-nothing write are both recorded in §6 as
