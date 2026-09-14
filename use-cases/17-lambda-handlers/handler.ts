@@ -64,18 +64,14 @@ exports.handler = async (
 //- # service map and the index marker, tried in sorted-key order.
 //- parts: { handlers:$.svc index:true }
 //-
-//- code: units: emit($.parts, [
+//- out: emit($.parts, [
 //-   {
 //-     match: map()
 //-     body: [
 //-       emit(_, {
 //-         match: name: string
 //-         body: [
-//-           {
-//-             path: "handlers/" + .name + ".ts"
-//-             lang: "typescript"
-//-             decls: [{ k:"frag" n:emit([_], %handler) }]
-//-           }
+//-           file("handlers/" + .name + ".ts", emit([_], %handler))
 //-         ]
 //-       })
 //-     ]
@@ -83,16 +79,12 @@ exports.handler = async (
 //-   {
 //-     match: true
 //-     body: [
-//-       {
-//-         path: "index.ts"
-//-         lang: "typescript"
-//-         decls: [
-//-           {
-//-             k: "frag"
-//-             n: each(pick($.svc, name), "export const " + join(each(split(_, "-"), upper(_)), "_") + " = '" + _ + "'")
-//-           }
-//-         ]
-//-       }
+//-       file("index.ts", [
+//-         each(pick($.svc, name), line(
+//-           "export const "
+//-           + join(each(split(_, "-"), upper(_)), "_")
+//-           + " = '" + _ + "'"))
+//-       ])
 //-     ]
 //-   }
 //- ])

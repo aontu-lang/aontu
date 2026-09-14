@@ -41,13 +41,27 @@ has() {
     || { cat "$WORK/$1.out" >&2; fail "$1: output does not contain: $2"; }
 }
 
+# THE TREE IS THE HAND-OFF and jostraca writes the files. The seam is a
+# pipe: `tools/cmptree-check.js` requires jostraca at RUN time and exits
+# 3 when it is absent, so the byte checks skip with a note rather than
+# failing where it is not installed.
+CMP="node $REPO/tools/cmptree-check.js"
+tree() { $AONTU get out --trust root "${1:-$DIR/gen.aon}" 2>/dev/null; }
+jostraca=0
+tree | $CMP --folder "$DIR/expected" >/dev/null 2>&1 || jostraca=$?
+
 # ---------------------------------------------------------------------
-# 1. THE GOLDENS ARE HELD BY --check: thirteen units, twelve handlers
+# 1. THE GOLDENS ARE HELD by handing the tree to jostraca: thirteen
+# files, twelve handlers
 # and the index, byte for byte, the DO-NOT-EDIT discipline of a
 # generated tree.
-run check 0 -- render --check "$DIR/expected" "$DIR/gen.aon"
 [ "$(ls "$DIR/expected/handlers" | wc -l)" -eq 12 ] || fail "expected twelve handlers"
-ok "twelve handlers and the index match their goldens byte for byte"
+if [ "$jostraca" = "3" ]; then
+  skip "twelve handlers and the index match their goldens (no jostraca)"
+else
+  [ "$jostraca" = "0" ] || fail "a file drifted from expected/"
+  ok "twelve handlers and the index match their goldens byte for byte"
+fi
 
 # 2. EVERY FILE PARSES AS TYPESCRIPT. The compiler itself over each
 # file, asked for syntax alone (a TS1xxx diagnostic; the handlers
@@ -109,41 +123,33 @@ run unused 1 -- "$DIR/bad/unused.aon"
 has unused '[aontu/replace_unused]'
 ok "replace_overlap and replace_unused refuse the seeded templates"
 
-# 8. --check IS RED WHEN A GOLDEN MOVES, and names the unit.
+# 8. THE CHECK IS RED WHEN A GOLDEN MOVES, and names the file.
 cp -r "$DIR/expected" "$WORK/moved"
 printf '// edited by hand\n' >> "$WORK/moved/handlers/chat.ts"
-run drift 1 -- render --check "$WORK/moved" "$DIR/gen.aon"
-has drift 'handlers/chat.ts'
-ok "--check is red when a handler is edited by hand, and names it"
+if [ "$jostraca" = "3" ]; then
+  skip "the check is red when a handler is edited by hand (no jostraca)"
+else
+  if tree | $CMP --folder "$WORK/moved" >"$WORK/drift.out" 2>&1; then
+    fail "the check passed an edited golden"
+  fi
+  grep -qF 'handlers/chat.ts' "$WORK/drift.out" \
+    || fail "the check did not name the edited file"
+  ok "the check is red when a handler is edited by hand, and names it"
+fi
 
-# 9. THE TRACE AND THE COVERAGE REPORT (RENDER P7). Every line of every
-# handler came from a rule, and the trace says which -- the `%handler`
-# rule set by the name it was read through, and the service the
-# dispatch matched, by its path in the model. Nothing here is dead
-# model and no declaration is a hole: one model, wholly consumed, one
-# output, wholly ruled.
-$AONTU render --format json "$DIR/gen.aon" 2>/dev/null > "$WORK/trace.json" \
-  || fail "the JSON report did not render"
-python3 - "$WORK/trace.json" <<'PY_TRACE'
-import json, sys
-r = json.load(open(sys.argv[1]))
-t = r["trace"]
-assert 250 < len(t), len(t)
-# Every entry names a unit that was rendered, and a rule.
-units = set(u["path"] for u in r["units"])
-assert all(e["unit"] in units for e in t)
-assert all("#" in e["rule"] for e in t)
-# The named rule set is addressed by its name; the twelve services are
-# each matched at their own path in the model.
-named = [e for e in t if e["rule"].startswith("$.%handler")]
-assert 12 == len(set(e["node"] for e in named)), sorted(set(e["node"] for e in named))
-assert "$.services.chat" in set(e["node"] for e in named)
-# A table written inline at the call has no address of its own.
-assert any("#0" == e["rule"] for e in t)
-PY_TRACE
-run cover 0 -- render --coverage "$DIR/gen.aon"
-has cover 'coverage: 3 path(s) read, 0 no output consumed, 0 declaration(s)'
-ok "the trace names the rule and the model node behind every piece, and nothing is dead"
+# 9. THE TRACE IS PENDING `aontu trace` (UNITS-AND-TREES.1.md P6). It
+# held the strongest claim in this file: every line of every handler
+# came from a rule, the trace said which -- `%handler` by the name it
+# was read through, each of the twelve services at its own path in the
+# model, and `#0` for a table written inline at the call. Those three
+# keys are the specification the new verb owes, and they are recorded
+# here rather than deleted, because this is the consumer that says what
+# a trace entry has to carry. `render --format json` cannot answer it
+# now: this generator is a component tree.
+#
+# The COVERAGE half is not pending, it is gone: `render --coverage`'s
+# dead-model report has no successor (§6).
+skip "the trace names the rule and the model node behind every piece (awaits P6)"
 
 # 10. THE TEMPLATE SURFACE (RENDER P8). handler.ts is the SAME
 # generator written in the target's own syntax: the file IS a Lambda
@@ -151,7 +157,17 @@ ok "the trace names the rule and the model node behind every piece, and nothing 
 # twelve. It renders the same thirteen units against the same goldens,
 # it parses as TypeScript with no syntax diagnostic, and the round trip
 # between the two forms is a fixpoint.
-run tmplrender 0 -- render --check "$DIR/expected" "$DIR/handler.ts"
+# THE DESUGARED FORM IS WRITTEN BESIDE ITS SOURCE, because it carries
+# the source's own relative includes: `@"./model.aon"` resolves from
+# where the file sits, not from where the check runs.
+$AONTU template "$DIR/handler.ts" > "$DIR/_tmpl.aon" 2>/dev/null \
+  || fail "the template form did not desugar"
+if [ "$jostraca" != "3" ]; then
+  tree "$DIR/_tmpl.aon" | $CMP --folder "$DIR/expected" >/dev/null 2>&1 \
+    || { rm -f "$DIR/_tmpl.aon"
+         fail "the template form does not write the same thirteen files"; }
+fi
+rm -f "$DIR/_tmpl.aon"
 run tmplcheck 0 -- template --check "$DIR/handler.ts"
 $AONTU template "$DIR/handler.ts" > "$WORK/handler.aon" 2>/dev/null \
   || fail "the template did not desugar"
@@ -176,24 +192,17 @@ if command -v go >/dev/null 2>&1; then
   GOBIN="$WORK/aontu-go"
   (cd "$REPO/go" && go build -o "$GOBIN" ./cmd/aontu) \
     || fail "could not build the Go CLI"
-  "$GOBIN" render --check "$DIR/expected" "$DIR/gen.aon" 2>/dev/null \
-    || fail "the Go port's render does not match the goldens (ADR-001)"
+  "$GOBIN" get out --trust root "$DIR/gen.aon" 2>/dev/null > "$WORK/go.json" \
+    || fail "the Go port did not build the tree"
+  $AONTU get out --trust root "$DIR/gen.aon" 2>/dev/null > "$WORK/ts.json"
+  diff -u "$WORK/ts.json" "$WORK/go.json" \
+    || fail "the two ports build different trees (ADR-001)"
   "$GOBIN" "$DIR/bad/overlap.aon" >"$WORK/go-overlap.out" 2>&1 \
     && fail "the Go port accepted the overlapping keys" || true
   grep -qF '[aontu/replace_overlap]' "$WORK/go-overlap.out" \
     || fail "the Go port did not refuse replace_overlap"
-  ok "the Go port renders the same thirteen units and refuses the same template"
-  "$GOBIN" render --format json "$DIR/gen.aon" 2>/dev/null > "$WORK/trace-go.json" \
-    || fail "the Go port's JSON report did not render"
-  python3 - "$WORK/trace.json" "$WORK/trace-go.json" <<'PY_PARITY'
-import json, sys
-a = json.load(open(sys.argv[1]))["trace"]
-b = json.load(open(sys.argv[2]))["trace"]
-assert a == b, "the two ports disagree about the trace (ADR-001)"
-PY_PARITY
-  ok "the Go port records the same trace, entry for entry"
-  "$GOBIN" render --check "$DIR/expected" "$DIR/handler.ts" 2>/dev/null \
-    || fail "the Go port's render of the template form does not match the goldens"
+  ok "the Go port builds the same thirteen files and refuses the same template"
+  skip "the Go port records the same trace, entry for entry (awaits P6)"
   "$GOBIN" template --check "$DIR/handler.ts" \
     || fail "the Go port does not agree the round trip is a fixpoint"
   diff <("$GOBIN" template "$DIR/handler.ts") "$WORK/handler.aon" \
