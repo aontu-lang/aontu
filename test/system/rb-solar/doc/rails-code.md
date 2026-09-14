@@ -1,5 +1,5 @@
 ---
-description: "Follow aontu: Code: units, template markers, emit rules, and replacements from the model to Rails source files."
+description: "Follow a component tree, template markers, emit rules, and replacements from the model to Rails source files."
 group: rb-solar
 order: 2
 ---

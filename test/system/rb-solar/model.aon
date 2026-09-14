@@ -2,9 +2,10 @@
 #
 # This file is the ONE source every generated file reads: the routes,
 # the migrations, the models, both sets of controllers, the views and
-# the seeds are all facts stated here. `aontu render --coverage` names
-# anything below that no generated file consumed, so a field added and
-# forgotten is reported rather than rotting.
+# the seeds are all facts stated here. Nothing reports a field added
+# here and read by no generator: the dead-model report went with
+# `render --coverage` and nothing replaces it, so a field added and
+# forgotten rots silently until a reader notices.
 #
 # The API is the reference's, not ours: `ref/README.md` says what it is
 # held to, and `ref/validate.ts` is what runs.
