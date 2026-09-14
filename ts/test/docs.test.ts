@@ -666,7 +666,13 @@ const EXCLAMATION = /!(?![=[])/g
 
 // A span that wraps once, which CODE_SPAN's newline bound leaves whole.
 // The newline is kept, so a reported line still points at the author's.
-const CODE_WRAP = /(?<!`)(`+)(?!`)[^`\n]*\n[^`\n]*(?<!`)\1(?!`)/g
+const CODE_WRAP =
+  /(?<!`)(`+)(?!`)(?:[^`\n]|(?!\1)`)*\n(?:[^`\n]|(?!\1)`)*(?<!`)\1(?!`)/g
+
+// A destination is not prose: the `!` in `](/a!b)` spent a page's
+// exclamation ration on a URL character.
+const DESTINATION = /(\]\()[^)\n]*\)/g
+const URL = /<?\bhttps?:\/\/[^\s)>\]]+>?/g
 
 function prose(md: string): string {
   return fenceless(md)
@@ -674,14 +680,43 @@ function prose(md: string): string {
     .replace(/<!--[\s\S]*?-->/g, '')
     .replace(CODE_SPAN, '')
     .replace(CODE_WRAP, (m) => m.replace(/[^\n]/g, ''))
+    .replace(DESTINATION, '$1)')
+    .replace(URL, '')
 }
 
 
 // Markdown needs no blank line before a block, so `## Something worth`
 // above `noting this` joined and reported `worth noting`. A heading,
 // table row and rule close as well as open.
-const OPENS = /^\s*(?:[-*+] |\d+[.)] |#{1,6} |>|\|[^|]*\||`{3,}|~{3,})/
-const CLOSES = /^\s*(?:#{1,6} |\|[^|]*\||(?:[-*_] *){3,}$)/
+const OPENS = /^\s*(?:[-*+] |\d+[.)] |#{1,6} |>|`{3,}|~{3,})/
+const CLOSES = /^\s*(?:#{1,6} |(?:[-*_] *){3,}$)/
+
+
+// A single-column table writes `| cell`, one pipe, the shape of a
+// sentence opening with one; the delimiter row tells them apart.
+const PIPED = /^\s*\|/
+const DELIMITER = /^\s*\|[-:| ]*-[-:| ]*$/
+
+function tableRows(lines: string[]): Set<number> {
+  const rows = new Set<number>()
+  for (let i = 0; i < lines.length; i++) {
+    if (!PIPED.test(lines[i])) {
+      continue
+    }
+    let end = i
+    while (end < lines.length && PIPED.test(lines[end])) {
+      end++
+    }
+    const table = lines.slice(i, end).some((l) => DELIMITER.test(l))
+    for (let n = i; n < end; n++) {
+      if (table || 1 < (lines[n].match(/\|/g) as string[] || []).length) {
+        rows.add(n)
+      }
+    }
+    i = end - 1
+  }
+  return rows
+}
 
 
 // A paragraph, joined for matching, with each piece's physical line
@@ -711,12 +746,15 @@ function logical(text: string): Logical[] {
     }
   }
 
-  lf(text).split('\n').forEach((line, i) => {
+  const split = lf(text).split('\n')
+  const rows = tableRows(split)
+
+  split.forEach((line, i) => {
     if ('' === line.trim()) {
       flush()
       return
     }
-    if (OPENS.test(line)) {
+    if (OPENS.test(line) || rows.has(i)) {
       flush()
     }
     const piece = line.trim().replace(/\s+/g, ' ')
@@ -724,7 +762,7 @@ function logical(text: string): Logical[] {
     lines.push(i + 1)
     pieces.push(piece)
     at += piece.length + 1
-    if (CLOSES.test(line)) {
+    if (CLOSES.test(line) || rows.has(i)) {
       flush()
     }
   })
@@ -1018,6 +1056,13 @@ describe('docs-style', () => {
     claim(2 === bang('Great!!'), 'two marks are two marks')
     claim(0 === bang('if (a != b)'), '!= is an operator')
     claim(0 === bang('![alt](src)'), 'an image is not a mark')
+    claim(0 === bang(prose('See [docs](https://host/a!b) now.')),
+      'a link destination is not prose')
+    claim(0 === bang(prose('Read <https://host/a!b>.')), 'nor an autolink')
+    claim(1 === bang(prose('See [docs](https://host/a) now!')),
+      'the mark outside one still counts')
+    claim('' === prose('Text ``a ` !\nb`` more.').replace(/[^!]/g, ''),
+      'a wrapped span holding a shorter run is still a span')
 
     const joins = (md: string, phrase: string) =>
       logical(md).some((para) => para.text.includes(phrase))
@@ -1027,6 +1072,8 @@ describe('docs-style', () => {
       'a table row is not the row above it')
     claim(joins('| This explanation is worth\nnoting here', 'worth noting'),
       'one pipe is a sentence, not a table row')
+    claim(!joins('| Not only one\n| ---\n| but two', 'one | --- | but'),
+      'a delimiter row makes one pipe a table row after all')
     claim(joins('a sentence worth\nnoting here', 'worth noting'),
       'a wrapped paragraph still joins')
     claim(joins('- an item worth\n  noting here', 'worth noting'),
