@@ -5,8 +5,8 @@ cost. **§12's three open questions were ANSWERED by the owner and the
 ADR §12 asks for is written:**
 [ADR-038](../../ADR.md#adr-038--the-component-tree-is-the-only-output-road-and-aontu-knows-no-languages);
 §12a records the answers, and §1, §2, §3, §5, §6, §9, §10 and §11
-carry what they changed. **P0 IS DONE** — jostraca v0.38.0 answered all three
-asks and two of them beyond the ask, so NOTHING BLOCKS: §5 and §7 say
+carry what they changed. **P0 IS DONE** — jostraca v0.38.0 answered all
+three asks and two beyond the ask, so NOTHING BLOCKS: §5 and §7 say
 what arrived, and the drift check arrived as an API rather than the CLI
 flag §7 asked for. **§6 carries one thing the answers exposed and this
 note had missed:** `aontu:render` also holds the profile schema
@@ -238,10 +238,25 @@ whitespace failure imported wholesale"*, and
 [JOSTRACA.0.md §6](JOSTRACA.0.md) left it standing as the spike's
 clearest open question. It does not stand: depth crosses the seam as a
 prop, and the engine on the far side applies it. `%line.at` maps to
-`Line.indent`, `%blank` to `line("")`, a bare `%piece` string to
-`content` — the sugar [PR #204](https://github.com/aontu-lang/aontu/pull/204) added — and `%raw`'s re-indentation to
-the same `indent`. The one construct with no counterpart is `%raw`'s
-`reindent: false`, which is a `Content` with the text as given.
+`Line.indent`, `%blank` to `line("")`, a `%piece` to a `content` the
+author writes, and `%raw`'s re-indentation to the same `indent`. The
+one construct with no counterpart is `%raw`'s `reindent: false`, which
+is a `Content` with the text as given.
+
+**CORRECTED 2026-09-14, by testing the bytes rather than the shape.**
+This paragraph said a bare `%piece` string maps to `content`, via the
+sugar [PR #204](https://github.com/aontu-lang/aontu/pull/204) added,
+and P4 rested on it. It is wrong twice over. A `%piece` is a span
+INSIDE a line, and aontu's `line` is a leaf — pieces are concatenated
+into one `src`, never children — so a bare string in a children list is
+never a piece. And jostraca's `Content` writes `node.content = src`
+where `Line` does `src += '\n'` first, so a file of bare strings came
+out `alphabeta` rather than `alpha\nbeta`. **A bare string child is now
+a LINE in both ports.** #204 was not careless: at the time
+`aontu render --at` lowered a component tree and made "its `line` and
+`content` children ... one line piece each", so the choice was verified
+against a lowering that has since been deleted. Nothing has validated
+it against bytes since, which is why P4 found it and not P3.
 
 So the algebra is not re-spelled, it is *subsumed*, and by an engine
 that already implements the half aontu's fold approximates.
@@ -482,16 +497,27 @@ not less.** With no declaration vocabulary left, the component props
 are the only typed surface anywhere in the output path.
 
 **2026-09-13: the coupling this accepted is now typed at its source,
-which changes how P3 is BUILT and not what it decides.** jostraca
-v0.38.0 exports a props type per component (§5), so the ten shapes have
-one authoritative declaration instead of living in a page of prose that
-aontu transcribes. The coupling does not go away — aontu is two ports
-and Go cannot read a TypeScript type, so `test/spec/cmp.tsv` still
-carries the schema both engines check against — but the schema now has
-a source to be DERIVED from and drift-tested against, which is the
-house pattern already used for `sigdecl.ts` and `aontumodel.ts`. A prop
-jostraca adds shows up as a failing drift test rather than as a wrongly
-refused call in someone's document.
+which changes what P3 READS and not what it decides.** jostraca v0.38.0
+exports a props type per component (§5), so the ten shapes have one
+authoritative declaration instead of living in a page of prose that
+aontu transcribes.
+
+**It does not make the schema derivable, and an earlier draft of this
+paragraph said it did.** Deriving it, or drift-testing against it, means
+importing jostraca — and aontu takes no dependency in either direction,
+which is the seam §5 exists to keep. `sigdecl.ts` and `aontumodel.ts`
+are not the precedent they look like: both derive from aontu's OWN
+sources. So the table is hand-kept in both ports with the version it was
+read from recorded, and a prop jostraca adds is a prop aontu does not
+learn until someone looks.
+
+**Open, and the owner's: whether a dev-only dependency is worth it.**
+A `devDependency` on jostraca in `ts/` alone would let one test compare
+the table against the exported types, and the shared spec would carry
+the result to Go — so the check is reachable without either port
+depending on jostraca at run time. It is still a coupling where the
+design says there is none. Not taken either way here: P3 landed
+hand-kept, which is the choice that needs no decision.
 
 ## 10. Staging
 
@@ -567,10 +593,16 @@ pins.
 is a decision, not a phase, and should be taken during P4 when the
 migrated generators show whether they need it.
 
-**P3 — the prop schema (§9).** Before the corpus migrates, so the
-corpus is written against a checked surface. Now the FIRST substantive
-phase, P2 having gone: with the declarations going too, this is the
-only typed surface the output path will have.
+**P3 — the prop schema (§9). LANDED 2026-09-14.** Before the corpus
+migrates, so the corpus is written against a checked surface. It was
+the first substantive phase, P2 having gone. Every prop each component
+declares and nothing else, refused at the call in both ports, with
+seventeen rows in `test/spec/cmp.tsv`: the full set for each of the
+ten, six refusals of which four prove the schema is per COMPONENT
+rather than one union, and one that pins WHICH prop is named — the
+first written, since Go ranges a map in no order and walks
+`MapVal.keys` instead. The tables are hand-kept; §9 says why they
+cannot be derived and what that leaves open.
 
 **P4 — migrate the corpus.** The template surface first: a `#-` header
 today ends in `aontu: Code: units: emit(...)` with
@@ -580,6 +612,23 @@ today ends in `aontu: Code: units: emit(...)` with
 through [PR #204](https://github.com/aontu-lang/aontu/pull/204)'s bare-string sugar. Then the three use-cases, then
 rb-solar's nine. rb-solar is the acceptance case: it is
 fragment-only, so it exercises §4 and nothing of §2 or §3.
+
+**The first thing P4 found, before a generator moved.** Those backtick
+body lines landed as `content`, which writes no newline, so the
+migration's first output would have been one long line. §4 carries the
+finding and the fix: a bare string child is a LINE in both ports. It is
+the case for doing P4 against BYTES rather than against the shape of
+the tree, which is what rb-solar's golden files are for.
+
+**rb-solar IS MIGRATED, 2026-09-14**, all nine generators and all
+sixteen files byte-identical through jostraca, with a hand edit and a
+restore as controls; `check.sh` is 8 of 8. The byte gate is
+`tools/cmptree-check.js`: the tree on stdin, jostraca required at run
+time, exit 3 when it is absent so the check skips rather than fails.
+**The three use-cases are what remains, and they differ in one way that
+matters** — they run in CI, where rb-solar does not. So the byte gate
+there either gets jostraca installed or it skips, and a gate that skips
+in CI is not a gate. That decision is §12b's, not this phase's.
 
 **P5 — delete, and it is now the bulk of the work.** The `render` verb
 and its help, `ts/src/render.ts` and `go/render.go`, the `RenderReport`
@@ -722,6 +771,13 @@ it is versionable, and a silently dropped `indent`, `mode` or
   during P4, when the migrated generators show whether they need it.
 - ~~**P0 lands in `jostraca/jostraca`, not here.**~~ DONE: v0.38.0,
   2026-09-13. See P0 and §5.
+- **Does CI get jostraca?** P4's byte gate runs the tree through
+  jostraca, because a tree checked against anything else proves nothing
+  about what a user gets. rb-solar is local so a skip costs nothing
+  there; the three use-cases run in CI, and a gate that skips in CI is
+  not a gate. A `ts/` dev dependency buys it back, at the price of a
+  coupling §5 says there is none of. The same question §9 asks about
+  the prop schema, with more at stake.
 - **The vocabulary needs a name.** ADR-038 says `aontu:render` cannot
   keep a name built on a verb that no longer exists, and does not
   choose the replacement. It is what `template` and `fmt` vet a

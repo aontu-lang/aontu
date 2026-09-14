@@ -32,7 +32,13 @@ type CmpDef = {
   span?: boolean
   // A prop that must be present and must be a list.
   bag?: string
+  // Hand-kept: no jostraca dependency to derive it from.
+  props: string[]
 }
+
+
+const SPAN_PROPS =
+  ['arg', 'src', 'name', 'indent', 'extra', 'replace', 'raw']
 
 const CMP_DEF: Record<string, CmpDef> = {
   // The output root. Its `folder` is refused an absolute path or a
@@ -40,47 +46,57 @@ const CMP_DEF: Record<string, CmpDef> = {
   project: {
     cmp: 'Project', text: 'folder', req: false,
     children: ['project', 'folder', 'file', 'copyfiles'],
+    props: ['name', 'folder'],
   },
   folder: {
     cmp: 'Folder', text: 'name', req: true,
     children: ['folder', 'file', 'copyfiles'],
+    props: ['name'],
   },
   file: {
     cmp: 'File', text: 'name', req: true,
     children: ['content', 'line', 'fragment', 'inject', 'listitems', 'copyfiles'],
+    props: ['name', 'exclude', 'mode'],
   },
   content: {
     cmp: 'Content', text: 'src', req: true, span: true,
     children: [],
+    props: SPAN_PROPS,
   },
   // A span with a newline added, which is the whole difference.
   line: {
     cmp: 'Line', text: 'src', req: true, span: true,
     children: [],
+    props: SPAN_PROPS,
   },
   // A file read from disk with its `<[SLOT]>` markers filled.
   fragment: {
     cmp: 'Fragment', text: 'from', req: true,
     children: ['slot', 'content', 'line', 'listitems'],
+    props: ['from', 'indent', 'replace', 'eject'],
   },
   slot: {
     cmp: 'Slot', text: 'name', req: true,
     children: ['content', 'line', 'fragment', 'listitems'],
+    props: ['name'],
   },
   // A body written between markers in a file that already exists.
   inject: {
     cmp: 'Inject', text: 'name', req: true,
     children: ['content', 'line', 'listitems'],
+    props: ['name', 'markers', 'exclude'],
   },
   // `Copy` under a name aontu has free: `copy` is taken by the builtin
   // that copies a VALUE, and a file copy is a different verb.
   copyfiles: {
     cmp: 'CopyFiles', text: 'from', req: true,
     children: [],
+    props: ['from', 'to', 'replace', 'exclude'],
   },
   listitems: {
     cmp: 'ListItems', req: true, bag: 'item',
     children: ['content', 'line', 'fragment'],
+    props: ['item', 'line', 'indent'],
   },
 }
 
@@ -110,10 +126,11 @@ function cmpNode(cmp: string, props: Val, children: Val,
 }
 
 
-// A bare string child is this: what a template body line desugars to.
-function contentNode(src: string, ctx: AontuContext): MapVal {
+// A bare string child is a LINE, terminator included: what a template
+// body line desugars to, and jostraca's `Content` writes no newline.
+function lineNode(src: string, ctx: AontuContext): MapVal {
   return cmpNode(
-    CMP_DEF.content.cmp,
+    CMP_DEF.line.cmp,
     new MapVal({ peg: { src: new StringVal({ peg: src }, ctx) } }, ctx),
     new ListVal({ peg: [] }, ctx),
     ctx)
@@ -169,6 +186,13 @@ class CmpFuncVal extends FuncBaseVal {
       return makeNilErr(ctx, 'invalid-arg', this, spec, 'spec')
     }
 
+    // An unknown prop is a silently dropped `indent` or `mode`.
+    for (const key of Object.keys((props as any).peg)) {
+      if (!def.props.includes(key)) {
+        return makeNilErr(ctx, 'invalid-arg', this, props, key)
+      }
+    }
+
     if (undefined !== def.text) {
       const text = propText(props, def.text)
       if (def.req &&
@@ -210,10 +234,10 @@ class CmpFuncVal extends FuncBaseVal {
           const text = (true === (kid as any)?.isScalar &&
             'string' === typeof (kid as any).peg) ? (kid as any).peg : undefined
           if (undefined !== text) {
-            if (!def.children.includes('content')) {
+            if (!def.children.includes('line')) {
               return kid
             }
-            flat.push(contentNode(text, ctx))
+            flat.push(lineNode(text, ctx))
             continue
           }
           const kcmp = nodeCmp(kid)

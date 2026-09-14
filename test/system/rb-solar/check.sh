@@ -59,17 +59,44 @@ skip() { n=$((n + 1)); echo "ok $n - $1 # SKIP"; }
 
 RUBY_GENS="routes migrate seeds model api_base api_controller ui_controller"
 
+# THE BYTES COME FROM JOSTRACA, which writes the files: a tree checked
+# against anything else proves nothing about what a user gets. The seam
+# is a pipe -- `tools/cmptree-check.js` requires jostraca at run time
+# and exits 3 when it is absent -- so this skips with a note the way the
+# Ruby checks below do, rather than failing where it is not installed.
+CHECK="node $ROOT/tools/cmptree-check.js"
+tree() {
+  case "$1" in
+    erd) $AONTU template --marker '%%-' "$DIR/gen/erd.mmd" > "$WORK/$1.aon" \
+           && $AONTU get out "$WORK/$1.aon" 2>/dev/null ;;
+    views) $AONTU get out "$DIR/gen/views.aon" 2>/dev/null ;;
+    *) $AONTU template "$DIR/gen/$1.rb" > "$WORK/$1.aon" \
+         && $AONTU get out "$WORK/$1.aon" 2>/dev/null ;;
+  esac
+}
+
 drift=""
-for g in $RUBY_GENS; do
-  $AONTU render --check "$DIR/app" "$DIR/gen/$g.rb" >/dev/null 2>&1 \
-    || drift="$drift $g.rb"
+skipped=""
+for g in $RUBY_GENS views; do
+  tree "$g" | $CHECK --folder "$DIR/app" >/dev/null 2>&1
+  case $? in
+    0) ;;
+    3) skipped="yes" ;;
+    *) drift="$drift $g" ;;
+  esac
 done
-$AONTU render --check "$DIR/app" "$DIR/gen/views.aon" >/dev/null 2>&1 \
-  || drift="$drift views.aon"
-if [ -z "$drift" ]; then
-  ok "every generator renders the committed app, byte for byte"
+tree erd | $CHECK --folder "$DIR/doc" >/dev/null 2>&1
+case $? in
+  0) ;;
+  3) skipped="yes" ;;
+  *) drift="$drift erd" ;;
+esac
+if [ -n "$skipped" ]; then
+  skip "every generator writes the committed app (jostraca not installed)"
+elif [ -z "$drift" ]; then
+  ok "every generator writes the committed app, byte for byte"
 else
-  fail "the committed app is not what the generators render:$drift"
+  fail "the committed app is not what the generators write:$drift"
 fi
 
 # --- the generators are files in their own languages -----------------
@@ -110,9 +137,7 @@ fi
 # the value lattice by `view`. Pinned, so a model change that alters
 # the shape shows up as a diff rather than as a stale picture.
 
-$AONTU render --marker '%%-' --check "$DIR/doc" "$DIR/gen/erd.mmd" >/dev/null 2>&1 \
-  && ok "the entity-relationship diagram is what the model renders" \
-  || fail "doc/erd.mmd is stale"
+# The diagram is checked with the rest, in check 1 above.
 
 pinned=1
 $AONTU view doc --depth 2 --out "$DIR/doc/model-tree.txt" --check "$DIR/model.aon" >/dev/null 2>&1 || pinned=0
@@ -137,29 +162,11 @@ $AONTU view lattice --as svg --out "$DIR/doc/value-lattice.svg" --check "$DIR/mo
 # set is written out, and a path present in every one of them is dead
 # for the system.
 
-gens=0
-: > "$WORK/dead.all"
-for g in $RUBY_GENS erd views; do
-  case "$g" in
-    erd) src="$DIR/gen/erd.mmd"; extra="--marker %%-" ;;
-    views) src="$DIR/gen/views.aon"; extra="" ;;
-    *) src="$DIR/gen/$g.rb"; extra="" ;;
-  esac
-  $AONTU render --coverage $extra "$src" 2>/dev/null \
-    | grep "^dead: " | sed "s/^dead: //" | sort -u > "$WORK/dead.$g"
-  cat "$WORK/dead.$g" >> "$WORK/dead.all"
-  gens=$((gens + 1))
-done
-
-# A path that appears once per generator is dead in all of them.
-sort "$WORK/dead.all" | uniq -c \
-  | awk -v n="$gens" '$1 == n { print $2 }' > "$WORK/dead.everywhere"
-
-if [ ! -s "$WORK/dead.everywhere" ]; then
-  ok "no path of the model is dead to all $gens generators"
-else
-  fail "the model states what nothing reads: $(tr "\n" " " < "$WORK/dead.everywhere")"
-fi
+# THE DEAD-MODEL REPORT IS GONE, with `render --coverage` that answered
+# it (UNITS-AND-TREES.1.md §6). It named the shallowest model paths no
+# generator read, and nothing replaces it: `reaches` answers a relation
+# between two paths, not what nothing reads. Recorded as a capability
+# this migration costs, not as a check that moved.
 
 # --- the model and the generators are in the agreed form -------------
 #

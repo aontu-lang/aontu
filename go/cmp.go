@@ -20,50 +20,65 @@ type cmpDef struct {
 	// The children this component admits, by aontu function name. Empty
 	// means a leaf: any child at all is a mistake.
 	children []string
+	// Hand-kept: no jostraca dependency to derive it from.
+	props []string
 }
+
+var cmpSpanProps = []string{
+	"arg", "src", "name", "indent", "extra", "replace", "raw"}
 
 var cmpDefs = map[string]cmpDef{
 	"project": {
 		cmp: "Project", text: "folder", req: false,
 		children: []string{"project", "folder", "file", "copyfiles"},
+		props:    []string{"name", "folder"},
 	},
 	"folder": {
 		cmp: "Folder", text: "name", req: true,
 		children: []string{"folder", "file", "copyfiles"},
+		props:    []string{"name"},
 	},
 	"file": {
 		cmp: "File", text: "name", req: true,
 		children: []string{"content", "line", "fragment", "inject", "listitems", "copyfiles"},
+		props:    []string{"name", "exclude", "mode"},
 	},
 	"content": {
 		cmp: "Content", text: "src", req: true, span: true,
 		children: []string{},
+		props:    cmpSpanProps,
 	},
 	"line": {
 		cmp: "Line", text: "src", req: true, span: true,
 		children: []string{},
+		props:    cmpSpanProps,
 	},
 	"fragment": {
 		cmp: "Fragment", text: "from", req: true,
 		children: []string{"slot", "content", "line", "listitems"},
+		props:    []string{"from", "indent", "replace", "eject"},
 	},
 	"slot": {
 		cmp: "Slot", text: "name", req: true,
 		children: []string{"content", "line", "fragment", "listitems"},
+		props:    []string{"name"},
 	},
 	"inject": {
 		cmp: "Inject", text: "name", req: true,
 		children: []string{"content", "line", "listitems"},
+		props:    []string{"name", "markers", "exclude"},
 	},
 	// `Copy` under a name aontu has free: `copy` is taken by the builtin
 	// that copies a VALUE, and a file copy is a different verb.
 	"copyfiles": {
 		cmp: "CopyFiles", text: "from", req: true,
 		children: []string{},
+		props:    []string{"from", "to", "replace", "exclude"},
 	},
 	"listitems": {
 		cmp: "ListItems", req: true, bag: "item",
 		children: []string{"content", "line", "fragment"},
+		props:    []string{"item", "line", "indent"},
 	},
 }
 
@@ -113,15 +128,15 @@ func cmpNode(cmp string, props *MapVal, children *ListVal) *MapVal {
 	return node
 }
 
-func contentNode(src string) *MapVal {
+// A bare string child is a LINE: `Content` writes no newline.
+func cmpLineNode(src string) *MapVal {
 	props := newMap()
 	props.set("src", newString(src))
-	return cmpNode(cmpDefs["content"].cmp, props, newList([]Val{}))
+	return cmpNode(cmpDefs["line"].cmp, props, newList([]Val{}))
 }
 
 // cmpFlatten splices nested lists and refuses a child the component
-// does not admit, answering the offending value. A bare string is
-// `content` sugar, which is what a template body line desugars to.
+// does not admit, answering the offending value.
 func cmpFlatten(def cmpDef, list []Val, out *[]Val) Val {
 	for _, kid := range list {
 		if inner, ok := kid.(*ListVal); ok {
@@ -131,10 +146,10 @@ func cmpFlatten(def cmpDef, list []Val, out *[]Val) Val {
 			continue
 		}
 		if text, isText := stringPeg(kid); isText {
-			if !cmpAdmits(def, "content") {
+			if !cmpAdmits(def, "line") {
 				return kid
 			}
-			*out = append(*out, contentNode(text))
+			*out = append(*out, cmpLineNode(text))
 			continue
 		}
 		kcmp, ok := nodeCmp(kid)
@@ -180,6 +195,21 @@ func cmpFunc(ctx *Ctx, f *FuncVal, args []Val) Val {
 			props = m
 		} else {
 			return makeNilErrFull(ctx, "invalid-arg", f, args[0], "spec", nil)
+		}
+	}
+
+	// An unknown prop is a silently dropped `indent` or `mode`. Walk
+	// `keys`: a map ranges in no order, and the first written is named.
+	for _, key := range props.keys {
+		known := false
+		for _, p := range def.props {
+			if p == key {
+				known = true
+				break
+			}
+		}
+		if !known {
+			return makeNilErrFull(ctx, "invalid-arg", f, props, key, nil)
 		}
 	}
 

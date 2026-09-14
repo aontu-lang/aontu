@@ -1856,6 +1856,82 @@ source to derive from, and the duplicate output path refused, which
 closes the gap the note's §6 recorded. The order to work is now P3,
 P4, P6, P5.
 
+**BEYOND THE PHASES: the component props are checked, 2026-09-14.**
+The note's P3, and the first substantive phase now that P2 is cancelled
+and P0 is done. **Every prop each Jostraca component declares, and
+nothing else**: a call carrying an unknown prop is refused
+`invalid-arg` at the call, where it used to pass through and become a
+silently dropped `indent`, `mode` or `exclude` in the engine that
+writes the files. Both ports (`CMP_DEF` in
+`ts/src/val/CmpFuncVal.ts`, `cmpDefs` in `go/cmp.go`), pinned by
+seventeen rows in `test/spec/cmp.tsv`: the full declared set for each
+of the ten components, six refusals, and one that holds the message.
+**The schema is per COMPONENT, not one union**, which four of the
+refusals are chosen to prove — `mode` on a folder, `raw` on a file,
+`item` on a project and `src` on listitems are all real props on some
+other component and refused here.
+**The prop NAMED is the first one WRITTEN.** Go ranges a map in no
+order, so `go/cmp.go` walks `MapVal.keys` rather than the map, and
+`cmp-props-names-first-written` is the guard: it writes `zzz` before
+`aaa` and pins `zzz`, so a port that sorted or ranged freely would
+fail it rather than differ silently.
+**What it does NOT do, against what this register said yesterday.**
+jostraca v0.38.0 exports a props type per component, and the entry
+above called that a source to derive the schema from. It is not:
+deriving or drift-testing means importing jostraca, and aontu takes no
+dependency in either direction. `sigdecl.ts` and `aontumodel.ts` are
+not the precedent they resemble — both derive from aontu's own sources.
+So the two tables are HAND-KEPT, with the version they were read from
+recorded in each, and a prop jostraca adds is one aontu does not learn
+until someone looks. Whether a `ts/`-only dev dependency is worth
+buying that check back is left open in the note's §9.
+
+**AND A BARE STRING CHILD IS NOW A LINE, not a span, 2026-09-14.**
+Found while preparing P4 and fixed before a generator moved, because
+the migration's first output would otherwise have been one long line.
+[PR #204](https://github.com/aontu-lang/aontu/pull/204) made a concrete
+string child sugar for `content`, for exactly this surface — a template
+body line desugars to a bare backtick string. But jostraca's `Content`
+sets `node.content = src` where `Line` does `src += "\n"` first, so a
+file of bare strings writes `alphabeta` and not `alpha\nbeta`. **#204
+was not careless.** At the time, `aontu render --at` lowered a
+component tree and made "its `line` and `content` children ... one line
+piece each", so the choice was verified against a lowering that
+`eb3230a9` has since deleted; nothing has held it to BYTES since. The
+sugar answers `Line` in both ports now, and the four
+`cmp-bare-string-*` rows carry the change — `cmp-bare-string-mixed` is
+the one that states the rule, holding `line("a")`, a bare `"b"` and
+`content("c")` in one call so the explicit span is visibly still a
+span. A `%piece` was never this: aontu's `line` is a leaf, so pieces
+concatenate into one `src` and are never children.
+
+**BEYOND THE PHASES: rb-solar is on the component road, 2026-09-14.**
+The note's P4, its acceptance case and the half that had to go first.
+**All nine generators migrated and all sixteen files byte-identical**,
+through jostraca itself rather than through a walker written here — a
+tree checked against anything else proves nothing about what a user
+gets, which is exactly how the `content` sugar above went wrong. A hand
+edit and a restore were run as controls, and the check reports the
+drift by path and exits non-zero. `check.sh` is 8 of 8: the bytes, the
+seven Ruby generators still parsing as Ruby, the nine round-tripping as
+template fixpoints, the pinned diagrams, `fmt`, and the CI patch.
+**The seam stayed a pipe.** `tools/cmptree-check.js` reads the tree on
+stdin and requires jostraca at RUN time, exiting 3 when it is absent so
+`check.sh` skips with a note the way it already skips without Ruby.
+Nothing in `ts/src` or `go/` gained a dependency. It passes
+`cmpTree(tree, {raw: true})`, which is §5's first ask and not optional:
+aontu hands over final bytes, and a `$$` in a generated file is not a
+substitution.
+**One capability went and is not coming back.** `render --coverage`'s
+dead-model report named the shallowest model paths no generator read,
+and `check.sh` asserted none was dead to all nine. `reaches` answers a
+relation between two paths, not what nothing reads, so the assertion is
+removed rather than moved — the note's §6 sanctioned the loss, and this
+is where it is paid.
+**Still to migrate:** the three use-cases, which unlike rb-solar run in
+CI — so the open question this leaves is whether CI gets jostraca, or
+whether the byte gate skips there.
+
 **Read before starting phase 1.** Every one of the seven parallel
 specifications behind this design was returned SERIOUS or FATAL by an
 adversarial review, and the rule layer — the heart of the XSLT
