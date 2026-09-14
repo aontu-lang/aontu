@@ -10,9 +10,6 @@ import _ "embed"
 
 const aontuScheme = "aontu:"
 
-//go:embed aontumodel/code/code.aon
-var aontuCode string
-
 //go:embed aontumodel/lang/markdown.aon
 var aontuLangMarkdown string
 
@@ -22,21 +19,6 @@ var aontuLangText string
 //go:embed aontumodel/profile/profile.aon
 var aontuProfile string
 
-//go:embed aontumodel/render/render.aon
-var aontuRender string
-
-//go:embed aontumodel/render/lang/go.aon
-var aontuRenderLangGo string
-
-//go:embed aontumodel/render/lang/markdown.aon
-var aontuRenderLangMarkdown string
-
-//go:embed aontumodel/render/lang/text.aon
-var aontuRenderLangText string
-
-//go:embed aontumodel/render/lang/typescript.aon
-var aontuRenderLangTypescript string
-
 //go:embed aontumodel/system/system.aon
 var aontuSystem string
 
@@ -44,32 +26,20 @@ var aontuSystem string
 var aontuView string
 
 var aontuSources = map[string]string{
-	"aontu:code":                   aontuCode,
-	"aontu:lang/markdown":          aontuLangMarkdown,
-	"aontu:lang/text":              aontuLangText,
-	"aontu:profile":                aontuProfile,
-	"aontu:render":                 aontuRender,
-	"aontu:render/lang/go":         aontuRenderLangGo,
-	"aontu:render/lang/markdown":   aontuRenderLangMarkdown,
-	"aontu:render/lang/text":       aontuRenderLangText,
-	"aontu:render/lang/typescript": aontuRenderLangTypescript,
-	"aontu:system":                 aontuSystem,
-	"aontu:view":                   aontuView,
+	"aontu:lang/markdown": aontuLangMarkdown,
+	"aontu:lang/text":     aontuLangText,
+	"aontu:profile":       aontuProfile,
+	"aontu:system":        aontuSystem,
+	"aontu:view":          aontuView,
 }
 
 // aontuModels names the set the scheme serves, sorted, for the
 // not-found message: a typo in an aontu: name is refused naming the
 // set rather than searched for on disk.
 var aontuModels = []string{
-	"aontu:code",
 	"aontu:lang/markdown",
 	"aontu:lang/text",
 	"aontu:profile",
-	"aontu:render",
-	"aontu:render/lang/go",
-	"aontu:render/lang/markdown",
-	"aontu:render/lang/text",
-	"aontu:render/lang/typescript",
 	"aontu:system",
 	"aontu:view",
 }

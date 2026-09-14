@@ -113,3 +113,66 @@ func TestTraceHelpIsTheOneHelpText(t *testing.T) {
 		t.Fatalf("code %d: %q", code, out)
 	}
 }
+
+func TestTraceReadsATemplateEntry(t *testing.T) {
+	dir := t.TempDir()
+	write := func(name, text string) string {
+		path := filepath.Join(dir, name)
+		if err := os.WriteFile(path, []byte(text), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		return path
+	}
+	// The entry's extension decides, so a generator in the target's own
+	// syntax is an entry rather than a preprocessing step.
+	gen := write("gen.ts", "//- svc: { a: { n:\"a\" } }\n"+
+		"//- out: file(\"x.ts\", emit($.svc, { match: n: string body: [\n"+
+		"L\n//- ]}))\n")
+	zz := write("gen.zz", ";;- svc: { a: { n:\"a\" } }\n"+
+		";;- out: file(\"x.ts\", emit($.svc, { match: n: string body: [\n"+
+		"L\n;;- ]}))\n")
+	profile := write("zz.aon", "@\"aontu:profile\"\n\naontu: Lang: "+
+		"{ lang:\"zz\" template: { marker:\";;-\" ext: [zz] } }\n")
+
+	want := "x.ts\t$.children.0\t$.svc.a\t#0\n"
+	if out, errw, code := traceRunCLI(gen); 0 != code || want != out {
+		t.Fatalf("template entry: %d %q %q", code, out, errw)
+	}
+	// --marker reaches a language the table has not met, and --profile
+	// declares the same marker once.
+	if out, errw, code := traceRunCLI("--marker", ";;-", zz); 0 != code || want != out {
+		t.Fatalf("--marker entry: %d %q %q", code, out, errw)
+	}
+	if out, errw, code := traceRunCLI("--profile", profile, zz); 0 != code || want != out {
+		t.Fatalf("--profile entry: %d %q %q", code, out, errw)
+	}
+
+	for _, tc := range []struct {
+		args []string
+		want string
+	}{
+		{[]string{"--marker"}, "--marker needs a token"},
+		{[]string{"--profile"}, "--profile needs a file"},
+		{[]string{"--profile", filepath.Join(dir, "gone.aon"), gen}, "cannot read"},
+	} {
+		_, errw, code := traceRunCLI(tc.args...)
+		if 2 != code || !strings.Contains(errw, tc.want) {
+			t.Fatalf("%v: %d %q", tc.args, code, errw)
+		}
+	}
+
+	// A --profile document that does not stand up is exit 4; a second
+	// profile claiming the same language is exit 2.
+	bad := write("bad.aon", "aontu: Lang: { lang: 1 }\n")
+	if _, errw, code := traceRunCLI("--profile", bad, gen); 4 != code ||
+		!strings.Contains(errw, "aontu/") {
+		t.Fatalf("bad profile: %d %q", code, errw)
+	}
+	dup := write("zz2.aon", "@\"aontu:profile\"\n\naontu: Lang: "+
+		"{ lang:\"zz\" template: { marker:\";;-\" ext: [zz] } }\n")
+	if _, errw, code := traceRunCLI(
+		"--profile", profile, "--profile", dup, gen); 2 != code ||
+		!strings.Contains(errw, "two profiles claim zz") {
+		t.Fatalf("duplicate lang: %d %q", code, errw)
+	}
+}

@@ -1,7 +1,7 @@
 # model.aon --- twelve services on one message wire, and what each
 # deployed handler must do: the patterns it listens on, the patterns it
 # calls out to, and the S3 events it picks up. The model is the only
-# input; the handlers are rendered from it (gen.aon) and never edited.
+# input; the handlers are generated from it (gen.aon) and never edited.
 #
 # Every service has the three keys, empty where it has nothing to say,
 # because the generator reads them all: a dispatch over an empty

@@ -155,6 +155,9 @@ const hints = {
     refer_unresolved: 'A refer() address names no node in this evaluation. Within one\nevaluation the document-set is fixed, so a link to nothing is an error\nrather than something to resolve later: check the spelling, or add the\nnode it was meant to reach. A relative address that climbs off the top\nof the tree lands here too.\n \nExamples:\n  a:{p:1} b:refer()&"$.a"    -> "$.a"    # $.a is a node;\n  a:{p:1} b:refer()&"$.a.p"  -> "$.a.p"  # ... and so is a node inside it;\n  b:refer()&"$.nope"         -> nil      # ... but nothing is here.',
     view_relation_unknown: 'The relation named to the view has no edges in this document, so\nthe figure would be empty -- and an empty figure and a misspelled name are\nthe same file on disk. Check the spelling against the relations the\nnote lists, or drop the relation to draw every relation at once.',
     view_kind_unknown: 'The figure kind is not one the verb draws. The kinds are tree, matrix,\ngraph, layer, sets, layers, ladder and poset; the note lists them.',
+    // RETIRED with the `render` verb (ADR-038). Registered still,
+    // errcodes.tsv being append-only, so a code a released engine raised
+    // keeps its meaning.
     render_path: 'A unit path is written below the output directory: relative, with no\n`..` segment, and no two units the same. Rename the unit.',
     render_lang: 'A text escape carries verbatim syntax of ONE language, and it must be\nthe unit\'s: a text of another language in this unit would be written\nas if it were this one. Move it to a unit of its own language.',
     render_profile: 'Only fragments and text escapes render without a lowering, under the\ntext profile. A record, enum, alias, const or func needs a profile\nwhose language has one (typescript, go): set the unit\'s lang, or\nwrite the declaration as a fragment.',

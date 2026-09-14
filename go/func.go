@@ -37,8 +37,6 @@ var funcSet = map[string]bool{
 	"split":      true,
 	"nom":        true,
 	"translate":  true,
-	"lowerdecls": true,
-	"lowerloss":  true,
 	"add":        true,
 	"sub":        true,
 	"mul":        true,
@@ -72,8 +70,6 @@ var stagedFuncs = map[string]bool{
 	"join": true,
 	// Both arguments are data and must settle before a declaration can
 	// be spelled: a half-unified type lowers to the wrong text.
-	"lowerdecls": true,
-	"lowerloss":  true,
 }
 
 var foldFuncs = map[string]bool{
@@ -552,10 +548,6 @@ func (f *FuncVal) resolve(ctx *Ctx, base []string, args []Val) Val {
 		return order(ctx, f, base, args[0], argAt(args, 1), argAt(args, 2))
 	case "nom":
 		return nomFunc(ctx, f, args)
-	case "lowerdecls":
-		return lowerDeclsFunc(ctx, f, args, false)
-	case "lowerloss":
-		return lowerDeclsFunc(ctx, f, args, true)
 	case "translate":
 		return translateFunc(ctx, f, args)
 	case "project", "folder", "file", "content", "line", "fragment",

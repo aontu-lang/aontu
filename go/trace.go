@@ -8,12 +8,11 @@ import (
 )
 
 // TraceEntry is the file a piece reached, the rule that wrote it and
-// the model node the dispatch matched. `Unit` was a file path all
-// along; `Piece` has no successor, the tree being the pieces.
-// Mirrors TraceEntry in ts/src/trace.ts.
+// the model node the dispatch matched. Mirrors TraceEntry in
+// ts/src/trace.ts.
 type TraceEntry struct {
-	File string `json:"file"`
 	At   string `json:"at"`
+	File string `json:"file"`
 	Node string `json:"node"`
 	Rule string `json:"rule"`
 }
@@ -27,6 +26,12 @@ type TraceReport struct {
 type traceFile struct {
 	at   string
 	name string
+}
+
+// traceMark is one stamped piece and where it sits.
+type traceMark struct {
+	path string
+	mark *emitOrigin
 }
 
 func traceWalk(root Val, fn func(v Val, path []string)) {
@@ -97,13 +102,13 @@ func traceEnclosing(files []traceFile, path string) string {
 // it reached: one pass, a file always seen before the marks beneath it.
 func TraceTree(root Val) []TraceEntry {
 	files := []traceFile{}
-	marks := []renderMark{}
+	marks := []traceMark{}
 	traceWalk(root, func(v Val, path []string) {
 		if name := traceFileName(v); "" != name {
 			files = append(files, traceFile{at: traceAddr(path), name: name})
 		}
 		if o := v.emitOrig(); nil != o {
-			marks = append(marks, renderMark{path: traceAddr(path), mark: o})
+			marks = append(marks, traceMark{path: traceAddr(path), mark: o})
 		}
 	})
 
@@ -114,7 +119,7 @@ func TraceTree(root Val) []TraceEntry {
 			continue
 		}
 		out = append(out, TraceEntry{
-			File: file, At: m.path, Node: m.mark.node, Rule: m.mark.rule})
+			At: m.path, File: file, Node: m.mark.node, Rule: m.mark.rule})
 	}
 	return out
 }

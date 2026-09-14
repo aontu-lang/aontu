@@ -11,7 +11,6 @@ import { Aontu, viewTree } from '../dist/aontu'
 import {
   evalSource, runVet, runSubsume, runBreaking, runTrim, runRelations,
   runJsonSchema,
-  runRender,
   runReaches,
   runView,
   runHash, runGet, runWhy,
@@ -1620,7 +1619,7 @@ describe('cli-subsume', () => {
   })
 
 
-  test('vacuity-signals-on-view-render-relations', () => {
+  test('vacuity-signals-on-view-and-relations', () => {
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-vacuous-'))
     const plain = Path.join(dir, 'plain.aon')
     Fs.writeFileSync(plain, 'a: { b: 1 }\n')
@@ -1635,12 +1634,6 @@ describe('cli-subsume', () => {
     const view = vetCapture(() => Assert.equal(runView(['graph', plain]), 0))
     Assert.match(view.out, /flowchart LR/)
     Assert.match(view.err, /nothing to draw/)
-
-    // No profile, so no unit: the exit code is the one --stdout
-    // already had, and the reason is now said.
-    const render = vetCapture(() => runRender(['--stdout', plain]))
-    Assert.match(render.err, /nothing was rendered/)
-    Assert.match(render.err, /no profile was given/)
 
     // AND THE NEGATIVE: a document that DOES declare says nothing.
     const graph = Path.join(dir, 'graph.aon')
@@ -2514,277 +2507,6 @@ describe('cli-servers', () => {
 })
 
 
-// --- the render verb --------------------------------------------------
-
-describe('cli-render', () => {
-
-  const TWO_UNITS =
-    'aontu: Code: units: [\n' +
-    '  { path: "a.txt", lang: "text", decls: [{ k: "frag", n: ["x", { k: "line", at: 1, n: ["y"] }] }] }\n' +
-    '  { path: "sub/b.txt", lang: "text", decls: [{ k: "frag", n: ["z"] }] }\n' +
-    ']\n'
-
-  // A fragment is lossy only against a language whose declarations
-  // could have been lowered instead, so go says what text does not.
-  const GO_FRAG =
-    'aontu: Code: units: [\n' +
-    '  { path: "a.go", lang: "go", decls: [{ k: "frag", n: ["x"] }] }\n' +
-    ']\n'
-
-  // The named files below a fresh directory; a name may carry a slash.
-  function renderDir(files: Record<string, string>): string {
-    const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-render-'))
-    for (const [name, text] of Object.entries(files)) {
-      const full = Path.join(dir, ...name.split('/'))
-      Fs.mkdirSync(Path.dirname(full), { recursive: true })
-      Fs.writeFileSync(full, text)
-    }
-    return dir
-  }
-
-  function renderCode(want: number, args: string[]): { out: string; err: string } {
-    return vetCapture(() => Assert.equal(runRender(args), want, args.join(' ')))
-  }
-
-  test('render-summarises-every-unit-by-default', () => {
-    // THE SUMMARY: one line per unit -- path, language, size -- since
-    // several units have no one text to print; the loss report on the
-    // other stream, one line per entry.
-    const dir = renderDir({ 'doc.aon': TWO_UNITS, 'go.aon': GO_FRAG })
-    const r = renderCode(0, [Path.join(dir, 'doc.aon')])
-    Assert.equal(r.out, 'a.txt\ttext\t6 bytes\nsub/b.txt\ttext\t2 bytes\n')
-    Assert.equal(r.err, '')
-    const lossy = renderCode(0, [Path.join(dir, 'go.aon')])
-    Assert.equal(lossy.out, 'a.go\tgo\t2 bytes\n')
-    Assert.equal(lossy.err,
-      'lossy: a.go $.aontu.Code.units.0.decls.0 tier 2 frag:' +
-      ' a fragment says nothing about go syntax\n')
-
-    // The verb's own trust flags reach it, and `none` governs the
-    // document alone: the renderer's own vocabulary is not an include
-    // the document wrote.
-    renderCode(0, ['--trust', 'none', Path.join(dir, 'doc.aon')])
-    // The dispatch: `aontu render` is the verb.
-    Assert.match(vetCapture(() => {
-      cliMainVet(['node', 'aontu', 'render', Path.join(dir, 'doc.aon')])
-    }).out, /^a\.txt\ttext\t6 bytes\n/)
-  })
-
-  test('render-stdout-is-one-units-bytes', () => {
-    const dir = renderDir({ 'doc.aon': TWO_UNITS })
-    const file = Path.join(dir, 'doc.aon')
-    const many = renderCode(2, ['--stdout', file])
-    Assert.match(many.err, /--stdout needs exactly one unit, and the instance has 2/)
-    Assert.equal(many.out, '')
-    Assert.equal(renderCode(0, ['--stdout', '--unit', 'a.txt', file]).out, 'x\n  y\n')
-    // A unit filter that names nothing is the document's error.
-    Assert.match(renderCode(4, ['--stdout', '--unit', 'nope', file]).err, /render_unit/)
-  })
-
-  test('render-at-anchors-the-instance', () => {
-    const dir = renderDir({ 'doc.aon': 'gen: { ' + TWO_UNITS + ' }\nother: 1\n' })
-    const file = Path.join(dir, 'doc.aon')
-    Assert.equal(renderCode(0,
-      ['--at', '$.gen', '--stdout', '--unit', 'a.txt', file]).out, 'x\n  y\n')
-    // The anchor names nothing: 4.
-    Assert.match(renderCode(4, ['--at', '$.nope', file]).err, /no_path/)
-  })
-
-  test('render-out-writes-and-check-compares', () => {
-    const dir = renderDir({ 'doc.aon': TWO_UNITS })
-    const file = Path.join(dir, 'doc.aon')
-    const out = Path.join(dir, 'out')
-
-    // --out writes every unit below the directory, creating what the
-    // paths need, and says so on stderr.
-    const r = renderCode(0, ['--out', out, file])
-    Assert.equal(r.out, '')
-    Assert.match(r.err, /^wrote a\.txt\nwrote sub\/b\.txt\n/)
-    Assert.equal(Fs.readFileSync(Path.join(out, 'a.txt'), 'utf8'), 'x\n  y\n')
-    Assert.equal(Fs.readFileSync(Path.join(out, 'sub', 'b.txt'), 'utf8'), 'z\n')
-
-    // --check agrees with what --out wrote, and lists drift by path.
-    renderCode(0, ['--check', out, file])
-    Fs.writeFileSync(Path.join(out, 'a.txt'), 'changed\n')
-    Fs.unlinkSync(Path.join(out, 'sub', 'b.txt'))
-    const drift = renderCode(1, ['--check', out, file])
-    Assert.match(drift.err, /a\.txt differs from the rendered unit/)
-    Assert.match(drift.err, /sub\/b\.txt is missing from /)
-
-    // A unit that cannot be written is I/O: here its path is a
-    // directory.
-    Fs.rmSync(Path.join(out, 'a.txt'))
-    Fs.mkdirSync(Path.join(out, 'a.txt'))
-    Assert.match(renderCode(2, ['--out', out, file]).err, /cannot write a\.txt/)
-  })
-
-  test('render-out-is-confined-to-the-directory', () => {
-    // A symlink inside the output directory that points outside it is
-    // an escape: the include resolver's own rule, applied to writes.
-    const dir = renderDir({
-      'doc.aon': 'aontu: Code: units: [{ path: "link/x.txt", lang: "text", decls: [] }]\n',
-    })
-    const out = Path.join(dir, 'out')
-    const elsewhere = Path.join(dir, 'elsewhere')
-    Fs.mkdirSync(out)
-    Fs.mkdirSync(elsewhere)
-    let symlinked = true
-    try {
-      Fs.symlinkSync(elsewhere, Path.join(out, 'link'), 'dir')
-    }
-    catch {
-      symlinked = false
-    }
-    if (symlinked) {
-      const r = renderCode(2, ['--out', out, Path.join(dir, 'doc.aon')])
-      Assert.match(r.err, /link\/x\.txt escapes /)
-      Assert.equal(Fs.existsSync(Path.join(elsewhere, 'x.txt')), false)
-    }
-  })
-
-  test('render-format-json-is-the-whole-report', () => {
-    const dir = renderDir({
-      'doc.aon': TWO_UNITS, 'go.aon': GO_FRAG, 'bad.aon': 'x: 1 & "a"\n',
-    })
-    const r = renderCode(0, ['--format', 'json', Path.join(dir, 'doc.aon')])
-    Assert.equal(r.err, '')
-    const report = JSON.parse(r.out)
-    Assert.equal(report.aontu.verb, 'render')
-    Assert.equal(report.verdict, 'ok')
-    Assert.equal(report.units.length, 2)
-    Assert.equal(report.units[0].text, 'x\n  y\n')
-    Assert.deepEqual(report.lossy, [])
-    Assert.equal(report.errors, undefined)
-    // A loss report is in the same answer, not on the other stream.
-    const lossy = renderCode(0, ['--format', 'json', Path.join(dir, 'go.aon')])
-    Assert.equal(lossy.err, '')
-    Assert.equal(JSON.parse(lossy.out).lossy[0].construct, 'frag')
-    // An error report carries its findings, and exits as the text form
-    // does.
-    const bad = renderCode(4, ['--format', 'json', Path.join(dir, 'bad.aon')])
-    Assert.equal(JSON.parse(bad.out).errors[0].code, 'scalar_kind')
-  })
-
-  test('render-exit-codes-follow-the-report', () => {
-    const dir = renderDir({
-      'bad.aon': 'x: 1 & "a"\n',
-      'abs.aon': 'aontu: Code: units: [{ path: "/etc/x", lang: "text", decls: [] }]\n',
-      'text.aon': 'aontu: Code: units: [{ path: "a.txt", lang: "text", ' +
-        'decls: [{ k: "text", lang: "text", text: "v\\n" }] }]\n',
-      'shape.aon': 'aontu: Code: units: 1\n',
-    })
-    // The document does not stand up: 4, findings on stderr.
-    const bad = renderCode(4, [Path.join(dir, 'bad.aon')])
-    Assert.match(bad.err, /scalar_kind/)
-    Assert.equal(bad.out, '')
-    // A refused unit path is usage: 2.
-    Assert.match(renderCode(2, [Path.join(dir, 'abs.aon')]).err, /render_path/)
-    // An opaque escape renders, lossy, and is listed; --strict refuses
-    // it: 1.
-    Assert.match(renderCode(0, [Path.join(dir, 'text.aon')]).err,
-      /^lossy: a\.txt \$\.aontu\.Code\.units\.0\.decls\.0 tier 3 text: /)
-    Assert.match(renderCode(1, ['--strict', Path.join(dir, 'text.aon')]).err,
-      /render_strict/)
-    // An instance the vocabulary refuses is the document's: 4.
-    Assert.match(renderCode(4, [Path.join(dir, 'shape.aon')]).err,
-      /\$\.aontu\.Code\.units: list/)
-  })
-
-  test('render-profiles-are-vetted-and-one-per-language', () => {
-    const dir = renderDir({
-      'doc.aon': TWO_UNITS,
-      'four.aon': 'aontu: render: Lang: { lang: "text", indent: { unit: " ", width: 4 } }\n',
-      'two.aon': 'aontu: render: Lang: { lang: "text", indent: { unit: " ", width: 2 } }\n',
-      'bad.aon': 'aontu: render: Lang: { lang: 1 }\n',
-      'broken.aon': 'x: 1 & "a"\n',
-      'nil.aon': 'nil\n',
-    })
-    const file = Path.join(dir, 'doc.aon')
-    // A supplied profile of the unit's language is the one the fold
-    // uses, its defaults filled by the vocabulary.
-    Assert.equal(renderCode(0, ['--profile', Path.join(dir, 'four.aon'),
-      '--stdout', '--unit', 'a.txt', file]).out, 'x\n    y\n')
-    // A profile the vocabulary refuses is reported as the document it
-    // is: 4, with the finding addressed by path.
-    Assert.match(renderCode(4, ['--profile', Path.join(dir, 'bad.aon'), file]).err,
-      /\$\.aontu\.render\.Lang\.lang/)
-    // ... and so is one that does not stand up, or is nil outright.
-    Assert.match(renderCode(4, ['--profile', Path.join(dir, 'broken.aon'), file]).err,
-      /scalar_kind/)
-    Assert.match(renderCode(4, ['--profile', Path.join(dir, 'nil.aon'), file]).err,
-      /literal_nil/)
-    Assert.match(renderCode(2, ['--profile', Path.join(dir, 'four.aon'),
-      '--profile', Path.join(dir, 'two.aon'), file]).err, /two profiles claim text/)
-    Assert.match(renderCode(2, ['--profile', Path.join(dir, 'missing.aon'), file]).err,
-      /cannot read/)
-  })
-
-  test('render-usage-errors-exit-2', () => {
-    const dir = renderDir({ 'doc.aon': TWO_UNITS })
-    const file = Path.join(dir, 'doc.aon')
-    for (const args of [
-      [], [file, file], ['--bogus', file], ['--format', 'yaml', file],
-      ['--format'], ['--at'], ['--unit'], ['--profile'], ['--out'], ['--check'],
-      ['--stdout', '--out', Path.join(dir, 'o'), file],
-      [Path.join(dir, 'missing.aon')],
-      ['--trust', 'nonsense', file],
-      // P7: --coverage-at needs a path, --coverage is a mode of its
-      // own, and a narrower measure needs something to narrow.
-      ['--coverage-at'],
-      ['--coverage', '--stdout', file],
-      ['--coverage-at', '$.a', file],
-    ]) {
-      renderCode(2, args)
-    }
-    Assert.equal(renderCode(0, ['--help']).out.includes('aontu render'), true)
-  })
-
-  test('render-coverage-names-what-was-not-read', () => {
-    const doc =
-      'services: { a: { pin: "p1" } }\n' +
-      'spare: { x: 1 }\n' +
-      'aontu: Code: units: [\n' +
-      '  { path: "a.txt", lang: "text", decls: [{ k: "frag", n:\n' +
-      '    emit($.services, { match: { pin: string }, body: [.pin] }) }] }\n' +
-      '  { path: "b.txt", lang: "text", decls: [{ k: "frag", n: ["b"] }] }\n' +
-      ']\n'
-    const dir = renderDir({ 'doc.aon': doc })
-    const file = Path.join(dir, 'doc.aon')
-
-    const cov = renderCode(0, ['--coverage', file])
-    Assert.equal(cov.out,
-      'dead: $.spare\n' +
-      'unruled: b.txt $.aontu.Code.units.1.decls.0\n' +
-      'coverage: 1 path(s) read, 1 no output consumed, ' +
-      '1 declaration(s) no rule produced\n')
-    // Nothing is written under this mode.
-    Assert.equal(Fs.existsSync(Path.join(dir, 'a.txt')), false)
-
-    // A narrower measure: $.spare is outside it, so nothing is dead.
-    Assert.equal(
-      renderCode(0, ['--coverage', '--coverage-at', '$.services', file])
-        .out.includes('dead:'), false)
-
-    // An anchor that names nothing is the document's own refusal.
-    Assert.match(
-      renderCode(4, ['--coverage', '--coverage-at', '$.nope', file]).err,
-      /no_path/)
-
-    // The JSON report carries the trace and the coverage object.
-    const report = JSON.parse(
-      renderCode(0, ['--coverage', '--format', 'json', file]).out)
-    Assert.deepEqual(report.trace, [{
-      node: '$.services.a',
-      piece: '$.aontu.Code.units.0.decls.0.n.0',
-      rule: '#0',
-      unit: 'a.txt',
-    }])
-    Assert.deepEqual(report.coverage.dead, ['$.spare'])
-    Assert.deepEqual(report.coverage.read, ['$.services'])
-  })
-})
-
-
 // --- the template surface -------------------------------------------
 
 describe('cli-trace', () => {
@@ -2836,6 +2558,46 @@ describe('cli-trace', () => {
       /cannot read/)
     traceCode(2, ['--trust', 'nosuchlevel', file])
     Assert.equal(traceCode(0, ['--help']).out.includes('aontu trace'), true)
+  })
+
+  test('trace-reads-a-template-entry', () => {
+    // The entry's extension decides, so the file whose provenance is
+    // asked for is the one the author edits.
+    const dir = traceDir(DOC)
+    const write = (name: string, text: string) => {
+      const at = Path.join(dir, name)
+      Fs.writeFileSync(at, text)
+      return at
+    }
+    const body = 'svc: { a: { n:"a" } }\n' +
+      'out: file("x.ts", emit($.svc, { match: n: string body: [\n'
+    const gen = write('gen.ts', '//- ' + body.replaceAll('\n', '\n//- ') +
+      'L\n//- ]}))\n')
+    const zz = write('gen.zz', ';;- ' + body.replaceAll('\n', '\n;;- ') +
+      'L\n;;- ]}))\n')
+    const profile = write('zz.aon', '@"aontu:profile"\n\naontu: Lang: ' +
+      '{ lang:"zz" template: { marker:";;-" ext: [zz] } }\n')
+
+    const want = 'x.ts\t$.children.0\t$.svc.a\t#0\n'
+    Assert.equal(traceCode(0, [gen]).out, want)
+    Assert.equal(traceCode(0, ['--marker', ';;-', zz]).out, want)
+    Assert.equal(traceCode(0, ['--profile', profile, zz]).out, want)
+
+    Assert.match(traceCode(2, ['--marker']).err, /--marker needs a token/)
+    Assert.match(traceCode(2, ['--profile']).err, /--profile needs a file/)
+    Assert.match(
+      traceCode(2, ['--profile', Path.join(dir, 'gone.aon'), gen]).err,
+      /cannot read/)
+
+    // A --profile document that does not stand up is exit 4; a second
+    // profile claiming the same language is exit 2.
+    const bad = write('bad.aon', 'aontu: Lang: { lang: 1 }\n')
+    Assert.match(traceCode(4, ['--profile', bad, gen]).err, /aontu\//)
+    const dup = write('zz2.aon', '@"aontu:profile"\n\naontu: Lang: ' +
+      '{ lang:"zz" template: { marker:";;-" ext: [zz] } }\n')
+    Assert.match(
+      traceCode(2, ['--profile', profile, '--profile', dup, gen]).err,
+      /two profiles claim zz/)
   })
 
 })
@@ -2957,36 +2719,6 @@ describe('cli-template', () => {
       /cannot read/)
     Assert.equal(
       templateCode(0, ['--help']).out.includes('aontu template'), true)
-  })
-
-  test('render-reads-a-template-entry-by-its-extension', () => {
-    // The entry's extension decides, so a generator in the target's
-    // own syntax is an entry rather than a preprocessing step.
-    const dir = templateDir({
-      'gen.ts':
-        '//- aontu: Code: units: [{ path: "a.txt", lang: "text", decls: [{\n' +
-        '//- k: "frag", n: [\n' +
-        'hello\n' +
-        '//- ]}] }]\n',
-      'gen.zz':
-        ';;- aontu: Code: units: [{ path: "a.txt", lang: "text", decls: [{\n' +
-        ';;- k: "frag", n: [\n' +
-        'hello\n' +
-        ';;- ]}] }]\n',
-    })
-    Assert.equal(
-      vetCapture(() => Assert.equal(
-        runRender(['--stdout', Path.join(dir, 'gen.ts')]), 0)).out,
-      'hello\n')
-    // --marker reaches render too, for a language the table has not met.
-    Assert.equal(
-      vetCapture(() => Assert.equal(
-        runRender(['--stdout', '--marker', ';;-', Path.join(dir, 'gen.zz')]),
-        0)).out,
-      'hello\n')
-    Assert.match(
-      vetCapture(() => Assert.equal(runRender(['--marker']), 2)).err,
-      /--marker needs a token/)
   })
 
   test('fmt-formats-a-generator-through-the-template-surface', () => {

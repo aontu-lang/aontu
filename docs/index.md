@@ -57,12 +57,12 @@ Three capabilities have doorways of their own:
 - **Generate code from a model.** The field names, types and
   optionality a Go struct or a TypeScript interface needs are already
   in the model, and the unifier computes the file: a rule set over the
-  records, `match` for the type mapping, a backtick string to carry
-  the target text, and `aontu render` to fold the pieces into bytes and
-  hold the result against its golden. The recipe is
+  records, `match` for the type mapping, a backtick string to carry the
+  target text, and a component tree of files and lines that a generator
+  runtime writes to disk and holds against its golden. The recipe is
   [generate code from a model](how-to/generate-code.md); the live
-  version, with three targets in one instance and a check that both
-  ports render identical bytes, is
+  version, with three targets in one document and a check that both
+  ports build identical trees, is
   [`use-cases/15-code-generation`](../use-cases/15-code-generation/).
 
 Tooling:
@@ -84,8 +84,8 @@ Tooling:
     [`view`](reference-api.md#aontu-view)
   - export and pin: [`jsonschema`](reference-api.md#aontu-jsonschema),
     [`hash`](reference-api.md#aontu-hash)
-  - generate: [`render`](reference-api.md#aontu-render),
-    [`template`](reference-api.md#aontu-template) (the guide:
+  - generate: [`template`](reference-api.md#aontu-template),
+    [`trace`](reference-api.md#aontu-trace) (the guide:
     [Generate code from a model](how-to/generate-code.md))
   - distribute and hand over: [`mod`](reference-api.md#aontu-mod),
     [`agentsmd`](reference-api.md#aontu-agentsmd)

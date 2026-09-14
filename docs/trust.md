@@ -45,8 +45,8 @@ are BUNDLED with the engine: `@"aontu:system"` and `@"aontu:view"`, the
 [system and view vocabularies](reference-language.md#the-bundled-vocabularies),
 and every `@"aontu:…"` name: the
 [language-supplied models](reference-language.md#the-aontu-models),
-`aontu:code`, `aontu:render`, `aontu:render/lang/text`, `aontu:render/lang/markdown`,
-`aontu:render/lang/typescript` and `aontu:render/lang/go`. An `aontu:` name resolves from the
+`aontu:profile`, `aontu:lang/text` and `aontu:lang/markdown`. An
+`aontu:` name resolves from the
 engine's own table and nowhere else: the memory, module, file and
 package legs are never asked, so nothing on disk can shadow one, and a
 name the engine does not serve is refused naming the set rather than
@@ -252,23 +252,15 @@ The per-pair revisit bound is NOT profile surface: the Go dispatcher
 has no revisit counter to configure, and a knob one port cannot honour
 would break the parity contract by construction.
 
-**Writes are confined by path, and separately.** The trust profile
-governs what an evaluation may *read*. What the `render` verb may
-*write* is governed by its `--out <dir>` argument and by nothing in the
-document: a unit's `path` is a relative descent or the verb refuses
-it (an absolute path, a `..` segment, or a repeat of another unit's
-path is `render_path`, before anything is written) and the resolved
-file must sit below the real path of `<dir>`, so a symlink inside the
-directory that points outside it is an escape, by the rule the include
-resolver applies to reads. Every unit is rendered before any file is
-touched, and one refusal means no file is; `render` never deletes. The
-library (`render`, `renderValue`, `renderProfile`) returns bytes and
-touches no file, the MCP tool `render` returns the same report and
-carries no `--out`, and each port has a test that its renderer source
-reaches neither the filesystem nor a process. The include capability
-does not reach the renderer's own vocabulary: `aontu:code` is the
-engine's, so `--trust none` denies the document every include and
-still renders it.
+**NOTHING IN THE ENGINE WRITES A FILE.** The trust profile governs what
+an evaluation may *read*, and there is no verb, library call or MCP
+tool that writes generated output: a generator answers a **component
+tree** as an ordinary value, and a generator runtime outside the engine
+turns it into bytes. What that runtime may write, and where, is that
+runtime's contract rather than this one. The engine's own refusals
+still stand on the tree it answers -- a file name is checked at the
+call, and two files resolving to one path are refused -- so a
+malformed tree is refused before anything downstream sees it.
 
 ## Evaluation consumes the tree
 

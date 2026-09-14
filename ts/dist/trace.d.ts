@@ -11,8 +11,8 @@ export type TraceReport = {
     errors?: VetFinding[];
 };
 export type TraceEntry = {
-    file: string;
     at: string;
+    file: string;
     node: string;
     rule: string;
 };

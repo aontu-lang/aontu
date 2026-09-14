@@ -26,12 +26,10 @@ const helpText = `Usage: aontu [options] [file]
        aontu view <kind> [options] <file>...
        aontu view --views <path> [--check] [options] <file>
        aontu jsonschema [--at <path>] [--strict] [options] <file>
-       aontu render [--at <path>] [--profile <file>]... [--unit <path>]
-                    [--stdout | --out <dir> | --check <dir> | --coverage]
-                    [--coverage-at <path>] [--strict] <file>
        aontu template [--resugar] [--check] [--marker <token>]
                       [--profile <file>] <file>
-       aontu trace [--at <path>] [--format json] <file>
+       aontu trace [--at <path>] [--format json] [--marker <token>]
+                   [--profile <file>] <file>
        aontu hash [options] <file>
        aontu mod tidy|verify|vendor|manifest [options] [dir]
        aontu get <path> [options] <file>
@@ -276,37 +274,11 @@ View exit codes: 0 rendered, 1 --check mismatch or lossy under
 --strict, 2 usage or --max-rows exceeded, 4 the document does not stand
 up on its own, or a relation, root or path that names nothing.
 
-Render options:
-  --at <path>       Render the value at this path ($.a.b); the root by
-                    default
-  --profile <file>  A profile document, aontu: render: Lang: {lang,
-                    ...}, vetted against aontu:render; repeatable,
-                    one per language
-  --unit <path>     Render only the unit with this path
-  --stdout          One unit's bytes and nothing else (with --unit when
-                    the instance has several)
-  --out <dir>       Write every unit below dir, or nothing; never deletes
-  --check <dir>     Compare every unit with dir/<path>; drift is listed
-  --coverage        Report what the render read and what it did not:
-                    model paths no output consumed, and rendered
-                    declarations no rule produced. Writes nothing
-  --coverage-at <p> Measure coverage under this path only, instead of
-                    the document root
-  --strict          Refuse the opaque escapes (a text declaration, a raw
-                    block)
-  --format <f>      text (default) or json, the whole report; json
-                    carries the dispatch trace, one entry per emitted
-                    piece
-
-Render exit codes: 0 rendered, 1 lossy under --strict or drift under
---check, 2 usage or I/O (a refused unit path included), 4 the document
-does not stand up or the instance is not aontu:code.
-
-A render entry file whose extension is not .aon is a TEMPLATE: a
-generator in the target's own syntax, whose marker lines carry aontu
-and whose other lines are output. It is desugared before it is
-evaluated, and a language the table does not know names its marker with
---marker, or declares it once in a profile file that --profile reads.
+A template entry file whose extension is not .aon is a GENERATOR: a
+document in the target's own syntax, whose marker lines carry aontu and
+whose other lines are output. It is desugared before it is evaluated,
+and a language the table does not know names its marker with --marker,
+or declares it once in a profile file that --profile reads.
 
 Template options:
   --resugar       The file is the canonical aontu; print the template
@@ -394,11 +366,11 @@ Fmt options:
 The fmt verb prints one document in the agreed form; with no file it
 reads standard input. Several files need one of the options above.
 
-A file whose extension is not .aon is a GENERATOR, as it is for render:
-the aontu its marker lines carry is formatted, the marker stands at the
-left margin with the aontu indented after it, and every line of output
-is held on a line of its own. A file with no marker line in it is
-another language's, and is refused.
+A file whose extension is not .aon is a GENERATOR, as it is for
+template: the aontu its marker lines carry is formatted, the marker
+stands at the left margin with the aontu indented after it, and every
+line of output is held on a line of its own. A file with no marker line
+in it is another language's, and is refused.
 
 Fmt exit codes: 0 formatted or clean, 1 a --check file would change or
 a --strict finding, 2 usage, 4 a document does not parse.
@@ -519,7 +491,7 @@ func emit(a *aontu.Aontu, src, mode, format string, out, errw io.Writer) int {
 var knownVerbs = []string{
 	"agentsmd", "breaking", "explain", "fmt", "get", "hash", "help",
 	"init", "jsonschema", "lsp", "mcp", "mod", "reaches", "relations",
-	"render", "set", "subsume", "template", "trace", "trim", "vet",
+	"set", "subsume", "template", "trace", "trim", "vet",
 	"view", "why",
 }
 
@@ -808,9 +780,6 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, tty bool) int
 	}
 	if 0 < len(args) && "jsonschema" == args[0] {
 		return runJsonSchema(args[1:], stdout, stderr)
-	}
-	if 0 < len(args) && "render" == args[0] {
-		return runRender(args[1:], stdout, stderr)
 	}
 	if 0 < len(args) && "template" == args[0] {
 		return runTemplate(args[1:], stdout, stderr)

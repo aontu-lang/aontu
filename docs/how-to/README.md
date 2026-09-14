@@ -44,7 +44,7 @@ Saying what data must look like, from optional keys to recursive shapes.
 - [Define a recursive schema](define-a-recursive-schema.md). Reference a definition inside itself to get a schema that applies at every depth of the data.
 - [Carry exact money over JSON](carry-exact-money-over-json.md). Keep money exact inside aontu and cross JSON as a fixed-scale decimal string with a conversion mark.
 - [Export JSON Schema](export-json-schema.md). Export a model as JSON Schema 2020-12 with `aontu jsonschema`, and read the loss report it owes you.
-- [Generate code from a model](generate-code.md). Generate target-language source from a model: a rule set over the records, the pieces of a file, and `aontu render` to fold them into bytes and hold the result against its golden.
+- [Generate code from a model](generate-code.md). Generate target-language source from a model: a rule set over the records, a component tree of files and lines, and a generator runtime to write the bytes and hold them against their goldens.
 
 ## Query, explain and change
 

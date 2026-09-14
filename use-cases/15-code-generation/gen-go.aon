@@ -1,28 +1,22 @@
-# gen-go.aon --- Go structs from model.aon, as an aontu:code instance.
+# gen-go.aon --- Go structs from model.aon, as a component tree.
 #
 # THE SHAPE, and why. A rule set (`emit`) walks the records, and each
-# node it visits contributes PIECES of one fragment: a record is a
-# blank line, a head, its fields and a tail; a field is a line at depth
-# 1. `aontu render` folds the pieces into bytes -- the depth becomes
-# this unit's indent (a tab, from the inline profile), every line gets
-# its terminator, and nothing here spells a separator or a newline.
+# node it visits contributes CHILDREN of the file: a record is a blank
+# line, a head, its fields and a tail; a field is one line. A `Line`
+# writes its own terminator, so nothing here spells a newline, and the
+# indent is the target's own tab, written into the string: aontu knows
+# no languages and has no view about how Go indents.
 #
 #   emit($.records, %go_record)   a dispatch in SOURCE order, which is
 #                              what a file needs; `pack` would key by
 #                              data and emit the records alphabetically.
 #
 #   emit(.fields, %go_field)      a nested dispatch, spliced into the
-#                              record's pieces: the body is flat, so
-#                              the fragment is flat, and every piece
-#                              carries its own depth.
+#                              record's children: the body is flat, so
+#                              the file's lines are flat.
 #
 # The Go emitter reads the `go` slice of the model and never `sql`;
 # the names are model data (see model.aon), not emitter logic.
-#
-# TWO FRAGMENTS, because the file has two parts: the banner and the
-# package clause, then the records. A unit's declarations render in
-# order, so the second follows the first, and the blank line each
-# record starts with is what separates a struct from what came before.
 @"./model.aon"
 
 %go_field = emit(_, {

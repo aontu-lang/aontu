@@ -620,26 +620,6 @@ func TestSpec(t *testing.T) {
 						t.Fatalf("trace mismatch\n src:  %s\n want: %s\n got:  %s",
 							src, want, got)
 					}
-				case "render":
-					// THE RENDERER (docs/design/RENDER.0.md D10): every
-					// unit's bytes, the loss report, or the refusal. The
-					// options ride `expect.ask` as view's do, since the same
-					// document renders differently under a profile, a unit
-					// filter or strict.
-					var golden map[string]any
-					if err := json.Unmarshal([]byte(expect), &golden); err != nil {
-						t.Fatalf("expect is not JSON: %v\n expect: %s", err, expect)
-					}
-					ask, _ := golden["ask"].(map[string]any)
-					delete(golden, "ask")
-					got := specJSON(t, specStripProse(specAsMap(t,
-						New().Render(src, specRenderOptions(ask))),
-						"errors"))
-					want := specJSON(t, golden)
-					if got != want {
-						t.Fatalf("render report mismatch\n src: %q\n want: %s\n got:  %s",
-							src, want, got)
-					}
 				case "views":
 					// THE VIEW DOCUMENT (VIEWS.0.md, "6. The view
 					// document"): N figures of one document, declared as
@@ -1106,26 +1086,6 @@ func jsonEqual(got any, expectJSON string) bool {
 // specViewOptions reads a view row's `ask` into ViewOptions: the same
 // keys ts/src/view.ts's ViewOptions has, so a row asks both ports the
 // same question.
-// specRenderOptions reads a render row's ask (RENDER.0.md D10).
-func specRenderOptions(ask map[string]any) *RenderOptions {
-	at, _ := ask["at"].(string)
-	unit, _ := ask["unit"].(string)
-	strict, _ := ask["strict"].(bool)
-	trace, _ := ask["trace"].(bool)
-	coverage, _ := ask["coverage"].(bool)
-	coverageAt, _ := ask["coverageAt"].(string)
-	var profiles []map[string]any
-	if ps, ok := ask["profiles"].([]any); ok {
-		for _, p := range ps {
-			m, _ := p.(map[string]any)
-			profiles = append(profiles, m)
-		}
-	}
-	return &RenderOptions{At: at, Unit: unit, Strict: strict,
-		Profiles: profiles, Trace: trace, Coverage: coverage,
-		CoverageAt: coverageAt}
-}
-
 func specViewOptions(ask map[string]any) *ViewOptions {
 	str := func(k string) string { s, _ := ask[k].(string); return s }
 	num := func(k string) int { n, _ := ask[k].(float64); return int(n) }

@@ -14,8 +14,8 @@ const TREE = Path.join(REPO, 'aontu')
 
 
 // Every .aon is a module, named by its path; a file named after the
-// directory holding it collapses, so aontu/code/code.aon is
-// `aontu:code` and aontu/render/lang/go.aon is `aontu:render/lang/go`.
+// directory holding it collapses, so aontu/profile/profile.aon is
+// `aontu:profile` and aontu/lang/text.aon is `aontu:lang/text`.
 function walk(dir: string, rel: string, found: string[]): string[] {
   for (const entry of Fs.readdirSync(dir, { withFileTypes: true })) {
     const subrel = rel ? rel + '/' + entry.name : entry.name

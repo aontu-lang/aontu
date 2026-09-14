@@ -18,10 +18,8 @@ var nomStyles = []string{
 	"upper", // USER_ID
 }
 
-// nom's style name to the `%case` style lowerCaseName serves. `upper`
-// and `text` are nom's spellings: `screaming` is what aontu:render
-// calls SCREAMING_SNAKE and that name is pinned cross-port, so the
-// mapping lives here rather than in the shared vocabulary.
+// nom's style name to the case style caseName serves. `upper` and
+// `text` are nom's spellings.
 var nomCaseStyles = map[string]string{
 	"camel":  "camel",
 	"kebab":  "kebab",
@@ -35,13 +33,13 @@ var nomCaseStyles = map[string]string{
 func nomStyleName(name, style string, acronyms []string) (string, bool) {
 	src := strings.NewReplacer(".", "_", "/", "_").Replace(name)
 
-	words := lowerSplitWords(src)
+	words := caseSplitWords(src)
 	if 0 == len(words) {
 		return "", false
 	}
 
 	if cased, ok := nomCaseStyles[style]; ok {
-		return lowerCaseName(src, cased, acronyms), true
+		return caseName(src, cased, acronyms), true
 	}
 
 	lowered := make([]string, 0, len(words))
@@ -57,7 +55,7 @@ func nomStyleName(name, style string, acronyms []string) (string, bool) {
 	case "title":
 		titled := make([]string, 0, len(words))
 		for _, w := range words {
-			titled = append(titled, lowerCapitalise(w, acronyms))
+			titled = append(titled, caseCapitalise(w, acronyms))
 		}
 		return strings.Join(titled, " "), true
 	case "text":
@@ -69,10 +67,10 @@ func nomStyleName(name, style string, acronyms []string) (string, bool) {
 			}
 			return false
 		}
-		out := []string{lowerCapitalise(words[0], acronyms)}
+		out := []string{caseCapitalise(words[0], acronyms)}
 		for _, w := range words[1:] {
 			if isAcronym(w) {
-				out = append(out, lowerCapitalise(w, acronyms))
+				out = append(out, caseCapitalise(w, acronyms))
 			} else {
 				out = append(out, lowerASCII(w))
 			}

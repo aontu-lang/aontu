@@ -1,10 +1,9 @@
 # xf-domain.aon --- the record schema as TypeScript, one transform.
 #
-# THE ACCEPTANCE CASE of the renderer's declaration lowering
-# (docs/design/RENDER.0.md P5, G9 worked example 1): the schema below
-# is walked into aontu:code records, and `aontu render` lowers them
-# under the bundled TypeScript profile. Nine lines of transform;
-# every construct exists today.
+# THE WALK, and what it costs (G9 worked example 1, ADR-038): the
+# schema below is walked into TypeScript text, which the transform
+# spells itself. There is no declaration vocabulary and no lowering
+# behind it any more, so the TypeScript here is the generator's.
 #
 # TWO THINGS TO READ OFF IT. The schema is lifted with `type()`: the
 # records are type()-marked, and a pack over an unmarked bag skips its
@@ -13,8 +12,7 @@
 # `creditLimitCents?` -- are ABSENT: an optional key with nothing to
 # generate is not a member either, so a transform over a schema does
 # not see them (use-cases/BUGS.md 86); xf-order.aon states optionality
-# as data instead, which is what the render design asks of a
-# transform.
+# as data instead.
 @"./domain.aon"
 
 step: hide(pack(type($.schema), {

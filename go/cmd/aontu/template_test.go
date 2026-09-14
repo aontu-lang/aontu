@@ -117,41 +117,9 @@ func TestTemplateUsageErrorsExit2(t *testing.T) {
 	}
 }
 
-func TestRenderReadsATemplateEntryByItsExtension(t *testing.T) {
-	// The entry's extension decides, so a generator in the target's own
-	// syntax is an entry rather than a preprocessing step.
-	dir := templateDir(t, map[string]string{
-		"gen.ts": "//- aontu: Code: units: [{ path: \"a.txt\", lang: \"text\", decls: [{\n" +
-			"//- k: \"frag\", n: [\n" +
-			"hello\n" +
-			"//- ]}] }]\n",
-		"gen.zz": ";;- aontu: Code: units: [{ path: \"a.txt\", lang: \"text\", decls: [{\n" +
-			";;- k: \"frag\", n: [\n" +
-			"hello\n" +
-			";;- ]}] }]\n",
-	})
-
-	out, _, code := renderRun("--stdout", filepath.Join(dir, "gen.ts"))
-	if 0 != code || "hello\n" != out {
-		t.Fatalf("template entry: code %d out %q", code, out)
-	}
-
-	// --marker reaches render too, for a language the table has not met.
-	out, _, code = renderRun(
-		"--stdout", "--marker", ";;-", filepath.Join(dir, "gen.zz"))
-	if 0 != code || "hello\n" != out {
-		t.Fatalf("--marker entry: code %d out %q", code, out)
-	}
-
-	_, errw, code := renderRun("--marker")
-	if 2 != code || !strings.Contains(errw, "--marker needs a token") {
-		t.Fatalf("--marker alone: code %d err %q", code, errw)
-	}
-}
-
 func TestFmtFormatsAGeneratorThroughTheTemplateSurface(t *testing.T) {
-	// A FILE THAT IS NOT `.aon` IS A GENERATOR, as it is for render: the
-	// aontu its marker lines carry is formatted, the marker stands at the
+	// A FILE THAT IS NOT `.aon` IS A GENERATOR, as it is for template:
+	// the aontu its marker lines carry is formatted, the marker stands at the
 	// left margin with the aontu indented after it, and every line of
 	// output is held on a line of its own -- `puts 1` here, which the
 	// packing budget would otherwise put inside the list.

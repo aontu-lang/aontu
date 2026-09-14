@@ -12,7 +12,7 @@ are generated, and the generator is **the handler file itself**: one
 rule set whose body is the file, line for line, with three nested
 dispatches where the file varies. It is here twice, in the two forms
 of one generator: `gen.aon`, the canonical aontu, and `handler.ts`, the
-same thing written as a Lambda handler with its aontu on marked lines. Both render the same thirteen files.
+same thing written as a Lambda handler with its aontu on marked lines. Both answer the same thirteen files.
 
 Nothing in the mechanism is about handlers. `emit`, `match`, `replace`,
 `body`, `esc` and `each` are the whole vocabulary; what makes this
@@ -101,13 +101,13 @@ Four things to read off it:
   gets no gateway hook, because `filter(.on.file.events, { source:
   s3 })` selects nothing and a dispatch over nothing emits nothing.
 
-The unit list is one dispatch over two parts, the service map and an
-index marker: each service becomes a unit at `handlers/<name>.ts`, and
+The file list is one dispatch over two parts, the service map and an
+index marker: each service becomes a `handlers/<name>.ts`, and
 `index.ts` names every service in the model's order with a constant
 spelled by the name-derivation chain, `join(each(split(_, "-"),
 upper(_)), "_")`, so `index-build` is `INDEX_BUILD`. `each` keeps the
-order where a `pack` would sort, and `aontu render --check expected`
-holds all thirteen files.
+order where a `pack` would sort, and the byte gate holds all thirteen
+files against `expected/`.
 
 ## The same generator, in the target's own syntax
 
@@ -131,19 +131,18 @@ function complete(seneca: any) {
   //- ]})
 ```
 
-`aontu render --check expected handler.ts` is green against the same
-goldens: the entry's extension decides that it is a template, and it
-is desugared before it is evaluated. `aontu template handler.ts`
-prints the canonical form, which is `gen.aon`'s body with each output
-line quoted, and `aontu template --check handler.ts` holds the file to
-the spelling the round trip answers. Its **whitespace is output**, so
-`render --check` against `expected/` is what holds the bytes.
+The same thirteen files come out of it: the entry's extension decides
+that it is a template, and it is desugared before it is evaluated, by
+whichever verb reads it. `aontu template handler.ts` prints the
+canonical form, which is `gen.aon`'s body with each output line quoted,
+and `aontu template --check handler.ts` holds the file to the spelling
+the round trip answers. Its **whitespace is output**, so the byte gate
+against `expected/` is what holds the bytes.
 
 ## What check.sh proves
 
-1. `aontu render --check expected gen.aon` is green: twelve handlers
-   under `expected/handlers/` and `expected/index.ts` match their
-   goldens byte for byte.
+1. Twelve handlers under `expected/handlers/` and `expected/index.ts`
+   match their goldens byte for byte.
 2. All thirteen files parse as TypeScript, by the compiler's own
    parser with no diagnostics.
 3. `expected/handlers/chat.ts` carries `pin:'sys:chat,user:o\'brien'`:
@@ -159,23 +158,20 @@ the spelling the round trip answers. Its **whitespace is output**, so
    `[aontu/replace_overlap]`, and `bad/unused.aon` (a key the body
    does not hold) with `[aontu/replace_unused]`, both before any node
    is visited.
-8. `--check` against a copy of the goldens with one handler edited by
-   hand is red, exit 1, naming `handlers/chat.ts`.
-9. `render --format json` carries a trace entry for every emitted
-   piece: each names a rendered unit and a rule, the `%handler` set is
-   addressed by the name it was read through, and the twelve services
-   are each matched at their own path in the model. `render
-   --coverage` names no dead path and no declaration without a rule:
-   one model, wholly consumed, one output, wholly produced.
-10. `handler.ts`, the template form, renders the same thirteen units
-   against the same goldens, round-trips as a fixpoint under `template
-   --check`, and parses as TypeScript: the generator is a file in the
-   language it generates.
-11. The Go port renders the same thirteen units byte for byte and
+8. The byte gate against a copy of the goldens with one handler edited
+   by hand is red, exit 1, naming `handlers/chat.ts`.
+9. `aontu trace` carries an entry for every stamped piece: each names
+   the file it reached and the rule that wrote it, the `%handler` set
+   is addressed by the name it was read through, and the twelve
+   services are each matched at their own path in the model.
+10. `handler.ts`, the template form, answers the same thirteen files,
+   round-trips as a fixpoint under `template --check`, and parses as
+   TypeScript: the generator is a file in the language it generates.
+11. The Go port builds the same thirteen files byte for byte and
    refuses the same seeded template (skipped with a note when no Go
    toolchain is present).
 12. The Go port records the same trace, entry for entry.
-13. The Go port desugars the template form and renders it identically.
+13. The Go port desugars the template form and builds it identically.
 14. The model tree draws and is pinned, text and SVG.
 
 ## Running it
@@ -186,8 +182,8 @@ It drives the TypeScript CLI (`ts/bin/aontu.js`, or the command in
 The verb by hand:
 
 ```sh
-aontu render --stdout --unit handlers/chat.ts gen.aon   # one handler
-aontu render --check expected gen.aon                    # hold them all
-aontu template handler.ts                                # the template's meaning
-aontu render --check expected handler.ts                 # and it renders the same
+aontu get out gen.aon                    # the tree, thirteen files in it
+aontu trace gen.aon                      # what rule wrote each line
+aontu template handler.ts                # the template's meaning
+aontu trace handler.ts                   # and it answers the same
 ```

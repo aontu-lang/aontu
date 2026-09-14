@@ -104,7 +104,7 @@ func runFmt(argv []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return 2
 	}
 
-	profiles, code := loadProfiles(profileFiles, trust, stderr, loadProfile)
+	profiles, code := loadProfiles(profileFiles, trust, stderr)
 	if 0 != code {
 		return code
 	}

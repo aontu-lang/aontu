@@ -289,14 +289,6 @@ function runRow(row) {
         Assert.strictEqual((0, aontu_1.exactJSON)(null == report.errors
             ? report : { ...report, errors: stripProse(report.errors) }), (0, aontu_1.exactJSON)(golden), `view report mismatch: ${row.name}`);
     }
-    else if ('render' === row.mode) {
-        const golden = JSON.parse(row.expect);
-        const ask = golden.ask ?? {};
-        delete golden.ask;
-        const report = (0, aontu_2.render)(row.src, ask);
-        Assert.strictEqual((0, aontu_1.exactJSON)(null == report.errors
-            ? report : { ...report, errors: stripProse(report.errors) }), (0, aontu_1.exactJSON)(golden), `render report mismatch: ${row.name}`);
-    }
     else if ('trace' === row.mode) {
         const report = (0, trace_1.traceRun)(row.src, {});
         Assert.strictEqual((0, aontu_1.exactJSON)(report.trace), (0, aontu_1.exactJSON)(JSON.parse(row.expect)), `trace mismatch: ${row.name}`);

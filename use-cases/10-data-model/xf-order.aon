@@ -1,11 +1,11 @@
 # xf-order.aon --- ONE model, TWO targets, one run (G9 worked example
-# 2, the P5 acceptance): the same walk as xf-domain.aon, plus the two
-# facts a schema walk cannot give a transform -- which fields are
-# optional, and that `lines` holds OrderLine -- stated once, as data.
-# `aontu render` lowers the records twice: under the TypeScript
-# profile, and under the Go profile, whose acronym set spells `id` as
-# `ID` and `ledgerId` as `LedgerID`, and whose optional field is a
-# pointer with omitempty.
+# 2): the same walk as xf-domain.aon, plus the two facts a schema walk
+# cannot give a transform -- which fields are optional, and that
+# `lines` holds OrderLine -- stated once, as data. The transform
+# spells the records twice: as TypeScript, and as Go, where `nom`
+# does the casing (`id` to `ID`, `ledgerId` to `LedgerID`) over an
+# acronym set this document names, and an optional field is a pointer
+# with omitempty.
 @"./domain.aon"
 
 # ONE FIELD, TWICE. Each field carries its own facts -- the wire name,

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # rb-solar --- the Solar System API and a human UI over it, generated
-# from one model by `aontu render` and held to the REFERENCE's own
+# from one model by nine generators, and held to the REFERENCE's own
 # validation.
 #
 #   ./check.sh
@@ -8,7 +8,7 @@
 # Runnable from any cwd. Honours $AONTU (the engine command; default
 # the TypeScript CLI in this repository), so the Go port runs the same
 # check. The Ruby toolchain is skipped with a note when it is absent,
-# rather than failing: the render half of the check runs anywhere.
+# rather than failing: the generation half of the check runs anywhere.
 
 set -u
 
@@ -52,8 +52,8 @@ skip() { n=$((n + 1)); echo "ok $n - $1 # SKIP"; }
 
 # --- the generators --------------------------------------------------
 #
-# Each is a file in the language it generates, and `render --check`
-# holds what it renders against the tree committed under `app/`. A
+# Each is a file in the language it generates, and the byte gate holds
+# what it writes against the tree committed under `app/`. A
 # change to the model or a generator is a reviewable diff to `app/`; a
 # hand edit to a generated file is drift the check reports.
 
@@ -133,7 +133,7 @@ fi
 
 # --- the diagrams ----------------------------------------------------
 #
-# Drawn from the same model: the ER diagram by `render`, the trees and
+# Drawn from the same model: the ER diagram by a generator, the trees and
 # the value lattice by `view`. Pinned, so a model change that alters
 # the shape shows up as a diff rather than as a stale picture.
 
@@ -162,7 +162,7 @@ $AONTU view lattice --as svg --out "$DIR/doc/value-lattice.svg" --check "$DIR/mo
 # set is written out, and a path present in every one of them is dead
 # for the system.
 
-# THE DEAD-MODEL REPORT IS GONE, with `render --coverage` that answered
+# THE DEAD-MODEL REPORT IS GONE, with the `render --coverage` that answered
 # it (UNITS-AND-TREES.1.md §6). It named the shallowest model paths no
 # generator read, and nothing replaces it: `reaches` answers a relation
 # between two paths, not what nothing reads. Recorded as a capability
@@ -174,7 +174,7 @@ $AONTU view lattice --as svg --out "$DIR/doc/value-lattice.svg" --check "$DIR/mo
 # formats the document its marker lines carry and resugars, so the
 # aontu is indented after the marker and every line of output stays
 # exactly where it was. Nothing here can move a line of the generated
-# app -- check 1 above renders it byte for byte -- so this gate is
+# app -- check 1 above writes it byte for byte -- so this gate is
 # about the generator being readable as the tree it is.
 
 bad=""

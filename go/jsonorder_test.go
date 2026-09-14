@@ -11,8 +11,7 @@ import (
 
 func TestReportJSONTagsAreLexicographic(t *testing.T) {
 	types := []any{
-		RenderUnit{}, RenderLoss{}, RenderTrace{}, RenderHole{},
-		RenderCoverage{},
+		TraceEntry{},
 		WhyConjunct{}, WhySite{},
 		VetFinding{}, VetSite{}, ViewLoss{},
 	}

@@ -218,8 +218,6 @@ func stagedArgIdx(f *FuncVal) []int {
 	switch f.name {
 	case "pack", "each":
 		return []int{0}
-	case "lowerdecls", "lowerloss":
-		return []int{0, 1}
 	case "emit":
 		// The SELECTION only. The table is templates, instantiated at
 		// each matched node, so its bodies may hold a `_` or a relative

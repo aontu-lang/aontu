@@ -1,13 +1,12 @@
-# gen-ts.aon --- TypeScript interfaces from model.aon, as an
-# aontu:code instance.
+# gen-ts.aon --- TypeScript interfaces from model.aon, as a component
+# tree.
 #
 # This generator reads NEITHER the `go` nor the `sql` slice: a
 # TypeScript property keeps the wire name. Optionality becomes `?`,
-# which is `match` on a boolean rather than anything clever. The
-# shape is gen-go.aon's -- a rule set over the records, a nested one
-# over each record's fields, two fragments -- and the unit names no
-# profile, so `aontu render` folds it under the bundled text profile:
-# two spaces per depth.
+# which is `match` on a boolean rather than anything clever. The shape
+# is gen-go.aon's -- a rule set over the records, a nested one over
+# each record's fields -- and the two-space indent is written into the
+# string, as Go's tab is there.
 @"./model.aon"
 
 %ts_field = emit(_, {

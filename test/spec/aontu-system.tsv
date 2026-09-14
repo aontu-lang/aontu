@@ -20,7 +20,7 @@ vocabulary-is-served	gens	@"aontu:system"\np: $.aontu.System.Port & {}	{"aontu":
 # THE SCHEME IS NOT A DIRECTORY (ADR-028): the `.aon` spelling the
 # bare `std/` names once accepted is not a model name, and is
 # refused like any other typo, as aontu-scheme.tsv pins for
-# `aontu:code.aon`.
+# `aontu:profile.aon`.
 vocabulary-dot-aon-is-not-a-name	errc	a: @"aontu:system.aon"	multisource_not_found
 vocabulary-generates-nothing-of-its-own	gens	@"aontu:system"	{"aontu":{"System":{}}}
 

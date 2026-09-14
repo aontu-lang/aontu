@@ -27,12 +27,10 @@ export type TraceReport = {
 
 
 // WHAT A TRACE ENTRY CARRIES. The file it reached, the rule set that
-// wrote it, and the model node the dispatch matched. `unit` and
-// `piece` were the renderer's keys: a file is what `unit` always was,
-// and `piece` has no successor, the tree being the pieces.
+// wrote it, and the model node the dispatch matched.
 export type TraceEntry = {
-  file: string
   at: string
+  file: string
   node: string
   rule: string
 }
@@ -114,7 +112,7 @@ function traceTree(root: Val): TraceEntry[] {
     if (undefined === file) {
       continue
     }
-    out.push({ file, at: m.at, node: m.mark.node, rule: m.mark.rule })
+    out.push({ at: m.at, file, node: m.mark.node, rule: m.mark.rule })
   }
   return out
 }

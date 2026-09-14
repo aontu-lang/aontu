@@ -58,7 +58,6 @@ const GraphAtomVal_1 = require("./val/GraphAtomVal");
 const PackFuncVal_1 = require("./val/PackFuncVal");
 const CmpFuncVal_1 = require("./val/CmpFuncVal");
 const MaybeFuncVal_1 = require("./val/MaybeFuncVal");
-const LowerDeclsFuncVal_1 = require("./val/LowerDeclsFuncVal");
 const NomFuncVal_1 = require("./val/NomFuncVal");
 const TranslateFuncVal_1 = require("./val/TranslateFuncVal");
 const EachFuncVal_1 = require("./val/EachFuncVal");
@@ -489,8 +488,6 @@ help isolate the syntax error.`,
         rep: StrFuncVal_1.RepFuncVal,
         split: StrFuncVal_1.SplitFuncVal,
         ...CmpFuncVal_1.CMP_FUNCS,
-        lowerdecls: LowerDeclsFuncVal_1.LowerDeclsFunc,
-        lowerloss: LowerDeclsFuncVal_1.LowerLossFunc,
         nom: NomFuncVal_1.NomFuncVal,
         translate: TranslateFuncVal_1.TranslateFuncVal,
     };

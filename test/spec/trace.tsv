@@ -22,3 +22,12 @@ trace-innermost-file-wins	trace	svc: { a: { n:"a" } } out: file("outer.ts", [fra
 # real `file(...)` are always a map, so a node whose `props` is a
 # string names no file and holds no piece.
 trace-file-shaped-map-is-not-a-file	trace	svc: { a: { n:"a" } } out: [{cmp:"File" props:"x" children:[]} file("y.ts", emit($.svc, { match: n: string body: ["L"] }))]	[{"at":"$.1.children.0","file":"y.ts","node":"$.svc.a","rule":"#0"}]
+#
+# A NODE ADDRESS IS THE SELECTION'S, so an INLINE selection has none:
+# the nodes of a literal list live nowhere a path can name, and the
+# entry says so with an empty `node` rather than inventing a position
+# inside the call.
+trace-inline-selection-has-no-node-address	trace	out: file("x.ts", emit([{ n:"a" }], { match: n: string body: ["L" + .n] }))	[{"at":"$.children.0","file":"x.ts","node":"","rule":"#0"}]
+# THE MARK RIDES A MEET FROM EITHER SIDE, which is what makes it
+# survive a document that constrains what a rule wrote.
+trace-mark-rides-a-meet-from-either-side	trace	%r = emit(_, { match: n: string body: ["L" + .n] })\nsvc: { a: { n:"a" } }\nlines: emit($.svc, %r)\nout: file("x.ts", [list() & $.lines, $.lines & list(), string & $.lines.0, $.lines.0 & string])	[{"at":"$.children.0","file":"x.ts","node":"$.svc.a","rule":"$.%r#0"},{"at":"$.children.1","file":"x.ts","node":"$.svc.a","rule":"$.%r#0"},{"at":"$.children.2","file":"x.ts","node":"$.svc.a","rule":"$.%r#0"},{"at":"$.children.3","file":"x.ts","node":"$.svc.a","rule":"$.%r#0"}]

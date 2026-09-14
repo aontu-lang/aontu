@@ -79,17 +79,19 @@ aontu reaches planet moon model.aon   # does one entity reach another, at any re
 aontu trim --check model.aon     # entries whose removal changes nothing
 ```
 
-## Check code against a model
+## Generate code from a model, and hold it
 
 ```
-aontu render --check src/ --profile go.aon model.aon
+aontu get out gen.aon      # the component tree: files, and the lines in them
+aontu trace gen.aon        # what rule wrote each line
 ```
 
-`render` writes code from the model; `--check` writes nothing and
-lists what on disk differs from what the model implies. That is the
-gate: the model is the truth, the code is the claim, and drift is a
-finding. `--coverage` reports the other direction — model paths no
-output consumed, and rendered declarations no rule produced.
+A generator answers a **component tree** -- `file(name, [lines])` and
+its neighbours -- which a generator runtime writes to disk. Hand the
+tree to one and compare with what is committed: the model is the truth,
+the code is the claim, and drift is a finding. `aontu trace` answers
+the other direction: for a line of the output, the model node and the
+rule behind it.
 
 ## Ask what a model says, and why
 

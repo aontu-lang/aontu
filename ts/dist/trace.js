@@ -72,7 +72,7 @@ function traceTree(root) {
         if (undefined === file) {
             continue;
         }
-        out.push({ file, at: m.at, node: m.mark.node, rule: m.mark.rule });
+        out.push({ at: m.at, file, node: m.mark.node, rule: m.mark.rule });
     }
     return out;
 }

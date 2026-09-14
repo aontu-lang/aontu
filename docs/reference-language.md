@@ -1982,24 +1982,6 @@ Lowercase a string, or a run of it; **floor** of a number, keeping the argument'
 
 Example: `lower(ABC)`→`"abc"`, `lower("FOO",1,-1)`→`"Foo"`, `lower("FOOBAR",-3,-1)`→`"fooBAR"`, `lower(1.9)`→ float `1`
 
-### `lowerdecls(decls: list, profile: map) : list`
-
-Declarations as target text, one `line` node per line. A declaration
-is a `record`, `enum`, `alias`, `const` or `func`; the profile spells
-it, so one list renders to every language a profile is written for. A
-blank line separates one declaration from the next.
-
-Example: `lowerdecls([{k:"alias" name:"user_id" type:{k:"prim" prim:"string"}}], p)`
-
-### `lowerloss(decls: list, profile: map) : list`
-
-What `lowerdecls` could not carry across, for the same pair of
-arguments: a `tier`, the `construct` that lost something, the `path`
-to it and the `reason`. An empty list is a lowering that gave up
-nothing.
-
-Example: a union under a Go profile → `[{tier:1 construct:"union" ...}]`
-
 ### `map() : map`
 
 The map **kind**: admits any map, defaults to nothing. See [Container kinds](#container-kinds-map-and-list).
@@ -3194,7 +3176,7 @@ same key as an ordinary string.
 
 ### The bundled vocabularies
 
-**Seven vocabularies ship with the engine**, served from it rather than
+**Five vocabularies ship with the engine**, served from it rather than
 from disk, and **every one of them is named under `aontu:`**. That is
 the whole rule: a language-supplied schema has one spelling, and the
 scheme is what stops a file on disk from standing in front of it.
@@ -3203,14 +3185,11 @@ scheme is what stops a file on disk from standing in front of it.
 |---|---|
 | `aontu:system` | ports, components and services: [below](#the-aontusystem-vocabulary) |
 | `aontu:view` | the schema for one declaration of a [view document](reference-api.md#aontu-view), `$.aontu.View.Figure`, which types every option the verb reads so a typo is refused at evaluation |
-| `aontu:code` | the output vocabulary a transform evaluates to |
-| `aontu:render` | the data `render` applies to a unit of one language |
-| `aontu:render/lang/text` | the text profile |
-| `aontu:render/lang/markdown` | the markdown profile |
-| `aontu:render/lang/typescript` | the TypeScript profile |
-| `aontu:render/lang/go` | the Go profile |
+| `aontu:profile` | a language declared as data, which `template` and `fmt` read through `--profile` |
+| `aontu:lang/text` | the text profile |
+| `aontu:lang/markdown` | the markdown profile |
 
-The last six are described [after the system vocabulary](#the-aontu-models).
+The last three are described [after the system vocabulary](#the-aontu-models).
 
 ### The `aontu:` models
 
@@ -3227,10 +3206,9 @@ rather than looked for on disk.
 |---|---|
 | `@"aontu:system"` | `$.aontu.System.Port`, `.Component`, `.Service`, `.Semver` |
 | `@"aontu:view"` | `$.aontu.View.Figure` |
-| `@"aontu:code"` | `$.aontu.Code.units` |
-| `@"aontu:render"` | `$.aontu.Lang` |
+| `@"aontu:profile"` | `$.aontu.Profile`, `$.aontu.Lang` |
 
-One key is reserved instead of eight, it is named for the language
+One key is reserved instead of six, it is named for the language
 rather than for a domain, and `$.aontu` anywhere tells a reader at once
 that the subtree is not the document's own.
 
@@ -3249,11 +3227,9 @@ source name is not a path. Write this as `models.aon`:
 <!-- test: scenario aontu-models -->
 <!-- test: file models.aon -->
 ```aon
-@"aontu:code"
+@"aontu:profile"
 
-aontu: Code: units: [
-  { path:"hello.py" lang:"python" decls: [{ k:"frag" n: ["print('hello')"] }] }
-]
+aontu: Lang: { lang:"ocaml" template: { marker:"(*-" close:"*)" ext: [ml] } }
 ```
 
 <!-- test: run -->
@@ -3261,21 +3237,19 @@ aontu: Code: units: [
 $ aontu models.aon
 {
   "aontu": {
-    "Code": {
-      "units": [
-        {
-          "decls": [
-            {
-              "k": "frag",
-              "n": [
-                "print('hello')"
-              ]
-            }
-          ],
-          "lang": "python",
-          "path": "hello.py"
-        }
-      ]
+    "Lang": {
+      "indent": {
+        "unit": " ",
+        "width": 2
+      },
+      "lang": "ocaml",
+      "template": {
+        "close": "*)",
+        "ext": [
+          "ml"
+        ],
+        "marker": "(*-"
+      }
     }
   }
 }
@@ -3292,46 +3266,19 @@ the set. Write this as `nope.aon`:
 <!-- test: run -->
 ```sh
 $ aontu nope.aon
-source not found: aontu:nope (the language-supplied models are aontu:code, aontu:lang/markdown, aontu:lang/text, aontu:profile, aontu:render, aontu:render/lang/go, aontu:render/lang/markdown, aontu:render/lang/text, aontu:render/lang/typescript, aontu:system, aontu:view)
+source not found: aontu:nope (the language-supplied models are aontu:lang/markdown, aontu:lang/text, aontu:profile, aontu:system, aontu:view)
 $ echo $?
 1
 ```
 
-**`aontu:code`** is the output vocabulary: an instance of it is what a
-transform evaluates to, and what `aontu render` turns into bytes. Its
-root is `aontu: Code: { source?, units }`, each unit a `path`, a `lang` and a
-list of declarations: `record`, `enum`, `alias`, `const`, `func`, a
-verbatim `text` escape, or a `frag`, a flat list of pieces each
-carrying its own depth: a `line` (or a bare string, which is a line at
-depth 0), a `blank`, or a `raw`. No inline piece may hold a line
-terminator; the vocabulary refuses one at the node, before any
-renderer runs. Container types take only leaf types (anything deeper is
-a named `alias` plus a `ref`) which is what keeps the schema's meet
-linear. The root is not `type()`-marked, because `render` reads the
-instance through generation; a document that includes the vocabulary
-and writes no units generates `aontu: {Code: {units: []}}`.
-
-**`aontu:render`** is the schema of a render profile: the data a unit
-of one language is rendered under: its `lang`, an `indent`, and
-optionally the comment forms, the string quote and escape table, the
-identifier rules and the type forms. A profile is data and only data:
-a field belongs in it only if the renderer applies it without looking
-at the shape of any node.
-
-**`aontu:render/lang/typescript`** and **`aontu:render/lang/go`** are the two
-bundled profiles with a lowering: the data a unit of that language
-renders under: two spaces or a tab, the comment forms, the string
-escapes by decimal code point, the reserved words, the case style per
-role and (Go) the acronym set that spells `ID`, and the type forms with
-the precedences that put the parentheses in `(string | null)[]`. A
-declaration in a unit of either language lowers to its target (an
-exported interface or a struct, an enum, a type alias, a constant, a
-function) and the loss report names what the target's type system does
-not enforce; see [`aontu render`](reference-api.md#aontu-render).
-
-**`aontu:render/lang/markdown`** is fragment-shaped like the text profile,
-and carries what markdown has of its own: the HTML comment form, and
-the template marker its files write, `<!--- … -->`.
+**`aontu:profile`** is the schema of a language profile: a language
+declared as data, which `aontu template` and `aontu fmt` read through
+`--profile`. It carries the language's `lang`, an `indent`, optionally
+the comment forms, and the `template` block below. A profile is data
+and only data. Its root is not `type()`-marked, because a profile is
+read through generation; `$.aontu.Profile` names the schema with
+`type()`, so naming it neither generates it nor asks a document to fill
+it, and `$.aontu.Lang` is where one lands.
 
 **A profile is where a language is configured.** Its `template` block
 names the marker a generator written in that language carries and the
@@ -3345,14 +3292,12 @@ is what reaches a block comment the engine has never seen:
 aontu: Lang: template: { marker:"(*-" close:"*)" ext: ["ml" "mli"] }
 ```
 
-**`aontu:render/lang/text`** is the bundled profile of every other language:
-`lang: "text"`, an indent of two spaces, and nothing else, since a fold
-over fragments applies nothing else. Every unit whose declarations are
-fragments and text escapes renders under it whatever its `lang` says,
-so a Python module, a YAML manifest or a `Makefile` needs no profile of
-its own; a unit with a declaration needs a profile whose language has a
-lowering, and one whose language has none is refused
-(`render_profile`).
+**`aontu:lang/text`** and **`aontu:lang/markdown`** are the two bundled
+profiles. `text` is `lang: "text"` and an indent of two spaces, and
+nothing else; `markdown` is that plus what markdown has of its own, the
+HTML comment form and the template marker its files write,
+`<!--- … -->`. A language the bundled pair does not cover writes its own
+profile and passes it with `--profile`.
 
 Every bundled model is **experimental** until the vocabulary can be
 versioned by canon-hash.
