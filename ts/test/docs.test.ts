@@ -672,7 +672,8 @@ const CODE_WRAP =
 // A destination is not prose: the `!` in `](/a!b)` spent a page's
 // exclamation ration on a URL character.
 const DESTINATION = /(\]\()[^)\n]*\)/g
-const URL = /<?\bhttps?:\/\/[^\s)>\]]+>?/g
+const AUTOLINK = /<https?:\/\/[^\s<>]*>/g
+const URL = /\bhttps?:\/\/[^\s<>)\]]*[^\s<>)\]!.,;:?*_"']/g
 
 function prose(md: string): string {
   return fenceless(md)
@@ -681,6 +682,7 @@ function prose(md: string): string {
     .replace(CODE_SPAN, '')
     .replace(CODE_WRAP, (m) => m.replace(/[^\n]/g, ''))
     .replace(DESTINATION, '$1)')
+    .replace(AUTOLINK, '')
     .replace(URL, '')
 }
 
@@ -1059,6 +1061,9 @@ describe('docs-style', () => {
     claim(0 === bang(prose('See [docs](https://host/a!b) now.')),
       'a link destination is not prose')
     claim(0 === bang(prose('Read <https://host/a!b>.')), 'nor an autolink')
+    claim(0 === bang(prose('Read https://host/a!b today.')), 'nor a bare one')
+    claim(1 === bang(prose('Read https://host/a!')),
+      'the mark ending the sentence after one still counts')
     claim(1 === bang(prose('See [docs](https://host/a) now!')),
       'the mark outside one still counts')
     claim('' === prose('Text ``a ` !\nb`` more.').replace(/[^!]/g, ''),

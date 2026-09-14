@@ -584,7 +584,8 @@ const CODE_WRAP = /(?<!`)(`+)(?!`)(?:[^`\n]|(?!\1)`)*\n(?:[^`\n]|(?!\1)`)*(?<!`)
 // A destination is not prose: the `!` in `](/a!b)` spent a page's
 // exclamation ration on a URL character.
 const DESTINATION = /(\]\()[^)\n]*\)/g;
-const URL = /<?\bhttps?:\/\/[^\s)>\]]+>?/g;
+const AUTOLINK = /<https?:\/\/[^\s<>]*>/g;
+const URL = /\bhttps?:\/\/[^\s<>)\]]*[^\s<>)\]!.,;:?*_"']/g;
 function prose(md) {
     return fenceless(md)
         .replace(/^---\n[\s\S]*?\n---\n/, '')
@@ -592,6 +593,7 @@ function prose(md) {
         .replace(CODE_SPAN, '')
         .replace(CODE_WRAP, (m) => m.replace(/[^\n]/g, ''))
         .replace(DESTINATION, '$1)')
+        .replace(AUTOLINK, '')
         .replace(URL, '');
 }
 // Markdown needs no blank line before a block, so `## Something worth`
@@ -900,6 +902,8 @@ function stylePaths() {
         claim(0 === bang('![alt](src)'), 'an image is not a mark');
         claim(0 === bang(prose('See [docs](https://host/a!b) now.')), 'a link destination is not prose');
         claim(0 === bang(prose('Read <https://host/a!b>.')), 'nor an autolink');
+        claim(0 === bang(prose('Read https://host/a!b today.')), 'nor a bare one');
+        claim(1 === bang(prose('Read https://host/a!')), 'the mark ending the sentence after one still counts');
         claim(1 === bang(prose('See [docs](https://host/a) now!')), 'the mark outside one still counts');
         claim('' === prose('Text ``a ` !\nb`` more.').replace(/[^!]/g, ''), 'a wrapped span holding a shorter run is still a span');
         const joins = (md, phrase) => logical(md).some((para) => para.text.includes(phrase));
