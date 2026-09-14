@@ -12,6 +12,52 @@ const SCRATCH = Path.join(REPO, '.vale-counts.ini')
 
 const HITS = /\b(\d+)\s+hits?\b/g
 const SPAN = /\b(\d+)(\s+alerts?\s+across\s+)(\d+)(\s+)(files?)\b/
+const TERMS = /(\d+)(\s+domain\s+terms?\b)/
+const NEXT = /(\ba\s+)(\d+)(st|nd|rd|th)\b/
+
+
+// The vocabulary size is a count like any other, and nothing measured
+// it. A `#` line accepts nothing: Vale has no comment syntax here, so
+// the line is a pattern, and a pattern starting with `#` matches no
+// bare word. Counting lines instead of terms is how this first went
+// wrong.
+function vocabulary() {
+  const dir = Path.join(REPO, '.vale', 'styles', 'config', 'vocabularies')
+  if (!Fs.existsSync(dir)) return null
+  for (const name of Fs.readdirSync(dir)) {
+    const file = Path.join(dir, name, 'accept.txt')
+    if (Fs.existsSync(file)) {
+      return Fs.readFileSync(file, 'utf8').split('\n')
+        .filter((l) => '' !== l.trim() && !l.trimStart().startsWith('#')).length
+    }
+  }
+  return null
+}
+
+
+const ordinal = (n) => {
+  if (11 <= n % 100 && n % 100 <= 13) return 'th'
+  return { 1: 'st', 2: 'nd', 3: 'rd' }[n % 10] || 'th'
+}
+
+
+// CI pins the binary, because a Vale release can change what a rule
+// reports. Measuring with a different one rewrites the record to
+// numbers CI will not reproduce.
+function pinned() {
+  for (const rel of [['ci', 'workflows', 'docs.yml'],
+    ['.github', 'workflows', 'docs.yml']]) {
+    const file = Path.join(REPO, ...rel)
+    if (!Fs.existsSync(file)) continue
+    const text = Fs.readFileSync(file, 'utf8')
+    // Two ways the pin is written: a VALE_VERSION variable, or the
+    // release URL with the version in the path.
+    const found = /VALE_VERSION:\s*'?([0-9][^'\s]*)'?/.exec(text) ||
+      /vale\/releases\/download\/v([0-9][^/\s]*)\//.exec(text)
+    if (found) return found[1]
+  }
+  return null
+}
 
 
 function vale(config, files) {
@@ -98,7 +144,17 @@ function edit(lines, edits) {
 function report(write) {
   let ini = Fs.readFileSync(INI, 'utf8')
   const { byRule, total, files } = measure(ini)
+  const terms = vocabulary()
   const wrong = []
+  const want = pinned()
+  if (null != want) {
+    const bin = process.env.VALE || 'vale'
+    const got = (/[0-9][^\s]*/.exec(
+      execFileSync(bin, ['--version'], { encoding: 'utf8' })) || [])[0]
+    if (got !== want) {
+      wrong.push(`Vale ${got} is measuring what CI pins to ${want}`)
+    }
+  }
   const lines = ini.split('\n')
   const edits = []
 
@@ -125,6 +181,25 @@ function report(write) {
       const [nLine, nCol] = block.at[after]
       edits.push({ line: nLine, col: nCol, was: found[5], text: noun(files) })
     }
+    if (null == terms) continue
+    for (const found of block.text.matchAll(new RegExp(TERMS, 'g'))) {
+      if (Number(found[1]) === terms) continue
+      wrong.push(`.vale.ini: claims ${found[1]} domain terms, the vocabulary accepts ${terms}`)
+      const [line, col] = block.at[found.index]
+      edits.push({ line, col, was: found[1], text: String(terms) })
+    }
+    // Only in the block that states the size: another comment saying
+    // `a 2nd pass` is not this claim, and --write would rewrite it.
+    if (!TERMS.test(block.text)) continue
+    for (const found of block.text.matchAll(new RegExp(NEXT, 'g'))) {
+      if (Number(found[2]) === 1 + terms && found[3] === ordinal(1 + terms)) continue
+      wrong.push(`.vale.ini: calls the next term the ${found[2]}${found[3]}, the vocabulary accepts ${terms}`)
+      const at = found.index + found[1].length
+      const [line, col] = block.at[at]
+      edits.push({ line, col, was: found[2], text: String(1 + terms) })
+      const [sLine, sCol] = block.at[at + found[2].length]
+      edits.push({ line: sLine, col: sCol, was: found[3], text: ordinal(1 + terms) })
+    }
   }
   edit(lines, edits)
   ini = lines.join('\n')
@@ -138,6 +213,13 @@ function report(write) {
       wrong.push(`${Path.basename(GUIDE)}: claims ${a} alerts across ${f} ${word}, Vale reports ${total} across ${files} ${noun(files)}`)
       return `${total}${mid}${files}${gap}${noun(files)}`
     })
+    if (null != terms) {
+      guide = guide.replace(new RegExp(TERMS, 'g'), (m, n, rest) => {
+        if (Number(n) === terms) return m
+        wrong.push(`${Path.basename(GUIDE)}: claims ${n} domain terms, the vocabulary accepts ${terms}`)
+        return `${terms}${rest}`
+      })
+    }
   }
 
   if (write) {
@@ -152,7 +234,7 @@ if (require.main === module) {
   const write = process.argv.includes('--write')
   const { wrong, total, files } = report(write)
   if (0 === wrong.length) {
-    process.stdout.write(`vale-counts: ${total} alerts across ${files} files, as recorded\n`)
+    process.stdout.write(`vale-counts: ${total} alerts across ${files} ${noun(files)}, as recorded\n`)
   }
   else if (write) {
     process.stdout.write('vale-counts: re-measured\n  ' + wrong.join('\n  ') +

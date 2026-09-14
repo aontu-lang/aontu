@@ -55,3 +55,6 @@ go/covdata/
 # ours and ARE committed; Google/ arrives from the pinned URL in
 # .vale.ini via `vale sync`.
 /.vale/styles/Google/
+
+# Written by ts/scripts/vale-counts.cjs while measuring, removed after.
+.vale-counts.ini
