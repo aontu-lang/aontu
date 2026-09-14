@@ -30,6 +30,7 @@ import { graphOf } from './graph'
 import { relationCheck, relationErrors } from './relation'
 import { view, viewSet, viewTree } from './view'
 import { render, renderValue, renderProfile } from './render'
+import { loadProfile } from './profile'
 import { desugarTemplate, resugarTemplate, markerFor } from './template'
 import { format, unifiedDiff } from './format'
 export type { LintFinding, FormatReport, FormatOptions } from './format'
@@ -393,6 +394,8 @@ export {
   render,
   renderValue,
   renderProfile,
+
+  loadProfile,
 
   desugarTemplate,
   resugarTemplate,

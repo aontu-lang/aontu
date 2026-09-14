@@ -1,0 +1,6 @@
+# aontu:lang/text --- THE TEXT PROFILE. Indentation and nothing else.
+# Every language without one of its own is read under it.
+
+@"aontu:profile"
+
+aontu: Lang: { lang:"text" indent: { unit:" " width:2 } }

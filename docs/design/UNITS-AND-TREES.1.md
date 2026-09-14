@@ -421,6 +421,17 @@ a `lowering`, and markdown's marker is
 [ADR-035](../../ADR.md#adr-035--a-language-is-configured-in-its-profile-and-a-marker-may-name-its-closer)'s
 own decision. P5 carries this.
 
+**DONE 2026-09-14, and it is P5's first commit.** The surviving half is
+`aontu:profile` — a language's `lang`, `indent`, `comment` and
+`template` and nothing else — with the two profiles under
+`aontu:lang/text` and `aontu:lang/markdown`, and one lands at
+`$.aontu.Lang`. `loadProfile` is `ts/src/profile.ts` and `go/profile.go`;
+`loadProfiles` is `go/cmd/aontu/profile.go` on the Go side. `render`
+keeps its own loader and its own vocabulary until the commit that
+deletes both, so no intermediate state breaks a published verb — the
+loader takes the reader's loader as an argument, and that argument goes
+with `render`. §12b's naming question is answered below.
+
 ## 7. The check story
 
 `render --check <dir>` is the CI gate that holds a committed tree to
@@ -671,7 +682,11 @@ lowering half of `aontu:render` with the two lowering profiles, and
 touch. They come OUT of the render module and out of `aontu:render`
 first, with their own rows, and only then does the rest go. A P5 that
 starts by deleting `render.ts` takes two unrelated published verbs with
-it.
+it. **The prerequisite LANDED 2026-09-14**, as §6 records: `aontu:profile`,
+`aontu:lang/text`, `aontu:lang/markdown`, a `profile` module in each
+port, and fourteen rows in `test/spec/aontu-profile.tsv` — five of them
+refusals of the lowering keys, which is what proves the split is a
+split and not a rename.
 
 **P6 — `aontu trace`. LANDED 2026-09-14**, before P5's deletions as
 the ordering rule requires. `ts/src/trace.ts` and `go/trace.go`,
@@ -798,8 +813,6 @@ it is versionable, and a silently dropped `indent`, `mode` or
 
 ## 12b. Still open, and still the owner's
 
-- **Is the relative-specifier helper worth a builtin?** §3a. Decide
-  during P4, when the migrated generators show whether they need it.
 - ~~**P0 lands in `jostraca/jostraca`, not here.**~~ DONE: v0.38.0,
   2026-09-13. See P0 and §5.
 - **Does CI get jostraca?** P4's byte gate runs the tree through
@@ -812,8 +825,19 @@ it is versionable, and a silently dropped `indent`, `mode` or
   dependency buys the gate back, at the price of a coupling §5 says
   there is none of. The same question §9 asks about the prop schema,
   with more at stake.
-- **The vocabulary needs a name.** ADR-038 says `aontu:render` cannot
-  keep a name built on a verb that no longer exists, and does not
-  choose the replacement. It is what `template` and `fmt` vet a
-  `--profile` against, so it is read by people who never generated
-  anything.
+- ~~**The vocabulary needs a name.**~~ ANSWERED 2026-09-14, by the
+  record rather than by invention: **`aontu:profile`**, with the
+  bundled profiles at **`aontu:lang/text`** and **`aontu:lang/markdown`**
+  and an instance at **`$.aontu.Lang`**. Those were the names before
+  the rename ADR-038 is undoing — ADR-035's own prose still spells them
+  that way, having been written against them — and the rename's stated
+  reason, that both should "sit under the verb that reads them", is
+  exactly what stops being true: there are two reading verbs now and
+  neither is `render`. The owner may overrule it; what would be wrong
+  is a third name nobody has used.
+- **Is the relative-specifier helper worth a builtin?** §3a, and P4 has
+  now shown: NO generator in the migrated corpus computes a relative
+  specifier. `17-lambda-handlers` writes `'../../env/lambda/lambda'`
+  literally, and nothing else imports across generated files at all, so
+  `relImport` goes with `ts/src/lower.ts` and `go/lower.go` rather than
+  being exposed. Re-adding it later is additive and costs nothing now.

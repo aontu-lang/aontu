@@ -2297,10 +2297,10 @@ describe('cli-fmt', () => {
   test('fmt-takes-its-marker-from-a-profile', async () => {
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-fmt-profile-'))
     const profile = Path.join(dir, 'ocaml.aon')
-    Fs.writeFileSync(profile, '@"aontu:render"\n\n' +
-      'aontu: render: Lang: lang: "ocaml"\n' +
-      'aontu: render: Lang: indent: { unit:" " width:2 }\n' +
-      'aontu: render: Lang: template: ' +
+    Fs.writeFileSync(profile, '@"aontu:profile"\n\n' +
+      'aontu: Lang: lang: "ocaml"\n' +
+      'aontu: Lang: indent: { unit:" " width:2 }\n' +
+      'aontu: Lang: template: ' +
       '{ marker:"(*-" close:"*)" ext:["ml" "mli"] }\n')
     const unit = Path.join(dir, 'gen.ml')
     Fs.writeFileSync(unit, '(*- x:[ *)\nlet a = 1\n(*- ] *)\n')
@@ -2890,15 +2890,15 @@ describe('cli-template', () => {
   })
 
   test('template-takes-its-marker-from-a-profile', () => {
-    const OCAML = '@"aontu:render"\n\n' +
-      'aontu: render: Lang: lang: "ocaml"\n' +
-      'aontu: render: Lang: indent: { unit:" " width:2 }\n' +
-      'aontu: render: Lang: template: ' +
+    const OCAML = '@"aontu:profile"\n\n' +
+      'aontu: Lang: lang: "ocaml"\n' +
+      'aontu: Lang: indent: { unit:" " width:2 }\n' +
+      'aontu: Lang: template: ' +
       '{ marker:"(*-" close:"*)" ext:["ml" "mli"] }\n'
     const dir = templateDir({
       'ocaml.aon': OCAML,
       'gen.ml': '(*- n: [ *)\nlet a = 1\n(*- ] *)\n',
-      'plain.aon': '@"aontu:render"\n\naontu: render: Lang: lang: "plain"\n',
+      'plain.aon': '@"aontu:profile"\n\naontu: Lang: lang: "plain"\n',
     })
     const profile = Path.join(dir, 'ocaml.aon')
     const unit = Path.join(dir, 'gen.ml')

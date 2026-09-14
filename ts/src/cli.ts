@@ -19,6 +19,7 @@ import {
   allow,
   render,
   renderProfile,
+  loadProfile,
 } from './aontu'
 import type { AllowDecision, AllowReport, AllowVerdict } from './allow'
 import type { RenderCoverage, RenderReport } from './render'
@@ -3189,7 +3190,7 @@ function runRender(argv: string[]): number {
     return 2
   }
 
-  const loadedProfiles = loadProfiles(profileFiles, trust)
+  const loadedProfiles = loadProfiles(profileFiles, trust, renderProfile)
   if ('number' === typeof loadedProfiles) {
     return loadedProfiles
   }
@@ -3454,11 +3455,11 @@ function runTemplate(argv: string[]): number {
 
 
 // The profiles named by --profile, vetted, or the exit code that says
-// why not. A profile is a language declared as data: `render` matches
-// one to a unit by `lang`, and `template` and `fmt` match one to a file
-// by the extensions its `template.ext` names.
+// why not. A profile is a language declared as data: `template` and
+// `fmt` match one to a file by the extensions its `template.ext`
+// names. `render` passes its own loader, vocabulary and all.
 function loadProfiles(
-  profileFiles: string[], trust: TrustArg
+  profileFiles: string[], trust: TrustArg, load = loadProfile
 ): any[] | number {
   const profiles: any[] = []
   const langs = new Map<string, string>()
@@ -3471,7 +3472,7 @@ function loadProfiles(
       process.stderr.write(`aontu: cannot read ${err.path}: ${err.message}\n`)
       return 2
     }
-    const loaded = renderProfile(text,
+    const loaded = load(text,
       { path: resolve(pf), ...verbOpts(trust, entryRootOf(pf)) })
     if (undefined !== loaded.errors) {
       process.stderr.write(loaded.errors.map(renderFinding).join('\n') + '\n')

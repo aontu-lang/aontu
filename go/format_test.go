@@ -323,15 +323,18 @@ func TestEveryCorpusDocumentFormatsToAFixedPoint(t *testing.T) {
 func TestBundledModelsAreFormatted(t *testing.T) {
 	a := New()
 	names := aontuModels
-	if 8 != len(names) ||
+	if 11 != len(names) ||
 		"aontu:code" != names[0] ||
-		"aontu:render" != names[1] ||
-		"aontu:render/lang/go" != names[2] ||
-		"aontu:render/lang/markdown" != names[3] ||
-		"aontu:render/lang/text" != names[4] ||
-		"aontu:render/lang/typescript" != names[5] ||
-		"aontu:system" != names[6] ||
-		"aontu:view" != names[7] {
+		"aontu:lang/markdown" != names[1] ||
+		"aontu:lang/text" != names[2] ||
+		"aontu:profile" != names[3] ||
+		"aontu:render" != names[4] ||
+		"aontu:render/lang/go" != names[5] ||
+		"aontu:render/lang/markdown" != names[6] ||
+		"aontu:render/lang/text" != names[7] ||
+		"aontu:render/lang/typescript" != names[8] ||
+		"aontu:system" != names[9] ||
+		"aontu:view" != names[10] {
 		t.Fatalf("aontuModels: %v", names)
 	}
 	for _, name := range names {

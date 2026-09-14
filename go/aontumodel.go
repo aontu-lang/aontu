@@ -13,6 +13,15 @@ const aontuScheme = "aontu:"
 //go:embed aontumodel/code/code.aon
 var aontuCode string
 
+//go:embed aontumodel/lang/markdown.aon
+var aontuLangMarkdown string
+
+//go:embed aontumodel/lang/text.aon
+var aontuLangText string
+
+//go:embed aontumodel/profile/profile.aon
+var aontuProfile string
+
 //go:embed aontumodel/render/render.aon
 var aontuRender string
 
@@ -36,6 +45,9 @@ var aontuView string
 
 var aontuSources = map[string]string{
 	"aontu:code":                   aontuCode,
+	"aontu:lang/markdown":          aontuLangMarkdown,
+	"aontu:lang/text":              aontuLangText,
+	"aontu:profile":                aontuProfile,
 	"aontu:render":                 aontuRender,
 	"aontu:render/lang/go":         aontuRenderLangGo,
 	"aontu:render/lang/markdown":   aontuRenderLangMarkdown,
@@ -50,6 +62,9 @@ var aontuSources = map[string]string{
 // set rather than searched for on disk.
 var aontuModels = []string{
 	"aontu:code",
+	"aontu:lang/markdown",
+	"aontu:lang/text",
+	"aontu:profile",
 	"aontu:render",
 	"aontu:render/lang/go",
 	"aontu:render/lang/markdown",

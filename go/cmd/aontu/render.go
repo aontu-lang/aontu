@@ -17,6 +17,10 @@ import (
 
 const renderHelp = "aontu render [--at <path>] [--profile <file>]... [--unit <path>] [--stdout | --out <dir> | --check <dir> | --coverage] [--coverage-at <path>] [--strict] [--marker <token>] <file> (try --help)"
 
+func renderProfile(a *aontu.Aontu, src string) (map[string]any, []aontu.VetFinding) {
+	return a.RenderProfile(src)
+}
+
 func runRender(argv []string, stdout, stderr io.Writer) int {
 	argv, trust, trustOK := takeTrust(argv, stderr)
 	if !trustOK {
@@ -137,7 +141,7 @@ func runRender(argv []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 
-	profiles, code := loadProfiles(profileFiles, trust, stderr)
+	profiles, code := loadProfiles(profileFiles, trust, stderr, renderProfile)
 	if 0 != code {
 		return code
 	}
@@ -342,50 +346,4 @@ func renderReportJSON(report aontu.RenderReport) string {
 		Verdict:  report.Verdict,
 	})
 	return strings.TrimSuffix(buf.String(), "\n")
-}
-
-// loadProfiles is the profiles named by --profile, vetted, or the exit
-// code that says why not. A profile is a language declared as data:
-// render matches one to a unit by lang, and template and fmt match one
-// to a file by the extensions its template.ext names.
-func loadProfiles(
-	profileFiles []string, trust trustArg, stderr io.Writer,
-) ([]map[string]any, int) {
-	profiles := []map[string]any{}
-	langs := map[string]string{}
-	for _, pf := range profileFiles {
-		text, perr := os.ReadFile(pf)
-		if nil != perr {
-			io.WriteString(stderr,
-				"aontu: cannot read "+pf+": "+perr.Error()+"\n")
-			return nil, 2
-		}
-		profile, findings := aontuForFileTrust(pf, trust).RenderProfile(string(text))
-		if nil != findings {
-			lines := []string{}
-			for _, f := range findings {
-				lines = append(lines, renderFinding(f))
-			}
-			io.WriteString(stderr, strings.Join(lines, "\n")+"\n")
-			return nil, 4
-		}
-		lang, _ := profile["lang"].(string)
-		if prev, dup := langs[lang]; dup {
-			io.WriteString(stderr,
-				"aontu: two profiles claim "+lang+": "+prev+" and "+pf+"\n")
-			return nil, 2
-		}
-		langs[lang] = pf
-		profiles = append(profiles, profile)
-	}
-	return profiles, 0
-}
-
-// templateMarker is the marker a supplied profile declares for the
-// file, else the one its extension names.
-func templateMarker(profiles []map[string]any, path string) string {
-	if m := aontu.MarkerFromProfiles(profiles, path); "" != m {
-		return m
-	}
-	return aontu.MarkerFor(path)
 }

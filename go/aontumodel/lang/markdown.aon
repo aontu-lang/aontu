@@ -1,0 +1,10 @@
+# aontu:lang/markdown --- THE MARKDOWN PROFILE. The text profile plus
+# markdown's own two: the HTML comment form, and the template marker
+# its files carry.
+
+@"aontu:profile"
+
+aontu: Lang: lang: "markdown"
+aontu: Lang: indent: { unit:" " width:2 }
+aontu: Lang: comment: block: { open:"<!--" close:"-->" }
+aontu: Lang: template: { marker:"<!---" ext: ["md" "markdown"] }

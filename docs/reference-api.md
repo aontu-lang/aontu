@@ -2290,18 +2290,17 @@ target's compiler parses it.
 
 **A language the table does not know says so once.** `--marker` names
 the marker for one call; a profile names it for every call, because a
-profile is a language declared as data and `aontu render`,
-`aontu template` and `aontu fmt` all read the same file. A marker
-carries its own closer after a space when the opener does not imply
-one:
+profile is a language declared as data and `aontu template` and
+`aontu fmt` read the same file. A marker carries its own closer after a
+space when the opener does not imply one:
 
 <!-- test: skip the file it reads is the reader's own language -->
 ```aon
-@"aontu:render"
+@"aontu:profile"
 
-aontu: render: Lang: lang: "ocaml"
-aontu: render: Lang: indent: { unit:" " width:2 }
-aontu: render: Lang: template: { marker:"(*-" close:"*)" ext: ["ml" "mli"] }
+aontu: Lang: lang: "ocaml"
+aontu: Lang: indent: { unit:" " width:2 }
+aontu: Lang: template: { marker:"(*-" close:"*)" ext: ["ml" "mli"] }
 ```
 
 <!-- test: skip the synopsis is not a transcript -->

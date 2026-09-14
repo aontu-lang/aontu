@@ -74,7 +74,7 @@ func runTemplate(argv []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 
-	profiles, code := loadProfiles(profileFiles, trust, stderr)
+	profiles, code := loadProfiles(profileFiles, trust, stderr, loadProfile)
 	if 0 != code {
 		return code
 	}

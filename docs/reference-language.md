@@ -3292,7 +3292,7 @@ the set. Write this as `nope.aon`:
 <!-- test: run -->
 ```sh
 $ aontu nope.aon
-source not found: aontu:nope (the language-supplied models are aontu:code, aontu:render, aontu:render/lang/go, aontu:render/lang/markdown, aontu:render/lang/text, aontu:render/lang/typescript, aontu:system, aontu:view)
+source not found: aontu:nope (the language-supplied models are aontu:code, aontu:lang/markdown, aontu:lang/text, aontu:profile, aontu:render, aontu:render/lang/go, aontu:render/lang/markdown, aontu:render/lang/text, aontu:render/lang/typescript, aontu:system, aontu:view)
 $ echo $?
 1
 ```
@@ -3333,17 +3333,16 @@ not enforce; see [`aontu render`](reference-api.md#aontu-render).
 and carries what markdown has of its own: the HTML comment form, and
 the template marker its files write, `<!--- … -->`.
 
-**A profile is where a language is configured**, not only where it is
-rendered. Its `template` block names the marker a generator written in
-that language carries and the extensions that marker belongs to, so
-`aontu render`, `aontu template` and `aontu fmt` read one file rather
-than repeating a `--marker` flag. A marker carries its own closer after
-a space where the opener does not imply one, which is what reaches a
-block comment the engine has never seen:
+**A profile is where a language is configured.** Its `template` block
+names the marker a generator written in that language carries and the
+extensions that marker belongs to, so `aontu template` and `aontu fmt`
+read one file rather than repeating a `--marker` flag. A marker carries
+its own closer after a space where the opener does not imply one, which
+is what reaches a block comment the engine has never seen:
 
 <!-- test: skip the file it configures is the reader's own language -->
 ```aon
-aontu: render: Lang: template: { marker:"(*-" close:"*)" ext: ["ml" "mli"] }
+aontu: Lang: template: { marker:"(*-" close:"*)" ext: ["ml" "mli"] }
 ```
 
 **`aontu:render/lang/text`** is the bundled profile of every other language:

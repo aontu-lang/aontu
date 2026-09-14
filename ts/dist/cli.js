@@ -2747,7 +2747,7 @@ function runRender(argv) {
         process.stderr.write(`aontu: cannot read ${err.path}: ${err.message}\n`);
         return 2;
     }
-    const loadedProfiles = loadProfiles(profileFiles, trust);
+    const loadedProfiles = loadProfiles(profileFiles, trust, aontu_1.renderProfile);
     if ('number' === typeof loadedProfiles) {
         return loadedProfiles;
     }
@@ -2985,10 +2985,10 @@ function runTemplate(argv) {
     return 0;
 }
 // The profiles named by --profile, vetted, or the exit code that says
-// why not. A profile is a language declared as data: `render` matches
-// one to a unit by `lang`, and `template` and `fmt` match one to a file
-// by the extensions its `template.ext` names.
-function loadProfiles(profileFiles, trust) {
+// why not. A profile is a language declared as data: `template` and
+// `fmt` match one to a file by the extensions its `template.ext`
+// names. `render` passes its own loader, vocabulary and all.
+function loadProfiles(profileFiles, trust, load = aontu_1.loadProfile) {
     const profiles = [];
     const langs = new Map();
     for (const pf of profileFiles) {
@@ -3000,7 +3000,7 @@ function loadProfiles(profileFiles, trust) {
             process.stderr.write(`aontu: cannot read ${err.path}: ${err.message}\n`);
             return 2;
         }
-        const loaded = (0, aontu_1.renderProfile)(text, { path: (0, node_path_1.resolve)(pf), ...verbOpts(trust, entryRootOf(pf)) });
+        const loaded = load(text, { path: (0, node_path_1.resolve)(pf), ...verbOpts(trust, entryRootOf(pf)) });
         if (undefined !== loaded.errors) {
             process.stderr.write(loaded.errors.map(renderFinding).join('\n') + '\n');
             return 4;

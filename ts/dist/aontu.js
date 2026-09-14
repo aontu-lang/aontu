@@ -1,7 +1,7 @@
 "use strict";
 /* Copyright (c) 2021-2025 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.unifiedDiff = exports.format = exports.markerFor = exports.resugarTemplate = exports.desugarTemplate = exports.renderProfile = exports.renderValue = exports.render = exports.viewTree = exports.viewSet = exports.view = exports.relationCheck = exports.graphOf = exports.allow = exports.agentsMd = exports.diff = exports.patch = exports.why = exports.get = exports.canonHash = exports.hcanon = exports.trimCheck = exports.subsume = exports.sarifReport = exports.vet = exports.Decimal = exports.exactJSON = exports.formatExplain = exports.util = exports.Lang = exports.colorActive = exports.setColor = exports.AontuError = exports.AontuContext = exports.Aontu = exports.VERSION = void 0;
+exports.unifiedDiff = exports.format = exports.markerFor = exports.resugarTemplate = exports.desugarTemplate = exports.loadProfile = exports.renderProfile = exports.renderValue = exports.render = exports.viewTree = exports.viewSet = exports.view = exports.relationCheck = exports.graphOf = exports.allow = exports.agentsMd = exports.diff = exports.patch = exports.why = exports.get = exports.canonHash = exports.hcanon = exports.trimCheck = exports.subsume = exports.sarifReport = exports.vet = exports.Decimal = exports.exactJSON = exports.formatExplain = exports.util = exports.Lang = exports.colorActive = exports.setColor = exports.AontuError = exports.AontuContext = exports.Aontu = exports.VERSION = void 0;
 exports.runparse = runparse;
 const lang_1 = require("./lang");
 Object.defineProperty(exports, "Lang", { enumerable: true, get: function () { return lang_1.Lang; } });
@@ -53,6 +53,8 @@ const render_1 = require("./render");
 Object.defineProperty(exports, "render", { enumerable: true, get: function () { return render_1.render; } });
 Object.defineProperty(exports, "renderValue", { enumerable: true, get: function () { return render_1.renderValue; } });
 Object.defineProperty(exports, "renderProfile", { enumerable: true, get: function () { return render_1.renderProfile; } });
+const profile_1 = require("./profile");
+Object.defineProperty(exports, "loadProfile", { enumerable: true, get: function () { return profile_1.loadProfile; } });
 const template_1 = require("./template");
 Object.defineProperty(exports, "desugarTemplate", { enumerable: true, get: function () { return template_1.desugarTemplate; } });
 Object.defineProperty(exports, "resugarTemplate", { enumerable: true, get: function () { return template_1.resugarTemplate; } });
