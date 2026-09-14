@@ -256,11 +256,11 @@ would break the parity contract by construction.
 an evaluation may *read*, and there is no verb, library call or MCP
 tool that writes generated output: a generator answers a **component
 tree** as an ordinary value, and a generator runtime outside the engine
-turns it into bytes. What that runtime may write, and where, is that
-runtime's contract rather than this one. The engine's own refusals
-still stand on the tree it answers -- a file name is checked at the
-call, and two files resolving to one path are refused -- so a
-malformed tree is refused before anything downstream sees it.
+turns it into bytes. What that generator runtime may write, and where,
+is its own contract rather than this one. The engine's refusals still
+stand on the tree it answers -- a filename is checked at the call, and
+two files resolving to one path are refused -- so a malformed tree is
+refused before anything downstream sees it.
 
 ## Evaluation consumes the tree
 
