@@ -273,8 +273,9 @@ diff -u "$DIR/expected/mcp-tools.json" "$WORK/mcp-tools.json" \
 has mcp out 'VETSCHEMA ["schema","data"]'
 # 2026-08-26: expected/mcp-tools.json refreshed to the twelve-verb
 # surface (the MCP completion commit added subsume, breaking, set,
-# relations, hash and trim to the original six); reaches, view,
-# jsonschema and render followed, each with its verb.
+# relations, hash and trim to the original six); reaches, view and
+# jsonschema followed, each with its verb, and `render` left with the
+# verb it wrapped (ADR-038).
 ok "mcp: initialize + tools/list answer the expected tools"
 
 has mcp out 'VET_OK valid isError=false'

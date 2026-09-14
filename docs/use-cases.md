@@ -487,14 +487,10 @@ records: [
 %field = emit(_, {
   match: n: string
   body: [
-    {
-      k: "line"
-      at: 1
-      n: [
-        .go + " " + match(.t, "string", "string", "integer", "int64")
-        + ` \`json:"` + .n + `"\``
-      ]
-    }
+    line(
+      "\t" + .go + " " + match(.t, "string", "string", "integer", "int64")
+      + ` \`json:"` + .n + `"\``
+    )
   ]
 })
 
@@ -503,34 +499,58 @@ records: [
   body: ["type " + .name + " struct {" emit(.fields, %field) "}"]
 })
 
-aontu: Code: units: [
-  {
-    path: "types.go"
-    lang: "go"
-    profile: indent: { unit:"\t" width:1 }
-    decls: [{ k:"frag" n:emit($.records, %record) }]
-  }
-]
+out: file("types.go", emit($.records, %record))
 ```
 
-The struct comes out of the model, and the renderer puts the tab in
-front of every depth-1 line:
+The generator answers a **component tree**: a `File` holding the `Line`
+nodes the model produced, which a generator runtime writes to disk.
 
 <!-- test: run -->
 ```sh
-$ aontu render --stdout types.aon
-type Customer struct {
-	ID string `json:"id"`
-	Email string `json:"email"`
+$ aontu get $.out types.aon
+{
+  "children": [
+    {
+      "children": [],
+      "cmp": "Line",
+      "props": {
+        "src": "type Customer struct {"
+      }
+    },
+    {
+      "children": [],
+      "cmp": "Line",
+      "props": {
+        "src": "\tID string `json:\"id\"`"
+      }
+    },
+    {
+      "children": [],
+      "cmp": "Line",
+      "props": {
+        "src": "\tEmail string `json:\"email\"`"
+      }
+    },
+    {
+      "children": [],
+      "cmp": "Line",
+      "props": {
+        "src": "}"
+      }
+    }
+  ],
+  "cmp": "File",
+  "props": {
+    "name": "types.go"
+  }
 }
 ```
 
 A rule set rather than `pack`, because list order is source order and
-map keys sort by code point; a nested `emit` splices its pieces, so the
-fragment reaches the renderer flat. `--out <dir>` writes every unit or
-nothing, and `--check <dir>` holds the goldens in CI. The three
-generators in one instance, their goldens, and a check that both ports
-render identical bytes:
+map keys sort by code point; a nested `emit` splices its children, so
+the file's lines arrive flat. A bare string child is a `Line`, which is
+why the two rules above read as text. The three generators, their
+goldens, and a check that both ports answer byte-identical files:
 [`use-cases/15-code-generation/`](../use-cases/15-code-generation/).
 
 ## 16. Module deps

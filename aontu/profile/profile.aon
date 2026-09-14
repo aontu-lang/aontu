@@ -1,0 +1,24 @@
+# aontu:profile --- THE PROFILE VOCABULARY. A language declared as
+# data: its name, its indentation, its comment forms and the marker its
+# generators carry. `aontu template` and `aontu fmt` read one through
+# --profile. EXPERIMENTAL, versioned by canon-hash later.
+
+%comment = close({ open?:string prefix?:string close?:string })
+
+%profile = close({
+  lang: string & length(min(1))
+  indent: close({
+    unit: *" "|string & length(min(1))
+    width: *2|integer & min(0) & max(16)
+  })
+  comment?: close({ line?:%comment block?:%comment doc?:%comment })
+  template?: close({
+    marker: string & length(min(1))
+    close?: string & length(min(1))
+    ext?: [&: string & re("^[A-Za-z0-9_+-]+$")]
+  })
+})
+
+# Profile names the schema; Lang is where one lands. type() so naming
+# the schema neither generates it nor asks a document to fill it.
+aontu: { Profile:type(%profile) Lang:%profile }

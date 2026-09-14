@@ -43,6 +43,7 @@ const jsonschema_1 = require("../dist/jsonschema");
 const reach_1 = require("../dist/reach");
 const aontu_2 = require("../dist/aontu");
 const template_1 = require("../dist/template");
+const trace_1 = require("../dist/trace");
 const hints_1 = require("../dist/hints");
 const IntegerVal_1 = require("../dist/val/IntegerVal");
 const StringVal_1 = require("../dist/val/StringVal");
@@ -288,13 +289,9 @@ function runRow(row) {
         Assert.strictEqual((0, aontu_1.exactJSON)(null == report.errors
             ? report : { ...report, errors: stripProse(report.errors) }), (0, aontu_1.exactJSON)(golden), `view report mismatch: ${row.name}`);
     }
-    else if ('render' === row.mode) {
-        const golden = JSON.parse(row.expect);
-        const ask = golden.ask ?? {};
-        delete golden.ask;
-        const report = (0, aontu_2.render)(row.src, ask);
-        Assert.strictEqual((0, aontu_1.exactJSON)(null == report.errors
-            ? report : { ...report, errors: stripProse(report.errors) }), (0, aontu_1.exactJSON)(golden), `render report mismatch: ${row.name}`);
+    else if ('trace' === row.mode) {
+        const report = (0, trace_1.traceRun)(row.src, {});
+        Assert.strictEqual((0, aontu_1.exactJSON)(report.trace), (0, aontu_1.exactJSON)(JSON.parse(row.expect)), `trace mismatch: ${row.name}`);
     }
     else if ('template' === row.mode) {
         const golden = JSON.parse(row.expect);

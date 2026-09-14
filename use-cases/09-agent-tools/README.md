@@ -232,7 +232,7 @@ than its value.
     `aontu`, `tools/list` matches `expected/mcp-tools.json` (`vet`,
     `get`, `why`, `diff`, `canon`, `summary`, `subsume`, `breaking`,
     `set`, `relations`, `reaches`, `view`, `hash`, `trim`,
-    `jsonschema`, `render`), and
+    `jsonschema`), and
     the `vet` tool's `inputSchema` requires `schema` and `data`.
 17. `tools/call` of `vet` admits the good call (`valid`, `isError:
     false`) and refuses the bad one with `invalid` and the

@@ -1,7 +1,7 @@
 //- # handler.ts --- the handler generator, in the TEMPLATE form: the
 //- # file below IS a Lambda handler, and the marked lines are the
-//- # aontu that turns one into twelve. It renders the same thirteen
-//- # units as gen.aon, which is the canonical form of this file.
+//- # aontu that turns one into twelve. It answers the same thirteen
+//- # files as gen.aon, which is the canonical form of this file.
 //- @"./model.aon"
 //-
 //- # Each service carries its own name, so a rule can read it.
@@ -64,18 +64,14 @@ exports.handler = async (
 //- # service map and the index marker, tried in sorted-key order.
 //- parts: { handlers:$.svc index:true }
 //-
-//- code: units: emit($.parts, [
+//- out: emit($.parts, [
 //-   {
 //-     match: map()
 //-     body: [
 //-       emit(_, {
 //-         match: name: string
 //-         body: [
-//-           {
-//-             path: "handlers/" + .name + ".ts"
-//-             lang: "typescript"
-//-             decls: [{ k:"frag" n:emit([_], %handler) }]
-//-           }
+//-           file("handlers/" + .name + ".ts", emit([_], %handler))
 //-         ]
 //-       })
 //-     ]
@@ -83,16 +79,12 @@ exports.handler = async (
 //-   {
 //-     match: true
 //-     body: [
-//-       {
-//-         path: "index.ts"
-//-         lang: "typescript"
-//-         decls: [
-//-           {
-//-             k: "frag"
-//-             n: each(pick($.svc, name), "export const " + join(each(split(_, "-"), upper(_)), "_") + " = '" + _ + "'")
-//-           }
-//-         ]
-//-       }
+//-       file("index.ts", [
+//-         each(pick($.svc, name), line(
+//-           "export const "
+//-           + join(each(split(_, "-"), upper(_)), "_")
+//-           + " = '" + _ + "'"))
+//-       ])
 //-     ]
 //-   }
 //- ])

@@ -47,18 +47,6 @@ func unite(ctx *Ctx, a, b Val) Val {
 				out.setReadAddr(org)
 			}
 		}
-		if nil == out.emitOrig() {
-			var emt *emitOrigin
-			if nil != a {
-				emt = a.emitOrig()
-			}
-			if nil == emt && nil != b {
-				emt = b.emitOrig()
-			}
-			if nil != emt {
-				out.setEmitOrig(emt)
-			}
-		}
 	}
 	return out
 }
@@ -89,9 +77,8 @@ func uniteRaw(ctx *Ctx, a, b Val) Val {
 		return makeNilErr(ctx, "unify_cycle", a, b)
 	}
 
-	// Scope the caller's slot hint to the single dispatched Unify call:
-	// nested unites inside that Unify see only the slots the Unify
-	// itself sets, and a hint never leaks across sibling drives.
+	// Scope the caller's slot hint to the single dispatched Unify call,
+	// so a hint never leaks across sibling drives.
 	slot := ctx.slot
 	ctx.slot = nil
 	drive := func(v Val, peer Val) Val {
@@ -202,7 +189,6 @@ func unifyRoot(root Val, ctx *Ctx) Val {
 		// applyFlows call in the TS pass loop.
 		res = applyFlows(ctx, res)
 
-
 		if res.Dc() != DONE {
 			nowCanon := res.Canon()
 			settle = sawLast && lastCanon == nowCanon
@@ -221,9 +207,9 @@ func unifyRoot(root Val, ctx *Ctx) Val {
 		makeNilErrFull(ctx, "budget_passes", nil, nil, "resolve",
 			map[string]string{"limit": strconv.Itoa(maxcc), "paths": joined})
 	}
-	// The settled tree's alias references canon as the values they
-	// name (go/alias.go): attached here, once, after the last pass,
-	// from the snapshot store this run kept. Mirrors ts/src/unify.ts.
+	// The settled tree's alias references canon as the values they name
+	// (go/alias.go): attached once, after the last pass, from the
+	// snapshot store this run kept.
 	expandAliases(res, ctx.snapmap)
 	ctx.root = res
 	return res

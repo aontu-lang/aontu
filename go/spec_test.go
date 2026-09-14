@@ -606,24 +606,18 @@ func TestSpec(t *testing.T) {
 						t.Fatalf("resugar mismatch\n src: %q\n want: %q\n got:  %q",
 							src, back, again)
 					}
-				case "render":
-					// THE RENDERER (docs/design/RENDER.0.md D10): every
-					// unit's bytes, the loss report, or the refusal. The
-					// options ride `expect.ask` as view's do, since the same
-					// document renders differently under a profile, a unit
-					// filter or strict.
-					var golden map[string]any
+				case "trace":
+					// WHAT WROTE THIS LINE (UNITS-AND-TREES.1.md P6): the
+					// file, the rule set and the model node behind every
+					// piece a dispatch stamped under the component tree.
+					report := New().Trace(src, nil)
+					got := specJSON(t, specAsAny(t, report.Trace))
+					var golden any
 					if err := json.Unmarshal([]byte(expect), &golden); err != nil {
 						t.Fatalf("expect is not JSON: %v\n expect: %s", err, expect)
 					}
-					ask, _ := golden["ask"].(map[string]any)
-					delete(golden, "ask")
-					got := specJSON(t, specStripProse(specAsMap(t,
-						New().Render(src, specRenderOptions(ask))),
-						"errors"))
-					want := specJSON(t, golden)
-					if got != want {
-						t.Fatalf("render report mismatch\n src: %q\n want: %s\n got:  %s",
+					if want := specJSON(t, golden); got != want {
+						t.Fatalf("trace mismatch\n src:  %s\n want: %s\n got:  %s",
 							src, want, got)
 					}
 				case "views":
@@ -743,6 +737,20 @@ func specAsMap(t *testing.T, v any) map[string]any {
 		t.Fatalf("marshal: %v", err)
 	}
 	var out map[string]any
+	if err := json.Unmarshal(b, &out); err != nil { //coverage:ignore ... and always decodable
+		t.Fatalf("unmarshal: %v", err)
+	}
+	return out
+}
+
+// specAsAny is specAsMap for a value that is a list rather than a map.
+func specAsAny(t *testing.T, v any) any {
+	t.Helper()
+	b, err := json.Marshal(v)
+	if err != nil { //coverage:ignore a report struct is always encodable
+		t.Fatalf("marshal: %v", err)
+	}
+	var out any
 	if err := json.Unmarshal(b, &out); err != nil { //coverage:ignore ... and always decodable
 		t.Fatalf("unmarshal: %v", err)
 	}
@@ -971,11 +979,11 @@ func specVars() map[string]Val {
 		// One variable per remaining scalar kind, so shared rows can
 		// reach every variable-as-path-segment rendering branch
 		// (coverage drive; ts/test/spec.test.ts mirrors these).
-		"half": numberVal(1.5, "1.5", -1),
-		"off":  newBoolean(false),
-		"bigi": newBigInteger(big.NewInt(5)),
-		"bigd": newBigDecimal(newDecimal(big.NewInt(15), 1)),
-		"nul":  newNull(),
+		"half":   numberVal(1.5, "1.5", -1),
+		"off":    newBoolean(false),
+		"bigi":   newBigInteger(big.NewInt(5)),
+		"bigd":   newBigDecimal(newDecimal(big.NewInt(15), 1)),
+		"nul":    newNull(),
 		"PARENT": newString("q"),
 	}
 }
@@ -1078,26 +1086,6 @@ func jsonEqual(got any, expectJSON string) bool {
 // specViewOptions reads a view row's `ask` into ViewOptions: the same
 // keys ts/src/view.ts's ViewOptions has, so a row asks both ports the
 // same question.
-// specRenderOptions reads a render row's ask (RENDER.0.md D10).
-func specRenderOptions(ask map[string]any) *RenderOptions {
-	at, _ := ask["at"].(string)
-	unit, _ := ask["unit"].(string)
-	strict, _ := ask["strict"].(bool)
-	trace, _ := ask["trace"].(bool)
-	coverage, _ := ask["coverage"].(bool)
-	coverageAt, _ := ask["coverageAt"].(string)
-	var profiles []map[string]any
-	if ps, ok := ask["profiles"].([]any); ok {
-		for _, p := range ps {
-			m, _ := p.(map[string]any)
-			profiles = append(profiles, m)
-		}
-	}
-	return &RenderOptions{At: at, Unit: unit, Strict: strict,
-		Profiles: profiles, Trace: trace, Coverage: coverage,
-		CoverageAt: coverageAt}
-}
-
 func specViewOptions(ask map[string]any) *ViewOptions {
 	str := func(k string) string { s, _ := ask[k].(string); return s }
 	num := func(k string) int { n, _ := ask[k].(float64); return int(n) }

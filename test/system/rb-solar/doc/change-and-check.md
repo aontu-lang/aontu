@@ -40,7 +40,8 @@ not add an editing form: this example's browser pages are read-only.
 Check the ERD before regenerating it:
 
 ```sh
-aontu render --marker '%%-' --check doc gen/erd.mmd
+aontu template --marker '%%-' gen/erd.mmd > work/erd.aon
+aontu get out work/erd.aon | node ../../../tools/cmptree-check.js --folder doc
 ```
 
 The command exits with status 1 and reports `erd.mmd` as drift. The
@@ -52,16 +53,19 @@ The migration, API controller, and view outputs also need updating.
 Run each application generator with `app` as the output directory:
 
 ```sh
+CMP="node ../../../tools/cmptree-check.js"
 for generator in routes migrate seeds model api_base api_controller ui_controller; do
-  aontu render --out app "gen/$generator.rb" || break
+  aontu template "gen/$generator.rb" > "work/$generator.aon" || break
+  aontu get out "work/$generator.aon" | $CMP --out app || break
 done
-aontu render --out app gen/views.aon
-aontu render --marker '%%-' --out doc gen/erd.mmd
+aontu get out gen/views.aon | $CMP --out app
+aontu template --marker '%%-' gen/erd.mmd > work/erd.aon
+aontu get out work/erd.aon | $CMP --out doc
 ```
 
-Stop and resolve any render failure before continuing. Each invocation
-validates and renders its own unit set before writing. The shell loop
-is not a transaction across all generators.
+Stop and resolve any failure before continuing. Each invocation
+evaluates and writes its own tree. The shell loop is not a transaction
+across all generators.
 
 Review the generated changes:
 
@@ -140,8 +144,8 @@ such as a service object called by generated code.
 
 If a generated file becomes handwritten, remove its output rule and its
 generated banner together. Review its tests as ordinary application
-code. `render --check` checks only the units the generator names;
-it will not flag an obsolete file after its rule has been removed.
+code. The byte gate checks only the files the generator names; it will
+not flag an obsolete file after its rule has been removed.
 
 Return to the [application's folder and ownership guide](../README.md#folder-structure-and-file-ownership)
 when deciding where a change belongs.

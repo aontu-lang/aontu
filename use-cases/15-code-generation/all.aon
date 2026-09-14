@@ -1,11 +1,9 @@
 # all.aon --- the instance: one model, three units, one run.
 #
-# Each generator contributes a UNIT under `units` and the rule set that
-# fills it; this document includes the three and lists their units as
-# the aontu:code instance `aontu render` reads. One run renders the
-# whole set, and `--out` writes nothing unless every unit rendered --
-# which check.sh proves by breaking one. `--unit <path>` renders one of
-# them alone.
+# Each generator contributes a FILE under its own key and the rule set
+# that fills it; this document includes the three and lists their files
+# as the component tree the engine on the far side writes. One run
+# builds the whole set.
 #
 # The generators are included at the root rather than as values, and
 # their aliases carry the target's name (`%go_record`, `%ts_record`),
@@ -16,4 +14,4 @@
 @"./gen-ts.aon"
 @"./gen-sql.aon"
 
-aontu: Code: units: [$.units.go $.units.ts $.units.sql]
+out: [$.go $.ts $.sql]

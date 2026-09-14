@@ -13,8 +13,9 @@ import {
 } from '../dist/aontu'
 import { jsonSchema } from '../dist/jsonschema'
 import { reachCheck } from '../dist/reach'
-import { view, viewSet, render } from '../dist/aontu'
+import { view, viewSet } from '../dist/aontu'
 import { desugarTemplate, resugarTemplate } from '../dist/template'
+import { traceRun } from '../dist/trace'
 import { codeClasses } from '../dist/hints'
 import { IntegerVal } from '../dist/val/IntegerVal'
 import { StringVal } from '../dist/val/StringVal'
@@ -360,17 +361,12 @@ function runRow(row: Omit<Row, 'file'> & { file?: string }): void {
       exactJSON(golden),
       `view report mismatch: ${row.name}`)
   }
-  else if ('render' === row.mode) {
-    const golden = JSON.parse(row.expect)
-    const ask = golden.ask ?? {}
-    delete golden.ask
-
-    const report = render(row.src, ask)
+  else if ('trace' === row.mode) {
+    const report = traceRun(row.src, {})
     Assert.strictEqual(
-      exactJSON(null == report.errors
-        ? report : { ...report, errors: stripProse(report.errors) }),
-      exactJSON(golden),
-      `render report mismatch: ${row.name}`)
+      exactJSON(report.trace),
+      exactJSON(JSON.parse(row.expect)),
+      `trace mismatch: ${row.name}`)
   }
   else if ('template' === row.mode) {
     const golden = JSON.parse(row.expect)

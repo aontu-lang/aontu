@@ -25,7 +25,6 @@ import { jsonSchema } from './jsonschema'
 import { relationCheck } from './relation'
 import { reachCheck } from './reach'
 import { view } from './view'
-import { render } from './render'
 import { patch } from './patch'
 
 
@@ -598,44 +597,6 @@ const TOOLS: ToolDef[] = [
     run: (a, _trust, paths) =>
       jsonSchema(str(a.source), {
         at: null == a.at ? undefined : str(a.at), path: paths.source,
-      }),
-  },
-  {
-    name: 'render',
-    description:
-      'Render a document that evaluates to an aontu:code instance: ' +
-      'evaluate it, vet the value at `at` against the bundled ' +
-      'vocabulary, and fold code.units into bytes. Returns verdict ' +
-      '(ok | lossy | error), the units -- each a path, a language and ' +
-      'its text -- and a `lossy` list of what the renderer could not ' +
-      'check (a fragment says nothing about the target\'s syntax; a ' +
-      'text escape or a raw block is verbatim). The tool never writes: ' +
-      'the caller receives the units as text and places them itself.',
-    properties: {
-      source: { type: 'string', description: 'The document' },
-      at: {
-        type: 'string',
-        description: 'Render the value at this path of the document ($.a.b)',
-      },
-      unit: {
-        type: 'string',
-        description: 'Render only the unit with this path',
-      },
-      strict: {
-        type: 'boolean',
-        description: 'Refuse the opaque escapes (a text declaration, a raw block)',
-      },
-    },
-    required: ['source'],
-    docs: ['source'],
-    refuse: (_a, finding) =>
-      ({ verdict: 'error', units: [], lossy: [], errors: [finding] }),
-    run: (a, _trust, paths) =>
-      render(str(a.source), {
-        at: null == a.at ? undefined : str(a.at),
-        unit: null == a.unit ? undefined : str(a.unit),
-        strict: true === a.strict,
-        path: paths.source,
       }),
   },
 ]

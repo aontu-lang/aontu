@@ -234,12 +234,9 @@ function aonFiles(dir, out = []) {
             Assert.deepEqual(report.findings, [], name + ' has lint findings');
         }
         Assert.deepEqual(aontumodel_1.AONTU_MODELS, [
-            'aontu:code',
-            'aontu:render',
-            'aontu:render/lang/go',
-            'aontu:render/lang/markdown',
-            'aontu:render/lang/text',
-            'aontu:render/lang/typescript',
+            'aontu:lang/markdown',
+            'aontu:lang/text',
+            'aontu:profile',
             'aontu:system',
             'aontu:view',
         ]);

@@ -127,7 +127,6 @@ import { AcyclicFuncVal, InverseFuncVal } from './val/GraphAtomVal'
 import { PackFuncVal } from './val/PackFuncVal'
 import { CMP_FUNCS } from './val/CmpFuncVal'
 import { MaybeFuncVal } from './val/MaybeFuncVal'
-import { LowerDeclsFunc, LowerLossFunc } from './val/LowerDeclsFuncVal'
 import { NomFuncVal } from './val/NomFuncVal'
 import { TranslateFuncVal } from './val/TranslateFuncVal'
 import { EachFuncVal } from './val/EachFuncVal'
@@ -674,8 +673,6 @@ help isolate the syntax error.`,
 
     ...CMP_FUNCS,
 
-    lowerdecls: LowerDeclsFunc,
-    lowerloss: LowerLossFunc,
     nom: NomFuncVal,
 
     translate: TranslateFuncVal,

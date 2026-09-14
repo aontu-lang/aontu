@@ -475,14 +475,6 @@ func TestVacuitySignals(t *testing.T) {
 		t.Errorf("view: %d %q %q", code, out, errs)
 	}
 
-	// No profile, so no unit: the exit code is the one --stdout already
-	// had, and the reason is now said.
-	_, errs, _ = say("render", "--stdout", plain)
-	if !strings.Contains(errs, "nothing was rendered") ||
-		!strings.Contains(errs, "no profile was given") {
-		t.Errorf("render: %q", errs)
-	}
-
 	// AND THE NEGATIVE: a document that DOES declare says nothing.
 	graph := filepath.Join(dir, "graph.aon")
 	if err := os.WriteFile(graph,

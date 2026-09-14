@@ -267,92 +267,58 @@ has mconv '"scaleZeroRight":0d10.0'
 has mconv '"vatExact":0d759.6561'
 ok "the wire<->exact conversion, its sign, its scale and its VAT all pin"
 
-# 14. THE SCHEMA AS CODE. xf-domain.aon walks the record types into
-# aontu:code records and `aontu render` lowers them under the bundled
-# TypeScript profile; xf-order.aon renders the same walk twice, as
+# 14. THE SCHEMA AS CODE. xf-domain.aon walks the record types and
+# WRITES TypeScript; xf-order.aon writes the same walk twice, as
 # TypeScript and as Go, with the two facts a schema walk cannot see
-# (which keys are optional -- README, BUGS.md 86) stated as data. The
-# goldens under expected/render/ are held by --check, and the Go port
-# must render the same bytes (ADR-001).
-run xfdom 0 -- render --check "$DIR/expected/render" "$DIR/xf-domain.aon"
-run xford 0 -- render --check "$DIR/expected/render" "$DIR/xf-order.aon"
+# (which keys are optional -- README, BUGS.md 86) stated as data.
+#
+# EACH LANGUAGE SPELLS ITSELF NOW. There is no declaration lowering to
+# do it (ADR-038): the facts are shared and the spelling is not, so the
+# Go casing is `nom(.n, pascal, $.acronyms)` written in the transform
+# where it used to be the bundled profile's acronym set. That is the
+# cost of the decision, and this is where the corpus pays it.
+CMP="node $REPO/tools/cmptree-check.js"
+xtree() { $AONTU get out "$1" 2>/dev/null; }
+jostraca=0
+xtree "$DIR/xf-domain.aon" | $CMP --folder "$DIR/expected/render" \
+  >/dev/null 2>&1 || jostraca=$?
+if [ "$jostraca" = "3" ]; then
+  skip "the schema is written as TypeScript and Go (no jostraca)"
+else
+  [ "$jostraca" = "0" ] || fail "xf-domain.aon drifted from expected/render"
+  xtree "$DIR/xf-order.aon" | $CMP --folder "$DIR/expected/render" \
+    >/dev/null 2>&1 || fail "xf-order.aon drifted from expected/render"
 grep -q 'ledgerId: number;' "$DIR/expected/render/ts/domain.ts" \
   || fail "the TypeScript golden lost ledgerId"
 grep -q 'LedgerID int64 `json:"ledgerId"`' "$DIR/expected/render/go/domain.go" \
   || fail "the Go golden lost LedgerID"
 grep -q 'Placed \*string `json:"placed,omitempty"`' "$DIR/expected/render/go/domain.go" \
   || fail "the Go golden lost the optional pointer"
-ok "the schema renders as TypeScript and Go, held by render --check"
+  ok "the schema is written as TypeScript and as Go, byte for byte"
+fi
 
-# 14a. THE SAME DECLARATIONS, THE OTHER ROAD. xf-domain-cmp.aon
-# includes the transform unchanged and sends its declarations through
-# `lowerdecls` instead of a unit, so the deliverable is a component
-# tree rather than bytes aontu writes. A tree is not rendered: what is
-# held here is the bytes it carries, against the same golden, and that
-# both ports build it identically.
-$AONTU get out "$DIR/xf-domain-cmp.aon" 2>/dev/null > "$WORK/tree.json" \
-  || fail "the component spelling of xf-domain did not evaluate"
-node -e '
-  const tree = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"))
-  const out = []
-  const walk = (n) => {
-    if ("Line" === n.cmp) { out.push((n.props.indent ?? "") + (n.props.src ?? "") + "\n") }
-    else if ("Content" === n.cmp) { out.push(n.props.src ?? "") }
-    n.children.forEach(walk)
-  }
-  walk(tree)
-  process.stdout.write(out.join(""))
-' "$WORK/tree.json" > "$WORK/tree.ts" \
-  || fail "the component tree could not be walked"
-diff -u "$DIR/expected/render/domain.ts" "$WORK/tree.ts" \
-  || fail "lowerdecls carries different bytes from the aontu:code unit"
-ok "lowerdecls carries the same bytes as the declaration spelling"
-
-# 15. WHAT THE TRANSFORM DID NOT READ. `render --coverage` measures the
-# model against what the run resolved: the three record bags are the
-# schema's DATA, and a transform that walks the record TYPES consumes
-# none of them, so all three are dead model here. That is the whole
-# claim -- the report names what a reader would otherwise have to
-# notice by eye -- and both ports must name the same three.
-run cover 0 -- render --coverage "$DIR/xf-order.aon"
-has cover 'dead: $.customers'
-has cover 'dead: $.invoices'
-has cover 'dead: $.orders'
-has cover 'coverage: 3 path(s) read, 3 no output consumed'
-grep -q 'dead: \$\.schema' "$WORK/cover.out" \
-  && fail "the schema is read by the transform and must not be dead"
-grep -q 'dead: \$\.code' "$WORK/cover.out" \
-  && fail "the render's own output is not model"
-# Every declaration here is written by pack and pick rather than by a
-# rule set, so the rule layer governs none of this output and the report
-# says so: four records, twice.
-has cover 'unruled: ts/domain.ts $.aontu.Code.units.0.decls.0'
-has cover 'unruled: go/domain.go $.aontu.Code.units.1.decls.3'
-ok "coverage names the three bags no output consumed, and the unruled declarations"
+# 15. THE DEAD-MODEL REPORT IS GONE, with `render --coverage` that
+# answered it (UNITS-AND-TREES.1.md §6). It measured the model against
+# what a run resolved and named the three record bags as data no
+# transform over the record TYPES consumes; it also named which output
+# no rule governed. Nothing replaces either: `reaches` answers a
+# relation between two paths, not what nothing reads. Recorded as a
+# capability this migration costs.
 
 if command -v go >/dev/null 2>&1; then
   GOBIN="$WORK/aontu-go"
   (cd "$REPO/go" && go build -o "$GOBIN" ./cmd/aontu) \
     || fail "could not build the Go CLI"
-  "$GOBIN" render --check "$DIR/expected/render" "$DIR/xf-domain.aon" 2>/dev/null \
-    || fail "the Go port's render of xf-domain.aon does not match the goldens (ADR-001)"
-  "$GOBIN" render --check "$DIR/expected/render" "$DIR/xf-order.aon" 2>/dev/null \
-    || fail "the Go port's render of xf-order.aon does not match the goldens (ADR-001)"
-  ok "the Go port renders the same bytes for both transforms"
-  "$GOBIN" render --coverage "$DIR/xf-order.aon" 2>/dev/null > "$WORK/cover-go.out" \
-    || fail "the Go port's coverage report did not run"
-  diff -u "$WORK/cover.out" "$WORK/cover-go.out" \
-    || fail "the two ports disagree about coverage (ADR-001)"
-  ok "the Go port reports the same coverage"
-  "$GOBIN" get out "$DIR/xf-domain-cmp.aon" 2>/dev/null > "$WORK/tree.go.json" \
-    || fail "the Go port did not evaluate the component spelling"
-  diff -u "$WORK/tree.json" "$WORK/tree.go.json" \
-    || fail "the two ports build different lowered trees (ADR-001)"
-  ok "both ports lower the declarations to the same tree"
+  for x in xf-domain xf-order; do
+    "$GOBIN" get out "$DIR/$x.aon" 2>/dev/null > "$WORK/$x.go.json" \
+      || fail "the Go port did not build $x.aon's tree"
+    $AONTU get out "$DIR/$x.aon" 2>/dev/null > "$WORK/$x.ts.json"
+    diff -u "$WORK/$x.ts.json" "$WORK/$x.go.json" \
+      || fail "$x.aon: the two ports build different trees (ADR-001)"
+  done
+  ok "both ports build the same trees for both transforms"
 else
-  skip "the Go port renders the same bytes for both transforms (no go toolchain)"
-  skip "the Go port reports the same coverage (no go toolchain)"
-  skip "both ports lower the declarations to the same tree (no go toolchain)"
+  skip "both ports build the same trees for both transforms (no go toolchain)"
 fi
 
 echo

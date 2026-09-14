@@ -45,11 +45,10 @@ Usage: aontu [options] [file]
        aontu view <kind> [options] <file>...
        aontu view --views <path> [--check] [options] <file>
        aontu jsonschema [--at <path>] [--strict] [options] <file>
-       aontu render [--at <path>] [--profile <file>]... [--unit <path>]
-                    [--stdout | --out <dir> | --check <dir> | --coverage]
-                    [--coverage-at <path>] [--strict] <file>
        aontu template [--resugar] [--check] [--marker <token>]
                       [--profile <file>] <file>
+       aontu trace [--at <path>] [--format json] [--marker <token>]
+                   [--profile <file>] <file>
        aontu hash [options] <file>
        aontu mod tidy|verify|vendor|manifest [options] [dir]
        aontu get <path> [options] <file>
@@ -209,9 +208,8 @@ called `entity`" has checked nothing, and `checked` is the number that
 says so. A document with no leaves is not vacuous either, because
 there was nothing to examine.
 
-The lists name the **shallowest** paths, as
-[`render --coverage`](#aontu-render)'s dead report does: a subtree
-nothing constrained is named once rather than once per leaf. The text
+The lists name the **shallowest** paths: a subtree nothing constrained
+is named once rather than once per leaf. The text
 form prints the first ten of each and counts the rest; the JSON form
 carries every one.
 
@@ -1397,314 +1395,6 @@ Without `--strict` the same export exits 0.
   `Aontu.JSONSchema(src, at)` in Go, returning the identical
   `{verdict, schema, lossy}` record (plus `errors` on a failed run).
 
-### `aontu render`
-
-Render a document that evaluates to an **`aontu:code`** instance into
-files, and say what the renderer could not check.
-
-<!-- test: skip the synopsis is not a transcript -->
-```sh
-aontu render [--at <path>] [--profile <file>]... [--unit <path>]
-             [--stdout | --out <dir> | --check <dir> | --coverage]
-             [--coverage-at <path>] [--strict]
-             [--format text|json] <file>
-```
-
-This is the write end of a transform. A generator evaluates to an
-instance of the bundled vocabulary
-[`aontu:code`](reference-language.md#the-aontu-models) (a list of
-**units**, each a file path, a language and the declarations that fill
-it) and the verb turns each unit into bytes: a fragment's pieces
-become lines, a piece's depth becomes the unit's indent, and every
-line gets its terminator, so the transform spells neither. The value
-at `--at` (the root by default) is vetted against the vocabulary as
-[`vet`](#aontu-vet) would, and the vet findings are the report when it
-is refused. Write a `hello.aon`:
-
-<!-- test: scenario render -->
-<!-- test: file hello.aon -->
-```aontu
-greeting: "hello, world"
-notes: "a reminder the transform never reads"
-
-aontu: Code: units: [
-  {
-    path: "hello.py"
-    lang: "python"
-    profile: indent: width: 4
-    decls: [
-      {
-        k: "frag"
-        n: [
-          "def hello():"
-          { k:"line" at:1 n: ["print(\"" + $.greeting + "\")"] }
-        ]
-      }
-    ]
-  }
-]
-```
-
-**`--stdout` prints one unit's bytes and nothing else**, so the output
-can be piped into a formatter or a file. It needs exactly one unit: a
-one-unit instance, or `--unit <path>` naming one:
-
-<!-- test: run -->
-```sh
-$ aontu render --stdout hello.aon
-def hello():
-    print("hello, world")
-```
-
-**Without a flag the verb summarises**: one line per unit, its path,
-its language and its size, since several units have no one text to
-print. The **loss report goes to stderr**: every fragment is a claim
-about a language the renderer does not parse, and each is listed, so a
-redirect keeps the bytes clean and the reader still sees what was not
-checked.
-
-<!-- test: run -->
-```sh
-$ aontu render hello.aon
-hello.py	python	39 bytes
-```
-
-**`--out <dir>` writes every unit below `<dir>`, or nothing**: every
-unit is rendered first, every finding collected, and no file is
-touched unless all of them rendered. `<dir>` is confined by its real
-path, so a symlink inside it that points outside is an escape, and a unit
-path that is absolute, climbs with `..`, or repeats another unit's is
-`render_path`, refused before anything is written. `render` never
-deletes: a file under `<dir>` that no unit names is left alone. What
-was written is said on stderr.
-
-<!-- test: run -->
-```sh
-$ aontu render --out gen hello.aon
-```
-
-**`--check <dir>` renders and compares**, and is the CI form: a unit
-whose bytes differ from the file at `<dir>/<path>`, or whose file is
-absent, is drift, listed by path, exit 1. Green after `--out`:
-
-<!-- test: run -->
-```sh
-$ aontu render --check gen hello.aon
-```
-
-Edit `gen/hello.py` by hand and the check says which unit moved:
-
-<!-- test: file gen/hello.py -->
-```python
-def hello():
-    print("hello, world")  # edited by hand
-```
-
-<!-- test: run -->
-```sh
-$ aontu render --check gen hello.aon
-aontu: hello.py differs from the rendered unit
-...
-$ echo $?
-1
-```
-
-**`--coverage` says what the render read and what it did not.** Two
-questions, and one run answers both. Which model paths did no output
-consume? Those are dead: the document carries them, the transform never
-looked at them, and nothing downstream will notice if they rot. Which
-rendered declarations did no rule produce? Those are the parts of the
-output the rule layer does not govern. The verb writes no files under
-this flag, and `$.code` is the output rather than the model, so it is
-never named:
-
-<!-- test: run -->
-```sh
-$ aontu render --coverage hello.aon
-dead: $.notes
-unruled: hello.py $.aontu.Code.units.0.decls.0
-coverage: 1 path(s) read, 1 no output consumed, 1 declaration(s) no rule produced
-```
-
-`$.greeting` is read by the line the fragment writes, so it is not
-dead; `$.notes` is read by nothing, so it is. The one declaration is a
-fragment the document wrote by hand rather than a rule set produced, so
-it is a hole: a document whose output comes wholly from
-[`emit`](reference-language.md#transforming-emit) reports none.
-
-**`--coverage-at <path>` measures a narrower model.** Coverage is taken
-over the whole document by default. A document that keeps its model
-under one key can say so, and then only that subtree is measured:
-
-<!-- test: run -->
-```sh
-$ aontu render --coverage --coverage-at $.greeting hello.aon
-unruled: hello.py $.aontu.Code.units.0.decls.0
-coverage: 1 path(s) read, 0 no output consumed, 1 declaration(s) no rule produced
-```
-
-**A render entry whose extension is not `.aon` is a template.** A
-generator can be written in the target's own syntax rather than as
-aontu holding target text: a marked line is aontu source, every other
-line is a line of output, and `render` desugars the file before it
-evaluates it. See [`aontu template`](#aontu-template) for the surface
-itself; here it is only the entry spelling, decided by the extension
-exactly as an include's extension decides what the include is.
-
-**`--format json` carries the trace**, one entry per emitted piece: the
-piece's path in the instance, the unit it landed in, the model node the
-rule matched, and the rule that matched it. A rule's address is its
-table's, then `#`, then its index in that table: `$.%wire#0` for a table
-reached by name, and `#0` for one written inline at the call, which has
-no address of its own. A node the run cannot address, because the
-selection was computed rather than read from a path, is reported empty
-rather than named by where the value came to rest.
-
-**A declaration lowers under a profile that has a lowering.** A unit
-of `typescript` or `go` may hold declarations beside its fragments (a
-`record`, an `enum`, an `alias`, a `const`, a `func`) and the bundled
-profile of that language spells each in its target. The renderer
-applies the profile's naming as it does so: the case style per role
-over the words of a name, so `ledgerId` is `LedgerID` under Go's
-acronym set and stays `ledgerId` in TypeScript; a reserved word
-renamed with a trailing underscore and reported; a string literal
-escaped by the profile's table. Write a `types.aon` whose two units
-hold the same two declarations:
-
-<!-- test: file types.aon -->
-```aontu
-aontu: Code: units: [
-  {
-    path: "types.ts"
-    lang: "typescript"
-    decls: [
-      {
-        k: "enum"
-        name: "status"
-        members: [{ name:"open" value:"open" } { name:"paid" value:"paid" }]
-      }
-      {
-        k: "record"
-        name: "order"
-        fields: [
-          { name:"id" type: { k:"prim" prim:"string" } }
-          { name:"ledgerId" type: { k:"prim" prim:"int" } }
-          { name:"status" type: { k:"ref" name:"status" } }
-          { name:"note" optional:true type: { k:"prim" prim:"string" } }
-        ]
-      }
-    ]
-  }
-  {
-    path: "types.go"
-    lang: "go"
-    pkg: "orders"
-    decls: [
-      {
-        k: "enum"
-        name: "status"
-        members: [{ name:"open" value:"open" } { name:"paid" value:"paid" }]
-      }
-      {
-        k: "record"
-        name: "order"
-        fields: [
-          { name:"id" type: { k:"prim" prim:"string" } }
-          { name:"ledgerId" type: { k:"prim" prim:"int" } }
-          { name:"status" type: { k:"ref" name:"status" } }
-          { name:"note" optional:true type: { k:"prim" prim:"string" } }
-        ]
-      }
-    ]
-  }
-]
-```
-
-<!-- test: run -->
-```sh
-$ aontu render --stdout --unit types.ts types.aon
-export enum Status {
-  Open = "open",
-  Paid = "paid",
-}
-
-export interface Order {
-  id: string;
-  ledgerId: number;
-  status: Status;
-  note?: string;
-}
-```
-
-<!-- test: run -->
-```sh
-$ aontu render --stdout --unit types.go types.aon
-package orders
-
-type Status string
-
-const (
-	StatusOpen Status = "open"
-	StatusPaid Status = "paid"
-)
-
-type Order struct {
-	ID string `json:"id"`
-	LedgerID int64 `json:"ledgerId"`
-	Status Status `json:"status"`
-	Note *string `json:"note,omitempty"`
-}
-```
-
-What a target's type system does not enforce is **tier 1** in the
-report: every `check`, and in Go a union or a literal set (rendered
-as `any`, or as the primitive its members share), an open record, a
-parameter default and an abstract function. Layout is the
-formatter's: `gofmt` aligns the columns of a `struct`, and the
-renderer does not try to.
-
-- `--at <path>` names the value to render (the same anchor
-  [`vet --at`](#aontu-vet) takes) so a generator can sit beside the
-  model it reads.
-- `--unit <path>` renders only the unit with that path; a path no unit
-  has is `render_unit`.
-- `--profile <file>` supplies a render profile: a document whose root
-  is `profile: {lang, indent, …}`, evaluated under the verb's trust and
-  vetted against `aontu:render`; it applies to the units of its
-  language, and a unit's own inline `profile` merges over it. The flag
-  repeats, one file per language; two files claiming one language is a
-  usage error. A unit with no supplied profile renders under the
-  bundled one of its language (`aontu:render/lang/typescript`,
-  `aontu:render/lang/go`) or, for any other language, under the bundled text
-  profile (two spaces per depth) when it holds only fragments and
-  text escapes; a declaration in a unit whose profile has no lowering
-  is `render_profile`.
-- `--strict` refuses the opaque escapes (a `text` declaration, a `raw`
-  piece) which the renderer copies verbatim and cannot check (tier 3 in
-  the report); a fragment is tier 2 and passes. A fragment is noted
-  only under a language whose profile declares a `lowering`, where a
-  declaration could have been written instead; under text, markdown
-  and every other profile a fragment is the only thing to write, and
-  the render is `ok`.
-- `--format json` prints the whole report (`verdict`, `units` with
-  their text, `lossy`, and `errors` when refused) under the usual
-  `aontu: {version, verb}` envelope. It is the shape the MCP tool
-  returns.
-- Exit codes: `0` rendered, `1` lossy **under `--strict`** or drift
-  under `--check`, `2` usage or I/O, a refused unit path included, `4`
-  the document does not stand up or the instance is not `aontu:code`.
-  Without `--strict` a lossy render is still a render and exits 0.
-
-**The verb is the only writer.** The library returns bytes
-(`render`, `renderValue`, `renderProfile` in TypeScript; `Render`,
-`RenderValue`, `RenderProfile` in Go), the MCP tool `render` returns
-the same report and carries no `--out`, and the trust profile that
-confines what a document may read does not govern writes: those are
-confined below `--out` and nowhere else ([the trust
-contract](trust.md#clause-4-sandboxing)). The renderer's own
-vocabulary is not an include the document wrote, so `--trust none`
-denies the document every include and still renders it.
-
 ### `aontu get`
 
 Select one node of an evaluated document by path and render it: the
@@ -2289,18 +1979,17 @@ target's compiler parses it.
 
 **A language the table does not know says so once.** `--marker` names
 the marker for one call; a profile names it for every call, because a
-profile is a language declared as data and `aontu render`,
-`aontu template` and `aontu fmt` all read the same file. A marker
-carries its own closer after a space when the opener does not imply
-one:
+profile is a language declared as data and `aontu template` and
+`aontu fmt` read the same file. A marker carries its own closer after a
+space when the opener does not imply one:
 
 <!-- test: skip the file it reads is the reader's own language -->
 ```aon
-@"aontu:render"
+@"aontu:profile"
 
-aontu: render: Lang: lang: "ocaml"
-aontu: render: Lang: indent: { unit:" " width:2 }
-aontu: render: Lang: template: { marker:"(*-" close:"*)" ext: ["ml" "mli"] }
+aontu: Lang: lang: "ocaml"
+aontu: Lang: indent: { unit:" " width:2 }
+aontu: Lang: template: { marker:"(*-" close:"*)" ext: ["ml" "mli"] }
 ```
 
 <!-- test: skip the synopsis is not a transcript -->
@@ -2314,14 +2003,14 @@ Write a `greet.ts`:
 ```typescript
 //- who: { world: {}, moon: {} }
 //- svc: $.who & pack($.who, { name: key() })
-//- aontu: Code: units: emit($.svc, {
+//- out: emit($.svc, {
 //- match: { name: string }
-//- body: [{ path: "greet-" + .name + ".ts", lang: "typescript", decls: [{
-//- k: "frag", n: emit([_], { match: { name: string }, replace: { NAME: .name }, body: [
+//- body: [file("greet-" + .name + ".ts", emit([_], {
+//- match: { name: string }, replace: { NAME: .name }, body: [
 export function greet() {
   console.log(`hello, NAME`)
 }
-//- ]}) }] }]
+//- ]}))]
 //- })
 ```
 
@@ -2342,14 +2031,14 @@ mean once the output lines are quoted:
 $ aontu template greet.ts
 who: { world: {}, moon: {} }
 svc: $.who & pack($.who, { name: key() })
-aontu: Code: units: emit($.svc, {
+out: emit($.svc, {
 match: { name: string }
-body: [{ path: "greet-" + .name + ".ts", lang: "typescript", decls: [{
-k: "frag", n: emit([_], { match: { name: string }, replace: { NAME: .name }, body: [
+body: [file("greet-" + .name + ".ts", emit([_], {
+match: { name: string }, replace: { NAME: .name }, body: [
 `export function greet() {`
 "  console.log(`hello, NAME`)"
 `}`
-]}) }] }]
+]}))]
 })
 ```
 
@@ -2358,15 +2047,22 @@ backtick, which carries `"` and `'` without escaping, unless the line
 holds a backtick itself, in which case the double quote is used and `"`
 is escaped. A backslash is escaped in either.
 
-**`render` reads the template directly**, so the canonical form is
-something to look at rather than something to keep:
+**Every verb that reads a generator reads the template directly**, so
+the canonical form is something to look at rather than something to
+keep. [`aontu trace`](#aontu-trace) answers over the file the author
+edits:
 
 <!-- test: run -->
 ```sh
-$ aontu render --stdout --unit greet-moon.ts greet.ts
-export function greet() {
-  console.log(`hello, moon`)
-}
+$ aontu trace greet.ts
+greet-moon.ts	$.0	$.who.moon	#0
+greet-moon.ts	$.0.children.0	$.who.moon	#0
+greet-moon.ts	$.0.children.1	$.who.moon	#0
+greet-moon.ts	$.0.children.2	$.who.moon	#0
+greet-world.ts	$.1	$.who.world	#0
+greet-world.ts	$.1.children.0	$.who.world	#0
+greet-world.ts	$.1.children.1	$.who.world	#0
+greet-world.ts	$.1.children.2	$.who.world	#0
 ```
 
 **`--resugar` is the other direction**, and `--check` is the round trip
@@ -2376,8 +2072,8 @@ marker line the transform would not have written: one without its space,
 or one indented to match the code around it, since the marker stands at
 the left margin with the aontu indented after it. **A template's
 whitespace is output**, so its bytes are the artifact: a body line's
-trailing space is caught by `render --check` against the committed
-files, which is where a changed byte shows up as changed output.
+trailing space shows up as a changed byte in the generated tree, which
+is what a drift check against the committed files catches.
 
 [`aontu fmt`](#aontu-fmt) writes that spelling, and formats the aontu
 the marker lines carry while it is there.
@@ -2395,6 +2091,42 @@ is how a generator emits its own marker with no new syntax.
 
 Exit codes: `0` written, `1` a `--check` file that is not what the
 round trip answers, `2` usage or I/O.
+
+### `aontu trace`
+
+Ask **what wrote this line**. Every piece a rule stamped under the
+component tree, with the file it reached, the model node the dispatch
+matched, and the rule set that wrote it.
+
+<!-- test: skip the synopsis is not a transcript -->
+```sh
+aontu trace [--at <path>] [--format json] [--marker <token>]
+            [--profile <file>] <file>
+```
+
+A generator answers a tree of files, and a reader looking at one line
+of the output has no way back to the rule that produced it. This is
+that way back. The anchor is `$.out` unless `--at` names another.
+
+<!-- test: skip the document it reads is the reader's own generator -->
+```sh
+$ aontu trace gen.aon
+handlers/chat.ts	$.0.children.0	$.services.chat	$.%handler#0
+```
+
+Four columns: the **file**, the **address** of the piece in the
+document, the **model node** the dispatch matched, and the **rule**.
+`--format json` answers the same entries as one object.
+
+**A rule read through a name is addressed by it.** `$.%handler#0` is
+the first template of the `%handler` rule set. A table written inline
+at the call has no address of its own and is `#0`, `#1` and so on, so
+the two cases are told apart by whether an address precedes the hash.
+
+**A piece that reached no file is not traced.** The tree is what the
+entries attribute to, so a rule whose output never landed in a file has
+nothing to name.
+
 
 ### `aontu hash`
 
@@ -2914,7 +2646,6 @@ tools and the protocol are a transport-free library
 | `reaches` | the [reachability check](#aontu-reaches): the verdict and, when it reaches, a shortest path: the closure question `relations` cannot ask one edge at a time |
 | `view` | a [figure](#aontu-view) of the document as text: the tree, matrix, graph (mermaid, dot, er), layer, sets, layers, ladder, doc or lattice kind, with the loss report; the poset takes several files and is CLI only |
 | `jsonschema` | the [JSON Schema export](#aontu-jsonschema): the schema, and the `lossy` list naming what it could not say: the bridge to a structured-output API, and to an MCP tool's own `inputSchema` |
-| `render` | the [render](#aontu-render) report: the units as text (path, language, bytes), the `lossy` list of what the renderer could not check, or the refusal, and never a file, since the caller places the units itself |
 
 Every tool returns **the same JSON contract the CLI prints**, so a
 report read from one is the report read from the other. A tool that

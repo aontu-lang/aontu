@@ -73,11 +73,42 @@ translate-from-past-the-gate	errc	y: {a: *}\nx: translate("a", $.y.a, "b")	inval
 translate-to-past-the-gate	errc	y: {a: *}\nx: translate("a", "a", $.y.a)	invalid-arg
 cmp-line-empty-span	gens	x: line("")	{"x":{"children":[],"cmp":"Line","props":{"src":""}}}
 cmp-content-empty-span	gens	x: content("")	{"x":{"children":[],"cmp":"Content","props":{"src":""}}}
-cmp-bare-string-child	gens	x: file("a.ts", ["export {}"])	{"x":{"children":[{"children":[],"cmp":"Content","props":{"src":"export {}"}}],"cmp":"File","props":{"name":"a.ts"}}}
-cmp-bare-string-mixed	gens	x: file("a.ts", [line("a") "b" content("c")])	{"x":{"children":[{"children":[],"cmp":"Line","props":{"src":"a"}},{"children":[],"cmp":"Content","props":{"src":"b"}},{"children":[],"cmp":"Content","props":{"src":"c"}}],"cmp":"File","props":{"name":"a.ts"}}}
-cmp-bare-string-spliced	gens	x: file("a.ts", [["a" "b"]])	{"x":{"children":[{"children":[],"cmp":"Content","props":{"src":"a"}},{"children":[],"cmp":"Content","props":{"src":"b"}}],"cmp":"File","props":{"name":"a.ts"}}}
-cmp-bare-string-in-fragment	gens	x: fragment("h.ts", ["a"])	{"x":{"children":[{"children":[],"cmp":"Content","props":{"src":"a"}}],"cmp":"Fragment","props":{"from":"h.ts"}}}
+# A BARE STRING CHILD IS A LINE, terminator included: it is what a
+# template body line desugars to, and jostraca's `Content` writes no
+# newline, so two of them would run together. An explicit `content()`
+# is still a span, which `cmp-bare-string-mixed` holds.
+cmp-bare-string-child	gens	x: file("a.ts", ["export {}"])	{"x":{"children":[{"children":[],"cmp":"Line","props":{"src":"export {}"}}],"cmp":"File","props":{"name":"a.ts"}}}
+cmp-bare-string-mixed	gens	x: file("a.ts", [line("a") "b" content("c")])	{"x":{"children":[{"children":[],"cmp":"Line","props":{"src":"a"}},{"children":[],"cmp":"Line","props":{"src":"b"}},{"children":[],"cmp":"Content","props":{"src":"c"}}],"cmp":"File","props":{"name":"a.ts"}}}
+cmp-bare-string-spliced	gens	x: file("a.ts", [["a" "b"]])	{"x":{"children":[{"children":[],"cmp":"Line","props":{"src":"a"}},{"children":[],"cmp":"Line","props":{"src":"b"}}],"cmp":"File","props":{"name":"a.ts"}}}
+cmp-bare-string-in-fragment	gens	x: fragment("h.ts", ["a"])	{"x":{"children":[{"children":[],"cmp":"Line","props":{"src":"a"}}],"cmp":"Fragment","props":{"from":"h.ts"}}}
 cmp-folder-name-not-empty-still	errc	x: folder("")	invalid-arg
 cmp-project-folder-not-empty	errc	x: project({folder: ""})	invalid-arg
-cmp-bare-string-needs-content	errc	x: folder("s", ["oops"])	invalid-arg
+cmp-bare-string-needs-line	errc	x: folder("s", ["oops"])	invalid-arg
 cmp-bare-string-not-in-project	errc	x: project("b", ["oops"])	invalid-arg
+# THE PROP SCHEMA (docs/design/UNITS-AND-TREES.1.md P3). Every prop each
+# Jostraca component declares, and nothing else: the props are the whole
+# contract with the engine that writes the files, so a typo was a
+# silently dropped `indent`, `mode` or `exclude`. The lists are hand-kept
+# from the exported prop types at jostraca v0.38.0, because aontu takes
+# no dependency on jostraca in either direction.
+cmp-props-project-all	gens	x: project({name: "p" folder: "./b"})	{"x":{"children":[],"cmp":"Project","props":{"folder":"./b","name":"p"}}}
+cmp-props-folder-all	gens	x: folder({name: "s"})	{"x":{"children":[],"cmp":"Folder","props":{"name":"s"}}}
+cmp-props-file-all	gens	x: file({name: "a.ts" exclude: "*.tmp" mode: 420})	{"x":{"children":[],"cmp":"File","props":{"exclude":"*.tmp","mode":420,"name":"a.ts"}}}
+cmp-props-content-all	gens	x: content({arg: "a" src: "b" name: "n" indent: 2 extra: {k:1} replace: {a:"b"} raw: true})	{"x":{"children":[],"cmp":"Content","props":{"arg":"a","extra":{"k":1},"indent":2,"name":"n","raw":true,"replace":{"a":"b"},"src":"b"}}}
+cmp-props-line-all	gens	x: line({arg: "a" src: "b" name: "n" indent: 2 extra: {k:1} replace: {a:"b"} raw: true})	{"x":{"children":[],"cmp":"Line","props":{"arg":"a","extra":{"k":1},"indent":2,"name":"n","raw":true,"replace":{"a":"b"},"src":"b"}}}
+cmp-props-slot-all	gens	x: slot({name: "s"})	{"x":{"children":[],"cmp":"Slot","props":{"name":"s"}}}
+cmp-props-inject-all	gens	x: inject({name: "i" markers: ["a" "b"] exclude: "*.tmp"})	{"x":{"children":[],"cmp":"Inject","props":{"exclude":"*.tmp","markers":["a","b"],"name":"i"}}}
+cmp-props-fragment-all	gens	x: fragment({from: "h.ts" indent: 2 replace: {a:"b"} eject: true})	{"x":{"children":[],"cmp":"Fragment","props":{"eject":true,"from":"h.ts","indent":2,"replace":{"a":"b"}}}}
+cmp-props-copyfiles-all	gens	x: copyfiles({from: "a" to: "b" replace: {a:"b"} exclude: "*.tmp"})	{"x":{"children":[],"cmp":"CopyFiles","props":{"exclude":"*.tmp","from":"a","replace":{"a":"b"},"to":"b"}}}
+cmp-props-listitems-all	gens	x: listitems({item: ["a"] line: true indent: 2})	{"x":{"children":[],"cmp":"ListItems","props":{"indent":2,"item":["a"],"line":true}}}
+cmp-props-typo-refused	errc	x: line({src: "a" idnent: "  "})	invalid-arg
+cmp-props-unknown-refused	errc	x: file({name: "a.ts" nosuchprop: 1})	invalid-arg
+# THE SCHEMA IS PER COMPONENT, not one union: each of these props is
+# real, and belongs to a different component than the one it is on.
+cmp-props-mode-not-on-folder	errc	x: folder({name: "s" mode: 420})	invalid-arg
+cmp-props-raw-not-on-file	errc	x: file({name: "a.ts" raw: true})	invalid-arg
+cmp-props-item-not-on-project	errc	x: project({folder: "b" item: []})	invalid-arg
+cmp-props-src-not-on-listitems	errc	x: listitems({item: ["a"] src: "x"})	invalid-arg
+# The prop NAMED is the first one written, not whichever the host's map
+# order reached: Go ranges a map in no order, so it walks `keys`.
+cmp-props-names-first-written	err	x: line({src: "a" zzz: 1 aaa: 2})	Cannot zzz

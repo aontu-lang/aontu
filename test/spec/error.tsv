@@ -113,7 +113,7 @@ errm-paren-group-site-nested	err	a:((integer | biginteger))\na:"x"	--> <no-file>
 # compare the PATH, which is the half that diverged. Every expectation
 # was obtained by running BOTH engines and requiring agreement.
 errm-include-schema-meet-path	err	@"aontu:system"\np: $.aontu.System.Port & { direction: 1 }	at path $.p.direction
-errm-include-vocabulary-meet-path	err	@"aontu:code"\naontu: Code: units: [{ path: "a.txt", lang: "text", decls: 1 }]	at path $.aontu.Code.units.0.decls
+errm-include-vocabulary-meet-path	err	@"aontu:profile"\naontu: Lang: { lang: "text", indent: 1 }	at path $.aontu.Lang.indent
 # The same meet written INLINE and through a LOCAL reference already
 # agreed; they are pinned so the include rows above cannot be "fixed" by
 # regressing the cases that were right all along.

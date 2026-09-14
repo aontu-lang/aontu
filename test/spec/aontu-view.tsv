@@ -24,7 +24,7 @@ vocabulary-is-served	gens	@"aontu:view"\nf: $.aontu.View.Figure & {kind: tree, o
 # THE SCHEME IS NOT A DIRECTORY (ADR-028): the `.aon` spelling the
 # bare `std/` names once accepted is not a model name, and is
 # refused like any other typo, as aontu-scheme.tsv pins for
-# `aontu:code.aon`.
+# `aontu:profile.aon`.
 vocabulary-dot-aon-is-not-a-name	errc	a: @"aontu:view.aon"	multisource_not_found
 vocabulary-generates-nothing-of-its-own	gens	@"aontu:view"	{"aontu":{"View":{}}}
 a-declaration-over-the-spread	gens	@"aontu:view"\nviews: {&: $.aontu.View.Figure} & {a: {kind: matrix, order: partition, closure: true, out: "a.txt"}}	{"aontu":{"View":{}},"views":{"a":{"closure":true,"kind":"matrix","order":"partition","out":"a.txt"}}}

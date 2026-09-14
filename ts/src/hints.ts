@@ -211,6 +211,9 @@ const hints: Record<string, string> = {
 
   view_kind_unknown: 'The figure kind is not one the verb draws. The kinds are tree, matrix,\ngraph, layer, sets, layers, ladder and poset; the note lists them.',
 
+  // RETIRED with the `render` verb (ADR-038). Registered still,
+  // errcodes.tsv being append-only, so a code a released engine raised
+  // keeps its meaning.
   render_path: 'A unit path is written below the output directory: relative, with no\n`..` segment, and no two units the same. Rename the unit.',
   render_lang: 'A text escape carries verbatim syntax of ONE language, and it must be\nthe unit\'s: a text of another language in this unit would be written\nas if it were this one. Move it to a unit of its own language.',
   render_profile: 'Only fragments and text escapes render without a lowering, under the\ntext profile. A record, enum, alias, const or func needs a profile\nwhose language has one (typescript, go): set the unit\'s lang, or\nwrite the declaration as a fragment.',

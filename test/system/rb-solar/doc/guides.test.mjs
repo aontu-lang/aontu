@@ -31,7 +31,7 @@ test('quoted source stays identical to the generator or model', () => {
   assert.ok(checked >= 8, 'source excerpt checks must cover the guides');
 });
 
-test('the published render and field-change recipes produce the stated output', (t) => {
+test('the published generation and field-change recipes produce the stated output', (t) => {
   const root = mkdtempSync(join(tmpdir(), 'aontu-guide-test-'));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const work = join(root, 'test/system/rb-solar');
@@ -74,9 +74,9 @@ test('the published render and field-change recipes produce the stated output', 
   shell(block('change-and-check', 'sh', 'fmt --write').split('\n')[0]);
   shell('aontu fmt --check model.aon');
   for (const name of ['routes', 'migrate', 'seeds', 'model', 'api_base', 'api_controller', 'ui_controller']) {
-    shell(`aontu render --check app gen/${name}.rb`);
+    shell(`aontu template gen/${name}.rb > work/${name}.aon && aontu get out work/${name}.aon | node ${engine}/tools/cmptree-check.js --folder app`);
   }
-  shell('aontu render --check app gen/views.aon');
+  shell(`aontu get out gen/views.aon | node ${engine}/tools/cmptree-check.js --folder app`);
   recipe('change-and-check', '--check doc');
   for (const name of [
     'app/db/migrate/20260101000000_create_planets.rb',

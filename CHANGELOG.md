@@ -7,26 +7,89 @@ which implementation each change affects.
 
 ## Unreleased
 
-### The declaration lowering is a function, and its output is a tree
+### BREAKING: `aontu render` and `aontu:code` are removed
 
-`lowerdecls(decls, profile)` takes a list of declarations — `record`,
-`enum`, `alias`, `const`, `func` — and a language profile, and answers
-`line` component nodes. The same list under two profiles is two
-languages from one source:
+A generator answers a **component tree** — `file(name, [lines])`,
+`folder`, `project` and the rest — and a generator runtime writes it.
+aontu holds no language knowledge at all: no acronym sets, no
+reserved-word tables, no case rules, no type expressions.
+
+Gone: the `aontu render` verb from both CLIs, the `render` MCP tool, the
+`render`, `renderValue` and `renderProfile` library calls (`Render`,
+`RenderValue`, `RenderProfile` in Go), the `aontu:code` vocabulary, the
+declaration lowering with `lowerdecls()` and `lowerloss()`, and the
+`aontu:render/lang/typescript` and `aontu:render/lang/go` profiles.
+
+Staying: the five `render_*` error codes, with their classes and their
+hints. Codes are append-only, so one a released engine raised keeps its
+meaning; none is raisable now.
+
+What a generator writes instead:
 
 ```
-t: lowerdecls(%decls, %typescript)   # export interface UserAccount {
-g: lowerdecls(%decls, %go)           # type UserAccount struct {
+%record = emit(_, {
+  match: name: string
+  body: ["type " + .name + " struct {" emit(.fields, %field) "}"]
+})
+
+out: file("types.go", ["package acme" emit($.records, %record)])
 ```
 
-The bytes are the ones `aontu render` writes for the same declarations,
-blank line between declarations included, so a generator can move from
-an `aontu:code` unit to a component tree without its output changing.
+`aontu get $.out gen.aon` answers the tree; piping it to a runtime
+writes the files and compares them with what is committed. The guide is
+[Generate code from a model](docs/how-to/generate-code.md).
 
-`lowerloss(decls, profile)` answers what the target could not carry,
-for the same pair of arguments: a `tier`, the `construct`, the `path`
-and the `reason`. An empty list is a lowering that gave up nothing. A
-Go union, for instance, becomes `any` and says so.
+*Both implementations.* See
+[ADR-038](ADR.md#adr-038--the-component-tree-is-the-only-output-road-and-aontu-knows-no-languages).
+
+### BREAKING: the profile vocabulary is `aontu:profile`, and a profile lands at `$.aontu.Lang`
+
+`aontu:render` named a verb that no longer exists. The half that
+survives is a language declared as data, which `aontu template
+--profile` and `aontu fmt --profile` read:
+
+| was | is |
+|---|---|
+| `aontu:render` | `aontu:profile` |
+| `aontu:render/lang/text` | `aontu:lang/text` |
+| `aontu:render/lang/markdown` | `aontu:lang/markdown` |
+| `$.aontu.render.Profile` / `$.aontu.render.Lang` | `$.aontu.Profile` / `$.aontu.Lang` |
+
+A profile document now writes:
+
+```
+@"aontu:profile"
+
+aontu: Lang: lang: "ocaml"
+aontu: Lang: template: { marker:"(*-" close:"*)" ext: ["ml" "mli"] }
+```
+
+`%profile` is `lang`, `indent`, `comment` and `template` and nothing
+else: `lowering`, `str`, `ident`, `types` and `banner` were the
+renderer's and are refused as unknown keys. The
+`aontu:render/lang/typescript` and `aontu:render/lang/go` profiles are
+deleted with the lowering they spelled.
+
+*Both implementations.*
+
+### `aontu trace` answers what wrote a line
+
+```
+$ aontu trace gen.aon
+types.go	$.children.1	$.records.0	$.%record#0
+types.go	$.children.3	$.records.0.fields.0	$.%field#0
+```
+
+One entry per piece a rule stamped: the file it reached, where it sits
+in the tree, the model node the dispatch matched, and the rule set that
+wrote it. A rule read through a name is addressed by it; a table written
+inline at the call is `#<index>`. `--at <path>` anchors somewhere other
+than `$.out`, `--format json` answers the whole report, and `--marker`
+and `--profile` read a generator written in the target's own syntax, as
+`template` and `fmt` do.
+
+**What is missing from the list is as useful as what is in it**: a line
+the document wrote by hand carries no mark, so it has no entry.
 
 *Both implementations.*
 

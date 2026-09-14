@@ -8,6 +8,7 @@ type CmpDef = {
     req: boolean;
     span?: boolean;
     bag?: string;
+    props: string[];
 };
 declare const CMP_DEF: Record<string, CmpDef>;
 declare class CmpFuncVal extends FuncBaseVal {

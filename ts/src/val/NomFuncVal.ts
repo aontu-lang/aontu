@@ -17,7 +17,7 @@ import {
   caseName,
   lowerASCII,
   capitalise,
-} from '../lower'
+} from '../casing'
 
 import { MapVal } from './MapVal'
 import { StringVal } from './StringVal'
@@ -36,10 +36,8 @@ const NOM_STYLES = [
   'upper',   // USER_ID
 ]
 
-// nom's style name -> the `%case` style `caseName` serves. `upper` and
-// `text` are nom's spellings: `screaming` is what `aontu:render` calls
-// SCREAMING_SNAKE and that name is pinned cross-port, so the mapping
-// lives here rather than in the shared vocabulary.
+// nom's style name -> the case style `caseName` serves. `upper` and
+// `text` are nom's spellings.
 const CASENAME_STYLES: Record<string, string> = {
   camel: 'camel',
   kebab: 'kebab',

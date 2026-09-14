@@ -243,12 +243,6 @@ function riders(a: any, b: any, to: any): void {
       to.origin = org
     }
   }
-  if (null == to.emitted) {
-    const emt = av.emitted ?? bv.emitted
-    if (null != emt) {
-      to.emitted = emt
-    }
-  }
 }
 
 

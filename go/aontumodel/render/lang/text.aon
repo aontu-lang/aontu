@@ -1,8 +1,0 @@
-# aontu:render/lang/text --- THE TEXT PROFILE. Indentation and nothing else:
-# a fold over fragments applies nothing else. Every language without a
-# lowering renders under it. EXPERIMENTAL until the distribution layer
-# can version it by canon-hash.
-
-@"aontu:render"
-
-aontu: render: Lang: { lang:"text" indent: { unit:" " width:2 } }

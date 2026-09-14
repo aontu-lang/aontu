@@ -29,7 +29,7 @@ export type {
 import { graphOf } from './graph'
 import { relationCheck, relationErrors } from './relation'
 import { view, viewSet, viewTree } from './view'
-import { render, renderValue, renderProfile } from './render'
+import { loadProfile } from './profile'
 import { desugarTemplate, resugarTemplate, markerFor } from './template'
 import { format, unifiedDiff } from './format'
 export type { LintFinding, FormatReport, FormatOptions } from './format'
@@ -387,12 +387,7 @@ export {
   viewSet,
   viewTree,
 
-  // G9 -- the renderer (docs/design/RENDER.0.md): evaluate, vet and
-  // fold an aontu:code instance into bytes, or the fold alone over
-  // generate() output.
-  render,
-  renderValue,
-  renderProfile,
+  loadProfile,
 
   desugarTemplate,
   resugarTemplate,

@@ -3,7 +3,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.NomFuncVal = exports.NOM_STYLES = void 0;
 const err_1 = require("../err");
-const lower_1 = require("../lower");
+const casing_1 = require("../casing");
 const MapVal_1 = require("./MapVal");
 const StringVal_1 = require("./StringVal");
 const FuncBaseVal_1 = require("./FuncBaseVal");
@@ -19,10 +19,8 @@ const NOM_STYLES = [
     'upper', // USER_ID
 ];
 exports.NOM_STYLES = NOM_STYLES;
-// nom's style name -> the `%case` style `caseName` serves. `upper` and
-// `text` are nom's spellings: `screaming` is what `aontu:render` calls
-// SCREAMING_SNAKE and that name is pinned cross-port, so the mapping
-// lives here rather than in the shared vocabulary.
+// nom's style name -> the case style `caseName` serves. `upper` and
+// `text` are nom's spellings.
 const CASENAME_STYLES = {
     camel: 'camel',
     kebab: 'kebab',
@@ -34,27 +32,27 @@ const CASENAME_STYLES = {
 // when the name holds no words at all.
 function styleName(name, style, acronyms) {
     const src = name.replace(/[./]/g, '_');
-    const words = (0, lower_1.splitWords)(src);
+    const words = (0, casing_1.splitWords)(src);
     if (0 === words.length) {
         return undefined;
     }
     const cased = CASENAME_STYLES[style];
     if (undefined !== cased) {
-        return (0, lower_1.caseName)(src, cased, acronyms);
+        return (0, casing_1.caseName)(src, cased, acronyms);
     }
     if ('dot' === style) {
-        return words.map(lower_1.lowerASCII).join('.');
+        return words.map(casing_1.lowerASCII).join('.');
     }
     if ('path' === style) {
-        return words.map(lower_1.lowerASCII).join('/');
+        return words.map(casing_1.lowerASCII).join('/');
     }
     if ('title' === style) {
-        return words.map((w) => (0, lower_1.capitalise)(w, acronyms)).join(' ');
+        return words.map((w) => (0, casing_1.capitalise)(w, acronyms)).join(' ');
     }
     if ('text' === style) {
-        const isAcronym = (w) => acronyms.some((a) => (0, lower_1.lowerASCII)(a) === (0, lower_1.lowerASCII)(w));
-        return [(0, lower_1.capitalise)(words[0], acronyms)]
-            .concat(words.slice(1).map((w) => isAcronym(w) ? (0, lower_1.capitalise)(w, acronyms) : (0, lower_1.lowerASCII)(w)))
+        const isAcronym = (w) => acronyms.some((a) => (0, casing_1.lowerASCII)(a) === (0, casing_1.lowerASCII)(w));
+        return [(0, casing_1.capitalise)(words[0], acronyms)]
+            .concat(words.slice(1).map((w) => isAcronym(w) ? (0, casing_1.capitalise)(w, acronyms) : (0, casing_1.lowerASCII)(w)))
             .join(' ');
     }
     return undefined;
