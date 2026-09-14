@@ -1895,7 +1895,7 @@ aontu fmt < in.aon > out.aon
   author's.
 - **A generator is formatted as the document it carries.** A file whose
   extension is not `.aon` is a generator written in the target's own
-  syntax ([`aontu template`](#aontu-template)), as it is for `render`:
+  syntax ([`aontu template`](#aontu-template)), as it is for `trace`:
   it is desugared, formatted and resugared, so what comes back is a
   generator. The marker stands at the left margin with the aontu
   indented **after** it, so the tree the marker lines carry has a shape
@@ -3180,20 +3180,11 @@ format         // the source formatter (see `aontu fmt` above):
                // FormatOptions{Lint: true}) for the findings
 unifiedDiff    // unifiedDiff(name, before, after): the diff `aontu fmt
                // --diff` prints; Go: aontu.UnifiedDiff
-render         // the renderer: evaluate a document, vet the value at
-               // `at` against aontu:code, and fold code.units into
-               // bytes:
-               // render(src, {at?, path?, profiles?, unit?, strict?,
-               // trust?}) -> {verdict, units, lossy, errors?};
-               // Go: aontu.New().Render(src, &RenderOptions{...})
-renderValue    // the fold alone, over generate() output:
-               // renderValue(instance, opts) -> the same report;
-               // Go: aontu.RenderValue(instance, opts)
-renderProfile  // a profile document -> {profile} or {errors}:
+loadProfile    // a profile document -> {profile} or {errors}:
                // evaluated under the caller's include options, vetted
-               // against aontu:render as a settled value and met with
+               // against aontu:profile as a settled value and met with
                // it, so the defaults are filled; what --profile <file>
-               // hands to render's profiles
+               // hands to `template`, `fmt` and `trace`
 desugarTemplate // a generator in the target's own syntax -> the
                // canonical aontu it means (see `aontu template`):
                // desugarTemplate(src, marker?) -> string;
@@ -3278,8 +3269,8 @@ does exactly this for a file argument.)
 | `UnifyVars`    | `UnifyVars(src string, vars map[string]Val) (Val, error)` | `Unify` with `$name` variables. |
 | `Generate`     | `Generate(src string) (any, error)` | Parse → unify → native Go value. |
 | `GenerateVars` | `GenerateVars(src string, vars map[string]Val) (any, error)` | `Generate` with variables. |
-| `Render`       | `Render(src string, opts *RenderOptions) RenderReport` | The renderer: evaluate, vet the value at `At` against `aontu:code`, fold `code.units` into bytes: `Units` (path, lang, text), `Lossy` (the three tiers) or `Errors`. `aontu.RenderValue(instance any, opts *RenderOptions) RenderReport` is the fold alone, over `Generate` output. |
-| `RenderProfile` | `RenderProfile(src string) (map[string]any, []VetFinding)` | A profile document, evaluated under this instance's include options, vetted against `aontu:render` as a settled value and met with it so the defaults are filled: the `profile` map `RenderOptions.Profiles` takes, or the findings that refused it. |
+| `Trace`        | `Trace(src string, opts *TraceOptions) TraceReport` | What wrote each line of a component tree (see [`aontu trace`](#aontu-trace)): `Trace` is one `TraceEntry` per stamped piece (`At`, `File`, `Node` and `Rule`), or `Errors`. `aontu.TraceTree(root Val) []TraceEntry` is the walk alone, over a value already unified. |
+| `LoadProfile`  | `LoadProfile(src string) (map[string]any, []VetFinding)` | A profile document, evaluated under this instance's include options, vetted against `aontu:profile` as a settled value and met with it so the defaults are filled: the profile `--profile <file>` hands to `template`, `fmt` and `trace`, or the findings that refused it. |
 | `Format`       | `Format(src string) FormatReport` | The source formatter (see [`aontu fmt`](#aontu-fmt)): the agreed form, or the findings that say why there is none. `FormatWith(src string, opts FormatOptions) FormatReport` is the same with the options: `Lint` fills the report's `Findings`, the style findings of `--lint`. `aontu.UnifiedDiff(name, before, after string) string` is the diff `--diff` prints. |
 
 <!-- test: skip Go API sample; the API surface is pinned by the go/ test suite -->

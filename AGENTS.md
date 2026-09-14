@@ -39,8 +39,8 @@ implementations are checked against the same cases.
 ├── Makefile             # fans out to ts/ and go/
 ├── README.md
 ├── aontu/               # the built-in aontu: models, named by their path
-│   ├── code/code.aon    #   aontu:code — a file named after its folder collapses
-│   ├── render/lang/     #   go.aon is aontu:render/lang/go
+│   ├── view/view.aon    #   aontu:view — a file named after its folder collapses
+│   ├── lang/            #   text.aon is aontu:lang/text
 │   └── …                #   inlined into both ports by `make aontu`
 ├── docs/
 │   ├── design/          # design notes — the why behind settled decisions
@@ -217,9 +217,9 @@ suites run.
 **The same arrangement, for the built-in models.** The models the
 `aontu:` scheme serves ([ADR-036](ADR.md#adr-036--a-bundled-model-is-a-file-in-aontu-not-a-string-in-each-port))
 are real files under [`aontu/`](aontu/), each named by its path after
-the scheme — `aontu/render/lang/go.aon` is `aontu:render/lang/go`. A
+the scheme — `aontu/lang/text.aon` is `aontu:lang/text`. A
 file named after the directory holding it collapses, so
-`aontu/code/code.aon` is `aontu:code` and a module that wants a folder
+`aontu/view/view.aon` is `aontu:view` and a module that wants a folder
 of its own can have one without spelling its name twice.
 `make aontu` inlines them into
 `ts/src/aontumodel.ts` and, for Go, mirrors the tree into

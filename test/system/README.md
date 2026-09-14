@@ -1,16 +1,19 @@
-# test/system: full systems generated with `aontu render`
+# test/system: full systems generated from a model
 
 `test/spec/` pins the language row by row. This directory pins the
-other end of the claim: that a model written in aontu, run through
-`aontu render`, produces a **complete working system**: not a file
-that looks right, but an application that boots, serves its API,
-passes an external validation written against a reference
-implementation, and shows a human a page.
+other end of the claim: that a model written in aontu, walked into a
+**component tree** and written by a generator runtime, produces a
+**complete working system**: not a file that looks right, but an
+application that boots, serves its API, passes an external validation
+written against a reference implementation, and shows a human a page.
 
 Every system here is the validation of a design decision recorded in
-[`docs/design/RENDER.0.md`](../../docs/design/RENDER.0.md) §10, and a
-system that stops passing is a defect in the renderer, the model or
-the generator: never a test to relax.
+[`docs/design/RENDER.0.md`](../../docs/design/RENDER.0.md) §10. The
+renderer that note was built around is gone
+([ADR-038](../../ADR.md#adr-038--the-component-tree-is-the-only-output-road-and-aontu-knows-no-languages)),
+and the systems it argued for stayed: a system that stops passing is a
+defect in the model, the generator or the engine, never a test to
+relax.
 
 ## Layout
 
@@ -18,27 +21,34 @@ the generator: never a test to relax.
 test/system/<name>/
   README.md        what the system is, what it is held to, how to run it
   model.aon        the model: the ONE source every generated file reads
-  gen/             the generator: aontu (or the template surface, P8)
-                   producing an @"aontu:code" instance from the model
+  gen/             the generators: aontu (or the template surface),
+                   each answering one `file(...)` of a component tree
   ref/             the reference the system is held to, vendored
                    (an OpenAPI spec, a validation script), read-only
-  app/             the rendered system, COMMITTED, each generated file
+  app/             the generated system, COMMITTED, each generated file
                    carrying a banner; plus the hand-written framework
                    boilerplate the model does not decide
-  check.sh         renders (`aontu render --check app`), boots the
-                   system, runs the reference validation against it,
-                   runs any client-side suite in live mode, fetches the
-                   UI pages; exit 1 on any failure
+  check.sh         compares the tree with `app/`, boots the system, runs
+                   the reference validation against it, runs any
+                   client-side suite in live mode, fetches the UI pages;
+                   exit 1 on any failure
 ```
 
-Two rules follow from the layout:
+Three rules follow from the layout:
 
-- **The rendered tree is committed and checked, not regenerated
-  silently.** `aontu render --check app` is the first step of every
-  `check.sh`, so a change to the model or the generator shows as a
-  reviewable diff to `app/`, and a hand edit to a generated file is
-  drift the check reports. Boilerplate the model does not decide is
-  hand-written once and is not banner-marked.
+- **The generated tree is committed and checked, not regenerated
+  silently.** The byte gate is the first step of every `check.sh`, so a
+  change to the model or the generator shows as a reviewable diff to
+  `app/`, and a hand edit to a generated file is drift the check
+  reports. Boilerplate the model does not decide is hand-written once
+  and is not banner-marked.
+- **The bytes come from the runtime, not from a walker written here.**
+  `tools/cmptree-check.js` reads the tree on standard input and hands
+  it to [jostraca](https://github.com/jostraca/jostraca); a tree checked
+  against anything else proves nothing about what a user gets. The seam
+  is a pipe, so nothing in `ts/src` or `go/` depends on the runtime and
+  the gate skips with a note where it is not installed, the way it
+  already skips without Ruby.
 - **The API is the reference's, not ours.** A system implements an
   existing API and is validated by that API's own script. What is
   ours is the model, the generator and the framework choice.
@@ -47,7 +57,7 @@ Two rules follow from the layout:
 
 | system | target | reference | status |
 |---|---|---|---|
-| [`rb-solar`](rb-solar/) | Ruby on Rails 8, SQLite, Hotwire: the Solar System API (Planet, Moon) and a human UI over the same data | [voxgig-sdk/voxgig-solardemo-sdk](https://github.com/voxgig-sdk/voxgig-solardemo-sdk): its reference app's OpenAPI spec and `app/validate.ts`, and its Ruby SDK | **LANDED 2026-09-06**: 11 checks, the reference's own 20 tests green |
+| [`rb-solar`](rb-solar/) | Ruby on Rails 8, SQLite, Hotwire: the Solar System API (Planet, Moon) and a human UI over the same data | [voxgig-sdk/voxgig-solardemo-sdk](https://github.com/voxgig-sdk/voxgig-solardemo-sdk): its reference app's OpenAPI spec and `app/validate.ts`, and its Ruby SDK | **LANDED 2026-09-06**, on the component road 2026-09-14: 9 checks, the reference's own 20 tests green |
 
 ## Running
 
@@ -61,7 +71,7 @@ records the measurement.
 Each `check.sh` is runnable from any cwd and honours `AONTU` (the
 engine command; default the TypeScript CLI in this repository) so the
 Go port runs the same check. A system's toolchain (Ruby and Rails for
-`rb-solar`) is installed by the CI job that runs it and documented in
-its README; `check.sh` skips with a note when the toolchain is absent
-rather than failing, so `use-cases/run-all.sh`-style local runs stay
-possible without it.
+`rb-solar`, and the generator runtime for the byte gate) is installed
+by the CI job that runs it and documented in its README; `check.sh`
+skips with a note when a toolchain is absent rather than failing, so
+`use-cases/run-all.sh`-style local runs stay possible without it.
