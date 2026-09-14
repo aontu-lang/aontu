@@ -1,6 +1,6 @@
 <a name="top"></a>
 
-# aontu: JSON structure unifier
+# aontu: schema guardrails for your agent
 
 [![npm version](https://img.shields.io/npm/v/aontu.svg)](https://npmjs.com/package/aontu)
 [![build](https://github.com/aontu-lang/aontu/actions/workflows/build.yml/badge.svg)](https://github.com/aontu-lang/aontu/actions/workflows/build.yml)
