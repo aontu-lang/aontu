@@ -41,6 +41,25 @@ const ordinal = (n) => {
 }
 
 
+// CI pins the binary, because a Vale release can change what a rule
+// reports. Measuring with a different one rewrites the record to
+// numbers CI will not reproduce.
+function pinned() {
+  for (const rel of [['ci', 'workflows', 'docs.yml'],
+    ['.github', 'workflows', 'docs.yml']]) {
+    const file = Path.join(REPO, ...rel)
+    if (!Fs.existsSync(file)) continue
+    const text = Fs.readFileSync(file, 'utf8')
+    // Two ways the pin is written: a VALE_VERSION variable, or the
+    // release URL with the version in the path.
+    const found = /VALE_VERSION:\s*'?([0-9][^'\s]*)'?/.exec(text) ||
+      /vale\/releases\/download\/v([0-9][^/\s]*)\//.exec(text)
+    if (found) return found[1]
+  }
+  return null
+}
+
+
 function vale(config, files) {
   const bin = process.env.VALE || 'vale'
   const out = execFileSync(bin,
@@ -127,6 +146,15 @@ function report(write) {
   const { byRule, total, files } = measure(ini)
   const terms = vocabulary()
   const wrong = []
+  const want = pinned()
+  if (null != want) {
+    const bin = process.env.VALE || 'vale'
+    const got = (/[0-9][^\s]*/.exec(
+      execFileSync(bin, ['--version'], { encoding: 'utf8' })) || [])[0]
+    if (got !== want) {
+      wrong.push(`Vale ${got} is measuring what CI pins to ${want}`)
+    }
+  }
   const lines = ini.split('\n')
   const edits = []
 
