@@ -377,6 +377,16 @@ go, and two of them matter.
   drift check (§5) being the other two — and the drift check has since
   SHIPPED, as `Jostraca().check()` rather than the CLI flag §7 asked
   for.
+- **The all-or-nothing write — gone.** `render --out` rendered every
+  unit before writing any of it, so one refusal meant no file was
+  touched, and `15-code-generation` check 8 held it. jostraca writes as
+  it walks: the files before a refused one are already on disk. The
+  REFUSAL survives and is still checked; the atomicity does not.
+- **The loss report — gone**, with the fragment algebra that graded it.
+  Every fragment was a tier-2 claim about a language the renderer could
+  not parse, and `--strict` refused the tier-3 raw pieces. A component
+  tree makes no such claim: jostraca writes the bytes and neither
+  engine parses the target, so there is nothing left to grade.
 - **`--coverage`'s dead-model report — gone.** `RenderCoverage.dead`
   named the shallowest model paths no render read. `reaches` and
   `trim --check` cover part of it; the render-specific part goes.
@@ -625,10 +635,13 @@ sixteen files byte-identical through jostraca, with a hand edit and a
 restore as controls; `check.sh` is 8 of 8. The byte gate is
 `tools/cmptree-check.js`: the tree on stdin, jostraca required at run
 time, exit 3 when it is absent so the check skips rather than fails.
-**The three use-cases are what remains, and they differ in one way that
-matters** — they run in CI, where rb-solar does not. So the byte gate
-there either gets jostraca installed or it skips, and a gate that skips
-in CI is not a gate. That decision is §12b's, not this phase's.
+**`15-code-generation` is migrated too**, its eleven checks passing
+with jostraca and ten of them without — the five that need bytes skip.
+Its loss report and its all-or-nothing write are both recorded in §6 as
+costs rather than quietly dropped. What remains is `10-data-model`,
+which is the hard one because it is the DECLARATION road, and
+`17-lambda-handlers`. Whether CI installs jostraca, so the byte gate
+runs rather than skips, is §12b's decision and not this phase's.
 
 **P5 — delete, and it is now the bulk of the work.** The `render` verb
 and its help, `ts/src/render.ts` and `go/render.go`, the `RenderReport`
@@ -773,11 +786,14 @@ it is versionable, and a silently dropped `indent`, `mode` or
   2026-09-13. See P0 and §5.
 - **Does CI get jostraca?** P4's byte gate runs the tree through
   jostraca, because a tree checked against anything else proves nothing
-  about what a user gets. rb-solar is local so a skip costs nothing
-  there; the three use-cases run in CI, and a gate that skips in CI is
-  not a gate. A `ts/` dev dependency buys it back, at the price of a
-  coupling §5 says there is none of. The same question §9 asks about
-  the prop schema, with more at stake.
+  about what a user gets — which is exactly how §4's `content` sugar
+  went wrong. Without it the gate SKIPS: five of eleven checks in
+  `15-code-generation`, every byte check among them. **This reaches CI,
+  and an earlier draft here said it did not:** `use-cases/run-all.sh`
+  runs rb-solar too, and the build job runs `run-all.sh`. A `ts/` dev
+  dependency buys the gate back, at the price of a coupling §5 says
+  there is none of. The same question §9 asks about the prop schema,
+  with more at stake.
 - **The vocabulary needs a name.** ADR-038 says `aontu:render` cannot
   keep a name built on a verb that no longer exists, and does not
   choose the replacement. It is what `template` and `fmt` vet a

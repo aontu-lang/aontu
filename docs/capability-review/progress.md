@@ -1928,9 +1928,21 @@ and `check.sh` asserted none was dead to all nine. `reaches` answers a
 relation between two paths, not what nothing reads, so the assertion is
 removed rather than moved — the note's §6 sanctioned the loss, and this
 is where it is paid.
-**Still to migrate:** the three use-cases, which unlike rb-solar run in
-CI — so the open question this leaves is whether CI gets jostraca, or
-whether the byte gate skips there.
+**`15-code-generation` followed**, all three generators byte-identical
+and its checks green: eleven with jostraca, ten without, the five that
+need bytes skipping. Two capabilities are paid for there and recorded
+rather than dropped — the LOSS REPORT, which graded every fragment as
+an unparsed claim and which a component tree cannot have because
+neither engine parses the target, and the ALL-OR-NOTHING write, since
+`render --out` rendered the whole set before writing any of it while
+jostraca writes as it walks. The climbing-path refusal itself survives
+and is still checked.
+**Still to migrate:** `10-data-model`, which is the hard one — it is
+the declaration road, and ADR-038 answer 1 leaves it no successor —
+and `17-lambda-handlers`.
+**And the open question this leaves:** the byte gate needs jostraca or
+it skips, and this DOES reach CI — `use-cases/run-all.sh` runs rb-solar
+as well as the numbered cases, and the build job runs `run-all.sh`.
 
 **Read before starting phase 1.** Every one of the seven parallel
 specifications behind this design was returned SERIOUS or FATAL by an
