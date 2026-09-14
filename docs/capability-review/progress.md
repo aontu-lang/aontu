@@ -1959,6 +1959,25 @@ is skipped with them written into it rather than deleted. The note's §6
 says "a `RenderTrace` entry is keyed by unit and piece, and a tree has
 neither"; half of that is wrong, because a tree has FILES and `unit`
 was a file path all along. It is `piece` that has no successor.
+
+**BEYOND THE PHASES: `aontu trace`, 2026-09-14.** The note's P6, landed
+before P5's deletions as the ordering rule requires. `ts/src/trace.ts`
+and `go/trace.go`, six rows in `test/spec/trace.tsv`, a verb in both
+CLIs. An entry carries the FILE it reached, the document address, the
+model NODE the dispatch matched and the RULE set that wrote it — a rule
+read through a name is addressed by it, and a table written inline at
+the call is `#<index>`.
+**Its consumer specified it, and then verified it.**
+`17-lambda-handlers`' check went from skipped to live: over two hundred
+and fifty entries, twelve services each at their own model path,
+`$.%handler` addressed by name, and the two ports agreeing entry for
+entry.
+**One defect had to be fixed for the trace to be true at all.** The
+bare-string sugar builds a NEW value from the text, so a rule's stamp
+died there: the trace saw thirteen marks, one per file, where the
+consumer asserts over two hundred and fifty. The mark rides across now,
+in both ports. Without it `emit`'s provenance would not have survived
+the component road, and nothing else would have noticed.
 **And the open question this leaves:** the byte gate needs jostraca or
 it skips, and this DOES reach CI — `use-cases/run-all.sh` runs rb-solar
 as well as the numbered cases, and the build job runs `run-all.sh`.

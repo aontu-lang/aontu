@@ -88,10 +88,15 @@ function cmpNode(cmp, props, children, ctx) {
     node.closed = true;
     return node;
 }
-// A bare string child is a LINE, terminator included: what a template
-// body line desugars to, and jostraca's `Content` writes no newline.
-function lineNode(src, ctx) {
-    return cmpNode(CMP_DEF.line.cmp, new MapVal_1.MapVal({ peg: { src: new StringVal_1.StringVal({ peg: src }, ctx) } }, ctx), new ListVal_1.ListVal({ peg: [] }, ctx), ctx);
+// A bare string child is a LINE: `Content` writes no newline, and the
+// emit mark rides across or `aontu trace` loses the line's rule.
+function lineNode(from, src, ctx) {
+    const node = cmpNode(CMP_DEF.line.cmp, new MapVal_1.MapVal({ peg: { src: new StringVal_1.StringVal({ peg: src }, ctx) } }, ctx), new ListVal_1.ListVal({ peg: [] }, ctx), ctx);
+    if (null != from?.emitted) {
+        ;
+        node.emitted = from.emitted;
+    }
+    return node;
 }
 function propText(props, key) {
     const v = props?.peg?.[key];
@@ -174,7 +179,7 @@ class CmpFuncVal extends FuncBaseVal_1.FuncBaseVal {
                         if (!def.children.includes('line')) {
                             return kid;
                         }
-                        flat.push(lineNode(text, ctx));
+                        flat.push(lineNode(kid, text, ctx));
                         continue;
                     }
                     const kcmp = nodeCmp(kid);

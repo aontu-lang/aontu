@@ -15,6 +15,7 @@ exports.runView = runView;
 exports.runJsonSchema = runJsonSchema;
 exports.runRender = runRender;
 exports.runTemplate = runTemplate;
+exports.runTrace = runTrace;
 exports.runMod = runMod;
 exports.runHash = runHash;
 exports.runGet = runGet;
@@ -40,6 +41,7 @@ const node_path_1 = require("node:path");
 const node_os_1 = require("node:os");
 const node_readline_1 = require("node:readline");
 const aontu_1 = require("./aontu");
+const trace_1 = require("./trace");
 const template_1 = require("./template");
 const mcp_1 = require("./mcp");
 const report_sarif_1 = require("./report-sarif");
@@ -72,6 +74,7 @@ const HELP = `Usage: aontu [options] [file]
                     [--coverage-at <path>] [--strict] <file>
        aontu template [--resugar] [--check] [--marker <token>]
                       [--profile <file>] <file>
+       aontu trace [--at <path>] [--format json] <file>
        aontu hash [options] <file>
        aontu mod tidy|verify|vendor|manifest [options] [dir]
        aontu get <path> [options] <file>
@@ -1992,6 +1995,80 @@ function runRelations(argv) {
         vacuous('this document declares no relations', '`pass` means nothing was checked, not that the graph is sound');
     }
     return RELATIONS_EXIT[report.verdict];
+}
+const TRACE_HELP = 'aontu trace [--at <path>] [--format json] <file>';
+// WHAT WROTE THIS LINE. Every piece a rule stamped, under the
+// component tree, with the file it reached, the rule set that wrote it
+// and the model node the dispatch matched.
+function runTrace(argv) {
+    const trusted = takeTrust(argv);
+    if (null == trusted) {
+        return 2;
+    }
+    argv = trusted.argv;
+    const trust = trusted.trust;
+    const rest = [];
+    let format = 'text';
+    let at = undefined;
+    for (let i = 0; i < argv.length; i++) {
+        const arg = argv[i];
+        if ('-h' === arg || '--help' === arg) {
+            process.stdout.write(HELP);
+            return 0;
+        }
+        if ('--format' === arg) {
+            const f = argv[++i];
+            if ('text' !== f && 'json' !== f) {
+                process.stderr.write('aontu: --format needs text or json\n');
+                return 2;
+            }
+            format = f;
+        }
+        else if ('--at' === arg) {
+            at = argv[++i];
+            if (null == at) {
+                process.stderr.write('aontu: --at needs a path\n');
+                return 2;
+            }
+        }
+        else if (arg.startsWith('-')) {
+            process.stderr.write(`aontu: unknown trace option ${arg} (try --help)\n`);
+            return 2;
+        }
+        else {
+            rest.push(arg);
+        }
+    }
+    if (1 !== rest.length) {
+        process.stderr.write(`aontu: trace needs one file\n${TRACE_HELP}\n`);
+        return 2;
+    }
+    let src;
+    try {
+        src = (0, node_fs_1.readFileSync)(rest[0], 'utf8');
+    }
+    catch (err) {
+        process.stderr.write(`aontu: cannot read ${err.path}: ${err.message}\n`);
+        return 2;
+    }
+    const report = (0, trace_1.traceRun)(src, {
+        path: rest[0], at,
+        ...verbOpts(trust, entryRootOf(rest[0])),
+    });
+    if ('error' === report.verdict) {
+        // An error report always carries its findings.
+        const errors = report.errors;
+        process.stderr.write(errors.map(renderFinding).join('\n') + '\n');
+        return 4;
+    }
+    if ('json' === format) {
+        process.stdout.write(JSON.stringify({ trace: report.trace }) + '\n');
+        return 0;
+    }
+    for (const e of report.trace) {
+        process.stdout.write([e.file, e.at, e.node, e.rule].join('\t') + '\n');
+    }
+    return 0;
 }
 function runReaches(argv) {
     const trusted = takeTrust(argv);
@@ -4003,8 +4080,8 @@ function runInit(argv) {
 const KNOWN_VERBS = [
     'agentsmd', 'allow', 'breaking', 'explain', 'fmt', 'get', 'hash',
     'help', 'init', 'jsonschema', 'lsp', 'mcp', 'mod', 'reaches',
-    'relations', 'render', 'set', 'subsume', 'template', 'trim', 'vet',
-    'view', 'why',
+    'relations', 'render', 'set', 'subsume', 'template', 'trace', 'trim',
+    'vet', 'view', 'why',
 ];
 exports.KNOWN_VERBS = KNOWN_VERBS;
 // looksLikeVerb reports whether an unreadable argument was meant as a
@@ -4130,6 +4207,9 @@ function main(argv, servers = SERVERS) {
     if ('template' === argv[2]) {
         return finish(runTemplate(argv.slice(3)));
     }
+    if ('trace' === argv[2]) {
+        return finish(runTrace(argv.slice(3)));
+    }
     if ('reaches' === argv[2]) {
         return finish(runReaches(argv.slice(3)));
     }
@@ -4224,5 +4304,5 @@ function main(argv, servers = SERVERS) {
     else {
         runStdin(mode, format, trust).then((code) => finish(code));
     }
-} /* node:coverage ignore next 20 */
+} /* node:coverage ignore next 21 */
 //# sourceMappingURL=cli.js.map

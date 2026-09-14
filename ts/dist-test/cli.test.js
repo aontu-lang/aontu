@@ -2124,6 +2124,47 @@ function fmtFiles(...srcs) {
     });
 });
 // --- the template surface -------------------------------------------
+(0, node_test_1.describe)('cli-trace', () => {
+    const DOC = '%r = emit(_, { match: n: string body: ["L" + .n] })\n' +
+        'svc: { a: { n:"a" } }\n' +
+        'out: file("x.ts", emit($.svc, %r))\n';
+    function traceDir(text) {
+        const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-trace-'));
+        Fs.writeFileSync(Path.join(dir, 'doc.aon'), text);
+        return dir;
+    }
+    function traceCode(want, args) {
+        return vetCapture(() => Assert.equal((0, cli_1.runTrace)(args), want, args.join(' ')));
+    }
+    (0, node_test_1.test)('trace-names-the-file-the-node-and-the-rule', () => {
+        const file = Path.join(traceDir(DOC), 'doc.aon');
+        const text = traceCode(0, [file]).out;
+        Assert.equal(text, 'x.ts\t$.children.0\t$.svc.a\t$.%r#0\n');
+        const json = JSON.parse(traceCode(0, ['--format', 'json', file]).out);
+        Assert.equal(json.trace.length, 1);
+        Assert.equal(json.trace[0].file, 'x.ts');
+    });
+    (0, node_test_1.test)('trace-reads-an-anchor', () => {
+        const file = Path.join(traceDir(DOC.replace('out:', 'elsewhere:')), 'doc.aon');
+        // The default anchor is `$.out`, which this document does not have.
+        traceCode(4, [file]);
+        Assert.match(traceCode(0, ['--at', '$.elsewhere', file]).out, /x\.ts/);
+        traceCode(4, ['--at', '$.nowhere', file]);
+    });
+    (0, node_test_1.test)('trace-usage-errors-exit-2', () => {
+        const dir = traceDir(DOC);
+        const file = Path.join(dir, 'doc.aon');
+        Assert.match(traceCode(2, []).err, /trace needs one file/);
+        Assert.match(traceCode(2, [file, file]).err, /trace needs one file/);
+        Assert.match(traceCode(2, ['--format', 'yaml', file]).err, /--format needs text or json/);
+        Assert.match(traceCode(2, ['--format']).err, /--format needs text or json/);
+        Assert.match(traceCode(2, ['--at']).err, /--at needs a path/);
+        Assert.match(traceCode(2, ['--bogus', file]).err, /unknown trace option --bogus/);
+        Assert.match(traceCode(2, [Path.join(dir, 'missing.aon')]).err, /cannot read/);
+        traceCode(2, ['--trust', 'nosuchlevel', file]);
+        Assert.equal(traceCode(0, ['--help']).out.includes('aontu trace'), true);
+    });
+});
 (0, node_test_1.describe)('cli-template', () => {
     const GEN = '//- n: [\n' +
         'export const N = 1\n' +

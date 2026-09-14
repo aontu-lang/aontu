@@ -606,6 +606,20 @@ func TestSpec(t *testing.T) {
 						t.Fatalf("resugar mismatch\n src: %q\n want: %q\n got:  %q",
 							src, back, again)
 					}
+				case "trace":
+					// WHAT WROTE THIS LINE (UNITS-AND-TREES.1.md P6): the
+					// file, the rule set and the model node behind every
+					// piece a dispatch stamped under the component tree.
+					report := New().Trace(src, nil)
+					got := specJSON(t, specAsAny(t, report.Trace))
+					var golden any
+					if err := json.Unmarshal([]byte(expect), &golden); err != nil {
+						t.Fatalf("expect is not JSON: %v\n expect: %s", err, expect)
+					}
+					if want := specJSON(t, golden); got != want {
+						t.Fatalf("trace mismatch\n src:  %s\n want: %s\n got:  %s",
+							src, want, got)
+					}
 				case "render":
 					// THE RENDERER (docs/design/RENDER.0.md D10): every
 					// unit's bytes, the loss report, or the refusal. The
@@ -743,6 +757,20 @@ func specAsMap(t *testing.T, v any) map[string]any {
 		t.Fatalf("marshal: %v", err)
 	}
 	var out map[string]any
+	if err := json.Unmarshal(b, &out); err != nil { //coverage:ignore ... and always decodable
+		t.Fatalf("unmarshal: %v", err)
+	}
+	return out
+}
+
+// specAsAny is specAsMap for a value that is a list rather than a map.
+func specAsAny(t *testing.T, v any) any {
+	t.Helper()
+	b, err := json.Marshal(v)
+	if err != nil { //coverage:ignore a report struct is always encodable
+		t.Fatalf("marshal: %v", err)
+	}
+	var out any
 	if err := json.Unmarshal(b, &out); err != nil { //coverage:ignore ... and always decodable
 		t.Fatalf("unmarshal: %v", err)
 	}
@@ -971,11 +999,11 @@ func specVars() map[string]Val {
 		// One variable per remaining scalar kind, so shared rows can
 		// reach every variable-as-path-segment rendering branch
 		// (coverage drive; ts/test/spec.test.ts mirrors these).
-		"half": numberVal(1.5, "1.5", -1),
-		"off":  newBoolean(false),
-		"bigi": newBigInteger(big.NewInt(5)),
-		"bigd": newBigDecimal(newDecimal(big.NewInt(15), 1)),
-		"nul":  newNull(),
+		"half":   numberVal(1.5, "1.5", -1),
+		"off":    newBoolean(false),
+		"bigi":   newBigInteger(big.NewInt(5)),
+		"bigd":   newBigDecimal(newDecimal(big.NewInt(15), 1)),
+		"nul":    newNull(),
 		"PARENT": newString("q"),
 	}
 }

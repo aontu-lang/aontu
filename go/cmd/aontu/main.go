@@ -31,6 +31,7 @@ const helpText = `Usage: aontu [options] [file]
                     [--coverage-at <path>] [--strict] <file>
        aontu template [--resugar] [--check] [--marker <token>]
                       [--profile <file>] <file>
+       aontu trace [--at <path>] [--format json] <file>
        aontu hash [options] <file>
        aontu mod tidy|verify|vendor|manifest [options] [dir]
        aontu get <path> [options] <file>
@@ -467,7 +468,7 @@ func evalFinding(err error) []aontu.VetFinding {
 		Message:  message,
 		Path:     "$",
 		Severity: "error",
-		Sites: []aontu.VetSite{},
+		Sites:    []aontu.VetSite{},
 	}}
 }
 
@@ -518,7 +519,8 @@ func emit(a *aontu.Aontu, src, mode, format string, out, errw io.Writer) int {
 var knownVerbs = []string{
 	"agentsmd", "breaking", "explain", "fmt", "get", "hash", "help",
 	"init", "jsonschema", "lsp", "mcp", "mod", "reaches", "relations",
-	"render", "set", "subsume", "template", "trim", "vet", "view", "why",
+	"render", "set", "subsume", "template", "trace", "trim", "vet",
+	"view", "why",
 }
 
 // looksLikeVerb reports whether an unreadable argument was meant as a
@@ -536,8 +538,8 @@ func vacuous(stderr io.Writer, what, why string) {
 }
 
 type trustArg struct {
-	kind string // "system-warn", "system", "none", "root"
-	dir  string // root's directory ("" = the entry root)
+	kind    string // "system-warn", "system", "none", "root"
+	dir     string // root's directory ("" = the entry root)
 	textExt []string
 }
 
@@ -812,6 +814,9 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, tty bool) int
 	}
 	if 0 < len(args) && "template" == args[0] {
 		return runTemplate(args[1:], stdout, stderr)
+	}
+	if 0 < len(args) && "trace" == args[0] {
+		return runTrace(args[1:], stdout, stderr)
 	}
 	if 0 < len(args) && "reaches" == args[0] {
 		return runReaches(args[1:], stdout, stderr)

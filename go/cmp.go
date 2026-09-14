@@ -128,11 +128,16 @@ func cmpNode(cmp string, props *MapVal, children *ListVal) *MapVal {
 	return node
 }
 
-// A bare string child is a LINE: `Content` writes no newline.
-func cmpLineNode(src string) *MapVal {
+// A bare string child is a LINE: `Content` writes no newline, and the
+// mark rides across or `aontu trace` loses the line's rule.
+func cmpLineNode(from Val, src string) *MapVal {
 	props := newMap()
 	props.set("src", newString(src))
-	return cmpNode(cmpDefs["line"].cmp, props, newList([]Val{}))
+	node := cmpNode(cmpDefs["line"].cmp, props, newList([]Val{}))
+	if o := from.emitOrig(); nil != o {
+		node.setEmitOrig(o)
+	}
+	return node
 }
 
 // cmpFlatten splices nested lists and refuses a child the component
@@ -149,7 +154,7 @@ func cmpFlatten(def cmpDef, list []Val, out *[]Val) Val {
 			if !cmpAdmits(def, "line") {
 				return kid
 			}
-			*out = append(*out, cmpLineNode(text))
+			*out = append(*out, cmpLineNode(kid, text))
 			continue
 		}
 		kcmp, ok := nodeCmp(kid)
@@ -198,8 +203,7 @@ func cmpFunc(ctx *Ctx, f *FuncVal, args []Val) Val {
 		}
 	}
 
-	// An unknown prop is a silently dropped `indent` or `mode`. Walk
-	// `keys`: a map ranges in no order, and the first written is named.
+	// Walk `keys`: a map ranges in no order, and the first written wins.
 	for _, key := range props.keys {
 		known := false
 		for _, p := range def.props {

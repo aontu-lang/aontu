@@ -1,0 +1,24 @@
+# WHAT WROTE THIS LINE (docs/design/UNITS-AND-TREES.1.md P6). `aontu
+# trace` answers every piece a rule stamped under the component tree:
+# the FILE it reached, the document address, the model NODE the
+# dispatch matched, and the RULE set that wrote it.
+#
+# `unit` and `piece` were the renderer's keys. A file is what `unit`
+# always was; `piece` has no successor, the tree being the pieces.
+# A rule set read through a name is addressed by it; a table written
+# inline at the call has no address of its own and is `#<index>`.
+#
+# Columns: name<TAB>mode<TAB>src<TAB>expect
+#
+# Every expectation was taken from the canonical port and is held to
+# the Go port by this file.
+trace-one-rule-one-line	trace	svc: { a: { n:"a" } } out: file("x.ts", emit($.svc, { match: n: string body: ["line " + .n] }))	[{"at":"$.children.0","file":"x.ts","node":"$.svc.a","rule":"#0"}]
+trace-names-the-rule-set	trace	%r = emit(_, { match: n: string body: ["line " + .n] }) svc: { a: { n:"a" } } out: file("x.ts", emit($.svc, %r))	[{"at":"$.children.0","file":"x.ts","node":"$.svc.a","rule":"$.%r#0"}]
+trace-one-entry-per-line	trace	svc: { a: { n:"a" } } out: file("x.ts", emit($.svc, { match: n: string body: ["one" "two"] }))	[{"at":"$.children.0","file":"x.ts","node":"$.svc.a","rule":"#0"},{"at":"$.children.1","file":"x.ts","node":"$.svc.a","rule":"#0"}]
+trace-two-files	trace	svc: { a: { n:"a" } b: { n:"b" } } out: emit($.svc, { match: n: string body: [file(.n + ".ts", ["x"])] })	[{"at":"$.0","file":"a.ts","node":"$.svc.a","rule":"#0"},{"at":"$.1","file":"b.ts","node":"$.svc.b","rule":"#0"}]
+trace-no-rule-no-entry	trace	out: file("x.ts", ["plain"])	[]
+trace-innermost-file-wins	trace	svc: { a: { n:"a" } } out: file("outer.ts", [fragment("h.ts", emit($.svc, { match: n: string body: ["x"] }))])	[{"at":"$.children.0.children.0","file":"outer.ts","node":"$.svc.a","rule":"#0"}]
+# A HAND-WRITTEN MAP THAT LOOKS LIKE A FILE is not one: the props of a
+# real `file(...)` are always a map, so a node whose `props` is a
+# string names no file and holds no piece.
+trace-file-shaped-map-is-not-a-file	trace	svc: { a: { n:"a" } } out: [{cmp:"File" props:"x" children:[]} file("y.ts", emit($.svc, { match: n: string body: ["L"] }))]	[{"at":"$.1.children.0","file":"y.ts","node":"$.svc.a","rule":"#0"}]

@@ -137,19 +137,32 @@ else
   ok "the check is red when a handler is edited by hand, and names it"
 fi
 
-# 9. THE TRACE IS PENDING `aontu trace` (UNITS-AND-TREES.1.md P6). It
-# held the strongest claim in this file: every line of every handler
-# came from a rule, the trace said which -- `%handler` by the name it
-# was read through, each of the twelve services at its own path in the
-# model, and `#0` for a table written inline at the call. Those three
-# keys are the specification the new verb owes, and they are recorded
-# here rather than deleted, because this is the consumer that says what
-# a trace entry has to carry. `render --format json` cannot answer it
-# now: this generator is a component tree.
+# 9. THE TRACE. Every line of every handler came from a rule, and
+# `aontu trace` says which -- the `%handler` rule set by the name it was
+# read through, each of the twelve services at its own path in the
+# model, and `#0` for a table written inline at the call, which has no
+# address of its own.
 #
-# The COVERAGE half is not pending, it is gone: `render --coverage`'s
-# dead-model report has no successor (§6).
-skip "the trace names the rule and the model node behind every piece (awaits P6)"
+# The COVERAGE half of this check is gone, with `render --coverage`
+# that answered it: the dead-model report has no successor (§6).
+$AONTU trace --format json "$DIR/gen.aon" 2>/dev/null > "$WORK/trace.json" \
+  || fail "the trace did not run"
+python3 - "$WORK/trace.json" <<'PY_TRACE'
+import json, sys
+t = json.load(open(sys.argv[1]))["trace"]
+assert 250 < len(t), len(t)
+# Every entry names a file the run built, and a rule.
+assert all(e["file"] for e in t)
+assert all("#" in e["rule"] for e in t)
+# The named rule set is addressed by its name; the twelve services are
+# each matched at their own path in the model.
+named = [e for e in t if e["rule"].startswith("$.%handler")]
+assert 12 == len(set(e["node"] for e in named)), sorted(set(e["node"] for e in named))
+assert "$.services.chat" in set(e["node"] for e in named)
+# A table written inline at the call has no address of its own.
+assert any("#0" == e["rule"] for e in t)
+PY_TRACE
+ok "the trace names the rule and the model node behind every piece"
 
 # 10. THE TEMPLATE SURFACE (RENDER P8). handler.ts is the SAME
 # generator written in the target's own syntax: the file IS a Lambda
@@ -202,7 +215,11 @@ if command -v go >/dev/null 2>&1; then
   grep -qF '[aontu/replace_overlap]' "$WORK/go-overlap.out" \
     || fail "the Go port did not refuse replace_overlap"
   ok "the Go port builds the same thirteen files and refuses the same template"
-  skip "the Go port records the same trace, entry for entry (awaits P6)"
+  "$GOBIN" trace --format json "$DIR/gen.aon" 2>/dev/null > "$WORK/trace-go.json" \
+    || fail "the Go port's trace did not run"
+  diff -u "$WORK/trace.json" "$WORK/trace-go.json" \
+    || fail "the two ports disagree about the trace (ADR-001)"
+  ok "the Go port records the same trace, entry for entry"
   "$GOBIN" template --check "$DIR/handler.ts" \
     || fail "the Go port does not agree the round trip is a fixpoint"
   diff <("$GOBIN" template "$DIR/handler.ts") "$WORK/handler.aon" \

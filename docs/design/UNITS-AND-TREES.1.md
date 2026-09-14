@@ -673,14 +673,25 @@ first, with their own rows, and only then does the rest go. A P5 that
 starts by deleting `render.ts` takes two unrelated published verbs with
 it.
 
-**P6 — `aontu trace`.** The provenance verb §6 now keeps. NUMBERED last
-and ORDERED before P5's deletions, which is not a contradiction: it
-keeps the register's rows stable while obeying this section's own
-invariant. `RenderTrace` is implemented by the renderers P5 deletes, so
-running P6 after P5 would drop the capability §12a's second answer
-keeps — the one thing the ordering rule above exists to prevent. Design
-first, and the design is the hard part: a `RenderTrace` entry is keyed
-by unit and piece, and a tree has neither.
+**P6 — `aontu trace`. LANDED 2026-09-14**, before P5's deletions as
+the ordering rule requires. `ts/src/trace.ts` and `go/trace.go`,
+`test/spec/trace.tsv`, both CLIs.
+
+**The design question answered itself, and not the way §6 guessed.** It
+said an entry is keyed by unit and piece and a tree has neither. A tree
+HAS files, and `unit` was a file path all along; only `piece` has no
+successor, the tree being the pieces. What specified the verb was its
+own consumer: `17-lambda-handlers`' check, which asserts the rule set
+by the name it was read through, each service at its own model path,
+and `#0` for a table written inline at the call. An entry carries
+`file`, `at`, `node` and `rule`.
+
+**One thing had to be fixed for it to be true at all.** The bare-string
+sugar builds a NEW value from the text, so a rule's stamp died there
+and the trace saw one mark per file instead of one per line — thirteen
+where the consumer asserts over two hundred and fifty. The mark now
+rides across in both ports. That is what makes `emit`'s provenance
+survive the component road.
 
 ## 11. The removal ledger
 

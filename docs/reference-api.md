@@ -50,6 +50,7 @@ Usage: aontu [options] [file]
                     [--coverage-at <path>] [--strict] <file>
        aontu template [--resugar] [--check] [--marker <token>]
                       [--profile <file>] <file>
+       aontu trace [--at <path>] [--format json] <file>
        aontu hash [options] <file>
        aontu mod tidy|verify|vendor|manifest [options] [dir]
        aontu get <path> [options] <file>
@@ -2395,6 +2396,41 @@ is how a generator emits its own marker with no new syntax.
 
 Exit codes: `0` written, `1` a `--check` file that is not what the
 round trip answers, `2` usage or I/O.
+
+### `aontu trace`
+
+Ask **what wrote this line**. Every piece a rule stamped under the
+component tree, with the file it reached, the model node the dispatch
+matched, and the rule set that wrote it.
+
+<!-- test: skip the synopsis is not a transcript -->
+```sh
+aontu trace [--at <path>] [--format json] <file>
+```
+
+A generator answers a tree of files, and a reader looking at one line
+of the output has no way back to the rule that produced it. This is
+that way back. The anchor is `$.out` unless `--at` names another.
+
+<!-- test: skip the document it reads is the reader's own generator -->
+```sh
+$ aontu trace gen.aon
+handlers/chat.ts	$.0.children.0	$.services.chat	$.%handler#0
+```
+
+Four columns: the **file**, the **address** of the piece in the
+document, the **model node** the dispatch matched, and the **rule**.
+`--format json` answers the same entries as one object.
+
+**A rule read through a name is addressed by it.** `$.%handler#0` is
+the first template of the `%handler` rule set. A table written inline
+at the call has no address of its own and is `#0`, `#1` and so on, so
+the two cases are told apart by whether an address precedes the hash.
+
+**A piece that reached no file is not traced.** The tree is what the
+entries attribute to, so a rule whose output never landed in a file has
+nothing to name.
+
 
 ### `aontu hash`
 

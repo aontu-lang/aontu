@@ -22,6 +22,7 @@ import {
 } from './aontu'
 import type { AllowDecision, AllowReport, AllowVerdict } from './allow'
 import type { RenderCoverage, RenderReport } from './render'
+import { traceRun } from './trace'
 import {
   desugarTemplate, resugarTemplate, templateOutputs, markerFor,
   markerFromProfiles,
@@ -88,6 +89,7 @@ const HELP = `Usage: aontu [options] [file]
                     [--coverage-at <path>] [--strict] <file>
        aontu template [--resugar] [--check] [--marker <token>]
                       [--profile <file>] <file>
+       aontu trace [--at <path>] [--format json] <file>
        aontu hash [options] <file>
        aontu mod tidy|verify|vendor|manifest [options] [dir]
        aontu get <path> [options] <file>
@@ -2353,6 +2355,89 @@ function runRelations(argv: string[]): number {
   }
   return RELATIONS_EXIT[report.verdict]
 }
+
+const TRACE_HELP = 'aontu trace [--at <path>] [--format json] <file>'
+
+
+// WHAT WROTE THIS LINE. Every piece a rule stamped, under the
+// component tree, with the file it reached, the rule set that wrote it
+// and the model node the dispatch matched.
+function runTrace(argv: string[]): number {
+  const trusted = takeTrust(argv)
+  if (null == trusted) {
+    return 2
+  }
+  argv = trusted.argv
+  const trust = trusted.trust
+  const rest: string[] = []
+  let format: 'text' | 'json' = 'text'
+  let at: string | undefined = undefined
+
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i]
+    if ('-h' === arg || '--help' === arg) {
+      process.stdout.write(HELP)
+      return 0
+    }
+    if ('--format' === arg) {
+      const f = argv[++i]
+      if ('text' !== f && 'json' !== f) {
+        process.stderr.write('aontu: --format needs text or json\n')
+        return 2
+      }
+      format = f
+    }
+    else if ('--at' === arg) {
+      at = argv[++i]
+      if (null == at) {
+        process.stderr.write('aontu: --at needs a path\n')
+        return 2
+      }
+    }
+    else if (arg.startsWith('-')) {
+      process.stderr.write(`aontu: unknown trace option ${arg} (try --help)\n`)
+      return 2
+    }
+    else {
+      rest.push(arg)
+    }
+  }
+
+  if (1 !== rest.length) {
+    process.stderr.write(`aontu: trace needs one file\n${TRACE_HELP}\n`)
+    return 2
+  }
+
+  let src: string
+  try {
+    src = readFileSync(rest[0], 'utf8')
+  }
+  catch (err: any) {
+    process.stderr.write(`aontu: cannot read ${err.path}: ${err.message}\n`)
+    return 2
+  }
+
+  const report = traceRun(src, {
+    path: rest[0], at,
+    ...verbOpts(trust, entryRootOf(rest[0])),
+  })
+  if ('error' === report.verdict) {
+    // An error report always carries its findings.
+    const errors = report.errors as VetFinding[]
+    process.stderr.write(errors.map(renderFinding).join('\n') + '\n')
+    return 4
+  }
+  if ('json' === format) {
+    process.stdout.write(JSON.stringify({ trace: report.trace }) + '\n')
+    return 0
+  }
+  for (const e of report.trace) {
+    process.stdout.write(
+      [e.file, e.at, e.node, e.rule].join('\t') + '\n')
+  }
+  return 0
+}
+
 
 function runReaches(argv: string[]): number {
   const trusted = takeTrust(argv)
@@ -4629,8 +4714,8 @@ function runInit(argv: string[]): number {
 const KNOWN_VERBS = [
   'agentsmd', 'allow', 'breaking', 'explain', 'fmt', 'get', 'hash',
   'help', 'init', 'jsonschema', 'lsp', 'mcp', 'mod', 'reaches',
-  'relations', 'render', 'set', 'subsume', 'template', 'trim', 'vet',
-  'view', 'why',
+  'relations', 'render', 'set', 'subsume', 'template', 'trace', 'trim',
+  'vet', 'view', 'why',
 ]
 
 
@@ -4779,6 +4864,10 @@ function main(argv: string[], servers: Servers = SERVERS): void {
     return finish(runTemplate(argv.slice(3)))
   }
 
+  if ('trace' === argv[2]) {
+    return finish(runTrace(argv.slice(3)))
+  }
+
   if ('reaches' === argv[2]) {
     return finish(runReaches(argv.slice(3)))
   }
@@ -4882,7 +4971,7 @@ function main(argv: string[], servers: Servers = SERVERS): void {
   else {
     runStdin(mode, format, trust).then((code) => finish(code))
   }
-} /* node:coverage ignore next 20 */
+} /* node:coverage ignore next 21 */
 
 
 // No require.main guard here: bin/aontu.js is the executable entry and
@@ -4896,6 +4985,7 @@ export {
   runJsonSchema,
   runRender,
   runTemplate,
+  runTrace,
   runMod,
   runHash, runGet, runHelp, runExplain, runInit, nearestVerb,
   looksLikeVerb,
