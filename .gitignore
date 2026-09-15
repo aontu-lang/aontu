@@ -58,3 +58,10 @@ go/covdata/
 
 # Written by ts/scripts/vale-counts.cjs while measuring, removed after.
 .vale-counts.ini
+
+# tsc's incremental cache. It records how a build was REACHED --
+# source and node_modules hashes -- not what it produced, so its
+# bytes are a fact about one machine, not about the branch. It sat
+# in ts/dist (which IS committed, and ships in the npm tarball)
+# until tsBuildInfoFile moved it here.
+ts/.tsbuild/

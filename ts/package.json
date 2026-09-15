@@ -38,7 +38,7 @@
     "watch": "tsc --build src test -w",
     "build": "tsc --build src test",
     "prepack": "node scripts/prepack.js",
-    "clean": "rm -rf dist dist-test node_modules yarn.lock package-lock.json",
+    "clean": "rm -rf dist dist-test .tsbuild node_modules yarn.lock package-lock.json",
     "reset": "npm run clean && npm i && npm run build && npm test",
     "version": "node -e \"const fs=require('fs');const v=require('./package.json').version;const f='./src/aontu.ts';const s=fs.readFileSync(f,'utf8');const re=/^const VERSION = '.*?'/m;if(!re.test(s)){console.error('version: no VERSION constant in '+f);process.exit(1)}const n=s.replace(re,'const VERSION = \\''+v+'\\'');if(n!==s){fs.writeFileSync(f,n);console.log('version: src/aontu.ts VERSION -> '+v)}\"",
     "repo-bump": "npm version patch --no-git-tag-version && node -e \"console.log('bumped to v' + require('./package.json').version + ' (package.json only - commit via repo-tag / repo-release)')\"",
