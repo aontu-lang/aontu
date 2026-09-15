@@ -234,7 +234,13 @@ else
     exit 1
   fi
 
-  (cd "$DIR/app" && bin/rails db:reset >"$WORK/db.log" 2>&1)
+  # NOT db:reset. That is db:drop + db:setup, and db:setup loads
+  # db/schema.rb -- which app/.gitignore excludes, along with storage/.
+  # So on a fresh checkout there is no schema to load and db:reset exits
+  # 1 before the app ever boots. Migrating is what builds the schema
+  # here; drop first so the run still starts from an empty database.
+  (cd "$DIR/app" && bin/rails db:drop db:create db:migrate db:seed \
+     >"$WORK/db.log" 2>&1)
   if [ $? -ne 0 ]; then
     fail "the database would not build (see work/db.log)"
   else
