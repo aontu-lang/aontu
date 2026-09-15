@@ -78,7 +78,7 @@ examples there (`examples/<id>/`, `tools/test-examples.mjs`). Copying
 that model here would mean writing a second copy of the tutorial, the
 how-to guides and the reference — and this project has already written
 down what happens next, in
-[`AGENTS.md`](../../AGENTS.md#known-tsgo-divergences):
+[`DIVERGENCE.md`](../../DIVERGENCE.md):
 
 > Kept in one place deliberately: the same divergence had been described
 > in an AGENTS.md section, a ledger comment and an upstream doc, and they
