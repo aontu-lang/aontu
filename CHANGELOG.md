@@ -5,7 +5,7 @@ package (`ts/`, npm `aontu`) and the Go module (`go/`,
 `github.com/aontu-lang/aontu/go`) are versioned independently; entries note
 which implementation each change affects.
 
-## Unreleased
+## Go 0.1.22 — 2026-09-15 · TypeScript 0.64.0
 
 ### BREAKING: `aontu render` and `aontu:code` are removed
 
@@ -41,6 +41,25 @@ writes the files and compares them with what is committed. The guide is
 
 *Both implementations.* See
 [ADR-038](ADR.md#adr-038--the-component-tree-is-the-only-output-road-and-aontu-knows-no-languages).
+
+### The published pages catch up with the removal
+
+The removal moved the code and the corpus and left the prose behind, in
+five pages the website publishes. `README.md`'s verb list named
+`render`; `docs/reference-api.md` documented `render`, `renderValue`,
+`renderProfile`, `Render` and `RenderProfile`, none of which exist
+(`loadProfile`/`LoadProfile` and a `Trace` row replace them);
+`docs/use-cases.md` described the lowering and `render --check`; and the
+`test/system/` and `rb-solar` READMEs were written around `aontu render
+--check app` and an `@"aontu:code"` instance.
+
+Two worked examples contradicted the prose above them: the Go generator
+in `use-cases/15-code-generation/` still built `{k:"line", at:1, …}`
+records, and `use-cases/11-shared-modules/` showed the `mod tidy`
+lockfile as a formatted map under a sentence promising one
+JSON-parseable line. Both now carry what the tools produce, verbatim.
+
+*Documentation only; no engine change.*
 
 ### BREAKING: the profile vocabulary is `aontu:profile`, and a profile lands at `$.aontu.Lang`
 
