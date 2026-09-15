@@ -198,3 +198,83 @@ jobs:
 
       - run: ./run-all.sh
         working-directory: use-cases
+
+  # THE SYSTEM THAT BOOTS.
+  #
+  # `use-cases/run-all.sh` above already reaches test/system/rb-solar,
+  # and on a runner with no Ruby bundle it runs the six checks that do
+  # not need one: the generators parse and round-trip, the tree they
+  # must reproduce byte for byte, the pinned diagrams, the agreed form
+  # and this patch. The three it skips are the ones that make the system
+  # a system -- the app boots and the reference's own twenty validation
+  # tests pass against it over HTTP, its Ruby SDK drives it, and the
+  # human pages answer.
+  #
+  # Those need Ruby, a bundle and the reference checkout, which is a
+  # different shape of job from the use-case one and would slow it for
+  # every model it drives. Hence a job of its own; check.sh is the same
+  # script either way and reports which legs it ran.
+  system-rb-solar:
+    name: System (rb-solar)
+    timeout-minutes: 20
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # NODE 24 IS NOT INCIDENTAL. The reference's validate.ts is
+      # TypeScript run by node directly; type stripping arrives in
+      # 22.18, and check.sh skips that leg with the version in the note
+      # on anything older rather than dying in the parser.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.x
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+          working-directory: test/system/rb-solar/app
+
+      # The engine the check drives: $AONTU defaults to ts/bin/aontu.js,
+      # which loads the committed ts/dist. Build for the same reason the
+      # use-case job does -- an unbuilt tree grades this branch's model
+      # against the previous branch's engine.
+      - run: npm install
+        working-directory: ts
+      - run: npm run build
+        working-directory: ts
+
+      # The reference repository, for the SDK leg only. Public, shallow,
+      # and read once: ref/ already carries the OpenAPI description, the
+      # validation script and the seed data at a pinned commit. Without
+      # this clone that one leg skips with a note and the other nine
+      # still run.
+      - name: Fetch the reference SDK
+        run: |
+          git clone --depth 1 \
+            https://github.com/voxgig-sdk/voxgig-solardemo-sdk.git \
+            "$RUNNER_TEMP/solardemo"
+
+      # The byte gate, check.sh's FIRST check, needs a generator runtime
+      # or `tools/cmptree-check.js` exits 3 and it records a skip. Same
+      # install as the use-case job, for the same reason: outside the
+      # checkout, reached through `JOSTRACA_PATH`, pinned, and asserted
+      # so a half-install cannot turn the check green by skipping it.
+      - name: Install the generator runtime
+        run: |
+          npm install --no-save --no-package-lock \
+            --prefix "$RUNNER_TEMP/generator" jostraca@0.38.0
+          echo "JOSTRACA_PATH=$RUNNER_TEMP/generator/node_modules/jostraca" \
+            >> "$GITHUB_ENV"
+      - name: The generator runtime resolves
+        run: |
+          node -e 'require(process.env.JOSTRACA_PATH)' || {
+            echo "::error::no generator runtime: the byte gate would skip"
+            exit 1
+          }
+
+      - name: rb-solar
+        working-directory: test/system/rb-solar
+        env:
+          RB_SOLAR_SDK: ${{ runner.temp }}/solardemo/rb
+        run: ./check.sh
