@@ -2321,7 +2321,7 @@ The direction matters. Go REFUSES a document TypeScript ACCEPTS, so a
 pipeline running the Go CLI fails builds the canonical implementation
 passes — and `vet` is the verb whose whole purpose is to be that gate
 (ADR-007, and the `vet ≡ eval` differential in
-[`AGENTS.md`](../AGENTS.md#the-vet--eval-differential)). It is in no
+[`docs/contributing/testing.md`](../docs/contributing/testing.md#the-vet--eval-differential)). It is in no
 debt register: not here, not
 [`test/spec/divergent.tsv`](../test/spec/divergent.tsv), not
 [`DIVERGENCE.md`](../DIVERGENCE.md). By the ledger's own rule it does
