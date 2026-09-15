@@ -20,23 +20,24 @@ git apply ignores everything above the first `diff --git` line, so this
 note travels with the change it describes.
 
 diff --git a/.github/workflows/build.yml b/.github/workflows/build.yml
-index 7eb1c1bb..9e61a8b4 100644
+index 742b430..e73235c 100644
 --- a/.github/workflows/build.yml
 +++ b/.github/workflows/build.yml
-@@ -162,3 +162,64 @@ jobs:
-         working-directory: ts
+@@ -198,3 +198,83 @@ jobs:
+ 
        - run: ./run-all.sh
          working-directory: use-cases
 +
 +  # THE SYSTEM THAT BOOTS.
 +  #
 +  # `use-cases/run-all.sh` above already reaches test/system/rb-solar,
-+  # and on a runner with no Ruby bundle it runs the seven checks that do
-+  # not need one: the generators, the tree they must reproduce, the
-+  # diagrams, the model's coverage and its form. The three it skips are
-+  # the ones that make the system a system -- the app boots, the
-+  # reference's own twenty validation tests pass against it over HTTP,
-+  # its Ruby SDK drives it, and the human pages answer.
++  # and on a runner with no Ruby bundle it runs the six checks that do
++  # not need one: the generators parse and round-trip, the tree they
++  # must reproduce byte for byte, the pinned diagrams, the agreed form
++  # and this patch. The three it skips are the ones that make the system
++  # a system -- the app boots and the reference's own twenty validation
++  # tests pass against it over HTTP, its Ruby SDK drives it, and the
++  # human pages answer.
 +  #
 +  # Those need Ruby, a bundle and the reference checkout, which is a
 +  # different shape of job from the use-case one and would slow it for
@@ -82,6 +83,24 @@ index 7eb1c1bb..9e61a8b4 100644
 +          git clone --depth 1 \
 +            https://github.com/voxgig-sdk/voxgig-solardemo-sdk.git \
 +            "$RUNNER_TEMP/solardemo"
++
++      # The byte gate, check.sh's FIRST check, needs a generator runtime
++      # or `tools/cmptree-check.js` exits 3 and it records a skip. Same
++      # install as the use-case job, for the same reason: outside the
++      # checkout, reached through `JOSTRACA_PATH`, pinned, and asserted
++      # so a half-install cannot turn the check green by skipping it.
++      - name: Install the generator runtime
++        run: |
++          npm install --no-save --no-package-lock \
++            --prefix "$RUNNER_TEMP/generator" jostraca@0.38.0
++          echo "JOSTRACA_PATH=$RUNNER_TEMP/generator/node_modules/jostraca" \
++            >> "$GITHUB_ENV"
++      - name: The generator runtime resolves
++        run: |
++          node -e 'require(process.env.JOSTRACA_PATH)' || {
++            echo "::error::no generator runtime: the byte gate would skip"
++            exit 1
++          }
 +
 +      - name: rb-solar
 +        working-directory: test/system/rb-solar

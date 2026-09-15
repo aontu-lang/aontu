@@ -1981,6 +1981,19 @@ the component road, and nothing else would have noticed.
 **And the open question this leaves:** the byte gate needs jostraca or
 it skips, and this DOES reach CI — `use-cases/run-all.sh` runs rb-solar
 as well as the numbered cases, and the build job runs `run-all.sh`.
+**CLOSED 2026-09-15, and it was worse than the question implied.** The
+`use-cases` job installed the `ts/` package only, so the seam exited 3
+and every byte check recorded a skip: measured on
+`15-code-generation`, ten checks with FIVE skipped where the runtime
+gives eleven with none. Five assertions, the byte gate among them, had
+never run in CI. The job now installs `jostraca@0.38.0` under
+`$RUNNER_TEMP` and exports the seam's own `JOSTRACA_PATH`, so nothing
+in the checkout gains a dependency in either direction, and a second
+step fails the job when the runtime does not resolve — because an
+install that half-succeeds would restore the silent pass this closes.
+Pinned for the reason the prose gate pins Vale. The whole suite is
+green with it: eighteen use-cases and rb-solar, 309 seconds against a
+fifteen-minute budget.
 
 **BEYOND THE PHASES: P5, the deletion, 2026-09-14.** The note's last
 phase and the bulk of the work, in two commits so the split can be read

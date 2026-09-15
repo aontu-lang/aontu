@@ -160,5 +160,41 @@ jobs:
       # check, one owner.
       - run: npm run build
         working-directory: ts
+
+      # THE BYTE GATE NEEDS A GENERATOR RUNTIME, and without one it does
+      # not fail -- it SKIPS. `tools/cmptree-check.js` exits 3 when none
+      # is installed and each `check.sh` records a skip, so drift in a
+      # committed generated file left this job green: 15-code-generation
+      # alone reported ten checks with five skipped where it reports
+      # eleven with none.
+      #
+      # Installed OUTSIDE the checkout and reached through the seam's own
+      # `JOSTRACA_PATH`, so neither `ts/package.json` nor `go/go.mod`
+      # gains a dependency in either direction. That is the property the
+      # pipe exists to keep, and a CI job is where it can be held without
+      # spending it.
+      #
+      # PINNED, for the reason the prose gate pins Vale: an unpinned
+      # runtime turns someone else's release into a red build on a pull
+      # request that touched one word.
+      - name: Install the generator runtime
+        run: |
+          npm install --no-save --no-package-lock \
+            --prefix "$RUNNER_TEMP/generator" jostraca@0.38.0
+          echo "JOSTRACA_PATH=$RUNNER_TEMP/generator/node_modules/jostraca" \
+            >> "$GITHUB_ENV"
+
+      # A SKIP IS NOT A PASS. If the install above half-succeeds the seam
+      # exits 3, every byte gate skips and this job stays green -- the
+      # exact failure the step above is here to end. Fail loudly instead.
+      - name: The generator runtime resolves
+        run: |
+          node -e 'require(process.env.JOSTRACA_PATH)' || {
+            echo "::error::no generator runtime: every byte gate would skip"
+            exit 1
+          }
+          node -e 'console.log("jostraca " +
+            require(process.env.JOSTRACA_PATH + "/package.json").version)'
+
       - run: ./run-all.sh
         working-directory: use-cases

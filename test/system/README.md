@@ -69,8 +69,9 @@ Go port runs the same check. A system's toolchain is documented in its
 README, and `check.sh` skips with a note when part of it is absent
 rather than failing, so a local run stays possible without it.
 
-**A skip is not a pass, and the byte gate is the one to watch.** The
-`use-cases` job installs the `ts/` package only, which does not carry a
-generator runtime, so the byte gate skips there and drift in a
-generated file does not turn that job red. Run `check.sh` with the
-runtime installed to hold the bytes.
+**A skip is not a pass, which is why CI does not take one.** `check.sh`
+skips the byte gate when no generator runtime is installed, so a local
+run stays possible without one. That skip would also let drift in a
+committed file go unnoticed, so the `use-cases` job installs a pinned
+runtime and fails when it cannot resolve it: the bytes are held there
+whatever a local run leaves out.

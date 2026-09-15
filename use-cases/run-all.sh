@@ -57,10 +57,14 @@ done
 #
 # A system's own toolchain (Ruby and a bundle, for `rb-solar`) is not
 # installed by this job, and its `check.sh` skips those legs with a note
-# rather than failing — so what runs here is the render half: the
-# generators, the committed tree they must reproduce, the diagrams and
-# the model's coverage. The legs that boot the application need the job
+# rather than failing — so what runs here is the generation half: the
+# generators, the committed tree they must reproduce byte for byte, and
+# the pinned diagrams. The legs that boot the application need the job
 # in that system's own directory.
+#
+# The BYTE GATE is not among those skips in CI. The workflow installs a
+# pinned generator runtime and fails when it cannot be resolved, because
+# a seam that exits 3 turns every byte check into a silent pass.
 
 SYSTEMS_DIR="$(cd "$DIR/../test/system" && pwd)"
 SYSTEMS="
