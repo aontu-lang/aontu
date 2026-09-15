@@ -65,9 +65,9 @@ appending or in place), `subsume` and `breaking` (schema evolution),
 figures drawn as text: tree, matrix, graph, layers, sets, the meet
 ladder, the subsumption poset, the key document and the value
 lattice), `jsonschema` (export
-the model as JSON Schema), `render` (fold an `aontu:code` instance
-into files, or check the files it wrote), `template` (read a generator
-written in the target's own syntax), `trim` (find redundant
+the model as JSON Schema), `trace` (what wrote a line of generated
+output: the file, the model node and the rule), `template` (read a
+generator written in the target's own syntax), `trim` (find redundant
 entries), `mod`
 (dependency closures), `agentsmd` (an AGENTS.md stanza), `fmt` (the
 source formatter, in the tradition of `gofmt`: one agreed form), `lsp`

@@ -65,17 +65,21 @@ than its value.
 %go_field = emit(_, {
   match: n: string
   body: [
-    {
-      k: "line"
-      at: 1
-      n: [.go + " " + match(.t, "string", "string", "integer", "int64") + …]
-    }
+    line(
+      "\t" + .go + " " + match(.t, "string", "string", "integer", "int64")
+      + ` \`json:"` + .n + `"\``
+    )
   ]
 })
 
 %go_record = emit(_, {
   match: name: string
-  body: [k:"blank" "type " + .name + " struct {" emit(.fields, %go_field) "}"]
+  body: [
+    line("")
+    line("type " + .name + " struct {")
+    emit(.fields, %go_field)
+    line("}")
+  ]
 })
 
 go: file("types.go", [

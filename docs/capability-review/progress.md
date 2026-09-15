@@ -2038,6 +2038,29 @@ render\` from model.aon`, which named a verb that no longer exists.
 Changed in the generators and the goldens together, and verified
 byte-for-byte.
 
+**AND FIVE PAGES OF PROSE DID TOO, 2026-09-14.** The deletion moved
+the code and the corpus and left the surrounding prose describing a
+verb that no longer exists: `README.md`'s verb list, the `Render`,
+`RenderValue` and `RenderProfile` entries in both API listings of
+`docs/reference-api.md`, sections 10, 15 and 17 of `docs/use-cases.md`,
+the `aontu/code/code.aon` layout in `AGENTS.md`, and the whole of
+`test/system/README.md`, which was written around `aontu render --check
+app` and an `@"aontu:code"` instance. **Nothing caught them**, and the
+reason is worth keeping: the gates check what a page DOES, not what it
+CLAIMS. `ts/test/docs.test.ts` runs every tagged snippet and resolves
+every internal link, and both passed throughout — the stale text was
+untagged prose and the links it carried were all live. `vale` reads
+voice, not truth. A verb name in a sentence is held by nothing, and
+the corpus is what the register reads as proof.
+**The prose gate was already red before this, on counts nothing had
+re-measured**: `.vale.ini` claimed 3870 alerts where Vale reported
+3803, so P5's own page edits had moved eight rule counts and the
+number in `docs/STYLE-GUIDE.md`. Re-measured at 3802, with the two
+breakdowns that had stopped adding up written out again (`Google.Colons`
+10 hits not 11, `Google.Anthropomorphism` 16 on `sees` and 6 on
+`tells`). CI never saw it: `.github/workflows/docs.yml` runs `vale`
+alone, and `vale-counts.cjs` is in `make prose` only.
+
 **Read before starting phase 1.** Every one of the seven parallel
 specifications behind this design was returned SERIOUS or FATAL by an
 adversarial review, and the rule layer — the heart of the XSLT

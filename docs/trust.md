@@ -258,9 +258,9 @@ tool that writes generated output: a generator answers a **component
 tree** as an ordinary value, and a generator runtime outside the engine
 turns it into bytes. What that generator runtime may write, and where,
 is its own contract rather than this one. The engine's refusals still
-stand on the tree it answers -- a filename is checked at the call, and
-two files resolving to one path are refused -- so a malformed tree is
-refused before anything downstream sees it.
+stand on the tree it answers. A filename is checked at the call, and
+two files resolving to one path are refused, so a malformed tree never
+reaches anything downstream.
 
 ## Evaluation consumes the tree
 

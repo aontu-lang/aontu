@@ -317,11 +317,12 @@ Binary64 arithmetic answers `0.30000000000000004` here; the pinned
 `& 0d0.3` holds because `0d` values are exact, and the case's
 `money-wire.aon` shows how that exactness crosses JSON. The same
 schema is a code source: the case's `xf-domain.aon` walks its record
-types into `aontu:code` records, and `aontu render` lowers them to one
-exported interface per record under the bundled TypeScript profile;
-`xf-order.aon` renders the same walk as TypeScript and as Go, where
-the profile spells `ledgerId` as `LedgerID` and an optional field as a
-pointer with `omitempty`. Both are held by `render --check`. The
+types into a component tree, one exported interface per record, with
+the TypeScript spelled by the transform itself; `xf-order.aon` writes
+the same walk as TypeScript and as Go, where `nom` and an acronym list
+the document carries spell `ledgerId` as `LedgerID`, and an optional
+field is a pointer with `omitempty`. Both are held against their
+goldens by the byte gate. The
 domain, the transforms and the failed attempts, kept executable:
 [`use-cases/10-data-model/`](../use-cases/10-data-model/).
 
@@ -462,11 +463,12 @@ of the bridge (exact, lossy, refused):
 
 The model is the source of the code. One catalogue of record types
 feeds a Go generator, a TypeScript generator and a SQL generator, each
-reading a different slice of it, and one `aontu render` turns the
-three units into files. A generator is a rule set: `emit` walks the
-records in source order and each node contributes *pieces* (a blank
-line, a head, one line per field at depth 1, a tail) which the renderer
-folds into bytes, owning every indent and every terminator. Names like
+reading a different slice of it, and one component tree holds the
+three files. A generator is a rule set: `emit` walks the records in
+source order and each node contributes *children* (a blank line, a
+head, one line per field at depth 1, a tail) which splice flat into
+the `file` that holds them, so the transform owns every indent and
+every terminator. Names like
 `Email` and `credit_cents` are written in the model rather than
 derived, because what a type is called in a target is a fact about the
 model, not a rule in a template.
@@ -614,11 +616,11 @@ dispatch over an empty selection emits nothing, and the two lines of
 two spaces in every handler survive because a line is verbatim. An
 index names the services in the model's order through `each`, with a
 constant spelled by `join(each(split(_, "-"), upper(_)), "_")`. All
-thirteen files are held by `aontu render --check` in both ports:
-[`use-cases/17-lambda-handlers/`](../use-cases/17-lambda-handlers/).
+thirteen files are held against their goldens by the byte gate in both
+ports: [`use-cases/17-lambda-handlers/`](../use-cases/17-lambda-handlers/).
 The same generator is there twice: `gen.aon` is the canonical aontu
 above, and `handler.ts` is that generator written as a Lambda handler,
-with its aontu on marked lines. Both render the same thirteen files.
+with its aontu on marked lines. Both answer the same thirteen files.
 
 ## 18. Role permissions
 

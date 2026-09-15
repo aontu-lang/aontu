@@ -1,5 +1,5 @@
 ---
-description: "Follow aontu: Code: units, template markers, emit rules, and replacements from the model to Rails source files."
+description: "Follow a component tree, template markers, emit rules, and replacements from the model to Rails source files."
 group: rb-solar
 order: 2
 ---
@@ -66,13 +66,13 @@ The root-route rule selects the service's root value:
 
 <!-- source: ../gen/routes.rb -->
 ```ruby
-#-         n: emit([$.service.root], {
-#-           match: string
-#-           replace: ROOT: _
-#-           body: [
+#-   emit([$.service.root], {
+#-     match: string
+#-     replace: ROOT: _
+#-     body: [
   root "ROOT"
-#-           ]
-#-         })
+#-     ]
+#-   })
 ```
 
 [`emit`](../../../../docs/reference-language.md#transforming-emit) visits
@@ -110,13 +110,13 @@ writes presence validations:
 
 <!-- source: ../gen/model.rb -->
 ```ruby
-#-               emit(filter(.field, { required:true }), {
-#-                 match: name: string
-#-                 replace: FIELD: .name
-#-                 body: [
+#-         emit(filter(.field, { required:true }), {
+#-           match: name: string
+#-           replace: FIELD: .name
+#-           body: [
   validates :FIELD, presence: true
-#-                 ]
-#-               })
+#-           ]
+#-         })
 ```
 
 `filter` selects fields with `required: true`; the rule reads each

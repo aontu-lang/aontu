@@ -23,15 +23,19 @@ cd ../test/system/rb-solar
 ```
 
 Use the CLI from this checkout throughout these guides. Define a shell
-function in the terminal where you run the commands:
+function in the terminal where you run the commands, and make the
+scratch directory the recipes write their intermediate documents to:
 
 ```sh
 aontu() { node ../../../ts/bin/aontu.js "$@"; }
+mkdir -p work
 ```
 
-All commands below run from `test/system/rb-solar`. Ruby is needed to run
-the Rails app; inspecting the model and rendering files requires Node.js
-and the engine dependencies. Follow the repository's
+All commands below run from `test/system/rb-solar`. `work/` is scratch
+and is not committed; `check.sh` clears and recreates it. Ruby is needed
+to run the Rails app; inspecting the model and generating files requires
+Node.js, the engine dependencies, and a generator runtime for the
+recipes that write bytes. Follow the repository's
 [installation instructions](../../../../ts/README.md) for its supported toolchain.
 
 ## Read a field as data
