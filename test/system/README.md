@@ -7,13 +7,8 @@ other end of the claim: that a model written in aontu, walked into a
 application that boots, serves its API, passes an external validation
 written against a reference implementation, and shows a human a page.
 
-Every system here is the validation of a design decision recorded in
-[`docs/design/RENDER.0.md`](../../docs/design/RENDER.0.md) §10. The
-renderer that note was built around is gone
-([ADR-038](../../ADR.md#adr-038--the-component-tree-is-the-only-output-road-and-aontu-knows-no-languages)),
-and the systems it argued for stayed: a system that stops passing is a
-defect in the model, the generator or the engine, never a test to
-relax.
+A system that stops passing is a defect in the model, the generator or
+the engine, never a test to relax.
 
 ## Layout
 
@@ -22,7 +17,7 @@ test/system/<name>/
   README.md        what the system is, what it is held to, how to run it
   model.aon        the model: the ONE source every generated file reads
   gen/             the generators: aontu (or the template surface),
-                   each answering one `file(...)` of a component tree
+                   each answering a component tree of one or more files
   ref/             the reference the system is held to, vendored
                    (an OpenAPI spec, a validation script), read-only
   app/             the generated system, COMMITTED, each generated file
@@ -70,8 +65,12 @@ records the measurement.
 
 Each `check.sh` is runnable from any cwd and honours `AONTU` (the
 engine command; default the TypeScript CLI in this repository) so the
-Go port runs the same check. A system's toolchain (Ruby and Rails for
-`rb-solar`, and the generator runtime for the byte gate) is installed
-by the CI job that runs it and documented in its README; `check.sh`
-skips with a note when a toolchain is absent rather than failing, so
-`use-cases/run-all.sh`-style local runs stay possible without it.
+Go port runs the same check. A system's toolchain is documented in its
+README, and `check.sh` skips with a note when part of it is absent
+rather than failing, so a local run stays possible without it.
+
+**A skip is not a pass, and the byte gate is the one to watch.** The
+`use-cases` job installs the `ts/` package only, which does not carry a
+generator runtime, so the byte gate skips there and drift in a
+generated file does not turn that job red. Run `check.sh` with the
+runtime installed to hold the bytes.

@@ -45,9 +45,9 @@ The [diagram template](../gen/erd.mmd) starts by importing the model:
 uses `%%` for comments, so it can ignore those instructions when reading
 the template. The other lines are target text with replacement names.
 
-As in the [Ruby templates](rails-code.md), `aontu.Code.units` defines an output
-file, and `frag` declarations supply its lines. The first declaration
-writes the comment and the `erDiagram` header.
+As in the [Ruby templates](rails-code.md), `file(...)` names the output
+file and its children supply the lines. The first child writes the
+comment and the `erDiagram` header.
 
 ## Generate the relationship
 
@@ -55,17 +55,13 @@ The relationship rule selects entities that declare a parent:
 
 <!-- source: ../gen/erd.mmd -->
 ```mermaid-source
-%%-         n: emit(filter($.entity, { parent:string }), {
-%%-           match: parent: string
-%%-           replace: {
-%%-             OWNER: upper(.parent_class)
-%%-             OWNED: upper(.class)
-%%-             HAS: .parent_has
-%%-           }
-%%-           body: [
+%%-   emit(filter($.entity, { parent:string }), {
+%%-     match: parent: string
+%%-     replace: { OWNER:upper(.parent_class) OWNED:upper(.class) HAS:.parent_has }
+%%-     body: [
   OWNER ||--o{ OWNED : "HAS"
-%%-           ]
-%%-         })
+%%-     ]
+%%-   })
 ```
 
 `filter` keeps entities whose `parent` is a string. For Moon, the rule

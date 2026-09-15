@@ -170,7 +170,7 @@ is edited: see [`ref/README.md`](ref/README.md), which also records
 the one place the OpenAPI description and the executable validation
 disagree, and why the executable one wins.
 
-`check.sh` runs eleven checks, including two against the reference API:
+`check.sh` runs nine checks, including two against the reference API:
 
 - **`ref/validate.ts`**, the reference repository's own script,
   unmodified. It sends HTTP requests to the Rails app. All
@@ -309,7 +309,7 @@ flowchart LR
   gen -->|"aontu + jostraca"| app
   gen --> doc
 
-  check{{"the byte gate<br/>eight checks in check.sh"}}
+  check{{"the byte gate<br/>nine checks in check.sh"}}
   app --> check
   check -->|"a hand edit to a generated<br/>file is reported as drift"| app
 ```
@@ -377,7 +377,7 @@ generator. Run the checks to detect that mismatch:
   three answers above, and the diff shows which: a hand edit that the
   generator would also have written is a model change waiting to be
   named; one it would not is a bespoke change that has to move out.
-- **The API behaviour is tested.** The eleven checks end with
+- **The API behaviour is tested.** The nine checks end with
   other people's code: the reference's twenty validation tests and its
   own SDK, driving the running app. A change can satisfy every
   structural check and still be wrong, and those legs are what say so.

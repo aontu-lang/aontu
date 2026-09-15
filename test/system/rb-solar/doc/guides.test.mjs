@@ -32,12 +32,22 @@ test('quoted source stays identical to the generator or model', () => {
 });
 
 test('the published generation and field-change recipes produce the stated output', (t) => {
+  // Exit 3 is `tools/cmptree-check.js` saying the generator runtime is not
+  // installed. Skip as check.sh does rather than fail: the recipes that
+  // write bytes cannot run without it.
+  if (3 === spawnSync('node', [join(engine, 'tools/cmptree-check.js'), '--folder', '.'],
+    { input: '{}', encoding: 'utf8' }).status) {
+    return t.skip('the recipes need a generator runtime');
+  }
   const root = mkdtempSync(join(tmpdir(), 'aontu-guide-test-'));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const work = join(root, 'test/system/rb-solar');
   mkdirSync(work, { recursive: true });
   mkdirSync(join(root, 'ts/bin'), { recursive: true });
   symlinkSync(join(engine, 'ts/bin/aontu.js'), join(root, 'ts/bin/aontu.js'));
+  // The recipes reach the seam by RELATIVE path, as a reader does, so the
+  // disposable example needs it where the published command looks.
+  symlinkSync(join(engine, 'tools'), join(root, 'tools'));
   for (const name of ['gen', 'doc', 'ref', 'model.aon']) {
     cpSync(join(example, name), join(work, name), { recursive: true });
   }
@@ -51,22 +61,27 @@ test('the published generation and field-change recipes produce the stated outpu
     return shell(block(page, 'sh', includes), status);
   }
   recipe('model', "aontu view doc");
-  assert.match(recipe('rails-code', '--stdout'), /root "planets#index"/);
+  // `get out` answers the TREE, so the route is a Line's `src` with its
+  // quotes escaped; match the part that survives JSON.
+  assert.match(recipe('rails-code', 'get out work/routes.aon'), /planets#index/);
   recipe('rails-code', '--out app');
-  const erd = recipe('erd', '--stdout');
-  assert.equal(erd, readFileSync(join(example, 'doc/erd.mmd'), 'utf8'));
+  // The bytes are the runtime's, so the recipe that WRITES is what proves
+  // them: print the tree, write it, compare the file with the golden.
+  const erdTree = recipe('erd', 'template --marker');
   recipe('erd', '--out doc');
+  assert.equal(readFileSync(join(work, 'doc/erd.mmd'), 'utf8'),
+    readFileSync(join(example, 'doc/erd.mmd'), 'utf8'));
   recipe('erd', 'aontu view');
 
   // The prose explicitly calls out this redundant wrapper. Hold that claim.
   const template = join(work, 'gen/erd.mmd');
   const source = readFileSync(template, 'utf8');
   writeFileSync(template, source.replace('each(.field, _ & { mark:"" })', '.field'));
-  assert.equal(recipe('erd', '--stdout'), erd);
+  assert.equal(recipe('erd', 'template --marker'), erdTree);
   writeFileSync(template, source);
 
   appendFileSync(join(work, 'model.aon'), '\n' + block('change-and-check', 'aontu', 'nickname') + '\n');
-  recipe('change-and-check', '--check doc', 1);
+  recipe('change-and-check', '--folder doc', 1);
   recipe('change-and-check', 'for generator');
   recipe('change-and-check', 'for format');
   // The full check also boots Rails and resets its development database;
@@ -74,10 +89,10 @@ test('the published generation and field-change recipes produce the stated outpu
   shell(block('change-and-check', 'sh', 'fmt --write').split('\n')[0]);
   shell('aontu fmt --check model.aon');
   for (const name of ['routes', 'migrate', 'seeds', 'model', 'api_base', 'api_controller', 'ui_controller']) {
-    shell(`aontu template gen/${name}.rb > work/${name}.aon && aontu get out work/${name}.aon | node ${engine}/tools/cmptree-check.js --folder app`);
+    shell(`aontu template gen/${name}.rb > work/${name}.aon && aontu get out work/${name}.aon | node ../../../tools/cmptree-check.js --folder app`);
   }
-  shell(`aontu get out gen/views.aon | node ${engine}/tools/cmptree-check.js --folder app`);
-  recipe('change-and-check', '--check doc');
+  shell(`aontu get out gen/views.aon | node ../../../tools/cmptree-check.js --folder app`);
+  recipe('change-and-check', '--folder doc');
   for (const name of [
     'app/db/migrate/20260101000000_create_planets.rb',
     'app/app/controllers/api/planets_controller.rb',
