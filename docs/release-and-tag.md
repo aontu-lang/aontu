@@ -56,7 +56,8 @@ both tags.
 The equivalent from a shell:
 
 ```
-gh workflow run publish.yml --ref main -f go=true
+gh workflow run publish.yml --ref main -f go=true \
+  -f expect_sha=$(git rev-parse origin/main)
 ```
 
 **There is no version input, deliberately.** The dispatch releases whatever
@@ -104,7 +105,7 @@ half-done. Run what it would have run:
    publish job if they do not, which is after the tag push.
 5. Commit `release: npm <V> go <GOV>`, and push `main`.
 6. Dispatch `publish.yml` on `main` with `npm`, `go` and
-   `expect_sha=<the commit just pushed>`, through
+   `expect_sha=<the commit main now resolves to>`, through
    `POST /repos/{owner}/{repo}/actions/workflows/publish.yml/dispatches`
    or any client for it.
 

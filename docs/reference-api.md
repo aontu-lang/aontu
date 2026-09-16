@@ -3307,13 +3307,13 @@ hcanon         // the HASH FORM of an evaluated Val (see `aontu hash`
                // wrappers; Go: aontu.Hcanon
 canonHash      // the canon-hash pin over that form,
                // "aon1-"+base64url(SHA-256(...)); Go: aontu.CanonHash
-get            // the query surface (see `aontu get` above):
+get            // the query surface (see `aontu model get` above):
                // get(src, path, {view?, depth?, path?, trust?}) ->
                // {ok, out, findings}; Go: aontu.New().Get(src, path, opts)
 why            // provenance (see `aontu model why` above):
                // why(src, path, {path?, trust?}) -> {ok, record, findings},
                // record = {path, value, conjuncts}; Go: (*Aontu).Why
-patch          // the overlay patch (see `aontu set` above):
+patch          // the overlay patch (see `aontu model set` above):
                // patch(entry, overlay, ["$.a.b=1"], opts?) ->
                // {overlay, appended, verdict, findings}; Go: aontu.Patch
 diff           // what changed at which paths between two documents:

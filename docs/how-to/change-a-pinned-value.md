@@ -27,7 +27,7 @@ replicas: 42 # too many
 port: 0x1F
 ```
 
-Plain [`aontu set`](change-a-value-with-an-overlay.md) refuses,
+Plain [`aontu model set`](change-a-value-with-an-overlay.md) refuses,
 because the overlay would then disagree with itself:
 
 <!-- test: run -->
