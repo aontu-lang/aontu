@@ -27,7 +27,7 @@ T="$(mktemp -d)"; trap 'rm -rf "$T"' EXIT
 cd "$T" && git init -q . && git config user.email r@r && git config user.name r
 
 printf 'port: *8080 | integer\n' > schema.aon
-printf 'svc: @"schema.aon"\n'    > entry.aon
+printf 'svc: @"./schema.aon"\n'    > entry.aon
 git add -A && git commit -qm v1
 
 # The breaking change lives in the INCLUDED file only.

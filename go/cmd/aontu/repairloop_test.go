@@ -60,14 +60,14 @@ func TestRepairLoopEmitVetWhySetRevetCloses(t *testing.T) {
 	// 2. WHY, on the schema, for what the hole has to satisfy. The
 	//    finding named the path; this is the step that turns it into a
 	//    constraint the emitter can meet.
-	out, code = loopRun("why", "$.service.port", schema)
+	out, code = loopRun("model", "why", "$.service.port", schema)
 	if 0 != code {
 		t.Fatalf("why: %d\n%s", code, out)
 	}
 	vetMatch(t, out, `above\(1023\)`)
 
 	// 3. SET, which writes the overlay only if the change holds.
-	out, code = loopRun("set", "$.service.port=8080",
+	out, code = loopRun("model", "set", "$.service.port=8080",
 		"--entry", deploy, "--overlay", overlay)
 	if 0 != code {
 		t.Fatalf("set: %d\n%s", code, out)
@@ -106,7 +106,7 @@ func TestRepairLoopPinnedValueRefusesAndWritesNothing(t *testing.T) {
 	dir, _, deploy := loopFiles(t)
 	overlay := filepath.Join(dir, "overlay.aon")
 
-	out, code := loopRun("set", `$.service.name="other"`,
+	out, code := loopRun("model", "set", `$.service.name="other"`,
 		"--entry", deploy, "--overlay", overlay)
 	if 1 != code {
 		t.Fatalf("set: %d\n%s", code, out)

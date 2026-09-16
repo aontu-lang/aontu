@@ -14,7 +14,7 @@ import (
 
 func setRun(args ...string) (string, string, int) {
 	var out, errw bytes.Buffer
-	code := run(append([]string{"set"}, args...), strings.NewReader(""), &out, &errw, false)
+	code := run(append([]string{"model", "set"}, args...), strings.NewReader(""), &out, &errw, false)
 	return out.String(), errw.String(), code
 }
 
@@ -80,7 +80,7 @@ func TestSetAppendsWhenTheChangeHolds(t *testing.T) {
 	if err := json.Unmarshal([]byte(out), &report); err != nil {
 		t.Fatal(err)
 	}
-	if "set" != report.Aontu.Verb || "valid" != report.Verdict ||
+	if "model set" != report.Aontu.Verb || "valid" != report.Verdict ||
 		!report.Written || 1 != len(report.Appended) {
 		t.Fatalf("bad report: %s", out)
 	}
@@ -158,7 +158,7 @@ func TestSetUsageErrorsExit2(t *testing.T) {
 	}
 
 	out, _, code := setRun("--help")
-	if 0 != code || !strings.Contains(out, "aontu set") {
+	if 0 != code || !strings.Contains(out, "aontu model set") {
 		t.Fatalf("want help, got %d", code)
 	}
 }

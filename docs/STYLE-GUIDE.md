@@ -119,9 +119,9 @@ it is today.
 
 **The engine's own output is published text.** A refusal that names a
 design document sends a user somewhere they cannot go, in place of
-telling them what to do: `aontu mod get` did exactly that. A message
-names the repair, not the reasoning; the reasoning stays in the source
-comment beside it, where a contributor reads it.
+telling them what to do: an early `aontu get` refusal did exactly
+that. A message names the repair, not the reasoning; the reasoning
+stays in the source comment beside it, where a contributor reads it.
 
 Two things the rule does *not* catch, because neither is a citation:
 `AGENTS.md` named as the file `aontu agentsmd` writes, and an error

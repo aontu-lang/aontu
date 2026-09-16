@@ -1,4 +1,4 @@
-@"tenant.aon"
+@"./tenant.aon"
 
 # A concrete tenant composed with the schema: the whole model
 # evaluates to one JSON document -- catalog, role registry and tenant,

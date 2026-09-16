@@ -27,7 +27,7 @@ call, because the verdict is `allowed` only when every path is.
 Branch on the exit code, and on nothing else:
 
 - `0`, `verdict: allowed`. Run the `aontu set` with the same
-  arguments: `aontu set '$.services.auth.replicas=5' --entry model.aon
+  arguments: `aontu model set '$.services.auth.replicas=5' --entry model.aon
   --overlay changes.aon`. The model may still refuse the value
   (`verdict: invalid`, exit 1); that is the model's answer, not the
   gate's, and it names the line it holds against you.

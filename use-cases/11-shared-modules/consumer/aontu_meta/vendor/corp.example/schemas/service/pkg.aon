@@ -1,0 +1,3 @@
+# Module identity for the platform team's service contract.
+# The major an import spells ("...") is derived from `version`.
+pkg: { path:"corp.example/schemas/service" version:"1.4.2" main:"service.aon" }

@@ -1,5 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.pathText = pathText;
+exports.siteOf = siteOf;
 exports.effectiveDefault = effectiveDefault;
 exports.subsumeNode = subsumeNode;
 exports.subsume = subsume;

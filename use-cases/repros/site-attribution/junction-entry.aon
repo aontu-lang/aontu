@@ -8,4 +8,4 @@
 # file is known at all, e.g. API/stdin parses; see ts/src/err.ts.)
 # expected: schema site junction-frag.aon:3:9 ("GET"|"HEAD")
 # actual:   schema site junction-entry.aon:-1:-1 ("GET"|"HEAD")
-@"junction-frag.aon"
+@"./junction-frag.aon"

@@ -31,10 +31,18 @@ const helpText = `Usage: aontu [options] [file]
        aontu trace [--at <path>] [--format json] [--marker <token>]
                    [--profile <file>] <file>
        aontu hash [options] <file>
-       aontu mod tidy|verify|vendor|manifest [options] [dir]
-       aontu get <path> [options] <file>
-       aontu why <path> [options] <file>
-       aontu set <path>=<value>... --entry <file> --overlay <file>
+       aontu sync [--frozen] [options] [dir]
+       aontu add <pkg>[@<version>] [options] [dir]
+       aontu get <pkg>[@<version>] [options] [dir]
+       aontu remove <pkg> [options] [dir]
+       aontu why <pkg> [options] [dir]
+       aontu publish [--yes] [--to <dir>] [options] [dir]
+       aontu pkg tidy|verify|vendor|manifest|refreeze|tree|outdated|serve
+                 [options] [dir]
+       aontu pkg keygen <file>
+       aontu model get <path> [options] <file>
+       aontu model why <path> [options] <file>
+       aontu model set <path>=<value>... --entry <file> --overlay <file>
        aontu agentsmd [--write <AGENTS.md>] [--depth <n>] <file>
        aontu fmt [-w|-l|--check|-d|--lint] [--marker <token>]
                  [--profile <file>] <file>...
@@ -102,18 +110,57 @@ Options:
                   named format keeps its meaning, and .js stays
                   refused. Every verb takes it
 
-Mod options:
-  --format <f>    text (default) or json
-  --against <dir> manifest: a prior version's module tree, to gate on
+Package verbs (a module is imported; a package is published):
+  sync      Make the project correct: resolve by minimum version
+            selection, fetch what is missing, write aontu_meta/pkg-lock.aon,
+            vendor, verify. --frozen refuses to change the lockfile
+  add       Take on a dependency the project does not have, then sync;
+            refuses one it has and names get
+  get       Add a dependency or raise its minimum, then sync. Without a
+            version, the newest version outside the cooldown
+  remove    Drop a dependency, then sync
+  why       Why is this package in the closure: every path of
+            requirements that reaches it
+  publish   Publish this package. A dry run without --yes; --to <dir>
+            writes the repository layout into a directory instead
 
-Mod subcommands:
-  tidy      Resolve the module closure by minimum version selection and
-            rewrite aontu_meta/mod-lock.aon in canonical form
-  verify    Check every locked module still means what the lockfile
-            pins, and change nothing (the CI gate; tidy rewrites)
+Package options:
+  --format <f>    text (default) or json
+  --frozen        sync: fail if the lockfile would change (the CI mode)
+  --yes           publish: send it (the default is a dry run)
+  --to <dir>      publish: write the read-path layout into a directory
+  --key <file>    publish: the Ed25519 private key (PKCS#8 PEM) that
+                  signs the manifest, for the key provider
+  --token <file>  publish: the forge's OIDC token, read from a file
+  --base <url>    the repository to read from (repeatable; overrides
+                  pkg.aon repo.base)
+  --write <url>   publish: the write path (overrides pkg.aon repo.write)
+  --against <dir> manifest: a prior version's tree, to gate on
+  --upstream <u>  serve: fetch on miss from this repository (repeatable)
+  --listen <a>    serve: the address to listen on (default 127.0.0.1:8017)
+
+pkg subcommands (the rest of the package operations):
+  tidy      Resolve the closure by minimum version selection and
+            rewrite aontu_meta/pkg-lock.aon in canonical form
+  verify    Check every locked package still is and still means what
+            the lockfile pins, bytes before meaning, and change nothing
+            (the CI gate; tidy rewrites)
   vendor    Materialise the locked closure into aontu_meta/vendor/
-  manifest  Print the OCI artifact a publish would push, gated on the
-            breaking check against --against
+  manifest  Print the manifest a publish would send, gated on the
+            compatibility check against --against
+  refreeze  Recompute every canon pin and nothing else, after a
+            canonical-form change in the engine
+  tree      The locked closure as a graph
+  outdated  What could move, and what would move with it
+  serve     Serve a repository directory; with --upstream, a caching
+            proxy in front of another repository
+  keygen    Write a new Ed25519 signing key (PKCS#8 PEM) to a file,
+            once, and print the signer id a consumer names
+
+model subcommands (one document, interrogated or edited):
+  get       What the document says at a path
+  why       Every contribution to the value at a path
+  set       Append a path-flattened conjunct to an overlay
 
 Vet options:
   --at <path>       Validate against this path of the schema ($.a.b)
@@ -192,21 +239,21 @@ Hash options:
 Hash exit codes: 0 hashed, 2 usage, 4 the document does not stand up
 on its own.
 
-Get options:
+Model get options:
   -c, --canon     Canonical-form fragment (default: generated JSON)
   --keys          Keys at the node, one per line
   --types         Shape view: concrete leaves lifted to their kinds
   --depth <n>     Structure to depth n; deeper nodes render as top
   --format <f>    text (default) or json
 
-Get exit codes: 0 rendered, 1 the path names nothing, 2 usage, 4 the
-document does not stand up on its own.
+Model get exit codes: 0 rendered, 1 the path names nothing, 2 usage, 4
+the document does not stand up on its own.
 
-Why options:
+Model why options:
   --format <f>    text (default) or json
 
-Why exit codes mirror get's: 0 explained, 1 the path names nothing,
-2 usage, 4 the document does not stand up on its own.
+Model why exit codes mirror get's: 0 explained, 1 the path names
+nothing, 2 usage, 4 the document does not stand up on its own.
 
 View kinds: doc, lattice, tree, matrix, graph, layer, sets, layers,
 ladder, poset (the poset takes several files). The figure goes to stdout, the loss
@@ -296,7 +343,7 @@ every other line is a line of output.
 
 Template exit codes: 0 written, 1 --check drift, 2 usage or I/O.
 
-Set options:
+Model set options:
   --entry <file>    The document the change is checked against
   --overlay <file>  The file the change is appended to (created if
                     absent; not written when the change does not hold)
@@ -312,7 +359,7 @@ Set options:
   --format <f>      text (default) or json
 
 Set exit codes are vet's verdict classes: 0 valid, 1 invalid (the
-change contradicts a pinned value -- aontu why locates it, and
+change contradicts a pinned value -- aontu model why locates it, and
 --in-place rewrites it), 2 usage, 3 incomplete, 4 the entry does not
 stand up on its own.
 
@@ -489,9 +536,9 @@ func emit(a *aontu.Aontu, src, mode, format string, out, errw io.Writer) int {
 }
 
 var knownVerbs = []string{
-	"agentsmd", "breaking", "explain", "fmt", "get", "hash", "help",
-	"init", "jsonschema", "lsp", "mcp", "mod", "reaches", "relations",
-	"set", "subsume", "template", "trace", "trim", "vet",
+	"add", "agentsmd", "breaking", "explain", "fmt", "get", "hash", "help",
+	"init", "jsonschema", "lsp", "mcp", "model", "pkg", "publish", "reaches",
+	"relations", "remove", "subsume", "sync", "template", "trace", "trim", "vet",
 	"view", "why",
 }
 
@@ -772,8 +819,14 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, tty bool) int
 	if 0 < len(args) && "breaking" == args[0] {
 		return runBreaking(args[1:], stdout, stderr)
 	}
-	if 0 < len(args) && "mod" == args[0] {
-		return runMod(args[1:], stdout, stderr)
+	if 0 < len(args) && "pkg" == args[0] {
+		return runPkg(args[1:], cliServers(), stdout, stderr)
+	}
+	if 0 < len(args) && isPackageVerb(args[0]) {
+		return runPackageVerb(args[0], args[1:], cliServers(), stdout, stderr)
+	}
+	if 0 < len(args) && "model" == args[0] {
+		return runModel(args[1:], stdout, stderr)
 	}
 	if 0 < len(args) && "relations" == args[0] {
 		return runRelations(args[1:], stdout, stderr)
@@ -808,15 +861,6 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, tty bool) int
 	}
 	if 0 < len(args) && "mcp" == args[0] {
 		return runMcp(args[1:], stdout, stderr)
-	}
-	if 0 < len(args) && "set" == args[0] {
-		return runSet(args[1:], stdout, stderr)
-	}
-	if 0 < len(args) && "why" == args[0] {
-		return runWhy(args[1:], stdout, stderr)
-	}
-	if 0 < len(args) && "get" == args[0] {
-		return runGet(args[1:], stdout, stderr)
 	}
 	if 0 < len(args) && "hash" == args[0] {
 		return runHash(args[1:], stdout, stderr)

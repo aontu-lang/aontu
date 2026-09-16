@@ -67,6 +67,7 @@ capability decision is the phase rows it governed in
 | [ADR-036](#adr-036--a-bundled-model-is-a-file-in-aontu-not-a-string-in-each-port) | A bundled model is a file in `aontu/`, not a string in each port | Accepted |
 | [ADR-037](#adr-037--two-lists-concatenate-under--and-a-sum-of-an-absence-is-absent) | Two lists concatenate under `+`, and a sum of an absence is absent | Accepted |
 | [ADR-038](#adr-038--the-component-tree-is-the-only-output-road-and-aontu-knows-no-languages) | The component tree is the only output road, and aontu knows no languages | Accepted |
+| [ADR-039](#adr-039--the-package-system-has-one-vocabulary-one-set-of-files-and-three-pins) | The package system has one vocabulary, one set of files, and three pins | Accepted |
 
 ---
 
@@ -3886,3 +3887,173 @@ reason.
 **Keep `render` as a deprecated alias.** Two roads is the thing being
 removed. An alias that still works is still a road, still documented,
 still tested in both ports, and still the one a reader finds first.
+
+---
+
+## ADR-039 — The package system has one vocabulary, one set of files, and three pins
+
+**Date:** 2026-09-15
+**Status:** Accepted
+
+### Context
+
+Three naming schemes coexisted across the engine, the executable
+specification in `aontu-lang/system` and the design notes. The engine
+read `mod.aon`, wrote `aontu_meta/mod-lock.aon`, required `@<major>`
+in every import and spelt its verbs `aontu mod <op>`; the specification
+read `pkg.aon`, wrote `aontu_meta/pkg-lock.aon`, carried no major
+([ADR-022](#adr-022--compatibility-is-computed-so-the-major-leaves-the-name))
+and named `sync`, `get` and `publish`; and `CLI.0.md` in that repository
+proposed the verb tiers and the file names as four settled decisions
+that no record here had taken. The engine's lock entry pinned `oci`, a
+digest nothing ever computed, while the specification pinned an archive
+digest and a manifest digest beside the canon-hash. ADR-022 retired the
+major from the path and named the routing consequence, and nothing had
+built it. [G10](docs/capability-review/g10-transparency.md) phase 3
+cannot land against three contracts, and the status report of
+2026-09-12 (§5 item 11, §6 step 4) put this entry on its critical path
+ahead of every artifact that stores an `aon1-` pin.
+
+The one premise of `CLI.0.md` that does not survive contact with the
+tree is "no migration, because nothing is public". `aontu@0.53.0` and
+later are on npm and both ports already carry one refuse-and-name shim
+for the `aontu_meta/` move. That precedent is kept and generalised
+rather than the premise: a verb that finds the old layout names the
+new one once, and reads nothing from it.
+
+### Decision
+
+**The engine adopts the specification's shapes, the proposal's verb
+tiers, and a lock entry with three pins.** Ten parts.
+
+1. **Vocabulary.** A module is imported; a package is published. The
+   verbs, the files, the messages and the documentation say `pkg`
+   where the thing is published, versioned, signed or quota'd, and
+   `module` where it is imported, resolved or hashed.
+
+2. **Files.** The package file is `pkg.aon` at the project root. The
+   lockfile is `aontu_meta/pkg-lock.aon`. The vendored closure is
+   `aontu_meta/vendor/<package-path>/`, one directory per `/`-element,
+   with no `@<major>` suffix and uppercase escaped `!x` as before. A
+   package acquired from a repository keeps its manifest and its proof
+   beside its tree, at `<tree>/aontu_meta/manifest.aon` and
+   `<tree>/aontu_meta/proof.aon` (a key proof) or
+   `<tree>/aontu_meta/proof.sigstore.json` (a Sigstore bundle), verbatim
+   as served, so a later `verify` needs no network. The user cache
+   moves to `aontu/pkg` under the platform rule and gains three trees:
+   `download/<package>/@v/<version>.*` keyed by package and version,
+   `store/<canon-hash>/<package>/` keyed by canon-hash **and** package
+   path, and `seen/<package>/<version>.aon`, the client's first-seen
+   records. The store key is what closes the cache-identity hole G10
+   named: two packages meaning the same thing never share a directory.
+
+3. **The package file's shape** is the specification's `T.PackageFile`:
+   `pkg: { path, main, version? }`, `dep: { <path>: { v, pkg? } }`,
+   `publish: *private | public`, `retract?: [versions]`,
+   `moved?: <path>`, plus `repo?`, the client's trust configuration
+   (`base`, `write`, `private`, `trust`), which this entry adds to the
+   specification because a project's mirrors, private prefixes and
+   accepted signers are facts about the project and travel with it.
+
+4. **An import self-describes**, per ADR-022 part 4. `@"corp.example/x"`
+   is a package path; `@"corp.example/x#aon1-…"` pins it inline;
+   `@"alias:legacy"` names an alias the package file declares, resolved
+   by lookup and never by shape; `@"./f.aon"`, `@"../g.json"` and
+   `@"/abs/h.aon"` are local files. A bare reference whose final
+   segment carries an extension the include table knows refuses with
+   the new code `module_local` and the message
+   *local files need a `./` prefix*. A package whose `pkg.aon` declares
+   `moved` refuses with the new code `module_moved`, naming the
+   destination; nothing follows it. Both codes are class `parse`, join
+   `MODULE_REFUSAL_CODES`, and land with registry rows.
+
+5. **The verb tiers** are `CLI.0.md` §2.3's. Top level: `sync
+   [--frozen]`, `add <pkg>`, `get <pkg>[@<version>]`, `remove <pkg>`,
+   `why <pkg>` and `publish`. `aontu model get|why|set` are the
+   document queries that held `get`, `why` and `set`. `aontu pkg
+   tidy|verify|vendor|manifest|serve|outdated|tree|refreeze` are the
+   remaining package operations. `add` refuses a package already
+   declared and names `get`; `get` adds or raises the minimum; both end
+   in a `sync`. `publish` is a dry run without `--yes`.
+
+6. **A lock entry pins three things**: `v`, `canon`, `archive` and,
+   when the package was acquired from a repository, `manifest` — the
+   canon-hash of the module evaluated standalone, the digest of the
+   canonical archive of its tree, and the digest of the signed
+   manifest. `archive` is computable from any tree, so a hand-vendored
+   package carries it too; `manifest` is present only where a manifest
+   is. An alias entry adds `pkg`, the package it names. `oci` is
+   retired, never having been computed.
+
+7. **The canonical archive** is a zip whose entries are sorted by path,
+   stored uncompressed, dated to the zip epoch, with no permissions,
+   extra fields or comments, holding exactly the files the allowlist
+   admits and nothing under `aontu_meta/`. One tree has one digest in
+   both ports, which a compressor could not promise. The reader is as
+   strict as the writer: an archive that is not canonical is refused
+   before it is unpacked, which a hostile mirror cannot get past because
+   the digest is the canonical archive's.
+
+8. **Verification checks bytes before meaning.** `pkg verify` and every
+   acquisition recompute the archive digest and compare each file to
+   the manifest where one is kept, then evaluate and compare the
+   canon-hash; a client that checks one pin only is a defect (ADR-019).
+   Evaluation itself keeps checking meaning alone at an import, because
+   the files are the tooling's to check and the meaning is the
+   evaluator's. `pkg refreeze` recomputes canon pins and nothing else,
+   which is what a canonical-form change needs.
+
+9. **Cooldown is timed from the repository's first-seen time** in the
+   version list, and the client's own first-seen record is what detects
+   a rollback. The specification's `acquire` step 6 says "this client's
+   first observation", which would leave a fresh machine unable to
+   select anything for three days; the repository writes `seen`, a
+   publisher cannot influence it, and the residual — a repository
+   colluding with a publisher to backdate — is inside the trust the
+   repository already has for availability. A version named explicitly
+   is taken whatever its age. A name on the private list skips cooldown.
+
+10. **Base URLs are https, or http on a loopback host**, so
+    `pkg serve` on a laptop is reachable; the write base is a separate
+    origin, `https://publish.aontu.dev` by default and provisional
+    until the Worker exists; `publish --to <dir>` writes the read-path
+    layout straight into a directory, which is what a private local
+    registry serves. The key provider of ADR-024 part 4 lands first in
+    both ports, signing with a PKCS#8 Ed25519 key and verifying under a
+    trust entry that names the key; the Sigstore provider is specified
+    in `aontu-lang/mod` and refused by name until it is built, so the
+    default trust entry for a public name fails closed rather than
+    silently.
+
+### Consequences
+
+**We accept a total rename with one shim.** Every fixture, use case,
+how-to and reference page moves in the same change, and a verb that
+finds `mod.aon`, `mod-lock.aon` or `aon_vendor/` names the new layout
+once. Nothing reads the old names.
+
+**We accept that the specification moves too.** `T.LockEntry` gains an
+optional `manifest` and `pkg`; `T.PackageFile` gains `repo`;
+`T.TrustConfig` gains `write`; `T.Manifest.publisher` becomes optional
+so a local registry can hold a manifest with no forge behind it, while
+the public write path keeps requiring it; the base-URL rule admits
+loopback http; and `acquire` step 6 is reworded. Each is provisional in
+`params.aon`'s sense and is recorded there. Where this entry and the
+specification still disagree, the specification is amended.
+
+**We accept the spec fixtures re-pinning once.** Every stored `aon1-`
+value in the tree was computed under the shape this entry replaces;
+they are recomputed here, after the cross-port fix `dc652ba` and its
+release, so they move once rather than twice.
+
+**What this does not license.** Network resolution of a name
+(ADR-020 part 1); a redirect on `moved`; evaluation on the read path;
+a fourth pin; or a second archive format. It does not decide the
+Sigstore verifier, the private-package provenance question, or the
+escape hatch for an intended outcome change, which stay where ADR-022
+and ADR-024 left them.
+
+**Enforcement.** `test/spec/mod.tsv` pins the routing rule, the alias,
+`module_local` and `module_moved`; the `pkg` verbs are held to the
+CLI-parity discipline G2 phase 3 set; the register's G6 and G10 rows
+record what landed under this entry in the commit that lands it.

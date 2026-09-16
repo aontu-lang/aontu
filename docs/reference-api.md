@@ -50,10 +50,18 @@ Usage: aontu [options] [file]
        aontu trace [--at <path>] [--format json] [--marker <token>]
                    [--profile <file>] <file>
        aontu hash [options] <file>
-       aontu mod tidy|verify|vendor|manifest [options] [dir]
-       aontu get <path> [options] <file>
-       aontu why <path> [options] <file>
-       aontu set <path>=<value>... --entry <file> --overlay <file>
+       aontu sync [--frozen] [options] [dir]
+       aontu add <pkg>[@<version>] [options] [dir]
+       aontu get <pkg>[@<version>] [options] [dir]
+       aontu remove <pkg> [options] [dir]
+       aontu why <pkg> [options] [dir]
+       aontu publish [--yes] [--to <dir>] [options] [dir]
+       aontu pkg tidy|verify|vendor|manifest|refreeze|tree|outdated|serve
+                 [options] [dir]
+       aontu pkg keygen <file>
+       aontu model get <path> [options] <file>
+       aontu model why <path> [options] <file>
+       aontu model set <path>=<value>... --entry <file> --overlay <file>
        aontu allow --role <role> [--at <path>] <roles-file> <path>...
        aontu agentsmd [--write <AGENTS.md>] [--depth <n>] <file>
        aontu fmt [-w|-l|--check|-d|--lint] [--marker <token>]
@@ -296,12 +304,12 @@ $ echo $?
 `value` says `31`, `src` says `0x1F`, and `len` says the span is four
 code units: the three facts an editing consumer needs, together.
 
-`aontu why` carries the same pair: each conjunct in the record has the
+`aontu model why` carries the same pair: each conjunct in the record has the
 `len` on its site and the contribution's own `src` beside its `canon`.
 
 **A site names the file whose text it excerpts**, which for a modular
 document is not the entry file. A constraint written in
-`lib/types.aon` and reached through `@"lib/types.aon"` is reported at
+`lib/types.aon` and reached through `@"./lib/types.aon"` is reported at
 `lib/types.aon` with that file's row and column: never at the entry
 with the included file's coordinates, which is a real filename
 against a line it may not have.
@@ -636,7 +644,7 @@ aontu trim --check [--format text|json] <file.aon>
 - `--check` is **required**: trim only reports, and `aontu trim f.aon`
   doing something other than trimming silently would be worse than
   saying so. It is not blocked on the machinery
-  [`set --in-place`](#aontu-set) now has (a splice needs no
+  [`set --in-place`](#aontu-model-set) now has (a splice needs no
   format-preserving editor) but deleting an entry is a different
   edit from replacing one: a statement's span does not say which
   surrounding blank line or trailing comment went with it, and
@@ -886,7 +894,7 @@ holds:
 | `layer` | the architecture layers: one band per value of `--group-by`, upward edges named | the edge set and the node values | `text`, `mermaid`, `svg` |
 | `sets` | the set-intersection panel over a family of sets (UpSet) | the generated value | `text`, `svg` |
 | `layers` | which document contributed which path | the provenance record | `text`, `svg` |
-| `ladder` | the meet ladder at one path: every contribution as a rung, in rank order | the [`why`](#aontu-why) record | `mermaid`, `dot` |
+| `ladder` | the meet ladder at one path: every contribution as a rung, in rank order | the [`why`](#aontu-model-why) record | `mermaid`, `dot` |
 | `poset` | the subsumption order over several documents | [`subsume`](#aontu-subsume), pairwise | `mermaid`, `dot` |
 
 The first profile listed is the kind's default; asking for another is
@@ -1395,13 +1403,13 @@ Without `--strict` the same export exits 0.
   `Aontu.JSONSchema(src, at)` in Go, returning the identical
   `{verdict, schema, lossy}` record (plus `errors` on a failed run).
 
-### `aontu get`
+### `aontu model get`
 
 Select one node of an evaluated document by path and render it: the
 task-sized slice, instead of the whole file as one JSON blob.
 
 ```
-aontu get <path> [-c|--canon] [--keys] [--types] [--depth <n>]
+aontu model get <path> [-c|--canon] [--keys] [--types] [--depth <n>]
           [--format text|json] <file.aon>
 ```
 
@@ -1432,15 +1440,15 @@ services: billing: {}
 
 <!-- test: run -->
 ```sh
-$ aontu get $.services.auth app.aon
+$ aontu model get $.services.auth app.aon
 {
   "port": 8080,
   "replicas": 3
 }
-$ aontu get --keys $.services app.aon
+$ aontu model get --keys $.services app.aon
 auth
 billing
-$ aontu get $.services.auht app.aon
+$ aontu model get $.services.auht app.aon
 $.services.auht: no_path [reference]
   The path $.services.auht names nothing in this document.
   note: did you mean auth?
@@ -1465,7 +1473,7 @@ On `app.aon` the shape view erases the concrete leaves:
 
 <!-- test: run -->
 ```sh
-$ aontu get --types $.services.auth app.aon
+$ aontu model get --types $.services.auth app.aon
 {"port":*integer|integer,"replicas":integer}
 ```
 
@@ -1486,7 +1494,7 @@ Projections are not canonical form and are never fed to
 [`aontu hash`](#aontu-hash): the flags are distinct from `--canon` to
 keep that unambiguous.
 
-### `aontu why`
+### `aontu model why`
 
 Provenance: what *contributed* to the value at a path, in order, with
 the site each contribution was written at. The positive twin of
@@ -1494,14 +1502,14 @@ the site each contribution was written at. The positive twin of
 `why` explains what did.
 
 ```
-aontu why <path> [--format text|json] <file.aon>
+aontu model why <path> [--format text|json] <file.aon>
 ```
 
 Ask it about the `app.aon` above:
 
 <!-- test: run -->
 ```sh
-$ aontu why $.services.auth.replicas app.aon
+$ aontu model why $.services.auth.replicas app.aon
 $.services.auth.replicas = 3
   1. *1|integer  app.aon:1:28  (spread)
   2. 3  app.aon:2:27
@@ -1545,7 +1553,7 @@ $.services.auth.replicas = 3
   instrumented run pays site materialisation, one map entry per path
   met, and the spread walk that marks a template's application.
 
-### `aontu set`
+### `aontu model set`
 
 Change a document by **appending to an overlay**: or, with
 `--in-place`, by rewriting the literal inside that same overlay.
@@ -1553,7 +1561,7 @@ Change a document by **appending to an overlay**: or, with
 written.
 
 ```
-aontu set <path>=<value>... --entry <file> --overlay <file>
+aontu model set <path>=<value>... --entry <file> --overlay <file>
          [--in-place] [--dry-run] [--format text|json]
 ```
 
@@ -1567,7 +1575,7 @@ services: auth: { owner:string replicas:3 }
 
 <!-- test: run -->
 ```sh
-$ aontu set '$.services.auth.owner="identity-2"' --entry entry.aon --overlay changes.aon
+$ aontu model set '$.services.auth.owner="identity-2"' --entry entry.aon --overlay changes.aon
 verdict: valid
 wrote: changes.aon
 ```
@@ -1576,7 +1584,7 @@ A pinned value refuses the append and the overlay is left unchanged:
 
 <!-- test: run -->
 ```sh
-$ aontu set '$.services.auth.replicas=5' --entry entry.aon --overlay changes.aon
+$ aontu model set '$.services.auth.replicas=5' --entry entry.aon --overlay changes.aon
 verdict: invalid
 
 $.services.auth.replicas: scalar_value [conflict]
@@ -1593,7 +1601,7 @@ text:
 
 <!-- test: run -->
 ```sh
-$ aontu set '$.services.auth.owner="identity-3"' --entry entry.aon --overlay changes.aon --in-place
+$ aontu model set '$.services.auth.owner="identity-3"' --entry entry.aon --overlay changes.aon --in-place
 verdict: valid
 replaced: changes.aon:1:30 "identity-2" -> "identity-3"
 wrote: changes.aon
@@ -1611,7 +1619,7 @@ wrote: changes.aon
   rather than claiming it.
 - **Appending cannot change a pinned value.** The lattice refuses `5`
   against `3`, the verdict is `invalid`, and the finding names the
-  pinning site, which [`aontu why`](#aontu-why) then explains.
+  pinning site, which [`aontu model why`](#aontu-model-why) then explains.
   `--in-place` closes that loop.
 - **A path reached through a reference is refused** (`patch_not_editable`).
   `n: $.base` against `base: 7` is pinned by `base`'s line, not by
@@ -1669,7 +1677,7 @@ wrote: changes.aon
 
 Ask a role model whether a role may modify every one of the given
 subtrees, and answer before the change is made: the gate an agent runs
-in front of [`set`](#aontu-set), from a document that is itself aontu.
+in front of [`set`](#aontu-model-set), from a document that is itself aontu.
 
 ```
 aontu allow --role <role> [--at <path>] [--format text|json]
@@ -1699,7 +1707,7 @@ aontu allow --role <role> [--at <path>] [--format text|json]
   is close.
 - Every asked path is answered, and the verdict is `allowed` only when
   every one of them is. Each answer names the entry that decided it as
-  a path into the role model, so [`aontu why`](#aontu-why) locates the
+  a path into the role model, so [`aontu model why`](#aontu-model-why) locates the
   rule and the line that wrote it.
 - Every path starts with `$`, and may be spelled as `set`'s
   assignment, `<path>=<value>`, so a skill can hand the gate the very
@@ -1735,7 +1743,7 @@ in an entry's place is refused as `no_gen`.
 Three limits follow from what the gate compares:
 
 - A key that contains a dot is unreachable, as it is for
-  [`get`](#aontu-get): an asked path and an entry are both split at
+  [`get`](#aontu-model-get): an asked path and an entry are both split at
   every dot, quotes included, so neither side can name such a key. A
   role is one key, looked up as written and never split, and the
   command refuses a dotted role name, because the entry paths it
@@ -1804,7 +1812,7 @@ line that wrote it:
 
 <!-- test: run -->
 ```sh
-$ aontu why $.roles.dev.deny.0 roles.aon
+$ aontu model why $.roles.dev.deny.0 roles.aon
 $.roles.dev.deny.0 = "$.services.*.tier"
   1. "$.services.*.tier"  roles.aon:4:10
 ```
@@ -2216,226 +2224,367 @@ provided the hash form is semantically complete, which is exactly why
 the `close`/mark additions are part of the definition rather than an
 optimisation.
 
-### `aontu mod`
+### `aontu sync`
 
-Module tooling: the commands that maintain a project's dependency
-closure and describe what a publish would push. All are **local**: they
-read and write the project, the vendor directory and the user cache, and
-never reach the network.
-
-```
-aontu mod tidy     [--format text|json] [dir]
-aontu mod verify   [--format text|json] [dir]
-aontu mod vendor   [--format text|json] [dir]
-aontu mod manifest [--against <dir>] [--format text|json] [dir]
-```
-
-`dir` is the project root (the directory holding `mod.aon`) and
-defaults to the working directory.
-
-**`tidy`** walks the dependency closure and rewrites `aontu_meta/mod-lock.aon`.
-
-- Dependencies are read from each module's own `mod.aon`, under a
-  `dep` map keyed by module path, each entry declaring a version `v`:
-
-  ```
-  dep: { "corp.example/schemas/service@1": { v: "1.4.2" } }
-  ```
-- Selection is **minimum version selection**: each module is taken at
-  the *highest of the minima* anyone in the closure asked for, never
-  higher. Nothing is upgraded by the act of resolving, so a tidy is
-  reproducible and adding a dependency cannot silently move an
-  unrelated one.
-- The closure is walked breadth-first and terminates without a cycle
-  check, because a module's selected version only ever rises.
-- Each entry's `canon` pin is **recomputed** from the module in the
-  store, by unifying its entry file standalone and hashing it (see
-  [`aontu hash`](#aontu-hash)). It is never carried over from the old
-  lockfile, which would pin what the module *used* to mean. The `oci`
-  digest *is* carried over: it is the registry's word about the bytes
-  it served, and nothing local can hear it.
-- The lockfile is written in canonical form under a generated-file
-  header, so it is one diffable line and every reader strips `#`
-  comments before parsing it:
-
-  ```
-  # mod-lock.aon (generated by `aontu mod tidy`; do not edit)
-  {"lock":{"corp.example/schemas/service@1":{"canon":"aon1-oQs6…","oci":"","v":"1.4.2"}}}
-  ```
-
-- A module the stores do not hold is reported as missing and **the
-  lockfile is not written at all**. A partial lock is worse than none:
-  it would claim a closure that was never resolved.
-- A module the stores *do* hold but which **does not evaluate on its
-  own** is refused the same way (`verdict: error`, exit 4, no lockfile
-  written), and named separately because the repair is different: a
-  fetch cannot help it. This is the same refusal
-  [`aontu hash`](#aontu-hash) gives for the same file, and for the same
-  reason: a module that does not stand up has no meaning to pin, and
-  every one of them hashes to the *same* string. A lockfile written
-  from that hash looks exactly like a real pin and carries nothing.
-
-**`verify`** asks whether every locked module still **means** what the
-lockfile pins, and **changes nothing**. It is the CI gate.
-
-`tidy` cannot be that gate. It recomputes and rewrites by design (a
-pin is what a module means *now*) so a job that tidies before
-evaluating makes the lockfile agree with whatever the store holds,
-tampering included, and then passes. Verification is a question;
-answering it must not be an edit.
+Make the project correct: resolve its declared dependencies by minimum
+version selection, fetch what no local store holds, write the lockfile,
+materialise the vendor tree, and verify every pin. It is idempotent, and
+it is the one package verb a reader needs to know.
 
 ```
-$ aontu mod verify
+aontu sync [--frozen] [--base <url>]... [--format text|json] [dir]
+```
+
+`dir` is the project root, the directory holding `pkg.aon`, and defaults
+to the working directory.
+
+**What a project declares.** `pkg.aon` names the package and what it
+depends on. A dependency is a minimum version; an `alias:<name>` entry
+holds a second version of one package under a name the imports use:
+
+```aon
+pkg: { path:"corp.example/checkout" main:"main.aon" }
+
+dep: "corp.example/schemas/service": v: "1.4.2"
+dep: "alias:legacy": { pkg:"corp.example/schemas/service" v:"1.2.0" }
+```
+
+**Resolution is minimum version selection.** Every package is taken at
+the highest of the minima anyone in the closure asked for, and never
+higher, so a resolve is reproducible and adding one dependency cannot
+move another. The closure is walked from the project's own file through
+each dependency's `pkg.aon`, fetching a package the stores lack as it is
+reached.
+
+**What a fetch checks, in order.** The repository is trusted for
+availability and for nothing else. For each package the client reads the
+version list, then the manifest, then the proof, then the archive, and
+refuses at the first check that does not hold:
+
+1. the manifest is well formed and names the package and version asked
+   for;
+2. the proof signs the manifest's digest, by a signer the project's
+   trust configuration accepts for that name;
+3. the archive's digest is the one the manifest declares, before a byte
+   of it is parsed;
+4. every file in the archive has the digest and size the manifest lists,
+   no file is missing and none is extra, every path obeys the element
+   rules (at most 32 elements, none a name a platform reserves such as
+   `con` or `nul`), and nothing outside the allowlist is present;
+5. the module, evaluated standalone with its own dependencies at the
+   minima it declares, means what the manifest's canon-hash pins.
+
+A refusal names its code and the package, and nothing is written:
+
+```
+verdict: refused
+fetched: corp.example/schemas/common 1.0.0
+refused: archive_digest_mismatch: the archive for corp.example/schemas/service 1.4.2 is sha256:45e3…, not sha256:9127…
+```
+
+**The lockfile pins three things.** `aontu_meta/pkg-lock.aon` is one
+canonical line, and each entry carries the version, the canon-hash of
+the module's meaning, the digest of its canonical archive and, for a
+package acquired from a repository, the digest of its signed manifest:
+
+<!-- fmt: keep a lock file, shown as the tool writes it -->
+```aon
+# pkg-lock.aon (generated by `aontu sync`; do not edit)
+{"lock":{"corp.example/schemas/service":{"archive":"sha256:9127…","canon":"aon1-zFHn…","manifest":"sha256:f72c…","v":"1.4.2"}}}
+```
+
+**The vendor tree is the build.** `aontu_meta/vendor/<package-path>/`
+holds every package of the closure as a real copy, one directory per
+`/`-element, uppercase escaped as `!x`, with the served manifest and
+proof kept beside it under the package's own `aontu_meta/`. A synced
+project evaluates with no cache and no network. Commit the lockfile
+and the vendor tree together.
+
+**`--frozen` is the CI mode.** It resolves, fetches what a locked
+version needs, and refuses to change the lockfile: a dependency the
+lock does not name, a version that would move, a pin that would be
+recomputed, all exit 1 and name themselves as `lockfile would change`.
+
+**Where packages come from.** `repo` in `pkg.aon` is the project's trust
+configuration, and it travels with the project:
+
+```aon
+repo: base: ["https://pkg.aontu.dev"]
+repo: private: ["corp.example/*"]
+repo: private_base: ["https://pkg.corp.example"]
+repo: trust: "corp.example/*": { signer:"ed25519:q520…" inclusion:none }
+```
+
+`base` lists the repositories to read from, in order; `--base <url>`
+on the command line replaces the list. A base is `https`, or `http` on a
+loopback host, which is how a local `aontu pkg serve` is reached. A name
+matching `private` is never sent to a public base: it is read from
+`private_base`, or refused when none is configured. `trust` maps a
+pattern (a package path, a path followed by `/*`, or `*`) to the signer
+accepted for it: a named Ed25519 key, or `forge` for a signing identity
+proved through Sigstore. The default entry, `*`, names the forge signer
+and requires log inclusion. This build verifies key proofs; a name whose
+entry names the forge is refused rather than accepted unverified.
+
+**Cooldown.** A version is selectable by `get` and `outdated` only once
+the repository has held it for 72 hours, timed from the repository's
+own first-seen time, and a version that a later version retracted is
+never selected. A version named explicitly, in `pkg.aon` or on the
+command line, is taken as it is; a private name skips the cooldown.
+
+**Exit codes.** `0` the project is correct; `1` a refusal, a frozen
+lockfile that would change, a missing package or a pin that does not
+hold; `2` usage; `4` a module in the store that does not evaluate on its
+own.
+
+`--format json` prints the report: `verdict`, `fetched`, `lock`,
+`vendored`, `missing`, `unevaluable`, `forbidden`, `mismatched`,
+`unlocked`, `changes`, `events` and, on a refusal, `refusal` with its
+`code`, `message` and `pkg`.
+
+### `aontu add`, `aontu get`, `aontu remove`
+
+Change what the project depends on, then sync.
+
+```
+aontu add <pkg> [dir]
+aontu get <pkg>[@<version>] [dir]
+aontu remove <pkg> [dir]
+```
+
+- **`add`** takes on a dependency the project does not have. It refuses
+  one already declared and names `get`.
+- **`get`** adds a dependency or raises its minimum: the superset of
+  `add`. Without a version it takes the newest selectable version.
+- **`remove`** drops a dependency and the vendor tree it held.
+
+Each edits `pkg.aon` by the smallest text change that keeps the file the
+author's: a line appended, a version literal rewritten where it stands,
+a one-line entry removed. An entry the verb cannot edit that way is left
+to the author, and the verb says so. Each then runs a full `sync`, and a
+change the sync cannot carry is taken back, so neither leaves the
+project half-changed:
+
+```
+$ aontu get corp.example/schemas/service@1.4.3
+verdict: ok
+change: raised corp.example/schemas/service 1.4.2 -> 1.4.3
+fetched: corp.example/schemas/service 1.4.3
+corp.example/schemas/service 1.4.3 aon1-JstX…
+```
+
+Exit codes are `sync`'s, plus `2` for a spelling the verb cannot act on.
+
+### `aontu why`
+
+Why is this package in the closure? Every chain of dependencies from
+the project to it, read from the lockfile and the package files in the
+store. No network.
+
+```
+aontu why <pkg> [--format text|json] [dir]
+```
+
+```
+$ aontu why corp.example/schemas/common
+verdict: ok
+corp.example/checkout -> corp.example/schemas/service -> corp.example/schemas/common
+```
+
+Exit `0` when a chain exists, `1` when the package is not in the
+closure.
+
+### `aontu publish`
+
+Publish this package. A dry run without `--yes`.
+
+```
+aontu publish [--yes] [--key <file>] [--token <file>] [--to <dir>]
+              [--write <url>] [--against <dir>] [--format text|json] [dir]
+```
+
+A package declares its path, its version and its entry in `pkg.aon`,
+and whether it may leave the machine:
+
+```aon
+pkg: { path:"corp.example/schemas/service" version:"1.4.2" main:"service.aon" }
+publish: public
+```
+
+`publish` defaults to `private`, and a private package is refused by a
+public write path; a project-level `publish: public` is what allows it
+out.
+
+**What a publish sends** is the manifest, its proof, and the canonical
+archive of the source tree. The archive holds exactly what the allowlist
+admits: aontu source, the data formats the include table reads, `.md`
+and `.txt`, `LICENSE` and `NOTICE`, and nothing under `aontu_meta/`. It
+is a zip whose entries are sorted, stored uncompressed and undated, so
+one tree has one digest in both implementations. It is held to the caps
+every consumer applies at acquisition (16 MiB compressed, 64 MiB of
+files, 4096 files, 8 MiB a file) before it is minted, so nothing
+leaves the machine that every consumer would refuse; the package path
+and version in `pkg.aon` must be a package path and a version, and the
+entry must be a path inside the tree.
+
+**The gate runs first.** The highest version the repository already
+holds is fetched, checked as any acquisition is, and the candidate is
+compared against it. Compatibility has three components, and all
+three must hold: **acceptance**, every document the old version
+admitted the new one admits, which is the subsumption query's
+[`subsume`](#aontu-subsume) with its findings; **determination**, every
+position the old version resolved to a value with nothing supplied the
+new one still resolves (`compat_undetermined`, as when `port: 8080`
+loosens to `port: integer` and a consumer who supplied nothing had a
+value and now has an error); and **agreement**, where both resolve a
+position they resolve it to the same value (`compat_outcome_changed`).
+A change that fails any of them is refused, and there is no major
+version to bump past the gate; a breaking change ships as a new
+package path, and the old path's last version declares
+`moved: <new path>`. `--against <dir>` names a prior tree to gate
+against instead.
+
+```
+$ aontu publish --key key.pem
+verdict: dry-run
+corp.example/schemas/service 1.4.3 public
+archive: sha256:b4b8… (2 files, 1006 bytes)
+module: corp.example/schemas/service service.aon aon1-JstX…
+file: pkg.aon sha256:bc26… 133
+file: service.aon sha256:0188… 663
+digest: sha256:acb6…
+signer: ed25519:q520…
+against: corp.example/schemas/service 1.4.2
+write: https://publish.aontu.dev/v1/publish
+dry run: nothing sent (add --yes)
+```
+
+**The proof.** `--key <file>` names a PKCS#8 PEM Ed25519 private key;
+any other kind of key, or a file that is not a PEM private key, is
+refused `key_invalid` before anything is signed. The proof signs the
+manifest's digest under it, and the signer's id,
+`ed25519:` followed by the public key, is what a consumer names in its
+`trust` entry. `--token <file>` carries the forge's OIDC token to the
+write path, which decides admission from it; the token's claims are
+copied into the manifest as its `publisher` block.
+
+**`--to <dir>`** writes the read-path layout straight into a directory
+instead of sending anything: the archive, manifest and proof under
+`pkg/<path>/@v/`, the version list and `@latest`, and the advisory
+derived from `retract` declarations. That directory is a repository,
+which `aontu pkg serve` serves and a consumer reads over a loopback
+base. `--write <url>` names another write path.
+
+**Exit codes.** `0` sent or dry run; `1` refused, or breaking; `2`
+usage; `3` the gate is undecided; `4` the package cannot be minted.
+
+### `aontu pkg`
+
+The remaining package operations, each the right verb when you want
+exactly that step and no other.
+
+```
+aontu pkg tidy     [--format text|json] [dir]
+aontu pkg verify   [--format text|json] [dir]
+aontu pkg vendor   [--format text|json] [dir]
+aontu pkg manifest [--against <dir>] [--format text|json] [dir]
+aontu pkg refreeze [--format text|json] [dir]
+aontu pkg tree     [--format text|json] [dir]
+aontu pkg outdated [--base <url>]... [--format text|json] [dir]
+aontu pkg serve    [--listen <addr>] [--upstream <url>]... [dir]
+aontu pkg keygen   <file>
+```
+
+**`tidy`** resolves the closure against the local stores and rewrites
+the lockfile, fetching nothing. A package the stores do not hold is
+reported and **the lockfile is not written at all**: a partial lock
+claims a closure that was never resolved. A package that is present but
+does not evaluate on its own is refused the same way (`verdict: error`,
+exit 4), because a pin computed from a module with no meaning is the
+same string for every broken module.
+
+**`verify`** asks whether every locked package still is, and still
+means, what the lockfile pins, and **changes nothing**. It is the CI
+gate. Bytes are checked before meaning: the archive digest and each
+file against the kept manifest first, then the one evaluation and the
+canon-hash. A pinned manifest the tree no longer keeps is a mismatch,
+not a pass.
+
+```
+$ aontu pkg verify
 verdict: mismatch
-corp.example/schemas/service@1: pinned aon1-WXj9… but the store means aon1-pT2F…
+corp.example/schemas/service: pinned archive sha256:9127… but the store holds sha256:45e3…
 ```
 
-- Verdicts: `ok` the lockfile covers the project and every locked
-  module still means what it pins; `mismatch` at least one store no
-  longer means what is pinned; `unlocked` the lockfile does not name a
-  dependency the project declares; `missing` at least one locked module
-  is in no store. Exit codes: `0`, and `1` for each of the three
-  refusals, `2` for usage: a mismatch is a refused gate, the same class
-  a breaking check uses.
-- Both hashes are reported, because the useful question is which way it
-  moved. A module that no longer stands up at all says so rather than
-  reporting the hash of `nil` as though it were a meaning.
-- **Nothing to check is not a pass.** A project with no lockfile at
-  all, or one whose lockfile predates a dependency someone added, would
-  otherwise verify clean over an empty set: the same shape as the
-  defect the verb exists to close. The repair is a `tidy`, not a fetch,
-  and the line says so. Transitive dependencies need no separate check:
-  a locked module's own imports are resolved when its pin is
-  recomputed, so one that is unreachable makes its *dependant* fail to
-  evaluate and is reported as a mismatch.
+Verdicts: `ok`; `mismatch`, a store no longer is or means what is
+pinned; `unlocked`, the lockfile does not name a dependency the project
+declares; `missing`, a locked package is in no store. Exit `0`, and `1`
+for each of the three refusals: nothing to check is not a pass.
 
-**`vendor`** copies every locked module out of the stores into
-`aontu_meta/vendor/`, as a whole source tree: that is what an OCI layer
-holds, and a module is more than its entry file. A module already
-resolving from `aontu_meta/vendor/` is left alone rather than copied onto
-itself. Anything the stores do not hold is reported as missing.
+**`vendor`** copies every locked package from the stores into
+`aontu_meta/vendor/`, as whole source trees, replacing whatever stood at
+each destination. The cache is keyed by canon-hash, and a consumer's pin
+is computed against its own closure, so `vendor` looks under that pin
+and under the canon the repository's manifest for the locked version
+pins.
 
-Because the user cache is keyed by canon-hash, `vendor` can only find
-what the lockfile already pins: a cold start with no lockfile has
-nothing to search the cache *by*. `tidy` first, then `vendor`.
+**`manifest`** prints the manifest a publish would send, and gates it
+with `--against <dir>` exactly as `publish` does: acceptance,
+determination and agreement.
 
-**The vendor layout** is `aontu_meta/vendor/<module-path>@<major>/`,
-under the project that declares `mod.aon`: each `/`-segment of the
-module path becomes a
-directory, and the final segment carries the `@<major>` suffix, so
-`corp.example/schemas/service@1` lives at
-`aontu_meta/vendor/corp.example/schemas/service@1/` (`moduleDir`,
-`ts/src/mod.ts`; the Go port mirrors it). The directory holds the
-module's whole source tree (its own `mod.aon` (declaring `path`,
-`version` and `main`) and its entry file) exactly what an OCI layer
-would carry:
+**`refreeze`** recomputes every canon pin and nothing else, which is
+what a canonical-form change in the engine needs.
+
+**`tree`** draws the locked closure as a graph, each node's edges read
+from its own package file in the store.
+
+**`outdated`** asks the repository, for every locked package, what the
+newest selectable version is and what a resolution taking it would move
+with it: minimum version selection walked through the repository's
+manifests to the closure, so a dependency's own raises are listed too.
+A pinned version that a later one retracted is named too; the lock keeps
+working.
 
 ```
-myproject/
-  mod.aon                  # path, and the deps this project asks for
-  main.aon
-  aontu_meta/              # everything the tools generate
-    mod-lock.aon           # by tidy: the resolved closure
-    vendor/                # by vendor: the closure's source trees
-      corp.example/
-        schemas/
-          service@1/       # one module
-            mod.aon        # path, version, main
-            service.aon
-          common@1/        # its dependency, FLAT beside it
-            mod.aon
-            common.aon
+$ aontu pkg outdated
+verdict: outdated
+corp.example/schemas/common 1.0.0 -> 1.1.0
+corp.example/schemas/service 1.0.0 -> 1.1.0
+  corp.example/schemas/common 1.0.0 -> 1.1.0
+corp.example/schemas/service 1.0.0: retracted by 1.1.0
 ```
 
-**The tree is FLAT, and a module's own dependencies are resolved
-against it.** A vendored module carries its own `mod.aon`, so it is a
-project inside a project, and its imports are resolved from its own
-directory first and then from every project enclosing it, which is
-where `vendor` put its dependencies. A module that ships its own
-`aontu_meta/vendor/` still wins for its own tree; one that does not falls
-through to the consumer that vendored it. So the flat tree `vendor`
-writes is the tree a nested import reads, and nesting a second
-`aontu_meta/vendor/` inside a dependency is unnecessary, which matters,
-because `manifest` excludes `aontu_meta/` from the published layer, so
-a nested store could never have travelled through a publish.
+**`keygen`** writes a new Ed25519 signing key to a file, as PKCS#8 PEM
+and once only, and prints the signer id, `ed25519:` followed by the
+public key, which is what a consumer names in a `trust` entry and what
+`publish --key` signs under.
+
+**`serve`** serves a repository directory over HTTP: what `publish --to`
+wrote, byte for byte. With `--upstream <url>` it is a caching proxy in
+front of another repository, fetching an object on a miss and keeping
+it, and it says when it served a copy no upstream would refresh. The
+default address is `127.0.0.1:8017`. A proxy relaxes nothing: every
+consumer verifies what it serves as it verifies anything else.
+
+**The user cache** is `$XDG_CACHE_HOME/aontu/pkg` where that is set,
+otherwise `~/.cache/aontu/pkg` (`%LOCALAPPDATA%\aontu\pkg` on
+Windows), and holds three trees: `download/<package>/@v/` keyed by
+package and version, `store/<canon-hash>/<package>/` keyed by canon-hash
+and package path, and `seen/<package>/`, the client's own first-seen
+records, from which a repository that drops a version this client saw
+is detected. Under a root trust capability the cache is not consulted at
+all: a confined run reads the vendor tree only, and the verbs that
+write the cache refuse to run.
 
 **`aontu_meta/` is where a project's generated state lives**: the
-lockfile, the vendored closure, and whatever later tooling writes
-into a project. `mod.aon` and the documents stay at the root, since
-they are authored; nothing under `aontu_meta/` is. The `mod` verbs
-name the old layout, a root `mod-lock.aon` or `aon_vendor/`, once when
-they find it, and read nothing from it.
-
-With `mod get` absent, hand-creating this layout is the supported cold
-start: vendor the tree by hand, run `tidy` to lock its canon-hash, and
-every later evaluation verifies the vendored content against that pin
-(see the [hand-vendoring how-to](how-to/vendor-by-hand.md)).
+lockfile, the vendored closure, and whatever later tooling writes.
+`pkg.aon` and the documents stay at the root, since they are authored;
+nothing under `aontu_meta/` is. The verbs name an older layout, a
+`mod.aon` or a root `mod-lock.aon`, once when they find it, and read
+nothing from it.
 
 - `--format json` prints every report as an object with the usual
-  `aontu: {version, verb}` envelope, a `verdict`, and `missing`.
-  `tidy` adds `lock` and `unevaluable`; `verify` adds `verified` and
-  `mismatched` (each `{mod, want, got}`) and `unlocked`; `vendor` adds
-  `vendored`.
-- Exit codes for `vendor`: `0` resolved, `1` something was missing, `2`
-  usage.
-
-**`manifest`** prints the OCI artifact a publish would push, and gates
-it on the breaking check.
-
-- A module publishes itself, so its own `mod.aon` declares a version
-  as well as a path and an entry:
-
-  ```
-  mod: { path: "corp.example/schemas/service", version: "1.4.2",
-         main: "service.aon" }
-  ```
-
-  The **major an import spells lives inside that version**: `1.4.2` is
-  published as `corp.example/schemas/service@1`. A module declaring no
-  version, or one whose entry file is absent, has nothing to mint: that
-  is an `error` verdict, not a missing fetch.
--  The artifact: config media type
-  `application/vnd.aontu.module.v1+json`, one layer holding the module
-  source tree, and four annotations: `org.opencontainers.image.title` and
-  `.version` for the path and version, and
-  `com.github.rjrodger.aontu.canon` and `.major` for the two facts OCI
-  has no predefined key for.
-- The layer is the source tree, relative and forward-slashed so two
-  implementations on two platforms describe the same layer.
-  `aontu_meta/vendor/` is excluded: a published module carries its own
-  sources, not a copy of everyone else's.
--  **`--against <dir>` is the publish-time breaking gate.** It names a
-  prior version's module tree, and runs [`breaking`](#aontu-breaking)'s
-  backward check between the two: every instance the old version
-  admitted must still be admitted. The verdict, the findings and the
-  exit class are that check's, unchanged: this is wiring at the boundary
-  where versions are minted, not a second definition of "breaking".
-- **A major bump is where breaking is allowed.** When the prior
-  version's major differs from this one's, the gate does not apply: the
-  major lives in the module path, so a consumer of `@1` never sees `@2`
-  unless it asks, and checking across majors would forbid the one
-  change the version scheme exists to express.
-- Exit codes: `0` may be published, `1` breaking, `2` usage, `3`
-  undecided, `4` nothing to mint: [`subsume`](#aontu-subsume)'s
-  classes, because the gate is a subsumption check.
-
-**"Has the truth changed?" is one annotation read and a string
-compare**: no download, no parse. The canon-hash in the annotation is
-the same string `tidy` locks and [`aontu hash`](#aontu-hash) prints, so
-a consumer holding `aon1-oQs6…` can ask a registry index whether the
-module still means what it meant. A reformat, a comment or a file split
-will not move it.
-
-**`get` and `publish` need a registry client, which this build does
-not ship.** They are the network half of the module tooling. The CLI
-names them anyway and says which half is missing, because a reader
-will type them and deserves a better answer than "unknown subcommand":
-
-```
-$ aontu mod get
-aontu: mod get needs a registry client, which this build does not ship;
-vendor the module by hand and run 'aontu mod tidy'
-```
+  `aontu: {version, verb}` envelope and a `verdict`.
 
 **REPL commands**
 
@@ -2452,8 +2601,8 @@ vendor the module by hand and run 'aontu mod tidy'
 
 `:load` holds the document's **source**, not its evaluated tree (parsed
 trees are single-use) so every later question re-evaluates from the text.
-`:get` and `:keys` are the [query](#aontu-get) surface and `:why` is the
-[provenance](#aontu-why) surface, answering about the held document.
+`:get` and `:keys` are the [query](#aontu-model-get) surface and `:why` is the
+[provenance](#aontu-model-why) surface, answering about the held document.
 
 **`--jsonl` makes the session machine-drivable**: no banner, no
 prompt, and every command answers as one JSON line
@@ -2632,14 +2781,14 @@ tools and the protocol are a transport-free library
 | Tool | Answers |
 |------|---------|
 | `vet` | the [vet](#aontu-vet) report for a schema and a data document |
-| `get` | the [query](#aontu-get) surface: a path, and a view of it |
-| `why` | the [provenance](#aontu-why) record for a path |
+| `get` | the [query](#aontu-model-get) surface: a path, and a view of it |
+| `why` | the [provenance](#aontu-model-why) record for a path |
 | `diff` | what changed at which paths between two documents |
 | `canon` | a document's canonical form |
 | `summary` | the pin, the root keys and the top-tier shape: the first tier of progressive disclosure, expanded by calling `get` |
 | `subsume` | the [subsume](#aontu-subsume) report: does the general document admit every instance the specific one admits? |
 | `breaking` | the [breaking](#aontu-breaking) verdict (`compatible` \| `breaking` \| `undecided` \| `error`) plus the mode checked: the `mode` argument, else the document's own `$.aontu_policy.compat`, else `backward` |
-| `set` | the [set](#aontu-set) report **plus the new overlay text**: assignments arrive as `{path, value}` pairs (with optional `inPlace`), and the server never writes files: the caller owns the write |
+| `set` | the [set](#aontu-model-set) report **plus the new overlay text**: assignments arrive as `{path, value}` pairs (with optional `inPlace`), and the server never writes files: the caller owns the write |
 | `relations` | the [relations](#aontu-relations) report: acyclicity and inverse consistency over the entity edge set |
 | `hash` | the [canon-hash](#aontu-hash) pin `{hash}` (plus the hash-form text when `form: true`) |
 | `trim` | the [`trim --check`](#aontu-trim) report: redundant entries as paths |
@@ -2717,7 +2866,7 @@ network has.
 
 The language server can append a value's **contributions** to its
 hover (what met at that path, in source order, with each site) the
-same record [`aontu why`](#aontu-why) prints. It is off unless an
+same record [`aontu model why`](#aontu-model-why) prints. It is off unless an
 editor asks for it:
 
 <!-- test: skip editor initialization sample; the hover surface is pinned by ts/test/lsp.test.ts -->
@@ -2860,7 +3009,7 @@ observable as sorted, deduplicated `{ path, capability }`
 entries (`result.deps` in TypeScript, `Aontu.IncludeDeps` in
 Go) hermeticity's "file set" as data (capability is `mem`, `file` or
 `pkg`). Content hashing and pinning belong to [`aontu
-hash`](#aontu-hash) and the module tooling, [`aontu mod`](#aontu-mod).
+hash`](#aontu-hash) and the package tooling, [`aontu pkg`](#aontu-pkg).
 
 **The bundled vocabularies.** `@"aontu:system"` ([the system
 vocabulary](reference-language.md#the-aontusystem-vocabulary)) and
@@ -3161,7 +3310,7 @@ canonHash      // the canon-hash pin over that form,
 get            // the query surface (see `aontu get` above):
                // get(src, path, {view?, depth?, path?, trust?}) ->
                // {ok, out, findings}; Go: aontu.New().Get(src, path, opts)
-why            // provenance (see `aontu why` above):
+why            // provenance (see `aontu model why` above):
                // why(src, path, {path?, trust?}) -> {ok, record, findings},
                // record = {path, value, conjuncts}; Go: (*Aontu).Why
 patch          // the overlay patch (see `aontu set` above):

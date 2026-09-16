@@ -8,5 +8,5 @@
 # file's text".)
 # expected: frame quotes excerpt-frag.aon's lines around row 3
 # actual:   frame header excerpt-frag.aon:3:7 above THIS file's lines
-cfg: @"excerpt-frag.aon"
+cfg: @"./excerpt-frag.aon"
 cfg: { port: 9090 }

@@ -118,7 +118,7 @@ than its value.
   destructive, true, false)` per tool, and a markdown docs table
   computed from the tool entries. The rule and the table rows are
   written once per tool, each naming its tool by absolute path.
-  `aontu why` traces the flag back to the `match()` rule.
+  `aontu model why` traces the flag back to the `match()` rule.
 - **`deprecate()`** sunsets `http_request.max_redirects`: still
   admitted, warned on, with the replacement path in the warning.
 - **No defaults near enforcement.** Optional arguments carry
@@ -179,10 +179,10 @@ than its value.
    deprecations: `re("^https://")`, `"GET"|"HEAD"` and
    `deprecate(integer&min(0)&max(10)` all appear in the canonical
    form.
-3. `aontu get '$.tools.delete_records' registry.aon` matches
+3. `aontu model get '$.tools.delete_records' registry.aon` matches
    `expected/tool-delete-records.json`: one tool's merged truth, as a
    dispatcher pulls it.
-4. `aontu why '$.tools.delete_records.requires_approval' registry.aon`
+4. `aontu model why '$.tools.delete_records.requires_approval' registry.aon`
    traces the flag to its `match()` rule:
 
    ```

@@ -11,7 +11,7 @@
 # v1 union, not extend it. Versions are therefore whole documents,
 # and `breaking --against` is what keeps them honest.
 
-@"envelope.aon"
+@"./envelope.aon"
 
 OrderPlaced: close($.Envelope & {
   type: "order.placed"

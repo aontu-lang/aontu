@@ -66,12 +66,12 @@ type SubState = {
 type Tri = 'yes' | 'no' | 'undecided'
 
 
-function pathText(path: string[]): string {
+export function pathText(path: string[]): string {
   return '$' + (0 < path.length ? '.' + path.join('.') : '')
 }
 
 
-function siteOf(v: any, role: string, url: string): VetSite {
+export function siteOf(v: any, role: string, url: string): VetSite {
   return {
     file: url,
     row: v.site.row,

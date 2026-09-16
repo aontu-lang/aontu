@@ -29,10 +29,10 @@ describe('diff', () => {
     Fs.writeFileSync(Path.join(right, 'part.aon'), 'k: 2')
     // The entry file has to EXIST: the resolver stats it to root the
     // relative load, exactly as it does for `aontu <file>`.
-    Fs.writeFileSync(Path.join(left, 'doc.aon'), 'a: @"part.aon"')
-    Fs.writeFileSync(Path.join(right, 'doc.aon'), 'a: @"part.aon"')
+    Fs.writeFileSync(Path.join(left, 'doc.aon'), 'a: @"./part.aon"')
+    Fs.writeFileSync(Path.join(right, 'doc.aon'), 'a: @"./part.aon"')
 
-    const r = diff('a: @"part.aon"', 'a: @"part.aon"', {
+    const r = diff('a: @"./part.aon"', 'a: @"./part.aon"', {
       leftPath: Path.join(left, 'doc.aon'),
       rightPath: Path.join(right, 'doc.aon'),
     })

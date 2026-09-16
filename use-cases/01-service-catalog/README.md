@@ -22,7 +22,7 @@ problem: the org chart and the runtime both hold facts about one
 logical thing, and any drift between them should be an *error*, not a
 silent fork. It is also the ground-truth-ontology problem for AI
 agents: an agent must be able to pull one service's complete truth
-into context (`aontu get`), ask where a fact came from (`aontu why`),
+into context (`aontu get`), ask where a fact came from (`aontu model why`),
 and have its own emitted candidates checked (`aontu vet`, `rel()`).
 
 ## The model tree
@@ -227,28 +227,28 @@ merged model, `get` slices and query results; grep-by-error-code
    disagree about their relations.
 3. `aontu relations system.aon` answers `verdict: pass`: `dependsOn`
    is acyclic and every edge has its `dependedOnBy` mirror.
-4. `aontu get '$.deploy.regions.eu1.clusters.core.workloads.payments'`
+4. `aontu model get '$.deploy.regions.eu1.clusters.core.workloads.payments'`
    matches `expected/payments-slice.json`. The workload carries the
    `owner` and `tier` it references from the catalog alongside its own
    `image`, `replicas` and `ports`; the catalog entry keeps only what
    the catalog states.
 5. `get --keys` on the `eu1/core` cluster lists its five workloads.
-6. `aontu why` on a workload's own field names the `deploy.aon` line
+6. `aontu model why` on a workload's own field names the `deploy.aon` line
    that wrote it:
 
    ```
-   $ aontu why '$.deploy.regions.eu1.clusters.core.workloads.payments.replicas' system.aon
+   $ aontu model why '$.deploy.regions.eu1.clusters.core.workloads.payments.replicas' system.aon
    $.deploy.regions.eu1.clusters.core.workloads.payments.replicas = 6
      1. 6  .../deploy.aon:20:27
      2. *2|(min(1)&max(48)&integer)  .../spec.aon:83:15
    ```
 
-7. `aontu why` on a field the workload takes from the catalog names
+7. `aontu model why` on a field the workload takes from the catalog names
    the reference and the schema row that admits the value, so a
    referenced field carries its provenance into the deploy view:
 
    ```
-   $ aontu why '$.deploy.regions.eu1.clusters.core.workloads.payments.tier' system.aon
+   $ aontu model why '$.deploy.regions.eu1.clusters.core.workloads.payments.tier' system.aon
    $.deploy.regions.eu1.clusters.core.workloads.payments.tier = 1
      1. $.catalog.domains.payments.services.payments.tier  .../deploy.aon:17:23  (ref)
      2. (1|2)|3  .../spec.aon:58:11

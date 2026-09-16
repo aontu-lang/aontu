@@ -1,5 +1,5 @@
 ---
-description: Ask aontu allow whether a role may change a subtree before aontu set writes it, with the answer read from a role model that is itself an aontu document.
+description: Ask aontu allow whether a role may change a subtree before aontu model set writes it, with the answer read from a role model that is itself an aontu document.
 group: query-change
 order: 35
 ---
@@ -38,7 +38,7 @@ $ echo $?
 The path is what is judged, and the value only has to be one value: a
 second pair inside it would write a subtree the gate was not asked
 about, so such a call is refused as usage. The answer names the rule
-as a path into the role model, so `aontu why '$.roles.dev.deny.0'
+as a path into the role model, so `aontu model why '$.roles.dev.deny.0'
 roles.aon` lists who wrote it and where. Ask again for a path the
 role does cover:
 
@@ -69,7 +69,7 @@ set`](change-a-value-with-an-overlay.md) unchanged:
 
 <!-- test: run -->
 ```sh
-$ aontu set '$.services.auth.replicas=4' --entry model.aon --overlay overlay.aon
+$ aontu model set '$.services.auth.replicas=4' --entry model.aon --overlay overlay.aon
 verdict: valid
 wrote: overlay.aon
 ```

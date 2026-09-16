@@ -1,0 +1,4 @@
+svc: @"corp.example/schemas/service"
+svc: name: "auth"
+legacy: @"alias:legacy"
+legacy: name: "auth"

@@ -1,0 +1,8 @@
+# The consuming project's module file.
+pkg: {
+  path: "corp.example/app"
+  main: "main.aon"
+}
+dep: {
+  "corp.example/schemas/service": { v: "1.4.2" }
+}

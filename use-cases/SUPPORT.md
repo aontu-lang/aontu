@@ -97,12 +97,12 @@ tampered content, undocumented vendor layout, no `mod verify`).
 **Done 2026-08-27** — the trust loop closes locally: a transitive
 closure vendored flat now resolves (every enclosing `mod.aon` root is
 tried, not just the nearest), `tidy` refuses to pin a module it cannot
-evaluate rather than locking `canonHash(nil)`, `aontu mod verify`
+evaluate rather than locking `canonHash(nil)`, `aontu pkg verify`
 checks the store against the committed lock without rewriting it (the
 verb a CI job runs instead of `tidy`), and the hand-vendoring layout
 is documented in
 [`docs/how-to/vendor-by-hand.md`](../docs/how-to/vendor-by-hand.md) and
-[`reference-api.md`](../docs/reference-api.md#aontu-mod). See BUGS.md
+[`reference-api.md`](../docs/reference-api.md#aontu-pkg). See BUGS.md
 §31–32 and the CHANGELOG.
 
 The network half (`mod get`/`publish`) needs a registry to exist — but

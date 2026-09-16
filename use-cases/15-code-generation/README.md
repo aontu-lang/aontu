@@ -21,7 +21,7 @@ ordering, or separators, and nothing in the engine writes a file.
 | [`gen-sql.aon`](gen-sql.aon) | `sql`, `fields.sql`, `fields.t`, `fields.req` | `schema.sql`, `CREATE TABLE` statements | [`expected/schema.sql`](expected/schema.sql) |
 
 A component tree is not written by `aontu` at all: it is the shape a
-generator runtime consumes, so the document ends at `aontu get out
+generator runtime consumes, so the document ends at `aontu model get out
 all.aon` and the hand-off is a pipe. `check.sh` hands the tree to
 jostraca and holds the bytes to the goldens, and holds both ports to
 the same tree.

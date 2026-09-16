@@ -59,7 +59,7 @@ services: {
 }
 ```
 
-The `&:` template meets EVERY key. `aontu why $.services.db.replicas`
+The `&:` template meets EVERY key. `aontu model why $.services.db.replicas`
 reports both contributions — the template's `*1|integer` and the
 literal `3` — with the line each was written on.
 
@@ -83,7 +83,7 @@ A port of `0` is now an error with a path, not a runtime surprise.
 service: { image: string, replicas: *1 | integer }
 
 # prod.aon
-@"base.aon"
+@"./base.aon"
 service: { image: "auth:v2.3", replicas: 5 }
 ```
 
@@ -91,9 +91,9 @@ Unification is order-independent: `base & prod` is `prod & base`. To
 change a value without editing the file, append to an overlay:
 
 ```
-aontu set '$.service.replicas=7' --entry prod.aon --overlay local.aon
+aontu model set '$.service.replicas=7' --entry prod.aon --overlay local.aon
 ```
 
 If the value is PINNED rather than open, that command refuses and
 names the pinning site — which is the honest answer, and where
-`aontu why` takes you next.
+`aontu model why` takes you next.

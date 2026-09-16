@@ -1,0 +1,4 @@
+# A service module that itself depends on common@1 -- the transitive
+# case.  tidy resolves this closure; evaluation is the probe.
+pkg: { path:"corp.example/schemas/service" version:"1.4.2" main:"service.aon" }
+dep: "corp.example/schemas/common": v: "1.2.0"

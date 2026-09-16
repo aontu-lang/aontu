@@ -10,9 +10,9 @@ test suite holds to the engine in both implementations.
 | Class | Meaning | What to do |
 |-------|---------|------------|
 | `parse` | the text is not a document | fix the syntax at the site the frame points at |
-| `conflict` | two values cannot both hold | one of them is wrong: `aontu why <path>` names both and where they were written |
+| `conflict` | two values cannot both hold | one of them is wrong: `aontu model why <path>` names both and where they were written |
 | `incomplete` | nothing contradicts, but the value is not concrete | supply what is missing, or accept it with `--partial` |
-| `reference` | a path names nothing | check the spelling; `aontu get $ --keys` lists what is there |
+| `reference` | a path names nothing | check the spelling; `aontu model get $ --keys` lists what is there |
 | `compat` | a change breaks an earlier version | that is `aontu subsume` / `aontu breaking` talking: widen the change or version it |
 | `budget` | evaluation hit a deterministic limit | usually a cycle; simplify, or raise the budget deliberately |
 | `internal` | the engine surprised itself | a bug worth reporting |
@@ -37,14 +37,14 @@ offending values filled in, and for several codes it names the fix
 outright — `lossy_integer_literal` tells you to write the literal as
 `0d…`. It is absent for codes that have no hint text.
 
-For a conflict, `aontu why <path> mine.aon` lists every contribution
+For a conflict, `aontu model why <path> mine.aon` lists every contribution
 to that path with its role and source line, which turns "these
 disagree" into "these two lines disagree".
 
 Then fix it:
 
 ```
-aontu set '$.replicas=5' --entry schema.aon --overlay mine.aon --in-place
+aontu model set '$.replicas=5' --entry schema.aon --overlay mine.aon --in-place
 ```
 
 `--in-place` rewrites the pinned literal **where it was written**, so

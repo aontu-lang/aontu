@@ -82,7 +82,7 @@ aontu trim --check model.aon     # entries whose removal changes nothing
 ## Generate code from a model, and hold it
 
 ```
-aontu get out gen.aon      # the component tree: files, and the lines in them
+aontu model get out gen.aon      # the component tree: files, and the lines in them
 aontu trace gen.aon        # what rule wrote each line
 ```
 
@@ -96,10 +96,10 @@ rule behind it.
 ## Ask what a model says, and why
 
 ```
-aontu get  $.entity.planet.table model.aon
-aontu why  $.entity.planet.table model.aon
-aontu get  $.entity --keys       model.aon
-aontu get  $.entity --types      model.aon
+aontu model get  $.entity.planet.table model.aon
+aontu model why  $.entity.planet.table model.aon
+aontu model get  $.entity --keys       model.aon
+aontu model get  $.entity --types      model.aon
 ```
 
 `why` names **every** contribution to a value, with the file and line
@@ -109,7 +109,7 @@ what you expected, and the second thing to run when `vet` refuses.
 ## Change a value without editing the file
 
 ```
-aontu set '$.entity.planet.table=planet_v2' --entry model.aon --overlay local.aon
+aontu model set '$.entity.planet.table=planet_v2' --entry model.aon --overlay local.aon
 ```
 
 The change is checked before it is written; a change that contradicts

@@ -16,10 +16,10 @@ cd "$(dirname "$0")"
 $AONTU vet --strict-coverage model.aon data.aon
 
 # 2. What does it say at a path?
-$AONTU get '$.entity.planet.table' data.aon
+$AONTU model get '$.entity.planet.table' data.aon
 
 # 3. Why does it say that? Every contribution, with the line it is on.
-$AONTU why '$.entity.planet.table' data.aon
+$AONTU model why '$.entity.planet.table' data.aon
 
 # 4. A pin for the truth: it survives reformatting and moves on any
 #    change of meaning.

@@ -84,6 +84,11 @@ func fileResolver(spec multisource.PathSpec, opts *multisource.MultiSourceOption
 		}
 
 		out := resolveModule(ref, moduleFrom(spec), cache, depth)
+		// A bare `config.json` routes here now the major has left the
+		// name (ADR-022 part 4); the message says what was meant.
+		if ext := localFileExt(ref.Path); "" != ext && "" != includeFormat(ext, sink) {
+			out = refuseModule("module_local", localFileMsg(ref.Path))
+		}
 
 		if "" != out.Code {
 			recordModErr(sink, out.Code, out.Msg)
@@ -168,9 +173,8 @@ func outsideRoot(root, full string) bool {
 		!strings.HasPrefix(realFull, realRoot+string(filepath.Separator))
 }
 
-// realOrAbs is EvalSymlinks with the lexical-absolute fallback for a
-// path that does not (yet) exist — a nonexistent confinement root still
-// confines, because everything real is outside it.
+// realOrAbs is EvalSymlinks with a lexical-absolute fallback: a
+// nonexistent confinement root still confines.
 func realOrAbs(p string) string {
 	real, err := filepath.EvalSymlinks(p)
 	if err != nil {
@@ -328,9 +332,8 @@ func moduleFrom(spec multisource.PathSpec) string {
 	return abs
 }
 
-// recordModErr notes a refused module in the parse's shared sink. Only
-// the FIRST refusal is kept, exactly as recordDenied keeps the first
-// denial: the canonical port raises on the first and stops.
+// recordModErr keeps the FIRST refused module, as recordDenied keeps
+// the first denial.
 func recordModErr(sink *trustSink, code, msg string) {
 	if nil == sink || "" != sink.modCode {
 		return

@@ -85,7 +85,7 @@ Inspect the tree without writing anything:
 
 ```sh
 aontu template gen/routes.rb > work/routes.aon
-aontu get out work/routes.aon
+aontu model get out work/routes.aon
 ```
 
 One of its lines is:
@@ -128,8 +128,8 @@ Write the model files into the Rails application directory:
 ```sh
 CMP="node ../../../tools/cmptree-check.js"
 aontu template gen/model.rb > work/model.aon
-aontu get out work/model.aon | $CMP --out app
-aontu get out work/model.aon | $CMP --folder app
+aontu model get out work/model.aon | $CMP --out app
+aontu model get out work/model.aon | $CMP --folder app
 ```
 
 The first pipeline writes the files named by this generator. The second

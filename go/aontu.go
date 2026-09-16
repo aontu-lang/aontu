@@ -181,14 +181,14 @@ func ModCacheDir() string {
 
 func modCacheDirFor(goos string, env func(string) string) string {
 	if xdg := env("XDG_CACHE_HOME"); "" != xdg {
-		return filepath.Join(xdg, "aontu", "mod")
+		return filepath.Join(xdg, "aontu", "pkg")
 	}
 	if home := env("HOME"); "" != home {
-		return filepath.Join(home, ".cache", "aontu", "mod")
+		return filepath.Join(home, ".cache", "aontu", "pkg")
 	}
 	if "windows" == goos {
 		if local := env("LOCALAPPDATA"); "" != local {
-			return filepath.Join(local, "aontu", "mod")
+			return filepath.Join(local, "aontu", "pkg")
 		}
 	}
 	return ""
