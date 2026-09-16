@@ -4,7 +4,7 @@ At 04:11 the ledger database went down, and at 04:12 the payments
 service went with it: a dependency that was real in production and
 recorded nowhere. Every config file involved was valid all night.
 
-The [first tutorial](tutorial.md) left you with a config that is
+The [first tutorial](tutorial-config.md) left you with a config that is
 schema, defaults and data in one document, describing each service
 completely, and each service alone. Nothing in it can say "these
 two files describe the same service", or "this feeds that, never in
@@ -564,3 +564,8 @@ of questions to have asked about payments and ledger before 04:11.
   [recursive references](reference-language.md#recursive-references-fixpoints).
 - Why a checked link refuses where `owl:sameAs` silently merged, and why
   the graph checks are verbs: the [explanation](explanation.md).
+- The other tutorials: [share a model as a
+  package](tutorial-package.md) gives this model a version and a hash
+  for another project to import, [from a model to a file
+  tree](tutorial-generate.md) computes source files from it, and the
+  [tutorials index](tutorial.md) lists all four.

@@ -7,7 +7,10 @@ const REPO = Path.join(__dirname, '..', '..')
 const DOC_PAGES = [
   'index.md',
   'tutorial.md',
+  'tutorial-config.md',
   'tutorial-graph.md',
+  'tutorial-package.md',
+  'tutorial-generate.md',
   'unification.md',
   'reference-language.md',
   'reference-api.md',

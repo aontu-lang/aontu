@@ -1476,6 +1476,20 @@ describe('pkg-net', () => {
     Assert.deepEqual(pkgWhy(app, options, 'corp.example/common').paths,
       [['corp.example/app', 'corp.example/service', 'corp.example/common']])
 
+    // A second retraction in one advisory is what asks the comparator to
+    // order them; a single one sorts without ever comparing.
+    const retracting = {
+      ...manifest, package: 'corp.example/ret', version: '1.0.2', retract: ['1.0.1', '1.0.0'],
+    }
+    const retractingBytes = new Uint8Array(Buffer.from(JSON.stringify(retracting)))
+    writeLayout(w.repo, {
+      manifest: retracting, manifestBytes: retractingBytes,
+      proofBytes: new Uint8Array(1), archive: new Uint8Array(1),
+    }, options, new Date('2026-01-01T00:00:00Z'))
+    Assert.match(
+      Fs.readFileSync(Path.join(w.repo, 'advisory', 'corp.example', 'ret.aon'), 'utf8'),
+      /"retracted":\[\{"by":"1.0.2","version":"1.0.0"\},\{"by":"1.0.2","version":"1.0.1"\}\]/)
+
     const moved = { ...manifest, version: '1.1.0', moved: 'corp.example/elsewhere' }
     const movedBytes = new Uint8Array(Buffer.from(JSON.stringify(moved)))
     writeLayout(w.repo, { manifest: moved, manifestBytes: movedBytes, proofBytes: new Uint8Array(1), archive: new Uint8Array(1) },

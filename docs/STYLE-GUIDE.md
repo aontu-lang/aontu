@@ -64,15 +64,17 @@ against the target file's own headings, under GitHub's slug rules.
 
 **A Google rule sitting below error level was tried at error first and
 found wrong for these pages.** `.vale.ini` records what each produced on
-a clean run: 4053 alerts across 79 files. Two of them turn on a reason
+a clean run: 4121 alerts across 82 files. Two of them turn on a reason
 rather than on taste:
 
 - `Google.EmDash` is disabled because its spacing rule is redundant
   under the house ban. The local documentation gate checks prose
   after stripping code and quoted output.
-- `Google.OxfordComma` reported real three-item lists, and they were
-  fixed. The 36 that remain are two-item lists sitting after a comma
-  clause, which the rule cannot tell from a list.
+- `Google.OxfordComma` is right about half the time here. Of its 38
+  hits, some are two-item lists sitting after a comma clause, which the
+  rule cannot tell from a list, and the rest are real. A rule that
+  wrong cannot fail a build, and an author reading its output can tell
+  the two apart in the page in front of them.
 
 **Those numbers are measured, not remembered.** They were written by
 hand once and were out by a factor of two the next time anybody
@@ -84,13 +86,14 @@ because the count is the evidence for switching it off.
 
 ## The structure: Diátaxis, enforced by placement
 
-Every page is exactly one of four kinds, and the kind decides what the
-page may do:
+Every page is exactly one of four kinds, apart from the two navigation
+pages named under the table, and the kind decides what the page may
+do:
 
 | Kind | Files | May | May not |
 |---|---|---|---|
-| Tutorial | `tutorial.md`, `tutorial-graph.md` | teach step by step, show output for every step, defer detail with a link | argue design, list every flag, assume the reader's goal |
-| How-to | `docs/how-to/*.md` | solve one named task, assume competence, link the reference | teach basics, explain design, drift into a second task |
+| Tutorial | `tutorial-config.md`, `tutorial-graph.md`, `tutorial-package.md`, `tutorial-generate.md`, listed by `tutorial.md` | teach step by step, show output for every step, defer detail with a link | argue design, list every flag, assume the reader's goal |
+| How-to | `docs/how-to/*.md` apart from `README.md` | solve one named task, assume competence, link the reference | teach basics, explain design, drift into a second task |
 | Reference | `reference-language.md`, `reference-api.md`, `trust.md`, `lsp.md`, `shared-spec.md`, `test-coverage.md` | state facts exhaustively and dryly, pin claims to tests | narrate, persuade, teach |
 | Explanation | `explanation.md` | argue, compare, admit trade-offs, tell the design's story | be the only place a fact lives |
 
@@ -98,6 +101,13 @@ One fact appears in all four kinds at different altitudes (met in the
 tutorial, used in a how-to, specified in the reference, argued in the
 explanation) but the normative statement lives in the reference and
 everything else links to it.
+
+Two pages in the set are navigation rather than one of the four kinds:
+`tutorial.md` lists the tutorials and `docs/how-to/README.md` lists the
+guides. Each says what its set holds and where to go when that set is
+the wrong shape, and neither teaches nor argues, so the relaxations a
+tutorial gets (the first-person plural, the one exclamation mark) do
+not reach them.
 
 `release-and-tag.md` is a deliberate exception: an operator document
 dangerous enough that its rationale stays beside its commands. Say so

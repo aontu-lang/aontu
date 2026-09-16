@@ -309,7 +309,7 @@ flowchart LR
 
   app[("app/<br/>the committed Rails tree")]
   doc[("doc/<br/>ERD, trees, lattice")]
-  gen -->|"aontu + jostraca"| app
+  gen -->|"aontu answers the tree,<br/>a generator runtime writes the bytes"| app
   gen --> doc
 
   check{{"the byte gate<br/>nine checks in check.sh"}}

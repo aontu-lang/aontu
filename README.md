@@ -94,7 +94,7 @@ the checkout as the global npm package and `make install-go` runs
 Full documentation is in [`docs/`](docs/):
 
 - [Documentation home](docs/index.md). Start here
-- [Tutorial](docs/tutorial.md). Learn aontu step by step
+- [Tutorials](docs/tutorial.md). Four, each building one thing step by step
 - [How-to guides](docs/how-to/). Task-focused recipes
 - [Language reference](docs/reference-language.md). Every construct and rule
 - [API reference](docs/reference-api.md). TypeScript & Go APIs, and the CLI
