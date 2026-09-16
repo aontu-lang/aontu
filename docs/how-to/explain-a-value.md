@@ -1,5 +1,5 @@
 ---
-description: List every contribution that met at a path (which file, which line, which layer) with aontu why.
+description: List every contribution that met at a path (which file, which line, which layer) with aontu model why.
 group: query-change
 order: 20
 ---
