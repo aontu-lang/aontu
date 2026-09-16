@@ -91,7 +91,7 @@ Moon declares the names used for its parent:
 
 The [Active Record generator](../gen/model.rb) reads the parent class and
 foreign-key parameter to write `belongs_to`. The
-[ERD generator](../gen/erd.mmd) reads the parent class and association
+[ERD generator](../gen/doc/erd.mmd) reads the parent class and association
 name to draw the relationship. The controller generators use the parent
 information to scope moon queries to a planet.
 

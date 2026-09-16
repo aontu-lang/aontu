@@ -15,7 +15,7 @@ import (
 )
 
 const renderHelp = "aontu render [--check] [--at <path>] [--format json] " +
-	"[--marker <token>] [--profile <file>] <file> <path> (try --help)"
+	"[--marker <token>] [--profile <file>] <file|folder> <path> (try --help)"
 
 func isDirectory(path string) bool {
 	st, err := os.Stat(path)
@@ -29,6 +29,15 @@ func renderJSON(v map[string]any) string {
 	enc.SetIndent("", "  ")
 	_ = enc.Encode(v)
 	return strings.TrimSuffix(buf.String(), "\n")
+}
+
+func hasMarkerLine(src, marker string) bool {
+	for _, out := range aontu.TemplateOutputs(src, marker) {
+		if !out {
+			return true
+		}
+	}
+	return false
 }
 
 func nonNil(s []string) []string {
@@ -105,53 +114,92 @@ func runRender(argv []string, stdout, stderr io.Writer) int {
 	}
 	file, dest := rest[0], rest[1]
 
-	src, err := os.ReadFile(file)
-	if nil != err {
-		io.WriteString(stderr, "aontu: cannot read "+file+": "+err.Error()+"\n")
-		return 2
-	}
-
 	profiles, code := loadProfiles(profileFiles, trust, stderr)
 	if 0 != code {
 		return code
 	}
-
-	text := string(src)
-	if !strings.HasSuffix(file, ".aon") {
-		mark := marker
-		if "" == mark {
-			mark = templateMarker(profiles, file)
-		}
-		text = aontu.DesugarTemplate(text, mark)
-	}
-
 	if "" == at {
 		at = "$.out"
 	}
-	report := aontuForFileTrust(file, trust).Get(
-		text, at, &aontu.QueryOptions{View: aontu.QueryJSON})
-	if !report.OK {
-		for _, f := range report.Findings {
-			io.WriteString(stderr, renderFinding(f)+"\n")
-		}
-		return 4
-	}
-	var tree any
-	_ = json.Unmarshal([]byte(report.Out), &tree)
 
-	// ONE FILE GOES TO THE PATH ITSELF, unless the path is a directory. A
-	// `File` without a name is refused: the runtime ports disagree about it.
-	folder := dest
-	if node, ok := tree.(map[string]any); ok && "File" == node["cmp"] {
-		props, _ := node["props"].(map[string]any)
-		if _, named := props["name"].(string); !named {
-			io.WriteString(stderr, "aontu: "+file+": the file at "+at+" has no name\n")
+	// A FOLDER IS A SET OF GENERATORS: every regular file directly in it,
+	// dotfiles aside, in name order, written as one tree.
+	entries, err := os.ReadDir(file)
+	set := nil == err
+	files := []string{file}
+	if set {
+		files = files[:0]
+		for _, e := range entries {
+			if e.Type().IsRegular() && !strings.HasPrefix(e.Name(), ".") {
+				files = append(files, filepath.Join(file, e.Name()))
+			}
+		}
+	}
+	if 0 == len(files) {
+		io.WriteString(stderr, "aontu: "+file+" holds no generator\n")
+		return 2
+	}
+
+	trees := make([]any, 0, len(files))
+	for _, f := range files {
+		src, err := os.ReadFile(f)
+		if nil != err {
+			io.WriteString(stderr, "aontu: cannot read "+f+": "+err.Error()+"\n")
+			return 2
+		}
+		text := string(src)
+		if !strings.HasSuffix(f, ".aon") && !strings.HasSuffix(f, ".aontu") {
+			mark := marker
+			if "" == mark {
+				mark = templateMarker(profiles, f)
+			}
+			if !hasMarkerLine(text, mark) {
+				io.WriteString(stderr, "aontu: "+f+" carries no "+mark+
+					" marker line, so there is no aontu in it to render\n")
+				return 2
+			}
+			text = aontu.DesugarTemplate(text, mark)
+		}
+		report := aontuForFileTrust(f, trust).Get(
+			text, at, &aontu.QueryOptions{View: aontu.QueryJSON})
+		if !report.OK {
+			for _, fd := range report.Findings {
+				io.WriteString(stderr, renderFinding(fd)+"\n")
+			}
 			return 4
 		}
-		if !isDirectory(dest) {
-			props["name"] = filepath.Base(dest)
-			folder = filepath.Dir(dest)
+		var tree any
+		_ = json.Unmarshal([]byte(report.Out), &tree)
+		// A `File` without a name is refused: the runtime ports disagree
+		// about it.
+		if node, ok := tree.(map[string]any); ok && "File" == node["cmp"] {
+			props, _ := node["props"].(map[string]any)
+			if _, named := props["name"].(string); !named {
+				io.WriteString(stderr, "aontu: "+f+": the file at "+at+" has no name\n")
+				return 4
+			}
 		}
+		trees = append(trees, tree)
+	}
+
+	// ONE FILE GOES TO THE PATH ITSELF, unless the path is a directory; a
+	// set is written below the path whatever its trees are.
+	folder := dest
+	tree := trees[0]
+	if set {
+		all := make([]any, 0, len(trees))
+		for _, t := range trees {
+			if list, ok := t.([]any); ok {
+				all = append(all, list...)
+			} else {
+				all = append(all, t)
+			}
+		}
+		tree = all
+	} else if node, ok := tree.(map[string]any); ok && "File" == node["cmp"] &&
+		!isDirectory(dest) {
+		node["props"].(map[string]any)["name"] = filepath.Base(dest)
+		folder = filepath.Dir(dest)
 	}
 
 	root, err := jostraca.CmpTree(tree, jostraca.CmpTreeOptions{Raw: true})

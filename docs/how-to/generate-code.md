@@ -178,7 +178,10 @@ $ aontu render --check types.aon gen/types.go
 
 That is the CI form. Commit the generated files beside the model and
 run the comparison in CI; a hand edit to a generated file is then a red
-build rather than a silent divergence from the model.
+build rather than a silent divergence from the model. A project written
+in several languages is a folder of generators, one file per language,
+and `aontu render gen/ app` writes every generator directly in `gen/`
+as one run, with one `--check` for the set.
 
 Nothing in aontu walks the tree to disk. The value is checkable
 without a runtime (`aontu model get` above), and the runtime writes

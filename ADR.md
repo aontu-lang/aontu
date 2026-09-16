@@ -4094,7 +4094,11 @@ jostraca: the npm package in TypeScript, `github.com/jostraca/jostraca/go`
 in Go, pinned at one version, both ordinary dependencies. A tree that
 is one file is written to `<path>` itself unless `<path>` is a
 directory; any other tree is written below `<path>`. `--check` writes
-nothing, compares, and exits 1 on drift.
+nothing, compares, and exits 1 on drift. A folder as the generator is a
+set: every regular file directly in it, in name order, and their trees
+are written below `<path>` as one run, so one `--check` holds a project
+written in several languages, and a path two generators claim is
+refused by the runtime.
 
 **aontu does not reimplement jostraca.** Nothing in either port walks
 the tree to disk. `cmpTree` reads the tree, `generate` writes it and

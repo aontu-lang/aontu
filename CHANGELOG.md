@@ -18,7 +18,8 @@ names another anchor; a template entry is read directly. Both
 implementations: jostraca is a dependency of the npm package and of
 the Go module, pinned at 0.38.0. `tools/cmptree-check.js` is gone, and
 the use cases and the system test hold their goldens with
-`aontu render --check`.
+`aontu render --check`. A folder as the generator is a set: every file
+directly in it, written below `<path>` as one run.
 
 ### The package system lands whole: `pkg.aon`, `aontu sync`, `aontu publish`
 

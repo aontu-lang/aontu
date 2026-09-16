@@ -134,7 +134,7 @@ The surrounding example directory contains the inputs and checks:
 rb-solar/
 ├── app/          Rails app: mixed ownership, detailed above
 ├── model.aon     Handwritten service, entity, field, and action definitions
-├── gen/          Nine handwritten generators
+├── gen/          Nine handwritten generators; the diagram's in gen/doc/
 ├── ref/          Pinned API reference, seed data, and validation clients
 ├── doc/          Generated ERD and model views; authored architecture diagrams
 └── check.sh      Generation checks and live application checks
@@ -235,8 +235,10 @@ and see how generators select them.
 
 ## The generators
 
-Nine of them, in [`gen/`](gen/). Eight are **files in the language
-they generate**: a marked line carries the aontu and the target's own
+Nine of them, in [`gen/`](gen/): the eight that write `app/` directly
+in it, so one `aontu render gen app` writes them, and the diagram
+generator in [`gen/doc/`](gen/doc/), since it writes `doc/`. Eight are
+**files in the language they generate**: a marked line carries the aontu and the target's own
 tools read the rest, so `ruby -c` parses the seven Ruby ones and a
 Mermaid renderer draws the diagram:
 

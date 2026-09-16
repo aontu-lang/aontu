@@ -31,7 +31,8 @@ const helpText = `Usage: aontu [options] [file]
        aontu trace [--at <path>] [--format json] [--marker <token>]
                    [--profile <file>] <file>
        aontu render [--check] [--at <path>] [--format json]
-                    [--marker <token>] [--profile <file>] <file> <path>
+                    [--marker <token>] [--profile <file>]
+                    <file|folder> <path>
        aontu hash [options] <file>
        aontu sync [--frozen] [options] [dir]
        aontu add <pkg>[@<version>] [options] [dir]
@@ -362,6 +363,10 @@ files: a tree that is one file is written to <path> itself, unless
 <path> is a directory, and any other tree is written below <path>.
 With --check nothing is written and <path> is compared with what the
 generator writes, one "kind: file" line per difference.
+A folder as the generator is a set: every regular file directly in
+it, dotfiles aside, in name order, and their trees are written below
+<path> as one run, so a path two of them claim is refused. A file with
+no marker line in it is refused by name.
 
 Render exit codes: 0 written or clean, 1 --check drift, 2 usage or
 I/O, 4 the document does not stand up, or --at names nothing.

@@ -3349,6 +3349,92 @@ describe('render', () => {
   })
 
 
+  test('writes-a-folder-of-generators-as-one', async () => {
+    const d = dir()
+    const gen = Path.join(d, 'gen')
+    Fs.mkdirSync(Path.join(gen, 'sub'), { recursive: true })
+    file(gen, 'a.aon', 'out: file("a.txt", ["a"])\n')
+    file(gen, 'b.rb', '#- out: folder("lib", [file("b.rb", [\nputs "b"\n#- ])])\n')
+    file(gen, 'c.aon', 'out: [file("c.txt", ["c"])]\n')
+    file(gen, '.keep', '')
+    file(Path.join(gen, 'sub'), 'ignored.aon', 'out: file("ignored.txt", ["no"])\n')
+    const out = Path.join(d, 'out')
+
+    // A set is written below the path, a one-file tree under its own name.
+    const r = await render(['--format', 'json', gen, out])
+    Assert.equal(r.code, 0, r.err)
+    Assert.equal(JSON.parse(r.out).files.written.length, 3)
+    Assert.equal(Fs.readFileSync(Path.join(out, 'a.txt'), 'utf8'), 'a\n')
+    Assert.equal(Fs.readFileSync(Path.join(out, 'lib', 'b.rb'), 'utf8'), 'puts "b"\n')
+    Assert.equal(Fs.readFileSync(Path.join(out, 'c.txt'), 'utf8'), 'c\n')
+    Assert.ok(!Fs.existsSync(Path.join(out, 'ignored.txt')), 'a subfolder is not read')
+
+    Assert.deepStrictEqual(await render(['--check', gen, out]), { out: '', err: '', code: 0 })
+    file(out, 'a.txt', 'edited\n')
+    const drift = await render(['--check', gen, out])
+    Assert.equal(drift.code, 1)
+    Assert.equal(drift.out, 'content: a.txt\n')
+  })
+
+
+  test('refuses-a-folder-it-cannot-render-whole', async () => {
+    const d = dir()
+    const out = Path.join(d, 'out')
+
+    // Nothing but dotfiles and subfolders is no generator.
+    const empty = Path.join(d, 'empty')
+    Fs.mkdirSync(Path.join(empty, 'sub'), { recursive: true })
+    file(empty, '.keep', '')
+    const e = await render([empty, out])
+    Assert.equal(e.code, 2)
+    Assert.ok(e.err.includes('holds no generator'), e.err)
+
+    // A file with no marker line is refused by name, and nothing is written.
+    const notes = Path.join(d, 'notes')
+    Fs.mkdirSync(notes)
+    file(notes, 'a.aon', 'out: file("a.txt", ["a"])\n')
+    file(notes, 'notes.md', '# notes\n')
+    const n = await render([notes, out])
+    Assert.equal(n.code, 2)
+    Assert.ok(n.err.includes('notes.md carries no') && n.err.includes('marker line'), n.err)
+    Assert.ok(!Fs.existsSync(out), 'wrote before refusing')
+
+    // A generator that does not stand up refuses the set before it writes.
+    const broken = Path.join(d, 'broken')
+    Fs.mkdirSync(broken)
+    file(broken, 'a.aon', 'out: file("a.txt", ["a"])\n')
+    file(broken, 'b.aon', 'out: file(\n')
+    Assert.equal((await render([broken, out])).code, 4)
+    Assert.ok(!Fs.existsSync(out), 'wrote before refusing')
+
+    // A nameless File anywhere in the set is refused.
+    const nameless = Path.join(d, 'nameless')
+    Fs.mkdirSync(nameless)
+    file(nameless, 'a.aon', 'out: file("a.txt", ["a"])\n')
+    file(nameless, 'b.aon', 'out: { cmp: "File", children: [] }\n')
+    const nl = await render([nameless, out])
+    Assert.equal(nl.code, 4)
+    Assert.ok(nl.err.includes('has no name'), nl.err)
+
+    // The same path claimed twice is refused by the runtime.
+    const twice = Path.join(d, 'twice')
+    Fs.mkdirSync(twice)
+    file(twice, 'a.aon', 'out: file("same.txt", ["a"])\n')
+    file(twice, 'b.aon', 'out: file("same.txt", ["b"])\n')
+    for (const args of [[twice, out], ['--check', twice, out]]) {
+      const tw = await render(args)
+      Assert.equal(tw.code, 2, args.join(' '))
+      Assert.ok(tw.err.includes('same output path'), tw.err)
+    }
+
+    // Alone, a file with no marker line is refused the same way.
+    const plain = file(d, 'plain.txt', 'just text\n')
+    const p = await render([plain, Path.join(d, 'p.txt')])
+    Assert.equal(p.code, 2)
+    Assert.ok(p.err.includes('carries no //- marker line'), p.err)
+  })
+
+
   test('the-bin-writes-the-file', () => {
     const d = dir()
     const gen = file(d, 'gen.aon', ONE)

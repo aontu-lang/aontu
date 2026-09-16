@@ -5,8 +5,10 @@
 import { evalFailure } from './query'
 // __importStar downlevel helper, whose branches no supported Node takes.
 import {
-  existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync,
+  existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync,
+  writeFileSync,
 } from 'node:fs'
+import type { Dirent } from 'node:fs'
 import { basename, dirname, join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 import { createInterface } from 'node:readline'
@@ -98,7 +100,8 @@ const HELP = `Usage: aontu [options] [file]
        aontu trace [--at <path>] [--format json] [--marker <token>]
                    [--profile <file>] <file>
        aontu render [--check] [--at <path>] [--format json]
-                    [--marker <token>] [--profile <file>] <file> <path>
+                    [--marker <token>] [--profile <file>]
+                    <file|folder> <path>
        aontu hash [options] <file>
        aontu sync [--frozen] [options] [dir]
        aontu add <pkg>[@<version>] [options] [dir]
@@ -430,6 +433,10 @@ files: a tree that is one file is written to <path> itself, unless
 <path> is a directory, and any other tree is written below <path>.
 With --check nothing is written and <path> is compared with what the
 generator writes, one "kind: file" line per difference.
+A folder as the generator is a set: every regular file directly in
+it, dotfiles aside, in name order, and their trees are written below
+<path> as one run, so a path two of them claim is refused. A file with
+no marker line in it is refused by name.
 
 Render exit codes: 0 written or clean, 1 --check drift, 2 usage or
 I/O, 4 the document does not stand up, or --at names nothing.
@@ -2910,7 +2917,7 @@ function runTrace(argv: string[]): number {
 
 const RENDER_HELP =
   'aontu render [--check] [--at <path>] [--format json] ' +
-  '[--marker <token>] [--profile <file>] <file> <path> (try --help)'
+  '[--marker <token>] [--profile <file>] <file|folder> <path> (try --help)'
 
 
 // Loaded at the call, so every other verb starts without it.
@@ -2992,46 +2999,72 @@ async function runRender(argv: string[]): Promise<number> {
   }
   const [file, dest] = rest
 
-  let src: string
-  try {
-    src = readFileSync(file, 'utf8')
-  }
-  catch (err: any) {
-    process.stderr.write(`aontu: cannot read ${err.path}: ${err.message}\n`)
-    return 2
-  }
-
   const declared = loadProfiles(profileFiles, trust)
   if ('number' === typeof declared) {
     return declared
   }
 
-  if (!file.endsWith('.aon')) {
-    src = desugarTemplate(src, marker ??
-      markerFromProfiles(declared, file) ?? markerFor(file))
+  // A FOLDER IS A SET OF GENERATORS: every regular file directly in it,
+  // dotfiles aside, in code-point order, written as one tree.
+  let entries: Dirent[] | undefined
+  try {
+    entries = readdirSync(file, { withFileTypes: true })
+  }
+  catch (err: any) {
+    entries = undefined
+  }
+  const set = undefined !== entries
+  const files = undefined === entries ? [file] :
+    entries.filter((e) => e.isFile() && !e.name.startsWith('.'))
+      .map((e) => e.name).sort(cmpCodePoint).map((n) => join(file, n))
+  if (0 === files.length) {
+    process.stderr.write(`aontu: ${file} holds no generator\n`)
+    return 2
   }
 
-  const report = get(src, at ?? '$.out', {
-    view: 'json', path: file, ...verbOpts(trust, entryRootOf(file)),
-  })
-  if (!report.ok) {
-    process.stderr.write(report.findings.map(renderFinding).join('\n') + '\n')
-    return 4
-  }
-  const tree = JSON.parse(report.out)
-
-  // ONE FILE GOES TO THE PATH ITSELF, unless the path is a directory. A
-  // `File` without a name is refused: the runtime ports disagree about it.
-  let folder = dest
-  if ('File' === tree?.cmp) {
-    if ('string' !== typeof tree.props?.name) {
-      process.stderr.write(`aontu: ${file}: the file at ${at ?? '$.out'} has no name\n`)
+  const trees: any[] = []
+  for (const f of files) {
+    let src: string
+    try {
+      src = readFileSync(f, 'utf8')
+    }
+    catch (err: any) {
+      process.stderr.write(`aontu: cannot read ${err.path}: ${err.message}\n`)
+      return 2
+    }
+    if (!/[.](aon|aontu)$/.test(f)) {
+      const mark = marker ?? markerFromProfiles(declared, f) ?? markerFor(f)
+      if (!templateOutputs(src, mark).some((out) => !out)) {
+        process.stderr.write(`aontu: ${f} carries no ${mark} marker line, ` +
+          'so there is no aontu in it to render\n')
+        return 2
+      }
+      src = desugarTemplate(src, mark)
+    }
+    const report = get(src, at ?? '$.out', {
+      view: 'json', path: f, ...verbOpts(trust, entryRootOf(f)),
+    })
+    if (!report.ok) {
+      process.stderr.write(report.findings.map(renderFinding).join('\n') + '\n')
       return 4
     }
-    if (!isDirectory(dest)) {
-      tree.props.name = basename(dest)
-      folder = dirname(dest)
+    const tree = JSON.parse(report.out)
+    // A `File` without a name is refused: the runtime ports disagree
+    // about it.
+    if ('File' === tree?.cmp && 'string' !== typeof tree.props?.name) {
+      process.stderr.write(`aontu: ${f}: the file at ${at ?? '$.out'} has no name\n`)
+      return 4
     }
+    trees.push(tree)
+  }
+
+  // ONE FILE GOES TO THE PATH ITSELF, unless the path is a directory; a
+  // set is written below the path whatever its trees are.
+  let folder = dest
+  const tree: any = set ? trees.flatMap((t) => Array.isArray(t) ? t : [t]) : trees[0]
+  if (!set && 'File' === tree?.cmp && !isDirectory(dest)) {
+    tree.props.name = basename(dest)
+    folder = dirname(dest)
   }
 
   const { cmpTree, Jostraca } = generatorRuntime()

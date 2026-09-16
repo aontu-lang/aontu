@@ -297,3 +297,120 @@ func TestRenderUsage(t *testing.T) {
 		}
 	}
 }
+
+func renderDir(t *testing.T, parts ...string) string {
+	t.Helper()
+	dir := filepath.Join(parts...)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	return dir
+}
+
+func TestRenderWritesAFolderOfGeneratorsAsOne(t *testing.T) {
+	dir := t.TempDir()
+	gen := renderDir(t, dir, "gen")
+	renderFile(t, gen, "a.aon", `out: file("a.txt", ["a"])`+"\n")
+	renderFile(t, gen, "b.rb", "#- out: folder(\"lib\", [file(\"b.rb\", [\nputs \"b\"\n#- ])])\n")
+	renderFile(t, gen, "c.aon", `out: [file("c.txt", ["c"])]`+"\n")
+	renderFile(t, gen, ".keep", "")
+	renderFile(t, renderDir(t, gen, "sub"), "ignored.aon",
+		`out: file("ignored.txt", ["no"])`+"\n")
+	out := filepath.Join(dir, "out")
+
+	// A set is written below the path, a one-file tree under its own name.
+	o, errw, code := renderRunCLI("--format", "json", gen, out)
+	if 0 != code {
+		t.Fatalf("code %d: %s", code, errw)
+	}
+	var got struct {
+		Files map[string][]string `json:"files"`
+	}
+	if err := json.Unmarshal([]byte(o), &got); err != nil {
+		t.Fatalf("not JSON: %v: %s", err, o)
+	}
+	if 3 != len(got.Files["written"]) {
+		t.Fatalf("written: %v", got.Files["written"])
+	}
+	if "a\n" != renderRead(t, filepath.Join(out, "a.txt")) ||
+		"puts \"b\"\n" != renderRead(t, filepath.Join(out, "lib", "b.rb")) ||
+		"c\n" != renderRead(t, filepath.Join(out, "c.txt")) {
+		t.Fatal("the set was not written whole")
+	}
+	if _, err := os.Stat(filepath.Join(out, "ignored.txt")); nil == err {
+		t.Fatal("a subfolder's file was read as a generator")
+	}
+
+	if o, errw, code := renderRunCLI("--check", gen, out); 0 != code || "" != o {
+		t.Fatalf("clean: code %d out %q err %q", code, o, errw)
+	}
+	renderFile(t, out, "a.txt", "edited\n")
+	if o, _, code := renderRunCLI("--check", gen, out); 1 != code || "content: a.txt\n" != o {
+		t.Fatalf("drift: code %d out %q", code, o)
+	}
+}
+
+func TestRenderRefusesAFolderItCannotRenderWhole(t *testing.T) {
+	dir := t.TempDir()
+	out := filepath.Join(dir, "out")
+
+	// Nothing but dotfiles and subfolders is no generator.
+	empty := renderDir(t, dir, "empty")
+	renderDir(t, empty, "sub")
+	renderFile(t, empty, ".keep", "")
+	if _, errw, code := renderRunCLI(empty, out); 2 != code ||
+		!strings.Contains(errw, "holds no generator") {
+		t.Fatalf("empty: code %d: %s", code, errw)
+	}
+
+	// A file with no marker line is refused by name, and nothing is written.
+	notes := renderDir(t, dir, "notes")
+	renderFile(t, notes, "a.aon", `out: file("a.txt", ["a"])`+"\n")
+	renderFile(t, notes, "notes.md", "# notes\n")
+	if _, errw, code := renderRunCLI(notes, out); 2 != code ||
+		!strings.Contains(errw, "notes.md carries no") ||
+		!strings.Contains(errw, "marker line") {
+		t.Fatalf("notes: code %d: %s", code, errw)
+	}
+	if _, err := os.Stat(out); nil == err {
+		t.Fatal("wrote before refusing")
+	}
+
+	// A generator that does not stand up refuses the set before it writes.
+	broken := renderDir(t, dir, "broken")
+	renderFile(t, broken, "a.aon", `out: file("a.txt", ["a"])`+"\n")
+	renderFile(t, broken, "b.aon", "out: file(\n")
+	if _, errw, code := renderRunCLI(broken, out); 4 != code {
+		t.Fatalf("broken: code %d: %s", code, errw)
+	}
+	if _, err := os.Stat(out); nil == err {
+		t.Fatal("wrote before refusing")
+	}
+
+	// A nameless File anywhere in the set is refused.
+	nameless := renderDir(t, dir, "nameless")
+	renderFile(t, nameless, "a.aon", `out: file("a.txt", ["a"])`+"\n")
+	renderFile(t, nameless, "b.aon", `out: { cmp: "File", children: [] }`+"\n")
+	if _, errw, code := renderRunCLI(nameless, out); 4 != code ||
+		!strings.Contains(errw, "has no name") {
+		t.Fatalf("nameless: code %d: %s", code, errw)
+	}
+
+	// The same path claimed twice is refused by the runtime.
+	twice := renderDir(t, dir, "twice")
+	renderFile(t, twice, "a.aon", `out: file("same.txt", ["a"])`+"\n")
+	renderFile(t, twice, "b.aon", `out: file("same.txt", ["b"])`+"\n")
+	for _, args := range [][]string{{twice, out}, {"--check", twice, out}} {
+		if _, errw, code := renderRunCLI(args...); 2 != code ||
+			!strings.Contains(errw, "same output path") {
+			t.Fatalf("%v: code %d: %s", args, code, errw)
+		}
+	}
+
+	// Alone, a file with no marker line is refused the same way.
+	plain := renderFile(t, dir, "plain.txt", "just text\n")
+	if _, errw, code := renderRunCLI(plain, filepath.Join(dir, "p.txt")); 2 != code ||
+		!strings.Contains(errw, "carries no //- marker line") {
+		t.Fatalf("plain: code %d: %s", code, errw)
+	}
+}

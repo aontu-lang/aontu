@@ -59,18 +59,14 @@ skip() { n=$((n + 1)); echo "ok $n - $1 # SKIP"; }
 
 RUBY_GENS="routes migrate seeds model api_base api_controller ui_controller"
 
-# THE BYTES COME FROM JOSTRACA: `aontu render --check` hands each
-# generator's tree to the runtime and holds the committed app to it. A
+# THE BYTES COME FROM JOSTRACA: `aontu render --check` hands the eight
+# application generators' trees to the runtime as one run and holds the
+# committed app to them, and the diagram generator's tree to doc/. A
 # tree checked against anything else proves nothing about what a user
 # gets.
 drift=""
-for g in $RUBY_GENS; do
-  $AONTU render --check "$DIR/gen/$g.rb" "$DIR/app" >/dev/null 2>&1 \
-    || drift="$drift $g"
-done
-$AONTU render --check "$DIR/gen/views.aon" "$DIR/app" >/dev/null 2>&1 \
-  || drift="$drift views"
-$AONTU render --check --marker '%%-' "$DIR/gen/erd.mmd" "$DIR/doc" >/dev/null 2>&1 \
+$AONTU render --check "$DIR/gen" "$DIR/app" >/dev/null 2>&1 || drift="$drift app"
+$AONTU render --check --marker '%%-' "$DIR/gen/doc/erd.mmd" "$DIR/doc" >/dev/null 2>&1 \
   || drift="$drift erd"
 if [ -z "$drift" ]; then
   ok "every generator writes the committed app, byte for byte"
@@ -102,7 +98,7 @@ bad=""
 for g in $RUBY_GENS; do
   $AONTU template --check "$DIR/gen/$g.rb" >/dev/null 2>&1 || bad="$bad $g.rb"
 done
-$AONTU template --check --marker '%%-' "$DIR/gen/erd.mmd" >/dev/null 2>&1 \
+$AONTU template --check --marker '%%-' "$DIR/gen/doc/erd.mmd" >/dev/null 2>&1 \
   || bad="$bad erd.mmd"
 if [ -z "$bad" ]; then
   ok "every template-surface generator round-trips as a fixpoint"
@@ -162,7 +158,7 @@ $AONTU fmt --check "$DIR/gen/views.aon" >/dev/null 2>&1 || bad="$bad views.aon"
 for g in $RUBY_GENS; do
   $AONTU fmt --check "$DIR/gen/$g.rb" >/dev/null 2>&1 || bad="$bad $g.rb"
 done
-$AONTU fmt --check --marker '%%-' "$DIR/gen/erd.mmd" >/dev/null 2>&1 \
+$AONTU fmt --check --marker '%%-' "$DIR/gen/doc/erd.mmd" >/dev/null 2>&1 \
   || bad="$bad erd.mmd"
 if [ -z "$bad" ]; then
   ok "the model and all nine generators are in the agreed form (aontu fmt)"

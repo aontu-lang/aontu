@@ -58,13 +58,13 @@ test('the published generation and field-change recipes produce the stated outpu
   // The bytes are the runtime's, so the recipe that WRITES is what proves
   // them: print the tree, write it, compare the file with the golden.
   const erdTree = recipe('erd', 'template --marker');
-  recipe('erd', 'gen/erd.mmd doc');
+  recipe('erd', 'gen/doc/erd.mmd doc');
   assert.equal(readFileSync(join(work, 'doc/erd.mmd'), 'utf8'),
     readFileSync(join(example, 'doc/erd.mmd'), 'utf8'));
   recipe('erd', 'aontu view');
 
   // The prose explicitly calls out this redundant wrapper. Hold that claim.
-  const template = join(work, 'gen/erd.mmd');
+  const template = join(work, 'gen/doc/erd.mmd');
   const source = readFileSync(template, 'utf8');
   writeFileSync(template, source.replace('each(.field, _ & { mark:"" })', '.field'));
   assert.equal(recipe('erd', 'template --marker'), erdTree);
@@ -72,16 +72,13 @@ test('the published generation and field-change recipes produce the stated outpu
 
   appendFileSync(join(work, 'model.aon'), '\n' + block('change-and-check', 'aontu', 'nickname') + '\n');
   recipe('change-and-check', 'render --check', 1);
-  recipe('change-and-check', 'for generator');
+  recipe('change-and-check', 'render gen app');
   recipe('change-and-check', 'for format');
   // The full check also boots Rails and resets its development database;
   // this recipe test only runs the formatter line from that fence.
   shell(block('change-and-check', 'sh', 'fmt --write').split('\n')[0]);
   shell('aontu fmt --check model.aon');
-  for (const name of ['routes', 'migrate', 'seeds', 'model', 'api_base', 'api_controller', 'ui_controller']) {
-    shell(`aontu render --check gen/${name}.rb app`);
-  }
-  shell('aontu render --check gen/views.aon app');
+  shell('aontu render --check gen app');
   recipe('change-and-check', 'render --check');
   for (const name of [
     'app/db/migrate/20260101000000_create_planets.rb',

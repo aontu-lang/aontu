@@ -7,7 +7,7 @@ order: 3
 # Generate the entity relationship diagram
 
 The Rails example generates `doc/erd.mmd` from `model.aon` using the
-handwritten template `gen/erd.mmd`. The diagram and the Rails models
+handwritten template `gen/doc/erd.mmd`. The diagram and the Rails models
 therefore read the same entity definitions. Follow the
 [model guide](model.md#run-the-examples-cli) to set up the CLI.
 
@@ -16,7 +16,7 @@ therefore read the same entity definitions. Follow the
 Run from `test/system/rb-solar`:
 
 ```sh
-aontu template --marker '%%-' gen/erd.mmd > work/erd.aon
+aontu template --marker '%%-' gen/doc/erd.mmd > work/erd.aon
 aontu model get out work/erd.aon
 ```
 
@@ -26,8 +26,8 @@ committed diagram location; with `--check` it holds that location to
 the tree instead:
 
 ```sh
-aontu render --marker '%%-' gen/erd.mmd doc
-aontu render --check --marker '%%-' gen/erd.mmd doc
+aontu render --marker '%%-' gen/doc/erd.mmd doc
+aontu render --check --marker '%%-' gen/doc/erd.mmd doc
 ```
 
 The output directory and the template's `file("erd.mmd", …)` determine
@@ -36,7 +36,7 @@ the template, emitted along with the diagram.
 
 ## Read the marker lines
 
-The [diagram template](../gen/erd.mmd) starts by importing the model:
+The [diagram template](../gen/doc/erd.mmd) starts by importing the model:
 
 ```mermaid-source
 %%- @"../model.aon"
@@ -54,7 +54,7 @@ comment and the `erDiagram` header.
 
 The relationship rule selects entities that declare a parent:
 
-<!-- source: ../gen/erd.mmd -->
+<!-- source: ../gen/doc/erd.mmd -->
 ```mermaid-source
 %%-   emit(filter($.entity, { parent:string }), {
 %%-     match: parent: string

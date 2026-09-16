@@ -50,7 +50,8 @@ Usage: aontu [options] [file]
        aontu trace [--at <path>] [--format json] [--marker <token>]
                    [--profile <file>] <file>
        aontu render [--check] [--at <path>] [--format json]
-                    [--marker <token>] [--profile <file>] <file> <path>
+                    [--marker <token>] [--profile <file>]
+                    <file|folder> <path>
        aontu hash [options] <file>
        aontu sync [--frozen] [options] [dir]
        aontu add <pkg>[@<version>] [options] [dir]
@@ -2145,7 +2146,7 @@ Write the files a generator answers.
 <!-- test: skip the synopsis is not a transcript -->
 ```sh
 aontu render [--check] [--at <path>] [--format json] [--marker <token>]
-             [--profile <file>] <file> <path>
+             [--profile <file>] <file|folder> <path>
 ```
 
 A generator answers a **component tree** (`file`, `folder`, `line` and
@@ -2195,6 +2196,37 @@ $ aontu render --format json gen.aon zed.txt
 or a list of files, with the paths the tree spells. A one-file tree
 that should land in a directory names the file: `aontu render gen.aon
 build/zed.txt`.
+
+**A folder is a set of generators.** Every regular file directly in it
+is one (a name beginning with a dot is not), taken in name order: a
+`.aon` as it is, any other file by its marker, as below. Their trees are written below
+`<path>` as one run, so one `--check` holds the whole set, and two
+generators claiming one path are refused by the runtime. A file with no
+marker line in it is refused by name rather than skipped. Write a
+`gen/a.aon`:
+
+<!-- test: file gen/a.aon -->
+```aontu
+out: file("a.txt", ["a"])
+```
+
+and a `gen/b.rb`, a generator in the target's own syntax:
+
+<!-- test: file gen/b.rb -->
+```ruby
+#- out: folder("lib", [file("b.rb", [
+puts "b"
+#- ])])
+```
+
+<!-- test: run -->
+```sh
+$ aontu render gen out
+$ aontu render --check gen out
+```
+
+`out/a.txt` and `out/lib/b.rb` are on disk, `a.txt` under its own name:
+in a set the one-file rule above does not apply.
 
 **`--check` is the CI form.** Nothing is written; `<path>` is compared
 with what the generator writes, one `kind: file` line per difference
