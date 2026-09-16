@@ -234,9 +234,20 @@ else
     exit 1
   fi
 
-  (cd "$DIR/app" && bin/rails db:reset >"$WORK/db.log" 2>&1)
+  # NOT `db:reset`. That is `db:drop` + `db:setup`, and `db:setup` LOADS
+  # `db/schema.rb`, which this app gitignores: a clean checkout has the
+  # migrations and no schema, so the load fails before anything runs.
+  # It passed only where an earlier `db:migrate` had left a schema
+  # behind, which is why CI found it the first time this leg ran there.
+  # Dropping and migrating rebuilds from what IS committed.
+  (cd "$DIR/app" && bin/rails db:drop db:create db:migrate db:seed \
+    >"$WORK/db.log" 2>&1)
   if [ $? -ne 0 ]; then
-    fail "the database would not build (see work/db.log)"
+    fail "the database would not build"
+    # The log is the only account of WHY, and a CI runner is thrown away
+    # with `work/` inside it. Print the tail rather than name a path
+    # nobody can open.
+    sed 's/^/#   /' "$WORK/db.log" | tail -20
   else
     (cd "$DIR/app" && bin/rails server -p "$PORT" -b 127.0.0.1 >"$WORK/server.log" 2>&1) &
     server_pid=$!
