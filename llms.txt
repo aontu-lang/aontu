@@ -27,8 +27,20 @@
 
 - [Documentation home](docs/index.md): the map of the documentation and
   a 30-second taste of the language
-- [Tutorial](docs/tutorial.md): learn aontu from zero — unification,
-  types, exact numbers, defaults, references, templates, vet
+- [Tutorials](docs/tutorial.md): four tutorials, each building one
+  thing with the output of every step shown — a config that checks
+  itself ([docs/tutorial-config.md](docs/tutorial-config.md):
+  unification, types, exact numbers, defaults, references, templates,
+  vet), the graph layer
+  ([docs/tutorial-graph.md](docs/tutorial-graph.md): identity across
+  two views, declared relations, reachability, recursive schemas),
+  sharing a model as a package
+  ([docs/tutorial-package.md](docs/tutorial-package.md): `pkg.aon`,
+  `aontu publish`, the lockfile pins, the vendor tree, the publish
+  gate) and generating files from a model
+  ([docs/tutorial-generate.md](docs/tutorial-generate.md): `emit`,
+  `each`, and the component tree of project, folder, file and line
+  nodes)
 - [Language reference](docs/reference-language.md): every construct and
   rule — the exhaustive, dry source of truth for the language
 - [API reference](docs/reference-api.md): the CLI verbs with flags and
