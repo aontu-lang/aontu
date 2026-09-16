@@ -38,14 +38,23 @@ drift from the other:
 | Gate | Runs | Checks |
 |---|---|---|
 | `make prose` (Vale) | `.github/workflows/docs.yml` | spelling, Google's conventions, and the banned list, at the levels set in `.vale.ini` |
-| `ts/test/docs.test.ts` | `make test` | the banned list again, the no-em-dash rule, the first-person rules, the exclamation ration, no emoji, no internal-document citations, that every code snippet executes, and that every internal markdown link resolves |
+| `ts/test/docs.test.ts` | `make test` | the banned list again, the no-em-dash rule, the first-person rules, the exclamation ration, no emoji, no internal-document citations, no phase-tracking vocabulary, that every code snippet executes, and that every internal markdown link resolves |
 | `ts/scripts/vale-counts.cjs` | `make prose` | that every count in `.vale.ini`, and the total below, are what Vale reports |
 
 The gated set is the reader-facing one: the Diátaxis pages, the how-to
 guides, the three contributor references that ship under `docs/`, the
-published use cases, and `README.md` and `ts/README.md`. Design
-notes, the capability review, the defect ledgers and the repro corpus are
-working documents, and they are out.
+published use cases, the systems under `test/system/` and their guides,
+and `README.md` and `ts/README.md`. Design notes, the capability review,
+the defect ledgers and the repro corpus are working documents, and they
+are out.
+
+**The systems joined the set late, and what happened meanwhile is the
+argument for the set being one list.** `aontu-lang/web` publishes
+`test/system/<name>/README.md` as `/examples/<name>` and reads this
+directory's own README for the status each card shows, and AGENTS.md
+said the rules reached there. The file list did not, so neither gate
+looked: a status written in the register's vocabulary, dates and all,
+was live on `/examples/` for anyone to read.
 
 **The link check reads more than the gated set.**
 `every-internal-link-resolves` takes every markdown file the repository
@@ -55,7 +64,7 @@ against the target file's own headings, under GitHub's slug rules.
 
 **A Google rule sitting below error level was tried at error first and
 found wrong for these pages.** `.vale.ini` records what each produced on
-a clean run: 3800 alerts across 72 files. Two of them are worth knowing
+a clean run: 3978 alerts across 78 files. Two of them are worth knowing
 about, because the reason is not taste:
 
 - `Google.EmDash` is disabled because its spacing rule is redundant
@@ -102,7 +111,7 @@ published:
 
 | Set | Files | Audience |
 |---|---|---|
-| Published | `index.md`, `tutorial*.md`, `unification.md`, `reference-*.md`, `trust.md`, `lsp.md`, `use-cases.md`, `how-to/*.md`, the use-case READMEs | anyone using aontu |
+| Published | `index.md`, `tutorial*.md`, `unification.md`, `reference-*.md`, `trust.md`, `lsp.md`, `use-cases.md`, `how-to/*.md`, the use-case READMEs, `test/system/README.md` and each system's README and `doc/*.md` | anyone using aontu |
 | Internal | `ADR.md`, `docs/design/`, `docs/capability-review/`, `DIVERGENCE.md`, `AGENTS.md`, `use-cases/BUGS.md`, `use-cases/REVIEW.md`, `shared-spec.md`, `test-coverage.md`, `release-and-tag.md` | contributors |
 
 **A published page never cites an internal one.** Not as a link, not
@@ -322,7 +331,7 @@ State the input, the check, the result, and any limit on that result.
   English; this is one of the places the house voice wins, and
   `Google.Spelling` is switched off in `.vale.ini` for it. Actual
   misspellings are still caught: `Vale.Spelling` runs at error against
-  `accept.txt`, which names 209 domain terms.
+  `accept.txt`, which names 213 domain terms.
 
 ## Code snippets: every one is tested
 

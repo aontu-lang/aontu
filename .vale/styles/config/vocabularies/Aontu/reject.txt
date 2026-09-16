@@ -108,7 +108,7 @@ we['’]?ve been here before
 
 # --- Reflective pose ---------------------------------------------------
 sit with
-worth (?:exploring|considering|a look|asking|talking about)
+worth (?:exploring|considering|a look|asking|talking about|knowing)
 keeps? coming back to
 that['’]?s the tell
 where I landed

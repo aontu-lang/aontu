@@ -109,7 +109,7 @@ than its value.
   does not generate and does not appear in canon, so the named file
   and the written-out one are the same document with the same `aon1-`
   hash. `flags.aon` repeats all four and does not name them, for two
-  reasons worth knowing before reaching for an alias: an alias reaches
+  reasons to weigh before reaching for an alias: an alias reaches
   nothing outside the document it is declared in (there is no
   construct for carrying a name across a file boundary), and inside a
   `&:` spread template an alias reference is not resolved: it leaks

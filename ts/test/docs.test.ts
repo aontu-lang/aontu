@@ -816,6 +816,13 @@ describe('docs-style', () => {
     Assert.equal(
       files.filter((f) => f.startsWith('use-cases/')).length, 18,
       'the eighteen published use cases are gated')
+    // aontu-lang/web publishes these as /examples.
+    Assert.ok(files.includes('test/system/README.md'),
+      'the systems index is gated')
+    Assert.ok(files.includes('test/system/rb-solar/README.md'),
+      'each system README is gated')
+    Assert.ok(files.includes('test/system/rb-solar/doc/erd.md'),
+      'each system guide is gated')
   })
 
 
@@ -1012,6 +1019,33 @@ describe('docs-style', () => {
     }
     Assert.deepEqual(hits, [],
       'published pages cite internal records (docs/STYLE-GUIDE.md,\n' +
+      '"The published set cites nothing internal"):\n' + hits.join('\n'))
+  })
+
+
+  // The register's vocabulary. A published page states what holds now,
+  // so a phase marker on one is a status its reader cannot act on.
+  const PHASE_WORDS =
+    /\b(LANDED|RETIRED|SUPERSEDED|PROPOSED|AMENDED|WITHDRAWN|CANCELLED)\b/g
+
+  test('no-project-history-in-published-prose', () => {
+    const hits: string[] = []
+    for (const { file, abs } of stylePaths()) {
+      if (CONTRIB.includes(file)) {
+        continue
+      }
+      for (const para of logical(Fs.readFileSync(abs, 'utf8'))) {
+        for (const m of para.text.matchAll(PHASE_WORDS)) {
+          if (null == m.index) {
+            continue
+          }
+          const { line, text } = lineAt(para, m.index)
+          hits.push(`${file}:${line} "${m[0]}": ${text}`)
+        }
+      }
+    }
+    Assert.deepEqual(hits, [],
+      'published pages track this project\'s phases (docs/STYLE-GUIDE.md,\n' +
       '"The published set cites nothing internal"):\n' + hits.join('\n'))
   })
 
