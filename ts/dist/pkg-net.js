@@ -1,7 +1,7 @@
 "use strict";
 /* Copyright (c) 2025 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.PkgRefusal = exports.SIGNATURE_ENCODING = exports.ARCHIVE_MAX_FILE_BYTES = exports.ARCHIVE_MAX_FILES = exports.ARCHIVE_MAX_UNPACKED = exports.ARCHIVE_MAX_BYTES = exports.LIMITS = exports.CLOSURE_MAX = exports.COOLDOWN_HOURS = exports.PUBLISH_PATH = exports.DEFAULT_WRITE = exports.DEFAULT_BASE = void 0;
+exports.relPathError = exports.PkgRefusal = exports.SIGNATURE_ENCODING = exports.ARCHIVE_MAX_FILE_BYTES = exports.ARCHIVE_MAX_FILES = exports.ARCHIVE_MAX_UNPACKED = exports.ARCHIVE_MAX_BYTES = exports.LIMITS = exports.CLOSURE_MAX = exports.COOLDOWN_HOURS = exports.PUBLISH_PATH = exports.DEFAULT_WRITE = exports.DEFAULT_BASE = void 0;
 exports.isLoopback = isLoopback;
 exports.baseAdmitted = baseAdmitted;
 exports.repoConfig = repoConfig;
@@ -15,10 +15,10 @@ exports.keyIdOf = keyIdOf;
 exports.keyIdFromPem = keyIdFromPem;
 exports.keygen = keygen;
 exports.signDigest = signDigest;
+exports.smallOrderKey = smallOrderKey;
 exports.verifyKeyProof = verifyKeyProof;
 exports.packagePath = packagePath;
 exports.manifestError = manifestError;
-exports.relPathError = relPathError;
 exports.acquire = acquire;
 exports.pkgSync = pkgSync;
 exports.editDeps = editDeps;
@@ -37,6 +37,7 @@ exports.serveObject = serveObject;
 exports.startServe = startServe;
 exports.servedUrl = servedUrl;
 exports.splitListen = splitListen;
+exports.readBounded = readBounded;
 exports.defaultHttp = defaultHttp;
 // THE CLIENT HALF OF THE PACKAGE REPOSITORY (aontu-lang/system, spec/):
 // acquisition, sync, publication and the local registry, over one
@@ -48,6 +49,7 @@ const node_http_1 = require("node:http");
 const node_path_1 = require("node:path");
 const mod_1 = require("./mod");
 const pkg_1 = require("./pkg");
+Object.defineProperty(exports, "relPathError", { enumerable: true, get: function () { return pkg_1.relPathError; } });
 const pkg_zip_1 = require("./pkg-zip");
 exports.DEFAULT_BASE = 'https://pkg.aontu.dev';
 exports.DEFAULT_WRITE = 'https://publish.aontu.dev';
@@ -56,15 +58,15 @@ exports.COOLDOWN_HOURS = 72;
 exports.CLOSURE_MAX = 1024;
 // The closure bounds, as a record so a test can lower them.
 exports.LIMITS = { depth: mod_1.MODULE_MAX_DEPTH, closure: exports.CLOSURE_MAX };
-exports.ARCHIVE_MAX_BYTES = 16777216;
-exports.ARCHIVE_MAX_UNPACKED = 67108864;
-exports.ARCHIVE_MAX_FILES = 4096;
-exports.ARCHIVE_MAX_FILE_BYTES = 8388608;
+exports.ARCHIVE_MAX_BYTES = pkg_1.ARCHIVE_LIMITS.bytes;
+exports.ARCHIVE_MAX_UNPACKED = pkg_1.ARCHIVE_LIMITS.unpacked;
+exports.ARCHIVE_MAX_FILES = pkg_1.ARCHIVE_LIMITS.files;
+exports.ARCHIVE_MAX_FILE_BYTES = pkg_1.ARCHIVE_LIMITS.fileBytes;
 exports.SIGNATURE_ENCODING = 'aontu-signature/v1';
-const VERSION_RE = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 const DIGEST_RE = /^sha256:[0-9a-f]{64}$/;
 const CANON_RE = /^aon1-[A-Za-z0-9_-]{43}$/;
 const KEY_ID_RE = /^ed25519:[A-Za-z0-9_-]{43}$/;
+const SIG_RE = /^[A-Za-z0-9_-]{86}$/;
 const PATTERN_RE = /^\*$|^[a-z0-9.-]+$|^[a-z0-9.-]+\/[A-Za-z0-9._/-]+$|^[a-z0-9.-]+\/\*$|^[a-z0-9.-]+\/[A-Za-z0-9._/-]+\/\*$/;
 class PkgRefusal extends Error {
     constructor(code, message, pkg) {
@@ -221,9 +223,24 @@ function keyIdOf(publicKeyDer) {
     const raw = Buffer.from(publicKeyDer).subarray(publicKeyDer.length - 32);
     return 'ed25519:' + raw.toString('base64url');
 }
+// The signing key is an Ed25519 private key and nothing else: another
+// kind signs, and every consumer refuses the proof, so it is refused
+// here first.
+function signingKey(pem) {
+    let priv;
+    try {
+        priv = (0, node_crypto_1.createPrivateKey)(pem);
+    }
+    catch {
+        refuse('key_invalid', 'the key file is not a PEM private key', '');
+    }
+    if ('ed25519' !== priv.asymmetricKeyType) {
+        refuse('key_invalid', 'the key is ' + priv.asymmetricKeyType + ', not ed25519', '');
+    }
+    return priv;
+}
 function keyIdFromPem(pem) {
-    const priv = (0, node_crypto_1.createPrivateKey)(pem);
-    const der = (0, node_crypto_1.createPublicKey)(priv).export({ format: 'der', type: 'spki' });
+    const der = (0, node_crypto_1.createPublicKey)(signingKey(pem)).export({ format: 'der', type: 'spki' });
     return keyIdOf(new Uint8Array(der));
 }
 // `aontu pkg keygen`: a new signing key, written once. The answer is
@@ -239,7 +256,7 @@ function keygen(file) {
     return { signer: keyIdFromPem(pem) };
 }
 function signDigest(pem, over) {
-    const priv = (0, node_crypto_1.createPrivateKey)(pem);
+    const priv = signingKey(pem);
     const sig = (0, node_crypto_1.sign)(null, signedBytes(over), priv);
     return {
         kind: 'key',
@@ -248,6 +265,28 @@ function signDigest(pem, over) {
         signer: keyIdFromPem(pem),
         signature: Buffer.from(sig).toString('base64url'),
     };
+}
+// The small-order points of the curve, by y with the sign bit cleared:
+// a signature under one verifies for any message. The last entry is p,
+// and every encoding at or above it is not canonical.
+const SMALL_ORDER_Y = new Set([
+    '0000000000000000000000000000000000000000000000000000000000000000',
+    '0100000000000000000000000000000000000000000000000000000000000000',
+    '26e8958fc2b227b045c3f489f2ef98f0d5dfac05d3c63339b13802886d53fc05',
+    'c7176a703d4dd84fba3c0b760d10670f2a2053fa2c39ccc64ec7fd7792ac037a',
+    'ecffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f',
+]);
+function smallOrderKey(raw) {
+    const y = Buffer.from(raw);
+    y[31] &= 0x7f;
+    const hex = y.toString('hex');
+    return SMALL_ORDER_Y.has(hex) || (hex.endsWith('ff'.repeat(30) + '7f') && 0xed <= y[0]);
+}
+// Base64url that decodes and re-encodes to itself: Buffer drops
+// trailing bits silently, so a signature has one spelling here.
+function canonicalBase64url(text, length) {
+    const bytes = Buffer.from(text, 'base64url');
+    return length === bytes.length && bytes.toString('base64url') === text ? bytes : undefined;
 }
 function verifyKeyProof(proof, over, signer) {
     if (null == proof || 'key' !== proof.kind || exports.SIGNATURE_ENCODING !== proof.encoding ||
@@ -260,10 +299,13 @@ function verifyKeyProof(proof, over, signer) {
     if (proof.signer !== signer) {
         return 'signed by ' + proof.signer + '; the trust entry accepts ' + signer;
     }
-    const raw = Buffer.from(proof.signer.slice('ed25519:'.length), 'base64url');
-    const sig = Buffer.from(proof.signature, 'base64url');
-    if (32 !== raw.length || 64 !== sig.length) {
+    const raw = canonicalBase64url(proof.signer.slice('ed25519:'.length), 32);
+    const sig = SIG_RE.test(proof.signature) ? canonicalBase64url(proof.signature, 64) : undefined;
+    if (undefined === raw || undefined === sig) {
         return 'the proof carries a malformed key or signature';
+    }
+    if (smallOrderKey(raw)) {
+        return 'the signer is a key of small order';
     }
     const key = (0, node_crypto_1.createPublicKey)({
         key: Buffer.concat([SPKI_ED25519_PREFIX, raw]), format: 'der', type: 'spki',
@@ -283,7 +325,7 @@ function manifestError(m) {
     if (!packagePath(m.package)) {
         return 'package is not a package path';
     }
-    if ('string' !== typeof m.version || !VERSION_RE.test(m.version)) {
+    if ('string' !== typeof m.version || !pkg_1.VERSION_RE.test(m.version)) {
         return 'version is not MAJOR.MINOR.PATCH';
     }
     if ('public' !== m.publish && 'private' !== m.publish) {
@@ -296,7 +338,7 @@ function manifestError(m) {
     }
     for (const f of a.files) {
         if ('string' !== typeof f?.path || !DIGEST_RE.test(f.digest ?? '') ||
-            !Number.isInteger(f.size) || undefined !== relPathError(f.path)) {
+            !Number.isInteger(f.size) || undefined !== (0, pkg_1.relPathError)(f.path)) {
             return 'archive.files names a file without a path, a digest and a size';
         }
     }
@@ -305,12 +347,16 @@ function manifestError(m) {
         !CANON_RE.test(m.modules[0]?.canon ?? '')) {
         return 'modules is not the one module at the package path with an entry and a canon-hash';
     }
+    if (undefined !== (0, pkg_1.relPathError)(m.modules[0].main) ||
+        !a.files.some((f) => f.path === m.modules[0].main)) {
+        return 'modules names an entry the archive does not hold';
+    }
     if (null == m.deps || 'object' !== typeof m.deps || Array.isArray(m.deps)) {
         return 'deps is not a map';
     }
     for (const k of Object.keys(m.deps)) {
         const d = m.deps[k];
-        if ('string' !== typeof d?.v || !VERSION_RE.test(d.v) ||
+        if ('string' !== typeof d?.v || !pkg_1.VERSION_RE.test(d.v) ||
             (null != d.pkg && !packagePath(d.pkg))) {
             return 'deps.' + k + ' is not a minimum version';
         }
@@ -322,24 +368,8 @@ function manifestError(m) {
         return 'moved is not a package path';
     }
     if (null != m.retract && (!Array.isArray(m.retract) ||
-        m.retract.some((v) => 'string' !== typeof v || !VERSION_RE.test(v)))) {
+        m.retract.some((v) => 'string' !== typeof v || !pkg_1.VERSION_RE.test(v)))) {
         return 'retract is not a list of versions';
-    }
-    return undefined;
-}
-// A path inside an archive: forward slashes, the element rules, never
-// absolute and never escaping.
-function relPathError(p) {
-    if ('' === p || 512 < p.length || p.startsWith('/') || p.endsWith('/')) {
-        return 'an entry path is empty, absolute or a directory';
-    }
-    for (const e of p.split('/')) {
-        if ('' === e || '.' === e || '..' === e || e.startsWith('.') || e.endsWith('.')) {
-            return 'an entry path element is empty or begins or ends with a dot';
-        }
-        if (!/^[A-Za-z0-9._-]+$/.test(e)) {
-            return 'an entry path element is outside the alphabet';
-        }
     }
     return undefined;
 }
@@ -375,13 +405,21 @@ async function fetchList(ctx, bases, pkg) {
     }
     const versions = [];
     for (const e of doc.versions) {
-        if ('string' !== typeof e?.version || !VERSION_RE.test(e.version) ||
+        if ('string' !== typeof e?.version || !pkg_1.VERSION_RE.test(e.version) ||
             'string' !== typeof e?.seen) {
             refuse('response_mismatch', 'the version list for ' + pkg + ' is malformed', pkg);
         }
         versions.push({ version: e.version, seen: e.seen });
     }
     versions.sort((a, b) => (0, pkg_1.versionCompare)(a.version, b.version));
+    // Every version the list offers is a version this client has seen:
+    // its absence later is a rollback whichever version was taken.
+    if ('' !== ctx.cache) {
+        const subject = trustEntryFor(ctx.config, pkg).signer;
+        for (const e of versions) {
+            recordSeen(ctx, pkg, e.version, subject);
+        }
+    }
     return versions;
 }
 async function fetchAdvisory(ctx, bases, pkg) {
@@ -530,7 +568,7 @@ async function fetchArchive(ctx, bases, pkg, version, manifest) {
         }
         bytes = r.body;
     }
-    if (exports.ARCHIVE_MAX_BYTES < bytes.length) {
+    if (pkg_1.ARCHIVE_LIMITS.bytes < bytes.length) {
         refuse('archive_too_large', 'the archive for ' + pkg + ' ' + version +
             ' is over the compressed cap', pkg);
     }
@@ -553,14 +591,14 @@ function unpack(pkg, version, zip, manifest) {
         refuse('archive_not_canonical', 'the archive for ' + pkg + ' ' + version + ': ' +
             e.message, pkg);
     }
-    if (exports.ARCHIVE_MAX_FILES < entries.length) {
+    if (pkg_1.ARCHIVE_LIMITS.files < entries.length) {
         refuse('archive_too_many_files', 'the archive for ' + pkg + ' ' + version +
             ' is over the file-count cap', pkg);
     }
     let total = 0;
     const listed = new Map(manifest.archive.files.map((f) => [f.path, f]));
     for (const e of entries) {
-        const bad = relPathError(e.path);
+        const bad = (0, pkg_1.relPathError)(e.path);
         if (undefined !== bad) {
             refuse('archive_path_invalid', 'the archive for ' + pkg + ' ' + version + ': ' +
                 bad + ' (' + e.path + ')', pkg);
@@ -570,7 +608,7 @@ function unpack(pkg, version, zip, manifest) {
                 ' carries ' + e.path + ', which the allowlist does not admit', pkg);
         }
         total += e.data.length;
-        if (exports.ARCHIVE_MAX_FILE_BYTES < e.data.length || exports.ARCHIVE_MAX_UNPACKED < total) {
+        if (pkg_1.ARCHIVE_LIMITS.fileBytes < e.data.length || pkg_1.ARCHIVE_LIMITS.unpacked < total) {
             refuse('archive_bomb', 'the archive for ' + pkg + ' ' + version +
                 ' unpacks past the size cap', pkg);
         }
@@ -607,8 +645,11 @@ async function acquire(ctx, pkg, asked, depth) {
     const bases = basesFor(ctx, pkg);
     const entry = trustEntryFor(ctx.config, pkg);
     const list = await fetchList(ctx, bases, pkg);
+    // A version seen before and gone from the list is a rollback, unless
+    // the repository says why: a tombstone stands where it was.
     for (const v of seenVersions(ctx, pkg)) {
-        if (!list.some((e) => e.version === v)) {
+        if (!list.some((e) => e.version === v) &&
+            200 !== (await getObject(ctx, bases, objectPath('tombstone', pkg, v))).status) {
             refuse('list_rollback', pkg + ' ' + v + ' was seen before and is absent from the list', pkg);
         }
     }
@@ -688,12 +729,14 @@ async function acquire(ctx, pkg, asked, depth) {
     if (0 < pins.length) {
         (0, pkg_1.writeLock)(tmp, pins, ctx.options);
     }
+    // The entry is in the archive: the manifest named it among the files
+    // and every listed file was unpacked.
     const main = (0, node_path_1.join)(tmp, mod.main);
-    const got = (0, node_fs_1.existsSync)(main) ? ctx.options.eval((0, node_fs_1.readFileSync)(main, 'utf8'), main) : undefined;
-    if (null == got || !got.ok || got.hash !== mod.canon) {
+    const got = ctx.options.eval((0, node_fs_1.readFileSync)(main, 'utf8'), main);
+    if (!got.ok || got.hash !== mod.canon) {
         (0, node_fs_1.rmSync)(tmp, { recursive: true, force: true });
         refuse('module_integrity', pkg + ' ' + version + ' means ' +
-            (null == got || !got.ok ? 'nothing (it does not evaluate)' : got.hash) +
+            (!got.ok ? 'nothing (it does not evaluate)' : got.hash) +
             ', and the manifest pins ' + mod.canon, pkg);
     }
     const dir = (0, mod_1.cacheStoreDir)(ctx.cache, got.hash, pkg);
@@ -748,7 +791,8 @@ function heldAt(root, key, pkg, version, ctx) {
     const vendored = (0, mod_1.moduleDir)((0, node_path_1.join)(root, mod_1.META_DIR, mod_1.VENDOR_DIR), key);
     if ((0, node_fs_1.existsSync)((0, node_path_1.join)(vendored, mod_1.PKG_FILE))) {
         const self = (0, pkg_1.packageSelf)(vendored, ctx.options);
-        if ('' === self.version || self.version === version) {
+        if (('' === self.version || self.version === version) &&
+            ('' === self.path || self.path === pkg)) {
             return vendored;
         }
     }
@@ -845,12 +889,16 @@ async function pkgSync(root, options, http, args = {}) {
         }
         report.vendored.push(key);
     }
-    for (const key of Object.keys(previous)) {
-        if (null == selected[key] && (0, pkg_1.usableKey)(key)) {
-            (0, node_fs_1.rmSync)((0, mod_1.moduleDir)(vendorRoot, key), { recursive: true, force: true });
-            pruneEmpty((0, node_path_1.dirname)((0, mod_1.moduleDir)(vendorRoot, key)), vendorRoot);
+    // What the closure no longer holds is pruned once the lock may
+    // change: a frozen sync that refuses leaves the locked build whole.
+    const prune = () => {
+        for (const key of Object.keys(previous)) {
+            if (null == selected[key] && (0, pkg_1.usableKey)(key)) {
+                (0, node_fs_1.rmSync)((0, mod_1.moduleDir)(vendorRoot, key), { recursive: true, force: true });
+                pruneEmpty((0, node_path_1.dirname)((0, mod_1.moduleDir)(vendorRoot, key)), vendorRoot);
+            }
         }
-    }
+    };
     const resolved = (0, pkg_1.pkgResolve)(root, options);
     report.lock = resolved.lock;
     report.missing = [...new Set([...missing, ...resolved.missing])].sort(pkg_zip_1.cmpBytes);
@@ -880,6 +928,7 @@ async function pkgSync(root, options, http, args = {}) {
         report.verdict = 'frozen';
         return report;
     }
+    prune();
     (0, pkg_1.writeLock)(root, resolved.lock, options);
     const verify = (0, pkg_1.pkgVerify)(root, options);
     report.mismatched = verify.mismatched;
@@ -941,7 +990,7 @@ function parsePkgSpec(spec) {
     if (!packagePath(pkg)) {
         return 'not a package path: ' + spec;
     }
-    if (undefined !== version && !VERSION_RE.test(version)) {
+    if (undefined !== version && !pkg_1.VERSION_RE.test(version)) {
         return 'not a version: ' + version + ' (MAJOR.MINOR.PATCH)';
     }
     return { pkg, ...(undefined === version ? {} : { version }) };
@@ -975,7 +1024,7 @@ async function pkgGet(root, options, http, spec, args) {
         return report;
     }
     let change;
-    const before = (0, node_fs_1.readFileSync)((0, node_path_1.join)(root, mod_1.PKG_FILE), 'utf8');
+    const before = snapshot(root);
     if (null == have) {
         const bad = editDeps(root, { op: 'add', key: pkg, v: version }, options);
         if (undefined !== bad) {
@@ -997,13 +1046,41 @@ async function pkgGet(root, options, http, spec, args) {
     sync.events = [...ctx.events, ...sync.events];
     return { ...sync, change: settled(root, before, sync, change) };
 }
-// A change the sync could not carry is taken back: neither verb leaves
-// the project half-changed.
+function snapshot(root) {
+    const snap = { pkgFile: (0, node_fs_1.readFileSync)((0, node_path_1.join)(root, mod_1.PKG_FILE), 'utf8') };
+    const lockFile = (0, node_path_1.join)(root, mod_1.META_DIR, mod_1.LOCK_FILE);
+    if ((0, node_fs_1.existsSync)(lockFile)) {
+        snap.lock = (0, node_fs_1.readFileSync)(lockFile, 'utf8');
+    }
+    const vendorRoot = (0, node_path_1.join)(root, mod_1.META_DIR, mod_1.VENDOR_DIR);
+    if ((0, node_fs_1.existsSync)(vendorRoot)) {
+        snap.vendor = (0, node_path_1.join)(root, mod_1.META_DIR, 'tmp', (0, node_crypto_1.randomBytes)(8).toString('hex'));
+        (0, pkg_1.copyTree)(vendorRoot, snap.vendor);
+    }
+    return snap;
+}
+// A change the sync could not carry is taken back, lock and vendor
+// tree included: neither verb leaves the project half-changed.
 function settled(root, before, sync, change) {
+    const tmp = (0, node_path_1.join)(root, mod_1.META_DIR, 'tmp');
     if ('ok' === sync.verdict) {
+        (0, node_fs_1.rmSync)(tmp, { recursive: true, force: true });
         return change;
     }
-    (0, node_fs_1.writeFileSync)((0, node_path_1.join)(root, mod_1.PKG_FILE), before);
+    (0, node_fs_1.writeFileSync)((0, node_path_1.join)(root, mod_1.PKG_FILE), before.pkgFile);
+    const lockFile = (0, node_path_1.join)(root, mod_1.META_DIR, mod_1.LOCK_FILE);
+    if (undefined === before.lock) {
+        (0, node_fs_1.rmSync)(lockFile, { force: true });
+    }
+    else {
+        (0, node_fs_1.writeFileSync)(lockFile, before.lock);
+    }
+    const vendorRoot = (0, node_path_1.join)(root, mod_1.META_DIR, mod_1.VENDOR_DIR);
+    (0, node_fs_1.rmSync)(vendorRoot, { recursive: true, force: true });
+    if (undefined !== before.vendor) {
+        (0, node_fs_1.renameSync)(before.vendor, vendorRoot);
+    }
+    (0, node_fs_1.rmSync)(tmp, { recursive: true, force: true });
     return 'none (' + change + ' was taken back)';
 }
 // `aontu remove`: the pair of `add`.
@@ -1012,7 +1089,7 @@ async function pkgRemove(root, options, http, pkg, args) {
     if (null == declared[pkg]) {
         return pkg + ' is not a dependency of this project';
     }
-    const before = (0, node_fs_1.readFileSync)((0, node_path_1.join)(root, mod_1.PKG_FILE), 'utf8');
+    const before = snapshot(root);
     const bad = editDeps(root, { op: 'remove', key: pkg }, options);
     if (undefined !== bad) {
         return bad;
@@ -1062,6 +1139,10 @@ function storeDirOf(root, key, entry, options) {
 function writeLayout(dir, w, options, now) {
     const pkg = w.manifest.package;
     const version = w.manifest.version;
+    if (!packagePath(pkg) || !pkg_1.VERSION_RE.test(version)) {
+        refuse('manifest_invalid', 'the manifest names ' + pkg + ' ' + version +
+            ', not a package path at a version', pkg);
+    }
     const at = (0, node_path_1.join)(dir, 'pkg', ...pkgUrlPath(pkg).split('/'), '@v');
     (0, node_fs_1.mkdirSync)(at, { recursive: true });
     const existing = (0, node_fs_1.readdirSync)(at)
@@ -1237,7 +1318,12 @@ async function pkgPublish(root, options, http, args) {
     const manifestBytes = utf8((0, pkg_1.manifestText)(full, options) + '\n');
     report.digest = (0, pkg_zip_1.sha256Hex)(manifestBytes);
     if (null != args.key) {
-        report.signer = keyIdFromPem((0, node_fs_1.readFileSync)(args.key, 'utf8'));
+        try {
+            report.signer = keyIdFromPem((0, node_fs_1.readFileSync)(args.key, 'utf8'));
+        }
+        catch (e) {
+            return refusedPublish(report, e);
+        }
     }
     if (true !== args.yes) {
         return report;
@@ -1300,14 +1386,7 @@ async function pkgOutdated(root, options, http, args = {}) {
                 out.retracted = advisory[entry.v];
             }
             if (0 < (0, pkg_1.versionCompare)(newest, entry.v)) {
-                const top = await fetchManifest(ctx, bases, pkg, newest);
-                const deps = top.manifest.deps;
-                for (const dk of Object.keys(deps).sort(pkg_zip_1.cmpBytes)) {
-                    const have = locked[dk];
-                    if (null == have || 0 > (0, pkg_1.versionCompare)(have.v, deps[dk].v)) {
-                        out.moves.push(dk + ' ' + (null == have ? 'unlocked' : have.v) + ' -> ' + deps[dk].v);
-                    }
-                }
+                out.moves = await movesWith(ctx, locked, key, pkg, newest);
                 report.verdict = 'outdated';
             }
             else if (null != out.retracted) {
@@ -1322,6 +1401,52 @@ async function pkgOutdated(root, options, http, args = {}) {
     }
     report.events = ctx.events;
     return report;
+}
+// What a resolution taking `newest` for one key would move with it:
+// minimum version selection over the repository's manifests, from the
+// upgraded declaration down to the closure, against the lock.
+async function movesWith(ctx, locked, key, pkg, newest) {
+    const selected = {};
+    const targets = {};
+    for (const k of Object.keys(locked)) {
+        selected[k] = locked[k].v;
+        if (null != locked[k].pkg) {
+            targets[k] = locked[k].pkg;
+        }
+    }
+    selected[key] = newest;
+    targets[key] = pkg;
+    let frontier = [key];
+    for (let depth = 0; 0 < frontier.length; depth++) {
+        if (exports.LIMITS.depth <= depth) {
+            refuse('module_depth', 'the closure under ' + pkg + ' nests past ' + exports.LIMITS.depth, pkg);
+        }
+        if (exports.LIMITS.closure < Object.keys(selected).length) {
+            refuse('closure_too_large', 'the closure exceeds ' + exports.LIMITS.closure + ' packages', pkg);
+        }
+        const next = [];
+        for (const k of frontier) {
+            const target = targets[k] ?? k;
+            if (!(0, pkg_1.usableKey)(k) || ((0, mod_1.isAlias)(k) && null == targets[k])) {
+                continue;
+            }
+            const top = await fetchManifest(ctx, basesFor(ctx, target), target, selected[k]);
+            const deps = top.manifest.deps;
+            for (const dk of Object.keys(deps).sort(pkg_zip_1.cmpBytes)) {
+                if (null != deps[dk].pkg) {
+                    targets[dk] = deps[dk].pkg;
+                }
+                if (null == selected[dk] || 0 > (0, pkg_1.versionCompare)(selected[dk], deps[dk].v)) {
+                    selected[dk] = deps[dk].v;
+                    next.push(dk);
+                }
+            }
+        }
+        frontier = next;
+    }
+    return Object.keys(selected).sort(pkg_zip_1.cmpBytes)
+        .filter((k) => k !== key && selected[k] !== locked[k]?.v)
+        .map((k) => k + ' ' + (null == locked[k] ? 'unlocked' : locked[k].v) + ' -> ' + selected[k]);
 }
 function refusedOutdated(report, e) {
     if (!(e instanceof PkgRefusal)) {
@@ -1409,6 +1534,11 @@ function servedUrl(address, port) {
     return 'http://' + (address.includes(':') ? '[' + address + ']' : address) + ':' + port;
 }
 function splitListen(listen) {
+    const bracketed = /^\[([^\]]*)\](?::(.*))?$/.exec(listen);
+    if (null != bracketed) {
+        const port = Number(bracketed[2]);
+        return [bracketed[1], undefined !== bracketed[2] && Number.isInteger(port) ? port : 8017];
+    }
     const at = listen.lastIndexOf(':');
     if (0 > at) {
         return [listen, 8017];
@@ -1416,13 +1546,32 @@ function splitListen(listen) {
     const port = Number(listen.slice(at + 1));
     return [listen.slice(0, at), Number.isInteger(port) ? port : 8017];
 }
+// A body read no further than the archive cap: what comes back past
+// it is over the cap by construction, and every reader refuses it.
+async function readBounded(r, max) {
+    const chunks = [];
+    let total = 0;
+    const reader = r.body?.getReader();
+    for (; undefined !== reader && total <= max;) {
+        const { done, value } = await reader.read();
+        if (done) {
+            break;
+        }
+        chunks.push(value);
+        total += value.length;
+    }
+    if (undefined !== reader && total > max) {
+        await reader.cancel();
+    }
+    return new Uint8Array(Buffer.concat(chunks));
+}
 // THE ADAPTER: the platform's fetch, and the multipart a publish sends.
 function defaultHttp() {
     return {
         get: async (url) => {
             try {
                 const r = await fetch(url, { redirect: 'manual' });
-                return { status: r.status, body: new Uint8Array(await r.arrayBuffer()) };
+                return { status: r.status, body: await readBounded(r, pkg_1.ARCHIVE_LIMITS.bytes) };
             }
             catch {
                 return { status: 0, body: new Uint8Array() };

@@ -3853,7 +3853,7 @@ The pin survives comments, whitespace, formatting and refactoring; it
 breaks on any semantic change in the module's transitive closure. An
 inline `#aon1-…` fragment is the same check without a lockfile: the
 degenerate mode for single-file and agent-sandbox use. The other two
-pins are the tooling's: `aontu sync` and `aontu pkg verify` check the
+pins belong to the tooling: `aontu sync` and `aontu pkg verify` check the
 bytes before the meaning.
 
 Under a **root** trust capability (`docs/trust.md`) the user cache is

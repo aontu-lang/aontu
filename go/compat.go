@@ -1,6 +1,5 @@
 /* Copyright (c) 2025 Richard Rodger, MIT License */
 
-
 package aontu
 
 import (
@@ -60,7 +59,13 @@ func compatChildren(v Val) (keys []string, child func(string) Val, isBag bool) {
 		for i := range b.peg {
 			keys = append(keys, strconv.Itoa(i))
 		}
-		return keys, func(k string) Val { i, _ := strconv.Atoi(k); return b.peg[i] }, true
+		return keys, func(k string) Val {
+			i, _ := strconv.Atoi(k)
+			if i < 0 || len(b.peg) <= i {
+				return nil
+			}
+			return b.peg[i]
+		}, true
 	}
 	return nil, nil, false
 }

@@ -1,4 +1,5 @@
 import type { Server } from 'node:http';
+import { relPathError } from './pkg';
 import type { PkgToolOptions, LockEntry, Dependency, PkgManifest, PkgMismatch } from './pkg';
 export type HttpResponse = {
     status: number;
@@ -22,10 +23,10 @@ export declare const LIMITS: {
     depth: number;
     closure: number;
 };
-export declare const ARCHIVE_MAX_BYTES = 16777216;
-export declare const ARCHIVE_MAX_UNPACKED = 67108864;
-export declare const ARCHIVE_MAX_FILES = 4096;
-export declare const ARCHIVE_MAX_FILE_BYTES = 8388608;
+export declare const ARCHIVE_MAX_BYTES: number;
+export declare const ARCHIVE_MAX_UNPACKED: number;
+export declare const ARCHIVE_MAX_FILES: number;
+export declare const ARCHIVE_MAX_FILE_BYTES: number;
 export declare const SIGNATURE_ENCODING = "aontu-signature/v1";
 export type TrustEntry = {
     signer: string;
@@ -79,10 +80,11 @@ export type KeyProof = {
     signature: string;
 };
 export declare function signDigest(pem: string, over: string): KeyProof;
+export declare function smallOrderKey(raw: Uint8Array): boolean;
 export declare function verifyKeyProof(proof: any, over: string, signer: string): string | undefined;
 export declare function packagePath(s: any): boolean;
 export declare function manifestError(m: any): string | undefined;
-export declare function relPathError(p: string): string | undefined;
+export { relPathError };
 type Acquired = {
     pkg: string;
     version: string;
@@ -221,5 +223,5 @@ export declare function serveObject(opts: ServeOptions, p: string): Promise<{
 export declare function startServe(opts: ServeOptions): Promise<Served>;
 export declare function servedUrl(address: string, port: number): string;
 export declare function splitListen(listen: string): [string, number];
+export declare function readBounded(r: Response, max: number): Promise<Uint8Array>;
 export declare function defaultHttp(): PkgHttp;
-export {};

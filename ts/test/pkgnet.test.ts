@@ -15,14 +15,15 @@ import {
 import {
   dirHttp, defaultHttp, startServe, serveObject, objectShape, splitListen,
   pkgPublish, pkgOutdated,
-  manifestError, verifyKeyProof, signDigest, keyIdFromPem, editDeps,
+  manifestError, verifyKeyProof, smallOrderKey, signDigest, keyIdFromPem, editDeps,
   publisherFromToken, parsePkgSpec, repoConfig, trustEntryFor, patternMatches,
   baseAdmitted, isLoopback, relPathError, objectPath, pkgWhy, pkgSync,
-  writeLayout, PkgRefusal, timestamp, COOLDOWN_HOURS, LIMITS, servedUrl,
+  writeLayout, PkgRefusal, timestamp, COOLDOWN_HOURS, LIMITS, servedUrl, readBounded,
 } from '../dist/pkg-net'
 import type { PkgHttp, Served } from '../dist/pkg-net'
 import { zipCanonical, sha256Hex } from '../dist/pkg-zip'
-import { readLock } from '../dist/pkg'
+import { readLock, ARCHIVE_LIMITS } from '../dist/pkg'
+import { cacheSeenDir, moduleDir } from '../dist/mod'
 
 
 const SERVICE = 'name: string\nport: *8080 | integer\n'
@@ -760,7 +761,7 @@ describe('pkg-net', () => {
 
     const many: { path: string, data: Uint8Array }[] = []
     for (let i = 0; i < 4097; i++) {
-      many.push({ path: 'f' + i + '.aon', data: new Uint8Array(1) })
+      many.push({ path: 0 === i ? 'main.aon' : 'f' + i + '.aon', data: new Uint8Array(1) })
     }
     serve(many)
     Assert.match((await run(w, http, 'sync', [app])).out,
@@ -801,6 +802,8 @@ describe('pkg-net', () => {
       [(m) => { m.archive.files[0] = 5 }, /archive.files names a file without/],
       [(m) => { delete m.archive.files[0].digest }, /archive.files names a file without/],
       [(m) => { delete m.modules[0].canon }, /modules is not the one module/],
+      [(m) => { m.modules[0].main = '../main.aon' }, /modules names an entry the archive does not hold/],
+      [(m) => { m.modules[0].main = 'other.aon' }, /modules names an entry the archive does not hold/],
     ]
     for (const [edit, want] of cases) {
       const m = base()
@@ -823,7 +826,24 @@ describe('pkg-net', () => {
     Assert.match(verifyKeyProof({ ...proof, kind: 'sigstore' }, digest, KEY_ID) as string, /not an aontu-signature/)
     Assert.match(verifyKeyProof(proof, digest, keyIdFromPem(OTHER_PEM)) as string, /^signed by ed25519:/)
     Assert.match(verifyKeyProof({ ...proof, signer: 'ed25519:' + 'A'.repeat(43) }, digest,
-      'ed25519:' + 'A'.repeat(43)) as string, /the signature does not verify/)
+      'ed25519:' + 'A'.repeat(43)) as string, /the signer is a key of small order/)
+    const keyOf = (hex: string) => 'ed25519:' + Buffer.from(hex, 'hex').toString('base64url')
+    for (const hex of ['ec' + 'ff'.repeat(30) + '7f', 'ed' + 'ff'.repeat(30) + '7f',
+      'ee' + 'ff'.repeat(30) + 'ff', '01' + '00'.repeat(30) + '80']) {
+      Assert.equal(smallOrderKey(Buffer.from(hex, 'hex')), true, hex)
+      Assert.match(verifyKeyProof({ ...proof, signer: keyOf(hex) }, digest, keyOf(hex)) as string,
+        /the signer is a key of small order/)
+    }
+    Assert.equal(smallOrderKey(Buffer.from('02' + 'ff'.repeat(30) + '7f', 'hex')), false)
+    Assert.equal(smallOrderKey(Buffer.from('ed' + 'ff'.repeat(29) + 'fe7f', 'hex')), false)
+    const B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_'
+    const slack = (text: string) => text.slice(0, -1) + B64[B64.indexOf(text[text.length - 1]) | 1]
+    Assert.match(verifyKeyProof({ ...proof, signature: slack(proof.signature) }, digest, KEY_ID) as string,
+      /malformed key or signature/)
+    Assert.match(verifyKeyProof({ ...proof, signer: slack(KEY_ID) }, digest, slack(KEY_ID)) as string,
+      /malformed key or signature/)
+    Assert.match(verifyKeyProof({ ...proof, signature: proof.signature.slice(0, 85) + '=' }, digest,
+      KEY_ID) as string, /malformed key or signature/)
     Assert.equal(timestamp(new Date('2026-01-02T03:04:05.678Z')), '2026-01-02T03:04:05Z')
     Assert.match(verifyKeyProof({ kind: 'key', encoding: 'aontu-signature/v1', over: digest, signature: 'x' },
       digest, KEY_ID) as string, /not an aontu-signature/)
@@ -1040,6 +1060,29 @@ describe('pkg-net', () => {
     Assert.match(m.out, /^verdict: missing\n/)
     Assert.match(m.out, /alias:x: not fetched/)
     Assert.match(m.out, /not a path: not fetched/)
+
+    // The lock and the vendor tree are taken back with the package
+    // file: a raise that fetched a version the sync then could not
+    // carry leaves the previous version vendored, and no tmp behind.
+    resign(w, 'service', '1.4.3', () => undefined)
+    const kept = consumer(w, '"corp.example/service": {v: "1.4.2"}')
+    Assert.equal((await run(w, http, 'sync', [kept])).code, 0)
+    Fs.appendFileSync(Path.join(kept, 'pkg.aon'), 'dep: {"bad key!": {v: "1.0.0"}}\n')
+    const lockBefore = lockOf(kept)
+    const vendored = Path.join(kept, 'aontu_meta', 'vendor', 'corp.example', 'service', 'pkg.aon')
+    const back = await run(w, http, 'get', ['corp.example/service@1.4.3', kept])
+    Assert.equal(back.code, 1, back.out)
+    Assert.match(back.out, /was taken back/)
+    Assert.equal(lockOf(kept), lockBefore)
+    Assert.match(Fs.readFileSync(vendored, 'utf8'), /version: "1.4.2"/)
+    Assert.ok(!Fs.existsSync(Path.join(kept, 'aontu_meta', 'tmp')))
+    // With no lock and no vendor tree before, none is left behind.
+    const none = consumer(w, '"bad key!": {v: "1.0.0"}')
+    const added = await run(w, http, 'add', ['corp.example/service@1.4.2', none])
+    Assert.equal(added.code, 1, added.out)
+    Assert.match(added.out, /was taken back/)
+    Assert.ok(!Fs.existsSync(Path.join(none, 'aontu_meta', 'pkg-lock.aon')))
+    Assert.ok(!Fs.existsSync(Path.join(none, 'aontu_meta', 'vendor')))
 
     // A vendored module that does not evaluate is an error, not a fetch.
     const bad = consumer(w, '"corp.example/service": {v: "1.4.2"}')
@@ -1282,6 +1325,9 @@ describe('pkg-net', () => {
     Assert.deepEqual(splitListen('127.0.0.1:8017'), ['127.0.0.1', 8017])
     Assert.deepEqual(splitListen('localhost'), ['localhost', 8017])
     Assert.deepEqual(splitListen('localhost:x'), ['localhost', 8017])
+    Assert.deepEqual(splitListen('[::1]:8018'), ['::1', 8018])
+    Assert.deepEqual(splitListen('[::1]'), ['::1', 8017])
+    Assert.deepEqual(splitListen('[::1]:x'), ['::1', 8017])
     const v6 = await startServe({ dir: w.repo, upstream: [], listen: '[::1]:0', http }).catch(() => undefined)
     if (undefined !== v6) {
       Assert.match(v6.url, /^http:\/\/\[::1\]:\d+$/)
@@ -1390,6 +1436,10 @@ describe('pkg-net', () => {
     Assert.ok(Fs.existsSync(Path.join(w.repo, 'pkg', 'corp.example', '!svc', '@v', '1.0.0.zip')))
     Assert.throws(() => writeLayout(w.repo, { manifest, manifestBytes: bytes, proofBytes: new Uint8Array(1), archive: new Uint8Array(1) },
       options, new Date()), (e: any) => e instanceof PkgRefusal && 'version_exists' === e.code)
+    for (const odd of [{ ...manifest, package: '../../escape' }, { ...manifest, version: '../x' }]) {
+      Assert.throws(() => writeLayout(w.repo, { manifest: odd, manifestBytes: bytes, proofBytes: new Uint8Array(1), archive: new Uint8Array(1) },
+        options, new Date()), (e: any) => e instanceof PkgRefusal && 'manifest_invalid' === e.code)
+    }
     Assert.equal(COOLDOWN_HOURS, 72)
 
     // `why` reads the store beside the vendor tree.
@@ -1416,4 +1466,236 @@ describe('pkg-net', () => {
     const sync = await pkgSync(app, options, http, { base: ['ftp://x'] })
     Assert.equal(sync.verdict, 'refused')
   })
+  test('every-listed-version-is-seen-and-a-tombstone-is-not-a-rollback', async () => {
+    const w = world()
+    const http = dirHttp(w.repo)
+    await publish(w, publisher(w, 'service', '1.4.2', SERVICE))
+    await publish(w, publisher(w, 'service', '1.4.3', SERVICE))
+    const app = consumer(w, '"corp.example/service": {v: "1.4.2"}')
+    Assert.equal((await run(w, http, 'sync', [app])).code, 0)
+    const seen = cacheSeenDir(Path.join(w.cache, 'aontu', 'pkg'), 'corp.example/service')
+    Assert.deepEqual(Fs.readdirSync(seen).sort(), ['1.4.2.aon', '1.4.3.aon'])
+
+    // A version dropped from the list with nothing in its place is a
+    // rollback, though this client never took it. A held closure asks
+    // nothing, so a consumer that must fetch is the one that notices.
+    const listFile = Path.join(at(w, 'service'), 'list')
+    const list = readJson(listFile)
+    Fs.writeFileSync(listFile, JSON.stringify({
+      ...list, versions: list.versions.filter((e: any) => '1.4.3' !== e.version),
+    }) + '\n')
+    const wants = consumer(w, '"corp.example/service": {v: "1.4.3"}')
+    const rolled = await run(w, http, 'sync', [wants])
+    Assert.match(rolled.out, /refused: list_rollback: corp.example\/service 1.4.3 was seen before and is absent from the list/)
+    // A tombstone standing where it was is the repository's word, and
+    // the version it names is refused as withdrawn, not as a rollback.
+    write(Path.join(w.repo, 'tombstone', 'corp.example', 'service', '@v'), { '1.4.3.aon': '{"reason": "malware"}\n' })
+    Assert.match((await run(w, http, 'sync', [wants])).out, /refused: tombstoned: corp.example\/service 1.4.3/)
+    for (const sub of ['download', 'store']) {
+      Fs.rmSync(Path.join(w.cache, 'aontu', 'pkg', sub), { recursive: true, force: true })
+    }
+    const stood = await run(w, http, 'sync', [consumer(w, '"corp.example/service": {v: "1.4.2"}')])
+    Assert.equal(stood.code, 0, stood.out)
+
+    // A list that offers nothing records nothing, and selects nothing.
+    write(Path.join(w.repo, 'pkg', 'corp.example', 'empty', '@v'),
+      { list: '{"package":"corp.example/empty","versions":[]}\n' })
+    const empty = await run(w, http, 'sync', [consumer(w, '"corp.example/empty": {v: "1.0.0"}')])
+    Assert.match(empty.out, /refused: fetch_failed: corp.example\/empty 1.0.0 is not in the version list/)
+    Assert.ok(!Fs.existsSync(cacheSeenDir(Path.join(w.cache, 'aontu', 'pkg'), 'corp.example/empty')))
+
+    // A lock written without its header line is read the same under --frozen.
+    const lockFile = Path.join(app, 'aontu_meta', 'pkg-lock.aon')
+    Fs.writeFileSync(lockFile, lockOf(app).split('\n').filter((l) => !l.startsWith('#')).join('\n'))
+    const frozen = await run(w, http, 'sync', ['--frozen', app])
+    Assert.equal(frozen.code, 0, frozen.out)
+  })
+
+
+  test('a-frozen-refusal-prunes-nothing-and-a-vendored-tree-is-the-package-asked-for', async () => {
+    const w = world()
+    const http = dirHttp(w.repo)
+    await publish(w, publisher(w, 'service', '1.4.2', SERVICE))
+    await publish(w, publisher(w, 'other', '1.4.2', SERVICE))
+    const pair = consumer(w, '"corp.example/service": {v: "1.4.2"}, "corp.example/other": {v: "1.4.2"}')
+    Assert.equal((await run(w, http, 'sync', [pair])).code, 0)
+    const otherDir = Path.join(pair, 'aontu_meta', 'vendor', 'corp.example', 'other')
+    const pkgFile = Path.join(pair, 'pkg.aon')
+    Fs.writeFileSync(pkgFile, Fs.readFileSync(pkgFile, 'utf8').replace(', "corp.example/other": {v: "1.4.2"}', ''))
+    const frozen = await run(w, http, 'sync', ['--frozen', pair])
+    Assert.match(frozen.out, /^verdict: frozen\n/)
+    Assert.ok(Fs.existsSync(otherDir))
+    Assert.equal((await run(w, http, 'sync', [pair])).code, 0)
+    Assert.ok(!Fs.existsSync(otherDir))
+
+    // An alias retargeted at the same version fetches its target
+    // rather than reusing the tree it had.
+    const alias = Path.join(w.dir, 'alias-app')
+    write(alias, {
+      'pkg.aon': 'pkg: {path: "corp.example/app"}\ndep: {"alias:svc": {v: "1.4.2", pkg: "corp.example/service"}}\n' + REPO_BLOCK,
+      'main.aon': 'svc: @"alias:svc"\n',
+    })
+    Assert.equal((await run(w, http, 'sync', [alias])).code, 0)
+    const aliasPkg = Path.join(alias, 'pkg.aon')
+    Fs.writeFileSync(aliasPkg, Fs.readFileSync(aliasPkg, 'utf8').replace('pkg: "corp.example/service"', 'pkg: "corp.example/other"'))
+    const re = await run(w, http, 'sync', [alias])
+    Assert.equal(re.code, 0, re.out)
+    Assert.equal(readLock(alias)['alias:svc'].pkg, 'corp.example/other')
+    Assert.match(Fs.readFileSync(Path.join(moduleDir(Path.join(alias, 'aontu_meta', 'vendor'), 'alias:svc'), 'pkg.aon'), 'utf8'),
+      /path: "corp.example\/other"/)
+
+    // A pinned manifest that is gone from the tree is a mismatch, not a pass.
+    const vend = consumer(w, '"corp.example/service": {v: "1.4.2"}')
+    Assert.equal((await run(w, http, 'sync', [vend])).code, 0)
+    Fs.rmSync(Path.join(vend, 'aontu_meta', 'vendor', 'corp.example', 'service', 'aontu_meta', 'manifest.aon'))
+    const v = await run(w, http, 'pkg', ['verify', '--format', 'json', vend])
+    Assert.equal(v.code, 1, v.out)
+    Assert.deepEqual(JSON.parse(v.out).mismatched, [{
+      key: 'corp.example/service', pin: 'manifest', want: readLock(vend)['corp.example/service'].manifest, got: '',
+    }])
+  })
+
+
+  test('the-signing-key-is-ed25519-and-the-transport-reads-to-the-cap', async () => {
+    const w = world()
+    const http = dirHttp(w.repo)
+    const tree = publisher(w, 'service', '1.4.2', SERVICE)
+    const rsa = Path.join(w.dir, 'rsa.pem')
+    Fs.writeFileSync(rsa, generateKeyPairSync('rsa', { modulusLength: 1024 }).privateKey
+      .export({ format: 'pem', type: 'pkcs8' }))
+    Assert.match((await run(w, http, 'publish', ['--key', rsa, '--to', w.repo, tree])).out,
+      /refused: key_invalid: the key is rsa, not ed25519/)
+    Fs.writeFileSync(rsa, 'not pem\n')
+    Assert.match((await run(w, http, 'publish', ['--key', rsa, '--to', w.repo, tree])).out,
+      /refused: key_invalid: the key file is not a PEM private key/)
+    Assert.throws(() => keyIdFromPem('nope'), (e: any) => e instanceof PkgRefusal && 'key_invalid' === e.code)
+
+    // A body is read no further than the archive cap.
+    const big = createServer((_req, res) => {
+      res.writeHead(200)
+      res.write(Buffer.alloc(3000))
+      setTimeout(() => res.end(Buffer.alloc(3000)), 50)
+    })
+    await new Promise<void>((r) => big.listen(0, '127.0.0.1', () => r()))
+    const url = 'http://127.0.0.1:' + (big.address() as any).port + '/x'
+    const saved = ARCHIVE_LIMITS.bytes
+    ARCHIVE_LIMITS.bytes = 1000
+    const capped = await defaultHttp().get(url)
+    ARCHIVE_LIMITS.bytes = saved
+    Assert.equal(capped.status, 200)
+    Assert.equal(capped.body.length, 3000)
+    const whole = await defaultHttp().get(url)
+    Assert.equal(whole.body.length, 6000)
+    await new Promise<void>((r) => big.close(() => r()))
+    Assert.equal((await readBounded(new Response(null), 10)).length, 0)
+  })
+
+
+  test('outdated-walks-the-whole-closure-that-moves', async () => {
+    const w = world()
+    const http = dirHttp(w.repo)
+    Assert.equal((await publish(w, publisher(w, 'base', '1.0.0', 'x: 1\n'))).code, 0)
+    Assert.equal((await publish(w, publisher(w, 'base', '1.1.0', 'x: 1\ny?: integer\n'))).code, 0)
+    Assert.equal((await publish(w, publisher(w, 'common', '1.0.0', 'x: 1\n'))).code, 0)
+    const c2 = await publish(w, await publisherWith(w, 'common', '1.2.0', '@"corp.example/base"\nx: 1\n',
+      '"corp.example/base": {v: "1.1.0"}'))
+    Assert.equal(c2.code, 0, c2.out)
+    const s1 = await publish(w, await publisherWith(w, 'service', '1.0.0', '@"corp.example/common"\nname: string\n',
+      '"corp.example/common": {v: "1.0.0"}'))
+    Assert.equal(s1.code, 0, s1.out)
+    // The later service names common through an alias too, as a
+    // consumer may.
+    const s2 = await publish(w, await publisherWith(w, 'service', '1.2.0', '@"corp.example/common"\nname: string\n',
+      '"corp.example/common": {v: "1.2.0"}, "alias:c": {v: "1.2.0", pkg: "corp.example/common"}'))
+    Assert.equal(s2.code, 0, s2.out)
+    const app = consumer(w, '"corp.example/service": {v: "1.0.0"}, "alias:b": {v: "1.0.0", pkg: "corp.example/base"}')
+    Assert.equal((await run(w, http, 'sync', [app])).code, 0)
+    for (const name of ['base', 'common', 'service']) {
+      backdate(w, name)
+    }
+    const r = await run(w, http, 'pkg', ['outdated', '--format', 'json', app])
+    Assert.equal(r.code, 1, r.out)
+    const report = JSON.parse(r.out)
+    const moves = (key: string) => report.locked.find((e: any) => key === e.key).moves
+    Assert.deepEqual(moves('corp.example/service'),
+      ['alias:c unlocked -> 1.2.0', 'corp.example/base unlocked -> 1.1.0', 'corp.example/common 1.0.0 -> 1.2.0'])
+    Assert.deepEqual(moves('corp.example/common'), ['corp.example/base unlocked -> 1.1.0'])
+    Assert.deepEqual(moves('alias:b'), [])
+    // A declaration the walk cannot follow is reported as a move and
+    // not walked: an alias without its package, a key that names none.
+    resign(w, 'service', '1.2.0', (m) => {
+      m.deps['alias:zed'] = { v: '1.0.0' }
+      m.deps['corp.example/data.json'] = { v: '1.0.0' }
+    })
+    const odd = JSON.parse((await run(w, http, 'pkg', ['outdated', '--format', 'json', app])).out)
+    Assert.deepEqual(odd.locked.find((e: any) => 'corp.example/service' === e.key).moves, [
+      'alias:c unlocked -> 1.2.0', 'alias:zed unlocked -> 1.0.0', 'corp.example/base unlocked -> 1.1.0',
+      'corp.example/common 1.0.0 -> 1.2.0', 'corp.example/data.json unlocked -> 1.0.0',
+    ])
+
+    // The closure bounds hold here as everywhere.
+    const bounds = { ...LIMITS }
+    try {
+      LIMITS.depth = 0
+      Assert.match((await run(w, http, 'pkg', ['outdated', app])).out, /refused: module_depth/)
+      LIMITS.depth = bounds.depth
+      LIMITS.closure = 0
+      Assert.match((await run(w, http, 'pkg', ['outdated', app])).out, /refused: closure_too_large/)
+    }
+    finally {
+      Object.assign(LIMITS, bounds)
+    }
+  })
+
+
+  test('the-meaning-is-checked-against-the-pin-and-a-cycle-in-why-ends', async () => {
+    const w = world()
+    const http = dirHttp(w.repo)
+    await publish(w, publisher(w, 'service', '1.4.2', SERVICE))
+    const fresh = () => Fs.rmSync(Path.join(w.cache, 'aontu'), { recursive: true, force: true })
+    const app = consumer(w, '"corp.example/service": {v: "1.4.2"}')
+
+    // The manifest pins a canon the module does not mean.
+    resign(w, 'service', '1.4.2', (m) => { m.modules[0].canon = 'aon1-' + 'A'.repeat(43) })
+    fresh()
+    Assert.match((await run(w, http, 'sync', [app])).out,
+      /refused: module_integrity: corp.example\/service 1.4.2 means aon1-[A-Za-z0-9_-]{43}, and the manifest pins aon1-A{43}/)
+
+    // The module does not evaluate at all.
+    const entries = [
+      { path: 'main.aon', data: new Uint8Array(Buffer.from('a: 1\na: 2\n')) },
+      { path: 'pkg.aon', data: new Uint8Array(Buffer.from('pkg: {path: "corp.example/service", version: "1.4.2", main: "main.aon"}\n')) },
+    ]
+    const zip = zipCanonical(entries)
+    Fs.writeFileSync(Path.join(at(w, 'service'), '1.4.2.zip'), zip)
+    resign(w, 'service', '1.4.2', (m) => {
+      m.archive.digest = sha256Hex(zip)
+      m.archive.size = zip.length
+      m.archive.files = entries.map((e) => ({ path: e.path, digest: sha256Hex(e.data), size: e.data.length }))
+    })
+    fresh()
+    Assert.match((await run(w, http, 'sync', [app])).out,
+      /refused: module_integrity: corp.example\/service 1.4.2 means nothing \(it does not evaluate\)/)
+
+    // Hand-vendored packages that depend on each other: why walks the
+    // cycle once.
+    const cyc = Path.join(w.dir, 'cyc')
+    const entry = (canon: string) => '{"archive":"sha256:' + '0'.repeat(64) + '","canon":"' + canon + '","v":"1.0.0"}'
+    write(cyc, {
+      'pkg.aon': 'pkg: {path: "corp.example/app"}\ndep: {"corp.example/a": {v: "1.0.0"}}\n',
+      'main.aon': 'x: 1\n',
+      'aontu_meta/vendor/corp.example/a/pkg.aon':
+        'pkg: {path: "corp.example/a", version: "1.0.0", main: "main.aon"}\ndep: {"corp.example/b": {v: "1.0.0"}}\n',
+      'aontu_meta/vendor/corp.example/a/main.aon': 'a: 1\n',
+      'aontu_meta/vendor/corp.example/b/pkg.aon':
+        'pkg: {path: "corp.example/b", version: "1.0.0", main: "main.aon"}\ndep: {"corp.example/a": {v: "1.0.0"}}\n',
+      'aontu_meta/vendor/corp.example/b/main.aon': 'b: 1\n',
+      'aontu_meta/pkg-lock.aon': '{"lock":{"corp.example/a":' + entry('aon1-' + 'A'.repeat(43)) +
+        ',"corp.example/b":' + entry('aon1-' + 'B'.repeat(43)) + '}}\n',
+    })
+    const why = await run(w, http, 'why', ['--format', 'json', 'corp.example/b', cyc])
+    Assert.equal(why.code, 0, why.out)
+    Assert.deepEqual(JSON.parse(why.out).paths, [['corp.example/app', 'corp.example/a', 'corp.example/b']])
+  })
+
 })

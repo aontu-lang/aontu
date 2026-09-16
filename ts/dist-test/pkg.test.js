@@ -979,5 +979,102 @@ function withCache(dir, fn) {
         Assert.ok(cli(['pkg', 'manifest', '--against']).err
             .includes('--against needs a value'));
     });
+    (0, node_test_1.test)('versions-compare-by-exact-digits', () => {
+        Assert.equal((0, pkg_1.versionCompare)('1.9007199254740992.0', '1.9007199254740993.0'), -1);
+        Assert.equal((0, pkg_1.versionCompare)('1.9007199254740993.0', '1.9007199254740992.0'), 1);
+        Assert.equal((0, pkg_1.versionCompare)('1.01.0', '1.1.0'), 0);
+        Assert.equal((0, pkg_1.versionCompare)('1.0.0', '1.0.0-rc'), -1);
+        Assert.equal((0, pkg_1.versionCompare)('1.0.10', '1.0.9'), 1);
+    });
+    (0, node_test_1.test)('a-key-with-a-known-extension-names-a-file-not-a-package', () => {
+        Assert.equal((0, pkg_1.usableKey)('corp.example/models/config.json'), false);
+        Assert.equal((0, pkg_1.usableKey)('corp.example/models/types.aon'), false);
+        Assert.equal((0, pkg_1.usableKey)('corp.example/models/v1.2'), true);
+        Assert.equal((0, pkg_1.usableKey)('alias:legacy'), true);
+        Assert.equal((0, pkg_1.usableKey)('corp.example/models/config.json@1'), false);
+    });
+    (0, node_test_1.test)('entry-paths-refuse-reserved-names-and-deep-nesting', () => {
+        Assert.equal((0, pkg_1.relPathError)('con.aon'), 'an entry path element is a name a platform reserves');
+        Assert.equal((0, pkg_1.relPathError)('a/NUL.json'), 'an entry path element is a name a platform reserves');
+        Assert.equal((0, pkg_1.relPathError)('a/lpt1'), 'an entry path element is a name a platform reserves');
+        Assert.equal((0, pkg_1.relPathError)('a/con2.aon'), undefined);
+        Assert.equal((0, pkg_1.relPathError)('a/'.repeat(32) + 'x.aon'), 'an entry path has more than 32 elements');
+        Assert.equal((0, pkg_1.relPathError)('a/'.repeat(31) + 'x.aon'), undefined);
+    });
+    (0, node_test_1.test)('a-publisher-refuses-what-every-consumer-would', () => {
+        const saved = { ...pkg_1.ARCHIVE_LIMITS };
+        try {
+            const archive = {
+                zip: new Uint8Array(0), digest: 'sha256:' + '0'.repeat(64), size: 10, forbidden: [],
+                files: [{ path: 'a.aon', digest: 'sha256:' + '1'.repeat(64), size: 6 },
+                    { path: 'b.aon', digest: 'sha256:' + '2'.repeat(64), size: 4 }],
+            };
+            Assert.deepEqual((0, pkg_1.archiveOverCaps)(archive), []);
+            Object.assign(pkg_1.ARCHIVE_LIMITS, { bytes: 5, files: 1, fileBytes: 5, unpacked: 8 });
+            Assert.deepEqual((0, pkg_1.archiveOverCaps)(archive), [
+                'archive: 10 bytes, over the cap of 5',
+                'archive: 2 files, over the cap of 1',
+                'a.aon: 6 bytes, over the cap of 5',
+                'archive: unpacks to 10 bytes, over the cap of 8',
+            ]);
+            const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-caps-'));
+            Fs.writeFileSync(Path.join(dir, 'pkg.aon'), 'pkg: {path: "corp.example/x", version: "1.0.0", main: "main.aon"}\n');
+            Fs.writeFileSync(Path.join(dir, 'main.aon'), MODULE);
+            const options = { eval: (src, path) => {
+                    const a0 = new aontu_1.Aontu();
+                    const val = a0.unify(src, { path });
+                    return { gen: val.gen(), hash: (0, aontu_1.canonHash)(val), canon: val.canon, ok: true !== val.isNil };
+                } };
+            const over = (0, pkg_1.pkgManifest)(dir, options);
+            Assert.equal(over.verdict, 'error');
+            Assert.match(over.forbidden[0], /^archive: \d+ bytes, over the cap of 5$/);
+            Object.assign(pkg_1.ARCHIVE_LIMITS, saved);
+            Assert.equal((0, pkg_1.pkgManifest)(dir, options).verdict, 'ok');
+            // Coordinates that are not a package path and a version, and an
+            // entry that leaves the tree, mint nothing.
+            Fs.writeFileSync(Path.join(dir, 'pkg.aon'), 'pkg: {path: "../../escape", version: "v1", main: "../main.aon"}\n');
+            const odd = (0, pkg_1.pkgManifest)(dir, options);
+            Assert.equal(odd.verdict, 'error');
+            Assert.deepEqual(odd.missing, ['../main.aon', 'pkg.path (../../escape is not a package path)',
+                'pkg.version (v1 is not MAJOR.MINOR.PATCH)']);
+            Fs.writeFileSync(Path.join(dir, 'pkg.aon'), 'pkg: {path: "alias:x", version: "1.0.0", main: "main.aon"}\n');
+            Assert.deepEqual((0, pkg_1.pkgManifest)(dir, options).missing, ['pkg.path (alias:x is not a package path)']);
+        }
+        finally {
+            Object.assign(pkg_1.ARCHIVE_LIMITS, saved);
+        }
+    });
+    (0, node_test_1.test)('the-store-is-found-under-the-served-canon-too', () => {
+        const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-store-'));
+        const cache = Path.join(dir, 'cache');
+        const pkg = 'corp.example/x';
+        const served = 'aon1-' + 'S'.repeat(43);
+        Assert.equal((0, pkg_1.downloadedCanon)(cache, pkg, '1.0.0'), undefined);
+        Fs.mkdirSync((0, mod_1.cacheDownloadDir)(cache, pkg), { recursive: true });
+        Fs.writeFileSync(Path.join((0, mod_1.cacheDownloadDir)(cache, pkg), '1.0.0.manifest'), '{not json');
+        Assert.equal((0, pkg_1.downloadedCanon)(cache, pkg, '1.0.0'), undefined);
+        Fs.writeFileSync(Path.join((0, mod_1.cacheDownloadDir)(cache, pkg), '1.0.0.manifest'), '{"modules":[]}');
+        Assert.equal((0, pkg_1.downloadedCanon)(cache, pkg, '1.0.0'), undefined);
+        Fs.writeFileSync(Path.join((0, mod_1.cacheDownloadDir)(cache, pkg), '1.0.0.manifest'), JSON.stringify({ modules: [{ canon: served }] }));
+        Assert.equal((0, pkg_1.downloadedCanon)(cache, pkg, '1.0.0'), served);
+        const at = (0, mod_1.cacheStoreDir)(cache, served, pkg);
+        Fs.mkdirSync(at, { recursive: true });
+        Fs.writeFileSync(Path.join(at, 'pkg.aon'), 'pkg: {path: "corp.example/x"}\n');
+        const options = { cache };
+        // The consumer's own pin differs from the served one, and the
+        // tree is still found; without the version, only the pin is tried.
+        Assert.equal((0, pkg_1.storeDir)(dir, pkg, 'aon1-' + 'C'.repeat(43), pkg, options, '1.0.0'), at);
+        Assert.equal((0, pkg_1.storeDir)(dir, pkg, 'aon1-' + 'C'.repeat(43), pkg, options), undefined);
+        Assert.equal((0, pkg_1.storeDir)(dir, pkg, served, pkg, options, '1.0.0'), at);
+        Assert.equal((0, pkg_1.storeDir)(dir, pkg, '', pkg, options, '1.0.0'), at);
+        Assert.equal((0, pkg_1.storeDir)(dir, pkg, '', pkg, { cache: undefined }, '1.0.0'), undefined);
+        // A vendor copy replaces the destination rather than overlaying it.
+        const to = Path.join(dir, 'vendor', 'x');
+        Fs.mkdirSync(to, { recursive: true });
+        Fs.writeFileSync(Path.join(to, 'stale.aon'), 'stale: 1\n');
+        (0, pkg_1.vendorCopy)(at, to);
+        Assert.ok(Fs.existsSync(Path.join(to, 'pkg.aon')));
+        Assert.ok(!Fs.existsSync(Path.join(to, 'stale.aon')));
+    });
 });
 //# sourceMappingURL=pkg.test.js.map

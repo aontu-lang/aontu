@@ -10,6 +10,7 @@ import {
   createPrivateKey, createPublicKey, sign as cryptoSign, verify as cryptoVerify,
   randomBytes, generateKeyPairSync,
 } from 'node:crypto'
+import type { KeyObject } from 'node:crypto'
 import {
   readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, rmSync,
   renameSync, statSync,
@@ -26,7 +27,7 @@ import {
 import {
   declaredDeps, versionCompare, usableKey, readLock, lockText, packageSelf,
   archiveOf, archiveAdmits, pkgManifest, manifestText, pkgVerify, pkgResolve,
-  vendorCopy, writeLock, targetOf, MANIFEST_SCHEMA,
+  vendorCopy, copyTree, writeLock, targetOf, relPathError, MANIFEST_SCHEMA, VERSION_RE, ARCHIVE_LIMITS,
 } from './pkg'
 import type {
   PkgToolOptions, LockEntry, Dependency, PkgManifest, PkgManifestReport,
@@ -59,17 +60,17 @@ export const CLOSURE_MAX = 1024
 
 // The closure bounds, as a record so a test can lower them.
 export const LIMITS = { depth: MODULE_MAX_DEPTH, closure: CLOSURE_MAX }
-export const ARCHIVE_MAX_BYTES = 16777216
-export const ARCHIVE_MAX_UNPACKED = 67108864
-export const ARCHIVE_MAX_FILES = 4096
-export const ARCHIVE_MAX_FILE_BYTES = 8388608
+export const ARCHIVE_MAX_BYTES = ARCHIVE_LIMITS.bytes
+export const ARCHIVE_MAX_UNPACKED = ARCHIVE_LIMITS.unpacked
+export const ARCHIVE_MAX_FILES = ARCHIVE_LIMITS.files
+export const ARCHIVE_MAX_FILE_BYTES = ARCHIVE_LIMITS.fileBytes
 
 export const SIGNATURE_ENCODING = 'aontu-signature/v1'
 
-const VERSION_RE = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/
 const DIGEST_RE = /^sha256:[0-9a-f]{64}$/
 const CANON_RE = /^aon1-[A-Za-z0-9_-]{43}$/
 const KEY_ID_RE = /^ed25519:[A-Za-z0-9_-]{43}$/
+const SIG_RE = /^[A-Za-z0-9_-]{86}$/
 const PATTERN_RE =
   /^\*$|^[a-z0-9.-]+$|^[a-z0-9.-]+\/[A-Za-z0-9._/-]+$|^[a-z0-9.-]+\/\*$|^[a-z0-9.-]+\/[A-Za-z0-9._/-]+\/\*$/
 
@@ -278,9 +279,25 @@ export function keyIdOf(publicKeyDer: Uint8Array): string {
   return 'ed25519:' + raw.toString('base64url')
 }
 
+// The signing key is an Ed25519 private key and nothing else: another
+// kind signs, and every consumer refuses the proof, so it is refused
+// here first.
+function signingKey(pem: string): KeyObject {
+  let priv: KeyObject
+  try {
+    priv = createPrivateKey(pem)
+  }
+  catch {
+    refuse('key_invalid', 'the key file is not a PEM private key', '')
+  }
+  if ('ed25519' !== priv.asymmetricKeyType) {
+    refuse('key_invalid', 'the key is ' + priv.asymmetricKeyType + ', not ed25519', '')
+  }
+  return priv
+}
+
 export function keyIdFromPem(pem: string): string {
-  const priv = createPrivateKey(pem)
-  const der = createPublicKey(priv).export({ format: 'der', type: 'spki' })
+  const der = createPublicKey(signingKey(pem)).export({ format: 'der', type: 'spki' })
   return keyIdOf(new Uint8Array(der))
 }
 
@@ -306,7 +323,7 @@ export type KeyProof = {
 }
 
 export function signDigest(pem: string, over: string): KeyProof {
-  const priv = createPrivateKey(pem)
+  const priv = signingKey(pem)
   const sig = cryptoSign(null, signedBytes(over), priv)
   return {
     kind: 'key',
@@ -315,6 +332,31 @@ export function signDigest(pem: string, over: string): KeyProof {
     signer: keyIdFromPem(pem),
     signature: Buffer.from(sig).toString('base64url'),
   }
+}
+
+// The small-order points of the curve, by y with the sign bit cleared:
+// a signature under one verifies for any message. The last entry is p,
+// and every encoding at or above it is not canonical.
+const SMALL_ORDER_Y = new Set([
+  '0000000000000000000000000000000000000000000000000000000000000000',
+  '0100000000000000000000000000000000000000000000000000000000000000',
+  '26e8958fc2b227b045c3f489f2ef98f0d5dfac05d3c63339b13802886d53fc05',
+  'c7176a703d4dd84fba3c0b760d10670f2a2053fa2c39ccc64ec7fd7792ac037a',
+  'ecffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f',
+])
+
+export function smallOrderKey(raw: Uint8Array): boolean {
+  const y = Buffer.from(raw)
+  y[31] &= 0x7f
+  const hex = y.toString('hex')
+  return SMALL_ORDER_Y.has(hex) || (hex.endsWith('ff'.repeat(30) + '7f') && 0xed <= y[0])
+}
+
+// Base64url that decodes and re-encodes to itself: Buffer drops
+// trailing bits silently, so a signature has one spelling here.
+function canonicalBase64url(text: string, length: number): Buffer | undefined {
+  const bytes = Buffer.from(text, 'base64url')
+  return length === bytes.length && bytes.toString('base64url') === text ? bytes : undefined
 }
 
 export function verifyKeyProof(proof: any, over: string, signer: string): string | undefined {
@@ -328,10 +370,13 @@ export function verifyKeyProof(proof: any, over: string, signer: string): string
   if (proof.signer !== signer) {
     return 'signed by ' + proof.signer + '; the trust entry accepts ' + signer
   }
-  const raw = Buffer.from(proof.signer.slice('ed25519:'.length), 'base64url')
-  const sig = Buffer.from(proof.signature, 'base64url')
-  if (32 !== raw.length || 64 !== sig.length) {
+  const raw = canonicalBase64url(proof.signer.slice('ed25519:'.length), 32)
+  const sig = SIG_RE.test(proof.signature) ? canonicalBase64url(proof.signature, 64) : undefined
+  if (undefined === raw || undefined === sig) {
     return 'the proof carries a malformed key or signature'
+  }
+  if (smallOrderKey(raw)) {
+    return 'the signer is a key of small order'
   }
   const key = createPublicKey({
     key: Buffer.concat([SPKI_ED25519_PREFIX, raw]), format: 'der', type: 'spki',
@@ -377,6 +422,10 @@ export function manifestError(m: any): string | undefined {
     !CANON_RE.test(m.modules[0]?.canon ?? '')) {
     return 'modules is not the one module at the package path with an entry and a canon-hash'
   }
+  if (undefined !== relPathError(m.modules[0].main) ||
+    !a.files.some((f: any) => f.path === m.modules[0].main)) {
+    return 'modules names an entry the archive does not hold'
+  }
   if (null == m.deps || 'object' !== typeof m.deps || Array.isArray(m.deps)) {
     return 'deps is not a map'
   }
@@ -403,20 +452,7 @@ export function manifestError(m: any): string | undefined {
 
 // A path inside an archive: forward slashes, the element rules, never
 // absolute and never escaping.
-export function relPathError(p: string): string | undefined {
-  if ('' === p || 512 < p.length || p.startsWith('/') || p.endsWith('/')) {
-    return 'an entry path is empty, absolute or a directory'
-  }
-  for (const e of p.split('/')) {
-    if ('' === e || '.' === e || '..' === e || e.startsWith('.') || e.endsWith('.')) {
-      return 'an entry path element is empty or begins or ends with a dot'
-    }
-    if (!/^[A-Za-z0-9._-]+$/.test(e)) {
-      return 'an entry path element is outside the alphabet'
-    }
-  }
-  return undefined
-}
+export { relPathError }
 
 
 type Acquired = {
@@ -494,6 +530,14 @@ async function fetchList(ctx: AcquireCtx, bases: string[], pkg: string):
     versions.push({ version: e.version, seen: e.seen })
   }
   versions.sort((a, b) => versionCompare(a.version, b.version))
+  // Every version the list offers is a version this client has seen:
+  // its absence later is a rollback whichever version was taken.
+  if ('' !== ctx.cache) {
+    const subject = trustEntryFor(ctx.config, pkg).signer
+    for (const e of versions) {
+      recordSeen(ctx, pkg, e.version, subject)
+    }
+  }
   return versions
 }
 
@@ -663,7 +707,7 @@ async function fetchArchive(ctx: AcquireCtx, bases: string[], pkg: string,
     }
     bytes = r.body
   }
-  if (ARCHIVE_MAX_BYTES < bytes.length) {
+  if (ARCHIVE_LIMITS.bytes < bytes.length) {
     refuse('archive_too_large', 'the archive for ' + pkg + ' ' + version +
       ' is over the compressed cap', pkg)
   }
@@ -689,7 +733,7 @@ function unpack(pkg: string, version: string, zip: Uint8Array, manifest: any):
     refuse('archive_not_canonical', 'the archive for ' + pkg + ' ' + version + ': ' +
       e.message, pkg)
   }
-  if (ARCHIVE_MAX_FILES < entries.length) {
+  if (ARCHIVE_LIMITS.files < entries.length) {
     refuse('archive_too_many_files', 'the archive for ' + pkg + ' ' + version +
       ' is over the file-count cap', pkg)
   }
@@ -707,7 +751,7 @@ function unpack(pkg: string, version: string, zip: Uint8Array, manifest: any):
         ' carries ' + e.path + ', which the allowlist does not admit', pkg)
     }
     total += e.data.length
-    if (ARCHIVE_MAX_FILE_BYTES < e.data.length || ARCHIVE_MAX_UNPACKED < total) {
+    if (ARCHIVE_LIMITS.fileBytes < e.data.length || ARCHIVE_LIMITS.unpacked < total) {
       refuse('archive_bomb', 'the archive for ' + pkg + ' ' + version +
         ' unpacks past the size cap', pkg)
     }
@@ -750,8 +794,11 @@ export async function acquire(ctx: AcquireCtx, pkg: string, asked: string | unde
   const entry = trustEntryFor(ctx.config, pkg)
 
   const list = await fetchList(ctx, bases, pkg)
+  // A version seen before and gone from the list is a rollback, unless
+  // the repository says why: a tombstone stands where it was.
   for (const v of seenVersions(ctx, pkg)) {
-    if (!list.some((e) => e.version === v)) {
+    if (!list.some((e) => e.version === v) &&
+      200 !== (await getObject(ctx, bases, objectPath('tombstone', pkg, v))).status) {
       refuse('list_rollback', pkg + ' ' + v + ' was seen before and is absent from the list', pkg)
     }
   }
@@ -835,12 +882,14 @@ export async function acquire(ctx: AcquireCtx, pkg: string, asked: string | unde
   if (0 < pins.length) {
     writeLock(tmp, pins, ctx.options)
   }
+  // The entry is in the archive: the manifest named it among the files
+  // and every listed file was unpacked.
   const main = pathJoin(tmp, mod.main)
-  const got = existsSync(main) ? ctx.options.eval(readFileSync(main, 'utf8'), main) : undefined
-  if (null == got || !got.ok || got.hash !== mod.canon) {
+  const got = ctx.options.eval(readFileSync(main, 'utf8'), main)
+  if (!got.ok || got.hash !== mod.canon) {
     rmSync(tmp, { recursive: true, force: true })
     refuse('module_integrity', pkg + ' ' + version + ' means ' +
-      (null == got || !got.ok ? 'nothing (it does not evaluate)' : got.hash) +
+      (!got.ok ? 'nothing (it does not evaluate)' : got.hash) +
       ', and the manifest pins ' + mod.canon, pkg)
   }
 
@@ -927,7 +976,8 @@ function heldAt(root: string, key: string, pkg: string, version: string,
   const vendored = moduleDir(pathJoin(root, META_DIR, VENDOR_DIR), key)
   if (existsSync(pathJoin(vendored, PKG_FILE))) {
     const self = packageSelf(vendored, ctx.options)
-    if ('' === self.version || self.version === version) {
+    if (('' === self.version || self.version === version) &&
+      ('' === self.path || self.path === pkg)) {
       return vendored
     }
   }
@@ -1031,10 +1081,14 @@ export async function pkgSync(root: string, options: PkgToolOptions, http: PkgHt
     }
     report.vendored.push(key)
   }
-  for (const key of Object.keys(previous)) {
-    if (null == selected[key] && usableKey(key)) {
-      rmSync(moduleDir(vendorRoot, key), { recursive: true, force: true })
-      pruneEmpty(pathDirname(moduleDir(vendorRoot, key)), vendorRoot)
+  // Pruning waits for the lock to be writable: a frozen sync that
+  // refuses leaves the locked build whole.
+  const prune = (): void => {
+    for (const key of Object.keys(previous)) {
+      if (null == selected[key] && usableKey(key)) {
+        rmSync(moduleDir(vendorRoot, key), { recursive: true, force: true })
+        pruneEmpty(pathDirname(moduleDir(vendorRoot, key)), vendorRoot)
+      }
     }
   }
 
@@ -1068,6 +1122,7 @@ export async function pkgSync(root: string, options: PkgToolOptions, http: PkgHt
     report.verdict = 'frozen'
     return report
   }
+  prune()
   writeLock(root, resolved.lock, options)
 
   const verify = pkgVerify(root, options)
@@ -1189,7 +1244,7 @@ export async function pkgGet(root: string, options: PkgToolOptions, http: PkgHtt
   }
 
   let change: string
-  const before = readFileSync(pathJoin(root, PKG_FILE), 'utf8')
+  const before = snapshot(root)
   if (null == have) {
     const bad = editDeps(root, { op: 'add', key: pkg, v: version }, options)
     if (undefined !== bad) {
@@ -1214,13 +1269,46 @@ export async function pkgGet(root: string, options: PkgToolOptions, http: PkgHtt
 }
 
 
-// A change the sync could not carry is taken back: neither verb leaves
-// the project half-changed.
-function settled(root: string, before: string, sync: PkgSyncReport, change: string): string {
+// Everything a sync may change, kept aside: the package file, the
+// lock, and the vendor tree, copied under the project's own tmp.
+type Snapshot = { pkgFile: string, lock?: string, vendor?: string }
+
+function snapshot(root: string): Snapshot {
+  const snap: Snapshot = { pkgFile: readFileSync(pathJoin(root, PKG_FILE), 'utf8') }
+  const lockFile = pathJoin(root, META_DIR, LOCK_FILE)
+  if (existsSync(lockFile)) {
+    snap.lock = readFileSync(lockFile, 'utf8')
+  }
+  const vendorRoot = pathJoin(root, META_DIR, VENDOR_DIR)
+  if (existsSync(vendorRoot)) {
+    snap.vendor = pathJoin(root, META_DIR, 'tmp', randomBytes(8).toString('hex'))
+    copyTree(vendorRoot, snap.vendor)
+  }
+  return snap
+}
+
+// A change the sync could not carry is taken back, lock and vendor
+// tree included: neither verb leaves the project half-changed.
+function settled(root: string, before: Snapshot, sync: PkgSyncReport, change: string): string {
+  const tmp = pathJoin(root, META_DIR, 'tmp')
   if ('ok' === sync.verdict) {
+    rmSync(tmp, { recursive: true, force: true })
     return change
   }
-  writeFileSync(pathJoin(root, PKG_FILE), before)
+  writeFileSync(pathJoin(root, PKG_FILE), before.pkgFile)
+  const lockFile = pathJoin(root, META_DIR, LOCK_FILE)
+  if (undefined === before.lock) {
+    rmSync(lockFile, { force: true })
+  }
+  else {
+    writeFileSync(lockFile, before.lock)
+  }
+  const vendorRoot = pathJoin(root, META_DIR, VENDOR_DIR)
+  rmSync(vendorRoot, { recursive: true, force: true })
+  if (undefined !== before.vendor) {
+    renameSync(before.vendor, vendorRoot)
+  }
+  rmSync(tmp, { recursive: true, force: true })
   return 'none (' + change + ' was taken back)'
 }
 
@@ -1232,7 +1320,7 @@ export async function pkgRemove(root: string, options: PkgToolOptions, http: Pkg
   if (null == declared[pkg]) {
     return pkg + ' is not a dependency of this project'
   }
-  const before = readFileSync(pathJoin(root, PKG_FILE), 'utf8')
+  const before = snapshot(root)
   const bad = editDeps(root, { op: 'remove', key: pkg }, options)
   if (undefined !== bad) {
     return bad
@@ -1305,6 +1393,10 @@ export function writeLayout(dir: string, w: LayoutWrite, options: PkgToolOptions
   now: Date): void {
   const pkg = w.manifest.package as string
   const version = w.manifest.version as string
+  if (!packagePath(pkg) || !VERSION_RE.test(version)) {
+    refuse('manifest_invalid', 'the manifest names ' + pkg + ' ' + version +
+      ', not a package path at a version', pkg)
+  }
   const at = pathJoin(dir, 'pkg', ...pkgUrlPath(pkg).split('/'), '@v')
   mkdirSync(at, { recursive: true })
 
@@ -1523,7 +1615,12 @@ export async function pkgPublish(root: string, options: PkgToolOptions, http: Pk
   const manifestBytes = utf8(manifestText(full, options) + '\n')
   report.digest = sha256Hex(manifestBytes)
   if (null != args.key) {
-    report.signer = keyIdFromPem(readFileSync(args.key, 'utf8'))
+    try {
+      report.signer = keyIdFromPem(readFileSync(args.key, 'utf8'))
+    }
+    catch (e) {
+      return refusedPublish(report, e)
+    }
   }
   if (true !== args.yes) {
     return report
@@ -1611,14 +1708,7 @@ export async function pkgOutdated(root: string, options: PkgToolOptions, http: P
         out.retracted = advisory[entry.v]
       }
       if (0 < versionCompare(newest, entry.v)) {
-        const top = await fetchManifest(ctx, bases, pkg, newest)
-        const deps: Record<string, Dependency> = top.manifest.deps
-        for (const dk of Object.keys(deps).sort(cmpBytes)) {
-          const have = locked[dk]
-          if (null == have || 0 > versionCompare(have.v, deps[dk].v)) {
-            out.moves.push(dk + ' ' + (null == have ? 'unlocked' : have.v) + ' -> ' + deps[dk].v)
-          }
-        }
+        out.moves = await movesWith(ctx, locked, key, pkg, newest)
         report.verdict = 'outdated'
       }
       else if (null != out.retracted) {
@@ -1633,6 +1723,54 @@ export async function pkgOutdated(root: string, options: PkgToolOptions, http: P
   }
   report.events = ctx.events
   return report
+}
+
+// What a resolution taking `newest` for one key would move with it:
+// minimum version selection over the repository's manifests, from the
+// upgraded declaration down to the closure, against the lock.
+async function movesWith(ctx: AcquireCtx, locked: Record<string, LockEntry>, key: string,
+  pkg: string, newest: string): Promise<string[]> {
+  const selected: Record<string, string> = {}
+  const targets: Record<string, string> = {}
+  for (const k of Object.keys(locked)) {
+    selected[k] = locked[k].v
+    if (null != locked[k].pkg) {
+      targets[k] = locked[k].pkg as string
+    }
+  }
+  selected[key] = newest
+  targets[key] = pkg
+  let frontier = [key]
+  for (let depth = 0; 0 < frontier.length; depth++) {
+    if (LIMITS.depth <= depth) {
+      refuse('module_depth', 'the closure under ' + pkg + ' nests past ' + LIMITS.depth, pkg)
+    }
+    if (LIMITS.closure < Object.keys(selected).length) {
+      refuse('closure_too_large', 'the closure exceeds ' + LIMITS.closure + ' packages', pkg)
+    }
+    const next: string[] = []
+    for (const k of frontier) {
+      const target = targets[k] ?? k
+      if (!usableKey(k) || (isAlias(k) && null == targets[k])) {
+        continue
+      }
+      const top = await fetchManifest(ctx, basesFor(ctx, target), target, selected[k])
+      const deps: Record<string, Dependency> = top.manifest.deps
+      for (const dk of Object.keys(deps).sort(cmpBytes)) {
+        if (null != deps[dk].pkg) {
+          targets[dk] = deps[dk].pkg as string
+        }
+        if (null == selected[dk] || 0 > versionCompare(selected[dk], deps[dk].v)) {
+          selected[dk] = deps[dk].v
+          next.push(dk)
+        }
+      }
+    }
+    frontier = next
+  }
+  return Object.keys(selected).sort(cmpBytes)
+    .filter((k) => k !== key && selected[k] !== locked[k]?.v)
+    .map((k) => k + ' ' + (null == locked[k] ? 'unlocked' : locked[k].v) + ' -> ' + selected[k])
 }
 
 function refusedOutdated(report: PkgOutdatedReport, e: unknown): PkgOutdatedReport {
@@ -1741,6 +1879,11 @@ export function servedUrl(address: string, port: number): string {
 }
 
 export function splitListen(listen: string): [string, number] {
+  const bracketed = /^\[([^\]]*)\](?::(.*))?$/.exec(listen)
+  if (null != bracketed) {
+    const port = Number(bracketed[2])
+    return [bracketed[1], undefined !== bracketed[2] && Number.isInteger(port) ? port : 8017]
+  }
   const at = listen.lastIndexOf(':')
   if (0 > at) {
     return [listen, 8017]
@@ -1750,13 +1893,33 @@ export function splitListen(listen: string): [string, number] {
 }
 
 
+// A body read no further than the archive cap: what comes back past
+// it is over the cap by construction, and every reader refuses it.
+export async function readBounded(r: Response, max: number): Promise<Uint8Array> {
+  const chunks: Uint8Array[] = []
+  let total = 0
+  const reader = r.body?.getReader()
+  for (; undefined !== reader && total <= max;) {
+    const { done, value } = await reader.read()
+    if (done) {
+      break
+    }
+    chunks.push(value)
+    total += value.length
+  }
+  if (undefined !== reader && total > max) {
+    await reader.cancel()
+  }
+  return new Uint8Array(Buffer.concat(chunks))
+}
+
 // THE ADAPTER: the platform's fetch, and the multipart a publish sends.
 export function defaultHttp(): PkgHttp {
   return {
     get: async (url: string) => {
       try {
         const r = await fetch(url, { redirect: 'manual' })
-        return { status: r.status, body: new Uint8Array(await r.arrayBuffer()) }
+        return { status: r.status, body: await readBounded(r, ARCHIVE_LIMITS.bytes) }
       }
       catch {
         return { status: 0, body: new Uint8Array() }

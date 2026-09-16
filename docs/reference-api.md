@@ -309,7 +309,7 @@ code units: the three facts an editing consumer needs, together.
 
 **A site names the file whose text it excerpts**, which for a modular
 document is not the entry file. A constraint written in
-`lib/types.aon` and reached through `@"lib/types.aon"` is reported at
+`lib/types.aon` and reached through `@"./lib/types.aon"` is reported at
 `lib/types.aon` with that file's row and column: never at the entry
 with the included file's coordinates, which is a real filename
 against a line it may not have.
@@ -2269,7 +2269,8 @@ refuses at the first check that does not hold:
    of it is parsed;
 4. every file in the archive has the digest and size the manifest lists,
    no file is missing and none is extra, every path obeys the element
-   rules, and nothing outside the allowlist is present;
+   rules (at most 32 elements, none a name a platform reserves such as
+   `con` or `nul`), and nothing outside the allowlist is present;
 5. the module, evaluated standalone with its own dependencies at the
    minima it declares, means what the manifest's canon-hash pins.
 
@@ -2419,7 +2420,12 @@ archive of the source tree. The archive holds exactly what the allowlist
 admits: aontu source, the data formats the include table reads, `.md`
 and `.txt`, `LICENSE` and `NOTICE`, and nothing under `aontu_meta/`. It
 is a zip whose entries are sorted, stored uncompressed and undated, so
-one tree has one digest in both implementations.
+one tree has one digest in both implementations. It is held to the caps
+every consumer applies at acquisition (16 MiB compressed, 64 MiB of
+files, 4096 files, 8 MiB a file) before it is minted, so nothing
+leaves the machine that every consumer would refuse; the package path
+and version in `pkg.aon` must be a package path and a version, and the
+entry must be a path inside the tree.
 
 **The gate runs first.** The highest version the repository already
 holds is fetched, checked as any acquisition is, and the candidate is
@@ -2453,8 +2459,10 @@ write: https://publish.aontu.dev/v1/publish
 dry run: nothing sent (add --yes)
 ```
 
-**The proof.** `--key <file>` names a PKCS#8 PEM Ed25519 private key.
-The proof signs the manifest's digest under it, and the signer's id,
+**The proof.** `--key <file>` names a PKCS#8 PEM Ed25519 private key;
+any other kind of key, or a file that is not a PEM private key, is
+refused `key_invalid` before anything is signed. The proof signs the
+manifest's digest under it, and the signer's id,
 `ed25519:` followed by the public key, is what a consumer names in its
 `trust` entry. `--token <file>` carries the forge's OIDC token to the
 write path, which decides admission from it; the token's claims are
@@ -2499,7 +2507,8 @@ same string for every broken module.
 means, what the lockfile pins, and **changes nothing**. It is the CI
 gate. Bytes are checked before meaning: the archive digest and each
 file against the kept manifest first, then the one evaluation and the
-canon-hash.
+canon-hash. A pinned manifest the tree no longer keeps is a mismatch,
+not a pass.
 
 ```
 $ aontu pkg verify
@@ -2513,8 +2522,11 @@ declares; `missing`, a locked package is in no store. Exit `0`, and `1`
 for each of the three refusals: nothing to check is not a pass.
 
 **`vendor`** copies every locked package from the stores into
-`aontu_meta/vendor/`, as whole source trees. The cache is keyed by
-canon-hash, so `vendor` finds only what the lockfile already pins.
+`aontu_meta/vendor/`, as whole source trees, replacing whatever stood at
+each destination. The cache is keyed by canon-hash, and a consumer's pin
+is computed against its own closure, so `vendor` looks under that pin
+and under the canon the repository's manifest for the locked version
+pins.
 
 **`manifest`** prints the manifest a publish would send, and gates it
 with `--against <dir>` exactly as `publish` does: acceptance,
@@ -2528,8 +2540,10 @@ from its own package file in the store.
 
 **`outdated`** asks the repository, for every locked package, what the
 newest selectable version is and what a resolution taking it would move
-with it. A pinned version that a later one retracted is named too; the
-lock keeps working.
+with it: minimum version selection walked through the repository's
+manifests to the closure, so a dependency's own raises are listed too.
+A pinned version that a later one retracted is named too; the lock keeps
+working.
 
 ```
 $ aontu pkg outdated
@@ -2995,7 +3009,7 @@ observable as sorted, deduplicated `{ path, capability }`
 entries (`result.deps` in TypeScript, `Aontu.IncludeDeps` in
 Go) hermeticity's "file set" as data (capability is `mem`, `file` or
 `pkg`). Content hashing and pinning belong to [`aontu
-hash`](#aontu-hash) and the module tooling, [`aontu mod`](#aontu-pkg).
+hash`](#aontu-hash) and the package tooling, [`aontu pkg`](#aontu-pkg).
 
 **The bundled vocabularies.** `@"aontu:system"` ([the system
 vocabulary](reference-language.md#the-aontusystem-vocabulary)) and

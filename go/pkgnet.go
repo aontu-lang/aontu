@@ -52,12 +52,8 @@ const (
 	DefaultWrite = "https://publish.aontu.dev"
 	PublishPath  = "/v1/publish"
 
-	CooldownHours       = 72
-	ClosureMax          = 1024
-	ArchiveMaxBytes     = 16777216
-	ArchiveMaxUnpacked  = 67108864
-	ArchiveMaxFiles     = 4096
-	ArchiveMaxFileBytes = 8388608
+	CooldownHours = 72
+	ClosureMax    = 1024
 
 	SignatureEncoding = "aontu-signature/v1"
 )
@@ -67,6 +63,7 @@ var (
 	digestRe  = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
 	canonRe   = regexp.MustCompile(`^aon1-[A-Za-z0-9_-]{43}$`)
 	keyIDRe   = regexp.MustCompile(`^ed25519:[A-Za-z0-9_-]{43}$`)
+	sigRe     = regexp.MustCompile(`^[A-Za-z0-9_-]{86}$`)
 	patternRe = regexp.MustCompile(
 		`^\*$|^[a-z0-9.-]+$|^[a-z0-9.-]+/[A-Za-z0-9._/-]+$|^[a-z0-9.-]+/\*$|^[a-z0-9.-]+/[A-Za-z0-9._/-]+/\*$`)
 	relElemRe = regexp.MustCompile(`^[A-Za-z0-9._-]+$`)
@@ -392,6 +389,24 @@ func SignDigest(pemText, over string) (KeyProof, error) {
 	}, nil
 }
 
+// The small-order points of the curve, by y with the sign bit cleared:
+// a signature under one verifies for any message. The last entry is p,
+// and every encoding at or above it is not canonical.
+var smallOrderY = map[string]bool{
+	"0000000000000000000000000000000000000000000000000000000000000000": true,
+	"0100000000000000000000000000000000000000000000000000000000000000": true,
+	"26e8958fc2b227b045c3f489f2ef98f0d5dfac05d3c63339b13802886d53fc05": true,
+	"c7176a703d4dd84fba3c0b760d10670f2a2053fa2c39ccc64ec7fd7792ac037a": true,
+	"ecffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f": true,
+}
+
+func SmallOrderKey(raw []byte) bool {
+	y := append([]byte(nil), raw...)
+	y[31] &= 0x7f
+	h := hex.EncodeToString(y)
+	return smallOrderY[h] || (strings.HasSuffix(h, strings.Repeat("ff", 30)+"7f") && 0xed <= y[0])
+}
+
 func VerifyKeyProof(proof map[string]any, over, signer string) string {
 	sig, _ := proof["signature"].(string)
 	id, _ := proof["signer"].(string)
@@ -406,10 +421,14 @@ func VerifyKeyProof(proof map[string]any, over, signer string) string {
 	if id != signer {
 		return "signed by " + id + "; the trust entry accepts " + signer
 	}
-	raw, err1 := base64.RawURLEncoding.DecodeString(id[len("ed25519:"):])
-	sigBytes, err2 := base64.RawURLEncoding.DecodeString(sig)
-	if nil != err1 || nil != err2 || 32 != len(raw) || 64 != len(sigBytes) {
+	strict := base64.RawURLEncoding.Strict()
+	raw, err1 := strict.DecodeString(id[len("ed25519:"):])
+	sigBytes, err2 := strict.DecodeString(sig)
+	if !sigRe.MatchString(sig) || nil != err1 || nil != err2 || 32 != len(raw) || 64 != len(sigBytes) {
 		return "the proof carries a malformed key or signature"
+	}
+	if SmallOrderKey(raw) {
+		return "the signer is a key of small order"
 	}
 	if !ed25519.Verify(ed25519.PublicKey(raw), signedBytes(over), sigBytes) {
 		return "the signature does not verify"
@@ -468,6 +487,16 @@ func ManifestError(m map[string]any) string {
 	if nil == mod || mod["path"] != m["package"] || "" == main || !canonRe.MatchString(canon) {
 		return "modules is not the one module at the package path with an entry and a canon-hash"
 	}
+	held := false
+	for _, f := range files {
+		fm, _ := f.(map[string]any)
+		if fm["path"] == main {
+			held = true
+		}
+	}
+	if "" != RelPathError(main) || !held {
+		return "modules names an entry the archive does not hold"
+	}
 	deps, ok := m["deps"].(map[string]any)
 	if !ok {
 		return "deps is not a map"
@@ -501,16 +530,27 @@ func ManifestError(m map[string]any) string {
 
 // RelPathError: a path inside an archive, forward slashes, the element
 // rules, never absolute and never escaping.
+const relPathMaxElements = 32
+
+var reservedNameRe = regexp.MustCompile(`(?i)^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\..*)?$`)
+
 func RelPathError(p string) string {
 	if "" == p || 512 < len(p) || strings.HasPrefix(p, "/") || strings.HasSuffix(p, "/") {
 		return "an entry path is empty, absolute or a directory"
 	}
-	for _, e := range strings.Split(p, "/") {
+	elements := strings.Split(p, "/")
+	if relPathMaxElements < len(elements) {
+		return "an entry path has more than " + strconv.Itoa(relPathMaxElements) + " elements"
+	}
+	for _, e := range elements {
 		if "" == e || strings.HasPrefix(e, ".") || strings.HasSuffix(e, ".") {
 			return "an entry path element is empty or begins or ends with a dot"
 		}
 		if !relElemRe.MatchString(e) {
 			return "an entry path element is outside the alphabet"
+		}
+		if reservedNameRe.MatchString(e) {
+			return "an entry path element is a name a platform reserves"
 		}
 	}
 	return ""
@@ -599,6 +639,14 @@ func fetchList(ctx *acquireCtx, bases []string, pkg string) []versionEntry {
 		out = append(out, versionEntry{version: v, seen: seen})
 	}
 	sort.Slice(out, func(i, j int) bool { return 0 > VersionCompare(out[i].version, out[j].version) })
+	// Every version the list offers is a version this client has seen:
+	// its absence later is a rollback whichever version was taken.
+	if "" != ctx.cache {
+		subject := trustEntryFor(ctx.config, pkg).Signer
+		for _, e := range out {
+			recordSeen(ctx, pkg, e.version, subject)
+		}
+	}
 	return out
 }
 
@@ -793,7 +841,7 @@ func fetchArchive(ctx *acquireCtx, bases []string, pkg, version string, manifest
 		}
 		data = r.Body
 	}
-	if ArchiveMaxBytes < len(data) {
+	if ArchiveLimitBytes < len(data) {
 		refuse("archive_too_large", "the archive for "+pkg+" "+version+
 			" is over the compressed cap", pkg)
 	}
@@ -814,7 +862,7 @@ func unpack(pkg, version string, zip []byte, manifest map[string]any) []ZipEntry
 	if nil != err {
 		refuse("archive_not_canonical", "the archive for "+pkg+" "+version+": "+err.Error(), pkg)
 	}
-	if ArchiveMaxFiles < len(entries) {
+	if ArchiveLimitFiles < len(entries) {
 		refuse("archive_too_many_files", "the archive for "+pkg+" "+version+
 			" is over the file-count cap", pkg)
 	}
@@ -836,7 +884,7 @@ func unpack(pkg, version string, zip []byte, manifest map[string]any) []ZipEntry
 				" carries "+e.Path+", which the allowlist does not admit", pkg)
 		}
 		total += len(e.Data)
-		if ArchiveMaxFileBytes < len(e.Data) || ArchiveMaxUnpacked < total {
+		if ArchiveLimitFileBytes < len(e.Data) || ArchiveLimitUnpacked < total {
 			refuse("archive_bomb", "the archive for "+pkg+" "+version+
 				" unpacks past the size cap", pkg)
 		}
@@ -888,7 +936,7 @@ func acquire(ctx *acquireCtx, pkg, asked string, depth int) *acquired {
 
 	list := fetchList(ctx, bases, pkg)
 	for _, v := range seenVersions(ctx, pkg) {
-		if !hasVersion(list, v) {
+		if _, tomb := tombstoneReason(ctx, bases, pkg, v); !hasVersion(list, v) && !tomb {
 			refuse("list_rollback", pkg+" "+v+" was seen before and is absent from the list", pkg)
 		}
 	}
@@ -974,13 +1022,13 @@ func acquire(ctx *acquireCtx, pkg, asked string, depth int) *acquired {
 	// against, so it verifies again from the cache alone. The vendored
 	// copy loses it, and resolves against the consumer's lock instead.
 	if 0 < len(pins) {
-		writeLock(tmp, pins, ctx.opts)
+		_ = writeLock(tmp, pins, ctx.opts)
 	}
+	// The entry is in the archive: the manifest named it among the
+	// files and every listed file was unpacked.
 	mainFile := filepath.Join(tmp, main)
-	got := pkgEval{}
-	if data, err := os.ReadFile(mainFile); nil == err {
-		got = evalPkg(toValidSource(string(data)), mainFile, ctx.opts)
-	}
+	data, _ := os.ReadFile(mainFile)
+	got := evalPkg(toValidSource(string(data)), mainFile, ctx.opts)
 	if !got.ok || got.hash != canon {
 		_ = os.RemoveAll(tmp)
 		means := got.hash
@@ -1093,7 +1141,7 @@ func heldAt(root, key, pkg, version string, ctx *acquireCtx) string {
 	vendored := moduleDir(filepath.Join(root, metaDir, vendorDir), key)
 	if _, err := os.Stat(filepath.Join(vendored, pkgFile)); nil == err {
 		self := packageSelf(vendored, ctx.opts)
-		if "" == self.Version || self.Version == version {
+		if ("" == self.Version || self.Version == version) && ("" == self.Path || self.Path == pkg) {
 			return vendored
 		}
 	}
@@ -1229,10 +1277,14 @@ func PkgSync(root string, opts *PkgOptions, http PkgHTTP, args SyncArgs) PkgSync
 		}
 		report.Vendored = append(report.Vendored, key)
 	}
-	for _, key := range sortedKeys(previous) {
-		if _, kept := selected[key]; !kept && usableKey(key) {
-			_ = os.RemoveAll(moduleDir(vendorRoot, key))
-			pruneEmpty(filepath.Dir(moduleDir(vendorRoot, key)), vendorRoot)
+	// Pruning waits for the lock to be writable: a frozen sync that
+	// refuses leaves the locked build whole.
+	prune := func() {
+		for _, key := range sortedKeys(previous) {
+			if _, kept := selected[key]; !kept && usableKey(key) {
+				_ = os.RemoveAll(moduleDir(vendorRoot, key))
+				pruneEmpty(filepath.Dir(moduleDir(vendorRoot, key)), vendorRoot)
+			}
 		}
 	}
 
@@ -1275,7 +1327,12 @@ func PkgSync(root string, opts *PkgOptions, http PkgHTTP, args SyncArgs) PkgSync
 		report.Verdict = "frozen"
 		return report
 	}
-	writeLock(root, resolved.Lock, opts)
+	prune()
+	if err := writeLock(root, resolved.Lock, opts); nil != err {
+		report.Verdict = "error"
+		report.Unevaluable = append(report.Unevaluable, lockFile+": "+err.Error())
+		return report
+	}
 
 	verify := PkgVerify(root, opts)
 	report.Mismatched = verify.Mismatched
@@ -1410,8 +1467,7 @@ func PkgGet(root string, opts *PkgOptions, http PkgHTTP, spec string, args Chang
 		return report, ""
 	}
 
-	beforeData, _ := os.ReadFile(filepath.Join(root, pkgFile))
-	before := string(beforeData)
+	before := snapshot(root)
 	change := ""
 	switch {
 	case !has:
@@ -1435,13 +1491,50 @@ func PkgGet(root string, opts *PkgOptions, http PkgHTTP, spec string, args Chang
 	return PkgChangeReport{PkgSyncReport: sync, Change: settled(root, before, sync, change)}, ""
 }
 
-// settled takes back a change the sync could not carry: neither verb
-// leaves the project half-changed.
-func settled(root, before string, sync PkgSyncReport, change string) string {
+// snapshot is everything a sync may change, kept aside: the package
+// file, the lock, and the vendor tree, copied under the project's tmp.
+type snapshotOf struct {
+	pkgFile   string
+	lock      *string
+	vendorTmp string
+}
+
+func snapshot(root string) snapshotOf {
+	data, _ := os.ReadFile(filepath.Join(root, pkgFile))
+	snap := snapshotOf{pkgFile: string(data)}
+	if lock, err := os.ReadFile(filepath.Join(root, metaDir, lockFile)); nil == err {
+		text := string(lock)
+		snap.lock = &text
+	}
+	vendorRoot := filepath.Join(root, metaDir, vendorDir)
+	if _, err := os.Stat(vendorRoot); nil == err {
+		snap.vendorTmp = filepath.Join(root, metaDir, "tmp", randomHex())
+		_ = copyTree(vendorRoot, snap.vendorTmp)
+	}
+	return snap
+}
+
+// settled takes back a change the sync could not carry, lock and vendor
+// tree included: neither verb leaves the project half-changed.
+func settled(root string, before snapshotOf, sync PkgSyncReport, change string) string {
+	tmp := filepath.Join(root, metaDir, "tmp")
 	if "ok" == sync.Verdict {
+		_ = os.RemoveAll(tmp)
 		return change
 	}
-	_ = os.WriteFile(filepath.Join(root, pkgFile), []byte(before), 0o600)
+	_ = os.WriteFile(filepath.Join(root, pkgFile), []byte(before.pkgFile), 0o600)
+	lock := filepath.Join(root, metaDir, lockFile)
+	if nil == before.lock {
+		_ = os.Remove(lock)
+	} else {
+		_ = os.WriteFile(lock, []byte(*before.lock), 0o600)
+	}
+	vendorRoot := filepath.Join(root, metaDir, vendorDir)
+	_ = os.RemoveAll(vendorRoot)
+	if "" != before.vendorTmp {
+		_ = os.Rename(before.vendorTmp, vendorRoot)
+	}
+	_ = os.RemoveAll(tmp)
 	return "none (" + change + " was taken back)"
 }
 
@@ -1451,13 +1544,13 @@ func PkgRemove(root string, opts *PkgOptions, http PkgHTTP, pkg string, args Syn
 	if _, has := declared[pkg]; !has {
 		return PkgChangeReport{}, pkg + " is not a dependency of this project"
 	}
-	beforeData, _ := os.ReadFile(filepath.Join(root, pkgFile))
+	before := snapshot(root)
 	if bad := EditDeps(root, DepEdit{Op: "remove", Key: pkg}, opts); "" != bad {
 		return PkgChangeReport{}, bad
 	}
 	args.Frozen = false
 	sync := PkgSync(root, opts, http, args)
-	return PkgChangeReport{PkgSyncReport: sync, Change: settled(root, string(beforeData), sync, "removed "+pkg)}, ""
+	return PkgChangeReport{PkgSyncReport: sync, Change: settled(root, before, sync, "removed "+pkg)}, ""
 }
 
 type PkgWhyReport struct {
@@ -1481,7 +1574,7 @@ func PkgWhy(root string, opts *PkgOptions, pkg string) PkgWhyReport {
 	for key, entry := range locked {
 		edges[key] = []string{}
 		if usableKey(key) {
-			if dir := pkgStoreDir(root, key, entry.Canon, lockPkg(entry), opts.cache()); "" != dir {
+			if dir := pkgStoreDir(root, key, entry.Canon, lockPkg(entry), opts.cache(), entry.V); "" != dir {
 				edges[key] = sortedKeys(declaredDeps(filepath.Join(dir, pkgFile), opts))
 			}
 		}
@@ -1521,6 +1614,9 @@ type LayoutWrite struct {
 func WriteLayout(dir string, w LayoutWrite, opts *PkgOptions, now time.Time) {
 	pkg, _ := w.Manifest["package"].(string)
 	version, _ := w.Manifest["version"].(string)
+	if !PackagePath(pkg) || !versionRe.MatchString(version) {
+		refuse("manifest_invalid", "the manifest names "+pkg+" "+version+", not a package path at a version", pkg)
+	}
 	at := filepath.Join(append([]string{dir, "pkg"}, append(strings.Split(PkgURLPath(pkg), "/"), "@v")...)...)
 	_ = os.MkdirAll(at, 0o755)
 
@@ -1898,18 +1994,7 @@ func PkgOutdated(root string, opts *PkgOptions, http PkgHTTP, args SyncArgs) Pkg
 			newest := selectVersion(ctx, pkg, list, advisory, "", entry.V)
 			out := PkgOutdatedEntry{Key: key, V: entry.V, Newest: newest, Moves: []string{}, Retracted: advisory[entry.V]}
 			if 0 < VersionCompare(newest, entry.V) {
-				_, top := fetchManifest(ctx, bases, pkg, newest)
-				deps := manifestDeps(top)
-				for _, dk := range sortedKeys(deps) {
-					have, has := locked[dk]
-					if !has || 0 > VersionCompare(have.V, deps[dk].V) {
-						was := have.V
-						if !has {
-							was = "unlocked"
-						}
-						out.Moves = append(out.Moves, dk+" "+was+" -> "+deps[dk].V)
-					}
-				}
+				out.Moves = movesWith(ctx, locked, key, pkg, newest)
 				report.Verdict = "outdated"
 			} else if "" != out.Retracted {
 				report.Verdict = "outdated"
@@ -1923,6 +2008,68 @@ func PkgOutdated(root string, opts *PkgOptions, http PkgHTTP, args SyncArgs) Pkg
 		report.Refusal = ref.report()
 	}
 	return report
+}
+
+// movesWith is what a resolution taking newest for one key would move
+// with it: minimum version selection over the repository's manifests,
+// from the upgraded declaration down to the closure, against the lock.
+func movesWith(ctx *acquireCtx, locked map[string]LockEntry, key, pkg, newest string) []string {
+	selected := map[string]string{}
+	targets := map[string]string{}
+	for k, e := range locked {
+		selected[k] = e.V
+		if "" != e.Pkg {
+			targets[k] = e.Pkg
+		}
+	}
+	selected[key] = newest
+	targets[key] = pkg
+	frontier := []string{key}
+	for depth := 0; 0 < len(frontier); depth++ {
+		// Excluded as in acquire: the bounds are one comparison each,
+		// and a closure that reaches them is beyond a unit test.
+		if moduleMaxDepth <= depth { //coverage:ignore see above
+			refuse("module_depth", "the closure under "+pkg+" nests past "+strconv.Itoa(moduleMaxDepth), pkg)
+		}
+		if ClosureMax < len(selected) { //coverage:ignore see above
+			refuse("closure_too_large", "the closure exceeds "+strconv.Itoa(ClosureMax)+" packages", pkg)
+		}
+		next := []string{}
+		for _, k := range frontier {
+			target, aliased := targets[k]
+			if !aliased {
+				target = k
+			}
+			if !usableKey(k) || (isAlias(k) && !aliased) {
+				continue
+			}
+			_, top := fetchManifest(ctx, basesFor(ctx, target), target, selected[k])
+			deps := manifestDeps(top)
+			for _, dk := range sortedKeys(deps) {
+				if "" != deps[dk].Pkg {
+					targets[dk] = deps[dk].Pkg
+				}
+				if have, ok := selected[dk]; !ok || 0 > VersionCompare(have, deps[dk].V) {
+					selected[dk] = deps[dk].V
+					next = append(next, dk)
+				}
+			}
+		}
+		frontier = next
+	}
+	moves := []string{}
+	for _, k := range sortedKeys(selected) {
+		have, has := locked[k]
+		if k == key || (has && have.V == selected[k]) {
+			continue
+		}
+		was := "unlocked"
+		if has {
+			was = have.V
+		}
+		moves = append(moves, k+" "+was+" -> "+selected[k])
+	}
+	return moves
 }
 
 // THE LOCAL REGISTRY AND PROXY (`aontu pkg serve`): the directory
@@ -2084,14 +2231,19 @@ func (d defaultHTTP) Get(raw string) HTTPResponse {
 		return HTTPResponse{}
 	}
 	defer r.Body.Close()
-	data, _ := io.ReadAll(r.Body)
+	// Read no further than the archive cap: what comes back past it is
+	// over the cap by construction, and every reader refuses it.
+	data, _ := io.ReadAll(io.LimitReader(r.Body, int64(ArchiveLimitBytes)+1))
 	return HTTPResponse{Status: r.StatusCode, Body: data}
 }
 
 func (d defaultHTTP) Post(raw string, parts PublishParts, token string) HTTPResponse {
 	var body bytes.Buffer
 	form := multipart.NewWriter(&body)
-	for _, part := range []struct{ field, name, ctype string; data []byte }{
+	for _, part := range []struct {
+		field, name, ctype string
+		data               []byte
+	}{
 		{"manifest", "manifest.aon", "text/plain", parts.Manifest},
 		{"proof", "proof.aon", "text/plain", parts.Proof},
 		{"archive", "archive.zip", "application/zip", parts.Archive},

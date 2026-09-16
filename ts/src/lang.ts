@@ -1409,7 +1409,7 @@ const INCLUDE_KINDS: { [kind: string]: string } = {
 }
 
 
-function includeFormat(
+export function includeFormat(
   ext: string, textExt?: string[]): string | undefined {
   const known = INCLUDE_KINDS[ext]
   if (undefined !== known) {

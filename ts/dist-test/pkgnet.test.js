@@ -45,6 +45,7 @@ const cli_1 = require("../dist/cli");
 const pkg_net_1 = require("../dist/pkg-net");
 const pkg_zip_1 = require("../dist/pkg-zip");
 const pkg_1 = require("../dist/pkg");
+const mod_1 = require("../dist/mod");
 const SERVICE = 'name: string\nport: *8080 | integer\n';
 const KEY_PEM = (0, node_crypto_1.generateKeyPairSync)('ed25519').privateKey
     .export({ format: 'pem', type: 'pkcs8' });
@@ -627,7 +628,7 @@ function lockOf(app) {
         Assert.match((await run(w, http, 'sync', [app])).out, /refused: archive_not_canonical: the archive for corp.example\/service 1.4.2: archive is not canonical/);
         const many = [];
         for (let i = 0; i < 4097; i++) {
-            many.push({ path: 'f' + i + '.aon', data: new Uint8Array(1) });
+            many.push({ path: 0 === i ? 'main.aon' : 'f' + i + '.aon', data: new Uint8Array(1) });
         }
         serve(many);
         Assert.match((await run(w, http, 'sync', [app])).out, /refused: archive_too_many_files: /);
@@ -664,6 +665,8 @@ function lockOf(app) {
             [(m) => { m.archive.files[0] = 5; }, /archive.files names a file without/],
             [(m) => { delete m.archive.files[0].digest; }, /archive.files names a file without/],
             [(m) => { delete m.modules[0].canon; }, /modules is not the one module/],
+            [(m) => { m.modules[0].main = '../main.aon'; }, /modules names an entry the archive does not hold/],
+            [(m) => { m.modules[0].main = 'other.aon'; }, /modules names an entry the archive does not hold/],
         ];
         for (const [edit, want] of cases) {
             const m = base();
@@ -682,7 +685,20 @@ function lockOf(app) {
         Assert.equal((0, pkg_net_1.verifyKeyProof)(proof, digest, KEY_ID), undefined);
         Assert.match((0, pkg_net_1.verifyKeyProof)({ ...proof, kind: 'sigstore' }, digest, KEY_ID), /not an aontu-signature/);
         Assert.match((0, pkg_net_1.verifyKeyProof)(proof, digest, (0, pkg_net_1.keyIdFromPem)(OTHER_PEM)), /^signed by ed25519:/);
-        Assert.match((0, pkg_net_1.verifyKeyProof)({ ...proof, signer: 'ed25519:' + 'A'.repeat(43) }, digest, 'ed25519:' + 'A'.repeat(43)), /the signature does not verify/);
+        Assert.match((0, pkg_net_1.verifyKeyProof)({ ...proof, signer: 'ed25519:' + 'A'.repeat(43) }, digest, 'ed25519:' + 'A'.repeat(43)), /the signer is a key of small order/);
+        const keyOf = (hex) => 'ed25519:' + Buffer.from(hex, 'hex').toString('base64url');
+        for (const hex of ['ec' + 'ff'.repeat(30) + '7f', 'ed' + 'ff'.repeat(30) + '7f',
+            'ee' + 'ff'.repeat(30) + 'ff', '01' + '00'.repeat(30) + '80']) {
+            Assert.equal((0, pkg_net_1.smallOrderKey)(Buffer.from(hex, 'hex')), true, hex);
+            Assert.match((0, pkg_net_1.verifyKeyProof)({ ...proof, signer: keyOf(hex) }, digest, keyOf(hex)), /the signer is a key of small order/);
+        }
+        Assert.equal((0, pkg_net_1.smallOrderKey)(Buffer.from('02' + 'ff'.repeat(30) + '7f', 'hex')), false);
+        Assert.equal((0, pkg_net_1.smallOrderKey)(Buffer.from('ed' + 'ff'.repeat(29) + 'fe7f', 'hex')), false);
+        const B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+        const slack = (text) => text.slice(0, -1) + B64[B64.indexOf(text[text.length - 1]) | 1];
+        Assert.match((0, pkg_net_1.verifyKeyProof)({ ...proof, signature: slack(proof.signature) }, digest, KEY_ID), /malformed key or signature/);
+        Assert.match((0, pkg_net_1.verifyKeyProof)({ ...proof, signer: slack(KEY_ID) }, digest, slack(KEY_ID)), /malformed key or signature/);
+        Assert.match((0, pkg_net_1.verifyKeyProof)({ ...proof, signature: proof.signature.slice(0, 85) + '=' }, digest, KEY_ID), /malformed key or signature/);
         Assert.equal((0, pkg_net_1.timestamp)(new Date('2026-01-02T03:04:05.678Z')), '2026-01-02T03:04:05Z');
         Assert.match((0, pkg_net_1.verifyKeyProof)({ kind: 'key', encoding: 'aontu-signature/v1', over: digest, signature: 'x' }, digest, KEY_ID), /not an aontu-signature/);
         Assert.equal((0, pkg_net_1.objectPath)('latest', 'corp.example/x'), '/pkg/corp.example/x/@latest');
@@ -877,6 +893,28 @@ function lockOf(app) {
         Assert.match(m.out, /^verdict: missing\n/);
         Assert.match(m.out, /alias:x: not fetched/);
         Assert.match(m.out, /not a path: not fetched/);
+        // The lock and the vendor tree are taken back with the package
+        // file: a raise that fetched a version the sync then could not
+        // carry leaves the previous version vendored, and no tmp behind.
+        resign(w, 'service', '1.4.3', () => undefined);
+        const kept = consumer(w, '"corp.example/service": {v: "1.4.2"}');
+        Assert.equal((await run(w, http, 'sync', [kept])).code, 0);
+        Fs.appendFileSync(Path.join(kept, 'pkg.aon'), 'dep: {"bad key!": {v: "1.0.0"}}\n');
+        const lockBefore = lockOf(kept);
+        const vendored = Path.join(kept, 'aontu_meta', 'vendor', 'corp.example', 'service', 'pkg.aon');
+        const back = await run(w, http, 'get', ['corp.example/service@1.4.3', kept]);
+        Assert.equal(back.code, 1, back.out);
+        Assert.match(back.out, /was taken back/);
+        Assert.equal(lockOf(kept), lockBefore);
+        Assert.match(Fs.readFileSync(vendored, 'utf8'), /version: "1.4.2"/);
+        Assert.ok(!Fs.existsSync(Path.join(kept, 'aontu_meta', 'tmp')));
+        // With no lock and no vendor tree before, none is left behind.
+        const none = consumer(w, '"bad key!": {v: "1.0.0"}');
+        const added = await run(w, http, 'add', ['corp.example/service@1.4.2', none]);
+        Assert.equal(added.code, 1, added.out);
+        Assert.match(added.out, /was taken back/);
+        Assert.ok(!Fs.existsSync(Path.join(none, 'aontu_meta', 'pkg-lock.aon')));
+        Assert.ok(!Fs.existsSync(Path.join(none, 'aontu_meta', 'vendor')));
         // A vendored module that does not evaluate is an error, not a fetch.
         const bad = consumer(w, '"corp.example/service": {v: "1.4.2"}');
         write(Path.join(bad, 'aontu_meta', 'vendor', 'corp.example', 'service'), {
@@ -1086,6 +1124,9 @@ function lockOf(app) {
         Assert.deepEqual((0, pkg_net_1.splitListen)('127.0.0.1:8017'), ['127.0.0.1', 8017]);
         Assert.deepEqual((0, pkg_net_1.splitListen)('localhost'), ['localhost', 8017]);
         Assert.deepEqual((0, pkg_net_1.splitListen)('localhost:x'), ['localhost', 8017]);
+        Assert.deepEqual((0, pkg_net_1.splitListen)('[::1]:8018'), ['::1', 8018]);
+        Assert.deepEqual((0, pkg_net_1.splitListen)('[::1]'), ['::1', 8017]);
+        Assert.deepEqual((0, pkg_net_1.splitListen)('[::1]:x'), ['::1', 8017]);
         const v6 = await (0, pkg_net_1.startServe)({ dir: w.repo, upstream: [], listen: '[::1]:0', http }).catch(() => undefined);
         if (undefined !== v6) {
             Assert.match(v6.url, /^http:\/\/\[::1\]:\d+$/);
@@ -1180,6 +1221,9 @@ function lockOf(app) {
         (0, pkg_net_1.writeLayout)(w.repo, { manifest, manifestBytes: bytes, proofBytes: new Uint8Array(1), archive: new Uint8Array(1) }, options, new Date('2026-01-01T00:00:00Z'));
         Assert.ok(Fs.existsSync(Path.join(w.repo, 'pkg', 'corp.example', '!svc', '@v', '1.0.0.zip')));
         Assert.throws(() => (0, pkg_net_1.writeLayout)(w.repo, { manifest, manifestBytes: bytes, proofBytes: new Uint8Array(1), archive: new Uint8Array(1) }, options, new Date()), (e) => e instanceof pkg_net_1.PkgRefusal && 'version_exists' === e.code);
+        for (const odd of [{ ...manifest, package: '../../escape' }, { ...manifest, version: '../x' }]) {
+            Assert.throws(() => (0, pkg_net_1.writeLayout)(w.repo, { manifest: odd, manifestBytes: bytes, proofBytes: new Uint8Array(1), archive: new Uint8Array(1) }, options, new Date()), (e) => e instanceof pkg_net_1.PkgRefusal && 'manifest_invalid' === e.code);
+        }
         Assert.equal(pkg_net_1.COOLDOWN_HOURS, 72);
         // `why` reads the store beside the vendor tree.
         const app = consumer(w, '"corp.example/service": {v: "1.4.2"}');
@@ -1198,6 +1242,206 @@ function lockOf(app) {
         Assert.throws(() => (0, pkg_net_1.writeLayout)(w.repo, { manifest: { ...manifest, version: '1.2.0' }, manifestBytes: bytes, proofBytes: new Uint8Array(1), archive: new Uint8Array(1) }, options, new Date()), (e) => e instanceof pkg_net_1.PkgRefusal && 'path_moved' === e.code);
         const sync = await (0, pkg_net_1.pkgSync)(app, options, http, { base: ['ftp://x'] });
         Assert.equal(sync.verdict, 'refused');
+    });
+    (0, node_test_1.test)('every-listed-version-is-seen-and-a-tombstone-is-not-a-rollback', async () => {
+        const w = world();
+        const http = (0, pkg_net_1.dirHttp)(w.repo);
+        await publish(w, publisher(w, 'service', '1.4.2', SERVICE));
+        await publish(w, publisher(w, 'service', '1.4.3', SERVICE));
+        const app = consumer(w, '"corp.example/service": {v: "1.4.2"}');
+        Assert.equal((await run(w, http, 'sync', [app])).code, 0);
+        const seen = (0, mod_1.cacheSeenDir)(Path.join(w.cache, 'aontu', 'pkg'), 'corp.example/service');
+        Assert.deepEqual(Fs.readdirSync(seen).sort(), ['1.4.2.aon', '1.4.3.aon']);
+        // 1.4.3 leaves the list with nothing in its place: a rollback,
+        // though this client never took it. A held closure asks nothing,
+        // so a consumer that must fetch is the one that notices.
+        const listFile = Path.join(at(w, 'service'), 'list');
+        const list = readJson(listFile);
+        Fs.writeFileSync(listFile, JSON.stringify({
+            ...list, versions: list.versions.filter((e) => '1.4.3' !== e.version),
+        }) + '\n');
+        const wants = consumer(w, '"corp.example/service": {v: "1.4.3"}');
+        const rolled = await run(w, http, 'sync', [wants]);
+        Assert.match(rolled.out, /refused: list_rollback: corp.example\/service 1.4.3 was seen before and is absent from the list/);
+        // A tombstone standing where it was is the repository's word, and
+        // the version it names is refused as withdrawn, not as a rollback.
+        write(Path.join(w.repo, 'tombstone', 'corp.example', 'service', '@v'), { '1.4.3.aon': '{"reason": "malware"}\n' });
+        Assert.match((await run(w, http, 'sync', [wants])).out, /refused: tombstoned: corp.example\/service 1.4.3/);
+        for (const sub of ['download', 'store']) {
+            Fs.rmSync(Path.join(w.cache, 'aontu', 'pkg', sub), { recursive: true, force: true });
+        }
+        const stood = await run(w, http, 'sync', [consumer(w, '"corp.example/service": {v: "1.4.2"}')]);
+        Assert.equal(stood.code, 0, stood.out);
+        // A list that offers nothing records nothing, and selects nothing.
+        write(Path.join(w.repo, 'pkg', 'corp.example', 'empty', '@v'), { list: '{"package":"corp.example/empty","versions":[]}\n' });
+        const empty = await run(w, http, 'sync', [consumer(w, '"corp.example/empty": {v: "1.0.0"}')]);
+        Assert.match(empty.out, /refused: fetch_failed: corp.example\/empty 1.0.0 is not in the version list/);
+        Assert.ok(!Fs.existsSync((0, mod_1.cacheSeenDir)(Path.join(w.cache, 'aontu', 'pkg'), 'corp.example/empty')));
+        // A lock written without its header line is read the same under --frozen.
+        const lockFile = Path.join(app, 'aontu_meta', 'pkg-lock.aon');
+        Fs.writeFileSync(lockFile, lockOf(app).split('\n').filter((l) => !l.startsWith('#')).join('\n'));
+        const frozen = await run(w, http, 'sync', ['--frozen', app]);
+        Assert.equal(frozen.code, 0, frozen.out);
+    });
+    (0, node_test_1.test)('a-frozen-refusal-prunes-nothing-and-a-vendored-tree-is-the-package-asked-for', async () => {
+        const w = world();
+        const http = (0, pkg_net_1.dirHttp)(w.repo);
+        await publish(w, publisher(w, 'service', '1.4.2', SERVICE));
+        await publish(w, publisher(w, 'other', '1.4.2', SERVICE));
+        const pair = consumer(w, '"corp.example/service": {v: "1.4.2"}, "corp.example/other": {v: "1.4.2"}');
+        Assert.equal((await run(w, http, 'sync', [pair])).code, 0);
+        const otherDir = Path.join(pair, 'aontu_meta', 'vendor', 'corp.example', 'other');
+        const pkgFile = Path.join(pair, 'pkg.aon');
+        Fs.writeFileSync(pkgFile, Fs.readFileSync(pkgFile, 'utf8').replace(', "corp.example/other": {v: "1.4.2"}', ''));
+        const frozen = await run(w, http, 'sync', ['--frozen', pair]);
+        Assert.match(frozen.out, /^verdict: frozen\n/);
+        Assert.ok(Fs.existsSync(otherDir));
+        Assert.equal((await run(w, http, 'sync', [pair])).code, 0);
+        Assert.ok(!Fs.existsSync(otherDir));
+        // An alias retargeted at the same version fetches the new package
+        // rather than reusing the old tree.
+        const alias = Path.join(w.dir, 'alias-app');
+        write(alias, {
+            'pkg.aon': 'pkg: {path: "corp.example/app"}\ndep: {"alias:svc": {v: "1.4.2", pkg: "corp.example/service"}}\n' + REPO_BLOCK,
+            'main.aon': 'svc: @"alias:svc"\n',
+        });
+        Assert.equal((await run(w, http, 'sync', [alias])).code, 0);
+        const aliasPkg = Path.join(alias, 'pkg.aon');
+        Fs.writeFileSync(aliasPkg, Fs.readFileSync(aliasPkg, 'utf8').replace('pkg: "corp.example/service"', 'pkg: "corp.example/other"'));
+        const re = await run(w, http, 'sync', [alias]);
+        Assert.equal(re.code, 0, re.out);
+        Assert.equal((0, pkg_1.readLock)(alias)['alias:svc'].pkg, 'corp.example/other');
+        Assert.match(Fs.readFileSync(Path.join((0, mod_1.moduleDir)(Path.join(alias, 'aontu_meta', 'vendor'), 'alias:svc'), 'pkg.aon'), 'utf8'), /path: "corp.example\/other"/);
+        // A pinned manifest that is gone from the tree is a mismatch, not a pass.
+        const vend = consumer(w, '"corp.example/service": {v: "1.4.2"}');
+        Assert.equal((await run(w, http, 'sync', [vend])).code, 0);
+        Fs.rmSync(Path.join(vend, 'aontu_meta', 'vendor', 'corp.example', 'service', 'aontu_meta', 'manifest.aon'));
+        const v = await run(w, http, 'pkg', ['verify', '--format', 'json', vend]);
+        Assert.equal(v.code, 1, v.out);
+        Assert.deepEqual(JSON.parse(v.out).mismatched, [{
+                key: 'corp.example/service', pin: 'manifest', want: (0, pkg_1.readLock)(vend)['corp.example/service'].manifest, got: '',
+            }]);
+    });
+    (0, node_test_1.test)('the-signing-key-is-ed25519-and-the-transport-reads-to-the-cap', async () => {
+        const w = world();
+        const http = (0, pkg_net_1.dirHttp)(w.repo);
+        const tree = publisher(w, 'service', '1.4.2', SERVICE);
+        const rsa = Path.join(w.dir, 'rsa.pem');
+        Fs.writeFileSync(rsa, (0, node_crypto_1.generateKeyPairSync)('rsa', { modulusLength: 1024 }).privateKey
+            .export({ format: 'pem', type: 'pkcs8' }));
+        Assert.match((await run(w, http, 'publish', ['--key', rsa, '--to', w.repo, tree])).out, /refused: key_invalid: the key is rsa, not ed25519/);
+        Fs.writeFileSync(rsa, 'not pem\n');
+        Assert.match((await run(w, http, 'publish', ['--key', rsa, '--to', w.repo, tree])).out, /refused: key_invalid: the key file is not a PEM private key/);
+        Assert.throws(() => (0, pkg_net_1.keyIdFromPem)('nope'), (e) => e instanceof pkg_net_1.PkgRefusal && 'key_invalid' === e.code);
+        // A body is read no further than the archive cap.
+        const big = (0, node_http_1.createServer)((_req, res) => {
+            res.writeHead(200);
+            res.write(Buffer.alloc(3000));
+            setTimeout(() => res.end(Buffer.alloc(3000)), 50);
+        });
+        await new Promise((r) => big.listen(0, '127.0.0.1', () => r()));
+        const url = 'http://127.0.0.1:' + big.address().port + '/x';
+        const saved = pkg_1.ARCHIVE_LIMITS.bytes;
+        pkg_1.ARCHIVE_LIMITS.bytes = 1000;
+        const capped = await (0, pkg_net_1.defaultHttp)().get(url);
+        pkg_1.ARCHIVE_LIMITS.bytes = saved;
+        Assert.equal(capped.status, 200);
+        Assert.equal(capped.body.length, 3000);
+        const whole = await (0, pkg_net_1.defaultHttp)().get(url);
+        Assert.equal(whole.body.length, 6000);
+        await new Promise((r) => big.close(() => r()));
+        Assert.equal((await (0, pkg_net_1.readBounded)(new Response(null), 10)).length, 0);
+    });
+    (0, node_test_1.test)('outdated-walks-the-whole-closure-that-moves', async () => {
+        const w = world();
+        const http = (0, pkg_net_1.dirHttp)(w.repo);
+        Assert.equal((await publish(w, publisher(w, 'base', '1.0.0', 'x: 1\n'))).code, 0);
+        Assert.equal((await publish(w, publisher(w, 'base', '1.1.0', 'x: 1\ny?: integer\n'))).code, 0);
+        Assert.equal((await publish(w, publisher(w, 'common', '1.0.0', 'x: 1\n'))).code, 0);
+        const c2 = await publish(w, await publisherWith(w, 'common', '1.2.0', '@"corp.example/base"\nx: 1\n', '"corp.example/base": {v: "1.1.0"}'));
+        Assert.equal(c2.code, 0, c2.out);
+        const s1 = await publish(w, await publisherWith(w, 'service', '1.0.0', '@"corp.example/common"\nname: string\n', '"corp.example/common": {v: "1.0.0"}'));
+        Assert.equal(s1.code, 0, s1.out);
+        // 1.2.0 also names common through an alias, as a consumer may.
+        const s2 = await publish(w, await publisherWith(w, 'service', '1.2.0', '@"corp.example/common"\nname: string\n', '"corp.example/common": {v: "1.2.0"}, "alias:c": {v: "1.2.0", pkg: "corp.example/common"}'));
+        Assert.equal(s2.code, 0, s2.out);
+        const app = consumer(w, '"corp.example/service": {v: "1.0.0"}, "alias:b": {v: "1.0.0", pkg: "corp.example/base"}');
+        Assert.equal((await run(w, http, 'sync', [app])).code, 0);
+        for (const name of ['base', 'common', 'service']) {
+            backdate(w, name);
+        }
+        const r = await run(w, http, 'pkg', ['outdated', '--format', 'json', app]);
+        Assert.equal(r.code, 1, r.out);
+        const report = JSON.parse(r.out);
+        const moves = (key) => report.locked.find((e) => key === e.key).moves;
+        Assert.deepEqual(moves('corp.example/service'), ['alias:c unlocked -> 1.2.0', 'corp.example/base unlocked -> 1.1.0', 'corp.example/common 1.0.0 -> 1.2.0']);
+        Assert.deepEqual(moves('corp.example/common'), ['corp.example/base unlocked -> 1.1.0']);
+        Assert.deepEqual(moves('alias:b'), []);
+        // A declaration the walk cannot follow is reported as a move and
+        // not walked: an alias without its package, a key that names none.
+        resign(w, 'service', '1.2.0', (m) => {
+            m.deps['alias:zed'] = { v: '1.0.0' };
+            m.deps['corp.example/data.json'] = { v: '1.0.0' };
+        });
+        const odd = JSON.parse((await run(w, http, 'pkg', ['outdated', '--format', 'json', app])).out);
+        Assert.deepEqual(odd.locked.find((e) => 'corp.example/service' === e.key).moves, [
+            'alias:c unlocked -> 1.2.0', 'alias:zed unlocked -> 1.0.0', 'corp.example/base unlocked -> 1.1.0',
+            'corp.example/common 1.0.0 -> 1.2.0', 'corp.example/data.json unlocked -> 1.0.0',
+        ]);
+        // The closure bounds hold here as everywhere.
+        const bounds = { ...pkg_net_1.LIMITS };
+        try {
+            pkg_net_1.LIMITS.depth = 0;
+            Assert.match((await run(w, http, 'pkg', ['outdated', app])).out, /refused: module_depth/);
+            pkg_net_1.LIMITS.depth = bounds.depth;
+            pkg_net_1.LIMITS.closure = 0;
+            Assert.match((await run(w, http, 'pkg', ['outdated', app])).out, /refused: closure_too_large/);
+        }
+        finally {
+            Object.assign(pkg_net_1.LIMITS, bounds);
+        }
+    });
+    (0, node_test_1.test)('the-meaning-is-checked-against-the-pin-and-a-cycle-in-why-ends', async () => {
+        const w = world();
+        const http = (0, pkg_net_1.dirHttp)(w.repo);
+        await publish(w, publisher(w, 'service', '1.4.2', SERVICE));
+        const fresh = () => Fs.rmSync(Path.join(w.cache, 'aontu'), { recursive: true, force: true });
+        const app = consumer(w, '"corp.example/service": {v: "1.4.2"}');
+        // The manifest pins a canon the module does not mean.
+        resign(w, 'service', '1.4.2', (m) => { m.modules[0].canon = 'aon1-' + 'A'.repeat(43); });
+        fresh();
+        Assert.match((await run(w, http, 'sync', [app])).out, /refused: module_integrity: corp.example\/service 1.4.2 means aon1-[A-Za-z0-9_-]{43}, and the manifest pins aon1-A{43}/);
+        // The module does not evaluate at all.
+        const entries = [
+            { path: 'main.aon', data: new Uint8Array(Buffer.from('a: 1\na: 2\n')) },
+            { path: 'pkg.aon', data: new Uint8Array(Buffer.from('pkg: {path: "corp.example/service", version: "1.4.2", main: "main.aon"}\n')) },
+        ];
+        const zip = (0, pkg_zip_1.zipCanonical)(entries);
+        Fs.writeFileSync(Path.join(at(w, 'service'), '1.4.2.zip'), zip);
+        resign(w, 'service', '1.4.2', (m) => {
+            m.archive.digest = (0, pkg_zip_1.sha256Hex)(zip);
+            m.archive.size = zip.length;
+            m.archive.files = entries.map((e) => ({ path: e.path, digest: (0, pkg_zip_1.sha256Hex)(e.data), size: e.data.length }));
+        });
+        fresh();
+        Assert.match((await run(w, http, 'sync', [app])).out, /refused: module_integrity: corp.example\/service 1.4.2 means nothing \(it does not evaluate\)/);
+        // Two hand-vendored packages that depend on each other: why walks
+        // the cycle once.
+        const cyc = Path.join(w.dir, 'cyc');
+        const entry = (canon) => '{"archive":"sha256:' + '0'.repeat(64) + '","canon":"' + canon + '","v":"1.0.0"}';
+        write(cyc, {
+            'pkg.aon': 'pkg: {path: "corp.example/app"}\ndep: {"corp.example/a": {v: "1.0.0"}}\n',
+            'main.aon': 'x: 1\n',
+            'aontu_meta/vendor/corp.example/a/pkg.aon': 'pkg: {path: "corp.example/a", version: "1.0.0", main: "main.aon"}\ndep: {"corp.example/b": {v: "1.0.0"}}\n',
+            'aontu_meta/vendor/corp.example/a/main.aon': 'a: 1\n',
+            'aontu_meta/vendor/corp.example/b/pkg.aon': 'pkg: {path: "corp.example/b", version: "1.0.0", main: "main.aon"}\ndep: {"corp.example/a": {v: "1.0.0"}}\n',
+            'aontu_meta/vendor/corp.example/b/main.aon': 'b: 1\n',
+            'aontu_meta/pkg-lock.aon': '{"lock":{"corp.example/a":' + entry('aon1-' + 'A'.repeat(43)) +
+                ',"corp.example/b":' + entry('aon1-' + 'B'.repeat(43)) + '}}\n',
+        });
+        const why = await run(w, http, 'why', ['--format', 'json', 'corp.example/b', cyc]);
+        Assert.equal(why.code, 0, why.out);
+        Assert.deepEqual(JSON.parse(why.out).paths, [['corp.example/app', 'corp.example/a', 'corp.example/b']]);
     });
 });
 //# sourceMappingURL=pkgnet.test.js.map

@@ -2,12 +2,12 @@
 
 package aontu
 
-
 import (
 	"encoding/json"
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -93,6 +93,17 @@ type PkgTreeReport struct {
 	Verdict string        `json:"verdict"`
 }
 
+var digitsRe = regexp.MustCompile(`^\d+$`)
+
+// params.archive: what a consumer refuses to unpack, and so what a
+// publisher refuses to mint. Variables, so a test can lower them.
+var (
+	ArchiveLimitBytes     = 16777216
+	ArchiveLimitUnpacked  = 67108864
+	ArchiveLimitFiles     = 4096
+	ArchiveLimitFileBytes = 8388608
+)
+
 func VersionCompare(a, b string) int {
 	ap := strings.Split(a, ".")
 	bp := strings.Split(b, ".")
@@ -111,16 +122,31 @@ func VersionCompare(a, b string) int {
 		if x == y {
 			continue
 		}
-		xn, xerr := strconv.Atoi(x)
-		yn, yerr := strconv.Atoi(y)
-		if nil == xerr && nil == yerr {
-			if xn < yn {
+		xn, yn := digitsRe.MatchString(x), digitsRe.MatchString(y)
+		if xn && yn {
+			xs, ys := strings.TrimLeft(x, "0"), strings.TrimLeft(y, "0")
+			if "" == xs {
+				xs = "0"
+			}
+			if "" == ys {
+				ys = "0"
+			}
+			if xs == ys {
+				continue
+			}
+			if len(xs) != len(ys) {
+				if len(xs) < len(ys) {
+					return -1
+				}
+				return 1
+			}
+			if xs < ys {
 				return -1
 			}
 			return 1
 		}
-		if (nil == xerr) != (nil == yerr) {
-			if nil == xerr {
+		if xn != yn {
+			if xn {
 				return -1
 			}
 			return 1
@@ -209,18 +235,34 @@ func declaredDeps(file string, opts *PkgOptions) map[string]Dependency {
 	return out
 }
 
+// usableKey: a last element with an extension the include table knows
+// is a local file to the resolver, whatever declares it, so it names
+// no package.
 func usableKey(key string) bool {
 	ref, ok := parseModuleRef(key)
-	return ok && ref.Path == key && (isAlias(key) || "" == validateModulePath(key))
+	if !ok || ref.Path != key {
+		return false
+	}
+	if isAlias(key) {
+		return true
+	}
+	ext := localFileExt(key)
+	return "" == validateModulePath(key) && ("" == ext || "" == includeFormat(ext, nil))
 }
 
 // pkgStoreDir is the directory a package is in, in the local stores:
 // the project's vendor tree first, then the cache under the hash the
-// lockfile pins and the package path.
-func pkgStoreDir(root, key, canon, pkg, cache string) string {
+// lockfile pins, then the cache under the hash the repository's
+// manifest for that version pins, which the consumer's need not equal.
+func pkgStoreDir(root, key, canon, pkg, cache, v string) string {
 	stores := []string{moduleDir(filepath.Join(root, metaDir, vendorDir), key)}
-	if "" != cache && "" != canon && "" != pkg {
-		stores = append(stores, cacheStoreDir(cache, canon, pkg))
+	if "" != cache && "" != pkg {
+		if "" != canon {
+			stores = append(stores, cacheStoreDir(cache, canon, pkg))
+		}
+		if served := downloadedCanon(cache, pkg, v); "" != served && served != canon {
+			stores = append(stores, cacheStoreDir(cache, served, pkg))
+		}
 	}
 	for _, d := range stores {
 		if _, err := os.Stat(filepath.Join(d, pkgFile)); nil == err {
@@ -228,6 +270,29 @@ func pkgStoreDir(root, key, canon, pkg, cache string) string {
 		}
 	}
 	return ""
+}
+
+// downloadedCanon is the canon the repository's manifest pins for a
+// version this client downloaded, or empty where none was.
+func downloadedCanon(cache, pkg, v string) string {
+	if "" == v {
+		return ""
+	}
+	data, err := os.ReadFile(filepath.Join(cacheDownloadDir(cache, pkg), v+".manifest"))
+	if nil != err {
+		return ""
+	}
+	var doc map[string]any
+	if nil != json.Unmarshal(data, &doc) {
+		return ""
+	}
+	mods, _ := doc["modules"].([]any)
+	if 0 == len(mods) {
+		return ""
+	}
+	mod, _ := mods[0].(map[string]any)
+	canon, _ := mod["canon"].(string)
+	return canon
 }
 
 func readLock(root string) map[string]LockEntry {
@@ -288,9 +353,13 @@ func quote(s string) string {
 	return string(b)
 }
 
-func writeLock(root string, entries []LockEntry, opts *PkgOptions) {
-	_ = os.MkdirAll(filepath.Join(root, metaDir), 0o755)
-	_ = os.WriteFile(filepath.Join(root, metaDir, lockFile),
+// writeLock writes the lockfile, and a lock that cannot be written is
+// an error the caller reports: a verdict of ok over no file is false.
+func writeLock(root string, entries []LockEntry, opts *PkgOptions) error {
+	if err := os.MkdirAll(filepath.Join(root, metaDir), 0o755); nil != err {
+		return err
+	}
+	return os.WriteFile(filepath.Join(root, metaDir, lockFile),
 		[]byte(lockHeader+LockText(entries, opts)+"\n"), 0o600)
 }
 
@@ -519,7 +588,10 @@ func sortedKeys[T any](m map[string]T) []string {
 func PkgTidy(root string, opts *PkgOptions) PkgTidyReport {
 	report := PkgResolve(root, opts)
 	if "ok" == report.Verdict {
-		writeLock(root, report.Lock, opts)
+		if err := writeLock(root, report.Lock, opts); nil != err {
+			report.Verdict = "error"
+			report.Unevaluable = append(report.Unevaluable, lockFile+": "+err.Error())
+		}
 	}
 	return report
 }
@@ -558,7 +630,7 @@ func PkgResolve(root string, opts *PkgOptions) PkgTidyReport {
 			}
 
 			dir := pkgStoreDir(root, key, previous[key].Canon,
-				targetOf(key, selected[key], previous[key]), opts.cache())
+				targetOf(key, selected[key], previous[key]), opts.cache(), selected[key].V)
 			if "" == dir {
 				missing[key] = true
 				continue
@@ -585,7 +657,7 @@ func PkgResolve(root string, opts *PkgOptions) PkgTidyReport {
 			continue
 		}
 		pkg := targetOf(key, selected[key], previous[key])
-		dir := pkgStoreDir(root, key, previous[key].Canon, pkg, opts.cache())
+		dir := pkgStoreDir(root, key, previous[key].Canon, pkg, opts.cache(), selected[key].V)
 		aliasPkg := ""
 		if isAlias(key) {
 			aliasPkg = pkg
@@ -642,7 +714,7 @@ func PkgVerify(root string, opts *PkgOptions) PkgVerifyReport {
 			missing = append(missing, key)
 			continue
 		}
-		dir := pkgStoreDir(root, key, entry.Canon, lockPkg(entry), opts.cache())
+		dir := pkgStoreDir(root, key, entry.Canon, lockPkg(entry), opts.cache(), entry.V)
 		if "" == dir {
 			missing = append(missing, key)
 			continue
@@ -665,7 +737,11 @@ func PkgVerify(root string, opts *PkgOptions) PkgVerifyReport {
 		if 0 == len(archive.Forbidden) && entry.Archive != archive.Digest {
 			mismatched = append(mismatched, PkgMismatch{Key: key, Pin: "archive", Want: entry.Archive, Got: archive.Digest})
 		}
-		if m := storedManifestOf(dir); nil != m {
+		if m := storedManifestOf(dir); nil == m {
+			if "" != entry.Manifest {
+				mismatched = append(mismatched, PkgMismatch{Key: key, Pin: "manifest", Want: entry.Manifest, Got: ""})
+			}
+		} else {
 			if "" != entry.Manifest && entry.Manifest != m.digest {
 				mismatched = append(mismatched, PkgMismatch{Key: key, Pin: "manifest", Want: entry.Manifest, Got: m.digest})
 			}
@@ -725,7 +801,7 @@ func PkgVendor(root string, opts *PkgOptions) PkgVendorReport {
 			missing = append(missing, key)
 			continue
 		}
-		from := pkgStoreDir(root, key, entry.Canon, lockPkg(entry), opts.cache())
+		from := pkgStoreDir(root, key, entry.Canon, lockPkg(entry), opts.cache(), entry.V)
 		if "" == from {
 			missing = append(missing, key)
 			continue
@@ -751,6 +827,7 @@ func PkgVendor(root string, opts *PkgOptions) PkgVendorReport {
 // directory, less the store's own lock, so the copy resolves against
 // the consumer's.
 func vendorCopy(from, to string) error {
+	_ = os.RemoveAll(to)
 	if err := copyTree(from, to); nil != err { //coverage:ignore a readable store copies
 		return err
 	}
@@ -822,7 +899,7 @@ func PkgRefreeze(root string, opts *PkgOptions) PkgRefreezeReport {
 		entry := locked[key]
 		dir := ""
 		if usableKey(key) {
-			dir = pkgStoreDir(root, key, entry.Canon, lockPkg(entry), opts.cache())
+			dir = pkgStoreDir(root, key, entry.Canon, lockPkg(entry), opts.cache(), entry.V)
 		}
 		var data []byte
 		var err error = os.ErrNotExist
@@ -854,7 +931,9 @@ func PkgRefreeze(root string, opts *PkgOptions) PkgRefreezeReport {
 
 	held := 0 == len(missing) && 0 == len(unevaluable)
 	if held && 0 < len(repinned) {
-		writeLock(root, lock, opts)
+		if err := writeLock(root, lock, opts); nil != err { //coverage:ignore the directory the lock was just read from
+			unevaluable = append(unevaluable, lockFile+": "+err.Error())
+		}
 	}
 
 	verdict := "ok"
@@ -867,6 +946,29 @@ func PkgRefreeze(root string, opts *PkgOptions) PkgRefreezeReport {
 		Verdict: verdict, Repinned: repinned, Unchanged: unchanged,
 		Missing: missing, Unevaluable: unevaluable,
 	}
+}
+
+// archiveOverCaps: every consumer refuses an archive past
+// params.archive at acquire, so a publisher refuses to mint one.
+func archiveOverCaps(archive Archive) []string {
+	over := []string{}
+	if ArchiveLimitBytes < archive.Size {
+		over = append(over, "archive: "+strconv.Itoa(archive.Size)+" bytes, over the cap of "+strconv.Itoa(ArchiveLimitBytes))
+	}
+	if ArchiveLimitFiles < len(archive.Files) {
+		over = append(over, "archive: "+strconv.Itoa(len(archive.Files))+" files, over the cap of "+strconv.Itoa(ArchiveLimitFiles))
+	}
+	total := 0
+	for _, f := range archive.Files {
+		total += f.Size
+		if ArchiveLimitFileBytes < f.Size {
+			over = append(over, f.Path+": "+strconv.Itoa(f.Size)+" bytes, over the cap of "+strconv.Itoa(ArchiveLimitFileBytes))
+		}
+	}
+	if ArchiveLimitUnpacked < total {
+		over = append(over, "archive: unpacks to "+strconv.Itoa(total)+" bytes, over the cap of "+strconv.Itoa(ArchiveLimitUnpacked))
+	}
+	return over
 }
 
 // PkgTree is `aontu pkg tree`: the locked closure as a graph, each
@@ -890,7 +992,7 @@ func PkgTree(root string, opts *PkgOptions) PkgTreeReport {
 		entry := locked[key]
 		dir := ""
 		if usableKey(key) {
-			dir = pkgStoreDir(root, key, entry.Canon, lockPkg(entry), opts.cache())
+			dir = pkgStoreDir(root, key, entry.Canon, lockPkg(entry), opts.cache(), entry.V)
 		}
 		if "" == dir {
 			missing = append(missing, key)
@@ -959,13 +1061,17 @@ func PkgManifestOf(root, against string, opts *PkgOptions) PkgManifestReport {
 	missing := []string{}
 	if "" == self.Path {
 		missing = append(missing, "pkg.path")
+	} else if isAlias(self.Path) || !usableKey(self.Path) {
+		missing = append(missing, "pkg.path ("+self.Path+" is not a package path)")
 	}
 	if "" == self.Version {
 		missing = append(missing, "pkg.version")
+	} else if !versionRe.MatchString(self.Version) {
+		missing = append(missing, "pkg.version ("+self.Version+" is not MAJOR.MINOR.PATCH)")
 	}
 	main := filepath.Join(root, self.Main)
 	data, err := os.ReadFile(main)
-	if nil != err {
+	if nil != err || "" != RelPathError(self.Main) {
 		missing = append(missing, self.Main)
 	}
 
@@ -990,6 +1096,9 @@ func PkgManifestOf(root, against string, opts *PkgOptions) PkgManifestReport {
 	archive := ArchiveOf(root)
 	if 0 < len(archive.Forbidden) {
 		return refused([]string{}, archive.Forbidden)
+	}
+	if over := archiveOverCaps(archive); 0 < len(over) {
+		return refused([]string{}, over)
 	}
 
 	report := PkgManifestReport{

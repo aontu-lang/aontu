@@ -9,6 +9,27 @@ which implementation each change affects.
 
 ### The package system lands whole: `pkg.aon`, `aontu sync`, `aontu publish`
 
+**Hardened before it ships.** A key proof is refused under a key of
+small order or a signature with more than one base64url spelling.
+`publish` applies the consumer's archive caps before minting, refuses a
+signing key that is not Ed25519 (`key_invalid`), and refuses
+coordinates that are not a package path at a version. Every version a
+list offers is recorded as seen, so a repository that drops one this
+client never took is a rollback, and a tombstone in its place is not.
+`sync --frozen` prunes nothing when it refuses; `add`, `get` and
+`remove` take back the lock and the vendor tree with the package file.
+An alias retargeted at the same version fetches its target. `pkg
+verify` reports a pinned manifest the tree lost; `pkg vendor` replaces a
+destination and finds a store under the canon the repository pinned as
+well as the consumer's; `pkg outdated` walks the closure that moves.
+Entry paths refuse reserved device names and more than 32 elements; a
+package path whose last element carries a known extension names a
+file, not a package; versions compare by exact digits; the transport
+reads a body no further than the archive cap; `pkg serve --listen`
+takes a bracketed IPv6 host. Go: a lock that cannot be written is an
+error, and the compatibility walk holds on a prior list longer than
+the next.
+
 A module is imported; a package is published. Both ports now carry the
 system [ADR-039](ADR.md#adr-039--the-package-system-has-one-vocabulary-one-set-of-files-and-three-pins)
 ratified: one vocabulary, one set of files, three pins, and the verbs

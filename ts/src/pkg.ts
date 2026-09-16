@@ -3,18 +3,27 @@
 
 import {
   readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, statSync,
-  lstatSync, copyFileSync, unlinkSync,
+  lstatSync, copyFileSync, unlinkSync, rmSync,
 } from 'node:fs'
 import { join as pathJoin, dirname as pathDirname } from 'node:path'
 
 import {
   parseModuleRef, validateModulePath, moduleDir, lockJson, isAlias,
-  cacheStoreDir, PKG_FILE, LOCK_FILE, META_DIR, VENDOR_DIR,
+  cacheStoreDir, cacheDownloadDir, localFileExt, PKG_FILE, LOCK_FILE, META_DIR, VENDOR_DIR,
 } from './mod'
 import { zipCanonical, sha256Hex, cmpBytes } from './pkg-zip'
 import { subsume } from './subsume'
 import { compatOutcome } from './compat'
+import { includeFormat } from './lang'
 import type { ZipEntry } from './pkg-zip'
+
+export const VERSION_RE = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/
+
+// params.archive: what a consumer refuses to unpack, and so what a
+// publisher refuses to mint. A record, so a test can lower them.
+export const ARCHIVE_LIMITS = {
+  bytes: 16777216, unpacked: 67108864, files: 4096, fileBytes: 8388608,
+}
 
 
 // One entry of the lockfile, and of a tidy report. `key` is the lock
@@ -144,7 +153,12 @@ export function versionCompare(a: string, b: string): number {
     const xn = /^\d+$/.test(x)
     const yn = /^\d+$/.test(y)
     if (xn && yn) {
-      return +x < +y ? -1 : 1
+      const xs = x.replace(/^0+(?=\d)/, '')
+      const ys = y.replace(/^0+(?=\d)/, '')
+      if (xs === ys) {
+        continue
+      }
+      return xs.length !== ys.length ? (xs.length < ys.length ? -1 : 1) : (xs < ys ? -1 : 1)
     }
     if (xn !== yn) {
       return xn ? -1 : 1
@@ -155,24 +169,60 @@ export function versionCompare(a: string, b: string): number {
 }
 
 
+// A last element with an extension the include table knows is a
+// local file to the resolver, whatever declares it, so it names no
+// package.
 export function usableKey(key: string): boolean {
   const ref = parseModuleRef(key)
-  return undefined !== ref && ref.path === key &&
-    (isAlias(key) || undefined === validateModulePath(key))
+  if (undefined === ref || ref.path !== key) {
+    return false
+  }
+  if (isAlias(key)) {
+    return true
+  }
+  const ext = localFileExt(key)
+  return undefined === validateModulePath(key) &&
+    (undefined === ext || undefined === includeFormat(ext))
 }
 
 
 // The directory a package is in, in the local stores: the project's
-// vendor tree first, then the cache under the hash the lockfile pins.
+// vendor tree first, then the cache under the hash the lockfile pins,
+// then the cache under the hash the repository's manifest for that
+// version pins, which the consumer's own pin need not equal.
 export function storeDir(
   root: string, key: string, canon: string, pkg: string,
-  options: PkgToolOptions,
+  options: PkgToolOptions, v?: string,
 ): string | undefined {
   const stores = [moduleDir(pathJoin(root, META_DIR, VENDOR_DIR), key)]
-  if (null != options.cache && '' !== canon && '' !== pkg) {
-    stores.push(cacheStoreDir(options.cache, canon, pkg))
+  if (null != options.cache && '' !== pkg) {
+    if ('' !== canon) {
+      stores.push(cacheStoreDir(options.cache, canon, pkg))
+    }
+    const served = null == v ? undefined : downloadedCanon(options.cache, pkg, v)
+    if (undefined !== served && served !== canon) {
+      stores.push(cacheStoreDir(options.cache, served, pkg))
+    }
   }
   return stores.find((d) => existsSync(pathJoin(d, PKG_FILE)))
+}
+
+// The canon the repository's manifest pins for a version this client
+// downloaded, or undefined where none was.
+export function downloadedCanon(cache: string, pkg: string, v: string): string | undefined {
+  const file = pathJoin(cacheDownloadDir(cache, pkg), v + '.manifest')
+  if (!existsSync(file)) {
+    return undefined
+  }
+  let doc: any
+  try {
+    doc = JSON.parse(readFileSync(file, 'utf8'))
+  }
+  catch {
+    return undefined
+  }
+  const canon = doc?.modules?.[0]?.canon
+  return 'string' === typeof canon ? canon : undefined
 }
 
 
@@ -449,7 +499,7 @@ export function pkgResolve(root: string, options: PkgToolOptions): PkgTidyReport
       }
 
       const dir = storeDir(root, key, previous[key]?.canon ?? '',
-        targetOf(key, selected[key], previous[key]), options)
+        targetOf(key, selected[key], previous[key]), options, selected[key].v)
       if (undefined === dir) {
         missing.push(key)
         continue
@@ -476,7 +526,7 @@ export function pkgResolve(root: string, options: PkgToolOptions): PkgTidyReport
     }
     const pkg = targetOf(key, selected[key], previous[key])
     const dir = storeDir(root, key, previous[key]?.canon ?? '', pkg,
-      options) as string
+      options, selected[key].v) as string
     const pinned = pinTree(key, dir, selected[key].v,
       isAlias(key) ? pkg : undefined, options)
     forbidden.push(...pinned.forbidden)
@@ -530,7 +580,7 @@ export function pkgVerify(root: string, options: PkgToolOptions):
       missing.push(key)
       continue
     }
-    const dir = storeDir(root, key, entry.canon, entry.pkg ?? key, options)
+    const dir = storeDir(root, key, entry.canon, entry.pkg ?? key, options, entry.v)
     if (undefined === dir) {
       missing.push(key)
       continue
@@ -553,7 +603,12 @@ export function pkgVerify(root: string, options: PkgToolOptions):
       mismatched.push({ key, pin: 'archive', want: entry.archive, got: archive.digest })
     }
     const manifest = storedManifest(dir)
-    if (null != manifest) {
+    if (null == manifest) {
+      if (null != entry.manifest) {
+        mismatched.push({ key, pin: 'manifest', want: entry.manifest, got: '' })
+      }
+    }
+    else {
       if (null != entry.manifest && entry.manifest !== manifest.digest) {
         mismatched.push({ key, pin: 'manifest', want: entry.manifest, got: manifest.digest })
       }
@@ -606,7 +661,7 @@ export function pkgVendor(root: string, options: PkgToolOptions):
       continue
     }
 
-    const from = storeDir(root, key, entry.canon, entry.pkg ?? key, options)
+    const from = storeDir(root, key, entry.canon, entry.pkg ?? key, options, entry.v)
     if (undefined === from) {
       missing.push(key)
       continue
@@ -630,6 +685,7 @@ export function pkgVendor(root: string, options: PkgToolOptions):
 // A store tree into the vendor tree: the whole directory, less the
 // store's own lock, so the copy resolves against the consumer's.
 export function vendorCopy(from: string, to: string): void {
+  rmSync(to, { recursive: true, force: true })
   copyTree(from, to)
   const lock = pathJoin(to, META_DIR, LOCK_FILE)
   if (existsSync(lock)) {
@@ -657,6 +713,58 @@ export function copyTree(from: string, to: string): void {
 }
 
 
+// Every consumer refuses an archive past params.archive at acquire, so
+// a publisher refuses to mint one: the reasons, as the forbidden list.
+export function archiveOverCaps(archive: Archive): string[] {
+  const over: string[] = []
+  if (ARCHIVE_LIMITS.bytes < archive.size) {
+    over.push('archive: ' + archive.size + ' bytes, over the cap of ' + ARCHIVE_LIMITS.bytes)
+  }
+  if (ARCHIVE_LIMITS.files < archive.files.length) {
+    over.push('archive: ' + archive.files.length + ' files, over the cap of ' + ARCHIVE_LIMITS.files)
+  }
+  let total = 0
+  for (const f of archive.files) {
+    total += f.size
+    if (ARCHIVE_LIMITS.fileBytes < f.size) {
+      over.push(f.path + ': ' + f.size + ' bytes, over the cap of ' + ARCHIVE_LIMITS.fileBytes)
+    }
+  }
+  if (ARCHIVE_LIMITS.unpacked < total) {
+    over.push('archive: unpacks to ' + total + ' bytes, over the cap of ' + ARCHIVE_LIMITS.unpacked)
+  }
+  return over
+}
+
+
+const RESERVED_NAME_RE = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\..*)?$/i
+export const REL_PATH_MAX_ELEMENTS = 32
+
+// A path inside an archive: forward slashes, the element rules, never
+// absolute, never escaping, never a name one platform reserves.
+export function relPathError(p: string): string | undefined {
+  if ('' === p || 512 < p.length || p.startsWith('/') || p.endsWith('/')) {
+    return 'an entry path is empty, absolute or a directory'
+  }
+  const elements = p.split('/')
+  if (REL_PATH_MAX_ELEMENTS < elements.length) {
+    return 'an entry path has more than ' + REL_PATH_MAX_ELEMENTS + ' elements'
+  }
+  for (const e of elements) {
+    if ('' === e || '.' === e || '..' === e || e.startsWith('.') || e.endsWith('.')) {
+      return 'an entry path element is empty or begins or ends with a dot'
+    }
+    if (!/^[A-Za-z0-9._-]+$/.test(e)) {
+      return 'an entry path element is outside the alphabet'
+    }
+    if (RESERVED_NAME_RE.test(e)) {
+      return 'an entry path element is a name a platform reserves'
+    }
+  }
+  return undefined
+}
+
+
 // `aontu pkg refreeze`: recompute every canon pin and nothing else,
 // which is what a canonical-form change in the engine needs.
 export function pkgRefreeze(root: string, options: PkgToolOptions):
@@ -671,7 +779,7 @@ export function pkgRefreeze(root: string, options: PkgToolOptions):
   for (const key of Object.keys(locked).sort(cmpBytes)) {
     const entry = locked[key]
     const dir = usableKey(key) ?
-      storeDir(root, key, entry.canon, entry.pkg ?? key, options) : undefined
+      storeDir(root, key, entry.canon, entry.pkg ?? key, options, entry.v) : undefined
     const main = undefined === dir ? undefined : pathJoin(dir, mainOf(dir, options))
     if (undefined === main || !existsSync(main)) {
       missing.push(key)
@@ -725,7 +833,7 @@ export function pkgTree(root: string, options: PkgToolOptions): PkgTreeReport {
   for (const key of Object.keys(locked).sort(cmpBytes)) {
     const entry = locked[key]
     const dir = usableKey(key) ?
-      storeDir(root, key, entry.canon, entry.pkg ?? key, options) : undefined
+      storeDir(root, key, entry.canon, entry.pkg ?? key, options, entry.v) : undefined
     if (undefined === dir) {
       missing.push(key)
       nodes.push({ key, v: entry.v, deps: [] })
@@ -791,11 +899,17 @@ export function pkgManifest(
   if ('' === self.path) {
     missing.push('pkg.path')
   }
+  else if (isAlias(self.path) || !usableKey(self.path)) {
+    missing.push('pkg.path (' + self.path + ' is not a package path)')
+  }
   if ('' === self.version) {
     missing.push('pkg.version')
   }
+  else if (!VERSION_RE.test(self.version)) {
+    missing.push('pkg.version (' + self.version + ' is not MAJOR.MINOR.PATCH)')
+  }
   const main = pathJoin(root, self.main)
-  if (!existsSync(main)) {
+  if (!existsSync(main) || undefined !== relPathError(self.main)) {
     missing.push(self.main)
   }
 
@@ -818,6 +932,10 @@ export function pkgManifest(
   const archive = archiveOf(root)
   if (0 < archive.forbidden.length) {
     return refused([], archive.forbidden)
+  }
+  const over = archiveOverCaps(archive)
+  if (0 < over.length) {
+    return refused([], over)
   }
 
   const report: PkgManifestReport = {
