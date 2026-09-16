@@ -27,7 +27,10 @@ function execPages(): string[] {
   const fixed = [
     'index.md',
     'tutorial.md',
+    'tutorial-config.md',
     'tutorial-graph.md',
+    'tutorial-package.md',
+    'tutorial-generate.md',
     'unification.md',
     'reference-language.md',
     'reference-api.md',
@@ -260,7 +263,9 @@ function matches(expect: string[], got: string): boolean {
   return re.test(norm(got))
 }
 
-function runStep(file: string, dir: string, step: Step):
+// XDG_CACHE_HOME is the scenario's own: the package verbs resolve a
+// dependency from a machine-wide store that other runs write to.
+function runStep(file: string, dir: string, cache: string, step: Step):
   { out: string; code: number } {
   let argv = splitArgs(file, step.line, step.cmd)
   let input: string | undefined
@@ -283,7 +288,7 @@ function runStep(file: string, dir: string, step: Step):
   try {
     const out = execFileSync(bin, [...pre, ...argv.slice(1)], {
       cwd: dir, input,
-      env: { ...process.env, NO_COLOR: '1' },
+      env: { ...process.env, NO_COLOR: '1', XDG_CACHE_HOME: cache },
       encoding: 'utf8',
       stdio: ['pipe', 'pipe', 'pipe'],
     })
@@ -361,9 +366,11 @@ describe('docs', () => {
     let commands = 0
     for (const page of pages()) {
       let dir: string | undefined
+      let cache: string | undefined
       let scenarioId = ''
       const open = (id: string) => {
         dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-docs-'))
+        cache = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-docs-cache-'))
         scenarioId = id
         scenarios++
       }
@@ -408,7 +415,7 @@ describe('docs', () => {
               commands++
               continue
             }
-            const r = runStep(page.file, dir!, step)
+            const r = runStep(page.file, dir!, cache!, step)
             prevCode = r.code
             commands++
             // A command with no echo $? after it must succeed; one
@@ -439,6 +446,7 @@ describe('docs', () => {
       // assertion above threw before this cleanup, keeping the dir.
       if (null != dir) {
         Fs.rmSync(dir, { recursive: true, force: true })
+        Fs.rmSync(cache!, { recursive: true, force: true })
       }
     }
     // Floors, per the vacuity-guard precedent above. Tuned to the
@@ -867,7 +875,12 @@ describe('docs-style', () => {
   })
 
 
-  const TUTORIAL_PAGES = ['docs/tutorial.md', 'docs/tutorial-graph.md']
+  // `tutorial.md` is the INDEX of these and teaches nothing itself, so
+  // it is held to the ordinary rules rather than the tutorial ones.
+  const TUTORIAL_PAGES = [
+    'docs/tutorial-config.md', 'docs/tutorial-graph.md',
+    'docs/tutorial-package.md', 'docs/tutorial-generate.md',
+  ]
 
   test('we-appears-only-in-tutorials', () => {
     const hits: string[] = []

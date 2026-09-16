@@ -97,7 +97,7 @@ to be tested — parse-checked, paired with its stated `json` result,
 scaffolded and run through the scenario/transcript directives, or
 skipped with a written reason — and applies the style gate to the prose.
 A narrowed run for one page:
-`DOCS_PAGES=tutorial.md node ts/dist-test/docs.test.js`.
+`DOCS_PAGES=tutorial-config.md node ts/dist-test/docs.test.js`.
 
 **The prose has a second gate.** `make prose` runs
 [Vale](https://vale.sh) over the same pages for spelling, Google's

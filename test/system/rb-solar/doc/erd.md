@@ -20,9 +20,11 @@ aontu template --marker '%%-' gen/erd.mmd > work/erd.aon
 aontu model get out work/erd.aon
 ```
 
-The result is the component tree carrying the Mermaid source. To write
-it to the committed diagram location and check that it matches, hand
-the tree to jostraca:
+The result is the component tree carrying the Mermaid source. A
+generator runtime turns that tree into bytes. To write it to the
+committed diagram location and check that it matches, pipe the tree to
+`tools/cmptree-check.js`, which hands it to
+[jostraca](https://github.com/jostraca/jostraca):
 
 ```sh
 aontu model get out work/erd.aon | node ../../../tools/cmptree-check.js --out doc

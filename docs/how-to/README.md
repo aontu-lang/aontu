@@ -1,7 +1,8 @@
 # How-to guides
 
 One task per guide. Each assumes you know the basics (the
-[tutorial](../tutorial.md) teaches those), solves one job, and links
+[first tutorial](../tutorial-config.md) teaches those, and the
+[index](../tutorial.md) lists the rest), solves one job, and links
 the reference for depth. Every example is executed by
 `ts/test/docs.test.ts`: what a guide shows is what the engine did.
 

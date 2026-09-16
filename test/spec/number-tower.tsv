@@ -239,9 +239,10 @@ float-list-quoted-vs-kind-canon	canon	a:["float",float]	{"a":["float",float]}
 # not in cross-port parity but codes are (AGENTS.md, "Error codes"), so
 # an `err` row on a NEW failure pins the weaker half -- it would pass
 # while the two ports named the failure differently. The docs promise
-# these codes to a reader by name (docs/tutorial.md, docs/how-to.md),
-# which makes them public surface. Probed in both engines before they
-# were written; both answer the same code for every row here.
+# these codes to a reader by name (docs/tutorial-config.md and the
+# how-to guides), which makes them public surface. Probed in both
+# engines before they were written; both answer the same code for
+# every row here.
 pref-float-overridden-by-integer-err	errc	a:*2.2 & 3	empty
 pref-integer-overridden-by-float-err	errc	a:*2 & 3.0	empty
 pref-func-float-overridden-by-integer-err	errc	a:*lower(2.2) & 3	empty
@@ -256,8 +257,9 @@ pref-idiom-refuses-other-leaf	errc	a:(*8080|integer) & 3.5	empty
 pref-idiom-admits-own-leaf	gen	a:(*8080|integer) & 9090	{"a":9090}
 pref-idiom-number-still-admits	gen	a:(*8080|number) & 3.5	{"a":3.5}
 # The idiom AS WRITTEN -- two statements, not one parenthesised meet --
-# because that is the shape docs/tutorial.md and the skill card teach
-# and the shape a later fragment or a merged file actually produces.
+# because that is the shape docs/tutorial-config.md and the skill card
+# teach, and the shape a later fragment or a merged file actually
+# produces.
 pref-idiom-two-statement-refuses	errc	a:*8080|integer\na:1.5	empty
 pref-idiom-two-statement-admits	gen	a:*8080|integer\na:9090	{"a":9090}
 pref-idiom-two-statement-number	gen	a:*8080|number\na:1.5	{"a":1.5}
