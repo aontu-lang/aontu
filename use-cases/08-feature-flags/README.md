@@ -62,7 +62,7 @@ than its value.
 | `layers.aon` | `**` environment and `*` tenant layers (hidden), plus the `effective.<env>.<tenant>` views a flag SDK would read |
 | `policy.aon` | `clock.today` (stamped data: the language has no clock), the expired-flag lifecycle audit, the 0..100 rollout audit, both as `filter()` + `must(close({}))` |
 | `base.aon` | flags + layers + policy: the `--entry` for `set` (it never includes the overlay) |
-| `overlay.aon` | the ops overlay, written only by `aontu set` |
+| `overlay.aon` | the ops overlay, written only by `aontu model set` |
 | `system.aon` | base + overlay: the runtime view served to SDKs; `get`, `why` and evaluation run here |
 | `flag-schema.aon` | the strict, closed `Flag` definition: a vet-only document that `base.aon` never includes |
 | `data/` | agent-proposed flag candidates: one clean, one five-way-bad, one incomplete |
@@ -94,7 +94,7 @@ than its value.
   in `policy.aon` rather than in a shared `Flag` definition, because
   a relative reference inside a referenced definition does not rebind
   to the instance. The audit judges concrete enablement, and every
-  value `aontu set` writes is a concrete literal.
+  value `aontu model set` writes is a concrete literal.
 - **Bare preferences on defaulted fields, types in the schema
   document.** The catalog's defaulted fields carry bare preferences
   (`enabled: ***false`, `rollout: ***0`) rather than a type conjunct.

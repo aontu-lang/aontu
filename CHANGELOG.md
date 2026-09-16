@@ -7,7 +7,7 @@ which implementation each change affects.
 
 ## Go 0.1.23 — 2026-09-16 · TypeScript 0.65.0
 
-### BREAKING: the module files and verbs are renamed
+### BREAKING: the package files and verbs are renamed
 
 `mod.aon` is `pkg.aon`; `mod-lock.aon` is `aontu_meta/pkg-lock.aon`;
 `aon_vendor/<path>@<major>/` is `aontu_meta/vendor/<path>/`, with no
@@ -15,7 +15,7 @@ major in the path. The document queries `aontu get`, `aontu why` and
 `aontu set` are `aontu model get|why|set`, `aontu mod <op>` is
 `aontu pkg <op>`, and the bare `get` and `why` now name the package
 verbs. A verb that finds the old files names the current layout, with
-the commands that rebuild it, and reads nothing from them. The details
+the command that rebuilds it, and reads nothing from them. The details
 are in the entry below; the rename is total, by
 [ADR-039](ADR.md#adr-039--the-package-system-has-one-vocabulary-one-set-of-files-and-three-pins).
 
@@ -147,7 +147,8 @@ repository: keygen, publish, the gate, serve, sync, cooldown, a move.
 **The public repository is not serving yet.** The default bases,
 `https://pkg.aontu.dev` and `https://publish.aontu.dev`, have no
 address at this release, so a `sync` that reaches them ends in
-`fetch_failed` and a `publish` without `--to` fails at the write path.
+`fetch_failed`, and a `publish --yes` of a public package without
+`--to` fails at the write path.
 Until they exist, a project names its `repo.base`, and a publisher
 writes with `publish --to <dir>` and serves with `pkg serve`.
 
