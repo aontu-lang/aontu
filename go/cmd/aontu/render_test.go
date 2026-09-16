@@ -212,6 +212,14 @@ func TestRenderRefusesWhatJostracaRefuses(t *testing.T) {
 		t.Fatalf("code %d: %s", code, errw)
 	}
 
+	// A File written by hand with no name is refused before the runtime.
+	nameless := renderFile(t, dir, "nameless.aon",
+		`out: { cmp: "File", children: [] }`+"\n")
+	if _, errw, code := renderRunCLI(nameless, filepath.Join(dir, "n.txt")); 4 != code ||
+		!strings.Contains(errw, "the file at $.out has no name") {
+		t.Fatalf("nameless: code %d: %s", code, errw)
+	}
+
 	// A fragment whose source is not there fails the write and the check.
 	frag := renderFile(t, dir, "frag.aon",
 		`out: file("x.txt", [fragment("nope.txt")])`+"\n")
@@ -271,8 +279,11 @@ func TestRenderUsage(t *testing.T) {
 		{[]string{gen, "a", "b"}, "render needs a file and a path"},
 		{[]string{"--bogus", gen, "x"}, "unknown render option --bogus"},
 		{[]string{"--at"}, "--at needs a path"},
+		{[]string{"--at", "", gen, "x"}, "--at needs a path"},
 		{[]string{"--marker"}, "--marker needs a token"},
+		{[]string{"--marker", "", gen, "x"}, "--marker needs a token"},
 		{[]string{"--profile"}, "--profile needs a file"},
+		{[]string{"--profile", "", gen, "x"}, "--profile needs a file"},
 		{[]string{"--format"}, "--format needs text or json"},
 		{[]string{"--format", "xml", gen, "x"}, "--format needs text or json"},
 		{[]string{"--trust", "nonsense", gen, "x"}, "--trust"},

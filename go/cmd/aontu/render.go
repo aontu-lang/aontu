@@ -70,21 +70,21 @@ func runRender(argv []string, stdout, stderr io.Writer) int {
 			format = argv[i]
 		case "--at" == arg:
 			i++
-			if len(argv) <= i {
+			if len(argv) <= i || "" == argv[i] {
 				io.WriteString(stderr, "aontu: --at needs a path\n")
 				return 2
 			}
 			at = argv[i]
 		case "--marker" == arg:
 			i++
-			if len(argv) <= i {
+			if len(argv) <= i || "" == argv[i] {
 				io.WriteString(stderr, "aontu: --marker needs a token\n")
 				return 2
 			}
 			marker = argv[i]
 		case "--profile" == arg:
 			i++
-			if len(argv) <= i {
+			if len(argv) <= i || "" == argv[i] {
 				io.WriteString(stderr, "aontu: --profile needs a file\n")
 				return 2
 			}
@@ -139,12 +139,19 @@ func runRender(argv []string, stdout, stderr io.Writer) int {
 	var tree any
 	_ = json.Unmarshal([]byte(report.Out), &tree)
 
-	// ONE FILE GOES TO THE PATH ITSELF, unless the path is a directory.
+	// ONE FILE GOES TO THE PATH ITSELF, unless the path is a directory. A
+	// `File` without a name is refused: the runtime ports disagree about it.
 	folder := dest
-	if node, ok := tree.(map[string]any); ok && "File" == node["cmp"] &&
-		!isDirectory(dest) {
-		node["props"].(map[string]any)["name"] = filepath.Base(dest)
-		folder = filepath.Dir(dest)
+	if node, ok := tree.(map[string]any); ok && "File" == node["cmp"] {
+		props, _ := node["props"].(map[string]any)
+		if _, named := props["name"].(string); !named {
+			io.WriteString(stderr, "aontu: "+file+": the file at "+at+" has no name\n")
+			return 4
+		}
+		if !isDirectory(dest) {
+			props["name"] = filepath.Base(dest)
+			folder = filepath.Dir(dest)
+		}
 	}
 
 	root, err := jostraca.CmpTree(tree, jostraca.CmpTreeOptions{Raw: true})

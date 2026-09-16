@@ -2228,10 +2228,11 @@ generator in the target's own syntax (see
 extension names, `--marker`, or a profile's. `--at` names another
 anchor than `$.out`.
 
-Beside the files it writes, jostraca keeps a record of its own under
-`<path>/.jostraca/`, with a `.gitignore` in it. That folder, and what
-the runtime does with a file that already exists, is jostraca's
-contract; [Trust and determinism](trust.md#clause-4-sandboxing)
+Beside the files it writes, jostraca keeps a record of its own in a
+`.jostraca/` folder under the output directory (for a one-file render,
+the directory that holds the file), with a `.gitignore` in it. That
+folder, and what the runtime does with a file that already exists, is
+jostraca's contract; [Trust and determinism](trust.md#clause-4-sandboxing)
 records what stays aontu's.
 
 Exit codes: `0` written or clean, `1` `--check` drift, `2` usage or

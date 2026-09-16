@@ -3278,6 +3278,12 @@ describe('render', () => {
     Assert.equal(r.code, 4)
     Assert.ok(r.err.includes('unknown component: Nope'), r.err)
 
+    // A File written by hand with no name is refused before the runtime.
+    const nameless = file(d, 'nameless.aon', 'out: { cmp: "File", children: [] }\n')
+    const n = await render([nameless, Path.join(d, 'n.txt')])
+    Assert.equal(n.code, 4)
+    Assert.ok(n.err.includes('the file at $.out has no name'), n.err)
+
     // A fragment whose source is not there fails the write and the check.
     const frag = file(d, 'frag.aon', 'out: file("x.txt", [fragment("nope.txt")])\n')
     const w = await render([frag, dest])
@@ -3325,8 +3331,11 @@ describe('render', () => {
       [[gen, 'a', 'b'], 'render needs a file and a path'],
       [['--bogus', gen, 'x'], 'unknown render option --bogus'],
       [['--at'], '--at needs a path'],
+      [['--at', '', gen, 'x'], '--at needs a path'],
       [['--marker'], '--marker needs a token'],
+      [['--marker', '', gen, 'x'], '--marker needs a token'],
       [['--profile'], '--profile needs a file'],
+      [['--profile', '', gen, 'x'], '--profile needs a file'],
       [['--format'], '--format needs text or json'],
       [['--format', 'xml', gen, 'x'], '--format needs text or json'],
       [['--trust', 'nonsense', gen, 'x'], '--trust'],

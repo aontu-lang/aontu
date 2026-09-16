@@ -2957,21 +2957,21 @@ async function runRender(argv: string[]): Promise<number> {
     }
     else if ('--at' === arg) {
       at = argv[++i]
-      if (null == at) {
+      if (null == at || '' === at) {
         process.stderr.write('aontu: --at needs a path\n')
         return 2
       }
     }
     else if ('--marker' === arg) {
       marker = argv[++i]
-      if (null == marker) {
+      if (null == marker || '' === marker) {
         process.stderr.write('aontu: --marker needs a token\n')
         return 2
       }
     }
     else if ('--profile' === arg) {
       const pf = argv[++i]
-      if (null == pf) {
+      if (null == pf || '' === pf) {
         process.stderr.write('aontu: --profile needs a file\n')
         return 2
       }
@@ -3020,11 +3020,18 @@ async function runRender(argv: string[]): Promise<number> {
   }
   const tree = JSON.parse(report.out)
 
-  // ONE FILE GOES TO THE PATH ITSELF, unless the path is a directory.
+  // ONE FILE GOES TO THE PATH ITSELF, unless the path is a directory. A
+  // `File` without a name is refused: the runtime ports disagree about it.
   let folder = dest
-  if ('File' === tree?.cmp && !isDirectory(dest)) {
-    tree.props.name = basename(dest)
-    folder = dirname(dest)
+  if ('File' === tree?.cmp) {
+    if ('string' !== typeof tree.props?.name) {
+      process.stderr.write(`aontu: ${file}: the file at ${at ?? '$.out'} has no name\n`)
+      return 4
+    }
+    if (!isDirectory(dest)) {
+      tree.props.name = basename(dest)
+      folder = dirname(dest)
+    }
   }
 
   const { cmpTree, Jostraca } = generatorRuntime()
