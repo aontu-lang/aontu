@@ -50,7 +50,35 @@ function gatedDocs() {
       .map((d) => `use-cases/${d}/README.md`)
     : []
 
-  return [...docs, ...howto, ...cases, ...READMES].filter(exists)
+  // THE SYSTEMS ARE PUBLISHED TOO. `aontu-lang/web` renders
+  // test/system/<name>/README.md as /examples/<name>, its doc/*.md as
+  // the pages under it, and reads this directory's own README for the
+  // status each example card shows. AGENTS.md has always said the style
+  // rules reach here; until this list did, neither gate looked, and
+  // three years of nobody noticing is what that bought.
+  const sysDir = Path.join(REPO, 'test', 'system')
+  const systems = Fs.existsSync(sysDir)
+    ? Fs.readdirSync(sysDir, { withFileTypes: true })
+      .filter((e) => e.isDirectory())
+      .map((e) => e.name)
+      .sort()
+      .flatMap((name) => {
+        const docDir = Path.join(sysDir, name, 'doc')
+        const guides = Fs.existsSync(docDir)
+          ? Fs.readdirSync(docDir)
+            .filter((f) => f.endsWith('.md'))
+            .sort()
+            .map((f) => `test/system/${name}/doc/${f}`)
+          : []
+        return [`test/system/${name}/README.md`, ...guides]
+      })
+    : []
+
+  return [
+    ...docs, ...howto, ...cases,
+    'test/system/README.md', ...systems,
+    ...READMES,
+  ].filter(exists)
 }
 
 

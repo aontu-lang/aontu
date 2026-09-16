@@ -44,15 +44,16 @@ Three rules follow from the layout:
   is a pipe, so nothing in `ts/src` or `go/` depends on the runtime and
   the gate skips with a note where it is not installed, the way it
   already skips without Ruby.
-- **The API is the reference's, not ours.** A system implements an
-  existing API and is validated by that API's own script. What is
-  ours is the model, the generator and the framework choice.
+- **The API belongs to the reference, not to this repository.** A system
+  implements an existing API and is validated by that API's own script.
+  The model, the generator and the framework choice are what this
+  repository contributes.
 
 ## Systems
 
 | system | target | reference | status |
 |---|---|---|---|
-| [`rb-solar`](rb-solar/) | Ruby on Rails 8, SQLite, Hotwire: the Solar System API (Planet, Moon) and a human UI over the same data | [voxgig-sdk/voxgig-solardemo-sdk](https://github.com/voxgig-sdk/voxgig-solardemo-sdk): its reference app's OpenAPI spec and `app/validate.ts`, and its Ruby SDK | **LANDED 2026-09-06**, on the component road 2026-09-14: 9 checks, the reference's own 20 tests green |
+| [`rb-solar`](rb-solar/) | Ruby on Rails 8, SQLite, Hotwire: the Solar System API (Planet, Moon) and a human UI over the same data | [voxgig-sdk/voxgig-solardemo-sdk](https://github.com/voxgig-sdk/voxgig-solardemo-sdk), which supplies the OpenAPI description, the validation script and the Ruby SDK | nine checks, including the reference's own twenty tests |
 
 ## Running
 

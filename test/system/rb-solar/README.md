@@ -84,6 +84,7 @@ Rails scaffold files. Directories can contain both kinds.
 ```tree
 app/                                      Rails application root
 ├── Gemfile                               [H] dependencies
+├── Gemfile.lock                          [H] the resolved gem set, pinned
 ├── Rakefile                              [H] Rails tasks
 ├── config.ru                             [H] Rack entry point
 ├── bin/                                  [H] Rails and development commands
@@ -252,7 +253,7 @@ Mermaid renderer draws the diagram:
 | `erd.mmd` | the ER diagram: a Mermaid file whose marker is `%%-` |
 | `views.aon` | the four ERB pages, in canonical aontu |
 
-`views.aon` is the exception, and the reason is a limit worth knowing:
+`views.aon` is the exception, for a reason in ERB rather than here:
 ERB's only comment is `<%# … %>`, a delimited form closing `%>`, and
 the template surface's block marker is fixed to the C family (`/*-` …
 `*/`). No marker an ERB file can carry is one ERB itself ignores, so a
@@ -369,10 +370,10 @@ That is the state the check exists to make visible in the next check.
 An agent can edit a generated file without updating its model or
 generator. Run the checks to detect that mismatch:
 
-- **Changed generated files are identified.** The byte gate answers
-  "did anything I touched belong to the model" in one command, over the
-  whole tree. No reviewer has to hold the generated
-  set in their head.
+- **Changed generated files are identified.** The byte gate answers, in
+  one command and over the whole tree, whether an edit landed on a file
+  the model owns. No reviewer has to hold the generated set in their
+  head.
 - **The fix is mechanical.** Drift on a generated file means one of the
   three answers above, and the diff shows which: a hand edit that the
   generator would also have written is a model change waiting to be

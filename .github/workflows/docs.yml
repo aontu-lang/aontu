@@ -24,6 +24,9 @@ on:
     paths:
       - 'docs/**'
       - 'use-cases/*/README.md'
+      - 'test/system/README.md'
+      - 'test/system/*/README.md'
+      - 'test/system/*/doc/*.md'
       - 'README.md'
       - 'ts/README.md'
       - 'ts/scripts/gated-docs.cjs'
@@ -34,6 +37,9 @@ on:
     paths:
       - 'docs/**'
       - 'use-cases/*/README.md'
+      - 'test/system/README.md'
+      - 'test/system/*/README.md'
+      - 'test/system/*/doc/*.md'
       - 'README.md'
       - 'ts/README.md'
       - 'ts/scripts/gated-docs.cjs'

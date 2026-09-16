@@ -1,9 +1,8 @@
 // Aontu — published grammar (lark), for constrained decoding.
 //
-// G7 phase 6, docs/capability-review/g7-machine-access.md. The same
-// rules as grammar/aontu.gbnf, for the other consumer: keep the two in
-// step, and note that ts/test/grammar.test.ts checks that every rule
-// named there is named here.
+// The same rules as grammar/aontu.gbnf, for the other consumer: keep
+// the two in step, and note that ts/test/grammar.test.ts checks that
+// every rule named there is named here.
 //
 // The gbnf file is the one the parity test INTERPRETS against the
 // shared suite's canonical output; this file is its transcription, so
@@ -15,16 +14,9 @@
 
 root: value
 
-// No pipe. `|>` was parse-time sugar (G8 phase 4); ADR-018 removed it,
-// `x |> f(a)` being written `f(x, a)`.
-//
-// That ADR says "the operator from both grammars", and both kept it
-// anyway — the engine, the suite, the error code and the docs were
-// done, these two files were not. Nothing caught it: a rule nothing
-// derives never matches, so every canon still parsed and every test
-// stayed green while the grammars offered a spelling the parser
-// refuses with `aontu/unexpected`. Fixed before the next release, so
-// no published grammar ever disagreed with its engine.
+// No pipe. `|>` is not in the language; `x |> f(a)` is written
+// `f(x, a)`. The engine refuses the old spelling with
+// `aontu/unexpected`, and all three published grammars agree with it.
 value: disjunct
 
 disjunct: conjunct ("|" conjunct)*
