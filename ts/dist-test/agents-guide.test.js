@@ -58,8 +58,12 @@ function words(md) {
     });
     (0, node_test_1.test)('claude-md-is-the-same-file', () => {
         const claude = Path.join(REPO, 'CLAUDE.md');
-        Assert.ok(Fs.lstatSync(claude).isSymbolicLink(), 'CLAUDE.md must be a symlink to AGENTS.md, not a second copy');
-        Assert.equal(Fs.readlinkSync(claude), 'AGENTS.md');
+        const target = Fs.lstatSync(claude).isSymbolicLink() ?
+            Fs.readlinkSync(claude) :
+            Fs.readFileSync(claude, 'utf8').trim();
+        Assert.equal(target, 'AGENTS.md', 'CLAUDE.md must be a link to AGENTS.md, not a second copy. A '
+            + 'checkout without symlink support writes the target as the '
+            + 'contents, which is still one file and passes here.');
     });
     (0, node_test_1.test)('every-link-resolves', () => {
         const md = Fs.readFileSync(Path.join(REPO, 'AGENTS.md'), 'utf8');
