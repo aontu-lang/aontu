@@ -14,7 +14,7 @@ import {
   storeDir, downloadedCanon, relPathError, archiveOverCaps, ARCHIVE_LIMITS, pkgManifest, vendorCopy,
 } from '../dist/pkg'
 import type { Archive } from '../dist/pkg'
-import { zipCanonical, unzipCanonical, sha256Hex } from '../dist/pkg-zip'
+import { zipCanonical, unzipCanonical, sha256Hex, cmpBytes } from '../dist/pkg-zip'
 import { cacheStoreDir, cacheDownloadDir } from '../dist/mod'
 import { compatOutcome } from '../dist/compat'
 
@@ -120,6 +120,7 @@ describe('pkg-zip', () => {
     Assert.equal(new TextDecoder().decode(back[1].data), 'b: 2\n')
     // The empty archive is a real archive.
     Assert.deepEqual(unzipCanonical(zipCanonical([])), [])
+    Assert.deepEqual([cmpBytes('a', 'b'), cmpBytes('b', 'a'), cmpBytes('a', 'a')], [-1, 1, 0])
 
     // Ported from the Go suite: entries out of order, a data run that
     // overruns the directory, and bytes between the last entry and the

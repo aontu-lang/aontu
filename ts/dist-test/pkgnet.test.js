@@ -1426,14 +1426,16 @@ function lockOf(app) {
         });
         fresh();
         Assert.match((await run(w, http, 'sync', [app])).out, /refused: module_integrity: corp.example\/service 1.4.2 means nothing \(it does not evaluate\)/);
-        // Hand-vendored packages that depend on each other: why walks the
-        // cycle once.
+        // Hand-vendored packages that depend on each other, and one that
+        // names a package the lock lacks: why walks the cycle once and the
+        // unlocked edge leads nowhere.
         const cyc = Path.join(w.dir, 'cyc');
         const entry = (canon) => '{"archive":"sha256:' + '0'.repeat(64) + '","canon":"' + canon + '","v":"1.0.0"}';
         write(cyc, {
             'pkg.aon': 'pkg: {path: "corp.example/app"}\ndep: {"corp.example/a": {v: "1.0.0"}}\n',
             'main.aon': 'x: 1\n',
-            'aontu_meta/vendor/corp.example/a/pkg.aon': 'pkg: {path: "corp.example/a", version: "1.0.0", main: "main.aon"}\ndep: {"corp.example/b": {v: "1.0.0"}}\n',
+            'aontu_meta/vendor/corp.example/a/pkg.aon': 'pkg: {path: "corp.example/a", version: "1.0.0", main: "main.aon"}\n' +
+                'dep: {"corp.example/b": {v: "1.0.0"}, "corp.example/c": {v: "1.0.0"}}\n',
             'aontu_meta/vendor/corp.example/a/main.aon': 'a: 1\n',
             'aontu_meta/vendor/corp.example/b/pkg.aon': 'pkg: {path: "corp.example/b", version: "1.0.0", main: "main.aon"}\ndep: {"corp.example/a": {v: "1.0.0"}}\n',
             'aontu_meta/vendor/corp.example/b/main.aon': 'b: 1\n',

@@ -129,6 +129,7 @@ function withCache(dir, fn) {
         Assert.equal(new TextDecoder().decode(back[1].data), 'b: 2\n');
         // The empty archive is a real archive.
         Assert.deepEqual((0, pkg_zip_1.unzipCanonical)((0, pkg_zip_1.zipCanonical)([])), []);
+        Assert.deepEqual([(0, pkg_zip_1.cmpBytes)('a', 'b'), (0, pkg_zip_1.cmpBytes)('b', 'a'), (0, pkg_zip_1.cmpBytes)('a', 'a')], [-1, 1, 0]);
         // Ported from the Go suite: entries out of order, a data run that
         // overruns the directory, and bytes between the last entry and the
         // directory.
