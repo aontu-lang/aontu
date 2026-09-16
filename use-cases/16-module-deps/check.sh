@@ -224,9 +224,9 @@ has_cycle="$(grep -c '(cycle)' "$WORK/diagram-tree-cycle.txt")"
 ok "the tree of a cyclic model terminates, marking the closing edge"
 
 # 13. The model answers ordinary queries about itself.
-run get 0 -- get '$.mods.http.layer' "$DIR/model.aon"
+run get 0 -- model get '$.mods.http.layer' "$DIR/model.aon"
 has get out '"core"'
-run getdir 0 -- get '$.mods.store.dir' "$DIR/model.aon"
+run getdir 0 -- model get '$.mods.store.dir' "$DIR/model.aon"
 has getdir out '"core/store"'
 ok "get: layer and directory read straight off the model"
 

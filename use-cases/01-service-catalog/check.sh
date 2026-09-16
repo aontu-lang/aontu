@@ -59,13 +59,13 @@ ok "relations: dependsOn acyclic + dependedOnBy inverse both hold"
 # DEPLOY position is the merged one: the reference runs catalog ->
 # deploy, so a workload carries the org facts as well as its own,
 # while the catalog entry keeps only what the catalog states.
-run slice 0 -- get '$.deploy.regions.eu1.clusters.core.workloads.payments' \
+run slice 0 -- model get '$.deploy.regions.eu1.clusters.core.workloads.payments' \
   "$DIR/system.aon"
 diff -u "$DIR/expected/payments-slice.json" "$WORK/slice.out" \
   || fail "payments slice drifted"
 ok "get: the deploy slice carries the catalog facts it references"
 
-run keys 0 -- get '$.deploy.regions.eu1.clusters.core.workloads' \
+run keys 0 -- model get '$.deploy.regions.eu1.clusters.core.workloads' \
   --keys "$DIR/system.aon"
 diff -u "$DIR/expected/eu1-core-keys.txt" "$WORK/keys.out" \
   || fail "eu1/core workload keys drifted"
@@ -73,7 +73,7 @@ ok "get --keys: eu1/core runs the expected five workloads"
 
 # 5. Provenance across the two views. A workload's own field names
 # the deploy.aon site that wrote it...
-run why1 0 -- why \
+run why1 0 -- model why \
   '$.deploy.regions.eu1.clusters.core.workloads.payments.replicas' \
   "$DIR/system.aon"
 has why1 out 'deploy.aon:'
@@ -84,7 +84,7 @@ ok "why: a workload's replicas is traced to deploy.aon"
 # is gone (the review's finding E). A reference resolves by CLONING,
 # and a clone of a written value IS that written value somewhere else,
 # so the contribution is named at the line an author wrote.
-run why2 0 -- why \
+run why2 0 -- model why \
   '$.deploy.regions.eu1.clusters.core.workloads.payments.tier' \
   "$DIR/system.aon"
 grep -q 'no contributions' "$WORK/why2.out" \
@@ -92,10 +92,10 @@ grep -q 'no contributions' "$WORK/why2.out" \
 ok "why: a referenced field carries its provenance to the deploy view"
 
 # 6. Instance-of queries over the hand-built flat index.
-run tier1 0 -- get '$.query.tier1' --keys "$DIR/queries/queries.aon"
+run tier1 0 -- model get '$.query.tier1' --keys "$DIR/queries/queries.aon"
 diff -u "$DIR/expected/tier1-keys.txt" "$WORK/tier1.out" \
   || fail "tier1 query drifted"
-run exper 0 -- get '$.query.experimental' --keys "$DIR/queries/queries.aon"
+run exper 0 -- model get '$.query.experimental' --keys "$DIR/queries/queries.aon"
 diff -u "$DIR/expected/experimental-keys.txt" "$WORK/exper.out" \
   || fail "experimental query drifted"
 ok "queries: tier-1 and experimental instance sets are right"
@@ -187,7 +187,7 @@ ok "vet --closed: bad owner, short description, misspelled key all caught"
 run onboard 0 -- "$DIR/proposals/onboard-webhooks.aon"
 run onbrel 0 -- relations "$DIR/proposals/onboard-webhooks.aon"
 has onbrel out 'verdict: pass'
-run onbget 0 -- get '$.catalog.domains.platform.services.webhooks' "$DIR/proposals/onboard-webhooks.aon"
+run onbget 0 -- model get '$.catalog.domains.platform.services.webhooks' "$DIR/proposals/onboard-webhooks.aon"
 diff -u "$DIR/expected/webhooks-proposal.json" "$WORK/onbget.out" \
   || fail "onboarded webhooks entity drifted"
 ok "proposal: candidate JSON joins the model and relations still pass"

@@ -68,10 +68,10 @@ CHECK="node $ROOT/tools/cmptree-check.js"
 tree() {
   case "$1" in
     erd) $AONTU template --marker '%%-' "$DIR/gen/erd.mmd" > "$WORK/$1.aon" \
-           && $AONTU get out "$WORK/$1.aon" 2>/dev/null ;;
-    views) $AONTU get out "$DIR/gen/views.aon" 2>/dev/null ;;
+           && $AONTU model get out "$WORK/$1.aon" 2>/dev/null ;;
+    views) $AONTU model get out "$DIR/gen/views.aon" 2>/dev/null ;;
     *) $AONTU template "$DIR/gen/$1.rb" > "$WORK/$1.aon" \
-         && $AONTU get out "$WORK/$1.aon" 2>/dev/null ;;
+         && $AONTU model get out "$WORK/$1.aon" 2>/dev/null ;;
   esac
 }
 

@@ -229,13 +229,13 @@ ok "ranked defaults: *member beats **viewer"
 
 # ------------------------------------------------------------ queries
 # 24. get: the derived per-plan limits.
-run limits 0 -- get '$.tenant.limits' "$DIR/example.aon"
+run limits 0 -- model get '$.tenant.limits' "$DIR/example.aon"
 diff -u "$DIR/expected/limits.json" "$WORK/limits.out" \
   || fail "get \$.tenant.limits drifted from expected/limits.json"
 ok "get: match()-derived limits for the free plan"
 
 # 25. why: provenance of the derived support tier names the match().
-run why 0 -- why '$.tenant.supportTier' "$DIR/example.aon"
+run why 0 -- model why '$.tenant.supportTier' "$DIR/example.aon"
 has why out '$.tenant.supportTier = "community"'
 has why out 'match(.plan'
 ok "why: supportTier provenance points at the match() in tenant.aon"

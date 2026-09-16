@@ -889,8 +889,8 @@ async function pkgSync(root, options, http, args = {}) {
         }
         report.vendored.push(key);
     }
-    // What the closure no longer holds is pruned once the lock may
-    // change: a frozen sync that refuses leaves the locked build whole.
+    // Pruning waits for the lock to be writable: a frozen sync that
+    // refuses leaves the locked build whole.
     const prune = () => {
         for (const key of Object.keys(previous)) {
             if (null == selected[key] && (0, pkg_1.usableKey)(key)) {

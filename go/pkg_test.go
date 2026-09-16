@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -174,15 +175,20 @@ func TestArchiveOfSkipsMetaAndNamesTheForbidden(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// Windows has no execute bit, so the executable is an ordinary file there.
+	wantFiles, wantForbidden := "[main.aon pkg.aon sub/ok.aon]", "[exec.aon link.aon sub/.hidden/ sub/run.sh]"
+	if "windows" == runtime.GOOS {
+		wantFiles, wantForbidden = "[exec.aon main.aon pkg.aon sub/ok.aon]", "[link.aon sub/.hidden/ sub/run.sh]"
+	}
 	a := ArchiveOf(dir)
 	paths := []string{}
 	for _, f := range a.Files {
 		paths = append(paths, f.Path)
 	}
-	if fmt.Sprint(paths) != "[main.aon pkg.aon sub/ok.aon]" {
+	if fmt.Sprint(paths) != wantFiles {
 		t.Fatalf("files %v", paths)
 	}
-	if fmt.Sprint(a.Forbidden) != "[exec.aon link.aon sub/.hidden/ sub/run.sh]" {
+	if fmt.Sprint(a.Forbidden) != wantForbidden {
 		t.Fatalf("forbidden %v", a.Forbidden)
 	}
 	if a.Size != len(a.Zip) || 5 != a.Files[0].Size || Sha256Hex([]byte("a: 1\n")) != a.Files[0].Digest {

@@ -69,10 +69,10 @@ diff -u "$DIR/expected/contract.canon" "$WORK/canon.out" \
   || fail "canonical form drifted from expected/contract.canon"
 ok "--canon: the ground-truth serialization is stable (constraints kept)"
 
-run inv 0 -- get '$.api' "$DIR/contract.aon"
+run inv 0 -- model get '$.api' "$DIR/contract.aon"
 diff -u "$DIR/expected/api-inventory.json" "$WORK/inv.out" \
   || fail "endpoint inventory drifted"
-run ep 0 -- get '$.api.create_user' "$DIR/contract.aon"
+run ep 0 -- model get '$.api.create_user' "$DIR/contract.aon"
 diff -u "$DIR/expected/create-user-endpoint.json" "$WORK/ep.out" \
   || fail "create_user endpoint slice drifted"
 ok "get: concrete endpoint inventory (type()-marked schemas omitted)"
@@ -80,7 +80,7 @@ ok "get: concrete endpoint inventory (type()-marked schemas omitted)"
 # The inventory LOSES the response status codes (type()-marked values
 # vanish wholesale: "responses": {}); get --keys recovers them.
 has inv out '"responses": {}'
-run rkeys 0 -- get '$.api.create_user.responses' --keys "$DIR/contract.aon"
+run rkeys 0 -- model get '$.api.create_user.responses' --keys "$DIR/contract.aon"
 diff -u "$DIR/expected/responses-keys.txt" "$WORK/rkeys.out" \
   || fail "response status codes drifted"
 ok "get --keys: status codes 201/400/409 recovered (invisible in JSON view)"
@@ -95,7 +95,7 @@ ok "hash + agentsmd: identity pin and agent-onboarding stanza"
 
 # Provenance for agent context: why traces a wire field to its source
 # file (correct attribution -- contrast the vet schema sites below).
-run why 0 -- why '$.msg.CreateUserRequest.email' "$DIR/contract.aon"
+run why 0 -- model why '$.msg.CreateUserRequest.email' "$DIR/contract.aon"
 has why out 'messages.aon:'
 ok "why: email requirement traced to its defining file"
 
@@ -218,7 +218,7 @@ ok "repair loop A: clamp from expected + enum from schema site -> valid"
 # the agent must fetch the declared keys itself and nearest-match.
 run vsjson 1 -- vet --at '$.msg.CreateUserRequest' --format json \
   "$DIR/contract.aon" "$DIR/data/create-user-surplus.json"
-run keys 0 -- get '$.msg.CreateUserRequest' --keys "$DIR/contract.aon"
+run keys 0 -- model get '$.msg.CreateUserRequest' --keys "$DIR/contract.aon"
 python3 "$DIR/repair.py" \
   --candidate "$DIR/data/create-user-surplus.json" \
   --findings "$WORK/vsjson.out" --out "$WORK/surplus-repaired.json" \

@@ -217,9 +217,13 @@ describe('pkg-archive', () => {
     Fs.writeFileSync(Path.join(dir, 'exec.aon'), 'e: 1\n', { mode: 0o755 })
     Fs.symlinkSync(Path.join(dir, 'main.aon'), Path.join(dir, 'link.aon'))
 
+    // Windows has no execute bit, so the executable is an ordinary file there.
+    const windows = 'win32' === process.platform
     const a = archiveOf(dir)
-    Assert.deepEqual(a.files.map((f) => f.path), ['main.aon', 'pkg.aon', 'sub/ok.aon'])
-    Assert.deepEqual(a.forbidden, ['exec.aon', 'link.aon', 'sub/.hidden/', 'sub/run.sh'])
+    Assert.deepEqual(a.files.map((f) => f.path),
+      windows ? ['exec.aon', 'main.aon', 'pkg.aon', 'sub/ok.aon'] : ['main.aon', 'pkg.aon', 'sub/ok.aon'])
+    Assert.deepEqual(a.forbidden,
+      windows ? ['link.aon', 'sub/.hidden/', 'sub/run.sh'] : ['exec.aon', 'link.aon', 'sub/.hidden/', 'sub/run.sh'])
     Assert.equal(a.size, a.zip.length)
     Assert.equal(a.files[0].size, 5)
     Assert.equal(a.files[0].digest, sha256Hex(new TextEncoder().encode('a: 1\n')))

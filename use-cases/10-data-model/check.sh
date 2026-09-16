@@ -39,14 +39,14 @@ diff -u "$DIR/expected/seed.json" "$WORK/seed.out" \
 ok "seed.aon evaluates to the golden fixture set (defaults filled, ids checked)"
 
 # 2. Exact money survives canon; generation renders plain digits.
-run canon 0 -- get '$.pricing.bundles' --canon "$DIR/seed.aon"
+run canon 0 -- model get '$.pricing.bundles' --canon "$DIR/seed.aon"
 diff -u "$DIR/expected/bundles-canon.txt" "$WORK/canon.out" \
   || fail "canonical bundle prices drifted"
 ok "canon keeps 0d exact-decimal money (0d0.3, 0d69.89)"
 
-run exact 0 -- get '$.reconcile.exactPath' --canon "$DIR/seed.aon"
+run exact 0 -- model get '$.reconcile.exactPath' --canon "$DIR/seed.aon"
 has exact '0d0.3'
-run exactgen 0 -- get '$.reconcile.exactPath' "$DIR/seed.aon"
+run exactgen 0 -- model get '$.reconcile.exactPath' "$DIR/seed.aon"
 has exactgen '0.3'
 ok "0d0.1 + 0d0.2 is exactly 0d0.3 (the pin in seed.aon holds)"
 
@@ -97,7 +97,7 @@ ok "ledgerId: integer refuses the 0d id -- the kind trap is real"
 
 # ...and the domain's two-leaf disjunction admits it (part of the
 # batch vet above), while canon keeps it exact:
-run bigid 0 -- get '$.customers.cust-1003.ledgerId' --canon "$DIR/data/customer-bigid.aon"
+run bigid 0 -- model get '$.customers.cust-1003.ledgerId' --canon "$DIR/data/customer-bigid.aon"
 has bigid '0d9007199254740993'
 ok "integer|biginteger admits the id; canon keeps it exact"
 
@@ -278,7 +278,7 @@ ok "the wire<->exact conversion, its sign, its scale and its VAT all pin"
 # where it used to be the bundled profile's acronym set. That is the
 # cost of the decision, and this is where the corpus pays it.
 CMP="node $REPO/tools/cmptree-check.js"
-xtree() { $AONTU get out "$1" 2>/dev/null; }
+xtree() { $AONTU model get out "$1" 2>/dev/null; }
 jostraca=0
 xtree "$DIR/xf-domain.aon" | $CMP --folder "$DIR/expected/render" \
   >/dev/null 2>&1 || jostraca=$?
@@ -310,9 +310,9 @@ if command -v go >/dev/null 2>&1; then
   (cd "$REPO/go" && go build -o "$GOBIN" ./cmd/aontu) \
     || fail "could not build the Go CLI"
   for x in xf-domain xf-order; do
-    "$GOBIN" get out "$DIR/$x.aon" 2>/dev/null > "$WORK/$x.go.json" \
+    "$GOBIN" model get out "$DIR/$x.aon" 2>/dev/null > "$WORK/$x.go.json" \
       || fail "the Go port did not build $x.aon's tree"
-    $AONTU get out "$DIR/$x.aon" 2>/dev/null > "$WORK/$x.ts.json"
+    $AONTU model get out "$DIR/$x.aon" 2>/dev/null > "$WORK/$x.ts.json"
     diff -u "$WORK/$x.ts.json" "$WORK/$x.go.json" \
       || fail "$x.aon: the two ports build different trees (ADR-001)"
   done

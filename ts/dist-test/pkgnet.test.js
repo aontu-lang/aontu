@@ -1252,9 +1252,9 @@ function lockOf(app) {
         Assert.equal((await run(w, http, 'sync', [app])).code, 0);
         const seen = (0, mod_1.cacheSeenDir)(Path.join(w.cache, 'aontu', 'pkg'), 'corp.example/service');
         Assert.deepEqual(Fs.readdirSync(seen).sort(), ['1.4.2.aon', '1.4.3.aon']);
-        // 1.4.3 leaves the list with nothing in its place: a rollback,
-        // though this client never took it. A held closure asks nothing,
-        // so a consumer that must fetch is the one that notices.
+        // A version dropped from the list with nothing in its place is a
+        // rollback, though this client never took it. A held closure asks
+        // nothing, so a consumer that must fetch is the one that notices.
         const listFile = Path.join(at(w, 'service'), 'list');
         const list = readJson(listFile);
         Fs.writeFileSync(listFile, JSON.stringify({
@@ -1298,8 +1298,8 @@ function lockOf(app) {
         Assert.ok(Fs.existsSync(otherDir));
         Assert.equal((await run(w, http, 'sync', [pair])).code, 0);
         Assert.ok(!Fs.existsSync(otherDir));
-        // An alias retargeted at the same version fetches the new package
-        // rather than reusing the old tree.
+        // An alias retargeted at the same version fetches its target
+        // rather than reusing the tree it had.
         const alias = Path.join(w.dir, 'alias-app');
         write(alias, {
             'pkg.aon': 'pkg: {path: "corp.example/app"}\ndep: {"alias:svc": {v: "1.4.2", pkg: "corp.example/service"}}\n' + REPO_BLOCK,
@@ -1362,7 +1362,8 @@ function lockOf(app) {
         Assert.equal(c2.code, 0, c2.out);
         const s1 = await publish(w, await publisherWith(w, 'service', '1.0.0', '@"corp.example/common"\nname: string\n', '"corp.example/common": {v: "1.0.0"}'));
         Assert.equal(s1.code, 0, s1.out);
-        // 1.2.0 also names common through an alias, as a consumer may.
+        // The later service names common through an alias too, as a
+        // consumer may.
         const s2 = await publish(w, await publisherWith(w, 'service', '1.2.0', '@"corp.example/common"\nname: string\n', '"corp.example/common": {v: "1.2.0"}, "alias:c": {v: "1.2.0", pkg: "corp.example/common"}'));
         Assert.equal(s2.code, 0, s2.out);
         const app = consumer(w, '"corp.example/service": {v: "1.0.0"}, "alias:b": {v: "1.0.0", pkg: "corp.example/base"}');
@@ -1425,8 +1426,8 @@ function lockOf(app) {
         });
         fresh();
         Assert.match((await run(w, http, 'sync', [app])).out, /refused: module_integrity: corp.example\/service 1.4.2 means nothing \(it does not evaluate\)/);
-        // Two hand-vendored packages that depend on each other: why walks
-        // the cycle once.
+        // Hand-vendored packages that depend on each other: why walks the
+        // cycle once.
         const cyc = Path.join(w.dir, 'cyc');
         const entry = (canon) => '{"archive":"sha256:' + '0'.repeat(64) + '","canon":"' + canon + '","v":"1.0.0"}';
         write(cyc, {
