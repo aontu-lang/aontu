@@ -73,7 +73,7 @@ function sarifReport(report: VetReport, version: string): string {
       results: report.findings.map(sarifResult),
       tool: {
         driver: {
-          informationUri: 'https://github.com/rjrodger/aontu',
+          informationUri: 'https://github.com/aontu-lang/aontu',
           name: 'aontu',
           version,
         },

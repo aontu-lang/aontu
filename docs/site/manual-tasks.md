@@ -263,7 +263,7 @@ badge:
 
 | Where | What it says | Why it still stands |
 |---|---|---|
-| `ts/src/report-sarif.ts`, `go/report_sarif.go` | `informationUri: "https://github.com/rjrodger/aontu"` | A published wire identifier, in every SARIF the vet verb has ever emitted, held byte-identical across the two ports by the golden `test/spec/files/vet-sarif/expect.sarif`. Changing it means all three files plus a rebuild of the committed `ts/dist` — a deliberate edit, not a sweep. |
+| `ts/src/report-sarif.ts`, `go/report_sarif.go` | `informationUri: "https://github.com/aontu-lang/aontu"` | A published wire identifier, in every SARIF the vet verb has ever emitted, held byte-identical across the two ports by the golden `test/spec/files/vet-sarif/expect.sarif`. Changing it means all three files plus a rebuild of the committed `ts/dist` — a deliberate edit, not a sweep. |
 | `ts/src/mod-tool.ts`, `go/modtool.go` | the OCI annotation keys `com.github.rjrodger.aontu.canon` and `.major` | Also published wire format, and reasoned about: OCI asks a custom key to be the reverse DNS of a domain its author controls, and the register records the choice as a deliberate departure ("Departures recorded by G6.4", item 2). aontu.dev being live now weakens the reason given there, which is what makes moving them an ADR rather than a sweep. |
 | `editors/vscode/package.json` | `"publisher": "rjrodger"` | A Marketplace account identity, not a URL. It changes when the account does, and not before. |
 | `vet-action/action.yml` | `author: 'rjrodger'` | A person. Correct as it stands. |
