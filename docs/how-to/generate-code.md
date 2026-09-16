@@ -1,5 +1,5 @@
 ---
-description: "Generate target-language source from a model: a rule set over the records, a component tree of files and lines, and a generator runtime to write the bytes and hold them against their goldens."
+description: "Generate target-language source from a model: a rule set over the records, a component tree of files and lines, and `aontu render` to write the bytes and hold them against their goldens."
 group: schemas
 order: 80
 ---
@@ -157,27 +157,35 @@ in what order, and each one carries its own text.
 
 ## Write the files, and hold them
 
-A **generator runtime** turns the tree into bytes.
-[jostraca](https://github.com/jostraca/jostraca) reads this shape
-directly (`Project`, `Folder`, `File`, `Line` and the rest are its
-components), and `tools/cmptree-check.js` in this repository is the
-seam: it reads the tree on standard input and hands it over.
+[`aontu render`](../reference-api.md#aontu-render) hands the tree to
+[jostraca](https://github.com/jostraca/jostraca), the generator runtime,
+which writes it: `Project`, `Folder`, `File`, `Line` and the rest are
+its components, and it is a dependency of both implementations. This
+tree is one file, so the path names the file:
 
-<!-- test: skip the byte gate needs jostraca installed -->
+<!-- test: run -->
 ```sh
-$ aontu model get $.out types.aon | node tools/cmptree-check.js --out gen
-$ aontu model get $.out types.aon | node tools/cmptree-check.js --folder gen
+$ aontu render types.aon gen/types.go
 ```
 
-`--out` writes the tree below `gen/`; `--folder` writes nothing and
-compares, exiting 1 on drift and naming the files that differ. That is
-the CI form. Commit the generated files beside the model and run the
-comparison in CI; a hand edit to a generated file is then a red build
-rather than a quiet divergence from the model.
+`gen/types.go` is on disk. `--check` writes nothing and compares,
+exiting 1 on drift and naming the files that differ:
 
-The seam is a **pipe** on purpose: nothing in `ts/src` or `go/` depends
-on the runtime, so the tree is checkable without it and the byte gate
-skips where it is not installed.
+<!-- test: run -->
+```sh
+$ aontu render --check types.aon gen/types.go
+```
+
+That is the CI form. Commit the generated files beside the model and
+run the comparison in CI; a hand edit to a generated file is then a red
+build rather than a silent divergence from the model. A project written
+in several languages is a folder of generators, one file per language,
+and `aontu render gen/ app` writes every generator directly in `gen/`
+as one run, with one `--check` for the set.
+
+Nothing in aontu walks the tree to disk. The value is checkable
+without a runtime (`aontu model get` above), and the runtime writes
+the bytes, so what a user gets is what the check held.
 
 ## Ask what wrote a line
 
@@ -258,6 +266,13 @@ Order.go	$.1.children.3	$.records.1	#0
 The rule is `#0` with no name, because the table is written inline at
 the call rather than bound to a `%name`.
 
+A list of files is written below the path:
+
+<!-- test: run -->
+```sh
+$ aontu render struct.go gen
+```
+
 Three things follow from writing it this way:
 
 - **The output lines are the target's, at their own indentation.**
@@ -303,6 +318,8 @@ of a broken identifier at emit time.
 
 ## Related
 
+- [`aontu render`](../reference-api.md#aontu-render). The verb that
+  writes the tree, and its `--check`.
 - [`aontu trace`](../reference-api.md#aontu-trace). What wrote a line:
   the file, the model node and the rule.
 - [Transforming: `emit`](../reference-language.md#transforming-emit).

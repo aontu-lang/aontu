@@ -5,12 +5,13 @@
 # COMPONENT TREE that an engine turns into files. Nothing here
 # assembles text: each generator is a rule set (`emit`) whose `line`
 # nodes carry the target's own text, `all.aon` answers the three files
-# as one tree, and the goldens under expected/ are held by handing that
-# tree to jostraca. This script proves the output is REAL -- the Go
-# compiles, the SQL parses -- and that both ports build the same tree.
+# as one tree, and `aontu render` writes it through jostraca and holds
+# the goldens under expected/ to it. This script proves the output is
+# REAL -- the Go compiles, the SQL parses -- and that both ports build
+# the same tree.
 #
-# Runnable from any cwd. `go` and `jostraca` are both optional -- the
-# checks that need either skip with a note.
+# Runnable from any cwd. `go` is optional -- the checks that need it
+# skip with a note.
 set -euo pipefail
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -25,15 +26,13 @@ fail() { echo "FAIL: $1" >&2; exit 1; }
 ok() { pass=$((pass + 1)); echo "ok $pass - $1"; }
 skip() { pass=$((pass + 1)); echo "ok $pass - $1 # SKIP"; }
 
-# THE TREE IS THE HAND-OFF and jostraca writes the files: the seam is a
-# pipe, so `tools/cmptree-check.js` requires jostraca at RUN time and
-# exits 3 when it is absent. Every check below that needs BYTES skips
-# with a note in that case, rather than failing where it is not
-# installed -- the same rule the Go and SQL checks already follow.
+# THE BYTES ARE JOSTRACA'S: `aontu render` hands the tree to the
+# generator runtime, which writes it, and `--check` holds the goldens
+# to what it writes.
 tree() { $AONTU model get out --trust root "$DIR/all.aon" 2>/dev/null; }
-CMP="node $REPO/tools/cmptree-check.js"
-jostraca=0
-tree | $CMP --out "$WORK/out" >/dev/null 2>&1 || jostraca=$?
+RENDER="$AONTU render --trust root"
+$RENDER "$DIR/all.aon" "$WORK/out" >/dev/null 2>&1 \
+  || fail "render did not write the tree"
 
 # ----------------------------------------------------------------
 # 1. ONE RUN, THREE FILES. The document answers the whole tree, and it
@@ -43,23 +42,16 @@ tree | $CMP --out "$WORK/out" >/dev/null 2>&1 || jostraca=$?
   || fail "the tree does not name the three files in order"
 ok "one run, three files: types.go, types.ts and schema.sql"
 
-# 2. THE GOLDENS ARE HELD BY jostraca's `check`: every file's bytes
+# 2. THE GOLDENS ARE HELD BY `render --check`: every file's bytes
 # against expected/<path>, the DO NOT EDIT banner included, since the
 # banner is a line of the file and not one a script prepends.
-if [ "$jostraca" = "3" ]; then
-  skip "the three generated files match their goldens (no jostraca)"
-else
-  tree | $CMP --folder "$DIR/expected" >/dev/null 2>&1 \
-    || fail "a file drifted from expected/"
-  ok "the three generated files match their goldens byte for byte"
-fi
+$RENDER --check "$DIR/all.aon" "$DIR/expected" >/dev/null 2>&1 \
+  || fail "a file drifted from expected/"
+ok "the three generated files match their goldens byte for byte"
 
 # 3. THE OUTPUT IS WRITTEN, and the Go output is REAL Go: it compiles.
 # A generator whose output merely looks right is a generator nobody
 # trusts.
-if [ "$jostraca" = "3" ]; then
-  skip "the generated Go compiles (no jostraca)"
-else
 for f in types.go types.ts schema.sql; do
   cmp -s "$DIR/expected/$f" "$WORK/out/$f" || fail "wrote a different $f"
 done
@@ -82,14 +74,10 @@ else
   skip "the generated Go compiles (no go toolchain)"
   skip "gofmt realigns the output (no go toolchain)"
 fi
-fi
 
 # 5. THE SQL PARSES. The column list is a fold (`join` with `,\n`), so
 # the last column carries no trailing comma, and a real SQL parser
 # accepts the result and creates the tables the model describes.
-if [ "$jostraca" = "3" ]; then
-  skip "the generated SQL parses (no jostraca)"
-else
 python3 - "$WORK/out/schema.sql" <<'PY'
 import sqlite3, sys
 sql = open(sys.argv[1]).read()
@@ -105,7 +93,6 @@ cols = [r[1] for r in con.execute('pragma table_info("order_line")')]
 assert ["id", "customer_id", "total_cents"] == cols, cols
 PY
 ok "the generated SQL PARSES, and creates the tables the model describes"
-fi
 
 # 6. THE SLICES ARE REAL. Change only the `go` names in the model and
 # the Go unit must move while the TypeScript unit must not -- each
@@ -149,32 +136,23 @@ mkdir -p "$WORK/broken"
 cp "$DIR"/gen-*.aon "$DIR/model.aon" "$DIR/all.aon" "$WORK/broken/"
 sed -i.bak 's#"schema.sql"#"../schema.sql"#' "$WORK/broken/gen-sql.aon"
 mkdir -p "$WORK/none"
-if [ "$jostraca" = "3" ]; then
-  skip "a climbing file path is refused (no jostraca)"
-else
-  if $AONTU model get out --trust root "$WORK/broken/all.aon" 2>/dev/null \
-    | $CMP --out "$WORK/none" >"$WORK/broken.err" 2>&1; then
-    fail "a climbing file path was accepted"
-  fi
-  grep -q '\.\.' "$WORK/broken.err" \
-    || fail "the refusal does not name the path: $(cat "$WORK/broken.err")"
-  ok "a climbing file path is refused, and the refusal names it"
+if $RENDER "$WORK/broken/all.aon" "$WORK/none" >"$WORK/broken.err" 2>&1; then
+  fail "a climbing file path was accepted"
 fi
+grep -q '\.\.' "$WORK/broken.err" \
+  || fail "the refusal does not name the path: $(cat "$WORK/broken.err")"
+ok "a climbing file path is refused, and the refusal names it"
 
 # 9. --check IS RED WHEN A GOLDEN IS EDITED, naming the file: the CI
 # form catches a hand edit to a generated file.
 cp -r "$DIR/expected" "$WORK/drift"
 printf '// edited by hand\n' >> "$WORK/drift/types.ts"
-if [ "$jostraca" = "3" ]; then
-  skip "the check is red when a golden is edited (no jostraca)"
-else
-  if tree | $CMP --folder "$WORK/drift" >"$WORK/drift.err" 2>&1; then
-    fail "the check passed an edited golden"
-  fi
-  grep -q 'types.ts' "$WORK/drift.err" \
-    || fail "the check did not name the drifted file: $(cat "$WORK/drift.err")"
-  ok "the check is red when a golden is edited, and names the file"
+if $RENDER --check "$DIR/all.aon" "$WORK/drift" >"$WORK/drift.err" 2>&1; then
+  fail "the check passed an edited golden"
 fi
+grep -q 'types.ts' "$WORK/drift.err" \
+  || fail "the check did not name the drifted file: $(cat "$WORK/drift.err")"
+ok "the check is red when a golden is edited, and names the file"
 
 # 10. THE LOSS REPORT IS GONE, with the fragment algebra that produced
 # it (UNITS-AND-TREES.1.md §6). It graded every fragment as a claim

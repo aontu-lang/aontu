@@ -64,7 +64,7 @@ against the target file's own headings, under GitHub's slug rules.
 
 **A Google rule sitting below error level was tried at error first and
 found wrong for these pages.** `.vale.ini` records what each produced on
-a clean run: 4031 alerts across 79 files. Two of them turn on a reason
+a clean run: 4052 alerts across 79 files. Two of them turn on a reason
 rather than on taste:
 
 - `Google.EmDash` is disabled because its spacing rule is redundant

@@ -66,8 +66,9 @@ capability decision is the phase rows it governed in
 | [ADR-035](#adr-035--a-language-is-configured-in-its-profile-and-a-marker-may-name-its-closer) | A language is configured in its profile, and a marker may name its closer | Superseded in part by [ADR-038](#adr-038--the-component-tree-is-the-only-output-road-and-aontu-knows-no-languages) |
 | [ADR-036](#adr-036--a-bundled-model-is-a-file-in-aontu-not-a-string-in-each-port) | A bundled model is a file in `aontu/`, not a string in each port | Accepted |
 | [ADR-037](#adr-037--two-lists-concatenate-under--and-a-sum-of-an-absence-is-absent) | Two lists concatenate under `+`, and a sum of an absence is absent | Accepted |
-| [ADR-038](#adr-038--the-component-tree-is-the-only-output-road-and-aontu-knows-no-languages) | The component tree is the only output road, and aontu knows no languages | Accepted |
+| [ADR-038](#adr-038--the-component-tree-is-the-only-output-road-and-aontu-knows-no-languages) | The component tree is the only output road, and aontu knows no languages | Amended by [ADR-040](#adr-040--aontu-render-writes-the-component-tree-through-jostraca-in-both-ports) |
 | [ADR-039](#adr-039--the-package-system-has-one-vocabulary-one-set-of-files-and-three-pins) | The package system has one vocabulary, one set of files, and three pins | Accepted |
+| [ADR-040](#adr-040--aontu-render-writes-the-component-tree-through-jostraca-in-both-ports) | `aontu render` writes the component tree through jostraca, in both ports | Accepted |
 
 ---
 
@@ -4057,3 +4058,94 @@ and ADR-024 left them.
 `module_local` and `module_moved`; the `pkg` verbs are held to the
 CLI-parity discipline G2 phase 3 set; the register's G6 and G10 rows
 record what landed under this entry in the commit that lands it.
+
+---
+
+## ADR-040 — `aontu render` writes the component tree through jostraca, in both ports
+
+**Date:** 2026-09-16
+**Status:** Accepted
+
+### Context
+
+[ADR-038](#adr-038--the-component-tree-is-the-only-output-road-and-aontu-knows-no-languages)
+left the component tree as the only output road and moved the seam
+"below both": aontu knows no languages and no files, and a generator
+runtime writes the bytes. What that left a user holding was a pipe,
+`aontu model get out gen.aon | node tools/cmptree-check.js --out .`: a
+script in this repository that requires jostraca at run time, which
+jostraca ships no command of its own to replace. Every consumer wrote
+that script. CI installed the runtime outside the checkout so the byte
+gate would run at all, and until it did, five of eleven checks in
+`15-code-generation` had skipped silently. A model of one value could
+not become one text file without a Node script beside it.
+
+`file`, `folder`, `line` and the other components answer a static
+description of the output, and nothing in either port interprets it:
+jostraca's `cmpTree` reads exactly that shape. The runtime exists in
+both languages, at the same version.
+
+### Decision
+
+**`aontu render <file> <path>` is a verb of both CLIs.** It evaluates
+the generator, a `.aon` document or a template entry read as `trace`
+reads one, takes the tree at `$.out` or `--at`, and hands it to
+jostraca: the npm package in TypeScript, `github.com/jostraca/jostraca/go`
+in Go, pinned at one version, both ordinary dependencies. A tree that
+is one file is written to `<path>` itself unless `<path>` is a
+directory; any other tree is written below `<path>`. `--check` writes
+nothing, compares, and exits 1 on drift. A folder as the generator is a
+set: every regular file directly in it, in name order, and their trees
+are written below `<path>` as one run, so one `--check` holds a project
+written in several languages, and a path two generators claim is
+refused by the runtime.
+
+**aontu does not reimplement jostraca.** Nothing in either port walks
+the tree to disk. `cmpTree` reads the tree, `generate` writes it and
+`check` compares it, in each language, and the pipe and the script are
+gone. The dependency runs in the direction the design note behind
+ADR-038 declined, from the engine's CLI to the runtime, and it is the
+whole of the coupling: the tree's shape is still the contract.
+
+**ADR-038 holds, less one sentence.** The tree is still the only output
+road, and aontu still holds no language knowledge: this entry adds no
+output vocabulary and no table, which is what that entry's enforcement
+bars. The sentence it amends is "aontu knows neither": the engine still
+does not write, and the verb does, through the runtime.
+
+### Consequences
+
+- **Both ports depend on jostraca**, at one pinned version, in
+  `ts/package.json` and `go/go.mod`. A jostraca release is a change to
+  review here, as a `@tabnas` release is.
+- **`docs/trust.md` narrows to the engine.** The library and the MCP
+  surface write nothing; the verb writes, and what the runtime writes
+  beside the files (its `.jostraca/` record) and how it treats a file
+  that already exists are jostraca's contract.
+- **`tools/cmptree-check.js` is deleted**, with the CI steps that
+  installed the runtime outside the checkout. Every byte gate in the
+  corpus is `aontu render --check`.
+- **One defect in the Go runtime is stepped around in the Go CLI.**
+  jostraca-go's `Check` reads nothing under the folder `.`, so that one
+  spelling is passed absolute. The outputs of the two CLIs are the
+  same for every case in the matrix.
+- **The five `render_*` codes stay retired.** The verb raises none of
+  them; a refusal is the document's (exit 4), the runtime's (exit 2),
+  or usage.
+- **No MCP tool.** Writing from an agent session is a trust question
+  this entry does not open.
+
+### Alternatives rejected
+
+**A writer inside aontu for the six components that touch no existing
+file**, refusing `fragment`, `slot`, `inject` and `copyfiles` by name.
+A second, weaker runtime to keep in parity across two languages, and a
+component would then mean one thing to aontu and another to jostraca.
+
+**Keeping the pipe and shipping the script.** A script is not a verb,
+and the runtime it needs is not on the other side of the seam unless
+someone installs it; the skipped checks were the cost.
+
+**A dependency in TypeScript only, and a Go verb that refuses.** The
+Go port of jostraca exists at the same version, so the divergence would
+have been chosen rather than forced.
