@@ -56,6 +56,7 @@ agentic
 allowlist
 aontu's
 APIs
+API's
 arity
 backreferences
 bigdecimal
@@ -104,6 +105,8 @@ enum's
 enums
 env's
 envs
+ERB
+ERB's
 erroring
 evaluable
 evaluator's
@@ -190,6 +193,7 @@ scalar's
 schema's
 scrutinee
 SDKs
+SDK's
 serialiser
 shorter's
 specversion

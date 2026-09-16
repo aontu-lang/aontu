@@ -38,19 +38,20 @@ Three rules follow from the layout:
   reports. Boilerplate the model does not decide is hand-written once
   and is not banner-marked.
 - **The bytes come from the runtime, not from a walker written here.**
-  `aontu render --check` hands each generator's tree to
+  `aontu render --check` hands the generators' trees to
   [jostraca](https://github.com/jostraca/jostraca), a dependency of both
   ports, and holds the committed app to what it writes; a tree checked
   against anything else proves nothing about what a user gets.
-- **The API is the reference's, not ours.** A system implements an
-  existing API and is validated by that API's own script. What is
-  ours is the model, the generator and the framework choice.
+- **The API belongs to the reference, not to this repository.** A system
+  implements an existing API and is validated by that API's own script.
+  The model, the generator and the framework choice are what this
+  repository contributes.
 
 ## Systems
 
 | system | target | reference | status |
 |---|---|---|---|
-| [`rb-solar`](rb-solar/) | Ruby on Rails 8, SQLite, Hotwire: the Solar System API (Planet, Moon) and a human UI over the same data | [voxgig-sdk/voxgig-solardemo-sdk](https://github.com/voxgig-sdk/voxgig-solardemo-sdk): its reference app's OpenAPI spec and `app/validate.ts`, and its Ruby SDK | **LANDED 2026-09-06**, on the component road 2026-09-14: 9 checks, the reference's own 20 tests green |
+| [`rb-solar`](rb-solar/) | Ruby on Rails 8, SQLite, Hotwire: the Solar System API (Planet, Moon) and a human UI over the same data | [voxgig-sdk/voxgig-solardemo-sdk](https://github.com/voxgig-sdk/voxgig-solardemo-sdk), which supplies the OpenAPI description, the validation script and the Ruby SDK | nine checks, including the reference's own twenty tests |
 
 ## Running
 

@@ -38,14 +38,23 @@ drift from the other:
 | Gate | Runs | Checks |
 |---|---|---|
 | `make prose` (Vale) | `.github/workflows/docs.yml` | spelling, Google's conventions, and the banned list, at the levels set in `.vale.ini` |
-| `ts/test/docs.test.ts` | `make test` | the banned list again, the no-em-dash rule, the first-person rules, the exclamation ration, no emoji, no internal-document citations, that every code snippet executes, and that every internal markdown link resolves |
+| `ts/test/docs.test.ts` | `make test` | the banned list again, the no-em-dash rule, the first-person rules, the exclamation ration, no emoji, no internal-document citations, no phase-tracking vocabulary, that every code snippet executes, and that every internal markdown link resolves |
 | `ts/scripts/vale-counts.cjs` | `make prose` | that every count in `.vale.ini`, and the total below, are what Vale reports |
 
 The gated set is the reader-facing one: the Diátaxis pages, the how-to
 guides, the three contributor references that ship under `docs/`, the
-published use cases, and `README.md` and `ts/README.md`. Design
-notes, the capability review, the defect ledgers and the repro corpus are
-working documents, and they are out.
+published use cases, the systems under `test/system/` and their guides,
+and `README.md` and `ts/README.md`. Design notes, the capability review,
+the defect ledgers and the repro corpus are working documents, and they
+are out.
+
+**The systems joined the set late, and what happened meanwhile is the
+argument for the set being one list.** `aontu-lang/web` publishes
+`test/system/<name>/README.md` as `/examples/<name>` and reads this
+directory's own README for the status each card shows, and AGENTS.md
+said the rules reached there. The file list did not, so neither gate
+looked: a status written in the register's vocabulary, dates and all,
+was live on `/examples/` for anyone to read.
 
 **The link check reads more than the gated set.**
 `every-internal-link-resolves` takes every markdown file the repository
@@ -55,8 +64,8 @@ against the target file's own headings, under GitHub's slug rules.
 
 **A Google rule sitting below error level was tried at error first and
 found wrong for these pages.** `.vale.ini` records what each produced on
-a clean run: 3875 alerts across 73 files. Two of them are worth knowing
-about, because the reason is not taste:
+a clean run: 4052 alerts across 79 files. Two of them turn on a reason
+rather than on taste:
 
 - `Google.EmDash` is disabled because its spacing rule is redundant
   under the house ban. The local documentation gate checks prose
@@ -102,7 +111,7 @@ published:
 
 | Set | Files | Audience |
 |---|---|---|
-| Published | `index.md`, `tutorial*.md`, `unification.md`, `reference-*.md`, `trust.md`, `lsp.md`, `use-cases.md`, `how-to/*.md`, the use-case READMEs | anyone using aontu |
+| Published | `index.md`, `tutorial*.md`, `unification.md`, `reference-*.md`, `trust.md`, `lsp.md`, `use-cases.md`, `how-to/*.md`, the use-case READMEs, `test/system/README.md` and each system's README and `doc/*.md` | anyone using aontu |
 | Internal | `ADR.md`, `docs/design/`, `docs/capability-review/`, `DIVERGENCE.md`, `AGENTS.md`, `use-cases/BUGS.md`, `use-cases/REVIEW.md`, `shared-spec.md`, `test-coverage.md`, `release-and-tag.md` | contributors |
 
 **A published page never cites an internal one.** Not as a link, not
@@ -243,6 +252,38 @@ did not happen, do not claim to have noticed it.
 `in today's rapidly evolving` · `reflecting a broader trend` ·
 `marking a significant shift` · `great question`.
 
+The next five categories come from **AiTells**, a Vale package by Krishna
+Sunkam, MIT licensed, at `github.com/krishnasunkam/vale-ai-tells`. They
+are carried as patterns rather than as a package, so `reject.txt` stays
+the one place both repositories read. Each produced zero alerts on the
+gated set and on the built website before it was added, under the Node
+rules and under Vale, and each was checked against a sentence it must
+catch.
+
+**Inflated copulas**: `serves as a/the` · `stands as a` ·
+`represents a significant` · `boasts a`. The copula is carrying weight a
+plain verb should carry. Name what the thing does.
+
+**Cliche**: `in a nutshell` · `low-hanging fruit` · `move the needle` ·
+`thought leader` · `best-in-class` · `state-of-the-art` ·
+`tip of the iceberg` · `win-win` · `secret sauce` ·
+`double-edged sword` · `perfect storm` · `fast-paced world` ·
+`ever-evolving`.
+
+**Vague attribution**: `responsible for` · `duties included` ·
+`in charge of` · `tasked with`. Say what the code does, not what it is
+for.
+
+**Nominalisation: the verb is hiding in the noun**: `conduct`,
+`perform`, `undertake`, `carry out` or `engage in` followed by a noun
+ending `-tion`, `-sion`, `-ment`, `-ance` or `-sis`. Write `analyse`,
+not `conduct an analysis`. `provide` and `make` are NOT in the pattern:
+both are ordinary verbs here, and one of them names a page
+(`provide-defaults.md`).
+
+**Three abstractions where one concrete noun belongs**: three abstract
+nouns in a list, as `clarity, rigor and craft`. Name the concrete thing.
+
 **Requires approval per use.** `honest`, and every form of it, is banned
 differently from the rest. The word is fine English; it is on the list
 because it had become a tic across this project and jostraca alike, where
@@ -264,6 +305,20 @@ Several entries on the source lists are deliberately absent, because they
 name things this project documents. A gate that fires on the subject
 matter is a gate people learn to switch off. Each was measured over the
 gated set before it was left out:
+
+Four AiTells rules are absent for reasons of their own.
+`VirtueHonest` is redundant: `honest(y|ly)?` above bans the stem, which
+is broader than its phrase list. `StatusBracket`, which catches a
+`[RED]`-style grade in prose, cannot be expressed here: both gates wrap
+every line as `\b(?:...)\b`, and a pattern opening with `[` can never
+satisfy that leading word boundary. `CodeToken`, which catches an
+identifier written as prose, needs case to work, and this file is
+matched case-insensitively by design -- so `[A-Z]` also matches
+lowercase and it reported `mapval_required` and `correlation_id` in
+quoted output, ten times over the gated set. Its remaining rules score
+above zero here: `Passive` 1122, `Adverb` 239, `EpigramContrast` 57 and
+`NeverTag` 48, each firing on a construction the house voice uses on
+purpose.
 
 | Not banned | Hits | Because |
 |---|---|---|
@@ -322,7 +377,7 @@ State the input, the check, the result, and any limit on that result.
   English; this is one of the places the house voice wins, and
   `Google.Spelling` is switched off in `.vale.ini` for it. Actual
   misspellings are still caught: `Vale.Spelling` runs at error against
-  `accept.txt`, which names 212 domain terms.
+  `accept.txt`, which names 216 domain terms.
 
 ## Code snippets: every one is tested
 

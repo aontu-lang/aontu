@@ -1027,7 +1027,7 @@ sorted-key order for a map and source order for a list.
 
 The same `_` binds in a `pack` template, a `filter` condition and an
 `emit` body, and it always names the value that construct is working
-on. Two rules are worth knowing:
+on. Two rules govern it:
 
 - **The hole belongs to the nearest enclosing generator.** In
   `pack($.m, {inner: each(_, _)})` the first `_` is the *pack's*
@@ -3391,7 +3391,7 @@ $ aontu version.aon
 }
 ```
 
-Three things about the two string parts are worth knowing:
+The two string parts differ in three ways:
 
 - **Both are checked by grammar, not by pattern.**
   [semver.org 2.0.0](https://semver.org) spells each as dot-separated
@@ -4496,7 +4496,7 @@ have to carry the grammar that produced it for a second meet to mean
 anything, and nothing needs that yet. `aontu:system`'s `Semver` is the
 worked use: see [The `aontu:system` vocabulary](#the-aontusystem-vocabulary).
 
-Four things are worth knowing before writing a grammar:
+Four things govern a grammar:
 
 - **Whitespace is not skipped.** The grammars run here describe strings
   with no spaces in them, so `1 . 2` does not parse as `1.2`.

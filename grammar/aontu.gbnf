@@ -1,9 +1,9 @@
 # Aontu — published grammar (GBNF), for constrained decoding.
 #
-# G7 phase 6, docs/capability-review/g7-machine-access.md. This
-# grammar covers the DOCUMENTED EMISSION SURFACE: what a model should
-# be allowed to write, which is a superset of JSON plus the operators,
-# constraints and marks the language's own canonical form emits.
+# This grammar covers the DOCUMENTED EMISSION SURFACE: what a model
+# should be allowed to write, which is a superset of JSON plus the
+# operators, constraints and marks the language's own canonical form
+# emits.
 #
 # It is CONSERVATIVE BY CONSTRUCTION: it may accept less than the
 # parser does, never more. Two deliberate exclusions:
@@ -21,19 +21,9 @@
 
 root ::= ws value ws
 
-# No pipe. `|>` was parse-time sugar (G8 phase 4); ADR-018 removed it,
-# `x |> f(a)` being written `f(x, a)`.
-#
-# That ADR says "the operator from both grammars", and both kept it
-# anyway — the engine, the suite, the error code and the docs were
-# done, these two files were not. Nothing caught it, and nothing here
-# could have: the parity discipline above runs one way, requiring every
-# canon output to PARSE, so a rule canon never emits is unreachable and
-# a test that only reads this file cannot tell a dead rule from a live
-# one. What it cost was the direction that matters to this file's
-# consumer — a decoder constrained by the old text could emit `|>` and
-# have the engine refuse it with `aontu/unexpected`. Fixed before the
-# next release, so no published grammar ever disagreed with its engine.
+# No pipe. `|>` is not in the language; `x |> f(a)` is written
+# `f(x, a)`. A decoder constrained by this file cannot emit a spelling
+# the engine refuses with `aontu/unexpected`.
 value ::= disjunct
 
 disjunct ::= conjunct ( ws "|" ws conjunct )*
@@ -108,7 +98,7 @@ ref ::= "$" ( "." segment )+ | ( "." segment )+
 # `a:6-2` as a parse error), so admitting it over-approximated.
 segment ::= ( [a-zA-Z0-9_] )+
 
-# The placeholder: a hole a call is filled through (G8 phase 3). BARE
+# The placeholder: a hole a call is filled through. BARE
 # only -- `"_"` is an ordinary string, and a longer bare word
 # containing it is ordinary text.
 place ::= "_"
