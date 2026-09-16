@@ -694,6 +694,10 @@ function stylePaths() {
         Assert.ok(files.includes('README.md'), 'README.md is gated');
         Assert.ok(files.includes('ts/README.md'), 'ts/README.md is gated');
         Assert.equal(files.filter((f) => f.startsWith('use-cases/')).length, 18, 'the eighteen published use cases are gated');
+        // aontu-lang/web publishes these as /examples.
+        Assert.ok(files.includes('test/system/README.md'), 'the systems index is gated');
+        Assert.ok(files.includes('test/system/rb-solar/README.md'), 'each system README is gated');
+        Assert.ok(files.includes('test/system/rb-solar/doc/erd.md'), 'each system guide is gated');
     });
     (0, node_test_1.test)('no-banned-phrases-in-prose', () => {
         const hits = [];
@@ -821,6 +825,7 @@ function stylePaths() {
         [/\b(?:the|an|this|that) ADR\b/gi, 'a decision record'],
         [/\bADR\.md\b/g, 'ADR.md'],
         [/capability-review/g, 'the capability review'],
+        [/\bG\d+ phase \d+\b/g, 'a capability-review phase'],
         // Both spellings: the pages linked design notes as `docs/design/…`
         // and as a bare `design/…` relative href, and only the first was
         // listed.
@@ -863,6 +868,51 @@ function stylePaths() {
             }
         }
         Assert.deepEqual(hits, [], 'published pages cite internal records (docs/STYLE-GUIDE.md,\n' +
+            '"The published set cites nothing internal"):\n' + hits.join('\n'));
+    });
+    // The register's vocabulary. A published page states what holds now,
+    // so a phase marker on one is a status its reader cannot act on.
+    const PHASE_WORDS = /\b(LANDED|RETIRED|SUPERSEDED|PROPOSED|AMENDED|WITHDRAWN|CANCELLED)\b/g;
+    (0, node_test_1.test)('no-project-history-in-published-prose', () => {
+        const hits = [];
+        for (const { file, abs } of stylePaths()) {
+            if (CONTRIB.includes(file)) {
+                continue;
+            }
+            for (const para of logical(Fs.readFileSync(abs, 'utf8'))) {
+                for (const m of para.text.matchAll(PHASE_WORDS)) {
+                    if (null == m.index) {
+                        continue;
+                    }
+                    const { line, text } = lineAt(para, m.index);
+                    hits.push(`${file}:${line} "${m[0]}": ${text}`);
+                }
+            }
+        }
+        Assert.deepEqual(hits, [], 'published pages track this project\'s phases (docs/STYLE-GUIDE.md,\n' +
+            '"The published set cites nothing internal"):\n' + hits.join('\n'));
+    });
+    // aontu.dev serves grammar/ and the tarball ships it, so its comments
+    // are published text. The prose rules do not fit a file of rules, so
+    // only the two that are about the reader's access apply.
+    (0, node_test_1.test)('the-published-grammars-cite-nothing-internal', () => {
+        const dir = Path.join(REPO, 'grammar');
+        const files = Fs.readdirSync(dir).sort();
+        Assert.ok(0 < files.length, 'no published grammar to check');
+        const rules = [...INTERNAL_REFS, [PHASE_WORDS, 'a phase marker']];
+        const hits = [];
+        for (const name of files) {
+            const lines = Fs.readFileSync(Path.join(dir, name), 'utf8').split('\n');
+            lines.forEach((text, i) => {
+                for (const [re, what] of rules) {
+                    re.lastIndex = 0;
+                    if (re.test(text)) {
+                        hits.push(`grammar/${name}:${i + 1} cites ${what}: ${text.trim()}`);
+                    }
+                }
+            });
+        }
+        Assert.deepEqual(hits, [], 'published grammars cite internal records (docs/STYLE-GUIDE.md,\n' +
             '"The published set cites nothing internal"):\n' + hits.join('\n'));
     });
     // A clean run cannot tell a working rule from a broken one. Each case
@@ -919,6 +969,13 @@ function stylePaths() {
         });
         claim(banned('so let\u2019s break it down'), 'a curly apostrophe');
         claim(banned("so let's break it down"), 'a straight apostrophe');
+        const cites = (text) => INTERNAL_REFS.some(([re]) => {
+            re.lastIndex = 0;
+            return re.test(text);
+        });
+        claim(cites('sugar removed in G8 phase 4'), 'a capability-review phase');
+        claim(cites('ADR-018 removed the pipe'), 'a numbered decision record');
+        claim(!cites('a G8 grammar'), 'a phase needs its number');
         Assert.deepEqual(faults, [], `these rules no longer catch what they claim:\n${faults.join('\n')}`);
     });
     (0, node_test_1.test)('the-committed-figures-are-what-the-engine-draws', () => {

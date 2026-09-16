@@ -14,16 +14,14 @@
     "rejects AS THOUGH it were valid, which is why the builtin list below is",
     "the engine's own set and not a hand-picked sample of it.",
     "",
-    "THE BUILTIN LIST IS A COPY, AND A COPY DRIFTS. aontu.lark carried",
-    "`same` — never a builtin — and was missing `acyclic`, `inverse` and",
-    "`rel` for two releases, with every test green. So the same guard the",
+    "THE BUILTIN LIST IS A COPY, AND A COPY DRIFTS, so the same guard the",
     "other two grammars have covers this file: ts/test/grammar.test.ts,",
     "`the-textmate-grammar-names-exactly-the-engine-builtins`, asserts this",
     "list against BUILTIN_FUNCS in BOTH directions. Add a builtin to the",
     "engine without adding it here and that test fails.",
     "",
-    "No `|>`: ADR-018 removed the pipe from the language, and all three",
-    "published grammars now agree about that."
+    "No `|>`: the pipe is not in the language, and all three published",
+    "grammars agree about that."
   ],
   "name": "aontu",
   "displayName": "Aontu",
@@ -130,7 +128,7 @@
           "match": "\\b(true|false|null)\\b"
         },
         {
-          "comment": "`_` is a literal of the language as of G8 phase 3, not text.",
+          "comment": "`_` is a literal of the language, not text.",
           "name": "constant.language.placeholder.aontu",
           "match": "(?<![A-Za-z0-9_])_(?![A-Za-z0-9_])"
         }

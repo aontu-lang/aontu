@@ -974,6 +974,7 @@ describe('docs-style', () => {
     [/\b(?:the|an|this|that) ADR\b/gi, 'a decision record'],
     [/\bADR\.md\b/g, 'ADR.md'],
     [/capability-review/g, 'the capability review'],
+    [/\bG\d+ phase \d+\b/g, 'a capability-review phase'],
     // Both spellings: the pages linked design notes as `docs/design/…`
     // and as a bare `design/…` relative href, and only the first was
     // listed.
@@ -1046,6 +1047,33 @@ describe('docs-style', () => {
     }
     Assert.deepEqual(hits, [],
       'published pages track this project\'s phases (docs/STYLE-GUIDE.md,\n' +
+      '"The published set cites nothing internal"):\n' + hits.join('\n'))
+  })
+
+
+  // aontu.dev serves grammar/ and the tarball ships it, so its comments
+  // are published text. The prose rules do not fit a file of rules, so
+  // only the two that are about the reader's access apply.
+  test('the-published-grammars-cite-nothing-internal', () => {
+    const dir = Path.join(REPO, 'grammar')
+    const files = Fs.readdirSync(dir).sort()
+    Assert.ok(0 < files.length, 'no published grammar to check')
+    const rules: [RegExp, string][] =
+      [...INTERNAL_REFS, [PHASE_WORDS, 'a phase marker']]
+    const hits: string[] = []
+    for (const name of files) {
+      const lines = Fs.readFileSync(Path.join(dir, name), 'utf8').split('\n')
+      lines.forEach((text, i) => {
+        for (const [re, what] of rules) {
+          re.lastIndex = 0
+          if (re.test(text)) {
+            hits.push(`grammar/${name}:${i + 1} cites ${what}: ${text.trim()}`)
+          }
+        }
+      })
+    }
+    Assert.deepEqual(hits, [],
+      'published grammars cite internal records (docs/STYLE-GUIDE.md,\n' +
       '"The published set cites nothing internal"):\n' + hits.join('\n'))
   })
 
@@ -1124,6 +1152,14 @@ describe('docs-style', () => {
     })
     claim(banned('so let\u2019s break it down'), 'a curly apostrophe')
     claim(banned("so let's break it down"), 'a straight apostrophe')
+
+    const cites = (text: string) => INTERNAL_REFS.some(([re]) => {
+      re.lastIndex = 0
+      return re.test(text)
+    })
+    claim(cites('sugar removed in G8 phase 4'), 'a capability-review phase')
+    claim(cites('ADR-018 removed the pipe'), 'a numbered decision record')
+    claim(!cites('a G8 grammar'), 'a phase needs its number')
 
     Assert.deepEqual(faults, [],
       `these rules no longer catch what they claim:\n${faults.join('\n')}`)
