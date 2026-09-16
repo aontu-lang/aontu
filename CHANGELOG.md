@@ -5,7 +5,7 @@ package (`ts/`, npm `aontu`) and the Go module (`go/`,
 `github.com/aontu-lang/aontu/go`) are versioned independently; entries note
 which implementation each change affects.
 
-## Unreleased
+## Go 0.1.24 — 2026-09-16 · TypeScript 0.66.0
 
 ### `aontu render` writes the files a generator answers
 
