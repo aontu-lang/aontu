@@ -424,6 +424,18 @@ describe('pkg-tool', () => {
     writeLock(dir, lock.replace(/"archive":"sha256:[0-9a-f]+"/, '"archive":"' + arch2 + '"'))
     const moved = cli(['pkg', 'verify', dir])
     Assert.ok(moved.out.includes('but the store means aon1-'), moved.out)
+
+    // A forbidden file in the tree is a bytes mismatch too, and the
+    // only one: a tree that cannot be an archive has no digest to
+    // compare.
+    Fs.writeFileSync(svc, original)
+    writeLock(dir, lock)
+    Fs.writeFileSync(Path.join(Path.dirname(svc), 'hook.sh'), 'echo\n')
+    const forb = JSON.parse(cli(['pkg', 'verify', '--format', 'json', dir]).out)
+    Assert.equal(forb.mismatched.length, 1, JSON.stringify(forb))
+    Assert.equal(forb.mismatched[0].pin, 'archive')
+    Assert.equal(forb.mismatched[0].got, 'forbidden: hook.sh')
+    Assert.match(forb.mismatched[0].want, /^sha256:/)
   })
 
 
