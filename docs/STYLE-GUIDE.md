@@ -252,6 +252,38 @@ did not happen, do not claim to have noticed it.
 `in today's rapidly evolving` · `reflecting a broader trend` ·
 `marking a significant shift` · `great question`.
 
+The next five categories come from **AiTells**, a Vale package by Krishna
+Sunkam, MIT licensed, at `github.com/krishnasunkam/vale-ai-tells`. They
+are carried as patterns rather than as a package, so `reject.txt` stays
+the one place both repositories read. Each produced zero alerts on the
+gated set and on the built website before it was added, under the Node
+rules and under Vale, and each was checked against a sentence it must
+catch.
+
+**Inflated copulas**: `serves as a/the` · `stands as a` ·
+`represents a significant` · `boasts a`. The copula is carrying weight a
+plain verb should carry. Name what the thing does.
+
+**Cliche**: `in a nutshell` · `low-hanging fruit` · `move the needle` ·
+`thought leader` · `best-in-class` · `state-of-the-art` ·
+`tip of the iceberg` · `win-win` · `secret sauce` ·
+`double-edged sword` · `perfect storm` · `fast-paced world` ·
+`ever-evolving`.
+
+**Vague attribution**: `responsible for` · `duties included` ·
+`in charge of` · `tasked with`. Say what the code does, not what it is
+for.
+
+**Nominalisation: the verb is hiding in the noun**: `conduct`,
+`perform`, `undertake`, `carry out` or `engage in` followed by a noun
+ending `-tion`, `-sion`, `-ment`, `-ance` or `-sis`. Write `analyse`,
+not `conduct an analysis`. `provide` and `make` are NOT in the pattern:
+both are ordinary verbs here, and one of them names a page
+(`provide-defaults.md`).
+
+**Three abstractions where one concrete noun belongs**: three abstract
+nouns in a list, as `clarity, rigor and craft`. Name the concrete thing.
+
 **Requires approval per use.** `honest`, and every form of it, is banned
 differently from the rest. The word is fine English; it is on the list
 because it had become a tic across this project and jostraca alike, where
@@ -273,6 +305,20 @@ Several entries on the source lists are deliberately absent, because they
 name things this project documents. A gate that fires on the subject
 matter is a gate people learn to switch off. Each was measured over the
 gated set before it was left out:
+
+Four AiTells rules are absent for reasons of their own.
+`VirtueHonest` is redundant: `honest(y|ly)?` above bans the stem, which
+is broader than its phrase list. `StatusBracket`, which catches a
+`[RED]`-style grade in prose, cannot be expressed here: both gates wrap
+every line as `\b(?:...)\b`, and a pattern opening with `[` can never
+satisfy that leading word boundary. `CodeToken`, which catches an
+identifier written as prose, needs case to work, and this file is
+matched case-insensitively by design -- so `[A-Z]` also matches
+lowercase and it reported `mapval_required` and `correlation_id` in
+quoted output, ten times over the gated set. Its remaining rules score
+above zero here: `Passive` 1122, `Adverb` 239, `EpigramContrast` 57 and
+`NeverTag` 48, each firing on a construction the house voice uses on
+purpose.
 
 | Not banned | Hits | Because |
 |---|---|---|

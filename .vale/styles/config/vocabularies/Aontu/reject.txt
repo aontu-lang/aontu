@@ -141,3 +141,47 @@ in today['’]?s rapidly evolving
 reflecting a broader trend
 marking a significant shift
 great question
+
+# The entries below are adapted from AiTells, a Vale package by Krishna
+# Sunkam, MIT licensed, at github.com/krishnasunkam/vale-ai-tells. Taken
+# as patterns rather than as a package, so this file stays the one place
+# both repositories read. Every one produced zero alerts on the gated
+# set and on the built website before it was added, under the Node rules
+# and under Vale, and every one was checked against a sentence it must
+# catch. Four of its rules are deliberately absent, with the reasons in
+# docs/STYLE-GUIDE.md.
+
+# --- Inflated copulas --------------------------------------------------
+serves as an?
+serves as the
+stands as an?
+represents a significant
+boasts an?
+
+# --- Cliche ------------------------------------------------------------
+in a nutshell
+low.hanging fruit
+move the needle
+thought leader
+best.in.class
+state.of.the.art
+tip of the iceberg
+win.win
+secret sauce
+double.edged sword
+perfect storm
+fast.paced world
+ever.evolving
+
+# --- Vague attribution -------------------------------------------------
+responsible for
+duties included
+in charge of
+tasked with
+
+# --- Nominalisation: the verb is hiding in the noun --------------------
+(?:conduct|perform|undertake|carry out|engage in)s? (?:a|an|the)? ?\w+(?:tion|sion|ment|ance|sis)
+
+# --- Three abstractions where one concrete noun belongs ----------------
+(?:[a-z-]+(?:ity|ness|tion|sion|ance|ence|ism|ship|ility)|trust|rigor|clarity|calm|craft|care|focus|discipline|taste|speed|scale|intent|judgment|courage|candor|warmth|depth|proof),\s+(?:[a-z-]+(?:ity|ness|tion|sion|ance|ence|ism|ship|ility)|trust|rigor|clarity|calm|craft|care|focus|discipline|taste|speed|scale|intent|judgment|courage|candor|warmth|depth|proof),?\s+and\s+(?:[a-z-]+(?:ity|ness|tion|sion|ance|ence|ism|ship|ility)|trust|rigor|clarity|calm|craft|care|focus|discipline|taste|speed|scale|intent|judgment|courage|candor|warmth|depth|proof)
+
