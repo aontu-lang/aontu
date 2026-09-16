@@ -328,9 +328,12 @@ function runStep(file, dir, cache, step) {
             let dir;
             let cache;
             let scenarioId = '';
+            // Both bindings are reassigned per scenario; earlier pairs leak.
+            const opened = [];
             const open = (id) => {
                 dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-docs-'));
                 cache = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-docs-cache-'));
+                opened.push(dir, cache);
                 scenarioId = id;
                 scenarios++;
             };
@@ -395,11 +398,9 @@ function runStep(file, dir, cache, step) {
                     b.covered = 'skip';
                 }
             }
-            // Scenario dirs from fully green pages are transient; a failed
-            // assertion above threw before this cleanup, keeping the dir.
-            if (null != dir) {
-                Fs.rmSync(dir, { recursive: true, force: true });
-                Fs.rmSync(cache, { recursive: true, force: true });
+            // A failure threw before this, keeping the dirs it named.
+            for (const at of opened) {
+                Fs.rmSync(at, { recursive: true, force: true });
             }
         }
         // Floors, per the vacuity-guard precedent above. Tuned to the

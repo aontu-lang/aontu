@@ -475,3 +475,24 @@
 #   containers the meet does not mint and which both ports agree on byte
 #   for byte.
 
+#
+# OPEN -- an unresolved `emit` inside a component function is located
+# differently, and Go cascades.
+#   issue: #233. Which side is right is not in doubt (TypeScript names
+#   the element that could not be produced, and stops at the cause), but
+#   the fix is in the Go resolution path rather than in a message, and
+#   the shared suite has no rows for it yet.
+#
+#   Divergent input:  a route table whose only template matches `GET`,
+#   emitted into a file: `out: file("client.ts", emit($.routes, %route))`
+#   with a `POST` route in the selection.
+#   TypeScript: one error, emit_none at $.out.0, exit 4
+#   Go:         three errors, emit_none at $.out then invalid-arg twice
+#               for the nil carried up through file(), exit 4
+#
+#   Without the file() wrapper both ports are byte-identical at $.out
+#   with one error each, so `docs/tutorial-generate.md` asserts only the
+#   explanation both print. The full text earns rows here once Go
+#   agrees.
+#
+# ---------------------------------------------------------------------

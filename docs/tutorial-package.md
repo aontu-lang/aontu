@@ -288,9 +288,9 @@ $ echo $?
 ```
 
 Both hashes are named: the meaning that was reviewed, and the meaning
-the store holds now. `aontu pkg verify` asks the same question without
-evaluating anything, and answers on the bytes, which are checked before
-the meaning:
+the store holds now. `aontu pkg verify` asks the same question of the
+bytes first, and never reaches the meaning here because the archive
+digest already disagrees:
 
 <!-- test: run -->
 ```sh

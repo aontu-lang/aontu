@@ -94,9 +94,11 @@ that writes its own newline, so nothing in the source spells one.
 ## 3. One line per record
 
 A generator is a **rule set**. `emit(selection, table)` visits every
-node of a selection in source order, takes the first template whose
-`match` the node unifies with, and instantiates that template's `body`
-against the node, where `.name` is that node's `name`. Rewrite
+node of a selection, takes the first template whose `match` the node
+unifies with, and instantiates that template's `body` against the node,
+where `.name` is that node's `name`. A list is visited in its own
+order, which is why the route table is a list: a map is visited in
+code-point order of its keys, whatever order it was written in. Rewrite
 `client.aon`:
 
 <!-- test: file client.aon -->
@@ -122,9 +124,7 @@ Run it:
 <!-- test: run -->
 ```sh
 $ aontu model get '$.out' client.aon
-$: emit_none [reference]
-  [aontu/emit_none]: Cannot resolve value at path $.out.0
-
+...
 No template matched a node, and there is no catch-all. `emit`
 tries each template in the order written and takes the first the
 node unifies with; the node {"name":"create","path":"/orders","verb":"POST"} unified with none of {"verb":"GET"}.
