@@ -1024,10 +1024,46 @@ describe('docs-style', () => {
   })
 
 
-  // The register's vocabulary. A published page states what holds now,
-  // so a phase marker on one is a status its reader cannot act on.
+  // The register's status column, held to it below, plus the markers it
+  // and ADR.md write in prose. A published page states what holds now,
+  // so one of these on it is a status its reader cannot act on.
   const PHASE_WORDS =
-    /\b(LANDED|RETIRED|SUPERSEDED|PROPOSED|AMENDED|WITHDRAWN|CANCELLED)\b/g
+    /\b(LANDED|PARTIAL|NOT STARTED|RETIRED|SUPERSEDED|AMENDED)\b/g
+
+  const REGISTER =
+    Path.join(REPO, 'docs', 'capability-review', 'progress.md')
+
+  // A status is a whole cell. One in prose is the register arguing, not
+  // the column, and the bare markers above cover those.
+  function registerStatuses(): string[] {
+    const found = new Set<string>()
+    for (const line of Fs.readFileSync(REGISTER, 'utf8').split('\n')) {
+      if (!line.startsWith('|')) {
+        continue
+      }
+      for (const cell of line.split('|').map((s) => s.trim())) {
+        const m = /^\*{0,2}([A-Z][A-Z ]*[A-Z])\*{0,2}$/.exec(cell)
+        if (null != m) {
+          found.add(m[1])
+        }
+      }
+    }
+    return [...found].sort()
+  }
+
+
+  test('the-phase-vocabulary-is-the-registers', () => {
+    const statuses = registerStatuses()
+    Assert.ok(2 < statuses.length, 'no statuses read from the register')
+    const missing = statuses.filter((status) => {
+      PHASE_WORDS.lastIndex = 0
+      return !PHASE_WORDS.test(status)
+    })
+    Assert.deepEqual(missing, [],
+      'the register uses statuses this gate would let through:\n' +
+      missing.join('\n'))
+  })
+
 
   test('no-project-history-in-published-prose', () => {
     const hits: string[] = []
@@ -1035,7 +1071,7 @@ describe('docs-style', () => {
       if (CONTRIB.includes(file)) {
         continue
       }
-      for (const para of logical(Fs.readFileSync(abs, 'utf8'))) {
+      for (const para of logical(prose(Fs.readFileSync(abs, 'utf8')))) {
         for (const m of para.text.matchAll(PHASE_WORDS)) {
           if (null == m.index) {
             continue
@@ -1157,6 +1193,14 @@ describe('docs-style', () => {
       re.lastIndex = 0
       return re.test(text)
     })
+    const phase = (text: string) => {
+      PHASE_WORDS.lastIndex = 0
+      return PHASE_WORDS.test(text)
+    }
+    claim(phase('NOT STARTED'), 'a two-word status')
+    claim(phase('PARTIAL'), 'a status the register uses and nothing else did')
+    claim(!phase('Nothing landed yet'), 'the lower-case word is ordinary prose')
+
     claim(cites('sugar removed in G8 phase 4'), 'a capability-review phase')
     claim(cites('ADR-018 removed the pipe'), 'a numbered decision record')
     claim(!cites('a G8 grammar'), 'a phase needs its number')
