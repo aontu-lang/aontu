@@ -1830,9 +1830,10 @@ Example: see [closed values](#closed-values-close--open)
 
 ### `content(spec: string|map) : map`
 
-A Jostraca Content component: a span of target text, added with no
-newline of its own. A bare string fills `src`, and an empty span is a
-value rather than a mistake.
+A text node of the [component tree](#generation): a span of target
+text, added with no newline of its own, which is the whole difference
+from `line`. A bare string fills `src`, and an empty span is a value
+rather than a mistake.
 
 Example: `content("export const N = 1\n")`
 
@@ -1844,8 +1845,9 @@ Example: `copy({a:1,b:2})`→`{a:1,b:2}`; `copy($.x)`
 
 ### `copyfiles(spec: string|map) : map`
 
-A Jostraca CopyFiles component: files copied verbatim from `from`.
-Named `copyfiles` because `copy` already copies a VALUE.
+A copy node of the [component tree](#generation): files copied
+verbatim from `from` into the output. Named `copyfiles` because `copy`
+already copies a VALUE.
 
 Example: `copyfiles("assets")`
 
@@ -1881,9 +1883,10 @@ Example: `esc("<a>", xml)`
 
 ### `file(spec: string|map, children?: list) : map`
 
-A Jostraca File component named by `name`, holding content, lines,
-fragments, injections and copies. Wherever `content` is admitted a
-bare string stands for it, which is what a template body line becomes.
+A file node of the [component tree](#generation), named by `name` and
+holding content, lines, fragments, injections, and copies: one file of
+the output. Wherever `line` is admitted a bare string stands for it,
+which is what a template body line becomes.
 
 Example: `file("index.ts", ["export {}\n"])`
 
@@ -1895,15 +1898,16 @@ Example: `debugged: filter($.services, {debug:true})`
 
 ### `folder(spec: string|map, children?: list) : map`
 
-A Jostraca Folder component named by `name`, holding folders, files
-and copies.
+A folder node of the [component tree](#generation), named by `name`
+and holding folders, files, and copies: one directory of the output.
 
 Example: `folder("src", [file("index.ts")])`
 
 ### `fragment(spec: string|map, children?: list) : map`
 
-A Jostraca Fragment: a file read from `from` with its `<[SLOT]>`
-markers filled by the slots beneath it.
+A fragment node of the [component tree](#generation): a file read from
+`from`, reaching the output with its `<[SLOT]>` markers filled by the
+slots beneath it.
 
 Example: `fragment("head.ts", [slot("body")])`
 
@@ -1921,8 +1925,8 @@ Example: `hide(world) & string`→`"world"`
 
 ### `inject(spec: string|map, children?: list) : map`
 
-A Jostraca Inject: a body written between markers in a file that
-already exists.
+An injection node of the [component tree](#generation): a body written
+between markers in an output file that already exists.
 
 Example: `inject("routes", [line("app.use(r)")])`
 
@@ -1958,8 +1962,9 @@ Example: `list() & length(min(1))`
 
 ### `line(spec: string|map) : map`
 
-A Jostraca Line: a span of target text with a newline added, which
-is the whole difference from `content`. An empty span is a blank line.
+A text node of the [component tree](#generation): a span of target
+text with a newline added, which is the whole difference from
+`content`. An empty span is a blank line.
 
 Example: `line("import fs from 'fs'")`; `line("")` is a blank line
 
@@ -1971,8 +1976,10 @@ Example: `y: list() & [1]`→`[1]`
 
 ### `listitems(spec: map, children?: list) : map`
 
-A Jostraca ListItems over the list at `item`. The bag is required
-and must be a list: a missing one would render nothing, silently.
+A repetition node of the [component tree](#generation), over the list
+at `item`: its children are written once for each member. The bag is
+required and must be a list: a missing one would render nothing,
+silently.
 
 Example: `listitems({item: $.rows}, [line("x")])`
 
@@ -2088,8 +2095,8 @@ Example: `pref(1)` canon `*1`; `pref(2),x:3`→`3`
 
 ### `project(spec?: string|map, children?: list) : map`
 
-The Jostraca Project root; its `folder` is the output directory and
-is the one prop that is not required.
+The root node of the [component tree](#generation); its `folder` is
+the output directory and is the one prop that is not required.
 
 Example: `project("./build", [folder("src")])`
 
@@ -2125,7 +2132,8 @@ Example: `rep("a1b2", "[0-9]", "_")`
 
 ### `slot(spec: string|map, children?: list) : map`
 
-A Jostraca Slot: the body that fills a fragment's named marker.
+A slot node of the [component tree](#generation), beneath a fragment:
+the body that fills the marker of that name.
 
 Example: `slot("body", [line("return 1")])`
 
@@ -4184,6 +4192,14 @@ alternatives; the names are in the grammar text and in
 This section is about producing a **value** from a model. Producing
 target-language **source** from one is a different thing with the same
 name: see [Generate code from a model](how-to/generate-code.md).
+
+The ten component functions (`project`, `folder`, `file`, `content`,
+`line`, `fragment`, `slot`, `inject`, `copyfiles`, and `listitems`)
+answer a **component tree**, which generates as any other value does.
+Each node's `cmp` key is the component name a generator runtime looks
+up: `Project`, `CopyFiles`, `ListItems`, and the rest.
+[jostraca](https://github.com/jostraca/jostraca) is one such runtime,
+and reads the tree directly.
 
 `generate` / `Generate` produces a native value (JSON-compatible) and
 requires the model to be **fully concrete**:

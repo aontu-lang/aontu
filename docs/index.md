@@ -26,13 +26,18 @@ open it. Reach for the part that matches your need:
 
 | If you want to…                                               | Read |
 |---------------------------------------------------------------|------|
-| **Learn** aontu from zero by building something, step by step | [Tutorial](tutorial.md) |
-| **Learn** the graph layer (identity, relations, reachability) | [Graph tutorial](tutorial-graph.md) |
+| **Learn** aontu from zero by building something, step by step | [Tutorials](tutorial.md) |
 | **Accomplish a specific task** you already have in mind       | [How-to guides](how-to/) |
 | **Look up** exact syntax, semantics, options, or API surface  | [Language reference](reference-language.md) · [API reference](reference-api.md) |
 | **Understand unification itself**: meet, top, bottom, the lattice | [Unification](unification.md) |
 | **Understand** how and why the engine works the way it does   | [Explanation](explanation.md) |
 | **See whole systems defined**, each with its checks runnable  | [Use cases](use-cases.md) |
+
+There are four tutorials, each building one thing and showing the
+output of every step: a config that is schema, defaults, and data at
+once; the graph layer of identity, relations, and reachability; sharing
+a model as a versioned package; and computing source files from a
+model. The [index](tutorial.md) says what each one assumes.
 
 The how-to guides are one page per task, grouped six ways: run, embed
 and integrate; templates, defaults and composition; schemas and
@@ -179,4 +184,5 @@ $ echo 'port: *8080 | integer' | aontu
 }
 ```
 
-Start with the [Tutorial](tutorial.md).
+Start with [build a config that checks itself](tutorial-config.md),
+the first of four [tutorials](tutorial.md).

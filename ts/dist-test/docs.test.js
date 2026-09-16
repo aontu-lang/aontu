@@ -55,7 +55,10 @@ function execPages() {
     const fixed = [
         'index.md',
         'tutorial.md',
+        'tutorial-config.md',
         'tutorial-graph.md',
+        'tutorial-package.md',
+        'tutorial-generate.md',
         'unification.md',
         'reference-language.md',
         'reference-api.md',
@@ -236,7 +239,9 @@ function matches(expect, got) {
     const re = new RegExp('^' + parts.join('(?:[\\s\\S]*?)') + '$');
     return re.test(norm(got));
 }
-function runStep(file, dir, step) {
+// XDG_CACHE_HOME is the scenario's own: the package verbs resolve a
+// dependency from a machine-wide store that other runs write to.
+function runStep(file, dir, cache, step) {
     let argv = splitArgs(file, step.line, step.cmd);
     let input;
     // The one stdin form: echo '<text>' | aontu …
@@ -253,7 +258,7 @@ function runStep(file, dir, step) {
     try {
         const out = (0, node_child_process_1.execFileSync)(bin, [...pre, ...argv.slice(1)], {
             cwd: dir, input,
-            env: { ...process.env, NO_COLOR: '1' },
+            env: { ...process.env, NO_COLOR: '1', XDG_CACHE_HOME: cache },
             encoding: 'utf8',
             stdio: ['pipe', 'pipe', 'pipe'],
         });
@@ -321,9 +326,14 @@ function runStep(file, dir, step) {
         let commands = 0;
         for (const page of pages()) {
             let dir;
+            let cache;
             let scenarioId = '';
+            // Both bindings are reassigned per scenario; earlier pairs leak.
+            const opened = [];
             const open = (id) => {
                 dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-docs-'));
+                cache = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-docs-cache-'));
+                opened.push(dir, cache);
                 scenarioId = id;
                 scenarios++;
             };
@@ -364,7 +374,7 @@ function runStep(file, dir, step) {
                             commands++;
                             continue;
                         }
-                        const r = runStep(page.file, dir, step);
+                        const r = runStep(page.file, dir, cache, step);
                         prevCode = r.code;
                         commands++;
                         // A command with no echo $? after it must succeed; one
@@ -388,10 +398,9 @@ function runStep(file, dir, step) {
                     b.covered = 'skip';
                 }
             }
-            // Scenario dirs from fully green pages are transient; a failed
-            // assertion above threw before this cleanup, keeping the dir.
-            if (null != dir) {
-                Fs.rmSync(dir, { recursive: true, force: true });
+            // A failure threw before this, keeping the dirs it named.
+            for (const at of opened) {
+                Fs.rmSync(at, { recursive: true, force: true });
             }
         }
         // Floors, per the vacuity-guard precedent above. Tuned to the
@@ -734,7 +743,12 @@ function stylePaths() {
         }
         Assert.deepEqual(hits, [], `em dashes in prose (docs/STYLE-GUIDE.md):\n${hits.join('\n')}`);
     });
-    const TUTORIAL_PAGES = ['docs/tutorial.md', 'docs/tutorial-graph.md'];
+    // `tutorial.md` is the INDEX of these and teaches nothing itself, so
+    // it is held to the ordinary rules rather than the tutorial ones.
+    const TUTORIAL_PAGES = [
+        'docs/tutorial-config.md', 'docs/tutorial-graph.md',
+        'docs/tutorial-package.md', 'docs/tutorial-generate.md',
+    ];
     (0, node_test_1.test)('we-appears-only-in-tutorials', () => {
         const hits = [];
         for (const { file, abs } of stylePaths()) {
