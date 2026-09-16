@@ -48,11 +48,11 @@ Saying what data must look like, from optional keys to recursive shapes.
 
 ## Query, explain and change
 
-The get, why, set and trim loop over a live document.
+The model get, model why, model set and trim loop over a live document.
 
 - [Query a path](query-a-path.md). Print one node of the evaluated document by path, or a keys, types, or depth-limited view of it.
-- [Explain a value](explain-a-value.md). List every contribution that met at a path (which file, which line, which layer) with aontu why.
-- [Change a value with an overlay](change-a-value-with-an-overlay.md). Append a change to an overlay file with aontu set, so the original document keeps its bytes and a bad change is refused before it lands.
+- [Explain a value](explain-a-value.md). List every contribution that met at a path (which file, which line, which layer) with aontu model why.
+- [Change a value with an overlay](change-a-value-with-an-overlay.md). Append a change to an overlay file with aontu model set, so the original document keeps its bytes and a bad change is refused before it lands.
 - [Gate an agent's changes by role](gate-changes-by-role.md). Ask aontu allow whether a role may change a subtree before aontu model set writes it, with the answer read from a role model that is itself an aontu document.
 - [Change a pinned value](change-a-pinned-value.md). Rewrite a pinned literal where the author wrote it with aontu model set --in-place, and know the cases where the verb appends instead.
 - [Find dead entries](find-dead-entries.md). Report map entries whose removal changes nothing, so layered files do not silt up with lines a template already implies.

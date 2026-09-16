@@ -1,5 +1,5 @@
 ---
-description: Append a change to an overlay file with aontu set, so the original document keeps its bytes and a bad change is refused before it lands.
+description: Append a change to an overlay file with aontu model set, so the original document keeps its bytes and a bad change is refused before it lands.
 group: query-change
 order: 30
 ---
