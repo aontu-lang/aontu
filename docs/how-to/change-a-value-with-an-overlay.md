@@ -6,7 +6,7 @@ order: 30
 
 # Change a value with an overlay
 
-Use `aontu set` to append a change to an *overlay*, a second document
+Use `aontu model set` to append a change to an *overlay*, a second document
 unified with the entry. The command checks the proposed change before
 writing it and preserves the entry file. Write `system.aon`:
 

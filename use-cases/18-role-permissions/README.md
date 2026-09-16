@@ -19,7 +19,7 @@ one entry per role, each naming the subtrees the role may change
 answers before the change is made, with an exit code an agent
 branches on and a report that names the entry that decided each
 path. The agent's skill, `skill/SKILL.md`, is the loop: ask, and run
-`aontu set` only on exit 0. The model being governed, `model.aon`,
+`aontu model set` only on exit 0. The model being governed, `model.aon`,
 holds its own vocabulary and constraints, so a change the gate allows
 is still refused by `set` when it names a key the model does not
 declare or breaks a bound. The gate says who; the model says what.
@@ -69,7 +69,7 @@ than its value.
 |---|---|
 | `roles.aon` | the role model: `Role`, a `type()`-marked `close()`d vocabulary of `desc`, `allow` and `deny?`; the `close()`d registry of `admin`, `dev`, `product` and `qa` |
 | `model.aon` | the governed model: the `Service` vocabulary, three services, two regions with a canary each, the flags and the tests; every value a role may change is a default (`*3`), so the model accepts a change to any of them and the role is what decides who |
-| `changes.aon` | the agents' overlay, written by `aontu set` and never by hand |
+| `changes.aon` | the agents' overlay, written by `aontu model set` and never by hand |
 | `system.aon` | `model.aon` plus `changes.aon`: the served view, where `get` and `why` run |
 | `policy.aon` | a policy document that keeps its roles under `$.policy.roles`, for `--at` |
 | `skill/SKILL.md` | the agent skill: ask the gate with the arguments `set` will get, and branch on the exit code alone |

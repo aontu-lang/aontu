@@ -198,3 +198,7 @@ job, where the token is the forge's OIDC token and the write path
 decides admission from it. The verb's full contract is
 [`aontu publish`](../reference-api.md#aontu-publish); the consumer
 side is [vendor a dependency closure](vendor-a-dependency-closure.md).
+
+The public repository is not serving yet. Its default bases have no
+address, so until they do a project names its `repo.base`, and a
+publisher writes with `--to <dir>` and serves with `aontu pkg serve`.

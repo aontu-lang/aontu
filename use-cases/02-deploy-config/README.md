@@ -245,7 +245,7 @@ than its value.
 1. The build matches `expected/stack.json` (four layers, three
    environments, four services), and `--canon` matches
    `expected/stack.canon.txt` byte for byte.
-2. Values land where the rank ladder says (`aontu get`): prod billing
+2. Values land where the rank ladder says (`aontu model get`): prod billing
    replicas 12 (concrete pin beats the env default); prod web 4 and
    dev web 1 (env `*` defaults); dev `logLevel` `debug` (team `**`
    beats org `***`); prod `logLevel` `warn` (env `*` beats both); prod

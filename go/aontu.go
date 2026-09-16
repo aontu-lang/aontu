@@ -9,7 +9,7 @@ import (
 	"sort"
 )
 
-const VERSION = "0.1.22"
+const VERSION = "0.1.23"
 
 type TrustBudget struct {
 	Passes int // fixpoint passes (default 9)

@@ -118,7 +118,7 @@ than its value.
 1. `aontu main.aon` matches `expected/manifests.json` byte for byte:
    three services fan out to three Deployments and three Services, and
    the hidden inputs do not render.
-2. Values land where the model says (`aontu get`): billing replicas 6
+2. Values land where the model says (`aontu model get`): billing replicas 6
    (the override beats the `*2` default); web replicas 2 (the default
    applies untouched); web CPU limit `"750m"` (a one-field override on
    the tier block) beside memory limit `"512Mi"` (the sibling tier
