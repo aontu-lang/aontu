@@ -22,7 +22,7 @@ problem: the org chart and the runtime both hold facts about one
 logical thing, and any drift between them should be an *error*, not a
 silent fork. It is also the ground-truth-ontology problem for AI
 agents: an agent must be able to pull one service's complete truth
-into context (`aontu get`), ask where a fact came from (`aontu model why`),
+into context (`aontu model get`), ask where a fact came from (`aontu model why`),
 and have its own emitted candidates checked (`aontu vet`, `rel()`).
 
 ## The model tree

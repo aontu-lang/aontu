@@ -7,7 +7,7 @@ order: 10
 # Query a path
 
 An evaluated document is one JSON value, and most questions are about
-one node of it. `aontu get` selects that node by path (the same path
+one node of it. `aontu model get` selects that node by path (the same path
 a reference means by `$.a.b`) and prints it alone. Write
 `system.aon`:
 

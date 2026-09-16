@@ -132,7 +132,7 @@ func SarifReport(report VetReport, version string) string {
 			}},
 			Results: results,
 			Tool: sarifTool{Driver: sarifDriver{
-				InformationURI: "https://github.com/rjrodger/aontu",
+				InformationURI: "https://github.com/aontu-lang/aontu",
 				Name:           "aontu",
 				Version:        version,
 			}},

@@ -86,7 +86,7 @@ Each piece of that shape is there for a reason:
   terminator, so nothing here spells a newline, and the indent is the
   target's own: a tab in the string, because aontu knows no languages
   and has no view about how Go indents.
-- **The file is a value.** `$.out` is the tree, so `aontu get` reads it,
+- **The file is a value.** `$.out` is the tree, so `aontu model get` reads it,
   `aontu vet` checks it, and a second generator can meet it.
 - **The source keys ride through.** `emit` binds the body to the node,
   so `.name` and `.fields` resolve inside the template without the node

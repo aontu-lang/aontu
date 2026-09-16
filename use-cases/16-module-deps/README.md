@@ -322,7 +322,7 @@ constructs are specified in the language reference under
     app,feature,core,util --as mermaid` as Mermaid subgraphs.
 13. The tree of the cyclic model (`bad/cycle.aon`) terminates, marking
     the closing edge `(cycle)` instead of recursing into it.
-14. `aontu get` reads a module's layer and directory off the model:
+14. `aontu model get` reads a module's layer and directory off the model:
     `$.mods.http.layer` is `"core"` and `$.mods.store.dir` is
     `"core/store"`.
 

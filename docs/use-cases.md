@@ -237,7 +237,7 @@ and the stream samples:
 ## 08. Feature flags
 
 The write-path case: a flag catalog with environment and tenant
-overrides, mutated by `aontu set` into an overlay file the reviewed base
+overrides, mutated by `aontu model set` into an overlay file the reviewed base
 files never absorb. Ten sets of the same path collapse to a single
 overlay line under `--in-place`, `why` attributes the served value to
 the overlay with rank annotations, and a hostile overlay is confined by

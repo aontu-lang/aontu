@@ -720,7 +720,7 @@ That is the loop the whole verb surface exists for: **emit** a
 document, **vet** it against the truth it has to satisfy, and when it
 fails, let the two sites and `aontu model why` say where to **repair** it.
 You have now run it once by hand, which matters, because repair is the
-step you will eventually hand to a command: `aontu set` rewrites
+step you will eventually hand to a command: `aontu model set` rewrites
 overlay files under exactly these rules, and
 [change a pinned value](how-to/change-a-pinned-value.md) shows what it
 will and will not touch.

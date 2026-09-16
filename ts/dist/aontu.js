@@ -58,7 +58,7 @@ Object.defineProperty(exports, "markerFor", { enumerable: true, get: function ()
 const format_1 = require("./format");
 Object.defineProperty(exports, "format", { enumerable: true, get: function () { return format_1.format; } });
 Object.defineProperty(exports, "unifiedDiff", { enumerable: true, get: function () { return format_1.unifiedDiff; } });
-const VERSION = '0.64.0';
+const VERSION = '0.65.0';
 exports.VERSION = VERSION;
 function genQuiet(val, aontu) {
     return val.gen(aontu.ctx({ collect: true }));
