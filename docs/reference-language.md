@@ -1558,11 +1558,11 @@ that exists nowhere.
 Where the declaration *lands* is what decides this, not where it was
 written, which is what makes the two include shapes differ:
 
-- `a: @"f.aon"` is **refused** if `f.aon` declares an alias. The
+- `a: @"./f.aon"` is **refused** if `f.aon` declares an alias. The
   declaration is at the root of its own file but not of the document,
   and left writable a `%b` in the *including* file is what `f.aon`'s own
   `%b` would reach.
-- `@"f.aon"` spliced at the root is **accepted**. There is one root map,
+- `@"./f.aon"` spliced at the root is **accepted**. There is one root map,
   so there is no second scope for a name to leak out of, and the
   declaration is a declaration of that one document.
 
@@ -2925,8 +2925,8 @@ and mount it twice from `main.aon`:
 
 <!-- test: file main.aon -->
 ```aon
-tenantA: m: @"model.aon"
-tenantB: { m:@"model.aon" m:auth:region:"us" }
+tenantA: m: @"./model.aon"
+tenantB: { m:@"./model.aon" m:auth:region:"us" }
 ```
 
 Each instance resolves its own internal link inside itself, and the
@@ -3591,7 +3591,7 @@ and load it from `main.aon`:
 
 <!-- test: file main.aon -->
 ```aon
-schema: @"vocab.jsonld"
+schema: @"./vocab.jsonld"
 ```
 
 <!-- test: run -->
@@ -3623,7 +3623,7 @@ and load it as a value in `main.aon`:
 
 <!-- test: file main.aon -->
 ```aon
-notes: @"notes.txt"
+notes: @"./notes.txt"
 ```
 
 <!-- test: run -->
@@ -3634,7 +3634,7 @@ $ aontu -c main.aon
 
 The result is an ordinary string, so the language's string operations
 reach it and a schema can constrain it: `notes: string & length(1)`
-holds, and `upper(@"notes.txt")` uppercases the file.
+holds, and `upper(@"./notes.txt")` uppercases the file.
 
 **Other extensions need an allowance.** `--text-ext md,sql` reads those
 as text too, for a project that keeps its prose in `.md` or its queries
@@ -3659,7 +3659,7 @@ and hold it to a schema in `main.aon`:
 port: integer
 hosts: [string]
 
-@"server.toml"
+@"./server.toml"
 ```
 
 <!-- test: run -->
@@ -3693,13 +3693,13 @@ and ask for it in `main.aon`:
 
 <!-- test: file main.aon -->
 ```aon
-rows: @"rows.csv"
+rows: @"./rows.csv"
 ```
 
 <!-- test: run -->
 ```sh
 $ aontu main.aon
-include not readable: rows.csv (extension: .csv)
+include not readable: ./rows.csv (extension: .csv)
 $ echo $?
 1
 ```
@@ -3713,9 +3713,9 @@ stated rather than a fallback for whatever the table failed to
 recognise.
 
 ```
-@"foo.aon"                       → {"f":11}            (top level)
-a:@"foo.aon"                     → {"a":{"f":11}}      (nested)
-car:@"car.aon" car:{wheels:4}    → merges loaded + local
+@"./foo.aon"                       → {"f":11}            (top level)
+a:@"./foo.aon"                     → {"a":{"f":11}}      (nested)
+car:@"./car.aon" car:{wheels:4}    → merges loaded + local
 @"foo"                           → {"f":11}            (implicit .aon/.aontu)
 ```
 
@@ -3738,8 +3738,8 @@ and an entry file, `main.aon`, loading both:
 
 <!-- test: file main.aon -->
 ```aon
-@"foo.aon"
-car: @"car.aon"
+@"./foo.aon"
+car: @"./car.aon"
 car: wheels: 4
 ```
 
@@ -3769,148 +3769,112 @@ error.
 
 ### Modules
 
-An import whose path is **domain-shaped and carries a major version**
-is a MODULE import rather than a file path:
+An import whose path is **domain-shaped** is a module import rather than
+a file path. A local file says so with a `./`, `../` or `/` prefix:
 
 ```
-service: @"corp.example/schemas/service@1"
-frozen:  @"corp.example/schemas/service@1#aon1-4vJemVYtWFR2mQeN…"
-local:   @"./fragment.aon"        # unchanged — not a module
+service: @"corp.example/schemas/service"
+frozen:  @"corp.example/schemas/service#aon1-4vJemVYtWFR2mQeN…"
+legacy:  @"alias:legacy"
+local:   @"./fragment.aon"
 ```
 
-The routing is by shape alone: the first segment must contain a dot and
-the path must end in `@<integer>`. Anything else falls through the
-resolver chain exactly as before, so no existing include can be routed
-somewhere new.
+**Every reference says what it is.** The first segment of a package
+path contains a dot and the path carries no version: compatibility is
+computed at publish, so the major left the name. `alias:<name>` names
+an alias the project's package file declares, and resolves by lookup,
+never by shape. A bare reference whose last segment carries an
+extension the include table knows is refused with `module_local` and
+the message `local files need a ./ prefix`, because `config.json`
+routes here now and was a file before.
 
-**Shape routes; validity refuses.** A path that routes here is not yet
-a path that may become a directory, and a module path becomes a real
-directory on every platform the toolchain runs on. So the path is
-checked before anything is built from it: no element may be empty,
-begin or end with `.`, or be a reserved device name (`nul`, `con`,
-`com1`…), and the path is bounded in length and element count. These
-are Go's module-path rules, adopted for Go's reason.
+**Shape routes; validity refuses.** A path that routes here becomes a
+directory on every platform the toolchain runs on, so it is checked
+before anything is built from it: no element may be empty, begin or
+end with `.`, or be a reserved device name (`nul`, `con`, `com1`…), and
+the path is bounded in length and element count.
 
 ```
-module path: corp.example/../schemas@1 (an element begins or ends with ".")
+module path: corp.example/../schemas (an element begins or ends with ".")
 ```
-
-The rule against a leading or trailing `.` is what forbids `..`, and it
-is stated as the rule rather than as a ban on the two dangerous
-spellings, which would miss the third. The routing predicate is
-deliberately *not* tightened to do this work: what it rejects falls
-through to the file resolver, so a stricter pattern would silently
-re-route documents that resolve today.
 
 **Uppercase is escaped on disk.** `corp.example/Widgets` and
-`corp.example/widgets` are two module identities and, on a
-case-insensitive filesystem, one directory, so an uppercase letter is
-written `!`+lowercase in the store, Go's rule for Go's reason. The
-written path stays the identity; only the directory is escaped.
+`corp.example/widgets` are two identities and, on a case-insensitive
+filesystem, one directory, so an uppercase letter is written
+`!`+lowercase in every store. The written path stays the identity.
 
 **Evaluation never touches the network.** A module resolves from local
-stores only (`aontu_meta/vendor/` in the project that declares `mod.aon`,
-then a
-content-addressed user cache) and the cache is consulted only when the
-expected hash is known, because that hash is its key. A module in
-neither store is an error that names the step that fixes it:
+stores only: `aontu_meta/vendor/` in the project that declares
+`pkg.aon`, and in every project enclosing it, then the user cache under
+`aontu/pkg`, which is consulted only when the expected canon-hash is
+known, because that hash is its key. A module in neither store names
+the step that fixes it:
 
 ```
-module not fetched: corp.example/schemas/service@1 (run: aontu mod get)
+module not fetched: corp.example/schemas/service (run: aontu sync)
 ```
 
-The user cache is `$XDG_CACHE_HOME/aontu/mod` where that is set (an
-explicit override wins on every platform) and otherwise the platform's
-own cache location: `%LOCALAPPDATA%\aontu\mod` on Windows,
-`~/.cache/aontu/mod` elsewhere. A host that offers none of those has no
-user cache, and a module then resolves from `aontu_meta/vendor/` alone.
+**A package that moved refuses.** A package's own file may declare
+`moved: <new path>`; an import of the old path is refused with
+`module_moved`, naming the destination, and nothing follows it. A name
+that came to mean something else without saying so would be the failure
+the naming convention exists to prevent.
 
-**The module file and the lockfile are ordinary aontu.** `mod.aon`
-declares the module's own path and entry file; the entry defaults to
-`main.aon`:
+**The package file and the lockfile are ordinary aontu.** `pkg.aon`
+declares the package's own path, entry and version, what it depends on,
+and whether it may be published:
 
 ```aon
-mod: { path:"corp.example/schemas/service" main:"service.aon" }
+pkg: { path:"corp.example/schemas/service" version:"1.4.2" main:"service.aon" }
+dep: "corp.example/schemas/common": v: "1.0.0"
+publish: public
 ```
 
-`aontu_meta/mod-lock.aon` is machine-written in **canonical form**: one line,
-sorted keys, diffable, and (its leaves being scalars) valid JSON:
+`aontu_meta/pkg-lock.aon` is machine-written in **canonical form**: one
+line, sorted keys, diffable, and (its leaves being scalars) valid JSON.
+Each entry carries three pins with distinct roles: `archive` certifies
+*these are the bytes*, `manifest` certifies *this is what the publisher
+signed*, and `canon` certifies *this is the meaning that was reviewed*:
 
 <!-- fmt: keep a lock file, shown as the tool writes it -->
 ```aon
-{"lock":{"corp.example/schemas/service@1":{"canon":"aon1-4vJe…","oci":"sha256:6b86…","v":"1.4.2"}}}
+{"lock":{"corp.example/schemas/service":{"archive":"sha256:9127…","canon":"aon1-4vJe…","manifest":"sha256:f72c…","v":"1.4.2"}}}
 ```
 
-Each entry carries two pins with distinct roles: `oci` certifies *these
-are the bytes the registry served*; `canon` certifies *this is the
-meaning that was reviewed*. Only the second can be checked without the
-registry, and it is the one evaluation checks: by unifying the module
-**standalone** and comparing its [canon-hash](#canonical-form):
+Only the canon pin can be checked by evaluation alone, and it is the
+one an import checks: by unifying the module **standalone** and
+comparing its [canon-hash](#canonical-form):
 
 ```
-module integrity: corp.example/schemas/service@1 expected aon1-4vJe… got aon1-9kQz…
+module integrity: corp.example/schemas/service expected aon1-4vJe… got aon1-9kQz…
 ```
 
 The pin survives comments, whitespace, formatting and refactoring; it
 breaks on any semantic change in the module's transitive closure. An
 inline `#aon1-…` fragment is the same check without a lockfile: the
-degenerate mode for single-file and agent-sandbox use.
+degenerate mode for single-file and agent-sandbox use. The other two
+pins belong to the tooling: `aontu sync` and `aontu pkg verify` check the
+bytes before the meaning.
 
 Under a **root** trust capability (`docs/trust.md`) the user cache is
 not consulted at all: a confined evaluation sees the project's own
 `aontu_meta/vendor/` and nothing else, which is what confinement means.
 
-**The lockfile is maintained by tooling, not by hand.** `mod.aon`
-declares what the project wants, under a `dep` map keyed by module
-path:
+**A vendored package is a project inside a project.** It carries its
+own `pkg.aon`, and its imports resolve from its own directory and then
+from every project enclosing it, which is where `sync` put its
+dependencies. The vendor tree is flat: a dependency of a dependency sits
+beside its dependant, never inside it.
 
-```aon
-mod: { path:"corp.example/app" main:"main.aon" }
-dep: "corp.example/schemas/service@1": v: "1.4.2"
-```
-
-`aontu mod tidy` walks the closure (each module's own `mod.aon`
-contributes its declarations) and resolves it by **minimum version
-selection**: every module is taken at the highest of the minima anyone
-asked for, and never higher. Resolving upgrades nothing, so the answer
-is reproducible and adding one dependency cannot move another. It then
-recomputes each `canon` pin from the module in the store and rewrites
-`aontu_meta/mod-lock.aon`; if any module is not in a store, or is in one but does
-not evaluate on its own, the lockfile is left alone: a partial lock
-claims a closure that was never resolved, and a pin computed from a
-module that has no meaning is the same string for every broken module.
-
-`aontu mod verify` asks the opposite question and **changes nothing**:
-does every locked module still *mean* what the lockfile pins? It is
-the CI gate, because `tidy` cannot be one: rewriting the lockfile is
-tidy's job, so a job that tidies before evaluating makes the
-lock agree with whatever the store now holds. A store that has drifted
-is reported with both hashes; a project the lockfile does not cover is
-refused rather than verified over nothing.
-
-`aontu mod vendor` copies the locked closure into `aontu_meta/vendor/` as whole
-source trees, which is what makes a project evaluable with no cache and
-no network at all. It can only find what the lockfile pins (the cache is
-keyed by canon-hash) so `tidy` comes first.
-
-A module that publishes itself declares a version too, and the **major
-an import spells lives inside it**: `version: "1.4.2"` publishes as
-`@1`. `aontu mod manifest` prints the OCI artifact a publish would
-push (the config media type, the source tree that is the layer, and the
-annotations carrying path, version and canon-hash) and `--against` a
-prior version's tree runs the
-[breaking](reference-api.md#aontu-breaking) check between them. A change
-that is breaking under an unchanged major refuses; a major bump is where
-breaking is allowed, because a consumer of `@1` never sees `@2` unless
-it asks.
-
-That annotation is what makes "has the truth changed?" cheap: it is the
-same canon-hash the lockfile pins, so a consumer compares one string
-rather than downloading and parsing a module.
-
-All of this is local. Fetching and publishing are the network half of
-the design and are not in this build; see
-[API reference](reference-api.md#aontu-mod).
+**The lockfile is maintained by tooling, not by hand.** `aontu sync`
+walks the closure and resolves it by **minimum version selection**:
+every package is taken at the highest of the minima anyone asked for,
+and never higher, so the answer is reproducible and adding one
+dependency cannot move another. It fetches what no store holds,
+verifying the proof, the bytes and the meaning in that order, writes
+the lockfile, materialises the vendor tree and verifies every pin. The
+verbs, their flags and the repository they read from are in the
+[API reference](reference-api.md#aontu-sync).
 
 ## Operator precedence
 

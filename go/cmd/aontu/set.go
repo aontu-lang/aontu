@@ -14,7 +14,7 @@ import (
 	aontu "github.com/aontu-lang/aontu/go"
 )
 
-const setHelp = "aontu set <path>=<value> --entry <file> --overlay <file> (try --help)"
+const setHelp = "aontu model set <path>=<value> --entry <file> --overlay <file> (try --help)"
 
 func runSet(argv []string, stdout, stderr io.Writer) int {
 	argv, trust, trustOK := takeTrust(argv, stderr)
@@ -56,7 +56,7 @@ func runSet(argv []string, stdout, stderr io.Writer) int {
 			}
 			format = argv[i]
 		case strings.HasPrefix(arg, "-"):
-			io.WriteString(stderr, "aontu: unknown set option "+arg+" (try --help)\n")
+			io.WriteString(stderr, "aontu: unknown model set option "+arg+" (try --help)\n")
 			return 2
 		default:
 			assignments = append(assignments, arg)
@@ -65,7 +65,7 @@ func runSet(argv []string, stdout, stderr io.Writer) int {
 
 	if 0 == len(assignments) || "" == entry || "" == overlayFile {
 		io.WriteString(stderr,
-			"aontu: set needs assignments, --entry and --overlay\n"+setHelp+"\n")
+			"aontu: model set needs assignments, --entry and --overlay\n"+setHelp+"\n")
 		return 2
 	}
 
@@ -171,7 +171,7 @@ func renderSetJSON(report aontu.PatchReport, wrote bool) string {
 	enc.SetEscapeHTML(false)
 	enc.SetIndent("", "  ")
 	_ = enc.Encode(setReportJSON{
-		Aontu:    subsumeProducerJSON{Verb: "set", Version: aontu.VERSION},
+		Aontu:    subsumeProducerJSON{Verb: "model set", Version: aontu.VERSION},
 		Appended: report.Appended,
 		Findings: report.Findings,
 		Overlay:  report.Overlay,

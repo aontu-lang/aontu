@@ -17,4 +17,4 @@
 # note's phase P1 — now met.
 #
 # The durable pin is test/spec/file.tsv, load-ext-json.
-vocab: @"vocab.json"
+vocab: @"./vocab.json"

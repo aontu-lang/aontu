@@ -182,7 +182,7 @@ It drives the TypeScript CLI (`ts/bin/aontu.js`, or the command in
 The verb by hand:
 
 ```sh
-aontu get out gen.aon                    # the tree, thirteen files in it
+aontu model get out gen.aon                    # the tree, thirteen files in it
 aontu trace gen.aon                      # what rule wrote each line
 aontu template handler.ts                # the template's meaning
 aontu trace handler.ts                   # and it answers the same

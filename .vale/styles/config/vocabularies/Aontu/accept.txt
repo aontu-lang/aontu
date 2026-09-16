@@ -248,3 +248,9 @@ uninstrumented
 greppable
 downgradable
 initialiser
+
+# The package system: the repository's cooling-off window, the one
+# plain-http host, and the other proof provider.
+[Cc]ooldown
+loopback
+Sigstore

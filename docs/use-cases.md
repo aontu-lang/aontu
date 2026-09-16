@@ -85,7 +85,7 @@ pinned: error
 }
 ```
 
-Statement order never matters, and `aontu why` prints each surviving
+Statement order never matters, and `aontu model why` prints each surviving
 rung with the file and line that wrote it. The full six-file layering:
 [`use-cases/02-deploy-config/`](../use-cases/02-deploy-config/).
 
@@ -246,7 +246,7 @@ overlay of any rank can flip it: `set` vets before writing and refuses
 with the pinning site named:
 
 ```
-$ aontu set '$.flags.payments_legacy_gateway.enabled=true' --entry base.aon --overlay overlay.aon
+$ aontu model set '$.flags.payments_legacy_gateway.enabled=true' --entry base.aon --overlay overlay.aon
 verdict: invalid
 
 $.flags.payments_legacy_gateway.enabled: scalar_value [conflict]
@@ -271,7 +271,7 @@ schema is generated from the registry, so the two can never drift:
 
 <!-- test: skip a fragment of 09-agent-tools, whose `registry.aon` this page does not ship; the case's own check.sh runs it -->
 ```aon
-@"registry.aon"
+@"./registry.aon"
 
 guard: pack($.argschemas, close({ tool:key() arguments:_ }))
 ```
@@ -329,23 +329,25 @@ domain, the transforms and the failed attempts, kept executable:
 ## 11. Shared modules
 
 The distribution story: a platform team's deployment contract,
-vendored into a consumer repo and held by `mod tidy` / `verify` /
-`vendor` / `manifest`, a one-line lockfile, and canon-hash integrity
-pins. The pin survives a byte-different, meaning-identical module
-refactor (a byte-hash lockfile breaks on exactly this), and a flipped
-default in the vendored tree fails evaluation with both hashes named. A single file can freeze the hash in the import string, with no
-`mod.aon` and no lockfile: the agent-sandbox mode:
+published into a repository with `aontu publish`, acquired by a
+consumer with `aontu sync`, and held by a one-line lockfile whose
+three pins cover the bytes, the signed manifest and the meaning. The
+canon pin survives a byte-different, meaning-identical module refactor
+(a byte-hash lockfile breaks on exactly this), and a flipped default in
+the vendored tree fails evaluation with both hashes named. A single
+file can freeze the hash in the import string, with no `pkg.aon` and no
+lockfile: the agent-sandbox mode:
 
 <!-- test: skip a fragment of 11-shared-modules, which resolves against that case's module store; the case's own check.sh runs it -->
 ```aon
-svc: @"corp.example/schemas/service@1#aon1-zFHnyVa1fA--g8hTx8lUUhaKzzRUNI--2nDheIMsSFs"
+svc: @"corp.example/schemas/service#aon1-zFHnyVa1fA--g8hTx8lUUhaKzzRUNI--2nDheIMsSFs"
 svc: spec: { name:"audit-log" owner:"sec-ops@corp.example" }
 ```
 
 A tampered store is refused, with both hashes named:
 
 ```
-module integrity: corp.example/schemas/service@1 expected aon1-zFHnyVa1fA--g8hTx8lUUhaKzzRUNI--2nDheIMsSFs got aon1-NHmNT6r-Lhy8di9BgGNRfgwNFT3r5PgCZxCYnJ4F0Ws
+module integrity: corp.example/schemas/service expected aon1-zFHnyVa1fA--g8hTx8lUUhaKzzRUNI--2nDheIMsSFs got aon1-NHmNT6r-Lhy8di9BgGNRfgwNFT3r5PgCZxCYnJ4F0Ws
 ```
 
 The `#aon1-` pin resolves, verifies, and refuses a mangled hash with
@@ -509,7 +511,7 @@ nodes the model produced, which a generator runtime writes to disk.
 
 <!-- test: run -->
 ```sh
-$ aontu get $.out types.aon
+$ aontu model get $.out types.aon
 {
   "children": [
     {
@@ -658,7 +660,7 @@ role: dev
 $.services.auth.tier: refused by $.roles.dev.deny.0 ($.services.*.tier)
 ```
 
-Exit 1, and `aontu why '$.roles.dev.deny.0' roles.aon` names the line
+Exit 1, and `aontu model why '$.roles.dev.deny.0' roles.aon` names the line
 that wrote the rule. A role-model edit that puts a string where the
 `allow` list goes, or adds a key the closed vocabulary does not
 declare, is exit 4 with the engine's own finding, so the rules are

@@ -1,4 +1,0 @@
-mod: {
-  path: "corp.example/schemas/service"
-  main: "service.aon"
-}

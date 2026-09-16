@@ -1,6 +1,8 @@
-# MODULES (G6 phase 2, docs/capability-review/g6-distribution.md). An
-# import is still just `@"…"`; the string's SHAPE routes it, so the
-# grammar is untouched and every existing include keeps its behaviour.
+# MODULES (G6 phase 2, docs/capability-review/g6-distribution.md; the
+# shapes of ADR-039). An import is still just `@"…"`; the string's SHAPE
+# routes it, so the grammar is untouched -- a package path is
+# `<domain>/<path>` with no major (ADR-022), and a local file carries
+# `./`, `../` or `/`.
 # Columns: name<TAB>mode<TAB>src<TAB>expect
 #
 # These rows run against real fixture trees under
@@ -9,7 +11,7 @@
 # it needs a filesystem.
 #
 # EVALUATION NEVER TOUCHES THE NETWORK: resolution reads
-# `aontu_meta/vendor/` beside the project's `mod.aon` and a content-addressed user cache, and
+# `aontu_meta/vendor/` beside the project's `pkg.aon` and a content-addressed user cache, and
 # nothing else. A module in neither store is an error that names the
 # fetch step; a module whose MEANING disagrees with its pin is an
 # integrity error naming both hashes.
@@ -17,11 +19,11 @@ mod-vendor	gens	x: @"__FIXTURES__/modproj/main.aon"	{"x":{"svc":{"name":"auth","
 mod-vendor-canon	canon	x: @"__FIXTURES__/modproj/main.aon"	{"x":{"svc":{"name":"auth","port":*8080|integer}}}
 mod-lock-pin	gens	x: @"__FIXTURES__/modlock/main.aon"	{"x":{"svc":{"name":"auth","port":8080}}}
 mod-inline-pin	gens	x: @"__FIXTURES__/modfree/main.aon"	{"x":{"svc":{"name":"auth","port":8080}}}
-mod-file-is-a-document	gens	x: @"__FIXTURES__/modproj/mod.aon"	{"x":{"dep":{"corp.example/schemas/service@1":{"v":"1.4.2"}},"mod":{"main":"main.aon","path":"corp.example/app"}}}
+mod-file-is-a-document	gens	x: @"__FIXTURES__/modproj/pkg.aon"	{"x":{"dep":{"corp.example/schemas/service":{"v":"1.4.2"}},"pkg":{"main":"main.aon","path":"corp.example/app"}}}
 mod-missing	errc	x: @"__FIXTURES__/modmiss/main.aon"	module_missing
-mod-missing-message	err	x: @"__FIXTURES__/modmiss/main.aon"	module not fetched: corp.example/schemas/absent@1 (run: aontu mod get)
+mod-missing-message	err	x: @"__FIXTURES__/modmiss/main.aon"	module not fetched: corp.example/schemas/absent (run: aontu sync)
 mod-inline-pin-mismatch	errc	x: @"__FIXTURES__/modpin/main.aon"	module_integrity
-mod-inline-pin-mismatch-message	err	x: @"__FIXTURES__/modpin/main.aon"	module integrity: corp.example/schemas/service@1 expected aon1-wrongwrongwrongwrongwrongwrongwrongwrong got aon1-oQs6Ng6XxP2FHQGTYescREGDrDPfLLW1Liq4OS8Gs2E
+mod-inline-pin-mismatch-message	err	x: @"__FIXTURES__/modpin/main.aon"	module integrity: corp.example/schemas/service expected aon1-wrongwrongwrongwrongwrongwrongwrongwrong got aon1-oQs6Ng6XxP2FHQGTYescREGDrDPfLLW1Liq4OS8Gs2E
 mod-lock-pin-mismatch	errc	x: @"__FIXTURES__/modbad/main.aon"	module_integrity
 # A module resolves from ITS OWN project root FIRST, and then from the
 # roots that enclose it -- because a vendored module is a project
@@ -33,16 +35,42 @@ mod-lock-pin-mismatch	errc	x: @"__FIXTURES__/modbad/main.aon"	module_integrity
 # import is found and refused as what it is -- a source cannot be its
 # own ancestor.
 mod-nested-has-its-own-root	errc	x: @"__FIXTURES__/modself/main.aon"	syntax
-# THE ROUTING GUARD. A path routes to the module resolver only when it
-# is domain-shaped AND carries a major; anything else falls through the
-# chain exactly as it did before this phase existed.
-mod-no-major-is-not-a-module	err	x: @"corp.example/schemas/service"	source not found: corp.example/schemas/service
-mod-no-dot-is-not-a-module	err	x: @"local@1"	source not found: local@1
-mod-shaped-is-a-module	err	x: @"corp.example/schemas/service@1"	module not fetched: corp.example/schemas/service@1 (run: aontu mod get)
-# THE PATH GATE. A path that ROUTES here (domain-shaped, with a major)
-# is not yet a path that may become a DIRECTORY. MODULE_RE's element
+# THE ROUTING GUARD (ADR-022 part 4, ADR-039 part 4). A path routes to
+# the module resolver when it is domain-shaped -- a first segment with a
+# dot, lowercase, no major -- or spells an alias; a local file says so
+# with `./`, `../` or `/`, and anything else falls through the chain
+# exactly as it did before modules existed.
+mod-no-dot-is-not-a-module	err	x: @"local"	source not found: local
+mod-major-is-not-a-module	err	x: @"corp.example/schemas/service@1"	source not found: corp.example/schemas/service@1
+mod-shaped-is-a-module	err	x: @"corp.example/schemas/service"	module not fetched: corp.example/schemas/service (run: aontu sync)
+mod-dot-slash-is-a-file	err	x: @"./corp.example/schemas/service"	source not found: ./corp.example/schemas/service
+mod-dot-dot-is-a-file	err	x: @"../corp.example/service.aon"	source not found: ../corp.example/service.aon
+# A BARE FILE NAME IS THE COMMONEST MISTAKE, now the major has left the
+# name: `config.json` is domain-shaped enough to route here, and the
+# refusal says what was meant rather than `module not fetched`. Only an
+# extension the include table knows is a file; `.example` and `.com`
+# are domains.
+mod-local-file-needs-a-prefix	errc	x: @"config.json"	module_local
+mod-local-file-message	err	x: @"config.json"	local files need a ./ prefix: config.json (write @"./config.json")
+mod-local-file-in-a-directory	errc	x: @"my.dir/data.yaml"	module_local
+mod-local-aon-file	errc	x: @"local.aon"	module_local
+mod-unknown-extension-is-a-package	err	x: @"corp.example/schemas/v2.beta"	module not fetched: corp.example/schemas/v2.beta (run: aontu sync)
+# AN ALIAS RESOLVES BY LOOKUP, NEVER BY SHAPE (CLI.0.md §3b): the
+# consumer's pkg.aon names the package it stands for, and the vendor
+# tree holds it under alias/<name>, so a second version of one package
+# lives in the closure under a name the consumer chose.
+mod-alias-resolves	gens	x: @"__FIXTURES__/modalias/main.aon"	{"x":{"legacy":{"name":"auth","port":8080},"svc":{"name":"auth","port":9090}}}
+mod-alias-undeclared	errc	x: @"alias:nobody"	module_missing
+mod-alias-undeclared-message	err	x: @"alias:nobody"	alias not declared: alias:nobody (declare it under dep in pkg.aon)
+# A MOVED PACKAGE REFUSES AND NEVER REDIRECTS (ADR-020 part 6): its own
+# pkg.aon declares the destination, and a name that quietly meant
+# something else is the failure the convention exists to prevent.
+mod-moved-refuses	errc	x: @"__FIXTURES__/modmoved/main.aon"	module_moved
+mod-moved-message	err	x: @"__FIXTURES__/modmoved/main.aon"	module moved: corp.example/schemas/service (now corp.example/schemas/svc; import that instead, nothing follows a move)
+# THE PATH GATE. A path that ROUTES here (domain-shaped) is not yet a
+# path that may become a DIRECTORY. MODULE_RE's element
 # class admits `..`, and pathJoin CLEANS `..` rather than refusing it,
-# so `corp.example/../../etc/passwd@1` named a store directory two
+# so `corp.example/../../etc/passwd` named a store directory two
 # levels ABOVE the store -- and `mod vendor` copied a tree there and
 # reported success. The rules are Go's (module.CheckPath), refused
 # before anything is built from the path, and the refusal names the
@@ -52,26 +80,26 @@ mod-shaped-is-a-module	err	x: @"corp.example/schemas/service@1"	module not fetch
 # it rejects falls through to the file leg, so a stricter pattern would
 # silently re-route documents that work today. Shape routes; validity
 # refuses.
-mod-path-traversal	errc	x: @"corp.example/../../etc/passwd@1"	module_path
-mod-path-traversal-message	err	x: @"corp.example/../../etc/passwd@1"	module path: corp.example/../../etc/passwd@1 (an element begins or ends with ".")
-mod-path-dot-element	errc	x: @"corp.example/.hidden@1"	module_path
-mod-path-trailing-dot	errc	x: @"corp.example/trailing.@1"	module_path
+mod-path-traversal	errc	x: @"corp.example/../../etc/passwd"	module_path
+mod-path-traversal-message	err	x: @"corp.example/../../etc/passwd"	module path: corp.example/../../etc/passwd (an element begins or ends with ".")
+mod-path-dot-element	errc	x: @"corp.example/.hidden"	module_path
+mod-path-trailing-dot	errc	x: @"corp.example/trailing."	module_path
 # Windows refuses these as file names whatever the extension, so a
 # module path carrying one cannot be materialised there at all -- and a
 # module that resolves on one platform and not another is exactly the
 # machine-dependence docs/trust.md forbids.
-mod-path-reserved-device	errc	x: @"corp.example/nul@1"	module_path
-mod-path-reserved-device-with-ext	errc	x: @"corp.example/CON.aon@1"	module_path
-mod-path-reserved-device-message	err	x: @"corp.example/nul@1"	module path: corp.example/nul@1 (an element is a reserved device name)
+mod-path-reserved-device	errc	x: @"corp.example/nul"	module_path
+mod-path-reserved-device-with-ext	errc	x: @"corp.example/CON.cfg"	module_path
+mod-path-reserved-device-message	err	x: @"corp.example/nul"	module path: corp.example/nul (an element is a reserved device name)
 # The bounds are the other half of "a legal directory everywhere": a
 # path no filesystem will hold is refused as a path rather than as an
 # I/O failure whose wording depends on the host.
-mod-path-too-long	errc	x: @"corp.example/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@1"	module_path
-mod-path-too-many-elements	errc	x: @"corp.example/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a@1"	module_path
+mod-path-too-long	errc	x: @"corp.example/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"	module_path
+mod-path-too-many-elements	errc	x: @"corp.example/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a"	module_path
 # A path that breaks NO rule still routes and still resolves exactly as
 # it did before the gate existed -- the guard that the gate refuses
 # only what it means to.
-mod-path-valid-still-routes	err	x: @"corp.example/schemas/service@1"	module not fetched: corp.example/schemas/service@1 (run: aontu mod get)
+mod-path-valid-still-routes	err	x: @"corp.example/schemas/service"	module not fetched: corp.example/schemas/service (run: aontu sync)
 # UPPERCASE IS ESCAPED ON DISK, `!`+lowercase, which is Go's rule
 # (go.dev/ref/mod, module proxy protocol) and is here for Go's reason:
 # `corp.example/Widgets` and `corp.example/widgets` are two module
@@ -80,7 +108,7 @@ mod-path-valid-still-routes	err	x: @"corp.example/schemas/service@1"	module not 
 # unpinned import resolves to a module it did not name.
 #
 # The WRITTEN path stays the identity: the import below spells
-# `Widgets`, the fixture on disk is `!widgets@1`, and this row resolves
+# `Widgets`, the fixture on disk is `!widgets`, and this row resolves
 # only if the two are connected by the escape.
 mod-case-escaped-store	gens	x: @"__FIXTURES__/modcase/main.aon"	{"x":{"w":{"count":3,"kind":"widget"}}}
 # THE MODULE FILE'S OWN EDGES. A module file with no `main` uses the
@@ -102,5 +130,5 @@ mod-lock-entry-without-pin	gens	x: @"__FIXTURES__/modlocknoc/main.aon"	{"x":{"sv
 # TWO MISSING MODULES, ONE REFUSAL: the FIRST is the one reported, as
 # the first denied include is. A refusal is about the document not
 # standing up, and the second miss adds nothing to that.
-mod-first-miss-is-the-one	errc	x: @"a.example/m@1"\ny: @"b.example/m@1"	module_missing
-mod-first-miss-message	err	x: @"a.example/m@1"\ny: @"b.example/m@1"	module not fetched: a.example/m@1 (run: aontu mod get)
+mod-first-miss-is-the-one	errc	x: @"a.example/m"\ny: @"b.example/m"	module_missing
+mod-first-miss-message	err	x: @"a.example/m"\ny: @"b.example/m"	module not fetched: a.example/m (run: aontu sync)

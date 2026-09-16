@@ -18,7 +18,7 @@ import (
 
 func getRun(args ...string) (string, string, int) {
 	var out, errw bytes.Buffer
-	code := run(append([]string{"get"}, args...), strings.NewReader(""), &out, &errw, false)
+	code := run(append([]string{"model", "get"}, args...), strings.NewReader(""), &out, &errw, false)
 	return out.String(), errw.String(), code
 }
 
@@ -65,7 +65,7 @@ func TestGetRendersOneNodePerView(t *testing.T) {
 	if err := json.Unmarshal([]byte(out), &report); err != nil {
 		t.Fatal(err)
 	}
-	if "get" != report.Aontu.Verb || !report.OK || 0 != len(report.Findings) {
+	if "model get" != report.Aontu.Verb || !report.OK || 0 != len(report.Findings) {
 		t.Fatalf("bad report: %s", out)
 	}
 }

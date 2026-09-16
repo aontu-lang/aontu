@@ -54,6 +54,6 @@ ranges meet to their overlap.
 
 ## Files
 
-`@"other.aon"` includes another document — it unifies in, it does not
+`@"./other.aon"` includes another document — it unifies in, it does not
 concatenate. (A constrained decoder is not given this: generated
 documents describe values, they do not load files.)

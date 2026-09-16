@@ -1,4 +1,4 @@
-@"permissions.aon"
+@"./permissions.aon"
 
 # A role is one of two CLOSED shapes selected by the `privileged`
 # flag -- the conditional-shape idiom. The rule "no role grants

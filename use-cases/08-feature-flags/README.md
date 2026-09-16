@@ -10,7 +10,7 @@ per-environment and per-tenant overrides, and an operational loop in
 which an agent or on-call operator changes a flag now, without editing
 the code-reviewed base files. The same document that serves the config is
 the ground truth that constrains the change. So this case exercises
-the write path: `aontu set <path>=<value> --entry base.aon --overlay
+the write path: `aontu model set <path>=<value> --entry base.aon --overlay
 overlay.aon`, run repeatedly, plus `why` for provenance and `--trust`
 for containing a hostile overlay.
 
@@ -147,7 +147,7 @@ the resolved value.
 **Fewer stars win**, so the rungs read weakest-first and the winner is
 the last rung before the value: the org catalog's `***0`, then the prod
 environment's `**5`, then the megacorp tenant's `*25`, which is the
-answer. `aontu why` prints the same three facts as three lines; what
+answer. `aontu model why` prints the same three facts as three lines; what
 the ladder adds is that the arbitration is a shape.
 
 `why` returns its conjuncts in source order, not rank order, so the

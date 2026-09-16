@@ -601,7 +601,7 @@ function capture(fn) {
                 kind: 'csv', src: 'a:1', search: [],
             }),
         });
-        const refused = host.parse('v:@"x.csv"');
+        const refused = host.parse('v:@"./x.csv"');
         Assert.equal(refused.canon, 'nil');
         Assert.equal(refused.err[0].why, 'include_extension');
         Assert.match(refused.err[0].msg, /extension: \.csv/);
@@ -611,7 +611,7 @@ function capture(fn) {
                 kind: 'txt', src: 'a:1', search: [],
             }),
         });
-        Assert.equal(hostText.parse('v:@"x.txt"').canon, '{"v":"a:1"}');
+        Assert.equal(hostText.parse('v:@"./x.txt"').canon, '{"v":"a:1"}');
         const hostMd = (ext, textExt) => new lang_1.Lang({
             textExt,
             resolver: () => ({
@@ -794,16 +794,16 @@ function capture(fn) {
         Assert.match(capture(() => (0, cli_1.main)(['node', 'cli', '--text-ext', '.md', '-c', file])).out, /\{"doc":"# hi\\n"\}/);
         // ... a verb honours it too, which is the whole reason it rides
         // with the capability rather than beside it ...
-        Assert.match(capture(() => (0, cli_1.main)(['node', 'cli', 'get', '$.doc', '--text-ext', 'md', file])).out, /# hi/);
+        Assert.match(capture(() => (0, cli_1.main)(['node', 'cli', 'model', 'get', '$.doc', '--text-ext', 'md', file])).out, /# hi/);
         // ... and every way of spelling it wrong is a usage error rather
         // than a flag that quietly does nothing.
         for (const bad of ['', '.', 'md,', 'a b', 'md,,sql']) {
             Assert.match(capture(() => (0, cli_1.main)(['node', 'cli', '--text-ext', bad, file])).err, /--text-ext needs extensions/, `accepted: ${JSON.stringify(bad)}`);
-            Assert.match(capture(() => (0, cli_1.main)(['node', 'cli', 'get', '$.doc', '--text-ext', bad, file])).err, /--text-ext needs extensions/, `verb accepted: ${JSON.stringify(bad)}`);
+            Assert.match(capture(() => (0, cli_1.main)(['node', 'cli', 'model', 'get', '$.doc', '--text-ext', bad, file])).err, /--text-ext needs extensions/, `verb accepted: ${JSON.stringify(bad)}`);
         }
         // A trailing flag with no value at all, on both roads.
         Assert.match(capture(() => (0, cli_1.main)(['node', 'cli', file, '--text-ext'])).err, /--text-ext needs extensions/);
-        Assert.match(capture(() => (0, cli_1.main)(['node', 'cli', 'get', '$.doc', file, '--text-ext'])).err, /--text-ext needs extensions/);
+        Assert.match(capture(() => (0, cli_1.main)(['node', 'cli', 'model', 'get', '$.doc', file, '--text-ext'])).err, /--text-ext needs extensions/);
         Fs.rmSync(dir, { recursive: true, force: true });
     });
     (0, node_test_1.test)('cli-file-error-path', () => {

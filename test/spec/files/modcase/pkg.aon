@@ -1,0 +1,8 @@
+# A consuming project whose one dependency has an uppercase element.
+pkg: {
+  path: "corp.example/app"
+  main: "main.aon"
+}
+dep: {
+  "corp.example/Widgets": { v: "1.0.0" }
+}

@@ -57,6 +57,7 @@ import {
 import { AONTU_SOURCES, AONTU_SCHEME, AONTU_MODELS } from './aontumodel'
 import {
   parseModuleRef, resolveModule, modCacheDir, MODULE_REFUSAL_CODES,
+  localFileExt, refuseLocalFile,
 } from './mod'
 
 import {
@@ -1408,7 +1409,7 @@ const INCLUDE_KINDS: { [kind: string]: string } = {
 }
 
 
-function includeFormat(
+export function includeFormat(
   ext: string, textExt?: string[]): string | undefined {
   const known = INCLUDE_KINDS[ext]
   if (undefined !== known) {
@@ -1706,6 +1707,13 @@ function makeModelResolver(options: any) {
 
     const modref = memCapability ? undefined : parseModuleRef(path)
     if (null != modref) {
+      // A bare `config.json` routes here now the major has left the
+      // name (ADR-022 part 4); the message says what was meant.
+      const ext = localFileExt(modref.path)
+      if (undefined !== ext &&
+        undefined !== includeFormat(ext, options.textExt)) {
+        refuseLocalFile(modref.path)
+      }
       const msmeta = (ctx as any)?.meta?.multisource
       const from = dirOf(null != msmeta?.path ? msmeta.path : popts?.path)
       const found = resolveModule(modref, from, modFs(ctx), {

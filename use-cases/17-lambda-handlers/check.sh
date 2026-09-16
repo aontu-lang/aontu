@@ -46,7 +46,7 @@ has() {
 # 3 when it is absent, so the byte checks skip with a note rather than
 # failing where it is not installed.
 CMP="node $REPO/tools/cmptree-check.js"
-tree() { $AONTU get out --trust root "${1:-$DIR/gen.aon}" 2>/dev/null; }
+tree() { $AONTU model get out --trust root "${1:-$DIR/gen.aon}" 2>/dev/null; }
 jostraca=0
 tree | $CMP --folder "$DIR/expected" >/dev/null 2>&1 || jostraca=$?
 
@@ -205,9 +205,9 @@ if command -v go >/dev/null 2>&1; then
   GOBIN="$WORK/aontu-go"
   (cd "$REPO/go" && go build -o "$GOBIN" ./cmd/aontu) \
     || fail "could not build the Go CLI"
-  "$GOBIN" get out --trust root "$DIR/gen.aon" 2>/dev/null > "$WORK/go.json" \
+  "$GOBIN" model get out --trust root "$DIR/gen.aon" 2>/dev/null > "$WORK/go.json" \
     || fail "the Go port did not build the tree"
-  $AONTU get out --trust root "$DIR/gen.aon" 2>/dev/null > "$WORK/ts.json"
+  $AONTU model get out --trust root "$DIR/gen.aon" 2>/dev/null > "$WORK/ts.json"
   diff -u "$WORK/ts.json" "$WORK/go.json" \
     || fail "the two ports build different trees (ADR-001)"
   "$GOBIN" "$DIR/bad/overlap.aon" >"$WORK/go-overlap.out" 2>&1 \

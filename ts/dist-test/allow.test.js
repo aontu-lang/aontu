@@ -289,7 +289,7 @@ function failure(src, role = 'dev', path = '$.a') {
         const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-allow-'));
         Fs.writeFileSync(Path.join(dir, 'dev.aon'), 'roles: dev: { allow: ["$.services"] }');
         const model = Path.join(dir, 'roles.aon');
-        const src = '@"dev.aon"\nroles: qa: { allow: ["$.tests"] }';
+        const src = '@"./dev.aon"\nroles: qa: { allow: ["$.tests"] }';
         Fs.writeFileSync(model, src);
         const r = (0, aontu_1.allow)(src, 'dev', ['$.services.auth'], { path: model });
         Assert.equal(r.verdict, 'allowed');

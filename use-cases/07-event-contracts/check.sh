@@ -46,10 +46,10 @@ V1="$DIR/orders-v1.aon"
 run canon 0 -- --canon "$V1"
 diff -u "$DIR/expected/orders-v1.canon" "$WORK/canon.out" \
   || fail "canonical form drifted from expected/orders-v1.canon"
-run opcanon 0 -- get '$.OrderPaid' --canon "$V1"
+run opcanon 0 -- model get '$.OrderPaid' --canon "$V1"
 diff -u "$DIR/expected/order-paid.canon" "$WORK/opcanon.out" \
   || fail "OrderPaid canonical slice drifted"
-run keys 0 -- get '$.registry' --keys "$V1"
+run keys 0 -- model get '$.registry' --keys "$V1"
 diff -u "$DIR/expected/registry-keys.txt" "$WORK/keys.out" \
   || fail "registry key list drifted"
 run hash 0 -- hash "$V1"
@@ -96,7 +96,7 @@ ok "hash: different conjunct defaults give different aon1- identities"
 # nothing met at this path)" over a value it had just printed. It now
 # names the file and line the pattern was written on, which is the
 # whole audit question for a shared envelope.
-run why 0 -- why '$.OrderPaid.time' "$V1"
+run why 0 -- model why '$.OrderPaid.time' "$V1"
 has why out 'envelope.aon:'
 grep -q 'no contributions' "$WORK/why.out" \
   && fail 'why: envelope-supplied field is silent again' || true
@@ -144,7 +144,7 @@ ok "vet: three-event stream sample in one command, one verdict"
 # value back, which is the assertion the verdict alone never made.
 run dfill 0 -- vet --at '$.Event' "$V1" "$DIR/data/stream/cancelled-1003.json"
 has dfill out 'verdict: valid'
-run dfillget 0 -- get '$.Envelope.specversion' "$DIR/envelope.aon"
+run dfillget 0 -- model get '$.Envelope.specversion' "$DIR/envelope.aon"
 has dfillget out '"1.0"'
 ok "vet: omitted specversion filled by the enum-guarded default"
 
@@ -223,7 +223,7 @@ ok "union anchor: MISSING field localised precisely (incomplete != conflict)"
 
 # GAP: dotted wire types are unaddressable -- no path spelling
 # reaches a key spelled "order.placed".
-run dotted 1 -- get '$.registry."order.placed"' "$V1"
+run dotted 1 -- model get '$.registry."order.placed"' "$V1"
 has dotted err 'no_path'
 ok "get: a dotted key cannot be addressed (why the registry underscores)"
 

@@ -19,4 +19,4 @@
 # other, both exiting 0.
 #
 # The durable pin is test/spec/file.tsv, load-ext-*.
-jsonld: @"vocab.jsonld"
+jsonld: @"./vocab.jsonld"

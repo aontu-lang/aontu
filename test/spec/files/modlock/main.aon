@@ -1,2 +1,2 @@
-svc: @"corp.example/schemas/service@1"
+svc: @"corp.example/schemas/service"
 svc: name: "auth"

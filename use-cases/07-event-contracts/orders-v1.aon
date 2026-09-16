@@ -4,7 +4,7 @@
 # defines one closed shape per event type, the discriminated union,
 # and the dispatch registry.
 
-@"envelope.aon"
+@"./envelope.aon"
 
 OrderPlaced: close($.Envelope & {
   type: "order.placed"

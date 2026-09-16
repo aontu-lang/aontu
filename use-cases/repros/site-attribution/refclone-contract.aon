@@ -11,5 +11,5 @@
 # values that fall back to the entry name.)
 # expected: schema site refclone-env.aon:3:24 (re("^[0-9]{4}-Z$"))
 # actual:   schema site refclone-contract.aon:3:24
-@"refclone-env.aon"
+@"./refclone-env.aon"
 reg: { placed: $.Envelope & { kind: "p" } }

@@ -36,7 +36,7 @@ load-not-found	err	a:@"nope-no-such-file"	source not found: nope-no-such-file
 # just as a value. load-not-found above uses the value position -- the one
 # both ports already agreed on -- so it pinned the narrowest case and left
 # the rest open. A bare member include is the position a real config uses
-# most (`@"base.aon"` at the top of a file), and it is the one where a
+# most (`@"./base.aon"` at the top of a file), and it is the one where a
 # missing source silently produced a clean, plausible, INCOMPLETE document.
 load-not-found-bare	err	@"nope-no-such-file"	source not found: nope-no-such-file
 load-not-found-member	err	a:1 @"nope-no-such-file"	source not found: nope-no-such-file
@@ -83,9 +83,9 @@ load-alias-top-conjunct	gen	@"__FIXTURES__/alias_top.aon" c1:$.C&{a:5}	{"c1":{"a
 #
 # The rows exist because the two ports decided this DIFFERENTLY, and
 # both answers were wrong in a way that exits 0. TypeScript handed back
-# every non-`.aon` file as its raw TEXT, so `schema: @"vocab.jsonld"`
+# every non-`.aon` file as its raw TEXT, so `schema: @"./vocab.jsonld"`
 # validated data against a 40 KB string; Go parsed everything as aontu
-# source, so `@"notes.txt"` parsed prose. `.json` was worse than either:
+# source, so `@"./notes.txt"` parsed prose. `.json` was worse than either:
 # an unhandled internal error with no code, path or site.
 #
 # THE TWO PORTS RUN THE SAME PARSERS (@tabnas, one per format), which is

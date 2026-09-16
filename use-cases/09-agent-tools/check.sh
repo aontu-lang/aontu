@@ -52,12 +52,12 @@ has canon out '"GET"|"HEAD"'
 has canon out 'deprecate(integer&min(0)&max(10)'
 ok "canonical form keeps constraints, enums and deprecations"
 
-run slice 0 -- get '$.tools.delete_records' "$DIR/registry.aon"
+run slice 0 -- model get '$.tools.delete_records' "$DIR/registry.aon"
 diff -u "$DIR/expected/tool-delete-records.json" "$WORK/slice.out" \
   || fail "delete_records slice drifted"
 ok "get: one tool's merged truth, as a dispatcher would pull it"
 
-run why 0 -- why '$.tools.delete_records.requires_approval' \
+run why 0 -- model why '$.tools.delete_records.requires_approval' \
   "$DIR/registry.aon"
 has why out 'match(.side_effect,"destructive",true,false)'
 ok "why: the approval flag is traced to its match() rule"

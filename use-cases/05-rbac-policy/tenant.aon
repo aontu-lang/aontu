@@ -1,5 +1,5 @@
-@"roles.aon"
-@"plans.aon"
+@"./roles.aon"
+@"./plans.aon"
 
 # The tenant document schema: what an agent-emitted tenant candidate
 # must satisfy (aontu vet tenant.aon data/<candidate>.json).

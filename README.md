@@ -68,8 +68,8 @@ lattice), `jsonschema` (export
 the model as JSON Schema), `trace` (what wrote a line of generated
 output: the file, the model node and the rule), `template` (read a
 generator written in the target's own syntax), `trim` (find redundant
-entries), `mod`
-(dependency closures), `agentsmd` (an AGENTS.md stanza), `fmt` (the
+entries), `sync`, `add`, `get`, `remove`, `why` and `publish` (the
+package system: dependency closures and their repository), `agentsmd` (an AGENTS.md stanza), `fmt` (the
 source formatter, in the tradition of `gofmt`: one agreed form), `lsp`
 (the language server) and `mcp` (the MCP server, npm build). The
 library adds a path-addressed `diff`, and an MCP server answers with

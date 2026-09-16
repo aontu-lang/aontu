@@ -17,7 +17,7 @@ import (
 
 func whyRun(args ...string) (string, string, int) {
 	var out, errw bytes.Buffer
-	code := run(append([]string{"why"}, args...), strings.NewReader(""), &out, &errw, false)
+	code := run(append([]string{"model", "why"}, args...), strings.NewReader(""), &out, &errw, false)
 	return out.String(), errw.String(), code
 }
 
@@ -75,7 +75,7 @@ func TestWhyNamesEveryContribution(t *testing.T) {
 	if err := json.Unmarshal([]byte(out), &report); err != nil {
 		t.Fatal(err)
 	}
-	if "why" != report.Aontu.Verb || !report.OK || "3" != report.Record.Value ||
+	if "model why" != report.Aontu.Verb || !report.OK || "3" != report.Record.Value ||
 		2 != len(report.Record.Conjuncts) ||
 		"spread" != report.Record.Conjuncts[0].Role {
 		t.Fatalf("bad report: %s", out)

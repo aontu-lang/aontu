@@ -1,5 +1,5 @@
 ---
-description: Rewrite a pinned literal where the author wrote it with aontu set --in-place, and know the cases where the verb appends instead.
+description: Rewrite a pinned literal where the author wrote it with aontu model set --in-place, and know the cases where the verb appends instead.
 group: query-change
 order: 40
 ---
@@ -32,7 +32,7 @@ because the overlay would then disagree with itself:
 
 <!-- test: run -->
 ```sh
-$ aontu set '$.replicas=5' --entry schema.aon --overlay deploy.aon
+$ aontu model set '$.replicas=5' --entry schema.aon --overlay deploy.aon
 verdict: invalid
 
 $.replicas: scalar_value [conflict]
@@ -49,7 +49,7 @@ in the same file, which is exactly why appending cannot help. Add
 
 <!-- test: run -->
 ```sh
-$ aontu set '$.replicas=5' --entry schema.aon --overlay deploy.aon --in-place
+$ aontu model set '$.replicas=5' --entry schema.aon --overlay deploy.aon --in-place
 verdict: valid
 replaced: deploy.aon:2:11 42 -> 5
 wrote: deploy.aon
@@ -75,7 +75,7 @@ what makes a hex literal safe to rewrite even though its *value* is
 
 <!-- test: run -->
 ```sh
-$ aontu set '$.port=80' --entry schema.aon --overlay deploy.aon --in-place
+$ aontu model set '$.port=80' --entry schema.aon --overlay deploy.aon --in-place
 verdict: valid
 replaced: deploy.aon:3:7 0x1F -> 80
 wrote: deploy.aon
@@ -114,7 +114,7 @@ port: integer
 
 <!-- test: run -->
 ```sh
-$ aontu set '$.replicas=9' --entry stack.aon --overlay deploy.aon --in-place
+$ aontu model set '$.replicas=9' --entry stack.aon --overlay deploy.aon --in-place
 verdict: invalid
 would replace: deploy.aon:2:11 5 -> 9
 
@@ -137,7 +137,7 @@ collision](../explanation.md#the-emit--validate--repair-loop).)
 
 Pair `--in-place` with `--dry-run` to see the rewritten overlay
 without writing it. The full editability rules are under [`aontu
-set`](../reference-api.md#aontu-set); after any refusal, [`aontu
+set`](../reference-api.md#aontu-model-set); after any refusal, [`aontu
 why`](explain-a-value.md) lists every line involved; and the live
 version, an ops overlay repeatedly rewritten in place, is
 [use-cases/08-feature-flags](../../use-cases/08-feature-flags/).

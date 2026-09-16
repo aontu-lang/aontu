@@ -211,7 +211,7 @@ rounds them, and `--canon` keeps the `0d` prefix and the exact value.
 1. `aontu seed.aon` matches `expected/seed.json` byte for byte:
    defaults filled (`ord-7002.status` is `"open"`), every `id` equal
    to its key, and one receivables account per customer.
-2. `aontu get '$.pricing.bundles' --canon seed.aon` matches
+2. `aontu model get '$.pricing.bundles' --canon seed.aon` matches
    `expected/bundles-canon.txt`,
    `{"pro-pair":{"eur":0d69.89,"tier":"premium"},"service-kit":{"eur":0d0.3,"tier":"accessory"}}`:
    canon keeps the `0d` kind.
@@ -242,7 +242,7 @@ rounds them, and `--canon` keeps the `0d` prefix and the exact value.
    `[aontu/constraint]`, citing `integer&min(1)` against
    `0d9007199254740993`. The domain's `integer | biginteger`
    disjunction admits the same record (it is part of the batch in 4),
-   and `aontu get '$.customers.cust-1003.ledgerId' --canon` prints
+   and `aontu model get '$.customers.cust-1003.ledgerId' --canon` prints
    `0d9007199254740993`.
 10. `exact-money.aon` accepts `data/quote-exact.aon` (`0d10.50`) and
     refuses `data/quote-float.json` (`10.5`) with `[aontu/constraint]`
@@ -326,5 +326,5 @@ rather than by error prose. Three verbs by hand:
 ```sh
 aontu seed.aon                                                                            # generate the fixture set
 aontu vet seed.aon data/order-batch-1.aon data/order-batch-2.aon data/customer-bigid.aon  # vet a batch
-aontu get out xf-order.aon                                                                 # the schema as TypeScript and Go
+aontu model get out xf-order.aon                                                                 # the schema as TypeScript and Go
 ```

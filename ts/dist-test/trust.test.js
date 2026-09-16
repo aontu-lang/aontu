@@ -52,7 +52,7 @@ function world() {
     const root = Path.join(dir, 'root');
     Fs.mkdirSync(Path.join(root, 'sub'), { recursive: true });
     Fs.writeFileSync(Path.join(root, 'in.aon'), 'f: 11');
-    Fs.writeFileSync(Path.join(root, 'nest.aon'), '@"in.aon"\ng: 22');
+    Fs.writeFileSync(Path.join(root, 'nest.aon'), '@"./in.aon"\ng: 22');
     Fs.writeFileSync(Path.join(root, 'sub', 'deep.aon'), 'h: 33');
     Fs.writeFileSync(Path.join(dir, 'secret.aon'), 'secret: "outside"');
     try {
@@ -322,7 +322,7 @@ function firstCode(fn) {
     (0, node_test_1.test)('trust-none-denies', () => {
         const w = world();
         const entry = Path.join(w.root, 'main.aon');
-        Fs.writeFileSync(entry, 'a:@"in.aon"');
+        Fs.writeFileSync(entry, 'a:@"./in.aon"');
         const r = cli(['--trust', 'none', entry]);
         Assert.equal(r.code, 1);
         Assert.match(r.err, /include denied/);
@@ -342,7 +342,7 @@ function firstCode(fn) {
     (0, node_test_1.test)('trust-root-defaults-to-the-entry-directory', () => {
         const w = world();
         const entry = Path.join(w.root, 'main.aon');
-        Fs.writeFileSync(entry, 'a:@"in.aon"');
+        Fs.writeFileSync(entry, 'a:@"./in.aon"');
         const r = cli(['--trust', 'root', entry]);
         Assert.equal(r.code, 0);
         Fs.writeFileSync(entry, `a:@"${(0, srcpath_1.srcPath)(w.dir)}/secret.aon"`);
@@ -355,7 +355,7 @@ function firstCode(fn) {
     (0, node_test_1.test)('default-warns-on-escape', () => {
         const w = world();
         const entry = Path.join(w.root, 'main.aon');
-        Fs.writeFileSync(entry, `a:@"${(0, srcpath_1.srcPath)(w.dir)}/secret.aon" b:@"${(0, srcpath_1.srcPath)(w.dir)}/secret.aon" c:@"in.aon"`);
+        Fs.writeFileSync(entry, `a:@"${(0, srcpath_1.srcPath)(w.dir)}/secret.aon" b:@"${(0, srcpath_1.srcPath)(w.dir)}/secret.aon" c:@"./in.aon"`);
         const r = cli([entry]);
         Assert.equal(r.code, 0);
         Assert.equal((r.err.match(/warning: include resolved outside the entry root/g) ?? [])
@@ -389,15 +389,16 @@ function firstCode(fn) {
         Fs.writeFileSync(overlay, '');
         const denied = (args) => {
             const open = cli(args);
-            const shut = cli([...args.slice(0, 1), '--trust', 'none', ...args.slice(1)]);
+            const verb = 'model' === args[0] ? 2 : 1;
+            const shut = cli([...args.slice(0, verb), '--trust', 'none', ...args.slice(verb)]);
             Assert.notEqual(JSON.stringify([open.code, open.out, open.err]), JSON.stringify([shut.code, shut.out, shut.err]), 'the verb ignored --trust: ' + args.join(' '));
             if (!/verdict: error/.test(shut.out + shut.err)) {
                 Assert.match(shut.out + shut.err, /include denied|include_denied/);
             }
         };
         denied(['vet', entry, data]);
-        denied(['get', '$.a.secret', entry]);
-        denied(['why', '$.a.secret', entry]);
+        denied(['model', 'get', '$.a.secret', entry]);
+        denied(['model', 'why', '$.a.secret', entry]);
         denied(['subsume', entry, entry]);
         denied(['breaking', '--against', entry, entry]);
         denied(['relations', entry]);
@@ -408,7 +409,7 @@ function firstCode(fn) {
         denied(['view', 'doc', entry]);
         denied(['hash', entry]);
         denied(['agentsmd', entry]);
-        denied(['set', '$.z=1', '--entry', entry, '--overlay', overlay]);
+        denied(['model', 'set', '$.z=1', '--entry', entry, '--overlay', overlay]);
     });
     (0, node_test_1.test)('every-verb-honours-the-text-extensions', () => {
         const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-textext-'));
@@ -427,8 +428,8 @@ function firstCode(fn) {
             return wide;
         };
         both(['vet', schema, entry]);
-        both(['get', '$.doc', entry]);
-        both(['why', '$.doc', entry]);
+        both(['model', 'get', '$.doc', entry]);
+        both(['model', 'why', '$.doc', entry]);
         both(['relations', entry]);
         both(['trim', '--check', entry]);
         both(['reaches', '$.doc', '$.doc', entry]);
@@ -438,7 +439,7 @@ function firstCode(fn) {
         both(['view', 'doc', entry]);
         both(['view', 'layer', entry]);
         both(['agentsmd', entry]);
-        both(['set', '$.z=1', '--entry', entry, '--overlay', overlay]);
+        both(['model', 'set', '$.z=1', '--entry', entry, '--overlay', overlay]);
         for (const args of [
             ['subsume', schema, entry],
             ['breaking', '--against', entry, entry],
@@ -464,18 +465,18 @@ function firstCode(fn) {
         const entry = Path.join(w.root, 'leak.aon');
         Fs.writeFileSync(entry, `a:@"${(0, srcpath_1.srcPath)(w.dir)}/secret.aon"`);
         const inside = Path.join(w.root, 'fine.aon');
-        Fs.writeFileSync(inside, 'a:@"in.aon"');
-        const confined = cli(['get', '$.a.secret', '--include-root', w.root, entry]);
+        Fs.writeFileSync(inside, 'a:@"./in.aon"');
+        const confined = cli(['model', 'get', '$.a.secret', '--include-root', w.root, entry]);
         Assert.match(confined.out + confined.err, /include denied/);
-        Assert.equal(cli(['get', '$.a.f', '--include-root', w.root, inside]).code, 0);
+        Assert.equal(cli(['model', 'get', '$.a.f', '--include-root', w.root, inside]).code, 0);
         // A bare `root` confines to the document's own directory.
-        Assert.equal(cli(['get', '$.a.f', '--trust', 'root', inside]).code, 0);
-        const bare = cli(['get', '$.a.secret', '--trust', 'root', entry]);
+        Assert.equal(cli(['model', 'get', '$.a.f', '--trust', 'root', inside]).code, 0);
+        const bare = cli(['model', 'get', '$.a.secret', '--trust', 'root', entry]);
         Assert.match(bare.out + bare.err, /include denied/);
         // A bad spelling is the usage class, from a verb as from the bare
         // command.
-        Assert.equal(cli(['get', '$.a', '--trust', 'bogus', inside]).code, 2);
-        Assert.equal(cli(['get', '$.a', inside, '--include-root']).code, 2);
+        Assert.equal(cli(['model', 'get', '$.a', '--trust', 'bogus', inside]).code, 2);
+        Assert.equal(cli(['model', 'get', '$.a', inside, '--include-root']).code, 2);
     });
     // The REPL took --trust and DROPPED it: the --jsonl session mode,
     // built to be driven by a harness, evaluated unconfined however it
@@ -504,7 +505,7 @@ function firstCode(fn) {
     (0, node_test_1.test)('every-verb-refuses-a-bad-spelling', () => {
         const w = world();
         const entry = Path.join(w.root, 'main.aon');
-        Fs.writeFileSync(entry, 'a:@"in.aon"');
+        Fs.writeFileSync(entry, 'a:@"./in.aon"');
         const data = Path.join(w.root, 'data.json');
         Fs.writeFileSync(data, '{}');
         const overlay = Path.join(w.root, 'overlay.aon');
@@ -527,7 +528,7 @@ function firstCode(fn) {
             ['hash', () => (0, cli_1.runHash)([bad, 'everything', entry])],
             ['agentsmd', () => (0, cli_1.runAgentsMd)([bad, 'everything', entry])],
             ['set', () => (0, cli_1.runSet)([bad, 'everything', '$.z=1', '--entry', entry, '--overlay', overlay])],
-            ['mod', () => (0, cli_1.runMod)([bad, 'everything', 'tidy', w.root])],
+            ['pkg', () => (0, cli_1.runPkg)([bad, 'everything', 'tidy', w.root], {})],
         ];
         for (const [name, run] of runs) {
             const r = capture(() => Assert.equal(run(), 2, name));

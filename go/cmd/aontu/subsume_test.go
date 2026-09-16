@@ -291,7 +291,7 @@ func TestBreakingGitComparesTheOldTree(t *testing.T) {
 			t.Skipf("git unavailable: %v", err)
 		}
 	}
-	if err := os.WriteFile(entry, []byte("svc: @\"schema.aon\""), 0o600); err != nil {
+	if err := os.WriteFile(entry, []byte("svc: @\"./schema.aon\""), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(inc, []byte("port: *8080|integer"), 0o600); err != nil {

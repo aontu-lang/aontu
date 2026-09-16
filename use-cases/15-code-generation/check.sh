@@ -30,7 +30,7 @@ skip() { pass=$((pass + 1)); echo "ok $pass - $1 # SKIP"; }
 # exits 3 when it is absent. Every check below that needs BYTES skips
 # with a note in that case, rather than failing where it is not
 # installed -- the same rule the Go and SQL checks already follow.
-tree() { $AONTU get out --trust root "$DIR/all.aon" 2>/dev/null; }
+tree() { $AONTU model get out --trust root "$DIR/all.aon" 2>/dev/null; }
 CMP="node $REPO/tools/cmptree-check.js"
 jostraca=0
 tree | $CMP --out "$WORK/out" >/dev/null 2>&1 || jostraca=$?
@@ -114,7 +114,7 @@ mkdir -p "$WORK/slice"
 cp "$DIR"/gen-*.aon "$DIR/all.aon" "$WORK/slice/"
 sed 's/"Email"/"EmailAddr"/' "$DIR/model.aon" > "$WORK/slice/model.aon"
 text() {
-  $AONTU get "$1" --trust root "$2" 2>/dev/null | python3 -c '
+  $AONTU model get "$1" --trust root "$2" 2>/dev/null | python3 -c '
 import json, sys
 n = json.load(sys.stdin)
 sys.stdout.write("".join(
@@ -152,7 +152,7 @@ mkdir -p "$WORK/none"
 if [ "$jostraca" = "3" ]; then
   skip "a climbing file path is refused (no jostraca)"
 else
-  if $AONTU get out --trust root "$WORK/broken/all.aon" 2>/dev/null \
+  if $AONTU model get out --trust root "$WORK/broken/all.aon" 2>/dev/null \
     | $CMP --out "$WORK/none" >"$WORK/broken.err" 2>&1; then
     fail "a climbing file path was accepted"
   fi
@@ -193,8 +193,8 @@ if command -v go >/dev/null 2>&1; then
   (cd "$REPO/go" && go build -o "$GOBIN" ./cmd/aontu) \
     || fail "could not build the Go CLI"
   for u in go ts sql; do
-    "$GOBIN" get "$u" --trust root "$DIR/all.aon" 2>/dev/null > "$WORK/$u.go.json"
-    $AONTU get "$u" --trust root "$DIR/all.aon" 2>/dev/null > "$WORK/$u.ts.json"
+    "$GOBIN" model get "$u" --trust root "$DIR/all.aon" 2>/dev/null > "$WORK/$u.go.json"
+    $AONTU model get "$u" --trust root "$DIR/all.aon" 2>/dev/null > "$WORK/$u.ts.json"
     diff -u "$WORK/$u.ts.json" "$WORK/$u.go.json" \
       || fail "$u: the two ports build different trees (ADR-001)"
   done

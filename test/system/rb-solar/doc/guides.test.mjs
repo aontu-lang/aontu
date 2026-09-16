@@ -89,9 +89,9 @@ test('the published generation and field-change recipes produce the stated outpu
   shell(block('change-and-check', 'sh', 'fmt --write').split('\n')[0]);
   shell('aontu fmt --check model.aon');
   for (const name of ['routes', 'migrate', 'seeds', 'model', 'api_base', 'api_controller', 'ui_controller']) {
-    shell(`aontu template gen/${name}.rb > work/${name}.aon && aontu get out work/${name}.aon | node ../../../tools/cmptree-check.js --folder app`);
+    shell(`aontu template gen/${name}.rb > work/${name}.aon && aontu model get out work/${name}.aon | node ../../../tools/cmptree-check.js --folder app`);
   }
-  shell(`aontu get out gen/views.aon | node ../../../tools/cmptree-check.js --folder app`);
+  shell(`aontu model get out gen/views.aon | node ../../../tools/cmptree-check.js --folder app`);
   recipe('change-and-check', '--folder doc');
   for (const name of [
     'app/db/migrate/20260101000000_create_planets.rb',

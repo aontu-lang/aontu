@@ -52,7 +52,7 @@ ok "3 services fan out to 3 Deployments + 3 Services, inputs hidden"
 # ------------------------------------------------- resolved spot values
 get_is() { # path expected label
   local got
-  got="$(aontu get "$1" "$DIR/main.aon")"
+  got="$(aontu model get "$1" "$DIR/main.aon")"
   [ "$got" = "$2" ] || die "get $1: expected $2, got $got"
   ok "$3"
 }
@@ -74,7 +74,7 @@ get_is '$.deploy.auth.metadata.name' '"auth"' \
   "metadata.name from key(2) inside the pack template"
 
 # env pipeline: base map + per-service merge + injected OTEL name
-ENV_JSON="$(aontu get '$.deploy.billing.spec.template.spec.containers.0.env' "$DIR/main.aon")"
+ENV_JSON="$(aontu model get '$.deploy.billing.spec.template.spec.containers.0.env' "$DIR/main.aon")"
 echo "$ENV_JSON" | grep -q '"value": "debug"' \
   || die "billing LOG_LEVEL: extraEnv map-level override missing"
 echo "$ENV_JSON" | grep -q '"value": "billing"' \

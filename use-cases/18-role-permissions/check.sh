@@ -47,7 +47,7 @@ hasnt() {
 # get_is <path> <expected> -- the served view says this at the path.
 get_is() {
   local got
-  got="$($AONTU get "$1" "$CASE/system.aon" 2>/dev/null)"
+  got="$($AONTU model get "$1" "$CASE/system.aon" 2>/dev/null)"
   [ "$got" = "$2" ] || fail "get $1: expected $2, got $got"
 }
 
@@ -64,7 +64,7 @@ propose() {
   echo "$got" >"$WORK/$name.gate"
   if [ "$got" -eq 0 ]; then
     got=0
-    $AONTU set "$change" --entry "$CASE/model.aon" \
+    $AONTU model set "$change" --entry "$CASE/model.aon" \
       --overlay "$CASE/changes.aon" >"$WORK/$name.set" 2>&1 || got=$?
     echo "$got" >"$WORK/$name.setexit"
   fi
@@ -248,7 +248,7 @@ has dev-replicas out '$.services.auth.replicas: allowed by $.roles.dev.allow.0 (
 grep -qF '"services": "auth": "replicas": 5' "$CASE/changes.aon" \
   || fail "the allowed change did not reach the overlay"
 get_is '$.services.auth.replicas' '5'
-run whyval 0 -- why '$.services.auth.replicas' "$CASE/system.aon"
+run whyval 0 -- model why '$.services.auth.replicas' "$CASE/system.aon"
 has whyval out '$.services.auth.replicas = 5'
 has whyval out 'changes.aon:2:33'
 has whyval out '*3'
@@ -263,7 +263,7 @@ blocked dev-tier
 has dev-tier out '$.services.auth.tier: refused by $.roles.dev.deny.0 ($.services.*.tier)'
 grep -q 'tier' "$CASE/changes.aon" && fail "a refused change reached the overlay" || true
 get_is '$.services.auth.tier' '"critical"'
-run dry 0 -- set '$.services.auth.tier="standard"' --entry "$CASE/model.aon" \
+run dry 0 -- model set '$.services.auth.tier="standard"' --entry "$CASE/model.aon" \
   --overlay "$CASE/changes.aon" --dry-run
 has dry out 'verdict: valid'
 has dry out '(dry run)'
@@ -353,7 +353,7 @@ ok "a broken role model is exit 4 with the engine's own finding; no path is deci
 # 19. The deciding entry is a path into the role model, so why names
 # the file and the line that wrote the rule. The position is pinned:
 # an edit that moves the dev deny list moves it.
-run why 0 -- why '$.roles.dev.deny.0' "$DIR/roles.aon"
+run why 0 -- model why '$.roles.dev.deny.0' "$DIR/roles.aon"
 has why out '$.roles.dev.deny.0 = "$.services.*.tier"'
 has why out 'roles.aon:20:12'
 ok "why on the deciding entry names roles.aon and the line"

@@ -1,0 +1,2 @@
+pkg: { path: "corp.example/app" main: "main.aon" }
+dep: { "corp.example/schemas/service": { v: "2.0.0" } }

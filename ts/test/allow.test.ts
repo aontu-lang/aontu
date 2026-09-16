@@ -314,7 +314,7 @@ describe('allow', () => {
     Fs.writeFileSync(Path.join(dir, 'dev.aon'),
       'roles: dev: { allow: ["$.services"] }')
     const model = Path.join(dir, 'roles.aon')
-    const src = '@"dev.aon"\nroles: qa: { allow: ["$.tests"] }'
+    const src = '@"./dev.aon"\nroles: qa: { allow: ["$.tests"] }'
     Fs.writeFileSync(model, src)
 
     const r = allow(src, 'dev', ['$.services.auth'], { path: model })

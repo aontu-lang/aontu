@@ -92,9 +92,10 @@ directory), so a tree of split files moves as a unit. The embedding
 APIs accept a base directory and an in-memory resolver for tests; see
 [`AontuOptions`](../reference-api.md#aontuoptions). And one shape of
 path bypasses the filesystem entirely: a first segment carrying a dot
-plus an `@N` major suffix (`@"corp.example/schemas/service@1"`) is a
-module import, resolved from local stores under an integrity pin.
-That story starts in
+and no `./` prefix (`@"corp.example/schemas/service"`) is a module
+import, resolved from the project's vendor tree under the lockfile's
+pins. The path carries no version: compatibility is computed at
+publish, so the major left the name. That story starts in
 [vendor a dependency closure](vendor-a-dependency-closure.md).
 
 The full loading contract, extension defaulting included, is [source

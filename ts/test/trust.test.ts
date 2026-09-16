@@ -12,7 +12,7 @@ import { computeDiagnostics, LspHandler } from '../dist/lsp'
 import {
   main as cliMain, replCommand,
   runVet, runGet, runWhy, runSubsume, runBreaking, runRelations, runTrim,
-  runHash, runAgentsMd, runSet, runMod,
+  runHash, runAgentsMd, runSet, runPkg,
 } from '../dist/cli'
 
 import { srcPath } from './srcpath'
@@ -28,7 +28,7 @@ function world(): { dir: string, root: string } {
   const root = Path.join(dir, 'root')
   Fs.mkdirSync(Path.join(root, 'sub'), { recursive: true })
   Fs.writeFileSync(Path.join(root, 'in.aon'), 'f: 11')
-  Fs.writeFileSync(Path.join(root, 'nest.aon'), '@"in.aon"\ng: 22')
+  Fs.writeFileSync(Path.join(root, 'nest.aon'), '@"./in.aon"\ng: 22')
   Fs.writeFileSync(Path.join(root, 'sub', 'deep.aon'), 'h: 33')
   Fs.writeFileSync(Path.join(dir, 'secret.aon'), 'secret: "outside"')
   try {
@@ -373,7 +373,7 @@ describe('trust-cli', () => {
   test('trust-none-denies', () => {
     const w = world()
     const entry = Path.join(w.root, 'main.aon')
-    Fs.writeFileSync(entry, 'a:@"in.aon"')
+    Fs.writeFileSync(entry, 'a:@"./in.aon"')
     const r = cli(['--trust', 'none', entry])
     Assert.equal(r.code, 1)
     Assert.match(r.err, /include denied/)
@@ -396,7 +396,7 @@ describe('trust-cli', () => {
   test('trust-root-defaults-to-the-entry-directory', () => {
     const w = world()
     const entry = Path.join(w.root, 'main.aon')
-    Fs.writeFileSync(entry, 'a:@"in.aon"')
+    Fs.writeFileSync(entry, 'a:@"./in.aon"')
     const r = cli(['--trust', 'root', entry])
     Assert.equal(r.code, 0)
 
@@ -412,7 +412,7 @@ describe('trust-cli', () => {
     const w = world()
     const entry = Path.join(w.root, 'main.aon')
     Fs.writeFileSync(entry,
-      `a:@"${srcPath(w.dir)}/secret.aon" b:@"${srcPath(w.dir)}/secret.aon" c:@"in.aon"`)
+      `a:@"${srcPath(w.dir)}/secret.aon" b:@"${srcPath(w.dir)}/secret.aon" c:@"./in.aon"`)
     const r = cli([entry])
     Assert.equal(r.code, 0)
     Assert.equal(
@@ -451,7 +451,8 @@ describe('trust-cli', () => {
 
     const denied = (args: string[]) => {
       const open = cli(args)
-      const shut = cli([...args.slice(0, 1), '--trust', 'none', ...args.slice(1)])
+      const verb = 'model' === args[0] ? 2 : 1
+      const shut = cli([...args.slice(0, verb), '--trust', 'none', ...args.slice(verb)])
       Assert.notEqual(
         JSON.stringify([open.code, open.out, open.err]),
         JSON.stringify([shut.code, shut.out, shut.err]),
@@ -462,8 +463,8 @@ describe('trust-cli', () => {
     }
 
     denied(['vet', entry, data])
-    denied(['get', '$.a.secret', entry])
-    denied(['why', '$.a.secret', entry])
+    denied(['model', 'get', '$.a.secret', entry])
+    denied(['model', 'why', '$.a.secret', entry])
     denied(['subsume', entry, entry])
     denied(['breaking', '--against', entry, entry])
     denied(['relations', entry])
@@ -474,7 +475,7 @@ describe('trust-cli', () => {
     denied(['view', 'doc', entry])
     denied(['hash', entry])
     denied(['agentsmd', entry])
-    denied(['set', '$.z=1', '--entry', entry, '--overlay', overlay])
+    denied(['model', 'set', '$.z=1', '--entry', entry, '--overlay', overlay])
   })
 
 
@@ -500,8 +501,8 @@ describe('trust-cli', () => {
     }
 
     both(['vet', schema, entry])
-    both(['get', '$.doc', entry])
-    both(['why', '$.doc', entry])
+    both(['model', 'get', '$.doc', entry])
+    both(['model', 'why', '$.doc', entry])
     both(['relations', entry])
     both(['trim', '--check', entry])
     both(['reaches', '$.doc', '$.doc', entry])
@@ -511,7 +512,7 @@ describe('trust-cli', () => {
     both(['view', 'doc', entry])
     both(['view', 'layer', entry])
     both(['agentsmd', entry])
-    both(['set', '$.z=1', '--entry', entry, '--overlay', overlay])
+    both(['model', 'set', '$.z=1', '--entry', entry, '--overlay', overlay])
 
     for (const args of [
       ['subsume', schema, entry],
@@ -546,19 +547,19 @@ describe('trust-cli', () => {
     const entry = Path.join(w.root, 'leak.aon')
     Fs.writeFileSync(entry, `a:@"${srcPath(w.dir)}/secret.aon"`)
     const inside = Path.join(w.root, 'fine.aon')
-    Fs.writeFileSync(inside, 'a:@"in.aon"')
+    Fs.writeFileSync(inside, 'a:@"./in.aon"')
 
-    const confined = cli(['get', '$.a.secret', '--include-root', w.root, entry])
+    const confined = cli(['model', 'get', '$.a.secret', '--include-root', w.root, entry])
     Assert.match(confined.out + confined.err, /include denied/)
-    Assert.equal(cli(['get', '$.a.f', '--include-root', w.root, inside]).code, 0)
+    Assert.equal(cli(['model', 'get', '$.a.f', '--include-root', w.root, inside]).code, 0)
     // A bare `root` confines to the document's own directory.
-    Assert.equal(cli(['get', '$.a.f', '--trust', 'root', inside]).code, 0)
-    const bare = cli(['get', '$.a.secret', '--trust', 'root', entry])
+    Assert.equal(cli(['model', 'get', '$.a.f', '--trust', 'root', inside]).code, 0)
+    const bare = cli(['model', 'get', '$.a.secret', '--trust', 'root', entry])
     Assert.match(bare.out + bare.err, /include denied/)
     // A bad spelling is the usage class, from a verb as from the bare
     // command.
-    Assert.equal(cli(['get', '$.a', '--trust', 'bogus', inside]).code, 2)
-    Assert.equal(cli(['get', '$.a', inside, '--include-root']).code, 2)
+    Assert.equal(cli(['model', 'get', '$.a', '--trust', 'bogus', inside]).code, 2)
+    Assert.equal(cli(['model', 'get', '$.a', inside, '--include-root']).code, 2)
   })
 
   // The REPL took --trust and DROPPED it: the --jsonl session mode,
@@ -595,7 +596,7 @@ describe('trust-cli', () => {
   test('every-verb-refuses-a-bad-spelling', () => {
     const w = world()
     const entry = Path.join(w.root, 'main.aon')
-    Fs.writeFileSync(entry, 'a:@"in.aon"')
+    Fs.writeFileSync(entry, 'a:@"./in.aon"')
     const data = Path.join(w.root, 'data.json')
     Fs.writeFileSync(data, '{}')
     const overlay = Path.join(w.root, 'overlay.aon')
@@ -620,7 +621,7 @@ describe('trust-cli', () => {
       ['agentsmd', () => runAgentsMd([bad, 'everything', entry])],
       ['set', () => runSet(
         [bad, 'everything', '$.z=1', '--entry', entry, '--overlay', overlay])],
-      ['mod', () => runMod([bad, 'everything', 'tidy', w.root])],
+      ['pkg', () => runPkg([bad, 'everything', 'tidy', w.root], {} as any)],
     ]
     for (const [name, run] of runs) {
       const r = capture(() => Assert.equal(run(), 2, name))

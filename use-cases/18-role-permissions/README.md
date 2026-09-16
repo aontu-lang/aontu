@@ -121,7 +121,7 @@ prefixes.
   them together.
 - **The answer names the deciding entry as a path into the role
   model.** `refused by $.roles.dev.deny.0 ($.services.*.tier)` is a
-  path and the entry's text, so `aontu why '$.roles.dev.deny.0'
+  path and the entry's text, so `aontu model why '$.roles.dev.deny.0'
   roles.aon` names the file and the line that wrote the rule, and a
   reviewer opens the model at the entry rather than searching for the
   string.
@@ -168,7 +168,7 @@ tier was never named: a change at the service could rewrite it. The
 deciding entry is a path, and `why` locates the rule:
 
 ```
-$ aontu why $.roles.dev.deny.0 roles.aon
+$ aontu model why $.roles.dev.deny.0 roles.aon
 $.roles.dev.deny.0 = "$.services.*.tier"
   1. string  roles.aon:10:60  (spread)
   2. "$.services.*.tier"  roles.aon:20:12
@@ -190,10 +190,10 @@ An allowed change, landed by the loop in `skill/SKILL.md`, and read
 back from the served view with its provenance:
 
 ```
-$ aontu set '$.services.auth.replicas=5' --entry model.aon --overlay changes.aon
+$ aontu model set '$.services.auth.replicas=5' --entry model.aon --overlay changes.aon
 verdict: valid
 wrote: changes.aon
-$ aontu why $.services.auth.replicas system.aon
+$ aontu model why $.services.auth.replicas system.aon
 $.services.auth.replicas = 5
   1. 5  changes.aon:2:33
   2. *3  model.aon:18:13  (pref)
@@ -326,7 +326,7 @@ run them from the case directory with `--include-root .`, as
 
 ```sh
 aontu allow --role dev roles.aon '$.services.auth.replicas=5'                        # ask
-aontu set '$.services.auth.replicas=5' --entry model.aon --overlay changes.aon       # then write
+aontu model set '$.services.auth.replicas=5' --entry model.aon --overlay changes.aon       # then write
 ```
 
 The how-to guide [Gate changes by role](../../docs/how-to/gate-changes-by-role.md)

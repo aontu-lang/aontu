@@ -29,11 +29,23 @@ import { sarifReport } from './report-sarif'
 import { main as lspMain } from './lsp-server'
 import { main as mcpMain } from './mcp-server'
 import { jsonSchema } from './jsonschema'
-import { modTidy, modVerify, modVendor, modManifest } from './mod-tool'
+import {
+  pkgTidy, pkgVerify, pkgVendor, pkgManifest, pkgRefreeze, pkgTree,
+  versionCompare,
+} from './pkg'
+import {
+  pkgSync, pkgGet, pkgRemove, pkgWhy, pkgPublish, pkgOutdated, startServe,
+  defaultHttp, keygen, PUBLISH_PATH,
+} from './pkg-net'
 import type {
-  ModTidyReport, ModVerifyReport, ModVendorReport, ModManifestReport,
-} from './mod-tool'
-import { modCacheDir } from './mod'
+  PkgSyncReport, PkgChangeReport, PkgWhyReport, PkgPublishReport,
+  PkgOutdatedReport, Served, PkgHttp,
+} from './pkg-net'
+import type {
+  PkgTidyReport, PkgVerifyReport, PkgVendorReport, PkgManifestReport,
+  PkgRefreezeReport, PkgTreeReport, PkgToolOptions,
+} from './pkg'
+import { modCacheDir, PKG_FILE, LOCK_FILE, META_DIR } from './mod'
 import { VET_MAX_ERRORS } from './vet'
 import type {
   VetReport, VetFinding, VetVerdict, VetCoverage,
@@ -86,10 +98,18 @@ const HELP = `Usage: aontu [options] [file]
        aontu trace [--at <path>] [--format json] [--marker <token>]
                    [--profile <file>] <file>
        aontu hash [options] <file>
-       aontu mod tidy|verify|vendor|manifest [options] [dir]
-       aontu get <path> [options] <file>
-       aontu why <path> [options] <file>
-       aontu set <path>=<value>... --entry <file> --overlay <file>
+       aontu sync [--frozen] [options] [dir]
+       aontu add <pkg>[@<version>] [options] [dir]
+       aontu get <pkg>[@<version>] [options] [dir]
+       aontu remove <pkg> [options] [dir]
+       aontu why <pkg> [options] [dir]
+       aontu publish [--yes] [--to <dir>] [options] [dir]
+       aontu pkg tidy|verify|vendor|manifest|refreeze|tree|outdated|serve
+                 [options] [dir]
+       aontu pkg keygen <file>
+       aontu model get <path> [options] <file>
+       aontu model why <path> [options] <file>
+       aontu model set <path>=<value>... --entry <file> --overlay <file>
        aontu allow --role <role> [--at <path>] <roles-file> <path>...
        aontu agentsmd [--write <AGENTS.md>] [--depth <n>] <file>
        aontu fmt [-w|-l|--check|-d|--lint] [--marker <token>]
@@ -158,18 +178,57 @@ Options:
                   named format keeps its meaning, and .js stays
                   refused. Every verb takes it
 
-Mod options:
-  --format <f>    text (default) or json
-  --against <dir> manifest: a prior version's module tree, to gate on
+Package verbs (a module is imported; a package is published):
+  sync      Make the project correct: resolve by minimum version
+            selection, fetch what is missing, write aontu_meta/pkg-lock.aon,
+            vendor, verify. --frozen refuses to change the lockfile
+  add       Take on a dependency the project does not have, then sync;
+            refuses one it has and names get
+  get       Add a dependency or raise its minimum, then sync. Without a
+            version, the newest version outside the cooldown
+  remove    Drop a dependency, then sync
+  why       Why is this package in the closure: every path of
+            requirements that reaches it
+  publish   Publish this package. A dry run without --yes; --to <dir>
+            writes the repository layout into a directory instead
 
-Mod subcommands:
-  tidy      Resolve the module closure by minimum version selection and
-            rewrite aontu_meta/mod-lock.aon in canonical form
-  verify    Check every locked module still means what the lockfile
-            pins, and change nothing (the CI gate; tidy rewrites)
+Package options:
+  --format <f>    text (default) or json
+  --frozen        sync: fail if the lockfile would change (the CI mode)
+  --yes           publish: send it (the default is a dry run)
+  --to <dir>      publish: write the read-path layout into a directory
+  --key <file>    publish: the Ed25519 private key (PKCS#8 PEM) that
+                  signs the manifest, for the key provider
+  --token <file>  publish: the forge's OIDC token, read from a file
+  --base <url>    the repository to read from (repeatable; overrides
+                  pkg.aon repo.base)
+  --write <url>   publish: the write path (overrides pkg.aon repo.write)
+  --against <dir> manifest: a prior version's tree, to gate on
+  --upstream <u>  serve: fetch on miss from this repository (repeatable)
+  --listen <a>    serve: the address to listen on (default 127.0.0.1:8017)
+
+pkg subcommands (the rest of the package operations):
+  tidy      Resolve the closure by minimum version selection and
+            rewrite aontu_meta/pkg-lock.aon in canonical form
+  verify    Check every locked package still is and still means what
+            the lockfile pins, bytes before meaning, and change nothing
+            (the CI gate; tidy rewrites)
   vendor    Materialise the locked closure into aontu_meta/vendor/
-  manifest  Print the OCI artifact a publish would push, gated on the
-            breaking check against --against
+  manifest  Print the manifest a publish would send, gated on the
+            compatibility check against --against
+  refreeze  Recompute every canon pin and nothing else, after a
+            canonical-form change in the engine
+  tree      The locked closure as a graph
+  outdated  What could move, and what would move with it
+  serve     Serve a repository directory; with --upstream, a caching
+            proxy in front of another repository
+  keygen    Write a new Ed25519 signing key (PKCS#8 PEM) to a file,
+            once, and print the signer id a consumer names
+
+model subcommands (one document, interrogated or edited):
+  get       What the document says at a path
+  why       Every contribution to the value at a path
+  set       Append a path-flattened conjunct to an overlay
 
 Vet options:
   --at <path>       Validate against this path of the schema ($.a.b)
@@ -248,21 +307,21 @@ Hash options:
 Hash exit codes: 0 hashed, 2 usage, 4 the document does not stand up
 on its own.
 
-Get options:
+Model get options:
   -c, --canon     Canonical-form fragment (default: generated JSON)
   --keys          Keys at the node, one per line
   --types         Shape view: concrete leaves lifted to their kinds
   --depth <n>     Structure to depth n; deeper nodes render as top
   --format <f>    text (default) or json
 
-Get exit codes: 0 rendered, 1 the path names nothing, 2 usage, 4 the
-document does not stand up on its own.
+Model get exit codes: 0 rendered, 1 the path names nothing, 2 usage, 4
+the document does not stand up on its own.
 
-Why options:
+Model why options:
   --format <f>    text (default) or json
 
-Why exit codes mirror get's: 0 explained, 1 the path names nothing,
-2 usage, 4 the document does not stand up on its own.
+Model why exit codes mirror get's: 0 explained, 1 the path names
+nothing, 2 usage, 4 the document does not stand up on its own.
 
 View kinds: doc, lattice, tree, matrix, graph, layer, sets, layers,
 ladder, poset (the poset takes several files). The figure goes to stdout, the loss
@@ -352,7 +411,7 @@ every other line is a line of output.
 
 Template exit codes: 0 written, 1 --check drift, 2 usage or I/O.
 
-Set options:
+Model set options:
   --entry <file>    The document the change is checked against
   --overlay <file>  The file the change is appended to (created if
                     absent; not written when the change does not hold)
@@ -368,7 +427,7 @@ Set options:
   --format <f>      text (default) or json
 
 Set exit codes are vet's verdict classes: 0 valid, 1 invalid (the
-change contradicts a pinned value -- aontu why locates it, and
+change contradicts a pinned value -- aontu model why locates it, and
 --in-place rewrites it), 2 usage, 3 incomplete, 4 the entry does not
 stand up on its own.
 
@@ -601,7 +660,7 @@ function trustOpts(trust: TrustArg, entryRoot: string): any {
 }
 
 
-function takeTrust(argv: string[]):
+function takeTrust(argv: string[], io: Io = PROCESS_IO):
   { argv: string[], trust: TrustArg } | undefined {
   const rest: string[] = []
   let trust: TrustArg = { kind: 'system-warn', textExt: [] }
@@ -611,7 +670,7 @@ function takeTrust(argv: string[]):
     if ('--trust' === arg) {
       const parsed = null == argv[i + 1] ? undefined : parseTrustArg(argv[++i])
       if (null == parsed) {
-        process.stderr.write(
+        io.err(
           'aontu: --trust needs system, none, or root[:dir]\n')
         return undefined
       }
@@ -620,7 +679,7 @@ function takeTrust(argv: string[]):
     else if ('--include-root' === arg) {
       const dir = argv[++i]
       if (null == dir) {
-        process.stderr.write('aontu: --include-root needs a directory\n')
+        io.err('aontu: --include-root needs a directory\n')
         return undefined
       }
       trust = { kind: 'root', dir, textExt }
@@ -628,7 +687,7 @@ function takeTrust(argv: string[]):
     else if ('--text-ext' === arg) {
       const list = null == argv[i + 1] ? undefined : parseTextExt(argv[++i])
       if (null == list) {
-        process.stderr.write(
+        io.err(
           'aontu: --text-ext needs extensions, without dots' +
           ' (--text-ext md,sql)\n')
         return undefined
@@ -644,7 +703,7 @@ function takeTrust(argv: string[]):
 
 
 // `md,sql` or `.md,.sql` -- the dot is accepted and dropped, because a
-// reader who has just written `@"notes.txt"` reaches for one. An empty
+// reader who has just written `@"./notes.txt"` reaches for one. An empty
 // element, or anything that is not an extension, is a usage error
 // rather than a silently ignored word: a flag that quietly does
 // nothing is how a document ends up refused with no reason visible.
@@ -2048,110 +2107,186 @@ const VIEW_USAGE_CODES = [
   'view_document_shape', 'view_style_profile', 'view_style_unknown',
 ]
 
-const MOD_HELP = 'aontu mod tidy|verify|vendor|manifest [dir] (try --help)'
+const PKG_HELP =
+  'aontu pkg tidy|verify|vendor|manifest|refreeze|tree|outdated|serve [dir] | keygen <file> (try --help)'
 
-function runMod(argv: string[]): number {
-  const trusted = takeTrust(argv)
-  if (null == trusted) {
-    return 2
+const PKG_SUBS = [
+  'tidy', 'verify', 'vendor', 'manifest', 'refreeze', 'tree', 'outdated',
+  'serve', 'keygen',
+]
+
+// The options every package verb parses, so `sync`, `get`, `publish`
+// and the `pkg` subcommands read one table.
+type PkgArgs = {
+  rest: string[]
+  format: SubsumeFormat
+  against?: string
+  frozen: boolean
+  yes: boolean
+  to?: string
+  key?: string
+  token?: string
+  base: string[]
+  write?: string
+  upstream: string[]
+  listen?: string
+}
+
+function parsePkgArgs(argv: string[], verb: string, io: Io): PkgArgs | undefined {
+  const out: PkgArgs = {
+    rest: [], format: 'text', frozen: false, yes: false, base: [], upstream: [],
   }
-  argv = trusted.argv
-  const trust = trusted.trust
-  const rest: string[] = []
-  let format: SubsumeFormat = 'text'
-  let against: string | undefined
-
+  const value = (name: string, i: number): string | undefined => {
+    const v = argv[i]
+    if (null == v) {
+      io.err(`aontu: ${name} needs a value\n`)
+    }
+    return v
+  }
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]
     if ('-h' === arg || '--help' === arg) {
-      process.stdout.write(HELP)
-      return 0
+      io.out(HELP)
+      return undefined
     }
     if ('--format' === arg) {
       const f = argv[++i]
       if ('text' !== f && 'json' !== f) {
-        process.stderr.write('aontu: --format needs text or json\n')
-        return 2
+        io.err('aontu: --format needs text or json\n')
+        return undefined
       }
-      format = f
+      out.format = f
     }
-    else if ('--against' === arg) {
-      const a = argv[++i]
-      if (null == a) {
-        process.stderr.write('aontu: --against needs a module directory\n')
-        return 2
+    else if ('--frozen' === arg) {
+      out.frozen = true
+    }
+    else if ('--yes' === arg) {
+      out.yes = true
+    }
+    else if ('--against' === arg || '--to' === arg || '--key' === arg ||
+      '--token' === arg || '--write' === arg || '--listen' === arg) {
+      const v = value(arg, ++i)
+      if (null == v) {
+        return undefined
       }
-      against = a
+      out['--against' === arg ? 'against' : '--to' === arg ? 'to' :
+        '--key' === arg ? 'key' : '--token' === arg ? 'token' :
+          '--write' === arg ? 'write' : 'listen'] = v
+    }
+    else if ('--base' === arg || '--upstream' === arg) {
+      const v = value(arg, ++i)
+      if (null == v) {
+        return undefined
+      }
+      out['--base' === arg ? 'base' : 'upstream'].push(v)
     }
     else if (arg.startsWith('-')) {
-      process.stderr.write(`aontu: unknown mod option ${arg} (try --help)\n`)
-      return 2
+      io.err(`aontu: unknown ${verb} option ${arg} (try --help)\n`)
+      return undefined
     }
     else {
-      rest.push(arg)
+      out.rest.push(arg)
     }
   }
-
-  const sub = rest[0]
-  const dir = rest[1] ?? '.'
-
-  if ('get' === sub || 'publish' === sub) {
-    process.stderr.write(
-      'aontu: mod ' + sub + ' needs a registry client, which this build ' +
-      'does not ship; vendor the module by hand and run ' +
-      "'aontu mod tidy'\n")
-    return 2
-  }
-
-  if (!MOD_SUBS.includes(sub) || 2 < rest.length) {
-    process.stderr.write(
-      `aontu: mod needs tidy, verify, vendor or manifest\n${MOD_HELP}\n`)
-    return 2
-  }
-
-  if (existsSync(join(dir, 'aon_vendor')) || existsSync(join(dir, 'mod-lock.aon'))) {
-    process.stderr.write(
-      'aontu: aon_vendor/ and mod-lock.aon now live under aontu_meta/: ' +
-      'move them, or run aontu mod tidy and aontu mod vendor\n')
-  }
-
-  // `--against` gates a manifest and means nothing to the other two;
-  // accepting it there would say it had been honoured.
-  if (null != against && 'manifest' !== sub) {
-    process.stderr.write('aontu: --against is a manifest option\n')
-    return 2
-  }
-
-  const modopts = modToolOptions(trust, resolve(dir))
-
-  const report =
-    'tidy' === sub ? modTidy(dir, modopts) :
-      'verify' === sub ? modVerify(dir, modopts) :
-        'vendor' === sub ? modVendor(dir, modopts) :
-          modManifest(dir, modopts, against)
-
-  process.stdout.write(('json' === format ?
-    exactJSON({ aontu: { version: version(), verb: 'mod ' + sub }, ...report },
-      2) :
-    modText(sub, report)) + '\n')
-
-  return MOD_EXIT[report.verdict]
+  return out
 }
 
 
-const MOD_SUBS = ['tidy', 'verify', 'vendor', 'manifest']
+// A verb that finds the older layout names the current one, once, and
+// reads nothing from it.
+function nameOldLayout(dir: string, io: Io): void {
+  const old = ['aon_vendor', 'mod-lock.aon', 'mod.aon',
+    join(META_DIR, 'mod-lock.aon')].filter((f) => existsSync(join(dir, f)))
+  if (0 < old.length) {
+    io.err(
+      'aontu: ' + old.join(', ') + ' belong to an older layout: the package ' +
+      'file is ' + PKG_FILE + ', the lockfile ' + join(META_DIR, LOCK_FILE) +
+      ' and the vendor tree ' + join(META_DIR, 'vendor') + '; rename ' +
+      PKG_FILE + '\'s `mod` block to `pkg`, then run aontu sync\n')
+  }
+}
+
+
+function runPkg(argv: string[], servers: Servers): number | Promise<number> {
+  const io = servers.io ?? PROCESS_IO
+  const trusted = takeTrust(argv, io)
+  if (null == trusted) {
+    return 2
+  }
+  const args = parsePkgArgs(trusted.argv, 'pkg', io)
+  if (null == args) {
+    return '-h' === trusted.argv[0] || trusted.argv.includes('--help') ? 0 : 2
+  }
+  const trust = trusted.trust
+  const sub = args.rest[0]
+  const dir = args.rest[1] ?? '.'
+
+  if (!PKG_SUBS.includes(sub) || 2 < args.rest.length) {
+    io.err(
+      `aontu: pkg needs one of ${PKG_SUBS.join(', ')}\n${PKG_HELP}\n`)
+    return 2
+  }
+
+  if ('keygen' === sub) {
+    if (2 !== args.rest.length) {
+      io.err('aontu: pkg keygen needs the file to write\naontu pkg keygen <file>\n')
+      return 2
+    }
+    const made = keygen(args.rest[1])
+    if (null != made.refused) {
+      io.err('aontu: ' + made.refused + '\n')
+      return 2
+    }
+    io.out('signer: ' + made.signer + '\n')
+    return 0
+  }
+
+  nameOldLayout(dir, io)
+
+  // `--against` gates a manifest and means nothing to the others;
+  // accepting it there would say it had been honoured.
+  if (null != args.against && 'manifest' !== sub) {
+    io.err('aontu: --against is a manifest option\n')
+    return 2
+  }
+
+  const opts = pkgToolOptions(trust, resolve(dir))
+
+  if ('outdated' === sub || 'serve' === sub) {
+    return runPkgNet(sub, dir, args, opts, servers, io)
+  }
+
+  const report =
+    'tidy' === sub ? pkgTidy(dir, opts) :
+      'verify' === sub ? pkgVerify(dir, opts) :
+        'vendor' === sub ? pkgVendor(dir, opts) :
+          'refreeze' === sub ? pkgRefreeze(dir, opts) :
+            'tree' === sub ? pkgTree(dir, opts) :
+              pkgManifest(dir, opts, args.against)
+
+  io.out(('json' === args.format ?
+    exactJSON({ aontu: { version: version(), verb: 'pkg ' + sub }, ...report },
+      2) :
+    pkgText(sub, report)) + '\n')
+
+  return PKG_EXIT[report.verdict]
+}
+
 
 // The verdict classes: `ok` 0, a refused gate 1, an open question 3, a
 // document that does not stand up 4 -- `subsume`'s classes, because a
 // manifest gate IS a subsumption check and a caller reading exit codes
 // should not have to learn a second table.
-type ModVerdict =
-  ModTidyReport['verdict'] |
-  ModVerifyReport['verdict'] |
-  ModVendorReport['verdict'] |
-  ModManifestReport['verdict']
+type PkgVerdict =
+  PkgTidyReport['verdict'] |
+  PkgVerifyReport['verdict'] |
+  PkgVendorReport['verdict'] |
+  PkgManifestReport['verdict'] |
+  PkgRefreezeReport['verdict'] |
+  PkgTreeReport['verdict'] |
+  'frozen' | 'refused' | 'sent' | 'dry-run' | 'outdated' | 'current'
 
-const MOD_EXIT: Record<ModVerdict, number> = {
+const PKG_EXIT: Record<PkgVerdict, number> = {
   ok: 0,
   missing: 1,
   mismatch: 1,
@@ -2159,6 +2294,12 @@ const MOD_EXIT: Record<ModVerdict, number> = {
   // nothing to check, which is a refusal and not a pass.
   unlocked: 1,
   breaking: 1,
+  frozen: 1,
+  refused: 1,
+  outdated: 1,
+  sent: 0,
+  'dry-run': 0,
+  current: 0,
   undecided: 3,
   error: 4,
 }
@@ -2167,7 +2308,7 @@ const MOD_EXIT: Record<ModVerdict, number> = {
 // The tooling's evaluator: the same standalone evaluation the module
 // resolver verifies with (ts/src/mod.ts), and for the same reason —
 // only the engine can say what a module MEANS.
-function modToolOptions(trust: TrustArg, entryRoot: string) {
+function pkgToolOptions(trust: TrustArg, entryRoot: string): PkgToolOptions {
   const opts = verbOpts(trust, entryRoot)
   // The user cache lives outside any confinement root, so a confined
   // run reads the vendor tree only -- as the evaluator's own module
@@ -2184,7 +2325,7 @@ function modToolOptions(trust: TrustArg, entryRoot: string) {
         hash: canonHash(val),
         canon: val.canon,
         // The same question `aontu hash` asks before it will answer:
-        // did this document stand up ON ITS OWN? See ModToolEval.
+        // did this document stand up ON ITS OWN? See PkgToolEval.
         ok: 0 === ctx.err.length && true !== val.isNil,
       }
     },
@@ -2192,19 +2333,54 @@ function modToolOptions(trust: TrustArg, entryRoot: string) {
 }
 
 
-function modText(sub: string, report: any): string {
+function pkgLockLines(entries: any[]): string[] {
+  return entries.map((e) => e.key + ' ' + e.v + ' ' + e.canon)
+}
+
+// The renderers verify, tidy and sync share, as the Go port's do.
+function pkgMismatchLines(mismatched: any[]): string[] {
+  return mismatched.map((m) => 'canon' === m.pin ?
+    m.key + ': pinned ' + m.want + ' but the store means ' +
+    ('' === m.got ? 'nothing (it does not evaluate)' : m.got) :
+    m.key + ': pinned ' + m.pin + ' ' + m.want + ' but the store holds ' + m.got)
+}
+
+// NOT a fetch: the package may well be sitting in the store. What is
+// absent is the PIN, and only a sync writes one.
+function pkgUnlockedLines(unlocked: string[]): string[] {
+  return unlocked.map((key) => key + ': not in the lockfile (run: aontu sync)')
+}
+
+function pkgForbiddenLines(forbidden: string[]): string[] {
+  return forbidden.map((f) => f + ': not admitted in a package')
+}
+
+
+function pkgText(sub: string, report: any): string {
   const lines = ['verdict: ' + report.verdict]
 
   if ('manifest' === sub) {
-    if ('' !== report.mod) {
-      lines.push(report.mod + ' ' + report.version)
-      lines.push('config: ' + report.config)
-    }
-    for (const key of Object.keys(report.annotations).sort()) {
-      lines.push(key + ': ' + report.annotations[key])
-    }
-    for (const file of report.files) {
-      lines.push('layer: ' + file)
+    const m = report.manifest
+    if (null != m) {
+      lines.push(m.package + ' ' + m.version + ' ' + m.publish)
+      lines.push('archive: ' + m.archive.digest + ' (' + m.archive.files.length +
+        ' files, ' + m.archive.size + ' bytes)')
+      for (const mod of m.modules) {
+        lines.push('module: ' + mod.path + ' ' + mod.main + ' ' + mod.canon)
+      }
+      for (const key of Object.keys(m.deps).sort(cmpCodePoint)) {
+        lines.push('dep: ' + key + ' ' + m.deps[key].v +
+          (null == m.deps[key].pkg ? '' : ' (' + m.deps[key].pkg + ')'))
+      }
+      for (const v of m.retract ?? []) {
+        lines.push('retract: ' + v)
+      }
+      if (null != m.moved) {
+        lines.push('moved: ' + m.moved)
+      }
+      for (const f of m.archive.files) {
+        lines.push('file: ' + f.path + ' ' + f.digest + ' ' + f.size)
+      }
     }
     for (const f of report.findings) {
       lines.push(f.path + ': ' + f.message)
@@ -2212,46 +2388,311 @@ function modText(sub: string, report: any): string {
     for (const miss of report.missing) {
       lines.push(miss + ': missing')
     }
+    lines.push(...pkgForbiddenLines(report.forbidden))
     return lines.join('\n')
   }
 
   if ('verify' === sub) {
-    for (const mod of report.verified) {
-      lines.push(mod + ': verified')
+    for (const key of report.verified) {
+      lines.push(key + ': verified')
     }
-    for (const m of report.mismatched) {
-      lines.push(m.mod + ': pinned ' + m.want + ' but the store means ' +
-        ('' === m.got ? 'nothing (it does not evaluate)' : m.got))
-    }
-    // NOT a fetch: the module may well be sitting in the store. What
-    // is absent is the PIN, and only a tidy writes one.
-    for (const mod of report.unlocked) {
-      lines.push(mod + ': not in the lockfile (run: aontu mod tidy)')
-    }
+    lines.push(...pkgMismatchLines(report.mismatched), ...pkgUnlockedLines(report.unlocked))
     for (const miss of report.missing) {
-      lines.push(miss + ': not fetched (run: aontu mod get)')
+      lines.push(miss + ': not fetched (run: aontu sync)')
     }
     return lines.join('\n')
   }
 
-  const done: any[] = 'tidy' === sub ? report.lock : report.vendored
-  for (const item of done) {
-    lines.push('tidy' === sub ?
-      item.mod + ' ' + item.v + ' ' + item.canon : '' + item)
+  if ('refreeze' === sub) {
+    for (const r of report.repinned) {
+      lines.push(r.key + ': ' + r.from + ' -> ' + r.to)
+    }
+    for (const key of report.unchanged) {
+      lines.push(key + ': unchanged')
+    }
+    for (const bad of report.unevaluable) {
+      lines.push(bad + ': does not evaluate on its own; nothing to pin')
+    }
+    for (const miss of report.missing) {
+      lines.push(miss + ': not fetched (run: aontu sync)')
+    }
+    return lines.join('\n')
   }
-  // A module that is PRESENT but does not stand up. Named separately
+
+  if ('tree' === sub) {
+    const byKey = new Map(report.nodes.map((n: any) => [n.key, n]))
+    const seen = new Set<string>()
+    const walk = (key: string, depth: number): void => {
+      const node: any = byKey.get(key)
+      const again = seen.has(key)
+      seen.add(key)
+      lines.push('  '.repeat(depth) + key +
+        (null == node || '' === node.v ? '' : ' ' + node.v) +
+        (again ? ' (above)' : null == node ? ' (not locked)' : ''))
+      if (again || null == node) {
+        return
+      }
+      for (const dep of node.deps) {
+        walk(dep, depth + 1)
+      }
+    }
+    walk(report.root, 0)
+    for (const miss of report.missing) {
+      lines.push(miss + ': not fetched (run: aontu sync)')
+    }
+    return lines.join('\n')
+  }
+
+  const done: any[] = 'tidy' === sub ? pkgLockLines(report.lock) : report.vendored
+  lines.push(...done)
+  // A package that is PRESENT but does not stand up. Named separately
   // from a missing one because the repair is different: a fetch cannot
-  // help, the module itself has to be fixed (or its own dependencies
+  // help, the package itself has to be fixed (or its own dependencies
   // vendored beside it). Before the missing tail, as the Go port's
   // shared renderer orders them.
   for (const bad of report.unevaluable ?? []) {
     lines.push(bad + ': does not evaluate on its own; nothing to pin')
   }
+  lines.push(...pkgForbiddenLines(report.forbidden ?? []))
   for (const miss of report.missing) {
-    lines.push(miss + ': not fetched (run: aontu mod get)')
+    lines.push(miss + ': not fetched (run: aontu sync)')
   }
   return lines.join('\n')
 }
+
+
+// The two `pkg` subcommands that reach a repository.
+async function runPkgNet(sub: string, dir: string, args: PkgArgs,
+  opts: PkgToolOptions, servers: Servers, io: Io): Promise<number> {
+  if ('serve' === sub) {
+    const served = await startServe({
+      dir: resolve(dir), upstream: args.upstream,
+      listen: args.listen ?? '127.0.0.1:8017', http: servers.http(),
+    })
+    io.out('serving ' + resolve(dir) + ' at ' + served.url + '\n' +
+      args.upstream.map((u) => 'upstream: ' + u + '\n').join(''))
+    await servers.serve(served)
+    await served.close()
+    return 0
+  }
+  if (null == opts.cache) {
+    io.err(NO_CACHE)
+    return 2
+  }
+  const report = await pkgOutdated(dir, opts, servers.http(), { base: netBase(args) })
+  io.out(pkgReportText('pkg outdated', args.format, report) + '\n')
+  return PKG_EXIT[report.verdict]
+}
+
+const NO_CACHE = 'aontu: this verb reads and writes the user cache, which a ' +
+  'confined run (--trust root) does not reach and this host does not name ' +
+  '(set XDG_CACHE_HOME or HOME)\n'
+
+function netBase(args: PkgArgs): string[] | undefined {
+  return 0 === args.base.length ? undefined : args.base
+}
+
+const PACKAGE_VERBS = ['sync', 'add', 'get', 'remove', 'why', 'publish']
+
+const PACKAGE_HELP: Record<string, string> = {
+  sync: 'aontu sync [--frozen] [dir] (try --help)',
+  add: 'aontu add <pkg> [dir] (try --help)',
+  get: 'aontu get <pkg>[@<version>] [dir] (try --help)',
+  remove: 'aontu remove <pkg> [dir] (try --help)',
+  why: 'aontu why <pkg> [dir] (try --help)',
+  publish: 'aontu publish [--yes] [--to <dir>] [--key <file>] [dir] (try --help)',
+}
+
+// The top-level package verbs (ADR-039 part 5). Every one but `why`
+// reaches a repository, so every one runs behind the seam.
+async function runPackageVerb(verb: string, argv: string[], servers: Servers):
+  Promise<number> {
+  const io = servers.io ?? PROCESS_IO
+  const trusted = takeTrust(argv, io)
+  if (null == trusted) {
+    return 2
+  }
+  const args = parsePkgArgs(trusted.argv, verb, io)
+  if (null == args) {
+    return '-h' === trusted.argv[0] || trusted.argv.includes('--help') ? 0 : 2
+  }
+  const wantsPkg = 'sync' !== verb && 'publish' !== verb
+  const dir = args.rest[wantsPkg ? 1 : 0] ?? '.'
+  if (args.rest.length > (wantsPkg ? 2 : 1) || (wantsPkg && 0 === args.rest.length)) {
+    io.err('aontu: ' + verb + (wantsPkg ? ' needs a package' : ' takes a directory') +
+      '\n' + PACKAGE_HELP[verb] + '\n')
+    return 2
+  }
+  nameOldLayout(dir, io)
+  const opts = pkgToolOptions(trusted.trust, resolve(dir))
+  const http = servers.http()
+
+  if ('why' === verb) {
+    const report = pkgWhy(dir, opts, args.rest[0])
+    io.out(pkgReportText('why', args.format, report) + '\n')
+    return PKG_EXIT[report.verdict]
+  }
+
+  if ('publish' === verb) {
+    for (const f of [args.key, args.token]) {
+      if (null != f && !existsSync(f)) {
+        io.err('aontu: cannot read ' + f + '\n')
+        return 2
+      }
+    }
+    if (true === args.yes && null == args.key) {
+      io.err('aontu: publish --yes needs --key <file>, the Ed25519 key that signs\n')
+      return 2
+    }
+    const report = await pkgPublish(dir, opts, http, {
+      yes: args.yes, to: null == args.to ? undefined : resolve(args.to), key: args.key,
+      token: args.token, against: args.against, base: netBase(args), write: args.write,
+    })
+    io.out(pkgReportText('publish', args.format, report) + '\n')
+    return PKG_EXIT[report.verdict]
+  }
+
+  if (null == opts.cache) {
+    io.err(NO_CACHE)
+    return 2
+  }
+  const net = { base: netBase(args) }
+  const report: PkgSyncReport | PkgChangeReport | string =
+    'sync' === verb ? await pkgSync(dir, opts, http, { ...net, frozen: args.frozen }) :
+      'remove' === verb ? await pkgRemove(dir, opts, http, args.rest[0], net) :
+        await pkgGet(dir, opts, http, args.rest[0], { ...net, mode: verb as 'add' | 'get' })
+  if ('string' === typeof report) {
+    io.err('aontu: ' + report + '\n')
+    return 2
+  }
+  io.out(pkgReportText(verb, args.format, report) + '\n')
+  return PKG_EXIT[report.verdict]
+}
+
+
+function pkgReportText(verb: string, fmt: SubsumeFormat, report: any): string {
+  return 'json' === fmt ?
+    exactJSON({ aontu: { version: version(), verb }, ...report }, 2) :
+    pkgNetText(verb, report)
+}
+
+
+function pkgNetText(verb: string, report: any): string {
+  const lines = ['verdict: ' + report.verdict]
+  const tail = (): void => {
+    for (const e of report.events ?? []) {
+      lines.push(e.code + ': ' + e.message)
+    }
+    if (null != report.refusal) {
+      lines.push('refused: ' + report.refusal.code + ': ' + report.refusal.message)
+    }
+  }
+
+  if ('why' === verb) {
+    const why = report as PkgWhyReport
+    for (const p of why.paths) {
+      lines.push(p.join(' -> '))
+    }
+    if ('missing' === why.verdict) {
+      lines.push(why.pkg + ': not in the closure')
+    }
+    return lines.join('\n')
+  }
+
+  if ('publish' === verb) {
+    const pub = report as PkgPublishReport
+    lines.push(...pkgText('manifest', pub).split('\n').slice(1))
+    if (null != pub.digest) {
+      lines.push('digest: ' + pub.digest)
+    }
+    if (null != pub.signer) {
+      lines.push('signer: ' + pub.signer)
+    }
+    if (null != pub.against) {
+      lines.push('against: ' + pub.against)
+    }
+    if (null != pub.to) {
+      lines.push('to: ' + pub.to)
+    }
+    if (null != pub.write) {
+      lines.push('write: ' + pub.write + PUBLISH_PATH)
+    }
+    if ('dry-run' === pub.verdict) {
+      lines.push('dry run: nothing sent (add --yes)')
+    }
+    if ('sent' === pub.verdict) {
+      lines.push('sent')
+    }
+    tail()
+    return lines.join('\n')
+  }
+
+  if ('pkg outdated' === verb) {
+    const out = report as PkgOutdatedReport
+    for (const e of out.locked) {
+      if (0 < versionCompare(e.newest, e.v)) {
+        lines.push(e.key + ' ' + e.v + ' -> ' + e.newest)
+        for (const m of e.moves) {
+          lines.push('  ' + m)
+        }
+      }
+      else {
+        lines.push(e.key + ' ' + e.v + ': current')
+      }
+      if (null != e.retracted) {
+        lines.push(e.key + ' ' + e.v + ': retracted by ' + e.retracted)
+      }
+    }
+    tail()
+    return lines.join('\n')
+  }
+
+  const sync = report as PkgChangeReport
+  if (null != sync.change) {
+    lines.push('change: ' + sync.change)
+  }
+  for (const f of sync.fetched) {
+    lines.push('fetched: ' + f)
+  }
+  lines.push(...pkgLockLines(sync.lock))
+  for (const bad of sync.unevaluable) {
+    lines.push(bad + ': does not evaluate on its own; nothing to pin')
+  }
+  lines.push(...pkgForbiddenLines(sync.forbidden), ...pkgMismatchLines(sync.mismatched),
+    ...pkgUnlockedLines(sync.unlocked))
+  for (const miss of sync.missing) {
+    lines.push(miss + ': not fetched (run: aontu sync)')
+  }
+  for (const c of sync.changes) {
+    lines.push('lockfile would change: ' + c)
+  }
+  tail()
+  return lines.join('\n')
+}
+
+
+const MODEL_HELP = 'aontu model get|why|set ... (try --help)'
+
+// One document, interrogated or edited (ADR-039 part 5).
+function runModel(argv: string[]): number {
+  const sub = argv[0]
+  if ('-h' === sub || '--help' === sub) {
+    process.stdout.write(HELP)
+    return 0
+  }
+  if ('get' === sub) {
+    return runGet(argv.slice(1))
+  }
+  if ('why' === sub) {
+    return runWhy(argv.slice(1))
+  }
+  if ('set' === sub) {
+    return runSet(argv.slice(1))
+  }
+  process.stderr.write(`aontu: model needs get, why or set\n${MODEL_HELP}\n`)
+  return 2
+}
+
 
 
 function vacuous(what: string, why: string): void {
@@ -3272,7 +3713,7 @@ function runHash(argv: string[]): number {
 }
 
 
-const GET_HELP = 'aontu get <path> <file> (try --help)'
+const GET_HELP = 'aontu model get <path> <file> (try --help)'
 
 function runGet(argv: string[]): number {
   const trusted = takeTrust(argv)
@@ -3318,7 +3759,7 @@ function runGet(argv: string[]): number {
       format = f
     }
     else if (arg.startsWith('-')) {
-      process.stderr.write(`aontu: unknown get option ${arg} (try --help)\n`)
+      process.stderr.write(`aontu: unknown model get option ${arg} (try --help)\n`)
       return 2
     }
     else {
@@ -3327,7 +3768,7 @@ function runGet(argv: string[]): number {
   }
 
   if (2 !== rest.length) {
-    process.stderr.write(`aontu: get needs a path and one file\n${GET_HELP}\n`)
+    process.stderr.write(`aontu: model get needs a path and one file\n${GET_HELP}\n`)
     return 2
   }
   const [path, file] = rest
@@ -3355,7 +3796,7 @@ function runGet(argv: string[]): number {
   })
   if ('json' === format) {
     process.stdout.write(exactJSON({
-      aontu: { version: version(), verb: 'get' },
+      aontu: { version: version(), verb: 'model get' },
       findings: report.findings,
       ok: report.ok,
       out: report.out,
@@ -3384,7 +3825,7 @@ function runGet(argv: string[]): number {
 // The positive twin of the vet report: errors explain what failed to
 // unify, this explains what did.
 
-const WHY_HELP = 'aontu why <path> <file> (try --help)'
+const WHY_HELP = 'aontu model why <path> <file> (try --help)'
 
 function runWhy(argv: string[]): number {
   const trusted = takeTrust(argv)
@@ -3411,7 +3852,7 @@ function runWhy(argv: string[]): number {
       format = f
     }
     else if (arg.startsWith('-')) {
-      process.stderr.write(`aontu: unknown why option ${arg} (try --help)\n`)
+      process.stderr.write(`aontu: unknown model why option ${arg} (try --help)\n`)
       return 2
     }
     else {
@@ -3420,7 +3861,7 @@ function runWhy(argv: string[]): number {
   }
 
   if (2 !== rest.length) {
-    process.stderr.write(`aontu: why needs a path and one file\n${WHY_HELP}\n`)
+    process.stderr.write(`aontu: model why needs a path and one file\n${WHY_HELP}\n`)
     return 2
   }
   const [path, file] = rest
@@ -3439,7 +3880,7 @@ function runWhy(argv: string[]): number {
   })
   if ('json' === format) {
     process.stdout.write(exactJSON({
-      aontu: { version: version(), verb: 'why' },
+      aontu: { version: version(), verb: 'model why' },
       findings: report.findings,
       ok: report.ok,
       ...(null == report.record ? {} : { record: report.record }),
@@ -3477,7 +3918,7 @@ function renderWhyText(record: WhyRecord): string {
 
 
 const SET_HELP =
-  'aontu set <path>=<value> --entry <file> --overlay <file> (try --help)'
+  'aontu model set <path>=<value> --entry <file> --overlay <file> (try --help)'
 
 function runSet(argv: string[]): number {
   const trusted = takeTrust(argv)
@@ -3520,7 +3961,7 @@ function runSet(argv: string[]): number {
       format = f
     }
     else if (arg.startsWith('-')) {
-      process.stderr.write(`aontu: unknown set option ${arg} (try --help)\n`)
+      process.stderr.write(`aontu: unknown model set option ${arg} (try --help)\n`)
       return 2
     }
     else {
@@ -3530,7 +3971,7 @@ function runSet(argv: string[]): number {
 
   if (0 === assignments.length || null == entry || null == overlayFile) {
     process.stderr.write(
-      `aontu: set needs assignments, --entry and --overlay\n${SET_HELP}\n`)
+      `aontu: model set needs assignments, --entry and --overlay\n${SET_HELP}\n`)
     return 2
   }
 
@@ -3582,7 +4023,7 @@ function runSet(argv: string[]): number {
 
   if ('json' === format) {
     process.stdout.write(exactJSON({
-      aontu: { version: version(), verb: 'set' },
+      aontu: { version: version(), verb: 'model set' },
       appended: report.appended,
       findings: report.findings,
       overlay: report.overlay,
@@ -4082,17 +4523,38 @@ function fmtOne(
 }
 
 
+// Where a verb writes. The package verbs are asynchronous, so a test
+// cannot capture the process streams around them; it hands these in.
+type Io = { out: (s: string) => void, err: (s: string) => void }
+
+const PROCESS_IO: Io = {
+  out: (s) => void process.stdout.write(s),
+  err: (s) => void process.stderr.write(s),
+}
+
 type Servers = {
   lsp: () => void
   mcp: (argv: string[]) => void
+  // `pkg serve` runs until this settles: the process's SIGINT, or a
+  // test's say-so.
+  serve: (served: Served) => Promise<void>
+  http: () => PkgHttp
+  io?: Io
+}
+
+// `pkg serve` runs until the process is interrupted.
+function serveUntilInterrupted(): Promise<void> {
+  return new Promise((done) => process.once('SIGINT', () => done()))
 }
 
 // Excluded: the real pair takes the process stdio, so ts/test/cli.test.ts
 // drives each server through a child process instead.
-/* node:coverage ignore next 4 */
+/* node:coverage ignore next 6 */
 const SERVERS: Servers = {
   lsp: () => void lspMain(),
   mcp: (argv) => void mcpMain(undefined, undefined, undefined, undefined, argv),
+  serve: serveUntilInterrupted,
+  http: defaultHttp,
 }
 
 // undefined: the server took the process; a number: an answer the CLI
@@ -4416,10 +4878,10 @@ function runInit(argv: string[]): number {
 
 
 const KNOWN_VERBS = [
-  'agentsmd', 'allow', 'breaking', 'explain', 'fmt', 'get', 'hash',
-  'help', 'init', 'jsonschema', 'lsp', 'mcp', 'mod', 'reaches',
-  'relations', 'set', 'subsume', 'template', 'trace', 'trim',
-  'vet', 'view', 'why',
+  'add', 'agentsmd', 'allow', 'breaking', 'explain', 'fmt', 'get', 'hash',
+  'help', 'init', 'jsonschema', 'lsp', 'mcp', 'model', 'pkg', 'publish',
+  'reaches', 'relations', 'remove', 'subsume', 'sync', 'template', 'trace',
+  'trim', 'vet', 'view', 'why',
 ]
 
 
@@ -4514,20 +4976,22 @@ function main(argv: string[], servers: Servers = SERVERS): void {
     return servers.mcp(argv.slice(3))
   }
 
-  if ('set' === argv[2]) {
-    return finish(runSet(argv.slice(3)))
-  }
 
   if ('allow' === argv[2]) {
     return finish(runAllow(argv.slice(3)))
   }
 
-  if ('why' === argv[2]) {
-    return finish(runWhy(argv.slice(3)))
+  if ('model' === argv[2]) {
+    return finish(runModel(argv.slice(3)))
   }
 
-  if ('get' === argv[2]) {
-    return finish(runGet(argv.slice(3)))
+  if ('pkg' === argv[2]) {
+    const r = runPkg(argv.slice(3), servers)
+    return 'number' === typeof r ? finish(r) : void r.then(finish)
+  }
+
+  if (PACKAGE_VERBS.includes(argv[2])) {
+    return void runPackageVerb(argv[2], argv.slice(3), servers).then(finish)
   }
 
   if ('hash' === argv[2]) {
@@ -4546,10 +5010,6 @@ function main(argv: string[], servers: Servers = SERVERS): void {
 
   if ('init' === argv[2]) {
     return finish(runInit(argv.slice(3)))
-  }
-
-  if ('mod' === argv[2]) {
-    return finish(runMod(argv.slice(3)))
   }
 
   if ('relations' === argv[2]) {
@@ -4686,7 +5146,7 @@ export {
   runJsonSchema,
   runTemplate,
   runTrace,
-  runMod,
+  runPkg, runModel, runPackageVerb, pkgToolOptions, serveUntilInterrupted,
   runHash, runGet, runHelp, runExplain, runInit, nearestVerb,
   looksLikeVerb,
   KNOWN_VERBS,

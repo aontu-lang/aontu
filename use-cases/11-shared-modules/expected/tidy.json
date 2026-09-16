@@ -1,13 +1,14 @@
 {
   "aontu": {
-    "verb": "mod tidy",
-    "version": "0.53.0"
+    "verb": "pkg tidy",
+    "version": "0.64.0"
   },
+  "forbidden": [],
   "lock": [
     {
+      "archive": "sha256:5b299a1256d890fbbe4062926ca8a9b4686c2907c75fb27963dca481809b7c1f",
       "canon": "aon1-zFHnyVa1fA--g8hTx8lUUhaKzzRUNI--2nDheIMsSFs",
-      "mod": "corp.example/schemas/service@1",
-      "oci": "",
+      "key": "corp.example/schemas/service",
       "v": "1.4.2"
     }
   ],

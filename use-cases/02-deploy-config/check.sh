@@ -55,7 +55,7 @@ ok "canonical form matches golden (defaults and spreads preserved)"
 # ------------------------------------------------- resolved layer values
 get_is() { # path expected label
   local got
-  got="$(aontu get "$1" "$DIR/stack.aon")"
+  got="$(aontu model get "$1" "$DIR/stack.aon")"
   [ "$got" = "$2" ] || die "get $1: expected $2, got $got"
   ok "$3"
 }
@@ -81,14 +81,14 @@ get_is '$.alerts.billing.runbook' '"https://runbooks.acme.internal/billing"' \
   "filter(critical) -> pack: paging route generated from catalog"
 
 # ---------------------------------------------------------- attribution
-run why-defs 0 why '$.defs.workload.logLevel' "$DIR/stack.aon"
+run why-defs 0 model why '$.defs.workload.logLevel' "$DIR/stack.aon"
 has why-defs 'org-policy.aon' "org layer attributed"
 has why-defs 'team-defaults.aon' "team layer attributed"
 has why-defs '***"info"|string' "org rank shown"
 has why-defs '**"debug"|string' "team rank shown"
 ok "why attributes the schema row to both layers with file:line"
 
-run why-billing 0 why '$.deploy.prod.workloads.billing.replicas' "$DIR/stack.aon"
+run why-billing 0 model why '$.deploy.prod.workloads.billing.replicas' "$DIR/stack.aon"
 has why-billing 'envs/prod.aon' "prod overlay attributed"
 has why-billing '12' "pin value shown"
 ok "why attributes the prod pin to envs/prod.aon"
@@ -100,7 +100,7 @@ ok "why attributes the prod pin to envs/prod.aon"
 # provenance was a set of parsed-tree ids rather than a mark the clone
 # carries. The generated path now names the file and line the default
 # was written on.
-run why-blind 0 why '$.deploy.dev.workloads.web.logLevel' "$DIR/stack.aon"
+run why-blind 0 model why '$.deploy.dev.workloads.web.logLevel' "$DIR/stack.aon"
 has why-blind 'team-defaults.aon:' "pack clone attributed to its source file"
 has why-blind '"debug"' "the winning default is shown"
 ok "pinned: why is blind through pack (gap 3)"
@@ -236,7 +236,7 @@ rm -f "$WORK/check.sh"
 printf '# written by the release agent via aontu set\n' > "$WORK/agent-change.aon"
 
 set +e
-$AONTU set '$.deploy.prod.workloads.web.replicas=8' \
+$AONTU model set '$.deploy.prod.workloads.web.replicas=8' \
   --entry "$WORK/stack.aon" --overlay "$WORK/agent-change.aon" \
   2>&1 | strip_ansi > "$TMP/set-ok.out"
 SET_OK="${PIPESTATUS[0]}"
@@ -244,13 +244,13 @@ set -e
 [ "$SET_OK" = "0" ] || { cat "$TMP/set-ok.out" >&2; die "set (valid) failed"; }
 has set-ok 'verdict: valid' "set vets before writing"
 has set-ok 'wrote:' "overlay written"
-printf '@"stack.aon"\n@"agent-change.aon"\n' > "$WORK/with-change.aon"
-GOT="$(aontu get '$.deploy.prod.workloads.web.replicas' "$WORK/with-change.aon")"
+printf '@"./stack.aon"\n@"./agent-change.aon"\n' > "$WORK/with-change.aon"
+GOT="$(aontu model get '$.deploy.prod.workloads.web.replicas' "$WORK/with-change.aon")"
 [ "$GOT" = "8" ] || die "set change not visible on re-evaluation (got $GOT)"
 ok "set: agent override of a default is vetted, written, effective"
 
 set +e
-$AONTU set '$.deploy.prod.workloads.billing.replicas=14' \
+$AONTU model set '$.deploy.prod.workloads.billing.replicas=14' \
   --entry "$WORK/stack.aon" --overlay "$WORK/agent-refused.aon" \
   2>&1 | strip_ansi > "$TMP/set-bad.out"
 SET_BAD="${PIPESTATUS[0]}"

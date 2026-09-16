@@ -287,7 +287,7 @@ func TestRunTextExtOnVerbs(t *testing.T) {
 	}
 
 	var out, errw bytes.Buffer
-	if code := run([]string{"get", "$.doc", "--text-ext", "md", entry},
+	if code := run([]string{"model", "get", "$.doc", "--text-ext", "md", entry},
 		nil, &out, &errw, true); code != 0 ||
 		!strings.Contains(out.String(), "# hi") {
 		t.Fatalf("verb: %d %q %q", code, out.String(), errw.String())
@@ -295,7 +295,7 @@ func TestRunTextExtOnVerbs(t *testing.T) {
 
 	// Repeated and dotted, on the verb road too.
 	out.Reset()
-	if code := run([]string{"get", "$.doc", "--text-ext", ".sql",
+	if code := run([]string{"model", "get", "$.doc", "--text-ext", ".sql",
 		"--text-ext", "md", entry}, nil, &out, &errw, true); code != 0 ||
 		!strings.Contains(out.String(), "# hi") {
 		t.Fatalf("verb repeated: %d %q", code, out.String())
@@ -303,14 +303,14 @@ func TestRunTextExtOnVerbs(t *testing.T) {
 
 	for _, bad := range []string{"", ".", "md,", "a b"} {
 		errw.Reset()
-		if code := run([]string{"get", "$.doc", "--text-ext", bad, entry},
+		if code := run([]string{"model", "get", "$.doc", "--text-ext", bad, entry},
 			nil, &out, &errw, true); code != 2 ||
 			!strings.Contains(errw.String(), "--text-ext needs extensions") {
 			t.Fatalf("verb accepted %q: %d %q", bad, code, errw.String())
 		}
 	}
 	errw.Reset()
-	if code := run([]string{"get", "$.doc", entry, "--text-ext"},
+	if code := run([]string{"model", "get", "$.doc", entry, "--text-ext"},
 		nil, &out, &errw, true); code != 2 ||
 		!strings.Contains(errw.String(), "--text-ext needs extensions") {
 		t.Fatalf("verb trailing flag: %d %q", code, errw.String())

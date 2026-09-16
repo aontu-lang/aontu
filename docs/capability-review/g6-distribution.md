@@ -670,3 +670,36 @@ The old layout, `aon_vendor/` and `mod-lock.aon` at the root, is not
 read. The `mod` verbs name it once when they find it, with the two
 commands that rebuild the new one, and the fixtures, the use cases and
 the documentation moved with the code.
+
+## Amendment 2026-09-16: the package system of ADR-039
+
+The engine adopted the executable specification's shapes and the verb
+tiers of `aontu-lang/system`'s `CLI.0.md`, ratified as
+[ADR-039](../../ADR.md#adr-039--the-package-system-has-one-vocabulary-one-set-of-files-and-three-pins).
+Where this document says `mod.aon`, read `pkg.aon`; where it says
+`aontu_meta/mod-lock.aon`, read `aontu_meta/pkg-lock.aon`; where a
+module path carries `@<major>`, it no longer does (ADR-022 part 1, now
+built), and where a verb is spelled `aontu mod <op>`, it is
+`aontu pkg <op>` or one of the top-level package verbs `sync`, `add`,
+`get`, `remove`, `why` and `publish`. The document queries that held
+`get`, `why` and `set` are `aontu model get|why|set`.
+
+Three things this design did not have. **A lock entry pins three
+things**: `canon` as designed, `archive` (the digest of the tree's
+canonical zip, computable from any tree, so a hand-vendored package
+carries it too) and `manifest` (the digest of what the publisher signed,
+present only where a manifest is); `oci`, which nothing ever computed,
+is retired. **The artifact is not OCI**: `pkg manifest` prints the
+specification's signed manifest, and `publish` signs and sends it to a
+repository of static objects (G10 phases 3 and 4, landed the same day).
+**The compatibility gate has three components** (ADR-022): acceptance
+by subsumption as designed, and determination and agreement by a walk
+over what each version generates with nothing supplied
+(`ts/src/compat.ts`, `go/compat.go`), so `port: 8080` loosening to
+`port: integer`, which subsumption alone passes, is refused.
+
+The user cache moved to `aontu/pkg` and is keyed by canon-hash **and**
+package path, which closes the cache-identity hole G10 named before
+anything wrote the cache. The register's G6 rows 2 to 4 carry the
+dated notes; the boundary bullets stand, read through ADR-019's
+storage decision as the 2026-09-04 note already says.

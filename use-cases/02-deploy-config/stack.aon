@@ -3,9 +3,9 @@
 # Build:  aontu stack.aon            -> deployment JSON
 # Gate:   aontu vet guardrails.aon <built JSON>   (resource bounds)
 
-@"org-policy.aon"
-@"team-defaults.aon"
-@"fleet.aon"
+@"./org-policy.aon"
+@"./team-defaults.aon"
+@"./fleet.aon"
 @"envs/dev.aon"
 @"envs/staging.aon"
 @"envs/prod.aon"

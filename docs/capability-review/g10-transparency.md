@@ -331,6 +331,34 @@ left as the record of design D: they describe a fetch, a lookup and a
 custody the settled design replaced, and a rewrite belongs with the
 phase-3 work that supersedes them.
 
+### Phases 3 and 4 landed, 2026-09-16
+
+Under [ADR-039](../../ADR.md#adr-039--the-package-system-has-one-vocabulary-one-set-of-files-and-three-pins)
+both ports gained the read and write verbs against the repository:
+`aontu sync`, `get`, `add`, `remove`, `why` and `publish`, with
+`pkg outdated`, `pkg serve` and `pkg keygen`. The seam the
+implementation plan asked for is one injectable transport per port
+(`PkgHttp` in TypeScript, `PkgHTTP` in Go) with a directory transport
+below it for tests and for `publish --to <dir>`, so every decision above
+the wire is covered without a socket and the adapter below is the thin
+exclusion the plan argued for. The acquire order is the specification's
+(`ops.acquire`), bytes before meaning: proof, archive digest, canonical
+unpack, file manifest, dependencies, evaluation, canon-hash. Trusted
+publishing is the client half: `publish --token` carries the forge's
+OIDC token to the write path and copies its claims into the manifest,
+per [ADR-024](../../ADR.md#adr-024--the-forges-token-authorises-a-publish-and-sigstore-is-one-provider-of-the-proof-not-its-definition);
+the write path that verifies it is `aontu-lang/system`'s Worker. The
+cooldown is timed from the repository's first-seen time rather than the
+client's (ADR-039 part 9), because a fresh machine must be able to
+select something; the client's own `seen` records are what detect a
+rollback (`list_rollback`). The gate is wired at the one place versions
+are minted, with all three of ADR-022's components.
+
+Phase 6 is rewritten in the register for the federated design: the log
+is Sigstore's, so witnesses and gossip are theirs; what remains here is
+repository mutation alerting, the git mirror, and the hardening a first
+third-party publisher forces. The register's rows are the record.
+
 ## Proposed design
 
 ### The leaf

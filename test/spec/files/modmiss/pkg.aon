@@ -1,0 +1,3 @@
+pkg: {
+  path: "corp.example/app"
+}

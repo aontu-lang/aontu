@@ -276,7 +276,7 @@ def: garage: {
       ; (fs as any).aaa = 1
 
 
-    let v1 = a0.unify(`a:@"foo.aon"`, { fs, path: '/' })
+    let v1 = a0.unify(`a:@"./foo.aon"`, { fs, path: '/' })
     expect(v1.canon).equal(
       '{"a":{"f":11}}'
     )

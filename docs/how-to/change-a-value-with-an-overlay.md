@@ -22,7 +22,7 @@ Now raise billing's replicas without opening the file:
 
 <!-- test: run -->
 ```sh
-$ aontu set '$.services.billing.replicas=2' --entry system.aon --overlay overlay.aon
+$ aontu model set '$.services.billing.replicas=2' --entry system.aon --overlay overlay.aon
 verdict: valid
 wrote: overlay.aon
 ```
@@ -68,7 +68,7 @@ a concrete peer. A pinned value does not:
 
 <!-- test: run -->
 ```sh
-$ aontu set '$.services.auth.replicas=5' --entry system.aon --overlay overlay.aon
+$ aontu model set '$.services.auth.replicas=5' --entry system.aon --overlay overlay.aon
 verdict: invalid
 
 $.services.auth.replicas: scalar_value [conflict]
@@ -92,7 +92,7 @@ vet`](../reference-api.md#aontu-vet)'s verdict classes, so the verb
 gates automation on its own. Keep the overlay *outside* the entry's
 include graph: an entry that loads its own overlay counts every
 change twice. The flag-by-flag contract is under [`aontu
-set`](../reference-api.md#aontu-set), and the live version is
+set`](../reference-api.md#aontu-model-set), and the live version is
 [use-cases/08-feature-flags](../../use-cases/08-feature-flags/),
 where an ops overlay is written by `set --in-place` and never by
 hand, and repeated writes of one path leave one line.

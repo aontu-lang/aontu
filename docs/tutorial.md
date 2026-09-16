@@ -534,7 +534,7 @@ reading it and start asking it. `get` prints one slice of the answer:
 
 <!-- test: run -->
 ```sh
-$ aontu get '$.service.tags' config.aon
+$ aontu model get '$.service.tags' config.aon
 [
   "public",
   "http"
@@ -549,7 +549,7 @@ every statement that contributed to a path, in source order:
 
 <!-- test: run -->
 ```sh
-$ aontu why '$.service.port' config.aon
+$ aontu model why '$.service.port' config.aon
 $.service.port = 9090
   1. *8080|integer  config.aon:5:9
   2. 9090  config.aon:11:26
@@ -564,7 +564,7 @@ overrode:
 
 <!-- test: run -->
 ```sh
-$ aontu why '$.service.host' config.aon
+$ aontu model why '$.service.host' config.aon
 $.service.host = *"localhost"|string
   1. *"localhost"|string  config.aon:4:9
 ```
@@ -662,8 +662,8 @@ it takes. Write `stack.aon`:
 
 <!-- test: file stack.aon -->
 ```aontu
-@"service.aon"
-@"staging.aon"
+@"./service.aon"
+@"./staging.aon"
 ```
 
 <!-- test: run -->
@@ -718,7 +718,7 @@ JSON and SARIF report forms and `--watch` are specified under
 
 That is the loop the whole verb surface exists for: **emit** a
 document, **vet** it against the truth it has to satisfy, and when it
-fails, let the two sites and `aontu why` say where to **repair** it.
+fails, let the two sites and `aontu model why` say where to **repair** it.
 You have now run it once by hand, which matters, because repair is the
 step you will eventually hand to a command: `aontu set` rewrites
 overlay files under exactly these rules, and

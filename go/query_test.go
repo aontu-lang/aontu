@@ -39,7 +39,7 @@ func TestQueryRelativeLoadResolvesFromDocumentDir(t *testing.T) {
 		t.Fatal(err)
 	}
 	a := NewWithBase(dir)
-	r := a.Get(`a: @"part.aon"`, "$.a.k", &QueryOptions{View: QueryCanon})
+	r := a.Get(`a: @"./part.aon"`, "$.a.k", &QueryOptions{View: QueryCanon})
 	if !r.OK || "7" != r.Out {
 		t.Fatalf("relative load not resolved: %+v", r)
 	}

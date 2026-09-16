@@ -1,7 +1,7 @@
 # Checkout-team service definitions, validated against the platform
 # module.  hide() keeps the imported schema out of the rendered output
 # (the abstract schema itself cannot generate JSON).
-lib: hide(@"corp.example/schemas/service@1")
+lib: hide(@"corp.example/schemas/service")
 
 srv: {
   checkout: $.lib.spec & {

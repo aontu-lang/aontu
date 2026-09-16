@@ -484,7 +484,7 @@ describe('vet-api', () => {
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-vet-base-'))
     Fs.writeFileSync(Path.join(dir, 'part.aon'), 'port: integer')
 
-    const src = '@"part.aon"\nname: string'
+    const src = '@"./part.aon"\nname: string'
     const data = 'name: "auth"\nport: 8080'
     const schemaPath = Path.join(dir, 'schema.aon')
     Fs.writeFileSync(schemaPath, src)
@@ -531,7 +531,7 @@ describe('vet-api', () => {
     const part = Path.join(dir, 'part.aon')
     Fs.writeFileSync(part, 'port: "80"\n')
     const dataPath = Path.join(dir, 'data.aon')
-    const data = '@"part.aon"\n'
+    const data = '@"./part.aon"\n'
     Fs.writeFileSync(dataPath, data)
 
     const r = vet('port: integer', data, {

@@ -623,10 +623,11 @@ copy. The runtime application checks remain in the example's `check.sh`.
 ### Module and package are different words
 
 **A module is imported. A package is published.** They are not
-synonyms, and the codebase currently gets this wrong in one visible
-place — the `aontu mod` verbs operate on packages.
+synonyms. The verbs follow: `aontu sync`, `add`, `get`, `remove`, `why`
+and `publish` operate on packages, as do the `aontu pkg` subcommands;
+`aontu model get|why|set` interrogate one document.
 
-- A **module** is a language element: what `@"acme.example/schema@1"`
+- A **module** is a language element: what `@"acme.example/schema"`
   names, what `resolveModule` resolves, what `canonHash` pins, what
   unifies into a document.
 - A **package** is a unit of publication: a versioned, signed archive
@@ -655,11 +656,21 @@ import/publish line the thing is on rather than trusting the ear.
   package-manager manifests on a GitHub Release at that tag, and the
   image on GHCR (`go/scripts/binaries.sh`; docs/release-and-tag.md).
 - Inside an aontu project, everything the tools generate lives under
-  `aontu_meta/`: the lockfile `aontu_meta/mod-lock.aon`, the vendored
+  `aontu_meta/`: the lockfile `aontu_meta/pkg-lock.aon`, the vendored
   closure `aontu_meta/vendor/`, and by design the engine pin
-  `aontu_meta/version`. `mod.aon` and the documents stay at the root.
+  `aontu_meta/version`. `pkg.aon` and the documents stay at the root.
   New tooling that writes into a project writes there
   (docs/capability-review/g6-distribution.md, the layout amendment).
+  A vendored package keeps the manifest and proof it was acquired with
+  under its own `aontu_meta/`; a package in the user cache's store also
+  keeps the lock it was verified against, which the vendored copy drops
+  so that the consumer's lock governs (ADR-039).
+- The package verbs reach a repository through one seam, `PkgHttp`
+  (`ts/src/pkg-net.ts`) and `PkgHTTP` (`go/pkgnet.go`); every decision
+  is above it and the platform transport below it. Tests hand in a
+  directory-backed transport (`dirHttp`/`DirHTTP`) and a served
+  registry on a loopback port, so nothing in either suite reaches the
+  network.
 
 ### The site-attribution invariant
 

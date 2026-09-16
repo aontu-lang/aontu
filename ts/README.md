@@ -35,8 +35,8 @@ conflict, reported with both sites.
 
 ```sh
 aontu vet service.aon deploy.json   # does this data satisfy this schema?
-aontu get '$.services.auth' sys.aon # one evaluated slice
-aontu why '$.services.auth.port' sys.aon  # what contributed, and where
+aontu model get '$.services.auth' sys.aon # one evaluated slice
+aontu model why '$.services.auth.port' sys.aon  # what contributed, and where
 aontu breaking --against git#main sys.aon # is the new version compatible?
 aontu hash sys.aon                  # a pin over MEANING, not bytes
 ```

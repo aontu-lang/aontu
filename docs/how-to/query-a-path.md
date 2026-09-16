@@ -23,7 +23,7 @@ Now ask for one service:
 
 <!-- test: run -->
 ```sh
-$ aontu get $.services.auth system.aon
+$ aontu model get $.services.auth system.aon
 {
   "replicas": 3,
   "tier": "standard"
@@ -41,12 +41,12 @@ the structure cut off at a depth:
 
 <!-- test: run -->
 ```sh
-$ aontu get $.services --keys system.aon
+$ aontu model get $.services --keys system.aon
 auth
 billing
-$ aontu get $.services.auth --types system.aon
+$ aontu model get $.services.auth --types system.aon
 {"replicas":integer,"tier":*string|string}
-$ aontu get $ --depth 1 --canon system.aon
+$ aontu model get $ --depth 1 --canon system.aon
 {"services":top}
 ```
 
@@ -58,7 +58,7 @@ A path that names nothing exits `1` and guesses:
 
 <!-- test: run -->
 ```sh
-$ aontu get $.services.authz system.aon
+$ aontu model get $.services.authz system.aon
 $.services.authz: no_path [reference]
   The path $.services.authz names nothing in this document.
   note: did you mean auth?
@@ -73,7 +73,7 @@ not stand up on its own (a residual node has no JSON to print).
 
 The flags, exit codes, and the subsumption claim behind the
 projections are specified under [`aontu
-get`](../reference-api.md#aontu-get). To see the whole document in
+get`](../reference-api.md#aontu-model-get). To see the whole document in
 one reparseable line instead of a slice, [see the canonical
 form](see-canonical-form.md); to ask who put the value there rather
 than what it is, [explain the value](explain-a-value.md).

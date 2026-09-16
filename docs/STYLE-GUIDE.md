@@ -64,8 +64,8 @@ against the target file's own headings, under GitHub's slug rules.
 
 **A Google rule sitting below error level was tried at error first and
 found wrong for these pages.** `.vale.ini` records what each produced on
-a clean run: 3978 alerts across 78 files. Two of them are worth knowing
-about, because the reason is not taste:
+a clean run: 4030 alerts across 79 files. Two of them turn on a reason
+rather than on taste:
 
 - `Google.EmDash` is disabled because its spacing rule is redundant
   under the house ban. The local documentation gate checks prose
@@ -128,9 +128,9 @@ it is today.
 
 **The engine's own output is published text.** A refusal that names a
 design document sends a user somewhere they cannot go, in place of
-telling them what to do: `aontu mod get` did exactly that. A message
-names the repair, not the reasoning; the reasoning stays in the source
-comment beside it, where a contributor reads it.
+telling them what to do: an early `aontu get` refusal did exactly
+that. A message names the repair, not the reasoning; the reasoning
+stays in the source comment beside it, where a contributor reads it.
 
 Two things the rule does *not* catch, because neither is a citation:
 `AGENTS.md` named as the file `aontu agentsmd` writes, and an error
@@ -331,7 +331,7 @@ State the input, the check, the result, and any limit on that result.
   English; this is one of the places the house voice wins, and
   `Google.Spelling` is switched off in `.vale.ini` for it. Actual
   misspellings are still caught: `Vale.Spelling` runs at error against
-  `accept.txt`, which names 213 domain terms.
+  `accept.txt`, which names 216 domain terms.
 
 ## Code snippets: every one is tested
 

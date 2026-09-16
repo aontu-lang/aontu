@@ -129,7 +129,7 @@ finding names the admissible alternatives in its schema site
 (`"name"|"-name"|"created_at"|"-created_at"`), and the script
 nearest-matches among them. A `closed` finding names the refused key,
 and the script nearest-matches it against the declared keys from
-`aontu get --keys`. A `closed` finding's path is relative to the
+`aontu model get --keys`. A `closed` finding's path is relative to the
 candidate document (`$.emial`) where a constraint finding's carries
 the anchor (`$.msg.CreateUserRequest.email`); the script accepts
 both spellings.

@@ -517,7 +517,7 @@ func TestVetEachDocumentResolvesItsOwnIncludes(t *testing.T) {
 	// came from -- but the loader resolves the base against a real
 	// directory, so the file has to be there, which for every caller
 	// that read the text out of it already is.
-	src := "@\"part.aon\"\nname: string"
+	src := "@\"./part.aon\"\nname: string"
 	data := "name: \"auth\"\nport: 8080"
 	schemaPath := filepath.Join(dir, "schema.aon")
 	if err := os.WriteFile(schemaPath, []byte(src), 0o600); err != nil {
@@ -595,7 +595,7 @@ func TestVetIncludedDataIsStillData(t *testing.T) {
 		t.Fatal(err)
 	}
 	dataPath := filepath.Join(dir, "data.aon")
-	data := "@\"part.aon\"\n"
+	data := "@\"./part.aon\"\n"
 	if err := os.WriteFile(dataPath, []byte(data), 0o600); err != nil {
 		t.Fatal(err)
 	}
