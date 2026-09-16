@@ -191,7 +191,13 @@ func TestArchiveOfSkipsMetaAndNamesTheForbidden(t *testing.T) {
 	if fmt.Sprint(a.Forbidden) != wantForbidden {
 		t.Fatalf("forbidden %v", a.Forbidden)
 	}
-	if a.Size != len(a.Zip) || 5 != a.Files[0].Size || Sha256Hex([]byte("a: 1\n")) != a.Files[0].Digest {
+	var main ArchiveFile
+	for _, f := range a.Files {
+		if "main.aon" == f.Path {
+			main = f
+		}
+	}
+	if a.Size != len(a.Zip) || 5 != main.Size || Sha256Hex([]byte("a: 1\n")) != main.Digest {
 		t.Fatalf("archive %+v", a)
 	}
 	if got := ArchiveOf(filepath.Join(dir, "nowhere")); 0 != len(got.Files) {

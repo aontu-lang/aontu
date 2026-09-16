@@ -225,8 +225,9 @@ describe('pkg-archive', () => {
     Assert.deepEqual(a.forbidden,
       windows ? ['link.aon', 'sub/.hidden/', 'sub/run.sh'] : ['exec.aon', 'link.aon', 'sub/.hidden/', 'sub/run.sh'])
     Assert.equal(a.size, a.zip.length)
-    Assert.equal(a.files[0].size, 5)
-    Assert.equal(a.files[0].digest, sha256Hex(new TextEncoder().encode('a: 1\n')))
+    const main = a.files.find((f) => 'main.aon' === f.path)
+    Assert.equal(main?.size, 5)
+    Assert.equal(main?.digest, sha256Hex(new TextEncoder().encode('a: 1\n')))
   })
 
 })

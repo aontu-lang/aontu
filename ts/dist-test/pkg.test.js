@@ -220,8 +220,9 @@ function withCache(dir, fn) {
         Assert.deepEqual(a.files.map((f) => f.path), windows ? ['exec.aon', 'main.aon', 'pkg.aon', 'sub/ok.aon'] : ['main.aon', 'pkg.aon', 'sub/ok.aon']);
         Assert.deepEqual(a.forbidden, windows ? ['link.aon', 'sub/.hidden/', 'sub/run.sh'] : ['exec.aon', 'link.aon', 'sub/.hidden/', 'sub/run.sh']);
         Assert.equal(a.size, a.zip.length);
-        Assert.equal(a.files[0].size, 5);
-        Assert.equal(a.files[0].digest, (0, pkg_zip_1.sha256Hex)(new TextEncoder().encode('a: 1\n')));
+        const main = a.files.find((f) => 'main.aon' === f.path);
+        Assert.equal(main?.size, 5);
+        Assert.equal(main?.digest, (0, pkg_zip_1.sha256Hex)(new TextEncoder().encode('a: 1\n')));
     });
 });
 (0, node_test_1.describe)('pkg-tool', () => {
