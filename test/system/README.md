@@ -38,12 +38,10 @@ Three rules follow from the layout:
   reports. Boilerplate the model does not decide is hand-written once
   and is not banner-marked.
 - **The bytes come from the runtime, not from a walker written here.**
-  `tools/cmptree-check.js` reads the tree on standard input and hands
-  it to [jostraca](https://github.com/jostraca/jostraca); a tree checked
-  against anything else proves nothing about what a user gets. The seam
-  is a pipe, so nothing in `ts/src` or `go/` depends on the runtime and
-  the gate skips with a note where it is not installed, the way it
-  already skips without Ruby.
+  `aontu render --check` hands each generator's tree to
+  [jostraca](https://github.com/jostraca/jostraca), a dependency of both
+  ports, and holds the committed app to what it writes; a tree checked
+  against anything else proves nothing about what a user gets.
 - **The API is the reference's, not ours.** A system implements an
   existing API and is validated by that API's own script. What is
   ours is the model, the generator and the framework choice.
@@ -69,9 +67,6 @@ Go port runs the same check. A system's toolchain is documented in its
 README, and `check.sh` skips with a note when part of it is absent
 rather than failing, so a local run stays possible without it.
 
-**A skip is not a pass, which is why CI does not take one.** `check.sh`
-skips the byte gate when no generator runtime is installed, so a local
-run stays possible without one. That skip would also let drift in a
-committed file go unnoticed, so the `use-cases` job installs a pinned
-runtime and fails when it cannot resolve it: the bytes are held there
-whatever a local run leaves out.
+**The byte gate never skips.** The runtime is a dependency of the
+engine, so a drifted committed file is red locally and in CI alike;
+what `check.sh` skips is a system's own toolchain, Ruby or Go.

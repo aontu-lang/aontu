@@ -7,6 +7,19 @@ which implementation each change affects.
 
 ## Unreleased
 
+### `aontu render` writes the files a generator answers
+
+`aontu render <file> <path>` hands the component tree at `$.out` to
+jostraca, the generator runtime, which writes it: a one-file tree to
+`<path>` itself (unless `<path>` is a directory), any other tree below
+`<path>`. `--check` writes nothing and exits 1 on drift, naming each
+file; `--format json` reports the files written, or the drift; `--at`
+names another anchor; a template entry is read directly. Both
+implementations: jostraca is a dependency of the npm package and of
+the Go module, pinned at 0.38.0. `tools/cmptree-check.js` is gone, and
+the use cases and the system test hold their goldens with
+`aontu render --check`.
+
 ### The package system lands whole: `pkg.aon`, `aontu sync`, `aontu publish`
 
 **Hardened before it ships.** A key proof is refused under a key of

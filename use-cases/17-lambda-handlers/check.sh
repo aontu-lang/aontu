@@ -41,27 +41,18 @@ has() {
     || { cat "$WORK/$1.out" >&2; fail "$1: output does not contain: $2"; }
 }
 
-# THE TREE IS THE HAND-OFF and jostraca writes the files. The seam is a
-# pipe: `tools/cmptree-check.js` requires jostraca at RUN time and exits
-# 3 when it is absent, so the byte checks skip with a note rather than
-# failing where it is not installed.
-CMP="node $REPO/tools/cmptree-check.js"
-tree() { $AONTU model get out --trust root "${1:-$DIR/gen.aon}" 2>/dev/null; }
-jostraca=0
-tree | $CMP --folder "$DIR/expected" >/dev/null 2>&1 || jostraca=$?
+# THE BYTES ARE JOSTRACA'S: `aontu render` hands the tree to the
+# generator runtime, and `--check` holds the goldens to what it writes.
+RENDER="$AONTU render --check --trust root"
 
 # ---------------------------------------------------------------------
-# 1. THE GOLDENS ARE HELD by handing the tree to jostraca: thirteen
-# files, twelve handlers
-# and the index, byte for byte, the DO-NOT-EDIT discipline of a
-# generated tree.
+# 1. THE GOLDENS ARE HELD by `render --check`: thirteen files, twelve
+# handlers and the index, byte for byte, the DO-NOT-EDIT discipline of
+# a generated tree.
 [ "$(ls "$DIR/expected/handlers" | wc -l)" -eq 12 ] || fail "expected twelve handlers"
-if [ "$jostraca" = "3" ]; then
-  skip "twelve handlers and the index match their goldens (no jostraca)"
-else
-  [ "$jostraca" = "0" ] || fail "a file drifted from expected/"
-  ok "twelve handlers and the index match their goldens byte for byte"
-fi
+$RENDER "$DIR/gen.aon" "$DIR/expected" >/dev/null 2>&1 \
+  || fail "a file drifted from expected/"
+ok "twelve handlers and the index match their goldens byte for byte"
 
 # 2. EVERY FILE PARSES AS TYPESCRIPT. The compiler itself over each
 # file, asked for syntax alone (a TS1xxx diagnostic; the handlers
@@ -126,16 +117,12 @@ ok "replace_overlap and replace_unused refuse the seeded templates"
 # 8. THE CHECK IS RED WHEN A GOLDEN MOVES, and names the file.
 cp -r "$DIR/expected" "$WORK/moved"
 printf '// edited by hand\n' >> "$WORK/moved/handlers/chat.ts"
-if [ "$jostraca" = "3" ]; then
-  skip "the check is red when a handler is edited by hand (no jostraca)"
-else
-  if tree | $CMP --folder "$WORK/moved" >"$WORK/drift.out" 2>&1; then
-    fail "the check passed an edited golden"
-  fi
-  grep -qF 'handlers/chat.ts' "$WORK/drift.out" \
-    || fail "the check did not name the edited file"
-  ok "the check is red when a handler is edited by hand, and names it"
+if $RENDER "$DIR/gen.aon" "$WORK/moved" >"$WORK/drift.out" 2>&1; then
+  fail "the check passed an edited golden"
 fi
+grep -qF 'handlers/chat.ts' "$WORK/drift.out" \
+  || fail "the check did not name the edited file"
+ok "the check is red when a handler is edited by hand, and names it"
 
 # 9. THE TRACE. Every line of every handler came from a rule, and
 # `aontu trace` says which -- the `%handler` rule set by the name it was
@@ -167,20 +154,12 @@ ok "the trace names the rule and the model node behind every piece"
 # 10. THE TEMPLATE SURFACE (RENDER P8). handler.ts is the SAME
 # generator written in the target's own syntax: the file IS a Lambda
 # handler, and its marked lines are the aontu that turns one into
-# twelve. It renders the same thirteen units against the same goldens,
-# it parses as TypeScript with no syntax diagnostic, and the round trip
-# between the two forms is a fixpoint.
-# THE DESUGARED FORM IS WRITTEN BESIDE ITS SOURCE, because it carries
-# the source's own relative includes: `@"./model.aon"` resolves from
-# where the file sits, not from where the check runs.
-$AONTU template "$DIR/handler.ts" > "$DIR/_tmpl.aon" 2>/dev/null \
-  || fail "the template form did not desugar"
-if [ "$jostraca" != "3" ]; then
-  tree "$DIR/_tmpl.aon" | $CMP --folder "$DIR/expected" >/dev/null 2>&1 \
-    || { rm -f "$DIR/_tmpl.aon"
-         fail "the template form does not write the same thirteen files"; }
-fi
-rm -f "$DIR/_tmpl.aon"
+# twelve. `render` reads it as an entry, so `@"./model.aon"` resolves
+# from where the file sits; it writes the same thirteen files against
+# the same goldens, it parses as TypeScript with no syntax diagnostic,
+# and the round trip between the two forms is a fixpoint.
+$RENDER "$DIR/handler.ts" "$DIR/expected" >/dev/null 2>&1 \
+  || fail "the template form does not write the same thirteen files"
 run tmplcheck 0 -- template --check "$DIR/handler.ts"
 $AONTU template "$DIR/handler.ts" > "$WORK/handler.aon" 2>/dev/null \
   || fail "the template did not desugar"

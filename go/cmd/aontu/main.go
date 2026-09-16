@@ -30,6 +30,8 @@ const helpText = `Usage: aontu [options] [file]
                       [--profile <file>] <file>
        aontu trace [--at <path>] [--format json] [--marker <token>]
                    [--profile <file>] <file>
+       aontu render [--check] [--at <path>] [--format json]
+                    [--marker <token>] [--profile <file>] <file> <path>
        aontu hash [options] <file>
        aontu sync [--frozen] [options] [dir]
        aontu add <pkg>[@<version>] [options] [dir]
@@ -343,6 +345,27 @@ every other line is a line of output.
 
 Template exit codes: 0 written, 1 --check drift, 2 usage or I/O.
 
+Render options:
+  --check         Compare what the generator writes with what <path>
+                  holds, write nothing, and exit 1 on drift
+  --at <path>     Where the component tree lives in the document
+                  (default $.out)
+  --format json   Print the files written, or the drift, as JSON
+  --marker <t>    The file is a generator, and this is its marker
+                  (default //-, and #- --- /*- <!--- by extension)
+  --profile <f>   A profile file, whose template.ext names the
+                  extensions it marks and template.marker the marker
+
+The render verb writes the component tree a generator answers. The
+tree is handed to jostraca, the generator runtime, which writes the
+files: a tree that is one file is written to <path> itself, unless
+<path> is a directory, and any other tree is written below <path>.
+With --check nothing is written and <path> is compared with what the
+generator writes, one "kind: file" line per difference.
+
+Render exit codes: 0 written or clean, 1 --check drift, 2 usage or
+I/O, 4 the document does not stand up, or --at names nothing.
+
 Model set options:
   --entry <file>    The document the change is checked against
   --overlay <file>  The file the change is appended to (created if
@@ -538,8 +561,8 @@ func emit(a *aontu.Aontu, src, mode, format string, out, errw io.Writer) int {
 var knownVerbs = []string{
 	"add", "agentsmd", "breaking", "explain", "fmt", "get", "hash", "help",
 	"init", "jsonschema", "lsp", "mcp", "model", "pkg", "publish", "reaches",
-	"relations", "remove", "subsume", "sync", "template", "trace", "trim", "vet",
-	"view", "why",
+	"relations", "remove", "render", "subsume", "sync", "template", "trace",
+	"trim", "vet", "view", "why",
 }
 
 // looksLikeVerb reports whether an unreadable argument was meant as a
@@ -839,6 +862,9 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, tty bool) int
 	}
 	if 0 < len(args) && "trace" == args[0] {
 		return runTrace(args[1:], stdout, stderr)
+	}
+	if 0 < len(args) && "render" == args[0] {
+		return runRender(args[1:], stdout, stderr)
 	}
 	if 0 < len(args) && "reaches" == args[0] {
 		return runReaches(args[1:], stdout, stderr)

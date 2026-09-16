@@ -20,13 +20,14 @@ aontu template --marker '%%-' gen/erd.mmd > work/erd.aon
 aontu model get out work/erd.aon
 ```
 
-The result is the component tree carrying the Mermaid source. To write
-it to the committed diagram location and check that it matches, hand
-the tree to jostraca:
+The result is the component tree carrying the Mermaid source. `aontu
+render` reads the template directly and writes the tree to the
+committed diagram location; with `--check` it holds that location to
+the tree instead:
 
 ```sh
-aontu model get out work/erd.aon | node ../../../tools/cmptree-check.js --out doc
-aontu model get out work/erd.aon | node ../../../tools/cmptree-check.js --folder doc
+aontu render --marker '%%-' gen/erd.mmd doc
+aontu render --check --marker '%%-' gen/erd.mmd doc
 ```
 
 The output directory and the template's `file("erd.mmd", …)` determine

@@ -49,6 +49,8 @@ Usage: aontu [options] [file]
                       [--profile <file>] <file>
        aontu trace [--at <path>] [--format json] [--marker <token>]
                    [--profile <file>] <file>
+       aontu render [--check] [--at <path>] [--format json]
+                    [--marker <token>] [--profile <file>] <file> <path>
        aontu hash [options] <file>
        aontu sync [--frozen] [options] [dir]
        aontu add <pkg>[@<version>] [options] [dir]
@@ -2134,6 +2136,107 @@ the two cases are told apart by whether an address precedes the hash.
 **A piece that reached no file is not traced.** The tree is what the
 entries attribute to, so a rule whose output never landed in a file has
 nothing to name.
+
+
+### `aontu render`
+
+Write the files a generator answers.
+
+<!-- test: skip the synopsis is not a transcript -->
+```sh
+aontu render [--check] [--at <path>] [--format json] [--marker <token>]
+             [--profile <file>] <file> <path>
+```
+
+A generator answers a **component tree** (`file`, `folder`, `line` and
+the rest) as an ordinary value at `$.out`. `render` hands that tree to
+[jostraca](https://github.com/jostraca/jostraca), the generator runtime
+both implementations depend on, and jostraca writes the files. aontu
+decides which files exist and what each line of them is; how the bytes
+reach a disk is the runtime's. Write a `gen.aon`:
+
+<!-- test: scenario render -->
+<!-- test: file gen.aon -->
+```aontu
+foo: "BAR"
+
+out: file("zed.txt", ["foo = " + $.foo])
+```
+
+**A tree that is one file is written to `<path>` itself**, under that
+name, unless `<path>` is a directory that already exists:
+
+<!-- test: run -->
+```sh
+$ aontu render gen.aon zed.txt
+```
+
+Nothing is printed when the write succeeds. `--format json` reports
+the files written, in the seven groups the runtime sorts them into:
+
+<!-- test: run -->
+```sh
+$ aontu render --format json gen.aon zed.txt
+{
+  "aontu": {
+...
+  "files": {
+...
+    "unchanged": [
+      "zed.txt"
+    ],
+    "written": []
+  },
+  "verdict": "ok"
+}
+```
+
+**Any other tree is written below `<path>`**: a `project`, a `folder`,
+or a list of files, with the paths the tree spells. A one-file tree
+that should land in a directory names the file: `aontu render gen.aon
+build/zed.txt`.
+
+**`--check` is the CI form.** Nothing is written; `<path>` is compared
+with what the generator writes, one `kind: file` line per difference
+(`content`, `missing`, or `mode` where the tree declared one), and the
+exit code is 1 on drift:
+
+<!-- test: run -->
+```sh
+$ aontu render --check gen.aon zed.txt
+```
+
+Edit the file by hand, as `zed.txt`:
+
+<!-- test: file zed.txt -->
+```text
+foo = edited
+```
+
+<!-- test: run -->
+```sh
+$ aontu render --check gen.aon zed.txt
+content: zed.txt
+$ echo $?
+1
+```
+
+**A template entry is read directly.** As [`aontu trace`](#aontu-trace)
+does, `render` reads a `<file>` whose extension is not `.aon` as a
+generator in the target's own syntax (see
+[`aontu template`](#aontu-template)), desugared by the marker its
+extension names, `--marker`, or a profile's. `--at` names another
+anchor than `$.out`.
+
+Beside the files it writes, jostraca keeps a record of its own under
+`<path>/.jostraca/`, with a `.gitignore` in it. That folder, and what
+the runtime does with a file that already exists, is jostraca's
+contract; [Trust and determinism](trust.md#clause-4-sandboxing)
+records what stays aontu's.
+
+Exit codes: `0` written or clean, `1` `--check` drift, `2` usage or
+I/O (a path that cannot be made, a `fragment` whose source is not
+there), `4` the document does not stand up, or `--at` names nothing.
 
 
 ### `aontu hash`

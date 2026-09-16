@@ -507,7 +507,7 @@ out: file("types.go", emit($.records, %record))
 ```
 
 The generator answers a **component tree**: a `File` holding the `Line`
-nodes the model produced, which a generator runtime writes to disk.
+nodes the model produced, which `aontu render` writes to disk.
 
 <!-- test: run -->
 ```sh

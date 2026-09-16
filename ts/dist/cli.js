@@ -15,6 +15,7 @@ exports.runView = runView;
 exports.runJsonSchema = runJsonSchema;
 exports.runTemplate = runTemplate;
 exports.runTrace = runTrace;
+exports.runRender = runRender;
 exports.runPkg = runPkg;
 exports.runModel = runModel;
 exports.runPackageVerb = runPackageVerb;
@@ -76,6 +77,8 @@ const HELP = `Usage: aontu [options] [file]
                       [--profile <file>] <file>
        aontu trace [--at <path>] [--format json] [--marker <token>]
                    [--profile <file>] <file>
+       aontu render [--check] [--at <path>] [--format json]
+                    [--marker <token>] [--profile <file>] <file> <path>
        aontu hash [options] <file>
        aontu sync [--frozen] [options] [dir]
        aontu add <pkg>[@<version>] [options] [dir]
@@ -389,6 +392,27 @@ written in the target's own syntax: a marked line is aontu source, and
 every other line is a line of output.
 
 Template exit codes: 0 written, 1 --check drift, 2 usage or I/O.
+
+Render options:
+  --check         Compare what the generator writes with what <path>
+                  holds, write nothing, and exit 1 on drift
+  --at <path>     Where the component tree lives in the document
+                  (default $.out)
+  --format json   Print the files written, or the drift, as JSON
+  --marker <t>    The file is a generator, and this is its marker
+                  (default //-, and #- --- /*- <!--- by extension)
+  --profile <f>   A profile file, whose template.ext names the
+                  extensions it marks and template.marker the marker
+
+The render verb writes the component tree a generator answers. The
+tree is handed to jostraca, the generator runtime, which writes the
+files: a tree that is one file is written to <path> itself, unless
+<path> is a directory, and any other tree is written below <path>.
+With --check nothing is written and <path> is compared with what the
+generator writes, one "kind: file" line per difference.
+
+Render exit codes: 0 written or clean, 1 --check drift, 2 usage or
+I/O, 4 the document does not stand up, or --at names nothing.
 
 Model set options:
   --entry <file>    The document the change is checked against
@@ -2446,6 +2470,158 @@ function runTrace(argv) {
     }
     return 0;
 }
+// ---------------------------------------------------------------------
+// The writer (ADR-040). A generator answers a component tree; this verb
+// hands it to jostraca, which writes the files below a path or holds
+// them to it.
+const RENDER_HELP = 'aontu render [--check] [--at <path>] [--format json] ' +
+    '[--marker <token>] [--profile <file>] <file> <path> (try --help)';
+// Loaded at the call, so every other verb starts without it.
+function generatorRuntime() {
+    return require('jostraca');
+}
+function isDirectory(path) {
+    return true === (0, node_fs_1.statSync)(path, { throwIfNoEntry: false })?.isDirectory();
+}
+async function runRender(argv) {
+    const trusted = takeTrust(argv);
+    if (null == trusted) {
+        return 2;
+    }
+    argv = trusted.argv;
+    const trust = trusted.trust;
+    const rest = [];
+    const profileFiles = [];
+    let format = 'text';
+    let at = undefined;
+    let marker = undefined;
+    let check = false;
+    for (let i = 0; i < argv.length; i++) {
+        const arg = argv[i];
+        if ('-h' === arg || '--help' === arg) {
+            process.stdout.write(HELP);
+            return 0;
+        }
+        if ('--check' === arg) {
+            check = true;
+        }
+        else if ('--format' === arg) {
+            const f = argv[++i];
+            if ('text' !== f && 'json' !== f) {
+                process.stderr.write('aontu: --format needs text or json\n');
+                return 2;
+            }
+            format = f;
+        }
+        else if ('--at' === arg) {
+            at = argv[++i];
+            if (null == at) {
+                process.stderr.write('aontu: --at needs a path\n');
+                return 2;
+            }
+        }
+        else if ('--marker' === arg) {
+            marker = argv[++i];
+            if (null == marker) {
+                process.stderr.write('aontu: --marker needs a token\n');
+                return 2;
+            }
+        }
+        else if ('--profile' === arg) {
+            const pf = argv[++i];
+            if (null == pf) {
+                process.stderr.write('aontu: --profile needs a file\n');
+                return 2;
+            }
+            profileFiles.push(pf);
+        }
+        else if (arg.startsWith('-')) {
+            process.stderr.write(`aontu: unknown render option ${arg} (try --help)\n`);
+            return 2;
+        }
+        else {
+            rest.push(arg);
+        }
+    }
+    if (2 !== rest.length) {
+        process.stderr.write(`aontu: render needs a file and a path\n${RENDER_HELP}\n`);
+        return 2;
+    }
+    const [file, dest] = rest;
+    let src;
+    try {
+        src = (0, node_fs_1.readFileSync)(file, 'utf8');
+    }
+    catch (err) {
+        process.stderr.write(`aontu: cannot read ${err.path}: ${err.message}\n`);
+        return 2;
+    }
+    const declared = loadProfiles(profileFiles, trust);
+    if ('number' === typeof declared) {
+        return declared;
+    }
+    if (!file.endsWith('.aon')) {
+        src = (0, template_1.desugarTemplate)(src, marker ??
+            (0, template_1.markerFromProfiles)(declared, file) ?? (0, template_1.markerFor)(file));
+    }
+    const report = (0, aontu_1.get)(src, at ?? '$.out', {
+        view: 'json', path: file, ...verbOpts(trust, entryRootOf(file)),
+    });
+    if (!report.ok) {
+        process.stderr.write(report.findings.map(renderFinding).join('\n') + '\n');
+        return 4;
+    }
+    const tree = JSON.parse(report.out);
+    // ONE FILE GOES TO THE PATH ITSELF, unless the path is a directory.
+    let folder = dest;
+    if ('File' === tree?.cmp && !isDirectory(dest)) {
+        tree.props.name = (0, node_path_1.basename)(dest);
+        folder = (0, node_path_1.dirname)(dest);
+    }
+    const { cmpTree, Jostraca } = generatorRuntime();
+    let root;
+    try {
+        root = cmpTree(tree, { raw: true });
+    }
+    catch (err) {
+        process.stderr.write(`aontu: ${file}: ${err.message}\n`);
+        return 4;
+    }
+    const runtime = Jostraca();
+    try {
+        if (check) {
+            const res = await runtime.check({ folder }, root);
+            const drift = res.drift.map((d) => ({ kind: d.kind, path: d.path }));
+            if ('json' === format) {
+                process.stdout.write((0, aontu_1.exactJSON)({
+                    aontu: { version: version(), verb: 'render' },
+                    verdict: 0 === drift.length ? 'ok' : 'drift',
+                    checked: res.checked,
+                    drift,
+                }, 2) + '\n');
+            }
+            else {
+                for (const d of drift) {
+                    process.stdout.write(`${d.kind}: ${d.path}\n`);
+                }
+            }
+            return 0 === drift.length ? 0 : 1;
+        }
+        const res = await runtime.generate({ folder }, root);
+        if ('json' === format) {
+            process.stdout.write((0, aontu_1.exactJSON)({
+                aontu: { version: version(), verb: 'render' },
+                verdict: 'ok',
+                files: res.files,
+            }, 2) + '\n');
+        }
+        return 0;
+    }
+    catch (err) {
+        process.stderr.write(`aontu: ${err.message}\n`);
+        return 2;
+    }
+}
 function runReaches(argv) {
     const trusted = takeTrust(argv);
     if (null == trusted) {
@@ -4191,8 +4367,8 @@ function runInit(argv) {
 const KNOWN_VERBS = [
     'add', 'agentsmd', 'allow', 'breaking', 'explain', 'fmt', 'get', 'hash',
     'help', 'init', 'jsonschema', 'lsp', 'mcp', 'model', 'pkg', 'publish',
-    'reaches', 'relations', 'remove', 'subsume', 'sync', 'template', 'trace',
-    'trim', 'vet', 'view', 'why',
+    'reaches', 'relations', 'remove', 'render', 'subsume', 'sync', 'template',
+    'trace', 'trim', 'vet', 'view', 'why',
 ];
 exports.KNOWN_VERBS = KNOWN_VERBS;
 // looksLikeVerb reports whether an unreadable argument was meant as a
@@ -4315,6 +4491,9 @@ function main(argv, servers = SERVERS) {
     }
     if ('trace' === argv[2]) {
         return finish(runTrace(argv.slice(3)));
+    }
+    if ('render' === argv[2]) {
+        return void runRender(argv.slice(3)).then(finish);
     }
     if ('reaches' === argv[2]) {
         return finish(runReaches(argv.slice(3)));
