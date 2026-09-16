@@ -84,6 +84,7 @@ Rails scaffold files. Directories can contain both kinds.
 ```tree
 app/                                      Rails application root
 ├── Gemfile                               [H] dependencies
+├── Gemfile.lock                          [H] the resolved gem set, pinned
 ├── Rakefile                              [H] Rails tasks
 ├── config.ru                             [H] Rack entry point
 ├── bin/                                  [H] Rails and development commands
