@@ -59,41 +59,16 @@ skip() { n=$((n + 1)); echo "ok $n - $1 # SKIP"; }
 
 RUBY_GENS="routes migrate seeds model api_base api_controller ui_controller"
 
-# THE BYTES COME FROM JOSTRACA, which writes the files: a tree checked
-# against anything else proves nothing about what a user gets. The seam
-# is a pipe -- `tools/cmptree-check.js` requires jostraca at run time
-# and exits 3 when it is absent -- so this skips with a note the way the
-# Ruby checks below do, rather than failing where it is not installed.
-CHECK="node $ROOT/tools/cmptree-check.js"
-tree() {
-  case "$1" in
-    erd) $AONTU template --marker '%%-' "$DIR/gen/erd.mmd" > "$WORK/$1.aon" \
-           && $AONTU model get out "$WORK/$1.aon" 2>/dev/null ;;
-    views) $AONTU model get out "$DIR/gen/views.aon" 2>/dev/null ;;
-    *) $AONTU template "$DIR/gen/$1.rb" > "$WORK/$1.aon" \
-         && $AONTU model get out "$WORK/$1.aon" 2>/dev/null ;;
-  esac
-}
-
+# THE BYTES COME FROM JOSTRACA: `aontu render --check` hands the eight
+# application generators' trees to the runtime as one run and holds the
+# committed app to them, and the diagram generator's tree to doc/. A
+# tree checked against anything else proves nothing about what a user
+# gets.
 drift=""
-skipped=""
-for g in $RUBY_GENS views; do
-  tree "$g" | $CHECK --folder "$DIR/app" >/dev/null 2>&1
-  case $? in
-    0) ;;
-    3) skipped="yes" ;;
-    *) drift="$drift $g" ;;
-  esac
-done
-tree erd | $CHECK --folder "$DIR/doc" >/dev/null 2>&1
-case $? in
-  0) ;;
-  3) skipped="yes" ;;
-  *) drift="$drift erd" ;;
-esac
-if [ -n "$skipped" ]; then
-  skip "every generator writes the committed app (jostraca not installed)"
-elif [ -z "$drift" ]; then
+$AONTU render --check "$DIR/gen" "$DIR/app" >/dev/null 2>&1 || drift="$drift app"
+$AONTU render --check --marker '%%-' "$DIR/gen/doc/erd.mmd" "$DIR/doc" >/dev/null 2>&1 \
+  || drift="$drift erd"
+if [ -z "$drift" ]; then
   ok "every generator writes the committed app, byte for byte"
 else
   fail "the committed app is not what the generators write:$drift"
@@ -123,7 +98,7 @@ bad=""
 for g in $RUBY_GENS; do
   $AONTU template --check "$DIR/gen/$g.rb" >/dev/null 2>&1 || bad="$bad $g.rb"
 done
-$AONTU template --check --marker '%%-' "$DIR/gen/erd.mmd" >/dev/null 2>&1 \
+$AONTU template --check --marker '%%-' "$DIR/gen/doc/erd.mmd" >/dev/null 2>&1 \
   || bad="$bad erd.mmd"
 if [ -z "$bad" ]; then
   ok "every template-surface generator round-trips as a fixpoint"
@@ -183,7 +158,7 @@ $AONTU fmt --check "$DIR/gen/views.aon" >/dev/null 2>&1 || bad="$bad views.aon"
 for g in $RUBY_GENS; do
   $AONTU fmt --check "$DIR/gen/$g.rb" >/dev/null 2>&1 || bad="$bad $g.rb"
 done
-$AONTU fmt --check --marker '%%-' "$DIR/gen/erd.mmd" >/dev/null 2>&1 \
+$AONTU fmt --check --marker '%%-' "$DIR/gen/doc/erd.mmd" >/dev/null 2>&1 \
   || bad="$bad erd.mmd"
 if [ -z "$bad" ]; then
   ok "the model and all nine generators are in the agreed form (aontu fmt)"

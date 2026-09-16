@@ -34,8 +34,8 @@ mkdir -p work
 All commands below run from `test/system/rb-solar`. `work/` is scratch
 and is not committed; `check.sh` clears and recreates it. Ruby is needed
 to run the Rails app; inspecting the model and generating files requires
-Node.js, the engine dependencies, and a generator runtime for the
-recipes that write bytes. Follow the repository's
+Node.js and the engine dependencies, the generator runtime among
+them. Follow the repository's
 [installation instructions](../../../../ts/README.md) for its supported toolchain.
 
 ## Read a field as data
@@ -91,7 +91,7 @@ Moon declares the names used for its parent:
 
 The [Active Record generator](../gen/model.rb) reads the parent class and
 foreign-key parameter to write `belongs_to`. The
-[ERD generator](../gen/erd.mmd) reads the parent class and association
+[ERD generator](../gen/doc/erd.mmd) reads the parent class and association
 name to draw the relationship. The controller generators use the parent
 information to scope moon queries to a planet.
 

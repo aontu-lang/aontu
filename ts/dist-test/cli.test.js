@@ -2358,4 +2358,279 @@ function fmtFiles(...srcs) {
         Assert.ok(r.out.includes('--coverage-at needs a path'), r.out);
     });
 });
+// The writer: the tree a generator answers, handed to jostraca. Every
+// branch in-process, so the coverage floor sees it; the bin once.
+(0, node_test_1.describe)('render', () => {
+    const ONE = 'out: file("zed.txt", ["foo = BAR"])\n';
+    const MANY = 'out: [file("a.txt", ["a"]) folder("sub", [file("b.txt", ["b1" "b2"])])]\n';
+    function dir() {
+        return Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-render-'));
+    }
+    function file(d, name, src) {
+        const p = Path.join(d, name);
+        Fs.writeFileSync(p, src);
+        return p;
+    }
+    async function render(args) {
+        const so = process.stdout.write;
+        const se = process.stderr.write;
+        let out = '';
+        let err = '';
+        process.stdout.write = (s) => ((out += s), true);
+        process.stderr.write = (s) => ((err += s), true);
+        try {
+            const code = await (0, cli_1.runRender)(args);
+            return { out, err, code };
+        }
+        finally {
+            process.stdout.write = so;
+            process.stderr.write = se;
+        }
+    }
+    (0, node_test_1.test)('writes-one-file-to-the-path', async () => {
+        const d = dir();
+        const gen = file(d, 'gen.aon', ONE);
+        // The path names the file: the tree's own name is not used.
+        const dest = Path.join(d, 'deep', 'one.txt');
+        const r = await render([gen, dest]);
+        Assert.deepStrictEqual(r, { out: '', err: '', code: 0 });
+        Assert.equal(Fs.readFileSync(dest, 'utf8'), 'foo = BAR\n');
+        // A directory as the path keeps the tree's name.
+        const sub = Path.join(d, 'd');
+        Fs.mkdirSync(sub);
+        Assert.equal((await render([gen, sub])).code, 0);
+        Assert.equal(Fs.readFileSync(Path.join(sub, 'zed.txt'), 'utf8'), 'foo = BAR\n');
+    });
+    (0, node_test_1.test)('writes-a-tree-below-the-path', async () => {
+        const d = dir();
+        const gen = file(d, 'gen.aon', MANY);
+        const build = Path.join(d, 'build');
+        const r = await render(['--format', 'json', gen, build]);
+        Assert.equal(r.code, 0, r.err);
+        const got = JSON.parse(r.out);
+        Assert.equal(got.verdict, 'ok');
+        Assert.equal(got.files.written.length, 2);
+        Assert.deepStrictEqual(got.files.unchanged, []);
+        Assert.equal(Fs.readFileSync(Path.join(build, 'sub', 'b.txt'), 'utf8'), 'b1\nb2\n');
+    });
+    (0, node_test_1.test)('check-holds-the-path', async () => {
+        const d = dir();
+        const gen = file(d, 'gen.aon', MANY);
+        const build = Path.join(d, 'build');
+        Assert.equal((await render([gen, build])).code, 0);
+        const clean = await render(['--check', gen, build]);
+        Assert.deepStrictEqual(clean, { out: '', err: '', code: 0 });
+        // An edited file and a missing one, each named with its kind.
+        file(build, 'a.txt', 'edited\n');
+        Fs.rmSync(Path.join(build, 'sub', 'b.txt'));
+        const drift = await render(['--check', gen, build]);
+        Assert.equal(drift.code, 1);
+        Assert.equal(drift.out, 'content: a.txt\nmissing: sub/b.txt\n');
+        const j = await render(['--check', '--format', 'json', gen, build]);
+        Assert.equal(j.code, 1);
+        const got = JSON.parse(j.out);
+        Assert.equal(got.verdict, 'drift');
+        Assert.deepStrictEqual(got.checked, ['a.txt', 'sub/b.txt']);
+        Assert.equal(got.drift[1].kind, 'missing');
+        // Nothing was written by the checks.
+        Assert.equal(Fs.readFileSync(Path.join(build, 'a.txt'), 'utf8'), 'edited\n');
+    });
+    (0, node_test_1.test)('check-one-file-in-the-current-directory', async () => {
+        const d = dir();
+        file(d, 'gen.aon', ONE);
+        const cwd = process.cwd();
+        process.chdir(d);
+        try {
+            Assert.equal((await render(['gen.aon', 'one.txt'])).code, 0);
+            const clean = await render(['--check', '--format', 'json', 'gen.aon', 'one.txt']);
+            Assert.equal(clean.code, 0);
+            Assert.deepStrictEqual(JSON.parse(clean.out).checked, ['one.txt']);
+            file(d, 'one.txt', 'edited\n');
+            const drift = await render(['--check', 'gen.aon', 'one.txt']);
+            Assert.equal(drift.code, 1);
+            Assert.equal(drift.out, 'content: one.txt\n');
+        }
+        finally {
+            process.chdir(cwd);
+        }
+    });
+    (0, node_test_1.test)('reads-a-template-entry', async () => {
+        const d = dir();
+        const tmpl = '#- out: file("zed.txt", emit(["BAR"], {\n' +
+            '#-   match: string\n#-   replace: VALUE: _\n#-   body: [\n' +
+            'foo = VALUE\n#-   ]\n#- }))\n';
+        const gen = file(d, 'zed.txt', tmpl);
+        const dest = Path.join(d, 'out.txt');
+        const r = await render(['--marker', '#-', gen, dest]);
+        Assert.equal(r.code, 0, r.err);
+        Assert.equal(Fs.readFileSync(dest, 'utf8'), 'foo = BAR\n');
+        // The profile names the marker for the extension.
+        const profile = file(d, 'text.aon', '@"aontu:profile"\n\n' +
+            'aontu: Lang: lang: "text"\n' +
+            'aontu: Lang: template: { marker:"#-" ext: ["txt"] }\n');
+        Assert.equal((await render(['--profile', profile, gen, dest])).code, 0);
+        // The extension's own marker, when nothing names one.
+        const ts = file(d, 'gen.ts', tmpl.replaceAll('#-', '//-'));
+        Assert.equal((await render([ts, dest])).code, 0);
+    });
+    (0, node_test_1.test)('reads-another-anchor', async () => {
+        const d = dir();
+        const gen = file(d, 'gen.aon', ONE.replace('out:', 'elsewhere:'));
+        const dest = Path.join(d, 'x.txt');
+        const r = await render([gen, dest]);
+        Assert.equal(r.code, 4);
+        Assert.ok(r.err.includes('no_path'), r.err);
+        Assert.equal((await render(['--at', '$.elsewhere', gen, dest])).code, 0);
+    });
+    (0, node_test_1.test)('refuses-what-jostraca-refuses', async () => {
+        const d = dir();
+        const dest = Path.join(d, 'build');
+        // A map that is not a component the runtime knows.
+        const bad = file(d, 'bad.aon', 'out: { cmp: "Nope", props: {}, children: [] }\n');
+        const r = await render([bad, dest]);
+        Assert.equal(r.code, 4);
+        Assert.ok(r.err.includes('unknown component: Nope'), r.err);
+        // A File written by hand with no name is refused before the runtime.
+        const nameless = file(d, 'nameless.aon', 'out: { cmp: "File", children: [] }\n');
+        const n = await render([nameless, Path.join(d, 'n.txt')]);
+        Assert.equal(n.code, 4);
+        Assert.ok(n.err.includes('the file at $.out has no name'), n.err);
+        // A fragment whose source is not there fails the write and the check.
+        const frag = file(d, 'frag.aon', 'out: file("x.txt", [fragment("nope.txt")])\n');
+        const w = await render([frag, dest]);
+        Assert.equal(w.code, 2);
+        Assert.ok(w.err.includes('nope.txt'), w.err);
+        const c = await render(['--check', frag, dest]);
+        Assert.equal(c.code, 2);
+        Assert.ok(c.err.includes('nope.txt'), c.err);
+        // A path below a file cannot be made.
+        const gen = file(d, 'gen.aon', ONE);
+        const afile = file(d, 'afile', 'x\n');
+        Assert.equal((await render([gen, Path.join(afile, 'x.txt')])).code, 2);
+    });
+    (0, node_test_1.test)('document-errors', async () => {
+        const d = dir();
+        const dest = Path.join(d, 'x.txt');
+        const broken = file(d, 'broken.aon', 'out: file(\n');
+        const r = await render([broken, dest]);
+        Assert.equal(r.code, 4);
+        Assert.notEqual(r.err, '');
+        // An include the trust does not admit.
+        file(d, 'model.aon', 'foo: "BAR"\n');
+        const gen = file(d, 'gen.aon', '@"./model.aon"\nout: file("zed.txt", ["foo = " + $.foo])\n');
+        const denied = await render(['--trust', 'none', gen, dest]);
+        Assert.equal(denied.code, 4);
+        Assert.ok(denied.err.includes('include_denied'), denied.err);
+        Assert.equal((await render([gen, dest])).code, 0);
+    });
+    (0, node_test_1.test)('usage', async () => {
+        const d = dir();
+        const gen = file(d, 'gen.aon', ONE);
+        const help = await render(['--help']);
+        Assert.equal(help.code, 0);
+        Assert.ok(help.out.includes('aontu render [--check]'));
+        for (const [args, want] of [
+            [[gen], 'render needs a file and a path'],
+            [[gen, 'a', 'b'], 'render needs a file and a path'],
+            [['--bogus', gen, 'x'], 'unknown render option --bogus'],
+            [['--at'], '--at needs a path'],
+            [['--at', '', gen, 'x'], '--at needs a path'],
+            [['--marker'], '--marker needs a token'],
+            [['--marker', '', gen, 'x'], '--marker needs a token'],
+            [['--profile'], '--profile needs a file'],
+            [['--profile', '', gen, 'x'], '--profile needs a file'],
+            [['--format'], '--format needs text or json'],
+            [['--format', 'xml', gen, 'x'], '--format needs text or json'],
+            [['--trust', 'nonsense', gen, 'x'], '--trust'],
+            [[Path.join(d, 'missing.aon'), 'x'], 'cannot read'],
+            [['--profile', Path.join(d, 'missing.aon'), gen, 'x'], 'cannot read'],
+        ]) {
+            const r = await render(args);
+            Assert.equal(r.code, 2, args.join(' '));
+            Assert.ok(r.err.includes(want), `${args.join(' ')}: ${r.err}`);
+        }
+    });
+    (0, node_test_1.test)('writes-a-folder-of-generators-as-one', async () => {
+        const d = dir();
+        const gen = Path.join(d, 'gen');
+        Fs.mkdirSync(Path.join(gen, 'sub'), { recursive: true });
+        file(gen, 'a.aon', 'out: file("a.txt", ["a"])\n');
+        file(gen, 'b.rb', '#- out: folder("lib", [file("b.rb", [\nputs "b"\n#- ])])\n');
+        file(gen, 'c.aon', 'out: [file("c.txt", ["c"])]\n');
+        file(gen, '.keep', '');
+        file(Path.join(gen, 'sub'), 'ignored.aon', 'out: file("ignored.txt", ["no"])\n');
+        const out = Path.join(d, 'out');
+        // A set is written below the path, a one-file tree under its own name.
+        const r = await render(['--format', 'json', gen, out]);
+        Assert.equal(r.code, 0, r.err);
+        Assert.equal(JSON.parse(r.out).files.written.length, 3);
+        Assert.equal(Fs.readFileSync(Path.join(out, 'a.txt'), 'utf8'), 'a\n');
+        Assert.equal(Fs.readFileSync(Path.join(out, 'lib', 'b.rb'), 'utf8'), 'puts "b"\n');
+        Assert.equal(Fs.readFileSync(Path.join(out, 'c.txt'), 'utf8'), 'c\n');
+        Assert.ok(!Fs.existsSync(Path.join(out, 'ignored.txt')), 'a subfolder is not read');
+        Assert.deepStrictEqual(await render(['--check', gen, out]), { out: '', err: '', code: 0 });
+        file(out, 'a.txt', 'edited\n');
+        const drift = await render(['--check', gen, out]);
+        Assert.equal(drift.code, 1);
+        Assert.equal(drift.out, 'content: a.txt\n');
+    });
+    (0, node_test_1.test)('refuses-a-folder-it-cannot-render-whole', async () => {
+        const d = dir();
+        const out = Path.join(d, 'out');
+        // Nothing but dotfiles and subfolders is no generator.
+        const empty = Path.join(d, 'empty');
+        Fs.mkdirSync(Path.join(empty, 'sub'), { recursive: true });
+        file(empty, '.keep', '');
+        const e = await render([empty, out]);
+        Assert.equal(e.code, 2);
+        Assert.ok(e.err.includes('holds no generator'), e.err);
+        // A file with no marker line is refused by name, and nothing is written.
+        const notes = Path.join(d, 'notes');
+        Fs.mkdirSync(notes);
+        file(notes, 'a.aon', 'out: file("a.txt", ["a"])\n');
+        file(notes, 'notes.md', '# notes\n');
+        const n = await render([notes, out]);
+        Assert.equal(n.code, 2);
+        Assert.ok(n.err.includes('notes.md carries no') && n.err.includes('marker line'), n.err);
+        Assert.ok(!Fs.existsSync(out), 'wrote before refusing');
+        // A generator that does not stand up refuses the set before it writes.
+        const broken = Path.join(d, 'broken');
+        Fs.mkdirSync(broken);
+        file(broken, 'a.aon', 'out: file("a.txt", ["a"])\n');
+        file(broken, 'b.aon', 'out: file(\n');
+        Assert.equal((await render([broken, out])).code, 4);
+        Assert.ok(!Fs.existsSync(out), 'wrote before refusing');
+        // A nameless File anywhere in the set is refused.
+        const nameless = Path.join(d, 'nameless');
+        Fs.mkdirSync(nameless);
+        file(nameless, 'a.aon', 'out: file("a.txt", ["a"])\n');
+        file(nameless, 'b.aon', 'out: { cmp: "File", children: [] }\n');
+        const nl = await render([nameless, out]);
+        Assert.equal(nl.code, 4);
+        Assert.ok(nl.err.includes('has no name'), nl.err);
+        // The same path claimed twice is refused by the runtime.
+        const twice = Path.join(d, 'twice');
+        Fs.mkdirSync(twice);
+        file(twice, 'a.aon', 'out: file("same.txt", ["a"])\n');
+        file(twice, 'b.aon', 'out: file("same.txt", ["b"])\n');
+        for (const args of [[twice, out], ['--check', twice, out]]) {
+            const tw = await render(args);
+            Assert.equal(tw.code, 2, args.join(' '));
+            Assert.ok(tw.err.includes('same output path'), tw.err);
+        }
+        // Alone, a file with no marker line is refused the same way.
+        const plain = file(d, 'plain.txt', 'just text\n');
+        const p = await render([plain, Path.join(d, 'p.txt')]);
+        Assert.equal(p.code, 2);
+        Assert.ok(p.err.includes('carries no //- marker line'), p.err);
+    });
+    (0, node_test_1.test)('the-bin-writes-the-file', () => {
+        const d = dir();
+        const gen = file(d, 'gen.aon', ONE);
+        const dest = Path.join(d, 'zed.txt');
+        Assert.deepStrictEqual(run(['render', gen, dest]), { out: '', code: 0 });
+        Assert.equal(Fs.readFileSync(dest, 'utf8'), 'foo = BAR\n');
+        Assert.deepStrictEqual(run(['render', '--check', gen, dest]), { out: '', code: 0 });
+    });
+});
 //# sourceMappingURL=cli.test.js.map

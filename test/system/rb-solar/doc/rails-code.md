@@ -126,13 +126,11 @@ selected field's `name`. For Moon, this produces validations for
 Write the model files into the Rails application directory:
 
 ```sh
-CMP="node ../../../tools/cmptree-check.js"
-aontu template gen/model.rb > work/model.aon
-aontu model get out work/model.aon | $CMP --out app
-aontu model get out work/model.aon | $CMP --folder app
+aontu render gen/model.rb app
+aontu render --check gen/model.rb app
 ```
 
-The first pipeline writes the files named by this generator. The second
+The first command writes the files this generator names. The second
 builds them again and compares their bytes with the files on disk. It
 does not check files owned by other generators.
 

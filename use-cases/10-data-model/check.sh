@@ -277,25 +277,18 @@ ok "the wire<->exact conversion, its sign, its scale and its VAT all pin"
 # Go casing is `nom(.n, pascal, $.acronyms)` written in the transform
 # where it used to be the bundled profile's acronym set. That is the
 # cost of the decision, and this is where the corpus pays it.
-CMP="node $REPO/tools/cmptree-check.js"
-xtree() { $AONTU model get out "$1" 2>/dev/null; }
-jostraca=0
-xtree "$DIR/xf-domain.aon" | $CMP --folder "$DIR/expected/render" \
-  >/dev/null 2>&1 || jostraca=$?
-if [ "$jostraca" = "3" ]; then
-  skip "the schema is written as TypeScript and Go (no jostraca)"
-else
-  [ "$jostraca" = "0" ] || fail "xf-domain.aon drifted from expected/render"
-  xtree "$DIR/xf-order.aon" | $CMP --folder "$DIR/expected/render" \
-    >/dev/null 2>&1 || fail "xf-order.aon drifted from expected/render"
+RENDER="$AONTU render --check"
+$RENDER "$DIR/xf-domain.aon" "$DIR/expected/render" >/dev/null 2>&1 \
+  || fail "xf-domain.aon drifted from expected/render"
+$RENDER "$DIR/xf-order.aon" "$DIR/expected/render" >/dev/null 2>&1 \
+  || fail "xf-order.aon drifted from expected/render"
 grep -q 'ledgerId: number;' "$DIR/expected/render/ts/domain.ts" \
   || fail "the TypeScript golden lost ledgerId"
 grep -q 'LedgerID int64 `json:"ledgerId"`' "$DIR/expected/render/go/domain.go" \
   || fail "the Go golden lost LedgerID"
 grep -q 'Placed \*string `json:"placed,omitempty"`' "$DIR/expected/render/go/domain.go" \
   || fail "the Go golden lost the optional pointer"
-  ok "the schema is written as TypeScript and as Go, byte for byte"
-fi
+ok "the schema is written as TypeScript and as Go, byte for byte"
 
 # 15. THE DEAD-MODEL REPORT IS GONE, with `render --coverage` that
 # answered it (UNITS-AND-TREES.1.md §6). It measured the model against

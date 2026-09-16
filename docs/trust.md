@@ -253,13 +253,15 @@ has no revisit counter to configure, and a knob one port cannot honour
 would break the parity contract by construction.
 
 **NOTHING IN THE ENGINE WRITES A FILE.** The trust profile governs what
-an evaluation may *read*, and there is no verb, library call or MCP
-tool that writes generated output: a generator answers a **component
-tree** as an ordinary value, and a generator runtime outside the engine
-turns it into bytes. What that generator runtime may write, and where,
-is its own contract rather than this one. The engine's refusals still
-stand on the tree it answers. A filename is checked at the call, and
-two files resolving to one path are refused, so a malformed tree never
+an evaluation may *read*. A generator answers a **component tree** as
+an ordinary value, and the one verb that writes, `aontu render`, hands
+that tree to jostraca, the generator runtime, which writes it below the
+path the command names; no library call and no MCP tool writes. What
+the runtime may write, and where, is its own contract rather than this
+one: it refuses a `folder` that is absolute or climbs with `..`, so a
+tree cannot choose the output root. The engine's refusals still stand
+on the tree it answers. A filename is checked at the call, and two
+files resolving to one path are refused, so a malformed tree never
 reaches anything downstream.
 
 ## Evaluation consumes the tree

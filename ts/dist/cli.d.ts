@@ -49,6 +49,7 @@ declare function runPackageVerb(verb: string, argv: string[], servers: Servers):
 declare function runModel(argv: string[]): number;
 declare function runRelations(argv: string[]): number;
 declare function runTrace(argv: string[]): number;
+declare function runRender(argv: string[]): Promise<number>;
 declare function runReaches(argv: string[]): number;
 declare function runView(argv: string[]): number;
 declare function runJsonSchema(argv: string[]): number;
@@ -80,4 +81,4 @@ declare const KNOWN_VERBS: string[];
 declare function looksLikeVerb(arg: string): boolean;
 declare function nearestVerb(word: string, verbs: string[]): string;
 declare function main(argv: string[], servers?: Servers): void;
-export { evalSource, main, runVet, runSubsume, runBreaking, runTrim, runRelations, runReaches, runView, runJsonSchema, runTemplate, runTrace, runPkg, runModel, runPackageVerb, pkgToolOptions, serveUntilInterrupted, runHash, runGet, runHelp, runExplain, runInit, nearestVerb, looksLikeVerb, KNOWN_VERBS, runWhy, renderWhyText, runSet, runAllow, runAgentsMd, runFmt, watchChange, watchSignature, vetWaiter, deprecatedAt, };
+export { evalSource, main, runVet, runSubsume, runBreaking, runTrim, runRelations, runReaches, runView, runJsonSchema, runTemplate, runTrace, runRender, runPkg, runModel, runPackageVerb, pkgToolOptions, serveUntilInterrupted, runHash, runGet, runHelp, runExplain, runInit, nearestVerb, looksLikeVerb, KNOWN_VERBS, runWhy, renderWhyText, runSet, runAllow, runAgentsMd, runFmt, watchChange, watchSignature, vetWaiter, deprecatedAt, };

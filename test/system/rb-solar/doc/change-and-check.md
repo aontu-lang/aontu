@@ -40,8 +40,7 @@ not add an editing form: this example's browser pages are read-only.
 Check the ERD before regenerating it:
 
 ```sh
-aontu template --marker '%%-' gen/erd.mmd > work/erd.aon
-aontu model get out work/erd.aon | node ../../../tools/cmptree-check.js --folder doc
+aontu render --check --marker '%%-' gen/doc/erd.mmd doc
 ```
 
 The command exits with status 1 and reports `erd.mmd` as drift. The
@@ -50,22 +49,18 @@ The migration, API controller, and view outputs also need updating.
 
 ## Regenerate the application and diagram
 
-Run each application generator with `app` as the output directory:
+Run the application generators, every file directly in `gen/`, as one
+run with `app` as the output directory, and the diagram generator with
+`doc`:
 
 ```sh
-CMP="node ../../../tools/cmptree-check.js"
-for generator in routes migrate seeds model api_base api_controller ui_controller; do
-  aontu template "gen/$generator.rb" > "work/$generator.aon" || break
-  aontu model get out "work/$generator.aon" | $CMP --out app || break
-done
-aontu model get out gen/views.aon | $CMP --out app
-aontu template --marker '%%-' gen/erd.mmd > work/erd.aon
-aontu model get out work/erd.aon | $CMP --out doc
+aontu render gen app
+aontu render --marker '%%-' gen/doc/erd.mmd doc
 ```
 
-Stop and resolve any failure before continuing. Each invocation
-evaluates and writes its own tree. The shell loop is not a transaction
-across all generators.
+Stop and resolve any failure before continuing. The first command
+evaluates every generator before it writes, and refuses the set when
+one fails; the two commands are not a transaction across each other.
 
 Review the generated changes:
 

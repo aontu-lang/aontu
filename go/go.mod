@@ -3,6 +3,7 @@ module github.com/aontu-lang/aontu/go
 go 1.24.7
 
 require (
+	github.com/jostraca/jostraca/go v0.38.0
 	github.com/tabnas/abnf/go v0.4.13
 	github.com/tabnas/expr/go v0.5.5
 	github.com/tabnas/ini/go v0.5.7
@@ -20,6 +21,7 @@ require (
 )
 
 require (
+	github.com/rjrodger/shape/go v0.5.3 // indirect
 	github.com/tabnas/bnf/go v0.1.15 // indirect
 	github.com/tabnas/directive/go v0.5.2 // indirect
 	github.com/tabnas/hoover/go v0.3.6 // indirect

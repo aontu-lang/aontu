@@ -5,9 +5,9 @@ one document.** Go structs, TypeScript interfaces and SQL DDL: every
 file is computed by the unifier from [`model.aon`](model.aon) and
 nothing else. Each generator is a rule set (`emit`) whose children fill
 one `file(...)` of a component tree; [`all.aon`](all.aon) holds the
-three files, and jostraca writes the bytes. The goldens under
-`expected/` are held by `tools/cmptree-check.js`, which hands the tree
-to jostraca and compares. Nothing outside the model decides layout,
+three files, and `aontu render` writes the bytes through jostraca. The
+goldens under `expected/` are held by `aontu render --check`. Nothing
+outside the model decides layout,
 ordering, or separators, and nothing in the engine writes a file.
 
 ![The model tree: the record definitions every generated target is written from](expected/diagram-doc.svg)
@@ -20,11 +20,10 @@ ordering, or separators, and nothing in the engine writes a file.
 | [`gen-ts.aon`](gen-ts.aon) | `name`, `fields.n`, `fields.t`, `fields.req` | `types.ts`, TypeScript interfaces | [`expected/types.ts`](expected/types.ts) |
 | [`gen-sql.aon`](gen-sql.aon) | `sql`, `fields.sql`, `fields.t`, `fields.req` | `schema.sql`, `CREATE TABLE` statements | [`expected/schema.sql`](expected/schema.sql) |
 
-A component tree is not written by `aontu` at all: it is the shape a
-generator runtime consumes, so the document ends at `aontu model get out
-all.aon` and the hand-off is a pipe. `check.sh` hands the tree to
-jostraca and holds the bytes to the goldens, and holds both ports to
-the same tree.
+A component tree is data: `aontu model get out all.aon` prints it, and
+`aontu render` hands it to jostraca, which writes the bytes. `check.sh`
+holds the goldens to what `render --check` answers, and holds both
+ports to the same tree.
 
 The Go generator never reads `sql`; the SQL generator never reads
 `go`; the TypeScript generator reads neither and keeps the wire name
@@ -167,8 +166,7 @@ inspecting them.
    on which engine ran.
 10. The model tree draws and is pinned, text and SVG.
 
-Check 9 needs a Go toolchain, and checks 2, 3, 4, 7 and 8 need
-jostraca; each skips with a note when what it needs is absent.
+Check 9 needs a Go toolchain, and skips with a note without one.
 
 ## Run
 

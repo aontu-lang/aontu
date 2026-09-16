@@ -82,16 +82,21 @@ aontu trim --check model.aon     # entries whose removal changes nothing
 ## Generate code from a model, and hold it
 
 ```
-aontu model get out gen.aon      # the component tree: files, and the lines in them
-aontu trace gen.aon        # what rule wrote each line
+aontu render gen.aon build          # write the files below build/
+aontu render --check gen.aon build  # write nothing; exit 1 when build/ has drifted
+aontu render gen/ build             # every generator directly in gen/, as one run
+aontu model get out gen.aon         # the component tree: files, and the lines in them
+aontu trace gen.aon                 # what rule wrote each line
 ```
 
 A generator answers a **component tree** -- `file(name, [lines])` and
-its neighbours -- which a generator runtime writes to disk. Hand the
-tree to one and compare with what is committed: the model is the truth,
-the code is the claim, and drift is a finding. `aontu trace` answers
-the other direction: for a line of the output, the model node and the
-rule behind it.
+its neighbours -- which `aontu render` hands to jostraca, the generator
+runtime, to write. A tree that is one file is written to the path
+itself, and a folder of generators is one run. `--check` compares with
+what is committed: the model is the
+truth, the code is the claim, and drift is a finding. `aontu trace`
+answers the other direction: for a line of the output, the model node
+and the rule behind it.
 
 ## Ask what a model says, and why
 

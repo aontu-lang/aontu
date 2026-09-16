@@ -7,9 +7,9 @@ the route table already holds the file.
 
 This tutorial computes a small TypeScript client from a model of its
 routes. The result is a **component tree**: an ordinary aontu value
-whose nodes are a project, a folder, files, and lines. That tree is
-where the engine's job ends, and [§6](#6-what-writes-the-bytes) says
-who takes it from there.
+whose nodes are a project, a folder, files, and lines. The tree is
+checkable on its own, and [§6](#6-write-the-files) writes it to disk
+with `aontu render`.
 
 Commands are written as `aontu`; from a clone, `node ts/bin/aontu.js`
 stands in. Every result on this page is the engine's own.
@@ -336,13 +336,52 @@ $ aontu model get '$.out.children.0.children.1.props.name' client.aon
 one generated line is what
 [§4](#4-a-second-template-and-the-dispatch)'s `aontu trace` names.
 
-## 6. What writes the bytes
+## 6. Write the files
 
-A **generator runtime** turns the tree into files on disk.
-[jostraca](https://github.com/jostraca/jostraca) is one, and reads this
-shape directly: each node's `cmp` is the component name it looks up.
-aontu ships no runtime and depends on none, which is why the tree is
-checkable without one and why this tutorial stops here.
+`aontu render` writes the tree. It hands it to a **generator runtime**,
+[jostraca](https://github.com/jostraca/jostraca), which both
+implementations depend on; each node's `cmp` is the component name that
+runtime looks up, which is what those keys in the JSON above are for.
+The path argument is the root the tree is written under, and the
+`Project`'s own `folder` names the directory inside it:
+
+<!-- test: run -->
+```sh
+$ aontu render --at '$.out' client.aon .
+```
+
+It prints nothing, and `build/src/client.ts` and `build/src/index.ts`
+are on disk. `--check` writes nothing and compares instead:
+
+<!-- test: run -->
+```sh
+$ aontu render --check --at '$.out' client.aon .
+$ echo $?
+0
+```
+
+Hand-edit `build/src/client.ts`:
+
+<!-- test: file build/src/client.ts -->
+```ts
+export const oops = 1
+```
+
+and the check names the file and refuses:
+
+<!-- test: run -->
+```sh
+$ aontu render --check --at '$.out' client.aon .
+content: build/src/client.ts
+$ echo $?
+1
+```
+
+That is the form for CI: commit the generated files beside the model,
+and an edit to one of them is a red build rather than a quiet
+divergence from the model that produced it. The tree is still a value
+either way, which is why [§5](#5-a-folder-and-a-project) could read a
+leaf of it with `aontu model get` before anything was written.
 
 The rest is a pipe, and it is a recipe rather than a lesson:
 [generate code from a model](how-to/generate-code.md) has the command

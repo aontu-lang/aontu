@@ -5,6 +5,22 @@ package (`ts/`, npm `aontu`) and the Go module (`go/`,
 `github.com/aontu-lang/aontu/go`) are versioned independently; entries note
 which implementation each change affects.
 
+## Go 0.1.24 — 2026-09-16 · TypeScript 0.66.0
+
+### `aontu render` writes the files a generator answers
+
+`aontu render <file> <path>` hands the component tree at `$.out` to
+jostraca, the generator runtime, which writes it: a one-file tree to
+`<path>` itself (unless `<path>` is a directory), any other tree below
+`<path>`. `--check` writes nothing and exits 1 on drift, naming each
+file; `--format json` reports the files written, or the drift; `--at`
+names another anchor; a template entry is read directly. Both
+implementations: jostraca is a dependency of the npm package and of
+the Go module, pinned at 0.38.0. `tools/cmptree-check.js` is gone, and
+the use cases and the system test hold their goldens with
+`aontu render --check`. A folder as the generator is a set: every file
+directly in it, written below `<path>` as one run.
+
 ## Go 0.1.23 — 2026-09-16 · TypeScript 0.65.0
 
 ### BREAKING: the package files and verbs are renamed

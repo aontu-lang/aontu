@@ -1,3 +1,7 @@
+github.com/jostraca/jostraca/go v0.38.0 h1:c06cnCu/5jpAeaQo35KPMskRBwUdy5qFxs/cnUYnIGE=
+github.com/jostraca/jostraca/go v0.38.0/go.mod h1:sChsMPe6E2F006ZscjIXpb4tVK4LclCfMSICkYiX4M8=
+github.com/rjrodger/shape/go v0.5.3 h1:SKmAVLt/shCfhB/xovoFrp0YKsahbcbXKcZ9BJ6oNNo=
+github.com/rjrodger/shape/go v0.5.3/go.mod h1:eIRkEPCxpm9msMgpWkHqRjh7IfFwNQAMvTytoA24i3M=
 github.com/tabnas/abnf/go v0.4.13 h1:q2C+Wxor9uuxzz+HZSaqJLAafb60j0IamH5LefnMozE=
 github.com/tabnas/abnf/go v0.4.13/go.mod h1:KtfbmRkwXGs2NUglv3vYrcCz+7OWzOLDU8r1JRUqpjc=
 github.com/tabnas/bnf/go v0.1.15 h1:PotnYlOHtEhBFoq+5iKmMzXXnJ5r43nGqIk0fXrXV1k=

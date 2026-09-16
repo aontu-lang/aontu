@@ -18,9 +18,8 @@ you are new; take one on its own if its subject is what you need.
   Assumes the first tutorial.
 - [From a model to a file tree](tutorial-generate.md). A TypeScript
   client computed from a model of its routes, as a tree of folders,
-  files, and lines for a generator runtime to write to disk. The page
-  stops at the tree, which is where the engine's job ends. Assumes the
-  first tutorial.
+  files, and lines, written to disk with `aontu render` and held
+  against the model by its check. Assumes the first tutorial.
 
 Every transcript on these pages is run by `ts/test/docs.test.ts`, so
 the output beside a command is what the engine printed.
