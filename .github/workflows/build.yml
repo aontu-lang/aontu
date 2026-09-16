@@ -249,11 +249,23 @@ jobs:
       # validation script and the seed data at a pinned commit. Without
       # this clone that one leg skips with a note and the other nine
       # still run.
+      # AT THE REVISION ref/ WAS VENDORED FROM, which
+      # test/system/rb-solar/ref/README.md records. `--depth 1` shallows
+      # a clone; it does not pin one, so a plain clone follows the
+      # remote's HEAD and this leg would silently start testing the app
+      # against a contract the repository never vendored -- going red,
+      # or worse green, with no change here. Fetching the SHA keeps the
+      # SDK and the vendored openapi.yaml, validate.ts and seed data one
+      # consistent reference.
       - name: Fetch the reference SDK
+        env:
+          SDK_REF: 5b8eae968637ebe507c915fe804131d60ef16e15
         run: |
-          git clone --depth 1 \
-            https://github.com/voxgig-sdk/voxgig-solardemo-sdk.git \
-            "$RUNNER_TEMP/solardemo"
+          git init -q "$RUNNER_TEMP/solardemo"
+          git -C "$RUNNER_TEMP/solardemo" remote add origin \
+            https://github.com/voxgig-sdk/voxgig-solardemo-sdk.git
+          git -C "$RUNNER_TEMP/solardemo" fetch --depth 1 origin "$SDK_REF"
+          git -C "$RUNNER_TEMP/solardemo" checkout -q FETCH_HEAD
 
       # The byte gate, check.sh's FIRST check, needs a generator runtime
       # or `tools/cmptree-check.js` exits 3 and it records a skip. Same
