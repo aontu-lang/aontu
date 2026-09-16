@@ -83,7 +83,7 @@ than its value.
 
 - **Shared envelope by conjunction.** Each event shape is
   `close($.Envelope & { type: "order.paid", payload: close({...}) })`.
-  The envelope include (`@"envelope.aon"`) plus a reference
+  The envelope include (`@"./envelope.aon"`) plus a reference
   conjunction gives real reuse; `close()` seals each shape so surplus
   keys are refused, and the envelope's optional `correlation_id?`
   stays optional through the conjunction.
@@ -147,7 +147,7 @@ $.Event.source: mapval_required [incomplete]
 A dotted key is out of reach of every path spelling:
 
 ```
-$ aontu get '$.registry."order.placed"' orders-v1.aon
+$ aontu model get '$.registry."order.placed"' orders-v1.aon
 $.registry."order.placed": no_path [reference]
   The path $.registry."order.placed" names nothing in this document.
 ```

@@ -5,6 +5,112 @@ package (`ts/`, npm `aontu`) and the Go module (`go/`,
 `github.com/aontu-lang/aontu/go`) are versioned independently; entries note
 which implementation each change affects.
 
+## Unreleased
+
+### The package system lands whole: `pkg.aon`, `aontu sync`, `aontu publish`
+
+A module is imported; a package is published. Both ports now carry the
+system [ADR-039](ADR.md#adr-039--the-package-system-has-one-vocabulary-one-set-of-files-and-three-pins)
+ratified: one vocabulary, one set of files, three pins, and the verbs
+that read from and write to a repository.
+
+**Files.** The package file is `pkg.aon` at the project root
+(`pkg: { path, main, version? }`, `dep`, `publish: *private|public`,
+`retract?`, `moved?`, and `repo?`, the project's trust configuration).
+The lockfile is `aontu_meta/pkg-lock.aon`, one canonical line whose
+entries pin `v`, `canon`, `archive` and, for a package acquired from a
+repository, `manifest`; `oci` is retired, never having been computed.
+The vendor tree is `aontu_meta/vendor/<package-path>/` with no
+`@<major>` suffix, and a vendored package acquired from a repository
+keeps its manifest and proof beside its tree. A verb that finds
+`mod.aon`, `mod-lock.aon` or `aon_vendor/` names the current layout
+once, with the commands that rebuild it, and reads nothing from the old
+one. Every fixture, use case, how-to and reference page moved in the
+same change.
+
+**Verb tiers.** `aontu get`, `aontu why` and `aontu set`, the document
+queries, are `aontu model get|why|set`. `aontu mod <op>` is
+`aontu pkg tidy|verify|vendor|manifest|refreeze|tree|outdated|serve|keygen`.
+The top level gains the package verbs: `sync [--frozen]`, `add <pkg>`,
+`get <pkg>[@<version>]`, `remove <pkg>`, `why <pkg>` and
+`publish [--yes] [--key <file>] [--token <t>] [--to <dir>]`. `add`
+refuses a package already declared and names `get`; `get` adds or
+raises the minimum; both end in a `sync`. `publish` is a dry run
+without `--yes`.
+
+**Acquisition checks the proof, the bytes and the meaning, in that
+order.** `sync` resolves the closure by minimum version selection,
+reading every package the project already holds before it requests
+anything, and for each package it lacks: the version list, the client's
+own first-seen records (a version that was seen and is now absent is a
+rollback and refuses), the advisory, selection under a seventy-two hour
+cooldown timed from the repository's first-seen time (a version named
+explicitly is taken whatever its age; a private name skips it), the
+manifest, the proof (an Ed25519 key proof verified under the `repo.trust`
+entry that names its signer; the Sigstore provider is refused by name
+until it is built), the archive digest, the canonical unzip under its
+allowlist and caps, the file manifest, the package's own dependencies,
+then evaluation with the transitive lock and the canon-hash comparison.
+Nothing is stored until all of it holds. Bases are `https`, or `http` on
+a loopback host. The user cache moves to `aontu/pkg` under the platform
+rule and holds `download/`, `store/` (keyed by canon-hash **and** package
+path, which closes the cache-identity hole G10 named) and `seen/`.
+
+**Publishing.** `aontu pkg keygen <file>` writes a PKCS#8 Ed25519 key
+once and prints the signer id a consumer names. `publish` mints the
+manifest, signs it, fetches the highest version the repository holds
+and gates the candidate on it (a breaking candidate is refused and
+nothing is sent), refuses a version that exists, a path that has `moved`, and a private package bound for a
+public path, then posts to the write base or, with `--to <dir>`,
+writes the read-path layout into a directory. `aontu pkg serve [--listen
+<addr>] [--upstream <url>]` serves such a directory byte for byte on a
+loopback address and proxies a miss to an upstream; `aontu pkg
+outdated` reports what could move, cooldown included; `aontu why <pkg>`
+answers with the dependency chain from the project.
+
+**The gate has three components** (ADR-022), and `aontu pkg manifest
+--against` runs all of them: acceptance, the G3 subsumption check;
+determination, every position the prior version resolved to a value
+with nothing supplied the next still resolves; and agreement, where
+both resolve a position they resolve it the same. `port: 8080`
+loosening to `port: integer` passes subsumption and turns a working
+consumer build into an error, and is now refused as
+`compat_undetermined`; a value that moves while still admitting the old
+one is `compat_outcome_changed`. Both codes join the registry (class
+`compat`).
+
+**Codes.** `module_local` and `module_moved` join the registry (class
+`parse`): a bare reference whose final segment carries a known extension
+needs a `./` prefix, and a package whose file declares `moved` refuses
+every import with the destination. The reports of the package verbs
+carry the specification's refusal codes (`archive_digest_mismatch`,
+`archive_not_canonical`, `manifest_invalid`, `proof_signer_untrusted`,
+`list_rollback`, `path_moved`, `version_exists`, `response_mismatch` and
+the rest) plus `fetch_failed`, `config_invalid` and `key_invalid`, each
+naming the package it refuses.
+
+**Seams and tests.** The network sits behind one injectable transport
+per port (`PkgHttp` in TypeScript, `PkgHTTP` in Go) with a directory
+transport for tests and `publish --to`, so every decision above it is
+covered without a socket; the CLIs' server, transport and output
+streams are injected the same way. The two CLIs print byte-identical
+text for every package verb, verified against a local `pkg serve`
+registry and a `publish --to` directory. Coverage stays at the ADR-002
+floor in both ports, every exclusion recorded in
+[docs/test-coverage.md](docs/test-coverage.md).
+
+**Docs.** [`aontu sync`](docs/reference-api.md#aontu-sync),
+[`aontu publish`](docs/reference-api.md#aontu-publish) and
+[`aontu pkg`](docs/reference-api.md#aontu-pkg) in the reference; the
+"Modules" section of the language reference rewritten; three how-tos,
+[vendor a dependency closure](docs/how-to/vendor-a-dependency-closure.md),
+[vendor a module by hand](docs/how-to/vendor-by-hand.md) and
+[publish a package](docs/how-to/publish-a-package.md), every transcript
+executed by the docs gate; and use case 11 rewritten around a local
+repository: keygen, publish, the gate, serve, sync, cooldown, a move.
+
+*Both implementations.*
+
 ## Go 0.1.22 — 2026-09-15 · TypeScript 0.64.0
 
 ### BREAKING: `aontu render` and `aontu:code` are removed
@@ -3753,7 +3859,7 @@ the class `breaking` already uses. `--format json` carries `verified`,
 `mismatched` and `unlocked`. Run it beside your tests; run `tidy` only
 when you mean to move a pin.
 
-Documented in [`docs/reference-api.md`](docs/reference-api.md#aontu-mod)
+Documented in [`docs/reference-api.md`](docs/reference-api.md#aontu-pkg)
 and the hand-vendoring how-to, which gained the flat transitive layout
 and the CI section. Use case 11 (`use-cases/11-shared-modules`) asserts
 all three behaviours where it previously pinned the defects.

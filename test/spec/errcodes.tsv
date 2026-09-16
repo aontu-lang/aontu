@@ -203,6 +203,12 @@ compat_narrowed	errcode	compat	0.53.0
 compat_required_added	errcode	compat	0.53.0
 compat_default_changed	errcode	compat	0.53.0
 compat_marks_changed	errcode	compat	0.53.0
+# The outcome half of the publish gate (ADR-022): what the prior
+# version generates with nothing supplied, the next must generate, and
+# the same. Acceptance is the subsumption query's; these two are the
+# determination and agreement findings.
+compat_undetermined	errcode	compat	0.65.0
+compat_outcome_changed	errcode	compat	0.65.0
 sub_unresolved	errcode	compat	0.53.0
 sub_disjunct_distribution	errcode	compat	0.53.0
 sub_path_dependent_spread	errcode	compat	0.53.0
@@ -383,6 +389,14 @@ module_path	errcode	parse	0.54.0
 module_missing	errcode	parse	0.53.0
 module_integrity	errcode	parse	0.53.0
 module_depth	errcode	budget	0.53.0
+# `module_local` (ADR-039 part 4): a bare reference whose final segment
+# carries an extension the include table knows was meant as a file, and
+# the commonest mistake once the major left the name gets the message
+# that fixes it rather than `module not fetched`.
+# `module_moved` (ADR-020 part 6): the package's own file declares a new
+# path; resolution refuses naming the destination and never follows it.
+module_local	errcode	parse	0.65.0
+module_moved	errcode	parse	0.65.0
 
 # THE TREE VIEW (`aontu view tree`, docs/design/VIEWS.0.md). A relation
 # named to the view that has no edges in the document is refused rather

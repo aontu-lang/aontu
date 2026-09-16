@@ -1,0 +1,2 @@
+name: string
+port: *8080 | integer

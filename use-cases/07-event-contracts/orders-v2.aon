@@ -6,7 +6,7 @@
 # check.sh pins that `breaking --against orders-v1.aon` refuses this
 # document, which is exactly the gate a registry needs in CI.
 
-@"envelope.aon"
+@"./envelope.aon"
 
 OrderPlaced: close($.Envelope & {
   type: "order.placed"

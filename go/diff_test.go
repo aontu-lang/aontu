@@ -23,7 +23,7 @@ func TestDiffResolvesIncludesFromEachSidesBase(t *testing.T) {
 		}
 	}
 
-	r := Diff(`a: @"part.aon"`, `a: @"part.aon"`, &DiffOptions{
+	r := Diff(`a: @"./part.aon"`, `a: @"./part.aon"`, &DiffOptions{
 		LeftPath:  left,
 		RightPath: right,
 	})

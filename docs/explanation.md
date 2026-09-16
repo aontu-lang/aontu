@@ -403,7 +403,7 @@ repairing end needs in order to choose. For the same reason a finding
 labels its two sites by provenance instead of by source order, and puts
 the data's site first: that is the one you are meant to edit.
 
-**[`why`](reference-api.md#aontu-why) is the positive twin of a failure
+**[`why`](reference-api.md#aontu-model-why) is the positive twin of a failure
 report.** An error explains what did not unify; `why` explains what
 did, listing the values that met at a path with the site each was
 written at, in source order. It exists because "the value is 3" is not
@@ -412,7 +412,7 @@ pinned `3`" is. The same record is what the language server can append
 to a hover and what the MCP tool of that name returns: one answer,
 three ways in.
 
-**[`get`](reference-api.md#aontu-get) buys the size of the answer
+**[`get`](reference-api.md#aontu-model-get) buys the size of the answer
 rather than the cost of it.** Unification has no partial mode (the
 whole document converges or none of it does) so a query verb cannot be
 an optimisation, and it would be dishonest to present it as one. It is
@@ -422,7 +422,7 @@ views are held to a stronger claim than "a summary": each is itself a
 valid document that *subsumes* the truth, so a projection may
 generalise but may never mislead.
 
-**[`set`](reference-api.md#aontu-set) appends by default**, and that
+**[`set`](reference-api.md#aontu-model-set) appends by default**, and that
 follows from the lattice rather than from a gap in the tooling. Because
 unification is order-independent, a change written into a second file
 is the same value as the same change written into the first, so an
@@ -460,7 +460,7 @@ and the span check would pass while lying about the place. Refusing to
 edit is always safe; editing the wrong bytes never is. The
 mechanics (span verification, the warning vocabulary, what counts as an
 editable literal) are specified with [`aontu
-set`](reference-api.md#aontu-set) in the API reference.
+set`](reference-api.md#aontu-model-set) in the API reference.
 
 ### What the hash pins
 

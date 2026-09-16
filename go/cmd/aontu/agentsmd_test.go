@@ -31,7 +31,7 @@ func TestAgentsMdWritesBetweenItsMarkers(t *testing.T) {
 		t.Fatalf("want 0, got %d: %s", code, out)
 	}
 	vetMatch(t, out, `<!-- aontu:begin -->`)
-	vetMatch(t, out, `aontu get \$\.services`)
+	vetMatch(t, out, `aontu model get \$\.services`)
 	vetMatch(t, out, "Pin: `aon1-")
 
 	// Prose already there is kept: a generator that rewrote the file

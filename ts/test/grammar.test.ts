@@ -404,7 +404,7 @@ describe('grammar', () => {
   // which a constrained decoder must never be able to emit.
   test('the-grammar-refuses-what-it-should', () => {
     for (const bad of [
-      'a: @"secret.aon"',   // an include, the one deliberate exclusion
+      'a: @"./secret.aon"',   // an include, the one deliberate exclusion
       '@"x"',
       '{a:1}',              // an unquoted key: canon quotes every key
       '{"a":}',
@@ -439,7 +439,7 @@ describe('grammar', () => {
   // And the same exclusions, above all the include directive.
   test('the-abnf-grammar-refuses-what-it-should', () => {
     for (const bad of [
-      'a: @"secret.aon"',
+      'a: @"./secret.aon"',
       '@"x"',
       '{a:1}',
       '{"a":}',

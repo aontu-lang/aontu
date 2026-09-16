@@ -55,7 +55,7 @@ ok "canonical form matches golden (defaults and spreads preserved)"
 # ------------------------------------------------- resolved layer values
 get_is() { # path expected label
   local got
-  got="$(aontu get "$1" "$DIR/stack.aon")"
+  got="$(aontu model get "$1" "$DIR/stack.aon")"
   [ "$got" = "$2" ] || die "get $1: expected $2, got $got"
   ok "$3"
 }
@@ -244,8 +244,8 @@ set -e
 [ "$SET_OK" = "0" ] || { cat "$TMP/set-ok.out" >&2; die "set (valid) failed"; }
 has set-ok 'verdict: valid' "set vets before writing"
 has set-ok 'wrote:' "overlay written"
-printf '@"stack.aon"\n@"agent-change.aon"\n' > "$WORK/with-change.aon"
-GOT="$(aontu get '$.deploy.prod.workloads.web.replicas' "$WORK/with-change.aon")"
+printf '@"./stack.aon"\n@"./agent-change.aon"\n' > "$WORK/with-change.aon"
+GOT="$(aontu model get '$.deploy.prod.workloads.web.replicas' "$WORK/with-change.aon")"
 [ "$GOT" = "8" ] || die "set change not visible on re-evaluation (got $GOT)"
 ok "set: agent override of a default is vetted, written, effective"
 

@@ -1,0 +1,1 @@
+pkg: { path: "corp.example/schemas/service" version: "1.4.2" main: "service.aon" }

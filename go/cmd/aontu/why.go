@@ -18,7 +18,7 @@ import (
 	aontu "github.com/aontu-lang/aontu/go"
 )
 
-const whyHelp = "aontu why <path> <file> (try --help)"
+const whyHelp = "aontu model why <path> <file> (try --help)"
 
 func runWhy(argv []string, stdout, stderr io.Writer) int {
 	argv, trust, trustOK := takeTrust(argv, stderr)
@@ -42,7 +42,7 @@ func runWhy(argv []string, stdout, stderr io.Writer) int {
 			}
 			format = argv[i]
 		case strings.HasPrefix(arg, "-"):
-			io.WriteString(stderr, "aontu: unknown why option "+arg+" (try --help)\n")
+			io.WriteString(stderr, "aontu: unknown model why option "+arg+" (try --help)\n")
 			return 2
 		default:
 			rest = append(rest, arg)
@@ -50,7 +50,7 @@ func runWhy(argv []string, stdout, stderr io.Writer) int {
 	}
 
 	if 2 != len(rest) {
-		io.WriteString(stderr, "aontu: why needs a path and one file\n"+whyHelp+"\n")
+		io.WriteString(stderr, "aontu: model why needs a path and one file\n"+whyHelp+"\n")
 		return 2
 	}
 	path, file := rest[0], rest[1]
@@ -128,7 +128,7 @@ func renderWhyJSON(report aontu.WhyReport) string {
 	enc.SetEscapeHTML(false)
 	enc.SetIndent("", "  ")
 	_ = enc.Encode(whyReportJSON{
-		Aontu:    subsumeProducerJSON{Verb: "why", Version: aontu.VERSION},
+		Aontu:    subsumeProducerJSON{Verb: "model why", Version: aontu.VERSION},
 		Findings: report.Findings,
 		OK:       report.OK,
 		Record:   report.Record,

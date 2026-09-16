@@ -41,7 +41,7 @@ Check the ERD before regenerating it:
 
 ```sh
 aontu template --marker '%%-' gen/erd.mmd > work/erd.aon
-aontu get out work/erd.aon | node ../../../tools/cmptree-check.js --folder doc
+aontu model get out work/erd.aon | node ../../../tools/cmptree-check.js --folder doc
 ```
 
 The command exits with status 1 and reports `erd.mmd` as drift. The
@@ -56,11 +56,11 @@ Run each application generator with `app` as the output directory:
 CMP="node ../../../tools/cmptree-check.js"
 for generator in routes migrate seeds model api_base api_controller ui_controller; do
   aontu template "gen/$generator.rb" > "work/$generator.aon" || break
-  aontu get out "work/$generator.aon" | $CMP --out app || break
+  aontu model get out "work/$generator.aon" | $CMP --out app || break
 done
-aontu get out gen/views.aon | $CMP --out app
+aontu model get out gen/views.aon | $CMP --out app
 aontu template --marker '%%-' gen/erd.mmd > work/erd.aon
-aontu get out work/erd.aon | $CMP --out doc
+aontu model get out work/erd.aon | $CMP --out doc
 ```
 
 Stop and resolve any failure before continuing. Each invocation

@@ -189,7 +189,7 @@ def: garage: {
         });
         const fs = mfs.fs;
         fs.aaa = 1;
-        let v1 = a0.unify(`a:@"foo.aon"`, { fs, path: '/' });
+        let v1 = a0.unify(`a:@"./foo.aon"`, { fs, path: '/' });
         (0, expect_1.expect)(v1.canon).equal('{"a":{"f":11}}');
     });
     (0, node_test_1.test)('deep-hierarchy', () => {

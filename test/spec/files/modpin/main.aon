@@ -1,1 +1,1 @@
-svc: @"corp.example/schemas/service@1#aon1-wrongwrongwrongwrongwrongwrongwrongwrong"
+svc: @"corp.example/schemas/service#aon1-wrongwrongwrongwrongwrongwrongwrongwrong"

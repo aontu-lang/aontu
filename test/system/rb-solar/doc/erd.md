@@ -17,7 +17,7 @@ Run from `test/system/rb-solar`:
 
 ```sh
 aontu template --marker '%%-' gen/erd.mmd > work/erd.aon
-aontu get out work/erd.aon
+aontu model get out work/erd.aon
 ```
 
 The result is the component tree carrying the Mermaid source. To write
@@ -25,8 +25,8 @@ it to the committed diagram location and check that it matches, hand
 the tree to jostraca:
 
 ```sh
-aontu get out work/erd.aon | node ../../../tools/cmptree-check.js --out doc
-aontu get out work/erd.aon | node ../../../tools/cmptree-check.js --folder doc
+aontu model get out work/erd.aon | node ../../../tools/cmptree-check.js --out doc
+aontu model get out work/erd.aon | node ../../../tools/cmptree-check.js --folder doc
 ```
 
 The output directory and the template's `file("erd.mmd", …)` determine

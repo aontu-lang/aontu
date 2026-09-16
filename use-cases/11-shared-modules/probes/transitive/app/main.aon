@@ -1,2 +1,2 @@
-lib: hide(@"corp.example/schemas/service@1")
+lib: hide(@"corp.example/schemas/service")
 svc: $.lib.spec & { name:"checkout" }

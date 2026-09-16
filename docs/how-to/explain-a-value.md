@@ -7,7 +7,7 @@ order: 20
 # Explain a value
 
 A layered document tells you what won and keeps quiet about who was in
-the race. `aontu why` lists every value the author *wrote* that
+the race. `aontu model why` lists every value the author *wrote* that
 [met](../unification.md) at a path, in source order, with the site each
 was written at. The file below is the [deployment
 fleet](../../use-cases/02-deploy-config/) use case trimmed to two layers
@@ -29,7 +29,7 @@ Ask why `auth` runs three replicas:
 
 <!-- test: run -->
 ```sh
-$ aontu why $.services.auth.replicas stack.aon
+$ aontu model why $.services.auth.replicas stack.aon
 $.services.auth.replicas = 3
   1. ***1|integer  stack.aon:2:53  (spread)
   2. 3  stack.aon:5:51
@@ -45,7 +45,7 @@ The same question at `logLevel` shows the rank ladder mid-argument:
 
 <!-- test: run -->
 ```sh
-$ aontu why $.services.auth.logLevel stack.aon
+$ aontu model why $.services.auth.logLevel stack.aon
 $.services.auth.logLevel = *"warn"|***"info"|string
   1. ***"info"|string  stack.aon:2:28  (spread)
   2. *"warn"|string  stack.aon:5:29
@@ -63,7 +63,7 @@ author wrote it on:
 
 <!-- test: run -->
 ```sh
-$ aontu why $.services.billing.replicas stack.aon
+$ aontu model why $.services.billing.replicas stack.aon
 $.services.billing.replicas = ***1|integer
   1. ***1|integer  stack.aon:2:53  (spread)
 ```
@@ -72,7 +72,7 @@ A path that names nothing is a refusal, exactly as it is for `get`:
 
 <!-- test: run -->
 ```sh
-$ aontu why $.services.auth.memory stack.aon
+$ aontu model why $.services.auth.memory stack.aon
 $.services.auth.memory: no_path [reference]
   The path $.services.auth.memory names nothing in this document.
 $ echo $?
@@ -86,7 +86,7 @@ its path through a template, a `pack()` generator, or a `$ref` is
 reported as the value the author wrote, where they wrote it.
 
 The contribution rules and roles are specified under [`aontu
-why`](../reference-api.md#aontu-why); the live version asks the same
+why`](../reference-api.md#aontu-model-why); the live version asks the same
 question across four layers of authority in
 [use-cases/02-deploy-config](../../use-cases/02-deploy-config/).
 `why` also names the line that will refuse your next edit, when it

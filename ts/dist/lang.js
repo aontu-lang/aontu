@@ -1343,6 +1343,13 @@ function makeModelResolver(options) {
         }
         const modref = memCapability ? undefined : (0, mod_1.parseModuleRef)(path);
         if (null != modref) {
+            // A bare `config.json` routes here now the major has left the
+            // name (ADR-022 part 4); the message says what was meant.
+            const ext = (0, mod_1.localFileExt)(modref.path);
+            if (undefined !== ext &&
+                undefined !== includeFormat(ext, options.textExt)) {
+                (0, mod_1.refuseLocalFile)(modref.path);
+            }
             const msmeta = ctx?.meta?.multisource;
             const from = dirOf(null != msmeta?.path ? msmeta.path : popts?.path);
             const found = (0, mod_1.resolveModule)(modref, from, modFs(ctx), {

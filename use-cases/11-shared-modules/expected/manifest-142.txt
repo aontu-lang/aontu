@@ -1,9 +1,6 @@
 verdict: ok
-corp.example/schemas/service@1 1.4.2
-config: application/vnd.aontu.module.v1+json
-com.github.rjrodger.aontu.canon: aon1-zFHnyVa1fA--g8hTx8lUUhaKzzRUNI--2nDheIMsSFs
-com.github.rjrodger.aontu.major: 1
-org.opencontainers.image.title: corp.example/schemas/service
-org.opencontainers.image.version: 1.4.2
-layer: mod.aon
-layer: service.aon
+corp.example/schemas/service 1.4.2 public
+archive: sha256:5b299a1256d890fbbe4062926ca8a9b4686c2907c75fb27963dca481809b7c1f (2 files, 1215 bytes)
+module: corp.example/schemas/service service.aon aon1-zFHnyVa1fA--g8hTx8lUUhaKzzRUNI--2nDheIMsSFs
+file: pkg.aon sha256:ccfecd61a34c4d7728737ad0e36013e6e7e93fffa4ac74c5f6917b62d8e880f5 234
+file: service.aon sha256:485d8f662acff94b8fe9ebf6d798718592a60f4927c478f4e6474417e675fbb4 771

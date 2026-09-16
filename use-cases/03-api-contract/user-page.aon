@@ -7,8 +7,8 @@
 # messages.aon, and the document root cannot be close()d, so surplus
 # top-level keys in a candidate pass silently here.
 
-@"types.aon"
-@"entities.aon"
+@"./types.aon"
+@"./entities.aon"
 # entities.aon is unmarked (it is a --at anchor elsewhere); hide({})
 # merges the mark on so this file's root is purely the page shape.
 entities: hide({})

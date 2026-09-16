@@ -53,8 +53,8 @@ The get, why, set and trim loop over a live document.
 - [Query a path](query-a-path.md). Print one node of the evaluated document by path, or a keys, types, or depth-limited view of it.
 - [Explain a value](explain-a-value.md). List every contribution that met at a path (which file, which line, which layer) with aontu why.
 - [Change a value with an overlay](change-a-value-with-an-overlay.md). Append a change to an overlay file with aontu set, so the original document keeps its bytes and a bad change is refused before it lands.
-- [Gate an agent's changes by role](gate-changes-by-role.md). Ask aontu allow whether a role may change a subtree before aontu set writes it, with the answer read from a role model that is itself an aontu document.
-- [Change a pinned value](change-a-pinned-value.md). Rewrite a pinned literal where the author wrote it with aontu set --in-place, and know the cases where the verb appends instead.
+- [Gate an agent's changes by role](gate-changes-by-role.md). Ask aontu allow whether a role may change a subtree before aontu model set writes it, with the answer read from a role model that is itself an aontu document.
+- [Change a pinned value](change-a-pinned-value.md). Rewrite a pinned literal where the author wrote it with aontu model set --in-place, and know the cases where the verb appends instead.
 - [Find dead entries](find-dead-entries.md). Report map entries whose removal changes nothing, so layered files do not silt up with lines a template already implies.
 - [Draw a model](draw-a-model.md). Draw a model as a dependency tree, matrix or architecture layers with `aontu view`, and gate the committed figures in CI.
 
@@ -71,8 +71,9 @@ The gate verbs: vet, breaking, relations, reaches, and hash.
 
 ## Modules and multi-file
 
-Splitting a model across files and vendoring a dependency closure.
+Splitting a model across files, vendoring a dependency closure, and publishing a package.
 
 - [Split a model across files](split-a-model-across-files.md). Load other source files with @"path" so a base model and its overrides unify into one document.
-- [Vendor a dependency closure for an offline build](vendor-a-dependency-closure.md). Lock a module closure with aontu mod tidy and copy it into aontu_meta/vendor/ so a build resolves every import with no network at all.
-- [Vendor a module by hand](vendor-by-hand.md). Bootstrap a module dependency without a fetch verb by copying its source tree into aontu_meta/vendor/ and letting aontu mod tidy pin what it means.
+- [Vendor a dependency closure for an offline build](vendor-a-dependency-closure.md). Lock a dependency closure with aontu sync and commit aontu_meta/vendor/ so a build resolves every import with no network at all.
+- [Vendor a module by hand](vendor-by-hand.md). Bootstrap a module dependency with no repository to fetch from by copying its source tree into aontu_meta/vendor/ and letting aontu sync pin what it means.
+- [Publish a package](publish-a-package.md). Publish a package with aontu publish, gated on compatibility with the version before it, into a local repository that aontu pkg serve serves and aontu sync reads.

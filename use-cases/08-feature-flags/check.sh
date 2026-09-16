@@ -171,7 +171,7 @@ run vresolved 0 vet --at '$.Flag' --closed "$WORK/flag-schema.aon" \
 has vresolved "valid" "resolved flag verdict"
 ok "fully-resolved flag (rollout 25) re-validates against the strict schema"
 
-echo "# --------------------------------------- write loop: aontu set"
+echo "# --------------------------------------- write loop: aontu model set"
 
 OV="$WORK/overlay.aon"
 

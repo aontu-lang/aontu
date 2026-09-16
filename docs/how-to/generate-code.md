@@ -98,7 +98,7 @@ The tree is an ordinary value, so the verb that answers it is `get`:
 
 <!-- test: run -->
 ```sh
-$ aontu get $.out types.aon
+$ aontu model get $.out types.aon
 {
   "children": [
     {
@@ -165,8 +165,8 @@ seam: it reads the tree on standard input and hands it over.
 
 <!-- test: skip the byte gate needs jostraca installed -->
 ```sh
-$ aontu get $.out types.aon | node tools/cmptree-check.js --out gen
-$ aontu get $.out types.aon | node tools/cmptree-check.js --folder gen
+$ aontu model get $.out types.aon | node tools/cmptree-check.js --out gen
+$ aontu model get $.out types.aon | node tools/cmptree-check.js --folder gen
 ```
 
 `--out` writes the tree below `gen/`; `--folder` writes nothing and

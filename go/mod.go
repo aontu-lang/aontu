@@ -12,27 +12,37 @@ import (
 	"strings"
 )
 
+// ModuleRef is one module import: a package path, or the alias key
+// `alias:<name>` when the import spells one; an alias is resolved by
+// lookup, never by shape.
 type ModuleRef struct {
 	Path string
-	Major int
 	// Hash is the inline canon-hash pin, if the import froze one.
 	Hash string
 }
 
+// A package path is `<domain>/<path>` and carries no major (ADR-022).
 var moduleRe = regexp.MustCompile(
-	`^([a-z0-9][a-z0-9-]*(?:\.[a-z0-9][a-z0-9-]*)+(?:/[A-Za-z0-9._-]+)*)@(\d+)(?:#(aon1-[A-Za-z0-9_-]+))?$`)
+	`^([a-z0-9][a-z0-9-]*(?:\.[a-z0-9][a-z0-9-]*)+(?:/[A-Za-z0-9._-]+)*)(?:#(aon1-[A-Za-z0-9_-]+))?$`)
+
+var moduleAliasRe = regexp.MustCompile(`^(alias:[A-Za-z0-9._-]+)(?:#(aon1-[A-Za-z0-9_-]+))?$`)
+
+const aliasPrefix = "alias:"
 
 // parseModuleRef answers the module an import string names, or false.
 func parseModuleRef(spec string) (ModuleRef, bool) {
 	m := moduleRe.FindStringSubmatch(spec)
 	if nil == m {
+		m = moduleAliasRe.FindStringSubmatch(spec)
+	}
+	if nil == m {
 		return ModuleRef{}, false
 	}
-	major, err := strconv.Atoi(m[2])
-	if nil != err { //coverage:ignore the pattern matched \d+
-		return ModuleRef{}, false
-	}
-	return ModuleRef{Path: m[1], Major: major, Hash: m[3]}, true
+	return ModuleRef{Path: m[1], Hash: m[2]}, true
+}
+
+func isAlias(path string) bool {
+	return strings.HasPrefix(path, aliasPrefix)
 }
 
 const (
@@ -77,6 +87,23 @@ func validateModulePath(path string) string {
 	return ""
 }
 
+// localFileExt is the extension of a routed path's final element, when
+// it carries one: the sign the import was meant as a file (ADR-022
+// part 4).
+func localFileExt(path string) string {
+	elems := strings.Split(path, "/")
+	last := elems[len(elems)-1]
+	dot := strings.LastIndex(last, ".")
+	if dot < 0 || dot == len(last)-1 {
+		return ""
+	}
+	return strings.ToLower(last[dot+1:])
+}
+
+func localFileMsg(path string) string {
+	return "local files need a ./ prefix: " + path + " (write @\"./" + path + "\")"
+}
+
 func escapeElem(elem string) string {
 	var b strings.Builder
 	for _, r := range elem {
@@ -90,19 +117,34 @@ func escapeElem(elem string) string {
 	return b.String()
 }
 
-func moduleDir(store string, ref ModuleRef) string {
+// moduleDir is the directory a key lives at under a store: one
+// directory per element, uppercase escaped; an alias under
+// `alias/<name>`, which no package path can spell because a domain
+// carries a dot.
+func moduleDir(store string, path string) string {
+	elems := strings.Split(path, "/")
+	if isAlias(path) {
+		elems = []string{"alias", strings.TrimPrefix(path, aliasPrefix)}
+	}
 	parts := []string{store}
-	for _, elem := range strings.Split(ref.Path, "/") {
+	for _, elem := range elems {
 		parts = append(parts, escapeElem(elem))
 	}
-	return filepath.Join(parts...) + "@" + strconv.Itoa(ref.Major)
+	return filepath.Join(parts...)
 }
+
+const (
+	pkgFile   = "pkg.aon"
+	lockFile  = "pkg-lock.aon"
+	metaDir   = "aontu_meta"
+	vendorDir = "vendor"
+)
 
 func projectRoots(from string) []string {
 	roots := []string{}
 	dir := from
 	for {
-		if _, err := os.Stat(filepath.Join(dir, "mod.aon")); nil == err {
+		if _, err := os.Stat(filepath.Join(dir, pkgFile)); nil == err {
 			roots = append(roots, dir)
 		}
 		up := filepath.Dir(dir)
@@ -127,28 +169,52 @@ func lockJSON(text string) string {
 	return strings.Join(out, "\n")
 }
 
-func lockHash(root string, ref ModuleRef) string {
-	data, err := os.ReadFile(filepath.Join(root, "aontu_meta", "mod-lock.aon"))
+// The user cache's trees (ADR-039 part 2).
+func cacheStoreDir(cache, hash, pkg string) string {
+	return moduleDir(filepath.Join(cache, "store", hash), pkg)
+}
+
+func cacheDownloadDir(cache, pkg string) string {
+	return filepath.Join(moduleDir(filepath.Join(cache, "download"), pkg), "@v")
+}
+
+func cacheSeenDir(cache, pkg string) string {
+	return moduleDir(filepath.Join(cache, "seen"), pkg)
+}
+
+type lockPins struct {
+	Canon string `json:"canon"`
+	Pkg   string `json:"pkg"`
+}
+
+// lockEntry is what the lockfile at root pins for a key, or nil.
+func lockEntry(root, key string) *lockPins {
+	data, err := os.ReadFile(filepath.Join(root, metaDir, lockFile))
 	if nil != err {
-		return ""
+		return nil
 	}
 
 	var lock struct {
-		Lock map[string]struct {
-			Canon string `json:"canon"`
-		} `json:"lock"`
+		Lock map[string]json.RawMessage `json:"lock"`
 	}
 	if err := json.Unmarshal([]byte(lockJSON(string(data))), &lock); nil != err {
-		return ""
+		return nil
 	}
-
-	return lock.Lock[ref.Path+"@"+strconv.Itoa(ref.Major)].Canon
+	raw, ok := lock.Lock[key]
+	if !ok {
+		return nil
+	}
+	var pins lockPins
+	if err := json.Unmarshal(raw, &pins); nil != err {
+		return nil
+	}
+	return &pins
 }
 
 const moduleMaxDepth = 16
 
 // moduleResult is a resolved module, or the refusal that stands in its
-// place. Both refusals are reported as parse-stage errors, exactly as a
+// place. Every refusal is reported as a parse-stage error, exactly as a
 // denied include is: a bare-member module import must not vanish in the
 // merge and leave a plausible, silently-partial document.
 type moduleResult struct {
@@ -158,133 +224,178 @@ type moduleResult struct {
 	Msg  string
 }
 
+func refuseModule(code, msg string) moduleResult {
+	return moduleResult{Code: code, Msg: msg}
+}
+
 // resolveModule resolves one module import against the local stores.
 func resolveModule(ref ModuleRef, fromDir string, cache string, depth int) moduleResult {
-	name := ref.Path + "@" + strconv.Itoa(ref.Major)
-
-	if bad := validateModulePath(ref.Path); "" != bad {
-		return moduleResult{
-			Code: "module_path",
-			Msg:  "module path: " + name + " (" + bad + ")",
+	alias := isAlias(ref.Path)
+	if !alias {
+		if bad := validateModulePath(ref.Path); "" != bad {
+			return refuseModule("module_path", "module path: "+ref.Path+" ("+bad+")")
 		}
 	}
 
 	if moduleMaxDepth <= depth {
-		return moduleResult{
-			Code: "module_depth",
-			Msg: "module depth: " + name +
-				" (verification nested past " + strconv.Itoa(moduleMaxDepth) + ")",
-		}
+		return refuseModule("module_depth",
+			"module depth: "+ref.Path+
+				" (verification nested past "+strconv.Itoa(moduleMaxDepth)+")")
 	}
 
 	// EVERY enclosing project, innermost first (see projectRoots): a
-	// vendored module is a project inside a project, and its nested
+	// vendored package is a project inside a project, and its nested
 	// imports have to reach the tree the consumer vendored them into.
 	roots := projectRoots(fromDir)
+	var locked *lockPins
+	for _, r := range roots {
+		if locked = lockEntry(r, ref.Path); nil != locked {
+			break
+		}
+	}
 	expect := ref.Hash
-	if "" == expect {
-		// The PIN comes from the first lockfile that names this import.
-		// A vendored module usually ships none, so that is the
-		// consumer's -- which is right: the consumer's lock is what its
-		// build is pinned to.
+	if "" == expect && nil != locked {
+		expect = locked.Canon
+	}
+	// The store is keyed by hash AND package path; an alias names its
+	// package in the lockfile, else in the package file that declares it.
+	pkg := ref.Path
+	if alias {
+		pkg = ""
+		if nil != locked {
+			pkg = locked.Pkg
+		}
 		for _, r := range roots {
-			if h := lockHash(r, ref); "" != h {
-				expect = h
+			if "" != pkg {
 				break
 			}
+			pkg = aliasTarget(filepath.Join(r, pkgFile), ref.Path, depth, cache)
+		}
+		if "" == pkg {
+			return refuseModule("module_missing",
+				"alias not declared: "+ref.Path+" (declare it under dep in "+pkgFile+")")
 		}
 	}
 
 	stores := []string{}
 	for _, r := range roots {
-		stores = append(stores, moduleDir(filepath.Join(r, "aontu_meta", "vendor"), ref))
+		stores = append(stores, moduleDir(filepath.Join(r, metaDir, vendorDir), ref.Path))
 	}
 	if "" != cache && "" != expect {
-		// Content-addressed: the cache is keyed by the hash, so a cache
-		// hit is already the right MEANING before anything is read.
-		stores = append(stores, filepath.Join(cache, expect))
+		stores = append(stores, cacheStoreDir(cache, expect, pkg))
 	}
 
 	dir := ""
 	for _, d := range stores {
-		if _, err := os.Stat(filepath.Join(d, "mod.aon")); nil == err {
+		if _, err := os.Stat(filepath.Join(d, pkgFile)); nil == err {
 			dir = d
 			break
 		}
 	}
 	if "" == dir {
-		return moduleResult{
-			Code: "module_missing",
-			Msg:  "module not fetched: " + name + " (run: aontu mod get)",
-		}
+		return refuseModule("module_missing",
+			"module not fetched: "+ref.Path+" (run: aontu sync)")
 	}
 
-	full := filepath.Join(dir, moduleMain(filepath.Join(dir, "mod.aon"), depth))
+	self := packageSelfOf(filepath.Join(dir, pkgFile), depth, cache)
+	if "" != self.moved {
+		return refuseModule("module_moved",
+			"module moved: "+ref.Path+" (now "+self.moved+
+				"; import that instead, nothing follows a move)")
+	}
+
+	full := filepath.Join(dir, self.main)
 	data, err := os.ReadFile(full)
 	if nil != err {
-		return moduleResult{
-			Code: "module_missing",
-			Msg:  "module not fetched: " + name + " (run: aontu mod get)",
-		}
+		return refuseModule("module_missing",
+			"module not fetched: "+ref.Path+" (run: aontu sync)")
 	}
 	src := toValidSource(string(data))
 
 	if "" != expect {
-		// VERIFICATION IS ALWAYS LOCAL. The registry's annotation is
-		// advisory; what decides is the hash of the module as it is on
+		// VERIFICATION IS ALWAYS LOCAL. The repository's manifest is a
+		// claim; what decides is the hash of the module as it is on
 		// this machine, recomputed now.
-		got := moduleHash(src, full, depth)
+		got := moduleHash(src, full, depth, cache)
 		if got != expect {
-			return moduleResult{
-				Code: "module_integrity",
-				Msg: "module integrity: " + name +
-					" expected " + expect + " got " + got,
-			}
+			return refuseModule("module_integrity",
+				"module integrity: "+ref.Path+
+					" expected "+expect+" got "+got)
 		}
 	}
 
 	return moduleResult{Full: full, Src: src}
 }
 
-// moduleMain is the `mod.main` a module file declares, or the default
-// entry name. The module file is ORDINARY AONTU, read by the language
-// itself — the toolchain dogfooding its own evaluator rather than
-// pattern-matching its own syntax with a regexp.
-func moduleMain(file string, depth int) string {
-	const defaultMain = "main.aon"
+type packageSelfPins struct {
+	main  string
+	moved string
+}
 
-	data, err := os.ReadFile(file)
-	if nil != err { //coverage:ignore the caller stat'd this file
-		return defaultMain
+// packageSelfOf reads the entry and the moved declaration of a package
+// file. The file is ORDINARY AONTU, read by the language itself.
+func packageSelfOf(file string, depth int, cache string) packageSelfPins {
+	self := packageSelfPins{main: "main.aon"}
+	m := evalPackageFile(file, depth, cache)
+	if nil == m {
+		return self
 	}
+	if pkg, ok := m.peg["pkg"].(*MapVal); ok {
+		if main := scalarString(pkg.peg["main"]); "" != main {
+			self.main = main
+		}
+	}
+	self.moved = scalarString(m.peg["moved"])
+	return self
+}
 
+func aliasTarget(file, key string, depth int, cache string) string {
+	m := evalPackageFile(file, depth, cache)
+	if nil == m {
+		return ""
+	}
+	dep, ok := m.peg["dep"].(*MapVal)
+	if !ok {
+		return ""
+	}
+	entry, ok := dep.peg[key].(*MapVal)
+	if !ok {
+		return ""
+	}
+	return scalarString(entry.peg["pkg"])
+}
+
+func evalPackageFile(file string, depth int, cache string) *MapVal {
+	data, err := os.ReadFile(file)
+	if nil != err {
+		return nil
+	}
 	a := NewWithBase(filepath.Dir(file))
 	a.modDepth = depth + 1
 	a.File = file
+	a.ModCache = cache
 	v, _ := a.Unify(toValidSource(string(data)))
 	m, ok := v.(*MapVal)
 	if !ok {
-		return defaultMain
+		return nil
 	}
-	mod, ok := m.peg["mod"].(*MapVal)
-	if !ok {
-		return defaultMain
-	}
-	sv, ok := mod.peg["main"].(*ScalarVal)
-	if !ok || KindString != sv.kind {
-		return defaultMain
-	}
-	main, _ := sv.peg.(string)
-	if "" == main {
-		return defaultMain
-	}
-	return main
+	return m
 }
 
-func moduleHash(src string, path string, depth int) string {
+func scalarString(v Val) string {
+	sv, ok := v.(*ScalarVal)
+	if !ok || KindString != sv.kind {
+		return ""
+	}
+	s, _ := sv.peg.(string)
+	return s
+}
+
+func moduleHash(src string, path string, depth int, cache string) string {
 	a := NewWithBase(filepath.Dir(path))
 	a.modDepth = depth + 1
 	a.File = path
+	a.ModCache = cache
 	v, _ := a.Unify(src)
 	if nil == v { //coverage:ignore Unify always answers a Val
 		return ""

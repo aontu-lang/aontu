@@ -710,7 +710,7 @@ describe('coverage3-lang', () => {
         kind: 'csv', src: 'a:1', search: [],
       }),
     } as any)
-    const refused: any = host.parse('v:@"x.csv"')
+    const refused: any = host.parse('v:@"./x.csv"')
     Assert.equal(refused.canon, 'nil')
     Assert.equal(refused.err[0].why, 'include_extension')
     Assert.match(refused.err[0].msg, /extension: \.csv/)
@@ -721,7 +721,7 @@ describe('coverage3-lang', () => {
         kind: 'txt', src: 'a:1', search: [],
       }),
     } as any)
-    Assert.equal(hostText.parse('v:@"x.txt"').canon, '{"v":"a:1"}')
+    Assert.equal(hostText.parse('v:@"./x.txt"').canon, '{"v":"a:1"}')
 
     const hostMd = (ext: string, textExt: string[]) => new Lang({
       textExt,
@@ -955,7 +955,7 @@ describe('coverage3-process', () => {
     // with the capability rather than beside it ...
     Assert.match(
       capture(() => cliMain(
-        ['node', 'cli', 'get', '$.doc', '--text-ext', 'md', file])).out,
+        ['node', 'cli', 'model', 'get', '$.doc', '--text-ext', 'md', file])).out,
       /# hi/)
 
     // ... and every way of spelling it wrong is a usage error rather
@@ -966,7 +966,7 @@ describe('coverage3-process', () => {
         /--text-ext needs extensions/, `accepted: ${JSON.stringify(bad)}`)
       Assert.match(
         capture(() => cliMain(
-          ['node', 'cli', 'get', '$.doc', '--text-ext', bad, file])).err,
+          ['node', 'cli', 'model', 'get', '$.doc', '--text-ext', bad, file])).err,
         /--text-ext needs extensions/, `verb accepted: ${JSON.stringify(bad)}`)
     }
     // A trailing flag with no value at all, on both roads.
@@ -975,7 +975,7 @@ describe('coverage3-process', () => {
       /--text-ext needs extensions/)
     Assert.match(
       capture(() => cliMain(
-        ['node', 'cli', 'get', '$.doc', file, '--text-ext'])).err,
+        ['node', 'cli', 'model', 'get', '$.doc', file, '--text-ext'])).err,
       /--text-ext needs extensions/)
 
     Fs.rmSync(dir, { recursive: true, force: true })

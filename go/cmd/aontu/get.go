@@ -14,7 +14,7 @@ import (
 	aontu "github.com/aontu-lang/aontu/go"
 )
 
-const getHelp = "aontu get <path> <file> (try --help)"
+const getHelp = "aontu model get <path> <file> (try --help)"
 
 func runGet(argv []string, stdout, stderr io.Writer) int {
 	argv, trust, trustOK := takeTrust(argv, stderr)
@@ -57,7 +57,7 @@ func runGet(argv []string, stdout, stderr io.Writer) int {
 			}
 			format = argv[i]
 		case strings.HasPrefix(arg, "-"):
-			io.WriteString(stderr, "aontu: unknown get option "+arg+" (try --help)\n")
+			io.WriteString(stderr, "aontu: unknown model get option "+arg+" (try --help)\n")
 			return 2
 		default:
 			rest = append(rest, arg)
@@ -65,7 +65,7 @@ func runGet(argv []string, stdout, stderr io.Writer) int {
 	}
 
 	if 2 != len(rest) {
-		io.WriteString(stderr, "aontu: get needs a path and one file\n"+getHelp+"\n")
+		io.WriteString(stderr, "aontu: model get needs a path and one file\n"+getHelp+"\n")
 		return 2
 	}
 	path, file := rest[0], rest[1]
@@ -129,7 +129,7 @@ func renderGetJSON(report aontu.QueryReport) string {
 	enc.SetEscapeHTML(false)
 	enc.SetIndent("", "  ")
 	_ = enc.Encode(getReportJSON{
-		Aontu:    subsumeProducerJSON{Verb: "get", Version: aontu.VERSION},
+		Aontu:    subsumeProducerJSON{Verb: "model get", Version: aontu.VERSION},
 		Findings: report.Findings,
 		OK:       report.OK,
 		Out:      report.Out,

@@ -243,7 +243,7 @@ implementations, at every surface:
 Denied resolution is a located, deterministic parse-stage error
 (`include_denied`) like any other (never a silent skip) and is
 raised, not injected as a value, so a bare-member include
-(`@"denied.aon"` at the top of a file) cannot vanish in the merge.
+(`@"./denied.aon"` at the top of a file) cannot vanish in the merge.
 
 Budgets are part of the same profile: `trust.budget.passes` and
 `trust.budget.depth` (TypeScript) / `TrustOptions.Budget` (Go), integer

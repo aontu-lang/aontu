@@ -404,7 +404,7 @@ const SCHEMA = 'service: { name: string, port: integer }';
     (0, node_test_1.test)('each-document-resolves-its-own-includes', () => {
         const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-vet-base-'));
         Fs.writeFileSync(Path.join(dir, 'part.aon'), 'port: integer');
-        const src = '@"part.aon"\nname: string';
+        const src = '@"./part.aon"\nname: string';
         const data = 'name: "auth"\nport: 8080';
         const schemaPath = Path.join(dir, 'schema.aon');
         Fs.writeFileSync(schemaPath, src);
@@ -443,7 +443,7 @@ const SCHEMA = 'service: { name: string, port: integer }';
         const part = Path.join(dir, 'part.aon');
         Fs.writeFileSync(part, 'port: "80"\n');
         const dataPath = Path.join(dir, 'data.aon');
-        const data = '@"part.aon"\n';
+        const data = '@"./part.aon"\n';
         Fs.writeFileSync(dataPath, data);
         const r = (0, vet_1.vet)('port: integer', data, {
             dataPath, dataUrl: dataPath, schemaUrl: 'schema',

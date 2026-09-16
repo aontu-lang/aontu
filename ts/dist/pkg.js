@@ -1,0 +1,654 @@
+"use strict";
+/* Copyright (c) 2025 Richard Rodger, MIT License */
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.MANIFEST_SCHEMA = exports.ARCHIVE_NAMED = exports.ARCHIVE_TEXT_EXT = exports.ARCHIVE_DATA_EXT = exports.ARCHIVE_SOURCE_EXT = exports.LOCK_HEADER = void 0;
+exports.declaredDeps = declaredDeps;
+exports.versionCompare = versionCompare;
+exports.usableKey = usableKey;
+exports.storeDir = storeDir;
+exports.readLock = readLock;
+exports.lockText = lockText;
+exports.writeLock = writeLock;
+exports.packageSelf = packageSelf;
+exports.archiveAdmits = archiveAdmits;
+exports.archiveOf = archiveOf;
+exports.storedManifest = storedManifest;
+exports.pkgTidy = pkgTidy;
+exports.pkgResolve = pkgResolve;
+exports.targetOf = targetOf;
+exports.pkgVerify = pkgVerify;
+exports.pkgVendor = pkgVendor;
+exports.vendorCopy = vendorCopy;
+exports.copyTree = copyTree;
+exports.pkgRefreeze = pkgRefreeze;
+exports.pkgTree = pkgTree;
+exports.pkgManifest = pkgManifest;
+exports.manifestText = manifestText;
+const node_fs_1 = require("node:fs");
+const node_path_1 = require("node:path");
+const mod_1 = require("./mod");
+const pkg_zip_1 = require("./pkg-zip");
+const subsume_1 = require("./subsume");
+const compat_1 = require("./compat");
+// The `dep` block a package file declares: key -> minimum version, and
+// for an alias the package it names.
+function declaredDeps(file, options) {
+    if (!(0, node_fs_1.existsSync)(file)) {
+        return {};
+    }
+    const gen = options.eval((0, node_fs_1.readFileSync)(file, 'utf8'), file).gen;
+    const dep = gen?.dep;
+    if (null == dep || 'object' !== typeof dep) {
+        return {};
+    }
+    const out = {};
+    for (const key of Object.keys(dep)) {
+        const v = dep[key]?.v;
+        if ('string' === typeof v && '' !== v) {
+            const pkg = dep[key]?.pkg;
+            out[key] = { v, ...('string' === typeof pkg && '' !== pkg ? { pkg } : {}) };
+        }
+    }
+    return out;
+}
+function versionCompare(a, b) {
+    const ap = a.split('.');
+    const bp = b.split('.');
+    for (let i = 0; i < Math.max(ap.length, bp.length); i++) {
+        // A part the shorter version does not have is ZERO, so `1.2` and
+        // `1.2.0` are the same version -- which is what everyone means by
+        // them, and what a lockfile rewritten from either must agree on.
+        const x = ap[i] ?? '0';
+        const y = bp[i] ?? '0';
+        if (x === y) {
+            continue;
+        }
+        const xn = /^\d+$/.test(x);
+        const yn = /^\d+$/.test(y);
+        if (xn && yn) {
+            return +x < +y ? -1 : 1;
+        }
+        if (xn !== yn) {
+            return xn ? -1 : 1;
+        }
+        return x < y ? -1 : 1;
+    }
+    return 0;
+}
+function usableKey(key) {
+    const ref = (0, mod_1.parseModuleRef)(key);
+    return undefined !== ref && ref.path === key &&
+        ((0, mod_1.isAlias)(key) || undefined === (0, mod_1.validateModulePath)(key));
+}
+// The directory a package is in, in the local stores: the project's
+// vendor tree first, then the cache under the hash the lockfile pins.
+function storeDir(root, key, canon, pkg, options) {
+    const stores = [(0, mod_1.moduleDir)((0, node_path_1.join)(root, mod_1.META_DIR, mod_1.VENDOR_DIR), key)];
+    if (null != options.cache && '' !== canon && '' !== pkg) {
+        stores.push((0, mod_1.cacheStoreDir)(options.cache, canon, pkg));
+    }
+    return stores.find((d) => (0, node_fs_1.existsSync)((0, node_path_1.join)(d, mod_1.PKG_FILE)));
+}
+function readLock(root) {
+    const file = (0, node_path_1.join)(root, mod_1.META_DIR, mod_1.LOCK_FILE);
+    if (!(0, node_fs_1.existsSync)(file)) {
+        return {};
+    }
+    let lock;
+    try {
+        lock = JSON.parse((0, mod_1.lockJson)((0, node_fs_1.readFileSync)(file, 'utf8')));
+    }
+    catch {
+        return {};
+    }
+    const out = {};
+    for (const key of Object.keys(lock?.lock ?? {})) {
+        const e = lock.lock[key];
+        const str = (k) => 'string' === typeof e?.[k] ? e[k] : '';
+        out[key] = {
+            key,
+            v: str('v'),
+            canon: str('canon'),
+            archive: str('archive'),
+            ...('' === str('manifest') ? {} : { manifest: str('manifest') }),
+            ...('' === str('pkg') ? {} : { pkg: str('pkg') }),
+        };
+    }
+    return out;
+}
+function lockText(entries, options) {
+    const parts = entries.map((e) => JSON.stringify(e.key) + ':{' +
+        '"archive":' + JSON.stringify(e.archive) + ',' +
+        '"canon":' + JSON.stringify(e.canon) + ',' +
+        (null == e.manifest ? '' : '"manifest":' + JSON.stringify(e.manifest) + ',') +
+        (null == e.pkg ? '' : '"pkg":' + JSON.stringify(e.pkg) + ',') +
+        '"v":' + JSON.stringify(e.v) + '}');
+    return options.eval('{"lock":{' + parts.join(',') + '}}', mod_1.LOCK_FILE).canon;
+}
+// The generated-file header. A lockfile is machine-written, and the
+// file says so where an editor will see it.
+exports.LOCK_HEADER = '# pkg-lock.aon (generated by `aontu sync`; do not edit)\n';
+function writeLock(root, entries, options) {
+    (0, node_fs_1.mkdirSync)((0, node_path_1.join)(root, mod_1.META_DIR), { recursive: true });
+    (0, node_fs_1.writeFileSync)((0, node_path_1.join)(root, mod_1.META_DIR, mod_1.LOCK_FILE), exports.LOCK_HEADER + lockText(entries, options) + '\n');
+}
+function packageSelf(dir, options) {
+    const file = (0, node_path_1.join)(dir, mod_1.PKG_FILE);
+    const self = {
+        path: '', version: '', main: 'main.aon', publish: 'private', retract: [],
+    };
+    if (!(0, node_fs_1.existsSync)(file)) {
+        return self;
+    }
+    const gen = options.eval((0, node_fs_1.readFileSync)(file, 'utf8'), file).gen;
+    const pkg = gen?.pkg;
+    const str = (v) => 'string' === typeof v ? v : '';
+    self.path = str(pkg?.path);
+    self.version = str(pkg?.version);
+    self.main = '' === str(pkg?.main) ? 'main.aon' : str(pkg?.main);
+    self.publish = 'public' === gen?.publish ? 'public' : 'private';
+    if ('' !== str(gen?.moved)) {
+        self.moved = str(gen.moved);
+    }
+    if (Array.isArray(gen?.retract)) {
+        self.retract = gen.retract.filter((v) => 'string' === typeof v);
+    }
+    return self;
+}
+// What a package may contain (REPOSITORY.0.md §9.4): an enumerated
+// allowlist, refused by default. The data half is ADR-012's table.
+exports.ARCHIVE_SOURCE_EXT = ['aon', 'aontu'];
+exports.ARCHIVE_DATA_EXT = [
+    'json', 'jsonld', 'jsonc', 'json5', 'jsonic', 'jsc', 'toml', 'yaml', 'yml',
+    'ini',
+];
+exports.ARCHIVE_TEXT_EXT = ['md', 'txt'];
+exports.ARCHIVE_NAMED = ['LICENSE', 'NOTICE'];
+const ADMITTED_EXT = new Set([
+    ...exports.ARCHIVE_SOURCE_EXT, ...exports.ARCHIVE_DATA_EXT, ...exports.ARCHIVE_TEXT_EXT
+]);
+function archiveAdmits(rel) {
+    const elems = rel.split('/');
+    if (elems.some((e) => e.startsWith('.'))) {
+        return false;
+    }
+    const name = elems[elems.length - 1];
+    if (exports.ARCHIVE_NAMED.includes(name)) {
+        return true;
+    }
+    const m = /^[^.].*\.([^.]+)$/.exec(name);
+    return null != m && ADMITTED_EXT.has(m[1].toLowerCase());
+}
+function walkTree(dir, prefix, out, forbidden) {
+    for (const name of (0, node_fs_1.readdirSync)(dir).sort(pkg_zip_1.cmpBytes)) {
+        if ('' === prefix && mod_1.META_DIR === name) {
+            continue;
+        }
+        const full = (0, node_path_1.join)(dir, name);
+        const rel = '' === prefix ? name : prefix + '/' + name;
+        const st = (0, node_fs_1.lstatSync)(full);
+        if (st.isSymbolicLink()) {
+            forbidden.push(rel);
+            continue;
+        }
+        if (st.isDirectory()) {
+            if (name.startsWith('.')) {
+                forbidden.push(rel + '/');
+                continue;
+            }
+            walkTree(full, rel, out, forbidden);
+            continue;
+        }
+        if (!st.isFile() || 0 !== (st.mode & 0o111) || !archiveAdmits(rel)) {
+            forbidden.push(rel);
+            continue;
+        }
+        out.push({ path: rel, data: new Uint8Array((0, node_fs_1.readFileSync)(full)) });
+    }
+}
+// The canonical archive of a tree, and every file's own digest.
+function archiveOf(dir) {
+    const entries = [];
+    const forbidden = [];
+    walkTree(dir, '', entries, forbidden);
+    const zip = (0, pkg_zip_1.zipCanonical)(entries);
+    return {
+        zip,
+        digest: (0, pkg_zip_1.sha256Hex)(zip),
+        size: zip.length,
+        files: entries.map((e) => ({
+            path: e.path, digest: (0, pkg_zip_1.sha256Hex)(e.data), size: e.data.length,
+        })),
+        forbidden: forbidden.sort(pkg_zip_1.cmpBytes),
+    };
+}
+// The pin a locked tree carries beside it, when it was acquired from a
+// repository: the served manifest, verbatim.
+function storedManifest(dir) {
+    const file = (0, node_path_1.join)(dir, mod_1.META_DIR, 'manifest.aon');
+    if (!(0, node_fs_1.existsSync)(file)) {
+        return undefined;
+    }
+    const bytes = new Uint8Array((0, node_fs_1.readFileSync)(file));
+    let doc;
+    try {
+        doc = JSON.parse((0, mod_1.lockJson)(new TextDecoder().decode(bytes)));
+    }
+    catch {
+        return { digest: (0, pkg_zip_1.sha256Hex)(bytes), files: [] };
+    }
+    const files = Array.isArray(doc?.archive?.files) ? doc.archive.files : [];
+    return { digest: (0, pkg_zip_1.sha256Hex)(bytes), files };
+}
+function mainOf(dir, options) {
+    return packageSelf(dir, options).main;
+}
+// The lock entry a store tree yields for a key: its version as
+// selected, its canon-hash, its archive digest, and the manifest digest
+// where a manifest is kept beside it.
+function pinTree(key, dir, v, pkg, options) {
+    const main = (0, node_path_1.join)(dir, mainOf(dir, options));
+    const got = (0, node_fs_1.existsSync)(main) ?
+        options.eval((0, node_fs_1.readFileSync)(main, 'utf8'), main) : undefined;
+    if (null != got && !got.ok) {
+        return { unevaluable: true, forbidden: [] };
+    }
+    const archive = archiveOf(dir);
+    const manifest = storedManifest(dir);
+    return {
+        entry: {
+            key,
+            v,
+            canon: null == got ? '' : got.hash,
+            archive: archive.digest,
+            ...(null == manifest ? {} : { manifest: manifest.digest }),
+            ...(null == pkg ? {} : { pkg }),
+        },
+        forbidden: archive.forbidden.map((f) => key + ': ' + f),
+    };
+}
+// `aontu pkg tidy`: resolve the closure by MVS and rewrite the lockfile.
+function pkgTidy(root, options) {
+    const report = pkgResolve(root, options);
+    if ('ok' === report.verdict) {
+        writeLock(root, report.lock, options);
+    }
+    return report;
+}
+// The resolution alone, for a caller that decides whether to write.
+function pkgResolve(root, options) {
+    const previous = readLock(root);
+    const selected = {};
+    const missing = [];
+    let frontier = declaredDeps((0, node_path_1.join)(root, mod_1.PKG_FILE), options);
+    for (; 0 < Object.keys(frontier).length;) {
+        const next = {};
+        for (const key of Object.keys(frontier)) {
+            const want = frontier[key];
+            const have = selected[key];
+            if (null != have && 0 <= versionCompare(have.v, want.v)) {
+                continue;
+            }
+            selected[key] = { ...have, ...want };
+            if (!usableKey(key)) {
+                // A key this tooling cannot act on names nothing any store
+                // can hold: the same answer as an absent package.
+                missing.push(key);
+                continue;
+            }
+            const dir = storeDir(root, key, previous[key]?.canon ?? '', targetOf(key, selected[key], previous[key]), options);
+            if (undefined === dir) {
+                missing.push(key);
+                continue;
+            }
+            const deps = declaredDeps((0, node_path_1.join)(dir, mod_1.PKG_FILE), options);
+            for (const dk of Object.keys(deps)) {
+                const bid = next[dk];
+                if (null == bid || 0 > versionCompare(bid.v, deps[dk].v)) {
+                    next[dk] = { ...bid, ...deps[dk] };
+                }
+            }
+        }
+        frontier = next;
+    }
+    const lock = [];
+    const unevaluable = [];
+    const forbidden = [];
+    for (const key of Object.keys(selected).sort(pkg_zip_1.cmpBytes)) {
+        if (missing.includes(key)) {
+            continue;
+        }
+        const pkg = targetOf(key, selected[key], previous[key]);
+        const dir = storeDir(root, key, previous[key]?.canon ?? '', pkg, options);
+        const pinned = pinTree(key, dir, selected[key].v, (0, mod_1.isAlias)(key) ? pkg : undefined, options);
+        forbidden.push(...pinned.forbidden);
+        if (pinned.unevaluable) {
+            unevaluable.push(key);
+            continue;
+        }
+        lock.push(pinned.entry);
+    }
+    const uniqueMissing = [...new Set(missing)].sort(pkg_zip_1.cmpBytes);
+    const uniqueUnevaluable = [...new Set(unevaluable)].sort(pkg_zip_1.cmpBytes);
+    const held = 0 === uniqueMissing.length && 0 === uniqueUnevaluable.length &&
+        0 === forbidden.length;
+    return {
+        verdict: held ? 'ok' :
+            0 < uniqueUnevaluable.length || 0 < forbidden.length ? 'error' : 'missing',
+        lock,
+        missing: uniqueMissing,
+        unevaluable: uniqueUnevaluable,
+        forbidden: forbidden.sort(pkg_zip_1.cmpBytes),
+    };
+}
+// The package an alias key names: from the declaration, else from the
+// previous lock; a package path names itself.
+function targetOf(key, dep, prev) {
+    if (!(0, mod_1.isAlias)(key)) {
+        return key;
+    }
+    return dep?.pkg ?? prev?.pkg ?? '';
+}
+function pkgVerify(root, options) {
+    const locked = readLock(root);
+    const verified = [];
+    const mismatched = [];
+    const missing = [];
+    const declared = declaredDeps((0, node_path_1.join)(root, mod_1.PKG_FILE), options);
+    const unlocked = Object.keys(declared)
+        .filter((key) => null == locked[key]).sort(pkg_zip_1.cmpBytes);
+    for (const key of Object.keys(locked).sort(pkg_zip_1.cmpBytes)) {
+        const entry = locked[key];
+        if (!usableKey(key)) {
+            missing.push(key);
+            continue;
+        }
+        const dir = storeDir(root, key, entry.canon, entry.pkg ?? key, options);
+        if (undefined === dir) {
+            missing.push(key);
+            continue;
+        }
+        const main = (0, node_path_1.join)(dir, mainOf(dir, options));
+        if (!(0, node_fs_1.existsSync)(main)) {
+            missing.push(key);
+            continue;
+        }
+        // BYTES BEFORE MEANING (ADR-019): the archive digest and the
+        // manifest's file list first, on fixed-size reads, then the one
+        // evaluation.
+        const before = mismatched.length;
+        const archive = archiveOf(dir);
+        for (const f of archive.forbidden) {
+            mismatched.push({ key, pin: 'archive', want: entry.archive, got: 'forbidden: ' + f });
+        }
+        if (0 === archive.forbidden.length && entry.archive !== archive.digest) {
+            mismatched.push({ key, pin: 'archive', want: entry.archive, got: archive.digest });
+        }
+        const manifest = storedManifest(dir);
+        if (null != manifest) {
+            if (null != entry.manifest && entry.manifest !== manifest.digest) {
+                mismatched.push({ key, pin: 'manifest', want: entry.manifest, got: manifest.digest });
+            }
+            const listed = new Map(manifest.files.map((f) => [f.path, f.digest]));
+            for (const f of archive.files) {
+                if (listed.get(f.path) !== f.digest) {
+                    mismatched.push({ key, pin: 'manifest', want: listed.get(f.path) ?? '',
+                        got: f.path + ' ' + f.digest });
+                }
+            }
+        }
+        if (before !== mismatched.length) {
+            continue;
+        }
+        const got = options.eval((0, node_fs_1.readFileSync)(main, 'utf8'), main);
+        const want = entry.canon;
+        if (got.ok && want === got.hash) {
+            verified.push(key);
+            continue;
+        }
+        mismatched.push({ key, pin: 'canon', want, got: got.ok ? got.hash : '' });
+    }
+    return {
+        verdict: 0 < mismatched.length ? 'mismatch' :
+            0 < unlocked.length ? 'unlocked' :
+                0 < missing.length ? 'missing' : 'ok',
+        verified,
+        mismatched,
+        unlocked,
+        missing: missing.sort(pkg_zip_1.cmpBytes),
+    };
+}
+// `aontu pkg vendor`: materialise the locked closure into `aontu_meta/vendor/`.
+function pkgVendor(root, options) {
+    const locked = readLock(root);
+    const vendored = [];
+    const missing = [];
+    const vendorRoot = (0, node_path_1.join)(root, mod_1.META_DIR, mod_1.VENDOR_DIR);
+    for (const key of Object.keys(locked).sort(pkg_zip_1.cmpBytes)) {
+        const entry = locked[key];
+        if (!usableKey(key)) {
+            missing.push(key);
+            continue;
+        }
+        const from = storeDir(root, key, entry.canon, entry.pkg ?? key, options);
+        if (undefined === from) {
+            missing.push(key);
+            continue;
+        }
+        const to = (0, mod_1.moduleDir)(vendorRoot, key);
+        if (from !== to) {
+            vendorCopy(from, to);
+        }
+        vendored.push(key);
+    }
+    return {
+        verdict: 0 === missing.length ? 'ok' : 'missing',
+        vendored,
+        missing: missing.sort(pkg_zip_1.cmpBytes),
+    };
+}
+// A store tree into the vendor tree: the whole directory, less the
+// store's own lock, so the copy resolves against the consumer's.
+function vendorCopy(from, to) {
+    copyTree(from, to);
+    const lock = (0, node_path_1.join)(to, mod_1.META_DIR, mod_1.LOCK_FILE);
+    if ((0, node_fs_1.existsSync)(lock)) {
+        (0, node_fs_1.unlinkSync)(lock);
+    }
+}
+// A whole package directory, copied as real files: the vendor tree is
+// committed, and a link into a shared store is corruption waiting for
+// an edit.
+function copyTree(from, to) {
+    (0, node_fs_1.mkdirSync)(to, { recursive: true });
+    for (const name of (0, node_fs_1.readdirSync)(from).sort(pkg_zip_1.cmpBytes)) {
+        const src = (0, node_path_1.join)(from, name);
+        const dst = (0, node_path_1.join)(to, name);
+        if ((0, node_fs_1.statSync)(src).isDirectory()) {
+            copyTree(src, dst);
+        }
+        else {
+            (0, node_fs_1.mkdirSync)((0, node_path_1.dirname)(dst), { recursive: true });
+            (0, node_fs_1.copyFileSync)(src, dst);
+        }
+    }
+}
+// `aontu pkg refreeze`: recompute every canon pin and nothing else,
+// which is what a canonical-form change in the engine needs.
+function pkgRefreeze(root, options) {
+    const locked = readLock(root);
+    const repinned = [];
+    const unchanged = [];
+    const missing = [];
+    const unevaluable = [];
+    const lock = [];
+    for (const key of Object.keys(locked).sort(pkg_zip_1.cmpBytes)) {
+        const entry = locked[key];
+        const dir = usableKey(key) ?
+            storeDir(root, key, entry.canon, entry.pkg ?? key, options) : undefined;
+        const main = undefined === dir ? undefined : (0, node_path_1.join)(dir, mainOf(dir, options));
+        if (undefined === main || !(0, node_fs_1.existsSync)(main)) {
+            missing.push(key);
+            lock.push(entry);
+            continue;
+        }
+        const got = options.eval((0, node_fs_1.readFileSync)(main, 'utf8'), main);
+        if (!got.ok) {
+            unevaluable.push(key);
+            lock.push(entry);
+            continue;
+        }
+        if (got.hash === entry.canon) {
+            unchanged.push(key);
+            lock.push(entry);
+            continue;
+        }
+        repinned.push({ key, from: entry.canon, to: got.hash });
+        lock.push({ ...entry, canon: got.hash });
+    }
+    const held = 0 === missing.length && 0 === unevaluable.length;
+    if (held && 0 < repinned.length) {
+        writeLock(root, lock, options);
+    }
+    return {
+        verdict: held ? 'ok' : 0 < unevaluable.length ? 'error' : 'missing',
+        repinned,
+        unchanged,
+        missing,
+        unevaluable,
+    };
+}
+// `aontu pkg tree`: the locked closure as a graph, each node's edges
+// read from its own package file in the store.
+function pkgTree(root, options) {
+    const locked = readLock(root);
+    const self = packageSelf(root, options);
+    const nodes = [];
+    const missing = [];
+    nodes.push({
+        key: '' === self.path ? '.' : self.path,
+        v: self.version,
+        deps: Object.keys(declaredDeps((0, node_path_1.join)(root, mod_1.PKG_FILE), options)).sort(pkg_zip_1.cmpBytes),
+    });
+    for (const key of Object.keys(locked).sort(pkg_zip_1.cmpBytes)) {
+        const entry = locked[key];
+        const dir = usableKey(key) ?
+            storeDir(root, key, entry.canon, entry.pkg ?? key, options) : undefined;
+        if (undefined === dir) {
+            missing.push(key);
+            nodes.push({ key, v: entry.v, deps: [] });
+            continue;
+        }
+        nodes.push({
+            key, v: entry.v,
+            deps: Object.keys(declaredDeps((0, node_path_1.join)(dir, mod_1.PKG_FILE), options)).sort(pkg_zip_1.cmpBytes),
+        });
+    }
+    return {
+        verdict: 0 === missing.length ? 'ok' : 'missing',
+        root: nodes[0].key,
+        nodes,
+        missing,
+    };
+}
+exports.MANIFEST_SCHEMA = 'aontu-package/v1';
+// `aontu pkg manifest`: the manifest a publish would send, and the gate
+// that decides whether it may be.
+function pkgManifest(root, options, against) {
+    const self = packageSelf(root, options);
+    const missing = [];
+    if ('' === self.path) {
+        missing.push('pkg.path');
+    }
+    if ('' === self.version) {
+        missing.push('pkg.version');
+    }
+    const main = (0, node_path_1.join)(root, self.main);
+    if (!(0, node_fs_1.existsSync)(main)) {
+        missing.push(self.main);
+    }
+    const refused = (why, forbidden = []) => ({
+        verdict: 'error', missing: why.sort(pkg_zip_1.cmpBytes), forbidden, findings: [],
+    });
+    if (0 < missing.length) {
+        return refused(missing);
+    }
+    const newSrc = (0, node_fs_1.readFileSync)(main, 'utf8');
+    const got = options.eval(newSrc, main);
+    // Nothing to pin: `tidy` refuses the same way.
+    if (!got.ok) {
+        return refused([self.main]);
+    }
+    const archive = archiveOf(root);
+    if (0 < archive.forbidden.length) {
+        return refused([], archive.forbidden);
+    }
+    const report = {
+        verdict: 'ok',
+        manifest: {
+            schema: exports.MANIFEST_SCHEMA,
+            package: self.path,
+            version: self.version,
+            publish: self.publish,
+            archive: {
+                format: 'zip', digest: archive.digest, size: archive.size,
+                files: archive.files,
+            },
+            modules: [{ path: self.path, main: self.main, canon: got.hash }],
+            deps: declaredDeps((0, node_path_1.join)(root, mod_1.PKG_FILE), options),
+            ...(0 === self.retract.length ? {} : { retract: self.retract }),
+            ...(null == self.moved ? {} : { moved: self.moved }),
+        },
+        missing: [],
+        forbidden: [],
+        findings: [],
+    };
+    if (null == against) {
+        return report;
+    }
+    // THE PUBLISH-TIME COMPATIBILITY GATE: G3's subsumption
+    // (ts/src/subsume.ts), wired at the one place versions are minted,
+    // with no major to bump past it (ADR-022).
+    const prior = packageSelf(against, options);
+    const priorMain = (0, node_path_1.join)(against, prior.main);
+    if (!(0, node_fs_1.existsSync)(priorMain)) {
+        report.verdict = 'error';
+        report.missing = [prior.main];
+        return report;
+    }
+    const priorSrc = (0, node_fs_1.readFileSync)(priorMain, 'utf8');
+    const urls = {
+        generalUrl: main,
+        specificUrl: priorMain,
+        generalPath: main,
+        specificPath: priorMain,
+    };
+    const gate = (0, subsume_1.subsume)(newSrc, priorSrc, urls);
+    report.findings = gate.findings;
+    report.verdict = MANIFEST_VERDICT[gate.verdict];
+    if ('error' === gate.verdict) {
+        return report;
+    }
+    // Admission alone is not compatibility: what the prior version
+    // generated, the next must generate, and the same (ts/src/compat.ts).
+    const outcome = (0, compat_1.compatOutcome)(newSrc, priorSrc, urls);
+    report.findings = report.findings.concat(outcome.findings);
+    if ('breaking' === outcome.verdict) {
+        report.verdict = 'breaking';
+    }
+    return report;
+}
+const MANIFEST_VERDICT = {
+    subsumes: 'ok',
+    does_not_subsume: 'breaking',
+    undecided: 'undecided',
+    error: 'error',
+};
+// The manifest as the bytes a publish signs and a repository serves:
+// canonical aontu, one line, keys sorted, which for scalar leaves is
+// JSON.
+function manifestText(m, options, extra) {
+    const src = JSON.stringify({ ...m, ...(extra ?? {}) });
+    return options.eval(src, 'manifest.aon').canon;
+}
+//# sourceMappingURL=pkg.js.map

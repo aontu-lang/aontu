@@ -74,9 +74,9 @@ Tooling:
     [GitHub Action](../vet-action/README.md)
   - evolve a schema: [`subsume`](reference-api.md#aontu-subsume),
     [`breaking`](reference-api.md#aontu-breaking)
-  - ask and change: [`get`](reference-api.md#aontu-get),
-    [`why`](reference-api.md#aontu-why),
-    [`set`](reference-api.md#aontu-set),
+  - ask and change: [`get`](reference-api.md#aontu-model-get),
+    [`why`](reference-api.md#aontu-model-why),
+    [`set`](reference-api.md#aontu-model-set),
     [`trim`](reference-api.md#aontu-trim)
   - identity and relations:
     [`relations`](reference-api.md#aontu-relations),
@@ -87,8 +87,12 @@ Tooling:
   - generate: [`template`](reference-api.md#aontu-template),
     [`trace`](reference-api.md#aontu-trace) (the guide:
     [Generate code from a model](how-to/generate-code.md))
-  - distribute and hand over: [`mod`](reference-api.md#aontu-mod),
-    [`agentsmd`](reference-api.md#aontu-agentsmd)
+  - depend and publish: [`sync`](reference-api.md#aontu-sync),
+    [`add`, `get`, `remove`](reference-api.md#aontu-add-aontu-get-aontu-remove),
+    [`why`](reference-api.md#aontu-why),
+    [`publish`](reference-api.md#aontu-publish),
+    [`pkg`](reference-api.md#aontu-pkg)
+  - hand over: [`agentsmd`](reference-api.md#aontu-agentsmd)
   - keep in the agreed form: [`fmt`](reference-api.md#aontu-fmt) (the form: [The formatted form](reference-language.md#the-formatted-form); the guide: [Format a document](how-to/format-a-document.md))
 
   With no file at all, `aontu` starts a REPL.

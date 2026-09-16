@@ -290,7 +290,7 @@ ok "CLOSED: length(max(2)) refuses 3 data entries under vet"
 # alternative admits this data -- while an evaluation answers with the
 # conflict that emptied it, `scalar_value` at the plan the two arms
 # disagree about. The check read `empty` for both only because the old
-# TypeScript include path made `@"g3.aon"` mean something the same
+# TypeScript include path made `@"./g3.aon"` mean something the same
 # bytes inlined did not; with an include unifying in place, the
 # composed document and its inlining refuse identically, in both
 # ports, and that equivalence is what the third assertion below now
@@ -302,7 +302,7 @@ has stale out 'verdict: invalid'
 has stale out '[aontu/empty]'
 # The identical composition as one evaluation refuses too, naming the
 # conflict rather than the exhausted disjunction:
-printf '@"g3.aon"\nt: { p: "free", e: { sso: true } }\n' > "$WORK/g3e.aon"
+printf '@"./g3.aon"\nt: { p: "free", e: { sso: true } }\n' > "$WORK/g3e.aon"
 run staleeval 1 -- "$WORK/g3e.aon"
 has staleeval err '[aontu/scalar_value]'
 has staleeval err '$.t.e.plan'

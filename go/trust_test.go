@@ -23,7 +23,7 @@ func trustWorld(t *testing.T) (dir, root string) {
 	}
 	files := map[string]string{
 		filepath.Join(root, "in.aon"):          "f: 11",
-		filepath.Join(root, "nest.aon"):        "@\"in.aon\"\ng: 22",
+		filepath.Join(root, "nest.aon"):        "@\"./in.aon\"\ng: 22",
 		filepath.Join(root, "sub", "deep.aon"): "h: 33",
 		filepath.Join(dir, "secret.aon"):       `secret: "outside"`,
 	}
@@ -323,7 +323,7 @@ func TestTrustWarnOnEscape(t *testing.T) {
 	a.TrustWarn = func(kind, path string) { warned = append(warned, kind+" "+path) }
 	a.TrustWarnRoot = root
 	if _, err := a.Generate(
-		`a:@"` + srcPath(dir) + `/secret.aon" b:@"in.aon"`); err != nil {
+		`a:@"` + srcPath(dir) + `/secret.aon" b:@"./in.aon"`); err != nil {
 		t.Fatal(err)
 	}
 	if 1 != len(warned) || !strings.HasPrefix(warned[0], "escape ") {

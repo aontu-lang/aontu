@@ -180,7 +180,7 @@ func TestVetJSONFormatNamesItsProducer(t *testing.T) {
 // vetted from another directory came back `error`, and a same-named
 // file in the working directory was read instead.
 func TestVetResolvesIncludesFromEachDocument(t *testing.T) {
-	dir, s, d := vetFiles(t, "@\"part.aon\"\nname: string", "name: \"auth\"\nport: 8080")
+	dir, s, d := vetFiles(t, "@\"./part.aon\"\nname: string", "name: \"auth\"\nport: 8080")
 	if err := os.WriteFile(filepath.Join(dir, "part.aon"),
 		[]byte("port: integer"), 0o600); err != nil {
 		t.Fatal(err)

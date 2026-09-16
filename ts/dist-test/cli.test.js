@@ -59,6 +59,9 @@ function run(args, input) {
         return { out: (err.stdout ?? '') + (err.stderr ?? ''), code: err.status ?? 1 };
     }
 }
+const NO_SERVERS = {
+    lsp: () => undefined, mcp: () => undefined, serve: async () => undefined, http: () => ({}),
+};
 (0, node_test_1.describe)('cli', () => {
     // --- unit: evalSource is the pure core the CLI renders with ---
     (0, node_test_1.test)('eval-json', () => {
@@ -204,7 +207,7 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
         Assert.equal(report.findings[0].sites[0].role, 'data');
     });
     (0, node_test_1.test)('vet-resolves-includes-from-each-document', () => {
-        const f = vetFiles('@"part.aon"\nname: string', 'name: "auth"\nport: 8080');
+        const f = vetFiles('@"./part.aon"\nname: string', 'name: "auth"\nport: 8080');
         Fs.writeFileSync(Path.join(f.dir, 'part.aon'), 'port: integer');
         const cwd = process.cwd();
         const decoy = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-vet-cwd-'));
@@ -504,7 +507,7 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
             '-c', 'user.email=t@example.com', '-c', 'user.name=t', ...args,
         ], { cwd: dir, stdio: ['ignore', 'pipe', 'pipe'] });
         git('init', '-q', '.');
-        Fs.writeFileSync(entry, 'svc: @"schema.aon"');
+        Fs.writeFileSync(entry, 'svc: @"./schema.aon"');
         Fs.writeFileSync(inc, 'port: *8080|integer');
         // A file no include can name: the materialiser must skip it.
         Fs.writeFileSync(Path.join(dir, 'README.md'), '# not a source');
@@ -1155,7 +1158,7 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
         Fs.writeFileSync(entry, 'services: { auth: { owner: string } }');
         const r = vetCapture(() => Assert.equal((0, cli_1.runAgentsMd)([entry]), 0));
         Assert.match(r.out, /<!-- aontu:begin -->/);
-        Assert.match(r.out, /aontu get \$\.services/);
+        Assert.match(r.out, /aontu model get \$\.services/);
         Assert.match(r.out, /Pin: `aon1-/);
         // An ABSENT target is an empty one, and prose already there is
         // kept: a generator that rewrote the file is one nobody dares run
@@ -1373,7 +1376,7 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
             '"services": "auth": "replicas": 5\n');
         const j = JSON.parse(vetCapture(() => Assert.equal((0, cli_1.runSet)(['$.services.auth.owner="identity-2"', '--format', 'json',
             '--entry', entry, '--overlay', overlay]), 0)).out);
-        Assert.equal(j.aontu.verb, 'set');
+        Assert.equal(j.aontu.verb, 'model set');
         Assert.equal(j.verdict, 'valid');
         Assert.equal(j.written, true);
         Assert.deepEqual(j.appended, ['"services": "auth": "owner": "identity-2"']);
@@ -1418,7 +1421,7 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
         // empty overlay) and then fails to write, which is also usage.
         Assert.equal(vetCapture(() => Assert.equal((0, cli_1.runSet)(['$.a.b=1', '--entry', f.general,
             '--overlay', Path.join(f.dir, 'no-such-dir', 'ov.aon')]), 2)).err.includes('cannot write'), true);
-        Assert.equal(vetCapture(() => Assert.equal((0, cli_1.runSet)(['--help']), 0)).out.includes('aontu set'), true);
+        Assert.equal(vetCapture(() => Assert.equal((0, cli_1.runSet)(['--help']), 0)).out.includes('aontu model set'), true);
     });
     // G7 phase 3: provenance. The record itself is pinned by
     // test/spec/why.tsv in both ports; these cases hold the command
@@ -1439,7 +1442,7 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
         const t = vetCapture(() => Assert.equal((0, cli_1.runWhy)(['$.a', topFile]), 0));
         Assert.match(t.out, /no contributions/);
         const j = JSON.parse(vetCapture(() => Assert.equal((0, cli_1.runWhy)(['$.services.auth.replicas', '--format', 'json', file]), 0)).out);
-        Assert.equal(j.aontu.verb, 'why');
+        Assert.equal(j.aontu.verb, 'model why');
         Assert.equal(j.ok, true);
         Assert.equal(j.record.value, '3');
         Assert.equal(j.record.conjuncts.length, 2);
@@ -1460,7 +1463,7 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
         vetCapture(() => Assert.equal((0, cli_1.runWhy)(['$.a', '--format', 'yaml', f.general]), 2));
         vetCapture(() => Assert.equal((0, cli_1.runWhy)(['$.a', '--format']), 2));
         vetCapture(() => Assert.equal((0, cli_1.runWhy)(['$.a', Path.join(f.dir, 'missing.aon')]), 2));
-        Assert.equal(vetCapture(() => Assert.equal((0, cli_1.runWhy)(['--help']), 0)).out.includes('aontu why'), true);
+        Assert.equal(vetCapture(() => Assert.equal((0, cli_1.runWhy)(['--help']), 0)).out.includes('aontu model why'), true);
         // The JSON form of a refusal carries the findings and no record.
         const j = JSON.parse(vetCapture(() => Assert.equal((0, cli_1.runWhy)(['$.zz', '--format', 'json', f.general]), 1)).out);
         Assert.equal(j.ok, false);
@@ -1495,7 +1498,7 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
             .out.trim(), 'auth');
         Assert.equal(vetCapture(() => Assert.equal((0, cli_1.runGet)(['$', '--canon', '--depth', '1', file]), 0)).out.trim(), '{"port":top,"svc":top}');
         const j = JSON.parse(vetCapture(() => Assert.equal((0, cli_1.runGet)(['$.svc.auth', '--format', 'json', file]), 0)).out);
-        Assert.equal(j.aontu.verb, 'get');
+        Assert.equal(j.aontu.verb, 'model get');
         Assert.equal(j.ok, true);
         Assert.equal(j.findings.length, 0);
     });
@@ -1531,7 +1534,7 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
         // say -- refused rather than silently switching the view.
         Assert.equal(vetCapture(() => Assert.equal((0, cli_1.runGet)(['$.a', '--depth', '1', f.general]), 2)).err.includes('JSON cannot say top'), true);
         vetCapture(() => Assert.equal((0, cli_1.runGet)(['$.a', Path.join(f.dir, 'missing.aon')]), 2));
-        Assert.equal(vetCapture(() => Assert.equal((0, cli_1.runGet)(['--help']), 0)).out.includes('aontu get'), true);
+        Assert.equal(vetCapture(() => Assert.equal((0, cli_1.runGet)(['--help']), 0)).out.includes('aontu model get'), true);
     });
     (0, node_test_1.test)('hash-pins-meaning-not-text', () => {
         const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-hash-'));
@@ -1593,11 +1596,11 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
         Assert.match(rl.out, /verdict: pass/);
         const h = vetCapture(() => (0, cli_1.main)(['node', 'aontu', 'hash', f.general]));
         Assert.match(h.out, /^aon1-/);
-        const g = vetCapture(() => (0, cli_1.main)(['node', 'aontu', 'get', '$.a', '--canon', f.general]));
+        const g = vetCapture(() => (0, cli_1.main)(['node', 'aontu', 'model', 'get', '$.a', '--canon', f.general]));
         Assert.match(g.out, /integer/);
-        const w = vetCapture(() => (0, cli_1.main)(['node', 'aontu', 'why', '$.a', f.general]));
+        const w = vetCapture(() => (0, cli_1.main)(['node', 'aontu', 'model', 'why', '$.a', f.general]));
         Assert.match(w.out, /\$\.a = integer/);
-        const st = vetCapture(() => (0, cli_1.main)(['node', 'aontu', 'set', '$.a=1', '--dry-run',
+        const st = vetCapture(() => (0, cli_1.main)(['node', 'aontu', 'model', 'set', '$.a=1', '--dry-run',
             '--entry', f.general, '--overlay', Path.join(f.dir, 'ov.aon')]));
         Assert.match(st.out, /verdict: valid/);
         const md = vetCapture(() => (0, cli_1.main)(['node', 'aontu', 'agentsmd', f.general]));
@@ -1632,11 +1635,11 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
         // 2. WHY, on the schema, for what the hole has to satisfy. The
         //    finding named the path; this is the step that turns it into a
         //    constraint the emitter can meet.
-        const why = run(['why', '$.service.port', f.schema]);
+        const why = run(['model', 'why', '$.service.port', f.schema]);
         Assert.equal(why.code, 0);
         Assert.match(why.out, /above\(1023\)/);
         // 3. SET, which writes the overlay only if the change holds.
-        const set = run(['set', '$.service.port=8080',
+        const set = run(['model', 'set', '$.service.port=8080',
             '--entry', f.deploy, '--overlay', overlay]);
         Assert.equal(set.code, 0);
         Assert.match(set.out, /verdict: valid/);
@@ -1654,7 +1657,7 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
     (0, node_test_1.test)('a-pinned-value-refuses-the-repair-and-writes-nothing', () => {
         const f = loopFiles();
         const overlay = Path.join(f.dir, 'overlay.aon');
-        const set = run(['set', '$.service.name="other"',
+        const set = run(['model', 'set', '$.service.name="other"',
             '--entry', f.deploy, '--overlay', overlay]);
         Assert.equal(set.code, 1);
         Assert.match(set.out, /verdict: invalid/);
@@ -1854,6 +1857,8 @@ function fmtFiles(...srcs) {
         const servers = {
             lsp: () => void calls.push('lsp'),
             mcp: (argv) => void calls.push('mcp ' + argv.join(' ')),
+            serve: async () => undefined,
+            http: () => ({}),
         };
         vetCapture(() => (0, cli_1.main)(['node', 'cli', 'lsp'], servers));
         vetCapture(() => (0, cli_1.main)(['node', 'cli', 'mcp', '--root', '/tmp'], servers));
@@ -2075,24 +2080,38 @@ function fmtFiles(...srcs) {
         Assert.equal(vetCapture(() => Assert.equal((0, cli_1.runFmt)([Path.join(ok.toString(), 'd.aontu')]), 0)).out, 'a: b: 1\n');
     });
 });
-(0, node_test_1.describe)('cli-mod-layout', () => {
-    // A project that still carries the lockfile or the vendor tree at
-    // its root, from before they moved under aontu_meta/, is told so
-    // once, whatever the verb; nothing there is read.
-    (0, node_test_1.test)('mod-names-the-old-layout', () => {
+(0, node_test_1.describe)('cli-pkg-layout', () => {
+    // A project still carrying the older layout -- mod.aon, a root or
+    // aontu_meta/ mod-lock.aon, aon_vendor/ -- is told the current one,
+    // once, whatever the verb; nothing there is read (ADR-039).
+    (0, node_test_1.test)('pkg-names-the-old-layout', () => {
         const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-layout-'));
         Fs.writeFileSync(Path.join(dir, 'mod.aon'), 'mod: { path: "corp.example/app" }\n');
         Fs.mkdirSync(Path.join(dir, 'aon_vendor'));
-        const r = vetCapture(() => (0, cli_1.runMod)(['verify', dir]));
-        Assert.match(r.err, /aon_vendor\/ and mod-lock\.aon now live under aontu_meta\//);
+        const r = vetCapture(() => (0, cli_1.runPkg)(['verify', dir], NO_SERVERS));
+        Assert.match(r.err, /aon_vendor, mod.aon belong to an older layout/);
+        Assert.match(r.err, /rename pkg.aon's `mod` block to `pkg`/);
         // The lockfile alone at the root is the same hint.
         const dir2 = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-layout-'));
-        Fs.writeFileSync(Path.join(dir2, 'mod.aon'), 'mod: { path: "corp.example/app" }\n');
+        Fs.writeFileSync(Path.join(dir2, 'pkg.aon'), 'pkg: { path: "corp.example/app" }\n');
         Fs.writeFileSync(Path.join(dir2, 'mod-lock.aon'), '# mod-lock.aon\n{"lock":{}}\n');
-        Assert.match(vetCapture(() => (0, cli_1.runMod)(['verify', dir2])).err, /now live under aontu_meta\//);
+        Assert.match(vetCapture(() => (0, cli_1.runPkg)(['verify', dir2], NO_SERVERS)).err, /older layout/);
         const dir3 = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-layout-'));
-        Fs.writeFileSync(Path.join(dir3, 'mod.aon'), 'mod: { path: "corp.example/app" }\n');
-        Assert.doesNotMatch(vetCapture(() => (0, cli_1.runMod)(['verify', dir3])).err, /aontu_meta\//);
+        Fs.writeFileSync(Path.join(dir3, 'pkg.aon'), 'pkg: { path: "corp.example/app" }\n');
+        Assert.doesNotMatch(vetCapture(() => (0, cli_1.runPkg)(['verify', dir3], NO_SERVERS)).err, /older layout/);
+    });
+    (0, node_test_1.test)('model-dispatches-the-document-verbs', () => {
+        Assert.equal(vetCapture(() => Assert.equal((0, cli_1.runModel)(['--help']), 0)).out
+            .includes('Usage: aontu'), true);
+        Assert.match(vetCapture(() => Assert.equal((0, cli_1.runModel)([]), 2)).err, /model needs get, why or set/);
+        Assert.match(vetCapture(() => Assert.equal((0, cli_1.runModel)(['nope']), 2)).err, /model needs get, why or set/);
+        const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-model-'));
+        const file = Path.join(dir, 'doc.aon');
+        Fs.writeFileSync(file, 'a: 1\n');
+        Assert.equal(vetCapture(() => Assert.equal((0, cli_1.runModel)(['get', '$.a', file]), 0)).out.trim(), '1');
+        Assert.match(vetCapture(() => Assert.equal((0, cli_1.runModel)(['why', '$.a', file]), 0)).out, /\$\.a = 1/);
+        Assert.equal((0, cli_1.runModel)(['set', '$.b=2', '--dry-run', '--entry', file,
+            '--overlay', Path.join(dir, 'ov.aon')]), 0);
     });
 });
 (0, node_test_1.describe)('cli-allow', () => {
@@ -2145,7 +2164,7 @@ function fmtFiles(...srcs) {
             '$.tests.smoke=3 secrets: key: "x"',
             '$.tests.smoke=3\nsecrets: 1',
             '$.tests.smoke="unterminated',
-            '$.tests.smoke=@"other.aon"',
+            '$.tests.smoke=@"./other.aon"',
         ]) {
             const r = vetCapture(() => Assert.equal((0, cli_1.runAllow)(['--role', 'qa', file, bad]), 2));
             Assert.match(r.err, /the value of \$\.tests\.smoke is not one value/);
@@ -2196,7 +2215,7 @@ function fmtFiles(...srcs) {
         const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-allow-trust-'));
         Fs.writeFileSync(Path.join(dir, 'dev.aon'), 'roles: dev: { allow: ["$"] }');
         const file = Path.join(dir, 'roles.aon');
-        Fs.writeFileSync(file, '@"dev.aon"\n');
+        Fs.writeFileSync(file, '@"./dev.aon"\n');
         vetCapture(() => Assert.equal((0, cli_1.runAllow)(['--role', 'dev', file, '$.a']), 0));
         const denied = vetCapture(() => Assert.equal((0, cli_1.runAllow)(['--trust', 'none', '--role', 'dev', file, '$.a']), 4));
         Assert.match(denied.out, /include_denied/);

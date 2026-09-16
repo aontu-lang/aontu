@@ -50,7 +50,7 @@ func trustRun(args ...string) (string, string, int) {
 
 func TestTrustCliNoneDenies(t *testing.T) {
 	_, _, entry := trustCliWorld(t)
-	if err := os.WriteFile(entry, []byte(`a:@"in.aon"`), 0o600); err != nil {
+	if err := os.WriteFile(entry, []byte(`a:@"./in.aon"`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	_, errText, code := trustRun("--trust", "none", entry)
@@ -79,7 +79,7 @@ func TestTrustCliIncludeRootConfines(t *testing.T) {
 
 func TestTrustCliRootDefaultsToTheEntryDirectory(t *testing.T) {
 	dir, _, entry := trustCliWorld(t)
-	if err := os.WriteFile(entry, []byte(`a:@"in.aon"`), 0o600); err != nil {
+	if err := os.WriteFile(entry, []byte(`a:@"./in.aon"`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if _, _, code := trustRun("--trust", "root", entry); 0 != code {
@@ -104,7 +104,7 @@ func TestTrustCliRootDefaultsToTheEntryDirectory(t *testing.T) {
 func TestTrustCliDefaultWarnsOnEscape(t *testing.T) {
 	dir, _, entry := trustCliWorld(t)
 	if err := os.WriteFile(entry, []byte(
-		`a:@"`+srcPath(dir)+`/secret.aon" b:@"`+srcPath(dir)+`/secret.aon" c:@"in.aon"`,
+		`a:@"`+srcPath(dir)+`/secret.aon" b:@"`+srcPath(dir)+`/secret.aon" c:@"./in.aon"`,
 	), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -151,7 +151,8 @@ func TestTrustCliEveryVerbHonoursTheCapability(t *testing.T) {
 	denied := func(args ...string) {
 		t.Helper()
 		openOut, openErr, openCode := trustRun(args...)
-		shutArgs := append([]string{args[0], "--trust", "none"}, args[1:]...)
+		at := verbEnd(args)
+		shutArgs := append(append(append([]string{}, args[:at]...), "--trust", "none"), args[at:]...)
 		shutOut, shutErr, shutCode := trustRun(shutArgs...)
 		if openCode == shutCode && openOut == shutOut && openErr == shutErr {
 			t.Fatalf("the verb ignored --trust: %s", strings.Join(args, " "))
@@ -167,8 +168,8 @@ func TestTrustCliEveryVerbHonoursTheCapability(t *testing.T) {
 	}
 
 	denied("vet", entry, data)
-	denied("get", "$.a.secret", entry)
-	denied("why", "$.a.secret", entry)
+	denied("model", "get", "$.a.secret", entry)
+	denied("model", "why", "$.a.secret", entry)
 	denied("subsume", entry, entry)
 	denied("breaking", "--against", entry, entry)
 	denied("relations", entry)
@@ -179,7 +180,7 @@ func TestTrustCliEveryVerbHonoursTheCapability(t *testing.T) {
 	denied("view", "doc", entry)
 	denied("hash", entry)
 	denied("agentsmd", entry)
-	denied("set", "$.z=1", "--entry", entry, "--overlay", overlay)
+	denied("model", "set", "$.z=1", "--entry", entry, "--overlay", overlay)
 }
 
 func TestTrustCliEveryVerbHonoursTheTextExtensions(t *testing.T) {
@@ -217,8 +218,8 @@ func TestTrustCliEveryVerbHonoursTheTextExtensions(t *testing.T) {
 	}
 
 	both("vet", schema, entry)
-	both("get", "$.doc", entry)
-	both("why", "$.doc", entry)
+	both("model", "get", "$.doc", entry)
+	both("model", "why", "$.doc", entry)
 	both("relations", entry)
 	both("trim", "--check", entry)
 	both("reaches", "$.doc", "$.doc", entry)
@@ -228,7 +229,7 @@ func TestTrustCliEveryVerbHonoursTheTextExtensions(t *testing.T) {
 	both("view", "doc", entry)
 	both("view", "layer", entry)
 	both("agentsmd", entry)
-	both("set", "$.z=1", "--entry", entry, "--overlay", overlay)
+	both("model", "set", "$.z=1", "--entry", entry, "--overlay", overlay)
 
 	for _, args := range [][]string{
 		{"subsume", schema, entry},
@@ -276,30 +277,30 @@ func TestTrustCliVerbsTakeIncludeRoot(t *testing.T) {
 		}
 	}
 	write(entry, `a:@"`+srcPath(dir)+`/secret.aon"`)
-	write(inside, `a:@"in.aon"`)
+	write(inside, `a:@"./in.aon"`)
 
-	out, errText, _ := trustRun("get", "$.a.secret", "--include-root", root, entry)
+	out, errText, _ := trustRun("model", "get", "$.a.secret", "--include-root", root, entry)
 	if !strings.Contains(out+errText, "include denied") {
 		t.Fatalf("confined: %q %q", out, errText)
 	}
 	if _, _, code := trustRun(
-		"get", "$.a.f", "--include-root", root, inside); 0 != code {
+		"model", "get", "$.a.f", "--include-root", root, inside); 0 != code {
 		t.Fatalf("in-root: %d", code)
 	}
 	// A bare `root` confines to the document's own directory.
-	if _, _, code := trustRun("get", "$.a.f", "--trust", "root", inside); 0 != code {
+	if _, _, code := trustRun("model", "get", "$.a.f", "--trust", "root", inside); 0 != code {
 		t.Fatalf("bare root, in-root: %d", code)
 	}
-	out, errText, _ = trustRun("get", "$.a.secret", "--trust", "root", entry)
+	out, errText, _ = trustRun("model", "get", "$.a.secret", "--trust", "root", entry)
 	if !strings.Contains(out+errText, "include denied") {
 		t.Fatalf("bare root, escape: %q %q", out, errText)
 	}
 	// A bad spelling is the usage class, from a verb as from the bare
 	// command.
-	if _, _, code := trustRun("get", "$.a", "--trust", "bogus", inside); 2 != code {
+	if _, _, code := trustRun("model", "get", "$.a", "--trust", "bogus", inside); 2 != code {
 		t.Fatalf("bogus: %d", code)
 	}
-	if _, _, code := trustRun("get", "$.a", inside, "--include-root"); 2 != code {
+	if _, _, code := trustRun("model", "get", "$.a", inside, "--include-root"); 2 != code {
 		t.Fatalf("bare --include-root: %d", code)
 	}
 }
@@ -358,7 +359,7 @@ func TestTrustCliUsageErrorsExit2(t *testing.T) {
 func TestTrustCliEveryVerbRefusesABadSpelling(t *testing.T) {
 	_, root, _ := trustCliWorld(t)
 	entry := filepath.Join(root, "main.aon")
-	if err := os.WriteFile(entry, []byte(`a:@"in.aon"`), 0o600); err != nil {
+	if err := os.WriteFile(entry, []byte(`a:@"./in.aon"`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	data := filepath.Join(root, "data.json")
@@ -372,19 +373,20 @@ func TestTrustCliEveryVerbRefusesABadSpelling(t *testing.T) {
 
 	tails := [][]string{
 		{"vet", entry, data},
-		{"get", "$.a.f", entry},
-		{"why", "$.a.f", entry},
+		{"model", "get", "$.a.f", entry},
+		{"model", "why", "$.a.f", entry},
 		{"subsume", entry, entry},
 		{"breaking", "--against", entry, entry},
 		{"relations", entry},
 		{"trim", "--check", entry},
 		{"hash", entry},
 		{"agentsmd", entry},
-		{"set", "$.z=1", "--entry", entry, "--overlay", overlay},
-		{"mod", "tidy", root},
+		{"model", "set", "$.z=1", "--entry", entry, "--overlay", overlay},
+		{"pkg", "tidy", root},
 	}
 	for _, tail := range tails {
-		args := append([]string{tail[0], "--trust", "everything"}, tail[1:]...)
+		at := verbEnd(tail)
+		args := append(append(append([]string{}, tail[:at]...), "--trust", "everything"), tail[at:]...)
 		_, errText, code := trustRun(args...)
 		if 2 != code {
 			t.Fatalf("%s: code %d (%s)", tail[0], code, errText)
@@ -393,4 +395,12 @@ func TestTrustCliEveryVerbRefusesABadSpelling(t *testing.T) {
 			t.Fatalf("%s: stderr %q", tail[0], errText)
 		}
 	}
+}
+
+// verbEnd is where a flag goes: after the subverb of a two-word verb.
+func verbEnd(args []string) int {
+	if "model" == args[0] || "pkg" == args[0] {
+		return 2
+	}
+	return 1
 }

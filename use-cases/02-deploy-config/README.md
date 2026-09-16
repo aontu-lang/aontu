@@ -147,16 +147,16 @@ than its value.
   the generator alike:
 
   ```
-  $ aontu why '$.defs.workload.logLevel' stack.aon
+  $ aontu model why '$.defs.workload.logLevel' stack.aon
   $.defs.workload.logLevel = **"debug"|***"info"|string
     1. ***"info"|string  .../org-policy.aon:31:15
     2. **"debug"|string  .../team-defaults.aon:12:28
 
-  $ aontu why '$.deploy.dev.workloads.web.logLevel' stack.aon
+  $ aontu model why '$.deploy.dev.workloads.web.logLevel' stack.aon
   $.deploy.dev.workloads.web.logLevel = **"debug"|***"info"|string
     1. **"debug"|***"info"|string  .../team-defaults.aon:12:28
 
-  $ aontu why '$.deploy.prod.workloads.billing.replicas' stack.aon
+  $ aontu model why '$.deploy.prod.workloads.billing.replicas' stack.aon
   $.deploy.prod.workloads.billing.replicas = 12
     1. *4|integer  .../envs/prod.aon:12:15  (spread)
     2. 12  .../envs/prod.aon:18:22
