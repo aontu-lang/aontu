@@ -2152,8 +2152,8 @@ A generator answers a **component tree** (`file`, `folder`, `line` and
 the rest) as an ordinary value at `$.out`. `render` hands that tree to
 [jostraca](https://github.com/jostraca/jostraca), the generator runtime
 both implementations depend on, and jostraca writes the files. aontu
-decides which files exist and what each line of them is; how the bytes
-reach a disk is the runtime's. Write a `gen.aon`:
+decides which files exist and what each line of them is; the runtime
+decides how the bytes reach a disk. Write a `gen.aon`:
 
 <!-- test: scenario render -->
 <!-- test: file gen.aon -->

@@ -181,8 +181,8 @@ run the comparison in CI; a hand edit to a generated file is then a red
 build rather than a silent divergence from the model.
 
 Nothing in aontu walks the tree to disk. The value is checkable
-without a runtime (`aontu model get` above), and the bytes are the
-runtime's, so what a user gets is what the check held.
+without a runtime (`aontu model get` above), and the runtime writes
+the bytes, so what a user gets is what the check held.
 
 ## Ask what wrote a line
 
