@@ -444,6 +444,25 @@ describe('pkg-net', () => {
     Assert.match(got.out, /change: added corp.example\/service 1.1.0/)
     const why = await run(w, http, 'why', ['corp.example/common', fresh])
     Assert.equal(why.out.trimEnd(), 'verdict: ok\ncorp.example/app -> corp.example/service -> corp.example/common')
+
+    // A newest version that retracts others and depends on something
+    // the consumer never locked. The advisory gathers what every
+    // manifest retracts, in version order rather than manifest order.
+    await publish(w, publisher(w, 'extra', '1.0.0', 'e?: integer\n'))
+    const three = await publish(w, await publisherWith(w, 'service', '1.2.0',
+      '@"corp.example/common"\n@"corp.example/extra"\nname: string\n',
+      '"corp.example/common": {v: "1.1.0"}, "corp.example/extra": {v: "1.0.0"}',
+      'retract: ["1.0.0", "1.1.0"]\n'))
+    Assert.equal(three.code, 0, three.out)
+    backdate(w, 'service')
+    const again = await run(w, http, 'pkg', ['outdated', app])
+    Assert.equal(again.code, 1, again.out)
+    Assert.match(again.out,
+      /\ncorp.example\/service 1.0.0 -> 1.2.0\n  corp.example\/common 1.0.0 -> 1.1.0\n  corp.example\/extra unlocked -> 1.0.0\ncorp.example\/service 1.0.0: retracted by 1.2.0\n/)
+    const advisory = readJson(Path.join(w.repo, 'advisory', 'corp.example', 'service.aon'))
+    Assert.deepEqual(advisory.retracted,
+      [{ version: '1.0.0', by: '1.1.0' }, { version: '1.0.0', by: '1.2.0' },
+      { version: '1.1.0', by: '1.2.0' }])
   })
 
 
