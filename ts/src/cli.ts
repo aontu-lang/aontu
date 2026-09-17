@@ -3005,6 +3005,26 @@ function renameExcluded(node: any, at: string[], cut: number[]): any {
 }
 
 
+// A file the runtime declined to touch, its copy on disk carrying the
+// protect marker, is in none of the lists it answers with: they hold
+// what was DONE to a file, and nothing was. The run's own record names
+// it. `since` drops what earlier runs left.
+function renderSkipped(folder: string, since: number): string[] {
+  const at = join(folder, '.jostraca', 'jostraca.meta.log')
+  let meta: any
+  try {
+    meta = JSON.parse(readFileSync(at, 'utf8'))
+  }
+  catch (err: any) {
+    return []
+  }
+  return Object.entries(meta?.files ?? {})
+    .filter(([_, f]: [string, any]) => 'skip' === f?.action && since <= f?.when)
+    .map(([path]) => path)
+    .sort(cmpCodePoint)
+}
+
+
 async function runRender(argv: string[]): Promise<number> {
   const trusted = takeTrust(argv)
   if (null == trusted) {
@@ -3187,13 +3207,20 @@ async function runRender(argv: string[]): Promise<number> {
       return 0 === drift.length ? 0 : 1
     }
 
+    const since = Date.now()
     const res = await runtime.generate({ folder }, root)
+    const skipped = renderSkipped(folder, since)
     if ('json' === format) {
       process.stdout.write(exactJSON({
         aontu: { version: version(), verb: 'render' },
         verdict: 'ok',
-        files: res.files,
+        files: { ...res.files, skipped },
       }, 2) + '\n')
+    }
+    else {
+      for (const path of skipped) {
+        process.stdout.write(`skipped: ${path}\n`)
+      }
     }
     return 0
   }
@@ -5474,7 +5501,7 @@ export {
   runJsonSchema,
   runTemplate,
   runTrace,
-  runRender,
+  runRender, renderSkipped,
   runPkg, runModel, runPackageVerb, pkgToolOptions, serveUntilInterrupted,
   runHash, runGet, runHelp, runExplain, runInit, nearestVerb,
   looksLikeVerb,

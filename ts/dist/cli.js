@@ -16,6 +16,7 @@ exports.runJsonSchema = runJsonSchema;
 exports.runTemplate = runTemplate;
 exports.runTrace = runTrace;
 exports.runRender = runRender;
+exports.renderSkipped = renderSkipped;
 exports.runPkg = runPkg;
 exports.runModel = runModel;
 exports.runPackageVerb = runPackageVerb;
@@ -2552,6 +2553,24 @@ function renameExcluded(node, at, cut) {
     }
     return { ...node, children: renameExcluded(node.children, below, cut) };
 }
+// A file the runtime declined to touch, its copy on disk carrying the
+// protect marker, is in none of the lists it answers with: they hold
+// what was DONE to a file, and nothing was. The run's own record names
+// it. `since` drops what earlier runs left.
+function renderSkipped(folder, since) {
+    const at = (0, node_path_1.join)(folder, '.jostraca', 'jostraca.meta.log');
+    let meta;
+    try {
+        meta = JSON.parse((0, node_fs_1.readFileSync)(at, 'utf8'));
+    }
+    catch (err) {
+        return [];
+    }
+    return Object.entries(meta?.files ?? {})
+        .filter(([_, f]) => 'skip' === f?.action && since <= f?.when)
+        .map(([path]) => path)
+        .sort(keyorder_1.cmpCodePoint);
+}
 async function runRender(argv) {
     const trusted = takeTrust(argv);
     if (null == trusted) {
@@ -2723,13 +2742,20 @@ async function runRender(argv) {
             }
             return 0 === drift.length ? 0 : 1;
         }
+        const since = Date.now();
         const res = await runtime.generate({ folder }, root);
+        const skipped = renderSkipped(folder, since);
         if ('json' === format) {
             process.stdout.write((0, aontu_1.exactJSON)({
                 aontu: { version: version(), verb: 'render' },
                 verdict: 'ok',
-                files: res.files,
+                files: { ...res.files, skipped },
             }, 2) + '\n');
+        }
+        else {
+            for (const path of skipped) {
+                process.stdout.write(`skipped: ${path}\n`);
+            }
         }
         return 0;
     }

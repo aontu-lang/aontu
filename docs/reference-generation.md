@@ -450,8 +450,8 @@ by `render --check`, that hold the bytes to each other.
   `func_arity`, and `no_path` by class, with the exit code each run ends
   on.
 - [`aontu render`](reference-api.md#aontu-render). The flags, the
-  synopsis, where a root lands, and the seven groups `--format json`
-  sorts written files into.
+  synopsis, where a root lands, and the groups `--format json` sorts
+  written files into.
 - [Generate code from a model](how-to/generate-code.md). The worked
   recipe: a rule set over the records, a tree of files and lines, and
   the bytes held against goldens.

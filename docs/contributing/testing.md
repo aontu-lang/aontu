@@ -156,6 +156,31 @@ right. Nothing in the suite can warn you, because a row that was never
 probed carries no record of having been agreed. Probing costs two
 commands; the alternative costs a wrong contract that looks green.
 
+## The render matrix
+
+A shared spec row carries what an engine ANSWERS, so a verb that writes
+files has nowhere to put its contract. `aontu render` therefore has one
+of its own: [`test/render/cases.json`](../../test/render/cases.json),
+read by [`ts/test/render-matrix.test.ts`](../../ts/test/render-matrix.test.ts)
+and [`go/cmd/aontu/render_matrix_test.go`](../../go/cmd/aontu/render_matrix_test.go).
+Each case writes its files into a fresh directory, walks its steps, and
+holds the exit code, both streams and the resulting bytes to the same
+expectations in both ports. Changing one port's message or exit code
+fails the other port's suite, which is what the twin test files beside
+it cannot do.
+
+Three normalisations make one expectation fit both: the temporary
+directory becomes `{dir}`, a backslash becomes a forward slash so
+Windows agrees, and the package version becomes `{version}`, the two
+series being the one field the ports never share. Two behaviours stay
+out and stay in the twins: an I/O refusal, whose prose each generator
+runtime writes for itself, and the drift of a file mode, which no
+runner sets portably.
+
+Expectations here are obtained the way a spec row's is, by running both
+CLIs and requiring them to agree. The matrix is where that agreement is
+recorded rather than repeated by hand.
+
 ## The vet ≡ eval differential
 
 Beside the parity probe, which asks whether the two ENGINES agree,

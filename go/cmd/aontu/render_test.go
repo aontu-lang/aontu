@@ -606,3 +606,43 @@ func TestRenderRefusesAFolderItCannotRenderWhole(t *testing.T) {
 		t.Fatalf("plain: code %d: %s", code, errw)
 	}
 }
+
+// The record is the runtime's, so a run that never wrote one, or wrote
+// one this cannot read, answers with no skips rather than refusing.
+// Twin: a-record-it-cannot-read-names-no-skips in ts/test/cli.test.ts.
+func TestRenderSkippedReadsWhatItCan(t *testing.T) {
+	dir := t.TempDir()
+	if got := renderSkipped(dir, 0); 0 != len(got) {
+		t.Fatalf("no record: %v", got)
+	}
+
+	at := filepath.Join(dir, ".jostraca")
+	if err := os.MkdirAll(at, 0o755); nil != err {
+		t.Fatal(err)
+	}
+	log := filepath.Join(at, "jostraca.meta.log")
+	if err := os.WriteFile(log, []byte("not json"), 0o600); nil != err {
+		t.Fatal(err)
+	}
+	if got := renderSkipped(dir, 0); 0 != len(got) {
+		t.Fatalf("unreadable record: %v", got)
+	}
+
+	// Readable JSON that is not a record.
+	if err := os.WriteFile(log, []byte("null"), 0o600); nil != err {
+		t.Fatal(err)
+	}
+	if got := renderSkipped(dir, 0); 0 != len(got) {
+		t.Fatalf("not a record: %v", got)
+	}
+
+	if err := os.WriteFile(log, []byte(`{"files":{
+		"old.txt":{"action":"skip","when":10},
+		"zed.txt":{"action":"skip","when":30},
+		"kept.txt":{"action":"write","when":30}}}`), 0o600); nil != err {
+		t.Fatal(err)
+	}
+	if got := renderSkipped(dir, 20); 1 != len(got) || "zed.txt" != got[0] {
+		t.Fatalf("since: %v", got)
+	}
+}
