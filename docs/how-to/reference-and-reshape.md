@@ -82,7 +82,7 @@ with it; a plain `n: $.m` would have kept both `m` and `n`.
 Path grammar and composition rules are specified in [References and
 paths](../reference-language.md#references-and-paths), and the
 `copy`/`move`/`key` rows in
-[Functions](../reference-functions.md#functions). For reference
+[Functions](../reference-language.md#functions). For reference
 conjunction at scale, the [feature-flag
 catalog](../../use-cases/08-feature-flags/) is the live version: its
 served views are built as `$.flags & $.envs.prod.flags &

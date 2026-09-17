@@ -15,6 +15,7 @@ const DOC_PAGES = [
   'reference-language.md',
   'reference-generation.md',
   'reference-functions.md',
+  'reference-errors.md',
   'reference-api.md',
   'use-cases.md',
   'explanation.md',

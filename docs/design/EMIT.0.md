@@ -195,7 +195,7 @@ A capture buys nothing and costs several things:
    `cap: path(.client)`, `use: $.cap` is `".client"`. `refer()`
    constrains an address to resolve and the field keeps the address.
 3. **It would be the second non-strict argument position.** The
-   functions reference calls `path(p)` "the one non-strict argument
+   language reference calls `path(p)` "the one non-strict argument
    position in the language", and its own call is the marker;
    `emit(.client, T)` would be non-strict invisibly, which is the
    reserved meaning

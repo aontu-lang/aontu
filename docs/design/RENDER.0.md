@@ -63,7 +63,7 @@ against `ts/src/cli.ts` and `go/cmd/aontu/main.go`: the verb list is
 and `std/view`, served from one table in each port; no `aontu:` name
 resolves anywhere yet, so `@"aontu:code"` cannot be served until the
 resolver has that leg. VERIFIED against `test/spec/gen-emit.tsv` and
-the reference's [Transforming: `emit`](../reference-generation.md#transforming-emit):
+the reference's [Transforming: `emit`](../reference-language.md#transforming-emit):
 `emit` returns a flat list whose pieces are whatever the bodies hold —
 strings in every documented example (`["listen(srv:a)", "serve(/a)"]`),
 maps where a body writes one. VERIFIED against

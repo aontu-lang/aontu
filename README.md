@@ -96,9 +96,13 @@ Full documentation is in [`docs/`](docs/):
 - [Documentation home](docs/index.md). Start here
 - [Tutorials](docs/tutorial.md). Four, each building one thing step by step
 - [How-to guides](docs/how-to/). Task-focused recipes
-- [Language reference](docs/reference-language.md). The core language: every value form, operator and rule
-- [Generation reference](docs/reference-generation.md). Generators, selection, rule tables, and the component tree
-- [Functions reference](docs/reference-functions.md). Every built-in, indexed, and a section per family
+- [Language reference](docs/reference-language.md). Every construct and rule
+- [Generation reference](docs/reference-generation.md). The component tree:
+  every node, its props, the children it admits, and what writes it
+- [Functions reference](docs/reference-functions.md). The call surface of every
+  built-in: arity, argument modes, accepted kinds and result words
+- [Error reference](docs/reference-errors.md). Every registered error code, by
+  class, with what raises it
 - [API reference](docs/reference-api.md). TypeScript & Go APIs, and the CLI
 - [Explanation](docs/explanation.md). How and why the unifier works
 - [Test coverage](docs/test-coverage.md). How it is measured, and the numbers

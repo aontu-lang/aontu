@@ -199,8 +199,9 @@ than its value.
     `(512 + 512) + "Mi"` is `"1024Mi"` (`probes/quantity-concat.aon`,
     golden). The arithmetic functions are numeric, so
     `add("256Mi", "256Mi")` is refused where it is written,
-    `[aontu/func_arg]` with the signature `add(a: number, b: number)`
-    in the report (`probes/quantity-add-refused.aon`).
+    `[aontu/func_arg]` with the signature
+    `add(a: number, b: number) : number` in the report
+    (`probes/quantity-add-refused.aon`).
 24. A pack over spread-augmented data fires with the derived columns:
     `ports: &: &: { port: .containerPort, targetPort: .containerPort }`
     followed by a pack over `$.ports` emits entries carrying `port`,

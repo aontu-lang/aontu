@@ -8,7 +8,7 @@ order: 30
 
 `close` seals exactly the node it wraps: it is deliberately
 shallow. Around a
-[`pack`](../reference-generation.md#generating-children-pack-and-each)
+[`pack`](../reference-language.md#generating-children-pack-and-each)
 generator, that means `close(pack(...))` forbids adding *children*
 to the generated map while each child's own keys stay open. A typo'd
 override is then absorbed instead of refused:

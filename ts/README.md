@@ -79,6 +79,7 @@ the same thing in a Node agent harness and a Go gateway.
 - [Language reference](https://github.com/aontu-lang/aontu/blob/main/docs/reference-language.md)
 - [Generation reference](https://github.com/aontu-lang/aontu/blob/main/docs/reference-generation.md)
 - [Functions reference](https://github.com/aontu-lang/aontu/blob/main/docs/reference-functions.md)
+- [Error reference](https://github.com/aontu-lang/aontu/blob/main/docs/reference-errors.md)
 - [API and CLI reference](https://github.com/aontu-lang/aontu/blob/main/docs/reference-api.md)
 - [Agent skill](https://github.com/aontu-lang/aontu/blob/main/docs/skill/SKILL.md)
 

@@ -3,7 +3,7 @@
 # ENCLOSING GENERATOR. The outer pack's fill pass no longer descends
 # into the inner pack's template argument, so the inner `_` binds the
 # inner generator's source child: deploy.dev.services.web.v is the
-# fleet entry {"replicas":1}, exactly as reference-generation.md's "the
+# fleet entry {"replicas":1}, exactly as reference-language.md's "the
 # source child the generated one is being made from" promises.
 # Historically the outer pack filled every hole in its template
 # lexically -- the nested generator's included -- so v answered the

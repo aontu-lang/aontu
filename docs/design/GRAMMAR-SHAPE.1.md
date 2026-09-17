@@ -227,7 +227,7 @@ prose rather than incidental:
   output shape is not something a `.aon` file can choose"* — is now
   false. It needs an amendment, not a rewrite: the decision it records
   (a grammar is a string, parsing is a function) is unaffected.
-- [`docs/reference-functions.md`](../reference-functions.md#shaping-an-unannotated-tree)'s
+- [`docs/reference-language.md`](../reference-language.md#shaping-an-unannotated-tree)'s
   closing sentence — *"the grammar compiler cannot yet express them as
   data"* — is false in the same way, and the "Shaping the tree" section
   around it now describes the SECOND-best way to get structure out of a
@@ -353,7 +353,7 @@ twin of the TypeScript rather than growing a host type. That is ADR-003
 applied literally: aontu defines the meaning and rewrites the input.
 
 **The signature is `map|list|constraint`**, and the reference gained
-["A grammar can say what it builds"](../reference-functions.md#a-grammar-can-say-what-it-builds)
+["A grammar can say what it builds"](../reference-language.md#a-grammar-can-say-what-it-builds)
 with two executed examples. "Shaping the tree" is now "Shaping an
 unannotated tree", which is what it always described.
 

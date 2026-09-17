@@ -268,8 +268,8 @@ the new entry last.
 pipeline. What this case adds is scale enough for the views to matter
 (twelve modules, three roots, shared subtrees) and a rule that
 constrains the *far end* of an edge rather than the edge itself. The
-constructs are specified in the functions reference under
-[Declared relations](../../docs/reference-functions.md#declared-relations).
+constructs are specified in the language reference under
+[Declared relations](../../docs/reference-language.md#declared-relations).
 
 ## What check.sh proves
 

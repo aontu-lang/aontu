@@ -1,6 +1,6 @@
-# Use-case 01 gap 8 (claim C1, refer($.aontu.System.Service) half): the functions
+# Use-case 01 gap 8 (claim C1, refer($.aontu.System.Service) half): the language
 # reference's own example for refer(t) — `[&: refer($.aontu.System.Service), ...]`
-# (reference-functions.md, function table) — dies of unify_cycle when the
+# (reference-language.md, function table) — dies of unify_cycle when the
 # REFERRING entity is id-merged across two views whose shared schema
 # carries a referenced ports template.  The target (svc_ledger) carries
 # no ports at all; the failure names an integer meeting ITSELF.

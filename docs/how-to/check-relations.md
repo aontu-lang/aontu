@@ -48,7 +48,7 @@ jobs: load: fedBy: [path($.jobs.transform)]
 ```
 
 Every list is plain: each entry is a
-[tree address](../reference-functions.md#checked-links-refert), which
+[tree address](../reference-language.md#checked-links-refert), which
 is what `rel()` checks. Both directions are written out by hand,
 because `inverse()` only checks that the mirror exists; it never
 writes the mirror for you. Run the checks:
@@ -144,7 +144,7 @@ all. Exit codes are otherwise `0` pass and `1` fail, with
 `--format json` for a machine-readable report.
 
 The atoms are specified in [Declared
-relations](../reference-functions.md#declared-relations), the verb
+relations](../reference-language.md#declared-relations), the verb
 under [`aontu relations`](../reference-api.md#aontu-relations), and
 the live version, with its checks, is
 [use-cases/12-relations](../../use-cases/12-relations/). Once the

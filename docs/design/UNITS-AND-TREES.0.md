@@ -238,7 +238,7 @@ to get them is sugar for `%piece`, not a second output vocabulary.
 
 Three of the ten components touch a file that already exists, and they
 are the reason to reach for a component engine at all. From
-[`docs/reference-functions.md`](../reference-functions.md): `fragment` is
+[`docs/reference-language.md`](../reference-language.md): `fragment` is
 *"a file read from `from` with its `<[SLOT]>` markers filled by the
 slots beneath it"*, `inject` is *"a body written between markers in a
 file that already exists"*, and `copyfiles` is *"files copied verbatim

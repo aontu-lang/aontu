@@ -397,7 +397,7 @@ superior rather than the argument's, which is top. So every
 the identity. Nothing about `super()` worked.
 
 There was a documentation defect alongside the code one. The function
-table in [`docs/reference-functions.md`](../reference-functions.md) gave
+table in [`docs/reference-language.md`](../reference-language.md) gave
 the example `super(1)` → `number`, which is wrong under the current
 lattice: `1` is an integer literal (R1), and an integer's immediate
 superior is `integer`, not `number`. It is corrected there; the rule
