@@ -28,7 +28,7 @@ open it. Reach for the part that matches your need:
 |---------------------------------------------------------------|------|
 | **Learn** aontu from zero by building something, step by step | [Tutorials](tutorial.md) |
 | **Accomplish a specific task** you already have in mind       | [How-to guides](how-to/) |
-| **Look up** exact syntax, semantics, options, or API surface  | [Language reference](reference-language.md) · [API reference](reference-api.md) |
+| **Look up** exact syntax, semantics, options, or API surface  | [Language reference](reference-language.md) · [API reference](reference-api.md), with three supplements below |
 | **Understand unification itself**: meet, top, bottom, the lattice | [Unification](unification.md) |
 | **Understand** how and why the engine works the way it does   | [Explanation](explanation.md) |
 | **See whole systems defined**, each with its checks runnable  | [Use cases](use-cases.md) |
@@ -68,7 +68,23 @@ Three capabilities have doorways of their own:
   [generate code from a model](how-to/generate-code.md); the live
   version, with three targets in one document and a check that both
   ports build identical trees, is
-  [`use-cases/15-code-generation`](../use-cases/15-code-generation/).
+  [`use-cases/15-code-generation`](../use-cases/15-code-generation/). The
+  rules for the tree itself are the
+  [Generation reference](reference-generation.md).
+
+Three reference sections sit beside the two above. Each is a surface
+that cuts across the language reference rather than a part of it, which
+is what the language reference, organised by topic, cannot show at
+once:
+
+- [Generation reference](reference-generation.md). The component tree:
+  every component node, the props it carries, the children it admits,
+  and what `aontu render` and `aontu trace` do with a tree.
+- [Functions reference](reference-functions.md). The call surface of
+  every built-in: arity, argument modes, accepted kinds and result
+  words, as one table and as slices through it.
+- [Error reference](reference-errors.md). Every registered error code,
+  by class, with what raises it and what a report carries.
 
 Tooling:
 

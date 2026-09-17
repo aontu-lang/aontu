@@ -92,7 +92,7 @@ snippet directive vocabulary — read it before editing any page, and
 update it in the same commit as the first page that follows a new
 rule. **Documented examples are executed**: `ts/test/docs.test.ts`
 requires every tagged fenced block in the Diátaxis pages (`index.md`,
-the tutorials, `docs/how-to/*.md`, both references, `use-cases.md`)
+the tutorials, `docs/how-to/*.md`, the five references, `use-cases.md`)
 to be tested — parse-checked, paired with its stated `json` result,
 scaffolded and run through the scenario/transcript directives, or
 skipped with a written reason — and applies the style gate to the prose.
