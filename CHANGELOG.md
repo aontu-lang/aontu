@@ -101,9 +101,10 @@ grammar depends on, the spellings the parser accepts beyond it with
 what each means, the lexical sets, and the seven checks that hold the
 files to the engine. `docs/reference-agents.md` is the surface a
 machine reads a model through: the eleven doors with what each answers,
-the one answer shape they share, the six things none of them does, the
-include posture each takes by default, the teaching topics, and which
-implementation carries which door.
+the block every JSON answer opens with and the three shapes that follow
+it, the six things none of them does, the include posture each takes by
+default, the teaching topics, and which implementation carries which
+door.
 
 Each is gated against the registry it tabulates. The call surface must
 list every declared built-in once and in order; the catalogue must hold
@@ -114,9 +115,10 @@ must be every code the package source raises, the caps and the
 allowlist must be the engine's own constants, the rule index must be
 the grammar file in its own order, every ordering claim is checked
 against that file, each tolerated spelling is canonicalised and
-compared, the topic table must be what the binary carries, and the
-answer envelope must be the keys the tool prints for a document that
-holds and for one that does not. The signature gate no
+compared, the gbnf and lark grammars must name the same rules as each
+other with the page naming the ABNF's extras, the topic table must be
+what the binary carries, and every verb that answers JSON is run so
+that the page names it under the shape its live keys put it in. The signature gate no
 longer reads one page by name: every gated page that prints a signature
 is held to the engine's registry, and every declared built-in must have
 its signature printed somewhere a reader can reach.
