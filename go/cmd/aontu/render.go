@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	aontu "github.com/aontu-lang/aontu/go"
@@ -20,6 +21,87 @@ const renderHelp = "aontu render [--check] [--at <path>] [--format json] " +
 func isDirectory(path string) bool {
 	st, err := os.Stat(path)
 	return nil == err && st.IsDir()
+}
+
+func exists(path string) bool {
+	_, err := os.Stat(path)
+	return nil == err
+}
+
+// renameExcluded RENAMES the `File` nodes the write path skips and
+// counts them. Removing a node would take its children's claims with
+// it and hide drift the write path does make. This runtime honours
+// `exclude: true` alone, which is where the ports part company
+// (test/spec/divergent.tsv).
+const excludedName = ".aontu-check-excluded-"
+
+func renameExcluded(node any, cut *int) any {
+	if list, ok := node.([]any); ok {
+		tree := make([]any, 0, len(list))
+		for _, child := range list {
+			tree = append(tree, renameExcluded(child, cut))
+		}
+		return tree
+	}
+	// A hand-written tree carries nodes with no `props` and nodes with
+	// no `children`, and a nil map reads as absent, so neither of those
+	// -- nor a node that is not a map at all -- needs an arm of its own.
+	cmp, _ := node.(map[string]any)
+	props, _ := cmp["props"].(map[string]any)
+	if "File" == cmp["cmp"] && true == props["exclude"] {
+		*cut++
+		renamed := map[string]any{}
+		for k, v := range props {
+			renamed[k] = v
+		}
+		renamed["name"] = excludedName + strconv.Itoa(*cut)
+		return withKey(cmp, "props", renamed)
+	}
+	children, ok := cmp["children"].([]any)
+	if !ok {
+		return node
+	}
+	return withKey(cmp, "children", renameExcluded(children, cut))
+}
+
+func withKey(cmp map[string]any, key string, value any) map[string]any {
+	out := make(map[string]any, len(cmp))
+	for k, v := range cmp {
+		out[k] = v
+	}
+	out[key] = value
+	return out
+}
+
+// excludedPaths is the output paths the skipped `File` nodes claimed:
+// what a check of the whole tree lists and a check of the renamed tree
+// does not. jostraca composes every path, twice, and aontu none.
+func excludedPaths(
+	folder string, tree any, checked []string) (map[string]bool, error) {
+	skipped := map[string]bool{}
+	cut := 0
+	renamed := renameExcluded(tree, &cut)
+	if 0 == cut {
+		return skipped, nil
+	}
+	root, err := jostraca.CmpTree(renamed, jostraca.CmpTreeOptions{Raw: true})
+	if nil != err { //coverage:ignore the whole tree passed CmpTree already, and one File's name is not what it reads
+		return skipped, err
+	}
+	res, err := jostraca.New().Check(jostraca.Options{Folder: folder}, root)
+	if nil != err { //coverage:ignore the renamed tree claims the same paths bar one, so a check that succeeded once succeeds here
+		return skipped, err
+	}
+	kept := map[string]bool{}
+	for _, path := range res.Checked {
+		kept[path] = true
+	}
+	for _, path := range checked {
+		if !kept[path] {
+			skipped[path] = true
+		}
+	}
+	return skipped, nil
 }
 
 func renderJSON(v map[string]any) string {
@@ -220,8 +302,21 @@ func runRender(argv []string, stdout, stderr io.Writer) int {
 			io.WriteString(stderr, "aontu: "+err.Error()+"\n")
 			return 2
 		}
+		// `--check` answers "would `render` change anything", so a file
+		// the write path leaves alone is not held to the generator's
+		// bytes. The skip is gated on the target BEING there -- `render`
+		// writes an absent one -- so drift at a path with nothing at it
+		// survives, which is the `missing` a deleted file reports.
+		skipped, serr := excludedPaths(folder, tree, res.Checked)
+		if nil != serr { //coverage:ignore excludedPaths refuses only what the first check already took
+			io.WriteString(stderr, "aontu: "+serr.Error()+"\n")
+			return 2
+		}
 		drift := make([]map[string]any, 0, len(res.Drift))
 		for _, d := range res.Drift {
+			if skipped[d.Path] && exists(filepath.Join(folder, d.Path)) {
+				continue
+			}
 			drift = append(drift, map[string]any{"kind": string(d.Kind), "path": d.Path})
 		}
 		if "json" == format {
@@ -236,8 +331,9 @@ func runRender(argv []string, stdout, stderr io.Writer) int {
 				"drift":   drift,
 			})+"\n")
 		} else {
-			for _, d := range res.Drift {
-				io.WriteString(stdout, string(d.Kind)+": "+d.Path+"\n")
+			for _, d := range drift {
+				io.WriteString(stdout,
+					d["kind"].(string)+": "+d["path"].(string)+"\n")
 			}
 		}
 		if 0 < len(drift) {

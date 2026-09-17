@@ -191,6 +191,7 @@ budget_passes	errcode	budget	0.52.0
 #
 # internal -- the engine reached a state it should not reach
 internal	errcode	internal	0.51.0
+unify_failed	errcode	internal	0.67.0
 unify_no_res	errcode	internal	0.51.0
 unknown_op	errcode	internal	0.51.0
 #

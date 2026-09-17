@@ -1906,9 +1906,8 @@ function drawLoaded(root, ctx, gen, prov, kind, as, options, max, loss) {
             const before = ctx.err.length;
             value = root.gen(ctx);
             if (before < ctx.err.length) {
-                const err = ctx.err[before];
                 return {
-                    errors: [finding(err?.why ?? 'unify_failed', 'reference', '$', err?.msg ?? 'The document does not generate.')],
+                    errors: [(0, vet_1.engineFinding)(ctx.err[before], ctx, '$')],
                 };
             }
         }
@@ -2069,10 +2068,9 @@ function viewSet(src, opts, hooks) {
     const before = ctx.err.length;
     const value = root.gen(ctx);
     if (before < ctx.err.length) {
-        const err = ctx.err[before];
         return {
             verdict: 'error', views: [],
-            errors: [finding(err?.why ?? 'unify_failed', 'reference', '$', err?.msg ?? 'The document does not generate.')],
+            errors: [(0, vet_1.engineFinding)(ctx.err[before], ctx, '$')],
         };
     }
     const declared = genAt(value, at);

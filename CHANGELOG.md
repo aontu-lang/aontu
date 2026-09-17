@@ -10,6 +10,45 @@ which implementation each change affects.
 Landed since the last release, and in the repository rather than in a
 published package.
 
+### `aontu render --check` answers what `render` answers
+
+`--check` reported drift for a file the write path skips, so a project
+that marks a file `exclude` so a person can own it got a red build the
+first time that person edited it. It now reports no difference for a
+file `render` leaves alone, for its bytes and for its permission bits
+alike. A file that is not there yet is still `missing`, because
+`exclude` is consulted only when the target exists and `render` writes
+an absent one.
+
+Both implementations. Each honours what its own runtime honours, which
+is `exclude: true` in both and a path or a list of paths in the
+TypeScript runtime only: `test/spec/divergent.tsv` carries that pair,
+and the tree's own surface is checked twice and differenced rather than
+walked to disk by aontu. Fixes #238.
+
+### A finding's class is its code's class
+
+`invalid-arg` is registered `conflict` and `aontu explain` says so, but
+a report minted for a document that does not stand up said
+`"class": "reference"`, because the builder that carried the engine's
+code hardcoded the class of the query's own failures. Five surfaces
+carried that defect: `model get`, `model why`, `allow`, `view --views`
+and `view` sets, plus `hash` and `agentsmd` in text form and the
+library's `diff`. Each now takes the class from the registry row, as
+`aontu explain` and the bare entry point already did.
+
+Three defects in the same builders went with it. The message was the
+whole rendered error, with source frames, where every other path and
+`docs/reference-errors.md` say it is the one-line headline. It was
+EMPTY on three of those surfaces, because a nil minted while
+generating carries no message until it is materialised. And it carried
+terminal colour escapes inside a JSON string, which no consumer of a
+machine-readable report asked for.
+
+Both implementations, pinned by rows in `test/spec/query.tsv`,
+`test/spec/why.tsv`, `test/spec/view.tsv` and `test/spec/views.tsv`
+that both suites run. Fixes #239.
+
 ### Three supplemental reference sections
 
 The language reference stays one file and keeps every section it has.

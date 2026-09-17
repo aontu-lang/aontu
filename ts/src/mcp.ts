@@ -653,7 +653,7 @@ function hashOf(
   const v: any = aontu.unify(
     src, null == path ? undefined : { path }, ctx)
   if (0 < ctx.err.length || null == v || true === v.isNil) {
-    return { ok: false, hash: '', findings: [evalFailure(ctx)] }
+    return { ok: false, hash: '', findings: [evalFailure(ctx, v)] }
   }
   return {
     ok: true,

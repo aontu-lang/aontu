@@ -151,14 +151,10 @@ func diffSide(src, path, at string) (Val, *VetFinding) {
 	}
 	root, uerr := a.Unify(src)
 	if nil != uerr || nil == root || root.Nil() {
-		code, msg := "unify_failed", "The document does not evaluate."
-		if ae, ok := uerr.(*AontuError); ok && nil != ae {
-			if "" != ae.Code {
-				code = ae.Code
-			}
-			msg = ae.Msg
-		}
-		f := queryFinding(code, "$", msg, "")
+		// The query surface's own fold: a document that does not stand
+		// up has no meaning to compare, and the engine's diagnosis IS
+		// the report.
+		f := engineFinding(evalError(uerr, root, nil), "$")
 		return nil, &f
 	}
 	if "" == at {

@@ -2931,6 +2931,50 @@ function isDirectory(path: string): boolean {
 }
 
 
+// A `File` the write path skips, RENAMED rather than removed: dropping
+// the node would take its children's claims with it and hide drift the
+// write path does make. The skip is the File's own save alone, so what
+// separates the runs is its output path, composed by the runtime rather
+// than here.
+const EXCLUDED_NAME = '.aontu-check-excluded-'
+
+
+// `exclude` as the runtime reads it: `true`, or a string or list member
+// equal to the node's COMPONENT path, the chain of `name` props above
+// it, which a Project's `folder` is not part of. The Go runtime honours
+// the boolean alone, so the ports' `--check` answers differ for the
+// path forms (test/spec/divergent.tsv).
+function excludedFile(exclude: any, at: string[]): boolean {
+  if (true === exclude) {
+    return true
+  }
+  const path = at.join('/')
+  if ('string' === typeof exclude) {
+    return exclude === path
+  }
+  return Array.isArray(exclude) && exclude.includes(path)
+}
+
+
+function renameExcluded(node: any, at: string[], cut: number[]): any {
+  if (Array.isArray(node)) {
+    return node.map((child) => renameExcluded(child, at, cut))
+  }
+  // A hand-written tree carries nodes with no `props` and nodes with
+  // no `children`, and neither needs an arm of its own.
+  const props: any = node.props ?? {}
+  const below = 'string' === typeof props.name ? at.concat(props.name) : at
+  if ('File' === node.cmp && excludedFile(props.exclude, below)) {
+    cut.push(1)
+    return { ...node, props: { ...props, name: EXCLUDED_NAME + cut.length } }
+  }
+  if (!Array.isArray(node.children)) {
+    return node
+  }
+  return { ...node, children: renameExcluded(node.children, below, cut) }
+}
+
+
 async function runRender(argv: string[]): Promise<number> {
   const trusted = takeTrust(argv)
   if (null == trusted) {
@@ -3081,7 +3125,22 @@ async function runRender(argv: string[]): Promise<number> {
   try {
     if (check) {
       const res = await runtime.check({ folder }, root)
-      const drift = res.drift.map((d: any) => ({ kind: d.kind, path: d.path }))
+      let drift = res.drift.map((d: any) => ({ kind: d.kind, path: d.path }))
+      // `--check` answers "would `render` change anything", so a file
+      // the write path leaves alone is not held to the generator's
+      // bytes. The skip is gated on the target BEING there -- `render`
+      // writes an absent one -- so drift at a path with nothing at it
+      // survives, which is the `missing` a deleted file reports.
+      const cut: number[] = []
+      const renamed = renameExcluded(tree, [], cut)
+      if (0 < cut.length) {
+        const kept = new Set<string>((await Jostraca().check(
+          { folder }, cmpTree(renamed, { raw: true }))).checked)
+        const skipped = new Set<string>(
+          res.checked.filter((p: string) => !kept.has(p)))
+        drift = drift.filter((d: any) => !skipped.has(d.path) ||
+          !existsSync(join(folder, d.path)))
+      }
       if ('json' === format) {
         process.stdout.write(exactJSON({
           aontu: { version: version(), verb: 'render' },
@@ -3932,7 +3991,7 @@ function runHash(argv: string[]): number {
   if (0 < ctx.err.length || true === v?.isNil) {
     process.stderr.write(
       `aontu: ${files[0]} does not evaluate on its own; nothing to hash\n` +
-      renderFinding(evalFailure(ctx)) + '\n')
+      renderFinding(evalFailure(ctx, v)) + '\n')
     return 4
   }
 

@@ -224,7 +224,9 @@ func hintOf(why string, details map[string]string) *string {
 	if "" == hint {
 		return nil
 	}
-	text := strings.TrimRight(strinject(hint, details), " \t\r\n")
+	// A placeholder carries coloured engine text; stripped like the rest.
+	text := strings.TrimRight(
+		ansiRe.ReplaceAllString(strinject(hint, details), ""), " \t\r\n")
 	return &text
 }
 
@@ -356,6 +358,50 @@ func throughResidue(v Val) Val {
 // message text. A machine-readable report is no place for them.
 var ansiRe = regexp.MustCompile("\u001b\\[[0-9;]*m")
 
+// headline is a rendered engine message cut to its first line.
+func headline(msg string) string {
+	text := ansiRe.ReplaceAllString(msg, "")
+	if i := strings.IndexByte(text, '\n'); 0 <= i {
+		text = text[:i]
+	}
+	return text
+}
+
+// engineFinding is an ENGINE code at a path the caller names: class and
+// hint from the registry row, message the headline alone. Mirrors
+// engineFinding in ts/src/vet.ts.
+func engineFinding(err error, path string) VetFinding {
+	code := "unify_failed"
+	msg := "The document does not evaluate."
+	var details map[string]string
+	if ae, ok := err.(*AontuError); ok && nil != ae {
+		if "" != ae.Code {
+			code = ae.Code
+		}
+		msg = ae.Msg
+		details = ae.Details
+	}
+	f := VetFinding{
+		Class:    codeClass(code),
+		Code:     code,
+		Hint:     hintOf(code, details),
+		Message:  headline(msg),
+		Path:     path,
+		Severity: "error",
+		Sites:    []VetSite{},
+	}
+	if v, ok := details["expected"]; ok {
+		f.Expected = &v
+	}
+	if v, ok := details["actual"]; ok {
+		f.Actual = &v
+	}
+	if v, ok := details["message"]; ok {
+		f.Note = &v
+	}
+	return f
+}
+
 func parseFinding(url, role string, err error) VetFinding {
 	ae, ok := err.(*AontuError)
 	if !ok { //coverage:ignore every parse failure path returns an *AontuError (lang.go)
@@ -372,15 +418,11 @@ func parseFinding(url, role string, err error) VetFinding {
 		// 1-based).
 		row, col = -1, -1
 	}
-	message := ansiRe.ReplaceAllString(ae.Msg, "")
-	if i := strings.IndexByte(message, '\n'); 0 <= i {
-		message = message[:i]
-	}
 	return VetFinding{
 		Class:    codeClass(code),
 		Code:     code,
 		Hint:     hintOf(code, nil),
-		Message:  message,
+		Message:  headline(ae.Msg),
 		Path:     "$",
 		Severity: "error",
 		Sites: []VetSite{{

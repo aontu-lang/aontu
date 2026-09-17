@@ -580,13 +580,16 @@ function runRow(row: Omit<Row, 'file'> & { file?: string }): void {
     Assert.strictEqual(
       report.findings[0]?.code, golden.code, `why code mismatch: ${row.name}`)
     Assert.strictEqual(
+      report.findings[0]?.class, golden.class,
+      `why class mismatch: ${row.name}`)
+    Assert.strictEqual(
       report.findings[0]?.note, golden.note, `why note mismatch: ${row.name}`)
   }
   else if ('query' === row.mode) {
     // The golden carries the run's options under `opts`; `out` is the
-    // rendered slice, and `code`/`note` the finding when the answer is
-    // a refusal. `message` is excluded, as every other verb's goldens
-    // exclude it: prose is per-port, codes are not.
+    // rendered slice, and `class`/`code`/`note` the finding when the
+    // answer is a refusal. `message` is excluded, as every other
+    // verb's goldens exclude it: prose is per-port, codes are not.
     const golden = JSON.parse(row.expect)
     const opts = golden.opts ?? {}
     const report = get(row.src, row.data as string, opts)
@@ -596,6 +599,9 @@ function runRow(row: Omit<Row, 'file'> & { file?: string }): void {
     Assert.strictEqual(
       report.findings[0]?.code, golden.code,
       `query code mismatch: ${row.name}`)
+    Assert.strictEqual(
+      report.findings[0]?.class, golden.class,
+      `query class mismatch: ${row.name}`)
     Assert.strictEqual(
       report.findings[0]?.note, golden.note,
       `query note mismatch: ${row.name}`)

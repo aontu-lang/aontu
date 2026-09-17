@@ -172,8 +172,11 @@ What each component adds to the table:
 - **`folder`**: `name` is required and non-empty
   (`cmp-folder-needs-a-name`, `cmp-folder-name-not-empty`).
 - **`file`**: `name` is required and may hold `/`, and the folders on
-  the way are made. `exclude` leaves an existing file alone, as `true`,
-  a path, or a list of paths and regexes. `mode` is the permission bits
+  the way are made. `exclude: true` leaves the file alone when it is
+  already there, and is the only form both runtimes honour: a path or a
+  list of paths is matched against the COMPONENT path rather than the
+  output path, and the Go runtime skips nothing for either. `mode` is
+  the permission bits
   as a number: `mode: 493` and `mode: 0o755` are the same value, both
   spellings being [numeric
   literals](reference-language.md#lexical-structure), and
@@ -255,11 +258,16 @@ way, at exit 2, with the first file already written.
 `--check` writes nothing, and its flag entry is under [`aontu
 render`](reference-api.md#aontu-render). What it holds is the tree's own
 surface: the files the generator emits and not the directory, so a file
-that stops being generated is not reported, and a file carrying
-`exclude: true` is held to the bytes the generator would have written
-even though `render` leaves it alone. A reported path is the one the
-generator names, relative to `<path>`, rather than the path the command
-was given. Write a `gen.aon` answering a project of one file:
+that stops being generated is not reported. It answers the question
+`render` answers, so it reports no difference for a file `render`
+leaves alone: a `file` carrying `exclude: true` is reported neither for
+its bytes nor for its mode. The one difference it still reports for
+such a file is `missing`, because `exclude` is consulted only when the
+target is already there, and `render` writes an absent one. A reported
+path is the one the generator names, relative to `<path>`, rather than
+the path the command was given.
+
+Write a `gen.aon` answering a project of one file:
 
 <!-- test: scenario generation-render -->
 <!-- test: file gen.aon -->
@@ -280,6 +288,34 @@ $ aontu render --check gen.aon build
 content: src/main.js
 $ echo $?
 1
+```
+
+The same edit under `exclude: true` is not a difference, because
+`render` does not make it. Write a generator that excludes its one
+file, as `gen.aon`:
+
+<!-- test: scenario generation-render-exclude -->
+<!-- test: file gen.aon -->
+```aon
+out: project(".", [file({ name:"keep.txt" exclude:true }, ["generated"])])
+```
+
+and a hand-written `build/keep.txt`:
+
+<!-- test: file build/keep.txt -->
+```text
+hand written
+```
+
+`render` leaves those bytes where they are, and the check then
+reports nothing:
+
+<!-- test: run -->
+```sh
+$ aontu render gen.aon build
+$ aontu render --check gen.aon build
+$ echo $?
+0
 ```
 
 Exit codes for the verb are listed under [`aontu

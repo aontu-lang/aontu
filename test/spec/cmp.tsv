@@ -94,6 +94,11 @@ cmp-bare-string-not-in-project	errc	x: project("b", ["oops"])	invalid-arg
 cmp-props-project-all	gens	x: project({name: "p" folder: "./b"})	{"x":{"children":[],"cmp":"Project","props":{"folder":"./b","name":"p"}}}
 cmp-props-folder-all	gens	x: folder({name: "s"})	{"x":{"children":[],"cmp":"Folder","props":{"name":"s"}}}
 cmp-props-file-all	gens	x: file({name: "a.ts" exclude: "*.tmp" mode: 420})	{"x":{"children":[],"cmp":"File","props":{"exclude":"*.tmp","mode":420,"name":"a.ts"}}}
+# THE BOOLEAN FORM OF `exclude` REACHES THE NODE UNCHANGED. It is the
+# only form both runtime ports honour on a `File`, and the one key
+# `render --check` reads to skip what the write path skips.
+cmp-props-file-exclude-true	gens	x: file({name: "a.ts" exclude: true})	{"x":{"children":[],"cmp":"File","props":{"exclude":true,"name":"a.ts"}}}
+cmp-props-file-exclude-false	gens	x: file({name: "a.ts" exclude: false})	{"x":{"children":[],"cmp":"File","props":{"exclude":false,"name":"a.ts"}}}
 cmp-props-content-all	gens	x: content({arg: "a" src: "b" name: "n" indent: 2 extra: {k:1} replace: {a:"b"} raw: true})	{"x":{"children":[],"cmp":"Content","props":{"arg":"a","extra":{"k":1},"indent":2,"name":"n","raw":true,"replace":{"a":"b"},"src":"b"}}}
 cmp-props-line-all	gens	x: line({arg: "a" src: "b" name: "n" indent: 2 extra: {k:1} replace: {a:"b"} raw: true})	{"x":{"children":[],"cmp":"Line","props":{"arg":"a","extra":{"k":1},"indent":2,"name":"n","raw":true,"replace":{"a":"b"},"src":"b"}}}
 cmp-props-slot-all	gens	x: slot({name: "s"})	{"x":{"children":[],"cmp":"Slot","props":{"name":"s"}}}

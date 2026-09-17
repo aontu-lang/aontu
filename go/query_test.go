@@ -7,6 +7,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -137,9 +138,74 @@ func TestEvalFailureIsTheEnginesOwnDiagnosis(t *testing.T) {
 	}
 
 	// An error the engine did not shape carries the generic code, the
-	// arm queryFailed reaches for a nil AontuError.
+	// arm queryFailed reaches for a nil AontuError. It is unregistered,
+	// so the registry classes it as an engine defect.
 	if f := EvalFailure(errors.New("plain")); "unify_failed" != f.Code ||
+		"internal" != f.Class ||
 		"The document does not evaluate." != f.Message {
 		t.Fatalf("plain error finding: %+v", f)
+	}
+}
+
+func TestQueryAnEngineCodeTakesItsClassFromTheRegistry(t *testing.T) {
+	// The registry wins: the report layer mints no class of its own.
+	r := New().Get(`out: folder("src", [line("x")])`, "$.out", nil)
+	if r.OK || 1 != len(r.Findings) {
+		t.Fatalf("bad refusal: %+v", r)
+	}
+	f := r.Findings[0]
+	if "invalid-arg" != f.Code || "conflict" != f.Class || "$" != f.Path ||
+		0 != len(f.Sites) {
+		t.Fatalf("finding: %+v", f)
+	}
+
+	// One line, with the repair beside it rather than inside it.
+	if "[aontu/invalid-arg]: Cannot children values at path $.out" != f.Message {
+		t.Fatalf("message: %q", f.Message)
+	}
+	if nil == f.Hint ||
+		!strings.HasPrefix(*f.Hint, "Invalid argument provided.") {
+		t.Fatalf("hint: %+v", f.Hint)
+	}
+}
+
+func TestQueryAnEngineMessageIsTheHeadlineAlone(t *testing.T) {
+	r := New().Get("out: {a: string}", "$.out", nil)
+	if r.OK || 1 != len(r.Findings) {
+		t.Fatalf("bad refusal: %+v", r)
+	}
+	f := r.Findings[0]
+	if "mapval_no_gen" != f.Code || "incomplete" != f.Class ||
+		"$.out" != f.Path {
+		t.Fatalf("finding: %+v", f)
+	}
+	if "[aontu/mapval_no_gen]: Cannot resolve value at path $.out.a" !=
+		f.Message {
+		t.Fatalf("message: %q", f.Message)
+	}
+}
+
+func TestQueryACodeWithNoHintTextCarriesNoHint(t *testing.T) {
+	r := New().Why("a:]", "$")
+	if r.OK || 1 != len(r.Findings) {
+		t.Fatalf("bad refusal: %+v", r)
+	}
+	f := r.Findings[0]
+	if "syntax" != f.Code || "parse" != f.Class || nil != f.Hint {
+		t.Fatalf("finding: %+v", f)
+	}
+}
+
+func TestQueryAnEngineMessageCarriesNoTerminalEscapes(t *testing.T) {
+	// Nothing sets colour off for a library consumer.
+	on := true
+	SetColor(&on)
+	defer SetColor(nil)
+	f := New().Get(`out: folder("src", [line("x")])`, "$.out", nil).Findings[0]
+	if strings.ContainsRune(f.Message, 0x1b) {
+		t.Fatalf("message: %q", f.Message)
+	}
+	if nil == f.Hint || strings.ContainsRune(*f.Hint, 0x1b) {
+		t.Fatalf("hint: %+v", f.Hint)
 	}
 }

@@ -125,9 +125,7 @@ Run it:
 ```sh
 $ aontu model get '$.out' client.aon
 ...
-No template matched a node, and there is no catch-all. `emit`
-tries each template in the order written and takes the first the
-node unifies with; the node {"name":"create","path":"/orders","verb":"POST"} unified with none of {"verb":"GET"}.
+[aontu/emit_none]: Cannot resolve value at path $.out.0
 ...
 $ echo $?
 4
@@ -135,8 +133,20 @@ $ echo $?
 
 The refusal is the lesson. `create` is a `POST`, the only template
 matches `GET`, and a generator that silently dropped the route would
-have produced a client missing a function. The node it could not place
-and the matches it tried are both in the message.
+have produced a client missing a function. `message` is the headline;
+the node it could not place and the matches it tried are in the
+finding's `hint`, which `--format json` carries and running the
+document prints in full:
+
+<!-- test: run -->
+```sh
+$ aontu client.aon
+...
+node unifies with; the node {"name":"create","path":"/orders","verb":"POST"} unified with none of {"verb":"GET"}.
+...
+$ echo $?
+1
+```
 
 ## 4. A second template, and the dispatch
 

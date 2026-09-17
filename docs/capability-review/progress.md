@@ -147,6 +147,17 @@ discharges. G7 phase 7 was found partial on 2026-08-21 — its
 TypeScript one — and was closed on 2026-08-24; its row records what
 the fix was and why the earlier tests could not see the defect.
 
+A second defect in the same surface was found on 2026-09-17 while the
+report's own fields were being written down: a finding reporting an
+engine code carried the class of the query's own failures rather than
+the code's registry class, and on three surfaces carried an empty
+message, the whole rendered error, or terminal colour escapes. No
+phase row moves for it — the surface was there and answered — and the
+reason the goldens could not see it is worth the line: they pinned
+`code` and `note` and deliberately excluded `message` as per-port
+prose, and `class` rode along as neither. It is in the goldens now,
+for `query`, `why`, `view` and `views` alike.
+
 | Gap | Capability | Review phase | Landed | Partial | Not started | Retired |
 |-----|-----------|--------------|--------|---------|-------------|---------|
 | [G1](g1-constraint-algebra.md) | Constraint algebra | A | 7 | 0 | 0 | 0 |

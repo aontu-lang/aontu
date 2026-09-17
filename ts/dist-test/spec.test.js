@@ -440,18 +440,20 @@ function runRow(row) {
         Assert.strictEqual(report.record?.value, golden.value, `why value mismatch: ${row.name}`);
         Assert.strictEqual((0, aontu_1.exactJSON)(report.record?.conjuncts ?? null), (0, aontu_1.exactJSON)(golden.conjuncts ?? null), `why conjuncts mismatch: ${row.name}`);
         Assert.strictEqual(report.findings[0]?.code, golden.code, `why code mismatch: ${row.name}`);
+        Assert.strictEqual(report.findings[0]?.class, golden.class, `why class mismatch: ${row.name}`);
         Assert.strictEqual(report.findings[0]?.note, golden.note, `why note mismatch: ${row.name}`);
     }
     else if ('query' === row.mode) {
         // The golden carries the run's options under `opts`; `out` is the
-        // rendered slice, and `code`/`note` the finding when the answer is
-        // a refusal. `message` is excluded, as every other verb's goldens
-        // exclude it: prose is per-port, codes are not.
+        // rendered slice, and `class`/`code`/`note` the finding when the
+        // answer is a refusal. `message` is excluded, as every other
+        // verb's goldens exclude it: prose is per-port, codes are not.
         const golden = JSON.parse(row.expect);
         const opts = golden.opts ?? {};
         const report = (0, aontu_1.get)(row.src, row.data, opts);
         Assert.strictEqual(report.out, golden.out ?? '', `query out mismatch: ${row.name}`);
         Assert.strictEqual(report.findings[0]?.code, golden.code, `query code mismatch: ${row.name}`);
+        Assert.strictEqual(report.findings[0]?.class, golden.class, `query class mismatch: ${row.name}`);
         Assert.strictEqual(report.findings[0]?.note, golden.note, `query note mismatch: ${row.name}`);
         assertViewSubsumes(row, report, opts);
     }

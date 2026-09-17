@@ -2187,12 +2187,15 @@ function fmtFiles(...srcs) {
     (0, node_test_1.test)('allow-broken-model-is-exit-4-with-the-engines-finding', () => {
         const file = rolesFile('roles: dev: { allow: "$.a" }\n');
         const r = vetCapture(() => Assert.equal((0, cli_1.runAllow)(['--role', 'dev', file, '$.a']), 4));
-        Assert.match(r.out, /^verdict: error\nrole: dev\n\n\$: scalar_kind \[reference\]/);
+        // The engine's code brings the registry's class with it.
+        Assert.match(r.out, /^verdict: error\nrole: dev\n\n\$: scalar_kind \[conflict\]/);
         // The same report as an object.
         const j = JSON.parse(vetCapture(() => Assert.equal((0, cli_1.runAllow)(['--format', 'json', '--role', 'dev', file, '$.a']), 4)).out);
         Assert.equal(j.verdict, 'error');
         Assert.deepEqual(j.paths, []);
         Assert.equal(j.findings[0].code, 'scalar_kind');
+        Assert.equal(j.findings[0].class, 'conflict');
+        Assert.equal(j.findings[0].message, '[aontu/scalar_kind]: Cannot unify values at path $.roles.dev.allow');
     });
     (0, node_test_1.test)('allow-json-names-the-producer', () => {
         const file = rolesFile();
@@ -2434,6 +2437,123 @@ function fmtFiles(...srcs) {
         Assert.equal(got.drift[1].kind, 'missing');
         // Nothing was written by the checks.
         Assert.equal(Fs.readFileSync(Path.join(build, 'a.txt'), 'utf8'), 'edited\n');
+    });
+    (0, node_test_1.test)('check-skips-an-excluded-file', async () => {
+        const d = dir();
+        const gen = file(d, 'gen.aon', 'out: project(".", [\n' +
+            '  file({name: "keep.txt", exclude: true}, ["generated"])\n' +
+            '  file({name: "held.txt"}, ["generated"])\n' +
+            '])\n');
+        const build = Path.join(d, 'build');
+        Assert.equal((await render([gen, build])).code, 0);
+        // `render` leaves the excluded file alone, so `--check` says
+        // nothing about it -- and still holds the one beside it.
+        file(build, 'keep.txt', 'hand written\n');
+        const one = await render(['--check', gen, build]);
+        Assert.deepStrictEqual(one, { out: '', err: '', code: 0 });
+        file(build, 'held.txt', 'hand written\n');
+        const both = await render(['--check', gen, build]);
+        Assert.equal(both.code, 1);
+        Assert.equal(both.out, 'content: held.txt\n');
+        // `checked` still names every path the generator claims.
+        const j = await render(['--check', '--format', 'json', gen, build]);
+        Assert.equal(j.code, 1);
+        const got = JSON.parse(j.out);
+        Assert.deepStrictEqual(got.checked, ['held.txt', 'keep.txt']);
+        Assert.deepStrictEqual(got.drift, [{ kind: 'content', path: 'held.txt' }]);
+    });
+    (0, node_test_1.test)('check-reports-an-absent-excluded-file', async () => {
+        const d = dir();
+        const gen = file(d, 'gen.aon', 'out: project(".", [file({name: "keep.txt", exclude: true}, ["gen"])])\n');
+        const build = Path.join(d, 'build');
+        Fs.mkdirSync(build);
+        // `exclude` is gated on the target existing, so the write path
+        // WOULD write this one: `missing` survives the skip.
+        const r = await render(['--check', gen, build]);
+        Assert.equal(r.code, 1);
+        Assert.equal(r.out, 'missing: keep.txt\n');
+    });
+    (0, node_test_1.test)('check-skips-an-excluded-mode', async () => {
+        const d = dir();
+        const gen = file(d, 'gen.aon', 'out: project(".", [' +
+            'file({name: "run.sh", exclude: true, mode: 493}, ["#!/bin/sh"])])\n');
+        const build = Path.join(d, 'build');
+        Assert.equal((await render([gen, build])).code, 0);
+        // The write path returns before it saves, so it does not chmod
+        // either: the mode difference is not a difference `render` makes.
+        Fs.chmodSync(Path.join(build, 'run.sh'), 0o644);
+        Assert.equal((await render([gen, build])).code, 0);
+        const r = await render(['--check', gen, build]);
+        Assert.deepStrictEqual(r, { out: '', err: '', code: 0 });
+    });
+    (0, node_test_1.test)('check-follows-the-write-path-for-every-exclude-form', async () => {
+        const d = dir();
+        const build = Path.join(d, 'build');
+        // What the write path skips, and nothing else. A pattern form is
+        // matched against the COMPONENT path, so `k.txt` skips the file and
+        // `other.txt` does not, which is the rule rather than the spelling.
+        for (const [name, prop, drift] of [
+            ['none.aon', '', true],
+            ['false.aon', ', exclude: false', true],
+            ['string.aon', ', exclude: "k.txt"', false],
+            ['list.aon', ', exclude: ["k.txt"]', false],
+            ['other.aon', ', exclude: "other.txt"', true],
+        ]) {
+            const gen = file(d, name, `out: project(".", [file({name: "k.txt"${prop}}, ["generated"])])\n`);
+            Assert.equal((await render([gen, build])).code, 0);
+            file(build, 'k.txt', 'hand written\n');
+            const r = await render(['--check', gen, build]);
+            Assert.equal(r.code, drift ? 1 : 0, name);
+            Assert.equal(r.out, drift ? 'content: k.txt\n' : '', name);
+            // The write path's own answer, which the check must match: the
+            // bytes survive a render exactly where no drift was reported.
+            Assert.equal((await render([gen, build])).code, 0);
+            Assert.equal(Fs.readFileSync(Path.join(build, 'k.txt'), 'utf8'), drift ? 'generated\n' : 'hand written\n', name);
+            Fs.rmSync(Path.join(build, 'k.txt'));
+        }
+    });
+    (0, node_test_1.test)('check-skips-an-excluded-file-in-a-set', async () => {
+        const d = dir();
+        const gens = Path.join(d, 'gens');
+        Fs.mkdirSync(gens);
+        file(gens, 'a.aon', 'out: file({name: "solo.txt", exclude: true}, ["gen"])\n');
+        file(gens, 'b.aon', 'out: project(".", [file({name: "two.txt", exclude: true}, ["gen"])])\n');
+        const build = Path.join(d, 'build');
+        Assert.equal((await render([gens, build])).code, 0);
+        // A set is an ARRAY of trees, and a tree may itself BE the
+        // excluded File: pruning empties the array.
+        file(build, 'solo.txt', 'hand\n');
+        file(build, 'two.txt', 'hand\n');
+        const r = await render(['--check', gens, build]);
+        Assert.deepStrictEqual(r, { out: '', err: '', code: 0 });
+    });
+    (0, node_test_1.test)('check-skips-an-excluded-root-file', async () => {
+        const d = dir();
+        const gen = file(d, 'gen.aon', 'out: file({name: "ignored.txt", exclude: true}, ["generated"])\n');
+        const dest = Path.join(d, 'target.txt');
+        // The path names the file, so the root File is renamed first and
+        // pruning leaves no tree at all.
+        Assert.equal((await render([gen, dest])).code, 0);
+        Fs.writeFileSync(dest, 'hand written\n');
+        const r = await render(['--check', gen, dest]);
+        Assert.deepStrictEqual(r, { out: '', err: '', code: 0 });
+        Assert.equal(Fs.readFileSync(dest, 'utf8'), 'hand written\n');
+    });
+    (0, node_test_1.test)('check-skips-an-excluded-file-beside-a-bare-node', async () => {
+        const d = dir();
+        const gen = file(d, 'gen.aon', 'out: { cmp: "Project", props: {folder: "."}, children: [\n' +
+            '  { cmp: "File", props: {name: "keep.txt", exclude: true},\n' +
+            '    children: [{cmp: "Line", props: {src: "gen"}}] }\n' +
+            '  { cmp: "Folder", props: {name: "empty"} }\n' +
+            '  { cmp: "File", children: [] }\n' +
+            '] }\n');
+        const build = Path.join(d, 'build');
+        Assert.equal((await render([gen, build])).code, 0);
+        // A hand-written tree carries nodes with no `children` and a File
+        // with no `props`: the walk reads both without composing a path.
+        file(build, 'keep.txt', 'hand written\n');
+        const r = await render(['--check', gen, build]);
+        Assert.deepStrictEqual(r, { out: '', err: '', code: 0 });
     });
     (0, node_test_1.test)('check-one-file-in-the-current-directory', async () => {
         const d = dir();

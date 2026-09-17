@@ -436,6 +436,7 @@ func TestSpec(t *testing.T) {
 
 				case "why":
 					var golden struct {
+						Class     string        `json:"class"`
 						Code      string        `json:"code"`
 						Conjuncts []WhyConjunct `json:"conjuncts"`
 						Note      string        `json:"note"`
@@ -459,29 +460,32 @@ func TestSpec(t *testing.T) {
 						t.Fatalf("why conjuncts mismatch\n src:  %q\n path: %q\n want: %s\n got:  %s",
 							src, data, specJSON(t, golden.Conjuncts), specJSON(t, conjuncts))
 					}
-					code, note := "", ""
+					code, class, note := "", "", ""
 					if 0 < len(wr.Findings) {
 						code = wr.Findings[0].Code
+						class = wr.Findings[0].Class
 						if nil != wr.Findings[0].Note {
 							note = *wr.Findings[0].Note
 						}
 					}
-					if code != golden.Code || note != golden.Note {
-						t.Fatalf("why finding mismatch\n want: %q/%q\n got:  %q/%q",
-							golden.Code, golden.Note, code, note)
+					if code != golden.Code || class != golden.Class ||
+						note != golden.Note {
+						t.Fatalf("why finding mismatch\n want: %q/%q/%q\n got:  %q/%q/%q",
+							golden.Code, golden.Class, golden.Note, code, class, note)
 					}
 
 				case "query":
 					// The golden carries the run's options under
 					// `opts`; `out` is the rendered slice, and
-					// `code`/`note` the finding when the answer is a
-					// refusal. `message` is excluded, as every other
-					// verb's goldens exclude it.
+					// `class`/`code`/`note` the finding when the answer
+					// is a refusal. `message` is excluded, as every
+					// other verb's goldens exclude it.
 					var golden struct {
-						Code string `json:"code"`
-						Note string `json:"note"`
-						Out  string `json:"out"`
-						Opts struct {
+						Class string `json:"class"`
+						Code  string `json:"code"`
+						Note  string `json:"note"`
+						Out   string `json:"out"`
+						Opts  struct {
 							Depth int    `json:"depth"`
 							View  string `json:"view"`
 						} `json:"opts"`
@@ -498,16 +502,18 @@ func TestSpec(t *testing.T) {
 						t.Fatalf("query out mismatch\n src:  %q\n path: %q\n want: %q\n got:  %q",
 							src, data, golden.Out, report.Out)
 					}
-					code, note := "", ""
+					code, class, note := "", "", ""
 					if 0 < len(report.Findings) {
 						code = report.Findings[0].Code
+						class = report.Findings[0].Class
 						if nil != report.Findings[0].Note {
 							note = *report.Findings[0].Note
 						}
 					}
-					if code != golden.Code || note != golden.Note {
-						t.Fatalf("query finding mismatch\n want: %q/%q\n got:  %q/%q",
-							golden.Code, golden.Note, code, note)
+					if code != golden.Code || class != golden.Class ||
+						note != golden.Note {
+						t.Fatalf("query finding mismatch\n want: %q/%q/%q\n got:  %q/%q/%q",
+							golden.Code, golden.Class, golden.Note, code, class, note)
 					}
 					assertViewSubsumes(t, name, src, data, report, qopts.View)
 

@@ -3,7 +3,7 @@
 
 import { Aontu } from './aontu'
 import { ConjunctVal } from './val/ConjunctVal'
-import { anchorAt } from './vet'
+import { anchorAt, engineFinding } from './vet'
 import type { VetFinding } from './vet'
 import { evalFailure, nearestKey, pathParts } from './query'
 import { includeOpts } from './utility'
@@ -101,7 +101,7 @@ function readEntries(
     const text: string = true === el.isString ? el.peg : el.gen(ctx)
     if (before < ctx.err.length) {
       const err: any = ctx.err[before]
-      return { entries, finding: finding(err.why, `${by}.${i}`, err.msg) }
+      return { entries, finding: engineFinding(err, ctx, `${by}.${i}`) }
     }
     entries.push({ parts: pathParts(text), text, by: `${by}.${i}` })
   }
@@ -174,7 +174,7 @@ export function allow(
   const root: any = aontu.unify(
     new ConjunctVal({ peg: [model, shape] }, ctx), undefined, ctx)
   if (0 < ctx.err.length || true === root.isNil) {
-    return errorReport(role, evalFailure(ctx))
+    return errorReport(role, evalFailure(ctx, root))
   }
 
   const roles: any = anchorAt(root, at)

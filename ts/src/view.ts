@@ -4,7 +4,7 @@
 import { basename, dirname, isAbsolute, relative, resolve } from 'node:path'
 
 import { Aontu } from './aontu'
-import { failureFinding, anchorAt, throughResidue } from './vet'
+import { failureFinding, engineFinding, anchorAt, throughResidue } from './vet'
 import type { VetFinding } from './vet'
 import type { TrustOptions } from './type'
 import { graphOf } from './graph'
@@ -2544,10 +2544,8 @@ function drawLoaded(
       const before = ctx.err.length
       value = root.gen(ctx)
       if (before < ctx.err.length) {
-        const err: any = ctx.err[before]
         return {
-          errors: [finding(err?.why ?? 'unify_failed', 'reference', '$',
-            err?.msg ?? 'The document does not generate.')],
+          errors: [engineFinding(ctx.err[before], ctx, '$')],
         }
       }
     }
@@ -2749,11 +2747,9 @@ export function viewSet(
   const before = ctx.err.length
   const value = root.gen(ctx)
   if (before < ctx.err.length) {
-    const err: any = ctx.err[before]
     return {
       verdict: 'error', views: [],
-      errors: [finding(err?.why ?? 'unify_failed', 'reference', '$',
-        err?.msg ?? 'The document does not generate.')],
+      errors: [engineFinding(ctx.err[before], ctx, '$')],
     }
   }
   const declared = genAt(value, at)

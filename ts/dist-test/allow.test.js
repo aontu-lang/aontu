@@ -217,7 +217,9 @@ function failure(src, role = 'dev', path = '$.a') {
         const kind = failure('roles: dev: { allow: [string] }');
         Assert.equal(kind.code, 'no_gen');
         Assert.equal(kind.path, '$.roles.dev.allow.0');
-        Assert.equal(kind.class, 'reference');
+        // The registry's class for the engine's code, and the headline.
+        Assert.equal(kind.class, 'incomplete');
+        Assert.equal(kind.message, '[aontu/no_gen]: Cannot resolve value at path $.roles.dev.allow.0');
         Assert.deepEqual(kind.sites, []);
         // A hidden kind is no more concrete for being hidden, and the
         // second entry is where the deny list fails.
