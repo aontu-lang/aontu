@@ -344,7 +344,7 @@ func evalError(uerr error, root Val, ctx *Ctx) error {
 		_, gerr := nv.Gen(ctx)
 		return gerr
 	}
-	return nil
+	return nil //coverage:ignore the arm for a root that is nil-the-INTERFACE rather than nil-the-value, which unifyRoot cannot return: every caller's guard is `nil != uerr || nil == root || root.Nil()`, and Nil() is true of *NilVal alone, so a root reaching here carries no code and the caller's generic one stands (the same last resort failureFinding keeps in go/vet.go)
 }
 
 // queryFailed folds an evaluation failure into the report. A document

@@ -97,6 +97,7 @@ query-k-deeper-json	query	svc:{auth:{image:"a:v2",replicas:3,ports:[80,443]},db:
 query-esc-a-b-json	query	svc:{auth:{image:"a:v2",replicas:3,ports:[80,443]},db:{host:"h"}}\nport: *8080|integer\nk: integer\nc: integer&min(3)\nl: close({z:1})\nopt:{q?:1}\nsp:{&:{n:integer},x:{n:1}}\nesc:{"a.b":1}\nu:{"é":1,"A":2}	$.esc.a.b	{"class": "reference", "code": "no_path"}
 query-root-json-2	query	a:1 a:2	$	{"class": "conflict", "code": "scalar_value"}
 query-root-canon-2	query	a:1 a:2	$	{"class": "conflict", "code": "scalar_value", "opts": {"view": "canon"}}
+query-root-literal-nil	query	nil	$	{"class": "conflict", "code": "literal_nil"}
 query-a-b-json	query	a:{b:[1,{c:2}]}	$.a.b	{"out": "[\\n  1,\\n  {\\n    \\"c\\": 2\\n  }\\n]"}
 query-a-b-1-json	query	a:{b:[1,{c:2}]}	$.a.b.1	{"out": "{\\n  \\"c\\": 2\\n}"}
 query-a-b-canon	query	a:{b:[1,{c:2}]}	$.a.b	{"opts": {"view": "canon"}, "out": "[1,{\\"c\\":2}]"}

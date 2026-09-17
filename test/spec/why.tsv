@@ -43,6 +43,7 @@ why-list-spread	why	l:[&:integer,1,2]	$.l	{"conjuncts":[{"canon":"[&:integer,1,2
 why-nested-leaf	why	a:{b:{c:1}}	$.a.b.c	{"conjuncts":[{"canon":"1","role":"literal","site":{"col":9,"file":"","len":1,"row":1},"src":"1"}],"value":"1"}
 why-no-path	why	a:1	$.zz	{"class":"reference","code":"no_path"}
 why-conflict	why	a:1 a:2	$.a	{"class":"conflict","code":"scalar_value"}
+why-root-literal-nil	why	nil	$	{"class":"conflict","code":"literal_nil"}
 why-unparseable	why	a:]	$	{"class":"parse","code":"syntax"}
 why-plus-op	why	x: 1 y: $.x + 1	$.y	{"conjuncts":[{"canon":"1","role":"literal","site":{"col":4,"file":"","len":1,"row":1},"src":"1"},{"canon":"$.x+1","role":"literal","site":{"col":9,"file":"","len":1,"row":1},"src":"$"}],"value":"2"}
 why-type-and-literal	why	t: type({k:integer})\nu: t & {k:1}	$.u.k	{"class":"conflict","code":"scalar_kind"}

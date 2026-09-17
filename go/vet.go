@@ -230,28 +230,32 @@ func hintOf(why string, details map[string]string) *string {
 	return &text
 }
 
-func findingOf(n *NilVal, prov vetProv, sources vetSources) VetFinding {
-	f := VetFinding{
-		Class:    n.Class(),
-		Code:     n.why,
-		Hint:     hintOf(n.why, n.details),
-		Message:  n.Headline(),
-		Path:     n.Path(),
-		Severity: "error",
-		Sites:    sitesOf(n, prov, sources),
-	}
+func fromRegistry(f VetFinding, code string,
+	details map[string]string) VetFinding {
+	f.Hint = hintOf(code, details)
 
-	if v, ok := n.details["expected"]; ok {
+	if v, ok := details["expected"]; ok {
 		f.Expected = &v
 	}
-	if v, ok := n.details["actual"]; ok {
+	if v, ok := details["actual"]; ok {
 		f.Actual = &v
 	}
-	if v, ok := n.details["message"]; ok {
+	if v, ok := details["message"]; ok {
 		f.Note = &v
 	}
 
 	return f
+}
+
+func findingOf(n *NilVal, prov vetProv, sources vetSources) VetFinding {
+	return fromRegistry(VetFinding{
+		Class:    n.Class(),
+		Code:     n.why,
+		Message:  n.Headline(),
+		Path:     n.Path(),
+		Severity: "error",
+		Sites:    sitesOf(n, prov, sources),
+	}, n.why, n.details)
 }
 
 // vetOrderPad zero-pads row and column so lexicographic order is numeric
@@ -354,8 +358,7 @@ func throughResidue(v Val) Val {
 	return v
 }
 
-// ansiRe matches the terminal colour escapes the parser puts in its
-// message text. A machine-readable report is no place for them.
+// The parser's colour escapes: no place in a machine-readable report.
 var ansiRe = regexp.MustCompile("\u001b\\[[0-9;]*m")
 
 // headline is a rendered engine message cut to its first line.
@@ -381,25 +384,14 @@ func engineFinding(err error, path string) VetFinding {
 		msg = ae.Msg
 		details = ae.Details
 	}
-	f := VetFinding{
+	return fromRegistry(VetFinding{
 		Class:    codeClass(code),
 		Code:     code,
-		Hint:     hintOf(code, details),
 		Message:  headline(msg),
 		Path:     path,
 		Severity: "error",
 		Sites:    []VetSite{},
-	}
-	if v, ok := details["expected"]; ok {
-		f.Expected = &v
-	}
-	if v, ok := details["actual"]; ok {
-		f.Actual = &v
-	}
-	if v, ok := details["message"]; ok {
-		f.Note = &v
-	}
-	return f
+	}, code, details)
 }
 
 func parseFinding(url, role string, err error) VetFinding {
