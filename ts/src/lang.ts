@@ -1544,9 +1544,13 @@ function makeModelResolver(options: any) {
 
   const memCapability =
     'object' === typeof capability && null != (capability as any).mem
+  // An EMPTY root denies: resolving it yields the process directory.
+  const emptyRoot =
+    'object' === typeof capability && '' === (capability as any).root
   const rootDir: string | undefined =
     'object' === typeof capability &&
-      'string' === typeof (capability as any).root
+      'string' === typeof (capability as any).root &&
+      '' !== (capability as any).root
       ? pathResolve((capability as any).root) : undefined
 
   let memResolver = makeMemResolver(memCapability
@@ -1584,7 +1588,7 @@ function makeModelResolver(options: any) {
   const deny = (path: string): never => {
     // Only 'none' and 'root' can deny: the mem capability's misses are
     // not-found (its set is the whole world), so there is no third arm.
-    const capname = 'none' === capability ? 'none' : 'root:' + rootDir
+    const capname = null == rootDir ? 'none' : 'root:' + rootDir
     const err: any = new Error(
       'include denied: ' + path + ' (capability: ' + capname + ')')
     err.code = 'include_denied'
@@ -1679,7 +1683,7 @@ function makeModelResolver(options: any) {
       return { found: false, path: '' + (path ?? ''), search: [] }
     }
 
-    if ('none' === capability) {
+    if ('none' === capability || emptyRoot) {
       deny(path)
     }
 

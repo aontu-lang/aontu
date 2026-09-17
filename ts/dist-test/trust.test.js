@@ -132,6 +132,15 @@ function firstCode(fn) {
             trust: { include: { root: Path.join(w.dir, 'no-such-root') } },
         }).generate(`a:@"${(0, srcpath_1.srcPath)(w.root)}/in.aon"`)), 'include_denied');
     });
+    // An EMPTY root is not a root: resolving it would confine the caller
+    // below the process directory, which nothing named.
+    (0, node_test_1.test)('an-empty-root-denies-every-include', () => {
+        const w = world();
+        const src = `a:@"${(0, srcpath_1.srcPath)(w.root)}/in.aon"`;
+        Assert.deepEqual(new aontu_1.Aontu({ trust: { include: { root: w.root } } }).generate(src), { a: { f: 11 } });
+        Assert.equal(firstCode(() => new aontu_1.Aontu({ trust: { include: { root: '' } } }).generate(src)), 'include_denied');
+        Assert.throws(() => new aontu_1.Aontu({ trust: { include: { root: '' } } }).generate(src), /capability: none/);
+    });
     (0, node_test_1.test)('pkg-resolution-is-recorded-and-warned', () => {
         const warned = [];
         const a = new aontu_1.Aontu({

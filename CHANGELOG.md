@@ -10,6 +10,29 @@ which implementation each change affects.
 Landed since the last release, and in the repository rather than in a
 published package.
 
+### An empty include root denies, and the MCP server refuses one
+
+**`aontu mcp --root ""` served the working directory.** The server's
+`--root` took an empty argument where the two trust flags now refuse
+one, so a wrapper interpolating an unset variable started a server that
+read `<name>Path` arguments and resolved `@"..."` includes below the
+process directory, where a server started with no `--root` refuses path
+arguments outright. An empty argument is now the same usage error.
+
+**The TypeScript library's `{ include: { root: '' } }` confined to the
+process directory.** `path.resolve('')` answers the working directory,
+so a host that passed an empty root got a confinement nothing named
+instead of a refusal. An empty root now denies every include, which is
+how both language servers already read one, and the denial names the
+capability `none` rather than a directory. Go needs no change here: its
+`TrustOptions.IncludeRoot` is a flat string whose zero value is an
+absent root, so there is no way to spell "a root, and it is empty";
+`docs/trust.md` and the API reference now say that.
+
+Pinned by `an-empty-root-denies-every-include` and a row in
+`server-startup-arguments`, both confirmed to fail with the fixes
+reverted.
+
 ### Two defects the help-text sweep turned up, in both ports
 
 **`--include-root ""` was accepted, and the two ports confined

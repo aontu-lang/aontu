@@ -24,7 +24,7 @@ function parseArgs(argv) {
         }
         if ('--root' === arg) {
             const dir = argv[++i];
-            if (null == dir) {
+            if (null == dir || '' === dir) {
                 return { err: 'aontu-mcp: --root needs a directory' };
             }
             root = dir;

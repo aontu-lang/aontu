@@ -3148,7 +3148,10 @@ Go mirrors it as `Aontu.Trust` (`TrustOptions`: `IncludeNone`,
 parse-stage `include_denied` error, pinned by
 `test/spec/include-trust.tsv` in both runners. Confinement is
 realpath-then-prefix-check on the resolved file, so a symlink inside the
-root pointing outside it is denied. Note `fs` is *not* a sandbox: it
+root pointing outside it is denied. An **empty** `root` denies every
+include rather than resolving to the process directory; Go's flat
+`IncludeRoot` has no spelling for it, its zero value being an absent
+root. Note `fs` is *not* a sandbox: it
 supplies source text for parsing and error context, and the file and
 package legs read through their own channels; the trust profile is the
 confinement surface.

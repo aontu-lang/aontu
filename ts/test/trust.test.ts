@@ -138,6 +138,23 @@ describe('trust-include', () => {
       'include_denied')
   })
 
+  // An EMPTY root is not a root: resolving it would confine the caller
+  // below the process directory, which nothing named.
+  test('an-empty-root-denies-every-include', () => {
+    const w = world()
+    const src = `a:@"${srcPath(w.root)}/in.aon"`
+    Assert.deepEqual(
+      new Aontu({ trust: { include: { root: w.root } } }).generate(src),
+      { a: { f: 11 } })
+    Assert.equal(
+      firstCode(() =>
+        new Aontu({ trust: { include: { root: '' } } }).generate(src)),
+      'include_denied')
+    Assert.throws(
+      () => new Aontu({ trust: { include: { root: '' } } }).generate(src),
+      /capability: none/)
+  })
+
   test('pkg-resolution-is-recorded-and-warned', () => {
     const warned: string[] = []
     const a = new Aontu({

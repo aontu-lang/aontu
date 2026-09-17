@@ -244,6 +244,15 @@ implementations, at every surface:
   version denies those resolutions by default, and `--trust system`
   keeps the unconfined chain.
 
+**An empty root is not a root.** Both CLIs refuse `--include-root ""`
+and `--trust root:`, and the MCP server refuses `--root ""`. The
+TypeScript library denies every include under `{root: ''}`, which is
+how both language servers already read an empty explicit root. None of
+those roads resolves the empty string, because resolving it yields the
+process directory, a root nothing named. Go's
+`TrustOptions.IncludeRoot` has no spelling for the case at all: its
+zero value is an absent root, and an absent root is `'system'`.
+
 Denied resolution is a located, deterministic parse-stage error
 (`include_denied`) like any other (never a silent skip) and is
 raised, not injected as a value, so a bare-member include

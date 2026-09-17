@@ -615,6 +615,7 @@ function hostileModule(dir) {
         Assert.deepEqual((0, mcp_server_1.parseArgs)([]), { root: undefined });
         Assert.deepEqual((0, mcp_server_1.parseArgs)(['--root', '/tmp']), { root: '/tmp' });
         Assert.match((0, mcp_server_1.parseArgs)(['--root']).err, /needs a directory/);
+        Assert.match((0, mcp_server_1.parseArgs)(['--root', '']).err, /needs a directory/);
         Assert.match((0, mcp_server_1.parseArgs)(['--zig']).err, /unknown option/);
         Assert.deepEqual((0, mcp_server_1.parseArgs)(['--help']), { help: true });
         Assert.deepEqual((0, mcp_server_1.parseArgs)(['-h']), { help: true });
