@@ -11,7 +11,8 @@
     "target": "ES2021",
     "types": [
       "node"
-    ]
+    ],
+    "tsBuildInfoFile": "../.tsbuild/test.tsbuildinfo"
   },
   "references": [
     {
